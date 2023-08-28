@@ -1,0 +1,12 @@
+{
+  "cases": ["1.*", "2.*", "3.*", "4.*", "5.*", "6.*", "7.*", "9.*", "10.*"],
+  "exclude-agent-cases": {},
+  "exclude-cases": [],
+  "outdir": "/autobahn/reports/fuzzingclient",
+  "servers": [
+    {
+      "agent": "wtx",
+      "url": "ws://127.0.0.1:8080"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  autobahn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly-2023-08-01
+      - uses: Swatinem/rust-cache@v2
+
+      - run: .scripts/autobahn.sh ci
+
+#  fuzz:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#      - uses: actions-rs/toolchain@v1
+#        with:
+#          override: true
+#          profile: minimal
+#          toolchain: nightly-2023-08-01
+#      - uses: actions-rs/install@v0.1
+#        with:
+#          crate: cargo-fuzz
+#          use-tool-cache: true
+#
+#      - run: .scripts/fuzz.sh
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          override: true
+          profile: minimal
+          toolchain: nightly-2023-08-01
+      - uses: Swatinem/rust-cache@v2
+
+      - run: .scripts/wtx.sh

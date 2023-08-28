@@ -1,0 +1,19 @@
+[profile.profiling]
+inherits = "release"
+debug = true
+
+[profile.release]
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+panic = 'abort'
+rpath = false
+strip = "debuginfo"
+
+[workspace]
+members = ["wtx-bench", "wtx", "wtx-fuzz"]
+resolver = "2"
