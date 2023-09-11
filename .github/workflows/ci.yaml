@@ -9,7 +9,7 @@ jobs:
   autobahn:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -22,7 +22,7 @@ jobs:
 #  fuzz:
 #    runs-on: ubuntu-latest
 #    steps:
-#      - uses: actions/checkout@v3
+#      - uses: actions/checkout@v4
 #      - uses: actions-rs/toolchain@v1
 #        with:
 #          override: true
@@ -38,7 +38,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
