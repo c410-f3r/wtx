@@ -6,10 +6,10 @@ on:
       - main
 
 jobs:
-  autobahn:
+  autobahn-fuzzingclient:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -17,28 +17,47 @@ jobs:
           toolchain: nightly-2023-08-01
       - uses: Swatinem/rust-cache@v2
 
-      - run: .scripts/autobahn.sh ci
+      - run: .scripts/autobahn-fuzzingclient.sh ci
+    strategy:
+      fail-fast: true
 
-#  fuzz:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v3
-#      - uses: actions-rs/toolchain@v1
-#        with:
-#          override: true
-#          profile: minimal
-#          toolchain: nightly-2023-08-01
-#      - uses: actions-rs/install@v0.1
-#        with:
-#          crate: cargo-fuzz
-#          use-tool-cache: true
-#
-#      - run: .scripts/fuzz.sh
+  autobahn-fuzzingserver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly-2023-08-01
+      - uses: Swatinem/rust-cache@v2
+
+      - run: .scripts/autobahn-fuzzingserver.sh ci
+    strategy:
+      fail-fast: true
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly-2023-08-01
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-fuzz
+          use-tool-cache: true
+
+      - run: .scripts/fuzz.sh
+    strategy:
+      fail-fast: true
 
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -47,4 +66,6 @@ jobs:
           toolchain: nightly-2023-08-01
       - uses: Swatinem/rust-cache@v2
 
-      - run: .scripts/wtx.sh
+      - run: .scripts/internal-tests.sh
+    strategy:
+      fail-fast: true

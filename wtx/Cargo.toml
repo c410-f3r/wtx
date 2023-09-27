@@ -1,68 +1,91 @@
-[[example]]
-name = "web_socket_client_autobahn_raw_tokio"
-required-features = ["tokio", "web-socket-handshake"]
+[[bin]]
+name = "autobahn-client"
+required-features = ["flate2", "tokio/macros", "tokio/rt", "web-socket-handshake"]
+
+[[bin]]
+name = "autobahn-server"
+required-features = ["flate2", "tokio/macros", "tokio/rt", "web-socket-handshake"]
+
+[[bin]]
+name = "web-socket-profiling"
+required-features = ["tokio/macros", "tokio/rt"]
 
 [[example]]
-name = "web_socket_client_cli_raw_tokio_rustls"
-required-features = ["tokio-rustls", "web-socket-handshake"]
+name = "web-socket-client-cli-raw-tokio-rustls"
+required-features = ["rustls-pemfile", "tokio/io-std", "tokio-rustls/tls12", "web-socket-handshake", "webpki-roots"]
 
 [[example]]
-name = "web_socket_server_echo_hyper"
-required-features = ["web-socket-hyper"]
+name = "web-socket-server-echo-raw-async-std"
+required-features = ["async-std/attributes", "web-socket-handshake"]
 
 [[example]]
-name = "web_socket_server_echo_raw_async_std"
-required-features = ["async-std", "web-socket-handshake"]
-
-[[example]]
-name = "web_socket_server_echo_raw_glommio"
+name = "web-socket-server-echo-raw-glommio"
 required-features = ["glommio", "web-socket-handshake"]
 
 [[example]]
-name = "web_socket_server_echo_raw_tokio"
-required-features = ["tokio", "web-socket-handshake"]
+name = "web-socket-server-echo-raw-monoio"
+required-features = ["monoio/iouring", "monoio/legacy", "monoio/macros", "web-socket-handshake"]
 
 [[example]]
-name = "web_socket_server_echo_raw_tokio_rustls"
-required-features = ["tokio-rustls", "web-socket-handshake"]
+name = "web-socket-server-echo-raw-smol"
+required-features = ["smol", "web-socket-handshake"]
 
 [[example]]
-name = "web_socket"
-path = "profiling/web_socket.rs"
+name = "web-socket-server-echo-raw-tokio"
+required-features = ["tokio/macros", "web-socket-handshake"]
+
+[[example]]
+name = "web-socket-server-echo-raw-tokio-uring"
+required-features = ["tokio-uring", "web-socket-handshake"]
+
+[[example]]
+name = "web-socket-server-echo-raw-tokio-rustls"
+required-features = ["rustls-pemfile", "tokio-rustls", "web-socket-handshake"]
 
 [dependencies]
+arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
-async-trait = { default-features = false, optional = true, version = "0.1" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.21" }
+embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.1" }
+flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
 http = { default-features = false, optional = true, version = "0.2" }
 httparse = { default-features = false, optional = true, version = "1.0" }
-hyper = { default-features = false, features = ["client", "http1", "server"], optional = true, version = "0.14" }
-rand = { default-features = false, features = ["getrandom", "small_rng"], version = "0.8" }
+monoio = { default-features = false, optional = true, version = "0.1" }
+rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
+rustls-pemfile = { default-features = false, optional = true, version = "1.0" }
 sha1 = { default-features = false, optional = true, version = "0.10" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
+smol = { default-features = false, optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-util", "net"], optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.24" }
+tokio-uring = { default-features = false, optional = true, version = "0.4" }
+tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
+webpki-roots = { default-features = false, optional = true, version = "0.25" }
+
+tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], version = "0.3" }
+tracing-tree = { default-features = false, version = "0.2" }
 
 [dev-dependencies]
-async-std = { default-features = false, features = ["attributes"], version = "1.0" }
-tokio = { default-features = false, features = ["macros", "rt-multi-thread", "time"], version = "1.0" }
-tokio-rustls = { default-features = false, features = ["tls12"], version = "0.24" }
-rustls-pemfile = { default-features = false, version = "1.0" }
-webpki-roots = { default-features = false, version = "0.25" }
-wtx = { default-features = false, features = ["std", "tokio"], path = "." }
+tokio = { default-features = false, features = ["macros", "rt", "time"], version = "1.0" }
+wtx = { default-features = false, features = ["flate2", "std", "tokio"], path = "." }
 
 [features]
+arbitrary = ["dep:arbitrary", "std"]
 async-std = ["dep:async-std", "std"]
 default = []
 glommio = ["futures-lite", "dep:glommio"]
-hyper = ["http", "dep:hyper", "tokio"]
+nightly = []
 std = []
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["tokio", "dep:tokio-rustls"]
 web-socket-handshake = ["base64", "httparse", "sha1"]
-web-socket-hyper = ["hyper", "web-socket-handshake"]
+
+# Dependencies that don't support `no-default-features`.
+#
+# Used internally to avoid unnecessary poll of unused dependencies or unused features for downstream.
+_hack = ["embassy-net/medium-ethernet", "embassy-net/proto-ipv4"]
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
