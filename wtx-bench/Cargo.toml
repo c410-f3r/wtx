@@ -1,5 +1,4 @@
 [dependencies]
-hyper = { default-features = false, features = ["client", "http1", "server", "tcp"], version = "0.14" }
 plotters = { default-features = false, features = ["histogram", "svg_backend"], version = "0.3" }
 tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.0" }
 wtx = { features = ["tokio", "web-socket-handshake"], path = "../wtx" }

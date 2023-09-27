@@ -1,0 +1,22 @@
+[dependencies]
+clap = { default-features = false, features = ["derive", "help", "std", "usage"], optional = true, version = "4.0" }
+tokio = { default-features = false, features = ["io-std", "macros", "rt"], version = "1.0" }
+wtx = { default-features = false, path = "../wtx" }
+
+[features]
+default = []
+
+[package]
+authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
+categories = ["asynchronous", "command-line-interface", "gui"]
+description = "Different user interfaces for WTX"
+edition = "2021"
+keywords = ["io", "network", "websocket"]
+license = "Apache-2.0"
+name = "wtx-ui"
+readme = "README.md"
+repository = "https://github.com/c410-f3r/wtx"
+version = "0.1.0"
+
+[package.metadata.docs.rs]
+all-features = true
