@@ -97,7 +97,7 @@ license = "Apache-2.0"
 name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-version = "0.5.2"
+version = "0.6.0"
 
 [package.metadata.docs.rs]
 all-features = true
