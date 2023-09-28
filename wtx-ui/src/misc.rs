@@ -59,9 +59,8 @@ pub(crate) async fn _serve(
     let _jh = tokio::spawn(async move {
       let sun = || async move {
         let pb = PartitionedBuffer::default();
-        let (_, mut ws) = WebSocketServer::accept(WebSocketAcceptRaw {
+        let mut ws = WebSocketServer::accept(WebSocketAcceptRaw {
           compression: (),
-          headers_buffer: &mut <_>::default(),
           key_buffer: &mut <_>::default(),
           pb,
           rng: StdRng::default(),

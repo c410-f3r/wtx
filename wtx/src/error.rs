@@ -54,19 +54,7 @@ pub enum Error {
   /// See [glommio::GlommioError].
   #[cfg(feature = "glommio")]
   Glommio(Box<glommio::GlommioError<()>>),
-  #[cfg(feature = "http")]
-  /// See [http::Error]
-  HttpError(http::Error),
-  /// See [http::header::InvalidHeaderName]
-  #[cfg(feature = "http")]
-  HttpInvalidHeaderName(http::header::InvalidHeaderName),
-  /// See [http::header::InvalidHeaderValue]
-  #[cfg(feature = "http")]
-  HttpInvalidHeaderValue(http::header::InvalidHeaderValue),
-  /// See [http::status::InvalidStatusCode]
-  #[cfg(feature = "http")]
-  HttpInvalidStatusCode(http::status::InvalidStatusCode),
-  #[cfg(feature = "web-socket-handshake")]
+  #[cfg(feature = "httparse")]
   /// See [httparse::Error].
   HttpParse(httparse::Error),
   #[cfg(feature = "std")]
@@ -125,39 +113,7 @@ impl From<glommio::GlommioError<()>> for Error {
   }
 }
 
-#[cfg(feature = "http")]
-impl From<http::Error> for Error {
-  #[inline]
-  fn from(from: http::Error) -> Self {
-    Self::HttpError(from)
-  }
-}
-
-#[cfg(feature = "http")]
-impl From<http::header::InvalidHeaderName> for Error {
-  #[inline]
-  fn from(from: http::header::InvalidHeaderName) -> Self {
-    Self::HttpInvalidHeaderName(from)
-  }
-}
-
-#[cfg(feature = "http")]
-impl From<http::header::InvalidHeaderValue> for Error {
-  #[inline]
-  fn from(from: http::header::InvalidHeaderValue) -> Self {
-    Self::HttpInvalidHeaderValue(from)
-  }
-}
-
-#[cfg(feature = "http")]
-impl From<http::status::InvalidStatusCode> for Error {
-  #[inline]
-  fn from(from: http::status::InvalidStatusCode) -> Self {
-    Self::HttpInvalidStatusCode(from)
-  }
-}
-
-#[cfg(feature = "web-socket-handshake")]
+#[cfg(feature = "httparse")]
 impl From<httparse::Error> for Error {
   #[inline]
   fn from(from: httparse::Error) -> Self {

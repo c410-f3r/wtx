@@ -51,9 +51,8 @@ where
   let _server_jh = tokio::spawn(async move {
     let (stream, _) = listener.accept().await.unwrap();
     let mut fb = FrameBufferVec::with_capacity(0);
-    let (_, mut ws) = WebSocketServerOwned::accept(WebSocketAcceptRaw {
+    let mut ws = WebSocketServerOwned::accept(WebSocketAcceptRaw {
       compression: server_compression,
-      headers_buffer: &mut <_>::default(),
       key_buffer: &mut <_>::default(),
       pb: PartitionedBuffer::with_capacity(0),
       rng: StdRng::default(),
@@ -63,10 +62,10 @@ where
     .unwrap();
     call_tests!(
       (server, &mut fb, &mut ws),
-      //FragmentedText,
-      //LargeFragmentedText,
-      //PingAndText,
-      //PingBetweenFragmentedText,
+      FragmentedText,
+      LargeFragmentedText,
+      PingAndText,
+      PingBetweenFragmentedText,
       SeveralBytes,
       TwoPings,
       // Last,
@@ -89,10 +88,10 @@ where
   .unwrap();
   call_tests!(
     (client, &mut fb, &mut ws),
-    //FragmentedText,
-    //LargeFragmentedText,
-    //PingAndText,
-    //PingBetweenFragmentedText,
+    FragmentedText,
+    LargeFragmentedText,
+    PingAndText,
+    PingBetweenFragmentedText,
     SeveralBytes,
     TwoPings,
     // Last,

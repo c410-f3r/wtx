@@ -19,9 +19,8 @@ where
   PB: BorrowMut<PartitionedBuffer>,
   S: Stream,
 {
-  let (_, mut ws) = WebSocketServer::accept(WebSocketAcceptRaw {
+  let mut ws = WebSocketServer::accept(WebSocketAcceptRaw {
     compression,
-    headers_buffer: &mut <_>::default(),
     key_buffer: &mut <_>::default(),
     pb,
     rng: <_>::default(),

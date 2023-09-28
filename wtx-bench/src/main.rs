@@ -20,9 +20,10 @@ use tokio::{net::TcpStream, task::JoinSet};
 use wtx::{
   rng::StaticRng,
   web_socket::{
-    handshake::WebSocketConnectRaw, FrameBufferVec, FrameMutVec, OpCode, WebSocketClientOwned,
+    handshake::{WebSocketConnect, WebSocketConnectRaw},
+    FrameBufferVec, FrameMutVec, OpCode,
   },
-  UriParts,
+  PartitionedBuffer, UriParts,
 };
 
 // Verifies the handling of concurrent calls.
@@ -71,15 +72,16 @@ async fn bench(addr: &str, agent: &mut Agent, uri: &str) {
       let local_uri = uri.to_owned();
       async move {
         let fb = &mut FrameBufferVec::default();
-        let (_, mut ws) = WebSocketClientOwned::connect(WebSocketConnectRaw {
+        let (_, mut ws) = WebSocketConnectRaw {
           compression: (),
           fb,
           headers_buffer: &mut <_>::default(),
-          pb: <_>::default(),
+          pb: PartitionedBuffer::default(),
           rng: StaticRng::default(),
           stream: TcpStream::connect(&local_addr).await.unwrap(),
           uri: &local_uri,
-        })
+        }
+        .connect()
         .await
         .unwrap();
         for _ in 0..NUM_MESSAGES {

@@ -50,7 +50,6 @@ embassy-net = { default-features = false, features = ["tcp"], optional = true, v
 flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
-http = { default-features = false, optional = true, version = "0.2" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 monoio = { default-features = false, optional = true, version = "0.1" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
@@ -64,19 +63,17 @@ tokio-uring = { default-features = false, optional = true, version = "0.4" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 webpki-roots = { default-features = false, optional = true, version = "0.25" }
 
-tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], version = "0.3" }
-tracing-tree = { default-features = false, version = "0.2" }
-
 [dev-dependencies]
 tokio = { default-features = false, features = ["macros", "rt", "time"], version = "1.0" }
-wtx = { default-features = false, features = ["flate2", "std", "tokio"], path = "." }
+tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], version = "0.3" }
+tracing-tree = { default-features = false, version = "0.2" }
+wtx = { default-features = false, features = ["flate2", "std", "tokio", "web-socket-handshake"], path = "." }
 
 [features]
 arbitrary = ["dep:arbitrary", "std"]
 async-std = ["dep:async-std", "std"]
 default = []
 glommio = ["futures-lite", "dep:glommio"]
-nightly = []
 std = []
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["tokio", "dep:tokio-rustls"]
@@ -90,8 +87,10 @@ _hack = ["embassy-net/medium-ethernet", "embassy-net/proto-ipv4"]
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
 categories = ["asynchronous", "data-structures", "network-programming", "no-std", "web-programming"]
-description = "Asynchronous WebSocket implementations"
+description = "A collection of different web transport implementations."
+documentation = "https://docs.rs/wtx"
 edition = "2021"
+homepage = "https://c410-f3r.github.io/wtx"
 keywords = ["client", "io", "network", "server", "websocket"]
 license = "Apache-2.0"
 name = "wtx"
