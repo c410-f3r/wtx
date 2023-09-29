@@ -8,7 +8,7 @@ use wtx::web_socket::compression::Flate2;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> wtx::Result<()> {
-  let listener = TcpListener::bind("127.0.0.1:8080").await?;
+  let listener = TcpListener::bind("127.0.0.1:9070").await?;
   loop {
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
