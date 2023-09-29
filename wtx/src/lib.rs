@@ -11,8 +11,7 @@ mod buffer;
 mod cache;
 mod error;
 mod expected_header;
-#[cfg(feature = "web-socket-handshake")]
-pub mod http_structs;
+pub mod http;
 mod misc;
 mod partitioned_buffer;
 pub mod rng;

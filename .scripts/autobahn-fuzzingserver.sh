@@ -16,7 +16,7 @@ podman run \
 	--net=host \
 	docker.io/crossbario/autobahn-testsuite:0.8.2 wstest -m fuzzingserver -s fuzzingserver.json
 sleep 5
-RUSTFLAGS='-C target-cpu=native' cargo run --bin autobahn-client --features flate2,tokio,web-socket-handshake --release -- 127.0.0.1:9080
+RUSTFLAGS='-C target-cpu=native' cargo run --bin autobahn-client --features flate2,tokio,web-socket-handshake --release
 podman rm --force --ignore fuzzingserver
 
 if [ $(grep -ci "failed" .scripts/autobahn/reports/fuzzingserver/index.json) -gt 0 ]

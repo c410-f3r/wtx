@@ -12,7 +12,6 @@ mod close_code;
 pub mod compression;
 mod frame;
 mod frame_buffer;
-#[cfg(feature = "web-socket-handshake")]
 pub mod handshake;
 mod mask;
 mod misc;
@@ -27,6 +26,7 @@ use crate::{
   rng::Rng,
   web_socket::{
     compression::NegotiatedCompression,
+    handshake::{WebSocketAccept, WebSocketConnect},
     misc::{define_fb_from_header_params, header_placeholder, op_code},
   },
   PartitionedBuffer, Stream, MAX_PAYLOAD_LEN,
@@ -991,25 +991,23 @@ where
   }
 }
 
-#[cfg(feature = "web-socket-handshake")]
 impl<NC, PB, RNG, S> WebSocketClient<NC, PB, RNG, S> {
   /// Shortcut that has the same effect of [WebSocketConnect::connect].
   #[inline]
   pub async fn connect<WSC>(wsc: WSC) -> crate::Result<(WSC::Response, Self)>
   where
-    WSC: handshake::WebSocketConnect<NC, PB, RNG, Stream = S>,
+    WSC: WebSocketConnect<NC, PB, RNG, Stream = S>,
   {
     wsc.connect().await
   }
 }
 
-#[cfg(feature = "web-socket-handshake")]
 impl<NC, PB, RNG, S> WebSocketServer<NC, PB, RNG, S> {
   /// Shortcut that has the same effect of [WebSocketAccept::accept].
   #[inline]
-  pub async fn accept<WSA>(wsc: WSA) -> crate::Result<(WSA::Response, Self)>
+  pub async fn accept<WSA>(wsc: WSA) -> crate::Result<Self>
   where
-    WSA: handshake::WebSocketAccept<NC, PB, RNG, Stream = S>,
+    WSA: WebSocketAccept<NC, PB, RNG, Stream = S>,
   {
     wsc.accept().await
   }

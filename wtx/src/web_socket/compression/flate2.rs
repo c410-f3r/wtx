@@ -1,4 +1,5 @@
 use crate::{
+  http::Http1Header,
   misc::from_utf8_opt,
   web_socket::{compression::NegotiatedCompression, Compression, DeflateConfig},
 };
@@ -20,12 +21,8 @@ impl Flate2 {
 impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
   type Negotiated = Option<NegotiatedFlate2>;
 
-  #[cfg(feature = "web-socket-handshake")]
   #[inline]
-  fn negotiate(
-    self,
-    headers: &[crate::http_structs::Header<'_>],
-  ) -> crate::Result<Self::Negotiated> {
+  fn negotiate(self, headers: &[impl Http1Header]) -> crate::Result<Self::Negotiated> {
     use crate::{misc::_trim, web_socket::WebSocketError};
 
     let mut dc = DeflateConfig {
@@ -38,7 +35,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
 
     for sec_websocket_extensions in headers
       .iter()
-      .filter(|local_header| local_header.name().eq_ignore_ascii_case("sec-websocket-extensions"))
+      .filter(|local_header| local_header.name().eq_ignore_ascii_case(b"sec-websocket-extensions"))
     {
       for permessage_deflate_option in sec_websocket_extensions.value().split(|el| el == &b',') {
         dc = DeflateConfig {
