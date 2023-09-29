@@ -1,5 +1,5 @@
 [dependencies]
-clap = { default-features = false, features = ["derive", "help", "std", "usage"], optional = true, version = "4.0" }
+clap = { default-features = false, features = ["derive", "help", "std", "usage"], optional = true, version = "4.4" }
 tokio = { default-features = false, features = ["io-std", "macros", "rt"], version = "1.0" }
 wtx = { default-features = false, path = "../wtx" }
 
