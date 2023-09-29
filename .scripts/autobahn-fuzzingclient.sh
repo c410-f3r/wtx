@@ -11,6 +11,7 @@ RUSTFLAGS='-C target-cpu=native' cargo build --bin autobahn-server --features fl
 RUSTFLAGS='-C target-cpu=native' cargo run --bin autobahn-server --features flate2,tokio,web-socket-handshake --release & cargo_pid=$!
 mkdir -p .scripts/autobahn/reports/fuzzingclient
 podman run \
+	-p 9070:9070 \
 	-v .scripts/autobahn/fuzzingclient-min.json:/fuzzingclient.json:ro \
 	-v .scripts/autobahn:/autobahn \
 	--name fuzzingclient \
