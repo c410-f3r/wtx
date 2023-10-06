@@ -14,7 +14,7 @@ use tokio_rustls::{
 static CERT: &[u8] = include_bytes!("./cert.pem");
 static KEY: &[u8] = include_bytes!("./key.pem");
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> wtx::Result<()> {
   let listener = TcpListener::bind(common::_host_from_args()).await?;
   let tls_acceptor = tls_acceptor()?;

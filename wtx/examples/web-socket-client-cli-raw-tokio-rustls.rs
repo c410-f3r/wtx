@@ -23,7 +23,7 @@ use wtx::{
 
 static ROOT_CA: &[u8] = include_bytes!("./root-ca.crt");
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> wtx::Result<()> {
   let fb = &mut FrameBufferVec::default();
   let pb = &mut <_>::default();
