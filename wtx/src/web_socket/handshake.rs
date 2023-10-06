@@ -12,24 +12,28 @@ pub use raw::{WebSocketAcceptRaw, WebSocketConnectRaw};
 
 /// Reads external data to figure out if incoming requests can be accepted as WebSocket connections.
 pub trait WebSocketAccept<NC, PB, RNG> {
+  /// Future of the `accept` method.
+  type Accept: Future<Output = crate::Result<WebSocketServer<NC, PB, RNG, Self::Stream>>>;
   /// Specific implementation stream.
   type Stream: Stream;
 
   /// Reads external data to figure out if incoming requests can be accepted as WebSocket connections.
-  async fn accept(self) -> crate::Result<WebSocketServer<NC, PB, RNG, Self::Stream>>;
+  fn accept(self) -> Self::Accept;
 }
 
 /// Initial negotiation sent by a client to start a WebSocket connection.
 pub trait WebSocketConnect<NC, PB, RNG> {
+  /// Future of the `accept` method.
+  type Connect: Future<
+    Output = crate::Result<(Self::Response, WebSocketClient<NC, PB, RNG, Self::Stream>)>,
+  >;
   /// Specific implementation response.
   type Response;
   /// Specific implementation stream.
   type Stream: Stream;
 
   /// Initial negotiation sent by a client to start a WebSocket connection.
-  async fn connect(
-    self,
-  ) -> crate::Result<(Self::Response, WebSocketClient<NC, PB, RNG, Self::Stream>)>;
+  fn connect(self) -> Self::Connect;
 }
 
 /// Manages the upgrade of already established requests into WebSocket connections.

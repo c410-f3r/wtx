@@ -46,7 +46,6 @@ required-features = ["rustls-pemfile", "tokio-rustls", "web-socket-handshake"]
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.21" }
-embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.1" }
 flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
@@ -64,6 +63,7 @@ tracing = { default-features = false, features = ["attributes"], optional = true
 webpki-roots = { default-features = false, optional = true, version = "0.25" }
 
 [dev-dependencies]
+async-trait = { default-features = false, version = "0.1" }
 tokio = { default-features = false, features = ["macros", "rt", "time"], version = "1.0" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], version = "0.3" }
 tracing-tree = { default-features = false, version = "0.2" }
@@ -78,11 +78,6 @@ std = []
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["tokio", "dep:tokio-rustls"]
 web-socket-handshake = ["base64", "httparse", "sha1"]
-
-# Dependencies that don't support `no-default-features`.
-#
-# Used internally to avoid unnecessary poll of unused dependencies or unused features for downstream.
-_hack = ["embassy-net/medium-ethernet", "embassy-net/proto-ipv4"]
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]

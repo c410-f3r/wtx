@@ -42,9 +42,6 @@ pub enum Error {
 
   // External
   //
-  #[cfg(feature = "embassy-net")]
-  /// See [embassy_net::tcp::Error].
-  EmbassyNetTcp(embassy_net::tcp::Error),
   #[cfg(feature = "flate2")]
   /// See [flate2::CompressError].
   Flate2CompressError(flate2::CompressError),
@@ -80,14 +77,6 @@ impl Display for Error {
 
 #[cfg(feature = "std")]
 impl std::error::Error for Error {}
-
-#[cfg(feature = "embassy-net")]
-impl From<embassy_net::tcp::Error> for Error {
-  #[inline]
-  fn from(from: embassy_net::tcp::Error) -> Self {
-    Self::EmbassyNetTcp(from)
-  }
-}
 
 #[cfg(feature = "flate2")]
 impl From<flate2::CompressError> for Error {

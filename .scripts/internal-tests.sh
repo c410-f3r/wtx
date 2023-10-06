@@ -19,7 +19,6 @@ $rt test-generic wtx
 $rt test-with-features wtx arbitrary
 $rt test-with-features wtx async-std
 $rt test-with-features wtx base64
-$rt test-with-features wtx embassy-net,_hack
 $rt test-with-features wtx flate2
 $rt test-with-features wtx futures-lite
 $rt test-with-features wtx glommio
