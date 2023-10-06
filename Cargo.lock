@@ -2071,7 +2071,7 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "wtx"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arbitrary",
  "async-std",
