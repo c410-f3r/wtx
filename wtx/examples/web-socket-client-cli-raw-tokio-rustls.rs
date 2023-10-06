@@ -16,8 +16,7 @@ use webpki_roots::TLS_SERVER_ROOTS;
 use wtx::{
   rng::StdRng,
   web_socket::{
-    handshake::WebSocketConnectRaw, Compression, FrameBufferVec, FrameMutVec, OpCode,
-    WebSocketClient,
+    handshake::WebSocketConnectRaw, FrameBufferVec, FrameMutVec, OpCode, WebSocketClient,
   },
   UriParts,
 };
@@ -31,6 +30,7 @@ async fn main() -> wtx::Result<()> {
   let uri = common::_uri_from_args();
   let uri_parts = UriParts::from(uri.as_str());
   let (_, mut ws) = WebSocketClient::connect(WebSocketConnectRaw {
+    compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
     pb,
@@ -42,7 +42,6 @@ async fn main() -> wtx::Result<()> {
       )
       .await?,
     uri: &uri,
-    compression: Compression::None,
   })
   .await?;
   let mut buffer = String::new();

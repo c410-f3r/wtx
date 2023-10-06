@@ -37,3 +37,16 @@ $rt test-with-features wtx tokio-uring
 $rt test-with-features wtx tracing
 $rt test-with-features wtx web-socket-handshake
 $rt test-with-features wtx webpki-roots
+
+cargo check --bin autobahn-client --features "flate2,tokio/macros,tokio/rt,web-socket-handshake"
+cargo check --bin autobahn-server --features "flate2,tokio/macros,tokio/rt,web-socket-handshake"
+cargo check --bin web-socket-profiling --features "tokio/macros,tokio/rt"
+
+cargo check --example web-socket-client-cli-raw-tokio-rustls --features "rustls-pemfile,tokio/io-std,tokio-rustls/tls12,web-socket-handshake,webpki-roots"
+cargo check --example web-socket-server-echo-raw-async-std --features "async-std/attributes,web-socket-handshake"
+cargo check --example web-socket-server-echo-raw-glommio --features "glommio,web-socket-handshake"
+cargo check --example web-socket-server-echo-raw-monoio --features "monoio/iouring,monoio/legacy,monoio/macros,web-socket-handshake"
+cargo check --example web-socket-server-echo-raw-smol --features "smol,web-socket-handshake"
+cargo check --example web-socket-server-echo-raw-tokio --features "tokio/macros,web-socket-handshake"
+cargo check --example web-socket-server-echo-raw-tokio-uring --features "tokio-uring,web-socket-handshake"
+cargo check --example web-socket-server-echo-raw-tokio-rustls --features "rustls-pemfile,tokio-rustls,web-socket-handshake"
