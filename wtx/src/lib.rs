@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README.md")]
-#![feature(array_chunks, async_fn_in_trait, impl_trait_projections)]
+#![feature(array_chunks, async_fn_in_trait, impl_trait_in_assoc_type)]
 
 extern crate alloc;
 
@@ -18,6 +18,8 @@ pub mod rng;
 #[cfg(feature = "tracing")]
 mod role;
 mod stream;
+#[cfg(test)]
+mod tests;
 pub mod web_socket;
 
 pub use cache::Cache;

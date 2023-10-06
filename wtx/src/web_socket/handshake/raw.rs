@@ -53,7 +53,7 @@ mod httparse_impls {
     },
     ExpectedHeader, PartitionedBuffer, Stream, UriParts,
   };
-  use core::{borrow::BorrowMut, str};
+  use core::{borrow::BorrowMut, future::Future, str};
   use httparse::{Header, Request, Response, Status, EMPTY_HEADER};
 
   const MAX_READ_LEN: usize = 2 * 1024;
@@ -66,57 +66,59 @@ mod httparse_impls {
     RNG: Rng,
     S: Stream,
   {
+    type Accept =
+      impl Future<Output = crate::Result<WebSocketServer<C::Negotiated, PB, RNG, Self::Stream>>>;
     type Stream = S;
 
     #[inline]
-    async fn accept(
-      mut self,
-    ) -> crate::Result<WebSocketServer<C::Negotiated, PB, RNG, Self::Stream>> {
-      let pb = self.pb.borrow_mut();
-      pb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
-      let mut read = 0;
-      loop {
-        let read_buffer = pb._following_mut().get_mut(read..).unwrap_or_default();
-        let local_read = self.stream.read(read_buffer).await?;
-        if local_read == 0 {
-          return Err(crate::Error::UnexpectedEOF);
-        }
-        read = read.wrapping_add(local_read);
-        let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
-        let mut req = Request::new(&mut req_buffer);
-        match req.parse(pb._following())? {
-          Status::Complete(_) => {
-            if !_trim(req.method()).eq_ignore_ascii_case(b"get") {
-              return Err(crate::Error::UnexpectedHttpMethod);
-            }
-            verify_common_header(req.headers)?;
-            if !has_header_key_and_value(req.headers, b"sec-websocket-version", b"13") {
-              return Err(crate::Error::MissingHeader {
-                expected: ExpectedHeader::SecWebSocketVersion_13,
-              });
-            };
-            let Some(key) = req.headers.iter().find_map(|el| {
-              (el.name().eq_ignore_ascii_case(b"sec-websocket-key")).then_some(el.value())
-            }) else {
-              return Err(crate::Error::MissingHeader {
-                expected: ExpectedHeader::SecWebSocketKey,
-              });
-            };
-            let compression = self.compression.negotiate(req.headers.iter())?;
-            let swa = derived_key(self.key_buffer, key);
-            let mut headers_buffer = HeadersBuffer::<_, 3>::default();
-            headers_buffer.headers[0] = Header { name: "Connection", value: b"Upgrade" };
-            headers_buffer.headers[1] = Header { name: "Sec-WebSocket-Accept", value: swa };
-            headers_buffer.headers[2] = Header { name: "Upgrade", value: b"websocket" };
-            let mut res = Response::new(&mut headers_buffer.headers);
-            res.code = Some(101);
-            res.version = Some(req.version().into());
-            let res_bytes = build_res(&compression, res.headers, pb);
-            self.stream.write_all(res_bytes).await?;
-            pb.clear();
-            return Ok(WebSocketServer::new(compression, self.pb, self.rng, self.stream));
+    fn accept(mut self) -> Self::Accept {
+      async {
+        let pb = self.pb.borrow_mut();
+        pb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
+        let mut read = 0;
+        loop {
+          let read_buffer = pb._following_mut().get_mut(read..).unwrap_or_default();
+          let local_read = self.stream.read(read_buffer).await?;
+          if local_read == 0 {
+            return Err(crate::Error::UnexpectedEOF);
           }
-          Status::Partial => {}
+          read = read.wrapping_add(local_read);
+          let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
+          let mut req = Request::new(&mut req_buffer);
+          match req.parse(pb._following())? {
+            Status::Complete(_) => {
+              if !_trim(req.method()).eq_ignore_ascii_case(b"get") {
+                return Err(crate::Error::UnexpectedHttpMethod);
+              }
+              verify_common_header(req.headers)?;
+              if !has_header_key_and_value(req.headers, b"sec-websocket-version", b"13") {
+                return Err(crate::Error::MissingHeader {
+                  expected: ExpectedHeader::SecWebSocketVersion_13,
+                });
+              };
+              let Some(key) = req.headers.iter().find_map(|el| {
+                (el.name().eq_ignore_ascii_case(b"sec-websocket-key")).then_some(el.value())
+              }) else {
+                return Err(crate::Error::MissingHeader {
+                  expected: ExpectedHeader::SecWebSocketKey,
+                });
+              };
+              let compression = self.compression.negotiate(req.headers.iter())?;
+              let swa = derived_key(self.key_buffer, key);
+              let mut headers_buffer = HeadersBuffer::<_, 3>::default();
+              headers_buffer.headers[0] = Header { name: "Connection", value: b"Upgrade" };
+              headers_buffer.headers[1] = Header { name: "Sec-WebSocket-Accept", value: swa };
+              headers_buffer.headers[2] = Header { name: "Upgrade", value: b"websocket" };
+              let mut res = Response::new(&mut headers_buffer.headers);
+              res.code = Some(101);
+              res.version = Some(req.version().into());
+              let res_bytes = build_res(&compression, res.headers, pb);
+              self.stream.write_all(res_bytes).await?;
+              pb.clear();
+              return Ok(WebSocketServer::new(compression, self.pb, self.rng, self.stream));
+            }
+            Status::Partial => {}
+          }
         }
       }
     }
@@ -132,53 +134,58 @@ mod httparse_impls {
     S: Stream,
     'fb: 'hb,
   {
+    type Connect = impl Future<
+      Output = crate::Result<(
+        Self::Response,
+        WebSocketClient<C::Negotiated, PB, RNG, Self::Stream>,
+      )>,
+    >;
     type Response = Response<'hb, 'fb>;
     type Stream = S;
 
     #[inline]
-    async fn connect(
-      mut self,
-    ) -> crate::Result<(Self::Response, WebSocketClient<C::Negotiated, PB, RNG, Self::Stream>)>
-    {
-      let key_buffer = &mut <_>::default();
-      let pb = self.pb.borrow_mut();
-      pb.clear();
-      let (key, req) = build_req(&self.compression, key_buffer, pb, &mut self.rng, self.uri);
-      self.stream.write_all(req).await?;
-      let mut read = 0;
-      self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
-      let len = loop {
-        let mut local_header = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
-        let read_buffer = self.fb.payload_mut().get_mut(read..).unwrap_or_default();
-        let local_read = self.stream.read(read_buffer).await?;
-        if local_read == 0 {
-          return Err(crate::Error::UnexpectedEOF);
+    fn connect(mut self) -> Self::Connect {
+      async {
+        let key_buffer = &mut <_>::default();
+        let pb = self.pb.borrow_mut();
+        pb.clear();
+        let (key, req) = build_req(&self.compression, key_buffer, pb, &mut self.rng, self.uri);
+        self.stream.write_all(req).await?;
+        let mut read = 0;
+        self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
+        let len = loop {
+          let mut local_header = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
+          let read_buffer = self.fb.payload_mut().get_mut(read..).unwrap_or_default();
+          let local_read = self.stream.read(read_buffer).await?;
+          if local_read == 0 {
+            return Err(crate::Error::UnexpectedEOF);
+          }
+          read = read.wrapping_add(local_read);
+          match Response::new(&mut local_header).parse(self.fb.payload())? {
+            Status::Complete(len) => break len,
+            Status::Partial => {}
+          }
+        };
+        let mut res = Response::new(&mut self.headers_buffer.headers);
+        let _status = res.parse(self.fb.payload())?;
+        if res.code != Some(101) {
+          return Err(WebSocketError::MissingSwitchingProtocols.into());
         }
-        read = read.wrapping_add(local_read);
-        match Response::new(&mut local_header).parse(self.fb.payload())? {
-          Status::Complete(len) => break len,
-          Status::Partial => {}
+        verify_common_header(res.headers)?;
+        if !has_header_key_and_value(
+          res.headers,
+          b"sec-websocket-accept",
+          derived_key(&mut <_>::default(), key),
+        ) {
+          return Err(crate::Error::MissingHeader {
+            expected: crate::ExpectedHeader::SecWebSocketKey,
+          });
         }
-      };
-      let mut res = Response::new(&mut self.headers_buffer.headers);
-      let _status = res.parse(self.fb.payload())?;
-      if res.code != Some(101) {
-        return Err(WebSocketError::MissingSwitchingProtocols.into());
+        let compression = self.compression.negotiate(res.headers.iter())?;
+        pb.borrow_mut()._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
+        pb._following_mut().copy_from_slice(self.fb.payload().get(len..read).unwrap_or_default());
+        Ok((res, WebSocketClient::new(compression, self.pb, self.rng, self.stream)))
       }
-      verify_common_header(res.headers)?;
-      if !has_header_key_and_value(
-        res.headers,
-        b"sec-websocket-accept",
-        derived_key(&mut <_>::default(), key),
-      ) {
-        return Err(crate::Error::MissingHeader {
-          expected: crate::ExpectedHeader::SecWebSocketKey,
-        });
-      }
-      let compression = self.compression.negotiate(res.headers.iter())?;
-      pb.borrow_mut()._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
-      pb._following_mut().copy_from_slice(self.fb.payload().get(len..read).unwrap_or_default());
-      Ok((res, WebSocketClient::new(compression, self.pb, self.rng, self.stream)))
     }
   }
 
