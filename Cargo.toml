@@ -12,7 +12,7 @@ opt-level = 3
 overflow-checks = false
 panic = 'abort'
 rpath = false
-strip = "debuginfo"
+strip = "symbols"
 
 [workspace]
 members = ["wtx-bench", "wtx", "wtx-fuzz", "wtx-ui"]

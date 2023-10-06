@@ -6,11 +6,11 @@ mod deflate_config;
 mod flate2;
 mod window_bits;
 
+#[cfg(feature = "flate2")]
+pub use self::flate2::{Flate2, NegotiatedFlate2};
 use crate::http::Http1Header;
 pub use compression_level::CompressionLevel;
 pub use deflate_config::DeflateConfig;
-#[cfg(feature = "flate2")]
-pub use flate2::{Flate2, NegotiatedFlate2};
 pub use window_bits::WindowBits;
 
 /// Initial compression parameters defined before a handshake.
@@ -20,7 +20,10 @@ pub trait Compression<const IS_CLIENT: bool> {
 
   /// Manages the defined parameters with the received parameters to decide which
   /// parameters will be settled.
-  fn negotiate(self, headers: &[impl Http1Header]) -> crate::Result<Self::Negotiated>;
+  fn negotiate(
+    self,
+    headers: impl Iterator<Item = impl Http1Header>,
+  ) -> crate::Result<Self::Negotiated>;
 
   /// Writes headers bytes that will be sent to the server.
   fn write_req_headers<B>(&self, buffer: &mut B)
@@ -32,7 +35,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
   type Negotiated = ();
 
   #[inline]
-  fn negotiate(self, _: &[impl Http1Header]) -> crate::Result<Self::Negotiated> {
+  fn negotiate(self, _: impl Iterator<Item = impl Http1Header>) -> crate::Result<Self::Negotiated> {
     Ok(())
   }
 

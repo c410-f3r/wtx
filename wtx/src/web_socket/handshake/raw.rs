@@ -102,7 +102,7 @@ mod httparse_impls {
                 expected: ExpectedHeader::SecWebSocketKey,
               });
             };
-            let compression = self.compression.negotiate(req.headers)?;
+            let compression = self.compression.negotiate(req.headers.iter())?;
             let swa = derived_key(self.key_buffer, key);
             let mut headers_buffer = HeadersBuffer::<_, 3>::default();
             headers_buffer.headers[0] = Header { name: "Connection", value: b"Upgrade" };
@@ -175,7 +175,7 @@ mod httparse_impls {
           expected: crate::ExpectedHeader::SecWebSocketKey,
         });
       }
-      let compression = self.compression.negotiate(res.headers)?;
+      let compression = self.compression.negotiate(res.headers.iter())?;
       pb.borrow_mut()._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
       pb._following_mut().copy_from_slice(self.fb.payload().get(len..read).unwrap_or_default());
       Ok((res, WebSocketClient::new(compression, self.pb, self.rng, self.stream)))
