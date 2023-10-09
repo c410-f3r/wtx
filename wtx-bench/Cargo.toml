@@ -1,6 +1,6 @@
 [dependencies]
 plotters = { default-features = false, features = ["histogram", "svg_backend"], version = "0.3" }
-tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.0" }
+tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.33" }
 wtx = { features = ["tokio", "web-socket-handshake"], path = "../wtx" }
 
 [package]
