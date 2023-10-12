@@ -43,7 +43,7 @@ name = "web-socket-server-echo-raw-tokio-rustls"
 required-features = ["rustls-pemfile", "tokio-rustls", "web-socket-handshake"]
 
 [dependencies]
-arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
+arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.3" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.21" }
 flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
