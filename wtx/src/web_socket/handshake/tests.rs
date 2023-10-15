@@ -43,6 +43,7 @@ async fn client_and_server_frames() {
 async fn do_test_client_and_server_frames<CC, SC>(client_compression: CC, server_compression: SC)
 where
   CC: Compression<true> + Send,
+  CC::NegotiatedCompression: Send,
   SC: Compression<false> + Send + 'static,
   SC::NegotiatedCompression: Send,
   for<'nc> &'nc SC::NegotiatedCompression: Send,
