@@ -14,7 +14,7 @@ use crate::{
   web_socket::{
     compression::{Flate2, NegotiatedCompression},
     frame::FrameMutVec,
-    handshake::{WebSocketAcceptRaw, WebSocketConnectRaw},
+    handshake::{WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw},
     Compression, FrameBufferVec, OpCode, WebSocket, WebSocketClientOwned, WebSocketServerOwned,
   },
   PartitionedBuffer,
@@ -42,22 +42,24 @@ async fn client_and_server_frames() {
 
 async fn do_test_client_and_server_frames<CC, SC>(client_compression: CC, server_compression: SC)
 where
-  CC: Compression<true>,
+  CC: Compression<true> + Send,
   SC: Compression<false> + Send + 'static,
-  SC::Negotiated: Send + Sync,
+  SC::NegotiatedCompression: Send,
+  for<'nc> &'nc SC::NegotiatedCompression: Send,
 {
   let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
 
   let _server_jh = tokio::spawn(async move {
     let (stream, _) = listener.accept().await.unwrap();
     let mut fb = FrameBufferVec::with_capacity(0);
-    let mut ws = WebSocketServerOwned::accept(WebSocketAcceptRaw {
+    let mut ws = WebSocketAcceptRaw {
       compression: server_compression,
       key_buffer: &mut <_>::default(),
       pb: PartitionedBuffer::with_capacity(0),
       rng: StdRng::default(),
       stream,
-    })
+    }
+    .accept()
     .await
     .unwrap();
     call_tests!(
@@ -75,7 +77,7 @@ where
   });
 
   let mut fb = FrameBufferVec::with_capacity(0);
-  let (_, mut ws) = WebSocketClientOwned::connect(WebSocketConnectRaw {
+  let (_, mut ws) = WebSocketConnectRaw {
     compression: client_compression,
     fb: &mut fb,
     headers_buffer: &mut <_>::default(),
@@ -83,7 +85,8 @@ where
     rng: StdRng::default(),
     stream: TcpStream::connect("127.0.0.1:8080").await.unwrap(),
     uri: "http://127.0.0.1:8080",
-  })
+  }
+  .connect()
   .await
   .unwrap();
   call_tests!(

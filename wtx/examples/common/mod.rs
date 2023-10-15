@@ -1,11 +1,12 @@
-use std::borrow::BorrowMut;
+use core::borrow::BorrowMut;
 use wtx::{
   rng::StdRng,
   web_socket::{
-    compression::NegotiatedCompression, handshake::WebSocketAcceptRaw, Compression, FrameBufferVec,
-    OpCode, WebSocketServer,
+    compression::NegotiatedCompression,
+    handshake::{WebSocketAccept, WebSocketAcceptRaw},
+    Compression, FrameBufferVec, OpCode, WebSocketServer,
   },
-  PartitionedBuffer, Stream,
+  AsyncBounds, PartitionedBuffer, Stream,
 };
 
 pub(crate) async fn _accept_conn_and_echo_frames<C, PB, S>(
@@ -15,17 +16,19 @@ pub(crate) async fn _accept_conn_and_echo_frames<C, PB, S>(
   stream: S,
 ) -> wtx::Result<()>
 where
-  C: Compression<false>,
-  PB: BorrowMut<PartitionedBuffer>,
-  S: Stream,
+  C: AsyncBounds + Compression<false>,
+  C::NegotiatedCompression: AsyncBounds,
+  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
+  S: AsyncBounds + Stream,
 {
-  let mut ws = WebSocketServer::accept(WebSocketAcceptRaw {
+  let mut ws = WebSocketAcceptRaw {
     compression,
     key_buffer: &mut <_>::default(),
     pb,
     rng: <_>::default(),
     stream,
-  })
+  }
+  .accept()
   .await?;
   _handle_frames(fb, &mut ws).await?;
   Ok(())

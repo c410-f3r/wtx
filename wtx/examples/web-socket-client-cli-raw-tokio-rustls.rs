@@ -16,7 +16,8 @@ use webpki_roots::TLS_SERVER_ROOTS;
 use wtx::{
   rng::StdRng,
   web_socket::{
-    handshake::WebSocketConnectRaw, FrameBufferVec, FrameMutVec, OpCode, WebSocketClient,
+    handshake::{WebSocketConnect, WebSocketConnectRaw},
+    FrameBufferVec, FrameMutVec, OpCode,
   },
   UriParts,
 };
@@ -29,7 +30,7 @@ async fn main() -> wtx::Result<()> {
   let pb = &mut <_>::default();
   let uri = common::_uri_from_args();
   let uri_parts = UriParts::from(uri.as_str());
-  let (_, mut ws) = WebSocketClient::connect(WebSocketConnectRaw {
+  let (_, mut ws) = WebSocketConnectRaw {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
@@ -42,7 +43,8 @@ async fn main() -> wtx::Result<()> {
       )
       .await?,
     uri: &uri,
-  })
+  }
+  .connect()
   .await?;
   let mut buffer = String::new();
   let mut reader = BufReader::new(tokio::io::stdin());

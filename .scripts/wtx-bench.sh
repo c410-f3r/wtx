@@ -41,17 +41,11 @@ RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-
 RUSTFLAGS='-C target-cpu=native' cargo build --example web-socket-server-echo-raw-glommio --features glommio,simdutf8,web-socket-handshake --release
 RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-glommio --features glommio,simdutf8,web-socket-handshake --release 127.0.0.1:8085 &
 
-RUSTFLAGS='-C target-cpu=native' cargo build --example web-socket-server-echo-raw-monoio --features monoio/iouring,monoio/legacy,monoio/macros,simdutf8,web-socket-handshake --release
-RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-monoio --features monoio/iouring,monoio/legacy,monoio/macros,simdutf8,web-socket-handshake --release 127.0.0.1:8086 &
-
 RUSTFLAGS='-C target-cpu=native' cargo build --example web-socket-server-echo-raw-smol --features simdutf8,smol,web-socket-handshake --release
-RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-smol --features simdutf8,smol,web-socket-handshake --release 127.0.0.1:8087 &
+RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-smol --features simdutf8,smol,web-socket-handshake --release 127.0.0.1:8086 &
 
 RUSTFLAGS='-C target-cpu=native' cargo build --example web-socket-server-echo-raw-tokio --features simdutf8,tokio,web-socket-handshake --release
-RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-tokio --features simdutf8,tokio,web-socket-handshake --release 127.0.0.1:8088 &
-
-RUSTFLAGS='-C target-cpu=native' cargo build --example web-socket-server-echo-raw-tokio-uring --features simdutf8,tokio-uring,web-socket-handshake --release
-RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-tokio-uring --features simdutf8,tokio-uring,web-socket-handshake --release 127.0.0.1:8089 &
+RUSTFLAGS='-C target-cpu=native' cargo run --example web-socket-server-echo-raw-tokio --features simdutf8,tokio,web-socket-handshake --release 127.0.0.1:8087 &
 
 sleep 1
 
@@ -62,7 +56,5 @@ RUSTFLAGS='-C target-cpu=native' cargo run --bin wtx-bench --release -- \
     http://127.0.0.1:8083/uWebSockets \
     http://127.0.0.1:8084/wtx-raw-async-std \
     http://127.0.0.1:8085/wtx-raw-glommio \
-    http://127.0.0.1:8086/wtx-raw-monoio \
-    http://127.0.0.1:8087/wtx-raw-smol \
-    http://127.0.0.1:8088/wtx-raw-tokio \
-    http://127.0.0.1:8089/wtx-raw-tokio-uring \
+    http://127.0.0.1:8086/wtx-raw-smol \
+    http://127.0.0.1:8087/wtx-raw-tokio

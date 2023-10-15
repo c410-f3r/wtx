@@ -5,8 +5,8 @@ use tokio::{
 use wtx::{
   rng::StdRng,
   web_socket::{
-    handshake::{WebSocketAcceptRaw, WebSocketConnectRaw},
-    FrameBufferVec, FrameMutVec, OpCode, WebSocketClient, WebSocketServer,
+    handshake::{WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw},
+    FrameBufferVec, FrameMutVec, OpCode,
   },
   PartitionedBuffer, UriParts,
 };
@@ -15,7 +15,7 @@ pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri_parts = UriParts::from(uri);
   let fb = &mut FrameBufferVec::default();
   let pb = &mut <_>::default();
-  let (_, mut ws) = WebSocketClient::connect(WebSocketConnectRaw {
+  let (_, mut ws) = WebSocketConnectRaw {
     fb,
     headers_buffer: &mut <_>::default(),
     pb,
@@ -23,7 +23,8 @@ pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
     stream: TcpStream::connect(uri_parts.host).await?,
     uri,
     compression: (),
-  })
+  }
+  .connect()
   .await?;
   let mut buffer = String::new();
   let mut reader = BufReader::new(tokio::io::stdin());
@@ -59,13 +60,14 @@ pub(crate) async fn _serve(
     let _jh = tokio::spawn(async move {
       let sun = || async move {
         let pb = PartitionedBuffer::default();
-        let mut ws = WebSocketServer::accept(WebSocketAcceptRaw {
+        let mut ws = WebSocketAcceptRaw {
           compression: (),
           key_buffer: &mut <_>::default(),
           pb,
           rng: StdRng::default(),
           stream,
-        })
+        }
+        .accept()
         .await?;
         let mut fb = FrameBufferVec::default();
         loop {

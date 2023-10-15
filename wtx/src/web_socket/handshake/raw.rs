@@ -51,27 +51,28 @@ mod httparse_impls {
       },
       Compression, WebSocketClient, WebSocketError, WebSocketServer,
     },
-    ExpectedHeader, PartitionedBuffer, Stream, UriParts,
+    AsyncBounds, ExpectedHeader, PartitionedBuffer, Stream, UriParts,
   };
   use core::{borrow::BorrowMut, future::Future, str};
   use httparse::{Header, Request, Response, Status, EMPTY_HEADER};
 
   const MAX_READ_LEN: usize = 2 * 1024;
 
-  impl<'kb, C, PB, RNG, S> WebSocketAccept<C::Negotiated, PB, RNG>
+  impl<'kb, C, PB, RNG, S> WebSocketAccept<C::NegotiatedCompression, PB, RNG, S>
     for WebSocketAcceptRaw<'kb, C, PB, RNG, S>
   where
-    C: Compression<false>,
-    PB: BorrowMut<PartitionedBuffer>,
-    RNG: Rng,
-    S: Stream,
+    C: AsyncBounds + Compression<false>,
+    C::NegotiatedCompression: AsyncBounds,
+    PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
+    RNG: AsyncBounds + Rng,
+    S: AsyncBounds + Stream,
   {
-    type Accept =
-      impl Future<Output = crate::Result<WebSocketServer<C::Negotiated, PB, RNG, Self::Stream>>>;
-    type Stream = S;
-
     #[inline]
-    fn accept(mut self) -> Self::Accept {
+    fn accept(
+      mut self,
+    ) -> impl AsyncBounds
+         + Future<Output = crate::Result<WebSocketServer<C::NegotiatedCompression, PB, RNG, S>>>
+    {
       async {
         let pb = self.pb.borrow_mut();
         pb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
@@ -124,27 +125,29 @@ mod httparse_impls {
     }
   }
 
-  impl<'fb, 'hb, 'uri, B, C, PB, RNG, S> WebSocketConnect<C::Negotiated, PB, RNG>
+  impl<'fb, 'hb, 'uri, B, C, PB, RNG, S> WebSocketConnect<C::NegotiatedCompression, PB, RNG>
     for WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, Header<'fb>, PB, RNG, S>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
-    C: Compression<true>,
-    PB: BorrowMut<PartitionedBuffer>,
-    RNG: Rng,
-    S: Stream,
+    B: AsyncBounds + AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    C: AsyncBounds + Compression<true>,
+    PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
+    RNG: AsyncBounds + Rng,
+    S: AsyncBounds + Stream,
     'fb: 'hb,
   {
-    type Connect = impl Future<
-      Output = crate::Result<(
-        Self::Response,
-        WebSocketClient<C::Negotiated, PB, RNG, Self::Stream>,
-      )>,
-    >;
     type Response = Response<'hb, 'fb>;
     type Stream = S;
 
     #[inline]
-    fn connect(mut self) -> Self::Connect {
+    fn connect(
+      mut self,
+    ) -> impl AsyncBounds
+         + Future<
+      Output = crate::Result<(
+        Self::Response,
+        WebSocketClient<C::NegotiatedCompression, PB, RNG, Self::Stream>,
+      )>,
+    > {
       async {
         let key_buffer = &mut <_>::default();
         let pb = self.pb.borrow_mut();

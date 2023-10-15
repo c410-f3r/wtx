@@ -19,13 +19,13 @@ impl Flate2 {
 }
 
 impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
-  type Negotiated = Option<NegotiatedFlate2>;
+  type NegotiatedCompression = Option<NegotiatedFlate2>;
 
   #[inline]
   fn negotiate(
     self,
     headers: impl Iterator<Item = impl Http1Header>,
-  ) -> crate::Result<Self::Negotiated> {
+  ) -> crate::Result<Self::NegotiatedCompression> {
     use crate::{misc::_trim, web_socket::WebSocketError};
 
     let mut dc = DeflateConfig {
