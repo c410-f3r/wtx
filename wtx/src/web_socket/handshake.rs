@@ -7,7 +7,7 @@ mod raw;
 mod tests;
 
 use crate::{
-  web_socket::{Stream, WebSocketClient, WebSocketServer},
+  web_socket::{WebSocketClient, WebSocketServer},
   AsyncBounds,
 };
 use core::future::Future;
@@ -22,17 +22,14 @@ pub trait WebSocketAccept<NC, PB, RNG, S> {
 }
 
 /// Initial negotiation sent by a client to start a WebSocket connection.
-pub trait WebSocketConnect<NC, PB, RNG> {
+pub trait WebSocketConnect<NC, PB, RNG, S> {
   /// Specific implementation response.
   type Response;
-  /// Specific implementation stream.
-  type Stream: Stream;
 
   /// Initial negotiation sent by a client to start a WebSocket connection.
   fn connect(
     self,
-  ) -> impl AsyncBounds
-       + Future<Output = crate::Result<(Self::Response, WebSocketClient<NC, PB, RNG, Self::Stream>)>>;
+  ) -> impl AsyncBounds + Future<Output = crate::Result<(Self::Response, WebSocketClient<NC, PB, RNG, S>)>>;
 }
 
 /// Necessary to decode incoming bytes of responses or requests.
