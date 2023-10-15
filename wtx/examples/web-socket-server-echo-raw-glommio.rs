@@ -3,6 +3,12 @@
 #[path = "./common/mod.rs"]
 mod common;
 
+#[cfg(feature = "async-send")]
+fn main() -> wtx::Result<()> {
+  Ok(())
+}
+
+#[cfg(not(feature = "async-send"))]
 fn main() -> wtx::Result<()> {
   use glommio::{net::TcpListener, LocalExecutorBuilder};
 

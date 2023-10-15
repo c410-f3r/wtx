@@ -17,13 +17,13 @@ $rt clippy
 
 $rt test-generic wtx
 $rt test-with-features wtx arbitrary
+$rt test-with-features wtx async-send
 $rt test-with-features wtx async-std
 $rt test-with-features wtx base64
 $rt test-with-features wtx flate2
 $rt test-with-features wtx futures-lite
 $rt test-with-features wtx glommio
 $rt test-with-features wtx httparse
-$rt test-with-features wtx monoio
 $rt test-with-features wtx rand
 $rt test-with-features wtx rustls-pemfile
 $rt test-with-features wtx sha1
@@ -32,7 +32,6 @@ $rt test-with-features wtx smol
 $rt test-with-features wtx std
 $rt test-with-features wtx tokio
 $rt test-with-features wtx tokio-rustls
-$rt test-with-features wtx tokio-uring
 $rt test-with-features wtx tracing
 $rt test-with-features wtx web-socket-handshake
 $rt test-with-features wtx webpki-roots
@@ -44,8 +43,6 @@ cargo check --bin web-socket-profiling --features "tokio/macros,tokio/rt"
 cargo check --example web-socket-client-cli-raw-tokio-rustls --features "rustls-pemfile,tokio/io-std,tokio-rustls/tls12,web-socket-handshake,webpki-roots"
 cargo check --example web-socket-server-echo-raw-async-std --features "async-std/attributes,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-glommio --features "glommio,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-monoio --features "monoio/iouring,monoio/legacy,monoio/macros,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-smol --features "smol,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio --features "tokio/macros,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-tokio-uring --features "tokio-uring,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio-rustls --features "rustls-pemfile,tokio-rustls,web-socket-handshake"

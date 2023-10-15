@@ -16,14 +16,14 @@ pub use window_bits::WindowBits;
 /// Initial compression parameters defined before a handshake.
 pub trait Compression<const IS_CLIENT: bool> {
   /// See [NegotiatedCompression].
-  type Negotiated: NegotiatedCompression;
+  type NegotiatedCompression: NegotiatedCompression;
 
   /// Manages the defined parameters with the received parameters to decide which
   /// parameters will be settled.
   fn negotiate(
     self,
     headers: impl Iterator<Item = impl Http1Header>,
-  ) -> crate::Result<Self::Negotiated>;
+  ) -> crate::Result<Self::NegotiatedCompression>;
 
   /// Writes headers bytes that will be sent to the server.
   fn write_req_headers<B>(&self, buffer: &mut B)
@@ -32,10 +32,13 @@ pub trait Compression<const IS_CLIENT: bool> {
 }
 
 impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
-  type Negotiated = ();
+  type NegotiatedCompression = ();
 
   #[inline]
-  fn negotiate(self, _: impl Iterator<Item = impl Http1Header>) -> crate::Result<Self::Negotiated> {
+  fn negotiate(
+    self,
+    _: impl Iterator<Item = impl Http1Header>,
+  ) -> crate::Result<Self::NegotiatedCompression> {
     Ok(())
   }
 

@@ -63,5 +63,3 @@ There are mainly 2 things that impact performance, the chosen runtime and the nu
 ![Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
 
 If you disagree with any of the above numbers, feel free to checkout `wtx-bench` to point any misunderstandings or misconfigurations. A more insightful analysis is available at https://c410-f3r.github.io/thoughts/the-fastest-websocket-implementation/.
-
-<sup><sub>¹ `monoio` and `tokio-uring` are slower because owned vectors need to be created on each read/write operation.</sub></sup><br/>

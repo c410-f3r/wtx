@@ -1,3 +1,5 @@
+use crate::ArrayChunksMut;
+
 /// Unmasks a sequence of bytes using the given 4-byte `mask`.
 #[inline]
 pub fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
@@ -32,7 +34,7 @@ fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4]) {
 fn unmask_u32_slice(bytes: &mut [u32], mask: u32) {
   macro_rules! loop_chunks {
     ($bytes:expr, $mask:expr, $($elem:ident),* $(,)?) => {{
-      let mut iter = $bytes.array_chunks_mut::<{ 0 $( + { let $elem = 1; $elem })* }>();
+      let mut iter = ArrayChunksMut::<_, { 0 $( + { let $elem = 1; $elem })* }>::new($bytes);
       for [$($elem,)*] in iter.by_ref() {
         $( *$elem ^= $mask; )*
       }

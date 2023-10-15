@@ -4,8 +4,9 @@ use tokio::net::TcpStream;
 use wtx::{
   rng::StdRng,
   web_socket::{
-    compression::Flate2, handshake::WebSocketConnectRaw, CloseCode, FrameBufferVec, FrameMutVec,
-    OpCode, WebSocketClient,
+    compression::Flate2,
+    handshake::{WebSocketConnect, WebSocketConnectRaw},
+    CloseCode, FrameBufferVec, FrameMutVec, OpCode,
   },
   PartitionedBuffer,
 };
@@ -16,7 +17,7 @@ async fn main() -> Result<(), Error> {
   let host = "127.0.0.1:9080";
   let pb = &mut PartitionedBuffer::default();
   for case in 1..=get_case_count(fb, &host, pb).await? {
-    let (_, mut ws) = WebSocketClient::connect(WebSocketConnectRaw {
+    let (_, mut ws) = WebSocketConnectRaw {
       compression: Flate2::default(),
       fb,
       headers_buffer: &mut <_>::default(),
@@ -24,7 +25,8 @@ async fn main() -> Result<(), Error> {
       rng: StdRng::default(),
       stream: TcpStream::connect(host).await.map_err(wtx::Error::from)?,
       uri: &format!("http://{host}/runCase?case={case}&agent=wtx"),
-    })
+    }
+    .connect()
     .await?;
     loop {
       let mut frame = match ws.read_frame(fb).await {
@@ -42,7 +44,7 @@ async fn main() -> Result<(), Error> {
       }
     }
   }
-  WebSocketClient::connect(WebSocketConnectRaw {
+  WebSocketConnectRaw {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
@@ -50,7 +52,8 @@ async fn main() -> Result<(), Error> {
     rng: StdRng::default(),
     stream: TcpStream::connect(host).await.map_err(wtx::Error::from)?,
     uri: &format!("http://{host}/updateReports?agent=wtx"),
-  })
+  }
+  .connect()
   .await?
   .1
   .write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[])?)
@@ -84,7 +87,7 @@ async fn get_case_count(
   host: &str,
   pb: &mut PartitionedBuffer,
 ) -> Result<u32, Error> {
-  let (_, mut ws) = WebSocketClient::connect(WebSocketConnectRaw {
+  let (_, mut ws) = WebSocketConnectRaw {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
@@ -92,7 +95,8 @@ async fn get_case_count(
     rng: StdRng::default(),
     stream: TcpStream::connect(host).await.map_err(wtx::Error::from)?,
     uri: &&format!("http://{host}/getCaseCount"),
-  })
+  }
+  .connect()
   .await?;
   let rslt = ws.read_frame(fb).await?.text_payload().unwrap_or_default().parse()?;
   ws.write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[])?).await?;

@@ -23,20 +23,12 @@ name = "web-socket-server-echo-raw-glommio"
 required-features = ["glommio", "web-socket-handshake"]
 
 [[example]]
-name = "web-socket-server-echo-raw-monoio"
-required-features = ["monoio/iouring", "monoio/legacy", "monoio/macros", "web-socket-handshake"]
-
-[[example]]
 name = "web-socket-server-echo-raw-smol"
 required-features = ["smol", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-tokio"
 required-features = ["tokio/macros", "web-socket-handshake"]
-
-[[example]]
-name = "web-socket-server-echo-raw-tokio-uring"
-required-features = ["tokio-uring", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-tokio-rustls"
@@ -50,7 +42,6 @@ flate2 = { default-features = false, features = ["zlib-ng"], optional = true, ve
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
 httparse = { default-features = false, optional = true, version = "1.0" }
-monoio = { default-features = false, optional = true, version = "0.1" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 rustls-pemfile = { default-features = false, optional = true, version = "1.0" }
 sha1 = { default-features = false, optional = true, version = "0.10" }
@@ -58,12 +49,10 @@ simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = t
 smol = { default-features = false, optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-util", "net"], optional = true, version = "1.33" }
 tokio-rustls = { default-features = false, optional = true, version = "0.24" }
-tokio-uring = { default-features = false, optional = true, version = "0.4" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 webpki-roots = { default-features = false, optional = true, version = "0.25" }
 
 [dev-dependencies]
-async-trait = { default-features = false, version = "0.1" }
 tokio = { default-features = false, features = ["macros", "rt", "time"], version = "1.33" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], version = "0.3" }
 tracing-tree = { default-features = false, version = "0.2" }
@@ -71,6 +60,7 @@ wtx = { default-features = false, features = ["flate2", "std", "tokio", "web-soc
 
 [features]
 arbitrary = ["dep:arbitrary", "std"]
+async-send = []
 async-std = ["dep:async-std", "std"]
 default = []
 glommio = ["futures-lite", "dep:glommio"]
