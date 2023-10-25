@@ -71,6 +71,7 @@ mod httparse_impls {
     #[inline]
     async fn accept(
       mut self,
+      cb: impl AsyncBounds + FnOnce(&dyn crate::http::Request) -> bool,
     ) -> crate::Result<WebSocketServer<C::NegotiatedCompression, PB, RNG, S>> {
       let pb = self.pb.borrow_mut();
       pb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
@@ -86,6 +87,9 @@ mod httparse_impls {
         let mut req = Request::new(&mut req_buffer);
         match req.parse(pb._following())? {
           Status::Complete(_) => {
+            if !cb(&req) {
+              return Err(WebSocketError::InvalidAcceptRequest.into());
+            }
             if !_trim(req.method()).eq_ignore_ascii_case(b"get") {
               return Err(crate::Error::UnexpectedHttpMethod);
             }

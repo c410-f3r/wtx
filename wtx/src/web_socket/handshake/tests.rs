@@ -60,7 +60,7 @@ where
       rng: StdRng::default(),
       stream,
     }
-    .accept()
+    .accept(|_| true)
     .await
     .unwrap();
     call_tests!(

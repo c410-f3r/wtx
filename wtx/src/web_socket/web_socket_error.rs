@@ -1,6 +1,8 @@
 /// Errors related to the WebSocket module
 #[derive(Debug)]
 pub enum WebSocketError {
+  /// The requested received in a handshake on a server is not valid.
+  InvalidAcceptRequest,
   /// Received close frame has invalid parameters.
   InvalidCloseFrame,
   /// Received an invalid header compression parameter.

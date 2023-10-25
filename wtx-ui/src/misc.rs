@@ -67,7 +67,7 @@ pub(crate) async fn _serve(
           rng: StdRng::default(),
           stream,
         }
-        .accept()
+        .accept(|_| true)
         .await?;
         let mut fb = FrameBufferVec::default();
         loop {

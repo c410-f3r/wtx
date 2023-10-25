@@ -7,6 +7,7 @@ mod raw;
 mod tests;
 
 use crate::{
+  http::Request,
   web_socket::{WebSocketClient, WebSocketServer},
   AsyncBounds,
 };
@@ -18,6 +19,7 @@ pub trait WebSocketAccept<NC, PB, RNG, S> {
   /// Reads external data to figure out if incoming requests can be accepted as WebSocket connections.
   fn accept(
     self,
+    cb: impl AsyncBounds + FnOnce(&dyn Request) -> bool,
   ) -> impl AsyncBounds + Future<Output = crate::Result<WebSocketServer<NC, PB, RNG, S>>>;
 }
 
