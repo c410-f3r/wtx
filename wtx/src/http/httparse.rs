@@ -1,5 +1,5 @@
 #![allow(
-  // All methods are called after parsing
+  // All methods are internally called only after parsing
   clippy::unreachable
 )]
 
@@ -30,6 +30,15 @@ impl<'buffer, 'headers> Request for httparse::Request<'headers, 'buffer> {
   }
 
   #[inline]
+  fn path(&self) -> &[u8] {
+    if let Some(el) = self.path {
+      el.as_bytes()
+    } else {
+      unreachable!()
+    }
+  }
+
+  #[inline]
   fn version(&self) -> Version {
     match self.version {
       Some(0) => Version::Http1,
@@ -42,6 +51,15 @@ impl<'buffer, 'headers> Request for httparse::Request<'headers, 'buffer> {
 }
 
 impl<'buffer, 'headers> Response for httparse::Response<'headers, 'buffer> {
+  #[inline]
+  fn code(&self) -> u16 {
+    if let Some(el) = self.code {
+      el
+    } else {
+      unreachable!()
+    }
+  }
+
   #[inline]
   fn version(&self) -> Version {
     match self.version {

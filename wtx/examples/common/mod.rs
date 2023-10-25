@@ -28,7 +28,7 @@ where
     rng: <_>::default(),
     stream,
   }
-  .accept()
+  .accept(|_| true)
   .await?;
   _handle_frames(fb, &mut ws).await?;
   Ok(())
