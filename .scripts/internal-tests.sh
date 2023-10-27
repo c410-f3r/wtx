@@ -46,3 +46,4 @@ cargo check --example web-socket-server-echo-raw-glommio --features "glommio,web
 cargo check --example web-socket-server-echo-raw-smol --features "smol,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio --features "tokio/macros,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio-rustls --features "rustls-pemfile,tokio-rustls,web-socket-handshake"
+cargo check --example web-socket-server-pool-raw-tokio --features "deadpool,web-socket-handshake"

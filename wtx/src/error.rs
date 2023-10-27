@@ -42,6 +42,12 @@ pub enum Error {
 
   // External
   //
+  #[cfg(feature = "deadpool")]
+  /// See [deadpool::managed::PoolError].
+  DeadPoolManagedPoolError(deadpool::managed::PoolError<()>),
+  #[cfg(feature = "deadpool")]
+  /// See [deadpool::unmanaged::PoolError].
+  DeadPoolUnmanagedPoolError(deadpool::unmanaged::PoolError),
   #[cfg(feature = "flate2")]
   /// See [flate2::CompressError].
   Flate2CompressError(flate2::CompressError),
@@ -77,6 +83,33 @@ impl Display for Error {
 
 #[cfg(feature = "std")]
 impl std::error::Error for Error {}
+
+#[cfg(feature = "deadpool")]
+impl<T> From<deadpool::managed::PoolError<T>> for Error {
+  #[inline]
+  fn from(from: deadpool::managed::PoolError<T>) -> Self {
+    use deadpool::managed::{HookError, PoolError};
+    Self::DeadPoolManagedPoolError(match from {
+      PoolError::Timeout(elem) => PoolError::Timeout(elem),
+      PoolError::Backend(_) => PoolError::Backend(()),
+      PoolError::Closed => PoolError::Closed,
+      PoolError::NoRuntimeSpecified => PoolError::NoRuntimeSpecified,
+      PoolError::PostCreateHook(elem) => PoolError::PostCreateHook(match elem {
+        HookError::Message(elem) => HookError::Message(elem),
+        HookError::StaticMessage(elem) => HookError::StaticMessage(elem),
+        HookError::Backend(_) => HookError::Backend(()),
+      }),
+    })
+  }
+}
+
+#[cfg(feature = "deadpool")]
+impl From<deadpool::unmanaged::PoolError> for Error {
+  #[inline]
+  fn from(from: deadpool::unmanaged::PoolError) -> Self {
+    Self::DeadPoolUnmanagedPoolError(from)
+  }
+}
 
 #[cfg(feature = "flate2")]
 impl From<flate2::CompressError> for Error {

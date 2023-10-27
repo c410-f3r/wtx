@@ -9,12 +9,12 @@ mod macros;
 mod array_chunks;
 mod async_bounds;
 mod buffer;
-mod cache;
 mod error;
 mod expected_header;
 pub mod http;
 mod misc;
 mod partitioned_buffer;
+mod pool;
 pub mod rng;
 #[cfg(feature = "tracing")]
 mod role;
@@ -23,11 +23,11 @@ pub mod web_socket;
 
 pub use array_chunks::ArrayChunksMut;
 pub use async_bounds::AsyncBounds;
-pub use cache::Cache;
 pub use error::Error;
 pub use expected_header::ExpectedHeader;
 pub use misc::uri_parts::UriParts;
 pub use partitioned_buffer::PartitionedBuffer;
+pub use pool::PoolElem;
 pub use stream::{BytesStream, Stream};
 
 pub(crate) const DFLT_PARTITIONED_BUFFER_LEN: usize = 32 * 1024;

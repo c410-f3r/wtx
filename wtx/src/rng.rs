@@ -2,6 +2,7 @@
 
 #[cfg(feature = "std")]
 pub use self::std::StdRng;
+use core::ptr;
 
 /// Abstraction tailored for the needs of this project. Each implementation should manage how
 /// seeds are retrieved as well as how numbers are generated.
@@ -28,7 +29,7 @@ where
   }
 }
 
-/// Dummy that uses a pre-fixed seed, i.e., it doesn't generate randomness at all.
+/// Uses a pre-fixed seed, i.e., it doesn't generate randomness at all.
 ///
 /// The number generation is done using a simple XOR strategy.
 ///
@@ -51,7 +52,39 @@ impl Rng for StaticRng {
 impl Default for StaticRng {
   #[inline]
   fn default() -> Self {
-    Self(u64::from_be_bytes([55, 120, 216, 218, 191, 63, 200, 169]))
+    struct Foo {
+      _bar: usize,
+      _baz: usize,
+    }
+    let elem = Box::new(Foo { _bar: 1, _baz: 2 });
+    // SAFETY: Memory location is not relevant
+    let n: usize = unsafe {
+      let ref_ptr = ptr::addr_of!(elem);
+      *ref_ptr.cast()
+    };
+    if n == 0 {
+      return Self(u64::from_be_bytes([55, 120, 216, 218, 191, 63, 200, 169]));
+    }
+    #[cfg(target_pointer_width = "16")]
+    return Self({
+      let [a, b] = n.to_be_bytes();
+      u64::from_be_bytes([a, b, 0, 0, 0, 0, 0, 0])
+    });
+    #[cfg(target_pointer_width = "32")]
+    return Self({
+      let [a, b, c, d] = n.to_be_bytes();
+      u64::from_be_bytes([a, b, c, d, 0, 0, 0, 0])
+    });
+    #[cfg(target_pointer_width = "64")]
+    return Self({
+      let [a, b, c, d, e, f, g, h] = n.to_be_bytes();
+      u64::from_be_bytes([a, b, c, d, e, f, g, h])
+    });
+    #[cfg(target_pointer_width = "128")]
+    return Self({
+      let [a, b, c, d, e, f, g, h, ..] = n.to_be_bytes();
+      u64::from_be_bytes([a, b, c, d, e, f, g, h])
+    });
   }
 }
 
