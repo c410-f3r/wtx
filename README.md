@@ -60,6 +60,8 @@ The "permessage-deflate" extension, described in [RFC-7692](https://datatracker.
 
 There are mainly 2 things that impact performance, the chosen runtime and the number of pre-allocated bytes. Specially for servers that have to create a new `WebSocket` instance for each handshake, pre-allocating a high number of bytes for short-lived or low-transfer connections can have a negative impact.
 
+It is also possible to use libraries that manage pools of bytes to avoid having to heap-allocate all the time.
+
 ![Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
 
 If you disagree with any of the above numbers, feel free to checkout `wtx-bench` to point any misunderstandings or misconfigurations. A more insightful analysis is available at https://c410-f3r.github.io/thoughts/the-fastest-websocket-implementation/.

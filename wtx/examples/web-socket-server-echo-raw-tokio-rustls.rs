@@ -24,13 +24,8 @@ async fn main() -> wtx::Result<()> {
     let _jh = tokio::spawn(async move {
       let fun = || async move {
         let stream = local_tls_acceptor.accept(stream).await?;
-        tokio::task::unconstrained(common::_accept_conn_and_echo_frames(
-          (),
-          &mut <_>::default(),
-          &mut <_>::default(),
-          stream,
-        ))
-        .await
+        common::_accept_conn_and_echo_frames((), &mut <_>::default(), &mut <_>::default(), stream)
+          .await
       };
       if let Err(err) = fun().await {
         println!("{err}");

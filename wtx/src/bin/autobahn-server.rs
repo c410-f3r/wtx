@@ -12,12 +12,12 @@ async fn main() -> wtx::Result<()> {
   loop {
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
-      if let Err(err) = tokio::task::unconstrained(common::_accept_conn_and_echo_frames(
+      if let Err(err) = common::_accept_conn_and_echo_frames(
         Flate2::default(),
         &mut <_>::default(),
         &mut <_>::default(),
         stream,
-      ))
+      )
       .await
       {
         println!("{err}");
