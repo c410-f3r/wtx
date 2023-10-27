@@ -9,6 +9,7 @@ pub struct PoolElem<T>(
 #[cfg(feature = "deadpool")]
 mod deadpool {
   use crate::{web_socket::FrameBufferVec, PartitionedBuffer, PoolElem};
+  use deadpool::managed::{Metrics, RecycleResult};
 
   #[async_trait::async_trait]
   impl deadpool::managed::Manager for PoolElem<(FrameBufferVec, PartitionedBuffer)> {
@@ -19,11 +20,7 @@ mod deadpool {
       Ok(<_>::default())
     }
 
-    async fn recycle(
-      &self,
-      _: &mut Self::Type,
-      _: &deadpool::managed::Metrics,
-    ) -> deadpool::managed::RecycleResult<Self::Error> {
+    async fn recycle(&self, _: &mut Self::Type, _: &Metrics) -> RecycleResult<Self::Error> {
       Ok(())
     }
   }
