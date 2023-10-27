@@ -45,7 +45,7 @@ async-trait = { default-features = false, optional = true, version = "0.1" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.21" }
 deadpool = { default-features = false, features = ["managed", "unmanaged"], optional = true, version = "0.10" }
 flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
-futures-lite = { default-features = false, optional = true, version = "1.0" }
+futures-lite = { default-features = false, optional = true, version = "2.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
