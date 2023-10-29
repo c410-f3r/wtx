@@ -1,6 +1,9 @@
+/// HTTP header.
 pub trait Header {
+  /// Name.
   fn name(&self) -> &[u8];
 
+  /// Value.
   fn value(&self) -> &[u8];
 }
 
@@ -31,6 +34,7 @@ where
   }
 }
 
+/// HTTP/1 header.
 pub trait Http1Header: Header {}
 
 impl Http1Header for () {}

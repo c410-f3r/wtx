@@ -1,5 +1,6 @@
 use crate::http::Version;
 
+/// HTTP response
 pub trait Response {
   /// Code
   fn code(&self) -> u16;

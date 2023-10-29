@@ -1,5 +1,6 @@
 use crate::http::Version;
 
+/// HTTP request.
 pub trait Request {
   /// Method
   fn method(&self) -> &[u8];

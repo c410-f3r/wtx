@@ -6,14 +6,15 @@ use crate::{
 use core::str::FromStr;
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
 
+/// Initial Flate2 compression
 #[derive(Debug)]
 pub struct Flate2 {
   dc: DeflateConfig,
 }
 
-impl Flate2 {
+impl From<DeflateConfig> for Flate2 {
   #[inline]
-  pub fn new(dc: DeflateConfig) -> Self {
+  fn from(dc: DeflateConfig) -> Self {
     Self { dc }
   }
 }
@@ -105,10 +106,11 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
 impl Default for Flate2 {
   #[inline]
   fn default() -> Self {
-    Self::new(<_>::default())
+    Flate2::from(DeflateConfig::default())
   }
 }
 
+/// Negotiated Flate2 compression
 #[derive(Debug)]
 pub struct NegotiatedFlate2 {
   compress: Compress,

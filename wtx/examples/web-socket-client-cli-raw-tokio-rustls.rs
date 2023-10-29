@@ -22,7 +22,7 @@ use wtx::{
   UriParts,
 };
 
-static ROOT_CA: &[u8] = include_bytes!("./root-ca.crt");
+static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> wtx::Result<()> {

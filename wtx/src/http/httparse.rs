@@ -5,7 +5,7 @@
 
 use crate::http::{Header, Http1Header, Request, Response, Version};
 
-impl<'buffer> Header for httparse::Header<'buffer> {
+impl Header for httparse::Header<'_> {
   #[inline]
   fn name(&self) -> &[u8] {
     self.name.as_bytes()
@@ -17,9 +17,9 @@ impl<'buffer> Header for httparse::Header<'buffer> {
   }
 }
 
-impl<'buffer> Http1Header for httparse::Header<'buffer> {}
+impl Http1Header for httparse::Header<'_> {}
 
-impl<'buffer, 'headers> Request for httparse::Request<'headers, 'buffer> {
+impl Request for httparse::Request<'_, '_> {
   #[inline]
   fn method(&self) -> &[u8] {
     if let Some(el) = self.method {
@@ -50,7 +50,7 @@ impl<'buffer, 'headers> Request for httparse::Request<'headers, 'buffer> {
   }
 }
 
-impl<'buffer, 'headers> Response for httparse::Response<'headers, 'buffer> {
+impl Response for httparse::Response<'_, '_> {
   #[inline]
   fn code(&self) -> u16 {
     if let Some(el) = self.code {

@@ -900,9 +900,9 @@ where
   }
 
   #[inline]
-  async fn read_first_frame<'fb, B>(
+  async fn read_first_frame<B>(
     &mut self,
-    fb: &'fb mut FrameBuffer<B>,
+    fb: &mut FrameBuffer<B>,
     header_buffer_len: u8,
     payload_start_idx: usize,
   ) -> crate::Result<Option<ReadFrameInfo>>

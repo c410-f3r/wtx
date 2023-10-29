@@ -1,6 +1,7 @@
 /// Implements external pool traits.
 ///
 /// This structure only exists because tuples are not fundamental.
+#[derive(Debug)]
 pub struct PoolElem<T>(
   /// Element
   pub T,

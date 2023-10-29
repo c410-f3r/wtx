@@ -22,8 +22,8 @@ impl<'slice, T, const N: usize> ArrayChunksMut<'slice, T, N> {
     assert!(N != 0, "chunk size must be non-zero");
     let len = slice.len() / N;
     let (multiple_of_n, remainder) = slice.split_at_mut(len * N);
-    // SAFETY: We cast a slice of `new_len * N` elements into
-    // a slice of `new_len` many `N` elements chunks.
+    // SAFETY: `N` is not zero and `slice` is multiple of `N`.
+    #[allow(unsafe_code)]
     let array_slice = unsafe { slice::from_raw_parts_mut(multiple_of_n.as_mut_ptr().cast(), len) };
     Self { iter: array_slice.iter_mut(), remainder }
   }

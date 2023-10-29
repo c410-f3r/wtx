@@ -52,6 +52,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
 
 /// Final compression parameters defined after a handshake.
 pub trait NegotiatedCompression {
+  /// Compress
   fn compress<O>(
     &mut self,
     input: &[u8],
@@ -60,6 +61,7 @@ pub trait NegotiatedCompression {
     rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
   ) -> crate::Result<usize>;
 
+  /// Decompress
   fn decompress<O>(
     &mut self,
     input: &[u8],
@@ -68,8 +70,10 @@ pub trait NegotiatedCompression {
     rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
   ) -> crate::Result<usize>;
 
+  /// Rsv1 bit
   fn rsv1(&self) -> u8;
 
+  /// Write response headers
   fn write_res_headers<B>(&self, buffer: &mut B)
   where
     B: Extend<u8>;

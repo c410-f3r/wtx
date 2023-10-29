@@ -59,8 +59,8 @@ mod httparse_impls {
 
   const MAX_READ_LEN: usize = 2 * 1024;
 
-  impl<'kb, C, PB, RNG, S> WebSocketAccept<C::NegotiatedCompression, PB, RNG, S>
-    for WebSocketAcceptRaw<'kb, C, PB, RNG, S>
+  impl<C, PB, RNG, S> WebSocketAccept<C::NegotiatedCompression, PB, RNG, S>
+    for WebSocketAcceptRaw<'_, C, PB, RNG, S>
   where
     C: AsyncBounds + Compression<false>,
     C::NegotiatedCompression: AsyncBounds,
@@ -126,8 +126,8 @@ mod httparse_impls {
     }
   }
 
-  impl<'fb, 'hb, 'uri, B, C, PB, RNG, S> WebSocketConnect<C::NegotiatedCompression, PB, RNG, S>
-    for WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, Header<'fb>, PB, RNG, S>
+  impl<'fb, 'hb, B, C, PB, RNG, S> WebSocketConnect<C::NegotiatedCompression, PB, RNG, S>
+    for WebSocketConnectRaw<'fb, 'hb, '_, B, C, Header<'fb>, PB, RNG, S>
   where
     B: AsyncBounds + AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
     C: AsyncBounds + Compression<true>,
