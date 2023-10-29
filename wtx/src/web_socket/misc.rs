@@ -19,7 +19,7 @@ where
   } else {
     (fb.buffer_mut().as_mut(), 0)
   };
-  copy_header_params_to_buffer::<IS_CLIENT>(buffer, fin, op_code, payload_len, rsv1)?;
+  let _ = copy_header_params_to_buffer::<IS_CLIENT>(buffer, fin, op_code, payload_len, rsv1)?;
   fb.set_indices(header_begin_idx, new_header_len, payload_len)?;
   Ok(())
 }

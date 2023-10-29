@@ -1,5 +1,5 @@
 macro_rules! call_tests {
-  (($ty:ident, $fb:expr, $ws:expr), $($struct:ident),* $(,)?) => {
+  (($ty:ident, $fb:expr, $ws:expr), $($struct:ident),+ $(,)?) => {
     $(
       println!("***** {} - {}", stringify!($ty), stringify!($struct));
       $struct::$ty($fb, $ws).await;

@@ -1,3 +1,5 @@
+//! WTX - Cli
+
 #[cfg(feature = "clap")]
 mod clap;
 mod misc;

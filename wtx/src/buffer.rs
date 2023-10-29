@@ -8,7 +8,7 @@ use core::ops::{Deref, DerefMut};
 
 /// Internal buffer not intended for public usage
 #[derive(Debug, Default)]
-pub struct Buffer {
+pub(crate) struct Buffer {
   buffer: Vec<u8>,
   len: usize,
 }

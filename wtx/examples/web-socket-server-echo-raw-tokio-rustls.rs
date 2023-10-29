@@ -11,8 +11,8 @@ use tokio_rustls::{
   TlsAcceptor,
 };
 
-static CERT: &[u8] = include_bytes!("./cert.pem");
-static KEY: &[u8] = include_bytes!("./key.pem");
+static CERT: &[u8] = include_bytes!("../../.certs/cert.pem");
+static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> wtx::Result<()> {
@@ -23,9 +23,14 @@ async fn main() -> wtx::Result<()> {
     let local_tls_acceptor = tls_acceptor.clone();
     let _jh = tokio::spawn(async move {
       let fun = || async move {
-        let stream = local_tls_acceptor.accept(stream).await?;
-        common::_accept_conn_and_echo_frames((), &mut <_>::default(), &mut <_>::default(), stream)
-          .await
+        let tls_stream = local_tls_acceptor.accept(stream).await?;
+        common::_accept_conn_and_echo_frames(
+          (),
+          &mut <_>::default(),
+          &mut <_>::default(),
+          tls_stream,
+        )
+        .await
       };
       if let Err(err) = fun().await {
         println!("{err}");

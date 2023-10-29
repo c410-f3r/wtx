@@ -6,11 +6,10 @@ cargo install rust-tools --git https://github.com/c410-f3r/regular-crates
 
 rt='rust-tools --template you-rust'
 
-RUSTFLAGS="$($rt rust-flags)"
-
 export CARGO_TARGET_DIR="$($rt target-dir)"
 export RUST_BACKTRACE=1
 export RUST_LOG=debug
+export RUSTFLAGS="$($rt rust-flags)"
 
 $rt rustfmt
 $rt clippy
