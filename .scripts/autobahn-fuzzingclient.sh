@@ -7,8 +7,8 @@ fi;
 
 ## fuzzingclient
 
-RUSTFLAGS='-C target-cpu=native' cargo build --bin autobahn-server --features flate2,tokio,web-socket-handshake --release
-RUSTFLAGS='-C target-cpu=native' cargo run --bin autobahn-server --features flate2,tokio,web-socket-handshake --release & cargo_pid=$!
+cargo build --bin autobahn-server --features flate2,tokio,web-socket-handshake --release
+cargo run --bin autobahn-server --features flate2,tokio,web-socket-handshake --release & cargo_pid=$!
 mkdir -p .scripts/autobahn/reports/fuzzingclient
 podman run \
 	-p 9070:9070 \
