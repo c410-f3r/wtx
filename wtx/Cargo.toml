@@ -53,13 +53,13 @@ rustls-pemfile = { default-features = false, optional = true, version = "1.0" }
 sha1 = { default-features = false, optional = true, version = "0.10" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
 smol = { default-features = false, optional = true, version = "1.0" }
-tokio = { default-features = false, features = ["io-util", "net"], optional = true, version = "1.33" }
+tokio = { default-features = false, features = ["io-util", "net"], optional = true, version = "1.34" }
 tokio-rustls = { default-features = false, optional = true, version = "0.24" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 webpki-roots = { default-features = false, optional = true, version = "0.25" }
 
 [dev-dependencies]
-tokio = { default-features = false, features = ["macros", "rt", "time"], version = "1.33" }
+tokio = { default-features = false, features = ["macros", "rt", "time"], version = "1.34" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], version = "0.3" }
 tracing-tree = { default-features = false, version = "0.2" }
 wtx = { default-features = false, features = ["flate2", "std", "tokio", "web-socket-handshake"], path = "." }
