@@ -54,7 +54,7 @@ sha1 = { default-features = false, optional = true, version = "0.10" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
 smol = { default-features = false, optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-util", "net"], optional = true, version = "1.35" }
-tokio-rustls = { default-features = false, optional = true, version = "0.24" }
+tokio-rustls = { default-features = false, optional = true, version = "0.25" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 webpki-roots = { default-features = false, optional = true, version = "0.25" }
 
