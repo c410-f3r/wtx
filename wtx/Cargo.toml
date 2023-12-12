@@ -49,7 +49,7 @@ futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
-rustls-pemfile = { default-features = false, optional = true, version = "1.0" }
+rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
 sha1 = { default-features = false, optional = true, version = "0.10" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
 smol = { default-features = false, optional = true, version = "1.0" }
