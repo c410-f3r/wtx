@@ -11,7 +11,7 @@ fn main() {
     loop {
       let (stream, _) = listener.accept().await.unwrap();
       smol::spawn(async move {
-        common::_accept_conn_and_echo_frames((), &mut <_>::default(), stream).await
+        common::_accept_conn_and_echo_frames((), &mut <_>::default(), stream).await.unwrap();
       })
       .detach();
     }

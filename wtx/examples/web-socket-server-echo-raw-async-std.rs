@@ -12,7 +12,9 @@ fn main() {
     loop {
       let (stream, _) = listener.accept().await.unwrap();
       let _jh = async_std::task::spawn(async move {
-        common::_accept_conn_and_echo_frames((), &mut FrameBufferVec::default(), stream).await
+        common::_accept_conn_and_echo_frames((), &mut FrameBufferVec::default(), stream)
+          .await
+          .unwrap();
       });
     }
   });

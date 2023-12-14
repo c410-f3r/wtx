@@ -8,7 +8,7 @@ mod reqwest;
 mod std;
 mod transport_params;
 mod unit;
-#[cfg(feature = "wtx")]
+#[cfg(feature = "web-socket")]
 mod wtx;
 
 use crate::{

@@ -8,18 +8,18 @@
 
 use tokio::runtime::Builder;
 use wtx::{
+  misc::BytesStream,
   rng::StaticRng,
-  web_socket::{FrameBufferVec, FrameMutVec, OpCode, WebSocketServerOwned},
-  BytesStream, PartitionedBuffer,
+  web_socket::{FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketServerOwned},
 };
 
 libfuzzer_sys::fuzz_target!(|data: (OpCode, &[u8])| {
   Builder::new_current_thread().enable_all().build().unwrap().block_on(async move {
     let mut ws = WebSocketServerOwned::new(
       (),
-      PartitionedBuffer::default(),
       StaticRng::default(),
       BytesStream::default(),
+      WebSocketBuffer::default(),
     );
     ws.set_max_payload_len(u16::MAX.into());
     let fb = &mut FrameBufferVec::default();

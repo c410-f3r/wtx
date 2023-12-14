@@ -16,7 +16,9 @@ fn main() {
       loop {
         let stream = listener.accept().await.unwrap();
         let _jh = glommio::spawn_local(async move {
-          crate::common::_accept_conn_and_echo_frames((), &mut <_>::default(), stream).await
+          crate::common::_accept_conn_and_echo_frames((), &mut <_>::default(), stream)
+            .await
+            .unwrap();
         })
         .detach();
       }

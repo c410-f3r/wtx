@@ -20,7 +20,7 @@ async fn main() {
     let local_tls_acceptor = tls_acceptor.clone();
     let _jh = tokio::spawn(async move {
       let tls_stream = local_tls_acceptor.accept(stream).await.unwrap();
-      common::_accept_conn_and_echo_frames((), &mut <_>::default(), tls_stream).await
+      common::_accept_conn_and_echo_frames((), &mut <_>::default(), tls_stream).await.unwrap();
     });
   }
 }

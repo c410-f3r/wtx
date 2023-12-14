@@ -1,33 +1,33 @@
 use crate::{
-  misc::{manage_after_sending_related, manage_before_sending_related, AsyncBounds},
-  network::{
-    transport::{BiTransport, Transport, TransportParams},
-    TransportGroup, WsParams, WsReqParamsTy,
+  client_api_framework::{
+    misc::{manage_after_sending_related, manage_before_sending_related},
+    network::{
+      transport::{BiTransport, Transport, TransportParams},
+      TransportGroup, WsParams, WsReqParamsTy,
+    },
+    pkg::{Package, PkgsAux},
   },
-  pkg::{Package, PkgsAux},
-};
-use core::{borrow::BorrowMut, ops::Range};
-use wtx::{
+  misc::{AsyncBounds, Stream},
   rng::Rng,
   web_socket::{
     compression::NegotiatedCompression, FrameBufferVec, FrameBufferVecMut, FrameMutVec, OpCode,
-    WebSocketClient,
+    WebSocketBuffer, WebSocketClient,
   },
-  PartitionedBuffer, Stream,
 };
+use core::{borrow::BorrowMut, ops::Range};
 
-impl<DRSR, NC, PB, RNG, S> Transport<DRSR> for (FrameBufferVec, WebSocketClient<NC, PB, RNG, S>)
+impl<DRSR, NC, RNG, S, WSB> Transport<DRSR> for (FrameBufferVec, WebSocketClient<NC, RNG, S, WSB>)
 where
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
+  WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
   for<'ty> &'ty DRSR: AsyncBounds,
   for<'ty> &'ty NC: AsyncBounds,
-  for<'ty> &'ty PB: AsyncBounds,
   for<'ty> &'ty RNG: AsyncBounds,
   for<'ty> &'ty S: AsyncBounds,
+  for<'ty> &'ty WSB: AsyncBounds,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
   type Params = WsParams;
@@ -57,18 +57,18 @@ where
   }
 }
 
-impl<DRSR, NC, PB, RNG, S> BiTransport<DRSR> for (FrameBufferVec, WebSocketClient<NC, PB, RNG, S>)
+impl<DRSR, NC, RNG, S, WSB> BiTransport<DRSR> for (FrameBufferVec, WebSocketClient<NC, RNG, S, WSB>)
 where
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
+  WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
   for<'ty> &'ty DRSR: AsyncBounds,
   for<'ty> &'ty NC: AsyncBounds,
-  for<'ty> &'ty PB: AsyncBounds,
   for<'ty> &'ty RNG: AsyncBounds,
   for<'ty> &'ty S: AsyncBounds,
+  for<'ty> &'ty WSB: AsyncBounds,
 {
   #[inline]
   async fn retrieve<API>(
@@ -82,19 +82,19 @@ where
   }
 }
 
-impl<DRSR, NC, PB, RNG, S> Transport<DRSR>
-  for (&mut FrameBufferVec, &mut WebSocketClient<NC, PB, RNG, S>)
+impl<DRSR, NC, RNG, S, WSB> Transport<DRSR>
+  for (&mut FrameBufferVec, &mut WebSocketClient<NC, RNG, S, WSB>)
 where
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
+  WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
   for<'ty> &'ty DRSR: AsyncBounds,
   for<'ty> &'ty NC: AsyncBounds,
-  for<'ty> &'ty PB: AsyncBounds,
   for<'ty> &'ty RNG: AsyncBounds,
   for<'ty> &'ty S: AsyncBounds,
+  for<'ty> &'ty WSB: AsyncBounds,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
   type Params = WsParams;
@@ -124,19 +124,19 @@ where
   }
 }
 
-impl<DRSR, NC, PB, RNG, S> BiTransport<DRSR>
-  for (&mut FrameBufferVec, &mut WebSocketClient<NC, PB, RNG, S>)
+impl<DRSR, NC, RNG, S, WSB> BiTransport<DRSR>
+  for (&mut FrameBufferVec, &mut WebSocketClient<NC, RNG, S, WSB>)
 where
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
+  WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
   for<'ty> &'ty DRSR: AsyncBounds,
   for<'ty> &'ty NC: AsyncBounds,
-  for<'ty> &'ty PB: AsyncBounds,
   for<'ty> &'ty RNG: AsyncBounds,
   for<'ty> &'ty S: AsyncBounds,
+  for<'ty> &'ty WSB: AsyncBounds,
 {
   #[inline]
   async fn retrieve<API>(
@@ -150,21 +150,21 @@ where
   }
 }
 
-async fn retrieve<API, DRSR, NC, PB, RNG, S>(
+async fn retrieve<API, DRSR, NC, RNG, S, WSB>(
   pkgs_aux: &mut PkgsAux<API, DRSR, WsParams>,
-  ws: &mut WebSocketClient<NC, PB, RNG, S>,
+  ws: &mut WebSocketClient<NC, RNG, S, WSB>,
 ) -> crate::Result<Range<usize>>
 where
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
+  WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
   for<'ty> &'ty DRSR: AsyncBounds,
   for<'ty> &'ty NC: AsyncBounds,
-  for<'ty> &'ty PB: AsyncBounds,
   for<'ty> &'ty RNG: AsyncBounds,
   for<'ty> &'ty S: AsyncBounds,
+  for<'ty> &'ty WSB: AsyncBounds,
 {
   pkgs_aux.byte_buffer.clear();
   let fb = &mut FrameBufferVecMut::from(&mut pkgs_aux.byte_buffer);
@@ -176,24 +176,24 @@ where
   Ok(indcs.1.into()..indcs.2)
 }
 
-async fn send<DRSR, NC, P, PB, RNG, S>(
+async fn send<DRSR, NC, P, RNG, S, WSB>(
   fb: &mut FrameBufferVec,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<P::Api, DRSR, WsParams>,
-  ws: &mut WebSocketClient<NC, PB, RNG, S>,
+  ws: &mut WebSocketClient<NC, RNG, S, WSB>,
 ) -> Result<(), P::Error>
 where
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
   P: AsyncBounds + Package<DRSR, WsParams>,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
+  WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
   for<'ty> &'ty DRSR: AsyncBounds,
   for<'ty> &'ty NC: AsyncBounds,
-  for<'ty> &'ty PB: AsyncBounds,
   for<'ty> &'ty RNG: AsyncBounds,
   for<'ty> &'ty S: AsyncBounds,
+  for<'ty> &'ty WSB: AsyncBounds,
 {
   let mut trans = (fb, ws);
   pkgs_aux.byte_buffer.clear();
@@ -210,24 +210,24 @@ where
   Ok(())
 }
 
-async fn send_and_retrieve<DRSR, NC, P, PB, RNG, S>(
+async fn send_and_retrieve<DRSR, NC, P, RNG, S, WSB>(
   fb: &mut FrameBufferVec,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<P::Api, DRSR, WsParams>,
-  ws: &mut WebSocketClient<NC, PB, RNG, S>,
+  ws: &mut WebSocketClient<NC, RNG, S, WSB>,
 ) -> Result<Range<usize>, P::Error>
 where
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
   P: AsyncBounds + Package<DRSR, WsParams>,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
+  WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
   for<'ty> &'ty DRSR: AsyncBounds,
   for<'ty> &'ty NC: AsyncBounds,
-  for<'ty> &'ty PB: AsyncBounds,
   for<'ty> &'ty RNG: AsyncBounds,
   for<'ty> &'ty S: AsyncBounds,
+  for<'ty> &'ty WSB: AsyncBounds,
 {
   send(fb, pkg, pkgs_aux, ws).await?;
   let fb = &mut FrameBufferVecMut::from(&mut pkgs_aux.byte_buffer);

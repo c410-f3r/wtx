@@ -12,7 +12,8 @@ async fn main() {
   loop {
     let (stream, _) = listener.accept().await.unwrap();
     let _jh = tokio::spawn(async move {
-      common::_accept_conn_and_echo_frames(Flate2::default(), &mut <_>::default(), stream).await
+      let _rslt =
+        common::_accept_conn_and_echo_frames(Flate2::default(), &mut <_>::default(), stream).await;
     });
   }
 }

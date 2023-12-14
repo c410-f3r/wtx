@@ -12,7 +12,8 @@ pub(crate) async fn _accept_conn_and_echo_frames<C, S>(
   compression: C,
   fb: &mut FrameBufferVec,
   stream: S,
-) where
+) -> wtx::Result<()>
+where
   C: AsyncBounds + Compression<false>,
   C::NegotiatedCompression: AsyncBounds,
   S: AsyncBounds + Stream,
@@ -24,28 +25,30 @@ pub(crate) async fn _accept_conn_and_echo_frames<C, S>(
     wsb: WebSocketBuffer::default(),
   }
   .accept(|_| true)
-  .await
-  .unwrap();
-  _handle_frames(fb, &mut ws).await;
+  .await?;
+  _handle_frames(fb, &mut ws).await?;
+  Ok(())
 }
 
 pub(crate) async fn _handle_frames<NC, S>(
   fb: &mut FrameBufferVec,
   ws: &mut WebSocketServerOwned<NC, StaticRng, S>,
-) where
+) -> wtx::Result<()>
+where
   NC: NegotiatedCompression,
   S: Stream,
 {
   loop {
-    let mut frame = ws.read_frame(fb).await.unwrap();
+    let mut frame = ws.read_frame(fb).await?;
     match frame.op_code() {
       OpCode::Binary | OpCode::Text => {
-        ws.write_frame(&mut frame).await.unwrap();
+        ws.write_frame(&mut frame).await?;
       }
       OpCode::Close => break,
       _ => {}
     }
   }
+  Ok(())
 }
 
 pub(crate) fn _host_from_args() -> String {

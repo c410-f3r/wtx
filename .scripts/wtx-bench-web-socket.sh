@@ -26,17 +26,17 @@ fi
 ./EchoServer 8082 &
 popd
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-async-std --features async-std/attributes,simdutf8,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-async-std --features async-std/attributes,simdutf8,web-socket-handshake --release 127.0.0.1:8083 &
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-async-std --features atoi,async-std/attributes,simdutf8,web-socket-handshake --release
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-async-std --features atoi,async-std/attributes,simdutf8,web-socket-handshake --release 127.0.0.1:8083 &
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-glommio --features glommio,simdutf8,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-glommio --features glommio,simdutf8,web-socket-handshake --release 127.0.0.1:8084 &
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-glommio --features atoi,glommio,simdutf8,web-socket-handshake --release
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-glommio --features atoi,glommio,simdutf8,web-socket-handshake --release 127.0.0.1:8084 &
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-smol --features simdutf8,smol,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-smol --features simdutf8,smol,web-socket-handshake --release 127.0.0.1:8085 &
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-smol --features atoi,simdutf8,smol,web-socket-handshake --release
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-smol --features atoi,simdutf8,smol,web-socket-handshake --release 127.0.0.1:8085 &
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-tokio --features simdutf8,tokio,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-tokio --features simdutf8,tokio,web-socket-handshake --release 127.0.0.1:8086 &
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-tokio --features atoi,simdutf8,tokio,web-socket-handshake --release
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-tokio --features atoi,simdutf8,tokio,web-socket-handshake --release 127.0.0.1:8086 &
 
 sleep 1
 
