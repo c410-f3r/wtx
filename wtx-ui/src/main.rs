@@ -2,7 +2,12 @@
 
 #[cfg(feature = "clap")]
 mod clap;
-mod misc;
+#[cfg(feature = "embed-migrations")]
+mod embed_migrations;
+#[cfg(feature = "sm")]
+mod sm;
+#[cfg(feature = "web-socket")]
+mod web_socket;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {

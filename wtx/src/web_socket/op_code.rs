@@ -3,19 +3,19 @@ create_enum! {
   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   #[repr(u8)]
-  pub enum OpCode {
+  pub enum OpCode<u8> {
     /// Continuation of a previous frame.
-    Continuation = 0b0000_0000,
+    Continuation = (0b0000_0000),
     /// UTF-8 text.
-    Text = 0b0000_0001,
+    Text = (0b0000_0001),
     /// Opaque bytes.
-    Binary = 0b0000_0010,
+    Binary = (0b0000_0010),
     /// Connection is closed.
-    Close = 0b0000_1000,
+    Close = (0b0000_1000),
     /// Test reachability.
-    Ping = 0b0000_1001,
+    Ping = (0b0000_1001),
     /// Response of a ping frame.
-    Pong = 0b0000_1010,
+    Pong = (0b0000_1010),
   }
 }
 

@@ -15,5 +15,5 @@ rpath = false
 strip = "symbols"
 
 [workspace]
-members = ["wtx-bench", "wtx", "wtx-fuzz", "wtx-ui"]
+members = ["wtx", "wtx-bench", "wtx-fuzz", "wtx-macros", "wtx-ui"]
 resolver = "2"

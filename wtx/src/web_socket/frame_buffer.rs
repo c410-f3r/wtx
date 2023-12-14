@@ -5,7 +5,7 @@
 
 use crate::{
   misc::SingleTypeStorage,
-  web_socket::{WebSocketError, DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
+  web_socket::{DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
 };
 use alloc::{vec, vec::Vec};
 use core::array;
@@ -130,7 +130,7 @@ where
     let header_end_idx = Self::header_end_idx_from_parts(header_begin_idx, header_len);
     let payload_end_idx = Self::payload_end_idx_from_parts(header_end_idx, payload_len);
     if header_len > MAX_HDR_LEN_U8 || payload_end_idx > self.buffer.as_ref().len() {
-      return Err(WebSocketError::InvalidPayloadBounds.into());
+      return Err(crate::Error::InvalidPayloadBounds);
     }
     self.header_begin_idx = header_begin_idx;
     self.header_end_idx = header_end_idx;
@@ -221,26 +221,6 @@ impl Default for FrameBufferVec {
       payload_end_idx: 0,
       buffer: vec![0; DFLT_FRAME_BUFFER_VEC_LEN],
     }
-  }
-}
-
-impl Extend<u8> for FrameBufferVec {
-  #[inline]
-  fn extend<T>(&mut self, iter: T)
-  where
-    T: IntoIterator<Item = u8>,
-  {
-    self.buffer.extend(iter);
-  }
-}
-
-impl<'item> Extend<&'item u8> for FrameBufferVec {
-  #[inline]
-  fn extend<T>(&mut self, iter: T)
-  where
-    T: IntoIterator<Item = &'item u8>,
-  {
-    self.buffer.extend(iter);
   }
 }
 

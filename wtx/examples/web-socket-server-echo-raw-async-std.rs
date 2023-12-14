@@ -4,26 +4,18 @@
 mod common;
 
 use async_std::net::TcpListener;
-use wtx::{web_socket::FrameBufferVec, PartitionedBuffer};
+use wtx::web_socket::FrameBufferVec;
 
-fn main() -> wtx::Result<()> {
-  async_std::task::block_on::<_, wtx::Result<_>>(async {
-    let listener = TcpListener::bind(common::_host_from_args()).await?;
+fn main() {
+  async_std::task::block_on(async {
+    let listener = TcpListener::bind(common::_host_from_args()).await.unwrap();
     loop {
-      let (stream, _) = listener.accept().await?;
+      let (stream, _) = listener.accept().await.unwrap();
       let _jh = async_std::task::spawn(async move {
-        if let Err(err) = common::_accept_conn_and_echo_frames(
-          (),
-          &mut FrameBufferVec::default(),
-          &mut PartitionedBuffer::default(),
-          stream,
-        )
-        .await
-        {
-          println!("{err}");
-        }
+        common::_accept_conn_and_echo_frames((), &mut FrameBufferVec::default(), stream)
+          .await
+          .unwrap();
       });
     }
-  })?;
-  Ok(())
+  });
 }

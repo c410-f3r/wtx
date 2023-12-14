@@ -1,4 +1,4 @@
-//! https://datatracker.ietf.org/doc/html/rfc7692
+//! <https://datatracker.ietf.org/doc/html/rfc7692>
 
 mod compression_level;
 mod deflate_config;
@@ -8,7 +8,7 @@ mod window_bits;
 
 #[cfg(feature = "flate2")]
 pub use self::flate2::{Flate2, NegotiatedFlate2};
-use crate::http::Http1Header;
+use crate::{http::Header, misc::FilledBufferWriter};
 pub use compression_level::CompressionLevel;
 pub use deflate_config::DeflateConfig;
 pub use window_bits::WindowBits;
@@ -22,13 +22,11 @@ pub trait Compression<const IS_CLIENT: bool> {
   /// parameters will be settled.
   fn negotiate(
     self,
-    headers: impl Iterator<Item = impl Http1Header>,
+    headers: impl Iterator<Item = impl Header>,
   ) -> crate::Result<Self::NegotiatedCompression>;
 
   /// Writes headers bytes that will be sent to the server.
-  fn write_req_headers<B>(&self, buffer: &mut B)
-  where
-    B: Extend<u8>;
+  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>);
 }
 
 impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
@@ -37,17 +35,13 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
   #[inline]
   fn negotiate(
     self,
-    _: impl Iterator<Item = impl Http1Header>,
+    _: impl Iterator<Item = impl Header>,
   ) -> crate::Result<Self::NegotiatedCompression> {
     Ok(())
   }
 
   #[inline]
-  fn write_req_headers<B>(&self, _: &mut B)
-  where
-    B: Extend<u8>,
-  {
-  }
+  fn write_req_headers(&self, _: &mut FilledBufferWriter<'_>) {}
 }
 
 /// Final compression parameters defined after a handshake.
@@ -74,9 +68,7 @@ pub trait NegotiatedCompression {
   fn rsv1(&self) -> u8;
 
   /// Write response headers
-  fn write_res_headers<B>(&self, buffer: &mut B)
-  where
-    B: Extend<u8>;
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>);
 }
 
 impl<T> NegotiatedCompression for &mut T
@@ -111,11 +103,8 @@ where
   }
 
   #[inline]
-  fn write_res_headers<B>(&self, buffer: &mut B)
-  where
-    B: Extend<u8>,
-  {
-    (**self).write_res_headers(buffer);
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
+    (**self).write_res_headers(fbw);
   }
 }
 
@@ -148,11 +137,7 @@ impl NegotiatedCompression for () {
   }
 
   #[inline]
-  fn write_res_headers<B>(&self, _: &mut B)
-  where
-    B: Extend<u8>,
-  {
-  }
+  fn write_res_headers(&self, _: &mut FilledBufferWriter<'_>) {}
 }
 
 impl<T> NegotiatedCompression for Option<T>
@@ -196,13 +181,10 @@ where
   }
 
   #[inline]
-  fn write_res_headers<B>(&self, buffer: &mut B)
-  where
-    B: Extend<u8>,
-  {
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
     match self {
-      Some(el) => el.write_res_headers(buffer),
-      None => ().write_res_headers(buffer),
+      Some(el) => el.write_res_headers(fbw),
+      None => ().write_res_headers(fbw),
     }
   }
 }

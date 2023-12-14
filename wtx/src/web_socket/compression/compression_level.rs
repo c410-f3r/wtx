@@ -2,28 +2,28 @@ create_enum! {
   /// A scale from 0 to 9 where 0 means "no compression" and 9 means "take as long as you'd like".
   #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
   #[repr(u8)]
-  pub enum CompressionLevel {
+  pub enum CompressionLevel<u8> {
     /// Zero
-    Zero = 0,
+    Zero = (0),
     /// One
-    One = 1,
+    One = (1),
     /// Two
-    Two = 2,
+    Two = (2),
     /// Three
-    Three = 3,
+    Three = (3),
     /// Four
-    Four = 4,
+    Four = (4),
     /// Five
     #[default]
-    Five = 5,
+    Five = (5),
     /// Six
-    Six = 6,
+    Six = (6),
     /// Seven
-    Seven = 7,
+    Seven = (7),
     /// Eight
-    Eight = 8,
+    Eight = (8),
     /// Nine
-    Nine = 9,
+    Nine = (9),
   }
 }
 

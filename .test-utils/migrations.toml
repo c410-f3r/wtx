@@ -1,0 +1,4 @@
+migration_groups = [
+    "migrations/1__initial",
+    "migrations/2__more_stuff"
+]

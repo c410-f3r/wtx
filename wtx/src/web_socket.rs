@@ -13,22 +13,24 @@ pub mod compression;
 mod frame;
 mod frame_buffer;
 pub mod handshake;
-mod mask;
 mod misc;
 mod op_code;
-mod web_socket_error;
-#[cfg(feature = "tracing")]
-use crate::role::Role;
+mod unmask;
+mod web_socket_buffer;
 
+#[cfg(feature = "tracing")]
+use crate::web_socket::misc::Role;
 use crate::{
-  buffer::Buffer,
-  misc::{from_utf8_ext_rslt, from_utf8_opt, CompleteErr, ExtUtf8Error, IncompleteUtf8Char},
+  misc::{PartitionedFilledBuffer, Stream, _from_utf8_basic_rslt, _read_until},
   rng::Rng,
   web_socket::{
     compression::NegotiatedCompression,
-    misc::{define_fb_from_header_params, header_placeholder, op_code},
+    misc::{
+      define_fb_from_header_params, from_utf8_ext_rslt, op_code, CompleteErr, ExtUtf8Error,
+      FilledBuffer, IncompleteUtf8Char,
+    },
   },
-  PartitionedBuffer, Stream, MAX_PAYLOAD_LEN,
+  _MAX_PAYLOAD_LEN,
 };
 use alloc::vec::Vec;
 pub use close_code::CloseCode;
@@ -42,9 +44,9 @@ pub use frame_buffer::{
   FrameBuffer, FrameBufferControlArray, FrameBufferControlArrayMut, FrameBufferMut, FrameBufferVec,
   FrameBufferVecMut,
 };
-pub use mask::unmask;
 pub use op_code::OpCode;
-pub use web_socket_error::WebSocketError;
+pub(crate) use unmask::unmask;
+pub use web_socket_buffer::WebSocketBuffer;
 
 pub(crate) const DFLT_FRAME_BUFFER_VEC_LEN: usize = 32 * 1024;
 pub(crate) const MAX_CONTROL_FRAME_LEN: usize = MAX_HDR_LEN_USIZE + MAX_CONTROL_FRAME_PAYLOAD_LEN;
@@ -55,61 +57,43 @@ pub(crate) const MIN_HEADER_LEN_USIZE: usize = 2;
 pub(crate) const DECOMPRESSION_SUFFIX: &[u8; 4] = &[0, 0, 255, 255];
 
 /// Always masks the payload before sending.
-pub type WebSocketClient<NC, PB, RNG, S> = WebSocket<NC, PB, RNG, S, true>;
-/// [WebSocketClient] with a mutable reference of [PartitionedBuffer].
-pub type WebSocketClientMut<'pb, NC, RNG, S> =
-  WebSocketClient<NC, &'pb mut PartitionedBuffer, RNG, S>;
-/// [WebSocketClient] with an owned [PartitionedBuffer].
-pub type WebSocketClientOwned<NC, RNG, S> = WebSocketClient<NC, PartitionedBuffer, RNG, S>;
+pub type WebSocketClient<NC, RNG, S, WSB> = WebSocket<NC, RNG, S, WSB, true>;
+/// [WebSocketClient] with a mutable reference of [&'wsb mut WebSocketBuffer].
+pub type WebSocketClientMut<'wsb, NC, RNG, S> =
+  WebSocketClient<NC, RNG, S, &'wsb mut WebSocketBuffer>;
+/// [WebSocketClient] with an owned [&'wsb mut WebSocketBuffer].
+pub type WebSocketClientOwned<NC, RNG, S> = WebSocketClient<NC, RNG, S, WebSocketBuffer>;
 /// Always unmasks the payload after receiving.
-pub type WebSocketServer<NC, PB, RNG, S> = WebSocket<NC, PB, RNG, S, false>;
-/// [WebSocketServer] with a mutable reference of [PartitionedBuffer].
-pub type WebSocketServerMut<'pb, NC, RNG, S> =
-  WebSocketServer<NC, &'pb mut PartitionedBuffer, RNG, S>;
-/// [WebSocketServer] with an owned [PartitionedBuffer].
-pub type WebSocketServerOwned<NC, RNG, S> = WebSocketServer<NC, PartitionedBuffer, RNG, S>;
+pub type WebSocketServer<NC, RNG, S, WSB> = WebSocket<NC, RNG, S, WSB, false>;
+/// [WebSocketServer] with a mutable reference of [WebSocketBuffer].
+pub type WebSocketServerMut<'wsb, NC, RNG, S> =
+  WebSocketServer<NC, RNG, S, &'wsb mut WebSocketBuffer>;
+/// [WebSocketServer] with an owned [WebSocketBuffer].
+pub type WebSocketServerOwned<NC, RNG, S> = WebSocketServer<NC, RNG, S, WebSocketBuffer>;
 
 type ReadContinuationFramesCbs<B> = (
   fn(&[u8]) -> crate::Result<Option<IncompleteUtf8Char>>,
   fn(&[u8], &mut Option<IncompleteUtf8Char>) -> crate::Result<()>,
   fn(
-    &mut Buffer,
     &mut FrameBuffer<B>,
-    &mut PartitionedBuffer,
     &ReadFrameInfo,
     usize,
+    &mut WebSocketBuffer,
   ) -> crate::Result<(bool, usize)>,
 );
 
 /// WebSocket protocol implementation over an asynchronous stream.
 #[derive(Debug)]
-pub struct WebSocket<NC, PB, RNG, S, const IS_CLIENT: bool> {
-  auto_close: bool,
-  auto_pong: bool,
-  decompression_buffer: Buffer,
+pub struct WebSocket<NC, RNG, S, WSB, const IS_CLIENT: bool> {
   is_stream_closed: bool,
   max_payload_len: usize,
   nc: NC,
-  pb: PB,
   rng: RNG,
   stream: S,
+  wsb: WSB,
 }
 
-impl<NC, PB, RNG, S, const IS_CLIENT: bool> WebSocket<NC, PB, RNG, S, IS_CLIENT> {
-  /// Sets whether to automatically close the connection when a close frame is received. Defaults
-  /// to `true`.
-  #[inline]
-  pub fn set_auto_close(&mut self, auto_close: bool) {
-    self.auto_close = auto_close;
-  }
-
-  /// Sets whether to automatically send a pong frame when a ping frame is received. Defaults
-  /// to `true`.
-  #[inline]
-  pub fn set_auto_pong(&mut self, auto_pong: bool) {
-    self.auto_pong = auto_pong;
-  }
-
+impl<NC, RNG, S, WSB, const IS_CLIENT: bool> WebSocket<NC, RNG, S, WSB, IS_CLIENT> {
   /// Sets whether to automatically close the connection when a received frame payload length
   /// exceeds `max_payload_len`. Defaults to `64 * 1024 * 1024` bytes (64 MiB).
   #[inline]
@@ -118,30 +102,20 @@ impl<NC, PB, RNG, S, const IS_CLIENT: bool> WebSocket<NC, PB, RNG, S, IS_CLIENT>
   }
 }
 
-impl<NC, PB, RNG, S, const IS_CLIENT: bool> WebSocket<NC, PB, RNG, S, IS_CLIENT>
+impl<NC, RNG, S, WSB, const IS_CLIENT: bool> WebSocket<NC, RNG, S, WSB, IS_CLIENT>
 where
   NC: NegotiatedCompression,
-  PB: BorrowMut<PartitionedBuffer>,
   RNG: Rng,
   S: Stream,
+  WSB: BorrowMut<WebSocketBuffer>,
 {
   /// Creates a new instance from a stream that supposedly has already completed the WebSocket
   /// handshake.
   #[inline]
-  pub fn new(nc: NC, mut pb: PB, rng: RNG, stream: S) -> Self {
-    pb.borrow_mut().clear_if_following_is_empty();
-    pb.borrow_mut().expand_following(MAX_HDR_LEN_USIZE);
-    Self {
-      auto_close: true,
-      auto_pong: true,
-      decompression_buffer: Buffer::default(),
-      is_stream_closed: false,
-      max_payload_len: MAX_PAYLOAD_LEN,
-      nc,
-      pb,
-      rng,
-      stream,
-    }
+  pub fn new(nc: NC, rng: RNG, stream: S, mut wsb: WSB) -> Self {
+    wsb.borrow_mut().nb._clear_if_following_is_empty();
+    wsb.borrow_mut().nb._expand_following(MAX_HDR_LEN_USIZE);
+    Self { is_stream_closed: false, max_payload_len: _MAX_PAYLOAD_LEN, nc, rng, stream, wsb }
   }
 
   /// Reads a frame from the stream.
@@ -174,14 +148,14 @@ where
           (
             |_| Ok(None),
             |_, _| Ok(()),
-            |local_db, _, local_pb, rfi, local_tfl| {
-              Ok((true, Self::copy_from_compressed_pb_to_db(local_db, local_tfl, local_pb, rfi)?))
+            |_, rfi, local_tfl, local_wsb| {
+              Ok((true, Self::copy_from_compressed_pb_to_db(local_tfl, rfi, local_wsb)?))
             },
           ),
         )
         .await?;
       let payload_len = Self::copy_from_compressed_db_to_fb(
-        &mut self.decompression_buffer,
+        &mut self.wsb.borrow_mut().db,
         fb,
         &mut self.nc,
         payload_start_idx,
@@ -191,7 +165,7 @@ where
         .as_ref()
         .get(payload_start_idx..payload_start_idx.wrapping_add(payload_len))
         .unwrap_or_default();
-      if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_opt(payload).is_none() {
+      if matches!(first_rfi.op_code, OpCode::Text) && _from_utf8_basic_rslt(payload).is_err() {
         return Err(crate::Error::InvalidUTF8);
       }
       payload_len
@@ -219,10 +193,10 @@ where
             } else {
               Self::manage_continuation_text
             },
-            |_, local_fb, local_pb, rfi, local_tfl| {
+            |local_fb, rfi, local_tfl, local_wsb| {
               Ok((
                 false,
-                Self::copy_from_uncompressed_pb_to_fb(local_fb, local_tfl, local_pb, rfi)?,
+                Self::copy_from_uncompressed_pb_to_fb(local_fb, local_tfl, &mut local_wsb.nb, rfi)?,
               ))
             },
           ),
@@ -252,7 +226,7 @@ where
       frame,
       &mut self.is_stream_closed,
       &mut self.nc,
-      self.pb.borrow_mut(),
+      &mut self.wsb.borrow_mut().nb,
       &mut self.rng,
       &mut self.stream,
     )
@@ -270,7 +244,7 @@ where
   fn compress_frame<'pb, B, FB>(
     frame: &Frame<FB, IS_CLIENT>,
     nc: &mut NC,
-    pb: &'pb mut PartitionedBuffer,
+    pb: &'pb mut PartitionedFilledBuffer,
   ) -> crate::Result<FrameMut<'pb, IS_CLIENT>>
   where
     B: AsMut<[u8]> + AsRef<[u8]>,
@@ -279,19 +253,19 @@ where
     fn expand_pb<'pb, B>(
       len_with_header: usize,
       local_fb: &FrameBuffer<B>,
-      local_pb: &'pb mut PartitionedBuffer,
+      local_pb: &'pb mut PartitionedFilledBuffer,
       written: usize,
     ) -> &'pb mut [u8]
     where
       B: AsRef<[u8]>,
     {
       let start = len_with_header.wrapping_add(written);
-      local_pb.expand_following(start.wrapping_add(local_fb.frame().len()).wrapping_add(128));
-      local_pb.following_trail_mut().get_mut(start..).unwrap_or_default()
+      local_pb._expand_following(start.wrapping_add(local_fb.frame().len()).wrapping_add(128));
+      local_pb._following_trail_mut().get_mut(start..).unwrap_or_default()
     }
 
     let fb = frame.fb().borrow();
-    let len = pb.following_trail_mut().len();
+    let len = pb._following_trail_mut().len();
     let len_with_header = len.wrapping_add(fb.header().len());
     let mut payload_len = nc.compress(
       fb.payload(),
@@ -303,7 +277,7 @@ where
       payload_len = payload_len.saturating_sub(4);
     }
     let mut compressed_fb = FrameBufferMut::new(
-      pb.following_trail_mut()
+      pb._following_trail_mut()
         .get_mut(len..len_with_header.wrapping_add(payload_len))
         .unwrap_or_default(),
     );
@@ -320,7 +294,7 @@ where
 
   // Final compressed continuation frame
   fn copy_from_compressed_db_to_fb<B>(
-    db: &mut Buffer,
+    db: &mut FilledBuffer,
     fb: &mut FrameBuffer<B>,
     nc: &mut NC,
     payload_start_idx: usize,
@@ -344,18 +318,17 @@ where
 
   // Intermediate compressed continuation frame
   fn copy_from_compressed_pb_to_db(
-    db: &mut Buffer,
     payload_start_idx: usize,
-    pb: &mut PartitionedBuffer,
     rfi: &ReadFrameInfo,
+    wsb: &mut WebSocketBuffer,
   ) -> crate::Result<usize> {
-    Self::copy_from_pb(db, pb, rfi, |local_pb, local_db| {
+    Self::copy_from_pb(&mut wsb.db, &mut wsb.nb, rfi, |local_pb, local_db| {
       let n = payload_start_idx.saturating_add(rfi.payload_len);
       local_db.set_idx_through_expansion(n);
       local_db
         .get_mut(payload_start_idx..n)
         .unwrap_or_default()
-        .copy_from_slice(local_pb.current().get(rfi.header_end_idx..).unwrap_or_default());
+        .copy_from_slice(local_pb._current().get(rfi.header_end_idx..).unwrap_or_default());
       Ok(())
     })?;
     Ok(rfi.payload_len)
@@ -366,7 +339,7 @@ where
     fb: &mut FrameBuffer<B>,
     nc: &mut NC,
     payload_start_idx: usize,
-    pb: &mut PartitionedBuffer,
+    pb: &mut PartitionedFilledBuffer,
     rfi: &ReadFrameInfo,
   ) -> crate::Result<usize>
   where
@@ -376,12 +349,12 @@ where
       .checked_add(rfi.payload_len)
       .map(|element| element.max(fb.buffer().as_ref().len()));
     let payload_len = Self::copy_from_pb(fb, pb, rfi, |local_pb, local_fb| {
-      local_pb.expand_buffer(local_pb._buffer().len().wrapping_add(4));
-      let curr_end_idx = local_pb.current().len();
+      local_pb._expand_buffer(local_pb._buffer().len().wrapping_add(4));
+      let curr_end_idx = local_pb._current().len();
       let curr_end_idx_4p = curr_end_idx.wrapping_add(4);
-      let has_following = local_pb.has_following();
+      let has_following = local_pb._has_following();
       let range = rfi.header_end_idx..curr_end_idx_4p;
-      let input = local_pb.current_trail_mut().get_mut(range).unwrap_or_default();
+      let input = local_pb._current_trail_mut().get_mut(range).unwrap_or_default();
       let orig = if let [.., a, b, c, d] = input {
         let array = [*a, *b, *c, *d];
         *a = 0;
@@ -424,37 +397,37 @@ where
 
   fn copy_from_pb<O, T>(
     output: &mut O,
-    pb: &mut PartitionedBuffer,
+    pb: &mut PartitionedFilledBuffer,
     rfi: &ReadFrameInfo,
-    cb: impl FnOnce(&mut PartitionedBuffer, &mut O) -> crate::Result<T>,
+    cb: impl FnOnce(&mut PartitionedFilledBuffer, &mut O) -> crate::Result<T>,
   ) -> crate::Result<T> {
-    debug!(
+    _debug!(
       "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
       <&str>::from(Role::from_is_client(IS_CLIENT)),
       "Read",
       "Masked",
-      crate::misc::_truncated_slice(pb.current(), 0..32),
+      crate::web_socket::misc::truncated_slice(pb._current(), 0..32),
       rfi.op_code
     );
 
     if !IS_CLIENT {
       unmask(
-        pb.current_mut().get_mut(rfi.header_end_idx..).unwrap_or_default(),
-        rfi.mask.ok_or(WebSocketError::MissingFrameMask)?,
+        pb._current_mut().get_mut(rfi.header_end_idx..).unwrap_or_default(),
+        rfi.mask.ok_or(crate::Error::MissingFrameMask)?,
       );
     }
 
-    debug!(
+    _debug!(
       "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
       <&str>::from(Role::from_is_client(IS_CLIENT)),
       "Read",
       "Unmasked",
-      crate::misc::_truncated_slice(pb.current(), 0..32),
+      crate::web_socket::misc::truncated_slice(pb._current(), 0..32),
       rfi.op_code
     );
 
     let rslt = cb(pb, output)?;
-    pb.borrow_mut().clear_if_following_is_empty();
+    pb.borrow_mut()._clear_if_following_is_empty();
 
     Ok(rslt)
   }
@@ -463,7 +436,7 @@ where
   fn copy_from_uncompressed_pb_to_fb<B>(
     fb: &mut FrameBuffer<B>,
     payload_start_idx: usize,
-    pb: &mut PartitionedBuffer,
+    pb: &mut PartitionedFilledBuffer,
     rfi: &ReadFrameInfo,
   ) -> crate::Result<usize>
   where
@@ -475,14 +448,14 @@ where
       AsMut::<[u8]>::as_mut(local_fb.buffer_mut())
         .get_mut(payload_start_idx..n)
         .unwrap_or_default()
-        .copy_from_slice(local_pb.current().get(rfi.header_end_idx..).unwrap_or_default());
+        .copy_from_slice(local_pb._current().get(rfi.header_end_idx..).unwrap_or_default());
       Ok(())
     })?;
     Ok(rfi.payload_len)
   }
 
   fn curr_payload_bytes<'bytes, B>(
-    db: &'bytes Buffer,
+    db: &'bytes FilledBuffer,
     fb: &'bytes FrameBuffer<B>,
     range: Range<usize>,
     should_use_db: bool,
@@ -501,7 +474,7 @@ where
     frame: &mut Frame<FB, IS_CLIENT>,
     is_stream_closed: &mut bool,
     nc: &mut NC,
-    pb: &mut PartitionedBuffer,
+    pb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
     stream: &mut S,
   ) -> crate::Result<()>
@@ -520,49 +493,49 @@ where
       }
     }
     if !should_compress || frame.op_code().is_control() {
-      debug!(
+      _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Unmasked",
-        crate::misc::_truncated_slice(frame.fb().borrow().frame(), 0..32),
+        crate::web_socket::misc::truncated_slice(frame.fb().borrow().frame(), 0..32),
         frame.op_code()
       );
       Self::mask_frame(frame, rng);
-      debug!(
+      _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Masked",
-        crate::misc::_truncated_slice(frame.fb().borrow().frame(), 0..32),
+        crate::web_socket::misc::truncated_slice(frame.fb().borrow().frame(), 0..32),
         frame.op_code()
       );
       stream.write_all(frame.fb().borrow().frame()).await?;
     } else {
-      debug!(
+      _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Uncompressed, Unmasked",
-        crate::misc::_truncated_slice(frame.fb().borrow().frame(), 0..32),
+        crate::web_socket::misc::truncated_slice(frame.fb().borrow().frame(), 0..32),
         frame.op_code()
       );
       let mut compressed_frame = Self::compress_frame(frame, nc, pb)?;
-      debug!(
+      _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Compressed, Unmasked",
-        crate::misc::_truncated_slice(compressed_frame.fb().frame(), 0..32),
+        crate::web_socket::misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
         frame.op_code()
       );
       Self::mask_frame(&mut compressed_frame, rng);
-      debug!(
+      _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Compressed, Masked",
-        crate::misc::_truncated_slice(compressed_frame.fb().frame(), 0..32),
+        crate::web_socket::misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
         frame.op_code()
       );
       stream.write_all(compressed_frame.fb().frame()).await?;
@@ -586,45 +559,56 @@ where
   }
 
   async fn fetch_frame_from_stream(&mut self) -> crate::Result<ReadFrameInfo> {
-    let mut read = self.pb.borrow_mut().following_len();
+    let mut read = self.wsb.borrow_mut().nb._following_len();
     let rfi = Self::fetch_header_from_stream(
       self.max_payload_len,
       &self.nc,
-      self.pb.borrow_mut(),
+      &mut self.wsb.borrow_mut().nb,
       &mut read,
       &mut self.stream,
     )
     .await?;
     if self.is_stream_closed && rfi.op_code != OpCode::Close {
-      return Err(WebSocketError::ConnectionClosed.into());
+      return Err(crate::Error::ConnectionClosed);
     }
-    Self::fetch_payload_from_stream(self.pb.borrow_mut(), &mut read, &rfi, &mut self.stream)
-      .await?;
+    Self::fetch_payload_from_stream(
+      &mut self.wsb.borrow_mut().nb,
+      &mut read,
+      &rfi,
+      &mut self.stream,
+    )
+    .await?;
+    let current_end_idx = self.wsb.borrow().nb._current_end_idx();
+    self.wsb.borrow_mut().nb._set_indices(
+      current_end_idx,
+      rfi.frame_len,
+      read.wrapping_sub(rfi.frame_len),
+    )?;
     Ok(rfi)
   }
 
   async fn fetch_header_from_stream(
     max_payload_len: usize,
     nc: &NC,
-    pb: &mut PartitionedBuffer,
+    pb: &mut PartitionedFilledBuffer,
     read: &mut usize,
     stream: &mut S,
   ) -> crate::Result<ReadFrameInfo> {
-    let buffer = pb.following_trail_mut();
+    let buffer = pb._following_trail_mut();
 
-    let first_two = Self::read_until::<2>(buffer, read, 0, stream).await?;
+    let first_two = _read_until::<2, S>(buffer, read, 0, stream).await?;
 
     let rsv1 = first_two[0] & 0b0100_0000;
     let rsv2 = first_two[0] & 0b0010_0000;
     let rsv3 = first_two[0] & 0b0001_0000;
 
     if rsv2 != 0 || rsv3 != 0 {
-      return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
+      return Err(crate::Error::InvalidCompressionHeaderParameter);
     }
 
     let should_decompress = if nc.rsv1() == 0 {
       if rsv1 != 0 {
-        return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
+        return Err(crate::Error::InvalidCompressionHeaderParameter);
       }
       false
     } else {
@@ -636,9 +620,9 @@ where
     let op_code = op_code(first_two[0])?;
 
     let (mut header_len, payload_len) = match length_code {
-      126 => (4, u16::from_be_bytes(Self::read_until::<2>(buffer, read, 2, stream).await?).into()),
+      126 => (4, u16::from_be_bytes(_read_until::<2, S>(buffer, read, 2, stream).await?).into()),
       127 => {
-        let payload_len = Self::read_until::<8>(buffer, read, 2, stream).await?;
+        let payload_len = _read_until::<8, S>(buffer, read, 2, stream).await?;
         (10, u64::from_be_bytes(payload_len).try_into()?)
       }
       _ => (2, length_code.into()),
@@ -646,18 +630,18 @@ where
 
     let mut mask = None;
     if !IS_CLIENT {
-      mask = Some(Self::read_until::<4>(buffer, read, header_len, stream).await?);
+      mask = Some(_read_until::<4, S>(buffer, read, header_len, stream).await?);
       header_len = header_len.wrapping_add(4);
     }
 
     if op_code.is_control() && !fin {
-      return Err(WebSocketError::UnexpectedFragmentedControlFrame.into());
+      return Err(crate::Error::UnexpectedFragmentedControlFrame);
     }
     if op_code == OpCode::Ping && payload_len > MAX_CONTROL_FRAME_PAYLOAD_LEN {
-      return Err(WebSocketError::VeryLargeControlFrame.into());
+      return Err(crate::Error::VeryLargeControlFrame);
     }
     if payload_len >= max_payload_len {
-      return Err(WebSocketError::VeryLargePayload.into());
+      return Err(crate::Error::VeryLargePayload);
     }
 
     Ok(ReadFrameInfo {
@@ -672,50 +656,47 @@ where
   }
 
   async fn fetch_payload_from_stream(
-    pb: &mut PartitionedBuffer,
+    pb: &mut PartitionedFilledBuffer,
     read: &mut usize,
     rfi: &ReadFrameInfo,
     stream: &mut S,
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
-    pb.expand_following(rfi.frame_len);
+    pb._expand_following(rfi.frame_len);
     for _ in 0..rfi.frame_len {
       if *read >= rfi.frame_len {
         is_payload_filled = true;
         break;
       }
       *read = read.wrapping_add(
-        stream.read(pb.following_trail_mut().get_mut(*read..).unwrap_or_default()).await?,
+        stream.read(pb._following_trail_mut().get_mut(*read..).unwrap_or_default()).await?,
       );
     }
     if !is_payload_filled {
       return Err(crate::Error::UnexpectedBufferState);
     }
-    pb.set_indices(pb.current_end_idx(), rfi.frame_len, read.wrapping_sub(rfi.frame_len))?;
     Ok(())
   }
 
-  // If this method returns `false`, then a `ping` frame was received and the caller should fetch
-  // more external data in order to get the desired frame.
+  /// If this method returns `false`, then a `ping` frame was received and the caller should fetch
+  /// more external data in order to get the desired frame.
   async fn manage_auto_reply(
-    (auto_close, auto_pong, is_stream_closed): (bool, bool, &mut bool),
+    is_stream_closed: &mut bool,
     curr_payload: &[u8],
     nc: &mut NC,
     op_code: OpCode,
-    pb: &mut PB,
+    pb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
     stream: &mut S,
   ) -> crate::Result<bool> {
     match op_code {
-      OpCode::Close if auto_close && !*is_stream_closed => {
+      OpCode::Close if !*is_stream_closed => {
         match curr_payload {
           [] => {}
-          [_] => return Err(WebSocketError::InvalidCloseFrame.into()),
+          [_] => return Err(crate::Error::InvalidCloseFrame),
           [a, b, rest @ ..] => {
-            if from_utf8_opt(rest).is_none() {
-              return Err(crate::Error::InvalidUTF8);
-            };
-            let is_not_allowed = !CloseCode::from(u16::from_be_bytes([*a, *b])).is_allowed();
+            let _ = _from_utf8_basic_rslt(rest)?;
+            let is_not_allowed = !CloseCode::try_from(u16::from_be_bytes([*a, *b]))?.is_allowed();
             if is_not_allowed || rest.len() > MAX_CONTROL_FRAME_PAYLOAD_LEN - 2 {
               Self::write_control_frame(
                 &mut FrameControlArray::close_from_params(
@@ -730,7 +711,7 @@ where
                 stream,
               )
               .await?;
-              return Err(WebSocketError::InvalidCloseFrame.into());
+              return Err(crate::Error::InvalidCloseFrame);
             }
           }
         }
@@ -745,7 +726,7 @@ where
         .await?;
         Ok(true)
       }
-      OpCode::Ping if auto_pong => {
+      OpCode::Ping => {
         Self::write_control_frame(
           &mut FrameControlArray::new_fin(<_>::default(), OpCode::Pong, curr_payload)?,
           is_stream_closed,
@@ -757,12 +738,9 @@ where
         .await?;
         Ok(false)
       }
-      OpCode::Continuation
-      | OpCode::Binary
-      | OpCode::Close
-      | OpCode::Ping
-      | OpCode::Pong
-      | OpCode::Text => Ok(true),
+      OpCode::Continuation | OpCode::Binary | OpCode::Close | OpCode::Pong | OpCode::Text => {
+        Ok(true)
+      }
     }
   }
 
@@ -829,24 +807,19 @@ where
     B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
   {
     let mut iuc = {
-      let (should_use_db, payload_len) = copy_cb(
-        &mut self.decompression_buffer,
-        fb,
-        self.pb.borrow_mut(),
-        first_rfi,
-        *total_frame_len,
-      )?;
+      let (should_use_db, payload_len) =
+        copy_cb(fb, first_rfi, *total_frame_len, self.wsb.borrow_mut())?;
       *total_frame_len = total_frame_len.wrapping_add(payload_len);
       match first_rfi.op_code {
         OpCode::Binary => None,
         OpCode::Text => first_text_cb(Self::curr_payload_bytes(
-          &self.decompression_buffer,
+          &self.wsb.borrow().db,
           fb,
           payload_start_idx..*total_frame_len,
           should_use_db,
         ))?,
         OpCode::Close | OpCode::Continuation | OpCode::Ping | OpCode::Pong => {
-          return Err(WebSocketError::UnexpectedMessageFrame.into());
+          return Err(crate::Error::UnexpectedMessageFrame);
         }
       }
     };
@@ -855,26 +828,17 @@ where
         let prev = *total_frame_len;
         let mut rfi = self.fetch_frame_from_stream().await?;
         rfi.should_decompress = first_rfi.should_decompress;
-        let (should_use_db, payload_len) = copy_cb(
-          &mut self.decompression_buffer,
-          fb,
-          self.pb.borrow_mut(),
-          &rfi,
-          *total_frame_len,
-        )?;
+        let (should_use_db, payload_len) =
+          copy_cb(fb, &rfi, *total_frame_len, self.wsb.borrow_mut())?;
         *total_frame_len = total_frame_len.wrapping_add(payload_len);
-        let curr_payload = Self::curr_payload_bytes(
-          &self.decompression_buffer,
-          fb,
-          prev..*total_frame_len,
-          should_use_db,
-        );
+        let (db, nb) = self.wsb.borrow_mut().parts_mut();
+        let curr_payload = Self::curr_payload_bytes(db, fb, prev..*total_frame_len, should_use_db);
         if Self::manage_auto_reply(
-          (self.auto_close, self.auto_pong, &mut self.is_stream_closed),
+          &mut self.is_stream_closed,
           curr_payload,
           &mut self.nc,
           rfi.op_code,
-          &mut self.pb,
+          nb,
           &mut self.rng,
           &mut self.stream,
         )
@@ -892,13 +856,15 @@ where
           }
         }
         OpCode::Binary | OpCode::Close | OpCode::Ping | OpCode::Pong | OpCode::Text => {
-          return Err(WebSocketError::UnexpectedMessageFrame.into());
+          return Err(crate::Error::UnexpectedMessageFrame);
         }
       }
     }
     Ok(())
   }
 
+  /// Returns `None` if the frame is single, otherwise, returns the necessary information to
+  /// continue fetching from the stream.
   #[inline]
   async fn read_first_frame<B>(
     &mut self,
@@ -914,7 +880,7 @@ where
       if !rfi.fin {
         break 'auto_reply rfi;
       }
-      let pb = self.pb.borrow_mut();
+      let pb = &mut self.wsb.borrow_mut().nb;
       let payload_len = if rfi.should_decompress {
         Self::copy_from_compressed_pb_to_fb(fb, &mut self.nc, payload_start_idx, pb, &rfi)?
       } else {
@@ -928,25 +894,23 @@ where
         payload_len,
         self.nc.rsv1(),
       )?;
-      if Self::manage_auto_reply(
-        (self.auto_close, self.auto_pong, &mut self.is_stream_closed),
+      let should_stop = Self::manage_auto_reply(
+        &mut self.is_stream_closed,
         fb.payload(),
         &mut self.nc,
         rfi.op_code,
-        &mut self.pb,
+        &mut self.wsb.borrow_mut().nb,
         &mut self.rng,
         &mut self.stream,
       )
-      .await?
-      {
+      .await?;
+      if should_stop {
         match rfi.op_code {
           OpCode::Continuation => {
-            return Err(WebSocketError::UnexpectedMessageFrame.into());
+            return Err(crate::Error::UnexpectedMessageFrame);
           }
           OpCode::Text => {
-            if from_utf8_opt(fb.payload()).is_none() {
-              return Err(crate::Error::InvalidUTF8);
-            }
+            let _ = _from_utf8_basic_rslt(fb.payload())?;
           }
           OpCode::Binary | OpCode::Close | OpCode::Ping | OpCode::Pong => {}
         }
@@ -956,32 +920,11 @@ where
     Ok(Some(first_rfi))
   }
 
-  async fn read_until<const LEN: usize>(
-    buffer: &mut [u8],
-    read: &mut usize,
-    start: usize,
-    stream: &mut S,
-  ) -> crate::Result<[u8; LEN]>
-  where
-    [u8; LEN]: Default,
-  {
-    let until = start.wrapping_add(LEN);
-    while *read < until {
-      let actual_buffer = buffer.get_mut(*read..).unwrap_or_default();
-      let local_read = stream.read(actual_buffer).await?;
-      if local_read == 0 {
-        return Err(crate::Error::UnexpectedEOF);
-      }
-      *read = read.wrapping_add(local_read);
-    }
-    Ok(buffer.get(start..until).and_then(|el| el.try_into().ok()).unwrap_or_default())
-  }
-
   async fn write_control_frame(
     frame: &mut FrameControlArray<IS_CLIENT>,
     is_stream_closed: &mut bool,
     nc: &mut NC,
-    pb: &mut PB,
+    pb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
     stream: &mut S,
   ) -> crate::Result<()> {
@@ -1004,4 +947,12 @@ struct ReadFrameInfo {
 
 const fn has_masked_frame(second_header_byte: u8) -> bool {
   second_header_byte & 0b1000_0000 != 0
+}
+
+const fn header_placeholder<const IS_CLIENT: bool>() -> u8 {
+  if IS_CLIENT {
+    MAX_HDR_LEN_U8
+  } else {
+    MAX_HDR_LEN_U8 - 4
+  }
 }

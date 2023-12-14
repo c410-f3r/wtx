@@ -1,7 +1,7 @@
 use crate::{
-  http::Http1Header,
-  misc::from_utf8_opt,
-  web_socket::{compression::NegotiatedCompression, Compression, DeflateConfig},
+  http::Header,
+  misc::{FilledBufferWriter, _from_utf8_basic_rslt},
+  web_socket::{compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig},
 };
 use core::str::FromStr;
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
@@ -25,10 +25,8 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
   #[inline]
   fn negotiate(
     self,
-    headers: impl Iterator<Item = impl Http1Header>,
+    headers: impl Iterator<Item = impl Header>,
   ) -> crate::Result<Self::NegotiatedCompression> {
-    use crate::{misc::_trim, web_socket::WebSocketError};
-
     let mut dc = DeflateConfig {
       client_max_window_bits: self.dc.client_max_window_bits,
       compression_level: self.dc.compression_level,
@@ -47,7 +45,8 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
         let mut client_max_window_bits_flag = false;
         let mut permessage_deflate_flag = false;
         let mut server_max_window_bits_flag = false;
-        for param in permessage_deflate_option.split(|el| el == &b';').map(|elem| _trim(elem)) {
+        for param in permessage_deflate_option.split(|el| el == &b';').map(|elem| _trim_bytes(elem))
+        {
           if param == b"client_no_context_takeover" || param == b"server_no_context_takeover" {
           } else if param == b"permessage-deflate" {
             _manage_header_uniqueness(&mut permessage_deflate_flag, || Ok(()))?
@@ -66,11 +65,11 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
               Ok(())
             })?;
           } else {
-            return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
+            return Err(crate::Error::InvalidCompressionHeaderParameter.into());
           }
         }
         if !permessage_deflate_flag {
-          return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
+          return Err(crate::Error::InvalidCompressionHeaderParameter.into());
         }
         has_extension = true;
       }
@@ -95,11 +94,8 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
   }
 
   #[inline]
-  fn write_req_headers<B>(&self, buffer: &mut B)
-  where
-    B: Extend<u8>,
-  {
-    write_headers(buffer, &self.dc)
+  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
+    write_headers(&self.dc, fbw)
   }
 }
 
@@ -173,11 +169,8 @@ impl NegotiatedCompression for NegotiatedFlate2 {
   }
 
   #[inline]
-  fn write_res_headers<B>(&self, buffer: &mut B)
-  where
-    B: Extend<u8>,
-  {
-    write_headers(buffer, &self.dc)
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
+    write_headers(&self.dc, fbw)
   }
 }
 
@@ -241,24 +234,19 @@ where
   T: FromStr,
 {
   let after_equals = bytes.split(|byte| byte == &b'=').nth(1)?;
-  from_utf8_opt(after_equals)?.parse::<T>().ok()
+  _from_utf8_basic_rslt(after_equals).ok()?.parse::<T>().ok()
 }
 
 #[inline]
-fn write_headers<B>(buffer: &mut B, dc: &DeflateConfig)
-where
-  B: Extend<u8>,
-{
-  buffer.extend(*b"Sec-Websocket-Extensions: ");
-
-  buffer.extend(*b"permessage-deflate; ");
-
-  buffer.extend(*b"client_max_window_bits=");
-  buffer.extend(<&str>::from(dc.client_max_window_bits).as_bytes().iter().copied());
-  buffer.extend(*b"; ");
-
-  buffer.extend(*b"server_max_window_bits=");
-  buffer.extend(<&str>::from(dc.server_max_window_bits).as_bytes().iter().copied());
-
-  buffer.extend(*b"; client_no_context_takeover; server_no_context_takeover\r\n");
+fn write_headers(dc: &DeflateConfig, fbw: &mut FilledBufferWriter<'_>) {
+  fbw._extend_from_slices_group_rn(&[
+    b"Sec-Websocket-Extensions: ",
+    b"permessage-deflate; ",
+    b"client_max_window_bits=",
+    dc.client_max_window_bits.strings().number.as_bytes(),
+    b"; ",
+    b"server_max_window_bits=",
+    dc.server_max_window_bits.strings().number.as_bytes(),
+    b"; client_no_context_takeover; server_no_context_takeover",
+  ]);
 }

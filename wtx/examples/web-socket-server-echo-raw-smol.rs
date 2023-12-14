@@ -5,21 +5,15 @@ mod common;
 
 use smol::net::TcpListener;
 
-fn main() -> wtx::Result<()> {
-  smol::block_on::<wtx::Result<_>>(async {
-    let listener = TcpListener::bind(common::_host_from_args()).await?;
+fn main() {
+  smol::block_on(async {
+    let listener = TcpListener::bind(common::_host_from_args()).await.unwrap();
     loop {
-      let (stream, _) = listener.accept().await?;
+      let (stream, _) = listener.accept().await.unwrap();
       smol::spawn(async move {
-        if let Err(err) =
-          common::_accept_conn_and_echo_frames((), &mut <_>::default(), &mut <_>::default(), stream)
-            .await
-        {
-          println!("{err}");
-        }
+        common::_accept_conn_and_echo_frames((), &mut <_>::default(), stream).await.unwrap();
       })
       .detach();
     }
-  })?;
-  Ok(())
+  });
 }

@@ -1,0 +1,29 @@
+[dependencies]
+proc-macro2 = { default-features = false, version = "1.0" }
+quote = { default-features = false, features = ["proc-macro"], version = "1.0" }
+syn = { default-features = false, features = ["full", "parsing", "printing", "extra-traits", "proc-macro"], version = "1.0" }
+
+[dev-dependencies]
+wtx = { default-features = false, path = "../wtx" }
+trybuild = { default-features = false, version = "1.0" }
+
+[features]
+default = []
+
+[lib]
+proc-macro = true
+
+[package]
+categories = ["asynchronous", "data-structures", "network-programming"]
+description = "Procedural macros for wtx"
+edition = "2021"
+keywords = ["api", "client", "io", "network"]
+license = "MIT"
+name = "wtx-macros"
+readme = "README.md"
+repository = "https://github.com/c410-f3r/wtx"
+rust-version = "1.65"
+version = "0.1.0"
+
+[package.metadata.docs.rs]
+all-features = true
