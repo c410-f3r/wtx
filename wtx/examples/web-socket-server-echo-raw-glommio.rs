@@ -4,29 +4,24 @@
 mod common;
 
 #[cfg(feature = "async-send")]
-fn main() -> wtx::Result<()> {
-  Ok(())
-}
+fn main() {}
 
 #[cfg(not(feature = "async-send"))]
-fn main() -> wtx::Result<()> {
+fn main() {
   use glommio::{net::TcpListener, LocalExecutorBuilder};
 
   LocalExecutorBuilder::default()
-    .spawn::<_, _, wtx::Result<_>>(|| async {
-      let listener = TcpListener::bind(crate::common::_host_from_args())?;
+    .spawn::<_, _, ()>(|| async {
+      let listener = TcpListener::bind(crate::common::_host_from_args()).unwrap();
       loop {
-        let stream = listener.accept().await?;
+        let stream = listener.accept().await.unwrap();
         let _jh = glommio::spawn_local(async move {
-          let fb = &mut <_>::default();
-          let pb = &mut <_>::default();
-          if let Err(err) = crate::common::_accept_conn_and_echo_frames((), fb, pb, stream).await {
-            println!("{err}");
-          }
+          crate::common::_accept_conn_and_echo_frames((), &mut <_>::default(), stream).await
         })
         .detach();
       }
-    })?
-    .join()??;
-  Ok(())
+    })
+    .unwrap()
+    .join()
+    .unwrap();
 }

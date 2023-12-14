@@ -1,20 +1,213 @@
-use crate::ExpectedHeader;
-use core::{
-  fmt::{Debug, Display, Formatter},
-  num::TryFromIntError,
+use crate::http::ExpectedHeader;
+use core::fmt::{Debug, Display, Formatter};
+#[allow(unused_imports)]
+use {alloc::boxed::Box, alloc::string::String};
+
+#[cfg(target_pointer_width = "64")]
+const _: () = {
+  assert!(core::mem::size_of::<Error>() == 24);
 };
+
+#[cfg(feature = "rkyv")]
+type RkyvSer = rkyv::ser::serializers::CompositeSerializerError<
+  core::convert::Infallible,
+  rkyv::ser::serializers::AllocScratchError,
+  rkyv::ser::serializers::SharedSerializeMapError,
+>;
 
 /// Grouped individual errors
 //
 // * `Invalid` Something is present but has invalid state.
 // * `Missing`: Not present when expected to be.
 // * `Unexpected`: Received something that was not intended.
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub enum Error {
+  // External - Misc
+  //
+  #[cfg(feature = "arrayvec")]
+  ArrayVec(arrayvec::CapacityError<()>),
+  AtoiInvalidBytes,
+  #[cfg(feature = "chrono")]
+  ChronoParseError(chrono::ParseError),
+  #[cfg(feature = "cl-aux")]
+  ClAux(Box<cl_aux::Error>),
+  #[cfg(feature = "crypto-common")]
+  CryptoCommonInvalidLength(crypto_common::InvalidLength),
+  #[cfg(feature = "base64")]
+  DecodeSliceError(base64::DecodeSliceError),
+  #[cfg(feature = "deadpool")]
+  DeadPoolManagedPoolError(Box<deadpool::managed::PoolError<()>>),
+  #[cfg(feature = "deadpool")]
+  DeadPoolUnmanagedPoolError(deadpool::unmanaged::PoolError),
+  #[cfg(feature = "embassy-net")]
+  EmbassyNet(embassy_net::tcp::Error),
+  #[cfg(feature = "base64")]
+  EncodeSliceError(base64::EncodeSliceError),
+  #[cfg(feature = "flate2")]
+  Flate2CompressError(Box<flate2::CompressError>),
+  #[cfg(feature = "flate2")]
+  Flate2DecompressError(Box<flate2::DecompressError>),
+  #[cfg(feature = "glommio")]
+  Glommio(Box<glommio::GlommioError<()>>),
+  #[cfg(feature = "httparse")]
+  HttpParse(httparse::Error),
+  #[cfg(feature = "digest")]
+  MacError(digest::MacError),
+  #[cfg(feature = "miniserde")]
+  Miniserde(miniserde::Error),
+  #[cfg(feature = "postgres")]
+  PostgresDbError(Box<crate::database::client::postgres::DbError>),
+  #[cfg(feature = "protobuf")]
+  Protobuf(protobuf::Error),
+  #[cfg(feature = "reqwest")]
+  Reqwest(reqwest::Error),
+  RkyvDer(&'static str),
+  #[cfg(feature = "rkyv")]
+  RkyvSer(Box<RkyvSer>),
+  #[cfg(feature = "serde_json")]
+  SerdeJson(serde_json::Error),
+  #[cfg(feature = "serde-xml-rs")]
+  SerdeXmlRs(Box<serde_xml_rs::Error>),
+  #[cfg(feature = "serde_yaml")]
+  SerdeYaml(serde_yaml::Error),
+  #[cfg(feature = "simd-json")]
+  SimdJson(Box<simd_json::Error>),
+  #[cfg(feature = "embedded-tls")]
+  TlsError(embedded_tls::TlsError),
+  #[cfg(feature = "tokio-rustls")]
+  TokioRustLsError(Box<tokio_rustls::rustls::Error>),
+  #[cfg(feature = "_tracing-subscriber")]
+  TryInitError(tracing_subscriber::util::TryInitError),
+
+  // External - Std
+  //
+  Fmt(core::fmt::Error),
+  #[cfg(feature = "std")]
+  IoError(std::io::Error),
+  ParseIntError(core::num::ParseIntError),
+  TryFromIntError(core::num::TryFromIntError),
+  TryFromSliceError(core::array::TryFromSliceError),
+  #[cfg(feature = "std")]
+  VarError(VarError),
+  Utf8Error(core::str::Utf8Error),
+
+  // ***** Internal - Client API Framework *****
+  //
+  /// A slice-like batch of package is not sorted
+  BatchPackagesAreNotSorted,
+  /// The server closed the WebSocket connection
+  ClosedWsConnection,
+  /// A server was not able to receive the full request data after several attempts.
+  CouldNotSendTheFullRequestData,
+  #[cfg(feature = "client-api-framework")]
+  /// GraphQl response error
+  GraphQlResponseError(
+    Box<[crate::client_api_framework::data_format::GraphQlResponseError<String>]>,
+  ),
+  /// The hardware returned an incorrect time value
+  IncorrectHardwareTime,
+  /// `no_std` has no knowledge of time. Try enabling the `std` feature
+  ItIsNotPossibleToUseTimeInNoStd,
+  #[cfg(feature = "client-api-framework")]
+  /// JSON-RPC response error
+  JsonRpcResultErr(Box<crate::client_api_framework::data_format::JsonRpcResponseError>),
+  /// A variant used to transform `Option`s into `Result`s
+  NoInnerValue(&'static str),
+  /// A given response id is not present in the set of sent packages.
+  ResponseIdIsNotPresentInTheOfSentBatchPackages(usize),
+  /// No stored test response to return a result from a request
+  TestTransportNoResponse,
+  /// It is not possible to convert a `u16` into a HTTP status code
+  UnknownHttpStatusCode(u16),
+  /// `wtx` can not perform this operation due to known limitations.
+  UnsupportedOperation,
+  /// Only append is possible but overwritten is still viable through resetting.
+  UrlCanNotOverwriteInitiallySetUrl,
+
+  // ***** Internal - Database client *****
+  //
+  /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
+  /// and read with numbers up to 127.
+  InvalidPostgresUint,
+  /// Received bytes don't compose a valid record.
+  InvalidPostgresRecord,
+  /// Expected one record but got none.
+  NoRecord,
+  /// A query
+  StatementHashCollision,
+  /// Received size differs from expected size.
+  UnexpectedBufferSize {
+    expected: u32,
+    received: u32,
+  },
+  /// Received an unexpected message type.
+  UnexpectedDatabaseMessage {
+    received: u8,
+  },
+  /// Received an expected message type but the related bytes are in an unexpected state.
+  UnexpectedDatabaseMessageBytes,
+  /// Bytes don't represent expected type
+  UnexpectedValueFromBytes {
+    expected: &'static str,
+  },
+  /// The system does not support a requested authentication method.
+  UnknownAuthenticationMethod,
+  /// The system does not support a provided parameter.
+  UnknownConfigurationParameter,
+
+  // ***** Internal - Database SM *****
+  //
+  /// The `seeds` parameter must be provided through the CLI or the configuration file.
+  ChecksumMustBeANumber,
+  /// Databases must be sorted and unique
+  DatabasesMustBeSortedAndUnique,
+  /// Different rollback versions
+  DifferentRollbackVersions,
+  /// Divergent migrations
+  DivergentMigration(i32),
+  /// Validation - Migrations number
+  DivergentMigrationsNum {
+    expected: u32,
+    received: u32,
+  },
+  /// Migration file has invalid syntax,
+  InvalidMigration,
+  /// TOML parser only supports a subset of the official TOML specification
+  TomlParserOnlySupportsStringsAndArraysOfStrings,
+  /// TOML parser only supports a subset of the official TOML specification
+  TomlValueIsTooLarge,
+
+  // ***** Internal - Database ORM *****
+  //
+  /// Migration file has an empty attribute
+  IncompleteSqlFile,
+  /// Some internal operation found a hash collision of two table ids (likely) or a hash collision
+  /// due to a number of nested associations larger than `MAX_NODES_NUM` (unlikely).
+  TableHashCollision(&'static str),
+
+  // ***** Internal - Generic *****
+  //
   /// Invalid UTF-8.
   InvalidUTF8,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
+  /// An expected value could not be found
+  InvalidDatabaseUrl(&'static str),
+  /// Backend couldn't perform passed query string
+  InvalidSqlQuery,
+  /// Invalid URL
+  InvalidUrl,
+  /// Environment variable is not present
+  MissingEnvVar,
+  /// Unexpected String
+  UnexpectedString {
+    length: usize,
+  },
+  /// Unexpected Unsigned integer
+  UnexpectedUint {
+    received: u32,
+  },
 
   /// Missing Header
   MissingHeader {
@@ -39,39 +232,47 @@ pub enum Error {
   DuplicatedHeader,
   /// The system does not process HTTP messages greater than 2048 bytes.
   VeryLargeHttp,
+  /// Server does not support encryption
+  ServerDoesNotSupportEncryption,
+  /// Stream does not support TLS channels.
+  StreamDoesNotSupportTlsChannels,
 
-  // External
+  // ***** Internal - WebSocket *****
   //
-  #[cfg(feature = "deadpool")]
-  /// See [deadpool::managed::PoolError].
-  DeadPoolManagedPoolError(deadpool::managed::PoolError<()>),
-  #[cfg(feature = "deadpool")]
-  /// See [deadpool::unmanaged::PoolError].
-  DeadPoolUnmanagedPoolError(deadpool::unmanaged::PoolError),
-  #[cfg(feature = "flate2")]
-  /// See [flate2::CompressError].
-  Flate2CompressError(flate2::CompressError),
-  #[cfg(feature = "flate2")]
-  /// See [flate2::DecompressError].
-  Flate2DecompressError(Box<flate2::DecompressError>),
-  /// See [glommio::GlommioError].
-  #[cfg(feature = "glommio")]
-  Glommio(Box<glommio::GlommioError<()>>),
-  #[cfg(feature = "httparse")]
-  /// See [httparse::Error].
-  HttpParse(httparse::Error),
-  #[cfg(feature = "std")]
-  /// See [std::io::Error]
-  IoError(std::io::Error),
-  /// See [core::num::ParseIntError].
-  ParseIntError(core::num::ParseIntError),
-  #[cfg(feature = "tokio-rustls")]
-  /// See [tokio_rustls::rustls::Error].
-  TokioRustLsError(Box<tokio_rustls::rustls::Error>),
-  /// See [TryFromIntError]
-  TryFromIntError(TryFromIntError),
-  /// See [crate::web_socket::WebSocketError].
-  WebSocketError(crate::web_socket::WebSocketError),
+  /// The requested received in a handshake on a server is not valid.
+  InvalidAcceptRequest,
+  /// Received close frame has invalid parameters.
+  InvalidCloseFrame,
+  /// Received an invalid header compression parameter.
+  InvalidCompressionHeaderParameter,
+  /// Header indices are out-of-bounds or the number of bytes are too small.
+  InvalidFrameHeaderBounds,
+  /// Payload indices are out-of-bounds or the number of bytes are too small.
+  InvalidPayloadBounds,
+
+  /// Server received a frame without a mask.
+  MissingFrameMask,
+  /// Client sent "permessage-deflate" but didn't receive back from the server
+  MissingPermessageDeflate,
+  /// Status code is expected to be
+  MissingSwitchingProtocols,
+
+  /// Received control frame wasn't supposed to be fragmented.
+  UnexpectedFragmentedControlFrame,
+  /// The first frame of a message is a continuation or the following frames are not a
+  /// continuation.
+  UnexpectedMessageFrame,
+
+  /// It it not possible to read a frame of a connection that was previously closed.
+  ConnectionClosed,
+  /// Server responded without a compression context but the client does not allow such behavior.
+  NoCompressionContext,
+  /// Reserved bits are not zero.
+  ReservedBitsAreNotZero,
+  /// Control frames have a maximum allowed size.
+  VeryLargeControlFrame,
+  /// Frame payload exceeds the defined threshold.
+  VeryLargePayload,
 }
 
 impl Display for Error {
@@ -84,12 +285,61 @@ impl Display for Error {
 #[cfg(feature = "std")]
 impl std::error::Error for Error {}
 
+impl From<Error> for () {
+  #[inline]
+  fn from(_: Error) -> Self {}
+}
+
+#[cfg(feature = "arrayvec")]
+impl<T> From<arrayvec::CapacityError<T>> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: arrayvec::CapacityError<T>) -> Self {
+    Self::ArrayVec(from.simplify())
+  }
+}
+
+#[cfg(feature = "chrono")]
+impl From<chrono::ParseError> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: chrono::ParseError) -> Self {
+    Self::ChronoParseError(from)
+  }
+}
+
+#[cfg(feature = "cl-aux")]
+impl From<cl_aux::Error> for Error {
+  #[inline]
+  fn from(from: cl_aux::Error) -> Self {
+    Self::ClAux(from.into())
+  }
+}
+
+#[cfg(feature = "crypto-common")]
+impl From<crypto_common::InvalidLength> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: crypto_common::InvalidLength) -> Self {
+    Self::CryptoCommonInvalidLength(from)
+  }
+}
+
+#[cfg(feature = "base64")]
+impl From<base64::DecodeSliceError> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: base64::DecodeSliceError) -> Self {
+    Self::DecodeSliceError(from)
+  }
+}
+
 #[cfg(feature = "deadpool")]
 impl<T> From<deadpool::managed::PoolError<T>> for Error {
   #[inline]
   fn from(from: deadpool::managed::PoolError<T>) -> Self {
     use deadpool::managed::{HookError, PoolError};
-    Self::DeadPoolManagedPoolError(match from {
+    let elem = match from {
       PoolError::Timeout(elem) => PoolError::Timeout(elem),
       PoolError::Backend(_) => PoolError::Backend(()),
       PoolError::Closed => PoolError::Closed,
@@ -99,7 +349,8 @@ impl<T> From<deadpool::managed::PoolError<T>> for Error {
         HookError::StaticMessage(elem) => HookError::StaticMessage(elem),
         HookError::Backend(_) => HookError::Backend(()),
       }),
-    })
+    };
+    Self::DeadPoolManagedPoolError(elem.into())
   }
 }
 
@@ -111,11 +362,27 @@ impl From<deadpool::unmanaged::PoolError> for Error {
   }
 }
 
+#[cfg(feature = "embassy-net")]
+impl From<embassy_net::tcp::Error> for Error {
+  #[inline]
+  fn from(from: embassy_net::tcp::Error) -> Self {
+    Self::EmbassyNet(from)
+  }
+}
+
+#[cfg(feature = "base64")]
+impl From<base64::EncodeSliceError> for Error {
+  #[inline]
+  fn from(from: base64::EncodeSliceError) -> Self {
+    Self::EncodeSliceError(from)
+  }
+}
+
 #[cfg(feature = "flate2")]
 impl From<flate2::CompressError> for Error {
   #[inline]
   fn from(from: flate2::CompressError) -> Self {
-    Self::Flate2CompressError(from)
+    Self::Flate2CompressError(from.into())
   }
 }
 
@@ -124,6 +391,13 @@ impl From<flate2::DecompressError> for Error {
   #[inline]
   fn from(from: flate2::DecompressError) -> Self {
     Self::Flate2DecompressError(from.into())
+  }
+}
+
+impl From<core::fmt::Error> for Error {
+  #[inline]
+  fn from(from: core::fmt::Error) -> Self {
+    Self::Fmt(from)
   }
 }
 
@@ -152,6 +426,32 @@ impl From<std::io::Error> for Error {
 }
 
 #[cfg(feature = "std")]
+impl From<std::env::VarError> for Error {
+  #[inline]
+  fn from(from: std::env::VarError) -> Self {
+    Self::VarError(match from {
+      std::env::VarError::NotPresent => VarError::NotPresent,
+      std::env::VarError::NotUnicode(_) => VarError::NotUnicode,
+    })
+  }
+}
+
+#[cfg(feature = "digest")]
+impl From<digest::MacError> for Error {
+  #[inline]
+  fn from(from: digest::MacError) -> Self {
+    Self::MacError(from)
+  }
+}
+
+#[cfg(feature = "miniserde")]
+impl From<miniserde::Error> for Error {
+  #[inline]
+  fn from(from: miniserde::Error) -> Self {
+    Self::Miniserde(from)
+  }
+}
+
 impl From<core::num::ParseIntError> for Error {
   #[inline]
   fn from(from: core::num::ParseIntError) -> Self {
@@ -159,10 +459,83 @@ impl From<core::num::ParseIntError> for Error {
   }
 }
 
-impl From<core::str::Utf8Error> for Error {
+#[cfg(feature = "postgres")]
+impl From<crate::database::client::postgres::DbError> for Error {
   #[inline]
-  fn from(_: core::str::Utf8Error) -> Self {
-    Self::InvalidUTF8
+  fn from(from: crate::database::client::postgres::DbError) -> Self {
+    Self::PostgresDbError(from.into())
+  }
+}
+
+#[cfg(feature = "protobuf")]
+impl From<protobuf::Error> for Error {
+  #[inline]
+  fn from(from: protobuf::Error) -> Self {
+    Self::Protobuf(from)
+  }
+}
+
+#[cfg(feature = "reqwest")]
+impl From<reqwest::Error> for Error {
+  #[inline]
+  fn from(from: reqwest::Error) -> Self {
+    Self::Reqwest(from)
+  }
+}
+
+#[cfg(feature = "rkyv")]
+impl From<&'static str> for Error {
+  #[inline]
+  fn from(from: &'static str) -> Self {
+    Self::RkyvDer(from)
+  }
+}
+
+#[cfg(feature = "rkyv")]
+impl From<RkyvSer> for Error {
+  #[inline]
+  fn from(from: RkyvSer) -> Self {
+    Self::RkyvSer(from.into())
+  }
+}
+
+#[cfg(feature = "serde_json")]
+impl From<serde_json::Error> for Error {
+  #[inline]
+  fn from(from: serde_json::Error) -> Self {
+    Self::SerdeJson(from)
+  }
+}
+
+#[cfg(feature = "serde-xml-rs")]
+impl From<serde_xml_rs::Error> for Error {
+  #[inline]
+  fn from(from: serde_xml_rs::Error) -> Self {
+    Self::SerdeXmlRs(from.into())
+  }
+}
+
+#[cfg(feature = "serde_yaml")]
+impl From<serde_yaml::Error> for Error {
+  #[inline]
+  fn from(from: serde_yaml::Error) -> Self {
+    Self::SerdeYaml(from)
+  }
+}
+
+#[cfg(feature = "simd-json")]
+impl From<simd_json::Error> for Error {
+  #[inline]
+  fn from(from: simd_json::Error) -> Self {
+    Self::SimdJson(from.into())
+  }
+}
+
+#[cfg(feature = "embedded-tls")]
+impl From<embedded_tls::TlsError> for Error {
+  #[inline]
+  fn from(from: embedded_tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 
@@ -174,16 +547,38 @@ impl From<tokio_rustls::rustls::Error> for Error {
   }
 }
 
-impl From<TryFromIntError> for Error {
+#[cfg(feature = "_tracing-subscriber")]
+impl From<tracing_subscriber::util::TryInitError> for Error {
   #[inline]
-  fn from(from: TryFromIntError) -> Self {
+  fn from(from: tracing_subscriber::util::TryInitError) -> Self {
+    Self::TryInitError(from)
+  }
+}
+
+impl From<core::num::TryFromIntError> for Error {
+  #[inline]
+  fn from(from: core::num::TryFromIntError) -> Self {
     Self::TryFromIntError(from)
   }
 }
 
-impl From<crate::web_socket::WebSocketError> for Error {
+impl From<core::array::TryFromSliceError> for Error {
   #[inline]
-  fn from(from: crate::web_socket::WebSocketError) -> Self {
-    Self::WebSocketError(from)
+  fn from(from: core::array::TryFromSliceError) -> Self {
+    Self::TryFromSliceError(from)
   }
+}
+
+/// The error type for operations interacting with environment variables.
+#[cfg(feature = "std")]
+#[derive(Clone, Copy, Debug)]
+pub enum VarError {
+  /// The specified environment variable was not present in the current
+  /// process's environment.
+  NotPresent,
+
+  /// The specified environment variable was found, but it did not contain
+  /// valid unicode data. The found data is returned as a payload of this
+  /// variant.
+  NotUnicode,
 }

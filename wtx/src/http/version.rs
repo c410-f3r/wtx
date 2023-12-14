@@ -1,13 +1,14 @@
 create_enum! {
   #[derive(Clone, Copy, Debug, Default, PartialEq)]
+  #[repr(u8)]
   /// HTTP version
-  pub enum Version {
+  pub enum Version<u8> {
     /// HTTP/1
-    Http1 = 0,
+    Http1 = (0),
     /// HTTP/1.1
-    Http1_1 = 1,
+    Http1_1 = (1),
     /// HTTP/2
     #[default]
-    Http2 = 2,
+    Http2 = (2),
   }
 }

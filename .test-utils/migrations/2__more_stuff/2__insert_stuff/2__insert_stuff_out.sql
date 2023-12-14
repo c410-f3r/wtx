@@ -1,0 +1,2 @@
+DELETE FROM apple;
+DELETE FROM coffee;

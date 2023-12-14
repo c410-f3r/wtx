@@ -1,0 +1,5 @@
+error: Unnamed structures must have a `#[pkg::field]` attribute on each field.
+ --> tests/ui/error_enum/absent_field_in_unnamed_struct.rs:7:10
+  |
+7 |   struct Req(
+  |          ^^^

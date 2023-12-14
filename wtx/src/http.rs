@@ -1,13 +1,17 @@
-//! HTTP
+//! Generic HTTP elements
 
+mod expected_header;
 mod header;
-#[cfg(feature = "httparse")]
-mod httparse;
+mod method;
 mod request;
 mod response;
+mod status_code;
 mod version;
 
-pub use header::{Header, Http1Header};
+pub use expected_header::ExpectedHeader;
+pub use header::Header;
+pub use method::Method;
 pub use request::Request;
 pub use response::Response;
+pub use status_code::StatusCode;
 pub use version::Version;

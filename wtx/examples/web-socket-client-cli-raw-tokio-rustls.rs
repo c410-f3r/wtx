@@ -2,56 +2,42 @@
 
 #[path = "./common/mod.rs"]
 mod common;
+#[path = "./tls_stream/mod.rs"]
+mod tls_stream;
 
-use std::{io::Cursor, sync::Arc};
-use tokio::{
-  io::{AsyncBufReadExt, BufReader},
-  net::TcpStream,
-};
-use tokio_rustls::{
-  rustls::{ClientConfig, OwnedTrustAnchor, RootCertStore, ServerName},
-  TlsConnector,
-};
-use webpki_roots::TLS_SERVER_ROOTS;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use wtx::{
+  misc::UriPartsRef,
   rng::StdRng,
   web_socket::{
     handshake::{WebSocketConnect, WebSocketConnectRaw},
-    FrameBufferVec, FrameMutVec, OpCode,
+    FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
   },
-  UriParts,
 };
 
-static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
-
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> wtx::Result<()> {
+#[tokio::main]
+async fn main() {
   let fb = &mut FrameBufferVec::default();
-  let pb = &mut <_>::default();
   let uri = common::_uri_from_args();
-  let uri_parts = UriParts::from(uri.as_str());
+  let uri_parts = UriPartsRef::new(uri.as_str());
   let (_, mut ws) = WebSocketConnectRaw {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
-    pb,
+    wsb: WebSocketBuffer::default(),
     rng: StdRng::default(),
-    stream: tls_connector()?
-      .connect(
-        ServerName::try_from(uri_parts.hostname).map_err(|_err| wtx::Error::MissingHost)?,
-        TcpStream::connect(uri_parts.host).await?,
-      )
-      .await?,
+    stream: tls_stream::_tls_stream_host(uri_parts.host(), uri_parts.hostname()).await,
     uri: &uri,
   }
   .connect()
-  .await?;
+  .await
+  .unwrap();
   let mut buffer = String::new();
   let mut reader = BufReader::new(tokio::io::stdin());
   loop {
     tokio::select! {
       frame_rslt = ws.read_frame(fb) => {
-        let frame = frame_rslt?;
+        let frame = frame_rslt.unwrap();
         match (frame.op_code(), frame.text_payload()) {
           (_, Some(elem)) => println!("{elem}"),
           (OpCode::Close, _) => break,
@@ -59,24 +45,9 @@ async fn main() -> wtx::Result<()> {
         }
       }
       read_rslt = reader.read_line(&mut buffer) => {
-        let _ = read_rslt?;
-        ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Text, buffer.as_bytes())?).await?;
+        let _ = read_rslt.unwrap();
+        ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Text, buffer.as_bytes()).unwrap()).await.unwrap();
       }
     }
   }
-  Ok(())
-}
-
-// You probably shouldn't use self-signed root authorities in a production environment.
-fn tls_connector() -> wtx::Result<TlsConnector> {
-  let mut root_store = RootCertStore::empty();
-  root_store.add_trust_anchors(TLS_SERVER_ROOTS.iter().map(|ta| {
-    OwnedTrustAnchor::from_subject_spki_name_constraints(ta.subject, ta.spki, ta.name_constraints)
-  }));
-  let _ = root_store.add_parsable_certificates(&rustls_pemfile::certs(&mut Cursor::new(ROOT_CA))?);
-  let config = ClientConfig::builder()
-    .with_safe_defaults()
-    .with_root_certificates(root_store)
-    .with_no_client_auth();
-  Ok(TlsConnector::from(Arc::new(config)))
 }

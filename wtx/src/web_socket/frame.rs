@@ -1,13 +1,13 @@
 use crate::{
-  misc::{from_utf8_opt, Expand, SingleTypeStorage},
+  misc::SingleTypeStorage,
   web_socket::{
     close_code::CloseCode,
     frame_buffer::{
       FrameBufferControlArray, FrameBufferControlArrayMut, FrameBufferMut, FrameBufferVecMut,
     },
-    misc::{define_fb_from_header_params, op_code},
-    FrameBuffer, FrameBufferVec, OpCode, WebSocketError, MAX_CONTROL_FRAME_PAYLOAD_LEN,
-    MAX_HDR_LEN_USIZE, MIN_HEADER_LEN_USIZE,
+    misc::{define_fb_from_header_params, op_code, Expand},
+    FrameBuffer, FrameBufferVec, OpCode, MAX_CONTROL_FRAME_PAYLOAD_LEN, MAX_HDR_LEN_USIZE,
+    MIN_HEADER_LEN_USIZE,
   },
 };
 use core::{
@@ -86,15 +86,9 @@ where
     let len = header.len();
     let has_valid_header = (MIN_HEADER_LEN_USIZE..=MAX_HDR_LEN_USIZE).contains(&len);
     let (true, Some(first_header_byte)) = (has_valid_header, header.first().copied()) else {
-      return Err(WebSocketError::InvalidFrameHeaderBounds.into());
+      return Err(crate::Error::InvalidFrameHeaderBounds);
     };
     Ok(Self { fb, fin: first_header_byte & 0b1000_0000 != 0, op_code: op_code(first_header_byte)? })
-  }
-
-  /// Checks if the frame payload is valid UTF-8, regardless of its type.
-  #[inline]
-  pub fn is_utf8(&self) -> bool {
-    self.op_code.is_text() || from_utf8_opt(self.fb.borrow().payload()).is_some()
   }
 
   /// If the frame is of type [OpCode::Text], returns its payload interpreted as a string.
@@ -105,7 +99,7 @@ where
   {
     self.op_code.is_text().then(|| {
       #[allow(unsafe_code)]
-      // SAFETY: All text frames have valid UTF-8 contents when read.
+      // SAFETY: UTF-8 data is always verified when read from a stream.
       unsafe {
         str::from_utf8_unchecked(self.fb.borrow().payload())
       }

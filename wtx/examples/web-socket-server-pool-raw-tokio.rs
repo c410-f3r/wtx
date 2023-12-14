@@ -14,42 +14,30 @@ use wtx::{
   rng::StaticRng,
   web_socket::{
     handshake::{WebSocketAccept, WebSocketAcceptRaw},
-    FrameBufferVec, FrameMutVec, OpCode,
+    FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
   },
-  PartitionedBuffer,
 };
 
 const POOL_LEN: usize = 32;
 
-static POOL: OnceLock<Pool<(FrameBufferVec, PartitionedBuffer)>> = OnceLock::new();
+static POOL: OnceLock<Pool<(FrameBufferVec, WebSocketBuffer)>> = OnceLock::new();
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> wtx::Result<()> {
-  let listener = TcpListener::bind(common::_host_from_args()).await?;
+#[tokio::main]
+async fn main() {
+  let listener = TcpListener::bind(common::_host_from_args()).await.unwrap();
   loop {
-    let (stream, _) = listener.accept().await?;
+    let (stream, _) = listener.accept().await.unwrap();
     let _jh = tokio::spawn(async move {
-      let fun = || async {
-        let (fb, pb) = &mut *pool_elem().await?;
-        let mut ws = WebSocketAcceptRaw {
-          compression: (),
-          key_buffer: &mut <_>::default(),
-          pb,
-          rng: StaticRng::default(),
-          stream,
-        }
+      let (fb, wsb) = &mut *pool_elem().await;
+      let mut ws = WebSocketAcceptRaw { compression: (), rng: StaticRng::default(), stream, wsb }
         .accept(|_| true)
-        .await?;
-        ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Close, &[])?).await?;
-        wtx::Result::Ok(())
-      };
-      if let Err(err) = fun().await {
-        println!("{err}");
-      }
+        .await
+        .unwrap();
+      ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Close, &[]).unwrap()).await.unwrap();
     });
   }
 }
 
-async fn pool_elem() -> wtx::Result<Object<(FrameBufferVec, PartitionedBuffer)>> {
-  Ok(POOL.get_or_init(|| Pool::from((0..POOL_LEN).map(|_| <_>::default()))).get().await?)
+async fn pool_elem() -> Object<(FrameBufferVec, WebSocketBuffer)> {
+  POOL.get_or_init(|| Pool::from((0..POOL_LEN).map(|_| <_>::default()))).get().await.unwrap()
 }

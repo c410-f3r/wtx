@@ -6,39 +6,39 @@ use wtx::{
   web_socket::{
     compression::Flate2,
     handshake::{WebSocketConnect, WebSocketConnectRaw},
-    CloseCode, FrameBufferVec, FrameMutVec, OpCode,
+    CloseCode, FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
   },
-  PartitionedBuffer,
 };
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<(), Error> {
+#[tokio::main]
+async fn main() {
   let fb = &mut <_>::default();
   let host = "127.0.0.1:9080";
-  let pb = &mut PartitionedBuffer::default();
-  for case in 1..=get_case_count(fb, &host, pb).await? {
+  let mut wsb = WebSocketBuffer::default();
+  for case in 1..=get_case_count(fb, &host, &mut wsb).await {
     let (_, mut ws) = WebSocketConnectRaw {
       compression: Flate2::default(),
       fb,
       headers_buffer: &mut <_>::default(),
-      pb: &mut *pb,
       rng: StdRng::default(),
-      stream: TcpStream::connect(host).await.map_err(wtx::Error::from)?,
+      stream: TcpStream::connect(host).await.unwrap(),
       uri: &format!("http://{host}/runCase?case={case}&agent=wtx"),
+      wsb: &mut wsb,
     }
     .connect()
-    .await?;
+    .await
+    .unwrap();
     loop {
       let mut frame = match ws.read_frame(fb).await {
         Err(err) => {
           println!("Error: {err}");
-          ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Close, &[])?).await?;
+          ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Close, &[]).unwrap()).await.unwrap();
           break;
         }
         Ok(elem) => elem,
       };
       match frame.op_code() {
-        OpCode::Binary | OpCode::Text => ws.write_frame(&mut frame).await?,
+        OpCode::Binary | OpCode::Text => ws.write_frame(&mut frame).await.unwrap(),
         OpCode::Close => break,
         _ => {}
       }
@@ -48,57 +48,36 @@ async fn main() -> Result<(), Error> {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
-    pb,
     rng: StdRng::default(),
-    stream: TcpStream::connect(host).await.map_err(wtx::Error::from)?,
+    stream: TcpStream::connect(host).await.unwrap(),
     uri: &format!("http://{host}/updateReports?agent=wtx"),
+    wsb,
   }
   .connect()
-  .await?
+  .await
+  .unwrap()
   .1
-  .write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[])?)
-  .await?;
-  Ok(())
+  .write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[]).unwrap())
+  .await
+  .unwrap();
 }
 
-/// Error
-#[derive(Debug)]
-pub enum Error {
-  /// ParseIntError
-  ParseIntError(std::num::ParseIntError),
-  /// Wtx
-  Wtx(wtx::Error),
-}
-
-impl From<std::num::ParseIntError> for Error {
-  fn from(from: std::num::ParseIntError) -> Self {
-    Self::ParseIntError(from)
-  }
-}
-
-impl From<wtx::Error> for Error {
-  fn from(from: wtx::Error) -> Self {
-    Self::Wtx(from)
-  }
-}
-
-async fn get_case_count(
-  fb: &mut FrameBufferVec,
-  host: &str,
-  pb: &mut PartitionedBuffer,
-) -> Result<u32, Error> {
+async fn get_case_count(fb: &mut FrameBufferVec, host: &str, wsb: &mut WebSocketBuffer) -> u32 {
   let (_, mut ws) = WebSocketConnectRaw {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
-    pb,
     rng: StdRng::default(),
-    stream: TcpStream::connect(host).await.map_err(wtx::Error::from)?,
+    stream: TcpStream::connect(host).await.unwrap(),
     uri: &&format!("http://{host}/getCaseCount"),
+    wsb,
   }
   .connect()
-  .await?;
-  let rslt = ws.read_frame(fb).await?.text_payload().unwrap_or_default().parse()?;
-  ws.write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[])?).await?;
-  Ok(rslt)
+  .await
+  .unwrap();
+  let rslt = ws.read_frame(fb).await.unwrap().text_payload().unwrap_or_default().parse().unwrap();
+  ws.write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[]).unwrap())
+    .await
+    .unwrap();
+  rslt
 }

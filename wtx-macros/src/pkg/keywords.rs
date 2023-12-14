@@ -1,0 +1,12 @@
+syn::custom_keyword!(aux_data);
+syn::custom_keyword!(aux_params);
+syn::custom_keyword!(aux);
+syn::custom_keyword!(after_sending);
+syn::custom_keyword!(before_sending);
+syn::custom_keyword!(field);
+syn::custom_keyword!(name);
+syn::custom_keyword!(params);
+syn::custom_keyword!(pkg);
+syn::custom_keyword!(req_data);
+syn::custom_keyword!(res_data);
+syn::custom_keyword!(transport);

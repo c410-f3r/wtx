@@ -29,28 +29,28 @@ pub enum CloseCode {
   Again,
   #[doc(hidden)]
   Tls,
-  #[doc(hidden)]
+  /// Spaces without meaning reserved by the specification.
   Reserved(u16),
-  #[doc(hidden)]
+  /// IANA spaces reserved for use by libraries, frameworks, and applications.
   Iana(u16),
-  #[doc(hidden)]
+  /// Reserved for private use.
   Library(u16),
-  #[doc(hidden)]
-  Bad(u16),
 }
 
 impl CloseCode {
   /// Checks if this instances is allowed.
   #[inline]
   pub fn is_allowed(self) -> bool {
-    !matches!(self, Self::Bad(_) | Self::Reserved(_) | Self::Status | Self::Abnormal | Self::Tls)
+    !matches!(self, Self::Reserved(_) | Self::Status | Self::Abnormal | Self::Tls)
   }
 }
 
-impl From<u16> for CloseCode {
+impl TryFrom<u16> for CloseCode {
+  type Error = crate::Error;
+
   #[inline]
-  fn from(code: u16) -> CloseCode {
-    match code {
+  fn try_from(from: u16) -> Result<Self, crate::Error> {
+    Ok(match from {
       1000 => Self::Normal,
       1001 => Self::Away,
       1002 => Self::Protocol,
@@ -65,11 +65,11 @@ impl From<u16> for CloseCode {
       1012 => Self::Restart,
       1013 => Self::Again,
       1015 => Self::Tls,
-      1016..=2999 => Self::Reserved(code),
-      3000..=3999 => Self::Iana(code),
-      4000..=4999 => Self::Library(code),
-      _ => Self::Bad(code),
-    }
+      1016..=2999 => Self::Reserved(from),
+      3000..=3999 => Self::Iana(from),
+      4000..=4999 => Self::Library(from),
+      received => return Err(crate::Error::UnexpectedUint { received: received.into() }),
+    })
   }
 }
 
@@ -91,10 +91,7 @@ impl From<CloseCode> for u16 {
       CloseCode::Restart => 1012,
       CloseCode::Again => 1013,
       CloseCode::Tls => 1015,
-      CloseCode::Bad(code)
-      | CloseCode::Iana(code)
-      | CloseCode::Library(code)
-      | CloseCode::Reserved(code) => code,
+      CloseCode::Iana(code) | CloseCode::Library(code) | CloseCode::Reserved(code) => code,
     }
   }
 }

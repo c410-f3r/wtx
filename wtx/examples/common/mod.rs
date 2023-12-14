@@ -1,59 +1,51 @@
-use core::borrow::BorrowMut;
 use wtx::{
-  rng::StdRng,
+  misc::{AsyncBounds, Stream},
+  rng::StaticRng,
   web_socket::{
     compression::NegotiatedCompression,
     handshake::{WebSocketAccept, WebSocketAcceptRaw},
-    Compression, FrameBufferVec, OpCode, WebSocketServer,
+    Compression, FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServerOwned,
   },
-  AsyncBounds, PartitionedBuffer, Stream,
 };
 
-pub(crate) async fn _accept_conn_and_echo_frames<C, PB, S>(
+pub(crate) async fn _accept_conn_and_echo_frames<C, S>(
   compression: C,
   fb: &mut FrameBufferVec,
-  pb: PB,
   stream: S,
-) -> wtx::Result<()>
-where
+) where
   C: AsyncBounds + Compression<false>,
   C::NegotiatedCompression: AsyncBounds,
-  PB: AsyncBounds + BorrowMut<PartitionedBuffer>,
   S: AsyncBounds + Stream,
 {
   let mut ws = WebSocketAcceptRaw {
     compression,
-    key_buffer: &mut <_>::default(),
-    pb,
     rng: <_>::default(),
     stream,
+    wsb: WebSocketBuffer::default(),
   }
   .accept(|_| true)
-  .await?;
-  _handle_frames(fb, &mut ws).await?;
-  Ok(())
+  .await
+  .unwrap();
+  _handle_frames(fb, &mut ws).await;
 }
 
-pub(crate) async fn _handle_frames<NC, PB, S>(
+pub(crate) async fn _handle_frames<NC, S>(
   fb: &mut FrameBufferVec,
-  ws: &mut WebSocketServer<NC, PB, StdRng, S>,
-) -> wtx::Result<()>
-where
+  ws: &mut WebSocketServerOwned<NC, StaticRng, S>,
+) where
   NC: NegotiatedCompression,
-  PB: BorrowMut<PartitionedBuffer>,
   S: Stream,
 {
   loop {
-    let mut frame = ws.read_frame(fb).await?;
+    let mut frame = ws.read_frame(fb).await.unwrap();
     match frame.op_code() {
       OpCode::Binary | OpCode::Text => {
-        ws.write_frame(&mut frame).await?;
+        ws.write_frame(&mut frame).await.unwrap();
       }
       OpCode::Close => break,
       _ => {}
     }
   }
-  Ok(())
 }
 
 pub(crate) fn _host_from_args() -> String {

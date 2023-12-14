@@ -1,0 +1,5 @@
+error: Responses can not have type parameters
+ --> tests/ui/error_enum/responses_can_not_have_type_params.rs:7:10
+  |
+7 |   struct Res<T>(T);
+  |          ^^^

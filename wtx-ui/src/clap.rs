@@ -1,15 +1,24 @@
-use crate::misc::{_connect, _serve};
 use clap::Parser;
 
 pub(crate) async fn init() -> wtx::Result<()> {
-  let args = Cli::parse();
-  match args.commands {
-    Commands::Ws(ws_args) => match (ws_args.connect, ws_args.serve) {
+  let _args = Cli::parse();
+  match _args.commands {
+    Commands::_Nothing => {}
+    #[cfg(feature = "embed-migrations")]
+    Commands::EmbedMigrations(elem) => {
+      crate::embed_migrations::embed_migrations(&elem.input, &elem.output).await?;
+    }
+    #[cfg(feature = "sm")]
+    Commands::Sm(sm) => {
+      crate::sm::sm(&sm).await?;
+    }
+    #[cfg(feature = "web-socket")]
+    Commands::Ws(elem) => match (elem.connect, elem.serve) {
       (None, None) | (Some(_), Some(_)) => {
         panic!("Please connect to a server using `-c` or listen to requests using `-s`");
       }
       (None, Some(uri)) => {
-        _serve(
+        crate::web_socket::_serve(
           &uri,
           |payload| println!("{payload:?}"),
           |err| println!("{err}"),
@@ -18,7 +27,7 @@ pub(crate) async fn init() -> wtx::Result<()> {
         .await?;
       }
       (Some(uri), None) => {
-        _connect(&uri, |payload| println!("{payload}")).await?;
+        crate::web_socket::_connect(&uri, |payload| println!("{payload}")).await?;
       }
     },
   }
@@ -35,17 +44,84 @@ struct Cli {
 
 #[derive(Debug, clap::Subcommand)]
 enum Commands {
-  Ws(WsArgs),
+  #[clap(skip)]
+  _Nothing,
+  #[cfg(feature = "embed-migrations")]
+  EmbedMigrations(EmbedMigrations),
+  #[cfg(feature = "sm")]
+  Sm(Sm),
+  #[cfg(feature = "web-socket")]
+  Ws(Ws),
 }
 
-/// WebSocket subcommands
+/// Embed migrations
+#[cfg(feature = "embed-migrations")]
 #[derive(Debug, clap::Args)]
-#[command(args_conflicts_with_subcommands = true)]
-struct WsArgs {
+struct EmbedMigrations {
+  /// Configuration file path
+  #[arg(default_value_t = wtx::database::sm::DEFAULT_CFG_FILE_NAME.into(), short = 'i', value_name = "Path")]
+  input: String,
+  /// Rust file path
+  #[arg(default_value = "embedded_migrations.rs", short = 'o', value_name = "Path")]
+  output: String,
+}
+
+/// Schema Management
+#[cfg(feature = "sm")]
+#[derive(Debug, clap::Args)]
+pub(crate) struct Sm {
+  /// Configuration file path. If not specified, defaults to "wtx.toml" in the current directory.
+  #[arg(short = 'c')]
+  pub(crate) toml: Option<std::path::PathBuf>,
+
+  #[command(subcommand)]
+  pub(crate) commands: SmCommands,
+
+  /// Number of files (migrations or seeds) that is going to be sent to the database in a
+  /// single transaction.
+  #[arg(default_value_t = wtx::database::sm::DEFAULT_BATCH_SIZE, short = 'f')]
+  pub(crate) files_num: usize,
+
+  /// Seeds directory. If not specified, defaults to the optional directory specified in the
+  /// configuration file.
+  /// Returns an error if none of the options are available.
+  #[cfg(feature = "sm-dev")]
+  #[arg(short = 's')]
+  pub(crate) seeds: Option<std::path::PathBuf>,
+
+  /// Environment variable name that contains the database URI.
+  #[arg(default_value_t = wtx::database::DEFAULT_URI_VAR.into(), short = 'v')]
+  pub(crate) var: String,
+}
+
+#[allow(unused_tuple_struct_fields)]
+#[derive(Debug, clap::Subcommand)]
+pub(crate) enum SmCommands {
+  /// Clean all database objects. For example, tables, triggers or procedures
+  #[cfg(feature = "sm-dev")]
+  Clean {},
+  /// Process local migrations that aren't in the database
+  Migrate {},
+  /// Shortcut.
+  #[cfg(feature = "sm-dev")]
+  MigrateAndSeed {},
+  /// Returns database state to a point
+  Rollback { versions: Vec<i32> },
+  /// Populates the database with data intended for testing
+  #[cfg(feature = "sm-dev")]
+  Seed {},
+  /// Checks if the database state is in sync with the local data
+  Validate {},
+}
+
+/// WebSocket
+#[cfg(feature = "web-socket")]
+#[derive(Debug, clap::Args)]
+struct Ws {
   /// Connects to a server
-  #[arg(short = 'c', value_name = "URL")]
+  #[arg(short = 'c', value_name = "URI")]
   connect: Option<String>,
   /// Listens external requests
-  #[arg(short = 's', value_name = "URL")]
+  #[arg(short = 's', value_name = "URI")]
   serve: Option<String>,
 }
