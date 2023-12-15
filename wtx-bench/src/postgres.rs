@@ -82,8 +82,9 @@ async fn bench_tokio_postgres(agent: &mut Agent, up: &UriPartsRef<'_>) {
             println!("Error: {e}");
           }
         });
+        let p = client.prepare("SELECT * FROM foo").await.unwrap();
         for _ in 0..QUERIES {
-          let rows = client.query("SELECT * FROM foo", &[]).await.unwrap();
+          let rows = client.query(&p, &[]).await.unwrap();
           assert!(!rows[0].get::<_, &str>("bar").is_empty());
           assert!(!rows[0].get::<_, &str>("baz").is_empty());
           assert!(!rows[1].get::<_, &str>("bar").is_empty());
