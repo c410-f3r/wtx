@@ -29,9 +29,14 @@ async fn main() {
         let mut sqlx_postgres = misc::Agent { name: "sqlx-postgres-tokio".to_owned(), result: 0 };
         let mut tokio_postgres = misc::Agent { name: "tokio-postgres".to_owned(), result: 0 };
         let mut wtx = misc::Agent { name: "wtx-tokio".to_owned(), result: 0 };
-        postgres::bench(&up, [&mut sqlx_postgres, &mut tokio_postgres, &mut wtx]).await;
+        let mut diesel_async = misc::Agent { name: "diesel_async".to_owned(), result: 0 };
+        postgres::bench(
+          &up,
+          [&mut sqlx_postgres, &mut tokio_postgres, &mut wtx, &mut diesel_async],
+        )
+        .await;
         misc::flush(
-          &[sqlx_postgres, tokio_postgres, wtx],
+          &[sqlx_postgres, tokio_postgres, wtx, diesel_async],
           &postgres::caption(),
           "/tmp/wtx-postgres.png",
         );
