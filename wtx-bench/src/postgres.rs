@@ -125,6 +125,7 @@ async fn bench_wtx(agent: &mut Agent, up: &UriPartsRef<'_>) {
   agent.result = instant.elapsed().as_millis();
 }
 
+#[allow(clippy::single_char_lifetime_names, unused_qualifications, clippy::shadow_unrelated)]
 async fn bench_diesel_async(agent: &mut Agent, up: &UriPartsRef<'_>) {
   use diesel::prelude::*;
   use diesel_async::RunQueryDsl;
