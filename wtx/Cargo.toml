@@ -89,7 +89,7 @@ tokio = { default-features = false, features = ["io-util", "net"], optional = tr
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.25" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
-tracing-tree = { default-features = false, optional = true, version = "0.2" }
+tracing-tree = { default-features = false, optional = true, version = "0.3" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
 
 [dev-dependencies]
