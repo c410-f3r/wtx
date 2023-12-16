@@ -1,7 +1,7 @@
 //! Any request with lifetimes and custom data methods must have lifetimes that match
 //! both request and method signatures.
 
-wtx::client_api_framework::create_packages_aux_wrapper!();
+wtx::create_packages_aux_wrapper!();
 
 type Api = ();
 

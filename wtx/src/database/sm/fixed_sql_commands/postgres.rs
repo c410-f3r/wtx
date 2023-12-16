@@ -1,4 +1,6 @@
-use crate::database::{client::postgres::Postgres, executor::Executor, Identifier};
+use crate::database::{
+  client::postgres::Postgres, executor::Executor, Identifier, TransactionManager,
+};
 use alloc::{string::String, vec::Vec};
 use core::fmt::Write;
 
@@ -25,6 +27,9 @@ where
   _schemas(executor, buffer_idents).await?;
   _push_drop((buffer_cmd, buffer_idents), "SCHEMA")?;
 
+  _sequences(executor, buffer_idents).await?;
+  _push_drop((buffer_cmd, buffer_idents), "SEQUENCE")?;
+
   _domains(executor, buffer_idents).await?;
   _push_drop((buffer_cmd, buffer_idents), "DOMAIN")?;
 
@@ -43,11 +48,10 @@ where
   _types(executor, buffer_idents).await?;
   _push_drop((buffer_cmd, buffer_idents), "TYPE")?;
 
-  _sequences(executor, buffer_idents).await?;
-  _push_drop((buffer_cmd, buffer_idents), "SEQUENCE")?;
-
-  let _ = executor.execute::<crate::Error, _>(buffer_cmd, ()).await?;
+  let mut tm = executor.transaction().await?;
+  tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
   buffer_cmd.clear();
+  tm.commit().await?;
 
   Ok(())
 }
@@ -125,13 +129,7 @@ where
       AND pg_proc.prokind = '{prokind}'
     ",
   ))?;
-  executor
-    .simple_entities::<crate::Error, _, _>(
-      buffer_cmd.get(before..).unwrap_or_default(),
-      buffer_idents,
-      (),
-    )
-    .await?;
+  executor.simple_entities(buffer_cmd.get(before..).unwrap_or_default(), buffer_idents, ()).await?;
   buffer_cmd.truncate(before);
   Ok(())
 }
@@ -145,7 +143,7 @@ where
   E: Executor<Database = Postgres>,
 {
   executor
-    .simple_entities::<crate::Error, _, _>(
+    .simple_entities(
       "SELECT
       sequence_name AS generic_column
     FROM
@@ -214,13 +212,7 @@ where
         WHERE inhrelid = (quote_ident(tables.table_schema)||'.'||quote_ident(tables.table_name))::regclass::oid)
       )",
   ))?;
-  executor
-    .simple_entities::<crate::Error, _, _>(
-      buffer_cmd.get(before..).unwrap_or_default(),
-      results,
-      (),
-    )
-    .await?;
+  executor.simple_entities(buffer_cmd.get(before..).unwrap_or_default(), results, ()).await?;
   buffer_cmd.truncate(before);
   Ok(())
 }
@@ -283,7 +275,7 @@ fn _push_drop(
   structure: &str,
 ) -> crate::Result<()> {
   for identifier in &*buffer_idents {
-    buffer_cmd.write_fmt(format_args!("DROP {structure} \"{identifier}\" CASCADE;"))?;
+    buffer_cmd.write_fmt(format_args!(r#"DROP {structure} "{identifier}" CASCADE;"#))?;
   }
   buffer_idents.clear();
   Ok(())

@@ -23,7 +23,7 @@ impl ContainedAttrs for syn::Item {
       Self::Type(ref mut item) => item.attrs.as_mut(),
       Self::Union(ref mut item) => item.attrs.as_mut(),
       Self::Use(ref mut item) => item.attrs.as_mut(),
-      Self::Verbatim(_) | _ => return None,
+      _ => return None,
     })
   }
 }

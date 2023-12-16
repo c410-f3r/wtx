@@ -185,7 +185,7 @@ impl Debug for DbError {
       .field("severity_localized", &self.severity_localized())
       .field("severity_nonlocalized", &self.severity_nonlocalized())
       .field("table", &self.table())
-      .field("r#where", &self.r#where())
+      .field("where", &self.r#where())
       .finish()
   }
 }

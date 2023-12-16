@@ -25,13 +25,13 @@ where
 
   #[inline]
   async fn begin(&mut self) -> crate::Result<()> {
-    self.executor.query_ignored("BEGIN;").await?;
+    self.executor.simple_query_execute("BEGIN", |_| {}).await?;
     Ok(())
   }
 
   #[inline]
   async fn commit(self) -> crate::Result<()> {
-    self.executor.query_ignored("COMMIT;").await?;
+    self.executor.simple_query_execute("COMMIT", |_| {}).await?;
     Ok(())
   }
 

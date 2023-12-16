@@ -7,6 +7,7 @@
 
 mod array_chunks;
 mod async_bounds;
+mod basic_utf8_error;
 mod enum_var_strings;
 mod filled_buffer_writer;
 mod fn_mut_fut;
@@ -21,6 +22,7 @@ mod wrapper;
 use alloc::string::String;
 pub(crate) use array_chunks::ArrayChunksMut;
 pub use async_bounds::AsyncBounds;
+pub(crate) use basic_utf8_error::BasicUtf8Error;
 use core::{any::type_name, time::Duration};
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
@@ -31,16 +33,6 @@ pub use stream::{BytesStream, Stream, TlsStream};
 pub use traits::SingleTypeStorage;
 pub use uri_parts::{UriParts, UriPartsRef, UriPartsString};
 pub use wrapper::Wrapper;
-
-/// Basic string error that doesn't contain any information.
-pub(crate) struct BasicUtf8Error;
-
-impl From<BasicUtf8Error> for crate::Error {
-  #[inline]
-  fn from(_: BasicUtf8Error) -> Self {
-    Self::InvalidUTF8
-  }
-}
 
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [core::result::Result] context.
@@ -132,10 +124,11 @@ pub(crate) fn _from_utf8_basic_rslt(bytes: &[u8]) -> Result<&str, BasicUtf8Error
 }
 
 #[cfg(test)]
-pub(crate) fn _host() -> String {
+pub(crate) fn _uri() -> UriPartsString {
   use core::sync::atomic::{AtomicU32, Ordering};
   static PORT: AtomicU32 = AtomicU32::new(7000);
-  alloc::format!("127.0.0.1:{}", PORT.fetch_add(1, Ordering::Relaxed))
+  let uri = alloc::format!("http://127.0.0.1:{}", PORT.fetch_add(1, Ordering::Relaxed));
+  UriPartsString::new(uri)
 }
 
 pub(crate) async fn _read_until<const LEN: usize, S>(

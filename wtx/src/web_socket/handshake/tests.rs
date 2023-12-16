@@ -8,7 +8,7 @@ macro_rules! call_tests {
 }
 
 use crate::{
-  misc::_host,
+  misc::_uri,
   rng::StaticRng,
   web_socket::{
     compression::NegotiatedCompression,
@@ -55,8 +55,9 @@ where
   SC::NegotiatedCompression: Send,
   for<'nc> &'nc SC::NegotiatedCompression: Send,
 {
-  let listener = TcpListener::bind(_host()).await.unwrap();
+  let uri = _uri();
 
+  let listener = TcpListener::bind(uri.host()).await.unwrap();
   let _server_jh = tokio::spawn(async move {
     let (stream, _) = listener.accept().await.unwrap();
     let mut fb = FrameBufferVec::with_capacity(0);
@@ -89,8 +90,8 @@ where
     fb: &mut fb,
     headers_buffer: &mut <_>::default(),
     rng: StaticRng::default(),
-    stream: TcpStream::connect("127.0.0.1:8080").await.unwrap(),
-    uri: "http://127.0.0.1:8080",
+    stream: TcpStream::connect(uri.host()).await.unwrap(),
+    uri: uri.uri(),
     wsb: WebSocketBuffer::with_capacity(0, 0),
   }
   .connect()

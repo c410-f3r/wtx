@@ -35,9 +35,9 @@ where
     for elem in filtered_by_db.map(UserMigration::sql_down) {
       buffer_cmd.push_str(elem.as_ref());
     }
-    let mut transaction = self.executor.transaction().await?;
-    let _ = transaction.executor().execute(buffer_cmd, ()).await?;
-    transaction.commit().await?;
+    let mut tm = self.executor.transaction().await?;
+    let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+    tm.commit().await?;
     buffer_cmd.clear();
     self.executor.delete_migrations(buffer_cmd, mg, version).await?;
     buffer_db_migrations.clear();

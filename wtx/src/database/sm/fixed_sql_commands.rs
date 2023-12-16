@@ -52,7 +52,7 @@ where
     "DELETE FROM {schema_prefix}_wtx_migration WHERE _wtx_migration_omg_version = {mg_version} AND version > {version}",
     mg_version = mg.version(),
   ))?;
-  let _ = executor.execute::<crate::Error, _>(buffer_cmd, ()).await?;
+  let _ = executor.execute(buffer_cmd.as_str(), |_| {}).await?;
   buffer_cmd.clear();
   Ok(())
 }
@@ -80,15 +80,15 @@ where
     mg_name = mg.name(),
     mg_version = mg.version(),
   ))?;
-  let _ = executor.execute::<crate::Error, _>(&*buffer_cmd, ()).await?;
+  let _ = executor.execute(buffer_cmd.as_str(), |_| {}).await?;
   buffer_cmd.clear();
 
   for migration in migrations.clone() {
     buffer_cmd.push_str(migration.sql_up());
   }
-  let mut transaction = executor.transaction().await?;
-  let _ = transaction.executor().execute(buffer_cmd, ()).await?;
-  transaction.commit().await?;
+  let mut tm = executor.transaction().await?;
+  let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+  tm.commit().await?;
   buffer_cmd.clear();
 
   for migration in migrations {
@@ -105,9 +105,9 @@ where
       schema_prefix = schema_prefix,
     ))?;
   }
-  let mut transaction = executor.transaction().await?;
-  let _ = transaction.executor().execute(buffer_cmd, ()).await?;
-  transaction.commit().await?;
+  let mut tm = executor.transaction().await?;
+  let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+  tm.commit().await?;
   buffer_cmd.clear();
 
   Ok(())

@@ -29,7 +29,7 @@ pub trait Crud: Executor {
         buffer_cmd,
         &mut None,
       )?;
-      let _ = self.execute::<crate::Error, _>(&*buffer_cmd, ()).await.map_err(Into::into)?;
+      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await.map_err(Into::into)?;
       Ok(())
     }
   }
@@ -48,7 +48,7 @@ pub trait Crud: Executor {
     async move {
       table_params.update_all_table_fields(table);
       table_params.write_delete(&mut <_>::default(), buffer_cmd)?;
-      let _ = self.execute::<crate::Error, _>(&*buffer_cmd, ()).await.map_err(Into::into)?;
+      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await.map_err(Into::into)?;
       Ok(())
     }
   }
@@ -73,7 +73,7 @@ pub trait Crud: Executor {
   {
     async move {
       tp.write_select(buffer_cmd, SelectOrderBy::Ascending, SelectLimit::All, &mut |_| Ok(()))?;
-      let records = self.records(buffer_cmd, (), |_| Ok(())).await?;
+      let records = self.fetch_many_with_stmt(buffer_cmd.as_str(), (), |_| Ok(())).await?;
       buffer_cmd.clear();
       collect_entities_tables(buffer_cmd, &records, results, tp)?;
       Ok(())
@@ -106,7 +106,7 @@ pub trait Crud: Executor {
         b.push_str(where_str);
         Ok(())
       })?;
-      let records = self.records(buffer_cmd, (), |_| Ok(())).await?;
+      let records = self.fetch_many_with_stmt(buffer_cmd.as_str(), (), |_| Ok(())).await?;
       buffer_cmd.clear();
       collect_entities_tables(buffer_cmd, &records, results, tp)?;
       Ok(())
@@ -137,7 +137,7 @@ pub trait Crud: Executor {
         b.write_fmt(format_args!(" = {id}")).map_err(From::from)?;
         Ok(())
       })?;
-      let record = self.record(buffer_cmd, ()).await?;
+      let record = self.fetch_with_stmt(buffer_cmd.as_str(), ()).await?;
       buffer_cmd.clear();
       Ok(T::from_records(buffer_cmd, &record, &<_>::default(), tp.table_suffix())?.1)
     }
@@ -157,7 +157,7 @@ pub trait Crud: Executor {
     async move {
       table_params.update_all_table_fields(table);
       table_params.write_update(&mut <_>::default(), buffer_cmd)?;
-      let _ = self.execute::<crate::Error, _>(&*buffer_cmd, ()).await.map_err(Into::into)?;
+      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await.map_err(Into::into)?;
       Ok(())
     }
   }

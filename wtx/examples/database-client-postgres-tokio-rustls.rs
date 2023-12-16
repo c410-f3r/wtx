@@ -29,22 +29,25 @@ async fn main() {
     })
     .await
     .unwrap();
-  let mut transaction = exec.transaction().await.unwrap();
-  let _ = transaction
+  let mut tm = exec.transaction().await.unwrap();
+  let _ = tm
     .executor()
-    .execute::<wtx::Error, _>("CREATE TABLE foo(id INT, name VARCHAR)", ())
+    .execute_with_stmt("CREATE TABLE IF NOT EXISTS example(id INT, name VARCHAR)", ())
     .await
     .unwrap();
-  let _ = transaction
+  let _ = tm
     .executor()
-    .execute::<wtx::Error, _>(
-      "INSERT INTO foo VALUES ($1, $2), ($3, $4);",
+    .execute_with_stmt::<wtx::Error, _, _>(
+      "INSERT INTO foo VALUES ($1, $2), ($3, $4)",
       (1u32, "one", 2u32, "two"),
     )
     .await
     .unwrap();
-  transaction.commit().await.unwrap();
-  let records = exec.records("SELECT * FROM foo;", (), |_| Ok::<_, wtx::Error>(())).await.unwrap();
-  assert_eq!(records.record(0).as_ref().and_then(|record| record.decode("id").ok()), Some(1));
-  assert_eq!(records.record(1).as_ref().and_then(|record| record.decode("name").ok()), Some("two"));
+  tm.commit().await.unwrap();
+  let records = exec
+    .fetch_many_with_stmt("SELECT * FROM example", (), |_| Ok::<_, wtx::Error>(()))
+    .await
+    .unwrap();
+  assert_eq!(records.get(0).as_ref().and_then(|record| record.decode("id").ok()), Some(1));
+  assert_eq!(records.get(1).as_ref().and_then(|record| record.decode("name").ok()), Some("two"));
 }

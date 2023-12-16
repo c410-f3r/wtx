@@ -15,21 +15,7 @@ impl<'module> TryFrom<ItemWithAttrSpan<(), &'module mut Item>> for FirResItemVal
       Item::Enum(ref mut item) => (&mut item.attrs, &item.ident, &item.generics),
       Item::Struct(ref mut item) => (&mut item.attrs, &item.ident, &item.generics),
       Item::Type(ref mut item) => (&mut item.attrs, &item.ident, &item.generics),
-      Item::Const(_)
-      | Item::ExternCrate(_)
-      | Item::Fn(_)
-      | Item::ForeignMod(_)
-      | Item::Impl(_)
-      | Item::Macro(_)
-      | Item::Macro2(_)
-      | Item::Mod(_)
-      | Item::Static(_)
-      | Item::Trait(_)
-      | Item::TraitAlias(_)
-      | Item::Union(_)
-      | Item::Use(_)
-      | Item::Verbatim(_)
-      | _ => return Err(crate::Error::NoEnumStructOrType(from.span)),
+      _ => return Err(crate::Error::NoEnumStructOrType(from.span)),
     };
     push_doc_if_inexistent(attrs, "Expected data response returned by the server.");
     if !res_ident.to_string().ends_with("Res") {

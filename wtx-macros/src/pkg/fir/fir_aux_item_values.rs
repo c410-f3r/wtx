@@ -43,26 +43,7 @@ impl<'module> TryFrom<ItemWithAttrSpan<(), &'module mut Item>> for FirAuxItemVal
   type Error = crate::Error;
 
   fn try_from(from: ItemWithAttrSpan<(), &'module mut Item>) -> Result<Self, Self::Error> {
-    let item_impl = match *from.item {
-      Item::Impl(ref mut elem) => elem,
-      Item::Const(_)
-      | Item::Enum(_)
-      | Item::ExternCrate(_)
-      | Item::Fn(_)
-      | Item::ForeignMod(_)
-      | Item::Macro(_)
-      | Item::Macro2(_)
-      | Item::Mod(_)
-      | Item::Static(_)
-      | Item::Struct(_)
-      | Item::Trait(_)
-      | Item::TraitAlias(_)
-      | Item::Type(_)
-      | Item::Union(_)
-      | Item::Use(_)
-      | Item::Verbatim(_)
-      | _ => return Err(crate::Error::BadAux(from.span)),
-    };
+    let Item::Impl(item_impl) = from.item else { return Err(crate::Error::BadAux(from.span)) };
 
     let (faiv_params, faiv_where_predicates) = parts_from_generics(&item_impl.generics);
 

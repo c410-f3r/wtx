@@ -111,6 +111,7 @@ create_all_integration_tests!(
   with_schema:
     schema::with_schema::all_tables_returns_the_number_of_tables_of_wtx_schema,
     schema::with_schema::migrate_works;
+
   without_schema:
     schema::without_schema::_migrate_works;
 );
@@ -130,7 +131,7 @@ pub(crate) async fn create_foo_table<E>(
   E: SchemaManagement,
 {
   buffer_cmd.write_fmt(format_args!("CREATE TABLE {}foo(id INT)", schema_prefix)).unwrap();
-  let _ = c.executor.execute(buffer_cmd, ()).await.unwrap();
+  c.executor.execute(buffer_cmd.as_str(), |_| {}).await.unwrap();
   buffer_cmd.clear();
 }
 

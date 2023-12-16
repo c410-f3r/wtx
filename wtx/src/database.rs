@@ -14,6 +14,7 @@ mod record_values;
 mod records;
 #[cfg(feature = "sm")]
 pub mod sm;
+mod stmt;
 mod transaction_manager;
 mod value;
 mod value_ident;
@@ -27,6 +28,7 @@ pub use from_records::FromRecords;
 pub use record::Record;
 pub use record_values::RecordValues;
 pub use records::Records;
+pub use stmt::StmtId;
 pub use transaction_manager::TransactionManager;
 pub use value::Value;
 pub use value_ident::ValueIdent;

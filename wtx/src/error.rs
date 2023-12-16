@@ -155,6 +155,8 @@ pub enum Error {
   UnknownAuthenticationMethod,
   /// The system does not support a provided parameter.
   UnknownConfigurationParameter,
+  /// Received a statement ID that is not present in the local cache.
+  UnknownStatementId,
 
   // ***** Internal - Database SM *****
   //

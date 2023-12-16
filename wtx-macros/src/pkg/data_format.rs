@@ -34,11 +34,7 @@ impl DataFormat {
       ($http_tt:expr) => {
         match *tg {
           TransportGroup::Http => $http_tt,
-          TransportGroup::Custom(_)
-          | TransportGroup::Stub
-          | TransportGroup::Tcp
-          | TransportGroup::Udp
-          | TransportGroup::WebSocket => TokenStream::new(),
+          _ => TokenStream::new(),
         }
       };
     }
@@ -48,7 +44,7 @@ impl DataFormat {
       DataFormat::Protobuf => rslt!(http_mime_type!(Protobuf)),
       DataFormat::Xml => rslt!(http_mime_type!(Xml)),
       DataFormat::Yaml => rslt!(http_mime_type!(Yaml)),
-      DataFormat::Borsh | DataFormat::Verbatim => TokenStream::new(),
+      _ => TokenStream::new(),
     }
   }
 

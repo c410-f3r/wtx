@@ -2,6 +2,6 @@ error: JSON-RPC expects the name of its method. For example, `#[pkg(data_format(
  --> tests/ui/error_enum/incorrect_json_rpc_data_format.rs:1:1
   |
 1 | #[wtx_macros::pkg(api(Foo), data_format(json_rpc(Bar)))]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in the attribute macro `wtx_macros::pkg` (in Nightly builds, run with -Z macro-backtrace for more info)

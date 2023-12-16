@@ -5,18 +5,23 @@ pub trait Records: Default {
   /// See [Database].
   type Database: Database;
 
-  /// Iterator of records
+  /// Tries to retrieve a record.
+  fn get(&self, record_idx: usize) -> Option<<Self::Database as Database>::Record<'_>>;
+
+  /// Iterator of records.
   fn iter(&self) -> impl Iterator<Item = <Self::Database as Database>::Record<'_>>;
 
-  /// The number of records;
+  /// The number of records.
   fn len(&self) -> usize;
-
-  /// Tries to retrieve a record.
-  fn record(&self, record_idx: usize) -> Option<<Self::Database as Database>::Record<'_>>;
 }
 
 impl Records for () {
   type Database = ();
+
+  #[inline]
+  fn get(&self, _: usize) -> Option<<Self::Database as Database>::Record<'_>> {
+    None
+  }
 
   #[inline]
   fn iter(&self) -> impl Iterator<Item = <Self::Database as Database>::Record<'_>> {
@@ -26,10 +31,5 @@ impl Records for () {
   #[inline]
   fn len(&self) -> usize {
     0
-  }
-
-  #[inline]
-  fn record(&self, _: usize) -> Option<<Self::Database as Database>::Record<'_>> {
-    None
   }
 }
