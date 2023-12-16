@@ -13,8 +13,8 @@ use hashbrown::HashMap;
 
 const AVG_STMT_COLUMNS_LEN: usize = 4;
 const AVG_STMT_PARAMS_LEN: usize = 4;
+const DFLT_MAX_STMTS: usize = 128;
 const INITIAL_ELEMENTS_CAP: usize = 8;
-const DFLT_MAX_QUERIES: usize = 128;
 const NUM_OF_ELEMENTS_TO_REMOVE_WHEN_FULL: u8 = 8;
 
 /// Statements
@@ -26,14 +26,14 @@ pub struct Statements {
   info_by_cmd_hash: HashMap<u64, usize>,
   info_by_cmd_hash_start: usize,
   info: VecDeque<StatementInfo>,
-  max_queries: usize,
+  max_stmts: usize,
   num_of_elements_to_remove_when_full: u8,
   params: VecDeque<Ty>,
   params_start: usize,
 }
 
 impl Statements {
-  pub(crate) fn new<RNG>(max_queries: usize, rng: &mut RNG) -> Self
+  pub(crate) fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
   where
     RNG: Rng,
   {
@@ -52,7 +52,7 @@ impl Statements {
       info_by_cmd_hash: HashMap::with_capacity(INITIAL_ELEMENTS_CAP),
       info_by_cmd_hash_start: 0,
       hasher: RandomState::with_seeds(seed0, seed1, seed2, seed3),
-      max_queries,
+      max_stmts,
       num_of_elements_to_remove_when_full: NUM_OF_ELEMENTS_TO_REMOVE_WHEN_FULL,
       params: VecDeque::with_capacity(INITIAL_ELEMENTS_CAP.saturating_mul(AVG_STMT_PARAMS_LEN)),
       params_start: 0,
@@ -63,7 +63,7 @@ impl Statements {
   where
     RNG: Rng,
   {
-    Self::new(DFLT_MAX_QUERIES, rng)
+    Self::new(DFLT_MAX_STMTS, rng)
   }
 
   pub(crate) fn clear(&mut self) {
@@ -74,7 +74,7 @@ impl Statements {
       info_by_cmd_hash,
       info_by_cmd_hash_start,
       info,
-      max_queries: _,
+      max_stmts: _,
       num_of_elements_to_remove_when_full: _,
       params,
       params_start,
@@ -88,13 +88,8 @@ impl Statements {
     *params_start = 0;
   }
 
-  #[cfg(test)]
-  pub(crate) fn get_by_query<'this>(&'this self, query: &str) -> Option<Statement<'this>> {
-    self.get_by_cmd_hash(self.hasher.hash_one(query))
-  }
-
-  pub(crate) fn get_by_cmd_hash(&self, cmd_hash: u64) -> Option<Statement<'_>> {
-    let mut info_idx = *self.info_by_cmd_hash.get(&cmd_hash)?;
+  pub(crate) fn get_by_stmt_hash(&self, stmt_hash: u64) -> Option<Statement<'_>> {
+    let mut info_idx = *self.info_by_cmd_hash.get(&stmt_hash)?;
     info_idx = info_idx.wrapping_sub(self.info_by_cmd_hash_start);
     let info_slice_opt = self.info.as_slices().0.get(..=info_idx);
     let (columns_range, params_range) = match info_slice_opt {
@@ -125,22 +120,25 @@ impl Statements {
     }
   }
 
-  pub(crate) fn push<'this>(&'this mut self, query: &str) -> PushRslt<'this> {
-    let cmd_hash = self.hasher.hash_one(query);
-    if self.info_by_cmd_hash.get(&cmd_hash).is_some() {
+  pub(crate) fn hasher_mut(&mut self) -> &mut RandomState {
+    &mut self.hasher
+  }
+
+  pub(crate) fn push(&mut self, stmt_hash: u64) -> PushRslt<'_> {
+    if self.info_by_cmd_hash.get(&stmt_hash).is_some() {
       #[allow(
         // Borrow checker limitation
         clippy::unwrap_used
       )]
-      return PushRslt::Stmt(cmd_hash, self.get_by_cmd_hash(cmd_hash).unwrap());
+      return PushRslt::Stmt(self.get_by_stmt_hash(stmt_hash).unwrap());
     }
-    if self.info.len() >= self.max_queries {
-      let remove = usize::from(self.num_of_elements_to_remove_when_full).min(self.max_queries / 2);
+    if self.info.len() >= self.max_stmts {
+      let remove = usize::from(self.num_of_elements_to_remove_when_full).min(self.max_stmts / 2);
       for _ in 0..remove {
         self.remove_first_stmt();
       }
     }
-    PushRslt::Builder(StatementBuilder { columns_len: 0, params_len: 0, cmd_hash, stmts: self })
+    PushRslt::Builder(StatementBuilder { columns_len: 0, params_len: 0, stmt_hash, stmts: self })
   }
 
   fn remove_first_stmt(&mut self) {
@@ -160,7 +158,7 @@ impl Statements {
     }
     self.params_start = self.params_start.wrapping_add(params_len);
 
-    let _ = self.info_by_cmd_hash.remove(&info.cmd_hash);
+    let _ = self.info_by_cmd_hash.remove(&info.stmt_hash);
     self.info_by_cmd_hash_start = self.info_by_cmd_hash_start.wrapping_add(1);
   }
 }
@@ -168,7 +166,7 @@ impl Statements {
 #[derive(Debug)]
 pub(crate) enum PushRslt<'stmts> {
   Builder(StatementBuilder<'stmts>),
-  Stmt(u64, Statement<'stmts>),
+  Stmt(Statement<'stmts>),
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -194,7 +192,7 @@ impl<'stmts> Statement<'stmts> {
 pub(crate) struct StatementBuilder<'stmts> {
   columns_len: usize,
   params_len: usize,
-  cmd_hash: u64,
+  stmt_hash: u64,
   stmts: &'stmts mut Statements,
 }
 
@@ -210,14 +208,14 @@ impl<'stmts> StatementBuilder<'stmts> {
       .map_or((self.stmts.columns_start, self.stmts.params_start), |el| {
         (el.columns_offset, el.params_offset)
       });
-    let _ = self
-      .stmts
-      .info_by_cmd_hash
-      .insert(self.cmd_hash, self.stmts.info_by_cmd_hash_start.wrapping_add(self.stmts.info.len()));
+    let _ = self.stmts.info_by_cmd_hash.insert(
+      self.stmt_hash,
+      self.stmts.info_by_cmd_hash_start.wrapping_add(self.stmts.info.len()),
+    );
     self.stmts.info.push_back(StatementInfo {
       columns_offset: last_columns_offset.wrapping_add(self.columns_len),
       params_offset: last_params_offset.wrapping_add(self.params_len),
-      cmd_hash: self.cmd_hash,
+      stmt_hash: self.stmt_hash,
     });
     self.stmts
   }
@@ -231,17 +229,13 @@ impl<'stmts> StatementBuilder<'stmts> {
     self.stmts.params.push_back(param);
     self.params_len = self.params_len.wrapping_add(1);
   }
-
-  pub(crate) fn cmd_hash(&self) -> u64 {
-    self.cmd_hash
-  }
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct StatementInfo {
   pub(crate) columns_offset: usize,
   pub(crate) params_offset: usize,
-  pub(crate) cmd_hash: u64,
+  pub(crate) stmt_hash: u64,
 }
 
 #[cfg(test)]
@@ -258,11 +252,11 @@ mod tests {
 
   #[test]
   fn stmt_if_duplicated() {
-    let query = "FOO";
+    let stmt_hash = 123;
     let mut stmts = Statements::new(100, &mut StaticRng::default());
-    let PushRslt::Builder(builder) = stmts.push(query) else { panic!() };
+    let PushRslt::Builder(builder) = stmts.push(stmt_hash) else { panic!() };
     let _ = builder.finish();
-    let PushRslt::Stmt(_, _) = stmts.push(query) else { panic!() };
+    let PushRslt::Stmt(_) = stmts.push(stmt_hash) else { panic!() };
   }
 
   #[test]
@@ -270,8 +264,8 @@ mod tests {
     let mut stmts = Statements::new(2, &mut StaticRng::default());
     stmts.num_of_elements_to_remove_when_full = 1;
 
-    let query0 = "SELECT a,b FROM foo WHERE id=$1";
-    let PushRslt::Builder(mut builder) = stmts.push(query0) else { panic!() };
+    let stmt_id0 = 123;
+    let PushRslt::Builder(mut builder) = stmts.push(stmt_id0) else { panic!() };
     builder.push_column(a());
     builder.push_column(b());
     builder.push_param(Ty::Int2);
@@ -287,10 +281,10 @@ mod tests {
       },
       &stmts,
     );
-    assert_eq!(stmts.get_by_query(query0), Some(Statement::new(&[a(), b()], &[Ty::Int2])));
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id0), Some(Statement::new(&[a(), b()], &[Ty::Int2])));
 
-    let query1 = "SELECT c FROM bar WHERE id=$1";
-    let PushRslt::Builder(mut builder) = stmts.push(query1) else { panic!() };
+    let stmt_id1 = 456;
+    let PushRslt::Builder(mut builder) = stmts.push(stmt_id1) else { panic!() };
     builder.push_column(c());
     builder.push_param(Ty::Int4);
     let _ = builder.finish();
@@ -305,11 +299,11 @@ mod tests {
       },
       &stmts,
     );
-    assert_eq!(stmts.get_by_query(query0), Some(Statement::new(&[a(), b()], &[Ty::Int2])));
-    assert_eq!(stmts.get_by_query(query1), Some(Statement::new(&[c()], &[Ty::Int4])));
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id0), Some(Statement::new(&[a(), b()], &[Ty::Int2])));
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id1), Some(Statement::new(&[c()], &[Ty::Int4])));
 
-    let query2 = "SELECT d FROM baz";
-    let PushRslt::Builder(mut builder) = stmts.push(query2) else { panic!() };
+    let stmt_id2 = 789;
+    let PushRslt::Builder(mut builder) = stmts.push(stmt_id2) else { panic!() };
     builder.push_column(d());
     let _ = builder.finish();
     assert_stmts(
@@ -323,9 +317,9 @@ mod tests {
       },
       &stmts,
     );
-    assert_eq!(stmts.get_by_query(query0), None);
-    assert_eq!(stmts.get_by_query(query1), Some(Statement::new(&[c()], &[Ty::Int4])));
-    assert_eq!(stmts.get_by_query(query2), Some(Statement::new(&[d()], &[])));
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id0), None);
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id1), Some(Statement::new(&[c()], &[Ty::Int4])));
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id2), Some(Statement::new(&[d()], &[])));
 
     stmts.clear();
     assert_stmts(
@@ -339,9 +333,9 @@ mod tests {
       },
       &stmts,
     );
-    assert_eq!(stmts.get_by_query(query0), None);
-    assert_eq!(stmts.get_by_query(query1), None);
-    assert_eq!(stmts.get_by_query(query2), None);
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id0), None);
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id1), None);
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id2), None);
   }
 
   fn a() -> Column {

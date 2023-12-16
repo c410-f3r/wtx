@@ -14,7 +14,7 @@ use crate::{
       ty::Ty,
       Executor, MessageTy, MsgField, Postgres, Statements,
     },
-    RecordValues,
+    RecordValues, StmtId,
   },
   misc::{FilledBufferWriter, PartitionedFilledBuffer, Stream},
 };
@@ -26,10 +26,10 @@ where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn do_prepare_send_and_await<'stmts, E, RV>(
-    cmd: &str,
+  pub(crate) async fn do_prepare_send_and_await<'stmts, E, SI, RV>(
     nb: &mut PartitionedFilledBuffer,
     rv: RV,
+    stmt_id: SI,
     stmts: &'stmts mut Statements,
     stream: &mut S,
     tys: &[Ty],
@@ -37,10 +37,11 @@ where
   where
     E: From<crate::Error>,
     RV: RecordValues<Postgres, E>,
+    SI: StmtId,
   {
-    let (stmt_id, stmt) = Self::do_prepare(cmd, nb, stmts, stream, tys).await?;
+    let (_, id_str, stmt) = Self::do_prepare(nb, stmt_id, stmts, stream, tys).await?;
     let mut fbw = FilledBufferWriter::from(&mut *nb);
-    bind(&mut fbw, "", rv, &stmt_id)?;
+    bind(&mut fbw, "", rv, &id_str)?;
     execute(&mut fbw, 0, "")?;
     sync(&mut fbw)?;
     stream.write_all(fbw._curr_bytes()).await?;
@@ -52,21 +53,27 @@ where
     Ok(stmt)
   }
 
-  pub(crate) async fn do_prepare<'stmts>(
-    cmd: &str,
+  pub(crate) async fn do_prepare<'stmts, SI>(
     nb: &mut PartitionedFilledBuffer,
+    stmt_id: SI,
     stmts: &'stmts mut Statements,
     stream: &mut S,
     tys: &[Ty],
-  ) -> crate::Result<(ArrayString<22>, Statement<'stmts>)> {
-    let (stmt_id, mut builder) = match stmts.push(cmd) {
-      PushRslt::Builder(builder) => (Self::stmt_id(builder.cmd_hash())?, builder),
-      PushRslt::Stmt(cmd_hash, stmt) => return Ok((Self::stmt_id(cmd_hash)?, stmt)),
+  ) -> crate::Result<(u64, ArrayString<22>, Statement<'stmts>)>
+  where
+    SI: StmtId,
+  {
+    let stmt_hash = stmt_id.hash(stmts.hasher_mut());
+    let (id_str, mut builder) = match stmts.push(stmt_hash) {
+      PushRslt::Builder(builder) => (Self::stmt_str(stmt_hash)?, builder),
+      PushRslt::Stmt(stmt) => return Ok((stmt_hash, Self::stmt_str(stmt_hash)?, stmt)),
     };
 
+    let stmt_str = stmt_id.cmd().ok_or(crate::Error::UnknownStatementId)?;
+
     let mut fbw = FilledBufferWriter::from(&mut *nb);
-    parse(cmd, &mut fbw, tys.iter().copied().map(Into::into), &stmt_id)?;
-    describe(&stmt_id, &mut fbw, b'S')?;
+    parse(stmt_str, &mut fbw, tys.iter().copied().map(Into::into), &id_str)?;
+    describe(&id_str, &mut fbw, b'S')?;
     sync(&mut fbw)?;
     stream.write_all(fbw._curr_bytes()).await?;
 
@@ -105,15 +112,14 @@ where
       return Err(crate::Error::UnexpectedDatabaseMessage { received: msg3.tag });
     };
 
-    let cmd_hash = builder.cmd_hash();
-    if let Some(stmt) = builder.finish().get_by_cmd_hash(cmd_hash) {
-      Ok((stmt_id, stmt))
+    if let Some(stmt) = builder.finish().get_by_stmt_hash(stmt_hash) {
+      Ok((stmt_hash, id_str, stmt))
     } else {
       unreachable!()
     }
   }
 
-  fn stmt_id(cmd_hash: u64) -> crate::Result<ArrayString<22>> {
-    Ok(ArrayString::try_from(format_args!("s{cmd_hash}"))?)
+  fn stmt_str(stmt_hash: u64) -> crate::Result<ArrayString<22>> {
+    Ok(ArrayString::try_from(format_args!("s{stmt_hash}"))?)
   }
 }

@@ -17,9 +17,11 @@ use wtx::{
 // Verifies the handling of concurrent calls.
 const CONNECTIONS: usize = 64;
 // Bytes to create and receive.
-const DATA_LEN: usize = 1028;
+const DATA_LEN: usize = 1024;
 // Number of sequential `SELECT` statements.
 const QUERIES: usize = 1024;
+
+const SELECT_QUERY: &str = "SELECT * FROM benchmark";
 
 pub(crate) async fn bench(
   up: &UriPartsRef<'_>,
@@ -44,7 +46,7 @@ async fn bench_diesel_async(agent: &mut Agent, up: &UriPartsRef<'_>) {
   use diesel_async::RunQueryDsl;
 
   table! {
-    foo(bar, baz) {
+    benchmark(bar, baz) {
       bar -> Text,
       baz -> Text,
     }
@@ -72,7 +74,7 @@ async fn bench_diesel_async(agent: &mut Agent, up: &UriPartsRef<'_>) {
         });
         let mut pg_conn = AsyncPgConnection::try_from(client).await.unwrap();
         for _ in 0..QUERIES {
-          let records = foo::table.load::<(String, String)>(&mut pg_conn).await.unwrap();
+          let records = benchmark::table.load::<(String, String)>(&mut pg_conn).await.unwrap();
           assert!(!records[0].0.is_empty());
           assert!(!records[0].1.is_empty());
           assert!(!records[1].0.is_empty());
@@ -95,9 +97,10 @@ async fn bench_sqlx_postgres(agent: &mut Agent, up: &UriPartsRef<'_>) {
       let local_uri = up.uri().to_owned();
       async move {
         let mut conn = sqlx::postgres::PgConnection::connect(&local_uri).await.unwrap();
+        let _stmt = conn.prepare(SELECT_QUERY).await.unwrap();
         for _ in 0..QUERIES {
           let mut rows = Vec::new();
-          let mut stream = conn.fetch_many("SELECT * FROM foo");
+          let mut stream = conn.fetch_many(SELECT_QUERY);
           while let Some(result) = stream.next().await {
             match result.unwrap() {
               Either::Left(_) => {}
@@ -139,9 +142,9 @@ async fn bench_tokio_postgres(agent: &mut Agent, up: &UriPartsRef<'_>) {
             println!("Error: {e}");
           }
         });
-        let p = client.prepare("SELECT * FROM foo").await.unwrap();
+        let stmt = client.prepare(SELECT_QUERY).await.unwrap();
         for _ in 0..QUERIES {
-          let rows = client.query(&p, &[]).await.unwrap();
+          let rows = client.query(&stmt, &[]).await.unwrap();
           assert!(!rows[0].get::<_, &str>(0).is_empty());
           assert!(!rows[0].get::<_, &str>(1).is_empty());
           assert!(!rows[1].get::<_, &str>(0).is_empty());
@@ -164,12 +167,13 @@ async fn bench_wtx(agent: &mut Agent, up: &UriPartsRef<'_>) {
       let local_up = up.clone().into_string();
       async move {
         let mut executor = wtx_executor(&mut StdRng::default(), &local_up.as_ref()).await;
+        let stmt = executor.prepare(SELECT_QUERY).await.unwrap();
         for _ in 0..QUERIES {
-          let records = executor.records("SELECT * FROM foo", (), |_| Ok(())).await.unwrap();
-          assert!(!records.record(0).unwrap().decode::<_, &str>(0).unwrap().is_empty());
-          assert!(!records.record(0).unwrap().decode::<_, &str>(1).unwrap().is_empty());
-          assert!(!records.record(1).unwrap().decode::<_, &str>(0).unwrap().is_empty());
-          assert!(!records.record(1).unwrap().decode::<_, &str>(1).unwrap().is_empty());
+          let records = executor.fetch_many_with_stmt(stmt, (), |_| Ok(())).await.unwrap();
+          assert!(!records.get(0).unwrap().decode::<_, &str>(0).unwrap().is_empty());
+          assert!(!records.get(0).unwrap().decode::<_, &str>(1).unwrap().is_empty());
+          assert!(!records.get(1).unwrap().decode::<_, &str>(0).unwrap().is_empty());
+          assert!(!records.get(1).unwrap().decode::<_, &str>(1).unwrap().is_empty());
         }
       }
     });
@@ -198,16 +202,22 @@ fn fill_and_split_data<'data>(
 async fn populate_db(rng: &mut StdRng, up: &UriPartsRef<'_>) {
   let mut executor = wtx_executor(rng, up).await;
   let mut data = String::new();
-  let _ = executor.execute("DROP TABLE IF EXISTS foo;", ()).await.unwrap();
-  let _ =
-    executor.execute("CREATE TABLE foo(bar TEXT NOT NULL, baz TEXT NOT NULL)", ()).await.unwrap();
+  let _ = executor.execute_with_stmt("DROP TABLE IF EXISTS benchmark", ()).await.unwrap();
+  let _ = executor
+    .execute_with_stmt("CREATE TABLE benchmark(bar TEXT NOT NULL, baz TEXT NOT NULL)", ())
+    .await
+    .unwrap();
   let (bar0, baz0) = fill_and_split_data(&mut data, rng);
-  let _ =
-    executor.execute(&format!("INSERT INTO foo VALUES ('{bar0}', '{baz0}')"), ()).await.unwrap();
+  let _ = executor
+    .execute_with_stmt(format!("INSERT INTO benchmark VALUES ('{bar0}', '{baz0}')").as_str(), ())
+    .await
+    .unwrap();
   data.clear();
   let (bar1, baz1) = fill_and_split_data(&mut data, rng);
-  let _ =
-    executor.execute(&format!("INSERT INTO foo VALUES ('{bar1}', '{baz1}')"), ()).await.unwrap();
+  let _ = executor
+    .execute_with_stmt(format!("INSERT INTO benchmark VALUES ('{bar1}', '{baz1}')").as_str(), ())
+    .await
+    .unwrap();
 }
 
 async fn wtx_executor(

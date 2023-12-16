@@ -12,7 +12,7 @@ required-features = ["_tokio-rustls-client", "postgres" ]
 
 [[example]]
 name = "web-socket-client-cli-raw-tokio-rustls"
-required-features = ["_tokio-rustls-client", "web-socket-handshake"]
+required-features = ["_tokio-rustls-client", "tokio/io-std", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-async-std"
@@ -89,7 +89,7 @@ tokio = { default-features = false, features = ["io-util", "net", "time"], optio
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.25" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
-tracing-tree = { default-features = false, optional = true, version = "0.2" }
+tracing-tree = { default-features = false, optional = true, version = "0.3" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
 
 [dev-dependencies]

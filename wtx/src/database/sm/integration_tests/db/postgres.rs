@@ -15,17 +15,18 @@ pub(crate) async fn _clean_drops_all_objs<E>(
   for<'rec> Identifier: FromRecord<crate::Error, Record<'rec>>,
 {
   integration_tests::create_foo_table(buffer_cmd, c, "public.").await;
-  let _ = c.executor.execute("CREATE SCHEMA bar", ()).await.unwrap();
+  let _ = c.executor.execute("CREATE SCHEMA bar", |_| {}).await.unwrap();
   integration_tests::create_foo_table(buffer_cmd, c, "bar.").await;
-  let _ = c.executor.execute("CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0);", ()).await.unwrap();
-  let _ = c.executor.execute("CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE", ()).await.unwrap();
+  let _ = c.executor.execute("CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0)", |_| {}).await.unwrap();
+  let _ = c.executor.execute("CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE", |_| {}).await.unwrap();
   let _ =
-    c.executor.execute("CREATE PROCEDURE something() LANGUAGE SQL AS $$ $$", ()).await.unwrap();
-  let _ = c.executor.execute("CREATE SEQUENCE serial START 101;", ()).await.unwrap();
-  let _ = c.executor.execute("CREATE TYPE a_type AS (field INTEGER[31])", ()).await.unwrap();
-  let _ = c.executor.execute("CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');", ()).await.unwrap();
+    c.executor.execute("CREATE PROCEDURE something() LANGUAGE SQL AS $$ $$", |_| {}).await.unwrap();
+  let _ = c.executor.execute("CREATE SEQUENCE serial START 101", |_| {}).await.unwrap();
+  let _ = c.executor.execute("CREATE TYPE a_type AS (field INTEGER[31])", |_| {}).await.unwrap();
   let _ =
-    c.executor.execute("CREATE VIEW view AS SELECT * FROM foo WHERE id = 1;", ()).await.unwrap();
+    c.executor.execute("CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy')", |_| {}).await.unwrap();
+  let _ =
+    c.executor.execute("CREATE VIEW view AS SELECT * FROM foo WHERE id = 1", |_| {}).await.unwrap();
 
   c.executor.table_names(buffer_cmd, buffer_idents, "public").await.unwrap();
   assert_eq!(buffer_idents.len(), 1);

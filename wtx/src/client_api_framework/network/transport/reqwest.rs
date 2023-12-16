@@ -18,7 +18,7 @@ use reqwest::{
 
 /// ```rust,no_run
 /// # async fn fun() -> wtx::Result<()> {
-/// use wtx::{
+/// use wtx::client_api_framework::{
 ///   network::{transport::Transport, HttpParams},
 ///   pkg::PkgsAux,
 /// };

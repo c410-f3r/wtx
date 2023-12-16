@@ -153,7 +153,7 @@ mod tests {
       },
       pkg::PkgsAux,
     },
-    misc::{_host, sleep},
+    misc::{_uri, sleep},
   };
   use core::time::Duration;
   use std::{
@@ -163,18 +163,18 @@ mod tests {
 
   #[tokio::test(flavor = "multi_thread")]
   async fn tcp() {
-    let addr_client = _host();
-    let addr_server = addr_client.clone();
+    let uri_client = _uri();
+    let uri_server = uri_client.clone();
     let _server = tokio::spawn(async move {
-      let tcp_listener = TcpListener::bind(addr_server).unwrap();
+      let tcp_listener = TcpListener::bind(uri_server.host()).unwrap();
       let mut buffer = [0; 8];
       let (mut stream, _) = tcp_listener.accept().unwrap();
       let idx = stream.read(&mut buffer).unwrap();
       stream.write_all(&buffer[..idx]).unwrap();
     });
     sleep(Duration::from_millis(100)).await.unwrap();
-    let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_url(&addr_client).unwrap());
-    let mut trans = TcpStream::connect(&addr_client).unwrap();
+    let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_url(uri_client.uri()).unwrap());
+    let mut trans = TcpStream::connect(uri_client.host()).unwrap();
     let res =
       trans.send_retrieve_and_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
     assert_eq!(res, Pong("pong"));

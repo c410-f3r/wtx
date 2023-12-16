@@ -2,6 +2,6 @@ error: All packages must have an `api` and a `data_format` attribute. For exampl
  --> tests/ui/error_enum/mandatory_outer_attrs_are_not_present.rs:1:1
   |
 1 | #[wtx_macros::pkg(api(Foo), data_format())]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in the attribute macro `wtx_macros::pkg` (in Nightly builds, run with -Z macro-backtrace for more info)

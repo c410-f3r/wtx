@@ -19,9 +19,9 @@ where
     for elem in seeds {
       buffer_cmd.push_str(elem.as_ref());
     }
-    let mut transaction = self.executor.transaction().await?;
-    let _ = transaction.executor().execute(buffer_cmd, ()).await?;
-    transaction.commit().await?;
+    let mut tm = self.executor.transaction().await?;
+    let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+    tm.commit().await?;
     buffer_cmd.clear();
     Ok(())
   }

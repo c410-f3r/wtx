@@ -2,8 +2,9 @@
 
 . "$(dirname "$0")/common.sh" --source-only
 
-export DATABASE_URI='postgres://wtx:wtx@localhost:5432/wtx'
+export DATABASE_URI='postgres://wtx_md5:wtx@localhost:5432/wtx'
+export RUSTFLAGS="$($rt rust-flags -Asingle-use-lifetimes,-Alet-underscore-drop)"
 
-$rt test-with-features wtx _integration-tests,database,sm-dev
+cargo test --all-features
 
 cargo run --bin wtx-ui --features embed-migrations -- embed-migrations -i .test-utils/migrations.toml -o wtx/tests/embedded_migrations/mod.rs 

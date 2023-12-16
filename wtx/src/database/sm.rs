@@ -186,7 +186,7 @@ mod postgres {
 
     #[inline]
     async fn create_wtx_tables(&mut self) -> crate::Result<()> {
-      let _ = self.execute::<crate::Error, _>(_CREATE_MIGRATION_TABLES, ()).await?;
+      let _ = self.execute(_CREATE_MIGRATION_TABLES, |_| {}).await?;
       Ok(())
     }
 

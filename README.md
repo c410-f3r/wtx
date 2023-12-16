@@ -48,7 +48,7 @@ PostgreSQL is currently the only supported database and more SQL or NoSQL varian
 
 Activation feature is called `postgres`.
 
-![PostgreSQL Benchmark](https://private-user-images.githubusercontent.com/1674512/290770284-25832439-4ff2-498e-abc1-f8c19d7f7100.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MDI2NDcwNzQsIm5iZiI6MTcwMjY0Njc3NCwicGF0aCI6Ii8xNjc0NTEyLzI5MDc3MDI4NC0yNTgzMjQzOS00ZmYyLTQ5OGUtYWJjMS1mOGMxOWQ3ZjcxMDAucG5nP1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQUlXTkpZQVg0Q1NWRUg1M0ElMkYyMDIzMTIxNSUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyMzEyMTVUMTMyNjE0WiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9ZTU5MjdjMzk3N2MxNTljYjNiOWYwY2Q0YTFjMDM5ZWZjNWIwY2UxZDM1ZGI1NDAwNWM0MzYwZTI5ODYxOTA1OCZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmYWN0b3JfaWQ9MCZrZXlfaWQ9MCZyZXBvX2lkPTAifQ.BdeAsDqUBzrTtiT2PIWz2WP2is6rhlC_F31MVIR5d34)
+![PostgreSQL Benchmark](https://i.imgur.com/UNbwWmA.jpg)
 
 ```rust
 #[cfg(feature = "postgres")]
@@ -62,7 +62,10 @@ mod postgres {
   async fn query_foo(
     executor: &mut Executor<impl BorrowMut<ExecutorBuffer>, impl Stream>,
   ) -> wtx::Result<(u32, String)> {
-    let record = executor.record::<wtx::Error, _>("SELECT bar,baz FROM foo WHERE bar = $1 AND baz = $2;", (1u32, "2")).await?;
+    let record = executor.fetch_with_stmt::<wtx::Error, _, _>(
+      "SELECT bar,baz FROM foo WHERE bar = $1 AND baz = $2",
+      (1u32, "2")
+    ).await?;
     Ok((record.decode("bar")?, record.decode("baz")?))
   }
 }
@@ -148,7 +151,7 @@ Activation feature is called `sm`.
 # Example
 
 cargo install --git https://github.com/c410-f3r/wtx --features sm-dev wtx-ui
-echo DATABASE_URI="postgres://USER:PW@localhost:5432/DB" > .env
+echo DATABASE_URI="postgres://USER:PASSWORD@localhost:5432/DATABASE" > .env
 RUST_LOG=debug wtx-cli migrate
 ```
 

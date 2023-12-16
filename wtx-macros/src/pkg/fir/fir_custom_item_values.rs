@@ -102,21 +102,7 @@ macro_rules! create_fir_custom_item_values {
             local_ident = &item.ident;
             local_item = EnumStructOrType::Type(item);
           }
-          Item::Const(_)
-          | Item::ExternCrate(_)
-          | Item::Fn(_)
-          | Item::ForeignMod(_)
-          | Item::Impl(_)
-          | Item::Macro(_)
-          | Item::Macro2(_)
-          | Item::Mod(_)
-          | Item::Static(_)
-          | Item::Trait(_)
-          | Item::TraitAlias(_)
-          | Item::Union(_)
-          | Item::Use(_)
-          | Item::Verbatim(_)
-          | _ => return Err(crate::Error::NoEnumStructOrType(from.span)),
+          _ => return Err(crate::Error::NoEnumStructOrType(from.span)),
         };
         let (local_params, local_where_predicates) = parts_from_generics(&local_generics);
         let local_ty = syn::parse2(quote::quote!(#local_ident<#local_params>))?;

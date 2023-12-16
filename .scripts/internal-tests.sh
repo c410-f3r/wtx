@@ -86,7 +86,7 @@ $rt test-with-features wtx _proptest
 
 # WTX Macros
 
-$rt check-generic wtx-macros
+$rt test-generic wtx-macros
 
 # WTX UI
 

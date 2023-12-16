@@ -36,7 +36,7 @@ async fn main() {
         )
         .await;
         misc::plot(
-          &[sqlx_postgres, tokio_postgres, wtx, diesel_async],
+          &[diesel_async, sqlx_postgres, tokio_postgres, wtx],
           &postgres::caption(),
           "/tmp/wtx-postgres.png",
         );

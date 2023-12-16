@@ -21,26 +21,7 @@ macro_rules! create_fir_hook_item_values {
 
       fn try_from(from: ItemWithAttrSpan<(), &'others Item>) -> Result<Self, Self::Error> {
         let fun = || {
-          let item_fn = match *from.item {
-            Item::Fn(ref item_fn) => item_fn,
-            Item::Const(_)
-            | Item::Enum(_)
-            | Item::ExternCrate(_)
-            | Item::ForeignMod(_)
-            | Item::Impl(_)
-            | Item::Macro(_)
-            | Item::Macro2(_)
-            | Item::Mod(_)
-            | Item::Static(_)
-            | Item::Struct(_)
-            | Item::Trait(_)
-            | Item::TraitAlias(_)
-            | Item::Type(_)
-            | Item::Union(_)
-            | Item::Use(_)
-            | Item::Verbatim(_)
-            | _ => return None,
-          };
+          let Item::Fn(item_fn) = from.item else { return None };
           let call_idents_cb: fn(&str) -> Option<TokenStream> = $fn_args_idents;
           let mut call_idents = Punctuated::new();
           for fn_arg in &item_fn.sig.inputs {

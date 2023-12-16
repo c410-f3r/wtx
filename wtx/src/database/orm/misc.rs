@@ -29,7 +29,7 @@ where
     Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
   >,
 {
-  let first_record = if let Some(elem) = records.record(curr_record_idx) {
+  let first_record = if let Some(elem) = records.get(curr_record_idx) {
     elem
   } else {
     return Ok(0);
@@ -52,7 +52,7 @@ where
       break;
     }
 
-    let record = if let Some(elem) = records.record(counter) {
+    let record = if let Some(elem) = records.get(counter) {
       elem
     } else {
       break;

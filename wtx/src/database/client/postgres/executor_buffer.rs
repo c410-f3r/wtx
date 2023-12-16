@@ -60,7 +60,16 @@ impl ExecutorBuffer {
     }
   }
 
+  /// Should be used in running instances.
   pub(crate) fn clear(&mut self) {
+    let Self { nb, params: _, rb, stmts: _, vb } = self;
+    nb._clear_if_following_is_empty();
+    rb.clear();
+    vb.clear();
+  }
+
+  /// Should be used in a new instance.
+  pub(crate) fn clear_all(&mut self) {
     let Self { nb, params, rb, stmts, vb } = self;
     nb._clear();
     params.clear();

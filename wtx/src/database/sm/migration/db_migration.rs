@@ -68,7 +68,7 @@ where
       common: MigrationCommon {
         checksum: _checksum_from_str(from.decode("checksum")?)?,
         name: from.decode::<_, &str>("name")?.try_into().map_err(From::from)?,
-        repeatability: _from_i32(from.decode("repeatability")?),
+        repeatability: _from_u32(from.decode("repeatability")?),
         version: from.decode("version")?,
       },
       created_on: from.decode("created_on")?,
@@ -96,8 +96,8 @@ fn _fixed_from_naive_utc(naive: NaiveDateTime) -> DateTime<Utc> {
   chrono::DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc).into()
 }
 
-fn _from_i32(n: i32) -> Option<Repeatability> {
-  match n {
+fn _from_u32(n: Option<u32>) -> Option<Repeatability> {
+  match n? {
     0 => Some(Repeatability::Always),
     _ => Some(Repeatability::OnChecksumChange),
   }

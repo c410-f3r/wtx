@@ -33,21 +33,7 @@ pub(crate) fn api_types(
     Item::Enum(container) => &mut container.ident,
     Item::Struct(container) => &mut container.ident,
     Item::Type(container) => &mut container.ident,
-    Item::Const(_)
-    | Item::ExternCrate(_)
-    | Item::Fn(_)
-    | Item::ForeignMod(_)
-    | Item::Impl(_)
-    | Item::Macro(_)
-    | Item::Macro2(_)
-    | Item::Mod(_)
-    | Item::Static(_)
-    | Item::Trait(_)
-    | Item::TraitAlias(_)
-    | Item::Union(_)
-    | Item::Use(_)
-    | Item::Verbatim(_)
-    | _ => return Err(crate::Error::NoEnumStructOrType(item.span())),
+    _ => return Err(crate::Error::NoEnumStructOrType(item.span())),
   };
 
   let mut buffer = String::new();

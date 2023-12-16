@@ -16,17 +16,7 @@ impl<'exec> crate::database::Records for Records<'exec> {
   type Database = Postgres;
 
   #[inline]
-  fn iter(&self) -> impl Iterator<Item = Record<'_>> {
-    (0..self.len()).filter_map(|idx| self.record(idx))
-  }
-
-  #[inline]
-  fn len(&self) -> usize {
-    self.records_values_offsets.len()
-  }
-
-  #[inline]
-  fn record(&self, record_idx: usize) -> Option<Record<'_>> {
+  fn get(&self, record_idx: usize) -> Option<Record<'_>> {
     let slice = self.records_values_offsets.get(..record_idx.wrapping_add(1))?;
     let (record_bytes_range, record_values_bytes_offsets) = match slice {
       [] => return None,
@@ -51,6 +41,16 @@ impl<'exec> crate::database::Records for Records<'exec> {
       stmt: self.stmt.clone(),
       values_bytes_offsets: record_values_bytes_offsets,
     })
+  }
+
+  #[inline]
+  fn iter(&self) -> impl Iterator<Item = Record<'_>> {
+    (0..self.len()).filter_map(|idx| self.get(idx))
+  }
+
+  #[inline]
+  fn len(&self) -> usize {
+    self.records_values_offsets.len()
   }
 }
 
@@ -99,7 +99,7 @@ mod tests {
     assert_eq!(records.records_values_offsets, &[2, 3]);
     assert_eq!(records.values_bytes_offsets, &[(false, 0..2), (false, 6..8), (false, 17..21)]);
 
-    let first_record = records.record(0).unwrap();
+    let first_record = records.get(0).unwrap();
     assert_eq!(
       &first_record,
       &Record {
@@ -112,7 +112,7 @@ mod tests {
     assert_eq!(first_record.value(0).unwrap().bytes(), &[1, 2]);
     assert_eq!(first_record.value(1).unwrap().bytes(), &[3, 4]);
 
-    let second_record = records.record(1).unwrap();
+    let second_record = records.get(1).unwrap();
     assert_eq!(
       &second_record,
       &Record {

@@ -14,14 +14,14 @@ pub(crate) fn bind<E, RV>(
   fbw: &mut FilledBufferWriter<'_>,
   portal: &str,
   rv: RV,
-  stmt_id: &str,
+  stmt_str: &str,
 ) -> Result<(), E>
 where
   E: From<crate::Error>,
   RV: RecordValues<Postgres, E>,
 {
   write(fbw, true, Some(b'B'), |local_fbw| {
-    local_fbw._extend_from_slices_each_c(&[portal.as_bytes(), stmt_id.as_bytes()]);
+    local_fbw._extend_from_slices_each_c(&[portal.as_bytes(), stmt_str.as_bytes()]);
     let rv_len = rv.len();
 
     write_iter(local_fbw, (0..rv_len).map(|_| 1i16), None, |elem, local_local_fbw| {

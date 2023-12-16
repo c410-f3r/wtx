@@ -1,7 +1,10 @@
 use crate::{
-  database::client::postgres::{
-    executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
-    password, sasl_first, sasl_second, Authentication, Config, Executor, MessageTy,
+  database::{
+    client::postgres::{
+      executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
+      password, sasl_first, sasl_second, Authentication, Config, Executor, MessageTy,
+    },
+    Identifier,
   },
   misc::{FilledBufferWriter, PartitionedFilledBuffer, Stream, _from_utf8_basic_rslt},
   rng::Rng,
@@ -19,6 +22,12 @@ where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
+  /// Ascending sequence of extra parameters received from the database.
+  #[inline]
+  pub fn params(&self) -> &[(Identifier, Identifier)] {
+    &self.eb.borrow().params
+  }
+
   pub(crate) async fn manage_authentication<RNG>(
     &mut self,
     config: &Config<'_>,
@@ -65,26 +74,7 @@ where
         }
         Self::sasl_authenticate(config, nb, rng, &mut self.stream, tls_server_end_point).await?;
       }
-      MessageTy::Authentication(_)
-      | MessageTy::BackendKeyData(..)
-      | MessageTy::BindComplete
-      | MessageTy::CloseComplete
-      | MessageTy::CommandComplete(_)
-      | MessageTy::CopyData
-      | MessageTy::CopyDone
-      | MessageTy::CopyInResponse
-      | MessageTy::CopyOutResponse
-      | MessageTy::DataRow(..)
-      | MessageTy::EmptyQueryResponse
-      | MessageTy::NoData
-      | MessageTy::NoticeResponse
-      | MessageTy::NotificationResponse
-      | MessageTy::ParameterDescription(_)
-      | MessageTy::ParameterStatus(..)
-      | MessageTy::ParseComplete
-      | MessageTy::PortalSuspended
-      | MessageTy::ReadyForQuery
-      | MessageTy::RowDescription(_) => {
+      _ => {
         return Err(crate::Error::UnexpectedDatabaseMessage { received: msg0.tag });
       }
     }

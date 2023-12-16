@@ -40,56 +40,65 @@ async fn conn_scram() {
 async fn execute() {
   let mut exec = executor().await;
 
-  assert_eq!(exec.execute::<Err, _>("", ()).await.unwrap(), 0);
+  assert_eq!(exec.execute_with_stmt("", ()).await.unwrap(), 0);
   assert_eq!(
-    exec.execute::<Err, _>("CREATE TABLE IF NOT EXISTS foo(id INT)", ()).await.unwrap(),
+    exec.execute_with_stmt("CREATE TABLE IF NOT EXISTS execute_test(id INT)", ()).await.unwrap(),
     0
   );
-  assert_eq!(exec.execute::<Err, _>("INSERT INTO foo VALUES (1)", ()).await.unwrap(), 1);
-  assert_eq!(exec.execute::<Err, _>("INSERT INTO foo VALUES (1), (1)", ()).await.unwrap(), 2);
-  assert_eq!(exec.execute::<Err, _>("DROP TABLE foo", ()).await.unwrap(), 0);
+  assert_eq!(exec.execute_with_stmt("INSERT INTO execute_test VALUES (1)", ()).await.unwrap(), 1);
+  assert_eq!(
+    exec.execute_with_stmt("INSERT INTO execute_test VALUES (1), (1)", ()).await.unwrap(),
+    2
+  );
+  assert_eq!(exec.execute_with_stmt("DROP TABLE execute_test", ()).await.unwrap(), 0);
 }
 
 #[tokio::test]
 async fn multiple_notifications() {
   let mut exec = executor().await;
   let _ = exec
-    .execute("CREATE TABLE IF NOT EXISTS truncate (id SERIAL PRIMARY KEY, body TEXT);", ())
+    .execute_with_stmt(
+      "CREATE TABLE IF NOT EXISTS multiple_notifications_test (id SERIAL PRIMARY KEY, body TEXT)",
+      (),
+    )
     .await
     .unwrap();
-  let _ = exec.execute("TRUNCATE TABLE truncate CASCADE", ()).await.unwrap();
+  let _ =
+    exec.execute_with_stmt("TRUNCATE TABLE multiple_notifications_test CASCADE", ()).await.unwrap();
 }
 
 #[tokio::test]
 async fn record() {
   let mut exec = executor().await;
 
-  let _0c_0p = exec.record::<Err, _>("", ()).await;
+  let _0c_0p = exec.fetch_with_stmt("", ()).await;
   assert!(matches!(_0c_0p.unwrap_err(), Err::NoRecord));
-  let _0c_1p = exec.record::<Err, _>("SELECT 1 WHERE 0=$1", (1,)).await;
+  let _0c_1p = exec.fetch_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1", (1,)).await;
   assert!(matches!(_0c_1p.unwrap_err(), Err::NoRecord));
-  let _0c_2p = exec.record::<Err, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (1, 2)).await;
+  let _0c_2p = exec.fetch_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (1, 2)).await;
   assert!(matches!(_0c_2p.unwrap_err(), Err::NoRecord));
 
-  let _1c_0p = exec.record::<Err, _>("SELECT 1", ()).await.unwrap();
+  let _1c_0p = exec.fetch_with_stmt("SELECT 1", ()).await.unwrap();
   assert_eq!(_1c_0p.len(), 1);
   assert_eq!(_1c_0p.decode::<_, u32>(0).unwrap(), 1);
-  let _1c_1p = exec.record::<Err, _>("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
+  let _1c_1p = exec.fetch_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
   assert_eq!(_1c_1p.len(), 1);
   assert_eq!(_1c_1p.decode::<_, u32>(0).unwrap(), 1);
-  let _1c_2p = exec.record::<Err, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (0, 1)).await.unwrap();
+  let _1c_2p =
+    exec.fetch_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (0, 1)).await.unwrap();
   assert_eq!(_1c_2p.len(), 1);
   assert_eq!(_1c_2p.decode::<_, u32>(0).unwrap(), 1);
 
-  let _2c_0p = exec.record::<Err, _>("SELECT 1,2", ()).await.unwrap();
+  let _2c_0p = exec.fetch_with_stmt("SELECT 1,2", ()).await.unwrap();
   assert_eq!(_2c_0p.len(), 2);
   assert_eq!(_2c_0p.decode::<_, u32>(0).unwrap(), 1);
   assert_eq!(_2c_0p.decode::<_, u32>(1).unwrap(), 2);
-  let _2c_1p = exec.record::<Err, _>("SELECT 1,2 WHERE 0=$1", (0,)).await.unwrap();
+  let _2c_1p = exec.fetch_with_stmt::<Err, _, _>("SELECT 1,2 WHERE 0=$1", (0,)).await.unwrap();
   assert_eq!(_2c_1p.len(), 2);
   assert_eq!(_2c_1p.decode::<_, u32>(0).unwrap(), 1);
   assert_eq!(_2c_1p.decode::<_, u32>(1).unwrap(), 2);
-  let _2c_2p = exec.record::<Err, _>("SELECT 1,2 WHERE 0=$1 AND 1=$2", (0, 1)).await.unwrap();
+  let _2c_2p =
+    exec.fetch_with_stmt::<Err, _, _>("SELECT 1,2 WHERE 0=$1 AND 1=$2", (0, 1)).await.unwrap();
   assert_eq!(_2c_2p.len(), 2);
   assert_eq!(_2c_2p.decode::<_, u32>(0).unwrap(), 1);
   assert_eq!(_2c_2p.decode::<_, u32>(1).unwrap(), 2);
@@ -101,68 +110,83 @@ async fn records() {
 
   // 0 rows, 0 columns
 
-  let _0r_0c_0p = exec.records::<Err, _>("", (), |_| Ok(())).await.unwrap();
+  let _0r_0c_0p = exec.fetch_many_with_stmt("", (), |_| Ok(())).await.unwrap();
   assert_eq!(_0r_0c_0p.len(), 0);
-  let _0r_0c_1p = exec.records::<Err, _>("SELECT 1 WHERE 0=$1", (1,), |_| Ok(())).await.unwrap();
+  let _0r_0c_1p =
+    exec.fetch_many_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1", (1,), |_| Ok(())).await.unwrap();
   assert_eq!(_0r_0c_1p.len(), 0);
-  let _0r_0c_2p =
-    exec.records::<Err, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (1, 2), |_| Ok(())).await.unwrap();
+  let _0r_0c_2p = exec
+    .fetch_many_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (1, 2), |_| Ok(()))
+    .await
+    .unwrap();
   assert_eq!(_0r_0c_2p.len(), 0);
 
   // 1 row,  1 column
 
-  let _1r_1c_0p = exec.records::<Err, _>("SELECT 1", (), |_| Ok(())).await.unwrap();
+  let _1r_1c_0p = exec.fetch_many_with_stmt("SELECT 1", (), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_1c_0p.len(), 1);
-  assert_eq!(_1r_1c_0p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_1r_1c_0p.record(0).unwrap().len(), 1);
-  let _1r_1c_1p = exec.records::<Err, _>("SELECT 1 WHERE 0=$1", (0,), |_| Ok(())).await.unwrap();
+  assert_eq!(_1r_1c_0p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_1r_1c_0p.get(0).unwrap().len(), 1);
+  let _1r_1c_1p =
+    exec.fetch_many_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1", (0,), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_1c_1p.len(), 1);
-  assert_eq!(_1r_1c_1p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_1r_1c_1p.record(0).unwrap().len(), 1);
-  let _1r_1c_2p =
-    exec.records::<Err, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (0, 1), |_| Ok(())).await.unwrap();
+  assert_eq!(_1r_1c_1p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_1r_1c_1p.get(0).unwrap().len(), 1);
+  let _1r_1c_2p = exec
+    .fetch_many_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1 AND 1=$2", (0, 1), |_| Ok(()))
+    .await
+    .unwrap();
   assert_eq!(_1r_1c_2p.len(), 1);
-  assert_eq!(_1r_1c_2p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_1r_1c_2p.record(0).unwrap().len(), 1);
+  assert_eq!(_1r_1c_2p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_1r_1c_2p.get(0).unwrap().len(), 1);
 
   // 1 row, 2 columns
 
-  let _1r_2c_0p = exec.records::<Err, _>("SELECT 1,2", (), |_| Ok(())).await.unwrap();
+  let _1r_2c_0p = exec.fetch_many_with_stmt("SELECT 1,2", (), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_2c_0p.len(), 1);
-  assert_eq!(_1r_2c_0p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_1r_2c_0p.record(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
-  let _1r_2c_1p = exec.records::<Err, _>("SELECT 1,2 WHERE 0=$1", (0,), |_| Ok(())).await.unwrap();
+  assert_eq!(_1r_2c_0p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_1r_2c_0p.get(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
+  let _1r_2c_1p = exec
+    .fetch_many_with_stmt::<Err, _, _>("SELECT 1,2 WHERE 0=$1", (0,), |_| Ok(()))
+    .await
+    .unwrap();
   assert_eq!(_1r_2c_1p.len(), 1);
-  assert_eq!(_1r_2c_1p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_1r_2c_1p.record(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
-  let _1r_2c_2p =
-    exec.records::<Err, _>("SELECT 1,2 WHERE 0=$1 AND 1=$2", (0, 1), |_| Ok(())).await.unwrap();
+  assert_eq!(_1r_2c_1p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_1r_2c_1p.get(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
+  let _1r_2c_2p = exec
+    .fetch_many_with_stmt::<Err, _, _>("SELECT 1,2 WHERE 0=$1 AND 1=$2", (0, 1), |_| Ok(()))
+    .await
+    .unwrap();
   assert_eq!(_1r_2c_2p.len(), 1);
-  assert_eq!(_1r_2c_2p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_1r_2c_2p.record(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
+  assert_eq!(_1r_2c_2p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_1r_2c_2p.get(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
 
   // 2 rows, 1 column
 
   let _2r_1c_0p = exec
-    .records::<Err, _>("SELECT * FROM (VALUES (1), (2)) AS t (foo)", (), |_| Ok(()))
+    .fetch_many_with_stmt("SELECT * FROM (VALUES (1), (2)) AS t (foo)", (), |_| Ok(()))
     .await
     .unwrap();
   assert_eq!(_2r_1c_0p.len(), 2);
-  assert_eq!(_2r_1c_0p.record(0).unwrap().len(), 1);
-  assert_eq!(_2r_1c_0p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_2r_1c_0p.record(1).unwrap().len(), 1);
-  assert_eq!(_2r_1c_0p.record(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
+  assert_eq!(_2r_1c_0p.get(0).unwrap().len(), 1);
+  assert_eq!(_2r_1c_0p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_2r_1c_0p.get(1).unwrap().len(), 1);
+  assert_eq!(_2r_1c_0p.get(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
   let _2r_1c_1p = exec
-    .records::<Err, _>("SELECT * FROM (VALUES (1), (2)) AS t (foo) WHERE 0=$1", (0,), |_| Ok(()))
+    .fetch_many_with_stmt::<Err, _, _>(
+      "SELECT * FROM (VALUES (1), (2)) AS t (foo) WHERE 0=$1",
+      (0,),
+      |_| Ok(()),
+    )
     .await
     .unwrap();
   assert_eq!(_2r_1c_1p.len(), 2);
-  assert_eq!(_2r_1c_1p.record(0).unwrap().len(), 1);
-  assert_eq!(_2r_1c_1p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_2r_1c_1p.record(1).unwrap().len(), 1);
-  assert_eq!(_2r_1c_1p.record(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
+  assert_eq!(_2r_1c_1p.get(0).unwrap().len(), 1);
+  assert_eq!(_2r_1c_1p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_2r_1c_1p.get(1).unwrap().len(), 1);
+  assert_eq!(_2r_1c_1p.get(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
   let _2r_1c_2p = exec
-    .records::<Err, _>(
+    .fetch_many_with_stmt::<Err, _, _>(
       "SELECT * FROM (VALUES (1), (2)) AS t (foo) WHERE 0=$1 AND 1=$2",
       (0, 1),
       |_| Ok(()),
@@ -170,26 +194,26 @@ async fn records() {
     .await
     .unwrap();
   assert_eq!(_2r_1c_2p.len(), 2);
-  assert_eq!(_2r_1c_2p.record(0).unwrap().len(), 1);
-  assert_eq!(_2r_1c_2p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_2r_1c_2p.record(1).unwrap().len(), 1);
-  assert_eq!(_2r_1c_2p.record(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
+  assert_eq!(_2r_1c_2p.get(0).unwrap().len(), 1);
+  assert_eq!(_2r_1c_2p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_2r_1c_2p.get(1).unwrap().len(), 1);
+  assert_eq!(_2r_1c_2p.get(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
 
   // 2 rows, 2 columns
 
   let _2r_2c_0p = exec
-    .records::<Err, _>("SELECT * FROM (VALUES (1,2), (3,4)) AS t (foo,bar)", (), |_| Ok(()))
+    .fetch_many_with_stmt("SELECT * FROM (VALUES (1,2), (3,4)) AS t (foo,bar)", (), |_| Ok(()))
     .await
     .unwrap();
   assert_eq!(_2r_2c_0p.len(), 2);
-  assert_eq!(_2r_2c_0p.record(0).unwrap().len(), 2);
-  assert_eq!(_2r_2c_0p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_2r_2c_0p.record(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
-  assert_eq!(_2r_2c_0p.record(1).unwrap().len(), 2);
-  assert_eq!(_2r_2c_0p.record(1).unwrap().decode::<_, u32>(0).unwrap(), 3);
-  assert_eq!(_2r_2c_0p.record(1).unwrap().decode::<_, u32>(1).unwrap(), 4);
+  assert_eq!(_2r_2c_0p.get(0).unwrap().len(), 2);
+  assert_eq!(_2r_2c_0p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_2r_2c_0p.get(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
+  assert_eq!(_2r_2c_0p.get(1).unwrap().len(), 2);
+  assert_eq!(_2r_2c_0p.get(1).unwrap().decode::<_, u32>(0).unwrap(), 3);
+  assert_eq!(_2r_2c_0p.get(1).unwrap().decode::<_, u32>(1).unwrap(), 4);
   let _2r_2c_1p = exec
-    .records::<Err, _>(
+    .fetch_many_with_stmt::<Err, _, _>(
       "SELECT * FROM (VALUES (1,2), (3,4)) AS t (foo,bar) WHERE 0=$1",
       (0,),
       |_| Ok(()),
@@ -197,14 +221,14 @@ async fn records() {
     .await
     .unwrap();
   assert_eq!(_2r_2c_1p.len(), 2);
-  assert_eq!(_2r_2c_1p.record(0).unwrap().len(), 2);
-  assert_eq!(_2r_2c_1p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_2r_2c_1p.record(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
-  assert_eq!(_2r_2c_1p.record(1).unwrap().len(), 2);
-  assert_eq!(_2r_2c_1p.record(1).unwrap().decode::<_, u32>(0).unwrap(), 3);
-  assert_eq!(_2r_2c_1p.record(1).unwrap().decode::<_, u32>(1).unwrap(), 4);
+  assert_eq!(_2r_2c_1p.get(0).unwrap().len(), 2);
+  assert_eq!(_2r_2c_1p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_2r_2c_1p.get(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
+  assert_eq!(_2r_2c_1p.get(1).unwrap().len(), 2);
+  assert_eq!(_2r_2c_1p.get(1).unwrap().decode::<_, u32>(0).unwrap(), 3);
+  assert_eq!(_2r_2c_1p.get(1).unwrap().decode::<_, u32>(1).unwrap(), 4);
   let _2r_2c_2p = exec
-    .records::<Err, _>(
+    .fetch_many_with_stmt::<Err, _, _>(
       "SELECT * FROM (VALUES (1,2), (3,4)) AS t (foo,bar) WHERE 0=$1 AND 1=$2",
       (0, 1),
       |_| Ok(()),
@@ -212,26 +236,26 @@ async fn records() {
     .await
     .unwrap();
   assert_eq!(_2r_2c_2p.len(), 2);
-  assert_eq!(_2r_2c_2p.record(0).unwrap().len(), 2);
-  assert_eq!(_2r_2c_2p.record(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-  assert_eq!(_2r_2c_2p.record(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
-  assert_eq!(_2r_2c_2p.record(1).unwrap().len(), 2);
-  assert_eq!(_2r_2c_2p.record(1).unwrap().decode::<_, u32>(0).unwrap(), 3);
-  assert_eq!(_2r_2c_2p.record(1).unwrap().decode::<_, u32>(1).unwrap(), 4);
+  assert_eq!(_2r_2c_2p.get(0).unwrap().len(), 2);
+  assert_eq!(_2r_2c_2p.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+  assert_eq!(_2r_2c_2p.get(0).unwrap().decode::<_, u32>(1).unwrap(), 2);
+  assert_eq!(_2r_2c_2p.get(1).unwrap().len(), 2);
+  assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, u32>(0).unwrap(), 3);
+  assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, u32>(1).unwrap(), 4);
 }
 
 #[tokio::test]
 async fn records_after_prepare() {
   let mut exec = executor().await;
-  exec.prepare("SELECT 1").await.unwrap();
-  let _ = exec.records("SELECT 1", (), |_| Ok(())).await.unwrap();
+  let _ = exec.prepare("SELECT 1").await.unwrap();
+  let _ = exec.fetch_many_with_stmt("SELECT 1", (), |_| Ok(())).await.unwrap();
 }
 
 #[tokio::test]
 async fn reuses_cached_statement() {
   let mut exec = executor().await;
-  let _record = exec.record::<Err, _>("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
-  let _record = exec.record::<Err, _>("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
+  let _record = exec.fetch_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
+  let _record = exec.fetch_with_stmt::<Err, _, _>("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
 }
 
 async fn executor() -> Executor<ExecutorBuffer, TcpStream> {
