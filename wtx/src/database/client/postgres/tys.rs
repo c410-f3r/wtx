@@ -7,7 +7,8 @@ macro_rules! test {
       let mut fbw = FilledBufferWriter::new(0, &mut vec);
       let instance: $ty = $instance;
       Encode::<_, crate::Error>::encode(&instance, &mut fbw).unwrap();
-      let decoded: $ty = Decode::<Postgres, crate::Error, _>::decode(fbw._curr_bytes()).unwrap();
+      let decoded: $ty =
+        Decode::<Postgres, crate::Error>::decode(Value::new(fbw._curr_bytes(), false)).unwrap();
       assert_eq!(instance, decoded);
     }
   };
@@ -16,18 +17,23 @@ macro_rules! test {
 #[cfg(feature = "arrayvec")]
 mod arrayvec {
   use crate::{
-    database::{client::postgres::Postgres, Decode, Encode},
+    database::{
+      client::postgres::{Postgres, Value},
+      Decode, Encode,
+    },
     misc::{FilledBufferWriter, _from_utf8_basic_rslt},
   };
   use arrayvec::ArrayString;
 
-  impl<'exec, E, const N: usize> Decode<Postgres, E, &'exec [u8]> for ArrayString<N>
+  impl<E, const N: usize> Decode<Postgres, E> for ArrayString<N>
   where
     E: From<crate::Error>,
   {
+    type Value<'value> = Value<'value>;
+
     #[inline]
-    fn decode(input: &'exec [u8]) -> Result<Self, E> {
-      Ok(_from_utf8_basic_rslt(input).map_err(Into::into)?.try_into().map_err(Into::into)?)
+    fn decode(input: Self::Value<'_>) -> Result<Self, E> {
+      Ok(_from_utf8_basic_rslt(input.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
     }
   }
 
@@ -48,19 +54,24 @@ mod arrayvec {
 #[cfg(feature = "chrono")]
 mod chrono {
   use crate::{
-    database::{client::postgres::Postgres, Decode, Encode},
+    database::{
+      client::postgres::{Postgres, Value},
+      Decode, Encode,
+    },
     misc::FilledBufferWriter,
   };
   use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
-  impl<'exec, E> Decode<Postgres, E, &'exec [u8]> for DateTime<Utc>
+  impl<E> Decode<Postgres, E> for DateTime<Utc>
   where
     E: From<crate::Error>,
   {
+    type Value<'value> = Value<'value>;
+
     #[inline]
-    fn decode(input: &'exec [u8]) -> Result<Self, E> {
+    fn decode(input: Self::Value<'_>) -> Result<Self, E> {
       let rslt = || {
-        let &[a, b, c, d, e, f, g, h] = input else {
+        let &[a, b, c, d, e, f, g, h] = input.bytes() else {
           return None;
         };
         let timestamp = i64::from_be_bytes([a, b, c, d, e, f, g, h]);
@@ -97,18 +108,23 @@ mod chrono {
 
 mod collections {
   use crate::{
-    database::{client::postgres::Postgres, Decode, Encode},
+    database::{
+      client::postgres::{Postgres, Value},
+      Decode, Encode,
+    },
     misc::{FilledBufferWriter, _from_utf8_basic_rslt},
   };
   use alloc::string::String;
 
-  impl<'exec, E> Decode<Postgres, E, &'exec [u8]> for &'exec [u8]
+  impl<'exec, E> Decode<Postgres, E> for &'exec [u8]
   where
     E: From<crate::Error>,
   {
+    type Value<'value> = Value<'exec>;
+
     #[inline]
-    fn decode(input: &'exec [u8]) -> Result<Self, E> {
-      Ok(input)
+    fn decode(input: Self::Value<'_>) -> Result<Self, E> {
+      Ok(input.bytes())
     }
   }
 
@@ -125,13 +141,15 @@ mod collections {
 
   test!(bytes, &[u8], &[1, 2, 3, 4]);
 
-  impl<'exec, E> Decode<Postgres, E, &'exec [u8]> for &'exec str
+  impl<'exec, E> Decode<Postgres, E> for &'exec str
   where
     E: From<crate::Error>,
   {
+    type Value<'value> = Value<'exec>;
+
     #[inline]
-    fn decode(input: &'exec [u8]) -> Result<Self, E> {
-      Ok(_from_utf8_basic_rslt(input).map_err(crate::Error::from)?)
+    fn decode(input: Self::Value<'_>) -> Result<Self, E> {
+      Ok(_from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?)
     }
   }
 
@@ -148,13 +166,15 @@ mod collections {
 
   test!(str, &str, "1234");
 
-  impl<'exec, E> Decode<Postgres, E, &'exec [u8]> for String
+  impl<E> Decode<Postgres, E> for String
   where
     E: From<crate::Error>,
   {
+    type Value<'value> = Value<'value>;
+
     #[inline]
-    fn decode(input: &'exec [u8]) -> Result<Self, E> {
-      Ok(_from_utf8_basic_rslt(input).map_err(crate::Error::from)?.into())
+    fn decode(input: Self::Value<'_>) -> Result<Self, E> {
+      Ok(_from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?.into())
     }
   }
 
@@ -174,22 +194,27 @@ mod collections {
 
 mod primitives {
   use crate::{
-    database::{client::postgres::Postgres, Decode, Encode},
+    database::{
+      client::postgres::{Postgres, Value},
+      Decode, Encode,
+    },
     misc::FilledBufferWriter,
   };
   use core::mem;
 
-  impl<'exec, E> Decode<Postgres, E, &'exec [u8]> for bool
+  impl<E> Decode<Postgres, E> for bool
   where
     E: From<crate::Error>,
   {
+    type Value<'value> = Value<'value>;
+
     #[inline]
-    fn decode(input: &'exec [u8]) -> Result<Self, E> {
-      let &[byte] = input else {
+    fn decode(input: Self::Value<'_>) -> Result<Self, E> {
+      let &[byte] = input.bytes() else {
         return Err(
           crate::Error::UnexpectedBufferSize {
             expected: 1,
-            received: input.len().try_into().unwrap_or(u32::MAX),
+            received: input.bytes().len().try_into().unwrap_or(u32::MAX),
           }
           .into(),
         );
@@ -216,14 +241,16 @@ mod primitives {
     ($instance:expr, [$($elem:ident),+], $signed:ident, $unsigned:ident) => {
       impl_primitive_from_array!($instance, [$($elem),+], $signed);
 
-      impl<'exec, E> Decode<Postgres, E, &'exec [u8]> for $unsigned
+      impl<E> Decode<Postgres, E> for $unsigned
       where
         E: From<crate::Error>,
       {
+        type Value<'value> = Value<'value>;
+
         #[inline]
-        fn decode(input: &'exec [u8]) -> Result<Self, E> {
+        fn decode(input: Self::Value<'_>) -> Result<Self, E> {
           Ok(
-            <$signed as Decode::<Postgres, E, &'exec [u8]>>::decode(input)?
+            <$signed as Decode::<Postgres, E>>::decode(input)?
               .try_into()
               .map_err(|_err| crate::Error::InvalidPostgresUint)?
           )
@@ -250,18 +277,20 @@ mod primitives {
 
   macro_rules! impl_primitive_from_array {
     ($instance:expr, [$($elem:ident),+], $ty:ident) => {
-      impl<'exec, E> Decode<Postgres, E, &'exec [u8]> for $ty
+      impl<E> Decode<Postgres, E> for $ty
       where
         E: From<crate::Error>,
       {
+        type Value<'value> = Value<'value>;
+
         #[inline]
-        fn decode(input: &'exec [u8]) -> Result<Self, E> {
-          if let &[$($elem),+] = input {
+        fn decode(input: Self::Value<'_>) -> Result<Self, E> {
+          if let &[$($elem),+] = input.bytes() {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
           Err(crate::Error::UnexpectedBufferSize {
             expected: mem::size_of::<$ty>().try_into().unwrap_or(u32::MAX),
-            received: input.len().try_into().unwrap_or(u32::MAX),
+            received: input.bytes().len().try_into().unwrap_or(u32::MAX),
           }.into())
         }
       }

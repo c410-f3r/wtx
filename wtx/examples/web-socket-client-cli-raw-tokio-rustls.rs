@@ -24,10 +24,10 @@ async fn main() {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
-    wsb: WebSocketBuffer::default(),
     rng: StdRng::default(),
     stream: tls_stream::_tls_stream_host(uri_parts.host(), uri_parts.hostname()).await,
     uri: &uri,
+    wsb: WebSocketBuffer::default(),
   }
   .connect()
   .await

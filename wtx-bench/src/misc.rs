@@ -13,7 +13,7 @@ pub(crate) struct Agent {
   pub(crate) name: String,
 }
 
-pub(crate) fn flush(agents: &[Agent], caption: &str, output: &str) {
+pub(crate) fn plot(agents: &[Agent], caption: &str, output: &str) {
   if agents.is_empty() {
     return;
   }

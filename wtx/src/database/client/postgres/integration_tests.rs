@@ -51,6 +51,16 @@ async fn execute() {
 }
 
 #[tokio::test]
+async fn multiple_notifications() {
+  let mut exec = executor().await;
+  let _ = exec
+    .execute("CREATE TABLE IF NOT EXISTS truncate (id SERIAL PRIMARY KEY, body TEXT);", ())
+    .await
+    .unwrap();
+  let _ = exec.execute("TRUNCATE TABLE truncate CASCADE", ()).await.unwrap();
+}
+
+#[tokio::test]
 async fn record() {
   let mut exec = executor().await;
 
@@ -208,6 +218,13 @@ async fn records() {
   assert_eq!(_2r_2c_2p.record(1).unwrap().len(), 2);
   assert_eq!(_2r_2c_2p.record(1).unwrap().decode::<_, u32>(0).unwrap(), 3);
   assert_eq!(_2r_2c_2p.record(1).unwrap().decode::<_, u32>(1).unwrap(), 4);
+}
+
+#[tokio::test]
+async fn records_after_prepare() {
+  let mut exec = executor().await;
+  exec.prepare("SELECT 1").await.unwrap();
+  let _ = exec.records("SELECT 1", (), |_| Ok(())).await.unwrap();
 }
 
 #[tokio::test]

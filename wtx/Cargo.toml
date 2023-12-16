@@ -85,7 +85,7 @@ simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = t
 smallvec = { default-features = false, features = ["const_generics", "union"], optional = true, version = "1.0" }
 smol = { default-features = false, optional = true, version = "1.0" }
 test-strategy = { default-features = false, optional = true, version = "0.3" }
-tokio = { default-features = false, features = ["io-util", "net"], optional = true, version = "1.0" }
+tokio = { default-features = false, features = ["io-util", "net", "time"], optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.25" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }

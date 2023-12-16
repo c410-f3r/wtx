@@ -52,7 +52,7 @@ where
     Ok(stmt)
   }
 
-  async fn do_prepare<'stmts>(
+  pub(crate) async fn do_prepare<'stmts>(
     cmd: &str,
     nb: &mut PartitionedFilledBuffer,
     stmts: &'stmts mut Statements,

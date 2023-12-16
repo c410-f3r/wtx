@@ -1,4 +1,7 @@
-use crate::client_api_framework::misc::{sleep, GenericTime, RequestLimit};
+use crate::{
+  client_api_framework::misc::RequestLimit,
+  misc::{sleep, GenericTime},
+};
 use core::time::Duration;
 
 /// Tracks how many requests were performed in a time interval

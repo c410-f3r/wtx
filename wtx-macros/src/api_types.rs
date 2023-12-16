@@ -56,9 +56,9 @@ pub(crate) fn api_types(
   let generic_pair_ident = create_ident(&mut buffer, ["Pair"]);
   let generic_pair_tt = quote::quote_spanned!(api_ident.span() =>
     #[allow(unused_qualifications)]
-    #[doc = concat!("[wtx::misc::Pair] with [", stringify!(#api_ident), "] as the API.")]
-    pub type #generic_pair_ident<DRSR, T> = wtx::misc::Pair<
-      #pkgs_aux_path<#api_ident, DRSR, <T as wtx::network::transport::Transport<DRSR>>::Params>,
+    #[doc = concat!("[wtx::client_api_framework::misc::Pair] with [", stringify!(#api_ident), "] as the API.")]
+    pub type #generic_pair_ident<DRSR, T> = wtx::client_api_framework::misc::Pair<
+      #pkgs_aux_path<#api_ident, DRSR, <T as wtx::client_api_framework::network::transport::Transport<DRSR>>::Params>,
       T
     >;
   );
@@ -91,11 +91,11 @@ pub(crate) fn api_types(
       #[doc = concat!(
         "[", stringify!(#pkgs_aux_path), "] with [",
         stringify!(#api_ident),
-        "] as the API and [wtx::network::",
+        "] as the API and [wtx::client_api_framework::network::",
         stringify!(#local_tp_ident),
         "] as the transport parameters."
       )]
-      pub type #local_ty_ident<DRSR> = #pkgs_aux_path<#api_ident, DRSR, wtx::network::#local_tp_ident>;
+      pub type #local_ty_ident<DRSR> = #pkgs_aux_path<#api_ident, DRSR, wtx::client_api_framework::network::#local_tp_ident>;
     ));
   }
 

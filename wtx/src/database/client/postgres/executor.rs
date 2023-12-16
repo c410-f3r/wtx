@@ -136,12 +136,9 @@ where
   }
 
   #[inline]
-  async fn prepare<E, RV>(&mut self, cmd: &str) -> Result<(), E>
-  where
-    E: From<crate::Error>,
-  {
+  async fn prepare(&mut self, cmd: &str) -> crate::Result<()> {
     let ExecutorBufferPartsMut { nb, stmts, .. } = self.eb.borrow_mut().parts_mut();
-    let _ = Self::do_prepare_send_and_await(cmd, nb, (), stmts, &mut self.stream, &[]).await?;
+    let _ = Self::do_prepare(cmd, nb, stmts, &mut self.stream, &[]).await?;
     Ok(())
   }
 
@@ -211,22 +208,7 @@ where
           break;
         }
         MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
-        MessageTy::Authentication(_)
-        | MessageTy::BackendKeyData(..)
-        | MessageTy::BindComplete
-        | MessageTy::CloseComplete
-        | MessageTy::CopyData
-        | MessageTy::CopyDone
-        | MessageTy::CopyInResponse
-        | MessageTy::CopyOutResponse
-        | MessageTy::NoData
-        | MessageTy::NoticeResponse
-        | MessageTy::NotificationResponse
-        | MessageTy::ParameterDescription(_)
-        | MessageTy::ParameterStatus(..)
-        | MessageTy::ParseComplete
-        | MessageTy::PortalSuspended
-        | MessageTy::RowDescription(_) => {
+        _ => {
           return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag }.into());
         }
       }

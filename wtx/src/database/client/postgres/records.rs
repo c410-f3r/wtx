@@ -9,11 +9,16 @@ pub struct Records<'exec> {
   pub(crate) records_values_offsets: &'exec [usize],
   pub(crate) stmt: Statement<'exec>,
   /// Each element represents a value and an offset of `bytes`.
-  pub(crate) values_bytes_offsets: &'exec [Range<usize>],
+  pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
 impl<'exec> crate::database::Records for Records<'exec> {
   type Database = Postgres;
+
+  #[inline]
+  fn iter(&self) -> impl Iterator<Item = Record<'_>> {
+    (0..self.len()).filter_map(|idx| self.record(idx))
+  }
 
   #[inline]
   fn len(&self) -> usize {
@@ -27,13 +32,13 @@ impl<'exec> crate::database::Records for Records<'exec> {
       [] => return None,
       &[to] => {
         let record_values_bytes_offsets = self.values_bytes_offsets.get(..to)?;
-        (0..record_values_bytes_offsets.last()?.end, record_values_bytes_offsets)
+        (0..record_values_bytes_offsets.last()?.1.end, record_values_bytes_offsets)
       }
       &[.., from, to] => {
         let record_values_bytes_offsets = self.values_bytes_offsets.get(from..to)?;
         let [start, end] = match record_values_bytes_offsets {
-          [first] => [first.start, first.end],
-          [first, .., last] => [first.start, last.end],
+          [(_, first)] => [first.start, first.end],
+          [(_, first), .., last] => [first.start, last.1.end],
           _ => return None,
         };
         (start..end, record_values_bytes_offsets)
@@ -62,11 +67,25 @@ mod tests {
     let bytes = &[0, 0, 0, 2, 1, 2, 0, 0, 0, 2, 3, 4, 9, 9, 9, 0, 1, 0, 0, 0, 4, 5, 6, 7, 8];
     let mut records_values_offsets = Vec::new();
     let mut values_bytes_offsets = Vec::new();
-    let _ =
-      Record::parse(bytes, 0..12, Statement::new(&[], &[]), &mut values_bytes_offsets, 2).unwrap();
+    assert_eq!(
+      Record::parse(bytes, 0..12, Statement::new(&[], &[]), &mut values_bytes_offsets, 2).unwrap(),
+      Record {
+        bytes: &[1, 2, 0, 0, 0, 2, 3, 4],
+        initial_value_offset: 0,
+        stmt: Statement::new(&[], &[]),
+        values_bytes_offsets: &[(false, 0..2), (false, 6..8)]
+      }
+    );
     records_values_offsets.push(values_bytes_offsets.len());
-    let _ =
-      Record::parse(bytes, 17..25, Statement::new(&[], &[]), &mut values_bytes_offsets, 1).unwrap();
+    assert_eq!(
+      Record::parse(bytes, 17..25, Statement::new(&[], &[]), &mut values_bytes_offsets, 1).unwrap(),
+      Record {
+        bytes: &[5, 6, 7, 8],
+        initial_value_offset: 17,
+        stmt: Statement::new(&[], &[]),
+        values_bytes_offsets: &[(false, 17..21)]
+      }
+    );
     records_values_offsets.push(values_bytes_offsets.len());
 
     let records = Records {
@@ -78,7 +97,7 @@ mod tests {
     assert_eq!(records.len(), 2);
     assert_eq!(records.bytes, &bytes[4..]);
     assert_eq!(records.records_values_offsets, &[2, 3]);
-    assert_eq!(records.values_bytes_offsets, &[0..2, 6..8, 17..21]);
+    assert_eq!(records.values_bytes_offsets, &[(false, 0..2), (false, 6..8), (false, 17..21)]);
 
     let first_record = records.record(0).unwrap();
     assert_eq!(
@@ -87,11 +106,11 @@ mod tests {
         bytes: &[1, 2, 0, 0, 0, 2, 3, 4],
         initial_value_offset: 0,
         stmt: Statement::new(&[], &[]),
-        values_bytes_offsets: &[0..2, 6..8]
+        values_bytes_offsets: &[(false, 0..2), (false, 6..8)]
       }
     );
-    assert_eq!(first_record.value(0).unwrap(), &[1, 2]);
-    assert_eq!(first_record.value(1).unwrap(), &[3, 4]);
+    assert_eq!(first_record.value(0).unwrap().bytes(), &[1, 2]);
+    assert_eq!(first_record.value(1).unwrap().bytes(), &[3, 4]);
 
     let second_record = records.record(1).unwrap();
     assert_eq!(
@@ -100,8 +119,10 @@ mod tests {
         bytes: &[5, 6, 7, 8],
         initial_value_offset: 17,
         stmt: Statement::new(&[], &[]),
-        values_bytes_offsets: &[17..21]
+        values_bytes_offsets: &[(false, 17..21)]
       }
     );
+
+    assert_eq!(records.iter().count(), 2);
   }
 }

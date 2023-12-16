@@ -26,7 +26,7 @@ where
   u64: for<'value> Decode<
     <T as FromRecords>::Database,
     crate::Error,
-    <<T as FromRecords>::Database as Database>::Value<'value>,
+    Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
   >,
 {
   let first_record = if let Some(elem) = records.record(curr_record_idx) {

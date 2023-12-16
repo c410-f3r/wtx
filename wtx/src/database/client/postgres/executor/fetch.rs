@@ -68,7 +68,7 @@ where
     stream: &mut S,
   ) -> crate::Result<u8> {
     let mut tag = Self::fetch_one_msg_from_stream(&mut *nb, stream).await?;
-    if tag == b'N' {
+    while tag == b'N' {
       tag = Self::fetch_one_msg_from_stream(nb, stream).await?;
     }
     Ok(tag)

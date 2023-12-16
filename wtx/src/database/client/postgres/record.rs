@@ -1,5 +1,5 @@
 use crate::database::{
-  client::postgres::{statements::Statement, Postgres},
+  client::postgres::{statements::Statement, Postgres, Value},
   Database, ValueIdent,
 };
 use alloc::vec::Vec;
@@ -11,7 +11,7 @@ pub struct Record<'exec> {
   pub(crate) bytes: &'exec [u8],
   pub(crate) initial_value_offset: usize,
   pub(crate) stmt: Statement<'exec>,
-  pub(crate) values_bytes_offsets: &'exec [Range<usize>],
+  pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
 impl<'exec> Record<'exec> {
@@ -19,14 +19,17 @@ impl<'exec> Record<'exec> {
     mut bytes: &'exec [u8],
     bytes_range: Range<usize>,
     stmt: Statement<'exec>,
-    values_bytes_offsets: &'exec mut Vec<Range<usize>>,
+    values_bytes_offsets: &'exec mut Vec<(bool, Range<usize>)>,
     values_len: u16,
   ) -> crate::Result<Self> {
+    let values_bytes_offsets_start = values_bytes_offsets.len();
+
     let mut fun = |curr_value_offset: &mut usize, [a, b, c, d]: [u8; 4]| {
       let begin = *curr_value_offset;
-      let curr_len = usize::try_from(i32::from_be_bytes([a, b, c, d]))?;
-      let end = begin.wrapping_add(curr_len);
-      values_bytes_offsets.push(begin..end);
+      let n = i32::from_be_bytes([a, b, c, d]);
+      let (is_null, end) =
+        if n == -1 { (true, begin) } else { (false, begin.wrapping_add(usize::try_from(n)?)) };
+      values_bytes_offsets.push((is_null, begin..end));
       *curr_value_offset = end;
       crate::Result::Ok(())
     };
@@ -53,7 +56,14 @@ impl<'exec> Record<'exec> {
       fun(&mut curr_value_offset, [a, b, c, d])?;
     }
 
-    Ok(Self { bytes, initial_value_offset, stmt, values_bytes_offsets })
+    Ok(Self {
+      bytes,
+      initial_value_offset,
+      stmt,
+      values_bytes_offsets: values_bytes_offsets
+        .get(values_bytes_offsets_start..)
+        .unwrap_or_default(),
+    })
   }
 }
 
@@ -70,10 +80,14 @@ impl<'exec> crate::database::Record for Record<'exec> {
   where
     CI: ValueIdent<Record<'this>>,
   {
-    let range = self.values_bytes_offsets.get(ci.idx(self)?)?;
-    let begin = range.start.wrapping_sub(self.initial_value_offset);
-    let end = range.end.wrapping_sub(self.initial_value_offset);
-    self.bytes.get(begin..end)
+    let (is_null, range) = self.values_bytes_offsets.get(ci.idx(self)?)?;
+    if *is_null {
+      None
+    } else {
+      let mid = range.start.wrapping_sub(self.initial_value_offset);
+      let end = range.end.wrapping_sub(self.initial_value_offset);
+      Some(Value::new(self.bytes.get(mid..end)?, false))
+    }
   }
 }
 
@@ -100,7 +114,7 @@ mod arrayvec {
     #[inline]
     fn from_record(record: crate::database::client::postgres::Record<'exec>) -> Result<Self, E> {
       Ok(
-        _from_utf8_basic_rslt(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?)
+        _from_utf8_basic_rslt(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?.bytes())
           .map_err(From::from)?
           .try_into()
           .map_err(From::from)?,
@@ -130,13 +144,13 @@ mod tests {
         bytes: &[1, 0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 4],
         initial_value_offset: 0,
         stmt,
-        values_bytes_offsets: &[0..1, 5..7, 11..12]
+        values_bytes_offsets: &[(false, 0..1), (false, 5..7), (false, 11..12)]
       }
     );
     assert_eq!(record.len(), 3);
-    assert_eq!(record.value(0), Some(&[1][..]));
-    assert_eq!(record.value(1), Some(&[2, 3][..]));
-    assert_eq!(record.value(2), Some(&[4][..]));
-    assert_eq!(record.value(3), None);
+    assert_eq!(record.value(0).map(|el| el.bytes()), Some(&[1][..]));
+    assert_eq!(record.value(1).map(|el| el.bytes()), Some(&[2, 3][..]));
+    assert_eq!(record.value(2).map(|el| el.bytes()), Some(&[4][..]));
+    assert_eq!(record.value(3).map(|el| el.bytes()), None);
   }
 }

@@ -22,7 +22,7 @@ pub struct ExecutorBuffer {
   /// Statements
   pub(crate) stmts: Statements,
   /// Values Buffer.
-  pub(crate) vb: Vec<Range<usize>>,
+  pub(crate) vb: Vec<(bool, Range<usize>)>,
 }
 
 impl ExecutorBuffer {
@@ -85,5 +85,5 @@ pub(crate) struct ExecutorBufferPartsMut<'eb> {
   pub(crate) params: &'eb mut Vec<(Identifier, Identifier)>,
   pub(crate) rb: &'eb mut Vec<usize>,
   pub(crate) stmts: &'eb mut Statements,
-  pub(crate) vb: &'eb mut Vec<Range<usize>>,
+  pub(crate) vb: &'eb mut Vec<(bool, Range<usize>)>,
 }
