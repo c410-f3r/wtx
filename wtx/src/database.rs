@@ -15,6 +15,7 @@ mod records;
 #[cfg(feature = "sm")]
 pub mod sm;
 mod transaction_manager;
+mod value;
 mod value_ident;
 
 pub use database_ty::DatabaseTy;
@@ -27,6 +28,7 @@ pub use record::Record;
 pub use record_values::RecordValues;
 pub use records::Records;
 pub use transaction_manager::TransactionManager;
+pub use value::Value;
 pub use value_ident::ValueIdent;
 
 /// Default environment variable name for the database URL
@@ -48,7 +50,7 @@ pub trait Database {
   /// See [Records].
   type Records<'recs>: Records<Database = Self>;
   /// Representation that can be used to encode or decode types.
-  type Value<'value>: Default;
+  type Value<'value>: Value + core::fmt::Debug;
 }
 
 impl Database for () {

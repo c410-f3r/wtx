@@ -9,6 +9,7 @@ pub mod dnsn;
 pub mod misc;
 pub mod network;
 pub mod pkg;
+mod tests;
 
 pub use api::Api;
 

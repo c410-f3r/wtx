@@ -18,6 +18,7 @@ mod statements;
 mod transaction_manager;
 mod ty;
 mod tys;
+mod value;
 
 use crate::database::{Database, DatabaseTy};
 pub(crate) use authentication::Authentication;
@@ -33,6 +34,7 @@ pub use records::Records;
 pub use sql_state::SqlState;
 pub use statements::Statements;
 pub use transaction_manager::TransactionManager;
+pub use value::Value;
 
 pub(crate) type Oid = u32;
 
@@ -45,5 +47,5 @@ impl Database for Postgres {
 
   type Record<'rec> = Record<'rec>;
   type Records<'recs> = Records<'recs>;
-  type Value<'value> = &'value [u8];
+  type Value<'value> = Value<'value>;
 }

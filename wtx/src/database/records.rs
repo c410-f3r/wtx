@@ -5,6 +5,9 @@ pub trait Records: Default {
   /// See [Database].
   type Database: Database;
 
+  /// Iterator of records
+  fn iter(&self) -> impl Iterator<Item = <Self::Database as Database>::Record<'_>>;
+
   /// The number of records;
   fn len(&self) -> usize;
 
@@ -14,6 +17,11 @@ pub trait Records: Default {
 
 impl Records for () {
   type Database = ();
+
+  #[inline]
+  fn iter(&self) -> impl Iterator<Item = <Self::Database as Database>::Record<'_>> {
+    [].into_iter()
+  }
 
   #[inline]
   fn len(&self) -> usize {

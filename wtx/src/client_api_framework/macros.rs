@@ -19,26 +19,26 @@ macro_rules! create_packages_aux_wrapper {
     /// Just a wrapper that implements [core::ops::Deref] and [core::ops::DerefMut] to easily call
     /// methods from `PkgsAux`.
     #[derive(Debug)]
-    pub struct $name<$($api_param,)? DRSR, TP>(wtx::pkg::PkgsAux<$api_ty, DRSR, TP>)
+    pub struct $name<$($api_param,)? DRSR, TP>($crate::client_api_framework::pkg::PkgsAux<$api_ty, DRSR, TP>)
     where
-      TP: wtx::network::transport::TransportParams;
+      TP: $crate::client_api_framework::network::transport::TransportParams;
 
     impl<$($api_param,)? DRSR, TP> $name<$api_ty, DRSR, TP>
     where
-      TP: wtx::network::transport::TransportParams
+      TP: $crate::client_api_framework::network::transport::TransportParams
     {
-      /// Proxy of [wtx::pkg::PkgsAux::from_minimum].
+      /// Proxy of [$crate::client_api_framework::pkg::PkgsAux::from_minimum].
       #[inline]
       pub fn from_minimum(api: $api_ty, drsr: DRSR, tp: TP) -> Self {
-        Self(wtx::pkg::PkgsAux::from_minimum(api, drsr, tp))
+        Self($crate::client_api_framework::pkg::PkgsAux::from_minimum(api, drsr, tp))
       }
     }
 
     impl<$($api_param,)? DRSR, TP> core::ops::Deref for $name<$api_ty, DRSR, TP>
     where
-      TP: wtx::network::transport::TransportParams
+      TP: $crate::client_api_framework::network::transport::TransportParams
     {
-      type Target = wtx::pkg::PkgsAux<$api_ty, DRSR, TP>;
+      type Target = $crate::client_api_framework::pkg::PkgsAux<$api_ty, DRSR, TP>;
 
       #[inline]
       fn deref(&self) -> &Self::Target {
@@ -48,7 +48,7 @@ macro_rules! create_packages_aux_wrapper {
 
     impl<$($api_param,)? DRSR, TP> core::ops::DerefMut for $name<$api_ty, DRSR, TP>
     where
-      TP: wtx::network::transport::TransportParams
+      TP: $crate::client_api_framework::network::transport::TransportParams
     {
       #[inline]
       fn deref_mut(&mut self) -> &mut Self::Target {
@@ -56,12 +56,12 @@ macro_rules! create_packages_aux_wrapper {
       }
     }
 
-    impl<$($api_param,)? DRSR, TP> From<wtx::pkg::PkgsAux<$api_ty, DRSR, TP>> for $name<$api_ty, DRSR, TP>
+    impl<$($api_param,)? DRSR, TP> From<$crate::client_api_framework::pkg::PkgsAux<$api_ty, DRSR, TP>> for $name<$api_ty, DRSR, TP>
     where
-      TP: wtx::network::transport::TransportParams
+      TP: $crate::client_api_framework::network::transport::TransportParams
     {
       #[inline]
-      fn from(from: wtx::pkg::PkgsAux<$api_ty, DRSR, TP>) -> Self {
+      fn from(from: $crate::client_api_framework::pkg::PkgsAux<$api_ty, DRSR, TP>) -> Self {
         Self(from)
       }
     }

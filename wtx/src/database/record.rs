@@ -10,7 +10,11 @@ pub trait Record {
   fn decode<'this, CI, D>(&'this self, ci: CI) -> crate::Result<D>
   where
     CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
-    D: Decode<Self::Database, crate::Error, <Self::Database as Database>::Value<'this>>,
+    D: Decode<
+      Self::Database,
+      crate::Error,
+      Value<'this> = <Self::Database as Database>::Value<'this>,
+    >,
   {
     D::decode(self.value(ci).unwrap_or_default())
   }

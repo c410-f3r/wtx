@@ -3,7 +3,6 @@
 pub(crate) mod seq_visitor;
 
 mod from_bytes;
-mod generic_time;
 mod pair;
 mod query_writer;
 mod request_counter;
@@ -17,57 +16,13 @@ use crate::client_api_framework::{
   pkg::{Package, PkgsAux},
   Api,
 };
-use core::{any::type_name, time::Duration};
 pub use from_bytes::FromBytes;
-pub use generic_time::*;
 pub use pair::{Pair, PairMut};
 pub use query_writer::QueryWriter;
 pub use request_counter::RequestCounter;
 pub use request_limit::RequestLimit;
 pub use request_throttling::RequestThrottling;
 pub use url::{Url, UrlString};
-
-/// Useful when a request returns an optional field but the actual usage is within a
-/// [core::result::Result] context.
-#[inline]
-#[track_caller]
-pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
-  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>()))
-}
-
-/// Sleeps for the specified amount of time.
-///
-/// Intended for asynchronous usage, i.e., won't block threads.
-#[allow(
-  // Depends on the selected set of features.
-  clippy::unused_async
-)]
-#[inline]
-pub async fn sleep(duration: Duration) -> crate::Result<()> {
-  #[cfg(all(feature = "async-std", not(feature = "tokio")))]
-  {
-    async_std::task::sleep(duration).await;
-    Ok(())
-  }
-  #[cfg(all(feature = "tokio", not(feature = "async-std")))]
-  {
-    tokio::time::sleep(duration).await;
-    Ok(())
-  }
-  #[cfg(any(
-    all(feature = "async-std", feature = "tokio"),
-    all(not(feature = "tokio"), not(feature = "async-std"))
-  ))]
-  {
-    // Open to better alternatives
-    let now = GenericTime::now()?;
-    loop {
-      if now.elapsed()? >= duration {
-        return Ok(());
-      }
-    }
-  }
-}
 
 /// Used in all implementations of [crate::Transport::send] and/or
 /// [crate::Transport::send_and_receive`].

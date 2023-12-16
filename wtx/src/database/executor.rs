@@ -22,9 +22,7 @@ pub trait Executor {
   /// Caches the passed command, speeding up subsequent calls that match the same `cmd`.
   ///
   /// Depending on the implementation, caching can be performed in the client or in the server.
-  fn prepare<E, RV>(&mut self, cmd: &str) -> impl Future<Output = Result<(), E>>
-  where
-    E: From<crate::Error>;
+  fn prepare(&mut self, cmd: &str) -> impl Future<Output = crate::Result<()>>;
 
   /// Retrieves a raw database record.
   fn record<E, SV>(
@@ -101,10 +99,7 @@ impl Executor for () {
   }
 
   #[inline]
-  async fn prepare<E, RV>(&mut self, _: &str) -> Result<(), E>
-  where
-    E: From<crate::Error>,
-  {
+  async fn prepare(&mut self, _: &str) -> crate::Result<()> {
     Ok(())
   }
 

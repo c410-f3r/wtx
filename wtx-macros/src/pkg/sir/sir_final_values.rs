@@ -134,7 +134,7 @@ impl<'attrs, 'module, 'others>
             wtx::client_api_framework::data_format::#dfe_ext_res_ctnt_wrapper<
               #res_ident
             >: wtx::client_api_framework::dnsn::Deserialize<DRSR>,
-            DRSR: wtx::client_api_framework::misc::AsyncBounds,
+            DRSR: wtx::misc::AsyncBounds,
           {
             type Api = #api;
             type Error = #error;

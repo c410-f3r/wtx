@@ -68,7 +68,7 @@ pub trait Crud: Executor {
     u64: for<'value> Decode<
       <T as FromRecords>::Database,
       crate::Error,
-      <<T as FromRecords>::Database as Database>::Value<'value>,
+      Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
     >,
   {
     async move {
@@ -98,7 +98,7 @@ pub trait Crud: Executor {
     u64: for<'value> Decode<
       <T as FromRecords>::Database,
       crate::Error,
-      <<T as FromRecords>::Database as Database>::Value<'value>,
+      Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
     >,
   {
     async move {
@@ -181,7 +181,7 @@ where
   u64: for<'value> Decode<
     <T as FromRecords>::Database,
     crate::Error,
-    <<T as FromRecords>::Database as Database>::Value<'value>,
+    Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
   >,
 {
   let mut curr_record_idx: usize = 0;

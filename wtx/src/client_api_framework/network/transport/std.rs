@@ -144,7 +144,6 @@ where
 mod tests {
   use crate::{
     client_api_framework::{
-      misc::sleep,
       network::{
         transport::{
           tests::{Ping, PingPong, Pong},
@@ -154,7 +153,7 @@ mod tests {
       },
       pkg::PkgsAux,
     },
-    misc::_host,
+    misc::{_host, sleep},
   };
   use core::time::Duration;
   use std::{
