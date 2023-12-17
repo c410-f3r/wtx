@@ -113,6 +113,26 @@ macro_rules! _internal_doc {
   };
 }
 
+macro_rules! _iter4 {
+  ($slice:expr, |$elem:ident| $block:block) => {{
+    let mut iter = crate::misc::ArrayChunks::_new($slice);
+    for [a, b, c, d] in iter.by_ref() {
+      let $elem = a;
+      $block;
+      let $elem = b;
+      $block;
+      let $elem = c;
+      $block;
+      let $elem = d;
+      $block;
+    }
+    for elem in iter._into_remainder() {
+      let $elem = elem;
+      $block;
+    }
+  }};
+}
+
 macro_rules! _iter4_mut {
   ($slice:expr, |$elem:ident| $block:block) => {{
     let mut iter = crate::misc::ArrayChunksMut::_new($slice);

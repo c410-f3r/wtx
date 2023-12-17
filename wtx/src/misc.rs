@@ -20,7 +20,7 @@ mod wrapper;
 
 #[cfg(test)]
 use alloc::string::String;
-pub(crate) use array_chunks::ArrayChunksMut;
+pub(crate) use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use async_bounds::AsyncBounds;
 pub(crate) use basic_utf8_error::BasicUtf8Error;
 use core::{any::type_name, time::Duration};

@@ -121,7 +121,7 @@ impl<'vec> FilledBufferWriter<'vec> {
 mod tests {
   #[cfg(feature = "_bench")]
   #[bench]
-  fn extend_from_slice(b: &mut test::Bencher) {
+  fn bench_extend_from_slice(b: &mut test::Bencher) {
     use alloc::{vec, vec::Vec};
     let array: [u8; 64] = core::array::from_fn(|idx| {
       let n = idx % 255;

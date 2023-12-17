@@ -239,6 +239,15 @@ pub enum Error {
   /// Stream does not support TLS channels.
   StreamDoesNotSupportTlsChannels,
 
+  // ***** Internal - HTTP/2 *****
+  //
+  /// Algorithm was expecting more data but found none.
+  UnexpectedEndOfStream,
+  /// Unknown header name.
+  UnexpectedPreFixedHeaderName,
+  /// Decoding logic encountered an unexpected ending string signal.
+  UnexpectedEndingHuffman,
+
   // ***** Internal - WebSocket *****
   //
   /// The requested received in a handshake on a server is not valid.

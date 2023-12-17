@@ -20,6 +20,8 @@ mod error;
 pub mod http;
 #[cfg(feature = "http1")]
 mod http1;
+#[cfg(feature = "http2")]
+pub mod http2;
 pub mod misc;
 pub mod rng;
 #[cfg(feature = "web-socket")]

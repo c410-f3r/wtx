@@ -42,29 +42,9 @@ mod tests {
 
   #[cfg(feature = "_bench")]
   #[bench]
-  fn unmask_bench(b: &mut test::Bencher) {
+  fn bench_unmask(b: &mut test::Bencher) {
     let mut data = crate::bench::_data(64 << 20);
     b.iter(|| unmask(&mut data, [3, 5, 7, 11]));
-  }
-
-  #[cfg(feature = "_proptest")]
-  #[test_strategy::proptest]
-  fn my_test(mut data: Vec<u8>, mask: [u8; 4]) {
-    unmask(&mut data, mask);
-  }
-
-  #[test]
-  fn test_unmask() {
-    let mut payload = [0u8; 33];
-    let mask = [1, 2, 3, 4];
-    unmask(&mut payload, mask);
-    assert_eq!(
-      &payload,
-      &[
-        1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2,
-        3, 4, 1
-      ]
-    );
   }
 
   #[test]
@@ -76,5 +56,25 @@ mod tests {
       let expected = (0..*len).map(|i| (i & 3) as u8 + 1).collect::<Vec<_>>();
       assert_eq!(payload, expected);
     }
+  }
+
+  #[cfg(feature = "_proptest")]
+  #[test_strategy::proptest]
+  fn proptest_unmask(mut data: Vec<u8>, mask: [u8; 4]) {
+    unmask(&mut data, mask);
+  }
+
+  #[test]
+  fn unmask_has_correct_output() {
+    let mut payload = [0u8; 33];
+    let mask = [1, 2, 3, 4];
+    unmask(&mut payload, mask);
+    assert_eq!(
+      &payload,
+      &[
+        1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2,
+        3, 4, 1
+      ]
+    );
   }
 }
