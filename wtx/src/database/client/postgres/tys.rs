@@ -8,7 +8,7 @@ macro_rules! test {
       let instance: $ty = $instance;
       Encode::<_, crate::Error>::encode(&instance, &mut fbw).unwrap();
       let decoded: $ty =
-        Decode::<Postgres, crate::Error>::decode(Value::new(fbw._curr_bytes(), false)).unwrap();
+        Decode::<Postgres, crate::Error>::decode(Value::new(fbw._curr_bytes())).unwrap();
       assert_eq!(instance, decoded);
     }
   };
@@ -214,7 +214,7 @@ mod primitives {
         return Err(
           crate::Error::UnexpectedBufferSize {
             expected: 1,
-            received: input.bytes().len().try_into().unwrap_or(u32::MAX),
+            received: input.bytes().len().try_into().map_err(Into::into)?,
           }
           .into(),
         );
@@ -289,8 +289,8 @@ mod primitives {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
           Err(crate::Error::UnexpectedBufferSize {
-            expected: mem::size_of::<$ty>().try_into().unwrap_or(u32::MAX),
-            received: input.bytes().len().try_into().unwrap_or(u32::MAX),
+            expected: mem::size_of::<$ty>().try_into().map_err(Into::into)?,
+            received: input.bytes().len().try_into().map_err(Into::into)?,
           }.into())
         }
       }

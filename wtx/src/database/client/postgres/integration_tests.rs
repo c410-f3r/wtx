@@ -37,7 +37,7 @@ async fn conn_scram() {
 }
 
 #[tokio::test]
-async fn execute() {
+async fn execute_with_stmt() {
   let mut exec = executor().await;
 
   assert_eq!(exec.execute_with_stmt("", ()).await.unwrap(), 0);

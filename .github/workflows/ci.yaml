@@ -56,7 +56,7 @@ jobs:
           toolchain: nightly-2023-10-15
       - uses: Swatinem/rust-cache@v2
       - run: docker-compose -f .test-utils/docker-compose.yml up -d
-      - run: sleep 60
+      - run: sleep 30
       - run: .scripts/integration-tests.sh
 
 

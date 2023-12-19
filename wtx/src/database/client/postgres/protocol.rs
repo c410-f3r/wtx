@@ -30,7 +30,7 @@ where
     })?;
 
     {
-      local_fbw._extend_from_slice(&i16::try_from(rv_len).unwrap_or(i16::MAX).to_be_bytes());
+      local_fbw._extend_from_slice(&i16::try_from(rv_len).map_err(Into::into)?.to_be_bytes());
       let _ = rv.encode_values(
         &mut (0, 0),
         local_fbw,
@@ -250,7 +250,7 @@ where
   };
   cb(fbw)?;
   let written = fbw._len().wrapping_sub(len_before);
-  let [a1, b1, c1, d1] = i32::try_from(written).unwrap_or(i32::MAX).to_be_bytes();
+  let [a1, b1, c1, d1] = i32::try_from(written).map_err(Into::into)?.to_be_bytes();
   if let Some([a0, b0, c0, d0, ..]) = fbw._curr_bytes_mut().get_mut(start..) {
     *a0 = a1;
     *b0 = b1;

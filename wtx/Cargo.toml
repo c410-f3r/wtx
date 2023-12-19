@@ -46,7 +46,7 @@ async-std = { default-features = false, features = ["default"], optional = true,
 async-trait = { default-features = false, optional = true, version = "0.1" }
 atoi = { default-features = false, optional = true, version = "2.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.21" }
-borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.1" }
+borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "4.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
@@ -149,7 +149,7 @@ license = "Apache-2.0"
 name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-version = "0.11.0"
+version = "0.12.0"
 
 [package.metadata.docs.rs]
 all-features = true

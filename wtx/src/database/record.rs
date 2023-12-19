@@ -16,7 +16,24 @@ pub trait Record {
       Value<'this> = <Self::Database as Database>::Value<'this>,
     >,
   {
-    D::decode(self.value(ci).unwrap_or_default())
+    D::decode(self.value(ci).ok_or(crate::Error::AbsentFieldDataInDecoding)?)
+  }
+
+  /// Tries to retrieve and decode an optional value.
+  #[inline]
+  fn decode_opt<'this, CI, D>(&'this self, ci: CI) -> crate::Result<Option<D>>
+  where
+    CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
+    D: Decode<
+      Self::Database,
+      crate::Error,
+      Value<'this> = <Self::Database as Database>::Value<'this>,
+    >,
+  {
+    match self.value(ci) {
+      Some(elem) => Ok(Some(D::decode(elem)?)),
+      None => Ok(None),
+    }
   }
 
   /// The number of values.

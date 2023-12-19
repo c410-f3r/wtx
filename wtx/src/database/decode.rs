@@ -38,16 +38,3 @@ impl Decode<(), crate::Error> for u64 {
     Ok(0)
   }
 }
-
-impl<C, E, T> Decode<C, E> for Option<T>
-where
-  E: From<crate::Error>,
-  T: Decode<C, E>,
-{
-  type Value<'value> = T::Value<'value>;
-
-  #[inline]
-  fn decode(input: Self::Value<'_>) -> Result<Self, E> {
-    Ok(if input.is_null() { None } else { Some(T::decode(input)?) })
-  }
-}
