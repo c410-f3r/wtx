@@ -2,12 +2,11 @@
 #[derive(Debug)]
 pub struct Value<'bytes> {
   bytes: &'bytes [u8],
-  is_null: bool,
 }
 
 impl<'bytes> Value<'bytes> {
-  pub(crate) fn new(bytes: &'bytes [u8], is_null: bool) -> Self {
-    Self { bytes, is_null }
+  pub(crate) fn new(bytes: &'bytes [u8]) -> Self {
+    Self { bytes }
   }
 
   /// Bytes
@@ -20,13 +19,8 @@ impl<'bytes> Value<'bytes> {
 impl<'bytes> Default for Value<'bytes> {
   #[inline]
   fn default() -> Self {
-    Self { bytes: &[], is_null: true }
+    Self { bytes: &[] }
   }
 }
 
-impl<'bytes> crate::database::Value for Value<'bytes> {
-  #[inline]
-  fn is_null(&self) -> bool {
-    self.is_null
-  }
-}
+impl<'bytes> crate::database::Value for Value<'bytes> {}

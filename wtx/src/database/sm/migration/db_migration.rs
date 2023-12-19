@@ -68,7 +68,7 @@ where
       common: MigrationCommon {
         checksum: _checksum_from_str(from.decode("checksum")?)?,
         name: from.decode::<_, &str>("name")?.try_into().map_err(From::from)?,
-        repeatability: _from_u32(from.decode("repeatability")?),
+        repeatability: _from_u32(from.decode_opt("repeatability")?),
         version: from.decode("version")?,
       },
       created_on: from.decode("created_on")?,

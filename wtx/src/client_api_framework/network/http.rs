@@ -65,30 +65,46 @@ impl TransportParams for HttpParams {
   }
 }
 
-/// Contains variants for a number of common HTTP methods such as GET, POST, etc.
-#[derive(Clone, Copy, Debug)]
-pub enum HttpMethod {
-  /// DELETE
-  Delete,
-  /// GET
-  Get,
-  /// PATCH
-  Patch,
-  /// POST
-  Post,
-  /// PUT
-  Put,
+create_enum! {
+  /// Contains variants for a number of common HTTP methods such as GET, POST, etc.
+  #[derive(Clone, Copy, Debug)]
+  pub enum HttpMethod<u8> {
+    /// DELETE
+    Delete = (0, "delete"),
+    /// GET
+    Get = (1, "get"),
+    /// PATCH
+    Patch = (2, "patch"),
+    /// POST
+    Post = (3, "post"),
+    /// PUT
+    Put = (4, "put"),
+  }
 }
 
-impl From<HttpMethod> for &'static str {
-  #[inline]
-  fn from(from: HttpMethod) -> Self {
-    match from {
-      HttpMethod::Delete => "DELETE",
-      HttpMethod::Get => "GET",
-      HttpMethod::Patch => "PATCH",
-      HttpMethod::Post => "POST",
-      HttpMethod::Put => "PUT",
+#[cfg(feature = "serde_json")]
+mod serde_json {
+  use crate::client_api_framework::network::HttpMethod;
+  use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+
+  impl<'de> Deserialize<'de> for HttpMethod {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<HttpMethod, D::Error>
+    where
+      D: Deserializer<'de>,
+    {
+      let s = <&str>::deserialize(deserializer)?;
+      Self::try_from(s).map_err(|err| de::Error::custom(err))
+    }
+  }
+
+  impl Serialize for HttpMethod {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      serializer.serialize_str(self.strings().custom)
     }
   }
 }

@@ -86,7 +86,7 @@ impl<'exec> crate::database::Record for Record<'exec> {
     } else {
       let mid = range.start.wrapping_sub(self.initial_value_offset);
       let end = range.end.wrapping_sub(self.initial_value_offset);
-      Some(Value::new(self.bytes.get(mid..end)?, false))
+      Some(Value::new(self.bytes.get(mid..end)?))
     }
   }
 }

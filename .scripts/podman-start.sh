@@ -6,7 +6,7 @@ podman run \
     -e POSTGRES_INITDB_ARGS="--auth-host=md5" \
     -e POSTGRES_PASSWORD=wtx \
     -p 5432:5432 \
-    -v ../.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh \
+    -v ./.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh \
     docker.io/library/postgres:16
 
 podman run \
@@ -17,7 +17,7 @@ podman run \
     -e POSTGRES_INITDB_ARGS="--auth-host=scram-sha-256" \
     -e POSTGRES_PASSWORD=wtx \
     -p 5433:5432 \
-    -v ../.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh \
+    -v ./.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh \
     docker.io/library/postgres:16
 
 # Utils

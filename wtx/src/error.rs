@@ -127,6 +127,8 @@ pub enum Error {
 
   // ***** Internal - Database client *****
   //
+  /// A "null" field received from the database was decoded as a non-nullable type or value.
+  AbsentFieldDataInDecoding,
   /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
   /// and read with numbers up to 127.
   InvalidPostgresUint,

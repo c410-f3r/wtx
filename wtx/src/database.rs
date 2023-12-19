@@ -52,7 +52,7 @@ pub trait Database {
   /// See [Records].
   type Records<'recs>: Records<Database = Self>;
   /// Representation that can be used to encode or decode types.
-  type Value<'value>: Value + core::fmt::Debug;
+  type Value<'value>: Value;
 }
 
 impl Database for () {
