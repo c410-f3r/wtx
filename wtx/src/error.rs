@@ -35,6 +35,8 @@ pub enum Error {
   #[cfg(feature = "crypto-common")]
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "base64")]
+  DecodeError(base64::DecodeError),
+  #[cfg(feature = "base64")]
   DecodeSliceError(base64::DecodeSliceError),
   #[cfg(feature = "deadpool")]
   DeadPoolManagedPoolError(Box<deadpool::managed::PoolError<()>>),
@@ -122,8 +124,8 @@ pub enum Error {
   UnknownHttpStatusCode(u16),
   /// `wtx` can not perform this operation due to known limitations.
   UnsupportedOperation,
-  /// Only append is possible but overwritten is still viable through resetting.
-  UrlCanNotOverwriteInitiallySetUrl,
+  /// Only appending is possible but overwritten is still viable through resetting.
+  UriCanNotBeOverwritten,
 
   // ***** Internal - Database client *****
   //
@@ -326,6 +328,15 @@ impl From<crypto_common::InvalidLength> for Error {
   #[track_caller]
   fn from(from: crypto_common::InvalidLength) -> Self {
     Self::CryptoCommonInvalidLength(from)
+  }
+}
+
+#[cfg(feature = "base64")]
+impl From<base64::DecodeError> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: base64::DecodeError) -> Self {
+    Self::DecodeError(from)
   }
 }
 

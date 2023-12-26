@@ -1,4 +1,7 @@
-use crate::web_socket::{handshake::HeadersBuffer, FrameBuffer};
+use crate::{
+  misc::UriRef,
+  web_socket::{handshake::HeadersBuffer, FrameBuffer},
+};
 
 const MAX_READ_HEADER_LEN: usize = 64;
 
@@ -29,7 +32,7 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
   /// Stream
   pub stream: S,
   /// Uri
-  pub uri: &'uri str,
+  pub uri: &'uri UriRef<'uri>,
   /// WebSocket Buffer
   pub wsb: WSB,
 }
@@ -38,7 +41,7 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 mod httparse_impls {
   use crate::{
     http::{ExpectedHeader, Header as _, Request as _},
-    misc::{AsyncBounds, FilledBufferWriter, Stream, UriPartsRef},
+    misc::{AsyncBounds, FilledBufferWriter, Stream, UriRef},
     rng::Rng,
     web_socket::{
       compression::NegotiatedCompression,
@@ -52,7 +55,7 @@ mod httparse_impls {
     },
   };
   use alloc::vec::Vec;
-  use core::{borrow::BorrowMut, str};
+  use core::borrow::BorrowMut;
   use httparse::{Header, Request, Response, Status, EMPTY_HEADER};
 
   const MAX_READ_LEN: usize = 2 * 1024;
@@ -148,8 +151,8 @@ mod httparse_impls {
       let nb = &mut self.wsb.borrow_mut().nb;
       nb._clear();
       let mut fbw = nb.into();
-      let (key, req) = build_req(&self.compression, &mut fbw, key_buffer, &mut self.rng, self.uri);
-      self.stream.write_all(req).await?;
+      let key = build_req(&self.compression, &mut fbw, key_buffer, &mut self.rng, self.uri);
+      self.stream.write_all(fbw._curr_bytes()).await?;
       let mut read = 0;
       self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
       let len = loop {
@@ -188,27 +191,26 @@ mod httparse_impls {
   }
 
   /// Client request
-  fn build_req<'fpb, 'kb, C>(
+  fn build_req<'kb, C>(
     compression: &C,
-    fbw: &'fpb mut FilledBufferWriter<'_>,
+    fbw: &mut FilledBufferWriter<'_>,
     key_buffer: &'kb mut [u8; 26],
     rng: &mut impl Rng,
-    uri: &str,
-  ) -> (&'kb [u8], &'fpb [u8])
+    uri: &UriRef<'_>,
+  ) -> &'kb [u8]
   where
     C: Compression<true>,
   {
-    let uri_parts = UriPartsRef::new(uri);
     let key = gen_key(key_buffer, rng);
-    fbw._extend_from_slices_group_rn(&[b"GET ", uri_parts.href().as_bytes(), b" HTTP/1.1"]);
+    fbw._extend_from_slices_group_rn(&[b"GET ", uri.href().as_bytes(), b" HTTP/1.1"]);
     fbw._extend_from_slice_rn(b"Connection: Upgrade");
-    fbw._extend_from_slices_group_rn(&[b"Host: ", uri_parts.host().as_bytes()]);
+    fbw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()]);
     fbw._extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key]);
     fbw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13");
     fbw._extend_from_slice_rn(b"Upgrade: websocket");
     compression.write_req_headers(fbw);
     fbw._extend_from_slice_rn(b"");
-    (key, fbw._curr_bytes())
+    key
   }
 
   /// Server response

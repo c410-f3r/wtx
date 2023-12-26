@@ -2,12 +2,10 @@
 
 #[path = "./common/mod.rs"]
 mod common;
-#[path = "./tls_stream/mod.rs"]
-mod tls_stream;
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use wtx::{
-  misc::UriPartsRef,
+  misc::{tls_stream_from_host, UriRef},
   rng::StdRng,
   web_socket::{
     handshake::{WebSocketConnect, WebSocketConnectRaw},
@@ -19,13 +17,19 @@ use wtx::{
 async fn main() {
   let fb = &mut FrameBufferVec::default();
   let uri = common::_uri_from_args();
-  let uri_parts = UriPartsRef::new(uri.as_str());
+  let uri = UriRef::new(uri.as_str());
   let (_, mut ws) = WebSocketConnectRaw {
     compression: (),
     fb,
     headers_buffer: &mut <_>::default(),
     rng: StdRng::default(),
-    stream: tls_stream::_tls_stream_host(uri_parts.host(), uri_parts.hostname()).await,
+    stream: tls_stream_from_host(
+      uri.host(),
+      uri.hostname(),
+      Some(include_bytes!("../../.certs/root-ca.crt")),
+    )
+    .await
+    .unwrap(),
     uri: &uri,
     wsb: WebSocketBuffer::default(),
   }

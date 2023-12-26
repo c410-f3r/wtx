@@ -11,7 +11,7 @@ use webpki_roots::TLS_SERVER_ROOTS;
 
 static ROOT_CA: &[u8] = include_bytes!("../../../.certs/root-ca.crt");
 
-pub(crate) async fn _tls_stream_host(host: &str, hostname: &str) -> TlsStream<TcpStream> {
+pub(crate) async fn tls_stream_from_hosts(host: &str, hostname: &str) -> TlsStream<TcpStream> {
   let stream = TcpStream::connect(host).await.unwrap();
   _tls_connector()
     .connect(ServerName::try_from(hostname.to_string()).unwrap(), stream)
@@ -19,7 +19,7 @@ pub(crate) async fn _tls_stream_host(host: &str, hostname: &str) -> TlsStream<Tc
     .unwrap()
 }
 
-pub(crate) async fn _tls_stream_stream(hostname: &str, stream: TcpStream) -> TlsStream<TcpStream> {
+pub(crate) async fn tls_stream_from_hostname_and_stream(hostname: &str, stream: TcpStream) -> TlsStream<TcpStream> {
   _tls_connector()
     .connect(ServerName::try_from(hostname.to_string()).unwrap(), stream)
     .await

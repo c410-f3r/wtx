@@ -6,6 +6,7 @@ use crate::{
       TcpParams, TransportGroup, UdpParams,
     },
     pkg::{Package, PkgsAux},
+    Api,
   },
   misc::AsyncBounds,
 };
@@ -23,25 +24,27 @@ where
   type Params = TcpParams;
 
   #[inline]
-  async fn send<P>(
+  async fn send<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, TcpParams>,
-  ) -> Result<(), P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, TcpParams>,
+  ) -> Result<(), A::Error>
   where
-    P: AsyncBounds + Package<DRSR, TcpParams>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, TcpParams>,
   {
     send(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.write(bytes)?)).await
   }
 
   #[inline]
-  async fn send_and_retrieve<P>(
+  async fn send_and_retrieve<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, TcpParams>,
-  ) -> Result<Range<usize>, P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, TcpParams>,
+  ) -> Result<Range<usize>, A::Error>
   where
-    P: AsyncBounds + Package<DRSR, TcpParams>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, TcpParams>,
   {
     send_and_retrieve(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.read(bytes)?)).await
   }
@@ -55,46 +58,49 @@ where
   type Params = UdpParams;
 
   #[inline]
-  async fn send<P>(
+  async fn send<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, UdpParams>,
-  ) -> Result<(), P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, UdpParams>,
+  ) -> Result<(), A::Error>
   where
-    P: AsyncBounds + Package<DRSR, UdpParams>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, UdpParams>,
   {
     send(pkg, pkgs_aux, self, |bytes, ext_req_params, trans| {
-      Ok(trans.send_to(bytes, ext_req_params.url.url())?)
+      Ok(trans.send_to(bytes, ext_req_params.url.uri())?)
     })
     .await
   }
 
   #[inline]
-  async fn send_and_retrieve<P>(
+  async fn send_and_retrieve<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, UdpParams>,
-  ) -> Result<Range<usize>, P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, UdpParams>,
+  ) -> Result<Range<usize>, A::Error>
   where
-    P: AsyncBounds + Package<DRSR, UdpParams>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, UdpParams>,
   {
     send_and_retrieve(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.recv(bytes)?)).await
   }
 }
 
-async fn send<DRSR, P, T>(
+async fn send<A, DRSR, P, T>(
   pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<P::Api, DRSR, T::Params>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
   trans: &mut T,
   cb: impl Fn(
     &[u8],
     &<T::Params as TransportParams>::ExternalRequestParams,
     &mut T,
   ) -> crate::Result<usize>,
-) -> Result<(), P::Error>
+) -> Result<(), A::Error>
 where
+  A: Api,
   DRSR: AsyncBounds,
-  P: Package<DRSR, T::Params>,
+  P: Package<A, DRSR, T::Params>,
   T: AsyncBounds + Transport<DRSR>,
   T::Params: AsyncBounds,
 {
@@ -120,18 +126,19 @@ where
   }
 }
 
-async fn send_and_retrieve<DRSR, P, T>(
+async fn send_and_retrieve<A, DRSR, P, T>(
   pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<P::Api, DRSR, T::Params>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
   trans: &mut T,
   cb: impl Fn(
     &mut [u8],
     &<T::Params as TransportParams>::ExternalRequestParams,
     &mut T,
   ) -> crate::Result<usize>,
-) -> Result<Range<usize>, P::Error>
+) -> Result<Range<usize>, A::Error>
 where
-  P: AsyncBounds + Package<DRSR, T::Params>,
+  A: Api,
+  P: AsyncBounds + Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
 {
   trans.send(pkg, pkgs_aux).await?;
@@ -164,7 +171,7 @@ mod tests {
   #[tokio::test(flavor = "multi_thread")]
   async fn tcp() {
     let uri_client = _uri();
-    let uri_server = uri_client.clone();
+    let uri_server = uri_client.to_string();
     let _server = tokio::spawn(async move {
       let tcp_listener = TcpListener::bind(uri_server.host()).unwrap();
       let mut buffer = [0; 8];
@@ -173,7 +180,7 @@ mod tests {
       stream.write_all(&buffer[..idx]).unwrap();
     });
     sleep(Duration::from_millis(100)).await.unwrap();
-    let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_url(uri_client.uri()).unwrap());
+    let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_uri(uri_client.uri()));
     let mut trans = TcpStream::connect(uri_client.host()).unwrap();
     let res =
       trans.send_retrieve_and_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
@@ -183,7 +190,7 @@ mod tests {
   #[tokio::test]
   async fn udp() {
     let addr = "127.0.0.1:12346";
-    let mut pa = PkgsAux::from_minimum((), (), UdpParams::from_url(addr).unwrap());
+    let mut pa = PkgsAux::from_minimum((), (), UdpParams::from_uri(addr));
     let mut trans = UdpSocket::bind(addr).unwrap();
     let res =
       trans.send_retrieve_and_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();

@@ -1,6 +1,6 @@
 use crate::{
   http::Header,
-  misc::{FilledBufferWriter, _from_utf8_basic_rslt},
+  misc::{from_utf8_basic_rslt, FilledBufferWriter},
   web_socket::{compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig},
 };
 use core::str::FromStr;
@@ -234,7 +234,7 @@ where
   T: FromStr,
 {
   let after_equals = bytes.split(|byte| byte == &b'=').nth(1)?;
-  _from_utf8_basic_rslt(after_equals).ok()?.parse::<T>().ok()
+  from_utf8_basic_rslt(after_equals).ok()?.parse::<T>().ok()
 }
 
 #[inline]

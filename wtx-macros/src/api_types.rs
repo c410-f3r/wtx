@@ -35,9 +35,10 @@ pub(crate) fn api_types(
     Item::Type(container) => &mut container.ident,
     _ => return Err(crate::Error::NoEnumStructOrType(item.span())),
   };
+  let api_string = api_ident.to_string();
 
   let mut buffer = String::new();
-  buffer.push_str(&api_ident.to_string());
+  buffer.push_str(&api_string);
 
   let generic_pair_ident = create_ident(&mut buffer, ["Pair"]);
   let generic_pair_tt = quote::quote_spanned!(api_ident.span() =>
@@ -51,8 +52,14 @@ pub(crate) fn api_types(
 
   let generic_pkgs_aux_ident = create_ident(&mut buffer, ["PkgsAux"]);
   let generic_pkgs_aux_tt = quote::quote_spanned!(api_ident.span() =>
-    #[doc = concat!("[", stringify!(#pkgs_aux_path), "] with [", stringify!(#api_ident), "] as the API.")]
+    #[doc = concat!("[", stringify!(#pkgs_aux_path), "] with an owned [", stringify!(#api_ident), "] as the API.")]
     pub type #generic_pkgs_aux_ident<DRSR, TP> = #pkgs_aux_path<#api_ident, DRSR, TP>;
+  );
+
+  let generic_mut_pkgs_aux_ident = create_ident(&mut buffer, ["MutPkgsAux"]);
+  let generic_mut_pkgs_aux_tt = quote::quote_spanned!(api_ident.span() =>
+    #[doc = concat!("[", stringify!(#pkgs_aux_path), "] with a mutable reference of [", stringify!(#api_ident), "] as the API.")]
+    pub type #generic_mut_pkgs_aux_ident<'api, DRSR, TP> = #pkgs_aux_path<&'api mut #api_ident, DRSR, TP>;
   );
 
   let mut tys = Vec::new();
@@ -71,17 +78,39 @@ pub(crate) fn api_types(
       TransportGroup::WebSocket => ["Ws", "WsParams"],
     };
     let local_tp_ident = Ident::new(params, Span::mixed_site());
-    let local_ty_ident = create_ident(&mut buffer, [camel_abbr, "PkgsAux"]);
+    let local_ty_ident_api_tp = create_ident(&mut buffer, [camel_abbr, "PkgsAux"]);
+    let local_ty_ident_api_mut_tp = create_ident(&mut buffer, ["Mut", camel_abbr, "PkgsAux"]);
+    buffer.clear();
+    let local_ty_ident_tp = create_ident(&mut buffer, [camel_abbr, "PkgsAux"]);
+    buffer.push_str(&api_string);
     tys.push(quote::quote!(
       #[allow(unused_qualifications)]
       #[doc = concat!(
-        "[", stringify!(#pkgs_aux_path), "] with [",
+        "[", stringify!(#pkgs_aux_path), "] with an owned [",
         stringify!(#api_ident),
         "] as the API and [wtx::client_api_framework::network::",
         stringify!(#local_tp_ident),
-        "] as the transport parameters."
+        "] as the transport parameter."
       )]
-      pub type #local_ty_ident<DRSR> = #pkgs_aux_path<#api_ident, DRSR, wtx::client_api_framework::network::#local_tp_ident>;
+      pub type #local_ty_ident_api_tp<DRSR> = #pkgs_aux_path<#api_ident, DRSR, wtx::client_api_framework::network::#local_tp_ident>;
+
+      #[allow(unused_qualifications)]
+      #[doc = concat!(
+        "[", stringify!(#pkgs_aux_path), "] with a mutable reference of [",
+        stringify!(#api_ident),
+        "] as the API and [wtx::client_api_framework::network::",
+        stringify!(#local_tp_ident),
+        "] as the transport parameter."
+      )]
+      pub type #local_ty_ident_api_mut_tp<'api, DRSR> = #pkgs_aux_path<&'api mut #api_ident, DRSR, wtx::client_api_framework::network::#local_tp_ident>;
+
+      #[allow(unused_qualifications)]
+      #[doc = concat!(
+        "[", stringify!(#pkgs_aux_path), "] with [wtx::client_api_framework::network::",
+        stringify!(#local_tp_ident),
+        "] as the transport parameter."
+      )]
+      pub type #local_ty_ident_tp<A, DRSR> = #pkgs_aux_path<A, DRSR, wtx::client_api_framework::network::#local_tp_ident>;
     ));
   }
 
@@ -90,6 +119,7 @@ pub(crate) fn api_types(
       #item
       #generic_pair_tt
       #generic_pkgs_aux_tt
+      #generic_mut_pkgs_aux_tt
       #(#tys)*
     )
     .to_token_stream()

@@ -13,26 +13,41 @@ mod filled_buffer_writer;
 mod fn_mut_fut;
 mod generic_time;
 mod partitioned_filled_buffer;
+mod query_writer;
 mod stream;
+#[cfg(feature = "_tokio-rustls-client")]
+mod tokio_rustls;
 mod traits;
-mod uri_parts;
+mod uri;
 mod wrapper;
 
+#[cfg(feature = "_tokio-rustls-client")]
+pub use self::tokio_rustls::*;
 #[cfg(test)]
 use alloc::string::String;
 pub(crate) use array_chunks::ArrayChunksMut;
 pub use async_bounds::AsyncBounds;
-pub(crate) use basic_utf8_error::BasicUtf8Error;
+pub use basic_utf8_error::BasicUtf8Error;
 use core::{any::type_name, time::Duration};
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
 pub use fn_mut_fut::FnMutFut;
 pub use generic_time::GenericTime;
 pub(crate) use partitioned_filled_buffer::PartitionedFilledBuffer;
+pub use query_writer::QueryWriter;
 pub use stream::{BytesStream, Stream, TlsStream};
 pub use traits::SingleTypeStorage;
-pub use uri_parts::{UriParts, UriPartsRef, UriPartsString};
+pub use uri::{Uri, UriRef, UriString};
 pub use wrapper::Wrapper;
+
+/// Internally uses `simdutf8` if the feature was activated.
+#[inline]
+pub fn from_utf8_basic_rslt(bytes: &[u8]) -> Result<&str, BasicUtf8Error> {
+  #[cfg(feature = "simdutf8")]
+  return simdutf8::basic::from_utf8(bytes).ok().ok_or(BasicUtf8Error {});
+  #[cfg(not(feature = "simdutf8"))]
+  return core::str::from_utf8(bytes).ok().ok_or(BasicUtf8Error {});
+}
 
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [core::result::Result] context.
@@ -106,7 +121,7 @@ where
   T: core::str::FromStr,
   T::Err: Into<crate::Error>,
 {
-  Ok(_from_utf8_basic_rslt(bytes)?.parse().map_err(Into::into)?)
+  Ok(from_utf8_basic_rslt(bytes)?.parse().map_err(Into::into)?)
 }
 #[cfg(feature = "atoi")]
 pub(crate) fn _atoi<T>(bytes: &[u8]) -> crate::Result<T>
@@ -116,19 +131,12 @@ where
   atoi::atoi(bytes).ok_or(crate::Error::AtoiInvalidBytes)
 }
 
-pub(crate) fn _from_utf8_basic_rslt(bytes: &[u8]) -> Result<&str, BasicUtf8Error> {
-  #[cfg(feature = "simdutf8")]
-  return simdutf8::basic::from_utf8(bytes).ok().ok_or(BasicUtf8Error {});
-  #[cfg(not(feature = "simdutf8"))]
-  return core::str::from_utf8(bytes).ok().ok_or(BasicUtf8Error {});
-}
-
 #[cfg(test)]
-pub(crate) fn _uri() -> UriPartsString {
+pub(crate) fn _uri() -> UriString {
   use core::sync::atomic::{AtomicU32, Ordering};
   static PORT: AtomicU32 = AtomicU32::new(7000);
   let uri = alloc::format!("http://127.0.0.1:{}", PORT.fetch_add(1, Ordering::Relaxed));
-  UriPartsString::new(uri)
+  UriString::new(uri)
 }
 
 pub(crate) async fn _read_until<const LEN: usize, S>(

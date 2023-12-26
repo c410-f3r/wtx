@@ -1,5 +1,6 @@
 /// Basic string error that doesn't contain any information.
-pub(crate) struct BasicUtf8Error;
+#[derive(Debug)]
+pub struct BasicUtf8Error;
 
 impl From<BasicUtf8Error> for crate::Error {
   #[inline]

@@ -1,13 +1,9 @@
-#[cfg(feature = "_tokio-rustls-client")]
-#[path = "../../../../examples/tls_stream/mod.rs"]
-mod tls_stream;
-
 use crate::{
   database::{
     client::postgres::{Config, Executor, ExecutorBuffer},
     Executor as _, Record, Records as _,
   },
-  misc::UriPartsRef,
+  misc::{tls_stream_from_stream, UriRef},
   rng::StaticRng,
 };
 use tokio::net::TcpStream;
@@ -23,14 +19,24 @@ async fn conn_md5() {
 #[tokio::test]
 async fn conn_scram() {
   let uri = "postgres://wtx_scram:wtx@localhost:5433/wtx";
-  let up = UriPartsRef::new(&uri);
+  let uri = UriRef::new(&uri);
   let mut rng = StaticRng::default();
   let _executor = Executor::connect_encrypted(
-    &Config::from_uri_parts(&up).unwrap(),
+    &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng),
-    TcpStream::connect(up.host()).await.unwrap(),
+    TcpStream::connect(uri.host()).await.unwrap(),
     &mut rng,
-    |stream| async { Ok(tls_stream::_tls_stream_stream(up.hostname(), stream).await) },
+    |stream| async {
+      Ok(
+        tls_stream_from_stream(
+          uri.hostname(),
+          Some(include_bytes!("../../../../../.certs/root-ca.crt")),
+          stream,
+        )
+        .await
+        .unwrap(),
+      )
+    },
   )
   .await
   .unwrap();
@@ -259,14 +265,13 @@ async fn reuses_cached_statement() {
 }
 
 async fn executor() -> Executor<ExecutorBuffer, TcpStream> {
-  let uri = "postgres://wtx_md5:wtx@localhost:5432/wtx";
-  let up = UriPartsRef::new(&uri);
+  let uri = UriRef::new("postgres://wtx_md5:wtx@localhost:5432/wtx");
   let mut rng = StaticRng::default();
   Executor::connect(
-    &Config::from_uri_parts(&up).unwrap(),
+    &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng),
     &mut rng,
-    TcpStream::connect(up.host()).await.unwrap(),
+    TcpStream::connect(uri.host()).await.unwrap(),
   )
   .await
   .unwrap()

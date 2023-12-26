@@ -4,6 +4,7 @@ use crate::misc::Agent;
 use std::time::Instant;
 use tokio::{net::TcpStream, task::JoinSet};
 use wtx::{
+  misc::UriRef,
   rng::StaticRng,
   web_socket::{
     handshake::{WebSocketConnect, WebSocketConnectRaw},
@@ -34,13 +35,12 @@ const NUM_FRAMES: usize = {
   }
 };
 
-pub(crate) async fn bench(addr: &str, agent: &mut Agent, uri: &str) {
+pub(crate) async fn bench(agent: &mut Agent, uri: &UriRef<'_>) {
   let instant = Instant::now();
   let mut set = JoinSet::new();
   for _ in 0..CONNECTIONS {
     let _handle = set.spawn({
-      let local_addr: String = addr.to_owned();
-      let local_uri = uri.to_owned();
+      let local_uri = uri.to_string();
       async move {
         let fb = &mut FrameBufferVec::default();
         let (_, mut ws) = WebSocketConnectRaw {
@@ -48,8 +48,8 @@ pub(crate) async fn bench(addr: &str, agent: &mut Agent, uri: &str) {
           fb,
           headers_buffer: &mut <_>::default(),
           rng: StaticRng::default(),
-          stream: TcpStream::connect(&local_addr).await.unwrap(),
-          uri: &local_uri,
+          stream: TcpStream::connect(local_uri.authority()).await.unwrap(),
+          uri: &local_uri.to_ref(),
           wsb: WebSocketBuffer::default(),
         }
         .connect()

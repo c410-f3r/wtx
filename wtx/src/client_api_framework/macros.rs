@@ -3,10 +3,10 @@
 #[macro_export]
 macro_rules! create_packages_aux_wrapper {
   () => {
-    $crate::create_packages_aux_wrapper!(@PkgsAux<API with API>);
+    $crate::create_packages_aux_wrapper!(@PkgsAux<A with A>);
   };
   ($name:ident) => {
-    $crate::create_packages_aux_wrapper!(@$name<API with API>);
+    $crate::create_packages_aux_wrapper!(@$name<A with A>);
   };
   ($name:ident, $api_ty:ty) => {
     $crate::create_packages_aux_wrapper!(@$name<with $api_ty>);

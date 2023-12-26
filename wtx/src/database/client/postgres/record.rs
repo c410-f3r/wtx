@@ -102,7 +102,7 @@ impl<'exec> ValueIdent<Record<'exec>> for str {
 mod arrayvec {
   use crate::{
     database::{FromRecord, Record},
-    misc::_from_utf8_basic_rslt,
+    misc::from_utf8_basic_rslt,
   };
   use arrayvec::ArrayString;
 
@@ -114,7 +114,7 @@ mod arrayvec {
     #[inline]
     fn from_record(record: crate::database::client::postgres::Record<'exec>) -> Result<Self, E> {
       Ok(
-        _from_utf8_basic_rslt(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?.bytes())
+        from_utf8_basic_rslt(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?.bytes())
           .map_err(From::from)?
           .try_into()
           .map_err(From::from)?,

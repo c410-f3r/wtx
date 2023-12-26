@@ -6,6 +6,7 @@ use wtx::client_api_framework::network::TransportGroup;
 use wtx::client_api_framework::network::transport::Transport;
 use wtx::client_api_framework::network::transport::TransportParams;
 use core::ops::Range;
+use wtx::client_api_framework::Api;
 
 struct CustomTransport;
 
@@ -13,24 +14,26 @@ impl<DRSR> Transport<DRSR> for CustomTransport {
   const GROUP: TransportGroup = TransportGroup::Custom("Custom");
   type Params = CustomTransportParams;
 
-  async fn send<P>(
+  async fn send<A, P>(
     &mut self,
     _: &mut P,
-    _: &mut PkgsAux<P::Api, DRSR, Self::Params>,
-  ) -> Result<(), P::Error>
+    _: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<(), A::Error>
   where
-    P: Package<DRSR, Self::Params>,
+    A: Api,
+    P: Package<A, DRSR, Self::Params>,
   {
     Ok(())
   }
 
-  async fn send_and_retrieve<P>(
+  async fn send_and_retrieve<A, P>(
     &mut self,
     _: &mut P,
-    _: &mut PkgsAux<P::Api, DRSR, Self::Params>,
-  ) -> Result<Range<usize>, P::Error>
+    _: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<Range<usize>, A::Error>
   where
-    P: Package<DRSR, Self::Params>,
+    A: Api,
+    P: Package<A, DRSR, Self::Params>,
   {
     Ok(0..0)
   }

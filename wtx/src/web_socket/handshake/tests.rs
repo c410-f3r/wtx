@@ -91,7 +91,7 @@ where
     headers_buffer: &mut <_>::default(),
     rng: StaticRng::default(),
     stream: TcpStream::connect(uri.host()).await.unwrap(),
-    uri: uri.uri(),
+    uri: &uri.to_ref(),
     wsb: WebSocketBuffer::with_capacity(0, 0),
   }
   .connect()

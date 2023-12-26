@@ -2,6 +2,7 @@
 
 use tokio::net::TcpStream;
 use wtx::{
+  misc::UriRef,
   rng::StdRng,
   web_socket::{
     compression::Flate2,
@@ -22,7 +23,7 @@ async fn main() {
       headers_buffer: &mut <_>::default(),
       rng: StdRng::default(),
       stream: TcpStream::connect(host).await.unwrap(),
-      uri: &format!("http://{host}/runCase?case={case}&agent=wtx"),
+      uri: &UriRef::new(&format!("http://{host}/runCase?case={case}&agent=wtx")),
       wsb: &mut wsb,
     }
     .connect()
@@ -50,7 +51,7 @@ async fn main() {
     headers_buffer: &mut <_>::default(),
     rng: StdRng::default(),
     stream: TcpStream::connect(host).await.unwrap(),
-    uri: &format!("http://{host}/updateReports?agent=wtx"),
+    uri: &UriRef::new(&format!("http://{host}/updateReports?agent=wtx")),
     wsb,
   }
   .connect()
@@ -69,7 +70,7 @@ async fn get_case_count(fb: &mut FrameBufferVec, host: &str, wsb: &mut WebSocket
     headers_buffer: &mut <_>::default(),
     rng: StdRng::default(),
     stream: TcpStream::connect(host).await.unwrap(),
-    uri: &&format!("http://{host}/getCaseCount"),
+    uri: &UriRef::new(&format!("http://{host}/getCaseCount")),
     wsb,
   }
   .connect()

@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{Authentication, DbError},
-  misc::{_atoi, _from_utf8_basic_rslt},
+  misc::{_atoi, from_utf8_basic_rslt},
 };
 use core::any::type_name;
 
@@ -87,7 +87,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for MessageTy<'bytes> {
       }
       [b'D', _, _, _, _, a, b, rest @ ..] => Self::DataRow(u16::from_be_bytes([*a, *b]), rest),
       [b'E', _, _, _, _, rest @ ..] => {
-        return Err(DbError::try_from(_from_utf8_basic_rslt(rest)?)?.into())
+        return Err(DbError::try_from(from_utf8_basic_rslt(rest)?)?.into())
       }
       [b'G', ..] => Self::CopyInResponse,
       [b'H', ..] => Self::CopyOutResponse,

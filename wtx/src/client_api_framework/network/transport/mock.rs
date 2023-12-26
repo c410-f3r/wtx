@@ -8,6 +8,7 @@ use crate::{
     misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
     network::{transport::Transport, TransportGroup},
     pkg::{Package, PkgsAux},
+    Api,
   },
   misc::AsyncBounds,
 };
@@ -100,13 +101,14 @@ where
   type Params = ();
 
   #[inline]
-  async fn send<P>(
+  async fn send<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, ()>,
-  ) -> Result<(), P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
+  ) -> Result<(), A::Error>
   where
-    P: AsyncBounds + Package<DRSR, ()>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, ()>,
   {
     manage_before_sending_related(pkg, pkgs_aux, &mut *self).await?;
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?));
@@ -116,13 +118,14 @@ where
   }
 
   #[inline]
-  async fn send_and_retrieve<P>(
+  async fn send_and_retrieve<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, ()>,
-  ) -> Result<Range<usize>, P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
+  ) -> Result<Range<usize>, A::Error>
   where
-    P: AsyncBounds + Package<DRSR, ()>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, ()>,
   {
     <Self as Transport<DRSR>>::send(self, pkg, pkgs_aux).await?;
     let response = self.pop_response()?;
