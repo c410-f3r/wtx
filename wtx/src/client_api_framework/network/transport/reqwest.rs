@@ -26,7 +26,7 @@ use reqwest::{
 /// let _ = reqwest::Client::new()
 ///   .send_retrieve_and_decode_contained(
 ///     &mut (),
-///     &mut PkgsAux::from_minimum((), (), HttpParams::from_uri("URI")?.into()),
+///     &mut PkgsAux::from_minimum((), (), HttpParams::from_uri("URI").into()),
 ///   )
 ///   .await?;
 /// # Ok(()) }

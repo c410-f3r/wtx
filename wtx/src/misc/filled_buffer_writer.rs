@@ -60,6 +60,12 @@ impl<'vec> FilledBufferWriter<'vec> {
     self._extend_from_slice_generic(slice, []);
   }
 
+  pub(crate) fn _extend_from_slices(&mut self, slices: &[&[u8]]) {
+    for slice in slices {
+      self._extend_from_slice(slice);
+    }
+  }
+
   /// The `c` suffix means that `slice` is copied as a C string.
   pub(crate) fn _extend_from_slice_c(&mut self, slice: &[u8]) {
     self._extend_from_slice_generic(slice, [0]);

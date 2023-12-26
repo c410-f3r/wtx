@@ -204,7 +204,12 @@ mod httparse_impls {
     let key = gen_key(key_buffer, rng);
     fbw._extend_from_slices_group_rn(&[b"GET ", uri.href().as_bytes(), b" HTTP/1.1"]);
     fbw._extend_from_slice_rn(b"Connection: Upgrade");
-    fbw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()]);
+    match (uri.schema(), uri.port()) {
+      ("http" | "ws", "80") | ("https" | "wss", "443") => {
+        fbw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()]);
+      }
+      _ => fbw._extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()]),
+    }
     fbw._extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key]);
     fbw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13");
     fbw._extend_from_slice_rn(b"Upgrade: websocket");
