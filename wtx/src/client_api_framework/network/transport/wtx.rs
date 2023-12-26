@@ -6,6 +6,7 @@ use crate::{
       TransportGroup, WsParams, WsReqParamsTy,
     },
     pkg::{Package, PkgsAux},
+    Api,
   },
   misc::{AsyncBounds, Stream},
   rng::Rng,
@@ -33,25 +34,27 @@ where
   type Params = WsParams;
 
   #[inline]
-  async fn send<P>(
+  async fn send<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, Self::Params>,
-  ) -> Result<(), P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<(), A::Error>
   where
-    P: AsyncBounds + Package<DRSR, Self::Params>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, Self::Params>,
   {
     send(&mut self.0, pkg, pkgs_aux, &mut self.1).await
   }
 
   #[inline]
-  async fn send_and_retrieve<P>(
+  async fn send_and_retrieve<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, Self::Params>,
-  ) -> Result<Range<usize>, P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<Range<usize>, A::Error>
   where
-    P: AsyncBounds + Package<DRSR, Self::Params>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, Self::Params>,
   {
     send_and_retrieve(&mut self.0, pkg, pkgs_aux, &mut self.1).await
   }
@@ -71,12 +74,12 @@ where
   for<'ty> &'ty WSB: AsyncBounds,
 {
   #[inline]
-  async fn retrieve<API>(
+  async fn retrieve<A>(
     &mut self,
-    pkgs_aux: &mut PkgsAux<API, DRSR, Self::Params>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> crate::Result<Range<usize>>
   where
-    API: AsyncBounds,
+    A: Api,
   {
     retrieve(pkgs_aux, &mut self.1).await
   }
@@ -100,25 +103,27 @@ where
   type Params = WsParams;
 
   #[inline]
-  async fn send<P>(
+  async fn send<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, Self::Params>,
-  ) -> Result<(), P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<(), A::Error>
   where
-    P: AsyncBounds + Package<DRSR, Self::Params>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, Self::Params>,
   {
     send(self.0, pkg, pkgs_aux, self.1).await
   }
 
   #[inline]
-  async fn send_and_retrieve<P>(
+  async fn send_and_retrieve<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, Self::Params>,
-  ) -> Result<Range<usize>, P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<Range<usize>, A::Error>
   where
-    P: AsyncBounds + Package<DRSR, Self::Params>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, Self::Params>,
   {
     send_and_retrieve(self.0, pkg, pkgs_aux, self.1).await
   }
@@ -139,19 +144,19 @@ where
   for<'ty> &'ty WSB: AsyncBounds,
 {
   #[inline]
-  async fn retrieve<API>(
+  async fn retrieve<A>(
     &mut self,
-    pkgs_aux: &mut PkgsAux<API, DRSR, Self::Params>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> crate::Result<Range<usize>>
   where
-    API: AsyncBounds,
+    A: Api,
   {
     retrieve(pkgs_aux, self.1).await
   }
 }
 
-async fn retrieve<API, DRSR, NC, RNG, S, WSB>(
-  pkgs_aux: &mut PkgsAux<API, DRSR, WsParams>,
+async fn retrieve<A, DRSR, NC, RNG, S, WSB>(
+  pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
   ws: &mut WebSocketClient<NC, RNG, S, WSB>,
 ) -> crate::Result<Range<usize>>
 where
@@ -176,16 +181,17 @@ where
   Ok(indcs.1.into()..indcs.2)
 }
 
-async fn send<DRSR, NC, P, RNG, S, WSB>(
+async fn send<A, DRSR, NC, P, RNG, S, WSB>(
   fb: &mut FrameBufferVec,
   pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<P::Api, DRSR, WsParams>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
   ws: &mut WebSocketClient<NC, RNG, S, WSB>,
-) -> Result<(), P::Error>
+) -> Result<(), A::Error>
 where
+  A: Api,
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
-  P: AsyncBounds + Package<DRSR, WsParams>,
+  P: AsyncBounds + Package<A, DRSR, WsParams>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
   WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
@@ -210,16 +216,17 @@ where
   Ok(())
 }
 
-async fn send_and_retrieve<DRSR, NC, P, RNG, S, WSB>(
+async fn send_and_retrieve<A, DRSR, NC, P, RNG, S, WSB>(
   fb: &mut FrameBufferVec,
   pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<P::Api, DRSR, WsParams>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
   ws: &mut WebSocketClient<NC, RNG, S, WSB>,
-) -> Result<Range<usize>, P::Error>
+) -> Result<Range<usize>, A::Error>
 where
+  A: Api,
   DRSR: AsyncBounds,
   NC: AsyncBounds + NegotiatedCompression,
-  P: AsyncBounds + Package<DRSR, WsParams>,
+  P: AsyncBounds + Package<A, DRSR, WsParams>,
   RNG: AsyncBounds + Rng,
   S: AsyncBounds + Stream,
   WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,

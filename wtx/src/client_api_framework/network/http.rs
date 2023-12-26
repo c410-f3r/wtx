@@ -4,7 +4,7 @@ mod status_code;
 
 use core::fmt::{Arguments, Write};
 
-use crate::client_api_framework::{misc::UrlString, network::transport::TransportParams};
+use crate::{client_api_framework::network::transport::TransportParams, misc::UriString};
 use alloc::{string::String, vec::Vec};
 pub use status_code::*;
 
@@ -15,17 +15,17 @@ pub struct HttpParams(HttpReqParams, HttpResParams);
 impl HttpParams {
   /// For example, from `http://localhost`.
   #[inline]
-  pub fn from_url(url: &str) -> crate::Result<Self> {
-    Ok(Self(
+  pub fn from_uri(url: &str) -> Self {
+    Self(
       HttpReqParams {
         headers: HttpHeaders::default(),
         method: HttpMethod::Get,
         mime_type: None,
-        url: UrlString::from_url(url.into())?,
+        uri: UriString::new(url.into()),
         user_agent: None,
       },
       HttpResParams { headers: <_>::default(), status_code: StatusCode::Forbidden },
-    ))
+    )
   }
 }
 
@@ -58,7 +58,7 @@ impl TransportParams for HttpParams {
     self.0.headers.clear();
     self.0.method = HttpMethod::Get;
     self.0.mime_type = None;
-    self.0.url.retain_with_initial_len();
+    self.0.uri.retain_with_initial_len();
     self.0.user_agent = None;
     self.1.headers.clear();
     self.1.status_code = StatusCode::Forbidden;
@@ -170,7 +170,7 @@ pub struct HttpReqParams {
   /// MIME type.
   pub mime_type: Option<HttpMimeType>,
   /// URL.
-  pub url: UrlString,
+  pub uri: UriString,
   /// User agent.
   pub user_agent: Option<HttpUserAgent>,
 }

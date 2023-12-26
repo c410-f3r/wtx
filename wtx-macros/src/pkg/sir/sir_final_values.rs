@@ -74,7 +74,7 @@ impl<'attrs, 'module, 'others>
     let FirParamsItemValues { fpiv_ty, fpiv_params, fpiv_where_predicates, .. } = &fpiv;
     let FirReqItemValues { freqdiv_ident, freqdiv_params, freqdiv_where_predicates, .. } = freqdiv;
     let FirResItemValues { res_ident } = fresdiv;
-    let SirPkaAttr { api, data_formats, error, transport_groups } = &spa;
+    let SirPkaAttr { api, data_formats, transport_groups } = &spa;
     let camel_case_pkg_ident = &{
       let idx = camel_case_id.len();
       camel_case_id.push_str("Pkg");
@@ -120,8 +120,9 @@ impl<'attrs, 'module, 'others>
           impl<
             #(#lts,)*
             #(#tys,)*
+            A,
             DRSR
-          > wtx::client_api_framework::pkg::Package<DRSR, #tp> for #camel_case_pkg_ident<
+          > wtx::client_api_framework::pkg::Package<A, DRSR, #tp> for #camel_case_pkg_ident<
             #(#fpiv_params_iter,)*
             wtx::client_api_framework::data_format::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
           >
@@ -134,10 +135,9 @@ impl<'attrs, 'module, 'others>
             wtx::client_api_framework::data_format::#dfe_ext_res_ctnt_wrapper<
               #res_ident
             >: wtx::client_api_framework::dnsn::Deserialize<DRSR>,
+            A: wtx::client_api_framework::Api<Error = <#api as wtx::client_api_framework::Api>::Error> + core::borrow::BorrowMut<#api>,
             DRSR: wtx::misc::AsyncBounds,
           {
-            type Api = #api;
-            type Error = #error;
             type ExternalRequestContent = wtx::client_api_framework::data_format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
             >;
@@ -149,9 +149,9 @@ impl<'attrs, 'module, 'others>
             #[inline]
             async fn after_sending(
               &mut self,
-              _api: &mut Self::Api,
+              _api: &mut A,
               _ext_res_params: &mut <#tp as wtx::client_api_framework::network::transport::TransportParams>::ExternalResponseParams,
-            ) -> Result<(), Self::Error> {
+            ) -> Result<(), A::Error> {
               #( #fasiv_fn_name_ident_iter(#fasiv_fn_call_idents).await?; )*
               Ok(())
             }
@@ -159,10 +159,10 @@ impl<'attrs, 'module, 'others>
             #[inline]
             async fn before_sending(
               &mut self,
-              _api: &mut Self::Api,
+              _api: &mut A,
               _ext_req_params: &mut <#tp as wtx::client_api_framework::network::transport::TransportParams>::ExternalRequestParams,
               _req_bytes: &[u8],
-            ) -> Result<(), Self::Error> {
+            ) -> Result<(), A::Error> {
               #before_sending_defaults
               #( #fbsiv_fn_name_ident_iter(#fbsiv_fn_call_idents).await?; )*
               Ok(())

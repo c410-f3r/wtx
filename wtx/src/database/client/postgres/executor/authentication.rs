@@ -6,7 +6,7 @@ use crate::{
     },
     Identifier,
   },
-  misc::{FilledBufferWriter, PartitionedFilledBuffer, Stream, _from_utf8_basic_rslt},
+  misc::{from_utf8_basic_rslt, FilledBufferWriter, PartitionedFilledBuffer, Stream},
   rng::Rng,
 };
 use alloc::vec::Vec;
@@ -98,7 +98,7 @@ where
         MessageTy::ParameterStatus(name, value) => {
           params.insert(
             params.partition_point(|(local_name, _)| local_name.as_bytes() < name),
-            (_from_utf8_basic_rslt(name)?.try_into()?, _from_utf8_basic_rslt(value)?.try_into()?),
+            (from_utf8_basic_rslt(name)?.try_into()?, from_utf8_basic_rslt(value)?.try_into()?),
           );
         }
         MessageTy::ReadyForQuery => return Ok(()),

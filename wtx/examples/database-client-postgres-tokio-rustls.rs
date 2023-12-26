@@ -2,8 +2,6 @@
 
 #[path = "./common/mod.rs"]
 mod common;
-#[path = "./tls_stream/mod.rs"]
-mod tls_stream;
 
 use tokio::net::TcpStream;
 use wtx::{
@@ -11,21 +9,29 @@ use wtx::{
     client::postgres::{Config, Executor, ExecutorBuffer},
     Executor as _, Record, Records, TransactionManager,
   },
-  misc::UriPartsRef,
+  misc::{tls_stream_from_stream, UriRef},
   rng::StdRng,
 };
 
 #[tokio::main]
 async fn main() {
   let uri = common::_uri_from_args();
-  let uri_parts = UriPartsRef::new(uri.as_str());
+  let uri = UriRef::new(uri.as_str());
   let mut rng = StdRng::default();
-  let config = Config::from_uri_parts(&uri_parts).unwrap();
+  let config = Config::from_uri(&uri).unwrap();
   let eb = ExecutorBuffer::with_default_params(&mut rng);
-  let initial_stream = TcpStream::connect(uri_parts.host()).await.unwrap();
+  let initial_stream = TcpStream::connect(uri.host()).await.unwrap();
   let mut exec =
     Executor::connect_encrypted(&config, eb, initial_stream, &mut rng, |stream| async {
-      Ok(tls_stream::_tls_stream_stream(uri_parts.hostname(), stream).await)
+      Ok(
+        tls_stream_from_stream(
+          uri.hostname(),
+          Some(include_bytes!("../../.certs/root-ca.crt")),
+          stream,
+        )
+        .await
+        .unwrap(),
+      )
     })
     .await
     .unwrap();

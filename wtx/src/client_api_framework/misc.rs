@@ -4,11 +4,9 @@ pub(crate) mod seq_visitor;
 
 mod from_bytes;
 mod pair;
-mod query_writer;
 mod request_counter;
 mod request_limit;
 mod request_throttling;
-mod url;
 
 use crate::client_api_framework::{
   dnsn::Serialize,
@@ -18,11 +16,9 @@ use crate::client_api_framework::{
 };
 pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};
-pub use query_writer::QueryWriter;
 pub use request_counter::RequestCounter;
 pub use request_limit::RequestLimit;
 pub use request_throttling::RequestThrottling;
-pub use url::{Url, UrlString};
 
 /// Used in all implementations of [crate::Transport::send] and/or
 /// [crate::Transport::send_and_receive`].
@@ -30,12 +26,13 @@ pub use url::{Url, UrlString};
   // Borrow checker woes
   clippy::needless_pass_by_value,
 )]
-pub(crate) fn log_req<DRSR, P, T>(
+pub(crate) fn log_req<A, DRSR, P, T>(
   _pgk: &mut P,
-  _pkgs_aux: &mut PkgsAux<P::Api, DRSR, T::Params>,
+  _pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
   _trans: T,
 ) where
-  P: Package<DRSR, T::Params>,
+  A: Api,
+  P: Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
 {
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
@@ -44,7 +41,7 @@ pub(crate) fn log_req<DRSR, P, T>(
     _pgk
       .ext_req_content_mut()
       .to_bytes(&mut vec, &mut _pkgs_aux.drsr)
-      .and_then(|_| Ok(crate::misc::_from_utf8_basic_rslt(&vec)?.to_string()))
+      .and_then(|_| Ok(crate::misc::from_utf8_basic_rslt(&vec)?.to_string()))
   });
 }
 
@@ -57,12 +54,13 @@ pub(crate) fn log_res(_res: &[u8]) {
   _debug!("Response: {:?}", core::str::from_utf8(_res));
 }
 
-pub(crate) async fn manage_after_sending_related<DRSR, P, TP>(
+pub(crate) async fn manage_after_sending_related<A, DRSR, P, TP>(
   pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<P::Api, DRSR, TP>,
-) -> Result<(), P::Error>
+  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+) -> Result<(), A::Error>
 where
-  P: Package<DRSR, TP>,
+  A: Api,
+  P: Package<A, DRSR, TP>,
   TP: TransportParams,
 {
   pkgs_aux.api.after_sending().await?;
@@ -70,13 +68,14 @@ where
   Ok(())
 }
 
-pub(crate) async fn manage_before_sending_related<DRSR, P, T>(
+pub(crate) async fn manage_before_sending_related<A, DRSR, P, T>(
   pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<P::Api, DRSR, T::Params>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
   trans: T,
-) -> Result<(), P::Error>
+) -> Result<(), A::Error>
 where
-  P: Package<DRSR, T::Params>,
+  A: Api,
+  P: Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
 {
   log_req(pkg, pkgs_aux, trans);

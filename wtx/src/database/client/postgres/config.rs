@@ -1,4 +1,4 @@
-use crate::misc::UriPartsRef;
+use crate::misc::UriRef;
 use core::time::Duration;
 
 /// Configuration
@@ -20,21 +20,21 @@ pub struct Config<'data> {
 impl<'data> Config<'data> {
   /// Unwraps the elements of an URI.
   #[inline]
-  pub fn from_uri_parts(up: &'data UriPartsRef<'_>) -> crate::Result<Config<'data>> {
+  pub fn from_uri(uri: &'data UriRef<'_>) -> crate::Result<Config<'data>> {
     let mut this = Self {
       app_name: "",
       connect_timeout: Duration::ZERO,
-      db: up.path().get(1..).unwrap_or_default(),
-      host: up.host(),
+      db: uri.path().get(1..).unwrap_or_default(),
+      host: uri.host(),
       keepalives: true,
       load_balance_hosts: LoadBalanceHosts::Disable,
-      password: up.password(),
-      port: up.port().parse()?,
+      password: uri.password(),
+      port: uri.port().parse()?,
       target_session_attrs: TargetSessionAttrs::Any,
       tcp_user_timeout: Duration::ZERO,
-      user: up.user(),
+      user: uri.user(),
     };
-    for key_value in up.query().split('&') {
+    for key_value in uri.query().split('&') {
       let mut iter = key_value.split(':');
       if let [Some(key), Some(value)] = [iter.next(), iter.next()] {
         this.set_param(key, value)?;

@@ -15,7 +15,7 @@ use crate::{
   misc::AsyncBounds,
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
-use core::{fmt::Display, future::Future};
+use core::future::Future;
 pub use pkg_with_helper::*;
 pub use pkgs_aux::*;
 
@@ -24,20 +24,18 @@ pub use pkgs_aux::*;
 ///
 /// # Types
 ///
+/// `A`: Associated API.
 /// `DRSR`: DeserializeR/SerializeR
 /// `TP`: Transport Parameters
 #[allow(
   // Downstream make use of async functionalities
   clippy::unused_async
 )]
-pub trait Package<DRSR, TP>
+pub trait Package<A, DRSR, TP>
 where
+  A: Api,
   TP: TransportParams,
 {
-  /// Which API this package is attached to.
-  type Api: Api<Error = Self::Error>;
-  /// Any custom error structure that can be constructed from [crate::Error].
-  type Error: Display + From<crate::Error>;
   /// The expected data format that is going to be sent to an external actor.
   type ExternalRequestContent: Serialize<DRSR>;
   /// The expected data format returned by an external actor.
@@ -50,9 +48,9 @@ where
   #[inline]
   fn after_sending(
     &mut self,
-    _: &mut Self::Api,
+    _: &mut A,
     _: &mut TP::ExternalResponseParams,
-  ) -> impl AsyncBounds + Future<Output = Result<(), Self::Error>> {
+  ) -> impl AsyncBounds + Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
   }
 
@@ -61,10 +59,10 @@ where
   #[inline]
   fn before_sending(
     &mut self,
-    _: &mut Self::Api,
+    _: &mut A,
     _: &mut TP::ExternalRequestParams,
     _: &[u8],
-  ) -> impl AsyncBounds + Future<Output = Result<(), Self::Error>> {
+  ) -> impl AsyncBounds + Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
   }
 
@@ -85,12 +83,10 @@ where
   fn pkg_params_mut(&mut self) -> &mut Self::PackageParams;
 }
 
-impl<DRSR, TP> Package<DRSR, TP> for ()
+impl<DRSR, TP> Package<(), DRSR, TP> for ()
 where
   TP: TransportParams,
 {
-  type Api = ();
-  type Error = crate::Error;
   type ExternalRequestContent = ();
   type ExternalResponseContent = ();
   type PackageParams = ();
@@ -116,16 +112,15 @@ where
   }
 }
 
-impl<DRSR, P, TP> Package<DRSR, TP> for &mut P
+impl<A, DRSR, P, TP> Package<A, DRSR, TP> for &mut P
 where
-  P: Package<DRSR, TP>,
+  A: Api,
+  P: Package<A, DRSR, TP>,
   TP: AsyncBounds + TransportParams,
   TP::ExternalRequestParams: AsyncBounds,
   TP::ExternalResponseParams: AsyncBounds,
   Self: AsyncBounds,
 {
-  type Api = P::Api;
-  type Error = P::Error;
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent = P::ExternalResponseContent;
   type PackageParams = P::PackageParams;
@@ -133,19 +128,19 @@ where
   #[inline]
   async fn after_sending(
     &mut self,
-    api: &mut Self::Api,
+    api: &mut A,
     ext_res_params: &mut TP::ExternalResponseParams,
-  ) -> Result<(), Self::Error> {
+  ) -> Result<(), A::Error> {
     (**self).after_sending(api, ext_res_params).await
   }
 
   #[inline]
   async fn before_sending(
     &mut self,
-    api: &mut Self::Api,
+    api: &mut A,
     ext_req_params: &mut TP::ExternalRequestParams,
     req_bytes: &[u8],
-  ) -> Result<(), Self::Error> {
+  ) -> Result<(), A::Error> {
     (**self).before_sending(api, ext_req_params, req_bytes).await
   }
 

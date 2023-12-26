@@ -5,7 +5,7 @@ use wtx::{
     sm::{Commands, DbMigration, SchemaManagement, DEFAULT_CFG_FILE_NAME},
     Identifier, DEFAULT_URI_VAR,
   },
-  misc::UriPartsRef,
+  misc::UriRef,
 };
 
 pub(crate) async fn sm(sm: &Sm) -> wtx::Result<()> {
@@ -18,8 +18,8 @@ pub(crate) async fn sm(sm: &Sm) -> wtx::Result<()> {
   wtx::misc::tracing_subscriber_init()?;
 
   let var = std::env::var(DEFAULT_URI_VAR)?;
-  let up = UriPartsRef::new(&var);
-  match up.schema() {
+  let uri = UriRef::new(&var);
+  match uri.schema() {
     "postgres" | "postgresql" => {
       handle_commands((), sm).await?;
     }

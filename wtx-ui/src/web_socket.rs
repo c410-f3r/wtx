@@ -3,7 +3,7 @@ use tokio::{
   net::{TcpListener, TcpStream},
 };
 use wtx::{
-  misc::UriPartsRef,
+  misc::UriRef,
   rng::StdRng,
   web_socket::{
     handshake::{WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw},
@@ -12,7 +12,7 @@ use wtx::{
 };
 
 pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
-  let uri_parts = UriPartsRef::new(uri);
+  let uri = UriRef::new(uri);
   let fb = &mut FrameBufferVec::default();
   let pb = &mut <_>::default();
   let (_, mut ws) = WebSocketConnectRaw {
@@ -20,8 +20,8 @@ pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
     headers_buffer: &mut <_>::default(),
     wsb: pb,
     rng: StdRng::default(),
-    stream: TcpStream::connect(uri_parts.host()).await?,
-    uri,
+    stream: TcpStream::connect(uri.host()).await?,
+    uri: &uri,
     compression: (),
   }
   .connect()
@@ -53,8 +53,8 @@ pub(crate) async fn _serve(
   error: fn(wtx::Error),
   str: fn(&str),
 ) -> wtx::Result<()> {
-  let uri_parts = UriPartsRef::new(uri);
-  let listener = TcpListener::bind(uri_parts.host()).await?;
+  let uri = UriRef::new(uri);
+  let listener = TcpListener::bind(uri.host()).await?;
   loop {
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {

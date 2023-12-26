@@ -1,4 +1,4 @@
-use crate::client_api_framework::{misc::UrlString, network::transport::TransportParams};
+use crate::{client_api_framework::network::transport::TransportParams, misc::UriString};
 
 #[derive(Debug)]
 #[doc = generic_trans_params_doc!()]
@@ -7,8 +7,8 @@ pub struct TcpParams(TcpReqParams, TcpResParams);
 impl TcpParams {
   /// For example, from `127.0.0.1:8090`.
   #[inline]
-  pub fn from_url(url: &str) -> crate::Result<Self> {
-    Ok(Self(TcpReqParams { url: UrlString::from_url(url.into())? }, TcpResParams))
+  pub fn from_uri(url: &str) -> Self {
+    Self(TcpReqParams { url: UriString::new(url.into()) }, TcpResParams)
   }
 }
 
@@ -46,7 +46,7 @@ impl TransportParams for TcpParams {
 #[doc = generic_trans_req_params_doc!("TCP")]
 pub struct TcpReqParams {
   /// Used every time a send-like function is called.
-  pub url: UrlString,
+  pub url: UriString,
 }
 
 #[derive(Debug)]

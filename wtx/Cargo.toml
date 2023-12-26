@@ -1,41 +1,51 @@
 [[bin]]
 name = "autobahn-client"
+path = "src/bin/autobahn-client.rs"
 required-features = ["flate2", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[bin]]
 name = "autobahn-server"
+path = "src/bin/autobahn-server.rs"
 required-features = ["flate2", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[example]]
 name = "database-client-postgres-tokio-rustls"
+path = "examples/database-client-postgres-tokio-rustls.rs"
 required-features = ["_tokio-rustls-client", "postgres" ]
 
 [[example]]
 name = "web-socket-client-cli-raw-tokio-rustls"
+path = "examples/web-socket-client-cli-raw-tokio-rustls.rs"
 required-features = ["_tokio-rustls-client", "tokio/io-std", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-async-std"
+path = "examples/web-socket-server-echo-raw-async-std.rs"
 required-features = ["async-std/attributes", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-glommio"
+path = "examples/web-socket-server-echo-raw-glommio.rs"
 required-features = ["glommio", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-smol"
+path = "examples/web-socket-server-echo-raw-smol.rs"
 required-features = ["smol", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-tokio"
+path = "examples/web-socket-server-echo-raw-tokio.rs"
 required-features = ["tokio", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-tokio-rustls"
+path = "examples/web-socket-server-echo-raw-tokio-rustls.rs"
 required-features = ["_tokio-rustls-server", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-pool-raw-tokio"
+path = "examples/web-socket-server-pool-raw-tokio.rs"
 required-features = ["deadpool", "web-socket-handshake"]
 
 [dependencies]
@@ -138,13 +148,13 @@ _tracing-subscriber = ["tracing", "dep:tracing-subscriber", "dep:tracing-tree"]
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
-categories = ["asynchronous", "database", "encoding", "network-programming", "no-std", "web-programming"]
+categories = ["asynchronous", "database", "network-programming", "no-std", "web-programming"]
 description = "A collection of different transport implementations and related tools focused primarily on web technologies."
 documentation = "https://docs.rs/wtx"
 edition = "2021"
-exclude = ["README.md", "examples", "src/bin", "tests"]
+exclude = ["Cargo.lock", "examples", "README.md", "src/bin", "tests"]
 homepage = "https://c410-f3r.github.io/wtx"
-keywords = ["api", "client", "database", "network", "orm", "serialization", "websocket"]
+keywords = ["api", "database", "http", "network", "websocket"]
 license = "Apache-2.0"
 name = "wtx"
 readme = "README.md"

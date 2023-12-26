@@ -1,6 +1,6 @@
 use crate::{
   client_api_framework::{
-    data_format::JsonRpcRequest, network::transport::TransportParams, pkg::Package, Id,
+    data_format::JsonRpcRequest, network::transport::TransportParams, pkg::Package, Api, Id,
   },
   misc::AsyncBounds,
 };
@@ -32,16 +32,15 @@ impl<H, P> PkgWithHelper<H, P> {
   }
 }
 
-impl<DRSR, H, P, TP> Package<DRSR, TP> for PkgWithHelper<H, P>
+impl<A, DRSR, H, P, TP> Package<A, DRSR, TP> for PkgWithHelper<H, P>
 where
+  A: Api,
   H: AsyncBounds,
-  P: AsyncBounds + Package<DRSR, TP>,
+  P: AsyncBounds + Package<A, DRSR, TP>,
   TP: AsyncBounds + TransportParams,
   TP::ExternalRequestParams: AsyncBounds,
   TP::ExternalResponseParams: AsyncBounds,
 {
-  type Api = P::Api;
-  type Error = P::Error;
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent = P::ExternalResponseContent;
   type PackageParams = P::PackageParams;
@@ -49,19 +48,19 @@ where
   #[inline]
   async fn after_sending(
     &mut self,
-    api: &mut Self::Api,
+    api: &mut A,
     ext_res_params: &mut TP::ExternalResponseParams,
-  ) -> Result<(), Self::Error> {
+  ) -> Result<(), A::Error> {
     self.pkg.after_sending(api, ext_res_params).await
   }
 
   #[inline]
   async fn before_sending(
     &mut self,
-    api: &mut Self::Api,
+    api: &mut A,
     ext_req_params: &mut TP::ExternalRequestParams,
     req_bytes: &[u8],
-  ) -> Result<(), Self::Error> {
+  ) -> Result<(), A::Error> {
     self.pkg.before_sending(api, ext_req_params, req_bytes).await
   }
 

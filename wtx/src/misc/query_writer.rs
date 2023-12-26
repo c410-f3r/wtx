@@ -1,5 +1,7 @@
-use cl_aux::DynString;
-use core::{borrow::Borrow, fmt::Display};
+use core::{
+  borrow::Borrow,
+  fmt::{Display, Write},
+};
 
 /// Query parameters need special handling because of the initial `?`.
 #[derive(Debug)]
@@ -10,10 +12,10 @@ pub struct QueryWriter<'str, S> {
 
 impl<'str, S> QueryWriter<'str, S>
 where
-  S: DynString,
+  S: AsRef<str> + Write,
 {
   pub(crate) fn new(s: &'str mut S) -> Self {
-    Self { initial_len: s.len(), s }
+    Self { initial_len: s.as_ref().len(), s }
   }
 
   /// Writes `?param=value` or `&param=value`.
@@ -22,7 +24,7 @@ where
   where
     T: Display,
   {
-    if self.s.len() == self.initial_len {
+    if self.s.as_ref().len() == self.initial_len {
       self.s.write_fmt(format_args!("?{param}={value}"))?;
     } else {
       self.s.write_fmt(format_args!("&{param}={value}"))?;

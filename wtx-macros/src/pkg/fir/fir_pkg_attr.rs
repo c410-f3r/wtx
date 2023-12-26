@@ -6,7 +6,6 @@ const EMPTY_NESTED_META: &Punctuated<NestedMeta, Token![,]> = &Punctuated::new()
 pub(crate) struct FirPkgAttr<'attrs> {
   pub(crate) api: &'attrs Path,
   pub(crate) data_formats: &'attrs Punctuated<NestedMeta, Token![,]>,
-  pub(crate) error: Option<&'attrs Path>,
   pub(crate) transports: &'attrs Punctuated<NestedMeta, Token![,]>,
 }
 
@@ -16,7 +15,6 @@ impl<'attrs> TryFrom<&'attrs [NestedMeta]> for FirPkgAttr<'attrs> {
   fn try_from(from: &'attrs [NestedMeta]) -> Result<Self, Self::Error> {
     let mut api = None;
     let mut data_formats = None;
-    let mut error = None;
     let mut transports = None;
     for nested_meta in from {
       let NestedMeta::Meta(Meta::List(meta_list)) = nested_meta else {
@@ -32,9 +30,6 @@ impl<'attrs> TryFrom<&'attrs [NestedMeta]> for FirPkgAttr<'attrs> {
         "data_format" => {
           data_formats = Some(&meta_list.nested);
         }
-        "error" => {
-          error = first_nested_meta_path(meta_list);
-        }
         "transport" => {
           transports = Some(&meta_list.nested);
         }
@@ -44,7 +39,6 @@ impl<'attrs> TryFrom<&'attrs [NestedMeta]> for FirPkgAttr<'attrs> {
     Ok(Self {
       api: api.ok_or(crate::Error::MandatoryOuterAttrsAreNotPresent)?,
       data_formats: data_formats.unwrap_or(EMPTY_NESTED_META),
-      error,
       transports: transports.unwrap_or(EMPTY_NESTED_META),
     })
   }

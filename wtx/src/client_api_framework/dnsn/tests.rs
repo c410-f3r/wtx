@@ -19,13 +19,11 @@ impl<EREQC, ERESC> FooBar<EREQC, ERESC> {
   }
 }
 
-impl<DRSR, EREQC, ERESC> Package<DRSR, ()> for FooBar<EREQC, ERESC>
+impl<DRSR, EREQC, ERESC> Package<(), DRSR, ()> for FooBar<EREQC, ERESC>
 where
   EREQC: AsyncBounds + Serialize<DRSR>,
   ERESC: AsyncBounds + Deserialize<DRSR>,
 {
-  type Api = ();
-  type Error = crate::Error;
   type ExternalRequestContent = EREQC;
   type ExternalResponseContent = ERESC;
   type PackageParams = ();

@@ -21,7 +21,7 @@ mod arrayvec {
       client::postgres::{Postgres, Value},
       Decode, Encode,
     },
-    misc::{FilledBufferWriter, _from_utf8_basic_rslt},
+    misc::{from_utf8_basic_rslt, FilledBufferWriter},
   };
   use arrayvec::ArrayString;
 
@@ -33,7 +33,7 @@ mod arrayvec {
 
     #[inline]
     fn decode(input: Self::Value<'_>) -> Result<Self, E> {
-      Ok(_from_utf8_basic_rslt(input.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
+      Ok(from_utf8_basic_rslt(input.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
     }
   }
 
@@ -112,7 +112,7 @@ mod collections {
       client::postgres::{Postgres, Value},
       Decode, Encode,
     },
-    misc::{FilledBufferWriter, _from_utf8_basic_rslt},
+    misc::{from_utf8_basic_rslt, FilledBufferWriter},
   };
   use alloc::string::String;
 
@@ -149,7 +149,7 @@ mod collections {
 
     #[inline]
     fn decode(input: Self::Value<'_>) -> Result<Self, E> {
-      Ok(_from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?)
+      Ok(from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?)
     }
   }
 
@@ -174,7 +174,7 @@ mod collections {
 
     #[inline]
     fn decode(input: Self::Value<'_>) -> Result<Self, E> {
-      Ok(_from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?.into())
+      Ok(from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?.into())
     }
   }
 

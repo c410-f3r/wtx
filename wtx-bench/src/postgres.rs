@@ -1,7 +1,8 @@
 use crate::misc::Agent;
-use diesel_async::AsyncPgConnection;
+use diesel::prelude::*;
+use diesel_async::{AsyncPgConnection, RunQueryDsl};
 use futures::stream::StreamExt;
-use sqlx::{Connection, Either, Executor as _, Row};
+use sqlx::{Connection, Either, Executor as _, Row, Statement};
 use std::time::Instant;
 use tokio::{net::TcpStream, task::JoinSet};
 use tokio_postgres::NoTls;
@@ -10,28 +11,28 @@ use wtx::{
     client::postgres::{Executor, ExecutorBuffer},
     Executor as _, Record as _, Records,
   },
-  misc::UriPartsRef,
+  misc::UriRef,
   rng::{Rng, StdRng},
 };
 
 // Verifies the handling of concurrent calls.
 const CONNECTIONS: usize = 64;
 // Bytes to create and receive.
-const DATA_LEN: usize = 1024;
+const DATA_LEN: usize = 32 * 1024;
 // Number of sequential `SELECT` statements.
-const QUERIES: usize = 1024;
+const QUERIES: usize = 8 * 1024;
 
 const SELECT_QUERY: &str = "SELECT * FROM benchmark";
 
 pub(crate) async fn bench(
-  up: &UriPartsRef<'_>,
+  uri: &UriRef<'_>,
   [diesel_async, sqlx_postgres, tokio_postgres, wtx]: [&mut Agent; 4],
 ) {
-  populate_db(&mut StdRng::default(), up).await;
-  bench_diesel_async(diesel_async, up).await;
-  bench_sqlx_postgres(sqlx_postgres, up).await;
-  bench_tokio_postgres(tokio_postgres, up).await;
-  bench_wtx(wtx, up).await;
+  populate_db(&mut StdRng::default(), uri).await;
+  bench_diesel_async(diesel_async, uri).await;
+  bench_sqlx_postgres(sqlx_postgres, uri).await;
+  bench_tokio_postgres(tokio_postgres, uri).await;
+  bench_wtx(wtx, uri).await;
 }
 
 pub(crate) fn caption() -> String {
@@ -41,10 +42,7 @@ pub(crate) fn caption() -> String {
 }
 
 #[allow(clippy::single_char_lifetime_names, unused_qualifications, clippy::shadow_unrelated)]
-async fn bench_diesel_async(agent: &mut Agent, up: &UriPartsRef<'_>) {
-  use diesel::prelude::*;
-  use diesel_async::RunQueryDsl;
-
+async fn bench_diesel_async(agent: &mut Agent, uri: &UriRef<'_>) {
   table! {
     benchmark(bar, baz) {
       bar -> Text,
@@ -52,27 +50,27 @@ async fn bench_diesel_async(agent: &mut Agent, up: &UriPartsRef<'_>) {
     }
   }
 
-  let instant = Instant::now();
   let mut set = JoinSet::new();
   for _ in 0..CONNECTIONS {
     let _handle = set.spawn({
-      let local_up = up.clone().into_string();
+      let local_uri = uri.to_string();
       async move {
         let (client, conn) = tokio_postgres::Config::new()
-          .dbname(local_up.path().get(1..).unwrap())
-          .host(local_up.hostname())
-          .password(local_up.password())
-          .port(local_up.port().parse().unwrap())
-          .user(local_up.user())
+          .dbname(local_uri.path().get(1..).unwrap())
+          .host(local_uri.hostname())
+          .password(local_uri.password())
+          .port(local_uri.port().parse().unwrap())
+          .user(local_uri.user())
           .connect(NoTls)
           .await
           .unwrap();
         let _handle = tokio::spawn(async move {
-          if let Err(e) = conn.await {
-            println!("Error: {e}");
+          if let Err(err) = conn.await {
+            println!("Error: {err}");
           }
         });
         let mut pg_conn = AsyncPgConnection::try_from(client).await.unwrap();
+        let instant = Instant::now();
         for _ in 0..QUERIES {
           let records = benchmark::table.load::<(String, String)>(&mut pg_conn).await.unwrap();
           assert!(!records[0].0.is_empty());
@@ -80,27 +78,25 @@ async fn bench_diesel_async(agent: &mut Agent, up: &UriPartsRef<'_>) {
           assert!(!records[1].0.is_empty());
           assert!(!records[1].1.is_empty());
         }
+        instant.elapsed().as_millis()
       }
     });
   }
-  while let Some(rslt) = set.join_next().await {
-    rslt.unwrap();
-  }
-  agent.result = instant.elapsed().as_millis();
+  exec(agent, &mut set).await;
 }
 
-async fn bench_sqlx_postgres(agent: &mut Agent, up: &UriPartsRef<'_>) {
-  let instant = Instant::now();
+async fn bench_sqlx_postgres(agent: &mut Agent, uri: &UriRef<'_>) {
   let mut set = JoinSet::new();
   for _ in 0..CONNECTIONS {
     let _handle = set.spawn({
-      let local_uri = up.uri().to_owned();
+      let local_uri = uri.uri().to_owned();
       async move {
         let mut conn = sqlx::postgres::PgConnection::connect(&local_uri).await.unwrap();
-        let _stmt = conn.prepare(SELECT_QUERY).await.unwrap();
+        let stmt = conn.prepare(SELECT_QUERY).await.unwrap();
+        let instant = Instant::now();
         for _ in 0..QUERIES {
           let mut rows = Vec::new();
-          let mut stream = conn.fetch_many(SELECT_QUERY);
+          let mut stream = stmt.query().fetch_many(&mut conn);
           while let Some(result) = stream.next().await {
             match result.unwrap() {
               Either::Left(_) => {}
@@ -112,37 +108,35 @@ async fn bench_sqlx_postgres(agent: &mut Agent, up: &UriPartsRef<'_>) {
           assert!(!rows[1].get::<&str, _>(0).is_empty());
           assert!(!rows[1].get::<&str, _>(1).is_empty());
         }
+        instant.elapsed().as_millis()
       }
     });
   }
-  while let Some(rslt) = set.join_next().await {
-    rslt.unwrap();
-  }
-  agent.result = instant.elapsed().as_millis();
+  exec(agent, &mut set).await;
 }
 
-async fn bench_tokio_postgres(agent: &mut Agent, up: &UriPartsRef<'_>) {
-  let instant = Instant::now();
+async fn bench_tokio_postgres(agent: &mut Agent, uri: &UriRef<'_>) {
   let mut set = JoinSet::new();
   for _ in 0..CONNECTIONS {
     let _handle = set.spawn({
-      let local_up = up.clone().into_string();
+      let local_uri = uri.to_string();
       async move {
         let (client, conn) = tokio_postgres::Config::new()
-          .dbname(local_up.path().get(1..).unwrap())
-          .host(local_up.hostname())
-          .password(local_up.password())
-          .port(local_up.port().parse().unwrap())
-          .user(local_up.user())
+          .dbname(local_uri.path().get(1..).unwrap())
+          .host(local_uri.hostname())
+          .password(local_uri.password())
+          .port(local_uri.port().parse().unwrap())
+          .user(local_uri.user())
           .connect(NoTls)
           .await
           .unwrap();
         let _handle = tokio::spawn(async move {
-          if let Err(e) = conn.await {
-            println!("Error: {e}");
+          if let Err(err) = conn.await {
+            println!("Error: {err}");
           }
         });
         let stmt = client.prepare(SELECT_QUERY).await.unwrap();
+        let instant = Instant::now();
         for _ in 0..QUERIES {
           let rows = client.query(&stmt, &[]).await.unwrap();
           assert!(!rows[0].get::<_, &str>(0).is_empty());
@@ -150,24 +144,22 @@ async fn bench_tokio_postgres(agent: &mut Agent, up: &UriPartsRef<'_>) {
           assert!(!rows[1].get::<_, &str>(0).is_empty());
           assert!(!rows[1].get::<_, &str>(1).is_empty());
         }
+        instant.elapsed().as_millis()
       }
     });
   }
-  while let Some(rslt) = set.join_next().await {
-    rslt.unwrap();
-  }
-  agent.result = instant.elapsed().as_millis();
+  exec(agent, &mut set).await;
 }
 
-async fn bench_wtx(agent: &mut Agent, up: &UriPartsRef<'_>) {
-  let instant = Instant::now();
+async fn bench_wtx(agent: &mut Agent, uri: &UriRef<'_>) {
   let mut set = JoinSet::new();
   for _ in 0..CONNECTIONS {
     let _handle = set.spawn({
-      let local_up = up.clone().into_string();
+      let local_uri = uri.to_string();
       async move {
-        let mut executor = wtx_executor(&mut StdRng::default(), &local_up.as_ref()).await;
+        let mut executor = wtx_executor(&mut StdRng::default(), &local_uri.to_ref()).await;
         let stmt = executor.prepare(SELECT_QUERY).await.unwrap();
+        let instant = Instant::now();
         for _ in 0..QUERIES {
           let records = executor.fetch_many_with_stmt(stmt, (), |_| Ok(())).await.unwrap();
           assert!(!records.get(0).unwrap().decode::<_, &str>(0).unwrap().is_empty());
@@ -175,13 +167,11 @@ async fn bench_wtx(agent: &mut Agent, up: &UriPartsRef<'_>) {
           assert!(!records.get(1).unwrap().decode::<_, &str>(0).unwrap().is_empty());
           assert!(!records.get(1).unwrap().decode::<_, &str>(1).unwrap().is_empty());
         }
+        instant.elapsed().as_millis()
       }
     });
   }
-  while let Some(rslt) = set.join_next().await {
-    rslt.unwrap();
-  }
-  agent.result = instant.elapsed().as_millis();
+  exec(agent, &mut set).await;
 }
 
 fn fill_and_split_data<'data>(
@@ -199,8 +189,16 @@ fn fill_and_split_data<'data>(
   data.split_at(data.len() / 2)
 }
 
-async fn populate_db(rng: &mut StdRng, up: &UriPartsRef<'_>) {
-  let mut executor = wtx_executor(rng, up).await;
+async fn exec(agent: &mut Agent, set: &mut JoinSet<u128>) {
+  let mut sum = 0;
+  while let Some(rslt) = set.join_next().await {
+    sum += rslt.unwrap();
+  }
+  agent.result = sum / u128::try_from(CONNECTIONS).unwrap();
+}
+
+async fn populate_db(rng: &mut StdRng, uri: &UriRef<'_>) {
+  let mut executor = wtx_executor(rng, uri).await;
   let mut data = String::new();
   let _ = executor.execute_with_stmt("DROP TABLE IF EXISTS benchmark", ()).await.unwrap();
   let _ = executor
@@ -220,15 +218,12 @@ async fn populate_db(rng: &mut StdRng, up: &UriPartsRef<'_>) {
     .unwrap();
 }
 
-async fn wtx_executor(
-  rng: &mut StdRng,
-  up: &UriPartsRef<'_>,
-) -> Executor<ExecutorBuffer, TcpStream> {
+async fn wtx_executor(rng: &mut StdRng, uri: &UriRef<'_>) -> Executor<ExecutorBuffer, TcpStream> {
   Executor::connect(
-    &wtx::database::client::postgres::Config::from_uri_parts(up).unwrap(),
+    &wtx::database::client::postgres::Config::from_uri(uri).unwrap(),
     ExecutorBuffer::with_default_params(rng),
     rng,
-    TcpStream::connect(up.host()).await.unwrap(),
+    TcpStream::connect(uri.host()).await.unwrap(),
   )
   .await
   .unwrap()

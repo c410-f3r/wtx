@@ -17,12 +17,12 @@ use alloc::vec::Vec;
 /// * `DRSR`: DeserializeR/SerializeR
 /// * `TP`: Transport Parameters
 #[derive(Debug)]
-pub struct PkgsAux<API, DRSR, TP>
+pub struct PkgsAux<A, DRSR, TP>
 where
   TP: TransportParams,
 {
   /// API instance.
-  pub api: API,
+  pub api: A,
   /// Used by practically all transports to serialize or receive data in any desired operation.
   ///
   /// Some transports require a pre-filled buffer so it is important to not modify indiscriminately.
@@ -34,13 +34,13 @@ where
   built_requests: Id,
 }
 
-impl<API, DRSR, TP> PkgsAux<API, DRSR, TP>
+impl<A, DRSR, TP> PkgsAux<A, DRSR, TP>
 where
   TP: TransportParams,
 {
   /// Creates an instance with the minimum amount of mandatory parameters.
   #[inline]
-  pub fn from_minimum(api: API, drsr: DRSR, tp: TP) -> Self {
+  pub fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
     Self { api, byte_buffer: Vec::new(), drsr, tp, built_requests: 0 }
   }
 

@@ -1,5 +1,5 @@
 use crate::misc::AsyncBounds;
-use core::future::Future;
+use core::{fmt::Display, future::Future};
 
 /// Api definitions group different packages into a common namespace and define custom additional
 /// logical through hooks.
@@ -9,7 +9,7 @@ use core::future::Future;
 )]
 pub trait Api: AsyncBounds {
   /// Any custom error structure that can be constructed from [crate::Error].
-  type Error: From<crate::Error>;
+  type Error: Display + From<crate::Error>;
 
   /// Fallible hook that is automatically called after sending any related request.
   #[inline]

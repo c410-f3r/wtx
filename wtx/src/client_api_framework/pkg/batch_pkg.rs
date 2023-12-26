@@ -3,7 +3,7 @@ use crate::{
     dnsn::{Deserialize, Serialize},
     network::transport::TransportParams,
     pkg::Package,
-    Id,
+    Api, Id,
   },
   misc::AsyncBounds,
 };
@@ -12,9 +12,9 @@ use core::{borrow::Borrow, marker::PhantomData};
 
 /// Used to perform batch requests with multiple packages.
 #[derive(Debug)]
-pub struct BatchPkg<'slice, DRSR, P, TP>(BatchElems<'slice, DRSR, P, TP>, ());
+pub struct BatchPkg<'slice, A, DRSR, P, TP>(BatchElems<'slice, A, DRSR, P, TP>, ());
 
-impl<'slice, DRSR, P, TP> BatchPkg<'slice, DRSR, P, TP> {
+impl<'slice, A, DRSR, P, TP> BatchPkg<'slice, A, DRSR, P, TP> {
   /// Currently, only slices of packages are allowed to perform batch requests.
   #[inline]
   pub fn new(slice: &'slice mut [P]) -> Self {
@@ -22,9 +22,10 @@ impl<'slice, DRSR, P, TP> BatchPkg<'slice, DRSR, P, TP> {
   }
 }
 
-impl<DRSR, P, TP> BatchPkg<'_, DRSR, P, TP>
+impl<A, DRSR, P, TP> BatchPkg<'_, A, DRSR, P, TP>
 where
-  P: Package<DRSR, TP>,
+  A: Api,
+  P: Package<A, DRSR, TP>,
   P::ExternalRequestContent: Borrow<Id> + Ord,
   P::ExternalResponseContent: Borrow<Id> + Ord,
   TP: TransportParams,
@@ -36,7 +37,7 @@ where
     buffer: &mut B,
     bytes: &[u8],
     drsr: &mut DRSR,
-  ) -> Result<(), P::Error>
+  ) -> Result<(), A::Error>
   where
     B: DynContigColl<P::ExternalResponseContent>,
   {
@@ -57,7 +58,7 @@ where
         }
         buffer.push(eresc).map_err(Into::into)?;
         pkgs_idx = pkgs_idx.wrapping_add(1);
-        Ok::<_, P::Error>(())
+        Ok::<_, A::Error>(())
       },
     )?;
     if responses_are_not_sorted {
@@ -100,27 +101,26 @@ where
   }
 }
 
-impl<'slice, DRSR, P, TP> Package<DRSR, TP> for BatchPkg<'slice, DRSR, P, TP>
+impl<'slice, A, DRSR, P, TP> Package<A, DRSR, TP> for BatchPkg<'slice, A, DRSR, P, TP>
 where
-  BatchElems<'slice, DRSR, P, TP>: Serialize<DRSR>,
+  A: Api,
+  BatchElems<'slice, A, DRSR, P, TP>: Serialize<DRSR>,
   DRSR: AsyncBounds,
-  P: AsyncBounds + Package<DRSR, TP>,
+  P: AsyncBounds + Package<A, DRSR, TP>,
   TP: AsyncBounds + TransportParams,
   TP::ExternalRequestParams: AsyncBounds,
   TP::ExternalResponseParams: AsyncBounds,
 {
-  type Api = P::Api;
-  type Error = P::Error;
-  type ExternalRequestContent = BatchElems<'slice, DRSR, P, TP>;
+  type ExternalRequestContent = BatchElems<'slice, A, DRSR, P, TP>;
   type ExternalResponseContent = ();
   type PackageParams = ();
 
   #[inline]
   async fn after_sending(
     &mut self,
-    api: &mut Self::Api,
+    api: &mut A,
     ext_res_params: &mut TP::ExternalResponseParams,
-  ) -> Result<(), Self::Error> {
+  ) -> Result<(), A::Error> {
     for elem in &mut *self.0 .0 {
       elem.after_sending(api, ext_res_params).await?;
     }
@@ -130,10 +130,10 @@ where
   #[inline]
   async fn before_sending(
     &mut self,
-    api: &mut Self::Api,
+    api: &mut A,
     ext_req_params: &mut TP::ExternalRequestParams,
     req_bytes: &[u8],
-  ) -> Result<(), Self::Error> {
+  ) -> Result<(), A::Error> {
     for elem in &mut *self.0 .0 {
       elem.before_sending(api, ext_req_params, req_bytes).await?;
     }
@@ -163,7 +163,7 @@ where
 
 /// Used internally and exclusively by [BatchPkg]. Not intended for public usage.
 #[derive(Debug)]
-pub struct BatchElems<'slice, DRSR, P, T>(&'slice mut [P], PhantomData<(DRSR, T)>);
+pub struct BatchElems<'slice, A, DRSR, P, T>(&'slice mut [P], PhantomData<(A, DRSR, T)>);
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
@@ -171,13 +171,15 @@ mod serde_json {
     dnsn::SerdeJson,
     network::transport::TransportParams,
     pkg::{BatchElems, Package},
+    Api,
   };
   use serde::Serializer;
 
-  impl<DRSR, P, TP> crate::client_api_framework::dnsn::Serialize<SerdeJson>
-    for BatchElems<'_, DRSR, P, TP>
+  impl<A, DRSR, P, TP> crate::client_api_framework::dnsn::Serialize<SerdeJson>
+    for BatchElems<'_, A, DRSR, P, TP>
   where
-    P: Package<DRSR, TP>,
+    A: Api,
+    P: Package<A, DRSR, TP>,
     P::ExternalRequestContent: serde::Serialize,
     TP: TransportParams,
   {

@@ -21,7 +21,7 @@ mod web_socket_buffer;
 #[cfg(feature = "tracing")]
 use crate::web_socket::misc::Role;
 use crate::{
-  misc::{PartitionedFilledBuffer, Stream, _from_utf8_basic_rslt, _read_until},
+  misc::{from_utf8_basic_rslt, PartitionedFilledBuffer, Stream, _read_until},
   rng::Rng,
   web_socket::{
     compression::NegotiatedCompression,
@@ -165,7 +165,7 @@ where
         .as_ref()
         .get(payload_start_idx..payload_start_idx.wrapping_add(payload_len))
         .unwrap_or_default();
-      if matches!(first_rfi.op_code, OpCode::Text) && _from_utf8_basic_rslt(payload).is_err() {
+      if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic_rslt(payload).is_err() {
         return Err(crate::Error::InvalidUTF8);
       }
       payload_len
@@ -695,7 +695,7 @@ where
           [] => {}
           [_] => return Err(crate::Error::InvalidCloseFrame),
           [a, b, rest @ ..] => {
-            let _ = _from_utf8_basic_rslt(rest)?;
+            let _ = from_utf8_basic_rslt(rest)?;
             let is_not_allowed = !CloseCode::try_from(u16::from_be_bytes([*a, *b]))?.is_allowed();
             if is_not_allowed || rest.len() > MAX_CONTROL_FRAME_PAYLOAD_LEN - 2 {
               Self::write_control_frame(
@@ -910,7 +910,7 @@ where
             return Err(crate::Error::UnexpectedMessageFrame);
           }
           OpCode::Text => {
-            let _ = _from_utf8_basic_rslt(fb.payload())?;
+            let _ = from_utf8_basic_rslt(fb.payload())?;
           }
           OpCode::Binary | OpCode::Close | OpCode::Ping | OpCode::Pong => {}
         }

@@ -3,6 +3,7 @@ use crate::{
     misc::{manage_after_sending_related, manage_before_sending_related},
     network::{transport::Transport, TransportGroup},
     pkg::{Package, PkgsAux},
+    Api,
   },
   misc::AsyncBounds,
 };
@@ -25,13 +26,14 @@ where
   type Params = ();
 
   #[inline]
-  async fn send<P>(
+  async fn send<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, ()>,
-  ) -> Result<(), P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
+  ) -> Result<(), A::Error>
   where
-    P: AsyncBounds + Package<DRSR, ()>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, ()>,
   {
     manage_before_sending_related(pkg, pkgs_aux, self).await?;
     manage_after_sending_related(pkg, pkgs_aux).await?;
@@ -39,13 +41,14 @@ where
   }
 
   #[inline]
-  async fn send_and_retrieve<P>(
+  async fn send_and_retrieve<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<P::Api, DRSR, ()>,
-  ) -> Result<Range<usize>, P::Error>
+    pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
+  ) -> Result<Range<usize>, A::Error>
   where
-    P: AsyncBounds + Package<DRSR, ()>,
+    A: Api,
+    P: AsyncBounds + Package<A, DRSR, ()>,
   {
     self.send(pkg, pkgs_aux).await?;
     Ok(0..0)
