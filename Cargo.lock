@@ -4065,7 +4065,7 @@ dependencies = [
  "fastrand 2.0.1",
  "flate2",
  "futures",
- "futures-lite 1.13.0",
+ "futures-lite 2.1.0",
  "glommio",
  "hashbrown 0.14.3",
  "hmac",
