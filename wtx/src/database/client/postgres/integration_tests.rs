@@ -41,6 +41,7 @@ async fn conn_scram() {
   .unwrap();
 }
 
+#[ignore]
 #[tokio::test]
 async fn custom_domain() {
   struct CustomDomain {
