@@ -1,9 +1,9 @@
-#![cfg(feature = "sm")]
+#![cfg(feature = "schema-manager")]
 
 #[allow(dead_code)]
 mod embedded_migrations;
 
-use wtx::database::sm::Commands;
+use wtx::database::schema_manager::Commands;
 
 async fn _compiles() {
   let mut commands = Commands::with_executor(());

@@ -17,7 +17,7 @@ use hmac::{Hmac, Mac};
 use md5::{Digest, Md5};
 use sha2::Sha256;
 
-impl<EB, S> Executor<EB, S>
+impl<E, EB, S> Executor<E, EB, S>
 where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
@@ -38,7 +38,7 @@ where
     RNG: Rng,
   {
     let ExecutorBufferPartsMut { nb, .. } = self.eb.borrow_mut().parts_mut();
-    let msg0 = Self::fetch_msg_from_stream(nb, &mut self.stream).await?;
+    let msg0 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
     match msg0.ty {
       MessageTy::Authentication(Authentication::Md5Password(salt)) => {
         let hashed = {
@@ -72,13 +72,21 @@ where
         if !has_sasl_plus {
           return Err(crate::Error::UnknownAuthenticationMethod);
         }
-        Self::sasl_authenticate(config, nb, rng, &mut self.stream, tls_server_end_point).await?;
+        Self::sasl_authenticate(
+          config,
+          &mut self.is_closed,
+          nb,
+          rng,
+          &mut self.stream,
+          tls_server_end_point,
+        )
+        .await?;
       }
       _ => {
         return Err(crate::Error::UnexpectedDatabaseMessage { received: msg0.tag });
       }
     }
-    let msg1 = Self::fetch_msg_from_stream(nb, &mut self.stream).await?;
+    let msg1 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
     if let MessageTy::Authentication(Authentication::Ok) = msg1.ty {
       Ok(())
     } else {
@@ -89,12 +97,9 @@ where
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
     loop {
       let ExecutorBufferPartsMut { nb, params, .. } = self.eb.borrow_mut().parts_mut();
-      let msg = Self::fetch_msg_from_stream(nb, &mut self.stream).await?;
+      let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
       match msg.ty {
-        MessageTy::BackendKeyData(process_id, secret_key) => {
-          self.process_id = process_id;
-          self.secret_key = secret_key;
-        }
+        MessageTy::BackendKeyData(_, _) => {}
         MessageTy::ParameterStatus(name, value) => {
           params.insert(
             params.partition_point(|(local_name, _)| local_name.as_bytes() < name),
@@ -111,6 +116,7 @@ where
 
   async fn sasl_authenticate<RNG>(
     config: &Config<'_>,
+    is_closed: &mut bool,
     nb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
     stream: &mut S,
@@ -129,7 +135,7 @@ where
     }
 
     let (mut auth_data, response_nonce, salted_password) = {
-      let msg = Self::fetch_msg_from_stream(&mut *nb, stream).await?;
+      let msg = Self::fetch_msg_from_stream(is_closed, &mut *nb, stream).await?;
       let MessageTy::Authentication(Authentication::SaslContinue {
         iterations,
         nonce,
@@ -162,7 +168,7 @@ where
     }
 
     {
-      let msg = Self::fetch_msg_from_stream(&mut *nb, stream).await?;
+      let msg = Self::fetch_msg_from_stream(is_closed, &mut *nb, stream).await?;
       let MessageTy::Authentication(Authentication::SaslFinal(verifier_slice)) = msg.ty else {
         return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag });
       };

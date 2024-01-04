@@ -1,5 +1,5 @@
 use crate::database::client::postgres::SqlState;
-use alloc::string::String;
+use alloc::boxed::Box;
 use core::{
   fmt::{Debug, Formatter},
   ops::Range,
@@ -45,7 +45,7 @@ create_enum! {
 /// A Postgres error or notice.
 #[derive(Eq, PartialEq)]
 pub struct DbError {
-  buffer: String,
+  buffer: Box<str>,
   code: SqlState,
   column: Option<Range<usize>>,
   constraint: Option<Range<usize>>,

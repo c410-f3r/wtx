@@ -16,17 +16,17 @@ pub(crate) enum DataFormat {
 impl DataFormat {
   pub(crate) fn before_sending_defaults(&self, tg: &TransportGroup) -> TokenStream {
     macro_rules! http_method_and_mime_type {
-      ($method:ident, $mime_type:ident) => {
+      ($method:ident, $mime:ident) => {
         quote::quote!(
-          _ext_req_params.method = wtx::client_api_framework::network::HttpMethod::$method;
-          _ext_req_params.mime_type = Some(wtx::client_api_framework::network::HttpMimeType::$mime_type);
+          _ext_req_params.method = wtx::http::Method::$method;
+          _ext_req_params.mime = Some(wtx::http::Mime::$mime);
         )
       };
     }
     macro_rules! http_mime_type {
-      ($mime_type:ident) => {
+      ($mime:ident) => {
         quote::quote!(
-          _ext_req_params.mime_type = Some(wtx::client_api_framework::network::HttpMimeType::$mime_type);
+          _ext_req_params.mime = Some(wtx::http::Mime::$mime);
         )
       };
     }

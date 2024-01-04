@@ -1,10 +1,11 @@
 use crate::database::client::postgres::{statements::Statement, Postgres, Record};
-use core::ops::Range;
+use core::{marker::PhantomData, ops::Range};
 
 /// Records
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct Records<'exec> {
+#[derive(Debug)]
+pub struct Records<'exec, E> {
   pub(crate) bytes: &'exec [u8],
+  pub(crate) phantom: PhantomData<E>,
   /// Each element represents a record and an offset of `values_bytes_offsets`.
   pub(crate) records_values_offsets: &'exec [usize],
   pub(crate) stmt: Statement<'exec>,
@@ -12,11 +13,14 @@ pub struct Records<'exec> {
   pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
-impl<'exec> crate::database::Records for Records<'exec> {
-  type Database = Postgres;
+impl<'exec, E> crate::database::Records for Records<'exec, E>
+where
+  E: From<crate::Error>,
+{
+  type Database = Postgres<E>;
 
   #[inline]
-  fn get(&self, record_idx: usize) -> Option<Record<'_>> {
+  fn get(&self, record_idx: usize) -> Option<Record<'_, E>> {
     let slice = self.records_values_offsets.get(..record_idx.wrapping_add(1))?;
     let (record_bytes_range, record_values_bytes_offsets) = match slice {
       [] => return None,
@@ -40,11 +44,12 @@ impl<'exec> crate::database::Records for Records<'exec> {
       initial_value_offset,
       stmt: self.stmt.clone(),
       values_bytes_offsets: record_values_bytes_offsets,
+      phantom: PhantomData,
     })
   }
 
   #[inline]
-  fn iter(&self) -> impl Iterator<Item = Record<'_>> {
+  fn iter(&self) -> impl Iterator<Item = Record<'_, E>> {
     (0..self.len()).filter_map(|idx| self.get(idx))
   }
 
@@ -54,8 +59,23 @@ impl<'exec> crate::database::Records for Records<'exec> {
   }
 }
 
+impl<'exec, E> Default for Records<'exec, E> {
+  #[inline]
+  fn default() -> Self {
+    Self {
+      bytes: <_>::default(),
+      phantom: PhantomData,
+      records_values_offsets: <_>::default(),
+      stmt: <_>::default(),
+      values_bytes_offsets: <_>::default(),
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
+  use core::marker::PhantomData;
+
   use crate::database::{
     client::postgres::{statements::Statement, Record, Records},
     Record as _, Records as _,
@@ -72,6 +92,7 @@ mod tests {
       Record {
         bytes: &[1, 2, 0, 0, 0, 2, 3, 4],
         initial_value_offset: 0,
+        phantom: PhantomData::<crate::Error>,
         stmt: Statement::new(&[], &[]),
         values_bytes_offsets: &[(false, 0..2), (false, 6..8)]
       }
@@ -82,6 +103,7 @@ mod tests {
       Record {
         bytes: &[5, 6, 7, 8],
         initial_value_offset: 17,
+        phantom: PhantomData::<crate::Error>,
         stmt: Statement::new(&[], &[]),
         values_bytes_offsets: &[(false, 17..21)]
       }
@@ -90,6 +112,7 @@ mod tests {
 
     let records = Records {
       bytes: &bytes[4..],
+      phantom: PhantomData::<crate::Error>,
       records_values_offsets: &records_values_offsets,
       stmt: Statement::new(&[], &[]),
       values_bytes_offsets: &values_bytes_offsets,
@@ -105,6 +128,7 @@ mod tests {
       &Record {
         bytes: &[1, 2, 0, 0, 0, 2, 3, 4],
         initial_value_offset: 0,
+        phantom: PhantomData::<crate::Error>,
         stmt: Statement::new(&[], &[]),
         values_bytes_offsets: &[(false, 0..2), (false, 6..8)]
       }
@@ -118,6 +142,7 @@ mod tests {
       &Record {
         bytes: &[5, 6, 7, 8],
         initial_value_offset: 17,
+        phantom: PhantomData::<crate::Error>,
         stmt: Statement::new(&[], &[]),
         values_bytes_offsets: &[(false, 17..21)]
       }

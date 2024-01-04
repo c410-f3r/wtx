@@ -12,7 +12,6 @@ pub trait Executor {
   type TransactionManager<'tm>: TransactionManager<Executor = Self>
   where
     Self: 'tm;
-
   /// Executes severals commands returning the number of affected records on each `cb` call.
   ///
   /// Commands are not cached or inspected for potential vulnerabilities.
@@ -20,40 +19,46 @@ pub trait Executor {
 
   /// Executes a **single** statement automatically binding the values of `rv` to the referenced
   /// `stmt_id` and then returns the number of affected records.
-  fn execute_with_stmt<E, SI, RV>(
+  fn execute_with_stmt<SI, RV>(
     &mut self,
     stmt_id: SI,
     rv: RV,
-  ) -> impl Future<Output = Result<u64, E>>
+  ) -> impl Future<Output = Result<u64, <Self::Database as Database>::Error>>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId;
 
   /// Executes a **single** statement automatically binding the values of `rv` to the referenced
   /// `stmt_id` and then returns a **single** record.
-  fn fetch_with_stmt<E, SI, RV>(
+  fn fetch_with_stmt<SI, RV>(
     &mut self,
     stmt_id: SI,
     sv: RV,
-  ) -> impl Future<Output = Result<<Self::Database as Database>::Record<'_>, E>>
+  ) -> impl Future<
+    Output = Result<<Self::Database as Database>::Record<'_>, <Self::Database as Database>::Error>,
+  >
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId;
 
   /// Executes a **single** statement automatically binding the values of `rv` to the referenced
   /// `stmt_id` and then returns a **set** of records.
-  fn fetch_many_with_stmt<E, SI, RV>(
+  fn fetch_many_with_stmt<SI, RV>(
     &mut self,
     stmt_id: SI,
     sv: RV,
-    cb: impl FnMut(<Self::Database as Database>::Record<'_>) -> Result<(), E>,
-  ) -> impl Future<Output = Result<<Self::Database as Database>::Records<'_>, E>>
+    cb: impl FnMut(
+      <Self::Database as Database>::Record<'_>,
+    ) -> Result<(), <Self::Database as Database>::Error>,
+  ) -> impl Future<
+    Output = Result<<Self::Database as Database>::Records<'_>, <Self::Database as Database>::Error>,
+  >
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId;
+
+  /// Somethings the backend can discontinue the connection.
+  fn is_closed(&self) -> bool;
 
   /// Caches the passed command to create a statement, which speeds up subsequent calls that match
   /// the same `cmd`.
@@ -63,33 +68,35 @@ pub trait Executor {
 
   /// Retrieves a record and maps it to `T`. See [FromRecord].
   #[inline]
-  fn simple_entity<E, SV, T>(&mut self, cmd: &str, sv: SV) -> impl Future<Output = Result<T, E>>
+  fn simple_entity<SV, T>(
+    &mut self,
+    cmd: &str,
+    sv: SV,
+  ) -> impl Future<Output = Result<T, <Self::Database as Database>::Error>>
   where
-    E: From<crate::Error>,
-    T: for<'rec> FromRecord<E, <Self::Database as Database>::Record<'rec>>,
-    SV: RecordValues<Self::Database, E>,
+    T: for<'rec> FromRecord<Self::Database>,
+    SV: RecordValues<Self::Database>,
   {
-    async move { T::from_record(self.fetch_with_stmt(cmd, sv).await?) }
+    async move { T::from_record(&self.fetch_with_stmt(cmd, sv).await?) }
   }
 
   /// Retrieves a set of records and maps them to the corresponding `T`. See [FromRecord].
   #[inline]
-  fn simple_entities<E, SV, T>(
+  fn simple_entities<SV, T>(
     &mut self,
     cmd: &str,
     results: &mut Vec<T>,
     sv: SV,
-  ) -> impl Future<Output = Result<(), E>>
+  ) -> impl Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
-    E: From<crate::Error>,
-    SV: RecordValues<Self::Database, E>,
-    T: for<'rec> FromRecord<E, <Self::Database as Database>::Record<'rec>>,
+    SV: RecordValues<Self::Database>,
+    T: for<'rec> FromRecord<Self::Database>,
   {
     async move {
       let _records = self
         .fetch_many_with_stmt(cmd, sv, |record| {
-          results.push(T::from_record(record)?);
-          Ok::<_, E>(())
+          results.push(T::from_record(&record)?);
+          Ok(())
         })
         .await?;
       Ok(())
@@ -111,42 +118,50 @@ impl Executor for () {
   }
 
   #[inline]
-  async fn execute_with_stmt<E, SI, RV>(&mut self, _: SI, _: RV) -> Result<u64, E>
+  async fn execute_with_stmt<SI, RV>(
+    &mut self,
+    _: SI,
+    _: RV,
+  ) -> Result<u64, <Self::Database as Database>::Error>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId,
   {
     Ok(0)
   }
 
   #[inline]
-  async fn fetch_with_stmt<E, SI, RV>(
+  async fn fetch_with_stmt<SI, RV>(
     &mut self,
     _: SI,
     _: RV,
-  ) -> Result<<Self::Database as Database>::Record<'_>, E>
+  ) -> Result<<Self::Database as Database>::Record<'_>, <Self::Database as Database>::Error>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId,
   {
     Ok(())
   }
 
   #[inline]
-  async fn fetch_many_with_stmt<E, SI, RV>(
+  async fn fetch_many_with_stmt<SI, RV>(
     &mut self,
     _: SI,
     _: RV,
-    _: impl FnMut(<Self::Database as Database>::Record<'_>) -> Result<(), E>,
-  ) -> Result<(), E>
+    _: impl FnMut(
+      <Self::Database as Database>::Record<'_>,
+    ) -> Result<(), <Self::Database as Database>::Error>,
+  ) -> Result<(), <Self::Database as Database>::Error>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId,
   {
     Ok(())
+  }
+
+  #[inline]
+  fn is_closed(&self) -> bool {
+    true
   }
 
   #[inline]

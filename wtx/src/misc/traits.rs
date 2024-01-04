@@ -6,6 +6,13 @@ pub trait SingleTypeStorage {
   type Item;
 }
 
+impl<T> SingleTypeStorage for Option<T>
+where
+  T: SingleTypeStorage,
+{
+  type Item = T::Item;
+}
+
 impl<T> SingleTypeStorage for &T
 where
   T: SingleTypeStorage,
@@ -32,5 +39,10 @@ impl<T> SingleTypeStorage for &'_ mut [T] {
   type Item = T;
 }
 impl<T> SingleTypeStorage for Vec<T> {
+  type Item = T;
+}
+
+#[cfg(feature = "arrayvec")]
+impl<T, const N: usize> SingleTypeStorage for arrayvec::ArrayVec<T, N> {
   type Item = T;
 }

@@ -38,10 +38,6 @@ pub enum Error {
   DecodeError(base64::DecodeError),
   #[cfg(feature = "base64")]
   DecodeSliceError(base64::DecodeSliceError),
-  #[cfg(feature = "deadpool")]
-  DeadPoolManagedPoolError(Box<deadpool::managed::PoolError<()>>),
-  #[cfg(feature = "deadpool")]
-  DeadPoolUnmanagedPoolError(deadpool::unmanaged::PoolError),
   #[cfg(feature = "embassy-net")]
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
@@ -243,6 +239,9 @@ pub enum Error {
   /// Stream does not support TLS channels.
   StreamDoesNotSupportTlsChannels,
 
+  // ***** Internal - PM *****
+  StaticPoolMustHaveCapacityForAtLeastOneElement,
+
   // ***** Internal - WebSocket *****
   //
   /// The requested received in a handshake on a server is not valid.
@@ -346,34 +345,6 @@ impl From<base64::DecodeSliceError> for Error {
   #[track_caller]
   fn from(from: base64::DecodeSliceError) -> Self {
     Self::DecodeSliceError(from)
-  }
-}
-
-#[cfg(feature = "deadpool")]
-impl<T> From<deadpool::managed::PoolError<T>> for Error {
-  #[inline]
-  fn from(from: deadpool::managed::PoolError<T>) -> Self {
-    use deadpool::managed::{HookError, PoolError};
-    let elem = match from {
-      PoolError::Timeout(elem) => PoolError::Timeout(elem),
-      PoolError::Backend(_) => PoolError::Backend(()),
-      PoolError::Closed => PoolError::Closed,
-      PoolError::NoRuntimeSpecified => PoolError::NoRuntimeSpecified,
-      PoolError::PostCreateHook(elem) => PoolError::PostCreateHook(match elem {
-        HookError::Message(elem) => HookError::Message(elem),
-        HookError::StaticMessage(elem) => HookError::StaticMessage(elem),
-        HookError::Backend(_) => HookError::Backend(()),
-      }),
-    };
-    Self::DeadPoolManagedPoolError(elem.into())
-  }
-}
-
-#[cfg(feature = "deadpool")]
-impl From<deadpool::unmanaged::PoolError> for Error {
-  #[inline]
-  fn from(from: deadpool::unmanaged::PoolError) -> Self {
-    Self::DeadPoolUnmanagedPoolError(from)
   }
 }
 

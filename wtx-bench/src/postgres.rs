@@ -218,7 +218,10 @@ async fn populate_db(rng: &mut StdRng, uri: &UriRef<'_>) {
     .unwrap();
 }
 
-async fn wtx_executor(rng: &mut StdRng, uri: &UriRef<'_>) -> Executor<ExecutorBuffer, TcpStream> {
+async fn wtx_executor(
+  rng: &mut StdRng,
+  uri: &UriRef<'_>,
+) -> Executor<wtx::Error, ExecutorBuffer, TcpStream> {
   Executor::connect(
     &wtx::database::client::postgres::Config::from_uri(uri).unwrap(),
     ExecutorBuffer::with_default_params(rng),

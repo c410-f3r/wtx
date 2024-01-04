@@ -29,6 +29,10 @@ impl PartitionedFilledBuffer {
     }
   }
 
+  pub(crate) fn _empty() -> Self {
+    Self { _antecedent_end_idx: 0, _buffer: Vec::new(), _current_end_idx: 0, _following_end_idx: 0 }
+  }
+
   pub(crate) fn _antecedent_end_idx(&self) -> usize {
     self._antecedent_end_idx
   }
