@@ -1,12 +1,12 @@
-use crate::misc::FilledBufferWriter;
+use crate::{database::Database, misc::FilledBufferWriter};
 
 /// Encodes a type into a byte representation.
-pub trait Encode<C, E>
+pub trait Encode<D>
 where
-  E: From<crate::Error>,
+  D: Database,
 {
   /// Performs the conversion.
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), E>;
+  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error>;
 
   /// In rust terms, is the element `Option::None`?
   #[inline]
@@ -15,34 +15,34 @@ where
   }
 }
 
-impl<C, E, T> Encode<C, E> for &T
+impl<D, T> Encode<D> for &T
 where
-  E: From<crate::Error>,
-  T: Encode<C, E>,
+  D: Database,
+  T: Encode<D>,
 {
   #[inline]
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), E> {
+  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error> {
     (**self).encode(buffer)
   }
 }
 
-impl<C, E> Encode<C, E> for &dyn Encode<C, E>
+impl<D> Encode<D> for &dyn Encode<D>
 where
-  E: From<crate::Error>,
+  D: Database,
 {
   #[inline]
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), E> {
+  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error> {
     (**self).encode(buffer)
   }
 }
 
-impl<C, E, T> Encode<C, E> for Option<T>
+impl<D, T> Encode<D> for Option<T>
 where
-  E: From<crate::Error>,
-  T: Encode<C, E>,
+  D: Database,
+  T: Encode<D>,
 {
   #[inline]
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), E> {
+  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error> {
     match self {
       None => Ok(()),
       Some(elem) => elem.encode(buffer),

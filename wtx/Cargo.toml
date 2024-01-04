@@ -46,21 +46,20 @@ required-features = ["_tokio-rustls-server", "web-socket-handshake"]
 [[example]]
 name = "web-socket-server-pool-raw-tokio"
 path = "examples/web-socket-server-pool-raw-tokio.rs"
-required-features = ["deadpool", "web-socket-handshake"]
+required-features = ["pool-manager", "web-socket-handshake"]
 
 [dependencies]
 ahash = { default-features = false, optional = true, version = "0.8" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 arrayvec = { default-features = false, optional = true, version = "0.7" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
-async-trait = { default-features = false, optional = true, version = "0.1" }
 atoi = { default-features = false, optional = true, version = "2.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.21" }
 borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.0" }
+bytes = { default-features = false, optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "4.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
-deadpool = { default-features = false, features = ["managed", "unmanaged"], optional = true, version = "0.10" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
 embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.2" }
 embedded-io-async = { default-features = false, optional = true, version = "0.6" }
@@ -70,15 +69,16 @@ flate2 = { default-features = false, features = ["zlib-ng"], optional = true, ve
 futures = { default-features = false, optional = true, version = "0.3" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
+h2 = { default-features = false, optional = true, version = "0.4" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
+http = { default-features = false, optional = true, version = "1.0" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 md-5 = { default-features = false, optional = true, version = "0.10" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 protobuf = { default-features = false, optional = true, version = "3.0" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
-reqwest = { default-features = false, optional = true, version = "0.11" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
 rust_decimal = { default-features = false, optional = true, version = "1.0" }
@@ -114,13 +114,14 @@ async-std = ["dep:async-std", "std"]
 borsh = ["dep:borsh", "std"]
 client-api-framework = ["cl-aux"]
 database = ["arrayvec"]
-deadpool = ["dep:async-trait", "dep:deadpool"]
 default = []
 embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 glommio = ["futures-lite", "dep:glommio", "std"]
+h2 = ["dep:bytes", "dep:h2", "dep:http"]
 http1 = ["httparse"]
 miniserde = ["dep:miniserde", "std"]
 orm = ["database", "dep:smallvec"]
+pool-manager = []
 postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "md-5", "hmac", "sha2"]
 protobuf = ["dep:protobuf", "std"]
 serde = ["arrayvec?/serde", "cl-aux?/serde", "dep:serde"]
@@ -128,12 +129,12 @@ serde_json = ["serde", "dep:serde_json", "std"]
 serde_yaml = ["serde", "dep:serde_yaml", "std"]
 serde-xml-rs = ["serde", "dep:serde-xml-rs", "std"]
 simd-json = ["serde", "dep:simd-json", "std"]
-sm = ["database", "chrono"]
-sm-dev = ["sm"]
+schema-manager = ["database", "chrono"]
+schema-manager-dev = ["schema-manager"]
 smol = ["dep:smol", "std"]
 std = ["arrayvec?/std", "cl-aux?/std", "miniserde?/std", "serde?/std", "serde_json?/std"]
 tokio = ["std", "dep:tokio"]
-tokio-rustls = ["ring", "tokio", "dep:tokio-rustls"]
+tokio-rustls = ["ring", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
 web-socket = []
 web-socket-handshake = ["base64", "http1", "sha1", "web-socket"]
 
@@ -142,7 +143,7 @@ _bench = []
 _hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "rkyv?/size_32", "simd-json?/allow-non-simd"]
 _integration-tests = []
 _proptest = ["proptest", "std", "test-strategy"]
-_tokio-rustls-client = ["rustls-pemfile", "rustls-pki-types", "tokio-rustls/tls12", "webpki-roots"]
+_tokio-rustls-client = ["rustls-pemfile", "tokio-rustls/tls12", "webpki-roots"]
 _tokio-rustls-server = ["rustls-pemfile", "tokio-rustls"]
 _tracing-subscriber = ["tracing", "dep:tracing-subscriber", "dep:tracing-tree"]
 

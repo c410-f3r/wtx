@@ -7,31 +7,26 @@ pub trait Record {
 
   /// Tries to retrieve and decode a value.
   #[inline]
-  fn decode<'this, CI, D>(&'this self, ci: CI) -> crate::Result<D>
+  fn decode<'this, CI, D>(&'this self, ci: CI) -> Result<D, <Self::Database as Database>::Error>
   where
     CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
-    D: Decode<
-      Self::Database,
-      crate::Error,
-      Value<'this> = <Self::Database as Database>::Value<'this>,
-    >,
+    D: Decode<'this, Self::Database>,
   {
-    D::decode(self.value(ci).ok_or(crate::Error::AbsentFieldDataInDecoding)?)
+    D::decode(&self.value(ci).ok_or(crate::Error::AbsentFieldDataInDecoding)?)
   }
 
   /// Tries to retrieve and decode an optional value.
   #[inline]
-  fn decode_opt<'this, CI, D>(&'this self, ci: CI) -> crate::Result<Option<D>>
+  fn decode_opt<'this, CI, D>(
+    &'this self,
+    ci: CI,
+  ) -> Result<Option<D>, <Self::Database as Database>::Error>
   where
     CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
-    D: Decode<
-      Self::Database,
-      crate::Error,
-      Value<'this> = <Self::Database as Database>::Value<'this>,
-    >,
+    D: Decode<'this, Self::Database>,
   {
     match self.value(ci) {
-      Some(elem) => Ok(Some(D::decode(elem)?)),
+      Some(elem) => Ok(Some(D::decode(&elem)?)),
       None => Ok(None),
     }
   }

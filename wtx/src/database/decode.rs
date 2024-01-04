@@ -1,40 +1,31 @@
-use crate::database::Value;
+use crate::database::Database;
 
 /// Similar to `TryFrom`. Avoids problems with coherence and has an additional `E` type.
-pub trait Decode<C, E>: Sized
+pub trait Decode<'de, D>: Sized
 where
-  E: From<crate::Error>,
+  D: Database,
 {
-  /// See [Value].
-  type Value<'value>: Value;
-
   /// Performs the conversion.
-  fn decode(input: Self::Value<'_>) -> Result<Self, E>;
+  fn decode(input: &D::Value<'de>) -> Result<Self, D::Error>;
 }
 
-impl Decode<(), crate::Error> for &str {
-  type Value<'value> = ();
-
+impl<'de> Decode<'de, ()> for &str {
   #[inline]
-  fn decode(_: Self::Value<'_>) -> Result<Self, crate::Error> {
+  fn decode(_: &()) -> Result<Self, crate::Error> {
     Ok("")
   }
 }
 
-impl Decode<(), crate::Error> for u32 {
-  type Value<'value> = ();
-
+impl<'de> Decode<'de, ()> for u32 {
   #[inline]
-  fn decode(_: Self::Value<'_>) -> Result<Self, crate::Error> {
+  fn decode(_: &()) -> Result<Self, crate::Error> {
     Ok(0)
   }
 }
 
-impl Decode<(), crate::Error> for u64 {
-  type Value<'value> = ();
-
+impl<'de> Decode<'de, ()> for u64 {
   #[inline]
-  fn decode(_: Self::Value<'_>) -> Result<Self, crate::Error> {
+  fn decode(_: &()) -> Result<Self, crate::Error> {
     Ok(0)
   }
 }

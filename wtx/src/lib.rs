@@ -21,6 +21,8 @@ pub mod http;
 #[cfg(feature = "http1")]
 mod http1;
 pub mod misc;
+#[cfg(feature = "pool-manager")]
+pub mod pool_manager;
 pub mod rng;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;

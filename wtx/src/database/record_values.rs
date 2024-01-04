@@ -1,9 +1,12 @@
-use crate::{database::Encode, misc::FilledBufferWriter};
+use crate::{
+  database::{Database, Encode},
+  misc::FilledBufferWriter,
+};
 
 /// Values that can passed to a record as parameters. For example, in a query.
-pub trait RecordValues<C, E>
+pub trait RecordValues<D>
 where
-  E: From<crate::Error>,
+  D: Database,
 {
   /// Converts the inner values into a byte representation.
   fn encode_values<A>(
@@ -12,13 +15,16 @@ where
     fbw: &mut FilledBufferWriter<'_>,
     prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
     suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, E>;
+  ) -> Result<usize, D::Error>;
 
   /// The number of values
   fn len(&self) -> usize;
 }
 
-impl<C> RecordValues<C, crate::Error> for () {
+impl<D> RecordValues<D> for ()
+where
+  D: Database,
+{
   #[inline]
   fn encode_values<A>(
     self,
@@ -26,7 +32,7 @@ impl<C> RecordValues<C, crate::Error> for () {
     _: &mut FilledBufferWriter<'_>,
     _: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
     _: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, crate::Error> {
+  ) -> Result<usize, D::Error> {
     Ok(0)
   }
 
@@ -36,10 +42,10 @@ impl<C> RecordValues<C, crate::Error> for () {
   }
 }
 
-impl<C, E, T> RecordValues<C, E> for &T
+impl<D, T> RecordValues<D> for &T
 where
-  E: From<crate::Error>,
-  T: Encode<C, E>,
+  D: Database,
+  T: Encode<D>,
 {
   #[inline]
   fn encode_values<A>(
@@ -48,7 +54,7 @@ where
     fbw: &mut FilledBufferWriter<'_>,
     mut prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
     mut suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, E> {
+  ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     encode(aux, self, fbw, &mut n, &mut prefix_cb, &mut suffix_cb)?;
     Ok(n)
@@ -60,10 +66,10 @@ where
   }
 }
 
-impl<C, E, T> RecordValues<C, E> for &[T]
+impl<D, T> RecordValues<D> for &[T]
 where
-  E: From<crate::Error>,
-  T: Encode<C, E>,
+  D: Database,
+  T: Encode<D>,
 {
   #[inline]
   fn encode_values<A>(
@@ -72,7 +78,7 @@ where
     fbw: &mut FilledBufferWriter<'_>,
     mut prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
     mut suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, E> {
+  ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     for elem in self {
       encode(aux, elem, fbw, &mut n, &mut prefix_cb, &mut suffix_cb)?;
@@ -86,11 +92,11 @@ where
   }
 }
 
-impl<C, E, I, T> RecordValues<C, E> for &mut I
+impl<D, I, T> RecordValues<D> for &mut I
 where
-  E: From<crate::Error>,
+  D: Database,
   I: ExactSizeIterator<Item = T>,
-  T: Encode<C, E>,
+  T: Encode<D>,
 {
   #[inline]
   fn encode_values<A>(
@@ -99,7 +105,7 @@ where
     fbw: &mut FilledBufferWriter<'_>,
     mut prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
     mut suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, E> {
+  ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     for elem in self {
       encode(aux, &elem, fbw, &mut n, &mut prefix_cb, &mut suffix_cb)?;
@@ -120,10 +126,10 @@ macro_rules! tuple_impls {
     }
   )+) => {
     $(
-      impl<CTX, ERR, $($T),+> RecordValues<CTX, ERR> for ($( $T, )+)
+      impl<DB, $($T),+> RecordValues<DB> for ($( $T, )+)
       where
-        ERR: From<crate::Error>,
-        $($T: Encode<CTX, ERR>,)+
+        DB: Database,
+        $($T: Encode<DB>,)+
       {
         #[inline]
         fn encode_values<AUX>(
@@ -132,7 +138,7 @@ macro_rules! tuple_impls {
           fbw: &mut FilledBufferWriter<'_>,
           mut prefix_cb: impl FnMut(&mut AUX, &mut FilledBufferWriter<'_>) -> usize,
           mut suffix_cb: impl FnMut(&mut AUX, &mut FilledBufferWriter<'_>, bool) -> usize,
-        ) -> Result<usize, ERR> {
+        ) -> Result<usize, DB::Error> {
           let mut n: usize = 0;
           $( encode(aux, &self.$idx, fbw, &mut n, &mut prefix_cb, &mut suffix_cb)?; )+
           Ok(n)
@@ -318,17 +324,17 @@ tuple_impls! {
   }
 }
 
-fn encode<A, C, E, T>(
+fn encode<A, D, T>(
   aux: &mut A,
   elem: &T,
   fbw: &mut FilledBufferWriter<'_>,
   n: &mut usize,
   prefix_cb: &mut impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
   suffix_cb: &mut impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-) -> Result<(), E>
+) -> Result<(), D::Error>
 where
-  E: From<crate::Error>,
-  T: Encode<C, E>,
+  D: Database,
+  T: Encode<D>,
 {
   *n = n.wrapping_add(prefix_cb(aux, fbw));
   let before = fbw._len();

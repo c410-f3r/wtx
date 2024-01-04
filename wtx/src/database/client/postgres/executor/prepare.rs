@@ -21,12 +21,14 @@ use crate::{
 use arrayvec::ArrayString;
 use core::borrow::BorrowMut;
 
-impl<EB, S> Executor<EB, S>
+impl<E, EB, S> Executor<E, EB, S>
 where
+  E: From<crate::Error>,
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn do_prepare_send_and_await<'stmts, E, SI, RV>(
+  pub(crate) async fn do_prepare_send_and_await<'stmts, SI, RV>(
+    is_closed: &mut bool,
     nb: &mut PartitionedFilledBuffer,
     rv: RV,
     stmt_id: SI,
@@ -35,18 +37,17 @@ where
     tys: &[Ty],
   ) -> Result<Statement<'stmts>, E>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Postgres, E>,
+    RV: RecordValues<Postgres<E>>,
     SI: StmtId,
   {
-    let (_, id_str, stmt) = Self::do_prepare(nb, stmt_id, stmts, stream, tys).await?;
+    let (_, id_str, stmt) = Self::do_prepare(is_closed, nb, stmt_id, stmts, stream, tys).await?;
     let mut fbw = FilledBufferWriter::from(&mut *nb);
     bind(&mut fbw, "", rv, &id_str)?;
     execute(&mut fbw, 0, "")?;
     sync(&mut fbw)?;
     stream.write_all(fbw._curr_bytes()).await?;
 
-    let bind_msg = Self::fetch_msg_from_stream(nb, stream).await?;
+    let bind_msg = Self::fetch_msg_from_stream(is_closed, nb, stream).await?;
     let MessageTy::BindComplete = bind_msg.ty else {
       return Err(crate::Error::UnexpectedDatabaseMessage { received: bind_msg.tag }.into());
     };
@@ -54,6 +55,7 @@ where
   }
 
   pub(crate) async fn do_prepare<'stmts, SI>(
+    is_closed: &mut bool,
     nb: &mut PartitionedFilledBuffer,
     stmt_id: SI,
     stmts: &'stmts mut Statements,
@@ -77,12 +79,12 @@ where
     sync(&mut fbw)?;
     stream.write_all(fbw._curr_bytes()).await?;
 
-    let msg0 = Self::fetch_msg_from_stream(nb, stream).await?;
+    let msg0 = Self::fetch_msg_from_stream(is_closed, nb, stream).await?;
     let MessageTy::ParseComplete = msg0.ty else {
       return Err(crate::Error::UnexpectedDatabaseMessage { received: msg0.tag });
     };
 
-    let msg1 = Self::fetch_msg_from_stream(nb, stream).await?;
+    let msg1 = Self::fetch_msg_from_stream(is_closed, nb, stream).await?;
     let MessageTy::ParameterDescription(mut pd) = msg1.ty else {
       return Err(crate::Error::UnexpectedDatabaseMessage { received: msg1.tag });
     };
@@ -91,7 +93,7 @@ where
       pd = sub_data;
     }
 
-    let msg2 = Self::fetch_msg_from_stream(nb, stream).await?;
+    let msg2 = Self::fetch_msg_from_stream(is_closed, nb, stream).await?;
     match msg2.ty {
       MessageTy::RowDescription(mut rd) => {
         while !rd.is_empty() {
@@ -107,7 +109,7 @@ where
       _ => return Err(crate::Error::UnexpectedDatabaseMessage { received: msg2.tag }),
     }
 
-    let msg3 = Self::fetch_msg_from_stream(nb, stream).await?;
+    let msg3 = Self::fetch_msg_from_stream(is_closed, nb, stream).await?;
     let MessageTy::ReadyForQuery = msg3.ty else {
       return Err(crate::Error::UnexpectedDatabaseMessage { received: msg3.tag });
     };

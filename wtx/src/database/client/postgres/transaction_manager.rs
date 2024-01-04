@@ -6,22 +6,22 @@ use core::borrow::BorrowMut;
 
 /// Transaction Manager
 #[derive(Debug)]
-pub struct TransactionManager<'exec, EB, S> {
-  executor: &'exec mut Executor<EB, S>,
+pub struct TransactionManager<'exec, E, EB, S> {
+  executor: &'exec mut Executor<E, EB, S>,
 }
 
-impl<'exec, EB, S> TransactionManager<'exec, EB, S> {
-  pub(crate) fn new(executor: &'exec mut Executor<EB, S>) -> Self {
+impl<'exec, E, EB, S> TransactionManager<'exec, E, EB, S> {
+  pub(crate) fn new(executor: &'exec mut Executor<E, EB, S>) -> Self {
     Self { executor }
   }
 }
 
-impl<'exec, EB, S> crate::database::TransactionManager for TransactionManager<'exec, EB, S>
+impl<'exec, E, EB, S> crate::database::TransactionManager for TransactionManager<'exec, E, EB, S>
 where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
-  type Executor = Executor<EB, S>;
+  type Executor = Executor<E, EB, S>;
 
   #[inline]
   async fn begin(&mut self) -> crate::Result<()> {

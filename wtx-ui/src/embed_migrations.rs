@@ -1,6 +1,6 @@
 use std::{fmt::Write, path::Path};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
-use wtx::database::sm::misc::{group_and_migrations_from_path, parse_root_toml};
+use wtx::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml};
 
 pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<()> {
   let (mut migration_groups, _) = parse_root_toml(Path::new(input))?;
@@ -9,7 +9,7 @@ pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<(
   migration_groups.sort();
 
   buffer.push_str(
-    "#[rustfmt::skip]pub(crate) const GROUPS: wtx::database::sm::EmbeddedMigrationsTy = &[",
+    "#[rustfmt::skip]pub(crate) const GROUPS: wtx::database::schema_manager::EmbeddedMigrationsTy = &[",
   );
 
   for mg_path in migration_groups {
@@ -20,8 +20,8 @@ pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<(
     buffer.write_fmt(format_args!(
       concat!(
         "{{",
-        r#"const {mg_name}: &wtx::database::sm::MigrationGroup<&'static str> = &wtx::database::sm::MigrationGroup::new("{mg_name}",{mg_version});"#,
-        r#"const {mg_name}_MIGRATIONS: &[wtx::database::sm::UserMigrationRef<'static, 'static>] = &["#
+        r#"const {mg_name}: &wtx::database::schema_manager::MigrationGroup<&'static str> = &wtx::database::schema_manager::MigrationGroup::new("{mg_name}",{mg_version});"#,
+        r#"const {mg_name}_MIGRATIONS: &[wtx::database::schema_manager::UserMigrationRef<'static, 'static>] = &["#
       ),
       mg_name = mg_name,
       mg_version = mg_version
@@ -37,7 +37,7 @@ pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<(
       let version = migration.version();
 
       buffer.write_fmt(format_args!(
-        "wtx::database::sm::UserMigrationRef::from_all_parts({checksum},&["
+        "wtx::database::schema_manager::UserMigrationRef::from_all_parts({checksum},&["
       ))?;
       for db in dbs {
         buffer.push_str("wtx::database::DatabaseTy::");
@@ -48,7 +48,7 @@ pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<(
       match migration.repeatability() {
         None => buffer.push_str("None"),
         Some(elem) => buffer.write_fmt(format_args!(
-          "Some(wtx::database::sm::Repeatability::{})",
+          "Some(wtx::database::schema_manager::Repeatability::{})",
           elem.strings().ident
         ))?,
       }

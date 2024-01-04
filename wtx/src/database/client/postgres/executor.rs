@@ -15,18 +15,18 @@ use crate::{
   misc::{FilledBufferWriter, Stream, TlsStream},
   rng::Rng,
 };
-use core::{borrow::BorrowMut, future::Future};
+use core::{borrow::BorrowMut, future::Future, marker::PhantomData};
 
 /// Executor
 #[derive(Debug)]
-pub struct Executor<EB, S> {
+pub struct Executor<E, EB, S> {
   pub(crate) eb: EB,
-  pub(crate) process_id: i32,
-  pub(crate) secret_key: i32,
+  pub(crate) is_closed: bool,
+  pub(crate) phantom: PhantomData<E>,
   pub(crate) stream: S,
 }
 
-impl<EB, S> Executor<EB, S>
+impl<E, EB, S> Executor<E, EB, S>
 where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
@@ -77,6 +77,12 @@ where
       .await
   }
 
+  /// Mutable buffer reference
+  #[inline]
+  pub fn eb_mut(&mut self) -> &mut ExecutorBuffer {
+    self.eb.borrow_mut()
+  }
+
   #[inline]
   async fn do_connect<RNG>(
     config: &Config<'_>,
@@ -88,7 +94,7 @@ where
   where
     RNG: Rng,
   {
-    let mut this = Self { eb, process_id: 0, secret_key: 0, stream };
+    let mut this = Self { eb, is_closed: false, phantom: PhantomData, stream };
     this.send_initial_conn_msg(config).await?;
     this.manage_authentication(config, rng, tls_server_end_point).await?;
     this.read_after_authentication_data().await?;
@@ -103,13 +109,14 @@ where
   }
 }
 
-impl<EB, S> crate::database::Executor for Executor<EB, S>
+impl<E, EB, S> crate::database::Executor for Executor<E, EB, S>
 where
+  E: From<crate::Error>,
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
-  type Database = Postgres;
-  type TransactionManager<'tm> = TransactionManager<'tm, EB, S>
+  type Database = Postgres<E>;
+  type TransactionManager<'tm> = TransactionManager<'tm, E, EB, S>
   where
     Self: 'tm;
 
@@ -120,18 +127,30 @@ where
   }
 
   #[inline]
-  async fn execute_with_stmt<E, SI, RV>(&mut self, stmt_id: SI, rv: RV) -> Result<u64, E>
+  async fn execute_with_stmt<SI, RV>(
+    &mut self,
+    stmt_id: SI,
+    rv: RV,
+  ) -> Result<u64, <Self::Database as Database>::Error>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId,
   {
     self.eb.borrow_mut().clear();
     let ExecutorBufferPartsMut { nb, stmts, .. } = self.eb.borrow_mut().parts_mut();
-    let _ = Self::do_prepare_send_and_await(nb, rv, stmt_id, stmts, &mut self.stream, &[]).await?;
+    let _ = Self::do_prepare_send_and_await(
+      &mut self.is_closed,
+      nb,
+      rv,
+      stmt_id,
+      stmts,
+      &mut self.stream,
+      &[],
+    )
+    .await?;
     let mut rows = 0;
     loop {
-      let msg = Self::fetch_msg_from_stream(nb, &mut self.stream).await?;
+      let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(local_rows) => {
           rows = local_rows;
@@ -145,23 +164,30 @@ where
   }
 
   #[inline]
-  async fn fetch_with_stmt<E, SI, RV>(
+  async fn fetch_with_stmt<SI, RV>(
     &mut self,
     stmt_id: SI,
     rv: RV,
   ) -> Result<<Self::Database as Database>::Record<'_>, E>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId,
   {
     self.eb.borrow_mut().clear();
     let ExecutorBufferPartsMut { nb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
-    let stmt =
-      Self::do_prepare_send_and_await(nb, rv, stmt_id, stmts, &mut self.stream, &[]).await?;
+    let stmt = Self::do_prepare_send_and_await(
+      &mut self.is_closed,
+      nb,
+      rv,
+      stmt_id,
+      stmts,
+      &mut self.stream,
+      &[],
+    )
+    .await?;
     let mut data_row_msg_range = None;
     loop {
-      let msg = Self::fetch_msg_from_stream(nb, &mut self.stream).await?;
+      let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
       match msg.ty {
         MessageTy::DataRow(len, _) => {
           data_row_msg_range = Some((len, nb._current_range()));
@@ -182,25 +208,32 @@ where
   }
 
   #[inline]
-  async fn fetch_many_with_stmt<E, SI, RV>(
+  async fn fetch_many_with_stmt<SI, RV>(
     &mut self,
     stmt_id: SI,
     rv: RV,
     mut cb: impl FnMut(<Self::Database as Database>::Record<'_>) -> Result<(), E>,
   ) -> Result<<Self::Database as Database>::Records<'_>, E>
   where
-    E: From<crate::Error>,
-    RV: RecordValues<Self::Database, E>,
+    RV: RecordValues<Self::Database>,
     SI: StmtId,
   {
     self.eb.borrow_mut().clear();
     let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
-    let stmt =
-      Self::do_prepare_send_and_await(nb, rv, stmt_id, stmts, &mut self.stream, &[]).await?;
+    let stmt = Self::do_prepare_send_and_await(
+      &mut self.is_closed,
+      nb,
+      rv,
+      stmt_id,
+      stmts,
+      &mut self.stream,
+      &[],
+    )
+    .await?;
     let begin = nb._current_end_idx();
     let begin_data = nb._current_end_idx().wrapping_add(7);
     loop {
-      let msg = Self::fetch_msg_from_stream(nb, &mut self.stream).await?;
+      let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
       match msg.ty {
         MessageTy::DataRow(len, _) => {
           let bytes = nb._buffer().get(begin_data..nb._current_end_idx()).unwrap_or_default();
@@ -223,6 +256,7 @@ where
         ._buffer()
         .get(begin_data.wrapping_add(4)..nb._current_end_idx())
         .unwrap_or_default(),
+      phantom: PhantomData,
       records_values_offsets: rb,
       stmt,
       values_bytes_offsets: vb,
@@ -230,11 +264,15 @@ where
   }
 
   #[inline]
+  fn is_closed(&self) -> bool {
+    self.is_closed
+  }
+
+  #[inline]
   async fn prepare(&mut self, cmd: &str) -> crate::Result<u64> {
     self.eb.borrow_mut().clear();
     let ExecutorBufferPartsMut { nb, stmts, .. } = self.eb.borrow_mut().parts_mut();
-    let (id, _, _) = Self::do_prepare(nb, cmd, stmts, &mut self.stream, &[]).await?;
-    Ok(id)
+    Ok(Self::do_prepare(&mut self.is_closed, nb, cmd, stmts, &mut self.stream, &[]).await?.0)
   }
 
   #[inline]

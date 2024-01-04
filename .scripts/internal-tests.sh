@@ -30,7 +30,6 @@ $rt test-with-features wtx cl-aux
 $rt test-with-features wtx client-api-framework
 $rt test-with-features wtx crypto-common
 $rt test-with-features wtx database
-$rt test-with-features wtx deadpool
 $rt test-with-features wtx digest
 $rt test-with-features wtx embassy-net,_hack
 $rt test-with-features wtx embedded-tls
@@ -39,6 +38,7 @@ $rt test-with-features wtx flate2
 $rt test-with-features wtx futures
 $rt test-with-features wtx futures-lite
 $rt test-with-features wtx glommio
+$rt test-with-features wtx h2
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
 $rt test-with-features wtx http1
@@ -46,11 +46,11 @@ $rt test-with-features wtx httparse
 $rt test-with-features wtx md-5
 $rt test-with-features wtx miniserde
 $rt test-with-features wtx orm
+$rt test-with-features wtx pool-manager
 $rt test-with-features wtx postgres
 $rt test-with-features wtx proptest
 $rt test-with-features wtx protobuf
 $rt test-with-features wtx rand
-$rt test-with-features wtx reqwest
 $rt test-with-features wtx ring
 $rt test-with-features wtx rkyv,_hack
 $rt test-with-features wtx rust_decimal
@@ -64,8 +64,8 @@ $rt test-with-features wtx sha1
 $rt test-with-features wtx sha2
 $rt test-with-features wtx simd-json
 $rt test-with-features wtx simdutf8
-$rt test-with-features wtx sm
-$rt test-with-features wtx sm-dev
+$rt test-with-features wtx schema-manager
+$rt test-with-features wtx schema-manager-dev
 $rt test-with-features wtx smol
 $rt test-with-features wtx std
 $rt test-with-features wtx test-strategy
@@ -92,8 +92,8 @@ $rt test-generic wtx-macros
 
 $rt check-generic wtx-ui
 $rt test-with-features wtx-ui embed-migrations
-$rt test-with-features wtx-ui sm
-$rt test-with-features wtx-ui sm-dev
+$rt test-with-features wtx-ui schema-manager
+$rt test-with-features wtx-ui schema-manager-dev
 $rt test-with-features wtx-ui web-socket
 
 cargo check --bin autobahn-client --features "flate2,web-socket-handshake"
@@ -106,4 +106,4 @@ cargo check --example web-socket-server-echo-raw-glommio --features "glommio,web
 cargo check --example web-socket-server-echo-raw-smol --features "smol,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio --features "tokio,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio-rustls --features "_tokio-rustls-server,web-socket-handshake"
-cargo check --example web-socket-server-pool-raw-tokio --features "deadpool,web-socket-handshake"
+cargo check --example web-socket-server-pool-raw-tokio --features "pool-manager,web-socket-handshake"

@@ -4,17 +4,18 @@ use crate::{
 };
 use core::borrow::BorrowMut;
 
-impl<EB, S> Executor<EB, S>
+impl<E, EB, S> Executor<E, EB, S>
 where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
   pub(crate) async fn fetch_msg_from_stream<'nb>(
+    is_closed: &mut bool,
     nb: &'nb mut PartitionedFilledBuffer,
     stream: &mut S,
   ) -> crate::Result<Message<'nb>> {
     let tag = Self::fetch_representative_msg_from_stream(nb, stream).await?;
-    Ok(Message { tag, ty: MessageTy::try_from(nb._current())? })
+    Ok(Message { tag, ty: MessageTy::try_from((is_closed, nb._current()))? })
   }
 
   async fn fetch_one_header_from_stream(

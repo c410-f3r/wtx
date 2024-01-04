@@ -60,6 +60,16 @@ impl ExecutorBuffer {
     }
   }
 
+  pub(crate) fn _empty() -> Self {
+    Self {
+      nb: PartitionedFilledBuffer::_empty(),
+      params: Vec::new(),
+      rb: Vec::new(),
+      stmts: Statements::_empty(),
+      vb: Vec::new(),
+    }
+  }
+
   /// Should be used in running instances.
   pub(crate) fn clear(&mut self) {
     let Self { nb, params: _, rb, stmts: _, vb } = self;

@@ -2,10 +2,13 @@
 
 mod status_code;
 
-use core::fmt::{Arguments, Write};
-
-use crate::{client_api_framework::network::transport::TransportParams, misc::UriString};
+use crate::{
+  client_api_framework::network::transport::TransportParams,
+  http::{Method, Mime},
+  misc::UriString,
+};
 use alloc::{string::String, vec::Vec};
+use core::fmt::{Arguments, Write};
 pub use status_code::*;
 
 #[derive(Debug)]
@@ -19,8 +22,8 @@ impl HttpParams {
     Self(
       HttpReqParams {
         headers: HttpHeaders::default(),
-        method: HttpMethod::Get,
-        mime_type: None,
+        method: Method::Get,
+        mime: None,
         uri: UriString::new(url.into()),
         user_agent: None,
       },
@@ -56,92 +59,12 @@ impl TransportParams for HttpParams {
   #[inline]
   fn reset(&mut self) {
     self.0.headers.clear();
-    self.0.method = HttpMethod::Get;
-    self.0.mime_type = None;
+    self.0.method = Method::Get;
+    self.0.mime = None;
     self.0.uri.retain_with_initial_len();
     self.0.user_agent = None;
     self.1.headers.clear();
     self.1.status_code = StatusCode::Forbidden;
-  }
-}
-
-create_enum! {
-  /// Contains variants for a number of common HTTP methods such as GET, POST, etc.
-  #[derive(Clone, Copy, Debug)]
-  pub enum HttpMethod<u8> {
-    /// DELETE
-    Delete = (0, "delete"),
-    /// GET
-    Get = (1, "get"),
-    /// PATCH
-    Patch = (2, "patch"),
-    /// POST
-    Post = (3, "post"),
-    /// PUT
-    Put = (4, "put"),
-  }
-}
-
-#[cfg(feature = "serde_json")]
-mod serde_json {
-  use crate::client_api_framework::network::HttpMethod;
-  use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-
-  impl<'de> Deserialize<'de> for HttpMethod {
-    #[inline]
-    fn deserialize<D>(deserializer: D) -> Result<HttpMethod, D::Error>
-    where
-      D: Deserializer<'de>,
-    {
-      let s = <&str>::deserialize(deserializer)?;
-      Self::try_from(s).map_err(|err| de::Error::custom(err))
-    }
-  }
-
-  impl Serialize for HttpMethod {
-    #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-      S: Serializer,
-    {
-      serializer.serialize_str(self.strings().custom)
-    }
-  }
-}
-
-/// Used to specify the data type that is going to be sent to a counterpart.
-#[derive(Debug)]
-pub enum HttpMimeType {
-  /// Opaque bytes
-  Bytes,
-  /// Anything
-  Custom(&'static str),
-  /// JSON
-  Json,
-  /// JSON:API
-  JsonApi,
-  /// Protocol buffer
-  Protobuf,
-  /// Plain text
-  Text,
-  /// XML
-  Xml,
-  /// YAML
-  Yaml,
-}
-
-impl HttpMimeType {
-  pub(crate) fn _as_str(&self) -> &'static str {
-    match self {
-      HttpMimeType::Bytes => "application/octet-stream",
-      HttpMimeType::Custom(el) => el,
-      HttpMimeType::Json => "application/json",
-      HttpMimeType::JsonApi => "application/vnd.api+json",
-      HttpMimeType::Protobuf => "application/vnd.google.protobuf",
-      HttpMimeType::Text => "text/plain",
-      HttpMimeType::Xml => "application/xml",
-      HttpMimeType::Yaml => "application/yaml",
-    }
   }
 }
 
@@ -166,9 +89,9 @@ pub struct HttpReqParams {
   /// Http headers.
   pub headers: HttpHeaders,
   /// Http method.
-  pub method: HttpMethod,
+  pub method: Method,
   /// MIME type.
-  pub mime_type: Option<HttpMimeType>,
+  pub mime: Option<Mime>,
   /// URL.
   pub uri: UriString,
   /// User agent.

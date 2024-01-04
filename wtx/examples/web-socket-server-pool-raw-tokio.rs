@@ -1,26 +1,23 @@
-//! Uses a pool of resources to avoid having to heap-allocate bytes for every new connection. This
-//! approach also imposes an upper bound on the number of concurrent processing requests.
+//! Uses a pool of resources to avoid having to heap-allocate for every new connection.
 //!
-//! Semantically speaking, the WebSocket code only accepts a connection and then immediately
+//! Semantically speaking, this WebSocket code only accepts a connection and then immediately
 //! closes it.
 
 #[path = "./common/mod.rs"]
 mod common;
 
-use deadpool::unmanaged::{Object, Pool};
 use std::sync::OnceLock;
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, sync::Mutex};
 use wtx::{
+  pool_manager::{ResourceManager, StaticPool, WebSocketRM},
   rng::StaticRng,
   web_socket::{
     handshake::{WebSocketAccept, WebSocketAcceptRaw},
-    FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
+    FrameMutVec, OpCode,
   },
 };
 
-const POOL_LEN: usize = 32;
-
-static POOL: OnceLock<Pool<(FrameBufferVec, WebSocketBuffer)>> = OnceLock::new();
+type Pool = StaticPool<Mutex<Option<<WebSocketRM as ResourceManager>::Resource>>, WebSocketRM, 8>;
 
 #[tokio::main]
 async fn main() {
@@ -28,7 +25,7 @@ async fn main() {
   loop {
     let (stream, _) = listener.accept().await.unwrap();
     let _jh = tokio::spawn(async move {
-      let (fb, wsb) = &mut *pool_elem().await;
+      let (fb, wsb) = &mut *pool().get().await.unwrap();
       let mut ws = WebSocketAcceptRaw { compression: (), rng: StaticRng::default(), stream, wsb }
         .accept(|_| true)
         .await
@@ -38,6 +35,7 @@ async fn main() {
   }
 }
 
-async fn pool_elem() -> Object<(FrameBufferVec, WebSocketBuffer)> {
-  POOL.get_or_init(|| Pool::from((0..POOL_LEN).map(|_| <_>::default()))).get().await.unwrap()
+fn pool() -> &'static Pool {
+  static POOL: OnceLock<Pool> = OnceLock::new();
+  POOL.get_or_init(|| StaticPool::new(WebSocketRM).unwrap())
 }

@@ -9,7 +9,7 @@ use wtx::{
     client::postgres::{Config, Executor, ExecutorBuffer},
     Executor as _, Record, Records, TransactionManager,
   },
-  misc::{tls_stream_from_stream, UriRef},
+  misc::{TokioRustlsConnector, UriRef},
   rng::StdRng,
 };
 
@@ -23,15 +23,11 @@ async fn main() {
   let initial_stream = TcpStream::connect(uri.host()).await.unwrap();
   let mut exec =
     Executor::connect_encrypted(&config, eb, initial_stream, &mut rng, |stream| async {
-      Ok(
-        tls_stream_from_stream(
-          uri.hostname(),
-          Some(include_bytes!("../../.certs/root-ca.crt")),
-          stream,
-        )
+      TokioRustlsConnector::from_webpki_roots()
+        .push_certs(include_bytes!("../../.certs/root-ca.crt"))
+        .unwrap()
+        .with_generic_stream(uri.hostname(), stream)
         .await
-        .unwrap(),
-      )
     })
     .await
     .unwrap();
@@ -43,10 +39,7 @@ async fn main() {
     .unwrap();
   let _ = tm
     .executor()
-    .execute_with_stmt::<wtx::Error, _, _>(
-      "INSERT INTO foo VALUES ($1, $2), ($3, $4)",
-      (1u32, "one", 2u32, "two"),
-    )
+    .execute_with_stmt("INSERT INTO foo VALUES ($1, $2), ($3, $4)", (1u32, "one", 2u32, "two"))
     .await
     .unwrap();
   tm.commit().await.unwrap();

@@ -8,9 +8,9 @@ pub(crate) async fn init() -> wtx::Result<()> {
     Commands::EmbedMigrations(elem) => {
       crate::embed_migrations::embed_migrations(&elem.input, &elem.output).await?;
     }
-    #[cfg(feature = "sm")]
-    Commands::Sm(sm) => {
-      crate::sm::sm(&sm).await?;
+    #[cfg(feature = "schema-manager")]
+    Commands::SchemaManager(schema_manager) => {
+      crate::schema_manager::schema_manager(&schema_manager).await?;
     }
     #[cfg(feature = "web-socket")]
     Commands::Ws(elem) => match (elem.connect, elem.serve) {
@@ -48,8 +48,8 @@ enum Commands {
   _Nothing,
   #[cfg(feature = "embed-migrations")]
   EmbedMigrations(EmbedMigrations),
-  #[cfg(feature = "sm")]
-  Sm(Sm),
+  #[cfg(feature = "schema-manager")]
+  SchemaManager(SchemaManager),
   #[cfg(feature = "web-socket")]
   Ws(Ws),
 }
@@ -59,33 +59,33 @@ enum Commands {
 #[derive(Debug, clap::Args)]
 struct EmbedMigrations {
   /// Configuration file path
-  #[arg(default_value_t = wtx::database::sm::DEFAULT_CFG_FILE_NAME.into(), short = 'i', value_name = "Path")]
+  #[arg(default_value_t = wtx::database::schema_manager::DEFAULT_CFG_FILE_NAME.into(), short = 'i', value_name = "Path")]
   input: String,
   /// Rust file path
   #[arg(default_value = "embedded_migrations.rs", short = 'o', value_name = "Path")]
   output: String,
 }
 
-/// Schema Management
-#[cfg(feature = "sm")]
+/// Schema Manager
+#[cfg(feature = "schema-manager")]
 #[derive(Debug, clap::Args)]
-pub(crate) struct Sm {
+pub(crate) struct SchemaManager {
   /// Configuration file path. If not specified, defaults to "wtx.toml" in the current directory.
   #[arg(short = 'c')]
   pub(crate) toml: Option<std::path::PathBuf>,
 
   #[command(subcommand)]
-  pub(crate) commands: SmCommands,
+  pub(crate) commands: SchemaManagerCommands,
 
   /// Number of files (migrations or seeds) that is going to be sent to the database in a
   /// single transaction.
-  #[arg(default_value_t = wtx::database::sm::DEFAULT_BATCH_SIZE, short = 'f')]
+  #[arg(default_value_t = wtx::database::schema_manager::DEFAULT_BATCH_SIZE, short = 'f')]
   pub(crate) files_num: usize,
 
   /// Seeds directory. If not specified, defaults to the optional directory specified in the
   /// configuration file.
   /// Returns an error if none of the options are available.
-  #[cfg(feature = "sm-dev")]
+  #[cfg(feature = "schema-manager-dev")]
   #[arg(short = 's')]
   pub(crate) seeds: Option<std::path::PathBuf>,
 
@@ -96,19 +96,19 @@ pub(crate) struct Sm {
 
 #[allow(unused_tuple_struct_fields)]
 #[derive(Debug, clap::Subcommand)]
-pub(crate) enum SmCommands {
+pub(crate) enum SchemaManagerCommands {
   /// Clean all database objects. For example, tables, triggers or procedures
-  #[cfg(feature = "sm-dev")]
+  #[cfg(feature = "schema-manager-dev")]
   Clean {},
   /// Process local migrations that aren't in the database
   Migrate {},
   /// Shortcut.
-  #[cfg(feature = "sm-dev")]
+  #[cfg(feature = "schema-manager-dev")]
   MigrateAndSeed {},
   /// Returns database state to a point
   Rollback { versions: Vec<i32> },
   /// Populates the database with data intended for testing
-  #[cfg(feature = "sm-dev")]
+  #[cfg(feature = "schema-manager-dev")]
   Seed {},
   /// Checks if the database state is in sync with the local data
   Validate {},

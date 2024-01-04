@@ -19,7 +19,7 @@ pub(crate) struct Message<'bytes> {
 pub(crate) enum MessageTy<'bytes> {
   /// See [Authentication].
   Authentication(Authentication<'bytes>),
-  /// Data that the frontend must use to issue a cancelation request.
+  /// Data that the frontend must use to issue a cancellation request.
   BackendKeyData(i32, i32),
   /// Bind request was successful.
   BindComplete,
@@ -59,12 +59,12 @@ pub(crate) enum MessageTy<'bytes> {
   RowDescription(&'bytes [u8]),
 }
 
-impl<'bytes> TryFrom<&'bytes [u8]> for MessageTy<'bytes> {
+impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: &'bytes [u8]) -> Result<Self, Self::Error> {
-    let rslt = match from {
+  fn try_from(from: (&mut bool, &'bytes [u8])) -> Result<Self, Self::Error> {
+    let rslt = match from.1 {
       [b'1', ..] => Self::ParseComplete,
       [b'2', ..] => Self::BindComplete,
       [b'3', ..] => Self::CloseComplete,
@@ -87,7 +87,8 @@ impl<'bytes> TryFrom<&'bytes [u8]> for MessageTy<'bytes> {
       }
       [b'D', _, _, _, _, a, b, rest @ ..] => Self::DataRow(u16::from_be_bytes([*a, *b]), rest),
       [b'E', _, _, _, _, rest @ ..] => {
-        return Err(DbError::try_from(from_utf8_basic_rslt(rest)?)?.into())
+        *from.0 = true;
+        return Err(DbError::try_from(from_utf8_basic_rslt(rest)?)?.into());
       }
       [b'G', ..] => Self::CopyInResponse,
       [b'H', ..] => Self::CopyOutResponse,

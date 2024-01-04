@@ -1,4 +1,4 @@
-//! Client connection, schema management and ORM (Object–Relational Mapping).
+//! Client connection, schema manager and ORM (Object–Relational Mapping).
 
 pub mod client;
 mod database_ty;
@@ -12,8 +12,8 @@ pub mod orm;
 mod record;
 mod record_values;
 mod records;
-#[cfg(feature = "sm")]
-pub mod sm;
+#[cfg(feature = "schema-manager")]
+pub mod schema_manager;
 mod stmt;
 mod transaction_manager;
 mod value;
@@ -47,6 +47,8 @@ pub trait Database {
   /// See [DatabaseTy].
   const TY: DatabaseTy;
 
+  /// See [crate::Error].
+  type Error: From<crate::Error>;
   /// See [Record].
   type Record<'rec>: Record<Database = Self>;
   /// See [Records].
@@ -58,6 +60,7 @@ pub trait Database {
 impl Database for () {
   const TY: DatabaseTy = DatabaseTy::Unit;
 
+  type Error = crate::Error;
   type Record<'rec> = ();
   type Records<'recs> = ();
   type Value<'value> = ();

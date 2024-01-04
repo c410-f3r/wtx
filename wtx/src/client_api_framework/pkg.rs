@@ -27,10 +27,6 @@ pub use pkgs_aux::*;
 /// `A`: Associated API.
 /// `DRSR`: DeserializeR/SerializeR
 /// `TP`: Transport Parameters
-#[allow(
-  // Downstream make use of async functionalities
-  clippy::unused_async
-)]
 pub trait Package<A, DRSR, TP>
 where
   A: Api,

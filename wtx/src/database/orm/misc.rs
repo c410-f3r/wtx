@@ -11,23 +11,19 @@ pub(crate) use fx_hasher::FxHasher;
 /// Seeks all rows that equals `T`'s primary key and suffix. Can be `T` itself or any other
 /// associated/related entity.
 #[inline]
-pub fn seek_related_entities<'entity, E, T>(
+pub fn seek_related_entities<'entity, D, T>(
   buffer_cmd: &mut String,
   curr_record_idx: usize,
-  records: &<T::Database as Database>::Records<'_>,
+  records: &D::Records<'_>,
   ts: TableSuffix,
   ts_related: TableSuffix,
-  mut cb: impl FnMut(T) -> Result<(), E>,
-) -> Result<usize, E>
+  mut cb: impl FnMut(T) -> Result<(), D::Error>,
+) -> Result<usize, D::Error>
 where
-  E: From<crate::Error>,
-  T: FromRecords<Error = E> + Table<'entity, Error = E>,
-  str: for<'rec> ValueIdent<<<T as FromRecords>::Database as Database>::Record<'rec>>,
-  u64: for<'value> Decode<
-    <T as FromRecords>::Database,
-    crate::Error,
-    Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
-  >,
+  D: Database,
+  T: FromRecords<D> + Table<'entity, Error = D::Error>,
+  str: for<'rec> ValueIdent<D::Record<'rec>>,
+  u64: for<'value> Decode<'value, D>,
 {
   let first_record = if let Some(elem) = records.get(curr_record_idx) {
     elem
@@ -38,7 +34,7 @@ where
   let first_rslt = T::from_records(buffer_cmd, &first_record, records, ts_related);
   let (mut counter, mut previous) = if let Ok((skip, entity)) = first_rslt {
     write_column_alias(buffer_cmd, T::TABLE_NAME, ts, T::PRIMARY_KEY_NAME)?;
-    let previous = first_record.decode(buffer_cmd.as_str()).map_err(Into::into)?;
+    let previous = first_record.decode(buffer_cmd.as_str())?;
     buffer_cmd.clear();
     cb(entity)?;
     (skip, previous)
@@ -61,7 +57,7 @@ where
     let (skip, entity) = T::from_records(buffer_cmd, &record, records, ts_related)?;
 
     write_column_alias(buffer_cmd, T::TABLE_NAME, ts, T::PRIMARY_KEY_NAME)?;
-    let curr = record.decode::<_, u64>(buffer_cmd.as_str()).map_err(Into::into)?;
+    let curr = record.decode::<_, u64>(buffer_cmd.as_str())?;
     buffer_cmd.clear();
     if previous == curr {
       cb(entity)?;

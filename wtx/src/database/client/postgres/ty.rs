@@ -186,6 +186,7 @@ create_enum! {
     TsmultiRangeArray = (6152, "_tsmultirange"),
     TstzmultiRangeArray = (6153, "_tstzmultirange"),
     DatemultiRangeArray = (6155, "_datemultirange"),
-    Int8multiRangeArray = (6157, "_int8multirange")
+    Int8multiRangeArray = (6157, "_int8multirange"),
+    @Custom(6158..=u32::MAX) = (6158, "Custom")
   }
 }
