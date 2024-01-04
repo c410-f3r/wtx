@@ -20,6 +20,8 @@ mod ty;
 mod tys;
 mod value;
 
+use core::marker::PhantomData;
+
 use crate::database::{Database, DatabaseTy};
 pub(crate) use authentication::Authentication;
 pub use config::Config;
@@ -40,12 +42,23 @@ pub(crate) type Oid = u32;
 
 /// Postgres
 #[derive(Debug)]
-pub struct Postgres;
+pub struct Postgres<E>(PhantomData<E>);
 
-impl Database for Postgres {
+impl<E> Default for Postgres<E> {
+  #[inline]
+  fn default() -> Self {
+    Self(PhantomData)
+  }
+}
+
+impl<E> Database for Postgres<E>
+where
+  E: From<crate::Error>,
+{
   const TY: DatabaseTy = DatabaseTy::Postgres;
 
-  type Record<'rec> = Record<'rec>;
-  type Records<'recs> = Records<'recs>;
+  type Error = E;
+  type Record<'rec> = Record<'rec, E>;
+  type Records<'recs> = Records<'recs, E>;
   type Value<'value> = Value<'value>;
 }

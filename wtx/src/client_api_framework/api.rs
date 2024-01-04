@@ -3,10 +3,6 @@ use core::{fmt::Display, future::Future};
 
 /// Api definitions group different packages into a common namespace and define custom additional
 /// logical through hooks.
-#[allow(
-  // Downstream make use of async functionalities
-  clippy::unused_async
-)]
 pub trait Api: AsyncBounds {
   /// Any custom error structure that can be constructed from [crate::Error].
   type Error: Display + From<crate::Error>;

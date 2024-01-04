@@ -5,7 +5,7 @@ mod common;
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use wtx::{
-  misc::{tls_stream_from_host, UriRef},
+  misc::{TokioRustlsConnector, UriRef},
   rng::StdRng,
   web_socket::{
     handshake::{WebSocketConnect, WebSocketConnectRaw},
@@ -23,13 +23,12 @@ async fn main() {
     fb,
     headers_buffer: &mut <_>::default(),
     rng: StdRng::default(),
-    stream: tls_stream_from_host(
-      uri.host(),
-      uri.hostname(),
-      Some(include_bytes!("../../.certs/root-ca.crt")),
-    )
-    .await
-    .unwrap(),
+    stream: TokioRustlsConnector::from_webpki_roots()
+      .push_certs(include_bytes!("../../.certs/root-ca.crt"))
+      .unwrap()
+      .with_tcp_stream(uri.host(), uri.hostname())
+      .await
+      .unwrap(),
     uri: &uri,
     wsb: WebSocketBuffer::default(),
   }

@@ -13,16 +13,16 @@ mod filled_buffer_writer;
 mod fn_mut_fut;
 mod generic_time;
 mod partitioned_filled_buffer;
+mod poll_once;
 mod query_writer;
 mod stream;
-#[cfg(feature = "_tokio-rustls-client")]
+#[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
 mod traits;
 mod uri;
-mod wrapper;
 
-#[cfg(feature = "_tokio-rustls-client")]
-pub use self::tokio_rustls::*;
+#[cfg(feature = "tokio-rustls")]
+pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 #[cfg(test)]
 use alloc::string::String;
 pub(crate) use array_chunks::ArrayChunksMut;
@@ -34,11 +34,11 @@ pub use filled_buffer_writer::FilledBufferWriter;
 pub use fn_mut_fut::FnMutFut;
 pub use generic_time::GenericTime;
 pub(crate) use partitioned_filled_buffer::PartitionedFilledBuffer;
+pub use poll_once::PollOnce;
 pub use query_writer::QueryWriter;
 pub use stream::{BytesStream, Stream, TlsStream};
 pub use traits::SingleTypeStorage;
 pub use uri::{Uri, UriRef, UriString};
-pub use wrapper::Wrapper;
 
 /// Internally uses `simdutf8` if the feature was activated.
 #[inline]
@@ -58,8 +58,6 @@ pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
 }
 
 /// Sleeps for the specified amount of time.
-///
-/// Intended for asynchronous usage, i.e., won't block threads.
 #[allow(
   // Depends on the selected set of features.
   clippy::unused_async

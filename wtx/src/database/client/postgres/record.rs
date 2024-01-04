@@ -3,18 +3,19 @@ use crate::database::{
   Database, ValueIdent,
 };
 use alloc::vec::Vec;
-use core::ops::Range;
+use core::{marker::PhantomData, ops::Range};
 
 /// Record
-#[derive(Debug, Eq, PartialEq)]
-pub struct Record<'exec> {
+#[derive(Debug)]
+pub struct Record<'exec, E> {
   pub(crate) bytes: &'exec [u8],
   pub(crate) initial_value_offset: usize,
+  pub(crate) phantom: PhantomData<E>,
   pub(crate) stmt: Statement<'exec>,
   pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
-impl<'exec> Record<'exec> {
+impl<'exec, E> Record<'exec, E> {
   pub(crate) fn parse(
     mut bytes: &'exec [u8],
     bytes_range: Range<usize>,
@@ -43,7 +44,13 @@ impl<'exec> Record<'exec> {
         fun(&mut curr_value_offset, [*a, *b, *c, *d])?;
       }
       _ => {
-        return Ok(Self { bytes, initial_value_offset: 0, stmt, values_bytes_offsets });
+        return Ok(Self {
+          bytes,
+          initial_value_offset: 0,
+          phantom: PhantomData,
+          stmt,
+          values_bytes_offsets,
+        });
       }
     }
 
@@ -59,6 +66,7 @@ impl<'exec> Record<'exec> {
     Ok(Self {
       bytes,
       initial_value_offset,
+      phantom: PhantomData,
       stmt,
       values_bytes_offsets: values_bytes_offsets
         .get(values_bytes_offsets_start..)
@@ -67,8 +75,11 @@ impl<'exec> Record<'exec> {
   }
 }
 
-impl<'exec> crate::database::Record for Record<'exec> {
-  type Database = Postgres;
+impl<'exec, E> crate::database::Record for Record<'exec, E>
+where
+  E: From<crate::Error>,
+{
+  type Database = Postgres<E>;
 
   #[inline]
   fn len(&self) -> usize {
@@ -78,7 +89,7 @@ impl<'exec> crate::database::Record for Record<'exec> {
   #[inline]
   fn value<'this, CI>(&'this self, ci: CI) -> Option<<Self::Database as Database>::Value<'this>>
   where
-    CI: ValueIdent<Record<'this>>,
+    CI: ValueIdent<Record<'this, E>>,
   {
     let (is_null, range) = self.values_bytes_offsets.get(ci.idx(self)?)?;
     if *is_null {
@@ -91,28 +102,40 @@ impl<'exec> crate::database::Record for Record<'exec> {
   }
 }
 
-impl<'exec> ValueIdent<Record<'exec>> for str {
+impl<'exec, E> ValueIdent<Record<'exec, E>> for str {
   #[inline]
-  fn idx(&self, input: &Record<'exec>) -> Option<usize> {
+  fn idx(&self, input: &Record<'exec, E>) -> Option<usize> {
     input.stmt.columns.iter().position(|column| column.name.as_str() == self)
+  }
+}
+
+impl<'exec, E> PartialEq for Record<'exec, E> {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    self.bytes == other.bytes
+      && self.initial_value_offset == other.initial_value_offset
+      && self.phantom == other.phantom
+      && self.stmt == other.stmt
+      && self.values_bytes_offsets == other.values_bytes_offsets
   }
 }
 
 #[cfg(feature = "arrayvec")]
 mod arrayvec {
   use crate::{
-    database::{FromRecord, Record},
+    database::{client::postgres::Postgres, FromRecord, Record},
     misc::from_utf8_basic_rslt,
   };
   use arrayvec::ArrayString;
 
-  impl<'exec, E, const N: usize> FromRecord<E, crate::database::client::postgres::Record<'exec>>
-    for ArrayString<N>
+  impl<E, const N: usize> FromRecord<Postgres<E>> for ArrayString<N>
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn from_record(record: crate::database::client::postgres::Record<'exec>) -> Result<Self, E> {
+    fn from_record(
+      record: &crate::database::client::postgres::record::Record<'_, E>,
+    ) -> Result<Self, E> {
       Ok(
         from_utf8_basic_rslt(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?.bytes())
           .map_err(From::from)?
@@ -130,21 +153,29 @@ mod tests {
     Record as _,
   };
   use alloc::vec;
+  use core::marker::PhantomData;
 
   #[test]
   fn returns_correct_values() {
     let bytes = &[0, 0, 0, 1, 1, 0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 4];
     let mut values_bytes_offsets = vec![];
     let stmt = Statement::new(&[], &[]);
-    let record =
-      Record::parse(bytes, 0..bytes.len(), stmt.clone(), &mut values_bytes_offsets, 3).unwrap();
+    let record = Record::<crate::Error>::parse(
+      bytes,
+      0..bytes.len(),
+      stmt.clone(),
+      &mut values_bytes_offsets,
+      3,
+    )
+    .unwrap();
     assert_eq!(
       record,
       Record {
         bytes: &[1, 0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 4],
         initial_value_offset: 0,
         stmt,
-        values_bytes_offsets: &[(false, 0..1), (false, 5..7), (false, 11..12)]
+        values_bytes_offsets: &[(false, 0usize..1usize), (false, 5..7), (false, 11..12)],
+        phantom: PhantomData
       }
     );
     assert_eq!(record.len(), 3);

@@ -59,6 +59,21 @@ impl Statements {
     }
   }
 
+  pub(crate) fn _empty() -> Self {
+    Self {
+      columns: VecDeque::new(),
+      columns_start: 0,
+      info: VecDeque::new(),
+      info_by_cmd_hash: HashMap::new(),
+      info_by_cmd_hash_start: 0,
+      hasher: RandomState::with_seeds(0, 0, 0, 0),
+      max_stmts: 0,
+      num_of_elements_to_remove_when_full: 0,
+      params: VecDeque::new(),
+      params_start: 0,
+    }
+  }
+
   pub(crate) fn with_default_params<RNG>(rng: &mut RNG) -> Self
   where
     RNG: Rng,

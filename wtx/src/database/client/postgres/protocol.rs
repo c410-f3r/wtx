@@ -18,7 +18,7 @@ pub(crate) fn bind<E, RV>(
 ) -> Result<(), E>
 where
   E: From<crate::Error>,
-  RV: RecordValues<Postgres, E>,
+  RV: RecordValues<Postgres<E>>,
 {
   write(fbw, true, Some(b'B'), |local_fbw| {
     local_fbw._extend_from_slices_each_c(&[portal.as_bytes(), stmt_str.as_bytes()]);

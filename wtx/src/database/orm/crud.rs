@@ -19,7 +19,7 @@ pub trait Crud: Executor {
     table_params: &mut TableParams<'entity, T>,
   ) -> impl Future<Output = Result<(), T::Error>>
   where
-    T: Table<'entity>,
+    T: Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = T::Error>,
   {
     async move {
@@ -29,7 +29,7 @@ pub trait Crud: Executor {
         buffer_cmd,
         &mut None,
       )?;
-      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await.map_err(Into::into)?;
+      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
       Ok(())
     }
   }
@@ -42,13 +42,13 @@ pub trait Crud: Executor {
     table_params: &mut TableParams<'entity, T>,
   ) -> impl Future<Output = Result<(), T::Error>>
   where
-    T: Table<'entity>,
+    T: Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = T::Error>,
   {
     async move {
       table_params.update_all_table_fields(table);
       table_params.write_delete(&mut <_>::default(), buffer_cmd)?;
-      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await.map_err(Into::into)?;
+      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
       Ok(())
     }
   }
@@ -61,15 +61,10 @@ pub trait Crud: Executor {
     tp: &TableParams<'entity, T>,
   ) -> impl Future<Output = Result<(), <T as Table<'entity>>::Error>>
   where
-    T:
-      FromRecords<Database = Self::Database, Error = <T as Table<'entity>>::Error> + Table<'entity>,
+    T: FromRecords<Self::Database> + Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = <T as Table<'entity>>::Error>,
-    str: for<'rec> ValueIdent<<<T as FromRecords>::Database as Database>::Record<'rec>>,
-    u64: for<'value> Decode<
-      <T as FromRecords>::Database,
-      crate::Error,
-      Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
-    >,
+    str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
+    u64: for<'value> Decode<'value, Self::Database>,
   {
     async move {
       tp.write_select(buffer_cmd, SelectOrderBy::Ascending, SelectLimit::All, &mut |_| Ok(()))?;
@@ -91,15 +86,10 @@ pub trait Crud: Executor {
     where_str: &str,
   ) -> impl Future<Output = Result<(), <T as Table<'entity>>::Error>>
   where
-    T:
-      FromRecords<Database = Self::Database, Error = <T as Table<'entity>>::Error> + Table<'entity>,
+    T: FromRecords<Self::Database> + Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = <T as Table<'entity>>::Error>,
-    str: for<'rec> ValueIdent<<<T as FromRecords>::Database as Database>::Record<'rec>>,
-    u64: for<'value> Decode<
-      <T as FromRecords>::Database,
-      crate::Error,
-      Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
-    >,
+    str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
+    u64: for<'value> Decode<'value, Self::Database>,
   {
     async move {
       tp.write_select(buffer_cmd, order_by, select_limit, &mut |b| {
@@ -117,12 +107,11 @@ pub trait Crud: Executor {
   fn read_by_id<'entity, T>(
     &mut self,
     buffer_cmd: &mut String,
-    id: &T::PrimaryKeyValue,
+    id: T::PrimaryKeyValue,
     tp: &TableParams<'entity, T>,
   ) -> impl Future<Output = Result<T, <T as Table<'entity>>::Error>>
   where
-    T:
-      FromRecords<Database = Self::Database, Error = <T as Table<'entity>>::Error> + Table<'entity>,
+    T: FromRecords<Self::Database> + Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = <T as Table<'entity>>::Error>,
   {
     async move {
@@ -151,13 +140,13 @@ pub trait Crud: Executor {
     table_params: &mut TableParams<'entity, T>,
   ) -> impl Future<Output = Result<(), T::Error>>
   where
-    T: Table<'entity>,
+    T: Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = T::Error>,
   {
     async move {
       table_params.update_all_table_fields(table);
       table_params.write_update(&mut <_>::default(), buffer_cmd)?;
-      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await.map_err(Into::into)?;
+      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
       Ok(())
     }
   }
@@ -169,20 +158,17 @@ impl<T> Crud for T where T: Executor {}
 ///
 /// One entity can constructed by more than one row.
 #[inline]
-fn collect_entities_tables<'entity, T>(
+fn collect_entities_tables<'entity, D, T>(
   buffer_cmd: &mut String,
-  records: &<T::Database as Database>::Records<'_>,
+  records: &D::Records<'_>,
   results: &mut Vec<T>,
   tp: &TableParams<'entity, T>,
 ) -> Result<(), <T as Table<'entity>>::Error>
 where
-  T: FromRecords<Error = <T as Table<'entity>>::Error> + Table<'entity>,
-  str: for<'rec> ValueIdent<<<T as FromRecords>::Database as Database>::Record<'rec>>,
-  u64: for<'value> Decode<
-    <T as FromRecords>::Database,
-    crate::Error,
-    Value<'value> = <<T as FromRecords>::Database as Database>::Value<'value>,
-  >,
+  D: Database,
+  T: FromRecords<D> + Table<'entity, Error = D::Error>,
+  str: for<'rec> ValueIdent<D::Record<'rec>>,
+  u64: for<'value> Decode<'value, D>,
 {
   let mut curr_record_idx: usize = 0;
   loop {

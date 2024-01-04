@@ -1,13 +1,23 @@
 macro_rules! create_enum {
   (
-    $(#[$mac:meta])*
+    $(#[$container_mac:meta])*
     $v:vis enum $enum_ident:ident<$n:ty> {
-      $($(#[$doc:meta])* $variant_ident:ident = ($variant_n:literal $(, $variant_str:literal)?)),* $(,)?
+      $(
+        $(#[$variant_mac_fixed:meta])*
+        $variant_ident_fixed:ident = ($variant_n_fixed:literal $(, $variant_str_fixed:literal)?)
+      ),* $(,)?
+
+      $(
+        @
+        $(#[$variant_mac_range:meta])*
+        $variant_ident_range:ident($variant_ident_value:pat) = ($variant_n_range:literal $(, $variant_str_range:literal)?)
+      ),*
     }
   ) => {
-    $(#[$mac])*
+    $(#[$container_mac])*
     $v enum $enum_ident {
-      $($(#[$doc])* $variant_ident,)*
+      $($(#[$variant_mac_fixed])* $variant_ident_fixed,)*
+      $($(#[$variant_mac_range])* $variant_ident_range($n),)*
     }
 
     impl $enum_ident {
@@ -16,7 +26,11 @@ macro_rules! create_enum {
       pub const fn len() -> usize {
         let mut len: usize = 0;
         $({
-          let _ = $variant_n;
+          let _ = $variant_n_fixed;
+          len = len.wrapping_add(1);
+        })*
+        $({
+          let _ = $variant_n_range;
           len = len.wrapping_add(1);
         })*
         len
@@ -27,15 +41,27 @@ macro_rules! create_enum {
       pub const fn strings(&self) -> crate::misc::EnumVarStrings {
         match self {
           $(
-            $enum_ident::$variant_ident => crate::misc::EnumVarStrings {
+            $enum_ident::$variant_ident_fixed => crate::misc::EnumVarStrings {
               custom: {
                 #[allow(unused_assignments, unused_mut)]
                 let mut rslt = "";
-                $(rslt = $variant_str;)?
+                $(rslt = $variant_str_fixed;)?
                 rslt
               },
-              ident: stringify!($variant_ident),
-              number: stringify!($variant_n),
+              ident: stringify!($variant_ident_fixed),
+              number: stringify!($variant_n_fixed),
+            },
+          )*
+          $(
+            $enum_ident::$variant_ident_range(_) => crate::misc::EnumVarStrings {
+              custom: {
+                #[allow(unused_assignments, unused_mut)]
+                let mut rslt = "";
+                $(rslt = $variant_str_range;)?
+                rslt
+              },
+              ident: stringify!($variant_ident_range),
+              number: stringify!($variant_n_range),
             },
           )*
         }
@@ -57,7 +83,8 @@ macro_rules! create_enum {
       #[inline]
       fn from(from: $enum_ident) -> Self {
         match from {
-          $($enum_ident::$variant_ident => $variant_n,)*
+          $($enum_ident::$variant_ident_fixed => $variant_n_fixed,)*
+          $($enum_ident::$variant_ident_range(elem) => elem,)*
         }
       }
     }
@@ -68,7 +95,8 @@ macro_rules! create_enum {
       #[inline]
       fn try_from(from: $n) -> crate::Result<Self> {
         let rslt = match from {
-          $($variant_n => Self::$variant_ident,)*
+          $($variant_n_fixed => Self::$variant_ident_fixed,)*
+          $($variant_ident_value => Self::$variant_ident_range(from),)*
           _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
         };
         Ok(rslt)
@@ -82,8 +110,8 @@ macro_rules! create_enum {
       fn try_from(from: &str) -> crate::Result<Self> {
         let rslt = match from {
           $(
-            stringify!($variant_ident) | stringify!($variant_n) $(| $variant_str)?  => {
-              Self::$variant_ident
+            stringify!($variant_ident_fixed) | stringify!($variant_n_fixed) $(| $variant_str_fixed)?  => {
+              Self::$variant_ident_fixed
             },
           )*
           _ => return Err(crate::Error::UnexpectedString { length: from.len() }),
