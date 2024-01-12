@@ -103,10 +103,6 @@ impl Statements {
     *params_start = 0;
   }
 
-  pub(crate) fn column_mut(&mut self, idx: usize) -> Option<&mut Column> {
-    self.columns.get_mut(idx)
-  }
-
   pub(crate) fn get_by_stmt_hash(&self, stmt_hash: u64) -> Option<Statement<'_>> {
     let mut info_idx = *self.info_by_cmd_hash.get(&stmt_hash)?;
     info_idx = info_idx.wrapping_sub(self.info_by_cmd_hash_start);
@@ -141,10 +137,6 @@ impl Statements {
 
   pub(crate) fn hasher_mut(&mut self) -> &mut RandomState {
     &mut self.hasher
-  }
-
-  pub(crate) fn param_mut(&mut self, idx: usize) -> Option<&mut Ty> {
-    self.params.get_mut(idx)
   }
 
   pub(crate) fn push(&mut self, stmt_hash: u64) -> PushRslt<'_> {
@@ -220,10 +212,6 @@ pub(crate) struct StatementBuilder<'stmts> {
 }
 
 impl<'stmts> StatementBuilder<'stmts> {
-  pub(crate) fn columns_len(&self) -> usize {
-    self.columns_len
-  }
-
   // Returning `&'stmts mut Statements` because of borrow checker limitations.
   pub(crate) fn finish(self) -> &'stmts mut Statements {
     let (last_columns_offset, last_params_offset) = self
@@ -245,10 +233,6 @@ impl<'stmts> StatementBuilder<'stmts> {
       stmt_hash: self.stmt_hash,
     });
     self.stmts
-  }
-
-  pub(crate) fn params_len(&self) -> usize {
-    self.params_len
   }
 
   pub(crate) fn push_column(&mut self, column: Column) {

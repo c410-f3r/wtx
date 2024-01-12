@@ -4,7 +4,7 @@ use crate::{
       executor::commons::FetchWithStmtCommons, message::Message, statements::Statement, Executor,
       ExecutorBuffer, MessageTy, Postgres, Record, Statements,
     },
-    RecordValues, Stmt,
+    RecordValues, StmtCmd,
   },
   misc::{PartitionedFilledBuffer, Stream, _read_until},
 };
@@ -16,21 +16,20 @@ where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn write_send_await_fetch_with_stmt<'rec, STMT, RV>(
+  pub(crate) async fn write_send_await_fetch_with_stmt<'rec, SC, RV>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
     nb: &'rec mut PartitionedFilledBuffer,
     rv: RV,
-    stmt: STMT,
+    sc: SC,
     stmts: &'rec mut Statements,
     vb: &'rec mut Vec<(bool, Range<usize>)>,
   ) -> Result<Record<'rec, E>, E>
   where
     E: From<crate::Error>,
     RV: RecordValues<Postgres<E>>,
-    STMT: Stmt,
+    SC: StmtCmd,
   {
-    let (_, stmt_id_str, stmt) =
-      Self::write_send_await_stmt_prot(fwsc, nb, stmt, stmts, vb).await?;
+    let (_, stmt_id_str, stmt) = Self::write_send_await_stmt_prot(fwsc, nb, sc, stmts, vb).await?;
     Self::write_send_await_fetch_with_stmt_wo_prot(fwsc, nb, rv, stmt, &stmt_id_str, vb).await
   }
 
@@ -46,7 +45,7 @@ where
     E: From<crate::Error>,
     RV: RecordValues<Postgres<E>>,
   {
-    Self::write_send_await_stmt_initial(fwsc, nb, rv, &stmt, &stmt_id_str).await?;
+    Self::write_send_await_stmt_initial(fwsc, nb, rv, &stmt, stmt_id_str).await?;
     let mut data_row_msg_range = None;
     loop {
       let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;

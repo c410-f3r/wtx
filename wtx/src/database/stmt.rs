@@ -1,7 +1,7 @@
 use core::hash::BuildHasher;
 
-/// Statement can be a string or the hashed contents of a string.
-pub trait Stmt {
+/// Statement command can be a string or the hashed contents of a string.
+pub trait StmtCmd {
   /// Source command, if any.
   fn cmd(&self) -> Option<&str>;
 
@@ -9,9 +9,9 @@ pub trait Stmt {
   fn hash(&self, hasher: &mut impl BuildHasher) -> u64;
 }
 
-impl<T> Stmt for &T
+impl<T> StmtCmd for &T
 where
-  T: Stmt,
+  T: StmtCmd,
 {
   #[inline]
   fn cmd(&self) -> Option<&str> {
@@ -24,7 +24,7 @@ where
   }
 }
 
-impl Stmt for u64 {
+impl StmtCmd for u64 {
   #[inline]
   fn cmd(&self) -> Option<&str> {
     None
@@ -36,7 +36,7 @@ impl Stmt for u64 {
   }
 }
 
-impl Stmt for &str {
+impl StmtCmd for &str {
   #[inline]
   fn cmd(&self) -> Option<&str> {
     Some(self)

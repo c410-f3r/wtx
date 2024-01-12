@@ -36,7 +36,7 @@ pub use records::Records;
 pub use sql_state::SqlState;
 pub use statements::Statements;
 pub use transaction_manager::TransactionManager;
-pub use ty::{CustomTy, Ty, TyKind};
+pub use ty::Ty;
 
 pub(crate) type Oid = u32;
 
