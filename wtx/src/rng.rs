@@ -79,7 +79,7 @@ impl Default for StaticRng {
     }
     let elem = Box::new(Foo { _bar: 1, _baz: 2 });
     let ref_ptr = ptr::addr_of!(elem).cast();
-    // SAFETY: Memory location is not relevant
+    // SAFETY: Memory validation is not relevant
     #[allow(unsafe_code)]
     let n: usize = unsafe { *ref_ptr };
     if n == 0 {

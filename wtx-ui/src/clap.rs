@@ -94,7 +94,6 @@ pub(crate) struct SchemaManager {
   pub(crate) var: String,
 }
 
-#[allow(unused_tuple_struct_fields)]
 #[derive(Debug, clap::Subcommand)]
 pub(crate) enum SchemaManagerCommands {
   /// Clean all database objects. For example, tables, triggers or procedures

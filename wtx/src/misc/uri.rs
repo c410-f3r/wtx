@@ -269,7 +269,7 @@ impl UriString {
 impl<S> Debug for Uri<S> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("Uri").finish()
+    f.write_str("Uri")
   }
 }
 

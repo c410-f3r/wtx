@@ -6,18 +6,11 @@ macro_rules! create_enum {
         $(#[$variant_mac_fixed:meta])*
         $variant_ident_fixed:ident = ($variant_n_fixed:literal $(, $variant_str_fixed:literal)?)
       ),* $(,)?
-
-      $(
-        @
-        $(#[$variant_mac_range:meta])*
-        $variant_ident_range:ident($variant_ident_value:pat) = ($variant_n_range:literal $(, $variant_str_range:literal)?)
-      ),*
     }
   ) => {
     $(#[$container_mac])*
     $v enum $enum_ident {
       $($(#[$variant_mac_fixed])* $variant_ident_fixed,)*
-      $($(#[$variant_mac_range])* $variant_ident_range($n),)*
     }
 
     impl $enum_ident {
@@ -27,10 +20,6 @@ macro_rules! create_enum {
         let mut len: usize = 0;
         $({
           let _ = $variant_n_fixed;
-          len = len.wrapping_add(1);
-        })*
-        $({
-          let _ = $variant_n_range;
           len = len.wrapping_add(1);
         })*
         len
@@ -50,18 +39,6 @@ macro_rules! create_enum {
               },
               ident: stringify!($variant_ident_fixed),
               number: stringify!($variant_n_fixed),
-            },
-          )*
-          $(
-            $enum_ident::$variant_ident_range(_) => crate::misc::EnumVarStrings {
-              custom: {
-                #[allow(unused_assignments, unused_mut)]
-                let mut rslt = "";
-                $(rslt = $variant_str_range;)?
-                rslt
-              },
-              ident: stringify!($variant_ident_range),
-              number: stringify!($variant_n_range),
             },
           )*
         }
@@ -84,7 +61,6 @@ macro_rules! create_enum {
       fn from(from: $enum_ident) -> Self {
         match from {
           $($enum_ident::$variant_ident_fixed => $variant_n_fixed,)*
-          $($enum_ident::$variant_ident_range(elem) => elem,)*
         }
       }
     }
@@ -96,7 +72,6 @@ macro_rules! create_enum {
       fn try_from(from: $n) -> crate::Result<Self> {
         let rslt = match from {
           $($variant_n_fixed => Self::$variant_ident_fixed,)*
-          $($variant_ident_value => Self::$variant_ident_range(from),)*
           _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
         };
         Ok(rslt)

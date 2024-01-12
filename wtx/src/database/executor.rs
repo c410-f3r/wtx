@@ -1,6 +1,6 @@
 //! Database
 
-use crate::database::{Database, FromRecord, RecordValues, StmtId, TransactionManager};
+use crate::database::{Database, FromRecord, RecordValues, Stmt, TransactionManager};
 use alloc::vec::Vec;
 use core::future::Future;
 
@@ -12,59 +12,64 @@ pub trait Executor {
   type TransactionManager<'tm>: TransactionManager<Executor = Self>
   where
     Self: 'tm;
-  /// Executes severals commands returning the number of affected records on each `cb` call.
+
+  /// Allows the evaluation of severals commands returning the number of affected records on each `cb` call.
   ///
   /// Commands are not cached or inspected for potential vulnerabilities.
   fn execute(&mut self, cmd: &str, cb: impl FnMut(u64)) -> impl Future<Output = crate::Result<()>>;
 
   /// Executes a **single** statement automatically binding the values of `rv` to the referenced
-  /// `stmt_id` and then returns the number of affected records.
-  fn execute_with_stmt<SI, RV>(
+  /// `stmt` and then returns the number of affected records.
+  fn execute_with_stmt<STMT, RV>(
     &mut self,
-    stmt_id: SI,
+    stmt: STMT,
     rv: RV,
   ) -> impl Future<Output = Result<u64, <Self::Database as Database>::Error>>
   where
     RV: RecordValues<Self::Database>,
-    SI: StmtId;
+    STMT: Stmt;
 
   /// Executes a **single** statement automatically binding the values of `rv` to the referenced
-  /// `stmt_id` and then returns a **single** record.
-  fn fetch_with_stmt<SI, RV>(
+  /// `stmt` and then returns a **single** record.
+  fn fetch_with_stmt<S, RV>(
     &mut self,
-    stmt_id: SI,
+    stmt: S,
     sv: RV,
   ) -> impl Future<
     Output = Result<<Self::Database as Database>::Record<'_>, <Self::Database as Database>::Error>,
   >
   where
     RV: RecordValues<Self::Database>,
-    SI: StmtId;
+    S: Stmt;
 
   /// Executes a **single** statement automatically binding the values of `rv` to the referenced
-  /// `stmt_id` and then returns a **set** of records.
-  fn fetch_many_with_stmt<SI, RV>(
-    &mut self,
-    stmt_id: SI,
+  /// `stmt` and then returns a **set** of records.
+  fn fetch_many_with_stmt<'this, STMT, RV>(
+    &'this mut self,
+    stmt: STMT,
     sv: RV,
     cb: impl FnMut(
-      <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as Database>::Error>,
+        &<Self::Database as Database>::Record<'_>,
+      ) -> Result<(), <Self::Database as Database>::Error>
+      + 'this,
   ) -> impl Future<
     Output = Result<<Self::Database as Database>::Records<'_>, <Self::Database as Database>::Error>,
   >
   where
     RV: RecordValues<Self::Database>,
-    SI: StmtId;
+    STMT: Stmt;
 
-  /// Somethings the backend can discontinue the connection.
+  /// Sometimes the backend can discontinue the connection.
   fn is_closed(&self) -> bool;
 
   /// Caches the passed command to create a statement, which speeds up subsequent calls that match
   /// the same `cmd`.
   ///
   /// The returned integer is an identifier of the added statement.
-  fn prepare(&mut self, cmd: &str) -> impl Future<Output = crate::Result<u64>>;
+  fn prepare(
+    &mut self,
+    cmd: &str,
+  ) -> impl Future<Output = Result<u64, <Self::Database as Database>::Error>>;
 
   /// Retrieves a record and maps it to `T`. See [FromRecord].
   #[inline]
@@ -104,7 +109,7 @@ pub trait Executor {
   }
 
   /// Initially calls `begin` and the returns [Self::TransactionManager], which implies in an
-  /// following obligatory `commit` call by the caller.
+  /// following mandatory `commit` call by the caller.
   fn transaction(&mut self) -> impl Future<Output = crate::Result<Self::TransactionManager<'_>>>;
 }
 
@@ -118,43 +123,44 @@ impl Executor for () {
   }
 
   #[inline]
-  async fn execute_with_stmt<SI, RV>(
+  async fn execute_with_stmt<S, RV>(
     &mut self,
-    _: SI,
+    _: S,
     _: RV,
   ) -> Result<u64, <Self::Database as Database>::Error>
   where
     RV: RecordValues<Self::Database>,
-    SI: StmtId,
+    S: Stmt,
   {
     Ok(0)
   }
 
   #[inline]
-  async fn fetch_with_stmt<SI, RV>(
+  async fn fetch_with_stmt<S, RV>(
     &mut self,
-    _: SI,
+    _: S,
     _: RV,
   ) -> Result<<Self::Database as Database>::Record<'_>, <Self::Database as Database>::Error>
   where
     RV: RecordValues<Self::Database>,
-    SI: StmtId,
+    S: Stmt,
   {
     Ok(())
   }
 
   #[inline]
-  async fn fetch_many_with_stmt<SI, RV>(
-    &mut self,
-    _: SI,
+  async fn fetch_many_with_stmt<'this, S, RV>(
+    &'this mut self,
+    _: S,
     _: RV,
     _: impl FnMut(
-      <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as Database>::Error>,
+        &<Self::Database as Database>::Record<'_>,
+      ) -> Result<(), <Self::Database as Database>::Error>
+      + 'this,
   ) -> Result<(), <Self::Database as Database>::Error>
   where
     RV: RecordValues<Self::Database>,
-    SI: StmtId,
+    S: Stmt,
   {
     Ok(())
   }
@@ -165,7 +171,7 @@ impl Executor for () {
   }
 
   #[inline]
-  async fn prepare(&mut self, _: &str) -> crate::Result<u64> {
+  async fn prepare(&mut self, _: &str) -> Result<u64, <Self::Database as Database>::Error> {
     Ok(0)
   }
 

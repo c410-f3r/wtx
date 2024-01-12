@@ -8,6 +8,7 @@
 mod array_chunks;
 mod async_bounds;
 mod basic_utf8_error;
+mod either;
 mod enum_var_strings;
 mod filled_buffer_writer;
 mod fn_mut_fut;
@@ -29,6 +30,7 @@ pub(crate) use array_chunks::ArrayChunksMut;
 pub use async_bounds::AsyncBounds;
 pub use basic_utf8_error::BasicUtf8Error;
 use core::{any::type_name, time::Duration};
+pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
 pub use fn_mut_fut::FnMutFut;

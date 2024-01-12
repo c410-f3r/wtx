@@ -1,14 +1,74 @@
 use crate::{
-  database::client::postgres::{message::Message, Executor, ExecutorBuffer, MessageTy},
+  database::{
+    client::postgres::{
+      executor::commons::FetchWithStmtCommons, message::Message, statements::Statement, Executor,
+      ExecutorBuffer, MessageTy, Postgres, Record, Statements,
+    },
+    RecordValues, Stmt,
+  },
   misc::{PartitionedFilledBuffer, Stream, _read_until},
 };
-use core::borrow::BorrowMut;
+use alloc::vec::Vec;
+use core::{borrow::BorrowMut, ops::Range};
 
 impl<E, EB, S> Executor<E, EB, S>
 where
   EB: BorrowMut<ExecutorBuffer>,
   S: Stream,
 {
+  pub(crate) async fn write_send_await_fetch_with_stmt<'rec, STMT, RV>(
+    fwsc: &mut FetchWithStmtCommons<'_, S>,
+    nb: &'rec mut PartitionedFilledBuffer,
+    rv: RV,
+    stmt: STMT,
+    stmts: &'rec mut Statements,
+    vb: &'rec mut Vec<(bool, Range<usize>)>,
+  ) -> Result<Record<'rec, E>, E>
+  where
+    E: From<crate::Error>,
+    RV: RecordValues<Postgres<E>>,
+    STMT: Stmt,
+  {
+    let (_, stmt_id_str, stmt) =
+      Self::write_send_await_stmt_prot(fwsc, nb, stmt, stmts, vb).await?;
+    Self::write_send_await_fetch_with_stmt_wo_prot(fwsc, nb, rv, stmt, &stmt_id_str, vb).await
+  }
+
+  pub(crate) async fn write_send_await_fetch_with_stmt_wo_prot<'rec, RV>(
+    fwsc: &mut FetchWithStmtCommons<'_, S>,
+    nb: &'rec mut PartitionedFilledBuffer,
+    rv: RV,
+    stmt: Statement<'rec>,
+    stmt_id_str: &str,
+    vb: &'rec mut Vec<(bool, Range<usize>)>,
+  ) -> Result<Record<'rec, E>, E>
+  where
+    E: From<crate::Error>,
+    RV: RecordValues<Postgres<E>>,
+  {
+    Self::write_send_await_stmt_initial(fwsc, nb, rv, &stmt, &stmt_id_str).await?;
+    let mut data_row_msg_range = None;
+    loop {
+      let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+      match msg.ty {
+        MessageTy::DataRow(len) => {
+          data_row_msg_range = Some((len, nb._current_range()));
+        }
+        MessageTy::ReadyForQuery => break,
+        MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
+        _ => return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag }.into()),
+      }
+    }
+    if let Some((record_bytes, len)) = data_row_msg_range.and_then(|(len, range)| {
+      let record_range = range.start.wrapping_add(7)..range.end;
+      Some((nb._buffer().get(record_range)?, len))
+    }) {
+      Record::parse(record_bytes, 0..record_bytes.len(), stmt, vb, len).map_err(From::from)
+    } else {
+      Err(crate::Error::NoRecord.into())
+    }
+  }
+
   pub(crate) async fn fetch_msg_from_stream<'nb>(
     is_closed: &mut bool,
     nb: &'nb mut PartitionedFilledBuffer,
@@ -64,7 +124,7 @@ where
     Ok(())
   }
 
-  pub(crate) async fn fetch_representative_msg_from_stream<'nb>(
+  async fn fetch_representative_msg_from_stream<'nb>(
     nb: &'nb mut PartitionedFilledBuffer,
     stream: &mut S,
   ) -> crate::Result<u8> {

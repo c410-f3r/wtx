@@ -77,7 +77,11 @@ mod tests {
   use core::marker::PhantomData;
 
   use crate::database::{
-    client::postgres::{statements::Statement, Record, Records},
+    client::postgres::{
+      statements::Statement,
+      tests::{column0, column1, column2},
+      DecodeValue, Record, Records,
+    },
     Record as _, Records as _,
   };
   use alloc::vec::Vec;
@@ -85,26 +89,28 @@ mod tests {
   #[test]
   fn returns_correct_values() {
     let bytes = &[0, 0, 0, 2, 1, 2, 0, 0, 0, 2, 3, 4, 9, 9, 9, 0, 1, 0, 0, 0, 4, 5, 6, 7, 8];
+    let columns = &[column0(), column1(), column2()];
+    let stmt = Statement::new(columns, &[]);
     let mut records_values_offsets = Vec::new();
     let mut values_bytes_offsets = Vec::new();
     assert_eq!(
-      Record::parse(bytes, 0..12, Statement::new(&[], &[]), &mut values_bytes_offsets, 2).unwrap(),
+      Record::parse(bytes, 0..12, stmt.clone(), &mut values_bytes_offsets, 2).unwrap(),
       Record {
         bytes: &[1, 2, 0, 0, 0, 2, 3, 4],
         initial_value_offset: 0,
         phantom: PhantomData::<crate::Error>,
-        stmt: Statement::new(&[], &[]),
+        stmt: stmt.clone(),
         values_bytes_offsets: &[(false, 0..2), (false, 6..8)]
       }
     );
     records_values_offsets.push(values_bytes_offsets.len());
     assert_eq!(
-      Record::parse(bytes, 17..25, Statement::new(&[], &[]), &mut values_bytes_offsets, 1).unwrap(),
+      Record::parse(bytes, 17..25, stmt.clone(), &mut values_bytes_offsets, 1).unwrap(),
       Record {
         bytes: &[5, 6, 7, 8],
         initial_value_offset: 17,
         phantom: PhantomData::<crate::Error>,
-        stmt: Statement::new(&[], &[]),
+        stmt: stmt.clone(),
         values_bytes_offsets: &[(false, 17..21)]
       }
     );
@@ -114,7 +120,7 @@ mod tests {
       bytes: &bytes[4..],
       phantom: PhantomData::<crate::Error>,
       records_values_offsets: &records_values_offsets,
-      stmt: Statement::new(&[], &[]),
+      stmt: stmt.clone(),
       values_bytes_offsets: &values_bytes_offsets,
     };
     assert_eq!(records.len(), 2);
@@ -129,12 +135,12 @@ mod tests {
         bytes: &[1, 2, 0, 0, 0, 2, 3, 4],
         initial_value_offset: 0,
         phantom: PhantomData::<crate::Error>,
-        stmt: Statement::new(&[], &[]),
+        stmt: stmt.clone(),
         values_bytes_offsets: &[(false, 0..2), (false, 6..8)]
       }
     );
-    assert_eq!(first_record.value(0).unwrap().bytes(), &[1, 2]);
-    assert_eq!(first_record.value(1).unwrap().bytes(), &[3, 4]);
+    assert_eq!(first_record.value(0).unwrap(), DecodeValue::new(&[1, 2], &column0().ty));
+    assert_eq!(first_record.value(1).unwrap(), DecodeValue::new(&[3, 4], &column1().ty));
 
     let second_record = records.get(1).unwrap();
     assert_eq!(
@@ -143,7 +149,7 @@ mod tests {
         bytes: &[5, 6, 7, 8],
         initial_value_offset: 17,
         phantom: PhantomData::<crate::Error>,
-        stmt: Statement::new(&[], &[]),
+        stmt: stmt.clone(),
         values_bytes_offsets: &[(false, 17..21)]
       }
     );

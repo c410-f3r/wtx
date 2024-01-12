@@ -1,5 +1,5 @@
 use crate::database::{
-  client::postgres::{statements::Statement, Postgres, Value},
+  client::postgres::{statements::Statement, DecodeValue, Postgres},
   Database, ValueIdent,
 };
 use alloc::vec::Vec;
@@ -28,8 +28,10 @@ impl<'exec, E> Record<'exec, E> {
     let mut fun = |curr_value_offset: &mut usize, [a, b, c, d]: [u8; 4]| {
       let begin = *curr_value_offset;
       let n = i32::from_be_bytes([a, b, c, d]);
-      let (is_null, end) =
-        if n == -1 { (true, begin) } else { (false, begin.wrapping_add(usize::try_from(n)?)) };
+      let (is_null, end) = match n {
+        -1 => (true, begin),
+        _ => (false, begin.wrapping_add(usize::try_from(n)?)),
+      };
       values_bytes_offsets.push((is_null, begin..end));
       *curr_value_offset = end;
       crate::Result::Ok(())
@@ -87,17 +89,22 @@ where
   }
 
   #[inline]
-  fn value<'this, CI>(&'this self, ci: CI) -> Option<<Self::Database as Database>::Value<'this>>
+  fn value<'this, CI>(
+    &'this self,
+    ci: CI,
+  ) -> Option<<Self::Database as Database>::DecodeValue<'this>>
   where
     CI: ValueIdent<Record<'this, E>>,
   {
-    let (is_null, range) = self.values_bytes_offsets.get(ci.idx(self)?)?;
+    let idx = ci.idx(self)?;
+    let (is_null, range) = self.values_bytes_offsets.get(idx)?;
     if *is_null {
       None
     } else {
-      let mid = range.start.wrapping_sub(self.initial_value_offset);
+      let begin = range.start.wrapping_sub(self.initial_value_offset);
+      let column = self.stmt.columns.get(idx)?;
       let end = range.end.wrapping_sub(self.initial_value_offset);
-      Some(Value::new(self.bytes.get(mid..end)?))
+      Some(DecodeValue::new(self.bytes.get(begin..end)?, &column.ty))
     }
   }
 }
@@ -149,7 +156,11 @@ mod arrayvec {
 #[cfg(test)]
 mod tests {
   use crate::database::{
-    client::postgres::{statements::Statement, Record},
+    client::postgres::{
+      statements::Statement,
+      tests::{column0, column1, column2},
+      DecodeValue, Record,
+    },
     Record as _,
   };
   use alloc::vec;
@@ -158,8 +169,9 @@ mod tests {
   #[test]
   fn returns_correct_values() {
     let bytes = &[0, 0, 0, 1, 1, 0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 4];
+    let columns = &[column0(), column1(), column2()];
     let mut values_bytes_offsets = vec![];
-    let stmt = Statement::new(&[], &[]);
+    let stmt = Statement::new(columns, &[]);
     let record = Record::<crate::Error>::parse(
       bytes,
       0..bytes.len(),
@@ -179,9 +191,9 @@ mod tests {
       }
     );
     assert_eq!(record.len(), 3);
-    assert_eq!(record.value(0).map(|el| el.bytes()), Some(&[1][..]));
-    assert_eq!(record.value(1).map(|el| el.bytes()), Some(&[2, 3][..]));
-    assert_eq!(record.value(2).map(|el| el.bytes()), Some(&[4][..]));
-    assert_eq!(record.value(3).map(|el| el.bytes()), None);
+    assert_eq!(record.value(0), Some(DecodeValue::new(&[1][..], &column0().ty)));
+    assert_eq!(record.value(1), Some(DecodeValue::new(&[2, 3][..], &column1().ty)));
+    assert_eq!(record.value(2), Some(DecodeValue::new(&[4][..], &column2().ty)));
+    assert_eq!(record.value(3), None);
   }
 }

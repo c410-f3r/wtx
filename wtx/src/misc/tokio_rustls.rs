@@ -1,5 +1,5 @@
 use rustls_pki_types::ServerName;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 use tokio::{
   io::{AsyncRead, AsyncWrite},
   net::TcpStream,
@@ -68,10 +68,10 @@ impl TokioRustlsConnector {
   /// Connects using a [TcpStream] stream.
   pub async fn with_tcp_stream(
     self,
-    host: &str,
+    addr: SocketAddr,
     hostname: &str,
   ) -> crate::Result<TlsStream<TcpStream>> {
-    let stream = TcpStream::connect(host).await?;
+    let stream = TcpStream::connect(addr).await?;
     Ok(self.tls_connector().connect(Self::server_name(hostname)?, stream).await?)
   }
 

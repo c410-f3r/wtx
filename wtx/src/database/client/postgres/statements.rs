@@ -103,6 +103,10 @@ impl Statements {
     *params_start = 0;
   }
 
+  pub(crate) fn column_mut(&mut self, idx: usize) -> Option<&mut Column> {
+    self.columns.get_mut(idx)
+  }
+
   pub(crate) fn get_by_stmt_hash(&self, stmt_hash: u64) -> Option<Statement<'_>> {
     let mut info_idx = *self.info_by_cmd_hash.get(&stmt_hash)?;
     info_idx = info_idx.wrapping_sub(self.info_by_cmd_hash_start);
@@ -137,6 +141,10 @@ impl Statements {
 
   pub(crate) fn hasher_mut(&mut self) -> &mut RandomState {
     &mut self.hasher
+  }
+
+  pub(crate) fn param_mut(&mut self, idx: usize) -> Option<&mut Ty> {
+    self.params.get_mut(idx)
   }
 
   pub(crate) fn push(&mut self, stmt_hash: u64) -> PushRslt<'_> {
@@ -188,7 +196,7 @@ pub(crate) enum PushRslt<'stmts> {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct Column {
   pub(crate) name: Identifier,
-  pub(crate) value: Ty,
+  pub(crate) ty: Ty,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -212,6 +220,10 @@ pub(crate) struct StatementBuilder<'stmts> {
 }
 
 impl<'stmts> StatementBuilder<'stmts> {
+  pub(crate) fn columns_len(&self) -> usize {
+    self.columns_len
+  }
+
   // Returning `&'stmts mut Statements` because of borrow checker limitations.
   pub(crate) fn finish(self) -> &'stmts mut Statements {
     let (last_columns_offset, last_params_offset) = self
@@ -233,6 +245,10 @@ impl<'stmts> StatementBuilder<'stmts> {
       stmt_hash: self.stmt_hash,
     });
     self.stmts
+  }
+
+  pub(crate) fn params_len(&self) -> usize {
+    self.params_len
   }
 
   pub(crate) fn push_column(&mut self, column: Column) {
@@ -258,6 +274,7 @@ mod tests {
   use crate::{
     database::client::postgres::{
       statements::{Column, PushRslt, Statement},
+      tests::{column0, column1, column2, column3},
       ty::Ty,
       Statements,
     },
@@ -281,13 +298,13 @@ mod tests {
 
     let stmt_id0 = 123;
     let PushRslt::Builder(mut builder) = stmts.push(stmt_id0) else { panic!() };
-    builder.push_column(a());
-    builder.push_column(b());
+    builder.push_column(column0());
+    builder.push_column(column1());
     builder.push_param(Ty::Int2);
     let _ = builder.finish();
     assert_stmts(
       AssertStatements {
-        columns: &[a(), b()],
+        columns: &[column0(), column1()],
         columns_offset_start: 0,
         info: &[(2, 1)],
         info_by_cmd_hash: &[0],
@@ -296,16 +313,19 @@ mod tests {
       },
       &stmts,
     );
-    assert_eq!(stmts.get_by_stmt_hash(stmt_id0), Some(Statement::new(&[a(), b()], &[Ty::Int2])));
+    assert_eq!(
+      stmts.get_by_stmt_hash(stmt_id0),
+      Some(Statement::new(&[column0(), column1()], &[Ty::Int2]))
+    );
 
     let stmt_id1 = 456;
     let PushRslt::Builder(mut builder) = stmts.push(stmt_id1) else { panic!() };
-    builder.push_column(c());
+    builder.push_column(column2());
     builder.push_param(Ty::Int4);
     let _ = builder.finish();
     assert_stmts(
       AssertStatements {
-        columns: &[a(), b(), c()],
+        columns: &[column0(), column1(), column2()],
         columns_offset_start: 0,
         info: &[(2, 1), (3, 2)],
         info_by_cmd_hash: &[0, 1],
@@ -314,16 +334,19 @@ mod tests {
       },
       &stmts,
     );
-    assert_eq!(stmts.get_by_stmt_hash(stmt_id0), Some(Statement::new(&[a(), b()], &[Ty::Int2])));
-    assert_eq!(stmts.get_by_stmt_hash(stmt_id1), Some(Statement::new(&[c()], &[Ty::Int4])));
+    assert_eq!(
+      stmts.get_by_stmt_hash(stmt_id0),
+      Some(Statement::new(&[column0(), column1()], &[Ty::Int2]))
+    );
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id1), Some(Statement::new(&[column2()], &[Ty::Int4])));
 
     let stmt_id2 = 789;
     let PushRslt::Builder(mut builder) = stmts.push(stmt_id2) else { panic!() };
-    builder.push_column(d());
+    builder.push_column(column3());
     let _ = builder.finish();
     assert_stmts(
       AssertStatements {
-        columns: &[c(), d()],
+        columns: &[column2(), column3()],
         columns_offset_start: 2,
         info: &[(3, 2), (4, 2)],
         info_by_cmd_hash: &[1, 2],
@@ -333,8 +356,8 @@ mod tests {
       &stmts,
     );
     assert_eq!(stmts.get_by_stmt_hash(stmt_id0), None);
-    assert_eq!(stmts.get_by_stmt_hash(stmt_id1), Some(Statement::new(&[c()], &[Ty::Int4])));
-    assert_eq!(stmts.get_by_stmt_hash(stmt_id2), Some(Statement::new(&[d()], &[])));
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id1), Some(Statement::new(&[column2()], &[Ty::Int4])));
+    assert_eq!(stmts.get_by_stmt_hash(stmt_id2), Some(Statement::new(&[column3()], &[])));
 
     stmts.clear();
     assert_stmts(
@@ -351,10 +374,6 @@ mod tests {
     assert_eq!(stmts.get_by_stmt_hash(stmt_id0), None);
     assert_eq!(stmts.get_by_stmt_hash(stmt_id1), None);
     assert_eq!(stmts.get_by_stmt_hash(stmt_id2), None);
-  }
-
-  fn a() -> Column {
-    Column { name: "a".try_into().unwrap(), value: Ty::VarcharArray }
   }
 
   #[track_caller]
@@ -377,18 +396,6 @@ mod tests {
     assert_eq!(stmts.params.as_slices().0, cs.params);
     assert_eq!(stmts.params.as_slices().1, &[]);
     assert_eq!(stmts.params_start, cs.params_offset_start);
-  }
-
-  fn b() -> Column {
-    Column { name: "b".try_into().unwrap(), value: Ty::Int8 }
-  }
-
-  fn c() -> Column {
-    Column { name: "c".try_into().unwrap(), value: Ty::Char }
-  }
-
-  fn d() -> Column {
-    Column { name: "d".try_into().unwrap(), value: Ty::Date }
   }
 
   struct AssertStatements<'data> {

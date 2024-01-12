@@ -1,7 +1,7 @@
 use core::hash::BuildHasher;
 
-/// Statement identifier. Can be a string or the hashed contents of a string.
-pub trait StmtId {
+/// Statement can be a string or the hashed contents of a string.
+pub trait Stmt {
   /// Source command, if any.
   fn cmd(&self) -> Option<&str>;
 
@@ -9,9 +9,9 @@ pub trait StmtId {
   fn hash(&self, hasher: &mut impl BuildHasher) -> u64;
 }
 
-impl<T> StmtId for &T
+impl<T> Stmt for &T
 where
-  T: StmtId,
+  T: Stmt,
 {
   #[inline]
   fn cmd(&self) -> Option<&str> {
@@ -24,7 +24,7 @@ where
   }
 }
 
-impl StmtId for u64 {
+impl Stmt for u64 {
   #[inline]
   fn cmd(&self) -> Option<&str> {
     None
@@ -36,7 +36,7 @@ impl StmtId for u64 {
   }
 }
 
-impl StmtId for &str {
+impl Stmt for &str {
   #[inline]
   fn cmd(&self) -> Option<&str> {
     Some(self)

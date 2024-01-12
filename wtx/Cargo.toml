@@ -69,10 +69,8 @@ flate2 = { default-features = false, features = ["zlib-ng"], optional = true, ve
 futures = { default-features = false, optional = true, version = "0.3" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
-h2 = { default-features = false, optional = true, version = "0.4" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
-http = { default-features = false, optional = true, version = "1.0" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 md-5 = { default-features = false, optional = true, version = "0.10" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
@@ -81,7 +79,7 @@ protobuf = { default-features = false, optional = true, version = "3.0" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
-rust_decimal = { default-features = false, optional = true, version = "1.0" }
+rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls-pemfile = { default-features = false, features = ["std"], optional = true, version = "2.0" }
 rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
@@ -117,7 +115,6 @@ database = ["arrayvec"]
 default = []
 embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 glommio = ["futures-lite", "dep:glommio", "std"]
-h2 = ["dep:bytes", "dep:h2", "dep:http"]
 http1 = ["httparse"]
 miniserde = ["dep:miniserde", "std"]
 orm = ["database", "dep:smallvec"]
@@ -142,7 +139,7 @@ _bench = []
 # It is not up to this crate to decide what downstream should use
 _hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "rkyv?/size_32", "simd-json?/allow-non-simd"]
 _integration-tests = []
-_proptest = ["proptest", "std", "test-strategy"]
+_proptest = ["proptest/std", "rust_decimal?/proptest", "std", "test-strategy"]
 _tokio-rustls-client = ["rustls-pemfile", "tokio-rustls/tls12", "webpki-roots"]
 _tokio-rustls-server = ["rustls-pemfile", "tokio-rustls"]
 _tracing-subscriber = ["tracing", "dep:tracing-subscriber", "dep:tracing-tree"]

@@ -16,7 +16,6 @@ mod records;
 pub mod schema_manager;
 mod stmt;
 mod transaction_manager;
-mod value;
 mod value_ident;
 
 pub use database_ty::DatabaseTy;
@@ -28,9 +27,8 @@ pub use from_records::FromRecords;
 pub use record::Record;
 pub use record_values::RecordValues;
 pub use records::Records;
-pub use stmt::StmtId;
+pub use stmt::Stmt;
 pub use transaction_manager::TransactionManager;
-pub use value::Value;
 pub use value_ident::ValueIdent;
 
 /// Default environment variable name for the database URL
@@ -47,21 +45,24 @@ pub trait Database {
   /// See [DatabaseTy].
   const TY: DatabaseTy;
 
+  /// Contains the data used to decode types.
+  type DecodeValue<'dv>;
+  /// Contains the data used to decode types.
+  type EncodeValue<'ev>;
   /// See [crate::Error].
   type Error: From<crate::Error>;
   /// See [Record].
   type Record<'rec>: Record<Database = Self>;
   /// See [Records].
   type Records<'recs>: Records<Database = Self>;
-  /// Representation that can be used to encode or decode types.
-  type Value<'value>: Value;
 }
 
 impl Database for () {
   const TY: DatabaseTy = DatabaseTy::Unit;
 
+  type DecodeValue<'dv> = ();
+  type EncodeValue<'ev> = ();
   type Error = crate::Error;
   type Record<'rec> = ();
   type Records<'recs> = ();
-  type Value<'value> = ();
 }

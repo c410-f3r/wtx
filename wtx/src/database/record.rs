@@ -35,7 +35,10 @@ pub trait Record {
   fn len(&self) -> usize;
 
   /// Tries to retrieve a value.
-  fn value<'this, CI>(&'this self, ci: CI) -> Option<<Self::Database as Database>::Value<'this>>
+  fn value<'this, CI>(
+    &'this self,
+    ci: CI,
+  ) -> Option<<Self::Database as Database>::DecodeValue<'this>>
   where
     CI: ValueIdent<<Self::Database as Database>::Record<'this>>;
 }
@@ -49,7 +52,10 @@ impl Record for () {
   }
 
   #[inline]
-  fn value<'this, CI>(&'this self, _: CI) -> Option<<Self::Database as Database>::Value<'this>>
+  fn value<'this, CI>(
+    &'this self,
+    _: CI,
+  ) -> Option<<Self::Database as Database>::DecodeValue<'this>>
   where
     CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
   {

@@ -80,6 +80,8 @@ pub enum Error {
 
   // External - Std
   //
+  #[cfg(feature = "std")]
+  AddrParseError(std::net::AddrParseError),
   Fmt(core::fmt::Error),
   #[cfg(feature = "std")]
   IoError(std::io::Error),
@@ -127,11 +129,15 @@ pub enum Error {
   //
   /// A "null" field received from the database was decoded as a non-nullable type or value.
   AbsentFieldDataInDecoding,
+  /// Not-A-Number is not supported
+  DecimalCanNotBeConvertedFromNaN,
   /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
   /// and read with numbers up to 127.
   InvalidPostgresUint,
   /// Received bytes don't compose a valid record.
   InvalidPostgresRecord,
+  /// The iterator that composed a `RecordValues`` does not contain a corresponding length.
+  InvalidRecordValuesIterator,
   /// Expected one record but got none.
   NoRecord,
   /// A query
@@ -157,6 +163,8 @@ pub enum Error {
   UnknownConfigurationParameter,
   /// Received a statement ID that is not present in the local cache.
   UnknownStatementId,
+  /// The system only supports decimals with 64 digits.
+  VeryLargeDecimal,
 
   // ***** Internal - Database SM *****
   //
@@ -202,6 +210,8 @@ pub enum Error {
   InvalidUrl,
   /// Environment variable is not present
   MissingEnvVar,
+  /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
+  OutOfBoundsArithmetic,
   /// Unexpected String
   UnexpectedString {
     length: usize,
@@ -377,6 +387,14 @@ impl From<flate2::DecompressError> for Error {
   #[inline]
   fn from(from: flate2::DecompressError) -> Self {
     Self::Flate2DecompressError(from.into())
+  }
+}
+
+#[cfg(feature = "std")]
+impl From<std::net::AddrParseError> for Error {
+  #[inline]
+  fn from(from: std::net::AddrParseError) -> Self {
+    Self::AddrParseError(from)
   }
 }
 

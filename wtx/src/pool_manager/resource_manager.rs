@@ -4,24 +4,58 @@ use core::future::Future;
 pub trait ResourceManager {
   /// Any custom error.
   type Error;
-  /// Subset of a resource's data used across different instances.
-  type Persistent;
   /// Any pool resource.
   type Resource;
-
-  /// If a resource is in an invalid state, then returns its persistent content to attempt to create
-  /// a new valid instance.
-  fn check_integrity(&self, resource: &mut Self::Resource) -> Option<Self::Persistent>;
 
   /// Creates a new resource instance based on the contents of this manager.
   fn create(&self) -> impl Future<Output = Result<Self::Resource, Self::Error>>;
 
-  /// Re-creates a new valid instance using the persistent data of an invalid instance.
-  fn recycle(
-    &self,
-    persistent: Self::Persistent,
-    resource: &mut Self::Resource,
-  ) -> impl Future<Output = Result<(), Self::Error>>;
+  /// If a resource is in an invalid state.
+  fn is_invalid(&self, resource: &Self::Resource) -> bool;
+
+  /// Re-creates a new valid instance. Should be called if `resource` is invalid.
+  fn recycle(&self, resource: &mut Self::Resource)
+    -> impl Future<Output = Result<(), Self::Error>>;
+}
+
+/// Manages generic resources that are always valid and don't require logic for recycling.
+#[derive(Debug)]
+pub struct SimpleRM<E, I, R> {
+  /// Create callback
+  pub cb: fn(&I) -> Result<R, E>,
+  /// Input data
+  pub input: I,
+}
+
+impl<E, I, R> SimpleRM<E, I, R> {
+  /// Shortcut constructor
+  #[inline]
+  pub fn new(cb: fn(&I) -> Result<R, E>, input: I) -> Self {
+    Self { cb, input }
+  }
+}
+
+impl<E, I, R> ResourceManager for SimpleRM<E, I, R>
+where
+  E: From<crate::Error>,
+{
+  type Error = E;
+  type Resource = R;
+
+  #[inline]
+  async fn create(&self) -> Result<Self::Resource, Self::Error> {
+    (self.cb)(&self.input)
+  }
+
+  #[inline]
+  fn is_invalid(&self, _: &Self::Resource) -> bool {
+    false
+  }
+
+  #[inline]
+  async fn recycle(&self, _: &mut Self::Resource) -> Result<(), Self::Error> {
+    Ok(())
+  }
 }
 
 #[cfg(feature = "postgres")]
@@ -34,87 +68,61 @@ pub(crate) mod database {
 
   /// Manages generic database executors.
   #[derive(Debug)]
-  pub struct PostgresRM<CF, I, RF>(
+  pub struct PostgresRM<CF, I, RF> {
     /// Create callback
-    pub fn(&I) -> CF,
-    /// Input data
-    pub I,
+    pub cb: fn(&I) -> CF,
+    /// Input
+    pub input: I,
     /// Recycle callback
-    pub fn(&I, ExecutorBuffer) -> RF,
-  );
+    pub rc: fn(&I, ExecutorBuffer) -> RF,
+  }
 
-  impl<C, I, ERR, O, RF, S> ResourceManager for PostgresRM<C, I, RF>
+  impl<CF, I, E, O, RF, S> ResourceManager for PostgresRM<CF, I, RF>
   where
-    ERR: From<crate::Error>,
-    C: Future<Output = Result<(O, Executor<ERR, ExecutorBuffer, S>), ERR>>,
-    RF: Future<Output = Result<Executor<ERR, ExecutorBuffer, S>, ERR>>,
+    CF: Future<Output = Result<(O, Executor<E, ExecutorBuffer, S>), E>>,
+    E: From<crate::Error>,
+    RF: Future<Output = Result<Executor<E, ExecutorBuffer, S>, E>>,
   {
-    type Error = ERR;
-    type Persistent = ExecutorBuffer;
-    type Resource = (O, Executor<ERR, ExecutorBuffer, S>);
+    type Error = E;
+    type Resource = (O, Executor<E, ExecutorBuffer, S>);
 
     #[inline]
     async fn create(&self) -> Result<Self::Resource, Self::Error> {
-      (self.0)(&self.1).await
+      (self.cb)(&self.input).await
     }
 
     #[inline]
-    fn check_integrity(&self, resource: &mut Self::Resource) -> Option<Self::Persistent> {
-      if resource.1.is_closed {
-        let mut rslt = ExecutorBuffer::_empty();
-        mem::swap(&mut rslt, &mut resource.1.eb);
-        Some(rslt)
-      } else {
-        None
-      }
+    fn is_invalid(&self, resource: &Self::Resource) -> bool {
+      resource.1.is_closed
     }
 
     #[inline]
-    async fn recycle(
-      &self,
-      persistent: Self::Persistent,
-      resource: &mut Self::Resource,
-    ) -> Result<(), Self::Error> {
-      let executor = (self.2)(&self.1, persistent).await?;
-      resource.1 = executor;
+    async fn recycle(&self, resource: &mut Self::Resource) -> Result<(), Self::Error> {
+      let mut persistent = ExecutorBuffer::_empty();
+      mem::swap(&mut persistent, &mut resource.1.eb);
+      resource.1 = (self.rc)(&self.input, persistent).await?;
       Ok(())
     }
   }
 }
 
 #[cfg(feature = "web-socket")]
-pub(crate) mod websocket {
+pub(crate) mod web_socket {
   use crate::{
-    pool_manager::resource_manager::ResourceManager,
+    pool_manager::SimpleRM,
     web_socket::{FrameBufferVec, WebSocketBuffer},
   };
 
   /// Manages WebSocket resources.
-  #[derive(Debug)]
-  pub struct WebSocketRM;
+  pub type WebSocketRM = SimpleRM<crate::Error, (), (FrameBufferVec, WebSocketBuffer)>;
 
-  impl ResourceManager for WebSocketRM {
-    type Error = crate::Error;
-    type Persistent = ();
-    type Resource = (FrameBufferVec, WebSocketBuffer);
-
-    #[inline]
-    async fn create(&self) -> Result<Self::Resource, Self::Error> {
-      Ok(<_>::default())
-    }
-
-    #[inline]
-    fn check_integrity(&self, _: &mut Self::Resource) -> Option<Self::Persistent> {
-      None
-    }
-
-    #[inline]
-    async fn recycle(
-      &self,
-      _: Self::Persistent,
-      _: &mut Self::Resource,
-    ) -> Result<(), Self::Error> {
-      Ok(())
+  impl WebSocketRM {
+    /// Instance of [WebSocketRM].
+    pub fn web_socket_rm() -> WebSocketRM {
+      fn cb(_: &()) -> crate::Result<(FrameBufferVec, WebSocketBuffer)> {
+        Ok(<_>::default())
+      }
+      Self { cb, input: () }
     }
   }
 }

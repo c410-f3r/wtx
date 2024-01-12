@@ -1,6 +1,5 @@
 use crate::misc::Agent;
-use diesel::prelude::*;
-use diesel_async::{AsyncPgConnection, RunQueryDsl};
+use diesel::prelude::table;
 use futures::stream::StreamExt;
 use sqlx::{Connection, Either, Executor as _, Row, Statement};
 use std::time::Instant;
@@ -43,6 +42,8 @@ pub(crate) fn caption() -> String {
 
 #[allow(clippy::single_char_lifetime_names, unused_qualifications, clippy::shadow_unrelated)]
 async fn bench_diesel_async(agent: &mut Agent, uri: &UriRef<'_>) {
+  use diesel_async::{AsyncPgConnection, RunQueryDsl};
+
   table! {
     benchmark(bar, baz) {
       bar -> Text,

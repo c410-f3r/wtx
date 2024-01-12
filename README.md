@@ -13,8 +13,8 @@ A collection of different transport implementations and related tools focused pr
 3. [Database Object–Relational Mapping](https://github.com/c410-f3r/wtx/tree/main/wtx/src/database/orm)
 4. [Database Schema Manager](https://github.com/c410-f3r/wtx/tree/main/wtx/src/database/schema_manager)
 5. [HTTP2 Client/Server](https://github.com/c410-f3r/wtx/tree/main/wtx/src/http2)
-5. [Pool Manager](https://github.com/c410-f3r/wtx/tree/main/wtx/src/pool_manager)
-6. [WebSocket Client/Server](https://github.com/c410-f3r/wtx/tree/main/wtx/src/web_socket)
+6. [Pool Manager](https://github.com/c410-f3r/wtx/tree/main/wtx/src/pool_manager)
+7. [WebSocket Client/Server](https://github.com/c410-f3r/wtx/tree/main/wtx/src/web_socket)
 
 Embedded devices that have a heap allocator can use this `no_std` crate.
 

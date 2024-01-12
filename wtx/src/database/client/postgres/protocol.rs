@@ -1,6 +1,6 @@
 use crate::{
   database::{
-    client::postgres::{Config, Oid, Postgres},
+    client::postgres::{statements::Statement, Config, Oid, Postgres},
     RecordValues,
   },
   misc::FilledBufferWriter,
@@ -14,14 +14,15 @@ pub(crate) fn bind<E, RV>(
   fbw: &mut FilledBufferWriter<'_>,
   portal: &str,
   rv: RV,
-  stmt_str: &str,
+  stmt: &Statement<'_>,
+  stmt_id_str: &str,
 ) -> Result<(), E>
 where
   E: From<crate::Error>,
   RV: RecordValues<Postgres<E>>,
 {
   write(fbw, true, Some(b'B'), |local_fbw| {
-    local_fbw._extend_from_slices_each_c(&[portal.as_bytes(), stmt_str.as_bytes()]);
+    local_fbw._extend_from_slices_each_c(&[portal.as_bytes(), stmt_id_str.as_bytes()]);
     let rv_len = rv.len();
 
     write_iter(local_fbw, (0..rv_len).map(|_| 1i16), None, |elem, local_local_fbw| {
@@ -31,16 +32,19 @@ where
 
     {
       local_fbw._extend_from_slice(&i16::try_from(rv_len).map_err(Into::into)?.to_be_bytes());
+      let mut aux = (0usize, 0, 0);
       let _ = rv.encode_values(
-        &mut (0, 0),
+        &mut aux,
         local_fbw,
-        |(len_before, start), local_local_fbw| {
+        stmt.params.iter().map(|elem| elem),
+        |(counter, len_before, start), local_local_fbw| {
+          *counter = counter.wrapping_add(1);
           *start = local_local_fbw._len();
           local_local_fbw._extend_from_slice(&[0; 4]);
           *len_before = local_local_fbw._len();
           4
         },
-        |(len_before, start), local_local_fbw, is_null| {
+        |(_, len_before, start), local_local_fbw, is_null| {
           let written = if is_null {
             -1i32
           } else {
@@ -57,6 +61,9 @@ where
           0
         },
       )?;
+      if aux.0 != rv_len {
+        return Err(crate::Error::InvalidRecordValuesIterator.into());
+      }
     }
 
     write_iter(local_fbw, &[1i16], None, |elem, local_local_fbw| {
@@ -157,7 +164,6 @@ pub(crate) fn sasl_first(fbw: &mut FilledBufferWriter<'_>, nonce: &[u8]) -> crat
     local_fbw._extend_from_slice_c(b"SCRAM-SHA-256-PLUS");
     write(local_fbw, false, None, |local_local_fbw| {
       local_local_fbw._extend_from_slice(b"p=tls-server-end-point,,n=");
-      //local_local_fbw._extend_from_slice(config.user.as_bytes());
       local_local_fbw._extend_from_slice(b",r=");
       local_local_fbw._extend_from_slice(nonce);
       Ok::<_, crate::Error>(())

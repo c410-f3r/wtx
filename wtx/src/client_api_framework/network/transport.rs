@@ -1,8 +1,6 @@
 //! Implementations of the [Transport] trait.
 
 mod bi_transport;
-#[cfg(feature = "h2")]
-mod h2;
 mod mock;
 #[cfg(feature = "std")]
 mod std;
@@ -24,8 +22,6 @@ use crate::{
 pub use bi_transport::*;
 use cl_aux::DynContigColl;
 use core::{borrow::Borrow, future::Future, ops::Range};
-#[cfg(feature = "h2")]
-pub use h2::H2;
 pub use mock::*;
 pub use transport_params::*;
 

@@ -18,11 +18,11 @@ impl<F> Debug for PollOnce<F> {
   }
 }
 
-impl<F, T> Future for PollOnce<F>
+impl<F> Future for PollOnce<F>
 where
-  F: Future<Output = T> + Unpin,
+  F: Future + Unpin,
 {
-  type Output = Option<T>;
+  type Output = Option<F::Output>;
 
   #[inline]
   fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

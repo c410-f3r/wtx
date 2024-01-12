@@ -99,7 +99,7 @@ where
       let ExecutorBufferPartsMut { nb, params, .. } = self.eb.borrow_mut().parts_mut();
       let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
       match msg.ty {
-        MessageTy::BackendKeyData(_, _) => {}
+        MessageTy::BackendKeyData => {}
         MessageTy::ParameterStatus(name, value) => {
           params.insert(
             params.partition_point(|(local_name, _)| local_name.as_bytes() < name),

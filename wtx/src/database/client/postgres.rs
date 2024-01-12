@@ -4,6 +4,7 @@
 mod authentication;
 mod config;
 mod db_error;
+mod decode_value;
 mod executor;
 mod executor_buffer;
 mod field;
@@ -18,14 +19,13 @@ mod statements;
 mod transaction_manager;
 mod ty;
 mod tys;
-mod value;
-
-use core::marker::PhantomData;
 
 use crate::database::{Database, DatabaseTy};
 pub(crate) use authentication::Authentication;
 pub use config::Config;
+use core::marker::PhantomData;
 pub use db_error::{DbError, ErrorPosition};
+pub use decode_value::DecodeValue;
 pub use executor::Executor;
 pub use executor_buffer::ExecutorBuffer;
 pub(crate) use field::MsgField;
@@ -36,13 +36,26 @@ pub use records::Records;
 pub use sql_state::SqlState;
 pub use statements::Statements;
 pub use transaction_manager::TransactionManager;
-pub use value::Value;
+pub use ty::{CustomTy, Ty, TyKind};
 
 pub(crate) type Oid = u32;
 
 /// Postgres
 #[derive(Debug)]
 pub struct Postgres<E>(PhantomData<E>);
+
+impl<E> Database for Postgres<E>
+where
+  E: From<crate::Error>,
+{
+  const TY: DatabaseTy = DatabaseTy::Postgres;
+
+  type DecodeValue<'dv> = DecodeValue<'dv>;
+  type EncodeValue<'ev> = &'ev Ty;
+  type Error = E;
+  type Record<'rec> = Record<'rec, E>;
+  type Records<'recs> = Records<'recs, E>;
+}
 
 impl<E> Default for Postgres<E> {
   #[inline]
@@ -51,14 +64,23 @@ impl<E> Default for Postgres<E> {
   }
 }
 
-impl<E> Database for Postgres<E>
-where
-  E: From<crate::Error>,
-{
-  const TY: DatabaseTy = DatabaseTy::Postgres;
+#[cfg(test)]
+mod tests {
+  use crate::database::client::postgres::{statements::Column, Ty};
 
-  type Error = E;
-  type Record<'rec> = Record<'rec, E>;
-  type Records<'recs> = Records<'recs, E>;
-  type Value<'value> = Value<'value>;
+  pub(crate) fn column0() -> Column {
+    Column { name: "a".try_into().unwrap(), ty: Ty::VarcharArray }
+  }
+
+  pub(crate) fn column1() -> Column {
+    Column { name: "b".try_into().unwrap(), ty: Ty::Int8 }
+  }
+
+  pub(crate) fn column2() -> Column {
+    Column { name: "c".try_into().unwrap(), ty: Ty::Char }
+  }
+
+  pub(crate) fn column3() -> Column {
+    Column { name: "d".try_into().unwrap(), ty: Ty::Date }
+  }
 }

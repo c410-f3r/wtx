@@ -1,4 +1,7 @@
-use crate::{database::Database, misc::FilledBufferWriter};
+use crate::{
+  database::Database,
+  misc::{Either, FilledBufferWriter},
+};
 
 /// Encodes a type into a byte representation.
 pub trait Encode<D>
@@ -6,7 +9,11 @@ where
   D: Database,
 {
   /// Performs the conversion.
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error>;
+  fn encode(
+    &self,
+    fbw: &mut FilledBufferWriter<'_>,
+    value: D::EncodeValue<'_>,
+  ) -> Result<(), D::Error>;
 
   /// In rust terms, is the element `Option::None`?
   #[inline]
@@ -21,8 +28,31 @@ where
   T: Encode<D>,
 {
   #[inline]
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error> {
-    (**self).encode(buffer)
+  fn encode(
+    &self,
+    fbw: &mut FilledBufferWriter<'_>,
+    value: D::EncodeValue<'_>,
+  ) -> Result<(), D::Error> {
+    (**self).encode(fbw, value)
+  }
+}
+
+impl<D, L, R> Encode<D> for Either<L, R>
+where
+  D: Database,
+  L: Encode<D>,
+  R: Encode<D>,
+{
+  #[inline]
+  fn encode(
+    &self,
+    fbw: &mut FilledBufferWriter<'_>,
+    value: D::EncodeValue<'_>,
+  ) -> Result<(), D::Error> {
+    match self {
+      Self::Left(left) => left.encode(fbw, value),
+      Self::Right(right) => right.encode(fbw, value),
+    }
   }
 }
 
@@ -31,8 +61,12 @@ where
   D: Database,
 {
   #[inline]
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error> {
-    (**self).encode(buffer)
+  fn encode(
+    &self,
+    fbw: &mut FilledBufferWriter<'_>,
+    value: D::EncodeValue<'_>,
+  ) -> Result<(), D::Error> {
+    (**self).encode(fbw, value)
   }
 }
 
@@ -42,10 +76,14 @@ where
   T: Encode<D>,
 {
   #[inline]
-  fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), D::Error> {
+  fn encode(
+    &self,
+    fbw: &mut FilledBufferWriter<'_>,
+    value: D::EncodeValue<'_>,
+  ) -> Result<(), D::Error> {
     match self {
       None => Ok(()),
-      Some(elem) => elem.encode(buffer),
+      Some(elem) => elem.encode(fbw, value),
     }
   }
 

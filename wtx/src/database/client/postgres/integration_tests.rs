@@ -1,6 +1,6 @@
 use crate::{
   database::{
-    client::postgres::{Config, Executor, ExecutorBuffer, Postgres, Value},
+    client::postgres::{Config, DecodeValue, Executor, ExecutorBuffer, Postgres, Ty},
     Decode, Encode, Executor as _, Record, Records as _,
   },
   misc::{FilledBufferWriter, UriRef},
@@ -41,29 +41,19 @@ async fn conn_scram() {
   .unwrap();
 }
 
-#[ignore]
 #[tokio::test]
 async fn custom_domain() {
-  struct CustomDomain {
-    a: u8,
-    b: f64,
-    c: String,
-  }
+  struct CustomDomain(String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomDomain {
-    fn decode(input: &Value<'_>) -> Result<Self, crate::Error> {
-      let a = <_ as Decode<Postgres<crate::Error>>>::decode(input)?;
-      let b = <_ as Decode<Postgres<crate::Error>>>::decode(input)?;
-      let c = <_ as Decode<Postgres<crate::Error>>>::decode(input)?;
-      Ok(Self { a, b, c })
+    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
+      Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(input)?))
     }
   }
 
   impl Encode<Postgres<crate::Error>> for CustomDomain {
-    fn encode(&self, buffer: &mut FilledBufferWriter<'_>) -> Result<(), crate::Error> {
-      <_ as Encode<Postgres<crate::Error>>>::encode(&self.a, buffer)?;
-      <_ as Encode<Postgres<crate::Error>>>::encode(&self.b, buffer)?;
-      <_ as Encode<Postgres<crate::Error>>>::encode(&self.c, buffer)?;
+    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, value: &Ty) -> Result<(), crate::Error> {
+      <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, fbw, value)?;
       Ok(())
     }
   }
@@ -84,10 +74,67 @@ async fn custom_domain() {
   let _ = exec
     .execute_with_stmt(
       "INSERT INTO custom_domain_table VALUES ($1, $2)",
-      (1, CustomDomain { a: 2, b: 3.0, c: String::from("456") }),
+      (1, CustomDomain(String::from("23"))),
     )
     .await
     .unwrap();
+  let record = exec.fetch_with_stmt("SELECT * FROM custom_domain_table;", ()).await.unwrap();
+  assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
+  assert_eq!(record.decode::<_, CustomDomain>(1).unwrap().0, CustomDomain("23".into()).0);
+}
+
+#[tokio::test]
+async fn custom_enum() {
+  enum Enum {
+    Foo,
+    Bar,
+    Baz,
+  }
+
+  impl Decode<'_, Postgres<crate::Error>> for Enum {
+    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
+      let s = <&str as Decode<Postgres<crate::Error>>>::decode(input)?;
+      Ok(match s {
+        "foo" => Self::Foo,
+        "bar" => Self::Bar,
+        "baz" => Self::Baz,
+        _ => panic!(),
+      })
+    }
+  }
+
+  impl Encode<Postgres<crate::Error>> for Enum {
+    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, value: &Ty) -> Result<(), crate::Error> {
+      let s = match self {
+        Enum::Foo => "foo",
+        Enum::Bar => "bar",
+        Enum::Baz => "baz",
+      };
+      <_ as Encode<Postgres<crate::Error>>>::encode(&s, fbw, value)?;
+      Ok(())
+    }
+  }
+
+  let mut exec = executor::<crate::Error>().await;
+  exec
+    .execute(
+      "DROP TYPE IF EXISTS custom_enum CASCADE; DROP TABLE IF EXISTS custom_enum_table",
+      |_| {},
+    )
+    .await
+    .unwrap();
+  exec.execute("CREATE TYPE custom_enum AS ENUM ('foo', 'bar', 'baz');", |_| {}).await.unwrap();
+  exec
+    .execute("CREATE TABLE custom_enum_table (id INT, domain custom_enum)", |_| {})
+    .await
+    .unwrap();
+  let _ = exec
+    .execute_with_stmt("INSERT INTO custom_enum_table VALUES ($1, $2)", (1, Enum::Bar))
+    .await
+    .unwrap();
+  let record = exec.fetch_with_stmt("SELECT * FROM custom_enum_table;", ()).await.unwrap();
+  assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
+  assert!(matches!(record.decode::<_, Enum>(1).unwrap(), Enum::Bar));
 }
 
 #[tokio::test]
@@ -109,7 +156,7 @@ async fn custom_error() {
 }
 
 #[tokio::test]
-async fn execute_with_stmt() {
+async fn execute() {
   let mut exec = executor::<crate::Error>().await;
 
   assert_eq!(exec.execute_with_stmt("", ()).await.unwrap(), 0);

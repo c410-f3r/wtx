@@ -11,10 +11,9 @@ where
     U: ?Sized + 'guard;
 
   /// Makes a new mapped element for a component of the locked data.
-  fn map<F, U>(this: Self, f: F) -> Self::Mapped<U>
+  fn map<U>(this: Self, f: impl FnOnce(&mut T) -> &mut U) -> Self::Mapped<U>
   where
-    U: ?Sized,
-    F: FnOnce(&mut T) -> &mut U;
+    U: ?Sized;
 }
 
 impl<'guard, T> LockGuard<'guard, T> for RefMut<'guard, T>
@@ -26,10 +25,9 @@ where
     U: ?Sized + 'guard;
 
   #[inline]
-  fn map<F, U>(this: Self, f: F) -> Self::Mapped<U>
+  fn map<U>(this: Self, f: impl FnOnce(&mut T) -> &mut U) -> Self::Mapped<U>
   where
     U: ?Sized,
-    F: FnOnce(&mut T) -> &mut U,
   {
     RefMut::map(this, f)
   }
@@ -49,10 +47,9 @@ mod tokio {
       U: ?Sized + 'guard;
 
     #[inline]
-    fn map<F, U>(this: Self, f: F) -> Self::Mapped<U>
+    fn map<U>(this: Self, f: impl FnOnce(&mut T) -> &mut U) -> Self::Mapped<U>
     where
       U: ?Sized,
-      F: FnOnce(&mut T) -> &mut U,
     {
       MutexGuard::map(this, f)
     }

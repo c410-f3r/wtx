@@ -38,7 +38,6 @@ $rt test-with-features wtx flate2
 $rt test-with-features wtx futures
 $rt test-with-features wtx futures-lite
 $rt test-with-features wtx glommio
-$rt test-with-features wtx h2
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
 $rt test-with-features wtx http1

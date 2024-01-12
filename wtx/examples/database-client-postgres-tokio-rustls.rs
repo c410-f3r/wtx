@@ -34,7 +34,7 @@ async fn main() {
   let mut tm = exec.transaction().await.unwrap();
   let _ = tm
     .executor()
-    .execute_with_stmt("CREATE TABLE IF NOT EXISTS example(id INT, name VARCHAR)", ())
+    .execute("CREATE TABLE IF NOT EXISTS example(id INT, name VARCHAR)", |_| {})
     .await
     .unwrap();
   let _ = tm
@@ -44,7 +44,7 @@ async fn main() {
     .unwrap();
   tm.commit().await.unwrap();
   let records = exec
-    .fetch_many_with_stmt("SELECT * FROM example", (), |_| Ok::<_, wtx::Error>(()))
+    .fetch_many_with_stmt("SELECT id, name FROM example;", (), |_| Ok::<_, wtx::Error>(()))
     .await
     .unwrap();
   assert_eq!(records.get(0).as_ref().and_then(|record| record.decode("id").ok()), Some(1));

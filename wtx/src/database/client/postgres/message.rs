@@ -11,16 +11,12 @@ pub(crate) struct Message<'bytes> {
 }
 
 /// Messages that five bytes as well as their corresponding rest.
-#[allow(
-  // False positive
-  unused_tuple_struct_fields
-)]
 #[derive(Debug)]
 pub(crate) enum MessageTy<'bytes> {
   /// See [Authentication].
   Authentication(Authentication<'bytes>),
   /// Data that the frontend must use to issue a cancellation request.
-  BackendKeyData(i32, i32),
+  BackendKeyData,
   /// Bind request was successful.
   BindComplete,
   /// Close request was successful.
@@ -36,7 +32,7 @@ pub(crate) enum MessageTy<'bytes> {
   /// Starting of a COPY command from the server to the client.
   CopyOutResponse,
   /// Row containing the number of columns with values.
-  DataRow(u16, &'bytes [u8]),
+  DataRow(u16),
   /// Empty query response.
   EmptyQueryResponse,
   /// No data could be sent.
@@ -85,7 +81,7 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
           .unwrap_or(0);
         Self::CommandComplete(rows)
       }
-      [b'D', _, _, _, _, a, b, rest @ ..] => Self::DataRow(u16::from_be_bytes([*a, *b]), rest),
+      [b'D', _, _, _, _, a, b, ..] => Self::DataRow(u16::from_be_bytes([*a, *b])),
       [b'E', _, _, _, _, rest @ ..] => {
         *from.0 = true;
         return Err(DbError::try_from(from_utf8_basic_rslt(rest)?)?.into());
@@ -93,10 +89,7 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
       [b'G', ..] => Self::CopyInResponse,
       [b'H', ..] => Self::CopyOutResponse,
       [b'I', ..] => Self::EmptyQueryResponse,
-      [b'K', _, _, _, _, a, b, c, d, e, f, g, h] => Self::BackendKeyData(
-        i32::from_be_bytes([*a, *b, *c, *d]),
-        i32::from_be_bytes([*e, *f, *g, *h]),
-      ),
+      [b'K', _, _, _, _, _a, _b, _c, _d, _e, _f, _g, _h] => Self::BackendKeyData,
       [b'N', ..] => Self::NoticeResponse,
       [b'R', _, _, _, _, rest @ ..] => Self::Authentication(rest.try_into()?),
       [b'S', _, _, _, _, rest @ ..] => {
