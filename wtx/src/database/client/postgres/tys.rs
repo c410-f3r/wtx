@@ -1,5 +1,5 @@
 macro_rules! proptest {
-  ($name:ident, $ty:ty, $instance:expr) => {
+  ($name:ident, $ty:ty) => {
     #[cfg(feature = "_proptest")]
     #[cfg(test)]
     #[test_strategy::proptest]
@@ -205,7 +205,7 @@ mod collections {
     }
   }
 
-  proptest!(string, String, String::from("1234"));
+  proptest!(string, String);
 }
 
 mod pg_numeric {
@@ -225,7 +225,7 @@ mod pg_numeric {
 
   pub(crate) enum PgNumeric {
     NotANumber,
-    Number { digits: ArrayVec<i16, DIGITS_CAP>, scale: u16, sign: Sign, weight: u16 },
+    Number { digits: ArrayVec<i16, DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
   }
 
   impl<E> Decode<'_, Postgres<E>> for PgNumeric
@@ -245,7 +245,7 @@ mod pg_numeric {
       };
       let digits = u16::from_be_bytes([*a, *b]);
       let digits_usize = usize::from(digits);
-      let weight = u16::from_be_bytes([*c, *d]);
+      let weight = i16::from_be_bytes([*c, *d]);
       let sign = u16::from_be_bytes([*e, *f]);
       let scale = u16::from_be_bytes([*g, *h]);
       let mut curr_slice = rest;
@@ -372,8 +372,8 @@ mod primitives {
     }
   }
 
-  proptest!(bool_true, bool, true);
-  proptest!(bool_false, bool, false);
+  proptest!(bool_true, bool);
+  proptest!(bool_false, bool);
 
   macro_rules! impl_integer_from_array {
     ($instance:expr, [$($elem:ident),+], $signed:ident, $unsigned:ident) => {
@@ -539,7 +539,7 @@ mod rust_decimal {
       digits.reverse();
 
       let after_decimal = usize::from(scale.wrapping_add(3) / 4);
-      let weight = digits.len().wrapping_sub(after_decimal).wrapping_sub(1) as u16;
+      let weight = digits.len().wrapping_sub(after_decimal).wrapping_sub(1) as i16;
 
       while let Some(&0) = digits.last() {
         let _ = digits.pop();
@@ -559,5 +559,5 @@ mod rust_decimal {
     }
   }
 
-  proptest!(rust_decimal, Decimal, Decimal::PI);
+  proptest!(rust_decimal, Decimal);
 }

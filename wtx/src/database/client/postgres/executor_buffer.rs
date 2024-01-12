@@ -109,23 +109,19 @@ impl ExecutorBuffer {
 
   pub(crate) fn parts_mut(&mut self) -> ExecutorBufferPartsMut<'_> {
     ExecutorBufferPartsMut {
-      ftb: &mut self.ftb,
       nb: &mut self.nb,
       params: &mut self.params,
       rb: &mut self.rb,
       stmts: &mut self.stmts,
-      tb: &mut self.tb,
       vb: &mut self.vb,
     }
   }
 }
 
 pub(crate) struct ExecutorBufferPartsMut<'eb> {
-  pub(crate) ftb: &'eb mut Vec<(usize, u32)>,
   pub(crate) nb: &'eb mut PartitionedFilledBuffer,
   pub(crate) params: &'eb mut Vec<(Identifier, Identifier)>,
   pub(crate) rb: &'eb mut Vec<usize>,
   pub(crate) stmts: &'eb mut Statements,
-  pub(crate) tb: &'eb mut HashMap<u32, Ty>,
   pub(crate) vb: &'eb mut Vec<(bool, Range<usize>)>,
 }

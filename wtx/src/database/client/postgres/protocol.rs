@@ -36,7 +36,7 @@ where
       let _ = rv.encode_values(
         &mut aux,
         local_fbw,
-        stmt.params.iter().map(|elem| elem),
+        stmt.params.iter(),
         |(counter, len_before, start), local_local_fbw| {
           *counter = counter.wrapping_add(1);
           *start = local_local_fbw._len();

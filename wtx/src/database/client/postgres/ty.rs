@@ -1,365 +1,357 @@
-use crate::database::Identifier;
-use alloc::sync::Arc;
-
 /// Type
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Ty {
+  /// Bool
   Bool,
+  /// Bytea
   Bytea,
+  /// Char
   Char,
+  /// Name
   Name,
+  /// Int8
   Int8,
+  /// Int2
   Int2,
+  /// Int2Vector
   Int2Vector,
+  /// Int4
   Int4,
+  /// Regproc
   Regproc,
+  /// Text
   Text,
+  /// Oid
   Oid,
+  /// Tid
   Tid,
+  /// Xid
   Xid,
+  /// Cid
   Cid,
+  /// OidVector
   OidVector,
+  /// PgDdlCommand
   PgDdlCommand,
+  /// Json
   Json,
+  /// Xml
   Xml,
+  /// XmlArray
   XmlArray,
+  /// PgNodeTree
   PgNodeTree,
+  /// JsonArray
   JsonArray,
+  /// TableAmHandler
   TableAmHandler,
+  /// Xid8Array
   Xid8Array,
+  /// IndexAmHandler
   IndexAmHandler,
+  /// Point
   Point,
+  /// Lseg
   Lseg,
+  /// Path
   Path,
+  /// Box
   Box,
+  /// Polygon
   Polygon,
+  /// Line
   Line,
+  /// LineArray
   LineArray,
+  /// Cidr
   Cidr,
+  /// CidrArray
   CidrArray,
+  /// Float4
   Float4,
+  /// Float8
   Float8,
+  /// Unknown
   Unknown,
+  /// Circle
   Circle,
+  /// CircleArray
   CircleArray,
+  /// Macaddr8
   Macaddr8,
+  /// Macaddr8Array
   Macaddr8Array,
+  /// Money
   Money,
+  /// MoneyArray
   MoneyArray,
+  /// Macaddr
   Macaddr,
+  /// Inet
   Inet,
+  /// BoolArray
   BoolArray,
+  /// ByteaArray
   ByteaArray,
+  /// CharArray
   CharArray,
+  /// NameArray
   NameArray,
+  /// Int2Array
   Int2Array,
+  /// Int2VectorArray
   Int2VectorArray,
+  /// Int4Array
   Int4Array,
+  /// RegprocArray
   RegprocArray,
+  /// TextArray
   TextArray,
+  /// TidArray
   TidArray,
+  /// XidArray
   XidArray,
+  /// CidArray
   CidArray,
+  /// OidVectorArray
   OidVectorArray,
+  /// BpcharArray
   BpcharArray,
+  /// VarcharArray
   VarcharArray,
+  /// Int8Array
   Int8Array,
+  /// PointArray
   PointArray,
+  /// LsegArray
   LsegArray,
+  /// PathArray
   PathArray,
+  /// BoxArray
   BoxArray,
+  /// Float4Array
   Float4Array,
+  /// Float8Array
   Float8Array,
+  /// PolygonArray
   PolygonArray,
+  /// OidArray
   OidArray,
+  /// Aclitem
   Aclitem,
+  /// AclitemArray
   AclitemArray,
+  /// MacaddrArray
   MacaddrArray,
+  /// InetArray
   InetArray,
+  /// Bpchar
   Bpchar,
+  /// Varchar
   Varchar,
+  /// Date
   Date,
+  /// Time
   Time,
+  /// Timestamp
   Timestamp,
+  /// TimestampArray
   TimestampArray,
+  /// DateArray
   DateArray,
+  /// TimeArray
   TimeArray,
+  /// Timestamptz
   Timestamptz,
+  /// TimestamptzArray
   TimestamptzArray,
+  /// Interval
   Interval,
+  /// IntervalArray
   IntervalArray,
+  /// NumericArray
   NumericArray,
+  /// CstringArray
   CstringArray,
+  /// Timetz
   Timetz,
+  /// TimetzArray
   TimetzArray,
+  /// Bit
   Bit,
+  /// BitArray
   BitArray,
+  /// Varbit
   Varbit,
+  /// VarbitArray
   VarbitArray,
+  /// Numeric
   Numeric,
+  /// Refcursor
   Refcursor,
+  /// RefcursorArray
   RefcursorArray,
+  /// Regprocedure
   Regprocedure,
+  /// Regoper
   Regoper,
+  /// Regoperator
   Regoperator,
+  /// Regclass
   Regclass,
+  /// Regtype
   Regtype,
+  /// RegprocedureArray
   RegprocedureArray,
+  /// RegoperArray
   RegoperArray,
+  /// RegoperatorArray
   RegoperatorArray,
+  /// RegclassArray
   RegclassArray,
+  /// RegtypeArray
   RegtypeArray,
+  /// Record
   Record,
+  /// Cstring
   Cstring,
+  /// Any
   Any,
+  /// Anyarray
   Anyarray,
+  /// Void
   Void,
+  /// Trigger
   Trigger,
+  /// LanguageHandler
   LanguageHandler,
+  /// Internal
   Internal,
+  /// Anyelement
   Anyelement,
+  /// RecordArray
   RecordArray,
+  /// Anynonarray
   Anynonarray,
+  /// TxidSnapshotArray
   TxidSnapshotArray,
+  /// Uuid
   Uuid,
+  /// UuidArray
   UuidArray,
+  /// TxidSnapshot
   TxidSnapshot,
+  /// FdwHandler
   FdwHandler,
+  /// PgLsn
   PgLsn,
+  /// PgLsnArray
   PgLsnArray,
+  /// TsmHandler
   TsmHandler,
+  /// PgNdistinct
   PgNdistinct,
+  /// PgDependencies
   PgDependencies,
+  /// Anyenum
   Anyenum,
+  /// TsVector
   TsVector,
+  /// Tsquery
   Tsquery,
+  /// GtsVector
   GtsVector,
+  /// TsVectorArray
   TsVectorArray,
+  /// GtsVectorArray
   GtsVectorArray,
+  /// TsqueryArray
   TsqueryArray,
+  /// Regconfig
   Regconfig,
+  /// RegconfigArray
   RegconfigArray,
+  /// Regdictionary
   Regdictionary,
+  /// RegdictionaryArray
   RegdictionaryArray,
+  /// Jsonb
   Jsonb,
+  /// JsonbArray
   JsonbArray,
+  /// AnyRange
   AnyRange,
+  /// EventTrigger
   EventTrigger,
+  /// Int4Range
   Int4Range,
+  /// Int4RangeArray
   Int4RangeArray,
+  /// NumRange
   NumRange,
+  /// NumRangeArray
   NumRangeArray,
+  /// TsRange
   TsRange,
+  /// TsRangeArray
   TsRangeArray,
+  /// TstzRange
   TstzRange,
+  /// TstzRangeArray
   TstzRangeArray,
+  /// DateRange
   DateRange,
+  /// DateRangeArray
   DateRangeArray,
+  /// Int8Range
   Int8Range,
+  /// Int8RangeArray
   Int8RangeArray,
+  /// Jsonpath
   Jsonpath,
+  /// JsonpathArray
   JsonpathArray,
+  /// Regnamespace
   Regnamespace,
+  /// RegnamespaceArray
   RegnamespaceArray,
+  /// Regrole
   Regrole,
+  /// RegroleArray
   RegroleArray,
+  /// Regcollation
   Regcollation,
+  /// RegcollationArray
   RegcollationArray,
+  /// PgBrinBloomSummary
   PgBrinBloomSummary,
+  /// PgBrinMinmaxMultiSummary
   PgBrinMinmaxMultiSummary,
+  /// PgMcvList
   PgMcvList,
+  /// PgSnapshot
   PgSnapshot,
+  /// PgSnapshotArray
   PgSnapshotArray,
+  /// Xid8
   Xid8,
+  /// Anycompatible
   Anycompatible,
+  /// Anycompatiblearray
   Anycompatiblearray,
+  /// Anycompatiblenonarray
   Anycompatiblenonarray,
+  /// AnycompatibleRange
   AnycompatibleRange,
-  Custom(Arc<CustomTy>),
-}
-
-impl Ty {
-  /// See [TyKind].
-  #[inline]
-  pub fn kind(&self) -> &TyKind {
-    match self {
-      Self::Bool => &TyKind::Simple,
-      Self::Bytea => &TyKind::Simple,
-      Self::Char => &TyKind::Simple,
-      Self::Name => &TyKind::Simple,
-      Self::Int8 => &TyKind::Simple,
-      Self::Int2 => &TyKind::Simple,
-      Self::Int2Vector => &TyKind::Array(Self::Int2),
-      Self::Int4 => &TyKind::Simple,
-      Self::Regproc => &TyKind::Simple,
-      Self::Text => &TyKind::Simple,
-      Self::Oid => &TyKind::Simple,
-      Self::Tid => &TyKind::Simple,
-      Self::Xid => &TyKind::Simple,
-      Self::Cid => &TyKind::Simple,
-      Self::OidVector => &TyKind::Array(Self::Oid),
-      Self::PgDdlCommand => &TyKind::Pseudo,
-      Self::Json => &TyKind::Simple,
-      Self::Xml => &TyKind::Simple,
-      Self::XmlArray => &TyKind::Array(Self::Xml),
-      Self::PgNodeTree => &TyKind::Simple,
-      Self::JsonArray => &TyKind::Array(Self::Json),
-      Self::TableAmHandler => &TyKind::Pseudo,
-      Self::Xid8Array => &TyKind::Array(Self::Xid8),
-      Self::IndexAmHandler => &TyKind::Pseudo,
-      Self::Point => &TyKind::Simple,
-      Self::Lseg => &TyKind::Simple,
-      Self::Path => &TyKind::Simple,
-      Self::Box => &TyKind::Simple,
-      Self::Polygon => &TyKind::Simple,
-      Self::Line => &TyKind::Simple,
-      Self::LineArray => &TyKind::Array(Self::Line),
-      Self::Cidr => &TyKind::Simple,
-      Self::CidrArray => &TyKind::Array(Self::Cidr),
-      Self::Float4 => &TyKind::Simple,
-      Self::Float8 => &TyKind::Simple,
-      Self::Unknown => &TyKind::Simple,
-      Self::Circle => &TyKind::Simple,
-      Self::CircleArray => &TyKind::Array(Self::Circle),
-      Self::Macaddr8 => &TyKind::Simple,
-      Self::Macaddr8Array => &TyKind::Array(Self::Macaddr8),
-      Self::Money => &TyKind::Simple,
-      Self::MoneyArray => &TyKind::Array(Self::Money),
-      Self::Macaddr => &TyKind::Simple,
-      Self::Inet => &TyKind::Simple,
-      Self::BoolArray => &TyKind::Array(Self::Bool),
-      Self::ByteaArray => &TyKind::Array(Self::Bytea),
-      Self::CharArray => &TyKind::Array(Self::Char),
-      Self::NameArray => &TyKind::Array(Self::Name),
-      Self::Int2Array => &TyKind::Array(Self::Int2),
-      Self::Int2VectorArray => &TyKind::Array(Self::Int2Vector),
-      Self::Int4Array => &TyKind::Array(Self::Int4),
-      Self::RegprocArray => &TyKind::Array(Self::Regproc),
-      Self::TextArray => &TyKind::Array(Self::Text),
-      Self::TidArray => &TyKind::Array(Self::Tid),
-      Self::XidArray => &TyKind::Array(Self::Xid),
-      Self::CidArray => &TyKind::Array(Self::Cid),
-      Self::OidVectorArray => &TyKind::Array(Self::OidVector),
-      Self::BpcharArray => &TyKind::Array(Self::Bpchar),
-      Self::VarcharArray => &TyKind::Array(Self::Varchar),
-      Self::Int8Array => &TyKind::Array(Self::Int8),
-      Self::PointArray => &TyKind::Array(Self::Point),
-      Self::LsegArray => &TyKind::Array(Self::Lseg),
-      Self::PathArray => &TyKind::Array(Self::Path),
-      Self::BoxArray => &TyKind::Array(Self::Box),
-      Self::Float4Array => &TyKind::Array(Self::Float4),
-      Self::Float8Array => &TyKind::Array(Self::Float8),
-      Self::PolygonArray => &TyKind::Array(Self::Polygon),
-      Self::OidArray => &TyKind::Array(Self::Oid),
-      Self::Aclitem => &TyKind::Simple,
-      Self::AclitemArray => &TyKind::Array(Self::Aclitem),
-      Self::MacaddrArray => &TyKind::Array(Self::Macaddr),
-      Self::InetArray => &TyKind::Array(Self::Inet),
-      Self::Bpchar => &TyKind::Simple,
-      Self::Varchar => &TyKind::Simple,
-      Self::Date => &TyKind::Simple,
-      Self::Time => &TyKind::Simple,
-      Self::Timestamp => &TyKind::Simple,
-      Self::TimestampArray => &TyKind::Array(Self::Timestamp),
-      Self::DateArray => &TyKind::Array(Self::Date),
-      Self::TimeArray => &TyKind::Array(Self::Time),
-      Self::Timestamptz => &TyKind::Simple,
-      Self::TimestamptzArray => &TyKind::Array(Self::Timestamptz),
-      Self::Interval => &TyKind::Simple,
-      Self::IntervalArray => &TyKind::Array(Self::Interval),
-      Self::NumericArray => &TyKind::Array(Self::Numeric),
-      Self::CstringArray => &TyKind::Array(Self::Cstring),
-      Self::Timetz => &TyKind::Simple,
-      Self::TimetzArray => &TyKind::Array(Self::Timetz),
-      Self::Bit => &TyKind::Simple,
-      Self::BitArray => &TyKind::Array(Self::Bit),
-      Self::Varbit => &TyKind::Simple,
-      Self::VarbitArray => &TyKind::Array(Self::Varbit),
-      Self::Numeric => &TyKind::Simple,
-      Self::Refcursor => &TyKind::Simple,
-      Self::RefcursorArray => &TyKind::Array(Self::Refcursor),
-      Self::Regprocedure => &TyKind::Simple,
-      Self::Regoper => &TyKind::Simple,
-      Self::Regoperator => &TyKind::Simple,
-      Self::Regclass => &TyKind::Simple,
-      Self::Regtype => &TyKind::Simple,
-      Self::RegprocedureArray => &TyKind::Array(Self::Regprocedure),
-      Self::RegoperArray => &TyKind::Array(Self::Regoper),
-      Self::RegoperatorArray => &TyKind::Array(Self::Regoperator),
-      Self::RegclassArray => &TyKind::Array(Self::Regclass),
-      Self::RegtypeArray => &TyKind::Array(Self::Regtype),
-      Self::Record => &TyKind::Pseudo,
-      Self::Cstring => &TyKind::Pseudo,
-      Self::Any => &TyKind::Pseudo,
-      Self::Anyarray => &TyKind::Pseudo,
-      Self::Void => &TyKind::Pseudo,
-      Self::Trigger => &TyKind::Pseudo,
-      Self::LanguageHandler => &TyKind::Pseudo,
-      Self::Internal => &TyKind::Pseudo,
-      Self::Anyelement => &TyKind::Pseudo,
-      Self::RecordArray => &TyKind::Pseudo,
-      Self::Anynonarray => &TyKind::Pseudo,
-      Self::TxidSnapshotArray => &TyKind::Array(Self::TxidSnapshot),
-      Self::Uuid => &TyKind::Simple,
-      Self::UuidArray => &TyKind::Array(Self::Uuid),
-      Self::TxidSnapshot => &TyKind::Simple,
-      Self::FdwHandler => &TyKind::Pseudo,
-      Self::PgLsn => &TyKind::Simple,
-      Self::PgLsnArray => &TyKind::Array(Self::PgLsn),
-      Self::TsmHandler => &TyKind::Pseudo,
-      Self::PgNdistinct => &TyKind::Simple,
-      Self::PgDependencies => &TyKind::Simple,
-      Self::Anyenum => &TyKind::Pseudo,
-      Self::TsVector => &TyKind::Simple,
-      Self::Tsquery => &TyKind::Simple,
-      Self::GtsVector => &TyKind::Simple,
-      Self::TsVectorArray => &TyKind::Array(Self::TsVector),
-      Self::GtsVectorArray => &TyKind::Array(Self::GtsVector),
-      Self::TsqueryArray => &TyKind::Array(Self::Tsquery),
-      Self::Regconfig => &TyKind::Simple,
-      Self::RegconfigArray => &TyKind::Array(Self::Regconfig),
-      Self::Regdictionary => &TyKind::Simple,
-      Self::RegdictionaryArray => &TyKind::Array(Self::Regdictionary),
-      Self::Jsonb => &TyKind::Simple,
-      Self::JsonbArray => &TyKind::Array(Self::Jsonb),
-      Self::AnyRange => &TyKind::Pseudo,
-      Self::EventTrigger => &TyKind::Pseudo,
-      Self::Int4Range => &TyKind::Range(Self::Int4),
-      Self::Int4RangeArray => &TyKind::Array(Self::Int4Range),
-      Self::NumRange => &TyKind::Range(Self::Numeric),
-      Self::NumRangeArray => &TyKind::Array(Self::NumRange),
-      Self::TsRange => &TyKind::Range(Self::Timestamp),
-      Self::TsRangeArray => &TyKind::Array(Self::TsRange),
-      Self::TstzRange => &TyKind::Range(Self::Timestamptz),
-      Self::TstzRangeArray => &TyKind::Array(Self::TstzRange),
-      Self::DateRange => &TyKind::Range(Self::Date),
-      Self::DateRangeArray => &TyKind::Array(Self::DateRange),
-      Self::Int8Range => &TyKind::Range(Self::Int8),
-      Self::Int8RangeArray => &TyKind::Array(Self::Int8Range),
-      Self::Jsonpath => &TyKind::Simple,
-      Self::JsonpathArray => &TyKind::Array(Self::Jsonpath),
-      Self::Regnamespace => &TyKind::Simple,
-      Self::RegnamespaceArray => &TyKind::Array(Self::Regnamespace),
-      Self::Regrole => &TyKind::Simple,
-      Self::RegroleArray => &TyKind::Array(Self::Regrole),
-      Self::Regcollation => &TyKind::Simple,
-      Self::RegcollationArray => &TyKind::Array(Self::Regcollation),
-      Self::PgBrinBloomSummary => &TyKind::Simple,
-      Self::PgBrinMinmaxMultiSummary => &TyKind::Simple,
-      Self::PgMcvList => &TyKind::Simple,
-      Self::PgSnapshot => &TyKind::Simple,
-      Self::PgSnapshotArray => &TyKind::Array(Self::PgSnapshot),
-      Self::Xid8 => &TyKind::Simple,
-      Self::Anycompatible => &TyKind::Pseudo,
-      Self::Anycompatiblearray => &TyKind::Pseudo,
-      Self::Anycompatiblenonarray => &TyKind::Pseudo,
-      Self::AnycompatibleRange => &TyKind::Pseudo,
-      Self::Custom(elem) => &elem.kind,
-    }
-  }
+  /// Custom
+  Custom(u32),
 }
 
 impl From<&Ty> for u32 {
+  #[allow(
+    // False positive
+    clippy::too_many_lines
+  )]
   #[inline]
   fn from(from: &Ty) -> Self {
     match from {
@@ -534,7 +526,7 @@ impl From<&Ty> for u32 {
       Ty::Anycompatiblearray => 5078,
       Ty::Anycompatiblenonarray => 5079,
       Ty::AnycompatibleRange => 5080,
-      Ty::Custom(elem) => elem.oid,
+      Ty::Custom(elem) => *elem,
     }
   }
 }
@@ -542,6 +534,10 @@ impl From<&Ty> for u32 {
 impl TryFrom<u32> for Ty {
   type Error = crate::Error;
 
+  #[allow(
+    // False positive
+    clippy::too_many_lines
+  )]
   #[inline]
   fn try_from(from: u32) -> Result<Self, Self::Error> {
     Ok(match from {
@@ -716,34 +712,7 @@ impl TryFrom<u32> for Ty {
       5078 => Self::Anycompatiblearray,
       5079 => Self::Anycompatiblenonarray,
       5080 => Self::AnycompatibleRange,
-      _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
+      _ => return Err(crate::Error::UnexpectedUint { received: from }),
     })
   }
-}
-
-/// Every type has an associated kind.
-#[derive(Debug, Eq, PartialEq)]
-pub enum TyKind {
-  /// Sequence of types.
-  Array(Ty),
-  /// Represents the structure of a record.
-  Composite,
-  /// Type that is based on another underlying type.
-  Domain(Ty),
-  /// Types that comprise a static, ordered set of values.
-  Enum,
-  /// Special-purpose entry.
-  Pseudo,
-  /// A range of values of some element type.
-  Range(Ty),
-  /// For example, INT or CHAR.
-  Simple,
-}
-
-/// Type created by an user in the database.
-#[derive(Debug, Eq, PartialEq)]
-pub struct CustomTy {
-  pub(crate) kind: TyKind,
-  pub(crate) name: Identifier,
-  pub(crate) oid: u32,
 }

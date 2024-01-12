@@ -12,7 +12,7 @@ use crate::{
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
       initial_conn_msg, Config, MessageTy, Postgres, Record, Records, TransactionManager,
     },
-    Database, RecordValues, Stmt, TransactionManager as _,
+    Database, RecordValues, StmtCmd, TransactionManager as _,
   },
   misc::{FilledBufferWriter, Stream, TlsStream},
   rng::Rng,
@@ -128,32 +128,29 @@ where
   }
 
   #[inline]
-  async fn execute_with_stmt<STMT, RV>(
+  async fn execute_with_stmt<SC, RV>(
     &mut self,
-    stmt: STMT,
+    sc: SC,
     rv: RV,
   ) -> Result<u64, <Self::Database as Database>::Error>
   where
     RV: RecordValues<Self::Database>,
-    STMT: Stmt,
+    SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { ftb, nb, rb, stmts, tb, vb, .. } =
-      self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut rows = 0;
     let mut fwsc = FetchWithStmtCommons {
-      ftb,
       is_closed: &mut self.is_closed,
       rb,
       stream: &mut self.stream,
-      tb,
       tys: &[],
     };
     let (_, stmt_id_str, stmt) =
-      Self::write_send_await_stmt_prot(&mut fwsc, nb, stmt, stmts, vb).await?;
+      Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts, vb).await?;
     Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id_str).await?;
     loop {
-      let msg = Self::fetch_msg_from_stream(&mut fwsc.is_closed, nb, fwsc.stream).await?;
+      let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(local_rows) => {
           rows = local_rows;
@@ -167,29 +164,26 @@ where
   }
 
   #[inline]
-  async fn fetch_with_stmt<STMT, RV>(
+  async fn fetch_with_stmt<SC, RV>(
     &mut self,
-    stmt: STMT,
+    sc: SC,
     rv: RV,
   ) -> Result<<Self::Database as Database>::Record<'_>, E>
   where
     RV: RecordValues<Self::Database>,
-    STMT: Stmt,
+    SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { ftb, nb, rb, stmts, tb, vb, .. } =
-      self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
     Self::write_send_await_fetch_with_stmt(
       &mut FetchWithStmtCommons {
-        ftb,
         is_closed: &mut self.is_closed,
         rb,
         stream: &mut self.stream,
-        tb,
         tys: &[],
       },
       nb,
       rv,
-      stmt,
+      sc,
       stmts,
       vb,
     )
@@ -197,29 +191,26 @@ where
   }
 
   #[inline]
-  async fn fetch_many_with_stmt<'this, STMT, RV>(
+  async fn fetch_many_with_stmt<'this, SC, RV>(
     &'this mut self,
-    stmt: STMT,
+    sc: SC,
     rv: RV,
     mut cb: impl FnMut(&<Self::Database as Database>::Record<'_>) -> Result<(), E> + 'this,
   ) -> Result<<Self::Database as Database>::Records<'_>, E>
   where
     RV: RecordValues<Self::Database>,
-    STMT: Stmt,
+    SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { ftb, nb, rb, stmts, tb, vb, .. } =
-      self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut fwsc = FetchWithStmtCommons {
-      ftb,
       is_closed: &mut self.is_closed,
       rb,
       stream: &mut self.stream,
-      tb,
       tys: &[],
     };
     let (_, stmt_id_str, stmt) =
-      Self::write_send_await_stmt_prot(&mut fwsc, nb, stmt, stmts, vb).await?;
+      Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts, vb).await?;
     Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id_str).await?;
     let begin = nb._current_end_idx();
     let begin_data = nb._current_end_idx().wrapping_add(7);
@@ -261,17 +252,14 @@ where
 
   #[inline]
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
-    let ExecutorBufferPartsMut { ftb, nb, rb, stmts, tb, vb, .. } =
-      self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     Ok(
       Self::write_send_await_stmt_prot(
         &mut FetchWithStmtCommons {
-          ftb,
           is_closed: &mut self.is_closed,
           rb,
           stream: &mut self.stream,
-          tb,
           tys: &[],
         },
         nb,

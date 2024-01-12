@@ -27,7 +27,7 @@ pub use from_records::FromRecords;
 pub use record::Record;
 pub use record_values::RecordValues;
 pub use records::Records;
-pub use stmt::Stmt;
+pub use stmt::StmtCmd;
 pub use transaction_manager::TransactionManager;
 pub use value_ident::ValueIdent;
 
