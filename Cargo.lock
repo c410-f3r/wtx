@@ -4090,7 +4090,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "ahash 0.8.7",
  "arbitrary",
