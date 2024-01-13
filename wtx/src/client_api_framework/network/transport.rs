@@ -2,6 +2,8 @@
 
 mod bi_transport;
 mod mock;
+#[cfg(feature = "reqwest")]
+mod reqwest;
 #[cfg(feature = "std")]
 mod std;
 mod transport_params;
