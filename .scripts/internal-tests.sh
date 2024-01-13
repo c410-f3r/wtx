@@ -50,11 +50,14 @@ $rt test-with-features wtx postgres
 $rt test-with-features wtx proptest
 $rt test-with-features wtx protobuf
 $rt test-with-features wtx rand
+$rt test-with-features wtx reqwest
 $rt test-with-features wtx ring
 $rt test-with-features wtx rkyv,_hack
 $rt test-with-features wtx rust_decimal
 $rt test-with-features wtx rustls-pemfile
 $rt test-with-features wtx rustls-pki-types 
+$rt test-with-features wtx schema-manager
+$rt test-with-features wtx schema-manager-dev
 $rt test-with-features wtx serde
 $rt test-with-features wtx serde_json
 $rt test-with-features wtx serde_yaml
@@ -63,8 +66,6 @@ $rt test-with-features wtx sha1
 $rt test-with-features wtx sha2
 $rt test-with-features wtx simd-json
 $rt test-with-features wtx simdutf8
-$rt test-with-features wtx schema-manager
-$rt test-with-features wtx schema-manager-dev
 $rt test-with-features wtx smol
 $rt test-with-features wtx std
 $rt test-with-features wtx test-strategy
