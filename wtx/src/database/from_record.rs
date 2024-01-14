@@ -9,3 +9,13 @@ where
   /// Fallible entry-point that maps the element.
   fn from_record(record: &D::Record<'_>) -> Result<Self, D::Error>;
 }
+
+impl<D> FromRecord<D> for ()
+where
+  D: Database,
+{
+  #[inline]
+  fn from_record(_: &D::Record<'_>) -> Result<Self, D::Error> {
+    Ok(())
+  }
+}

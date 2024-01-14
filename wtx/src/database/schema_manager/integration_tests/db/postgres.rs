@@ -1,8 +1,11 @@
 #[cfg(feature = "schema-manager-dev")]
-use crate::database::{
-  client::postgres::Postgres, schema_manager::fixed_sql_commands::postgres,
-  schema_manager::integration_tests, schema_manager::Commands, schema_manager::DbMigration,
-  schema_manager::SchemaManagement, FromRecord, Identifier,
+use crate::{
+  database::{
+    client::postgres::Postgres, schema_manager::fixed_sql_commands::postgres,
+    schema_manager::integration_tests, schema_manager::Commands, schema_manager::DbMigration,
+    schema_manager::SchemaManagement, FromRecord, Identifier,
+  },
+  misc::AsyncBounds,
 };
 
 #[cfg(feature = "schema-manager-dev")]
@@ -11,7 +14,7 @@ pub(crate) async fn _clean_drops_all_objs<E>(
   c: &mut Commands<E>,
   _: integration_tests::AuxTestParams,
 ) where
-  E: SchemaManagement<Database = Postgres<crate::Error>>,
+  E: AsyncBounds + SchemaManagement<Database = Postgres<crate::Error>>,
   Identifier: FromRecord<Postgres<crate::Error>>,
 {
   integration_tests::create_foo_table(buffer_cmd, c, "public.").await;

@@ -28,10 +28,13 @@ macro_rules! _serial_id {
 #[cfg(feature = "postgres")]
 pub(crate) mod postgres;
 
-use crate::database::{
-  executor::Executor,
-  schema_manager::{DbMigration, MigrationGroup, UserMigration},
-  Database, DatabaseTy, FromRecord, TransactionManager,
+use crate::{
+  database::{
+    executor::Executor,
+    schema_manager::{DbMigration, MigrationGroup, UserMigration},
+    Database, DatabaseTy, FromRecord, TransactionManager,
+  },
+  misc::AsyncBounds,
 };
 use alloc::{string::String, vec::Vec};
 use core::fmt::Write;
@@ -45,7 +48,7 @@ pub(crate) async fn _delete_migrations<E, S>(
   version: i32,
 ) -> crate::Result<()>
 where
-  E: Executor,
+  E: AsyncBounds + Executor,
   S: AsRef<str>,
 {
   buffer_cmd.write_fmt(format_args!(
@@ -67,7 +70,7 @@ pub(crate) async fn _insert_migrations<'migration, DBS, E, I, S>(
 ) -> crate::Result<()>
 where
   DBS: AsRef<[DatabaseTy]> + 'migration,
-  E: Executor,
+  E: AsyncBounds + Executor,
   I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
   S: AsRef<str> + 'migration,
 {
@@ -123,7 +126,7 @@ pub(crate) async fn _migrations_by_mg_version_query<E, D>(
 ) -> crate::Result<()>
 where
   D: Database<Error = crate::Error>,
-  E: Executor<Database = D>,
+  E: AsyncBounds + Executor<Database = D>,
   DbMigration: for<'rec> FromRecord<E::Database>,
 {
   buffer_cmd.write_fmt(format_args!(

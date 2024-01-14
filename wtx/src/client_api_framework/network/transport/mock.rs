@@ -3,14 +3,11 @@
   clippy::indexing_slicing
 )]
 
-use crate::{
-  client_api_framework::{
-    misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
-    network::{transport::Transport, TransportGroup},
-    pkg::{Package, PkgsAux},
-    Api,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
+  network::{transport::Transport, TransportGroup},
+  pkg::{Package, PkgsAux},
+  Api,
 };
 use alloc::{
   borrow::{Cow, ToOwned},
@@ -91,11 +88,8 @@ where
 
 impl<DRSR, T> Transport<DRSR> for Mock<T>
 where
-  DRSR: AsyncBounds,
-  T: AsyncBounds + AsRef<[u8]> + Debug + PartialEq + ToOwned + 'static + ?Sized,
-  <T as ToOwned>::Owned: AsyncBounds + Debug + FromBytes,
-  for<'owned> &'owned Self: AsyncBounds,
-  for<'ty> &'ty T: AsyncBounds,
+  T: AsRef<[u8]> + Debug + PartialEq + ToOwned + 'static + ?Sized,
+  <T as ToOwned>::Owned: Debug + FromBytes,
 {
   const GROUP: TransportGroup = TransportGroup::Stub;
   type Params = ();
@@ -108,7 +102,7 @@ where
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, ()>,
+    P: Package<A, DRSR, ()>,
   {
     manage_before_sending_related(pkg, pkgs_aux, &mut *self).await?;
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?));
@@ -125,7 +119,7 @@ where
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, ()>,
+    P: Package<A, DRSR, ()>,
   {
     <Self as Transport<DRSR>>::send(self, pkg, pkgs_aux).await?;
     let response = self.pop_response()?;

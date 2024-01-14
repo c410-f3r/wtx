@@ -1,8 +1,5 @@
-use crate::{
-  client_api_framework::{
-    data_format::JsonRpcRequest, network::transport::TransportParams, pkg::Package, Api, Id,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  data_format::JsonRpcRequest, network::transport::TransportParams, pkg::Package, Api, Id,
 };
 use core::{
   borrow::Borrow,
@@ -35,11 +32,8 @@ impl<H, P> PkgWithHelper<H, P> {
 impl<A, DRSR, H, P, TP> Package<A, DRSR, TP> for PkgWithHelper<H, P>
 where
   A: Api,
-  H: AsyncBounds,
-  P: AsyncBounds + Package<A, DRSR, TP>,
-  TP: AsyncBounds + TransportParams,
-  TP::ExternalRequestParams: AsyncBounds,
-  TP::ExternalResponseParams: AsyncBounds,
+  P: Package<A, DRSR, TP>,
+  TP: TransportParams,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent = P::ExternalResponseContent;

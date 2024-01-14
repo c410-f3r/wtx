@@ -1,9 +1,6 @@
-use crate::{
-  client_api_framework::{
-    dnsn::{Deserialize, Serialize},
-    pkg::Package,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  dnsn::{Deserialize, Serialize},
+  pkg::Package,
 };
 use alloc::string::String;
 use core::marker::PhantomData;
@@ -21,8 +18,8 @@ impl<EREQC, ERESC> FooBar<EREQC, ERESC> {
 
 impl<DRSR, EREQC, ERESC> Package<(), DRSR, ()> for FooBar<EREQC, ERESC>
 where
-  EREQC: AsyncBounds + Serialize<DRSR>,
-  ERESC: AsyncBounds + Deserialize<DRSR>,
+  EREQC: Serialize<DRSR>,
+  ERESC: Deserialize<DRSR>,
 {
   type ExternalRequestContent = EREQC;
   type ExternalResponseContent = ERESC;

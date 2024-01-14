@@ -1,11 +1,8 @@
-use crate::{
-  client_api_framework::{
-    misc::{manage_after_sending_related, manage_before_sending_related},
-    network::{transport::Transport, TransportGroup},
-    pkg::{Package, PkgsAux},
-    Api,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  misc::{manage_after_sending_related, manage_before_sending_related},
+  network::{transport::Transport, TransportGroup},
+  pkg::{Package, PkgsAux},
+  Api,
 };
 use core::ops::Range;
 
@@ -18,10 +15,7 @@ use core::ops::Range;
 ///   ().send_retrieve_and_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ())).await?;
 /// # Ok(()) }
 /// ```
-impl<DRSR> Transport<DRSR> for ()
-where
-  DRSR: AsyncBounds,
-{
+impl<DRSR> Transport<DRSR> for () {
   const GROUP: TransportGroup = TransportGroup::Stub;
   type Params = ();
 
@@ -33,7 +27,7 @@ where
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, ()>,
+    P: Package<A, DRSR, ()>,
   {
     manage_before_sending_related(pkg, pkgs_aux, self).await?;
     manage_after_sending_related(pkg, pkgs_aux).await?;
@@ -48,7 +42,7 @@ where
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, ()>,
+    P: Package<A, DRSR, ()>,
   {
     self.send(pkg, pkgs_aux).await?;
     Ok(0..0)

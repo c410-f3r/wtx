@@ -41,7 +41,7 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 mod httparse_impls {
   use crate::{
     http::{ExpectedHeader, Header as _, Request as _},
-    misc::{AsyncBounds, FilledBufferWriter, Stream, UriRef},
+    misc::{FilledBufferWriter, Stream, UriRef},
     rng::Rng,
     web_socket::{
       compression::NegotiatedCompression,
@@ -63,16 +63,15 @@ mod httparse_impls {
   impl<C, RNG, S, WSB> WebSocketAccept<C::NegotiatedCompression, RNG, S, WSB>
     for WebSocketAcceptRaw<C, RNG, S, WSB>
   where
-    C: AsyncBounds + Compression<false>,
-    C::NegotiatedCompression: AsyncBounds,
-    RNG: AsyncBounds + Rng,
-    S: AsyncBounds + Stream,
-    WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
+    C: Compression<false>,
+    RNG: Rng,
+    S: Stream,
+    WSB: BorrowMut<WebSocketBuffer>,
   {
     #[inline]
     async fn accept(
       mut self,
-      cb: impl AsyncBounds + FnOnce(&dyn crate::http::Request) -> bool,
+      cb: impl FnOnce(&dyn crate::http::Request) -> bool,
     ) -> crate::Result<WebSocketServer<C::NegotiatedCompression, RNG, S, WSB>> {
       let nb = &mut self.wsb.borrow_mut().nb;
       nb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
@@ -132,12 +131,11 @@ mod httparse_impls {
   impl<'fb, 'hb, B, C, RNG, S, WSB> WebSocketConnect<C::NegotiatedCompression, RNG, S, WSB>
     for WebSocketConnectRaw<'fb, 'hb, '_, B, C, Header<'fb>, RNG, S, WSB>
   where
-    B: AsyncBounds + AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
-    C: AsyncBounds + Compression<true>,
-    C::NegotiatedCompression: AsyncBounds,
-    RNG: AsyncBounds + Rng,
-    S: AsyncBounds + Stream,
-    WSB: AsyncBounds + BorrowMut<WebSocketBuffer>,
+    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    C: Compression<true>,
+    RNG: Rng,
+    S: Stream,
+    WSB: BorrowMut<WebSocketBuffer>,
     'fb: 'hb,
   {
     type Response = Response<'hb, 'fb>;

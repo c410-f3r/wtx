@@ -8,3 +8,12 @@ pub trait TableAssociations {
   /// Yields all table associations
   fn full_associations(&self) -> Self::FullTableAssociations;
 }
+
+impl TableAssociations for () {
+  type FullTableAssociations = core::array::IntoIter<FullTableAssociation, 0>;
+
+  #[inline]
+  fn full_associations(&self) -> Self::FullTableAssociations {
+    [].into_iter()
+  }
+}

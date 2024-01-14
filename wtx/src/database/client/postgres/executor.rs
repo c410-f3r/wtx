@@ -14,7 +14,7 @@ use crate::{
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
-  misc::{FilledBufferWriter, Stream, TlsStream},
+  misc::{AsyncBounds, FilledBufferWriter, Stream, TlsStream},
   rng::Rng,
 };
 use core::{borrow::BorrowMut, future::Future, marker::PhantomData};
@@ -113,9 +113,9 @@ where
 
 impl<E, EB, S> crate::database::Executor for Executor<E, EB, S>
 where
-  E: From<crate::Error>,
-  EB: BorrowMut<ExecutorBuffer>,
-  S: Stream,
+  E: AsyncBounds + From<crate::Error>,
+  EB: AsyncBounds + BorrowMut<ExecutorBuffer>,
+  S: AsyncBounds + Stream,
 {
   type Database = Postgres<E>;
   type TransactionManager<'tm> = TransactionManager<'tm, E, EB, S>
@@ -191,15 +191,15 @@ where
   }
 
   #[inline]
-  async fn fetch_many_with_stmt<'this, SC, RV>(
-    &'this mut self,
+  async fn fetch_many_with_stmt<SC, RV>(
+    &mut self,
     sc: SC,
     rv: RV,
-    mut cb: impl FnMut(&<Self::Database as Database>::Record<'_>) -> Result<(), E> + 'this,
+    mut cb: impl AsyncBounds + FnMut(&<Self::Database as Database>::Record<'_>) -> Result<(), E>,
   ) -> Result<<Self::Database as Database>::Records<'_>, E>
   where
-    RV: RecordValues<Self::Database>,
-    SC: StmtCmd,
+    RV: AsyncBounds + RecordValues<Self::Database>,
+    SC: AsyncBounds + StmtCmd,
   {
     let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);

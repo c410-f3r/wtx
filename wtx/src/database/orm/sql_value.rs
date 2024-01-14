@@ -7,6 +7,13 @@ pub trait SqlValue<E> {
   fn write(&self, buffer_cmd: &mut String) -> Result<(), E>;
 }
 
+impl<E> SqlValue<E> for () {
+  #[inline]
+  fn write(&self, _: &mut String) -> Result<(), E> {
+    Ok(())
+  }
+}
+
 impl<E, T> SqlValue<E> for &'_ T
 where
   T: SqlValue<E>,

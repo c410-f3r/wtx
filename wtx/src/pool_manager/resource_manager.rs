@@ -18,6 +18,23 @@ pub trait ResourceManager {
     -> impl Future<Output = Result<(), Self::Error>>;
 }
 
+impl ResourceManager for () {
+  type Error = crate::Error;
+  type Resource = ();
+
+  async fn create(&self) -> Result<Self::Resource, Self::Error> {
+    Ok(())
+  }
+
+  fn is_invalid(&self, _: &Self::Resource) -> bool {
+    false
+  }
+
+  async fn recycle(&self, _: &mut Self::Resource) -> Result<(), Self::Error> {
+    Ok(())
+  }
+}
+
 /// Manages generic resources that are always valid and don't require logic for recycling.
 #[derive(Debug)]
 pub struct SimpleRM<E, I, R> {

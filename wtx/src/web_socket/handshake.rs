@@ -8,7 +8,6 @@ mod tests;
 
 use crate::{
   http::Request,
-  misc::AsyncBounds,
   web_socket::{WebSocketClient, WebSocketServer},
 };
 use core::future::Future;
@@ -19,8 +18,8 @@ pub trait WebSocketAccept<NC, RNG, S, WSC> {
   /// Reads external data to figure out if incoming requests can be accepted as WebSocket connections.
   fn accept(
     self,
-    cb: impl AsyncBounds + FnOnce(&dyn Request) -> bool,
-  ) -> impl AsyncBounds + Future<Output = crate::Result<WebSocketServer<NC, RNG, S, WSC>>>;
+    cb: impl FnOnce(&dyn Request) -> bool,
+  ) -> impl Future<Output = crate::Result<WebSocketServer<NC, RNG, S, WSC>>>;
 }
 
 /// Initial negotiation sent by a client to start a WebSocket connection.
@@ -31,8 +30,7 @@ pub trait WebSocketConnect<NC, RNG, S, WSC> {
   /// Initial negotiation sent by a client to start a WebSocket connection.
   fn connect(
     self,
-  ) -> impl AsyncBounds
-       + Future<Output = crate::Result<(Self::Response, WebSocketClient<NC, RNG, S, WSC>)>>;
+  ) -> impl Future<Output = crate::Result<(Self::Response, WebSocketClient<NC, RNG, S, WSC>)>>;
 }
 
 /// Necessary to decode incoming bytes of responses or requests.

@@ -11,15 +11,12 @@ mod unit;
 #[cfg(feature = "web-socket")]
 mod wtx;
 
-use crate::{
-  client_api_framework::{
-    dnsn::{Deserialize, Serialize},
-    misc::log_res,
-    network::TransportGroup,
-    pkg::{BatchElems, BatchPkg, Package, PkgsAux},
-    Api, Id,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  dnsn::{Deserialize, Serialize},
+  misc::log_res,
+  network::TransportGroup,
+  pkg::{BatchElems, BatchPkg, Package, PkgsAux},
+  Api, Id,
 };
 pub use bi_transport::*;
 use cl_aux::DynContigColl;
@@ -46,10 +43,10 @@ pub trait Transport<DRSR> {
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl AsyncBounds + Future<Output = Result<(), A::Error>>
+  ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, Self::Params>;
+    P: Package<A, DRSR, Self::Params>;
 
   /// Sends a request and then awaits its counterpart data response.
   ///
@@ -58,10 +55,10 @@ pub trait Transport<DRSR> {
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl AsyncBounds + Future<Output = Result<Range<usize>, A::Error>>
+  ) -> impl Future<Output = Result<Range<usize>, A::Error>>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, Self::Params>;
+    P: Package<A, DRSR, Self::Params>;
 
   /// Convenient method similar to [Self::send_retrieve_and_decode_contained] but used for batch
   /// requests.
@@ -73,18 +70,13 @@ pub trait Transport<DRSR> {
     pkgs: &mut [P],
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
     ress: &mut RESS,
-  ) -> impl AsyncBounds + Future<Output = Result<(), A::Error>>
+  ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api,
-    DRSR: AsyncBounds,
-    P: AsyncBounds + Package<A, DRSR, Self::Params>,
-    P::ExternalRequestContent: AsyncBounds + Borrow<Id> + Ord,
-    P::ExternalResponseContent: AsyncBounds + Borrow<Id> + Ord,
-    RESS: AsyncBounds + DynContigColl<P::ExternalResponseContent>,
-    Self: AsyncBounds,
-    Self::Params: AsyncBounds,
-    <Self::Params as TransportParams>::ExternalRequestParams: AsyncBounds,
-    <Self::Params as TransportParams>::ExternalResponseParams: AsyncBounds,
+    P: Package<A, DRSR, Self::Params>,
+    P::ExternalRequestContent: Borrow<Id> + Ord,
+    P::ExternalResponseContent: Borrow<Id> + Ord,
+    RESS: DynContigColl<P::ExternalResponseContent>,
     for<'any> BatchElems<'any, A, DRSR, P, Self::Params>: Serialize<DRSR>,
   {
     async {
@@ -107,15 +99,10 @@ pub trait Transport<DRSR> {
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl AsyncBounds + Future<Output = Result<P::ExternalResponseContent, A::Error>>
+  ) -> impl Future<Output = Result<P::ExternalResponseContent, A::Error>>
   where
     A: Api,
-    DRSR: AsyncBounds,
-    P: AsyncBounds + Package<A, DRSR, Self::Params>,
-    Self: AsyncBounds,
-    Self::Params: AsyncBounds,
-    <Self::Params as TransportParams>::ExternalRequestParams: AsyncBounds,
-    <Self::Params as TransportParams>::ExternalResponseParams: AsyncBounds,
+    P: Package<A, DRSR, Self::Params>,
   {
     async {
       let range = self.send_and_retrieve(pkg, pkgs_aux).await?;
@@ -136,10 +123,7 @@ pub trait Transport<DRSR> {
 
 impl<DRSR, T> Transport<DRSR> for &mut T
 where
-  DRSR: AsyncBounds,
-  T: AsyncBounds + Transport<DRSR>,
-  T::Params: AsyncBounds,
-  Self: AsyncBounds,
+  T: Transport<DRSR>,
 {
   const GROUP: TransportGroup = T::GROUP;
   type Params = T::Params;
@@ -152,7 +136,7 @@ where
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, Self::Params>,
+    P: Package<A, DRSR, Self::Params>,
   {
     (**self).send(pkg, pkgs_aux).await
   }
@@ -165,7 +149,7 @@ where
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, Self::Params>,
+    P: Package<A, DRSR, Self::Params>,
   {
     (**self).send_and_retrieve(pkg, pkgs_aux).await
   }

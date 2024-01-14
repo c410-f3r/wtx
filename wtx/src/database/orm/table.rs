@@ -28,3 +28,23 @@ pub trait Table<'entity>: Sized {
   /// Updates the inner instance values that are used by some CRUD operations
   fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>);
 }
+
+impl<'entity> Table<'entity> for () {
+  const PRIMARY_KEY_NAME: &'static str = "";
+  const TABLE_NAME: &'static str = "";
+
+  type Associations = ();
+  type Error = crate::Error;
+  type Fields = ();
+  type PrimaryKeyValue = &'static str;
+
+  #[inline]
+  fn type_instances(_: TableSuffix) -> FromSuffixRslt<'entity, Self> {
+    todo!()
+  }
+
+  #[inline]
+  fn update_all_table_fields(_: &'entity Self, _: &mut TableParams<'entity, Self>) {
+    todo!()
+  }
+}
