@@ -3,7 +3,7 @@ use core::{fmt::Display, future::Future};
 
 /// Api definitions group different packages into a common namespace and define custom additional
 /// logical through hooks.
-pub trait Api: AsyncBounds {
+pub trait Api {
   /// Any custom error structure that can be constructed from [crate::Error].
   type Error: Display + From<crate::Error>;
 

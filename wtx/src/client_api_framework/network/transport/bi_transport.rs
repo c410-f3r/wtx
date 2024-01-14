@@ -1,12 +1,9 @@
-use crate::{
-  client_api_framework::{
-    dnsn::Deserialize,
-    misc::log_res,
-    network::transport::Transport,
-    pkg::{Package, PkgsAux},
-    Api,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  dnsn::Deserialize,
+  misc::log_res,
+  network::transport::Transport,
+  pkg::{Package, PkgsAux},
+  Api,
 };
 use core::{future::Future, ops::Range};
 
@@ -23,10 +20,9 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
   fn retrieve<A>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl AsyncBounds + Future<Output = crate::Result<Range<usize>>>
+  ) -> impl Future<Output = crate::Result<Range<usize>>>
   where
-    A: Api,
-    A: AsyncBounds;
+    A: Api;
 
   /// Internally calls [Self::retrieve] and then tries to decode the defined response specified
   /// in [Package::ExternalResponseContent].
@@ -34,13 +30,10 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
   fn retrieve_and_decode_contained<A, P>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl AsyncBounds + Future<Output = Result<P::ExternalResponseContent, A::Error>>
+  ) -> impl Future<Output = Result<P::ExternalResponseContent, A::Error>>
   where
     A: Api,
-    DRSR: AsyncBounds,
     P: Package<A, DRSR, Self::Params>,
-    Self: AsyncBounds,
-    Self::Params: AsyncBounds,
   {
     async {
       let range = self.retrieve(pkgs_aux).await?;
@@ -57,10 +50,7 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
 
 impl<DRSR, T> BiTransport<DRSR> for &mut T
 where
-  DRSR: AsyncBounds,
-  T: AsyncBounds + BiTransport<DRSR>,
-  T::Params: AsyncBounds,
-  Self: AsyncBounds,
+  T: BiTransport<DRSR>,
 {
   #[inline]
   async fn retrieve<A>(

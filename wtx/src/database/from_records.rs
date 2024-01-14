@@ -15,3 +15,18 @@ where
     table_suffix: TableSuffix,
   ) -> Result<(usize, Self), D::Error>;
 }
+
+impl<D> FromRecords<D> for ()
+where
+  D: Database,
+{
+  #[inline]
+  fn from_records(
+    _: &mut String,
+    _: &D::Record<'_>,
+    _: &D::Records<'_>,
+    _: TableSuffix,
+  ) -> Result<(usize, Self), D::Error> {
+    Ok((0, ()))
+  }
+}

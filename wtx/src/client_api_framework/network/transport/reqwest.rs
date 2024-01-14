@@ -8,7 +8,7 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  misc::{from_utf8_basic_rslt, AsyncBounds},
+  misc::from_utf8_basic_rslt,
 };
 use core::ops::Range;
 use reqwest::{
@@ -30,10 +30,7 @@ use reqwest::{
 ///   .await?;
 /// # Ok(()) }
 /// ```
-impl<DRSR> Transport<DRSR> for Client
-where
-  DRSR: AsyncBounds,
-{
+impl<DRSR> Transport<DRSR> for Client {
   const GROUP: TransportGroup = TransportGroup::HTTP;
   type Params = HttpParams;
 
@@ -45,7 +42,7 @@ where
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, HttpParams>,
+    P: Package<A, DRSR, HttpParams>,
   {
     let _res = response(self, pkg, pkgs_aux).await?;
     Ok(())
@@ -59,7 +56,7 @@ where
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, HttpParams>,
+    P: Package<A, DRSR, HttpParams>,
   {
     let res = response(self, pkg, pkgs_aux).await?;
     let received_bytes = res.bytes().await.map_err(Into::into)?;
@@ -75,7 +72,6 @@ async fn response<A, DRSR, P>(
 ) -> Result<reqwest::Response, A::Error>
 where
   A: Api,
-  DRSR: AsyncBounds,
   P: Package<A, DRSR, HttpParams>,
 {
   fn manage_data<A, DRSR>(

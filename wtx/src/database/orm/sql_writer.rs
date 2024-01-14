@@ -50,6 +50,59 @@ pub trait SqlWriter {
   fn write_update(&self, aux: &mut AuxNodes, buffer_cmd: &mut String) -> Result<(), Self::Error>;
 }
 
+impl SqlWriter for () {
+  type Error = crate::Error;
+
+  #[inline]
+  fn write_delete(&self, _: &mut AuxNodes, _: &mut String) -> Result<(), Self::Error> {
+    Ok(())
+  }
+
+  #[inline]
+  fn write_insert<V>(
+    &self,
+    _: &mut AuxNodes,
+    _: &mut String,
+    _: &mut Option<TableSourceAssociation<'_, V>>,
+  ) -> Result<(), Self::Error>
+  where
+    V: Display,
+  {
+    Ok(())
+  }
+
+  #[inline]
+  fn write_select(
+    &self,
+    _: &mut String,
+    _: SelectOrderBy,
+    _: SelectLimit,
+    _: &mut impl FnMut(&mut String) -> Result<(), Self::Error>,
+  ) -> Result<(), Self::Error> {
+    Ok(())
+  }
+
+  #[inline]
+  fn write_select_associations(&self, _: &mut String) -> Result<(), Self::Error> {
+    Ok(())
+  }
+
+  #[inline]
+  fn write_select_fields(&self, _: &mut String) -> Result<(), Self::Error> {
+    Ok(())
+  }
+
+  #[inline]
+  fn write_select_orders_by(&self, _: &mut String) -> Result<(), Self::Error> {
+    Ok(())
+  }
+
+  #[inline]
+  fn write_update(&self, _: &mut AuxNodes, _: &mut String) -> Result<(), Self::Error> {
+    Ok(())
+  }
+}
+
 impl<'entity, T> SqlWriter for TableParams<'entity, T>
 where
   T: Table<'entity>,

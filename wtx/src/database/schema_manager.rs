@@ -170,14 +170,14 @@ mod postgres {
       },
       DatabaseTy, Executor as _, Identifier,
     },
-    misc::Stream,
+    misc::{AsyncBounds, Stream},
   };
   use core::borrow::BorrowMut;
 
   impl<EB, STREAM> SchemaManagement for Executor<crate::Error, EB, STREAM>
   where
-    EB: BorrowMut<ExecutorBuffer>,
-    STREAM: Stream,
+    EB: AsyncBounds + BorrowMut<ExecutorBuffer>,
+    STREAM: AsyncBounds + Stream,
   {
     #[inline]
     async fn clear(&mut self, buffer: (&mut String, &mut Vec<Identifier>)) -> crate::Result<()> {

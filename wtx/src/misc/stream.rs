@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use core::{cmp::Ordering, future::Future};
 
 /// A stream of values produced asynchronously.
-pub trait Stream: AsyncBounds {
+pub trait Stream {
   /// Pulls some bytes from this source into the specified buffer, returning how many bytes
   /// were read.
   fn read(&mut self, bytes: &mut [u8]) -> impl AsyncBounds + Future<Output = crate::Result<usize>>;

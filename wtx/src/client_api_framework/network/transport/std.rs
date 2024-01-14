@@ -1,14 +1,11 @@
-use crate::{
-  client_api_framework::{
-    misc::{manage_after_sending_related, manage_before_sending_related},
-    network::{
-      transport::{Transport, TransportParams},
-      TcpParams, TransportGroup, UdpParams,
-    },
-    pkg::{Package, PkgsAux},
-    Api,
+use crate::client_api_framework::{
+  misc::{manage_after_sending_related, manage_before_sending_related},
+  network::{
+    transport::{Transport, TransportParams},
+    TcpParams, TransportGroup, UdpParams,
   },
-  misc::AsyncBounds,
+  pkg::{Package, PkgsAux},
+  Api,
 };
 use core::ops::Range;
 use std::{
@@ -16,10 +13,7 @@ use std::{
   net::{TcpStream, UdpSocket},
 };
 
-impl<DRSR> Transport<DRSR> for TcpStream
-where
-  DRSR: AsyncBounds,
-{
+impl<DRSR> Transport<DRSR> for TcpStream {
   const GROUP: TransportGroup = TransportGroup::TCP;
   type Params = TcpParams;
 
@@ -31,7 +25,7 @@ where
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, TcpParams>,
+    P: Package<A, DRSR, TcpParams>,
   {
     send(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.write(bytes)?)).await
   }
@@ -44,16 +38,13 @@ where
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, TcpParams>,
+    P: Package<A, DRSR, TcpParams>,
   {
     send_and_retrieve(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.read(bytes)?)).await
   }
 }
 
-impl<DRSR> Transport<DRSR> for UdpSocket
-where
-  DRSR: AsyncBounds,
-{
+impl<DRSR> Transport<DRSR> for UdpSocket {
   const GROUP: TransportGroup = TransportGroup::UDP;
   type Params = UdpParams;
 
@@ -65,7 +56,7 @@ where
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, UdpParams>,
+    P: Package<A, DRSR, UdpParams>,
   {
     send(pkg, pkgs_aux, self, |bytes, ext_req_params, trans| {
       Ok(trans.send_to(bytes, ext_req_params.url.uri())?)
@@ -81,7 +72,7 @@ where
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
-    P: AsyncBounds + Package<A, DRSR, UdpParams>,
+    P: Package<A, DRSR, UdpParams>,
   {
     send_and_retrieve(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.recv(bytes)?)).await
   }
@@ -99,10 +90,8 @@ async fn send<A, DRSR, P, T>(
 ) -> Result<(), A::Error>
 where
   A: Api,
-  DRSR: AsyncBounds,
   P: Package<A, DRSR, T::Params>,
-  T: AsyncBounds + Transport<DRSR>,
-  T::Params: AsyncBounds,
+  T: Transport<DRSR>,
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;
@@ -138,7 +127,7 @@ async fn send_and_retrieve<A, DRSR, P, T>(
 ) -> Result<Range<usize>, A::Error>
 where
   A: Api,
-  P: AsyncBounds + Package<A, DRSR, T::Params>,
+  P: Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
 {
   trans.send(pkg, pkgs_aux).await?;

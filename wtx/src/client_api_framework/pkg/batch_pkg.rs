@@ -1,11 +1,8 @@
-use crate::{
-  client_api_framework::{
-    dnsn::{Deserialize, Serialize},
-    network::transport::TransportParams,
-    pkg::Package,
-    Api, Id,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  dnsn::{Deserialize, Serialize},
+  network::transport::TransportParams,
+  pkg::Package,
+  Api, Id,
 };
 use cl_aux::DynContigColl;
 use core::{borrow::Borrow, marker::PhantomData};
@@ -105,11 +102,8 @@ impl<'slice, A, DRSR, P, TP> Package<A, DRSR, TP> for BatchPkg<'slice, A, DRSR, 
 where
   A: Api,
   BatchElems<'slice, A, DRSR, P, TP>: Serialize<DRSR>,
-  DRSR: AsyncBounds,
-  P: AsyncBounds + Package<A, DRSR, TP>,
-  TP: AsyncBounds + TransportParams,
-  TP::ExternalRequestParams: AsyncBounds,
-  TP::ExternalResponseParams: AsyncBounds,
+  P: Package<A, DRSR, TP>,
+  TP: TransportParams,
 {
   type ExternalRequestContent = BatchElems<'slice, A, DRSR, P, TP>;
   type ExternalResponseContent = ();

@@ -1,10 +1,13 @@
-use crate::database::{
-  executor::Executor,
-  orm::{
-    seek_related_entities, write_select_field, InitialInsertValue, SelectLimit, SelectOrderBy,
-    SqlWriter, Table, TableParams,
+use crate::{
+  database::{
+    executor::Executor,
+    orm::{
+      seek_related_entities, write_select_field, InitialInsertValue, SelectLimit, SelectOrderBy,
+      SqlWriter, Table, TableParams,
+    },
+    Database, Decode, FromRecords, Records, ValueIdent,
   },
-  Database, Decode, FromRecords, Records, ValueIdent,
+  misc::AsyncBounds,
 };
 use alloc::{string::String, vec::Vec};
 use core::{fmt::Write, future::Future};
@@ -17,10 +20,13 @@ pub trait Crud: Executor {
     buffer_cmd: &mut String,
     table: &'entity T,
     table_params: &mut TableParams<'entity, T>,
-  ) -> impl Future<Output = Result<(), T::Error>>
+  ) -> impl AsyncBounds + Future<Output = Result<(), T::Error>>
   where
     T: Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = T::Error>,
+    for<'any> &'any mut Self: AsyncBounds,
+    for<'any> &'any mut TableParams<'entity, T>: AsyncBounds,
+    for<'any> &'any T: AsyncBounds,
   {
     async move {
       table_params.update_all_table_fields(table);
@@ -40,10 +46,13 @@ pub trait Crud: Executor {
     buffer_cmd: &mut String,
     table: &'entity T,
     table_params: &mut TableParams<'entity, T>,
-  ) -> impl Future<Output = Result<(), T::Error>>
+  ) -> impl AsyncBounds + Future<Output = Result<(), T::Error>>
   where
     T: Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = T::Error>,
+    for<'any> &'any mut Self: AsyncBounds,
+    for<'any> &'any mut TableParams<'entity, T>: AsyncBounds,
+    for<'any> &'any T: AsyncBounds,
   {
     async move {
       table_params.update_all_table_fields(table);
@@ -59,12 +68,15 @@ pub trait Crud: Executor {
     buffer_cmd: &mut String,
     results: &mut Vec<T>,
     tp: &TableParams<'entity, T>,
-  ) -> impl Future<Output = Result<(), <T as Table<'entity>>::Error>>
+  ) -> impl AsyncBounds + Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
     T: FromRecords<Self::Database> + Table<'entity, Error = <Self::Database as Database>::Error>,
-    T::Associations: SqlWriter<Error = <T as Table<'entity>>::Error>,
+    T::Associations: SqlWriter<Error = <Self::Database as Database>::Error>,
     str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
     u64: for<'value> Decode<'value, Self::Database>,
+    for<'any> &'any mut Self: AsyncBounds,
+    for<'any> &'any mut Vec<T>: AsyncBounds,
+    for<'any> &'any TableParams<'entity, T>: AsyncBounds,
   {
     async move {
       tp.write_select(buffer_cmd, SelectOrderBy::Ascending, SelectLimit::All, &mut |_| Ok(()))?;
@@ -84,12 +96,15 @@ pub trait Crud: Executor {
     select_limit: SelectLimit,
     tp: &TableParams<'entity, T>,
     where_str: &str,
-  ) -> impl Future<Output = Result<(), <T as Table<'entity>>::Error>>
+  ) -> impl AsyncBounds + Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
     T: FromRecords<Self::Database> + Table<'entity, Error = <Self::Database as Database>::Error>,
-    T::Associations: SqlWriter<Error = <T as Table<'entity>>::Error>,
+    T::Associations: SqlWriter<Error = <Self::Database as Database>::Error>,
     str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
     u64: for<'value> Decode<'value, Self::Database>,
+    for<'any> &'any mut Self: AsyncBounds,
+    for<'any> &'any mut Vec<T>: AsyncBounds,
+    for<'any> &'any TableParams<'entity, T>: AsyncBounds,
   {
     async move {
       tp.write_select(buffer_cmd, order_by, select_limit, &mut |b| {
@@ -109,10 +124,13 @@ pub trait Crud: Executor {
     buffer_cmd: &mut String,
     id: T::PrimaryKeyValue,
     tp: &TableParams<'entity, T>,
-  ) -> impl Future<Output = Result<T, <T as Table<'entity>>::Error>>
+  ) -> impl AsyncBounds + Future<Output = Result<T, <Self::Database as Database>::Error>>
   where
     T: FromRecords<Self::Database> + Table<'entity, Error = <Self::Database as Database>::Error>,
-    T::Associations: SqlWriter<Error = <T as Table<'entity>>::Error>,
+    T::Associations: SqlWriter<Error = <Self::Database as Database>::Error>,
+    T::PrimaryKeyValue: AsyncBounds,
+    for<'any> &'any mut Self: AsyncBounds,
+    for<'any> &'any TableParams<'entity, T>: AsyncBounds,
   {
     async move {
       tp.write_select(buffer_cmd, SelectOrderBy::Ascending, SelectLimit::All, &mut |b| {
@@ -138,10 +156,13 @@ pub trait Crud: Executor {
     buffer_cmd: &mut String,
     table: &'entity T,
     table_params: &mut TableParams<'entity, T>,
-  ) -> impl Future<Output = Result<(), T::Error>>
+  ) -> impl AsyncBounds + Future<Output = Result<(), T::Error>>
   where
     T: Table<'entity, Error = <Self::Database as Database>::Error>,
     T::Associations: SqlWriter<Error = T::Error>,
+    for<'any> &'any mut Self: AsyncBounds,
+    for<'any> &'any mut TableParams<'entity, T>: AsyncBounds,
+    for<'any> &'any T: AsyncBounds,
   {
     async move {
       table_params.update_all_table_fields(table);

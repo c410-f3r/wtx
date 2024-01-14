@@ -1,5 +1,5 @@
 use wtx::{
-  misc::{AsyncBounds, Stream},
+  misc::Stream,
   rng::StaticRng,
   web_socket::{
     compression::NegotiatedCompression,
@@ -14,9 +14,8 @@ pub(crate) async fn _accept_conn_and_echo_frames<C, S>(
   stream: S,
 ) -> wtx::Result<()>
 where
-  C: AsyncBounds + Compression<false>,
-  C::NegotiatedCompression: AsyncBounds,
-  S: AsyncBounds + Stream,
+  C: Compression<false>,
+  S: Stream,
 {
   let mut ws = WebSocketAcceptRaw {
     compression,

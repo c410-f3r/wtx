@@ -6,13 +6,10 @@ mod batch_pkg;
 mod pkg_with_helper;
 mod pkgs_aux;
 
-use crate::{
-  client_api_framework::{
-    dnsn::{Deserialize, Serialize},
-    network::transport::TransportParams,
-    Api,
-  },
-  misc::AsyncBounds,
+use crate::client_api_framework::{
+  dnsn::{Deserialize, Serialize},
+  network::transport::TransportParams,
+  Api,
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
 use core::future::Future;
@@ -46,7 +43,7 @@ where
     &mut self,
     _: &mut A,
     _: &mut TP::ExternalResponseParams,
-  ) -> impl AsyncBounds + Future<Output = Result<(), A::Error>> {
+  ) -> impl Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
   }
 
@@ -58,7 +55,7 @@ where
     _: &mut A,
     _: &mut TP::ExternalRequestParams,
     _: &[u8],
-  ) -> impl AsyncBounds + Future<Output = Result<(), A::Error>> {
+  ) -> impl Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
   }
 
@@ -112,10 +109,7 @@ impl<A, DRSR, P, TP> Package<A, DRSR, TP> for &mut P
 where
   A: Api,
   P: Package<A, DRSR, TP>,
-  TP: AsyncBounds + TransportParams,
-  TP::ExternalRequestParams: AsyncBounds,
-  TP::ExternalResponseParams: AsyncBounds,
-  Self: AsyncBounds,
+  TP: TransportParams,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent = P::ExternalResponseContent;
