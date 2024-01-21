@@ -91,7 +91,7 @@ sha1 = { default-features = false, optional = true, version = "0.10" }
 sha2 = { default-features = false, optional = true, version = "0.10" }
 simd-json = { default-features = false, features = ["serde_impl"], optional = true, version = "0.11" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
-smallvec = { default-features = false, features = ["const_generics", "union"], optional = true, version = "1.12" }
+smallvec = { default-features = false, features = ["const_generics", "union"], optional = true, version = "1.13" }
 smol = { default-features = false, optional = true, version = "2.0" }
 test-strategy = { default-features = false, optional = true, version = "0.3" }
 tokio = { default-features = false, features = ["io-util", "net", "sync", "time"], optional = true, version = "1.35" }
