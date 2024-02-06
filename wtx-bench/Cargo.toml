@@ -4,7 +4,7 @@ diesel-async = { default-features = false, features = ["postgres"], version = "0
 futures = { default-features = false, version = "0.3" }
 plotters = { default-features = false, features = ["histogram", "svg_backend"], version = "0.3" }
 sqlx = { default-features = false, features = ["postgres", "runtime-tokio"], version = "0.7" }
-tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.35" }
+tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.36" }
 tokio-postgres = { default-features = false, features = ["runtime"], version = "0.7" }
 wtx = { default-features = false, features = ["atoi", "postgres", "simdutf8", "tokio", "web-socket-handshake"], path = "../wtx" }
 
