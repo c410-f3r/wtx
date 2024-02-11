@@ -6,15 +6,14 @@
 [![License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
 [![Rustc](https://img.shields.io/badge/rustc-1.75-lightgray")](https://blog.rust-lang.org/2023/12/28/Rust-1.75.0.html)
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Contains the implementations of 5 IETF RFCs ([RFC6455](https://datatracker.ietf.org/doc/html/rfc6455), [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541), [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692), [RFC8441](https://datatracker.ietf.org/doc/html/rfc8441), [RFC9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([PostgreSQL](https://www.postgresql.org/docs/16/protocol.html), [gRPC](https://github.com/grpc/grpc/blob/8ce97741877cc205f7ced333f617ea9cc79f65d2/doc/PROTOCOL-HTTP2.md)) and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Contains the implementations of 2 IETF RFCs ([RFC6455](https://datatracker.ietf.org/doc/html/rfc6455), [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692)), 1 formal specification ([PostgreSQL](https://www.postgresql.org/docs/16/protocol.html)) and several other invented ideas.
 
 1. [Client API Framework](https://c410-f3r.github.io/wtx-site/client-api-framework/index.html)
 2. [Database Client](https://c410-f3r.github.io/wtx-site/database/client-connection.html)
 3. [Database Object–Relational Mapping](https://c410-f3r.github.io/wtx-site/database/object%E2%80%93relational-mapping.html)
 4. [Database Schema Manager](https://c410-f3r.github.io/wtx-site/database/schema-management.html)
-5. [Generic HTTP Client/Server](https://c410-f3r.github.io/wtx-site/http/index.html)
-6. [WebTransport Client/Server](https://c410-f3r.github.io/wtx-site/web-socket/index.html)
-7. [Pool Manager](https://c410-f3r.github.io/wtx-site/pool_manager/index.html)
+5. [WebTransport Client/Server](https://c410-f3r.github.io/wtx-site/web-socket/index.html)
+6. [Pool Manager](https://c410-f3r.github.io/wtx-site/pool_manager/index.html)
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
 
