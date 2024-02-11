@@ -85,7 +85,7 @@ macro_rules! create_enum {
       fn try_from(from: &str) -> crate::Result<Self> {
         let rslt = match from {
           $(
-            stringify!($variant_ident_fixed) | stringify!($variant_n_fixed) $(| $variant_str_fixed)?  => {
+            stringify!($variant_ident_fixed) | stringify!($variant_n_fixed) $(| stringify!($variant_str_fixed))?  => {
               Self::$variant_ident_fixed
             },
           )*

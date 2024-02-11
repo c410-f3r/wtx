@@ -11,6 +11,8 @@ export RUST_BACKTRACE=1
 export RUST_LOG=debug
 export RUSTFLAGS="$($rt rust-flags -Asingle-use-lifetimes,-Alet-underscore-drop)"
 
+cargo audit
+
 $rt rustfmt
 $rt clippy
 
@@ -35,12 +37,12 @@ $rt test-with-features wtx embassy-net,_hack
 $rt test-with-features wtx embedded-tls
 $rt test-with-features wtx fastrand
 $rt test-with-features wtx flate2
-$rt test-with-features wtx futures
 $rt test-with-features wtx futures-lite
 $rt test-with-features wtx glommio
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
 $rt test-with-features wtx http1
+$rt test-with-features wtx http2
 $rt test-with-features wtx httparse
 $rt test-with-features wtx md-5
 $rt test-with-features wtx miniserde

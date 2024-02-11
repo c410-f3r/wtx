@@ -1,4 +1,5 @@
 use crate::http::AbstractHeaders;
+use alloc::collections::VecDeque;
 
 /// List of pairs sent and received on every request.
 #[derive(Debug, Default)]
@@ -87,5 +88,13 @@ impl Headers {
   #[inline]
   pub fn set_max_bytes(&mut self, max_bytes: u32) {
     self.ab.set_max_bytes(max_bytes);
+  }
+
+  pub(crate) fn _buffer_mut(&mut self) -> &mut VecDeque<u8> {
+    self.ab.buffer_mut()
+  }
+
+  pub(crate) fn push_params(&mut self, name_begin_idx: u32, sep_idx: u32, value_end_idx: u32) {
+    self.ab.push_metadata((), name_begin_idx, sep_idx, value_end_idx);
   }
 }

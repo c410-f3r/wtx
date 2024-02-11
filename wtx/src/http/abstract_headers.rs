@@ -1,4 +1,4 @@
-use crate::misc::{Usize, _unlikely_cb, _unlikely_elem};
+use crate::misc::{Usize, _unlikely_cb, _unlikely_dflt, _unlikely_elem};
 use alloc::collections::VecDeque;
 use core::ops::Range;
 
@@ -32,6 +32,14 @@ impl<M> AbstractHeaders<M> {
     }
   }
 
+  pub(crate) fn buffer(&self) -> &[u8] {
+    self.buffer.as_slices().0
+  }
+
+  pub(crate) fn buffer_mut(&mut self) -> &mut VecDeque<u8> {
+    &mut self.buffer
+  }
+
   // Insertions are limited to u32
   #[allow(clippy::cast_possible_truncation, clippy::as_conversions)]
   pub(crate) fn bytes_len(&self) -> u32 {
@@ -48,6 +56,18 @@ impl<M> AbstractHeaders<M> {
 
   pub(crate) fn elements_len(&self) -> u32 {
     self.elements_len
+  }
+
+  pub(crate) fn extend_buffer_from_within(&mut self, range: Range<usize>) {
+    let Some(len) = range.end.checked_sub(range.start).filter(|_| range.end <= self.buffer.len())
+    else {
+      return;
+    };
+    self.buffer.extend((0..len).map(|_| 0));
+    let (begin, end) = self.buffer.as_mut_slices().0.split_at_mut(range.end);
+    let from = begin.get(range.start..).unwrap_or_else(_unlikely_dflt);
+    let to = end.get_mut(end.len().wrapping_sub(len)..).unwrap_or_else(_unlikely_dflt);
+    to.copy_from_slice(from);
   }
 
   pub(crate) fn get_by_idx(&self, idx: usize) -> Option<AbstractHeader<'_, M>> {
@@ -104,6 +124,10 @@ impl<M> AbstractHeaders<M> {
         })
       },
     )
+  }
+
+  pub(crate) fn last(&self) -> Option<AbstractHeader<'_, M>> {
+    self.metadata.len().checked_sub(1).and_then(|el| self.get_by_idx(el))
   }
 
   pub(crate) fn max_bytes(&self) -> u32 {
@@ -415,5 +439,15 @@ mod tests {
     assert_eq!(header.iter().nth(2), None);
     assert_eq!(header.elements_len(), 0);
     assert_eq!(header.bytes_len(), 12);
+  }
+
+  #[test]
+  fn elements_are_added_from_within() {
+    let mut header = AbstractHeaders::<()>::default();
+    header.buffer_mut().extend(0..5);
+    header.extend_buffer_from_within(0..1);
+    assert_eq!(header.buffer(), &[0, 1, 2, 3, 4, 5, 1]);
+    header.extend_buffer_from_within(2..5);
+    assert_eq!(header.buffer(), &[0, 1, 2, 3, 4, 5, 1, 2, 3, 4]);
   }
 }

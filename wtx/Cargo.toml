@@ -66,7 +66,6 @@ embedded-io-async = { default-features = false, optional = true, version = "0.6"
 embedded-tls = { default-features = false, features = ["async"], optional = true, version = "0.16" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
-futures = { default-features = false, optional = true, version = "0.3" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.8" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
@@ -119,6 +118,7 @@ default = []
 embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 glommio = ["futures-lite", "dep:glommio", "std"]
 http1 = ["httparse"]
+http2 = []
 miniserde = ["dep:miniserde", "std"]
 orm = ["database", "dep:smallvec"]
 pool-manager = []

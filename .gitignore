@@ -1,9 +1,9 @@
 .scripts/autobahn/reports
 .vscode
 **/*.rs.bk
-**/artifacts
-**/corpus
-**/target
 **/target
 profile.json
+wtx-bench/Cargo.lock
 wtx-docs/book
+wtx-fuzz/artifacts
+wtx-fuzz/corpus

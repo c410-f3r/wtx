@@ -15,5 +15,5 @@ inherits = "release"
 debug = true
 
 [workspace]
-members = ["wtx", "wtx-bench", "wtx-fuzz", "wtx-macros", "wtx-ui"]
+members = ["wtx", "wtx-fuzz", "wtx-macros", "wtx-ui"]
 resolver = "2"

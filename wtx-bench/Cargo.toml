@@ -15,3 +15,6 @@ license = "Apache-2.0"
 name = "wtx-bench"
 publish = false
 version = "0.0.1"
+
+[workspace]
+members = ["."]
