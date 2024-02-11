@@ -1,8 +1,4 @@
-#![allow(
-    // Indices point to valid memory
-    clippy::unreachable
-  )]
-
+use crate::misc::_unreachable;
 use alloc::{vec, vec::Vec};
 use core::ops::{Deref, DerefMut};
 
@@ -55,7 +51,7 @@ impl Deref for FilledBuffer {
     if let Some(el) = self.buffer.get(..self.len) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 }
@@ -66,7 +62,7 @@ impl DerefMut for FilledBuffer {
     if let Some(el) = self.buffer.get_mut(..self.len) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 }

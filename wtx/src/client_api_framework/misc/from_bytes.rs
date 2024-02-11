@@ -1,4 +1,4 @@
-use crate::misc::from_utf8_basic_rslt;
+use crate::misc::from_utf8_basic;
 use alloc::{string::String, vec::Vec};
 
 /// This trait only exists because of the lack of `impl TryFrom<&[u8]> for String` but such
@@ -18,7 +18,7 @@ impl FromBytes for String {
   where
     Self: Sized,
   {
-    Ok(from_utf8_basic_rslt(bytes)?.into())
+    Ok(from_utf8_basic(bytes)?.into())
   }
 }
 

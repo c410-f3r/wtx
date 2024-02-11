@@ -6,10 +6,7 @@ use tokio::{
 };
 use tokio_rustls::{
   client::TlsStream,
-  rustls::{
-    server::WantsServerCert, ClientConfig, ConfigBuilder, RootCertStore, ServerConfig,
-    WantsVerifier,
-  },
+  rustls::{server::WantsServerCert, ClientConfig, ConfigBuilder, RootCertStore, ServerConfig},
   TlsConnector,
 };
 

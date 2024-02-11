@@ -1,6 +1,9 @@
-use crate::database::{
-  client::postgres::{statements::Statement, DecodeValue, Postgres},
-  Database, ValueIdent,
+use crate::{
+  database::{
+    client::postgres::{statements::Statement, DecodeValue, Postgres},
+    Database, ValueIdent,
+  },
+  misc::{_unlikely_dflt, _unlikely_elem},
 };
 use alloc::vec::Vec;
 use core::{marker::PhantomData, ops::Range};
@@ -72,7 +75,7 @@ impl<'exec, E> Record<'exec, E> {
       stmt,
       values_bytes_offsets: values_bytes_offsets
         .get(values_bytes_offsets_start..)
-        .unwrap_or_default(),
+        .unwrap_or_else(_unlikely_dflt),
     })
   }
 }
@@ -97,14 +100,24 @@ where
     CI: ValueIdent<Record<'this, E>>,
   {
     let idx = ci.idx(self)?;
-    let (is_null, range) = self.values_bytes_offsets.get(idx)?;
+    let (is_null, range) = match self.values_bytes_offsets.get(idx) {
+      None => return _unlikely_elem(None),
+      Some(elem) => elem,
+    };
     if *is_null {
       None
     } else {
       let begin = range.start.wrapping_sub(self.initial_value_offset);
-      let column = self.stmt.columns.get(idx)?;
+      let column = match self.stmt.columns.get(idx) {
+        None => return _unlikely_elem(None),
+        Some(elem) => elem,
+      };
       let end = range.end.wrapping_sub(self.initial_value_offset);
-      Some(DecodeValue::new(self.bytes.get(begin..end)?, &column.ty))
+      let bytes = match self.bytes.get(begin..end) {
+        None => return _unlikely_elem(None),
+        Some(elem) => elem,
+      };
+      Some(DecodeValue::new(bytes, &column.ty))
     }
   }
 }
@@ -131,7 +144,7 @@ impl<'exec, E> PartialEq for Record<'exec, E> {
 mod arrayvec {
   use crate::{
     database::{client::postgres::Postgres, FromRecord, Record},
-    misc::from_utf8_basic_rslt,
+    misc::from_utf8_basic,
   };
   use arrayvec::ArrayString;
 
@@ -144,7 +157,7 @@ mod arrayvec {
       record: &crate::database::client::postgres::record::Record<'_, E>,
     ) -> Result<Self, E> {
       Ok(
-        from_utf8_basic_rslt(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?.bytes())
+        from_utf8_basic(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?.bytes())
           .map_err(From::from)?
           .try_into()
           .map_err(From::from)?,

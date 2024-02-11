@@ -1,5 +1,8 @@
 use crate::http::ExpectedHeader;
-use core::fmt::{Debug, Display, Formatter};
+use core::{
+  fmt::{Debug, Display, Formatter},
+  ops::RangeInclusive,
+};
 #[allow(unused_imports)]
 use {alloc::boxed::Box, alloc::string::String};
 
@@ -77,6 +80,8 @@ pub enum Error {
   TokioRustLsError(Box<tokio_rustls::rustls::Error>),
   #[cfg(feature = "_tracing-subscriber")]
   TryInitError(tracing_subscriber::util::TryInitError),
+  #[cfg(feature = "x509-certificate")]
+  X509CertificateError(Box<x509_certificate::X509CertificateError>),
 
   // External - Std
   //
@@ -144,8 +149,8 @@ pub enum Error {
   StatementHashCollision,
   /// Received size differs from expected size.
   UnexpectedBufferSize {
-    expected: u32,
-    received: u32,
+    expected: u64,
+    received: u64,
   },
   /// Received an unexpected message type.
   UnexpectedDatabaseMessage {
@@ -220,6 +225,11 @@ pub enum Error {
   UnexpectedUint {
     received: u32,
   },
+  /// Unexpected Unsigned integer
+  UnboundedNumber {
+    expected: RangeInclusive<u32>,
+    received: u32,
+  },
 
   /// Missing Header
   MissingHeader {
@@ -249,7 +259,27 @@ pub enum Error {
   /// Stream does not support TLS channels.
   StreamDoesNotSupportTlsChannels,
 
+  // ***** Internal - HTTP *****
+  //
+  /// Unknown header name.
+  UnknownHeaderName,
+
+  // ***** Internal - HTTP/2 *****
+  //
+  /// Unknown header name.
+  UnexpectedPreFixedHeaderName,
+  /// Decoding logic encountered an unexpected ending string signal.
+  UnexpectedEndingHuffman,
+  /// A container does not contain an element referred by the given idx
+  InvalidHpackIdx(usize),
+  /// Header integers must be equal or lesser than `u16::MAX`
+  VeryLargeHeaderInteger,
+  /// Size updates of dynamic table can't be placed after the first header
+  InvalidDynTableSizeUpdate,
+
   // ***** Internal - PM *****
+  //
+  /// Zero fixed pools are unsupported
   StaticPoolMustHaveCapacityForAtLeastOneElement,
 
   // ***** Internal - WebSocket *****
@@ -570,6 +600,14 @@ impl From<core::array::TryFromSliceError> for Error {
   #[inline]
   fn from(from: core::array::TryFromSliceError) -> Self {
     Self::TryFromSliceError(from)
+  }
+}
+
+#[cfg(feature = "x509-certificate")]
+impl From<x509_certificate::X509CertificateError> for Error {
+  #[inline]
+  fn from(from: x509_certificate::X509CertificateError) -> Self {
+    Self::X509CertificateError(from.into())
   }
 }
 

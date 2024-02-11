@@ -1,8 +1,4 @@
-#![allow(
-  // Indices point to valid memory
-  clippy::unreachable
-)]
-
+use crate::misc::_unreachable;
 use alloc::vec::Vec;
 
 /// Helper that manages the copy of initialized bytes.
@@ -22,7 +18,7 @@ impl<'vec> FilledBufferWriter<'vec> {
     if let Some(elem) = self._vec.get_mut(self._curr_idx..) {
       elem
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -30,7 +26,7 @@ impl<'vec> FilledBufferWriter<'vec> {
     if let Some(elem) = self._vec.get(self._initial_idx..self._curr_idx) {
       elem
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -38,7 +34,7 @@ impl<'vec> FilledBufferWriter<'vec> {
     if let Some(elem) = self._vec.get_mut(self._initial_idx..self._curr_idx) {
       elem
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -50,7 +46,7 @@ impl<'vec> FilledBufferWriter<'vec> {
     let new_start = self._curr_idx.wrapping_add(1);
     self._expand_buffer(new_start);
     let Some(vec_byte) = self._vec.get_mut(self._curr_idx) else {
-      unreachable!();
+      _unreachable();
     };
     *vec_byte = byte;
     self._curr_idx = new_start;
@@ -112,28 +108,27 @@ impl<'vec> FilledBufferWriter<'vec> {
     if let Some(vec_slice) = self._vec.get_mut(self._curr_idx..until_slice) {
       vec_slice.copy_from_slice(slice);
     } else {
-      unreachable!();
+      _unreachable();
     }
     if let Some(vec_slice) = self._vec.get_mut(until_slice..until_suffix) {
       vec_slice.copy_from_slice(&suffix);
     } else {
-      unreachable!();
+      _unreachable();
     }
     self._curr_idx = until_suffix;
   }
 }
 
+#[cfg(feature = "_bench")]
 #[cfg(test)]
-mod tests {
-  #[cfg(feature = "_bench")]
+mod bench {
   #[bench]
   fn extend_from_slice(b: &mut test::Bencher) {
-    use alloc::{vec, vec::Vec};
     let array: [u8; 64] = core::array::from_fn(|idx| {
       let n = idx % 255;
       n.try_into().unwrap_or(u8::MAX)
     });
-    let mut vec = vec![0; 128];
+    let mut vec = alloc::vec![0; 128];
     let mut fbw = crate::misc::FilledBufferWriter::new(32, &mut vec);
     b.iter(|| {
       fbw._extend_from_slice(&array);

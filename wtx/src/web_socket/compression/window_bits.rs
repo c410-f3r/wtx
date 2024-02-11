@@ -1,7 +1,6 @@
 create_enum! {
   /// LZ77 sliding window size for the `permessage-deflate` extension from the IETF RFC 7692.
   #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
-  #[repr(u8)]
   pub enum WindowBits<u8> {
     /// Eight
     Eight = (8),

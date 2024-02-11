@@ -3,7 +3,7 @@ use crate::{
     schema_manager::{MigrationCommon, MigrationGroup, Repeatability},
     DatabaseTy, Identifier,
   },
-  misc::_atoi,
+  misc::atoi,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use core::fmt;
@@ -88,7 +88,7 @@ impl fmt::Display for DbMigration {
 }
 
 fn _checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
-  _atoi(bytes).map_err(|_err| crate::Error::ChecksumMustBeANumber)
+  atoi(bytes).map_err(|_err| crate::Error::ChecksumMustBeANumber)
 }
 
 fn _fixed_from_naive_utc(naive: NaiveDateTime) -> DateTime<Utc> {

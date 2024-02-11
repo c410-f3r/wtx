@@ -24,7 +24,7 @@ pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
     uri: &uri,
     compression: (),
   }
-  .connect()
+  .connect([])
   .await?;
   let mut buffer = String::new();
   let mut reader = BufReader::new(tokio::io::stdin());

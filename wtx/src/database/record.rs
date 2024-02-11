@@ -1,4 +1,7 @@
-use crate::database::{Database, Decode, ValueIdent};
+use crate::{
+  database::{Database, Decode, ValueIdent},
+  misc::_unlikely_elem,
+};
 
 /// A collection of values.
 pub trait Record {
@@ -12,7 +15,7 @@ pub trait Record {
     CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
     D: Decode<'this, Self::Database>,
   {
-    D::decode(&self.value(ci).ok_or(crate::Error::AbsentFieldDataInDecoding)?)
+    D::decode(&self.value(ci).ok_or(_unlikely_elem(crate::Error::AbsentFieldDataInDecoding))?)
   }
 
   /// Tries to retrieve and decode an optional value.

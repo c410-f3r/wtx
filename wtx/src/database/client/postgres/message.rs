@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{Authentication, DbError},
-  misc::{_atoi, from_utf8_basic_rslt},
+  misc::{atoi, bytes_rsplit1, bytes_split1, from_utf8_basic},
 };
 use core::any::type_name;
 
@@ -66,13 +66,12 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
       [b'3', ..] => Self::CloseComplete,
       [b'A', ..] => Self::NotificationResponse,
       [b'C', _, _, _, _, rest @ ..] => {
-        let rows = rest
-          .rsplit(|&el| el == b' ')
+        let rows = bytes_rsplit1(rest, b' ')
           .next()
           .and_then(
             |el| {
               if let [all_but_last @ .., _] = el {
-                _atoi(all_but_last).ok()
+                atoi(all_but_last).ok()
               } else {
                 None
               }
@@ -84,7 +83,7 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
       [b'D', _, _, _, _, a, b, ..] => Self::DataRow(u16::from_be_bytes([*a, *b])),
       [b'E', _, _, _, _, rest @ ..] => {
         *from.0 = true;
-        return Err(DbError::try_from(from_utf8_basic_rslt(rest)?)?.into());
+        return Err(DbError::try_from(from_utf8_basic(rest)?)?.into());
       }
       [b'G', ..] => Self::CopyInResponse,
       [b'H', ..] => Self::CopyOutResponse,
@@ -94,7 +93,7 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
       [b'R', _, _, _, _, rest @ ..] => Self::Authentication(rest.try_into()?),
       [b'S', _, _, _, _, rest @ ..] => {
         let rslt = || {
-          let mut iter = rest.split(|elem| elem == &0);
+          let mut iter = bytes_split1(rest, b'\0');
           let name = iter.next()?;
           let value = iter.next()?;
           let _ = iter.next()?;

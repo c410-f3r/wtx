@@ -1,11 +1,9 @@
-#![allow(
-    // All methods are internally called only after parsing
-    clippy::unreachable
-  )]
+use crate::{
+  http::{GenericHeader, Request, Response, Version},
+  misc::_unreachable,
+};
 
-use crate::http::{Header, Request, Response, Version};
-
-impl Header for httparse::Header<'_> {
+impl GenericHeader for httparse::Header<'_> {
   #[inline]
   fn name(&self) -> &[u8] {
     self.name.as_bytes()
@@ -23,7 +21,7 @@ impl Request for httparse::Request<'_, '_> {
     if let Some(el) = self.method {
       el.as_bytes()
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -32,7 +30,7 @@ impl Request for httparse::Request<'_, '_> {
     if let Some(el) = self.path {
       el.as_bytes()
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -41,9 +39,7 @@ impl Request for httparse::Request<'_, '_> {
     match self.version {
       Some(0) => Version::Http1,
       Some(1) => Version::Http1_1,
-      _ => {
-        unreachable!()
-      }
+      _ => _unreachable(),
     }
   }
 }
@@ -54,7 +50,7 @@ impl Response for httparse::Response<'_, '_> {
     if let Some(el) = self.code {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -62,10 +58,8 @@ impl Response for httparse::Response<'_, '_> {
   fn version(&self) -> Version {
     match self.version {
       Some(0) => Version::Http1,
-      Some(1) => Version::Http2,
-      _ => {
-        unreachable!()
-      }
+      Some(1) => Version::Http1_1,
+      _ => _unreachable(),
     }
   }
 }

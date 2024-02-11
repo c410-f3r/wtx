@@ -5,7 +5,7 @@
 
 use core::{
   iter::FusedIterator,
-  slice::{self, IterMut},
+  slice::{self, Iter, IterMut},
 };
 
 macro_rules! create_and_impl {
@@ -87,6 +87,16 @@ macro_rules! create_and_impl {
   };
 }
 
+create_and_impl!(
+  &'slice [T; N],
+  from_raw_parts,
+  iter,
+  Iter,
+  ArrayChunks,
+  as_ptr,
+  split_at,
+  &'slice [T]
+);
 create_and_impl!(
   &'slice mut [T; N],
   from_raw_parts_mut,

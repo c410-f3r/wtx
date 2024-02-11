@@ -8,7 +8,7 @@ mod window_bits;
 
 #[cfg(feature = "flate2")]
 pub use self::flate2::{Flate2, NegotiatedFlate2};
-use crate::{http::Header, misc::FilledBufferWriter};
+use crate::{http::GenericHeader, misc::FilledBufferWriter};
 pub use compression_level::CompressionLevel;
 pub use deflate_config::DeflateConfig;
 pub use window_bits::WindowBits;
@@ -22,7 +22,7 @@ pub trait Compression<const IS_CLIENT: bool> {
   /// parameters will be settled.
   fn negotiate(
     self,
-    headers: impl Iterator<Item = impl Header>,
+    headers: impl Iterator<Item = impl GenericHeader>,
   ) -> crate::Result<Self::NegotiatedCompression>;
 
   /// Writes headers bytes that will be sent to the server.
@@ -35,7 +35,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
   #[inline]
   fn negotiate(
     self,
-    _: impl Iterator<Item = impl Header>,
+    _: impl Iterator<Item = impl GenericHeader>,
   ) -> crate::Result<Self::NegotiatedCompression> {
     Ok(())
   }

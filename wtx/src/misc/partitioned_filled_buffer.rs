@@ -1,12 +1,9 @@
-#![allow(
-  // Indices point to valid memory
-  clippy::unreachable
-)]
-
-use core::ops::Range;
-
-use crate::{misc::FilledBufferWriter, DFLT_PARTITIONED_BUFFER_LEN};
+use crate::{
+  misc::{FilledBufferWriter, _unreachable},
+  DFLT_PARTITIONED_BUFFER_LEN,
+};
 use alloc::{vec, vec::Vec};
+use core::ops::Range;
 
 // ```
 // [ Antecedent | Current | Following | Trailing ]
@@ -62,7 +59,7 @@ impl PartitionedFilledBuffer {
     if let Some(el) = self._buffer.get_mut(self._antecedent_end_idx..) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -70,7 +67,7 @@ impl PartitionedFilledBuffer {
     if let Some(el) = self._buffer.get(self._current_range()) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -83,7 +80,7 @@ impl PartitionedFilledBuffer {
     if let Some(el) = self._buffer.get_mut(range) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -106,7 +103,7 @@ impl PartitionedFilledBuffer {
     if let Some(el) = self._buffer.get(self._current_end_idx..self._following_end_idx) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -114,7 +111,7 @@ impl PartitionedFilledBuffer {
     if let Some(el) = self._buffer.get_mut(self._current_end_idx..self._following_end_idx) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -127,7 +124,7 @@ impl PartitionedFilledBuffer {
     if let Some(el) = self._buffer.get_mut(self._current_end_idx..) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 

@@ -1,5 +1,5 @@
 use crate::{
-  misc::PollOnce,
+  misc::{PollOnce, _unreachable},
   pool_manager::{Lock, LockGuard, Pool, ResourceManager},
 };
 use alloc::collections::VecDeque;
@@ -64,10 +64,6 @@ where
     Ok(Self { idx: AtomicUsize::new(0), locks: array::from_fn(|_| RL::new(None)), rm })
   }
 
-  #[allow(
-    // Inner code does not trigger `panic!`
-    clippy::missing_panics_doc
-  )]
   #[inline]
   async fn get<'this>(&'this self) -> Result<Self::Guard<'this>, RM::Error>
   where
@@ -79,11 +75,10 @@ where
         clippy::arithmetic_side_effects,
       )]
       let local_idx = self.idx.fetch_add(1, Ordering::Release) % N;
-      #[allow(
-        // `locks` is an array that will always have a valid `self.idx % N` element
-        clippy::unwrap_used
-      )]
-      let lock = self.locks.get(local_idx).unwrap();
+      let lock = match self.locks.get(local_idx) {
+        Some(elem) => elem,
+        None => _unreachable(),
+      };
       if let Some(mut guard) = PollOnce(pin!(lock.lock())).await {
         match &mut *guard {
           None => {
@@ -94,11 +89,10 @@ where
           }
           _ => {}
         }
-        #[allow(
-          // The above match took care of nullable guards
-          clippy::unwrap_used
-        )]
-        return Ok(LockGuard::map(guard, |el| el.as_mut().unwrap()));
+        return Ok(LockGuard::map(guard, |el| match el.as_mut() {
+          Some(elem) => elem,
+          None => _unreachable(),
+        }));
       }
     }
   }

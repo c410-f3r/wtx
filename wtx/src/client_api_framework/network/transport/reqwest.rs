@@ -8,7 +8,7 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  misc::from_utf8_basic_rslt,
+  misc::from_utf8_basic,
 };
 use core::ops::Range;
 use reqwest::{
@@ -122,7 +122,7 @@ where
       .tp
       .ext_res_params_mut()
       .headers
-      .push_str(key.as_str(), from_utf8_basic_rslt(value.as_bytes()).map_err(Into::into)?)?;
+      .push_str(key.as_str(), from_utf8_basic(value.as_bytes()).map_err(Into::into)?)?;
   }
   pkgs_aux.tp.ext_res_params_mut().status_code = <_>::try_from(Into::<u16>::into(res.status()))?;
   manage_after_sending_related(pkg, pkgs_aux).await?;

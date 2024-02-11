@@ -28,8 +28,9 @@ pub trait WebSocketConnect<NC, RNG, S, WSC> {
   type Response;
 
   /// Initial negotiation sent by a client to start a WebSocket connection.
-  fn connect(
+  fn connect<'bytes>(
     self,
+    headers: impl IntoIterator<Item = (&'bytes [u8], &'bytes [u8])>,
   ) -> impl Future<Output = crate::Result<(Self::Response, WebSocketClient<NC, RNG, S, WSC>)>>;
 }
 

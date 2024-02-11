@@ -52,7 +52,7 @@ pub(crate) async fn bench(agent: &mut Agent, uri: &UriRef<'_>) {
           uri: &local_uri.to_ref(),
           wsb: WebSocketBuffer::default(),
         }
-        .connect()
+        .connect([])
         .await
         .unwrap();
         for _ in 0..NUM_MESSAGES {

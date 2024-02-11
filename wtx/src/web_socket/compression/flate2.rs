@@ -1,9 +1,8 @@
 use crate::{
-  http::Header,
-  misc::{from_utf8_basic_rslt, FilledBufferWriter},
+  http::GenericHeader,
+  misc::{atoi, bytes_split1, FilledBufferWriter},
   web_socket::{compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig},
 };
-use core::str::FromStr;
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
 
 /// Initial Flate2 compression
@@ -25,7 +24,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
   #[inline]
   fn negotiate(
     self,
-    headers: impl Iterator<Item = impl Header>,
+    headers: impl Iterator<Item = impl GenericHeader>,
   ) -> crate::Result<Self::NegotiatedCompression> {
     let mut dc = DeflateConfig {
       client_max_window_bits: self.dc.client_max_window_bits,
@@ -36,7 +35,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
     let mut has_extension = false;
 
     for swe in headers.filter(|el| el.name().eq_ignore_ascii_case(b"sec-websocket-extensions")) {
-      for permessage_deflate_option in swe.value().split(|el| el == &b',') {
+      for permessage_deflate_option in bytes_split1(swe.value(), b',') {
         dc = DeflateConfig {
           client_max_window_bits: self.dc.client_max_window_bits,
           compression_level: self.dc.compression_level,
@@ -45,21 +44,20 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
         let mut client_max_window_bits_flag = false;
         let mut permessage_deflate_flag = false;
         let mut server_max_window_bits_flag = false;
-        for param in permessage_deflate_option.split(|el| el == &b';').map(|elem| _trim_bytes(elem))
-        {
+        for param in bytes_split1(permessage_deflate_option, b';').map(|elem| _trim_bytes(elem)) {
           if param == b"client_no_context_takeover" || param == b"server_no_context_takeover" {
           } else if param == b"permessage-deflate" {
             _manage_header_uniqueness(&mut permessage_deflate_flag, || Ok(()))?
           } else if let Some(after_cmwb) = param.strip_prefix(b"client_max_window_bits") {
             _manage_header_uniqueness(&mut client_max_window_bits_flag, || {
-              if let Some(value) = _value_from_bytes::<u8>(after_cmwb) {
+              if let Some(value) = _byte_from_bytes(after_cmwb) {
                 dc.client_max_window_bits = value.try_into()?;
               }
               Ok(())
             })?;
           } else if let Some(after_smwb) = param.strip_prefix(b"server_max_window_bits") {
             _manage_header_uniqueness(&mut server_max_window_bits_flag, || {
-              if let Some(value) = _value_from_bytes::<u8>(after_smwb) {
+              if let Some(value) = _byte_from_bytes(after_smwb) {
                 dc.server_max_window_bits = value.try_into()?;
               }
               Ok(())
@@ -229,12 +227,9 @@ fn _manage_header_uniqueness(
   }
 }
 
-fn _value_from_bytes<T>(bytes: &[u8]) -> Option<T>
-where
-  T: FromStr,
-{
-  let after_equals = bytes.split(|byte| byte == &b'=').nth(1)?;
-  from_utf8_basic_rslt(after_equals).ok()?.parse::<T>().ok()
+fn _byte_from_bytes(bytes: &[u8]) -> Option<u8> {
+  let after_equals = bytes_split1(bytes, b'=').nth(1)?;
+  atoi(after_equals).ok()
 }
 
 #[inline]

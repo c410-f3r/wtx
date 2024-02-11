@@ -21,14 +21,14 @@ mod web_socket_buffer;
 #[cfg(feature = "tracing")]
 use crate::web_socket::misc::Role;
 use crate::{
-  misc::{from_utf8_basic_rslt, PartitionedFilledBuffer, Stream, _read_until},
+  misc::{
+    from_utf8_basic, from_utf8_ext, CompletionErr, ExtUtf8Error, IncompleteUtf8Char,
+    PartitionedFilledBuffer, Stream, _read_until,
+  },
   rng::Rng,
   web_socket::{
     compression::NegotiatedCompression,
-    misc::{
-      define_fb_from_header_params, from_utf8_ext_rslt, op_code, CompleteErr, ExtUtf8Error,
-      FilledBuffer, IncompleteUtf8Char,
-    },
+    misc::{define_fb_from_header_params, op_code, FilledBuffer},
   },
   _MAX_PAYLOAD_LEN,
 };
@@ -165,7 +165,7 @@ where
         .as_ref()
         .get(payload_start_idx..payload_start_idx.wrapping_add(payload_len))
         .unwrap_or_default();
-      if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic_rslt(payload).is_err() {
+      if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic(payload).is_err() {
         return Err(crate::Error::InvalidUTF8);
       }
       payload_len
@@ -178,7 +178,7 @@ where
           &mut total_frame_len,
           (
             |curr_payload| {
-              Ok(match from_utf8_ext_rslt(curr_payload) {
+              Ok(match from_utf8_ext(curr_payload) {
                 Err(ExtUtf8Error::Incomplete { incomplete_ending_char, .. }) => {
                   Some(incomplete_ending_char)
                 }
@@ -695,7 +695,7 @@ where
           [] => {}
           [_] => return Err(crate::Error::InvalidCloseFrame),
           [a, b, rest @ ..] => {
-            let _ = from_utf8_basic_rslt(rest)?;
+            let _ = from_utf8_basic(rest)?;
             let is_not_allowed = !CloseCode::try_from(u16::from_be_bytes([*a, *b]))?.is_allowed();
             if is_not_allowed || rest.len() > MAX_CONTROL_FRAME_PAYLOAD_LEN - 2 {
               Self::write_control_frame(
@@ -751,10 +751,10 @@ where
     let tail = if let Some(mut incomplete) = iuc.take() {
       let (rslt, remaining) = incomplete.complete(curr_payload);
       match rslt {
-        Err(CompleteErr::HasInvalidBytes) => {
+        Err(CompletionErr::HasInvalidBytes) => {
           return Err(crate::Error::InvalidUTF8);
         }
-        Err(CompleteErr::InsufficientInput) => {
+        Err(CompletionErr::InsufficientInput) => {
           let _ = iuc.replace(incomplete);
           &[]
         }
@@ -763,7 +763,7 @@ where
     } else {
       curr_payload
     };
-    match from_utf8_ext_rslt(tail) {
+    match from_utf8_ext(tail) {
       Err(ExtUtf8Error::Incomplete { incomplete_ending_char, .. }) => {
         *iuc = Some(incomplete_ending_char);
       }
@@ -910,7 +910,7 @@ where
             return Err(crate::Error::UnexpectedMessageFrame);
           }
           OpCode::Text => {
-            let _ = from_utf8_basic_rslt(fb.payload())?;
+            let _ = from_utf8_basic(fb.payload())?;
           }
           OpCode::Binary | OpCode::Close | OpCode::Ping | OpCode::Pong => {}
         }

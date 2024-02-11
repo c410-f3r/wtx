@@ -1,6 +1,9 @@
-use crate::database::{
-  orm::{FxHasher, Table, TableField},
-  TableSuffix,
+use crate::{
+  database::{
+    orm::{Table, TableField},
+    TableSuffix,
+  },
+  misc::FxHasher,
 };
 use core::{
   hash::{Hash, Hasher},
@@ -85,7 +88,6 @@ where
     T::update_all_table_fields(entity, self)
   }
 
-  #[inline]
   pub(crate) fn instance_hash(&self) -> u64 {
     let mut fx_hasher = FxHasher::default();
     T::PRIMARY_KEY_NAME.hash(&mut fx_hasher);

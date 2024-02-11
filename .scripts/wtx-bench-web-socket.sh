@@ -12,39 +12,30 @@ pushd /tmp
 git clone https://github.com/c410-f3r/tokio-tungstenite || true
 cd tokio-tungstenite
 git checkout -t origin/bench || true
-RUSTFLAGS="$FLAGS" cargo build --example echo-server --release
-RUSTFLAGS="$FLAGS" cargo run --example echo-server --release 127.0.0.1:8081 &
-
-cd /tmp
-git clone --recursive https://github.com/c410-f3r/uWebSockets.git || true
-cd uWebSockets
-git checkout -t origin/bench || true
-if [ ! -e ./EchoServer ]
-then
-    make examples
-fi
-./EchoServer 8082 &
+RUSTFLAGS="$FLAGS" cargo build --example echo-server --profile bench
+RUSTFLAGS="$FLAGS" cargo run --example echo-server --profile bench 127.0.0.1:8081 &
 popd
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-async-std --features atoi,async-std/attributes,simdutf8,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-async-std --features atoi,async-std/attributes,simdutf8,web-socket-handshake --release 127.0.0.1:8083 &
+FEATURES="atoi,memchr,simdutf8,web-socket-handshake"
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-glommio --features atoi,glommio,simdutf8,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-glommio --features atoi,glommio,simdutf8,web-socket-handshake --release 127.0.0.1:8084 &
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-async-std --features "async-std,$FEATURES" --profile bench
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-async-std --features "async-std,$FEATURES" --profile bench 127.0.0.1:8082 &
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-smol --features atoi,simdutf8,smol,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-smol --features atoi,simdutf8,smol,web-socket-handshake --release 127.0.0.1:8085 &
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-glommio --features "glommio,$FEATURES" --profile bench
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-glommio --features "glommio,$FEATURES" --profile bench 127.0.0.1:8083 &
 
-RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-tokio --features atoi,simdutf8,tokio,web-socket-handshake --release
-RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-tokio --features atoi,simdutf8,tokio,web-socket-handshake --release 127.0.0.1:8086 &
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-smol --features "smol,$FEATURES" --profile bench
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-smol --features "smol,$FEATURES" --profile bench 127.0.0.1:8084 &
+
+RUSTFLAGS="$FLAGS" cargo build --example web-socket-server-echo-raw-tokio --features "tokio,$FEATURES" --profile bench
+RUSTFLAGS="$FLAGS" cargo run --example web-socket-server-echo-raw-tokio --features "tokio,$FEATURES" --profile bench 127.0.0.1:8085 &
 
 sleep 1
 
-RUSTFLAGS="$FLAGS" cargo run --bin wtx-bench --release -- \
+RUSTFLAGS="$FLAGS" cargo run --bin wtx-bench --profile bench -- \
     web-socket \
     http://127.0.0.1:8081/tokio-tungstenite \
-    http://127.0.0.1:8082/uWebSockets \
-    http://127.0.0.1:8083/wtx-raw-async-std \
-    http://127.0.0.1:8084/wtx-raw-glommio \
-    http://127.0.0.1:8085/wtx-raw-smol \
-    http://127.0.0.1:8086/wtx-raw-tokio
+    http://127.0.0.1:8082/wtx-raw-async-std \
+    http://127.0.0.1:8083/wtx-raw-glommio \
+    http://127.0.0.1:8084/wtx-raw-smol \
+    http://127.0.0.1:8085/wtx-raw-tokio

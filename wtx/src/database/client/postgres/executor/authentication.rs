@@ -6,7 +6,7 @@ use crate::{
     },
     Identifier,
   },
-  misc::{from_utf8_basic_rslt, FilledBufferWriter, PartitionedFilledBuffer, Stream},
+  misc::{bytes_split1, from_utf8_basic, FilledBufferWriter, PartitionedFilledBuffer, Stream},
   rng::Rng,
 };
 use alloc::vec::Vec;
@@ -64,7 +64,7 @@ where
       }
       MessageTy::Authentication(Authentication::Sasl(data)) => {
         let mut has_sasl_plus = false;
-        for elem in data.split(|byte| *byte == b'\0') {
+        for elem in bytes_split1(data, b'\0') {
           if elem == b"SCRAM-SHA-256-PLUS" {
             has_sasl_plus = true;
           }
@@ -103,7 +103,7 @@ where
         MessageTy::ParameterStatus(name, value) => {
           params.insert(
             params.partition_point(|(local_name, _)| local_name.as_bytes() < name),
-            (from_utf8_basic_rslt(name)?.try_into()?, from_utf8_basic_rslt(value)?.try_into()?),
+            (from_utf8_basic(name)?.try_into()?, from_utf8_basic(value)?.try_into()?),
           );
         }
         MessageTy::ReadyForQuery => return Ok(()),

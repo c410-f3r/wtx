@@ -1,6 +1,5 @@
 create_enum! {
   #[derive(Clone, Copy, Debug, Default, PartialEq)]
-  #[repr(u8)]
   /// HTTP version
   pub enum Version<u8> {
     /// HTTP/1

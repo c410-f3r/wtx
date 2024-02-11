@@ -5,7 +5,7 @@ mod common;
 
 use tokio::net::TcpListener;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
   let listener = TcpListener::bind(common::_host_from_args()).await.unwrap();
   loop {

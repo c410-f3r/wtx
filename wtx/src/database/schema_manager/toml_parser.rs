@@ -1,5 +1,6 @@
 //! Migration TOML parser
 
+use crate::misc::str_split1;
 use arrayvec::{ArrayString, ArrayVec};
 use std::io::{BufRead, BufReader, Read};
 
@@ -92,7 +93,7 @@ fn try_parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
   if s.is_empty() {
     return Ok(array);
   }
-  for elem in s.split(',') {
+  for elem in str_split1(s, b',') {
     let expr_string = try_parse_expr_string(elem.trim())?;
     array.try_push(expr_string).map_err(|_err| crate::Error::TomlValueIsTooLarge)?;
   }
@@ -101,7 +102,7 @@ fn try_parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
 
 #[inline]
 fn try_parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
-  let mut iter = s.split('"');
+  let mut iter = str_split1(s, b'"');
   let _ = iter.next().ok_or(crate::Error::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
   let value = iter.next().ok_or(crate::Error::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
   let _ = iter.next().ok_or(crate::Error::TomlParserOnlySupportsStringsAndArraysOfStrings)?;

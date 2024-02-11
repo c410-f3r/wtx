@@ -1,12 +1,9 @@
-mod fx_hasher;
-
 use crate::database::{
   orm::{AuxNodes, FullTableAssociation, Table, TableParams},
   Database, Decode, FromRecords, Record, Records, TableSuffix, ValueIdent,
 };
 use alloc::string::String;
 use core::fmt::Write;
-pub(crate) use fx_hasher::FxHasher;
 
 /// Seeks all rows that equals `T`'s primary key and suffix. Can be `T` itself or any other
 /// associated/related entity.

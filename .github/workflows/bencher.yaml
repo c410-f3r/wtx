@@ -1,0 +1,24 @@
+name: Bencher
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  benchmark_with_bencher:
+    name: Continuous Benchmarking with Bencher
+    runs-on: ubuntu-latest
+    env:
+      BENCHER_ADAPTER: rust_bench
+      BENCHER_PROJECT: wtx
+      BENCHER_TESTBED: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bencherdev/bencher@main
+      - name: Track Benchmarks with Bencher
+        run: |
+          bencher run \
+            --branch "$GITHUB_REF_NAME" \
+            --err \
+            --token "${{ secrets.BENCHER_API_TOKEN }}" \
+            "cargo bench --all-features"

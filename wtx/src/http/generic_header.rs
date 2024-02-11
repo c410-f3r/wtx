@@ -1,5 +1,5 @@
 /// HTTP header.
-pub trait Header {
+pub trait GenericHeader {
   /// Name.
   fn name(&self) -> &[u8];
 
@@ -7,7 +7,7 @@ pub trait Header {
   fn value(&self) -> &[u8];
 }
 
-impl Header for () {
+impl GenericHeader for () {
   #[inline]
   fn name(&self) -> &[u8] {
     &[]
@@ -19,9 +19,9 @@ impl Header for () {
   }
 }
 
-impl<T> Header for &T
+impl<T> GenericHeader for &T
 where
-  T: Header,
+  T: GenericHeader,
 {
   #[inline]
   fn name(&self) -> &[u8] {
@@ -34,7 +34,7 @@ where
   }
 }
 
-impl Header for [&[u8]; 2] {
+impl GenericHeader for [&[u8]; 2] {
   #[inline]
   fn name(&self) -> &[u8] {
     self[0]
