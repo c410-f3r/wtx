@@ -1,7 +1,7 @@
 use core::{
   fmt::{Debug, Formatter},
   future::Future,
-  pin::{pin, Pin},
+  pin::Pin,
   task::{Context, Poll},
 };
 

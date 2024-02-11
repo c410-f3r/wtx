@@ -1,8 +1,3 @@
-#![allow(
-  // Borrow checker limitation
-  clippy::unreachable
-)]
-
 use crate::{
   database::{
     client::postgres::{
@@ -17,7 +12,7 @@ use crate::{
     },
     RecordValues, StmtCmd,
   },
-  misc::{FilledBufferWriter, PartitionedFilledBuffer, Stream},
+  misc::{FilledBufferWriter, PartitionedFilledBuffer, Stream, _unreachable},
 };
 use arrayvec::ArrayString;
 use core::{borrow::BorrowMut, ops::Range};
@@ -111,7 +106,7 @@ where
     if let Some(stmt) = builder.finish().get_by_stmt_hash(stmt_hash) {
       Ok((stmt_hash, stmt_id_str, stmt))
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 

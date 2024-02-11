@@ -2,7 +2,6 @@ create_enum! {
   /// Defines how to interpret the payload data.
   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-  #[repr(u8)]
   pub enum OpCode<u8> {
     /// Continuation of a previous frame.
     Continuation = (0b0000_0000),

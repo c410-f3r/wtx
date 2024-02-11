@@ -1,4 +1,4 @@
-use crate::misc::UriRef;
+use crate::misc::{atoi, str_split1, UriRef};
 use core::time::Duration;
 
 /// Configuration
@@ -29,13 +29,13 @@ impl<'data> Config<'data> {
       keepalives: true,
       load_balance_hosts: LoadBalanceHosts::Disable,
       password: uri.password(),
-      port: uri.port().parse()?,
+      port: atoi(uri.port().as_bytes())?,
       target_session_attrs: TargetSessionAttrs::Any,
       tcp_user_timeout: Duration::ZERO,
       user: uri.user(),
     };
-    for key_value in uri.query().split('&') {
-      let mut iter = key_value.split(':');
+    for key_value in str_split1(uri.query(), b'&') {
+      let mut iter = str_split1(key_value, b':');
       if let [Some(key), Some(value)] = [iter.next(), iter.next()] {
         this.set_param(key, value)?;
       }
@@ -49,7 +49,7 @@ impl<'data> Config<'data> {
         self.app_name = value;
       }
       "connect_timeout" => {
-        if let Ok(timeout) = value.parse::<u64>() {
+        if let Ok(timeout) = atoi(value.as_bytes()) {
           self.connect_timeout = Duration::from_secs(timeout);
         }
       }
@@ -68,7 +68,7 @@ impl<'data> Config<'data> {
         };
       }
       "tcp_user_timeout" => {
-        if let Ok(timeout) = value.parse::<u64>() {
+        if let Ok(timeout) = atoi(value.as_bytes()) {
           self.tcp_user_timeout = Duration::from_secs(timeout);
         }
       }

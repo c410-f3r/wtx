@@ -1,10 +1,6 @@
-#![allow(
-  // Indices point to valid data
-  clippy::unreachable
-)]
-
 use crate::{
   database::{client::postgres::ty::Ty, Identifier},
+  misc::{_random_state, _unreachable},
   rng::Rng,
 };
 use ahash::RandomState;
@@ -20,42 +16,34 @@ const NUM_OF_ELEMENTS_TO_REMOVE_WHEN_FULL: u8 = 8;
 /// Statements
 #[derive(Debug)]
 pub struct Statements {
-  columns: VecDeque<Column>,
   columns_start: usize,
-  hasher: RandomState,
-  info_by_cmd_hash: HashMap<u64, usize>,
+  columns: VecDeque<Column>,
   info_by_cmd_hash_start: usize,
+  info_by_cmd_hash: HashMap<u64, usize>,
   info: VecDeque<StatementInfo>,
   max_stmts: usize,
   num_of_elements_to_remove_when_full: u8,
-  params: VecDeque<Ty>,
   params_start: usize,
+  params: VecDeque<Ty>,
+  rs: RandomState,
 }
 
 impl Statements {
-  pub(crate) fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
+  pub(crate) fn new<RNG>(max_stmts: usize, rng: RNG) -> Self
   where
     RNG: Rng,
   {
-    let (seed0, seed1) = {
-      let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = rng.u8_16();
-      (u64::from_ne_bytes([a, b, c, d, e, f, g, h]), u64::from_ne_bytes([i, j, k, l, m, n, o, p]))
-    };
-    let (seed2, seed3) = {
-      let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = rng.u8_16();
-      (u64::from_ne_bytes([a, b, c, d, e, f, g, h]), u64::from_ne_bytes([i, j, k, l, m, n, o, p]))
-    };
     Self {
       columns: VecDeque::with_capacity(INITIAL_ELEMENTS_CAP.saturating_mul(AVG_STMT_COLUMNS_LEN)),
       columns_start: 0,
-      info: VecDeque::with_capacity(INITIAL_ELEMENTS_CAP),
       info_by_cmd_hash: HashMap::with_capacity(INITIAL_ELEMENTS_CAP),
       info_by_cmd_hash_start: 0,
-      hasher: RandomState::with_seeds(seed0, seed1, seed2, seed3),
+      info: VecDeque::with_capacity(INITIAL_ELEMENTS_CAP),
       max_stmts,
       num_of_elements_to_remove_when_full: NUM_OF_ELEMENTS_TO_REMOVE_WHEN_FULL,
       params: VecDeque::with_capacity(INITIAL_ELEMENTS_CAP.saturating_mul(AVG_STMT_PARAMS_LEN)),
       params_start: 0,
+      rs: _random_state(rng),
     }
   }
 
@@ -66,7 +54,7 @@ impl Statements {
       info: VecDeque::new(),
       info_by_cmd_hash: HashMap::new(),
       info_by_cmd_hash_start: 0,
-      hasher: RandomState::with_seeds(0, 0, 0, 0),
+      rs: RandomState::with_seeds(0, 0, 0, 0),
       max_stmts: 0,
       num_of_elements_to_remove_when_full: 0,
       params: VecDeque::new(),
@@ -85,7 +73,7 @@ impl Statements {
     let Self {
       columns,
       columns_start,
-      hasher: _,
+      rs: _,
       info_by_cmd_hash,
       info_by_cmd_hash_start,
       info,
@@ -108,7 +96,7 @@ impl Statements {
     info_idx = info_idx.wrapping_sub(self.info_by_cmd_hash_start);
     let info_slice_opt = self.info.as_slices().0.get(..=info_idx);
     let (columns_range, params_range) = match info_slice_opt {
-      None | Some([]) => unreachable!(),
+      None | Some([]) => _unreachable(),
       Some([a]) => (
         0..a.columns_offset.wrapping_sub(self.columns_start),
         0..a.params_offset.wrapping_sub(self.params_start),
@@ -131,12 +119,12 @@ impl Statements {
     if let (Some(a), Some(b)) = (columns.get(columns_range), params.get(params_range)) {
       Some(Statement::new(a, b))
     } else {
-      unreachable!();
+      _unreachable();
     }
   }
 
   pub(crate) fn hasher_mut(&mut self) -> &mut RandomState {
-    &mut self.hasher
+    &mut self.rs
   }
 
   pub(crate) fn push(&mut self, stmt_hash: u64) -> PushRslt<'_> {

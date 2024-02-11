@@ -1,4 +1,4 @@
-use crate::misc::QueryWriter;
+use crate::misc::{QueryWriter, _unlikely_dflt, str_rsplit_once1, str_split_once1};
 use alloc::string::String;
 use core::fmt::{Arguments, Debug, Formatter, Write};
 
@@ -28,12 +28,12 @@ where
   #[inline]
   pub fn new(uri: S) -> Self {
     let initial_len = uri.as_ref().len().try_into().unwrap_or(u16::MAX);
-    let valid_uri = uri.as_ref().get(..initial_len.into()).unwrap_or_default();
+    let valid_uri = uri.as_ref().get(..initial_len.into()).unwrap_or_else(_unlikely_dflt);
     let authority_start_idx: u16 = valid_uri
       .match_indices("://")
       .next()
       .and_then(|(element, _)| element.wrapping_add(3).try_into().ok())
-      .unwrap_or_default();
+      .unwrap_or_else(_unlikely_dflt);
     let href_start_idx = valid_uri
       .as_bytes()
       .iter()
@@ -55,7 +55,7 @@ where
       .uri
       .as_ref()
       .get(self.authority_start_idx.into()..self.href_start_idx.into())
-      .unwrap_or_default()
+      .unwrap_or_else(_unlikely_dflt)
   }
 
   /// ```rust
@@ -65,8 +65,8 @@ where
   #[inline]
   pub fn fragment(&self) -> &str {
     let href = self.href();
-    let maybe_rslt = href.rsplit_once('?').map_or(href, |el| el.1);
-    if let Some((_, rslt)) = maybe_rslt.rsplit_once('#') {
+    let maybe_rslt = str_rsplit_once1(href, b'?').map_or(href, |el| el.1);
+    if let Some((_, rslt)) = str_rsplit_once1(maybe_rslt, b'#') {
       rslt
     } else {
       maybe_rslt
@@ -80,7 +80,7 @@ where
   #[inline]
   pub fn host(&self) -> &str {
     let authority = self.authority();
-    if let Some(elem) = authority.split_once('@') {
+    if let Some(elem) = str_split_once1(authority, b'@') {
       elem.1
     } else {
       authority
@@ -94,7 +94,7 @@ where
   #[inline]
   pub fn hostname(&self) -> &str {
     let host = self.host();
-    host.split_once(':').map_or(host, |el| el.0)
+    str_split_once1(host, b':').map_or(host, |el| el.0)
   }
 
   /// ```rust
@@ -117,7 +117,7 @@ where
   /// ```
   #[inline]
   pub fn password(&self) -> &str {
-    if let Some(elem) = self.userinfo().split_once(':') {
+    if let Some(elem) = str_split_once1(self.userinfo(), b':') {
       elem.1
     } else {
       ""
@@ -131,7 +131,7 @@ where
   #[inline]
   pub fn path(&self) -> &str {
     let href = self.href();
-    href.rsplit_once('?').map_or(href, |el| el.0)
+    str_rsplit_once1(href, b'?').map_or(href, |el| el.0)
   }
 
   /// ```rust
@@ -141,7 +141,7 @@ where
   #[inline]
   pub fn port(&self) -> &str {
     let host = self.host();
-    host.split_once(':').map_or(host, |el| el.1)
+    str_split_once1(host, b':').map_or(host, |el| el.1)
   }
 
   /// ```rust
@@ -151,8 +151,8 @@ where
   #[inline]
   pub fn query(&self) -> &str {
     let href = self.href();
-    let before_hash = if let Some((elem, _)) = href.rsplit_once('#') { elem } else { href };
-    if let Some((_, elem)) = before_hash.rsplit_once('?') {
+    let before_hash = if let Some((elem, _)) = str_rsplit_once1(href, b'#') { elem } else { href };
+    if let Some((_, elem)) = str_rsplit_once1(before_hash, b'?') {
       elem
     } else {
       ""
@@ -168,7 +168,7 @@ where
     let mut iter = self.uri.as_ref().split("://");
     let first_opt = iter.next();
     if iter.next().is_some() {
-      first_opt.unwrap_or_default()
+      first_opt.unwrap_or_else(_unlikely_dflt)
     } else {
       ""
     }
@@ -208,7 +208,7 @@ where
   /// ```
   #[inline]
   pub fn user(&self) -> &str {
-    if let Some(elem) = self.userinfo().split_once(':') {
+    if let Some(elem) = str_split_once1(self.userinfo(), b':') {
       elem.0
     } else {
       ""
@@ -221,7 +221,7 @@ where
   /// ```
   #[inline]
   pub fn userinfo(&self) -> &str {
-    if let Some(elem) = self.authority().split_once('@') {
+    if let Some(elem) = str_split_once1(self.authority(), b'@') {
       elem.0
     } else {
       ""

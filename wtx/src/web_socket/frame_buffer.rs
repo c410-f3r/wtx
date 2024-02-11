@@ -1,10 +1,5 @@
-#![allow(
-  // Indices point to valid memory
-  clippy::unreachable
-)]
-
 use crate::{
-  misc::SingleTypeStorage,
+  misc::{SingleTypeStorage, _unreachable},
   web_socket::{DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
 };
 use alloc::{vec, vec::Vec};
@@ -99,7 +94,7 @@ where
     {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -109,7 +104,7 @@ where
     if let Some(el) = self.buffer.as_ref().get(self.header_end_idx.into()..self.payload_end_idx) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -117,7 +112,7 @@ where
     if let Some(el) = self.buffer.as_ref().get(self.header_begin_idx.into()..self.payload_end_idx) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -148,7 +143,7 @@ where
     if let Some(el) = self.buffer.as_mut().get_mut(range) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 
@@ -157,7 +152,7 @@ where
     if let Some(el) = self.buffer.as_mut().get_mut(range) {
       el
     } else {
-      unreachable!()
+      _unreachable()
     }
   }
 }

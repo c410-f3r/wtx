@@ -41,7 +41,7 @@ pub(crate) fn log_req<A, DRSR, P, T>(
     _pgk
       .ext_req_content_mut()
       .to_bytes(&mut vec, &mut _pkgs_aux.drsr)
-      .and_then(|_| Ok(crate::misc::from_utf8_basic_rslt(&vec)?.to_string()))
+      .and_then(|_| Ok(crate::misc::from_utf8_basic(&vec)?.to_string()))
   });
 }
 
@@ -51,7 +51,7 @@ pub(crate) fn log_req<A, DRSR, P, T>(
 /// Not used in [crate::network::transport::Transport::send_retrieve_and_decode_batch] because
 /// [crate::Requests::decode_responses] takes precedence.
 pub(crate) fn log_res(_res: &[u8]) {
-  _debug!("Response: {:?}", core::str::from_utf8(_res));
+  _debug!("Response: {:?}", crate::misc::from_utf8_basic(_res));
 }
 
 pub(crate) async fn manage_after_sending_related<A, DRSR, P, TP>(

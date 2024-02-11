@@ -1,4 +1,4 @@
-use crate::misc::_atoi;
+use crate::misc::{atoi, bytes_split1};
 use core::any::type_name;
 
 #[derive(Debug)]
@@ -23,14 +23,14 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
       5 => Self::Md5Password(rest.try_into()?),
       10 => Self::Sasl(rest),
       11 => {
-        let mut iter = rest.split(|b| *b == b',');
+        let mut iter = bytes_split1(rest, b',');
         let mut iterations = None;
         let mut nonce = None;
         let mut salt = None;
         while let Some([key, _, local_rest @ ..]) = iter.next() {
           match key {
             b'i' => {
-              iterations = Some(_atoi(local_rest)?);
+              iterations = Some(atoi(local_rest)?);
             }
             b'r' => {
               nonce = Some(local_rest);
@@ -49,7 +49,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
         }
       }
       12 => {
-        let mut iter = rest.split(|b| *b == b',');
+        let mut iter = bytes_split1(rest, b',');
         let mut verifier = None;
         while let Some([b'v', _, local_rest @ ..]) = iter.next() {
           verifier = Some(local_rest);

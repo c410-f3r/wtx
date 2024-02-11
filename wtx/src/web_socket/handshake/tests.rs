@@ -94,7 +94,7 @@ where
     uri: &uri.to_ref(),
     wsb: WebSocketBuffer::with_capacity(0, 0),
   }
-  .connect()
+  .connect([])
   .await
   .unwrap();
   call_tests!(

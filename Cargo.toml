@@ -1,8 +1,4 @@
-[profile.profiling]
-inherits = "release"
-debug = true
-
-[profile.release]
+[profile.bench]
 codegen-units = 1
 debug = false
 debug-assertions = false
@@ -13,6 +9,10 @@ overflow-checks = false
 panic = 'abort'
 rpath = false
 strip = "symbols"
+
+[profile.profiling]
+inherits = "release"
+debug = true
 
 [workspace]
 members = ["wtx", "wtx-bench", "wtx-fuzz", "wtx-macros", "wtx-ui"]

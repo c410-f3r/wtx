@@ -1,1 +1,10 @@
-disallowed-types = ["std::collections::HashMap", "std::collections::HashSet"]
+disallowed-methods = [
+    "<[u8]>::rsplit",
+    "<[u8]>::split",
+    "core::str::from_utf8",
+    "str::rsplit",
+]
+disallowed-types = [
+    "std::collections::HashMap",
+    "std::collections::HashSet"
+]

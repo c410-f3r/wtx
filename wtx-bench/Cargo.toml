@@ -6,7 +6,7 @@ plotters = { default-features = false, features = ["histogram", "svg_backend"], 
 sqlx = { default-features = false, features = ["postgres", "runtime-tokio"], version = "0.7" }
 tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.36" }
 tokio-postgres = { default-features = false, features = ["runtime"], version = "0.7" }
-wtx = { default-features = false, features = ["atoi", "postgres", "simdutf8", "tokio", "web-socket-handshake"], path = "../wtx" }
+wtx = { default-features = false, features = ["atoi", "memchr", "postgres", "simdutf8", "tokio", "web-socket-handshake"], path = "../wtx" }
 
 [package]
 description = "Benchmarks"

@@ -3,7 +3,6 @@
 /// As defined by [rfc7231 section 6](https://tools.ietf.org/html/rfc7231#section-6).
 ///
 /// Copied from <https://github.com/http-rs/http-types/blob/main/src/status_code.rs>.
-#[repr(u16)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum StatusCode {
   /// 100 Continue

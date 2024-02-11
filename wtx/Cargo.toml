@@ -21,7 +21,7 @@ required-features = ["_tokio-rustls-client", "tokio/io-std", "web-socket-handsha
 [[example]]
 name = "web-socket-server-echo-raw-async-std"
 path = "examples/web-socket-server-echo-raw-async-std.rs"
-required-features = ["async-std/attributes", "web-socket-handshake"]
+required-features = ["async-std", "web-socket-handshake"]
 
 [[example]]
 name = "web-socket-server-echo-raw-glommio"
@@ -73,6 +73,7 @@ hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 md-5 = { default-features = false, optional = true, version = "0.10" }
+memchr = { default-features = false, optional = true, version = "2.0" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 protobuf = { default-features = false, optional = true, version = "3.0" }
@@ -100,6 +101,7 @@ tracing = { default-features = false, features = ["attributes"], optional = true
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.3" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
+x509-certificate = { default-features = false, optional = true, version = "0.23" }
 
 [dev-dependencies]
 chrono = { default-features = false, features = ["clock"], version = "0.4" }
@@ -122,15 +124,15 @@ orm = ["database", "dep:smallvec"]
 pool-manager = []
 postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "md-5", "hmac", "sha2"]
 protobuf = ["dep:protobuf", "std"]
+schema-manager = ["database", "chrono"]
+schema-manager-dev = ["schema-manager"]
 serde = ["arrayvec?/serde", "cl-aux?/serde", "dep:serde"]
 serde_json = ["serde", "dep:serde_json", "std"]
 serde_yaml = ["serde", "dep:serde_yaml", "std"]
 serde-xml-rs = ["serde", "dep:serde-xml-rs", "std"]
 simd-json = ["serde", "dep:simd-json", "std"]
-schema-manager = ["database", "chrono"]
-schema-manager-dev = ["schema-manager"]
 smol = ["dep:smol", "std"]
-std = ["arrayvec?/std", "cl-aux?/std", "miniserde?/std", "serde?/std", "serde_json?/std"]
+std = ["ahash?/std", "arrayvec?/std", "atoi?/std", "cl-aux?/std", "memchr?/std", "miniserde?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
 web-socket = []

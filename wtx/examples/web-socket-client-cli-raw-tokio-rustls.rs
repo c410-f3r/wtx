@@ -32,7 +32,7 @@ async fn main() {
     uri: &uri,
     wsb: WebSocketBuffer::default(),
   }
-  .connect()
+  .connect([])
   .await
   .unwrap();
   let mut buffer = String::new();

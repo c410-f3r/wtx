@@ -1,4 +1,7 @@
-use crate::{database::client::postgres::Oid, misc::from_utf8_basic_rslt};
+use crate::{
+  database::client::postgres::Oid,
+  misc::{bytes_pos1, from_utf8_basic},
+};
 
 #[derive(Debug)]
 pub(crate) struct MsgField<'bytes> {
@@ -8,16 +11,12 @@ pub(crate) struct MsgField<'bytes> {
 
 impl<'bytes> MsgField<'bytes> {
   pub(crate) fn parse(value: &'bytes [u8]) -> crate::Result<(usize, Self)> {
-    let (name_bytes, rest_bytes) = value.split_at(
-      value
-        .iter()
-        .position(|el| *el == b'\0')
-        .ok_or(crate::Error::UnexpectedDatabaseMessageBytes)?,
-    );
+    let (name_bytes, rest_bytes) =
+      value.split_at(bytes_pos1(value, b'\0').ok_or(crate::Error::UnexpectedDatabaseMessageBytes)?);
     let &[_, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, ..] = rest_bytes else {
       return Err(crate::Error::UnexpectedDatabaseMessageBytes);
     };
-    let name = from_utf8_basic_rslt(name_bytes)?;
+    let name = from_utf8_basic(name_bytes)?;
     let _table_oid = u32::from_be_bytes([a, b, c, d]);
     let _column_id = i16::from_be_bytes([e, f]);
     let type_oid = u32::from_be_bytes([g, h, i, j]);

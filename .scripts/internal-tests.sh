@@ -75,6 +75,7 @@ $rt test-with-features wtx tracing
 $rt test-with-features wtx web-socket
 $rt test-with-features wtx web-socket-handshake
 $rt test-with-features wtx webpki-roots
+$rt test-with-features wtx x509-certificate
 
 $rt check-with-features wtx _bench
 $rt check-with-features wtx _hack
@@ -101,7 +102,7 @@ cargo check --bin autobahn-server --features "flate2,web-socket-handshake"
 
 cargo check --example database-client-postgres-tokio-rustls --features "_tokio-rustls-client,postgres"
 cargo check --example web-socket-client-cli-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-async-std --features "async-std/attributes,web-socket-handshake"
+cargo check --example web-socket-server-echo-raw-async-std --features "async-std,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-glommio --features "glommio,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-smol --features "smol,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio --features "tokio,web-socket-handshake"

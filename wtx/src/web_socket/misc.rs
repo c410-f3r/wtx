@@ -1,17 +1,13 @@
 mod filled_buffer;
-mod incomplete_utf8_char;
 #[cfg(feature = "tracing")]
 mod role;
 mod traits;
-mod utf8_errors;
 
 use crate::web_socket::{FrameBuffer, OpCode};
 pub(crate) use filled_buffer::FilledBuffer;
-pub(crate) use incomplete_utf8_char::{CompleteErr, IncompleteUtf8Char};
 #[cfg(feature = "tracing")]
 pub(crate) use role::Role;
 pub(crate) use traits::Expand;
-pub(crate) use utf8_errors::{ExtUtf8Error, StdUtf8Error};
 
 pub(crate) fn define_fb_from_header_params<B, const IS_CLIENT: bool>(
   fb: &mut FrameBuffer<B>,
@@ -35,36 +31,6 @@ where
   let _ = copy_header_params_to_buffer::<IS_CLIENT>(buffer, fin, op_code, payload_len, rsv1)?;
   fb.set_indices(header_begin_idx, new_header_len, payload_len)?;
   Ok(())
-}
-
-pub(crate) fn from_utf8_ext_rslt(bytes: &[u8]) -> Result<&str, ExtUtf8Error> {
-  let err = match from_utf8_std_rslt(bytes) {
-    Ok(elem) => return Ok(elem),
-    Err(error) => error,
-  };
-  let (_valid_bytes, after_valid) = bytes.split_at(err.valid_up_to);
-  match err.error_len {
-    None => Err(ExtUtf8Error::Incomplete {
-      incomplete_ending_char: {
-        let opt = IncompleteUtf8Char::new(after_valid);
-        opt.ok_or(ExtUtf8Error::Invalid)?
-      },
-    }),
-    Some(_) => Err(ExtUtf8Error::Invalid),
-  }
-}
-
-pub(crate) fn from_utf8_std_rslt(bytes: &[u8]) -> Result<&str, StdUtf8Error> {
-  #[cfg(feature = "simdutf8")]
-  return simdutf8::compat::from_utf8(bytes).map_err(|element| StdUtf8Error {
-    valid_up_to: element.valid_up_to(),
-    error_len: element.error_len(),
-  });
-  #[cfg(not(feature = "simdutf8"))]
-  return core::str::from_utf8(bytes).map_err(|element| StdUtf8Error {
-    valid_up_to: element.valid_up_to(),
-    error_len: element.error_len(),
-  });
 }
 
 pub(crate) fn op_code(first_header_byte: u8) -> crate::Result<OpCode> {

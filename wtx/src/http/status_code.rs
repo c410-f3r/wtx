@@ -1,7 +1,6 @@
 create_enum! {
   /// HTTP status codes.
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-  #[repr(u16)]
   pub enum StatusCode<u16> {
       /// 100 Continue
       Continue = (100),

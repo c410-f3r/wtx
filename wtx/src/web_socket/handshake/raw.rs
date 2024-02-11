@@ -40,8 +40,8 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 #[cfg(feature = "web-socket-handshake")]
 mod httparse_impls {
   use crate::{
-    http::{ExpectedHeader, Header as _, Request as _},
-    misc::{FilledBufferWriter, Stream, UriRef},
+    http::{ExpectedHeader, GenericHeader as _, Request as _},
+    misc::{bytes_split1, FilledBufferWriter, Stream, UriRef},
     rng::Rng,
     web_socket::{
       compression::NegotiatedCompression,
@@ -141,15 +141,17 @@ mod httparse_impls {
     type Response = Response<'hb, 'fb>;
 
     #[inline]
-    async fn connect(
+    async fn connect<'bytes>(
       mut self,
+      headers: impl IntoIterator<Item = (&'bytes [u8], &'bytes [u8])>,
     ) -> crate::Result<(Self::Response, WebSocketClient<C::NegotiatedCompression, RNG, S, WSB>)>
     {
       let key_buffer = &mut <_>::default();
       let nb = &mut self.wsb.borrow_mut().nb;
       nb._clear();
       let mut fbw = nb.into();
-      let key = build_req(&self.compression, &mut fbw, key_buffer, &mut self.rng, self.uri);
+      let key =
+        build_req(&self.compression, &mut fbw, headers, key_buffer, &mut self.rng, self.uri);
       self.stream.write_all(fbw._curr_bytes()).await?;
       let mut read = 0;
       self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
@@ -189,9 +191,10 @@ mod httparse_impls {
   }
 
   /// Client request
-  fn build_req<'kb, C>(
+  fn build_req<'bytes, 'kb, C>(
     compression: &C,
     fbw: &mut FilledBufferWriter<'_>,
+    headers: impl IntoIterator<Item = (&'bytes [u8], &'bytes [u8])>,
     key_buffer: &'kb mut [u8; 26],
     rng: &mut impl Rng,
     uri: &UriRef<'_>,
@@ -201,6 +204,9 @@ mod httparse_impls {
   {
     let key = gen_key(key_buffer, rng);
     fbw._extend_from_slices_group_rn(&[b"GET ", uri.href().as_bytes(), b" HTTP/1.1"]);
+    for (name, value) in headers {
+      fbw._extend_from_slices_group_rn(&[name, b": ", value]);
+    }
     fbw._extend_from_slice_rn(b"Connection: Upgrade");
     match (uri.schema(), uri.port()) {
       ("http" | "ws", "80") | ("https" | "wss", "443") => {
@@ -240,7 +246,7 @@ mod httparse_impls {
       .find_map(|h| {
         let has_key = _trim_bytes(h.name()).eq_ignore_ascii_case(key);
         let has_value =
-          h.value().split(|el| el == &b',').any(|el| _trim_bytes(el).eq_ignore_ascii_case(value));
+          bytes_split1(h.value(), b',').any(|el| _trim_bytes(el).eq_ignore_ascii_case(value));
         (has_key && has_value).then_some(true)
       })
       .unwrap_or(false)

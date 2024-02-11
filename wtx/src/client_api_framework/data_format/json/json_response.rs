@@ -40,7 +40,7 @@ mod miniserde {
       data_format::JsonResponse,
       dnsn::{miniserde_serialize, Miniserde},
     },
-    misc::from_utf8_basic_rslt,
+    misc::from_utf8_basic,
   };
   use core::fmt::Display;
 
@@ -49,7 +49,7 @@ mod miniserde {
     D: miniserde::Deserialize,
   {
     fn from_bytes(bytes: &[u8], _: &mut Miniserde) -> crate::Result<Self> {
-      Ok(Self { data: miniserde::json::from_str(from_utf8_basic_rslt(bytes)?)? })
+      Ok(Self { data: miniserde::json::from_str(from_utf8_basic(bytes)?)? })
     }
 
     fn seq_from_bytes<E>(
@@ -60,7 +60,7 @@ mod miniserde {
     where
       E: Display + From<crate::Error>,
     {
-      let data_fn = || crate::Result::Ok(miniserde::json::from_str(from_utf8_basic_rslt(bytes)?)?);
+      let data_fn = || crate::Result::Ok(miniserde::json::from_str(from_utf8_basic(bytes)?)?);
       cb(Self { data: data_fn()? })?;
       Ok(())
     }

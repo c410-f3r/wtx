@@ -26,7 +26,7 @@ async fn main() {
       uri: &UriRef::new(&format!("http://{host}/runCase?case={case}&agent=wtx")),
       wsb: &mut wsb,
     }
-    .connect()
+    .connect([])
     .await
     .unwrap();
     loop {
@@ -54,7 +54,7 @@ async fn main() {
     uri: &UriRef::new(&format!("http://{host}/updateReports?agent=wtx")),
     wsb,
   }
-  .connect()
+  .connect([])
   .await
   .unwrap()
   .1
@@ -73,7 +73,7 @@ async fn get_case_count(fb: &mut FrameBufferVec, host: &str, wsb: &mut WebSocket
     uri: &UriRef::new(&format!("http://{host}/getCaseCount")),
     wsb,
   }
-  .connect()
+  .connect([])
   .await
   .unwrap();
   let rslt = ws.read_frame(fb).await.unwrap().text_payload().unwrap_or_default().parse().unwrap();

@@ -249,7 +249,7 @@ fn dir_name_parts(s: &str) -> crate::Result<(String, i32)> {
       return None;
     }
     let mut split = s.split("__");
-    let version = split.next()?.parse::<i32>().ok()?;
+    let version = crate::misc::atoi(split.next()?.as_bytes()).ok()?;
     let name = split.next()?.into();
     Some((name, version))
   };
@@ -264,7 +264,7 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, i32)> {
       return None;
     }
     let mut split = s.split("__");
-    let version = split.next()?.parse::<i32>().ok()?;
+    let version = crate::misc::atoi(split.next()?.as_bytes()).ok()?;
     let name = split.next()?.strip_suffix(".sql")?.into();
     Some((name, version))
   };

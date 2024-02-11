@@ -1,11 +1,14 @@
 //! Migration file parser
 
-use crate::database::{
-  schema_manager::{
-    toml_parser::{toml, Expr},
-    Repeatability,
+use crate::{
+  database::{
+    schema_manager::{
+      toml_parser::{toml, Expr},
+      Repeatability,
+    },
+    DatabaseTy,
   },
-  DatabaseTy,
+  misc::str_split1,
 };
 use arrayvec::ArrayVec;
 use std::io::{BufRead, BufReader, Read};
@@ -43,7 +46,7 @@ where
   iterations(&mut overall_buffer, &mut br, |_| false)?;
 
   if let Some(rslt) = overall_buffer.split("-- wtx dbs").nth(1) {
-    for db_str in rslt.split(',') {
+    for db_str in str_split1(rslt, b',') {
       if let Ok(db) = db_str.trim().try_into() {
         let is_not_already_inserted = !parsed_migration.cfg.dbs.contains(&db);
         if is_not_already_inserted {

@@ -47,7 +47,7 @@ mod arrayvec {
       client::postgres::{DecodeValue, Postgres, Ty},
       Decode, Encode,
     },
-    misc::{from_utf8_basic_rslt, FilledBufferWriter},
+    misc::{from_utf8_basic, FilledBufferWriter},
   };
   use arrayvec::ArrayString;
 
@@ -57,7 +57,7 @@ mod arrayvec {
   {
     #[inline]
     fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      Ok(from_utf8_basic_rslt(input.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
+      Ok(from_utf8_basic(input.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
     }
   }
 
@@ -134,7 +134,7 @@ mod collections {
       client::postgres::{DecodeValue, Postgres, Ty},
       Decode, Encode,
     },
-    misc::{from_utf8_basic_rslt, FilledBufferWriter},
+    misc::{from_utf8_basic, FilledBufferWriter},
   };
   use alloc::string::String;
 
@@ -167,7 +167,7 @@ mod collections {
   {
     #[inline]
     fn decode(input: &DecodeValue<'exec>) -> Result<Self, E> {
-      Ok(from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?)
+      Ok(from_utf8_basic(input.bytes()).map_err(crate::Error::from)?)
     }
   }
 
@@ -190,7 +190,7 @@ mod collections {
   {
     #[inline]
     fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      Ok(from_utf8_basic_rslt(input.bytes()).map_err(crate::Error::from)?.into())
+      Ok(from_utf8_basic(input.bytes()).map_err(crate::Error::from)?.into())
     }
   }
 
@@ -214,7 +214,7 @@ mod pg_numeric {
       client::postgres::{DecodeValue, Postgres, Ty},
       Decode, Encode,
     },
-    misc::FilledBufferWriter,
+    misc::{FilledBufferWriter, Usize},
   };
   use arrayvec::ArrayVec;
 
@@ -238,7 +238,7 @@ mod pg_numeric {
         return Err(
           crate::Error::UnexpectedBufferSize {
             expected: 8,
-            received: input.bytes().len().try_into().map_err(Into::into)?,
+            received: Usize::from(input.bytes().len()).into(),
           }
           .into(),
         );
@@ -338,7 +338,7 @@ mod primitives {
       client::postgres::{DecodeValue, Postgres, Ty},
       Decode, Encode,
     },
-    misc::FilledBufferWriter,
+    misc::{FilledBufferWriter, Usize},
   };
   use core::mem;
 
@@ -352,7 +352,7 @@ mod primitives {
         return Err(
           crate::Error::UnexpectedBufferSize {
             expected: 1,
-            received: input.bytes().len().try_into().map_err(Into::into)?,
+            received: Usize::from(input.bytes().len()).into(),
           }
           .into(),
         );
@@ -423,8 +423,8 @@ mod primitives {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
           Err(crate::Error::UnexpectedBufferSize {
-            expected: mem::size_of::<$ty>().try_into().map_err(Into::into)?,
-            received: input.bytes().len().try_into().map_err(Into::into)?,
+            expected: Usize::from(mem::size_of::<$ty>()).into(),
+            received: Usize::from(input.bytes().len()).into()
           }.into())
         }
       }
