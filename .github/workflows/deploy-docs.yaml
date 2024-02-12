@@ -26,7 +26,7 @@ jobs:
         run: |
           cd wtx-docs && mdbook test && mdbook build
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v4
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
