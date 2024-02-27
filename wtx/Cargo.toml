@@ -76,7 +76,7 @@ md-5 = { default-features = false, optional = true, version = "0.10" }
 memchr = { default-features = false, optional = true, version = "2.0" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-protobuf = { default-features = false, optional = true, version = "3.0" }
+protobuf = { default-features = false, optional = true, version = "3.4" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 reqwest = { default-features = false, optional = true, version = "0.11" }
 ring = { default-features = false, optional = true, version = "0.17" }
