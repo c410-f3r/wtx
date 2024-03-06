@@ -54,7 +54,7 @@ arbitrary = { default-features = false, features = ["derive_arbitrary"], optiona
 arrayvec = { default-features = false, optional = true, version = "0.7" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
 atoi = { default-features = false, optional = true, version = "2.0" }
-base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.21" }
+base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.0" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
