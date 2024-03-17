@@ -6,12 +6,13 @@ on:
 
 jobs:
   benchmark_with_bencher:
-    name: Continuous Benchmarking with Bencher
-    runs-on: ubuntu-latest
+    continue-on-error: true
     env:
       BENCHER_ADAPTER: rust_bench
       BENCHER_PROJECT: wtx
       BENCHER_TESTBED: ubuntu-latest
+    name: Continuous Benchmarking with Bencher
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: bencherdev/bencher@main

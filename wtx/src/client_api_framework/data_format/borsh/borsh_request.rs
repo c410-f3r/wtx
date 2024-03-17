@@ -18,6 +18,7 @@ impl<D> Serialize<()> for BorshRequest<D> {
 #[cfg(feature = "borsh")]
 mod borsh {
   use crate::client_api_framework::{data_format::BorshRequest, dnsn::Borsh};
+  use alloc::vec::Vec;
   use borsh::BorshSerialize;
 
   impl<D> crate::client_api_framework::dnsn::Serialize<Borsh> for BorshRequest<D>

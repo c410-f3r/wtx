@@ -67,7 +67,7 @@ where
     eb.borrow_mut().clear();
     let mut fbw = FilledBufferWriter::from(&mut eb.borrow_mut().nb);
     encrypted_conn(&mut fbw)?;
-    initial_stream.write_all(fbw._curr_bytes()).await?;
+    initial_stream.write(fbw._curr_bytes()).await?;
     let mut buf = [0];
     let _ = initial_stream.read(&mut buf).await?;
     if buf[0] != b'S' {
@@ -106,7 +106,7 @@ where
   async fn send_initial_conn_msg(&mut self, config: &Config<'_>) -> crate::Result<()> {
     let mut fbw = FilledBufferWriter::from(&mut self.eb.borrow_mut().nb);
     initial_conn_msg(config, &mut fbw)?;
-    self.stream.write_all(fbw._curr_bytes()).await?;
+    self.stream.write(fbw._curr_bytes()).await?;
     Ok(())
   }
 }

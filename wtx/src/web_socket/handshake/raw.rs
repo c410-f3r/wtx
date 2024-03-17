@@ -40,7 +40,7 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 #[cfg(feature = "web-socket-handshake")]
 mod httparse_impls {
   use crate::{
-    http::{ExpectedHeader, GenericHeader as _, Request as _},
+    http::{ExpectedHeader, GenericHeader as _, GenericRequest as _},
     misc::{bytes_split1, FilledBufferWriter, Stream, UriRef},
     rng::Rng,
     web_socket::{
@@ -71,7 +71,7 @@ mod httparse_impls {
     #[inline]
     async fn accept(
       mut self,
-      cb: impl FnOnce(&dyn crate::http::Request) -> bool,
+      cb: impl FnOnce(&dyn crate::http::GenericRequest) -> bool,
     ) -> crate::Result<WebSocketServer<C::NegotiatedCompression, RNG, S, WSB>> {
       let nb = &mut self.wsb.borrow_mut().nb;
       nb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
@@ -118,7 +118,7 @@ mod httparse_impls {
             res.version = Some(req.version().into());
             let mut fbw = nb.into();
             let res_bytes = build_res(&compression, &mut fbw, res.headers);
-            self.stream.write_all(res_bytes).await?;
+            self.stream.write(res_bytes).await?;
             nb._clear();
             return Ok(WebSocketServer::new(compression, self.rng, self.stream, self.wsb));
           }
@@ -152,7 +152,7 @@ mod httparse_impls {
       let mut fbw = nb.into();
       let key =
         build_req(&self.compression, &mut fbw, headers, key_buffer, &mut self.rng, self.uri);
-      self.stream.write_all(fbw._curr_bytes()).await?;
+      self.stream.write(fbw._curr_bytes()).await?;
       let mut read = 0;
       self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
       let len = loop {

@@ -158,6 +158,8 @@ impl SchemaManagement for () {
 
 #[cfg(feature = "postgres")]
 mod postgres {
+  use alloc::{string::String, vec::Vec};
+
   use crate::{
     database::{
       client::postgres::{Executor, ExecutorBuffer},

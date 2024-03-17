@@ -41,6 +41,7 @@ mod serde_yaml {
   use crate::client_api_framework::{
     data_format::YamlResponse, dnsn::SerdeYaml, misc::seq_visitor::_SeqVisitor,
   };
+  use alloc::vec::Vec;
   use core::fmt::Display;
   use serde::de::Deserializer;
 

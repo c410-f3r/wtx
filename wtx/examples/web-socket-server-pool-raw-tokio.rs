@@ -9,7 +9,7 @@ mod common;
 use std::sync::OnceLock;
 use tokio::{net::TcpListener, sync::MappedMutexGuard};
 use wtx::{
-  pool_manager::{Pool as _, ResourceManager, StaticPoolTokioMutex, WebSocketRM},
+  pool::{Pool, ResourceManager, StaticPoolTokioMutex, WebSocketRM},
   rng::StaticRng,
   web_socket::{
     handshake::{WebSocketAccept, WebSocketAcceptRaw},
@@ -38,8 +38,8 @@ async fn pool_resource() -> MappedMutexGuard<'static, <WebSocketRM as ResourceMa
     StaticPoolTokioMutex<<WebSocketRM as ResourceManager>::Resource, WebSocketRM, 8>,
   > = OnceLock::new();
   POOL
-    .get_or_init(|| StaticPoolTokioMutex::new(WebSocketRM::web_socket_rm()).unwrap())
-    .get()
+    .get_or_init(|| StaticPoolTokioMutex::new(WebSocketRM::web_socket_rm()))
+    .get(&(), &())
     .await
     .unwrap()
 }

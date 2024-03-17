@@ -11,10 +11,11 @@ export RUST_BACKTRACE=1
 export RUST_LOG=debug
 export RUSTFLAGS="$($rt rust-flags -Asingle-use-lifetimes,-Alet-underscore-drop)"
 
-cargo audit
-
 $rt rustfmt
 $rt clippy
+
+cargo miri test
+MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --all-features
 
 # WTX
 
@@ -46,13 +47,13 @@ $rt test-with-features wtx http2
 $rt test-with-features wtx httparse
 $rt test-with-features wtx md-5
 $rt test-with-features wtx miniserde
+$rt test-with-features wtx nightly
 $rt test-with-features wtx orm
-$rt test-with-features wtx pool-manager
+$rt test-with-features wtx pool
 $rt test-with-features wtx postgres
 $rt test-with-features wtx proptest
 $rt test-with-features wtx protobuf
 $rt test-with-features wtx rand
-$rt test-with-features wtx reqwest
 $rt test-with-features wtx ring
 $rt test-with-features wtx rkyv,_hack
 $rt test-with-features wtx rust_decimal
@@ -109,4 +110,4 @@ cargo check --example web-socket-server-echo-raw-glommio --features "glommio,web
 cargo check --example web-socket-server-echo-raw-smol --features "smol,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio --features "tokio,web-socket-handshake"
 cargo check --example web-socket-server-echo-raw-tokio-rustls --features "_tokio-rustls-server,web-socket-handshake"
-cargo check --example web-socket-server-pool-raw-tokio --features "pool-manager,web-socket-handshake"
+cargo check --example web-socket-server-pool-raw-tokio --features "pool,web-socket-handshake"

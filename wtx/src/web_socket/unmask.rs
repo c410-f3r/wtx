@@ -30,7 +30,7 @@ fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4]) {
 }
 
 fn unmask_u32_slice(bytes: &mut [u32], mask: u32) {
-  _iter4_mut!(bytes, |elem| {
+  _iter4_mut!(bytes, {}, |elem| {
     *elem ^= mask;
   });
 }
@@ -50,6 +50,8 @@ mod bench {
 #[cfg(test)]
 #[cfg(feature = "_proptest")]
 mod proptest {
+  use alloc::vec::Vec;
+
   #[test_strategy::proptest]
   fn unmask(mut data: Vec<u8>, mask: [u8; 4]) {
     crate::web_socket::unmask(&mut data, mask);

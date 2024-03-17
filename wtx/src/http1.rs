@@ -1,5 +1,5 @@
 use crate::{
-  http::{GenericHeader, Request, Response, Version},
+  http::{GenericHeader, GenericRequest, GenericResponse, Version},
   misc::_unreachable,
 };
 
@@ -15,7 +15,7 @@ impl GenericHeader for httparse::Header<'_> {
   }
 }
 
-impl Request for httparse::Request<'_, '_> {
+impl GenericRequest for httparse::Request<'_, '_> {
   #[inline]
   fn method(&self) -> &[u8] {
     if let Some(el) = self.method {
@@ -44,7 +44,7 @@ impl Request for httparse::Request<'_, '_> {
   }
 }
 
-impl Response for httparse::Response<'_, '_> {
+impl GenericResponse for httparse::Response<'_, '_> {
   #[inline]
   fn code(&self) -> u16 {
     if let Some(el) = self.code {

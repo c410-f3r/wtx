@@ -1,8 +1,10 @@
 .scripts/autobahn/reports
 .vscode
 **/*.rs.bk
+**/hpack-test-case
+**/profile.json
+**/proptest-regressions
 **/target
-profile.json
 wtx-bench/Cargo.lock
 wtx-docs/book
 wtx-fuzz/artifacts

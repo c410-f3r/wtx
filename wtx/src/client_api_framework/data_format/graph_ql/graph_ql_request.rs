@@ -22,6 +22,7 @@ pub struct GraphQlRequest<ON, Q, V> {
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::client_api_framework::{data_format::GraphQlRequest, dnsn::SerdeJson};
+  use alloc::vec::Vec;
 
   impl<ON, Q, V> crate::client_api_framework::dnsn::Serialize<SerdeJson> for GraphQlRequest<ON, Q, V>
   where
@@ -43,6 +44,7 @@ mod serde_json {
 #[cfg(feature = "simd-json")]
 mod simd_json {
   use crate::client_api_framework::{data_format::GraphQlRequest, dnsn::SimdJson};
+  use alloc::vec::Vec;
 
   impl<ON, Q, V> crate::client_api_framework::dnsn::Serialize<SimdJson> for GraphQlRequest<ON, Q, V>
   where

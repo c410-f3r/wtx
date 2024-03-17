@@ -55,8 +55,7 @@ macro_rules! impl_display {
 }
 
 impl_display!(&'_ str);
-#[cfg(feature = "arrayvec")]
-impl_display!(arrayvec::ArrayString<N>, const N: usize);
+impl_display!(crate::misc::ArrayString<N>, const N: usize);
 impl_display!(bool);
 impl_display!(i32);
 impl_display!(i64);

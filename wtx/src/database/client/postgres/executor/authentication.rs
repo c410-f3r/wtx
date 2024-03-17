@@ -6,11 +6,13 @@ use crate::{
     },
     Identifier,
   },
-  misc::{bytes_split1, from_utf8_basic, FilledBufferWriter, PartitionedFilledBuffer, Stream},
+  misc::{
+    bytes_split1, from_utf8_basic, ArrayString, ArrayVector, FilledBufferWriter,
+    PartitionedFilledBuffer, Stream,
+  },
   rng::Rng,
 };
 use alloc::vec::Vec;
-use arrayvec::{ArrayString, ArrayVec};
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use core::borrow::BorrowMut;
 use hmac::{Hmac, Mac};
@@ -46,18 +48,13 @@ where
           md5.update(config.password);
           md5.update(config.user);
           let output = md5.finalize_reset();
-          md5.update(
-            ArrayString::<{ 16 * 2 }>::try_from(format_args!("{output:x}"))
-              .map_err(|err| crate::Error::from(err.simplify()))?
-              .as_str(),
-          );
+          md5.update(ArrayString::<{ 16 * 2 }>::try_from(format_args!("{output:x}"))?.as_str());
           md5.update(salt);
-          ArrayString::<{ 16 * 2 + 3 }>::try_from(format_args!("md5{:x}", md5.finalize()))
-            .map_err(|err| crate::Error::from(err.simplify()))?
+          ArrayString::<{ 16 * 2 + 3 }>::try_from(format_args!("md5{:x}", md5.finalize()))?
         };
         let mut fbw = FilledBufferWriter::from(&mut *nb);
         password(&mut fbw, &hashed)?;
-        self.stream.write_all(fbw._curr_bytes()).await?;
+        self.stream.write(fbw._curr_bytes()).await?;
       }
       MessageTy::Authentication(Authentication::Ok) => {
         return Ok(());
@@ -131,7 +128,7 @@ where
     {
       let mut fbw = FilledBufferWriter::from(&mut *nb);
       sasl_first(&mut fbw, &local_nonce)?;
-      stream.write_all(fbw._curr_bytes()).await?;
+      stream.write(fbw._curr_bytes()).await?;
     }
 
     let (mut auth_data, response_nonce, salted_password) = {
@@ -156,7 +153,7 @@ where
           vec.extend(payload);
           vec
         },
-        ArrayVec::<u8, 68>::try_from(nonce)?,
+        ArrayVector::<u8, 68>::try_from(nonce)?,
         salted_password(iterations, decoded_salt.get(..n).unwrap_or_default(), config.password)?,
       )
     };
@@ -164,7 +161,7 @@ where
     {
       let mut fbw = FilledBufferWriter::from(&mut *nb);
       sasl_second(&mut auth_data, &mut fbw, &response_nonce, &salted_password, tsep_data)?;
-      stream.write_all(fbw._curr_bytes()).await?;
+      stream.write(fbw._curr_bytes()).await?;
     }
 
     {

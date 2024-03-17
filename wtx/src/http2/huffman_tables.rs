@@ -4,7 +4,7 @@ pub(crate) const DECODED: u8 = 0b0000_0010;
 pub(crate) const CONTINUE: u8 = 0b0000_0011;
 pub(crate) const ERROR: u8 = 0b0000_0100;
 
-pub(crate) const DECODE_TABLE: &[[(u16, u8, u8); 16]; 256] = &[
+pub(crate) const DECODE_TABLE: &[[(u8, u8, u8); 16]; 256] = &[
   [
     (4, 0, OK),
     (5, 0, OK),
@@ -4615,7 +4615,7 @@ pub(crate) const DECODE_TABLE: &[[(u16, u8, u8); 16]; 256] = &[
   ],
 ];
 
-pub(crate) const ENCODE_TABLE: &[(u16, u64); 257] = &[
+pub(crate) const ENCODE_TABLE: &[(u8, u64); 257] = &[
   (13, 0x1ff8),
   (23, 0x007f_ffd8),
   (28, 0x0fff_ffe2),

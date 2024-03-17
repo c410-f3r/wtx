@@ -41,7 +41,7 @@ where
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -50,7 +50,7 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Params>,
   {
-    send_and_retrieve(&mut self.0, pkg, pkgs_aux, &mut self.1).await
+    send_recv(&mut self.0, pkg, pkgs_aux, &mut self.1).await
   }
 }
 
@@ -98,7 +98,7 @@ where
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -107,7 +107,7 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Params>,
   {
-    send_and_retrieve(self.0, pkg, pkgs_aux, self.1).await
+    send_recv(self.0, pkg, pkgs_aux, self.1).await
   }
 }
 
@@ -180,7 +180,7 @@ where
   Ok(())
 }
 
-async fn send_and_retrieve<A, DRSR, NC, P, RNG, S, WSB>(
+async fn send_recv<A, DRSR, NC, P, RNG, S, WSB>(
   fb: &mut FrameBufferVec,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,

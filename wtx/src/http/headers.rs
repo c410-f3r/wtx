@@ -1,22 +1,28 @@
-use crate::http::AbstractHeaders;
-use alloc::collections::VecDeque;
+use crate::http::{abstract_headers::AbstractHeader, AbstractHeaders};
 
 /// List of pairs sent and received on every request.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Headers {
   ab: AbstractHeaders<()>,
 }
 
 impl Headers {
+  /// Empty instance
+  pub const fn new(max_bytes: usize) -> Self {
+    Self { ab: AbstractHeaders::new(max_bytes) }
+  }
+
   /// Pre-allocates bytes according to the number of passed elements.
+  ///
+  /// Bytes are capped according to the specified `max_bytes`.
   #[inline]
-  pub fn with_capacity(len: u32) -> Self {
-    Self { ab: AbstractHeaders::with_capacity(len) }
+  pub fn with_capacity(bytes: usize, headers: usize, max_bytes: usize) -> Self {
+    Self { ab: AbstractHeaders::with_capacity(bytes, headers, max_bytes) }
   }
 
   /// The amount of bytes used by all of the headers
   #[inline]
-  pub fn bytes_len(&self) -> u32 {
+  pub fn bytes_len(&self) -> usize {
     self.ab.bytes_len()
   }
 
@@ -28,31 +34,40 @@ impl Headers {
 
   /// The number of headers
   #[inline]
-  pub fn elements_len(&self) -> u32 {
+  pub fn elements_len(&self) -> usize {
     self.ab.elements_len()
+  }
+
+  /// Returns the first header, if any.
+  #[inline]
+  pub fn first(&self) -> Option<(&[u8], &[u8], bool)> {
+    self.ab.first().map(Self::map)
   }
 
   /// Returns the header's pair referenced by its index, if any.
   #[inline]
-  pub fn get_by_idx(&self, idx: usize) -> Option<(&[u8], &[u8])> {
-    self.ab.get_by_idx(idx).map(|el| (el.name_bytes, el.value_bytes))
-  }
-
-  /// Returns the header value of the **first** corresponding header `name` key, if any.
-  #[inline]
-  pub fn get_by_name(&self, name: &[u8]) -> Option<&[u8]> {
-    self.ab.get_by_name(name).map(|el| el.value_bytes)
+  pub fn get_by_idx(&self, idx: usize) -> Option<(&[u8], &[u8], bool)> {
+    self.ab.get_by_idx(idx).map(Self::map)
   }
 
   /// Retrieves all stored pairs.
   #[inline]
-  pub fn iter(&self) -> impl Iterator<Item = (&[u8], &[u8])> {
-    self.ab.iter().map(|el| (el.name_bytes, el.value_bytes))
+  pub fn iter(&self) -> impl Iterator<Item = (&[u8], &[u8], bool)> {
+    self.ab.iter().map(Self::map)
+  }
+
+  /// Pushes a new pair of `name` and `value` at the end of the internal buffer.
+  ///
+  /// If the sum of `name` and `value` is greater than the maximum number of bytes, then the first
+  /// inserted entries will be deleted accordantly.
+  #[inline]
+  pub fn last(&self) -> Option<(&[u8], &[u8], bool)> {
+    self.ab.last().map(Self::map)
   }
 
   /// The maximum allowed number of bytes.
   #[inline]
-  pub fn max_bytes(&self) -> u32 {
+  pub fn max_bytes(&self) -> usize {
     self.ab.max_bytes()
   }
 
@@ -65,36 +80,55 @@ impl Headers {
   /// Removes the first element.
   #[inline]
   pub fn pop_front(&mut self) {
-    self.ab.pop_front();
+    let _ = self.ab.pop_front();
   }
 
-  /// Pushes a new pair of `name` and `value` at the end of the internal buffer.
+  /// Pushes a new pair of `name` and `value` at the beginning of the internal buffer.
   ///
   /// If the sum of `name` and `value` is greater than the maximum number of bytes, then the first
   /// inserted entries will be deleted accordantly.
   #[inline]
-  pub fn push(&mut self, name: &[u8], value: &[u8]) {
-    self.ab.push((), name, value);
+  pub fn push_front(&mut self, name: &[u8], value: &[u8], is_sensitive: bool) {
+    self.ab.push_front((), name, value, is_sensitive);
   }
 
-  /// Removes all pairs referenced by the `names` parameter.
+  /// Removes all a pair referenced by `idx`.
   #[inline]
-  pub fn remove(&mut self, names: &[&[u8]]) {
-    self.ab.remove(names);
+  pub fn remove_by_idx(&mut self, idx: usize) {
+    self.ab.remove_by_idx(idx);
+  }
+
+  /// Reserves capacity for at least `bytes` more bytes to be inserted. The same thing is applied
+  /// to the number of headers.
+  ///
+  /// Bytes are capped according to the specified `max_bytes`.
+  pub fn reserve(&mut self, bytes: usize, headers: usize) {
+    self.ab.reserve(bytes, headers);
   }
 
   /// If `max_bytes` is lesser than the current number of bytes, then the first inserted entries
   /// will be deleted accordantly.
   #[inline]
-  pub fn set_max_bytes(&mut self, max_bytes: u32) {
+  pub fn set_max_bytes(&mut self, max_bytes: usize) {
     self.ab.set_max_bytes(max_bytes);
   }
 
-  pub(crate) fn _buffer_mut(&mut self) -> &mut VecDeque<u8> {
-    self.ab.buffer_mut()
+  fn map(elem: AbstractHeader<'_, ()>) -> (&[u8], &[u8], bool) {
+    (elem.name_bytes, elem.value_bytes, elem.is_sensitive)
   }
+}
 
-  pub(crate) fn push_params(&mut self, name_begin_idx: u32, sep_idx: u32, value_end_idx: u32) {
-    self.ab.push_metadata((), name_begin_idx, sep_idx, value_end_idx);
+impl AsRef<Headers> for Headers {
+  #[inline]
+  fn as_ref(&self) -> &Headers {
+    self
+  }
+}
+
+/// With a maximum amount of 4096 bytes.
+impl Default for Headers {
+  #[inline]
+  fn default() -> Self {
+    Self { ab: AbstractHeaders::default() }
   }
 }

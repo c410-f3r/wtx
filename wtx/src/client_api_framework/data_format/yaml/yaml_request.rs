@@ -20,6 +20,7 @@ impl<D> Serialize<()> for YamlRequest<D> {
 #[cfg(feature = "serde_yaml")]
 mod serde_yaml {
   use crate::client_api_framework::{data_format::YamlRequest, dnsn::SerdeYaml};
+  use alloc::vec::Vec;
 
   impl<D> crate::client_api_framework::dnsn::Serialize<SerdeYaml> for YamlRequest<D>
   where

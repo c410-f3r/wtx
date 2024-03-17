@@ -42,6 +42,7 @@ mod miniserde {
     },
     misc::from_utf8_basic,
   };
+  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<D> crate::client_api_framework::dnsn::Deserialize<Miniserde> for JsonResponse<D>
@@ -85,6 +86,7 @@ mod serde_json {
   use crate::client_api_framework::{
     data_format::JsonResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
   };
+  use alloc::vec::Vec;
   use core::fmt::Display;
   use serde::de::Deserializer;
 
@@ -130,6 +132,7 @@ mod serde_json {
 #[cfg(feature = "simd-json")]
 mod simd_json {
   use crate::client_api_framework::{data_format::JsonResponse, dnsn::SimdJson};
+  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<D> crate::client_api_framework::dnsn::Deserialize<SimdJson> for JsonResponse<D>

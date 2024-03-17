@@ -118,6 +118,7 @@ mod serde_json {
   use crate::client_api_framework::{
     data_format::GraphQlResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
   };
+  use alloc::vec::Vec;
   use core::fmt::Display;
   use serde::de::Deserializer;
 
@@ -165,6 +166,7 @@ mod serde_json {
 #[cfg(feature = "simd-json")]
 mod simd_json {
   use crate::client_api_framework::{data_format::GraphQlResponse, dnsn::SimdJson};
+  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<D, E> crate::client_api_framework::dnsn::Deserialize<SimdJson> for GraphQlResponse<D, E>

@@ -1,16 +1,18 @@
-use crate::database::{
-  schema_manager::{
-    migration::MigrationCommon,
-    misc::{calc_checksum, is_sorted_and_unique},
-    Repeatability,
+use crate::{
+  database::{
+    schema_manager::{
+      migration::MigrationCommon,
+      misc::{calc_checksum, is_sorted_and_unique},
+      Repeatability,
+    },
+    DatabaseTy,
   },
-  DatabaseTy,
+  misc::ArrayVector,
 };
 use alloc::string::String;
-use arrayvec::ArrayVec;
 
 /// UserMigration - Owned
-pub type UserMigrationOwned = UserMigration<ArrayVec<DatabaseTy, { DatabaseTy::len() }>, String>;
+pub type UserMigrationOwned = UserMigration<ArrayVector<DatabaseTy, { DatabaseTy::len() }>, String>;
 /// UserMigration - Reference
 pub type UserMigrationRef<'dbs, 'str> = UserMigration<&'dbs [DatabaseTy], &'str str>;
 

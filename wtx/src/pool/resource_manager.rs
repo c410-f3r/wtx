@@ -2,27 +2,39 @@ use core::future::Future;
 
 /// Manager of a specific pool resource.
 pub trait ResourceManager {
+  /// Auxiliary data used by the [Self::get] method.
+  type CreateAux;
   /// Any custom error.
   type Error;
+  /// Auxiliary data used by the [Self::recycle] method.
+  type RecycleAux;
   /// Any pool resource.
   type Resource;
 
   /// Creates a new resource instance based on the contents of this manager.
-  fn create(&self) -> impl Future<Output = Result<Self::Resource, Self::Error>>;
+  fn create(
+    &self,
+    aux: &Self::CreateAux,
+  ) -> impl Future<Output = Result<Self::Resource, Self::Error>>;
 
   /// If a resource is in an invalid state.
   fn is_invalid(&self, resource: &Self::Resource) -> bool;
 
   /// Re-creates a new valid instance. Should be called if `resource` is invalid.
-  fn recycle(&self, resource: &mut Self::Resource)
-    -> impl Future<Output = Result<(), Self::Error>>;
+  fn recycle(
+    &self,
+    aux: &Self::RecycleAux,
+    resource: &mut Self::Resource,
+  ) -> impl Future<Output = Result<(), Self::Error>>;
 }
 
 impl ResourceManager for () {
+  type CreateAux = ();
   type Error = crate::Error;
+  type RecycleAux = ();
   type Resource = ();
 
-  async fn create(&self) -> Result<Self::Resource, Self::Error> {
+  async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
     Ok(())
   }
 
@@ -30,7 +42,7 @@ impl ResourceManager for () {
     false
   }
 
-  async fn recycle(&self, _: &mut Self::Resource) -> Result<(), Self::Error> {
+  async fn recycle(&self, _: &Self::RecycleAux, _: &mut Self::Resource) -> Result<(), Self::Error> {
     Ok(())
   }
 }
@@ -56,11 +68,13 @@ impl<E, I, R> ResourceManager for SimpleRM<E, I, R>
 where
   E: From<crate::Error>,
 {
+  type CreateAux = ();
   type Error = E;
+  type RecycleAux = ();
   type Resource = R;
 
   #[inline]
-  async fn create(&self) -> Result<Self::Resource, Self::Error> {
+  async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
     (self.cb)(&self.input)
   }
 
@@ -70,7 +84,7 @@ where
   }
 
   #[inline]
-  async fn recycle(&self, _: &mut Self::Resource) -> Result<(), Self::Error> {
+  async fn recycle(&self, _: &Self::RecycleAux, _: &mut Self::Resource) -> Result<(), Self::Error> {
     Ok(())
   }
 }
@@ -79,7 +93,7 @@ where
 pub(crate) mod database {
   use crate::{
     database::client::postgres::{Executor, ExecutorBuffer},
-    pool_manager::ResourceManager,
+    pool::ResourceManager,
   };
   use core::{future::Future, mem};
 
@@ -100,11 +114,13 @@ pub(crate) mod database {
     E: From<crate::Error>,
     RF: Future<Output = Result<Executor<E, ExecutorBuffer, S>, E>>,
   {
+    type CreateAux = ();
     type Error = E;
+    type RecycleAux = ();
     type Resource = (O, Executor<E, ExecutorBuffer, S>);
 
     #[inline]
-    async fn create(&self) -> Result<Self::Resource, Self::Error> {
+    async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       (self.cb)(&self.input).await
     }
 
@@ -114,7 +130,11 @@ pub(crate) mod database {
     }
 
     #[inline]
-    async fn recycle(&self, resource: &mut Self::Resource) -> Result<(), Self::Error> {
+    async fn recycle(
+      &self,
+      _: &Self::RecycleAux,
+      resource: &mut Self::Resource,
+    ) -> Result<(), Self::Error> {
       let mut persistent = ExecutorBuffer::_empty();
       mem::swap(&mut persistent, &mut resource.1.eb);
       resource.1 = (self.rc)(&self.input, persistent).await?;
@@ -126,7 +146,7 @@ pub(crate) mod database {
 #[cfg(feature = "web-socket")]
 pub(crate) mod web_socket {
   use crate::{
-    pool_manager::SimpleRM,
+    pool::SimpleRM,
     web_socket::{FrameBufferVec, WebSocketBuffer},
   };
 

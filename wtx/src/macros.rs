@@ -134,9 +134,10 @@ macro_rules! _internal_doc {
 }
 
 macro_rules! _iter4 {
-  ($slice:expr, |$elem:ident| $block:block) => {{
+  ($slice:expr, $init:block, |$elem:ident| $block:block) => {{
     let mut iter = crate::misc::ArrayChunks::_new($slice);
     for [a, b, c, d] in iter.by_ref() {
+      $init
       let $elem = a;
       $block;
       let $elem = b;
@@ -154,9 +155,10 @@ macro_rules! _iter4 {
 }
 
 macro_rules! _iter4_mut {
-  ($slice:expr, |$elem:ident| $block:block) => {{
+  ($slice:expr, $init:block, |$elem:ident| $block:block) => {{
     let mut iter = crate::misc::ArrayChunksMut::_new($slice);
     for [a, b, c, d] in iter.by_ref() {
+      $init
       let $elem = a;
       $block;
       let $elem = b;

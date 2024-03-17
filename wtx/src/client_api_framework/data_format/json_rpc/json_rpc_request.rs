@@ -2,7 +2,7 @@ use crate::client_api_framework::{dnsn::Serialize, Id};
 use alloc::vec::Vec;
 use core::{
   borrow::Borrow,
-  cmp::{Ord, Ordering},
+  cmp::Ordering,
   hash::{Hash, Hasher},
 };
 
@@ -95,6 +95,7 @@ mod serde {
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::client_api_framework::{data_format::JsonRpcRequest, dnsn::SerdeJson};
+  use alloc::vec::Vec;
 
   impl<P> crate::client_api_framework::dnsn::Serialize<SerdeJson> for JsonRpcRequest<P>
   where
@@ -111,6 +112,7 @@ mod serde_json {
 #[cfg(feature = "simd-json")]
 mod simd_json {
   use crate::client_api_framework::{data_format::JsonRpcRequest, dnsn::SimdJson};
+  use alloc::vec::Vec;
 
   impl<P> crate::client_api_framework::dnsn::Serialize<SimdJson> for JsonRpcRequest<P>
   where

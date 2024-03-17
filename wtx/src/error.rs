@@ -31,6 +31,7 @@ pub enum Error {
   #[cfg(feature = "arrayvec")]
   ArrayVec(arrayvec::CapacityError<()>),
   AtoiInvalidBytes,
+  CapacityOverflow,
   #[cfg(feature = "chrono")]
   ChronoParseError(chrono::ParseError),
   #[cfg(feature = "cl-aux")]
@@ -53,6 +54,8 @@ pub enum Error {
   Glommio(Box<glommio::GlommioError<()>>),
   #[cfg(feature = "httparse")]
   HttpParse(httparse::Error),
+  #[cfg(feature = "http2")]
+  Http2ErrorCode(crate::http2::ErrorCode),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
   #[cfg(feature = "miniserde")]
@@ -61,8 +64,7 @@ pub enum Error {
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "protobuf")]
   Protobuf(protobuf::Error),
-  #[cfg(feature = "reqwest")]
-  Reqwest(reqwest::Error),
+  #[cfg(feature = "rkyv")]
   RkyvDer(&'static str),
   #[cfg(feature = "rkyv")]
   RkyvSer(Box<RkyvSer>),
@@ -74,6 +76,10 @@ pub enum Error {
   SerdeYaml(serde_yaml::Error),
   #[cfg(feature = "simd-json")]
   SimdJson(Box<simd_json::Error>),
+  #[cfg(feature = "smoltcp")]
+  SmoltcpTcpRecvError(smoltcp::socket::tcp::RecvError),
+  #[cfg(feature = "smoltcp")]
+  SmoltcpTcpSendError(smoltcp::socket::tcp::SendError),
   #[cfg(feature = "embedded-tls")]
   TlsError(embedded_tls::TlsError),
   #[cfg(feature = "tokio-rustls")]
@@ -133,7 +139,7 @@ pub enum Error {
   // ***** Internal - Database client *****
   //
   /// A "null" field received from the database was decoded as a non-nullable type or value.
-  AbsentFieldDataInDecoding,
+  MissingFieldDataInDecoding,
   /// Not-A-Number is not supported
   DecimalCanNotBeConvertedFromNaN,
   /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
@@ -261,6 +267,10 @@ pub enum Error {
 
   // ***** Internal - HTTP *****
   //
+  /// The length of a header field must be within a threshold.
+  HeaderFieldIsTooLarge,
+  /// Received Response does not contain a status code field
+  MissingResponseStatusCode,
   /// Unknown header name.
   UnknownHeaderName,
 
@@ -276,11 +286,18 @@ pub enum Error {
   VeryLargeHeaderInteger,
   /// Size updates of dynamic table can't be placed after the first header
   InvalidDynTableSizeUpdate,
-
-  // ***** Internal - PM *****
-  //
-  /// Zero fixed pools are unsupported
-  StaticPoolMustHaveCapacityForAtLeastOneElement,
+  /// Length of a header name or value is limited to 127 bytes.
+  UnsupportedHeaderNameOrValueLen,
+  /// Type is out of range or unsupported.
+  UnknownSettingFrameTy,
+  /// Settings frame identifier is not zero
+  UnexpectedSettingsIdentifier,
+  /// Counter-part did not return the correct bytes of a HTTP2 connection preface
+  NoPreface,
+  /// Frames can not be greater than
+  VeryLargeFrame,
+  /// Endpoint didn't send an ACK response
+  NoAckSettings,
 
   // ***** Internal - WebSocket *****
   //
@@ -451,6 +468,14 @@ impl From<httparse::Error> for Error {
   }
 }
 
+#[cfg(feature = "http2")]
+impl From<crate::http2::ErrorCode> for Error {
+  #[inline]
+  fn from(from: crate::http2::ErrorCode) -> Self {
+    Self::Http2ErrorCode(from)
+  }
+}
+
 #[cfg(feature = "std")]
 impl From<std::io::Error> for Error {
   #[inline]
@@ -509,14 +534,6 @@ impl From<protobuf::Error> for Error {
   }
 }
 
-#[cfg(feature = "reqwest")]
-impl From<reqwest::Error> for Error {
-  #[inline]
-  fn from(from: reqwest::Error) -> Self {
-    Self::Reqwest(from)
-  }
-}
-
 #[cfg(feature = "rkyv")]
 impl From<&'static str> for Error {
   #[inline]
@@ -562,6 +579,22 @@ impl From<simd_json::Error> for Error {
   #[inline]
   fn from(from: simd_json::Error) -> Self {
     Self::SimdJson(from.into())
+  }
+}
+
+#[cfg(feature = "smoltcp")]
+impl From<smoltcp::socket::tcp::RecvError> for Error {
+  #[inline]
+  fn from(from: smoltcp::socket::tcp::RecvError) -> Self {
+    Self::SmoltcpTcpRecvError(from)
+  }
+}
+
+#[cfg(feature = "smoltcp")]
+impl From<smoltcp::socket::tcp::SendError> for Error {
+  #[inline]
+  fn from(from: smoltcp::socket::tcp::SendError) -> Self {
+    Self::SmoltcpTcpSendError(from)
   }
 }
 

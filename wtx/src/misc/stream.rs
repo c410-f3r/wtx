@@ -8,8 +8,18 @@ pub trait Stream {
   /// were read.
   fn read(&mut self, bytes: &mut [u8]) -> impl AsyncBounds + Future<Output = crate::Result<usize>>;
 
-  /// Attempts to write all elements of `bytes`.
-  fn write_all(&mut self, bytes: &[u8]) -> impl AsyncBounds + Future<Output = crate::Result<()>>;
+  /// Attempts to write ***all*** `bytes`.
+  fn write(&mut self, bytes: &[u8]) -> impl AsyncBounds + Future<Output = crate::Result<()>>;
+
+  /// Attempts to write ***all*** `bytes` of all slices in a single syscall.
+  ///
+  /// # Panics
+  ///
+  /// If the length of the outermost slice is greater than 8.
+  fn write_vectored(
+    &mut self,
+    bytes: &[&[u8]],
+  ) -> impl AsyncBounds + Future<Output = crate::Result<()>>;
 }
 
 /// Transport Layer Security
@@ -30,7 +40,12 @@ impl Stream for () {
   }
 
   #[inline]
-  async fn write_all(&mut self, _: &[u8]) -> crate::Result<()> {
+  async fn write(&mut self, _: &[u8]) -> crate::Result<()> {
+    Ok(())
+  }
+
+  #[inline]
+  async fn write_vectored(&mut self, _: &[&[u8]]) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -45,8 +60,13 @@ where
   }
 
   #[inline]
-  async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-    (**self).write_all(bytes).await
+  async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    (**self).write(bytes).await
+  }
+
+  #[inline]
+  async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+    (**self).write_vectored(bytes).await
   }
 }
 
@@ -91,8 +111,16 @@ impl Stream for BytesStream {
   }
 
   #[inline]
-  async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+  async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
     self.buffer.extend_from_slice(bytes);
+    Ok(())
+  }
+
+  #[inline]
+  async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+    for elem in bytes {
+      self.buffer.extend_from_slice(elem);
+    }
     Ok(())
   }
 }
@@ -112,8 +140,18 @@ mod async_std {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as WriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as WriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
       Ok(())
     }
   }
@@ -126,8 +164,18 @@ mod async_std {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as WriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as WriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
       Ok(())
     }
   }
@@ -145,14 +193,21 @@ mod embassy_net {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-      let mut buf = bytes;
-      while !buf.is_empty() {
-        match self.write(buf).await {
+    async fn write(&mut self, mut bytes: &[u8]) -> crate::Result<()> {
+      while !bytes.is_empty() {
+        match Self::write(self, bytes).await {
           Ok(0) => return Err(crate::Error::UnexpectedEOF),
-          Ok(n) => buf = buf.get(n..).unwrap_or_default(),
+          Ok(n) => bytes = bytes.get(n..).unwrap_or_default(),
           Err(e) => return Err(e.into()),
         }
+      }
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      for elem in bytes {
+        self.write(elem).await?;
       }
       Ok(())
     }
@@ -176,9 +231,17 @@ mod embedded_tls {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as Write>::write_all(self, bytes).await?;
       self.flush().await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      for elem in bytes {
+        self.write(elem).await?;
+      }
       Ok(())
     }
   }
@@ -210,8 +273,16 @@ mod glommio {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      for elem in bytes {
+        <Self as Stream>::write(self, elem).await?;
+      }
       Ok(())
     }
   }
@@ -224,8 +295,16 @@ mod glommio {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      for elem in bytes {
+        <Self as Stream>::write(self, elem).await?;
+      }
       Ok(())
     }
   }
@@ -246,8 +325,18 @@ mod smol {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as AsyncWriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
       Ok(())
     }
   }
@@ -260,8 +349,45 @@ mod smol {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as AsyncWriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
+      Ok(())
+    }
+  }
+}
+
+#[cfg(feature = "smoltcp")]
+mod smoltcp {
+  use crate::misc::Stream;
+  use smoltcp::socket::tcp::Socket;
+
+  impl Stream for Socket<'_> {
+    #[inline]
+    async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
+      Ok(self.recv_slice(bytes)?)
+    }
+
+    #[inline]
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
+      self.send_slice(bytes)?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      for elem in bytes {
+        self.write(elem).await?;
+      }
       Ok(())
     }
   }
@@ -282,8 +408,17 @@ mod std {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as Write>::write_all(self, bytes)?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as Write>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )?;
       Ok(())
     }
   }
@@ -296,8 +431,17 @@ mod std {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as Write>::write_all(self, bytes)?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as Write>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )?;
       Ok(())
     }
   }
@@ -318,8 +462,18 @@ mod tokio {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as AsyncWriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
       Ok(())
     }
   }
@@ -332,8 +486,18 @@ mod tokio {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as AsyncWriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
       Ok(())
     }
   }
@@ -355,8 +519,18 @@ mod tokio_rustls {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as AsyncWriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
       Ok(())
     }
   }
@@ -412,8 +586,18 @@ mod tokio_rustls {
     }
 
     #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+    async fn write(&mut self, bytes: &[u8]) -> crate::Result<()> {
       <Self as AsyncWriteExt>::write_all(self, bytes).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
+      <Self as AsyncWriteExt>::write_vectored(
+        self,
+        super::manage_write_vectored(&mut super::io_slices(), bytes),
+      )
+      .await?;
       Ok(())
     }
   }
@@ -432,5 +616,94 @@ mod tokio_rustls {
         _ => None,
       })
     }
+  }
+}
+
+#[cfg(feature = "std")]
+#[inline]
+fn io_slices<'bytes>() -> [::std::io::IoSlice<'bytes>; 8] {
+  use ::std::io::IoSlice;
+  [
+    IoSlice::new(&[]),
+    IoSlice::new(&[]),
+    IoSlice::new(&[]),
+    IoSlice::new(&[]),
+    IoSlice::new(&[]),
+    IoSlice::new(&[]),
+    IoSlice::new(&[]),
+    IoSlice::new(&[]),
+  ]
+}
+
+#[cfg(feature = "std")]
+#[inline]
+fn manage_write_vectored<'buffer, 'bytes>(
+  buffer: &'buffer mut [::std::io::IoSlice<'bytes>; 8],
+  elems: &[&'bytes [u8]],
+) -> &'buffer [::std::io::IoSlice<'bytes>] {
+  use ::std::io::IoSlice;
+  match elems {
+    &[] => &[],
+    &[a] => {
+      buffer[0] = IoSlice::new(a);
+      &buffer[..1]
+    }
+    &[a, b] => {
+      buffer[0] = IoSlice::new(a);
+      buffer[1] = IoSlice::new(b);
+      &buffer[..2]
+    }
+    &[a, b, c] => {
+      buffer[0] = IoSlice::new(a);
+      buffer[1] = IoSlice::new(b);
+      buffer[2] = IoSlice::new(c);
+      &buffer[..3]
+    }
+    &[a, b, c, d] => {
+      buffer[0] = IoSlice::new(a);
+      buffer[1] = IoSlice::new(b);
+      buffer[2] = IoSlice::new(c);
+      buffer[3] = IoSlice::new(d);
+      &buffer[..4]
+    }
+    &[a, b, c, d, e] => {
+      buffer[0] = IoSlice::new(a);
+      buffer[1] = IoSlice::new(b);
+      buffer[2] = IoSlice::new(c);
+      buffer[3] = IoSlice::new(d);
+      buffer[4] = IoSlice::new(e);
+      &buffer[..5]
+    }
+    &[a, b, c, d, e, f] => {
+      buffer[0] = IoSlice::new(a);
+      buffer[1] = IoSlice::new(b);
+      buffer[2] = IoSlice::new(c);
+      buffer[3] = IoSlice::new(d);
+      buffer[4] = IoSlice::new(e);
+      buffer[5] = IoSlice::new(f);
+      &buffer[..6]
+    }
+    &[a, b, c, d, e, f, g] => {
+      buffer[0] = IoSlice::new(a);
+      buffer[1] = IoSlice::new(b);
+      buffer[2] = IoSlice::new(c);
+      buffer[3] = IoSlice::new(d);
+      buffer[4] = IoSlice::new(e);
+      buffer[5] = IoSlice::new(f);
+      buffer[6] = IoSlice::new(g);
+      &buffer[..7]
+    }
+    &[a, b, c, d, e, f, g, h] => {
+      buffer[0] = IoSlice::new(a);
+      buffer[1] = IoSlice::new(b);
+      buffer[2] = IoSlice::new(c);
+      buffer[3] = IoSlice::new(d);
+      buffer[4] = IoSlice::new(e);
+      buffer[5] = IoSlice::new(f);
+      buffer[6] = IoSlice::new(g);
+      buffer[7] = IoSlice::new(h);
+      &buffer[..8]
+    }
+    _ => crate::misc::_unreachable(),
   }
 }

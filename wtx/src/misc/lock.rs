@@ -1,4 +1,4 @@
-use crate::pool_manager::LockGuard;
+use crate::misc::LockGuard;
 use core::{
   cell::{RefCell, RefMut},
   future::{poll_fn, Future},
@@ -46,7 +46,7 @@ impl<T> Lock<T> for RefCell<T> {
 
 #[cfg(feature = "tokio")]
 mod tokio {
-  use crate::pool_manager::Lock;
+  use crate::misc::Lock;
   use tokio::sync::{Mutex, MutexGuard};
 
   impl<T> Lock<T> for Mutex<T> {

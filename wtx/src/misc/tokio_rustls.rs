@@ -1,3 +1,4 @@
+use alloc::{boxed::Box, string::String, vec::Vec};
 use rustls_pki_types::ServerName;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
@@ -73,7 +74,7 @@ impl TokioRustlsConnector {
   }
 
   fn server_name(hostname: &str) -> crate::Result<ServerName<'static>> {
-    Ok(ServerName::try_from(hostname.to_string()).map_err(invalid_input_err)?)
+    Ok(ServerName::try_from(String::from(hostname)).map_err(invalid_input_err)?)
   }
 
   fn tls_connector(self) -> TlsConnector {

@@ -1,4 +1,8 @@
-use alloc::vec::Vec;
+use core::cell::RefCell;
+
+use alloc::{rc::Rc, sync::Arc, vec::Vec};
+
+use crate::misc::ArrayVector;
 
 /// Internal trait not intended for public usage
 pub trait SingleTypeStorage {
@@ -38,11 +42,28 @@ impl<T> SingleTypeStorage for &'_ [T] {
 impl<T> SingleTypeStorage for &'_ mut [T] {
   type Item = T;
 }
+
+impl<T> SingleTypeStorage for Arc<T> {
+  type Item = T;
+}
+
+impl<T> SingleTypeStorage for RefCell<T> {
+  type Item = T;
+}
+
+impl<T> SingleTypeStorage for Rc<T> {
+  type Item = T;
+}
+
 impl<T> SingleTypeStorage for Vec<T> {
   type Item = T;
 }
 
-#[cfg(feature = "arrayvec")]
-impl<T, const N: usize> SingleTypeStorage for arrayvec::ArrayVec<T, N> {
+impl<T, const N: usize> SingleTypeStorage for ArrayVector<T, N> {
+  type Item = T;
+}
+
+#[cfg(feature = "tokio")]
+impl<T> SingleTypeStorage for tokio::sync::Mutex<T> {
   type Item = T;
 }

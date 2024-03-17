@@ -5,7 +5,7 @@ mod common;
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use wtx::{
-  misc::{TokioRustlsConnector, UriRef},
+  misc::{TokioRustlsConnector, UriString},
   rng::StdRng,
   web_socket::{
     handshake::{WebSocketConnect, WebSocketConnectRaw},
@@ -16,8 +16,7 @@ use wtx::{
 #[tokio::main]
 async fn main() {
   let fb = &mut FrameBufferVec::default();
-  let uri = common::_uri_from_args();
-  let uri = UriRef::new(uri.as_str());
+  let uri = UriString::new(common::_uri_from_args());
   let (_, mut ws) = WebSocketConnectRaw {
     compression: (),
     fb,
@@ -29,7 +28,7 @@ async fn main() {
       .with_tcp_stream(uri.host().parse().unwrap(), uri.hostname())
       .await
       .unwrap(),
-    uri: &uri,
+    uri: &uri.to_ref(),
     wsb: WebSocketBuffer::default(),
   }
   .connect([])

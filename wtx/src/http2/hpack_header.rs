@@ -1,4 +1,4 @@
-use crate::http::{Method, StatusCode};
+use crate::http::{Method, Protocol, StatusCode};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HpackHeaderBasic {
@@ -6,7 +6,7 @@ pub enum HpackHeaderBasic {
   Field,
   Method(Method),
   Path,
-  Protocol,
+  Protocol(Protocol),
   Scheme,
   Status(StatusCode),
 }
@@ -18,7 +18,7 @@ impl HpackHeaderBasic {
       HpackHeaderBasic::Field => name.len().wrapping_add(value.len()).wrapping_add(32),
       HpackHeaderBasic::Method(_) => 6usize.wrapping_add(value.len()).wrapping_add(32),
       HpackHeaderBasic::Path => 5usize.wrapping_add(value.len()).wrapping_add(32),
-      HpackHeaderBasic::Protocol => 9usize.wrapping_add(value.len()).wrapping_add(32),
+      HpackHeaderBasic::Protocol(_) => 9usize.wrapping_add(value.len()).wrapping_add(32),
       HpackHeaderBasic::Scheme => 7usize.wrapping_add(value.len()).wrapping_add(32),
       HpackHeaderBasic::Status(_) => 7usize.wrapping_add(3).wrapping_add(32),
     }
@@ -30,7 +30,7 @@ impl HpackHeaderBasic {
       HpackHeaderBasic::Field => name,
       HpackHeaderBasic::Method(_) => b":method",
       HpackHeaderBasic::Path => b":path",
-      HpackHeaderBasic::Protocol => b":protocol",
+      HpackHeaderBasic::Protocol(_) => b":protocol",
       HpackHeaderBasic::Scheme => b":scheme",
       HpackHeaderBasic::Status(_) => b":status",
     }
@@ -47,7 +47,7 @@ impl TryFrom<(HpackHeaderName, &[u8])> for HpackHeaderBasic {
       HpackHeaderName::Field => HpackHeaderBasic::Field,
       HpackHeaderName::Method => HpackHeaderBasic::Method(from.1.try_into()?),
       HpackHeaderName::Path => HpackHeaderBasic::Path,
-      HpackHeaderName::Protocol => HpackHeaderBasic::Protocol,
+      HpackHeaderName::Protocol => HpackHeaderBasic::Protocol(from.1.try_into()?),
       HpackHeaderName::Scheme => HpackHeaderBasic::Scheme,
       HpackHeaderName::Status => HpackHeaderBasic::Status(from.1.try_into()?),
     })

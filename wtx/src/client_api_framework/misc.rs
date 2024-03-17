@@ -21,7 +21,7 @@ pub use request_limit::RequestLimit;
 pub use request_throttling::RequestThrottling;
 
 /// Used in all implementations of [crate::Transport::send] and/or
-/// [crate::Transport::send_and_receive`].
+/// [crate::Transport::send_recv`].
 #[allow(
   // Borrow checker woes
   clippy::needless_pass_by_value,
@@ -35,20 +35,21 @@ pub(crate) fn log_req<A, DRSR, P, T>(
   P: Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
 {
+  #[cfg(feature = "tracing")]
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
     use crate::client_api_framework::dnsn::Serialize;
     let mut vec = alloc::vec::Vec::new();
     _pgk
       .ext_req_content_mut()
       .to_bytes(&mut vec, &mut _pkgs_aux.drsr)
-      .and_then(|_| Ok(crate::misc::from_utf8_basic(&vec)?.to_string()))
+      .and_then(|_| Ok(alloc::string::String::from(crate::misc::from_utf8_basic(&vec)?)))
   });
 }
 
-/// Used in [crate::network::transport::Transport::send_retrieve_and_decode_contained] and all implementations of
+/// Used in [crate::network::transport::Transport::send_recv_decode_contained] and all implementations of
 /// [crate::Requests::decode_responses].
 ///
-/// Not used in [crate::network::transport::Transport::send_retrieve_and_decode_batch] because
+/// Not used in [crate::network::transport::Transport::send_recv_decode_batch] because
 /// [crate::Requests::decode_responses] takes precedence.
 pub(crate) fn log_res(_res: &[u8]) {
   _debug!("Response: {:?}", crate::misc::from_utf8_basic(_res));

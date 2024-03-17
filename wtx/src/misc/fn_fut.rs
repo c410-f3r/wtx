@@ -19,3 +19,17 @@ where
 {
   type Future = FUT;
 }
+
+/// Like [FnMutFut] but for [FnOnce].
+pub trait FnOnceFut<P, R>: FnOnce(P) -> Self::Future {
+  /// Returning future.
+  type Future: Future<Output = R>;
+}
+
+impl<P, F, FUT, R> FnOnceFut<P, R> for F
+where
+  F: FnOnce(P) -> FUT,
+  FUT: Future<Output = R>,
+{
+  type Future = FUT;
+}

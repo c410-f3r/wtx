@@ -89,10 +89,7 @@ macro_rules! _create_dnsn_test {
         trans.push_response($raw_der);
         assert_eq!(
           trans
-            .send_retrieve_and_decode_contained(
-              &mut FooBar::<_, $res<Bar>>::_new($fmt_ser),
-              pkgs_aux
-            )
+            .send_recv_decode_contained(&mut FooBar::<_, $res<Bar>>::_new($fmt_ser), pkgs_aux)
             .await
             .unwrap(),
           $fmt_der

@@ -20,7 +20,7 @@ where
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut fbw = FilledBufferWriter::from(&mut self.eb.borrow_mut().nb);
     query(cmd.as_bytes(), &mut fbw)?;
-    self.stream.write_all(fbw._curr_bytes()).await?;
+    self.stream.write(fbw._curr_bytes()).await?;
     loop {
       let msg = Self::fetch_msg_from_stream(
         &mut self.is_closed,

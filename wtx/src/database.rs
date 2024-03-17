@@ -36,7 +36,7 @@ pub const DEFAULT_URI_VAR: &str = "DATABASE_URI";
 
 /// The maximum number of characters that a database identifier can have. For example, tables,
 /// procedures, triggers, etc.
-pub type Identifier = arrayvec::ArrayString<64>;
+pub type Identifier = crate::misc::ArrayString<64>;
 /// Used by some operations to identify different tables
 pub type TableSuffix = u32;
 

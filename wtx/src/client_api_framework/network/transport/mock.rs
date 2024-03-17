@@ -32,7 +32,7 @@ pub type MockStr = Mock<str>;
 ///   pkg::PkgsAux,
 /// };
 /// let _ = MockStr::default()
-///   .send_retrieve_and_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ()))
+///   .send_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ()))
 ///   .await?;
 /// # Ok(()) }
 /// ```
@@ -112,7 +112,7 @@ where
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, ()>,

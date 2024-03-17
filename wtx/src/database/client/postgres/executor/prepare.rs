@@ -12,9 +12,8 @@ use crate::{
     },
     RecordValues, StmtCmd,
   },
-  misc::{FilledBufferWriter, PartitionedFilledBuffer, Stream, _unreachable},
+  misc::{ArrayString, FilledBufferWriter, PartitionedFilledBuffer, Stream, _unreachable},
 };
-use arrayvec::ArrayString;
 use core::{borrow::BorrowMut, ops::Range};
 
 impl<E, EB, S> Executor<E, EB, S>
@@ -37,7 +36,7 @@ where
     bind(&mut fbw, "", rv, stmt, stmt_id_str)?;
     execute(&mut fbw, 0, "")?;
     sync(&mut fbw)?;
-    fwsc.stream.write_all(fbw._curr_bytes()).await?;
+    fwsc.stream.write(fbw._curr_bytes()).await?;
     let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
     let MessageTy::BindComplete = msg.ty else {
       return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag }.into());
@@ -67,7 +66,7 @@ where
     parse(stmt_cmd, &mut fbw, fwsc.tys.iter().map(Into::into), &stmt_id_str)?;
     describe(&stmt_id_str, &mut fbw, b'S')?;
     sync(&mut fbw)?;
-    fwsc.stream.write_all(fbw._curr_bytes()).await?;
+    fwsc.stream.write(fbw._curr_bytes()).await?;
 
     let msg0 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
     let MessageTy::ParseComplete = msg0.ty else {

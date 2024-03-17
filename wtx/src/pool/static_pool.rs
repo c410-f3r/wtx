@@ -1,8 +1,7 @@
 use crate::{
-  misc::{PollOnce, _unreachable},
-  pool_manager::{Lock, LockGuard, Pool, ResourceManager},
+  misc::{Lock, LockGuard, PollOnce, _unreachable},
+  pool::{Pool, ResourceManager},
 };
-use alloc::collections::VecDeque;
 use core::{
   array,
   cell::RefCell,
@@ -20,7 +19,8 @@ pub type StaticPoolTokioMutex<R, RM, const N: usize> =
 /// Fixed-size pool that does not require the use of reference-counters. On the other hand, all
 /// elements of the pool **must** be of type `Option<T>` to lazily evaluate resources.
 ///
-/// If stack memory becomes a problem, try heap allocation.
+/// Useful when a more fine-grained control over resources is not necessary. If stack memory
+/// becomes a problem, try heap allocation.
 #[derive(Debug)]
 pub struct StaticPool<RL, RM, const N: usize> {
   idx: AtomicUsize,
@@ -32,11 +32,16 @@ impl<R, RL, RM, const N: usize> StaticPool<RL, RM, N>
 where
   RL: Lock<Option<R>>,
   RM: ResourceManager<Resource = R>,
+  for<'any> R: 'any,
 {
   /// Sometimes it is desired to eagerly initialize all instances.
-  pub async fn init_all(&self) -> Result<(), RM::Error> {
+  pub async fn init_all<'this>(
+    &'this self,
+    ca: &RM::CreateAux,
+    ra: &RM::RecycleAux,
+  ) -> Result<(), RM::Error> {
     for _ in 0..N {
-      let _guard = self.get().await?;
+      let _guard = self.get(ca, ra).await?;
     }
     Ok(())
   }
@@ -46,29 +51,27 @@ impl<R, RL, RM, const N: usize> Pool for StaticPool<RL, RM, N>
 where
   RL: Lock<Option<R>>,
   RM: ResourceManager<Resource = R>,
+  for<'any> R: 'any,
 {
   type Guard<'lock> = <RL::Guard<'lock> as LockGuard<'lock, Option<R>>>::Mapped<R>
   where
-    <Self::ResourceManager as ResourceManager>::Resource: 'lock,
     Self: 'lock;
-
   type ResourceManager = RM;
 
   #[inline]
-  fn new(rm: RM) -> crate::Result<Self> {
+  fn new(rm: RM) -> Self {
     if N == 0 {
-      return Err(crate::Error::StaticPoolMustHaveCapacityForAtLeastOneElement);
+      panic!("Static pools need to contain at least one element");
     }
-    let mut available = VecDeque::new();
-    available.extend(0..N);
-    Ok(Self { idx: AtomicUsize::new(0), locks: array::from_fn(|_| RL::new(None)), rm })
+    Self { idx: AtomicUsize::new(0), locks: array::from_fn(|_| RL::new(None)), rm }
   }
 
   #[inline]
-  async fn get<'this>(&'this self) -> Result<Self::Guard<'this>, RM::Error>
-  where
-    <Self::ResourceManager as ResourceManager>::Resource: 'this,
-  {
+  async fn get(
+    &self,
+    ca: &<Self::ResourceManager as ResourceManager>::CreateAux,
+    ra: &<Self::ResourceManager as ResourceManager>::RecycleAux,
+  ) -> Result<Self::Guard<'_>, RM::Error> {
     loop {
       #[allow(
         // `N` will never be zero
@@ -82,10 +85,10 @@ where
       if let Some(mut guard) = PollOnce(pin!(lock.lock())).await {
         match &mut *guard {
           None => {
-            *guard = Some(self.rm.create().await?);
+            *guard = Some(self.rm.create(ca).await?);
           }
           Some(resource) if self.rm.is_invalid(resource) => {
-            self.rm.recycle(resource).await?;
+            self.rm.recycle(ra, resource).await?;
           }
           _ => {}
         }
@@ -100,36 +103,36 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::pool_manager::{static_pool::StaticPoolRefCell, Pool, SimpleRM};
+  use crate::pool::{static_pool::StaticPoolRefCell, Pool, SimpleRM};
 
   #[tokio::test]
   async fn modifies_elements() {
     let pool = pool();
-    assert_eq!([*pool.get().await.unwrap(), *pool.get().await.unwrap()], [0, 0]);
-    *pool.get().await.unwrap() = 1;
-    *pool.get().await.unwrap() = 2;
-    assert_eq!([*pool.get().await.unwrap(), *pool.get().await.unwrap()], [1, 2]);
-    *pool.get().await.unwrap() = 3;
-    assert_eq!([*pool.get().await.unwrap(), *pool.get().await.unwrap()], [2, 3]);
+    assert_eq!([*pool.get(&(), &()).await.unwrap(), *pool.get(&(), &()).await.unwrap()], [0, 0]);
+    *pool.get(&(), &()).await.unwrap() = 1;
+    *pool.get(&(), &()).await.unwrap() = 2;
+    assert_eq!([*pool.get(&(), &()).await.unwrap(), *pool.get(&(), &()).await.unwrap()], [1, 2]);
+    *pool.get(&(), &()).await.unwrap() = 3;
+    assert_eq!([*pool.get(&(), &()).await.unwrap(), *pool.get(&(), &()).await.unwrap()], [2, 3]);
   }
 
   #[tokio::test]
   async fn held_lock_is_not_modified() {
     let pool = pool();
-    let lock = pool.get().await.unwrap();
-    *pool.get().await.unwrap() = 1;
-    assert_eq!([*lock, *pool.get().await.unwrap()], [0, 1]);
-    *pool.get().await.unwrap() = 2;
-    assert_eq!([*lock, *pool.get().await.unwrap()], [0, 2]);
+    let lock = pool.get(&(), &()).await.unwrap();
+    *pool.get(&(), &()).await.unwrap() = 1;
+    assert_eq!([*lock, *pool.get(&(), &()).await.unwrap()], [0, 1]);
+    *pool.get(&(), &()).await.unwrap() = 2;
+    assert_eq!([*lock, *pool.get(&(), &()).await.unwrap()], [0, 2]);
     drop(lock);
-    *pool.get().await.unwrap() = 1;
-    assert_eq!([*pool.get().await.unwrap(), *pool.get().await.unwrap()], [2, 1]);
+    *pool.get(&(), &()).await.unwrap() = 1;
+    assert_eq!([*pool.get(&(), &()).await.unwrap(), *pool.get(&(), &()).await.unwrap()], [2, 1]);
   }
 
   fn pool() -> StaticPoolRefCell<i32, SimpleRM<crate::Error, (), i32>, 2> {
     fn cb(_: &()) -> crate::Result<i32> {
       Ok(0)
     }
-    StaticPoolRefCell::new(SimpleRM::new(cb, ())).unwrap()
+    StaticPoolRefCell::new(SimpleRM::new(cb, ()))
   }
 }

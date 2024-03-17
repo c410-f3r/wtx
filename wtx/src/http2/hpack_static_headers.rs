@@ -1,44 +1,59 @@
 use crate::{
-  http::{Method, StatusCode},
+  http::{Method, Protocol, StatusCode},
   http2::HpackHeaderBasic,
 };
-use core::iter;
 
 /// Mandatory headers of a HTTP/2 request
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct HpackStaticRequestHeaders<'bytes> {
   pub(crate) authority: &'bytes [u8],
-  pub(crate) method: Method,
+  pub(crate) method: Option<Method>,
   pub(crate) path: &'bytes [u8],
-  pub(crate) protocol: &'bytes [u8],
+  pub(crate) protocol: Option<Protocol>,
   pub(crate) scheme: &'bytes [u8],
 }
 
 impl<'bytes> HpackStaticRequestHeaders<'bytes> {
+  pub(crate) fn new(
+    authority: &'bytes [u8],
+    method: Option<Method>,
+    path: &'bytes [u8],
+    protocol: Option<Protocol>,
+    scheme: &'bytes [u8],
+  ) -> Self {
+    Self { authority, method, path, protocol, scheme }
+  }
+
   pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &[u8])> {
     let Self { authority, method, path, protocol, scheme } = *self;
-    let mandatory = iter::once((HpackHeaderBasic::Method(method), &[][..]));
-    let optional = [
+    let enums = [
+      method.map(|el| (HpackHeaderBasic::Method(el), &[][..])),
+      protocol.map(|el| (HpackHeaderBasic::Protocol(el), &[][..])),
+    ]
+    .into_iter()
+    .flatten();
+    let uri = [
       (HpackHeaderBasic::Authority, authority),
       (HpackHeaderBasic::Path, path),
-      (HpackHeaderBasic::Protocol, protocol),
       (HpackHeaderBasic::Scheme, scheme),
     ]
     .into_iter()
     .filter(|el| !el.1.is_empty());
-    mandatory.chain(optional)
+    enums.chain(uri)
   }
 }
 
 /// Mandatory headers of a HTTP/2 response
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct HpackStaticResponseHeaders {
-  pub(crate) status: StatusCode,
+  pub(crate) status_code: Option<StatusCode>,
 }
 
 impl HpackStaticResponseHeaders {
+  pub(crate) const EMPTY: Self = Self { status_code: None };
+
   pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &[u8])> {
-    let Self { status } = *self;
-    iter::once((HpackHeaderBasic::Status(status), &[][..]))
+    let Self { status_code } = *self;
+    status_code.map(|el| (HpackHeaderBasic::Status(el), &[][..])).into_iter()
   }
 }

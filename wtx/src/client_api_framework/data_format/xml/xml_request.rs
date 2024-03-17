@@ -20,6 +20,7 @@ impl<D> Serialize<()> for XmlRequest<D> {
 #[cfg(feature = "serde-xml-rs")]
 mod serde_xml_rs {
   use crate::client_api_framework::{data_format::XmlRequest, dnsn::SerdeXmlRs};
+  use alloc::vec::Vec;
 
   impl<D> crate::client_api_framework::dnsn::Serialize<SerdeXmlRs> for XmlRequest<D>
   where

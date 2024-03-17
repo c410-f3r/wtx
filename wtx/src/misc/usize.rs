@@ -5,12 +5,26 @@
 
 use core::ops::{Deref, DerefMut};
 
-/// An `usize` that can be infallible converted from an `u32`. In other words, this effectively kills
-/// the support for 16bit hardware.
+/// An `usize` that can be infallible converted from an `u32`, which effectively kills the support
+/// for 16bit hardware.
 ///
 /// Additionally, 128bit support is also dropped.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Usize(usize);
+
+impl Usize {
+  #[inline]
+  pub(crate) const fn from_u32(from: u32) -> Self {
+    #[cfg(target_pointer_width = "16")]
+    compile_error!("WTX does not support 16bit hardware");
+    Self(from as usize)
+  }
+
+  #[inline]
+  pub(crate) const fn into_usize(self) -> usize {
+    self.0
+  }
+}
 
 impl Deref for Usize {
   type Target = usize;
@@ -45,9 +59,7 @@ impl From<u16> for Usize {
 impl From<u32> for Usize {
   #[inline]
   fn from(from: u32) -> Self {
-    #[cfg(target_pointer_width = "16")]
-    compile_error!("WTX does not support 16bit hardware");
-    Self(from as usize)
+    Self::from_u32(from)
   }
 }
 

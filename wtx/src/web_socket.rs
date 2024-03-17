@@ -83,6 +83,8 @@ type ReadContinuationFramesCbs<B> = (
 );
 
 /// WebSocket protocol implementation over an asynchronous stream.
+///
+/// <https://tools.ietf.org/html/rfc6455>
 #[derive(Debug)]
 pub struct WebSocket<NC, RNG, S, WSB, const IS_CLIENT: bool> {
   is_stream_closed: bool,
@@ -510,7 +512,7 @@ where
         crate::web_socket::misc::truncated_slice(frame.fb().borrow().frame(), 0..32),
         frame.op_code()
       );
-      stream.write_all(frame.fb().borrow().frame()).await?;
+      stream.write(frame.fb().borrow().frame()).await?;
     } else {
       _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
@@ -538,7 +540,7 @@ where
         crate::web_socket::misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
         frame.op_code()
       );
-      stream.write_all(compressed_frame.fb().frame()).await?;
+      stream.write(compressed_frame.fb().frame()).await?;
     };
     Ok(())
   }

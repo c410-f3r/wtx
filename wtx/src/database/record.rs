@@ -15,7 +15,7 @@ pub trait Record {
     CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
     D: Decode<'this, Self::Database>,
   {
-    D::decode(&self.value(ci).ok_or(_unlikely_elem(crate::Error::AbsentFieldDataInDecoding))?)
+    D::decode(&self.value(ci).ok_or(_unlikely_elem(crate::Error::MissingFieldDataInDecoding))?)
   }
 
   /// Tries to retrieve and decode an optional value.
