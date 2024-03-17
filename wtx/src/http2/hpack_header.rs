@@ -1,7 +1,7 @@
 use crate::http::{Method, Protocol, StatusCode};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum HpackHeaderBasic {
+pub(crate) enum HpackHeaderBasic {
   Authority,
   Field,
   Method(Method),

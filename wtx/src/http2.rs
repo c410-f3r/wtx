@@ -68,11 +68,11 @@ pub(crate) use stream_state::StreamState;
 pub(crate) use uri_buffer::UriBuffer;
 pub(crate) use window_update_frame::WindowUpdateFrame;
 
-pub const DEFAULT_MAX_HEADER_LIST_SIZE: u32 = 16777216;
+pub const DEFAULT_MAX_UNCOMPRESSED_HEADER_LEN: u32 = 16777216;
 /// The default value of SETTINGS_INITIAL_WINDOW_SIZE
 pub const DEFAULT_INITIAL_WINDOW_SIZE: u32 = 65535;
 /// The default value of SETTINGS_HEADER_TABLE_SIZE
-pub const DEFAULT_MAX_HEADER_TABLE_SIZE: u32 = 4_096;
+pub const DEFAULT_MAX_COMPRESSED_HEADER_LEN: u16 = 4_096;
 /// Maximum frame size can not be lower than this value.
 pub const MAX_FRAME_SIZE_LOWER_BOUND: u32 = 16384;
 /// Maximum frame size can not be higher than this value.

@@ -271,7 +271,7 @@ impl HpackDecoder {
     Ok(())
   }
 
-  fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u16) -> crate::Result<()> {
+  pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u16) -> crate::Result<()> {
     if max_dyn_sub_bytes > self.max_dyn_super_bytes {
       return Err(crate::Error::UnboundedNumber {
         expected: 0..=self.max_dyn_super_bytes.into(),
@@ -283,7 +283,7 @@ impl HpackDecoder {
     Ok(())
   }
 
-  fn set_max_dyn_super_bytes(&mut self, max_dyn_super_bytes: u16) {
+  pub(crate) fn set_max_dyn_super_bytes(&mut self, max_dyn_super_bytes: u16) {
     self.max_dyn_super_bytes = max_dyn_super_bytes;
     self.dyn_headers.set_max_bytes(max_dyn_super_bytes.into());
   }

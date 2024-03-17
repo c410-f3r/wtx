@@ -1,6 +1,6 @@
 use crate::{
   http2::{
-    FrameInit, HpackDecoder, Http2Buffer, StreamId, UriBuffer, DEFAULT_MAX_HEADER_LIST_SIZE,
+    FrameInit, HpackDecoder, Http2Buffer, StreamId, UriBuffer, DEFAULT_MAX_UNCOMPRESSED_HEADER_LEN,
     MAX_FRAME_SIZE_LOWER_BOUND, MAX_FRAME_SIZE_UPPER_BOUND,
   },
   misc::{FnOnceFut, Stream, Usize, _read_until},
@@ -22,7 +22,7 @@ where
     Self {
       hb,
       max_frame_size: MAX_FRAME_SIZE_LOWER_BOUND,
-      max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
+      max_header_list_size: DEFAULT_MAX_UNCOMPRESSED_HEADER_LEN,
       stream,
     }
   }

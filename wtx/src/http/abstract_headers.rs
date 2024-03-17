@@ -107,7 +107,7 @@ where
 
   #[inline]
   pub(crate) fn reserve(&mut self, bytes: usize, headers: usize) {
-    self.bq.reserve(bytes.min(self.bytes_len()), headers);
+    self.bq.reserve(headers, bytes.min(self.max_bytes));
   }
 
   #[inline]

@@ -3,23 +3,23 @@ create_enum! {
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum Method<u8> {
     /// Connect
-    Connect = (0, "connect"),
+    Connect = (0, "CONNECT"),
     /// Delete
-    Delete = (1, "delete"),
+    Delete = (1, "DELETE"),
     /// Get
-    Get = (2, "get"),
+    Get = (2, "GET"),
     /// Head
-    Head = (3, "head"),
+    Head = (3, "HEAD"),
     /// Options
-    Options = (4, "options"),
+    Options = (4, "OPTIONS"),
     /// Patch
-    Patch = (5, "patch"),
+    Patch = (5, "PATCH"),
     /// Post
-    Post = (6, "post"),
+    Post = (6, "POST"),
     /// Put
-    Put = (7, "put"),
+    Put = (7, "PUT"),
     /// Trace
-    Trace = (8, "trace"),
+    Trace = (8, "TRACE"),
   }
 }
 
