@@ -2,7 +2,7 @@ use crate::misc::{Vector, _shift_bytes};
 use core::ptr;
 
 #[inline(always)]
-pub(crate) fn reserve<D>(additional: usize, data: &mut Vector<D>, head: &mut usize)
+pub(crate) fn reserve<D>(additional: usize, data: &mut Vector<D>, head: &mut usize) -> Option<usize>
 where
   D: Copy,
 {
@@ -10,13 +10,15 @@ where
   let prev_head = *head;
   let rhs_len = prev_cap.wrapping_sub(prev_head);
   data.reserve(additional);
-  if data.capacity() <= prev_cap {
-    return;
+  let curr_cap = data.capacity();
+  let cap_diff = curr_cap.wrapping_sub(prev_cap);
+  if prev_cap == 0 || cap_diff == 0 {
+    return None;
   }
-  let curr_head = data.capacity().wrapping_sub(rhs_len);
+  let curr_head = curr_cap.wrapping_sub(rhs_len);
   let allocated = unsafe {
     let ptr = data.as_mut_ptr();
-    &mut *ptr::slice_from_raw_parts_mut(ptr, data.capacity())
+    &mut *ptr::slice_from_raw_parts_mut(ptr, curr_cap)
   };
   #[cfg(feature = "nightly")]
   unsafe {
@@ -25,6 +27,7 @@ where
   }
   _shift_bytes(curr_head, allocated, [prev_head..prev_cap]);
   *head = curr_head;
+  Some(cap_diff)
 }
 
 #[inline]

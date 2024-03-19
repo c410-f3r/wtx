@@ -1,3 +1,24 @@
+macro_rules! as_slices {
+  ($empty:expr, $ptr:ident, $slice:ident, $this:expr, $($ref:tt)*) => {{
+    let len = $this.data.len();
+    let rhs_len = $this.data.capacity().wrapping_sub($this.head);
+    let ptr = $this.data.$ptr();
+    if rhs_len < len {
+      let lhs_len = len.wrapping_sub(rhs_len);
+      unsafe {
+        (
+          $($ref)* *ptr::$slice(ptr.add($this.head), rhs_len),
+          $($ref)* *ptr::$slice(ptr, lhs_len),
+        )
+      }
+    } else {
+      unsafe {
+        ($($ref)* *ptr::$slice(ptr.add($this.head), len), $empty)
+      }
+    }
+  }}
+}
+
 macro_rules! do_get {
   ($block:ident, $metadata:expr, $ptr:expr, $slice:ident, $($ref:tt)*) => {
     $block {
@@ -16,14 +37,18 @@ use crate::misc::{
   queue_utils::{reserve, wrap_sub},
   Queue, SingleTypeStorage, Vector,
 };
-use core::{borrow::Borrow, ops::Range, ptr};
+use core::{
+  borrow::Borrow,
+  fmt::{Debug, Formatter},
+  ops::Range,
+  ptr,
+};
 
 pub(crate) type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
 pub(crate) type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 
 /// A circular buffer where elements are added in one-way blocks that will never intersect
 /// boundaries.
-#[derive(Debug)]
 pub(crate) struct BlocksQueue<D, M> {
   data: Vector<D>,
   head: usize,
@@ -49,6 +74,11 @@ where
       metadata: Queue::with_capacity(blocks),
       tail: 0,
     }
+  }
+
+  #[inline]
+  pub(crate) fn as_slices(&self) -> (&[D], &[D]) {
+    as_slices!(&[][..], as_ptr, slice_from_raw_parts, self, &)
   }
 
   #[cfg(test)]
@@ -172,12 +202,22 @@ where
 
   #[inline(always)]
   pub(crate) fn reserve(&mut self, blocks: usize, elements: usize) {
-    reserve(elements, &mut self.data, &mut self.head);
-    let prev_metadata_cap = self.metadata.capacity();
+    let is_not_wrapped = !self.is_wrapped();
+    let prev_head = self.head;
+    let diff_opt = reserve(elements, &mut self.data, &mut self.head);
     self.metadata.reserve(blocks);
-    if self.metadata.capacity() > prev_metadata_cap {
-      let diff = self.metadata.capacity().wrapping_sub(prev_metadata_cap);
-      for elem in self.metadata.as_slices_mut().1 {
+    if let Some(diff) = diff_opt {
+      if is_not_wrapped {
+        self.tail = self.tail.wrapping_add(diff);
+      }
+      let mut iter = self.metadata.iter_mut();
+      for elem in iter.by_ref() {
+        if elem.begin >= prev_head {
+          elem.begin = elem.begin.wrapping_add(diff);
+          break;
+        }
+      }
+      for elem in iter {
         elem.begin = elem.begin.wrapping_add(diff);
       }
     }
@@ -201,14 +241,14 @@ where
 
   #[inline]
   fn free(&self, cb: impl FnOnce()) -> (usize, usize) {
-    if self.head == 0 && self.tail == 0 {
-      cb();
-      (self.elements_capacity(), 0)
-    } else if self.head >= self.tail {
-      (self.head.wrapping_sub(self.tail), 0)
-    } else {
-      (self.head, self.data.capacity().wrapping_sub(self.tail))
-    }
+    self.wrap_logic(
+      || {
+        cb();
+        (self.elements_capacity(), 0)
+      },
+      || (self.head, self.data.capacity().wrapping_sub(self.tail)),
+      || (self.head.wrapping_sub(self.tail), 0),
+    )
   }
 
   #[inline]
@@ -219,6 +259,42 @@ where
   #[inline]
   fn head_rhs(&self, len: usize) -> usize {
     self.data.capacity().wrapping_sub(len)
+  }
+
+  #[inline]
+  fn is_wrapped(&self) -> bool {
+    self.wrap_logic(|| false, || false, || true)
+  }
+
+  #[inline]
+  fn wrap_logic<R>(
+    &self,
+    empty: impl FnOnce() -> R,
+    contiguous: impl FnOnce() -> R,
+    wraps: impl FnOnce() -> R,
+  ) -> R {
+    if self.head == 0 && self.tail == 0 {
+      empty()
+    } else if self.head < self.tail {
+      contiguous()
+    } else {
+      wraps()
+    }
+  }
+}
+
+impl<D, M> Debug for BlocksQueue<D, M>
+where
+  D: Copy + Debug,
+  M: Copy + Debug,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+    let (lhs, rhs) = self.as_slices();
+    let mut rslt = f.debug_struct("BlocksQueue");
+    rslt.field("lhs", &lhs);
+    rslt.field("rhs", &rhs);
+    rslt.finish()
   }
 }
 
@@ -233,7 +309,7 @@ where
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct Block<D, M>
 where
   D: Borrow<[D::Item]> + SingleTypeStorage,
@@ -258,7 +334,7 @@ struct BlocksQueueMetadata<M> {
 // T = Tail (Exclusive)
 #[cfg(test)]
 mod tests {
-  use crate::misc::BlocksQueue;
+  use crate::misc::{blocks_queue::BlockRef, BlocksQueue};
 
   // [. . . . . . . .]: Empty - (LF=8, LO=0,RF=0, RO=0) - (H=0, T=0)
   // [. . . . . . . H]: Push front - (LF=7, LO=0, RF=0, RO=1) - (H=7, T=8)
@@ -361,9 +437,27 @@ mod tests {
     check_state(&q, 0, 0, 0, 0);
   }
 
+  // []: Empty - (LF=0, LO=0,RF=0, RO=0) - (H=0, T=0)
+  // [H * * *]: Push front - (LF=0, LO=0, RF=0, RO=4) - (H=0, T=4)
+  #[test]
+  fn push_reserve_and_push() {
+    let mut q = BlocksQueue::new();
+    q.reserve(1, 4);
+    q.push_front_within_cap([&[0, 1, 2, 3]], |_| ());
+    check_state(&q, 1, 4, 0, 4);
+    assert_eq!(q.get(0), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 0..4 }));
+    assert_eq!(q.get(1), None);
+    q.reserve(1, 6);
+    q.push_front_within_cap([&[4, 5, 6, 7, 8, 9]], |_| ());
+    check_state(&q, 2, 10, 0, 10);
+    assert_eq!(q.get(0), Some(BlockRef { data: &[4, 5, 6, 7, 8, 9], misc: &(), range: 0..6 }));
+    assert_eq!(q.get(1), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 6..10 }));
+    assert_eq!(q.get(2), None);
+  }
+
   #[test]
   fn reserve() {
-    let mut queue = BlocksQueue::<u8, ()>::new();
+    let mut queue = BlocksQueue::<i32, ()>::new();
     assert_eq!(queue.blocks_capacity(), 0);
     assert_eq!(queue.elements_capacity(), 0);
     queue.reserve(5, 10);
@@ -427,6 +521,7 @@ mod tests {
     q
   }
 
+  #[track_caller]
   fn check_state(
     q: &BlocksQueue<i32, ()>,
     blocks_len: usize,

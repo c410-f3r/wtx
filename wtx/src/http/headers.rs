@@ -35,7 +35,7 @@ impl Headers {
   /// The number of headers
   #[inline]
   pub fn elements_len(&self) -> usize {
-    self.ab.elements_len()
+    self.ab.headers_len()
   }
 
   /// Returns the first header, if any.

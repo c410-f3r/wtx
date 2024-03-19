@@ -24,10 +24,12 @@ use crate::misc::{
   queue_utils::{reserve, wrap_add, wrap_sub},
   Vector,
 };
-use core::ptr;
+use core::{
+  fmt::{Debug, Formatter},
+  ptr,
+};
 
 /// A circular buffer where elements are added in only one-way.
-#[derive(Debug)]
 pub(crate) struct Queue<D> {
   data: Vector<D>,
   head: usize,
@@ -108,6 +110,12 @@ where
   }
 
   #[inline]
+  pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut D> {
+    let (lhs, rhs) = self.as_slices_mut();
+    rhs.iter_mut().chain(lhs)
+  }
+
+  #[inline]
   pub fn last(&self) -> Option<&D> {
     self.get(self.len().checked_sub(1)?)
   }
@@ -157,6 +165,20 @@ where
   #[inline(always)]
   pub(crate) fn reserve(&mut self, additional: usize) {
     reserve(additional, &mut self.data, &mut self.head);
+  }
+}
+
+impl<D> Debug for Queue<D>
+where
+  D: Copy + Debug,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+    let (lhs, rhs) = self.as_slices();
+    let mut rslt = f.debug_struct("Queue");
+    rslt.field("lhs", &lhs);
+    rslt.field("rhs", &rhs);
+    rslt.finish()
   }
 }
 

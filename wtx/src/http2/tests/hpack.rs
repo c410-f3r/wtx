@@ -1,3 +1,8 @@
+use crate::{
+  http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, DEFAULT_MAX_COMPRESSED_HEADER_LEN},
+  misc::{from_utf8_basic, ByteVector},
+  rng::StaticRng,
+};
 use alloc::{string::String, vec::Vec};
 use core::{fmt::Formatter, marker::PhantomData};
 use serde::{
@@ -9,12 +14,6 @@ use std::{
   io::Read,
   path::Path,
   process::Command,
-};
-
-use crate::{
-  http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, DEFAULT_MAX_COMPRESSED_HEADER_LEN},
-  misc::{from_utf8_basic, ByteVector},
-  rng::StaticRng,
 };
 
 #[test]
@@ -133,11 +132,11 @@ fn strs<'key, 'value>(
   match hhb {
     HpackHeaderBasic::Authority => (":authority", from_utf8_basic(value).unwrap()),
     HpackHeaderBasic::Field => (from_utf8_basic(name).unwrap(), from_utf8_basic(value).unwrap()),
-    HpackHeaderBasic::Method(elem) => (":method", elem.strings().custom),
+    HpackHeaderBasic::Method(elem) => (":method", elem.strings().custom[0]),
     HpackHeaderBasic::Path => (":path", from_utf8_basic(value).unwrap()),
-    HpackHeaderBasic::Protocol(elem) => (":protocol", elem.strings().custom),
+    HpackHeaderBasic::Protocol(elem) => (":protocol", elem.strings().custom[0]),
     HpackHeaderBasic::Scheme => (":scheme", from_utf8_basic(value).unwrap()),
-    HpackHeaderBasic::Status(elem) => (":status", elem.strings().custom),
+    HpackHeaderBasic::Status(elem) => (":status", elem.strings().custom[0]),
   }
 }
 
@@ -161,6 +160,7 @@ fn test_case(dir_path: &Path, case_path: &Path) {
       encoder.set_max_dyn_sub_bytes(size).unwrap();
       decoder.set_max_dyn_sub_bytes(size).unwrap();
     }
+
     let mut pseudo_headers = case
       .headers
       .iter()
@@ -200,8 +200,18 @@ fn test_case(dir_path: &Path, case_path: &Path) {
         user_headers.iter().map(|el| (el.1, el.2, el.3)),
       )
       .unwrap();
+
+    std::println!("***** After Encode");
+    std::println!("{:?}\n{:?}\n{:?}\n", &buffer, pseudo_headers, user_headers);
+
     decoder
       .decode(&buffer, |(hhb, name, value)| {
+        std::println!(
+          "{:?}\n{:?}\n{:?}\n",
+          hhb,
+          core::str::from_utf8(name),
+          core::str::from_utf8(value)
+        );
         if let HpackHeaderBasic::Field = hhb {
           assert_eq!((hhb, name, value, false), user_headers.remove(0));
         } else {

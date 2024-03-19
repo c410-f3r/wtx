@@ -4,7 +4,7 @@ macro_rules! create_enum {
     $v:vis enum $enum_ident:ident<$n:ty> {
       $(
         $(#[$variant_mac_fixed:meta])*
-        $variant_ident_fixed:ident = ($variant_n_fixed:literal $(, $variant_str_fixed:literal)?)
+        $variant_ident_fixed:ident = ($variant_n_fixed:literal $(, $variant_str_fixed:literal)? $(| $variant_str_fixed_n:literal)*)
       ),* $(,)?
     }
   ) => {
@@ -27,16 +27,23 @@ macro_rules! create_enum {
 
       /// See [crate::EnumVarStrings].
       #[inline]
-      pub const fn strings(&self) -> crate::misc::EnumVarStrings {
+      pub const fn strings(&self) -> crate::misc::EnumVarStrings<{
+        let mut n;
+        $({
+          #[allow(unused_mut)]
+          let mut local_n = 0;
+          let _ = $variant_n_fixed;
+          $({ let _ = $variant_str_fixed; local_n += 1; })?
+          $({ let _ = $variant_str_fixed_n; local_n += 1; })*
+          #[allow(unused_assignments)]
+          { n = local_n; }
+        })*
+        n
+      }> {
         match self {
           $(
             $enum_ident::$variant_ident_fixed => crate::misc::EnumVarStrings {
-              custom: {
-                #[allow(unused_assignments, unused_mut)]
-                let mut rslt = "";
-                $(rslt = $variant_str_fixed;)?
-                rslt
-              },
+              custom: [$($variant_str_fixed,)? $($variant_str_fixed_n,)*],
               ident: stringify!($variant_ident_fixed),
               number: stringify!($variant_n_fixed),
             },
@@ -85,7 +92,11 @@ macro_rules! create_enum {
       fn try_from(from: &str) -> crate::Result<Self> {
         let rslt = match from {
           $(
-            stringify!($variant_ident_fixed) | stringify!($variant_n_fixed) $(| $variant_str_fixed)?  => {
+            stringify!($variant_ident_fixed)
+              | stringify!($variant_n_fixed)
+              $(| $variant_str_fixed)?
+              $(| $variant_str_fixed_n)* =>
+            {
               Self::$variant_ident_fixed
             },
           )*
@@ -104,6 +115,7 @@ macro_rules! create_enum {
           if from == stringify!($variant_ident_fixed).as_bytes()
             || from == stringify!($variant_n_fixed).as_bytes()
             $(|| from == $variant_str_fixed.as_bytes())?
+            $(|| from == $variant_str_fixed_n.as_bytes())*
           {
             return Ok(Self::$variant_ident_fixed);
           }

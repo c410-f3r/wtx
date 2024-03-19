@@ -1,7 +1,7 @@
 use crate::{
   http::{AbstractHeaders, HeaderName, Method, StatusCode},
   http2::{hpack_header::HpackHeaderBasic, huffman_encode},
-  misc::{ByteVector, _random_state, _unreachable},
+  misc::{ByteVector, Usize, _random_state, _unreachable},
   rng::Rng,
 };
 use ahash::RandomState;
@@ -31,7 +31,7 @@ impl HpackEncoder {
     }
   }
 
-  pub(crate) fn _clear(&mut self) {
+  pub(crate) fn clear(&mut self) {
     let Self { dyn_headers, indcs, max_dyn_sub_bytes: _, max_dyn_super_bytes: _, rs: _ } = self;
     dyn_headers.clear();
     indcs.clear();
@@ -44,28 +44,50 @@ impl HpackEncoder {
     user_headers: impl IntoIterator<Item = (&'value [u8], &'value [u8], bool)>,
   ) -> crate::Result<()> {
     for (hhb, value) in pseudo_headers {
-      let idx = 'idx: {
-        let static_header_idx = Self::pseudo_header_idx((hhb, value));
-        if let Some(HeaderIdx { has_known_value: true, idx }) = static_header_idx {
-          break 'idx Idx::IndexedNameAndValue(idx);
+      let header_idx_opt = Self::pseudo_header_idx((hhb, value));
+      match self.manage_should_not_index(header_idx_opt, hhb, false, &[], value) {
+        Err(idx) => {
+          self.manage_encode((&[], value), idx, wb)?;
         }
-        self.dyn_idx(hhb, &[], value, false)
-      };
-      self.manage_encode(idx, false, wb)?;
+        Ok(should_not_index) => {
+          let idx = self.dyn_idx((&[], value, false), header_idx_opt, hhb, should_not_index);
+          self.manage_encode((&[], value), idx, wb)?;
+        }
+      }
     }
 
     for (name, value, is_sensitive) in user_headers {
-      let idx = 'idx: {
-        let dyn_header_idx = Self::dyn_header_idx((name, value));
-        if let Some(HeaderIdx { has_known_value: true, idx }) = dyn_header_idx {
-          break 'idx Idx::IndexedNameAndValue(idx);
+      let header_idx_opt = Self::dyn_header_idx((name, value));
+      let hhb = HpackHeaderBasic::Field;
+      match self.manage_should_not_index(header_idx_opt, hhb, is_sensitive, name, value) {
+        Err(idx) => {
+          self.manage_encode((name, value), idx, wb)?;
         }
-        self.dyn_idx(HpackHeaderBasic::Field, name, value, is_sensitive)
-      };
-      self.manage_encode(idx, is_sensitive, wb)?;
+        Ok(should_not_index) => {
+          let idx = self.dyn_idx((name, value, is_sensitive), header_idx_opt, hhb, should_not_index);
+          self.manage_encode((name, value), idx, wb)?;
+        }
+      }
     }
 
     Ok(())
+  }
+
+  pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u16) -> crate::Result<()> {
+    if max_dyn_sub_bytes > self.max_dyn_super_bytes {
+      return Err(crate::Error::UnboundedNumber {
+        expected: 0..=self.max_dyn_super_bytes.into(),
+        received: max_dyn_sub_bytes.into(),
+      });
+    }
+    self.max_dyn_sub_bytes = max_dyn_sub_bytes;
+    self.dyn_headers.set_max_bytes(max_dyn_sub_bytes.into());
+    Ok(())
+  }
+
+  pub(crate) fn set_max_dyn_super_bytes(&mut self, max_dyn_super_bytes: u16) {
+    self.max_dyn_super_bytes = max_dyn_super_bytes;
+    self.dyn_headers.set_max_bytes(max_dyn_super_bytes.into());
   }
 
   fn dyn_header_idx((name, value): (&[u8], &[u8])) -> Option<HeaderIdx> {
@@ -130,31 +152,48 @@ impl HpackEncoder {
 
   fn dyn_idx(
     &mut self,
+    header: (&[u8], &[u8], bool),
+    header_idx_opt: Option<HeaderIdx>,
     hhb: HpackHeaderBasic,
-    name: &[u8],
-    value: &[u8],
-    is_sensitive: bool,
+    should_not_index: bool,
   ) -> Idx {
-    let mut hasher = self.rs.build_hasher();
-    hasher.write(name);
+    let (name, value, is_sensitive) = header;
 
-    let name_hash = hasher.finish();
-    if let Some(name_idx) = self.indcs.get(&name_hash).copied() {
-      let value_idx = self.dyn_headers.elements_len();
-      self.dyn_headers.push_front(hhb, &[], value, is_sensitive);
-      return Idx::IndexedNameLiteralValue(name_idx, value_idx);
+    let mut name_hasher = self.rs.build_hasher();
+    name_hasher.write(name);
+
+    let mut pair_hasher = name_hasher.clone();
+    pair_hasher.write(value);
+    let pair_hash = pair_hasher.finish();
+
+    match (should_not_index, self.indcs.get(&pair_hash).copied()) {
+      (false, None) => {}
+      (false, Some(idx)) => return Idx::SavedIndexNameSavedIndexValue(idx),
+      (true, _) => return Idx::UnsavedLiteralNameUnsavedLiteralValue,
     }
 
-    hasher.write(value);
-    let pair_hash = hasher.finish();
-    if let Some(idx) = self.indcs.get(&pair_hash).and_then(|&idx| idx.try_into().ok()) {
-      return Idx::IndexedNameAndValue(idx);
+    let name_hash = name_hasher.finish();
+
+    match (should_not_index, self.indcs.get(&name_hash).copied()) {
+      (false, None) => {}
+      (false, Some(idx)) => {
+        self.dyn_headers.push_front(hhb, &[], value, is_sensitive);
+        return Idx::SavedIndexNameSavedLiteralValue(idx);
+      }
+      (true, None) => return Idx::UnsavedLiteralNameUnsavedLiteralValue,
+      (true, Some(idx)) => return Idx::SavedIndexNameUnsavedLiteralValue(idx),
     }
 
-    let idx = self.dyn_headers.elements_len();
+    let idx = self.dyn_headers.headers_len();
     self.dyn_headers.reserve(name.len().wrapping_add(value.len()), 1);
     self.dyn_headers.push_front(hhb, name, value, is_sensitive);
-    Idx::LiteralNameAndValue(idx)
+    self.indcs.insert(name_hash, 0);
+    self.indcs.insert(pair_hash, 0);
+    if let Some(header_idx) = header_idx_opt {
+      Idx::SavedIndexNameSavedLiteralValue(header_idx.idx)
+    } else {
+      Idx::SavedIndexNameSavedIndexValue(0)
+    }
   }
 
   fn encode_int(first_byte: u8, mask: u8, mut n: u16, wb: &mut ByteVector) {
@@ -197,50 +236,93 @@ impl HpackEncoder {
     Ok(())
   }
 
+  // Regardless of the "sensitive" flag set by users, these headers may carry sensitive content
+  // that shouldn't be indexed.
+  fn header_is_naturally_sensitive(hhb: HpackHeaderBasic, name: &[u8]) -> bool {
+    match hhb {
+      HpackHeaderBasic::Field => matches!(
+        HeaderName::new(name),
+        HeaderName::AGE
+          | HeaderName::AUTHORIZATION
+          | HeaderName::CONTENT_LENGTH
+          | HeaderName::ETAG
+          | HeaderName::IF_MODIFIED_SINCE
+          | HeaderName::IF_NONE_MATCH
+          | HeaderName::LOCATION
+          | HeaderName::COOKIE
+          | HeaderName::SET_COOKIE
+      ),
+      HpackHeaderBasic::Path => true,
+      _ => false,
+    }
+  }
+
+  // Very large headers are not good candidates for indexing.
+  fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &[u8], value: &[u8]) -> bool {
+    hhb
+      .len(name, value)
+      .checked_mul(4)
+      .and_then(|lhs| Some(lhs > usize::from(self.max_dyn_sub_bytes).checked_mul(3)?))
+      .unwrap_or_default()
+  }
+
   fn manage_encode(
     &mut self,
+    header: (&[u8], &[u8]),
     idx: Idx,
-    is_sensitive: bool,
     wb: &mut ByteVector,
   ) -> crate::Result<()> {
+    let (name, value) = header;
     match idx {
-      Idx::IndexedNameAndValue(idx) => {
+      Idx::SavedIndexNameSavedIndexValue(idx) => {
         Self::encode_int(0b1000_0000, 0b0111_1111, idx, wb);
       }
-      Idx::IndexedNameLiteralValue(name_idx, value_idx) => {
-        let (first_byte, mask) =
-          if is_sensitive { (0b0001_0000, 0b0000_1111) } else { (0, 0b0000_1111) };
-        Self::encode_int(first_byte, mask, name_idx, wb);
-        let Some(ab) = self.dyn_headers.get_by_idx(value_idx) else {
-          unreachable!();
-        };
-        Self::encode_str(ab.value_bytes, wb)?;
-      }
-      Idx::InsertedValue(name_idx, value_idx) => {
-        let Some(ab) = self.dyn_headers.get_by_idx(value_idx) else {
-          unreachable!();
-        };
+      Idx::SavedIndexNameSavedLiteralValue(name_idx) => {
         Self::encode_int(0b0100_0000, 0b0011_1111, name_idx, wb);
-        Self::encode_str(ab.value_bytes, wb)?;
+        Self::encode_str(value, wb)?;
       }
-      Idx::LiteralNameAndValue(idx) => {
+      Idx::SavedIndexNameUnsavedLiteralValue(name_idx) => {
+        Self::encode_int(0b0001_0000, 0b0000_1111, name_idx, wb);
+        Self::encode_str(value, wb)?;
+      }
+      Idx::UnsavedLiteralNameSavedLiteralValue => {
         wb.push(0b0100_0000);
-        let Some(ab) = self.dyn_headers.get_by_idx(idx) else {
-          unreachable!();
-        };
-        Self::encode_str(ab.name_bytes, wb)?;
-        Self::encode_str(ab.value_bytes, wb)?;
+        Self::encode_str(name, wb)?;
+        Self::encode_str(value, wb)?;
       }
-      Idx::NotInserted(idx) => {
-        wb.push(if is_sensitive { 0b10000 } else { 0 });
-        let Some(ab) = self.dyn_headers.get_by_idx(idx) else {
-          unreachable!();
-        };
-        Self::encode_str(ab.name_bytes, wb)?;
-        Self::encode_str(ab.value_bytes, wb)?;
+      Idx::UnsavedLiteralNameUnsavedLiteralValue => {
+        wb.push(0b0001_0000);
+        Self::encode_str(name, wb)?;
+        Self::encode_str(value, wb)?;
       }
     }
     Ok(())
+  }
+
+  /// If an index is found, returns Err. Otherwise, returns if the header should be indexed.
+  ///
+  /// `Result` is used as a convenient wrapper.
+  fn manage_should_not_index(
+    &self,
+    header_idx: Option<HeaderIdx>,
+    hhb: HpackHeaderBasic,
+    is_sensitive: bool,
+    name: &[u8],
+    value: &[u8],
+  ) -> Result<bool, Idx> {
+    match header_idx {
+      None => Ok(self.should_not_index(hhb, is_sensitive, name, value)),
+      Some(HeaderIdx { has_known_value: true, idx }) => {
+        Err(Idx::SavedIndexNameSavedIndexValue(idx))
+      }
+      Some(HeaderIdx { has_known_value: false, idx }) => {
+        if self.should_not_index(hhb, is_sensitive, name, value) {
+          Err(Idx::SavedIndexNameUnsavedLiteralValue(idx))
+        } else {
+          Ok(false)
+        }
+      }
+    }
   }
 
   fn pseudo_header_idx((hhb, value): (HpackHeaderBasic, &[u8])) -> Option<HeaderIdx> {
@@ -277,38 +359,43 @@ impl HpackEncoder {
     Some(HeaderIdx { has_known_value, idx })
   }
 
-  pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u16) -> crate::Result<()> {
-    if max_dyn_sub_bytes > self.max_dyn_super_bytes {
-      return Err(crate::Error::UnboundedNumber {
-        expected: 0..=self.max_dyn_super_bytes.into(),
-        received: max_dyn_sub_bytes.into(),
-      });
-    }
-    self.max_dyn_sub_bytes = max_dyn_sub_bytes;
-    self.dyn_headers.set_max_bytes(max_dyn_sub_bytes.into());
-    Ok(())
-  }
-
-  pub(crate) fn set_max_dyn_super_bytes(&mut self, max_dyn_super_bytes: u16) {
-    self.max_dyn_super_bytes = max_dyn_super_bytes;
-    self.dyn_headers.set_max_bytes(max_dyn_super_bytes.into());
+  fn should_not_index(
+    &self,
+    hhb: HpackHeaderBasic,
+    is_sensitive: bool,
+    name: &[u8],
+    value: &[u8],
+  ) -> bool {
+    is_sensitive
+      || Self::header_is_naturally_sensitive(hhb, name)
+      || self.header_is_very_large(hhb, name, value)
   }
 }
 
+/// https://datatracker.ietf.org/doc/html/rfc7541#section-6.2
 #[derive(Debug)]
 pub(crate) enum Idx {
-  /// Both elements are encoded using the referenced index.
-  IndexedNameAndValue(u16), // Indexed
-  /// The name is encoded using the referenced index. The value is encoded verbatim.
-  IndexedNameLiteralValue(u16, usize), // Name
-  /// Both elements are encoded as literals
-  LiteralNameAndValue(usize), // Inserted
-  /// The value has been inserted into the buffer
-  InsertedValue(u16, usize), // InsertedValue
-  /// Not stored
-  NotInserted(usize), // NotIndexed
+  /// Both elements have been saved and the common referenced index is used for encoding.
+  SavedIndexNameSavedIndexValue(u16), // Indexed - Ok
+  /// The name is saved and the referenced index is used for encoding. The value is saved and the
+  /// literal contents are used for encoding.
+  SavedIndexNameSavedLiteralValue(u16), // InsertedValue
+  /// Both "Never Indexed" and "Without Indexing" variants.
+  ///
+  /// The name is saved and the referenced index is used for encoding. The value is not saved
+  /// and the literal contents are used for encoding.
+  SavedIndexNameUnsavedLiteralValue(u16), // Name or "Err" if previous header is NOT "NotIndexed" - Ok
+  /// The name is not saved and the literal contents are used for encoding. The value is saved and
+  /// the literal contents are used for encoding.
+  UnsavedLiteralNameSavedLiteralValue, // Inserted
+  /// Both "Never Indexed" and "Without Indexing" variants.
+  ///
+  /// The name is not saved and the literal contents are used for encoding. The value is not saved
+  /// and the literal contents are used for encoding.
+  UnsavedLiteralNameUnsavedLiteralValue, // NotIndexed or "Err" if previous header is "NotIndexed" - Ok
 }
 
+#[derive(Clone, Copy, Debug)]
 struct HeaderIdx {
   has_known_value: bool,
   idx: u16,

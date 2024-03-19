@@ -1,18 +1,11 @@
 use crate::misc::{Block, BlocksQueue, _unreachable};
-use core::ops::Range;
+use core::{
+  fmt::{Debug, Formatter},
+  ops::Range,
+};
 
 const DFLT_MAX_BYTES: usize = 4 * 1024;
 
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) struct AbstractHeader<'ah, M> {
-  pub(crate) is_sensitive: bool,
-  pub(crate) misc: &'ah M,
-  pub(crate) name_bytes: &'ah [u8],
-  pub(crate) name_range: Range<usize>,
-  pub(crate) value_bytes: &'ah [u8],
-}
-
-#[derive(Debug)]
 pub(crate) struct AbstractHeaders<M> {
   max_bytes: usize,
   bq: BlocksQueue<u8, Metadata<M>>,
@@ -43,7 +36,7 @@ where
   }
 
   #[inline]
-  pub(crate) fn elements_len(&self) -> usize {
+  pub(crate) fn headers_len(&self) -> usize {
     self.bq.blocks_len()
   }
 
@@ -142,6 +135,19 @@ where
   }
 }
 
+impl<M> Debug for AbstractHeaders<M>
+where
+  M: Copy + Debug,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+    let mut rslt = f.debug_struct("AbstractHeaders");
+    rslt.field("max_bytes", &self.max_bytes);
+    rslt.field("bq", &self.bq);
+    rslt.finish()
+  }
+}
+
 impl<M> Default for AbstractHeaders<M>
 where
   M: Copy,
@@ -150,6 +156,15 @@ where
   fn default() -> Self {
     Self::new(DFLT_MAX_BYTES)
   }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct AbstractHeader<'ah, M> {
+  pub(crate) is_sensitive: bool,
+  pub(crate) misc: &'ah M,
+  pub(crate) name_bytes: &'ah [u8],
+  pub(crate) name_range: Range<usize>,
+  pub(crate) value_bytes: &'ah [u8],
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

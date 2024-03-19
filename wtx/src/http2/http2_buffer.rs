@@ -34,7 +34,7 @@ impl<const IS_CLIENT: bool> Http2Buffer<IS_CLIENT> {
   pub(crate) fn clear(&mut self) {
     let Self { hpack_dec, hpack_enc, rb, streams_data, uri_buffer, wb } = self;
     hpack_dec._clear();
-    hpack_enc._clear();
+    hpack_enc.clear();
     rb._clear();
     streams_data.clear();
     uri_buffer.clear();

@@ -40,12 +40,10 @@ impl HpackDecoder {
     mut data: &[u8],
     mut cb: impl FnMut((HpackHeaderBasic, &[u8], &[u8])),
   ) -> crate::Result<()> {
-    if let [first, rest @ ..] = data {
-      data = rest;
+    if let [first, ..] = data {
       self.manage_decode(*first, &mut data, &mut cb, || Ok(()))?;
     }
-    while let [first, rest @ ..] = data {
-      data = rest;
+    while let [first, ..] = data {
       self.manage_decode(*first, &mut data, &mut cb, || {
         Err(crate::Error::InvalidDynTableSizeUpdate)
       })?;
@@ -68,7 +66,7 @@ impl HpackDecoder {
     let mask =
       if let PrimitiveN::_8 = pn { u8::MAX } else { (1u8 << u8::from(pn)).wrapping_sub(1) };
 
-    let mut rslt: (_, u16) = if let [first, rest @ ..] = data {
+    let mut rslt: (u8, u16) = if let [first, rest @ ..] = data {
       *data = rest;
       let n = *first & mask;
       let rslt = (*first, n.into());
@@ -98,10 +96,10 @@ impl HpackDecoder {
   }
 
   fn decode_literal(&mut self, data: &mut &[u8], pn: PrimitiveN) -> crate::Result<()> {
-    let dyn_idx = Self::decode_integer(data, pn)?.1;
-    let has_indexed_name = dyn_idx != 0;
+    let idx = Self::decode_integer(data, pn)?.1;
+    let has_indexed_name = idx != 0;
     if has_indexed_name {
-      let hhb = *self.dyn_headers.get_by_idx(dyn_idx.into()).unwrap().misc;
+      let hhb = self.get(idx.into()).unwrap().0;
       let value = Self::decode_string_value(&mut self.header_buffers.1, data)?;
       let new_hhb = match hhb {
         HpackHeaderBasic::Authority => HpackHeaderBasic::Authority,
@@ -112,11 +110,13 @@ impl HpackDecoder {
         HpackHeaderBasic::Scheme => HpackHeaderBasic::Scheme,
         HpackHeaderBasic::Status(_) => HpackHeaderBasic::Status(value.try_into()?),
       };
+      self.dyn_headers.reserve(value.len(), 1);
       self.dyn_headers.push_front(new_hhb, &[], value, false);
     } else {
       let (hhn, name) = Self::decode_string_name(&mut self.header_buffers.0, data)?;
       let value = Self::decode_string_value(&mut self.header_buffers.1, data)?;
       let hhb = HpackHeaderBasic::try_from((hhn, value))?;
+      self.dyn_headers.reserve(name.len().wrapping_add(value.len()), 1);
       self.dyn_headers.push_front(hhb, name, value, false);
     }
     Ok(())
@@ -135,11 +135,11 @@ impl HpackDecoder {
       huffman_decode(before, buffer)?;
       (HpackHeaderName::new(buffer)?, &**buffer)
     } else {
-      let hht = HpackHeaderName::new(before)?;
-      if hht.is_field() {
-        (hht, before)
+      let hhn = HpackHeaderName::new(before)?;
+      if hhn.is_field() {
+        (hhn, before)
       } else {
-        (hht, &[][..])
+        (hhn, &[][..])
       }
     };
     *data = after;
@@ -252,14 +252,14 @@ impl HpackDecoder {
       IndexTy::LiteralNeverIndexed | IndexTy::LiteralWithoutIndexing => {
         self.decode_literal(data, PrimitiveN::_4)?;
         elem_cb(
-          self.dyn_headers.last().map(|el| (*el.misc, el.name_bytes, el.value_bytes)).unwrap(),
+          self.dyn_headers.first().map(|el| (*el.misc, el.name_bytes, el.value_bytes)).unwrap(),
         );
-        self.dyn_headers.pop_back();
+        self.dyn_headers.pop_front();
       }
       IndexTy::LiteralWithIndexing => {
         self.decode_literal(data, PrimitiveN::_6)?;
         elem_cb(
-          self.dyn_headers.last().map(|el| (*el.misc, el.name_bytes, el.value_bytes)).unwrap(),
+          self.dyn_headers.first().map(|el| (*el.misc, el.name_bytes, el.value_bytes)).unwrap(),
         );
       }
       IndexTy::SizeUpdate => {

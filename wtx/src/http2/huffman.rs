@@ -132,7 +132,6 @@ mod bench {
     let mut dest = ArrayVector::default();
     b.iter(|| {
       for chunk in data.chunks(MAX_HEADER_FIELD_LEN / 2) {
-        std::dbg!(chunk);
         huffman_decode(chunk, &mut dest).unwrap();
         dest.clear();
       }

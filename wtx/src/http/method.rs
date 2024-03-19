@@ -3,23 +3,23 @@ create_enum! {
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum Method<u8> {
     /// Connect
-    Connect = (0, "CONNECT"),
+    Connect = (0, "CONNECT" | "connect"),
     /// Delete
-    Delete = (1, "DELETE"),
+    Delete = (1, "DELETE" | "delete"),
     /// Get
-    Get = (2, "GET"),
+    Get = (2, "GET" | "get"),
     /// Head
-    Head = (3, "HEAD"),
+    Head = (3, "HEAD" | "head"),
     /// Options
-    Options = (4, "OPTIONS"),
+    Options = (4, "OPTIONS" | "options"),
     /// Patch
-    Patch = (5, "PATCH"),
+    Patch = (5, "PATCH" | "path"),
     /// Post
-    Post = (6, "POST"),
+    Post = (6, "POST" | "post"),
     /// Put
-    Put = (7, "PUT"),
+    Put = (7, "PUT" | "put"),
     /// Trace
-    Trace = (8, "TRACE"),
+    Trace = (8, "TRACE" | "trace"),
   }
 }
 
@@ -45,7 +45,7 @@ mod serde {
     where
       S: Serializer,
     {
-      serializer.serialize_str(self.strings().custom)
+      serializer.serialize_str(self.strings().custom[0])
     }
   }
 }

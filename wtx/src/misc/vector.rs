@@ -24,12 +24,13 @@ macro_rules! extend_from_slices {
 use crate::misc::_unreachable;
 use alloc::vec::Vec;
 use core::{
+  fmt::{Debug, Formatter},
   ops::{Deref, DerefMut},
   ptr,
 };
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Default, Eq, PartialEq)]
 pub struct Vector<D> {
   data: Vec<D>,
 }
@@ -210,6 +211,16 @@ impl<D> AsRef<[D]> for Vector<D> {
   #[inline]
   fn as_ref(&self) -> &[D] {
     self.data.as_slice()
+  }
+}
+
+impl<D> Debug for Vector<D>
+where
+  D: Debug,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+    self.data.fmt(f)
   }
 }
 
