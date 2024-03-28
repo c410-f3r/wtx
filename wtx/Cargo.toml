@@ -83,7 +83,7 @@ ring = { default-features = false, optional = true, version = "0.17" }
 rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.34" }
 rustls-pemfile = { default-features = false, features = ["std"], optional = true, version = "2.1" }
-rustls-pki-types = { default-features = false, optional = true, version = "1.3" }
+rustls-pki-types = { default-features = false, optional = true, version = "1.4" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 serde_yaml = { default-features = false, optional = true, version = "0.9" }
