@@ -73,7 +73,7 @@ hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 md-5 = { default-features = false, optional = true, version = "0.10" }
-memchr = { default-features = false, optional = true, version = "2.0" }
+memchr = { default-features = false, optional = true, version = "2.7" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 protobuf = { default-features = false, optional = true, version = "3.4" }
