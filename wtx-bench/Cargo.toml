@@ -1,5 +1,5 @@
 [dependencies]
-diesel = { default-features = false, version = "2.0" }
+diesel = { default-features = false, version = "2.1" }
 diesel-async = { default-features = false, features = ["postgres"], version = "0.4" }
 futures = { default-features = false, version = "0.3" }
 plotters = { default-features = false, features = ["histogram", "svg_backend"], version = "0.3" }
