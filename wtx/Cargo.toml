@@ -55,7 +55,7 @@ arrayvec = { default-features = false, optional = true, version = "0.7" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
 atoi = { default-features = false, optional = true, version = "2.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
-borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.0" }
+borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.4" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "4.0" }
