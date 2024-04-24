@@ -95,7 +95,7 @@ simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = t
 smallvec = { default-features = false, features = ["const_generics", "union"], optional = true, version = "1.13" }
 smol = { default-features = false, optional = true, version = "2.0" }
 test-strategy = { default-features = false, optional = true, version = "0.3" }
-tokio = { default-features = false, features = ["io-util", "net", "sync", "time"], optional = true, version = "1.36" }
+tokio = { default-features = false, features = ["io-util", "net", "sync", "time"], optional = true, version = "1.37" }
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.25" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
@@ -105,7 +105,7 @@ x509-certificate = { default-features = false, optional = true, version = "0.23"
 
 [dev-dependencies]
 chrono = { default-features = false, features = ["clock"], version = "0.4" }
-tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread", "time"], version = "1.36" }
+tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread", "time"], version = "1.37" }
 
 [features]
 ahash = ["dep:ahash", "hashbrown?/ahash"]
