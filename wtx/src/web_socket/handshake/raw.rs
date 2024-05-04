@@ -40,8 +40,8 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 #[cfg(feature = "web-socket-handshake")]
 mod httparse_impls {
   use crate::{
-    http::{ExpectedHeader, GenericHeader as _, Request as _},
-    misc::{bytes_split1, FilledBufferWriter, Stream, UriRef},
+    http::{ExpectedHeader, GenericHeader as _, GenericRequest as _},
+    misc::{bytes_split1, FilledBufferWriter, LeaseMut, Stream, UriRef},
     rng::Rng,
     web_socket::{
       compression::NegotiatedCompression,
@@ -55,7 +55,6 @@ mod httparse_impls {
     },
   };
   use alloc::vec::Vec;
-  use core::borrow::BorrowMut;
   use httparse::{Header, Request, Response, Status, EMPTY_HEADER};
 
   const MAX_READ_LEN: usize = 2 * 1024;
@@ -66,14 +65,14 @@ mod httparse_impls {
     C: Compression<false>,
     RNG: Rng,
     S: Stream,
-    WSB: BorrowMut<WebSocketBuffer>,
+    WSB: LeaseMut<WebSocketBuffer>,
   {
     #[inline]
     async fn accept(
       mut self,
-      cb: impl FnOnce(&dyn crate::http::Request) -> bool,
+      cb: impl FnOnce(&dyn crate::http::GenericRequest) -> bool,
     ) -> crate::Result<WebSocketServer<C::NegotiatedCompression, RNG, S, WSB>> {
-      let nb = &mut self.wsb.borrow_mut().nb;
+      let nb = &mut self.wsb.lease_mut().nb;
       nb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
       let mut read = 0;
       loop {
@@ -131,11 +130,11 @@ mod httparse_impls {
   impl<'fb, 'hb, B, C, RNG, S, WSB> WebSocketConnect<C::NegotiatedCompression, RNG, S, WSB>
     for WebSocketConnectRaw<'fb, 'hb, '_, B, C, Header<'fb>, RNG, S, WSB>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
     C: Compression<true>,
     RNG: Rng,
     S: Stream,
-    WSB: BorrowMut<WebSocketBuffer>,
+    WSB: LeaseMut<WebSocketBuffer>,
     'fb: 'hb,
   {
     type Response = Response<'hb, 'fb>;
@@ -146,8 +145,8 @@ mod httparse_impls {
       headers: impl IntoIterator<Item = (&'bytes [u8], &'bytes [u8])>,
     ) -> crate::Result<(Self::Response, WebSocketClient<C::NegotiatedCompression, RNG, S, WSB>)>
     {
-      let key_buffer = &mut <_>::default();
-      let nb = &mut self.wsb.borrow_mut().nb;
+      let key_buffer = &mut [0; 26];
+      let nb = &mut self.wsb.lease_mut().nb;
       nb._clear();
       let mut fbw = nb.into();
       let key =
@@ -177,14 +176,12 @@ mod httparse_impls {
       if !has_header_key_and_value(
         res.headers,
         b"sec-websocket-accept",
-        derived_key(&mut <_>::default(), key),
+        derived_key(&mut [0; 30], key),
       ) {
-        return Err(crate::Error::MissingHeader {
-          expected: crate::http::ExpectedHeader::SecWebSocketKey,
-        });
+        return Err(crate::Error::MissingHeader { expected: ExpectedHeader::SecWebSocketKey });
       }
       let compression = self.compression.negotiate(res.headers.iter())?;
-      nb.borrow_mut()._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
+      nb._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
       nb._following_mut().copy_from_slice(self.fb.payload().get(len..read).unwrap_or_default());
       Ok((res, WebSocketClient::new(compression, self.rng, self.stream, self.wsb)))
     }

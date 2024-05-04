@@ -44,7 +44,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
         let mut client_max_window_bits_flag = false;
         let mut permessage_deflate_flag = false;
         let mut server_max_window_bits_flag = false;
-        for param in bytes_split1(permessage_deflate_option, b';').map(|elem| _trim_bytes(elem)) {
+        for param in bytes_split1(permessage_deflate_option, b';').map(_trim_bytes) {
           if param == b"client_no_context_takeover" || param == b"server_no_context_takeover" {
           } else if param == b"permessage-deflate" {
             _manage_header_uniqueness(&mut permessage_deflate_flag, || Ok(()))?
@@ -63,11 +63,11 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
               Ok(())
             })?;
           } else {
-            return Err(crate::Error::InvalidCompressionHeaderParameter.into());
+            return Err(crate::Error::InvalidCompressionHeaderParameter);
           }
         }
         if !permessage_deflate_flag {
-          return Err(crate::Error::InvalidCompressionHeaderParameter.into());
+          return Err(crate::Error::InvalidCompressionHeaderParameter);
         }
         has_extension = true;
       }

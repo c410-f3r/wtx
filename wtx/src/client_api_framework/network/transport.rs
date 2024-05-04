@@ -2,14 +2,12 @@
 
 mod bi_transport;
 mod mock;
-#[cfg(feature = "reqwest")]
-mod reqwest;
 #[cfg(feature = "std")]
 mod std;
 mod transport_params;
 mod unit;
 #[cfg(feature = "web-socket")]
-mod wtx;
+mod wtx_ws;
 
 use crate::client_api_framework::{
   dnsn::{Deserialize, Serialize},
@@ -51,7 +49,7 @@ pub trait Transport<DRSR> {
   /// Sends a request and then awaits its counterpart data response.
   ///
   /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
-  fn send_and_retrieve<A, P>(
+  fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -60,12 +58,12 @@ pub trait Transport<DRSR> {
     A: Api,
     P: Package<A, DRSR, Self::Params>;
 
-  /// Convenient method similar to [Self::send_retrieve_and_decode_contained] but used for batch
+  /// Convenient method similar to [Self::send_recv_decode_contained] but used for batch
   /// requests.
   ///
   /// All the expected data must be available in a single response.
   #[inline]
-  fn send_retrieve_and_decode_batch<A, P, RESS>(
+  fn send_recv_decode_batch<A, P, RESS>(
     &mut self,
     pkgs: &mut [P],
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -81,8 +79,8 @@ pub trait Transport<DRSR> {
   {
     async {
       let batch_package = &mut BatchPkg::new(pkgs);
-      let range = self.send_and_retrieve(batch_package, pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.as_ref());
+      let range = self.send_recv(batch_package, pkgs_aux).await?;
+      log_res(pkgs_aux.byte_buffer.as_slice());
       batch_package.decode_and_push_from_bytes(
         ress,
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
@@ -92,10 +90,10 @@ pub trait Transport<DRSR> {
     }
   }
 
-  /// Internally calls [Self::send_and_retrieve] and then tries to decode the defined response specified
+  /// Internally calls [Self::send_recv] and then tries to decode the defined response specified
   /// in [Package::ExternalResponseContent].
   #[inline]
-  fn send_retrieve_and_decode_contained<A, P>(
+  fn send_recv_decode_contained<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -105,8 +103,8 @@ pub trait Transport<DRSR> {
     P: Package<A, DRSR, Self::Params>,
   {
     async {
-      let range = self.send_and_retrieve(pkg, pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.as_ref());
+      let range = self.send_recv(pkg, pkgs_aux).await?;
+      log_res(pkgs_aux.byte_buffer.as_slice());
       Ok(P::ExternalResponseContent::from_bytes(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,
@@ -142,7 +140,7 @@ where
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -151,7 +149,7 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Params>,
   {
-    (**self).send_and_retrieve(pkg, pkgs_aux).await
+    (**self).send_recv(pkg, pkgs_aux).await
   }
 }
 

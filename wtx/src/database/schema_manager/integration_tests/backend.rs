@@ -5,6 +5,7 @@ use crate::database::{
   },
   Identifier,
 };
+use alloc::{string::String, vec::Vec};
 use chrono::{DateTime, Duration, FixedOffset, Utc};
 
 pub(crate) async fn _backend_has_migration_with_utc_time<E>(

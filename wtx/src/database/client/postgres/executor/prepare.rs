@@ -12,15 +12,16 @@ use crate::{
     },
     RecordValues, StmtCmd,
   },
-  misc::{FilledBufferWriter, PartitionedFilledBuffer, Stream, _unreachable},
+  misc::{
+    ArrayString, FilledBufferWriter, LeaseMut, PartitionedFilledBuffer, Stream, _unreachable,
+  },
 };
-use arrayvec::ArrayString;
-use core::{borrow::BorrowMut, ops::Range};
+use core::ops::Range;
 
 impl<E, EB, S> Executor<E, EB, S>
 where
   E: From<crate::Error>,
-  EB: BorrowMut<ExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   pub(crate) async fn write_send_await_stmt_initial<RV>(
@@ -111,6 +112,6 @@ where
   }
 
   fn stmt_id_str(stmt_hash: u64) -> crate::Result<ArrayString<22>> {
-    Ok(ArrayString::try_from(format_args!("s{stmt_hash}"))?)
+    ArrayString::try_from(format_args!("s{stmt_hash}"))
   }
 }

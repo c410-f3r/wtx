@@ -34,7 +34,7 @@ use crate::{
     schema_manager::{DbMigration, MigrationGroup, UserMigration},
     Database, DatabaseTy, FromRecord, TransactionManager,
   },
-  misc::AsyncBounds,
+  misc::{AsyncBounds, Lease},
 };
 use alloc::{string::String, vec::Vec};
 use core::fmt::Write;
@@ -49,13 +49,13 @@ pub(crate) async fn _delete_migrations<E, S>(
 ) -> crate::Result<()>
 where
   E: AsyncBounds + Executor,
-  S: AsRef<str>,
+  S: Lease<str>,
 {
   buffer_cmd.write_fmt(format_args!(
     "DELETE FROM {schema_prefix}_wtx_migration WHERE _wtx_migration_omg_version = {mg_version} AND version > {version}",
     mg_version = mg.version(),
   ))?;
-  let _ = executor.execute(buffer_cmd.as_str(), |_| {}).await?;
+  executor.execute(buffer_cmd.as_str(), |_| {}).await?;
   buffer_cmd.clear();
   Ok(())
 }
@@ -69,10 +69,10 @@ pub(crate) async fn _insert_migrations<'migration, DBS, E, I, S>(
   schema_prefix: &str,
 ) -> crate::Result<()>
 where
-  DBS: AsRef<[DatabaseTy]> + 'migration,
+  DBS: Lease<[DatabaseTy]> + 'migration,
   E: AsyncBounds + Executor,
   I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-  S: AsRef<str> + 'migration,
+  S: Lease<str> + 'migration,
 {
   buffer_cmd.write_fmt(format_args!(
     "INSERT INTO {schema_prefix}_wtx_migration_group (version, name)
@@ -83,14 +83,14 @@ where
     mg_name = mg.name(),
     mg_version = mg.version(),
   ))?;
-  let _ = executor.execute(buffer_cmd.as_str(), |_| {}).await?;
+  executor.execute(buffer_cmd.as_str(), |_| {}).await?;
   buffer_cmd.clear();
 
   for migration in migrations.clone() {
     buffer_cmd.push_str(migration.sql_up());
   }
   let mut tm = executor.transaction().await?;
-  let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+  tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
   tm.commit().await?;
   buffer_cmd.clear();
 
@@ -109,7 +109,7 @@ where
     ))?;
   }
   let mut tm = executor.transaction().await?;
-  let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+  tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
   tm.commit().await?;
   buffer_cmd.clear();
 

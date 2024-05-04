@@ -69,7 +69,7 @@ where
     }
     SchemaManagerCommands::Rollback { versions: _versions } => {
       commands
-        .rollback_from_toml((_buffer_cmd, _buffer_db_migrations), &toml_file_path(sm)?, &_versions)
+        .rollback_from_toml((_buffer_cmd, _buffer_db_migrations), &toml_file_path(sm)?, _versions)
         .await?;
     }
     #[cfg(feature = "schema-manager-dev")]

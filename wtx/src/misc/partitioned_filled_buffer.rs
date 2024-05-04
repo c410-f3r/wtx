@@ -1,7 +1,4 @@
-use crate::{
-  misc::{FilledBufferWriter, _unreachable},
-  DFLT_PARTITIONED_BUFFER_LEN,
-};
+use crate::misc::{FilledBufferWriter, _unreachable};
 use alloc::{vec, vec::Vec};
 use core::ops::Range;
 
@@ -17,17 +14,17 @@ pub(crate) struct PartitionedFilledBuffer {
 }
 
 impl PartitionedFilledBuffer {
-  pub(crate) fn with_capacity(cap: usize) -> Self {
+  pub(crate) const fn new() -> Self {
+    Self { _antecedent_end_idx: 0, _buffer: Vec::new(), _current_end_idx: 0, _following_end_idx: 0 }
+  }
+
+  pub(crate) fn _with_capacity(cap: usize) -> Self {
     Self {
       _antecedent_end_idx: 0,
       _buffer: vec![0; cap],
       _current_end_idx: 0,
       _following_end_idx: 0,
     }
-  }
-
-  pub(crate) fn _empty() -> Self {
-    Self { _antecedent_end_idx: 0, _buffer: Vec::new(), _current_end_idx: 0, _following_end_idx: 0 }
   }
 
   pub(crate) fn _antecedent_end_idx(&self) -> usize {
@@ -94,7 +91,6 @@ impl PartitionedFilledBuffer {
     }
   }
 
-  /// Expands the buffer that can accommodate "following" but doesn't set its length.
   pub(crate) fn _expand_following(&mut self, new_len: usize) {
     self._expand_buffer(self._following_end_idx.wrapping_add(new_len));
   }
@@ -175,7 +171,7 @@ impl PartitionedFilledBuffer {
 impl Default for PartitionedFilledBuffer {
   #[inline]
   fn default() -> Self {
-    Self::with_capacity(DFLT_PARTITIONED_BUFFER_LEN)
+    Self::new()
   }
 }
 

@@ -140,13 +140,11 @@ impl<'exec, E> PartialEq for Record<'exec, E> {
   }
 }
 
-#[cfg(feature = "arrayvec")]
-mod arrayvec {
+mod array {
   use crate::{
     database::{client::postgres::Postgres, FromRecord, Record},
-    misc::from_utf8_basic,
+    misc::{from_utf8_basic, ArrayString},
   };
-  use arrayvec::ArrayString;
 
   impl<E, const N: usize> FromRecord<Postgres<E>> for ArrayString<N>
   where

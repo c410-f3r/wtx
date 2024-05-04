@@ -78,7 +78,7 @@ pub(crate) fn pkg(
     fbsiv,
   ))?;
   if let Some(content) = item_mod.content.as_mut() {
-    content.1.push(syn::Item::Verbatim(quote::quote!(
+    content.1.push(Item::Verbatim(quote::quote!(
       #params_item_unit_opt
 
       #(#auxs)*
@@ -104,7 +104,7 @@ fn params_item_unit_fn(camel_case_id: &mut String) -> Item {
     ident: {
       let idx = camel_case_id.len();
       camel_case_id.push_str("Params");
-      let ident = Ident::new(camel_case_id, proc_macro2::Span::mixed_site());
+      let ident = Ident::new(camel_case_id, Span::mixed_site());
       camel_case_id.truncate(idx);
       ident
     },

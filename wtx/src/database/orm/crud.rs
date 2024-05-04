@@ -2,8 +2,8 @@ use crate::{
   database::{
     executor::Executor,
     orm::{
-      seek_related_entities, write_select_field, InitialInsertValue, SelectLimit, SelectOrderBy,
-      SqlWriter, Table, TableParams,
+      seek_related_entities, write_select_field, AuxNodes, InitialInsertValue, SelectLimit,
+      SelectOrderBy, SqlWriter, Table, TableParams,
     },
     Database, Decode, FromRecords, Records, ValueIdent,
   },
@@ -31,7 +31,7 @@ pub trait Crud: Executor {
     async move {
       table_params.update_all_table_fields(table);
       table_params.write_insert::<InitialInsertValue>(
-        &mut <_>::default(),
+        &mut AuxNodes::default(),
         buffer_cmd,
         &mut None,
       )?;
@@ -56,7 +56,7 @@ pub trait Crud: Executor {
   {
     async move {
       table_params.update_all_table_fields(table);
-      table_params.write_delete(&mut <_>::default(), buffer_cmd)?;
+      table_params.write_delete(&mut AuxNodes::default(), buffer_cmd)?;
       let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
       Ok(())
     }
@@ -146,7 +146,15 @@ pub trait Crud: Executor {
       })?;
       let record = self.fetch_with_stmt(buffer_cmd.as_str(), ()).await?;
       buffer_cmd.clear();
-      Ok(T::from_records(buffer_cmd, &record, &<_>::default(), tp.table_suffix())?.1)
+      Ok(
+        T::from_records(
+          buffer_cmd,
+          &record,
+          &<Self::Database as Database>::Records::default(),
+          tp.table_suffix(),
+        )?
+        .1,
+      )
     }
   }
 
@@ -166,7 +174,7 @@ pub trait Crud: Executor {
   {
     async move {
       table_params.update_all_table_fields(table);
-      table_params.write_update(&mut <_>::default(), buffer_cmd)?;
+      table_params.write_update(&mut AuxNodes::default(), buffer_cmd)?;
       let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
       Ok(())
     }

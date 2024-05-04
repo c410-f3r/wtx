@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
-
-cargo install rust-tools --git https://github.com/c410-f3r/regular-crates
-
-rt='rust-tools --template you-rust'
-
-export CARGO_TARGET_DIR="$($rt target-dir)"
-export RUST_BACKTRACE=1
-export RUST_LOG=debug
-export RUSTFLAGS="$($rt rust-flags -Asingle-use-lifetimes,-Alet-underscore-drop)"
+. "$(dirname "$0")/common.sh" --source-only
 
 $rt rustfmt
 $rt clippy
+
+cargo miri test -p wtx
 
 # WTX
 
@@ -32,25 +25,28 @@ $rt test-with-features wtx crypto-common
 $rt test-with-features wtx database
 $rt test-with-features wtx digest
 $rt test-with-features wtx embassy-net,_hack
+$rt test-with-features wtx embassy-sync
 $rt test-with-features wtx embedded-tls
 $rt test-with-features wtx fastrand
 $rt test-with-features wtx flate2
-$rt test-with-features wtx futures
 $rt test-with-features wtx futures-lite
 $rt test-with-features wtx glommio
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
 $rt test-with-features wtx http1
+$rt test-with-features wtx http2
 $rt test-with-features wtx httparse
 $rt test-with-features wtx md-5
+$rt test-with-features wtx memchr
 $rt test-with-features wtx miniserde
+$rt test-with-features wtx nightly
 $rt test-with-features wtx orm
-$rt test-with-features wtx pool-manager
+$rt test-with-features wtx parking_lot
+$rt test-with-features wtx pool
 $rt test-with-features wtx postgres
 $rt test-with-features wtx proptest
 $rt test-with-features wtx protobuf
 $rt test-with-features wtx rand
-$rt test-with-features wtx reqwest
 $rt test-with-features wtx ring
 $rt test-with-features wtx rkyv,_hack
 $rt test-with-features wtx rust_decimal
@@ -67,6 +63,7 @@ $rt test-with-features wtx sha2
 $rt test-with-features wtx simd-json
 $rt test-with-features wtx simdutf8
 $rt test-with-features wtx smol
+$rt test-with-features wtx smoltcp,_hack
 $rt test-with-features wtx std
 $rt test-with-features wtx test-strategy
 $rt test-with-features wtx tokio
@@ -97,14 +94,10 @@ $rt test-with-features wtx-ui schema-manager
 $rt test-with-features wtx-ui schema-manager-dev
 $rt test-with-features wtx-ui web-socket
 
-cargo check --bin autobahn-client --features "flate2,web-socket-handshake"
-cargo check --bin autobahn-server --features "flate2,web-socket-handshake"
+cargo check --bin autobahn-client --features "flate2,optimization,tokio/rt-multi-thread,web-socket-handshake"
+cargo check --bin autobahn-server --features "async-send,flate2,optimization,pool,tokio/rt-multi-thread,web-socket-handshake"
 
 cargo check --example database-client-postgres-tokio-rustls --features "_tokio-rustls-client,postgres"
-cargo check --example web-socket-client-cli-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-async-std --features "async-std,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-glommio --features "glommio,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-smol --features "smol,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-tokio --features "tokio,web-socket-handshake"
-cargo check --example web-socket-server-echo-raw-tokio-rustls --features "_tokio-rustls-server,web-socket-handshake"
-cargo check --example web-socket-server-pool-raw-tokio --features "pool-manager,web-socket-handshake"
+cargo check --example web-socket-client-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
+cargo check --example web-socket-server-raw-tokio --features "async-send,pool,tokio,web-socket-handshake"
+cargo check --example web-socket-server-raw-tokio-rustls --features "_tokio-rustls-server,web-socket-handshake"

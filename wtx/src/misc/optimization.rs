@@ -1,35 +1,20 @@
-use crate::misc::{BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, StdUtf8Error};
+#![allow(
+  // Used as fallbacks
+  clippy::disallowed_methods
+)]
 
-/// Internally uses `atoi` if the feature is active.
-#[cfg(not(feature = "atoi"))]
-#[inline]
-pub fn atoi<T>(bytes: &[u8]) -> crate::Result<T>
-where
-  T: core::str::FromStr,
-  T::Err: Into<crate::Error>,
-{
-  Ok(from_utf8_basic(bytes)?.parse().map_err(Into::into)?)
-}
-/// Internally uses `atoi` if the feature is active.
-#[cfg(feature = "atoi")]
-#[inline]
-pub fn atoi<T>(bytes: &[u8]) -> crate::Result<T>
-where
-  T: atoi::FromRadix10SignedChecked,
-{
-  atoi::atoi(bytes).ok_or(crate::Error::AtoiInvalidBytes)
-}
+use crate::misc::{BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUtf8Error};
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
 pub fn bytes_pos1<B>(bytes: B, elem: u8) -> Option<usize>
 where
-  B: AsRef<[u8]>,
+  B: Lease<[u8]>,
 {
   #[cfg(feature = "memchr")]
-  return memchr::memchr(elem, bytes.as_ref());
+  return memchr::memchr(elem, bytes.lease());
   #[cfg(not(feature = "memchr"))]
-  return bytes.as_ref().iter().position(|byte| *byte == elem);
+  return bytes.lease().iter().position(|byte| *byte == elem);
 }
 
 /// Internally uses `memchr` if the feature is active.
@@ -104,6 +89,26 @@ pub fn from_utf8_std(bytes: &[u8]) -> Result<&str, StdUtf8Error> {
     valid_up_to: element.valid_up_to(),
     error_len: element.error_len(),
   });
+}
+
+/// Internally uses `atoi` if the feature is active.
+#[cfg(not(feature = "atoi"))]
+#[inline]
+pub fn atoi<T>(bytes: &[u8]) -> crate::Result<T>
+where
+  T: core::str::FromStr,
+  T::Err: Into<crate::Error>,
+{
+  from_utf8_basic(bytes)?.parse().map_err(Into::into)
+}
+/// Internally uses `atoi` if the feature is active.
+#[cfg(feature = "atoi")]
+#[inline]
+pub fn atoi<T>(bytes: &[u8]) -> crate::Result<T>
+where
+  T: atoi::FromRadix10SignedChecked,
+{
+  atoi::atoi(bytes).ok_or(crate::Error::AtoiInvalidBytes)
 }
 
 /// Internally uses `memchr` if the feature is active.

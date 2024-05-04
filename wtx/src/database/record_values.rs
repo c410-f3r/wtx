@@ -1,3 +1,8 @@
+#![allow(
+  // Meta variable expressions
+  non_snake_case
+)]
+
 use crate::{
   database::{Database, Encode},
   misc::{into_rslt, FilledBufferWriter},
@@ -140,11 +145,7 @@ where
 }
 
 macro_rules! tuple_impls {
-  ($(
-    $tuple_len:tt {
-      $(($idx:tt) -> $T:ident)+
-    }
-  )+) => {
+  ($( ($($T:ident),+) )+) => {
     $(
       impl<DB, $($T),+> RecordValues<DB> for ($( $T, )+)
       where
@@ -164,10 +165,11 @@ macro_rules! tuple_impls {
           <DB as Database>::EncodeValue<'ev>: 'ev
         {
           let mut n: usize = 0;
+          let ($($T,)+) = self;
           $(
             encode(
               aux,
-              &self.$idx,
+              &$T,
               fbw,
               &mut n,
               into_rslt(values.next())?,
@@ -180,7 +182,9 @@ macro_rules! tuple_impls {
 
         #[inline]
         fn len(&self) -> usize {
-          $tuple_len
+          let mut len: usize = 0;
+          $({ const $T: usize = 1; len = len.wrapping_add($T); })+
+          len
         }
       }
     )+
@@ -188,174 +192,22 @@ macro_rules! tuple_impls {
 }
 
 tuple_impls! {
-  1 {
-    (0) -> A
-  }
-  2 {
-    (0) -> A
-    (1) -> B
-  }
-  3 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-  }
-  4 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-  }
-  5 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-  }
-  6 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-  }
-  7 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-  }
-  8 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-  }
-  9 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-  }
-  10 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-    (9) -> J
-  }
-  11 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-    (9) -> J
-    (10) -> K
-  }
-  12 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-    (9) -> J
-    (10) -> K
-    (11) -> L
-  }
-  13 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-    (9) -> J
-    (10) -> K
-    (11) -> L
-    (12) -> M
-  }
-  14 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-    (9) -> J
-    (10) -> K
-    (11) -> L
-    (12) -> M
-    (13) -> N
-  }
-  15 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-    (9) -> J
-    (10) -> K
-    (11) -> L
-    (12) -> M
-    (13) -> N
-    (14) -> O
-  }
-  16 {
-    (0) -> A
-    (1) -> B
-    (2) -> C
-    (3) -> D
-    (4) -> E
-    (5) -> F
-    (6) -> G
-    (7) -> H
-    (8) -> I
-    (9) -> J
-    (10) -> K
-    (11) -> L
-    (12) -> M
-    (13) -> N
-    (14) -> O
-    (15) -> P
-  }
+  (A)
+  (A, B)
+  (A, B, C)
+  (A, B, C, D)
+  (A, B, C, D, E)
+  (A, B, C, D, E, F)
+  (A, B, C, D, E, F, G)
+  (A, B, C, D, E, F, G, H)
+  (A, B, C, D, E, F, G, H, I)
+  (A, B, C, D, E, F, G, H, I, J)
+  (A, B, C, D, E, F, G, H, I, J, K)
+  (A, B, C, D, E, F, G, H, I, J, K, L)
+  (A, B, C, D, E, F, G, H, I, J, K, L, M)
+  (A, B, C, D, E, F, G, H, I, J, K, L, M, N)
+  (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O)
+  (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P)
 }
 
 fn encode<A, D, T>(

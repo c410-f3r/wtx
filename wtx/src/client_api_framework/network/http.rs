@@ -1,15 +1,12 @@
 //! Convenient subset of HTTP parameters. Intended to be only used by HTTP endpoints.
 
-mod status_code;
-
 use crate::{
   client_api_framework::network::transport::TransportParams,
-  http::{Method, Mime},
+  http::{Method, Mime, StatusCode},
   misc::UriString,
 };
 use alloc::{string::String, vec::Vec};
 use core::fmt::{Arguments, Write};
-pub use status_code::*;
 
 #[derive(Debug)]
 #[doc = generic_trans_params_doc!()]
@@ -27,7 +24,7 @@ impl HttpParams {
         uri: UriString::new(url.into()),
         user_agent: None,
       },
-      HttpResParams { headers: <_>::default(), status_code: StatusCode::Forbidden },
+      HttpResParams { headers: HttpHeaders::default(), status_code: StatusCode::Forbidden },
     )
   }
 }
@@ -61,7 +58,7 @@ impl TransportParams for HttpParams {
     self.0.headers.clear();
     self.0.method = Method::Get;
     self.0.mime = None;
-    self.0.uri.retain_with_initial_len();
+    self.0.uri.truncate_with_initial_len();
     self.0.user_agent = None;
     self.1.headers.clear();
     self.1.status_code = StatusCode::Forbidden;

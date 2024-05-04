@@ -3,11 +3,14 @@
   clippy::indexing_slicing
 )]
 
-use crate::client_api_framework::{
-  misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
-  network::{transport::Transport, TransportGroup},
-  pkg::{Package, PkgsAux},
-  Api,
+use crate::{
+  client_api_framework::{
+    misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
+    network::{transport::Transport, TransportGroup},
+    pkg::{Package, PkgsAux},
+    Api,
+  },
+  misc::Lease,
 };
 use alloc::{
   borrow::{Cow, ToOwned},
@@ -32,7 +35,7 @@ pub type MockStr = Mock<str>;
 ///   pkg::PkgsAux,
 /// };
 /// let _ = MockStr::default()
-///   .send_retrieve_and_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ()))
+///   .send_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ()))
 ///   .await?;
 /// # Ok(()) }
 /// ```
@@ -49,7 +52,7 @@ where
 
 impl<T> Mock<T>
 where
-  T: AsRef<[u8]> + Debug + PartialEq + ToOwned + 'static + ?Sized,
+  T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   /// Ensures that no included request hasn't processed.
@@ -88,7 +91,7 @@ where
 
 impl<DRSR, T> Transport<DRSR> for Mock<T>
 where
-  T: AsRef<[u8]> + Debug + PartialEq + ToOwned + 'static + ?Sized,
+  T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   const GROUP: TransportGroup = TransportGroup::Stub;
@@ -112,7 +115,7 @@ where
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
@@ -124,7 +127,7 @@ where
     <Self as Transport<DRSR>>::send(self, pkg, pkgs_aux).await?;
     let response = self.pop_response()?;
     pkgs_aux.byte_buffer.clear();
-    pkgs_aux.byte_buffer.extend(response.as_ref().as_ref().iter().copied());
+    pkgs_aux.byte_buffer.extend(response.lease().iter().copied());
     Ok(0..pkgs_aux.byte_buffer.len())
   }
 }

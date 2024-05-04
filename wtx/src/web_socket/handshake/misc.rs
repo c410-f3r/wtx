@@ -14,23 +14,17 @@ pub(crate) fn gen_key<'buffer>(buffer: &'buffer mut [u8; 26], rng: &mut impl Rng
 }
 
 #[allow(
-    // False positive
-    clippy::arithmetic_side_effects,
-    // Buffer has enough capacity and `base64` already returns a valid string
+    // Buffer has enough capacity.
     clippy::unwrap_used
 )]
 fn base64_from_array<'output, const I: usize, const O: usize>(
   input: &[u8; I],
   output: &'output mut [u8; O],
 ) -> &'output [u8] {
-  fn div_ceil(x: usize, y: usize) -> usize {
-    let fun = || {
-      let num = x.checked_add(y)?.checked_sub(1)?;
-      num.checked_div(y)
-    };
-    fun().unwrap_or_default()
+  const {
+    let rslt = if let Some(elem) = base64::encoded_len(I, false) { elem } else { 0 };
+    assert!(O >= rslt);
   }
-  assert!(O >= div_ceil(I, 3).wrapping_mul(4));
   let len = STANDARD.encode_slice(input, output).unwrap();
   output.get(..len).unwrap_or_default()
 }

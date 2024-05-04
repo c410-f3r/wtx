@@ -41,6 +41,7 @@ mod serde_xml_rs {
   use crate::client_api_framework::{
     data_format::XmlResponse, dnsn::SerdeXmlRs, misc::seq_visitor::_SeqVisitor,
   };
+  use alloc::vec::Vec;
   use core::fmt::Display;
   use serde::de::Deserializer;
 

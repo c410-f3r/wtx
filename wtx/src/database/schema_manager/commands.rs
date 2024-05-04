@@ -6,10 +6,13 @@ mod rollback;
 mod seed;
 mod validate;
 
-use crate::database::{
-  executor::Executor,
-  schema_manager::{UserMigration, DEFAULT_BATCH_SIZE},
-  Database, DatabaseTy,
+use crate::{
+  database::{
+    executor::Executor,
+    schema_manager::{UserMigration, DEFAULT_BATCH_SIZE},
+    Database, DatabaseTy,
+  },
+  misc::Lease,
 };
 
 /// SQL commands facade
@@ -48,9 +51,9 @@ where
     migrations: I,
   ) -> impl Clone + Iterator<Item = &'migration UserMigration<DBS, S>>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration,
+    S: Lease<str> + 'migration,
   {
     migrations.filter(move |m| {
       if m.dbs().is_empty() {

@@ -142,7 +142,7 @@ macro_rules! _impl_se_collections {
         T: $bound,
       {
         #[inline]
-        fn to_bytes(&mut self, bytes: &mut Vec<u8>, drsr: &mut $drsr) -> crate::Result<()>
+        fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()>
         {
           let $array_self = self;
           let $array_bytes = bytes;
@@ -154,13 +154,12 @@ macro_rules! _impl_se_collections {
     )?
 
     $(
-      #[cfg(feature = "arrayvec")]
-      impl<T, const N: usize> crate::client_api_framework::dnsn::Serialize<$drsr> for arrayvec::ArrayVec<T, N>
+      impl<T, const N: usize> crate::client_api_framework::dnsn::Serialize<$drsr> for crate::misc::ArrayVector<T, N>
       where
         T: $bound,
       {
         #[inline]
-        fn to_bytes(&mut self, bytes: &mut Vec<u8>, drsr: &mut $drsr) -> crate::Result<()> {
+        fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()> {
           let $arrayvec_self = self;
           let $arrayvec_bytes = bytes;
           let $arrayvec_drsr = drsr;
@@ -175,7 +174,7 @@ macro_rules! _impl_se_collections {
       T: $bound,
     {
       #[inline]
-      fn to_bytes(&mut self, bytes: &mut Vec<u8>, drsr: &mut $drsr) -> crate::Result<()> {
+      fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()> {
         let $slice_ref_self = self;
         let $slice_ref_bytes = bytes;
         let $slice_ref_drsr = drsr;
@@ -184,12 +183,12 @@ macro_rules! _impl_se_collections {
       }
     }
 
-    impl<T> crate::client_api_framework::dnsn::Serialize<$drsr> for Vec<T>
+    impl<T> crate::client_api_framework::dnsn::Serialize<$drsr> for alloc::vec::Vec<T>
     where
       T: $bound,
     {
       #[inline]
-      fn to_bytes(&mut self, bytes: &mut Vec<u8>, drsr: &mut $drsr) -> crate::Result<()>  {
+      fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()>  {
         let $vec_self = self;
         let $vec_bytes = bytes;
         let $vec_drsr = drsr;

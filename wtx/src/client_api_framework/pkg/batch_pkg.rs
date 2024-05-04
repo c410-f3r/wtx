@@ -167,6 +167,7 @@ mod serde_json {
     pkg::{BatchElems, Package},
     Api,
   };
+  use alloc::vec::Vec;
   use serde::Serializer;
 
   impl<A, DRSR, P, TP> crate::client_api_framework::dnsn::Serialize<SerdeJson>

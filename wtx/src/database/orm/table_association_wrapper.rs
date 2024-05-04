@@ -1,6 +1,6 @@
 use crate::{
   database::orm::{Table, TableAssociation, TableParams},
-  misc::SingleTypeStorage,
+  misc::{Lease, SingleTypeStorage},
 };
 
 /// A helper structure for people that manually implement [TableAssociations]
@@ -11,7 +11,7 @@ use crate::{
 pub struct TableAssociationWrapper<'entity, T, TS>
 where
   T: Table<'entity>,
-  TS: AsRef<[TableParams<'entity, T>]> + SingleTypeStorage<Item = TableParams<'entity, T>>,
+  TS: Lease<[TableParams<'entity, T>]> + SingleTypeStorage<Item = TableParams<'entity, T>>,
 {
   /// See [TableAssociation]
   pub association: TableAssociation,

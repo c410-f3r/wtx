@@ -4,6 +4,7 @@ pub(crate) mod without_schema;
 use crate::database::schema_manager::{
   integration_tests::AuxTestParams, Commands, MigrationGroup, SchemaManagement,
 };
+use alloc::{string::String, vec::Vec};
 use std::path::Path;
 
 pub(crate) async fn migrate_works<E>(

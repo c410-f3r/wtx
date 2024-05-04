@@ -92,7 +92,7 @@ fn _checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
 }
 
 fn _fixed_from_naive_utc(naive: NaiveDateTime) -> DateTime<Utc> {
-  chrono::DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc).into()
+  DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc)
 }
 
 fn _from_u32(n: Option<u32>) -> Option<Repeatability> {

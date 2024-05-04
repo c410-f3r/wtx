@@ -7,9 +7,12 @@ macro_rules! opt_to_inv_mig {
   };
 }
 
-use crate::database::{
-  schema_manager::migration::{DbMigration, UserMigration},
-  DatabaseTy,
+use crate::{
+  database::{
+    schema_manager::migration::{DbMigration, UserMigration},
+    DatabaseTy,
+  },
+  misc::Lease,
 };
 use core::hash::{Hash, Hasher};
 #[cfg(feature = "std")]
@@ -18,7 +21,7 @@ use {
     toml_parser::{toml, Expr, EXPR_ARRAY_MAX_LEN},
     MigrationGroup, Repeatability, UserMigrationOwned,
   },
-  arrayvec::ArrayString,
+  alloc::string::String,
   arrayvec::ArrayVec,
   core::cmp::Ordering,
   std::path::{Path, PathBuf},
@@ -32,8 +35,14 @@ use {
 #[cfg(feature = "std")]
 type MigrationGroupParts = (String, i32);
 #[cfg(feature = "std")]
-type MigrationParts =
-  (ArrayVec<DatabaseTy, { DatabaseTy::len() }>, String, Option<Repeatability>, String, String, i32);
+type MigrationParts = (
+  crate::misc::ArrayVector<DatabaseTy, { DatabaseTy::len() }>,
+  String,
+  Option<Repeatability>,
+  String,
+  String,
+  i32,
+);
 
 /// All files of a given `path`.
 #[cfg(feature = "std")]
@@ -56,8 +65,9 @@ pub fn group_and_migrations_from_path<F>(
 where
   F: FnMut(&PathBuf, &PathBuf) -> Ordering,
 {
-  use crate::database::schema_manager::migration_parser::{
-    parse_migration_toml, parse_unified_migration,
+  use crate::{
+    database::schema_manager::migration_parser::{parse_migration_toml, parse_unified_migration},
+    misc::ArrayString,
   };
 
   fn group_and_migrations_from_path<F>(
@@ -70,7 +80,7 @@ where
     let (mg, mut migrations_vec) = migrations_from_dir(path)?;
     migrations_vec.sort_by(cb);
     let migrations = migrations_vec.into_iter().map(move |local_path| {
-      let mut dbs = ArrayVec::default();
+      let mut dbs = crate::misc::ArrayVector::default();
       let name;
       let mut repeatability = None;
       let mut sql_down = String::default();
@@ -96,13 +106,13 @@ where
           let file = file_rslt?;
           let file_path = file.path();
           let file_name = opt_to_inv_mig!(|| file_path.file_name()?.to_str())?;
-          if file_name == &cfg_file_name {
+          if file_name == cfg_file_name.as_str() {
             let mc = parse_migration_toml(File::open(file_path)?)?;
             dbs = mc.dbs;
             repeatability = mc.repeatability;
-          } else if file_name == &down_file_name {
+          } else if file_name == down_file_name.as_str() {
             sql_down = read_to_string(file_path)?;
-          } else if file_name == &up_file_name {
+          } else if file_name == up_file_name.as_str() {
             sql_up = read_to_string(file_path)?;
           } else {
             continue;
@@ -155,13 +165,13 @@ pub fn parse_root_toml_raw<R>(
 where
   R: Read,
 {
-  let mut migration_groups = ArrayVec::new();
+  let mut migration_groups = ArrayVec::default();
   let mut seeds = None;
 
   for (ident, toml_expr) in toml(read)? {
-    match (ident.as_ref(), toml_expr) {
+    match (ident.as_str(), toml_expr) {
       ("migration_groups", Expr::Array(array)) => {
-        for elem in array {
+        for elem in array.into_iter() {
           let path = root.join(elem.as_str());
           let name_opt = || path.file_name()?.to_str();
           let Some(name) = name_opt() else {
@@ -204,8 +214,8 @@ pub(crate) fn is_migration_divergent<DBS, S>(
   migration: &UserMigration<DBS, S>,
 ) -> bool
 where
-  DBS: AsRef<[DatabaseTy]>,
-  S: AsRef<str>,
+  DBS: Lease<[DatabaseTy]>,
+  S: Lease<str>,
 {
   let version = migration.version();
   let opt = binary_search_migration_by_version(version, db_migrations);
@@ -273,12 +283,14 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, i32)> {
 
 #[cfg(feature = "std")]
 #[inline]
-fn migrations_from_dir(path: &Path) -> crate::Result<(MigrationGroupParts, Vec<PathBuf>)> {
+fn migrations_from_dir(
+  path: &Path,
+) -> crate::Result<(MigrationGroupParts, alloc::vec::Vec<PathBuf>)> {
   let path_str = opt_to_inv_mig!(|| path.file_name()?.to_str())?;
   let (mg_name, mg_version) = dir_name_parts(path_str)?;
   let migration_paths = read_dir(path)?
     .map(|entry_rslt| Ok(entry_rslt?.path()))
-    .collect::<crate::Result<Vec<PathBuf>>>()?;
+    .collect::<crate::Result<alloc::vec::Vec<PathBuf>>>()?;
   Ok(((mg_name, mg_version), migration_paths))
 }
 

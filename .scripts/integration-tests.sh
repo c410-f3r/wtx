@@ -3,7 +3,7 @@
 . "$(dirname "$0")/common.sh" --source-only
 
 export DATABASE_URI='postgres://wtx_md5:wtx@localhost:5432/wtx'
-export RUSTFLAGS="$($rt rust-flags -Asingle-use-lifetimes,-Alet-underscore-drop)"
+export RUST_LOG=info
 
 cargo test --all-features --release -- --test-threads=1
 

@@ -21,6 +21,7 @@ mod miniserde {
     data_format::JsonRequest,
     dnsn::{miniserde_serialize, Miniserde},
   };
+  use alloc::vec::Vec;
 
   impl<D> crate::client_api_framework::dnsn::Serialize<Miniserde> for JsonRequest<D>
   where
@@ -38,6 +39,7 @@ mod miniserde {
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::client_api_framework::{data_format::JsonRequest, dnsn::SerdeJson};
+  use alloc::vec::Vec;
 
   impl<D> crate::client_api_framework::dnsn::Serialize<SerdeJson> for JsonRequest<D>
   where
@@ -57,6 +59,7 @@ mod serde_json {
 #[cfg(feature = "simd-json")]
 mod simd_json {
   use crate::client_api_framework::{data_format::JsonRequest, dnsn::SimdJson};
+  use alloc::vec::Vec;
 
   impl<D> crate::client_api_framework::dnsn::Serialize<SimdJson> for JsonRequest<D>
   where

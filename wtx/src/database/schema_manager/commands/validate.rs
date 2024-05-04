@@ -1,9 +1,12 @@
-use crate::database::{
-  schema_manager::{
-    misc::is_migration_divergent, Commands, DbMigration, MigrationGroup, Repeatability,
-    SchemaManagement, UserMigration,
+use crate::{
+  database::{
+    schema_manager::{
+      misc::is_migration_divergent, Commands, DbMigration, MigrationGroup, Repeatability,
+      SchemaManagement, UserMigration,
+    },
+    DatabaseTy,
   },
-  DatabaseTy,
+  misc::Lease,
 };
 use alloc::{string::String, vec::Vec};
 #[cfg(feature = "std")]
@@ -26,9 +29,9 @@ where
     migrations: I,
   ) -> crate::Result<()>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration,
+    S: Lease<str> + 'migration,
   {
     self.executor.migrations(buffer_cmd, mg, buffer_db_migrations).await?;
     Self::do_validate(buffer_db_migrations, Self::filter_by_db(migrations))?;
@@ -69,9 +72,9 @@ where
     migrations: I,
   ) -> crate::Result<()>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration,
+    S: Lease<str> + 'migration,
   {
     let mut migrations_len: usize = 0;
     for migration in migrations {

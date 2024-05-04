@@ -37,5 +37,5 @@ impl RequestLimit {
 
 #[test]
 fn limit_can_not_be_zero() {
-  assert!(RequestLimit::new(0, <_>::default()).is_err())
+  assert!(RequestLimit::new(0, Duration::default()).is_err())
 }

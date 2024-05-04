@@ -7,15 +7,16 @@ fi;
 
 ## fuzzingclient
 
-cargo build --bin autobahn-server --features atoi,flate2,simdutf8,tokio,web-socket-handshake --profile bench
-cargo run --bin autobahn-server --features atoi,flate2,simdutf8,tokio,web-socket-handshake --profile bench & cargo_pid=$!
+cargo build --bin autobahn-server --features async-send,flate2,optimization,pool,tokio,web-socket-handshake --profile bench
+cargo run --bin autobahn-server --features async-send,flate2,optimization,pool,tokio,web-socket-handshake --profile bench & cargo_pid=$!
+sleep 1
 mkdir -p .scripts/autobahn/reports/fuzzingclient
 podman run \
 	-p 9070:9070 \
 	-v .scripts/autobahn/fuzzingclient-min.json:/fuzzingclient.json:ro \
 	-v .scripts/autobahn:/autobahn \
 	--name fuzzingclient \
-	--net=host \
+	--network host \
 	--rm \
 	docker.io/crossbario/autobahn-testsuite:0.8.2 wstest -m fuzzingclient -s fuzzingclient.json
 podman rm --force --ignore fuzzingclient

@@ -1,7 +1,11 @@
-use crate::misc::{QueryWriter, _unlikely_dflt, str_rsplit_once1, str_split_once1};
+use crate::misc::{
+  QueryWriter, _unlikely_dflt, str_rsplit_once1, str_split_once1, ArrayString, Lease,
+};
 use alloc::string::String;
 use core::fmt::{Arguments, Debug, Formatter, Write};
 
+/// [Uri] with an owned array.
+pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;
 /// [Uri] with a string reference.
 pub type UriRef<'uri> = Uri<&'uri str>;
 /// [Uri] with an owned string.
@@ -22,26 +26,12 @@ pub struct Uri<S> {
 
 impl<S> Uri<S>
 where
-  S: AsRef<str>,
+  S: Lease<str>,
 {
   /// Analyzes the provided `uri` to create a new instance.
   #[inline]
   pub fn new(uri: S) -> Self {
-    let initial_len = uri.as_ref().len().try_into().unwrap_or(u16::MAX);
-    let valid_uri = uri.as_ref().get(..initial_len.into()).unwrap_or_else(_unlikely_dflt);
-    let authority_start_idx: u16 = valid_uri
-      .match_indices("://")
-      .next()
-      .and_then(|(element, _)| element.wrapping_add(3).try_into().ok())
-      .unwrap_or_else(_unlikely_dflt);
-    let href_start_idx = valid_uri
-      .as_bytes()
-      .iter()
-      .copied()
-      .enumerate()
-      .skip(authority_start_idx.into())
-      .find_map(|(idx, el)| (el == b'/').then_some(idx).and_then(|_usisze| _usisze.try_into().ok()))
-      .unwrap_or(initial_len);
+    let (authority_start_idx, href_start_idx, initial_len) = Self::parts(uri.lease());
     Self { authority_start_idx, href_start_idx, initial_len, uri }
   }
 
@@ -53,7 +43,7 @@ where
   pub fn authority(&self) -> &str {
     self
       .uri
-      .as_ref()
+      .lease()
       .get(self.authority_start_idx.into()..self.href_start_idx.into())
       .unwrap_or_else(_unlikely_dflt)
   }
@@ -103,7 +93,7 @@ where
   /// ```
   #[inline]
   pub fn href(&self) -> &str {
-    if let Some(elem) = self.uri.as_ref().get(self.href_start_idx.into()..) {
+    if let Some(elem) = self.uri.lease().get(self.href_start_idx.into()..) {
       if !elem.is_empty() {
         return elem;
       }
@@ -152,11 +142,7 @@ where
   pub fn query(&self) -> &str {
     let href = self.href();
     let before_hash = if let Some((elem, _)) = str_rsplit_once1(href, b'#') { elem } else { href };
-    if let Some((_, elem)) = str_rsplit_once1(before_hash, b'?') {
-      elem
-    } else {
-      ""
-    }
+    str_rsplit_once1(before_hash, b'?').map(|el| el.1).unwrap_or_default()
   }
 
   /// ```rust
@@ -165,13 +151,11 @@ where
   /// ```
   #[inline]
   pub fn schema(&self) -> &str {
-    let mut iter = self.uri.as_ref().split("://");
-    let first_opt = iter.next();
-    if iter.next().is_some() {
-      first_opt.unwrap_or_else(_unlikely_dflt)
-    } else {
-      ""
-    }
+    self
+      .authority_start_idx
+      .checked_sub(3)
+      .and_then(|index| self.uri.lease().get(..index.into()))
+      .unwrap_or_default()
   }
 
   /// See [UriPartsRef].
@@ -181,7 +165,7 @@ where
       authority_start_idx: self.authority_start_idx,
       href_start_idx: self.href_start_idx,
       initial_len: self.initial_len,
-      uri: self.uri.as_ref(),
+      uri: self.uri.lease(),
     }
   }
 
@@ -192,14 +176,14 @@ where
       authority_start_idx: self.authority_start_idx,
       href_start_idx: self.href_start_idx,
       initial_len: self.initial_len,
-      uri: self.uri.as_ref().into(),
+      uri: self.uri.lease().into(),
     }
   }
 
   /// Full URI.
   #[inline]
   pub fn uri(&self) -> &str {
-    self.uri.as_ref()
+    self.uri.lease()
   }
 
   /// ```rust
@@ -227,18 +211,29 @@ where
       ""
     }
   }
+
+  fn parts(uri: &str) -> (u16, u16, u16) {
+    let initial_len = uri.len().try_into().unwrap_or(u16::MAX);
+    let valid_uri = uri.get(..initial_len.into()).unwrap_or_else(_unlikely_dflt);
+    let authority_start_idx: u16 = valid_uri
+      .match_indices("://")
+      .next()
+      .and_then(|(element, _)| element.wrapping_add(3).try_into().ok())
+      .unwrap_or_else(_unlikely_dflt);
+    let href_start_idx = valid_uri
+      .as_bytes()
+      .iter()
+      .copied()
+      .enumerate()
+      .skip(authority_start_idx.into())
+      .find_map(|(idx, el)| (el == b'/').then_some(idx).and_then(|_usisze| _usisze.try_into().ok()))
+      .unwrap_or(initial_len);
+    (authority_start_idx, href_start_idx, initial_len)
+  }
 }
 
 impl UriString {
-  /// Clears the internal storage.
-  #[inline]
-  pub fn clear(&mut self) {
-    self.authority_start_idx = 0;
-    self.href_start_idx = 0;
-    self.uri.clear();
-  }
-
-  /// Pushes an additional path erasing any subsequent content.
+  /// Pushes an additional path only if there is no query.
   #[inline]
   pub fn push_path(&mut self, args: Arguments<'_>) -> crate::Result<()> {
     if !self.query().is_empty() {
@@ -257,11 +252,20 @@ impl UriString {
     Ok(QueryWriter::new(&mut self.uri))
   }
 
-  /// Truncates the internal storage with the length of the URL initially created in this instance.
-  ///
-  /// If the current length is lesser than the original URL length, nothing will happen.
+  /// Clears the internal storage and makes room for a new base URI.
   #[inline]
-  pub fn retain_with_initial_len(&mut self) {
+  pub fn reset(&mut self, uri: &str) {
+    self.uri.clear();
+    self.uri.push_str(uri);
+    let (authority_start_idx, href_start_idx, initial_len) = Self::parts(uri);
+    self.authority_start_idx = authority_start_idx;
+    self.href_start_idx = href_start_idx;
+    self.initial_len = initial_len;
+  }
+
+  /// Truncates the internal storage with the length of the base URI created in this instance.
+  #[inline]
+  pub fn truncate_with_initial_len(&mut self) {
     self.uri.truncate(self.initial_len.into());
   }
 }
@@ -275,7 +279,7 @@ impl<S> Debug for Uri<S> {
 
 impl<S> From<S> for Uri<S>
 where
-  S: AsRef<str>,
+  S: Lease<str>,
 {
   #[inline]
   fn from(value: S) -> Self {
@@ -294,11 +298,11 @@ mod tests {
     assert_eq!(uri.path(), "/rewqd/tretre");
     assert_eq!(uri.query(), "");
     assert_eq!(uri.uri(), "http://dasdas.com/rewqd/tretre");
-    uri.retain_with_initial_len();
+    uri.truncate_with_initial_len();
     assert_eq!(uri.path(), "/rewqd");
     assert_eq!(uri.query(), "");
     assert_eq!(uri.uri(), "http://dasdas.com/rewqd");
-    uri.clear();
+    uri.reset("");
     assert_eq!(uri.path(), "/");
     assert_eq!(uri.query(), "");
     assert_eq!(uri.uri(), "");

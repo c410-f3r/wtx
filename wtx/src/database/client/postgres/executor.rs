@@ -14,10 +14,10 @@ use crate::{
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
-  misc::{AsyncBounds, FilledBufferWriter, Stream, TlsStream},
+  misc::{AsyncBounds, FilledBufferWriter, Lease, LeaseMut, Stream, TlsStream},
   rng::Rng,
 };
-use core::{borrow::BorrowMut, future::Future, marker::PhantomData};
+use core::{future::Future, marker::PhantomData};
 
 /// Executor
 #[derive(Debug)]
@@ -30,7 +30,7 @@ pub struct Executor<E, EB, S> {
 
 impl<E, EB, S> Executor<E, EB, S>
 where
-  EB: BorrowMut<ExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   /// Connects with an unencrypted stream.
@@ -44,7 +44,7 @@ where
   where
     RNG: Rng,
   {
-    eb.borrow_mut().clear();
+    eb.lease_mut().clear();
     Self::do_connect(config, eb, rng, stream, None).await
   }
 
@@ -64,8 +64,8 @@ where
     RNG: Rng,
     S: TlsStream,
   {
-    eb.borrow_mut().clear();
-    let mut fbw = FilledBufferWriter::from(&mut eb.borrow_mut().nb);
+    eb.lease_mut().clear();
+    let mut fbw = FilledBufferWriter::from(&mut eb.lease_mut().nb);
     encrypted_conn(&mut fbw)?;
     initial_stream.write_all(fbw._curr_bytes()).await?;
     let mut buf = [0];
@@ -75,14 +75,13 @@ where
     }
     let stream = cb(initial_stream).await?;
     let tls_server_end_point = stream.tls_server_end_point()?;
-    Self::do_connect(config, eb, rng, stream, tls_server_end_point.as_ref().map(AsRef::as_ref))
-      .await
+    Self::do_connect(config, eb, rng, stream, tls_server_end_point.as_ref().map(Lease::lease)).await
   }
 
   /// Mutable buffer reference
   #[inline]
   pub fn eb_mut(&mut self) -> &mut ExecutorBuffer {
-    self.eb.borrow_mut()
+    self.eb.lease_mut()
   }
 
   #[inline]
@@ -104,7 +103,7 @@ where
   }
 
   async fn send_initial_conn_msg(&mut self, config: &Config<'_>) -> crate::Result<()> {
-    let mut fbw = FilledBufferWriter::from(&mut self.eb.borrow_mut().nb);
+    let mut fbw = FilledBufferWriter::from(&mut self.eb.lease_mut().nb);
     initial_conn_msg(config, &mut fbw)?;
     self.stream.write_all(fbw._curr_bytes()).await?;
     Ok(())
@@ -114,7 +113,7 @@ where
 impl<E, EB, S> crate::database::Executor for Executor<E, EB, S>
 where
   E: AsyncBounds + From<crate::Error>,
-  EB: AsyncBounds + BorrowMut<ExecutorBuffer>,
+  EB: AsyncBounds + LeaseMut<ExecutorBuffer>,
   S: AsyncBounds + Stream,
 {
   type Database = Postgres<E>;
@@ -137,7 +136,7 @@ where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut rows = 0;
     let mut fwsc = FetchWithStmtCommons {
@@ -173,7 +172,7 @@ where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     Self::write_send_await_fetch_with_stmt(
       &mut FetchWithStmtCommons {
         is_closed: &mut self.is_closed,
@@ -201,7 +200,7 @@ where
     RV: AsyncBounds + RecordValues<Self::Database>,
     SC: AsyncBounds + StmtCmd,
   {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut fwsc = FetchWithStmtCommons {
       is_closed: &mut self.is_closed,
@@ -252,7 +251,7 @@ where
 
   #[inline]
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     Ok(
       Self::write_send_await_stmt_prot(
@@ -274,7 +273,7 @@ where
 
   #[inline]
   async fn transaction(&mut self) -> crate::Result<Self::TransactionManager<'_>> {
-    let ExecutorBufferPartsMut { nb, rb, vb, .. } = self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, rb, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut tm = TransactionManager::new(self);
     tm.begin().await?;

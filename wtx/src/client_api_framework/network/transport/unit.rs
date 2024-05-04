@@ -12,7 +12,7 @@ use core::ops::Range;
 /// # async fn fun() -> wtx::Result<()> {
 /// use wtx::client_api_framework::{network::transport::Transport, pkg::PkgsAux};
 /// let _ =
-///   ().send_retrieve_and_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ())).await?;
+///   ().send_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ())).await?;
 /// # Ok(()) }
 /// ```
 impl<DRSR> Transport<DRSR> for () {
@@ -35,7 +35,7 @@ impl<DRSR> Transport<DRSR> for () {
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
@@ -57,6 +57,6 @@ mod tests {
   async fn unit() {
     let mut pa = PkgsAux::from_minimum((), (), ());
     let mut trans = ();
-    assert_eq!(trans.send_retrieve_and_decode_contained(&mut (), &mut pa).await.unwrap(), ());
+    assert_eq!(trans.send_recv_decode_contained(&mut (), &mut pa).await.unwrap(), ());
   }
 }

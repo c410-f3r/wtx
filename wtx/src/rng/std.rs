@@ -5,7 +5,7 @@ use std::{
 };
 
 /// Derived from the tools provided by the standard library, uses a simple XOR strategy.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StdRng(u64);
 
 impl Rng for StdRng {

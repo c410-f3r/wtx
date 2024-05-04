@@ -16,15 +16,15 @@ const NUM_OF_ELEMENTS_TO_REMOVE_WHEN_FULL: u8 = 8;
 /// Statements
 #[derive(Debug)]
 pub struct Statements {
-  columns_start: usize,
   columns: VecDeque<Column>,
-  info_by_cmd_hash_start: usize,
+  columns_start: usize,
   info_by_cmd_hash: HashMap<u64, usize>,
+  info_by_cmd_hash_start: usize,
   info: VecDeque<StatementInfo>,
   max_stmts: usize,
   num_of_elements_to_remove_when_full: u8,
-  params_start: usize,
   params: VecDeque<Ty>,
+  params_start: usize,
   rs: RandomState,
 }
 

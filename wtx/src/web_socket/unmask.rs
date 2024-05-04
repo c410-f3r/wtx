@@ -2,7 +2,6 @@
 #[inline]
 pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
   let mut mask_u32 = u32::from_ne_bytes(mask);
-  #[allow(unsafe_code)]
   // SAFETY: Changing a sequence of `u8` to `u32` should be fine
   let (prefix, words, suffix) = unsafe { bytes.align_to_mut::<u32>() };
   unmask_u8_slice(prefix, mask);
@@ -30,7 +29,7 @@ fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4]) {
 }
 
 fn unmask_u32_slice(bytes: &mut [u32], mask: u32) {
-  _iter4_mut!(bytes, |elem| {
+  _iter4_mut!(bytes, {}, |elem| {
     *elem ^= mask;
   });
 }
@@ -38,11 +37,11 @@ fn unmask_u32_slice(bytes: &mut [u32], mask: u32) {
 #[cfg(feature = "_bench")]
 #[cfg(test)]
 mod bench {
-  use crate::web_socket::unmask;
+  use crate::{bench::_data, web_socket::unmask};
 
   #[bench]
   fn bench_unmask(b: &mut test::Bencher) {
-    let mut data = crate::bench::_data(64 << 20);
+    let mut data = _data(1024 * 1024 * 8);
     b.iter(|| unmask(&mut data, [3, 5, 7, 11]));
   }
 }
@@ -50,6 +49,8 @@ mod bench {
 #[cfg(test)]
 #[cfg(feature = "_proptest")]
 mod proptest {
+  use alloc::vec::Vec;
+
   #[test_strategy::proptest]
   fn unmask(mut data: Vec<u8>, mask: [u8; 4]) {
     crate::web_socket::unmask(&mut data, mask);

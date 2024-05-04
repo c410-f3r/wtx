@@ -4,6 +4,7 @@ use crate::database::{
   },
   Identifier,
 };
+use alloc::{string::String, vec::Vec};
 use std::path::Path;
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schema<E>(
