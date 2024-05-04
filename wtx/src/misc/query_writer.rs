@@ -1,7 +1,5 @@
-use core::{
-  borrow::Borrow,
-  fmt::{Display, Write},
-};
+use crate::misc::Lease;
+use core::fmt::{Display, Write};
 
 /// Query parameters need special handling because of the initial `?`.
 #[derive(Debug)]
@@ -12,10 +10,10 @@ pub struct QueryWriter<'str, S> {
 
 impl<'str, S> QueryWriter<'str, S>
 where
-  S: AsRef<str> + Write,
+  S: Lease<str> + Write,
 {
   pub(crate) fn new(s: &'str mut S) -> Self {
-    Self { initial_len: s.as_ref().len(), s }
+    Self { initial_len: s.lease().len(), s }
   }
 
   /// Writes `?param=value` or `&param=value`.
@@ -24,7 +22,7 @@ where
   where
     T: Display,
   {
-    if self.s.as_ref().len() == self.initial_len {
+    if self.s.lease().len() == self.initial_len {
       self.s.write_fmt(format_args!("?{param}={value}"))?;
     } else {
       self.s.write_fmt(format_args!("&{param}={value}"))?;
@@ -37,9 +35,9 @@ where
   pub fn write_opt<T, U>(self, param: &str, opt: U) -> crate::Result<Self>
   where
     T: Display,
-    U: Borrow<Option<T>>,
+    U: Lease<Option<T>>,
   {
-    if let Some(value) = opt.borrow() {
+    if let Some(value) = opt.lease() {
       self.write(param, value)
     } else {
       Ok(self)

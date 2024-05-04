@@ -18,7 +18,10 @@ pub use commands::*;
 pub use repeatability::Repeatability;
 #[cfg(all(feature = "_integration-tests", feature = "schema-manager-dev", test))]
 mod integration_tests;
-use crate::database::{executor::Executor, DatabaseTy, Identifier};
+use crate::{
+  database::{executor::Executor, DatabaseTy, Identifier},
+  misc::Lease,
+};
 use alloc::{string::String, vec::Vec};
 use core::future::Future;
 pub use migration::*;
@@ -59,7 +62,7 @@ pub trait SchemaManagement: Executor {
     version: i32,
   ) -> impl Future<Output = crate::Result<()>>
   where
-    S: AsRef<str>;
+    S: Lease<str>;
 
   /// Inserts a new set of migrations,
   fn insert_migrations<'migration, DBS, I, S>(
@@ -69,9 +72,9 @@ pub trait SchemaManagement: Executor {
     migrations: I,
   ) -> impl Future<Output = crate::Result<()>>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration;
+    S: Lease<str> + 'migration;
 
   /// Retrieves all migrations of the given `mg` group.
   fn migrations<S>(
@@ -81,7 +84,7 @@ pub trait SchemaManagement: Executor {
     results: &mut Vec<DbMigration>,
   ) -> impl Future<Output = crate::Result<()>>
   where
-    S: AsRef<str>;
+    S: Lease<str>;
 
   /// Retrieves all tables contained in a schema. If the implementation does not supports schemas,
   /// the parameter is ignored.
@@ -112,7 +115,7 @@ impl SchemaManagement for () {
     _: i32,
   ) -> crate::Result<()>
   where
-    S: AsRef<str>,
+    S: Lease<str>,
   {
     Ok(())
   }
@@ -125,9 +128,9 @@ impl SchemaManagement for () {
     _: I,
   ) -> crate::Result<()>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration,
+    S: Lease<str> + 'migration,
   {
     Ok(())
   }
@@ -140,7 +143,7 @@ impl SchemaManagement for () {
     _: &mut Vec<DbMigration>,
   ) -> crate::Result<()>
   where
-    S: AsRef<str>,
+    S: Lease<str>,
   {
     Ok(())
   }
@@ -158,6 +161,8 @@ impl SchemaManagement for () {
 
 #[cfg(feature = "postgres")]
 mod postgres {
+  use alloc::{string::String, vec::Vec};
+
   use crate::{
     database::{
       client::postgres::{Executor, ExecutorBuffer},
@@ -170,23 +175,22 @@ mod postgres {
       },
       DatabaseTy, Executor as _, Identifier,
     },
-    misc::{AsyncBounds, Stream},
+    misc::{AsyncBounds, Lease, LeaseMut, Stream},
   };
-  use core::borrow::BorrowMut;
 
   impl<EB, STREAM> SchemaManagement for Executor<crate::Error, EB, STREAM>
   where
-    EB: AsyncBounds + BorrowMut<ExecutorBuffer>,
+    EB: AsyncBounds + LeaseMut<ExecutorBuffer>,
     STREAM: AsyncBounds + Stream,
   {
     #[inline]
     async fn clear(&mut self, buffer: (&mut String, &mut Vec<Identifier>)) -> crate::Result<()> {
-      _clear(buffer.into(), self).await
+      _clear(buffer, self).await
     }
 
     #[inline]
     async fn create_wtx_tables(&mut self) -> crate::Result<()> {
-      let _ = self.execute(_CREATE_MIGRATION_TABLES, |_| {}).await?;
+      self.execute(_CREATE_MIGRATION_TABLES, |_| {}).await?;
       Ok(())
     }
 
@@ -198,7 +202,7 @@ mod postgres {
       version: i32,
     ) -> crate::Result<()>
     where
-      S: AsRef<str>,
+      S: Lease<str>,
     {
       _delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA_PREFIX, version).await
     }
@@ -211,9 +215,9 @@ mod postgres {
       migrations: I,
     ) -> crate::Result<()>
     where
-      DBS: AsRef<[DatabaseTy]> + 'migration,
+      DBS: Lease<[DatabaseTy]> + 'migration,
       I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-      S: AsRef<str> + 'migration,
+      S: Lease<str> + 'migration,
     {
       _insert_migrations(buffer_cmd, self, mg, migrations, _WTX_SCHEMA_PREFIX).await
     }
@@ -226,7 +230,7 @@ mod postgres {
       results: &mut Vec<DbMigration>,
     ) -> crate::Result<()>
     where
-      S: AsRef<str>,
+      S: Lease<str>,
     {
       _migrations_by_mg_version_query(buffer_cmd, self, mg.version(), results, _WTX_SCHEMA_PREFIX)
         .await

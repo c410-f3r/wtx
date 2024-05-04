@@ -6,7 +6,7 @@ use alloc::string::String;
 use core::{array, marker::PhantomData};
 
 /// For entities that don't have associations
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NoTableAssociation<E>(PhantomData<E>);
 
 impl<E> NoTableAssociation<E> {

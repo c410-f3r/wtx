@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 /// Type that indicates the usage of the `miniserde` dependency.
 #[derive(Debug)]
 pub struct Miniserde;

@@ -37,7 +37,7 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
   {
     async {
       let range = self.retrieve(pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.as_ref());
+      log_res(pkgs_aux.byte_buffer.as_slice());
       let rslt = P::ExternalResponseContent::from_bytes(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,

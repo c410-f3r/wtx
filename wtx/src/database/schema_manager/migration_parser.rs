@@ -8,16 +8,16 @@ use crate::{
     },
     DatabaseTy,
   },
-  misc::str_split1,
+  misc::{str_split1, ArrayVector},
 };
-use arrayvec::ArrayVec;
+use alloc::string::String;
 use std::io::{BufRead, BufReader, Read};
 
 /// Auxiliary parameters of a migration file
 #[derive(Debug, Default)]
 pub struct MigrationCfg {
   /// All unique declared databases
-  pub dbs: ArrayVec<DatabaseTy, { DatabaseTy::len() }>,
+  pub dbs: ArrayVector<DatabaseTy, { DatabaseTy::len() }>,
   /// Declared repeatability
   pub repeatability: Option<Repeatability>,
 }
@@ -94,13 +94,13 @@ pub(crate) fn parse_migration_toml<R>(read: R) -> crate::Result<MigrationCfg>
 where
   R: Read,
 {
-  let mut migration_toml = MigrationCfg { dbs: ArrayVec::new(), repeatability: None };
+  let mut migration_toml = MigrationCfg { dbs: ArrayVector::default(), repeatability: None };
 
   for (ident, toml_expr) in toml(read)? {
-    match (ident.as_ref(), toml_expr) {
+    match (ident.as_str(), toml_expr) {
       ("dbs", Expr::Array(array)) => {
-        for s in array {
-          let Ok(elem) = s.as_str().try_into() else {
+        for str in array.into_iter() {
+          let Ok(elem) = str.as_str().try_into() else {
             continue;
           };
           migration_toml.dbs.try_push(elem)?;

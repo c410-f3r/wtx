@@ -3,7 +3,7 @@ use crate::{
     client::postgres::{ty::Ty, Statements},
     Identifier,
   },
-  misc::PartitionedFilledBuffer,
+  misc::{Lease, LeaseMut, PartitionedFilledBuffer},
   rng::Rng,
 };
 use alloc::vec::Vec;
@@ -46,7 +46,7 @@ impl ExecutorBuffer {
   {
     Self {
       ftb: Vec::new(),
-      nb: PartitionedFilledBuffer::with_capacity(network_buffer_cap),
+      nb: PartitionedFilledBuffer::_with_capacity(network_buffer_cap),
       params: Vec::with_capacity(DFLT_PARAMS_LEN),
       rb: Vec::with_capacity(records_buffer_cap),
       stmts: Statements::new(max_queries, rng),
@@ -75,7 +75,7 @@ impl ExecutorBuffer {
   pub(crate) fn _empty() -> Self {
     Self {
       ftb: Vec::new(),
-      nb: PartitionedFilledBuffer::_empty(),
+      nb: PartitionedFilledBuffer::new(),
       params: Vec::new(),
       rb: Vec::new(),
       stmts: Statements::_empty(),
@@ -115,6 +115,20 @@ impl ExecutorBuffer {
       stmts: &mut self.stmts,
       vb: &mut self.vb,
     }
+  }
+}
+
+impl Lease<ExecutorBuffer> for ExecutorBuffer {
+  #[inline]
+  fn lease(&self) -> &ExecutorBuffer {
+    self
+  }
+}
+
+impl LeaseMut<ExecutorBuffer> for ExecutorBuffer {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut ExecutorBuffer {
+    self
   }
 }
 

@@ -33,8 +33,8 @@
 
 use crate::database::{
   orm::{
-    FromSuffixRslt, InitialInsertValue, NoTableAssociation, SelectLimit, SelectOrderBy, SqlWriter,
-    Table, TableAssociation, TableAssociationWrapper, TableField, TableParams,
+    AuxNodes, FromSuffixRslt, InitialInsertValue, NoTableAssociation, SelectLimit, SelectOrderBy,
+    SqlWriter, Table, TableAssociation, TableAssociationWrapper, TableField, TableParams,
   },
   TableSuffix,
 };
@@ -189,7 +189,7 @@ impl<'entity> Table<'entity> for D {
   }
 }
 
-#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+#[cfg(target_pointer_width = "64")]
 #[test]
 fn assert_sizes() {
   assert_eq!(mem::size_of::<TableParams<'_, A>>(), 64);
@@ -214,7 +214,7 @@ fn multi_referred_table_has_correct_statements() {
   d_table_defs.update_all_table_fields(&D);
 
   buffer.clear();
-  d_table_defs.write_delete(&mut <_>::default(), &mut buffer).unwrap();
+  d_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(
     &buffer,
     r#"DELETE FROM a WHERE id='1';DELETE FROM b WHERE id='2';DELETE FROM c WHERE id='3';DELETE FROM d WHERE id='4';"#
@@ -222,7 +222,7 @@ fn multi_referred_table_has_correct_statements() {
 
   buffer.clear();
   d_table_defs
-    .write_insert::<InitialInsertValue>(&mut <_>::default(), &mut buffer, &mut None)
+    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
     .unwrap();
   assert_eq!(
     &buffer,
@@ -232,7 +232,7 @@ fn multi_referred_table_has_correct_statements() {
   );
 
   buffer.clear();
-  d_table_defs.write_update(&mut <_>::default(), &mut buffer).unwrap();
+  d_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(
     &buffer,
     r#"UPDATE d SET id='4',name='foo4' WHERE id='4';UPDATE b SET id='2',name='foo2' WHERE id='2';UPDATE a SET id='1',name='foo1' WHERE id='1';UPDATE c SET id='3',name='foo3' WHERE id='3';"#
@@ -254,12 +254,12 @@ fn referred_table_has_correct_statements() {
   b_table_defs.update_all_table_fields(&B);
 
   buffer.clear();
-  b_table_defs.write_delete(&mut <_>::default(), &mut buffer).unwrap();
+  b_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(&buffer, r#"DELETE FROM a WHERE id='1';DELETE FROM b WHERE id='2';"#);
 
   buffer.clear();
   b_table_defs
-    .write_insert::<InitialInsertValue>(&mut <_>::default(), &mut buffer, &mut None)
+    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
     .unwrap();
   assert_eq!(
     &buffer,
@@ -267,7 +267,7 @@ fn referred_table_has_correct_statements() {
   );
 
   buffer.clear();
-  b_table_defs.write_update(&mut <_>::default(), &mut buffer).unwrap();
+  b_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(
     &buffer,
     r#"UPDATE b SET id='2',name='foo2' WHERE id='2';UPDATE a SET id='1',name='foo1' WHERE id='1';"#
@@ -289,16 +289,16 @@ fn standalone_table_has_correct_statements() {
   a_table_defs.update_all_table_fields(&A);
 
   buffer.clear();
-  a_table_defs.write_delete(&mut <_>::default(), &mut buffer).unwrap();
+  a_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(&buffer, r#"DELETE FROM a WHERE id='1';"#);
 
   buffer.clear();
   a_table_defs
-    .write_insert::<InitialInsertValue>(&mut <_>::default(), &mut buffer, &mut None)
+    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
     .unwrap();
   assert_eq!(&buffer, r#"INSERT INTO "a" (id,name) VALUES ('1','foo1');"#);
 
   buffer.clear();
-  a_table_defs.write_update(&mut <_>::default(), &mut buffer).unwrap();
+  a_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(&buffer, r#"UPDATE a SET id='1',name='foo1' WHERE id='1';"#);
 }

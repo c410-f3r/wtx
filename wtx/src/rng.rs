@@ -50,7 +50,7 @@ where
 /// The number generation is done using a simple XOR strategy.
 ///
 /// You probably shouldn't use this structure in a production environment.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StaticRng(u64);
 
 impl Rng for StaticRng {
@@ -80,7 +80,6 @@ impl Default for StaticRng {
     let elem = Box::new(Foo { _bar: 1, _baz: 2 });
     let ref_ptr = ptr::addr_of!(elem).cast();
     // SAFETY: Memory validation is not relevant
-    #[allow(unsafe_code)]
     let n: usize = unsafe { *ref_ptr };
     if n == 0 {
       return Self(u64::from_be_bytes([55, 120, 216, 218, 191, 63, 200, 169]));

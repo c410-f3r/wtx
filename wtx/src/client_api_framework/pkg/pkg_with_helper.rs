@@ -3,7 +3,7 @@ use crate::client_api_framework::{
 };
 use core::{
   borrow::Borrow,
-  cmp::{Ord, Ordering},
+  cmp::Ordering,
   hash::{Hash, Hasher},
 };
 

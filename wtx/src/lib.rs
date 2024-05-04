@@ -1,9 +1,12 @@
+#![doc = include_str!("../README.md")]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
-#![cfg_attr(not(feature = "std"), no_std)]
-#![doc = include_str!("../README.md")]
+#![cfg_attr(feature = "nightly", feature(hint_assert_unchecked))]
+#![no_std]
 
 extern crate alloc;
+//#[cfg(feature = "std")]
+extern crate std;
 #[cfg(all(feature = "_bench", test))]
 extern crate test;
 
@@ -20,16 +23,17 @@ mod error;
 pub mod http;
 #[cfg(feature = "http1")]
 mod http1;
+#[cfg(feature = "http2")]
+pub mod http2;
 pub mod misc;
-#[cfg(feature = "pool-manager")]
-pub mod pool_manager;
+#[cfg(feature = "pool")]
+pub mod pool;
 pub mod rng;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 
 pub use error::Error;
 
-pub(crate) const DFLT_PARTITIONED_BUFFER_LEN: usize = 32 * 1024;
 pub(crate) const _MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 
 /// Shortcut of [core::result::Result<T, Error>].

@@ -55,8 +55,7 @@ macro_rules! impl_display {
 }
 
 impl_display!(&'_ str);
-#[cfg(feature = "arrayvec")]
-impl_display!(arrayvec::ArrayString<N>, const N: usize);
+impl_display!(crate::misc::ArrayString<N>, const N: usize);
 impl_display!(bool);
 impl_display!(i32);
 impl_display!(i64);
@@ -66,3 +65,22 @@ impl_display!(String);
 
 #[cfg(feature = "rust_decimal")]
 impl_display!(rust_decimal::Decimal);
+
+#[cfg(feature = "chrono")]
+mod chrono {
+  use crate::database::orm::SqlValue;
+  use alloc::string::String;
+  use chrono::{DateTime, Utc};
+  use core::fmt::Write;
+
+  impl<E> SqlValue<E> for DateTime<Utc>
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn write(&self, buffer_cmd: &mut String) -> Result<(), E> {
+      buffer_cmd.write_fmt(format_args!("'{self}'")).map_err(From::from)?;
+      Ok(())
+    }
+  }
+}

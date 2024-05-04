@@ -3,7 +3,10 @@ mod filled_buffer;
 mod role;
 mod traits;
 
-use crate::web_socket::{FrameBuffer, OpCode};
+use crate::{
+  misc::LeaseMut,
+  web_socket::{FrameBuffer, OpCode},
+};
 pub(crate) use filled_buffer::FilledBuffer;
 #[cfg(feature = "tracing")]
 pub(crate) use role::Role;
@@ -18,15 +21,15 @@ pub(crate) fn define_fb_from_header_params<B, const IS_CLIENT: bool>(
   rsv1: u8,
 ) -> crate::Result<()>
 where
-  B: AsMut<[u8]> + AsRef<[u8]>,
+  B: LeaseMut<[u8]>,
 {
   let new_header_len = header_len_from_payload_len::<IS_CLIENT>(payload_len);
   let (buffer, header_begin_idx) = if let Some(el) = header_buffer_len {
     let header_begin_idx = el.saturating_sub(new_header_len);
-    let buffer = fb.buffer_mut().as_mut().get_mut(header_begin_idx.into()..).unwrap_or_default();
+    let buffer = fb.buffer_mut().lease_mut().get_mut(header_begin_idx.into()..).unwrap_or_default();
     (buffer, header_begin_idx)
   } else {
-    (fb.buffer_mut().as_mut(), 0)
+    (fb.buffer_mut().lease_mut(), 0)
   };
   let _ = copy_header_params_to_buffer::<IS_CLIENT>(buffer, fin, op_code, payload_len, rsv1)?;
   fb.set_indices(header_begin_idx, new_header_len, payload_len)?;

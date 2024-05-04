@@ -1,55 +1,83 @@
 //! Miscellaneous
 
 mod array_chunks;
+mod array_string;
+mod array_vector;
 mod async_bounds;
+mod blocks_queue;
+mod connection_state;
 mod either;
 mod enum_var_strings;
 mod filled_buffer_writer;
-mod fn_mut_fut;
+mod fn_fut;
 mod fx_hasher;
 mod generic_time;
 mod incomplete_utf8_char;
+mod lease;
+mod lock;
+mod lock_guard;
 mod mem_transfer;
 mod optimization;
 mod partitioned_filled_buffer;
 mod poll_once;
 mod query_writer;
+mod queue;
+mod queue_utils;
+mod ref_counter;
+mod single_type_storage;
 mod stream;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
-mod traits;
 mod uri;
 mod usize;
 mod utf8_errors;
+mod vector;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
+pub use array_chunks::{ArrayChunks, ArrayChunksMut};
+pub use array_string::ArrayString;
+pub use array_vector::ArrayVector;
 pub use async_bounds::AsyncBounds;
+pub use connection_state::ConnectionState;
 use core::{any::type_name, ops::Range, time::Duration};
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
-pub use fn_mut_fut::FnMutFut;
+pub use fn_fut::{FnFut, FnMutFut, FnOnceFut};
 pub use fx_hasher::FxHasher;
 pub use generic_time::GenericTime;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
+pub use lease::{Lease, LeaseMut};
+pub use lock::{Lock, SyncLock};
+pub use lock_guard::LockGuard;
 pub use optimization::*;
 pub use poll_once::PollOnce;
 pub use query_writer::QueryWriter;
+pub use queue::Queue;
+pub use ref_counter::RefCounter;
+pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, TlsStream};
-pub use traits::SingleTypeStorage;
-pub use uri::{Uri, UriRef, UriString};
+pub use uri::{Uri, UriArrayString, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
+pub use vector::Vector;
 #[allow(
   // Used by other features
   unused_imports
 )]
 pub(crate) use {
-  array_chunks::{ArrayChunks, ArrayChunksMut},
+  blocks_queue::{Block, BlocksQueue},
   mem_transfer::_shift_bytes,
   partitioned_filled_buffer::PartitionedFilledBuffer,
 };
+
+/// Vector of bytes
+pub type ByteVector = Vector<u8>;
+
+/// A collection can not insert more elements.
+#[derive(Debug)]
+pub struct CapacityOverflow;
 
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [core::result::Result] context.
@@ -112,6 +140,56 @@ pub fn tracing_subscriber_init() -> Result<(), tracing_subscriber::util::TryInit
     .with_verbose_entry(false)
     .with_targets(true);
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
+}
+
+#[allow(
+  // `match` correctly handles sizes
+  clippy::as_conversions,
+  // `match` correctly handles sizes
+  clippy::cast_possible_truncation
+)]
+#[inline]
+pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
+  #[inline]
+  const fn shift(number: u32, len: u8) -> u8 {
+    (number >> len) as u8
+  }
+
+  const BYTES2: u8 = 0b1100_0000;
+  const BYTES3: u8 = 0b1110_0000;
+  const BYTES4: u8 = 0b1111_0000;
+  const CONTINUATION: u8 = 0b1000_0000;
+
+  const MASK3: u8 = 0b0000_0111;
+  const MASK4: u8 = 0b0000_1111;
+  const MASK5: u8 = 0b0001_1111;
+  const MASK6: u8 = 0b0011_1111;
+
+  let number = u32::from(ch);
+  match number {
+    0..=127 => {
+      buffer[0] = shift(number, 0);
+      &buffer[0..1]
+    }
+    128..=2047 => {
+      buffer[0] = shift(number, 6) & MASK5 | BYTES2;
+      buffer[1] = shift(number, 0) & MASK6 | CONTINUATION;
+      &buffer[0..2]
+    }
+    2048..=65535 => {
+      buffer[0] = shift(number, 12) & MASK4 | BYTES3;
+      buffer[1] = shift(number, 6) & MASK6 | CONTINUATION;
+      buffer[2] = shift(number, 0) & MASK6 | CONTINUATION;
+      &buffer[0..3]
+    }
+    _ => {
+      buffer[0] = shift(number, 18) & MASK3 | BYTES4;
+      buffer[1] = shift(number, 12) & MASK6 | CONTINUATION;
+      buffer[2] = shift(number, 6) & MASK6 | CONTINUATION;
+      buffer[3] = shift(number, 0) & MASK6 | CONTINUATION;
+      buffer
+    }
+  }
 }
 
 #[cfg(feature = "ahash")]
@@ -189,7 +267,7 @@ pub(crate) fn _unlikely_elem<T>(elem: T) -> T {
 #[inline(never)]
 #[track_caller]
 pub(crate) const fn _unreachable() -> ! {
-  panic!("Entered in a branch that should be impossible. This is a bug!");
+  panic!("Entered in a branch that should be impossible, which is likely a programming error");
 }
 
 pub(crate) fn _usize_range_from_u32_range(range: Range<u32>) -> Range<usize> {

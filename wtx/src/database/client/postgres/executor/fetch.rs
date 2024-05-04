@@ -6,14 +6,14 @@ use crate::{
     },
     RecordValues, StmtCmd,
   },
-  misc::{PartitionedFilledBuffer, Stream, _read_until},
+  misc::{LeaseMut, PartitionedFilledBuffer, Stream, _read_until},
 };
 use alloc::vec::Vec;
-use core::{borrow::BorrowMut, ops::Range};
+use core::ops::Range;
 
 impl<E, EB, S> Executor<E, EB, S>
 where
-  EB: BorrowMut<ExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   pub(crate) async fn write_send_await_fetch_with_stmt<'rec, SC, RV>(

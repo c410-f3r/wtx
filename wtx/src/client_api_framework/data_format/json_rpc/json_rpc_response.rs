@@ -5,7 +5,7 @@ use crate::client_api_framework::{
 use alloc::{string::String, vec::Vec};
 use core::{
   borrow::Borrow,
-  cmp::{Ord, Ordering},
+  cmp::Ordering,
   hash::{Hash, Hasher},
 };
 
@@ -91,24 +91,28 @@ impl<R> PartialOrd for JsonRpcResponse<R> {
 mod serde {
   use crate::client_api_framework::data_format::{JsonRpcResponse, JsonRpcResponseError};
   use core::marker::PhantomData;
-  use serde::{de::Visitor, ser::SerializeStruct};
+  use serde::{
+    de::{Deserializer, MapAccess, Visitor},
+    ser::{SerializeStruct, Serializer},
+    Deserialize, Serialize,
+  };
 
-  impl<'de, R> serde::Deserialize<'de> for JsonRpcResponse<R>
+  impl<'de, R> Deserialize<'de> for JsonRpcResponse<R>
   where
-    R: serde::Deserialize<'de>,
+    R: Deserialize<'de>,
   {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<JsonRpcResponse<R>, D::Error>
     where
-      D: serde::de::Deserializer<'de>,
+      D: Deserializer<'de>,
     {
       struct CustomVisitor<'de, R>(PhantomData<R>, PhantomData<&'de ()>)
       where
-        R: serde::Deserialize<'de>;
+        R: Deserialize<'de>;
 
       impl<'de, R> Visitor<'de> for CustomVisitor<'de, R>
       where
-        R: serde::Deserialize<'de>,
+        R: Deserialize<'de>,
       {
         type Value = JsonRpcResponse<R>;
 
@@ -120,7 +124,7 @@ mod serde {
         #[inline]
         fn visit_map<V>(self, mut map: V) -> Result<JsonRpcResponse<R>, V::Error>
         where
-          V: serde::de::MapAccess<'de>,
+          V: MapAccess<'de>,
         {
           let mut error = None;
           let mut id = None;
@@ -196,14 +200,14 @@ mod serde {
     }
   }
 
-  impl<R> serde::Serialize for JsonRpcResponse<R>
+  impl<R> Serialize for JsonRpcResponse<R>
   where
-    R: serde::Serialize,
+    R: Serialize,
   {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-      S: serde::ser::Serializer,
+      S: Serializer,
     {
       let mut state = serializer.serialize_struct("JsonRpcResponse", 3)?;
       state.serialize_field("jsonrpc", "2.0")?;
@@ -234,6 +238,7 @@ mod serde_json {
   use crate::client_api_framework::{
     data_format::JsonRpcResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
   };
+  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<R> crate::client_api_framework::dnsn::Deserialize<SerdeJson> for JsonRpcResponse<R>
@@ -276,6 +281,7 @@ mod serde_json {
 #[cfg(feature = "simd-json")]
 mod simd_json {
   use crate::client_api_framework::{data_format::JsonRpcResponse, dnsn::SimdJson};
+  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<R> crate::client_api_framework::dnsn::Deserialize<SimdJson> for JsonRpcResponse<R>

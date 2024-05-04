@@ -1,12 +1,13 @@
 //! Migration TOML parser
 
-use crate::misc::str_split1;
-use arrayvec::{ArrayString, ArrayVec};
+use crate::misc::{str_split1, ArrayString, ArrayVector};
+use alloc::string::String;
+use arrayvec::ArrayVec;
 use std::io::{BufRead, BufReader, Read};
 
 pub(crate) const EXPR_ARRAY_MAX_LEN: usize = 8;
 
-pub(crate) type ExprArrayTy = ArrayVec<ExprStringTy, EXPR_ARRAY_MAX_LEN>;
+pub(crate) type ExprArrayTy = ArrayVector<ExprStringTy, EXPR_ARRAY_MAX_LEN>;
 pub(crate) type ExprStringTy = ArrayString<128>;
 pub(crate) type IdentTy = ArrayString<64>;
 pub(crate) type RootParamsTy = ArrayVec<(IdentTy, Expr), 2>;
@@ -26,7 +27,7 @@ where
   let mut br = BufReader::new(read);
   let mut is_in_array_context = None;
   let mut buffer = String::new();
-  let mut root_params = ArrayVec::new();
+  let mut root_params = ArrayVec::default();
 
   macro_rules! clear_and_continue {
     () => {
@@ -89,7 +90,7 @@ where
 
 #[inline]
 fn try_parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
-  let mut array = ArrayVec::new();
+  let mut array = ArrayVector::default();
   if s.is_empty() {
     return Ok(array);
   }
@@ -140,8 +141,10 @@ fn try_parse_and_push_toml_expr_string(
 
 #[cfg(test)]
 mod tests {
-  use crate::database::schema_manager::toml_parser::{toml, Expr};
-  use arrayvec::ArrayVec;
+  use crate::{
+    database::schema_manager::toml_parser::{toml, Expr, ExprArrayTy},
+    misc::ArrayVector,
+  };
 
   #[test]
   fn toml_parses_root_parameter_array_in_a_single_line() {
@@ -158,14 +161,14 @@ mod tests {
       (
         "foo".try_into().unwrap(),
         Expr::Array({
-          let mut elems = ArrayVec::new();
-          elems.push("1".try_into().unwrap());
-          elems.push("2".try_into().unwrap());
+          let mut elems = ArrayVector::default();
+          elems.try_push("1".try_into().unwrap()).unwrap();
+          elems.try_push("2".try_into().unwrap()).unwrap();
           elems
         })
       )
     );
-    assert_eq!(array[1], ("bar".try_into().unwrap(), Expr::Array(Default::default())));
+    assert_eq!(array[1], ("bar".try_into().unwrap(), Expr::Array(ExprArrayTy::default())));
   }
 
   #[test]
@@ -185,10 +188,10 @@ mod tests {
       (
         "foo".try_into().unwrap(),
         Expr::Array({
-          let mut elems = ArrayVec::new();
-          elems.push("1".try_into().unwrap());
-          elems.push("2".try_into().unwrap());
-          elems.push("3".try_into().unwrap());
+          let mut elems = ArrayVector::default();
+          elems.try_push("1".try_into().unwrap()).unwrap();
+          elems.try_push("2".try_into().unwrap()).unwrap();
+          elems.try_push("3".try_into().unwrap()).unwrap();
           elems
         })
       )

@@ -1,22 +1,46 @@
-use crate::http::Version;
+use crate::http::{Headers, ResponseData, StatusCode, Version};
 
-/// HTTP response
-pub trait Response {
-  /// Code
-  fn code(&self) -> u16;
+/// Shortcut for mutable referenced data.
+pub type ResponseMut<'data, D> = Response<&'data mut D>;
+/// Shortcut for referenced data.
+pub type ResponseRef<'data, D> = Response<&'data D>;
 
-  /// Version
-  fn version(&self) -> Version;
+/// Represents the response from an HTTP request.
+#[derive(Debug)]
+pub struct Response<D> {
+  /// See [ResponseData].
+  pub data: D,
+  /// See [StatusCode].
+  pub status_code: StatusCode,
+  /// See [Version].
+  pub version: Version,
 }
 
-impl Response for () {
+impl<D> Response<D>
+where
+  D: ResponseData,
+{
+  /// Constructor that defaults to an HTTP/2 version.
   #[inline]
-  fn code(&self) -> u16 {
-    0
+  pub fn http2(data: D, status_code: StatusCode) -> Self {
+    Self { data, status_code, version: Version::Http2 }
   }
 
+  /// Shortcut to access the body of `data`.
   #[inline]
-  fn version(&self) -> Version {
-    <_>::default()
+  pub fn body(&self) -> &D::Body {
+    self.data.body()
+  }
+
+  /// Shortcut to access the headers of `data`.
+  #[inline]
+  pub fn headers(&self) -> &Headers {
+    self.data.headers()
+  }
+
+  /// See [RequestRef].
+  #[inline]
+  pub fn to_ref(&self) -> ResponseRef<'_, D> {
+    ResponseRef { data: &self.data, status_code: self.status_code, version: self.version }
   }
 }

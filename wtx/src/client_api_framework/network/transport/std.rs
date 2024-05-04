@@ -31,7 +31,7 @@ impl<DRSR> Transport<DRSR> for TcpStream {
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TcpParams>,
@@ -40,7 +40,7 @@ impl<DRSR> Transport<DRSR> for TcpStream {
     A: Api,
     P: Package<A, DRSR, TcpParams>,
   {
-    send_and_retrieve(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.read(bytes)?)).await
+    send_recv(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.read(bytes)?)).await
   }
 }
 
@@ -65,7 +65,7 @@ impl<DRSR> Transport<DRSR> for UdpSocket {
   }
 
   #[inline]
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, UdpParams>,
@@ -74,7 +74,7 @@ impl<DRSR> Transport<DRSR> for UdpSocket {
     A: Api,
     P: Package<A, DRSR, UdpParams>,
   {
-    send_and_retrieve(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.recv(bytes)?)).await
+    send_recv(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.recv(bytes)?)).await
   }
 }
 
@@ -95,7 +95,7 @@ where
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;
-  let mut slice = pkgs_aux.byte_buffer.as_ref();
+  let mut slice = pkgs_aux.byte_buffer.as_slice();
   let mut everything_was_sent = false;
   for _ in 0..16 {
     let sent = cb(slice, pkgs_aux.tp.ext_req_params(), trans)?;
@@ -115,7 +115,7 @@ where
   }
 }
 
-async fn send_and_retrieve<A, DRSR, P, T>(
+async fn send_recv<A, DRSR, P, T>(
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
   trans: &mut T,
@@ -171,8 +171,7 @@ mod tests {
     sleep(Duration::from_millis(100)).await.unwrap();
     let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_uri(uri_client.uri()));
     let mut trans = TcpStream::connect(uri_client.host()).unwrap();
-    let res =
-      trans.send_retrieve_and_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
+    let res = trans.send_recv_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
     assert_eq!(res, Pong("pong"));
   }
 
@@ -181,8 +180,7 @@ mod tests {
     let addr = "127.0.0.1:12346";
     let mut pa = PkgsAux::from_minimum((), (), UdpParams::from_uri(addr));
     let mut trans = UdpSocket::bind(addr).unwrap();
-    let res =
-      trans.send_retrieve_and_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
+    let res = trans.send_recv_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
     assert_eq!(res, Pong("pong"));
   }
 }

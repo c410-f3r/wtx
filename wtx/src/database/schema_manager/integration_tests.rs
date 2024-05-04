@@ -15,6 +15,7 @@ use crate::{
   },
   rng::StaticRng,
 };
+use alloc::{string::String, vec::Vec};
 use core::fmt::Write;
 use tokio::net::TcpStream;
 

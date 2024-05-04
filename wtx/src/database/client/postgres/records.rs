@@ -63,11 +63,11 @@ impl<'exec, E> Default for Records<'exec, E> {
   #[inline]
   fn default() -> Self {
     Self {
-      bytes: <_>::default(),
+      bytes: &[],
       phantom: PhantomData,
-      records_values_offsets: <_>::default(),
-      stmt: <_>::default(),
-      values_bytes_offsets: <_>::default(),
+      records_values_offsets: &[],
+      stmt: Statement::default(),
+      values_bytes_offsets: &[],
     }
   }
 }

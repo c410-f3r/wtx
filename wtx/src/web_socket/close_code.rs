@@ -27,7 +27,9 @@ pub enum CloseCode {
   Restart,
   /// Server is busy and the client should reconnect.
   Again,
-  #[doc(hidden)]
+  /// MUST NOT be set as a status code in a close control frame by an endpoint. It is designated
+  /// for use in applications expecting a status code to indicate that the connection was closed
+  /// due to a failure to perform a TLS handshake
   Tls,
   /// Spaces without meaning reserved by the specification.
   Reserved(u16),

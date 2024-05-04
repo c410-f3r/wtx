@@ -13,7 +13,9 @@ use crate::{
   web_socket::{
     compression::NegotiatedCompression,
     frame::FrameMutVec,
-    handshake::{WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw},
+    handshake::{
+      HeadersBuffer, WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw,
+    },
     Compression, FrameBufferVec, OpCode, WebSocket, WebSocketBuffer, WebSocketClientOwned,
     WebSocketServerOwned,
   },
@@ -88,7 +90,7 @@ where
   let (_, mut ws) = WebSocketConnectRaw {
     compression: client_compression,
     fb: &mut fb,
-    headers_buffer: &mut <_>::default(),
+    headers_buffer: &mut HeadersBuffer::default(),
     rng: StaticRng::default(),
     stream: TcpStream::connect(uri.host()).await.unwrap(),
     uri: &uri.to_ref(),

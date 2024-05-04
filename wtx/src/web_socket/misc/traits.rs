@@ -21,7 +21,7 @@ where
 {
   fn expand(&mut self, len: usize) {
     if len > self.len() {
-      self.resize(len, <_>::default());
+      self.resize(len, T::default());
     }
   }
 }

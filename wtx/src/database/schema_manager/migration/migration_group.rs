@@ -1,3 +1,5 @@
+use crate::misc::Lease;
+
 /// A set of unique migrations
 ///
 /// * Types
@@ -11,7 +13,7 @@ pub struct MigrationGroup<S> {
 
 impl<S> MigrationGroup<S>
 where
-  S: AsRef<str>,
+  S: Lease<str>,
 {
   /// Creates a new instance from all necessary parameters.
   #[inline]
@@ -29,7 +31,7 @@ where
   /// ```
   #[inline]
   pub fn name(&self) -> &str {
-    self.name.as_ref()
+    self.name.lease()
   }
 
   /// Version

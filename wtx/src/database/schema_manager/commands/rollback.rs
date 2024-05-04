@@ -1,6 +1,9 @@
-use crate::database::{
-  schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
-  DatabaseTy, TransactionManager,
+use crate::{
+  database::{
+    schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
+    DatabaseTy, TransactionManager,
+  },
+  misc::Lease,
 };
 use alloc::{string::String, vec::Vec};
 #[cfg(feature = "std")]
@@ -25,18 +28,18 @@ where
     version: i32,
   ) -> crate::Result<()>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration,
+    S: Lease<str> + 'migration,
   {
     self.executor.migrations(buffer_cmd, mg, buffer_db_migrations).await?;
     let filtered_by_db = Self::filter_by_db(migrations);
     Self::do_validate(buffer_db_migrations, filtered_by_db.clone())?;
     for elem in filtered_by_db.map(UserMigration::sql_down) {
-      buffer_cmd.push_str(elem.as_ref());
+      buffer_cmd.push_str(elem);
     }
     let mut tm = self.executor.transaction().await?;
-    let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+    tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
     tm.commit().await?;
     buffer_cmd.clear();
     self.executor.delete_migrations(buffer_cmd, mg, version).await?;

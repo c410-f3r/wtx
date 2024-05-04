@@ -1,11 +1,14 @@
 #[cfg(feature = "schema-manager-dev")]
-use crate::{
-  database::{
-    client::postgres::Postgres, schema_manager::fixed_sql_commands::postgres,
-    schema_manager::integration_tests, schema_manager::Commands, schema_manager::DbMigration,
-    schema_manager::SchemaManagement, FromRecord, Identifier,
+use {
+  crate::{
+    database::{
+      client::postgres::Postgres, schema_manager::fixed_sql_commands::postgres,
+      schema_manager::integration_tests, schema_manager::Commands, schema_manager::DbMigration,
+      schema_manager::SchemaManagement, FromRecord, Identifier,
+    },
+    misc::AsyncBounds,
   },
-  misc::AsyncBounds,
+  alloc::{string::String, vec::Vec},
 };
 
 #[cfg(feature = "schema-manager-dev")]

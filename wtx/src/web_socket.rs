@@ -22,8 +22,8 @@ mod web_socket_buffer;
 use crate::web_socket::misc::Role;
 use crate::{
   misc::{
-    from_utf8_basic, from_utf8_ext, CompletionErr, ExtUtf8Error, IncompleteUtf8Char,
-    PartitionedFilledBuffer, Stream, _read_until,
+    from_utf8_basic, from_utf8_ext, CompletionErr, ConnectionState, ExtUtf8Error,
+    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Stream, _read_until,
   },
   rng::Rng,
   web_socket::{
@@ -35,7 +35,7 @@ use crate::{
 use alloc::vec::Vec;
 pub use close_code::CloseCode;
 pub use compression::{Compression, CompressionLevel, DeflateConfig};
-use core::{borrow::BorrowMut, ops::Range};
+use core::ops::Range;
 pub use frame::{
   Frame, FrameControlArray, FrameControlArrayMut, FrameMut, FrameMutControlArray,
   FrameMutControlArrayMut, FrameMutMut, FrameMutVec, FrameMutVecMut, FrameVec, FrameVecMut,
@@ -83,9 +83,11 @@ type ReadContinuationFramesCbs<B> = (
 );
 
 /// WebSocket protocol implementation over an asynchronous stream.
+///
+/// <https://tools.ietf.org/html/rfc6455>
 #[derive(Debug)]
 pub struct WebSocket<NC, RNG, S, WSB, const IS_CLIENT: bool> {
-  is_stream_closed: bool,
+  ct: ConnectionState,
   max_payload_len: usize,
   nc: NC,
   rng: RNG,
@@ -107,15 +109,15 @@ where
   NC: NegotiatedCompression,
   RNG: Rng,
   S: Stream,
-  WSB: BorrowMut<WebSocketBuffer>,
+  WSB: LeaseMut<WebSocketBuffer>,
 {
   /// Creates a new instance from a stream that supposedly has already completed the WebSocket
   /// handshake.
   #[inline]
   pub fn new(nc: NC, rng: RNG, stream: S, mut wsb: WSB) -> Self {
-    wsb.borrow_mut().nb._clear_if_following_is_empty();
-    wsb.borrow_mut().nb._expand_following(MAX_HDR_LEN_USIZE);
-    Self { is_stream_closed: false, max_payload_len: _MAX_PAYLOAD_LEN, nc, rng, stream, wsb }
+    wsb.lease_mut().nb._clear_if_following_is_empty();
+    wsb.lease_mut().nb._expand_following(MAX_HDR_LEN_USIZE);
+    Self { ct: ConnectionState::Open, max_payload_len: _MAX_PAYLOAD_LEN, nc, rng, stream, wsb }
   }
 
   /// Reads a frame from the stream.
@@ -128,7 +130,7 @@ where
     fb: &'fb mut FrameBuffer<B>,
   ) -> crate::Result<Frame<&'fb mut FrameBuffer<B>, IS_CLIENT>>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
     fb.clear();
     let header_buffer_len = header_placeholder::<IS_CLIENT>();
@@ -155,14 +157,12 @@ where
         )
         .await?;
       let payload_len = Self::copy_from_compressed_db_to_fb(
-        &mut self.wsb.borrow_mut().db,
+        &mut self.wsb.lease_mut().db,
         fb,
         &mut self.nc,
         payload_start_idx,
       )?;
-      let payload = fb
-        .buffer()
-        .as_ref()
+      let payload = lease_as_slice(fb.buffer())
         .get(payload_start_idx..payload_start_idx.wrapping_add(payload_len))
         .unwrap_or_default();
       if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic(payload).is_err() {
@@ -219,14 +219,14 @@ where
   #[inline]
   pub async fn write_frame<B, FB>(&mut self, frame: &mut Frame<FB, IS_CLIENT>) -> crate::Result<()>
   where
-    B: AsMut<[u8]> + AsRef<[u8]>,
-    FB: BorrowMut<FrameBuffer<B>>,
+    B: LeaseMut<[u8]>,
+    FB: LeaseMut<FrameBuffer<B>>,
   {
     Self::do_write_frame(
+      &mut self.ct,
       frame,
-      &mut self.is_stream_closed,
       &mut self.nc,
-      &mut self.wsb.borrow_mut().nb,
+      &mut self.wsb.lease_mut().nb,
       &mut self.rng,
       &mut self.stream,
     )
@@ -236,9 +236,9 @@ where
 
   fn begin_fb_bytes_mut<B>(fb: &mut FrameBuffer<B>, payload_start_idx: usize) -> &mut [u8]
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
-    AsMut::<[u8]>::as_mut(fb.buffer_mut()).get_mut(payload_start_idx..).unwrap_or_default()
+    LeaseMut::<[u8]>::lease_mut(fb.buffer_mut()).get_mut(payload_start_idx..).unwrap_or_default()
   }
 
   fn compress_frame<'pb, B, FB>(
@@ -247,8 +247,8 @@ where
     pb: &'pb mut PartitionedFilledBuffer,
   ) -> crate::Result<FrameMut<'pb, IS_CLIENT>>
   where
-    B: AsMut<[u8]> + AsRef<[u8]>,
-    FB: BorrowMut<FrameBuffer<B>>,
+    B: LeaseMut<[u8]>,
+    FB: LeaseMut<FrameBuffer<B>>,
   {
     fn expand_pb<'pb, B>(
       len_with_header: usize,
@@ -257,14 +257,14 @@ where
       written: usize,
     ) -> &'pb mut [u8]
     where
-      B: AsRef<[u8]>,
+      B: Lease<[u8]>,
     {
       let start = len_with_header.wrapping_add(written);
       local_pb._expand_following(start.wrapping_add(local_fb.frame().len()).wrapping_add(128));
       local_pb._following_trail_mut().get_mut(start..).unwrap_or_default()
     }
 
-    let fb = frame.fb().borrow();
+    let fb = frame.fb().lease();
     let len = pb._following_trail_mut().len();
     let len_with_header = len.wrapping_add(fb.header().len());
     let mut payload_len = nc.compress(
@@ -300,12 +300,12 @@ where
     payload_start_idx: usize,
   ) -> crate::Result<usize>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
     db.push_bytes(DECOMPRESSION_SUFFIX);
     let mut buffer_len = payload_start_idx
       .checked_add(db.len())
-      .map(|element| element.max(fb.buffer().as_ref().len()));
+      .map(|element| element.max(lease_as_slice(fb.buffer()).len()));
     let payload_size = nc.decompress(
       db.get(payload_start_idx..).unwrap_or_default(),
       fb,
@@ -343,11 +343,11 @@ where
     rfi: &ReadFrameInfo,
   ) -> crate::Result<usize>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
     let mut buffer_len = payload_start_idx
       .checked_add(rfi.payload_len)
-      .map(|element| element.max(fb.buffer().as_ref().len()));
+      .map(|element| element.max(lease_as_slice(fb.buffer()).len()));
     let payload_len = Self::copy_from_pb(fb, pb, rfi, |local_pb, local_fb| {
       local_pb._expand_buffer(local_pb._buffer().len().wrapping_add(4));
       let curr_end_idx = local_pb._current().len();
@@ -406,7 +406,7 @@ where
       <&str>::from(Role::from_is_client(IS_CLIENT)),
       "Read",
       "Masked",
-      crate::web_socket::misc::truncated_slice(pb._current(), 0..32),
+      misc::truncated_slice(pb._current(), 0..32),
       rfi.op_code
     );
 
@@ -422,12 +422,12 @@ where
       <&str>::from(Role::from_is_client(IS_CLIENT)),
       "Read",
       "Unmasked",
-      crate::web_socket::misc::truncated_slice(pb._current(), 0..32),
+      misc::truncated_slice(pb._current(), 0..32),
       rfi.op_code
     );
 
     let rslt = cb(pb, output)?;
-    pb.borrow_mut()._clear_if_following_is_empty();
+    pb._clear_if_following_is_empty();
 
     Ok(rslt)
   }
@@ -440,12 +440,12 @@ where
     rfi: &ReadFrameInfo,
   ) -> crate::Result<usize>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
     Self::copy_from_pb(fb, pb, rfi, |local_pb, local_fb| {
       let n = payload_start_idx.saturating_add(rfi.payload_len);
       local_fb.expand_buffer(n);
-      AsMut::<[u8]>::as_mut(local_fb.buffer_mut())
+      LeaseMut::<[u8]>::lease_mut(local_fb.buffer_mut())
         .get_mut(payload_start_idx..n)
         .unwrap_or_default()
         .copy_from_slice(local_pb._current().get(rfi.header_end_idx..).unwrap_or_default());
@@ -461,33 +461,33 @@ where
     should_use_db: bool,
   ) -> &'bytes [u8]
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    B: LeaseMut<[u8]>,
   {
     if should_use_db {
       db.get(range).unwrap_or_default()
     } else {
-      fb.buffer().as_ref().get(range).unwrap_or_default()
+      fb.buffer().lease().get(range).unwrap_or_default()
     }
   }
 
   async fn do_write_frame<B, FB>(
+    ct: &mut ConnectionState,
     frame: &mut Frame<FB, IS_CLIENT>,
-    is_stream_closed: &mut bool,
     nc: &mut NC,
     pb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
     stream: &mut S,
   ) -> crate::Result<()>
   where
-    B: AsMut<[u8]> + AsRef<[u8]>,
-    FB: BorrowMut<FrameBuffer<B>>,
+    B: LeaseMut<[u8]>,
+    FB: LeaseMut<FrameBuffer<B>>,
   {
     let mut should_compress = false;
     if frame.op_code() == OpCode::Close {
-      *is_stream_closed = true;
+      *ct = ConnectionState::Closed;
     }
     if !frame.op_code().is_control() {
-      if let Some(first) = frame.fb_mut().borrow_mut().header_mut().first_mut() {
+      if let Some(first) = frame.fb_mut().lease_mut().header_mut().first_mut() {
         should_compress = nc.rsv1() != 0;
         *first |= nc.rsv1();
       }
@@ -498,7 +498,7 @@ where
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Unmasked",
-        crate::web_socket::misc::truncated_slice(frame.fb().borrow().frame(), 0..32),
+        misc::truncated_slice(frame.fb().lease().frame(), 0..32),
         frame.op_code()
       );
       Self::mask_frame(frame, rng);
@@ -507,17 +507,17 @@ where
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Masked",
-        crate::web_socket::misc::truncated_slice(frame.fb().borrow().frame(), 0..32),
+        misc::truncated_slice(frame.fb().lease().frame(), 0..32),
         frame.op_code()
       );
-      stream.write_all(frame.fb().borrow().frame()).await?;
+      stream.write_all(frame.fb().lease().frame()).await?;
     } else {
       _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Uncompressed, Unmasked",
-        crate::web_socket::misc::truncated_slice(frame.fb().borrow().frame(), 0..32),
+        misc::truncated_slice(frame.fb().lease().frame(), 0..32),
         frame.op_code()
       );
       let mut compressed_frame = Self::compress_frame(frame, nc, pb)?;
@@ -526,7 +526,7 @@ where
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Compressed, Unmasked",
-        crate::web_socket::misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
+        misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
         frame.op_code()
       );
       Self::mask_frame(&mut compressed_frame, rng);
@@ -535,7 +535,7 @@ where
         <&str>::from(Role::from_is_client(IS_CLIENT)),
         "Write",
         "Compressed, Masked",
-        crate::web_socket::misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
+        misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
         frame.op_code()
       );
       stream.write_all(compressed_frame.fb().frame()).await?;
@@ -550,7 +550,7 @@ where
     written: usize,
   ) -> &'fb mut [u8]
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
     *buffer_len = buffer_len.and_then(|el| el.checked_mul(15)?.checked_div(10));
     fb.expand_buffer(buffer_len.unwrap_or(usize::MAX));
@@ -559,27 +559,27 @@ where
   }
 
   async fn fetch_frame_from_stream(&mut self) -> crate::Result<ReadFrameInfo> {
-    let mut read = self.wsb.borrow_mut().nb._following_len();
+    let mut read = self.wsb.lease_mut().nb._following_len();
     let rfi = Self::fetch_header_from_stream(
       self.max_payload_len,
       &self.nc,
-      &mut self.wsb.borrow_mut().nb,
+      &mut self.wsb.lease_mut().nb,
       &mut read,
       &mut self.stream,
     )
     .await?;
-    if self.is_stream_closed && rfi.op_code != OpCode::Close {
+    if self.ct.is_closed() && rfi.op_code != OpCode::Close {
       return Err(crate::Error::ConnectionClosed);
     }
     Self::fetch_payload_from_stream(
-      &mut self.wsb.borrow_mut().nb,
+      &mut self.wsb.lease_mut().nb,
       &mut read,
       &rfi,
       &mut self.stream,
     )
     .await?;
-    let current_end_idx = self.wsb.borrow().nb._current_end_idx();
-    self.wsb.borrow_mut().nb._set_indices(
+    let current_end_idx = self.wsb.lease().nb._current_end_idx();
+    self.wsb.lease_mut().nb._set_indices(
       current_end_idx,
       rfi.frame_len,
       read.wrapping_sub(rfi.frame_len),
@@ -681,7 +681,7 @@ where
   /// If this method returns `false`, then a `ping` frame was received and the caller should fetch
   /// more external data in order to get the desired frame.
   async fn manage_auto_reply(
-    is_stream_closed: &mut bool,
+    ct: &mut ConnectionState,
     curr_payload: &[u8],
     nc: &mut NC,
     op_code: OpCode,
@@ -690,7 +690,7 @@ where
     stream: &mut S,
   ) -> crate::Result<bool> {
     match op_code {
-      OpCode::Close if !*is_stream_closed => {
+      OpCode::Close if ct.is_open() => {
         match curr_payload {
           [] => {}
           [_] => return Err(crate::Error::InvalidCloseFrame),
@@ -699,12 +699,12 @@ where
             let is_not_allowed = !CloseCode::try_from(u16::from_be_bytes([*a, *b]))?.is_allowed();
             if is_not_allowed || rest.len() > MAX_CONTROL_FRAME_PAYLOAD_LEN - 2 {
               Self::write_control_frame(
+                ct,
                 &mut FrameControlArray::close_from_params(
                   CloseCode::Protocol,
-                  <_>::default(),
+                  FrameBuffer::default(),
                   rest,
                 )?,
-                is_stream_closed,
                 nc,
                 pb,
                 rng,
@@ -716,8 +716,8 @@ where
           }
         }
         Self::write_control_frame(
-          &mut FrameControlArray::new_fin(<_>::default(), OpCode::Close, curr_payload)?,
-          is_stream_closed,
+          ct,
+          &mut FrameControlArray::new_fin(FrameBuffer::default(), OpCode::Close, curr_payload)?,
           nc,
           pb,
           rng,
@@ -728,8 +728,8 @@ where
       }
       OpCode::Ping => {
         Self::write_control_frame(
-          &mut FrameControlArray::new_fin(<_>::default(), OpCode::Pong, curr_payload)?,
-          is_stream_closed,
+          ct,
+          &mut FrameControlArray::new_fin(FrameBuffer::default(), OpCode::Pong, curr_payload)?,
           nc,
           pb,
           rng,
@@ -777,11 +777,11 @@ where
 
   fn mask_frame<B, FB>(frame: &mut Frame<FB, IS_CLIENT>, rng: &mut RNG)
   where
-    B: AsMut<[u8]> + AsRef<[u8]>,
-    FB: BorrowMut<FrameBuffer<B>>,
+    B: LeaseMut<[u8]>,
+    FB: LeaseMut<FrameBuffer<B>>,
   {
     if IS_CLIENT {
-      if let [_, second_byte, .., a, b, c, d] = frame.fb_mut().borrow_mut().header_mut() {
+      if let [_, second_byte, .., a, b, c, d] = frame.fb_mut().lease_mut().header_mut() {
         if !has_masked_frame(*second_byte) {
           *second_byte |= 0b1000_0000;
           let mask = rng.u8_4();
@@ -789,7 +789,7 @@ where
           *b = mask[1];
           *c = mask[2];
           *d = mask[3];
-          unmask(frame.fb_mut().borrow_mut().payload_mut(), mask);
+          unmask(frame.fb_mut().lease_mut().payload_mut(), mask);
         }
       }
     }
@@ -804,16 +804,16 @@ where
     (first_text_cb, continuation_cb, copy_cb): ReadContinuationFramesCbs<B>,
   ) -> crate::Result<()>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
     let mut iuc = {
       let (should_use_db, payload_len) =
-        copy_cb(fb, first_rfi, *total_frame_len, self.wsb.borrow_mut())?;
+        copy_cb(fb, first_rfi, *total_frame_len, self.wsb.lease_mut())?;
       *total_frame_len = total_frame_len.wrapping_add(payload_len);
       match first_rfi.op_code {
         OpCode::Binary => None,
         OpCode::Text => first_text_cb(Self::curr_payload_bytes(
-          &self.wsb.borrow().db,
+          &self.wsb.lease().db,
           fb,
           payload_start_idx..*total_frame_len,
           should_use_db,
@@ -829,12 +829,12 @@ where
         let mut rfi = self.fetch_frame_from_stream().await?;
         rfi.should_decompress = first_rfi.should_decompress;
         let (should_use_db, payload_len) =
-          copy_cb(fb, &rfi, *total_frame_len, self.wsb.borrow_mut())?;
+          copy_cb(fb, &rfi, *total_frame_len, self.wsb.lease_mut())?;
         *total_frame_len = total_frame_len.wrapping_add(payload_len);
-        let (db, nb) = self.wsb.borrow_mut().parts_mut();
+        let (db, nb) = self.wsb.lease_mut().parts_mut();
         let curr_payload = Self::curr_payload_bytes(db, fb, prev..*total_frame_len, should_use_db);
         if Self::manage_auto_reply(
-          &mut self.is_stream_closed,
+          &mut self.ct,
           curr_payload,
           &mut self.nc,
           rfi.op_code,
@@ -873,14 +873,14 @@ where
     payload_start_idx: usize,
   ) -> crate::Result<Option<ReadFrameInfo>>
   where
-    B: AsMut<[u8]> + AsMut<Vec<u8>> + AsRef<[u8]>,
+    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
   {
     let first_rfi = 'auto_reply: loop {
       let rfi = self.fetch_frame_from_stream().await?;
       if !rfi.fin {
         break 'auto_reply rfi;
       }
-      let pb = &mut self.wsb.borrow_mut().nb;
+      let pb = &mut self.wsb.lease_mut().nb;
       let payload_len = if rfi.should_decompress {
         Self::copy_from_compressed_pb_to_fb(fb, &mut self.nc, payload_start_idx, pb, &rfi)?
       } else {
@@ -895,11 +895,11 @@ where
         self.nc.rsv1(),
       )?;
       let should_stop = Self::manage_auto_reply(
-        &mut self.is_stream_closed,
+        &mut self.ct,
         fb.payload(),
         &mut self.nc,
         rfi.op_code,
-        &mut self.wsb.borrow_mut().nb,
+        &mut self.wsb.lease_mut().nb,
         &mut self.rng,
         &mut self.stream,
       )
@@ -921,14 +921,14 @@ where
   }
 
   async fn write_control_frame(
+    ct: &mut ConnectionState,
     frame: &mut FrameControlArray<IS_CLIENT>,
-    is_stream_closed: &mut bool,
     nc: &mut NC,
     pb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
     stream: &mut S,
   ) -> crate::Result<()> {
-    Self::do_write_frame(frame, is_stream_closed, nc, pb.borrow_mut(), rng, stream).await?;
+    Self::do_write_frame(ct, frame, nc, pb, rng, stream).await?;
     Ok(())
   }
 }
@@ -955,4 +955,11 @@ const fn header_placeholder<const IS_CLIENT: bool>() -> u8 {
   } else {
     MAX_HDR_LEN_U8 - 4
   }
+}
+
+fn lease_as_slice<T, U>(instance: &T) -> &[U]
+where
+  T: Lease<[U]>,
+{
+  instance.lease()
 }

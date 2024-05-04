@@ -1,6 +1,9 @@
-use crate::database::{
-  schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
-  DatabaseTy,
+use crate::{
+  database::{
+    schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
+    DatabaseTy,
+  },
+  misc::Lease,
 };
 use alloc::{string::String, vec::Vec};
 #[cfg(feature = "std")]
@@ -26,9 +29,9 @@ where
     user_migrations: I,
   ) -> crate::Result<()>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration,
+    S: Lease<str> + 'migration,
   {
     buffer_db_migrations.clear();
     self.executor.create_wtx_tables().await?;
@@ -70,8 +73,8 @@ where
     groups: MigrationFromGroups<'_, '_, '_, DBS, S>,
   ) -> crate::Result<()>
   where
-    DBS: AsRef<[DatabaseTy]>,
-    S: AsRef<str>,
+    DBS: Lease<[DatabaseTy]>,
+    S: Lease<str>,
   {
     self.executor.create_wtx_tables().await?;
     for (mg, m) in groups {
@@ -105,9 +108,9 @@ where
     user_migrations: I,
   ) -> crate::Result<()>
   where
-    DBS: AsRef<[DatabaseTy]> + 'migration,
+    DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
-    S: AsRef<str> + 'migration,
+    S: Lease<str> + 'migration,
   {
     let filtered_by_db = Self::filter_by_db(user_migrations);
     Self::do_validate(buffer_db_migrations, filtered_by_db.clone())?;

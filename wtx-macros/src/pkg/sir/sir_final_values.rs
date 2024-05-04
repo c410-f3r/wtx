@@ -135,7 +135,7 @@ impl<'attrs, 'module, 'others>
             wtx::client_api_framework::data_format::#dfe_ext_res_ctnt_wrapper<
               #res_ident
             >: wtx::client_api_framework::dnsn::Deserialize<DRSR>,
-            A: wtx::client_api_framework::Api<Error = <#api as wtx::client_api_framework::Api>::Error> + core::borrow::BorrowMut<#api>,
+            A: wtx::client_api_framework::Api<Error = <#api as wtx::client_api_framework::Api>::Error>,
             DRSR: wtx::misc::AsyncBounds,
           {
             type ExternalRequestContent = wtx::client_api_framework::data_format::#dfe_ext_req_ctnt_wrapper<

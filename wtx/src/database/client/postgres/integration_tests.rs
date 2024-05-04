@@ -6,6 +6,7 @@ use crate::{
   misc::{FilledBufferWriter, UriRef},
   rng::StaticRng,
 };
+use alloc::string::String;
 use tokio::net::TcpStream;
 
 type Err = crate::Error;

@@ -1,4 +1,7 @@
-use crate::database::{executor::Executor, schema_manager::Commands, TransactionManager};
+use crate::{
+  database::{executor::Executor, schema_manager::Commands, TransactionManager},
+  misc::Lease,
+};
 use alloc::string::String;
 #[cfg(feature = "std")]
 use std::{fs::read_to_string, path::Path};
@@ -14,13 +17,13 @@ where
   pub async fn seed<I, S>(&mut self, buffer_cmd: &mut String, seeds: I) -> crate::Result<()>
   where
     I: Iterator<Item = S>,
-    S: AsRef<str>,
+    S: Lease<str>,
   {
     for elem in seeds {
-      buffer_cmd.push_str(elem.as_ref());
+      buffer_cmd.push_str(elem.lease());
     }
     let mut tm = self.executor.transaction().await?;
-    let _ = tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+    tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
     tm.commit().await?;
     buffer_cmd.clear();
     Ok(())

@@ -1,55 +1,45 @@
 [[bin]]
 name = "autobahn-client"
 path = "src/bin/autobahn-client.rs"
-required-features = ["flate2", "tokio/rt-multi-thread", "web-socket-handshake"]
+required-features = ["flate2", "optimization", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
-required-features = ["flate2", "tokio/rt-multi-thread", "web-socket-handshake"]
+required-features = ["async-send", "flate2", "optimization", "pool", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[example]]
 name = "database-client-postgres-tokio-rustls"
 path = "examples/database-client-postgres-tokio-rustls.rs"
-required-features = ["_tokio-rustls-client", "postgres" ]
+required-features = ["_tokio-rustls-client", "postgres"]
 
 [[example]]
-name = "web-socket-client-cli-raw-tokio-rustls"
-path = "examples/web-socket-client-cli-raw-tokio-rustls.rs"
+name = "http2-client-tokio"
+path = "examples/http2-client-tokio.rs"
+required-features = ["http2", "tokio"]
+
+[[example]]
+name = "http2-server-tokio"
+path = "examples/http2-server-tokio.rs"
+required-features = ["async-send", "http2", "pool", "tokio"]
+
+[[example]]
+name = "web-socket-client-raw-tokio-rustls"
+path = "examples/web-socket-client-raw-tokio-rustls.rs"
 required-features = ["_tokio-rustls-client", "tokio/io-std", "web-socket-handshake"]
 
 [[example]]
-name = "web-socket-server-echo-raw-async-std"
-path = "examples/web-socket-server-echo-raw-async-std.rs"
-required-features = ["async-std", "web-socket-handshake"]
+name = "web-socket-server-raw-tokio"
+path = "examples/web-socket-server-raw-tokio.rs"
+required-features = ["async-send", "pool", "tokio", "web-socket-handshake"]
 
 [[example]]
-name = "web-socket-server-echo-raw-glommio"
-path = "examples/web-socket-server-echo-raw-glommio.rs"
-required-features = ["glommio", "web-socket-handshake"]
-
-[[example]]
-name = "web-socket-server-echo-raw-smol"
-path = "examples/web-socket-server-echo-raw-smol.rs"
-required-features = ["smol", "web-socket-handshake"]
-
-[[example]]
-name = "web-socket-server-echo-raw-tokio"
-path = "examples/web-socket-server-echo-raw-tokio.rs"
-required-features = ["tokio", "web-socket-handshake"]
-
-[[example]]
-name = "web-socket-server-echo-raw-tokio-rustls"
-path = "examples/web-socket-server-echo-raw-tokio-rustls.rs"
+name = "web-socket-server-raw-tokio-rustls"
+path = "examples/web-socket-server-raw-tokio-rustls.rs"
 required-features = ["_tokio-rustls-server", "web-socket-handshake"]
 
-[[example]]
-name = "web-socket-server-pool-raw-tokio"
-path = "examples/web-socket-server-pool-raw-tokio.rs"
-required-features = ["pool-manager", "web-socket-handshake"]
-
 [dependencies]
-ahash = { default-features = false, optional = true, version = "0.8" }
+ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 arrayvec = { default-features = false, optional = true, version = "0.7" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
@@ -62,23 +52,23 @@ cl-aux = { default-features = false, optional = true, features = ["alloc"], vers
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
 embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.4" }
+embassy-sync = { default-features = false, optional = true, version = "0.5" }
 embedded-io-async = { default-features = false, optional = true, version = "0.6" }
 embedded-tls = { default-features = false, features = ["async"], optional = true, version = "0.16" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
-futures = { default-features = false, optional = true, version = "0.3" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
-glommio = { default-features = false, optional = true, version = "0.8" }
+glommio = { default-features = false, optional = true, version = "0.9" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 md-5 = { default-features = false, optional = true, version = "0.10" }
 memchr = { default-features = false, optional = true, version = "2.7" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
+parking_lot = { default-features = false, optional = true, version = "0.12" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 protobuf = { default-features = false, optional = true, version = "3.4" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
-reqwest = { default-features = false, optional = true, version = "0.12" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.34" }
@@ -94,6 +84,7 @@ simd-json = { default-features = false, features = ["serde_impl"], optional = tr
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
 smallvec = { default-features = false, features = ["const_generics", "union"], optional = true, version = "1.13" }
 smol = { default-features = false, optional = true, version = "2.0" }
+smoltcp = { default-features = false, optional = true, version = "0.11" }
 test-strategy = { default-features = false, optional = true, version = "0.3" }
 tokio = { default-features = false, features = ["io-util", "net", "sync", "time"], optional = true, version = "1.37" }
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.25" }
@@ -114,17 +105,20 @@ async-send = []
 async-std = ["dep:async-std", "std"]
 borsh = ["dep:borsh", "std"]
 client-api-framework = ["cl-aux"]
-database = ["arrayvec"]
+database = []
 default = []
 embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 glommio = ["futures-lite", "dep:glommio", "std"]
 http1 = ["httparse"]
+http2 = ["ahash", "hashbrown", "tokio"]
 miniserde = ["dep:miniserde", "std"]
+nightly = []
+optimization = ["atoi", "memchr", "simdutf8"]
 orm = ["database", "dep:smallvec"]
-pool-manager = []
-postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "md-5", "hmac", "sha2"]
+pool = []
+postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "md-5", "sha2"]
 protobuf = ["dep:protobuf", "std"]
-schema-manager = ["database", "chrono"]
+schema-manager = ["arrayvec", "database", "chrono"]
 schema-manager-dev = ["schema-manager"]
 serde = ["arrayvec?/serde", "cl-aux?/serde", "dep:serde"]
 serde_json = ["serde", "dep:serde_json", "std"]
@@ -132,7 +126,8 @@ serde_yaml = ["serde", "dep:serde_yaml", "std"]
 serde-xml-rs = ["serde", "dep:serde-xml-rs", "std"]
 simd-json = ["serde", "dep:simd-json", "std"]
 smol = ["dep:smol", "std"]
-std = ["ahash?/std", "arrayvec?/std", "atoi?/std", "cl-aux?/std", "memchr?/std", "miniserde?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
+std = ["ahash?/std", "arrayvec?/std", "atoi?/std", "cl-aux?/std", "embassy-sync?/std", "memchr?/std", "miniserde?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
+test-strategy = ["dep:test-strategy", "proptest"]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
 web-socket = []
@@ -140,8 +135,8 @@ web-socket-handshake = ["base64", "http1", "sha1", "web-socket"]
 
 _bench = []
 # It is not up to this crate to decide what downstream should use
-_hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "rkyv?/size_32", "simd-json?/allow-non-simd"]
-_integration-tests = []
+_hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "rkyv?/size_32", "simd-json?/allow-non-simd", "smoltcp?/medium-ip", "smoltcp?/proto-ipv4", "smoltcp?/socket-tcp"]
+_integration-tests = ["serde_json?/raw_value"]
 _proptest = ["proptest/std", "rust_decimal?/proptest", "std", "test-strategy"]
 _tokio-rustls-client = ["rustls-pemfile", "tokio-rustls/tls12", "webpki-roots"]
 _tokio-rustls-server = ["rustls-pemfile", "tokio-rustls"]

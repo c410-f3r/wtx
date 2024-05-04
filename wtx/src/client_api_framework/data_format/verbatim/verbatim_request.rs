@@ -21,6 +21,7 @@ mod rkyv {
     data_format::VerbatimRequest,
     dnsn::{Rkyv, _InnerSerializer},
   };
+  use alloc::vec::Vec;
 
   impl<D> crate::client_api_framework::dnsn::Serialize<Rkyv> for VerbatimRequest<D>
   where

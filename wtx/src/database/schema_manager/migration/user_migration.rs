@@ -1,16 +1,18 @@
-use crate::database::{
-  schema_manager::{
-    migration::MigrationCommon,
-    misc::{calc_checksum, is_sorted_and_unique},
-    Repeatability,
+use crate::{
+  database::{
+    schema_manager::{
+      migration::MigrationCommon,
+      misc::{calc_checksum, is_sorted_and_unique},
+      Repeatability,
+    },
+    DatabaseTy,
   },
-  DatabaseTy,
+  misc::{ArrayVector, Lease},
 };
 use alloc::string::String;
-use arrayvec::ArrayVec;
 
 /// UserMigration - Owned
-pub type UserMigrationOwned = UserMigration<ArrayVec<DatabaseTy, { DatabaseTy::len() }>, String>;
+pub type UserMigrationOwned = UserMigration<ArrayVector<DatabaseTy, { DatabaseTy::len() }>, String>;
 /// UserMigration - Reference
 pub type UserMigrationRef<'dbs, 'str> = UserMigration<&'dbs [DatabaseTy], &'str str>;
 
@@ -30,8 +32,8 @@ pub struct UserMigration<DBS, S> {
 
 impl<DBS, S> UserMigration<DBS, S>
 where
-  DBS: AsRef<[DatabaseTy]>,
-  S: AsRef<str>,
+  DBS: Lease<[DatabaseTy]>,
+  S: Lease<str>,
 {
   /// Creates a new instance from all necessary parameters, including internal ones.
   #[inline]
@@ -61,8 +63,8 @@ where
     [sql_up, sql_down]: [S; 2],
     version: i32,
   ) -> crate::Result<Self> {
-    is_sorted_and_unique(dbs.as_ref())?;
-    let checksum = calc_checksum(name.as_ref(), sql_up.as_ref(), sql_down.as_ref(), version);
+    is_sorted_and_unique(dbs.lease())?;
+    let checksum = calc_checksum(name.lease(), sql_up.lease(), sql_down.lease(), version);
     Ok(Self {
       dbs,
       common: MigrationCommon { checksum, name, repeatability, version },
@@ -96,7 +98,7 @@ where
   /// ```
   #[inline]
   pub fn dbs(&self) -> &[DatabaseTy] {
-    self.dbs.as_ref()
+    self.dbs.lease()
   }
 
   /// Name
@@ -109,7 +111,7 @@ where
   /// ```
   #[inline]
   pub fn name(&self) -> &str {
-    self.common.name.as_ref()
+    self.common.name.lease()
   }
 
   /// If this is a repeatable migration, returns its type.
@@ -135,7 +137,7 @@ where
   /// ```
   #[inline]
   pub fn sql_down(&self) -> &str {
-    self.sql_down.as_ref()
+    self.sql_down.lease()
   }
 
   /// Raw SQL for migrations
@@ -150,7 +152,7 @@ where
   /// );
   #[inline]
   pub fn sql_up(&self) -> &str {
-    self.sql_up.as_ref()
+    self.sql_up.lease()
   }
 
   /// UserMigration version

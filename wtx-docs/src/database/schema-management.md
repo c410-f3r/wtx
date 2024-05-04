@@ -9,7 +9,7 @@ Activation feature is called `sm`.
 ```bash
 # Example
 
-cargo install --git https://github.com/c410-f3r/wtx --features sm-dev wtx-ui
+cargo install --git https://github.com/c410-f3r/wtx --features schema-manager-dev wtx-ui
 echo DATABASE_URI="postgres://USER:PASSWORD@localhost:5432/DATABASE" > .env
 RUST_LOG=debug wtx-cli migrate
 ```
@@ -106,7 +106,7 @@ async fn main() {
   let mut commands = Commands::with_executor(());
   commands
     .migrate_from_dir(
-      (&mut <_>::default(), &mut <_>::default()),
+      (&mut String::default(), &mut Vec::default()),
       Path::new("my_custom_migration_group_path"),
     )
     .await

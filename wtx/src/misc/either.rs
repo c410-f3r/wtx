@@ -1,3 +1,5 @@
+use crate::misc::Lease;
+
 /// An enum that can contain two different types.
 #[derive(Debug, PartialEq)]
 pub enum Either<L, R> {
@@ -7,58 +9,58 @@ pub enum Either<L, R> {
   Right(R),
 }
 
-impl<L, R> AsRef<[u8]> for Either<L, R>
+impl<L, R> Lease<[u8]> for Either<L, R>
 where
-  L: AsRef<[u8]>,
-  R: AsRef<[u8]>,
+  L: Lease<[u8]>,
+  R: Lease<[u8]>,
 {
   #[inline]
-  fn as_ref(&self) -> &[u8] {
+  fn lease(&self) -> &[u8] {
     match self {
-      Either::Left(elem) => elem.as_ref(),
-      Either::Right(elem) => elem.as_ref(),
+      Either::Left(elem) => elem.lease(),
+      Either::Right(elem) => elem.lease(),
     }
   }
 }
 
-impl<'any, L, R> AsRef<&'any [u8]> for Either<L, R>
+impl<'any, L, R> Lease<&'any [u8]> for Either<L, R>
 where
-  L: AsRef<&'any [u8]>,
-  R: AsRef<&'any [u8]>,
+  L: Lease<&'any [u8]>,
+  R: Lease<&'any [u8]>,
 {
   #[inline]
-  fn as_ref(&self) -> &&'any [u8] {
+  fn lease(&self) -> &&'any [u8] {
     match self {
-      Either::Left(elem) => elem.as_ref(),
-      Either::Right(elem) => elem.as_ref(),
+      Either::Left(elem) => elem.lease(),
+      Either::Right(elem) => elem.lease(),
     }
   }
 }
 
-impl<L, R> AsRef<str> for Either<L, R>
+impl<L, R> Lease<str> for Either<L, R>
 where
-  L: AsRef<str>,
-  R: AsRef<str>,
+  L: Lease<str>,
+  R: Lease<str>,
 {
   #[inline]
-  fn as_ref(&self) -> &str {
+  fn lease(&self) -> &str {
     match self {
-      Either::Left(elem) => elem.as_ref(),
-      Either::Right(elem) => elem.as_ref(),
+      Either::Left(elem) => elem.lease(),
+      Either::Right(elem) => elem.lease(),
     }
   }
 }
 
-impl<'any, L, R> AsRef<&'any str> for Either<L, R>
+impl<'any, L, R> Lease<&'any str> for Either<L, R>
 where
-  L: AsRef<&'any str>,
-  R: AsRef<&'any str>,
+  L: Lease<&'any str>,
+  R: Lease<&'any str>,
 {
   #[inline]
-  fn as_ref(&self) -> &&'any str {
+  fn lease(&self) -> &&'any str {
     match self {
-      Either::Left(elem) => elem.as_ref(),
-      Either::Right(elem) => elem.as_ref(),
+      Either::Left(elem) => elem.lease(),
+      Either::Right(elem) => elem.lease(),
     }
   }
 }

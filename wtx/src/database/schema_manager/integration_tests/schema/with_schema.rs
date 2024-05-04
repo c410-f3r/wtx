@@ -5,6 +5,7 @@ use crate::database::{
   },
   Identifier,
 };
+use alloc::{string::String, vec::Vec};
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<E>(
   (buffer_cmd, buffer_db_migrations, buffer_idents): (

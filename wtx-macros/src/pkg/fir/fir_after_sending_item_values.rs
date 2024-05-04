@@ -5,7 +5,7 @@ create_fir_hook_item_values!(
   "after_sending",
   |arg| {
     Some(match arg {
-      "api" => quote::quote!(_api.borrow_mut()),
+      "api" => quote::quote!(_api.lease_mut()),
       "params" => quote::quote!(&mut self.params),
       "res_params" => quote::quote!(_ext_res_params),
       _ => return None,

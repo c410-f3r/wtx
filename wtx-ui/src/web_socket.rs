@@ -6,7 +6,9 @@ use wtx::{
   misc::UriRef,
   rng::StdRng,
   web_socket::{
-    handshake::{WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw},
+    handshake::{
+      HeadersBuffer, WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw,
+    },
     FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
   },
 };
@@ -14,11 +16,11 @@ use wtx::{
 pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
   let fb = &mut FrameBufferVec::default();
-  let pb = &mut <_>::default();
+  let wsb = &mut WebSocketBuffer::default();
   let (_, mut ws) = WebSocketConnectRaw {
     fb,
-    headers_buffer: &mut <_>::default(),
-    wsb: pb,
+    headers_buffer: &mut HeadersBuffer::default(),
+    wsb,
     rng: StdRng::default(),
     stream: TcpStream::connect(uri.host()).await?,
     uri: &uri,

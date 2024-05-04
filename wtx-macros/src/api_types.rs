@@ -13,7 +13,7 @@ pub(crate) fn api_types(
   token_stream: proc_macro::TokenStream,
 ) -> crate::Result<proc_macro::TokenStream> {
   let attr_args = parse_macro_input::parse::<AttributeArgs>(attrs)?;
-  let mut item: Item = syn::parse_macro_input::parse(token_stream)?;
+  let mut item: Item = parse_macro_input::parse(token_stream)?;
 
   let attrs::Attrs { pkgs_aux, transports } = attrs::Attrs::try_from(&*attr_args)?;
 

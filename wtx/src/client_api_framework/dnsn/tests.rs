@@ -42,6 +42,7 @@ where
   }
 }
 
+#[allow(dead_code)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize))]
 #[cfg_attr(feature = "miniserde", derive(miniserde::Serialize))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize))]
@@ -53,6 +54,7 @@ pub(crate) struct Foo {
   pub(crate) foo: &'static str,
 }
 
+#[allow(dead_code)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[cfg_attr(feature = "miniserde", derive(miniserde::Deserialize))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Deserialize))]
@@ -89,10 +91,7 @@ macro_rules! _create_dnsn_test {
         trans.push_response($raw_der);
         assert_eq!(
           trans
-            .send_retrieve_and_decode_contained(
-              &mut FooBar::<_, $res<Bar>>::_new($fmt_ser),
-              pkgs_aux
-            )
+            .send_recv_decode_contained(&mut FooBar::<_, $res<Bar>>::_new($fmt_ser), pkgs_aux)
             .await
             .unwrap(),
           $fmt_der

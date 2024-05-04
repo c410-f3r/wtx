@@ -1,5 +1,5 @@
 use crate::{
-  misc::SingleTypeStorage,
+  misc::{Lease, LeaseMut, SingleTypeStorage},
   web_socket::{
     close_code::CloseCode,
     frame_buffer::{
@@ -10,10 +10,7 @@ use crate::{
     MIN_HEADER_LEN_USIZE,
   },
 };
-use core::{
-  borrow::{Borrow, BorrowMut},
-  str,
-};
+use core::str;
 
 /// Composed by a [FrameBufferControlArray].
 pub type FrameControlArray<const IS_CLIENT: bool> = Frame<FrameBufferControlArray, IS_CLIENT>;
@@ -76,13 +73,13 @@ impl<FB, const IS_CLIENT: bool> Frame<FB, IS_CLIENT> {
 
 impl<B, FB, const IS_CLIENT: bool> Frame<FB, IS_CLIENT>
 where
-  B: AsRef<[u8]>,
-  FB: Borrow<FrameBuffer<B>> + SingleTypeStorage<Item = B>,
+  B: Lease<[u8]>,
+  FB: Lease<FrameBuffer<B>> + SingleTypeStorage<Item = B>,
 {
   /// Creates a new instance based on the contained bytes of `fb`.
   #[inline]
   pub fn from_fb(fb: FB) -> crate::Result<Self> {
-    let header = fb.borrow().header();
+    let header = fb.lease().header();
     let len = header.len();
     let has_valid_header = (MIN_HEADER_LEN_USIZE..=MAX_HDR_LEN_USIZE).contains(&len);
     let (true, Some(first_header_byte)) = (has_valid_header, header.first().copied()) else {
@@ -98,19 +95,16 @@ where
     B: 'this,
   {
     self.op_code.is_text().then(|| {
-      #[allow(unsafe_code)]
       // SAFETY: UTF-8 data is always verified when read from a stream.
-      unsafe {
-        str::from_utf8_unchecked(self.fb.borrow().payload())
-      }
+      unsafe { str::from_utf8_unchecked(self.fb.lease().payload()) }
     })
   }
 }
 
 impl<B, FB, const IS_CLIENT: bool> Frame<FB, IS_CLIENT>
 where
-  B: AsMut<[u8]> + AsRef<[u8]> + Expand,
-  FB: BorrowMut<FrameBuffer<B>> + SingleTypeStorage<Item = B>,
+  B: Expand + LeaseMut<[u8]>,
+  FB: LeaseMut<FrameBuffer<B>> + SingleTypeStorage<Item = B>,
 {
   /// Creates based on the individual parameters that compose a close frame.
   ///
@@ -120,7 +114,7 @@ where
     let reason_len = reason.len().min(MAX_CONTROL_FRAME_PAYLOAD_LEN - 2);
     let payload_len = reason_len.wrapping_add(2);
     Self::build_frame(fb, true, OpCode::Close, payload_len, |local_fb| {
-      let payload = local_fb.borrow_mut().payload_mut();
+      let payload = local_fb.lease_mut().payload_mut();
       payload.get_mut(..2).unwrap_or_default().copy_from_slice(&u16::from(code).to_be_bytes());
       payload
         .get_mut(2..)
@@ -149,10 +143,10 @@ where
     payload_len: usize,
     cb: impl FnOnce(&mut FB) -> crate::Result<()>,
   ) -> crate::Result<Self> {
-    fb.borrow_mut().clear();
-    fb.borrow_mut().buffer_mut().expand(MAX_HDR_LEN_USIZE.saturating_add(payload_len));
+    fb.lease_mut().clear();
+    fb.lease_mut().buffer_mut().expand(MAX_HDR_LEN_USIZE.saturating_add(payload_len));
     define_fb_from_header_params::<_, IS_CLIENT>(
-      fb.borrow_mut(),
+      fb.lease_mut(),
       fin,
       None,
       op_code,
@@ -171,7 +165,7 @@ where
     };
     Self::build_frame(fb, fin, op_code, payload_len, |local_fb| {
       local_fb
-        .borrow_mut()
+        .lease_mut()
         .payload_mut()
         .copy_from_slice(payload.get(..payload_len).unwrap_or_default());
       Ok(())

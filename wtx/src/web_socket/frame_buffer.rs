@@ -1,5 +1,5 @@
 use crate::{
-  misc::{SingleTypeStorage, _unreachable},
+  misc::{Lease, LeaseMut, SingleTypeStorage, _unreachable},
   web_socket::{DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
 };
 use alloc::{vec, vec::Vec};
@@ -78,7 +78,7 @@ impl<B> FrameBuffer<B> {
 
 impl<B> FrameBuffer<B>
 where
-  B: AsRef<[u8]>,
+  B: Lease<[u8]>,
 {
   /// Creates a new instance from the given `buffer`.
   #[inline]
@@ -90,7 +90,7 @@ where
   #[inline]
   pub fn header(&self) -> &[u8] {
     if let Some(el) =
-      self.buffer.as_ref().get(self.header_begin_idx.into()..self.header_end_idx.into())
+      self.buffer.lease().get(self.header_begin_idx.into()..self.header_end_idx.into())
     {
       el
     } else {
@@ -101,7 +101,7 @@ where
   /// Sequence of bytes that composes the frame payload.
   #[inline]
   pub fn payload(&self) -> &[u8] {
-    if let Some(el) = self.buffer.as_ref().get(self.header_end_idx.into()..self.payload_end_idx) {
+    if let Some(el) = self.buffer.lease().get(self.header_end_idx.into()..self.payload_end_idx) {
       el
     } else {
       _unreachable()
@@ -109,7 +109,7 @@ where
   }
 
   pub(crate) fn frame(&self) -> &[u8] {
-    if let Some(el) = self.buffer.as_ref().get(self.header_begin_idx.into()..self.payload_end_idx) {
+    if let Some(el) = self.buffer.lease().get(self.header_begin_idx.into()..self.payload_end_idx) {
       el
     } else {
       _unreachable()
@@ -124,7 +124,7 @@ where
   ) -> crate::Result<()> {
     let header_end_idx = Self::header_end_idx_from_parts(header_begin_idx, header_len);
     let payload_end_idx = Self::payload_end_idx_from_parts(header_end_idx, payload_len);
-    if header_len > MAX_HDR_LEN_U8 || payload_end_idx > self.buffer.as_ref().len() {
+    if header_len > MAX_HDR_LEN_U8 || payload_end_idx > self.buffer.lease().len() {
       return Err(crate::Error::InvalidPayloadBounds);
     }
     self.header_begin_idx = header_begin_idx;
@@ -136,11 +136,11 @@ where
 
 impl<B> FrameBuffer<B>
 where
-  B: AsMut<[u8]>,
+  B: LeaseMut<[u8]>,
 {
   pub(crate) fn header_mut(&mut self) -> &mut [u8] {
     let range = self.header_begin_idx.into()..self.header_end_idx.into();
-    if let Some(el) = self.buffer.as_mut().get_mut(range) {
+    if let Some(el) = self.buffer.lease_mut().get_mut(range) {
       el
     } else {
       _unreachable()
@@ -149,7 +149,7 @@ where
 
   pub(crate) fn payload_mut(&mut self) -> &mut [u8] {
     let range = self.header_end_idx.into()..self.payload_end_idx;
-    if let Some(el) = self.buffer.as_mut().get_mut(range) {
+    if let Some(el) = self.buffer.lease_mut().get_mut(range) {
       el
     } else {
       _unreachable()
@@ -159,11 +159,11 @@ where
 
 impl<B> FrameBuffer<B>
 where
-  B: AsMut<Vec<u8>>,
+  B: LeaseMut<Vec<u8>>,
 {
   pub(crate) fn expand_buffer(&mut self, new_len: usize) {
-    if new_len > self.buffer.as_mut().len() {
-      self.buffer.as_mut().resize(new_len, 0);
+    if new_len > self.buffer.lease_mut().len() {
+      self.buffer.lease_mut().resize(new_len, 0);
     }
   }
 
@@ -221,7 +221,7 @@ impl Default for FrameBufferVec {
 
 impl<'fb, B> From<&'fb mut FrameBuffer<B>> for FrameBufferMut<'fb>
 where
-  B: AsMut<[u8]>,
+  B: LeaseMut<[u8]>,
 {
   #[inline]
   fn from(from: &'fb mut FrameBuffer<B>) -> Self {
@@ -229,7 +229,7 @@ where
       header_begin_idx: from.header_begin_idx,
       header_end_idx: from.header_end_idx,
       payload_end_idx: from.payload_end_idx,
-      buffer: from.buffer.as_mut(),
+      buffer: from.buffer.lease_mut(),
     }
   }
 }
@@ -260,5 +260,19 @@ impl<'bytes> From<&'bytes mut Vec<u8>> for FrameBufferVecMut<'bytes> {
   #[inline]
   fn from(from: &'bytes mut Vec<u8>) -> Self {
     Self::new(from)
+  }
+}
+
+impl<B> Lease<FrameBuffer<B>> for FrameBuffer<B> {
+  #[inline]
+  fn lease(&self) -> &FrameBuffer<B> {
+    self
+  }
+}
+
+impl<B> LeaseMut<FrameBuffer<B>> for FrameBuffer<B> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut FrameBuffer<B> {
+    self
   }
 }

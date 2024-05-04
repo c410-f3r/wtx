@@ -6,26 +6,27 @@ use crate::{
     },
     Identifier,
   },
-  misc::{bytes_split1, from_utf8_basic, FilledBufferWriter, PartitionedFilledBuffer, Stream},
+  misc::{
+    bytes_split1, from_utf8_basic, ArrayString, ArrayVector, FilledBufferWriter, LeaseMut,
+    PartitionedFilledBuffer, Stream,
+  },
   rng::Rng,
 };
 use alloc::vec::Vec;
-use arrayvec::{ArrayString, ArrayVec};
 use base64::prelude::{Engine as _, BASE64_STANDARD};
-use core::borrow::BorrowMut;
 use hmac::{Hmac, Mac};
 use md5::{Digest, Md5};
 use sha2::Sha256;
 
 impl<E, EB, S> Executor<E, EB, S>
 where
-  EB: BorrowMut<ExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   /// Ascending sequence of extra parameters received from the database.
   #[inline]
   pub fn params(&self) -> &[(Identifier, Identifier)] {
-    &self.eb.borrow().params
+    &self.eb.lease().params
   }
 
   pub(crate) async fn manage_authentication<RNG>(
@@ -37,7 +38,7 @@ where
   where
     RNG: Rng,
   {
-    let ExecutorBufferPartsMut { nb, .. } = self.eb.borrow_mut().parts_mut();
+    let ExecutorBufferPartsMut { nb, .. } = self.eb.lease_mut().parts_mut();
     let msg0 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
     match msg0.ty {
       MessageTy::Authentication(Authentication::Md5Password(salt)) => {
@@ -46,14 +47,9 @@ where
           md5.update(config.password);
           md5.update(config.user);
           let output = md5.finalize_reset();
-          md5.update(
-            ArrayString::<{ 16 * 2 }>::try_from(format_args!("{output:x}"))
-              .map_err(|err| crate::Error::from(err.simplify()))?
-              .as_str(),
-          );
+          md5.update(ArrayString::<{ 16 * 2 }>::try_from(format_args!("{output:x}"))?.as_str());
           md5.update(salt);
-          ArrayString::<{ 16 * 2 + 3 }>::try_from(format_args!("md5{:x}", md5.finalize()))
-            .map_err(|err| crate::Error::from(err.simplify()))?
+          ArrayString::<{ 16 * 2 + 3 }>::try_from(format_args!("md5{:x}", md5.finalize()))?
         };
         let mut fbw = FilledBufferWriter::from(&mut *nb);
         password(&mut fbw, &hashed)?;
@@ -96,7 +92,7 @@ where
 
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
     loop {
-      let ExecutorBufferPartsMut { nb, params, .. } = self.eb.borrow_mut().parts_mut();
+      let ExecutorBufferPartsMut { nb, params, .. } = self.eb.lease_mut().parts_mut();
       let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
       match msg.ty {
         MessageTy::BackendKeyData => {}
@@ -127,7 +123,7 @@ where
   {
     let tsep_data = tls_server_end_point.ok_or(crate::Error::StreamDoesNotSupportTlsChannels)?;
     let local_nonce = nonce(rng);
-
+    nb._expand_buffer(1024);
     {
       let mut fbw = FilledBufferWriter::from(&mut *nb);
       sasl_first(&mut fbw, &local_nonce)?;
@@ -156,7 +152,7 @@ where
           vec.extend(payload);
           vec
         },
-        ArrayVec::<u8, 68>::try_from(nonce)?,
+        ArrayVector::<u8, 68>::try_from(nonce)?,
         salted_password(iterations, decoded_salt.get(..n).unwrap_or_default(), config.password)?,
       )
     };

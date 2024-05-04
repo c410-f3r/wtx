@@ -2,8 +2,8 @@
 
 use crate::database::{
   orm::{
-    FromSuffixRslt, InitialInsertValue, NoTableAssociation, SelectLimit, SelectOrderBy, SqlWriter,
-    Table, TableAssociation, TableAssociationWrapper, TableField, TableParams,
+    AuxNodes, FromSuffixRslt, InitialInsertValue, NoTableAssociation, SelectLimit, SelectOrderBy,
+    SqlWriter, Table, TableAssociation, TableAssociationWrapper, TableField, TableParams,
   },
   TableSuffix,
 };
@@ -119,7 +119,7 @@ impl<'entity> Table<'entity> for C {
   }
 }
 
-#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+#[cfg(target_pointer_width = "64")]
 #[test]
 fn assert_sizes() {
   assert_eq!(mem::size_of::<TableParams<'_, A>>(), 64);
@@ -142,7 +142,7 @@ fn update_some_values_has_correct_behavior() {
   *elem.id_field_mut().value_mut() = Some((&c3.r#as[0].id).into());
   c_table_defs.associations_mut().0.tables.push(elem);
 
-  c_table_defs.write_update(&mut <_>::default(), &mut buffer).unwrap();
+  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(&buffer, r#"UPDATE c SET id='3' WHERE id='3';UPDATE a SET id='1' WHERE id='1';"#);
 }
 
@@ -155,11 +155,11 @@ fn write_collection_has_correct_params() {
   let mut buffer = String::new();
   let mut c_table_defs = TableParams::<C>::default();
 
-  c_table_defs.write_delete(&mut <_>::default(), &mut buffer).unwrap();
+  c_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(&buffer, r#""#);
 
   c_table_defs
-    .write_insert::<InitialInsertValue>(&mut <_>::default(), &mut buffer, &mut None)
+    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
     .unwrap();
   assert_eq!(&buffer, r#""#);
 
@@ -173,13 +173,13 @@ fn write_collection_has_correct_params() {
   );
 
   buffer.clear();
-  c_table_defs.write_update(&mut <_>::default(), &mut buffer).unwrap();
+  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(&buffer, r#""#);
 
   c_table_defs.update_all_table_fields(&c3);
 
   buffer.clear();
-  c_table_defs.write_delete(&mut <_>::default(), &mut buffer).unwrap();
+  c_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(
     &buffer,
     r#"DELETE FROM a WHERE id='1';DELETE FROM a WHERE id='2';DELETE FROM c WHERE id='3';"#
@@ -187,7 +187,7 @@ fn write_collection_has_correct_params() {
 
   buffer.clear();
   c_table_defs
-    .write_insert::<InitialInsertValue>(&mut <_>::default(), &mut buffer, &mut None)
+    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
     .unwrap();
   assert_eq!(
     &buffer,
@@ -204,7 +204,7 @@ fn write_collection_has_correct_params() {
   );
 
   buffer.clear();
-  c_table_defs.write_update(&mut <_>::default(), &mut buffer).unwrap();
+  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(
     &buffer,
     r#"UPDATE c SET id='3',name='foo3' WHERE id='3';UPDATE a SET id='1',name='foo1' WHERE id='1';UPDATE a SET id='2',name='foo2' WHERE id='2';"#

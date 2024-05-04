@@ -38,7 +38,7 @@ impl TransportParams for UdpParams {
 
   #[inline]
   fn reset(&mut self) {
-    self.0.url.retain_with_initial_len();
+    self.0.url.truncate_with_initial_len();
   }
 }
 

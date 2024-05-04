@@ -40,16 +40,14 @@ macro_rules! test {
   };
 }
 
-#[cfg(feature = "arrayvec")]
-mod arrayvec {
+mod array {
   use crate::{
     database::{
       client::postgres::{DecodeValue, Postgres, Ty},
       Decode, Encode,
     },
-    misc::{from_utf8_basic, FilledBufferWriter},
+    misc::{from_utf8_basic, ArrayString, FilledBufferWriter},
   };
-  use arrayvec::ArrayString;
 
   impl<E, const N: usize> Decode<'_, Postgres<E>> for ArrayString<N>
   where
@@ -214,9 +212,8 @@ mod pg_numeric {
       client::postgres::{DecodeValue, Postgres, Ty},
       Decode, Encode,
     },
-    misc::{FilledBufferWriter, Usize},
+    misc::{ArrayVector, FilledBufferWriter, Usize},
   };
-  use arrayvec::ArrayVec;
 
   const DIGITS_CAP: usize = 64;
   const SIGN_NAN: u16 = 0xC000;
@@ -225,7 +222,7 @@ mod pg_numeric {
 
   pub(crate) enum PgNumeric {
     NotANumber,
-    Number { digits: ArrayVec<i16, DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
+    Number { digits: ArrayVector<i16, DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
   }
 
   impl<E> Decode<'_, Postgres<E>> for PgNumeric
@@ -264,7 +261,7 @@ mod pg_numeric {
           curr_slice = local_rest;
         }
         PgNumeric::Number {
-          digits: fbw.into_iter().take(digits_usize).collect(),
+          digits: ArrayVector::new(fbw, digits.into()),
           scale,
           sign: Sign::try_from(sign)?,
           weight,
@@ -463,9 +460,8 @@ mod rust_decimal {
       },
       Decode, Encode,
     },
-    misc::FilledBufferWriter,
+    misc::{ArrayVector, FilledBufferWriter},
   };
-  use arrayvec::ArrayVec;
   use rust_decimal::{Decimal, MathematicalOps};
 
   impl<E> Decode<'_, Postgres<E>> for Decimal
@@ -485,7 +481,7 @@ mod rust_decimal {
         return Ok(0u64.into());
       }
       let mut value = Decimal::ZERO;
-      for digit in digits {
+      for digit in digits.into_inner() {
         let mut operations = || {
           let mul = Decimal::from(10_000u16).checked_powi(weight.into())?;
           let part = Decimal::from(digit).checked_mul(mul)?;
@@ -493,7 +489,7 @@ mod rust_decimal {
           weight = weight.checked_sub(1)?;
           Some(())
         };
-        operations().ok_or_else(|| crate::Error::OutOfBoundsArithmetic.into())?;
+        operations().ok_or_else(|| crate::Error::OutOfBoundsArithmetic)?;
       }
       match sign {
         Sign::Positive => value.set_sign_positive(true),
@@ -512,7 +508,7 @@ mod rust_decimal {
     fn encode(&self, fbw: &mut FilledBufferWriter<'_>, value: &Ty) -> Result<(), E> {
       if self.is_zero() {
         let rslt = PgNumeric::Number {
-          digits: ArrayVec::default(),
+          digits: ArrayVector::default(),
           scale: 0,
           sign: Sign::Positive,
           weight: 0,
@@ -531,9 +527,9 @@ mod rust_decimal {
         mantissa = mantissa.wrapping_mul(u128::from(10u32.pow(remainder)));
       }
 
-      let mut digits = ArrayVec::new();
+      let mut digits = ArrayVector::default();
       while mantissa != 0 {
-        digits.push((mantissa % 10_000) as i16);
+        digits.try_push((mantissa % 10_000) as i16)?;
         mantissa /= 10_000;
       }
       digits.reverse();

@@ -1,8 +1,7 @@
 use crate::{
   database::client::postgres::{Executor, ExecutorBuffer},
-  misc::Stream,
+  misc::{LeaseMut, Stream},
 };
-use core::borrow::BorrowMut;
 
 /// Transaction Manager
 #[derive(Debug)]
@@ -18,7 +17,7 @@ impl<'exec, E, EB, S> TransactionManager<'exec, E, EB, S> {
 
 impl<'exec, E, EB, S> crate::database::TransactionManager for TransactionManager<'exec, E, EB, S>
 where
-  EB: BorrowMut<ExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   type Executor = Executor<E, EB, S>;

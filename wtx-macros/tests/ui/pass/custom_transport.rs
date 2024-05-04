@@ -26,7 +26,7 @@ impl<DRSR> Transport<DRSR> for CustomTransport {
     Ok(())
   }
 
-  async fn send_and_retrieve<A, P>(
+  async fn send_recv<A, P>(
     &mut self,
     _: &mut P,
     _: &mut PkgsAux<A, DRSR, Self::Params>,

@@ -5,7 +5,7 @@ create_fir_hook_item_values!(
   "before_sending",
   |arg| {
     Some(match arg {
-      "api" => quote::quote!(_api.borrow_mut()),
+      "api" => quote::quote!(_api.lease_mut()),
       "params" => quote::quote!(&mut self.params),
       "req_bytes" => quote::quote!(_req_bytes),
       "req_params" => quote::quote!(_ext_req_params),

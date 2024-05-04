@@ -1,0 +1,644 @@
+// In `EncodeIdx::RefNameSavedValue` the name is locally indexed along side the value to allow
+// future usages of `RefNameRefValue` potentially reducing sent bytes. It is possible to only
+// store non-static names but that would de-synchronize the decoder.
+//
+// On the other hand, `EncodeIdx::RefNameUnsavedValue` does not index anything although the name
+// contents could be used to create a more "recent" entry.
+//
+// It is unknown if the above descriptions are optimal in regards to local stored size, total sent
+// bytes or runtime performance.
+
+use crate::{
+  http::{AbstractHeaders, HeaderName, Method, StatusCode},
+  http2::{hpack_header::HpackHeaderBasic, huffman_encode},
+  misc::{ByteVector, Lease, Usize, _random_state, _shift_bytes, _unreachable},
+  rng::Rng,
+};
+use ahash::RandomState;
+use core::{
+  hash::{BuildHasher, Hasher},
+  iter,
+};
+use hashbrown::HashMap;
+
+const DYN_IDX_OFFSET: u32 = 61;
+
+#[derive(Debug)]
+pub(crate) struct HpackEncoder {
+  dyn_headers: AbstractHeaders<Metadata>,
+  idx: u32,
+  indcs: HashMap<u64, u32>,
+  // Defined by external actors.
+  max_dyn_sub_bytes: Option<(u32, Option<u32>)>,
+  // Defined by the system.
+  max_dyn_super_bytes: u32,
+  rs: RandomState,
+}
+
+impl HpackEncoder {
+  #[inline]
+  pub(crate) fn new<RNG>(rng: RNG) -> Self
+  where
+    RNG: Rng,
+  {
+    Self {
+      dyn_headers: AbstractHeaders::new(0),
+      idx: 0,
+      indcs: HashMap::new(),
+      max_dyn_sub_bytes: None,
+      max_dyn_super_bytes: 0,
+      rs: _random_state(rng),
+    }
+  }
+
+  #[inline]
+  pub(crate) fn clear(&mut self) {
+    let Self { dyn_headers, idx, indcs, max_dyn_sub_bytes, max_dyn_super_bytes: _, rs: _ } = self;
+    dyn_headers.clear();
+    *idx = 0;
+    indcs.clear();
+    *max_dyn_sub_bytes = None;
+  }
+
+  #[inline]
+  pub(crate) fn encode<'value>(
+    &mut self,
+    buffer: &mut ByteVector,
+    pseudo_headers: impl Iterator<Item = (HpackHeaderBasic, &'value [u8])>,
+    user_headers: impl Iterator<Item = (&'value [u8], &'value [u8], bool)>,
+  ) -> crate::Result<()> {
+    self.adjust_indices(
+      pseudo_headers
+        .size_hint()
+        .1
+        .and_then(|el| el.checked_add(user_headers.size_hint().1?))
+        .unwrap_or(usize::MAX),
+    );
+    self.manage_size_update(buffer)?;
+    for (hhb, value) in pseudo_headers {
+      let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)));
+      self.manage_encode(buffer, (&[], value), idx)?;
+    }
+    for (name, value, is_sensitive) in user_headers {
+      let idx = self.encode_idx(
+        (name, value, is_sensitive),
+        HpackHeaderBasic::Field,
+        Self::shi_user((name, value)),
+      );
+      self.manage_encode(buffer, (name, value), idx)?;
+    }
+    Ok(())
+  }
+
+  // It is not possible to lower the initial set value
+  #[inline]
+  pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u32) -> crate::Result<()> {
+    if max_dyn_sub_bytes > self.max_dyn_super_bytes {
+      return Err(crate::Error::UnboundedNumber {
+        expected: 0..=self.max_dyn_super_bytes,
+        received: max_dyn_sub_bytes,
+      });
+    }
+    match self.max_dyn_sub_bytes {
+      Some((lower, None)) | Some((lower, Some(_))) => {
+        if max_dyn_sub_bytes > lower {
+          self.max_dyn_sub_bytes = Some((lower, Some(max_dyn_sub_bytes)));
+        } else {
+          self.max_dyn_sub_bytes = Some((max_dyn_sub_bytes, None));
+        }
+      }
+      None => {
+        if max_dyn_sub_bytes != self.max_dyn_super_bytes {
+          self.max_dyn_sub_bytes = Some((max_dyn_sub_bytes, None));
+        }
+      }
+    }
+    Ok(())
+  }
+
+  pub(crate) fn set_max_dyn_super_bytes(&mut self, max_dyn_super_bytes: u32) {
+    self.max_dyn_sub_bytes = None;
+    self.max_dyn_super_bytes = max_dyn_super_bytes;
+  }
+
+  #[inline]
+  fn adjust_indices(&mut self, len: usize) {
+    let new_idx = u64::from(self.idx).checked_add(Usize::from(len).into());
+    if new_idx < Some(u64::from(u32::MAX)) {
+      return;
+    }
+    for (_, idx) in &mut self.indcs {
+      *idx = idx.wrapping_sub(self.idx);
+    }
+    self.idx = 0;
+  }
+
+  #[inline]
+  fn dyn_idx(&mut self, header: (&[u8], &[u8], bool), should_not_index: bool) -> EncodeIdx {
+    let (name, value, is_sensitive) = header;
+
+    let mut name_hasher = self.rs.build_hasher();
+    name_hasher.write(name);
+
+    let mut pair_hasher = name_hasher.clone();
+    pair_hasher.write(value);
+    let pair_hash = pair_hasher.finish();
+
+    if let (false, Some(pair_idx)) = (should_not_index, self.indcs.get(&pair_hash).copied()) {
+      return EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(pair_idx));
+    }
+
+    let name_hash = name_hasher.finish();
+
+    match (should_not_index, self.indcs.get(&name_hash).copied()) {
+      (false, None) => {}
+      (false, Some(name_idx)) => {
+        return self.store_header_with_ref_name::<false>(
+          (name, value, is_sensitive),
+          self.from_indcs_to_encode_idx(name_idx),
+          pair_hash,
+        );
+      }
+      (true, None) => return EncodeIdx::UnsavedNameUnsavedValue,
+      (true, Some(name_idx)) => {
+        return EncodeIdx::RefNameUnsavedValue(self.from_indcs_to_encode_idx(name_idx))
+      }
+    }
+
+    self.push_dyn_headers((name, value, is_sensitive), (Some(name_hash), pair_hash));
+    let next_dyn_idx = self.next_dyn_idx();
+    self.indcs.reserve(2);
+    let _ = self.indcs.insert(name_hash, next_dyn_idx);
+    let _ = self.indcs.insert(pair_hash, next_dyn_idx);
+    EncodeIdx::SavedNameSavedValue
+  }
+
+  #[inline]
+  fn dyn_idx_with_static_name(&mut self, header: (&[u8], &[u8], bool), name_idx: u32) -> EncodeIdx {
+    let (name, value, is_sensitive) = header;
+    let pair_hash = self.rs.hash_one((name, value));
+    if let Some(common_idx) = self.indcs.get(&pair_hash).copied() {
+      return EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(common_idx));
+    }
+    self.store_header_with_ref_name::<true>((name, value, is_sensitive), name_idx, pair_hash)
+  }
+
+  #[inline]
+  fn encode_idx(
+    &mut self,
+    header: (&[u8], &[u8], bool),
+    hhb: HpackHeaderBasic,
+    static_header: Option<StaticHeader>,
+  ) -> EncodeIdx {
+    match static_header {
+      None => {
+        let (name, value, is_sensitive) = header;
+        let should_not_index = self.should_not_index((name, value, is_sensitive), hhb);
+        self.dyn_idx((name, value, is_sensitive), should_not_index)
+      }
+      Some(StaticHeader { has_value: true, idx, name: _ }) => EncodeIdx::RefNameRefValue(idx),
+      Some(StaticHeader { has_value: false, idx, name }) => {
+        let (_, value, is_sensitive) = header;
+        if self.should_not_index((name, value, is_sensitive), hhb) {
+          EncodeIdx::RefNameUnsavedValue(idx)
+        } else {
+          self.dyn_idx_with_static_name((name, value, is_sensitive), idx)
+        }
+      }
+    }
+  }
+
+  #[inline]
+  fn encode_int(buffer: &mut ByteVector, first_byte: u8, mut n: u32) -> crate::Result<u8> {
+    let mask = first_byte.wrapping_sub(1);
+    buffer.reserve(4);
+
+    if n < u32::from(mask) {
+      buffer.push_within_cap(first_byte | n as u8);
+      return Ok(1);
+    }
+
+    n = n.wrapping_sub(mask.into());
+    buffer.push_within_cap(first_byte | mask);
+
+    for len in 2..5 {
+      if n <= 127 {
+        buffer.push_within_cap(n as u8);
+        return Ok(len);
+      }
+      buffer.push_within_cap(0b1000_0000 | n as u8);
+      n >>= 7;
+    }
+
+    Err(crate::Error::VeryLargeHeaderInteger)
+  }
+
+  // 1. 0 -> 0xxxx -> 4xxxx
+  // 2,3,4. 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
+  #[inline]
+  fn encode_str(buffer: &mut ByteVector, bytes: &[u8]) -> crate::Result<()> {
+    let before_byte = buffer.len();
+    buffer.push(0);
+    if bytes.is_empty() {
+      return Ok(());
+    }
+    let after_byte = buffer.len();
+    huffman_encode(bytes, buffer);
+    let after_huffman = buffer.len();
+    let len_usize = after_huffman.wrapping_sub(after_byte);
+    let fits_in_1_byte = len_usize < 0b0111_1111;
+    if let (true, Ok(len)) = (fits_in_1_byte, u8::try_from(len_usize)) {
+      let Some(byte) = buffer.get_mut(before_byte) else {
+        _unreachable();
+      };
+      *byte = 0b1000_0000 | len;
+    } else if let Ok(len) = u32::try_from(len_usize) {
+      let octets = Self::encode_int(buffer, 0b1000_0000, len)?;
+      let mut array = [0; 4];
+      match (octets, buffer.lease()) {
+        (2, [.., a, b]) => {
+          array[0] = *a;
+          array[1] = *b;
+        }
+        (3, [.., a, b, c]) => {
+          array[0] = *a;
+          array[1] = *b;
+          array[2] = *c;
+        }
+        (4, [.., a, b, c, d]) => {
+          array[0] = *a;
+          array[1] = *b;
+          array[2] = *c;
+          array[3] = *d;
+        }
+        _ => return Ok(()),
+      }
+      let _ = _shift_bytes(
+        before_byte.wrapping_add(octets.into()),
+        buffer,
+        iter::once(after_byte..after_huffman),
+      );
+      buffer.truncate(buffer.len().wrapping_sub(1));
+      match (octets, buffer.get_mut(before_byte..)) {
+        (2, Some([a, b, ..])) => {
+          *a = array[0];
+          *b = array[1];
+        }
+        (3, Some([a, b, c, ..])) => {
+          *a = array[0];
+          *b = array[1];
+          *c = array[2];
+        }
+        (4, Some([a, b, c, d, ..])) => {
+          *a = array[0];
+          *b = array[1];
+          *c = array[2];
+          *d = array[3];
+        }
+        _ => {}
+      }
+    } else {
+      return Err(crate::Error::UnsupportedHeaderNameOrValueLen);
+    }
+    Ok(())
+  }
+
+  // Regardless of the "sensitive" flag set by users, these headers may carry sensitive content
+  // that shouldn't be indexed.
+  #[inline]
+  fn header_is_naturally_sensitive(hhb: HpackHeaderBasic, name: &[u8]) -> bool {
+    match hhb {
+      HpackHeaderBasic::Field => matches!(
+        HeaderName::new(name),
+        HeaderName::AGE
+          | HeaderName::AUTHORIZATION
+          | HeaderName::CONTENT_LENGTH
+          | HeaderName::ETAG
+          | HeaderName::IF_MODIFIED_SINCE
+          | HeaderName::IF_NONE_MATCH
+          | HeaderName::LOCATION
+          | HeaderName::COOKIE
+          | HeaderName::SET_COOKIE
+      ),
+      HpackHeaderBasic::Path => true,
+      _ => false,
+    }
+  }
+
+  // Very large headers are not good candidates for indexing.
+  #[inline]
+  fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &[u8], value: &[u8]) -> bool {
+    hhb.len(name, value) >= (self.dyn_headers.max_bytes() / 4).wrapping_mul(3)
+  }
+
+  #[inline]
+  fn from_indcs_to_encode_idx(&self, idx: u32) -> u32 {
+    self.idx.wrapping_sub(idx).wrapping_add(DYN_IDX_OFFSET)
+  }
+
+  #[inline]
+  fn manage_encode(
+    &mut self,
+    buffer: &mut ByteVector,
+    header: (&[u8], &[u8]),
+    idx: EncodeIdx,
+  ) -> crate::Result<()> {
+    let (name, value) = header;
+    match idx {
+      EncodeIdx::RefNameRefValue(idx) => {
+        let _ = Self::encode_int(buffer, 0b1000_0000, idx)?;
+      }
+      EncodeIdx::RefNameSavedValue(name_idx) => {
+        let _ = Self::encode_int(buffer, 0b0100_0000, name_idx)?;
+        Self::encode_str(buffer, value)?;
+      }
+      EncodeIdx::RefNameUnsavedValue(name_idx) => {
+        let _ = Self::encode_int(buffer, 0b0001_0000, name_idx)?;
+        Self::encode_str(buffer, value)?;
+      }
+      EncodeIdx::SavedNameSavedValue => {
+        buffer.push(0b0100_0000);
+        Self::encode_str(buffer, name)?;
+        Self::encode_str(buffer, value)?;
+      }
+      EncodeIdx::UnsavedNameUnsavedValue => {
+        buffer.push(0b0001_0000);
+        Self::encode_str(buffer, name)?;
+        Self::encode_str(buffer, value)?;
+      }
+    }
+    Ok(())
+  }
+
+  #[inline]
+  fn manage_size_update(&mut self, buffer: &mut ByteVector) -> crate::Result<()> {
+    match self.max_dyn_sub_bytes.take() {
+      Some((lower, None)) => {
+        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata, _| {
+          Self::remove_outdated_indices(&mut self.indcs, metadata);
+        });
+        let _ = Self::encode_int(buffer, 0b0010_0000, lower)?;
+      }
+      Some((lower, Some(upper))) => {
+        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata, _| {
+          Self::remove_outdated_indices(&mut self.indcs, metadata);
+        });
+        self.dyn_headers.set_max_bytes(*Usize::from(upper), |metadata, _| {
+          Self::remove_outdated_indices(&mut self.indcs, metadata);
+        });
+        let _ = Self::encode_int(buffer, 0b0010_0000, lower)?;
+        let _ = Self::encode_int(buffer, 0b0010_0000, upper)?;
+      }
+      None => {}
+    }
+    Ok(())
+  }
+
+  /// Must be called after insertion
+  #[inline]
+  fn next_dyn_idx(&self) -> u32 {
+    self.idx.wrapping_sub(1)
+  }
+
+  #[inline]
+  fn push_dyn_headers(
+    &mut self,
+    (name, value, is_sensitive): (&[u8], &[u8], bool),
+    (name_hash, pair_hash): (Option<u64>, u64),
+  ) {
+    self.idx = self.idx.wrapping_add(1);
+    self.dyn_headers.reserve(name.len().wrapping_add(value.len()), 1);
+    self.dyn_headers.push_front(
+      Metadata { name_hash, pair_hash },
+      name,
+      value,
+      is_sensitive,
+      |metadata, _| {
+        Self::remove_outdated_indices(&mut self.indcs, metadata);
+      },
+    );
+  }
+
+  #[inline]
+  fn shi_pseudo((hhb, value): (HpackHeaderBasic, &[u8])) -> Option<StaticHeader> {
+    let (has_value, idx, name): (_, _, &[u8]) = match hhb {
+      HpackHeaderBasic::Authority => (false, 1, b":authority"),
+      HpackHeaderBasic::Field => return None,
+      HpackHeaderBasic::Method(method) => {
+        let name = b":method";
+        let (has_value, idx) = match method {
+          Method::Get => (true, 2),
+          Method::Post => (true, 3),
+          _ => (false, 2),
+        };
+        (has_value, idx, name)
+      }
+      HpackHeaderBasic::Path => {
+        let name = b":path";
+        let (has_value, idx) = match value {
+          b"/" => (true, 4),
+          b"/index.html" => (true, 5),
+          _ => (false, 4),
+        };
+        (has_value, idx, name)
+      }
+      HpackHeaderBasic::Protocol(_) => return None,
+      HpackHeaderBasic::Scheme => {
+        let name = b":path";
+        let (has_value, idx) = match value {
+          b"http" => (true, 6),
+          b"https" => (true, 7),
+          _ => (false, 6),
+        };
+        (has_value, idx, name)
+      }
+      HpackHeaderBasic::StatusCode(status) => {
+        let name = b":status";
+        let (has_value, idx) = match status {
+          StatusCode::Ok => (true, 8),
+          StatusCode::NoContent => (true, 9),
+          StatusCode::PartialContent => (true, 10),
+          StatusCode::NotModified => (true, 11),
+          StatusCode::BadRequest => (true, 12),
+          StatusCode::NotFound => (true, 13),
+          StatusCode::InternalServerError => (true, 14),
+          _ => (false, 8),
+        };
+        (has_value, idx, name)
+      }
+    };
+    Some(StaticHeader { has_value, idx, name })
+  }
+
+  #[inline]
+  fn shi_user((name, value): (&[u8], &[u8])) -> Option<StaticHeader> {
+    let (has_value, idx, name) = match HeaderName::new(name) {
+      HeaderName::ACCEPT_CHARSET => (false, 15, HeaderName::ACCEPT_CHARSET.bytes()),
+      HeaderName::ACCEPT_ENCODING => {
+        if value == b"gzip, deflate" {
+          (true, 16, HeaderName::ACCEPT_ENCODING.bytes())
+        } else {
+          (false, 16, HeaderName::ACCEPT_ENCODING.bytes())
+        }
+      }
+      HeaderName::ACCEPT_LANGUAGE => (false, 17, HeaderName::ACCEPT_LANGUAGE.bytes()),
+      HeaderName::ACCEPT_RANGES => (false, 18, HeaderName::ACCEPT_RANGES.bytes()),
+      HeaderName::ACCEPT => (false, 19, HeaderName::ACCEPT.bytes()),
+      HeaderName::ACCESS_CONTROL_ALLOW_ORIGIN => {
+        (false, 20, HeaderName::ACCESS_CONTROL_ALLOW_ORIGIN.bytes())
+      }
+      HeaderName::AGE => (false, 21, HeaderName::AGE.bytes()),
+      HeaderName::ALLOW => (false, 22, HeaderName::ALLOW.bytes()),
+      HeaderName::AUTHORIZATION => (false, 23, HeaderName::AUTHORIZATION.bytes()),
+      HeaderName::CACHE_CONTROL => (false, 24, HeaderName::CACHE_CONTROL.bytes()),
+      HeaderName::CONTENT_DISPOSITION => (false, 25, HeaderName::CONTENT_DISPOSITION.bytes()),
+      HeaderName::CONTENT_ENCODING => (false, 26, HeaderName::CONTENT_ENCODING.bytes()),
+      HeaderName::CONTENT_LANGUAGE => (false, 27, HeaderName::CONTENT_LANGUAGE.bytes()),
+      HeaderName::CONTENT_LENGTH => (false, 28, HeaderName::CONTENT_LENGTH.bytes()),
+      HeaderName::CONTENT_LOCATION => (false, 29, HeaderName::CONTENT_LOCATION.bytes()),
+      HeaderName::CONTENT_RANGE => (false, 30, HeaderName::CONTENT_RANGE.bytes()),
+      HeaderName::CONTENT_TYPE => (false, 31, HeaderName::CONTENT_TYPE.bytes()),
+      HeaderName::COOKIE => (false, 32, HeaderName::COOKIE.bytes()),
+      HeaderName::DATE => (false, 33, HeaderName::DATE.bytes()),
+      HeaderName::ETAG => (false, 34, HeaderName::ETAG.bytes()),
+      HeaderName::EXPECT => (false, 35, HeaderName::EXPECT.bytes()),
+      HeaderName::EXPIRES => (false, 36, HeaderName::EXPIRES.bytes()),
+      HeaderName::FROM => (false, 37, HeaderName::FROM.bytes()),
+      HeaderName::HOST => (false, 38, HeaderName::HOST.bytes()),
+      HeaderName::IF_MATCH => (false, 39, HeaderName::IF_MATCH.bytes()),
+      HeaderName::IF_MODIFIED_SINCE => (false, 40, HeaderName::IF_MODIFIED_SINCE.bytes()),
+      HeaderName::IF_NONE_MATCH => (false, 41, HeaderName::IF_NONE_MATCH.bytes()),
+      HeaderName::IF_RANGE => (false, 42, HeaderName::IF_RANGE.bytes()),
+      HeaderName::IF_UNMODIFIED_SINCE => (false, 43, HeaderName::IF_UNMODIFIED_SINCE.bytes()),
+      HeaderName::LAST_MODIFIED => (false, 44, HeaderName::LAST_MODIFIED.bytes()),
+      HeaderName::LINK => (false, 45, HeaderName::LINK.bytes()),
+      HeaderName::LOCATION => (false, 46, HeaderName::LOCATION.bytes()),
+      HeaderName::MAX_FORWARDS => (false, 47, HeaderName::MAX_FORWARDS.bytes()),
+      HeaderName::PROXY_AUTHENTICATE => (false, 48, HeaderName::PROXY_AUTHENTICATE.bytes()),
+      HeaderName::PROXY_AUTHORIZATION => (false, 49, HeaderName::PROXY_AUTHORIZATION.bytes()),
+      HeaderName::RANGE => (false, 50, HeaderName::RANGE.bytes()),
+      HeaderName::REFERER => (false, 51, HeaderName::REFERER.bytes()),
+      HeaderName::REFRESH => (false, 52, HeaderName::REFRESH.bytes()),
+      HeaderName::RETRY_AFTER => (false, 53, HeaderName::RETRY_AFTER.bytes()),
+      HeaderName::SERVER => (false, 54, HeaderName::SERVER.bytes()),
+      HeaderName::SET_COOKIE => (false, 55, HeaderName::SET_COOKIE.bytes()),
+      HeaderName::STRICT_TRANSPORT_SECURITY => {
+        (false, 56, HeaderName::STRICT_TRANSPORT_SECURITY.bytes())
+      }
+      HeaderName::TRANSFER_ENCODING => (false, 57, HeaderName::TRANSFER_ENCODING.bytes()),
+      HeaderName::USER_AGENT => (false, 58, HeaderName::USER_AGENT.bytes()),
+      HeaderName::VARY => (false, 59, HeaderName::VARY.bytes()),
+      HeaderName::VIA => (false, 60, HeaderName::VIA.bytes()),
+      HeaderName::WWW_AUTHENTICATE => (false, 61, HeaderName::WWW_AUTHENTICATE.bytes()),
+      _ => return None,
+    };
+    Some(StaticHeader { has_value, idx, name })
+  }
+
+  #[inline]
+  fn should_not_index(
+    &self,
+    (name, value, is_sensitive): (&[u8], &[u8], bool),
+    hhb: HpackHeaderBasic,
+  ) -> bool {
+    is_sensitive
+      || Self::header_is_naturally_sensitive(hhb, name)
+      || self.header_is_very_large(hhb, name, value)
+  }
+
+  #[inline]
+  fn remove_outdated_indices(indcs: &mut HashMap<u64, u32>, metadata: Metadata) {
+    if let Some(elem) = metadata.name_hash {
+      let _ = indcs.remove(&elem);
+    }
+    let _ = indcs.remove(&metadata.pair_hash);
+  }
+
+  #[inline]
+  fn store_header_with_ref_name<const HAS_STATIC_NAME: bool>(
+    &mut self,
+    (name, value, is_sensitive): (&[u8], &[u8], bool),
+    name_idx: u32,
+    pair_hash: u64,
+  ) -> EncodeIdx {
+    let before = self.dyn_headers.headers_len();
+    self.push_dyn_headers((name, value, is_sensitive), (None, pair_hash));
+    let _ = self.indcs.insert(pair_hash, self.next_dyn_idx());
+    if !HAS_STATIC_NAME {
+      let after = self.dyn_headers.headers_len();
+      let diff = before.wrapping_sub(after.wrapping_sub(1));
+      let name_idx_has_been_removed = diff > *Usize::from(name_idx);
+      if name_idx_has_been_removed {
+        return EncodeIdx::SavedNameSavedValue;
+      }
+    }
+    EncodeIdx::RefNameSavedValue(name_idx)
+  }
+}
+
+/// https://datatracker.ietf.org/doc/html/rfc7541#section-6.2
+///
+/// Elements already stored (Ref) are encoded using their referenced indexes. Elements that were
+/// recently stored (Saved) or must not be stored (Unsaved) are encoded using their literal
+/// contents (Literal).
+#[derive(Debug)]
+enum EncodeIdx {
+  /// Both elements are already stored and the common referenced index is used for encoding.
+  RefNameRefValue(u32),
+  /// The name is already stored and the referenced index is used for encoding. The value has been
+  /// stored and the literal contents are used for encoding.
+  RefNameSavedValue(u32),
+  /// Both "Never Indexed" and "Without Indexing" variants.
+  ///
+  /// The name is already stored and the referenced index is used for encoding. The value is not stored
+  /// and the literal contents are used for encoding.
+  RefNameUnsavedValue(u32),
+  /// The name has been stored and the literal contents are used for encoding. The value has been
+  /// stored the literal contents are used for encoding.
+  SavedNameSavedValue,
+  /// Both "Never Indexed" and "Without Indexing" variants.
+  ///
+  /// The name is not stored and the literal contents are used for encoding. The value is not stored
+  /// and the literal contents are used for encoding.
+  UnsavedNameUnsavedValue,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Metadata {
+  name_hash: Option<u64>,
+  pair_hash: u64,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct StaticHeader {
+  has_value: bool,
+  idx: u32,
+  name: &'static [u8],
+}
+
+#[cfg(feature = "_bench")]
+#[cfg(test)]
+mod bench {
+  use crate::{
+    http2::HpackEncoder,
+    misc::{ByteVector, Usize},
+    rng::StaticRng,
+  };
+
+  #[bench]
+  fn encode(b: &mut test::Bencher) {
+    const N: u32 = 1024 * 1024 * 4;
+    let data = crate::bench::_data(*Usize::from(N));
+    let mut he = HpackEncoder::new(StaticRng::default());
+    he.set_max_dyn_super_bytes(N);
+    let mut buffer = ByteVector::new();
+    b.iter(|| {
+      he.encode(
+        &mut buffer,
+        [].into_iter(),
+        data.chunks_exact(128).map(|el| (&el[..64], &el[64..], false)),
+      )
+      .unwrap();
+    });
+  }
+}
