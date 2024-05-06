@@ -16,7 +16,7 @@ async fn main() {
     common::_host_from_args().parse().unwrap(),
     None,
     || (),
-    |err| println!("Connection error: {err:?}"),
+    |err| eprintln!("Connection error: {err:?}"),
     handle,
   )
   .await

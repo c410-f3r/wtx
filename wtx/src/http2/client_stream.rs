@@ -1,11 +1,12 @@
 use crate::{
   http::{RequestRef, ResponseMut},
   http2::{
-    misc::{send_go_away, send_reset, write_init_headers},
+    misc::{send_go_away, send_reset},
+    write_stream::write_stream,
     ErrorCode, GoAwayFrame, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer,
     Http2Data, ReadFrameRslt, ReqResBuffer, ResetStreamFrame, StreamState, U31,
   },
-  misc::{Lease, LeaseMut, Lock, RefCounter, Stream, Usize},
+  misc::{AsyncBounds, Lease, LeaseMut, Lock, RefCounter, Stream, _Span},
 };
 use core::marker::PhantomData;
 
@@ -14,22 +15,23 @@ use core::marker::PhantomData;
 pub struct ClientStream<HB, HD, S> {
   hd: HD,
   phantom: PhantomData<(HB, S)>,
+  span: _Span,
   stream_id: U31,
   stream_state: StreamState,
 }
 
 impl<HB, HD, S> ClientStream<HB, HD, S> {
-  pub(crate) fn idle(hd: HD, stream_id: U31) -> Self {
-    Self { phantom: PhantomData, hd, stream_id, stream_state: StreamState::Idle }
+  pub(crate) fn idle(hd: HD, span: _Span, stream_id: U31) -> Self {
+    Self { phantom: PhantomData, hd, span, stream_id, stream_state: StreamState::Idle }
   }
 }
 
 impl<HB, HD, S> ClientStream<HB, HD, S>
 where
-  HB: LeaseMut<Http2Buffer<true>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, S, true>>,
-  S: Stream,
+  S: AsyncBounds + Stream,
 {
   /// Receive Response
   ///
@@ -41,6 +43,8 @@ where
     &mut self,
     rrb: &'rrb mut ReqResBuffer,
   ) -> crate::Result<ReadFrameRslt<ResponseMut<'rrb, ReqResBuffer>>> {
+    let _e = self.span._enter();
+    _trace!("Receiving response");
     rrb.clear();
     let status_code = rfr_until_resource_with_guard!(self.hd, |guard| {
       guard
@@ -71,14 +75,13 @@ where
   #[inline]
   pub async fn send_req<D>(&mut self, req: RequestRef<'_, '_, '_, D>) -> crate::Result<()>
   where
-    D: Lease<[u8]>,
+    D: Lease<[u8]> + ?Sized,
   {
+    let _e = self.span._enter();
+    _trace!("Sending request");
     let mut guard = self.hd.lock().await;
-    if req.data.lease().len() > *Usize::from(guard.send_params_mut().max_expanded_headers_len) {
-      return Err(crate::Error::VeryLargeHeadersLen);
-    }
     let (hb, is_conn_open, send_params, stream) = guard.parts_mut();
-    write_init_headers::<_, true>(
+    write_stream::<_, true>(
       req.data.lease(),
       req.headers,
       &mut hb.hpack_enc,
@@ -97,24 +100,11 @@ where
       send_params,
       stream,
       self.stream_id,
+      &mut self.stream_state,
     )
     .await?;
     self.stream_state = StreamState::HalfClosedLocal;
     Ok(())
-  }
-
-  /// Groups [Self::send_req] and [Self::recv_res] in a single method.
-  #[inline]
-  pub async fn send_req_recv_res<'rrb, D>(
-    &mut self,
-    req: RequestRef<'_, '_, '_, D>,
-    rrb: &'rrb mut ReqResBuffer,
-  ) -> crate::Result<ReadFrameRslt<ResponseMut<'rrb, ReqResBuffer>>>
-  where
-    D: Lease<[u8]>,
-  {
-    self.send_req(req).await?;
-    self.recv_res(rrb).await
   }
 
   /// Sends a RST_STREAM frame to the peer, which cancels this stream.

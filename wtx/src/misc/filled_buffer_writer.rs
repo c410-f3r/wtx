@@ -118,20 +118,3 @@ impl<'vec> FilledBufferWriter<'vec> {
     self._curr_idx = until_suffix;
   }
 }
-
-#[cfg(feature = "_bench")]
-#[cfg(test)]
-mod bench {
-  #[bench]
-  fn extend_from_slice(b: &mut test::Bencher) {
-    let array: [u8; 64] = core::array::from_fn(|idx| {
-      let n = idx % 255;
-      n.try_into().unwrap_or(u8::MAX)
-    });
-    let mut vec = alloc::vec![0; 128];
-    let mut fbw = crate::misc::FilledBufferWriter::new(32, &mut vec);
-    b.iter(|| {
-      fbw._extend_from_slice(&array);
-    });
-  }
-}

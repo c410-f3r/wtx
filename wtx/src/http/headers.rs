@@ -92,8 +92,8 @@ impl Headers {
   /// If the sum of `name` and `value` is greater than the maximum number of bytes, then the first
   /// inserted entries will be deleted accordantly.
   #[inline]
-  pub fn push_front(&mut self, name: &[u8], value: &[u8], is_sensitive: bool) {
-    self.ab.push_front((), name, value, is_sensitive, |_, _| {});
+  pub fn push_front(&mut self, name: &[u8], value: &[u8], is_sensitive: bool) -> crate::Result<()> {
+    self.ab.push_front((), name, value, is_sensitive, |_, _| {})
   }
 
   /// Removes all a pair referenced by `idx`.
@@ -106,7 +106,7 @@ impl Headers {
   /// to the number of headers.
   ///
   /// Bytes are capped according to the specified `max_bytes`.
-  #[inline]
+  #[inline(always)]
   pub fn reserve(&mut self, bytes: usize, headers: usize) {
     self.ab.reserve(bytes, headers);
   }

@@ -74,9 +74,10 @@ impl HpackEncoder {
         .and_then(|el| el.checked_add(user_headers.size_hint().1?))
         .unwrap_or(usize::MAX),
     );
+    buffer.reserve(pseudo_headers.size_hint().0.wrapping_add(user_headers.size_hint().0));
     self.manage_size_update(buffer)?;
     for (hhb, value) in pseudo_headers {
-      let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)));
+      let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)))?;
       self.manage_encode(buffer, (&[], value), idx)?;
     }
     for (name, value, is_sensitive) in user_headers {
@@ -84,7 +85,7 @@ impl HpackEncoder {
         (name, value, is_sensitive),
         HpackHeaderBasic::Field,
         Self::shi_user((name, value)),
-      );
+      )?;
       self.manage_encode(buffer, (name, value), idx)?;
     }
     Ok(())
@@ -134,7 +135,11 @@ impl HpackEncoder {
   }
 
   #[inline]
-  fn dyn_idx(&mut self, header: (&[u8], &[u8], bool), should_not_index: bool) -> EncodeIdx {
+  fn dyn_idx(
+    &mut self,
+    header: (&[u8], &[u8], bool),
+    should_not_index: bool,
+  ) -> crate::Result<EncodeIdx> {
     let (name, value, is_sensitive) = header;
 
     let mut name_hasher = self.rs.build_hasher();
@@ -145,7 +150,7 @@ impl HpackEncoder {
     let pair_hash = pair_hasher.finish();
 
     if let (false, Some(pair_idx)) = (should_not_index, self.indcs.get(&pair_hash).copied()) {
-      return EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(pair_idx));
+      return Ok(EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(pair_idx)));
     }
 
     let name_hash = name_hasher.finish();
@@ -159,26 +164,30 @@ impl HpackEncoder {
           pair_hash,
         );
       }
-      (true, None) => return EncodeIdx::UnsavedNameUnsavedValue,
+      (true, None) => return Ok(EncodeIdx::UnsavedNameUnsavedValue),
       (true, Some(name_idx)) => {
-        return EncodeIdx::RefNameUnsavedValue(self.from_indcs_to_encode_idx(name_idx))
+        return Ok(EncodeIdx::RefNameUnsavedValue(self.from_indcs_to_encode_idx(name_idx)))
       }
     }
 
-    self.push_dyn_headers((name, value, is_sensitive), (Some(name_hash), pair_hash));
+    self.push_dyn_headers((name, value, is_sensitive), (Some(name_hash), pair_hash))?;
     let next_dyn_idx = self.next_dyn_idx();
     self.indcs.reserve(2);
     let _ = self.indcs.insert(name_hash, next_dyn_idx);
     let _ = self.indcs.insert(pair_hash, next_dyn_idx);
-    EncodeIdx::SavedNameSavedValue
+    Ok(EncodeIdx::SavedNameSavedValue)
   }
 
   #[inline]
-  fn dyn_idx_with_static_name(&mut self, header: (&[u8], &[u8], bool), name_idx: u32) -> EncodeIdx {
+  fn dyn_idx_with_static_name(
+    &mut self,
+    header: (&[u8], &[u8], bool),
+    name_idx: u32,
+  ) -> crate::Result<EncodeIdx> {
     let (name, value, is_sensitive) = header;
     let pair_hash = self.rs.hash_one((name, value));
     if let Some(common_idx) = self.indcs.get(&pair_hash).copied() {
-      return EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(common_idx));
+      return Ok(EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(common_idx)));
     }
     self.store_header_with_ref_name::<true>((name, value, is_sensitive), name_idx, pair_hash)
   }
@@ -189,18 +198,18 @@ impl HpackEncoder {
     header: (&[u8], &[u8], bool),
     hhb: HpackHeaderBasic,
     static_header: Option<StaticHeader>,
-  ) -> EncodeIdx {
+  ) -> crate::Result<EncodeIdx> {
     match static_header {
       None => {
         let (name, value, is_sensitive) = header;
         let should_not_index = self.should_not_index((name, value, is_sensitive), hhb);
         self.dyn_idx((name, value, is_sensitive), should_not_index)
       }
-      Some(StaticHeader { has_value: true, idx, name: _ }) => EncodeIdx::RefNameRefValue(idx),
+      Some(StaticHeader { has_value: true, idx, name: _ }) => Ok(EncodeIdx::RefNameRefValue(idx)),
       Some(StaticHeader { has_value: false, idx, name }) => {
         let (_, value, is_sensitive) = header;
         if self.should_not_index((name, value, is_sensitive), hhb) {
-          EncodeIdx::RefNameUnsavedValue(idx)
+          Ok(EncodeIdx::RefNameUnsavedValue(idx))
         } else {
           self.dyn_idx_with_static_name((name, value, is_sensitive), idx)
         }
@@ -214,19 +223,19 @@ impl HpackEncoder {
     buffer.reserve(4);
 
     if n < u32::from(mask) {
-      buffer.push_within_cap(first_byte | n as u8);
+      buffer.push(first_byte | n as u8)?;
       return Ok(1);
     }
 
     n = n.wrapping_sub(mask.into());
-    buffer.push_within_cap(first_byte | mask);
+    buffer.push(first_byte | mask)?;
 
     for len in 2..5 {
       if n <= 127 {
-        buffer.push_within_cap(n as u8);
+        buffer.push(n as u8)?;
         return Ok(len);
       }
-      buffer.push_within_cap(0b1000_0000 | n as u8);
+      buffer.push(0b1000_0000 | n as u8)?;
       n >>= 7;
     }
 
@@ -238,12 +247,12 @@ impl HpackEncoder {
   #[inline]
   fn encode_str(buffer: &mut ByteVector, bytes: &[u8]) -> crate::Result<()> {
     let before_byte = buffer.len();
-    buffer.push(0);
+    buffer.push(0)?;
     if bytes.is_empty() {
       return Ok(());
     }
     let after_byte = buffer.len();
-    huffman_encode(bytes, buffer);
+    huffman_encode(bytes, buffer)?;
     let after_huffman = buffer.len();
     let len_usize = after_huffman.wrapping_sub(after_byte);
     let fits_in_1_byte = len_usize < 0b0111_1111;
@@ -357,12 +366,12 @@ impl HpackEncoder {
         Self::encode_str(buffer, value)?;
       }
       EncodeIdx::SavedNameSavedValue => {
-        buffer.push(0b0100_0000);
+        buffer.push(0b0100_0000)?;
         Self::encode_str(buffer, name)?;
         Self::encode_str(buffer, value)?;
       }
       EncodeIdx::UnsavedNameUnsavedValue => {
-        buffer.push(0b0001_0000);
+        buffer.push(0b0001_0000)?;
         Self::encode_str(buffer, name)?;
         Self::encode_str(buffer, value)?;
       }
@@ -405,7 +414,7 @@ impl HpackEncoder {
     &mut self,
     (name, value, is_sensitive): (&[u8], &[u8], bool),
     (name_hash, pair_hash): (Option<u64>, u64),
-  ) {
+  ) -> crate::Result<()> {
     self.idx = self.idx.wrapping_add(1);
     self.dyn_headers.reserve(name.len().wrapping_add(value.len()), 1);
     self.dyn_headers.push_front(
@@ -416,7 +425,8 @@ impl HpackEncoder {
       |metadata, _| {
         Self::remove_outdated_indices(&mut self.indcs, metadata);
       },
-    );
+    )?;
+    Ok(())
   }
 
   #[inline]
@@ -560,19 +570,19 @@ impl HpackEncoder {
     (name, value, is_sensitive): (&[u8], &[u8], bool),
     name_idx: u32,
     pair_hash: u64,
-  ) -> EncodeIdx {
+  ) -> crate::Result<EncodeIdx> {
     let before = self.dyn_headers.headers_len();
-    self.push_dyn_headers((name, value, is_sensitive), (None, pair_hash));
+    self.push_dyn_headers((name, value, is_sensitive), (None, pair_hash))?;
     let _ = self.indcs.insert(pair_hash, self.next_dyn_idx());
     if !HAS_STATIC_NAME {
       let after = self.dyn_headers.headers_len();
       let diff = before.wrapping_sub(after.wrapping_sub(1));
       let name_idx_has_been_removed = diff > *Usize::from(name_idx);
       if name_idx_has_been_removed {
-        return EncodeIdx::SavedNameSavedValue;
+        return Ok(EncodeIdx::SavedNameSavedValue);
       }
     }
-    EncodeIdx::RefNameSavedValue(name_idx)
+    Ok(EncodeIdx::RefNameSavedValue(name_idx))
   }
 }
 

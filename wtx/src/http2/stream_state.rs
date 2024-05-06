@@ -13,9 +13,3 @@ pub(crate) enum StreamState {
   /// The system is receiving data after [StreamState::Open].
   Open,
 }
-
-impl StreamState {
-  pub(crate) fn can_server_send(self) -> bool {
-    matches!(self, Self::Open | Self::HalfClosedRemote)
-  }
-}

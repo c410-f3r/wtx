@@ -1,5 +1,5 @@
 use crate::misc::{Vector, _shift_bytes};
-use core::{iter, ptr};
+use core::{hint::unreachable_unchecked, iter, ptr};
 
 #[inline(always)]
 pub(crate) fn reserve<D>(additional: usize, data: &mut Vector<D>, head: &mut usize) -> Option<usize>
@@ -19,10 +19,8 @@ where
   // SAFETY: Slice is allocated but not initialized
   let allocated = unsafe {
     let rslt = &mut *ptr::slice_from_raw_parts_mut(data.as_mut_ptr(), curr_cap);
-    #[cfg(feature = "nightly")]
-    {
-      core::hint::assert_unchecked(curr_head <= rslt.len());
-      core::hint::assert_unchecked(prev_head <= prev_cap);
+    if curr_head > rslt.len() || prev_head > prev_cap {
+      unreachable_unchecked();
     }
     rslt
   };

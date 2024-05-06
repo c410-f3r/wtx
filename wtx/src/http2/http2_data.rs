@@ -22,7 +22,7 @@ pub struct Http2Data<HB, S, const IS_CLIENT: bool> {
 
 impl<HB, S, const IS_CLIENT: bool> Http2Data<HB, S, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer<IS_CLIENT>>,
+  HB: LeaseMut<Http2Buffer>,
   S: Stream,
 {
   #[inline]
@@ -39,7 +39,7 @@ where
   }
 
   #[inline]
-  pub(crate) fn hb_mut(&mut self) -> &mut Http2Buffer<IS_CLIENT> {
+  pub(crate) fn hb_mut(&mut self) -> &mut Http2Buffer {
     self.hb.lease_mut()
   }
 
@@ -59,9 +59,7 @@ where
   }
 
   #[inline]
-  pub(crate) fn parts_mut(
-    &mut self,
-  ) -> (&mut Http2Buffer<IS_CLIENT>, &mut bool, &mut SendParams, &mut S) {
+  pub(crate) fn parts_mut(&mut self) -> (&mut Http2Buffer, &mut bool, &mut SendParams, &mut S) {
     (self.hb.lease_mut(), &mut self.is_conn_open, &mut self.send_params, &mut self.stream)
   }
 
@@ -73,7 +71,7 @@ where
     rrb: &mut ReqResBuffer,
     stream_id: U31,
     stream_state: &mut StreamState,
-    mut headers_cb: impl FnMut(&HeadersFrame<'_, '_>) -> crate::Result<H>,
+    mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
     mut read_frame_until_cb: impl FnMut(
       &[u8],
       FrameInit,
@@ -192,6 +190,7 @@ where
         )
         .await?
       );
+
       let check_opt = body_len.checked_add(fi.data_len).filter(|el| *el <= self.hp.max_body_len());
       let Some(local_body_len) = check_opt else {
         return Err(crate::http2::ErrorCode::ProtocolError.into());
@@ -199,7 +198,8 @@ where
       body_len = local_body_len;
       if let FrameHeaderTy::Data = fi.ty {
         let df = DataFrame::read(data, fi)?;
-        rrb.data.extend_from_slice(df.data());
+        rrb.data.reserve(data.len());
+        rrb.data.extend_from_slice(data)?;
         if df.is_eos() {
           *stream_state = StreamState::HalfClosedRemote;
           return Ok(ReadFrameRslt::Resource(()));
@@ -245,7 +245,6 @@ where
       if ContinuationFrame::read(data, fi, &mut rrb.headers, hpack_size, hpack_dec)?.is_eoh() {
         return Ok(ReadFrameRslt::Resource(()));
       }
-      counter = counter.wrapping_add(1);
     }
     Err(crate::Error::VeryLargeAmountOfContinuationFrames)
   }
@@ -257,7 +256,7 @@ where
     rrb: &mut ReqResBuffer,
     stream_id: U31,
     stream_state: &mut StreamState,
-    cb: fn(&HeadersFrame<'_, '_>) -> crate::Result<H>,
+    cb: fn(&HeadersFrame<'_>) -> crate::Result<H>,
   ) -> crate::Result<ReadFrameRslt<H>> {
     let mut rfi = rfr_resource_or_return!(
       self

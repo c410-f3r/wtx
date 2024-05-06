@@ -32,7 +32,7 @@ async fn main() {
     loop {
       let mut frame = match ws.read_frame(fb).await {
         Err(err) => {
-          println!("Error: {err}");
+          eprintln!("Error: {err}");
           ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Close, &[]).unwrap()).await.unwrap();
           break;
         }

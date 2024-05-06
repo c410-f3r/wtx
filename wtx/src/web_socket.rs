@@ -663,7 +663,7 @@ where
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
     pb._expand_following(rfi.frame_len);
-    for _ in 0..rfi.frame_len {
+    for _ in 0..=rfi.frame_len {
       if *read >= rfi.frame_len {
         is_payload_filled = true;
         break;

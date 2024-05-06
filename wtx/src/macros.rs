@@ -198,3 +198,21 @@ macro_rules! _max_frames_mismatches {
     2_147_483_647
   };
 }
+
+macro_rules! _trace {
+  ($($tt:tt)+) => {
+    #[cfg(feature = "tracing")]
+    tracing::trace!($($tt)+);
+  };
+}
+
+macro_rules! _trace_span {
+  ($($tt:tt)+) => {
+    crate::misc::_Span::_new(
+      #[cfg(feature = "tracing")]
+      tracing::trace_span!($($tt)+),
+      #[cfg(not(feature = "tracing"))]
+      ()
+    )
+  };
+}

@@ -96,13 +96,6 @@ macro_rules! _create_set_of_request_throttling {
   };
 }
 
-macro_rules! _debug {
-  ($($tt:tt)+) => {
-    #[cfg(feature = "tracing")]
-    tracing::debug!($($tt)+);
-  };
-}
-
 macro_rules! generic_data_format_doc {
   ($ty:literal) => {
     concat!("Wrapper used in every generic ", $ty, " to manage different internal implementations.")

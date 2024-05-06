@@ -108,7 +108,7 @@ where
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
     nb._expand_following(len);
-    for _ in 0..len {
+    for _ in 0..=len {
       if *read >= len {
         is_payload_filled = true;
         break;

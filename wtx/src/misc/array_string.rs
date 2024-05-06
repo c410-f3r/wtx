@@ -50,6 +50,23 @@ impl<const N: usize> ArrayString<N> {
     self.len = 0;
   }
 
+  /// Appends an element to the back of the collection.
+  #[inline]
+  pub fn push(&mut self, cf: char) -> crate::Result<()> {
+    self.push_bytes(char_slice(&mut [0; 4], cf))
+  }
+
+  /// Iterates over the slice `other`, copies each element, and then appends
+  /// it to this vector. The `other` slice is traversed in-order.
+  ///
+  /// # Panics
+  ///
+  /// If there is no available capacity.
+  #[inline]
+  pub fn push_str(&mut self, str: &str) -> crate::Result<()> {
+    self.push_bytes(str.as_bytes())
+  }
+
   /// How many elements can be added to this collection.
   #[inline]
   pub fn remaining(&self) -> u32 {
@@ -66,24 +83,6 @@ impl<const N: usize> ArrayString<N> {
     slice.copy_from_slice(str.as_bytes());
     Ok(())
   }
-
-  /// Appends an element to the back of the collection.
-  #[inline]
-  pub fn try_push(&mut self, cf: char) -> crate::Result<()> {
-    self.try_push_bytes(char_slice(&mut [0; 4], cf))
-  }
-
-  /// Iterates over the slice `other`, copies each element, and then appends
-  /// it to this vector. The `other` slice is traversed in-order.
-  ///
-  /// # Panics
-  ///
-  /// If there is no available capacity.
-  #[inline]
-  pub fn try_push_str(&mut self, str: &str) -> crate::Result<()> {
-    self.try_push_bytes(str.as_bytes())
-  }
-
   /// Shortens the vector, keeping the first `len` elements.
   #[inline]
   pub fn truncate(&mut self, len: u32) {
@@ -91,7 +90,7 @@ impl<const N: usize> ArrayString<N> {
   }
 
   #[inline]
-  fn try_push_bytes(&mut self, other: &[u8]) -> crate::Result<()> {
+  fn push_bytes(&mut self, other: &[u8]) -> crate::Result<()> {
     let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining() >= *el) else {
       return Err(crate::Error::CapacityOverflow);
     };
@@ -215,7 +214,7 @@ impl<const N: usize> TryFrom<&str> for ArrayString<N> {
   #[inline]
   fn try_from(from: &str) -> Result<Self, Self::Error> {
     let mut this = Self::default();
-    this.try_push_str(from)?;
+    this.push_str(from)?;
     Ok(this)
   }
 }
@@ -223,12 +222,12 @@ impl<const N: usize> TryFrom<&str> for ArrayString<N> {
 impl<const N: usize> Write for ArrayString<N> {
   #[inline]
   fn write_char(&mut self, ch: char) -> fmt::Result {
-    self.try_push(ch).map_err(|_err| fmt::Error)
+    self.push(ch).map_err(|_err| fmt::Error)
   }
 
   #[inline]
   fn write_str(&mut self, str: &str) -> fmt::Result {
-    self.try_push_str(str).map_err(|_err| fmt::Error)
+    self.push_str(str).map_err(|_err| fmt::Error)
   }
 }
 

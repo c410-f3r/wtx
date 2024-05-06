@@ -65,16 +65,22 @@ pub(crate) fn huffman_decode<const N: usize>(
   Ok(())
 }
 
-pub(crate) fn huffman_encode(from: &[u8], wb: &mut ByteVector) {
+pub(crate) fn huffman_encode(from: &[u8], wb: &mut ByteVector) -> crate::Result<()> {
   const MASK: u64 = 0b1111_1111;
 
-  fn push_within_iter(bits: &mut u64, bits_left: &mut u64, wb: &mut ByteVector) {
+  #[inline]
+  fn push_within_iter(
+    bits: &mut u64,
+    bits_left: &mut u64,
+    wb: &mut ByteVector,
+  ) -> crate::Result<()> {
     let Ok(n) = u8::try_from((*bits >> 32) & MASK) else {
       _unreachable();
     };
-    wb.push_within_cap(n);
+    wb.push(n)?;
     *bits <<= 8;
     *bits_left = bits_left.wrapping_add(8);
+    Ok(())
   }
 
   let mut bits: u64 = 0;
@@ -90,16 +96,16 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut ByteVector) {
     bits |= code << bits_offset;
     bits_left = bits_offset;
     if bits_left <= 32 {
-      push_within_iter(&mut bits, &mut bits_left, wb);
+      push_within_iter(&mut bits, &mut bits_left, wb)?;
     }
     if bits_left <= 32 {
-      push_within_iter(&mut bits, &mut bits_left, wb);
+      push_within_iter(&mut bits, &mut bits_left, wb)?;
     }
     if bits_left <= 32 {
-      push_within_iter(&mut bits, &mut bits_left, wb);
+      push_within_iter(&mut bits, &mut bits_left, wb)?;
     }
     if bits_left <= 32 {
-      push_within_iter(&mut bits, &mut bits_left, wb);
+      push_within_iter(&mut bits, &mut bits_left, wb)?;
     }
     if bits_left <= 32 {
       _unreachable()
@@ -112,8 +118,9 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut ByteVector) {
     let Ok(n) = u8::try_from((bits >> 32) & MASK) else {
       _unreachable();
     };
-    wb.push_within_cap(n);
+    wb.push(n)?;
   }
+  Ok(())
 }
 
 #[cfg(feature = "_bench")]
@@ -131,7 +138,7 @@ mod bench {
     const N: usize = 1024 * 1024;
     let data = {
       let mut dest = Vector::with_capacity(N);
-      huffman_encode(&_data(N), &mut dest);
+      huffman_encode(&_data(N), &mut dest).unwrap();
       dest
     };
     let mut dest = Box::new(ArrayVector::<_, N>::default());
@@ -163,7 +170,7 @@ mod proptest {
   #[test_strategy::proptest]
   fn encode_and_decode(data: Vec<u8>) {
     let mut encoded = Vector::with_capacity(data.len());
-    huffman_encode(&data, &mut encoded);
+    huffman_encode(&data, &mut encoded).unwrap();
     let mut decoded = _HeaderValueBuffer::default();
     if huffman_decode(&encoded, &mut decoded).is_ok() {
       assert_eq!(&data, &*decoded);
@@ -204,7 +211,7 @@ mod test {
     huffman_decode(encoded, decode_buffer).unwrap();
     assert_eq!(&**decode_buffer, bytes);
 
-    huffman_encode(&*bytes, encode_buffer);
+    huffman_encode(&*bytes, encode_buffer).unwrap();
     assert_eq!(&**encode_buffer, encoded);
 
     decode_buffer.clear();

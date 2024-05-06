@@ -39,7 +39,6 @@ $rt test-with-features wtx httparse
 $rt test-with-features wtx md-5
 $rt test-with-features wtx memchr
 $rt test-with-features wtx miniserde
-$rt test-with-features wtx nightly
 $rt test-with-features wtx orm
 $rt test-with-features wtx parking_lot
 $rt test-with-features wtx pool

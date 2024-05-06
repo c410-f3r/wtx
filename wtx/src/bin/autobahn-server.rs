@@ -19,7 +19,7 @@ async fn main() {
     "127.0.0.1:9070".parse().unwrap(),
     None,
     Flate2::default,
-    |err| println!("Connection error: {err:?}"),
+    |err| eprintln!("Connection error: {err:?}"),
     handle,
   )
   .await

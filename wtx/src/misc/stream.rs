@@ -13,12 +13,12 @@ macro_rules! _local_write_all {
 macro_rules! _local_write_all_vectored {
   ($bytes:expr, |$io_slices:ident| $write:expr) => {{
     let mut buffer = [std::io::IoSlice::new(&[]); N];
-    let $io_slices = crate::misc::stream::convert_to_io_slices(&mut buffer, $bytes);
+    let mut $io_slices = crate::misc::stream::convert_to_io_slices(&mut buffer, $bytes);
     while !$io_slices.is_empty() {
       match $write {
         Err(e) => return Err(e.into()),
         Ok(0) => return Err(crate::Error::UnexpectedEOF),
-        Ok(n) => super::advance_slices(&mut &$bytes[..], &mut &mut *$io_slices, n),
+        Ok(n) => super::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
       }
     }
   }};
@@ -607,29 +607,32 @@ mod tokio_rustls {
 )]
 #[cfg(feature = "std")]
 #[inline]
-fn advance_slices<'bytes, 'buffer>(
+fn advance_slices<'bytes>(
   bytes: &mut &[&'bytes [u8]],
-  io_slices: &'buffer mut &'buffer mut [std::io::IoSlice<'bytes>],
-  mut written: usize,
+  io_slices: &mut &mut [std::io::IoSlice<'bytes>],
+  written: usize,
 ) {
-  let mut idx = 0;
-  for (local_idx, io_slice) in io_slices.iter().enumerate() {
-    let Some(diff) = written.checked_sub(io_slice.len()) else {
+  let mut first_slice_idx = written;
+  let mut slices_idx: usize = 0;
+  for io_slice in io_slices.iter() {
+    let Some(diff) = first_slice_idx.checked_sub(io_slice.len()) else {
       break;
     };
-    written = diff;
-    idx = local_idx;
+    first_slice_idx = diff;
+    slices_idx = slices_idx.wrapping_add(1);
   }
-  let locals_opt = bytes.get(idx..).and_then(|el| Some((el, io_slices.get_mut(idx..)?)));
-  let Some((local_bytes, local_io_slices)) = locals_opt else {
+  let Some((local_bytes @ [first_bytes, ..], local_io_slices)) = bytes
+    .get(slices_idx..)
+    .and_then(|el| Some((el, core::mem::take(io_slices).get_mut(slices_idx..)?)))
+  else {
     return;
   };
   *bytes = local_bytes;
   *io_slices = local_io_slices;
-  let ([first_bytes, ..], [first_io_slices, ..]) = (bytes, io_slices) else {
+  let [first_io_slices, ..] = io_slices else {
     return;
   };
-  *first_io_slices = std::io::IoSlice::new(first_bytes.get(written..).unwrap_or_default());
+  *first_io_slices = std::io::IoSlice::new(first_bytes.get(first_slice_idx..).unwrap_or_default());
 }
 
 #[cfg(feature = "std")]

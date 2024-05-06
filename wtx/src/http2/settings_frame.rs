@@ -22,24 +22,11 @@ pub(crate) struct SettingsFrame {
 }
 
 impl SettingsFrame {
-  pub(crate) const fn default() -> Self {
-    Self {
-      enable_connect_protocol: None,
-      flags: 0,
-      header_table_size: None,
-      initial_window_size: None,
-      len: 0,
-      max_concurrent_streams: None,
-      max_frame_size: None,
-      max_header_list_size: None,
-    }
-  }
-
   pub(crate) const fn ack() -> Self {
     SettingsFrame { flags: ACK_MASK, ..SettingsFrame::empty() }
   }
 
-  const fn empty() -> Self {
+  pub(crate) const fn empty() -> Self {
     Self {
       enable_connect_protocol: None,
       flags: 0,
@@ -222,30 +209,46 @@ impl SettingsFrame {
   }
 
   pub(crate) fn set_enable_connect_protocol(&mut self, elem: Option<bool>) {
+    Self::update_len(&mut self.len, self.enable_connect_protocol, elem);
     self.enable_connect_protocol = elem;
   }
 
   pub(crate) fn set_header_table_size(&mut self, elem: Option<u32>) {
+    Self::update_len(&mut self.len, self.header_table_size, elem);
     self.header_table_size = elem;
   }
 
   pub(crate) fn set_initial_window_size(&mut self, elem: Option<u32>) {
-    self.initial_window_size = elem;
+    Self::update_len(&mut self.len, self.initial_window_size, elem);
+    self.initial_window_size = elem.map(|val| val.clamp(0, U31::MAX.u32()));
   }
 
   pub(crate) fn set_max_concurrent_streams(&mut self, elem: Option<u32>) {
+    Self::update_len(&mut self.len, self.max_concurrent_streams, elem);
     self.max_concurrent_streams = elem;
   }
 
   pub(crate) fn set_max_frame_size(&mut self, elem: Option<u32>) {
-    if let Some(elem) = elem {
-      assert!((FRAME_LEN_LOWER_BOUND..=FRAME_LEN_UPPER_BOUND).contains(&elem));
-    }
-    self.max_frame_size = elem;
+    Self::update_len(&mut self.len, self.max_frame_size, elem);
+    self.max_frame_size = elem.map(|val| val.clamp(FRAME_LEN_LOWER_BOUND, FRAME_LEN_UPPER_BOUND));
   }
 
   pub(crate) fn set_max_header_list_size(&mut self, elem: Option<u32>) {
+    Self::update_len(&mut self.len, self.max_header_list_size, elem);
     self.max_header_list_size = elem;
+  }
+
+  #[inline]
+  fn update_len<T>(len: &mut u8, a: Option<T>, b: Option<T>) {
+    match (a, b) {
+      (None, Some(_)) => {
+        *len = len.wrapping_add(6);
+      }
+      (Some(_), None) => {
+        *len = len.wrapping_sub(6);
+      }
+      _ => {}
+    }
   }
 }
 

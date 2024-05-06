@@ -6,17 +6,17 @@ on:
 
 jobs:
   benchmark_with_bencher:
-    continue-on-error: true
-    name: Continuous Benchmarking with Bencher
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: bencherdev/bencher@main
       - name: Track Benchmarks with Bencher
+        continue-on-error: true
         run: |
           bencher run \
             --branch main \
             --err \
             --project wtx \
             --testbed ubuntu-latest \
+            --token "${{ secrets.BENCHER_API_TOKEN }}" \
             "cargo bench --all-features"

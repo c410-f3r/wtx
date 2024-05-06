@@ -58,7 +58,7 @@ pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<(
     buffer.write_fmt(format_args!("];({mg_name},{mg_name}_MIGRATIONS)}},"))?;
   }
 
-  buffer.push_str("];");
+  buffer.push_str("];\n");
 
   OpenOptions::new()
     .create(true)

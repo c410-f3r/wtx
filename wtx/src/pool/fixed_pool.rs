@@ -49,7 +49,7 @@ where
       indcs: {
         let mut rslt = Queue::with_capacity(len);
         for idx in 0..len {
-          rslt.push_front_within_cap(idx);
+          let _rslt = rslt.push_front(idx);
         }
         <IC as RefCounter>::new(IC::Item::new(rslt))
       },
@@ -139,7 +139,7 @@ where
   /// Releases the inner lock.
   #[inline]
   pub async fn release(self) -> LG {
-    self.indcs.lock().await.push_front_within_cap(self.idx);
+    let _rslt = self.indcs.lock().await.push_front(self.idx);
     self.lock_guard
   }
 }

@@ -1,7 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
-#![cfg_attr(feature = "nightly", feature(hint_assert_unchecked))]
 #![no_std]
 
 extern crate alloc;

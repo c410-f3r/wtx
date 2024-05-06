@@ -159,21 +159,21 @@ pub(crate) mod http2 {
   };
 
   /// Manages HTTP/2 resources for clients.
-  pub type Http2ClientBufferRM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer<true>>;
+  pub type Http2ClientBufferRM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer>;
   /// Manages HTTP/2 resources for servers.
-  pub type Http2ServerBufferRM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer<false>>;
+  pub type Http2ServerBufferRM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer>;
   /// Manages resources for HTTP2 requests and responses.
   pub type ReqResBufferRM = SimpleRM<crate::Error, (), ReqResBuffer>;
 
-  type Http2RM<RNG, const IS_CLIENT: bool> = SimpleRM<crate::Error, RNG, Http2Buffer<IS_CLIENT>>;
+  type Http2RM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer>;
 
-  impl<RNG, const IS_CLIENT: bool> Http2RM<RNG, IS_CLIENT>
+  impl<RNG> Http2RM<RNG>
   where
     RNG: Clone + Rng,
   {
     /// Instance of [Http2ClientRM] or [Http2ServerRM].
     pub fn http2_buffer(rng: RNG) -> Self {
-      fn cb<RNG, const IS_CLIENT: bool>(rng: &RNG) -> crate::Result<Http2Buffer<IS_CLIENT>>
+      fn cb<RNG>(rng: &RNG) -> crate::Result<Http2Buffer>
       where
         RNG: Clone + Rng,
       {

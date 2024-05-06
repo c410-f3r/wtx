@@ -138,15 +138,6 @@ fn parse_hex(hex: &[u8]) -> Vec<u8> {
   bytes
 }
 
-fn print_case(seqno: Option<u16>, impl_path: &Path, story_path: &Path) {
-  std::println!(
-    "***** Testing case {:?} of story {:?} from implementation {:?} *****",
-    seqno,
-    story_path.file_name().unwrap(),
-    impl_path.file_name().unwrap(),
-  );
-}
-
 fn strs<'key, 'value>(
   hhb: HpackHeaderBasic,
   name: &'key [u8],
@@ -165,7 +156,7 @@ fn strs<'key, 'value>(
 
 fn test_story(
   buffer: &mut Vector<u8>,
-  (impl_path, story_path): (&Path, &Path),
+  (_impl_path, story_path): (&Path, &Path),
   (decoder, encoder): (&mut HpackDecoder, &mut HpackEncoder),
 ) {
   let mut file = File::open(story_path).unwrap();
@@ -176,11 +167,11 @@ fn test_story(
   let mut cases = root.cases;
   cases.sort_unstable_by_key(|case| case.seqno);
 
-  test_story_encoding_and_decoding(buffer, &cases, (impl_path, story_path), (decoder, encoder));
+  test_story_encoding_and_decoding(buffer, &cases, (decoder, encoder));
 
   decoder.clear();
 
-  test_story_wired_decoding(&mut cases, decoder, (impl_path, story_path));
+  test_story_wired_decoding(&mut cases, decoder);
 
   buffer.clear();
   decoder.clear();
@@ -190,12 +181,9 @@ fn test_story(
 fn test_story_encoding_and_decoding(
   buffer: &mut Vector<u8>,
   cases: &[Case],
-  (impl_path, story_path): (&Path, &Path),
   (decoder, encoder): (&mut HpackDecoder, &mut HpackEncoder),
 ) {
   for case in cases {
-    print_case(case.seqno, impl_path, story_path);
-
     if let Some(size) = case.header_table_size {
       decoder.set_max_bytes(size);
       encoder.set_max_dyn_sub_bytes(size).unwrap();
@@ -256,6 +244,7 @@ fn test_story_encoding_and_decoding(
         } else {
           assert_eq!((hhb, value), pseudo_headers.remove(0));
         }
+        Ok(())
       })
       .unwrap();
 
@@ -265,14 +254,8 @@ fn test_story_encoding_and_decoding(
   }
 }
 
-fn test_story_wired_decoding(
-  cases: &mut Vec<Case>,
-  decoder: &mut HpackDecoder,
-  (impl_path, story_path): (&Path, &Path),
-) {
+fn test_story_wired_decoding(cases: &mut Vec<Case>, decoder: &mut HpackDecoder) {
   for case in cases {
-    print_case(case.seqno, impl_path, story_path);
-
     if let Some(elem) = case.header_table_size {
       decoder.set_max_bytes(elem);
     }
@@ -287,6 +270,7 @@ fn test_story_wired_decoding(
         let (name, value) = strs(hhb, name, value);
         assert_eq!(case_header.name, name);
         assert_eq!(case_header.value, value);
+        Ok(())
       })
       .unwrap();
     assert_eq!(0, case.headers.len());

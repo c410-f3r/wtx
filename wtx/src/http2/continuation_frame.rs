@@ -35,30 +35,33 @@ impl ContinuationFrame {
       return Err(crate::http2::ErrorCode::FrameSizeError.into());
     }
     let max_header_list_size = *Usize::from(hpack_dec.max_bytes());
-    hpack_dec.decode(data, |(elem, name, value)| match elem {
-      HpackHeaderBasic::Field => match HeaderName::new(name) {
-        HeaderName::CONNECTION
-        | HeaderName::KEEP_ALIVE
-        | HeaderName::PROXY_CONNECTION
-        | HeaderName::TRANSFER_ENCODING
-        | HeaderName::UPGRADE => {
-          is_malformed = true;
-        }
-        HeaderName::TE if value != b"trailers" => {
-          is_malformed = true;
-        }
-        _ => {
-          let len = decoded_header_size(name.len(), value.len());
-          *headers_size = headers_size.wrapping_add(len);
-          let is_over_size = *headers_size >= max_header_list_size;
-          if !is_over_size {
-            headers.push_front(name, value, false);
+    hpack_dec.decode(data, |(elem, name, value)| {
+      match elem {
+        HpackHeaderBasic::Field => match HeaderName::new(name) {
+          HeaderName::CONNECTION
+          | HeaderName::KEEP_ALIVE
+          | HeaderName::PROXY_CONNECTION
+          | HeaderName::TRANSFER_ENCODING
+          | HeaderName::UPGRADE => {
+            is_malformed = true;
           }
+          HeaderName::TE if value != b"trailers" => {
+            is_malformed = true;
+          }
+          _ => {
+            let len = decoded_header_size(name.len(), value.len());
+            *headers_size = headers_size.wrapping_add(len);
+            let is_over_size = *headers_size >= max_header_list_size;
+            if !is_over_size {
+              headers.push_front(name, value, false)?;
+            }
+          }
+        },
+        _ => {
+          is_malformed = true;
         }
-      },
-      _ => {
-        is_malformed = true;
       }
+      Ok(())
     })?;
 
     Ok(Self { flag: fi.flags, stream_id: fi.stream_id })
