@@ -3436,7 +3436,7 @@ dependencies = [
  "embedded-tls",
  "fastrand 2.1.0",
  "flate2",
- "futures-lite 1.13.0",
+ "futures-lite 2.3.0",
  "glommio",
  "hashbrown 0.14.5",
  "hmac",
