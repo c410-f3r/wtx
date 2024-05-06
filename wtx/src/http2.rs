@@ -40,18 +40,17 @@ mod tests;
 mod u31;
 mod uri_buffer;
 mod window_update_frame;
+mod write_stream;
 
 use crate::{
-  http2::misc::{
-    apply_initial_params, default_stream_frames, read_frame_until_cb_unknown_id, write_to_stream,
-  },
+  http2::misc::{apply_initial_params, default_stream_frames, read_frame_until_cb_unknown_id},
   misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream},
 };
 pub use client_stream::ClientStream;
 pub(crate) use continuation_frame::ContinuationFrame;
 use core::marker::PhantomData;
 pub(crate) use data_frame::DataFrame;
-pub(crate) use error_code::ErrorCode;
+pub use error_code::ErrorCode;
 pub(crate) use frame_init::{FrameHeaderTy, FrameInit};
 pub(crate) use go_away_frame::GoAwayFrame;
 pub(crate) use headers_frame::HeadersFrame;
@@ -78,6 +77,7 @@ pub(crate) use window_update_frame::WindowUpdateFrame;
 pub(crate) const BODY_LEN_DEFAULT: u32 = 4_194_304;
 pub(crate) const BUFFERED_FRAMES_NUM_DEFAULT: u8 = 16;
 pub(crate) const CACHED_HEADERS_LEN_DEFAULT: u32 = 8_192;
+pub(crate) const CACHED_HEADERS_LEN_LOWER_BOUND: u32 = 4_096;
 pub(crate) const EXPANDED_HEADERS_LEN_DEFAULT: u32 = 4_096;
 pub(crate) const FRAME_LEN_DEFAULT: u32 = 1_048_576;
 pub(crate) const FRAME_LEN_LOWER_BOUND: u32 = 16_384;
@@ -108,7 +108,7 @@ pub struct Http2<HB, HD, S, const IS_CLIENT: bool> {
 
 impl<HB, HD, S, const IS_CLIENT: bool> Http2<HB, HD, S, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer<IS_CLIENT>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: Lock<Resource = Http2Data<HB, S, IS_CLIENT>>,
   S: Stream,
 {
@@ -133,7 +133,7 @@ where
 // `Send` bounds that makes anyone feel happy and delightful for uncountable hours.
 impl<HB, HD, S> Http2<HB, HD, S, false>
 where
-  HB: LeaseMut<Http2Buffer<false>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
   for<'guard> HD::Item: Lock<
       Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, false>>,
@@ -150,7 +150,7 @@ where
     if &buffer != PREFACE {
       return Err(crate::Error::NoPreface);
     }
-    write_to_stream([hp.to_settings_frame().bytes(&mut [0; 45])], true, &mut stream).await?;
+    stream.write_all(hp.to_settings_frame().bytes(&mut [0; 45])).await?;
     apply_initial_params(hb.lease_mut(), &hp)?;
     Ok(Self {
       phantom: PhantomData,
@@ -165,6 +165,7 @@ where
     &mut self,
     rrb: &mut ReqResBuffer,
   ) -> crate::Result<ReadFrameRslt<ServerStream<HB, HD, S>>> {
+    rrb.clear();
     let mut guard = self.hd.lock().await;
     if *guard.streams_num_mut() >= guard.hp().max_streams_num() {
       return Err(crate::Error::ExceedAmountOfActiveConcurrentStreams);
@@ -186,13 +187,18 @@ where
     );
     let stream_frame_entry = guard.hb_mut().streams_frames.entry(rfi.stream_id);
     let _ = stream_frame_entry.or_insert_with(default_stream_frames);
-    Ok(ReadFrameRslt::Resource(ServerStream::new(self.hd.clone(), rfi, stream_state)))
+    Ok(ReadFrameRslt::Resource(ServerStream::new(
+      self.hd.clone(),
+      _trace_span!("Creating server stream", stream_id = rfi.stream_id.u32()),
+      rfi,
+      stream_state,
+    )))
   }
 }
 
 impl<HB, HD, S> Http2<HB, HD, S, true>
 where
-  HB: LeaseMut<Http2Buffer<true>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, S, true>>,
   S: Stream,
@@ -202,7 +208,7 @@ where
   pub async fn connect(mut hb: HB, hp: Http2Params, mut stream: S) -> crate::Result<Self> {
     hb.lease_mut().clear();
     stream.write_all(PREFACE).await?;
-    write_to_stream([hp.to_settings_frame().bytes(&mut [0; 45])], true, &mut stream).await?;
+    stream.write_all(hp.to_settings_frame().bytes(&mut [0; 45])).await?;
     apply_initial_params(hb.lease_mut(), &hp)?;
     Ok(Self {
       phantom: PhantomData,
@@ -220,14 +226,11 @@ where
     *guard.streams_num_mut() = guard.streams_num_mut().wrapping_add(1);
     let stream_id = self.stream_id;
     self.stream_id = self.stream_id.wrapping_add(U31::TWO);
-    let _ = self
-      .hd
-      .lock()
-      .await
-      .hb_mut()
-      .streams_frames
-      .entry(stream_id)
-      .or_insert_with(default_stream_frames);
-    Ok(ClientStream::idle(self.hd.clone(), stream_id))
+    let _ = guard.hb_mut().streams_frames.entry(stream_id).or_insert_with(default_stream_frames);
+    Ok(ClientStream::idle(
+      self.hd.clone(),
+      _trace_span!("Creating client stream", stream_id = stream_id.u32()),
+      stream_id,
+    ))
   }
 }

@@ -19,12 +19,12 @@ where
     ResourceManager = SimpleRM<
       crate::Error,
       (),
-      (ReqResBuffer, Http2<Http2Buffer<true>, S, SDC, true>),
+      (ReqResBuffer, Http2<Http2Buffer, S, SDC, true>),
     >,
   >,
   S: Stream,
   SDC: RefCounter,
-  SDC::Item: Lock<Http2Data<Http2Buffer<true>, S, true>>,
+  SDC::Item: Lock<Http2Data<Http2Buffer, S, true>>,
 {
   #[cfg(feature = "tokio-rustls")]
   #[inline]
@@ -41,7 +41,7 @@ where
     Response<
       <P::Guard<'this> as LockGuard<
         'this,
-        (ReqResBuffer, Http2<Http2Buffer<true>, S, SDC, true>),
+        (ReqResBuffer, Http2<Http2Buffer, S, SDC, true>),
       >>::Mapped<ReqResBuffer>,
     >,
   > {

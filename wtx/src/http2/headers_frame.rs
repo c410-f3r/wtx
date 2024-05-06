@@ -2,29 +2,27 @@ use crate::{
   http::{HeaderName, Headers},
   http2::{
     misc::trim_frame_pad, uri_buffer::MAX_URI_LEN, FrameHeaderTy, FrameInit, HpackDecoder,
-    HpackEncoder, HpackHeaderBasic, HpackStaticRequestHeaders, HpackStaticResponseHeaders,
-    Http2Params, UriBuffer, EOH_MASK, EOS_MASK, U31,
+    HpackHeaderBasic, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Params,
+    UriBuffer, EOH_MASK, EOS_MASK, U31,
   },
-  misc::{from_utf8_basic, ArrayString, ByteVector, Usize},
+  misc::{from_utf8_basic, ArrayString, Usize},
 };
 
 #[derive(Debug)]
-pub(crate) struct HeadersFrame<'data, 'headers> {
+pub(crate) struct HeadersFrame<'data> {
   flag: u8,
-  headers: &'headers Headers,
   hsreqh: HpackStaticRequestHeaders<'data>,
   hsresh: HpackStaticResponseHeaders,
   is_over_size: bool,
   stream_id: U31,
 }
 
-impl<'data, 'headers> HeadersFrame<'data, 'headers> {
+impl<'data> HeadersFrame<'data> {
   pub(crate) fn new(
-    headers: &'headers Headers,
     (hsreqh, hsresh): (HpackStaticRequestHeaders<'data>, HpackStaticResponseHeaders),
     stream_id: U31,
   ) -> Self {
-    Self { flag: 0, headers, hsreqh, hsresh, is_over_size: false, stream_id }
+    Self { flag: 0, hsreqh, hsresh, is_over_size: false, stream_id }
   }
 
   pub(crate) fn bytes(&self) -> [u8; 9] {
@@ -54,7 +52,7 @@ impl<'data, 'headers> HeadersFrame<'data, 'headers> {
   pub(crate) fn read<const DO_NOT_PUSH_URI: bool>(
     mut data: &[u8],
     fi: FrameInit,
-    headers: &'headers mut Headers,
+    headers: &mut Headers,
     hp: &Http2Params,
     hpack_dec: &mut HpackDecoder,
     uri: &mut ArrayString<MAX_URI_LEN>,
@@ -76,119 +74,122 @@ impl<'data, 'headers> HeadersFrame<'data, 'headers> {
     let mut protocol = None;
     let mut status = None;
 
-    hpack_dec.decode(data, |(elem, name, value)| match elem {
-      HpackHeaderBasic::Authority => {
-        push_uri(
-          &mut uri_buffer.authority,
-          &mut expanded_headers_len,
-          &mut has_fields,
-          &mut is_malformed,
-          &mut is_over_size,
-          max_expanded_headers_len,
-          name,
-          value,
-        );
-      }
-      HpackHeaderBasic::Field => match HeaderName::new(name) {
-        HeaderName::CONNECTION
-        | HeaderName::KEEP_ALIVE
-        | HeaderName::PROXY_CONNECTION
-        | HeaderName::TRANSFER_ENCODING
-        | HeaderName::UPGRADE => {
-          is_malformed = true;
+    hpack_dec.decode(data, |(elem, name, value)| {
+      match elem {
+        HpackHeaderBasic::Authority => {
+          push_uri(
+            &mut uri_buffer.authority,
+            &mut expanded_headers_len,
+            &mut has_fields,
+            &mut is_malformed,
+            &mut is_over_size,
+            max_expanded_headers_len,
+            name,
+            value,
+          );
         }
-        HeaderName::TE if value != b"trailers" => {
-          is_malformed = true;
-        }
-        _ => {
-          has_fields = true;
-          let len = decoded_header_size(name.len(), value.len());
-          expanded_headers_len = expanded_headers_len.wrapping_add(len);
-          is_over_size = expanded_headers_len >= max_expanded_headers_len;
-          if !is_over_size {
-            headers.push_front(name, value, false);
+        HpackHeaderBasic::Field => match HeaderName::new(name) {
+          HeaderName::CONNECTION
+          | HeaderName::KEEP_ALIVE
+          | HeaderName::PROXY_CONNECTION
+          | HeaderName::TRANSFER_ENCODING
+          | HeaderName::UPGRADE => {
+            is_malformed = true;
+          }
+          HeaderName::TE if value != b"trailers" => {
+            is_malformed = true;
+          }
+          _ => {
+            has_fields = true;
+            let len = decoded_header_size(name.len(), value.len());
+            expanded_headers_len = expanded_headers_len.wrapping_add(len);
+            is_over_size = expanded_headers_len >= max_expanded_headers_len;
+            if !is_over_size {
+              headers.reserve(name.len().wrapping_add(value.len()), 1);
+              headers.push_front(name, value, false)?;
+            }
+          }
+        },
+        HpackHeaderBasic::Method(local_method) => {
+          if push_enum(
+            &mut expanded_headers_len,
+            &mut has_fields,
+            &mut is_malformed,
+            &mut is_over_size,
+            method.is_some(),
+            max_expanded_headers_len,
+            name,
+            value,
+          ) {
+            method = Some(local_method);
           }
         }
-      },
-      HpackHeaderBasic::Method(local_method) => {
-        if push_enum(
-          &mut expanded_headers_len,
-          &mut has_fields,
-          &mut is_malformed,
-          &mut is_over_size,
-          method.is_some(),
-          max_expanded_headers_len,
-          name,
-          value,
-        ) {
-          method = Some(local_method);
+        HpackHeaderBasic::Path => {
+          push_uri(
+            &mut uri_buffer.path,
+            &mut expanded_headers_len,
+            &mut has_fields,
+            &mut is_malformed,
+            &mut is_over_size,
+            max_expanded_headers_len,
+            name,
+            value,
+          );
+        }
+        HpackHeaderBasic::Protocol(local_protocol) => {
+          if push_enum(
+            &mut expanded_headers_len,
+            &mut has_fields,
+            &mut is_malformed,
+            &mut is_over_size,
+            protocol.is_some(),
+            max_expanded_headers_len,
+            name,
+            value,
+          ) {
+            protocol = Some(local_protocol);
+          }
+        }
+        HpackHeaderBasic::Scheme => {
+          push_uri(
+            &mut uri_buffer.scheme,
+            &mut expanded_headers_len,
+            &mut has_fields,
+            &mut is_malformed,
+            &mut is_over_size,
+            max_expanded_headers_len,
+            name,
+            value,
+          );
+        }
+        HpackHeaderBasic::StatusCode(local_status) => {
+          if push_enum(
+            &mut expanded_headers_len,
+            &mut has_fields,
+            &mut is_malformed,
+            &mut is_over_size,
+            status.is_some(),
+            max_expanded_headers_len,
+            name,
+            value,
+          ) {
+            status = Some(local_status);
+          }
         }
       }
-      HpackHeaderBasic::Path => {
-        push_uri(
-          &mut uri_buffer.path,
-          &mut expanded_headers_len,
-          &mut has_fields,
-          &mut is_malformed,
-          &mut is_over_size,
-          max_expanded_headers_len,
-          name,
-          value,
-        );
-      }
-      HpackHeaderBasic::Protocol(local_protocol) => {
-        if push_enum(
-          &mut expanded_headers_len,
-          &mut has_fields,
-          &mut is_malformed,
-          &mut is_over_size,
-          protocol.is_some(),
-          max_expanded_headers_len,
-          name,
-          value,
-        ) {
-          protocol = Some(local_protocol);
-        }
-      }
-      HpackHeaderBasic::Scheme => {
-        push_uri(
-          &mut uri_buffer.scheme,
-          &mut expanded_headers_len,
-          &mut has_fields,
-          &mut is_malformed,
-          &mut is_over_size,
-          max_expanded_headers_len,
-          name,
-          value,
-        );
-      }
-      HpackHeaderBasic::StatusCode(local_status) => {
-        if push_enum(
-          &mut expanded_headers_len,
-          &mut has_fields,
-          &mut is_malformed,
-          &mut is_over_size,
-          status.is_some(),
-          max_expanded_headers_len,
-          name,
-          value,
-        ) {
-          status = Some(local_status);
-        }
-      }
+      Ok(())
     })?;
 
     if DO_NOT_PUSH_URI {
       uri.clear();
-      uri.try_push_str(uri_buffer.scheme.as_str())?;
-      uri.try_push_str(uri_buffer.authority.as_str())?;
-      uri.try_push_str(uri_buffer.path.as_str())?;
+      uri.push_str(uri_buffer.scheme.as_str())?;
+      uri.push_str(uri_buffer.authority.as_str())?;
+      uri.push_str(uri_buffer.path.as_str())?;
     }
 
     Ok((
       Self {
         flag: fi.flags,
-        headers,
         hsreqh: HpackStaticRequestHeaders {
           authority: &[],
           method,
@@ -210,31 +211,6 @@ impl<'data, 'headers> HeadersFrame<'data, 'headers> {
 
   pub(crate) fn set_eos(&mut self) {
     self.flag |= EOS_MASK;
-  }
-
-  /// Does not write frame headers, instead, a set of opaque bytes are initially written for
-  /// posterior overwritten.
-  pub(crate) fn write<const IS_CLIENT: bool>(
-    &self,
-    hpack_enc: &mut HpackEncoder,
-    wb: &mut ByteVector,
-  ) -> crate::Result<()> {
-    let before_init: usize = wb.len();
-    wb.extend_from_slice(&[0; 9]);
-    let after_init = wb.len();
-    if IS_CLIENT {
-      hpack_enc.encode(wb, self.hsreqh.iter(), self.headers.iter())?;
-    } else {
-      hpack_enc.encode(wb, self.hsresh.iter(), self.headers.iter())?;
-    }
-    let headers_len = wb.len().wrapping_sub(after_init);
-    if let Some([a, b, c, ..]) = wb.get_mut(before_init..) {
-      let [_, d, e, f] = u32::try_from(headers_len).unwrap_or_default().to_be_bytes();
-      *a = d;
-      *b = e;
-      *c = f;
-    }
-    Ok(())
   }
 }
 
@@ -283,7 +259,7 @@ fn push_uri<const N: usize>(
     *expanded_headers_len = expanded_headers_len.wrapping_add(len);
     *is_over_size = *expanded_headers_len >= max_expanded_headers_len;
     if !*is_over_size {
-      let _ = from_utf8_basic(value).ok().and_then(|el| buffer.try_push_str(el).ok());
+      let _ = from_utf8_basic(value).ok().and_then(|el| buffer.push_str(el).ok());
     }
   }
 }

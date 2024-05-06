@@ -22,7 +22,6 @@ macro_rules! as_slices {
 }
 
 use crate::misc::{
-  _unreachable,
   queue_utils::{reserve, wrap_add, wrap_sub},
   Vector,
 };
@@ -158,9 +157,9 @@ where
   }
 
   #[inline]
-  pub(crate) fn push_front_within_cap(&mut self, element: D) {
+  pub(crate) fn push_front(&mut self, element: D) -> crate::Result<()> {
     if self.is_full() {
-      _unreachable()
+      return Err(crate::Error::CapacityOverflow);
     }
     let len = self.data.len();
     self.head = wrap_sub(self.data.capacity(), self.head, 1);
@@ -169,6 +168,7 @@ where
       ptr::write(self.data.as_mut_ptr().add(self.head), element);
       self.data.set_len(len.unchecked_add(1));
     }
+    Ok(())
   }
 
   #[inline(always)]
@@ -210,7 +210,7 @@ mod _proptest {
     let mut vec_deque = VecDeque::with_capacity(bytes.len());
 
     for byte in bytes.iter().copied() {
-      queue.push_front_within_cap(byte);
+      queue.push_front(byte).unwrap();
       vec_deque.push_front(byte);
     }
     assert_eq!((queue.capacity(), queue.len()), (vec_deque.capacity(), vec_deque.len()));
@@ -255,7 +255,7 @@ mod tests {
   fn clear() {
     let mut queue = Queue::with_capacity(1);
     assert_eq!(queue.len(), 0);
-    queue.push_front_within_cap(1);
+    queue.push_front(1).unwrap();
     assert_eq!(queue.len(), 1);
     queue.clear();
     assert_eq!(queue.len(), 0);
@@ -266,7 +266,7 @@ mod tests {
     let mut queue = Queue::with_capacity(1);
     assert_eq!(queue.get(0), None);
     assert_eq!(queue.get_mut(0), None);
-    queue.push_front_within_cap(1);
+    queue.push_front(1).unwrap();
     assert_eq!(queue.get(0), Some(&1i32));
     assert_eq!(queue.get_mut(0), Some(&mut 1i32));
   }
@@ -275,7 +275,7 @@ mod tests {
   fn pop_back() {
     let mut queue = Queue::with_capacity(1);
     assert_eq!(queue.pop_back(), None);
-    queue.push_front_within_cap(1);
+    queue.push_front(1).unwrap();
     assert_eq!(queue.pop_back(), Some(1));
     assert_eq!(queue.pop_back(), None);
   }
@@ -284,16 +284,16 @@ mod tests {
   fn pop_front() {
     let mut queue = Queue::with_capacity(1);
     assert_eq!(queue.pop_front(), None);
-    queue.push_front_within_cap(1);
+    queue.push_front(1).unwrap();
     assert_eq!(queue.pop_front(), Some(1));
     assert_eq!(queue.pop_front(), None);
   }
 
   #[test]
-  fn push_front_within_cap() {
+  fn push_front() {
     let mut queue = Queue::with_capacity(1);
     assert_eq!(queue.len(), 0);
-    queue.push_front_within_cap(1);
+    queue.push_front(1).unwrap();
     assert_eq!(queue.len(), 1);
   }
 

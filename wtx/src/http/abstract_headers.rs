@@ -78,17 +78,18 @@ where
     value: &[u8],
     is_sensitive: bool,
     cb: impl FnMut(M, &mut [u8]),
-  ) {
+  ) -> crate::Result<()> {
     let local_len = name.len().wrapping_add(value.len());
     if local_len > self.max_bytes {
       self.clear();
-      return;
+      return Ok(());
     }
     self.remove_until_max_bytes(local_len, cb);
-    self.bq.push_front_within_cap(
+    self.bq.push_front(
       [name, value],
       Metadata { is_active: true, is_sensitive, misc, name_len: name.len() },
-    );
+    )?;
+    Ok(())
   }
 
   #[inline]
@@ -98,7 +99,7 @@ where
     Some(())
   }
 
-  #[inline]
+  #[inline(always)]
   pub(crate) fn reserve(&mut self, bytes: usize, headers: usize) {
     self.bq.reserve(headers, bytes.min(self.max_bytes));
   }

@@ -40,7 +40,7 @@ impl HpackDecoder {
   pub(crate) fn decode(
     &mut self,
     mut data: &[u8],
-    mut cb: impl FnMut((HpackHeaderBasic, &[u8], &[u8])),
+    mut cb: impl FnMut((HpackHeaderBasic, &[u8], &[u8])) -> crate::Result<()>,
   ) -> crate::Result<()> {
     if let Some(elem) = self.max_bytes.1.take() {
       self.max_bytes.0 = elem;
@@ -115,7 +115,7 @@ impl HpackDecoder {
     &mut self,
     data: &mut &[u8],
     mask: u8,
-    elem_cb: &mut impl FnMut((HpackHeaderBasic, &[u8], &[u8])),
+    elem_cb: &mut impl FnMut((HpackHeaderBasic, &[u8], &[u8])) -> crate::Result<()>,
   ) -> crate::Result<()> {
     let idx = Self::decode_integer(data, mask)?.1;
     let has_indexed_name = idx != 0;
@@ -132,12 +132,12 @@ impl HpackDecoder {
         HpackHeaderBasic::StatusCode(_) => HpackHeaderBasic::StatusCode(value.try_into()?),
       };
       let name = if static_name.is_empty() {
-        elem_cb((new_hhb, dyn_name, value));
+        elem_cb((new_hhb, dyn_name, value))?;
         self.header_buffers.0.clear();
         self.header_buffers.0.try_extend_from_slice(dyn_name)?;
         self.header_buffers.0.get_mut(..dyn_name.len()).unwrap_or_default()
       } else {
-        elem_cb((new_hhb, static_name, value));
+        elem_cb((new_hhb, static_name, value))?;
         static_name
       };
       (new_hhb, name, value)
@@ -145,12 +145,12 @@ impl HpackDecoder {
       let (hhn, name) = Self::decode_string_name(&mut self.header_buffers.0, data)?;
       let value = Self::decode_string_value(&mut self.header_buffers.1, data)?;
       let hhb = HpackHeaderBasic::try_from((hhn, value))?;
-      elem_cb((hhb, name, value));
+      elem_cb((hhb, name, value))?;
       (hhb, name, value)
     };
     if STORE {
       self.dyn_headers.reserve(name.len().wrapping_add(value.len()), 1);
-      self.dyn_headers.push_front(hhb, name, value, false, |_, _| {});
+      self.dyn_headers.push_front(hhb, name, value, false, |_, _| {})?;
     }
     Ok(())
   }
@@ -314,7 +314,7 @@ impl HpackDecoder {
     &mut self,
     byte: u8,
     data: &mut &[u8],
-    elem_cb: &mut impl FnMut((HpackHeaderBasic, &[u8], &[u8])),
+    elem_cb: &mut impl FnMut((HpackHeaderBasic, &[u8], &[u8])) -> crate::Result<()>,
     mut size_update_cb: impl FnMut() -> crate::Result<()>,
   ) -> crate::Result<()> {
     match DecodeIdx::try_from(byte)? {
@@ -326,7 +326,7 @@ impl HpackDecoder {
             if name.0.is_empty() { name.1 } else { name.0 },
             if value.0.is_empty() { value.1 } else { value.0 },
           )
-        })?)
+        })?)?;
       }
       DecodeIdx::LiteralNeverIndexed | DecodeIdx::LiteralWithoutIndexing => {
         self.decode_literal::<false>(data, 0b0000_1111, elem_cb)?;
@@ -411,7 +411,7 @@ mod bench {
     let mut hd = HpackDecoder::new();
     hd.set_max_bytes(N);
     b.iter(|| {
-      hd.decode(&buffer, |_| {}).unwrap();
+      hd.decode(&buffer, |_| Ok(())).unwrap();
       hd.clear();
     });
   }

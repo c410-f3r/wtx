@@ -10,7 +10,7 @@ use hashbrown::HashMap;
 //
 // Maximum sizes are dictated by `AcceptParams` or `ConnectParams`.
 #[derive(Debug)]
-pub struct Http2Buffer<const IS_CLIENT: bool> {
+pub struct Http2Buffer {
   pub(crate) hpack_dec: HpackDecoder,
   pub(crate) hpack_enc: HpackEncoder,
   pub(crate) hpack_enc_buffer: ByteVector,
@@ -19,7 +19,7 @@ pub struct Http2Buffer<const IS_CLIENT: bool> {
   pub(crate) uri_buffer: Box<UriBuffer>,
 }
 
-impl<const IS_CLIENT: bool> Http2Buffer<IS_CLIENT> {
+impl Http2Buffer {
   /// Creates a new instance without pre-allocated resources.
   #[inline]
   pub fn new<RNG>(rng: RNG) -> Self
@@ -48,16 +48,16 @@ impl<const IS_CLIENT: bool> Http2Buffer<IS_CLIENT> {
   }
 }
 
-impl<const IS_CLIENT: bool> Lease<Http2Buffer<IS_CLIENT>> for Http2Buffer<IS_CLIENT> {
+impl Lease<Http2Buffer> for Http2Buffer {
   #[inline]
-  fn lease(&self) -> &Http2Buffer<IS_CLIENT> {
+  fn lease(&self) -> &Http2Buffer {
     self
   }
 }
 
-impl<const IS_CLIENT: bool> LeaseMut<Http2Buffer<IS_CLIENT>> for Http2Buffer<IS_CLIENT> {
+impl LeaseMut<Http2Buffer> for Http2Buffer {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Http2Buffer<IS_CLIENT> {
+  fn lease_mut(&mut self) -> &mut Http2Buffer {
     self
   }
 }

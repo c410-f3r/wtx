@@ -60,14 +60,14 @@ async fn connections() {
 }
 
 trait Test {
-  async fn client(http2: &mut Http2Tokio<Http2Buffer<true>, TcpStream, true>);
+  async fn client(http2: &mut Http2Tokio<Http2Buffer, TcpStream, true>);
 
-  async fn server(http2: &mut Http2Tokio<Http2Buffer<false>, TcpStream, false>);
+  async fn server(http2: &mut Http2Tokio<Http2Buffer, TcpStream, false>);
 }
 
 struct Stub;
 impl Test for Stub {
-  async fn client(_: &mut Http2Tokio<Http2Buffer<true>, TcpStream, true>) {}
+  async fn client(_: &mut Http2Tokio<Http2Buffer, TcpStream, true>) {}
 
-  async fn server(_: &mut Http2Tokio<Http2Buffer<false>, TcpStream, false>) {}
+  async fn server(_: &mut Http2Tokio<Http2Buffer, TcpStream, false>) {}
 }

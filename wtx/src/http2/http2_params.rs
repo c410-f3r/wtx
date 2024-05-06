@@ -174,7 +174,7 @@ impl Http2Params {
   }
 
   pub(crate) fn to_settings_frame(&self) -> SettingsFrame {
-    let mut settings_frame = SettingsFrame::default();
+    let mut settings_frame = SettingsFrame::empty();
     settings_frame.set_enable_connect_protocol(Some(self.enable_connect_protocol));
     settings_frame.set_header_table_size(Some(self.max_cached_headers_len.0));
     settings_frame.set_initial_window_size(Some(self.initial_window_len));

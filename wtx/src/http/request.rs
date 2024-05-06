@@ -35,16 +35,4 @@ where
   pub fn http2(data: D, headers: H, method: Method, uri: Uri<U>) -> Self {
     Self { data, headers, method, uri, version: Version::Http2 }
   }
-
-  /// See [RequestRef].
-  #[inline]
-  pub fn to_ref(&self) -> RequestRef<'_, '_, '_, D> {
-    RequestRef {
-      data: &self.data,
-      headers: self.headers.lease(),
-      method: self.method,
-      uri: self.uri.to_ref(),
-      version: self.version,
-    }
-  }
 }

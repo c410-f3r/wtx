@@ -38,7 +38,6 @@ macro_rules! do_get {
 }
 
 use crate::misc::{
-  _unreachable,
   queue_utils::{reserve, wrap_sub},
   Lease, Queue, SingleTypeStorage, Vector,
 };
@@ -175,7 +174,11 @@ where
   }
 
   #[inline]
-  pub(crate) fn push_front_within_cap<const N: usize>(&mut self, data: [&[D]; N], misc: M) {
+  pub(crate) fn push_front<const N: usize>(
+    &mut self,
+    data: [&[D]; N],
+    misc: M,
+  ) -> crate::Result<()> {
     let mut len: usize = 0;
     for elem in data {
       len = len.wrapping_add(elem.len());
@@ -187,9 +190,9 @@ where
     let head = match (left_free >= len, right_free >= len) {
       (true, _) => self.head_lhs(len),
       (false, true) => self.head_rhs(len),
-      (false, false) => _unreachable(),
+      (false, false) => return Err(crate::Error::CapacityOverflow),
     };
-    self.metadata.push_front_within_cap(BlocksQueueMetadata { begin: head, len, misc });
+    self.metadata.push_front(BlocksQueueMetadata { begin: head, len, misc })?;
     self.head = head;
     self.tail = tail;
     // SAFETY: indices point to valid memory locations
@@ -201,6 +204,7 @@ where
       }
       self.data.set_len(self.data.len().wrapping_add(len));
     }
+    Ok(())
   }
 
   #[inline(always)]
@@ -359,22 +363,22 @@ mod tests {
     let mut q = BlocksQueue::with_capacity(4, 8);
     check_state(&q, 0, 0, 0, 0);
 
-    q.push_front_within_cap([&[1]], ());
+    q.push_front([&[1]], ()).unwrap();
     check_state(&q, 1, 1, 7, 8);
 
-    q.push_front_within_cap([&[2, 3]], ());
+    q.push_front([&[2, 3]], ()).unwrap();
     check_state(&q, 2, 3, 5, 8);
 
-    q.push_front_within_cap([&[4, 5], &[6]], ());
+    q.push_front([&[4, 5], &[6]], ()).unwrap();
     check_state(&q, 3, 6, 2, 8);
 
-    q.push_front_within_cap([&[7, 8]], ());
+    q.push_front([&[7, 8]], ()).unwrap();
     check_state(&q, 4, 8, 0, 8);
 
     let _ = q.pop_back();
     check_state(&q, 3, 7, 0, 7);
 
-    q.push_front_within_cap([&[9]], ());
+    q.push_front([&[9]], ()).unwrap();
     check_state(&q, 4, 8, 7, 7);
 
     let _ = q.pop_back();
@@ -383,10 +387,10 @@ mod tests {
     let _ = q.pop_back();
     check_state(&q, 2, 3, 7, 2);
 
-    q.push_front_within_cap([&[10], &[11, 12]], ());
+    q.push_front([&[10], &[11, 12]], ()).unwrap();
     check_state(&q, 3, 6, 4, 2);
 
-    q.push_front_within_cap([&[13, 14]], ());
+    q.push_front([&[13, 14]], ()).unwrap();
     check_state(&q, 4, 8, 2, 2);
 
     let _ = q.pop_back();
@@ -398,10 +402,10 @@ mod tests {
     let _ = q.pop_back();
     check_state(&q, 1, 2, 2, 4);
 
-    q.push_front_within_cap([&[15]], ());
+    q.push_front([&[15]], ()).unwrap();
     check_state(&q, 2, 3, 1, 4);
 
-    q.push_front_within_cap([&[16]], ());
+    q.push_front([&[16]], ()).unwrap();
     check_state(&q, 3, 4, 0, 4);
 
     let _ = q.pop_back();
@@ -424,10 +428,10 @@ mod tests {
     let mut q = BlocksQueue::with_capacity(2, 8);
     check_state(&q, 0, 0, 0, 0);
 
-    q.push_front_within_cap([&[1, 2, 3]], ());
+    q.push_front([&[1, 2, 3]], ()).unwrap();
     check_state(&q, 1, 3, 5, 8);
 
-    q.push_front_within_cap([&[4, 5], &[6, 7, 8]], ());
+    q.push_front([&[4, 5], &[6, 7, 8]], ()).unwrap();
     check_state(&q, 2, 8, 0, 8);
 
     let _ = q.pop_front();
@@ -443,12 +447,12 @@ mod tests {
   fn push_reserve_and_push() {
     let mut q = BlocksQueue::new();
     q.reserve(1, 4);
-    q.push_front_within_cap([&[0, 1, 2, 3]], ());
+    q.push_front([&[0, 1, 2, 3]], ()).unwrap();
     check_state(&q, 1, 4, 0, 4);
     assert_eq!(q.get(0), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 0..4 }));
     assert_eq!(q.get(1), None);
     q.reserve(1, 6);
-    q.push_front_within_cap([&[4, 5, 6, 7, 8, 9]], ());
+    q.push_front([&[4, 5, 6, 7, 8, 9]], ()).unwrap();
     check_state(&q, 2, 10, 0, 10);
     assert_eq!(q.get(0), Some(BlockRef { data: &[4, 5, 6, 7, 8, 9], misc: &(), range: 0..6 }));
     assert_eq!(q.get(1), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 6..10 }));
@@ -500,7 +504,7 @@ mod tests {
     let mut q = BlocksQueue::with_capacity(6, 8);
     check_state(&q, 0, 0, 0, 0);
     for _ in 0..6 {
-      q.push_front_within_cap([&[0]], ());
+      q.push_front([&[0]], ()).unwrap();
     }
     check_state(&q, 6, 6, 2, 8);
     for idx in 0..6 {
@@ -513,7 +517,7 @@ mod tests {
     check_state(&q, 2, 2, 2, 4);
     assert_eq!(q.get(0).unwrap().data, &[0]);
     assert_eq!(q.get(1).unwrap().data, &[0]);
-    q.push_front_within_cap([&[1, 2, 3]], ());
+    q.push_front([&[1, 2, 3]], ()).unwrap();
     check_state(&q, 3, 5, 5, 4);
     assert_eq!(q.get(0).unwrap().data, &[1, 2, 3]);
     assert_eq!(q.get(1).unwrap().data, &[0]);

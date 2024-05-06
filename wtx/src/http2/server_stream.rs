@@ -2,12 +2,12 @@ use crate::{
   http::{Method, RequestMut, Response, ResponseData},
   http2::{
     http2_data::ReadFramesInit,
-    misc::{send_go_away, send_reset, write_to_stream},
-    DataFrame, ErrorCode, GoAwayFrame, HeadersFrame, HpackStaticRequestHeaders,
-    HpackStaticResponseHeaders, Http2Buffer, Http2Data, ReadFrameRslt, ReqResBuffer,
-    ResetStreamFrame, StreamState, U31,
+    misc::{send_go_away, send_reset},
+    write_stream::write_stream,
+    ErrorCode, GoAwayFrame, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer,
+    Http2Data, ReadFrameRslt, ReqResBuffer, ResetStreamFrame, StreamState, U31,
   },
-  misc::{ByteVector, Lease, LeaseMut, Lock, RefCounter, Stream, Uri},
+  misc::{AsyncBounds, ByteVector, Lease, LeaseMut, Lock, RefCounter, Stream, Uri, _Span},
 };
 use core::marker::PhantomData;
 use tokio::sync::MutexGuard;
@@ -21,19 +21,26 @@ pub struct ServerStream<HB, HD, S> {
   is_eos: bool,
   method: Method,
   phantom: PhantomData<(HB, S)>,
+  span: _Span,
   stream_id: U31,
   stream_state: StreamState,
 }
 
 impl<HB, HD, S> ServerStream<HB, HD, S> {
   #[inline]
-  pub(crate) fn new(hd: HD, rfi: ReadFramesInit<Method>, stream_state: StreamState) -> Self {
+  pub(crate) fn new(
+    hd: HD,
+    span: _Span,
+    rfi: ReadFramesInit<Method>,
+    stream_state: StreamState,
+  ) -> Self {
     Self {
       hd,
       hpack_size: rfi.hpack_size,
       is_eos: rfi.is_eos,
       method: rfi.headers_rslt,
       phantom: PhantomData,
+      span,
       stream_id: rfi.stream_id,
       stream_state,
     }
@@ -42,21 +49,24 @@ impl<HB, HD, S> ServerStream<HB, HD, S> {
 
 impl<HB, HD, S> ServerStream<HB, HD, S>
 where
-  HB: LeaseMut<Http2Buffer<false>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
   for<'guard> HD::Item: Lock<
       Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, false>>,
       Resource = Http2Data<HB, S, false>,
     > + 'guard,
-  S: Stream,
+  S: AsyncBounds + Stream,
 {
   /// High-level method that reads all remaining data to build a request.
+  //
+  // `rrb` won't be cleared because it should have been used earlier when accepting a stream.
   #[inline]
   pub async fn recv_req<'rrb>(
     &mut self,
     rrb: &'rrb mut ReqResBuffer,
   ) -> crate::Result<ReadFrameRslt<RequestMut<'rrb, 'rrb, 'rrb, ByteVector>>> {
-    rrb.clear();
+    let _e = self.span._enter();
+    _trace!("Receiving request");
     rfr_until_resource_with_guard!(self.hd, |guard| {
       guard
         .read_frames_others(
@@ -94,35 +104,26 @@ where
     D: ResponseData,
     D::Body: Lease<[u8]>,
   {
-    if !self.stream_state.can_server_send() {
-      return Ok(());
-    }
+    let _e = self.span._enter();
+    _trace!("Sending response");
     let mut guard = self.hd.lock().await;
-    let (hb, is_conn_open, _, stream) = guard.parts_mut();
-    let mut hf = HeadersFrame::new(
+    let (hb, is_conn_open, send_params, stream) = guard.parts_mut();
+    write_stream::<_, false>(
+      res.data.body().lease(),
       res.data.headers(),
+      &mut hb.hpack_enc,
+      &mut hb.hpack_enc_buffer,
       (
         HpackStaticRequestHeaders::EMPTY,
         HpackStaticResponseHeaders { status_code: Some(res.status_code) },
       ),
+      *is_conn_open,
+      send_params,
+      stream,
       self.stream_id,
-    );
-    let body = res.data.body().lease();
-    if body.is_empty() {
-      hf.set_eos();
-      hf.write::<false>(&mut hb.hpack_enc, &mut hb.hpack_enc_buffer)?;
-      write_to_stream([&*hb.hpack_enc_buffer], *is_conn_open, stream).await?;
-    } else {
-      hf.write::<false>(&mut hb.hpack_enc, &mut hb.hpack_enc_buffer)?;
-      let data_len = u32::try_from(body.len())?;
-      let df = DataFrame::eos(body, data_len, self.stream_id);
-      write_to_stream(
-        [&*hb.hpack_enc_buffer, df.bytes().as_slice(), df.data()],
-        *is_conn_open,
-        stream,
-      )
-      .await?;
-    }
+      &mut self.stream_state,
+    )
+    .await?;
     self.stream_state = StreamState::Closed;
     Ok(())
   }

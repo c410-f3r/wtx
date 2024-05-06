@@ -25,6 +25,7 @@ mod queue;
 mod queue_utils;
 mod ref_counter;
 mod single_type_storage;
+mod span;
 mod stream;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
@@ -70,6 +71,7 @@ pub(crate) use {
   blocks_queue::{Block, BlocksQueue},
   mem_transfer::_shift_bytes,
   partitioned_filled_buffer::PartitionedFilledBuffer,
+  span::{_Entered, _Span},
 };
 
 /// Vector of bytes
