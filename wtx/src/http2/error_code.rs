@@ -1,7 +1,5 @@
 create_enum! {
   /// HTTP/2 error codes.
-  ///
-  /// http://httpwg.org/specs/rfc7540.html#ErrorCodes
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum ErrorCode<u32> {
     /// The associated condition is not a result of an error.

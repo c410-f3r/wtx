@@ -29,11 +29,6 @@ path = "examples/web-socket-client-raw-tokio-rustls.rs"
 required-features = ["_tokio-rustls-client", "tokio/io-std", "web-socket-handshake"]
 
 [[example]]
-name = "web-socket-server-raw-tokio"
-path = "examples/web-socket-server-raw-tokio.rs"
-required-features = ["async-send", "pool", "tokio", "web-socket-handshake"]
-
-[[example]]
 name = "web-socket-server-raw-tokio-rustls"
 path = "examples/web-socket-server-raw-tokio-rustls.rs"
 required-features = ["_tokio-rustls-server", "web-socket-handshake"]

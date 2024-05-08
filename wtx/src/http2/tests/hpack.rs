@@ -1,6 +1,6 @@
 use crate::{
   http::StatusCode,
-  http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, CACHED_HEADERS_LEN_DEFAULT},
+  http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_CACHED_HEADERS_LEN},
   misc::{from_utf8_basic, ByteVector, Vector},
   rng::StaticRng,
 };
@@ -188,8 +188,8 @@ fn test_story_encoding_and_decoding(
       decoder.set_max_bytes(size);
       encoder.set_max_dyn_sub_bytes(size).unwrap();
     } else {
-      decoder.set_max_bytes(CACHED_HEADERS_LEN_DEFAULT);
-      encoder.set_max_dyn_sub_bytes(CACHED_HEADERS_LEN_DEFAULT).unwrap();
+      decoder.set_max_bytes(MAX_CACHED_HEADERS_LEN);
+      encoder.set_max_dyn_sub_bytes(MAX_CACHED_HEADERS_LEN).unwrap();
     }
 
     let mut pseudo_headers = case

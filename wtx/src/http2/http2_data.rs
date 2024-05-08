@@ -1,9 +1,10 @@
 use crate::{
   http2::{
+    http2_params_send::Http2ParamsSend,
     misc::{read_frame_others, read_frame_until, read_frame_until_cb_known_id, reset_stream},
-    send_params::SendParams,
+    window::WindowsPair,
     ContinuationFrame, DataFrame, FrameHeaderTy, FrameInit, HeadersFrame, Http2Buffer, Http2Params,
-    ReadFrameRslt, ReqResBuffer, StreamState, WindowUpdateFrame, U31,
+    Http2RsltExt, ReqResBuffer, StreamState, WindowUpdateFrame, Windows, U31,
   },
   misc::{BlocksQueue, Lease, LeaseMut, Stream},
 };
@@ -13,11 +14,12 @@ use hashbrown::HashMap;
 pub struct Http2Data<HB, S, const IS_CLIENT: bool> {
   hb: HB,
   hp: Http2Params,
+  hps: Http2ParamsSend,
   is_conn_open: bool,
   rapid_resets_num: u8,
-  send_params: SendParams,
   stream: S,
   streams_num: u32,
+  windows: Windows,
 }
 
 impl<HB, S, const IS_CLIENT: bool> Http2Data<HB, S, IS_CLIENT>
@@ -27,14 +29,16 @@ where
 {
   #[inline]
   pub(crate) fn new(hb: HB, hp: Http2Params, stream: S) -> Self {
+    let windows = Windows::conn(&hp);
     Self {
       hb,
       hp,
       is_conn_open: true,
       rapid_resets_num: 0,
-      send_params: SendParams::default(),
+      hps: Http2ParamsSend::default(),
       stream,
       streams_num: 0,
+      windows,
     }
   }
 
@@ -49,6 +53,11 @@ where
   }
 
   #[inline]
+  pub(crate) fn hps(&self) -> &Http2ParamsSend {
+    &self.hps
+  }
+
+  #[inline]
   pub(crate) fn is_conn_open(&self) -> bool {
     self.is_conn_open
   }
@@ -59,8 +68,26 @@ where
   }
 
   #[inline]
-  pub(crate) fn parts_mut(&mut self) -> (&mut Http2Buffer, &mut bool, &mut SendParams, &mut S) {
-    (self.hb.lease_mut(), &mut self.is_conn_open, &mut self.send_params, &mut self.stream)
+  pub(crate) fn parts_mut(
+    &mut self,
+  ) -> (
+    &mut Http2Buffer,
+    &mut bool,
+    &mut Http2Params,
+    &mut Http2ParamsSend,
+    &mut S,
+    &mut u32,
+    &mut Windows,
+  ) {
+    (
+      self.hb.lease_mut(),
+      &mut self.is_conn_open,
+      &mut self.hp,
+      &mut self.hps,
+      &mut self.stream,
+      &mut self.streams_num,
+      &mut self.windows,
+    )
   }
 
   /// Reads a frame that is expected to be the initial header of a message along with its
@@ -71,6 +98,7 @@ where
     rrb: &mut ReqResBuffer,
     stream_id: U31,
     stream_state: &mut StreamState,
+    stream_windows: &mut Windows,
     mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
     mut read_frame_until_cb: impl FnMut(
       &[u8],
@@ -78,21 +106,22 @@ where
       &Http2Params,
       &mut HashMap<U31, BlocksQueue<u8, FrameInit>>,
     ) -> crate::Result<bool>,
-  ) -> crate::Result<ReadFrameRslt<ReadFramesInit<H>>> {
+  ) -> crate::Result<Http2RsltExt<ReadFramesInit<H>>> {
     for _ in 0.._max_frames_mismatches!() {
       let Http2Buffer { hpack_dec, hpack_enc, pfb, streams_frames, uri_buffer, .. } =
         self.hb.lease_mut();
-      let fi = rfr_resource_or_return!(
+      let fi = hre_resource_or_return!(
         read_frame_until(
           &mut self.hp,
           hpack_enc,
+          &mut self.hps,
           &mut self.is_conn_open,
           pfb,
-          &mut self.send_params,
           &mut self.stream,
           stream_id,
           stream_state,
           &mut self.streams_num,
+          &mut WindowsPair::new(&mut self.windows, &mut *stream_windows),
           |fi, hp, data| { read_frame_until_cb(data, fi, hp, streams_frames) },
           |hp| {
             if self.rapid_resets_num >= hp.max_rapid_resets_num() {
@@ -127,7 +156,7 @@ where
             *stream_state = StreamState::HalfClosedRemote;
           }
           let headers_rslt = headers_cb(&hf)?;
-          rfr_until_resource!(
+          hre_until_resource!(
             self
               .read_frames_continuation(
                 &mut hpack_size,
@@ -135,10 +164,11 @@ where
                 rrb,
                 fi.stream_id,
                 stream_state,
+                stream_windows
               )
               .await?
           );
-          return Ok(ReadFrameRslt::Resource(ReadFramesInit {
+          return Ok(Http2RsltExt::Resource(ReadFramesInit {
             headers_rslt,
             hpack_size,
             is_eos,
@@ -146,7 +176,8 @@ where
           }));
         }
         FrameHeaderTy::WindowUpdate => {
-          let _wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
+          let wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
+          stream_windows.send.deposit(wuf.size_increment().i32());
         }
         _ => return Err(crate::http2::ErrorCode::ProtocolError.into()),
       }
@@ -163,30 +194,33 @@ where
     rrb: &mut ReqResBuffer,
     stream_id: U31,
     stream_state: &mut StreamState,
-  ) -> crate::Result<ReadFrameRslt<()>> {
+    stream_windows: &mut Windows,
+  ) -> crate::Result<Http2RsltExt<()>> {
     if is_eos {
-      return Ok(ReadFrameRslt::Resource(()));
+      return Ok(Http2RsltExt::Resource(()));
     }
     let Http2Buffer { hpack_dec, hpack_enc, pfb, streams_frames, uri_buffer, .. } =
       self.hb.lease_mut();
     let mut body_len: u32 = 0;
     let mut counter: u32 = 0;
+    let mut wp = WindowsPair::new(&mut self.windows, &mut *stream_windows);
     loop {
       if counter >= _max_frames_mismatches!() {
         return Err(crate::Error::VeryLargeAmountOfFrameMismatches);
       }
-      let (fi, data) = rfr_resource_or_return!(
+      let (fi, data) = hre_resource_or_return!(
         read_frame_others(
           &mut self.hp,
           hpack_enc,
+          &mut self.hps,
           &mut self.is_conn_open,
           pfb,
-          &mut self.send_params,
           &mut self.stream,
           stream_id,
           stream_state,
           streams_frames,
-          &mut self.streams_num
+          &mut self.streams_num,
+          &mut wp
         )
         .await?
       );
@@ -198,11 +232,12 @@ where
       body_len = local_body_len;
       if let FrameHeaderTy::Data = fi.ty {
         let df = DataFrame::read(data, fi)?;
-        rrb.data.reserve(data.len());
-        rrb.data.extend_from_slice(data)?;
+        rrb.body.reserve(data.len());
+        rrb.body.extend_from_slice(data)?;
+        wp.manage_recv(self.is_conn_open, &mut self.stream, stream_id, df.data_len()).await?;
         if df.is_eos() {
           *stream_state = StreamState::HalfClosedRemote;
-          return Ok(ReadFrameRslt::Resource(()));
+          return Ok(Http2RsltExt::Resource(()));
         }
       } else {
         let (hf, local_hpack_size) = HeadersFrame::read::<false>(
@@ -219,7 +254,7 @@ where
         }
         *hpack_size = hpack_size.saturating_add(local_hpack_size);
         if hf.is_eoh() {
-          return Ok(ReadFrameRslt::Resource(()));
+          return Ok(Http2RsltExt::Resource(()));
         }
         break;
       }
@@ -227,23 +262,24 @@ where
     }
 
     for _ in 0.._max_continuation_frames!() {
-      let (fi, data) = rfr_resource_or_return!(
+      let (fi, data) = hre_resource_or_return!(
         read_frame_others(
           &mut self.hp,
           hpack_enc,
+          &mut self.hps,
           &mut self.is_conn_open,
           pfb,
-          &mut self.send_params,
           &mut self.stream,
           stream_id,
           stream_state,
           streams_frames,
-          &mut self.streams_num
+          &mut self.streams_num,
+          &mut wp
         )
         .await?
       );
       if ContinuationFrame::read(data, fi, &mut rrb.headers, hpack_size, hpack_dec)?.is_eoh() {
-        return Ok(ReadFrameRslt::Resource(()));
+        return Ok(Http2RsltExt::Resource(()));
       }
     }
     Err(crate::Error::VeryLargeAmountOfContinuationFrames)
@@ -256,21 +292,36 @@ where
     rrb: &mut ReqResBuffer,
     stream_id: U31,
     stream_state: &mut StreamState,
+    stream_windows: &mut Windows,
     cb: fn(&HeadersFrame<'_>) -> crate::Result<H>,
-  ) -> crate::Result<ReadFrameRslt<H>> {
-    let mut rfi = rfr_resource_or_return!(
+  ) -> crate::Result<Http2RsltExt<H>> {
+    let mut rfi = hre_resource_or_return!(
       self
-        .read_frames_init(rrb, stream_id, stream_state, cb, |data, fi, hp, streams_frames| {
-          read_frame_until_cb_known_id(data, fi, hp, stream_id, streams_frames)
-        })
+        .read_frames_init(
+          rrb,
+          stream_id,
+          stream_state,
+          stream_windows,
+          cb,
+          |data, fi, hp, streams_frames| {
+            read_frame_until_cb_known_id(data, fi, hp, stream_id, streams_frames)
+          }
+        )
         .await?
     );
-    rfr_resource_or_return!(
+    hre_resource_or_return!(
       self
-        .read_frames_others(&mut rfi.hpack_size, rfi.is_eos, rrb, stream_id, stream_state)
+        .read_frames_others(
+          &mut rfi.hpack_size,
+          rfi.is_eos,
+          rrb,
+          stream_id,
+          stream_state,
+          stream_windows
+        )
         .await?
     );
-    Ok(ReadFrameRslt::Resource(rfi.headers_rslt))
+    Ok(Http2RsltExt::Resource(rfi.headers_rslt))
   }
 
   /// Reads all continuation frames.
@@ -282,39 +333,41 @@ where
     rrb: &mut ReqResBuffer,
     stream_id: U31,
     stream_state: &mut StreamState,
-  ) -> crate::Result<ReadFrameRslt<()>> {
+    stream_windows: &mut Windows,
+  ) -> crate::Result<Http2RsltExt<()>> {
     if is_eoh || is_eos {
-      return Ok(ReadFrameRslt::Resource(()));
+      return Ok(Http2RsltExt::Resource(()));
     }
     let Http2Buffer { hpack_dec, hpack_enc, pfb, streams_frames, .. } = self.hb.lease_mut();
     for _ in 0.._max_continuation_frames!() {
-      let (fi, data) = rfr_until_resource!(
+      let (fi, data) = hre_until_resource!(
         read_frame_others(
           &mut self.hp,
           hpack_enc,
+          &mut self.hps,
           &mut self.is_conn_open,
           pfb,
-          &mut self.send_params,
           &mut self.stream,
           stream_id,
           stream_state,
           streams_frames,
-          &mut self.streams_num
+          &mut self.streams_num,
+          &mut WindowsPair::new(&mut self.windows, &mut *stream_windows)
         )
         .await?
       );
       let ci = ContinuationFrame::read(data, fi, &mut rrb.headers, hpack_size, hpack_dec)?;
       is_eoh = ci.is_eoh();
       if is_eoh {
-        return Ok(ReadFrameRslt::Resource(()));
+        return Ok(Http2RsltExt::Resource(()));
       }
     }
     Err(crate::Error::VeryLargeAmountOfContinuationFrames)
   }
 
   #[inline]
-  pub(crate) fn send_params_mut(&mut self) -> &mut SendParams {
-    &mut self.send_params
+  pub(crate) fn send_params_mut(&mut self) -> &mut Http2ParamsSend {
+    &mut self.hps
   }
 
   #[inline]

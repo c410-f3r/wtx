@@ -1,9 +1,9 @@
 use crate::{
   http::{
     server::{TokioHttp2, _buffers_len},
-    Headers, RequestMut, Response,
+    Headers, RequestStr, Response,
   },
-  http2::{Http2Params, Http2Tokio, ReadFrameRslt},
+  http2::{Http2Params, Http2Rslt, Http2Tokio},
   misc::{ByteVector, FnFut},
   pool::{
     FixedPoolGetRsltTokio, FixedPoolTokio, Http2ServerBufferRM, Pool, ReqResBufferRM,
@@ -35,7 +35,7 @@ impl TokioHttp2 {
     E: Debug + From<crate::Error> + Send + 'static,
     F: Copy
       + for<'any> FnFut<
-        RequestMut<'any, 'any, 'any, ByteVector>,
+        RequestStr<'any, (&'any mut ByteVector, &'any mut Headers)>,
         Result<Response<(&'any mut ByteVector, &'any mut Headers)>, E>,
       > + Send
       + 'static,
@@ -77,7 +77,7 @@ where
   E: Debug + From<crate::Error> + Send + 'static,
   F: Copy
     + for<'any> FnFut<
-      RequestMut<'any, 'any, 'any, ByteVector>,
+      RequestStr<'any, (&'any mut ByteVector, &'any mut Headers)>,
       Result<Response<(&'any mut ByteVector, &'any mut Headers)>, E>,
     > + Send
     + 'static,
@@ -92,23 +92,25 @@ where
         drop(req_buffer_guard.release().await);
         return Err(err);
       }
-      Ok(ReadFrameRslt::ClosedConnection) => {
+      Ok(Http2Rslt::ClosedConnection) => {
         drop(req_buffer_guard.release().await);
         return Ok(());
       }
-      Ok(ReadFrameRslt::ClosedStream | ReadFrameRslt::IdleConnection) => {
+      Ok(Http2Rslt::ClosedStream) => {
         drop(req_buffer_guard.release().await);
         continue;
       }
-      Ok(ReadFrameRslt::Resource(elem)) => elem,
+      Ok(Http2Rslt::Resource(elem)) => elem,
     };
     let _stream_jh = tokio::spawn(async move {
       let rrb = &mut **req_buffer_guard;
       let fun = || async move {
-        let ReadFrameRslt::Resource(req) = stream.recv_req(rrb).await? else {
+        let Http2Rslt::Resource(req) = stream.recv_req(rrb).await? else {
           return Ok(());
         };
-        stream.send_res(handle(req).await?).await?;
+        if stream.send_res(handle(req).await?).await?.resource().is_none() {
+          return Ok(());
+        }
         Ok::<_, E>(())
       };
       let rslt = fun().await;

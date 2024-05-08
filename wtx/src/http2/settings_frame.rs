@@ -1,23 +1,19 @@
 use crate::{
-  http2::{FrameHeaderTy, FrameInit, ACK_MASK, FRAME_LEN_LOWER_BOUND, FRAME_LEN_UPPER_BOUND, U31},
+  http2::{
+    FrameHeaderTy, FrameInit, ACK_MASK, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, U31,
+  },
   misc::{ArrayChunks, _unlikely_elem},
 };
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct SettingsFrame {
-  // SETTINGS_ENABLE_CONNECT_PROTOCOL
   enable_connect_protocol: Option<bool>,
   flags: u8,
-  // SETTINGS_HEADER_TABLE_SIZE
   header_table_size: Option<u32>,
-  // SETTINGS_INITIAL_WINDOW_SIZE
-  initial_window_size: Option<u32>,
+  initial_window_size: Option<U31>,
   len: u8,
-  // SETTINGS_MAX_CONCURRENT_STREAMS
   max_concurrent_streams: Option<u32>,
-  // SETTINGS_MAX_FRAME_SIZE
   max_frame_size: Option<u32>,
-  // SETTINGS_MAX_HEADER_LIST_SIZE
   max_header_list_size: Option<u32>,
 }
 
@@ -91,7 +87,7 @@ impl SettingsFrame {
     let mut idx: usize = 9;
     copy_bytes!(buffer, header_table_size.map(|el| bytes(1, el)), idx);
     copy_bytes!(buffer, max_concurrent_streams.map(|el| bytes(3, el)), idx);
-    copy_bytes!(buffer, initial_window_size.map(|el| bytes(4, el)), idx);
+    copy_bytes!(buffer, initial_window_size.map(|el| bytes(4, el.u32())), idx);
     copy_bytes!(buffer, max_frame_size.map(|el| bytes(5, el)), idx);
     copy_bytes!(buffer, max_header_list_size.map(|el| bytes(6, el)), idx);
     copy_bytes!(buffer, enable_connect_protocol.map(|el| bytes(8, u32::from(el))), idx);
@@ -106,7 +102,7 @@ impl SettingsFrame {
     self.header_table_size
   }
 
-  pub(crate) fn initial_window_size(&self) -> Option<u32> {
+  pub(crate) fn initial_window_size(&self) -> Option<U31> {
     self.initial_window_size
   }
 
@@ -177,7 +173,7 @@ impl SettingsFrame {
           *max_concurrent_streams = Some(elem);
         }
         Setting::MaxFrameSize(elem) => {
-          if (FRAME_LEN_LOWER_BOUND..=FRAME_LEN_UPPER_BOUND).contains(&elem) {
+          if (MAX_FRAME_LEN_LOWER_BOUND..=MAX_FRAME_LEN_UPPER_BOUND).contains(&elem) {
             *max_frame_size = Some(elem);
           } else {
             return Err(crate::http2::ErrorCode::ProtocolError.into());
@@ -192,16 +188,19 @@ impl SettingsFrame {
     if enable_connect_protocol.is_some() {
       *len = len.wrapping_add(6);
     }
-    for _ in [
-      header_table_size,
-      initial_window_size,
-      max_concurrent_streams,
-      max_frame_size,
-      max_header_list_size,
-    ]
-    .into_iter()
-    .flatten()
-    {
+    if header_table_size.is_some() {
+      *len = len.wrapping_add(6);
+    }
+    if initial_window_size.is_some() {
+      *len = len.wrapping_add(6);
+    }
+    if max_concurrent_streams.is_some() {
+      *len = len.wrapping_add(6);
+    }
+    if max_frame_size.is_some() {
+      *len = len.wrapping_add(6);
+    }
+    if max_header_list_size.is_some() {
       *len = len.wrapping_add(6);
     }
 
@@ -218,9 +217,9 @@ impl SettingsFrame {
     self.header_table_size = elem;
   }
 
-  pub(crate) fn set_initial_window_size(&mut self, elem: Option<u32>) {
+  pub(crate) fn set_initial_window_size(&mut self, elem: Option<U31>) {
     Self::update_len(&mut self.len, self.initial_window_size, elem);
-    self.initial_window_size = elem.map(|val| val.clamp(0, U31::MAX.u32()));
+    self.initial_window_size = elem.map(|val| val);
   }
 
   pub(crate) fn set_max_concurrent_streams(&mut self, elem: Option<u32>) {
@@ -230,7 +229,8 @@ impl SettingsFrame {
 
   pub(crate) fn set_max_frame_size(&mut self, elem: Option<u32>) {
     Self::update_len(&mut self.len, self.max_frame_size, elem);
-    self.max_frame_size = elem.map(|val| val.clamp(FRAME_LEN_LOWER_BOUND, FRAME_LEN_UPPER_BOUND));
+    self.max_frame_size =
+      elem.map(|val| val.clamp(MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND));
   }
 
   pub(crate) fn set_max_header_list_size(&mut self, elem: Option<u32>) {
@@ -256,7 +256,7 @@ impl SettingsFrame {
 enum Setting {
   EnableConnectProtocol(bool),
   HeaderTableSize(u32),
-  InitialWindowSize(u32),
+  InitialWindowSize(U31),
   MaxConcurrentStreams(u32),
   MaxFrameSize(u32),
   MaxHeaderListSize(u32),
@@ -272,7 +272,7 @@ impl Setting {
     Ok(match id {
       1 => Self::HeaderTableSize(value),
       3 => Self::MaxConcurrentStreams(value),
-      4 => Self::InitialWindowSize(value),
+      4 => Self::InitialWindowSize(U31::from_u32(value)),
       5 => Self::MaxFrameSize(value),
       6 => Self::MaxHeaderListSize(value),
       8 => Self::EnableConnectProtocol(value != 0),

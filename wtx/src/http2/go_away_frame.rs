@@ -28,7 +28,7 @@ impl GoAwayFrame {
     };
     Ok(Self {
       error_code: u32::from_be_bytes([*e, *f, *g, *h]).try_into()?,
-      last_stream_id: U31::new(u32::from_be_bytes([*a, *b, *c, *d])),
+      last_stream_id: U31::from_u32(u32::from_be_bytes([*a, *b, *c, *d])),
     })
   }
 }

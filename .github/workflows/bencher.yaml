@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   benchmark_with_bencher:
@@ -11,12 +12,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: bencherdev/bencher@main
       - name: Track Benchmarks with Bencher
-        continue-on-error: true
         run: |
-          bencher run \
-            --branch main \
-            --err \
-            --project wtx \
-            --testbed ubuntu-latest \
-            --token "${{ secrets.BENCHER_API_TOKEN }}" \
-            "cargo bench --all-features"
+          set +e
+          set +o pipefail
+
+          function fun() {
+            bencher run \
+              --branch main \
+              --err \
+              --project wtx \
+              --testbed ubuntu-latest \
+              --token "${{ secrets.BENCHER_API_TOKEN }}" \
+              "cargo bench --all-features"
+            return $?
+          }
+
+          fun
+          echo $?
+          exit 0
+          

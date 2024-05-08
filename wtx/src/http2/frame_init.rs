@@ -32,7 +32,7 @@ impl FrameInit {
     Ok(Self {
       data_len: u32::from_be_bytes([0, a, b, c]),
       flags: e,
-      stream_id: U31::new(u32::from_be_bytes([f, g, h, i])),
+      stream_id: U31::from_u32(u32::from_be_bytes([f, g, h, i])),
       ty: d.try_into()?,
     })
   }

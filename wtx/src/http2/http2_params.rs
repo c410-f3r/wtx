@@ -1,15 +1,16 @@
 use crate::http2::{
-  SettingsFrame, BODY_LEN_DEFAULT, BUFFERED_FRAMES_NUM_DEFAULT, CACHED_HEADERS_LEN_DEFAULT,
-  EXPANDED_HEADERS_LEN_DEFAULT, FRAME_LEN_DEFAULT, FRAME_LEN_LOWER_BOUND, FRAME_LEN_UPPER_BOUND,
-  INITIAL_WINDOW_LEN_DEFAULT, RAPID_RESETS_NUM_DEFAULT, READ_BUFFER_LEN_DEFAULT,
-  STREAMS_NUM_DEFAULT, U31,
+  SettingsFrame, MAX_BODY_LEN, MAX_BUFFERED_FRAMES_NUM, MAX_CACHED_HEADERS_LEN,
+  MAX_EXPANDED_HEADERS_LEN, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND,
+  MAX_RAPID_RESETS_NUM, MAX_STREAMS_NUM, READ_BUFFER_LEN, U31,
 };
 
-/// Tells how connections and streams should behave.
+/// Indicates to a remote peer the receiving parameters of a connection as well as its streams.
+///
+/// Also states some configurations for local structures.
 #[derive(Debug)]
 pub struct Http2Params {
   enable_connect_protocol: bool,
-  initial_window_len: u32,
+  initial_window_len: U31,
   max_body_len: u32,
   max_buffered_frames_num: u8,
   max_cached_headers_len: (u32, u32),
@@ -26,42 +27,47 @@ impl Http2Params {
   /// Allows the execution of other protocols like WebSockets within HTTP/2 connections. At the
   /// current time this parameter has no effect.
   ///
-  /// Defaults to `false`.
+  /// Corresponds to `SETTINGS_ENABLE_CONNECT_PROTOCOL`. Defaults to `false`.
   pub fn enable_connect_protocol(&self) -> bool {
     self.enable_connect_protocol
   }
 
-  /// Initial window length.
+  /// Initial window length
   ///
   /// The initial amount of "credit" a counterpart can have for sending data.
   ///
-  /// Corresponds to `SETTINGS_INITIAL_WINDOW_SIZE`. Defaults to 512 KiB. Capped within
-  /// 0 ~ (2^31 - 1) bytes
-  pub fn initial_window_len(&self) -> u32 {
+  /// Corresponds to `SETTINGS_INITIAL_WINDOW_SIZE`. Capped within 0 ~ (2^31 - 1) bytes. Defaults
+  /// to
+  #[doc = concat!(initial_window_len!())]
+  /// bytes.
+  pub fn initial_window_len(&self) -> U31 {
     self.initial_window_len
   }
 
-  /// Maximum request/response body length.
+  /// Maximum request/response body length
   ///
-  /// Or the maximum size allowed for the sum of the length of all data frames. Also servers as an
-  /// upper bound for the window size of a stream.
+  /// Or the maximum size allowed for the sum of the length of all data frames.
   ///
-  /// Defaults to 4 MiB.
+  /// Defaults to
+  #[doc = concat!(max_body_len!())]
+  /// bytes.
   pub fn max_body_len(&self) -> u32 {
     self.max_body_len
   }
 
-  /// Maximum number of buffered frames per stream.
+  /// Maximum number of buffered frames per stream
   ///
   /// An implementation detail. Due to the concurrent nature of the HTTP/2 specification, it is
   /// necessary to temporally store received frames into an intermediary structure.
   ///
-  /// Defaults to 16 frames.
+  /// Defaults to
+  #[doc = concat!(max_buffered_frames_num!())]
+  /// bytes.
   pub fn max_buffered_frames_num(&self) -> u8 {
     self.max_buffered_frames_num
   }
 
-  /// Maximum cached headers length.
+  /// Maximum cached headers length
   ///
   /// Related to HPACK, indicates the maximum length of the structure that holds cached decoded
   /// headers received from a counterpart.
@@ -71,41 +77,57 @@ impl Http2Params {
   /// - The second parameter indicates the maximum local HPACK ***encoder*** length. In other words,
   ///   it doesn't allow external actors to dictate very large lengths.
   ///
-  /// Corresponds to `SETTINGS_HEADER_TABLE_SIZE`. Defaults to 8 KiB.
+  /// Corresponds to `SETTINGS_HEADER_TABLE_SIZE`. Defaults to
+  #[doc = concat!(max_cached_headers_len!())]
+  /// bytes.
   pub fn max_cached_headers_len(&self) -> (u32, u32) {
     self.max_cached_headers_len
   }
 
-  /// Maximum expanded headers length.
+  /// Maximum expanded headers length
   ///
   /// Or the maximum length of the final Request/Response header. Contents may or may not originate
   /// from the HPACK structure that holds cached decoded headers.
   ///
-  /// Corresponds to `SETTINGS_MAX_HEADER_LIST_SIZE`. Defaults to 4 KiB.
+  /// Corresponds to `SETTINGS_MAX_HEADER_LIST_SIZE`. Defaults to
+  #[doc = concat!(max_expanded_headers_len!())]
+  /// bytes.
   pub fn max_expanded_headers_len(&self) -> u32 {
     self.max_expanded_headers_len
   }
 
-  /// Maximum frame length.
+  /// Maximum frame length
   ///
   /// Avoids the reading of very large frames sent by external actors.
   ///
-  /// Corresponds to `SETTINGS_MAX_FRAME_SIZE`. Defaults to 1 MiB. Capped within 16 KiB ~ 16 MiB
+  /// Corresponds to `SETTINGS_MAX_FRAME_SIZE`. Capped within
+  #[doc = concat!(max_frame_len_lower_bound!())]
+  /// ~
+  #[doc = concat!(max_frame_len_upper_bound!())]
+  /// bytes. Defaults to
+  #[doc = concat!(max_frame_len!())]
+  /// bytes.
   pub fn max_frame_len(&self) -> u32 {
     self.max_frame_len
   }
 
-  /// Maximum number of rapid resets.
+  /// Maximum number of rapid resets
   ///
   /// A rapid reset happens when a peer sends an initial header followed by a RST_STREAM frame. This
   /// parameter is used to avoid CVE-2023-44487.
+  ///
+  /// Defaults to
+  #[doc = concat!(max_rapid_resets_num!())]
+  /// rapid resets.
   pub fn max_rapid_resets_num(&self) -> u8 {
     self.max_rapid_resets_num
   }
 
-  /// Maximum number of active concurrent streams.
+  /// Maximum number of active concurrent streams
   ///
-  /// Corresponds to `SETTINGS_MAX_CONCURRENT_STREAMS`. Defaults to 1073741824 streams.
+  /// Corresponds to `SETTINGS_MAX_CONCURRENT_STREAMS`. Defaults to
+  #[doc = concat!(max_streams_num!())]
+  /// streams
   pub fn max_streams_num(&self) -> u32 {
     self.max_streams_num
   }
@@ -114,14 +136,16 @@ impl Http2Params {
   ///
   /// Allocated space intended to read bytes sent by external actors.
   ///
-  /// Defaults to 4 MiB.
+  /// Defaults to
+  #[doc = concat!(read_buffer_len!())]
+  /// streams
   pub fn read_buffer_len(&self) -> u32 {
     self.read_buffer_len
   }
 
   /// Mutable version of [Self::initial_window_len].
-  pub fn set_initial_window_len(&mut self, value: u32) -> &mut Self {
-    self.initial_window_len = value.clamp(0, U31::MAX.u32());
+  pub fn set_initial_window_len(&mut self, value: U31) -> &mut Self {
+    self.initial_window_len = value;
     self
   }
 
@@ -151,7 +175,7 @@ impl Http2Params {
 
   /// Mutable version of [Self::max_frame_len].
   pub fn set_max_frame_len(&mut self, value: u32) -> &mut Self {
-    self.max_frame_len = value.clamp(FRAME_LEN_LOWER_BOUND, FRAME_LEN_UPPER_BOUND);
+    self.max_frame_len = value.clamp(MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND);
     self
   }
 
@@ -189,15 +213,15 @@ impl Default for Http2Params {
   fn default() -> Self {
     Self {
       enable_connect_protocol: false,
-      initial_window_len: INITIAL_WINDOW_LEN_DEFAULT,
-      max_body_len: BODY_LEN_DEFAULT,
-      max_buffered_frames_num: BUFFERED_FRAMES_NUM_DEFAULT,
-      max_cached_headers_len: (CACHED_HEADERS_LEN_DEFAULT, CACHED_HEADERS_LEN_DEFAULT),
-      max_expanded_headers_len: EXPANDED_HEADERS_LEN_DEFAULT,
-      max_frame_len: FRAME_LEN_DEFAULT,
-      max_rapid_resets_num: RAPID_RESETS_NUM_DEFAULT,
-      max_streams_num: STREAMS_NUM_DEFAULT,
-      read_buffer_len: READ_BUFFER_LEN_DEFAULT,
+      initial_window_len: U31::from_u32(initial_window_len!()),
+      max_body_len: MAX_BODY_LEN,
+      max_buffered_frames_num: MAX_BUFFERED_FRAMES_NUM,
+      max_cached_headers_len: (MAX_CACHED_HEADERS_LEN, MAX_CACHED_HEADERS_LEN),
+      max_expanded_headers_len: MAX_EXPANDED_HEADERS_LEN,
+      max_frame_len: MAX_FRAME_LEN,
+      max_rapid_resets_num: MAX_RAPID_RESETS_NUM,
+      max_streams_num: MAX_STREAMS_NUM,
+      read_buffer_len: READ_BUFFER_LEN,
     }
   }
 }

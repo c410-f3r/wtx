@@ -5,7 +5,7 @@
 $rt rustfmt
 $rt clippy
 
-cargo miri test -p wtx
+MIRIFLAGS="-Zmiri-tree-borrows" cargo miri test -p wtx
 
 # WTX
 
@@ -98,5 +98,4 @@ cargo check --bin autobahn-server --features "async-send,flate2,optimization,poo
 
 cargo check --example database-client-postgres-tokio-rustls --features "_tokio-rustls-client,postgres"
 cargo check --example web-socket-client-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
-cargo check --example web-socket-server-raw-tokio --features "async-send,pool,tokio,web-socket-handshake"
 cargo check --example web-socket-server-raw-tokio-rustls --features "_tokio-rustls-server,web-socket-handshake"

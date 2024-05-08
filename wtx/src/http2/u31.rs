@@ -12,7 +12,11 @@ impl U31 {
   pub(crate) const TWO: Self = Self(2);
   pub(crate) const MAX: Self = Self(2_147_483_647);
 
-  pub(crate) const fn new(value: u32) -> Self {
+  pub(crate) const fn from_i32(value: i32) -> Self {
+    Self(value.unsigned_abs())
+  }
+
+  pub(crate) const fn from_u32(value: u32) -> Self {
     Self(value & MASK)
   }
 
@@ -26,6 +30,10 @@ impl U31 {
 
   pub(crate) const fn to_be_bytes(self) -> [u8; 4] {
     self.0.to_be_bytes()
+  }
+
+  pub(crate) const fn i32(self) -> i32 {
+    self.0 as i32
   }
 
   pub(crate) const fn u32(self) -> u32 {

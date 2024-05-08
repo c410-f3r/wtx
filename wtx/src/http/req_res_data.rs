@@ -1,8 +1,8 @@
 use crate::{http::Headers, misc::Lease};
 
-/// Groups the body and the headers of a response into a single structure.
-pub trait ResponseData {
-  /// See [Self::body]
+/// Groups the body and the headers of an HTTP request/response.
+pub trait ReqResData {
+  /// See [Self::body].
   type Body: ?Sized;
 
   /// Can be a sequence of bytes, a string, a deserialized element or any other desired type.
@@ -12,9 +12,9 @@ pub trait ResponseData {
   fn headers(&self) -> &Headers;
 }
 
-impl<T> ResponseData for &T
+impl<T> ReqResData for &T
 where
-  T: ResponseData,
+  T: ReqResData,
 {
   type Body = T::Body;
 
@@ -29,9 +29,9 @@ where
   }
 }
 
-impl<T> ResponseData for &mut T
+impl<T> ReqResData for &mut T
 where
-  T: ResponseData,
+  T: ReqResData,
 {
   type Body = T::Body;
 
@@ -46,7 +46,35 @@ where
   }
 }
 
-impl<B, H> ResponseData for (B, H)
+impl ReqResData for &[u8] {
+  type Body = [u8];
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    self
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    const { &Headers::new(0) }
+  }
+}
+
+impl<const N: usize> ReqResData for [u8; N] {
+  type Body = [u8; N];
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    self
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    const { &Headers::new(0) }
+  }
+}
+
+impl<B, H> ReqResData for (B, H)
 where
   H: Lease<Headers>,
 {
@@ -64,12 +92,12 @@ where
 }
 
 #[cfg(feature = "http2")]
-impl ResponseData for crate::http2::ReqResBuffer {
+impl ReqResData for crate::http2::ReqResBuffer {
   type Body = [u8];
 
   #[inline]
   fn body(&self) -> &Self::Body {
-    &self.data
+    &self.body
   }
 
   #[inline]
