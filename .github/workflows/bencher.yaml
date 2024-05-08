@@ -1,33 +1,22 @@
-name: Bencher
 on:
-  push:
-    branches:
-      - main
+  schedule:
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 jobs:
   benchmark_with_bencher:
+    name: Continuous Benchmarking with Bencher
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: bencherdev/bencher@main
-      - name: Track Benchmarks with Bencher
+      - name: Track base branch benchmarks with Bencher
         run: |
-          set +e
-          set +o pipefail
-
-          function fun() {
-            bencher run \
-              --branch main \
-              --err \
-              --project wtx \
-              --testbed ubuntu-latest \
-              --token "${{ secrets.BENCHER_API_TOKEN }}" \
-              "cargo bench --all-features"
-            return $?
-          }
-
-          fun
-          echo $?
-          exit 0
-          
+          bencher run \
+            --adapter rust_bench \
+            --branch main \
+            --err \
+            --project wtx \
+            --testbed ubuntu-latest \
+            --token "${{ secrets.BENCHER_API_TOKEN }}" \
+            "cargo bench --all-features"

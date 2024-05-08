@@ -5,8 +5,6 @@ if [ "$ARG" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-## fuzzingclient
-
 cargo build --bin autobahn-server --features async-send,flate2,optimization,pool,tokio,web-socket-handshake --profile bench
 cargo run --bin autobahn-server --features async-send,flate2,optimization,pool,tokio,web-socket-handshake --profile bench & cargo_pid=$!
 sleep 1
@@ -19,7 +17,6 @@ podman run \
 	--network host \
 	--rm \
 	docker.io/crossbario/autobahn-testsuite:0.8.2 wstest -m fuzzingclient -s fuzzingclient.json
-podman rm --force --ignore fuzzingclient
 kill -9 $cargo_pid
 
 if [ $(grep -ci "failed" .scripts/autobahn/reports/fuzzingclient/index.json) -gt 0 ]
