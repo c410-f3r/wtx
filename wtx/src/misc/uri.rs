@@ -16,7 +16,7 @@ pub type UriString = Uri<String>;
 /// ```txt
 /// foo://user:password@hostname:80/path?query=value#hash
 /// ```
-#[derive(Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S> {
   authority_start_idx: u16,
   href_start_idx: u16,
@@ -158,7 +158,7 @@ where
       .unwrap_or_default()
   }
 
-  /// See [UriPartsRef].
+  /// See [UriRef].
   #[inline]
   pub fn to_ref(&self) -> UriRef<'_> {
     UriRef {
@@ -169,7 +169,7 @@ where
     }
   }
 
-  /// See [UriPartsString].
+  /// See [UriString].
   #[inline]
   pub fn to_string(&self) -> UriString {
     UriString {

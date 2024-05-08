@@ -24,14 +24,14 @@ mod hpack_static_headers;
 mod http2_buffer;
 mod http2_data;
 mod http2_params;
+mod http2_params_send;
+mod http2_rslt;
 mod huffman;
 mod huffman_tables;
 mod misc;
 mod ping_frame;
-mod read_frame_rslt;
 mod req_res_buffer;
 mod reset_stream_frame;
-mod send_params;
 mod server_stream;
 mod settings_frame;
 mod stream_state;
@@ -39,12 +39,13 @@ mod stream_state;
 mod tests;
 mod u31;
 mod uri_buffer;
+mod window;
 mod window_update_frame;
 mod write_stream;
 
 use crate::{
   http2::misc::{apply_initial_params, default_stream_frames, read_frame_until_cb_unknown_id},
-  misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream},
+  misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize},
 };
 pub use client_stream::ClientStream;
 pub(crate) use continuation_frame::ContinuationFrame;
@@ -61,9 +62,10 @@ pub(crate) use hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResp
 pub use http2_buffer::Http2Buffer;
 pub(crate) use http2_data::Http2Data;
 pub use http2_params::Http2Params;
+pub use http2_rslt::Http2Rslt;
+pub(crate) use http2_rslt::Http2RsltExt;
 pub(crate) use huffman::{huffman_decode, huffman_encode};
 pub(crate) use ping_frame::PingFrame;
-pub use read_frame_rslt::ReadFrameRslt;
 pub use req_res_buffer::ReqResBuffer;
 pub(crate) use reset_stream_frame::ResetStreamFrame;
 pub use server_stream::ServerStream;
@@ -72,20 +74,19 @@ pub(crate) use stream_state::StreamState;
 use tokio::sync::MutexGuard;
 pub(crate) use u31::U31;
 pub(crate) use uri_buffer::UriBuffer;
+pub(crate) use window::Windows;
 pub(crate) use window_update_frame::WindowUpdateFrame;
 
-pub(crate) const BODY_LEN_DEFAULT: u32 = 4_194_304;
-pub(crate) const BUFFERED_FRAMES_NUM_DEFAULT: u8 = 16;
-pub(crate) const CACHED_HEADERS_LEN_DEFAULT: u32 = 8_192;
-pub(crate) const CACHED_HEADERS_LEN_LOWER_BOUND: u32 = 4_096;
-pub(crate) const EXPANDED_HEADERS_LEN_DEFAULT: u32 = 4_096;
-pub(crate) const FRAME_LEN_DEFAULT: u32 = 1_048_576;
-pub(crate) const FRAME_LEN_LOWER_BOUND: u32 = 16_384;
-pub(crate) const FRAME_LEN_UPPER_BOUND: u32 = 16_777_215;
-pub(crate) const INITIAL_WINDOW_LEN_DEFAULT: u32 = 524_280;
-pub(crate) const RAPID_RESETS_NUM_DEFAULT: u8 = 16;
-pub(crate) const READ_BUFFER_LEN_DEFAULT: u32 = 4_194_304;
-pub(crate) const STREAMS_NUM_DEFAULT: u32 = 1_073_741_824;
+pub(crate) const MAX_BODY_LEN: u32 = max_body_len!();
+pub(crate) const MAX_BUFFERED_FRAMES_NUM: u8 = max_buffered_frames_num!();
+pub(crate) const MAX_CACHED_HEADERS_LEN: u32 = max_cached_headers_len!();
+pub(crate) const MAX_EXPANDED_HEADERS_LEN: u32 = max_expanded_headers_len!();
+pub(crate) const MAX_FRAME_LEN: u32 = max_frame_len!();
+pub(crate) const MAX_FRAME_LEN_LOWER_BOUND: u32 = max_frame_len_lower_bound!();
+pub(crate) const MAX_FRAME_LEN_UPPER_BOUND: u32 = max_frame_len_upper_bound!();
+pub(crate) const MAX_RAPID_RESETS_NUM: u8 = max_rapid_resets_num!();
+pub(crate) const MAX_STREAMS_NUM: u32 = max_streams_num!();
+pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
 
 const ACK_MASK: u8 = 0b0000_0001;
 const EOH_MASK: u8 = 0b0000_0100;
@@ -164,34 +165,43 @@ where
   pub async fn stream(
     &mut self,
     rrb: &mut ReqResBuffer,
-  ) -> crate::Result<ReadFrameRslt<ServerStream<HB, HD, S>>> {
+  ) -> crate::Result<Http2Rslt<ServerStream<HB, HD, S>>> {
     rrb.clear();
-    let mut guard = self.hd.lock().await;
-    if *guard.streams_num_mut() >= guard.hp().max_streams_num() {
-      return Err(crate::Error::ExceedAmountOfActiveConcurrentStreams);
-    }
-    *guard.streams_num_mut() = guard.streams_num_mut().wrapping_add(1);
     let mut stream_state = StreamState::Open;
-    let rfi = rfr_resource_or_return!(
-      guard
-        .read_frames_init(
-          rrb,
-          U31::ZERO,
-          &mut stream_state,
-          |hf| { hf.hsreqh().method.ok_or(crate::Error::MissingRequestMethod) },
-          |data, fi, hp, streams_frames| {
-            read_frame_until_cb_unknown_id(data, fi, hp, streams_frames)
-          }
-        )
-        .await?
+    let mut windows;
+    let rfi = hre_to_hr!(
+      self.hd,
+      |guard| {
+        if *guard.streams_num_mut() >= guard.hp().max_streams_num() {
+          return Err(crate::Error::ExceedAmountOfActiveConcurrentStreams);
+        }
+        rrb.headers.set_max_bytes(*Usize::from(guard.hp().max_cached_headers_len().0));
+        windows = Windows::stream(guard.hp(), guard.hps());
+        guard
+          .read_frames_init(
+            rrb,
+            U31::ZERO,
+            &mut stream_state,
+            &mut windows,
+            |hf| hf.hsreqh().method.ok_or(crate::Error::MissingRequestMethod),
+            |data, fi, hp, streams_frames| {
+              read_frame_until_cb_unknown_id(data, fi, hp, streams_frames)
+            },
+          )
+          .await?
+      },
+      |guard, rfi| {
+        *guard.streams_num_mut() = guard.streams_num_mut().wrapping_add(1);
+        let stream_frame_entry = guard.hb_mut().streams_frames.entry(rfi.stream_id);
+        let _ = stream_frame_entry.or_insert_with(default_stream_frames);
+      }
     );
-    let stream_frame_entry = guard.hb_mut().streams_frames.entry(rfi.stream_id);
-    let _ = stream_frame_entry.or_insert_with(default_stream_frames);
-    Ok(ReadFrameRslt::Resource(ServerStream::new(
+    Ok(Http2Rslt::Resource(ServerStream::new(
       self.hd.clone(),
       _trace_span!("Creating server stream", stream_id = rfi.stream_id.u32()),
       rfi,
       stream_state,
+      windows,
     )))
   }
 }
@@ -223,6 +233,7 @@ where
     if *guard.streams_num_mut() >= guard.send_params_mut().max_streams_num {
       return Err(crate::Error::ExceedAmountOfActiveConcurrentStreams);
     }
+    let windows = Windows::stream(guard.hp(), guard.hps());
     *guard.streams_num_mut() = guard.streams_num_mut().wrapping_add(1);
     let stream_id = self.stream_id;
     self.stream_id = self.stream_id.wrapping_add(U31::TWO);
@@ -231,6 +242,7 @@ where
       self.hd.clone(),
       _trace_span!("Creating client stream", stream_id = stream_id.u32()),
       stream_id,
+      windows,
     ))
   }
 }

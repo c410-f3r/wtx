@@ -18,6 +18,7 @@ pub(crate) struct HeadersFrame<'data> {
 }
 
 impl<'data> HeadersFrame<'data> {
+  #[inline]
   pub(crate) fn new(
     (hsreqh, hsresh): (HpackStaticRequestHeaders<'data>, HpackStaticResponseHeaders),
     stream_id: U31,
@@ -25,30 +26,37 @@ impl<'data> HeadersFrame<'data> {
     Self { flag: 0, hsreqh, hsresh, is_over_size: false, stream_id }
   }
 
+  #[inline]
   pub(crate) fn bytes(&self) -> [u8; 9] {
     FrameInit::new(0, self.flag, self.stream_id, FrameHeaderTy::Headers).bytes()
   }
 
+  #[inline]
   pub(crate) fn hsreqh(&self) -> &HpackStaticRequestHeaders<'data> {
     &self.hsreqh
   }
 
+  #[inline]
   pub(crate) fn hsresh(&self) -> HpackStaticResponseHeaders {
     self.hsresh
   }
 
+  #[inline]
   pub(crate) fn is_eoh(&self) -> bool {
     self.flag & EOH_MASK == EOH_MASK
   }
 
+  #[inline]
   pub(crate) fn is_eos(&self) -> bool {
     self.flag & EOS_MASK == EOS_MASK
   }
 
+  #[inline]
   pub(crate) fn is_over_size(&self) -> bool {
     self.is_over_size
   }
 
+  #[inline]
   pub(crate) fn read<const DO_NOT_PUSH_URI: bool>(
     mut data: &[u8],
     fi: FrameInit,
@@ -205,12 +213,19 @@ impl<'data> HeadersFrame<'data> {
     ))
   }
 
+  #[inline]
   pub(crate) fn set_eoh(&mut self) {
     self.flag |= EOH_MASK;
   }
 
+  #[inline]
   pub(crate) fn set_eos(&mut self) {
     self.flag |= EOS_MASK;
+  }
+
+  #[inline]
+  pub(crate) fn stream_id(&self) -> U31 {
+    self.stream_id
   }
 }
 

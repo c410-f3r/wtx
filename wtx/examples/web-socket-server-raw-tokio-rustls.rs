@@ -6,7 +6,11 @@ mod common;
 use tokio::net::TcpListener;
 use wtx::{
   misc::TokioRustlsAcceptor,
-  web_socket::{FrameBufferVec, WebSocketBuffer},
+  rng::StdRng,
+  web_socket::{
+    handshake::{WebSocketAccept, WebSocketAcceptRaw},
+    FrameBufferVec, OpCode, WebSocketBuffer,
+  },
 };
 
 static CERT: &[u8] = include_bytes!("../../.certs/cert.pem");
@@ -21,14 +25,31 @@ async fn main() {
     let local_acceptor = acceptor.clone();
     let _jh = tokio::spawn(async move {
       let tls_stream = local_acceptor.accept(stream).await.unwrap();
-      common::_accept_conn_and_echo_frames(
-        (),
-        &mut FrameBufferVec::default(),
-        tls_stream,
-        &mut WebSocketBuffer::default(),
-      )
-      .await
-      .unwrap();
+      let fun = || async move {
+        let mut ws = WebSocketAcceptRaw {
+          compression: (),
+          rng: StdRng::default(),
+          stream: tls_stream,
+          wsb: WebSocketBuffer::default(),
+        }
+        .accept(|_| true)
+        .await?;
+        let mut fb = FrameBufferVec::default();
+        loop {
+          let mut frame = ws.read_frame(&mut fb).await?;
+          match frame.op_code() {
+            OpCode::Binary | OpCode::Text => {
+              ws.write_frame(&mut frame).await?;
+            }
+            OpCode::Close => break,
+            _ => {}
+          }
+        }
+        wtx::Result::Ok(())
+      };
+      if let Err(err) = fun().await {
+        eprintln!("{err:?}");
+      }
     });
   }
 }

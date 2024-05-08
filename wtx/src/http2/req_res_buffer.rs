@@ -1,7 +1,7 @@
 use crate::{
-  http::{Headers, Method, RequestRef, Version},
-  http2::{uri_buffer::MAX_URI_LEN, CACHED_HEADERS_LEN_LOWER_BOUND},
-  misc::{ArrayString, ByteVector, UriRef, Usize},
+  http::{Headers, Method, Request, Version},
+  http2::uri_buffer::MAX_URI_LEN,
+  misc::{ArrayString, ByteVector, UriRef},
 };
 use alloc::boxed::Box;
 
@@ -11,32 +11,47 @@ use alloc::boxed::Box;
 #[derive(Debug)]
 pub struct ReqResBuffer {
   /// See [ByteVector].
-  pub data: ByteVector,
+  pub body: ByteVector,
   /// See [Headers].
   pub headers: Headers,
   /// Scheme, authority and path.
   pub uri: Box<ArrayString<{ MAX_URI_LEN }>>,
 }
 
+// For servers, the default headers length must be used until a settings frame is received.
 impl Default for ReqResBuffer {
   fn default() -> Self {
-    let n = *Usize::from(CACHED_HEADERS_LEN_LOWER_BOUND);
-    Self { data: ByteVector::new(), headers: Headers::new(n), uri: Box::new(ArrayString::new()) }
+    Self { body: ByteVector::new(), headers: Headers::new(0), uri: Box::new(ArrayString::new()) }
   }
 }
 
 impl ReqResBuffer {
+  /// Shortcut that avoids having to call `with_capacity` on each field.
+  ///
+  /// Should be used if you are willing to manually push data.
+  pub fn with_capacity(
+    body: usize,
+    headers_bytes: usize,
+    headers_headers: usize,
+    headers_max_bytes: usize,
+  ) -> Self {
+    Self {
+      body: ByteVector::with_capacity(body),
+      headers: Headers::with_capacity(headers_bytes, headers_headers, headers_max_bytes),
+      uri: Box::new(ArrayString::new()),
+    }
+  }
+
   #[inline]
   pub(crate) fn clear(&mut self) {
-    self.data.clear();
+    self.body.clear();
     self.headers.clear();
   }
 
-  /// Shortcut to create a [RequestRef] with inner data.
-  pub fn as_http2_request_ref(&self, method: Method) -> RequestRef<'_, '_, '_, [u8]> {
-    RequestRef {
-      data: &self.data,
-      headers: &self.headers,
+  /// Shortcut to create a [RequestRef] with inner body.
+  pub fn as_http2_request(&self, method: Method) -> Request<(&ByteVector, &Headers), &str> {
+    Request {
+      data: (&self.body, &self.headers),
       method,
       uri: UriRef::new(self.uri.as_str()),
       version: Version::Http2,

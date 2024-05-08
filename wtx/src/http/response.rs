@@ -1,14 +1,9 @@
-use crate::http::{Headers, ResponseData, StatusCode, Version};
-
-/// Shortcut for mutable referenced data.
-pub type ResponseMut<'data, D> = Response<&'data mut D>;
-/// Shortcut for referenced data.
-pub type ResponseRef<'data, D> = Response<&'data D>;
+use crate::http::{Headers, ReqResData, StatusCode, Version};
 
 /// Represents the response from an HTTP request.
 #[derive(Debug)]
 pub struct Response<D> {
-  /// See [ResponseData].
+  /// See [ReqResData].
   pub data: D,
   /// See [StatusCode].
   pub status_code: StatusCode,
@@ -18,7 +13,7 @@ pub struct Response<D> {
 
 impl<D> Response<D>
 where
-  D: ResponseData,
+  D: ReqResData,
 {
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
@@ -36,11 +31,5 @@ where
   #[inline]
   pub fn headers(&self) -> &Headers {
     self.data.headers()
-  }
-
-  /// See [RequestRef].
-  #[inline]
-  pub fn to_ref(&self) -> ResponseRef<'_, D> {
-    ResponseRef { data: &self.data, status_code: self.status_code, version: self.version }
   }
 }

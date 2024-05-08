@@ -1,11 +1,12 @@
 use crate::{
-  http::{Method, RequestMut, Response, ResponseData},
+  http::{Headers, Method, ReqResData, Request, Response},
   http2::{
     http2_data::ReadFramesInit,
-    misc::{send_go_away, send_reset},
+    misc::{send_go_away, send_reset, verify_before_send},
+    window::WindowsPair,
     write_stream::write_stream,
     ErrorCode, GoAwayFrame, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer,
-    Http2Data, ReadFrameRslt, ReqResBuffer, ResetStreamFrame, StreamState, U31,
+    Http2Data, Http2Rslt, Http2RsltExt, ReqResBuffer, ResetStreamFrame, StreamState, Windows, U31,
   },
   misc::{AsyncBounds, ByteVector, Lease, LeaseMut, Lock, RefCounter, Stream, Uri, _Span},
 };
@@ -24,15 +25,17 @@ pub struct ServerStream<HB, HD, S> {
   span: _Span,
   stream_id: U31,
   stream_state: StreamState,
+  windows: Windows,
 }
 
 impl<HB, HD, S> ServerStream<HB, HD, S> {
   #[inline]
-  pub(crate) fn new(
+  pub(crate) const fn new(
     hd: HD,
     span: _Span,
     rfi: ReadFramesInit<Method>,
     stream_state: StreamState,
+    windows: Windows,
   ) -> Self {
     Self {
       hd,
@@ -43,6 +46,7 @@ impl<HB, HD, S> ServerStream<HB, HD, S> {
       span,
       stream_id: rfi.stream_id,
       stream_state,
+      windows,
     }
   }
 }
@@ -64,10 +68,10 @@ where
   pub async fn recv_req<'rrb>(
     &mut self,
     rrb: &'rrb mut ReqResBuffer,
-  ) -> crate::Result<ReadFrameRslt<RequestMut<'rrb, 'rrb, 'rrb, ByteVector>>> {
+  ) -> crate::Result<Http2Rslt<Request<(&'rrb mut ByteVector, &'rrb mut Headers), &'rrb str>>> {
     let _e = self.span._enter();
     _trace!("Receiving request");
-    rfr_until_resource_with_guard!(self.hd, |guard| {
+    hre_to_hr!(self.hd, |guard| {
       guard
         .read_frames_others(
           &mut self.hpack_size,
@@ -75,13 +79,13 @@ where
           rrb,
           self.stream_id,
           &mut self.stream_state,
+          &mut self.windows,
         )
         .await?
     });
     self.stream_state = StreamState::HalfClosedRemote;
-    Ok(ReadFrameRslt::Resource(RequestMut::http2(
-      &mut rrb.data,
-      &mut rrb.headers,
+    Ok(Http2Rslt::Resource(Request::http2(
+      (&mut rrb.body, &mut rrb.headers),
       self.method,
       Uri::new(&*rrb.uri),
     )))
@@ -99,33 +103,46 @@ where
 
   /// Auxiliary high-level method that sends a response.
   #[inline]
-  pub async fn send_res<D>(&mut self, res: Response<D>) -> crate::Result<()>
+  pub async fn send_res<D>(&mut self, res: Response<D>) -> crate::Result<Http2Rslt<()>>
   where
-    D: ResponseData,
+    D: ReqResData,
     D::Body: Lease<[u8]>,
   {
     let _e = self.span._enter();
     _trace!("Sending response");
-    let mut guard = self.hd.lock().await;
-    let (hb, is_conn_open, send_params, stream) = guard.parts_mut();
-    write_stream::<_, false>(
-      res.data.body().lease(),
-      res.data.headers(),
-      &mut hb.hpack_enc,
-      &mut hb.hpack_enc_buffer,
-      (
-        HpackStaticRequestHeaders::EMPTY,
-        HpackStaticResponseHeaders { status_code: Some(res.status_code) },
-      ),
-      *is_conn_open,
-      send_params,
-      stream,
-      self.stream_id,
-      &mut self.stream_state,
-    )
-    .await?;
+    let mut body = res.data.body().lease();
+    let mut hf = {
+      let mut guard = self.hd.lock().await;
+      let (hb, _, _, hps, ..) = guard.parts_mut();
+      verify_before_send::<false>(
+        res.data.headers(),
+        &mut hb.hpack_enc,
+        &mut hb.hpack_enc_buffer,
+        hps,
+        (
+          HpackStaticRequestHeaders::EMPTY,
+          HpackStaticResponseHeaders { status_code: Some(res.status_code) },
+        ),
+        self.stream_id,
+      )?
+    };
+    hre_to_hr!(self.hd, |guard| {
+      let (hb, is_conn_open, _, hps, stream, streams_num, windows) = guard.parts_mut();
+      write_stream::<_, false>(
+        &mut body,
+        &mut hf,
+        &mut hb.hpack_enc_buffer,
+        hps,
+        *is_conn_open,
+        stream,
+        &mut self.stream_state,
+        streams_num,
+        &mut WindowsPair::new(windows, &mut self.windows),
+      )
+      .await?
+    });
     self.stream_state = StreamState::Closed;
-    Ok(())
+    Ok(Http2Rslt::Resource(()))
   }
 
   /// Sends a stream reset to the peer, which cancels this stream.

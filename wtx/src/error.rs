@@ -82,8 +82,10 @@ pub enum Error {
   SmoltcpTcpSendError(smoltcp::socket::tcp::SendError),
   #[cfg(feature = "embedded-tls")]
   TlsError(embedded_tls::TlsError),
+  #[cfg(feature = "tokio")]
+  TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tokio-rustls")]
-  TokioRustLsError(Box<tokio_rustls::rustls::Error>),
+  TokioRustlsError(Box<tokio_rustls::rustls::Error>),
   #[cfg(feature = "_tracing-subscriber")]
   TryInitError(tracing_subscriber::util::TryInitError),
   #[cfg(feature = "std")]
@@ -324,6 +326,8 @@ pub enum Error {
   ExceedAmountOfRapidResets,
   ExceedAmountOfActiveConcurrentStreams,
   VeryLargeHeadersLen,
+  WindowSizeCanNotBeReduced,
+  InvalidStreamState,
 
   // ***** Internal - WebSocket *****
   //
@@ -632,11 +636,19 @@ impl From<embedded_tls::TlsError> for Error {
   }
 }
 
+#[cfg(feature = "tokio")]
+impl From<tokio::task::JoinError> for Error {
+  #[inline]
+  fn from(from: tokio::task::JoinError) -> Self {
+    Self::TokioJoinError(from.into())
+  }
+}
+
 #[cfg(feature = "tokio-rustls")]
 impl From<tokio_rustls::rustls::Error> for Error {
   #[inline]
   fn from(from: tokio_rustls::rustls::Error) -> Self {
-    Self::TokioRustLsError(from.into())
+    Self::TokioRustlsError(from.into())
   }
 }
 

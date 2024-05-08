@@ -17,7 +17,7 @@ where
 
   #[inline]
   pub(crate) fn with_capacity(bytes: usize, headers: usize, max_bytes: usize) -> Self {
-    Self { bq: BlocksQueue::with_capacity(bytes.min(max_bytes), headers), max_bytes }
+    Self { bq: BlocksQueue::with_capacity(headers, bytes.min(max_bytes)), max_bytes }
   }
 
   #[inline]

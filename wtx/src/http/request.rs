@@ -1,21 +1,16 @@
 use crate::{
-  http::{Headers, Method, Version},
+  http::{Headers, Method, ReqResData, Version},
   misc::{Lease, Uri},
 };
 
-/// Shortcut for mutable referenced elements.
-pub type RequestMut<'data, 'headers, 'uri, D> =
-  Request<&'data mut D, &'headers mut Headers, &'headers str>;
-/// Shortcut for referenced elements.
-pub type RequestRef<'data, 'headers, 'uri, D> = Request<&'data D, &'headers Headers, &'headers str>;
+/// A [Request] with a URI composed by a string reference
+pub type RequestStr<'uri, D> = Request<D, &'uri str>;
 
 /// An HTTP request received by a server or to be sent by a client.
 #[derive(Debug)]
-pub struct Request<D, H, U> {
-  /// The payload of the request, which can be nothing.
+pub struct Request<D, U> {
+  /// See [ReqResData].
   pub data: D,
-  /// See [Headers].
-  pub headers: H,
   /// See [Method].
   pub method: Method,
   /// See [Uri].
@@ -24,15 +19,26 @@ pub struct Request<D, H, U> {
   pub version: Version,
 }
 
-impl<D, H, U> Request<D, H, U>
+impl<D, U> Request<D, U>
 where
-  D: Lease<[u8]>,
-  H: Lease<Headers>,
+  D: ReqResData,
   U: Lease<str>,
 {
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
-  pub fn http2(data: D, headers: H, method: Method, uri: Uri<U>) -> Self {
-    Self { data, headers, method, uri, version: Version::Http2 }
+  pub fn http2(data: D, method: Method, uri: Uri<U>) -> Self {
+    Self { data, method, uri, version: Version::Http2 }
+  }
+
+  /// Shortcut to access the body of `data`.
+  #[inline]
+  pub fn body(&self) -> &D::Body {
+    self.data.body()
+  }
+
+  /// Shortcut to access the headers of `data`.
+  #[inline]
+  pub fn headers(&self) -> &Headers {
+    self.data.headers()
   }
 }

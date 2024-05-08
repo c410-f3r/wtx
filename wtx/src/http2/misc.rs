@@ -1,11 +1,14 @@
 use crate::{
+  http::Headers,
   http2::{
-    send_params::SendParams, ErrorCode, FrameHeaderTy, FrameInit, GoAwayFrame, HpackEncoder,
-    Http2Buffer, Http2Params, PingFrame, ReadFrameRslt, ResetStreamFrame, SettingsFrame,
+    http2_params_send::Http2ParamsSend, window::WindowsPair, ErrorCode, FrameHeaderTy, FrameInit,
+    GoAwayFrame, HeadersFrame, HpackEncoder, HpackStaticRequestHeaders, HpackStaticResponseHeaders,
+    Http2Buffer, Http2Params, Http2RsltExt, PingFrame, ResetStreamFrame, SettingsFrame,
     StreamState, WindowUpdateFrame, PAD_MASK, U31,
   },
   misc::{
-    BlocksQueue, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until, _unlikely_elem,
+    BlocksQueue, ByteVector, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until,
+    _unlikely_elem,
   },
 };
 use core::pin::pin;
@@ -30,17 +33,17 @@ pub(crate) async fn read_frame<S>(
   is_conn_open: bool,
   pfb: &mut PartitionedFilledBuffer,
   stream: &mut S,
-) -> crate::Result<ReadFrameRslt<FrameInit>>
+) -> crate::Result<Http2RsltExt<FrameInit>>
 where
   S: Stream,
 {
   if !is_conn_open {
-    return Ok(ReadFrameRslt::ClosedConnection);
+    return Ok(Http2RsltExt::ClosedConnection);
   }
   let mut read = pfb._following_len();
   let buffer = pfb._following_trail_mut();
   let Some(array) = PollOnce(pin!(_read_until::<9, _>(buffer, &mut read, 0, stream))).await else {
-    return Ok(ReadFrameRslt::IdleConnection);
+    return Ok(Http2RsltExt::Idle);
   };
   let fi = FrameInit::from_array(array?)?;
   _trace!("Received frame: {fi:?}");
@@ -67,7 +70,7 @@ where
     *Usize::from(fi.data_len),
     read.wrapping_sub(*Usize::from(frame_len)),
   )?;
-  Ok(ReadFrameRslt::Resource(fi))
+  Ok(Http2RsltExt::Resource(fi))
 }
 
 /// Reads a non-initial frame that corresponds to the desired `stream_id` which is locally stored
@@ -76,15 +79,16 @@ where
 pub(crate) async fn read_frame_others<'rslt, S>(
   hp: &mut Http2Params,
   hpack_enc: &mut HpackEncoder,
+  hps: &mut Http2ParamsSend,
   is_conn_open: &mut bool,
   pfb: &'rslt mut PartitionedFilledBuffer,
-  send_params: &mut SendParams,
   stream: &mut S,
   stream_id: U31,
   stream_state: &mut StreamState,
   streams_frames: &'rslt mut HashMap<U31, BlocksQueue<u8, FrameInit>>,
   streams_num: &mut u32,
-) -> crate::Result<ReadFrameRslt<(FrameInit, &'rslt [u8])>>
+  wp: &mut WindowsPair<'_>,
+) -> crate::Result<Http2RsltExt<(FrameInit, &'rslt [u8])>>
 where
   S: Stream,
 {
@@ -94,19 +98,20 @@ where
       clippy::unwrap_used
     )]
     let (fi, data) = streams_frames.get_mut(&stream_id).unwrap().pop_back().unwrap();
-    return Ok(ReadFrameRslt::Resource((fi, data)));
+    return Ok(Http2RsltExt::Resource((fi, data)));
   }
-  let fi = rfr_resource_or_return!(
+  let fi = hre_resource_or_return!(
     read_frame_until(
       hp,
       hpack_enc,
+      hps,
       is_conn_open,
       pfb,
-      send_params,
       stream,
       stream_id,
       stream_state,
       streams_num,
+      wp,
       |fi, local_hp, data| {
         read_frame_until_cb_known_id(data, fi, local_hp, stream_id, streams_frames)
       },
@@ -115,7 +120,7 @@ where
     .await?
   );
   let rslt = (fi, pfb._current());
-  Ok(ReadFrameRslt::Resource(rslt))
+  Ok(Http2RsltExt::Resource(rslt))
 }
 
 /// Fetches a frame until `cb` yields a positive boolean.
@@ -123,47 +128,49 @@ where
 pub(crate) async fn read_frame_until<S>(
   hp: &mut Http2Params,
   hpack_enc: &mut HpackEncoder,
+  hps: &mut Http2ParamsSend,
   is_conn_open: &mut bool,
   pfb: &mut PartitionedFilledBuffer,
-  send_params: &mut SendParams,
   stream: &mut S,
   stream_id: U31,
   stream_state: &mut StreamState,
   streams_num: &mut u32,
+  wp: &mut WindowsPair<'_>,
   mut loop_cb: impl FnMut(FrameInit, &Http2Params, &[u8]) -> crate::Result<bool>,
   mut reset_cb: impl FnMut(&Http2Params) -> crate::Result<()>,
-) -> crate::Result<ReadFrameRslt<FrameInit>>
+) -> crate::Result<Http2RsltExt<FrameInit>>
 where
   S: Stream,
 {
   for _ in 0.._max_frames_mismatches!() {
-    let fi = rfr_resource_or_return!(read_frame(hp, *is_conn_open, pfb, stream).await?);
+    let fi = hre_resource_or_return!(read_frame(hp, *is_conn_open, pfb, stream).await?);
     if fi.stream_id == U31::ZERO {
       match fi.ty {
         FrameHeaderTy::GoAway => {
           let _ = GoAwayFrame::read(pfb._current(), fi)?;
           let go_away_frame = GoAwayFrame::new(ErrorCode::Cancel, stream_id);
           send_go_away(go_away_frame, (is_conn_open, stream)).await?;
-          return _unlikely_elem(Ok(ReadFrameRslt::ClosedConnection));
+          return _unlikely_elem(Ok(Http2RsltExt::ClosedConnection));
         }
         FrameHeaderTy::Ping => {
           let mut pf = PingFrame::read(pfb._current(), fi)?;
           if !pf.is_ack() {
             pf.set_ack();
-            write_bytes([&pf.bytes()], *is_conn_open, stream).await?;
+            write_array([&pf.bytes()], *is_conn_open, stream).await?;
           }
           continue;
         }
         FrameHeaderTy::Settings => {
           let sf = SettingsFrame::read(pfb._current(), fi)?;
           if !sf.is_ack() {
-            send_params.update(hpack_enc, &sf)?;
-            write_bytes([SettingsFrame::ack().bytes(&mut [0; 45])], *is_conn_open, stream).await?;
+            hps.update(hpack_enc, &sf, wp.conn)?;
+            write_array([SettingsFrame::ack().bytes(&mut [0; 45])], *is_conn_open, stream).await?;
           }
           continue;
         }
         FrameHeaderTy::WindowUpdate => {
-          let _wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
+          let wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
+          wp.conn.send.deposit(wuf.size_increment().i32());
           continue;
         }
         _ => return Err(ErrorCode::ProtocolError.into()),
@@ -175,7 +182,7 @@ where
       return Ok(reset_stream(stream_state, streams_num));
     }
     if loop_cb(fi, hp, pfb._current())? {
-      return Ok(ReadFrameRslt::Resource(fi));
+      return Ok(Http2RsltExt::Resource(fi));
     }
     pfb._clear_if_following_is_empty();
   }
@@ -224,10 +231,10 @@ pub(crate) fn read_frame_until_cb_unknown_id(
 pub(crate) fn reset_stream<H>(
   stream_state: &mut StreamState,
   streams_num: &mut u32,
-) -> ReadFrameRslt<H> {
+) -> Http2RsltExt<H> {
   *stream_state = StreamState::Closed;
   *streams_num = streams_num.wrapping_sub(1);
-  return ReadFrameRslt::ClosedStream;
+  return Http2RsltExt::ClosedStream;
 }
 
 #[inline]
@@ -238,7 +245,7 @@ pub(crate) async fn send_go_away<S>(
 where
   S: Stream,
 {
-  write_bytes([go_away_frame.bytes().as_slice()], *is_conn_open, stream).await?;
+  write_array([go_away_frame.bytes().as_slice()], *is_conn_open, stream).await?;
   *is_conn_open = false;
   Ok(())
 }
@@ -253,7 +260,7 @@ where
   S: Stream,
 {
   *stream_state = StreamState::Closed;
-  write_bytes([reset_frame.bytes().as_slice()], *is_conn_open, stream).await?;
+  write_array([reset_frame.bytes().as_slice()], *is_conn_open, stream).await?;
   Ok(())
 }
 
@@ -275,8 +282,30 @@ pub(crate) fn trim_frame_pad(data: &mut &[u8], flags: u8) -> crate::Result<Optio
 }
 
 #[inline]
-pub(crate) async fn write_bytes<S, const N: usize>(
-  frames: [&[u8]; N],
+pub(crate) fn verify_before_send<'hsreqh, const IS_CLIENT: bool>(
+  headers: &Headers,
+  hpack_enc: &mut HpackEncoder,
+  hpack_enc_buffer: &mut ByteVector,
+  hps: &Http2ParamsSend,
+  (hsreqh, hsresh): (HpackStaticRequestHeaders<'hsreqh>, HpackStaticResponseHeaders),
+  stream_id: U31,
+) -> crate::Result<HeadersFrame<'hsreqh>> {
+  hpack_enc_buffer.clear();
+  if headers.bytes_len() > *Usize::from(hps.max_expanded_headers_len) {
+    return Err(crate::Error::VeryLargeHeadersLen);
+  }
+  hpack_enc_buffer.clear();
+  if IS_CLIENT {
+    hpack_enc.encode(hpack_enc_buffer, hsreqh.iter(), headers.iter())?;
+  } else {
+    hpack_enc.encode(hpack_enc_buffer, hsresh.iter(), headers.iter())?;
+  }
+  Ok(HeadersFrame::new((hsreqh, hsresh), stream_id))
+}
+
+#[inline]
+pub(crate) async fn write_array<S, const N: usize>(
+  array: [&[u8]; N],
   is_conn_open: bool,
   stream: &mut S,
 ) -> crate::Result<()>
@@ -289,7 +318,7 @@ where
   _trace!("Sending frame(s): {:?}", {
     let mut is_prev_init = false;
     let mut rslt = [None; N];
-    for (elem, frame) in rslt.iter_mut().zip(frames.iter()) {
+    for (elem, frame) in rslt.iter_mut().zip(array.iter()) {
       if let ([a, b, c, d, e, f, g, h, i], false) = (frame, is_prev_init) {
         if let Ok(frame_init) = FrameInit::from_array([*a, *b, *c, *d, *e, *f, *g, *h, *i]) {
           is_prev_init = true;
@@ -301,6 +330,6 @@ where
     }
     rslt
   });
-  stream.write_all_vectored(frames).await?;
+  stream.write_all_vectored(array).await?;
   Ok(())
 }

@@ -4,7 +4,7 @@
 mod common;
 
 use wtx::{
-  http::{server::TokioHttp2, Headers, Method, RequestMut, Response, StatusCode},
+  http::{server::TokioHttp2, Headers, Method, RequestStr, Response, StatusCode},
   misc::{from_utf8_basic, ByteVector},
 };
 
@@ -22,15 +22,15 @@ async fn main() {
 }
 
 async fn handle<'buffer>(
-  req: RequestMut<'buffer, 'buffer, 'buffer, ByteVector>,
+  req: RequestStr<'buffer, (&'buffer mut ByteVector, &'buffer mut Headers)>,
 ) -> Result<Response<(&'buffer mut ByteVector, &'buffer mut Headers)>, ()> {
-  req.headers.clear();
-  println!("{}", from_utf8_basic(req.data).unwrap());
+  req.data.1.clear();
+  println!("{}", from_utf8_basic(req.body()).unwrap());
   Ok(match (req.uri.path(), req.method) {
-    ("/", Method::Get) => Response::http2((req.data, req.headers), StatusCode::Ok),
+    ("/", Method::Get) => Response::http2(req.data, StatusCode::Ok),
     _ => {
-      req.data.clear();
-      Response::http2((req.data, req.headers), StatusCode::NotFound)
+      req.data.1.clear();
+      Response::http2(req.data, StatusCode::NotFound)
     }
   })
 }

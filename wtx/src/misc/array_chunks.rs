@@ -1,5 +1,6 @@
 use core::{
   iter::FusedIterator,
+  mem::size_of,
   slice::{self, Iter, IterMut},
 };
 
@@ -33,7 +34,9 @@ macro_rules! create_and_impl {
       /// the slice.
       pub fn new(slice: $slice) -> Self {
         const {
-          assert!(N != 0);
+          if N == 0 || size_of::<T>() == 0 {
+            panic!();
+          }
         }
         let len = slice.len() / N;
         let (multiple_of_n, remainder) = slice.$split_method(len * N);
@@ -42,10 +45,29 @@ macro_rules! create_and_impl {
         Self { iter: arrays.$iter_method(), remainder }
       }
 
-      /// Returns the remainder of the original slice that is not going to be returned by the iterator.
+      /// Owned version of [Self::remainder] that can return mutable or immutable slices.
       #[inline]
       pub fn into_remainder(self) -> $slice {
         self.remainder
+      }
+
+      /// Returns the remainder of the original slice that is not going to be returned by the iterator.
+      #[inline]
+      pub fn remainder(&self) -> &[T] {
+        &self.remainder
+      }
+
+      /// Views the underlying data as a subslice of the original data.
+      #[inline]
+      pub fn slice(&self) -> &[T] {
+        let slice = self.iter.as_slice();
+        // SAFETY: `T` is not a ZST and the slice is already in the same address space 
+        unsafe {
+          slice::from_raw_parts(
+            slice.as_ptr().cast(),
+            slice.len().unchecked_mul(N).unchecked_add(self.remainder.len())
+          )
+        }
       }
     }
 
@@ -121,3 +143,27 @@ create_and_impl!(
   split_at_mut,
   &'slice mut [T]
 );
+
+#[cfg(test)]
+mod tests {
+  use crate::misc::ArrayChunks;
+
+  #[test]
+  fn basic_usage() {
+    let mut iter = ArrayChunks::new(&[1, 2, 3, 4, 5]);
+    assert_eq!(iter.slice(), &[1, 2, 3, 4, 5]);
+    assert_eq!(iter.remainder(), &[5]);
+
+    assert_eq!(iter.next(), Some(&[1, 2]));
+    assert_eq!(iter.slice(), &[3, 4, 5]);
+    assert_eq!(iter.remainder(), &[5]);
+
+    assert_eq!(iter.next(), Some(&[3, 4]));
+    assert_eq!(iter.slice(), &[5]);
+    assert_eq!(iter.remainder(), &[5]);
+
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.slice(), &[5]);
+    assert_eq!(iter.remainder(), &[5]);
+  }
+}
