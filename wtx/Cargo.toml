@@ -82,7 +82,7 @@ smol = { default-features = false, optional = true, version = "2.0" }
 smoltcp = { default-features = false, optional = true, version = "0.11" }
 test-strategy = { default-features = false, optional = true, version = "0.3" }
 tokio = { default-features = false, features = ["io-util", "net", "sync", "time"], optional = true, version = "1.37" }
-tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.25" }
+tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.3" }
