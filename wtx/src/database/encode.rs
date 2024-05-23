@@ -22,6 +22,13 @@ where
   }
 }
 
+impl Encode<()> for &str {
+  #[inline]
+  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: ()) -> Result<(), crate::Error> {
+    Ok(())
+  }
+}
+
 impl<D, T> Encode<D> for &T
 where
   D: Database,

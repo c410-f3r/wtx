@@ -1,6 +1,9 @@
-use crate::database::orm::{
-  truncate_if_ends_with_char, truncate_if_ends_with_str, SelectLimit, SelectOrderBy, SqlWriter,
-  SqlWriterLogic, Table, TableParams,
+use crate::database::{
+  orm::{
+    truncate_if_ends_with_char, truncate_if_ends_with_str, SelectLimit, SelectOrderBy, SqlWriter,
+    SqlWriterLogic, Table, TableParams,
+  },
+  Database,
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -8,7 +11,7 @@ use core::fmt::Write;
 impl<'entity, T> SqlWriterLogic<'entity, T>
 where
   T: Table<'entity>,
-  T::Associations: SqlWriter<Error = T::Error>,
+  T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
 {
   #[inline]
   pub(crate) fn write_select(
@@ -16,8 +19,9 @@ where
     order_by: SelectOrderBy,
     select_limit: SelectLimit,
     table: &TableParams<'entity, T>,
-    where_cb: &mut impl FnMut(&mut String) -> Result<(), T::Error>,
-  ) -> Result<(), T::Error> {
+    where_cb: &mut impl FnMut(&mut String) -> Result<(), <T::Database as Database>::Error>,
+  ) -> Result<(), <T::Database as Database>::Error> {
+    buffer_cmd.clear();
     buffer_cmd.push_str("SELECT ");
     table.write_select_fields(buffer_cmd)?;
     truncate_if_ends_with_char(buffer_cmd, ',');

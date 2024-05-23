@@ -55,7 +55,7 @@ where
         }
         MessageTy::ReadyForQuery => break,
         MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
-        _ => return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag }.into()),
+        _ => return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }.into()),
       }
     }
     if let Some((record_bytes, len)) = data_row_msg_range.and_then(|(len, range)| {
@@ -64,7 +64,7 @@ where
     }) {
       Record::parse(record_bytes, 0..record_bytes.len(), stmt, vb, len).map_err(From::from)
     } else {
-      Err(crate::Error::NoRecord.into())
+      Err(crate::Error::PG_NoRecord.into())
     }
   }
 
@@ -118,7 +118,7 @@ where
       );
     }
     if !is_payload_filled {
-      return Err(crate::Error::UnexpectedBufferState);
+      return Err(crate::Error::MISC_UnexpectedBufferState);
     }
     Ok(())
   }

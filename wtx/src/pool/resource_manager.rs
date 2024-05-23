@@ -105,7 +105,7 @@ pub(crate) mod database {
   #[derive(Debug)]
   pub struct PostgresRM<CF, I, RF> {
     /// Create callback
-    pub cb: fn(&I) -> CF,
+    pub cc: fn(&I) -> CF,
     /// Input
     pub input: I,
     /// Recycle callback
@@ -128,7 +128,7 @@ pub(crate) mod database {
 
     #[inline]
     async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-      (self.cb)(&self.input).await
+      (self.cc)(&self.input).await
     }
 
     #[inline]
@@ -153,27 +153,27 @@ pub(crate) mod database {
 #[cfg(feature = "http2")]
 pub(crate) mod http2 {
   use crate::{
-    http2::{Http2Buffer, ReqResBuffer},
+    http2::{Http2Buffer, StreamBuffer},
     pool::SimpleRM,
     rng::Rng,
   };
 
   /// Manages HTTP/2 resources for clients.
-  pub type Http2ClientBufferRM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer>;
+  pub type Http2ClientBufferRM<RNG, SB> = SimpleRM<crate::Error, RNG, Http2Buffer<SB>>;
   /// Manages HTTP/2 resources for servers.
-  pub type Http2ServerBufferRM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer>;
+  pub type Http2ServerBufferRM<RNG, SB> = SimpleRM<crate::Error, RNG, Http2Buffer<SB>>;
   /// Manages resources for HTTP2 requests and responses.
-  pub type ReqResBufferRM = SimpleRM<crate::Error, (), ReqResBuffer>;
+  pub type StreamBufferRM = SimpleRM<crate::Error, (), StreamBuffer>;
 
-  type Http2RM<RNG> = SimpleRM<crate::Error, RNG, Http2Buffer>;
+  type Http2RM<RNG, SB> = SimpleRM<crate::Error, RNG, Http2Buffer<SB>>;
 
-  impl<RNG> Http2RM<RNG>
+  impl<RNG, SB> Http2RM<RNG, SB>
   where
     RNG: Clone + Rng,
   {
     /// Instance of [Http2ClientRM] or [Http2ServerRM].
     pub fn http2_buffer(rng: RNG) -> Self {
-      fn cb<RNG>(rng: &RNG) -> crate::Result<Http2Buffer>
+      fn cb<RNG, SB>(rng: &RNG) -> crate::Result<Http2Buffer<SB>>
       where
         RNG: Clone + Rng,
       {
@@ -183,11 +183,11 @@ pub(crate) mod http2 {
     }
   }
 
-  impl ReqResBufferRM {
+  impl StreamBufferRM {
     /// Instance of [ReqResBufferRM].
     pub fn req_res_buffer() -> Self {
-      fn cb(_: &()) -> crate::Result<ReqResBuffer> {
-        Ok(ReqResBuffer::default())
+      fn cb(_: &()) -> crate::Result<StreamBuffer> {
+        Ok(StreamBuffer::default())
       }
       Self { cb, input: () }
     }

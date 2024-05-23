@@ -50,6 +50,13 @@ use core::{
 pub(crate) type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
 pub(crate) type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 
+/// Errors of [Queue].
+#[derive(Debug)]
+pub(crate) enum BlocksQueueError {
+  #[doc = doc_single_elem_cap_overflow!()]
+  PushFrontOverflow,
+}
+
 /// A circular buffer where elements are added in one-way blocks that will never intersect
 /// boundaries.
 pub(crate) struct BlocksQueue<D, M> {
@@ -190,7 +197,7 @@ where
     let head = match (left_free >= len, right_free >= len) {
       (true, _) => self.head_lhs(len),
       (false, true) => self.head_rhs(len),
-      (false, false) => return Err(crate::Error::CapacityOverflow),
+      (false, false) => return Err(BlocksQueueError::PushFrontOverflow.into()),
     };
     self.metadata.push_front(BlocksQueueMetadata { begin: head, len, misc })?;
     self.head = head;

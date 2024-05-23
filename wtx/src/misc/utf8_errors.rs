@@ -19,7 +19,7 @@ pub struct BasicUtf8Error;
 impl From<BasicUtf8Error> for crate::Error {
   #[inline]
   fn from(_: BasicUtf8Error) -> Self {
-    Self::InvalidUTF8
+    Self::MISC_InvalidUTF8
   }
 }
 

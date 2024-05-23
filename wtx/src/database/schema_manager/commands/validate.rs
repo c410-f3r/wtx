@@ -82,14 +82,14 @@ where
         Some(Repeatability::Always) => {}
         _ => {
           if is_migration_divergent(db_migrations, migration) {
-            return Err(crate::Error::DivergentMigration(migration.version()));
+            return Err(crate::Error::SM_DivergentMigration(migration.version()));
           }
         }
       }
       migrations_len = migrations_len.saturating_add(1);
     }
     if migrations_len < db_migrations.len() {
-      return Err(crate::Error::DivergentMigrationsNum {
+      return Err(crate::Error::SM_DivergentMigrationsNum {
         expected: db_migrations.len().try_into().unwrap_or(u32::MAX),
         received: migrations_len.try_into().unwrap_or(u32::MAX),
       });

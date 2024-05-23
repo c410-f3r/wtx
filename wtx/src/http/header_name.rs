@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use crate::misc::Lease;
 
 macro_rules! create_statics {
@@ -7,87 +9,143 @@ macro_rules! create_statics {
       $name:ident = $value:literal;
     )*
   ) => {
-    impl HeaderNameStaticBytes {
+    /// A statically known set of header names
+    #[derive(Debug)]
+    pub enum KnownHeaderName {
       $(
         $(#[$mac])*
         #[doc = stringify!($name)]
-        pub const $name: Self = Self::new($value);
+        $name,
       )*
+    }
+
+    impl From<KnownHeaderName> for &[u8] {
+      #[inline]
+      fn from(from: KnownHeaderName) -> Self {
+        $( const $name: &[u8] = $value.as_bytes(); )*
+        match from {
+          $(
+            KnownHeaderName::$name => $name,
+          )*
+        }
+      }
+    }
+
+    impl From<KnownHeaderName> for &str {
+      #[inline]
+      fn from(from: KnownHeaderName) -> Self {
+        match from {
+          $(
+            KnownHeaderName::$name => $value,
+          )*
+        }
+      }
+    }
+
+    impl From<KnownHeaderName> for HeaderNameStaticBytes {
+      #[inline]
+      fn from(from: KnownHeaderName) -> Self {
+        HeaderNameStaticBytes::new(<&[u8]>::from(from))
+      }
+    }
+
+    impl From<KnownHeaderName> for HeaderNameStaticStr {
+      #[inline]
+      fn from(from: KnownHeaderName) -> Self {
+        HeaderNameStaticStr::new(<&str>::from(from))
+      }
+    }
+
+    impl<'bytes> TryFrom<&'bytes [u8]> for KnownHeaderName {
+      type Error = crate::Error;
+
+      #[inline]
+      fn try_from(from: &'bytes [u8]) -> Result<Self, Self::Error> {
+        $( const $name: &[u8] = $value.as_bytes(); )*
+        Ok(match from {
+          $( $name => Self::$name, )*
+          _ => return Err(crate::Error::HTTP_UnknownHeaderNameFromBytes {
+            length: from.len()
+          })
+        })
+      }
     }
   };
 }
 
 create_statics! {
-  ACCEPT = b"accept";
-  ACCEPT_CHARSET = b"accept-charset";
-  ACCEPT_ENCODING = b"accept-encoding";
-  ACCEPT_LANGUAGE = b"accept-language";
-  ACCEPT_RANGES = b"accept-ranges";
-  ACCESS_CONTROL_ALLOW_CREDENTIALS = b"access-control-allow-credentials";
-  ACCESS_CONTROL_ALLOW_HEADERS = b"access-control-allow-headers";
-  ACCESS_CONTROL_ALLOW_METHODS = b"access-control-allow-methods";
-  ACCESS_CONTROL_ALLOW_ORIGIN = b"access-control-allow-origin";
-  ACCESS_CONTROL_EXPOSE_HEADERS = b"access-control-expose-headers";
-  ACCESS_CONTROL_MAX_AGE = b"access-control-max-age";
-  ACCESS_CONTROL_REQUEST_HEADERS = b"access-control-request-headers";
-  ACCESS_CONTROL_REQUEST_METHOD = b"access-control-request-method";
-  AGE = b"age";
-  ALLOW = b"allow";
-  AUTHORIZATION = b"authorization";
-  CACHE_CONTROL = b"cache-control";
-  CLEAR_SITE_DATA = b"clear-site-data";
-  CONNECTION = b"connection";
-  CONTENT_DISPOSITION = b"content-disposition";
-  CONTENT_ENCODING = b"content-encoding";
-  CONTENT_LANGUAGE = b"content-language";
-  CONTENT_LENGTH = b"content-length";
-  CONTENT_LOCATION = b"content-location";
-  CONTENT_MD5 = b"content-md5";
-  CONTENT_RANGE = b"content-range";
-  CONTENT_TYPE = b"content-type";
-  COOKIE = b"cookie";
-  DATE = b"date";
-  ETAG = b"etag";
-  EXPECT = b"expect";
-  EXPIRES = b"expires";
-  FORWARDED = b"forwarded";
-  FROM = b"from";
-  HOST = b"host";
-  IF_MATCH = b"if-match";
-  IF_MODIFIED_SINCE = b"if-modified-since";
-  IF_NONE_MATCH = b"if-none-match";
-  IF_RANGE = b"if-range";
-  IF_UNMODIFIED_SINCE = b"if-unmodified-since";
-  KEEP_ALIVE = b"keep-alive";
-  LAST_MODIFIED = b"last-modified";
-  LINK = b"link";
-  LOCATION = b"location";
-  MAX_FORWARDS = b"max-forwards";
-  ORIGIN = b"origin";
-  PRAGMA = b"pragma";
-  PROXY_AUTHENTICATE = b"proxy-authenticate";
-  PROXY_AUTHORIZATION = b"proxy-authorization";
-  PROXY_CONNECTION = b"proxy-connection";
-  RANGE = b"range";
-  REFERER = b"referer";
-  REFRESH = b"refresh";
-  RETRY_AFTER = b"retry-after";
-  SERVER_TIMING = b"server-timing";
-  SERVER = b"server";
-  SET_COOKIE = b"set-cookie";
-  SOURCE_MAP = b"sourcemap";
-  STRICT_TRANSPORT_SECURITY = b"strict-transport-security";
-  TE = b"te";
-  TIMING_ALLOW_ORIGIN = b"timing-allow-origin";
-  TRACEPARENT = b"traceparent";
-  TRAILER = b"trailer";
-  TRANSFER_ENCODING = b"transfer-encoding";
-  UPGRADE = b"upgrade";
-  USER_AGENT = b"user-agent";
-  VARY = b"vary";
-  VIA = b"via";
-  WARNING = b"warning";
-  WWW_AUTHENTICATE = b"www-authenticate";
+  Accept = "accept";
+  AcceptCharset = "accept-charset";
+  AcceptEncoding = "accept-encoding";
+  AcceptLanguage = "accept-language";
+  AcceptRanges = "accept-ranges";
+  AccessControlAllowCredentials = "access-control-allow-credentials";
+  AccessControlAllowHeaders = "access-control-allow-headers";
+  AccessControlAllowMethods = "access-control-allow-methods";
+  AccessControlAllowOrigin = "access-control-allow-origin";
+  AccessControlExposeHeaders = "access-control-expose-headers";
+  AccessControlMaxAge = "access-control-max-age";
+  AccessControlRequestHeaders = "access-control-request-headers";
+  AccessControlRequestMethod = "access-control-request-method";
+  Age = "age";
+  Allow = "allow";
+  Authorization = "authorization";
+  CacheControl = "cache-control";
+  ClearSiteData = "clear-site-data";
+  Connection = "connection";
+  ContentDisposition = "content-disposition";
+  ContentEncoding = "content-encoding";
+  ContentLanguage = "content-language";
+  ContentLength = "content-length";
+  ContentLocation = "content-location";
+  ContentMd5 = "content-md5";
+  ContentRange = "content-range";
+  ContentType = "content-type";
+  Cookie = "cookie";
+  Date = "date";
+  Etag = "etag";
+  Expect = "expect";
+  Expires = "expires";
+  Forwarded = "forwarded";
+  From = "from";
+  Host = "host";
+  IfMatch = "if-match";
+  IfModifiedSince = "if-modified-since";
+  IfNoneMatch = "if-none-match";
+  IfRange = "if-range";
+  IfUnmodifiedSince = "if-unmodified-since";
+  KeepAlive = "keep-alive";
+  LastModified = "last-modified";
+  Link = "link";
+  Location = "location";
+  MaxForwards = "max-forwards";
+  Origin = "origin";
+  Pragma = "pragma";
+  ProxyAuthenticate = "proxy-authenticate";
+  ProxyAuthorization = "proxy-authorization";
+  ProxyConnection = "proxy-connection";
+  Range = "range";
+  Referer = "referer";
+  Refresh = "refresh";
+  RetryAfter = "retry-after";
+  SecWebsocketVersion = "sec-websocket-version";
+  SecWebsocketKey = "sec-websocket-key";
+  Server = "server";
+  ServerTiming = "server-timing";
+  SetCookie = "set-cookie";
+  SourceMap = "sourcemap";
+  StrictTransportSecurity = "strict-transport-security";
+  Te = "te";
+  TimingAllowOrigin = "timing-allow-origin";
+  Traceparent = "traceparent";
+  Trailer = "trailer";
+  TransferEncoding = "transfer-encoding";
+  Upgrade = "upgrade";
+  UserAgent = "user-agent";
+  Vary = "vary";
+  Via = "via";
+  Warning = "warning";
+  WwwAuthenticate = "www-authenticate";
 }
 
 /// [HeaderName] composed by static bytes.

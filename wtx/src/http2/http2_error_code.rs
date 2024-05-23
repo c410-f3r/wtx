@@ -1,7 +1,7 @@
 create_enum! {
   /// HTTP/2 error codes.
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-  pub enum ErrorCode<u32> {
+  pub enum Http2ErrorCode<u32> {
     /// The associated condition is not a result of an error.
     NoError = (0),
     /// The endpoint detected an unspecific protocol error.
@@ -34,7 +34,7 @@ create_enum! {
     /// The underlying transport has properties that do not meet minimum
     /// security requirements.
     InadequateSecurity = (12),
-    /// The endpoint requires that HTTP/1.1 be used instead of HTTP/2.
+    /// The endpoint requires HTTP/1.1 instead of HTTP/2.
     Http11Requires = (13),
   }
 }

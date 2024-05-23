@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Mandatory headers of a HTTP/2 request
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct HpackStaticRequestHeaders<'bytes> {
   pub(crate) authority: &'bytes [u8],
   pub(crate) method: Option<Method>,

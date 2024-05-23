@@ -1,5 +1,8 @@
-use crate::database::orm::{
-  node_was_already_visited, AuxNodes, SqlValue, SqlWriter, SqlWriterLogic, Table, TableParams,
+use crate::database::{
+  orm::{
+    node_was_already_visited, AuxNodes, SqlValue, SqlWriter, SqlWriterLogic, Table, TableParams,
+  },
+  Database,
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -7,14 +10,14 @@ use core::fmt::Write;
 impl<'entity, T> SqlWriterLogic<'entity, T>
 where
   T: Table<'entity>,
-  T::Associations: SqlWriter<Error = T::Error>,
+  T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
 {
   #[inline]
   pub(crate) fn write_delete(
     aux: &mut AuxNodes,
     buffer_cmd: &mut String,
     table: &TableParams<'entity, T>,
-  ) -> Result<(), T::Error> {
+  ) -> Result<(), <T::Database as Database>::Error> {
     if node_was_already_visited(aux, table)? {
       return Ok(());
     }
@@ -26,7 +29,7 @@ where
   fn write_delete_manager(
     buffer_cmd: &mut String,
     table: &TableParams<'entity, T>,
-  ) -> Result<(), T::Error> {
+  ) -> Result<(), <T::Database as Database>::Error> {
     let id_value = if let Some(el) = table.id_field().value() { el } else { return Ok(()) };
     buffer_cmd
       .write_fmt(format_args!("DELETE FROM {} WHERE {}=", T::TABLE_NAME, T::PRIMARY_KEY_NAME))

@@ -145,7 +145,7 @@ where
 }
 
 macro_rules! tuple_impls {
-  ($( ($($T:ident),+) )+) => {
+  ($( ($($T:ident)+) )+) => {
     $(
       impl<DB, $($T),+> RecordValues<DB> for ($( $T, )+)
       where
@@ -193,21 +193,21 @@ macro_rules! tuple_impls {
 
 tuple_impls! {
   (A)
-  (A, B)
-  (A, B, C)
-  (A, B, C, D)
-  (A, B, C, D, E)
-  (A, B, C, D, E, F)
-  (A, B, C, D, E, F, G)
-  (A, B, C, D, E, F, G, H)
-  (A, B, C, D, E, F, G, H, I)
-  (A, B, C, D, E, F, G, H, I, J)
-  (A, B, C, D, E, F, G, H, I, J, K)
-  (A, B, C, D, E, F, G, H, I, J, K, L)
-  (A, B, C, D, E, F, G, H, I, J, K, L, M)
-  (A, B, C, D, E, F, G, H, I, J, K, L, M, N)
-  (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O)
-  (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P)
+  (A B)
+  (A B C)
+  (A B C D)
+  (A B C D E)
+  (A B C D E F)
+  (A B C D E F G)
+  (A B C D E F G H)
+  (A B C D E F G H I)
+  (A B C D E F G H I J)
+  (A B C D E F G H I J K)
+  (A B C D E F G H I J K L)
+  (A B C D E F G H I J K L M)
+  (A B C D E F G H I J K L M N)
+  (A B C D E F G H I J K L M N O)
+  (A B C D E F G H I J K L M N O P)
 }
 
 fn encode<A, D, T>(

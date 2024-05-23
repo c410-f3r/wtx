@@ -182,24 +182,30 @@ mod str {
   }
 }
 
-#[cfg(feature = "tokio")]
-mod tokio {
+#[cfg(feature = "parking_lot")]
+mod parking_lot {
   use crate::misc::{Lease, LeaseMut};
-  use tokio::sync::{MappedMutexGuard, MutexGuard};
+  use parking_lot::MutexGuard;
 
-  impl<T> Lease<T> for MappedMutexGuard<'_, T> {
+  impl<T> Lease<T> for MutexGuard<'_, T> {
     #[inline]
     fn lease(&self) -> &T {
       self
     }
   }
 
-  impl<T> LeaseMut<T> for MappedMutexGuard<'_, T> {
+  impl<T> LeaseMut<T> for MutexGuard<'_, T> {
     #[inline]
     fn lease_mut(&mut self) -> &mut T {
       self
     }
   }
+}
+
+#[cfg(feature = "tokio")]
+mod tokio {
+  use crate::misc::{Lease, LeaseMut};
+  use tokio::sync::MutexGuard;
 
   impl<T> Lease<T> for MutexGuard<'_, T> {
     #[inline]

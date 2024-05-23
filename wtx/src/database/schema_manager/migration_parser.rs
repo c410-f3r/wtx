@@ -50,7 +50,7 @@ where
       if let Ok(db) = db_str.trim().try_into() {
         let is_not_already_inserted = !parsed_migration.cfg.dbs.contains(&db);
         if is_not_already_inserted {
-          parsed_migration.cfg.dbs.try_push(db)?;
+          parsed_migration.cfg.dbs.push(db)?;
         }
       }
     }
@@ -65,7 +65,7 @@ where
   }
 
   if !overall_buffer.contains("-- wtx IN") {
-    return Err(crate::Error::IncompleteSqlFile);
+    return Err(crate::Error::SM_IncompleteSqlFile);
   }
 
   iterations(&mut overall_buffer, &mut br, |str_read| !str_read.contains("-- wtx OUT"))?;
@@ -82,7 +82,7 @@ where
   parsed_migration.sql_out = overall_buffer.trim().into();
 
   if parsed_migration.sql_in.is_empty() {
-    return Err(crate::Error::IncompleteSqlFile);
+    return Err(crate::Error::SM_IncompleteSqlFile);
   }
 
   Ok(parsed_migration)
@@ -103,7 +103,7 @@ where
           let Ok(elem) = str.as_str().try_into() else {
             continue;
           };
-          migration_toml.dbs.try_push(elem)?;
+          migration_toml.dbs.push(elem)?;
         }
       }
       ("repeatability", Expr::String(s)) => {

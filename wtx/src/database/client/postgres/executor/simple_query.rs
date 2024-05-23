@@ -33,7 +33,7 @@ where
           cb(0);
         }
         MessageTy::ReadyForQuery => return Ok(()),
-        _ => return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag }),
+        _ => return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }),
       }
     }
   }

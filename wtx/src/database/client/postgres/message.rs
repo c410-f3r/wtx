@@ -99,7 +99,7 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
           let _ = iter.next()?;
           Some((name, value))
         };
-        let (name, value) = rslt().ok_or(crate::Error::UnexpectedDatabaseMessageBytes)?;
+        let (name, value) = rslt().ok_or(crate::Error::PG_UnexpectedDatabaseMessageBytes)?;
         Self::ParameterStatus(name, value)
       }
       [b'T', _, _, _, _, _a, _b, rest @ ..] => Self::RowDescription(rest),
@@ -109,7 +109,7 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
       [b'n', ..] => Self::NoData,
       [b's', ..] => Self::PortalSuspended,
       [b't', _, _, _, _, _a, _b, rest @ ..] => Self::ParameterDescription(rest),
-      _ => return Err(crate::Error::UnexpectedValueFromBytes { expected: type_name::<Self>() }),
+      _ => return Err(crate::Error::PG_UnexpectedValueFromBytes { expected: type_name::<Self>() }),
     };
     Ok(rslt)
   }

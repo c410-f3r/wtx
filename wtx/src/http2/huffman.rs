@@ -1,5 +1,8 @@
 use crate::{
-  http2::huffman_tables::{DECODED, DECODE_TABLE, ENCODE_TABLE, END_OF_STRING, ERROR},
+  http2::{
+    huffman_tables::{DECODED, DECODE_TABLE, ENCODE_TABLE, END_OF_STRING, ERROR},
+    Http2Error,
+  },
   misc::{ArrayVector, ByteVector, _unreachable},
 };
 
@@ -20,7 +23,7 @@ pub(crate) fn huffman_decode<const N: usize>(
       _unreachable();
     };
     if flags & ERROR == ERROR {
-      return Err(crate::Error::UnexpectedEndingHuffman);
+      return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedEndingHuffman));
     }
     let rslt = (flags & DECODED == DECODED).then_some(byte);
     *curr_state = next_state;
@@ -44,22 +47,22 @@ pub(crate) fn huffman_decode<const N: usize>(
     |elem| {
       let left_nibble = elem >> 4;
       if let Some(byte) = decode_4_bits(&mut curr_state, left_nibble, &mut end_of_string)? {
-        is_ok = wb.try_push(byte).is_ok();
+        is_ok = wb.push(byte).is_ok();
       }
       let right_nibble = elem & 0b0000_1111;
       if let Some(byte) = decode_4_bits(&mut curr_state, right_nibble, &mut end_of_string)? {
-        is_ok = wb.try_push(byte).is_ok();
+        is_ok = wb.push(byte).is_ok();
       }
     }
   );
 
   if !is_ok {
-    return Err(crate::Error::HeaderFieldIsTooLarge);
+    return Err(crate::Error::http2_go_away_generic(Http2Error::HpackDecodingBufferIsTooSmall));
   }
 
   let is_final = curr_state == 0 || end_of_string;
   if !is_final {
-    return Err(crate::Error::UnexpectedEndingHuffman);
+    return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedEndingHuffman));
   }
 
   Ok(())

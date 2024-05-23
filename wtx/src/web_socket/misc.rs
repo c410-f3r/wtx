@@ -69,7 +69,7 @@ fn copy_header_params_to_buffer<const IS_CLIENT: bool>(
     Ok(if IS_CLIENT {
       *second_byte &= 0b0111_1111;
       let [a, b, c, d, ..] = rest else {
-        return Err(crate::Error::InvalidFrameHeaderBounds);
+        return Err(crate::Error::WS_InvalidFrameHeaderBounds);
       };
       *a = 0;
       *b = 0;
@@ -120,7 +120,7 @@ fn copy_header_params_to_buffer<const IS_CLIENT: bool>(
     }
   }
 
-  Err(crate::Error::InvalidFrameHeaderBounds)
+  Err(crate::Error::WS_InvalidFrameHeaderBounds)
 }
 
 fn header_len_from_payload_len<const IS_CLIENT: bool>(payload_len: usize) -> u8 {

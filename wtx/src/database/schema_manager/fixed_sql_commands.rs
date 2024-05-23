@@ -147,7 +147,12 @@ where
     ORDER BY \
       _wtx_migration.version ASC;",
   ))?;
-  executor.simple_entities(buffer_cmd, results, ()).await?;
+  executor
+    .simple_entities(buffer_cmd, (), |result| {
+      results.push(result);
+      Ok(())
+    })
+    .await?;
   buffer_cmd.clear();
   Ok(())
 }

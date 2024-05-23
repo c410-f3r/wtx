@@ -1,16 +1,19 @@
-use core::cmp::Ordering;
+use core::{
+  cmp::Ordering,
+  fmt::{Debug, Display, Formatter},
+};
 
 const MASK: u32 = 0b0111_1111_1111_1111_1111_1111_1111_1111;
 
 /// Unsigned integer that occupies 32 bits but the actual values are composed by 31 bits.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct U31(u32);
 
 impl U31 {
-  pub(crate) const ZERO: Self = Self(0);
+  pub(crate) const MAX: Self = Self(2_147_483_647);
   pub(crate) const ONE: Self = Self(1);
   pub(crate) const TWO: Self = Self(2);
-  pub(crate) const MAX: Self = Self(2_147_483_647);
+  pub(crate) const ZERO: Self = Self(0);
 
   pub(crate) const fn from_i32(value: i32) -> Self {
     Self(value.unsigned_abs())
@@ -42,6 +45,20 @@ impl U31 {
 
   pub(crate) const fn wrapping_add(self, other: Self) -> Self {
     Self(self.0.wrapping_add(other.0))
+  }
+}
+
+impl Debug for U31 {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    <u32 as Debug>::fmt(&self.0, f)
+  }
+}
+
+impl Display for U31 {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    <u32 as Display>::fmt(&self.0, f)
   }
 }
 

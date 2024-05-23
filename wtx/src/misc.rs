@@ -15,7 +15,6 @@ mod generic_time;
 mod incomplete_utf8_char;
 mod lease;
 mod lock;
-mod lock_guard;
 mod mem_transfer;
 mod optimization;
 mod partitioned_filled_buffer;
@@ -37,8 +36,8 @@ mod vector;
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
-pub use array_string::ArrayString;
-pub use array_vector::ArrayVector;
+pub use array_string::{ArrayString, ArrayStringError};
+pub use array_vector::{ArrayVector, ArrayVectorError};
 pub use async_bounds::AsyncBounds;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, ops::Range, time::Duration};
@@ -51,24 +50,23 @@ pub use generic_time::GenericTime;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use lease::{Lease, LeaseMut};
 pub use lock::{Lock, SyncLock};
-pub use lock_guard::LockGuard;
 pub use optimization::*;
 pub use poll_once::PollOnce;
 pub use query_writer::QueryWriter;
-pub use queue::Queue;
+pub use queue::{Queue, QueueError};
 pub use ref_counter::RefCounter;
 pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, TlsStream};
 pub use uri::{Uri, UriArrayString, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
-pub use vector::Vector;
+pub use vector::{Vector, VectorError};
 #[allow(
   // Used by other features
   unused_imports
 )]
 pub(crate) use {
-  blocks_queue::{Block, BlocksQueue},
+  blocks_queue::{Block, BlocksQueue, BlocksQueueError},
   mem_transfer::_shift_bytes,
   partitioned_filled_buffer::PartitionedFilledBuffer,
   span::{_Entered, _Span},
@@ -77,16 +75,12 @@ pub(crate) use {
 /// Vector of bytes
 pub type ByteVector = Vector<u8>;
 
-/// A collection can not insert more elements.
-#[derive(Debug)]
-pub struct CapacityOverflow;
-
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [core::result::Result] context.
 #[inline]
 #[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
-  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>()))
+  opt.ok_or(crate::Error::MISC_NoInnerValue(type_name::<T>()))
 }
 
 /// Sleeps for the specified amount of time.
@@ -226,7 +220,7 @@ where
     let actual_buffer = buffer.get_mut(*read..).unwrap_or_default();
     let local_read = stream.read(actual_buffer).await?;
     if local_read == 0 {
-      return Err(crate::Error::UnexpectedEOF);
+      return Err(crate::Error::MISC_UnexpectedEOF);
     }
     *read = read.wrapping_add(local_read);
   }

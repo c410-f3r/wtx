@@ -1,13 +1,14 @@
 use crate::{
   database::{
     client::postgres::{
+      config::ChannelBinding,
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
-      password, sasl_first, sasl_second, Authentication, Config, Executor, MessageTy,
+      sasl_first, sasl_second, Authentication, Config, Executor, MessageTy,
     },
     Identifier,
   },
   misc::{
-    bytes_split1, from_utf8_basic, ArrayString, ArrayVector, FilledBufferWriter, LeaseMut,
+    bytes_split1, from_utf8_basic, ArrayVector, FilledBufferWriter, LeaseMut,
     PartitionedFilledBuffer, Stream,
   },
   rng::Rng,
@@ -15,7 +16,6 @@ use crate::{
 use alloc::vec::Vec;
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use hmac::{Hmac, Mac};
-use md5::{Digest, Md5};
 use sha2::Sha256;
 
 impl<E, EB, S> Executor<E, EB, S>
@@ -41,36 +41,55 @@ where
     let ExecutorBufferPartsMut { nb, .. } = self.eb.lease_mut().parts_mut();
     let msg0 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
     match msg0.ty {
-      MessageTy::Authentication(Authentication::Md5Password(salt)) => {
-        let hashed = {
-          let mut md5 = Md5::new();
-          md5.update(config.password);
-          md5.update(config.user);
-          let output = md5.finalize_reset();
-          md5.update(ArrayString::<{ 16 * 2 }>::try_from(format_args!("{output:x}"))?.as_str());
-          md5.update(salt);
-          ArrayString::<{ 16 * 2 + 3 }>::try_from(format_args!("md5{:x}", md5.finalize()))?
-        };
-        let mut fbw = FilledBufferWriter::from(&mut *nb);
-        password(&mut fbw, &hashed)?;
-        self.stream.write_all(fbw._curr_bytes()).await?;
-      }
       MessageTy::Authentication(Authentication::Ok) => {
         return Ok(());
       }
       MessageTy::Authentication(Authentication::Sasl(data)) => {
-        let mut has_sasl_plus = false;
+        macro_rules! scram_sha_256 {
+          () => {
+            b"SCRAM-SHA-256"
+          };
+        }
+        macro_rules! scram_sha_256_plus {
+          () => {
+            b"SCRAM-SHA-256-PLUS"
+          };
+        }
+
+        let mut is_scram = false;
+        let mut is_scram_plus = false;
         for elem in bytes_split1(data, b'\0') {
-          if elem == b"SCRAM-SHA-256-PLUS" {
-            has_sasl_plus = true;
+          match elem {
+            scram_sha_256!() => {
+              is_scram = true;
+            }
+            scram_sha_256_plus!() => {
+              is_scram_plus = true;
+            }
+            _ => {}
           }
         }
-        if !has_sasl_plus {
-          return Err(crate::Error::UnknownAuthenticationMethod);
-        }
+        let (method_bytes, method_header) = match (is_scram, is_scram_plus, config.channel_binding)
+        {
+          (false, false, _) => return Err(crate::Error::PG_UnknownAuthenticationMethod),
+          (true, false, ChannelBinding::Disable)
+          | (true, false, ChannelBinding::Prefer)
+          | (true, true, ChannelBinding::Disable) => {
+            (scram_sha_256!().as_slice(), b"n,,".as_slice())
+          }
+          (false, true, ChannelBinding::Prefer)
+          | (false, true, ChannelBinding::Require)
+          | (true, true, ChannelBinding::Prefer)
+          | (true, true, ChannelBinding::Require) => {
+            (scram_sha_256_plus!().as_slice(), b"p=tls-server-end-point,,".as_slice())
+          }
+          (false, true, ChannelBinding::Disable) => return Err(crate::Error::PG_RequiredChannel),
+          (true, false, ChannelBinding::Require) => return Err(crate::Error::PG_MissingChannel),
+        };
         Self::sasl_authenticate(
           config,
           &mut self.is_closed,
+          (method_bytes, method_header),
           nb,
           rng,
           &mut self.stream,
@@ -79,18 +98,19 @@ where
         .await?;
       }
       _ => {
-        return Err(crate::Error::UnexpectedDatabaseMessage { received: msg0.tag });
+        return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg0.tag });
       }
     }
     let msg1 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
     if let MessageTy::Authentication(Authentication::Ok) = msg1.ty {
       Ok(())
     } else {
-      Err(crate::Error::UnexpectedDatabaseMessage { received: msg1.tag })
+      Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg1.tag })
     }
   }
 
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
+    self.eb.lease_mut().nb._expand_buffer(2048);
     loop {
       let ExecutorBufferPartsMut { nb, params, .. } = self.eb.lease_mut().parts_mut();
       let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
@@ -104,15 +124,18 @@ where
         }
         MessageTy::ReadyForQuery => return Ok(()),
         _ => {
-          return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag });
+          return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag });
         }
       }
     }
   }
 
+  // The 'null' case of `tls_server_end_point` is already handled by `method_header`, as such,
+  // it is fine to use an empty slice.
   async fn sasl_authenticate<RNG>(
     config: &Config<'_>,
     is_closed: &mut bool,
+    (method_bytes, method_header): (&[u8], &[u8]),
     nb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
     stream: &mut S,
@@ -121,12 +144,12 @@ where
   where
     RNG: Rng,
   {
-    let tsep_data = tls_server_end_point.ok_or(crate::Error::StreamDoesNotSupportTlsChannels)?;
+    let tsep_data = tls_server_end_point.unwrap_or_default();
     let local_nonce = nonce(rng);
-    nb._expand_buffer(1024);
+    nb._expand_buffer(2048);
     {
       let mut fbw = FilledBufferWriter::from(&mut *nb);
-      sasl_first(&mut fbw, &local_nonce)?;
+      sasl_first(&mut fbw, (method_bytes, method_header), &local_nonce)?;
       stream.write_all(fbw._curr_bytes()).await?;
     }
 
@@ -139,7 +162,7 @@ where
         salt,
       }) = msg.ty
       else {
-        return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag });
+        return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag });
       };
       let mut decoded_salt = [0; 128];
       let n = BASE64_STANDARD.decode_slice(salt, &mut decoded_salt)?;
@@ -159,14 +182,21 @@ where
 
     {
       let mut fbw = FilledBufferWriter::from(&mut *nb);
-      sasl_second(&mut auth_data, &mut fbw, &response_nonce, &salted_password, tsep_data)?;
+      sasl_second(
+        &mut auth_data,
+        &mut fbw,
+        method_header,
+        &response_nonce,
+        &salted_password,
+        tsep_data,
+      )?;
       stream.write_all(fbw._curr_bytes()).await?;
     }
 
     {
       let msg = Self::fetch_msg_from_stream(is_closed, &mut *nb, stream).await?;
       let MessageTy::Authentication(Authentication::SaslFinal(verifier_slice)) = msg.ty else {
-        return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag });
+        return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag });
       };
       let mut buffer = [0; 68];
       let idx = BASE64_STANDARD.decode_slice(verifier_slice, &mut buffer)?;

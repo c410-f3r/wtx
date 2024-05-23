@@ -1,12 +1,13 @@
 use crate::{
   http2::{
-    http2_params_send::Http2ParamsSend, misc::write_array, Http2Params, WindowUpdateFrame, U31,
+    http2_params_send::Http2ParamsSend, misc::write_array, Http2Error, Http2Params,
+    WindowUpdateFrame, U31,
   },
   misc::Stream,
 };
 
 /// A "credit" system used to restrain the exchange of data.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Window {
   applied: i32,
   total: i32,
@@ -14,7 +15,7 @@ pub(crate) struct Window {
 
 impl Window {
   #[inline]
-  pub(crate) fn new(total: i32) -> Self {
+  pub(crate) const fn new(total: i32) -> Self {
     Self { applied: total, total }
   }
 
@@ -24,21 +25,21 @@ impl Window {
   }
 
   #[inline]
-  pub(crate) fn diff(&self) -> i32 {
+  pub(crate) const fn diff(&self) -> i32 {
     self.total.wrapping_sub(self.applied)
-  }
-
-  #[inline]
-  pub(crate) fn is_invalid(&self) -> bool {
-    self.applied <= 0
   }
 
   pub(crate) fn set(&mut self, value: i32) -> crate::Result<()> {
     if value < self.total {
-      return Err(crate::Error::WindowSizeCanNotBeReduced);
+      return Err(crate::Error::http2_go_away_generic(Http2Error::WindowSizeCanNotBeReduced));
     };
     self.total = value;
     Ok(())
+  }
+
+  #[inline]
+  const fn is_invalid(&self) -> bool {
+    self.applied < 0
   }
 
   #[inline]
@@ -47,7 +48,7 @@ impl Window {
   }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Windows {
   /// Parameters used to received data. It is defined locally.
   pub(crate) recv: Window,
@@ -57,9 +58,14 @@ pub(crate) struct Windows {
 }
 
 impl Windows {
+  #[inline]
+  pub(crate) const fn new() -> Self {
+    Self { recv: Window::new(0), send: Window::new(0) }
+  }
+
   /// Used in initial connections. Sending parameters are only known when a settings frame is received.
   #[inline]
-  pub(crate) fn conn(hp: &Http2Params) -> Self {
+  pub(crate) const fn conn(hp: &Http2Params) -> Self {
     Self {
       recv: Window::new(hp.initial_window_len().i32()),
       send: Window::new(initial_window_len!()),
@@ -68,7 +74,7 @@ impl Windows {
 
   /// Used in initial streams.
   #[inline]
-  pub(crate) fn stream(hp: &Http2Params, hps: &Http2ParamsSend) -> Self {
+  pub(crate) const fn stream(hp: &Http2Params, hps: &Http2ParamsSend) -> Self {
     Self {
       recv: Window::new(hp.initial_window_len().i32()),
       send: Window::new(hps.initial_window_len.i32()),
@@ -106,7 +112,7 @@ impl<'any> WindowsPair<'any> {
         let conn_diff = self.conn.recv.diff();
         self.conn.recv.deposit(conn_diff);
         write_array(
-          [&WindowUpdateFrame::new(U31::from_i32(conn_diff), U31::ZERO).bytes()],
+          [&WindowUpdateFrame::new(U31::from_i32(conn_diff), U31::ZERO)?.bytes()],
           is_conn_open,
           stream,
         )
@@ -116,7 +122,7 @@ impl<'any> WindowsPair<'any> {
         let stream_diff = self.stream.recv.diff();
         self.stream.recv.deposit(stream_diff);
         write_array(
-          [&WindowUpdateFrame::new(U31::from_i32(stream_diff), stream_id).bytes()],
+          [&WindowUpdateFrame::new(U31::from_i32(stream_diff), stream_id)?.bytes()],
           is_conn_open,
           stream,
         )
@@ -129,8 +135,8 @@ impl<'any> WindowsPair<'any> {
         self.stream.recv.deposit(stream_diff);
         write_array(
           [
-            &WindowUpdateFrame::new(U31::from_i32(conn_diff), U31::ZERO).bytes(),
-            &WindowUpdateFrame::new(U31::from_i32(stream_diff), stream_id).bytes(),
+            &WindowUpdateFrame::new(U31::from_i32(conn_diff), U31::ZERO)?.bytes(),
+            &WindowUpdateFrame::new(U31::from_i32(stream_diff), stream_id)?.bytes(),
           ],
           is_conn_open,
           stream,

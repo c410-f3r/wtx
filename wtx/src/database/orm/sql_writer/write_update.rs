@@ -1,6 +1,9 @@
-use crate::database::orm::{
-  node_was_already_visited, truncate_if_ends_with_char, AuxNodes, SqlValue, SqlWriter,
-  SqlWriterLogic, Table, TableFields, TableParams,
+use crate::database::{
+  orm::{
+    node_was_already_visited, truncate_if_ends_with_char, AuxNodes, SqlValue, SqlWriter,
+    SqlWriterLogic, Table, TableFields, TableParams,
+  },
+  Database,
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -8,14 +11,14 @@ use core::fmt::Write;
 impl<'entity, T> SqlWriterLogic<'entity, T>
 where
   T: Table<'entity>,
-  T::Associations: SqlWriter<Error = T::Error>,
+  T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
 {
   #[inline]
   pub(crate) fn write_update(
     aux: &mut AuxNodes,
     buffer_cmd: &mut String,
     table: &TableParams<'entity, T>,
-  ) -> Result<(), T::Error> {
+  ) -> Result<(), <T::Database as Database>::Error> {
     if node_was_already_visited(aux, table)? {
       return Ok(());
     }
@@ -27,7 +30,7 @@ where
   fn write_update_manager(
     buffer_cmd: &mut String,
     table: &TableParams<'entity, T>,
-  ) -> Result<(), T::Error> {
+  ) -> Result<(), <T::Database as Database>::Error> {
     let id_value = if let Some(el) = table.id_field().value() { el } else { return Ok(()) };
 
     buffer_cmd.write_fmt(format_args!("UPDATE {} SET ", T::TABLE_NAME)).map_err(From::from)?;

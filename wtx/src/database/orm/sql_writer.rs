@@ -3,12 +3,15 @@ mod write_insert;
 mod write_select;
 mod write_update;
 
-use crate::database::orm::{
-  write_full_select_field, write_select_join, write_select_order_by, AuxNodes, SelectLimit,
-  SelectOrderBy, Table, TableAssociations, TableFields, TableParams, TableSourceAssociation,
+use crate::database::{
+  orm::{
+    write_full_select_field, write_select_join, write_select_order_by, AuxNodes, SelectLimit,
+    SelectOrderBy, Table, TableAssociations, TableFields, TableParams,
+  },
+  Database,
 };
 use alloc::string::String;
-use core::{fmt::Display, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// Writes raw SQL commands
 pub trait SqlWriter {
@@ -19,14 +22,12 @@ pub trait SqlWriter {
   fn write_delete(&self, aux: &mut AuxNodes, buffer_cmd: &mut String) -> Result<(), Self::Error>;
 
   /// Writes an entire INSERT command
-  fn write_insert<V>(
+  fn write_insert(
     &self,
     aux: &mut AuxNodes,
     buffer_cmd: &mut String,
-    table_source_association: &mut Option<TableSourceAssociation<'_, V>>,
-  ) -> Result<(), Self::Error>
-  where
-    V: Display;
+    table_source_association: &mut Option<&'static str>,
+  ) -> Result<(), Self::Error>;
 
   /// Writes an entire SELECT command
   fn write_select(
@@ -59,15 +60,12 @@ impl SqlWriter for () {
   }
 
   #[inline]
-  fn write_insert<V>(
+  fn write_insert(
     &self,
     _: &mut AuxNodes,
     _: &mut String,
-    _: &mut Option<TableSourceAssociation<'_, V>>,
-  ) -> Result<(), Self::Error>
-  where
-    V: Display,
-  {
+    _: &mut Option<&'static str>,
+  ) -> Result<(), Self::Error> {
     Ok(())
   }
 
@@ -106,9 +104,9 @@ impl SqlWriter for () {
 impl<'entity, T> SqlWriter for TableParams<'entity, T>
 where
   T: Table<'entity>,
-  T::Associations: SqlWriter<Error = T::Error>,
+  T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
 {
-  type Error = T::Error;
+  type Error = <T::Database as Database>::Error;
 
   #[inline]
   fn write_delete(&self, aux: &mut AuxNodes, buffer_cmd: &mut String) -> Result<(), Self::Error> {
@@ -116,15 +114,12 @@ where
   }
 
   #[inline]
-  fn write_insert<V>(
+  fn write_insert(
     &self,
     aux: &mut AuxNodes,
     buffer_cmd: &mut String,
-    tsa: &mut Option<TableSourceAssociation<'_, V>>,
-  ) -> Result<(), Self::Error>
-  where
-    V: Display,
-  {
+    tsa: &mut Option<&'static str>,
+  ) -> Result<(), Self::Error> {
     SqlWriterLogic::write_insert(aux, buffer_cmd, self, tsa)
   }
 

@@ -30,6 +30,13 @@ use core::{
   ptr,
 };
 
+/// Errors of [Queue].
+#[derive(Debug)]
+pub enum QueueError {
+  #[doc = doc_single_elem_cap_overflow!()]
+  PushFrontOverflow,
+}
+
 /// A circular buffer where elements are added in only one-way.
 pub struct Queue<D> {
   data: Vector<D>,
@@ -157,9 +164,9 @@ where
   }
 
   #[inline]
-  pub(crate) fn push_front(&mut self, element: D) -> crate::Result<()> {
+  pub(crate) fn push_front(&mut self, element: D) -> Result<(), QueueError> {
     if self.is_full() {
-      return Err(crate::Error::CapacityOverflow);
+      return Err(QueueError::PushFrontOverflow);
     }
     let len = self.data.len();
     self.head = wrap_sub(self.data.capacity(), self.head, 1);

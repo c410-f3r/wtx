@@ -1,31 +1,24 @@
 //! Pool Manager
 
-mod fixed_pool;
 mod resource_manager;
+mod simple_pool;
 
-use crate::misc::LockGuard;
 use core::{future::Future, ops::DerefMut};
-pub use fixed_pool::*;
 #[cfg(feature = "database")]
 pub use resource_manager::database::PostgresRM;
 #[cfg(feature = "http2")]
-pub use resource_manager::http2::{Http2ClientBufferRM, Http2ServerBufferRM, ReqResBufferRM};
+pub use resource_manager::http2::{Http2ClientBufferRM, Http2ServerBufferRM, StreamBufferRM};
 #[cfg(feature = "web-socket")]
 pub use resource_manager::web_socket::WebSocketRM;
 pub use resource_manager::{ResourceManager, SimpleRM};
+pub use simple_pool::*;
 
 /// A pool contains a set of resources that are behind some synchronism mechanism.
 pub trait Pool: Sized {
   /// Result of the [Pool:get] method.
-  type GetRslt<'guard>: DerefMut<Target = Self::Guard<'guard>>
+  type GetElem<'this>: DerefMut
   where
-    Self: 'guard;
-  /// Synchronization mechanism.
-  type Guard<'guard>: LockGuard<'guard, Self::GuardElement>
-  where
-    Self: 'guard;
-  /// The element guarded by the synchronization mechanism.
-  type GuardElement;
+    Self: 'this;
   /// See [ResourceManager].
   type ResourceManager: ResourceManager;
 
@@ -37,20 +30,16 @@ pub trait Pool: Sized {
     &self,
     ca: &<Self::ResourceManager as ResourceManager>::CreateAux,
     ra: &<Self::ResourceManager as ResourceManager>::RecycleAux,
-  ) -> impl Future<Output = Result<Self::GetRslt<'_>, <Self::ResourceManager as ResourceManager>::Error>>;
+  ) -> impl Future<Output = Result<Self::GetElem<'_>, <Self::ResourceManager as ResourceManager>::Error>>;
 }
 
 impl<T> Pool for &T
 where
   T: Pool,
 {
-  type GetRslt<'guard> = T::GetRslt<'guard>
+  type GetElem<'guard> = T::GetElem<'guard>
   where
     Self: 'guard;
-  type Guard<'guard> = T::Guard<'guard>
-  where
-    Self: 'guard;
-  type GuardElement = T::GuardElement;
   type ResourceManager = T::ResourceManager;
 
   #[inline]
@@ -58,7 +47,7 @@ where
     &self,
     ca: &<Self::ResourceManager as ResourceManager>::CreateAux,
     ra: &<Self::ResourceManager as ResourceManager>::RecycleAux,
-  ) -> impl Future<Output = Result<Self::GetRslt<'_>, <Self::ResourceManager as ResourceManager>::Error>>
+  ) -> impl Future<Output = Result<Self::GetElem<'_>, <Self::ResourceManager as ResourceManager>::Error>>
   {
     (**self).get(ca, ra)
   }

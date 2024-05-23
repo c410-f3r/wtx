@@ -183,7 +183,7 @@ mod serde {
             },
             method,
             result: if let Some(elem) = error {
-              Err(crate::Error::JsonRpcResultErr(elem.into()))
+              Err(crate::Error::CAF_JsonRpcResultErr(elem.into()))
             } else {
               Ok(result.ok_or_else(|| serde::de::Error::missing_field("result"))?)
             },
@@ -300,7 +300,7 @@ mod simd_json {
     where
       E: Display + From<crate::Error>,
     {
-      Err(crate::Error::UnsupportedOperation.into())
+      Err(crate::Error::CAF_UnsupportedOperation.into())
     }
   }
 

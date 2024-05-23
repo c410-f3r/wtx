@@ -71,7 +71,7 @@ where
     let mut buf = [0];
     let _ = initial_stream.read(&mut buf).await?;
     if buf[0] != b'S' {
-      return Err(crate::Error::ServerDoesNotSupportEncryption);
+      return Err(crate::Error::PG_ServerDoesNotSupportEncryption);
     }
     let stream = cb(initial_stream).await?;
     let tls_server_end_point = stream.tls_server_end_point()?;
@@ -156,7 +156,7 @@ where
         }
         MessageTy::ReadyForQuery => break,
         MessageTy::DataRow(_) | MessageTy::EmptyQueryResponse => {}
-        _ => return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag }.into()),
+        _ => return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }.into()),
       }
     }
     Ok(rows)
@@ -228,7 +228,7 @@ where
         }
         MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
         _ => {
-          return Err(crate::Error::UnexpectedDatabaseMessage { received: msg.tag }.into());
+          return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }.into());
         }
       }
     }

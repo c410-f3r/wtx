@@ -237,7 +237,7 @@ impl UriString {
   #[inline]
   pub fn push_path(&mut self, args: Arguments<'_>) -> crate::Result<()> {
     if !self.query().is_empty() {
-      return Err(crate::Error::UriCanNotBeOverwritten);
+      return Err(crate::Error::CAF_UriCanNotBeOverwritten);
     }
     self.uri.write_fmt(args)?;
     Ok(())
@@ -247,7 +247,7 @@ impl UriString {
   #[inline]
   pub fn query_writer(&mut self) -> crate::Result<QueryWriter<'_, String>> {
     if !self.query().is_empty() {
-      return Err(crate::Error::UriCanNotBeOverwritten);
+      return Err(crate::Error::CAF_UriCanNotBeOverwritten);
     }
     Ok(QueryWriter::new(&mut self.uri))
   }

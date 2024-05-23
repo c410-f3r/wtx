@@ -166,7 +166,7 @@ where
         .get(payload_start_idx..payload_start_idx.wrapping_add(payload_len))
         .unwrap_or_default();
       if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic(payload).is_err() {
-        return Err(crate::Error::InvalidUTF8);
+        return Err(crate::Error::MISC_InvalidUTF8);
       }
       payload_len
     } else {
@@ -183,7 +183,7 @@ where
                   Some(incomplete_ending_char)
                 }
                 Err(ExtUtf8Error::Invalid { .. }) => {
-                  return Err(crate::Error::InvalidUTF8);
+                  return Err(crate::Error::MISC_InvalidUTF8);
                 }
                 Ok(_) => None,
               })
@@ -413,7 +413,7 @@ where
     if !IS_CLIENT {
       unmask(
         pb._current_mut().get_mut(rfi.header_end_idx..).unwrap_or_default(),
-        rfi.mask.ok_or(crate::Error::MissingFrameMask)?,
+        rfi.mask.ok_or(crate::Error::WS_MissingFrameMask)?,
       );
     }
 
@@ -569,7 +569,7 @@ where
     )
     .await?;
     if self.ct.is_closed() && rfi.op_code != OpCode::Close {
-      return Err(crate::Error::ConnectionClosed);
+      return Err(crate::Error::WS_ConnectionClosed);
     }
     Self::fetch_payload_from_stream(
       &mut self.wsb.lease_mut().nb,
@@ -603,12 +603,12 @@ where
     let rsv3 = first_two[0] & 0b0001_0000;
 
     if rsv2 != 0 || rsv3 != 0 {
-      return Err(crate::Error::InvalidCompressionHeaderParameter);
+      return Err(crate::Error::WS_InvalidCompressionHeaderParameter);
     }
 
     let should_decompress = if nc.rsv1() == 0 {
       if rsv1 != 0 {
-        return Err(crate::Error::InvalidCompressionHeaderParameter);
+        return Err(crate::Error::WS_InvalidCompressionHeaderParameter);
       }
       false
     } else {
@@ -635,13 +635,13 @@ where
     }
 
     if op_code.is_control() && !fin {
-      return Err(crate::Error::UnexpectedFragmentedControlFrame);
+      return Err(crate::Error::WS_UnexpectedFragmentedControlFrame);
     }
     if op_code == OpCode::Ping && payload_len > MAX_CONTROL_FRAME_PAYLOAD_LEN {
-      return Err(crate::Error::VeryLargeControlFrame);
+      return Err(crate::Error::WS_VeryLargeControlFrame);
     }
     if payload_len >= max_payload_len {
-      return Err(crate::Error::VeryLargePayload);
+      return Err(crate::Error::WS_VeryLargePayload);
     }
 
     Ok(ReadFrameInfo {
@@ -673,7 +673,7 @@ where
       );
     }
     if !is_payload_filled {
-      return Err(crate::Error::UnexpectedBufferState);
+      return Err(crate::Error::MISC_UnexpectedBufferState);
     }
     Ok(())
   }
@@ -693,7 +693,7 @@ where
       OpCode::Close if ct.is_open() => {
         match curr_payload {
           [] => {}
-          [_] => return Err(crate::Error::InvalidCloseFrame),
+          [_] => return Err(crate::Error::WS_InvalidCloseFrame),
           [a, b, rest @ ..] => {
             let _ = from_utf8_basic(rest)?;
             let is_not_allowed = !CloseCode::try_from(u16::from_be_bytes([*a, *b]))?.is_allowed();
@@ -711,7 +711,7 @@ where
                 stream,
               )
               .await?;
-              return Err(crate::Error::InvalidCloseFrame);
+              return Err(crate::Error::WS_InvalidCloseFrame);
             }
           }
         }
@@ -752,7 +752,7 @@ where
       let (rslt, remaining) = incomplete.complete(curr_payload);
       match rslt {
         Err(CompletionErr::HasInvalidBytes) => {
-          return Err(crate::Error::InvalidUTF8);
+          return Err(crate::Error::MISC_InvalidUTF8);
         }
         Err(CompletionErr::InsufficientInput) => {
           let _ = iuc.replace(incomplete);
@@ -768,7 +768,7 @@ where
         *iuc = Some(incomplete_ending_char);
       }
       Err(ExtUtf8Error::Invalid { .. }) => {
-        return Err(crate::Error::InvalidUTF8);
+        return Err(crate::Error::MISC_InvalidUTF8);
       }
       Ok(_) => {}
     }
@@ -819,7 +819,7 @@ where
           should_use_db,
         ))?,
         OpCode::Close | OpCode::Continuation | OpCode::Ping | OpCode::Pong => {
-          return Err(crate::Error::UnexpectedMessageFrame);
+          return Err(crate::Error::WS_UnexpectedMessageFrame);
         }
       }
     };
@@ -856,7 +856,7 @@ where
           }
         }
         OpCode::Binary | OpCode::Close | OpCode::Ping | OpCode::Pong | OpCode::Text => {
-          return Err(crate::Error::UnexpectedMessageFrame);
+          return Err(crate::Error::WS_UnexpectedMessageFrame);
         }
       }
     }
@@ -907,7 +907,7 @@ where
       if should_stop {
         match rfi.op_code {
           OpCode::Continuation => {
-            return Err(crate::Error::UnexpectedMessageFrame);
+            return Err(crate::Error::WS_UnexpectedMessageFrame);
           }
           OpCode::Text => {
             let _ = from_utf8_basic(fb.payload())?;

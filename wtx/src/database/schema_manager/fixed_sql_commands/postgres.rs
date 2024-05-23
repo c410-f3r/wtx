@@ -77,8 +77,11 @@ where
       AND n.nspname = 'public'
       AND dep.objid IS NULL
     ",
-      results,
       (),
+      |result| {
+        results.push(result);
+        Ok(())
+      },
     )
     .await
 }
@@ -99,8 +102,11 @@ where
     WHERE
       n.nspname = 'public' AND  t.typtype = 'e'
     ",
-      results,
       (),
+      |result| {
+        results.push(result);
+        Ok(())
+      },
     )
     .await
 }
@@ -130,7 +136,12 @@ where
       AND pg_proc.prokind = '{prokind}'
     ",
   ))?;
-  executor.simple_entities(buffer_cmd.get(before..).unwrap_or_default(), buffer_idents, ()).await?;
+  executor
+    .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
+      buffer_idents.push(result);
+      Ok(())
+    })
+    .await?;
   buffer_cmd.truncate(before);
   Ok(())
 }
@@ -151,8 +162,11 @@ where
       information_schema.sequences
     WHERE
       sequence_schema = 'public'",
-      results,
       (),
+      |result| {
+        results.push(result);
+        Ok(())
+      },
     )
     .await?;
   Ok(())
@@ -161,7 +175,7 @@ where
 #[inline]
 pub(crate) async fn _schemas<E>(
   executor: &mut E,
-  identifiers: &mut Vec<Identifier>,
+  results: &mut Vec<Identifier>,
 ) -> crate::Result<()>
 where
   E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
@@ -177,8 +191,11 @@ where
     AND nspname NOT LIKE 'pg_toast%'
     AND nspname NOT LIKE 'pg_temp_%'
   ",
-      identifiers,
       (),
+      |result| {
+        results.push(result);
+        Ok(())
+      },
     )
     .await
 }
@@ -213,7 +230,12 @@ where
         WHERE inhrelid = (quote_ident(tables.table_schema)||'.'||quote_ident(tables.table_name))::regclass::oid)
       )",
   ))?;
-  executor.simple_entities(buffer_cmd.get(before..).unwrap_or_default(), results, ()).await?;
+  executor
+    .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
+      results.push(result);
+      Ok(())
+    })
+    .await?;
   buffer_cmd.truncate(before);
   Ok(())
 }
@@ -242,8 +264,11 @@ where
       )
       AND dep.objid is null
       AND t.typtype != 'd'",
-      results,
       (),
+      |result| {
+        results.push(result);
+        Ok(())
+      },
     )
     .await
 }
@@ -265,8 +290,11 @@ where
       AND  n.nspname = 'public'
       AND dep.objid IS NULL
     ",
-      results,
       (),
+      |result| {
+        results.push(result);
+        Ok(())
+      },
     )
     .await
 }

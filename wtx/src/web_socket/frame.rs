@@ -83,7 +83,7 @@ where
     let len = header.len();
     let has_valid_header = (MIN_HEADER_LEN_USIZE..=MAX_HDR_LEN_USIZE).contains(&len);
     let (true, Some(first_header_byte)) = (has_valid_header, header.first().copied()) else {
-      return Err(crate::Error::InvalidFrameHeaderBounds);
+      return Err(crate::Error::WS_InvalidFrameHeaderBounds);
     };
     Ok(Self { fb, fin: first_header_byte & 0b1000_0000 != 0, op_code: op_code(first_header_byte)? })
   }

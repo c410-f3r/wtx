@@ -33,8 +33,8 @@
 
 use crate::database::{
   orm::{
-    AuxNodes, FromSuffixRslt, InitialInsertValue, NoTableAssociation, SelectLimit, SelectOrderBy,
-    SqlWriter, Table, TableAssociation, TableAssociationWrapper, TableField, TableParams,
+    AuxNodes, FromSuffixRslt, NoTableAssociation, SelectLimit, SelectOrderBy, SqlWriter, Table,
+    TableAssociation, TableAssociationWrapper, TableField, TableParams,
   },
   TableSuffix,
 };
@@ -56,8 +56,8 @@ impl<'entity> Table<'entity> for A {
   const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "a";
 
-  type Associations = NoTableAssociation<()>;
-  type Error = ();
+  type Associations = NoTableAssociation<crate::Error>;
+  type Database = ();
   type Fields = (TableField<&'entity str>,);
   type PrimaryKeyValue = &'entity i32;
 
@@ -83,7 +83,7 @@ impl<'entity> Table<'entity> for B {
   const TABLE_NAME: &'static str = "b";
 
   type Associations = (TableAssociationWrapper<'entity, A, [TableParams<'entity, A>; 1]>,);
-  type Error = ();
+  type Database = ();
   type Fields = (TableField<&'static str>,);
   type PrimaryKeyValue = &'entity i32;
 
@@ -118,7 +118,7 @@ impl<'entity> Table<'entity> for C {
   const TABLE_NAME: &'static str = "c";
 
   type Associations = (TableAssociationWrapper<'entity, A, [TableParams<'entity, A>; 1]>,);
-  type Error = ();
+  type Database = ();
   type Fields = (TableField<&'static str>,);
   type PrimaryKeyValue = &'entity i32;
 
@@ -157,7 +157,7 @@ impl<'entity> Table<'entity> for D {
     TableAssociationWrapper<'entity, B, [TableParams<'entity, B>; 1]>,
     TableAssociationWrapper<'entity, C, [TableParams<'entity, C>; 1]>,
   );
-  type Error = ();
+  type Database = ();
   type Fields = (TableField<&'static str>,);
   type PrimaryKeyValue = &'entity i32;
 
@@ -199,7 +199,7 @@ fn assert_sizes() {
 }
 
 #[test]
-fn multi_referred_table_has_correct_statements() {
+fn multi_referred_table() {
   let mut buffer = String::new();
   let mut d_table_defs = TableParams::<D>::default();
 
@@ -221,14 +221,12 @@ fn multi_referred_table_has_correct_statements() {
   );
 
   buffer.clear();
-  d_table_defs
-    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
-    .unwrap();
+  d_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
   assert_eq!(
     &buffer,
     // FIXME
     // INSERT INTO "d" (id,name) VALUES ('4','foo4');INSERT INTO "b" (id,name,id_d) VALUES ('2','foo2','4');INSERT INTO "c" (id,name,id_d) VALUES ('3','foo3','4');INSERT INTO "a" (id,name,id_b,id_c) VALUES ('1','foo1','2','3');
-    r#"INSERT INTO "d" (id,name) VALUES ('4','foo4');INSERT INTO "b" (id,name,id_d) VALUES ('2','foo2','4');INSERT INTO "a" (id,name,id_b) VALUES ('1','foo1','2');INSERT INTO "c" (id,name,id_d) VALUES ('3','foo3','4');"#
+    r#"INSERT INTO "d" (id,name) VALUES ($1,$2);INSERT INTO "b" (id,name,id_d) VALUES ($1,$2,$3);INSERT INTO "a" (id,name,id_b) VALUES ($1,$2,$3);INSERT INTO "c" (id,name,id_d) VALUES ($1,$2,$3);"#
   );
 
   buffer.clear();
@@ -240,7 +238,7 @@ fn multi_referred_table_has_correct_statements() {
 }
 
 #[test]
-fn referred_table_has_correct_statements() {
+fn referred_table() {
   let mut buffer = String::new();
   let mut b_table_defs = TableParams::<B>::default();
   b_table_defs
@@ -258,12 +256,10 @@ fn referred_table_has_correct_statements() {
   assert_eq!(&buffer, r#"DELETE FROM a WHERE id='1';DELETE FROM b WHERE id='2';"#);
 
   buffer.clear();
-  b_table_defs
-    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
-    .unwrap();
+  b_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
   assert_eq!(
     &buffer,
-    r#"INSERT INTO "b" (id,name) VALUES ('2','foo2');INSERT INTO "a" (id,name,id_b) VALUES ('1','foo1','2');"#
+    r#"INSERT INTO "b" (id,name) VALUES ($1,$2);INSERT INTO "a" (id,name,id_b) VALUES ($1,$2,$3);"#
   );
 
   buffer.clear();
@@ -275,7 +271,7 @@ fn referred_table_has_correct_statements() {
 }
 
 #[test]
-fn standalone_table_has_correct_statements() {
+fn standalone_table() {
   let mut buffer = String::new();
   let mut a_table_defs = TableParams::<A>::default();
   a_table_defs
@@ -293,10 +289,8 @@ fn standalone_table_has_correct_statements() {
   assert_eq!(&buffer, r#"DELETE FROM a WHERE id='1';"#);
 
   buffer.clear();
-  a_table_defs
-    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
-    .unwrap();
-  assert_eq!(&buffer, r#"INSERT INTO "a" (id,name) VALUES ('1','foo1');"#);
+  a_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
+  assert_eq!(&buffer, r#"INSERT INTO "a" (id,name) VALUES ($1,$2);"#);
 
   buffer.clear();
   a_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();

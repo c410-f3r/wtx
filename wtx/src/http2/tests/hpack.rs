@@ -1,6 +1,6 @@
 use crate::{
   http::StatusCode,
-  http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_CACHED_HEADERS_LEN},
+  http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_HPACK_LEN},
   misc::{from_utf8_basic, ByteVector, Vector},
   rng::StaticRng,
 };
@@ -188,8 +188,8 @@ fn test_story_encoding_and_decoding(
       decoder.set_max_bytes(size);
       encoder.set_max_dyn_sub_bytes(size).unwrap();
     } else {
-      decoder.set_max_bytes(MAX_CACHED_HEADERS_LEN);
-      encoder.set_max_dyn_sub_bytes(MAX_CACHED_HEADERS_LEN).unwrap();
+      decoder.set_max_bytes(MAX_HPACK_LEN);
+      encoder.set_max_dyn_sub_bytes(MAX_HPACK_LEN).unwrap();
     }
 
     let mut pseudo_headers = case
@@ -224,7 +224,7 @@ fn test_story_encoding_and_decoding(
         if header.name.starts_with(":") {
           None
         } else {
-          Some((HpackHeaderBasic::Field, header.name.as_bytes(), header.value.as_bytes(), false))
+          Some((HpackHeaderBasic::Field, header.name.as_bytes(), header.value.as_bytes()))
         }
       })
       .collect::<Vec<_>>();
@@ -233,14 +233,14 @@ fn test_story_encoding_and_decoding(
       .encode(
         buffer,
         pseudo_headers.iter().copied(),
-        user_headers.iter().map(|el| (el.1, el.2, el.3)),
+        user_headers.iter().map(|el| (el.1, el.2).into()),
       )
       .unwrap();
 
     decoder
       .decode(&buffer, |(hhb, name, value)| {
         if pseudo_headers.is_empty() {
-          assert_eq!((hhb, hhb_name(hhb, name), value, false), user_headers.remove(0));
+          assert_eq!((hhb, hhb_name(hhb, name), value), user_headers.remove(0));
         } else {
           assert_eq!((hhb, value), pseudo_headers.remove(0));
         }

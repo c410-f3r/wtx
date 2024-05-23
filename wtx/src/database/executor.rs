@@ -4,7 +4,6 @@ use crate::{
   database::{Database, FromRecord, RecordValues, StmtCmd, TransactionManager},
   misc::AsyncBounds,
 };
-use alloc::vec::Vec;
 use core::future::Future;
 
 /// A connection for executing database commands.
@@ -100,8 +99,8 @@ pub trait Executor {
   fn simple_entities<SV, T>(
     &mut self,
     cmd: &str,
-    results: &mut Vec<T>,
     sv: SV,
+    mut cb: impl AsyncBounds + FnMut(T) -> Result<(), <Self::Database as Database>::Error>,
   ) -> impl AsyncBounds + Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
     SV: AsyncBounds + RecordValues<Self::Database>,
@@ -109,12 +108,8 @@ pub trait Executor {
     for<'any> &'any mut Self: AsyncBounds,
   {
     async move {
-      let _records = self
-        .fetch_many_with_stmt(cmd, sv, |record| {
-          results.push(T::from_record(record)?);
-          Ok(())
-        })
-        .await?;
+      let _records =
+        self.fetch_many_with_stmt(cmd, sv, |record| cb(T::from_record(record)?)).await?;
       Ok(())
     }
   }

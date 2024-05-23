@@ -1,29 +1,38 @@
 use crate::clap::{SchemaManager, SchemaManagerCommands};
 use std::{borrow::Cow, env::current_dir, path::Path};
+use tokio::net::TcpStream;
 use wtx::{
   database::{
+    client::postgres::{Config, Executor, ExecutorBuffer},
     schema_manager::{Commands, DbMigration, SchemaManagement, DEFAULT_CFG_FILE_NAME},
     Identifier, DEFAULT_URI_VAR,
   },
   misc::UriRef,
+  rng::StdRng,
 };
 
 pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
   {
-    let err = std::io::ErrorKind::NotFound;
-    let _path = dotenv::dotenv().map_err(|_err| wtx::Error::IoError(err.into()))?;
+    let _rslt = dotenv::dotenv();
+    wtx::misc::tracing_subscriber_init()?;
   }
-  #[cfg(feature = "schema-manager-dev")]
-  wtx::misc::tracing_subscriber_init()?;
 
   let var = std::env::var(DEFAULT_URI_VAR)?;
   let uri = UriRef::new(&var);
   match uri.schema() {
     "postgres" | "postgresql" => {
-      handle_commands((), sm).await?;
+      let mut rng = StdRng::default();
+      let executor = Executor::connect(
+        &Config::from_uri(&uri)?,
+        ExecutorBuffer::with_default_params(&mut rng),
+        &mut rng,
+        TcpStream::connect(uri.host()).await.map_err(wtx::Error::from)?,
+      )
+      .await?;
+      handle_commands(executor, sm).await?;
     }
-    _ => return Err(wtx::Error::InvalidUrl),
+    _ => return Err(wtx::Error::MISC_InvalidUrl),
   }
   Ok(())
 }

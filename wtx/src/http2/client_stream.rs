@@ -1,78 +1,82 @@
 use crate::{
-  http::{ReqResData, RequestStr, Response},
+  http::{ReqResData, RequestStr, StatusCode},
   http2::{
-    http2_rslt::Http2RsltExt,
-    misc::{send_go_away, send_reset, verify_before_send},
-    window::WindowsPair,
-    write_stream::write_stream,
-    ErrorCode, GoAwayFrame, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer,
-    Http2Data, Http2Rslt, ReqResBuffer, ResetStreamFrame, StreamState, Windows, U31,
+    misc::{send_go_away, send_reset_stream},
+    send_msg::send_msg,
+    HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
+    StreamBuffer, StreamOverallRecvParams, StreamState, Windows, U31,
   },
-  misc::{AsyncBounds, Lease, LeaseMut, Lock, RefCounter, Stream, Usize, _Span},
+  misc::{ByteVector, Lease, LeaseMut, Lock, RefCounter, Stream, Usize, _Span},
 };
-use core::marker::PhantomData;
+use tokio::sync::MutexGuard;
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
-pub struct ClientStream<HB, HD, S> {
+pub struct ClientStream<HD> {
   hd: HD,
-  phantom: PhantomData<(HB, S)>,
   span: _Span,
   stream_id: U31,
-  stream_state: StreamState,
+  // Used after the initial sending
   windows: Windows,
 }
 
-impl<HB, HD, S> ClientStream<HB, HD, S> {
-  pub(crate) const fn idle(hd: HD, span: _Span, stream_id: U31, windows: Windows) -> Self {
-    Self { phantom: PhantomData, hd, span, stream_id, stream_state: StreamState::Idle, windows }
+impl<HD> ClientStream<HD> {
+  pub(crate) const fn new(hd: HD, span: _Span, stream_id: U31) -> Self {
+    Self { hd, span, stream_id, windows: Windows::new() }
   }
 }
 
-impl<HB, HD, S> ClientStream<HB, HD, S>
+impl<HB, HD, S, SB> ClientStream<HD>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<SB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, S, true>>,
-  S: AsyncBounds + Stream,
+  for<'guard> HD::Item: Lock<
+      Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, SB, true>>,
+      Resource = Http2Data<HB, S, SB, true>,
+    > + 'guard,
+  S: Stream,
+  SB: LeaseMut<StreamBuffer>,
 {
-  /// Receive Response
+  /// Awaits for all remaining data to build a response and then closes the stream.
   ///
-  /// Composes all header frames, data frames and trailer frames of an received stream.
-  ///
-  /// Should be called onl once after sending a request.
+  /// Should be called after [Self::send_req] is successfully executed.
   #[inline]
-  pub async fn recv_res<'rrb>(
-    &mut self,
-    rrb: &'rrb mut ReqResBuffer,
-  ) -> crate::Result<Http2Rslt<Response<&'rrb mut ReqResBuffer>>> {
+  pub async fn recv_res(&mut self, mut sb: SB) -> crate::Result<(SB, StatusCode)> {
     let _e = self.span._enter();
     _trace!("Receiving response");
-    rrb.clear();
-    let status_code = hre_to_hr!(self.hd, |guard| {
-      rrb.headers.set_max_bytes(*Usize::from(guard.hp().max_cached_headers_len().0));
-      guard
-        .read_frames_stream(
-          &mut *rrb,
-          self.stream_id,
-          &mut self.stream_state,
-          &mut self.windows,
-          |hf| hf.hsresh().status_code.ok_or(crate::Error::MissingResponseStatusCode),
-        )
-        .await?
+    {
+      let mut guard = self.hd.lock().await;
+      let hdpm = guard.parts_mut();
+      sb.lease_mut().clear();
+      sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_hpack_len().0));
+      drop(hdpm.hb.sorp.insert(
+        self.stream_id,
+        StreamOverallRecvParams {
+          body_len: 0,
+          has_initial_header: false,
+          sb,
+          status_code: StatusCode::Ok,
+          stream_state: StreamState::HalfClosedLocal,
+          windows: self.windows,
+        },
+      ));
+    }
+    process_receipt_loop!(self.hd, |guard| {
+      let hdpm = guard.parts_mut();
+      if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
+        if let Some(sorp) = hdpm.hb.sorp.remove(&self.stream_id) {
+          return Ok((sorp.sb, sorp.status_code));
+        }
+      }
     });
-    self.stream_state = StreamState::Closed;
-    Ok(Http2Rslt::Resource(Response::http2(rrb, status_code)))
   }
 
   /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
   /// streams.
-  pub async fn send_go_away(&mut self, error_code: ErrorCode) -> crate::Result<()> {
-    send_go_away(
-      GoAwayFrame::new(error_code, self.stream_id),
-      self.hd.lock().await.is_conn_open_and_stream_mut(),
-    )
-    .await
+  pub async fn send_go_away(&mut self, error_code: Http2ErrorCode) {
+    let mut guard = self.hd.lock().await;
+    let hdpm = guard.parts_mut();
+    send_go_away(error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await
   }
 
   /// Send Request
@@ -81,61 +85,47 @@ where
   ///
   /// Shouldn't be called more than one time.
   #[inline]
-  pub async fn send_req<D>(&mut self, req: RequestStr<'_, D>) -> crate::Result<Http2Rslt<()>>
+  pub async fn send_req<D>(
+    &mut self,
+    hpack_enc_buffer: &mut ByteVector,
+    req: RequestStr<'_, D>,
+  ) -> crate::Result<()>
   where
     D: ReqResData,
     D::Body: Lease<[u8]>,
   {
     let _e = self.span._enter();
-    _trace!("Sending request");
-    let mut body = req.data.body().lease();
-    let mut hf = {
-      let mut guard = self.hd.lock().await;
-      let (hb, _, _, hps, ..) = guard.parts_mut();
-      verify_before_send::<true>(
-        req.data.headers(),
-        &mut hb.hpack_enc,
-        &mut hb.hpack_enc_buffer,
-        hps,
-        (
-          HpackStaticRequestHeaders {
-            authority: req.uri.authority().as_bytes(),
-            method: Some(req.method),
-            path: req.uri.href().as_bytes(),
-            protocol: None,
-            scheme: req.uri.schema().as_bytes(),
-          },
-          HpackStaticResponseHeaders::EMPTY,
-        ),
-        self.stream_id,
-      )?
-    };
-    hre_to_hr!(self.hd, |guard| {
-      let (hb, is_conn_open, _, hps, stream, streams_num, windows) = guard.parts_mut();
-      write_stream::<_, true>(
-        &mut body,
-        &mut hf,
-        &mut hb.hpack_enc_buffer,
-        hps,
-        *is_conn_open,
-        stream,
-        &mut self.stream_state,
-        streams_num,
-        &mut WindowsPair::new(windows, &mut self.windows),
-      )
-      .await?
-    });
-    self.stream_state = StreamState::HalfClosedLocal;
-    Ok(Http2Rslt::Resource(()))
+    _trace!("Sending response");
+    send_msg::<_, _, _, _, true>(
+      req.data.body().lease(),
+      &self.hd,
+      req.data.headers(),
+      hpack_enc_buffer,
+      (
+        HpackStaticRequestHeaders {
+          authority: req.uri.authority().as_bytes(),
+          method: Some(req.method),
+          path: req.uri.href().as_bytes(),
+          protocol: None,
+          scheme: req.uri.schema().as_bytes(),
+        },
+        HpackStaticResponseHeaders::EMPTY,
+      ),
+      self.stream_id,
+      |hdpm| {
+        if let Some(elem) = hdpm.hb.scrp.remove(&self.stream_id) {
+          self.windows = elem.windows;
+        }
+      },
+    )
+    .await
   }
 
   /// Sends a RST_STREAM frame to the peer, which cancels this stream.
-  pub async fn send_reset(&mut self, error_code: ErrorCode) -> crate::Result<()> {
-    send_reset(
-      ResetStreamFrame::new(error_code, self.stream_id)?,
-      &mut self.stream_state,
-      self.hd.lock().await.is_conn_open_and_stream_mut(),
-    )
-    .await
+  pub async fn send_reset(&mut self, error_code: Http2ErrorCode) -> crate::Result<()> {
+    let mut guard = self.hd.lock().await;
+    let hdpm = guard.parts_mut();
+    send_reset_stream(error_code, &mut hdpm.hb.sorp, self.stream_id, hdpm.stream).await?;
+    Ok(())
   }
 }

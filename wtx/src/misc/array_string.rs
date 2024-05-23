@@ -6,6 +6,19 @@ use core::{
   str,
 };
 
+/// Errors of [ArrayString].
+#[derive(Debug)]
+pub enum ArrayStringError {
+  #[doc = doc_out_of_bounds_params!()]
+  ReplaceHasOutOfBoundsParams,
+  #[doc = doc_bad_format!()]
+  BadFormat,
+  #[doc = doc_single_elem_cap_overflow!()]
+  PushOverflow,
+  #[doc = doc_many_elems_cap_overflow!()]
+  PushStrOverflow,
+}
+
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
 #[derive(Clone, Copy)]
 pub struct ArrayString<const N: usize> {
@@ -52,8 +65,8 @@ impl<const N: usize> ArrayString<N> {
 
   /// Appends an element to the back of the collection.
   #[inline]
-  pub fn push(&mut self, cf: char) -> crate::Result<()> {
-    self.push_bytes(char_slice(&mut [0; 4], cf))
+  pub fn push(&mut self, cf: char) -> Result<(), ArrayStringError> {
+    self.push_bytes(ArrayStringError::PushOverflow, char_slice(&mut [0; 4], cf))
   }
 
   /// Iterates over the slice `other`, copies each element, and then appends
@@ -63,8 +76,8 @@ impl<const N: usize> ArrayString<N> {
   ///
   /// If there is no available capacity.
   #[inline]
-  pub fn push_str(&mut self, str: &str) -> crate::Result<()> {
-    self.push_bytes(str.as_bytes())
+  pub fn push_str(&mut self, str: &str) -> Result<(), ArrayStringError> {
+    self.push_bytes(ArrayStringError::PushStrOverflow, str.as_bytes())
   }
 
   /// How many elements can be added to this collection.
@@ -75,10 +88,10 @@ impl<const N: usize> ArrayString<N> {
 
   /// How many elements can be added to this collection.
   #[inline]
-  pub fn replace(&mut self, start: usize, str: &str) -> crate::Result<()> {
+  pub fn replace(&mut self, start: usize, str: &str) -> Result<(), ArrayStringError> {
     let Some(slice) = start.checked_add(str.len()).and_then(|end| self.data.get_mut(start..end))
     else {
-      return Err(crate::Error::OutOfBoundsArithmetic);
+      return Err(ArrayStringError::ReplaceHasOutOfBoundsParams);
     };
     slice.copy_from_slice(str.as_bytes());
     Ok(())
@@ -90,9 +103,9 @@ impl<const N: usize> ArrayString<N> {
   }
 
   #[inline]
-  fn push_bytes(&mut self, other: &[u8]) -> crate::Result<()> {
+  fn push_bytes(&mut self, error: ArrayStringError, other: &[u8]) -> Result<(), ArrayStringError> {
     let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining() >= *el) else {
-      return Err(crate::Error::CapacityOverflow);
+      return Err(error);
     };
     let begin = *Usize::from(self.len);
     let end = *Usize::from(self.len.wrapping_add(len));
@@ -198,18 +211,18 @@ impl<const N: usize> Ord for ArrayString<N> {
 }
 
 impl<'args, const N: usize> TryFrom<Arguments<'args>> for ArrayString<N> {
-  type Error = crate::Error;
+  type Error = ArrayStringError;
 
   #[inline]
   fn try_from(from: Arguments<'args>) -> Result<Self, Self::Error> {
     let mut v = Self::new();
-    v.write_fmt(from)?;
+    v.write_fmt(from).map_err(|_err| ArrayStringError::BadFormat)?;
     Ok(v)
   }
 }
 
 impl<const N: usize> TryFrom<&str> for ArrayString<N> {
-  type Error = crate::Error;
+  type Error = ArrayStringError;
 
   #[inline]
   fn try_from(from: &str) -> Result<Self, Self::Error> {

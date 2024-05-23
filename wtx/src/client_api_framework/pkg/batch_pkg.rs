@@ -82,7 +82,7 @@ where
     if is_sorted {
       Ok(())
     } else {
-      Err(crate::Error::BatchPackagesAreNotSorted)
+      Err(crate::Error::CAF_BatchPackagesAreNotSorted)
     }
   }
 
@@ -94,7 +94,7 @@ where
     pkgs
       .binary_search_by(|req| req.ext_req_content().borrow().cmp(&eresc_id))
       .ok()
-      .ok_or(crate::Error::ResponseIdIsNotPresentInTheOfSentBatchPackages(eresc_id))
+      .ok_or(crate::Error::CAF_ResponseIdIsNotPresentInTheOfSentBatchPackages(eresc_id))
   }
 }
 

@@ -79,7 +79,7 @@ macro_rules! create_enum {
       fn try_from(from: $n) -> crate::Result<Self> {
         let rslt = match from {
           $($variant_n_fixed => Self::$variant_ident_fixed,)*
-          _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
+          _ => return Err(crate::Error::MISC_UnexpectedUint { received: from.into() }),
         };
         Ok(rslt)
       }
@@ -100,7 +100,7 @@ macro_rules! create_enum {
               Self::$variant_ident_fixed
             },
           )*
-          _ => return Err(crate::Error::UnexpectedString { length: from.len() }),
+          _ => return Err(crate::Error::MISC_UnexpectedString { length: from.len() }),
         };
         Ok(rslt)
       }
@@ -120,7 +120,7 @@ macro_rules! create_enum {
             return Ok(Self::$variant_ident_fixed);
           }
         )*
-        Err(crate::Error::UnexpectedString { length: from.len() })
+        Err(crate::Error::MISC_UnexpectedString { length: from.len() })
       }
     }
   }
@@ -130,6 +130,30 @@ macro_rules! _debug {
   ($($tt:tt)+) => {
     #[cfg(feature = "tracing")]
     tracing::debug!($($tt)+);
+  };
+}
+
+macro_rules! doc_bad_format {
+  () => {
+    "Couldn't create a new instance using `Arguments`."
+  };
+}
+
+macro_rules! doc_many_elems_cap_overflow {
+  () => {
+    "There is no capacity left to insert a set of new elements."
+  };
+}
+
+macro_rules! doc_out_of_bounds_params {
+  () => {
+    "Received parameters lead to outcomes that can't accurately represent the underlying data."
+  };
+}
+
+macro_rules! doc_single_elem_cap_overflow {
+  () => {
+    "There is no capacity left to insert a new element."
   };
 }
 

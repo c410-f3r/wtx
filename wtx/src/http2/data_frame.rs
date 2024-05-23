@@ -1,6 +1,5 @@
-use crate::{
-  http2::{misc::trim_frame_pad, FrameHeaderTy, FrameInit, EOS_MASK, PAD_MASK, U31},
-  misc::_unlikely_elem,
+use crate::http2::{
+  misc::trim_frame_pad, FrameInit, FrameInitTy, Http2Error, EOS_MASK, PAD_MASK, U31,
 };
 
 const FLAG_MASK: u8 = EOS_MASK | PAD_MASK;
@@ -19,7 +18,7 @@ impl DataFrame {
   }
 
   pub(crate) fn bytes(&self) -> [u8; 9] {
-    FrameInit::new(self.data_len.u32(), self.flag, self.stream_id, FrameHeaderTy::Data).bytes()
+    FrameInit::new(self.data_len.u32(), self.flag, self.stream_id, FrameInitTy::Data).bytes()
   }
 
   pub(crate) fn data_len(&self) -> U31 {
@@ -32,12 +31,12 @@ impl DataFrame {
 
   pub(crate) fn read(mut data: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_zero() {
-      return _unlikely_elem(Err(crate::http2::ErrorCode::ProtocolError.into()));
+      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidDataFrameZeroId));
     }
     let flag = fi.flags & FLAG_MASK;
     let pad_len = trim_frame_pad(&mut data, flag)?;
     let Ok(data_len) = u32::try_from(data.len()).map(U31::from_u32) else {
-      return _unlikely_elem(Err(crate::http2::ErrorCode::ProtocolError.into()));
+      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidDataFrameDataLen));
     };
     Ok(Self { data_len, flag, pad_len, stream_id: fi.stream_id })
   }

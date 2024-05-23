@@ -1,26 +1,12 @@
 version: "3"
 
 services:
-    postgres_md5:
+    postgres_scram:
         environment:
             POSTGRES_DB: wtx
-            POSTGRES_HOST_AUTH_METHOD: md5
-            POSTGRES_INITDB_ARGS: --auth-host=md5
             POSTGRES_PASSWORD: wtx
         image: postgres:16
         ports:
             - 5432:5432
-        volumes:
-            - ./../.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh
-
-    postgres_scram:
-        environment:
-            POSTGRES_DB: wtx
-            POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-            POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-            POSTGRES_PASSWORD: wtx
-        image: postgres:16
-        ports:
-            - 5433:5432
         volumes:
             - ./../.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh
