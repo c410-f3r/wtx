@@ -125,7 +125,7 @@ macro_rules! _impl_se_collections {
     for $drsr:ty => $bound:path;
 
     $( array: |$array_self:ident, $array_bytes:ident, $array_drsr:ident| $array_block:block )?
-    $( arrayvec: |$arrayvec_self:ident, $arrayvec_bytes:ident, $arrayvec_drsr:ident| $arrayvec_block:block )?
+    $( arrayvector: |$arrayvector_self:ident, $arrayvector_bytes:ident, $arrayvector_drsr:ident| $arrayvector_block:block )?
     slice_ref: |$slice_ref_self:ident, $slice_ref_bytes:ident, $slice_ref_drsr:ident| $slice_ref_block:block
     vec: |$vec_self:ident, $vec_bytes:ident, $vec_drsr:ident| $vec_block:block
   ) => {
@@ -153,10 +153,10 @@ macro_rules! _impl_se_collections {
       {
         #[inline]
         fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()> {
-          let $arrayvec_self = self;
-          let $arrayvec_bytes = bytes;
-          let $arrayvec_drsr = drsr;
-          $arrayvec_block;
+          let $arrayvector_self = self;
+          let $arrayvector_bytes = bytes;
+          let $arrayvector_drsr = drsr;
+          $arrayvector_block;
           Ok(())
         }
       }

@@ -7,7 +7,7 @@ use std::net::ToSocketAddrs;
 use tokio::net::TcpStream;
 use wtx::{
   http::{Method, RequestStr},
-  http2::{ErrorCode, Http2Buffer, Http2Params, Http2Tokio, ReqResBuffer},
+  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio, StreamBuffer},
   misc::{from_utf8_basic, UriString},
   rng::StaticRng,
 };
@@ -15,6 +15,7 @@ use wtx::{
 #[tokio::main]
 async fn main() {
   let uri = UriString::new(common::_uri_from_args());
+  let mut sb = StreamBuffer::default();
   let mut http2 = Http2Tokio::connect(
     Http2Buffer::new(StaticRng::default()),
     Http2Params::default(),
@@ -24,13 +25,10 @@ async fn main() {
   .unwrap();
   let mut stream = http2.stream().await.unwrap();
   stream
-    .send_req(RequestStr::http2(b"Hello!", Method::Get, uri.to_ref()))
+    .send_req(&mut sb.hpack_enc_buffer, RequestStr::http2(b"Hello!", Method::Get, uri.to_ref()))
     .await
-    .unwrap()
-    .resource()
     .unwrap();
-  let mut rrb = ReqResBuffer::default();
-  let res = stream.recv_res(&mut rrb).await.unwrap().resource().unwrap();
-  println!("{}", from_utf8_basic(res.body()).unwrap());
-  http2.send_go_away(ErrorCode::NoError).await.unwrap();
+  let (res_sb, _status_code) = stream.recv_res(sb).await.unwrap();
+  println!("{}", from_utf8_basic(&res_sb.rrb.body).unwrap());
+  http2.send_go_away(Http2ErrorCode::NoError).await;
 }

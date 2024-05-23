@@ -96,9 +96,17 @@ impl Default for TokioRustlsConnector {
 #[derive(Debug)]
 pub struct TokioRustlsAcceptor {
   _builder: ConfigBuilder<ServerConfig, WantsServerCert>,
+  _is_http2: bool,
 }
 
 impl TokioRustlsAcceptor {
+  /// Erases the set of ALPN protocols when building and then pushes the expected ALPN value for a
+  /// HTTP2 connection.
+  pub fn http2(mut self) -> Self {
+    self._is_http2 = true;
+    self
+  }
+
   /// Sets a single certificate chain and matching private key.
   #[cfg(feature = "rustls-pemfile")]
   pub fn with_cert_chain_and_priv_key(
@@ -106,11 +114,15 @@ impl TokioRustlsAcceptor {
     cert_chain: &[u8],
     priv_key: &[u8],
   ) -> crate::Result<tokio_rustls::TlsAcceptor> {
-    let config = self._builder.with_single_cert(
+    let mut config = self._builder.with_single_cert(
       rustls_pemfile::certs(&mut &*cert_chain).collect::<Result<_, _>>()?,
       rustls_pemfile::private_key(&mut &*priv_key)?
         .ok_or_else(|| invalid_input_err("No private key found"))?,
     )?;
+    if self._is_http2 {
+      config.alpn_protocols.clear();
+      config.alpn_protocols.push("h2".into());
+    }
     Ok(tokio_rustls::TlsAcceptor::from(Arc::new(config)))
   }
 }
@@ -118,7 +130,7 @@ impl TokioRustlsAcceptor {
 impl Default for TokioRustlsAcceptor {
   #[inline]
   fn default() -> Self {
-    Self { _builder: ServerConfig::builder().with_no_client_auth() }
+    Self { _builder: ServerConfig::builder().with_no_client_auth(), _is_http2: false }
   }
 }
 

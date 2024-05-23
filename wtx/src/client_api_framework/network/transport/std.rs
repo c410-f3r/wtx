@@ -111,7 +111,7 @@ where
   if everything_was_sent {
     Ok(())
   } else {
-    Err(crate::Error::CouldNotSendTheFullRequestData.into())
+    Err(crate::Error::CAF_CouldNotSendTheFullRequestData.into())
   }
 }
 

@@ -1,7 +1,7 @@
 use crate::{
   http::server::{TokioWebSocket, _buffers_len},
   misc::FnFut,
-  pool::{FixedPoolTokio, Pool, ResourceManager, WebSocketRM},
+  pool::{Pool, ResourceManager, SimplePoolTokio, WebSocketRM},
   rng::StdRng,
   web_socket::{
     handshake::{WebSocketAccept, WebSocketAcceptRaw},
@@ -12,7 +12,7 @@ use core::{fmt::Debug, net::SocketAddr};
 use std::sync::OnceLock;
 use tokio::net::{TcpListener, TcpStream};
 
-type WebSocketPool = FixedPoolTokio<<WebSocketRM as ResourceManager>::Resource, WebSocketRM>;
+type WebSocketPool = SimplePoolTokio<<WebSocketRM as ResourceManager>::Resource, WebSocketRM>;
 
 impl TokioWebSocket {
   /// Optioned WebSocket server using tokio.
@@ -45,7 +45,7 @@ impl TokioWebSocket {
       let (stream, _) = listener.accept().await?;
       let mut conn_buffer_guard = conn_buffer(buffers_len).await?;
       let _jh = tokio::spawn(async move {
-        let (fb, wsb) = &mut **conn_buffer_guard;
+        let (fb, wsb) = &mut ***conn_buffer_guard;
         let fun = || async move {
           handle((
             fb,
@@ -56,9 +56,7 @@ impl TokioWebSocket {
           .await?;
           Ok::<_, E>(())
         };
-        let rslt = fun().await;
-        drop(conn_buffer_guard.release().await);
-        if let Err(err) = rslt {
+        if let Err(err) = fun().await {
           conn_err(err);
         }
       });
@@ -66,7 +64,7 @@ impl TokioWebSocket {
   }
 }
 
-async fn conn_buffer(len: usize) -> crate::Result<<WebSocketPool as Pool>::GetRslt<'static>> {
+async fn conn_buffer(len: usize) -> crate::Result<<WebSocketPool as Pool>::GetElem<'static>> {
   static POOL: OnceLock<WebSocketPool> = OnceLock::new();
-  POOL.get_or_init(|| FixedPoolTokio::new(len, WebSocketRM::web_socket())).get(&(), &()).await
+  POOL.get_or_init(|| SimplePoolTokio::new(len, WebSocketRM::web_socket())).get(&(), &()).await
 }

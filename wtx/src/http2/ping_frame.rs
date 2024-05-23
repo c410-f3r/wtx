@@ -1,4 +1,4 @@
-use crate::http2::{FrameHeaderTy, FrameInit, ACK_MASK, U31};
+use crate::http2::{FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, ACK_MASK, U31};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct PingFrame {
@@ -8,19 +8,27 @@ pub(crate) struct PingFrame {
 
 impl PingFrame {
   #[inline]
+  pub(crate) fn new(flags: u8, payload: [u8; 8]) -> Self {
+    Self { flags, payload }
+  }
+
+  #[inline]
   pub(crate) fn read(bytes: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
-      return Err(crate::http2::ErrorCode::ProtocolError.into());
+      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidPingFrameNonZeroId));
     }
     let [a, b, c, d, e, f, g, h] = bytes else {
-      return Err(crate::http2::ErrorCode::FrameSizeError.into());
+      return Err(crate::Error::http2_go_away(
+        Http2ErrorCode::FrameSizeError,
+        Http2Error::InvalidPingFrameBytes,
+      ));
     };
-    Ok(Self { flags: fi.flags & ACK_MASK, payload: [*a, *b, *c, *d, *e, *f, *g, *h] })
+    Ok(Self::new(fi.flags & ACK_MASK, [*a, *b, *c, *d, *e, *f, *g, *h]))
   }
 
   #[inline]
   pub(crate) fn bytes(&self) -> [u8; 17] {
-    let fi = FrameInit::new(8, self.flags, U31::ZERO, FrameHeaderTy::Ping);
+    let fi = FrameInit::new(8, self.flags, U31::ZERO, FrameInitTy::Ping);
     let [a, b, c, d, e, f, g, h, i] = fi.bytes();
     let [j, k, l, m, n, o, p, q] = self.payload;
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q]

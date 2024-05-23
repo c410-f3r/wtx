@@ -3,17 +3,18 @@ use crate::{
   misc::{Lease, LeaseMut},
 };
 
-/// List of pairs sent and received on every request.
+/// List of pairs sent and received on every request/response.
 #[derive(Debug)]
 pub struct Headers {
-  ab: AbstractHeaders<()>,
+  ab: AbstractHeaders<bool>,
+  has_trailers: bool,
 }
 
 impl Headers {
   /// Empty instance
   #[inline]
   pub const fn new(max_bytes: usize) -> Self {
-    Self { ab: AbstractHeaders::new(max_bytes) }
+    Self { ab: AbstractHeaders::new(max_bytes), has_trailers: false }
   }
 
   /// Pre-allocates bytes according to the number of passed elements.
@@ -21,7 +22,7 @@ impl Headers {
   /// Bytes are capped according to the specified `max_bytes`.
   #[inline]
   pub fn with_capacity(bytes: usize, headers: usize, max_bytes: usize) -> Self {
-    Self { ab: AbstractHeaders::with_capacity(bytes, headers, max_bytes) }
+    Self { ab: AbstractHeaders::with_capacity(bytes, headers, max_bytes), has_trailers: false }
   }
 
   /// The amount of bytes used by all of the headers
@@ -34,6 +35,7 @@ impl Headers {
   #[inline]
   pub fn clear(&mut self) {
     self.ab.clear();
+    self.has_trailers = false;
   }
 
   /// The number of headers
@@ -44,19 +46,25 @@ impl Headers {
 
   /// Returns the first header, if any.
   #[inline]
-  pub fn first(&self) -> Option<(&[u8], &[u8], bool)> {
+  pub fn first(&self) -> Option<Header<'_>> {
     self.ab.first().map(Self::map)
   }
 
   /// Returns the header's pair referenced by its index, if any.
   #[inline]
-  pub fn get_by_idx(&self, idx: usize) -> Option<(&[u8], &[u8], bool)> {
+  pub fn get_by_idx(&self, idx: usize) -> Option<Header<'_>> {
     self.ab.get_by_idx(idx).map(Self::map)
+  }
+
+  /// If this instance has one or more trailer headers.
+  #[inline]
+  pub fn has_trailers(&self) -> bool {
+    self.has_trailers
   }
 
   /// Retrieves all stored pairs.
   #[inline]
-  pub fn iter(&self) -> impl Iterator<Item = (&[u8], &[u8], bool)> {
+  pub fn iter(&self) -> impl Iterator<Item = Header<'_>> {
     self.ab.iter().map(Self::map)
   }
 
@@ -65,7 +73,7 @@ impl Headers {
   /// If the sum of `name` and `value` is greater than the maximum number of bytes, then the first
   /// inserted entries will be deleted accordantly.
   #[inline]
-  pub fn last(&self) -> Option<(&[u8], &[u8], bool)> {
+  pub fn last(&self) -> Option<Header<'_>> {
     self.ab.last().map(Self::map)
   }
 
@@ -92,8 +100,9 @@ impl Headers {
   /// If the sum of `name` and `value` is greater than the maximum number of bytes, then the first
   /// inserted entries will be deleted accordantly.
   #[inline]
-  pub fn push_front(&mut self, name: &[u8], value: &[u8], is_sensitive: bool) -> crate::Result<()> {
-    self.ab.push_front((), name, value, is_sensitive, |_, _| {})
+  pub fn push_front(&mut self, header: Header<'_>) -> crate::Result<()> {
+    self.has_trailers = header.is_trailer;
+    self.ab.push_front(header.is_trailer, header.name, header.value, header.is_sensitive, |_, _| {})
   }
 
   /// Removes all a pair referenced by `idx`.
@@ -119,8 +128,13 @@ impl Headers {
   }
 
   #[inline]
-  fn map(elem: AbstractHeader<'_, ()>) -> (&[u8], &[u8], bool) {
-    (elem.name_bytes, elem.value_bytes, elem.is_sensitive)
+  fn map(elem: AbstractHeader<'_, bool>) -> Header<'_> {
+    Header {
+      is_sensitive: elem.is_sensitive,
+      is_trailer: *elem.misc,
+      name: elem.name_bytes,
+      value: elem.value_bytes,
+    }
   }
 }
 
@@ -135,5 +149,36 @@ impl LeaseMut<Headers> for Headers {
   #[inline]
   fn lease_mut(&mut self) -> &mut Headers {
     self
+  }
+}
+
+/// A field of an HTTP request or response.
+#[derive(Clone, Copy, Debug)]
+pub struct Header<'any> {
+  /// If the name/value should NOT be cached.
+  ///
+  /// The applicability of this parameter depends on the HTTP version.
+  pub is_sensitive: bool,
+  /// Trailers are added at the end of a message.
+  ///
+  /// The applicability and semantics depends on the HTTP version.
+  pub is_trailer: bool,
+  /// Header name
+  pub name: &'any [u8],
+  /// Header value
+  pub value: &'any [u8],
+}
+
+impl<'any> From<(&'any [u8], &'any [u8])> for Header<'any> {
+  #[inline]
+  fn from((name, value): (&'any [u8], &'any [u8])) -> Self {
+    Self { is_sensitive: false, is_trailer: false, name, value }
+  }
+}
+
+impl<'any, const N: usize> From<(&'any [u8; N], &'any [u8; N])> for Header<'any> {
+  #[inline]
+  fn from((name, value): (&'any [u8; N], &'any [u8; N])) -> Self {
+    Self { is_sensitive: false, is_trailer: false, name, value }
   }
 }

@@ -145,7 +145,7 @@ where
   let fb = &mut FrameBufferVecMut::from(&mut pkgs_aux.byte_buffer);
   let frame = ws.read_frame(fb).await?;
   if let OpCode::Close = frame.op_code() {
-    return Err(crate::Error::ClosedWsConnection);
+    return Err(crate::Error::CAF_ClosedWsConnection);
   }
   let indcs = frame.fb().indcs();
   Ok(indcs.1.into()..indcs.2)
@@ -198,7 +198,7 @@ where
   let fb = &mut FrameBufferVecMut::from(&mut pkgs_aux.byte_buffer);
   let frame = ws.read_frame(fb).await.map_err(Into::into)?;
   if let OpCode::Close = frame.op_code() {
-    return Err(crate::Error::ClosedWsConnection.into());
+    return Err(crate::Error::CAF_ClosedWsConnection.into());
   }
   let indcs = frame.fb().indcs();
   Ok(indcs.1.into()..indcs.2)

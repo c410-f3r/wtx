@@ -3,25 +3,21 @@ use crate::{
     server::{TokioHttp2, _buffers_len},
     Headers, RequestStr, Response,
   },
-  http2::{Http2Params, Http2Rslt, Http2Tokio},
+  http2::{Http2Buffer, Http2Params, Http2Tokio, StreamBuffer},
   misc::{ByteVector, FnFut},
-  pool::{
-    FixedPoolGetRsltTokio, FixedPoolTokio, Http2ServerBufferRM, Pool, ReqResBufferRM,
-    ResourceManager,
-  },
+  pool::{Http2ServerBufferRM, Pool, SimplePoolGetElemTokio, SimplePoolTokio, StreamBufferRM},
   rng::StdRng,
 };
 use core::{fmt::Debug, net::SocketAddr};
 use std::sync::OnceLock;
 use tokio::net::{TcpListener, TcpStream};
 
-type ConnPool = FixedPoolTokio<
-  <Http2ServerBufferRM<StdRng> as ResourceManager>::Resource,
-  Http2ServerBufferRM<StdRng>,
->;
-type ReqPool = FixedPoolTokio<<ReqResBufferRM as ResourceManager>::Resource, ReqResBufferRM>;
+type ConnPool = SimplePoolTokio<Http2Buffer<SB>, RM>;
+type RM = Http2ServerBufferRM<StdRng, SB>;
+type SB = <StreamPool as Pool>::GetElem<'static>;
+type StreamPool = SimplePoolTokio<StreamBuffer, StreamBufferRM>;
 
-impl TokioHttp2 {
+impl TokioHttp2<SB> {
   /// Optioned HTTP/2 server using tokio.
   #[inline]
   pub async fn tokio_http2<E, F>(
@@ -56,19 +52,17 @@ impl TokioHttp2 {
   }
 }
 
-async fn conn_buffer(len: usize) -> crate::Result<<ConnPool as Pool>::GetRslt<'static>> {
+async fn conn_buffer(len: usize) -> crate::Result<<ConnPool as Pool>::GetElem<'static>> {
   static POOL: OnceLock<ConnPool> = OnceLock::new();
   POOL
-    .get_or_init(|| {
-      FixedPoolTokio::new(len, Http2ServerBufferRM::<StdRng>::http2_buffer(StdRng::default()))
-    })
+    .get_or_init(|| SimplePoolTokio::new(len, RM::http2_buffer(StdRng::default())))
     .get(&(), &())
     .await
 }
 
 async fn manage_conn<E, F>(
   handle: F,
-  http2_lock: FixedPoolGetRsltTokio<'static, <ConnPool as Pool>::GuardElement>,
+  http2_lock: SimplePoolGetElemTokio<'static, Http2Buffer<SB>>,
   len: usize,
   stream_err: fn(E),
   tcp_stream: TcpStream,
@@ -86,46 +80,38 @@ where
   let hp = Http2Params::default();
   let mut http2 = Http2Tokio::accept(http2_lock, hp, tcp_stream).await?;
   loop {
-    let mut req_buffer_guard = req_buffer(len).await?;
-    let mut stream = match http2.stream(&mut req_buffer_guard).await {
-      Err(err) => {
-        drop(req_buffer_guard.release().await);
-        return Err(err);
-      }
-      Ok(Http2Rslt::ClosedConnection) => {
-        drop(req_buffer_guard.release().await);
-        return Ok(());
-      }
-      Ok(Http2Rslt::ClosedStream) => {
-        drop(req_buffer_guard.release().await);
+    let sb_guard = stream_buffer(len).await?;
+    let mut stream = match http2.stream(sb_guard).await {
+      Err(crate::Error::Http2ErrorReset(_, _)) => {
         continue;
       }
-      Ok(Http2Rslt::Resource(elem)) => elem,
+      Err(crate::Error::Http2ErrorGoAway(_, _)) => {
+        return Ok(());
+      }
+      Err(err) => {
+        return Err(err);
+      }
+      Ok(elem) => elem,
     };
     let _stream_jh = tokio::spawn(async move {
-      let rrb = &mut **req_buffer_guard;
       let fun = || async move {
-        let Http2Rslt::Resource(req) = stream.recv_req(rrb).await? else {
-          return Ok(());
-        };
-        if stream.send_res(handle(req).await?).await?.resource().is_none() {
-          return Ok(());
-        }
+        let (mut sb, method) = stream.recv_req().await?;
+        let StreamBuffer { hpack_enc_buffer, rrb } = &mut ***sb;
+        let req = rrb.as_http2_request_mut(method);
+        let _ = stream.send_res(hpack_enc_buffer, handle(req).await?).await?;
         Ok::<_, E>(())
       };
-      let rslt = fun().await;
-      drop(req_buffer_guard.release().await);
-      if let Err(err) = rslt {
+      if let Err(err) = fun().await {
         stream_err(err);
       }
     });
   }
 }
 
-async fn req_buffer(len: usize) -> crate::Result<<ReqPool as Pool>::GetRslt<'static>> {
-  static POOL: OnceLock<ReqPool> = OnceLock::new();
+async fn stream_buffer(len: usize) -> crate::Result<<StreamPool as Pool>::GetElem<'static>> {
+  static POOL: OnceLock<StreamPool> = OnceLock::new();
   POOL
-    .get_or_init(|| FixedPoolTokio::new(len, ReqResBufferRM::req_res_buffer()))
+    .get_or_init(|| SimplePoolTokio::new(len, StreamBufferRM::req_res_buffer()))
     .get(&(), &())
     .await
 }

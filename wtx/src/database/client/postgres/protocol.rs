@@ -10,6 +10,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use hmac::{digest::FixedOutput, Hmac, Mac};
 use sha2::{Digest, Sha256};
 
+#[inline]
 pub(crate) fn bind<E, RV>(
   fbw: &mut FilledBufferWriter<'_>,
   portal: &str,
@@ -62,7 +63,7 @@ where
         },
       )?;
       if aux.0 != rv_len {
-        return Err(crate::Error::InvalidRecordValuesIterator.into());
+        return Err(crate::Error::PG_InvalidRecordValuesIterator.into());
       }
     }
 
@@ -75,6 +76,7 @@ where
   })
 }
 
+#[inline]
 pub(crate) fn describe(
   data: &str,
   fbw: &mut FilledBufferWriter<'_>,
@@ -87,6 +89,7 @@ pub(crate) fn describe(
   })
 }
 
+#[inline]
 pub(crate) fn encrypted_conn(fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
   write(fbw, true, None, |local_fbw| {
     local_fbw._extend_from_slice(&0b0000_0100_1101_0010_0001_0110_0010_1111i32.to_be_bytes());
@@ -94,6 +97,7 @@ pub(crate) fn encrypted_conn(fbw: &mut FilledBufferWriter<'_>) -> crate::Result<
   })
 }
 
+#[inline]
 pub(crate) fn execute(
   fbw: &mut FilledBufferWriter<'_>,
   max_rows: i32,
@@ -106,6 +110,7 @@ pub(crate) fn execute(
   })
 }
 
+#[inline]
 pub(crate) fn initial_conn_msg(
   config: &Config<'_>,
   fbw: &mut FilledBufferWriter<'_>,
@@ -130,6 +135,7 @@ pub(crate) fn initial_conn_msg(
   })
 }
 
+#[inline]
 pub(crate) fn parse(
   cmd: &str,
   fbw: &mut FilledBufferWriter<'_>,
@@ -145,13 +151,7 @@ pub(crate) fn parse(
   })
 }
 
-pub(crate) fn password(fbw: &mut FilledBufferWriter<'_>, password: &str) -> crate::Result<()> {
-  write(fbw, true, Some(b'p'), |local_fbw| {
-    local_fbw._extend_from_slice_c(password.as_bytes());
-    Ok::<_, crate::Error>(())
-  })
-}
-
+#[inline]
 pub(crate) fn query(cmd: &[u8], fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
   write(fbw, true, Some(b'Q'), |local_fbw| {
     local_fbw._extend_from_slice_c(cmd);
@@ -159,12 +159,17 @@ pub(crate) fn query(cmd: &[u8], fbw: &mut FilledBufferWriter<'_>) -> crate::Resu
   })
 }
 
-pub(crate) fn sasl_first(fbw: &mut FilledBufferWriter<'_>, nonce: &[u8]) -> crate::Result<()> {
+#[inline]
+pub(crate) fn sasl_first(
+  fbw: &mut FilledBufferWriter<'_>,
+  (method_bytes, method_header): (&[u8], &[u8]),
+  nonce: &[u8],
+) -> crate::Result<()> {
   write(fbw, true, Some(b'p'), |local_fbw| {
-    local_fbw._extend_from_slice_c(b"SCRAM-SHA-256-PLUS");
+    local_fbw._extend_from_slice_c(method_bytes);
     write(local_fbw, false, None, |local_local_fbw| {
-      local_local_fbw._extend_from_slice(b"p=tls-server-end-point,,n=");
-      local_local_fbw._extend_from_slice(b",r=");
+      local_local_fbw._extend_from_slice(method_header);
+      local_local_fbw._extend_from_slice(b"n=,r=");
       local_local_fbw._extend_from_slice(nonce);
       Ok::<_, crate::Error>(())
     })
@@ -172,9 +177,11 @@ pub(crate) fn sasl_first(fbw: &mut FilledBufferWriter<'_>, nonce: &[u8]) -> crat
   Ok(())
 }
 
+#[inline]
 pub(crate) fn sasl_second(
   auth_data: &mut Vec<u8>,
   fbw: &mut FilledBufferWriter<'_>,
+  method_header: &[u8],
   response_nonce: &[u8],
   salted_password: &[u8; 32],
   tls_server_end_point: &[u8],
@@ -182,8 +189,7 @@ pub(crate) fn sasl_second(
   write(fbw, true, Some(b'p'), |local_fbw| {
     local_fbw._extend_from_slice(b"c=");
     {
-      let n =
-        STANDARD.encode_slice("p=tls-server-end-point,,", local_fbw._available_bytes_mut())?;
+      let n = STANDARD.encode_slice(method_header, local_fbw._available_bytes_mut())?;
       local_fbw._shift_idx(n);
     }
     {
@@ -229,10 +235,12 @@ pub(crate) fn sasl_second(
   Ok(())
 }
 
+#[inline]
 pub(crate) fn sync(fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
   write(fbw, true, Some(b'S'), |_| Ok::<_, crate::Error>(()))
 }
 
+#[inline]
 pub(crate) fn write<E>(
   fbw: &mut FilledBufferWriter<'_>,
   include_len: bool,
@@ -266,6 +274,7 @@ where
   Ok(())
 }
 
+#[inline]
 pub(crate) fn write_iter<E, T>(
   fbw: &mut FilledBufferWriter<'_>,
   iter: impl IntoIterator<Item = T>,

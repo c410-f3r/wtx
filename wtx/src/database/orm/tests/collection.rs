@@ -2,8 +2,8 @@
 
 use crate::database::{
   orm::{
-    AuxNodes, FromSuffixRslt, InitialInsertValue, NoTableAssociation, SelectLimit, SelectOrderBy,
-    SqlWriter, Table, TableAssociation, TableAssociationWrapper, TableField, TableParams,
+    AuxNodes, FromSuffixRslt, NoTableAssociation, SelectLimit, SelectOrderBy, SqlWriter, Table,
+    TableAssociation, TableAssociationWrapper, TableField, TableParams,
   },
   TableSuffix,
 };
@@ -20,8 +20,8 @@ impl<'entity> Table<'entity> for A {
   const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "a";
 
-  type Associations = NoTableAssociation<()>;
-  type Error = ();
+  type Associations = NoTableAssociation<crate::Error>;
+  type Database = ();
   type Fields = (TableField<&'static str>,);
   type PrimaryKeyValue = &'entity i32;
 
@@ -45,8 +45,8 @@ impl<'entity> Table<'entity> for B {
   const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "b";
 
-  type Associations = NoTableAssociation<()>;
-  type Error = ();
+  type Associations = NoTableAssociation<crate::Error>;
+  type Database = ();
   type Fields = (TableField<&'static str>,);
   type PrimaryKeyValue = &'entity i32;
 
@@ -76,7 +76,7 @@ impl<'entity> Table<'entity> for C {
     TableAssociationWrapper<'entity, A, Vec<TableParams<'entity, A>>>,
     TableAssociationWrapper<'entity, B, Vec<TableParams<'entity, B>>>,
   );
-  type Error = ();
+  type Database = ();
   type Fields = (TableField<&'static str>,);
   type PrimaryKeyValue = &'entity i32;
 
@@ -158,9 +158,7 @@ fn write_collection_has_correct_params() {
   c_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
   assert_eq!(&buffer, r#""#);
 
-  c_table_defs
-    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
-    .unwrap();
+  c_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
   assert_eq!(&buffer, r#""#);
 
   buffer.clear();
@@ -186,12 +184,10 @@ fn write_collection_has_correct_params() {
   );
 
   buffer.clear();
-  c_table_defs
-    .write_insert::<InitialInsertValue>(&mut AuxNodes::default(), &mut buffer, &mut None)
-    .unwrap();
+  c_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
   assert_eq!(
     &buffer,
-    r#"INSERT INTO "c" (id,name) VALUES ('3','foo3');INSERT INTO "a" (id,name,id_a) VALUES ('1','foo1','3');INSERT INTO "a" (id,name,id_a) VALUES ('2','foo2','3');"#
+    r#"INSERT INTO "c" (id,name) VALUES ($1,$2);INSERT INTO "a" (id,name,id_a) VALUES ($1,$2,$3);INSERT INTO "a" (id,name,id_a) VALUES ($1,$2,$3);"#
   );
 
   buffer.clear();

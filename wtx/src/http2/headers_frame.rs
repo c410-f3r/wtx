@@ -1,26 +1,27 @@
 use crate::{
-  http::{HeaderName, Headers},
+  http::{Header, Headers, KnownHeaderName},
   http2::{
-    misc::trim_frame_pad, uri_buffer::MAX_URI_LEN, FrameHeaderTy, FrameInit, HpackDecoder,
-    HpackHeaderBasic, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Params,
-    UriBuffer, EOH_MASK, EOS_MASK, U31,
+    misc::trim_frame_pad, uri_buffer::MAX_URI_LEN, FrameInit, FrameInitTy, HpackDecoder,
+    HpackHeaderBasic, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Error,
+    Http2Params, UriBuffer, EOH_MASK, EOS_MASK, U31,
   },
   misc::{from_utf8_basic, ArrayString, Usize},
 };
 
+// Some fields of `hsreqh` are only meant to be used locally for writing purposes.
 #[derive(Debug)]
-pub(crate) struct HeadersFrame<'data> {
+pub(crate) struct HeadersFrame<'uri> {
   flag: u8,
-  hsreqh: HpackStaticRequestHeaders<'data>,
+  hsreqh: HpackStaticRequestHeaders<'uri>,
   hsresh: HpackStaticResponseHeaders,
   is_over_size: bool,
   stream_id: U31,
 }
 
-impl<'data> HeadersFrame<'data> {
+impl<'uri> HeadersFrame<'uri> {
   #[inline]
-  pub(crate) fn new(
-    (hsreqh, hsresh): (HpackStaticRequestHeaders<'data>, HpackStaticResponseHeaders),
+  pub(crate) const fn new(
+    (hsreqh, hsresh): (HpackStaticRequestHeaders<'uri>, HpackStaticResponseHeaders),
     stream_id: U31,
   ) -> Self {
     Self { flag: 0, hsreqh, hsresh, is_over_size: false, stream_id }
@@ -28,36 +29,36 @@ impl<'data> HeadersFrame<'data> {
 
   #[inline]
   pub(crate) fn bytes(&self) -> [u8; 9] {
-    FrameInit::new(0, self.flag, self.stream_id, FrameHeaderTy::Headers).bytes()
+    FrameInit::new(0, self.flag, self.stream_id, FrameInitTy::Headers).bytes()
   }
 
   #[inline]
-  pub(crate) fn hsreqh(&self) -> &HpackStaticRequestHeaders<'data> {
+  pub(crate) const fn hsreqh(&self) -> &HpackStaticRequestHeaders<'uri> {
     &self.hsreqh
   }
 
   #[inline]
-  pub(crate) fn hsresh(&self) -> HpackStaticResponseHeaders {
+  pub(crate) const fn hsresh(&self) -> HpackStaticResponseHeaders {
     self.hsresh
   }
 
   #[inline]
-  pub(crate) fn is_eoh(&self) -> bool {
+  pub(crate) const fn is_eoh(&self) -> bool {
     self.flag & EOH_MASK == EOH_MASK
   }
 
   #[inline]
-  pub(crate) fn is_eos(&self) -> bool {
+  pub(crate) const fn is_eos(&self) -> bool {
     self.flag & EOS_MASK == EOS_MASK
   }
 
   #[inline]
-  pub(crate) fn is_over_size(&self) -> bool {
+  pub(crate) const fn is_over_size(&self) -> bool {
     self.is_over_size
   }
 
   #[inline]
-  pub(crate) fn read<const DO_NOT_PUSH_URI: bool>(
+  pub(crate) fn read<const DO_NOT_PUSH_URI: bool, const IS_TRAILER: bool>(
     mut data: &[u8],
     fi: FrameInit,
     headers: &mut Headers,
@@ -67,13 +68,13 @@ impl<'data> HeadersFrame<'data> {
     uri_buffer: &mut UriBuffer,
   ) -> crate::Result<(Self, usize)> {
     if fi.stream_id.is_zero() {
-      return Err(crate::http2::ErrorCode::FrameSizeError.into());
+      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidHeadersFrameZeroId));
     }
 
     uri_buffer.clear();
 
     let _ = trim_frame_pad(&mut data, fi.flags)?;
-    let max_expanded_headers_len = *Usize::from(hp.max_expanded_headers_len());
+    let max_headers_len = *Usize::from(hp.max_headers_len());
     let mut expanded_headers_len = 0;
     let mut has_fields = false;
     let mut is_malformed = false;
@@ -81,7 +82,6 @@ impl<'data> HeadersFrame<'data> {
     let mut method = None;
     let mut protocol = None;
     let mut status = None;
-
     hpack_dec.decode(data, |(elem, name, value)| {
       match elem {
         HpackHeaderBasic::Authority => {
@@ -91,30 +91,37 @@ impl<'data> HeadersFrame<'data> {
             &mut has_fields,
             &mut is_malformed,
             &mut is_over_size,
-            max_expanded_headers_len,
+            max_headers_len,
             name,
             value,
           );
         }
-        HpackHeaderBasic::Field => match HeaderName::new(name) {
-          HeaderName::CONNECTION
-          | HeaderName::KEEP_ALIVE
-          | HeaderName::PROXY_CONNECTION
-          | HeaderName::TRANSFER_ENCODING
-          | HeaderName::UPGRADE => {
+        HpackHeaderBasic::Field => match KnownHeaderName::try_from(name) {
+          Ok(
+            KnownHeaderName::Connection
+            | KnownHeaderName::KeepAlive
+            | KnownHeaderName::ProxyConnection
+            | KnownHeaderName::TransferEncoding
+            | KnownHeaderName::Upgrade,
+          ) => {
             is_malformed = true;
           }
-          HeaderName::TE if value != b"trailers" => {
+          Ok(KnownHeaderName::Te) if value != b"trailers" => {
             is_malformed = true;
           }
           _ => {
             has_fields = true;
             let len = decoded_header_size(name.len(), value.len());
             expanded_headers_len = expanded_headers_len.wrapping_add(len);
-            is_over_size = expanded_headers_len >= max_expanded_headers_len;
+            is_over_size = expanded_headers_len >= max_headers_len;
             if !is_over_size {
               headers.reserve(name.len().wrapping_add(value.len()), 1);
-              headers.push_front(name, value, false)?;
+              headers.push_front(Header {
+                is_sensitive: false,
+                is_trailer: IS_TRAILER,
+                name,
+                value,
+              })?;
             }
           }
         },
@@ -125,7 +132,7 @@ impl<'data> HeadersFrame<'data> {
             &mut is_malformed,
             &mut is_over_size,
             method.is_some(),
-            max_expanded_headers_len,
+            max_headers_len,
             name,
             value,
           ) {
@@ -139,7 +146,7 @@ impl<'data> HeadersFrame<'data> {
             &mut has_fields,
             &mut is_malformed,
             &mut is_over_size,
-            max_expanded_headers_len,
+            max_headers_len,
             name,
             value,
           );
@@ -151,7 +158,7 @@ impl<'data> HeadersFrame<'data> {
             &mut is_malformed,
             &mut is_over_size,
             protocol.is_some(),
-            max_expanded_headers_len,
+            max_headers_len,
             name,
             value,
           ) {
@@ -165,7 +172,7 @@ impl<'data> HeadersFrame<'data> {
             &mut has_fields,
             &mut is_malformed,
             &mut is_over_size,
-            max_expanded_headers_len,
+            max_headers_len,
             name,
             value,
           );
@@ -177,7 +184,7 @@ impl<'data> HeadersFrame<'data> {
             &mut is_malformed,
             &mut is_over_size,
             status.is_some(),
-            max_expanded_headers_len,
+            max_headers_len,
             name,
             value,
           ) {
@@ -222,15 +229,10 @@ impl<'data> HeadersFrame<'data> {
   pub(crate) fn set_eos(&mut self) {
     self.flag |= EOS_MASK;
   }
-
-  #[inline]
-  pub(crate) fn stream_id(&self) -> U31 {
-    self.stream_id
-  }
 }
 
 #[inline]
-fn decoded_header_size(name: usize, value: usize) -> usize {
+const fn decoded_header_size(name: usize, value: usize) -> usize {
   name.wrapping_add(value).wrapping_add(32)
 }
 
@@ -241,7 +243,7 @@ fn push_enum(
   is_malformed: &mut bool,
   is_over_size: &mut bool,
   is_some: bool,
-  max_expanded_headers_len: usize,
+  max_headers_len: usize,
   name: &[u8],
   value: &[u8],
 ) -> bool {
@@ -251,7 +253,7 @@ fn push_enum(
   } else {
     let len = decoded_header_size(name.len().wrapping_add(1), value.len());
     *expanded_headers_len = expanded_headers_len.wrapping_add(len);
-    *is_over_size = *expanded_headers_len >= max_expanded_headers_len;
+    *is_over_size = *expanded_headers_len >= max_headers_len;
     !*is_over_size
   }
 }
@@ -263,7 +265,7 @@ fn push_uri<const N: usize>(
   has_fields: &mut bool,
   is_malformed: &mut bool,
   is_over_size: &mut bool,
-  max_expanded_headers_len: usize,
+  max_headers_len: usize,
   name: &[u8],
   value: &[u8],
 ) {
@@ -272,7 +274,7 @@ fn push_uri<const N: usize>(
   } else {
     let len = decoded_header_size(name.len().wrapping_add(1), value.len());
     *expanded_headers_len = expanded_headers_len.wrapping_add(len);
-    *is_over_size = *expanded_headers_len >= max_expanded_headers_len;
+    *is_over_size = *expanded_headers_len >= max_headers_len;
     if !*is_over_size {
       let _ = from_utf8_basic(value).ok().and_then(|el| buffer.push_str(el).ok());
     }

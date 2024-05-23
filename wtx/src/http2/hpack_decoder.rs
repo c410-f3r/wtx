@@ -1,10 +1,12 @@
 use crate::{
-  http::{AbstractHeaders, HeaderName, Method, StatusCode, _HeaderNameBuffer, _HeaderValueBuffer},
+  http::{
+    AbstractHeaders, KnownHeaderName, Method, StatusCode, _HeaderNameBuffer, _HeaderValueBuffer,
+  },
   http2::{
     hpack_header::{HpackHeaderBasic, HpackHeaderName},
-    huffman_decode,
+    huffman_decode, Http2Error,
   },
-  misc::{ArrayVector, Usize, _unlikely_elem},
+  misc::{ArrayVector, Usize},
 };
 use alloc::boxed::Box;
 
@@ -59,7 +61,7 @@ impl HpackDecoder {
     }
     while let [first, ..] = data {
       self.manage_decode(*first, &mut data, &mut cb, || {
-        Err(crate::Error::InvalidDynTableSizeUpdate)
+        Err(crate::Error::http2_go_away_generic(Http2Error::InvalidDynTableSizeUpdate))
       })?;
     }
     Ok(())
@@ -89,12 +91,12 @@ impl HpackDecoder {
       }
       rslt
     } else {
-      return Err(crate::Error::UnexpectedEOF);
+      return Err(crate::Error::MISC_UnexpectedEOF);
     };
     let mut shift: u32 = 0;
     for _ in 0..3 {
       let [first, rest @ ..] = data else {
-        return Err(crate::Error::UnexpectedEOF);
+        return Err(crate::Error::MISC_UnexpectedEOF);
       };
       *data = rest;
       rslt.1 = rslt.1.wrapping_add(u32::from(first & 0b0111_1111) << shift);
@@ -105,7 +107,7 @@ impl HpackDecoder {
       }
     }
 
-    Err(crate::Error::VeryLargeHeaderInteger)
+    Err(crate::Error::http2_go_away_generic(Http2Error::VeryLargeHeaderInteger))
   }
 
   /// The common index is static-unaware so static names are inserted into `header_buffers`,
@@ -134,7 +136,7 @@ impl HpackDecoder {
       let name = if static_name.is_empty() {
         elem_cb((new_hhb, dyn_name, value))?;
         self.header_buffers.0.clear();
-        self.header_buffers.0.try_extend_from_slice(dyn_name)?;
+        self.header_buffers.0.extend_from_slice(dyn_name)?;
         self.header_buffers.0.get_mut(..dyn_name.len()).unwrap_or_default()
       } else {
         elem_cb((new_hhb, static_name, value))?;
@@ -163,7 +165,7 @@ impl HpackDecoder {
     let (bytes_begin, bytes_end) = if data.len() >= *Usize::from(len) {
       data.split_at(*Usize::from(len))
     } else {
-      return Err(crate::Error::UnexpectedEOF);
+      return Err(crate::Error::MISC_UnexpectedEOF);
     };
     let is_encoded = first & 0b1000_0000 == 0b1000_0000;
     Ok((bytes_begin, bytes_end, is_encoded))
@@ -220,7 +222,7 @@ impl HpackDecoder {
     idx: usize,
   ) -> crate::Result<(HpackHeaderBasic, (&'static [u8], &[u8]), (&'static [u8], &[u8]))> {
     Ok(match idx {
-      0 => return _unlikely_elem(Err(crate::Error::InvalidHpackIdx(0))),
+      0 => return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidHpackIdx(Some(0)))),
       1 => (HpackHeaderBasic::Authority, (b":authority", &[]), (&[], &[])),
       2 => (HpackHeaderBasic::Method(Method::Get), (b":method", &[]), (b"GET", &[])),
       3 => (HpackHeaderBasic::Method(Method::Post), (b":method", &[]), (b"POST", &[])),
@@ -245,66 +247,76 @@ impl HpackDecoder {
         (b":status", &[]),
         (b"500", &[]),
       ),
-      15 => (HpackHeaderBasic::Field, (HeaderName::ACCEPT_CHARSET.bytes(), &[]), (&[], &[])),
+      15 => (HpackHeaderBasic::Field, (KnownHeaderName::AcceptCharset.into(), &[]), (&[], &[])),
       16 => (
         HpackHeaderBasic::Field,
-        (HeaderName::ACCEPT_ENCODING.bytes(), &[]),
+        (KnownHeaderName::AcceptEncoding.into(), &[]),
         (b"gzip, deflate", &[]),
       ),
-      17 => (HpackHeaderBasic::Field, (HeaderName::ACCEPT_LANGUAGE.bytes(), &[]), (&[], &[])),
-      18 => (HpackHeaderBasic::Field, (HeaderName::ACCEPT_RANGES.bytes(), &[]), (&[], &[])),
-      19 => (HpackHeaderBasic::Field, (HeaderName::ACCEPT.bytes(), &[]), (&[], &[])),
+      17 => (HpackHeaderBasic::Field, (KnownHeaderName::AcceptLanguage.into(), &[]), (&[], &[])),
+      18 => (HpackHeaderBasic::Field, (KnownHeaderName::AcceptRanges.into(), &[]), (&[], &[])),
+      19 => (HpackHeaderBasic::Field, (KnownHeaderName::Accept.into(), &[]), (&[], &[])),
       20 => (
         HpackHeaderBasic::Field,
-        (HeaderName::ACCESS_CONTROL_ALLOW_ORIGIN.bytes(), &[]),
+        (KnownHeaderName::AccessControlAllowOrigin.into(), &[]),
         (&[], &[]),
       ),
-      21 => (HpackHeaderBasic::Field, (HeaderName::AGE.bytes(), &[]), (&[], &[])),
-      22 => (HpackHeaderBasic::Field, (HeaderName::ALLOW.bytes(), &[]), (&[], &[])),
-      23 => (HpackHeaderBasic::Field, (HeaderName::AUTHORIZATION.bytes(), &[]), (&[], &[])),
-      24 => (HpackHeaderBasic::Field, (HeaderName::CACHE_CONTROL.bytes(), &[]), (&[], &[])),
-      25 => (HpackHeaderBasic::Field, (HeaderName::CONTENT_DISPOSITION.bytes(), &[]), (&[], &[])),
-      26 => (HpackHeaderBasic::Field, (HeaderName::CONTENT_ENCODING.bytes(), &[]), (&[], &[])),
-      27 => (HpackHeaderBasic::Field, (HeaderName::CONTENT_LANGUAGE.bytes(), &[]), (&[], &[])),
-      28 => (HpackHeaderBasic::Field, (HeaderName::CONTENT_LENGTH.bytes(), &[]), (&[], &[])),
-      29 => (HpackHeaderBasic::Field, (HeaderName::CONTENT_LOCATION.bytes(), &[]), (&[], &[])),
-      30 => (HpackHeaderBasic::Field, (HeaderName::CONTENT_RANGE.bytes(), &[]), (&[], &[])),
-      31 => (HpackHeaderBasic::Field, (HeaderName::CONTENT_TYPE.bytes(), &[]), (&[], &[])),
-      32 => (HpackHeaderBasic::Field, (HeaderName::COOKIE.bytes(), &[]), (&[], &[])),
-      33 => (HpackHeaderBasic::Field, (HeaderName::DATE.bytes(), &[]), (&[], &[])),
-      34 => (HpackHeaderBasic::Field, (HeaderName::ETAG.bytes(), &[]), (&[], &[])),
-      35 => (HpackHeaderBasic::Field, (HeaderName::EXPECT.bytes(), &[]), (&[], &[])),
-      36 => (HpackHeaderBasic::Field, (HeaderName::EXPIRES.bytes(), &[]), (&[], &[])),
-      37 => (HpackHeaderBasic::Field, (HeaderName::FROM.bytes(), &[]), (&[], &[])),
-      38 => (HpackHeaderBasic::Field, (HeaderName::HOST.bytes(), &[]), (&[], &[])),
-      39 => (HpackHeaderBasic::Field, (HeaderName::IF_MATCH.bytes(), &[]), (&[], &[])),
-      40 => (HpackHeaderBasic::Field, (HeaderName::IF_MODIFIED_SINCE.bytes(), &[]), (&[], &[])),
-      41 => (HpackHeaderBasic::Field, (HeaderName::IF_NONE_MATCH.bytes(), &[]), (&[], &[])),
-      42 => (HpackHeaderBasic::Field, (HeaderName::IF_RANGE.bytes(), &[]), (&[], &[])),
-      43 => (HpackHeaderBasic::Field, (HeaderName::IF_UNMODIFIED_SINCE.bytes(), &[]), (&[], &[])),
-      44 => (HpackHeaderBasic::Field, (HeaderName::LAST_MODIFIED.bytes(), &[]), (&[], &[])),
-      45 => (HpackHeaderBasic::Field, (HeaderName::LINK.bytes(), &[]), (&[], &[])),
-      46 => (HpackHeaderBasic::Field, (HeaderName::LOCATION.bytes(), &[]), (&[], &[])),
-      47 => (HpackHeaderBasic::Field, (HeaderName::MAX_FORWARDS.bytes(), &[]), (&[], &[])),
-      48 => (HpackHeaderBasic::Field, (HeaderName::PROXY_AUTHENTICATE.bytes(), &[]), (&[], &[])),
-      49 => (HpackHeaderBasic::Field, (HeaderName::PROXY_AUTHORIZATION.bytes(), &[]), (&[], &[])),
-      50 => (HpackHeaderBasic::Field, (HeaderName::RANGE.bytes(), &[]), (&[], &[])),
-      51 => (HpackHeaderBasic::Field, (HeaderName::REFERER.bytes(), &[]), (&[], &[])),
-      52 => (HpackHeaderBasic::Field, (HeaderName::REFRESH.bytes(), &[]), (&[], &[])),
-      53 => (HpackHeaderBasic::Field, (HeaderName::RETRY_AFTER.bytes(), &[]), (&[], &[])),
-      54 => (HpackHeaderBasic::Field, (HeaderName::SERVER.bytes(), &[]), (&[], &[])),
-      55 => (HpackHeaderBasic::Field, (HeaderName::SET_COOKIE.bytes(), &[]), (&[], &[])),
-      56 => {
-        (HpackHeaderBasic::Field, (HeaderName::STRICT_TRANSPORT_SECURITY.bytes(), &[]), (&[], &[]))
+      21 => (HpackHeaderBasic::Field, (KnownHeaderName::Age.into(), &[]), (&[], &[])),
+      22 => (HpackHeaderBasic::Field, (KnownHeaderName::Allow.into(), &[]), (&[], &[])),
+      23 => (HpackHeaderBasic::Field, (KnownHeaderName::Authorization.into(), &[]), (&[], &[])),
+      24 => (HpackHeaderBasic::Field, (KnownHeaderName::CacheControl.into(), &[]), (&[], &[])),
+      25 => {
+        (HpackHeaderBasic::Field, (KnownHeaderName::ContentDisposition.into(), &[]), (&[], &[]))
       }
-      57 => (HpackHeaderBasic::Field, (HeaderName::TRANSFER_ENCODING.bytes(), &[]), (&[], &[])),
-      58 => (HpackHeaderBasic::Field, (HeaderName::USER_AGENT.bytes(), &[]), (&[], &[])),
-      59 => (HpackHeaderBasic::Field, (HeaderName::VARY.bytes(), &[]), (&[], &[])),
-      60 => (HpackHeaderBasic::Field, (HeaderName::VIA.bytes(), &[]), (&[], &[])),
-      61 => (HpackHeaderBasic::Field, (HeaderName::WWW_AUTHENTICATE.bytes(), &[]), (&[], &[])),
+      26 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentEncoding.into(), &[]), (&[], &[])),
+      27 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentLanguage.into(), &[]), (&[], &[])),
+      28 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentLength.into(), &[]), (&[], &[])),
+      29 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentLocation.into(), &[]), (&[], &[])),
+      30 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentRange.into(), &[]), (&[], &[])),
+      31 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentType.into(), &[]), (&[], &[])),
+      32 => (HpackHeaderBasic::Field, (KnownHeaderName::Cookie.into(), &[]), (&[], &[])),
+      33 => (HpackHeaderBasic::Field, (KnownHeaderName::Date.into(), &[]), (&[], &[])),
+      34 => (HpackHeaderBasic::Field, (KnownHeaderName::Etag.into(), &[]), (&[], &[])),
+      35 => (HpackHeaderBasic::Field, (KnownHeaderName::Expect.into(), &[]), (&[], &[])),
+      36 => (HpackHeaderBasic::Field, (KnownHeaderName::Expires.into(), &[]), (&[], &[])),
+      37 => (HpackHeaderBasic::Field, (KnownHeaderName::From.into(), &[]), (&[], &[])),
+      38 => (HpackHeaderBasic::Field, (KnownHeaderName::Host.into(), &[]), (&[], &[])),
+      39 => (HpackHeaderBasic::Field, (KnownHeaderName::IfMatch.into(), &[]), (&[], &[])),
+      40 => (HpackHeaderBasic::Field, (KnownHeaderName::IfModifiedSince.into(), &[]), (&[], &[])),
+      41 => (HpackHeaderBasic::Field, (KnownHeaderName::IfNoneMatch.into(), &[]), (&[], &[])),
+      42 => (HpackHeaderBasic::Field, (KnownHeaderName::IfRange.into(), &[]), (&[], &[])),
+      43 => (HpackHeaderBasic::Field, (KnownHeaderName::IfUnmodifiedSince.into(), &[]), (&[], &[])),
+      44 => (HpackHeaderBasic::Field, (KnownHeaderName::LastModified.into(), &[]), (&[], &[])),
+      45 => (HpackHeaderBasic::Field, (KnownHeaderName::Link.into(), &[]), (&[], &[])),
+      46 => (HpackHeaderBasic::Field, (KnownHeaderName::Location.into(), &[]), (&[], &[])),
+      47 => (HpackHeaderBasic::Field, (KnownHeaderName::MaxForwards.into(), &[]), (&[], &[])),
+      48 => (HpackHeaderBasic::Field, (KnownHeaderName::ProxyAuthenticate.into(), &[]), (&[], &[])),
+      49 => {
+        (HpackHeaderBasic::Field, (KnownHeaderName::ProxyAuthorization.into(), &[]), (&[], &[]))
+      }
+      50 => (HpackHeaderBasic::Field, (KnownHeaderName::Range.into(), &[]), (&[], &[])),
+      51 => (HpackHeaderBasic::Field, (KnownHeaderName::Referer.into(), &[]), (&[], &[])),
+      52 => (HpackHeaderBasic::Field, (KnownHeaderName::Refresh.into(), &[]), (&[], &[])),
+      53 => (HpackHeaderBasic::Field, (KnownHeaderName::RetryAfter.into(), &[]), (&[], &[])),
+      54 => (HpackHeaderBasic::Field, (KnownHeaderName::Server.into(), &[]), (&[], &[])),
+      55 => (HpackHeaderBasic::Field, (KnownHeaderName::SetCookie.into(), &[]), (&[], &[])),
+      56 => (
+        HpackHeaderBasic::Field,
+        (KnownHeaderName::StrictTransportSecurity.into(), &[]),
+        (&[], &[]),
+      ),
+      57 => (HpackHeaderBasic::Field, (KnownHeaderName::TransferEncoding.into(), &[]), (&[], &[])),
+      58 => (HpackHeaderBasic::Field, (KnownHeaderName::UserAgent.into(), &[]), (&[], &[])),
+      59 => (HpackHeaderBasic::Field, (KnownHeaderName::Vary.into(), &[]), (&[], &[])),
+      60 => (HpackHeaderBasic::Field, (KnownHeaderName::Via.into(), &[]), (&[], &[])),
+      61 => (HpackHeaderBasic::Field, (KnownHeaderName::WwwAuthenticate.into(), &[]), (&[], &[])),
       dyn_idx_with_offset => dyn_headers
         .get_by_idx(dyn_idx_with_offset.wrapping_sub(DYN_IDX_OFFSET))
-        .ok_or(crate::Error::InvalidHpackIdx(dyn_idx_with_offset))
+        .ok_or_else(|| {
+          crate::Error::http2_go_away_generic(Http2Error::InvalidHpackIdx(
+            dyn_idx_with_offset.try_into().ok(),
+          ))
+        })
         .map(|el| (*el.misc, (&[][..], el.name_bytes), (&[][..], el.value_bytes)))?,
     })
   }
@@ -338,7 +350,7 @@ impl HpackDecoder {
         size_update_cb()?;
         let local_max_bytes: u32 = Self::decode_integer(data, 0b0001_1111)?.1;
         if local_max_bytes > self.max_bytes.0 {
-          return Err(crate::Error::UnboundedNumber {
+          return Err(crate::Error::MISC_UnboundedNumber {
             expected: 0..=self.max_bytes.0,
             received: local_max_bytes,
           });
@@ -375,7 +387,7 @@ impl TryFrom<u8> for DecodeIdx {
         } else if n & 0b1110_0000 == 0b0010_0000 {
           Self::SizeUpdate
         } else {
-          return Err(crate::Error::UnexpectedHpackIdx);
+          return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedHpackIdx));
         }
       }
     })
@@ -405,7 +417,7 @@ mod bench {
     let mut he = HpackEncoder::new(StaticRng::default());
     he.set_max_dyn_super_bytes(N);
     he.encode(&mut buffer, [].into_iter(), {
-      data.chunks_exact(128).map(|el| (&el[..64], &el[64..], false))
+      data.chunks_exact(128).map(|el| (&el[..64], &el[64..]).into())
     })
     .unwrap();
     let mut hd = HpackDecoder::new();

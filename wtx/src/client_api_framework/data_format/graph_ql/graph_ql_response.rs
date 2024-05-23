@@ -186,7 +186,7 @@ mod simd_json {
     where
       ERR: Display + From<crate::Error>,
     {
-      Err(crate::Error::UnsupportedOperation.into())
+      Err(crate::Error::CAF_UnsupportedOperation.into())
     }
   }
 

@@ -3,7 +3,7 @@
 #[cfg(feature = "std")]
 macro_rules! opt_to_inv_mig {
   ($opt:expr) => {
-    $opt().ok_or_else(|| crate::Error::InvalidMigration)
+    $opt().ok_or_else(|| crate::Error::SM_InvalidMigration)
   };
 }
 
@@ -18,11 +18,11 @@ use core::hash::{Hash, Hasher};
 #[cfg(feature = "std")]
 use {
   crate::database::schema_manager::{
-    toml_parser::{toml, Expr, EXPR_ARRAY_MAX_LEN},
+    toml_parser::{toml, Expr},
     MigrationGroup, Repeatability, UserMigrationOwned,
   },
+  crate::misc::ArrayVector,
   alloc::string::String,
-  arrayvec::ArrayVec,
   core::cmp::Ordering,
   std::path::{Path, PathBuf},
   std::{
@@ -36,7 +36,7 @@ use {
 type MigrationGroupParts = (String, i32);
 #[cfg(feature = "std")]
 type MigrationParts = (
-  crate::misc::ArrayVector<DatabaseTy, { DatabaseTy::len() }>,
+  ArrayVector<DatabaseTy, { DatabaseTy::len() }>,
   String,
   Option<Repeatability>,
   String,
@@ -80,7 +80,7 @@ where
     let (mg, mut migrations_vec) = migrations_from_dir(path)?;
     migrations_vec.sort_by(cb);
     let migrations = migrations_vec.into_iter().map(move |local_path| {
-      let mut dbs = crate::misc::ArrayVector::default();
+      let mut dbs = ArrayVector::default();
       let name;
       let mut repeatability = None;
       let mut sql_down = String::default();
@@ -128,7 +128,7 @@ where
         sql_up = pm.sql_in;
         sql_down = pm.sql_out;
       } else {
-        return Err(crate::Error::InvalidMigration);
+        return Err(crate::Error::SM_InvalidMigration);
       }
       Ok((dbs, name, repeatability, sql_down, sql_up, version))
     });
@@ -150,7 +150,7 @@ where
 #[inline]
 pub fn parse_root_toml(
   cfg_path: &Path,
-) -> crate::Result<(ArrayVec<PathBuf, EXPR_ARRAY_MAX_LEN>, Option<PathBuf>)> {
+) -> crate::Result<(alloc::vec::Vec<PathBuf>, Option<PathBuf>)> {
   let cfg_dir = cfg_path.parent().unwrap_or_else(|| Path::new("."));
   parse_root_toml_raw(File::open(cfg_path)?, cfg_dir)
 }
@@ -161,11 +161,11 @@ pub fn parse_root_toml(
 pub fn parse_root_toml_raw<R>(
   read: R,
   root: &Path,
-) -> crate::Result<(ArrayVec<PathBuf, EXPR_ARRAY_MAX_LEN>, Option<PathBuf>)>
+) -> crate::Result<(alloc::vec::Vec<PathBuf>, Option<PathBuf>)>
 where
   R: Read,
 {
-  let mut migration_groups = ArrayVec::default();
+  let mut migration_groups = alloc::vec::Vec::new();
   let mut seeds = None;
 
   for (ident, toml_expr) in toml(read)? {
@@ -180,7 +180,7 @@ where
           if elem.is_empty() || !path.is_dir() || dir_name_parts(name).is_err() {
             continue;
           }
-          migration_groups.try_push(path)?;
+          migration_groups.push(path);
         }
       }
       ("seeds", Expr::String(elem)) => {
@@ -234,7 +234,7 @@ where
   let mut iter = slice.windows(2);
   while let Some([first, second, ..]) = iter.next() {
     if first >= second {
-      return Err(crate::Error::DatabasesMustBeSortedAndUnique);
+      return Err(crate::Error::SM_DatabasesMustBeSortedAndUnique);
     }
   }
   Ok(())
@@ -263,7 +263,7 @@ fn dir_name_parts(s: &str) -> crate::Result<(String, i32)> {
     let name = split.next()?.into();
     Some((name, version))
   };
-  f().ok_or(crate::Error::InvalidMigration)
+  f().ok_or(crate::Error::SM_InvalidMigration)
 }
 
 #[cfg(feature = "std")]
@@ -278,7 +278,7 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, i32)> {
     let name = split.next()?.strip_suffix(".sql")?.into();
     Some((name, version))
   };
-  f().ok_or(crate::Error::InvalidMigration)
+  f().ok_or(crate::Error::SM_InvalidMigration)
 }
 
 #[cfg(feature = "std")]

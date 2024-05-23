@@ -58,7 +58,7 @@ where
   ) -> crate::Result<()> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     if migration_groups.len() != versions.len() {
-      return Err(crate::Error::DifferentRollbackVersions);
+      return Err(crate::Error::SM_DifferentRollbackVersions);
     }
     migration_groups.sort_by(|a, b| b.cmp(a));
     for (mg, &version) in migration_groups.into_iter().zip(versions) {

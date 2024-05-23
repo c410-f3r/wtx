@@ -9,8 +9,8 @@
 // bytes or runtime performance.
 
 use crate::{
-  http::{AbstractHeaders, HeaderName, Method, StatusCode},
-  http2::{hpack_header::HpackHeaderBasic, huffman_encode},
+  http::{AbstractHeaders, Header, KnownHeaderName, Method, StatusCode},
+  http2::{hpack_header::HpackHeaderBasic, huffman_encode, Http2Error},
   misc::{ByteVector, Lease, Usize, _random_state, _shift_bytes, _unreachable},
   rng::Rng,
 };
@@ -61,11 +61,11 @@ impl HpackEncoder {
   }
 
   #[inline]
-  pub(crate) fn encode<'value>(
+  pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
     buffer: &mut ByteVector,
-    pseudo_headers: impl Iterator<Item = (HpackHeaderBasic, &'value [u8])>,
-    user_headers: impl Iterator<Item = (&'value [u8], &'value [u8], bool)>,
+    pseudo_headers: impl Iterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
+    user_headers: impl Iterator<Item = Header<'user>>,
   ) -> crate::Result<()> {
     self.adjust_indices(
       pseudo_headers
@@ -80,7 +80,7 @@ impl HpackEncoder {
       let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)))?;
       self.manage_encode(buffer, (&[], value), idx)?;
     }
-    for (name, value, is_sensitive) in user_headers {
+    for Header { is_sensitive, name, value, .. } in user_headers {
       let idx = self.encode_idx(
         (name, value, is_sensitive),
         HpackHeaderBasic::Field,
@@ -95,7 +95,7 @@ impl HpackEncoder {
   #[inline]
   pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u32) -> crate::Result<()> {
     if max_dyn_sub_bytes > self.max_dyn_super_bytes {
-      return Err(crate::Error::UnboundedNumber {
+      return Err(crate::Error::MISC_UnboundedNumber {
         expected: 0..=self.max_dyn_super_bytes,
         received: max_dyn_sub_bytes,
       });
@@ -239,7 +239,7 @@ impl HpackEncoder {
       n >>= 7;
     }
 
-    Err(crate::Error::VeryLargeHeaderInteger)
+    Err(crate::Error::http2_go_away_generic(Http2Error::VeryLargeHeaderInteger))
   }
 
   // 1. 0 -> 0xxxx -> 4xxxx
@@ -307,7 +307,7 @@ impl HpackEncoder {
         _ => {}
       }
     } else {
-      return Err(crate::Error::UnsupportedHeaderNameOrValueLen);
+      return Err(crate::Error::http2_go_away_generic(Http2Error::UnsupportedHeaderNameOrValueLen));
     }
     Ok(())
   }
@@ -318,16 +318,18 @@ impl HpackEncoder {
   fn header_is_naturally_sensitive(hhb: HpackHeaderBasic, name: &[u8]) -> bool {
     match hhb {
       HpackHeaderBasic::Field => matches!(
-        HeaderName::new(name),
-        HeaderName::AGE
-          | HeaderName::AUTHORIZATION
-          | HeaderName::CONTENT_LENGTH
-          | HeaderName::ETAG
-          | HeaderName::IF_MODIFIED_SINCE
-          | HeaderName::IF_NONE_MATCH
-          | HeaderName::LOCATION
-          | HeaderName::COOKIE
-          | HeaderName::SET_COOKIE
+        KnownHeaderName::try_from(name),
+        Ok(
+          KnownHeaderName::Age
+            | KnownHeaderName::Authorization
+            | KnownHeaderName::ContentLength
+            | KnownHeaderName::Cookie
+            | KnownHeaderName::Etag
+            | KnownHeaderName::IfModifiedSince
+            | KnownHeaderName::IfNoneMatch
+            | KnownHeaderName::Location
+            | KnownHeaderName::SetCookie
+        )
       ),
       HpackHeaderBasic::Path => true,
       _ => false,
@@ -482,64 +484,74 @@ impl HpackEncoder {
 
   #[inline]
   fn shi_user((name, value): (&[u8], &[u8])) -> Option<StaticHeader> {
-    let (has_value, idx, name) = match HeaderName::new(name) {
-      HeaderName::ACCEPT_CHARSET => (false, 15, HeaderName::ACCEPT_CHARSET.bytes()),
-      HeaderName::ACCEPT_ENCODING => {
+    let (has_value, idx, name) = match KnownHeaderName::try_from(name) {
+      Ok(KnownHeaderName::AcceptCharset) => (false, 15, KnownHeaderName::AcceptCharset.into()),
+      Ok(KnownHeaderName::AcceptEncoding) => {
         if value == b"gzip, deflate" {
-          (true, 16, HeaderName::ACCEPT_ENCODING.bytes())
+          (true, 16, KnownHeaderName::AcceptEncoding.into())
         } else {
-          (false, 16, HeaderName::ACCEPT_ENCODING.bytes())
+          (false, 16, KnownHeaderName::AcceptEncoding.into())
         }
       }
-      HeaderName::ACCEPT_LANGUAGE => (false, 17, HeaderName::ACCEPT_LANGUAGE.bytes()),
-      HeaderName::ACCEPT_RANGES => (false, 18, HeaderName::ACCEPT_RANGES.bytes()),
-      HeaderName::ACCEPT => (false, 19, HeaderName::ACCEPT.bytes()),
-      HeaderName::ACCESS_CONTROL_ALLOW_ORIGIN => {
-        (false, 20, HeaderName::ACCESS_CONTROL_ALLOW_ORIGIN.bytes())
+      Ok(KnownHeaderName::AcceptLanguage) => (false, 17, KnownHeaderName::AcceptLanguage.into()),
+      Ok(KnownHeaderName::AcceptRanges) => (false, 18, KnownHeaderName::AcceptRanges.into()),
+      Ok(KnownHeaderName::Accept) => (false, 19, KnownHeaderName::Accept.into()),
+      Ok(KnownHeaderName::AccessControlAllowOrigin) => {
+        (false, 20, KnownHeaderName::AccessControlAllowOrigin.into())
       }
-      HeaderName::AGE => (false, 21, HeaderName::AGE.bytes()),
-      HeaderName::ALLOW => (false, 22, HeaderName::ALLOW.bytes()),
-      HeaderName::AUTHORIZATION => (false, 23, HeaderName::AUTHORIZATION.bytes()),
-      HeaderName::CACHE_CONTROL => (false, 24, HeaderName::CACHE_CONTROL.bytes()),
-      HeaderName::CONTENT_DISPOSITION => (false, 25, HeaderName::CONTENT_DISPOSITION.bytes()),
-      HeaderName::CONTENT_ENCODING => (false, 26, HeaderName::CONTENT_ENCODING.bytes()),
-      HeaderName::CONTENT_LANGUAGE => (false, 27, HeaderName::CONTENT_LANGUAGE.bytes()),
-      HeaderName::CONTENT_LENGTH => (false, 28, HeaderName::CONTENT_LENGTH.bytes()),
-      HeaderName::CONTENT_LOCATION => (false, 29, HeaderName::CONTENT_LOCATION.bytes()),
-      HeaderName::CONTENT_RANGE => (false, 30, HeaderName::CONTENT_RANGE.bytes()),
-      HeaderName::CONTENT_TYPE => (false, 31, HeaderName::CONTENT_TYPE.bytes()),
-      HeaderName::COOKIE => (false, 32, HeaderName::COOKIE.bytes()),
-      HeaderName::DATE => (false, 33, HeaderName::DATE.bytes()),
-      HeaderName::ETAG => (false, 34, HeaderName::ETAG.bytes()),
-      HeaderName::EXPECT => (false, 35, HeaderName::EXPECT.bytes()),
-      HeaderName::EXPIRES => (false, 36, HeaderName::EXPIRES.bytes()),
-      HeaderName::FROM => (false, 37, HeaderName::FROM.bytes()),
-      HeaderName::HOST => (false, 38, HeaderName::HOST.bytes()),
-      HeaderName::IF_MATCH => (false, 39, HeaderName::IF_MATCH.bytes()),
-      HeaderName::IF_MODIFIED_SINCE => (false, 40, HeaderName::IF_MODIFIED_SINCE.bytes()),
-      HeaderName::IF_NONE_MATCH => (false, 41, HeaderName::IF_NONE_MATCH.bytes()),
-      HeaderName::IF_RANGE => (false, 42, HeaderName::IF_RANGE.bytes()),
-      HeaderName::IF_UNMODIFIED_SINCE => (false, 43, HeaderName::IF_UNMODIFIED_SINCE.bytes()),
-      HeaderName::LAST_MODIFIED => (false, 44, HeaderName::LAST_MODIFIED.bytes()),
-      HeaderName::LINK => (false, 45, HeaderName::LINK.bytes()),
-      HeaderName::LOCATION => (false, 46, HeaderName::LOCATION.bytes()),
-      HeaderName::MAX_FORWARDS => (false, 47, HeaderName::MAX_FORWARDS.bytes()),
-      HeaderName::PROXY_AUTHENTICATE => (false, 48, HeaderName::PROXY_AUTHENTICATE.bytes()),
-      HeaderName::PROXY_AUTHORIZATION => (false, 49, HeaderName::PROXY_AUTHORIZATION.bytes()),
-      HeaderName::RANGE => (false, 50, HeaderName::RANGE.bytes()),
-      HeaderName::REFERER => (false, 51, HeaderName::REFERER.bytes()),
-      HeaderName::REFRESH => (false, 52, HeaderName::REFRESH.bytes()),
-      HeaderName::RETRY_AFTER => (false, 53, HeaderName::RETRY_AFTER.bytes()),
-      HeaderName::SERVER => (false, 54, HeaderName::SERVER.bytes()),
-      HeaderName::SET_COOKIE => (false, 55, HeaderName::SET_COOKIE.bytes()),
-      HeaderName::STRICT_TRANSPORT_SECURITY => {
-        (false, 56, HeaderName::STRICT_TRANSPORT_SECURITY.bytes())
+      Ok(KnownHeaderName::Age) => (false, 21, KnownHeaderName::Age.into()),
+      Ok(KnownHeaderName::Allow) => (false, 22, KnownHeaderName::Allow.into()),
+      Ok(KnownHeaderName::Authorization) => (false, 23, KnownHeaderName::Authorization.into()),
+      Ok(KnownHeaderName::CacheControl) => (false, 24, KnownHeaderName::CacheControl.into()),
+      Ok(KnownHeaderName::ContentDisposition) => {
+        (false, 25, KnownHeaderName::ContentDisposition.into())
       }
-      HeaderName::TRANSFER_ENCODING => (false, 57, HeaderName::TRANSFER_ENCODING.bytes()),
-      HeaderName::USER_AGENT => (false, 58, HeaderName::USER_AGENT.bytes()),
-      HeaderName::VARY => (false, 59, HeaderName::VARY.bytes()),
-      HeaderName::VIA => (false, 60, HeaderName::VIA.bytes()),
-      HeaderName::WWW_AUTHENTICATE => (false, 61, HeaderName::WWW_AUTHENTICATE.bytes()),
+      Ok(KnownHeaderName::ContentEncoding) => (false, 26, KnownHeaderName::ContentEncoding.into()),
+      Ok(KnownHeaderName::ContentLanguage) => (false, 27, KnownHeaderName::ContentLanguage.into()),
+      Ok(KnownHeaderName::ContentLength) => (false, 28, KnownHeaderName::ContentLength.into()),
+      Ok(KnownHeaderName::ContentLocation) => (false, 29, KnownHeaderName::ContentLocation.into()),
+      Ok(KnownHeaderName::ContentRange) => (false, 30, KnownHeaderName::ContentRange.into()),
+      Ok(KnownHeaderName::ContentType) => (false, 31, KnownHeaderName::ContentType.into()),
+      Ok(KnownHeaderName::Cookie) => (false, 32, KnownHeaderName::Cookie.into()),
+      Ok(KnownHeaderName::Date) => (false, 33, KnownHeaderName::Date.into()),
+      Ok(KnownHeaderName::Etag) => (false, 34, KnownHeaderName::Etag.into()),
+      Ok(KnownHeaderName::Expect) => (false, 35, KnownHeaderName::Expect.into()),
+      Ok(KnownHeaderName::Expires) => (false, 36, KnownHeaderName::Expires.into()),
+      Ok(KnownHeaderName::From) => (false, 37, KnownHeaderName::From.into()),
+      Ok(KnownHeaderName::Host) => (false, 38, KnownHeaderName::Host.into()),
+      Ok(KnownHeaderName::IfMatch) => (false, 39, KnownHeaderName::IfMatch.into()),
+      Ok(KnownHeaderName::IfModifiedSince) => (false, 40, KnownHeaderName::IfModifiedSince.into()),
+      Ok(KnownHeaderName::IfNoneMatch) => (false, 41, KnownHeaderName::IfNoneMatch.into()),
+      Ok(KnownHeaderName::IfRange) => (false, 42, KnownHeaderName::IfRange.into()),
+      Ok(KnownHeaderName::IfUnmodifiedSince) => {
+        (false, 43, KnownHeaderName::IfUnmodifiedSince.into())
+      }
+      Ok(KnownHeaderName::LastModified) => (false, 44, KnownHeaderName::LastModified.into()),
+      Ok(KnownHeaderName::Link) => (false, 45, KnownHeaderName::Link.into()),
+      Ok(KnownHeaderName::Location) => (false, 46, KnownHeaderName::Location.into()),
+      Ok(KnownHeaderName::MaxForwards) => (false, 47, KnownHeaderName::MaxForwards.into()),
+      Ok(KnownHeaderName::ProxyAuthenticate) => {
+        (false, 48, KnownHeaderName::ProxyAuthenticate.into())
+      }
+      Ok(KnownHeaderName::ProxyAuthorization) => {
+        (false, 49, KnownHeaderName::ProxyAuthorization.into())
+      }
+      Ok(KnownHeaderName::Range) => (false, 50, KnownHeaderName::Range.into()),
+      Ok(KnownHeaderName::Referer) => (false, 51, KnownHeaderName::Referer.into()),
+      Ok(KnownHeaderName::Refresh) => (false, 52, KnownHeaderName::Refresh.into()),
+      Ok(KnownHeaderName::RetryAfter) => (false, 53, KnownHeaderName::RetryAfter.into()),
+      Ok(KnownHeaderName::Server) => (false, 54, KnownHeaderName::Server.into()),
+      Ok(KnownHeaderName::SetCookie) => (false, 55, KnownHeaderName::SetCookie.into()),
+      Ok(KnownHeaderName::StrictTransportSecurity) => {
+        (false, 56, KnownHeaderName::StrictTransportSecurity.into())
+      }
+      Ok(KnownHeaderName::TransferEncoding) => {
+        (false, 57, KnownHeaderName::TransferEncoding.into())
+      }
+      Ok(KnownHeaderName::UserAgent) => (false, 58, KnownHeaderName::UserAgent.into()),
+      Ok(KnownHeaderName::Vary) => (false, 59, KnownHeaderName::Vary.into()),
+      Ok(KnownHeaderName::Via) => (false, 60, KnownHeaderName::Via.into()),
+      Ok(KnownHeaderName::WwwAuthenticate) => (false, 61, KnownHeaderName::WwwAuthenticate.into()),
       _ => return None,
     };
     Some(StaticHeader { has_value, idx, name })
@@ -646,7 +658,7 @@ mod bench {
       he.encode(
         &mut buffer,
         [].into_iter(),
-        data.chunks_exact(128).map(|el| (&el[..64], &el[64..], false)),
+        data.chunks_exact(128).map(|el| (&el[..64], &el[64..]).into()),
       )
       .unwrap();
     });

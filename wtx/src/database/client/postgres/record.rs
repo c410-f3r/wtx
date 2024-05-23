@@ -62,7 +62,7 @@ impl<'exec, E> Record<'exec, E> {
     for _ in 1..values_len {
       let idx = curr_value_offset.wrapping_sub(initial_value_offset);
       let Some(&[a, b, c, d, ..]) = bytes.get(idx..) else {
-        return Err(crate::Error::InvalidPostgresRecord);
+        return Err(crate::Error::PG_InvalidPostgresRecord);
       };
       curr_value_offset = curr_value_offset.wrapping_add(4);
       fun(&mut curr_value_offset, [a, b, c, d])?;
@@ -155,7 +155,7 @@ mod array {
       record: &crate::database::client::postgres::record::Record<'_, E>,
     ) -> Result<Self, E> {
       Ok(
-        from_utf8_basic(record.value(0).ok_or(crate::Error::NoInnerValue("Record"))?.bytes())
+        from_utf8_basic(record.value(0).ok_or(crate::Error::MISC_NoInnerValue("Record"))?.bytes())
           .map_err(From::from)?
           .try_into()
           .map_err(From::from)?,

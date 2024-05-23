@@ -12,7 +12,7 @@ use fir::{
   fir_params_items_values::FirParamsItemValues, fir_pkg_attr::FirPkgAttr,
   fir_req_item_values::FirReqItemValues, fir_res_item_values::FirResItemValues,
 };
-use proc_macro2::{Ident, Span};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use sir::{sir_final_values::SirFinalValues, sir_pkg_attr::SirPkaAttr};
 use syn::{
@@ -47,18 +47,14 @@ pub(crate) fn pkg(
     }
     string
   };
-  let mut params_item_unit_opt = None;
+  let mut params_item_unit = Item::Verbatim(TokenStream::new());
   let fpiv = if let Some(elem) = fiv.params {
     FirParamsItemValues::try_from(elem)?
   } else {
-    params_item_unit_opt = Some(params_item_unit_fn(&mut camel_case_id));
-    #[allow(
-      // Option will always exist
-      clippy::unwrap_used
-    )]
+    params_item_unit = params_item_unit_fn(&mut camel_case_id);
     FirParamsItemValues::try_from(ItemWithAttrSpan {
       content: (),
-      item: params_item_unit_opt.as_mut().unwrap(),
+      item: &mut params_item_unit,
       span: Span::mixed_site(),
     })?
   };
@@ -79,7 +75,7 @@ pub(crate) fn pkg(
   ))?;
   if let Some(content) = item_mod.content.as_mut() {
     content.1.push(Item::Verbatim(quote::quote!(
-      #params_item_unit_opt
+      #params_item_unit
 
       #(#auxs)*
       #package

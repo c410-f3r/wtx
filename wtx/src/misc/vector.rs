@@ -3,29 +3,54 @@ use alloc::vec::Vec;
 use core::{
   fmt::{Debug, Formatter},
   hint::unreachable_unchecked,
+  mem::needs_drop,
   ops::{Deref, DerefMut},
   ptr,
 };
 
-/// A wrapper around the std's vector with some additional methods to manipulate copyable data.
-#[derive(Default, Eq, PartialEq)]
+/// Errors of [Vector].
+#[derive(Debug)]
+pub enum VectorError {
+  #[doc = doc_many_elems_cap_overflow!()]
+  ExtendFromSliceOverflow,
+  #[doc = doc_single_elem_cap_overflow!()]
+  PushOverflow,
+}
+
+/// A wrapper around the std's vector.
+#[derive(Eq, PartialEq)]
 pub struct Vector<D> {
   data: Vec<D>,
 }
 
-impl<D> Vector<D>
-where
-  D: Copy,
-{
+impl<D> Vector<D> {
   /// Constructs a new, empty instance.
+  #[allow(
+    // False-positive
+    clippy::missing_panics_doc
+  )]
   #[inline]
   pub const fn new() -> Self {
+    const {
+      if needs_drop::<D>() {
+        panic!();
+      }
+    }
     Self { data: Vec::new() }
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
+  #[allow(
+    // False-positive
+    clippy::missing_panics_doc
+  )]
   #[inline]
   pub fn with_capacity(cap: usize) -> Self {
+    const {
+      if needs_drop::<D>() {
+        panic!();
+      }
+    }
     let data = Vec::with_capacity(cap);
     // SAFETY: There is enough capacity
     unsafe {
@@ -62,51 +87,10 @@ where
     self.data.clear();
   }
 
-  /// Iterates over the slice `other`, copies each element, and then appends
-  /// it to this vector. The `other` slice is traversed in-order.
+  /// Removes the last element from a vector and returns it, or [None] if it is empty.
   #[inline]
-  pub fn extend_from_slice(&mut self, other: &[D]) -> crate::Result<()> {
-    let len = self.len();
-    let other_len = other.len();
-    // SAFETY: There is enough capacity
-    unsafe {
-      let new_len = len.unchecked_add(other_len);
-      if new_len > self.data.capacity() {
-        return Err(crate::Error::CapacityOverflow);
-      }
-      ptr::copy_nonoverlapping(other.as_ptr(), self.data.as_mut_ptr().add(len), other_len);
-      self.set_len(new_len);
-    }
-    Ok(())
-  }
-
-  /// Generalization of [Self::extend_from_slice].
-  #[allow(
-    // False-positive
-    clippy::missing_panics_doc
-  )]
-  #[inline]
-  pub fn extend_from_slices<U, const N: usize>(&mut self, others: &[U; N]) -> crate::Result<()>
-  where
-    U: Lease<[D]>,
-  {
-    const {
-      if N > 8 {
-        panic!("It is not possible to extend more than 8 slices");
-      }
-    }
-    let mut len: usize = 0;
-    for other in others {
-      // SAFETY: 8 slices is feasible by contract
-      unsafe {
-        len = len.unchecked_add(other.lease().len());
-      }
-    }
-    self.reserve(len);
-    for other in others {
-      self.extend_from_slice(other.lease())?;
-    }
-    Ok(())
+  pub fn pop(&mut self) -> Option<D> {
+    self.data.pop()
   }
 
   /// Appends an element to the back of the collection.
@@ -115,15 +99,15 @@ where
   ///
   /// If there is no available capacity.
   #[inline]
-  pub fn push(&mut self, value: D) -> crate::Result<()> {
+  pub fn push(&mut self, value: D) -> Result<(), VectorError> {
     let len = self.data.len();
     if len >= self.data.capacity() {
-      return Err(crate::Error::CapacityOverflow);
+      return Err(VectorError::PushOverflow);
     }
     // SAFETY: There is enough capacity
     unsafe {
       ptr::write(self.data.as_mut_ptr().add(len), value);
-      self.set_len(len.unchecked_add(1));
+      self.data.set_len(len.unchecked_add(1));
     }
     Ok(())
   }
@@ -169,6 +153,61 @@ where
   }
 }
 
+impl<D> Vector<D>
+where
+  D: Copy,
+{
+  /// Iterates over the slice `other`, copies each element, and then appends
+  /// it to this vector. The `other` slice is traversed in-order.
+  #[inline]
+  pub fn extend_from_slice(&mut self, other: &[D]) -> Result<(), VectorError> {
+    let len = self.data.len();
+    let other_len = other.len();
+    // SAFETY: There is enough capacity
+    unsafe {
+      let new_len = len.unchecked_add(other_len);
+      if new_len > self.data.capacity() {
+        return Err(VectorError::ExtendFromSliceOverflow);
+      }
+      ptr::copy_nonoverlapping(other.as_ptr(), self.data.as_mut_ptr().add(len), other_len);
+      self.data.set_len(new_len);
+    }
+    Ok(())
+  }
+
+  /// Generalization of [Self::extend_from_slice].
+  #[allow(
+    // False-positive
+    clippy::missing_panics_doc
+  )]
+  #[inline]
+  pub fn extend_from_slices<U, const N: usize>(
+    &mut self,
+    others: &[U; N],
+  ) -> Result<(), VectorError>
+  where
+    U: Lease<[D]>,
+  {
+    const {
+      if N > 8 {
+        panic!("It is not possible to extend more than 8 slices");
+      }
+    }
+    let mut len: usize = 0;
+    for other in others {
+      // SAFETY: 8 slices is feasible by contract
+      unsafe {
+        len = len.unchecked_add(other.lease().len());
+      }
+    }
+    self.reserve(len);
+    for other in others {
+      self.extend_from_slice(other.lease())?;
+    }
+    Ok(())
+  }
+}
+
 impl<D> Debug for Vector<D>
 where
   D: Debug,
@@ -179,10 +218,17 @@ where
   }
 }
 
-impl<D> Deref for Vector<D>
+impl<D> Default for Vector<D>
 where
-  D: Copy,
+  D: Default,
 {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl<D> Deref for Vector<D> {
   type Target = [D];
 
   #[inline]
@@ -191,10 +237,7 @@ where
   }
 }
 
-impl<D> DerefMut for Vector<D>
-where
-  D: Copy,
-{
+impl<D> DerefMut for Vector<D> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.data.as_mut_slice()

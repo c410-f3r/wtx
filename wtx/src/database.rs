@@ -42,6 +42,10 @@ pub type TableSuffix = u32;
 
 /// Database
 pub trait Database {
+  /// Prefix used to bind parameterized queries.
+  const BIND_PREFIX: &'static str;
+  /// Some databases require bindings in ascending order.
+  const IS_BIND_INCREASING: bool;
   /// See [DatabaseTy].
   const TY: DatabaseTy;
 
@@ -58,6 +62,8 @@ pub trait Database {
 }
 
 impl Database for () {
+  const BIND_PREFIX: &'static str = "$";
+  const IS_BIND_INCREASING: bool = true;
   const TY: DatabaseTy = DatabaseTy::Unit;
 
   type DecodeValue<'dv> = ();

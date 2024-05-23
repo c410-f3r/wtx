@@ -1,39 +1,45 @@
+use crate::database::{Database, RecordValues};
 use alloc::string::String;
-use core::array;
 
 /// Forms all fields of a table.
-pub trait TableFields<E> {
-  /// Iterator of fields.
-  type FieldNames: Iterator<Item = &'static str>;
-
+pub trait TableFields<D>: RecordValues<D>
+where
+  D: Database,
+{
   /// Yields all table field names.
-  fn field_names(&self) -> Self::FieldNames;
+  fn field_names(&self) -> impl Iterator<Item = &'static str>;
+
+  /// Yields all table fields that are or are not optionals.
+  fn opt_fields(&self) -> impl Iterator<Item = bool>;
 
   /// Writes the table instance values for INSERT statements.
-  fn write_insert_values(&self, buffer_cmd: &mut String) -> Result<(), E>;
+  fn write_insert_values(&self, buffer_cmd: &mut String) -> Result<(), D::Error>;
 
   /// Writes the table instance values for UPDATE statements.
-  fn write_update_values(&self, buffer_cmd: &mut String) -> Result<(), E>;
+  fn write_update_values(&self, buffer_cmd: &mut String) -> Result<(), D::Error>;
 }
 
-impl<E> TableFields<E> for ()
+impl<D> TableFields<D> for ()
 where
-  E: From<crate::Error>,
+  D: Database,
 {
-  type FieldNames = array::IntoIter<&'static str, 0>;
-
   #[inline]
-  fn field_names(&self) -> Self::FieldNames {
+  fn field_names(&self) -> impl Iterator<Item = &'static str> {
     [].into_iter()
   }
 
   #[inline]
-  fn write_insert_values(&self, _: &mut String) -> Result<(), E> {
+  fn opt_fields(&self) -> impl Iterator<Item = bool> {
+    [].into_iter()
+  }
+
+  #[inline]
+  fn write_insert_values(&self, _: &mut String) -> Result<(), D::Error> {
     Ok(())
   }
 
   #[inline]
-  fn write_update_values(&self, _: &mut String) -> Result<(), E> {
+  fn write_update_values(&self, _: &mut String) -> Result<(), D::Error> {
     Ok(())
   }
 }

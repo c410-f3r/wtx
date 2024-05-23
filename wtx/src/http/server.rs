@@ -5,6 +5,7 @@
 mod tokio_http2;
 #[cfg(all(
   feature = "async-send",
+  feature = "parking_lot",
   feature = "pool",
   feature = "tokio",
   feature = "web-socket-handshake"
@@ -14,8 +15,14 @@ mod tokio_web_socket;
 use core::marker::PhantomData;
 
 /// See [TokioHttp2::tokio_http2].
-#[cfg(all(feature = "async-send", feature = "http2", feature = "pool", feature = "tokio"))]
-pub type TokioHttp2 = Server<crate::pool::Http2ServerBufferRM<crate::rng::StdRng>>;
+#[cfg(all(
+  feature = "async-send",
+  feature = "http2",
+  feature = "parking_lot",
+  feature = "pool",
+  feature = "tokio"
+))]
+pub type TokioHttp2<SB> = Server<crate::pool::Http2ServerBufferRM<crate::rng::StdRng, SB>>;
 /// See [TokioWebSocket::tokio_web_socket].
 #[cfg(all(
   feature = "async-send",

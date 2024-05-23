@@ -1,7 +1,6 @@
 //! Generic HTTP elements
 
 mod abstract_headers;
-mod expected_header;
 mod generic_header;
 mod generic_request;
 mod generic_response;
@@ -18,12 +17,11 @@ mod status_code;
 mod version;
 
 pub(crate) use abstract_headers::AbstractHeaders;
-pub use expected_header::ExpectedHeader;
 pub use generic_header::GenericHeader;
 pub use generic_request::GenericRequest;
 pub use generic_response::GenericResponse;
 pub use header_name::*;
-pub use headers::Headers;
+pub use headers::{Header, Headers};
 pub use method::Method;
 pub use mime::Mime;
 pub use protocol::Protocol;

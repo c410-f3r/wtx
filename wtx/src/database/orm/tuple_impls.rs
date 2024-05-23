@@ -4,40 +4,32 @@
 )]
 
 use crate::{
-  database::orm::{
-    AuxNodes, FullTableAssociation, SelectLimit, SelectOrderBy, SqlValue, SqlWriter, Table,
-    TableAssociationWrapper, TableAssociations, TableField, TableFields, TableParams,
-    TableSourceAssociation,
+  database::{
+    orm::{
+      AuxNodes, FullTableAssociation, SelectLimit, SelectOrderBy, SqlValue, SqlWriter, Table,
+      TableAssociationWrapper, TableAssociations, TableField, TableFields, TableParams,
+    },
+    Database, Encode,
   },
   misc::SingleTypeStorage,
 };
 use alloc::string::String;
-use core::{
-  array,
-  fmt::{Display, Write},
-};
+use core::fmt::Write;
 
 macro_rules! double_tuple_impls {
   ($( ($($T:ident $U:ident),+) )+) => {
     $(
-      impl<'entity, $($T, $U,)+> TableAssociations for ($( TableAssociationWrapper<'entity, $U, $T>, )+)
+      impl<'entity, DB, $($T, $U,)+> TableAssociations for ($( TableAssociationWrapper<'entity, $U, $T>, )+)
       where
+        DB: Database,
         $(
           $T: crate::misc::Lease<[TableParams<'entity, $U>]> + SingleTypeStorage<Item = TableParams<'entity, $U>>,
-          $U: Table<'entity>,
+          $U: Table<'entity, Database = DB>,
+          $U::Associations: SqlWriter<Error = DB::Error>,
         )+
       {
-        type FullTableAssociations = array::IntoIter<
-          FullTableAssociation,
-          {
-            let mut len: usize = 0;
-            $({ const $T: usize = 1; len = len.wrapping_add($T); })+
-            len
-          }
-        >;
-
         #[inline]
-        fn full_associations(&self) -> Self::FullTableAssociations {
+        fn full_associations(&self) -> impl Iterator<Item = FullTableAssociation> {
           let ($($T,)+) = self;
           [
             $(
@@ -52,16 +44,16 @@ macro_rules! double_tuple_impls {
         }
       }
 
-      impl<'entity, ERR, $($T, $U,)+> SqlWriter for ($( TableAssociationWrapper<'entity, $U, $T>, )+)
+      impl<'entity, DB, $($T, $U,)+> SqlWriter for ($( TableAssociationWrapper<'entity, $U, $T>, )+)
       where
-        ERR: From<crate::Error>,
+        DB: Database,
         $(
           $T: crate::misc::Lease<[TableParams<'entity, $U>]> + SingleTypeStorage<Item = TableParams<'entity, $U>>,
-          $U: Table<'entity, Error = ERR>,
-          $U::Associations: SqlWriter<Error = ERR>,
+          $U: Table<'entity, Database = DB>,
+          $U::Associations: SqlWriter<Error = DB::Error>,
         )+
       {
-        type Error = ERR;
+        type Error = DB::Error;
 
         #[inline]
         fn write_delete(
@@ -79,19 +71,16 @@ macro_rules! double_tuple_impls {
         }
 
         #[inline]
-        fn write_insert<VALUE>(
+        fn write_insert(
           &self,
           aux: &mut AuxNodes,
           buffer_cmd: &mut String,
-          table_source_association: &mut Option<TableSourceAssociation<'_, VALUE>>
-        ) -> Result<(), Self::Error>
-        where
-          VALUE: Display
-        {
+          table_source_association: &mut Option<&'static str>
+        ) -> Result<(), Self::Error> {
           let ($($T,)+) = self;
           $(
-            if let Some(ref mut elem) = table_source_association.as_mut() {
-              *elem.source_field_mut() = $T.association.to_id();
+            if let Some(elem) = table_source_association.as_mut() {
+              *elem = $T.association.to_id();
             }
             for elem in $T.tables.lease() {
               elem.write_insert(aux, buffer_cmd, table_source_association)?;
@@ -170,30 +159,28 @@ macro_rules! double_tuple_impls {
 macro_rules! tuple_impls {
   ($( ($($T:ident),+) )+) => {
     $(
-      impl<ERR, $($T: SqlValue<ERR>),+> TableFields<ERR> for ($( TableField<$T>, )+)
+      impl<DB, $($T,)+> TableFields<DB> for ($( TableField<$T>, )+)
       where
-        ERR: From<crate::Error>,
+        DB: Database,
+        $($T: Encode<DB> + SqlValue<DB::Error>),+
       {
-        type FieldNames = array::IntoIter<
-          &'static str,
-          {
-            let mut len: usize = 0;
-            $({ const $T: usize = 1; len = len.wrapping_add($T); })+
-            len
-          }
-        >;
-
         #[inline]
-        fn field_names(&self) -> Self::FieldNames {
+        fn field_names(&self) -> impl Iterator<Item = &'static str> {
           let ($($T,)+) = self;
           [ $( $T.name(), )+ ].into_iter()
         }
 
         #[inline]
-        fn write_insert_values(&self, buffer_cmd: &mut String) -> Result<(), ERR> {
+        fn opt_fields(&self) -> impl Iterator<Item = bool> {
+          let ($($T,)+) = self;
+          [ $( $T.value().is_none(), )+ ].into_iter()
+        }
+
+        #[inline]
+        fn write_insert_values(&self, buffer_cmd: &mut String) -> Result<(), DB::Error> {
           let ($($T,)+) = self;
           $(
-            if let &Some(ref elem) = $T.value() {
+            if let Some(elem) = $T.value() {
               elem.write(buffer_cmd)?;
               buffer_cmd.push(',');
             }
@@ -202,10 +189,10 @@ macro_rules! tuple_impls {
         }
 
         #[inline]
-        fn write_update_values(&self, buffer_cmd: &mut String) -> Result<(), ERR> {
+        fn write_update_values(&self, buffer_cmd: &mut String) -> Result<(), DB::Error> {
           let ($($T,)+) = self;
           $(
-            if let &Some(ref elem) = $T.value() {
+            if let Some(elem) = $T.value() {
               buffer_cmd.write_fmt(format_args!("{}=", $T.name())).map_err(From::from)?;
               elem.write(buffer_cmd)?;
               buffer_cmd.push(',');

@@ -258,10 +258,10 @@ impl TryFrom<&str> for DbError {
         if rest.is_empty() {
           break;
         }
-        return Err(crate::Error::UnexpectedString { length: rest.len() });
+        return Err(crate::Error::MISC_UnexpectedString { length: rest.len() });
       }
       let Some(data) = str_split1(rest, b'\0').next() else {
-        return Err(crate::Error::UnexpectedEOF);
+        return Err(crate::Error::MISC_UnexpectedEOF);
       };
       let begin = idx;
       let (end, new_idx) = u32::try_from(data.len())
@@ -294,14 +294,14 @@ impl TryFrom<&str> for DbError {
         "s" => schema = Some(range),
         "t" => table = Some(range),
         _ => {
-          return Err(crate::Error::UnexpectedUint { received: atoi(ty.as_bytes())? });
+          return Err(crate::Error::MISC_UnexpectedUint { received: atoi(ty.as_bytes())? });
         }
       }
     }
 
     Ok(Self {
       buffer: from.get(..*Usize::from(idx)).unwrap_or_default().into(),
-      code: code.ok_or(crate::Error::NoInnerValue("No code"))?,
+      code: code.ok_or(crate::Error::MISC_NoInnerValue("No code"))?,
       column,
       constraint,
       datatype,
@@ -309,14 +309,15 @@ impl TryFrom<&str> for DbError {
       file,
       hint,
       line,
-      message: message.ok_or(crate::Error::NoInnerValue("No message"))?,
-      severity_localized: severity_localized.ok_or(crate::Error::NoInnerValue("No severity"))?,
+      message: message.ok_or(crate::Error::MISC_NoInnerValue("No message"))?,
+      severity_localized: severity_localized
+        .ok_or(crate::Error::MISC_NoInnerValue("No severity"))?,
       severity_nonlocalized,
       position: match normal_position {
         None => match internal_position {
           Some(position) => Some(ErrorPosition::Internal {
             position,
-            query: internal_query.ok_or(crate::Error::NoInnerValue("No internal query"))?,
+            query: internal_query.ok_or(crate::Error::MISC_NoInnerValue("No internal query"))?,
           }),
           None => None,
         },

@@ -88,7 +88,7 @@ impl fmt::Display for DbMigration {
 }
 
 fn _checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
-  atoi(bytes).map_err(|_err| crate::Error::ChecksumMustBeANumber)
+  atoi(bytes).map_err(|_err| crate::Error::SM_ChecksumMustBeANumber)
 }
 
 fn _fixed_from_naive_utc(naive: NaiveDateTime) -> DateTime<Utc> {

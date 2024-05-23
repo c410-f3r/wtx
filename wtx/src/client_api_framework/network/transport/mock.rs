@@ -85,7 +85,7 @@ where
   }
 
   fn pop_response(&mut self) -> crate::Result<Cow<'static, T>> {
-    self.responses.pop_front().ok_or(crate::Error::TestTransportNoResponse)
+    self.responses.pop_front().ok_or(crate::Error::CAF_TestTransportNoResponse)
   }
 }
 

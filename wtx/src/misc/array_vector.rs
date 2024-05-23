@@ -1,10 +1,22 @@
 use crate::misc::{char_slice, Lease, Usize};
 use core::{
+  array,
   cmp::Ordering,
   fmt::{self, Debug, Formatter},
+  iter,
+  mem::needs_drop,
   ops::{Deref, DerefMut},
   slice,
 };
+
+/// Errors of [ArrayVector].
+#[derive(Debug)]
+pub enum ArrayVectorError {
+  #[doc = doc_many_elems_cap_overflow!()]
+  ExtendFromSliceOverflow,
+  #[doc = doc_single_elem_cap_overflow!()]
+  PushOverflow,
+}
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
 pub struct ArrayVector<D, const N: usize> {
@@ -12,10 +24,7 @@ pub struct ArrayVector<D, const N: usize> {
   data: [D; N],
 }
 
-impl<D, const N: usize> ArrayVector<D, N>
-where
-  D: Copy,
-{
+impl<D, const N: usize> ArrayVector<D, N> {
   /// Constructs a new instance reusing any `data` elements delimited by `len`.
   #[allow(
     // False positive
@@ -24,8 +33,8 @@ where
   #[inline]
   pub const fn new(data: [D; N], len: u32) -> Self {
     let n = const {
-      if N > Usize::from_u32(u32::MAX).into_usize() {
-        panic!("Capacity is too large");
+      if N > Usize::from_u32(u32::MAX).into_usize() || needs_drop::<D>() {
+        panic!();
       }
       let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
       u32::from_be_bytes([a, b, c, d])
@@ -48,12 +57,6 @@ where
     self.len = 0;
   }
 
-  /// Clears the vector, removing all values.
-  #[inline]
-  pub fn into_inner(self) -> impl Iterator<Item = D> {
-    self.data.into_iter().take(*Usize::from(self.len))
-  }
-
   /// Shortens the vector, removing the last element.
   #[inline]
   pub fn pop(&mut self) -> bool {
@@ -71,29 +74,15 @@ where
     self.capacity().wrapping_sub(self.len)
   }
 
-  /// Iterates over the slice `other`, copies each element, and then appends
-  /// it to this vector. The `other` slice is traversed in-order.
-  #[inline]
-  pub fn try_extend_from_slice(&mut self, other: &[D]) -> crate::Result<()> {
-    let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining() >= *el) else {
-      return Err(crate::Error::CapacityOverflow);
-    };
-    let begin = *Usize::from(self.len);
-    let end = *Usize::from(self.len.wrapping_add(len));
-    self.data.get_mut(begin..end).unwrap_or_default().copy_from_slice(other);
-    self.len = self.len.wrapping_add(len);
-    Ok(())
-  }
-
   /// Appends an element to the back of the collection.
   #[inline]
-  pub fn try_push(&mut self, value: D) -> crate::Result<()> {
+  pub fn push(&mut self, value: D) -> Result<(), ArrayVectorError> {
     if let Some(elem) = self.data.get_mut(*Usize::from(self.len)) {
       *elem = value;
       self.len = self.len.wrapping_add(1);
       Ok(())
     } else {
-      Err(crate::Error::CapacityOverflow)
+      Err(ArrayVectorError::PushOverflow)
     }
   }
 
@@ -104,13 +93,32 @@ where
   }
 }
 
-impl<D, const N: usize> Clone for ArrayVector<D, N>
+impl<D, const N: usize> ArrayVector<D, N>
 where
   D: Copy,
 {
+  /// Iterates over the slice `other`, copies each element, and then appends
+  /// it to this vector. The `other` slice is traversed in-order.
+  #[inline]
+  pub fn extend_from_slice(&mut self, other: &[D]) -> Result<(), ArrayVectorError> {
+    let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining() >= *el) else {
+      return Err(ArrayVectorError::ExtendFromSliceOverflow);
+    };
+    let begin = *Usize::from(self.len);
+    let end = *Usize::from(self.len.wrapping_add(len));
+    self.data.get_mut(begin..end).unwrap_or_default().copy_from_slice(other);
+    self.len = self.len.wrapping_add(len);
+    Ok(())
+  }
+}
+
+impl<D, const N: usize> Clone for ArrayVector<D, N>
+where
+  D: Clone,
+{
   #[inline]
   fn clone(&self) -> Self {
-    Self { data: self.data, len: self.len }
+    Self { data: self.data.clone(), len: self.len }
   }
 }
 
@@ -126,11 +134,11 @@ where
 
 impl<D, const N: usize> Default for ArrayVector<D, N>
 where
-  D: Copy + Default,
+  D: Default,
 {
   #[inline]
   fn default() -> Self {
-    Self::new([D::default(); N], 0)
+    Self::new(array::from_fn(|_| D::default()), 0)
   }
 }
 
@@ -151,6 +159,16 @@ impl<D, const N: usize> DerefMut for ArrayVector<D, N> {
 }
 
 impl<D, const N: usize> Eq for ArrayVector<D, N> where D: Eq {}
+
+impl<D, const N: usize> IntoIterator for ArrayVector<D, N> {
+  type IntoIter = iter::Take<array::IntoIter<D, N>>;
+  type Item = D;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    self.data.into_iter().take(*Usize::from(self.len))
+  }
+}
 
 impl<'any, D, const N: usize> IntoIterator for &'any ArrayVector<D, N>
 where
@@ -249,12 +267,12 @@ impl<D, const N: usize> TryFrom<&[D]> for ArrayVector<D, N>
 where
   D: Copy + Default,
 {
-  type Error = crate::Error;
+  type Error = ArrayVectorError;
 
   #[inline]
   fn try_from(from: &[D]) -> Result<Self, Self::Error> {
     let mut this = Self::default();
-    this.try_extend_from_slice(from)?;
+    this.extend_from_slice(from)?;
     Ok(this)
   }
 }
@@ -262,12 +280,12 @@ where
 impl<const N: usize> fmt::Write for ArrayVector<u8, N> {
   #[inline]
   fn write_char(&mut self, ch: char) -> fmt::Result {
-    self.try_extend_from_slice(char_slice(&mut [0; 4], ch)).map_err(|_err| fmt::Error)
+    self.extend_from_slice(char_slice(&mut [0; 4], ch)).map_err(|_err| fmt::Error)
   }
 
   #[inline]
   fn write_str(&mut self, str: &str) -> fmt::Result {
-    self.try_extend_from_slice(str.as_bytes()).map_err(|_err| fmt::Error)
+    self.extend_from_slice(str.as_bytes()).map_err(|_err| fmt::Error)
   }
 }
 
@@ -281,7 +299,7 @@ impl<const N: usize> std::io::Write for ArrayVector<u8, N> {
   #[inline]
   fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
     let len = (*Usize::from(self.remaining())).min(data.len());
-    let _rslt = self.try_extend_from_slice(data.get(..len).unwrap_or_default());
+    let _rslt = self.extend_from_slice(data.get(..len).unwrap_or_default());
     Ok(len)
   }
 }
@@ -289,7 +307,53 @@ impl<const N: usize> std::io::Write for ArrayVector<u8, N> {
 #[cfg(feature = "serde")]
 mod serde {
   use crate::misc::ArrayVector;
-  use serde::{ser::SerializeTuple, Serialize, Serializer};
+  use core::{fmt::Formatter, marker::PhantomData};
+  use serde::{
+    de::{self, SeqAccess, Visitor},
+    ser::SerializeTuple,
+    Deserialize, Deserializer, Serialize, Serializer,
+  };
+
+  impl<'de, D, const N: usize> Deserialize<'de> for ArrayVector<D, N>
+  where
+    D: Default + Deserialize<'de>,
+  {
+    #[inline]
+    fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
+    where
+      DE: Deserializer<'de>,
+    {
+      struct ArrayVisitor<D, const N: usize>(PhantomData<D>);
+
+      impl<'de, D, const N: usize> Visitor<'de> for ArrayVisitor<D, N>
+      where
+        D: Default + Deserialize<'de>,
+      {
+        type Value = ArrayVector<D, N>;
+
+        #[inline]
+        fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+          formatter.write_fmt(format_args!("an array with {N} elements"))
+        }
+
+        #[inline]
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+          A: SeqAccess<'de>,
+        {
+          let mut this = ArrayVector::default();
+          for elem in &mut this {
+            *elem = seq.next_element::<D>()?.ok_or_else(|| {
+              de::Error::invalid_length(N, &"Array need more data to be constructed")
+            })?;
+          }
+          Ok(this)
+        }
+      }
+
+      deserializer.deserialize_tuple(N, ArrayVisitor::<D, N>(PhantomData))
+    }
+  }
 
   impl<D, const N: usize> Serialize for ArrayVector<D, N>
   where

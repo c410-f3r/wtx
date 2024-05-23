@@ -712,7 +712,7 @@ impl TryFrom<u32> for Ty {
       5078 => Self::Anycompatiblearray,
       5079 => Self::Anycompatiblenonarray,
       5080 => Self::AnycompatibleRange,
-      _ => return Err(crate::Error::UnexpectedUint { received: from }),
+      _ => return Err(crate::Error::MISC_UnexpectedUint { received: from }),
     })
   }
 }

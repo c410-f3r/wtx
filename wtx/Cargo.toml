@@ -1,12 +1,12 @@
 [[bin]]
 name = "autobahn-client"
 path = "src/bin/autobahn-client.rs"
-required-features = ["flate2", "optimization", "tokio/rt-multi-thread", "web-socket-handshake"]
+required-features = ["flate2", "optimization", "parking_lot", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
-required-features = ["async-send", "flate2", "optimization", "pool", "tokio/rt-multi-thread", "web-socket-handshake"]
+required-features = ["async-send", "flate2", "optimization", "parking_lot", "pool", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[example]]
 name = "database-client-postgres-tokio-rustls"
@@ -36,7 +36,6 @@ required-features = ["_tokio-rustls-server", "web-socket-handshake"]
 [dependencies]
 ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
-arrayvec = { default-features = false, optional = true, version = "0.7" }
 async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
 atoi = { default-features = false, optional = true, version = "2.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
@@ -57,7 +56,6 @@ glommio = { default-features = false, optional = true, version = "0.9" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
-md-5 = { default-features = false, optional = true, version = "0.10" }
 memchr = { default-features = false, optional = true, version = "2.7" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
@@ -81,7 +79,7 @@ smallvec = { default-features = false, features = ["const_generics", "union"], o
 smol = { default-features = false, optional = true, version = "2.0" }
 smoltcp = { default-features = false, optional = true, version = "0.11" }
 test-strategy = { default-features = false, optional = true, version = "0.3" }
-tokio = { default-features = false, features = ["io-util", "net", "sync", "time"], optional = true, version = "1.37" }
+tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.37" }
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
@@ -96,7 +94,7 @@ tokio = { default-features = false, features = ["macros", "net", "rt-multi-threa
 [features]
 ahash = ["dep:ahash", "hashbrown?/ahash"]
 arbitrary = ["dep:arbitrary", "std"]
-async-send = []
+async-send = ["parking_lot?/send_guard"]
 async-std = ["dep:async-std", "std"]
 borsh = ["dep:borsh", "std"]
 client-api-framework = ["cl-aux"]
@@ -110,17 +108,17 @@ miniserde = ["dep:miniserde", "std"]
 optimization = ["atoi", "memchr", "simdutf8"]
 orm = ["database", "dep:smallvec"]
 pool = []
-postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "md-5", "sha2"]
+postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "sha2"]
 protobuf = ["dep:protobuf", "std"]
-schema-manager = ["arrayvec", "database", "chrono"]
+schema-manager = ["database", "chrono"]
 schema-manager-dev = ["schema-manager"]
-serde = ["arrayvec?/serde", "cl-aux?/serde", "dep:serde"]
+serde = ["cl-aux?/serde", "dep:serde"]
 serde_json = ["serde", "dep:serde_json", "std"]
 serde_yaml = ["serde", "dep:serde_yaml", "std"]
 serde-xml-rs = ["serde", "dep:serde-xml-rs", "std"]
 simd-json = ["serde", "dep:simd-json", "std"]
 smol = ["dep:smol", "std"]
-std = ["ahash?/std", "arrayvec?/std", "atoi?/std", "cl-aux?/std", "embassy-sync?/std", "memchr?/std", "miniserde?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
+std = ["ahash?/std", "atoi?/std", "cl-aux?/std", "embassy-sync?/std", "memchr?/std", "miniserde?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
 test-strategy = ["dep:test-strategy", "proptest"]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls-pki-types", "tokio", "dep:tokio-rustls"]

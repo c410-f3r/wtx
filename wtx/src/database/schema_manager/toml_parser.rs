@@ -2,7 +2,7 @@
 
 use crate::misc::{str_split1, ArrayString, ArrayVector};
 use alloc::string::String;
-use arrayvec::ArrayVec;
+use core::array;
 use std::io::{BufRead, BufReader, Read};
 
 pub(crate) const EXPR_ARRAY_MAX_LEN: usize = 8;
@@ -10,7 +10,7 @@ pub(crate) const EXPR_ARRAY_MAX_LEN: usize = 8;
 pub(crate) type ExprArrayTy = ArrayVector<ExprStringTy, EXPR_ARRAY_MAX_LEN>;
 pub(crate) type ExprStringTy = ArrayString<128>;
 pub(crate) type IdentTy = ArrayString<64>;
-pub(crate) type RootParamsTy = ArrayVec<(IdentTy, Expr), 2>;
+pub(crate) type RootParamsTy = ArrayVector<(IdentTy, Expr), 2>;
 
 #[allow(clippy::large_enum_variant, variant_size_differences)]
 #[derive(Debug, PartialEq)]
@@ -27,7 +27,10 @@ where
   let mut br = BufReader::new(read);
   let mut is_in_array_context = None;
   let mut buffer = String::new();
-  let mut root_params = ArrayVec::default();
+  let mut root_params = ArrayVector::new(
+    array::from_fn(|_| (IdentTy::default(), Expr::String(ExprStringTy::new()))),
+    0,
+  );
 
   macro_rules! clear_and_continue {
     () => {
@@ -50,7 +53,7 @@ where
     if let Some(ident) = is_in_array_context.as_ref() {
       if buffer_ref.ends_with(']') {
         let inner = buffer_ref.get(0..buffer_ref.len().saturating_sub(1)).unwrap_or_default();
-        try_parse_and_push_toml_expr_array(inner, *ident, &mut root_params)?;
+        parse_and_push_toml_expr_array(inner, *ident, &mut root_params)?;
         is_in_array_context = None;
         buffer.clear();
       }
@@ -60,7 +63,7 @@ where
     let mut root_param_iter = buffer_ref.split('=');
 
     let ident = if let Some(el) = root_param_iter.next() {
-      el.trim().try_into().map_err(|_err| crate::Error::TomlValueIsTooLarge)?
+      el.trim().try_into().map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?
     } else {
       clear_and_continue!();
     };
@@ -74,12 +77,12 @@ where
     if expr_raw.starts_with('[') {
       if expr_raw.ends_with(']') {
         let inner = expr_raw.get(1..expr_raw.len().saturating_sub(1)).unwrap_or_default();
-        try_parse_and_push_toml_expr_array(inner, ident, &mut root_params)?;
+        parse_and_push_toml_expr_array(inner, ident, &mut root_params)?;
       } else {
         is_in_array_context = Some(ident);
       }
     } else {
-      try_parse_and_push_toml_expr_string(expr_raw, ident, &mut root_params)?;
+      parse_and_push_toml_expr_string(expr_raw, ident, &mut root_params)?;
     }
 
     buffer.clear();
@@ -89,54 +92,55 @@ where
 }
 
 #[inline]
-fn try_parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
+fn parse_and_push_toml_expr_array(
+  s: &str,
+  ident: IdentTy,
+  root_params: &mut RootParamsTy,
+) -> crate::Result<()> {
+  let expr_array = parse_expr_array(s)?;
+  root_params
+    .push((ident, Expr::Array(expr_array)))
+    .map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?;
+  Ok(())
+}
+
+#[inline]
+fn parse_and_push_toml_expr_string(
+  s: &str,
+  ident: IdentTy,
+  root_params: &mut RootParamsTy,
+) -> crate::Result<()> {
+  let expr_string = parse_expr_string(s)?;
+  root_params
+    .push((ident, Expr::String(expr_string)))
+    .map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?;
+  Ok(())
+}
+
+#[inline]
+fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
   let mut array = ArrayVector::default();
   if s.is_empty() {
     return Ok(array);
   }
   for elem in str_split1(s, b',') {
-    let expr_string = try_parse_expr_string(elem.trim())?;
-    array.try_push(expr_string).map_err(|_err| crate::Error::TomlValueIsTooLarge)?;
+    let expr_string = parse_expr_string(elem.trim())?;
+    array.push(expr_string).map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?;
   }
   Ok(array)
 }
 
 #[inline]
-fn try_parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
+fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
   let mut iter = str_split1(s, b'"');
-  let _ = iter.next().ok_or(crate::Error::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
-  let value = iter.next().ok_or(crate::Error::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
-  let _ = iter.next().ok_or(crate::Error::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
+  let _ = iter.next().ok_or(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings)?;
+  let value =
+    iter.next().ok_or(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings)?;
+  let _ = iter.next().ok_or(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings)?;
   if iter.next().is_some() {
-    return Err(crate::Error::TomlParserOnlySupportsStringsAndArraysOfStrings);
+    return Err(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings);
   }
-  value.trim().try_into().map_err(|_err| crate::Error::TomlValueIsTooLarge)
-}
-
-#[inline]
-fn try_parse_and_push_toml_expr_array(
-  s: &str,
-  ident: IdentTy,
-  root_params: &mut RootParamsTy,
-) -> crate::Result<()> {
-  let expr_array = try_parse_expr_array(s)?;
-  root_params
-    .try_push((ident, Expr::Array(expr_array)))
-    .map_err(|_err| crate::Error::TomlValueIsTooLarge)?;
-  Ok(())
-}
-
-#[inline]
-fn try_parse_and_push_toml_expr_string(
-  s: &str,
-  ident: IdentTy,
-  root_params: &mut RootParamsTy,
-) -> crate::Result<()> {
-  let expr_string = try_parse_expr_string(s)?;
-  root_params
-    .try_push((ident, Expr::String(expr_string)))
-    .map_err(|_err| crate::Error::TomlValueIsTooLarge)?;
-  Ok(())
+  value.trim().try_into().map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)
 }
 
 #[cfg(test)]
@@ -162,8 +166,8 @@ mod tests {
         "foo".try_into().unwrap(),
         Expr::Array({
           let mut elems = ArrayVector::default();
-          elems.try_push("1".try_into().unwrap()).unwrap();
-          elems.try_push("2".try_into().unwrap()).unwrap();
+          elems.push("1".try_into().unwrap()).unwrap();
+          elems.push("2".try_into().unwrap()).unwrap();
           elems
         })
       )
@@ -189,9 +193,9 @@ mod tests {
         "foo".try_into().unwrap(),
         Expr::Array({
           let mut elems = ArrayVector::default();
-          elems.try_push("1".try_into().unwrap()).unwrap();
-          elems.try_push("2".try_into().unwrap()).unwrap();
-          elems.try_push("3".try_into().unwrap()).unwrap();
+          elems.push("1".try_into().unwrap()).unwrap();
+          elems.push("2".try_into().unwrap()).unwrap();
+          elems.push("3".try_into().unwrap()).unwrap();
           elems
         })
       )

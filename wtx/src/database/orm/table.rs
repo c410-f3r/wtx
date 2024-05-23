@@ -1,6 +1,6 @@
 use crate::database::{
   orm::{FromSuffixRslt, SqlValue, TableAssociations, TableFields, TableParams},
-  TableSuffix,
+  Database, TableSuffix,
 };
 use core::{fmt::Display, hash::Hash};
 
@@ -15,12 +15,12 @@ pub trait Table<'entity>: Sized {
 
   /// See [TableAssociations]
   type Associations: TableAssociations;
-  /// See [crate::Error].
-  type Error: From<crate::Error>;
+  /// See [Database].
+  type Database: Database;
   /// All table fields minus the primary key. For more information, see [TableFields]
-  type Fields: TableFields<Self::Error>;
+  type Fields: TableFields<Self::Database>;
   /// Table primary key value type
-  type PrimaryKeyValue: Copy + Display + Hash + SqlValue<Self::Error>;
+  type PrimaryKeyValue: Copy + Display + Hash + SqlValue<<Self::Database as Database>::Error>;
 
   /// Implementation should provide all related fields and associations
   fn type_instances(ts: TableSuffix) -> FromSuffixRslt<'entity, Self>;
@@ -34,17 +34,15 @@ impl<'entity> Table<'entity> for () {
   const TABLE_NAME: &'static str = "";
 
   type Associations = ();
-  type Error = crate::Error;
+  type Database = ();
   type Fields = ();
   type PrimaryKeyValue = &'static str;
 
   #[inline]
   fn type_instances(_: TableSuffix) -> FromSuffixRslt<'entity, Self> {
-    todo!()
+    ((), ())
   }
 
   #[inline]
-  fn update_all_table_fields(_: &'entity Self, _: &mut TableParams<'entity, Self>) {
-    todo!()
-  }
+  fn update_all_table_fields(_: &'entity Self, _: &mut TableParams<'entity, Self>) {}
 }

@@ -1,3 +1,8 @@
+use crate::{
+  database::{Database, Encode},
+  misc::FilledBufferWriter,
+};
+
 /// Table field name and its associated Rust type
 #[derive(Debug, PartialEq)]
 pub struct TableField<T> {
@@ -28,5 +33,20 @@ impl<T> TableField<T> {
   #[inline]
   pub fn value_mut(&mut self) -> &mut Option<T> {
     &mut self.value
+  }
+}
+
+impl<D, T> Encode<D> for TableField<T>
+where
+  D: Database,
+  T: Encode<D>,
+{
+  #[inline]
+  fn encode(
+    &self,
+    fbw: &mut FilledBufferWriter<'_>,
+    value: <D as Database>::EncodeValue<'_>,
+  ) -> Result<(), <D as Database>::Error> {
+    self.value.encode(fbw, value)
   }
 }

@@ -1,5 +1,5 @@
 use crate::database::{
-  orm::{AuxNodes, FullTableAssociation, Table, TableParams},
+  orm::{AuxNodes, FullTableAssociation, OrmError, Table, TableParams},
   Database, Decode, FromRecords, Record, Records, TableSuffix, ValueIdent,
 };
 use alloc::string::String;
@@ -18,7 +18,7 @@ pub fn seek_related_entities<'entity, D, T>(
 ) -> Result<usize, D::Error>
 where
   D: Database,
-  T: FromRecords<D> + Table<'entity, Error = D::Error>,
+  T: FromRecords<D> + Table<'entity, Database = D>,
   str: for<'rec> ValueIdent<D::Record<'rec>>,
   u64: for<'value> Decode<'value, D>,
 {
@@ -97,7 +97,7 @@ where
       if existent_table_name == T::TABLE_NAME {
         return Ok(true);
       } else {
-        return Err(crate::Error::TableHashCollision(existent_table_name));
+        return Err(OrmError::TableHashCollision(existent_table_name).into());
       }
     }
   }

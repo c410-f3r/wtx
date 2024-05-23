@@ -1,9 +1,8 @@
 use crate::database::orm::{
   AuxNodes, FullTableAssociation, SelectLimit, SelectOrderBy, SqlWriter, TableAssociations,
-  TableSourceAssociation,
 };
 use alloc::string::String;
-use core::{array, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// For entities that don't have associations
 #[derive(Debug, Default)]
@@ -18,10 +17,8 @@ impl<E> NoTableAssociation<E> {
 }
 
 impl<E> TableAssociations for NoTableAssociation<E> {
-  type FullTableAssociations = array::IntoIter<FullTableAssociation, 0>;
-
   #[inline]
-  fn full_associations(&self) -> Self::FullTableAssociations {
+  fn full_associations(&self) -> impl Iterator<Item = FullTableAssociation> {
     [].into_iter()
   }
 }
@@ -38,11 +35,11 @@ where
   }
 
   #[inline]
-  fn write_insert<V>(
+  fn write_insert(
     &self,
     _: &mut AuxNodes,
     _: &mut String,
-    _: &mut Option<TableSourceAssociation<'_, V>>,
+    _: &mut Option<&'static str>,
   ) -> Result<(), Self::Error> {
     Ok(())
   }

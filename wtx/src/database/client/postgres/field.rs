@@ -11,10 +11,10 @@ pub(crate) struct MsgField<'bytes> {
 
 impl<'bytes> MsgField<'bytes> {
   pub(crate) fn parse(value: &'bytes [u8]) -> crate::Result<(usize, Self)> {
-    let (name_bytes, rest_bytes) =
-      value.split_at(bytes_pos1(value, b'\0').ok_or(crate::Error::UnexpectedDatabaseMessageBytes)?);
+    let (name_bytes, rest_bytes) = value
+      .split_at(bytes_pos1(value, b'\0').ok_or(crate::Error::PG_UnexpectedDatabaseMessageBytes)?);
     let &[_, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, ..] = rest_bytes else {
-      return Err(crate::Error::UnexpectedDatabaseMessageBytes);
+      return Err(crate::Error::PG_UnexpectedDatabaseMessageBytes);
     };
     let name = from_utf8_basic(name_bytes)?;
     let _table_oid = u32::from_be_bytes([a, b, c, d]);

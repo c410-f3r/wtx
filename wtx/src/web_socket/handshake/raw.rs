@@ -40,7 +40,7 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 #[cfg(feature = "web-socket-handshake")]
 mod httparse_impls {
   use crate::{
-    http::{ExpectedHeader, GenericHeader as _, GenericRequest as _},
+    http::{GenericHeader as _, GenericRequest as _, KnownHeaderName, Method},
     misc::{bytes_split1, FilledBufferWriter, LeaseMut, Stream, UriRef},
     rng::Rng,
     web_socket::{
@@ -79,7 +79,7 @@ mod httparse_impls {
         let read_buffer = nb._following_mut().get_mut(read..).unwrap_or_default();
         let local_read = self.stream.read(read_buffer).await?;
         if local_read == 0 {
-          return Err(crate::Error::UnexpectedEOF);
+          return Err(crate::Error::MISC_UnexpectedEOF);
         }
         read = read.wrapping_add(local_read);
         let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
@@ -87,22 +87,22 @@ mod httparse_impls {
         match req.parse(nb._following())? {
           Status::Complete(_) => {
             if !cb(&req) {
-              return Err(crate::Error::InvalidAcceptRequest);
+              return Err(crate::Error::WS_InvalidAcceptRequest);
             }
             if !_trim_bytes(req.method()).eq_ignore_ascii_case(b"get") {
-              return Err(crate::Error::UnexpectedHttpMethod);
+              return Err(crate::Error::HTTP_UnexpectedHttpMethod { expected: Method::Get });
             }
             verify_common_header(req.headers)?;
             if !has_header_key_and_value(req.headers, b"sec-websocket-version", b"13") {
-              return Err(crate::Error::MissingHeader {
-                expected: ExpectedHeader::SecWebSocketVersion_13,
+              return Err(crate::Error::HTTP_MissingHeader {
+                expected: KnownHeaderName::SecWebsocketVersion,
               });
             };
             let Some(key) = req.headers.iter().find_map(|el| {
               (el.name().eq_ignore_ascii_case(b"sec-websocket-key")).then_some(el.value())
             }) else {
-              return Err(crate::Error::MissingHeader {
-                expected: ExpectedHeader::SecWebSocketKey,
+              return Err(crate::Error::HTTP_MissingHeader {
+                expected: KnownHeaderName::SecWebsocketKey,
               });
             };
             let compression = self.compression.negotiate(req.headers.iter())?;
@@ -159,7 +159,7 @@ mod httparse_impls {
         let read_buffer = self.fb.payload_mut().get_mut(read..).unwrap_or_default();
         let local_read = self.stream.read(read_buffer).await?;
         if local_read == 0 {
-          return Err(crate::Error::UnexpectedEOF);
+          return Err(crate::Error::MISC_UnexpectedEOF);
         }
         read = read.wrapping_add(local_read);
         match Response::new(&mut local_header).parse(self.fb.payload())? {
@@ -170,7 +170,7 @@ mod httparse_impls {
       let mut res = Response::new(&mut self.headers_buffer.headers);
       let _status = res.parse(self.fb.payload())?;
       if res.code != Some(101) {
-        return Err(crate::Error::MissingSwitchingProtocols);
+        return Err(crate::Error::WS_MissingSwitchingProtocols);
       }
       verify_common_header(res.headers)?;
       if !has_header_key_and_value(
@@ -178,7 +178,9 @@ mod httparse_impls {
         b"sec-websocket-accept",
         derived_key(&mut [0; 30], key),
       ) {
-        return Err(crate::Error::MissingHeader { expected: ExpectedHeader::SecWebSocketKey });
+        return Err(crate::Error::HTTP_MissingHeader {
+          expected: KnownHeaderName::SecWebsocketKey,
+        });
       }
       let compression = self.compression.negotiate(res.headers.iter())?;
       nb._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
@@ -251,10 +253,10 @@ mod httparse_impls {
 
   fn verify_common_header(buffer: &[Header<'_>]) -> crate::Result<()> {
     if !has_header_key_and_value(buffer, b"connection", b"upgrade") {
-      return Err(crate::Error::MissingHeader { expected: ExpectedHeader::Connection_Upgrade });
+      return Err(crate::Error::HTTP_MissingHeader { expected: KnownHeaderName::Connection });
     }
     if !has_header_key_and_value(buffer, b"upgrade", b"websocket") {
-      return Err(crate::Error::MissingHeader { expected: ExpectedHeader::Upgrade_WebSocket });
+      return Err(crate::Error::HTTP_MissingHeader { expected: KnownHeaderName::Upgrade });
     }
     Ok(())
   }

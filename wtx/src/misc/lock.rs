@@ -1,11 +1,10 @@
-use crate::misc::LockGuard;
 use alloc::{rc::Rc, sync::Arc};
 use core::{future::Future, ops::DerefMut};
 
 /// An asynchronous mutual exclusion primitive useful for protecting shared data.
 pub trait Lock {
   /// See [LockGuard].
-  type Guard<'guard>: LockGuard<'guard, Self::Resource>
+  type Guard<'guard>: DerefMut<Target = Self::Resource>
   where
     Self: 'guard;
   /// Resource behind the lock.

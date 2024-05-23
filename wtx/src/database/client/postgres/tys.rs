@@ -97,7 +97,8 @@ mod chrono {
         let timestamp = i64::from_be_bytes([a, b, c, d, e, f, g, h]);
         Some(Utc.from_utc_datetime(&base()?.checked_add_signed(Duration::microseconds(timestamp))?))
       };
-      rslt().ok_or_else(|| crate::Error::UnexpectedValueFromBytes { expected: "timestamp" }.into())
+      rslt()
+        .ok_or_else(|| crate::Error::PG_UnexpectedValueFromBytes { expected: "timestamp" }.into())
     }
   }
 
@@ -111,7 +112,7 @@ mod chrono {
         match base().and_then(|el| self.naive_utc().signed_duration_since(el).num_microseconds()) {
           Some(time) => time,
           None => {
-            return Err(crate::Error::UnexpectedValueFromBytes { expected: "timestamp" }.into())
+            return Err(crate::Error::PG_UnexpectedValueFromBytes { expected: "timestamp" }.into())
           }
         };
       fbw._extend_from_slice(&time.to_be_bytes());
@@ -233,7 +234,7 @@ mod pg_numeric {
     fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
       let [a, b, c, d, e, f, g, h, rest @ ..] = input.bytes() else {
         return Err(
-          crate::Error::UnexpectedBufferSize {
+          crate::Error::PG_UnexpectedBufferSize {
             expected: 8,
             received: Usize::from(input.bytes().len()).into(),
           }
@@ -250,7 +251,7 @@ mod pg_numeric {
         PgNumeric::NotANumber
       } else {
         if digits_usize > DIGITS_CAP || digits_usize > 0x7FFF {
-          return Err(crate::Error::VeryLargeDecimal.into());
+          return Err(crate::Error::PG_VeryLargeDecimal.into());
         }
         let mut fbw = [0i16; DIGITS_CAP];
         for elem in fbw.iter_mut().take(digits_usize) {
@@ -320,10 +321,10 @@ mod pg_numeric {
     #[inline]
     fn try_from(from: u16) -> Result<Self, Self::Error> {
       Ok(match from {
-        SIGN_NAN => return Err(crate::Error::DecimalCanNotBeConvertedFromNaN),
+        SIGN_NAN => return Err(crate::Error::PG_DecimalCanNotBeConvertedFromNaN),
         SIGN_NEG => Self::Negative,
         SIGN_POS => Self::Positive,
-        _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
+        _ => return Err(crate::Error::MISC_UnexpectedUint { received: from.into() }),
       })
     }
   }
@@ -347,7 +348,7 @@ mod primitives {
     fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
       let &[byte] = input.bytes() else {
         return Err(
-          crate::Error::UnexpectedBufferSize {
+          crate::Error::PG_UnexpectedBufferSize {
             expected: 1,
             received: Usize::from(input.bytes().len()).into(),
           }
@@ -385,7 +386,7 @@ mod primitives {
           Ok(
             <$signed as Decode::<Postgres<E>>>::decode(input)?
               .try_into()
-              .map_err(|_err| crate::Error::InvalidPostgresUint)?
+              .map_err(|_err| crate::Error::PG_InvalidPostgresUint)?
           )
         }
       }
@@ -397,7 +398,7 @@ mod primitives {
         #[inline]
         fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
           if *self >> mem::size_of::<$unsigned>().wrapping_sub(1) == 1 {
-            return Err(E::from(crate::Error::InvalidPostgresUint));
+            return Err(E::from(crate::Error::PG_InvalidPostgresUint));
           }
           fbw._extend_from_slice(&self.to_be_bytes());
           Ok(())
@@ -419,7 +420,7 @@ mod primitives {
           if let &[$($elem),+] = input.bytes() {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
-          Err(crate::Error::UnexpectedBufferSize {
+          Err(crate::Error::PG_UnexpectedBufferSize {
             expected: Usize::from(mem::size_of::<$ty>()).into(),
             received: Usize::from(input.bytes().len()).into()
           }.into())
@@ -473,7 +474,7 @@ mod rust_decimal {
       let pg_numeric = PgNumeric::decode(input)?;
       let (digits, sign, mut weight, scale) = match pg_numeric {
         PgNumeric::NotANumber => {
-          return Err(crate::Error::DecimalCanNotBeConvertedFromNaN.into());
+          return Err(crate::Error::PG_DecimalCanNotBeConvertedFromNaN.into());
         }
         PgNumeric::Number { digits, sign, weight, scale } => (digits, sign, weight, scale),
       };
@@ -481,7 +482,7 @@ mod rust_decimal {
         return Ok(0u64.into());
       }
       let mut value = Decimal::ZERO;
-      for digit in digits.into_inner() {
+      for digit in digits.into_iter() {
         let mut operations = || {
           let mul = Decimal::from(10_000u16).checked_powi(weight.into())?;
           let part = Decimal::from(digit).checked_mul(mul)?;
@@ -489,7 +490,7 @@ mod rust_decimal {
           weight = weight.checked_sub(1)?;
           Some(())
         };
-        operations().ok_or_else(|| crate::Error::OutOfBoundsArithmetic)?;
+        operations().ok_or_else(|| crate::Error::MISC_OutOfBoundsArithmetic)?;
       }
       match sign {
         Sign::Positive => value.set_sign_positive(true),
@@ -529,7 +530,7 @@ mod rust_decimal {
 
       let mut digits = ArrayVector::default();
       while mantissa != 0 {
-        digits.try_push((mantissa % 10_000) as i16)?;
+        digits.push((mantissa % 10_000) as i16).map_err(From::from)?;
         mantissa /= 10_000;
       }
       digits.reverse();

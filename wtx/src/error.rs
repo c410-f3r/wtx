@@ -1,4 +1,7 @@
-use crate::http::ExpectedHeader;
+use crate::{
+  http::{KnownHeaderName, Method},
+  misc::{ArrayStringError, ArrayVectorError, BlocksQueueError, QueueError, VectorError},
+};
 use core::{
   fmt::{Debug, Display, Formatter},
   ops::RangeInclusive,
@@ -19,19 +22,12 @@ type RkyvSer = rkyv::ser::serializers::CompositeSerializerError<
 >;
 
 /// Grouped individual errors
-//
-// * `Invalid` Something is present but has invalid state.
-// * `Missing`: Not present when expected to be.
-// * `Unexpected`: Received something that was not intended.
-#[allow(missing_docs)]
+#[allow(missing_docs, non_camel_case_types)]
 #[derive(Debug)]
 pub enum Error {
   // External - Misc
   //
-  #[cfg(feature = "arrayvec")]
-  ArrayVec(arrayvec::CapacityError<()>),
   AtoiInvalidBytes,
-  CapacityOverflow,
   #[cfg(feature = "chrono")]
   ChronoParseError(chrono::ParseError),
   #[cfg(feature = "cl-aux")]
@@ -54,8 +50,6 @@ pub enum Error {
   Glommio(Box<glommio::GlommioError<()>>),
   #[cfg(feature = "httparse")]
   HttpParse(httparse::Error),
-  #[cfg(feature = "http2")]
-  Http2ErrorCode(crate::http2::ErrorCode),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
   #[cfg(feature = "miniserde")]
@@ -107,264 +101,228 @@ pub enum Error {
   VarError(VarError),
   Utf8Error(core::str::Utf8Error),
 
-  // ***** Internal - Client API Framework *****
-  //
+  // Internal
+  ArrayStringError(ArrayStringError),
+  ArrayVectorError(ArrayVectorError),
+  #[allow(private_interfaces)]
+  BlocksQueueError(BlocksQueueError),
+  #[cfg(feature = "http2")]
+  Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
+  #[cfg(feature = "http2")]
+  Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
+  #[cfg(feature = "orm")]
+  OrmError(crate::database::orm::OrmError),
+  QueueError(QueueError),
+  VectorError(VectorError),
+
   /// A slice-like batch of package is not sorted
-  BatchPackagesAreNotSorted,
+  CAF_BatchPackagesAreNotSorted,
   /// The server closed the WebSocket connection
-  ClosedWsConnection,
+  CAF_ClosedWsConnection,
   /// A server was not able to receive the full request data after several attempts.
-  CouldNotSendTheFullRequestData,
+  CAF_CouldNotSendTheFullRequestData,
   #[cfg(feature = "client-api-framework")]
   /// GraphQl response error
-  GraphQlResponseError(
+  CAF_GraphQlResponseError(
     Box<[crate::client_api_framework::data_format::GraphQlResponseError<String>]>,
   ),
   /// The hardware returned an incorrect time value
-  IncorrectHardwareTime,
+  CAF_IncorrectHardwareTime,
   /// `no_std` has no knowledge of time. Try enabling the `std` feature
-  ItIsNotPossibleToUseTimeInNoStd,
+  CAF_ItIsNotPossibleToUseTimeInNoStd,
   #[cfg(feature = "client-api-framework")]
   /// JSON-RPC response error
-  JsonRpcResultErr(Box<crate::client_api_framework::data_format::JsonRpcResponseError>),
-  /// A variant used to transform `Option`s into `Result`s
-  NoInnerValue(&'static str),
+  CAF_JsonRpcResultErr(Box<crate::client_api_framework::data_format::JsonRpcResponseError>),
   /// A given response id is not present in the set of sent packages.
-  ResponseIdIsNotPresentInTheOfSentBatchPackages(usize),
+  CAF_ResponseIdIsNotPresentInTheOfSentBatchPackages(usize),
   /// No stored test response to return a result from a request
-  TestTransportNoResponse,
+  CAF_TestTransportNoResponse,
   /// It is not possible to convert a `u16` into a HTTP status code
-  UnknownHttpStatusCode(u16),
+  CAF_UnknownHttpStatusCode(u16),
   /// `wtx` can not perform this operation due to known limitations.
-  UnsupportedOperation,
+  CAF_UnsupportedOperation,
   /// Only appending is possible but overwritten is still viable through resetting.
-  UriCanNotBeOverwritten,
+  CAF_UriCanNotBeOverwritten,
 
-  // ***** Internal - Database client *****
-  //
-  /// A "null" field received from the database was decoded as a non-nullable type or value.
-  MissingFieldDataInDecoding,
-  /// Not-A-Number is not supported
-  DecimalCanNotBeConvertedFromNaN,
-  /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
-  /// and read with numbers up to 127.
-  InvalidPostgresUint,
-  /// Received bytes don't compose a valid record.
-  InvalidPostgresRecord,
-  /// The iterator that composed a `RecordValues`` does not contain a corresponding length.
-  InvalidRecordValuesIterator,
-  /// Expected one record but got none.
-  NoRecord,
-  /// A query
-  StatementHashCollision,
-  /// Received size differs from expected size.
-  UnexpectedBufferSize {
-    expected: u64,
-    received: u64,
+  /// The length of a header field must be within a threshold.
+  HTTP_HeaderFieldIsTooLarge,
+  /// Missing Header
+  HTTP_MissingHeader {
+    /// See [KnownHeaderName].
+    expected: KnownHeaderName,
   },
-  /// Received an unexpected message type.
-  UnexpectedDatabaseMessage {
-    received: u8,
+  /// Received request does not contain a method field
+  HTTP_MissingRequestMethod,
+  /// Received response does not contain a status code field
+  HTTP_MissingResponseStatusCode,
+  /// HTTP version does not match the expected method.
+  HTTP_UnexpectedHttpMethod {
+    expected: Method,
   },
-  /// Received an expected message type but the related bytes are in an unexpected state.
-  UnexpectedDatabaseMessageBytes,
-  /// Bytes don't represent expected type
-  UnexpectedValueFromBytes {
-    expected: &'static str,
+  /// Unknown header name.
+  HTTP_UnknownHeaderNameFromBytes {
+    length: usize,
   },
-  /// The system does not support a requested authentication method.
-  UnknownAuthenticationMethod,
-  /// The system does not support a provided parameter.
-  UnknownConfigurationParameter,
-  /// Received a statement ID that is not present in the local cache.
-  UnknownStatementId,
-  /// The system only supports decimals with 64 digits.
-  VeryLargeDecimal,
 
-  // ***** Internal - Database SM *****
-  //
-  /// The `seeds` parameter must be provided through the CLI or the configuration file.
-  ChecksumMustBeANumber,
-  /// Databases must be sorted and unique
-  DatabasesMustBeSortedAndUnique,
-  /// Different rollback versions
-  DifferentRollbackVersions,
-  /// Divergent migrations
-  DivergentMigration(i32),
-  /// Validation - Migrations number
-  DivergentMigrationsNum {
-    expected: u32,
-    received: u32,
-  },
-  /// Migration file has invalid syntax,
-  InvalidMigration,
-  /// TOML parser only supports a subset of the official TOML specification
-  TomlParserOnlySupportsStringsAndArraysOfStrings,
-  /// TOML parser only supports a subset of the official TOML specification
-  TomlValueIsTooLarge,
-
-  // ***** Internal - Database ORM *****
-  //
-  /// Migration file has an empty attribute
-  IncompleteSqlFile,
-  /// Some internal operation found a hash collision of two table ids (likely) or a hash collision
-  /// due to a number of nested associations larger than `MAX_NODES_NUM` (unlikely).
-  TableHashCollision(&'static str),
-
-  // ***** Internal - Generic *****
-  //
   /// Invalid UTF-8.
-  InvalidUTF8,
+  MISC_InvalidUTF8,
   /// Indices are out-of-bounds or the number of bytes are too small.
-  InvalidPartitionedBufferBounds,
+  MISC_InvalidPartitionedBufferBounds,
   /// An expected value could not be found
-  InvalidDatabaseUrl(&'static str),
+  MISC_InvalidDatabaseUrl(&'static str),
   /// Backend couldn't perform passed query string
-  InvalidSqlQuery,
+  MISC_InvalidSqlQuery,
   /// Invalid URL
-  InvalidUrl,
+  MISC_InvalidUrl,
   /// Environment variable is not present
-  MissingEnvVar,
+  MISC_MissingEnvVar,
+  /// A variant used to transform `Option`s into `Result`s
+  MISC_NoInnerValue(&'static str),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
-  OutOfBoundsArithmetic,
+  MISC_OutOfBoundsArithmetic,
+  /// A buffer was partially read or write but should in fact be fully processed.
+  MISC_UnexpectedBufferState,
+  /// Unexpected end of file when reading.
+  MISC_UnexpectedEOF,
   /// Unexpected String
-  UnexpectedString {
+  MISC_UnexpectedString {
     length: usize,
   },
   /// Unexpected Unsigned integer
-  UnexpectedUint {
+  MISC_UnexpectedUint {
     received: u32,
   },
   /// Unexpected Unsigned integer
-  UnboundedNumber {
+  MISC_UnboundedNumber {
     expected: RangeInclusive<u32>,
     received: u32,
   },
 
-  /// Missing Header
-  MissingHeader {
-    /// See [ExpectedHeader].
-    expected: ExpectedHeader,
-  },
-  /// Url does not contain a host.
-  MissingHost,
-  /// A value from an expected `key=value` structure was not found
-  MissingValue,
-
-  /// A buffer was partially read or write but should in fact be fully processed.
-  UnexpectedBufferState,
-  /// HTTP version does not match the expected method.
-  UnexpectedHttpMethod,
-  /// HTTP version does not match the expected value.
-  UnexpectedHttpVersion,
-  /// Unexpected end of file when reading.
-  UnexpectedEOF,
-
-  /// HTTP headers must be unique.
-  DuplicatedHeader,
-  /// The system does not process HTTP messages greater than 2048 bytes.
-  VeryLargeHttp,
+  /// Not-A-Number is not supported
+  PG_DecimalCanNotBeConvertedFromNaN,
+  /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
+  /// and read with numbers up to 127.
+  PG_InvalidPostgresUint,
+  /// Received bytes don't compose a valid record.
+  PG_InvalidPostgresRecord,
+  /// The iterator that composed a `RecordValues`` does not contain a corresponding length.
+  PG_InvalidRecordValuesIterator,
+  /// It is required to connect using a TLS channel but the server didn't provide any. Probably
+  /// because the connection is unencrypted.
+  PG_MissingChannel,
+  /// A "null" field received from the database was decoded as a non-nullable type or value.
+  PG_MissingFieldDataInDecoding,
+  /// Expected one record but got none.
+  PG_NoRecord,
+  /// It is required to connect without using a TLS channel but the server only provided a way to
+  /// connect using channels. Probably because the connection is encrypted.
+  PG_RequiredChannel,
   /// Server does not support encryption
-  ServerDoesNotSupportEncryption,
-  /// Stream does not support TLS channels.
-  StreamDoesNotSupportTlsChannels,
+  PG_ServerDoesNotSupportEncryption,
+  /// A query
+  PG_StatementHashCollision,
+  /// Received size differs from expected size.
+  PG_UnexpectedBufferSize {
+    expected: u64,
+    received: u64,
+  },
+  /// Received an unexpected message type.
+  PG_UnexpectedDatabaseMessage {
+    received: u8,
+  },
+  /// Received an expected message type but the related bytes are in an unexpected state.
+  PG_UnexpectedDatabaseMessageBytes,
+  /// Bytes don't represent expected type
+  PG_UnexpectedValueFromBytes {
+    expected: &'static str,
+  },
+  /// The system does not support a requested authentication method.
+  PG_UnknownAuthenticationMethod,
+  /// The system does not support a provided parameter.
+  PG_UnknownConfigurationParameter,
+  /// Received a statement ID that is not present in the local cache.
+  PG_UnknownStatementId,
+  /// The system only supports decimals with 64 digits.
+  PG_VeryLargeDecimal,
 
-  // ***** Internal - HTTP *****
-  //
-  /// The length of a header field must be within a threshold.
-  HeaderFieldIsTooLarge,
-  /// Received Request does not contain a method field
-  MissingRequestMethod,
-  /// Received Response does not contain a status code field
-  MissingResponseStatusCode,
-  /// Unknown header name.
-  UnknownHeaderName,
-
-  // ***** Internal - HTTP/2 *****
-  //
-  /// Unknown header name.
-  UnexpectedPreFixedHeaderName,
-  /// Decoding logic encountered an unexpected ending string signal.
-  UnexpectedEndingHuffman,
-  /// A container does not contain an element referred by the given idx
-  InvalidHpackIdx(usize),
-  /// Header integers must be equal or lesser than `u16::MAX`
-  VeryLargeHeaderInteger,
-  /// Size updates of dynamic table can't be placed after the first header
-  InvalidDynTableSizeUpdate,
-  /// Length of a header name or value is limited to 127 bytes.
-  UnsupportedHeaderNameOrValueLen,
-  /// Received an Hpack index that does not adhere to the standard
-  UnexpectedHpackIdx,
-  /// Type is out of range or unsupported.
-  UnknownSettingFrameTy,
-  /// Settings frame identifier is not zero
-  UnexpectedSettingsIdentifier,
-  /// Counter-part did not return the correct bytes of a HTTP2 connection preface
-  NoPreface,
-  #[doc = concat!(
-    "The system does not support more than",
-    _max_continuation_frames!(),
-    " continuation frames."
-  )]
-  VeryLargeAmountOfContinuationFrames,
-  #[doc = concat!(
-    "The system does not support more than",
-    _max_frames_mismatches!(),
-    " fetches of frames with mismatches IDs or mismatches types"
-  )]
-  VeryLargeAmountOfFrameMismatches,
-  /// Frames can not be greater than
-  VeryLargeFrame,
-  /// Endpoint didn't send an ACK response
-  NoAckSettings,
-  /// Received a continuation or data frame instead of a header frame.
-  NotAInitialHeaderFrame,
-  /// Received a stream ID that doesn't exist locally
-  UnknownStreamId,
-  VeryLargeAmountOfBufferedFrames,
-  ExceedAmountOfRapidResets,
-  ExceedAmountOfActiveConcurrentStreams,
-  VeryLargeHeadersLen,
-  WindowSizeCanNotBeReduced,
-  InvalidStreamState,
-
-  // ***** Internal - WebSocket *****
-  //
-  /// The requested received in a handshake on a server is not valid.
-  InvalidAcceptRequest,
-  /// Received close frame has invalid parameters.
-  InvalidCloseFrame,
-  /// Received an invalid header compression parameter.
-  InvalidCompressionHeaderParameter,
-  /// Header indices are out-of-bounds or the number of bytes are too small.
-  InvalidFrameHeaderBounds,
-  /// Payload indices are out-of-bounds or the number of bytes are too small.
-  InvalidPayloadBounds,
-
-  /// Server received a frame without a mask.
-  MissingFrameMask,
-  /// Client sent "permessage-deflate" but didn't receive back from the server
-  MissingPermessageDeflate,
-  /// Status code is expected to be
-  MissingSwitchingProtocols,
-
-  /// Received control frame wasn't supposed to be fragmented.
-  UnexpectedFragmentedControlFrame,
-  /// The first frame of a message is a continuation or the following frames are not a
-  /// continuation.
-  UnexpectedMessageFrame,
+  /// The `seeds` parameter must be provided through the CLI or the configuration file.
+  SM_ChecksumMustBeANumber,
+  /// Databases must be sorted and unique
+  SM_DatabasesMustBeSortedAndUnique,
+  /// Different rollback versions
+  SM_DifferentRollbackVersions,
+  /// Divergent migrations
+  SM_DivergentMigration(i32),
+  /// Validation - Migrations number
+  SM_DivergentMigrationsNum {
+    expected: u32,
+    received: u32,
+  },
+  /// Migration file has invalid syntax,
+  SM_InvalidMigration,
+  /// TOML parser only supports a subset of the official TOML specification
+  SM_TomlParserOnlySupportsStringsAndArraysOfStrings,
+  /// TOML parser only supports a subset of the official TOML specification
+  SM_TomlValueIsTooLarge,
+  /// Migration file has an empty attribute
+  SM_IncompleteSqlFile,
 
   /// It it not possible to read a frame of a connection that was previously closed.
-  ConnectionClosed,
+  WS_ConnectionClosed,
+  /// HTTP headers must be unique.
+  WS_DuplicatedHeader,
+  /// The requested received in a handshake on a server is not valid.
+  WS_InvalidAcceptRequest,
+  /// Received close frame has invalid parameters.
+  WS_InvalidCloseFrame,
+  /// Received an invalid header compression parameter.
+  WS_InvalidCompressionHeaderParameter,
+  /// Header indices are out-of-bounds or the number of bytes are too small.
+  WS_InvalidFrameHeaderBounds,
+  /// Payload indices are out-of-bounds or the number of bytes are too small.
+  WS_InvalidPayloadBounds,
+  /// Server received a frame without a mask.
+  WS_MissingFrameMask,
+  /// Client sent "permessage-deflate" but didn't receive back from the server
+  WS_MissingPermessageDeflate,
+  /// Status code is expected to be
+  WS_MissingSwitchingProtocols,
   /// Server responded without a compression context but the client does not allow such behavior.
-  NoCompressionContext,
+  WS_NoCompressionContext,
   /// Reserved bits are not zero.
-  ReservedBitsAreNotZero,
+  WS_ReservedBitsAreNotZero,
+  /// Received control frame wasn't supposed to be fragmented.
+  WS_UnexpectedFragmentedControlFrame,
+  /// The first frame of a message is a continuation or the following frames are not a
+  /// continuation.
+  WS_UnexpectedMessageFrame,
   /// Control frames have a maximum allowed size.
-  VeryLargeControlFrame,
+  WS_VeryLargeControlFrame,
   /// Frame payload exceeds the defined threshold.
-  VeryLargePayload,
+  WS_VeryLargePayload,
+}
+
+impl Error {
+  #[cfg(feature = "http2")]
+  pub(crate) const fn http2_go_away(
+    code: crate::http2::Http2ErrorCode,
+    error: crate::http2::Http2Error,
+  ) -> Self {
+    Self::Http2ErrorGoAway(code, Some(error))
+  }
+
+  #[cfg(feature = "http2")]
+  pub(crate) const fn http2_go_away_generic(error: crate::http2::Http2Error) -> Self {
+    Self::Http2ErrorGoAway(crate::http2::Http2ErrorCode::ProtocolError, Some(error))
+  }
+
+  #[cfg(feature = "http2")]
+  pub(crate) const fn http2_reset_stream(
+    code: crate::http2::Http2ErrorCode,
+    error: crate::http2::Http2Error,
+  ) -> Self {
+    Self::Http2ErrorReset(code, Some(error))
+  }
 }
 
 impl Display for Error {
@@ -380,15 +338,6 @@ impl std::error::Error for Error {}
 impl From<Error> for () {
   #[inline]
   fn from(_: Error) -> Self {}
-}
-
-#[cfg(feature = "arrayvec")]
-impl<T> From<arrayvec::CapacityError<T>> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: arrayvec::CapacityError<T>) -> Self {
-    Self::ArrayVec(from.simplify())
-  }
 }
 
 #[cfg(feature = "chrono")]
@@ -495,14 +444,6 @@ impl From<httparse::Error> for Error {
   #[inline]
   fn from(from: httparse::Error) -> Self {
     Self::HttpParse(from)
-  }
-}
-
-#[cfg(feature = "http2")]
-impl From<crate::http2::ErrorCode> for Error {
-  #[inline]
-  fn from(from: crate::http2::ErrorCode) -> Self {
-    Self::Http2ErrorCode(from)
   }
 }
 
@@ -692,6 +633,51 @@ impl From<x509_certificate::X509CertificateError> for Error {
   #[inline]
   fn from(from: x509_certificate::X509CertificateError) -> Self {
     Self::X509CertificateError(from.into())
+  }
+}
+
+// Internal
+
+impl From<ArrayStringError> for Error {
+  #[inline]
+  fn from(from: ArrayStringError) -> Self {
+    Self::ArrayStringError(from)
+  }
+}
+
+impl From<ArrayVectorError> for Error {
+  #[inline]
+  fn from(from: ArrayVectorError) -> Self {
+    Self::ArrayVectorError(from)
+  }
+}
+
+impl From<BlocksQueueError> for Error {
+  #[inline]
+  fn from(from: BlocksQueueError) -> Self {
+    Self::BlocksQueueError(from)
+  }
+}
+
+#[cfg(feature = "orm")]
+impl From<crate::database::orm::OrmError> for Error {
+  #[inline]
+  fn from(from: crate::database::orm::OrmError) -> Self {
+    Self::OrmError(from)
+  }
+}
+
+impl From<QueueError> for Error {
+  #[inline]
+  fn from(from: QueueError) -> Self {
+    Self::QueueError(from)
+  }
+}
+
+impl From<VectorError> for Error {
+  #[inline]
+  fn from(from: VectorError) -> Self {
+    Self::VectorError(from)
   }
 }
 

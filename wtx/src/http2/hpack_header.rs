@@ -1,4 +1,7 @@
-use crate::http::{Method, Protocol, StatusCode};
+use crate::{
+  http::{Method, Protocol, StatusCode},
+  http2::Http2Error,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HpackHeaderBasic {
@@ -62,7 +65,9 @@ impl HpackHeaderName {
       b":protocol" => Self::Protocol,
       b":scheme" => Self::Scheme,
       b":status" => Self::StatusCode,
-      [b':', ..] => return Err(crate::Error::UnexpectedPreFixedHeaderName),
+      [b':', ..] => {
+        return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedPreFixedHeaderName))
+      }
       _ => Self::Field,
     })
   }

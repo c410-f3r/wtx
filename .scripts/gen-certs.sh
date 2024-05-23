@@ -17,8 +17,9 @@ DNS.1 = localhost
 IP.1 = 127.0.0.1
 EOF
 openssl x509 -req -CA $CERTS_DIR/root-ca.crt -CAkey $CERTS_DIR/root-ca.key -in $CERTS_DIR/key.csr -out $CERTS_DIR/cert.pem -days 365 -CAcreateserial -extfile $CERTS_DIR/localhost.ext
-rm $CERTS_DIR/localhost.ext
 rm $CERTS_DIR/key.csr
+rm $CERTS_DIR/localhost.ext
+rm $CERTS_DIR/root-ca.srl
 
 # PostgreSQL
 
@@ -42,17 +43,13 @@ ssl_key_file = 'key.pem'
 EOF" >> $POSTGRES_FILE
 
 echo "cat > \"\$PGDATA/pg_hba.conf\" <<-EOF
-# TYPE  DATABASE        USER            ADDRESS                 METHOD
-host    all             wtx_md5        0.0.0.0/0            md5
-host    all             wtx_scram      0.0.0.0/0            scram-sha-256
-host    all             wtx_md5        ::0/0                md5
-host    all             wtx_scram      ::0/0                scram-sha-256
-
-local    all             all                                md5
+host    all wtx_scram   0.0.0.0/0   scram-sha-256
+host    all wtx_scram       ::0/0   scram-sha-256
 EOF
 
 psql -v ON_ERROR_STOP=1 --username "\$POSTGRES_USER" <<-EOF
-    CREATE ROLE wtx_md5 PASSWORD 'wtx' LOGIN;
     SET password_encryption TO 'scram-sha-256';
     CREATE ROLE wtx_scram PASSWORD 'wtx' LOGIN;
+    GRANT ALL ON DATABASE wtx TO wtx_scram;
+    ALTER DATABASE wtx OWNER TO wtx_scram;
 EOF" >> $POSTGRES_FILE

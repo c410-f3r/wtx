@@ -3,7 +3,7 @@ macro_rules! _local_write_all {
     while !$bytes.is_empty() {
       match $write {
         Err(e) => return Err(e.into()),
-        Ok(0) => return Err(crate::Error::UnexpectedEOF),
+        Ok(0) => return Err(crate::Error::MISC_UnexpectedEOF),
         Ok(n) => $bytes = $bytes.get(n..).unwrap_or_default(),
       }
     }
@@ -17,7 +17,7 @@ macro_rules! _local_write_all_vectored {
     while !$io_slices.is_empty() {
       match $write {
         Err(e) => return Err(e.into()),
-        Ok(0) => return Err(crate::Error::UnexpectedEOF),
+        Ok(0) => return Err(crate::Error::MISC_UnexpectedEOF),
         Ok(n) => super::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
       }
     }
