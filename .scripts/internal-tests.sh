@@ -25,6 +25,7 @@ $rt test-with-features wtx database
 $rt test-with-features wtx digest
 $rt test-with-features wtx embassy-net,_hack
 $rt test-with-features wtx embassy-sync
+$rt test-with-features wtx embassy-time
 $rt test-with-features wtx embedded-tls
 $rt test-with-features wtx fastrand
 $rt test-with-features wtx flate2
@@ -91,9 +92,11 @@ $rt test-with-features wtx-ui schema-manager
 $rt test-with-features wtx-ui schema-manager-dev
 $rt test-with-features wtx-ui web-socket
 
-cargo check --bin autobahn-client --features "flate2,optimization,"parking_lot",tokio/rt-multi-thread,web-socket-handshake"
-cargo check --bin autobahn-server --features "async-send,flate2,optimization,"parking_lot",pool,tokio/rt-multi-thread,web-socket-handshake"
+cargo check --bin autobahn-client --features "flate2,optimization,tokio/rt-multi-thread,web-socket-handshake"
+cargo check --bin autobahn-server --features "async-send,flate2,optimization,pool,tokio/rt-multi-thread,web-socket-handshake"
+cargo check --bin h2spec-server --features "async-send,http2,pool,tokio"
 
 cargo check --example database-client-postgres-tokio-rustls --features "_tokio-rustls-client,postgres"
+cargo check --example http2-server-tokio --features "async-send,http2,pool,tokio"
 cargo check --example web-socket-client-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
 cargo check --example web-socket-server-raw-tokio-rustls --features "_tokio-rustls-server,web-socket-handshake"

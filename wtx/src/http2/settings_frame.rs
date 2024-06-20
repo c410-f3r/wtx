@@ -1,7 +1,7 @@
 use crate::{
   http2::{
-    FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, ACK_MASK, MAX_FRAME_LEN_LOWER_BOUND,
-    MAX_FRAME_LEN_UPPER_BOUND, U31,
+    misc::protocol_err, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, ACK_MASK,
+    MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, U31,
   },
   misc::ArrayChunks,
 };
@@ -125,25 +125,25 @@ impl SettingsFrame {
 
   pub(crate) fn read(bytes: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidSettingsFrameNonZeroId));
+      return Err(protocol_err(Http2Error::InvalidSettingsFrameNonZeroId));
     }
 
     let mut settings_frame = SettingsFrame { flags: fi.flags & ACK_MASK, ..Self::empty() };
 
     if settings_frame.is_ack() {
       if !bytes.is_empty() {
-        return Err(crate::Error::http2_go_away(
+        return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::FrameSizeError,
-          Http2Error::InvalidSettingsFrameNonEmptyAck,
+          Some(Http2Error::InvalidSettingsFrameNonEmptyAck),
         ));
       }
       return Ok(settings_frame);
     }
 
     if bytes.len() % 6 != 0 {
-      return Err(crate::Error::http2_go_away(
+      return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Http2Error::InvalidSettingsFrameLength,
+        Some(Http2Error::InvalidSettingsFrameLength),
       ));
     }
 
@@ -166,15 +166,18 @@ impl SettingsFrame {
         Setting::EnableConnectProtocol(elem) => {
           *enable_connect_protocol = Some(elem);
         }
+        Setting::EnablePush(0 | 1) => {}
+        Setting::EnablePush(_) => {
+          return Err(protocol_err(Http2Error::UnsupportedServerPush));
+        }
         Setting::HeaderTableSize(elem) => {
           *header_table_size = Some(elem);
         }
         Setting::InitialWindowSize(elem) => {
           if elem > U31::MAX {
-            return Err(crate::Error::http2_go_away_generic(Http2Error::OutOfBoundsWindowSize));
-          } else {
-            *initial_window_size = Some(elem);
+            return Err(protocol_err(Http2Error::OutOfBoundsWindowSize));
           }
+          *initial_window_size = Some(U31::from_u32(elem));
         }
         Setting::MaxConcurrentStreams(elem) => {
           *max_concurrent_streams = Some(elem);
@@ -183,7 +186,7 @@ impl SettingsFrame {
           if (MAX_FRAME_LEN_LOWER_BOUND..=MAX_FRAME_LEN_UPPER_BOUND).contains(&elem) {
             *max_frame_size = Some(elem);
           } else {
-            return Err(crate::Error::http2_go_away_generic(Http2Error::OutOfBoundsMaxFrameSize));
+            return Err(protocol_err(Http2Error::OutOfBoundsMaxFrameSize));
           }
         }
         Setting::MaxHeaderListSize(elem) => {
@@ -262,8 +265,9 @@ impl SettingsFrame {
 #[derive(Debug)]
 enum Setting {
   EnableConnectProtocol(bool),
+  EnablePush(u32),
   HeaderTableSize(u32),
-  InitialWindowSize(U31),
+  InitialWindowSize(u32),
   MaxConcurrentStreams(u32),
   MaxFrameSize(u32),
   MaxHeaderListSize(u32),
@@ -278,12 +282,13 @@ impl Setting {
   pub(crate) fn from_id(id: u16, value: u32) -> crate::Result<Setting> {
     Ok(match id {
       1 => Self::HeaderTableSize(value),
+      2 => Self::EnablePush(value),
       3 => Self::MaxConcurrentStreams(value),
-      4 => Self::InitialWindowSize(U31::from_u32(value)),
+      4 => Self::InitialWindowSize(value),
       5 => Self::MaxFrameSize(value),
       6 => Self::MaxHeaderListSize(value),
       8 => Self::EnableConnectProtocol(value != 0),
-      _ => return Err(crate::Error::http2_go_away_generic(Http2Error::UnknownSettingFrameTy)),
+      _ => return Err(protocol_err(Http2Error::UnknownSettingFrameTy)),
     })
   }
 }

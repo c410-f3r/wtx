@@ -83,7 +83,7 @@ mod serde {
       let mut state = serializer.serialize_struct("JsonRpcRequest", 4)?;
       state.serialize_field("jsonrpc", "2.0")?;
       state.serialize_field("method", self.method)?;
-      if core::mem::size_of::<P>() > 0 {
+      if size_of::<P>() > 0 {
         state.serialize_field("params", &self.params)?;
       }
       state.serialize_field("id", &self.id)?;

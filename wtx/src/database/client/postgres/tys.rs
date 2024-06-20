@@ -338,7 +338,6 @@ mod primitives {
     },
     misc::{FilledBufferWriter, Usize},
   };
-  use core::mem;
 
   impl<E> Decode<'_, Postgres<E>> for bool
   where
@@ -397,7 +396,7 @@ mod primitives {
       {
         #[inline]
         fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-          if *self >> mem::size_of::<$unsigned>().wrapping_sub(1) == 1 {
+          if *self >> size_of::<$unsigned>().wrapping_sub(1) == 1 {
             return Err(E::from(crate::Error::PG_InvalidPostgresUint));
           }
           fbw._extend_from_slice(&self.to_be_bytes());
@@ -417,11 +416,11 @@ mod primitives {
       {
         #[inline]
         fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-          if let &[$($elem),+] = input.bytes() {
+          if let &[$($elem,)+] = input.bytes() {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
           Err(crate::Error::PG_UnexpectedBufferSize {
-            expected: Usize::from(mem::size_of::<$ty>()).into(),
+            expected: Usize::from(size_of::<$ty>()).into(),
             received: Usize::from(input.bytes().len()).into()
           }.into())
         }

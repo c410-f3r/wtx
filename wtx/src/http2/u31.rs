@@ -7,7 +7,7 @@ const MASK: u32 = 0b0111_1111_1111_1111_1111_1111_1111_1111;
 
 /// Unsigned integer that occupies 32 bits but the actual values are composed by 31 bits.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct U31(u32);
+pub(crate) struct U31(u32);
 
 impl U31 {
   pub(crate) const MAX: Self = Self(2_147_483_647);
@@ -15,36 +15,49 @@ impl U31 {
   pub(crate) const TWO: Self = Self(2);
   pub(crate) const ZERO: Self = Self(0);
 
+  #[inline]
   pub(crate) const fn from_i32(value: i32) -> Self {
     Self(value.unsigned_abs())
   }
 
+  #[inline]
   pub(crate) const fn from_u32(value: u32) -> Self {
     Self(value & MASK)
   }
 
+  #[inline]
   pub(crate) const fn is_not_zero(self) -> bool {
     self.0 != 0
   }
 
+  #[inline]
   pub(crate) const fn is_zero(self) -> bool {
     self.0 == 0
   }
 
+  #[inline]
   pub(crate) const fn to_be_bytes(self) -> [u8; 4] {
     self.0.to_be_bytes()
   }
 
+  #[inline]
   pub(crate) const fn i32(self) -> i32 {
     self.0 as i32
   }
 
+  #[inline]
   pub(crate) const fn u32(self) -> u32 {
     self.0
   }
 
+  #[inline]
   pub(crate) const fn wrapping_add(self, other: Self) -> Self {
     Self(self.0.wrapping_add(other.0))
+  }
+
+  #[inline]
+  pub(crate) const fn wrapping_sub(self, other: Self) -> Self {
+    Self(self.0.wrapping_sub(other.0))
   }
 }
 
@@ -59,6 +72,48 @@ impl Display for U31 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     <u32 as Display>::fmt(&self.0, f)
+  }
+}
+
+impl From<&i32> for U31 {
+  #[inline]
+  fn from(from: &i32) -> Self {
+    Self::from_i32(*from)
+  }
+}
+
+impl From<&u32> for U31 {
+  #[inline]
+  fn from(from: &u32) -> Self {
+    Self::from_u32(*from)
+  }
+}
+
+impl From<i32> for U31 {
+  #[inline]
+  fn from(from: i32) -> Self {
+    Self::from_i32(from)
+  }
+}
+
+impl From<u32> for U31 {
+  #[inline]
+  fn from(from: u32) -> Self {
+    Self::from_u32(from)
+  }
+}
+
+impl From<U31> for i32 {
+  #[inline]
+  fn from(from: U31) -> Self {
+    from.i32()
+  }
+}
+
+impl From<U31> for u32 {
+  #[inline]
+  fn from(from: U31) -> Self {
+    from.u32()
   }
 }
 

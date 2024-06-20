@@ -1,5 +1,5 @@
 use crate::database::{
-  orm::{AuxNodes, FullTableAssociation, OrmError, Table, TableParams},
+  orm::{table_fields::TableFields, AuxNodes, FullTableAssociation, OrmError, Table, TableParams},
   Database, Decode, FromRecords, Record, Records, TableSuffix, ValueIdent,
 };
 use alloc::string::String;
@@ -28,9 +28,11 @@ where
     return Ok(0);
   };
 
+  let id_name = T::type_instances(0).1.id().name();
+
   let first_rslt = T::from_records(buffer_cmd, &first_record, records, ts_related);
   let (mut counter, mut previous) = if let Ok((skip, entity)) = first_rslt {
-    write_column_alias(buffer_cmd, T::TABLE_NAME, ts, T::PRIMARY_KEY_NAME)?;
+    write_column_alias(buffer_cmd, T::TABLE_NAME, ts, id_name)?;
     let previous = first_record.decode(buffer_cmd.as_str())?;
     buffer_cmd.clear();
     cb(entity)?;
@@ -53,7 +55,7 @@ where
 
     let (skip, entity) = T::from_records(buffer_cmd, &record, records, ts_related)?;
 
-    write_column_alias(buffer_cmd, T::TABLE_NAME, ts, T::PRIMARY_KEY_NAME)?;
+    write_column_alias(buffer_cmd, T::TABLE_NAME, ts, id_name)?;
     let curr = record.decode::<_, u64>(buffer_cmd.as_str())?;
     buffer_cmd.clear();
     if previous == curr {
@@ -157,11 +159,11 @@ pub(crate) fn write_select_join(
     "LEFT JOIN \"{table_relationship}\" AS \"{table_relationship_alias}{to_table_suffix}\" ON \
      \"{from_table}{from_table_suffix}\".{table_id} = \
      \"{table_relationship_alias}{to_table_suffix}\".{table_relationship_id}",
-    table_id = association.from_id(),
+    table_id = association.from_id_name(),
     table_relationship = full_association.to_table(),
     table_relationship_alias =
       full_association.to_table_alias().unwrap_or_else(|| full_association.to_table()),
-    table_relationship_id = association.to_id(),
+    table_relationship_id = association.to_id_name(),
     to_table_suffix = full_association.to_table_suffix(),
   ))?;
   Ok(())

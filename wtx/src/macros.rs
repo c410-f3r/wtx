@@ -13,10 +13,14 @@ macro_rules! create_enum {
       $($(#[$variant_mac_fixed])* $variant_ident_fixed,)*
     }
 
+    #[allow(
+      // Outside may or may not use methods
+      dead_code
+    )]
     impl $enum_ident {
       #[inline]
       /// The total number of variants
-      pub const fn len() -> usize {
+      $v const fn len() -> usize {
         let mut len: usize = 0;
         $({
           let _ = $variant_n_fixed;
@@ -25,9 +29,9 @@ macro_rules! create_enum {
         len
       }
 
-      /// See [crate::misc::EnumVarStrings].
+      /// See [`crate::misc::EnumVarStrings`].
       #[inline]
-      pub const fn strings(&self) -> crate::misc::EnumVarStrings<{
+      $v const fn strings(&self) -> crate::misc::EnumVarStrings<{
         let mut n;
         $({
           #[allow(unused_mut)]
@@ -175,17 +179,17 @@ macro_rules! _iter4 {
     for [a, b, c, d] in iter.by_ref() {
       $init
       let $elem = a;
-      $block;
+      $block
       let $elem = b;
-      $block;
+      $block
       let $elem = c;
-      $block;
+      $block
       let $elem = d;
-      $block;
+      $block
     }
     for elem in iter.into_remainder() {
       let $elem = elem;
-      $block;
+      $block
     }
   }};
 }
@@ -196,17 +200,17 @@ macro_rules! _iter4_mut {
     for [a, b, c, d] in iter.by_ref() {
       $init
       let $elem = a;
-      $block;
+      $block
       let $elem = b;
-      $block;
+      $block
       let $elem = c;
-      $block;
+      $block
       let $elem = d;
-      $block;
+      $block
     }
     for elem in iter.into_remainder() {
       let $elem = elem;
-      $block;
+      $block
     }
   }};
 }

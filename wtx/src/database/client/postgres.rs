@@ -24,7 +24,7 @@ use crate::database::{Database, DatabaseTy};
 pub(crate) use authentication::Authentication;
 pub use config::Config;
 use core::marker::PhantomData;
-pub use db_error::{DbError, ErrorPosition};
+pub use db_error::{DbError, ErrorPosition, Severity};
 pub use decode_value::DecodeValue;
 pub use executor::Executor;
 pub use executor_buffer::ExecutorBuffer;
@@ -53,7 +53,7 @@ where
   const TY: DatabaseTy = DatabaseTy::Postgres;
 
   type DecodeValue<'dv> = DecodeValue<'dv>;
-  type EncodeValue<'ev> = &'ev Ty;
+  type EncodeValue<'ev> = Ty;
   type Error = E;
   type Record<'rec> = Record<'rec, E>;
   type Records<'recs> = Records<'recs, E>;

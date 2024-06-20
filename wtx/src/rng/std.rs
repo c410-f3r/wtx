@@ -1,11 +1,9 @@
 use crate::rng::{xor_u8, xor_u8_16, xor_u8_4, Rng};
-use std::{
-  collections::hash_map::RandomState,
-  hash::{BuildHasher, Hasher},
-};
+use core::hash::{BuildHasher, Hasher};
+use std::collections::hash_map::RandomState;
 
 /// Derived from the tools provided by the standard library, uses a simple XOR strategy.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct StdRng(u64);
 
 impl Rng for StdRng {

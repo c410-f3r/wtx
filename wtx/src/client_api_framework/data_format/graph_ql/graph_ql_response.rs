@@ -1,7 +1,7 @@
 use crate::client_api_framework::data_format::GraphQlResponseError;
 use alloc::vec::Vec;
 
-/// Replied from an issued [crate::data_format::GraphQlRequest].
+/// Replied from an issued [`crate::data_format::GraphQlRequest`].
 #[derive(Debug)]
 pub struct GraphQlResponse<D, E> {
   /// Content depends if request was successful or not.
@@ -154,7 +154,7 @@ mod serde_json {
   {
     #[inline]
     fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      if core::mem::size_of::<Self>() == 0 {
+      if size_of::<Self>() == 0 {
         return Ok(());
       }
       serde_json::to_writer(bytes, &self.result)?;
@@ -196,7 +196,7 @@ mod simd_json {
     E: serde::Serialize,
   {
     fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SimdJson) -> crate::Result<()> {
-      if core::mem::size_of::<Self>() == 0 {
+      if size_of::<Self>() == 0 {
         return Ok(());
       }
       simd_json::to_writer(bytes, &self.result)?;

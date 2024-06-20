@@ -57,8 +57,12 @@ macro_rules! impl_display {
 impl_display!(&'_ str);
 impl_display!(crate::misc::ArrayString<N>, const N: usize);
 impl_display!(bool);
+impl_display!(i8);
+impl_display!(i16);
 impl_display!(i32);
 impl_display!(i64);
+impl_display!(u8);
+impl_display!(u16);
 impl_display!(u32);
 impl_display!(u64);
 impl_display!(String);

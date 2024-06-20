@@ -2,7 +2,7 @@ use crate::{http::Headers, misc::Lease};
 
 /// Groups the body and the headers of an HTTP request/response.
 pub trait ReqResData {
-  /// See [Self::body].
+  /// See [`Self::body`].
   type Body: ?Sized;
 
   /// Can be a sequence of bytes, a string, a deserialized element or any other desired type.

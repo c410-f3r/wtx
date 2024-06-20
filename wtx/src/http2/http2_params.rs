@@ -17,7 +17,6 @@ pub struct Http2Params {
   max_headers_len: u32,
   max_hpack_len: (u32, u32),
   max_recv_streams_num: u32,
-  max_trailers_len: u32,
   read_buffer_len: u32,
 }
 
@@ -40,8 +39,8 @@ impl Http2Params {
   /// to
   #[doc = concat!(initial_window_len!())]
   /// bytes.
-  pub const fn initial_window_len(&self) -> U31 {
-    self.initial_window_len
+  pub const fn initial_window_len(&self) -> u32 {
+    self.initial_window_len.u32()
   }
 
   /// Maximum request/response body length
@@ -93,9 +92,9 @@ impl Http2Params {
     self.max_hpack_len
   }
 
-  /// Maximum frame length
+  /// Maximum frame ***payload*** length
   ///
-  /// Avoids the reading of very large frames sent by external actors.
+  /// Avoids the reading of very large payload frames sent by external actors.
   ///
   /// Corresponds to `SETTINGS_MAX_FRAME_SIZE`. Capped within
   #[doc = concat!(max_frame_len_lower_bound!())]
@@ -119,18 +118,6 @@ impl Http2Params {
     self.max_recv_streams_num
   }
 
-  /// Maximum trailers length
-  ///
-  /// The final Request/Response header is composed by the sum of headers and trailers. Contents
-  /// may or may not originate from the HPACK structure that holds cached decoded headers.
-  ///
-  /// Corresponds to `SETTINGS_MAX_HEADER_LIST_SIZE`. Defaults to
-  #[doc = concat!(max_headers_len!())]
-  /// bytes.
-  pub const fn max_trailers_len(&self) -> u32 {
-    self.max_trailers_len
-  }
-
   /// Read Buffer Length.
   ///
   /// Allocated space intended to read bytes sent by external actors.
@@ -142,55 +129,49 @@ impl Http2Params {
     self.read_buffer_len
   }
 
-  /// Mutable version of [Self::initial_window_len].
-  pub fn set_initial_window_len(&mut self, value: U31) -> &mut Self {
-    self.initial_window_len = value;
+  /// Mutable version of [`Self::initial_window_len`].
+  pub fn set_initial_window_len(&mut self, value: u32) -> &mut Self {
+    self.initial_window_len = U31::from_u32(value);
     self
   }
 
-  /// Mutable version of [Self::max_body_len].
+  /// Mutable version of [`Self::max_body_len`].
   pub fn set_max_body_len(&mut self, value: u32) -> &mut Self {
     self.max_body_len = value;
     self
   }
 
-  /// Mutable version of [Self::max_concurrent_streams_num].
+  /// Mutable version of [`Self::max_concurrent_streams_num`].
   pub fn set_max_concurrent_streams_num(&mut self, value: u32) -> &mut Self {
     self.max_concurrent_streams_num = value;
     self
   }
 
-  /// Mutable version of [Self::max_headers_len].
+  /// Mutable version of [`Self::max_headers_len`].
   pub fn set_max_headers_len(&mut self, value: u32) -> &mut Self {
     self.max_headers_len = value;
     self
   }
 
-  /// Mutable version of [Self::max_hpack_len].
+  /// Mutable version of [`Self::max_hpack_len`].
   pub fn set_max_hpack_len(&mut self, value: (u32, u32)) -> &mut Self {
     self.max_hpack_len = value;
     self
   }
 
-  /// Mutable version of [Self::max_frame_len].
+  /// Mutable version of [`Self::max_frame_len`].
   pub fn set_max_frame_len(&mut self, value: u32) -> &mut Self {
     self.max_frame_len = value.clamp(MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND);
     self
   }
 
-  /// Mutable version of [Self::max_recv_streams_num].
+  /// Mutable version of [`Self::max_recv_streams_num`].
   pub fn set_max_recv_streams_num(&mut self, value: u32) -> &mut Self {
     self.max_recv_streams_num = value;
     self
   }
 
-  /// Mutable version of [Self::max_trailers_len].
-  pub fn set_max_trailers_len(&mut self, value: u32) -> &mut Self {
-    self.max_trailers_len = value;
-    self
-  }
-
-  /// Mutable version of [Self::read_buffer_len].
+  /// Mutable version of [`Self::read_buffer_len`].
   pub fn set_read_buffer_len(&mut self, value: u32) -> &mut Self {
     self.read_buffer_len = value;
     self
@@ -219,7 +200,6 @@ impl Default for Http2Params {
       max_headers_len: MAX_HEADERS_LEN,
       max_hpack_len: (MAX_HPACK_LEN, MAX_HPACK_LEN),
       max_recv_streams_num: MAX_RECV_STREAMS_NUM,
-      max_trailers_len: MAX_HEADERS_LEN,
       read_buffer_len: READ_BUFFER_LEN,
     }
   }

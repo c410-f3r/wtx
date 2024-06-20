@@ -3,7 +3,7 @@ use crate::{
     executor::Executor,
     orm::{
       seek_related_entities, write_select_field, AuxNodes, SelectLimit, SelectOrderBy, SqlWriter,
-      Table, TableParams,
+      Table, TableFields, TableParams,
     },
     Database, Decode, FromRecords, Records, ValueIdent,
   },
@@ -13,25 +13,27 @@ use alloc::string::String;
 use core::{fmt::Write, future::Future};
 
 /// Create, read, update and delete entities.
-pub trait Crud: Executor {
+pub trait Crud: Executor
+where
+  Self: Sized,
+{
   /// Inserts a new table record represented by `table_params`.
   fn create<'entity, T>(
     &mut self,
     buffer_cmd: &mut String,
     table: &'entity T,
     table_params: &mut TableParams<'entity, T>,
-  ) -> impl AsyncBounds + Future<Output = Result<(), <T::Database as Database>::Error>>
+  ) -> impl Future<Output = Result<(), <T::Database as Database>::Error>>
   where
     T: Table<'entity, Database = Self::Database>,
-    T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
+    T::Associations: SqlWriter<T::Database>,
     for<'any> &'any mut Self: AsyncBounds,
     for<'any> &'any mut TableParams<'entity, T>: AsyncBounds,
     for<'any> &'any T: AsyncBounds,
   {
     async move {
       table_params.update_all_table_fields(table);
-      table_params.write_insert(&mut AuxNodes::default(), buffer_cmd, &mut None)?;
-      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
+      table_params.write_insert(&mut AuxNodes::default(), buffer_cmd, self, (false, None)).await?;
       Ok(())
     }
   }
@@ -42,18 +44,17 @@ pub trait Crud: Executor {
     buffer_cmd: &mut String,
     table: &'entity T,
     table_params: &mut TableParams<'entity, T>,
-  ) -> impl AsyncBounds + Future<Output = Result<(), <T::Database as Database>::Error>>
+  ) -> impl Future<Output = Result<(), <T::Database as Database>::Error>>
   where
     T: Table<'entity, Database = Self::Database>,
-    T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
+    T::Associations: SqlWriter<T::Database>,
     for<'any> &'any mut Self: AsyncBounds,
     for<'any> &'any mut TableParams<'entity, T>: AsyncBounds,
     for<'any> &'any T: AsyncBounds,
   {
     async move {
       table_params.update_all_table_fields(table);
-      table_params.write_delete(&mut AuxNodes::default(), buffer_cmd)?;
-      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
+      table_params.write_delete(&mut AuxNodes::default(), buffer_cmd, self).await?;
       Ok(())
     }
   }
@@ -67,7 +68,7 @@ pub trait Crud: Executor {
   ) -> impl AsyncBounds + Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
     T: FromRecords<Self::Database> + Table<'entity, Database = Self::Database>,
-    T::Associations: SqlWriter<Error = <Self::Database as Database>::Error>,
+    T::Associations: SqlWriter<T::Database>,
     str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
     u64: for<'value> Decode<'value, Self::Database>,
     for<'any> &'any mut Self: AsyncBounds,
@@ -94,7 +95,7 @@ pub trait Crud: Executor {
   ) -> impl AsyncBounds + Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
     T: FromRecords<Self::Database> + Table<'entity, Database = Self::Database>,
-    T::Associations: SqlWriter<Error = <Self::Database as Database>::Error>,
+    T::Associations: SqlWriter<T::Database>,
     str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
     u64: for<'value> Decode<'value, Self::Database>,
     for<'any> &'any mut Self: AsyncBounds,
@@ -116,13 +117,13 @@ pub trait Crud: Executor {
   fn read_by_id<'entity, T>(
     &mut self,
     buffer_cmd: &mut String,
-    id: T::PrimaryKeyValue,
+    id: <T::Fields as TableFields<T::Database>>::IdValue,
     tp: &TableParams<'entity, T>,
   ) -> impl AsyncBounds + Future<Output = Result<T, <Self::Database as Database>::Error>>
   where
     T: FromRecords<Self::Database> + Table<'entity, Database = Self::Database>,
-    T::Associations: SqlWriter<Error = <Self::Database as Database>::Error>,
-    T::PrimaryKeyValue: AsyncBounds,
+    T::Associations: SqlWriter<T::Database>,
+    <T::Fields as TableFields<T::Database>>::IdValue: AsyncBounds,
     for<'any> &'any mut Self: AsyncBounds,
     for<'any> &'any TableParams<'entity, T>: AsyncBounds,
   {
@@ -133,7 +134,7 @@ pub trait Crud: Executor {
           T::TABLE_NAME,
           T::TABLE_NAME_ALIAS,
           tp.table_suffix(),
-          tp.id_field().name(),
+          tp.fields().id().name(),
         )?;
         b.write_fmt(format_args!(" = {id}")).map_err(From::from)?;
         Ok(())
@@ -158,18 +159,17 @@ pub trait Crud: Executor {
     buffer_cmd: &mut String,
     table: &'entity T,
     table_params: &mut TableParams<'entity, T>,
-  ) -> impl AsyncBounds + Future<Output = Result<(), <T::Database as Database>::Error>>
+  ) -> impl Future<Output = Result<(), <T::Database as Database>::Error>>
   where
     T: Table<'entity, Database = Self::Database>,
-    T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
+    T::Associations: SqlWriter<T::Database>,
     for<'any> &'any mut Self: AsyncBounds,
     for<'any> &'any mut TableParams<'entity, T>: AsyncBounds,
     for<'any> &'any T: AsyncBounds,
   {
     async move {
       table_params.update_all_table_fields(table);
-      table_params.write_update(&mut AuxNodes::default(), buffer_cmd)?;
-      let _ = self.execute_with_stmt(buffer_cmd.as_str(), ()).await?;
+      table_params.write_update(&mut AuxNodes::default(), buffer_cmd, self).await?;
       Ok(())
     }
   }

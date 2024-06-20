@@ -7,7 +7,7 @@ Activation feature is called `postgres`.
 
 ![PostgreSQL Benchmark](https://i.imgur.com/vf2tYxY.jpg)
 
-```ignore,rust,edition2021
+```rust,edition2021
 use wtx::{
   database::{client::postgres::{Executor, ExecutorBuffer}, Executor as _, Record, Records},
   misc::{LeaseMut, Stream},

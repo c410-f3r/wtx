@@ -1,17 +1,14 @@
 use crate::{
   database::orm::{Table, TableAssociation, TableParams},
-  misc::{Lease, SingleTypeStorage},
+  misc::LeaseMut,
 };
+use core::fmt::{Debug, Formatter};
 
-/// A helper structure for people that manually implement [TableAssociations]
-#[allow(
-  // `Table` derives `Debug` but for some reason such thing is not allowed here
-  missing_debug_implementations
-)]
+/// A helper structure to manually implement [TableAssociations].
 pub struct TableAssociationWrapper<'entity, T, TS>
 where
   T: Table<'entity>,
-  TS: Lease<[TableParams<'entity, T>]> + SingleTypeStorage<Item = TableParams<'entity, T>>,
+  TS: LeaseMut<[TableParams<'entity, T>]>,
 {
   /// See [TableAssociation]
   pub association: TableAssociation,
@@ -19,4 +16,21 @@ where
   pub guide: TableParams<'entity, T>,
   /// A storage of zero, one or many tables used for INSERT and UPDATE operations
   pub tables: TS,
+}
+
+impl<'entity, T, TS> Debug for TableAssociationWrapper<'entity, T, TS>
+where
+  T: Debug + Table<'entity>,
+  T::Associations: Debug,
+  T::Fields: Debug,
+  TS: Debug + LeaseMut<[TableParams<'entity, T>]>,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.debug_struct("TableAssociationWrapper")
+      .field("association", &self.association)
+      .field("guide", &self.guide)
+      .field("tables", &self.tables)
+      .finish()
+  }
 }

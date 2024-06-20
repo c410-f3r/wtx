@@ -3,11 +3,11 @@ use crate::http::{Headers, ReqResData, StatusCode, Version};
 /// Represents the response from an HTTP request.
 #[derive(Debug)]
 pub struct Response<D> {
-  /// See [ReqResData].
+  /// See [`ReqResData`].
   pub data: D,
-  /// See [StatusCode].
+  /// See [`StatusCode`].
   pub status_code: StatusCode,
-  /// See [Version].
+  /// See [`Version`].
   pub version: Version,
 }
 

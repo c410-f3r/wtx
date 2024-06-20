@@ -1,5 +1,5 @@
 use crate::database::{Database, TableSuffix};
-use alloc::string::String;
+use alloc::{boxed::Box, string::String};
 
 /// An element that can be represented from one or more database row, in other words, tables
 /// with relationships.
@@ -28,5 +28,22 @@ where
     _: TableSuffix,
   ) -> Result<(usize, Self), D::Error> {
     Ok((0, ()))
+  }
+}
+
+impl<D, T> FromRecords<D> for Box<T>
+where
+  D: Database,
+  T: FromRecords<D>,
+{
+  #[inline]
+  fn from_records(
+    buffer_cmd: &mut String,
+    curr_record: &D::Record<'_>,
+    records: &D::Records<'_>,
+    table_suffix: TableSuffix,
+  ) -> Result<(usize, Self), D::Error> {
+    let (n, this) = T::from_records(buffer_cmd, curr_record, records, table_suffix)?;
+    Ok((n, Box::new(this)))
   }
 }

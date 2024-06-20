@@ -32,8 +32,6 @@ impl Usize {
 
   #[inline]
   pub(crate) const fn into_u64(self) -> u64 {
-    #[cfg(target_pointer_width = "128")]
-    compile_error!("WTX does not support 128bit hardware");
     self.0 as u64
   }
 }

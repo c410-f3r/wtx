@@ -6,7 +6,7 @@ use core::{
   str,
 };
 
-/// Errors of [ArrayString].
+/// Errors of [`ArrayString`].
 #[derive(Debug)]
 pub enum ArrayStringError {
   #[doc = doc_out_of_bounds_params!()]
@@ -28,16 +28,10 @@ pub struct ArrayString<const N: usize> {
 
 impl<const N: usize> ArrayString<N> {
   /// Constructs a new, empty instance.
-  #[allow(
-    // False-positive
-    clippy::missing_panics_doc
-  )]
   #[inline]
   pub const fn new() -> Self {
     const {
-      if N > Usize::from_u32(u32::MAX).into_usize() {
-        panic!("Capacity is too large");
-      }
+      assert!(N <= Usize::from_u32(u32::MAX).into_usize());
     }
     Self { len: 0, data: [0; N] }
   }
@@ -63,6 +57,12 @@ impl<const N: usize> ArrayString<N> {
     self.len = 0;
   }
 
+  /// Number of bytes
+  #[inline]
+  pub fn len(&self) -> u32 {
+    self.len
+  }
+
   /// Appends an element to the back of the collection.
   #[inline]
   pub fn push(&mut self, cf: char) -> Result<(), ArrayStringError> {
@@ -82,7 +82,7 @@ impl<const N: usize> ArrayString<N> {
 
   /// How many elements can be added to this collection.
   #[inline]
-  pub fn remaining(&self) -> u32 {
+  pub fn remaining_capacity(&self) -> u32 {
     self.capacity().wrapping_sub(self.len)
   }
 
@@ -104,7 +104,8 @@ impl<const N: usize> ArrayString<N> {
 
   #[inline]
   fn push_bytes(&mut self, error: ArrayStringError, other: &[u8]) -> Result<(), ArrayStringError> {
-    let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining() >= *el) else {
+    let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining_capacity() >= *el)
+    else {
       return Err(error);
     };
     let begin = *Usize::from(self.len);
@@ -141,8 +142,10 @@ impl<const N: usize> Deref for ArrayString<N> {
 
   #[inline]
   fn deref(&self) -> &Self::Target {
-    // SAFETY: Has valid UTF-8 and length is never greater than N
-    unsafe { str::from_utf8_unchecked(self.data.get(..*Usize::from(self.len)).unwrap_unchecked()) }
+    // SAFETY: `len` is always less than `N`
+    let slice = unsafe { self.data.get(..*Usize::from(self.len)).unwrap_unchecked() };
+    // SAFETY: data is always valid UTF-8
+    unsafe { str::from_utf8_unchecked(slice) }
   }
 }
 
@@ -234,13 +237,13 @@ impl<const N: usize> TryFrom<&str> for ArrayString<N> {
 
 impl<const N: usize> Write for ArrayString<N> {
   #[inline]
-  fn write_char(&mut self, ch: char) -> fmt::Result {
-    self.push(ch).map_err(|_err| fmt::Error)
+  fn write_char(&mut self, c: char) -> fmt::Result {
+    self.push(c).map_err(|_err| fmt::Error)
   }
 
   #[inline]
-  fn write_str(&mut self, str: &str) -> fmt::Result {
-    self.push_str(str).map_err(|_err| fmt::Error)
+  fn write_str(&mut self, s: &str) -> fmt::Result {
+    self.push_str(s).map_err(|_err| fmt::Error)
   }
 }
 
@@ -267,7 +270,7 @@ mod arbitrary {
           }
         }
       }
-      Ok(ArrayString { len, data })
+      Ok(Self { len, data })
     }
   }
 }

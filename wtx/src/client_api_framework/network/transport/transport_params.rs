@@ -10,13 +10,13 @@ pub trait TransportParams {
   /// External Request Parameters.
   fn ext_req_params(&self) -> &Self::ExternalRequestParams;
 
-  /// Mutable version of [Self::ext_req_params].
+  /// Mutable version of [`Self::ext_req_params`].
   fn ext_req_params_mut(&mut self) -> &mut Self::ExternalRequestParams;
 
   /// External Response Parameters.
   fn ext_res_params(&self) -> &Self::ExternalResponseParams;
 
-  /// Mutable version of [Self::ext_res_params].
+  /// Mutable version of [`Self::ext_res_params`].
   fn ext_res_params_mut(&mut self) -> &mut Self::ExternalResponseParams;
 
   /// Sets the inner parameters with their default values.

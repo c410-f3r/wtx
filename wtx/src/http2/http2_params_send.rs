@@ -1,5 +1,5 @@
 use crate::http2::{
-  HpackEncoder, SettingsFrame, Windows, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
+  HpackEncoder, Scrp, SettingsFrame, Sorp, Windows, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
   MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN, U31,
 };
 
@@ -15,17 +15,28 @@ pub(crate) struct Http2ParamsSend {
 }
 
 impl Http2ParamsSend {
-  pub(crate) fn update(
+  pub(crate) fn update<SB>(
     &mut self,
     hpack_enc: &mut HpackEncoder,
+    scrp: &mut Scrp,
     sf: &SettingsFrame,
+    sorp: &mut Sorp<SB>,
     windows: &mut Windows,
   ) -> crate::Result<()> {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);
     }
     if let Some(elem) = sf.initial_window_size() {
-      windows.send.set(elem.i32())?;
+      let diff = elem.wrapping_sub(self.initial_window_len).i32();
+      if diff != 0 {
+        for (stream_id, elem) in scrp {
+          elem.windows.send.deposit(Some(*stream_id), diff)?;
+        }
+        for (stream_id, elem) in sorp {
+          elem.windows.send.deposit(Some(*stream_id), diff)?;
+        }
+      }
+      windows.send.update(elem.i32());
       self.initial_window_len = elem;
     }
     if let Some(elem) = sf.header_table_size() {

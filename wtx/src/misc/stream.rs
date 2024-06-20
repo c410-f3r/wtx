@@ -3,7 +3,7 @@ macro_rules! _local_write_all {
     while !$bytes.is_empty() {
       match $write {
         Err(e) => return Err(e.into()),
-        Ok(0) => return Err(crate::Error::MISC_UnexpectedEOF),
+        Ok(0) => return { Err(crate::Error::MISC_UnexpectedEOF) },
         Ok(n) => $bytes = $bytes.get(n..).unwrap_or_default(),
       }
     }
@@ -18,7 +18,7 @@ macro_rules! _local_write_all_vectored {
       match $write {
         Err(e) => return Err(e.into()),
         Ok(0) => return Err(crate::Error::MISC_UnexpectedEOF),
-        Ok(n) => super::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
+        Ok(n) => crate::misc::stream::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
       }
     }
   }};
@@ -29,10 +29,56 @@ use alloc::vec::Vec;
 use core::{cmp::Ordering, future::Future};
 
 /// A stream of values produced asynchronously.
-pub trait Stream {
+pub trait Stream
+where
+  Self: AsyncBounds,
+{
   /// Pulls some bytes from this source into the specified buffer, returning how many bytes
   /// were read.
   fn read(&mut self, bytes: &mut [u8]) -> impl AsyncBounds + Future<Output = crate::Result<usize>>;
+
+  /// Reads the exact number of bytes required to fill `bytes`.
+  #[inline]
+  fn read_exact(
+    &mut self,
+    bytes: &mut [u8],
+  ) -> impl AsyncBounds + Future<Output = crate::Result<()>> {
+    async move {
+      let mut idx = 0;
+      for _ in 0..bytes.len() {
+        if idx >= bytes.len() {
+          break;
+        }
+        let read = self.read(bytes.get_mut(idx..).unwrap_or_default()).await?;
+        if read == 0 {
+          return Err(crate::Error::MISC_UnexpectedEOF);
+        }
+        idx = idx.wrapping_add(read);
+      }
+      Ok(())
+    }
+  }
+
+  /// Reads and at the same time discards exactly `len` bytes.
+  #[inline]
+  fn read_skip(&mut self, len: usize) -> impl AsyncBounds + Future<Output = crate::Result<()>> {
+    async move {
+      let mut buffer = [0; 32];
+      let mut counter = len;
+      for _ in 0..len {
+        if counter == 0 {
+          break;
+        }
+        let slice = if let Some(el) = buffer.get_mut(..counter) { el } else { &mut buffer[..] };
+        let read = self.read(slice).await?;
+        if read == 0 {
+          return Err(crate::Error::MISC_UnexpectedEOF);
+        }
+        counter = counter.wrapping_sub(read);
+      }
+      Ok(())
+    }
+  }
 
   /// Attempts to write ***all*** `bytes`.
   fn write_all(&mut self, bytes: &[u8]) -> impl AsyncBounds + Future<Output = crate::Result<()>>;
@@ -317,6 +363,32 @@ mod glommio {
       for elem in bytes {
         <Self as Stream>::write_all(self, elem).await?;
       }
+      Ok(())
+    }
+  }
+}
+
+#[cfg(feature = "may")]
+mod may {
+  use crate::misc::Stream;
+  use may::net::TcpStream;
+  use std::io::{Read, Write};
+
+  impl Stream for TcpStream {
+    #[inline]
+    async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
+      Ok(<Self as Read>::read(self, bytes)?)
+    }
+
+    #[inline]
+    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
+      <Self as Write>::write_all(self, bytes)?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+      _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices));
       Ok(())
     }
   }
@@ -643,9 +715,7 @@ fn convert_to_io_slices<'buffer, 'bytes, const N: usize>(
 ) -> &'buffer mut [std::io::IoSlice<'bytes>] {
   use std::io::IoSlice;
   const {
-    if N > 8 {
-      panic!("It is not possible to vectored write more than 8 slices");
-    }
+    assert!(N <= 8);
   }
   match elems.as_slice() {
     [a] => {

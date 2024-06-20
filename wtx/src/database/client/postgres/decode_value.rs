@@ -1,6 +1,6 @@
 use crate::database::client::postgres::ty::Ty;
 
-/// Implementation of [crate::database::DecodeInput] for PostgreSQL.
+/// Implementation of [`crate::database::DecodeInput`] for PostgreSQL.
 #[derive(Debug, PartialEq)]
 pub struct DecodeValue<'any> {
   bytes: &'any [u8],

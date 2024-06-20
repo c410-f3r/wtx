@@ -1,6 +1,6 @@
 use crate::database::Database;
 
-/// A collection of [crate::database::Record].
+/// A collection of [`crate::database::Record`].
 pub trait Records: Default {
   /// See [Database].
   type Database: Database;

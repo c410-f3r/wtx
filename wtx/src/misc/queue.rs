@@ -1,22 +1,21 @@
 macro_rules! as_slices {
   ($empty:expr, $ptr:ident, $slice:ident, $this:expr, $($ref:tt)*) => {{
     let len = $this.data.len();
-    let rhs_len = $this.capacity().wrapping_sub($this.head);
+    // SAFETY: `this.head` will never be greater than capacity
+    let rhs_len = unsafe { $this.data.capacity().unchecked_sub($this.head) };
     let ptr = $this.data.$ptr();
+    // SAFETY: inner data is expected to point to valid memory
+    let added_ptr = unsafe { ptr.add($this.head) };
     if rhs_len < len {
-      let lhs_len = len.wrapping_sub(rhs_len);
-      // SAFETY: indices point to valid memory locations
-      unsafe {
-        (
-          $($ref)* *ptr::$slice(ptr.add($this.head), rhs_len),
-          $($ref)* *ptr::$slice(ptr, lhs_len),
-        )
-      }
+      // SAFETY: `ìf` check ensures bounds
+      let lhs = unsafe { $($ref)* *ptr::$slice(ptr, len.wrapping_sub(rhs_len)) };
+      // SAFETY: `ìf` check ensures bounds
+      let rhs = unsafe { $($ref)* *ptr::$slice(added_ptr, rhs_len) };
+      (lhs, rhs)
     } else {
-      // SAFETY: indices point to valid memory locations
-      unsafe {
-        ($($ref)* *ptr::$slice(ptr.add($this.head), len), $empty)
-      }
+      // SAFETY: `ìf` check ensures bounds
+      let lhs = unsafe { $($ref)* *ptr::$slice(added_ptr, len) };
+      (lhs, $empty)
     }
   }}
 }
@@ -43,10 +42,7 @@ pub struct Queue<D> {
   head: usize,
 }
 
-impl<D> Queue<D>
-where
-  D: Copy,
-{
+impl<D> Queue<D> {
   #[inline]
   pub(crate) const fn new() -> Self {
     Self { data: Vector::new(), head: 0 }
@@ -67,6 +63,7 @@ where
     as_slices!(&mut [][..], as_mut_ptr, slice_from_raw_parts_mut, self, &mut)
   }
 
+  #[cfg(test)]
   #[inline]
   pub(crate) fn capacity(&self) -> usize {
     self.data.capacity()
@@ -89,8 +86,10 @@ where
       return None;
     }
     idx = wrap_add(self.data.capacity(), self.head, idx);
-    // SAFETY: `idx` is less than the current length
-    unsafe { Some(&*self.data.as_ptr().add(idx)) }
+    // SAFETY: `idx` points to valid memory
+    let rslt = unsafe { self.data.as_ptr().add(idx) };
+    // SAFETY: `idx` points to valid memory
+    unsafe { Some(&*rslt) }
   }
 
   #[inline]
@@ -99,13 +98,10 @@ where
       return None;
     }
     idx = wrap_add(self.data.capacity(), self.head, idx);
-    // SAFETY: `idx` is less than the current length
-    unsafe { Some(&mut *self.data.as_mut_ptr().add(idx)) }
-  }
-
-  #[inline]
-  pub(crate) fn is_empty(&self) -> bool {
-    self.data.is_empty()
+    // SAFETY: `idx` points to valid memory
+    let rslt = unsafe { self.data.as_mut_ptr().add(idx) };
+    // SAFETY: `idx` points to valid memory
+    unsafe { Some(&mut *rslt) }
   }
 
   #[inline]
@@ -137,47 +133,61 @@ where
 
   #[inline]
   pub(crate) fn pop_back(&mut self) -> Option<D> {
-    if self.is_empty() {
-      return None;
-    }
-    // SAFETY: Structure is not empty
+    let new_len = self.data.len().checked_sub(1)?;
+    // SAFETY: is within bounds
     unsafe {
-      self.data.set_len(self.data.len().unchecked_sub(1));
-      let idx = wrap_add(self.data.capacity(), self.head, self.data.len());
-      Some(ptr::read(self.data.as_mut_ptr().add(idx)))
+      self.data.set_len(new_len);
     }
+    let idx = wrap_add(self.data.capacity(), self.head, new_len);
+    // SAFETY: `idx` points to valid memory
+    let src = unsafe { self.data.as_mut_ptr().add(idx) };
+    // SAFETY: `src` points to valid memory
+    unsafe { Some(ptr::read(src)) }
   }
 
   #[inline]
   pub(crate) fn pop_front(&mut self) -> Option<D> {
-    if self.is_empty() {
-      return None;
-    }
-    let len = self.data.len();
+    let new_len = self.data.len().checked_sub(1)?;
     let prev_head = self.head;
     self.head = wrap_add(self.data.capacity(), self.head, 1);
-    // SAFETY: Structure is not empty
+    // SAFETY: `prev_head` points to valid memory
+    let src = unsafe { self.data.as_mut_ptr().add(prev_head) };
+    // SAFETY: `src` points to valid memory
+    let rslt = unsafe { ptr::read(src) };
+    // SAFETY: is within bounds
     unsafe {
-      self.data.set_len(len.unchecked_sub(1));
-      Some(ptr::read(self.data.as_mut_ptr().add(prev_head)))
+      self.data.set_len(new_len);
     }
+    Some(rslt)
   }
 
   #[inline]
-  pub(crate) fn push_front(&mut self, element: D) -> Result<(), QueueError> {
+  pub(crate) fn push_front(&mut self, value: D) -> Result<(), QueueError> {
     if self.is_full() {
       return Err(QueueError::PushFrontOverflow);
     }
     let len = self.data.len();
     self.head = wrap_sub(self.data.capacity(), self.head, 1);
-    // SAFETY: There is enough capacity
+    // SAFETY: `self.head` points to valid memory
+    let dst = unsafe { self.data.as_mut_ptr().add(self.head) };
+    // SAFETY: `dst` points to valid memory
     unsafe {
-      ptr::write(self.data.as_mut_ptr().add(self.head), element);
-      self.data.set_len(len.unchecked_add(1));
+      ptr::write(dst, value);
+    }
+    // SAFETY: top-level check ensures capacity
+    let new_len = unsafe { len.unchecked_add(1) };
+    // SAFETY: is within bounds
+    unsafe {
+      self.data.set_len(new_len);
     }
     Ok(())
   }
+}
 
+impl<D> Queue<D>
+where
+  D: Copy,
+{
   #[inline(always)]
   pub(crate) fn reserve(&mut self, additional: usize) {
     let _ = reserve(additional, &mut self.data, &mut self.head);
@@ -186,7 +196,7 @@ where
 
 impl<D> Debug for Queue<D>
 where
-  D: Copy + Debug,
+  D: Debug,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
@@ -195,10 +205,7 @@ where
   }
 }
 
-impl<D> Default for Queue<D>
-where
-  D: Copy,
-{
+impl<D> Default for Queue<D> {
   #[inline]
   fn default() -> Self {
     Self::new()
@@ -234,14 +241,14 @@ mod _proptest {
     queue.reserve(queue.capacity() + 10);
     vec_deque.reserve(vec_deque.capacity() + 10);
     loop {
-      if queue.is_empty() {
+      if queue.len() == 0 {
         break;
       }
       assert_eq!(queue.as_slices(), vec_deque.as_slices());
       assert_eq!(queue.get(0), vec_deque.get(0));
       assert_eq!(queue.get_mut(0), vec_deque.get_mut(0));
       assert_eq!(queue.pop_back(), vec_deque.pop_back());
-      if queue.is_empty() {
+      if queue.len() == 0 {
         break;
       }
       assert_eq!(queue.as_slices(), vec_deque.as_slices());
@@ -257,6 +264,19 @@ mod _proptest {
 #[cfg(test)]
 mod tests {
   use crate::misc::Queue;
+
+  #[test]
+  fn as_slices() {
+    let mut queue = Queue::with_capacity(4);
+    queue.push_front(1).unwrap();
+    queue.push_front(2).unwrap();
+    queue.push_front(3).unwrap();
+    queue.push_front(4).unwrap();
+    let _ = queue.pop_back();
+    let _ = queue.pop_back();
+    queue.push_front(5).unwrap();
+    assert_eq!(queue.as_slices(), (&[4, 3][..], &[5][..]));
+  }
 
   #[test]
   fn clear() {

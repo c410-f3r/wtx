@@ -12,34 +12,34 @@ use crate::{
 };
 use core::str;
 
-/// Composed by a [FrameBufferControlArray].
+/// Composed by a [`FrameBufferControlArray`].
 pub type FrameControlArray<const IS_CLIENT: bool> = Frame<FrameBufferControlArray, IS_CLIENT>;
-/// Composed by a [FrameBufferControlArrayMut].
+/// Composed by a [`FrameBufferControlArrayMut`].
 pub type FrameControlArrayMut<'bytes, const IS_CLIENT: bool> =
   Frame<FrameBufferControlArrayMut<'bytes>, IS_CLIENT>;
-/// Composed by a [FrameBufferMut].
+/// Composed by a [`FrameBufferMut`].
 pub type FrameMut<'bytes, const IS_CLIENT: bool> = Frame<FrameBufferMut<'bytes>, IS_CLIENT>;
-/// Composed by a [FrameBufferVec].
+/// Composed by a [`FrameBufferVec`].
 pub type FrameVec<const IS_CLIENT: bool> = Frame<FrameBufferVec, IS_CLIENT>;
-/// Composed by an mutable [FrameBufferVecMut] reference.
+/// Composed by an mutable [`FrameBufferVecMut`] reference.
 pub type FrameVecMut<'bytes, const IS_CLIENT: bool> = Frame<FrameBufferVecMut<'bytes>, IS_CLIENT>;
 
-/// Composed by an mutable [FrameBufferControlArray] reference.
+/// Composed by an mutable [`FrameBufferControlArray`] reference.
 pub type FrameMutControlArray<'fb, const IS_CLIENT: bool> =
   Frame<&'fb mut FrameBufferControlArray, IS_CLIENT>;
-/// Composed by an mutable [FrameBufferControlArrayMut] reference.
+/// Composed by an mutable [`FrameBufferControlArrayMut`] reference.
 pub type FrameMutControlArrayMut<'fb, const IS_CLIENT: bool> =
   Frame<&'fb mut FrameBufferControlArray, IS_CLIENT>;
-/// Composed by an mutable [FrameBufferMut] reference.
+/// Composed by an mutable [`FrameBufferMut`] reference.
 pub type FrameMutMut<'bytes, 'fb, const IS_CLIENT: bool> =
   Frame<&'fb mut FrameBufferMut<'bytes>, IS_CLIENT>;
-/// Composed by an mutable [FrameBufferVec] reference.
+/// Composed by an mutable [`FrameBufferVec`] reference.
 pub type FrameMutVec<'fb, const IS_CLIENT: bool> = Frame<&'fb mut FrameBufferVec, IS_CLIENT>;
-/// Composed by an mutable [FrameBufferVecMut] reference.
+/// Composed by an mutable [`FrameBufferVecMut`] reference.
 pub type FrameMutVecMut<'bytes, 'fb, const IS_CLIENT: bool> =
   Frame<&'fb mut FrameBufferVecMut<'bytes>, IS_CLIENT>;
 
-/// Represents a WebSocket frame
+/// Unit of generic data used for communication.
 #[derive(Debug)]
 pub struct Frame<FB, const IS_CLIENT: bool> {
   fb: FB,
@@ -64,7 +64,7 @@ impl<FB, const IS_CLIENT: bool> Frame<FB, IS_CLIENT> {
     self.fin
   }
 
-  /// See [OpCode].
+  /// See [`OpCode`].
   #[inline]
   pub fn op_code(&self) -> OpCode {
     self.op_code
@@ -88,7 +88,7 @@ where
     Ok(Self { fb, fin: first_header_byte & 0b1000_0000 != 0, op_code: op_code(first_header_byte)? })
   }
 
-  /// If the frame is of type [OpCode::Text], returns its payload interpreted as a string.
+  /// If the frame is of type [`OpCode::Text`], returns its payload interpreted as a string.
   #[inline]
   pub fn text_payload<'this>(&'this self) -> Option<&'this str>
   where

@@ -21,7 +21,7 @@ where
   type Future = FUT;
 }
 
-/// Like [FnFut] but for [FnMut].
+/// Like [`FnFut`] but for [`FnMut`].
 pub trait FnMutFut<P, R>: FnMut(P) -> Self::Future {
   /// Returning future.
   type Future: AsyncBounds + Future<Output = R>;
@@ -35,7 +35,7 @@ where
   type Future = FUT;
 }
 
-/// Like [FnFut] but for [FnOnce].
+/// Like [`FnFut`] but for [`FnOnce`].
 pub trait FnOnceFut<P, R>: FnOnce(P) -> Self::Future {
   /// Returning future.
   type Future: AsyncBounds + Future<Output = R>;

@@ -1,4 +1,4 @@
-/// Copy of [core::borrow::Borrow] used to workaround orphan rules.
+/// Copy of [`core::borrow::Borrow`] used to workaround orphan rules.
 pub trait Lease<T>
 where
   T: ?Sized,
@@ -29,7 +29,7 @@ where
   }
 }
 
-/// Copy of [core::borrow::BorrowMut] used to workaround orphan rules.
+/// Copy of [`core::borrow::BorrowMut`] used to workaround orphan rules.
 pub trait LeaseMut<T>: Lease<T>
 where
   T: ?Sized,

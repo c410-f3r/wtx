@@ -1,6 +1,6 @@
-#![doc = include_str!("../README.md")]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
+#![doc = include_str!("../README.md")]
 #![no_std]
 
 extern crate alloc;
@@ -32,8 +32,10 @@ pub mod rng;
 pub mod web_socket;
 
 pub use error::Error;
+#[cfg(feature = "std")]
+pub use error::VarError;
 
 pub(crate) const _MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 
-/// Shortcut of [core::result::Result<T, Error>].
+/// Shortcut of [`core::result::Result<T, Error>`].
 pub type Result<T> = core::result::Result<T, Error>;

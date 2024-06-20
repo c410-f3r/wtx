@@ -45,13 +45,17 @@ where
       }
       Some((diff, local_new_len))
     }) else {
-      // SAFETY: Top-level and loop-level checks enforce bounds
+      // SAFETY: top-level and loop-level checks enforce bounds
       return unsafe { slice.get_unchecked_mut(..new_len) };
     };
     let ptr = slice.as_mut_ptr();
-    // SAFETY: Loop-level check enforces bounds
+    // SAFETY: loop-level check enforces bounds
+    let src = unsafe { ptr.add(start) };
+    // SAFETY: top-level check enforces bounds
+    let dst = unsafe { ptr.add(new_len) };
+    // SAFETY: loop-level check enforces a valid `diff`
     unsafe {
-      ptr::copy(ptr.add(start), ptr.add(new_len), diff);
+      ptr::copy(src, dst, diff);
     }
     new_len = local_new_len;
   }

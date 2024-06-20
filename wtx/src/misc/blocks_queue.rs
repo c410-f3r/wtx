@@ -1,22 +1,21 @@
 macro_rules! as_slices {
   ($empty:expr, $ptr:ident, $slice:ident, $this:expr, $($ref:tt)*) => {{
     let len = $this.data.len();
-    let rhs_len = $this.data.capacity().wrapping_sub($this.head);
+    // SAFETY: `this.head` will never be greater than capacity
+    let rhs_len = unsafe { $this.data.capacity().unchecked_sub($this.head) };
     let ptr = $this.data.$ptr();
+    // SAFETY: inner data is expected to point to valid memory
+    let added_ptr = unsafe { ptr.add($this.head) };
     if rhs_len < len {
-      let lhs_len = len.wrapping_sub(rhs_len);
-      // SAFETY: indices point to valid memory locations
-      unsafe {
-        (
-          $($ref)* *ptr::$slice(ptr.add($this.head), rhs_len),
-          $($ref)* *ptr::$slice(ptr, lhs_len),
-        )
-      }
+      // SAFETY: `ìf` check ensures bounds
+      let lhs = unsafe { $($ref)* *ptr::$slice(ptr, len.wrapping_sub(rhs_len)) };
+      // SAFETY: `ìf` check ensures bounds
+      let rhs = unsafe { $($ref)* *ptr::$slice(added_ptr, rhs_len) };
+      (lhs, rhs)
     } else {
-      // SAFETY: indices point to valid memory locations
-      unsafe {
-        ($($ref)* *ptr::$slice(ptr.add($this.head), len), $empty)
-      }
+      // SAFETY: `ìf` check ensures bounds
+      let lhs = unsafe { $($ref)* *ptr::$slice(added_ptr, len) };
+      (lhs, $empty)
     }
   }}
 }
@@ -24,9 +23,11 @@ macro_rules! as_slices {
 macro_rules! do_get {
   ($block:ident, $metadata:expr, $ptr:expr, $slice:ident, $($ref:tt)*) => {
     $block {
-      // SAFETY: `metadata` is always constructed with valid indices
-      data: unsafe {
-        $($ref)* *ptr::$slice($ptr.add($metadata.begin), $metadata.len)
+      data: {
+        // SAFETY: `metadata` is always constructed with valid indices
+        let pointer = unsafe {$ptr.add($metadata.begin)};
+        // SAFETY: same as above
+        unsafe { $($ref)* *ptr::$slice(pointer, $metadata.len) }
       },
       misc: $($ref)* $metadata.misc,
       range: {
@@ -66,11 +67,7 @@ pub(crate) struct BlocksQueue<D, M> {
   tail: usize,
 }
 
-impl<D, M> BlocksQueue<D, M>
-where
-  D: Copy,
-  M: Copy,
-{
+impl<D, M> BlocksQueue<D, M> {
   #[inline]
   pub(crate) const fn new() -> Self {
     Self { data: Vector::new(), head: 0, metadata: Queue::new(), tail: 0 }
@@ -107,8 +104,8 @@ where
     let Self { data, head, metadata, tail } = self;
     data.clear();
     *head = 0;
-    *tail = 0;
     metadata.clear();
+    *tail = 0;
   }
 
   #[inline]
@@ -155,11 +152,15 @@ where
       self.head = 0;
       self.tail = 0;
     };
-    // SAFETY: structure is not empty
-    let slice = unsafe {
-      self.data.set_len(self.data.len().wrapping_sub(metadata.len));
-      &mut *ptr::slice_from_raw_parts_mut(self.data.as_mut_ptr().add(metadata.begin), metadata.len)
-    };
+    let new_len = self.data.len().wrapping_sub(metadata.len);
+    // SAFETY: `metadata` is expected to contain valid data
+    let ptr = unsafe { self.data.as_mut_ptr().add(metadata.begin) };
+    // SAFETY: same as above
+    let slice = unsafe { &mut *ptr::slice_from_raw_parts_mut(ptr, metadata.len) };
+    // SAFETY: same as above
+    unsafe {
+      self.data.set_len(new_len);
+    }
     Some((metadata.misc, slice))
   }
 
@@ -172,11 +173,15 @@ where
       self.head = 0;
       self.tail = 0;
     };
-    // SAFETY: structure is not empty
-    let slice = unsafe {
-      self.data.set_len(self.data.len().wrapping_sub(metadata.len));
-      &mut *ptr::slice_from_raw_parts_mut(self.data.as_mut_ptr().add(metadata.begin), metadata.len)
-    };
+    let new_len = self.data.len().wrapping_sub(metadata.len);
+    // SAFETY: `metadata` is expected to contain valid data
+    let ptr = unsafe { self.data.as_mut_ptr().add(metadata.begin) };
+    // SAFETY: same as above
+    let slice = unsafe { &mut *ptr::slice_from_raw_parts_mut(ptr, metadata.len) };
+    // SAFETY: same as above
+    unsafe {
+      self.data.set_len(new_len);
+    }
     Some((metadata.misc, slice))
   }
 
@@ -202,39 +207,21 @@ where
     self.metadata.push_front(BlocksQueueMetadata { begin: head, len, misc })?;
     self.head = head;
     self.tail = tail;
-    // SAFETY: indices point to valid memory locations
-    unsafe {
-      let mut start = self.head;
-      for value in data {
-        ptr::copy_nonoverlapping(value.as_ptr(), self.data.as_mut_ptr().add(start), value.len());
-        start = start.wrapping_add(value.len());
+    let mut start = self.head;
+    for value in data {
+      // SAFETY: `start is within bounds`
+      let dst = unsafe { self.data.as_mut_ptr().add(start) };
+      // SAFETY: the above `match` handled capacity
+      unsafe {
+        ptr::copy_nonoverlapping(value.as_ptr(), dst, value.len());
       }
+      start = start.wrapping_add(value.len());
+    }
+    // SAFETY: the above `match` handled capacity
+    unsafe {
       self.data.set_len(self.data.len().wrapping_add(len));
     }
     Ok(())
-  }
-
-  #[inline(always)]
-  pub(crate) fn reserve(&mut self, blocks: usize, elements: usize) {
-    let is_not_wrapped = !self.is_wrapped();
-    let prev_head = self.head;
-    let diff_opt = reserve(elements, &mut self.data, &mut self.head);
-    self.metadata.reserve(blocks);
-    if let Some(diff) = diff_opt {
-      if is_not_wrapped {
-        self.tail = self.tail.wrapping_add(diff);
-      }
-      let mut iter = self.metadata.iter_mut();
-      for elem in iter.by_ref() {
-        if elem.begin >= prev_head {
-          elem.begin = elem.begin.wrapping_add(diff);
-          break;
-        }
-      }
-      for elem in iter {
-        elem.begin = elem.begin.wrapping_add(diff);
-      }
-    }
   }
 
   #[inline]
@@ -297,10 +284,39 @@ where
   }
 }
 
+impl<D, M> BlocksQueue<D, M>
+where
+  D: Copy,
+  M: Copy,
+{
+  #[inline(always)]
+  pub(crate) fn reserve(&mut self, blocks: usize, elements: usize) {
+    let is_not_wrapped = !self.is_wrapped();
+    let prev_head = self.head;
+    let diff_opt = reserve(elements, &mut self.data, &mut self.head);
+    self.metadata.reserve(blocks);
+    if let Some(diff) = diff_opt {
+      if is_not_wrapped {
+        self.tail = self.tail.wrapping_add(diff);
+      }
+      let mut iter = self.metadata.iter_mut();
+      for elem in iter.by_ref() {
+        if elem.begin >= prev_head {
+          elem.begin = elem.begin.wrapping_add(diff);
+          break;
+        }
+      }
+      for elem in iter {
+        elem.begin = elem.begin.wrapping_add(diff);
+      }
+    }
+  }
+}
+
 impl<D, M> Debug for BlocksQueue<D, M>
 where
-  D: Copy + Debug,
-  M: Copy + Debug,
+  D: Debug,
+  M: Debug,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
@@ -309,11 +325,7 @@ where
   }
 }
 
-impl<D, M> Default for BlocksQueue<D, M>
-where
-  D: Copy,
-  M: Copy,
-{
+impl<D, M> Default for BlocksQueue<D, M> {
   #[inline]
   fn default() -> Self {
     Self::new()

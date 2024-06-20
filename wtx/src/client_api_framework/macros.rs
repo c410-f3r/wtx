@@ -16,7 +16,7 @@ macro_rules! create_packages_aux_wrapper {
       $($api_param:ident)? with $api_ty:ty
     >
   ) => {
-    /// Just a wrapper that implements [core::ops::Deref] and [core::ops::DerefMut] to easily call
+    /// Just a wrapper that implements [core::ops::Deref] and [`core::ops::DerefMut`] to easily call
     /// methods from `PkgsAux`.
     #[derive(Debug)]
     pub struct $name<$($api_param,)? DRSR, TP>($crate::client_api_framework::pkg::PkgsAux<$api_ty, DRSR, TP>)
@@ -27,7 +27,7 @@ macro_rules! create_packages_aux_wrapper {
     where
       TP: $crate::client_api_framework::network::transport::TransportParams
     {
-      /// Proxy of [$crate::client_api_framework::pkg::PkgsAux::from_minimum].
+      /// Proxy of [`$crate::client_api_framework::pkg::PkgsAux::from_minimum`].
       #[inline]
       pub fn from_minimum(api: $api_ty, drsr: DRSR, tp: TP) -> Self {
         Self($crate::client_api_framework::pkg::PkgsAux::from_minimum(api, drsr, tp))
@@ -74,7 +74,7 @@ macro_rules! _create_set_of_request_throttling {
       $( $method:ident ),+ $(,)?
     }
   ) => {
-    /// A set of [$crate::utils::RequestThrottling] for specified API usage
+    /// A set of [`$crate::utils::RequestThrottling`] for specified API usage
     #[derive(Debug)]
     pub struct $name {
       $(

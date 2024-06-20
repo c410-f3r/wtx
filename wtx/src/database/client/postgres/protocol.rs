@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 pub(crate) fn bind<E, RV>(
   fbw: &mut FilledBufferWriter<'_>,
   portal: &str,
-  rv: RV,
+  mut rv: RV,
   stmt: &Statement<'_>,
   stmt_id_str: &str,
 ) -> Result<(), E>

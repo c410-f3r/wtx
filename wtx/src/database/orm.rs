@@ -2,6 +2,7 @@
 
 mod crud;
 mod full_table_association;
+mod id_value;
 mod misc;
 mod no_table_association;
 mod orm_error;
@@ -22,6 +23,7 @@ mod tuple_impls;
 
 pub use crud::Crud;
 pub use full_table_association::*;
+pub use id_value::IdValue;
 pub use misc::*;
 pub use no_table_association::*;
 pub use orm_error::OrmError;
@@ -37,7 +39,7 @@ pub use table_field::*;
 pub use table_fields::*;
 pub use table_params::*;
 
-/// Shortcut to avoid having to manually type the result of [Table::new]
+/// Shortcut to avoid having to manually type the result of [`Table::new`]
 pub type FromSuffixRslt<'ent, T> = (<T as Table<'ent>>::Associations, <T as Table<'ent>>::Fields);
 
 pub(crate) type AuxNodes = smallvec::SmallVec<[(u64, &'static str); 4]>;

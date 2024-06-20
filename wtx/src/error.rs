@@ -11,7 +11,7 @@ use {alloc::boxed::Box, alloc::string::String};
 
 #[cfg(target_pointer_width = "64")]
 const _: () = {
-  assert!(core::mem::size_of::<Error>() == 24);
+  assert!(size_of::<Error>() == 24);
 };
 
 #[cfg(feature = "rkyv")]
@@ -89,8 +89,7 @@ pub enum Error {
 
   // External - Std
   //
-  #[cfg(feature = "std")]
-  AddrParseError(std::net::AddrParseError),
+  AddrParseError(core::net::AddrParseError),
   Fmt(core::fmt::Error),
   #[cfg(feature = "std")]
   IoError(std::io::Error),
@@ -109,15 +108,16 @@ pub enum Error {
   #[cfg(feature = "http2")]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
-  Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
+  Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
   #[cfg(feature = "orm")]
   OrmError(crate::database::orm::OrmError),
   QueueError(QueueError),
   VectorError(VectorError),
+  InvalidHttp2Content,
 
   /// A slice-like batch of package is not sorted
   CAF_BatchPackagesAreNotSorted,
-  /// The server closed the WebSocket connection
+  /// The server closed the connection
   CAF_ClosedWsConnection,
   /// A server was not able to receive the full request data after several attempts.
   CAF_CouldNotSendTheFullRequestData,
@@ -128,8 +128,8 @@ pub enum Error {
   ),
   /// The hardware returned an incorrect time value
   CAF_IncorrectHardwareTime,
-  /// `no_std` has no knowledge of time. Try enabling the `std` feature
-  CAF_ItIsNotPossibleToUseTimeInNoStd,
+  /// `no_std` has no knowledge of time.
+  CAF_GenericTimeNeedsBackend,
   #[cfg(feature = "client-api-framework")]
   /// JSON-RPC response error
   CAF_JsonRpcResultErr(Box<crate::client_api_framework::data_format::JsonRpcResponseError>),
@@ -148,7 +148,7 @@ pub enum Error {
   HTTP_HeaderFieldIsTooLarge,
   /// Missing Header
   HTTP_MissingHeader {
-    /// See [KnownHeaderName].
+    /// See [`KnownHeaderName`].
     expected: KnownHeaderName,
   },
   /// Received request does not contain a method field
@@ -205,7 +205,7 @@ pub enum Error {
   PG_InvalidPostgresUint,
   /// Received bytes don't compose a valid record.
   PG_InvalidPostgresRecord,
-  /// The iterator that composed a `RecordValues`` does not contain a corresponding length.
+  /// The iterator that composed a `RecordValues` does not contain a corresponding length.
   PG_InvalidRecordValuesIterator,
   /// It is required to connect using a TLS channel but the server didn't provide any. Probably
   /// because the connection is unencrypted.
@@ -302,29 +302,6 @@ pub enum Error {
   WS_VeryLargePayload,
 }
 
-impl Error {
-  #[cfg(feature = "http2")]
-  pub(crate) const fn http2_go_away(
-    code: crate::http2::Http2ErrorCode,
-    error: crate::http2::Http2Error,
-  ) -> Self {
-    Self::Http2ErrorGoAway(code, Some(error))
-  }
-
-  #[cfg(feature = "http2")]
-  pub(crate) const fn http2_go_away_generic(error: crate::http2::Http2Error) -> Self {
-    Self::Http2ErrorGoAway(crate::http2::Http2ErrorCode::ProtocolError, Some(error))
-  }
-
-  #[cfg(feature = "http2")]
-  pub(crate) const fn http2_reset_stream(
-    code: crate::http2::Http2ErrorCode,
-    error: crate::http2::Http2Error,
-  ) -> Self {
-    Self::Http2ErrorReset(code, Some(error))
-  }
-}
-
 impl Display for Error {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -416,10 +393,9 @@ impl From<flate2::DecompressError> for Error {
   }
 }
 
-#[cfg(feature = "std")]
-impl From<std::net::AddrParseError> for Error {
+impl From<core::net::AddrParseError> for Error {
   #[inline]
-  fn from(from: std::net::AddrParseError) -> Self {
+  fn from(from: core::net::AddrParseError) -> Self {
     Self::AddrParseError(from)
   }
 }

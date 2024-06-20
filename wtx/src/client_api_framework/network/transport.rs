@@ -24,7 +24,7 @@ pub use transport_params::*;
 
 /// Any means of transferring data between two parties.
 ///
-/// Please, see the [crate::pkg::Package] implementation of the desired package to know
+/// Please, see the [`crate::pkg::Package`] implementation of the desired package to know
 /// more about the expected types as well as any other additional documentation.
 ///
 /// # Types
@@ -58,7 +58,7 @@ pub trait Transport<DRSR> {
     A: Api,
     P: Package<A, DRSR, Self::Params>;
 
-  /// Convenient method similar to [Self::send_recv_decode_contained] but used for batch
+  /// Convenient method similar to [`Self::send_recv_decode_contained`] but used for batch
   /// requests.
   ///
   /// All the expected data must be available in a single response.
@@ -90,8 +90,8 @@ pub trait Transport<DRSR> {
     }
   }
 
-  /// Internally calls [Self::send_recv] and then tries to decode the defined response specified
-  /// in [Package::ExternalResponseContent].
+  /// Internally calls [`Self::send_recv`] and then tries to decode the defined response specified
+  /// in [`Package::ExternalResponseContent`].
   #[inline]
   fn send_recv_decode_contained<A, P>(
     &mut self,
@@ -112,7 +112,7 @@ pub trait Transport<DRSR> {
     }
   }
 
-  /// Instance counterpart of [Self::GROUP].
+  /// Instance counterpart of [`Self::GROUP`].
   #[inline]
   fn ty(&self) -> TransportGroup {
     Self::GROUP

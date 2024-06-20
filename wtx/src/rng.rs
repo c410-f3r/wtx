@@ -99,11 +99,6 @@ impl Default for StaticRng {
       let [a, b, c, d, e, f, g, h] = n.to_be_bytes();
       u64::from_be_bytes([a, b, c, d, e, f, g, h])
     });
-    #[cfg(target_pointer_width = "128")]
-    return Self({
-      let [a, b, c, d, e, f, g, h, ..] = n.to_be_bytes();
-      u64::from_be_bytes([a, b, c, d, e, f, g, h])
-    });
   }
 }
 

@@ -45,7 +45,7 @@ impl<SB> Http2Buffer<SB> {
       hpack_dec,
       hpack_enc,
       initial_server_buffers,
-      initial_server_streams: initial_server_connections,
+      initial_server_streams,
       pfb,
       scrp,
       sorp,
@@ -54,7 +54,7 @@ impl<SB> Http2Buffer<SB> {
     hpack_dec.clear();
     hpack_enc.clear();
     initial_server_buffers.clear();
-    initial_server_connections.clear();
+    initial_server_streams.clear();
     pfb._clear();
     scrp.clear();
     sorp.clear();
@@ -99,7 +99,7 @@ impl ReqResBuffer {
     }
   }
 
-  /// Mutable version of [Self::as_http2_request].
+  /// Mutable version of [`Self::as_http2_request`].
   #[inline]
   pub fn as_http2_request_mut(
     &mut self,
@@ -119,7 +119,7 @@ impl ReqResBuffer {
     Response { data: (&self.body, &self.headers), status_code, version: Version::Http2 }
   }
 
-  /// Mutable version of [Self::as_http2_response].
+  /// Mutable version of [`Self::as_http2_response`].
   #[inline]
   pub fn as_http2_response_mut(
     &mut self,

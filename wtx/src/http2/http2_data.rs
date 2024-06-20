@@ -1,12 +1,15 @@
 use crate::{
   http2::{
-    http2_params_send::Http2ParamsSend, misc::read_frame_until, FrameInitTy, Http2Buffer,
-    Http2Error, Http2Params, ProcessReceiptFrameTy, StreamBuffer, Windows, U31,
+    http2_params_send::Http2ParamsSend,
+    misc::{protocol_err, read_frame_until},
+    FrameInitTy, Http2Buffer, Http2Error, Http2Params, ProcessReceiptFrameTy, StreamBuffer,
+    Windows, U31,
   },
   misc::{Lease, LeaseMut, Stream},
 };
 use core::marker::PhantomData;
 
+/// Internal resource used in every new instance of `Http2`.
 #[derive(Debug)]
 pub struct Http2Data<HB, S, SB, const IS_CLIENT: bool> {
   hb: HB,
@@ -70,6 +73,7 @@ where
       initial_server_buffers,
       initial_server_streams,
       pfb,
+      scrp,
       sorp,
       uri_buffer,
       ..
@@ -81,6 +85,8 @@ where
       &mut self.hps,
       &mut self.is_conn_open,
       pfb,
+      scrp,
+      sorp,
       &mut self.stream,
     )
     .await?
@@ -94,7 +100,7 @@ where
       hpack_dec,
       hps: &self.hps,
       is_conn_open: &mut self.is_conn_open,
-      last_stream_id: self.last_stream_id,
+      last_stream_id: &mut self.last_stream_id,
       pfb,
       phantom: PhantomData,
       stream: &mut self.stream,
@@ -105,17 +111,17 @@ where
         prft.data(sorp).await?;
       }
       FrameInitTy::Headers => {
-        prft.header(initial_server_buffers, initial_server_streams, sorp).await?;
+        prft.header(initial_server_buffers, initial_server_streams, scrp, sorp).await?;
       }
       FrameInitTy::Reset => {
-        prft.reset(sorp).await?;
+        prft.reset(scrp, sorp)?;
         return Ok(Some(()));
       }
       FrameInitTy::WindowUpdate if fi.stream_id.is_not_zero() => {
-        prft.window_update(sorp).await?;
+        prft.window_update(scrp, sorp)?;
       }
       _ => {
-        return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedConnFrame));
+        return Err(protocol_err(Http2Error::UnexpectedConnFrame));
       }
     }
     Ok(Some(()))

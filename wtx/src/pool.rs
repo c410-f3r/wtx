@@ -3,20 +3,31 @@
 mod resource_manager;
 mod simple_pool;
 
-use core::{future::Future, ops::DerefMut};
+use core::future::Future;
 #[cfg(feature = "database")]
 pub use resource_manager::database::PostgresRM;
-#[cfg(feature = "http2")]
-pub use resource_manager::http2::{Http2ClientBufferRM, Http2ServerBufferRM, StreamBufferRM};
-#[cfg(feature = "web-socket")]
-pub use resource_manager::web_socket::WebSocketRM;
 pub use resource_manager::{ResourceManager, SimpleRM};
 pub use simple_pool::*;
 
+/// Manages HTTP/2 resources for clients and servers.
+#[cfg(feature = "http2")]
+pub type Http2BufferRM<SB> = SimpleRM<fn() -> Result<crate::http2::Http2Buffer<SB>, crate::Error>>;
+/// Manages resources for HTTP2 requests and responses.
+#[cfg(feature = "http2")]
+pub type StreamBufferRM = SimpleRM<fn() -> Result<crate::http2::StreamBuffer, crate::Error>>;
+/// Manages WebSocket resources.
+#[cfg(feature = "web-socket")]
+pub type WebSocketRM = SimpleRM<
+  fn() -> Result<
+    (crate::web_socket::FrameBufferVec, crate::web_socket::WebSocketBuffer),
+    crate::Error,
+  >,
+>;
+
 /// A pool contains a set of resources that are behind some synchronism mechanism.
 pub trait Pool: Sized {
-  /// Result of the [Pool:get] method.
-  type GetElem<'this>: DerefMut
+  /// Element returned by [`Pool::get`].
+  type GetElem<'this>
   where
     Self: 'this;
   /// See [ResourceManager].
@@ -26,29 +37,30 @@ pub trait Pool: Sized {
   ///
   /// If the resource does not exist, a new one is created and if the pool is full, this method will
   /// await until a free resource is available.
-  fn get(
-    &self,
+  fn get<'this>(
+    &'this self,
     ca: &<Self::ResourceManager as ResourceManager>::CreateAux,
     ra: &<Self::ResourceManager as ResourceManager>::RecycleAux,
-  ) -> impl Future<Output = Result<Self::GetElem<'_>, <Self::ResourceManager as ResourceManager>::Error>>;
+  ) -> impl Future<
+    Output = Result<Self::GetElem<'this>, <Self::ResourceManager as ResourceManager>::Error>,
+  >;
 }
 
 impl<T> Pool for &T
 where
   T: Pool,
 {
-  type GetElem<'guard> = T::GetElem<'guard>
+  type GetElem<'this> = T::GetElem<'this>
   where
-    Self: 'guard;
+    Self: 'this;
   type ResourceManager = T::ResourceManager;
 
   #[inline]
-  fn get(
-    &self,
+  async fn get<'this>(
+    &'this self,
     ca: &<Self::ResourceManager as ResourceManager>::CreateAux,
     ra: &<Self::ResourceManager as ResourceManager>::RecycleAux,
-  ) -> impl Future<Output = Result<Self::GetElem<'_>, <Self::ResourceManager as ResourceManager>::Error>>
-  {
-    (**self).get(ca, ra)
+  ) -> Result<Self::GetElem<'this>, <Self::ResourceManager as ResourceManager>::Error> {
+    (**self).get(ca, ra).await
   }
 }

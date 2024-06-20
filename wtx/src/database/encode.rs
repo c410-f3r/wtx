@@ -12,7 +12,7 @@ where
   fn encode(
     &self,
     fbw: &mut FilledBufferWriter<'_>,
-    value: D::EncodeValue<'_>,
+    value: &D::EncodeValue<'_>,
   ) -> Result<(), D::Error>;
 
   /// In rust terms, is the element `Option::None`?
@@ -22,9 +22,26 @@ where
   }
 }
 
+impl<D> Encode<D> for ()
+where
+  D: Database,
+{
+  #[inline]
+  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: &D::EncodeValue<'_>) -> Result<(), D::Error> {
+    Ok(())
+  }
+}
+
+impl Encode<()> for u32 {
+  #[inline]
+  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: &()) -> Result<(), crate::Error> {
+    Ok(())
+  }
+}
+
 impl Encode<()> for &str {
   #[inline]
-  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: ()) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: &()) -> Result<(), crate::Error> {
     Ok(())
   }
 }
@@ -38,7 +55,7 @@ where
   fn encode(
     &self,
     fbw: &mut FilledBufferWriter<'_>,
-    value: D::EncodeValue<'_>,
+    value: &D::EncodeValue<'_>,
   ) -> Result<(), D::Error> {
     (**self).encode(fbw, value)
   }
@@ -54,7 +71,7 @@ where
   fn encode(
     &self,
     fbw: &mut FilledBufferWriter<'_>,
-    value: D::EncodeValue<'_>,
+    value: &D::EncodeValue<'_>,
   ) -> Result<(), D::Error> {
     match self {
       Self::Left(left) => left.encode(fbw, value),
@@ -71,7 +88,7 @@ where
   fn encode(
     &self,
     fbw: &mut FilledBufferWriter<'_>,
-    value: D::EncodeValue<'_>,
+    value: &D::EncodeValue<'_>,
   ) -> Result<(), D::Error> {
     (**self).encode(fbw, value)
   }
@@ -86,7 +103,7 @@ where
   fn encode(
     &self,
     fbw: &mut FilledBufferWriter<'_>,
-    value: D::EncodeValue<'_>,
+    value: &D::EncodeValue<'_>,
   ) -> Result<(), D::Error> {
     match self {
       None => Ok(()),

@@ -1,4 +1,4 @@
-use crate::http2::{FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
+use crate::http2::{misc::protocol_err, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct GoAwayFrame {
@@ -28,10 +28,10 @@ impl GoAwayFrame {
   #[inline]
   pub(crate) fn read(data: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidGoAwayFrameNonZeroId));
+      return Err(protocol_err(Http2Error::InvalidGoAwayFrameNonZeroId));
     }
-    let [a, b, c, d, e, f, g, h] = data else {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidGoAwayFrameBytes));
+    let [a, b, c, d, e, f, g, h, ..] = data else {
+      return Err(protocol_err(Http2Error::InvalidGoAwayFrameBytes));
     };
     Ok(Self {
       error_code: u32::from_be_bytes([*e, *f, *g, *h]).try_into()?,

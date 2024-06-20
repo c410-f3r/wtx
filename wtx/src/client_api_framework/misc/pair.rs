@@ -2,7 +2,7 @@
 pub type PairMut<'any, PA, T> = Pair<&'any mut PA, &'any mut T>;
 
 /// A convenient wrapper intended for anything that mutable dereferences to
-/// [crate::pkg::PkgsAux] along side any given `T: Transport`.
+/// [`crate::pkg::PkgsAux`] along side any given `T: Transport`.
 ///
 /// If desired, you can create your own set of APIs or transports by directly calling
 /// their constructors.
@@ -13,9 +13,9 @@ pub type PairMut<'any, PA, T> = Pair<&'any mut PA, &'any mut T>;
 /// * `T`: Transport
 #[derive(Debug)]
 pub struct Pair<PA, T> {
-  /// See [crate::pkg::PkgsAux].
+  /// See [`crate::pkg::PkgsAux`].
   pub pkgs_aux: PA,
-  /// See [crate::network::transport::Transport].
+  /// See [`crate::network::transport::Transport`].
   pub trans: T,
 }
 
@@ -32,7 +32,7 @@ impl<PA, T> Pair<PA, T> {
     PairMut { pkgs_aux: &mut self.pkgs_aux, trans: &mut self.trans }
   }
 
-  /// Owned version of [Self::parts_mut].
+  /// Owned version of [`Self::parts_mut`].
   #[inline]
   pub fn into_parts(self) -> (PA, T) {
     (self.pkgs_aux, self.trans)

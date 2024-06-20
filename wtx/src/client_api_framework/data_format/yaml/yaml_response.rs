@@ -72,7 +72,7 @@ mod serde_yaml {
     D: serde::Serialize,
   {
     fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeYaml) -> crate::Result<()> {
-      if core::mem::size_of::<D>() == 0 {
+      if size_of::<D>() == 0 {
         return Ok(());
       }
       serde_yaml::to_writer(bytes, self)?;

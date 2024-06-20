@@ -1,14 +1,21 @@
+macro_rules! trace_frame {
+  ($this:expr, $span:expr) => {
+    let _e = $span._enter();
+    _trace!("Receiving frame: {:?}", $this.fi);
+  };
+}
+
 use crate::{
   http::{Method, StatusCode},
   http2::{
     http2_params_send::Http2ParamsSend,
-    misc::{read_frame, send_go_away},
+    misc::{protocol_err, read_frame},
     window::WindowsPair,
-    ContinuationFrame, DataFrame, FrameInit, FrameInitTy, HeadersFrame, HpackDecoder, Http2Error,
-    Http2ErrorCode, Http2Params, ReqResBuffer, ResetStreamFrame, Sorp, StreamBuffer,
-    StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
+    DataFrame, FrameInit, FrameInitTy, HeadersFrame, HpackDecoder, Http2Error, Http2ErrorCode,
+    Http2Params, ReqResBuffer, ResetStreamFrame, Scrp, Sorp, StreamBuffer, StreamOverallRecvParams,
+    StreamState, UriBuffer, WindowUpdateFrame, Windows, EOH_MASK, EOS_MASK, U31,
   },
-  misc::{LeaseMut, PartitionedFilledBuffer, Queue, Stream},
+  misc::{LeaseMut, PartitionedFilledBuffer, Queue, Stream, _Span},
 };
 use alloc::vec::Vec;
 use core::marker::PhantomData;
@@ -21,7 +28,7 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, S, SB, const IS_CLIENT: bool>
   pub(crate) hpack_dec: &'instance mut HpackDecoder,
   pub(crate) hps: &'instance Http2ParamsSend,
   pub(crate) is_conn_open: &'instance mut bool,
-  pub(crate) last_stream_id: U31,
+  pub(crate) last_stream_id: &'instance mut U31,
   pub(crate) pfb: &'instance mut PartitionedFilledBuffer,
   pub(crate) phantom: PhantomData<SB>,
   pub(crate) stream: &'instance mut S,
@@ -34,27 +41,33 @@ where
   SB: LeaseMut<StreamBuffer>,
 {
   #[inline]
-  pub(crate) async fn data(mut self, sorp: &mut Sorp<SB>) -> crate::Result<()> {
-    let Some(socrp) = sorp.get_mut(&self.fi.stream_id) else {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::UnknownStreamReceiver));
+  pub(crate) async fn data(self, sorp: &mut Sorp<SB>) -> crate::Result<()> {
+    let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
+      return Err(protocol_err(Http2Error::UnknownStreamReceiver));
     };
-    self.manage_invalid_stream_state(socrp).await?;
-    let Some(local_body_len) = socrp
+    if elem.stream_state.recv_eos() {
+      return Err(crate::Error::Http2ErrorGoAway(
+        Http2ErrorCode::StreamClosed,
+        Some(Http2Error::InvalidReceivedFrameAfterEos),
+      ));
+    }
+    trace_frame!(self, elem.span);
+    let Some(local_body_len) = elem
       .body_len
       .checked_add(self.fi.data_len)
       .filter(|element| *element <= self.hp.max_body_len())
     else {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::LargeDataFrameLen));
+      return Err(protocol_err(Http2Error::LargeDataFrameLen));
     };
-    socrp.body_len = local_body_len;
+    elem.body_len = local_body_len;
     let df = DataFrame::read(self.pfb._current(), self.fi)?;
-    socrp.sb.lease_mut().rrb.body.reserve(self.pfb._current().len());
-    socrp.sb.lease_mut().rrb.body.extend_from_slice(self.pfb._current())?;
-    WindowsPair::new(self.conn_windows, &mut socrp.windows)
-      .manage_recv(*self.is_conn_open, self.stream, self.fi.stream_id, df.data_len())
+    elem.sb.lease_mut().rrb.body.reserve(self.pfb._current().len());
+    elem.sb.lease_mut().rrb.body.extend_from_slice(self.pfb._current())?;
+    WindowsPair::new(self.conn_windows, &mut elem.windows)
+      .withdrawn_recv(&self.hp, *self.is_conn_open, self.stream, self.fi.stream_id, df.data_len())
       .await?;
     if df.is_eos() {
-      socrp.stream_state = StreamState::HalfClosedRemote;
+      elem.stream_state = StreamState::HalfClosedRemote;
     }
     Ok(())
   }
@@ -64,8 +77,12 @@ where
     self,
     initial_server_buffers: &mut Vec<SB>,
     initial_server_streams: &mut Queue<(Method, U31)>,
+    scrp: &mut Scrp,
     sorp: &mut Sorp<SB>,
   ) -> crate::Result<()> {
+    if scrp.contains_key(&self.fi.stream_id) {
+      return Err(protocol_err(Http2Error::UnexpectedNonControlFrame));
+    }
     if IS_CLIENT {
       self.header_client(sorp).await
     } else {
@@ -74,31 +91,47 @@ where
   }
 
   #[inline]
-  pub(crate) async fn reset(self, sorp: &mut Sorp<SB>) -> crate::Result<()> {
-    let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::UnknownStreamReceiver));
+  pub(crate) fn reset(self, scrp: &mut Scrp, sorp: &mut Sorp<SB>) -> crate::Result<()> {
+    if let Some(elem) = scrp.get_mut(&self.fi.stream_id) {
+      return self.do_reset(&elem.span, &mut elem.stream_state);
     };
-    let rsf = ResetStreamFrame::read(self.pfb._current(), self.fi)?;
-    elem.stream_state = StreamState::Closed;
-    Err(crate::Error::Http2ErrorReset(rsf.error_code(), None))
+    if let Some(elem) = sorp.get_mut(&self.fi.stream_id) {
+      return self.do_reset(&elem.span, &mut elem.stream_state);
+    };
+    Err(protocol_err(Http2Error::UnknownStreamReceiver))
   }
 
   #[inline]
-  pub(crate) async fn window_update(self, sorp: &mut Sorp<SB>) -> crate::Result<()> {
-    let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::UnknownStreamReceiver));
+  pub(crate) fn window_update(self, scrp: &mut Scrp, sorp: &mut Sorp<SB>) -> crate::Result<()> {
+    if let Some(elem) = scrp.get_mut(&self.fi.stream_id) {
+      return self.do_window_update(&elem.span, &mut elem.windows);
     };
+    if let Some(elem) = sorp.get_mut(&self.fi.stream_id) {
+      return self.do_window_update(&elem.span, &mut elem.windows);
+    };
+    Err(protocol_err(Http2Error::UnknownStreamReceiver))
+  }
+
+  fn do_reset(self, span: &_Span, stream_state: &mut StreamState) -> crate::Result<()> {
+    trace_frame!(self, span);
+    let rsf = ResetStreamFrame::read(self.pfb._current(), self.fi)?;
+    *stream_state = StreamState::Closed;
+    Err(crate::Error::Http2ErrorReset(rsf.error_code(), None, self.fi.stream_id.into()))
+  }
+
+  fn do_window_update(self, span: &_Span, windows: &mut Windows) -> crate::Result<()> {
+    trace_frame!(self, span);
     let wuf = WindowUpdateFrame::read(self.pfb._current(), self.fi)?;
-    elem.windows.send.deposit(wuf.size_increment().i32());
+    windows.send.deposit(Some(self.fi.stream_id), wuf.size_increment().i32())?;
     Ok(())
   }
 
   #[inline]
   async fn header_client(mut self, sorp: &mut Sorp<SB>) -> crate::Result<()> {
     let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::UnknownStreamReceiver));
+      return Err(protocol_err(Http2Error::UnknownStreamReceiver));
     };
-    self.manage_invalid_stream_state(elem).await?;
+    trace_frame!(self, elem.span);
     let is_eos = if elem.has_initial_header {
       self
         .read_header_and_continuations::<_, true>(&mut elem.sb.lease_mut().rrb, |_| Ok(()))
@@ -135,27 +168,37 @@ where
         StreamState::Open
       }
     }
+    // Trailer
     if let Some(elem) = sorp.get_mut(&self.fi.stream_id) {
-      self.manage_invalid_stream_state(elem).await?;
-      let (is_eos, _) = self
-        .read_header_and_continuations::<_, true>(&mut elem.sb.lease_mut().rrb, |_| Ok(()))
-        .await?;
-      elem.stream_state = stream_state(is_eos);
-    } else {
-      if self.fi.stream_id.u32() % 2 == 0 {
-        return Err(crate::Error::http2_go_away_generic(Http2Error::EvenStreamId));
+      if elem.stream_state.recv_eos() {
+        return Err(protocol_err(Http2Error::UnexpectedHeaderFrame));
       }
+      let is_eos = self
+        .read_header_and_continuations::<_, true>(&mut elem.sb.lease_mut().rrb, |_| Ok(()))
+        .await?
+        .0;
+      elem.stream_state = stream_state(is_eos);
+    }
+    // Initial header
+    else {
+      if self.fi.stream_id.u32() % 2 == 0 || self.fi.stream_id <= *self.last_stream_id {
+        return Err(protocol_err(Http2Error::UnexpectedStreamId));
+      }
+      *self.last_stream_id = self.fi.stream_id;
       let Some(mut sb) = initial_server_buffers.pop() else {
-        return Err(crate::Error::http2_reset_stream(
+        return Err(crate::Error::Http2ErrorReset(
           Http2ErrorCode::RefusedStream,
-          Http2Error::NoBuffersForNewStream,
+          Some(Http2Error::NoBuffersForNewStream),
+          self.fi.stream_id.into(),
         ));
       };
+
       let (is_eos, method) = self
         .read_header_and_continuations::<_, false>(&mut sb.lease_mut().rrb, |hf| {
           hf.hsreqh().method.ok_or(crate::Error::HTTP_MissingRequestMethod)
         })
         .await?;
+
       initial_server_streams.reserve(1);
       initial_server_streams.push_front((method, self.fi.stream_id))?;
       drop(sorp.insert(
@@ -164,30 +207,14 @@ where
           body_len: 0,
           has_initial_header: true,
           sb,
+          span: _Span::_none(),
           status_code: StatusCode::Ok,
           stream_state: stream_state(is_eos),
           windows: Windows::stream(self.hp, self.hps),
         },
       ));
     }
-    Ok(())
-  }
 
-  #[inline]
-  async fn manage_invalid_stream_state(
-    &mut self,
-    sorp: &StreamOverallRecvParams<SB>,
-  ) -> crate::Result<()> {
-    if sorp.stream_state.recv_eos() {
-      send_go_away(
-        Http2ErrorCode::StreamClosed,
-        self.is_conn_open,
-        self.last_stream_id,
-        self.stream,
-      )
-      .await;
-      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidReceivedFrameAfterEos));
-    }
     Ok(())
   }
 
@@ -197,8 +224,51 @@ where
     rrb: &mut ReqResBuffer,
     mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
   ) -> crate::Result<(bool, H)> {
-    let (hf, mut hpack_size) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
-      self.pfb._current(),
+    if IS_TRAILER && self.fi.flags & EOS_MASK != EOS_MASK {
+      return Err(protocol_err(Http2Error::MissingEOSInTrailer));
+    }
+
+    if self.fi.flags & EOH_MASK == EOH_MASK {
+      let hf = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
+        self.pfb._current(),
+        self.fi,
+        &mut rrb.headers,
+        self.hp,
+        self.hpack_dec,
+        &mut rrb.uri,
+        self.uri_buffer,
+      )?;
+      if hf.is_over_size() {
+        return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
+      }
+      return Ok((hf.is_eos(), headers_cb(&hf)?));
+    }
+
+    rrb.body.clear();
+    rrb.body.reserve(self.pfb._current().len());
+    rrb.body.extend_from_slice(self.pfb._current())?;
+
+    'continuation_frames: {
+      for _ in 0.._max_continuation_frames!() {
+        let frame_fi = loop_until_some!(
+          read_frame::<_, true>(self.hp, self.is_conn_open, self.pfb, self.stream).await?
+        );
+        let has_diff_id = self.fi.stream_id != frame_fi.stream_id;
+        let is_not_continuation = frame_fi.ty != FrameInitTy::Continuation;
+        if has_diff_id || is_not_continuation {
+          return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
+        }
+        rrb.body.reserve(self.pfb._current().len());
+        rrb.body.extend_from_slice(self.pfb._current())?;
+        if frame_fi.flags & EOH_MASK == EOH_MASK {
+          break 'continuation_frames;
+        }
+      }
+      return Err(protocol_err(Http2Error::VeryLargeAmountOfContinuationFrames));
+    }
+
+    let hf = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
+      &rrb.body,
       self.fi,
       &mut rrb.headers,
       self.hp,
@@ -207,42 +277,9 @@ where
       self.uri_buffer,
     )?;
     if hf.is_over_size() {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::VeryLargeHeadersLen));
+      return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
     }
-    let mut is_eoh = hf.is_eoh();
-    let is_eos = hf.is_eos();
-    let rslt = headers_cb(&hf)?;
-    'continuation_frames: {
-      if is_eoh {
-        break 'continuation_frames;
-      }
-      for _ in 0.._max_continuation_frames!() {
-        let frame_fi =
-          loop_until_some!(read_frame(self.hp, self.is_conn_open, self.pfb, self.stream).await?);
-        let has_diff_id = self.fi.stream_id != frame_fi.stream_id;
-        let is_not_continuation = frame_fi.ty != FrameInitTy::Continuation;
-        if has_diff_id || is_not_continuation {
-          return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedContinuationFrame));
-        }
-        let frame_ci = ContinuationFrame::read::<IS_TRAILER>(
-          self.pfb._current(),
-          frame_fi,
-          &mut rrb.headers,
-          &mut hpack_size,
-          self.hpack_dec,
-        )?;
-        if frame_ci.is_over_size() {
-          return Err(crate::Error::http2_go_away_generic(Http2Error::VeryLargeHeadersLen));
-        }
-        is_eoh = frame_ci.is_eoh();
-        if is_eoh {
-          break 'continuation_frames;
-        }
-      }
-      return Err(crate::Error::http2_go_away_generic(
-        Http2Error::VeryLargeAmountOfContinuationFrames,
-      ));
-    }
-    Ok((is_eos, rslt))
+    rrb.body.clear();
+    Ok((hf.is_eos(), headers_cb(&hf)?))
   }
 }

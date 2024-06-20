@@ -1,4 +1,4 @@
-use crate::misc::{char_slice, Lease, Usize};
+use crate::misc::{char_slice, Lease, LeaseMut, Usize};
 use core::{
   array,
   cmp::Ordering,
@@ -9,7 +9,7 @@ use core::{
   slice,
 };
 
-/// Errors of [ArrayVector].
+/// Errors of [`ArrayVector`].
 #[derive(Debug)]
 pub enum ArrayVectorError {
   #[doc = doc_many_elems_cap_overflow!()]
@@ -26,16 +26,10 @@ pub struct ArrayVector<D, const N: usize> {
 
 impl<D, const N: usize> ArrayVector<D, N> {
   /// Constructs a new instance reusing any `data` elements delimited by `len`.
-  #[allow(
-    // False positive
-    clippy::missing_panics_doc
-  )]
   #[inline]
   pub const fn new(data: [D; N], len: u32) -> Self {
     let n = const {
-      if N > Usize::from_u32(u32::MAX).into_usize() || needs_drop::<D>() {
-        panic!();
-      }
+      assert!(N <= Usize::from_u32(u32::MAX).into_usize() && !needs_drop::<D>());
       let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
       u32::from_be_bytes([a, b, c, d])
     };
@@ -203,6 +197,13 @@ impl<D, const N: usize> Lease<[D]> for ArrayVector<D, N> {
   }
 }
 
+impl<D, const N: usize> LeaseMut<[D]> for ArrayVector<D, N> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut [D] {
+    self
+  }
+}
+
 impl<D, const N: usize> PartialEq for ArrayVector<D, N>
 where
   D: PartialEq,
@@ -279,13 +280,13 @@ where
 
 impl<const N: usize> fmt::Write for ArrayVector<u8, N> {
   #[inline]
-  fn write_char(&mut self, ch: char) -> fmt::Result {
-    self.extend_from_slice(char_slice(&mut [0; 4], ch)).map_err(|_err| fmt::Error)
+  fn write_char(&mut self, c: char) -> fmt::Result {
+    self.extend_from_slice(char_slice(&mut [0; 4], c)).map_err(|_err| fmt::Error)
   }
 
   #[inline]
-  fn write_str(&mut self, str: &str) -> fmt::Result {
-    self.extend_from_slice(str.as_bytes()).map_err(|_err| fmt::Error)
+  fn write_str(&mut self, s: &str) -> fmt::Result {
+    self.extend_from_slice(s.as_bytes()).map_err(|_err| fmt::Error)
   }
 }
 
@@ -297,10 +298,35 @@ impl<const N: usize> std::io::Write for ArrayVector<u8, N> {
   }
 
   #[inline]
-  fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
-    let len = (*Usize::from(self.remaining())).min(data.len());
-    let _rslt = self.extend_from_slice(data.get(..len).unwrap_or_default());
+  fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    let len = (*Usize::from(self.remaining())).min(buf.len());
+    let _rslt = self.extend_from_slice(buf.get(..len).unwrap_or_default());
     Ok(len)
+  }
+}
+
+#[cfg(feature = "arbitrary")]
+mod arbitrary {
+  use crate::misc::{ArrayVector, Usize};
+  use arbitrary::{Arbitrary, Unstructured};
+
+  impl<'any, T, const N: usize> Arbitrary<'any> for ArrayVector<T, N>
+  where
+    T: Default + Arbitrary<'any>,
+  {
+    #[inline]
+    fn arbitrary(u: &mut Unstructured<'any>) -> arbitrary::Result<Self> {
+      let mut len = const {
+        let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
+        u32::from_be_bytes([a, b, c, d])
+      };
+      len = u32::arbitrary(u)?.min(len);
+      let mut data = core::array::from_fn(|_| T::default());
+      for elem in data.iter_mut().take(*Usize::from(len)) {
+        *elem = T::arbitrary(u)?;
+      }
+      Ok(Self { len, data })
+    }
   }
 }
 

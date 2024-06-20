@@ -1,39 +1,35 @@
 use crate::{
-  misc::{Lock, Queue, RefCounter, SyncLock},
+  misc::{Lock, PollOnce},
   pool::{Pool, ResourceManager},
 };
-use alloc::vec::Vec;
-use core::ops::{Deref, DerefMut};
+use alloc::{sync::Arc, vec::Vec};
+use core::{
+  ops::{Deref, DerefMut},
+  pin::pin,
+  sync::atomic::{AtomicUsize, Ordering},
+};
 
-/// A [SimplePool] synchronized by [tokio::sync::Mutex].
-#[cfg(all(feature = "parking_lot", feature = "tokio"))]
-pub type SimplePoolTokio<R, RM> = SimplePool<
-  alloc::sync::Arc<parking_lot::Mutex<Queue<usize>>>,
-  tokio::sync::Mutex<SimplePoolResource<R>>,
-  RM,
->;
-/// A [SimplePoolGetElem] synchronized by [tokio::sync::MutexGuard].
-#[cfg(all(feature = "parking_lot", feature = "tokio"))]
-pub type SimplePoolGetElemTokio<'guard, R> = SimplePoolGetElem<
-  alloc::sync::Arc<parking_lot::Mutex<Queue<usize>>>,
-  tokio::sync::MutexGuard<'guard, SimplePoolResource<R>>,
->;
+/// A [SimplePool] synchronized by [`tokio::sync::Mutex`].
+#[cfg(feature = "tokio")]
+pub type SimplePoolTokio<RM> =
+  SimplePool<tokio::sync::Mutex<SimplePoolResource<<RM as ResourceManager>::Resource>>, RM>;
+/// A [SimplePoolGetElem] synchronized by [`tokio::sync::MutexGuard`].
+#[cfg(feature = "tokio")]
+pub type SimplePoolGetElemTokio<'guard, R> =
+  SimplePoolGetElem<tokio::sync::MutexGuard<'guard, SimplePoolResource<R>>>;
 
-/// Simple pool
+/// Simple pool that never de-allocates its elements.
 #[derive(Debug)]
-pub struct SimplePool<IC, RL, RM> {
-  indcs: IC,
+pub struct SimplePool<RL, RM> {
+  lowest_available_idx: Arc<AtomicUsize>,
   locks: Vec<RL>,
   rm: RM,
 }
 
-impl<IC, R, RL, RM> SimplePool<IC, RL, RM>
+impl<R, RL, RM> SimplePool<RL, RM>
 where
-  IC: RefCounter + SyncLock<Resource = Queue<usize>>,
-  IC::Item: SyncLock<Resource = Queue<usize>>,
   RL: Lock<Resource = SimplePoolResource<R>>,
   RM: ResourceManager<Resource = R>,
-  for<'any> IC: 'any,
   for<'any> R: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
@@ -45,13 +41,7 @@ where
   pub fn new(mut len: usize, rm: RM) -> Self {
     len = len.max(1);
     Self {
-      indcs: {
-        let mut rslt = Queue::with_capacity(len);
-        for idx in 0..len {
-          let _rslt = rslt.push_front(idx);
-        }
-        <IC as RefCounter>::new(IC::Item::new(rslt))
-      },
+      lowest_available_idx: Arc::new(AtomicUsize::new(0)),
       locks: {
         let mut rslt = Vec::with_capacity(len);
         rslt.extend((0..len).map(|_| RL::new(SimplePoolResource(None))));
@@ -75,63 +65,64 @@ where
   }
 }
 
-impl<IC, R, RL, RM> Pool for SimplePool<IC, RL, RM>
+impl<R, RL, RM> Pool for SimplePool<RL, RM>
 where
-  IC: RefCounter + SyncLock<Resource = Queue<usize>>,
   RL: Lock<Resource = SimplePoolResource<R>>,
   RM: ResourceManager<Resource = R>,
-  for<'any> IC: 'any,
   for<'any> R: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
-  type GetElem<'this> = SimplePoolGetElem<IC, RL::Guard<'this>>;
+  type GetElem<'this> = SimplePoolGetElem<RL::Guard<'this>>;
   type ResourceManager = RM;
 
+  #[allow(
+    // `locks` will never be zero
+    clippy::arithmetic_side_effects,
+  )]
   #[inline]
-  async fn get(
-    &self,
-    ca: &<Self::ResourceManager as ResourceManager>::CreateAux,
-    ra: &<Self::ResourceManager as ResourceManager>::RecycleAux,
-  ) -> Result<Self::GetElem<'_>, RM::Error> {
-    loop {
-      let mut indcs_lock = self.indcs.lock();
-      let Some(idx) = indcs_lock.pop_back() else {
-        drop(indcs_lock);
+  async fn get<'this>(
+    &'this self,
+    ca: &RM::CreateAux,
+    ra: &RM::RecycleAux,
+  ) -> Result<Self::GetElem<'this>, <Self::ResourceManager as ResourceManager>::Error> {
+    let mut idx = self.lowest_available_idx.load(Ordering::Relaxed);
+    let mut resource = loop {
+      let Some(lock) = self.locks.get(idx) else {
         continue;
       };
-      drop(indcs_lock);
-      let lock = self.locks.get(idx).unwrap();
-      let mut resource = lock.lock().await;
-      match &mut resource.0 {
-        None => {
-          resource.0 = Some(self.rm.create(ca).await?);
-        }
-        Some(resource) if self.rm.is_invalid(resource) => {
-          self.rm.recycle(ra, resource).await?;
-        }
-        _ => {}
+      let Some(resource) = PollOnce(pin!(lock.lock())).await else {
+        idx = idx.wrapping_add(1) % self.locks.len();
+        continue;
+      };
+      break resource;
+    };
+    match &mut resource.0 {
+      None => {
+        resource.0 = Some(self.rm.create(ca).await?);
       }
-      return Ok(SimplePoolGetElem { idx, indcs: self.indcs.clone(), resource });
+      Some(resource) if self.rm.is_invalid(resource) => {
+        self.rm.recycle(ra, resource).await?;
+      }
+      _ => {}
     }
+    Ok(SimplePoolGetElem {
+      idx,
+      lowest_available_idx: Arc::clone(&self.lowest_available_idx),
+      resource,
+    })
   }
 }
 
 /// Controls the guard locks related to [SimplePool].
-#[derive(Debug, PartialEq)]
-pub struct SimplePoolGetElem<I, R>
-where
-  I: SyncLock<Resource = Queue<usize>>,
-{
+#[derive(Debug)]
+pub struct SimplePoolGetElem<R> {
   idx: usize,
-  indcs: I,
+  lowest_available_idx: Arc<AtomicUsize>,
   resource: R,
 }
 
-impl<I, R> Deref for SimplePoolGetElem<I, R>
-where
-  I: SyncLock<Resource = Queue<usize>>,
-{
+impl<R> Deref for SimplePoolGetElem<R> {
   type Target = R;
 
   #[inline]
@@ -140,23 +131,17 @@ where
   }
 }
 
-impl<I, R> DerefMut for SimplePoolGetElem<I, R>
-where
-  I: SyncLock<Resource = Queue<usize>>,
-{
+impl<R> DerefMut for SimplePoolGetElem<R> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     &mut self.resource
   }
 }
 
-impl<I, R> Drop for SimplePoolGetElem<I, R>
-where
-  I: SyncLock<Resource = Queue<usize>>,
-{
+impl<R> Drop for SimplePoolGetElem<R> {
   #[inline]
   fn drop(&mut self) {
-    let _rslt = self.indcs.lock().push_front(self.idx);
+    let _ = self.lowest_available_idx.fetch_min(self.idx, Ordering::Relaxed);
   }
 }
 
@@ -183,25 +168,19 @@ impl<R> DerefMut for SimplePoolResource<R> {
 #[cfg(feature = "tokio")]
 mod _tokio {
   use crate::{
-    misc::{Lease, LeaseMut, Queue, SyncLock},
+    misc::{Lease, LeaseMut},
     pool::{SimplePoolGetElem, SimplePoolResource},
   };
   use tokio::sync::MutexGuard;
 
-  impl<I, R> Lease<R> for SimplePoolGetElem<I, MutexGuard<'_, SimplePoolResource<R>>>
-  where
-    I: SyncLock<Resource = Queue<usize>>,
-  {
+  impl<R> Lease<R> for SimplePoolGetElem<MutexGuard<'_, SimplePoolResource<R>>> {
     #[inline]
     fn lease(&self) -> &R {
       &self.resource
     }
   }
 
-  impl<I, R> LeaseMut<R> for SimplePoolGetElem<I, MutexGuard<'_, SimplePoolResource<R>>>
-  where
-    I: SyncLock<Resource = Queue<usize>>,
-  {
+  impl<R> LeaseMut<R> for SimplePoolGetElem<MutexGuard<'_, SimplePoolResource<R>>> {
     #[inline]
     fn lease_mut(&mut self) -> &mut R {
       &mut self.resource
@@ -209,7 +188,7 @@ mod _tokio {
   }
 }
 
-#[cfg(all(feature = "tokio", feature = "parking_lot", test))]
+#[cfg(all(feature = "tokio", test))]
 mod tests {
   use crate::pool::{simple_pool::SimplePoolTokio, Pool, SimpleRM};
 
@@ -229,14 +208,11 @@ mod tests {
     ***pool.get(&(), &()).await.unwrap() = 1;
     assert_eq!(
       [***pool.get(&(), &()).await.unwrap(), ***pool.get(&(), &()).await.unwrap()],
-      [0, 1]
+      [1, 2]
     );
   }
 
-  fn pool() -> SimplePoolTokio<i32, SimpleRM<crate::Error, (), i32>> {
-    fn cb(_: &()) -> crate::Result<i32> {
-      Ok(0)
-    }
-    SimplePoolTokio::new(2, SimpleRM::new(cb, ()))
+  fn pool() -> SimplePoolTokio<SimpleRM<fn() -> crate::Result<i32>>> {
+    SimplePoolTokio::new(2, SimpleRM::new(|| Ok(0)))
   }
 }
