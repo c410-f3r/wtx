@@ -15,6 +15,7 @@ pub struct WebSocketBuffer {
 impl WebSocketBuffer {
   /// The elements used internally will be able to hold at least the specified amounts.
   #[inline]
+  #[must_use]
   pub fn with_capacity(decompression_buffer_cap: usize, network_buffer_cap: usize) -> Self {
     Self {
       db: FilledBuffer::with_capacity(decompression_buffer_cap),

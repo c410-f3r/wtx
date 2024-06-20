@@ -2,7 +2,7 @@ use crate::misc::{
   QueryWriter, _unlikely_dflt, str_rsplit_once1, str_split_once1, ArrayString, Lease,
 };
 use alloc::string::String;
-use core::fmt::{Arguments, Debug, Formatter, Write};
+use core::fmt::{Arguments, Debug, Display, Formatter, Write};
 
 /// [Uri] with an owned array.
 pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;
@@ -158,7 +158,7 @@ where
       .unwrap_or_default()
   }
 
-  /// See [UriRef].
+  /// See [`UriRef`].
   #[inline]
   pub fn to_ref(&self) -> UriRef<'_> {
     UriRef {
@@ -169,7 +169,7 @@ where
     }
   }
 
-  /// See [UriString].
+  /// See [`UriString`].
   #[inline]
   pub fn to_string(&self) -> UriString {
     UriString {
@@ -226,7 +226,7 @@ where
       .copied()
       .enumerate()
       .skip(authority_start_idx.into())
-      .find_map(|(idx, el)| (el == b'/').then_some(idx).and_then(|_usisze| _usisze.try_into().ok()))
+      .find_map(|(idx, el)| (el == b'/').then_some(idx).and_then(|_usize| _usize.try_into().ok()))
       .unwrap_or(initial_len);
     (authority_start_idx, href_start_idx, initial_len)
   }
@@ -270,10 +270,23 @@ impl UriString {
   }
 }
 
-impl<S> Debug for Uri<S> {
+impl<S> Debug for Uri<S>
+where
+  S: Debug,
+{
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str("Uri")
+    self.uri.fmt(f)
+  }
+}
+
+impl<S> Display for Uri<S>
+where
+  S: Display,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    self.uri.fmt(f)
   }
 }
 

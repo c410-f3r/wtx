@@ -5,7 +5,7 @@ mod common;
 
 use tokio::net::TcpStream;
 use wtx::{
-  http::server::TokioWebSocket,
+  http::server::OptionedServer,
   rng::StdRng,
   web_socket::{
     compression::{Flate2, NegotiatedFlate2},
@@ -15,7 +15,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() {
-  TokioWebSocket::tokio_web_socket(
+  OptionedServer::tokio_web_socket(
     "127.0.0.1:9070".parse().unwrap(),
     None,
     Flate2::default,

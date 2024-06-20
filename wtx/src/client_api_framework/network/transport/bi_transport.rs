@@ -24,8 +24,8 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
   where
     A: Api;
 
-  /// Internally calls [Self::retrieve] and then tries to decode the defined response specified
-  /// in [Package::ExternalResponseContent].
+  /// Internally calls [`Self::retrieve`] and then tries to decode the defined response specified
+  /// in [`Package::ExternalResponseContent`].
   #[inline]
   fn retrieve_and_decode_contained<A, P>(
     &mut self,

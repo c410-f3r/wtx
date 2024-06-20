@@ -16,14 +16,14 @@ where
     return None;
   }
   let curr_head = curr_cap.wrapping_sub(rhs_len);
-  // SAFETY: Slice is allocated but not initialized
-  let allocated = unsafe {
-    let rslt = &mut *ptr::slice_from_raw_parts_mut(data.as_mut_ptr(), curr_cap);
-    if curr_head > rslt.len() || prev_head > prev_cap {
+  // SAFETY: slice is allocated but not initialized
+  let allocated = unsafe { &mut *ptr::slice_from_raw_parts_mut(data.as_mut_ptr(), curr_cap) };
+  // SAFETY: head will never be greater than the number of allocated elements
+  unsafe {
+    if curr_head > allocated.len() || prev_head > prev_cap {
       unreachable_unchecked();
     }
-    rslt
-  };
+  }
   let _ = _shift_bytes(curr_head, allocated, iter::once(prev_head..prev_cap));
   *head = curr_head;
   Some(cap_diff)

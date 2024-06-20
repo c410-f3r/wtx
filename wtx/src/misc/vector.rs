@@ -9,7 +9,7 @@ use core::{
 };
 
 /// Errors of [Vector].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum VectorError {
   #[doc = doc_many_elems_cap_overflow!()]
   ExtendFromSliceOverflow,
@@ -25,40 +25,25 @@ pub struct Vector<D> {
 
 impl<D> Vector<D> {
   /// Constructs a new, empty instance.
-  #[allow(
-    // False-positive
-    clippy::missing_panics_doc
-  )]
   #[inline]
+  #[must_use]
   pub const fn new() -> Self {
     const {
-      if needs_drop::<D>() {
-        panic!();
-      }
+      assert!(!needs_drop::<D>());
     }
     Self { data: Vec::new() }
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
-  #[allow(
-    // False-positive
-    clippy::missing_panics_doc
-  )]
   #[inline]
+  #[must_use]
   pub fn with_capacity(cap: usize) -> Self {
     const {
-      if needs_drop::<D>() {
-        panic!();
-      }
+      assert!(!needs_drop::<D>());
     }
-    let data = Vec::with_capacity(cap);
-    // SAFETY: There is enough capacity
-    unsafe {
-      if data.len().unchecked_add(cap) > data.capacity() {
-        unreachable_unchecked();
-      }
-    }
-    Self { data }
+    let mut this = Self { data: Vec::with_capacity(cap) };
+    this.reserve(cap);
+    this
   }
 
   /// Returns an unsafe mutable pointer to the vector's buffer, or a dangling
@@ -104,10 +89,17 @@ impl<D> Vector<D> {
     if len >= self.data.capacity() {
       return Err(VectorError::PushOverflow);
     }
-    // SAFETY: There is enough capacity
+    // SAFETY: `len` points to valid memory
+    let dst = unsafe { self.data.as_mut_ptr().add(len) };
+    // SAFETY: `dst` points to valid memory
     unsafe {
-      ptr::write(self.data.as_mut_ptr().add(len), value);
-      self.data.set_len(len.unchecked_add(1));
+      ptr::write(dst, value);
+    }
+    // SAFETY: top-level check ensures capacity
+    let new_len = unsafe { len.unchecked_add(1) };
+    // SAFETY: is within bounds
+    unsafe {
+      self.data.set_len(new_len);
     }
     Ok(())
   }
@@ -124,9 +116,11 @@ impl<D> Vector<D> {
   #[inline]
   pub fn reserve(&mut self, additional: usize) {
     self.data.reserve(additional);
-    // SAFETY: There is enough capacity
+    // SAFETY: `reserve` already ensured capacity
+    let new_cap = unsafe { self.data.len().unchecked_add(additional) };
+    // SAFETY: `new_cap` will never be greater than the current capacity
     unsafe {
-      if self.data.len().unchecked_add(additional) > self.data.capacity() {
+      if new_cap > self.data.capacity() {
         unreachable_unchecked();
       }
     }
@@ -163,23 +157,25 @@ where
   pub fn extend_from_slice(&mut self, other: &[D]) -> Result<(), VectorError> {
     let len = self.data.len();
     let other_len = other.len();
-    // SAFETY: There is enough capacity
+    // SAFETY: 2 slices can't overflow by contract
+    let new_len = unsafe { len.unchecked_add(other_len) };
+    if new_len > self.data.capacity() {
+      return Err(VectorError::ExtendFromSliceOverflow);
+    }
+    // SAFETY: `len` points to valid memory
+    let dst = unsafe { self.data.as_mut_ptr().add(len) };
+    // SAFETY: references are valid
     unsafe {
-      let new_len = len.unchecked_add(other_len);
-      if new_len > self.data.capacity() {
-        return Err(VectorError::ExtendFromSliceOverflow);
-      }
-      ptr::copy_nonoverlapping(other.as_ptr(), self.data.as_mut_ptr().add(len), other_len);
+      ptr::copy_nonoverlapping(other.as_ptr(), dst, other_len);
+    }
+    // SAFETY: is within bounds
+    unsafe {
       self.data.set_len(new_len);
     }
     Ok(())
   }
 
-  /// Generalization of [Self::extend_from_slice].
-  #[allow(
-    // False-positive
-    clippy::missing_panics_doc
-  )]
+  /// Generalization of [`Self::extend_from_slice`].
   #[inline]
   pub fn extend_from_slices<U, const N: usize>(
     &mut self,
@@ -189,9 +185,7 @@ where
     U: Lease<[D]>,
   {
     const {
-      if N > 8 {
-        panic!("It is not possible to extend more than 8 slices");
-      }
+      assert!(N <= 8);
     }
     let mut len: usize = 0;
     for other in others {

@@ -39,7 +39,7 @@ where
 {
   /// Awaits for all remaining data to build a response and then closes the stream.
   ///
-  /// Should be called after [Self::send_req] is successfully executed.
+  /// Should be called after [`Self::send_req`] is successfully executed.
   #[inline]
   pub async fn recv_res(&mut self, mut sb: SB) -> crate::Result<(SB, StatusCode)> {
     let _e = self.span._enter();
@@ -48,26 +48,31 @@ where
       let mut guard = self.hd.lock().await;
       let hdpm = guard.parts_mut();
       sb.lease_mut().clear();
-      sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_hpack_len().0));
+      sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
       drop(hdpm.hb.sorp.insert(
         self.stream_id,
         StreamOverallRecvParams {
           body_len: 0,
           has_initial_header: false,
           sb,
+          span: _Span::_none(),
           status_code: StatusCode::Ok,
           stream_state: StreamState::HalfClosedLocal,
           windows: self.windows,
         },
       ));
     }
-    process_receipt_loop!(self.hd, |guard| {
-      let hdpm = guard.parts_mut();
-      if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
-        if let Some(sorp) = hdpm.hb.sorp.remove(&self.stream_id) {
-          return Ok((sorp.sb, sorp.status_code));
+    process_higher_operation!(self.hd, |guard| {
+      let mut fun = || {
+        let hdpm = guard.parts_mut();
+        if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
+          if let Some(sorp) = hdpm.hb.sorp.remove(&self.stream_id) {
+            return Ok(Some((sorp.sb, sorp.status_code)));
+          }
         }
-      }
+        Ok(None)
+      };
+      fun()
     });
   }
 
@@ -122,10 +127,9 @@ where
   }
 
   /// Sends a RST_STREAM frame to the peer, which cancels this stream.
-  pub async fn send_reset(&mut self, error_code: Http2ErrorCode) -> crate::Result<()> {
+  pub async fn send_reset(&mut self, error_code: Http2ErrorCode) {
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
-    send_reset_stream(error_code, &mut hdpm.hb.sorp, self.stream_id, hdpm.stream).await?;
-    Ok(())
+    send_reset_stream(error_code, hdpm.hb, hdpm.stream, self.stream_id).await;
   }
 }

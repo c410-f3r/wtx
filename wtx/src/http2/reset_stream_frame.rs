@@ -1,4 +1,4 @@
-use crate::http2::{FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
+use crate::http2::{misc::protocol_err, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ResetStreamFrame {
@@ -13,12 +13,12 @@ impl ResetStreamFrame {
 
   pub(crate) fn read(bytes: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_zero() {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidResetStreamFrameBytes));
+      return Err(protocol_err(Http2Error::InvalidResetStreamFrameBytes));
     }
     let [a, b, c, d] = bytes else {
-      return Err(crate::Error::http2_go_away(
+      return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Http2Error::InvalidResetStreamFrameZeroId,
+        Some(Http2Error::InvalidResetStreamFrameZeroId),
       ));
     };
     Ok(Self {

@@ -1,16 +1,13 @@
+pub(crate) mod expand;
 mod filled_buffer;
-#[cfg(feature = "tracing")]
-mod role;
-mod traits;
 
 use crate::{
   misc::LeaseMut,
   web_socket::{FrameBuffer, OpCode},
 };
+use core::ops::Range;
+pub use expand::Expand;
 pub(crate) use filled_buffer::FilledBuffer;
-#[cfg(feature = "tracing")]
-pub(crate) use role::Role;
-pub(crate) use traits::Expand;
 
 pub(crate) fn define_fb_from_header_params<B, const IS_CLIENT: bool>(
   fb: &mut FrameBuffer<B>,
@@ -44,8 +41,7 @@ pub(crate) fn _trim_bytes(bytes: &[u8]) -> &[u8] {
   _trim_bytes_end(_trim_bytes_begin(bytes))
 }
 
-#[cfg(feature = "tracing")]
-pub(crate) fn truncated_slice<T>(slice: &[T], range: core::ops::Range<usize>) -> &[T] {
+pub(crate) fn _truncated_slice<T>(slice: &[T], range: Range<usize>) -> &[T] {
   let start = range.start;
   let end = range.end.min(slice.len());
   slice.get(start..end).unwrap_or_default()

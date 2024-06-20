@@ -8,3 +8,9 @@ disallowed-types = [
     "std::collections::HashMap",
     "std::collections::HashSet"
 ]
+doc-valid-idents = [
+    "MiB",
+    "PostgreSQL",
+    "WebSocket",
+    "WebTransport"
+]

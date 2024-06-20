@@ -8,7 +8,7 @@ where
   /// Tries to create itself based on the passed amount of bytes.
   fn from_bytes(bytes: &[u8], drsr: &mut DRSR) -> crate::Result<Self>;
 
-  /// Similar to [Self::from_bytes] but deals with sequences instead of a single element.
+  /// Similar to [`Self::from_bytes`] but deals with sequences instead of a single element.
   fn seq_from_bytes<E>(
     bytes: &[u8],
     drsr: &mut DRSR,

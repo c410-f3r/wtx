@@ -13,6 +13,7 @@ mod fn_fut;
 mod fx_hasher;
 mod generic_time;
 mod incomplete_utf8_char;
+mod iter_wrapper;
 mod lease;
 mod lock;
 mod mem_transfer;
@@ -23,6 +24,7 @@ mod query_writer;
 mod queue;
 mod queue_utils;
 mod ref_counter;
+mod role;
 mod single_type_storage;
 mod span;
 mod stream;
@@ -40,7 +42,7 @@ pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError};
 pub use async_bounds::AsyncBounds;
 pub use connection_state::ConnectionState;
-use core::{any::type_name, ops::Range, time::Duration};
+use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
@@ -48,6 +50,7 @@ pub use fn_fut::{FnFut, FnMutFut, FnOnceFut};
 pub use fx_hasher::FxHasher;
 pub use generic_time::GenericTime;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
+pub use iter_wrapper::IterWrapper;
 pub use lease::{Lease, LeaseMut};
 pub use lock::{Lock, SyncLock};
 pub use optimization::*;
@@ -55,6 +58,7 @@ pub use poll_once::PollOnce;
 pub use query_writer::QueryWriter;
 pub use queue::{Queue, QueueError};
 pub use ref_counter::RefCounter;
+pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, TlsStream};
 pub use uri::{Uri, UriArrayString, UriRef, UriString};
@@ -76,7 +80,7 @@ pub(crate) use {
 pub type ByteVector = Vector<u8>;
 
 /// Useful when a request returns an optional field but the actual usage is within a
-/// [core::result::Result] context.
+/// [`core::result::Result`] context.
 #[inline]
 #[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
@@ -106,7 +110,7 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
   ))]
   {
     // Open to better alternatives
-    let now = GenericTime::now()?;
+    let now = GenericTime::now();
     loop {
       if now.elapsed()? >= duration {
         return Ok(());
@@ -186,6 +190,27 @@ pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
       buffer
     }
   }
+}
+
+#[inline]
+pub(crate) fn _interspace<E, T, W>(
+  write: &mut W,
+  mut iter: impl Iterator<Item = T>,
+  mut cb: impl for<'args> FnMut(&mut W, T) -> Result<(), E>,
+  mut interspace: impl FnMut(&mut W) -> Result<(), E>,
+) -> Result<(), E>
+where
+  E: From<crate::Error>,
+  W: Write,
+{
+  if let Some(elem) = iter.next() {
+    cb(write, elem)?;
+  }
+  for elem in iter {
+    interspace(write)?;
+    cb(write, elem)?;
+  }
+  Ok(())
 }
 
 #[cfg(feature = "ahash")]

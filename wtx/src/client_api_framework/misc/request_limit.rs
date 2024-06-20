@@ -22,7 +22,7 @@ impl RequestLimit {
     Self { duration: Duration::from_secs(0), limit: NonZeroU16::MAX }
   }
 
-  /// The interval range that can contain a maximum number of [Self::limit] requests
+  /// The interval range that can contain a maximum number of [`Self::limit`] requests
   #[inline]
   pub const fn duration(&self) -> &Duration {
     &self.duration

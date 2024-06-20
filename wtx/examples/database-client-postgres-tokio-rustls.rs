@@ -16,24 +16,25 @@ use wtx::{
 #[tokio::main]
 async fn main() {
   let uri = common::_uri_from_args();
-  let uri = UriRef::new(uri.as_str());
+  let uri_ref = UriRef::new(uri.as_str());
+  let config = Config::from_uri(&uri_ref).unwrap();
   let mut rng = StdRng::default();
-  let config = Config::from_uri(&uri).unwrap();
-  let eb = ExecutorBuffer::with_default_params(&mut rng);
-  let initial_stream = TcpStream::connect(uri.host()).await.unwrap();
-  let mut exec =
-    Executor::connect_encrypted(&config, eb, initial_stream, &mut rng, |stream| async {
+  let mut exec = Executor::connect_encrypted(
+    &config,
+    ExecutorBuffer::with_default_params(&mut rng),
+    TcpStream::connect(uri_ref.host()).await.unwrap(),
+    &mut rng,
+    |stream| {
       TokioRustlsConnector::from_webpki_roots()
         .push_certs(include_bytes!("../../.certs/root-ca.crt"))
         .unwrap()
-        .with_generic_stream(uri.hostname(), stream)
-        .await
-    })
-    .await
-    .unwrap();
+        .with_generic_stream(uri_ref.hostname(), stream)
+    },
+  )
+  .await
+  .unwrap();
   let mut tm = exec.transaction().await.unwrap();
-  let _ = tm
-    .executor()
+  tm.executor()
     .execute("CREATE TABLE IF NOT EXISTS example(id INT, name VARCHAR)", |_| {})
     .await
     .unwrap();

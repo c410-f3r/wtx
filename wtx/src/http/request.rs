@@ -9,13 +9,13 @@ pub type RequestStr<'uri, D> = Request<D, &'uri str>;
 /// An HTTP request received by a server or to be sent by a client.
 #[derive(Debug)]
 pub struct Request<D, U> {
-  /// See [ReqResData].
+  /// See [`ReqResData`].
   pub data: D,
-  /// See [Method].
+  /// See [`Method`].
   pub method: Method,
-  /// See [Uri].
+  /// See [`Uri`].
   pub uri: Uri<U>,
-  /// See [Version].
+  /// See [`Version`].
   pub version: Version,
 }
 

@@ -3,11 +3,11 @@ use core::future::Future;
 
 /// Manager of a specific pool resource.
 pub trait ResourceManager {
-  /// Auxiliary data used by the [Self::get] method.
+  /// Auxiliary data used by the [`Self::get`] method.
   type CreateAux;
   /// Any custom error.
   type Error: From<crate::Error>;
-  /// Auxiliary data used by the [Self::recycle] method.
+  /// Auxiliary data used by the [`Self::recycle`] method.
   type RecycleAux;
   /// Any pool resource.
   type Resource;
@@ -50,24 +50,23 @@ impl ResourceManager for () {
 
 /// Manages generic resources that are always valid and don't require logic for recycling.
 #[derive(Debug)]
-pub struct SimpleRM<E, I, R> {
+pub struct SimpleRM<F> {
   /// Create callback
-  pub cb: fn(&I) -> Result<R, E>,
-  /// Input data
-  pub input: I,
+  pub cb: F,
 }
 
-impl<E, I, R> SimpleRM<E, I, R> {
+impl<F> SimpleRM<F> {
   /// Shortcut constructor
   #[inline]
-  pub fn new(cb: fn(&I) -> Result<R, E>, input: I) -> Self {
-    Self { cb, input }
+  pub fn new(cb: F) -> Self {
+    Self { cb }
   }
 }
 
-impl<E, I, R> ResourceManager for SimpleRM<E, I, R>
+impl<E, F, R> ResourceManager for SimpleRM<F>
 where
   E: From<crate::Error>,
+  F: Fn() -> Result<R, E>,
   R: AsyncBounds,
   for<'any> &'any Self: AsyncBounds,
 {
@@ -78,7 +77,7 @@ where
 
   #[inline]
   async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-    (self.cb)(&self.input)
+    (self.cb)()
   }
 
   #[inline]
@@ -146,71 +145,6 @@ pub(crate) mod database {
       mem::swap(&mut persistent, &mut resource.1.eb);
       resource.1 = (self.rc)(&self.input, persistent).await?;
       Ok(())
-    }
-  }
-}
-
-#[cfg(feature = "http2")]
-pub(crate) mod http2 {
-  use crate::{
-    http2::{Http2Buffer, StreamBuffer},
-    pool::SimpleRM,
-    rng::Rng,
-  };
-
-  /// Manages HTTP/2 resources for clients.
-  pub type Http2ClientBufferRM<RNG, SB> = SimpleRM<crate::Error, RNG, Http2Buffer<SB>>;
-  /// Manages HTTP/2 resources for servers.
-  pub type Http2ServerBufferRM<RNG, SB> = SimpleRM<crate::Error, RNG, Http2Buffer<SB>>;
-  /// Manages resources for HTTP2 requests and responses.
-  pub type StreamBufferRM = SimpleRM<crate::Error, (), StreamBuffer>;
-
-  type Http2RM<RNG, SB> = SimpleRM<crate::Error, RNG, Http2Buffer<SB>>;
-
-  impl<RNG, SB> Http2RM<RNG, SB>
-  where
-    RNG: Clone + Rng,
-  {
-    /// Instance of [Http2ClientRM] or [Http2ServerRM].
-    pub fn http2_buffer(rng: RNG) -> Self {
-      fn cb<RNG, SB>(rng: &RNG) -> crate::Result<Http2Buffer<SB>>
-      where
-        RNG: Clone + Rng,
-      {
-        Ok(Http2Buffer::new(rng.clone()))
-      }
-      Self { cb, input: rng }
-    }
-  }
-
-  impl StreamBufferRM {
-    /// Instance of [ReqResBufferRM].
-    pub fn req_res_buffer() -> Self {
-      fn cb(_: &()) -> crate::Result<StreamBuffer> {
-        Ok(StreamBuffer::default())
-      }
-      Self { cb, input: () }
-    }
-  }
-}
-
-#[cfg(feature = "web-socket")]
-pub(crate) mod web_socket {
-  use crate::{
-    pool::SimpleRM,
-    web_socket::{FrameBufferVec, WebSocketBuffer},
-  };
-
-  /// Manages WebSocket resources.
-  pub type WebSocketRM = SimpleRM<crate::Error, (), (FrameBufferVec, WebSocketBuffer)>;
-
-  impl WebSocketRM {
-    /// Instance of [WebSocketRM].
-    pub fn web_socket() -> Self {
-      fn cb(_: &()) -> crate::Result<(FrameBufferVec, WebSocketBuffer)> {
-        Ok((FrameBufferVec::default(), WebSocketBuffer::default()))
-      }
-      Self { cb, input: () }
     }
   }
 }

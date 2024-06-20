@@ -18,18 +18,12 @@ mod op_code;
 mod unmask;
 mod web_socket_buffer;
 
-#[cfg(feature = "tracing")]
-use crate::web_socket::misc::Role;
 use crate::{
   misc::{
     from_utf8_basic, from_utf8_ext, CompletionErr, ConnectionState, ExtUtf8Error,
     IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Stream, _read_until,
   },
   rng::Rng,
-  web_socket::{
-    compression::NegotiatedCompression,
-    misc::{define_fb_from_header_params, op_code, FilledBuffer},
-  },
   _MAX_PAYLOAD_LEN,
 };
 use alloc::vec::Vec;
@@ -44,6 +38,8 @@ pub use frame_buffer::{
   FrameBuffer, FrameBufferControlArray, FrameBufferControlArrayMut, FrameBufferMut, FrameBufferVec,
   FrameBufferVecMut,
 };
+pub use misc::Expand;
+use misc::{define_fb_from_header_params, op_code, FilledBuffer};
 pub use op_code::OpCode;
 pub(crate) use unmask::unmask;
 pub use web_socket_buffer::WebSocketBuffer;
@@ -58,17 +54,17 @@ pub(crate) const DECOMPRESSION_SUFFIX: &[u8; 4] = &[0, 0, 255, 255];
 
 /// Always masks the payload before sending.
 pub type WebSocketClient<NC, RNG, S, WSB> = WebSocket<NC, RNG, S, WSB, true>;
-/// [WebSocketClient] with a mutable reference of [&'wsb mut WebSocketBuffer].
+/// [`WebSocketClient`] with a mutable reference of [`WebSocketBuffer`].
 pub type WebSocketClientMut<'wsb, NC, RNG, S> =
   WebSocketClient<NC, RNG, S, &'wsb mut WebSocketBuffer>;
-/// [WebSocketClient] with an owned [&'wsb mut WebSocketBuffer].
+/// [`WebSocketClient`] with an owned [`WebSocketBuffer`].
 pub type WebSocketClientOwned<NC, RNG, S> = WebSocketClient<NC, RNG, S, WebSocketBuffer>;
 /// Always unmasks the payload after receiving.
 pub type WebSocketServer<NC, RNG, S, WSB> = WebSocket<NC, RNG, S, WSB, false>;
-/// [WebSocketServer] with a mutable reference of [WebSocketBuffer].
+/// [`WebSocketServer`] with a mutable reference of [`WebSocketBuffer`].
 pub type WebSocketServerMut<'wsb, NC, RNG, S> =
   WebSocketServer<NC, RNG, S, &'wsb mut WebSocketBuffer>;
-/// [WebSocketServer] with an owned [WebSocketBuffer].
+/// [`WebSocketServer`] with an owned [`WebSocketBuffer`].
 pub type WebSocketServerOwned<NC, RNG, S> = WebSocketServer<NC, RNG, S, WebSocketBuffer>;
 
 type ReadContinuationFramesCbs<B> = (
@@ -82,7 +78,7 @@ type ReadContinuationFramesCbs<B> = (
   ) -> crate::Result<(bool, usize)>,
 );
 
-/// WebSocket protocol implementation over an asynchronous stream.
+/// Protocol implementation over an asynchronous stream.
 ///
 /// <https://tools.ietf.org/html/rfc6455>
 #[derive(Debug)]
@@ -106,13 +102,12 @@ impl<NC, RNG, S, WSB, const IS_CLIENT: bool> WebSocket<NC, RNG, S, WSB, IS_CLIEN
 
 impl<NC, RNG, S, WSB, const IS_CLIENT: bool> WebSocket<NC, RNG, S, WSB, IS_CLIENT>
 where
-  NC: NegotiatedCompression,
+  NC: compression::NegotiatedCompression,
   RNG: Rng,
   S: Stream,
   WSB: LeaseMut<WebSocketBuffer>,
 {
-  /// Creates a new instance from a stream that supposedly has already completed the WebSocket
-  /// handshake.
+  /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
   pub fn new(nc: NC, rng: RNG, stream: S, mut wsb: WSB) -> Self {
     wsb.lease_mut().nb._clear_if_following_is_empty();
@@ -403,10 +398,10 @@ where
   ) -> crate::Result<T> {
     _debug!(
       "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
-      <&str>::from(Role::from_is_client(IS_CLIENT)),
+      <&str>::from(crate::misc::Role::from_is_client(IS_CLIENT)),
       "Read",
       "Masked",
-      misc::truncated_slice(pb._current(), 0..32),
+      misc::_truncated_slice(pb._current(), 0..32),
       rfi.op_code
     );
 
@@ -419,10 +414,10 @@ where
 
     _debug!(
       "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
-      <&str>::from(Role::from_is_client(IS_CLIENT)),
+      <&str>::from(crate::misc::Role::from_is_client(IS_CLIENT)),
       "Read",
       "Unmasked",
-      misc::truncated_slice(pb._current(), 0..32),
+      misc::_truncated_slice(pb._current(), 0..32),
       rfi.op_code
     );
 
@@ -495,47 +490,47 @@ where
     if !should_compress || frame.op_code().is_control() {
       _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
-        <&str>::from(Role::from_is_client(IS_CLIENT)),
+        <&str>::from(crate::misc::Role::from_is_client(IS_CLIENT)),
         "Write",
         "Unmasked",
-        misc::truncated_slice(frame.fb().lease().frame(), 0..32),
+        misc::_truncated_slice(frame.fb().lease().frame(), 0..32),
         frame.op_code()
       );
       Self::mask_frame(frame, rng);
       _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
-        <&str>::from(Role::from_is_client(IS_CLIENT)),
+        <&str>::from(crate::misc::Role::from_is_client(IS_CLIENT)),
         "Write",
         "Masked",
-        misc::truncated_slice(frame.fb().lease().frame(), 0..32),
+        misc::_truncated_slice(frame.fb().lease().frame(), 0..32),
         frame.op_code()
       );
       stream.write_all(frame.fb().lease().frame()).await?;
     } else {
       _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
-        <&str>::from(Role::from_is_client(IS_CLIENT)),
+        <&str>::from(crate::misc::Role::from_is_client(IS_CLIENT)),
         "Write",
         "Uncompressed, Unmasked",
-        misc::truncated_slice(frame.fb().lease().frame(), 0..32),
+        misc::_truncated_slice(frame.fb().lease().frame(), 0..32),
         frame.op_code()
       );
       let mut compressed_frame = Self::compress_frame(frame, nc, pb)?;
       _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
-        <&str>::from(Role::from_is_client(IS_CLIENT)),
+        <&str>::from(crate::misc::Role::from_is_client(IS_CLIENT)),
         "Write",
         "Compressed, Unmasked",
-        misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
+        misc::_truncated_slice(compressed_frame.fb().frame(), 0..32),
         frame.op_code()
       );
       Self::mask_frame(&mut compressed_frame, rng);
       _debug!(
         "{:<5} - {:<5} - {:<25}: {:?}, {:?}",
-        <&str>::from(Role::from_is_client(IS_CLIENT)),
+        <&str>::from(crate::misc::Role::from_is_client(IS_CLIENT)),
         "Write",
         "Compressed, Masked",
-        misc::truncated_slice(compressed_frame.fb().frame(), 0..32),
+        misc::_truncated_slice(compressed_frame.fb().frame(), 0..32),
         frame.op_code()
       );
       stream.write_all(compressed_frame.fb().frame()).await?;

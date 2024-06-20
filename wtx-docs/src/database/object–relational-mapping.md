@@ -4,7 +4,7 @@ A very rudimentary ORM that currently supports very few operations that are not 
 
 Activation feature is called `orm`.
 
-```ignore,rust,edition2021
+```rust,edition2021
 use wtx::database::{
   orm::{Crud, FromSuffixRslt, NoTableAssociation, Table, TableField, TableParams},
   Database, FromRecords, Record, TableSuffix,
@@ -46,7 +46,7 @@ impl<'conn, 'entity> Table<'entity> for User<'conn> {
     (NoTableAssociation::new(), (TableField::new("name"), TableField::new("password")))
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
     *table.id_field_mut().value_mut() = Some((&entity.id).into());
     *table.fields_mut().0.value_mut() = Some((entity.name).into());
     *table.fields_mut().1.value_mut() = Some((entity.password).into());

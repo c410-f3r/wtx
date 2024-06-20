@@ -53,7 +53,7 @@ pub trait Database {
   type DecodeValue<'dv>;
   /// Contains the data used to decode types.
   type EncodeValue<'ev>;
-  /// See [crate::Error].
+  /// See [`crate::Error`].
   type Error: From<crate::Error>;
   /// See [Record].
   type Record<'rec>: Record<Database = Self>;

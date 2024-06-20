@@ -45,12 +45,13 @@ mod window;
 mod window_update_frame;
 
 use crate::{
-  http2::misc::apply_initial_params,
+  http2::misc::{apply_initial_params, maybe_send_based_on_error, protocol_err},
   misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize},
 };
 pub use buffers::{Http2Buffer, ReqResBuffer, StreamBuffer};
 pub use client_stream::ClientStream;
 pub(crate) use continuation_frame::ContinuationFrame;
+use core::time::Duration;
 pub(crate) use data_frame::DataFrame;
 pub(crate) use frame_init::{FrameInit, FrameInitTy};
 pub(crate) use go_away_frame::GoAwayFrame;
@@ -60,7 +61,7 @@ pub(crate) use hpack_decoder::HpackDecoder;
 pub(crate) use hpack_encoder::HpackEncoder;
 pub(crate) use hpack_header::HpackHeaderBasic;
 pub(crate) use hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders};
-pub(crate) use http2_data::Http2Data;
+pub use http2_data::Http2Data;
 pub use http2_error::Http2Error;
 pub use http2_error_code::Http2ErrorCode;
 pub use http2_params::Http2Params;
@@ -91,8 +92,11 @@ pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
 const ACK_MASK: u8 = 0b0000_0001;
 const EOH_MASK: u8 = 0b0000_0100;
 const EOS_MASK: u8 = 0b0000_0001;
+const MAX_FINAL_DURATION: Duration = Duration::from_millis(300);
+const MAX_FINAL_FETCHES: u8 = 32;
 const PAD_MASK: u8 = 0b0000_1000;
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+const PRIORITY_MASK: u8 = 0b0010_0000;
 
 /// Http2 instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
@@ -147,9 +151,10 @@ where
   pub async fn accept(mut hb: HB, hp: Http2Params, mut stream: S) -> crate::Result<Self> {
     hb.lease_mut().clear();
     let mut buffer = [0; 24];
-    let _ = stream.read(&mut buffer).await?;
+    stream.read_exact(&mut buffer).await?;
     if &buffer != PREFACE {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::NoPreface));
+      misc::send_go_away(Http2ErrorCode::ProtocolError, &mut true, U31::ZERO, &mut stream).await;
+      return Err(protocol_err(Http2Error::NoPreface));
     }
     stream.write_all(hp.to_settings_frame().bytes(&mut [0; 45])).await?;
     apply_initial_params(hb.lease_mut(), &hp)?;
@@ -164,25 +169,27 @@ where
       let mut guard = self.hd.lock().await;
       let hdpm = guard.parts_mut();
       if *hdpm.recv_streams_num > hdpm.hp.max_recv_streams_num() {
-        return Err(crate::Error::http2_go_away_generic(
-          Http2Error::ExceedAmountOfActiveConcurrentStreams,
-        ));
+        let err = Http2Error::ExceedAmountOfActiveConcurrentStreams;
+        return maybe_send_based_on_error(Err(protocol_err(err)), hdpm).await;
       }
       *hdpm.recv_streams_num = hdpm.recv_streams_num.wrapping_add(1);
-      sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_hpack_len().0));
+      sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
       hdpm.hb.initial_server_buffers.push(sb);
     }
-    process_receipt_loop!(self.hd, |guard| {
-      if let Some((method, stream_id)) = guard.parts_mut().hb.initial_server_streams.pop_back() {
-        drop(guard);
-        return Ok(ServerStream::new(
-          self.hd.clone(),
-          method,
-          _trace_span!("Creating server stream", stream_id = stream_id.u32()),
-          stream_id,
-        ));
-      }
-    });
+    process_higher_operation!(self.hd, |guard| {
+      let mut fun = || {
+        if let Some((method, stream_id)) = guard.parts_mut().hb.initial_server_streams.pop_back() {
+          return Ok(Some(ServerStream::new(
+            self.hd.clone(),
+            method,
+            _trace_span!("Creating server stream", stream_id = stream_id.u32()),
+            stream_id,
+          )));
+        }
+        Ok(None)
+      };
+      fun()
+    })
   }
 }
 
@@ -208,24 +215,21 @@ where
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
     if hdpm.hb.sorp.len() >= *Usize::from(hdpm.hp.max_concurrent_streams_num()) {
-      return Err(crate::Error::http2_go_away_generic(
-        Http2Error::ExceedAmountOfActiveConcurrentStreams,
-      ));
+      let err = Http2Error::ExceedAmountOfActiveConcurrentStreams;
+      return maybe_send_based_on_error(Err(protocol_err(err)), hdpm).await;
     }
     let stream_id = *hdpm.last_stream_id;
-    let _ = hdpm.hb.scrp.insert(
+    let span = _trace_span!("Creating client stream", stream_id = stream_id.u32());
+    drop(hdpm.hb.scrp.insert(
       stream_id,
       StreamControlRecvParams {
+        span: span.clone(),
         stream_state: StreamState::Idle,
         windows: Windows::stream(hdpm.hp, hdpm.hps),
       },
-    );
+    ));
     *hdpm.last_stream_id = hdpm.last_stream_id.wrapping_add(U31::TWO);
     drop(guard);
-    Ok(ClientStream::new(
-      self.hd.clone(),
-      _trace_span!("Creating client stream", stream_id = stream_id.u32()),
-      stream_id,
-    ))
+    Ok(ClientStream::new(self.hd.clone(), span, stream_id))
   }
 }

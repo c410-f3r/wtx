@@ -93,7 +93,7 @@ wtx.toml
 
 The library gives freedom to arrange groups and uses some external crates, bringing ~10 additional dependencies into your application. If this overhead is not acceptable, then you probably should discard the library and use the CLI binary instead as part of a custom deployment strategy.
 
-```ignore,rust,edition2021
+```rust,edition2021
 use wtx::{
   database::{sm::Commands, DEFAULT_URI_VAR},
   misc::UriParts,
@@ -118,7 +118,7 @@ async fn main() {
 
 To make deployment easier, the final binary of your application can embed all necessary migrations through the binary that is available in the `wtx-ui` crate.
 
-```ignore,rust,edition2021
+```rust,edition2021
 // This is an example! The actual contents are filled by the `wtx-ui embed-migrations` binary call.
 mod embedded_migrations {
   pub(crate) const GROUPS: wtx::database::sm::EmbeddedMigrationsTy = &[];

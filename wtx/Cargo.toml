@@ -1,12 +1,17 @@
 [[bin]]
 name = "autobahn-client"
 path = "src/bin/autobahn-client.rs"
-required-features = ["flate2", "optimization", "parking_lot", "tokio/rt-multi-thread", "web-socket-handshake"]
+required-features = ["flate2", "optimization", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
-required-features = ["async-send", "flate2", "optimization", "parking_lot", "pool", "tokio/rt-multi-thread", "web-socket-handshake"]
+required-features = ["async-send", "flate2", "optimization", "pool", "tokio/rt-multi-thread", "web-socket-handshake"]
+
+[[bin]]
+name = "h2spec-server"
+path = "src/bin/h2spec-server.rs"
+required-features = ["async-send", "http2", "pool", "tokio"]
 
 [[example]]
 name = "database-client-postgres-tokio-rustls"
@@ -47,6 +52,7 @@ crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
 embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.4" }
 embassy-sync = { default-features = false, optional = true, version = "0.6" }
+embassy-time = { default-features = false, optional = true, version = "0.3" }
 embedded-io-async = { default-features = false, optional = true, version = "0.6" }
 embedded-tls = { default-features = false, features = ["async"], optional = true, version = "0.16" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
@@ -55,7 +61,8 @@ futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.9" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
-httparse = { default-features = false, optional = true, version = "1.9" }
+httparse = { default-features = false, optional = true, version = "1.0" }
+may = { default-features = false, optional = true, version = "0.3" }
 memchr = { default-features = false, optional = true, version = "2.7" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }

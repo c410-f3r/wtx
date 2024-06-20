@@ -15,7 +15,7 @@ pub use window_bits::WindowBits;
 
 /// Initial compression parameters defined before a handshake.
 pub trait Compression<const IS_CLIENT: bool> {
-  /// See [NegotiatedCompression].
+  /// See [`NegotiatedCompression`].
   type NegotiatedCompression: NegotiatedCompression;
 
   /// Manages the defined parameters with the received parameters to decide which

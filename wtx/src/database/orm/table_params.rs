@@ -1,6 +1,6 @@
 use crate::{
   database::{
-    orm::{Table, TableField},
+    orm::{table_fields::TableFields, Table},
     TableSuffix,
   },
   misc::FxHasher,
@@ -18,7 +18,6 @@ where
 {
   associations: T::Associations,
   fields: T::Fields,
-  id_field: TableField<T::PrimaryKeyValue>,
   phantom: PhantomData<T>,
   ts: TableSuffix,
 }
@@ -29,20 +28,14 @@ where
 {
   /// A new instance with all related table definition values created automatically.
   #[inline]
-  pub fn new(ts: TableSuffix) -> Self {
+  pub fn from_ts(ts: TableSuffix) -> Self {
     let (associations, fields) = T::type_instances(ts);
-    Self {
-      associations,
-      fields,
-      id_field: TableField::new(T::PRIMARY_KEY_NAME),
-      phantom: PhantomData,
-      ts,
-    }
+    Self { associations, fields, phantom: PhantomData, ts }
   }
 
   /// Table instance associations
   #[inline]
-  pub fn associations(&self) -> &T::Associations {
+  pub const fn associations(&self) -> &T::Associations {
     &self.associations
   }
 
@@ -54,7 +47,7 @@ where
 
   /// Table instance fields
   #[inline]
-  pub fn fields(&self) -> &T::Fields {
+  pub const fn fields(&self) -> &T::Fields {
     &self.fields
   }
 
@@ -64,21 +57,9 @@ where
     &mut self.fields
   }
 
-  /// Field information related to the entity ID
-  #[inline]
-  pub fn id_field(&self) -> &TableField<T::PrimaryKeyValue> {
-    &self.id_field
-  }
-
-  /// Mutable version of [id_field]
-  #[inline]
-  pub fn id_field_mut(&mut self) -> &mut TableField<T::PrimaryKeyValue> {
-    &mut self.id_field
-  }
-
   /// Used to write internal SQL operations
   #[inline]
-  pub fn table_suffix(&self) -> TableSuffix {
+  pub const fn table_suffix(&self) -> TableSuffix {
     self.ts
   }
 
@@ -90,10 +71,10 @@ where
 
   pub(crate) fn instance_hash(&self) -> u64 {
     let mut fx_hasher = FxHasher::default();
-    T::PRIMARY_KEY_NAME.hash(&mut fx_hasher);
+    self.fields().id().name().hash(&mut fx_hasher);
     T::TABLE_NAME.hash(&mut fx_hasher);
     T::TABLE_NAME_ALIAS.hash(&mut fx_hasher);
-    self.id_field().value().hash(&mut fx_hasher);
+    self.fields().id().value().hash(&mut fx_hasher);
     fx_hasher.finish()
   }
 }
@@ -104,6 +85,6 @@ where
 {
   #[inline]
   fn default() -> Self {
-    Self::new(0)
+    Self::from_ts(0)
   }
 }

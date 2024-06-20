@@ -45,7 +45,7 @@ where
   fn encode(
     &self,
     fbw: &mut FilledBufferWriter<'_>,
-    value: <D as Database>::EncodeValue<'_>,
+    value: &<D as Database>::EncodeValue<'_>,
   ) -> Result<(), <D as Database>::Error> {
     self.value.encode(fbw, value)
   }

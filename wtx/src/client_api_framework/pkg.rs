@@ -61,18 +61,18 @@ where
 
   /// External Request Content
   ///
-  /// Instance value of the defined [Self::ExternalRequestContent].
+  /// Instance value of the defined [`Self::ExternalRequestContent`].
   fn ext_req_content(&self) -> &Self::ExternalRequestContent;
 
-  /// Similar to [Self::ext_req_content] but returns a mutable reference instead.
+  /// Similar to [`Self::ext_req_content`] but returns a mutable reference instead.
   fn ext_req_content_mut(&mut self) -> &mut Self::ExternalRequestContent;
 
   /// Package Parameters
   ///
-  /// Instance value of the defined [Self::ExternalRequestContent].
+  /// Instance value of the defined [`Self::ExternalRequestContent`].
   fn pkg_params(&self) -> &Self::PackageParams;
 
-  /// Similar to [Self::pkg_params] but returns a mutable reference instead.
+  /// Similar to [`Self::pkg_params`] but returns a mutable reference instead.
   fn pkg_params_mut(&mut self) -> &mut Self::PackageParams;
 }
 

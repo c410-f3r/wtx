@@ -1,5 +1,6 @@
-use crate::database::orm::{
-  AuxNodes, FullTableAssociation, SelectLimit, SelectOrderBy, SqlWriter, TableAssociations,
+use crate::database::{
+  orm::{AuxNodes, FullTableAssociation, SelectLimit, SelectOrderBy, SqlWriter, TableAssociations},
+  Database, Executor,
 };
 use alloc::string::String;
 use core::marker::PhantomData;
@@ -23,24 +24,35 @@ impl<E> TableAssociations for NoTableAssociation<E> {
   }
 }
 
-impl<E> SqlWriter for NoTableAssociation<E>
+impl<DB, E> SqlWriter<DB> for NoTableAssociation<E>
 where
+  DB: Database,
   E: From<crate::Error>,
 {
-  type Error = E;
-
   #[inline]
-  fn write_delete(&self, _: &mut AuxNodes, _: &mut String) -> Result<(), Self::Error> {
+  async fn write_delete<EX>(
+    &mut self,
+    _: &mut AuxNodes,
+    _: &mut String,
+    _: &mut EX,
+  ) -> Result<(), DB::Error>
+  where
+    EX: Executor,
+  {
     Ok(())
   }
 
   #[inline]
-  fn write_insert(
-    &self,
+  async fn write_insert<EX>(
+    &mut self,
     _: &mut AuxNodes,
     _: &mut String,
-    _: &mut Option<&'static str>,
-  ) -> Result<(), Self::Error> {
+    _: &mut EX,
+    _: (bool, Option<(&'static str, u64)>),
+  ) -> Result<(), DB::Error>
+  where
+    EX: Executor<Database = DB>,
+  {
     Ok(())
   }
 
@@ -50,28 +62,36 @@ where
     _: &mut String,
     _: SelectOrderBy,
     _: SelectLimit,
-    _: &mut impl FnMut(&mut String) -> Result<(), Self::Error>,
-  ) -> Result<(), Self::Error> {
+    _: &mut impl FnMut(&mut String) -> Result<(), DB::Error>,
+  ) -> Result<(), DB::Error> {
     Ok(())
   }
 
   #[inline]
-  fn write_select_associations(&self, _: &mut String) -> Result<(), Self::Error> {
+  fn write_select_associations(&self, _: &mut String) -> Result<(), DB::Error> {
     Ok(())
   }
 
   #[inline]
-  fn write_select_fields(&self, _: &mut String) -> Result<(), Self::Error> {
+  fn write_select_fields(&self, _: &mut String) -> Result<(), DB::Error> {
     Ok(())
   }
 
   #[inline]
-  fn write_select_orders_by(&self, _: &mut String) -> Result<(), Self::Error> {
+  fn write_select_orders_by(&self, _: &mut String) -> Result<(), DB::Error> {
     Ok(())
   }
 
   #[inline]
-  fn write_update(&self, _: &mut AuxNodes, _: &mut String) -> Result<(), Self::Error> {
+  async fn write_update<EX>(
+    &mut self,
+    _: &mut AuxNodes,
+    _: &mut String,
+    _: &mut EX,
+  ) -> Result<(), DB::Error>
+  where
+    EX: Executor,
+  {
     Ok(())
   }
 }

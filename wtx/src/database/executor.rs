@@ -114,7 +114,7 @@ pub trait Executor {
     }
   }
 
-  /// Initially calls `begin` and the returns [Self::TransactionManager], which implies in an
+  /// Initially calls `begin` and the returns [`Self::TransactionManager`], which implies in an
   /// following mandatory `commit` call by the caller.
   fn transaction(
     &mut self,

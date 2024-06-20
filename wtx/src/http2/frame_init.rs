@@ -1,16 +1,8 @@
 use crate::http2::U31;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct FrameInit {
-  pub(crate) data_len: u32,
-  pub(crate) flags: u8,
-  pub(crate) stream_id: U31,
-  pub(crate) ty: FrameInitTy,
-}
-
 create_enum! {
   #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-  pub enum FrameInitTy<u8> {
+  pub(crate) enum FrameInitTy<u8> {
     Data = (0),
     Headers = (1),
     Reset = (3),
@@ -20,6 +12,14 @@ create_enum! {
     WindowUpdate = (8),
     Continuation = (9),
   }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FrameInit {
+  pub(crate) data_len: u32,
+  pub(crate) flags: u8,
+  pub(crate) stream_id: U31,
+  pub(crate) ty: FrameInitTy,
 }
 
 impl FrameInit {
@@ -48,14 +48,5 @@ impl FrameInit {
     let [_, a, b, c] = self.data_len.to_be_bytes();
     let [e, f, g, h] = self.stream_id.to_be_bytes();
     [a, b, c, self.ty.into(), self.flags, e, f, g, h]
-  }
-
-  #[inline]
-  pub(crate) fn is_conn_control(&self) -> bool {
-    match self.ty {
-      FrameInitTy::GoAway | FrameInitTy::Ping | FrameInitTy::Settings => true,
-      FrameInitTy::WindowUpdate if self.stream_id.is_zero() => true,
-      _ => false,
-    }
   }
 }

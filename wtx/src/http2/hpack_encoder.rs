@@ -10,7 +10,7 @@
 
 use crate::{
   http::{AbstractHeaders, Header, KnownHeaderName, Method, StatusCode},
-  http2::{hpack_header::HpackHeaderBasic, huffman_encode, Http2Error},
+  http2::{hpack_header::HpackHeaderBasic, huffman_encode, misc::protocol_err, Http2Error},
   misc::{ByteVector, Lease, Usize, _random_state, _shift_bytes, _unreachable},
   rng::Rng,
 };
@@ -239,7 +239,7 @@ impl HpackEncoder {
       n >>= 7;
     }
 
-    Err(crate::Error::http2_go_away_generic(Http2Error::VeryLargeHeaderInteger))
+    Err(protocol_err(Http2Error::VeryLargeHeaderInteger))
   }
 
   // 1. 0 -> 0xxxx -> 4xxxx
@@ -307,7 +307,7 @@ impl HpackEncoder {
         _ => {}
       }
     } else {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::UnsupportedHeaderNameOrValueLen));
+      return Err(protocol_err(Http2Error::UnsupportedHeaderNameOrValueLen));
     }
     Ok(())
   }

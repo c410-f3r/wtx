@@ -1,20 +1,22 @@
 use crate::{
-  http::server::{TokioWebSocket, _buffers_len},
+  http::server::{OptionedServer, _buffers_len},
   misc::FnFut,
-  pool::{Pool, ResourceManager, SimplePoolTokio, WebSocketRM},
+  pool::{Pool, SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   rng::StdRng,
   web_socket::{
     handshake::{WebSocketAccept, WebSocketAcceptRaw},
-    Compression, FrameBufferVec, WebSocketBuffer, WebSocketServer,
+    Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer,
   },
 };
+use alloc::vec::Vec;
 use core::{fmt::Debug, net::SocketAddr};
 use std::sync::OnceLock;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+  net::{TcpListener, TcpStream},
+  sync::MutexGuard,
+};
 
-type WebSocketPool = SimplePoolTokio<<WebSocketRM as ResourceManager>::Resource, WebSocketRM>;
-
-impl TokioWebSocket {
+impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
   pub async fn tokio_web_socket<C, E, F>(
@@ -64,7 +66,16 @@ impl TokioWebSocket {
   }
 }
 
-async fn conn_buffer(len: usize) -> crate::Result<<WebSocketPool as Pool>::GetElem<'static>> {
-  static POOL: OnceLock<WebSocketPool> = OnceLock::new();
-  POOL.get_or_init(|| SimplePoolTokio::new(len, WebSocketRM::web_socket())).get(&(), &()).await
+async fn conn_buffer(
+  len: usize,
+) -> crate::Result<
+  SimplePoolGetElem<
+    MutexGuard<'static, SimplePoolResource<(FrameBuffer<Vec<u8>>, WebSocketBuffer)>>,
+  >,
+> {
+  static POOL: OnceLock<SimplePoolTokio<WebSocketRM>> = OnceLock::new();
+  POOL
+    .get_or_init(|| SimplePoolTokio::new(len, WebSocketRM::new(|| Ok(Default::default()))))
+    .get(&(), &())
+    .await
 }

@@ -4,7 +4,9 @@ use crate::{
   },
   http2::{
     hpack_header::{HpackHeaderBasic, HpackHeaderName},
-    huffman_decode, Http2Error,
+    huffman_decode,
+    misc::protocol_err,
+    Http2Error,
   },
   misc::{ArrayVector, Usize},
 };
@@ -45,6 +47,7 @@ impl HpackDecoder {
     mut cb: impl FnMut((HpackHeaderBasic, &[u8], &[u8])) -> crate::Result<()>,
   ) -> crate::Result<()> {
     if let Some(elem) = self.max_bytes.1.take() {
+      self.dyn_headers.set_max_bytes(*Usize::from(elem), |_, _| {});
       self.max_bytes.0 = elem;
     }
     let mut did_update = false;
@@ -61,14 +64,10 @@ impl HpackDecoder {
     }
     while let [first, ..] = data {
       self.manage_decode(*first, &mut data, &mut cb, || {
-        Err(crate::Error::http2_go_away_generic(Http2Error::InvalidDynTableSizeUpdate))
+        Err(protocol_err(Http2Error::InvalidDynTableSizeUpdate))
       })?;
     }
     Ok(())
-  }
-
-  pub(crate) fn max_bytes(&self) -> usize {
-    self.dyn_headers.bytes_len()
   }
 
   // It is not possible to lower the initial set value
@@ -107,11 +106,11 @@ impl HpackDecoder {
       }
     }
 
-    Err(crate::Error::http2_go_away_generic(Http2Error::VeryLargeHeaderInteger))
+    Err(protocol_err(Http2Error::VeryLargeHeaderInteger))
   }
 
-  /// The common index is static-unaware so static names are inserted into `header_buffers`,
-  /// otherwise [DecodeIdx::Indexed] will return an empty slice.
+  /// The common index is static-unaware so static names are inserted into `header_buffers`.
+  /// Otherwise [`DecodeIdx::Indexed`] would return an empty slice.
   #[inline]
   fn decode_literal<const STORE: bool>(
     &mut self,
@@ -222,7 +221,7 @@ impl HpackDecoder {
     idx: usize,
   ) -> crate::Result<(HpackHeaderBasic, (&'static [u8], &[u8]), (&'static [u8], &[u8]))> {
     Ok(match idx {
-      0 => return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidHpackIdx(Some(0)))),
+      0 => return Err(protocol_err(Http2Error::InvalidHpackIdx(Some(0)))),
       1 => (HpackHeaderBasic::Authority, (b":authority", &[]), (&[], &[])),
       2 => (HpackHeaderBasic::Method(Method::Get), (b":method", &[]), (b"GET", &[])),
       3 => (HpackHeaderBasic::Method(Method::Post), (b":method", &[]), (b"POST", &[])),
@@ -313,9 +312,7 @@ impl HpackDecoder {
       dyn_idx_with_offset => dyn_headers
         .get_by_idx(dyn_idx_with_offset.wrapping_sub(DYN_IDX_OFFSET))
         .ok_or_else(|| {
-          crate::Error::http2_go_away_generic(Http2Error::InvalidHpackIdx(
-            dyn_idx_with_offset.try_into().ok(),
-          ))
+          protocol_err(Http2Error::InvalidHpackIdx(dyn_idx_with_offset.try_into().ok()))
         })
         .map(|el| (*el.misc, (&[][..], el.name_bytes), (&[][..], el.value_bytes)))?,
     })
@@ -387,7 +384,7 @@ impl TryFrom<u8> for DecodeIdx {
         } else if n & 0b1110_0000 == 0b0010_0000 {
           Self::SizeUpdate
         } else {
-          return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedHpackIdx));
+          return Err(protocol_err(Http2Error::UnexpectedHpackIdx));
         }
       }
     })

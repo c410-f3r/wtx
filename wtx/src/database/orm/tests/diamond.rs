@@ -39,7 +39,6 @@ use crate::database::{
   TableSuffix,
 };
 use alloc::string::String;
-use core::mem;
 
 const A: A = A { id: 1, name: "foo1" };
 const B: B = B { a: A, id: 2, name: "foo2" };
@@ -48,109 +47,101 @@ const D: D = D { b: B, c: C, id: 4, name: "foo4" };
 
 #[derive(Debug)]
 struct A {
-  id: i32,
+  id: u32,
   name: &'static str,
 }
 
 impl<'entity> Table<'entity> for A {
-  const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "a";
 
   type Associations = NoTableAssociation<crate::Error>;
   type Database = ();
-  type Fields = (TableField<&'entity str>,);
-  type PrimaryKeyValue = &'entity i32;
+  type Fields = (TableField<&'entity u32>, TableField<&'static str>);
 
   fn type_instances(_: TableSuffix) -> FromSuffixRslt<'entity, Self> {
-    (NoTableAssociation::new(), (TableField::new("name"),))
+    (NoTableAssociation::new(), (TableField::new("id"), TableField::new("name")))
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
-
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
   }
 }
 
 struct B {
   a: A,
-  id: i32,
+  id: u32,
   name: &'static str,
 }
 
 impl<'entity> Table<'entity> for B {
-  const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "b";
 
   type Associations = (TableAssociationWrapper<'entity, A, [TableParams<'entity, A>; 1]>,);
   type Database = ();
-  type Fields = (TableField<&'static str>,);
-  type PrimaryKeyValue = &'entity i32;
+  type Fields = (TableField<&'entity u32>, TableField<&'static str>);
 
   fn type_instances(ts: TableSuffix) -> FromSuffixRslt<'entity, Self> {
     (
       (TableAssociationWrapper {
-        association: TableAssociation::new("id", "id_b"),
-        guide: TableParams::new(ts + 1),
-        tables: [TableParams::new(ts + 1)],
+        association: TableAssociation::new("id", false, false, "id_b"),
+        guide: TableParams::from_ts(ts + 1),
+        tables: [TableParams::from_ts(ts + 1)],
       },),
-      (TableField::new("name"),),
+      (TableField::new("id"), TableField::new("name")),
     )
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
 
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
-
-    table.associations_mut().0.tables[0].update_all_table_fields(&entity.a);
+    table.associations_mut().0.guide.update_all_table_fields(&self.a);
+    table.associations_mut().0.tables[0].update_all_table_fields(&self.a);
   }
 }
 
 struct C {
   a: A,
-  id: i32,
+  id: u32,
   name: &'static str,
 }
 
 impl<'entity> Table<'entity> for C {
-  const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "c";
 
   type Associations = (TableAssociationWrapper<'entity, A, [TableParams<'entity, A>; 1]>,);
   type Database = ();
-  type Fields = (TableField<&'static str>,);
-  type PrimaryKeyValue = &'entity i32;
+  type Fields = (TableField<&'entity u32>, TableField<&'static str>);
 
   fn type_instances(ts: TableSuffix) -> FromSuffixRslt<'entity, Self> {
     (
       (TableAssociationWrapper {
-        association: TableAssociation::new("id", "id_c"),
-        guide: TableParams::new(ts + 1),
-        tables: [TableParams::new(ts + 1)],
+        association: TableAssociation::new("id", false, false, "id_c"),
+        guide: TableParams::from_ts(ts + 1),
+        tables: [TableParams::from_ts(ts + 1)],
       },),
-      (TableField::new("name"),),
+      (TableField::new("id"), TableField::new("name")),
     )
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
 
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
-
-    table.associations_mut().0.tables[0].update_all_table_fields(&entity.a);
+    table.associations_mut().0.guide.update_all_table_fields(&self.a);
+    table.associations_mut().0.tables[0].update_all_table_fields(&self.a);
   }
 }
 
 struct D {
   b: B,
   c: C,
-  id: i32,
+  id: u32,
   name: &'static str,
 }
 
 impl<'entity> Table<'entity> for D {
-  const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "d";
 
   type Associations = (
@@ -158,48 +149,49 @@ impl<'entity> Table<'entity> for D {
     TableAssociationWrapper<'entity, C, [TableParams<'entity, C>; 1]>,
   );
   type Database = ();
-  type Fields = (TableField<&'static str>,);
-  type PrimaryKeyValue = &'entity i32;
+  type Fields = (TableField<&'entity u32>, TableField<&'static str>);
 
   fn type_instances(suffix: TableSuffix) -> FromSuffixRslt<'entity, Self> {
     (
       (
         TableAssociationWrapper {
-          association: TableAssociation::new("id", "id_d"),
-          guide: TableParams::new(suffix + 1),
-          tables: [TableParams::new(suffix + 1)],
+          association: TableAssociation::new("id", false, false, "id_d"),
+          guide: TableParams::from_ts(suffix + 1),
+          tables: [TableParams::from_ts(suffix + 1)],
         },
         TableAssociationWrapper {
-          association: TableAssociation::new("id", "id_d"),
-          guide: TableParams::new(suffix + 2),
-          tables: [TableParams::new(suffix + 2)],
+          association: TableAssociation::new("id", false, false, "id_d"),
+          guide: TableParams::from_ts(suffix + 2),
+          tables: [TableParams::from_ts(suffix + 2)],
         },
       ),
-      (TableField::new("name"),),
+      (TableField::new("id"), TableField::new("name")),
     )
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
 
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
+    table.associations_mut().0.guide.update_all_table_fields(&self.b);
+    table.associations_mut().0.tables[0].update_all_table_fields(&self.b);
 
-    table.associations_mut().0.tables[0].update_all_table_fields(&entity.b);
-    table.associations_mut().1.tables[0].update_all_table_fields(&entity.c);
+    table.associations_mut().1.guide.update_all_table_fields(&self.c);
+    table.associations_mut().1.tables[0].update_all_table_fields(&self.c);
   }
 }
 
 #[cfg(target_pointer_width = "64")]
 #[test]
 fn assert_sizes() {
-  assert_eq!(mem::size_of::<TableParams<'_, A>>(), 64);
-  assert_eq!(mem::size_of::<TableParams<'_, B>>(), 224);
-  assert_eq!(mem::size_of::<TableParams<'_, C>>(), 224);
-  assert_eq!(mem::size_of::<TableParams<'_, D>>(), 1024);
+  assert_eq!(size_of::<TableParams<'_, A>>(), 64);
+  assert_eq!(size_of::<TableParams<'_, B>>(), 232);
+  assert_eq!(size_of::<TableParams<'_, C>>(), 232);
+  assert_eq!(size_of::<TableParams<'_, D>>(), 1072);
 }
 
-#[test]
-fn multi_referred_table() {
+#[tokio::test]
+async fn multi_referred_table() {
   let mut buffer = String::new();
   let mut d_table_defs = TableParams::<D>::default();
 
@@ -214,31 +206,34 @@ fn multi_referred_table() {
   d_table_defs.update_all_table_fields(&D);
 
   buffer.clear();
-  d_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
+  d_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(
     &buffer,
     r#"DELETE FROM a WHERE id='1';DELETE FROM b WHERE id='2';DELETE FROM c WHERE id='3';DELETE FROM d WHERE id='4';"#
   );
 
   buffer.clear();
-  d_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
+  d_table_defs
+    .write_insert(&mut AuxNodes::default(), &mut buffer, &mut (), (false, None))
+    .await
+    .unwrap();
   assert_eq!(
     &buffer,
     // FIXME
-    // INSERT INTO "d" (id,name) VALUES ('4','foo4');INSERT INTO "b" (id,name,id_d) VALUES ('2','foo2','4');INSERT INTO "c" (id,name,id_d) VALUES ('3','foo3','4');INSERT INTO "a" (id,name,id_b,id_c) VALUES ('1','foo1','2','3');
-    r#"INSERT INTO "d" (id,name) VALUES ($1,$2);INSERT INTO "b" (id,name,id_d) VALUES ($1,$2,$3);INSERT INTO "a" (id,name,id_b) VALUES ($1,$2,$3);INSERT INTO "c" (id,name,id_d) VALUES ($1,$2,$3);"#
+    // INSERT INTO "d" (id,name) VALUES ($1,$2);INSERT INTO "b" (id,name,id_d) VALUES ($1,$2,$3);INSERT INTO "c" (id,name,id_d) VALUES ($1,$2,$3);INSERT INTO "a" (id,name,id_b,id_c) VALUES ($1,$2,$3);
+    r#"INSERT INTO "d" (id,name) VALUES ($1,$2);INSERT INTO "b" (id,name,id_d) VALUES ($1,$2,2);INSERT INTO "a" (id,name,id_b) VALUES ($1,$2,1);INSERT INTO "c" (id,name,id_d) VALUES ($1,$2,3);"#
   );
 
   buffer.clear();
-  d_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
+  d_table_defs.write_update(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(
     &buffer,
     r#"UPDATE d SET id='4',name='foo4' WHERE id='4';UPDATE b SET id='2',name='foo2' WHERE id='2';UPDATE a SET id='1',name='foo1' WHERE id='1';UPDATE c SET id='3',name='foo3' WHERE id='3';"#
   );
 }
 
-#[test]
-fn referred_table() {
+#[tokio::test]
+async fn referred_table() {
   let mut buffer = String::new();
   let mut b_table_defs = TableParams::<B>::default();
   b_table_defs
@@ -252,26 +247,29 @@ fn referred_table() {
   b_table_defs.update_all_table_fields(&B);
 
   buffer.clear();
-  b_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
+  b_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(&buffer, r#"DELETE FROM a WHERE id='1';DELETE FROM b WHERE id='2';"#);
 
   buffer.clear();
-  b_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
+  b_table_defs
+    .write_insert(&mut AuxNodes::default(), &mut buffer, &mut (), (false, None))
+    .await
+    .unwrap();
   assert_eq!(
     &buffer,
-    r#"INSERT INTO "b" (id,name) VALUES ($1,$2);INSERT INTO "a" (id,name,id_b) VALUES ($1,$2,$3);"#
+    r#"INSERT INTO "b" (id,name) VALUES ($1,$2);INSERT INTO "a" (id,name,id_b) VALUES ($1,$2,1);"#
   );
 
   buffer.clear();
-  b_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
+  b_table_defs.write_update(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(
     &buffer,
     r#"UPDATE b SET id='2',name='foo2' WHERE id='2';UPDATE a SET id='1',name='foo1' WHERE id='1';"#
   );
 }
 
-#[test]
-fn standalone_table() {
+#[tokio::test]
+async fn standalone_table() {
   let mut buffer = String::new();
   let mut a_table_defs = TableParams::<A>::default();
   a_table_defs
@@ -285,14 +283,17 @@ fn standalone_table() {
   a_table_defs.update_all_table_fields(&A);
 
   buffer.clear();
-  a_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
+  a_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(&buffer, r#"DELETE FROM a WHERE id='1';"#);
 
   buffer.clear();
-  a_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
+  a_table_defs
+    .write_insert(&mut AuxNodes::default(), &mut buffer, &mut (), (false, None))
+    .await
+    .unwrap();
   assert_eq!(&buffer, r#"INSERT INTO "a" (id,name) VALUES ($1,$2);"#);
 
   buffer.clear();
-  a_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
+  a_table_defs.write_update(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(&buffer, r#"UPDATE a SET id='1',name='foo1' WHERE id='1';"#);
 }

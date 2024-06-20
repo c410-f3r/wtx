@@ -30,22 +30,26 @@ async fn client(uri: UriString) {
   .await
   .unwrap();
 
+  sb.rrb.uri.push_str(uri.uri()).unwrap();
   sb = stream_client(&mut client, sb).await;
   _0(&sb.rrb.body, &sb.rrb.headers);
 
   sb.clear();
   sb.rrb.headers.push_front((b"123", b"456").into()).unwrap();
+  sb.rrb.uri.push_str(uri.uri()).unwrap();
   sb = stream_client(&mut client, sb).await;
   _1(&sb.rrb.body, &sb.rrb.headers);
 
   sb.clear();
   sb.rrb.body.extend_from_slice(b"123").unwrap();
+  sb.rrb.uri.push_str(uri.uri()).unwrap();
   sb = stream_client(&mut client, sb).await;
   _2(&sb.rrb.body, &sb.rrb.headers);
 
   sb.clear();
   sb.rrb.body.extend_from_slice(b"123").unwrap();
   sb.rrb.headers.push_front((b"123", b"456").into()).unwrap();
+  sb.rrb.uri.push_str(uri.uri()).unwrap();
   sb = stream_client(&mut client, sb).await;
   _3(&sb.rrb.body, &sb.rrb.headers);
 

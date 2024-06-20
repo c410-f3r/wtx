@@ -137,7 +137,7 @@ impl HttpHeaders {
     Ok(())
   }
 
-  /// Similar to [Self::push_str] but expects an `Arguments` instead.
+  /// Similar to [`Self::push_str`] but expects an `Arguments` instead.
   #[inline]
   pub fn push_fmt(&mut self, key: Arguments<'_>, value: Arguments<'_>) -> crate::Result<()> {
     let curr_len = self.buffer.len();

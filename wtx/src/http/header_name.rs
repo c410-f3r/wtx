@@ -1,7 +1,5 @@
 #![allow(non_upper_case_globals)]
 
-use crate::misc::Lease;
-
 macro_rules! create_statics {
   (
     $(
@@ -10,7 +8,7 @@ macro_rules! create_statics {
     )*
   ) => {
     /// A statically known set of header names
-    #[derive(Debug)]
+    #[derive(Debug, Eq, PartialEq)]
     pub enum KnownHeaderName {
       $(
         $(#[$mac])*
@@ -70,7 +68,88 @@ macro_rules! create_statics {
         })
       }
     }
+
+    impl<S> TryFrom<HeaderName<S>> for KnownHeaderName
+    where
+      S: Lease<[u8]>
+    {
+      type Error = crate::Error;
+
+      #[inline]
+      fn try_from(from: HeaderName<S>) -> Result<Self, Self::Error> {
+        KnownHeaderName::try_from(from.bytes())
+      }
+    }
   };
+}
+
+use crate::misc::Lease;
+
+const HTTP2P_TABLE: &[u8; 256] = &[
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, b'!', b'"', b'#', b'$', b'%', b'&', b'\'', 0, 0, b'*', b'+', 0, b'-', b'.', 0, b'0', b'1',
+  b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'^', b'_', b'`', b'a', b'b', b'c',
+  b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b's',
+  b't', b'u', b'v', b'w', b'x', b'y', b'z', 0, b'|', 0, b'~', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+/// [`HeaderName`] composed by static bytes.
+pub type HeaderNameStaticBytes = HeaderName<&'static [u8]>;
+/// [`HeaderName`] composed by a static string.
+pub type HeaderNameStaticStr = HeaderName<&'static str>;
+
+/// HTTP header name
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct HeaderName<S>(S);
+
+impl<S> HeaderName<S>
+where
+  S: Lease<[u8]>,
+{
+  /// HTTP/2 Plus
+  ///
+  /// Expects a valid HTTP/2 or HTTP/3 content.
+  #[inline]
+  pub fn http2p(content: S) -> crate::Result<Self> {
+    _iter4!(content.lease(), {}, |byte| {
+      if let Some(elem) = HTTP2P_TABLE.get(usize::from(*byte)).copied() {
+        if elem == 0 {
+          return Err(crate::Error::InvalidHttp2Content);
+        }
+      }
+    });
+    Ok(Self(content))
+  }
+
+  /// Instance from a generic type content.
+  #[inline]
+  pub const fn new(content: S) -> Self {
+    Self(content)
+  }
+
+  /// Generic type content in bytes form
+  #[inline]
+  pub fn bytes(&self) -> &[u8] {
+    self.0.lease()
+  }
+
+  /// Generic type content.
+  #[inline]
+  pub const fn content(&self) -> &S {
+    &self.0
+  }
+}
+
+impl<'hn> From<HeaderName<&'hn str>> for HeaderName<&'hn [u8]> {
+  #[inline]
+  fn from(from: HeaderName<&'hn str>) -> Self {
+    Self::new(from.0.as_bytes())
+  }
 }
 
 create_statics! {
@@ -148,41 +227,21 @@ create_statics! {
   WwwAuthenticate = "www-authenticate";
 }
 
-/// [HeaderName] composed by static bytes.
-pub type HeaderNameStaticBytes = HeaderName<&'static [u8]>;
-/// [HeaderName] composed by a static string.
-pub type HeaderNameStaticStr = HeaderName<&'static str>;
+#[cfg(feature = "_bench")]
+#[cfg(test)]
+mod bench {
+  use crate::http::HeaderName;
+  use alloc::vec::Vec;
 
-/// HTTP header name
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct HeaderName<S>(S);
-
-impl<S> HeaderName<S>
-where
-  S: Lease<[u8]>,
-{
-  /// Instance from a generic type content.
-  #[inline]
-  pub const fn new(content: S) -> Self {
-    Self(content)
-  }
-
-  /// Generic type content in bytes form
-  #[inline]
-  pub fn bytes(&self) -> &[u8] {
-    self.0.lease()
-  }
-
-  /// Generic type content.
-  #[inline]
-  pub const fn content(&self) -> &S {
-    &self.0
-  }
-}
-
-impl<'hn> From<HeaderName<&'hn str>> for HeaderName<&'hn [u8]> {
-  #[inline]
-  fn from(from: HeaderName<&'hn str>) -> Self {
-    Self::new(from.0.as_bytes())
+  #[bench]
+  fn http2p(b: &mut test::Bencher) {
+    const LEN: usize = 32;
+    let mut data: Vec<u8> = Vec::with_capacity(LEN);
+    for idx in 0..LEN {
+      data.push(idx.clamp(106, 122).try_into().unwrap());
+    }
+    b.iter(|| {
+      let _ = HeaderName::http2p(&data).unwrap();
+    });
   }
 }

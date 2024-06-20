@@ -9,7 +9,7 @@ use core::{
   hash::{Hash, Hasher},
 };
 
-/// Replied from an issued [crate::data_format::JsonRpcRequest].
+/// Replied from an issued [`crate::data_format::JsonRpcRequest`].
 ///
 /// The `jsonrpc` field is not included because `2.0` is always expected.
 #[derive(Debug)]

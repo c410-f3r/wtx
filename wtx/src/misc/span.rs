@@ -3,10 +3,10 @@ pub(crate) struct _Entered<'span> {
   #[cfg(feature = "tracing")]
   _elem: tracing::span::Entered<'span>,
   #[cfg(not(feature = "tracing"))]
-  _elem: core::marker::PhantomData<&'span ()>,
+  _elem: &'span (),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct _Span {
   #[cfg(feature = "tracing")]
   _elem: tracing::span::Span,
@@ -22,12 +22,21 @@ impl _Span {
     Self { _elem }
   }
 
+  pub(crate) const fn _none() -> Self {
+    Self {
+      #[cfg(feature = "tracing")]
+      _elem: tracing::span::Span::none(),
+      #[cfg(not(feature = "tracing"))]
+      _elem: (),
+    }
+  }
+
   pub(crate) fn _enter(&self) -> _Entered<'_> {
     _Entered {
       #[cfg(feature = "tracing")]
       _elem: self._elem.enter(),
       #[cfg(not(feature = "tracing"))]
-      _elem: core::marker::PhantomData,
+      _elem: &self._elem,
     }
   }
 }

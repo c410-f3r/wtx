@@ -2,7 +2,7 @@
 
 Provides low and high level abstractions to interact with clients and servers.
 
-```ignore,rust,edition2021
+```rust,edition2021
 use std::net::ToSocketAddrs;
 use tokio::net::TcpStream;
 use wtx::{

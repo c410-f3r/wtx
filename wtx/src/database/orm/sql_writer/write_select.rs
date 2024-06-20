@@ -11,7 +11,7 @@ use core::fmt::Write;
 impl<'entity, T> SqlWriterLogic<'entity, T>
 where
   T: Table<'entity>,
-  T::Associations: SqlWriter<Error = <T::Database as Database>::Error>,
+  T::Associations: SqlWriter<T::Database>,
 {
   #[inline]
   pub(crate) fn write_select(

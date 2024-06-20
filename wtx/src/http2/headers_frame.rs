@@ -1,11 +1,12 @@
 use crate::{
-  http::{Header, Headers, KnownHeaderName},
+  http::{Header, HeaderName, Headers, KnownHeaderName, Method},
   http2::{
-    misc::trim_frame_pad, uri_buffer::MAX_URI_LEN, FrameInit, FrameInitTy, HpackDecoder,
-    HpackHeaderBasic, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Error,
-    Http2Params, UriBuffer, EOH_MASK, EOS_MASK, U31,
+    misc::{protocol_err, trim_frame_pad},
+    uri_buffer::MAX_URI_LEN,
+    FrameInit, FrameInitTy, HpackDecoder, HpackHeaderBasic, HpackStaticRequestHeaders,
+    HpackStaticResponseHeaders, Http2Error, Http2Params, UriBuffer, EOH_MASK, EOS_MASK, U31,
   },
-  misc::{from_utf8_basic, ArrayString, Usize},
+  misc::{atoi, from_utf8_basic, ArrayString, Usize},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.
@@ -43,11 +44,6 @@ impl<'uri> HeadersFrame<'uri> {
   }
 
   #[inline]
-  pub(crate) const fn is_eoh(&self) -> bool {
-    self.flag & EOH_MASK == EOH_MASK
-  }
-
-  #[inline]
   pub(crate) const fn is_eos(&self) -> bool {
     self.flag & EOS_MASK == EOS_MASK
   }
@@ -58,7 +54,7 @@ impl<'uri> HeadersFrame<'uri> {
   }
 
   #[inline]
-  pub(crate) fn read<const DO_NOT_PUSH_URI: bool, const IS_TRAILER: bool>(
+  pub(crate) fn read<const IS_CLIENT: bool, const IS_TRAILER: bool>(
     mut data: &[u8],
     fi: FrameInit,
     headers: &mut Headers,
@@ -66,9 +62,9 @@ impl<'uri> HeadersFrame<'uri> {
     hpack_dec: &mut HpackDecoder,
     uri: &mut ArrayString<MAX_URI_LEN>,
     uri_buffer: &mut UriBuffer,
-  ) -> crate::Result<(Self, usize)> {
+  ) -> crate::Result<Self> {
     if fi.stream_id.is_zero() {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::InvalidHeadersFrameZeroId));
+      return Err(protocol_err(Http2Error::InvalidHeadersFrameZeroId));
     }
 
     uri_buffer.clear();
@@ -82,6 +78,7 @@ impl<'uri> HeadersFrame<'uri> {
     let mut method = None;
     let mut protocol = None;
     let mut status = None;
+
     hpack_dec.decode(data, |(elem, name, value)| {
       match elem {
         HpackHeaderBasic::Authority => {
@@ -110,6 +107,12 @@ impl<'uri> HeadersFrame<'uri> {
             is_malformed = true;
           }
           _ => {
+            let header_name = HeaderName::http2p(name)?;
+            if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
+              if *Usize::from(fi.data_len) != atoi::<usize>(value)? {
+                return Err(protocol_err(Http2Error::InvalidHeaderData));
+              }
+            }
             has_fields = true;
             let len = decoded_header_size(name.len(), value.len());
             expanded_headers_len = expanded_headers_len.wrapping_add(len);
@@ -195,29 +198,47 @@ impl<'uri> HeadersFrame<'uri> {
       Ok(())
     })?;
 
-    if DO_NOT_PUSH_URI {
-      uri.clear();
-      uri.push_str(uri_buffer.scheme.as_str())?;
-      uri.push_str(uri_buffer.authority.as_str())?;
-      uri.push_str(uri_buffer.path.as_str())?;
+    if is_malformed {
+      return Err(protocol_err(Http2Error::InvalidHeaderData));
+    }
+    if !IS_TRAILER {
+      if IS_CLIENT {
+        if method.is_some() || protocol.is_some() {
+          return Err(protocol_err(Http2Error::InvalidHeaderData));
+        }
+      } else {
+        if status.is_some() {
+          return Err(protocol_err(Http2Error::InvalidHeaderData));
+        }
+        if let Some(Method::Connect) = method {
+          if uri_buffer.authority.is_empty() {
+            return Err(protocol_err(Http2Error::InvalidHeaderData));
+          }
+        } else {
+          if uri_buffer.path.is_empty() || uri_buffer.scheme.is_empty() {
+            return Err(protocol_err(Http2Error::InvalidHeaderData));
+          }
+        }
+        uri.clear();
+        uri.push_str(uri_buffer.scheme.as_str())?;
+        uri.push_str(uri_buffer.authority.as_str())?;
+        uri.push_str(uri_buffer.path.as_str())?;
+      }
     }
 
-    Ok((
-      Self {
-        flag: fi.flags,
-        hsreqh: HpackStaticRequestHeaders {
-          authority: &[],
-          method,
-          path: &[],
-          protocol,
-          scheme: &[],
-        },
-        hsresh: HpackStaticResponseHeaders { status_code: status },
-        is_over_size,
-        stream_id: fi.stream_id,
+    Ok(Self {
+      flag: fi.flags,
+      hsreqh: HpackStaticRequestHeaders {
+        authority: &[],
+        method,
+        path: &[],
+        protocol,
+        scheme: &[],
       },
-      expanded_headers_len,
-    ))
+      hsresh: HpackStaticResponseHeaders { status_code: status },
+      is_over_size,
+      stream_id: fi.stream_id,
+    })
   }
 
   #[inline]

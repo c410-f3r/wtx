@@ -7,20 +7,26 @@ use core::time::Duration;
 pub struct GenericTime {
   #[cfg(feature = "std")]
   inner: std::time::SystemTime,
+  #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
+  inner: embassy_time::Instant,
+  #[cfg(not(any(feature = "std", feature = "embassy-time")))]
+  _inner: (),
 }
 
 impl GenericTime {
   /// Returns an instant corresponding to "now".
   #[inline]
-  pub fn now() -> crate::Result<Self> {
+  pub fn now() -> Self {
     #[cfg(feature = "std")]
     {
-      Ok(Self { inner: std::time::SystemTime::now() })
+      Self { inner: std::time::SystemTime::now() }
     }
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
     {
-      Err(crate::Error::CAF_ItIsNotPossibleToUseTimeInNoStd)
+      Self { inner: embassy_time::Instant::now() }
     }
+    #[cfg(not(any(feature = "std", feature = "embassy-time")))]
+    Self { _inner: () }
   }
 
   /// Returns the amount of time elapsed from another instant to this one,
@@ -34,28 +40,42 @@ impl GenericTime {
         .duration_since(_earlier.inner)
         .map_err(|_err| crate::Error::CAF_IncorrectHardwareTime)
     }
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
     {
-      Err(crate::Error::CAF_ItIsNotPossibleToUseTimeInNoStd)
+      Ok(Duration::from_micros(
+        self
+          .inner
+          .checked_duration_since(_earlier.inner)
+          .ok_or(crate::Error::CAF_IncorrectHardwareTime)?
+          .as_micros(),
+      ))
+    }
+    #[cfg(not(any(feature = "std", feature = "embassy-time")))]
+    {
+      Err(crate::Error::CAF_GenericTimeNeedsBackend)
     }
   }
 
   /// Returns the amount of time elapsed since this instant was created.
   #[inline]
   pub fn elapsed(&self) -> crate::Result<Duration> {
-    Self::now()?.duration_since(*self)
+    Self::now().duration_since(*self)
   }
 
   /// UNIX timestamp of the current time
   #[inline]
-  pub fn timestamp(&self) -> crate::Result<Duration> {
+  pub fn timestamp() -> crate::Result<Duration> {
     #[cfg(feature = "std")]
     {
-      self.duration_since(Self { inner: std::time::UNIX_EPOCH })
+      Self::now().duration_since(Self { inner: std::time::UNIX_EPOCH })
     }
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
     {
-      Err(crate::Error::CAF_ItIsNotPossibleToUseTimeInNoStd)
+      Self::now().duration_since(Self { inner: embassy_time::Instant::from_micros(0) })
+    }
+    #[cfg(not(any(feature = "std", feature = "embassy-time")))]
+    {
+      Err(crate::Error::CAF_GenericTimeNeedsBackend)
     }
   }
 }

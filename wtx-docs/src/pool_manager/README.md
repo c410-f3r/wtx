@@ -6,7 +6,7 @@ Can also be used for database connections, which is quite handy because it enhan
 
 Activation feature is called `pool`.
 
-```ignore,rust,edition2021
+```rust,edition2021
 use wtx::pool_manager::{ResourceManager, StaticPool};
 use core::cell::RefCell;
 

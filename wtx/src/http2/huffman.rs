@@ -1,6 +1,7 @@
 use crate::{
   http2::{
     huffman_tables::{DECODED, DECODE_TABLE, ENCODE_TABLE, END_OF_STRING, ERROR},
+    misc::protocol_err,
     Http2Error,
   },
   misc::{ArrayVector, ByteVector, _unreachable},
@@ -23,7 +24,7 @@ pub(crate) fn huffman_decode<const N: usize>(
       _unreachable();
     };
     if flags & ERROR == ERROR {
-      return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedEndingHuffman));
+      return Err(protocol_err(Http2Error::UnexpectedEndingHuffman));
     }
     let rslt = (flags & DECODED == DECODED).then_some(byte);
     *curr_state = next_state;
@@ -57,12 +58,12 @@ pub(crate) fn huffman_decode<const N: usize>(
   );
 
   if !is_ok {
-    return Err(crate::Error::http2_go_away_generic(Http2Error::HpackDecodingBufferIsTooSmall));
+    return Err(protocol_err(Http2Error::HpackDecodingBufferIsTooSmall));
   }
 
   let is_final = curr_state == 0 || end_of_string;
   if !is_final {
-    return Err(crate::Error::http2_go_away_generic(Http2Error::UnexpectedEndingHuffman));
+    return Err(protocol_err(Http2Error::UnexpectedEndingHuffman));
   }
 
   Ok(())

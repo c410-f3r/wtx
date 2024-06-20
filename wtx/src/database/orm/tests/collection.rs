@@ -8,68 +8,62 @@ use crate::database::{
   TableSuffix,
 };
 use alloc::{string::String, vec, vec::Vec};
-use core::mem;
 
 #[derive(Debug)]
 struct A {
-  id: i32,
+  id: u32,
   name: &'static str,
 }
 
 impl<'entity> Table<'entity> for A {
-  const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "a";
 
   type Associations = NoTableAssociation<crate::Error>;
   type Database = ();
-  type Fields = (TableField<&'static str>,);
-  type PrimaryKeyValue = &'entity i32;
+  type Fields = (TableField<&'entity u32>, TableField<&'static str>);
 
   fn type_instances(_: TableSuffix) -> FromSuffixRslt<'entity, Self> {
-    (NoTableAssociation::new(), (TableField::new("name"),))
+    (NoTableAssociation::new(), (TableField::new("id"), TableField::new("name")))
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
-
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
   }
 }
 
+#[derive(Debug)]
 struct B {
-  id: i32,
+  id: u32,
   name: &'static str,
 }
 
 impl<'entity> Table<'entity> for B {
-  const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "b";
 
   type Associations = NoTableAssociation<crate::Error>;
   type Database = ();
-  type Fields = (TableField<&'static str>,);
-  type PrimaryKeyValue = &'entity i32;
+  type Fields = (TableField<&'entity u32>, TableField<&'static str>);
 
   fn type_instances(_: TableSuffix) -> FromSuffixRslt<'entity, Self> {
-    (NoTableAssociation::new(), (TableField::new("name"),))
+    (NoTableAssociation::new(), (TableField::new("id"), TableField::new("name")))
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
-
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
   }
 }
 
+#[derive(Debug)]
 struct C {
   r#as: Vec<A>,
   bs: Vec<B>,
-  id: i32,
+  id: u32,
   name: &'static str,
 }
 
 impl<'entity> Table<'entity> for C {
-  const PRIMARY_KEY_NAME: &'static str = "id";
   const TABLE_NAME: &'static str = "c";
 
   type Associations = (
@@ -77,43 +71,43 @@ impl<'entity> Table<'entity> for C {
     TableAssociationWrapper<'entity, B, Vec<TableParams<'entity, B>>>,
   );
   type Database = ();
-  type Fields = (TableField<&'static str>,);
-  type PrimaryKeyValue = &'entity i32;
+  type Fields = (TableField<&'entity u32>, TableField<&'static str>);
 
   fn type_instances(ts: TableSuffix) -> FromSuffixRslt<'entity, Self> {
     (
       (
         TableAssociationWrapper {
-          association: TableAssociation::new("id", "id_a"),
-          guide: TableParams::new(ts + 1),
+          association: TableAssociation::new("id", false, false, "id_a"),
+          guide: TableParams::from_ts(ts + 1),
           tables: vec![],
         },
         TableAssociationWrapper {
-          association: TableAssociation::new("id", "id_b"),
-          guide: TableParams::new(ts + 2),
+          association: TableAssociation::new("id", false, false, "id_b"),
+          guide: TableParams::from_ts(ts + 2),
           tables: vec![],
         },
       ),
-      (TableField::new("name"),),
+      (TableField::new("id"), TableField::new("name")),
     )
   }
 
-  fn update_all_table_fields(entity: &'entity Self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
-
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
+  fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
 
     table.associations_mut().0.tables.clear();
-    for a in entity.r#as.iter() {
-      let mut elem = TableParams::new(table.table_suffix() + 1);
+    for a in self.r#as.iter() {
+      let mut elem = TableParams::from_ts(table.table_suffix() + 1);
       elem.update_all_table_fields(a);
+      table.associations_mut().0.guide.update_all_table_fields(a);
       table.associations_mut().0.tables.push(elem);
     }
 
     table.associations_mut().1.tables.clear();
-    for b in entity.bs.iter() {
-      let mut elem = TableParams::new(table.table_suffix() + 2);
+    for b in self.bs.iter() {
+      let mut elem = TableParams::from_ts(table.table_suffix() + 2);
       elem.update_all_table_fields(b);
+      table.associations_mut().1.guide.update_all_table_fields(b);
       table.associations_mut().1.tables.push(elem);
     }
   }
@@ -122,13 +116,13 @@ impl<'entity> Table<'entity> for C {
 #[cfg(target_pointer_width = "64")]
 #[test]
 fn assert_sizes() {
-  assert_eq!(mem::size_of::<TableParams<'_, A>>(), 64);
-  assert_eq!(mem::size_of::<TableParams<'_, B>>(), 64);
-  assert_eq!(mem::size_of::<TableParams<'_, C>>(), 304);
+  assert_eq!(size_of::<TableParams<'_, A>>(), 64);
+  assert_eq!(size_of::<TableParams<'_, B>>(), 64);
+  assert_eq!(size_of::<TableParams<'_, C>>(), 320);
 }
 
-#[test]
-fn update_some_values_has_correct_behavior() {
+#[tokio::test]
+async fn update_some_values_has_correct_behavior() {
   let a1 = A { id: 1, name: "foo1" };
   let a2 = A { id: 2, name: "foo2" };
   let c3 = C { r#as: vec![a1, a2], bs: vec![], id: 3, name: "foo3" };
@@ -136,18 +130,19 @@ fn update_some_values_has_correct_behavior() {
   let mut buffer = String::new();
   let mut c_table_defs = TableParams::<C>::default();
 
-  *c_table_defs.id_field_mut().value_mut() = Some((&c3.id).into());
+  *c_table_defs.fields_mut().0.value_mut() = Some((&c3.id).into());
 
-  let mut elem = TableParams::new(0);
-  *elem.id_field_mut().value_mut() = Some((&c3.r#as[0].id).into());
+  let mut elem = TableParams::<A>::from_ts(0);
+
+  *elem.fields_mut().0.value_mut() = Some((&c3.r#as[0].id).into());
   c_table_defs.associations_mut().0.tables.push(elem);
 
-  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
+  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(&buffer, r#"UPDATE c SET id='3' WHERE id='3';UPDATE a SET id='1' WHERE id='1';"#);
 }
 
-#[test]
-fn write_collection_has_correct_params() {
+#[tokio::test]
+async fn write_collection_has_correct_params() {
   let a1 = A { id: 1, name: "foo1" };
   let a2 = A { id: 2, name: "foo2" };
   let c3 = C { r#as: vec![a1, a2], bs: vec![], id: 3, name: "foo3" };
@@ -155,10 +150,13 @@ fn write_collection_has_correct_params() {
   let mut buffer = String::new();
   let mut c_table_defs = TableParams::<C>::default();
 
-  c_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
+  c_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(&buffer, r#""#);
 
-  c_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
+  c_table_defs
+    .write_insert(&mut AuxNodes::default(), &mut buffer, &mut (), (false, None))
+    .await
+    .unwrap();
   assert_eq!(&buffer, r#""#);
 
   buffer.clear();
@@ -171,23 +169,26 @@ fn write_collection_has_correct_params() {
   );
 
   buffer.clear();
-  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
+  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(&buffer, r#""#);
 
   c_table_defs.update_all_table_fields(&c3);
 
   buffer.clear();
-  c_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer).unwrap();
+  c_table_defs.write_delete(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(
     &buffer,
     r#"DELETE FROM a WHERE id='1';DELETE FROM a WHERE id='2';DELETE FROM c WHERE id='3';"#
   );
 
   buffer.clear();
-  c_table_defs.write_insert(&mut AuxNodes::default(), &mut buffer, &mut None).unwrap();
+  c_table_defs
+    .write_insert(&mut AuxNodes::default(), &mut buffer, &mut (), (false, None))
+    .await
+    .unwrap();
   assert_eq!(
     &buffer,
-    r#"INSERT INTO "c" (id,name) VALUES ($1,$2);INSERT INTO "a" (id,name,id_a) VALUES ($1,$2,$3);INSERT INTO "a" (id,name,id_a) VALUES ($1,$2,$3);"#
+    r#"INSERT INTO "c" (id,name) VALUES ($1,$2);INSERT INTO "a" (id,name,id_a) VALUES ($1,$2,2);INSERT INTO "a" (id,name,id_a) VALUES ($1,$2,2);"#
   );
 
   buffer.clear();
@@ -200,7 +201,7 @@ fn write_collection_has_correct_params() {
   );
 
   buffer.clear();
-  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer).unwrap();
+  c_table_defs.write_update(&mut AuxNodes::default(), &mut buffer, &mut ()).await.unwrap();
   assert_eq!(
     &buffer,
     r#"UPDATE c SET id='3',name='foo3' WHERE id='3';UPDATE a SET id='1',name='foo1' WHERE id='1';UPDATE a SET id='2',name='foo2' WHERE id='2';"#

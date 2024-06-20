@@ -186,6 +186,7 @@ where
 impl FrameBufferVec {
   /// Creates a new instance with pre-allocated bytes.
   #[inline]
+  #[must_use]
   pub fn with_capacity(n: usize) -> Self {
     Self { header_begin_idx: 0, header_end_idx: 0, payload_end_idx: 0, buffer: vec![0; n] }
   }

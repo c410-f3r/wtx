@@ -1,11 +1,11 @@
 use crate::misc::IncompleteUtf8Char;
 
-/// Extended error built upon [StdUtf8Error].
+/// Extended error built upon [`StdUtf8Error`].
 #[derive(Debug)]
 pub enum ExtUtf8Error {
   /// More bytes are needed to validate the string.
   Incomplete {
-    /// See [IncompleteUtf8Char].
+    /// See [`IncompleteUtf8Char`].
     incomplete_ending_char: IncompleteUtf8Char,
   },
   /// It is impossible to validate the string
