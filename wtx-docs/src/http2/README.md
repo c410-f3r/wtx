@@ -3,17 +3,19 @@
 Provides low and high level abstractions to interact with clients and servers.
 
 ```rust,edition2021
-use std::net::ToSocketAddrs;
-use tokio::net::TcpStream;
+extern crate tokio;
+extern crate wtx;
+
 use wtx::{
   http::{Method, RequestStr},
-  http2::{ErrorCode, Http2Buffer, Http2Params, Http2Tokio, ReqResBuffer},
+  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio, StreamBuffer},
   misc::{from_utf8_basic, UriRef},
   rng::StaticRng,
 };
+use std::net::ToSocketAddrs;
+use tokio::net::TcpStream;
 
-#[tokio::main]
-async fn main() {
+async fn client() {
   let uri = UriRef::new("127.0.0.1:9000");
   let mut http2 = Http2Tokio::connect(
     Http2Buffer::new(StaticRng::default()),
@@ -22,17 +24,14 @@ async fn main() {
   )
   .await
   .unwrap();
+  let mut sb = StreamBuffer::default();
   let mut stream = http2.stream().await.unwrap();
   stream
-    .send_req(RequestStr::http2(b"Hello!", Method::Get, uri))
+    .send_req(&mut sb.hpack_enc_buffer, RequestStr::http2(b"Hello!", Method::Get, uri))
     .await
-    .unwrap()
-    .resource()
     .unwrap();
-  let mut rrb = ReqResBuffer::default();
-  let res = stream.recv_res(&mut rrb).await.unwrap().resource().unwrap();
-  println!("{}", from_utf8_basic(res.body()).unwrap());
-  http2.send_go_away(ErrorCode::NoError).await.unwrap();
+  let res = stream.recv_res(sb).await.unwrap();
+  println!("{}", from_utf8_basic(&res.0.rrb.body).unwrap());
+  http2.send_go_away(Http2ErrorCode::NoError).await;
 }
-
 ```

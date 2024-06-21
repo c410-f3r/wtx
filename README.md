@@ -32,6 +32,8 @@ Since memory are usually held at the instance level instead of being created and
 
 Checkout [wtx-bench](https://c410-f3r.github.io/wtx-bench/) to see a variety of benchmarks or feel free to point any misunderstandings or misconfigurations.
 
+![WebSocket Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
+
 There are mainly 2 things that impact performance, the chosen runtime and the number of pre-allocated bytes. Specially for servers that have to create a new instance for each handshake, pre-allocating a high number of bytes for short-lived or low-transfer connections can have a negative impact.
 
 ![PostgreSQL Benchmark](https://i.imgur.com/vf2tYxY.jpg)

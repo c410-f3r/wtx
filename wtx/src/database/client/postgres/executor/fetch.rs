@@ -16,14 +16,14 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn write_send_await_fetch_with_stmt<'rec, SC, RV>(
+  pub(crate) async fn write_send_await_fetch_with_stmt<'any, SC, RV>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
-    nb: &'rec mut PartitionedFilledBuffer,
+    nb: &'any mut PartitionedFilledBuffer,
     rv: RV,
     sc: SC,
-    stmts: &'rec mut Statements,
-    vb: &'rec mut Vec<(bool, Range<usize>)>,
-  ) -> Result<Record<'rec, E>, E>
+    stmts: &'any mut Statements,
+    vb: &'any mut Vec<(bool, Range<usize>)>,
+  ) -> Result<Record<'any, E>, E>
   where
     E: From<crate::Error>,
     RV: RecordValues<Postgres<E>>,
@@ -33,14 +33,14 @@ where
     Self::write_send_await_fetch_with_stmt_wo_prot(fwsc, nb, rv, stmt, &stmt_id_str, vb).await
   }
 
-  pub(crate) async fn write_send_await_fetch_with_stmt_wo_prot<'rec, RV>(
+  pub(crate) async fn write_send_await_fetch_with_stmt_wo_prot<'any, RV>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
-    nb: &'rec mut PartitionedFilledBuffer,
+    nb: &'any mut PartitionedFilledBuffer,
     rv: RV,
-    stmt: Statement<'rec>,
+    stmt: Statement<'any>,
     stmt_id_str: &str,
-    vb: &'rec mut Vec<(bool, Range<usize>)>,
-  ) -> Result<Record<'rec, E>, E>
+    vb: &'any mut Vec<(bool, Range<usize>)>,
+  ) -> Result<Record<'any, E>, E>
   where
     E: From<crate::Error>,
     RV: RecordValues<Postgres<E>>,

@@ -3,44 +3,44 @@ use alloc::{boxed::Box, string::String};
 
 /// An element that can be represented from one or more database row, in other words, tables
 /// with relationships.
-pub trait FromRecords<D>: Sized
+pub trait FromRecords<'exec, D>: Sized
 where
   D: Database,
 {
   /// Constructs a single instance based on an arbitrary number of rows.
   fn from_records(
     buffer_cmd: &mut String,
-    curr_record: &D::Record<'_>,
-    records: &D::Records<'_>,
+    curr_record: &D::Record<'exec>,
+    records: &D::Records<'exec>,
     table_suffix: TableSuffix,
   ) -> Result<(usize, Self), D::Error>;
 }
 
-impl<D> FromRecords<D> for ()
+impl<'exec, D> FromRecords<'exec, D> for ()
 where
   D: Database,
 {
   #[inline]
   fn from_records(
     _: &mut String,
-    _: &D::Record<'_>,
-    _: &D::Records<'_>,
+    _: &D::Record<'exec>,
+    _: &D::Records<'exec>,
     _: TableSuffix,
   ) -> Result<(usize, Self), D::Error> {
     Ok((0, ()))
   }
 }
 
-impl<D, T> FromRecords<D> for Box<T>
+impl<'exec, D, T> FromRecords<'exec, D> for Box<T>
 where
   D: Database,
-  T: FromRecords<D>,
+  T: FromRecords<'exec, D>,
 {
   #[inline]
   fn from_records(
     buffer_cmd: &mut String,
-    curr_record: &D::Record<'_>,
-    records: &D::Records<'_>,
+    curr_record: &D::Record<'exec>,
+    records: &D::Records<'exec>,
     table_suffix: TableSuffix,
   ) -> Result<(usize, Self), D::Error> {
     let (n, this) = T::from_records(buffer_cmd, curr_record, records, table_suffix)?;

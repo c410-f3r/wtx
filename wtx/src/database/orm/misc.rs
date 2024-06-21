@@ -8,18 +8,18 @@ use core::fmt::Write;
 /// Seeks all rows that equals `T`'s primary key and suffix. Can be `T` itself or any other
 /// associated/related entity.
 #[inline]
-pub fn seek_related_entities<'entity, D, T>(
+pub fn seek_related_entities<'entity, 'exec, D, T>(
   buffer_cmd: &mut String,
   curr_record_idx: usize,
-  records: &D::Records<'_>,
+  records: &D::Records<'exec>,
   ts: TableSuffix,
   ts_related: TableSuffix,
   mut cb: impl FnMut(T) -> Result<(), D::Error>,
 ) -> Result<usize, D::Error>
 where
   D: Database,
-  T: FromRecords<D> + Table<'entity, Database = D>,
-  str: for<'rec> ValueIdent<D::Record<'rec>>,
+  T: FromRecords<'exec, D> + Table<'entity, Database = D>,
+  str: ValueIdent<D::Record<'exec>>,
   u64: for<'value> Decode<'value, D>,
 {
   let first_record = if let Some(elem) = records.get(curr_record_idx) {

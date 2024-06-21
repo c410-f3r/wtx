@@ -23,7 +23,10 @@ jobs:
           echo `pwd`/mdbook >> $GITHUB_PATH
       - name: Test and Build Book
         run: |
-          cd wtx-docs && mdbook test && mdbook build
+          rustup default nightly-2024-06-08
+          cargo clean --target-dir mdbook-target
+          cargo build --all-features --target-dir mdbook-target
+          mdbook test -L mdbook-target/debug/deps wtx-docs && mdbook build wtx-docs
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

@@ -5,27 +5,32 @@ A very rudimentary ORM that currently supports very few operations that are not 
 Activation feature is called `orm`.
 
 ```rust,edition2021
-use wtx::database::{
-  orm::{Crud, FromSuffixRslt, NoTableAssociation, Table, TableField, TableParams},
-  Database, FromRecords, Record, TableSuffix,
+extern crate wtx;
+
+use wtx::{
+  database::{
+    client::postgres::{Postgres, Record, Records},
+    orm::{Crud, FromSuffixRslt, NoTableAssociation, Table, TableField, TableParams},
+    FromRecords, Record as _, TableSuffix,
+  },
+  misc::AsyncBounds,
 };
 
-struct User<'conn> {
+type Db = Postgres<wtx::Error>;
+
+struct User<'entity> {
   id: u32,
-  name: &'conn str,
-  password: &'conn str,
+  name: &'entity str,
+  password: &'entity str,
 }
 
-impl<'conn> FromRecords for User<'conn> {
-  type Database = ();
-  type Error = wtx::Error;
-
+impl<'any> FromRecords<'any, Db> for User<'any> {
   fn from_records(
     _: &mut String,
-    curr_record: &<Self::Database as Database>::Record<'_>,
-    _: &<Self::Database as Database>::Records<'_>,
+    curr_record: &Record<'any, wtx::Error>,
+    _: &Records<'any, wtx::Error>,
     _: TableSuffix,
-  ) -> Result<(usize, Self), Self::Error> {
+  ) -> Result<(usize, Self), wtx::Error> {
     let id = curr_record.decode(0)?;
     let name = curr_record.decode(1)?;
     let password = curr_record.decode(2)?;
@@ -33,32 +38,39 @@ impl<'conn> FromRecords for User<'conn> {
   }
 }
 
-impl<'conn, 'entity> Table<'entity> for User<'conn> {
-  const PRIMARY_KEY_NAME: &'static str = "id";
+impl<'entity> Table<'entity> for User<'entity> {
   const TABLE_NAME: &'static str = "user";
 
   type Associations = NoTableAssociation<wtx::Error>;
-  type Error = wtx::Error;
-  type Fields = (TableField<&'conn str>, TableField<&'conn str>);
-  type PrimaryKeyValue = &'entity u32;
+  type Database = Db;
+  type Fields = (TableField<&'entity u32>, TableField<&'entity str>, TableField<&'entity str>);
 
   fn type_instances(_: TableSuffix) -> FromSuffixRslt<'entity, Self> {
-    (NoTableAssociation::new(), (TableField::new("name"), TableField::new("password")))
+    (
+      NoTableAssociation::new(),
+      (TableField::new("id"), TableField::new("name"), TableField::new("password")),
+    )
   }
 
   fn update_all_table_fields(&'entity self, table: &mut TableParams<'entity, Self>) {
-    *table.id_field_mut().value_mut() = Some((&entity.id).into());
-    *table.fields_mut().0.value_mut() = Some((entity.name).into());
-    *table.fields_mut().1.value_mut() = Some((entity.password).into());
+    *table.fields_mut().0.value_mut() = Some(&self.id);
+    *table.fields_mut().1.value_mut() = Some(self.name);
+    *table.fields_mut().2.value_mut() = Some(self.password);
   }
 }
 
-async fn all_users<'conn>(
-  crud: &'conn mut impl Crud<Database = ()>,
-) -> wtx::Result<Vec<User<'conn>>> {
+async fn all_users<C>(crud: &mut C) -> wtx::Result<Vec<User<'_>>>
+where
+  C: AsyncBounds + Crud<Database = Db>,
+{
   let mut buffer = String::new();
   let mut results = Vec::new();
-  crud.read_all::<User<'conn>>(&mut buffer, &mut results, &TableParams::default()).await?;
+  crud
+    .read_all(&mut buffer, &TableParams::default(), |result| {
+      results.push(result);
+      Ok(())
+    })
+    .await?;
   Ok(results)
 }
 ```
