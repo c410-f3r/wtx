@@ -100,3 +100,10 @@ cargo check --example database-client-postgres-tokio-rustls --features "_tokio-r
 cargo check --example http2-server-tokio --features "async-send,http2,pool,tokio"
 cargo check --example web-socket-client-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
 cargo check --example web-socket-server-raw-tokio-rustls --features "_tokio-rustls-server,web-socket-handshake"
+
+# WTX Docs
+
+rustup default nightly-2024-06-08
+cargo clean --target-dir mdbook-target
+cargo build --all-features --target-dir mdbook-target
+mdbook test -L mdbook-target/debug/deps wtx-docs

@@ -50,15 +50,15 @@ pub trait Database {
   const TY: DatabaseTy;
 
   /// Contains the data used to decode types.
-  type DecodeValue<'dv>;
+  type DecodeValue<'exec>;
   /// Contains the data used to decode types.
   type EncodeValue<'ev>;
   /// See [`crate::Error`].
   type Error: From<crate::Error>;
   /// See [Record].
-  type Record<'rec>: Record<Database = Self>;
+  type Record<'exec>: Record<'exec, Database = Self>;
   /// See [Records].
-  type Records<'recs>: Records<Database = Self>;
+  type Records<'exec>: Records<'exec, Database = Self>;
 }
 
 impl Database for () {
@@ -66,9 +66,9 @@ impl Database for () {
   const IS_BIND_INCREASING: bool = true;
   const TY: DatabaseTy = DatabaseTy::Unit;
 
-  type DecodeValue<'dv> = ();
+  type DecodeValue<'exec> = ();
   type EncodeValue<'ev> = ();
   type Error = crate::Error;
-  type Record<'rec> = ();
-  type Records<'recs> = ();
+  type Record<'exec> = ();
+  type Records<'exec> = ();
 }

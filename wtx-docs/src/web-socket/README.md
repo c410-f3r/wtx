@@ -7,6 +7,8 @@ Activation feature is called `web-socket`.
 ![WebSocket Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
 
 ```rust,edition2021
+extern crate wtx;
+
 use wtx::{
   misc::Stream,
   rng::Rng,

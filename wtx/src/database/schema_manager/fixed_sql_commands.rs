@@ -127,7 +127,7 @@ pub(crate) async fn _migrations_by_mg_version_query<E, D>(
 where
   D: Database<Error = crate::Error>,
   E: AsyncBounds + Executor<Database = D>,
-  DbMigration: for<'rec> FromRecord<E::Database>,
+  DbMigration: FromRecord<E::Database>,
 {
   buffer_cmd.write_fmt(format_args!(
     "SELECT \

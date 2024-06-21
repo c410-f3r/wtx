@@ -8,15 +8,20 @@ Activation feature is called `postgres`.
 ![PostgreSQL Benchmark](https://i.imgur.com/vf2tYxY.jpg)
 
 ```rust,edition2021
+extern crate wtx;
+
 use wtx::{
   database::{client::postgres::{Executor, ExecutorBuffer}, Executor as _, Record, Records},
   misc::{LeaseMut, Stream},
 };
 
-async fn query_foo(
-  executor: &mut Executor<impl LeaseMut<ExecutorBuffer>, impl Stream>,
-) -> wtx::Result<(u32, String)> {
-  let record = executor.fetch_with_stmt::<wtx::Error, _, _>(
+async fn query_foo<S>(
+  executor: &mut Executor<wtx::Error, ExecutorBuffer, S>,
+) -> wtx::Result<(u32, String)>
+where
+  S: Stream
+{
+  let record = executor.fetch_with_stmt(
     "SELECT bar,baz FROM foo WHERE bar = $1 AND baz = $2",
     (1u32, "2")
   ).await?;

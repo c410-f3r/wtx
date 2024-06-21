@@ -63,6 +63,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: mdbook
+          use-tool-cache: true
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt

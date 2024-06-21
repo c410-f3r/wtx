@@ -4,29 +4,26 @@ use crate::{
 };
 
 /// A collection of values.
-pub trait Record {
+pub trait Record<'exec>: Sized {
   /// See [Database].
   type Database: Database;
 
   /// Tries to retrieve and decode a value.
   #[inline]
-  fn decode<'this, CI, D>(&'this self, ci: CI) -> Result<D, <Self::Database as Database>::Error>
+  fn decode<CI, D>(&self, ci: CI) -> Result<D, <Self::Database as Database>::Error>
   where
-    CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
-    D: Decode<'this, Self::Database>,
+    CI: ValueIdent<Self>,
+    D: Decode<'exec, Self::Database>,
   {
     D::decode(&self.value(ci).ok_or(_unlikely_elem(crate::Error::PG_MissingFieldDataInDecoding))?)
   }
 
   /// Tries to retrieve and decode an optional value.
   #[inline]
-  fn decode_opt<'this, CI, D>(
-    &'this self,
-    ci: CI,
-  ) -> Result<Option<D>, <Self::Database as Database>::Error>
+  fn decode_opt<CI, D>(&self, ci: CI) -> Result<Option<D>, <Self::Database as Database>::Error>
   where
-    CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
-    D: Decode<'this, Self::Database>,
+    CI: ValueIdent<Self>,
+    D: Decode<'exec, Self::Database>,
   {
     match self.value(ci) {
       Some(elem) => Ok(Some(D::decode(&elem)?)),
@@ -38,15 +35,12 @@ pub trait Record {
   fn len(&self) -> usize;
 
   /// Tries to retrieve a value.
-  fn value<'this, CI>(
-    &'this self,
-    ci: CI,
-  ) -> Option<<Self::Database as Database>::DecodeValue<'this>>
+  fn value<CI>(&self, ci: CI) -> Option<<Self::Database as Database>::DecodeValue<'exec>>
   where
-    CI: ValueIdent<<Self::Database as Database>::Record<'this>>;
+    CI: ValueIdent<Self>;
 }
 
-impl Record for () {
+impl<'exec> Record<'exec> for () {
   type Database = ();
 
   #[inline]
@@ -60,7 +54,7 @@ impl Record for () {
     _: CI,
   ) -> Option<<Self::Database as Database>::DecodeValue<'this>>
   where
-    CI: ValueIdent<<Self::Database as Database>::Record<'this>>,
+    CI: ValueIdent<Self>,
   {
     None
   }

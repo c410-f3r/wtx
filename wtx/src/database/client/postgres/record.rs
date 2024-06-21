@@ -80,7 +80,7 @@ impl<'exec, E> Record<'exec, E> {
   }
 }
 
-impl<'exec, E> crate::database::Record for Record<'exec, E>
+impl<'exec, E> crate::database::Record<'exec> for Record<'exec, E>
 where
   E: From<crate::Error>,
 {
@@ -92,12 +92,9 @@ where
   }
 
   #[inline]
-  fn value<'this, CI>(
-    &'this self,
-    ci: CI,
-  ) -> Option<<Self::Database as Database>::DecodeValue<'this>>
+  fn value<CI>(&self, ci: CI) -> Option<<Self::Database as Database>::DecodeValue<'exec>>
   where
-    CI: ValueIdent<Record<'this, E>>,
+    CI: ValueIdent<Self>,
   {
     let idx = ci.idx(self)?;
     let (is_null, range) = match self.values_bytes_offsets.get(idx) {

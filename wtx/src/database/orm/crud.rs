@@ -60,16 +60,16 @@ where
   }
 
   /// Fetches all entities from the database.
-  fn read_all<'entity, T>(
-    &mut self,
+  fn read_all<'entity, 'exec, T>(
+    &'exec mut self,
     buffer_cmd: &mut String,
     tp: &TableParams<'entity, T>,
     cb: impl AsyncBounds + FnMut(T) -> Result<(), <Self::Database as Database>::Error>,
   ) -> impl AsyncBounds + Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
-    T: FromRecords<Self::Database> + Table<'entity, Database = Self::Database>,
+    T: FromRecords<'exec, Self::Database> + Table<'entity, Database = Self::Database>,
     T::Associations: SqlWriter<T::Database>,
-    str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
+    str: ValueIdent<<Self::Database as Database>::Record<'exec>>,
     u64: for<'value> Decode<'value, Self::Database>,
     for<'any> &'any mut Self: AsyncBounds,
     for<'any> &'any TableParams<'entity, T>: AsyncBounds,
@@ -84,8 +84,8 @@ where
   }
 
   /// Similar to `read_all` but expects more fine grained parameters.
-  fn read_all_with_params<'entity, T>(
-    &mut self,
+  fn read_all_with_params<'entity, 'exec, T>(
+    &'exec mut self,
     buffer_cmd: &mut String,
     order_by: SelectOrderBy,
     select_limit: SelectLimit,
@@ -94,9 +94,9 @@ where
     cb: impl AsyncBounds + FnMut(T) -> Result<(), <Self::Database as Database>::Error>,
   ) -> impl AsyncBounds + Future<Output = Result<(), <Self::Database as Database>::Error>>
   where
-    T: FromRecords<Self::Database> + Table<'entity, Database = Self::Database>,
+    T: FromRecords<'exec, Self::Database> + Table<'entity, Database = Self::Database>,
     T::Associations: SqlWriter<T::Database>,
-    str: for<'rec> ValueIdent<<Self::Database as Database>::Record<'rec>>,
+    str: ValueIdent<<Self::Database as Database>::Record<'exec>>,
     u64: for<'value> Decode<'value, Self::Database>,
     for<'any> &'any mut Self: AsyncBounds,
     for<'any> &'any TableParams<'entity, T>: AsyncBounds,
@@ -114,14 +114,14 @@ where
   }
 
   /// Fetches a single entity identified by `id`.
-  fn read_by_id<'entity, T>(
-    &mut self,
+  fn read_by_id<'entity, 'exec, T>(
+    &'exec mut self,
     buffer_cmd: &mut String,
     id: <T::Fields as TableFields<T::Database>>::IdValue,
     tp: &TableParams<'entity, T>,
   ) -> impl AsyncBounds + Future<Output = Result<T, <Self::Database as Database>::Error>>
   where
-    T: FromRecords<Self::Database> + Table<'entity, Database = Self::Database>,
+    T: FromRecords<'exec, Self::Database> + Table<'entity, Database = Self::Database>,
     T::Associations: SqlWriter<T::Database>,
     <T::Fields as TableFields<T::Database>>::IdValue: AsyncBounds,
     for<'any> &'any mut Self: AsyncBounds,
@@ -181,16 +181,16 @@ impl<T> Crud for T where T: Executor {}
 ///
 /// One entity can constructed by more than one row.
 #[inline]
-fn collect_entities_tables<'entity, D, T>(
+fn collect_entities_tables<'entity, 'exec, D, T>(
   buffer_cmd: &mut String,
-  records: &D::Records<'_>,
+  records: &D::Records<'exec>,
   tp: &TableParams<'entity, T>,
   mut cb: impl FnMut(T) -> Result<(), D::Error>,
 ) -> Result<(), D::Error>
 where
   D: Database,
-  T: FromRecords<D> + Table<'entity, Database = D>,
-  str: for<'rec> ValueIdent<D::Record<'rec>>,
+  T: FromRecords<'exec, D> + Table<'entity, Database = D>,
+  str: ValueIdent<D::Record<'exec>>,
   u64: for<'value> Decode<'value, D>,
 {
   let mut curr_record_idx: usize = 0;

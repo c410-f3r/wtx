@@ -13,14 +13,14 @@ pub struct Records<'exec, E> {
   pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
-impl<'exec, E> crate::database::Records for Records<'exec, E>
+impl<'exec, E> crate::database::Records<'exec> for Records<'exec, E>
 where
   E: From<crate::Error>,
 {
   type Database = Postgres<E>;
 
   #[inline]
-  fn get(&self, record_idx: usize) -> Option<Record<'_, E>> {
+  fn get(&self, record_idx: usize) -> Option<Record<'exec, E>> {
     let slice = self.records_values_offsets.get(..record_idx.wrapping_add(1))?;
     let (record_bytes_range, record_values_bytes_offsets) = match slice {
       [] => return None,
@@ -49,7 +49,7 @@ where
   }
 
   #[inline]
-  fn iter(&self) -> impl Iterator<Item = Record<'_, E>> {
+  fn iter(&self) -> impl Iterator<Item = Record<'exec, E>> {
     (0..self.len()).filter_map(|idx| self.get(idx))
   }
 

@@ -1,5 +1,10 @@
 use alloc::{rc::Rc, sync::Arc};
-use core::{future::Future, ops::DerefMut};
+use core::{
+  cell::{RefCell, RefMut},
+  future::{poll_fn, Future},
+  ops::DerefMut,
+  task::Poll,
+};
 
 /// An asynchronous mutual exclusion primitive useful for protecting shared data.
 pub trait Lock {
@@ -35,6 +40,31 @@ where
   #[inline]
   async fn lock(&self) -> Self::Guard<'_> {
     (**self).lock().await
+  }
+}
+
+impl<T> Lock for RefCell<T> {
+  type Guard<'guard> = RefMut<'guard, T>
+  where
+    Self: 'guard;
+  type Resource = T;
+
+  #[inline]
+  fn new(resource: T) -> Self {
+    RefCell::new(resource)
+  }
+
+  #[inline]
+  fn lock(&self) -> impl Future<Output = Self::Guard<'_>> {
+    poll_fn(
+      |_| {
+        if let Ok(elem) = self.try_borrow_mut() {
+          Poll::Ready(elem)
+        } else {
+          Poll::Pending
+        }
+      },
+    )
   }
 }
 

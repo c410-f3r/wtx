@@ -52,11 +52,11 @@ where
   const IS_BIND_INCREASING: bool = true;
   const TY: DatabaseTy = DatabaseTy::Postgres;
 
-  type DecodeValue<'dv> = DecodeValue<'dv>;
+  type DecodeValue<'exec> = DecodeValue<'exec>;
   type EncodeValue<'ev> = Ty;
   type Error = E;
-  type Record<'rec> = Record<'rec, E>;
-  type Records<'recs> = Records<'recs, E>;
+  type Record<'exec> = Record<'exec, E>;
+  type Records<'exec> = Records<'exec, E>;
 }
 
 impl<E> Default for Postgres<E> {
