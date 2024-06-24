@@ -66,7 +66,7 @@ may = { default-features = false, optional = true, version = "0.3" }
 memchr = { default-features = false, optional = true, version = "2.7" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
-proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
+proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.5" }
 protobuf = { default-features = false, optional = true, version = "3.4" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 ring = { default-features = false, optional = true, version = "0.17" }
