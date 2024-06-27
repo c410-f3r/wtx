@@ -139,13 +139,13 @@ where
         b.write_fmt(format_args!(" = {id}")).map_err(From::from)?;
         Ok(())
       })?;
-      let record = self.fetch_with_stmt(buffer_cmd.as_str(), ()).await?;
+      let records = self.fetch_many_with_stmt(buffer_cmd.as_str(), (), |_| Ok(())).await?;
       buffer_cmd.clear();
       Ok(
         T::from_records(
           buffer_cmd,
-          &record,
-          &<Self::Database as Database>::Records::default(),
+          &records.get(0).ok_or(crate::Error::MISC_NoInnerValue("Empty ID query"))?,
+          &records,
           tp.table_suffix(),
         )?
         .1,

@@ -6,6 +6,7 @@
 **/proptest-regressions
 **/rustc-ice-*.txt
 **/target
+mdbook-target
 wtx-docs/book
 wtx-fuzz/artifacts
 wtx-fuzz/corpus

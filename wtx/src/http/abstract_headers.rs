@@ -46,6 +46,11 @@ where
   }
 
   #[inline]
+  pub(crate) fn get_by_name(&self, name: &[u8]) -> Option<AbstractHeader<'_, M>> {
+    self.iter().find(|el| el.name_bytes == name)
+  }
+
+  #[inline]
   pub(crate) fn iter(&self) -> impl Iterator<Item = AbstractHeader<'_, M>> {
     self.bq.iter().map(|el| Self::map(&el))
   }

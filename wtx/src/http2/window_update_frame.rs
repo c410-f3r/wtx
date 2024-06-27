@@ -1,4 +1,6 @@
-use crate::http2::{misc::protocol_err, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
+use crate::http2::{
+  misc::protocol_err, CommonFlags, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct WindowUpdateFrame {
@@ -8,7 +10,7 @@ pub(crate) struct WindowUpdateFrame {
 
 impl WindowUpdateFrame {
   #[inline]
-  pub(crate) fn new(size_increment: U31, stream_id: U31) -> crate::Result<Self> {
+  pub(crate) const fn new(size_increment: U31, stream_id: U31) -> crate::Result<Self> {
     if size_increment.is_zero() {
       return Err(protocol_err(Http2Error::InvalidWindowUpdateZeroIncrement));
     }
@@ -23,26 +25,26 @@ impl WindowUpdateFrame {
         Some(Http2Error::InvalidWindowUpdateFrameBytes),
       ));
     };
-    let size_increment = u32::from_be_bytes([*a, *b, *c, *d]);
+    let size_increment = U31::from_u32(u32::from_be_bytes([*a, *b, *c, *d]));
     if size_increment > U31::MAX {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
         Some(Http2Error::InvalidWindowUpdateSize),
       ));
     }
-    Self::new(U31::from_u32(size_increment), fi.stream_id)
+    Self::new(size_increment, fi.stream_id)
   }
 
   #[inline]
-  pub(crate) fn bytes(&self) -> [u8; 13] {
+  pub(crate) const fn bytes(&self) -> [u8; 13] {
     let [a, b, c, d, e, f, g, h, i] =
-      FrameInit::new(4, 0, self.stream_id, FrameInitTy::WindowUpdate).bytes();
+      FrameInit::new(CommonFlags::empty(), 4, self.stream_id, FrameInitTy::WindowUpdate).bytes();
     let [j, k, l, m] = self.size_increment.to_be_bytes();
     [a, b, c, d, e, f, g, h, i, j, k, l, m]
   }
 
   #[inline]
-  pub(crate) fn size_increment(&self) -> U31 {
+  pub(crate) const fn size_increment(&self) -> U31 {
     self.size_increment
   }
 }

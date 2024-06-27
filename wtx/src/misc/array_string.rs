@@ -65,8 +65,8 @@ impl<const N: usize> ArrayString<N> {
 
   /// Appends an element to the back of the collection.
   #[inline]
-  pub fn push(&mut self, cf: char) -> Result<(), ArrayStringError> {
-    self.push_bytes(ArrayStringError::PushOverflow, char_slice(&mut [0; 4], cf))
+  pub fn push(&mut self, ch: char) -> Result<(), ArrayStringError> {
+    self.push_bytes(ArrayStringError::PushOverflow, char_slice(&mut [0; 4], ch))
   }
 
   /// Iterates over the slice `other`, copies each element, and then appends

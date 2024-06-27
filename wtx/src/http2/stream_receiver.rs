@@ -6,6 +6,7 @@ use crate::{
 
 #[derive(Debug)]
 pub(crate) struct StreamOverallRecvParams<SB> {
+  pub(crate) content_length_idx: Option<usize>,
   pub(crate) body_len: u32,
   pub(crate) has_initial_header: bool,
   pub(crate) sb: SB,

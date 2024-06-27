@@ -17,6 +17,7 @@ proc-macro = true
 categories = ["asynchronous", "data-structures", "network-programming"]
 description = "Procedural macros for wtx"
 edition = "2021"
+exclude = ["tests"]
 keywords = ["api", "client", "io", "network"]
 license = "MIT"
 name = "wtx-macros"

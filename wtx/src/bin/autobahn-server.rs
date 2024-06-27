@@ -21,6 +21,7 @@ async fn main() {
     Flate2::default,
     |err| eprintln!("Connection error: {err:?}"),
     handle,
+    (|| {}, |_| {}, |_, stream| async move { Ok(stream) }),
   )
   .await
   .unwrap()

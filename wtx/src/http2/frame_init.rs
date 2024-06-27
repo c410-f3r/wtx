@@ -1,4 +1,4 @@
-use crate::http2::U31;
+use crate::http2::{CommonFlags, U31};
 
 create_enum! {
   #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -14,18 +14,34 @@ create_enum! {
   }
 }
 
+impl FrameInitTy {
+  #[inline]
+  pub(crate) const fn byte(&self) -> u8 {
+    match self {
+      Self::Data => 0,
+      Self::Headers => 1,
+      Self::Reset => 3,
+      Self::Settings => 4,
+      Self::Ping => 6,
+      Self::GoAway => 7,
+      Self::WindowUpdate => 8,
+      Self::Continuation => 9,
+    }
+  }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct FrameInit {
+  pub(crate) cf: CommonFlags,
   pub(crate) data_len: u32,
-  pub(crate) flags: u8,
   pub(crate) stream_id: U31,
   pub(crate) ty: FrameInitTy,
 }
 
 impl FrameInit {
   #[inline]
-  pub(crate) const fn new(data_len: u32, flags: u8, stream_id: U31, ty: FrameInitTy) -> Self {
-    Self { data_len, flags, stream_id, ty }
+  pub(crate) const fn new(cf: CommonFlags, data_len: u32, stream_id: U31, ty: FrameInitTy) -> Self {
+    Self { cf, data_len, stream_id, ty }
   }
 
   #[inline]
@@ -35,7 +51,7 @@ impl FrameInit {
     (
       FrameInitTy::try_from(d).ok().map(|ty| Self {
         data_len,
-        flags: e,
+        cf: CommonFlags::new(e),
         stream_id: U31::from_u32(u32::from_be_bytes([f, g, h, i])),
         ty,
       }),
@@ -44,9 +60,9 @@ impl FrameInit {
   }
 
   #[inline]
-  pub(crate) fn bytes(&self) -> [u8; 9] {
+  pub(crate) const fn bytes(&self) -> [u8; 9] {
     let [_, a, b, c] = self.data_len.to_be_bytes();
     let [e, f, g, h] = self.stream_id.to_be_bytes();
-    [a, b, c, self.ty.into(), self.flags, e, f, g, h]
+    [a, b, c, self.ty.byte(), self.cf.byte(), e, f, g, h]
   }
 }

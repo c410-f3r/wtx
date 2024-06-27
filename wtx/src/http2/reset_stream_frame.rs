@@ -1,4 +1,6 @@
-use crate::http2::{misc::protocol_err, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
+use crate::http2::{
+  misc::protocol_err, CommonFlags, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ResetStreamFrame {
@@ -7,10 +9,12 @@ pub(crate) struct ResetStreamFrame {
 }
 
 impl ResetStreamFrame {
-  pub(crate) fn new(error_code: Http2ErrorCode, stream_id: U31) -> Self {
+  #[inline]
+  pub(crate) const fn new(error_code: Http2ErrorCode, stream_id: U31) -> Self {
     Self { error_code, stream_id }
   }
 
+  #[inline]
   pub(crate) fn read(bytes: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_zero() {
       return Err(protocol_err(Http2Error::InvalidResetStreamFrameBytes));
@@ -27,14 +31,16 @@ impl ResetStreamFrame {
     })
   }
 
+  #[inline]
   pub(crate) fn bytes(&self) -> [u8; 13] {
     let [a, b, c, d, e, f, g, h, i] =
-      FrameInit::new(4, 0, self.stream_id, FrameInitTy::Reset).bytes();
+      FrameInit::new(CommonFlags::empty(), 4, self.stream_id, FrameInitTy::Reset).bytes();
     let [j, k, l, m] = u32::from(self.error_code).to_be_bytes();
     [a, b, c, d, e, f, g, h, i, j, k, l, m]
   }
 
-  pub(crate) fn error_code(&self) -> Http2ErrorCode {
+  #[inline]
+  pub(crate) const fn error_code(&self) -> Http2ErrorCode {
     self.error_code
   }
 }

@@ -1,4 +1,6 @@
-use crate::http2::{misc::protocol_err, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
+use crate::http2::{
+  misc::protocol_err, CommonFlags, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct GoAwayFrame {
@@ -8,20 +10,21 @@ pub(crate) struct GoAwayFrame {
 
 impl GoAwayFrame {
   #[inline]
-  pub(crate) fn new(error_code: Http2ErrorCode, last_stream_id: U31) -> Self {
+  pub(crate) const fn new(error_code: Http2ErrorCode, last_stream_id: U31) -> Self {
     Self { error_code, last_stream_id }
   }
 
   #[inline]
   pub(crate) fn bytes(&self) -> [u8; 17] {
-    let [a, b, c, d, e, f, g, h, i] = FrameInit::new(8, 0, U31::ZERO, FrameInitTy::GoAway).bytes();
+    let [a, b, c, d, e, f, g, h, i] =
+      FrameInit::new(CommonFlags::empty(), 8, U31::ZERO, FrameInitTy::GoAway).bytes();
     let [j, k, l, m] = self.last_stream_id.to_be_bytes();
     let [n, o, p, q] = u32::from(self.error_code).to_be_bytes();
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q]
   }
 
   #[inline]
-  pub(crate) fn error_code(&self) -> Http2ErrorCode {
+  pub(crate) const fn error_code(&self) -> Http2ErrorCode {
     self.error_code
   }
 
