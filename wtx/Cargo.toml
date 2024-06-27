@@ -19,14 +19,14 @@ path = "examples/database-client-postgres-tokio-rustls.rs"
 required-features = ["_tokio-rustls-client", "postgres"]
 
 [[example]]
-name = "http2-client-tokio"
-path = "examples/http2-client-tokio.rs"
-required-features = ["http2", "tokio"]
+name = "http2-client-tokio-rustls"
+path = "examples/http2-client-tokio-rustls.rs"
+required-features = ["_tokio-rustls-client", "http2"]
 
 [[example]]
-name = "http2-server-tokio"
-path = "examples/http2-server-tokio.rs"
-required-features = ["async-send", "http2", "pool", "tokio"]
+name = "http2-server-tokio-rustls"
+path = "examples/http2-server-tokio-rustls.rs"
+required-features = ["_tokio-rustls-client", "http2", "pool"]
 
 [[example]]
 name = "web-socket-client-raw-tokio-rustls"
@@ -36,7 +36,7 @@ required-features = ["_tokio-rustls-client", "tokio/io-std", "web-socket-handsha
 [[example]]
 name = "web-socket-server-raw-tokio-rustls"
 path = "examples/web-socket-server-raw-tokio-rustls.rs"
-required-features = ["_tokio-rustls-server", "web-socket-handshake"]
+required-features = ["_tokio-rustls-server", "pool", "web-socket-handshake"]
 
 [dependencies]
 ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
@@ -111,6 +111,7 @@ embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 glommio = ["futures-lite", "dep:glommio", "std"]
 http1 = ["httparse"]
 http2 = ["ahash", "hashbrown", "tokio"]
+may = ["std", "dep:may"]
 miniserde = ["dep:miniserde", "std"]
 optimization = ["atoi", "memchr", "simdutf8"]
 orm = ["database", "dep:smallvec"]
@@ -127,7 +128,7 @@ simd-json = ["serde", "dep:simd-json", "std"]
 smol = ["dep:smol", "std"]
 std = ["ahash?/std", "atoi?/std", "cl-aux?/std", "embassy-sync?/std", "memchr?/std", "miniserde?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
 test-strategy = ["dep:test-strategy", "proptest"]
-tokio = ["std", "dep:tokio"]
+tokio = ["async-send", "std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
 web-socket = []
 web-socket-handshake = ["base64", "http1", "sha1", "web-socket"]
@@ -147,7 +148,7 @@ categories = ["asynchronous", "database", "network-programming", "no-std", "web-
 description = "A collection of different transport implementations and related tools focused primarily on web technologies."
 documentation = "https://docs.rs/wtx"
 edition = "2021"
-exclude = ["Cargo.lock", "examples", "README.md", "src/bin", "tests"]
+exclude = ["examples", "src/bin", "tests"]
 homepage = "https://c410-f3r.github.io/wtx"
 keywords = ["api", "database", "http", "network", "websocket"]
 license = "Apache-2.0"

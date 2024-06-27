@@ -2,6 +2,8 @@
 
 Provides low and high level abstractions to interact with clients and servers.
 
+Activation feature is called `http2`.
+
 ```rust,edition2021
 extern crate tokio;
 extern crate wtx;

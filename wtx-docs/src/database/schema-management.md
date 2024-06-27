@@ -2,7 +2,7 @@
 
 Embedded and CLI workflows using raw SQL commands.
 
-Activation feature is called `sm`.
+Activation feature is called `schema-manager`.
 
 ## CLI
 

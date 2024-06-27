@@ -3,16 +3,16 @@ use crate::{
   http2::{
     misc::{protocol_err, trim_frame_pad},
     uri_buffer::MAX_URI_LEN,
-    FrameInit, FrameInitTy, HpackDecoder, HpackHeaderBasic, HpackStaticRequestHeaders,
-    HpackStaticResponseHeaders, Http2Error, Http2Params, UriBuffer, EOH_MASK, EOS_MASK, U31,
+    CommonFlags, FrameInit, FrameInitTy, HpackDecoder, HpackHeaderBasic, HpackStaticRequestHeaders,
+    HpackStaticResponseHeaders, Http2Error, Http2Params, UriBuffer, U31,
   },
-  misc::{atoi, from_utf8_basic, ArrayString, Usize},
+  misc::{from_utf8_basic, ArrayString, Usize},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.
 #[derive(Debug)]
 pub(crate) struct HeadersFrame<'uri> {
-  flag: u8,
+  cf: CommonFlags,
   hsreqh: HpackStaticRequestHeaders<'uri>,
   hsresh: HpackStaticResponseHeaders,
   is_over_size: bool,
@@ -25,12 +25,17 @@ impl<'uri> HeadersFrame<'uri> {
     (hsreqh, hsresh): (HpackStaticRequestHeaders<'uri>, HpackStaticResponseHeaders),
     stream_id: U31,
   ) -> Self {
-    Self { flag: 0, hsreqh, hsresh, is_over_size: false, stream_id }
+    Self { cf: CommonFlags::empty(), hsreqh, hsresh, is_over_size: false, stream_id }
   }
 
   #[inline]
-  pub(crate) fn bytes(&self) -> [u8; 9] {
-    FrameInit::new(0, self.flag, self.stream_id, FrameInitTy::Headers).bytes()
+  pub(crate) const fn bytes(&self) -> [u8; 9] {
+    FrameInit::new(self.cf, 0, self.stream_id, FrameInitTy::Headers).bytes()
+  }
+
+  #[inline]
+  pub(crate) const fn has_eos(&self) -> bool {
+    self.cf.has_eos()
   }
 
   #[inline]
@@ -44,11 +49,6 @@ impl<'uri> HeadersFrame<'uri> {
   }
 
   #[inline]
-  pub(crate) const fn is_eos(&self) -> bool {
-    self.flag & EOS_MASK == EOS_MASK
-  }
-
-  #[inline]
   pub(crate) const fn is_over_size(&self) -> bool {
     self.is_over_size
   }
@@ -56,21 +56,23 @@ impl<'uri> HeadersFrame<'uri> {
   #[inline]
   pub(crate) fn read<const IS_CLIENT: bool, const IS_TRAILER: bool>(
     mut data: &[u8],
-    fi: FrameInit,
+    mut fi: FrameInit,
     headers: &mut Headers,
     hp: &Http2Params,
     hpack_dec: &mut HpackDecoder,
     uri: &mut ArrayString<MAX_URI_LEN>,
     uri_buffer: &mut UriBuffer,
-  ) -> crate::Result<Self> {
+  ) -> crate::Result<(Option<usize>, Self)> {
     if fi.stream_id.is_zero() {
       return Err(protocol_err(Http2Error::InvalidHeadersFrameZeroId));
     }
 
+    fi.cf.only_eoh_eos_pad();
     uri_buffer.clear();
 
-    let _ = trim_frame_pad(&mut data, fi.flags)?;
+    let _ = trim_frame_pad(fi.cf, &mut data)?;
     let max_headers_len = *Usize::from(hp.max_headers_len());
+    let mut content_length_idx = None;
     let mut expanded_headers_len = 0;
     let mut has_fields = false;
     let mut is_malformed = false;
@@ -108,16 +110,14 @@ impl<'uri> HeadersFrame<'uri> {
           }
           _ => {
             let header_name = HeaderName::http2p(name)?;
-            if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
-              if *Usize::from(fi.data_len) != atoi::<usize>(value)? {
-                return Err(protocol_err(Http2Error::InvalidHeaderData));
-              }
-            }
             has_fields = true;
             let len = decoded_header_size(name.len(), value.len());
             expanded_headers_len = expanded_headers_len.wrapping_add(len);
             is_over_size = expanded_headers_len >= max_headers_len;
             if !is_over_size {
+              if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
+                content_length_idx = Some(headers.elements_len());
+              }
               headers.reserve(name.len().wrapping_add(value.len()), 1);
               headers.push_front(Header {
                 is_sensitive: false,
@@ -226,29 +226,32 @@ impl<'uri> HeadersFrame<'uri> {
       }
     }
 
-    Ok(Self {
-      flag: fi.flags,
-      hsreqh: HpackStaticRequestHeaders {
-        authority: &[],
-        method,
-        path: &[],
-        protocol,
-        scheme: &[],
+    Ok((
+      content_length_idx,
+      Self {
+        cf: fi.cf,
+        hsreqh: HpackStaticRequestHeaders {
+          authority: &[],
+          method,
+          path: &[],
+          protocol,
+          scheme: &[],
+        },
+        hsresh: HpackStaticResponseHeaders { status_code: status },
+        is_over_size,
+        stream_id: fi.stream_id,
       },
-      hsresh: HpackStaticResponseHeaders { status_code: status },
-      is_over_size,
-      stream_id: fi.stream_id,
-    })
+    ))
   }
 
   #[inline]
   pub(crate) fn set_eoh(&mut self) {
-    self.flag |= EOH_MASK;
+    self.cf.set_eoh();
   }
 
   #[inline]
   pub(crate) fn set_eos(&mut self) {
-    self.flag |= EOS_MASK;
+    self.cf.set_eos();
   }
 }
 

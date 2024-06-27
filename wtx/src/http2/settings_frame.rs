@@ -1,6 +1,6 @@
 use crate::{
   http2::{
-    misc::protocol_err, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, ACK_MASK,
+    misc::protocol_err, CommonFlags, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode,
     MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, U31,
   },
   misc::ArrayChunks,
@@ -8,8 +8,8 @@ use crate::{
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct SettingsFrame {
+  cf: CommonFlags,
   enable_connect_protocol: Option<bool>,
-  flags: u8,
   header_table_size: Option<u32>,
   initial_window_size: Option<U31>,
   len: u8,
@@ -19,14 +19,16 @@ pub(crate) struct SettingsFrame {
 }
 
 impl SettingsFrame {
+  #[inline]
   pub(crate) const fn ack() -> Self {
-    SettingsFrame { flags: ACK_MASK, ..SettingsFrame::empty() }
+    SettingsFrame { cf: CommonFlags::ack(), ..SettingsFrame::empty() }
   }
 
+  #[inline]
   pub(crate) const fn empty() -> Self {
     Self {
+      cf: CommonFlags::empty(),
       enable_connect_protocol: None,
-      flags: 0,
       header_table_size: None,
       initial_window_size: None,
       len: 0,
@@ -36,6 +38,7 @@ impl SettingsFrame {
     }
   }
 
+  #[inline]
   pub(crate) fn bytes<'buffer>(&self, buffer: &'buffer mut [u8; 45]) -> &'buffer [u8] {
     macro_rules! copy_bytes {
       ($buffer:expr, $bytes:expr, $idx:expr) => {{
@@ -55,14 +58,14 @@ impl SettingsFrame {
     }
 
     #[inline]
-    fn bytes(ty: u16, value: u32) -> [u8; 6] {
+    const fn bytes(ty: u16, value: u32) -> [u8; 6] {
       let [a, b] = ty.to_be_bytes();
       let [c, d, e, f] = value.to_be_bytes();
       [a, b, c, d, e, f]
     }
 
     {
-      let fi = FrameInit::new(self.len.into(), self.flags, U31::ZERO, FrameInitTy::Settings);
+      let fi = FrameInit::new(self.cf, self.len.into(), U31::ZERO, FrameInitTy::Settings);
       let [a, b, c, d, e, f, g, h, i, ..] = buffer;
       let [j, k, l, m, n, o, p, q, r] = fi.bytes();
       *a = j;
@@ -76,8 +79,8 @@ impl SettingsFrame {
       *i = r;
     }
     let Self {
+      cf: _,
       enable_connect_protocol,
-      flags: _,
       header_table_size,
       initial_window_size,
       len: _,
@@ -95,42 +98,50 @@ impl SettingsFrame {
     buffer.get(..idx).unwrap_or_default()
   }
 
+  #[inline]
   pub(crate) fn enable_connect_protocol(&self) -> Option<bool> {
     self.enable_connect_protocol
   }
 
+  pub(crate) fn has_ack(&self) -> bool {
+    self.cf.has_ack()
+  }
+
+  #[inline]
   pub(crate) fn header_table_size(&self) -> Option<u32> {
     self.header_table_size
   }
 
+  #[inline]
   pub(crate) fn initial_window_size(&self) -> Option<U31> {
     self.initial_window_size
   }
 
-  pub(crate) fn is_ack(&self) -> bool {
-    self.flags == ACK_MASK
-  }
-
+  #[inline]
   pub(crate) fn max_concurrent_streams(&self) -> Option<u32> {
     self.max_concurrent_streams
   }
 
+  #[inline]
   pub(crate) fn max_frame_size(&self) -> Option<u32> {
     self.max_frame_size
   }
 
+  #[inline]
   pub(crate) fn max_header_list_size(&self) -> Option<u32> {
     self.max_header_list_size
   }
 
-  pub(crate) fn read(bytes: &[u8], fi: FrameInit) -> crate::Result<Self> {
+  #[inline]
+  pub(crate) fn read(bytes: &[u8], mut fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
       return Err(protocol_err(Http2Error::InvalidSettingsFrameNonZeroId));
     }
 
-    let mut settings_frame = SettingsFrame { flags: fi.flags & ACK_MASK, ..Self::empty() };
+    fi.cf.only_ack();
+    let mut settings_frame = SettingsFrame { cf: fi.cf, ..Self::empty() };
 
-    if settings_frame.is_ack() {
+    if settings_frame.cf.has_ack() {
       if !bytes.is_empty() {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::FrameSizeError,
@@ -148,8 +159,8 @@ impl SettingsFrame {
     }
 
     let Self {
+      cf: _,
       enable_connect_protocol,
-      flags: _,
       header_table_size,
       initial_window_size,
       len,
@@ -165,10 +176,6 @@ impl SettingsFrame {
       match setting {
         Setting::EnableConnectProtocol(elem) => {
           *enable_connect_protocol = Some(elem);
-        }
-        Setting::EnablePush(0 | 1) => {}
-        Setting::EnablePush(_) => {
-          return Err(protocol_err(Http2Error::UnsupportedServerPush));
         }
         Setting::HeaderTableSize(elem) => {
           *header_table_size = Some(elem);
@@ -265,7 +272,6 @@ impl SettingsFrame {
 #[derive(Debug)]
 enum Setting {
   EnableConnectProtocol(bool),
-  EnablePush(u32),
   HeaderTableSize(u32),
   InitialWindowSize(u32),
   MaxConcurrentStreams(u32),
@@ -279,10 +285,10 @@ impl Setting {
     Setting::from_id((u16::from(*a) << 8) | u16::from(*b), u32::from_be_bytes([*c, *d, *e, *f]))
   }
 
-  pub(crate) fn from_id(id: u16, value: u32) -> crate::Result<Setting> {
+  #[inline]
+  pub(crate) const fn from_id(id: u16, value: u32) -> crate::Result<Setting> {
     Ok(match id {
       1 => Self::HeaderTableSize(value),
-      2 => Self::EnablePush(value),
       3 => Self::MaxConcurrentStreams(value),
       4 => Self::InitialWindowSize(value),
       5 => Self::MaxFrameSize(value),

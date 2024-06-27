@@ -1,21 +1,24 @@
-use crate::http2::{FrameInit, FrameInitTy, EOH_MASK, U31};
+use crate::http2::{CommonFlags, FrameInit, FrameInitTy, U31};
 
 #[derive(Debug)]
 pub(crate) struct ContinuationFrame {
-  flag: u8,
+  cf: CommonFlags,
   stream_id: U31,
 }
 
 impl ContinuationFrame {
-  pub(crate) fn new(stream_id: U31) -> Self {
-    Self { flag: 0, stream_id }
+  #[inline]
+  pub(crate) const fn new(stream_id: U31) -> Self {
+    Self { cf: CommonFlags::empty(), stream_id }
   }
 
-  pub(crate) fn bytes(&self) -> [u8; 9] {
-    FrameInit::new(0, self.flag, self.stream_id, FrameInitTy::Continuation).bytes()
+  #[inline]
+  pub(crate) const fn bytes(&self) -> [u8; 9] {
+    FrameInit::new(self.cf, 0, self.stream_id, FrameInitTy::Continuation).bytes()
   }
 
+  #[inline]
   pub(crate) fn set_eoh(&mut self) {
-    self.flag |= EOH_MASK;
+    self.cf.set_eoh();
   }
 }

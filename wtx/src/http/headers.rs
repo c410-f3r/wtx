@@ -56,6 +56,12 @@ impl Headers {
     self.ab.get_by_idx(idx).map(Self::map)
   }
 
+  /// Returns the header's pair referenced by its name, if any.
+  #[inline]
+  pub fn get_by_name(&self, name: &[u8]) -> Option<Header<'_>> {
+    self.ab.get_by_name(name).map(Self::map)
+  }
+
   /// If this instance has one or more trailer headers.
   #[inline]
   pub fn has_trailers(&self) -> bool {

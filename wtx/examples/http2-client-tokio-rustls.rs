@@ -4,11 +4,10 @@
 mod common;
 
 use std::net::ToSocketAddrs;
-use tokio::net::TcpStream;
 use wtx::{
   http::{Method, RequestStr},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio, StreamBuffer},
-  misc::{from_utf8_basic, UriString},
+  misc::{from_utf8_basic, TokioRustlsConnector, UriString},
   rng::StaticRng,
 };
 
@@ -19,13 +18,17 @@ async fn main() {
   let mut http2 = Http2Tokio::connect(
     Http2Buffer::new(StaticRng::default()),
     Http2Params::default(),
-    TcpStream::connect(uri.host().to_socket_addrs().unwrap().next().unwrap()).await.unwrap(),
+    TokioRustlsConnector::from_webpki_roots()
+      .http2()
+      .with_tcp_stream(uri.host().to_socket_addrs().unwrap().next().unwrap(), uri.hostname())
+      .await
+      .unwrap(),
   )
   .await
   .unwrap();
   let mut stream = http2.stream().await.unwrap();
   stream
-    .send_req(&mut sb.hpack_enc_buffer, RequestStr::http2(b"Hello!", Method::Get, uri.to_ref()))
+    .send_req(&mut sb.hpack_enc_buffer, RequestStr::http2(b"", Method::Get, uri.to_ref()))
     .await
     .unwrap();
   let (res_sb, _status_code) = stream.recv_res(sb).await.unwrap();

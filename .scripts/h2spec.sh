@@ -44,7 +44,15 @@ podman run \
 		http2/6.2 \
 		`#http2/6.3 - Priority is unsupported` \
 		http2/6.4 \
-		http2/6.5 \
+		http2/6.5/1 \
+		http2/6.5/2 \
+		http2/6.5/3 \
+		`#http2/6.5.2/1 - Server push is unsupported` \
+		http2/6.5.2/2 \
+		http2/6.5.2/3 \
+		http2/6.5.2/4 \
+		http2/6.5.2/5 \
+		http2/6.5.3 \
 		http2/6.7 \
 		http2/6.8 \
 		http2/6.9 \

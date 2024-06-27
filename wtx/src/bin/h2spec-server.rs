@@ -21,6 +21,7 @@ async fn main() {
       rslt.rrb.body.reserve(5);
       Ok(rslt)
     },
+    (|| {}, |_| {}, |_, stream| async move { Ok(stream) }),
   )
   .await
   .unwrap()

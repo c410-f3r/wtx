@@ -1,6 +1,6 @@
 use crate::{
   http::server::{OptionedServer, _buffers_len},
-  misc::FnFut,
+  misc::{FnFut, Stream},
   pool::{Pool, SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   rng::StdRng,
   web_socket::{
@@ -9,7 +9,7 @@ use crate::{
   },
 };
 use alloc::vec::Vec;
-use core::{fmt::Debug, net::SocketAddr};
+use core::{fmt::Debug, future::Future, net::SocketAddr};
 use std::sync::OnceLock;
 use tokio::{
   net::{TcpListener, TcpStream},
@@ -19,14 +19,20 @@ use tokio::{
 impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
-  pub async fn tokio_web_socket<C, E, F>(
+  pub async fn tokio_web_socket<A, C, E, F, S, SF>(
     addr: SocketAddr,
     buffers_len_opt: Option<usize>,
-    compression: fn() -> C,
-    conn_err: fn(E),
+    compression: impl Copy + Fn() -> C + Send + 'static,
+    conn_err: impl Copy + Fn(E) + Send + 'static,
     handle: F,
+    (acceptor_cb, local_acceptor_cb, stream_cb): (
+      impl FnOnce() -> A + Send + 'static,
+      impl Copy + Fn(&A) -> A + Send + 'static,
+      impl Copy + Fn(A, TcpStream) -> SF + Send + 'static,
+    ),
   ) -> crate::Result<()>
   where
+    A: Send + 'static,
     C: Compression<false> + Send + 'static,
     C::NegotiatedCompression: Send,
     E: Debug + From<crate::Error> + Send + 'static,
@@ -34,21 +40,27 @@ impl OptionedServer {
       + for<'any> FnFut<
         (
           &'any mut FrameBufferVec,
-          WebSocketServer<C::NegotiatedCompression, StdRng, TcpStream, &'any mut WebSocketBuffer>,
+          WebSocketServer<C::NegotiatedCompression, StdRng, S, &'any mut WebSocketBuffer>,
         ),
         Result<(), E>,
       > + Send
       + 'static,
+    S: Stream,
+    SF: Send + Future<Output = crate::Result<S>>,
     for<'any> &'any F: Send,
   {
     let buffers_len = _buffers_len(buffers_len_opt)?;
     let listener = TcpListener::bind(addr).await?;
+    let acceptor = acceptor_cb();
     loop {
-      let (stream, _) = listener.accept().await?;
+      let (tcp_stream, _) = listener.accept().await?;
+      let local_acceptor = local_acceptor_cb(&acceptor);
+
       let mut conn_buffer_guard = conn_buffer(buffers_len).await?;
       let _jh = tokio::spawn(async move {
         let (fb, wsb) = &mut ***conn_buffer_guard;
         let fun = || async move {
+          let stream = stream_cb(local_acceptor, tcp_stream).await?;
           handle((
             fb,
             WebSocketAcceptRaw { compression: compression(), rng: StdRng::default(), stream, wsb }

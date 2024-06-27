@@ -12,6 +12,7 @@ mod macros;
 
 mod buffers;
 mod client_stream;
+mod common_flags;
 mod continuation_frame;
 mod data_frame;
 mod frame_init;
@@ -50,6 +51,7 @@ use crate::{
 };
 pub use buffers::{Http2Buffer, ReqResBuffer, StreamBuffer};
 pub use client_stream::ClientStream;
+pub(crate) use common_flags::CommonFlags;
 pub(crate) use continuation_frame::ContinuationFrame;
 use core::time::Duration;
 pub(crate) use data_frame::DataFrame;
@@ -89,14 +91,9 @@ pub(crate) const MAX_FRAME_LEN_UPPER_BOUND: u32 = max_frame_len_upper_bound!();
 pub(crate) const MAX_RECV_STREAMS_NUM: u32 = max_recv_streams_num!();
 pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
 
-const ACK_MASK: u8 = 0b0000_0001;
-const EOH_MASK: u8 = 0b0000_0100;
-const EOS_MASK: u8 = 0b0000_0001;
 const MAX_FINAL_DURATION: Duration = Duration::from_millis(300);
 const MAX_FINAL_FETCHES: u8 = 32;
-const PAD_MASK: u8 = 0b0000_1000;
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-const PRIORITY_MASK: u8 = 0b0010_0000;
 
 /// Http2 instance using the mutex from tokio.
 #[cfg(feature = "tokio")]

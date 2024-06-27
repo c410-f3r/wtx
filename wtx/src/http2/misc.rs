@@ -1,11 +1,11 @@
 use crate::{
   http2::{
-    http2_data::Http2DataPartsMut, http2_params_send::Http2ParamsSend, FrameInit, FrameInitTy,
-    GoAwayFrame, HpackEncoder, Http2Buffer, Http2Error, Http2ErrorCode, Http2Params, PingFrame,
-    ResetStreamFrame, Scrp, SettingsFrame, Sorp, StreamBuffer, WindowUpdateFrame, Windows,
-    PAD_MASK, PRIORITY_MASK, U31,
+    http2_data::Http2DataPartsMut, http2_params_send::Http2ParamsSend, CommonFlags, FrameInit,
+    FrameInitTy, GoAwayFrame, HpackEncoder, Http2Buffer, Http2Error, Http2ErrorCode, Http2Params,
+    PingFrame, ResetStreamFrame, Scrp, SettingsFrame, Sorp, StreamBuffer, StreamOverallRecvParams,
+    WindowUpdateFrame, Windows, U31,
   },
-  misc::{LeaseMut, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until},
+  misc::{LeaseMut, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until, atoi},
 };
 use core::pin::pin;
 
@@ -17,6 +17,22 @@ pub(crate) fn apply_initial_params<SB>(
   hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
   hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
   hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()));
+  Ok(())
+}
+
+#[inline]
+pub(crate) fn check_content_length<SB>(
+  headers_idx: usize,
+  sorp: &StreamOverallRecvParams<SB>,
+) -> crate::Result<()>
+where
+  SB: LeaseMut<StreamBuffer>,
+{
+  if let Some(header) = sorp.sb.lease().rrb.headers.get_by_idx(headers_idx) {
+    if sorp.sb.lease().rrb.body.len() != atoi::<usize>(header.value)? {
+      return Err(protocol_err(Http2Error::InvalidHeaderData));
+    }
+  }
   Ok(())
 }
 
@@ -97,9 +113,6 @@ where
       pfb._set_indices(antecedent_len, 0, following_len)?;
       continue;
     };
-    if fi.flags & PRIORITY_MASK == PRIORITY_MASK {
-      return Err(protocol_err(Http2Error::InvalidFramePad));
-    }
     _trace!("Received frame: {fi:?}");
     let mut is_fulfilled = false;
     pfb._expand_following(*Usize::from(data_len));
@@ -152,7 +165,7 @@ where
       }
       FrameInitTy::Ping => {
         let mut pf = PingFrame::read(pfb._current(), fi)?;
-        if !pf.is_ack() {
+        if !pf.has_ack() {
           pf.set_ack();
           write_array([&pf.bytes()], *is_conn_open, stream).await?;
         }
@@ -160,7 +173,7 @@ where
       }
       FrameInitTy::Settings => {
         let sf = SettingsFrame::read(pfb._current(), fi)?;
-        if !sf.is_ack() {
+        if !sf.has_ack() {
           hps.update(hpack_enc, scrp, &sf, sorp, conn_windows)?;
           write_array([SettingsFrame::ack().bytes(&mut [0; 45])], *is_conn_open, stream).await?;
         }
@@ -210,9 +223,9 @@ pub(crate) async fn send_reset_stream<S, SB>(
 }
 
 #[inline]
-pub(crate) fn trim_frame_pad(data: &mut &[u8], flags: u8) -> crate::Result<Option<u8>> {
+pub(crate) fn trim_frame_pad(cf: CommonFlags, data: &mut &[u8]) -> crate::Result<Option<u8>> {
   let mut pad_len = None;
-  if flags & PAD_MASK == PAD_MASK {
+  if cf.has_pad() {
     let [local_pad_len, rest @ ..] = data else {
       return Err(protocol_err(Http2Error::InvalidFramePad));
     };

@@ -3,7 +3,7 @@ use tokio::sync::MutexGuard;
 use crate::{
   http::{Method, ReqResData, Response},
   http2::{
-    misc::{send_go_away, send_reset_stream},
+    misc::{check_content_length, send_go_away, send_reset_stream},
     send_msg::send_msg,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
     StreamBuffer, StreamControlRecvParams, U31,
@@ -48,6 +48,9 @@ where
         let hdpm = guard.parts_mut();
         if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
           if let Some(sorp) = hdpm.hb.sorp.remove(&self.stream_id) {
+            if let Some(idx) = sorp.content_length_idx {
+              check_content_length(idx, &sorp)?;
+            }
             drop(hdpm.hb.scrp.insert(
               self.stream_id,
               StreamControlRecvParams {

@@ -1,14 +1,9 @@
 //! Optioned high-level abstraction for servers. You can use one of listed suggestions or
 //! create your own.
 
-#[cfg(all(feature = "async-send", feature = "http2", feature = "pool", feature = "tokio"))]
+#[cfg(all(feature = "http2", feature = "pool", feature = "tokio"))]
 mod tokio_http2;
-#[cfg(all(
-  feature = "async-send",
-  feature = "pool",
-  feature = "tokio",
-  feature = "web-socket-handshake"
-))]
+#[cfg(all(feature = "pool", feature = "tokio", feature = "web-socket-handshake"))]
 mod tokio_web_socket;
 
 /// Optioned high-level abstraction for servers.
