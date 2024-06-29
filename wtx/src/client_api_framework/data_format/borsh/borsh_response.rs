@@ -35,7 +35,9 @@ impl<D> Serialize<()> for BorshResponse<D> {
 
 #[cfg(feature = "borsh")]
 mod borsh {
-  use crate::client_api_framework::{data_format::BorshResponse, dnsn::Borsh};
+  use crate::client_api_framework::{
+    data_format::BorshResponse, dnsn::Borsh, ClientApiFrameworkError,
+  };
   use borsh::BorshDeserialize;
   use core::fmt::Display;
 
@@ -55,7 +57,7 @@ mod borsh {
     where
       E: Display + From<crate::Error>,
     {
-      Err(crate::Error::CAF_UnsupportedOperation.into())
+      Err(E::from(ClientApiFrameworkError::UnsupportedOperation.into()))
     }
   }
 }

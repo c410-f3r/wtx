@@ -101,51 +101,34 @@ pub enum Error {
   Utf8Error(core::str::Utf8Error),
 
   // Internal
+  //
   ArrayStringError(ArrayStringError),
   ArrayVectorError(ArrayVectorError),
-  #[allow(private_interfaces)]
   BlocksQueueError(BlocksQueueError),
+  #[cfg(feature = "client-api-framework")]
+  ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
   #[cfg(feature = "http2")]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
   Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
   #[cfg(feature = "orm")]
   OrmError(crate::database::orm::OrmError),
+  #[cfg(feature = "postgres")]
+  PostgresError(crate::database::client::postgres::PostgresError),
   QueueError(QueueError),
+  #[cfg(feature = "schema-manager")]
+  SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
   VectorError(VectorError),
-  InvalidHttp2Content,
+  #[cfg(feature = "web-socket")]
+  WebSocketError(crate::web_socket::WebSocketError),
 
-  /// A slice-like batch of package is not sorted
-  CAF_BatchPackagesAreNotSorted,
-  /// The server closed the connection
-  CAF_ClosedWsConnection,
-  /// A server was not able to receive the full request data after several attempts.
-  CAF_CouldNotSendTheFullRequestData,
-  #[cfg(feature = "client-api-framework")]
-  /// GraphQl response error
-  CAF_GraphQlResponseError(
-    Box<[crate::client_api_framework::data_format::GraphQlResponseError<String>]>,
-  ),
-  /// The hardware returned an incorrect time value
-  CAF_IncorrectHardwareTime,
-  /// `no_std` has no knowledge of time.
-  CAF_GenericTimeNeedsBackend,
-  #[cfg(feature = "client-api-framework")]
-  /// JSON-RPC response error
-  CAF_JsonRpcResultErr(Box<crate::client_api_framework::data_format::JsonRpcResponseError>),
-  /// A given response id is not present in the set of sent packages.
-  CAF_ResponseIdIsNotPresentInTheOfSentBatchPackages(usize),
-  /// No stored test response to return a result from a request
-  CAF_TestTransportNoResponse,
-  /// It is not possible to convert a `u16` into a HTTP status code
-  CAF_UnknownHttpStatusCode(u16),
-  /// `wtx` can not perform this operation due to known limitations.
-  CAF_UnsupportedOperation,
-  /// Only appending is possible but overwritten is still viable through resetting.
-  CAF_UriCanNotBeOverwritten,
+  /// A "null" field received from the database was decoded as a non-nullable type or value.
+  DB_MissingFieldDataInDecoding,
 
   /// The length of a header field must be within a threshold.
   HTTP_HeaderFieldIsTooLarge,
+  /// Invalid HTTP/2 or HTTP/3 header
+  HTTP_InvalidHttp2pContent,
   /// Missing Header
   HTTP_MissingHeader {
     /// See [`KnownHeaderName`].
@@ -164,6 +147,10 @@ pub enum Error {
     length: usize,
   },
 
+  /// `GenericTime` needs a backend
+  MISC_GenericTimeNeedsBackend,
+  /// The hardware returned an incorrect time value
+  MISC_InvalidHardwareTime,
   /// Invalid UTF-8.
   MISC_InvalidUTF8,
   /// Indices are out-of-bounds or the number of bytes are too small.
@@ -182,8 +169,8 @@ pub enum Error {
   MISC_OutOfBoundsArithmetic,
   /// A buffer was partially read or write but should in fact be fully processed.
   MISC_UnexpectedBufferState,
-  /// Unexpected end of file when reading.
-  MISC_UnexpectedEOF,
+  /// Unexpected end of file when reading from a stream.
+  MISC_UnexpectedStreamEOF,
   /// Unexpected String
   MISC_UnexpectedString {
     length: usize,
@@ -197,109 +184,8 @@ pub enum Error {
     expected: RangeInclusive<u32>,
     received: u32,
   },
-
-  /// Not-A-Number is not supported
-  PG_DecimalCanNotBeConvertedFromNaN,
-  /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
-  /// and read with numbers up to 127.
-  PG_InvalidPostgresUint,
-  /// Received bytes don't compose a valid record.
-  PG_InvalidPostgresRecord,
-  /// The iterator that composed a `RecordValues` does not contain a corresponding length.
-  PG_InvalidRecordValuesIterator,
-  /// It is required to connect using a TLS channel but the server didn't provide any. Probably
-  /// because the connection is unencrypted.
-  PG_MissingChannel,
-  /// A "null" field received from the database was decoded as a non-nullable type or value.
-  PG_MissingFieldDataInDecoding,
-  /// Expected one record but got none.
-  PG_NoRecord,
-  /// It is required to connect without using a TLS channel but the server only provided a way to
-  /// connect using channels. Probably because the connection is encrypted.
-  PG_RequiredChannel,
-  /// Server does not support encryption
-  PG_ServerDoesNotSupportEncryption,
-  /// A query
-  PG_StatementHashCollision,
-  /// Received size differs from expected size.
-  PG_UnexpectedBufferSize {
-    expected: u64,
-    received: u64,
-  },
-  /// Received an unexpected message type.
-  PG_UnexpectedDatabaseMessage {
-    received: u8,
-  },
-  /// Received an expected message type but the related bytes are in an unexpected state.
-  PG_UnexpectedDatabaseMessageBytes,
-  /// Bytes don't represent expected type
-  PG_UnexpectedValueFromBytes {
-    expected: &'static str,
-  },
-  /// The system does not support a requested authentication method.
-  PG_UnknownAuthenticationMethod,
-  /// The system does not support a provided parameter.
-  PG_UnknownConfigurationParameter,
-  /// Received a statement ID that is not present in the local cache.
-  PG_UnknownStatementId,
-  /// The system only supports decimals with 64 digits.
-  PG_VeryLargeDecimal,
-
-  /// The `seeds` parameter must be provided through the CLI or the configuration file.
-  SM_ChecksumMustBeANumber,
-  /// Databases must be sorted and unique
-  SM_DatabasesMustBeSortedAndUnique,
-  /// Different rollback versions
-  SM_DifferentRollbackVersions,
-  /// Divergent migrations
-  SM_DivergentMigration(i32),
-  /// Validation - Migrations number
-  SM_DivergentMigrationsNum {
-    expected: u32,
-    received: u32,
-  },
-  /// Migration file has invalid syntax,
-  SM_InvalidMigration,
-  /// TOML parser only supports a subset of the official TOML specification
-  SM_TomlParserOnlySupportsStringsAndArraysOfStrings,
-  /// TOML parser only supports a subset of the official TOML specification
-  SM_TomlValueIsTooLarge,
-  /// Migration file has an empty attribute
-  SM_IncompleteSqlFile,
-
-  /// It it not possible to read a frame of a connection that was previously closed.
-  WS_ConnectionClosed,
-  /// HTTP headers must be unique.
-  WS_DuplicatedHeader,
-  /// The requested received in a handshake on a server is not valid.
-  WS_InvalidAcceptRequest,
-  /// Received close frame has invalid parameters.
-  WS_InvalidCloseFrame,
-  /// Received an invalid header compression parameter.
-  WS_InvalidCompressionHeaderParameter,
-  /// Header indices are out-of-bounds or the number of bytes are too small.
-  WS_InvalidFrameHeaderBounds,
-  /// Payload indices are out-of-bounds or the number of bytes are too small.
-  WS_InvalidPayloadBounds,
-  /// Server received a frame without a mask.
-  WS_MissingFrameMask,
-  /// Client sent "permessage-deflate" but didn't receive back from the server
-  WS_MissingPermessageDeflate,
-  /// Status code is expected to be
-  WS_MissingSwitchingProtocols,
-  /// Server responded without a compression context but the client does not allow such behavior.
-  WS_NoCompressionContext,
-  /// Reserved bits are not zero.
-  WS_ReservedBitsAreNotZero,
-  /// Received control frame wasn't supposed to be fragmented.
-  WS_UnexpectedFragmentedControlFrame,
-  /// The first frame of a message is a continuation or the following frames are not a
-  /// continuation.
-  WS_UnexpectedMessageFrame,
-  /// Control frames have a maximum allowed size.
-  WS_VeryLargeControlFrame,
-  /// Frame payload exceeds the defined threshold.
-  WS_VeryLargePayload,
+  /// Only appending is possible but overwritten is still viable through resetting.
+  MISC_UriCanNotBeOverwritten,
 }
 
 impl Display for Error {
@@ -635,11 +521,27 @@ impl From<BlocksQueueError> for Error {
   }
 }
 
+#[cfg(feature = "client-api-framework")]
+impl From<crate::client_api_framework::ClientApiFrameworkError> for Error {
+  #[inline]
+  fn from(from: crate::client_api_framework::ClientApiFrameworkError) -> Self {
+    Self::ClientApiFrameworkError(from)
+  }
+}
+
 #[cfg(feature = "orm")]
 impl From<crate::database::orm::OrmError> for Error {
   #[inline]
   fn from(from: crate::database::orm::OrmError) -> Self {
     Self::OrmError(from)
+  }
+}
+
+#[cfg(feature = "postgres")]
+impl From<crate::database::client::postgres::PostgresError> for Error {
+  #[inline]
+  fn from(from: crate::database::client::postgres::PostgresError) -> Self {
+    Self::PostgresError(from)
   }
 }
 
@@ -650,10 +552,26 @@ impl From<QueueError> for Error {
   }
 }
 
+#[cfg(feature = "schema-manager")]
+impl From<crate::database::schema_manager::SchemaManagerError> for Error {
+  #[inline]
+  fn from(from: crate::database::schema_manager::SchemaManagerError) -> Self {
+    Self::SchemaManagerError(from)
+  }
+}
+
 impl From<VectorError> for Error {
   #[inline]
   fn from(from: VectorError) -> Self {
     Self::VectorError(from)
+  }
+}
+
+#[cfg(feature = "web-socket")]
+impl From<crate::web_socket::WebSocketError> for Error {
+  #[inline]
+  fn from(from: crate::web_socket::WebSocketError) -> Self {
+    Self::WebSocketError(from)
   }
 }
 

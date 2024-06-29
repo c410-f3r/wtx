@@ -1,6 +1,8 @@
 use crate::{
   database::{
-    client::postgres::{Config, DecodeValue, Executor, ExecutorBuffer, Postgres, Ty},
+    client::postgres::{
+      Config, DecodeValue, Executor, ExecutorBuffer, Postgres, PostgresError, Ty,
+    },
     Decode, Encode, Executor as _, Record, Records as _,
   },
   misc::{FilledBufferWriter, UriRef},
@@ -10,8 +12,6 @@ use alloc::string::String;
 use tokio::net::TcpStream;
 
 const SCRAM: &str = "postgres://wtx_scram:wtx@localhost:5432/wtx";
-
-type Err = crate::Error;
 
 #[cfg(feature = "_tokio-rustls-client")]
 #[tokio::test]
@@ -188,11 +188,11 @@ async fn record() {
   let mut exec = executor::<crate::Error>().await;
 
   let _0c_0p = exec.fetch_with_stmt("", ()).await;
-  assert!(matches!(_0c_0p.unwrap_err(), Err::PG_NoRecord));
+  assert!(matches!(_0c_0p.unwrap_err(), crate::Error::PostgresError(PostgresError::NoRecord)));
   let _0c_1p = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1", (1,)).await;
-  assert!(matches!(_0c_1p.unwrap_err(), Err::PG_NoRecord));
+  assert!(matches!(_0c_1p.unwrap_err(), crate::Error::PostgresError(PostgresError::NoRecord)));
   let _0c_2p = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1 AND 1=$2", (1, 2)).await;
-  assert!(matches!(_0c_2p.unwrap_err(), Err::PG_NoRecord));
+  assert!(matches!(_0c_2p.unwrap_err(), crate::Error::PostgresError(PostgresError::NoRecord)));
 
   let _1c_0p = exec.fetch_with_stmt("SELECT 1", ()).await.unwrap();
   assert_eq!(_1c_0p.len(), 1);

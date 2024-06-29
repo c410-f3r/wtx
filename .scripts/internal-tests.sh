@@ -5,7 +5,7 @@
 $rt rustfmt
 $rt clippy
 
-MIRIFLAGS="-Zmiri-tree-borrows" cargo miri test -p wtx
+cargo miri test -p wtx
 
 # WTX
 

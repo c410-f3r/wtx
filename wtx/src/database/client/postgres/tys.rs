@@ -77,7 +77,7 @@ mod array {
 mod chrono {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, Postgres, Ty},
+      client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
       Decode, Encode,
     },
     misc::FilledBufferWriter,
@@ -97,8 +97,9 @@ mod chrono {
         let timestamp = i64::from_be_bytes([a, b, c, d, e, f, g, h]);
         Some(Utc.from_utc_datetime(&base()?.checked_add_signed(Duration::microseconds(timestamp))?))
       };
-      rslt()
-        .ok_or_else(|| crate::Error::PG_UnexpectedValueFromBytes { expected: "timestamp" }.into())
+      rslt().ok_or_else(|| {
+        E::from(PostgresError::UnexpectedValueFromBytes { expected: "timestamp" }.into())
+      })
     }
   }
 
@@ -112,7 +113,9 @@ mod chrono {
         match base().and_then(|el| self.naive_utc().signed_duration_since(el).num_microseconds()) {
           Some(time) => time,
           None => {
-            return Err(crate::Error::PG_UnexpectedValueFromBytes { expected: "timestamp" }.into())
+            return Err(E::from(
+              PostgresError::UnexpectedValueFromBytes { expected: "timestamp" }.into(),
+            ))
           }
         };
       fbw._extend_from_slice(&time.to_be_bytes());
@@ -210,7 +213,7 @@ mod collections {
 mod pg_numeric {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, Postgres, Ty},
+      client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
       Decode, Encode,
     },
     misc::{ArrayVector, FilledBufferWriter, Usize},
@@ -233,13 +236,13 @@ mod pg_numeric {
     #[inline]
     fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
       let [a, b, c, d, e, f, g, h, rest @ ..] = input.bytes() else {
-        return Err(
-          crate::Error::PG_UnexpectedBufferSize {
+        return Err(E::from(
+          PostgresError::UnexpectedBufferSize {
             expected: 8,
             received: Usize::from(input.bytes().len()).into(),
           }
           .into(),
-        );
+        ));
       };
       let digits = u16::from_be_bytes([*a, *b]);
       let digits_usize = usize::from(digits);
@@ -251,7 +254,7 @@ mod pg_numeric {
         PgNumeric::NotANumber
       } else {
         if digits_usize > DIGITS_CAP || digits_usize > 0x7FFF {
-          return Err(crate::Error::PG_VeryLargeDecimal.into());
+          return Err(E::from(PostgresError::VeryLargeDecimal.into()));
         }
         let mut fbw = [0i16; DIGITS_CAP];
         for elem in fbw.iter_mut().take(digits_usize) {
@@ -321,7 +324,7 @@ mod pg_numeric {
     #[inline]
     fn try_from(from: u16) -> Result<Self, Self::Error> {
       Ok(match from {
-        SIGN_NAN => return Err(crate::Error::PG_DecimalCanNotBeConvertedFromNaN),
+        SIGN_NAN => return Err(PostgresError::DecimalCanNotBeConvertedFromNaN.into()),
         SIGN_NEG => Self::Negative,
         SIGN_POS => Self::Positive,
         _ => return Err(crate::Error::MISC_UnexpectedUint { received: from.into() }),
@@ -333,7 +336,7 @@ mod pg_numeric {
 mod primitives {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, Postgres, Ty},
+      client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
       Decode, Encode,
     },
     misc::{FilledBufferWriter, Usize},
@@ -346,13 +349,13 @@ mod primitives {
     #[inline]
     fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
       let &[byte] = input.bytes() else {
-        return Err(
-          crate::Error::PG_UnexpectedBufferSize {
+        return Err(E::from(
+          PostgresError::UnexpectedBufferSize {
             expected: 1,
             received: Usize::from(input.bytes().len()).into(),
           }
           .into(),
-        );
+        ));
       };
       Ok(byte != 0)
     }
@@ -385,7 +388,7 @@ mod primitives {
           Ok(
             <$signed as Decode::<Postgres<E>>>::decode(input)?
               .try_into()
-              .map_err(|_err| crate::Error::PG_InvalidPostgresUint)?
+              .map_err(|_err| E::from(PostgresError::InvalidPostgresUint.into()))?
           )
         }
       }
@@ -397,7 +400,7 @@ mod primitives {
         #[inline]
         fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
           if *self >> size_of::<$unsigned>().wrapping_sub(1) == 1 {
-            return Err(E::from(crate::Error::PG_InvalidPostgresUint));
+            return Err(E::from(PostgresError::InvalidPostgresUint.into()));
           }
           fbw._extend_from_slice(&self.to_be_bytes());
           Ok(())
@@ -419,10 +422,10 @@ mod primitives {
           if let &[$($elem,)+] = input.bytes() {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
-          Err(crate::Error::PG_UnexpectedBufferSize {
+          Err(E::from(PostgresError::UnexpectedBufferSize {
             expected: Usize::from(size_of::<$ty>()).into(),
             received: Usize::from(input.bytes().len()).into()
-          }.into())
+          }.into()))
         }
       }
 
@@ -456,7 +459,7 @@ mod rust_decimal {
     database::{
       client::postgres::{
         tys::pg_numeric::{PgNumeric, Sign},
-        DecodeValue, Postgres, Ty,
+        DecodeValue, Postgres, PostgresError, Ty,
       },
       Decode, Encode,
     },
@@ -473,7 +476,7 @@ mod rust_decimal {
       let pg_numeric = PgNumeric::decode(input)?;
       let (digits, sign, mut weight, scale) = match pg_numeric {
         PgNumeric::NotANumber => {
-          return Err(crate::Error::PG_DecimalCanNotBeConvertedFromNaN.into());
+          return Err(E::from(PostgresError::DecimalCanNotBeConvertedFromNaN.into()));
         }
         PgNumeric::Number { digits, sign, weight, scale } => (digits, sign, weight, scale),
       };

@@ -41,6 +41,7 @@ pub use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError};
 pub use async_bounds::AsyncBounds;
+pub use blocks_queue::BlocksQueueError;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
 pub use either::Either;
@@ -70,7 +71,7 @@ pub use vector::{Vector, VectorError};
   unused_imports
 )]
 pub(crate) use {
-  blocks_queue::{Block, BlocksQueue, BlocksQueueError},
+  blocks_queue::{Block, BlocksQueue},
   mem_transfer::_shift_bytes,
   partitioned_filled_buffer::PartitionedFilledBuffer,
   span::{_Entered, _Span},
@@ -245,7 +246,7 @@ where
     let actual_buffer = buffer.get_mut(*read..).unwrap_or_default();
     let local_read = stream.read(actual_buffer).await?;
     if local_read == 0 {
-      return Err(crate::Error::MISC_UnexpectedEOF);
+      return Err(crate::Error::MISC_UnexpectedStreamEOF);
     }
     *read = read.wrapping_add(local_read);
   }

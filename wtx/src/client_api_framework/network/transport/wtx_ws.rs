@@ -6,7 +6,7 @@ use crate::{
       TransportGroup, WsParams, WsReqParamsTy,
     },
     pkg::{Package, PkgsAux},
-    Api,
+    Api, ClientApiFrameworkError,
   },
   misc::{LeaseMut, Stream},
   rng::Rng,
@@ -145,7 +145,7 @@ where
   let fb = &mut FrameBufferVecMut::from(&mut pkgs_aux.byte_buffer);
   let frame = ws.read_frame(fb).await?;
   if let OpCode::Close = frame.op_code() {
-    return Err(crate::Error::CAF_ClosedWsConnection);
+    return Err(ClientApiFrameworkError::ClosedWsConnection.into());
   }
   let indcs = frame.fb().indcs();
   Ok(indcs.1.into()..indcs.2)
@@ -198,7 +198,7 @@ where
   let fb = &mut FrameBufferVecMut::from(&mut pkgs_aux.byte_buffer);
   let frame = ws.read_frame(fb).await.map_err(Into::into)?;
   if let OpCode::Close = frame.op_code() {
-    return Err(crate::Error::CAF_ClosedWsConnection.into());
+    return Err(A::Error::from(ClientApiFrameworkError::ClosedWsConnection.into()));
   }
   let indcs = frame.fb().indcs();
   Ok(indcs.1.into()..indcs.2)

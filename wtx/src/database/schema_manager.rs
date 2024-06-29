@@ -6,25 +6,27 @@ mod macros;
 mod commands;
 pub mod doc_tests;
 pub(crate) mod fixed_sql_commands;
+#[cfg(all(feature = "_integration-tests", feature = "schema-manager-dev", test))]
+mod integration_tests;
 mod migration;
 #[cfg(feature = "std")]
 pub mod migration_parser;
 pub mod misc;
 mod repeatability;
+mod schema_manager_error;
 #[cfg(feature = "std")]
 pub mod toml_parser;
 
-pub use commands::*;
-pub use repeatability::Repeatability;
-#[cfg(all(feature = "_integration-tests", feature = "schema-manager-dev", test))]
-mod integration_tests;
 use crate::{
   database::{executor::Executor, DatabaseTy, Identifier},
   misc::Lease,
 };
 use alloc::{string::String, vec::Vec};
+pub use commands::*;
 use core::future::Future;
 pub use migration::*;
+pub use repeatability::Repeatability;
+pub use schema_manager_error::SchemaManagerError;
 
 /// Default batch size
 pub const DEFAULT_BATCH_SIZE: usize = 128;

@@ -8,7 +8,7 @@ use crate::{
       statements::{Column, PushRslt, Statement},
       sync,
       ty::Ty,
-      Executor, MessageTy, MsgField, Postgres, Statements,
+      Executor, MessageTy, MsgField, Postgres, PostgresError, Statements,
     },
     RecordValues, StmtCmd,
   },
@@ -41,7 +41,7 @@ where
     fwsc.stream.write_all(fbw._curr_bytes()).await?;
     let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
     let MessageTy::BindComplete = msg.ty else {
-      return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }.into());
+      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
     };
     Ok(())
   }
@@ -62,7 +62,7 @@ where
       PushRslt::Stmt(stmt) => return Ok((stmt_hash, Self::stmt_id_str(stmt_hash)?, stmt)),
     };
 
-    let stmt_cmd = sc.cmd().ok_or(crate::Error::PG_UnknownStatementId)?;
+    let stmt_cmd = sc.cmd().ok_or_else(|| E::from(PostgresError::UnknownStatementId.into()))?;
 
     let mut fbw = FilledBufferWriter::from(&mut *nb);
     parse(stmt_cmd, &mut fbw, fwsc.tys.iter().map(Into::into), &stmt_id_str)?;
@@ -72,12 +72,12 @@ where
 
     let msg0 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
     let MessageTy::ParseComplete = msg0.ty else {
-      return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg0.tag }.into());
+      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg0.tag }.into()));
     };
 
     let msg1 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
     let MessageTy::ParameterDescription(mut pd) = msg1.ty else {
-      return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg1.tag }.into());
+      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into()));
     };
     while let [a, b, c, d, sub_data @ ..] = pd {
       let id = u32::from_be_bytes([*a, *b, *c, *d]);
@@ -96,12 +96,14 @@ where
           rd = rd.get(read..).unwrap_or_default();
         }
       }
-      _ => return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg2.tag }.into()),
+      _ => {
+        return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg2.tag }.into()))
+      }
     }
 
     let msg3 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
     let MessageTy::ReadyForQuery = msg3.ty else {
-      return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg3.tag }.into());
+      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg3.tag }.into()));
     };
 
     if let Some(stmt) = builder.finish().get_by_stmt_hash(stmt_hash) {

@@ -8,7 +8,7 @@ use crate::{
     misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
     network::{transport::Transport, TransportGroup},
     pkg::{Package, PkgsAux},
-    Api,
+    Api, ClientApiFrameworkError,
   },
   misc::Lease,
 };
@@ -85,7 +85,7 @@ where
   }
 
   fn pop_response(&mut self) -> crate::Result<Cow<'static, T>> {
-    self.responses.pop_front().ok_or(crate::Error::CAF_TestTransportNoResponse)
+    Ok(self.responses.pop_front().ok_or(ClientApiFrameworkError::TestTransportNoResponse)?)
   }
 }
 

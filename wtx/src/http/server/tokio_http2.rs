@@ -47,13 +47,13 @@ impl OptionedServer {
     let listener = TcpListener::bind(addr).await?;
     let acceptor = acceptor_cb();
     loop {
+      let http2_buffer = conn_buffer(buffers_len, http2_buffer_cb).await?;
       let (tcp_stream, _) = listener.accept().await?;
       let local_acceptor = local_acceptor_cb(&acceptor);
-      let http2_buffer = conn_buffer(buffers_len, http2_buffer_cb).await?;
       let _conn_jh = tokio::spawn(async move {
         let fut = manage_conn(
-          http2_buffer,
           buffers_len,
+          http2_buffer,
           local_acceptor,
           tcp_stream,
           err_cb,
@@ -81,8 +81,8 @@ async fn conn_buffer(
 }
 
 async fn manage_conn<A, E, F, S, SF>(
+  buffers_len: usize,
   http2_buffer: SimplePoolGetElemTokio<'static, Http2Buffer>,
-  len: usize,
   local_acceptor: A,
   tcp_stream: TcpStream,
   err_cb: impl Copy + Fn(E) + Send + 'static,
@@ -106,11 +106,13 @@ where
   let stream = stream_cb(local_acceptor, tcp_stream).await?;
   let mut http2 = Http2Tokio::accept(http2_buffer, http2_params_cb(), stream).await?;
   loop {
-    let sb_guard = stream_buffer(len, stream_buffer_cb).await?;
+    let mut sb_guard = stream_buffer(buffers_len, stream_buffer_cb).await?;
+    sb_guard.rrb.headers = Headers::new(0);
     let rslt = http2.stream(sb_guard).await;
     let mut http2_stream = match rslt {
       Err(err) => match &err {
         crate::Error::Http2ErrorGoAway(..) => {
+          drop(http2);
           err_cb(E::from(err));
           return Ok(());
         }
@@ -119,6 +121,7 @@ where
           continue;
         }
         _ => {
+          drop(http2);
           return Err(err);
         }
       },

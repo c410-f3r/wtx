@@ -9,6 +9,7 @@ use alloc::{string::String, vec::Vec};
 #[cfg(feature = "std")]
 use {
   crate::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml},
+  crate::database::schema_manager::SchemaManagerError,
   std::path::Path,
 };
 
@@ -58,7 +59,7 @@ where
   ) -> crate::Result<()> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     if migration_groups.len() != versions.len() {
-      return Err(crate::Error::SM_DifferentRollbackVersions);
+      return Err(SchemaManagerError::DifferentRollbackVersions.into());
     }
     migration_groups.sort_by(|a, b| b.cmp(a));
     for (mg, &version) in migration_groups.into_iter().zip(versions) {

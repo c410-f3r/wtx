@@ -46,7 +46,7 @@ mod window;
 mod window_update_frame;
 
 use crate::{
-  http2::misc::{apply_initial_params, maybe_send_based_on_error, protocol_err},
+  http2::misc::{apply_initial_params, process_higher_operation_err, protocol_err},
   misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize},
 };
 pub use buffers::{Http2Buffer, ReqResBuffer, StreamBuffer};
@@ -165,15 +165,17 @@ where
     {
       let mut guard = self.hd.lock().await;
       let hdpm = guard.parts_mut();
+
       if *hdpm.recv_streams_num > hdpm.hp.max_recv_streams_num() {
+        drop(guard);
         let err = Http2Error::ExceedAmountOfActiveConcurrentStreams;
-        return maybe_send_based_on_error(Err(protocol_err(err)), hdpm).await;
+        return Err(process_higher_operation_err(protocol_err(err), &self.hd).await);
       }
       *hdpm.recv_streams_num = hdpm.recv_streams_num.wrapping_add(1);
       sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
       hdpm.hb.initial_server_buffers.push(sb);
     }
-    process_higher_operation!(self.hd, |guard| {
+    process_higher_operation!(&self.hd, |guard| {
       let mut fun = || {
         if let Some((method, stream_id)) = guard.parts_mut().hb.initial_server_streams.pop_back() {
           return Ok(Some(ServerStream::new(
@@ -194,7 +196,10 @@ impl<HB, HD, S, SB> Http2<HD, true>
 where
   HB: LeaseMut<Http2Buffer<SB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, S, SB, true>>,
+  for<'guard> HD::Item: Lock<
+      Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, SB, true>>,
+      Resource = Http2Data<HB, S, SB, true>,
+    > + 'guard,
   S: Stream,
   SB: LeaseMut<StreamBuffer>,
 {
@@ -212,8 +217,9 @@ where
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
     if hdpm.hb.sorp.len() >= *Usize::from(hdpm.hp.max_concurrent_streams_num()) {
+      drop(guard);
       let err = Http2Error::ExceedAmountOfActiveConcurrentStreams;
-      return maybe_send_based_on_error(Err(protocol_err(err)), hdpm).await;
+      return Err(process_higher_operation_err(protocol_err(err), &self.hd).await);
     }
     let stream_id = *hdpm.last_stream_id;
     let span = _trace_span!("Creating client stream", stream_id = stream_id.u32());

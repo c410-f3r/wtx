@@ -11,6 +11,7 @@ mod field;
 #[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod message;
+mod postgres_error;
 mod protocol;
 mod record;
 mod records;
@@ -30,6 +31,7 @@ pub use executor::Executor;
 pub use executor_buffer::ExecutorBuffer;
 pub(crate) use field::MsgField;
 pub(crate) use message::MessageTy;
+pub use postgres_error::PostgresError;
 pub(crate) use protocol::*;
 pub use record::Record;
 pub use records::Records;

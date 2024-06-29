@@ -1,4 +1,7 @@
-use crate::misc::{atoi, bytes_split1};
+use crate::{
+  database::client::postgres::PostgresError,
+  misc::{atoi, bytes_split1},
+};
 use core::any::type_name;
 
 #[derive(Debug)]
@@ -15,7 +18,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
     let (n, rest) = if let [a, b, c, d, rest @ ..] = bytes {
       (u32::from_be_bytes([*a, *b, *c, *d]), rest)
     } else {
-      return Err(crate::Error::PG_UnexpectedValueFromBytes { expected: type_name::<Self>() });
+      return Err(PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into());
     };
     Ok(match n {
       0 => Self::Ok,
@@ -54,7 +57,11 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
         }
         Self::SaslFinal(verifier.ok_or(crate::Error::MISC_NoInnerValue("verifier"))?)
       }
-      _ => return Err(crate::Error::PG_UnexpectedValueFromBytes { expected: type_name::<Self>() }),
+      _ => {
+        return Err(
+          PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
+        )
+      }
     })
   }
 }

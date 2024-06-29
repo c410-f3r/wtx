@@ -17,6 +17,7 @@ mod misc;
 mod op_code;
 mod unmask;
 mod web_socket_buffer;
+mod web_socket_error;
 
 use crate::{
   misc::{
@@ -43,6 +44,7 @@ use misc::{define_fb_from_header_params, op_code, FilledBuffer};
 pub use op_code::OpCode;
 pub(crate) use unmask::unmask;
 pub use web_socket_buffer::WebSocketBuffer;
+pub use web_socket_error::WebSocketError;
 
 pub(crate) const DFLT_FRAME_BUFFER_VEC_LEN: usize = 32 * 1024;
 pub(crate) const MAX_CONTROL_FRAME_LEN: usize = MAX_HDR_LEN_USIZE + MAX_CONTROL_FRAME_PAYLOAD_LEN;
@@ -408,7 +410,7 @@ where
     if !IS_CLIENT {
       unmask(
         pb._current_mut().get_mut(rfi.header_end_idx..).unwrap_or_default(),
-        rfi.mask.ok_or(crate::Error::WS_MissingFrameMask)?,
+        rfi.mask.ok_or(WebSocketError::MissingFrameMask)?,
       );
     }
 
@@ -564,7 +566,7 @@ where
     )
     .await?;
     if self.ct.is_closed() && rfi.op_code != OpCode::Close {
-      return Err(crate::Error::WS_ConnectionClosed);
+      return Err(WebSocketError::ConnectionClosed.into());
     }
     Self::fetch_payload_from_stream(
       &mut self.wsb.lease_mut().nb,
@@ -598,12 +600,12 @@ where
     let rsv3 = first_two[0] & 0b0001_0000;
 
     if rsv2 != 0 || rsv3 != 0 {
-      return Err(crate::Error::WS_InvalidCompressionHeaderParameter);
+      return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
     }
 
     let should_decompress = if nc.rsv1() == 0 {
       if rsv1 != 0 {
-        return Err(crate::Error::WS_InvalidCompressionHeaderParameter);
+        return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
       }
       false
     } else {
@@ -630,13 +632,13 @@ where
     }
 
     if op_code.is_control() && !fin {
-      return Err(crate::Error::WS_UnexpectedFragmentedControlFrame);
+      return Err(WebSocketError::UnexpectedFragmentedControlFrame.into());
     }
     if op_code == OpCode::Ping && payload_len > MAX_CONTROL_FRAME_PAYLOAD_LEN {
-      return Err(crate::Error::WS_VeryLargeControlFrame);
+      return Err(WebSocketError::VeryLargeControlFrame.into());
     }
     if payload_len >= max_payload_len {
-      return Err(crate::Error::WS_VeryLargePayload);
+      return Err(WebSocketError::VeryLargePayload.into());
     }
 
     Ok(ReadFrameInfo {
@@ -688,7 +690,7 @@ where
       OpCode::Close if ct.is_open() => {
         match curr_payload {
           [] => {}
-          [_] => return Err(crate::Error::WS_InvalidCloseFrame),
+          [_] => return Err(WebSocketError::InvalidCloseFrame.into()),
           [a, b, rest @ ..] => {
             let _ = from_utf8_basic(rest)?;
             let is_not_allowed = !CloseCode::try_from(u16::from_be_bytes([*a, *b]))?.is_allowed();
@@ -706,7 +708,7 @@ where
                 stream,
               )
               .await?;
-              return Err(crate::Error::WS_InvalidCloseFrame);
+              return Err(WebSocketError::InvalidCloseFrame.into());
             }
           }
         }
@@ -814,7 +816,7 @@ where
           should_use_db,
         ))?,
         OpCode::Close | OpCode::Continuation | OpCode::Ping | OpCode::Pong => {
-          return Err(crate::Error::WS_UnexpectedMessageFrame);
+          return Err(WebSocketError::UnexpectedMessageFrame.into());
         }
       }
     };
@@ -851,7 +853,7 @@ where
           }
         }
         OpCode::Binary | OpCode::Close | OpCode::Ping | OpCode::Pong | OpCode::Text => {
-          return Err(crate::Error::WS_UnexpectedMessageFrame);
+          return Err(WebSocketError::UnexpectedMessageFrame.into());
         }
       }
     }
@@ -902,7 +904,7 @@ where
       if should_stop {
         match rfi.op_code {
           OpCode::Continuation => {
-            return Err(crate::Error::WS_UnexpectedMessageFrame);
+            return Err(WebSocketError::UnexpectedMessageFrame.into());
           }
           OpCode::Text => {
             let _ = from_utf8_basic(fb.payload())?;

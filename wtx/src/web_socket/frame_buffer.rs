@@ -1,6 +1,6 @@
 use crate::{
   misc::{Lease, LeaseMut, SingleTypeStorage, _unreachable},
-  web_socket::{DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
+  web_socket::{WebSocketError, DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
 };
 use alloc::{vec, vec::Vec};
 use core::array;
@@ -125,7 +125,7 @@ where
     let header_end_idx = Self::header_end_idx_from_parts(header_begin_idx, header_len);
     let payload_end_idx = Self::payload_end_idx_from_parts(header_end_idx, payload_len);
     if header_len > MAX_HDR_LEN_U8 || payload_end_idx > self.buffer.lease().len() {
-      return Err(crate::Error::WS_InvalidPayloadBounds);
+      return Err(WebSocketError::InvalidPayloadBounds.into());
     }
     self.header_begin_idx = header_begin_idx;
     self.header_end_idx = header_end_idx;

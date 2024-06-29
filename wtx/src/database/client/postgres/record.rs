@@ -1,6 +1,6 @@
 use crate::{
   database::{
-    client::postgres::{statements::Statement, DecodeValue, Postgres},
+    client::postgres::{statements::Statement, DecodeValue, Postgres, PostgresError},
     Database, ValueIdent,
   },
   misc::{_unlikely_dflt, _unlikely_elem},
@@ -62,7 +62,7 @@ impl<'exec, E> Record<'exec, E> {
     for _ in 1..values_len {
       let idx = curr_value_offset.wrapping_sub(initial_value_offset);
       let Some(&[a, b, c, d, ..]) = bytes.get(idx..) else {
-        return Err(crate::Error::PG_InvalidPostgresRecord);
+        return Err(PostgresError::InvalidPostgresRecord.into());
       };
       curr_value_offset = curr_value_offset.wrapping_add(4);
       fun(&mut curr_value_offset, [a, b, c, d])?;

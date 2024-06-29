@@ -89,7 +89,10 @@ impl<R> PartialOrd for JsonRpcResponse<R> {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::client_api_framework::data_format::{JsonRpcResponse, JsonRpcResponseError};
+  use crate::client_api_framework::{
+    data_format::{JsonRpcResponse, JsonRpcResponseError},
+    ClientApiFrameworkError,
+  };
   use core::marker::PhantomData;
   use serde::{
     de::{Deserializer, MapAccess, Visitor},
@@ -183,7 +186,7 @@ mod serde {
             },
             method,
             result: if let Some(elem) = error {
-              Err(crate::Error::CAF_JsonRpcResultErr(elem.into()))
+              Err(ClientApiFrameworkError::JsonRpcResultErr(elem.into()).into())
             } else {
               Ok(result.ok_or_else(|| serde::de::Error::missing_field("result"))?)
             },
@@ -280,7 +283,9 @@ mod serde_json {
 
 #[cfg(feature = "simd-json")]
 mod simd_json {
-  use crate::client_api_framework::{data_format::JsonRpcResponse, dnsn::SimdJson};
+  use crate::client_api_framework::{
+    data_format::JsonRpcResponse, dnsn::SimdJson, ClientApiFrameworkError,
+  };
   use alloc::vec::Vec;
   use core::fmt::Display;
 
@@ -300,7 +305,7 @@ mod simd_json {
     where
       E: Display + From<crate::Error>,
     {
-      Err(crate::Error::CAF_UnsupportedOperation.into())
+      Err(E::from(ClientApiFrameworkError::UnsupportedOperation.into()))
     }
   }
 

@@ -1,6 +1,7 @@
 use crate::{
   database::client::postgres::{
     executor_buffer::ExecutorBufferPartsMut, query, Executor, ExecutorBuffer, MessageTy,
+    PostgresError,
   },
   misc::{FilledBufferWriter, LeaseMut, Stream},
 };
@@ -33,7 +34,7 @@ where
           cb(0);
         }
         MessageTy::ReadyForQuery => return Ok(()),
-        _ => return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }),
+        _ => return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()),
       }
     }
   }

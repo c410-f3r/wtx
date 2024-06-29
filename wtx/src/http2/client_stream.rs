@@ -63,7 +63,7 @@ where
         },
       ));
     }
-    process_higher_operation!(self.hd, |guard| {
+    process_higher_operation!(&self.hd, |guard| {
       let mut fun = || {
         let hdpm = guard.parts_mut();
         if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
@@ -77,7 +77,7 @@ where
         Ok(None)
       };
       fun()
-    });
+    })
   }
 
   /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
@@ -105,21 +105,19 @@ where
   {
     let _e = self.span._enter();
     _trace!("Sending response");
+    let hsreqh = HpackStaticRequestHeaders {
+      authority: req.uri.authority().as_bytes(),
+      method: Some(req.method),
+      path: req.uri.href().as_bytes(),
+      protocol: None,
+      scheme: req.uri.schema().as_bytes(),
+    };
     send_msg::<_, _, _, _, true>(
       req.data.body().lease(),
       &self.hd,
       req.data.headers(),
       hpack_enc_buffer,
-      (
-        HpackStaticRequestHeaders {
-          authority: req.uri.authority().as_bytes(),
-          method: Some(req.method),
-          path: req.uri.href().as_bytes(),
-          protocol: None,
-          scheme: req.uri.schema().as_bytes(),
-        },
-        HpackStaticResponseHeaders::EMPTY,
-      ),
+      (hsreqh, HpackStaticResponseHeaders::EMPTY),
       self.stream_id,
       |hdpm| {
         if let Some(elem) = hdpm.hb.scrp.remove(&self.stream_id) {

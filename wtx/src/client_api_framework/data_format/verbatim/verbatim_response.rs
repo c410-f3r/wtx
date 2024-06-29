@@ -35,7 +35,9 @@ impl<D> Serialize<()> for VerbatimResponse<D> {
 
 #[cfg(feature = "rkyv")]
 mod rkyv {
-  use crate::client_api_framework::{data_format::VerbatimResponse, dnsn::Rkyv};
+  use crate::client_api_framework::{
+    data_format::VerbatimResponse, dnsn::Rkyv, ClientApiFrameworkError,
+  };
   use core::fmt::Display;
   use rkyv::{
     bytecheck::CheckBytes, de::deserializers::SharedDeserializeMap,
@@ -63,7 +65,7 @@ mod rkyv {
     where
       E: Display + From<crate::Error>,
     {
-      Err(crate::Error::CAF_UnsupportedOperation.into())
+      Err(E::from(ClientApiFrameworkError::UnsupportedOperation.into()))
     }
   }
 }

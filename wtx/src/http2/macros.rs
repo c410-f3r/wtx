@@ -14,48 +14,20 @@ macro_rules! loop_until_some {
 }
 
 macro_rules! process_higher_operation {
-  (
-    $hd:expr,
-    $(@|$first_guard:ident| $first_cb:expr,)?
-    |$guard:ident| $cb:expr
-  ) => {
-    'outer_fetch: loop {
-      let mut $guard = $hd.lock().await;
+  ($hd:expr, |$guard:ident| $cb:expr) => {
+    'outer: loop {
       let err = 'err: {
+        let mut $guard = $hd.lock().await;
         if let Err(err) = $guard.process_receipt().await {
           break 'err err;
         }
         match $cb {
           Err(err) => break 'err err,
-          Ok(Some(elem)) => return Ok(elem),
-          Ok(None) => continue 'outer_fetch,
+          Ok(Some(elem)) => break 'outer Ok(elem),
+          Ok(None) => continue 'outer,
         }
       };
-      drop($guard);
-      let now = crate::misc::GenericTime::now();
-      let mut idx: u8 = 0;
-      let mut has_reset_err = false;
-      loop {
-        let mut guard = $hd.lock().await;
-        if idx >= crate::http2::MAX_FINAL_FETCHES {
-          return crate::http2::misc::maybe_send_based_on_error(Err(err), guard.parts_mut()).await;
-        }
-        has_reset_err |= matches!(&err, crate::Error::Http2ErrorReset(..));
-        let local_rslt = guard.process_receipt().await;
-        if has_reset_err {
-          if let Err(local_err) = local_rslt {
-            return crate::http2::misc::maybe_send_based_on_error(
-              Err(local_err),
-              guard.parts_mut(),
-            )
-            .await;
-          }
-        }
-        if now.elapsed().ok().map_or(true, |el| el >= crate::http2::MAX_FINAL_DURATION) {
-          return crate::http2::misc::maybe_send_based_on_error(Err(err), guard.parts_mut()).await;
-        }
-        idx = idx.wrapping_add(1);
-      }
+      break Err(crate::http2::misc::process_higher_operation_err(err, $hd).await);
     }
   };
 }

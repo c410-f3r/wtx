@@ -35,7 +35,9 @@ impl<D> Serialize<()> for ProtobufResponse<D> {
 
 #[cfg(feature = "protobuf")]
 mod protobuf {
-  use crate::client_api_framework::{data_format::ProtobufResponse, dnsn::Protobuf};
+  use crate::client_api_framework::{
+    data_format::ProtobufResponse, dnsn::Protobuf, ClientApiFrameworkError,
+  };
   use core::fmt::Display;
   use protobuf::Message;
 
@@ -55,7 +57,7 @@ mod protobuf {
     where
       E: Display + From<crate::Error>,
     {
-      Err(crate::Error::CAF_UnsupportedOperation.into())
+      Err(E::from(ClientApiFrameworkError::UnsupportedOperation.into()))
     }
   }
 }

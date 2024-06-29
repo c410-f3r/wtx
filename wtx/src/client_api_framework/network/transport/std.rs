@@ -5,7 +5,7 @@ use crate::client_api_framework::{
     TcpParams, TransportGroup, UdpParams,
   },
   pkg::{Package, PkgsAux},
-  Api,
+  Api, ClientApiFrameworkError,
 };
 use core::ops::Range;
 use std::{
@@ -111,7 +111,7 @@ where
   if everything_was_sent {
     Ok(())
   } else {
-    Err(crate::Error::CAF_CouldNotSendTheFullRequestData.into())
+    Err(A::Error::from(ClientApiFrameworkError::CouldNotSendTheFullRequestData.into()))
   }
 }
 

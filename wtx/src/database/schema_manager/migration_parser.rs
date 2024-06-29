@@ -4,7 +4,7 @@ use crate::{
   database::{
     schema_manager::{
       toml_parser::{toml, Expr},
-      Repeatability,
+      Repeatability, SchemaManagerError,
     },
     DatabaseTy,
   },
@@ -65,7 +65,7 @@ where
   }
 
   if !overall_buffer.contains("-- wtx IN") {
-    return Err(crate::Error::SM_IncompleteSqlFile);
+    return Err(SchemaManagerError::IncompleteSqlFile.into());
   }
 
   iterations(&mut overall_buffer, &mut br, |str_read| !str_read.contains("-- wtx OUT"))?;
@@ -82,7 +82,7 @@ where
   parsed_migration.sql_out = overall_buffer.trim().into();
 
   if parsed_migration.sql_in.is_empty() {
-    return Err(crate::Error::SM_IncompleteSqlFile);
+    return Err(SchemaManagerError::IncompleteSqlFile.into());
   }
 
   Ok(parsed_migration)

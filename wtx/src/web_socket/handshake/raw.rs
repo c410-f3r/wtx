@@ -51,7 +51,7 @@ mod httparse_impls {
         HeadersBuffer, WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw,
       },
       misc::_trim_bytes,
-      Compression, WebSocketBuffer, WebSocketClient, WebSocketServer,
+      Compression, WebSocketBuffer, WebSocketClient, WebSocketError, WebSocketServer,
     },
   };
   use alloc::vec::Vec;
@@ -79,7 +79,7 @@ mod httparse_impls {
         let read_buffer = nb._following_mut().get_mut(read..).unwrap_or_default();
         let local_read = self.stream.read(read_buffer).await?;
         if local_read == 0 {
-          return Err(crate::Error::MISC_UnexpectedEOF);
+          return Err(crate::Error::MISC_UnexpectedStreamEOF);
         }
         read = read.wrapping_add(local_read);
         let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
@@ -87,7 +87,7 @@ mod httparse_impls {
         match req.parse(nb._following())? {
           Status::Complete(_) => {
             if !cb(&req) {
-              return Err(crate::Error::WS_InvalidAcceptRequest);
+              return Err(WebSocketError::InvalidAcceptRequest.into());
             }
             if !_trim_bytes(req.method()).eq_ignore_ascii_case(b"get") {
               return Err(crate::Error::HTTP_UnexpectedHttpMethod { expected: Method::Get });
@@ -159,7 +159,7 @@ mod httparse_impls {
         let read_buffer = self.fb.payload_mut().get_mut(read..).unwrap_or_default();
         let local_read = self.stream.read(read_buffer).await?;
         if local_read == 0 {
-          return Err(crate::Error::MISC_UnexpectedEOF);
+          return Err(crate::Error::MISC_UnexpectedStreamEOF);
         }
         read = read.wrapping_add(local_read);
         match Response::new(&mut local_header).parse(self.fb.payload())? {
@@ -170,7 +170,7 @@ mod httparse_impls {
       let mut res = Response::new(&mut self.headers_buffer.headers);
       let _status = res.parse(self.fb.payload())?;
       if res.code != Some(101) {
-        return Err(crate::Error::WS_MissingSwitchingProtocols);
+        return Err(WebSocketError::MissingSwitchingProtocols.into());
       }
       verify_common_header(res.headers)?;
       if !has_header_key_and_value(
