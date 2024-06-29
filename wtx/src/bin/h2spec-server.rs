@@ -11,7 +11,6 @@ use wtx::{
 async fn main() {
   OptionedServer::tokio_http2(
     "127.0.0.1:9000".parse().unwrap(),
-    Some(60),
     |err| eprintln!("Error: {err:?}"),
     handle,
     || Ok(Http2Buffer::new(StdRng::default())),

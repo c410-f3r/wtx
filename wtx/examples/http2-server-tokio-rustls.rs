@@ -17,7 +17,6 @@ static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 async fn main() {
   OptionedServer::tokio_http2(
     common::_host_from_args().parse().unwrap(),
-    None,
     |err| eprintln!("Error: {err:?}"),
     handle,
     || Ok(Http2Buffer::new(StdRng::default())),
