@@ -10,7 +10,6 @@ cargo run --bin h2spec-server --features="async-send,http2,pool,tokio" &> /tmp/h
 sleep 1
 touch /tmp/h2spec-server.xml
 
-
 podman run \
 	-v "/tmp/h2spec-server.xml:/tmp/h2spec-server.xml" \
 	--name h2spec \

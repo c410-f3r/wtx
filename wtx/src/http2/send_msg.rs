@@ -28,7 +28,7 @@ use crate::{
   http::{Header, Headers},
   http2::{
     http2_data::Http2DataPartsMut,
-    misc::{maybe_send_based_on_error, protocol_err, write_array},
+    misc::{process_higher_operation_err, protocol_err, write_array},
     window::WindowsPair,
     ContinuationFrame, DataFrame, HeadersFrame, HpackEncoder, HpackHeaderBasic,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error,
@@ -67,7 +67,13 @@ where
       encode_headers(headers, &mut hdpm.hb.hpack_enc, hpack_enc_buffer, hsresh.iter())
     };
     let max_frame_len = hdpm.hps.max_frame_len;
-    let (headers_bytes, trailers_bytes) = maybe_send_based_on_error(rslt, hdpm).await?;
+    let (headers_bytes, trailers_bytes) = match rslt {
+      Err(err) => {
+        drop(guard);
+        return Err(process_higher_operation_err(err, hd).await);
+      }
+      Ok(elem) => elem,
+    };
     (max_frame_len, headers_bytes, trailers_bytes)
   };
   let (mut has_headers, mut has_data) = (false, false);
@@ -82,7 +88,7 @@ where
       &mut cb,
     )
     .await
-  });
+  })
 }
 
 #[inline]

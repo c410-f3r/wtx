@@ -1,13 +1,16 @@
 use crate::{
   http2::{
     http2_data::Http2DataPartsMut, http2_params_send::Http2ParamsSend, CommonFlags, FrameInit,
-    FrameInitTy, GoAwayFrame, HpackEncoder, Http2Buffer, Http2Error, Http2ErrorCode, Http2Params,
-    PingFrame, ResetStreamFrame, Scrp, SettingsFrame, Sorp, StreamBuffer, StreamOverallRecvParams,
-    WindowUpdateFrame, Windows, U31,
+    FrameInitTy, GoAwayFrame, HpackEncoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode,
+    Http2Params, PingFrame, ResetStreamFrame, Scrp, SettingsFrame, Sorp, StreamBuffer,
+    StreamOverallRecvParams, WindowUpdateFrame, Windows, U31,
   },
-  misc::{LeaseMut, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until, atoi},
+  misc::{
+    LeaseMut, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until, atoi, Lock, RefCounter,
+  },
 };
 use core::pin::pin;
+use tokio::sync::MutexGuard;
 
 #[inline]
 pub(crate) fn apply_initial_params<SB>(
@@ -36,38 +39,76 @@ where
   Ok(())
 }
 
-#[inline]
-pub(crate) async fn maybe_send_based_on_error<S, SB, T>(
-  rslt: crate::Result<T>,
-  hdpm: Http2DataPartsMut<'_, S, SB>,
-) -> crate::Result<T>
-where
-  SB: LeaseMut<StreamBuffer>,
-  S: Stream,
-{
-  match &rslt {
-    Err(crate::Error::Http2ErrorGoAway(http2_error_code, _)) => {
-      send_go_away(*http2_error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
-    }
-    Err(crate::Error::Http2ErrorReset(http2_error_code, _, stream_id)) => {
-      send_reset_stream(*http2_error_code, hdpm.hb, hdpm.stream, stream_id.into()).await;
-    }
-    Err(_) => {
-      send_go_away(
-        Http2ErrorCode::InternalError,
-        hdpm.is_conn_open,
-        *hdpm.last_stream_id,
-        hdpm.stream,
-      )
-      .await;
-    }
-    _ => {}
-  }
-  rslt
-}
-
 pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
   crate::Error::Http2ErrorGoAway(Http2ErrorCode::ProtocolError, Some(error))
+}
+
+#[inline]
+pub(crate) async fn process_higher_operation_err<HB, HD, S, SB, const IS_CLIENT: bool>(
+  err: crate::Error,
+  hd: &HD,
+) -> crate::Error
+where
+  HB: LeaseMut<Http2Buffer<SB>>,
+  HD: RefCounter,
+  for<'guard> HD::Item: Lock<
+      Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, SB, IS_CLIENT>>,
+      Resource = Http2Data<HB, S, SB, IS_CLIENT>,
+    > + 'guard,
+  S: Stream,
+  SB: LeaseMut<StreamBuffer>,
+{
+  #[inline]
+  pub(crate) async fn send_based_on_error<S, SB>(
+    err: &crate::Error,
+    hdpm: Http2DataPartsMut<'_, S, SB>,
+  ) where
+    SB: LeaseMut<StreamBuffer>,
+    S: Stream,
+  {
+    match err {
+      crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
+        send_go_away(*http2_error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
+      }
+      crate::Error::Http2ErrorReset(http2_error_code, _, stream_id) => {
+        send_reset_stream(*http2_error_code, hdpm.hb, hdpm.stream, stream_id.into()).await;
+      }
+      _ => {
+        send_go_away(
+          Http2ErrorCode::InternalError,
+          hdpm.is_conn_open,
+          *hdpm.last_stream_id,
+          hdpm.stream,
+        )
+        .await;
+      }
+    }
+  }
+
+  let now = crate::misc::GenericTime::now();
+  let mut idx: u8 = 0;
+  let mut has_reset_err = false;
+  loop {
+    let mut guard = hd.lock().await;
+    if idx >= crate::http2::MAX_FINAL_FETCHES {
+      send_based_on_error(&err, guard.parts_mut()).await;
+      return err;
+    }
+    has_reset_err |= matches!(&err, crate::Error::Http2ErrorReset(..));
+    let local_rslt = guard.process_receipt().await;
+    let hdpm = guard.parts_mut();
+    if has_reset_err {
+      if let Err(local_err) = local_rslt {
+        send_based_on_error(&local_err, hdpm).await;
+        return local_err;
+      }
+    }
+    if now.elapsed().ok().map_or(true, |el| el >= crate::http2::MAX_FINAL_DURATION) {
+      send_based_on_error(&err, hdpm).await;
+      return err;
+    }
+    idx = idx.wrapping_add(1);
+  }
 }
 
 #[inline]

@@ -6,8 +6,8 @@ use crate::{
       FrameBufferControlArray, FrameBufferControlArrayMut, FrameBufferMut, FrameBufferVecMut,
     },
     misc::{define_fb_from_header_params, op_code, Expand},
-    FrameBuffer, FrameBufferVec, OpCode, MAX_CONTROL_FRAME_PAYLOAD_LEN, MAX_HDR_LEN_USIZE,
-    MIN_HEADER_LEN_USIZE,
+    FrameBuffer, FrameBufferVec, OpCode, WebSocketError, MAX_CONTROL_FRAME_PAYLOAD_LEN,
+    MAX_HDR_LEN_USIZE, MIN_HEADER_LEN_USIZE,
   },
 };
 use core::str;
@@ -83,7 +83,7 @@ where
     let len = header.len();
     let has_valid_header = (MIN_HEADER_LEN_USIZE..=MAX_HDR_LEN_USIZE).contains(&len);
     let (true, Some(first_header_byte)) = (has_valid_header, header.first().copied()) else {
-      return Err(crate::Error::WS_InvalidFrameHeaderBounds);
+      return Err(WebSocketError::InvalidFrameHeaderBounds.into());
     };
     Ok(Self { fb, fin: first_header_byte & 0b1000_0000 != 0, op_code: op_code(first_header_byte)? })
   }

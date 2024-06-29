@@ -131,7 +131,9 @@ mod serde_json {
 
 #[cfg(feature = "simd-json")]
 mod simd_json {
-  use crate::client_api_framework::{data_format::JsonResponse, dnsn::SimdJson};
+  use crate::client_api_framework::{
+    data_format::JsonResponse, dnsn::SimdJson, ClientApiFrameworkError,
+  };
   use alloc::vec::Vec;
   use core::fmt::Display;
 
@@ -151,7 +153,7 @@ mod simd_json {
     where
       E: Display + From<crate::Error>,
     {
-      Err(crate::Error::CAF_UnsupportedOperation.into())
+      Err(E::from(ClientApiFrameworkError::UnsupportedOperation.into()))
     }
   }
 

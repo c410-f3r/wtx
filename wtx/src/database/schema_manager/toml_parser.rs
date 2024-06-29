@@ -1,6 +1,9 @@
 //! Migration TOML parser
 
-use crate::misc::{str_split1, ArrayString, ArrayVector};
+use crate::{
+  database::schema_manager::SchemaManagerError,
+  misc::{str_split1, ArrayString, ArrayVector},
+};
 use alloc::string::String;
 use core::array;
 use std::io::{BufRead, BufReader, Read};
@@ -63,7 +66,7 @@ where
     let mut root_param_iter = buffer_ref.split('=');
 
     let ident = if let Some(el) = root_param_iter.next() {
-      el.trim().try_into().map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?
+      el.trim().try_into().map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?
     } else {
       clear_and_continue!();
     };
@@ -100,7 +103,7 @@ fn parse_and_push_toml_expr_array(
   let expr_array = parse_expr_array(s)?;
   root_params
     .push((ident, Expr::Array(expr_array)))
-    .map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?;
+    .map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?;
   Ok(())
 }
 
@@ -113,7 +116,7 @@ fn parse_and_push_toml_expr_string(
   let expr_string = parse_expr_string(s)?;
   root_params
     .push((ident, Expr::String(expr_string)))
-    .map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?;
+    .map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?;
   Ok(())
 }
 
@@ -125,7 +128,7 @@ fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
   }
   for elem in str_split1(s, b',') {
     let expr_string = parse_expr_string(elem.trim())?;
-    array.push(expr_string).map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)?;
+    array.push(expr_string).map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?;
   }
   Ok(array)
 }
@@ -133,14 +136,14 @@ fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
 #[inline]
 fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
   let mut iter = str_split1(s, b'"');
-  let _ = iter.next().ok_or(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings)?;
+  let _ = iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
   let value =
-    iter.next().ok_or(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings)?;
-  let _ = iter.next().ok_or(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings)?;
+    iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
+  let _ = iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
   if iter.next().is_some() {
-    return Err(crate::Error::SM_TomlParserOnlySupportsStringsAndArraysOfStrings);
+    return Err(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings.into());
   }
-  value.trim().try_into().map_err(|_err| crate::Error::SM_TomlValueIsTooLarge)
+  Ok(value.trim().try_into().map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?)
 }
 
 #[cfg(test)]

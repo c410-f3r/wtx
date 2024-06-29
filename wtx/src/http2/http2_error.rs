@@ -30,6 +30,8 @@ pub enum Http2Error {
   HeadersOverflow,
   /// Couldn't decode a header into a hpack buffer
   HpackDecodingBufferIsTooSmall,
+  /// There are no bytes left to decode HPACK headers.
+  InsufficientHpackBytes,
   #[doc = stream_id_must_not_be_zero!()]
   InvalidContinuationFrameZeroId,
   /// Length is greater than [`u32::MAX`].

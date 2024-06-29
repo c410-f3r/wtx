@@ -43,7 +43,7 @@ where
   pub async fn recv_req(&mut self) -> crate::Result<(SB, Method)> {
     let _e = self.span._enter();
     _trace!("Receiving request");
-    process_higher_operation!(self.hd, |guard| {
+    process_higher_operation!(&self.hd, |guard| {
       let mut fun = || {
         let hdpm = guard.parts_mut();
         if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
@@ -65,7 +65,7 @@ where
         Ok(None)
       };
       fun()
-    });
+    })
   }
 
   /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
@@ -91,15 +91,13 @@ where
   {
     let _e = self.span._enter();
     _trace!("Sending response");
+    let hsresh = HpackStaticResponseHeaders { status_code: Some(res.status_code) };
     send_msg::<_, _, _, _, false>(
       res.data.body().lease(),
       &self.hd,
       res.data.headers(),
       hpack_enc_buffer,
-      (
-        HpackStaticRequestHeaders::EMPTY,
-        HpackStaticResponseHeaders { status_code: Some(res.status_code) },
-      ),
+      (HpackStaticRequestHeaders::EMPTY, hsresh),
       self.stream_id,
       |hdpm| {
         drop(hdpm.hb.scrp.remove(&self.stream_id));

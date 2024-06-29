@@ -3,13 +3,16 @@
 #[cfg(feature = "std")]
 macro_rules! opt_to_inv_mig {
   ($opt:expr) => {
-    $opt().ok_or_else(|| crate::Error::SM_InvalidMigration)
+    $opt().ok_or_else(|| SchemaManagerError::InvalidMigration)
   };
 }
 
 use crate::{
   database::{
-    schema_manager::migration::{DbMigration, UserMigration},
+    schema_manager::{
+      migration::{DbMigration, UserMigration},
+      SchemaManagerError,
+    },
     DatabaseTy,
   },
   misc::Lease,
@@ -66,7 +69,10 @@ where
   F: FnMut(&PathBuf, &PathBuf) -> Ordering,
 {
   use crate::{
-    database::schema_manager::migration_parser::{parse_migration_toml, parse_unified_migration},
+    database::schema_manager::{
+      migration_parser::{parse_migration_toml, parse_unified_migration},
+      SchemaManagerError,
+    },
     misc::ArrayString,
   };
 
@@ -128,7 +134,7 @@ where
         sql_up = pm.sql_in;
         sql_down = pm.sql_out;
       } else {
-        return Err(crate::Error::SM_InvalidMigration);
+        return Err(SchemaManagerError::InvalidMigration.into());
       }
       Ok((dbs, name, repeatability, sql_down, sql_up, version))
     });
@@ -234,7 +240,7 @@ where
   let mut iter = slice.windows(2);
   while let Some([first, second, ..]) = iter.next() {
     if first >= second {
-      return Err(crate::Error::SM_DatabasesMustBeSortedAndUnique);
+      return Err(SchemaManagerError::DatabasesMustBeSortedAndUnique.into());
     }
   }
   Ok(())
@@ -263,7 +269,7 @@ fn dir_name_parts(s: &str) -> crate::Result<(String, i32)> {
     let name = split.next()?.into();
     Some((name, version))
   };
-  f().ok_or(crate::Error::SM_InvalidMigration)
+  f().ok_or(SchemaManagerError::InvalidMigration.into())
 }
 
 #[cfg(feature = "std")]
@@ -278,7 +284,7 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, i32)> {
     let name = split.next()?.strip_suffix(".sql")?.into();
     Some((name, version))
   };
-  f().ok_or(crate::Error::SM_InvalidMigration)
+  f().ok_or(SchemaManagerError::InvalidMigration.into())
 }
 
 #[cfg(feature = "std")]

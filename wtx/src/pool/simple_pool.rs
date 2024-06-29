@@ -1,13 +1,14 @@
 use crate::{
-  misc::{Lock, PollOnce},
+  misc::Lock,
   pool::{Pool, ResourceManager},
 };
 use alloc::{sync::Arc, vec::Vec};
 use core::{
+  future::poll_fn,
   ops::{Deref, DerefMut},
-  pin::pin,
-  sync::atomic::{AtomicUsize, Ordering},
+  task::{Poll, Waker},
 };
+use std::sync::Mutex;
 
 /// A [SimplePool] synchronized by [`tokio::sync::Mutex`].
 #[cfg(feature = "tokio")]
@@ -21,9 +22,10 @@ pub type SimplePoolGetElemTokio<'guard, R> =
 /// Simple pool that never de-allocates its elements.
 #[derive(Debug)]
 pub struct SimplePool<RL, RM> {
-  lowest_available_idx: Arc<AtomicUsize>,
+  available_idxs: Arc<Mutex<Vec<usize>>>,
   locks: Vec<RL>,
   rm: RM,
+  waker: Arc<Mutex<Option<Waker>>>,
 }
 
 impl<R, RL, RM> SimplePool<RL, RM>
@@ -41,13 +43,14 @@ where
   pub fn new(mut len: usize, rm: RM) -> Self {
     len = len.max(1);
     Self {
-      lowest_available_idx: Arc::new(AtomicUsize::new(0)),
+      available_idxs: Arc::new(Mutex::new((0..len).collect())),
       locks: {
         let mut rslt = Vec::with_capacity(len);
         rslt.extend((0..len).map(|_| RL::new(SimplePoolResource(None))));
         rslt
       },
       rm,
+      waker: Arc::new(Mutex::new(None)),
     }
   }
 
@@ -86,30 +89,34 @@ where
     ca: &RM::CreateAux,
     ra: &RM::RecycleAux,
   ) -> Result<Self::GetElem<'this>, <Self::ResourceManager as ResourceManager>::Error> {
-    let mut idx = self.lowest_available_idx.load(Ordering::Relaxed);
-    let mut resource = loop {
-      let Some(lock) = self.locks.get(idx) else {
-        continue;
-      };
-      let Some(resource) = PollOnce(pin!(lock.lock())).await else {
-        idx = idx.wrapping_add(1) % self.locks.len();
-        continue;
-      };
-      break resource;
-    };
+    let (idx, lock) = poll_fn(|ctx| {
+      if let Some((idx, lock)) = self.available_idxs.lock().ok().and_then(|mut el| {
+        let idx = el.pop()?;
+        Some((idx, self.locks.get(idx)?))
+      }) {
+        Poll::Ready((idx, lock))
+      } else {
+        *self.waker.lock().unwrap() = Some(ctx.waker().clone());
+        Poll::Pending
+      }
+    })
+    .await;
+    let mut resource = lock.lock().await;
     match &mut resource.0 {
       None => {
         resource.0 = Some(self.rm.create(ca).await?);
       }
-      Some(resource) if self.rm.is_invalid(resource) => {
-        self.rm.recycle(ra, resource).await?;
+      Some(resource) => {
+        if self.rm.is_invalid(resource) {
+          self.rm.recycle(ra, resource).await?;
+        }
       }
-      _ => {}
     }
     Ok(SimplePoolGetElem {
+      available_idxs: Arc::clone(&self.available_idxs),
       idx,
-      lowest_available_idx: Arc::clone(&self.lowest_available_idx),
       resource,
+      waker: Arc::clone(&self.waker),
     })
   }
 }
@@ -117,9 +124,10 @@ where
 /// Controls the guard locks related to [SimplePool].
 #[derive(Debug)]
 pub struct SimplePoolGetElem<R> {
+  available_idxs: Arc<Mutex<Vec<usize>>>,
   idx: usize,
-  lowest_available_idx: Arc<AtomicUsize>,
   resource: R,
+  waker: Arc<Mutex<Option<Waker>>>,
 }
 
 impl<R> Deref for SimplePoolGetElem<R> {
@@ -141,7 +149,10 @@ impl<R> DerefMut for SimplePoolGetElem<R> {
 impl<R> Drop for SimplePoolGetElem<R> {
   #[inline]
   fn drop(&mut self) {
-    let _ = self.lowest_available_idx.fetch_min(self.idx, Ordering::Relaxed);
+    self.available_idxs.lock().unwrap().push(self.idx);
+    if let Some(waker) = self.waker.lock().unwrap().take() {
+      waker.wake()
+    }
   }
 }
 

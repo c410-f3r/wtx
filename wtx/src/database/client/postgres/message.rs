@@ -1,5 +1,5 @@
 use crate::{
-  database::client::postgres::{Authentication, DbError},
+  database::client::postgres::{Authentication, DbError, PostgresError},
   misc::{atoi, bytes_rsplit1, bytes_split1, from_utf8_basic},
 };
 use core::any::type_name;
@@ -99,7 +99,7 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
           let _ = iter.next()?;
           Some((name, value))
         };
-        let (name, value) = rslt().ok_or(crate::Error::PG_UnexpectedDatabaseMessageBytes)?;
+        let (name, value) = rslt().ok_or(PostgresError::UnexpectedDatabaseMessageBytes)?;
         Self::ParameterStatus(name, value)
       }
       [b'T', _, _, _, _, _a, _b, rest @ ..] => Self::RowDescription(rest),
@@ -109,7 +109,11 @@ impl<'bytes> TryFrom<(&mut bool, &'bytes [u8])> for MessageTy<'bytes> {
       [b'n', ..] => Self::NoData,
       [b's', ..] => Self::PortalSuspended,
       [b't', _, _, _, _, _a, _b, rest @ ..] => Self::ParameterDescription(rest),
-      _ => return Err(crate::Error::PG_UnexpectedValueFromBytes { expected: type_name::<Self>() }),
+      _ => {
+        return Err(
+          PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
+        )
+      }
     };
     Ok(rslt)
   }

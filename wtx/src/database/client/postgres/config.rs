@@ -1,4 +1,7 @@
-use crate::misc::{atoi, str_split1, UriRef};
+use crate::{
+  database::client::postgres::PostgresError,
+  misc::{atoi, str_split1, UriRef},
+};
 use core::time::Duration;
 
 /// Configuration
@@ -55,7 +58,7 @@ impl<'data> Config<'data> {
           "disable" => ChannelBinding::Disable,
           "prefer" => ChannelBinding::Prefer,
           "require" => ChannelBinding::Require,
-          _ => return Err(crate::Error::PG_UnknownConfigurationParameter),
+          _ => return Err(PostgresError::UnknownConfigurationParameter.into()),
         };
         self.channel_binding = channel_binding;
       }
@@ -68,14 +71,14 @@ impl<'data> Config<'data> {
         self.load_balance_hosts = match value {
           "disable" => LoadBalanceHosts::Disable,
           "random" => LoadBalanceHosts::Random,
-          _ => return Err(crate::Error::PG_UnknownConfigurationParameter),
+          _ => return Err(PostgresError::UnknownConfigurationParameter.into()),
         };
       }
       "target_session_attrs" => {
         self.target_session_attrs = match value {
           "any" => TargetSessionAttrs::Any,
           "read-write" => TargetSessionAttrs::ReadWrite,
-          _ => return Err(crate::Error::PG_UnknownConfigurationParameter),
+          _ => return Err(PostgresError::UnknownConfigurationParameter.into()),
         };
       }
       "tcp_user_timeout" => {
@@ -83,7 +86,7 @@ impl<'data> Config<'data> {
           self.tcp_user_timeout = Duration::from_secs(timeout);
         }
       }
-      _ => return Err(crate::Error::PG_UnknownConfigurationParameter),
+      _ => return Err(PostgresError::UnknownConfigurationParameter.into()),
     }
     Ok(())
   }

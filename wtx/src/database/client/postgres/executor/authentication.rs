@@ -3,7 +3,7 @@ use crate::{
     client::postgres::{
       config::ChannelBinding,
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
-      sasl_first, sasl_second, Authentication, Config, Executor, MessageTy,
+      sasl_first, sasl_second, Authentication, Config, Executor, MessageTy, PostgresError,
     },
     Identifier,
   },
@@ -71,7 +71,7 @@ where
         }
         let (method_bytes, method_header) = match (is_scram, is_scram_plus, config.channel_binding)
         {
-          (false, false, _) => return Err(crate::Error::PG_UnknownAuthenticationMethod),
+          (false, false, _) => return Err(PostgresError::UnknownAuthenticationMethod.into()),
           (true, false, ChannelBinding::Disable)
           | (true, false, ChannelBinding::Prefer)
           | (true, true, ChannelBinding::Disable) => {
@@ -83,8 +83,12 @@ where
           | (true, true, ChannelBinding::Require) => {
             (scram_sha_256_plus!().as_slice(), b"p=tls-server-end-point,,".as_slice())
           }
-          (false, true, ChannelBinding::Disable) => return Err(crate::Error::PG_RequiredChannel),
-          (true, false, ChannelBinding::Require) => return Err(crate::Error::PG_MissingChannel),
+          (false, true, ChannelBinding::Disable) => {
+            return Err(PostgresError::RequiredChannel.into())
+          }
+          (true, false, ChannelBinding::Require) => {
+            return Err(PostgresError::MissingChannel.into())
+          }
         };
         Self::sasl_authenticate(
           config,
@@ -98,14 +102,14 @@ where
         .await?;
       }
       _ => {
-        return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg0.tag });
+        return Err(PostgresError::UnexpectedDatabaseMessage { received: msg0.tag }.into());
       }
     }
     let msg1 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
     if let MessageTy::Authentication(Authentication::Ok) = msg1.ty {
       Ok(())
     } else {
-      Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg1.tag })
+      Err(PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into())
     }
   }
 
@@ -124,7 +128,7 @@ where
         }
         MessageTy::ReadyForQuery => return Ok(()),
         _ => {
-          return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag });
+          return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into());
         }
       }
     }
@@ -162,7 +166,7 @@ where
         salt,
       }) = msg.ty
       else {
-        return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag });
+        return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into());
       };
       let mut decoded_salt = [0; 128];
       let n = BASE64_STANDARD.decode_slice(salt, &mut decoded_salt)?;
@@ -196,7 +200,7 @@ where
     {
       let msg = Self::fetch_msg_from_stream(is_closed, &mut *nb, stream).await?;
       let MessageTy::Authentication(Authentication::SaslFinal(verifier_slice)) = msg.ty else {
-        return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag });
+        return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into());
       };
       let mut buffer = [0; 68];
       let idx = BASE64_STANDARD.decode_slice(verifier_slice, &mut buffer)?;

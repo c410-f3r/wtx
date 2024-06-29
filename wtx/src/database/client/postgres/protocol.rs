@@ -1,6 +1,6 @@
 use crate::{
   database::{
-    client::postgres::{statements::Statement, Config, Oid, Postgres},
+    client::postgres::{statements::Statement, Config, Oid, Postgres, PostgresError},
     RecordValues,
   },
   misc::FilledBufferWriter,
@@ -63,7 +63,7 @@ where
         },
       )?;
       if aux.0 != rv_len {
-        return Err(crate::Error::PG_InvalidRecordValuesIterator.into());
+        return Err(E::from(PostgresError::InvalidRecordValuesIterator.into()));
       }
     }
 

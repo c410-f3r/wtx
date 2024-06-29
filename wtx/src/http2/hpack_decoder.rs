@@ -90,12 +90,12 @@ impl HpackDecoder {
       }
       rslt
     } else {
-      return Err(crate::Error::MISC_UnexpectedEOF);
+      return Err(protocol_err(Http2Error::InsufficientHpackBytes));
     };
     let mut shift: u32 = 0;
     for _ in 0..3 {
       let [first, rest @ ..] = data else {
-        return Err(crate::Error::MISC_UnexpectedEOF);
+        return Err(protocol_err(Http2Error::InsufficientHpackBytes));
       };
       *data = rest;
       rslt.1 = rslt.1.wrapping_add(u32::from(first & 0b0111_1111) << shift);
@@ -164,7 +164,7 @@ impl HpackDecoder {
     let (bytes_begin, bytes_end) = if data.len() >= *Usize::from(len) {
       data.split_at(*Usize::from(len))
     } else {
-      return Err(crate::Error::MISC_UnexpectedEOF);
+      return Err(protocol_err(Http2Error::InsufficientHpackBytes));
     };
     let is_encoded = first & 0b1000_0000 == 0b1000_0000;
     Ok((bytes_begin, bytes_end, is_encoded))

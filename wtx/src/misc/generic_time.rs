@@ -38,7 +38,7 @@ impl GenericTime {
       self
         .inner
         .duration_since(_earlier.inner)
-        .map_err(|_err| crate::Error::CAF_IncorrectHardwareTime)
+        .map_err(|_err| crate::Error::MISC_InvalidHardwareTime)
     }
     #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
     {
@@ -46,13 +46,13 @@ impl GenericTime {
         self
           .inner
           .checked_duration_since(_earlier.inner)
-          .ok_or(crate::Error::CAF_IncorrectHardwareTime)?
+          .ok_or(crate::Error::MISC_InvalidHardwareTime)?
           .as_micros(),
       ))
     }
     #[cfg(not(any(feature = "std", feature = "embassy-time")))]
     {
-      Err(crate::Error::CAF_GenericTimeNeedsBackend)
+      Err(crate::Error::MISC_GenericTimeNeedsBackend)
     }
   }
 
@@ -75,7 +75,7 @@ impl GenericTime {
     }
     #[cfg(not(any(feature = "std", feature = "embassy-time")))]
     {
-      Err(crate::Error::CAF_GenericTimeNeedsBackend)
+      Err(crate::Error::MISC_GenericTimeNeedsBackend)
     }
   }
 }

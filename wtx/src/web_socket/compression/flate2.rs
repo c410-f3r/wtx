@@ -1,7 +1,10 @@
 use crate::{
   http::GenericHeader,
   misc::{atoi, bytes_split1, FilledBufferWriter},
-  web_socket::{compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig},
+  web_socket::{
+    compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig,
+    WebSocketError,
+  },
 };
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
 
@@ -63,11 +66,11 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
               Ok(())
             })?;
           } else {
-            return Err(crate::Error::WS_InvalidCompressionHeaderParameter);
+            return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
           }
         }
         if !permessage_deflate_flag {
-          return Err(crate::Error::WS_InvalidCompressionHeaderParameter);
+          return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
         }
         has_extension = true;
       }
@@ -219,7 +222,7 @@ fn _manage_header_uniqueness(
   mut cb: impl FnMut() -> crate::Result<()>,
 ) -> crate::Result<()> {
   if *flag {
-    Err(crate::Error::WS_DuplicatedHeader)
+    Err(WebSocketError::DuplicatedHeader.into())
   } else {
     cb()?;
     *flag = true;

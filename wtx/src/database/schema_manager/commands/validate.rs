@@ -2,7 +2,7 @@ use crate::{
   database::{
     schema_manager::{
       misc::is_migration_divergent, Commands, DbMigration, MigrationGroup, Repeatability,
-      SchemaManagement, UserMigration,
+      SchemaManagement, SchemaManagerError, UserMigration,
     },
     DatabaseTy,
   },
@@ -82,17 +82,20 @@ where
         Some(Repeatability::Always) => {}
         _ => {
           if is_migration_divergent(db_migrations, migration) {
-            return Err(crate::Error::SM_DivergentMigration(migration.version()));
+            return Err(SchemaManagerError::DivergentMigration(migration.version()).into());
           }
         }
       }
       migrations_len = migrations_len.saturating_add(1);
     }
     if migrations_len < db_migrations.len() {
-      return Err(crate::Error::SM_DivergentMigrationsNum {
-        expected: db_migrations.len().try_into().unwrap_or(u32::MAX),
-        received: migrations_len.try_into().unwrap_or(u32::MAX),
-      });
+      return Err(
+        SchemaManagerError::DivergentMigrationsNum {
+          expected: db_migrations.len().try_into().unwrap_or(u32::MAX),
+          received: migrations_len.try_into().unwrap_or(u32::MAX),
+        }
+        .into(),
+      );
     }
     Ok(())
   }

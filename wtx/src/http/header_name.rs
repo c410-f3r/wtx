@@ -119,7 +119,7 @@ where
     _iter4!(content.lease(), {}, |byte| {
       if let Some(elem) = HTTP2P_TABLE.get(usize::from(*byte)).copied() {
         if elem == 0 {
-          return Err(crate::Error::InvalidHttp2Content);
+          return Err(crate::Error::HTTP_InvalidHttp2pContent);
         }
       }
     });

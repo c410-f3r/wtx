@@ -2,7 +2,7 @@ use crate::client_api_framework::{
   dnsn::{Deserialize, Serialize},
   network::transport::TransportParams,
   pkg::Package,
-  Api, Id,
+  Api, ClientApiFrameworkError, Id,
 };
 use cl_aux::DynContigColl;
 use core::{borrow::Borrow, marker::PhantomData};
@@ -82,7 +82,7 @@ where
     if is_sorted {
       Ok(())
     } else {
-      Err(crate::Error::CAF_BatchPackagesAreNotSorted)
+      Err(ClientApiFrameworkError::BatchPackagesAreNotSorted.into())
     }
   }
 
@@ -91,10 +91,9 @@ where
     if pkgs.get(idx).map(|pkg| *pkg.ext_req_content().borrow() == eresc_id).unwrap_or_default() {
       return Ok(idx);
     }
-    pkgs
-      .binary_search_by(|req| req.ext_req_content().borrow().cmp(&eresc_id))
-      .ok()
-      .ok_or(crate::Error::CAF_ResponseIdIsNotPresentInTheOfSentBatchPackages(eresc_id))
+    pkgs.binary_search_by(|req| req.ext_req_content().borrow().cmp(&eresc_id)).ok().ok_or(
+      ClientApiFrameworkError::ResponseIdIsNotPresentInTheOfSentBatchPackages(eresc_id).into(),
+    )
   }
 }
 

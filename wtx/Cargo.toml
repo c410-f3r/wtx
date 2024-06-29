@@ -6,12 +6,12 @@ required-features = ["flate2", "optimization", "tokio/rt-multi-thread", "web-soc
 [[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
-required-features = ["async-send", "flate2", "optimization", "pool", "tokio/rt-multi-thread", "web-socket-handshake"]
+required-features = ["flate2", "optimization", "pool", "tokio/rt-multi-thread", "web-socket-handshake"]
 
 [[bin]]
 name = "h2spec-server"
 path = "src/bin/h2spec-server.rs"
-required-features = ["async-send", "http2", "pool", "tokio"]
+required-features = ["http2", "pool", "tokio/rt-multi-thread"]
 
 [[example]]
 name = "database-client-postgres-tokio-rustls"

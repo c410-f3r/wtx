@@ -51,9 +51,9 @@ use core::{
 pub(crate) type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
 pub(crate) type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 
-/// Errors of [Queue].
+/// Errors of [`BlocksQueue`].
 #[derive(Debug)]
-pub(crate) enum BlocksQueueError {
+pub enum BlocksQueueError {
   #[doc = doc_single_elem_cap_overflow!()]
   PushFrontOverflow,
 }
@@ -108,6 +108,7 @@ impl<D, M> BlocksQueue<D, M> {
     *tail = 0;
   }
 
+  #[cfg(test)]
   #[inline]
   pub(crate) fn elements_capacity(&self) -> usize {
     self.data.capacity()
@@ -245,7 +246,7 @@ impl<D, M> BlocksQueue<D, M> {
     self.wrap_logic(
       || {
         cb();
-        (self.elements_capacity(), 0)
+        (self.data.capacity(), 0)
       },
       || (self.head, self.data.capacity().wrapping_sub(self.tail)),
       || (self.head.wrapping_sub(self.tail), 0),

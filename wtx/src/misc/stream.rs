@@ -3,7 +3,7 @@ macro_rules! _local_write_all {
     while !$bytes.is_empty() {
       match $write {
         Err(e) => return Err(e.into()),
-        Ok(0) => return { Err(crate::Error::MISC_UnexpectedEOF) },
+        Ok(0) => return { Err(crate::Error::MISC_UnexpectedStreamEOF) },
         Ok(n) => $bytes = $bytes.get(n..).unwrap_or_default(),
       }
     }
@@ -17,7 +17,7 @@ macro_rules! _local_write_all_vectored {
     while !$io_slices.is_empty() {
       match $write {
         Err(e) => return Err(e.into()),
-        Ok(0) => return Err(crate::Error::MISC_UnexpectedEOF),
+        Ok(0) => return Err(crate::Error::MISC_UnexpectedStreamEOF),
         Ok(n) => crate::misc::stream::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
       }
     }
@@ -51,7 +51,7 @@ where
         }
         let read = self.read(bytes.get_mut(idx..).unwrap_or_default()).await?;
         if read == 0 {
-          return Err(crate::Error::MISC_UnexpectedEOF);
+          return Err(crate::Error::MISC_UnexpectedStreamEOF);
         }
         idx = idx.wrapping_add(read);
       }
@@ -72,7 +72,7 @@ where
         let slice = if let Some(el) = buffer.get_mut(..counter) { el } else { &mut buffer[..] };
         let read = self.read(slice).await?;
         if read == 0 {
-          return Err(crate::Error::MISC_UnexpectedEOF);
+          return Err(crate::Error::MISC_UnexpectedStreamEOF);
         }
         counter = counter.wrapping_sub(read);
       }

@@ -1,5 +1,5 @@
 use crate::{
-  database::client::postgres::SqlState,
+  database::client::postgres::{PostgresError, SqlState},
   misc::{str_split1, Usize, _usize_range_from_u32_range, atoi},
 };
 use alloc::boxed::Box;
@@ -261,7 +261,7 @@ impl TryFrom<&str> for DbError {
         return Err(crate::Error::MISC_UnexpectedString { length: rest.len() });
       }
       let Some(data) = str_split1(rest, b'\0').next() else {
-        return Err(crate::Error::MISC_UnexpectedEOF);
+        return Err(PostgresError::InsufficientDbErrorBytes.into());
       };
       let begin = idx;
       let (end, new_idx) = u32::try_from(data.len())

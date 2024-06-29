@@ -10,7 +10,8 @@ use crate::{
       encrypted_conn,
       executor::commons::FetchWithStmtCommons,
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
-      initial_conn_msg, Config, MessageTy, Postgres, Record, Records, TransactionManager,
+      initial_conn_msg, Config, MessageTy, Postgres, PostgresError, Record, Records,
+      TransactionManager,
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
@@ -71,7 +72,7 @@ where
     let mut buf = [0];
     let _ = initial_stream.read(&mut buf).await?;
     if buf[0] != b'S' {
-      return Err(crate::Error::PG_ServerDoesNotSupportEncryption);
+      return Err(PostgresError::ServerDoesNotSupportEncryption.into());
     }
     let stream = cb(initial_stream).await?;
     let tls_server_end_point = stream.tls_server_end_point()?;
@@ -156,7 +157,11 @@ where
         }
         MessageTy::ReadyForQuery => break,
         MessageTy::DataRow(_) | MessageTy::EmptyQueryResponse => {}
-        _ => return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }.into()),
+        _ => {
+          return Err(<_>::from(
+            PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into(),
+          ))
+        }
       }
     }
     Ok(rows)
@@ -228,7 +233,9 @@ where
         }
         MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
         _ => {
-          return Err(crate::Error::PG_UnexpectedDatabaseMessage { received: msg.tag }.into());
+          return Err(<_>::from(
+            PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into(),
+          ));
         }
       }
     }
