@@ -16,7 +16,7 @@ async fn main() {
     || Ok(Http2Buffer::new(StdRng::default())),
     || Http2Params::default(),
     || {
-      let mut rslt = StreamBuffer::default();
+      let mut rslt = Box::new(StreamBuffer::default());
       rslt.rrb.body.reserve(5);
       Ok(rslt)
     },

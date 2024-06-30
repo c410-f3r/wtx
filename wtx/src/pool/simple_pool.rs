@@ -19,7 +19,7 @@ pub type SimplePoolTokio<RM> =
 pub type SimplePoolGetElemTokio<'guard, R> =
   SimplePoolGetElem<tokio::sync::MutexGuard<'guard, SimplePoolResource<R>>>;
 
-/// Simple pool that never de-allocates its elements.
+/// Pool with a fixed number of elements.
 #[derive(Debug)]
 pub struct SimplePool<RL, RM> {
   available_idxs: Arc<Mutex<Vec<usize>>>,

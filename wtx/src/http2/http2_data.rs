@@ -58,7 +58,6 @@ where
       hp: &mut self.hp,
       hps: &mut self.hps,
       is_conn_open: &mut self.is_conn_open,
-      recv_streams_num: &mut self.recv_streams_num,
       stream: &mut self.stream,
       windows: &mut self.windows,
     }
@@ -66,18 +65,20 @@ where
 
   /// Fetches and evaluates one or more arbitrary frames.
   #[inline]
-  pub(crate) async fn process_receipt(&mut self) -> crate::Result<Option<()>> {
+  pub(crate) async fn process_receipt(&mut self) -> crate::Result<()> {
     let Http2Buffer {
       hpack_dec,
       hpack_enc,
-      initial_server_buffers,
-      initial_server_streams,
+      initial_server_header,
       pfb,
       scrp,
       sorp,
       uri_buffer,
       ..
     } = self.hb.lease_mut();
+    if initial_server_header.is_some() {
+      return Ok(());
+    }
     let Some(fi) = read_frame_until(
       &mut self.windows,
       &mut self.hp,
@@ -91,18 +92,18 @@ where
     )
     .await?
     else {
-      return Ok(None);
+      return Ok(());
     };
-    let prft = ProcessReceiptFrameTy::<_, SB, IS_CLIENT> {
+    let prft = ProcessReceiptFrameTy {
       conn_windows: &mut self.windows,
       fi,
       hp: &mut self.hp,
       hpack_dec,
-      hps: &self.hps,
       is_conn_open: &mut self.is_conn_open,
       last_stream_id: &mut self.last_stream_id,
       pfb,
       phantom: PhantomData,
+      recv_streams_num: &mut self.recv_streams_num,
       stream: &mut self.stream,
       uri_buffer,
     };
@@ -111,11 +112,18 @@ where
         prft.data(sorp).await?;
       }
       FrameInitTy::Headers => {
-        prft.header(initial_server_buffers, initial_server_streams, scrp, sorp).await?;
+        if scrp.contains_key(&prft.fi.stream_id) {
+          return Err(protocol_err(Http2Error::UnexpectedNonControlFrame));
+        }
+        if IS_CLIENT {
+          prft.header_client(sorp).await?;
+        } else {
+          prft.header_server(initial_server_header, sorp).await?;
+        }
       }
       FrameInitTy::Reset => {
         prft.reset(scrp, sorp)?;
-        return Ok(Some(()));
+        return Ok(());
       }
       FrameInitTy::WindowUpdate if fi.stream_id.is_not_zero() => {
         prft.window_update(scrp, sorp)?;
@@ -124,7 +132,7 @@ where
         return Err(protocol_err(Http2Error::UnexpectedConnFrame));
       }
     }
-    Ok(Some(()))
+    Ok(())
   }
 }
 
@@ -152,7 +160,6 @@ pub(crate) struct Http2DataPartsMut<'instance, S, SB> {
   pub(crate) hps: &'instance mut Http2ParamsSend,
   pub(crate) is_conn_open: &'instance mut bool,
   pub(crate) last_stream_id: &'instance mut U31,
-  pub(crate) recv_streams_num: &'instance mut u32,
   pub(crate) stream: &'instance mut S,
   pub(crate) windows: &'instance mut Windows,
 }

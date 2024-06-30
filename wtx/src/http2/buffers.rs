@@ -1,10 +1,10 @@
 use crate::{
   http::{Headers, Method, Request, Response, StatusCode, Version},
-  http2::{uri_buffer::MAX_URI_LEN, HpackDecoder, HpackEncoder, Scrp, Sorp, UriBuffer, U31},
-  misc::{ArrayString, ByteVector, Lease, LeaseMut, PartitionedFilledBuffer, Queue, UriRef},
+  http2::{uri_buffer::MAX_URI_LEN, FrameInit, HpackDecoder, HpackEncoder, Scrp, Sorp, UriBuffer},
+  misc::{ArrayString, ByteVector, Lease, LeaseMut, PartitionedFilledBuffer, UriRef},
   rng::Rng,
 };
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
 use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.
@@ -12,8 +12,7 @@ use hashbrown::HashMap;
 pub struct Http2Buffer<SB> {
   pub(crate) hpack_dec: HpackDecoder,
   pub(crate) hpack_enc: HpackEncoder,
-  pub(crate) initial_server_buffers: Vec<SB>,
-  pub(crate) initial_server_streams: Queue<(Method, U31)>,
+  pub(crate) initial_server_header: Option<FrameInit>,
   pub(crate) pfb: PartitionedFilledBuffer,
   pub(crate) scrp: Scrp,
   pub(crate) sorp: Sorp<SB>,
@@ -30,8 +29,7 @@ impl<SB> Http2Buffer<SB> {
     Self {
       hpack_dec: HpackDecoder::new(),
       hpack_enc: HpackEncoder::new(rng),
-      initial_server_buffers: Vec::new(),
-      initial_server_streams: Queue::new(),
+      initial_server_header: None,
       pfb: PartitionedFilledBuffer::new(),
       scrp: HashMap::new(),
       sorp: HashMap::new(),
@@ -41,20 +39,10 @@ impl<SB> Http2Buffer<SB> {
 
   #[inline]
   pub(crate) fn clear(&mut self) {
-    let Self {
-      hpack_dec,
-      hpack_enc,
-      initial_server_buffers,
-      initial_server_streams,
-      pfb,
-      scrp,
-      sorp,
-      uri_buffer,
-    } = self;
+    let Self { hpack_dec, hpack_enc, initial_server_header, pfb, scrp, sorp, uri_buffer } = self;
     hpack_dec.clear();
     hpack_enc.clear();
-    initial_server_buffers.clear();
-    initial_server_streams.clear();
+    *initial_server_header = None;
     pfb._clear();
     scrp.clear();
     sorp.clear();

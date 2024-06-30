@@ -112,8 +112,14 @@ pub enum Http2Error {
   UnexpectedStreamId,
   /// Type is out of range or unsupported.
   UnknownSettingFrameTy,
-  /// A stream ID didn't identity a stored `StreamCommons`.
-  UnknownStreamReceiver,
+  /// A stream ID is not locally stored to allow the processing of data frames.
+  UnknownDataStreamReceiver,
+  /// A stream ID is not locally stored to allow the processing of header frames.
+  UnknownHeaderStreamReceiver,
+  /// A stream ID is not locally stored to allow the processing of reset frames.
+  UnknownResetStreamReceiver,
+  /// A stream ID is not locally stored to allow the processing of window update frames.
+  UnknownWindowUpdateStreamReceiver,
   /// Length of a header name or value is limited to 127 bytes.
   UnsupportedHeaderNameOrValueLen,
   /// Push frames are deprecated and unsupported

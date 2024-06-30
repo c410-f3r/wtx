@@ -14,8 +14,12 @@ macro_rules! loop_until_some {
 }
 
 macro_rules! process_higher_operation {
-  ($hd:expr, |$guard:ident| $cb:expr) => {
-    'outer: loop {
+  (
+    $hd:expr,
+    |$guard:ident| $cb:expr,
+    |$guard_end:ident, $elem_end:ident| $cb_end:expr
+  ) => {
+    'process_receipt: loop {
       let err = 'err: {
         let mut $guard = $hd.lock().await;
         if let Err(err) = $guard.process_receipt().await {
@@ -23,8 +27,12 @@ macro_rules! process_higher_operation {
         }
         match $cb {
           Err(err) => break 'err err,
-          Ok(Some(elem)) => break 'outer Ok(elem),
-          Ok(None) => continue 'outer,
+          Ok(None) => continue 'process_receipt,
+          Ok(Some(elem)) => {
+            let $elem_end = elem;
+            let mut $guard_end = $guard;
+            break 'process_receipt ($cb_end);
+          }
         }
       };
       break Err(crate::http2::misc::process_higher_operation_err(err, $hd).await);

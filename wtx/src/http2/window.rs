@@ -130,6 +130,7 @@ impl<'any> WindowsPair<'any> {
   #[inline]
   pub(crate) async fn withdrawn_recv<S>(
     &mut self,
+    has_eos: bool,
     hp: &Http2Params,
     is_conn_open: bool,
     stream: &mut S,
@@ -141,43 +142,54 @@ impl<'any> WindowsPair<'any> {
   {
     let iwl = U31::from_u32(hp.initial_window_len()).i32();
     self.conn.recv.withdrawn(value.i32());
-    self.stream.recv.withdrawn(value.i32());
-    match (self.conn.recv.is_invalid(), self.stream.recv.is_invalid()) {
-      (false, false) => {}
-      (false, true) => {
-        let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
-        self.conn.recv.deposit(Some(stream_id), conn_value)?;
-        write_array(
-          [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
-          is_conn_open,
-          stream,
-        )
-        .await?;
-      }
-      (true, false) => {
-        let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
-        self.stream.recv.deposit(Some(stream_id), stream_value)?;
-        write_array(
-          [&WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes()],
-          is_conn_open,
-          stream,
-        )
-        .await?;
-      }
-      (true, true) => {
-        let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
-        let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
-        self.conn.recv.deposit(Some(stream_id), conn_value)?;
-        self.stream.recv.deposit(Some(stream_id), stream_value)?;
-        write_array(
-          [
-            &WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes(),
-            &WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes(),
-          ],
-          is_conn_open,
-          stream,
-        )
-        .await?;
+    if !has_eos && self.conn.recv.is_invalid() {
+      let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
+      self.conn.recv.deposit(Some(stream_id), conn_value)?;
+      write_array(
+        [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
+        is_conn_open,
+        stream,
+      )
+      .await?;
+    } else {
+      self.stream.recv.withdrawn(value.i32());
+      match (self.conn.recv.is_invalid(), self.stream.recv.is_invalid()) {
+        (false, false) => {}
+        (false, true) => {
+          let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
+          self.stream.recv.deposit(Some(stream_id), stream_value)?;
+          write_array(
+            [&WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes()],
+            is_conn_open,
+            stream,
+          )
+          .await?;
+        }
+        (true, false) => {
+          let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
+          self.conn.recv.deposit(Some(stream_id), conn_value)?;
+          write_array(
+            [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
+            is_conn_open,
+            stream,
+          )
+          .await?;
+        }
+        (true, true) => {
+          let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
+          let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
+          self.conn.recv.deposit(Some(stream_id), conn_value)?;
+          self.stream.recv.deposit(Some(stream_id), stream_value)?;
+          write_array(
+            [
+              &WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes(),
+              &WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes(),
+            ],
+            is_conn_open,
+            stream,
+          )
+          .await?;
+        }
       }
     }
     Ok(())

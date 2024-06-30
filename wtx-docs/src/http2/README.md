@@ -26,7 +26,7 @@ async fn client() {
   )
   .await
   .unwrap();
-  let mut sb = StreamBuffer::default();
+  let mut sb = Box::new(StreamBuffer::default());
   let mut stream = http2.stream().await.unwrap();
   stream
     .send_req(&mut sb.hpack_enc_buffer, RequestStr::http2(b"Hello!", Method::Get, uri))

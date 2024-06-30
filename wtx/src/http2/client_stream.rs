@@ -63,21 +63,27 @@ where
         },
       ));
     }
-    process_higher_operation!(&self.hd, |guard| {
-      let mut fun = || {
-        let hdpm = guard.parts_mut();
-        if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
-          if let Some(sorp) = hdpm.hb.sorp.remove(&self.stream_id) {
-            if let Some(idx) = sorp.content_length_idx {
-              check_content_length(idx, &sorp)?;
+    process_higher_operation!(
+      &self.hd,
+      |guard| {
+        let rslt = 'rslt: {
+          let hdpm = guard.parts_mut();
+          if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
+            if let Some(sorp) = hdpm.hb.sorp.remove(&self.stream_id) {
+              if let Some(idx) = sorp.content_length_idx {
+                if let Err(err) = check_content_length(idx, &sorp) {
+                  break 'rslt Err(err);
+                }
+              }
+              break 'rslt Ok(Some((sorp.sb, sorp.status_code)));
             }
-            return Ok(Some((sorp.sb, sorp.status_code)));
           }
-        }
-        Ok(None)
-      };
-      fun()
-    })
+          Ok(None)
+        };
+        rslt
+      },
+      |_guard, elem| Ok(elem)
+    )
   }
 
   /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing

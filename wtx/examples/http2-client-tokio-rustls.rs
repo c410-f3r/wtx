@@ -14,7 +14,7 @@ use wtx::{
 #[tokio::main]
 async fn main() {
   let uri = UriString::new(common::_uri_from_args());
-  let mut sb = StreamBuffer::default();
+  let mut sb = Box::new(StreamBuffer::default());
   let mut http2 = Http2Tokio::connect(
     Http2Buffer::new(StaticRng::default()),
     Http2Params::default(),
