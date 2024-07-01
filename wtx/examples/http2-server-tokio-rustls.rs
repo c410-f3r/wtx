@@ -21,7 +21,7 @@ async fn main() {
     handle,
     || Ok(Http2Buffer::new(StdRng::default())),
     || Http2Params::default(),
-    || Ok(StreamBuffer::default()),
+    || Ok(Box::new(StreamBuffer::default())),
     (
       || TokioRustlsAcceptor::default().with_cert_chain_and_priv_key(CERT, KEY).unwrap(),
       |acceptor| acceptor.clone(),

@@ -77,8 +77,9 @@ where
     (max_frame_len, headers_bytes, trailers_bytes)
   };
   let (mut has_headers, mut has_data) = (false, false);
-  process_higher_operation!(hd, |guard| {
-    do_send_msg::<_, _, IS_CLIENT>(
+  process_higher_operation!(
+    hd,
+    |guard| do_send_msg::<_, _, IS_CLIENT>(
       (headers_bytes, data_bytes, trailers_bytes),
       (&mut has_headers, &mut has_data),
       guard.parts_mut(),
@@ -87,8 +88,9 @@ where
       stream_id,
       &mut cb,
     )
-    .await
-  })
+    .await,
+    |_guard, elem| Ok(elem)
+  )
 }
 
 #[inline]

@@ -46,8 +46,12 @@ mod window;
 mod window_update_frame;
 
 use crate::{
-  http2::misc::{apply_initial_params, process_higher_operation_err, protocol_err},
-  misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize},
+  http::StatusCode,
+  http2::misc::{
+    apply_initial_params, process_higher_operation_err, protocol_err,
+    read_header_and_continuations, server_header_stream_state,
+  },
+  misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize, _Span},
 };
 pub use buffers::{Http2Buffer, ReqResBuffer, StreamBuffer};
 pub use client_stream::ClientStream;
@@ -162,33 +166,57 @@ where
   #[inline]
   pub async fn stream(&mut self, mut sb: SB) -> crate::Result<ServerStream<HD>> {
     sb.lease_mut().clear();
-    {
-      let mut guard = self.hd.lock().await;
-      let hdpm = guard.parts_mut();
-
-      if *hdpm.recv_streams_num > hdpm.hp.max_recv_streams_num() {
-        drop(guard);
-        let err = Http2Error::ExceedAmountOfActiveConcurrentStreams;
-        return Err(process_higher_operation_err(protocol_err(err), &self.hd).await);
+    process_higher_operation!(
+      &self.hd,
+      |guard| {
+        let rslt = 'rslt: {
+          let hdpm = guard.parts_mut();
+          let Some(fi) = hdpm.hb.initial_server_header.take() else {
+            break 'rslt Ok(None);
+          };
+          sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
+          let fut = read_header_and_continuations::<_, _, false, false>(
+            fi,
+            hdpm.hp,
+            &mut hdpm.hb.hpack_dec,
+            hdpm.is_conn_open,
+            &mut hdpm.hb.pfb,
+            &mut sb.lease_mut().rrb,
+            hdpm.stream,
+            &mut hdpm.hb.uri_buffer,
+            |hf| hf.hsreqh().method.ok_or(crate::Error::HTTP_MissingRequestMethod),
+          );
+          match fut.await {
+            Err(err) => break 'rslt Err(err),
+            Ok(elem) => Ok(Some((elem.0, fi, elem.1, elem.2))),
+          }
+        };
+        rslt
+      },
+      |guard, elem| {
+        let (content_length_idx, fi, has_eos, method) = elem;
+        let hdpm = guard.parts_mut();
+        drop(hdpm.hb.sorp.insert(
+          fi.stream_id,
+          StreamOverallRecvParams {
+            body_len: 0,
+            content_length_idx,
+            has_initial_header: true,
+            sb,
+            span: _Span::_none(),
+            status_code: StatusCode::Ok,
+            stream_state: server_header_stream_state(has_eos),
+            windows: Windows::stream(hdpm.hp, hdpm.hps),
+          },
+        ));
+        Ok(ServerStream::new(
+          self.hd.clone(),
+          method,
+          _trace_span!("Creating server stream", stream_id = fi.stream_id.u32()),
+          fi.stream_id,
+        ))
       }
-      *hdpm.recv_streams_num = hdpm.recv_streams_num.wrapping_add(1);
-      sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
-      hdpm.hb.initial_server_buffers.push(sb);
-    }
-    process_higher_operation!(&self.hd, |guard| {
-      let mut fun = || {
-        if let Some((method, stream_id)) = guard.parts_mut().hb.initial_server_streams.pop_back() {
-          return Ok(Some(ServerStream::new(
-            self.hd.clone(),
-            method,
-            _trace_span!("Creating server stream", stream_id = stream_id.u32()),
-            stream_id,
-          )));
-        }
-        Ok(None)
-      };
-      fun()
-    })
+    )
   }
 }
 

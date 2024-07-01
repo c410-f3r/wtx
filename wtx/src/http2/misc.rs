@@ -1,9 +1,10 @@
 use crate::{
   http2::{
     http2_data::Http2DataPartsMut, http2_params_send::Http2ParamsSend, CommonFlags, FrameInit,
-    FrameInitTy, GoAwayFrame, HpackEncoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode,
-    Http2Params, PingFrame, ResetStreamFrame, Scrp, SettingsFrame, Sorp, StreamBuffer,
-    StreamOverallRecvParams, WindowUpdateFrame, Windows, U31,
+    FrameInitTy, GoAwayFrame, HeadersFrame, HpackDecoder, HpackEncoder, Http2Buffer, Http2Data,
+    Http2Error, Http2ErrorCode, Http2Params, PingFrame, ReqResBuffer, ResetStreamFrame, Scrp,
+    SettingsFrame, Sorp, StreamBuffer, StreamOverallRecvParams, StreamState, UriBuffer,
+    WindowUpdateFrame, Windows, U31,
   },
   misc::{
     LeaseMut, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until, atoi, Lock, RefCounter,
@@ -237,6 +238,83 @@ where
 }
 
 #[inline]
+pub(crate) async fn read_header_and_continuations<
+  H,
+  S,
+  const IS_CLIENT: bool,
+  const IS_TRAILER: bool,
+>(
+  fi: FrameInit,
+  hp: &mut Http2Params,
+  hpack_dec: &mut HpackDecoder,
+  is_conn_open: &mut bool,
+  pfb: &mut PartitionedFilledBuffer,
+  rrb: &mut ReqResBuffer,
+  stream: &mut S,
+  uri_buffer: &mut UriBuffer,
+  mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
+) -> crate::Result<(Option<usize>, bool, H)>
+where
+  S: Stream,
+{
+  if IS_TRAILER && !fi.cf.has_eos() {
+    return Err(protocol_err(Http2Error::MissingEOSInTrailer));
+  }
+
+  if fi.cf.has_eoh() {
+    let (content_length_idx, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
+      pfb._current(),
+      fi,
+      &mut rrb.headers,
+      hp,
+      hpack_dec,
+      &mut rrb.uri,
+      uri_buffer,
+    )?;
+    if hf.is_over_size() {
+      return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
+    }
+    return Ok((content_length_idx, hf.has_eos(), headers_cb(&hf)?));
+  }
+
+  rrb.body.clear();
+  rrb.body.reserve(pfb._current().len());
+  rrb.body.extend_from_slice(pfb._current())?;
+
+  'continuation_frames: {
+    for _ in 0.._max_continuation_frames!() {
+      let frame_fi = loop_until_some!(read_frame::<_, true>(hp, is_conn_open, pfb, stream).await?);
+      let has_diff_id = fi.stream_id != frame_fi.stream_id;
+      let is_not_continuation = frame_fi.ty != FrameInitTy::Continuation;
+      if has_diff_id || is_not_continuation {
+        return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
+      }
+      rrb.body.reserve(pfb._current().len());
+      rrb.body.extend_from_slice(pfb._current())?;
+      if frame_fi.cf.has_eoh() {
+        break 'continuation_frames;
+      }
+    }
+    return Err(protocol_err(Http2Error::VeryLargeAmountOfContinuationFrames));
+  }
+
+  let (content_length_idx, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
+    &rrb.body,
+    fi,
+    &mut rrb.headers,
+    hp,
+    hpack_dec,
+    &mut rrb.uri,
+    uri_buffer,
+  )?;
+  if hf.is_over_size() {
+    return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
+  }
+  rrb.body.clear();
+  Ok((content_length_idx, hf.has_eos(), headers_cb(&hf)?))
+}
+
+#[inline]
 pub(crate) async fn send_go_away<S>(
   error_code: Http2ErrorCode,
   is_conn_open: &mut bool,
@@ -261,6 +339,15 @@ pub(crate) async fn send_reset_stream<S, SB>(
   let _opt = hb.scrp.remove(&stream_id);
   let _opt = hb.sorp.remove(&stream_id);
   let _rslt = stream.write_all(&ResetStreamFrame::new(error_code, stream_id).bytes()).await;
+}
+
+#[inline]
+pub(crate) fn server_header_stream_state(is_eos: bool) -> StreamState {
+  if is_eos {
+    StreamState::HalfClosedRemote
+  } else {
+    StreamState::Open
+  }
 }
 
 #[inline]
