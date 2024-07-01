@@ -57,7 +57,7 @@ embedded-io-async = { default-features = false, optional = true, version = "0.6"
 embedded-tls = { default-features = false, features = ["async"], optional = true, version = "0.16" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
-futures-lite = { default-features = false, optional = true, version = "1.0" }
+futures-lite = { default-features = false, optional = true, version = "2.3" }
 glommio = { default-features = false, optional = true, version = "0.9" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
