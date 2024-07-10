@@ -21,8 +21,8 @@ impl Headers {
   ///
   /// Bytes are capped according to the specified `max_bytes`.
   #[inline]
-  pub fn with_capacity(bytes: usize, headers: usize, max_bytes: usize) -> Self {
-    Self { ab: AbstractHeaders::with_capacity(bytes, headers, max_bytes), has_trailers: false }
+  pub fn with_capacity(bytes: usize, headers: usize, max_bytes: usize) -> crate::Result<Self> {
+    Ok(Self { ab: AbstractHeaders::with_capacity(bytes, headers, max_bytes)?, has_trailers: false })
   }
 
   /// The amount of bytes used by all of the headers
@@ -105,10 +105,18 @@ impl Headers {
   ///
   /// If the sum of `name` and `value` is greater than the maximum number of bytes, then the first
   /// inserted entries will be deleted accordantly.
+  ///
+  /// `additional_value` can be used to append more data into the header value.
   #[inline]
-  pub fn push_front(&mut self, header: Header<'_>) -> crate::Result<()> {
+  pub fn push_front(&mut self, header: Header<'_>, additional_value: &[u8]) -> crate::Result<()> {
     self.has_trailers = header.is_trailer;
-    self.ab.push_front(header.is_trailer, header.name, header.value, header.is_sensitive, |_, _| {})
+    self.ab.push_front(
+      header.is_trailer,
+      header.name,
+      [header.value, additional_value],
+      header.is_sensitive,
+      |_, _| {},
+    )
   }
 
   /// Removes all a pair referenced by `idx`.
@@ -122,8 +130,8 @@ impl Headers {
   ///
   /// Bytes are capped according to the specified `max_bytes`.
   #[inline(always)]
-  pub fn reserve(&mut self, bytes: usize, headers: usize) {
-    self.ab.reserve(bytes, headers);
+  pub fn reserve(&mut self, bytes: usize, headers: usize) -> crate::Result<()> {
+    self.ab.reserve(bytes, headers)
   }
 
   /// If `max_bytes` is lesser than the current number of bytes, then the first inserted entries

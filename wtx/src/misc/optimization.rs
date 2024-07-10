@@ -1,7 +1,4 @@
-#![allow(
-  // Used as fallbacks
-  clippy::disallowed_methods
-)]
+#![expect(clippy::disallowed_methods, reason = "used as fallbacks")]
 
 use crate::misc::{BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUtf8Error};
 
@@ -65,12 +62,12 @@ pub fn from_utf8_ext(bytes: &[u8]) -> Result<&str, ExtUtf8Error> {
     Ok(elem) => return Ok(elem),
     Err(error) => error,
   };
-  let (_valid_bytes, after_valid) = bytes.split_at(err.valid_up_to);
   match err.error_len {
     None => Err(ExtUtf8Error::Incomplete {
-      incomplete_ending_char: {
-        IncompleteUtf8Char::new(after_valid).ok_or(ExtUtf8Error::Invalid)?
-      },
+      incomplete_ending_char: bytes
+        .split_at_checked(err.valid_up_to)
+        .and_then(|(_valid_bytes, after_valid)| IncompleteUtf8Char::new(after_valid))
+        .ok_or(ExtUtf8Error::Invalid)?,
     }),
     Some(_) => Err(ExtUtf8Error::Invalid),
   }

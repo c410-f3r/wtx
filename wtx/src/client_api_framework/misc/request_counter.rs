@@ -65,6 +65,13 @@ impl RequestCounter {
   }
 }
 
+impl Default for RequestCounter {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 #[cfg(all(feature = "tokio", test))]
 mod tests {
   use crate::client_api_framework::misc::{RequestCounter, RequestLimit};

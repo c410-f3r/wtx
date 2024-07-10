@@ -34,6 +34,10 @@ use core::{
 pub enum QueueError {
   #[doc = doc_single_elem_cap_overflow!()]
   PushFrontOverflow,
+  #[doc = doc_reserve_overflow!()]
+  ReserveOverflow,
+  #[doc = doc_reserve_overflow!()]
+  WithCapacityOverflow,
 }
 
 /// A circular buffer where elements are added in only one-way.
@@ -49,8 +53,11 @@ impl<D> Queue<D> {
   }
 
   #[inline]
-  pub(crate) fn with_capacity(cap: usize) -> Self {
-    Self { data: Vector::with_capacity(cap), head: 0 }
+  pub(crate) fn with_capacity(cap: usize) -> Result<Self, QueueError> {
+    Ok(Self {
+      data: Vector::with_capacity(cap).map_err(|_err| QueueError::WithCapacityOverflow)?,
+      head: 0,
+    })
   }
 
   #[inline]
@@ -105,11 +112,6 @@ impl<D> Queue<D> {
   }
 
   #[inline]
-  pub(crate) fn is_full(&self) -> bool {
-    self.data.len() >= self.data.capacity()
-  }
-
-  #[inline]
   pub(crate) fn iter(&self) -> impl Iterator<Item = &D> {
     let (lhs, rhs) = self.as_slices();
     rhs.iter().chain(lhs)
@@ -160,12 +162,15 @@ impl<D> Queue<D> {
     }
     Some(rslt)
   }
+}
 
+impl<D> Queue<D>
+where
+  D: Copy,
+{
   #[inline]
   pub(crate) fn push_front(&mut self, value: D) -> Result<(), QueueError> {
-    if self.is_full() {
-      return Err(QueueError::PushFrontOverflow);
-    }
+    self.reserve(1).map_err(|_err| QueueError::PushFrontOverflow)?;
     let len = self.data.len();
     self.head = wrap_sub(self.data.capacity(), self.head, 1);
     // SAFETY: `self.head` points to valid memory
@@ -182,15 +187,12 @@ impl<D> Queue<D> {
     }
     Ok(())
   }
-}
 
-impl<D> Queue<D>
-where
-  D: Copy,
-{
   #[inline(always)]
-  pub(crate) fn reserve(&mut self, additional: usize) {
-    let _ = reserve(additional, &mut self.data, &mut self.head);
+  pub(crate) fn reserve(&mut self, additional: usize) -> Result<(), QueueError> {
+    reserve(additional, &mut self.data, &mut self.head)
+      .map(|_el| ())
+      .map_err(|_err| QueueError::ReserveOverflow)
   }
 }
 
@@ -220,7 +222,7 @@ mod _proptest {
 
   #[test_strategy::proptest]
   fn queue(bytes: Vec<u8>) {
-    let mut queue = Queue::with_capacity(bytes.len());
+    let mut queue = Queue::with_capacity(bytes.len()).unwrap();
     let mut vec_deque = VecDeque::with_capacity(bytes.len());
 
     for byte in bytes.iter().copied() {
@@ -238,7 +240,7 @@ mod _proptest {
       assert_eq!(queue.get_mut(0), vec_deque.get_mut(0));
       assert_eq!(queue.pop_front(), vec_deque.pop_front());
     }
-    queue.reserve(queue.capacity() + 10);
+    queue.reserve(queue.capacity() + 10).unwrap();
     vec_deque.reserve(vec_deque.capacity() + 10);
     loop {
       if queue.len() == 0 {
@@ -267,7 +269,7 @@ mod tests {
 
   #[test]
   fn as_slices() {
-    let mut queue = Queue::with_capacity(4);
+    let mut queue = Queue::with_capacity(4).unwrap();
     queue.push_front(1).unwrap();
     queue.push_front(2).unwrap();
     queue.push_front(3).unwrap();
@@ -280,7 +282,7 @@ mod tests {
 
   #[test]
   fn clear() {
-    let mut queue = Queue::with_capacity(1);
+    let mut queue = Queue::with_capacity(1).unwrap();
     assert_eq!(queue.len(), 0);
     queue.push_front(1).unwrap();
     assert_eq!(queue.len(), 1);
@@ -290,7 +292,7 @@ mod tests {
 
   #[test]
   fn get() {
-    let mut queue = Queue::with_capacity(1);
+    let mut queue = Queue::with_capacity(1).unwrap();
     assert_eq!(queue.get(0), None);
     assert_eq!(queue.get_mut(0), None);
     queue.push_front(1).unwrap();
@@ -300,7 +302,7 @@ mod tests {
 
   #[test]
   fn pop_back() {
-    let mut queue = Queue::with_capacity(1);
+    let mut queue = Queue::with_capacity(1).unwrap();
     assert_eq!(queue.pop_back(), None);
     queue.push_front(1).unwrap();
     assert_eq!(queue.pop_back(), Some(1));
@@ -309,7 +311,7 @@ mod tests {
 
   #[test]
   fn pop_front() {
-    let mut queue = Queue::with_capacity(1);
+    let mut queue = Queue::with_capacity(1).unwrap();
     assert_eq!(queue.pop_front(), None);
     queue.push_front(1).unwrap();
     assert_eq!(queue.pop_front(), Some(1));
@@ -318,17 +320,32 @@ mod tests {
 
   #[test]
   fn push_front() {
-    let mut queue = Queue::with_capacity(1);
+    let mut queue = Queue::with_capacity(1).unwrap();
     assert_eq!(queue.len(), 0);
     queue.push_front(1).unwrap();
     assert_eq!(queue.len(), 1);
   }
 
   #[test]
+  fn push_when_full() {
+    let mut bq = Queue::with_capacity(5).unwrap();
+    bq.push_front(0).unwrap();
+    bq.push_front(1).unwrap();
+    bq.push_front(2).unwrap();
+    bq.push_front(3).unwrap();
+    bq.push_front(4).unwrap();
+    let _ = bq.pop_back();
+    let _ = bq.pop_back();
+    bq.push_front(5).unwrap();
+    bq.push_front(6).unwrap();
+    assert_eq!(bq.as_slices(), (&[4, 3, 2][..], &[6, 5][..]));
+  }
+
+  #[test]
   fn reserve() {
     let mut queue = Queue::<u8>::new();
     assert_eq!(queue.capacity(), 0);
-    queue.reserve(10);
+    queue.reserve(10).unwrap();
     assert_eq!(queue.capacity(), 10);
   }
 }

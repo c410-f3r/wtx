@@ -115,10 +115,12 @@ mod serde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::client_api_framework::{
-    data_format::GraphQlResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
+  use crate::{
+    client_api_framework::{
+      data_format::GraphQlResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
+    },
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
   use serde::de::Deserializer;
 
@@ -153,7 +155,7 @@ mod serde_json {
     E: serde::Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
       if size_of::<Self>() == 0 {
         return Ok(());
       }
@@ -165,10 +167,10 @@ mod serde_json {
 
 #[cfg(feature = "simd-json")]
 mod simd_json {
-  use crate::client_api_framework::{
-    data_format::GraphQlResponse, dnsn::SimdJson, ClientApiFrameworkError,
+  use crate::{
+    client_api_framework::{data_format::GraphQlResponse, dnsn::SimdJson, ClientApiFrameworkError},
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<D, E> crate::client_api_framework::dnsn::Deserialize<SimdJson> for GraphQlResponse<D, E>
@@ -197,7 +199,7 @@ mod simd_json {
     D: serde::Serialize,
     E: serde::Serialize,
   {
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SimdJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SimdJson) -> crate::Result<()> {
       if size_of::<Self>() == 0 {
         return Ok(());
       }

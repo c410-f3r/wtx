@@ -25,7 +25,7 @@ async fn main() {
     stream: TokioRustlsConnector::from_webpki_roots()
       .push_certs(include_bytes!("../../.certs/root-ca.crt"))
       .unwrap()
-      .with_tcp_stream(uri.host().parse().unwrap(), uri.hostname())
+      .with_tcp_stream(uri.host(), uri.hostname())
       .await
       .unwrap(),
     uri: &uri.to_ref(),

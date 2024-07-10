@@ -1,6 +1,6 @@
 use crate::{
   http::server::{OptionedServer, _buffers_len},
-  misc::{FnFut, Stream},
+  misc::{FnFut, Stream, Vector},
   pool::{Pool, SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   rng::StdRng,
   web_socket::{
@@ -8,7 +8,6 @@ use crate::{
     Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer,
   },
 };
-use alloc::vec::Vec;
 use core::{fmt::Debug, future::Future, net::SocketAddr};
 use std::sync::OnceLock;
 use tokio::{
@@ -82,7 +81,7 @@ async fn conn_buffer(
   len: usize,
 ) -> crate::Result<
   SimplePoolGetElem<
-    MutexGuard<'static, SimplePoolResource<(FrameBuffer<Vec<u8>>, WebSocketBuffer)>>,
+    MutexGuard<'static, SimplePoolResource<(FrameBuffer<Vector<u8>>, WebSocketBuffer)>>,
   >,
 > {
   static POOL: OnceLock<SimplePoolTokio<WebSocketRM>> = OnceLock::new();

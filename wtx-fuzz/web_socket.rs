@@ -1,9 +1,6 @@
 //! WebSocket
 
-#![allow(
-  // Does not matter
-  clippy::unwrap_used
-)]
+#![expect(clippy::unwrap_used, reason = "does not matter")]
 #![no_main]
 
 use tokio::runtime::Builder;

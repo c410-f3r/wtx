@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use crate::misc::Vector;
 
 /// Type that indicates the usage of the `miniserde` dependency.
 #[derive(Debug)]
@@ -11,12 +11,11 @@ _impl_se_collections!(
   vec: |this, bytes, _drsr| { miniserde_serialize(bytes, this)?; }
 );
 
-pub(crate) fn miniserde_serialize<E>(bytes: &mut Vec<u8>, elem: &E) -> crate::Result<()>
+pub(crate) fn miniserde_serialize<E>(bytes: &mut Vector<u8>, elem: &E) -> crate::Result<()>
 where
   E: miniserde::Serialize,
 {
-  let vec: Vec<u8> = miniserde::json::to_string(elem).into();
-  bytes.extend(vec);
+  bytes.extend_from_slice(miniserde::json::to_string(elem).as_bytes())?;
   Ok(())
 }
 

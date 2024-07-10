@@ -54,6 +54,6 @@ where
 {
   #[inline]
   fn generic(&self) -> u64 {
-    (*self).into()
+    *self
   }
 }

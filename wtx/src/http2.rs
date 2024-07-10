@@ -10,7 +10,6 @@
 #[macro_use]
 mod macros;
 
-mod buffers;
 mod client_stream;
 mod common_flags;
 mod continuation_frame;
@@ -22,6 +21,7 @@ mod hpack_decoder;
 mod hpack_encoder;
 mod hpack_header;
 mod hpack_static_headers;
+mod http2_buffer;
 mod http2_data;
 mod http2_error;
 mod http2_error_code;
@@ -46,18 +46,17 @@ mod window;
 mod window_update_frame;
 
 use crate::{
-  http::StatusCode,
+  http::{HttpError, ReqResBuffer, StatusCode},
   http2::misc::{
     apply_initial_params, process_higher_operation_err, protocol_err,
     read_header_and_continuations, server_header_stream_state,
   },
   misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize, _Span},
 };
-pub use buffers::{Http2Buffer, ReqResBuffer, StreamBuffer};
 pub use client_stream::ClientStream;
 pub(crate) use common_flags::CommonFlags;
 pub(crate) use continuation_frame::ContinuationFrame;
-use core::time::Duration;
+use core::{mem, time::Duration};
 pub(crate) use data_frame::DataFrame;
 pub(crate) use frame_init::{FrameInit, FrameInitTy};
 pub(crate) use go_away_frame::GoAwayFrame;
@@ -67,6 +66,7 @@ pub(crate) use hpack_decoder::HpackDecoder;
 pub(crate) use hpack_encoder::HpackEncoder;
 pub(crate) use hpack_header::HpackHeaderBasic;
 pub(crate) use hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders};
+pub use http2_buffer::Http2Buffer;
 pub use http2_data::Http2Data;
 pub use http2_error::Http2Error;
 pub use http2_error_code::Http2ErrorCode;
@@ -79,7 +79,6 @@ pub use server_stream::ServerStream;
 pub(crate) use settings_frame::SettingsFrame;
 pub(crate) use stream_receiver::{StreamControlRecvParams, StreamOverallRecvParams};
 pub(crate) use stream_state::StreamState;
-use tokio::sync::MutexGuard;
 pub(crate) use u31::U31;
 pub(crate) use uri_buffer::UriBuffer;
 pub(crate) use window::Windows;
@@ -101,10 +100,14 @@ const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /// Http2 instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
-pub type Http2Tokio<HB, S, SB, const IS_CLIENT: bool> =
-  Http2<alloc::sync::Arc<tokio::sync::Mutex<Http2Data<HB, S, SB, IS_CLIENT>>>, IS_CLIENT>;
+pub type Http2Tokio<HB, RRB, S, const IS_CLIENT: bool> =
+  Http2<Http2DataTokio<HB, RRB, S, IS_CLIENT>, IS_CLIENT>;
+/// Http2Data instance using the mutex from tokio.
+#[cfg(feature = "tokio")]
+pub type Http2DataTokio<HB, RRB, S, const IS_CLIENT: bool> =
+  alloc::sync::Arc<tokio::sync::Mutex<Http2Data<HB, RRB, S, IS_CLIENT>>>;
 
-pub(crate) type Sorp<SB> = HashMap<U31, StreamOverallRecvParams<SB>>;
+pub(crate) type Sorp<RRB> = HashMap<U31, StreamOverallRecvParams<RRB>>;
 pub(crate) type Scrp = HashMap<U31, StreamControlRecvParams>;
 
 /// Negotiates initial "handshakes" or connections and also manages the creation of streams.
@@ -113,13 +116,13 @@ pub struct Http2<HD, const IS_CLIENT: bool> {
   hd: HD,
 }
 
-impl<HB, HD, S, SB, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
+impl<HB, HD, RRB, S, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer<SB>>,
+  HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, S, SB, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, IS_CLIENT>>,
+  RRB: LeaseMut<ReqResBuffer>,
   S: Stream,
-  SB: LeaseMut<StreamBuffer>,
 {
   /// See [ConnectionState].
   #[inline]
@@ -134,18 +137,19 @@ where
     let hdpm = guard.parts_mut();
     misc::send_go_away(error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
   }
+
+  pub(crate) async fn _swap_buffers(&mut self, hb: &mut HB) {
+    mem::swap(hb.lease_mut(), self.hd.lock().await.parts_mut().hb);
+  }
 }
 
-impl<HB, HD, S, SB> Http2<HD, false>
+impl<HB, HD, RRB, S> Http2<HD, false>
 where
-  HB: LeaseMut<Http2Buffer<SB>>,
+  HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  for<'guard> HD::Item: Lock<
-      Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, SB, false>>,
-      Resource = Http2Data<HB, S, SB, false>,
-    > + 'guard,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, false>>,
+  RRB: LeaseMut<ReqResBuffer>,
   S: Stream,
-  SB: LeaseMut<StreamBuffer>,
 {
   /// Accepts an initial connection sending the local parameters to the remote peer.
   #[inline]
@@ -164,8 +168,8 @@ where
 
   /// Awaits for an initial header to create a stream.
   #[inline]
-  pub async fn stream(&mut self, mut sb: SB) -> crate::Result<ServerStream<HD>> {
-    sb.lease_mut().clear();
+  pub async fn stream(&mut self, mut rrb: RRB) -> crate::Result<ServerStream<HD>> {
+    rrb.lease_mut().clear();
     process_higher_operation!(
       &self.hd,
       |guard| {
@@ -174,17 +178,17 @@ where
           let Some(fi) = hdpm.hb.initial_server_header.take() else {
             break 'rslt Ok(None);
           };
-          sb.lease_mut().rrb.headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
+          rrb.lease_mut().headers_mut().set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
           let fut = read_header_and_continuations::<_, _, false, false>(
             fi,
             hdpm.hp,
             &mut hdpm.hb.hpack_dec,
             hdpm.is_conn_open,
             &mut hdpm.hb.pfb,
-            &mut sb.lease_mut().rrb,
+            rrb.lease_mut(),
             hdpm.stream,
             &mut hdpm.hb.uri_buffer,
-            |hf| hf.hsreqh().method.ok_or(crate::Error::HTTP_MissingRequestMethod),
+            |hf| hf.hsreqh().method.ok_or_else(|| HttpError::MissingRequestMethod.into()),
           );
           match fut.await {
             Err(err) => break 'rslt Err(err),
@@ -202,7 +206,7 @@ where
             body_len: 0,
             content_length_idx,
             has_initial_header: true,
-            sb,
+            rrb,
             span: _Span::_none(),
             status_code: StatusCode::Ok,
             stream_state: server_header_stream_state(has_eos),
@@ -220,16 +224,13 @@ where
   }
 }
 
-impl<HB, HD, S, SB> Http2<HD, true>
+impl<HB, HD, RRB, S> Http2<HD, true>
 where
-  HB: LeaseMut<Http2Buffer<SB>>,
+  HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  for<'guard> HD::Item: Lock<
-      Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, SB, true>>,
-      Resource = Http2Data<HB, S, SB, true>,
-    > + 'guard,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, true>>,
+  RRB: LeaseMut<ReqResBuffer>,
   S: Stream,
-  SB: LeaseMut<StreamBuffer>,
 {
   /// Tries to connect to a server sending the local parameters.
   #[inline]
@@ -262,5 +263,15 @@ where
     *hdpm.last_stream_id = hdpm.last_stream_id.wrapping_add(U31::TWO);
     drop(guard);
     Ok(ClientStream::new(self.hd.clone(), span, stream_id))
+  }
+}
+
+impl<HD, const IS_CLIENT: bool> Clone for Http2<HD, IS_CLIENT>
+where
+  HD: RefCounter,
+{
+  #[inline]
+  fn clone(&self) -> Self {
+    Self { hd: self.hd.clone() }
   }
 }

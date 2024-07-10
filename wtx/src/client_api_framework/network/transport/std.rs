@@ -1,11 +1,14 @@
-use crate::client_api_framework::{
-  misc::{manage_after_sending_related, manage_before_sending_related},
-  network::{
-    transport::{Transport, TransportParams},
-    TcpParams, TransportGroup, UdpParams,
+use crate::{
+  client_api_framework::{
+    misc::{manage_after_sending_related, manage_before_sending_related},
+    network::{
+      transport::{Transport, TransportParams},
+      TcpParams, TransportGroup, UdpParams,
+    },
+    pkg::{Package, PkgsAux},
+    Api, ClientApiFrameworkError,
   },
-  pkg::{Package, PkgsAux},
-  Api, ClientApiFrameworkError,
+  misc::Lease,
 };
 use core::ops::Range;
 use std::{
@@ -59,7 +62,7 @@ impl<DRSR> Transport<DRSR> for UdpSocket {
     P: Package<A, DRSR, UdpParams>,
   {
     send(pkg, pkgs_aux, self, |bytes, ext_req_params, trans| {
-      Ok(trans.send_to(bytes, ext_req_params.url.uri())?)
+      Ok(trans.send_to(bytes, ext_req_params.url.as_str())?)
     })
     .await
   }
@@ -95,7 +98,7 @@ where
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;
-  let mut slice = pkgs_aux.byte_buffer.as_slice();
+  let mut slice = pkgs_aux.byte_buffer.lease();
   let mut everything_was_sent = false;
   for _ in 0..16 {
     let sent = cb(slice, pkgs_aux.tp.ext_req_params(), trans)?;
@@ -106,7 +109,10 @@ where
     slice = slice.get(sent..).unwrap_or_default();
   }
   pkgs_aux.byte_buffer.clear();
-  pkgs_aux.byte_buffer.extend((0..pkgs_aux.byte_buffer.capacity()).map(|_| 0));
+  pkgs_aux
+    .byte_buffer
+    .extend_from_iter((0..pkgs_aux.byte_buffer.capacity()).map(|_| 0))
+    .map_err(Into::into)?;
   manage_after_sending_related(pkg, pkgs_aux).await?;
   if everything_was_sent {
     Ok(())
@@ -142,7 +148,7 @@ mod tests {
     client_api_framework::{
       network::{
         transport::{
-          tests::{Ping, PingPong, Pong},
+          tests::{_Ping, _PingPong, _Pong},
           Transport,
         },
         TcpParams, UdpParams,
@@ -169,10 +175,10 @@ mod tests {
       stream.write_all(&buffer[..idx]).unwrap();
     });
     sleep(Duration::from_millis(100)).await.unwrap();
-    let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_uri(uri_client.uri()));
+    let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_uri(uri_client.as_str()));
     let mut trans = TcpStream::connect(uri_client.host()).unwrap();
-    let res = trans.send_recv_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
-    assert_eq!(res, Pong("pong"));
+    let res = trans.send_recv_decode_contained(&mut _PingPong(_Ping, ()), &mut pa).await.unwrap();
+    assert_eq!(res, _Pong("pong"));
   }
 
   #[tokio::test]
@@ -180,7 +186,7 @@ mod tests {
     let addr = "127.0.0.1:12346";
     let mut pa = PkgsAux::from_minimum((), (), UdpParams::from_uri(addr));
     let mut trans = UdpSocket::bind(addr).unwrap();
-    let res = trans.send_recv_decode_contained(&mut PingPong(Ping, ()), &mut pa).await.unwrap();
-    assert_eq!(res, Pong("pong"));
+    let res = trans.send_recv_decode_contained(&mut _PingPong(_Ping, ()), &mut pa).await.unwrap();
+    assert_eq!(res, _Pong("pong"));
   }
 }

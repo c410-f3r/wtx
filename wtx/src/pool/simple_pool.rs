@@ -14,17 +14,13 @@ use std::sync::Mutex;
 #[cfg(feature = "tokio")]
 pub type SimplePoolTokio<RM> =
   SimplePool<tokio::sync::Mutex<SimplePoolResource<<RM as ResourceManager>::Resource>>, RM>;
-/// A [SimplePoolGetElem] synchronized by [`tokio::sync::MutexGuard`].
-#[cfg(feature = "tokio")]
-pub type SimplePoolGetElemTokio<'guard, R> =
-  SimplePoolGetElem<tokio::sync::MutexGuard<'guard, SimplePoolResource<R>>>;
 
 /// Pool with a fixed number of elements.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SimplePool<RL, RM> {
   available_idxs: Arc<Mutex<Vec<usize>>>,
-  locks: Vec<RL>,
-  rm: RM,
+  locks: Arc<Vec<RL>>,
+  rm: Arc<RM>,
   waker: Arc<Mutex<Option<Waker>>>,
 }
 
@@ -47,9 +43,9 @@ where
       locks: {
         let mut rslt = Vec::with_capacity(len);
         rslt.extend((0..len).map(|_| RL::new(SimplePoolResource(None))));
-        rslt
+        Arc::new(rslt)
       },
-      rm,
+      rm: Arc::new(rm),
       waker: Arc::new(Mutex::new(None)),
     }
   }
@@ -79,10 +75,7 @@ where
   type GetElem<'this> = SimplePoolGetElem<RL::Guard<'this>>;
   type ResourceManager = RM;
 
-  #[allow(
-    // `locks` will never be zero
-    clippy::arithmetic_side_effects,
-  )]
+  #[expect(clippy::arithmetic_side_effects, reason = "`locks` will never be zero")]
   #[inline]
   async fn get<'this>(
     &'this self,
@@ -107,7 +100,7 @@ where
         resource.0 = Some(self.rm.create(ca).await?);
       }
       Some(resource) => {
-        if self.rm.is_invalid(resource) {
+        if self.rm.is_invalid(resource).await {
           self.rm.recycle(ra, resource).await?;
         }
       }
@@ -128,6 +121,13 @@ pub struct SimplePoolGetElem<R> {
   idx: usize,
   resource: R,
   waker: Arc<Mutex<Option<Waker>>>,
+}
+
+impl<R> SimplePoolGetElem<R> {
+  #[inline]
+  pub(crate) fn _idx(&self) -> usize {
+    self.idx
+  }
 }
 
 impl<R> Deref for SimplePoolGetElem<R> {

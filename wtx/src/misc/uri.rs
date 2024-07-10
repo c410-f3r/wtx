@@ -18,7 +18,7 @@ pub type UriString = Uri<String>;
 /// ```
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S> {
-  authority_start_idx: u16,
+  authority_start_idx: u8,
   href_start_idx: u16,
   initial_len: u16,
   uri: S,
@@ -28,11 +28,40 @@ impl<S> Uri<S>
 where
   S: Lease<str>,
 {
+  #[inline]
+  pub(crate) const fn _dummy(uri: S) -> Self {
+    Self { authority_start_idx: 0, href_start_idx: 0, initial_len: 0, uri }
+  }
+
+  /// Creates a new instance based on the provided indexes.
+  #[inline]
+  pub fn from_parts(uri: S, authority_start_idx: u8, href_start_idx: u16) -> Self {
+    let initial_len = uri.lease().len().try_into().unwrap_or(u16::MAX);
+    Self { authority_start_idx, href_start_idx, initial_len, uri }
+  }
+
   /// Analyzes the provided `uri` to create a new instance.
+  ///
+  ///
   #[inline]
   pub fn new(uri: S) -> Self {
     let (authority_start_idx, href_start_idx, initial_len) = Self::parts(uri.lease());
     Self { authority_start_idx, href_start_idx, initial_len, uri }
+  }
+
+  /// Full URI string
+  #[inline]
+  pub fn as_str(&self) -> &str {
+    self.uri.lease()
+  }
+
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// assert_eq!(uri.authority_start_idx(), 6);
+  /// ```
+  #[inline]
+  pub fn authority_start_idx(&self) -> u8 {
+    self.authority_start_idx
   }
 
   /// ```rust
@@ -99,6 +128,15 @@ where
       }
     }
     "/"
+  }
+
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// assert_eq!(uri.href_start_idx(), 31);
+  /// ```
+  #[inline]
+  pub fn href_start_idx(&self) -> u16 {
+    self.href_start_idx
   }
 
   /// ```rust
@@ -180,12 +218,6 @@ where
     }
   }
 
-  /// Full URI.
-  #[inline]
-  pub fn uri(&self) -> &str {
-    self.uri.lease()
-  }
-
   /// ```rust
   /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
   /// assert_eq!(uri.user(), "user");
@@ -212,14 +244,14 @@ where
     }
   }
 
-  fn parts(uri: &str) -> (u16, u16, u16) {
+  fn parts(uri: &str) -> (u8, u16, u16) {
     let initial_len = uri.len().try_into().unwrap_or(u16::MAX);
     let valid_uri = uri.get(..initial_len.into()).unwrap_or_else(_unlikely_dflt);
-    let authority_start_idx: u16 = valid_uri
+    let authority_start_idx: u8 = valid_uri
       .match_indices("://")
       .next()
       .and_then(|(element, _)| element.wrapping_add(3).try_into().ok())
-      .unwrap_or_else(_unlikely_dflt);
+      .unwrap_or(0);
     let href_start_idx = valid_uri
       .as_bytes()
       .iter()
@@ -310,14 +342,14 @@ mod tests {
     uri.push_path(format_args!("/tretre")).unwrap();
     assert_eq!(uri.path(), "/rewqd/tretre");
     assert_eq!(uri.query(), "");
-    assert_eq!(uri.uri(), "http://dasdas.com/rewqd/tretre");
+    assert_eq!(uri.as_str(), "http://dasdas.com/rewqd/tretre");
     uri.truncate_with_initial_len();
     assert_eq!(uri.path(), "/rewqd");
     assert_eq!(uri.query(), "");
-    assert_eq!(uri.uri(), "http://dasdas.com/rewqd");
+    assert_eq!(uri.as_str(), "http://dasdas.com/rewqd");
     uri.reset("");
     assert_eq!(uri.path(), "/");
     assert_eq!(uri.query(), "");
-    assert_eq!(uri.uri(), "");
+    assert_eq!(uri.as_str(), "");
   }
 }

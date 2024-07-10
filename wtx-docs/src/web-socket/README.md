@@ -1,6 +1,6 @@
 # WebSocket
 
-Provides low and high level abstractions to dispatch frames, as such, it is up to you to implement [Stream](https://docs.rs/wtx/latest/wtx/trait.Stream.html) with any desired logic or use any of the built-in strategies through the selection of features.
+Implementation of [RFC6455](https://datatracker.ietf.org/doc/html/rfc6455) and [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692).
 
 Activation feature is called `web-socket`.
 
@@ -41,8 +41,6 @@ pub async fn handle_client_frames(
 }
 ```
 
-See the `examples` directory for more suggestions.
-
 ## Autobahn Reports
 
 1. <a href="https://c410-f3r.github.io/wtx-site/static/fuzzingclient/index.html" target="_blank">fuzzingclient</a>
@@ -50,4 +48,6 @@ See the `examples` directory for more suggestions.
 
 ## Compression
 
-The "permessage-deflate" extension, described in [RFC-7692](https://datatracker.ietf.org/doc/html/rfc7692), is the only supported compression format and is backed by the fastest compression library available at the current time, which is "zlib-ng". It also means that a C compiler is required to use such a feature.
+The "permessage-deflate" extension is the only supported compression format and is backed by the `zlib-rs` project that performs as well as `zlib-ng`.
+
+To get the most performance possible, try compiling your program with `RUSTFLAGS='-C target-cpu=native'` to allow `zlib-rs` to use more efficient SIMD instructions.

@@ -368,32 +368,6 @@ mod glommio {
   }
 }
 
-#[cfg(feature = "may")]
-mod may {
-  use crate::misc::Stream;
-  use may::net::TcpStream;
-  use std::io::{Read, Write};
-
-  impl Stream for TcpStream {
-    #[inline]
-    async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
-      Ok(<Self as Read>::read(self, bytes)?)
-    }
-
-    #[inline]
-    async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-      <Self as Write>::write_all(self, bytes)?;
-      Ok(())
-    }
-
-    #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
-      _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices));
-      Ok(())
-    }
-  }
-}
-
 #[cfg(feature = "smol")]
 mod smol {
   use crate::misc::Stream;
@@ -673,10 +647,7 @@ mod tokio_rustls {
   }
 }
 
-#[allow(
-  // False-positive
-  clippy::mut_mut
-)]
+#[expect(clippy::mut_mut, reason = "false-positive")]
 #[cfg(feature = "std")]
 #[inline]
 fn advance_slices<'bytes>(

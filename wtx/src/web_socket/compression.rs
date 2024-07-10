@@ -61,7 +61,7 @@ pub trait NegotiatedCompression {
     input: &[u8],
     output: &mut O,
     begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize>;
 
   /// Rsv1 bit
@@ -92,7 +92,7 @@ where
     input: &[u8],
     output: &mut O,
     begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     (**self).decompress(input, output, begin_cb, rem_cb)
   }
@@ -126,7 +126,7 @@ impl NegotiatedCompression for () {
     _: &[u8],
     _: &mut O,
     _: impl FnMut(&mut O) -> &mut [u8],
-    _: impl FnMut(&mut O, usize) -> &mut [u8],
+    _: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     Ok(0)
   }
@@ -164,7 +164,7 @@ where
     input: &[u8],
     output: &mut O,
     begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     match self {
       Some(el) => el.decompress(input, output, begin_cb, rem_cb),

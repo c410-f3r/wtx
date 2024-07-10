@@ -1,5 +1,7 @@
-use crate::client_api_framework::dnsn::{Deserialize, Serialize};
-use alloc::vec::Vec;
+use crate::{
+  client_api_framework::dnsn::{Deserialize, Serialize},
+  misc::Vector,
+};
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[doc = generic_data_format_doc!("verbatim response")]
@@ -28,7 +30,7 @@ where
 
 impl<D> Serialize<()> for VerbatimResponse<D> {
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vec<u8>, _: &mut ()) -> crate::Result<()> {
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }

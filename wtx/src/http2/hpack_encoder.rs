@@ -11,7 +11,7 @@
 use crate::{
   http::{AbstractHeaders, Header, KnownHeaderName, Method, StatusCode},
   http2::{hpack_header::HpackHeaderBasic, huffman_encode, misc::protocol_err, Http2Error},
-  misc::{ByteVector, Lease, Usize, _random_state, _shift_bytes, _unreachable},
+  misc::{Usize, Vector, _random_state, _shift_bytes, _unreachable},
   rng::Rng,
 };
 use ahash::RandomState;
@@ -63,7 +63,7 @@ impl HpackEncoder {
   #[inline]
   pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
-    buffer: &mut ByteVector,
+    buffer: &mut Vector<u8>,
     pseudo_headers: impl Iterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
     user_headers: impl Iterator<Item = Header<'user>>,
   ) -> crate::Result<()> {
@@ -74,7 +74,7 @@ impl HpackEncoder {
         .and_then(|el| el.checked_add(user_headers.size_hint().1?))
         .unwrap_or(usize::MAX),
     );
-    buffer.reserve(pseudo_headers.size_hint().0.wrapping_add(user_headers.size_hint().0));
+    buffer.reserve(pseudo_headers.size_hint().0.wrapping_add(user_headers.size_hint().0))?;
     self.manage_size_update(buffer)?;
     for (hhb, value) in pseudo_headers {
       let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)))?;
@@ -218,9 +218,9 @@ impl HpackEncoder {
   }
 
   #[inline]
-  fn encode_int(buffer: &mut ByteVector, first_byte: u8, mut n: u32) -> crate::Result<u8> {
+  fn encode_int(buffer: &mut Vector<u8>, first_byte: u8, mut n: u32) -> crate::Result<u8> {
     let mask = first_byte.wrapping_sub(1);
-    buffer.reserve(4);
+    buffer.reserve(4)?;
 
     if n < u32::from(mask) {
       buffer.push(first_byte | n as u8)?;
@@ -245,7 +245,7 @@ impl HpackEncoder {
   // 1. 0 -> 0xxxx -> 4xxxx
   // 2,3,4. 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
   #[inline]
-  fn encode_str(buffer: &mut ByteVector, bytes: &[u8]) -> crate::Result<()> {
+  fn encode_str(buffer: &mut Vector<u8>, bytes: &[u8]) -> crate::Result<()> {
     let before_byte = buffer.len();
     buffer.push(0)?;
     if bytes.is_empty() {
@@ -264,7 +264,7 @@ impl HpackEncoder {
     } else if let Ok(len) = u32::try_from(len_usize) {
       let octets = Self::encode_int(buffer, 0b1000_0000, len)?;
       let mut array = [0; 4];
-      match (octets, buffer.lease()) {
+      match (octets, buffer.as_slice()) {
         (2, [.., a, b]) => {
           array[0] = *a;
           array[1] = *b;
@@ -350,7 +350,7 @@ impl HpackEncoder {
   #[inline]
   fn manage_encode(
     &mut self,
-    buffer: &mut ByteVector,
+    buffer: &mut Vector<u8>,
     header: (&[u8], &[u8]),
     idx: EncodeIdx,
   ) -> crate::Result<()> {
@@ -382,7 +382,7 @@ impl HpackEncoder {
   }
 
   #[inline]
-  fn manage_size_update(&mut self, buffer: &mut ByteVector) -> crate::Result<()> {
+  fn manage_size_update(&mut self, buffer: &mut Vector<u8>) -> crate::Result<()> {
     match self.max_dyn_sub_bytes.take() {
       Some((lower, None)) => {
         self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata, _| {
@@ -418,11 +418,10 @@ impl HpackEncoder {
     (name_hash, pair_hash): (Option<u64>, u64),
   ) -> crate::Result<()> {
     self.idx = self.idx.wrapping_add(1);
-    self.dyn_headers.reserve(name.len().wrapping_add(value.len()), 1);
     self.dyn_headers.push_front(
       Metadata { name_hash, pair_hash },
       name,
-      value,
+      [value, &[]],
       is_sensitive,
       |metadata, _| {
         Self::remove_outdated_indices(&mut self.indcs, metadata);
@@ -643,7 +642,7 @@ struct StaticHeader {
 mod bench {
   use crate::{
     http2::HpackEncoder,
-    misc::{ByteVector, Usize},
+    misc::{Usize, Vector},
     rng::StaticRng,
   };
 
@@ -653,7 +652,7 @@ mod bench {
     let data = crate::bench::_data(*Usize::from(N));
     let mut he = HpackEncoder::new(StaticRng::default());
     he.set_max_dyn_super_bytes(N);
-    let mut buffer = ByteVector::new();
+    let mut buffer = Vector::new();
     b.iter(|| {
       he.encode(
         &mut buffer,

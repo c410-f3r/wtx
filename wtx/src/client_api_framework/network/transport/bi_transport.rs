@@ -1,9 +1,12 @@
-use crate::client_api_framework::{
-  dnsn::Deserialize,
-  misc::log_res,
-  network::transport::Transport,
-  pkg::{Package, PkgsAux},
-  Api,
+use crate::{
+  client_api_framework::{
+    dnsn::Deserialize,
+    misc::log_res,
+    network::transport::Transport,
+    pkg::{Package, PkgsAux},
+    Api,
+  },
+  misc::Lease,
 };
 use core::{future::Future, ops::Range};
 
@@ -37,7 +40,7 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
   {
     async {
       let range = self.retrieve(pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.as_slice());
+      log_res(pkgs_aux.byte_buffer.lease());
       let rslt = P::ExternalResponseContent::from_bytes(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,

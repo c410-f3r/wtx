@@ -1,5 +1,7 @@
-use crate::client_api_framework::dnsn::{Deserialize, Serialize};
-use alloc::vec::Vec;
+use crate::{
+  client_api_framework::dnsn::{Deserialize, Serialize},
+  misc::Vector,
+};
 
 #[doc = generic_data_format_doc!("JSON response")]
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -28,7 +30,7 @@ where
 
 impl<D> Serialize<()> for JsonResponse<D> {
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vec<u8>, _: &mut ()) -> crate::Result<()> {
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -40,9 +42,8 @@ mod miniserde {
       data_format::JsonResponse,
       dnsn::{miniserde_serialize, Miniserde},
     },
-    misc::from_utf8_basic,
+    misc::{from_utf8_basic, Vector},
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<D> crate::client_api_framework::dnsn::Deserialize<Miniserde> for JsonResponse<D>
@@ -72,7 +73,7 @@ mod miniserde {
     D: miniserde::Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut Miniserde) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut Miniserde) -> crate::Result<()> {
       if size_of::<D>() == 0 {
         return Ok(());
       }
@@ -83,10 +84,12 @@ mod miniserde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::client_api_framework::{
-    data_format::JsonResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
+  use crate::{
+    client_api_framework::{
+      data_format::JsonResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
+    },
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
   use serde::de::Deserializer;
 
@@ -119,7 +122,7 @@ mod serde_json {
     D: serde::Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
       if size_of::<D>() == 0 {
         return Ok(());
       }
@@ -131,10 +134,10 @@ mod serde_json {
 
 #[cfg(feature = "simd-json")]
 mod simd_json {
-  use crate::client_api_framework::{
-    data_format::JsonResponse, dnsn::SimdJson, ClientApiFrameworkError,
+  use crate::{
+    client_api_framework::{data_format::JsonResponse, dnsn::SimdJson, ClientApiFrameworkError},
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<D> crate::client_api_framework::dnsn::Deserialize<SimdJson> for JsonResponse<D>
@@ -161,7 +164,7 @@ mod simd_json {
   where
     D: serde::Serialize,
   {
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SimdJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SimdJson) -> crate::Result<()> {
       if size_of::<D>() == 0 {
         return Ok(());
       }

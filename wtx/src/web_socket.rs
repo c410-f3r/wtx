@@ -22,12 +22,11 @@ mod web_socket_error;
 use crate::{
   misc::{
     from_utf8_basic, from_utf8_ext, CompletionErr, ConnectionState, ExtUtf8Error,
-    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Stream, _read_until,
+    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Stream, Vector, _read_until,
   },
   rng::Rng,
   _MAX_PAYLOAD_LEN,
 };
-use alloc::vec::Vec;
 pub use close_code::CloseCode;
 pub use compression::{Compression, CompressionLevel, DeflateConfig};
 use core::ops::Range;
@@ -127,7 +126,7 @@ where
     fb: &'fb mut FrameBuffer<B>,
   ) -> crate::Result<Frame<&'fb mut FrameBuffer<B>, IS_CLIENT>>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     fb.clear();
     let header_buffer_len = header_placeholder::<IS_CLIENT>();
@@ -233,7 +232,7 @@ where
 
   fn begin_fb_bytes_mut<B>(fb: &mut FrameBuffer<B>, payload_start_idx: usize) -> &mut [u8]
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     LeaseMut::<[u8]>::lease_mut(fb.buffer_mut()).get_mut(payload_start_idx..).unwrap_or_default()
   }
@@ -297,9 +296,9 @@ where
     payload_start_idx: usize,
   ) -> crate::Result<usize>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
-    db.push_bytes(DECOMPRESSION_SUFFIX);
+    db.push_bytes(DECOMPRESSION_SUFFIX)?;
     let mut buffer_len = payload_start_idx
       .checked_add(db.len())
       .map(|element| element.max(lease_as_slice(fb.buffer()).len()));
@@ -321,7 +320,7 @@ where
   ) -> crate::Result<usize> {
     Self::copy_from_pb(&mut wsb.db, &mut wsb.nb, rfi, |local_pb, local_db| {
       let n = payload_start_idx.saturating_add(rfi.payload_len);
-      local_db.set_idx_through_expansion(n);
+      local_db.set_idx_through_expansion(n)?;
       local_db
         .get_mut(payload_start_idx..n)
         .unwrap_or_default()
@@ -340,7 +339,7 @@ where
     rfi: &ReadFrameInfo,
   ) -> crate::Result<usize>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     let mut buffer_len = payload_start_idx
       .checked_add(rfi.payload_len)
@@ -437,11 +436,11 @@ where
     rfi: &ReadFrameInfo,
   ) -> crate::Result<usize>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     Self::copy_from_pb(fb, pb, rfi, |local_pb, local_fb| {
       let n = payload_start_idx.saturating_add(rfi.payload_len);
-      local_fb.expand_buffer(n);
+      local_fb.expand_buffer(n)?;
       LeaseMut::<[u8]>::lease_mut(local_fb.buffer_mut())
         .get_mut(payload_start_idx..n)
         .unwrap_or_default()
@@ -545,14 +544,14 @@ where
     fb: &'fb mut FrameBuffer<B>,
     payload_start_idx: usize,
     written: usize,
-  ) -> &'fb mut [u8]
+  ) -> crate::Result<&'fb mut [u8]>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     *buffer_len = buffer_len.and_then(|el| el.checked_mul(15)?.checked_div(10));
-    fb.expand_buffer(buffer_len.unwrap_or(usize::MAX));
+    fb.expand_buffer(buffer_len.unwrap_or(usize::MAX))?;
     let start = payload_start_idx.wrapping_add(written);
-    Self::begin_fb_bytes_mut(fb, start)
+    Ok(Self::begin_fb_bytes_mut(fb, start))
   }
 
   async fn fetch_frame_from_stream(&mut self) -> crate::Result<ReadFrameInfo> {
@@ -801,7 +800,7 @@ where
     (first_text_cb, continuation_cb, copy_cb): ReadContinuationFramesCbs<B>,
   ) -> crate::Result<()>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     let mut iuc = {
       let (should_use_db, payload_len) =
@@ -870,7 +869,7 @@ where
     payload_start_idx: usize,
   ) -> crate::Result<Option<ReadFrameInfo>>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     let first_rfi = 'auto_reply: loop {
       let rfi = self.fetch_frame_from_stream().await?;

@@ -8,6 +8,10 @@ pub(crate) async fn init() -> wtx::Result<()> {
     Commands::EmbedMigrations(elem) => {
       crate::embed_migrations::embed_migrations(&elem.input, &elem.output).await?;
     }
+    #[cfg(feature = "http-client")]
+    Commands::HttpClient(elem) => {
+      crate::http_client::http_client(elem.uri).await?;
+    }
     #[cfg(feature = "schema-manager")]
     Commands::SchemaManager(schema_manager) => {
       crate::schema_manager::schema_manager(&schema_manager).await?;
@@ -48,6 +52,8 @@ enum Commands {
   _Nothing,
   #[cfg(feature = "embed-migrations")]
   EmbedMigrations(EmbedMigrations),
+  #[cfg(feature = "http-client")]
+  HttpClient(HttpClient),
   #[cfg(feature = "schema-manager")]
   SchemaManager(SchemaManager),
   #[cfg(feature = "web-socket")]
@@ -64,6 +70,15 @@ struct EmbedMigrations {
   /// Rust file path
   #[arg(default_value = "embedded_migrations.rs", short = 'o', value_name = "Path")]
   output: String,
+}
+
+/// Http client
+#[cfg(feature = "http-client")]
+#[derive(Debug, clap::Args)]
+struct HttpClient {
+  /// URI
+  #[arg()]
+  uri: String,
 }
 
 /// Schema Manager

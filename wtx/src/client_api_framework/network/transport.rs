@@ -6,15 +6,20 @@ mod mock;
 mod std;
 mod transport_params;
 mod unit;
+#[cfg(feature = "http-client")]
+mod wtx_http;
 #[cfg(feature = "web-socket")]
 mod wtx_ws;
 
-use crate::client_api_framework::{
-  dnsn::{Deserialize, Serialize},
-  misc::log_res,
-  network::TransportGroup,
-  pkg::{BatchElems, BatchPkg, Package, PkgsAux},
-  Api, Id,
+use crate::{
+  client_api_framework::{
+    dnsn::{Deserialize, Serialize},
+    misc::log_res,
+    network::TransportGroup,
+    pkg::{BatchElems, BatchPkg, Package, PkgsAux},
+    Api, Id,
+  },
+  misc::Lease,
 };
 pub use bi_transport::*;
 use cl_aux::DynContigColl;
@@ -63,7 +68,7 @@ pub trait Transport<DRSR> {
   ///
   /// All the expected data must be available in a single response.
   #[inline]
-  fn send_recv_decode_batch<A, P, RESS>(
+  fn send_recv_decode_batch<A, E, P, RESS>(
     &mut self,
     pkgs: &mut [P],
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -71,16 +76,17 @@ pub trait Transport<DRSR> {
   ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api,
+    A::Error: From<E>,
     P: Package<A, DRSR, Self::Params>,
     P::ExternalRequestContent: Borrow<Id> + Ord,
     P::ExternalResponseContent: Borrow<Id> + Ord,
-    RESS: DynContigColl<P::ExternalResponseContent>,
+    RESS: DynContigColl<E, P::ExternalResponseContent>,
     for<'any> BatchElems<'any, A, DRSR, P, Self::Params>: Serialize<DRSR>,
   {
     async {
       let batch_package = &mut BatchPkg::new(pkgs);
       let range = self.send_recv(batch_package, pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.as_slice());
+      log_res(pkgs_aux.byte_buffer.lease());
       batch_package.decode_and_push_from_bytes(
         ress,
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
@@ -104,7 +110,7 @@ pub trait Transport<DRSR> {
   {
     async {
       let range = self.send_recv(pkg, pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.as_slice());
+      log_res(pkgs_aux.byte_buffer.lease());
       Ok(P::ExternalResponseContent::from_bytes(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,
@@ -155,22 +161,24 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::client_api_framework::{
-    dnsn::{Deserialize, Serialize},
-    network::transport::TransportParams,
-    pkg::Package,
+  use crate::{
+    client_api_framework::{
+      dnsn::{Deserialize, Serialize},
+      network::transport::TransportParams,
+      pkg::Package,
+    },
+    misc::Vector,
   };
-  use alloc::vec::Vec;
 
   #[derive(Debug, Eq, PartialEq)]
-  pub(crate) struct PingPong(pub(crate) Ping, pub(crate) ());
+  pub(crate) struct _PingPong(pub(crate) _Ping, pub(crate) ());
 
-  impl<DRSR, TP> Package<(), DRSR, TP> for PingPong
+  impl<DRSR, TP> Package<(), DRSR, TP> for _PingPong
   where
     TP: TransportParams,
   {
-    type ExternalRequestContent = Ping;
-    type ExternalResponseContent = Pong;
+    type ExternalRequestContent = _Ping;
+    type ExternalResponseContent = _Pong;
     type PackageParams = ();
 
     fn ext_req_content(&self) -> &Self::ExternalRequestContent {
@@ -191,19 +199,19 @@ mod tests {
   }
 
   #[derive(Debug, Eq, PartialEq)]
-  pub(crate) struct Ping;
+  pub(crate) struct _Ping;
 
-  impl<DRSR> Serialize<DRSR> for Ping {
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut DRSR) -> crate::Result<()> {
-      bytes.extend(*b"ping");
+  impl<DRSR> Serialize<DRSR> for _Ping {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut DRSR) -> crate::Result<()> {
+      bytes.extend_from_slice(b"ping")?;
       Ok(())
     }
   }
 
   #[derive(Debug, Eq, PartialEq)]
-  pub(crate) struct Pong(pub(crate) &'static str);
+  pub(crate) struct _Pong(pub(crate) &'static str);
 
-  impl<DRSR> Deserialize<DRSR> for Pong {
+  impl<DRSR> Deserialize<DRSR> for _Pong {
     fn from_bytes(bytes: &[u8], _: &mut DRSR) -> crate::Result<Self> {
       assert_eq!(bytes, b"ping");
       Ok(Self("pong"))

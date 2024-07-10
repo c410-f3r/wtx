@@ -46,10 +46,7 @@ impl<'exec> Record<'exec> for () {
   }
 
   #[inline]
-  fn value<'this, CI>(
-    &'this self,
-    _: CI,
-  ) -> Option<<Self::Database as Database>::DecodeValue<'this>>
+  fn value<CI>(&self, _: CI) -> Option<<Self::Database as Database>::DecodeValue<'_>>
   where
     CI: ValueIdent<Self>,
   {

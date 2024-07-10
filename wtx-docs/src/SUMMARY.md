@@ -7,5 +7,7 @@
     - [Object–Relational Mapping](database/object–relational-mapping.md)
     - [Schema management](database/schema-management.md)
 - [HTTP/2](http2/README.md)
+- [HTTP Client](http-client/README.md)
 - [Pool Manager](pool_manager/README.md)
+- [UI](ui/README.md)
 - [WebSocket](web-socket/README.md)

@@ -1,13 +1,12 @@
 use crate::{
-  http::{server::OptionedServer, Headers, RequestStr, Response},
-  http2::{Http2Params, Http2Tokio, StreamBuffer},
-  misc::{ByteVector, FnFut, Stream},
+  http::{server::OptionedServer, ReqResBuffer, Request, Response},
+  http2::{Http2Params, Http2Tokio},
+  misc::{FnFut, Stream},
 };
-use alloc::boxed::Box;
 use core::{fmt::Debug, future::Future, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
-type Http2Buffer = crate::http2::Http2Buffer<Box<StreamBuffer>>;
+type Http2Buffer = crate::http2::Http2Buffer<ReqResBuffer>;
 
 impl OptionedServer {
   /// Optioned HTTP/2 server using tokio.
@@ -18,7 +17,7 @@ impl OptionedServer {
     handle_cb: F,
     http2_buffer_cb: fn() -> crate::Result<Http2Buffer>,
     http2_params_cb: impl Copy + Fn() -> Http2Params + Send + 'static,
-    stream_buffer_cb: fn() -> crate::Result<Box<StreamBuffer>>,
+    stream_buffer_cb: fn() -> crate::Result<ReqResBuffer>,
     (acceptor_cb, local_acceptor_cb, stream_cb): (
       impl FnOnce() -> A + Send + 'static,
       impl Copy + Fn(&A) -> A + Send + 'static,
@@ -29,10 +28,8 @@ impl OptionedServer {
     A: Send + 'static,
     E: Debug + From<crate::Error> + Send + 'static,
     F: Copy
-      + for<'any> FnFut<
-        RequestStr<'any, (&'any mut ByteVector, &'any mut Headers)>,
-        Result<Response<(&'any mut ByteVector, &'any mut Headers)>, E>,
-      > + Send
+      + for<'any> FnFut<Request<&'any mut ReqResBuffer>, Result<Response<&'any mut ReqResBuffer>, E>>
+      + Send
       + 'static,
     S: Stream + 'static,
     SF: Send + Future<Output = crate::Result<S>>,
@@ -70,16 +67,14 @@ async fn manage_conn<A, E, F, S, SF>(
   err_cb: impl Copy + Fn(E) + Send + 'static,
   handle_cb: F,
   http2_params_cb: impl Copy + Fn() -> Http2Params + Send + 'static,
-  stream_buffer_cb: fn() -> crate::Result<Box<StreamBuffer>>,
+  stream_buffer_cb: fn() -> crate::Result<ReqResBuffer>,
   stream_cb: impl Copy + Fn(A, TcpStream) -> SF + Send + 'static,
 ) -> crate::Result<()>
 where
   E: Debug + From<crate::Error> + Send + 'static,
   F: Copy
-    + for<'any> FnFut<
-      RequestStr<'any, (&'any mut ByteVector, &'any mut Headers)>,
-      Result<Response<(&'any mut ByteVector, &'any mut Headers)>, E>,
-    > + Send
+    + for<'any> FnFut<Request<&'any mut ReqResBuffer>, Result<Response<&'any mut ReqResBuffer>, E>>
+    + Send
     + 'static,
   S: Stream + 'static,
   SF: Send + Future<Output = crate::Result<S>>,
@@ -120,11 +115,10 @@ where
     };
     let _stream_jh = tokio::spawn(async move {
       let fun = || async move {
-        let (mut sb, method) = http2_stream.recv_req().await?;
-        let StreamBuffer { hpack_enc_buffer, rrb } = &mut *sb;
+        let (mut rrb, method) = http2_stream.recv_req().await?;
         let req = rrb.as_http2_request_mut(method);
         let res = handle_cb(req).await?;
-        http2_stream.send_res(hpack_enc_buffer, res).await?;
+        http2_stream.send_res(res).await?;
         Ok::<_, E>(())
       };
       if let Err(err) = fun().await {

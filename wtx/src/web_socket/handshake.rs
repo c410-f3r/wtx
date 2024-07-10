@@ -37,14 +37,13 @@ pub trait WebSocketConnect<NC, RNG, S, WSC> {
 /// Necessary to decode incoming bytes of responses or requests.
 #[derive(Debug)]
 pub struct HeadersBuffer<H, const N: usize> {
-  #[allow(unused)]
-  pub(crate) headers: [H; N],
+  pub(crate) _headers: [H; N],
 }
 
 #[cfg(feature = "httparse")]
 impl<const N: usize> Default for HeadersBuffer<httparse::Header<'_>, N> {
   #[inline]
   fn default() -> Self {
-    Self { headers: core::array::from_fn(|_| httparse::EMPTY_HEADER) }
+    Self { _headers: core::array::from_fn(|_| httparse::EMPTY_HEADER) }
   }
 }

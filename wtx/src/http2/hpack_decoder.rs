@@ -150,8 +150,7 @@ impl HpackDecoder {
       (hhb, name, value)
     };
     if STORE {
-      self.dyn_headers.reserve(name.len().wrapping_add(value.len()), 1);
-      self.dyn_headers.push_front(hhb, name, value, false, |_, _| {})?;
+      self.dyn_headers.push_front(hhb, name, [value, &[]], false, |_, _| {})?;
     }
     Ok(())
   }
@@ -161,9 +160,7 @@ impl HpackDecoder {
     data: &mut &'data [u8],
   ) -> crate::Result<(&'data [u8], &'data [u8], bool)> {
     let (first, len) = Self::decode_integer(data, 0b0111_1111)?;
-    let (bytes_begin, bytes_end) = if data.len() >= *Usize::from(len) {
-      data.split_at(*Usize::from(len))
-    } else {
+    let Some((bytes_begin, bytes_end)) = data.split_at_checked(*Usize::from(len)) else {
       return Err(protocol_err(Http2Error::InsufficientHpackBytes));
     };
     let is_encoded = first & 0b1000_0000 == 0b1000_0000;
@@ -396,7 +393,7 @@ impl TryFrom<u8> for DecodeIdx {
 mod bench {
   use crate::{
     http2::{HpackDecoder, HpackEncoder},
-    misc::{ByteVector, Usize},
+    misc::{Usize, Vector},
     rng::StaticRng,
   };
 
@@ -410,7 +407,7 @@ mod bench {
       });
       rslt
     };
-    let mut buffer = ByteVector::with_capacity(*Usize::from(N));
+    let mut buffer = Vector::with_capacity(*Usize::from(N)).unwrap();
     let mut he = HpackEncoder::new(StaticRng::default());
     he.set_max_dyn_super_bytes(N);
     he.encode(&mut buffer, [].into_iter(), {

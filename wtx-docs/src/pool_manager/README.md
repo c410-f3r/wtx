@@ -25,7 +25,7 @@ impl ResourceManager for TestManager {
     Ok(0)
   }
 
-  fn is_invalid(&self, _: &Self::Resource) -> bool {
+  async fn is_invalid(&self, _: &Self::Resource) -> bool {
     false
   }
 

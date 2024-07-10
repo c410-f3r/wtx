@@ -1,5 +1,4 @@
-use crate::client_api_framework::dnsn::Serialize;
-use alloc::vec::Vec;
+use crate::{client_api_framework::dnsn::Serialize, misc::Vector};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
@@ -12,22 +11,24 @@ pub struct XmlRequest<D> {
 
 impl<D> Serialize<()> for XmlRequest<D> {
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vec<u8>, _: &mut ()) -> crate::Result<()> {
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
 
 #[cfg(feature = "serde-xml-rs")]
 mod serde_xml_rs {
-  use crate::client_api_framework::{data_format::XmlRequest, dnsn::SerdeXmlRs};
-  use alloc::vec::Vec;
+  use crate::{
+    client_api_framework::{data_format::XmlRequest, dnsn::SerdeXmlRs},
+    misc::Vector,
+  };
 
   impl<D> crate::client_api_framework::dnsn::Serialize<SerdeXmlRs> for XmlRequest<D>
   where
     D: serde::Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeXmlRs) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeXmlRs) -> crate::Result<()> {
       if size_of::<D>() == 0 {
         return Ok(());
       }

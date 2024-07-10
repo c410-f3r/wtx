@@ -1,6 +1,10 @@
-use crate::{http::Headers, misc::Lease};
+use crate::{
+  http::{Headers, ReqResBuffer},
+  misc::{Lease, Uri, UriRef},
+};
+use alloc::boxed::Box;
 
-/// Groups the body and the headers of an HTTP request/response.
+/// Groups the elements of an HTTP request/response.
 pub trait ReqResData {
   /// See [`Self::body`].
   type Body: ?Sized;
@@ -10,6 +14,9 @@ pub trait ReqResData {
 
   /// See [Headers].
   fn headers(&self) -> &Headers;
+
+  /// See [`UriRef`].
+  fn uri(&self) -> UriRef<'_>;
 }
 
 impl<T> ReqResData for &T
@@ -26,6 +33,11 @@ where
   #[inline]
   fn headers(&self) -> &Headers {
     (*self).headers()
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    (*self).uri()
   }
 }
 
@@ -44,6 +56,11 @@ where
   fn headers(&self) -> &Headers {
     (**self).headers()
   }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    (**self).uri()
+  }
 }
 
 impl ReqResData for &[u8] {
@@ -58,6 +75,11 @@ impl ReqResData for &[u8] {
   fn headers(&self) -> &Headers {
     const { &Headers::new(0) }
   }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    UriRef::_dummy("")
+  }
 }
 
 impl<const N: usize> ReqResData for [u8; N] {
@@ -71,6 +93,30 @@ impl<const N: usize> ReqResData for [u8; N] {
   #[inline]
   fn headers(&self) -> &Headers {
     const { &Headers::new(0) }
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    UriRef::_dummy("")
+  }
+}
+
+impl ReqResData for () {
+  type Body = ();
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    &()
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    const { &Headers::new(0) }
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    UriRef::_dummy("")
   }
 }
 
@@ -89,19 +135,72 @@ where
   fn headers(&self) -> &Headers {
     self.1.lease()
   }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    UriRef::_dummy("")
+  }
 }
 
-#[cfg(feature = "http2")]
-impl ReqResData for crate::http2::ReqResBuffer {
-  type Body = [u8];
+impl<T> ReqResData for Box<T>
+where
+  T: ReqResData,
+{
+  type Body = T::Body;
 
   #[inline]
   fn body(&self) -> &Self::Body {
-    &self.body
+    (**self).body()
   }
 
   #[inline]
   fn headers(&self) -> &Headers {
-    &self.headers
+    (**self).headers()
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    UriRef::_dummy("")
+  }
+}
+
+impl ReqResData for ReqResBuffer {
+  type Body = [u8];
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    (*self).body()
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    (*self).headers()
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    (*self).uri()
+  }
+}
+
+impl<S> ReqResData for Uri<S>
+where
+  S: Lease<str>,
+{
+  type Body = ();
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    &()
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    const { &Headers::new(0) }
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    self.to_ref()
   }
 }

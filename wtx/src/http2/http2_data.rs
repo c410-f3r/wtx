@@ -1,9 +1,9 @@
 use crate::{
+  http::ReqResBuffer,
   http2::{
     http2_params_send::Http2ParamsSend,
     misc::{protocol_err, read_frame_until},
-    FrameInitTy, Http2Buffer, Http2Error, Http2Params, ProcessReceiptFrameTy, StreamBuffer,
-    Windows, U31,
+    FrameInitTy, Http2Buffer, Http2Error, Http2Params, ProcessReceiptFrameTy, Windows, U31,
   },
   misc::{Lease, LeaseMut, Stream},
 };
@@ -11,23 +11,23 @@ use core::marker::PhantomData;
 
 /// Internal resource used in every new instance of `Http2`.
 #[derive(Debug)]
-pub struct Http2Data<HB, S, SB, const IS_CLIENT: bool> {
+pub struct Http2Data<HB, RRB, S, const IS_CLIENT: bool> {
   hb: HB,
   hp: Http2Params,
   hps: Http2ParamsSend,
   is_conn_open: bool,
   last_stream_id: U31,
-  phantom: PhantomData<SB>,
+  phantom: PhantomData<RRB>,
   recv_streams_num: u32,
   stream: S,
   windows: Windows,
 }
 
-impl<HB, S, SB, const IS_CLIENT: bool> Http2Data<HB, S, SB, IS_CLIENT>
+impl<HB, RRB, S, const IS_CLIENT: bool> Http2Data<HB, RRB, S, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer<SB>>,
+  HB: LeaseMut<Http2Buffer<RRB>>,
+  RRB: LeaseMut<ReqResBuffer>,
   S: Stream,
-  SB: LeaseMut<StreamBuffer>,
 {
   #[inline]
   pub(crate) fn new(hb: HB, hp: Http2Params, stream: S) -> Self {
@@ -51,7 +51,7 @@ where
   }
 
   #[inline]
-  pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, S, SB> {
+  pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, RRB, S> {
     Http2DataPartsMut {
       hb: self.hb.lease_mut(),
       last_stream_id: &mut self.last_stream_id,
@@ -136,26 +136,26 @@ where
   }
 }
 
-impl<HB, S, SB, const IS_CLIENT: bool> Lease<Http2Data<HB, S, SB, IS_CLIENT>>
-  for Http2Data<HB, S, SB, IS_CLIENT>
+impl<HB, RRB, S, const IS_CLIENT: bool> Lease<Http2Data<HB, RRB, S, IS_CLIENT>>
+  for Http2Data<HB, RRB, S, IS_CLIENT>
 {
   #[inline]
-  fn lease(&self) -> &Http2Data<HB, S, SB, IS_CLIENT> {
+  fn lease(&self) -> &Http2Data<HB, RRB, S, IS_CLIENT> {
     self
   }
 }
 
-impl<HB, S, SB, const IS_CLIENT: bool> LeaseMut<Http2Data<HB, S, SB, IS_CLIENT>>
-  for Http2Data<HB, S, SB, IS_CLIENT>
+impl<HB, RRB, S, const IS_CLIENT: bool> LeaseMut<Http2Data<HB, RRB, S, IS_CLIENT>>
+  for Http2Data<HB, RRB, S, IS_CLIENT>
 {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Http2Data<HB, S, SB, IS_CLIENT> {
+  fn lease_mut(&mut self) -> &mut Http2Data<HB, RRB, S, IS_CLIENT> {
     self
   }
 }
 
-pub(crate) struct Http2DataPartsMut<'instance, S, SB> {
-  pub(crate) hb: &'instance mut Http2Buffer<SB>,
+pub(crate) struct Http2DataPartsMut<'instance, RRB, S> {
+  pub(crate) hb: &'instance mut Http2Buffer<RRB>,
   pub(crate) hp: &'instance mut Http2Params,
   pub(crate) hps: &'instance mut Http2ParamsSend,
   pub(crate) is_conn_open: &'instance mut bool,

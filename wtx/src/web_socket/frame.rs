@@ -144,7 +144,7 @@ where
     cb: impl FnOnce(&mut FB) -> crate::Result<()>,
   ) -> crate::Result<Self> {
     fb.lease_mut().clear();
-    fb.lease_mut().buffer_mut().expand(MAX_HDR_LEN_USIZE.saturating_add(payload_len));
+    fb.lease_mut().buffer_mut().expand(MAX_HDR_LEN_USIZE.saturating_add(payload_len))?;
     define_fb_from_header_params::<_, IS_CLIENT>(
       fb.lease_mut(),
       fin,

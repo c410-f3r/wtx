@@ -53,7 +53,7 @@ pub(crate) fn pkg(
   } else {
     params_item_unit = params_item_unit_fn(&mut camel_case_id);
     FirParamsItemValues::try_from(ItemWithAttrSpan {
-      content: (),
+      _content: (),
       item: &mut params_item_unit,
       span: Span::mixed_site(),
     })?

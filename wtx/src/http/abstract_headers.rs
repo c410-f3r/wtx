@@ -16,8 +16,12 @@ where
   }
 
   #[inline]
-  pub(crate) fn with_capacity(bytes: usize, headers: usize, max_bytes: usize) -> Self {
-    Self { bq: BlocksQueue::with_capacity(headers, bytes.min(max_bytes)), max_bytes }
+  pub(crate) fn with_capacity(
+    bytes: usize,
+    headers: usize,
+    max_bytes: usize,
+  ) -> crate::Result<Self> {
+    Ok(Self { bq: BlocksQueue::with_capacity(headers, bytes.min(max_bytes))?, max_bytes })
   }
 
   #[inline]
@@ -80,18 +84,18 @@ where
     &mut self,
     misc: M,
     name: &[u8],
-    value: &[u8],
+    [value0, value1]: [&[u8]; 2],
     is_sensitive: bool,
     cb: impl FnMut(M, &mut [u8]),
   ) -> crate::Result<()> {
-    let local_len = name.len().wrapping_add(value.len());
+    let local_len = name.len().wrapping_add(value0.len()).wrapping_add(value1.len());
     if local_len > self.max_bytes {
       self.clear();
       return Ok(());
     }
     self.remove_until_max_bytes(local_len, cb);
     self.bq.push_front(
-      [name, value],
+      [name, value0, value1],
       Metadata { is_active: true, is_sensitive, misc, name_len: name.len() },
     )?;
     Ok(())
@@ -105,8 +109,9 @@ where
   }
 
   #[inline(always)]
-  pub(crate) fn reserve(&mut self, bytes: usize, headers: usize) {
-    self.bq.reserve(headers, bytes.min(self.max_bytes));
+  pub(crate) fn reserve(&mut self, bytes: usize, headers: usize) -> crate::Result<()> {
+    self.bq.reserve(headers, bytes.min(self.max_bytes))?;
+    Ok(())
   }
 
   #[inline]

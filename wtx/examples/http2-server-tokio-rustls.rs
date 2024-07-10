@@ -4,9 +4,9 @@
 mod common;
 
 use wtx::{
-  http::{server::OptionedServer, Headers, RequestStr, Response, StatusCode},
-  http2::{Http2Buffer, Http2Params, StreamBuffer},
-  misc::{ByteVector, TokioRustlsAcceptor},
+  http::{server::OptionedServer, ReqResBuffer, Request, Response, StatusCode},
+  http2::{Http2Buffer, Http2Params},
+  misc::TokioRustlsAcceptor,
   rng::StdRng,
 };
 
@@ -21,7 +21,7 @@ async fn main() {
     handle,
     || Ok(Http2Buffer::new(StdRng::default())),
     || Http2Params::default(),
-    || Ok(Box::new(StreamBuffer::default())),
+    || Ok(ReqResBuffer::default()),
     (
       || TokioRustlsAcceptor::default().with_cert_chain_and_priv_key(CERT, KEY).unwrap(),
       |acceptor| acceptor.clone(),
@@ -33,8 +33,8 @@ async fn main() {
 }
 
 async fn handle<'buffer>(
-  req: RequestStr<'buffer, (&'buffer mut ByteVector, &'buffer mut Headers)>,
-) -> Result<Response<(&'buffer mut ByteVector, &'buffer mut Headers)>, wtx::Error> {
-  req.data.1.clear();
-  Ok(Response::http2(req.data, StatusCode::Ok))
+  req: Request<&'buffer mut ReqResBuffer>,
+) -> Result<Response<&'buffer mut ReqResBuffer>, wtx::Error> {
+  req.rrd.clear();
+  Ok(Response::http2(req.rrd, StatusCode::Ok))
 }

@@ -1,7 +1,4 @@
-#![allow(
-  // Meta variable expressions
-  non_snake_case
-)]
+#![expect(non_snake_case, reason = "meta variable expressions")]
 
 use crate::{
   database::{

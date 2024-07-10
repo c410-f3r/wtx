@@ -45,11 +45,11 @@ where
   }
 }
 
-/// Uses a pre-fixed seed, i.e., it doesn't generate randomness at all.
+/// Uses a week seed that can possibly fallback to a fixed static value.
 ///
 /// The number generation is done using a simple XOR strategy.
 ///
-/// You probably shouldn't use this structure in a production environment.
+/// You shouldn't use this structure in scenarios that require a good source of randomness.
 #[derive(Clone, Debug)]
 pub struct StaticRng(u64);
 

@@ -10,13 +10,12 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Window {
   available: i32,
-  original: i32,
 }
 
 impl Window {
   #[inline]
   pub(crate) const fn new(available: i32) -> Self {
-    Self { available, original: available }
+    Self { available }
   }
 
   #[inline]
@@ -50,25 +49,29 @@ impl Window {
     }
   }
 
-  pub(crate) fn update(&mut self, value: i32) {
-    let diff = self.original.wrapping_sub(value);
-    self.available = self.original.wrapping_sub(self.used()).wrapping_sub(diff);
-    self.original = value;
+  #[inline]
+  pub(crate) fn withdrawn(&mut self, stream_id: Option<U31>, value: i32) -> crate::Result<()> {
+    let Some(diff) = self.available.checked_sub(value) else {
+      return if let Some(elem) = stream_id {
+        Err(crate::Error::Http2ErrorReset(
+          Http2ErrorCode::FlowControlError,
+          Some(Http2Error::InvalidWindowUpdateSize),
+          elem.u32(),
+        ))
+      } else {
+        Err(crate::Error::Http2ErrorGoAway(
+          Http2ErrorCode::FlowControlError,
+          Some(Http2Error::InvalidWindowUpdateSize),
+        ))
+      };
+    };
+    self.available = diff;
+    Ok(())
   }
 
   #[inline]
   const fn is_invalid(&self) -> bool {
     self.available < 0
-  }
-
-  #[inline]
-  fn used(&self) -> i32 {
-    self.original.wrapping_sub(self.available)
-  }
-
-  #[inline]
-  fn withdrawn(&mut self, value: i32) {
-    self.available = self.available.wrapping_sub(value);
   }
 }
 
@@ -141,10 +144,10 @@ impl<'any> WindowsPair<'any> {
     S: Stream,
   {
     let iwl = U31::from_u32(hp.initial_window_len()).i32();
-    self.conn.recv.withdrawn(value.i32());
+    self.conn.recv.withdrawn(None, value.i32())?;
     if !has_eos && self.conn.recv.is_invalid() {
       let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
-      self.conn.recv.deposit(Some(stream_id), conn_value)?;
+      self.conn.recv.deposit(None, conn_value)?;
       write_array(
         [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
         is_conn_open,
@@ -152,7 +155,7 @@ impl<'any> WindowsPair<'any> {
       )
       .await?;
     } else {
-      self.stream.recv.withdrawn(value.i32());
+      self.stream.recv.withdrawn(Some(stream_id), value.i32())?;
       match (self.conn.recv.is_invalid(), self.stream.recv.is_invalid()) {
         (false, false) => {}
         (false, true) => {
@@ -199,8 +202,9 @@ impl<'any> WindowsPair<'any> {
   ///
   /// Withdraws connection and sending parameters
   #[inline]
-  pub(crate) fn withdrawn_send(&mut self, value: U31) {
-    self.conn.send.withdrawn(value.i32());
-    self.stream.send.withdrawn(value.i32());
+  pub(crate) fn withdrawn_send(&mut self, stream_id: Option<U31>, value: U31) -> crate::Result<()> {
+    self.conn.send.withdrawn(None, value.i32())?;
+    self.stream.send.withdrawn(stream_id, value.i32())?;
+    Ok(())
   }
 }

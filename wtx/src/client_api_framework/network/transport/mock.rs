@@ -1,7 +1,4 @@
-#![allow(
-  // Intended for testing environments
-  clippy::indexing_slicing
-)]
+#![expect(clippy::indexing_slicing, reason = "intended for testing environments")]
 
 use crate::{
   client_api_framework::{
@@ -127,7 +124,7 @@ where
     <Self as Transport<DRSR>>::send(self, pkg, pkgs_aux).await?;
     let response = self.pop_response()?;
     pkgs_aux.byte_buffer.clear();
-    pkgs_aux.byte_buffer.extend(response.lease().iter().copied());
+    pkgs_aux.byte_buffer.extend_from_slice(response.lease()).map_err(Into::into)?;
     Ok(0..pkgs_aux.byte_buffer.len())
   }
 }

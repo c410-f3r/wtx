@@ -1,21 +1,20 @@
 use crate::{
+  http::ReqResBuffer,
   http2::{
     http2_data::Http2DataPartsMut, http2_params_send::Http2ParamsSend, CommonFlags, FrameInit,
     FrameInitTy, GoAwayFrame, HeadersFrame, HpackDecoder, HpackEncoder, Http2Buffer, Http2Data,
-    Http2Error, Http2ErrorCode, Http2Params, PingFrame, ReqResBuffer, ResetStreamFrame, Scrp,
-    SettingsFrame, Sorp, StreamBuffer, StreamOverallRecvParams, StreamState, UriBuffer,
-    WindowUpdateFrame, Windows, U31,
+    Http2Error, Http2ErrorCode, Http2Params, PingFrame, ResetStreamFrame, Scrp, SettingsFrame,
+    Sorp, StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
   },
   misc::{
     LeaseMut, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until, atoi, Lock, RefCounter,
   },
 };
 use core::pin::pin;
-use tokio::sync::MutexGuard;
 
 #[inline]
-pub(crate) fn apply_initial_params<SB>(
-  hb: &mut Http2Buffer<SB>,
+pub(crate) fn apply_initial_params<RRB>(
+  hb: &mut Http2Buffer<RRB>,
   hp: &Http2Params,
 ) -> crate::Result<()> {
   hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
@@ -25,15 +24,15 @@ pub(crate) fn apply_initial_params<SB>(
 }
 
 #[inline]
-pub(crate) fn check_content_length<SB>(
+pub(crate) fn check_content_length<RRB>(
   headers_idx: usize,
-  sorp: &StreamOverallRecvParams<SB>,
+  sorp: &StreamOverallRecvParams<RRB>,
 ) -> crate::Result<()>
 where
-  SB: LeaseMut<StreamBuffer>,
+  RRB: LeaseMut<ReqResBuffer>,
 {
-  if let Some(header) = sorp.sb.lease().rrb.headers.get_by_idx(headers_idx) {
-    if sorp.sb.lease().rrb.body.len() != atoi::<usize>(header.value)? {
+  if let Some(header) = sorp.rrb.lease().headers().get_by_idx(headers_idx) {
+    if sorp.rrb.lease().body().len() != atoi::<usize>(header.value)? {
       return Err(protocol_err(Http2Error::InvalidHeaderData));
     }
   }
@@ -45,26 +44,23 @@ pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
 }
 
 #[inline]
-pub(crate) async fn process_higher_operation_err<HB, HD, S, SB, const IS_CLIENT: bool>(
+pub(crate) async fn process_higher_operation_err<HB, HD, RRB, S, const IS_CLIENT: bool>(
   err: crate::Error,
   hd: &HD,
 ) -> crate::Error
 where
-  HB: LeaseMut<Http2Buffer<SB>>,
+  HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  for<'guard> HD::Item: Lock<
-      Guard<'guard> = MutexGuard<'guard, Http2Data<HB, S, SB, IS_CLIENT>>,
-      Resource = Http2Data<HB, S, SB, IS_CLIENT>,
-    > + 'guard,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, IS_CLIENT>>,
+  RRB: LeaseMut<ReqResBuffer>,
   S: Stream,
-  SB: LeaseMut<StreamBuffer>,
 {
   #[inline]
-  pub(crate) async fn send_based_on_error<S, SB>(
+  pub(crate) async fn send_based_on_error<RRB, S>(
     err: &crate::Error,
-    hdpm: Http2DataPartsMut<'_, S, SB>,
+    hdpm: Http2DataPartsMut<'_, RRB, S>,
   ) where
-    SB: LeaseMut<StreamBuffer>,
+    RRB: LeaseMut<ReqResBuffer>,
     S: Stream,
   {
     match err {
@@ -182,7 +178,7 @@ where
 
 /// Reads frames and return the first that is NOT related to the connection
 #[inline]
-pub(crate) async fn read_frame_until<S, SB>(
+pub(crate) async fn read_frame_until<RRB, S>(
   conn_windows: &mut Windows,
   hp: &mut Http2Params,
   hpack_enc: &mut HpackEncoder,
@@ -190,7 +186,7 @@ pub(crate) async fn read_frame_until<S, SB>(
   is_conn_open: &mut bool,
   pfb: &mut PartitionedFilledBuffer,
   scrp: &mut Scrp,
-  sorp: &mut Sorp<SB>,
+  sorp: &mut Sorp<RRB>,
   stream: &mut S,
 ) -> crate::Result<Option<FrameInit>>
 where
@@ -261,25 +257,25 @@ where
     return Err(protocol_err(Http2Error::MissingEOSInTrailer));
   }
 
+  rrb.clear();
+
   if fi.cf.has_eoh() {
     let (content_length_idx, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
-      pfb._current(),
+      Some(pfb._current()),
       fi,
-      &mut rrb.headers,
       hp,
       hpack_dec,
-      &mut rrb.uri,
+      rrb,
       uri_buffer,
     )?;
+
     if hf.is_over_size() {
       return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
     }
     return Ok((content_length_idx, hf.has_eos(), headers_cb(&hf)?));
   }
 
-  rrb.body.clear();
-  rrb.body.reserve(pfb._current().len());
-  rrb.body.extend_from_slice(pfb._current())?;
+  rrb.extend_body(pfb._current())?;
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
@@ -289,8 +285,7 @@ where
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      rrb.body.reserve(pfb._current().len());
-      rrb.body.extend_from_slice(pfb._current())?;
+      rrb.extend_body(pfb._current())?;
       if frame_fi.cf.has_eoh() {
         break 'continuation_frames;
       }
@@ -298,19 +293,12 @@ where
     return Err(protocol_err(Http2Error::VeryLargeAmountOfContinuationFrames));
   }
 
-  let (content_length_idx, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
-    &rrb.body,
-    fi,
-    &mut rrb.headers,
-    hp,
-    hpack_dec,
-    &mut rrb.uri,
-    uri_buffer,
-  )?;
+  let (content_length_idx, hf) =
+    HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(None, fi, hp, hpack_dec, rrb, uri_buffer)?;
+  rrb.clear_body();
   if hf.is_over_size() {
     return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
   }
-  rrb.body.clear();
   Ok((content_length_idx, hf.has_eos(), headers_cb(&hf)?))
 }
 
@@ -328,9 +316,9 @@ pub(crate) async fn send_go_away<S>(
 }
 
 #[inline]
-pub(crate) async fn send_reset_stream<S, SB>(
+pub(crate) async fn send_reset_stream<RRB, S>(
   error_code: Http2ErrorCode,
-  hb: &mut Http2Buffer<SB>,
+  hb: &mut Http2Buffer<RRB>,
   stream: &mut S,
   stream_id: U31,
 ) where

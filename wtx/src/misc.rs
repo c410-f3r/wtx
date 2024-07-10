@@ -66,19 +66,13 @@ pub use uri::{Uri, UriArrayString, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};
-#[allow(
-  // Used by other features
-  unused_imports
-)]
+#[allow(unused_imports, reason = "used in other features")]
 pub(crate) use {
   blocks_queue::{Block, BlocksQueue},
   mem_transfer::_shift_bytes,
   partitioned_filled_buffer::PartitionedFilledBuffer,
   span::{_Entered, _Span},
 };
-
-/// Vector of bytes
-pub type ByteVector = Vector<u8>;
 
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [`core::result::Result`] context.
@@ -89,10 +83,7 @@ pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
 }
 
 /// Sleeps for the specified amount of time.
-#[allow(
-  // Depends on the selected set of features.
-  clippy::unused_async
-)]
+#[allow(clippy::unused_async, reason = "depends on the selected set of features")]
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
   #[cfg(all(feature = "async-std", not(feature = "tokio")))]
@@ -143,12 +134,8 @@ pub fn tracing_subscriber_init() -> Result<(), tracing_subscriber::util::TryInit
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
 }
 
-#[allow(
-  // `match` correctly handles sizes
-  clippy::as_conversions,
-  // `match` correctly handles sizes
-  clippy::cast_possible_truncation
-)]
+#[expect(clippy::as_conversions, reason = "`match` correctly handles conversions")]
+#[expect(clippy::cast_possible_truncation, reason = "`match` correctly handles truncations")]
 #[inline]
 pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
   #[inline]

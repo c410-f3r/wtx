@@ -1,3 +1,5 @@
+#![allow(dead_code, reason = "Depends on selected features")]
+
 use crate::client_api_framework::{
   dnsn::{Deserialize, Serialize},
   pkg::Package,
@@ -42,7 +44,6 @@ where
   }
 }
 
-#[allow(dead_code)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize))]
 #[cfg_attr(feature = "miniserde", derive(miniserde::Serialize))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize))]
@@ -54,7 +55,6 @@ pub(crate) struct Foo {
   pub(crate) foo: &'static str,
 }
 
-#[allow(dead_code)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[cfg_attr(feature = "miniserde", derive(miniserde::Deserialize))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Deserialize))]

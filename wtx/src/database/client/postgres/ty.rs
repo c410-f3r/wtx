@@ -348,10 +348,7 @@ pub enum Ty {
 }
 
 impl From<&Ty> for u32 {
-  #[allow(
-    // False positive
-    clippy::too_many_lines
-  )]
+  #[expect(clippy::too_many_lines, reason = "false positive")]
   #[inline]
   fn from(from: &Ty) -> Self {
     match from {
@@ -534,10 +531,7 @@ impl From<&Ty> for u32 {
 impl TryFrom<u32> for Ty {
   type Error = crate::Error;
 
-  #[allow(
-    // False positive
-    clippy::too_many_lines
-  )]
+  #[expect(clippy::too_many_lines, reason = "false positive")]
   #[inline]
   fn try_from(from: u32) -> Result<Self, Self::Error> {
     Ok(match from {

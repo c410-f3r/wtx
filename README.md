@@ -12,9 +12,11 @@ A collection of different transport implementations and related tools focused pr
 2. [Database Client](https://c410-f3r.github.io/wtx/database/client-connection.html)
 3. [Database Object–Relational Mapping](https://c410-f3r.github.io/wtx/database/object%E2%80%93relational-mapping.html)
 4. [Database Schema Manager](https://c410-f3r.github.io/wtx/database/schema-management.html)
-5. [HTTP2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
-6. [Pool Manager](https://c410-f3r.github.io/wtx/pool_manager/index.html)
-7. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
+5. [HTTP Client](https://c410-f3r.github.io/wtx/http-client/index.html)
+6. [HTTP2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
+7. [Pool Manager](https://c410-f3r.github.io/wtx/pool_manager/index.html)
+8. [User Interface](https://c410-f3r.github.io/wtx/ui/index.html)
+9. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
 
@@ -55,5 +57,6 @@ For example, in a 32bit system you can allocate a maximum of 2^29 bytes of memor
 * gRPC over HTTP/2 (<https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md>).
 * Web server framework
 * WebSocket over an HTTP/2 stream (<https://datatracker.ietf.org/doc/html/rfc8441>).
-* Static web server
+* cURL bindings
 * WebTransport over HTTP/2 (<https://datatracker.ietf.org/doc/draft-ietf-webtrans-http2>).
+* Static web server
