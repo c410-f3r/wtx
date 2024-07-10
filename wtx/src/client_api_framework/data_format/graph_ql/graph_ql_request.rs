@@ -21,8 +21,10 @@ pub struct GraphQlRequest<ON, Q, V> {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::client_api_framework::{data_format::GraphQlRequest, dnsn::SerdeJson};
-  use alloc::vec::Vec;
+  use crate::{
+    client_api_framework::{data_format::GraphQlRequest, dnsn::SerdeJson},
+    misc::Vector,
+  };
 
   impl<ON, Q, V> crate::client_api_framework::dnsn::Serialize<SerdeJson> for GraphQlRequest<ON, Q, V>
   where
@@ -31,7 +33,7 @@ mod serde_json {
     V: serde::Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
       if size_of::<Self>() == 0 {
         return Ok(());
       }
@@ -43,8 +45,10 @@ mod serde_json {
 
 #[cfg(feature = "simd-json")]
 mod simd_json {
-  use crate::client_api_framework::{data_format::GraphQlRequest, dnsn::SimdJson};
-  use alloc::vec::Vec;
+  use crate::{
+    client_api_framework::{data_format::GraphQlRequest, dnsn::SimdJson},
+    misc::Vector,
+  };
 
   impl<ON, Q, V> crate::client_api_framework::dnsn::Serialize<SimdJson> for GraphQlRequest<ON, Q, V>
   where
@@ -52,7 +56,7 @@ mod simd_json {
     Q: serde::Serialize,
     V: serde::Serialize,
   {
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SimdJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SimdJson) -> crate::Result<()> {
       if size_of::<Self>() == 0 {
         return Ok(());
       }

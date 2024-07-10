@@ -4,6 +4,8 @@
 mod clap;
 #[cfg(feature = "embed-migrations")]
 mod embed_migrations;
+#[cfg(feature = "http-client")]
+mod http_client;
 #[cfg(feature = "schema-manager")]
 mod schema_manager;
 #[cfg(feature = "web-socket")]

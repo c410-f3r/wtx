@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals)]
+#![expect(non_upper_case_globals, reason = "macro parameters")]
 
 macro_rules! create_statics {
   (
@@ -55,14 +55,14 @@ macro_rules! create_statics {
     }
 
     impl<'bytes> TryFrom<&'bytes [u8]> for KnownHeaderName {
-      type Error = crate::Error;
+      type Error = HttpError;
 
       #[inline]
       fn try_from(from: &'bytes [u8]) -> Result<Self, Self::Error> {
         $( const $name: &[u8] = $value.as_bytes(); )*
         Ok(match from {
           $( $name => Self::$name, )*
-          _ => return Err(crate::Error::HTTP_UnknownHeaderNameFromBytes {
+          _ => return Err(HttpError::UnknownHeaderNameFromBytes {
             length: from.len()
           })
         })
@@ -73,7 +73,7 @@ macro_rules! create_statics {
     where
       S: Lease<[u8]>
     {
-      type Error = crate::Error;
+      type Error = HttpError;
 
       #[inline]
       fn try_from(from: HeaderName<S>) -> Result<Self, Self::Error> {
@@ -98,6 +98,8 @@ const HTTP2P_TABLE: &[u8; 256] = &[
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
+use crate::http::HttpError;
+
 /// [`HeaderName`] composed by static bytes.
 pub type HeaderNameStaticBytes = HeaderName<&'static [u8]>;
 /// [`HeaderName`] composed by a static string.
@@ -115,11 +117,11 @@ where
   ///
   /// Expects a valid HTTP/2 or HTTP/3 content.
   #[inline]
-  pub fn http2p(content: S) -> crate::Result<Self> {
+  pub fn http2p(content: S) -> Result<Self, HttpError> {
     _iter4!(content.lease(), {}, |byte| {
       if let Some(elem) = HTTP2P_TABLE.get(usize::from(*byte)).copied() {
         if elem == 0 {
-          return Err(crate::Error::HTTP_InvalidHttp2pContent);
+          return Err(HttpError::InvalidHttp2pContent);
         }
       }
     });

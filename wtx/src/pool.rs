@@ -1,20 +1,23 @@
 //! Pool Manager
 
 mod resource_manager;
+#[cfg(feature = "std")]
 mod simple_pool;
 
 use core::future::Future;
 #[cfg(feature = "database")]
 pub use resource_manager::database::PostgresRM;
 pub use resource_manager::{ResourceManager, SimpleRM};
+#[cfg(feature = "std")]
 pub use simple_pool::*;
 
 /// Manages HTTP/2 resources for clients and servers.
 #[cfg(feature = "http2")]
-pub type Http2BufferRM<SB> = SimpleRM<fn() -> Result<crate::http2::Http2Buffer<SB>, crate::Error>>;
+pub type Http2BufferRM<RRB> =
+  SimpleRM<fn() -> Result<crate::http2::Http2Buffer<RRB>, crate::Error>>;
 /// Manages resources for HTTP2 requests and responses.
 #[cfg(feature = "http2")]
-pub type StreamBufferRM = SimpleRM<fn() -> Result<crate::http2::StreamBuffer, crate::Error>>;
+pub type StreamBufferRM = SimpleRM<fn() -> Result<crate::http::ReqResBuffer, crate::Error>>;
 /// Manages WebSocket resources.
 #[cfg(feature = "web-socket")]
 pub type WebSocketRM = SimpleRM<

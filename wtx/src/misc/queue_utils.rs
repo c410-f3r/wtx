@@ -1,32 +1,49 @@
 use crate::misc::{Vector, _shift_bytes};
-use core::{hint::unreachable_unchecked, iter, ptr};
+use core::{hint::assert_unchecked, iter, ptr};
 
+/// If memory is allocated, tail elements are shifted to the right.
+///
+/// ```ignore
+/// |4|3|2|6|5|
+///       |
+///        Head
+///
+/// |4|3|2|6|5| | | | | | | | | |
+///       |                 |
+///        Previous head     Current head
+///
+/// |4|3|2| | | | | | | | | |6|5|
+///                         |
+///                          Head
+/// ```
 #[inline(always)]
-pub(crate) fn reserve<D>(additional: usize, data: &mut Vector<D>, head: &mut usize) -> Option<usize>
+pub(crate) fn reserve<D>(
+  additional: usize,
+  data: &mut Vector<D>,
+  head: &mut usize,
+) -> Result<Option<usize>, ()>
 where
   D: Copy,
 {
   let prev_cap = data.capacity();
+  data.reserve(additional).map_err(|_err| ())?;
   let prev_head = *head;
   let rhs_len = prev_cap.wrapping_sub(prev_head);
-  data.reserve(additional);
   let curr_cap = data.capacity();
   let cap_diff = curr_cap.wrapping_sub(prev_cap);
   if prev_cap == 0 || cap_diff == 0 {
-    return None;
+    return Ok(None);
   }
   let curr_head = curr_cap.wrapping_sub(rhs_len);
-  // SAFETY: slice is allocated but not initialized
+  // SAFETY: memory has been allocated
   let allocated = unsafe { &mut *ptr::slice_from_raw_parts_mut(data.as_mut_ptr(), curr_cap) };
   // SAFETY: head will never be greater than the number of allocated elements
   unsafe {
-    if curr_head > allocated.len() || prev_head > prev_cap {
-      unreachable_unchecked();
-    }
+    assert_unchecked(allocated.len() >= curr_head || prev_cap >= prev_head);
   }
   let _ = _shift_bytes(curr_head, allocated, iter::once(prev_head..prev_cap));
   *head = curr_head;
-  Some(cap_diff)
+  Ok(Some(cap_diff))
 }
 
 #[inline]

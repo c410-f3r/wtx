@@ -1,5 +1,7 @@
-use crate::client_api_framework::{dnsn::Serialize, Id};
-use alloc::vec::Vec;
+use crate::{
+  client_api_framework::{dnsn::Serialize, Id},
+  misc::Vector,
+};
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -21,7 +23,7 @@ pub struct JsonRpcRequest<P> {
 
 impl<P> Serialize<()> for JsonRpcRequest<P> {
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vec<u8>, _: &mut ()) -> crate::Result<()> {
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -94,15 +96,17 @@ mod serde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::client_api_framework::{data_format::JsonRpcRequest, dnsn::SerdeJson};
-  use alloc::vec::Vec;
+  use crate::{
+    client_api_framework::{data_format::JsonRpcRequest, dnsn::SerdeJson},
+    misc::Vector,
+  };
 
   impl<P> crate::client_api_framework::dnsn::Serialize<SerdeJson> for JsonRpcRequest<P>
   where
     P: serde::Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
       serde_json::to_writer(bytes, self)?;
       Ok(())
     }
@@ -111,14 +115,16 @@ mod serde_json {
 
 #[cfg(feature = "simd-json")]
 mod simd_json {
-  use crate::client_api_framework::{data_format::JsonRpcRequest, dnsn::SimdJson};
-  use alloc::vec::Vec;
+  use crate::{
+    client_api_framework::{data_format::JsonRpcRequest, dnsn::SimdJson},
+    misc::Vector,
+  };
 
   impl<P> crate::client_api_framework::dnsn::Serialize<SimdJson> for JsonRpcRequest<P>
   where
     P: serde::Serialize,
   {
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SimdJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SimdJson) -> crate::Result<()> {
       simd_json::to_writer(bytes, self)?;
       Ok(())
     }

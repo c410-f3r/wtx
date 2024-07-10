@@ -29,14 +29,15 @@ where
 {
   /// Deserializes a sequence of bytes and then pushes them to the provided buffer.
   #[inline]
-  pub fn decode_and_push_from_bytes<B>(
+  pub fn decode_and_push_from_bytes<B, E>(
     &mut self,
     buffer: &mut B,
     bytes: &[u8],
     drsr: &mut DRSR,
   ) -> Result<(), A::Error>
   where
-    B: DynContigColl<P::ExternalResponseContent>,
+    A::Error: From<E>,
+    B: DynContigColl<E, P::ExternalResponseContent>,
   {
     if self.0 .0.is_empty() {
       return Ok(());
@@ -160,13 +161,15 @@ pub struct BatchElems<'slice, A, DRSR, P, T>(&'slice mut [P], PhantomData<(A, DR
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::client_api_framework::{
-    dnsn::SerdeJson,
-    network::transport::TransportParams,
-    pkg::{BatchElems, Package},
-    Api,
+  use crate::{
+    client_api_framework::{
+      dnsn::SerdeJson,
+      network::transport::TransportParams,
+      pkg::{BatchElems, Package},
+      Api,
+    },
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use serde::Serializer;
 
   impl<A, DRSR, P, TP> crate::client_api_framework::dnsn::Serialize<SerdeJson>
@@ -178,7 +181,7 @@ mod serde_json {
     TP: TransportParams,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
       serde_json::Serializer::new(bytes)
         .collect_seq(self.0.iter().map(Package::ext_req_content))?;
       Ok(())

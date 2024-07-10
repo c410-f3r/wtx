@@ -4,7 +4,7 @@ use crate::{
     misc::protocol_err,
     Http2Error,
   },
-  misc::{ArrayVector, ByteVector, _unreachable},
+  misc::{ArrayVector, Vector, _unreachable},
 };
 
 pub(crate) fn huffman_decode<const N: usize>(
@@ -69,14 +69,14 @@ pub(crate) fn huffman_decode<const N: usize>(
   Ok(())
 }
 
-pub(crate) fn huffman_encode(from: &[u8], wb: &mut ByteVector) -> crate::Result<()> {
+pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<()> {
   const MASK: u64 = 0b1111_1111;
 
   #[inline]
   fn push_within_iter(
     bits: &mut u64,
     bits_left: &mut u64,
-    wb: &mut ByteVector,
+    wb: &mut Vector<u8>,
   ) -> crate::Result<()> {
     let Ok(n) = u8::try_from((*bits >> 32) & MASK) else {
       _unreachable();
@@ -90,7 +90,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut ByteVector) -> crate::Result<
   let mut bits: u64 = 0;
   let mut bits_left: u64 = 40;
 
-  wb.reserve((from.len() << 1).wrapping_add(5));
+  wb.reserve((from.len() << 1).wrapping_add(5))?;
 
   _iter4!(from, {}, |elem| {
     let Some((nbits, code)) = ENCODE_TABLE.get(usize::from(*elem)).copied() else {
@@ -114,7 +114,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut ByteVector) -> crate::Result<
     if bits_left <= 32 {
       _unreachable()
     }
-    wb.reserve(5);
+    wb.reserve(5)?;
   });
 
   if bits_left != 40 {
@@ -141,7 +141,7 @@ mod bench {
   fn decode(b: &mut test::Bencher) {
     const N: usize = 1024 * 1024;
     let data = {
-      let mut dest = Vector::with_capacity(N);
+      let mut dest = Vector::with_capacity(N).unwrap();
       huffman_encode(&_data(N), &mut dest).unwrap();
       dest
     };
@@ -156,7 +156,7 @@ mod bench {
   fn encode(b: &mut test::Bencher) {
     const N: usize = 1024 * 1024 * 4;
     let mut data = _data(N);
-    let mut dest = Vector::with_capacity(N);
+    let mut dest = Vector::with_capacity(N).unwrap();
     b.iter(|| huffman_encode(&mut data, &mut dest));
   }
 }
@@ -173,7 +173,7 @@ mod proptest {
 
   #[test_strategy::proptest]
   fn encode_and_decode(data: Vec<u8>) {
-    let mut encoded = Vector::with_capacity(data.len());
+    let mut encoded = Vector::with_capacity(data.len()).unwrap();
     huffman_encode(&data, &mut encoded).unwrap();
     let mut decoded = _HeaderValueBuffer::default();
     if huffman_decode(&encoded, &mut decoded).is_ok() {
@@ -187,7 +187,7 @@ mod test {
   use crate::{
     http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
-    misc::{ByteVector, Vector},
+    misc::Vector,
   };
 
   #[test]
@@ -208,7 +208,7 @@ mod test {
   }
 
   fn decode_and_encode_cmp(
-    (decode_buffer, encode_buffer): (&mut _HeaderValueBuffer, &mut ByteVector),
+    (decode_buffer, encode_buffer): (&mut _HeaderValueBuffer, &mut Vector<u8>),
     bytes: &[u8],
     encoded: &[u8],
   ) {

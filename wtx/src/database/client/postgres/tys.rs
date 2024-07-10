@@ -219,17 +219,17 @@ mod pg_numeric {
     misc::{ArrayVector, FilledBufferWriter, Usize},
   };
 
-  const DIGITS_CAP: usize = 64;
+  const _DIGITS_CAP: usize = 64;
   const SIGN_NAN: u16 = 0xC000;
   const SIGN_NEG: u16 = 0x4000;
   const SIGN_POS: u16 = 0x0000;
 
-  pub(crate) enum PgNumeric {
-    NotANumber,
-    Number { digits: ArrayVector<i16, DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
+  pub(crate) enum _PgNumeric {
+    NaN,
+    Number { digits: ArrayVector<i16, _DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
   }
 
-  impl<E> Decode<'_, Postgres<E>> for PgNumeric
+  impl<E> Decode<'_, Postgres<E>> for _PgNumeric
   where
     E: From<crate::Error>,
   {
@@ -251,12 +251,12 @@ mod pg_numeric {
       let scale = u16::from_be_bytes([*g, *h]);
       let mut curr_slice = rest;
       Ok(if sign == SIGN_NAN {
-        PgNumeric::NotANumber
+        _PgNumeric::NaN
       } else {
-        if digits_usize > DIGITS_CAP || digits_usize > 0x7FFF {
+        if digits_usize > _DIGITS_CAP || digits_usize > 0x7FFF {
           return Err(E::from(PostgresError::VeryLargeDecimal.into()));
         }
-        let mut fbw = [0i16; DIGITS_CAP];
+        let mut fbw = [0i16; _DIGITS_CAP];
         for elem in fbw.iter_mut().take(digits_usize) {
           let [i, j, local_rest @ ..] = curr_slice else {
             break;
@@ -264,7 +264,7 @@ mod pg_numeric {
           *elem = i16::from_be_bytes([*i, *j]);
           curr_slice = local_rest;
         }
-        PgNumeric::Number {
+        _PgNumeric::Number {
           digits: ArrayVector::new(fbw, digits.into()),
           scale,
           sign: Sign::try_from(sign)?,
@@ -274,20 +274,20 @@ mod pg_numeric {
     }
   }
 
-  impl<E> Encode<Postgres<E>> for PgNumeric
+  impl<E> Encode<Postgres<E>> for _PgNumeric
   where
     E: From<crate::Error>,
   {
     #[inline]
     fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
       match self {
-        PgNumeric::NotANumber => {
+        _PgNumeric::NaN => {
           fbw._extend_from_slice(&0i16.to_be_bytes());
           fbw._extend_from_slice(&0i16.to_be_bytes());
           fbw._extend_from_slice(&SIGN_NAN.to_be_bytes());
           fbw._extend_from_slice(&0u16.to_be_bytes());
         }
-        PgNumeric::Number { digits, scale, sign, weight } => {
+        _PgNumeric::Number { digits, scale, sign, weight } => {
           let len: i16 = digits.len().try_into().map_err(Into::into)?;
           fbw._extend_from_slice(&len.to_be_bytes());
           fbw._extend_from_slice(&weight.to_be_bytes());
@@ -385,11 +385,9 @@ mod primitives {
       {
         #[inline]
         fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-          Ok(
-            <$signed as Decode::<Postgres<E>>>::decode(input)?
-              .try_into()
-              .map_err(|_err| E::from(PostgresError::InvalidPostgresUint.into()))?
-          )
+          <$signed as Decode::<Postgres<E>>>::decode(input)?
+            .try_into()
+            .map_err(|_err| E::from(PostgresError::InvalidPostgresUint.into()))
         }
       }
 
@@ -458,7 +456,7 @@ mod rust_decimal {
   use crate::{
     database::{
       client::postgres::{
-        tys::pg_numeric::{PgNumeric, Sign},
+        tys::pg_numeric::{Sign, _PgNumeric},
         DecodeValue, Postgres, PostgresError, Ty,
       },
       Decode, Encode,
@@ -473,12 +471,12 @@ mod rust_decimal {
   {
     #[inline]
     fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      let pg_numeric = PgNumeric::decode(input)?;
+      let pg_numeric = _PgNumeric::decode(input)?;
       let (digits, sign, mut weight, scale) = match pg_numeric {
-        PgNumeric::NotANumber => {
+        _PgNumeric::NaN => {
           return Err(E::from(PostgresError::DecimalCanNotBeConvertedFromNaN.into()));
         }
-        PgNumeric::Number { digits, sign, weight, scale } => (digits, sign, weight, scale),
+        _PgNumeric::Number { digits, sign, weight, scale } => (digits, sign, weight, scale),
       };
       if digits.is_empty() {
         return Ok(0u64.into());
@@ -510,7 +508,7 @@ mod rust_decimal {
     #[inline]
     fn encode(&self, fbw: &mut FilledBufferWriter<'_>, value: &Ty) -> Result<(), E> {
       if self.is_zero() {
-        let rslt = PgNumeric::Number {
+        let rslt = _PgNumeric::Number {
           digits: ArrayVector::default(),
           scale: 0,
           sign: Sign::Positive,
@@ -544,7 +542,7 @@ mod rust_decimal {
         let _ = digits.pop();
       }
 
-      let rslt = PgNumeric::Number {
+      let rslt = _PgNumeric::Number {
         digits,
         scale,
         sign: match self.is_sign_negative() {

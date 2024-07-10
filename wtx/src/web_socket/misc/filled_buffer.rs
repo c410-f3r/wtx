@@ -1,38 +1,39 @@
-use crate::misc::_unreachable;
-use alloc::{vec, vec::Vec};
+use crate::misc::{Vector, _unreachable};
 use core::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
 pub(crate) struct FilledBuffer {
-  buffer: Vec<u8>,
+  buffer: Vector<u8>,
   len: usize,
 }
 
 impl FilledBuffer {
   pub(crate) fn with_capacity(capacity: usize) -> Self {
-    Self { buffer: vec![0; capacity], len: 0 }
+    Self { buffer: _vector![0; capacity], len: 0 }
   }
 
   pub(crate) fn clear(&mut self) {
     self.len = 0;
   }
 
-  pub(crate) fn push_bytes(&mut self, bytes: &[u8]) {
+  pub(crate) fn push_bytes(&mut self, bytes: &[u8]) -> crate::Result<()> {
     let prev = self.len;
     let curr = prev.wrapping_add(bytes.len());
-    self.set_idx_through_expansion(curr);
+    self.set_idx_through_expansion(curr)?;
     self.get_mut(prev..curr).unwrap_or_default().copy_from_slice(bytes);
+    Ok(())
   }
 
-  pub(crate) fn set_idx_through_expansion(&mut self, len: usize) {
+  pub(crate) fn set_idx_through_expansion(&mut self, len: usize) -> crate::Result<()> {
     self.len = len;
-    self.expand(len);
+    self.expand(len)
   }
 
-  fn expand(&mut self, new_len: usize) {
+  fn expand(&mut self, new_len: usize) -> crate::Result<()> {
     if new_len > self.buffer.len() {
-      self.buffer.resize(new_len, 0);
+      self.buffer.expand(new_len, 0)?;
     }
+    Ok(())
   }
 }
 

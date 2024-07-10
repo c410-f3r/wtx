@@ -76,7 +76,6 @@ $rt check-with-features wtx _bench
 $rt check-with-features wtx _hack
 $rt check-with-features wtx _integration-tests
 $rt check-with-features wtx _tokio-rustls-client
-$rt check-with-features wtx _tokio-rustls-server
 $rt check-with-features wtx _tracing-subscriber
 $rt test-with-features wtx _proptest
 
@@ -90,6 +89,7 @@ $rt check-generic wtx-ui
 $rt test-with-features wtx-ui embed-migrations
 $rt test-with-features wtx-ui schema-manager
 $rt test-with-features wtx-ui schema-manager-dev
+$rt test-with-features wtx-ui http-client
 $rt test-with-features wtx-ui web-socket
 
 cargo check --bin autobahn-client --features "flate2,optimization,tokio/rt-multi-thread,web-socket-handshake"
@@ -97,13 +97,14 @@ cargo check --bin autobahn-server --features "flate2,optimization,pool,tokio/rt-
 cargo check --bin h2spec-server --features "http2,tokio"
 
 cargo check --example database-client-postgres-tokio-rustls --features "_tokio-rustls-client,postgres"
+cargo check --example http2-client-tokio-rustls --features "_tokio-rustls-client,http2"
 cargo check --example http2-server-tokio-rustls --features "_tokio-rustls-client,http2,pool"
 cargo check --example web-socket-client-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
-cargo check --example web-socket-server-raw-tokio-rustls --features "_tokio-rustls-server,pool,web-socket-handshake"
+cargo check --example web-socket-server-raw-tokio-rustls --features "pool,rustls-pemfile,tokio-rustls,web-socket-handshake"
 
 # WTX Docs
 
-rustup default nightly-2024-06-08
+rustup default nightly-2024-07-10
 cargo clean --target-dir mdbook-target
 cargo build --all-features --target-dir mdbook-target
 mdbook test -L mdbook-target/debug/deps wtx-docs

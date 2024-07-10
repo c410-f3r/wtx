@@ -1,5 +1,7 @@
-use crate::client_api_framework::dnsn::{Deserialize, Serialize};
-use alloc::vec::Vec;
+use crate::{
+  client_api_framework::dnsn::{Deserialize, Serialize},
+  misc::Vector,
+};
 
 /// Any opaque and generic JSON response
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -31,17 +33,19 @@ where
 
 impl<D> Serialize<()> for XmlResponse<D> {
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vec<u8>, _: &mut ()) -> crate::Result<()> {
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
 
 #[cfg(feature = "serde-xml-rs")]
 mod serde_xml_rs {
-  use crate::client_api_framework::{
-    data_format::XmlResponse, dnsn::SerdeXmlRs, misc::seq_visitor::_SeqVisitor,
+  use crate::{
+    client_api_framework::{
+      data_format::XmlResponse, dnsn::SerdeXmlRs, misc::seq_visitor::_SeqVisitor,
+    },
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
   use serde::de::Deserializer;
 
@@ -71,7 +75,7 @@ mod serde_xml_rs {
   where
     D: serde::Serialize,
   {
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeXmlRs) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeXmlRs) -> crate::Result<()> {
       if size_of::<D>() == 0 {
         return Ok(());
       }

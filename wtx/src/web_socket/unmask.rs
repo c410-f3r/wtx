@@ -18,10 +18,7 @@ pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
   unmask_u8_slice(suffix, mask_u32.to_ne_bytes());
 }
 
-#[allow(
-  // Index will always be in-bounds.
-  clippy::indexing_slicing
-)]
+#[expect(clippy::indexing_slicing, reason = "index will always be in-bounds")]
 fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4]) {
   for (idx, elem) in bytes.iter_mut().enumerate() {
     *elem ^= mask[idx & 3];

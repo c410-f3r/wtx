@@ -40,8 +40,8 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 #[cfg(feature = "web-socket-handshake")]
 mod httparse_impls {
   use crate::{
-    http::{GenericHeader as _, GenericRequest as _, KnownHeaderName, Method},
-    misc::{bytes_split1, FilledBufferWriter, LeaseMut, Stream, UriRef},
+    http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
+    misc::{bytes_split1, FilledBufferWriter, LeaseMut, Stream, UriRef, Vector},
     rng::Rng,
     web_socket::{
       compression::NegotiatedCompression,
@@ -54,7 +54,6 @@ mod httparse_impls {
       Compression, WebSocketBuffer, WebSocketClient, WebSocketError, WebSocketServer,
     },
   };
-  use alloc::vec::Vec;
   use httparse::{Header, Request, Response, Status, EMPTY_HEADER};
 
   const MAX_READ_LEN: usize = 2 * 1024;
@@ -90,29 +89,29 @@ mod httparse_impls {
               return Err(WebSocketError::InvalidAcceptRequest.into());
             }
             if !_trim_bytes(req.method()).eq_ignore_ascii_case(b"get") {
-              return Err(crate::Error::HTTP_UnexpectedHttpMethod { expected: Method::Get });
+              return Err(HttpError::UnexpectedHttpMethod { expected: Method::Get }.into());
             }
             verify_common_header(req.headers)?;
             if !has_header_key_and_value(req.headers, b"sec-websocket-version", b"13") {
-              return Err(crate::Error::HTTP_MissingHeader {
-                expected: KnownHeaderName::SecWebsocketVersion,
-              });
+              return Err(
+                HttpError::MissingHeader { expected: KnownHeaderName::SecWebsocketVersion }.into(),
+              );
             };
             let Some(key) = req.headers.iter().find_map(|el| {
               (el.name().eq_ignore_ascii_case(b"sec-websocket-key")).then_some(el.value())
             }) else {
-              return Err(crate::Error::HTTP_MissingHeader {
-                expected: KnownHeaderName::SecWebsocketKey,
-              });
+              return Err(
+                HttpError::MissingHeader { expected: KnownHeaderName::SecWebsocketKey }.into(),
+              );
             };
             let compression = self.compression.negotiate(req.headers.iter())?;
             let mut key_buffer = [0; 30];
             let swa = derived_key(&mut key_buffer, key);
             let mut headers_buffer = HeadersBuffer::<_, 3>::default();
-            headers_buffer.headers[0] = Header { name: "Connection", value: b"Upgrade" };
-            headers_buffer.headers[1] = Header { name: "Sec-WebSocket-Accept", value: swa };
-            headers_buffer.headers[2] = Header { name: "Upgrade", value: b"websocket" };
-            let mut res = Response::new(&mut headers_buffer.headers);
+            headers_buffer._headers[0] = Header { name: "Connection", value: b"Upgrade" };
+            headers_buffer._headers[1] = Header { name: "Sec-WebSocket-Accept", value: swa };
+            headers_buffer._headers[2] = Header { name: "Upgrade", value: b"websocket" };
+            let mut res = Response::new(&mut headers_buffer._headers);
             res.code = Some(101);
             res.version = Some(req.version().into());
             let mut fbw = nb.into();
@@ -130,7 +129,7 @@ mod httparse_impls {
   impl<'fb, 'hb, B, C, RNG, S, WSB> WebSocketConnect<C::NegotiatedCompression, RNG, S, WSB>
     for WebSocketConnectRaw<'fb, 'hb, '_, B, C, Header<'fb>, RNG, S, WSB>
   where
-    B: LeaseMut<[u8]> + LeaseMut<Vec<u8>>,
+    B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
     C: Compression<true>,
     RNG: Rng,
     S: Stream,
@@ -153,7 +152,7 @@ mod httparse_impls {
         build_req(&self.compression, &mut fbw, headers, key_buffer, &mut self.rng, self.uri);
       self.stream.write_all(fbw._curr_bytes()).await?;
       let mut read = 0;
-      self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
+      self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN)?;
       let len = loop {
         let mut local_header = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
         let read_buffer = self.fb.payload_mut().get_mut(read..).unwrap_or_default();
@@ -167,7 +166,7 @@ mod httparse_impls {
           Status::Partial => {}
         }
       };
-      let mut res = Response::new(&mut self.headers_buffer.headers);
+      let mut res = Response::new(&mut self.headers_buffer._headers);
       let _status = res.parse(self.fb.payload())?;
       if res.code != Some(101) {
         return Err(WebSocketError::MissingSwitchingProtocols.into());
@@ -178,9 +177,7 @@ mod httparse_impls {
         b"sec-websocket-accept",
         derived_key(&mut [0; 30], key),
       ) {
-        return Err(crate::Error::HTTP_MissingHeader {
-          expected: KnownHeaderName::SecWebsocketKey,
-        });
+        return Err(HttpError::MissingHeader { expected: KnownHeaderName::SecWebsocketKey }.into());
       }
       let compression = self.compression.negotiate(res.headers.iter())?;
       nb._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
@@ -253,10 +250,10 @@ mod httparse_impls {
 
   fn verify_common_header(buffer: &[Header<'_>]) -> crate::Result<()> {
     if !has_header_key_and_value(buffer, b"connection", b"upgrade") {
-      return Err(crate::Error::HTTP_MissingHeader { expected: KnownHeaderName::Connection });
+      return Err(HttpError::MissingHeader { expected: KnownHeaderName::Connection }.into());
     }
     if !has_header_key_and_value(buffer, b"upgrade", b"websocket") {
-      return Err(crate::Error::HTTP_MissingHeader { expected: KnownHeaderName::Upgrade });
+      return Err(HttpError::MissingHeader { expected: KnownHeaderName::Upgrade }.into());
     }
     Ok(())
   }

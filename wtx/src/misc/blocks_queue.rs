@@ -56,6 +56,10 @@ pub(crate) type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 pub enum BlocksQueueError {
   #[doc = doc_single_elem_cap_overflow!()]
   PushFrontOverflow,
+  #[doc = doc_reserve_overflow!()]
+  ReserveOverflow,
+  #[doc = doc_reserve_overflow!()]
+  WithCapacityOverflow,
 }
 
 /// A circular buffer where elements are added in one-way blocks that will never intersect
@@ -74,13 +78,15 @@ impl<D, M> BlocksQueue<D, M> {
   }
 
   #[inline]
-  pub(crate) fn with_capacity(blocks: usize, elements: usize) -> Self {
-    Self {
-      data: Vector::with_capacity(elements),
+  pub(crate) fn with_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksQueueError> {
+    Ok(Self {
+      data: Vector::with_capacity(elements)
+        .map_err(|_err| BlocksQueueError::WithCapacityOverflow)?,
       head: 0,
-      metadata: Queue::with_capacity(blocks),
+      metadata: Queue::with_capacity(blocks)
+        .map_err(|_err| BlocksQueueError::WithCapacityOverflow)?,
       tail: 0,
-    }
+    })
   }
 
   #[inline]
@@ -187,45 +193,6 @@ impl<D, M> BlocksQueue<D, M> {
   }
 
   #[inline]
-  pub(crate) fn push_front<const N: usize>(
-    &mut self,
-    data: [&[D]; N],
-    misc: M,
-  ) -> crate::Result<()> {
-    let mut len: usize = 0;
-    for elem in data {
-      len = len.wrapping_add(elem.len());
-    }
-    let mut tail = self.tail;
-    let (left_free, right_free) = self.free(|| {
-      tail = self.data.capacity();
-    });
-    let head = match (left_free >= len, right_free >= len) {
-      (true, _) => self.head_lhs(len),
-      (false, true) => self.head_rhs(len),
-      (false, false) => return Err(BlocksQueueError::PushFrontOverflow.into()),
-    };
-    self.metadata.push_front(BlocksQueueMetadata { begin: head, len, misc })?;
-    self.head = head;
-    self.tail = tail;
-    let mut start = self.head;
-    for value in data {
-      // SAFETY: `start is within bounds`
-      let dst = unsafe { self.data.as_mut_ptr().add(start) };
-      // SAFETY: the above `match` handled capacity
-      unsafe {
-        ptr::copy_nonoverlapping(value.as_ptr(), dst, value.len());
-      }
-      start = start.wrapping_add(value.len());
-    }
-    // SAFETY: the above `match` handled capacity
-    unsafe {
-      self.data.set_len(self.data.len().wrapping_add(len));
-    }
-    Ok(())
-  }
-
-  #[inline]
   fn do_get<'this>(
     data: &'this Vector<D>,
     metadata: &'this BlocksQueueMetadata<M>,
@@ -290,12 +257,56 @@ where
   D: Copy,
   M: Copy,
 {
+  #[inline]
+  pub(crate) fn push_front<const N: usize>(
+    &mut self,
+    data: [&[D]; N],
+    misc: M,
+  ) -> Result<(), BlocksQueueError> {
+    let mut total_data_len: usize = 0;
+    for elem in data {
+      total_data_len = total_data_len.wrapping_add(elem.len());
+    }
+    self.reserve(1, total_data_len).map_err(|_err| BlocksQueueError::PushFrontOverflow)?;
+    let mut tail = self.tail;
+    let (left_free, right_free) = self.free(|| {
+      tail = self.data.capacity();
+    });
+    let head = match (left_free >= total_data_len, right_free >= total_data_len) {
+      (true, _) => self.head_lhs(total_data_len),
+      (false, true) => self.head_rhs(total_data_len),
+      (false, false) => self.head,
+    };
+    self
+      .metadata
+      .push_front(BlocksQueueMetadata { begin: head, len: total_data_len, misc })
+      .map_err(|_err| BlocksQueueError::PushFrontOverflow)?;
+    self.head = head;
+    self.tail = tail;
+    let mut start = self.head;
+    for value in data {
+      // SAFETY: `start is within bounds`
+      let dst = unsafe { self.data.as_mut_ptr().add(start) };
+      // SAFETY: the above `match` handled capacity
+      unsafe {
+        ptr::copy_nonoverlapping(value.as_ptr(), dst, value.len());
+      }
+      start = start.wrapping_add(value.len());
+    }
+    // SAFETY: the above `match` handled capacity
+    unsafe {
+      self.data.set_len(self.data.len().wrapping_add(total_data_len));
+    }
+    Ok(())
+  }
+
   #[inline(always)]
-  pub(crate) fn reserve(&mut self, blocks: usize, elements: usize) {
+  pub(crate) fn reserve(&mut self, blocks: usize, elements: usize) -> Result<(), BlocksQueueError> {
     let is_not_wrapped = !self.is_wrapped();
     let prev_head = self.head;
-    let diff_opt = reserve(elements, &mut self.data, &mut self.head);
-    self.metadata.reserve(blocks);
+    let diff_opt = reserve(elements, &mut self.data, &mut self.head)
+      .map_err(|_err| BlocksQueueError::ReserveOverflow)?;
+    self.metadata.reserve(blocks).map_err(|_err| BlocksQueueError::ReserveOverflow)?;
     if let Some(diff) = diff_opt {
       if is_not_wrapped {
         self.tail = self.tail.wrapping_add(diff);
@@ -311,6 +322,7 @@ where
         elem.begin = elem.begin.wrapping_add(diff);
       }
     }
+    Ok(())
   }
 }
 
@@ -380,7 +392,7 @@ mod tests {
   // [. . . . . . . .]: Pop back - (LF=8, LO=0, RF=0, RO=0) - (H=0, T=0)
   #[test]
   fn pop_back() {
-    let mut q = BlocksQueue::with_capacity(4, 8);
+    let mut q = BlocksQueue::with_capacity(4, 8).unwrap();
     check_state(&q, 0, 0, 0, 0);
 
     q.push_front([&[1]], ()).unwrap();
@@ -445,7 +457,7 @@ mod tests {
   // [. . . . . . . .]: Pop back - (LF=8, LO=0, RF=0, RO=0) - (H=0, T=0)
   #[test]
   fn pop_front() {
-    let mut q = BlocksQueue::with_capacity(2, 8);
+    let mut q = BlocksQueue::with_capacity(2, 8).unwrap();
     check_state(&q, 0, 0, 0, 0);
 
     q.push_front([&[1, 2, 3]], ()).unwrap();
@@ -466,12 +478,12 @@ mod tests {
   #[test]
   fn push_reserve_and_push() {
     let mut q = BlocksQueue::new();
-    q.reserve(1, 4);
+    q.reserve(1, 4).unwrap();
     q.push_front([&[0, 1, 2, 3]], ()).unwrap();
     check_state(&q, 1, 4, 0, 4);
     assert_eq!(q.get(0), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 0..4 }));
     assert_eq!(q.get(1), None);
-    q.reserve(1, 6);
+    q.reserve(1, 6).unwrap();
     q.push_front([&[4, 5, 6, 7, 8, 9]], ()).unwrap();
     check_state(&q, 2, 10, 0, 10);
     assert_eq!(q.get(0), Some(BlockRef { data: &[4, 5, 6, 7, 8, 9], misc: &(), range: 0..6 }));
@@ -484,7 +496,7 @@ mod tests {
     let mut queue = BlocksQueue::<i32, ()>::new();
     assert_eq!(queue.blocks_capacity(), 0);
     assert_eq!(queue.elements_capacity(), 0);
-    queue.reserve(5, 10);
+    queue.reserve(5, 10).unwrap();
     assert_eq!(queue.blocks_capacity(), 5);
     assert_eq!(queue.elements_capacity(), 10);
   }
@@ -521,7 +533,7 @@ mod tests {
   // [. . H * . . . . ]: Pop back - (LF=2, LO=0, RF=4, RO=0) - (H=2, T=4)
   // [. . * * . H * * ]: Push front - (LF=1, LO=2, RF=0, RO=3) - (H=5, T=4)
   fn wrap_initial() -> BlocksQueue<i32, ()> {
-    let mut q = BlocksQueue::with_capacity(6, 8);
+    let mut q = BlocksQueue::with_capacity(6, 8).unwrap();
     check_state(&q, 0, 0, 0, 0);
     for _ in 0..6 {
       q.push_front([&[0]], ()).unwrap();

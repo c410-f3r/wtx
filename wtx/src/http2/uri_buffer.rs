@@ -1,15 +1,13 @@
-use crate::misc::ArrayString;
-
-pub(crate) const MAX_AUTHORITY_LEN: usize = 64;
-pub(crate) const MAX_PATH_LEN: usize = 128;
-pub(crate) const MAX_SCHEME_LEN: usize = 16;
-pub(crate) const MAX_URI_LEN: usize = MAX_SCHEME_LEN + MAX_AUTHORITY_LEN + MAX_PATH_LEN;
+use crate::{
+  http::{_MAX_AUTHORITY_LEN, _MAX_PATH_LEN, _MAX_SCHEME_LEN},
+  misc::ArrayString,
+};
 
 #[derive(Debug)]
 pub(crate) struct UriBuffer {
-  pub(crate) authority: ArrayString<MAX_AUTHORITY_LEN>,
-  pub(crate) path: ArrayString<MAX_PATH_LEN>,
-  pub(crate) scheme: ArrayString<MAX_SCHEME_LEN>,
+  pub(crate) authority: ArrayString<_MAX_AUTHORITY_LEN>,
+  pub(crate) path: ArrayString<_MAX_PATH_LEN>,
+  pub(crate) scheme: ArrayString<_MAX_SCHEME_LEN>,
 }
 
 impl UriBuffer {

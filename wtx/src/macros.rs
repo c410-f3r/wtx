@@ -13,10 +13,7 @@ macro_rules! create_enum {
       $($(#[$variant_mac_fixed])* $variant_ident_fixed,)*
     }
 
-    #[allow(
-      // Outside may or may not use methods
-      dead_code
-    )]
+    #[allow(dead_code, reason = "outside may or may not use methods")]
     impl $enum_ident {
       #[inline]
       /// The total number of variants
@@ -34,12 +31,12 @@ macro_rules! create_enum {
       $v const fn strings(&self) -> crate::misc::EnumVarStrings<{
         let mut n;
         $({
-          #[allow(unused_mut)]
+          #[allow(unused_mut, reason = "repetition can be empty")]
           let mut local_n = 0;
           let _ = $variant_n_fixed;
           $({ let _ = $variant_str_fixed; local_n += 1; })?
           $({ let _ = $variant_str_fixed_n; local_n += 1; })*
-          #[allow(unused_assignments)]
+          #[allow(unused_assignments, reason = "repetition can be empty")]
           { n = local_n; }
         })*
         n
@@ -57,8 +54,8 @@ macro_rules! create_enum {
     }
 
     #[allow(
-      // Macro shouldn't control what the outside uses.
-      unused_qualifications
+      unused_qualifications,
+      reason = "macro shouldn't control what the outside uses"
     )]
     impl core::fmt::Display for $enum_ident {
       #[inline]
@@ -155,6 +152,12 @@ macro_rules! doc_out_of_bounds_params {
   };
 }
 
+macro_rules! doc_reserve_overflow {
+  () => {
+    "It was not possible to reserve more memory"
+  };
+}
+
 macro_rules! doc_single_elem_cap_overflow {
   () => {
     "There is no capacity left to insert a new element."
@@ -242,5 +245,11 @@ macro_rules! _trace_span {
       #[cfg(not(feature = "tracing"))]
       ()
     )
+  };
+}
+
+macro_rules! _vector {
+  ($($tt:tt)+) => {
+    crate::misc::Vector::from_vec(alloc::vec![$($tt)+])
   };
 }

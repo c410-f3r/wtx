@@ -22,10 +22,7 @@ pub use request_throttling::RequestThrottling;
 
 /// Used in all implementations of [`crate::Transport::send`] and/or
 /// [`crate::Transport::send_recv``].
-#[allow(
-  // Borrow checker woes
-  clippy::needless_pass_by_value,
-)]
+#[expect(clippy::needless_pass_by_value, reason = "borrow checker woes")]
 pub(crate) fn log_req<A, DRSR, P, T>(
   _pgk: &mut P,
   _pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
@@ -37,7 +34,7 @@ pub(crate) fn log_req<A, DRSR, P, T>(
 {
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
     use crate::client_api_framework::dnsn::Serialize;
-    let mut vec = alloc::vec::Vec::new();
+    let mut vec = crate::misc::Vector::new();
     _pgk
       .ext_req_content_mut()
       .to_bytes(&mut vec, &mut _pkgs_aux.drsr)

@@ -49,17 +49,17 @@ impl CommonFlags {
 
   #[inline]
   pub(crate) fn only_ack(&mut self) {
-    self.0 = self.0 & ACK;
+    self.0 &= ACK;
   }
 
   #[inline]
   pub(crate) fn only_eoh_eos_pad(&mut self) {
-    self.0 = self.0 & (EOH | EOS | PAD);
+    self.0 &= EOH | EOS | PAD;
   }
 
   #[inline]
   pub(crate) fn only_eos_pad(&mut self) {
-    self.0 = self.0 & (EOS | PAD);
+    self.0 &= EOS | PAD;
   }
 
   #[inline]

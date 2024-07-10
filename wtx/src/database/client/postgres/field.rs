@@ -11,8 +11,9 @@ pub(crate) struct MsgField<'bytes> {
 
 impl<'bytes> MsgField<'bytes> {
   pub(crate) fn parse(value: &'bytes [u8]) -> crate::Result<(usize, Self)> {
-    let (name_bytes, rest_bytes) = value
-      .split_at(bytes_pos1(value, b'\0').ok_or(PostgresError::UnexpectedDatabaseMessageBytes)?);
+    let (name_bytes, rest_bytes) = bytes_pos1(value, b'\0')
+      .and_then(|idx| value.split_at_checked(idx))
+      .ok_or(PostgresError::UnexpectedDatabaseMessageBytes)?;
     let &[_, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, ..] = rest_bytes else {
       return Err(PostgresError::UnexpectedDatabaseMessageBytes.into());
     };

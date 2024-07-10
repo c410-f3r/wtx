@@ -1,7 +1,7 @@
 
 # Client Connection
 
-PostgreSQL is currently the only supported database and more SQL or NoSQL variants shouldn't be too difficult to implement architecture-wise.
+PostgreSQL is currently the only supported database. Implements <https://www.postgresql.org/docs/16/protocol.html>.
 
 Activation feature is called `postgres`.
 

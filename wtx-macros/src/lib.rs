@@ -1,11 +1,6 @@
 //! WTX - Macros
 
-#![allow(
-  // Unimportant
-  clippy::too_many_lines,
-  // Syn stuff
-  clippy::wildcard_in_or_patterns
-)]
+#![expect(clippy::too_many_lines, reason = "Unimportant")]
 
 mod api_types;
 mod contained_attrs;

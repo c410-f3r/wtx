@@ -1,8 +1,8 @@
-use crate::misc::Lease;
+use crate::misc::{Lease, LeaseMut};
 use alloc::vec::Vec;
 use core::{
   fmt::{Debug, Formatter},
-  hint::unreachable_unchecked,
+  hint::assert_unchecked,
   mem::needs_drop,
   ops::{Deref, DerefMut},
   ptr,
@@ -13,8 +13,14 @@ use core::{
 pub enum VectorError {
   #[doc = doc_many_elems_cap_overflow!()]
   ExtendFromSliceOverflow,
+  #[doc = doc_many_elems_cap_overflow!()]
+  ExtendFromSlicesOverflow,
   #[doc = doc_single_elem_cap_overflow!()]
   PushOverflow,
+  #[doc = doc_reserve_overflow!()]
+  ReserveOverflow,
+  #[doc = doc_reserve_overflow!()]
+  WithCapacityOverflow,
 }
 
 /// A wrapper around the std's vector.
@@ -26,7 +32,6 @@ pub struct Vector<D> {
 impl<D> Vector<D> {
   /// Constructs a new, empty instance.
   #[inline]
-  #[must_use]
   pub const fn new() -> Self {
     const {
       assert!(!needs_drop::<D>());
@@ -34,16 +39,24 @@ impl<D> Vector<D> {
     Self { data: Vec::new() }
   }
 
+  /// Constructs a new instance based on an arbitrary [Vec].
+  #[inline]
+  pub const fn from_vec(data: Vec<D>) -> Self {
+    const {
+      assert!(!needs_drop::<D>());
+    }
+    Self { data }
+  }
+
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  #[must_use]
-  pub fn with_capacity(cap: usize) -> Self {
+  pub fn with_capacity(cap: usize) -> Result<Self, VectorError> {
     const {
       assert!(!needs_drop::<D>());
     }
     let mut this = Self { data: Vec::with_capacity(cap) };
-    this.reserve(cap);
-    this
+    this.reserve(cap).map_err(|_err| VectorError::WithCapacityOverflow)?;
+    Ok(this)
   }
 
   /// Returns an unsafe mutable pointer to the vector's buffer, or a dangling
@@ -60,6 +73,12 @@ impl<D> Vector<D> {
     self.data.as_ptr()
   }
 
+  /// Extracts a slice containing the entire vector.
+  #[inline]
+  pub fn as_slice(&self) -> &[D] {
+    self.data.as_slice()
+  }
+
   /// Returns the total number of elements the vector can hold without reallocating.
   #[inline]
   pub fn capacity(&self) -> usize {
@@ -72,6 +91,21 @@ impl<D> Vector<D> {
     self.data.clear();
   }
 
+  /// Clones and appends all elements in the iterator.
+  #[inline]
+  pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = D>) -> Result<(), VectorError> {
+    for elem in iter {
+      self.push(elem)?;
+    }
+    Ok(())
+  }
+
+  /// Consumes itself to return [Vec].
+  #[inline]
+  pub fn into_vec(self) -> Vec<D> {
+    self.data
+  }
+
   /// Removes the last element from a vector and returns it, or [None] if it is empty.
   #[inline]
   pub fn pop(&mut self) -> Option<D> {
@@ -79,16 +113,10 @@ impl<D> Vector<D> {
   }
 
   /// Appends an element to the back of the collection.
-  ///
-  /// # Panics
-  ///
-  /// If there is no available capacity.
   #[inline]
   pub fn push(&mut self, value: D) -> Result<(), VectorError> {
+    self.reserve(1).map_err(|_err| VectorError::PushOverflow)?;
     let len = self.data.len();
-    if len >= self.data.capacity() {
-      return Err(VectorError::PushOverflow);
-    }
     // SAFETY: `len` points to valid memory
     let dst = unsafe { self.data.as_mut_ptr().add(len) };
     // SAFETY: `dst` points to valid memory
@@ -109,21 +137,20 @@ impl<D> Vector<D> {
   /// speculatively avoid frequent reallocations. After calling `reserve`,
   /// capacity will be greater than or equal to `self.len() + additional`.
   /// Does nothing if capacity is already sufficient.
-  ///
-  /// # Panics
-  ///
-  /// Panics if the new capacity exceeds `isize::MAX` _bytes_.
-  #[inline]
-  pub fn reserve(&mut self, additional: usize) {
-    self.data.reserve(additional);
-    // SAFETY: `reserve` already ensured capacity
-    let new_cap = unsafe { self.data.len().unchecked_add(additional) };
-    // SAFETY: `new_cap` will never be greater than the current capacity
-    unsafe {
-      if new_cap > self.data.capacity() {
-        unreachable_unchecked();
-      }
+  #[inline(always)]
+  pub fn reserve(&mut self, additional: usize) -> Result<(), VectorError> {
+    let Some(desired_cap) = self.data.len().checked_add(additional) else {
+      return Ok(());
+    };
+    if self.data.capacity() >= desired_cap {
+      return Ok(());
     }
+    self.data.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
+    // SAFETY: `desired_cap` will never be greater than the current capacity
+    unsafe {
+      assert_unchecked(self.data.capacity() >= desired_cap);
+    }
+    Ok(())
   }
 
   /// Shortens the vector, keeping the first len elements and dropping the rest.
@@ -149,6 +176,46 @@ impl<D> Vector<D> {
 
 impl<D> Vector<D>
 where
+  D: Clone,
+{
+  /// Resizes the instance in-place so that the current length is equal to `new_len`.
+  ///
+  /// Does nothing if `new_len` is equal or less than the current length.
+  //
+  // NOTE: It is not possible to use `push` because of <https://github.com/rust-lang/rust/issues/124979>.
+  #[inline]
+  pub fn expand(&mut self, new_len: usize, value: D) -> Result<(), VectorError> {
+    let len = self.data.len();
+    let Some(diff @ 1..usize::MAX) = new_len.checked_sub(len) else {
+      return Ok(());
+    };
+    self.reserve(diff)?;
+    // SAFETY: `len` points to valid memory
+    let mut dst = unsafe { self.as_mut_ptr().add(len) };
+    for _ in 1..diff {
+      // SAFETY: `dst` points to valid memory
+      unsafe {
+        ptr::write(dst, value.clone());
+      }
+      // SAFETY: `dst` points to valid memory
+      unsafe {
+        dst = dst.add(1);
+      }
+    }
+    // SAFETY: `dst` points to valid memory
+    unsafe {
+      ptr::write(dst, value);
+    }
+    // SAFETY: is within bounds
+    unsafe {
+      self.data.set_len(new_len);
+    }
+    Ok(())
+  }
+}
+
+impl<D> Vector<D>
+where
   D: Copy,
 {
   /// Iterates over the slice `other`, copies each element, and then appends
@@ -157,11 +224,9 @@ where
   pub fn extend_from_slice(&mut self, other: &[D]) -> Result<(), VectorError> {
     let len = self.data.len();
     let other_len = other.len();
-    // SAFETY: 2 slices can't overflow by contract
+    self.reserve(other_len).map_err(|_err| VectorError::ExtendFromSliceOverflow)?;
+    // SAFETY: a successful `reserve` already handles overflow
     let new_len = unsafe { len.unchecked_add(other_len) };
-    if new_len > self.data.capacity() {
-      return Err(VectorError::ExtendFromSliceOverflow);
-    }
     // SAFETY: `len` points to valid memory
     let dst = unsafe { self.data.as_mut_ptr().add(len) };
     // SAFETY: references are valid
@@ -194,11 +259,78 @@ where
         len = len.unchecked_add(other.lease().len());
       }
     }
-    self.reserve(len);
+    self.reserve(len).map_err(|_err| VectorError::ExtendFromSlicesOverflow)?;
     for other in others {
       self.extend_from_slice(other.lease())?;
     }
     Ok(())
+  }
+}
+
+impl<D> AsMut<[D]> for Vector<D> {
+  #[inline]
+  fn as_mut(&mut self) -> &mut [D] {
+    self
+  }
+}
+
+impl<D> AsRef<[D]> for Vector<D> {
+  #[inline]
+  fn as_ref(&self) -> &[D] {
+    self.as_slice()
+  }
+}
+
+impl<D> Lease<[D]> for Vector<D> {
+  #[inline]
+  fn lease(&self) -> &[D] {
+    self.data.as_slice()
+  }
+}
+
+impl<D> Lease<Vector<D>> for Vector<D> {
+  #[inline]
+  fn lease(&self) -> &Vector<D> {
+    self
+  }
+}
+
+impl<D> LeaseMut<[D]> for Vector<D> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut [D] {
+    self
+  }
+}
+
+impl<D> LeaseMut<Vector<D>> for Vector<D> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Vector<D> {
+    self
+  }
+}
+
+#[cfg(feature = "miniserde")]
+impl<D> miniserde::Serialize for Vector<D>
+where
+  D: miniserde::Serialize,
+{
+  #[inline]
+  fn begin(&self) -> miniserde::ser::Fragment<'_> {
+    self.data.begin()
+  }
+}
+
+#[cfg(feature = "serde")]
+impl<D> serde::Serialize for Vector<D>
+where
+  D: serde::Serialize,
+{
+  #[inline]
+  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+  where
+    S: serde::Serializer,
+  {
+    self.data.serialize(serializer)
   }
 }
 
@@ -212,10 +344,7 @@ where
   }
 }
 
-impl<D> Default for Vector<D>
-where
-  D: Default,
-{
+impl<D> Default for Vector<D> {
   #[inline]
   fn default() -> Self {
     Self::new()
@@ -238,10 +367,79 @@ impl<D> DerefMut for Vector<D> {
   }
 }
 
-impl<D> Lease<[D]> for Vector<D> {
+#[cfg(feature = "std")]
+impl std::io::Write for Vector<u8> {
   #[inline]
-  fn lease(&self) -> &[D] {
-    self.data.as_slice()
+  fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    self.data.write(buf)
+  }
+
+  #[inline]
+  fn flush(&mut self) -> std::io::Result<()> {
+    self.data.flush()
+  }
+}
+
+#[cfg(feature = "cl-aux")]
+mod cl_aux {
+  use crate::misc::Vector;
+  use cl_aux::{Capacity, Clear, Extend, Push, SingleTypeStorage, Truncate, WithCapacity};
+
+  impl<T> Capacity for Vector<T> {
+    #[inline]
+    fn capacity(&self) -> usize {
+      self.capacity()
+    }
+  }
+
+  impl<T> Clear for Vector<T> {
+    #[inline]
+    fn clear(&mut self) {
+      self.clear();
+    }
+  }
+
+  impl<D> Extend<D> for Vector<D> {
+    type Error = crate::Error;
+
+    #[inline]
+    fn extend(&mut self, into_iter: impl IntoIterator<Item = D>) -> Result<(), Self::Error> {
+      self.extend_from_iter(into_iter)?;
+      Ok(())
+    }
+  }
+
+  impl<T> Push<T> for Vector<T> {
+    type Error = crate::Error;
+
+    #[inline]
+    fn push(&mut self, input: T) -> Result<(), Self::Error> {
+      self.push(input)?;
+      Ok(())
+    }
+  }
+
+  impl<T> SingleTypeStorage for Vector<T> {
+    type Item = T;
+  }
+
+  impl<T> Truncate for Vector<T> {
+    type Input = usize;
+
+    #[inline]
+    fn truncate(&mut self, input: Self::Input) {
+      (*self).truncate(input);
+    }
+  }
+
+  impl<T> WithCapacity for Vector<T> {
+    type Error = crate::Error;
+    type Input = usize;
+
+    #[inline]
+    fn with_capacity(input: Self::Input) -> Self {
+      Vector::with_capacity(input).unwrap()
+    }
   }
 }
 
@@ -291,7 +489,7 @@ mod bench {
   fn extend_from_slice_local(b: &mut test::Bencher) {
     let mut vec = Vector::default();
     b.iter(|| {
-      vec.reserve(256 * 4);
+      vec.reserve(256 * 4).unwrap();
       extend_from_slice_batch!(|elem| {
         vec.extend_from_slice(elem).unwrap();
         vec.extend_from_slice(elem).unwrap();
@@ -319,7 +517,7 @@ mod bench {
   fn push_local(b: &mut test::Bencher) {
     let mut vec = Vector::default();
     b.iter(|| {
-      vec.reserve(64 * 8);
+      vec.reserve(64 * 8).unwrap();
       push_batch!(|elem| vec.push(elem).unwrap());
       push_batch!(|elem| vec.push(elem).unwrap());
       push_batch!(|elem| vec.push(elem).unwrap());

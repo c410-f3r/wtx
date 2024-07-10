@@ -49,6 +49,34 @@ where
   }
 }
 
+impl Lease<[u8]> for () {
+  #[inline]
+  fn lease(&self) -> &[u8] {
+    &[]
+  }
+}
+
+impl LeaseMut<[u8]> for () {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut [u8] {
+    &mut []
+  }
+}
+
+impl<T> Lease<Option<T>> for Option<T> {
+  #[inline]
+  fn lease(&self) -> &Option<T> {
+    self
+  }
+}
+
+impl<T> LeaseMut<Option<T>> for Option<T> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Option<T> {
+    self
+  }
+}
+
 mod collections {
   use crate::misc::{Lease, LeaseMut};
   use alloc::vec::Vec;

@@ -1,9 +1,5 @@
 use proc_macro2::Span;
 
-#[allow(
-  // `syn::Error` is composed by a single vector
-  variant_size_differences
-)]
 #[derive(Debug)]
 pub(crate) enum Error {
   AbsentFieldInUnnamedStruct(Span),

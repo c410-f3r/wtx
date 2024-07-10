@@ -121,7 +121,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
     input: &[u8],
     output: &mut O,
     begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    mut rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
   ) -> crate::Result<usize> {
     compress_or_decompress(
       input,
@@ -133,7 +133,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
         let _ = this.compress.compress(local_input, output_butes, FlushCompress::Sync);
         Ok(())
       },
-      rem_cb,
+      |a, b| Ok(rem_cb(a, b)),
       |this| this.compress.reset(),
       |this| this.compress.total_in(),
       |this| this.compress.total_out(),
@@ -145,7 +145,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
     input: &[u8],
     output: &mut O,
     begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     compress_or_decompress(
       input,
@@ -182,7 +182,7 @@ fn compress_or_decompress<NC, O>(
   reset: bool,
   mut begin_output_cb: impl FnMut(&mut O) -> &mut [u8],
   mut call_cb: impl FnMut(&mut NC, &[u8], &mut [u8]) -> crate::Result<()>,
-  mut expand_output_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+  mut expand_output_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   mut reset_cb: impl FnMut(&mut NC),
   mut total_in_cb: impl FnMut(&mut NC) -> u64,
   mut total_out_cb: impl FnMut(&mut NC) -> u64,
@@ -201,7 +201,7 @@ fn compress_or_decompress<NC, O>(
     let Some(slice) = input.get(total_in_sum..) else {
       return Err(crate::Error::MISC_UnexpectedBufferState);
     };
-    call_cb(nc, slice, expand_output_cb(output, total_out_sum))?;
+    call_cb(nc, slice, expand_output_cb(output, total_out_sum)?)?;
     total_in_sum = usize::try_from(total_in_cb(nc))?;
     if prev_total_in_sum == total_in_sum {
       return Err(crate::Error::MISC_UnexpectedBufferState);

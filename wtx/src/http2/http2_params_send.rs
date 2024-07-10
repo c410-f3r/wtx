@@ -2,6 +2,7 @@ use crate::http2::{
   HpackEncoder, Scrp, SettingsFrame, Sorp, Windows, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
   MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN, U31,
 };
+use core::cmp::Ordering;
 
 /// Parameters used when sending data.
 #[derive(Debug)]
@@ -15,28 +16,41 @@ pub(crate) struct Http2ParamsSend {
 }
 
 impl Http2ParamsSend {
-  pub(crate) fn update<SB>(
+  pub(crate) fn update<RRB>(
     &mut self,
     hpack_enc: &mut HpackEncoder,
     scrp: &mut Scrp,
     sf: &SettingsFrame,
-    sorp: &mut Sorp<SB>,
+    sorp: &mut Sorp<RRB>,
     windows: &mut Windows,
   ) -> crate::Result<()> {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);
     }
     if let Some(elem) = sf.initial_window_size() {
-      let diff = elem.wrapping_sub(self.initial_window_len).i32();
-      if diff != 0 {
-        for (stream_id, elem) in scrp {
-          elem.windows.send.deposit(Some(*stream_id), diff)?;
+      match elem.cmp(&self.initial_window_len) {
+        Ordering::Equal => {}
+        Ordering::Greater => {
+          let inc = elem.wrapping_sub(self.initial_window_len);
+          for (stream_id, elem) in scrp {
+            elem.windows.send.deposit(Some(*stream_id), inc.i32())?;
+          }
+          for (stream_id, elem) in sorp {
+            elem.windows.send.deposit(Some(*stream_id), inc.i32())?;
+          }
+          windows.send.deposit(None, inc.i32())?;
         }
-        for (stream_id, elem) in sorp {
-          elem.windows.send.deposit(Some(*stream_id), diff)?;
+        Ordering::Less => {
+          let dec = self.initial_window_len.wrapping_sub(elem);
+          for (stream_id, elem) in scrp {
+            elem.windows.send.withdrawn(Some(*stream_id), dec.i32())?;
+          }
+          for (stream_id, elem) in sorp {
+            elem.windows.send.withdrawn(Some(*stream_id), dec.i32())?;
+          }
+          windows.send.withdrawn(None, dec.i32())?;
         }
       }
-      windows.send.update(elem.i32());
       self.initial_window_len = elem;
     }
     if let Some(elem) = sf.header_table_size() {

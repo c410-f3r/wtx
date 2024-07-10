@@ -249,11 +249,10 @@ impl TryFrom<&str> for DbError {
       let Some(curr) = from.get(*Usize::from(idx)..) else {
         break;
       };
-      if curr.is_empty() {
+      let Some((ty, rest)) = curr.split_at_checked(1) else {
         break;
-      }
+      };
       idx = idx.wrapping_add(1);
-      let (ty, rest) = curr.split_at(1);
       if ty == "\0" {
         if rest.is_empty() {
           break;

@@ -129,10 +129,7 @@ impl Statements {
 
   pub(crate) fn push(&mut self, stmt_hash: u64) -> PushRslt<'_> {
     if self.info_by_cmd_hash.get(&stmt_hash).is_some() {
-      #[allow(
-        // Borrow checker limitation
-        clippy::unwrap_used
-      )]
+      #[expect(clippy::unwrap_used, reason = "borrow checker woes")]
       return PushRslt::Stmt(self.get_by_stmt_hash(stmt_hash).unwrap());
     }
     if self.info.len() >= self.max_stmts {

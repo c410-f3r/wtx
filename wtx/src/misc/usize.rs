@@ -1,7 +1,4 @@
-#![allow(
-  // Some platforms were removed to allow infallible casts
-  clippy::as_conversions
-)]
+#![expect(clippy::as_conversions, reason = "some platforms were removed to allow infallible casts")]
 
 use core::ops::{Deref, DerefMut};
 

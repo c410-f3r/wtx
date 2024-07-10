@@ -1,7 +1,7 @@
 use crate::{
   http::StatusCode,
   http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_HPACK_LEN},
-  misc::{from_utf8_basic, ByteVector, Vector},
+  misc::{from_utf8_basic, Vector},
   rng::StaticRng,
 };
 use alloc::{string::String, vec::Vec};
@@ -23,7 +23,7 @@ const MAX_HEADER_LEN: u32 = 16384;
 #[test]
 fn hpack_test_cases() {
   fetch_hpack_test_cases();
-  let mut buffer = ByteVector::new();
+  let mut buffer = Vector::new();
   let mut decoder = HpackDecoder::new();
   let mut encoder = HpackEncoder::new(StaticRng::default());
   decoder.set_max_bytes(MAX_HEADER_LEN);

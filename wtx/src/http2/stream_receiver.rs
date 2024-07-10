@@ -5,11 +5,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct StreamOverallRecvParams<SB> {
+pub(crate) struct StreamOverallRecvParams<RRB> {
   pub(crate) content_length_idx: Option<usize>,
   pub(crate) body_len: u32,
   pub(crate) has_initial_header: bool,
-  pub(crate) sb: SB,
+  pub(crate) rrb: RRB,
   pub(crate) span: _Span,
   pub(crate) status_code: StatusCode,
   pub(crate) stream_state: StreamState,

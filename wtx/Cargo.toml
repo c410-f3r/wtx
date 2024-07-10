@@ -36,7 +36,7 @@ required-features = ["_tokio-rustls-client", "tokio/io-std", "web-socket-handsha
 [[example]]
 name = "web-socket-server-raw-tokio-rustls"
 path = "examples/web-socket-server-raw-tokio-rustls.rs"
-required-features = ["_tokio-rustls-server", "pool", "web-socket-handshake"]
+required-features = ["pool", "rustls-pemfile", "tokio-rustls", "web-socket-handshake"]
 
 [dependencies]
 ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
@@ -47,7 +47,7 @@ base64 = { default-features = false, features = ["alloc"], optional = true, vers
 borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.4" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
-cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "4.0" }
+cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
 embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.4" }
@@ -56,13 +56,12 @@ embassy-time = { default-features = false, optional = true, version = "0.3" }
 embedded-io-async = { default-features = false, optional = true, version = "0.6" }
 embedded-tls = { default-features = false, features = ["async"], optional = true, version = "0.16" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
-flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
+flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 futures-lite = { default-features = false, optional = true, version = "1.0" }
 glommio = { default-features = false, optional = true, version = "0.9" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
-may = { default-features = false, optional = true, version = "0.3" }
 memchr = { default-features = false, optional = true, version = "2.7" }
 miniserde = { default-features = false, optional = true, version = "0.1" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
@@ -85,7 +84,7 @@ simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = t
 smallvec = { default-features = false, features = ["const_generics", "union"], optional = true, version = "1.13" }
 smol = { default-features = false, optional = true, version = "2.0" }
 smoltcp = { default-features = false, optional = true, version = "0.11" }
-test-strategy = { default-features = false, optional = true, version = "0.3" }
+test-strategy = { default-features = false, optional = true, version = "0.4" }
 tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
@@ -109,9 +108,9 @@ database = []
 default = []
 embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 glommio = ["futures-lite", "dep:glommio", "std"]
+http-client = ["http2", "pool"]
 http1 = ["httparse"]
 http2 = ["ahash", "hashbrown", "tokio"]
-may = ["std", "dep:may"]
 miniserde = ["dep:miniserde", "std"]
 optimization = ["atoi", "memchr", "simdutf8"]
 orm = ["database", "dep:smallvec"]
@@ -139,7 +138,6 @@ _hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "rkyv?/size_32", "
 _integration-tests = ["serde_json?/raw_value"]
 _proptest = ["proptest/std", "rust_decimal?/proptest", "std", "test-strategy"]
 _tokio-rustls-client = ["rustls-pemfile", "tokio-rustls/tls12", "webpki-roots"]
-_tokio-rustls-server = ["rustls-pemfile", "tokio-rustls"]
 _tracing-subscriber = ["tracing", "dep:tracing-subscriber", "dep:tracing-tree"]
 
 [package]

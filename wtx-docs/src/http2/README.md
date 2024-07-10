@@ -1,6 +1,8 @@
 # HTTP/2
 
-Provides low and high level abstractions to interact with clients and servers.
+Implementation of [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541) and [RFC9113](https://datatracker.ietf.org/doc/html/rfc9113). In other words, a low-level HTTP.
+
+Passes the `hpack-test-case` and the `h2spec` test suites. Due to official deprecation, server push and prioritization are not supported.
 
 Activation feature is called `http2`.
 
@@ -9,8 +11,8 @@ extern crate tokio;
 extern crate wtx;
 
 use wtx::{
-  http::{Method, RequestStr},
-  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio, StreamBuffer},
+  http::{Method, Request, ReqResBuffer, ReqUri},
+  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{from_utf8_basic, UriRef},
   rng::StaticRng,
 };
@@ -26,14 +28,14 @@ async fn client() {
   )
   .await
   .unwrap();
-  let mut sb = Box::new(StreamBuffer::default());
+  let mut rrb = ReqResBuffer::default();
   let mut stream = http2.stream().await.unwrap();
   stream
-    .send_req(&mut sb.hpack_enc_buffer, RequestStr::http2(b"Hello!", Method::Get, uri))
+    .send_req(Request::http2(Method::Get, b"Hello!"), ReqUri::Param(&uri))
     .await
     .unwrap();
-  let res = stream.recv_res(sb).await.unwrap();
-  println!("{}", from_utf8_basic(&res.0.rrb.body).unwrap());
+  let res = stream.recv_res(rrb).await.unwrap();
+  println!("{}", from_utf8_basic(res.0.body()).unwrap());
   http2.send_go_away(Http2ErrorCode::NoError).await;
 }
 ```

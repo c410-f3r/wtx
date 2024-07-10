@@ -1,8 +1,11 @@
-use crate::client_api_framework::{
-  dnsn::{Deserialize, Serialize},
-  Id,
+use crate::{
+  client_api_framework::{
+    dnsn::{Deserialize, Serialize},
+    Id,
+  },
+  misc::Vector,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -42,7 +45,7 @@ where
 
 impl<D> Serialize<()> for JsonRpcResponse<D> {
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vec<u8>, _: &mut ()) -> crate::Result<()> {
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -238,10 +241,12 @@ mod serde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::client_api_framework::{
-    data_format::JsonRpcResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
+  use crate::{
+    client_api_framework::{
+      data_format::JsonRpcResponse, dnsn::SerdeJson, misc::seq_visitor::_SeqVisitor,
+    },
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<R> crate::client_api_framework::dnsn::Deserialize<SerdeJson> for JsonRpcResponse<R>
@@ -274,7 +279,7 @@ mod serde_json {
     R: serde::Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SerdeJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
       serde_json::to_writer(bytes, self)?;
       Ok(())
     }
@@ -283,10 +288,10 @@ mod serde_json {
 
 #[cfg(feature = "simd-json")]
 mod simd_json {
-  use crate::client_api_framework::{
-    data_format::JsonRpcResponse, dnsn::SimdJson, ClientApiFrameworkError,
+  use crate::{
+    client_api_framework::{data_format::JsonRpcResponse, dnsn::SimdJson, ClientApiFrameworkError},
+    misc::Vector,
   };
-  use alloc::vec::Vec;
   use core::fmt::Display;
 
   impl<R> crate::client_api_framework::dnsn::Deserialize<SimdJson> for JsonRpcResponse<R>
@@ -313,7 +318,7 @@ mod simd_json {
   where
     R: serde::Serialize,
   {
-    fn to_bytes(&mut self, bytes: &mut Vec<u8>, _: &mut SimdJson) -> crate::Result<()> {
+    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SimdJson) -> crate::Result<()> {
       simd_json::to_writer(bytes, self)?;
       Ok(())
     }

@@ -1,8 +1,7 @@
 use crate::{
-  http::{Header, HeaderName, Headers, KnownHeaderName, Method},
+  http::{Header, HeaderName, KnownHeaderName, Method, ReqResBuffer},
   http2::{
     misc::{protocol_err, trim_frame_pad},
-    uri_buffer::MAX_URI_LEN,
     CommonFlags, FrameInit, FrameInitTy, HpackDecoder, HpackHeaderBasic, HpackStaticRequestHeaders,
     HpackStaticResponseHeaders, Http2Error, Http2Params, UriBuffer, U31,
   },
@@ -55,12 +54,11 @@ impl<'uri> HeadersFrame<'uri> {
 
   #[inline]
   pub(crate) fn read<const IS_CLIENT: bool, const IS_TRAILER: bool>(
-    mut data: &[u8],
+    data: Option<&[u8]>,
     mut fi: FrameInit,
-    headers: &mut Headers,
     hp: &Http2Params,
     hpack_dec: &mut HpackDecoder,
-    uri: &mut ArrayString<MAX_URI_LEN>,
+    rrb: &mut ReqResBuffer,
     uri_buffer: &mut UriBuffer,
   ) -> crate::Result<(Option<usize>, Self)> {
     if fi.stream_id.is_zero() {
@@ -70,7 +68,9 @@ impl<'uri> HeadersFrame<'uri> {
     fi.cf.only_eoh_eos_pad();
     uri_buffer.clear();
 
-    let _ = trim_frame_pad(fi.cf, &mut data)?;
+    let (rrb_body, rrb_headers) = rrb.parts_mut();
+    let mut data_bytes = data.unwrap_or(rrb_body);
+    let _ = trim_frame_pad(fi.cf, &mut data_bytes)?;
     let max_headers_len = *Usize::from(hp.max_headers_len());
     let mut content_length_idx = None;
     let mut expanded_headers_len = 0;
@@ -81,7 +81,7 @@ impl<'uri> HeadersFrame<'uri> {
     let mut protocol = None;
     let mut status = None;
 
-    hpack_dec.decode(data, |(elem, name, value)| {
+    hpack_dec.decode(data_bytes, |(elem, name, value)| {
       match elem {
         HpackHeaderBasic::Authority => {
           push_uri(
@@ -116,15 +116,12 @@ impl<'uri> HeadersFrame<'uri> {
             is_over_size = expanded_headers_len >= max_headers_len;
             if !is_over_size {
               if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
-                content_length_idx = Some(headers.elements_len());
+                content_length_idx = Some(rrb_headers.elements_len());
               }
-              headers.reserve(name.len().wrapping_add(value.len()), 1);
-              headers.push_front(Header {
-                is_sensitive: false,
-                is_trailer: IS_TRAILER,
-                name,
-                value,
-              })?;
+              rrb_headers.push_front(
+                Header { is_sensitive: false, is_trailer: IS_TRAILER, name, value },
+                &[],
+              )?;
             }
           }
         },
@@ -219,10 +216,11 @@ impl<'uri> HeadersFrame<'uri> {
             return Err(protocol_err(Http2Error::InvalidHeaderData));
           }
         }
-        uri.clear();
-        uri.push_str(uri_buffer.scheme.as_str())?;
-        uri.push_str(uri_buffer.authority.as_str())?;
-        uri.push_str(uri_buffer.path.as_str())?;
+        rrb.set_uri_from_parts(
+          uri_buffer.scheme.as_str(),
+          uri_buffer.authority.as_str(),
+          uri_buffer.path.as_str(),
+        )?;
       }
     }
 

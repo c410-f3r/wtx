@@ -7,6 +7,7 @@ wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 [features]
 default = []
 embed-migrations = ["clap", "tokio/fs", "wtx/schema-manager", "wtx/std"]
+http-client = ["clap", "wtx/http-client", "wtx/tokio-rustls", "wtx/webpki-roots"]
 schema-manager = ["clap", "wtx/postgres", "wtx/schema-manager", "wtx/std"]
 schema-manager-dev = ["dotenv", "schema-manager", "wtx/_tracing-subscriber", "wtx/schema-manager-dev"]
 web-socket = ["clap", "wtx/web-socket-handshake"]

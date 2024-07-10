@@ -205,7 +205,7 @@ where
 
 #[inline]
 pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, version: i32) -> u64 {
-  #[allow(deprecated)]
+  #[expect(deprecated, reason = "Useful")]
   let mut hasher = core::hash::SipHasher::new();
   name.hash(&mut hasher);
   sql_up.hash(&mut hasher);

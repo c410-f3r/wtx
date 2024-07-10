@@ -4,7 +4,7 @@
 #![no_std]
 
 extern crate alloc;
-//#[cfg(feature = "std")]
+#[cfg(feature = "std")]
 extern crate std;
 #[cfg(all(feature = "_bench", test))]
 extern crate test;

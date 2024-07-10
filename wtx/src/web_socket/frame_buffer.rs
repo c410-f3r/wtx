@@ -1,8 +1,7 @@
 use crate::{
-  misc::{Lease, LeaseMut, SingleTypeStorage, _unreachable},
+  misc::{Lease, LeaseMut, SingleTypeStorage, Vector, VectorError, _unreachable},
   web_socket::{WebSocketError, DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
 };
-use alloc::{vec, vec::Vec};
 use core::array;
 
 /// Composed by an array with the maximum allowed size of a frame control.
@@ -12,9 +11,9 @@ pub type FrameBufferControlArrayMut<'bytes> = FrameBuffer<&'bytes mut [u8; MAX_C
 /// Composed by a sequence of mutable bytes.
 pub type FrameBufferMut<'bytes> = FrameBuffer<&'bytes mut [u8]>;
 /// Composed by an owned vector.
-pub type FrameBufferVec = FrameBuffer<Vec<u8>>;
+pub type FrameBufferVec = FrameBuffer<Vector<u8>>;
 /// Composed by a mutable vector reference.
-pub type FrameBufferVecMut<'bytes> = FrameBuffer<&'bytes mut Vec<u8>>;
+pub type FrameBufferVecMut<'bytes> = FrameBuffer<&'bytes mut Vector<u8>>;
 
 /// Concentrates all data necessary to read or write to a stream.
 //
@@ -159,12 +158,13 @@ where
 
 impl<B> FrameBuffer<B>
 where
-  B: LeaseMut<Vec<u8>>,
+  B: LeaseMut<Vector<u8>>,
 {
-  pub(crate) fn expand_buffer(&mut self, new_len: usize) {
+  pub(crate) fn expand_buffer(&mut self, new_len: usize) -> Result<(), VectorError> {
     if new_len > self.buffer.lease_mut().len() {
-      self.buffer.lease_mut().resize(new_len, 0);
+      self.buffer.lease_mut().expand(new_len, 0)?;
     }
+    Ok(())
   }
 
   pub(crate) fn _set_indices_through_expansion(
@@ -172,23 +172,22 @@ where
     header_begin_idx: u8,
     header_len: u8,
     payload_len: usize,
-  ) {
+  ) -> Result<(), VectorError> {
     let header_end_idx = Self::header_end_idx_from_parts(header_begin_idx, header_len);
     let mut payload_end_idx = usize::from(header_end_idx).saturating_add(payload_len);
     payload_end_idx = payload_end_idx.max(header_len.into());
     self.header_begin_idx = header_begin_idx;
     self.header_end_idx = header_end_idx;
     self.payload_end_idx = payload_end_idx;
-    self.expand_buffer(payload_end_idx);
+    self.expand_buffer(payload_end_idx)
   }
 }
 
 impl FrameBufferVec {
   /// Creates a new instance with pre-allocated bytes.
   #[inline]
-  #[must_use]
   pub fn with_capacity(n: usize) -> Self {
-    Self { header_begin_idx: 0, header_end_idx: 0, payload_end_idx: 0, buffer: vec![0; n] }
+    Self { header_begin_idx: 0, header_end_idx: 0, payload_end_idx: 0, buffer: _vector![0; n] }
   }
 }
 
@@ -215,7 +214,7 @@ impl Default for FrameBufferVec {
       header_begin_idx: 0,
       header_end_idx: 0,
       payload_end_idx: 0,
-      buffer: vec![0; DFLT_FRAME_BUFFER_VEC_LEN],
+      buffer: _vector![0; DFLT_FRAME_BUFFER_VEC_LEN],
     }
   }
 }
@@ -250,16 +249,16 @@ where
   }
 }
 
-impl From<Vec<u8>> for FrameBufferVec {
+impl From<Vector<u8>> for FrameBufferVec {
   #[inline]
-  fn from(from: Vec<u8>) -> Self {
+  fn from(from: Vector<u8>) -> Self {
     Self::new(from)
   }
 }
 
-impl<'bytes> From<&'bytes mut Vec<u8>> for FrameBufferVecMut<'bytes> {
+impl<'bytes> From<&'bytes mut Vector<u8>> for FrameBufferVecMut<'bytes> {
   #[inline]
-  fn from(from: &'bytes mut Vec<u8>) -> Self {
+  fn from(from: &'bytes mut Vector<u8>) -> Self {
     Self::new(from)
   }
 }

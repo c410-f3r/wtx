@@ -1,11 +1,13 @@
-use crate::client_api_framework::{
-  data_format::{
-    BorshRequest, JsonRequest, JsonRpcRequest, VerbatimRequest, XmlRequest, YamlRequest,
+use crate::{
+  client_api_framework::{
+    data_format::{
+      BorshRequest, JsonRequest, JsonRpcRequest, VerbatimRequest, XmlRequest, YamlRequest,
+    },
+    network::transport::TransportParams,
+    Id,
   },
-  network::transport::TransportParams,
-  Id,
+  misc::Vector,
 };
-use alloc::vec::Vec;
 
 /// # Packages Auxiliary
 ///
@@ -26,7 +28,7 @@ where
   /// Used by practically all transports to serialize or receive data in any desired operation.
   ///
   /// Some transports require a pre-filled buffer so it is important to not modify indiscriminately.
-  pub byte_buffer: Vec<u8>,
+  pub byte_buffer: Vector<u8>,
   /// Deserializer/Serializer instance
   pub drsr: DRSR,
   /// External request and response parameters.
@@ -41,7 +43,7 @@ where
   /// Creates an instance with the minimum amount of mandatory parameters.
   #[inline]
   pub fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
-    Self { api, byte_buffer: Vec::new(), drsr, tp, built_requests: 0 }
+    Self { api, byte_buffer: Vector::new(), drsr, tp, built_requests: 0 }
   }
 
   /// The number of constructed requests that is not necessarily equal the number of sent requests.

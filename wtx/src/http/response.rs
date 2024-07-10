@@ -2,34 +2,34 @@ use crate::http::{Headers, ReqResData, StatusCode, Version};
 
 /// Represents the response from an HTTP request.
 #[derive(Debug)]
-pub struct Response<D> {
+pub struct Response<RRD> {
   /// See [`ReqResData`].
-  pub data: D,
+  pub rrd: RRD,
   /// See [`StatusCode`].
   pub status_code: StatusCode,
   /// See [`Version`].
   pub version: Version,
 }
 
-impl<D> Response<D>
+impl<RRD> Response<RRD>
 where
-  D: ReqResData,
+  RRD: ReqResData,
 {
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
-  pub fn http2(data: D, status_code: StatusCode) -> Self {
-    Self { data, status_code, version: Version::Http2 }
+  pub fn http2(data: RRD, status_code: StatusCode) -> Self {
+    Self { rrd: data, status_code, version: Version::Http2 }
   }
 
   /// Shortcut to access the body of `data`.
   #[inline]
-  pub fn body(&self) -> &D::Body {
-    self.data.body()
+  pub fn body(&self) -> &RRD::Body {
+    self.rrd.body()
   }
 
   /// Shortcut to access the headers of `data`.
   #[inline]
   pub fn headers(&self) -> &Headers {
-    self.data.headers()
+    self.rrd.headers()
   }
 }

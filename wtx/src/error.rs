@@ -1,13 +1,10 @@
-use crate::{
-  http::{KnownHeaderName, Method},
-  misc::{ArrayStringError, ArrayVectorError, BlocksQueueError, QueueError, VectorError},
-};
+use crate::misc::{ArrayStringError, ArrayVectorError, BlocksQueueError, QueueError, VectorError};
+#[allow(unused_imports, reason = "Depends on the selection of features")]
+use alloc::boxed::Box;
 use core::{
   fmt::{Debug, Display, Formatter},
   ops::RangeInclusive,
 };
-#[allow(unused_imports)]
-use {alloc::boxed::Box, alloc::string::String};
 
 #[cfg(target_pointer_width = "64")]
 const _: () = {
@@ -22,7 +19,8 @@ type RkyvSer = rkyv::ser::serializers::CompositeSerializerError<
 >;
 
 /// Grouped individual errors
-#[allow(missing_docs, non_camel_case_types)]
+#[allow(missing_docs, reason = "Work in progress")]
+#[allow(non_camel_case_types, reason = "Useful for readability")]
 #[derive(Debug)]
 pub enum Error {
   // External - Misc
@@ -31,7 +29,7 @@ pub enum Error {
   #[cfg(feature = "chrono")]
   ChronoParseError(chrono::ParseError),
   #[cfg(feature = "cl-aux")]
-  ClAux(Box<cl_aux::Error>),
+  ClAux(cl_aux::Error),
   #[cfg(feature = "crypto-common")]
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "base64")]
@@ -43,7 +41,7 @@ pub enum Error {
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
   #[cfg(feature = "flate2")]
-  Flate2CompressError(Box<flate2::CompressError>),
+  Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
   Flate2DecompressError(Box<flate2::DecompressError>),
   #[cfg(all(feature = "glommio", not(feature = "async-send")))]
@@ -107,6 +105,7 @@ pub enum Error {
   BlocksQueueError(BlocksQueueError),
   #[cfg(feature = "client-api-framework")]
   ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
+  HttpError(crate::http::HttpError),
   #[cfg(feature = "http2")]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
@@ -124,28 +123,6 @@ pub enum Error {
 
   /// A "null" field received from the database was decoded as a non-nullable type or value.
   DB_MissingFieldDataInDecoding,
-
-  /// The length of a header field must be within a threshold.
-  HTTP_HeaderFieldIsTooLarge,
-  /// Invalid HTTP/2 or HTTP/3 header
-  HTTP_InvalidHttp2pContent,
-  /// Missing Header
-  HTTP_MissingHeader {
-    /// See [`KnownHeaderName`].
-    expected: KnownHeaderName,
-  },
-  /// Received request does not contain a method field
-  HTTP_MissingRequestMethod,
-  /// Received response does not contain a status code field
-  HTTP_MissingResponseStatusCode,
-  /// HTTP version does not match the expected method.
-  HTTP_UnexpectedHttpMethod {
-    expected: Method,
-  },
-  /// Unknown header name.
-  HTTP_UnknownHeaderNameFromBytes {
-    length: usize,
-  },
 
   /// `GenericTime` needs a backend
   MISC_GenericTimeNeedsBackend,
@@ -195,8 +172,7 @@ impl Display for Error {
   }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 impl From<Error> for () {
   #[inline]
@@ -216,7 +192,7 @@ impl From<chrono::ParseError> for Error {
 impl From<cl_aux::Error> for Error {
   #[inline]
   fn from(from: cl_aux::Error) -> Self {
-    Self::ClAux(from.into())
+    Self::ClAux(from)
   }
 }
 
@@ -267,7 +243,7 @@ impl From<base64::EncodeSliceError> for Error {
 impl From<flate2::CompressError> for Error {
   #[inline]
   fn from(from: flate2::CompressError) -> Self {
-    Self::Flate2CompressError(from.into())
+    Self::Flate2CompressError(from)
   }
 }
 
@@ -518,6 +494,13 @@ impl From<BlocksQueueError> for Error {
   #[inline]
   fn from(from: BlocksQueueError) -> Self {
     Self::BlocksQueueError(from)
+  }
+}
+
+impl From<crate::http::HttpError> for Error {
+  #[inline]
+  fn from(from: crate::http::HttpError) -> Self {
+    Self::HttpError(from)
   }
 }
 

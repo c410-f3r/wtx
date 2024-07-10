@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use crate::misc::Vector;
 use rkyv::{
   ser::{
     serializers::{
@@ -23,7 +23,7 @@ pub struct Rkyv(AlignedVec, HeapScratch<4096>);
 impl Rkyv {
   pub(crate) fn _serialize<'this, T>(
     &'this mut self,
-    bytes: &mut Vec<u8>,
+    bytes: &mut Vector<u8>,
     elem: &T,
   ) -> crate::Result<()>
   where
@@ -36,7 +36,7 @@ impl Rkyv {
     );
     let _ = serializer.serialize_value(elem)?;
     let aligned_vec = serializer.into_serializer().into_inner();
-    bytes.extend(aligned_vec.iter().copied());
+    bytes.extend_from_slice(aligned_vec)?;
     aligned_vec.clear();
     Ok(())
   }

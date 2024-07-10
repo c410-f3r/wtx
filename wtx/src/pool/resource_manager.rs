@@ -1,14 +1,13 @@
-use crate::misc::AsyncBounds;
 use core::future::Future;
 
 /// Manager of a specific pool resource.
 pub trait ResourceManager {
   /// Auxiliary data used by the [`Self::get`] method.
-  type CreateAux;
+  type CreateAux: ?Sized;
   /// Any custom error.
   type Error: From<crate::Error>;
   /// Auxiliary data used by the [`Self::recycle`] method.
-  type RecycleAux;
+  type RecycleAux: ?Sized;
   /// Any pool resource.
   type Resource;
 
@@ -16,17 +15,17 @@ pub trait ResourceManager {
   fn create(
     &self,
     aux: &Self::CreateAux,
-  ) -> impl AsyncBounds + Future<Output = Result<Self::Resource, Self::Error>>;
+  ) -> impl Future<Output = Result<Self::Resource, Self::Error>>;
 
   /// If a resource is in an invalid state.
-  fn is_invalid(&self, resource: &Self::Resource) -> bool;
+  fn is_invalid(&self, resource: &Self::Resource) -> impl Future<Output = bool>;
 
   /// Re-creates a new valid instance. Should be called if `resource` is invalid.
   fn recycle(
     &self,
     aux: &Self::RecycleAux,
     resource: &mut Self::Resource,
-  ) -> impl AsyncBounds + Future<Output = Result<(), Self::Error>>;
+  ) -> impl Future<Output = Result<(), Self::Error>>;
 }
 
 impl ResourceManager for () {
@@ -39,7 +38,7 @@ impl ResourceManager for () {
     Ok(())
   }
 
-  fn is_invalid(&self, _: &Self::Resource) -> bool {
+  async fn is_invalid(&self, _: &Self::Resource) -> bool {
     false
   }
 
@@ -67,8 +66,6 @@ impl<E, F, R> ResourceManager for SimpleRM<F>
 where
   E: From<crate::Error>,
   F: Fn() -> Result<R, E>,
-  R: AsyncBounds,
-  for<'any> &'any Self: AsyncBounds,
 {
   type CreateAux = ();
   type Error = E;
@@ -81,7 +78,7 @@ where
   }
 
   #[inline]
-  fn is_invalid(&self, _: &Self::Resource) -> bool {
+  async fn is_invalid(&self, _: &Self::Resource) -> bool {
     false
   }
 
@@ -95,7 +92,6 @@ where
 pub(crate) mod database {
   use crate::{
     database::client::postgres::{Executor, ExecutorBuffer},
-    misc::AsyncBounds,
     pool::ResourceManager,
   };
   use core::{future::Future, mem};
@@ -113,12 +109,9 @@ pub(crate) mod database {
 
   impl<CF, I, E, O, RF, S> ResourceManager for PostgresRM<CF, I, RF>
   where
-    CF: AsyncBounds + Future<Output = Result<(O, Executor<E, ExecutorBuffer, S>), E>>,
-    E: AsyncBounds + From<crate::Error>,
-    O: AsyncBounds,
-    RF: AsyncBounds + Future<Output = Result<Executor<E, ExecutorBuffer, S>, E>>,
-    S: AsyncBounds,
-    for<'any> &'any Self: AsyncBounds,
+    CF: Future<Output = Result<(O, Executor<E, ExecutorBuffer, S>), E>>,
+    E: From<crate::Error>,
+    RF: Future<Output = Result<Executor<E, ExecutorBuffer, S>, E>>,
   {
     type CreateAux = ();
     type Error = E;
@@ -131,7 +124,7 @@ pub(crate) mod database {
     }
 
     #[inline]
-    fn is_invalid(&self, resource: &Self::Resource) -> bool {
+    async fn is_invalid(&self, resource: &Self::Resource) -> bool {
       resource.1.is_closed
     }
 
@@ -141,9 +134,9 @@ pub(crate) mod database {
       _: &Self::RecycleAux,
       resource: &mut Self::Resource,
     ) -> Result<(), Self::Error> {
-      let mut persistent = ExecutorBuffer::_empty();
-      mem::swap(&mut persistent, &mut resource.1.eb);
-      resource.1 = (self.rc)(&self.input, persistent).await?;
+      let mut buffer = ExecutorBuffer::_empty();
+      mem::swap(&mut buffer, &mut resource.1.eb);
+      resource.1 = (self.rc)(&self.input, buffer).await?;
       Ok(())
     }
   }

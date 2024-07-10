@@ -135,7 +135,7 @@ macro_rules! _impl_se_collections {
         T: $bound,
       {
         #[inline]
-        fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()>
+        fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()>
         {
           let $array_self = self;
           let $array_bytes = bytes;
@@ -152,7 +152,7 @@ macro_rules! _impl_se_collections {
         T: $bound,
       {
         #[inline]
-        fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()> {
+        fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()> {
           let $arrayvector_self = self;
           let $arrayvector_bytes = bytes;
           let $arrayvector_drsr = drsr;
@@ -167,7 +167,7 @@ macro_rules! _impl_se_collections {
       T: $bound,
     {
       #[inline]
-      fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()> {
+      fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()> {
         let $slice_ref_self = self;
         let $slice_ref_bytes = bytes;
         let $slice_ref_drsr = drsr;
@@ -176,12 +176,12 @@ macro_rules! _impl_se_collections {
       }
     }
 
-    impl<T> crate::client_api_framework::dnsn::Serialize<$drsr> for alloc::vec::Vec<T>
+    impl<T> crate::client_api_framework::dnsn::Serialize<$drsr> for crate::misc::Vector<T>
     where
       T: $bound,
     {
       #[inline]
-      fn to_bytes(&mut self, bytes: &mut alloc::vec::Vec<u8>, drsr: &mut $drsr) -> crate::Result<()>  {
+      fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()>  {
         let $vec_self = self;
         let $vec_bytes = bytes;
         let $vec_drsr = drsr;
