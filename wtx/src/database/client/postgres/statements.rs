@@ -183,7 +183,7 @@ pub(crate) struct Statement<'stmts> {
 }
 
 impl<'stmts> Statement<'stmts> {
-  pub(crate) fn new(columns: &'stmts [Column], params: &'stmts [Ty]) -> Self {
+  pub(crate) const fn new(columns: &'stmts [Column], params: &'stmts [Ty]) -> Self {
     Self { columns, params }
   }
 }
@@ -247,9 +247,9 @@ mod tests {
       ty::Ty,
       Statements,
     },
+    misc::Vector,
     rng::StaticRng,
   };
-  use alloc::vec::Vec;
 
   #[test]
   fn stmt_if_duplicated() {
@@ -351,15 +351,17 @@ mod tests {
     assert_eq!(stmts.columns.as_slices().1, &[]);
     assert_eq!(stmts.columns_start, cs.columns_offset_start);
     assert_eq!(
-      &stmts.info.iter().map(|el| (el.columns_offset, el.params_offset)).collect::<Vec<_>>(),
+      Vector::from_iter(stmts.info.iter().map(|el| (el.columns_offset, el.params_offset)))
+        .unwrap()
+        .as_slice(),
       cs.info
     );
     assert_eq!(
       &{
-        let mut vec = stmts.info_by_cmd_hash.iter().map(|el| *el.1).collect::<Vec<_>>();
+        let mut vec = Vector::from_iter(stmts.info_by_cmd_hash.iter().map(|el| *el.1)).unwrap();
         vec.sort();
         vec
-      },
+      }[..],
       cs.info_by_cmd_hash
     );
     assert_eq!(stmts.params.as_slices().0, cs.params);

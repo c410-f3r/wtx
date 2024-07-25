@@ -2,7 +2,7 @@
 
 #![expect(clippy::too_many_lines, reason = "Unimportant")]
 
-mod api_types;
+mod api_params;
 mod contained_attrs;
 mod error;
 mod item_with_attr_span;
@@ -15,16 +15,16 @@ use error::Error;
 
 type Result<T> = core::result::Result<T, Error>;
 
-/// API types
+/// API Parameters
 ///
-/// Creates types referring an API and its possible de-serializers/serializers and transport
+/// Creates types referring an API and its possible de-serializers/serializers or transport
 /// variants.
 #[proc_macro_attribute]
-pub fn api_types(
+pub fn api_params(
   attrs: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  match api_types::api_types(attrs, item) {
+  match api_params::api_params(attrs, item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }

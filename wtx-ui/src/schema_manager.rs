@@ -25,7 +25,7 @@ pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
       let mut rng = StdRng::default();
       let executor = Executor::connect(
         &Config::from_uri(&uri)?,
-        ExecutorBuffer::with_default_params(&mut rng),
+        ExecutorBuffer::with_default_params(&mut rng)?,
         &mut rng,
         TcpStream::connect(uri.host()).await.map_err(wtx::Error::from)?,
       )

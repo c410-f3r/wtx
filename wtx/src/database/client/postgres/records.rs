@@ -76,23 +76,25 @@ impl<'exec, E> Default for Records<'exec, E> {
 mod tests {
   use core::marker::PhantomData;
 
-  use crate::database::{
-    client::postgres::{
-      statements::Statement,
-      tests::{column0, column1, column2},
-      DecodeValue, Record, Records,
+  use crate::{
+    database::{
+      client::postgres::{
+        statements::Statement,
+        tests::{column0, column1, column2},
+        DecodeValue, Record, Records,
+      },
+      Record as _, Records as _,
     },
-    Record as _, Records as _,
+    misc::Vector,
   };
-  use alloc::vec::Vec;
 
   #[test]
   fn returns_correct_values() {
     let bytes = &[0, 0, 0, 2, 1, 2, 0, 0, 0, 2, 3, 4, 9, 9, 9, 0, 1, 0, 0, 0, 4, 5, 6, 7, 8];
     let columns = &[column0(), column1(), column2()];
     let stmt = Statement::new(columns, &[]);
-    let mut records_values_offsets = Vec::new();
-    let mut values_bytes_offsets = Vec::new();
+    let mut records_values_offsets = Vector::new();
+    let mut values_bytes_offsets = Vector::new();
     assert_eq!(
       Record::parse(bytes, 0..12, stmt.clone(), &mut values_bytes_offsets, 2).unwrap(),
       Record {
@@ -103,7 +105,7 @@ mod tests {
         values_bytes_offsets: &[(false, 0..2), (false, 6..8)]
       }
     );
-    records_values_offsets.push(values_bytes_offsets.len());
+    records_values_offsets.push(values_bytes_offsets.len()).unwrap();
     assert_eq!(
       Record::parse(bytes, 17..25, stmt.clone(), &mut values_bytes_offsets, 1).unwrap(),
       Record {
@@ -114,7 +116,7 @@ mod tests {
         values_bytes_offsets: &[(false, 17..21)]
       }
     );
-    records_values_offsets.push(values_bytes_offsets.len());
+    records_values_offsets.push(values_bytes_offsets.len()).unwrap();
 
     let records = Records {
       bytes: &bytes[4..],

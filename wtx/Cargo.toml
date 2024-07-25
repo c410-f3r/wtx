@@ -11,7 +11,7 @@ required-features = ["flate2", "optimization", "pool", "tokio/rt-multi-thread", 
 [[bin]]
 name = "h2spec-server"
 path = "src/bin/h2spec-server.rs"
-required-features = ["http2", "tokio/rt-multi-thread"]
+required-features = ["http2", "tokio"]
 
 [[example]]
 name = "database-client-postgres-tokio-rustls"
@@ -81,7 +81,6 @@ sha1 = { default-features = false, optional = true, version = "0.10" }
 sha2 = { default-features = false, optional = true, version = "0.10" }
 simd-json = { default-features = false, features = ["serde_impl"], optional = true, version = "0.11" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
-smallvec = { default-features = false, features = ["const_generics", "union"], optional = true, version = "1.13" }
 smol = { default-features = false, optional = true, version = "2.0" }
 smoltcp = { default-features = false, optional = true, version = "0.11" }
 test-strategy = { default-features = false, optional = true, version = "0.4" }
@@ -89,7 +88,7 @@ tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", 
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
-tracing-tree = { default-features = false, optional = true, version = "0.3" }
+tracing-tree = { default-features = false, optional = true, version = "0.4" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
 x509-certificate = { default-features = false, optional = true, version = "0.23" }
 
@@ -108,12 +107,12 @@ database = []
 default = []
 embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 glommio = ["futures-lite", "dep:glommio", "std"]
+grpc = ["http2"]
 http-client = ["http2", "pool"]
 http1 = ["httparse"]
-http2 = ["ahash", "hashbrown", "tokio"]
+http2 = ["ahash", "hashbrown"]
 miniserde = ["dep:miniserde", "std"]
 optimization = ["atoi", "memchr", "simdutf8"]
-orm = ["database", "dep:smallvec"]
 pool = []
 postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "sha2"]
 protobuf = ["dep:protobuf", "std"]

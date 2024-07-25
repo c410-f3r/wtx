@@ -1,2 +1,0 @@
-mod collection;
-mod diamond;

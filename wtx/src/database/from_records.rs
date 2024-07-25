@@ -1,5 +1,5 @@
-use crate::database::{Database, TableSuffix};
-use alloc::{boxed::Box, string::String};
+use crate::database::{Database, Decode, Records};
+use alloc::boxed::Box;
 
 /// An element that can be represented from one or more database row, in other words, tables
 /// with relationships.
@@ -9,11 +9,26 @@ where
 {
   /// Constructs a single instance based on an arbitrary number of rows.
   fn from_records(
-    buffer_cmd: &mut String,
+    col_idx: &mut usize,
     curr_record: &D::Record<'exec>,
+    curr_record_idx: &mut usize,
     records: &D::Records<'exec>,
-    table_suffix: TableSuffix,
-  ) -> Result<(usize, Self), D::Error>;
+  ) -> Result<Self, D::Error>;
+
+  /// Should be called once in the initialization phase.
+  fn from_records_initial(records: &D::Records<'exec>) -> Result<Self, D::Error>
+  where
+    for<'de> u64: Decode<'de, D>,
+  {
+    Self::from_records(
+      &mut 0,
+      &records
+        .get(0)
+        .ok_or_else(|| crate::Error::MISC_NoInnerValue("There are no records to create element"))?,
+      &mut 0,
+      records,
+    )
+  }
 }
 
 impl<'exec, D> FromRecords<'exec, D> for ()
@@ -22,12 +37,12 @@ where
 {
   #[inline]
   fn from_records(
-    _: &mut String,
+    _: &mut usize,
     _: &D::Record<'exec>,
+    _: &mut usize,
     _: &D::Records<'exec>,
-    _: TableSuffix,
-  ) -> Result<(usize, Self), D::Error> {
-    Ok((0, ()))
+  ) -> Result<Self, D::Error> {
+    Ok(())
   }
 }
 
@@ -38,12 +53,11 @@ where
 {
   #[inline]
   fn from_records(
-    buffer_cmd: &mut String,
+    col_idx: &mut usize,
     curr_record: &D::Record<'exec>,
+    curr_record_idx: &mut usize,
     records: &D::Records<'exec>,
-    table_suffix: TableSuffix,
-  ) -> Result<(usize, Self), D::Error> {
-    let (n, this) = T::from_records(buffer_cmd, curr_record, records, table_suffix)?;
-    Ok((n, Box::new(this)))
+  ) -> Result<Self, D::Error> {
+    Ok(Box::new(T::from_records(col_idx, curr_record, curr_record_idx, records)?))
   }
 }

@@ -110,8 +110,6 @@ pub enum Error {
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
   Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
-  #[cfg(feature = "orm")]
-  OrmError(crate::database::orm::OrmError),
   #[cfg(feature = "postgres")]
   PostgresError(crate::database::client::postgres::PostgresError),
   QueueError(QueueError),
@@ -509,14 +507,6 @@ impl From<crate::client_api_framework::ClientApiFrameworkError> for Error {
   #[inline]
   fn from(from: crate::client_api_framework::ClientApiFrameworkError) -> Self {
     Self::ClientApiFrameworkError(from)
-  }
-}
-
-#[cfg(feature = "orm")]
-impl From<crate::database::orm::OrmError> for Error {
-  #[inline]
-  fn from(from: crate::database::orm::OrmError) -> Self {
-    Self::OrmError(from)
   }
 }
 

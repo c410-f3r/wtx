@@ -6,7 +6,7 @@ where
   D: Database,
 {
   /// Performs the conversion.
-  fn decode(input: &D::DecodeValue<'de>) -> Result<Self, D::Error>;
+  fn decode(dv: &D::DecodeValue<'de>) -> Result<Self, D::Error>;
 }
 
 impl<'de> Decode<'de, ()> for &str {

@@ -3,7 +3,10 @@
 use crate::{
   client_api_framework::{
     misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
-    network::{transport::Transport, TransportGroup},
+    network::{
+      transport::{Transport, TransportParams},
+      TransportGroup,
+    },
     pkg::{Package, PkgsAux},
     Api, ClientApiFrameworkError,
   },
@@ -14,12 +17,12 @@ use alloc::{
   collections::VecDeque,
   vec::Vec,
 };
-use core::{fmt::Debug, ops::Range};
+use core::{fmt::Debug, marker::PhantomData, ops::Range};
 
 /// For API's that send and received raw bytes.
-pub type MockBytes = Mock<[u8]>;
+pub type MockBytes<TP> = Mock<[u8], TP>;
 /// For API's that send and received strings.
-pub type MockStr = Mock<str>;
+pub type MockStr<TP> = Mock<str, TP>;
 
 /// Used to assert issued requests as well as returned responses in a local environment.
 ///
@@ -37,17 +40,18 @@ pub type MockStr = Mock<str>;
 /// # Ok(()) }
 /// ```
 #[derive(Debug)]
-pub struct Mock<T>
+pub struct Mock<T, TP>
 where
   T: ToOwned + 'static + ?Sized,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   asserted: usize,
+  phantom: PhantomData<TP>,
   requests: Vec<Cow<'static, T>>,
   responses: VecDeque<Cow<'static, T>>,
 }
 
-impl<T> Mock<T>
+impl<T, TP> Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   <T as ToOwned>::Owned: Debug + FromBytes,
@@ -86,23 +90,24 @@ where
   }
 }
 
-impl<DRSR, T> Transport<DRSR> for Mock<T>
+impl<DRSR, T, TP> Transport<DRSR> for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
+  TP: TransportParams,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   const GROUP: TransportGroup = TransportGroup::Stub;
-  type Params = ();
+  type Params = TP;
 
   #[inline]
   async fn send<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: Package<A, DRSR, ()>,
+    P: Package<A, DRSR, TP>,
   {
     manage_before_sending_related(pkg, pkgs_aux, &mut *self).await?;
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?));
@@ -115,11 +120,11 @@ where
   async fn send_recv<A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
-    P: Package<A, DRSR, ()>,
+    P: Package<A, DRSR, TP>,
   {
     <Self as Transport<DRSR>>::send(self, pkg, pkgs_aux).await?;
     let response = self.pop_response()?;
@@ -129,13 +134,13 @@ where
   }
 }
 
-impl<T> Default for Mock<T>
+impl<T, TP> Default for Mock<T, TP>
 where
   T: ToOwned + 'static + ?Sized,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   #[inline]
   fn default() -> Self {
-    Self { asserted: 0, requests: Vec::new(), responses: VecDeque::new() }
+    Self { asserted: 0, phantom: PhantomData, requests: Vec::new(), responses: VecDeque::new() }
   }
 }

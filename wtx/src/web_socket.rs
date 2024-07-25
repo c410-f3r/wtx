@@ -22,7 +22,8 @@ mod web_socket_error;
 use crate::{
   misc::{
     from_utf8_basic, from_utf8_ext, CompletionErr, ConnectionState, ExtUtf8Error,
-    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Stream, Vector, _read_until,
+    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Stream, Vector, VectorError,
+    _read_until,
   },
   rng::Rng,
   _MAX_PAYLOAD_LEN,
@@ -110,10 +111,10 @@ where
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
-  pub fn new(nc: NC, rng: RNG, stream: S, mut wsb: WSB) -> Self {
+  pub fn new(nc: NC, rng: RNG, stream: S, mut wsb: WSB) -> crate::Result<Self> {
     wsb.lease_mut().nb._clear_if_following_is_empty();
-    wsb.lease_mut().nb._expand_following(MAX_HDR_LEN_USIZE);
-    Self { ct: ConnectionState::Open, max_payload_len: _MAX_PAYLOAD_LEN, nc, rng, stream, wsb }
+    wsb.lease_mut().nb._expand_following(MAX_HDR_LEN_USIZE)?;
+    Ok(Self { ct: ConnectionState::Open, max_payload_len: _MAX_PAYLOAD_LEN, nc, rng, stream, wsb })
   }
 
   /// Reads a frame from the stream.
@@ -251,13 +252,13 @@ where
       local_fb: &FrameBuffer<B>,
       local_pb: &'pb mut PartitionedFilledBuffer,
       written: usize,
-    ) -> &'pb mut [u8]
+    ) -> Result<&'pb mut [u8], VectorError>
     where
       B: Lease<[u8]>,
     {
       let start = len_with_header.wrapping_add(written);
-      local_pb._expand_following(start.wrapping_add(local_fb.frame().len()).wrapping_add(128));
-      local_pb._following_trail_mut().get_mut(start..).unwrap_or_default()
+      local_pb._expand_following(start.wrapping_add(local_fb.frame().len()).wrapping_add(128))?;
+      Ok(local_pb._following_trail_mut().get_mut(start..).unwrap_or_default())
     }
 
     let fb = frame.fb().lease();
@@ -305,7 +306,7 @@ where
     let payload_size = nc.decompress(
       db.get(payload_start_idx..).unwrap_or_default(),
       fb,
-      |local_fb| Self::begin_fb_bytes_mut(local_fb, payload_start_idx),
+      |local_fb| Ok(Self::begin_fb_bytes_mut(local_fb, payload_start_idx)),
       |local_fb, written| Self::expand_fb(&mut buffer_len, local_fb, payload_start_idx, written),
     )?;
     db.clear();
@@ -345,7 +346,7 @@ where
       .checked_add(rfi.payload_len)
       .map(|element| element.max(lease_as_slice(fb.buffer()).len()));
     let payload_len = Self::copy_from_pb(fb, pb, rfi, |local_pb, local_fb| {
-      local_pb._expand_buffer(local_pb._buffer().len().wrapping_add(4));
+      local_pb._expand_buffer(local_pb._buffer().len().wrapping_add(4))?;
       let curr_end_idx = local_pb._current().len();
       let curr_end_idx_4p = curr_end_idx.wrapping_add(4);
       let has_following = local_pb._has_following();
@@ -365,7 +366,7 @@ where
         let payload_len = nc.decompress(
           input,
           local_fb,
-          |local_local_fb| Self::begin_fb_bytes_mut(local_local_fb, payload_start_idx),
+          |local_local_fb| Ok(Self::begin_fb_bytes_mut(local_local_fb, payload_start_idx)),
           |local_local_fb, written| {
             Self::expand_fb(&mut buffer_len, local_local_fb, payload_start_idx, written)
           },
@@ -381,7 +382,7 @@ where
         nc.decompress(
           input,
           local_fb,
-          |local_local_fb| Self::begin_fb_bytes_mut(local_local_fb, payload_start_idx),
+          |local_local_fb| Ok(Self::begin_fb_bytes_mut(local_local_fb, payload_start_idx)),
           |local_local_fb, written| {
             Self::expand_fb(&mut buffer_len, local_local_fb, payload_start_idx, written)
           },
@@ -658,7 +659,7 @@ where
     stream: &mut S,
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
-    pb._expand_following(rfi.frame_len);
+    pb._expand_following(rfi.frame_len)?;
     for _ in 0..=rfi.frame_len {
       if *read >= rfi.frame_len {
         is_payload_filled = true;

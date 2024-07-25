@@ -5,7 +5,6 @@ use crate::{
   misc::{str_split1, ArrayString, ArrayVector},
 };
 use alloc::string::String;
-use core::array;
 use std::io::{BufRead, BufReader, Read};
 
 pub(crate) const EXPR_ARRAY_MAX_LEN: usize = 8;
@@ -30,10 +29,7 @@ where
   let mut br = BufReader::new(read);
   let mut is_in_array_context = None;
   let mut buffer = String::new();
-  let mut root_params = ArrayVector::new(
-    array::from_fn(|_| (IdentTy::default(), Expr::String(ExprStringTy::new()))),
-    0,
-  );
+  let mut root_params = ArrayVector::new();
 
   macro_rules! clear_and_continue {
     () => {
@@ -122,7 +118,7 @@ fn parse_and_push_toml_expr_string(
 
 #[inline]
 fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
-  let mut array = ArrayVector::default();
+  let mut array = ArrayVector::new();
   if s.is_empty() {
     return Ok(array);
   }
@@ -168,7 +164,7 @@ mod tests {
       (
         "foo".try_into().unwrap(),
         Expr::Array({
-          let mut elems = ArrayVector::default();
+          let mut elems = ArrayVector::new();
           elems.push("1".try_into().unwrap()).unwrap();
           elems.push("2".try_into().unwrap()).unwrap();
           elems
@@ -195,7 +191,7 @@ mod tests {
       (
         "foo".try_into().unwrap(),
         Expr::Array({
-          let mut elems = ArrayVector::default();
+          let mut elems = ArrayVector::new();
           elems.push("1".try_into().unwrap()).unwrap();
           elems.push("2".try_into().unwrap()).unwrap();
           elems.push("3".try_into().unwrap()).unwrap();

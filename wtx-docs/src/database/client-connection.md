@@ -7,24 +7,38 @@ Activation feature is called `postgres`.
 
 ![PostgreSQL Benchmark](https://i.imgur.com/vf2tYxY.jpg)
 
-```rust,edition2021
+```rust,edition2021,no_run
+extern crate tokio;
 extern crate wtx;
 
+use tokio::net::TcpStream;
 use wtx::{
-  database::{client::postgres::{Executor, ExecutorBuffer}, Executor as _, Record, Records},
-  misc::{LeaseMut, Stream},
+  database::{
+    client::postgres::{Config, Executor, ExecutorBuffer},
+    Executor as _, Record, Records,
+  },
+  misc::UriRef,
+  rng::StdRng,
 };
 
-async fn query_foo<S>(
-  executor: &mut Executor<wtx::Error, ExecutorBuffer, S>,
-) -> wtx::Result<(u32, String)>
-where
-  S: Stream
-{
-  let record = executor.fetch_with_stmt(
-    "SELECT bar,baz FROM foo WHERE bar = $1 AND baz = $2",
-    (1u32, "2")
-  ).await?;
-  Ok((record.decode("bar")?, record.decode("baz")?))
+#[tokio::main]
+async fn main() -> wtx::Result<()> {
+  let uri_ref = UriRef::new("postgres://USER:PASSWORD@localhost:5432/DB_NAME");
+  let mut rng = StdRng::default();
+  let mut exec = Executor::connect(
+    &Config::from_uri(&uri_ref)?,
+    ExecutorBuffer::with_default_params(&mut rng)?,
+    &mut rng,
+    TcpStream::connect(uri_ref.host()).await?,
+  )
+  .await?;
+  let records = exec
+    .fetch_many_with_stmt("SELECT id, name FROM users", (), |_| Ok::<_, wtx::Error>(()))
+    .await?;
+  for record in records.iter() {
+    println!("{}", record.decode::<_, u32>("id")?);
+    println!("{}", record.decode::<_, &str>("name")?);
+  }
+  Ok(())
 }
 ```

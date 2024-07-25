@@ -47,7 +47,7 @@ macro_rules! create_integration_tests {
           let mut rng = StaticRng::default();
           crate::database::client::postgres::Executor::connect(
             &config,
-            crate::database::client::postgres::ExecutorBuffer::with_default_params(&mut rng),
+            crate::database::client::postgres::ExecutorBuffer::with_default_params(&mut rng).unwrap(),
             &mut rng,
             stream,
           ).await.unwrap()

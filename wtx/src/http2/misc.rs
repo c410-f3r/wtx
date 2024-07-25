@@ -19,7 +19,7 @@ pub(crate) fn apply_initial_params<RRB>(
 ) -> crate::Result<()> {
   hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
   hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
-  hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()));
+  hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()))?;
   Ok(())
 }
 
@@ -153,7 +153,7 @@ where
     };
     _trace!("Received frame: {fi:?}");
     let mut is_fulfilled = false;
-    pfb._expand_following(*Usize::from(data_len));
+    pfb._expand_following(*Usize::from(data_len))?;
     for _ in 0..=data_len {
       if read >= frame_len {
         is_fulfilled = true;

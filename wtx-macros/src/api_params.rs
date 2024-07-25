@@ -8,7 +8,7 @@ use syn::{
   PathArguments, PathSegment,
 };
 
-pub(crate) fn api_types(
+pub(crate) fn api_params(
   attrs: proc_macro::TokenStream,
   token_stream: proc_macro::TokenStream,
 ) -> crate::Result<proc_macro::TokenStream> {
@@ -116,6 +116,20 @@ pub(crate) fn api_types(
 
   Ok(
     quote::quote!(
+      impl wtx::misc::Lease<#api_ident> for #api_ident {
+        #[inline]
+        fn lease(&self) -> &#api_ident {
+          self
+        }
+      }
+
+      impl wtx::misc::LeaseMut<#api_ident> for #api_ident {
+        #[inline]
+        fn lease_mut(&mut self) -> &mut #api_ident {
+          self
+        }
+      }
+
       #item
       #generic_pair_tt
       #generic_pkgs_aux_tt

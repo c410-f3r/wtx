@@ -204,3 +204,9 @@ where
     self.to_ref()
   }
 }
+
+/// Mutable version of [`ReqResData`].
+pub trait ReqResDataMut: ReqResData {
+  /// Mutable version of [`ReqResData::headers`].
+  fn headers_mut(&mut self) -> &mut Headers;
+}

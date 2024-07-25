@@ -9,11 +9,7 @@ where
   D: Database,
 {
   /// Performs the conversion.
-  fn encode(
-    &self,
-    fbw: &mut FilledBufferWriter<'_>,
-    value: &D::EncodeValue<'_>,
-  ) -> Result<(), D::Error>;
+  fn encode(&self, ev: &mut D::EncodeValue<'_, '_>) -> Result<(), D::Error>;
 
   /// In rust terms, is the element `Option::None`?
   #[inline]
@@ -27,21 +23,21 @@ where
   D: Database,
 {
   #[inline]
-  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: &D::EncodeValue<'_>) -> Result<(), D::Error> {
+  fn encode(&self, _: &mut D::EncodeValue<'_, '_>) -> Result<(), D::Error> {
     Ok(())
   }
 }
 
 impl Encode<()> for u32 {
   #[inline]
-  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: &()) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut FilledBufferWriter<'_>) -> Result<(), crate::Error> {
     Ok(())
   }
 }
 
 impl Encode<()> for &str {
   #[inline]
-  fn encode(&self, _: &mut FilledBufferWriter<'_>, _: &()) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut FilledBufferWriter<'_>) -> Result<(), crate::Error> {
     Ok(())
   }
 }
@@ -52,12 +48,13 @@ where
   T: Encode<D>,
 {
   #[inline]
-  fn encode(
-    &self,
-    fbw: &mut FilledBufferWriter<'_>,
-    value: &D::EncodeValue<'_>,
-  ) -> Result<(), D::Error> {
-    (**self).encode(fbw, value)
+  fn encode(&self, ev: &mut D::EncodeValue<'_, '_>) -> Result<(), D::Error> {
+    (**self).encode(ev)
+  }
+
+  #[inline]
+  fn is_null(&self) -> bool {
+    (**self).is_null()
   }
 }
 
@@ -68,14 +65,18 @@ where
   R: Encode<D>,
 {
   #[inline]
-  fn encode(
-    &self,
-    fbw: &mut FilledBufferWriter<'_>,
-    value: &D::EncodeValue<'_>,
-  ) -> Result<(), D::Error> {
+  fn encode(&self, ev: &mut D::EncodeValue<'_, '_>) -> Result<(), D::Error> {
     match self {
-      Self::Left(left) => left.encode(fbw, value),
-      Self::Right(right) => right.encode(fbw, value),
+      Self::Left(left) => left.encode(ev),
+      Self::Right(right) => right.encode(ev),
+    }
+  }
+
+  #[inline]
+  fn is_null(&self) -> bool {
+    match self {
+      Self::Left(left) => left.is_null(),
+      Self::Right(right) => right.is_null(),
     }
   }
 }
@@ -85,12 +86,13 @@ where
   D: Database,
 {
   #[inline]
-  fn encode(
-    &self,
-    fbw: &mut FilledBufferWriter<'_>,
-    value: &D::EncodeValue<'_>,
-  ) -> Result<(), D::Error> {
-    (**self).encode(fbw, value)
+  fn encode(&self, ev: &mut D::EncodeValue<'_, '_>) -> Result<(), D::Error> {
+    (**self).encode(ev)
+  }
+
+  #[inline]
+  fn is_null(&self) -> bool {
+    (**self).is_null()
   }
 }
 
@@ -100,14 +102,10 @@ where
   T: Encode<D>,
 {
   #[inline]
-  fn encode(
-    &self,
-    fbw: &mut FilledBufferWriter<'_>,
-    value: &D::EncodeValue<'_>,
-  ) -> Result<(), D::Error> {
+  fn encode(&self, ev: &mut D::EncodeValue<'_, '_>) -> Result<(), D::Error> {
     match self {
       None => Ok(()),
-      Some(elem) => elem.encode(fbw, value),
+      Some(elem) => elem.encode(ev),
     }
   }
 

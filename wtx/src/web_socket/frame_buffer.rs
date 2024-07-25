@@ -2,7 +2,6 @@ use crate::{
   misc::{Lease, LeaseMut, SingleTypeStorage, Vector, VectorError, _unreachable},
   web_socket::{WebSocketError, DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
 };
-use core::array;
 
 /// Composed by an array with the maximum allowed size of a frame control.
 pub type FrameBufferControlArray = FrameBuffer<[u8; MAX_CONTROL_FRAME_LEN]>;
@@ -202,7 +201,7 @@ impl Default for FrameBufferControlArray {
       header_begin_idx: 0,
       header_end_idx: 0,
       payload_end_idx: 0,
-      buffer: array::from_fn(|_| 0),
+      buffer: [0; MAX_CONTROL_FRAME_LEN],
     }
   }
 }

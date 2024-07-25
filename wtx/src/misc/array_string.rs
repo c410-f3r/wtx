@@ -1,4 +1,4 @@
-use crate::misc::{char_slice, Lease, Usize};
+use crate::misc::{char_slice, from_utf8_basic, BasicUtf8Error, Lease, Usize};
 use core::{
   cmp::Ordering,
   fmt::{self, Arguments, Debug, Display, Formatter, Write},
@@ -29,10 +29,17 @@ pub struct ArrayString<const N: usize> {
 impl<const N: usize> ArrayString<N> {
   /// Constructs a new, empty instance.
   #[inline]
+  pub fn from_parts(data: [u8; N], len: u32) -> Result<Self, BasicUtf8Error> {
+    Self::instance_check();
+    let n = Self::instance_u32();
+    let _ = from_utf8_basic(&data)?;
+    Ok(Self { len: if len > n { n } else { len }, data })
+  }
+
+  /// Constructs a new, empty instance.
+  #[inline]
   pub const fn new() -> Self {
-    const {
-      assert!(N <= Usize::from_u32(u32::MAX).into_usize());
-    }
+    Self::instance_check();
     Self { len: 0, data: [0; N] }
   }
 
@@ -45,10 +52,7 @@ impl<const N: usize> ArrayString<N> {
   /// The number of elements that can be stored.
   #[inline]
   pub fn capacity(&self) -> u32 {
-    const {
-      let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
-      u32::from_be_bytes([a, b, c, d])
-    }
+    Self::instance_u32()
   }
 
   /// Clears the vector, removing all values.
@@ -100,6 +104,21 @@ impl<const N: usize> ArrayString<N> {
   #[inline]
   pub fn truncate(&mut self, len: u32) {
     self.len = len.min(self.capacity());
+  }
+
+  #[inline]
+  const fn instance_check() {
+    const {
+      assert!(N <= Usize::from_u32(u32::MAX).into_usize());
+    }
+  }
+
+  #[inline]
+  const fn instance_u32() -> u32 {
+    const {
+      let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
+      u32::from_be_bytes([a, b, c, d])
+    }
   }
 
   #[inline]
@@ -255,10 +274,7 @@ mod arbitrary {
   impl<'any, const N: usize> Arbitrary<'any> for ArrayString<N> {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'any>) -> arbitrary::Result<Self> {
-      let mut len = const {
-        let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
-        u32::from_be_bytes([a, b, c, d])
-      };
+      let mut len = Self::instance_u32();
       len = u32::arbitrary(u)?.min(len);
       let mut data = [0; N];
       for elem in data.iter_mut().take(*Usize::from(len)) {

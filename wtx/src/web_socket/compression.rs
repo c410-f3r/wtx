@@ -8,7 +8,10 @@ mod window_bits;
 
 #[cfg(feature = "flate2")]
 pub use self::flate2::{Flate2, NegotiatedFlate2};
-use crate::{http::GenericHeader, misc::FilledBufferWriter};
+use crate::{
+  http::GenericHeader,
+  misc::{FilledBufferWriter, VectorError},
+};
 pub use compression_level::CompressionLevel;
 pub use deflate_config::DeflateConfig;
 pub use window_bits::WindowBits;
@@ -26,7 +29,7 @@ pub trait Compression<const IS_CLIENT: bool> {
   ) -> crate::Result<Self::NegotiatedCompression>;
 
   /// Writes headers bytes that will be sent to the server.
-  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>);
+  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError>;
 }
 
 impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
@@ -41,7 +44,9 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
   }
 
   #[inline]
-  fn write_req_headers(&self, _: &mut FilledBufferWriter<'_>) {}
+  fn write_req_headers(&self, _: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+    Ok(())
+  }
 }
 
 /// Final compression parameters defined after a handshake.
@@ -51,8 +56,8 @@ pub trait NegotiatedCompression {
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
   ) -> crate::Result<usize>;
 
   /// Decompress
@@ -60,7 +65,7 @@ pub trait NegotiatedCompression {
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize>;
 
@@ -68,7 +73,7 @@ pub trait NegotiatedCompression {
   fn rsv1(&self) -> u8;
 
   /// Write response headers
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>);
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError>;
 }
 
 impl<T> NegotiatedCompression for &mut T
@@ -80,8 +85,8 @@ where
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
   ) -> crate::Result<usize> {
     (**self).compress(input, output, begin_cb, rem_cb)
   }
@@ -91,7 +96,7 @@ where
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     (**self).decompress(input, output, begin_cb, rem_cb)
@@ -103,8 +108,8 @@ where
   }
 
   #[inline]
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
-    (**self).write_res_headers(fbw);
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+    (**self).write_res_headers(fbw)
   }
 }
 
@@ -114,8 +119,8 @@ impl NegotiatedCompression for () {
     &mut self,
     _: &[u8],
     _: &mut O,
-    _: impl FnMut(&mut O) -> &mut [u8],
-    _: impl FnMut(&mut O, usize) -> &mut [u8],
+    _: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    _: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
   ) -> crate::Result<usize> {
     Ok(0)
   }
@@ -125,7 +130,7 @@ impl NegotiatedCompression for () {
     &mut self,
     _: &[u8],
     _: &mut O,
-    _: impl FnMut(&mut O) -> &mut [u8],
+    _: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
     _: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     Ok(0)
@@ -137,7 +142,9 @@ impl NegotiatedCompression for () {
   }
 
   #[inline]
-  fn write_res_headers(&self, _: &mut FilledBufferWriter<'_>) {}
+  fn write_res_headers(&self, _: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+    Ok(())
+  }
 }
 
 impl<T> NegotiatedCompression for Option<T>
@@ -149,8 +156,8 @@ where
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
   ) -> crate::Result<usize> {
     match self {
       Some(el) => el.compress(input, output, begin_cb, rem_cb),
@@ -163,7 +170,7 @@ where
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     match self {
@@ -181,7 +188,7 @@ where
   }
 
   #[inline]
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
     match self {
       Some(el) => el.write_res_headers(fbw),
       None => ().write_res_headers(fbw),

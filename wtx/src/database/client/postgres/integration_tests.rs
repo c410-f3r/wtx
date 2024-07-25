@@ -1,11 +1,12 @@
 use crate::{
   database::{
     client::postgres::{
-      Config, DecodeValue, Executor, ExecutorBuffer, Postgres, PostgresError, Ty,
+      Config, DecodeValue, EncodeValue, Executor, ExecutorBuffer, Postgres, PostgresError,
+      StructDecoder, StructEncoder, Ty,
     },
     Decode, Encode, Executor as _, Record, Records as _,
   },
-  misc::{FilledBufferWriter, UriRef},
+  misc::UriRef,
   rng::StaticRng,
 };
 use alloc::string::String;
@@ -20,7 +21,7 @@ async fn conn_scram_tls() {
   let mut rng = StaticRng::default();
   let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::with_default_params(&mut rng),
+    ExecutorBuffer::with_default_params(&mut rng).unwrap(),
     TcpStream::connect(uri.host()).await.unwrap(),
     &mut rng,
     |stream| async {
@@ -39,7 +40,57 @@ async fn conn_scram_tls() {
 }
 
 #[tokio::test]
+async fn custom_composite_type() {
+  #[derive(Debug, PartialEq)]
+  struct CustomCompositeType(u32, String);
+
+  impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
+    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
+      let mut sd = StructDecoder::<crate::Error>::new(input);
+      Ok(Self(sd.decode()?, sd.decode()?))
+    }
+  }
+
+  impl Encode<Postgres<crate::Error>> for CustomCompositeType {
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
+      let _ev = StructEncoder::<crate::Error>::new(ev)?
+        .encode(self.0)?
+        .encode_with_ty(&self.1, Ty::Varchar)?;
+      Ok(())
+    }
+  }
+
+  let mut exec = executor::<crate::Error>().await;
+  exec
+    .execute(
+      "
+        DROP TYPE IF EXISTS custom_composite_type CASCADE;
+        DROP TABLE IF EXISTS custom_composite_table;
+        CREATE TYPE custom_composite_type AS (int_value INT, varchar_value VARCHAR);
+        CREATE TABLE custom_composite_table (id INT, type custom_composite_type);
+      ",
+      |_| {},
+    )
+    .await
+    .unwrap();
+  let _ = exec
+    .execute_with_stmt(
+      "INSERT INTO custom_composite_table VALUES ($1, $2::custom_composite_type)",
+      (1, CustomCompositeType(2, String::from("34"))),
+    )
+    .await
+    .unwrap();
+  let record = exec.fetch_with_stmt("SELECT * FROM custom_composite_table", ()).await.unwrap();
+  assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
+  assert_eq!(
+    record.decode::<_, CustomCompositeType>(1).unwrap(),
+    CustomCompositeType(2, String::from("34"))
+  );
+}
+
+#[tokio::test]
 async fn custom_domain() {
+  #[derive(Debug, PartialEq)]
   struct CustomDomain(String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomDomain {
@@ -49,8 +100,8 @@ async fn custom_domain() {
   }
 
   impl Encode<Postgres<crate::Error>> for CustomDomain {
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, value: &Ty) -> Result<(), crate::Error> {
-      <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, fbw, value)?;
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
+      <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, ev)?;
       Ok(())
     }
   }
@@ -58,14 +109,14 @@ async fn custom_domain() {
   let mut exec = executor::<crate::Error>().await;
   exec
     .execute(
-      "DROP TYPE IF EXISTS custom_domain CASCADE; DROP TABLE IF EXISTS custom_domain_table",
+      "
+        DROP TYPE IF EXISTS custom_domain CASCADE;
+        DROP TABLE IF EXISTS custom_domain_table;
+        CREATE DOMAIN custom_domain AS VARCHAR(64);
+        CREATE TABLE custom_domain_table (id INT, domain custom_domain);
+      ",
       |_| {},
     )
-    .await
-    .unwrap();
-  exec.execute("CREATE DOMAIN custom_domain AS VARCHAR(64)", |_| {}).await.unwrap();
-  exec
-    .execute("CREATE TABLE custom_domain_table (id INT, domain custom_domain)", |_| {})
     .await
     .unwrap();
   let _ = exec
@@ -77,7 +128,7 @@ async fn custom_domain() {
     .unwrap();
   let record = exec.fetch_with_stmt("SELECT * FROM custom_domain_table;", ()).await.unwrap();
   assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
-  assert_eq!(record.decode::<_, CustomDomain>(1).unwrap().0, CustomDomain("23".into()).0);
+  assert_eq!(record.decode::<_, CustomDomain>(1).unwrap(), CustomDomain(String::from("23")));
 }
 
 #[tokio::test]
@@ -101,13 +152,13 @@ async fn custom_enum() {
   }
 
   impl Encode<Postgres<crate::Error>> for Enum {
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, value: &Ty) -> Result<(), crate::Error> {
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
       let s = match self {
         Enum::Foo => "foo",
         Enum::Bar => "bar",
         Enum::Baz => "baz",
       };
-      <_ as Encode<Postgres<crate::Error>>>::encode(&s, fbw, value)?;
+      <_ as Encode<Postgres<crate::Error>>>::encode(&s, ev)?;
       Ok(())
     }
   }
@@ -115,14 +166,14 @@ async fn custom_enum() {
   let mut exec = executor::<crate::Error>().await;
   exec
     .execute(
-      "DROP TYPE IF EXISTS custom_enum CASCADE; DROP TABLE IF EXISTS custom_enum_table",
+      "
+        DROP TYPE IF EXISTS custom_enum CASCADE;
+        DROP TABLE IF EXISTS custom_enum_table;
+        CREATE TYPE custom_enum AS ENUM ('foo', 'bar', 'baz');
+        CREATE TABLE custom_enum_table (id INT, domain custom_enum);
+      ",
       |_| {},
     )
-    .await
-    .unwrap();
-  exec.execute("CREATE TYPE custom_enum AS ENUM ('foo', 'bar', 'baz');", |_| {}).await.unwrap();
-  exec
-    .execute("CREATE TABLE custom_enum_table (id INT, domain custom_enum)", |_| {})
     .await
     .unwrap();
   let _ = exec
@@ -363,7 +414,7 @@ async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {
   let mut rng = StaticRng::default();
   Executor::connect(
     &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::with_default_params(&mut rng),
+    ExecutorBuffer::with_default_params(&mut rng).unwrap(),
     &mut rng,
     TcpStream::connect(uri.host()).await.unwrap(),
   )

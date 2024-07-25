@@ -8,12 +8,11 @@ use crate::{
     Identifier,
   },
   misc::{
-    bytes_split1, from_utf8_basic, ArrayVector, FilledBufferWriter, LeaseMut,
-    PartitionedFilledBuffer, Stream,
+    bytes_split1, from_utf8_basic, ArrayVector, ConnectionState, FilledBufferWriter, LeaseMut,
+    PartitionedFilledBuffer, Stream, Vector,
   },
   rng::Rng,
 };
-use alloc::vec::Vec;
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -25,8 +24,8 @@ where
 {
   /// Ascending sequence of extra parameters received from the database.
   #[inline]
-  pub fn params(&self) -> &[(Identifier, Identifier)] {
-    &self.eb.lease().params
+  pub fn conn_params(&self) -> &[(Identifier, Identifier)] {
+    &self.eb.lease().conn_params
   }
 
   pub(crate) async fn manage_authentication<RNG>(
@@ -39,7 +38,7 @@ where
     RNG: Rng,
   {
     let ExecutorBufferPartsMut { nb, .. } = self.eb.lease_mut().parts_mut();
-    let msg0 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
+    let msg0 = Self::fetch_msg_from_stream(&mut self.cs, nb, &mut self.stream).await?;
     match msg0.ty {
       MessageTy::Authentication(Authentication::Ok) => {
         return Ok(());
@@ -92,7 +91,7 @@ where
         };
         Self::sasl_authenticate(
           config,
-          &mut self.is_closed,
+          &mut self.cs,
           (method_bytes, method_header),
           nb,
           rng,
@@ -105,7 +104,7 @@ where
         return Err(PostgresError::UnexpectedDatabaseMessage { received: msg0.tag }.into());
       }
     }
-    let msg1 = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
+    let msg1 = Self::fetch_msg_from_stream(&mut self.cs, nb, &mut self.stream).await?;
     if let MessageTy::Authentication(Authentication::Ok) = msg1.ty {
       Ok(())
     } else {
@@ -114,17 +113,17 @@ where
   }
 
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
-    self.eb.lease_mut().nb._expand_buffer(2048);
+    self.eb.lease_mut().nb._expand_buffer(2048)?;
     loop {
-      let ExecutorBufferPartsMut { nb, params, .. } = self.eb.lease_mut().parts_mut();
-      let msg = Self::fetch_msg_from_stream(&mut self.is_closed, nb, &mut self.stream).await?;
+      let ExecutorBufferPartsMut { conn_params, nb, .. } = self.eb.lease_mut().parts_mut();
+      let msg = Self::fetch_msg_from_stream(&mut self.cs, nb, &mut self.stream).await?;
       match msg.ty {
         MessageTy::BackendKeyData => {}
         MessageTy::ParameterStatus(name, value) => {
-          params.insert(
-            params.partition_point(|(local_name, _)| local_name.as_bytes() < name),
+          conn_params.insert(
+            conn_params.partition_point(|(local_name, _)| local_name.as_bytes() < name),
             (from_utf8_basic(name)?.try_into()?, from_utf8_basic(value)?.try_into()?),
-          );
+          )?;
         }
         MessageTy::ReadyForQuery => return Ok(()),
         _ => {
@@ -138,7 +137,7 @@ where
   // it is fine to use an empty slice.
   async fn sasl_authenticate<RNG>(
     config: &Config<'_>,
-    is_closed: &mut bool,
+    cs: &mut ConnectionState,
     (method_bytes, method_header): (&[u8], &[u8]),
     nb: &mut PartitionedFilledBuffer,
     rng: &mut RNG,
@@ -150,7 +149,7 @@ where
   {
     let tsep_data = tls_server_end_point.unwrap_or_default();
     let local_nonce = nonce(rng);
-    nb._expand_buffer(2048);
+    nb._expand_buffer(2048)?;
     {
       let mut fbw = FilledBufferWriter::from(&mut *nb);
       sasl_first(&mut fbw, (method_bytes, method_header), &local_nonce)?;
@@ -158,7 +157,7 @@ where
     }
 
     let (mut auth_data, response_nonce, salted_password) = {
-      let msg = Self::fetch_msg_from_stream(is_closed, &mut *nb, stream).await?;
+      let msg = Self::fetch_msg_from_stream(cs, &mut *nb, stream).await?;
       let MessageTy::Authentication(Authentication::SaslContinue {
         iterations,
         nonce,
@@ -172,14 +171,11 @@ where
       let n = BASE64_STANDARD.decode_slice(salt, &mut decoded_salt)?;
       (
         {
-          let mut vec = Vec::with_capacity(64);
-          vec.extend(b"n=,r=");
-          vec.extend(local_nonce);
-          vec.push(b',');
-          vec.extend(payload);
+          let mut vec = Vector::with_capacity(64)?;
+          vec.extend_from_slices(&[&b"n=,r="[..], &local_nonce, &b","[..], payload])?;
           vec
         },
-        ArrayVector::<u8, 68>::try_from(nonce)?,
+        ArrayVector::<u8, 68>::from_copyable_slice(nonce)?,
         salted_password(iterations, decoded_salt.get(..n).unwrap_or_default(), config.password)?,
       )
     };
@@ -198,7 +194,7 @@ where
     }
 
     {
-      let msg = Self::fetch_msg_from_stream(is_closed, &mut *nb, stream).await?;
+      let msg = Self::fetch_msg_from_stream(cs, &mut *nb, stream).await?;
       let MessageTy::Authentication(Authentication::SaslFinal(verifier_slice)) = msg.ty else {
         return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into());
       };

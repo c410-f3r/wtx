@@ -3,9 +3,8 @@ use crate::{
     client::postgres::{statements::Statement, DecodeValue, Postgres, PostgresError},
     Database, ValueIdent,
   },
-  misc::{_unlikely_dflt, _unlikely_elem},
+  misc::{Vector, _unlikely_dflt, _unlikely_elem},
 };
-use alloc::vec::Vec;
 use core::{marker::PhantomData, ops::Range};
 
 /// Record
@@ -23,7 +22,7 @@ impl<'exec, E> Record<'exec, E> {
     mut bytes: &'exec [u8],
     bytes_range: Range<usize>,
     stmt: Statement<'exec>,
-    values_bytes_offsets: &'exec mut Vec<(bool, Range<usize>)>,
+    values_bytes_offsets: &'exec mut Vector<(bool, Range<usize>)>,
     values_len: u16,
   ) -> crate::Result<Self> {
     let values_bytes_offsets_start = values_bytes_offsets.len();
@@ -35,7 +34,7 @@ impl<'exec, E> Record<'exec, E> {
         -1 => (true, begin),
         _ => (false, begin.wrapping_add(usize::try_from(n)?)),
       };
-      values_bytes_offsets.push((is_null, begin..end));
+      values_bytes_offsets.push((is_null, begin..end))?;
       *curr_value_offset = end;
       crate::Result::Ok(())
     };
@@ -163,22 +162,24 @@ mod array {
 
 #[cfg(test)]
 mod tests {
-  use crate::database::{
-    client::postgres::{
-      statements::Statement,
-      tests::{column0, column1, column2},
-      DecodeValue, Record,
+  use crate::{
+    database::{
+      client::postgres::{
+        statements::Statement,
+        tests::{column0, column1, column2},
+        DecodeValue, Record,
+      },
+      Record as _,
     },
-    Record as _,
+    misc::Vector,
   };
-  use alloc::vec;
   use core::marker::PhantomData;
 
   #[test]
   fn returns_correct_values() {
     let bytes = &[0, 0, 0, 1, 1, 0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 4];
     let columns = &[column0(), column1(), column2()];
-    let mut values_bytes_offsets = vec![];
+    let mut values_bytes_offsets = Vector::new();
     let stmt = Statement::new(columns, &[]);
     let record = Record::<crate::Error>::parse(
       bytes,

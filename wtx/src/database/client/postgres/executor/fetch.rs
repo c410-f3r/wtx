@@ -2,13 +2,12 @@ use crate::{
   database::{
     client::postgres::{
       executor::commons::FetchWithStmtCommons, message::Message, statements::Statement, Executor,
-      ExecutorBuffer, MessageTy, Postgres, PostgresError, Record, Statements,
+      ExecutorBuffer, MessageTy, Postgres, PostgresError, Record,
     },
-    RecordValues, StmtCmd,
+    RecordValues,
   },
-  misc::{LeaseMut, PartitionedFilledBuffer, Stream, _read_until},
+  misc::{ConnectionState, LeaseMut, PartitionedFilledBuffer, Stream, Vector, _read_until},
 };
-use alloc::vec::Vec;
 use core::ops::Range;
 
 impl<E, EB, S> Executor<E, EB, S>
@@ -16,30 +15,13 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn write_send_await_fetch_with_stmt<'any, SC, RV>(
-    fwsc: &mut FetchWithStmtCommons<'_, S>,
-    nb: &'any mut PartitionedFilledBuffer,
-    rv: RV,
-    sc: SC,
-    stmts: &'any mut Statements,
-    vb: &'any mut Vec<(bool, Range<usize>)>,
-  ) -> Result<Record<'any, E>, E>
-  where
-    E: From<crate::Error>,
-    RV: RecordValues<Postgres<E>>,
-    SC: StmtCmd,
-  {
-    let (_, stmt_id_str, stmt) = Self::write_send_await_stmt_prot(fwsc, nb, sc, stmts, vb).await?;
-    Self::write_send_await_fetch_with_stmt_wo_prot(fwsc, nb, rv, stmt, &stmt_id_str, vb).await
-  }
-
   pub(crate) async fn write_send_await_fetch_with_stmt_wo_prot<'any, RV>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
     nb: &'any mut PartitionedFilledBuffer,
     rv: RV,
     stmt: Statement<'any>,
     stmt_id_str: &str,
-    vb: &'any mut Vec<(bool, Range<usize>)>,
+    vb: &'any mut Vector<(bool, Range<usize>)>,
   ) -> Result<Record<'any, E>, E>
   where
     E: From<crate::Error>,
@@ -48,7 +30,7 @@ where
     Self::write_send_await_stmt_initial(fwsc, nb, rv, &stmt, stmt_id_str).await?;
     let mut data_row_msg_range = None;
     loop {
-      let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+      let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
       match msg.ty {
         MessageTy::DataRow(len) => {
           data_row_msg_range = Some((len, nb._current_range()));
@@ -73,12 +55,12 @@ where
   }
 
   pub(crate) async fn fetch_msg_from_stream<'nb>(
-    is_closed: &mut bool,
+    cs: &mut ConnectionState,
     nb: &'nb mut PartitionedFilledBuffer,
     stream: &mut S,
   ) -> crate::Result<Message<'nb>> {
     let tag = Self::fetch_representative_msg_from_stream(nb, stream).await?;
-    Ok(Message { tag, ty: MessageTy::try_from((is_closed, nb._current()))? })
+    Ok(Message { tag, ty: MessageTy::try_from((cs, nb._current()))? })
   }
 
   async fn fetch_one_header_from_stream(
@@ -111,7 +93,7 @@ where
     stream: &mut S,
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
-    nb._expand_following(len);
+    nb._expand_following(len)?;
     for _ in 0..=len {
       if *read >= len {
         is_payload_filled = true;

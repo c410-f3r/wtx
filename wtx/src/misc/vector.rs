@@ -1,4 +1,4 @@
-use crate::misc::{Lease, LeaseMut};
+use crate::misc::{Lease, LeaseMut, _unlikely_elem};
 use alloc::vec::Vec;
 use core::{
   fmt::{Debug, Formatter},
@@ -15,6 +15,8 @@ pub enum VectorError {
   ExtendFromSliceOverflow,
   #[doc = doc_many_elems_cap_overflow!()]
   ExtendFromSlicesOverflow,
+  /// The index provided in the `insert` method is out of bounds.
+  OutOfBoundsInsertIdx,
   #[doc = doc_single_elem_cap_overflow!()]
   PushOverflow,
   #[doc = doc_reserve_overflow!()]
@@ -37,6 +39,18 @@ impl<D> Vector<D> {
       assert!(!needs_drop::<D>());
     }
     Self { data: Vec::new() }
+  }
+
+  /// Constructs a new instance with elements provided by `iter`.
+  #[expect(clippy::should_implement_trait, reason = "Std trait is infallible")]
+  #[inline]
+  pub fn from_iter(iter: impl IntoIterator<Item = D>) -> Result<Self, VectorError> {
+    const {
+      assert!(!needs_drop::<D>());
+    }
+    let mut this = Self::new();
+    this.extend_from_iter(iter)?;
+    Ok(this)
   }
 
   /// Constructs a new instance based on an arbitrary [Vec].
@@ -100,10 +114,37 @@ impl<D> Vector<D> {
     Ok(())
   }
 
-  /// Consumes itself to return [Vec].
+  /// Constructs a new instance with elements provided by `iter`.
   #[inline]
-  pub fn into_vec(self) -> Vec<D> {
-    self.data
+  pub fn insert(&mut self, idx: usize, elem: D) -> Result<(), VectorError> {
+    let len = self.len();
+    if idx > len {
+      return _unlikely_elem(Err(VectorError::OutOfBoundsInsertIdx));
+    }
+    self.reserve(1)?;
+    // SAFETY: Top-level check ensures bounds
+    let ptr = unsafe { self.as_mut_ptr().add(idx) };
+    if idx < len {
+      // SAFETY: Top-level check ensures bounds
+      let diff = unsafe { len.unchecked_sub(idx) };
+      // SAFETY: `reserve` allocated one more element
+      let dst = unsafe { ptr.add(1) };
+      // SAFETY: Up to the other elements
+      unsafe {
+        ptr::copy(ptr, dst, diff);
+      }
+    }
+    // SAFETY: Write it in, overwriting the first copy of the `index`th element
+    unsafe {
+      ptr::write(ptr, elem);
+    }
+    // SAFETY: top-level check ensures bounds
+    let new_len = unsafe { len.unchecked_add(1) };
+    // SAFETY: `reserve` already handled memory capacity
+    unsafe {
+      self.set_len(new_len);
+    }
+    Ok(())
   }
 
   /// Removes the last element from a vector and returns it, or [None] if it is empty.
@@ -367,6 +408,20 @@ impl<D> DerefMut for Vector<D> {
   }
 }
 
+impl<D> From<Vec<D>> for Vector<D> {
+  #[inline]
+  fn from(from: Vec<D>) -> Self {
+    Vector::from_vec(from)
+  }
+}
+
+impl<D> From<Vector<D>> for Vec<D> {
+  #[inline]
+  fn from(from: Vector<D>) -> Self {
+    from.data
+  }
+}
+
 #[cfg(feature = "std")]
 impl std::io::Write for Vector<u8> {
   #[inline]
@@ -543,5 +598,31 @@ mod bench {
       push_batch!(|elem| vec.push(elem));
       push_batch!(|elem| vec.push(elem));
     });
+  }
+}
+
+#[cfg(feature = "_proptest")]
+#[cfg(test)]
+mod proptest {
+  use crate::misc::Vector;
+  use alloc::vec::Vec;
+
+  #[test_strategy::proptest]
+  fn insert(elem: u8, idx: usize, mut vec: Vec<u8>) {
+    let mut vector = Vector::from_vec(vec.clone());
+    if idx > vec.len() {
+      return Ok(());
+    }
+    vec.insert(idx, elem);
+    vector.insert(idx, elem).unwrap();
+    assert_eq!(vec.as_slice(), vector.as_slice());
+  }
+
+  #[test_strategy::proptest]
+  fn push(elem: u8, mut vec: Vec<u8>) {
+    let mut vector = Vector::from_vec(vec.clone());
+    vec.push(elem);
+    vector.push(elem).unwrap();
+    assert_eq!(vec.as_slice(), vector.as_slice());
   }
 }

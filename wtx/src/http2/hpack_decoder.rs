@@ -26,7 +26,7 @@ impl HpackDecoder {
   pub(crate) fn new() -> Self {
     Self {
       dyn_headers: AbstractHeaders::new(0),
-      header_buffers: Box::new((ArrayVector::default(), ArrayVector::default())),
+      header_buffers: Box::new((ArrayVector::new(), ArrayVector::new())),
       max_bytes: (0, None),
     }
   }
@@ -135,7 +135,7 @@ impl HpackDecoder {
       let name = if static_name.is_empty() {
         elem_cb((new_hhb, dyn_name, value))?;
         self.header_buffers.0.clear();
-        self.header_buffers.0.extend_from_slice(dyn_name)?;
+        self.header_buffers.0.extend_from_copyable_slice(dyn_name)?;
         self.header_buffers.0.get_mut(..dyn_name.len()).unwrap_or_default()
       } else {
         elem_cb((new_hhb, static_name, value))?;
