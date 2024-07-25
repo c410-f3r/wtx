@@ -1,9 +1,12 @@
-use crate::database::client::postgres::Ty;
-use alloc::vec::Vec;
+use crate::{
+  database::client::postgres::Ty,
+  misc::{ConnectionState, Vector},
+};
 
 pub(crate) struct FetchWithStmtCommons<'others, S> {
-  pub(crate) is_closed: &'others mut bool,
-  pub(crate) rb: &'others mut Vec<usize>,
+  pub(crate) cs: &'others mut ConnectionState,
+  pub(crate) rb: &'others mut Vector<usize>,
   pub(crate) stream: &'others mut S,
+  /// Pre-specified types
   pub(crate) tys: &'others [Ty],
 }

@@ -125,7 +125,7 @@ pub(crate) mod database {
 
     #[inline]
     async fn is_invalid(&self, resource: &Self::Resource) -> bool {
-      resource.1.is_closed
+      resource.1.cs.is_closed()
     }
 
     #[inline]

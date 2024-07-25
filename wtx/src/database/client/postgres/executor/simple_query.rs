@@ -22,12 +22,8 @@ where
     query(cmd.as_bytes(), &mut fbw)?;
     self.stream.write_all(fbw._curr_bytes()).await?;
     loop {
-      let msg = Self::fetch_msg_from_stream(
-        &mut self.is_closed,
-        &mut self.eb.lease_mut().nb,
-        &mut self.stream,
-      )
-      .await?;
+      let nb = &mut self.eb.lease_mut().nb;
+      let msg = Self::fetch_msg_from_stream(&mut self.cs, nb, &mut self.stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(n) => cb(n),
         MessageTy::EmptyQueryResponse => {

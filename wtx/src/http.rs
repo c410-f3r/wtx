@@ -34,7 +34,7 @@ pub use method::Method;
 pub use mime::Mime;
 pub use protocol::Protocol;
 pub use req_res_buffer::ReqResBuffer;
-pub use req_res_data::ReqResData;
+pub use req_res_data::{ReqResData, ReqResDataMut};
 pub use req_uri::ReqUri;
 pub use request::Request;
 pub use response::Response;

@@ -44,6 +44,6 @@ pub struct HeadersBuffer<H, const N: usize> {
 impl<const N: usize> Default for HeadersBuffer<httparse::Header<'_>, N> {
   #[inline]
   fn default() -> Self {
-    Self { _headers: core::array::from_fn(|_| httparse::EMPTY_HEADER) }
+    Self { _headers: [httparse::EMPTY_HEADER; N] }
   }
 }

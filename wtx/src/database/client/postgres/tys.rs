@@ -4,12 +4,15 @@ macro_rules! proptest {
     #[cfg(test)]
     #[test_strategy::proptest]
     fn $name(instance: $ty) {
-      let mut vec = &mut alloc::vec::Vec::new();
-      let mut fbw = FilledBufferWriter::new(0, &mut vec);
-      Encode::<Postgres<crate::Error>>::encode(&instance, &mut fbw, &Ty::Any).unwrap();
-      let decoded: $ty =
-        Decode::<Postgres<crate::Error>>::decode(&DecodeValue::new(fbw._curr_bytes(), &Ty::Any))
-          .unwrap();
+      let mut vec = &mut crate::misc::Vector::new();
+      let mut fbw = crate::misc::FilledBufferWriter::new(0, &mut vec);
+      let mut ev = EncodeValue::new(&mut fbw);
+      Encode::<Postgres<crate::Error>>::encode(&instance, &mut ev).unwrap();
+      let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&DecodeValue::new(
+        ev.fbw()._curr_bytes(),
+        &crate::database::client::postgres::Ty::Any,
+      ))
+      .unwrap();
       assert_eq!(instance, decoded);
       vec.clear();
     }
@@ -21,17 +24,13 @@ macro_rules! test {
     #[cfg(test)]
     #[test]
     fn $name() {
-      let mut vec = &mut alloc::vec::Vec::new();
-      let mut fbw = FilledBufferWriter::new(0, &mut vec);
+      let mut vec = &mut crate::misc::Vector::new();
+      let mut fbw = crate::misc::FilledBufferWriter::new(0, &mut vec);
+      let mut ev = EncodeValue::new(&mut fbw);
       let instance: $ty = $instance;
-      Encode::<Postgres<crate::Error>>::encode(
-        &instance,
-        &mut fbw,
-        &crate::database::client::postgres::Ty::Any,
-      )
-      .unwrap();
+      Encode::<Postgres<crate::Error>>::encode(&instance, &mut ev).unwrap();
       let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&DecodeValue::new(
-        fbw._curr_bytes(),
+        ev.fbw()._curr_bytes(),
         &crate::database::client::postgres::Ty::Any,
       ))
       .unwrap();
@@ -43,10 +42,10 @@ macro_rules! test {
 mod array {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, Postgres, Ty},
-      Decode, Encode,
+      client::postgres::{DecodeValue, EncodeValue, Postgres, Ty},
+      Decode, Encode, Typed,
     },
-    misc::{from_utf8_basic, ArrayString, FilledBufferWriter},
+    misc::{from_utf8_basic, ArrayString},
   };
 
   impl<E, const N: usize> Decode<'_, Postgres<E>> for ArrayString<N>
@@ -58,16 +57,21 @@ mod array {
       Ok(from_utf8_basic(input.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
     }
   }
-
   impl<E, const N: usize> Encode<Postgres<E>> for ArrayString<N>
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-      fbw._extend_from_slice(self.as_str().as_bytes());
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_slice(self.as_str().as_bytes()).map_err(Into::into)?;
       Ok(())
     }
+  }
+  impl<E, const N: usize> Typed<Postgres<E>> for ArrayString<N>
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Text;
   }
 
   test!(array_string, ArrayString<4>, ArrayString::try_from("123").unwrap());
@@ -75,70 +79,157 @@ mod array {
 
 #[cfg(feature = "chrono")]
 mod chrono {
-  use crate::{
-    database::{
-      client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
-      Decode, Encode,
-    },
-    misc::FilledBufferWriter,
+  use crate::database::{
+    client::postgres::{DecodeValue, EncodeValue, Postgres, PostgresError, Ty},
+    Decode, Encode, Typed,
   };
-  use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, TimeZone, Utc};
+  use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, TimeDelta, TimeZone, Utc};
+
+  const MIN_PG_ND: Option<NaiveDate> = NaiveDate::from_ymd_opt(-4713, 1, 1);
+  const MAX_CHRONO_ND: Option<NaiveDate> = NaiveDate::from_ymd_opt(262142, 1, 1);
 
   impl<E> Decode<'_, Postgres<E>> for DateTime<Utc>
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      let rslt = || {
-        let &[a, b, c, d, e, f, g, h] = input.bytes() else {
-          return None;
-        };
-        let timestamp = i64::from_be_bytes([a, b, c, d, e, f, g, h]);
-        Some(Utc.from_utc_datetime(&base()?.checked_add_signed(Duration::microseconds(timestamp))?))
-      };
-      rslt().ok_or_else(|| {
-        E::from(PostgresError::UnexpectedValueFromBytes { expected: "timestamp" }.into())
-      })
+    fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
+      let naive = <NaiveDateTime as Decode<Postgres<E>>>::decode(dv)?;
+      Ok(Utc.from_utc_datetime(&naive))
     }
   }
+  impl<E, TZ> Encode<Postgres<E>> for DateTime<TZ>
+  where
+    E: From<crate::Error>,
+    TZ: TimeZone,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      Encode::<Postgres<E>>::encode(&self.naive_utc(), ev)
+    }
+  }
+  impl<E, TZ> Typed<Postgres<E>> for DateTime<TZ>
+  where
+    E: From<crate::Error>,
+    TZ: TimeZone,
+  {
+    const TY: Ty = Ty::Timestamptz;
+  }
 
-  impl<E> Encode<Postgres<E>> for DateTime<Utc>
+  impl<E> Decode<'_, Postgres<E>> for NaiveDate
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-      let time =
-        match base().and_then(|el| self.naive_utc().signed_duration_since(el).num_microseconds()) {
+    fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
+      let days: i32 = Decode::<Postgres<E>>::decode(dv)?;
+      pg_epoch_nd()
+        .and_then(|el| el.checked_add_signed(TimeDelta::try_days(days.into())?))
+        .ok_or_else(|| {
+          E::from(PostgresError::UnexpectedValueFromBytes { expected: "timestamp" }.into())
+        })
+    }
+  }
+  impl<E> Encode<Postgres<E>> for NaiveDate
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      Encode::<Postgres<E>>::encode(
+        &match pg_epoch_nd().and_then(|epoch| {
+          if self < &MIN_PG_ND? || self > &MAX_CHRONO_ND? {
+            return None;
+          }
+          i32::try_from(self.signed_duration_since(epoch).num_days()).ok()
+        }) {
+          Some(time) => time,
+          None => {
+            return Err(E::from(
+              PostgresError::UnexpectedValueFromBytes { expected: "date" }.into(),
+            ))
+          }
+        },
+        ev,
+      )
+    }
+  }
+  impl<E> Typed<Postgres<E>> for NaiveDate
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Date;
+  }
+
+  impl<E> Decode<'_, Postgres<E>> for NaiveDateTime
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
+      let timestamp = Decode::<Postgres<E>>::decode(input)?;
+      pg_epoch_ndt()
+        .and_then(|el| el.checked_add_signed(Duration::microseconds(timestamp)))
+        .ok_or_else(|| {
+          E::from(PostgresError::UnexpectedValueFromBytes { expected: "timestamp" }.into())
+        })
+    }
+  }
+  impl<E> Encode<Postgres<E>> for NaiveDateTime
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      Encode::<Postgres<E>>::encode(
+        &match pg_epoch_ndt().and_then(|epoch| {
+          if self < &MIN_PG_ND?.and_hms_opt(0, 0, 0)?
+            || self > &MAX_CHRONO_ND?.and_hms_opt(0, 0, 0)?
+          {
+            return None;
+          }
+          self.signed_duration_since(epoch).num_microseconds()
+        }) {
           Some(time) => time,
           None => {
             return Err(E::from(
               PostgresError::UnexpectedValueFromBytes { expected: "timestamp" }.into(),
             ))
           }
-        };
-      fbw._extend_from_slice(&time.to_be_bytes());
-      Ok(())
+        },
+        ev,
+      )
     }
   }
-
-  test!(datetime_utc, DateTime<Utc>, Utc.from_utc_datetime(&base().unwrap()));
-
-  fn base() -> Option<NaiveDateTime> {
-    NaiveDate::from_ymd_opt(2000, 1, 1).unwrap().and_hms_opt(0, 0, 0)
+  impl<E> Typed<Postgres<E>> for NaiveDateTime
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Timestamp;
   }
+
+  fn pg_epoch_nd() -> Option<NaiveDate> {
+    NaiveDate::from_ymd_opt(2000, 1, 1)
+  }
+
+  fn pg_epoch_ndt() -> Option<NaiveDateTime> {
+    pg_epoch_nd()?.and_hms_opt(0, 0, 0)
+  }
+
+  test!(datetime_utc, DateTime<Utc>, Utc.from_utc_datetime(&pg_epoch_ndt().unwrap()));
 }
 
 mod collections {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, Postgres, Ty},
-      Decode, Encode,
+      client::postgres::{DecodeValue, EncodeValue, Postgres, Ty},
+      Decode, Encode, Typed,
     },
-    misc::{from_utf8_basic, FilledBufferWriter},
+    misc::from_utf8_basic,
   };
   use alloc::string::String;
+
+  // &[u8]
 
   impl<'exec, E> Decode<'exec, Postgres<E>> for &'exec [u8]
   where
@@ -149,19 +240,25 @@ mod collections {
       Ok(input.bytes())
     }
   }
-
   impl<E> Encode<Postgres<E>> for &[u8]
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-      fbw._extend_from_slice(self);
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_slice(self).map_err(Into::into)?;
       Ok(())
     }
   }
-
+  impl<E> Typed<Postgres<E>> for &[u8]
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::ByteaArray;
+  }
   test!(bytes, &[u8], &[1, 2, 3, 4]);
+
+  // &str
 
   impl<'exec, E> Decode<'exec, Postgres<E>> for &'exec str
   where
@@ -172,19 +269,25 @@ mod collections {
       Ok(from_utf8_basic(input.bytes()).map_err(crate::Error::from)?)
     }
   }
-
   impl<E> Encode<Postgres<E>> for &str
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-      fbw._extend_from_slice(self.as_bytes());
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_slice(self.as_bytes()).map_err(Into::into)?;
       Ok(())
     }
   }
-
+  impl<E> Typed<Postgres<E>> for &str
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Text;
+  }
   test!(str, &str, "1234");
+
+  // String
 
   impl<E> Decode<'_, Postgres<E>> for String
   where
@@ -195,28 +298,32 @@ mod collections {
       Ok(from_utf8_basic(input.bytes()).map_err(crate::Error::from)?.into())
     }
   }
-
   impl<E> Encode<Postgres<E>> for String
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-      fbw._extend_from_slice(self.as_bytes());
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_slice(self.as_bytes()).map_err(Into::into)?;
       Ok(())
     }
   }
-
+  impl<E> Typed<Postgres<E>> for String
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Text;
+  }
   proptest!(string, String);
 }
 
 mod pg_numeric {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
+      client::postgres::{DecodeValue, EncodeValue, Postgres, PostgresError},
       Decode, Encode,
     },
-    misc::{ArrayVector, FilledBufferWriter, Usize},
+    misc::{ArrayVector, Usize},
   };
 
   const _DIGITS_CAP: usize = 64;
@@ -256,8 +363,8 @@ mod pg_numeric {
         if digits_usize > _DIGITS_CAP || digits_usize > 0x7FFF {
           return Err(E::from(PostgresError::VeryLargeDecimal.into()));
         }
-        let mut fbw = [0i16; _DIGITS_CAP];
-        for elem in fbw.iter_mut().take(digits_usize) {
+        let mut array = [0i16; _DIGITS_CAP];
+        for elem in array.iter_mut().take(digits_usize) {
           let [i, j, local_rest @ ..] = curr_slice else {
             break;
           };
@@ -265,7 +372,7 @@ mod pg_numeric {
           curr_slice = local_rest;
         }
         _PgNumeric::Number {
-          digits: ArrayVector::new(fbw, digits.into()),
+          digits: ArrayVector::from_parts(array, digits.into()),
           scale,
           sign: Sign::try_from(sign)?,
           weight,
@@ -273,28 +380,27 @@ mod pg_numeric {
       })
     }
   }
-
   impl<E> Encode<Postgres<E>> for _PgNumeric
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
       match self {
         _PgNumeric::NaN => {
-          fbw._extend_from_slice(&0i16.to_be_bytes());
-          fbw._extend_from_slice(&0i16.to_be_bytes());
-          fbw._extend_from_slice(&SIGN_NAN.to_be_bytes());
-          fbw._extend_from_slice(&0u16.to_be_bytes());
+          ev.fbw()._extend_from_slice(&0i16.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw()._extend_from_slice(&0i16.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw()._extend_from_slice(&SIGN_NAN.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw()._extend_from_slice(&0u16.to_be_bytes()).map_err(Into::into)?;
         }
         _PgNumeric::Number { digits, scale, sign, weight } => {
           let len: i16 = digits.len().try_into().map_err(Into::into)?;
-          fbw._extend_from_slice(&len.to_be_bytes());
-          fbw._extend_from_slice(&weight.to_be_bytes());
-          fbw._extend_from_slice(&u16::from(*sign).to_be_bytes());
-          fbw._extend_from_slice(&scale.to_be_bytes());
+          ev.fbw()._extend_from_slice(&len.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw()._extend_from_slice(&weight.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw()._extend_from_slice(&u16::from(*sign).to_be_bytes()).map_err(Into::into)?;
+          ev.fbw()._extend_from_slice(&scale.to_be_bytes()).map_err(Into::into)?;
           for digit in digits {
-            fbw._extend_from_slice(&digit.to_be_bytes());
+            ev.fbw()._extend_from_slice(&digit.to_be_bytes()).map_err(Into::into)?;
           }
         }
       }
@@ -336,11 +442,13 @@ mod pg_numeric {
 mod primitives {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
-      Decode, Encode,
+      client::postgres::{DecodeValue, EncodeValue, Postgres, PostgresError, Ty},
+      Decode, Encode, Typed,
     },
-    misc::{FilledBufferWriter, Usize},
+    misc::Usize,
   };
+
+  // bool
 
   impl<E> Decode<'_, Postgres<E>> for bool
   where
@@ -360,24 +468,29 @@ mod primitives {
       Ok(byte != 0)
     }
   }
-
   impl<E> Encode<Postgres<E>> for bool
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-      fbw._extend_from_byte((*self).into());
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_byte((*self).into()).map_err(Into::into)?;
       Ok(())
     }
+  }
+  impl<E> Typed<Postgres<E>> for bool
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Bool;
   }
 
   proptest!(bool_true, bool);
   proptest!(bool_false, bool);
 
   macro_rules! impl_integer_from_array {
-    ($instance:expr, [$($elem:ident),+], $signed:ident, $unsigned:ident) => {
-      impl_primitive_from_array!($instance, [$($elem),+], $signed);
+    ($instance:expr, [$($elem:ident),+], ($signed:ident, $signed_pg_ty:expr), ($unsigned:ident, $unsigned_pg_ty:expr)) => {
+      impl_primitive_from_array!($instance, [$($elem),+], $signed, $signed_pg_ty);
 
       impl<E> Decode<'_, Postgres<E>> for $unsigned
       where
@@ -390,19 +503,24 @@ mod primitives {
             .map_err(|_err| E::from(PostgresError::InvalidPostgresUint.into()))
         }
       }
-
       impl<E> Encode<Postgres<E>> for $unsigned
       where
         E: From<crate::Error>,
       {
         #[inline]
-        fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-          if *self >> size_of::<$unsigned>().wrapping_sub(1) == 1 {
+        fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+          if *self >> const { $unsigned::BITS - 1 } == 1 {
             return Err(E::from(PostgresError::InvalidPostgresUint.into()));
           }
-          fbw._extend_from_slice(&self.to_be_bytes());
+          ev.fbw()._extend_from_slice(&self.to_be_bytes()).map_err(Into::into)?;
           Ok(())
         }
+      }
+      impl<E> Typed<Postgres<E>> for $unsigned
+      where
+        E: From<crate::Error>
+      {
+        const TY: Ty = $unsigned_pg_ty;
       }
 
       test!($unsigned, $unsigned, $instance);
@@ -410,7 +528,7 @@ mod primitives {
   }
 
   macro_rules! impl_primitive_from_array {
-    ($instance:expr, [$($elem:ident),+], $ty:ident) => {
+    ($instance:expr, [$($elem:ident),+], $ty:ident, $pg_ty:expr) => {
       impl<E> Decode<'_, Postgres<E>> for $ty
       where
         E: From<crate::Error>,
@@ -432,23 +550,30 @@ mod primitives {
         E: From<crate::Error>,
       {
         #[inline]
-        fn encode(&self, fbw: &mut FilledBufferWriter<'_>, _: &Ty) -> Result<(), E> {
-          fbw._extend_from_slice(&self.to_be_bytes());
+        fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+          ev.fbw()._extend_from_slice(&self.to_be_bytes()).map_err(Into::into)?;
           Ok(())
         }
+      }
+
+      impl<E> Typed<Postgres<E>> for $ty
+      where
+        E: From<crate::Error>
+      {
+        const TY: Ty = $pg_ty;
       }
 
       test!($ty, $ty, $instance);
     }
   }
 
-  impl_integer_from_array!(37, [a], i8, u8);
-  impl_integer_from_array!(37, [a, b], i16, u16);
-  impl_integer_from_array!(37, [a, b, c, d], i32, u32);
-  impl_integer_from_array!(37, [a, b, c, d, e, f, g, h], i64, u64);
+  impl_integer_from_array!(37, [a], (i8, Ty::Char), (u8, Ty::Bytea));
+  impl_integer_from_array!(37, [a, b], (i16, Ty::Int2), (u16, Ty::Int2));
+  impl_integer_from_array!(37, [a, b, c, d], (i32, Ty::Int4), (u32, Ty::Int4));
+  impl_integer_from_array!(37, [a, b, c, d, e, f, g, h], (i64, Ty::Int8), (u64, Ty::Int8));
 
-  impl_primitive_from_array!(37.0, [a, b, c, d], f32);
-  impl_primitive_from_array!(37.0, [a, b, c, d, e, f, g, h], f64);
+  impl_primitive_from_array!(37.0, [a, b, c, d], f32, Ty::Float4);
+  impl_primitive_from_array!(37.0, [a, b, c, d, e, f, g, h], f64, Ty::Float8);
 }
 
 #[cfg(feature = "rust_decimal")]
@@ -457,11 +582,11 @@ mod rust_decimal {
     database::{
       client::postgres::{
         tys::pg_numeric::{Sign, _PgNumeric},
-        DecodeValue, Postgres, PostgresError, Ty,
+        DecodeValue, EncodeValue, Postgres, PostgresError, Ty,
       },
-      Decode, Encode,
+      Decode, Encode, Typed,
     },
-    misc::{ArrayVector, FilledBufferWriter},
+    misc::ArrayVector,
   };
   use rust_decimal::{Decimal, MathematicalOps};
 
@@ -500,21 +625,20 @@ mod rust_decimal {
       Ok(value)
     }
   }
-
   impl<E> Encode<Postgres<E>> for Decimal
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, fbw: &mut FilledBufferWriter<'_>, value: &Ty) -> Result<(), E> {
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
       if self.is_zero() {
         let rslt = _PgNumeric::Number {
-          digits: ArrayVector::default(),
+          digits: ArrayVector::new(),
           scale: 0,
           sign: Sign::Positive,
           weight: 0,
         };
-        rslt.encode(fbw, value)?;
+        rslt.encode(ev)?;
         return Ok(());
       }
 
@@ -528,7 +652,7 @@ mod rust_decimal {
         mantissa = mantissa.wrapping_mul(u128::from(10u32.pow(remainder)));
       }
 
-      let mut digits = ArrayVector::default();
+      let mut digits = ArrayVector::new();
       while mantissa != 0 {
         digits.push((mantissa % 10_000) as i16).map_err(From::from)?;
         mantissa /= 10_000;
@@ -551,9 +675,15 @@ mod rust_decimal {
         },
         weight,
       };
-      rslt.encode(fbw, value)?;
+      rslt.encode(ev)?;
       Ok(())
     }
+  }
+  impl<E> Typed<Postgres<E>> for Decimal
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Numeric;
   }
 
   proptest!(rust_decimal, Decimal);

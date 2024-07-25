@@ -1,6 +1,6 @@
 use crate::{
   http::GenericHeader,
-  misc::{atoi, bytes_split1, FilledBufferWriter},
+  misc::{atoi, bytes_split1, FilledBufferWriter, VectorError},
   web_socket::{
     compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig,
     WebSocketError,
@@ -95,8 +95,8 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
   }
 
   #[inline]
-  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
-    write_headers(&self.dc, fbw)
+  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+    Ok(write_headers(&self.dc, fbw)?)
   }
 }
 
@@ -120,8 +120,8 @@ impl NegotiatedCompression for NegotiatedFlate2 {
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
-    mut rem_cb: impl FnMut(&mut O, usize) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    mut rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
   ) -> crate::Result<usize> {
     compress_or_decompress(
       input,
@@ -133,7 +133,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
         let _ = this.compress.compress(local_input, output_butes, FlushCompress::Sync);
         Ok(())
       },
-      |a, b| Ok(rem_cb(a, b)),
+      |a, b| Ok(rem_cb(a, b)?),
       |this| this.compress.reset(),
       |this| this.compress.total_in(),
       |this| this.compress.total_out(),
@@ -144,7 +144,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> &mut [u8],
+    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     compress_or_decompress(
@@ -170,8 +170,8 @@ impl NegotiatedCompression for NegotiatedFlate2 {
   }
 
   #[inline]
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) {
-    write_headers(&self.dc, fbw)
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+    Ok(write_headers(&self.dc, fbw)?)
   }
 }
 
@@ -180,14 +180,14 @@ fn compress_or_decompress<NC, O>(
   nc: &mut NC,
   output: &mut O,
   reset: bool,
-  mut begin_output_cb: impl FnMut(&mut O) -> &mut [u8],
+  mut begin_output_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
   mut call_cb: impl FnMut(&mut NC, &[u8], &mut [u8]) -> crate::Result<()>,
   mut expand_output_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   mut reset_cb: impl FnMut(&mut NC),
   mut total_in_cb: impl FnMut(&mut NC) -> u64,
   mut total_out_cb: impl FnMut(&mut NC) -> u64,
 ) -> crate::Result<usize> {
-  call_cb(nc, input, begin_output_cb(output))?;
+  call_cb(nc, input, begin_output_cb(output)?)?;
   let mut total_in_sum = usize::try_from(total_in_cb(nc))?;
   let mut total_out_sum = usize::try_from(total_out_cb(nc))?;
   if total_in_sum == input.len() {
@@ -236,7 +236,7 @@ fn _byte_from_bytes(bytes: &[u8]) -> Option<u8> {
 }
 
 #[inline]
-fn write_headers(dc: &DeflateConfig, fbw: &mut FilledBufferWriter<'_>) {
+fn write_headers(dc: &DeflateConfig, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
   fbw._extend_from_slices_group_rn(&[
     b"Sec-Websocket-Extensions: ",
     b"permessage-deflate; ",
@@ -246,5 +246,5 @@ fn write_headers(dc: &DeflateConfig, fbw: &mut FilledBufferWriter<'_>) {
     b"server_max_window_bits=",
     dc.server_max_window_bits.strings().number.as_bytes(),
     b"; client_no_context_takeover; server_no_context_takeover",
-  ]);
+  ])
 }

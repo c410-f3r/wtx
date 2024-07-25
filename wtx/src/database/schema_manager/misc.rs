@@ -86,7 +86,7 @@ where
     let (mg, mut migrations_vec) = migrations_from_dir(path)?;
     migrations_vec.sort_by(cb);
     let migrations = migrations_vec.into_iter().map(move |local_path| {
-      let mut dbs = ArrayVector::default();
+      let mut dbs = ArrayVector::new();
       let name;
       let mut repeatability = None;
       let mut sql_down = String::default();

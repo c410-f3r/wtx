@@ -94,7 +94,7 @@ pub(crate) fn parse_migration_toml<R>(read: R) -> crate::Result<MigrationCfg>
 where
   R: Read,
 {
-  let mut migration_toml = MigrationCfg { dbs: ArrayVector::default(), repeatability: None };
+  let mut migration_toml = MigrationCfg { dbs: ArrayVector::new(), repeatability: None };
 
   for (ident, toml_expr) in toml(read)? {
     match (ident.as_str(), toml_expr) {

@@ -3,6 +3,8 @@
 pub enum PostgresError {
   /// Not-A-Number is not supported
   DecimalCanNotBeConvertedFromNaN,
+  /// There are no sufficient bytes to decoding an element
+  DecodingError,
   /// There are no bytes left to build a `DbError`
   InsufficientDbErrorBytes,
   /// Postgres does not support large unsigned integers. For example, `u8` can only be stored

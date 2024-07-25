@@ -41,7 +41,7 @@ pub struct WebSocketConnectRaw<'fb, 'hb, 'uri, B, C, H, RNG, S, WSB> {
 mod httparse_impls {
   use crate::{
     http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-    misc::{bytes_split1, FilledBufferWriter, LeaseMut, Stream, UriRef, Vector},
+    misc::{bytes_split1, FilledBufferWriter, LeaseMut, Stream, UriRef, Vector, VectorError},
     rng::Rng,
     web_socket::{
       compression::NegotiatedCompression,
@@ -72,7 +72,7 @@ mod httparse_impls {
       cb: impl FnOnce(&dyn crate::http::GenericRequest) -> bool,
     ) -> crate::Result<WebSocketServer<C::NegotiatedCompression, RNG, S, WSB>> {
       let nb = &mut self.wsb.lease_mut().nb;
-      nb._set_indices_through_expansion(0, 0, MAX_READ_LEN);
+      nb._set_indices_through_expansion(0, 0, MAX_READ_LEN)?;
       let mut read = 0;
       loop {
         let read_buffer = nb._following_mut().get_mut(read..).unwrap_or_default();
@@ -115,10 +115,10 @@ mod httparse_impls {
             res.code = Some(101);
             res.version = Some(req.version().into());
             let mut fbw = nb.into();
-            let res_bytes = build_res(&compression, &mut fbw, res.headers);
+            let res_bytes = build_res(&compression, &mut fbw, res.headers)?;
             self.stream.write_all(res_bytes).await?;
             nb._clear();
-            return Ok(WebSocketServer::new(compression, self.rng, self.stream, self.wsb));
+            return WebSocketServer::new(compression, self.rng, self.stream, self.wsb);
           }
           Status::Partial => {}
         }
@@ -149,7 +149,7 @@ mod httparse_impls {
       nb._clear();
       let mut fbw = nb.into();
       let key =
-        build_req(&self.compression, &mut fbw, headers, key_buffer, &mut self.rng, self.uri);
+        build_req(&self.compression, &mut fbw, headers, key_buffer, &mut self.rng, self.uri)?;
       self.stream.write_all(fbw._curr_bytes()).await?;
       let mut read = 0;
       self.fb._set_indices_through_expansion(0, 0, MAX_READ_LEN)?;
@@ -180,9 +180,9 @@ mod httparse_impls {
         return Err(HttpError::MissingHeader { expected: KnownHeaderName::SecWebsocketKey }.into());
       }
       let compression = self.compression.negotiate(res.headers.iter())?;
-      nb._set_indices_through_expansion(0, 0, read.wrapping_sub(len));
+      nb._set_indices_through_expansion(0, 0, read.wrapping_sub(len))?;
       nb._following_mut().copy_from_slice(self.fb.payload().get(len..read).unwrap_or_default());
-      Ok((res, WebSocketClient::new(compression, self.rng, self.stream, self.wsb)))
+      Ok((res, WebSocketClient::new(compression, self.rng, self.stream, self.wsb)?))
     }
   }
 
@@ -194,28 +194,28 @@ mod httparse_impls {
     key_buffer: &'kb mut [u8; 26],
     rng: &mut impl Rng,
     uri: &UriRef<'_>,
-  ) -> &'kb [u8]
+  ) -> Result<&'kb [u8], VectorError>
   where
     C: Compression<true>,
   {
     let key = gen_key(key_buffer, rng);
-    fbw._extend_from_slices_group_rn(&[b"GET ", uri.href().as_bytes(), b" HTTP/1.1"]);
+    fbw._extend_from_slices_group_rn(&[b"GET ", uri.href().as_bytes(), b" HTTP/1.1"])?;
     for (name, value) in headers {
-      fbw._extend_from_slices_group_rn(&[name, b": ", value]);
+      fbw._extend_from_slices_group_rn(&[name, b": ", value])?;
     }
-    fbw._extend_from_slice_rn(b"Connection: Upgrade");
+    fbw._extend_from_slice_rn(b"Connection: Upgrade")?;
     match (uri.schema(), uri.port()) {
       ("http" | "ws", "80") | ("https" | "wss", "443") => {
-        fbw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()]);
+        fbw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()])?;
       }
-      _ => fbw._extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()]),
+      _ => fbw._extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()])?,
     }
-    fbw._extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key]);
-    fbw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13");
-    fbw._extend_from_slice_rn(b"Upgrade: websocket");
-    compression.write_req_headers(fbw);
-    fbw._extend_from_slice_rn(b"");
-    key
+    fbw._extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key])?;
+    fbw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13")?;
+    fbw._extend_from_slice_rn(b"Upgrade: websocket")?;
+    compression.write_req_headers(fbw)?;
+    fbw._extend_from_slice_rn(b"")?;
+    Ok(key)
   }
 
   /// Server response
@@ -223,17 +223,17 @@ mod httparse_impls {
     compression: &C,
     fbw: &'fpb mut FilledBufferWriter<'fpb>,
     headers: &[Header<'_>],
-  ) -> &'fpb [u8]
+  ) -> Result<&'fpb [u8], VectorError>
   where
     C: NegotiatedCompression,
   {
-    fbw._extend_from_slice_rn(b"HTTP/1.1 101 Switching Protocols");
+    fbw._extend_from_slice_rn(b"HTTP/1.1 101 Switching Protocols")?;
     for header in headers {
-      fbw._extend_from_slices_group_rn(&[header.name(), b": ", header.value()]);
+      fbw._extend_from_slices_group_rn(&[header.name(), b": ", header.value()])?;
     }
-    compression.write_res_headers(fbw);
-    fbw._extend_from_slice_rn(b"");
-    fbw._curr_bytes()
+    compression.write_res_headers(fbw)?;
+    fbw._extend_from_slice_rn(b"")?;
+    Ok(fbw._curr_bytes())
   }
 
   fn has_header_key_and_value(headers: &[Header<'_>], key: &[u8], value: &[u8]) -> bool {

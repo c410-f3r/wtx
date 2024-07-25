@@ -19,6 +19,8 @@ pub mod client_api_framework;
 #[cfg(feature = "database")]
 pub mod database;
 mod error;
+//#[cfg(feature = "grpc")]
+//pub mod grpc;
 pub mod http;
 #[cfg(feature = "http1")]
 mod http1;

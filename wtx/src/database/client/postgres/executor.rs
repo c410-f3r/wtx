@@ -15,7 +15,7 @@ use crate::{
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
-  misc::{AsyncBounds, FilledBufferWriter, Lease, LeaseMut, Stream, TlsStream},
+  misc::{AsyncBounds, ConnectionState, FilledBufferWriter, Lease, LeaseMut, Stream, TlsStream},
   rng::Rng,
 };
 use core::{future::Future, marker::PhantomData};
@@ -23,8 +23,8 @@ use core::{future::Future, marker::PhantomData};
 /// Executor
 #[derive(Debug)]
 pub struct Executor<E, EB, S> {
+  pub(crate) cs: ConnectionState,
   pub(crate) eb: EB,
-  pub(crate) is_closed: bool,
   pub(crate) phantom: PhantomData<E>,
   pub(crate) stream: S,
 }
@@ -96,7 +96,7 @@ where
   where
     RNG: Rng,
   {
-    let mut this = Self { eb, is_closed: false, phantom: PhantomData, stream };
+    let mut this = Self { eb, cs: ConnectionState::Open, phantom: PhantomData, stream };
     this.send_initial_conn_msg(config).await?;
     this.manage_authentication(config, rng, tls_server_end_point).await?;
     this.read_after_authentication_data().await?;
@@ -123,6 +123,11 @@ where
     Self: 'tm;
 
   #[inline]
+  fn connection_state(&self) -> ConnectionState {
+    self.cs
+  }
+
+  #[inline]
   async fn execute(&mut self, cmd: &str, cb: impl FnMut(u64)) -> crate::Result<()> {
     self.simple_query_execute(cmd, cb).await
   }
@@ -140,17 +145,13 @@ where
     let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut rows = 0;
-    let mut fwsc = FetchWithStmtCommons {
-      is_closed: &mut self.is_closed,
-      rb,
-      stream: &mut self.stream,
-      tys: &[],
-    };
+    let mut fwsc =
+      FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] };
     let (_, stmt_id_str, stmt) =
       Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts, vb).await?;
     Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id_str).await?;
     loop {
-      let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+      let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(local_rows) => {
           rows = local_rows;
@@ -178,20 +179,10 @@ where
     SC: StmtCmd,
   {
     let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
-    Self::write_send_await_fetch_with_stmt(
-      &mut FetchWithStmtCommons {
-        is_closed: &mut self.is_closed,
-        rb,
-        stream: &mut self.stream,
-        tys: &[],
-      },
-      nb,
-      rv,
-      sc,
-      stmts,
-      vb,
-    )
-    .await
+    let fwsc =
+      &mut FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] };
+    let (_, stmt_id_str, stmt) = Self::write_send_await_stmt_prot(fwsc, nb, sc, stmts, vb).await?;
+    Self::write_send_await_fetch_with_stmt_wo_prot(fwsc, nb, rv, stmt, &stmt_id_str, vb).await
   }
 
   #[inline]
@@ -207,26 +198,22 @@ where
   {
     let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
-    let mut fwsc = FetchWithStmtCommons {
-      is_closed: &mut self.is_closed,
-      rb,
-      stream: &mut self.stream,
-      tys: &[],
-    };
+    let mut fwsc =
+      FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] };
     let (_, stmt_id_str, stmt) =
       Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts, vb).await?;
     Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id_str).await?;
     let begin = nb._current_end_idx();
     let begin_data = nb._current_end_idx().wrapping_add(7);
     loop {
-      let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+      let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
       match msg.ty {
         MessageTy::DataRow(len) => {
           let bytes = nb._buffer().get(begin_data..nb._current_end_idx()).unwrap_or_default();
           let range_begin = nb._antecedent_end_idx().wrapping_sub(begin);
           let range_end = nb._current_end_idx().wrapping_sub(begin_data);
           cb(&Record::parse(bytes, range_begin..range_end, stmt.clone(), vb, len)?)?;
-          fwsc.rb.push(vb.len());
+          fwsc.rb.push(vb.len()).map_err(Into::into)?;
         }
         MessageTy::ReadyForQuery => {
           break;
@@ -252,22 +239,12 @@ where
   }
 
   #[inline]
-  fn is_closed(&self) -> bool {
-    self.is_closed
-  }
-
-  #[inline]
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
     let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     Ok(
       Self::write_send_await_stmt_prot(
-        &mut FetchWithStmtCommons {
-          is_closed: &mut self.is_closed,
-          rb,
-          stream: &mut self.stream,
-          tys: &[],
-        },
+        &mut FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] },
         nb,
         cmd,
         stmts,

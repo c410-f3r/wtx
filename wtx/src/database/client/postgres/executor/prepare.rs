@@ -39,7 +39,7 @@ where
     execute(&mut fbw, 0, "")?;
     sync(&mut fbw)?;
     fwsc.stream.write_all(fbw._curr_bytes()).await?;
-    let msg = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+    let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     let MessageTy::BindComplete = msg.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
     };
@@ -65,17 +65,17 @@ where
     let stmt_cmd = sc.cmd().ok_or_else(|| E::from(PostgresError::UnknownStatementId.into()))?;
 
     let mut fbw = FilledBufferWriter::from(&mut *nb);
-    parse(stmt_cmd, &mut fbw, fwsc.tys.iter().map(Into::into), &stmt_id_str)?;
+    parse(stmt_cmd, &mut fbw, fwsc.tys.iter().copied().map(Into::into), &stmt_id_str)?;
     describe(&stmt_id_str, &mut fbw, b'S')?;
     sync(&mut fbw)?;
     fwsc.stream.write_all(fbw._curr_bytes()).await?;
 
-    let msg0 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+    let msg0 = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     let MessageTy::ParseComplete = msg0.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg0.tag }.into()));
     };
 
-    let msg1 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+    let msg1 = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     let MessageTy::ParameterDescription(mut pd) = msg1.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into()));
     };
@@ -85,23 +85,25 @@ where
       pd = sub_data;
     }
 
-    let msg2 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+    let msg2 = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     match msg2.ty {
       MessageTy::NoData => {}
-      MessageTy::RowDescription(mut rd) => {
-        while !rd.is_empty() {
-          let (read, msg_field) = MsgField::parse(rd)?;
-          let ty = Ty::Custom(msg_field.type_oid);
-          builder.push_column(Column { name: msg_field.name.try_into().map_err(Into::into)?, ty });
-          rd = rd.get(read..).unwrap_or_default();
+      MessageTy::RowDescription(mut rd) => loop {
+        let (read, msg_field) = MsgField::parse(rd)?;
+        let ty = Ty::Custom(msg_field.type_oid);
+        builder.push_column(Column { name: msg_field.name.try_into().map_err(Into::into)?, ty });
+        if let Some(elem @ [_not_empty, ..]) = rd.get(read..) {
+          rd = elem;
+        } else {
+          break;
         }
-      }
+      },
       _ => {
         return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg2.tag }.into()))
       }
     }
 
-    let msg3 = Self::fetch_msg_from_stream(fwsc.is_closed, nb, fwsc.stream).await?;
+    let msg3 = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     let MessageTy::ReadyForQuery = msg3.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg3.tag }.into()));
     };

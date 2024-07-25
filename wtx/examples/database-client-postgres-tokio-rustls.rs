@@ -21,7 +21,7 @@ async fn main() {
   let mut rng = StdRng::default();
   let mut exec = Executor::connect_encrypted(
     &config,
-    ExecutorBuffer::with_default_params(&mut rng),
+    ExecutorBuffer::with_default_params(&mut rng).unwrap(),
     TcpStream::connect(uri_ref.host()).await.unwrap(),
     &mut rng,
     |stream| {

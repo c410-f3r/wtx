@@ -38,7 +38,6 @@ $rt test-with-features wtx http2
 $rt test-with-features wtx httparse
 $rt test-with-features wtx memchr
 $rt test-with-features wtx miniserde
-$rt test-with-features wtx orm
 $rt test-with-features wtx parking_lot
 $rt test-with-features wtx pool
 $rt test-with-features wtx postgres
@@ -101,10 +100,3 @@ cargo check --example http2-client-tokio-rustls --features "_tokio-rustls-client
 cargo check --example http2-server-tokio-rustls --features "_tokio-rustls-client,http2,pool"
 cargo check --example web-socket-client-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
 cargo check --example web-socket-server-raw-tokio-rustls --features "pool,rustls-pemfile,tokio-rustls,web-socket-handshake"
-
-# WTX Docs
-
-rustup default nightly-2024-07-10
-cargo clean --target-dir mdbook-target
-cargo build --all-features --target-dir mdbook-target
-mdbook test -L mdbook-target/debug/deps wtx-docs

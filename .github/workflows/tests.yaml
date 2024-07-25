@@ -71,7 +71,7 @@ jobs:
       - run: .scripts/integration-tests.sh
 
 
-  internal-tests:
+  internal-tests0:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,4 +86,21 @@ jobs:
           profile: minimal
           toolchain: nightly-2024-07-10
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests.sh
+      - run: .scripts/internal-tests0.sh
+
+  internal-tests1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: mdbook
+          use-tool-cache: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          override: true
+          profile: minimal
+          toolchain: nightly-2024-07-10
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/internal-tests1.sh

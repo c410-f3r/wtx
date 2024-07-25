@@ -2,7 +2,7 @@
 
 use crate::{
   database::{Database, FromRecord, RecordValues, StmtCmd, TransactionManager},
-  misc::AsyncBounds,
+  misc::{AsyncBounds, ConnectionState},
 };
 use core::future::Future;
 
@@ -14,6 +14,9 @@ pub trait Executor {
   type TransactionManager<'tm>: TransactionManager<Executor = Self>
   where
     Self: 'tm;
+
+  /// Sometimes the backend can discontinue the connection.
+  fn connection_state(&self) -> ConnectionState;
 
   /// Allows the evaluation of severals commands returning the number of affected records on each `cb` call.
   ///
@@ -66,9 +69,6 @@ pub trait Executor {
   where
     RV: AsyncBounds + RecordValues<Self::Database>,
     SC: AsyncBounds + StmtCmd;
-
-  /// Sometimes the backend can discontinue the connection.
-  fn is_closed(&self) -> bool;
 
   /// Caches the passed command to create a statement, which speeds up subsequent calls that match
   /// the same `cmd`.
@@ -174,8 +174,8 @@ impl Executor for () {
   }
 
   #[inline]
-  fn is_closed(&self) -> bool {
-    true
+  fn connection_state(&self) -> ConnectionState {
+    ConnectionState::Closed
   }
 
   #[inline]

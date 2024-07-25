@@ -1,5 +1,4 @@
-use crate::misc::{FilledBufferWriter, _unreachable};
-use alloc::{vec, vec::Vec};
+use crate::misc::{FilledBufferWriter, Vector, VectorError, _unreachable};
 use core::ops::Range;
 
 // ```
@@ -8,20 +7,25 @@ use core::ops::Range;
 #[derive(Debug)]
 pub(crate) struct PartitionedFilledBuffer {
   _antecedent_end_idx: usize,
-  _buffer: Vec<u8>,
+  _buffer: Vector<u8>,
   _current_end_idx: usize,
   _following_end_idx: usize,
 }
 
 impl PartitionedFilledBuffer {
   pub(crate) const fn new() -> Self {
-    Self { _antecedent_end_idx: 0, _buffer: Vec::new(), _current_end_idx: 0, _following_end_idx: 0 }
+    Self {
+      _antecedent_end_idx: 0,
+      _buffer: Vector::new(),
+      _current_end_idx: 0,
+      _following_end_idx: 0,
+    }
   }
 
   pub(crate) fn _with_capacity(cap: usize) -> Self {
     Self {
       _antecedent_end_idx: 0,
-      _buffer: vec![0; cap],
+      _buffer: _vector![0; cap],
       _current_end_idx: 0,
       _following_end_idx: 0,
     }
@@ -85,14 +89,12 @@ impl PartitionedFilledBuffer {
     self._antecedent_end_idx..self._current_end_idx
   }
 
-  pub(crate) fn _expand_buffer(&mut self, new_len: usize) {
-    if new_len > self._buffer.len() {
-      self._buffer.resize(new_len, 0);
-    }
+  pub(crate) fn _expand_buffer(&mut self, new_len: usize) -> Result<(), VectorError> {
+    self._buffer.expand(new_len, 0)
   }
 
-  pub(crate) fn _expand_following(&mut self, new_len: usize) {
-    self._expand_buffer(self._following_end_idx.wrapping_add(new_len));
+  pub(crate) fn _expand_following(&mut self, new_len: usize) -> Result<(), VectorError> {
+    self._expand_buffer(self._following_end_idx.wrapping_add(new_len))
   }
 
   pub(crate) fn _following(&self) -> &[u8] {
@@ -149,12 +151,12 @@ impl PartitionedFilledBuffer {
     antecedent_len: usize,
     current_len: usize,
     following_len: usize,
-  ) {
+  ) -> Result<(), VectorError> {
     let [ant, cur, fol] = Self::_indcs_from_lengths(antecedent_len, current_len, following_len);
     self._antecedent_end_idx = ant;
     self._current_end_idx = cur;
     self._following_end_idx = fol;
-    self._expand_buffer(fol);
+    self._expand_buffer(fol)
   }
 
   fn _indcs_from_lengths(

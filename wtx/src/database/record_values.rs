@@ -1,8 +1,6 @@
-#![expect(non_snake_case, reason = "meta variable expressions")]
-
 use crate::{
   database::{Database, Encode},
-  misc::{into_rslt, FilledBufferWriter, IterWrapper},
+  misc::{IterWrapper, Lease},
 };
 
 /// Values that can passed to a record as parameters. For example, in a query.
@@ -11,16 +9,15 @@ where
   D: Database,
 {
   /// Converts the inner values into a byte representation.
-  fn encode_values<'ev, A>(
+  fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    fbw: &mut FilledBufferWriter<'_>,
-    values: impl Iterator<Item = &'ev D::EncodeValue<'ev>> + 'ev,
-    prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
-    suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
+    ev: &mut D::EncodeValue<'buffer, 'tmp>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
   ) -> Result<usize, D::Error>
   where
-    <D as Database>::EncodeValue<'ev>: 'ev;
+    'buffer: 'tmp;
 
   /// The number of values
   fn len(&self) -> usize;
@@ -31,17 +28,13 @@ where
   D: Database,
 {
   #[inline]
-  fn encode_values<'ev, A>(
+  fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     _: &mut A,
-    _: &mut FilledBufferWriter<'_>,
-    _: impl Iterator<Item = &'ev D::EncodeValue<'ev>> + 'ev,
-    _: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
-    _: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, D::Error>
-  where
-    <D as Database>::EncodeValue<'ev>: 'ev,
-  {
+    _: &mut D::EncodeValue<'buffer, 'tmp>,
+    _: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
+    _: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+  ) -> Result<usize, D::Error> {
     Ok(0)
   }
 
@@ -57,18 +50,14 @@ where
   T: RecordValues<D>,
 {
   #[inline]
-  fn encode_values<'ev, A>(
+  fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    fbw: &mut FilledBufferWriter<'_>,
-    values: impl Iterator<Item = &'ev D::EncodeValue<'ev>> + 'ev,
-    prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
-    suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, D::Error>
-  where
-    <D as Database>::EncodeValue<'ev>: 'ev,
-  {
-    (**self).encode_values(aux, fbw, values, prefix_cb, suffix_cb)
+    ev: &mut D::EncodeValue<'buffer, 'tmp>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+  ) -> Result<usize, D::Error> {
+    (**self).encode_values(aux, ev, prefix_cb, suffix_cb)
   }
 
   #[inline]
@@ -83,20 +72,16 @@ where
   T: Encode<D>,
 {
   #[inline]
-  fn encode_values<'ev, A>(
+  fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    fbw: &mut FilledBufferWriter<'_>,
-    values: impl Iterator<Item = &'ev D::EncodeValue<'ev>> + 'ev,
-    mut prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
-    mut suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, D::Error>
-  where
-    <D as Database>::EncodeValue<'ev>: 'ev,
-  {
+    mut ev: &mut D::EncodeValue<'buffer, 'tmp>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+  ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
-    for (elem, value) in self.iter().zip(values) {
-      encode(aux, elem, fbw, &mut n, value, &mut prefix_cb, &mut suffix_cb)?;
+    for elem in self.iter() {
+      encode(aux, elem, &mut ev, &mut n, &mut prefix_cb, &mut suffix_cb)?;
     }
     Ok(n)
   }
@@ -114,20 +99,16 @@ where
   T: Encode<D>,
 {
   #[inline]
-  fn encode_values<'ev, A>(
+  fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    fbw: &mut FilledBufferWriter<'_>,
-    values: impl Iterator<Item = &'ev D::EncodeValue<'ev>> + 'ev,
-    mut prefix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
-    mut suffix_cb: impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
-  ) -> Result<usize, D::Error>
-  where
-    <D as Database>::EncodeValue<'ev>: 'ev,
-  {
+    ev: &mut D::EncodeValue<'buffer, 'tmp>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+  ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
-    for (elem, value) in self.0.by_ref().zip(values) {
-      encode(aux, &elem, fbw, &mut n, value, &mut prefix_cb, &mut suffix_cb)?;
+    for elem in self.0.by_ref() {
+      encode(aux, &elem, ev, &mut n, &mut prefix_cb, &mut suffix_cb)?;
     }
     Ok(n)
   }
@@ -142,32 +123,28 @@ where
 macro_rules! tuple_impls {
   ($( ($($T:ident)+) )+) => {
     $(
+      #[expect(non_snake_case, reason = "meta variable expressions")]
       impl<DB, $($T),+> RecordValues<DB> for ($( $T, )+)
       where
         DB: Database,
         $($T: Encode<DB>,)+
       {
         #[inline]
-        fn encode_values<'ev, AUX>(
+        fn encode_values<'buffer, 'tmp, AUX>(
           &mut self,
           aux: &mut AUX,
-          fbw: &mut FilledBufferWriter<'_>,
-          mut values: impl Iterator<Item = &'ev DB::EncodeValue<'ev>> + 'ev,
-          mut prefix_cb: impl FnMut(&mut AUX, &mut FilledBufferWriter<'_>) -> usize,
-          mut suffix_cb: impl FnMut(&mut AUX, &mut FilledBufferWriter<'_>, bool) -> usize,
-        ) -> Result<usize, DB::Error>
-        where
-          <DB as Database>::EncodeValue<'ev>: 'ev
-        {
+          ev: &mut DB::EncodeValue<'buffer, 'tmp>,
+          mut prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>) -> usize,
+          mut suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+        ) -> Result<usize, DB::Error> {
           let mut n: usize = 0;
           let ($($T,)+) = self;
           $(
             encode(
               aux,
               $T,
-              fbw,
+              ev,
               &mut n,
-              into_rslt(values.next())?,
               &mut prefix_cb,
               &mut suffix_cb
             )?;
@@ -205,23 +182,23 @@ tuple_impls! {
   (A B C D E F G H I J K L M N O P)
 }
 
-fn encode<A, D, T>(
+fn encode<'buffer, 'tmp, A, D, T>(
   aux: &mut A,
   elem: &T,
-  fbw: &mut FilledBufferWriter<'_>,
+  ev: &mut D::EncodeValue<'buffer, 'tmp>,
   n: &mut usize,
-  value: &D::EncodeValue<'_>,
-  prefix_cb: &mut impl FnMut(&mut A, &mut FilledBufferWriter<'_>) -> usize,
-  suffix_cb: &mut impl FnMut(&mut A, &mut FilledBufferWriter<'_>, bool) -> usize,
+  prefix_cb: &mut impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
+  suffix_cb: &mut impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
 ) -> Result<(), D::Error>
 where
   D: Database,
   T: Encode<D>,
 {
-  *n = n.wrapping_add(prefix_cb(aux, fbw));
-  let before = fbw._len();
-  elem.encode(fbw, value)?;
-  *n = n.wrapping_add(fbw._len().wrapping_sub(before));
-  *n = n.wrapping_add(suffix_cb(aux, fbw, elem.is_null()));
+  *n = n.wrapping_add(prefix_cb(aux, ev));
+  let elem_before = ev.lease()._len();
+  elem.encode(ev)?;
+  let elem_len = ev.lease()._len().wrapping_sub(elem_before);
+  *n = n.wrapping_add(elem_len);
+  *n = n.wrapping_add(suffix_cb(aux, ev, elem.is_null(), elem_len));
   Ok(())
 }
