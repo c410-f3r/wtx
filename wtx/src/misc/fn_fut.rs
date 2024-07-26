@@ -1,6 +1,3 @@
-use crate::misc::AsyncBounds;
-use core::future::Future;
-
 /// Simulates `impl for<'any> Fn(&'any ..) -> impl Future + 'any` due to the lack of compiler
 /// support.
 ///
@@ -10,13 +7,13 @@ use core::future::Future;
 /// Credits to `Daniel Henry-Mantilla`.
 pub trait FnFut<P, R>: Fn(P) -> Self::Future {
   /// Returning future.
-  type Future: AsyncBounds + Future<Output = R>;
+  type Future: Future<Output = R>;
 }
 
 impl<P, F, FUT, R> FnFut<P, R> for F
 where
   F: Fn(P) -> FUT,
-  FUT: AsyncBounds + Future<Output = R>,
+  FUT: Future<Output = R>,
 {
   type Future = FUT;
 }
@@ -24,13 +21,13 @@ where
 /// Like [`FnFut`] but for [`FnMut`].
 pub trait FnMutFut<P, R>: FnMut(P) -> Self::Future {
   /// Returning future.
-  type Future: AsyncBounds + Future<Output = R>;
+  type Future: Future<Output = R>;
 }
 
 impl<P, F, FUT, R> FnMutFut<P, R> for F
 where
   F: FnMut(P) -> FUT,
-  FUT: AsyncBounds + Future<Output = R>,
+  FUT: Future<Output = R>,
 {
   type Future = FUT;
 }
@@ -38,13 +35,13 @@ where
 /// Like [`FnFut`] but for [`FnOnce`].
 pub trait FnOnceFut<P, R>: FnOnce(P) -> Self::Future {
   /// Returning future.
-  type Future: AsyncBounds + Future<Output = R>;
+  type Future: Future<Output = R>;
 }
 
 impl<P, F, FUT, R> FnOnceFut<P, R> for F
 where
   F: FnOnce(P) -> FUT,
-  FUT: AsyncBounds + Future<Output = R>,
+  FUT: Future<Output = R>,
 {
   type Future = FUT;
 }

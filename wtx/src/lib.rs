@@ -1,6 +1,8 @@
+#![allow(incomplete_features, reason = "essential async feature")]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
 #![doc = include_str!("../README.md")]
+#![feature(macro_metavar_expr, return_type_notation)]
 #![no_std]
 
 extern crate alloc;
@@ -30,6 +32,7 @@ pub mod misc;
 #[cfg(feature = "pool")]
 pub mod pool;
 pub mod rng;
+mod tuple_impls;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 

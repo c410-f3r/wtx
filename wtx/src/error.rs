@@ -36,7 +36,7 @@ pub enum Error {
   DecodeError(base64::DecodeError),
   #[cfg(feature = "base64")]
   DecodeSliceError(base64::DecodeSliceError),
-  #[cfg(all(feature = "embassy-net", not(feature = "async-send")))]
+  #[cfg(feature = "embassy-net")]
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
@@ -44,7 +44,7 @@ pub enum Error {
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
   Flate2DecompressError(Box<flate2::DecompressError>),
-  #[cfg(all(feature = "glommio", not(feature = "async-send")))]
+  #[cfg(feature = "glommio")]
   Glommio(Box<glommio::GlommioError<()>>),
   #[cfg(feature = "httparse")]
   HttpParse(httparse::Error),
@@ -221,7 +221,7 @@ impl From<base64::DecodeSliceError> for Error {
   }
 }
 
-#[cfg(all(feature = "embassy-net", not(feature = "async-send")))]
+#[cfg(feature = "embassy-net")]
 impl From<embassy_net::tcp::Error> for Error {
   #[inline]
   fn from(from: embassy_net::tcp::Error) -> Self {
@@ -267,7 +267,7 @@ impl From<core::fmt::Error> for Error {
   }
 }
 
-#[cfg(all(feature = "glommio", not(feature = "async-send")))]
+#[cfg(feature = "glommio")]
 impl From<glommio::GlommioError<()>> for Error {
   #[inline]
   fn from(from: glommio::GlommioError<()>) -> Self {

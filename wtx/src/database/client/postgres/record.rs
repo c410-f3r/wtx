@@ -139,7 +139,7 @@ impl<'exec, E> PartialEq for Record<'exec, E> {
 mod array {
   use crate::{
     database::{client::postgres::Postgres, FromRecord, Record},
-    misc::{from_utf8_basic, ArrayString},
+    misc::{from_utf8_basic, into_rslt, ArrayString},
   };
 
   impl<E, const N: usize> FromRecord<Postgres<E>> for ArrayString<N>
@@ -151,7 +151,7 @@ mod array {
       record: &crate::database::client::postgres::record::Record<'_, E>,
     ) -> Result<Self, E> {
       Ok(
-        from_utf8_basic(record.value(0).ok_or(crate::Error::MISC_NoInnerValue("Record"))?.bytes())
+        from_utf8_basic(into_rslt(record.value(0))?.bytes())
           .map_err(From::from)?
           .try_into()
           .map_err(From::from)?,

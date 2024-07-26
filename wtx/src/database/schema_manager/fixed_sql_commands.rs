@@ -34,7 +34,7 @@ use crate::{
     schema_manager::{DbMigration, MigrationGroup, UserMigration},
     Database, DatabaseTy, FromRecord, TransactionManager,
   },
-  misc::{AsyncBounds, Lease},
+  misc::Lease,
 };
 use alloc::{string::String, vec::Vec};
 use core::fmt::Write;
@@ -48,7 +48,7 @@ pub(crate) async fn _delete_migrations<E, S>(
   version: i32,
 ) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor,
+  E: Executor,
   S: Lease<str>,
 {
   buffer_cmd.write_fmt(format_args!(
@@ -70,7 +70,7 @@ pub(crate) async fn _insert_migrations<'migration, DBS, E, I, S>(
 ) -> crate::Result<()>
 where
   DBS: Lease<[DatabaseTy]> + 'migration,
-  E: AsyncBounds + Executor,
+  E: Executor,
   I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
   S: Lease<str> + 'migration,
 {
@@ -126,7 +126,7 @@ pub(crate) async fn _migrations_by_mg_version_query<E, D>(
 ) -> crate::Result<()>
 where
   D: Database<Error = crate::Error>,
-  E: AsyncBounds + Executor<Database = D>,
+  E: Executor<Database = D>,
   DbMigration: FromRecord<E::Database>,
 {
   buffer_cmd.write_fmt(format_args!(

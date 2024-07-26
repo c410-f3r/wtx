@@ -10,15 +10,13 @@ use crate::{
   },
   http::{Client, Header, Headers, KnownHeaderName, ReqResBuffer},
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{AsyncBounds, Lock, RefCounter, Stream, Vector},
+  misc::{Lock, RefCounter, Stream, Vector},
   pool::SimplePoolResource,
 };
-use core::{future::Future, mem, ops::Range};
+use core::{mem, ops::Range};
 
 impl<DRSR, HD, RL, S, SF> Transport<DRSR> for Client<HD, RL, SF>
 where
-  DRSR: AsyncBounds,
-
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, S, true>>,
   RL: Lock<Resource = SimplePoolResource<Http2<HD, true>>> + 'static,
@@ -64,9 +62,7 @@ async fn response<A, DRSR, HD, P, RL, S, SF>(
 ) -> Result<(), A::Error>
 where
   A: Api,
-  DRSR: AsyncBounds,
   P: Package<A, DRSR, HttpParams>,
-
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, S, true>>,
   RL: Lock<Resource = SimplePoolResource<Http2<HD, true>>> + 'static,

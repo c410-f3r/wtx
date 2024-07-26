@@ -1,5 +1,3 @@
-use core::future::Future;
-
 /// Manager of a specific pool resource.
 pub trait ResourceManager {
   /// Auxiliary data used by the [`Self::get`] method.
@@ -94,7 +92,7 @@ pub(crate) mod database {
     database::client::postgres::{Executor, ExecutorBuffer},
     pool::ResourceManager,
   };
-  use core::{future::Future, mem};
+  use core::mem;
 
   /// Manages generic database executors.
   #[derive(Debug)]

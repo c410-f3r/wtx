@@ -4,7 +4,7 @@ use crate::{
   misc::{LeaseMut, Lock, RefCounter, Stream, UriString},
   pool::{Pool, ResourceManager, SimplePool, SimplePoolResource},
 };
-use core::{future::Future, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// A [Client] composed by tokio parts.
 #[cfg(feature = "tokio")]

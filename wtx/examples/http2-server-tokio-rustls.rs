@@ -4,7 +4,7 @@
 mod common;
 
 use wtx::{
-  http::{server::OptionedServer, ReqResBuffer, Request, Response, StatusCode},
+  http::{server::OptionedServer, ReqResBuffer, Request, StatusCode},
   http2::{Http2Buffer, Http2Params},
   misc::TokioRustlsAcceptor,
   rng::StdRng,
@@ -32,9 +32,7 @@ async fn main() {
   .unwrap()
 }
 
-async fn handle<'buffer>(
-  req: Request<&'buffer mut ReqResBuffer>,
-) -> Result<Response<&'buffer mut ReqResBuffer>, wtx::Error> {
+async fn handle(req: &mut Request<&mut ReqResBuffer>) -> Result<StatusCode, wtx::Error> {
   req.rrd.clear();
-  Ok(Response::http2(req.rrd, StatusCode::Ok))
+  Ok(StatusCode::Ok)
 }

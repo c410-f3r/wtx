@@ -3,7 +3,6 @@
 mod array_chunks;
 mod array_string;
 mod array_vector;
-mod async_bounds;
 mod blocks_queue;
 mod connection_state;
 mod either;
@@ -40,7 +39,6 @@ pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError};
-pub use async_bounds::AsyncBounds;
 pub use blocks_queue::BlocksQueueError;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write, ops::Range, time::Duration};

@@ -1,6 +1,5 @@
-use crate::{
-  database::{client::postgres::Postgres, executor::Executor, Identifier, TransactionManager},
-  misc::AsyncBounds,
+use crate::database::{
+  client::postgres::Postgres, executor::Executor, Identifier, TransactionManager,
 };
 use alloc::{string::String, vec::Vec};
 use core::fmt::Write;
@@ -23,7 +22,7 @@ pub(crate) async fn _clear<E>(
   executor: &mut E,
 ) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   _schemas(executor, buffer_idents).await?;
   _push_drop((buffer_cmd, buffer_idents), "SCHEMA")?;
@@ -63,7 +62,7 @@ pub(crate) async fn _domains<E>(
   results: &mut Vec<Identifier>,
 ) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   executor
     .simple_entities(
@@ -90,7 +89,7 @@ where
 #[inline]
 pub(crate) async fn _enums<E>(executor: &mut E, results: &mut Vec<Identifier>) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   executor
     .simple_entities(
@@ -118,7 +117,7 @@ pub(crate) async fn _pg_proc<E>(
   prokind: char,
 ) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   let before = buffer_cmd.len();
   buffer_cmd.write_fmt(format_args!(
@@ -152,7 +151,7 @@ pub(crate) async fn _sequences<E>(
   results: &mut Vec<Identifier>,
 ) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   executor
     .simple_entities(
@@ -178,7 +177,7 @@ pub(crate) async fn _schemas<E>(
   results: &mut Vec<Identifier>,
 ) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   executor
     .simple_entities(
@@ -207,7 +206,7 @@ pub(crate) async fn _table_names<E>(
   schema: &str,
 ) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   let before = buffer_cmd.len();
   buffer_cmd.write_fmt(format_args!(
@@ -243,7 +242,7 @@ where
 #[inline]
 pub(crate) async fn _types<E>(executor: &mut E, results: &mut Vec<Identifier>) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   executor
     .simple_entities(
@@ -276,7 +275,7 @@ where
 #[inline]
 pub(crate) async fn _views<E>(executor: &mut E, results: &mut Vec<Identifier>) -> crate::Result<()>
 where
-  E: AsyncBounds + Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<crate::Error>>,
 {
   executor
     .simple_entities(

@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::PostgresError,
-  misc::{atoi, bytes_split1},
+  misc::{atoi, bytes_split1, into_rslt},
 };
 use core::any::type_name;
 
@@ -43,10 +43,10 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
           }
         }
         Self::SaslContinue {
-          iterations: iterations.ok_or(crate::Error::MISC_NoInnerValue("iterations"))?,
-          nonce: nonce.ok_or(crate::Error::MISC_NoInnerValue("nonce"))?,
+          iterations: into_rslt(iterations)?,
+          nonce: into_rslt(nonce)?,
           payload: rest,
-          salt: salt.ok_or(crate::Error::MISC_NoInnerValue("salt"))?,
+          salt: into_rslt(salt)?,
         }
       }
       12 => {
@@ -55,7 +55,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
         while let Some([b'v', _, local_rest @ ..]) = iter.next() {
           verifier = Some(local_rest);
         }
-        Self::SaslFinal(verifier.ok_or(crate::Error::MISC_NoInnerValue("verifier"))?)
+        Self::SaslFinal(into_rslt(verifier)?)
       }
       _ => {
         return Err(

@@ -120,69 +120,7 @@ where
   }
 }
 
-macro_rules! tuple_impls {
-  ($( ($($T:ident)+) )+) => {
-    $(
-      #[expect(non_snake_case, reason = "meta variable expressions")]
-      impl<DB, $($T),+> RecordValues<DB> for ($( $T, )+)
-      where
-        DB: Database,
-        $($T: Encode<DB>,)+
-      {
-        #[inline]
-        fn encode_values<'buffer, 'tmp, AUX>(
-          &mut self,
-          aux: &mut AUX,
-          ev: &mut DB::EncodeValue<'buffer, 'tmp>,
-          mut prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>) -> usize,
-          mut suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
-        ) -> Result<usize, DB::Error> {
-          let mut n: usize = 0;
-          let ($($T,)+) = self;
-          $(
-            encode(
-              aux,
-              $T,
-              ev,
-              &mut n,
-              &mut prefix_cb,
-              &mut suffix_cb
-            )?;
-          )+
-          Ok(n)
-        }
-
-        #[inline]
-        fn len(&self) -> usize {
-          let mut len: usize = 0;
-          $({ const $T: usize = 1; len = len.wrapping_add($T); })+
-          len
-        }
-      }
-    )+
-  }
-}
-
-tuple_impls! {
-  (A)
-  (A B)
-  (A B C)
-  (A B C D)
-  (A B C D E)
-  (A B C D E F)
-  (A B C D E F G)
-  (A B C D E F G H)
-  (A B C D E F G H I)
-  (A B C D E F G H I J)
-  (A B C D E F G H I J K)
-  (A B C D E F G H I J K L)
-  (A B C D E F G H I J K L M)
-  (A B C D E F G H I J K L M N)
-  (A B C D E F G H I J K L M N O)
-  (A B C D E F G H I J K L M N O P)
-}
-
-fn encode<'buffer, 'tmp, A, D, T>(
+pub(crate) fn encode<'buffer, 'tmp, A, D, T>(
   aux: &mut A,
   elem: &T,
   ev: &mut D::EncodeValue<'buffer, 'tmp>,

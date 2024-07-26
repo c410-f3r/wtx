@@ -26,6 +26,7 @@ pub use from_record::FromRecord;
 pub use from_records::FromRecords;
 pub use misc::seek_related_entities;
 pub use record::Record;
+pub(crate) use record_values::encode;
 pub use record_values::RecordValues;
 pub use records::Records;
 pub use stmt_cmd::StmtCmd;

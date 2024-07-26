@@ -9,7 +9,7 @@ extern crate wtx;
 
 use wtx::{
   http::{Client, Method, ReqResBuffer, ReqUri},
-  misc::{from_utf8_basic, TokioRustlsConnector, Uri},
+  misc::{from_utf8_basic, TokioRustlsConnector},
 };
 
 pub(crate) async fn get_and_print() -> wtx::Result<()> {

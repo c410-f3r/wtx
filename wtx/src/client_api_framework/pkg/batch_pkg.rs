@@ -45,20 +45,16 @@ where
     Self::is_sorted(self.0 .0.iter().map(|elem| elem.ext_req_content().borrow()))?;
     let mut pkgs_idx = 0;
     let mut responses_are_not_sorted = false;
-    P::ExternalResponseContent::seq_from_bytes(
-      bytes,
-      drsr,
-      |eresc: P::ExternalResponseContent| {
-        let eresc_id = *eresc.borrow();
-        let found_pkgs_idx = Self::search_slice(pkgs_idx, eresc_id, self.0 .0)?;
-        if pkgs_idx != found_pkgs_idx {
-          responses_are_not_sorted = true;
-        }
-        buffer.push(eresc).map_err(Into::into)?;
-        pkgs_idx = pkgs_idx.wrapping_add(1);
-        Ok::<_, A::Error>(())
-      },
-    )?;
+    P::ExternalResponseContent::seq_from_bytes(bytes, drsr, |eresc| {
+      let eresc_id = *eresc.borrow();
+      let found_pkgs_idx = Self::search_slice(pkgs_idx, eresc_id, self.0 .0)?;
+      if pkgs_idx != found_pkgs_idx {
+        responses_are_not_sorted = true;
+      }
+      buffer.push(eresc).map_err(Into::into)?;
+      pkgs_idx = pkgs_idx.wrapping_add(1);
+      Ok::<_, A::Error>(())
+    })?;
     if responses_are_not_sorted {
       buffer.sort_unstable();
     }

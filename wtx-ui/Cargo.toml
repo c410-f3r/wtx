@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [dependencies]
 clap = { default-features = false, features = ["derive", "help", "std", "usage"], optional = true, version = "4.5" }
 dotenv = { default-features = false, optional = true, version = "0.15" }
@@ -5,7 +7,9 @@ tokio = { default-features = false, features = ["io-std", "io-util", "macros", "
 wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 
 [features]
+clap = ["dep:clap"]
 default = []
+dotenv = ["dep:dotenv"]
 embed-migrations = ["clap", "tokio/fs", "wtx/schema-manager", "wtx/std"]
 http-client = ["clap", "wtx/http-client", "wtx/tokio-rustls", "wtx/webpki-roots"]
 schema-manager = ["clap", "wtx/postgres", "wtx/schema-manager", "wtx/std"]
@@ -17,7 +21,7 @@ authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
 categories = ["asynchronous", "command-line-interface", "gui"]
 description = "Different user interfaces for WTX"
 documentation = "https://docs.rs/wtx-ui"
-edition = "2021"
+edition = "2024"
 keywords = ["io", "network", "websocket"]
 license = "Apache-2.0"
 name = "wtx-ui"

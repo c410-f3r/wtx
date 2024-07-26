@@ -1,4 +1,7 @@
-use crate::database::{Database, Decode, Records};
+use crate::{
+  database::{Database, Decode, Records},
+  misc::into_rslt,
+};
 use alloc::boxed::Box;
 
 /// An element that can be represented from one or more database row, in other words, tables
@@ -20,14 +23,7 @@ where
   where
     for<'de> u64: Decode<'de, D>,
   {
-    Self::from_records(
-      &mut 0,
-      &records
-        .get(0)
-        .ok_or_else(|| crate::Error::MISC_NoInnerValue("There are no records to create element"))?,
-      &mut 0,
-      records,
-    )
+    Self::from_records(&mut 0, &into_rslt(records.get(0))?, &mut 0, records)
   }
 }
 

@@ -45,7 +45,7 @@ pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
 
 #[inline]
 pub(crate) async fn process_higher_operation_err<HB, HD, RRB, S, const IS_CLIENT: bool>(
-  err: crate::Error,
+  mut err: crate::Error,
   hd: &HD,
 ) -> crate::Error
 where
@@ -57,13 +57,14 @@ where
 {
   #[inline]
   pub(crate) async fn send_based_on_error<RRB, S>(
-    err: &crate::Error,
+    err: crate::Error,
     hdpm: Http2DataPartsMut<'_, RRB, S>,
-  ) where
+  ) -> crate::Error
+  where
     RRB: LeaseMut<ReqResBuffer>,
     S: Stream,
   {
-    match err {
+    match &err {
       crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
         send_go_away(*http2_error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
       }
@@ -80,6 +81,7 @@ where
         .await;
       }
     }
+    err
   }
 
   let now = crate::misc::GenericTime::now();
@@ -88,20 +90,20 @@ where
   loop {
     let mut guard = hd.lock().await;
     if idx >= crate::http2::MAX_FINAL_FETCHES {
-      send_based_on_error(&err, guard.parts_mut()).await;
+      err = send_based_on_error(err, guard.parts_mut()).await;
       return err;
     }
     has_reset_err |= matches!(&err, crate::Error::Http2ErrorReset(..));
     let local_rslt = guard.process_receipt().await;
     let hdpm = guard.parts_mut();
     if has_reset_err {
-      if let Err(local_err) = local_rslt {
-        send_based_on_error(&local_err, hdpm).await;
+      if let Err(mut local_err) = local_rslt {
+        local_err = send_based_on_error(local_err, hdpm).await;
         return local_err;
       }
     }
     if now.elapsed().ok().map_or(true, |el| el >= crate::http2::MAX_FINAL_DURATION) {
-      send_based_on_error(&err, hdpm).await;
+      err = send_based_on_error(err, hdpm).await;
       return err;
     }
     idx = idx.wrapping_add(1);
@@ -382,6 +384,6 @@ where
     }
     rslt
   });
-  stream.write_all_vectored(array).await?;
+  stream.write_all_vectored(&array).await?;
   Ok(())
 }

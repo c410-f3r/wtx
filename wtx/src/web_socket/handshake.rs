@@ -10,7 +10,6 @@ use crate::{
   http::GenericRequest,
   web_socket::{WebSocketClient, WebSocketServer},
 };
-use core::future::Future;
 pub use raw::{WebSocketAcceptRaw, WebSocketConnectRaw};
 
 /// Reads external data to figure out if incoming requests can be accepted as WebSocket connections.
