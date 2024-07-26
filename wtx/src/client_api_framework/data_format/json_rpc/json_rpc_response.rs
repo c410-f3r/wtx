@@ -3,7 +3,7 @@ use crate::{
     dnsn::{Deserialize, Serialize},
     Id,
   },
-  misc::Vector,
+  misc::{Lease, Vector},
 };
 use alloc::string::String;
 use core::{
@@ -66,6 +66,13 @@ impl<R> Hash for JsonRpcResponse<R> {
     H: Hasher,
   {
     self.id.hash(state);
+  }
+}
+
+impl<P> Lease<Id> for JsonRpcResponse<P> {
+  #[inline]
+  fn lease(&self) -> &Id {
+    &self.id
   }
 }
 

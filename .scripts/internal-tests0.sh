@@ -12,7 +12,6 @@ cargo miri test -p wtx
 $rt check-generic wtx
 $rt test-with-features wtx ahash
 $rt test-with-features wtx arbitrary
-$rt test-with-features wtx async-send
 $rt test-with-features wtx async-std
 $rt test-with-features wtx atoi
 $rt test-with-features wtx base64

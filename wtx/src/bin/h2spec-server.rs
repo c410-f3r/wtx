@@ -1,7 +1,7 @@
 //! h2spec
 
 use wtx::{
-  http::{server::OptionedServer, ReqResBuffer, Request, Response, StatusCode},
+  http::{server::OptionedServer, ReqResBuffer, Request, StatusCode},
   http2::{Http2Buffer, Http2Params},
   rng::StdRng,
 };
@@ -21,10 +21,8 @@ async fn main() {
   .unwrap()
 }
 
-async fn handle(
-  req: Request<&mut ReqResBuffer>,
-) -> Result<Response<&mut ReqResBuffer>, wtx::Error> {
+async fn handle(req: &mut Request<&mut ReqResBuffer>) -> Result<StatusCode, wtx::Error> {
   req.rrd.clear();
   req.rrd.extend_body(b"Hello").unwrap();
-  Ok(Response::http2(req.rrd, StatusCode::Ok))
+  Ok(StatusCode::Ok)
 }

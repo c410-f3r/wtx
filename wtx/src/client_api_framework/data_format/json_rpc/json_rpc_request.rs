@@ -1,6 +1,6 @@
 use crate::{
   client_api_framework::{dnsn::Serialize, Id},
-  misc::Vector,
+  misc::{Lease, Vector},
 };
 use core::{
   borrow::Borrow,
@@ -44,6 +44,13 @@ impl<P> Hash for JsonRpcRequest<P> {
     H: Hasher,
   {
     self.id.hash(state);
+  }
+}
+
+impl<P> Lease<Id> for JsonRpcRequest<P> {
+  #[inline]
+  fn lease(&self) -> &Id {
+    &self.id
   }
 }
 

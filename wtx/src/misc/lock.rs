@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, sync::Arc};
 use core::{
   cell::{RefCell, RefMut},
-  future::{poll_fn, Future},
+  future::poll_fn,
   ops::DerefMut,
   task::Poll,
 };

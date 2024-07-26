@@ -24,7 +24,7 @@ mod transaction_manager;
 mod ty;
 mod tys;
 
-use crate::database::{Database, DatabaseTy, Decode, Encode, Typed};
+use crate::database::{Database, DatabaseTy};
 pub(crate) use authentication::Authentication;
 pub use config::Config;
 use core::marker::PhantomData;
@@ -75,61 +75,6 @@ impl<E> Default for Postgres<E> {
   fn default() -> Self {
     Self(PhantomData)
   }
-}
-
-#[cfg(feature = "postgres")]
-macro_rules! tuple_impls {
-  ($( ($($T:ident)+) )+) => {
-    $(
-      impl<'de, ERR, $($T),+> Decode<'de, Postgres<ERR>> for ($( $T, )+)
-      where
-        ERR: From<crate::Error>,
-        $(for<'local_de> $T: Decode<'local_de, Postgres<ERR>>,)+
-      {
-        #[inline]
-        fn decode(dv: &DecodeValue<'de>) -> Result<Self, ERR> {
-          let mut sd = StructDecoder::<ERR>::new(dv);
-          Ok((
-            $( sd.decode::<$T>()?, )+
-          ))
-        }
-      }
-
-      #[expect(non_snake_case, reason = "meta variable expressions")]
-      impl<ERR, $($T),+> Encode<Postgres<ERR>> for ($( $T, )+)
-      where
-        ERR: From<crate::Error>,
-        $($T: Encode<Postgres<ERR>> + Typed<Postgres<ERR>>,)+
-      {
-        #[inline]
-        fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), ERR> {
-          let ($($T,)+) = self;
-          let mut _ev = StructEncoder::<ERR>::new(ev)?;
-          $( _ev = _ev.encode($T)?; )+
-          Ok(())
-        }
-      }
-    )+
-  }
-}
-
-tuple_impls! {
-  (A)
-  (A B)
-  (A B C)
-  (A B C D)
-  (A B C D E)
-  (A B C D E F)
-  (A B C D E F G)
-  (A B C D E F G H)
-  (A B C D E F G H I)
-  (A B C D E F G H I J)
-  (A B C D E F G H I J K)
-  (A B C D E F G H I J K L)
-  (A B C D E F G H I J K L M)
-  (A B C D E F G H I J K L M N)
-  (A B C D E F G H I J K L M N O)
-  (A B C D E F G H I J K L M N O P)
 }
 
 #[cfg(test)]

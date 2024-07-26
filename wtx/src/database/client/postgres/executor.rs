@@ -15,10 +15,10 @@ use crate::{
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
-  misc::{AsyncBounds, ConnectionState, FilledBufferWriter, Lease, LeaseMut, Stream, TlsStream},
+  misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Stream, TlsStream},
   rng::Rng,
 };
-use core::{future::Future, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// Executor
 #[derive(Debug)]
@@ -113,9 +113,9 @@ where
 
 impl<E, EB, S> crate::database::Executor for Executor<E, EB, S>
 where
-  E: AsyncBounds + From<crate::Error>,
-  EB: AsyncBounds + LeaseMut<ExecutorBuffer>,
-  S: AsyncBounds + Stream,
+  E: From<crate::Error>,
+  EB: LeaseMut<ExecutorBuffer>,
+  S: Stream,
 {
   type Database = Postgres<E>;
   type TransactionManager<'tm> = TransactionManager<'tm, E, EB, S>
@@ -190,11 +190,11 @@ where
     &mut self,
     sc: SC,
     rv: RV,
-    mut cb: impl AsyncBounds + FnMut(&<Self::Database as Database>::Record<'_>) -> Result<(), E>,
+    mut cb: impl FnMut(&<Self::Database as Database>::Record<'_>) -> Result<(), E>,
   ) -> Result<<Self::Database as Database>::Records<'_>, E>
   where
-    RV: AsyncBounds + RecordValues<Self::Database>,
-    SC: AsyncBounds + StmtCmd,
+    RV: RecordValues<Self::Database>,
+    SC: StmtCmd,
   {
     let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);

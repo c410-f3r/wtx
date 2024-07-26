@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [dependencies]
 proc-macro2 = { default-features = false, version = "1.0" }
 quote = { default-features = false, features = ["proc-macro"], version = "1.0" }
@@ -16,7 +18,7 @@ proc-macro = true
 [package]
 categories = ["asynchronous", "data-structures", "network-programming"]
 description = "Procedural macros for wtx"
-edition = "2021"
+edition = "2024"
 exclude = ["tests"]
 keywords = ["api", "client", "io", "network"]
 license = "MIT"

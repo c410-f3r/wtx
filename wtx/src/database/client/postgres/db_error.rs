@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{PostgresError, SqlState},
-  misc::{str_split1, Usize, _usize_range_from_u32_range, atoi},
+  misc::{str_split1, Usize, _usize_range_from_u32_range, atoi, into_rslt},
 };
 use alloc::boxed::Box;
 use core::{
@@ -300,7 +300,7 @@ impl TryFrom<&str> for DbError {
 
     Ok(Self {
       buffer: from.get(..*Usize::from(idx)).unwrap_or_default().into(),
-      code: code.ok_or(crate::Error::MISC_NoInnerValue("No code"))?,
+      code: into_rslt(code)?,
       column,
       constraint,
       datatype,
@@ -308,16 +308,14 @@ impl TryFrom<&str> for DbError {
       file,
       hint,
       line,
-      message: message.ok_or(crate::Error::MISC_NoInnerValue("No message"))?,
-      severity_localized: severity_localized
-        .ok_or(crate::Error::MISC_NoInnerValue("No severity"))?,
+      message: into_rslt(message)?,
+      severity_localized: into_rslt(severity_localized)?,
       severity_nonlocalized,
       position: match normal_position {
         None => match internal_position {
-          Some(position) => Some(ErrorPosition::Internal {
-            position,
-            query: internal_query.ok_or(crate::Error::MISC_NoInnerValue("No internal query"))?,
-          }),
+          Some(position) => {
+            Some(ErrorPosition::Internal { position, query: into_rslt(internal_query)? })
+          }
           None => None,
         },
         Some(position) => Some(ErrorPosition::Original(position)),

@@ -236,7 +236,7 @@ where
   #[inline]
   pub async fn connect(mut hb: HB, hp: Http2Params, mut stream: S) -> crate::Result<Self> {
     hb.lease_mut().clear();
-    stream.write_all_vectored([PREFACE, hp.to_settings_frame().bytes(&mut [0; 45])]).await?;
+    stream.write_all_vectored(&[PREFACE, hp.to_settings_frame().bytes(&mut [0; 45])]).await?;
     apply_initial_params(hb.lease_mut(), &hp)?;
     Ok(Self { hd: HD::new(HD::Item::new(Http2Data::new(hb, hp, stream))) })
   }

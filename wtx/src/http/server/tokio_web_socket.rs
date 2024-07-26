@@ -8,7 +8,7 @@ use crate::{
     Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer,
   },
 };
-use core::{fmt::Debug, future::Future, net::SocketAddr};
+use core::{fmt::Debug, net::SocketAddr};
 use std::sync::OnceLock;
 use tokio::{
   net::{TcpListener, TcpStream},
@@ -35,18 +35,25 @@ impl OptionedServer {
     C: Compression<false> + Send + 'static,
     C::NegotiatedCompression: Send,
     E: Debug + From<crate::Error> + Send + 'static,
-    F: Copy
-      + for<'any> FnFut<
+    for<'fb, 'wsb> F: Copy
+      + FnFut<
         (
-          &'any mut FrameBufferVec,
-          WebSocketServer<C::NegotiatedCompression, StdRng, S, &'any mut WebSocketBuffer>,
+          &'fb mut FrameBufferVec,
+          WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
         ),
         Result<(), E>,
       > + Send
       + 'static,
-    S: Stream,
+    S: Stream<read(..): Send, write_all(..): Send> + Send,
     SF: Send + Future<Output = crate::Result<S>>,
-    for<'any> &'any F: Send,
+    for<'fb, 'wsb> <F as FnFut<
+      (
+        &'fb mut FrameBufferVec,
+        WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
+      ),
+      Result<(), E>,
+    >>::Future: Send,
+    for<'handle> &'handle F: Send,
   {
     let buffers_len = _buffers_len(buffers_len_opt)?;
     let listener = TcpListener::bind(addr).await?;

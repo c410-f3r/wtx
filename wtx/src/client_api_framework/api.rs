@@ -1,5 +1,4 @@
-use crate::misc::AsyncBounds;
-use core::{fmt::Display, future::Future};
+use core::fmt::Display;
 
 /// Api definitions group different packages into a common namespace and define custom additional
 /// logical through hooks.
@@ -9,13 +8,13 @@ pub trait Api {
 
   /// Fallible hook that is automatically called after sending any related request.
   #[inline]
-  fn after_sending(&mut self) -> impl AsyncBounds + Future<Output = Result<(), Self::Error>> {
+  fn after_sending(&mut self) -> impl Future<Output = Result<(), Self::Error>> {
     async { Ok(()) }
   }
 
   /// Fallible hook that is automatically called before sending any related request.
   #[inline]
-  fn before_sending(&mut self) -> impl AsyncBounds + Future<Output = Result<(), Self::Error>> {
+  fn before_sending(&mut self) -> impl Future<Output = Result<(), Self::Error>> {
     async { Ok(()) }
   }
 }
@@ -26,7 +25,7 @@ impl Api for () {
 
 impl<T> Api for &mut T
 where
-  T: Api + AsyncBounds,
+  T: Api,
 {
   type Error = T::Error;
 

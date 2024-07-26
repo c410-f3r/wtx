@@ -23,7 +23,6 @@ use crate::{
 };
 use alloc::{string::String, vec::Vec};
 pub use commands::*;
-use core::future::Future;
 pub use migration::*;
 pub use repeatability::Repeatability;
 pub use schema_manager_error::SchemaManagerError;
@@ -177,13 +176,13 @@ mod postgres {
       },
       DatabaseTy, Executor as _, Identifier,
     },
-    misc::{AsyncBounds, Lease, LeaseMut, Stream},
+    misc::{Lease, LeaseMut, Stream},
   };
 
   impl<EB, STREAM> SchemaManagement for Executor<crate::Error, EB, STREAM>
   where
-    EB: AsyncBounds + LeaseMut<ExecutorBuffer>,
-    STREAM: AsyncBounds + Stream,
+    EB: LeaseMut<ExecutorBuffer>,
+    STREAM: Stream,
   {
     #[inline]
     async fn clear(&mut self, buffer: (&mut String, &mut Vec<Identifier>)) -> crate::Result<()> {

@@ -8,7 +8,7 @@ use crate::{
   },
   misc::Lease,
 };
-use core::{future::Future, ops::Range};
+use core::ops::Range;
 
 /// Bidirectional Transport
 ///

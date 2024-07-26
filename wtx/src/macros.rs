@@ -18,12 +18,7 @@ macro_rules! create_enum {
       #[inline]
       /// The total number of variants
       $v const fn len() -> usize {
-        let mut len: usize = 0;
-        $({
-          let _ = $variant_n_fixed;
-          len = len.wrapping_add(1);
-        })*
-        len
+        const { 0 $( + { let _ = $variant_n_fixed; 1 })* }
       }
 
       /// See [`crate::misc::EnumVarStrings`].

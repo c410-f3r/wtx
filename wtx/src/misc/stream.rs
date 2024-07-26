@@ -12,7 +12,7 @@ macro_rules! _local_write_all {
 
 macro_rules! _local_write_all_vectored {
   ($bytes:expr, |$io_slices:ident| $write:expr) => {{
-    let mut buffer = [std::io::IoSlice::new(&[]); N];
+    let mut buffer = [std::io::IoSlice::new(&[]); 8];
     let mut $io_slices = crate::misc::stream::convert_to_io_slices(&mut buffer, $bytes);
     while !$io_slices.is_empty() {
       match $write {
@@ -24,25 +24,19 @@ macro_rules! _local_write_all_vectored {
   }};
 }
 
-use crate::misc::{AsyncBounds, Lease};
+use crate::misc::Lease;
 use alloc::vec::Vec;
-use core::{cmp::Ordering, future::Future};
+use core::cmp::Ordering;
 
 /// A stream of values produced asynchronously.
-pub trait Stream
-where
-  Self: AsyncBounds,
-{
+pub trait Stream {
   /// Pulls some bytes from this source into the specified buffer, returning how many bytes
   /// were read.
-  fn read(&mut self, bytes: &mut [u8]) -> impl AsyncBounds + Future<Output = crate::Result<usize>>;
+  fn read(&mut self, bytes: &mut [u8]) -> impl Future<Output = crate::Result<usize>>;
 
   /// Reads the exact number of bytes required to fill `bytes`.
   #[inline]
-  fn read_exact(
-    &mut self,
-    bytes: &mut [u8],
-  ) -> impl AsyncBounds + Future<Output = crate::Result<()>> {
+  fn read_exact(&mut self, bytes: &mut [u8]) -> impl Future<Output = crate::Result<()>> {
     async move {
       let mut idx = 0;
       for _ in 0..bytes.len() {
@@ -61,7 +55,7 @@ where
 
   /// Reads and at the same time discards exactly `len` bytes.
   #[inline]
-  fn read_skip(&mut self, len: usize) -> impl AsyncBounds + Future<Output = crate::Result<()>> {
+  fn read_skip(&mut self, len: usize) -> impl Future<Output = crate::Result<()>> {
     async move {
       let mut buffer = [0; 32];
       let mut counter = len;
@@ -81,17 +75,15 @@ where
   }
 
   /// Attempts to write ***all*** `bytes`.
-  fn write_all(&mut self, bytes: &[u8]) -> impl AsyncBounds + Future<Output = crate::Result<()>>;
+  fn write_all(&mut self, bytes: &[u8]) -> impl Future<Output = crate::Result<()>>;
 
   /// Attempts to write ***all*** `bytes` of all slices in a single syscall.
   ///
   /// # Panics
   ///
   /// If the length of the outermost slice is greater than 8.
-  fn write_all_vectored<const N: usize>(
-    &mut self,
-    bytes: [&[u8]; N],
-  ) -> impl AsyncBounds + Future<Output = crate::Result<()>>;
+
+  fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> impl Future<Output = crate::Result<()>>;
 }
 
 /// Transport Layer Security
@@ -117,14 +109,14 @@ impl Stream for () {
   }
 
   #[inline]
-  async fn write_all_vectored<const N: usize>(&mut self, _: [&[u8]; N]) -> crate::Result<()> {
+  async fn write_all_vectored(&mut self, _: &[&[u8]]) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl<T> Stream for &mut T
 where
-  T: AsyncBounds + Stream,
+  T: Stream,
 {
   #[inline]
   async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
@@ -137,7 +129,7 @@ where
   }
 
   #[inline]
-  async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+  async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
     (**self).write_all_vectored(bytes).await
   }
 }
@@ -189,7 +181,7 @@ impl Stream for BytesStream {
   }
 
   #[inline]
-  async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+  async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
     for elem in bytes {
       self.buffer.extend_from_slice(elem);
     }
@@ -218,7 +210,7 @@ mod async_std {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
@@ -238,14 +230,14 @@ mod async_std {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
   }
 }
 
-#[cfg(all(feature = "embassy-net", not(feature = "async-send")))]
+#[cfg(feature = "embassy-net")]
 mod embassy_net {
   use crate::misc::Stream;
   use embassy_net::tcp::TcpSocket;
@@ -263,7 +255,7 @@ mod embassy_net {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       for elem in bytes {
         self.write_all(elem).await?;
       }
@@ -272,7 +264,7 @@ mod embassy_net {
   }
 }
 
-#[cfg(all(feature = "embedded-tls", not(feature = "async-send")))]
+#[cfg(feature = "embedded-tls")]
 mod embedded_tls {
   use crate::misc::{stream::TlsStream, Stream};
   use embedded_io_async::{Read, Write};
@@ -296,7 +288,7 @@ mod embedded_tls {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       for elem in bytes {
         <Self as Stream>::write_all(self, elem).await?;
       }
@@ -318,7 +310,7 @@ mod embedded_tls {
   }
 }
 
-#[cfg(all(feature = "glommio", not(feature = "async-send")))]
+#[cfg(feature = "glommio")]
 mod glommio {
   use crate::misc::Stream;
   use futures_lite::io::{AsyncReadExt, AsyncWriteExt};
@@ -337,7 +329,7 @@ mod glommio {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       for elem in bytes {
         <Self as Stream>::write_all(self, elem).await?;
       }
@@ -359,7 +351,7 @@ mod glommio {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       for elem in bytes {
         <Self as Stream>::write_all(self, elem).await?;
       }
@@ -389,7 +381,7 @@ mod smol {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
@@ -409,7 +401,7 @@ mod smol {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
@@ -434,7 +426,7 @@ mod smoltcp {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       for elem in bytes {
         self.write_all(elem).await?;
       }
@@ -464,7 +456,7 @@ mod _std {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices));
       Ok(())
     }
@@ -484,7 +476,7 @@ mod _std {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices));
       Ok(())
     }
@@ -512,7 +504,7 @@ mod tokio {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
@@ -532,7 +524,7 @@ mod tokio {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
@@ -541,13 +533,13 @@ mod tokio {
 
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls {
-  use crate::misc::{stream::TlsStream, AsyncBounds, Stream};
+  use crate::misc::{stream::TlsStream, Stream};
   use ring::digest::{self, Digest};
   use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
   impl<T> Stream for tokio_rustls::client::TlsStream<T>
   where
-    T: AsyncBounds + AsyncRead + AsyncWrite + Unpin,
+    T: AsyncRead + AsyncWrite + Unpin,
   {
     #[inline]
     async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
@@ -561,7 +553,7 @@ mod tokio_rustls {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
@@ -569,7 +561,7 @@ mod tokio_rustls {
 
   impl<T> TlsStream for tokio_rustls::client::TlsStream<T>
   where
-    T: AsyncBounds + AsyncRead + AsyncWrite + Unpin,
+    T: AsyncRead + AsyncWrite + Unpin,
   {
     type TlsServerEndPoint = Digest;
 
@@ -610,7 +602,7 @@ mod tokio_rustls {
 
   impl<T> Stream for tokio_rustls::server::TlsStream<T>
   where
-    T: AsyncBounds + AsyncRead + AsyncWrite + Unpin,
+    T: AsyncRead + AsyncWrite + Unpin,
   {
     #[inline]
     async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
@@ -624,7 +616,7 @@ mod tokio_rustls {
     }
 
     #[inline]
-    async fn write_all_vectored<const N: usize>(&mut self, bytes: [&[u8]; N]) -> crate::Result<()> {
+    async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
       _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
       Ok(())
     }
@@ -632,7 +624,7 @@ mod tokio_rustls {
 
   impl<T> TlsStream for tokio_rustls::server::TlsStream<T>
   where
-    T: AsyncBounds + AsyncRead + AsyncWrite + Unpin,
+    T: AsyncRead + AsyncWrite + Unpin,
   {
     type TlsServerEndPoint = Digest;
 
@@ -680,15 +672,12 @@ fn advance_slices<'bytes>(
 
 #[cfg(feature = "std")]
 #[inline]
-fn convert_to_io_slices<'buffer, 'bytes, const N: usize>(
-  buffer: &'buffer mut [std::io::IoSlice<'bytes>; N],
-  elems: [&'bytes [u8]; N],
+fn convert_to_io_slices<'buffer, 'bytes>(
+  buffer: &'buffer mut [std::io::IoSlice<'bytes>; 8],
+  elems: &[&'bytes [u8]],
 ) -> &'buffer mut [std::io::IoSlice<'bytes>] {
   use std::io::IoSlice;
-  const {
-    assert!(N <= 8);
-  }
-  match elems.as_slice() {
+  match elems {
     [a] => {
       buffer[0] = IoSlice::new(a);
       &mut buffer[..1]
@@ -749,6 +738,7 @@ fn convert_to_io_slices<'buffer, 'bytes, const N: usize>(
       buffer[7] = IoSlice::new(h);
       &mut buffer[..8]
     }
-    _ => &mut [],
+    #[expect(clippy::panic, reason = "Programming error")]
+    _ => panic!("It is not possible to send more than 8 vectorized slices"),
   }
 }

@@ -2,6 +2,7 @@ use crate::misc::{char_slice, from_utf8_basic, BasicUtf8Error, Lease, Usize};
 use core::{
   cmp::Ordering,
   fmt::{self, Arguments, Debug, Display, Formatter, Write},
+  hash::{Hash, Hasher},
   ops::Deref,
   str,
 };
@@ -176,6 +177,16 @@ impl<const N: usize> Lease<str> for ArrayString<N> {
 }
 
 impl<const N: usize> Eq for ArrayString<N> {}
+
+impl<const N: usize> Hash for ArrayString<N> {
+  #[inline]
+  fn hash<H>(&self, state: &mut H)
+  where
+    H: Hasher,
+  {
+    Hash::hash(&**self, state);
+  }
+}
 
 impl<const N: usize> PartialEq for ArrayString<N> {
   #[inline]

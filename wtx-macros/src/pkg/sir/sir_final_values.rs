@@ -136,7 +136,6 @@ impl<'attrs, 'module, 'others>
               #res_ident
             >: wtx::client_api_framework::dnsn::Deserialize<DRSR>,
             A: wtx::client_api_framework::Api<Error = <#api as wtx::client_api_framework::Api>::Error> + wtx::misc::LeaseMut<#api>,
-            DRSR: wtx::misc::AsyncBounds,
           {
             type ExternalRequestContent = wtx::client_api_framework::data_format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
