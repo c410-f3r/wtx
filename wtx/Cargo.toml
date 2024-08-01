@@ -47,7 +47,7 @@ async-std = { default-features = false, features = ["default"], optional = true,
 atoi = { default-features = false, optional = true, version = "2.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.4" }
-bytes = { default-features = false, optional = true, version = "1.0" }
+bytes = { default-features = false, optional = true, version = "1.7" }
 chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
