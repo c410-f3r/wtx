@@ -48,8 +48,8 @@ mod window_update_frame;
 use crate::{
   http::{HttpError, ReqResBuffer, StatusCode},
   http2::misc::{
-    apply_initial_params, process_higher_operation_err, protocol_err,
-    read_header_and_continuations, server_header_stream_state,
+    process_higher_operation_err, protocol_err, read_header_and_continuations,
+    server_header_stream_state,
   },
   misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize, _Span},
 };
@@ -132,14 +132,47 @@ where
 
   /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
   /// streams.
+  #[inline]
   pub async fn send_go_away(self, error_code: Http2ErrorCode) {
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
     misc::send_go_away(error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
   }
 
+  #[inline]
   pub(crate) async fn _swap_buffers(&mut self, hb: &mut HB) {
     mem::swap(hb.lease_mut(), self.hd.lock().await.parts_mut().hb);
+  }
+
+  #[inline]
+  async fn apply_initial_params(
+    hb: &mut Http2Buffer<RRB>,
+    has_preface: bool,
+    hp: &Http2Params,
+    stream: &mut S,
+  ) -> crate::Result<()> {
+    let sf = hp.to_settings_frame();
+    if hp.initial_window_len() != initial_window_len!() {
+      let wuf = WindowUpdateFrame::new(
+        hp.initial_window_len().wrapping_sub(initial_window_len!()).into(),
+        U31::ZERO,
+      )?;
+      if has_preface {
+        stream.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
+      } else {
+        stream.write_all_vectored(&[sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
+      }
+    } else {
+      if has_preface {
+        stream.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45])]).await?;
+      } else {
+        stream.write_all(sf.bytes(&mut [0; 45])).await?;
+      }
+    }
+    hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
+    hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
+    hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()))?;
+    Ok(())
   }
 }
 
@@ -161,8 +194,7 @@ where
       misc::send_go_away(Http2ErrorCode::ProtocolError, &mut true, U31::ZERO, &mut stream).await;
       return Err(protocol_err(Http2Error::NoPreface));
     }
-    stream.write_all(hp.to_settings_frame().bytes(&mut [0; 45])).await?;
-    apply_initial_params(hb.lease_mut(), &hp)?;
+    Self::apply_initial_params(hb.lease_mut(), false, &hp, &mut stream).await?;
     Ok(Self { hd: HD::new(HD::Item::new(Http2Data::new(hb, hp, stream))) })
   }
 
@@ -210,7 +242,7 @@ where
             span: _Span::_none(),
             status_code: StatusCode::Ok,
             stream_state: server_header_stream_state(has_eos),
-            windows: Windows::stream(hdpm.hp, hdpm.hps),
+            windows: Windows::initial(hdpm.hp, hdpm.hps),
           },
         ));
         Ok(ServerStream::new(
@@ -236,8 +268,7 @@ where
   #[inline]
   pub async fn connect(mut hb: HB, hp: Http2Params, mut stream: S) -> crate::Result<Self> {
     hb.lease_mut().clear();
-    stream.write_all_vectored(&[PREFACE, hp.to_settings_frame().bytes(&mut [0; 45])]).await?;
-    apply_initial_params(hb.lease_mut(), &hp)?;
+    Self::apply_initial_params(hb.lease_mut(), true, &hp, &mut stream).await?;
     Ok(Self { hd: HD::new(HD::Item::new(Http2Data::new(hb, hp, stream))) })
   }
 
@@ -257,7 +288,7 @@ where
       StreamControlRecvParams {
         span: span.clone(),
         stream_state: StreamState::Idle,
-        windows: Windows::stream(hdpm.hp, hdpm.hps),
+        windows: Windows::initial(hdpm.hp, hdpm.hps),
       },
     ));
     *hdpm.last_stream_id = hdpm.last_stream_id.wrapping_add(U31::TWO);

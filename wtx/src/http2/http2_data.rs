@@ -31,11 +31,12 @@ where
 {
   #[inline]
   pub(crate) fn new(hb: HB, hp: Http2Params, stream: S) -> Self {
-    let windows = Windows::conn(&hp);
+    let hps = Http2ParamsSend::default();
+    let windows = Windows::initial(&hp, &hps);
     Self {
       hb,
       hp,
-      hps: Http2ParamsSend::default(),
+      hps,
       is_conn_open: true,
       last_stream_id: if IS_CLIENT { U31::ONE } else { U31::ZERO },
       phantom: PhantomData,

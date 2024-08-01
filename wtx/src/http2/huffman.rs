@@ -139,7 +139,7 @@ mod bench {
 
   #[bench]
   fn decode(b: &mut test::Bencher) {
-    const N: usize = 1024 * 1024;
+    const N: usize = 1024 * 512;
     let data = {
       let mut dest = Vector::with_capacity(N).unwrap();
       huffman_encode(&_data(N), &mut dest).unwrap();

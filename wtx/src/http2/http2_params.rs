@@ -130,49 +130,49 @@ impl Http2Params {
   }
 
   /// Mutable version of [`Self::initial_window_len`].
-  pub fn set_initial_window_len(&mut self, value: u32) -> &mut Self {
+  pub fn set_initial_window_len(mut self, value: u32) -> Self {
     self.initial_window_len = U31::from_u32(value);
     self
   }
 
   /// Mutable version of [`Self::max_body_len`].
-  pub fn set_max_body_len(&mut self, value: u32) -> &mut Self {
+  pub fn set_max_body_len(mut self, value: u32) -> Self {
     self.max_body_len = value;
     self
   }
 
   /// Mutable version of [`Self::max_concurrent_streams_num`].
-  pub fn set_max_concurrent_streams_num(&mut self, value: u32) -> &mut Self {
+  pub fn set_max_concurrent_streams_num(mut self, value: u32) -> Self {
     self.max_concurrent_streams_num = value;
     self
   }
 
   /// Mutable version of [`Self::max_headers_len`].
-  pub fn set_max_headers_len(&mut self, value: u32) -> &mut Self {
+  pub fn set_max_headers_len(mut self, value: u32) -> Self {
     self.max_headers_len = value;
     self
   }
 
   /// Mutable version of [`Self::max_hpack_len`].
-  pub fn set_max_hpack_len(&mut self, value: (u32, u32)) -> &mut Self {
+  pub fn set_max_hpack_len(mut self, value: (u32, u32)) -> Self {
     self.max_hpack_len = value;
     self
   }
 
   /// Mutable version of [`Self::max_frame_len`].
-  pub fn set_max_frame_len(&mut self, value: u32) -> &mut Self {
+  pub fn set_max_frame_len(mut self, value: u32) -> Self {
     self.max_frame_len = value.clamp(MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND);
     self
   }
 
   /// Mutable version of [`Self::max_recv_streams_num`].
-  pub fn set_max_recv_streams_num(&mut self, value: u32) -> &mut Self {
+  pub fn set_max_recv_streams_num(mut self, value: u32) -> Self {
     self.max_recv_streams_num = value;
     self
   }
 
   /// Mutable version of [`Self::read_buffer_len`].
-  pub fn set_read_buffer_len(&mut self, value: u32) -> &mut Self {
+  pub fn set_read_buffer_len(mut self, value: u32) -> Self {
     self.read_buffer_len = value;
     self
   }

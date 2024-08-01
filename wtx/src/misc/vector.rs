@@ -3,7 +3,6 @@ use alloc::vec::Vec;
 use core::{
   fmt::{Debug, Formatter},
   hint::assert_unchecked,
-  mem::needs_drop,
   ops::{Deref, DerefMut},
   ptr,
 };
@@ -26,6 +25,8 @@ pub enum VectorError {
 }
 
 /// A wrapper around the std's vector.
+#[cfg_attr(feature = "test-strategy", derive(test_strategy::Arbitrary))]
+#[cfg_attr(feature = "test-strategy", arbitrary(bound(D: proptest::arbitrary::Arbitrary + 'static)))]
 #[derive(Eq, PartialEq)]
 pub struct Vector<D> {
   data: Vec<D>,
@@ -35,19 +36,13 @@ impl<D> Vector<D> {
   /// Constructs a new, empty instance.
   #[inline]
   pub const fn new() -> Self {
-    const {
-      assert!(!needs_drop::<D>());
-    }
-    Self { data: Vec::new() }
+    Self::from_vec(Vec::new())
   }
 
   /// Constructs a new instance with elements provided by `iter`.
   #[expect(clippy::should_implement_trait, reason = "Std trait is infallible")]
   #[inline]
   pub fn from_iter(iter: impl IntoIterator<Item = D>) -> Result<Self, VectorError> {
-    const {
-      assert!(!needs_drop::<D>());
-    }
     let mut this = Self::new();
     this.extend_from_iter(iter)?;
     Ok(this)
@@ -56,18 +51,12 @@ impl<D> Vector<D> {
   /// Constructs a new instance based on an arbitrary [Vec].
   #[inline]
   pub const fn from_vec(data: Vec<D>) -> Self {
-    const {
-      assert!(!needs_drop::<D>());
-    }
     Self { data }
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
   pub fn with_capacity(cap: usize) -> Result<Self, VectorError> {
-    const {
-      assert!(!needs_drop::<D>());
-    }
     let mut this = Self { data: Vec::with_capacity(cap) };
     this.reserve(cap).map_err(|_err| VectorError::WithCapacityOverflow)?;
     Ok(this)
@@ -603,7 +592,7 @@ mod bench {
 
 #[cfg(feature = "_proptest")]
 #[cfg(test)]
-mod proptest {
+mod _proptest {
   use crate::misc::Vector;
   use alloc::vec::Vec;
 

@@ -111,7 +111,6 @@ where
   }
 
   let mut wp = WindowsPair::new(hdpm.windows, &mut scrp.windows);
-
   'msg: {
     let available_send = if let Ok(elem @ 1..=u32::MAX) = u32::try_from(wp.available_send()) {
       elem
@@ -148,6 +147,7 @@ where
         hdpm.hps.max_frame_len,
         hdpm.stream,
         stream_id,
+        &mut wp,
       )
       .await?
       {
@@ -237,6 +237,7 @@ async fn fast_path<S, const IS_CLIENT: bool>(
   max_frame_len: u32,
   stream: &mut S,
   stream_id: U31,
+  wp: &mut WindowsPair<'_>,
 ) -> crate::Result<bool>
 where
   S: Stream,
@@ -306,6 +307,7 @@ where
       )
       .await?;
     }
+    wp.withdrawn_send(Some(stream_id), data_len)?;
     return Ok(true);
   }
 

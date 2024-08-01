@@ -46,10 +46,10 @@ mod bench {
 #[cfg(test)]
 #[cfg(feature = "_proptest")]
 mod proptest {
-  use alloc::vec::Vec;
+  use crate::misc::Vector;
 
   #[test_strategy::proptest]
-  fn unmask(mut data: Vec<u8>, mask: [u8; 4]) {
+  fn unmask(mut data: Vector<u8>, mask: [u8; 4]) {
     crate::web_socket::unmask(&mut data, mask);
   }
 }

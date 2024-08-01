@@ -17,7 +17,10 @@ pub type UriString = Uri<String>;
 /// foo://user:password@hostname:80/path?query=value#hash
 /// ```
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Uri<S> {
+pub struct Uri<S>
+where
+  S: ?Sized,
+{
   authority_start_idx: u8,
   href_start_idx: u16,
   initial_len: u16,
@@ -41,8 +44,6 @@ where
   }
 
   /// Analyzes the provided `uri` to create a new instance.
-  ///
-  ///
   #[inline]
   pub fn new(uri: S) -> Self {
     let (authority_start_idx, href_start_idx, initial_len) = Self::parts(uri.lease());

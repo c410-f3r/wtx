@@ -11,7 +11,7 @@ extern crate tokio;
 extern crate wtx;
 
 use wtx::{
-  http::{Method, Request, ReqResBuffer, ReqUri},
+  http::{Method, Request, ReqResBuffer},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{from_utf8_basic, UriRef},
   rng::StaticRng,
@@ -31,7 +31,7 @@ async fn client() {
   let mut rrb = ReqResBuffer::default();
   let mut stream = http2.stream().await.unwrap();
   stream
-    .send_req(Request::http2(Method::Get, b"Hello!"), ReqUri::Param(&uri))
+    .send_req(Request::http2(Method::Get, b"Hello!"), &uri)
     .await
     .unwrap();
   let res = stream.recv_res(rrb).await.unwrap();

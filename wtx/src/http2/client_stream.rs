@@ -91,14 +91,18 @@ where
   ///
   /// Shouldn't be called more than once.
   #[inline]
-  pub async fn send_req<RRD>(&mut self, req: Request<RRD>, req_uri: ReqUri<'_>) -> crate::Result<()>
+  pub async fn send_req<RRD>(
+    &mut self,
+    req: Request<RRD>,
+    req_uri: impl Into<ReqUri<'_>>,
+  ) -> crate::Result<()>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
     let _e = self.span._enter();
     _trace!("Sending response");
-    let uri = match req_uri {
+    let uri = match req_uri.into() {
       ReqUri::Data => &req.rrd.uri(),
       ReqUri::Param(elem) => elem,
     };
