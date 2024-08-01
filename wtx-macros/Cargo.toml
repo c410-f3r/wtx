@@ -3,7 +3,7 @@ cargo-features = ["edition2024"]
 [dependencies]
 proc-macro2 = { default-features = false, version = "1.0" }
 quote = { default-features = false, features = ["proc-macro"], version = "1.0" }
-syn = { default-features = false, features = ["full", "parsing", "printing", "extra-traits", "proc-macro"], version = "1.0" }
+syn = { default-features = false, features = ["full", "parsing", "printing", "extra-traits", "proc-macro"], version = "2.0" }
 
 [dev-dependencies]
 trybuild = { default-features = false, version = "1.0" }
