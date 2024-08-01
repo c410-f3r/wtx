@@ -1,5 +1,5 @@
 use crate::http2::{
-  HpackEncoder, Scrp, SettingsFrame, Sorp, Windows, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
+  HpackEncoder, Scrp, SettingsFrame, Sorp, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
   MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN, U31,
 };
 use core::cmp::Ordering;
@@ -22,7 +22,6 @@ impl Http2ParamsSend {
     scrp: &mut Scrp,
     sf: &SettingsFrame,
     sorp: &mut Sorp<RRB>,
-    windows: &mut Windows,
   ) -> crate::Result<()> {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);
@@ -38,7 +37,6 @@ impl Http2ParamsSend {
           for (stream_id, elem) in sorp {
             elem.windows.send.deposit(Some(*stream_id), inc.i32())?;
           }
-          windows.send.deposit(None, inc.i32())?;
         }
         Ordering::Less => {
           let dec = self.initial_window_len.wrapping_sub(elem);
@@ -48,7 +46,6 @@ impl Http2ParamsSend {
           for (stream_id, elem) in sorp {
             elem.windows.send.withdrawn(Some(*stream_id), dec.i32())?;
           }
-          windows.send.withdrawn(None, dec.i32())?;
         }
       }
       self.initial_window_len = elem;

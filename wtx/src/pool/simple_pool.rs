@@ -21,14 +21,13 @@ pub struct SimplePool<RL, RM> {
   available_idxs: Arc<Mutex<Vec<usize>>>,
   locks: Arc<Vec<RL>>,
   rm: Arc<RM>,
-  waker: Arc<Mutex<Option<Waker>>>,
+  waker: Arc<Mutex<Vec<Waker>>>,
 }
 
 impl<R, RL, RM> SimplePool<RL, RM>
 where
   RL: Lock<Resource = SimplePoolResource<R>>,
   RM: ResourceManager<Resource = R>,
-  for<'any> R: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -46,7 +45,7 @@ where
         Arc::new(rslt)
       },
       rm: Arc::new(rm),
-      waker: Arc::new(Mutex::new(None)),
+      waker: Arc::new(Mutex::new(Vec::new())),
     }
   }
 
@@ -68,7 +67,6 @@ impl<R, RL, RM> Pool for SimplePool<RL, RM>
 where
   RL: Lock<Resource = SimplePoolResource<R>>,
   RM: ResourceManager<Resource = R>,
-  for<'any> R: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -89,7 +87,7 @@ where
       }) {
         Poll::Ready((idx, lock))
       } else {
-        *self.waker.lock().unwrap() = Some(ctx.waker().clone());
+        self.waker.lock().unwrap().push(ctx.waker().clone());
         Poll::Pending
       }
     })
@@ -120,7 +118,7 @@ pub struct SimplePoolGetElem<R> {
   available_idxs: Arc<Mutex<Vec<usize>>>,
   idx: usize,
   resource: R,
-  waker: Arc<Mutex<Option<Waker>>>,
+  waker: Arc<Mutex<Vec<Waker>>>,
 }
 
 impl<R> SimplePoolGetElem<R> {
@@ -150,7 +148,7 @@ impl<R> Drop for SimplePoolGetElem<R> {
   #[inline]
   fn drop(&mut self) {
     self.available_idxs.lock().unwrap().push(self.idx);
-    if let Some(waker) = self.waker.lock().unwrap().take() {
+    for waker in self.waker.lock().unwrap().drain(..) {
       waker.wake()
     }
   }

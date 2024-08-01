@@ -1,5 +1,5 @@
 use crate::{
-  http::{Headers, Method, ReqResBuffer, ReqResData, ReqUri, Request, StatusCode},
+  http::{Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{UriRef, UriString, _uri},
   rng::StaticRng,
@@ -103,7 +103,7 @@ async fn stream_client(
   uri: &UriRef<'_>,
 ) -> ReqResBuffer {
   let mut stream = client.stream().await.unwrap();
-  stream.send_req(rrb.as_http2_request(Method::Get), ReqUri::Param(uri)).await.unwrap();
+  stream.send_req(rrb.as_http2_request(Method::Get), uri).await.unwrap();
   stream.recv_res(rrb).await.unwrap().0
 }
 

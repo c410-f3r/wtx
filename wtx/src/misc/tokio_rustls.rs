@@ -20,13 +20,19 @@ pub struct TokioRustlsConnector {
 
 impl TokioRustlsConnector {
   /// From the certificates of the `webpkis-roots` project.
-  ///
-  /// Defaults to an ALPN suitable for HTTP/2 connections.
   #[cfg(feature = "webpki-roots")]
   pub fn from_webpki_roots() -> Self {
     let mut this = Self::default();
     this._store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    this._http2()
+    this
+  }
+
+  /// Erases the current set of ALPN protocols and then pushes the expected ALPN value for a HTTP2
+  /// connection.
+  pub fn http2(mut self) -> Self {
+    self._alpn_protocols.clear();
+    self._alpn_protocols.push("h2".into());
+    self
   }
 
   /// Avoids additional round trips by specifying in advance which protocols should be used.
@@ -65,14 +71,6 @@ impl TokioRustlsConnector {
   ) -> crate::Result<TlsStream<TcpStream>> {
     let stream = TcpStream::connect(host).await?;
     Ok(self.tls_connector().connect(Self::server_name(hostname)?, stream).await?)
-  }
-
-  /// Erases the current set of ALPN protocols and then pushes the expected ALPN value for a HTTP2
-  /// connection.
-  fn _http2(mut self) -> Self {
-    self._alpn_protocols.clear();
-    self._alpn_protocols.push("h2".into());
-    self
   }
 
   fn server_name(hostname: &str) -> crate::Result<ServerName<'static>> {

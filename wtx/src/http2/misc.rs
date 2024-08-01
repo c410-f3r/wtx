@@ -13,17 +13,6 @@ use crate::{
 use core::pin::pin;
 
 #[inline]
-pub(crate) fn apply_initial_params<RRB>(
-  hb: &mut Http2Buffer<RRB>,
-  hp: &Http2Params,
-) -> crate::Result<()> {
-  hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
-  hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
-  hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()))?;
-  Ok(())
-}
-
-#[inline]
 pub(crate) fn check_content_length<RRB>(
   headers_idx: usize,
   sorp: &StreamOverallRecvParams<RRB>,
@@ -214,7 +203,7 @@ where
       FrameInitTy::Settings => {
         let sf = SettingsFrame::read(pfb._current(), fi)?;
         if !sf.has_ack() {
-          hps.update(hpack_enc, scrp, &sf, sorp, conn_windows)?;
+          hps.update(hpack_enc, scrp, &sf, sorp)?;
           write_array([SettingsFrame::ack().bytes(&mut [0; 45])], *is_conn_open, stream).await?;
         }
         continue;

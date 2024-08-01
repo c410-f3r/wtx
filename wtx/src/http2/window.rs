@@ -71,7 +71,7 @@ impl Window {
 
   #[inline]
   const fn is_invalid(&self) -> bool {
-    self.available < 0
+    self.available <= 0
   }
 }
 
@@ -85,27 +85,18 @@ pub(crate) struct Windows {
 }
 
 impl Windows {
+  /// Used in initial connections/streams.
   #[inline]
-  pub(crate) const fn new() -> Self {
-    Self { recv: Window::new(0), send: Window::new(0) }
-  }
-
-  /// Used in initial connections. Sending parameters are only known when a settings frame is received.
-  #[inline]
-  pub(crate) const fn conn(hp: &Http2Params) -> Self {
-    Self {
-      recv: Window::new(U31::from_u32(hp.initial_window_len()).i32()),
-      send: Window::new(initial_window_len!()),
-    }
-  }
-
-  /// Used in initial streams.
-  #[inline]
-  pub(crate) const fn stream(hp: &Http2Params, hps: &Http2ParamsSend) -> Self {
+  pub(crate) const fn initial(hp: &Http2Params, hps: &Http2ParamsSend) -> Self {
     Self {
       recv: Window::new(U31::from_u32(hp.initial_window_len()).i32()),
       send: Window::new(hps.initial_window_len.i32()),
     }
+  }
+
+  #[inline]
+  pub(crate) const fn new() -> Self {
+    Self { recv: Window::new(0), send: Window::new(0) }
   }
 }
 
@@ -133,7 +124,6 @@ impl<'any> WindowsPair<'any> {
   #[inline]
   pub(crate) async fn withdrawn_recv<S>(
     &mut self,
-    has_eos: bool,
     hp: &Http2Params,
     is_conn_open: bool,
     stream: &mut S,
@@ -145,62 +135,52 @@ impl<'any> WindowsPair<'any> {
   {
     let iwl = U31::from_u32(hp.initial_window_len()).i32();
     self.conn.recv.withdrawn(None, value.i32())?;
-    if !has_eos && self.conn.recv.is_invalid() {
-      let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
-      self.conn.recv.deposit(None, conn_value)?;
-      write_array(
-        [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
-        is_conn_open,
-        stream,
-      )
-      .await?;
-    } else {
-      self.stream.recv.withdrawn(Some(stream_id), value.i32())?;
-      match (self.conn.recv.is_invalid(), self.stream.recv.is_invalid()) {
-        (false, false) => {}
-        (false, true) => {
-          let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
-          self.stream.recv.deposit(Some(stream_id), stream_value)?;
-          write_array(
-            [&WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes()],
-            is_conn_open,
-            stream,
-          )
-          .await?;
-        }
-        (true, false) => {
-          let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
-          self.conn.recv.deposit(Some(stream_id), conn_value)?;
-          write_array(
-            [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
-            is_conn_open,
-            stream,
-          )
-          .await?;
-        }
-        (true, true) => {
-          let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
-          let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
-          self.conn.recv.deposit(Some(stream_id), conn_value)?;
-          self.stream.recv.deposit(Some(stream_id), stream_value)?;
-          write_array(
-            [
-              &WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes(),
-              &WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes(),
-            ],
-            is_conn_open,
-            stream,
-          )
-          .await?;
-        }
+    self.stream.recv.withdrawn(Some(stream_id), value.i32())?;
+    match (self.conn.recv.is_invalid(), self.stream.recv.is_invalid()) {
+      (false, false) => {}
+      (false, true) => {
+        let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
+        self.stream.recv.deposit(Some(stream_id), stream_value)?;
+        write_array(
+          [&WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes()],
+          is_conn_open,
+          stream,
+        )
+        .await?;
+      }
+      (true, false) => {
+        let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
+        self.conn.recv.deposit(Some(stream_id), conn_value)?;
+        write_array(
+          [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
+          is_conn_open,
+          stream,
+        )
+        .await?;
+      }
+      (true, true) => {
+        let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
+        let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
+        self.conn.recv.deposit(Some(stream_id), conn_value)?;
+        self.stream.recv.deposit(Some(stream_id), stream_value)?;
+        write_array(
+          [
+            &WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes(),
+            &WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes(),
+          ],
+          is_conn_open,
+          stream,
+        )
+        .await?;
       }
     }
+
     Ok(())
   }
 
   /// Withdrawn - Send
   ///
-  /// Withdraws connection and sending parameters
+  /// Used when sending data frames
   #[inline]
   pub(crate) fn withdrawn_send(&mut self, stream_id: Option<U31>, value: U31) -> crate::Result<()> {
     self.conn.send.withdrawn(None, value.i32())?;

@@ -71,7 +71,7 @@ jobs:
       - run: .scripts/integration-tests.sh
 
 
-  internal-tests0:
+  internal-tests-0:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,9 +86,9 @@ jobs:
           profile: minimal
           toolchain: nightly-2024-07-10
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests0.sh
+      - run: .scripts/internal-tests-0.sh
 
-  internal-tests1:
+  internal-tests-1:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -103,4 +103,4 @@ jobs:
           profile: minimal
           toolchain: nightly-2024-07-10
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests1.sh
+      - run: .scripts/internal-tests-1.sh

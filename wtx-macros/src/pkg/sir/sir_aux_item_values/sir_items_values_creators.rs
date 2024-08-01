@@ -230,7 +230,7 @@ impl SirAuxItemValues {
       /// Delegates to a new builder structure.
       ///
       /// This function must be called in order to continue constructing a package.
-            pub fn #fn_name_ident<#(#fn_lfs,)* #(#fn_tys,)*>(
+      pub fn #fn_name_ident<#(#fn_lfs,)* #(#fn_tys,)*>(
         #fn_this,
         #fn_args
       ) -> #fn_ret_wrapper_segments_idents_first #(::#fn_ret_wrapper_segments_idents)* #fn_ret_angle_bracket_left

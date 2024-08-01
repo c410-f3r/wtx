@@ -88,7 +88,7 @@ where
     if pkgs.get(idx).map(|pkg| *pkg.ext_req_content().borrow() == eresc_id).unwrap_or_default() {
       return Ok(idx);
     }
-    pkgs.binary_search_by(|req| req.ext_req_content().borrow().cmp(&eresc_id)).ok().ok_or(
+    pkgs.binary_search_by(|req| req.ext_req_content().borrow().cmp(&&eresc_id)).ok().ok_or(
       ClientApiFrameworkError::ResponseIdIsNotPresentInTheOfSentBatchPackages(eresc_id).into(),
     )
   }

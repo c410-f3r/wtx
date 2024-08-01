@@ -49,25 +49,18 @@ where
       ));
     }
     trace_frame!(self, elem.span);
-    let Some(local_body_len) = elem
-      .body_len
-      .checked_add(self.fi.data_len)
-      .filter(|element| *element <= self.hp.max_body_len())
-    else {
-      return Err(protocol_err(Http2Error::LargeDataFrameLen));
+    let local_body_len_opt = elem.body_len.checked_add(self.fi.data_len);
+    let Some(local_body_len) = local_body_len_opt.filter(|el| *el <= self.hp.max_body_len()) else {
+      return Err(protocol_err(Http2Error::LargeBodyLen(
+        local_body_len_opt,
+        self.hp.max_body_len(),
+      )));
     };
     elem.body_len = local_body_len;
     let (df, body_bytes) = DataFrame::read(self.pfb._current(), self.fi)?;
     elem.rrb.lease_mut().extend_body(body_bytes)?;
     WindowsPair::new(self.conn_windows, &mut elem.windows)
-      .withdrawn_recv(
-        df.has_eos(),
-        self.hp,
-        *self.is_conn_open,
-        self.stream,
-        self.fi.stream_id,
-        df.data_len(),
-      )
+      .withdrawn_recv(self.hp, *self.is_conn_open, self.stream, self.fi.stream_id, df.data_len())
       .await?;
     if df.has_eos() {
       elem.stream_state = StreamState::HalfClosedRemote;

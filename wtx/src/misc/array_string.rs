@@ -1,5 +1,6 @@
 use crate::misc::{char_slice, from_utf8_basic, BasicUtf8Error, Lease, Usize};
 use core::{
+  borrow::Borrow,
   cmp::Ordering,
   fmt::{self, Arguments, Debug, Display, Formatter, Write},
   hash::{Hash, Hasher},
@@ -133,6 +134,13 @@ impl<const N: usize> ArrayString<N> {
     self.data.get_mut(begin..end).unwrap_or_default().copy_from_slice(other);
     self.len = self.len.wrapping_add(len);
     Ok(())
+  }
+}
+
+impl<const N: usize> Borrow<str> for ArrayString<N> {
+  #[inline]
+  fn borrow(&self) -> &str {
+    self
   }
 }
 

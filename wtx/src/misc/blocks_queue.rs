@@ -244,7 +244,7 @@ impl<D, M> BlocksQueue<D, M> {
   ) -> R {
     if self.head == 0 && self.tail == 0 {
       empty()
-    } else if self.head < self.tail {
+    } else if self.head <= self.tail {
       contiguous()
     } else {
       wraps()
@@ -275,15 +275,11 @@ where
     let head = match (left_free >= total_data_len, right_free >= total_data_len) {
       (true, _) => self.head_lhs(total_data_len),
       (false, true) => self.head_rhs(total_data_len),
-      (false, false) => self.head,
+      (false, false) => return Ok(()),
     };
-    self
-      .metadata
-      .push_front(BlocksQueueMetadata { begin: head, len: total_data_len, misc })
-      .map_err(|_err| BlocksQueueError::PushFrontOverflow)?;
-    self.head = head;
-    self.tail = tail;
-    let mut start = self.head;
+    let metadata = BlocksQueueMetadata { begin: head, len: total_data_len, misc };
+    let _rslt = self.metadata.push_front(metadata);
+    let mut start = head;
     for value in data {
       // SAFETY: `start is within bounds`
       let dst = unsafe { self.data.as_mut_ptr().add(start) };
@@ -293,6 +289,8 @@ where
       }
       start = start.wrapping_add(value.len());
     }
+    self.head = head;
+    self.tail = tail;
     // SAFETY: the above `match` handled capacity
     unsafe {
       self.data.set_len(self.data.len().wrapping_add(total_data_len));

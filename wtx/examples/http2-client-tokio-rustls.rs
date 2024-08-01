@@ -4,7 +4,7 @@
 mod common;
 
 use wtx::{
-  http::{Method, ReqResBuffer, ReqUri, Request},
+  http::{Method, ReqResBuffer, Request},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{from_utf8_basic, TokioRustlsConnector, UriString},
   rng::StaticRng,
@@ -17,6 +17,7 @@ async fn main() {
     Http2Buffer::new(StaticRng::default()),
     Http2Params::default(),
     TokioRustlsConnector::from_webpki_roots()
+      .http2()
       .with_tcp_stream(uri.host(), uri.hostname())
       .await
       .unwrap(),
@@ -24,7 +25,7 @@ async fn main() {
   .await
   .unwrap();
   let mut stream = http2.stream().await.unwrap();
-  stream.send_req(Request::http2(Method::Get, &uri), ReqUri::Data).await.unwrap();
+  stream.send_req(Request::http2(Method::Get, ()), &uri.to_ref()).await.unwrap();
   let rrb = ReqResBuffer::default();
   let (res_rrb, _status_code) = stream.recv_res(rrb).await.unwrap();
   println!("{}", from_utf8_basic(res_rrb.body()).unwrap());

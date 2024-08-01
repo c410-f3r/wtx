@@ -79,6 +79,19 @@ impl<D, const N: usize> ArrayVector<D, N> {
     self.len = 0;
   }
 
+  /// Iterates over the slice `other`, copies each element, and then appends
+  /// it to this vector. The `other` slice is traversed in-order.
+  #[inline]
+  pub fn extend_from_iter(
+    &mut self,
+    iter: impl IntoIterator<Item = D>,
+  ) -> Result<(), ArrayVectorError> {
+    for elem in iter {
+      self.push(elem)?;
+    }
+    Ok(())
+  }
+
   /// Return the inner fixed size array, if the capacity is full.
   #[inline]
   pub fn into_inner(self) -> Result<[D; N], ArrayVectorError> {

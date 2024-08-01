@@ -27,7 +27,7 @@ pub type WebSocketRM = SimpleRM<
 >;
 
 /// A pool contains a set of resources that are behind some synchronism mechanism.
-pub trait Pool: Sized {
+pub trait Pool {
   /// Element returned by [`Pool::get`].
   type GetElem<'this>
   where

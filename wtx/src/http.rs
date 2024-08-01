@@ -48,7 +48,7 @@ pub(crate) const _MAX_SCHEME_LEN: usize = 16;
 /// Maximum number of bytes for the name of a header.
 pub const MAX_HEADER_NAME_LEN: usize = 128;
 /// Maximum number of bytes for the value of a header.
-pub const MAX_HEADER_VALUE_LEN: usize = 1024 + 256;
+pub const MAX_HEADER_VALUE_LEN: usize = 1024 + 1024;
 
 pub(crate) type _HeaderNameBuffer = crate::misc::ArrayVector<u8, MAX_HEADER_NAME_LEN>;
 pub(crate) type _HeaderValueBuffer = crate::misc::ArrayVector<u8, MAX_HEADER_VALUE_LEN>;

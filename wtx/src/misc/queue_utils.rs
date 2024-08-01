@@ -31,7 +31,7 @@ where
   let rhs_len = prev_cap.wrapping_sub(prev_head);
   let curr_cap = data.capacity();
   let cap_diff = curr_cap.wrapping_sub(prev_cap);
-  if prev_cap == 0 || cap_diff == 0 {
+  if data.len() == 0 {
     return Ok(None);
   }
   let curr_head = curr_cap.wrapping_sub(rhs_len);
