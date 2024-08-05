@@ -7,22 +7,161 @@ mod rand;
 #[cfg(feature = "std")]
 mod std;
 
+use crate::misc::{atoi, Usize};
+
 #[cfg(feature = "std")]
-pub use self::std::StdRng;
+pub use self::std::{StdRng, StdRngSync};
 use alloc::boxed::Box;
-use core::ptr;
+use core::{
+  cell::Cell,
+  ops::{Bound, RangeBounds},
+  panic::Location,
+  ptr,
+};
+
+/// Allows the creation of random instances.
+pub trait FromRng<RNG>
+where
+  RNG: Rng,
+{
+  /// Creates a new instance based on `rng`.
+  fn from_rng(rng: &mut RNG) -> Self;
+}
+
+impl<RNG> FromRng<RNG> for usize
+where
+  RNG: Rng,
+{
+  #[inline]
+  fn from_rng(rng: &mut RNG) -> Self {
+    Usize::from_u64(u64::from_be_bytes(rng.u8_8()))
+      .unwrap_or_else(|| Usize::from_u32(u32::from_be_bytes(rng.u8_4())))
+      .into_usize()
+  }
+}
 
 /// Abstraction tailored for the needs of this project. Each implementation should manage how
 /// seeds are retrieved as well as how numbers are generated.
-pub trait Rng {
+pub trait Rng
+where
+  Self: Sized,
+{
+  /// Creates an element that is within the given `range`.
+  #[inline]
+  fn elem_from_range<R, T>(&mut self, range: &R) -> Option<T>
+  where
+    R: RangeBounds<T>,
+    T: FromRng<Self> + PartialOrd,
+  {
+    match (range.start_bound(), range.end_bound()) {
+      (Bound::Included(a) | Bound::Excluded(a), Bound::Included(b)) => {
+        if a < b {
+          return None;
+        }
+      }
+      (Bound::Included(a) | Bound::Excluded(a), Bound::Excluded(b)) => {
+        if a <= b {
+          return None;
+        }
+      }
+      _ => {}
+    }
+    loop {
+      let random = T::from_rng(self);
+      if range.contains(&random) {
+        return Some(random);
+      }
+    }
+  }
+
+  /// Shuffles a mutable slice in place.
+  #[inline]
+  fn shuffle_slice<T>(&mut self, slice: &mut [T]) {
+    if slice.len() <= 1 {
+      return;
+    }
+    for from_idx in 0..slice.len() {
+      let range = 0..from_idx.wrapping_add(1);
+      let Some(to_idx) = self.elem_from_range(&range) else {
+        continue;
+      };
+      slice.swap(from_idx, to_idx);
+    }
+  }
+
   /// Creates an byte
   fn u8(&mut self) -> u8;
 
   /// Creates an array of 4 bytes.
   fn u8_4(&mut self) -> [u8; 4];
 
+  /// Creates an array of 8 bytes.
+  fn u8_8(&mut self) -> [u8; 8];
+
   /// Creates an array of 16 bytes.
   fn u8_16(&mut self) -> [u8; 16];
+}
+
+impl<T> Rng for Cell<T>
+where
+  T: Copy + Rng,
+{
+  #[inline]
+  fn u8(&mut self) -> u8 {
+    let mut instance = self.get();
+    let rslt = instance.u8();
+    self.set(instance);
+    rslt
+  }
+
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    let mut instance = self.get();
+    let rslt = instance.u8_4();
+    self.set(instance);
+    rslt
+  }
+
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    let mut instance = self.get();
+    let rslt = instance.u8_8();
+    self.set(instance);
+    rslt
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    let mut instance = self.get();
+    let rslt = instance.u8_16();
+    self.set(instance);
+    rslt
+  }
+}
+
+impl<T> Rng for &Cell<T>
+where
+  T: Copy + Rng,
+{
+  #[inline]
+  fn u8(&mut self) -> u8 {
+    self.get().u8()
+  }
+
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    self.get().u8_4()
+  }
+
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    self.get().u8_8()
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    self.get().u8_16()
+  }
 }
 
 impl<T> Rng for &mut T
@@ -40,20 +179,25 @@ where
   }
 
   #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    (*self).u8_8()
+  }
+
+  #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     (*self).u8_16()
   }
 }
 
-/// Uses a week seed that can possibly fallback to a fixed static value.
+/// Uses a combination of weak strategies that will likely result in poor results.
 ///
-/// The number generation is done using a simple XOR strategy.
-///
-/// You shouldn't use this structure in scenarios that require a good source of randomness.
-#[derive(Clone, Debug)]
-pub struct StaticRng(u64);
+/// 1. The pointer of a heap allocation.
+/// 2. The number provided by the static `WTX_NO_STD_RNG_SEED` environment variable (if available).
+/// 3. The line and column of the caller location.
+#[derive(Clone, Copy, Debug)]
+pub struct NoStdRng(u64);
 
-impl Rng for StaticRng {
+impl Rng for NoStdRng {
   #[inline]
   fn u8(&mut self) -> u8 {
     xor_u8(&mut self.0)
@@ -65,13 +209,19 @@ impl Rng for StaticRng {
   }
 
   #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    xor_u8_8(&mut self.0)
+  }
+
+  #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     xor_u8_16(&mut self.0)
   }
 }
 
-impl Default for StaticRng {
+impl Default for NoStdRng {
   #[inline]
+  #[track_caller]
   fn default() -> Self {
     struct Foo {
       _bar: usize,
@@ -80,23 +230,42 @@ impl Default for StaticRng {
     let elem = Box::new(Foo { _bar: 1, _baz: 2 });
     let ref_ptr = ptr::addr_of!(elem).cast();
     // SAFETY: Memory validation is not relevant
-    let n: usize = unsafe { *ref_ptr };
-    if n == 0 {
-      return Self(u64::from_be_bytes([55, 120, 216, 218, 191, 63, 200, 169]));
+    let mut n = Usize::from_usize(unsafe { *ref_ptr }).into_u64();
+    n = n.wrapping_add(11_400_714_819_323_198_485);
+    if let Some(env) = option_env!("WTX_NO_STD_RNG_SEED").and_then(|el| atoi(el.as_bytes()).ok()) {
+      n = n.wrapping_add(env);
     }
-    #[cfg(target_pointer_width = "32")]
-    return Self({
-      let [a, b, c, d] = n.to_be_bytes();
-      u64::from_be_bytes([a, b, c, d, 0, 0, 0, 0])
-    });
-    #[cfg(target_pointer_width = "64")]
-    return Self({
-      let [a, b, c, d, e, f, g, h] = n.to_be_bytes();
-      u64::from_be_bytes([a, b, c, d, e, f, g, h])
-    });
+    let location = Location::caller();
+    n ^= n << (u64::from(location.column().wrapping_add(location.line())) % 17);
+    Self(n)
   }
 }
 
+#[inline]
+fn u8(n: u64) -> u8 {
+  let [a, ..] = n.to_be_bytes();
+  a
+}
+
+#[inline]
+fn u8_4(n: u64) -> [u8; 4] {
+  let [a, b, c, d, ..] = n.to_be_bytes();
+  [a, b, c, d]
+}
+
+#[inline]
+fn u8_8(n: u64) -> [u8; 8] {
+  n.to_be_bytes()
+}
+
+#[inline]
+fn u8_16(first: u64, second: u64) -> [u8; 16] {
+  let [a, b, c, d, e, f, g, h] = first.to_be_bytes();
+  let [i, j, k, l, m, n, o, p] = second.to_be_bytes();
+  [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+}
+
+#[inline]
 fn xor_numbers(seed: &mut u64) -> u64 {
   *seed ^= *seed << 13;
   *seed ^= *seed >> 17;
@@ -104,18 +273,22 @@ fn xor_numbers(seed: &mut u64) -> u64 {
   *seed
 }
 
+#[inline]
 fn xor_u8(seed: &mut u64) -> u8 {
-  let [a, ..] = xor_numbers(seed).to_be_bytes();
-  a
+  u8(xor_numbers(seed))
 }
 
+#[inline]
 fn xor_u8_4(seed: &mut u64) -> [u8; 4] {
-  let [a, b, c, d, ..] = xor_numbers(seed).to_be_bytes();
-  [a, b, c, d]
+  u8_4(xor_numbers(seed))
 }
 
+#[inline]
+fn xor_u8_8(seed: &mut u64) -> [u8; 8] {
+  u8_8(xor_numbers(seed))
+}
+
+#[inline]
 fn xor_u8_16(seed: &mut u64) -> [u8; 16] {
-  let [a, b, c, d, e, f, g, h] = xor_numbers(seed).to_be_bytes();
-  let [i, j, k, l, m, n, o, p] = xor_numbers(seed).to_be_bytes();
-  [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+  u8_16(xor_numbers(seed), xor_numbers(seed))
 }

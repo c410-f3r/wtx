@@ -11,7 +11,7 @@ use crate::{
     },
     Identifier, DEFAULT_URI_VAR,
   },
-  rng::StaticRng,
+  rng::NoStdRng,
 };
 use alloc::{string::String, vec::Vec};
 use core::fmt::Write;
@@ -44,7 +44,7 @@ macro_rules! create_integration_tests {
           let uri = crate::misc::UriRef::new(&uri);
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.host()).await.unwrap();
-          let mut rng = StaticRng::default();
+          let mut rng = NoStdRng::default();
           crate::database::client::postgres::Executor::connect(
             &config,
             crate::database::client::postgres::ExecutorBuffer::with_default_params(&mut rng).unwrap(),

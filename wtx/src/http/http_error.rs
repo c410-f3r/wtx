@@ -26,4 +26,6 @@ pub enum HttpError {
     /// Received length
     length: usize,
   },
+  /// URI mismatch
+  UriMismatch,
 }

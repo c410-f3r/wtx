@@ -46,6 +46,13 @@ pub fn bytes_split1(bytes: &[u8], elem: u8) -> impl Iterator<Item = &[u8]> {
   return bytes.split(move |byte| *byte == elem);
 }
 
+/// Internally uses `memchr` if the feature is active.
+#[inline]
+pub fn bytes_split_once1(bytes: &[u8], elem: u8) -> Option<(&[u8], &[u8])> {
+  let idx = bytes_pos1(bytes, elem)?;
+  Some((bytes.get(..idx)?, bytes.get(idx.wrapping_add(1)..)?))
+}
+
 /// Internally uses `simdutf8` if the feature is active.
 #[inline]
 pub fn from_utf8_basic(bytes: &[u8]) -> Result<&str, BasicUtf8Error> {

@@ -4,7 +4,7 @@
 mod common;
 
 use wtx::{
-  http::{server::OptionedServer, ReqResBuffer, Request, StatusCode},
+  http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
   http2::{Http2Buffer, Http2Params},
   misc::TokioRustlsAcceptor,
   rng::StdRng,
@@ -15,8 +15,9 @@ static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 
 #[tokio::main]
 async fn main() {
-  OptionedServer::tokio_http2(
-    common::_host_from_args().parse().unwrap(),
+  LowLevelServer::tokio_http2(
+    (),
+    &common::_host_from_args(),
     |err| eprintln!("Error: {err:?}"),
     handle,
     || Ok(Http2Buffer::new(StdRng::default())),
@@ -32,7 +33,9 @@ async fn main() {
   .unwrap()
 }
 
-async fn handle(req: &mut Request<&mut ReqResBuffer>) -> Result<StatusCode, wtx::Error> {
+async fn handle(
+  (_, mut req): ((), Request<ReqResBuffer>),
+) -> Result<Response<ReqResBuffer>, wtx::Error> {
   req.rrd.clear();
-  Ok(StatusCode::Ok)
+  Ok(req.into_response(StatusCode::Ok))
 }

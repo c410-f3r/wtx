@@ -12,7 +12,8 @@ mod close_code;
 pub mod compression;
 mod frame;
 mod frame_buffer;
-pub mod handshake;
+#[cfg(feature = "web-socket-handshake")]
+mod handshake;
 mod misc;
 mod op_code;
 mod unmask;
@@ -39,6 +40,8 @@ pub use frame_buffer::{
   FrameBuffer, FrameBufferControlArray, FrameBufferControlArrayMut, FrameBufferMut, FrameBufferVec,
   FrameBufferVecMut,
 };
+#[cfg(feature = "web-socket-handshake")]
+pub use handshake::HeadersBuffer;
 pub use misc::Expand;
 use misc::{define_fb_from_header_params, op_code, FilledBuffer};
 pub use op_code::OpCode;

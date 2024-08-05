@@ -8,8 +8,7 @@ use wtx::{
   misc::{TokioRustlsConnector, UriString},
   rng::StdRng,
   web_socket::{
-    handshake::{HeadersBuffer, WebSocketConnect, WebSocketConnectRaw},
-    FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
+    FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode, WebSocketBuffer, WebSocketClient,
   },
 };
 
@@ -17,21 +16,21 @@ use wtx::{
 async fn main() {
   let fb = &mut FrameBufferVec::default();
   let uri = UriString::new(common::_uri_from_args());
-  let (_, mut ws) = WebSocketConnectRaw {
-    compression: (),
+  let (_, mut ws) = WebSocketClient::connect(
+    (),
     fb,
-    headers_buffer: &mut HeadersBuffer::default(),
-    rng: StdRng::default(),
-    stream: TokioRustlsConnector::from_webpki_roots()
+    [],
+    &mut HeadersBuffer::default(),
+    StdRng::default(),
+    TokioRustlsConnector::from_webpki_roots()
       .push_certs(include_bytes!("../../.certs/root-ca.crt"))
       .unwrap()
       .with_tcp_stream(uri.host(), uri.hostname())
       .await
       .unwrap(),
-    uri: &uri.to_ref(),
-    wsb: WebSocketBuffer::default(),
-  }
-  .connect([])
+    &uri.to_ref(),
+    WebSocketBuffer::default(),
+  )
   .await
   .unwrap();
   let mut buffer = String::new();

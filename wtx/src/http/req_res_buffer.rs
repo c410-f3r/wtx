@@ -15,6 +15,10 @@ pub struct ReqResBuffer {
 }
 
 impl ReqResBuffer {
+  pub(crate) const fn _empty() -> Self {
+    ReqResBuffer::new(Vector::new(), Headers::new(0))
+  }
+
   /// Gathers all necessary elements to send and receive low-level requests/responses.
   #[inline]
   pub const fn new(data: Vector<u8>, headers: Headers) -> Self {
@@ -49,6 +53,12 @@ impl ReqResBuffer {
   #[inline]
   pub fn body(&self) -> &[u8] {
     Self::do_body(&self.data, self.uri_start_idx)
+  }
+
+  /// Mutable version of [`Self::body`].
+  #[inline]
+  pub fn body_mut(&mut self) -> &mut [u8] {
+    Self::do_body_mut(&mut self.data, self.uri_start_idx)
   }
 
   /// Clears all buffers, removing all values.
@@ -99,6 +109,18 @@ impl ReqResBuffer {
     &mut self.headers
   }
 
+  /// Owned version of [`Self::as_http2_request`].
+  #[inline]
+  pub fn into_http2_request(self, method: Method) -> Request<Self> {
+    Request { method, rrd: self, version: Version::Http2 }
+  }
+
+  /// Owned version of [`Self::as_http2_response`].
+  #[inline]
+  pub fn into_http2_response(self, status_code: StatusCode) -> Response<Self> {
+    Response { rrd: self, status_code, version: Version::Http2 }
+  }
+
   /// Consumes itself to provide the underlying elements used to perform operations.
   #[inline]
   pub fn into_parts(self) -> (Vector<u8>, Headers) {
@@ -121,7 +143,12 @@ impl ReqResBuffer {
     path: &str,
   ) -> Result<(), VectorError> {
     self.set_uri(|this| {
-      this.data.extend_from_slices(&[scheme.as_bytes(), authority.as_bytes(), path.as_bytes()])
+      this.data.extend_from_slices(&[
+        scheme.as_bytes(),
+        b"://",
+        authority.as_bytes(),
+        path.as_bytes(),
+      ])
     })
   }
 
@@ -217,5 +244,26 @@ impl LeaseMut<ReqResBuffer> for ReqResBuffer {
   #[inline]
   fn lease_mut(&mut self) -> &mut ReqResBuffer {
     self
+  }
+}
+
+#[cfg(feature = "std")]
+impl core::fmt::Write for ReqResBuffer {
+  #[inline]
+  fn write_str(&mut self, s: &str) -> core::fmt::Result {
+    self.data.extend_from_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)
+  }
+}
+
+#[cfg(feature = "std")]
+impl std::io::Write for ReqResBuffer {
+  #[inline]
+  fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    self.data.write(buf)
+  }
+
+  #[inline]
+  fn flush(&mut self) -> std::io::Result<()> {
+    self.data.flush()
   }
 }

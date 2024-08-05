@@ -97,8 +97,8 @@ The library gives freedom to arrange groups and uses some external crates, bring
 extern crate tokio;
 extern crate wtx;
 
-use wtx::{database::{schema_manager::Commands, DEFAULT_URI_VAR}, rng::StaticRng};
 use std::path::Path;
+use wtx::database::{schema_manager::Commands, DEFAULT_URI_VAR};
 
 #[tokio::main]
 async fn main() {

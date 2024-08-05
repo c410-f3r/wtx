@@ -7,14 +7,14 @@ use wtx::{
   http::{Method, ReqResBuffer, Request},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{from_utf8_basic, TokioRustlsConnector, UriString},
-  rng::StaticRng,
+  rng::NoStdRng,
 };
 
 #[tokio::main]
 async fn main() {
   let uri = UriString::new(common::_uri_from_args());
   let mut http2 = Http2Tokio::connect(
-    Http2Buffer::new(StaticRng::default()),
+    Http2Buffer::new(NoStdRng::default()),
     Http2Params::default(),
     TokioRustlsConnector::from_webpki_roots()
       .http2()

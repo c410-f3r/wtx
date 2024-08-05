@@ -6,7 +6,7 @@ mod common;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
-  http::server::OptionedServer,
+  http::LowLevelServer,
   misc::TokioRustlsAcceptor,
   rng::StdRng,
   web_socket::{FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServer},
@@ -17,8 +17,8 @@ static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 
 #[tokio::main]
 async fn main() {
-  OptionedServer::tokio_web_socket(
-    common::_host_from_args().parse().unwrap(),
+  LowLevelServer::tokio_web_socket(
+    &common::_host_from_args(),
     None,
     || {},
     |err| eprintln!("Connection error: {err:?}"),

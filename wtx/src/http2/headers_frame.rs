@@ -5,7 +5,7 @@ use crate::{
     CommonFlags, FrameInit, FrameInitTy, HpackDecoder, HpackHeaderBasic, HpackStaticRequestHeaders,
     HpackStaticResponseHeaders, Http2Error, Http2Params, UriBuffer, U31,
   },
-  misc::{from_utf8_basic, ArrayString, Usize},
+  misc::{atoi, from_utf8_basic, ArrayString, Usize},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.
@@ -72,7 +72,7 @@ impl<'uri> HeadersFrame<'uri> {
     let mut data_bytes = data.unwrap_or(rrb_body);
     let _ = trim_frame_pad(fi.cf, &mut data_bytes)?;
     let max_headers_len = *Usize::from(hp.max_headers_len());
-    let mut content_length_idx = None;
+    let mut content_length = None;
     let mut expanded_headers_len = 0;
     let mut has_fields = false;
     let mut is_malformed = false;
@@ -116,7 +116,7 @@ impl<'uri> HeadersFrame<'uri> {
             is_over_size = expanded_headers_len >= max_headers_len;
             if !is_over_size {
               if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
-                content_length_idx = Some(rrb_headers.elements_len());
+                content_length = Some(atoi(value)?);
               }
               rrb_headers.push_front(
                 Header { is_sensitive: false, is_trailer: IS_TRAILER, name, value },
@@ -225,7 +225,7 @@ impl<'uri> HeadersFrame<'uri> {
     }
 
     Ok((
-      content_length_idx,
+      content_length,
       Self {
         cf: fi.cf,
         hsreqh: HpackStaticRequestHeaders {

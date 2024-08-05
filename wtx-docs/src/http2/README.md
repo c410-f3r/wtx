@@ -14,7 +14,7 @@ use wtx::{
   http::{Method, Request, ReqResBuffer},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{from_utf8_basic, UriRef},
-  rng::StaticRng,
+  rng::NoStdRng,
 };
 use std::net::ToSocketAddrs;
 use tokio::net::TcpStream;
@@ -22,7 +22,7 @@ use tokio::net::TcpStream;
 async fn client() {
   let uri = UriRef::new("127.0.0.1:9000");
   let mut http2 = Http2Tokio::connect(
-    Http2Buffer::new(StaticRng::default()),
+    Http2Buffer::new(NoStdRng::default()),
     Http2Params::default(),
     TcpStream::connect(uri.host().to_socket_addrs().unwrap().next().unwrap()).await.unwrap(),
   )

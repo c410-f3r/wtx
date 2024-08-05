@@ -11,7 +11,7 @@ use core::marker::PhantomData;
 #[derive(Debug)]
 pub struct StructDecoder<'any, E> {
   bytes: &'any [u8],
-  phantom: PhantomData<E>,
+  phantom: PhantomData<fn() -> E>,
 }
 
 impl<'any, E> StructDecoder<'any, E>

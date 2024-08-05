@@ -230,13 +230,13 @@ where
         rslt
       },
       |guard, elem| {
-        let (content_length_idx, fi, has_eos, method) = elem;
+        let (content_length, fi, has_eos, method) = elem;
         let hdpm = guard.parts_mut();
         drop(hdpm.hb.sorp.insert(
           fi.stream_id,
           StreamOverallRecvParams {
             body_len: 0,
-            content_length_idx,
+            content_length,
             has_initial_header: true,
             rrb,
             span: _Span::_none(),

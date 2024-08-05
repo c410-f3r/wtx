@@ -12,12 +12,22 @@ use core::{marker::PhantomData, ops::Range};
 pub struct Record<'exec, E> {
   pub(crate) bytes: &'exec [u8],
   pub(crate) initial_value_offset: usize,
-  pub(crate) phantom: PhantomData<E>,
+  pub(crate) phantom: PhantomData<fn() -> E>,
   pub(crate) stmt: Statement<'exec>,
   pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
 impl<'exec, E> Record<'exec, E> {
+  #[inline]
+  pub(crate) fn _new(
+    bytes: &'exec [u8],
+    initial_value_offset: usize,
+    stmt: Statement<'exec>,
+    values_bytes_offsets: &'exec [(bool, Range<usize>)],
+  ) -> Self {
+    Self { bytes, initial_value_offset, phantom: PhantomData, stmt, values_bytes_offsets }
+  }
+
   pub(crate) fn parse(
     mut bytes: &'exec [u8],
     bytes_range: Range<usize>,

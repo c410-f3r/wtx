@@ -6,7 +6,7 @@ mod mock;
 mod std;
 mod transport_params;
 mod unit;
-#[cfg(feature = "http-client")]
+#[cfg(feature = "http-client-framework")]
 mod wtx_http;
 #[cfg(feature = "web-socket")]
 mod wtx_ws;
@@ -23,7 +23,7 @@ use crate::{
 };
 pub use bi_transport::*;
 use cl_aux::DynContigColl;
-use core::{borrow::Borrow, ops::Range};
+use core::ops::Range;
 pub use mock::*;
 pub use transport_params::*;
 
@@ -78,8 +78,8 @@ pub trait Transport<DRSR> {
     A: Api,
     A::Error: From<E>,
     P: Package<A, DRSR, Self::Params>,
-    P::ExternalRequestContent: Borrow<Id> + Ord,
-    P::ExternalResponseContent: Borrow<Id> + Ord,
+    P::ExternalRequestContent: Lease<Id> + Ord,
+    P::ExternalResponseContent: Lease<Id> + Ord,
     RESS: DynContigColl<E, P::ExternalResponseContent>,
     for<'any> BatchElems<'any, A, DRSR, P, Self::Params>: Serialize<DRSR>,
   {

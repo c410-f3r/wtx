@@ -50,7 +50,7 @@ pub(crate) type Oid = u32;
 
 /// Postgres
 #[derive(Debug)]
-pub struct Postgres<E>(PhantomData<E>);
+pub struct Postgres<E>(PhantomData<fn() -> E>);
 
 impl<E> Database for Postgres<E>
 where

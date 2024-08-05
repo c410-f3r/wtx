@@ -1,11 +1,14 @@
-use crate::client_api_framework::{
-  dnsn::{Deserialize, Serialize},
-  network::transport::TransportParams,
-  pkg::Package,
-  Api, ClientApiFrameworkError, Id,
+use crate::{
+  client_api_framework::{
+    dnsn::{Deserialize, Serialize},
+    network::transport::TransportParams,
+    pkg::Package,
+    Api, ClientApiFrameworkError, Id,
+  },
+  misc::Lease,
 };
 use cl_aux::DynContigColl;
-use core::{borrow::Borrow, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// Used to perform batch requests with multiple packages.
 #[derive(Debug)]
@@ -23,8 +26,8 @@ impl<A, DRSR, P, TP> BatchPkg<'_, A, DRSR, P, TP>
 where
   A: Api,
   P: Package<A, DRSR, TP>,
-  P::ExternalRequestContent: Borrow<Id> + Ord,
-  P::ExternalResponseContent: Borrow<Id> + Ord,
+  P::ExternalRequestContent: Lease<Id> + Ord,
+  P::ExternalResponseContent: Lease<Id> + Ord,
   TP: TransportParams,
 {
   /// Deserializes a sequence of bytes and then pushes them to the provided buffer.
@@ -42,11 +45,11 @@ where
     if self.0 .0.is_empty() {
       return Ok(());
     }
-    Self::is_sorted(self.0 .0.iter().map(|elem| elem.ext_req_content().borrow()))?;
+    Self::is_sorted(self.0 .0.iter().map(|elem| elem.ext_req_content().lease()))?;
     let mut pkgs_idx = 0;
     let mut responses_are_not_sorted = false;
     P::ExternalResponseContent::seq_from_bytes(bytes, drsr, |eresc| {
-      let eresc_id = *eresc.borrow();
+      let eresc_id = *eresc.lease();
       let found_pkgs_idx = Self::search_slice(pkgs_idx, eresc_id, self.0 .0)?;
       if pkgs_idx != found_pkgs_idx {
         responses_are_not_sorted = true;
@@ -85,10 +88,10 @@ where
 
   // First try indexing and then falls back to binary search
   fn search_slice(idx: usize, eresc_id: Id, pkgs: &[P]) -> crate::Result<usize> {
-    if pkgs.get(idx).map(|pkg| *pkg.ext_req_content().borrow() == eresc_id).unwrap_or_default() {
+    if pkgs.get(idx).map(|pkg| *pkg.ext_req_content().lease() == eresc_id).unwrap_or_default() {
       return Ok(idx);
     }
-    pkgs.binary_search_by(|req| req.ext_req_content().borrow().cmp(&&eresc_id)).ok().ok_or(
+    pkgs.binary_search_by(|req| req.ext_req_content().lease().cmp(&&eresc_id)).ok().ok_or(
       ClientApiFrameworkError::ResponseIdIsNotPresentInTheOfSentBatchPackages(eresc_id).into(),
     )
   }

@@ -1,14 +1,15 @@
 //! Generic HTTP elements
 
 mod abstract_headers;
-#[cfg(feature = "http-client")]
-mod client;
+#[cfg(feature = "http-client-framework")]
+mod client_framework;
 mod generic_header;
 mod generic_request;
 mod generic_response;
 mod header_name;
 mod headers;
 mod http_error;
+mod low_level_server;
 mod method;
 mod mime;
 mod protocol;
@@ -17,19 +18,21 @@ mod req_res_data;
 mod req_uri;
 mod request;
 mod response;
-pub mod server;
+#[cfg(feature = "http-server-framework")]
+pub mod server_framework;
 mod status_code;
 mod version;
 
 pub(crate) use abstract_headers::AbstractHeaders;
-#[cfg(feature = "http-client")]
-pub use client::*;
+#[cfg(feature = "http-client-framework")]
+pub use client_framework::*;
 pub use generic_header::GenericHeader;
 pub use generic_request::GenericRequest;
 pub use generic_response::GenericResponse;
 pub use header_name::*;
 pub use headers::{Header, Headers};
 pub use http_error::HttpError;
+pub use low_level_server::LowLevelServer;
 pub use method::Method;
 pub use mime::Mime;
 pub use protocol::Protocol;

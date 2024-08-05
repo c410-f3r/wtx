@@ -9,7 +9,7 @@ use core::marker::PhantomData;
 pub struct StructEncoder<'buffer, 'ev, 'tmp, E> {
   ev: &'ev mut EncodeValue<'buffer, 'tmp>,
   len: u32,
-  phantom: PhantomData<E>,
+  phantom: PhantomData<fn() -> E>,
   start: usize,
 }
 

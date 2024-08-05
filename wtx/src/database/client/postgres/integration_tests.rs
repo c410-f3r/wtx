@@ -7,7 +7,7 @@ use crate::{
     Decode, Encode, Executor as _, Record, Records as _,
   },
   misc::UriRef,
-  rng::StaticRng,
+  rng::NoStdRng,
 };
 use alloc::string::String;
 use tokio::net::TcpStream;
@@ -18,7 +18,7 @@ const SCRAM: &str = "postgres://wtx_scram:wtx@localhost:5432/wtx";
 #[tokio::test]
 async fn conn_scram_tls() {
   let uri = UriRef::new(SCRAM);
-  let mut rng = StaticRng::default();
+  let mut rng = NoStdRng::default();
   let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng).unwrap(),
@@ -411,7 +411,7 @@ async fn reuses_cached_statement() {
 
 async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {
   let uri = UriRef::new(SCRAM);
-  let mut rng = StaticRng::default();
+  let mut rng = NoStdRng::default();
   Executor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng).unwrap(),
