@@ -1,8 +1,5 @@
 //! WebSocket autobahn server.
 
-#[path = "../../examples/common/mod.rs"]
-mod common;
-
 use tokio::net::TcpStream;
 use wtx::{
   http::LowLevelServer,

@@ -1,8 +1,5 @@
 //! WebSocket CLI client.
 
-#[path = "./common/mod.rs"]
-mod common;
-
 use tokio::io::{AsyncBufReadExt, BufReader};
 use wtx::{
   misc::{TokioRustlsConnector, UriString},
@@ -15,7 +12,7 @@ use wtx::{
 #[tokio::main]
 async fn main() {
   let fb = &mut FrameBufferVec::default();
-  let uri = UriString::new(common::_uri_from_args());
+  let uri = UriString::new(wtx_instances::uri_from_args());
   let (_, mut ws) = WebSocketClient::connect(
     (),
     fb,

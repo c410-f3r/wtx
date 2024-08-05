@@ -1,8 +1,5 @@
 //! Postgres client
 
-#[path = "./common/mod.rs"]
-mod common;
-
 use tokio::net::TcpStream;
 use wtx::{
   database::{
@@ -15,7 +12,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() {
-  let uri = common::_uri_from_args();
+  let uri = wtx_instances::uri_from_args();
   let uri_ref = UriRef::new(uri.as_str());
   let config = Config::from_uri(&uri_ref).unwrap();
   let mut rng = StdRng::default();

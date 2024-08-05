@@ -1,8 +1,5 @@
 //! WebSocket echo server.
 
-#[path = "./common/mod.rs"]
-mod common;
-
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
@@ -18,7 +15,7 @@ static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 #[tokio::main]
 async fn main() {
   LowLevelServer::tokio_web_socket(
-    &common::_host_from_args(),
+    &wtx_instances::host_from_args(),
     None,
     || {},
     |err| eprintln!("Connection error: {err:?}"),
