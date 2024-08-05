@@ -1,5 +1,8 @@
 use crate::{
-  http::{Client, Header, KnownHeaderName, Method, ReqResBuffer, ReqResData, ReqUri, Response},
+  http::{
+    ClientFramework, Header, KnownHeaderName, Method, Mime, ReqResBuffer, ReqResData, ReqUri,
+    Response,
+  },
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{LeaseMut, Lock, RefCounter, Stream},
   pool::{ResourceManager, SimplePoolResource},
@@ -37,7 +40,7 @@ where
   #[inline]
   pub async fn send<HD, RL, RM, S>(
     self,
-    client: &Client<RL, RM>,
+    client: &ClientFramework<RL, RM>,
     req_uri: impl Into<ReqUri<'_>>,
   ) -> crate::Result<Response<RRB>>
   where
@@ -56,6 +59,21 @@ where
     for<'any> RM: 'any,
   {
     client.send(self.method, self.rrb, req_uri).await
+  }
+
+  /// Media type of the resource.
+  #[inline]
+  pub fn content_type(mut self, mime: Mime) -> crate::Result<Self> {
+    self.rrb.lease_mut().headers_mut().push_front(
+      Header {
+        is_sensitive: false,
+        is_trailer: false,
+        name: KnownHeaderName::ContentType.into(),
+        value: mime.as_str().as_bytes(),
+      },
+      &[],
+    )?;
+    Ok(self)
   }
 
   /// Characteristic string that lets servers and network peers identify the application.

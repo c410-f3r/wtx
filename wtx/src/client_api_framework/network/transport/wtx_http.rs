@@ -8,14 +8,14 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  http::{Client, Header, Headers, KnownHeaderName, ReqResBuffer},
+  http::{ClientFramework, Header, Headers, KnownHeaderName, ReqResBuffer},
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{Lock, RefCounter, Stream, Vector},
   pool::{ResourceManager, SimplePoolResource},
 };
 use core::{mem, ops::Range};
 
-impl<DRSR, HD, RL, RM, S> Transport<DRSR> for Client<RL, RM>
+impl<DRSR, HD, RL, RM, S> Transport<DRSR> for ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, S, true>>,
@@ -62,7 +62,7 @@ where
   }
 }
 
-impl<DRSR, HD, RL, RM, S> Transport<DRSR> for &Client<RL, RM>
+impl<DRSR, HD, RL, RM, S> Transport<DRSR> for &ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, S, true>>,
@@ -110,7 +110,7 @@ where
 }
 
 async fn response<A, DRSR, HD, P, RL, RM, S>(
-  client: &Client<RL, RM>,
+  client: &ClientFramework<RL, RM>,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
 ) -> Result<(), A::Error>
@@ -140,7 +140,7 @@ where
         is_sensitive: false,
         is_trailer: false,
         name: KnownHeaderName::ContentType.into(),
-        value: elem._as_str().as_bytes(),
+        value: elem.as_str().as_bytes(),
       },
       &[],
     )?;

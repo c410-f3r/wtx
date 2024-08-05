@@ -20,7 +20,9 @@ pub enum Mime {
 }
 
 impl Mime {
-  pub(crate) fn _as_str(&self) -> &'static str {
+  /// Common string representation.
+  #[inline]
+  pub fn as_str(&self) -> &'static str {
     match self {
       Self::Bytes => "application/octet-stream",
       Self::Custom(el) => el,
