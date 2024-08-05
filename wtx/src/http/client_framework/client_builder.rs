@@ -1,5 +1,5 @@
 use crate::{
-  http::{Client, ClientParams, ClientRM},
+  http::{ClientFramework, ClientFrameworkRM, ClientParams},
   misc::Lock,
   pool::{ResourceManager, SimplePool, SimplePoolResource},
 };
@@ -15,8 +15,8 @@ pub struct ClientBuilder<RL, S> {
 
 impl<RL, S> ClientBuilder<RL, S>
 where
-  ClientRM<S>: ResourceManager,
-  RL: Lock<Resource = SimplePoolResource<<ClientRM<S> as ResourceManager>::Resource>>,
+  ClientFrameworkRM<S>: ResourceManager,
+  RL: Lock<Resource = SimplePoolResource<<ClientFrameworkRM<S> as ResourceManager>::Resource>>,
   for<'any> RL: 'any,
   for<'any> S: 'any,
 {
@@ -27,8 +27,10 @@ where
 
   /// Creates a new client with inner parameters.
   #[inline]
-  pub fn build(self) -> Client<RL, ClientRM<S>> {
-    Client { pool: SimplePool::new(self.len, ClientRM { _cp: self.cp, _phantom: PhantomData }) }
+  pub fn build(self) -> ClientFramework<RL, ClientFrameworkRM<S>> {
+    ClientFramework {
+      pool: SimplePool::new(self.len, ClientFrameworkRM { _cp: self.cp, _phantom: PhantomData }),
+    }
   }
 
   /// The maximum number of data bytes or the sum of all frames that composed the body data;.

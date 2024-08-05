@@ -7,10 +7,10 @@ Activation feature is called `http-client-framework`.
 ```rust,edition2021,no_run
 extern crate wtx;
 
-use wtx::{http::{Client, ReqBuilder}, misc::{Uri, from_utf8_basic}};
+use wtx::{http::{ClientFramework, ReqBuilder}, misc::{Uri, from_utf8_basic}};
 
 async fn get_and_print() -> wtx::Result<()> {
-  let client = Client::tokio_rustls(1).build();
+  let client = ClientFramework::tokio_rustls(1).build();
   let res = ReqBuilder::get().send(&client, &Uri::new("https:://www.dukcduckgo.com:443")).await?;
   println!("{}", from_utf8_basic(res.rrd.body()).unwrap());
   Ok(())

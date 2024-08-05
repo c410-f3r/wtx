@@ -11,7 +11,7 @@ mod req_builder;
 
 use crate::{
   http::{Method, ReqResBuffer, ReqResData, ReqUri, Request, Response},
-  http2::{Http2, Http2Buffer, Http2Data},
+  http2::{Http2, Http2Buffer, Http2Data, Http2Params},
   misc::{LeaseMut, Lock, RefCounter, Stream},
   pool::{Pool, ResourceManager, SimplePool, SimplePoolResource},
 };
@@ -20,6 +20,8 @@ use core::marker::PhantomData;
 pub use client_builder::ClientBuilder;
 pub(crate) use client_params::ClientParams;
 pub use req_builder::ReqBuilder;
+#[cfg(feature = "tokio")]
+pub use tokio::ClientTokio;
 #[cfg(all(feature = "tokio-rustls", feature = "webpki-roots"))]
 pub use tokio_rustls::ClientTokioRustls;
 
@@ -27,18 +29,18 @@ pub use tokio_rustls::ClientTokioRustls;
 ///
 /// Currently supports only one domain with multiple connections.
 #[derive(Clone, Debug)]
-pub struct Client<RL, RM> {
+pub struct ClientFramework<RL, RM> {
   pool: SimplePool<RL, RM>,
 }
 
 /// Resource manager for [`Client`].
 #[derive(Debug)]
-pub struct ClientRM<S> {
+pub struct ClientFrameworkRM<S> {
   _cp: ClientParams,
   _phantom: PhantomData<S>,
 }
 
-impl<HD, RL, RM, RRB, S> Client<RL, RM>
+impl<HD, RL, RM, RRB, S> ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer<RRB>, RRB, S, true>>,
@@ -77,11 +79,78 @@ where
   }
 }
 
+#[cfg(feature = "tokio")]
+mod tokio {
+  use crate::{
+    http::{
+      client_framework::_hp, ClientBuilder, ClientFramework, ClientFrameworkRM, ReqResBuffer,
+    },
+    http2::{Http2Buffer, Http2Tokio},
+    misc::UriRef,
+    pool::{ResourceManager, SimplePoolResource},
+  };
+  use tokio::{net::TcpStream, sync::Mutex};
+
+  /// A [`Client`] using the elements of `tokio`.
+  pub type ClientTokio =
+    ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<TcpStream>>;
+  type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, TcpStream, true>;
+
+  impl ClientTokio {
+    /// Creates a new builder with the maximum number of connections delimited by `len`.
+    ///
+    /// Connection is established using the elements provided by the `tokio` project.
+    #[inline]
+    pub fn tokio(len: usize) -> ClientBuilder<Mutex<SimplePoolResource<Instance>>, TcpStream> {
+      ClientBuilder::_new(len)
+    }
+  }
+
+  impl ResourceManager for ClientFrameworkRM<TcpStream> {
+    type CreateAux = str;
+    type Error = crate::Error;
+    type RecycleAux = str;
+    type Resource = Instance;
+
+    #[inline]
+    async fn create(&self, aux: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
+      let uri = UriRef::new(aux);
+      Http2Tokio::connect(
+        Http2Buffer::default(),
+        _hp(&self._cp),
+        TcpStream::connect(uri.host()).await?,
+      )
+      .await
+    }
+
+    #[inline]
+    async fn is_invalid(&self, resource: &Self::Resource) -> bool {
+      resource.connection_state().await.is_closed()
+    }
+
+    #[inline]
+    async fn recycle(
+      &self,
+      aux: &Self::RecycleAux,
+      resource: &mut Self::Resource,
+    ) -> Result<(), Self::Error> {
+      let uri = UriRef::new(aux);
+      let mut buffer = Http2Buffer::default();
+      resource._swap_buffers(&mut buffer).await;
+      let stream = TcpStream::connect(uri.host()).await?;
+      *resource = Http2Tokio::connect(buffer, _hp(&self._cp), stream).await?;
+      Ok(())
+    }
+  }
+}
+
 #[cfg(all(feature = "tokio-rustls", feature = "webpki-roots"))]
 mod tokio_rustls {
   use crate::{
-    http::{Client, ClientBuilder, ClientParams, ClientRM, ReqResBuffer},
-    http2::{Http2Buffer, Http2Params, Http2Tokio},
+    http::{
+      client_framework::_hp, ClientBuilder, ClientFramework, ClientFrameworkRM, ReqResBuffer,
+    },
+    http2::{Http2Buffer, Http2Tokio},
     misc::{TokioRustlsConnector, UriRef},
     pool::{ResourceManager, SimplePoolResource},
   };
@@ -90,9 +159,8 @@ mod tokio_rustls {
 
   /// A [`Client`] using the elements of `tokio-rustls`.
   pub type ClientTokioRustls =
-    Client<Mutex<SimplePoolResource<Http2TokioRustls>>, ClientRM<TlsStream<TcpStream>>>;
-  type Http2TokioRustls =
-    Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, TlsStream<TcpStream>, true>;
+    ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<TlsStream<TcpStream>>>;
+  type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, TlsStream<TcpStream>, true>;
 
   impl ClientTokioRustls {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
@@ -101,23 +169,23 @@ mod tokio_rustls {
     #[inline]
     pub fn tokio_rustls(
       len: usize,
-    ) -> ClientBuilder<Mutex<SimplePoolResource<Http2TokioRustls>>, TlsStream<TcpStream>> {
+    ) -> ClientBuilder<Mutex<SimplePoolResource<Instance>>, TlsStream<TcpStream>> {
       ClientBuilder::_new(len)
     }
   }
 
-  impl ResourceManager for ClientRM<TlsStream<TcpStream>> {
+  impl ResourceManager for ClientFrameworkRM<TlsStream<TcpStream>> {
     type CreateAux = str;
     type Error = crate::Error;
     type RecycleAux = str;
-    type Resource = Http2TokioRustls;
+    type Resource = Instance;
 
     #[inline]
     async fn create(&self, aux: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       let uri = UriRef::new(aux);
       Http2Tokio::connect(
         Http2Buffer::default(),
-        hp(&self._cp),
+        _hp(&self._cp),
         TokioRustlsConnector::from_webpki_roots()
           .http2()
           .with_tcp_stream(uri.host(), uri.hostname())
@@ -144,17 +212,17 @@ mod tokio_rustls {
         .http2()
         .with_tcp_stream(uri.host(), uri.hostname())
         .await?;
-      *resource = Http2Tokio::connect(buffer, hp(&self._cp), stream).await?;
+      *resource = Http2Tokio::connect(buffer, _hp(&self._cp), stream).await?;
       Ok(())
     }
   }
+}
 
-  #[inline]
-  fn hp(cp: &ClientParams) -> Http2Params {
-    Http2Params::default()
-      .set_initial_window_len(cp._initial_window_len)
-      .set_max_body_len(cp._max_body_len)
-      .set_max_frame_len(cp._max_frame_len)
-      .set_max_headers_len(cp._max_headers_len)
-  }
+#[inline]
+fn _hp(cp: &ClientParams) -> Http2Params {
+  Http2Params::default()
+    .set_initial_window_len(cp._initial_window_len)
+    .set_max_body_len(cp._max_body_len)
+    .set_max_frame_len(cp._max_frame_len)
+    .set_max_headers_len(cp._max_headers_len)
 }
