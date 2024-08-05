@@ -32,7 +32,9 @@ async fn main() -> wtx::Result<()> {
       ),
     ),
   ));
-  ServerFramework::new(router).listen(&wtx_instances::host_from_args()).await
+  ServerFramework::new(router)
+    .listen(&wtx_instances::host_from_args(), |error| eprintln!("{error:?}"))
+    .await
 }
 
 async fn db((id, mut req): (u32, Request<ReqResBuffer>)) -> wtx::Result<Response<ReqResBuffer>> {

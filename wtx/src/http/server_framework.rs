@@ -50,7 +50,11 @@ where
 
   /// Starts listening to incoming requests based on the given `host`.
   #[inline]
-  pub async fn listen(self, host: &str) -> crate::Result<()> {
+  pub async fn listen(
+    self,
+    host: &str,
+    err_cb: impl Copy + Fn(E) + Send + 'static,
+  ) -> crate::Result<()> {
     async fn handle<E, P, REQM, RESM>(
       (router, req): (Arc<Router<P, REQM, RESM>>, Request<ReqResBuffer>),
     ) -> Result<Response<ReqResBuffer>, E>
@@ -67,7 +71,7 @@ where
     LowLevelServer::tokio_http2(
       Arc::clone(&self.router),
       host,
-      |err| std::eprintln!("Error: {err:?}"),
+      err_cb,
       handle,
       || Ok(Http2Buffer::new(StdRng::default())),
       Http2Params::default,

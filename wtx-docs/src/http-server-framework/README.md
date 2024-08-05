@@ -16,7 +16,7 @@ use wtx::http::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let router = Router::paths(wtx::paths!(("hello-world", get(hello_world))));
-  ServerFramework::new(router).listen("0.0.0.0:9000").await
+  ServerFramework::new(router).listen("0.0.0.0:9000", |error| eprintln!("{error:?}")).await
 }
 
 async fn hello_world(mut req: Request<ReqResBuffer>) -> wtx::Result<Response<ReqResBuffer>> {
