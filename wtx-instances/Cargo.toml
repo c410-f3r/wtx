@@ -1,0 +1,63 @@
+cargo-features = ["edition2024"]
+
+# Examples
+
+[[example]]
+name = "database-client-postgres-tokio-rustls"
+path = "examples/database-client-postgres-tokio-rustls.rs"
+required-features = ["wtx/_tokio-rustls-client", "wtx/postgres"]
+
+[[example]]
+name = "http-server-framework"
+path = "examples/http-server-framework.rs"
+required-features = ["wtx/http-server-framework", "wtx/pool", "wtx/postgres", "wtx/serde", "wtx/simd-json"]
+
+[[example]]
+name = "http2-client-tokio-rustls"
+path = "examples/http2-client-tokio-rustls.rs"
+required-features = ["wtx/_tokio-rustls-client", "wtx/http2"]
+
+[[example]]
+name = "http2-server-tokio-rustls"
+path = "examples/http2-server-tokio-rustls.rs"
+required-features = ["wtx/_tokio-rustls-client", "wtx/http2"]
+
+[[example]]
+name = "web-socket-client-raw-tokio-rustls"
+path = "examples/web-socket-client-raw-tokio-rustls.rs"
+required-features = ["wtx/_tokio-rustls-client", "wtx/tokio", "wtx/web-socket-handshake"]
+
+[[example]]
+name = "web-socket-server-raw-tokio-rustls"
+path = "examples/web-socket-server-raw-tokio-rustls.rs"
+required-features = ["wtx/pool", "wtx/rustls-pemfile", "wtx/tokio-rustls", "wtx/web-socket-handshake"]
+
+[dependencies]
+serde = { default-features = false, version = "1.0" }
+simd-json = { default-features = false, features = ["serde_impl"], version = "0.11" }
+tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.0" }
+tokio-rustls = { default-features = false, version = "0.26" }
+wtx = { default-features = false, path = "../wtx" }
+
+# Fulfillments
+
+[[bin]]
+name = "autobahn-client"
+path = "fulfillments/autobahn-client.rs"
+required-features = ["wtx/flate2", "wtx/optimization", "wtx/tokio", "wtx/web-socket-handshake"]
+
+[[bin]]
+name = "autobahn-server"
+path = "fulfillments/autobahn-server.rs"
+required-features = ["wtx/flate2", "wtx/optimization", "wtx/pool", "wtx/tokio", "wtx/web-socket-handshake"]
+
+[[bin]]
+name = "h2spec-server"
+path = "fulfillments/h2spec-server.rs"
+required-features = ["wtx/http2", "wtx/tokio"]
+
+[package]
+edition = "2024"
+name = "wtx-instances"
+publish = false
+version = "0.0.0"

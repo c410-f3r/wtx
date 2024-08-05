@@ -1,8 +1,5 @@
 //! Http2 echo server.
 
-#[path = "./common/mod.rs"]
-mod common;
-
 use wtx::{
   http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
   http2::{Http2Buffer, Http2Params},
@@ -17,7 +14,7 @@ static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 async fn main() {
   LowLevelServer::tokio_http2(
     (),
-    &common::_host_from_args(),
+    &wtx_instances::host_from_args(),
     |err| eprintln!("Error: {err:?}"),
     handle,
     || Ok(Http2Buffer::new(StdRng::default())),

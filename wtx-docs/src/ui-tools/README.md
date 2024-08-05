@@ -1,4 +1,4 @@
-# WTX UI 
+# UI tools
 
 `wtx-ui` is a standalone crate intended to allow interactions with the [`wtx`](https://github.com/c410-f3r/wtx) project through an user interface. At the current time only CLI interfaces are available.
 

@@ -1,9 +1,6 @@
 //! An HTTP server framework showcasing nested routes, request middlewares, response
 //! middlewares, dynamic routes, PostgreSQL connections and JSON deserialization/serialization.
 
-#[path = "./common/mod.rs"]
-mod common;
-
 use core::fmt::Write;
 use std::sync::LazyLock;
 use tokio::net::TcpStream;
@@ -35,7 +32,7 @@ async fn main() -> wtx::Result<()> {
       ),
     ),
   ));
-  ServerFramework::new(router).listen(&common::_host_from_args()).await
+  ServerFramework::new(router).listen(&wtx_instances::host_from_args()).await
 }
 
 async fn db((id, mut req): (u32, Request<ReqResBuffer>)) -> wtx::Result<Response<ReqResBuffer>> {

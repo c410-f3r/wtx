@@ -95,7 +95,7 @@ pub(crate) const MAX_RECV_STREAMS_NUM: u32 = max_recv_streams_num!();
 pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
 
 const MAX_FINAL_DURATION: Duration = Duration::from_millis(300);
-const MAX_FINAL_FETCHES: u8 = 32;
+const MAX_FINAL_FETCHES: u8 = 64;
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /// Http2 instance using the mutex from tokio.
