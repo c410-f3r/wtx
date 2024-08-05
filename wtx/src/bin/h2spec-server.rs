@@ -1,15 +1,16 @@
 //! h2spec
 
 use wtx::{
-  http::{server::OptionedServer, ReqResBuffer, Request, StatusCode},
+  http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
   http2::{Http2Buffer, Http2Params},
   rng::StdRng,
 };
 
 #[tokio::main]
 async fn main() {
-  OptionedServer::tokio_http2(
-    "127.0.0.1:9000".parse().unwrap(),
+  LowLevelServer::tokio_http2(
+    (),
+    "127.0.0.1:9000",
     |err| eprintln!("Error: {err:?}"),
     handle,
     || Ok(Http2Buffer::new(StdRng::default())),
@@ -21,8 +22,10 @@ async fn main() {
   .unwrap()
 }
 
-async fn handle(req: &mut Request<&mut ReqResBuffer>) -> Result<StatusCode, wtx::Error> {
+async fn handle(
+  (_, mut req): ((), Request<ReqResBuffer>),
+) -> Result<Response<ReqResBuffer>, wtx::Error> {
   req.rrd.clear();
   req.rrd.extend_body(b"Hello").unwrap();
-  Ok(StatusCode::Ok)
+  Ok(req.into_response(StatusCode::Ok))
 }

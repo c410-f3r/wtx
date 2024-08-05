@@ -21,6 +21,11 @@ path = "examples/database-client-postgres-tokio-rustls.rs"
 required-features = ["_tokio-rustls-client", "postgres"]
 
 [[example]]
+name = "http-server-framework"
+path = "examples/http-server-framework.rs"
+required-features = ["http-server-framework", "pool", "postgres", "serde", "simd-json"]
+
+[[example]]
 name = "http2-client-tokio-rustls"
 path = "examples/http2-client-tokio-rustls.rs"
 required-features = ["_tokio-rustls-client", "http2"]
@@ -122,9 +127,9 @@ futures-lite = ["dep:futures-lite"]
 glommio = ["futures-lite", "dep:glommio", "std"]
 hashbrown = ["dep:hashbrown"]
 hmac = ["dep:hmac"]
-http-client = ["http2", "pool"]
-http1 = ["httparse"]
-http2 = ["ahash", "hashbrown", "tokio"]
+http-client-framework = ["http2", "pool", "std"]
+http-server-framework = ["http2", "tokio"]
+http2 = ["ahash", "hashbrown"]
 httparse = ["dep:httparse"]
 memchr = ["dep:memchr"]
 miniserde = ["dep:miniserde", "std"]
@@ -158,7 +163,7 @@ tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
 tracing = ["dep:tracing"]
 web-socket = []
-web-socket-handshake = ["base64", "http1", "sha1", "web-socket"]
+web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 webpki-roots = ["dep:webpki-roots"]
 x509-certificate = ["dep:x509-certificate"]
 

@@ -11,11 +11,12 @@ A collection of different transport implementations and related tools focused pr
 1. [Client API Framework](https://c410-f3r.github.io/wtx/client-api-framework/index.html)
 2. [Database Client](https://c410-f3r.github.io/wtx/database/client-connection.html)
 3. [Database Schema Manager](https://c410-f3r.github.io/wtx/database/schema-management.html)
-4. [HTTP Client](https://c410-f3r.github.io/wtx/http-client/index.html)
-5. [HTTP2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
-6. [Pool Manager](https://c410-f3r.github.io/wtx/pool_manager/index.html)
-7. [User Interface](https://c410-f3r.github.io/wtx/ui/index.html)
-8. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
+4. [HTTP Client Framework](https://c410-f3r.github.io/wtx/http-client-framework/index.html)
+5. [HTTP Server Framework](https://c410-f3r.github.io/wtx/http-server-framework/index.html)
+6. [HTTP2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
+7. [Pool Manager](https://c410-f3r.github.io/wtx/pool-manager/index.html)
+8. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
+9. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
 

@@ -1,25 +1,22 @@
 use crate::{
-  http::server::{OptionedServer, _buffers_len},
-  misc::{FnFut, Stream, Vector},
+  http::LowLevelServer,
+  misc::{FnFut, Stream, Vector, _number_or_available_parallelism},
   pool::{Pool, SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   rng::StdRng,
-  web_socket::{
-    handshake::{WebSocketAccept, WebSocketAcceptRaw},
-    Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer,
-  },
+  web_socket::{Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer},
 };
-use core::{fmt::Debug, net::SocketAddr};
+use core::fmt::Debug;
 use std::sync::OnceLock;
 use tokio::{
   net::{TcpListener, TcpStream},
   sync::MutexGuard,
 };
 
-impl OptionedServer {
+impl LowLevelServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
   pub async fn tokio_web_socket<A, C, E, F, S, SF>(
-    addr: SocketAddr,
+    addr: &str,
     buffers_len_opt: Option<usize>,
     compression: impl Copy + Fn() -> C + Send + 'static,
     conn_err: impl Copy + Fn(E) + Send + 'static,
@@ -55,7 +52,7 @@ impl OptionedServer {
     >>::Future: Send,
     for<'handle> &'handle F: Send,
   {
-    let buffers_len = _buffers_len(buffers_len_opt)?;
+    let buffers_len = _number_or_available_parallelism(buffers_len_opt)?;
     let listener = TcpListener::bind(addr).await?;
     let acceptor = acceptor_cb();
     loop {
@@ -69,8 +66,7 @@ impl OptionedServer {
           let stream = stream_cb(local_acceptor, tcp_stream).await?;
           handle((
             fb,
-            WebSocketAcceptRaw { compression: compression(), rng: StdRng::default(), stream, wsb }
-              .accept(|_| true)
+            WebSocketServer::accept(compression(), StdRng::default(), stream, wsb, |_| true)
               .await?,
           ))
           .await?;

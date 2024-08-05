@@ -66,6 +66,7 @@ jobs:
           profile: minimal
           toolchain: nightly-2024-07-10
       - uses: Swatinem/rust-cache@v2
+      - run: sudo apt install docker-compose -y
       - run: docker-compose -f .test-utils/docker-compose.yml up -d
       - run: sleep 30
       - run: .scripts/integration-tests.sh

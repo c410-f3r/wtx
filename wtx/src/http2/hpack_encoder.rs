@@ -643,14 +643,14 @@ mod bench {
   use crate::{
     http2::HpackEncoder,
     misc::{Usize, Vector},
-    rng::StaticRng,
+    rng::NoStdRng,
   };
 
   #[bench]
   fn encode(b: &mut test::Bencher) {
     const N: u32 = 1024 * 1024 * 4;
     let data = crate::bench::_data(*Usize::from(N));
-    let mut he = HpackEncoder::new(StaticRng::default());
+    let mut he = HpackEncoder::new(NoStdRng::default());
     he.set_max_dyn_super_bytes(N);
     let mut buffer = Vector::new();
     b.iter(|| {

@@ -3,6 +3,7 @@ macro_rules! tuple_impls {
     #[cfg(feature = "database")]
     mod database {
       use crate::database::{Database, Encode, RecordValues, encode};
+
       $(
         impl<DB, $($T),+> RecordValues<DB> for ($( $T, )+)
         where
@@ -31,9 +32,73 @@ macro_rules! tuple_impls {
             )+
             Ok(n)
           }
+
           #[inline]
           fn len(&self) -> usize {
             const { 0 $(+ { const $T: usize = 1; $T })+ }
+          }
+        }
+      )+
+    }
+
+    #[cfg(feature = "http-server-framework")]
+    mod http_server_framework {
+      use crate::{
+        http::{
+          HttpError, Request, ReqResData, Response,
+          server_framework::{ReqMiddlewares, ResMiddlewares, PathManagement, Path}
+        },
+        misc::FnFut
+      };
+
+      $(
+        impl<$($T,)+ ERR, RRD> ReqMiddlewares<ERR, RRD> for ($($T,)+)
+        where
+          $($T: for<'any> FnFut<&'any mut Request<RRD>, Result<(), ERR>>,)+
+          ERR: From<crate::Error>
+        {
+          #[inline]
+          async fn apply_req_middlewares(&self, req: &mut Request<RRD>) -> Result<(), ERR> {
+            $( ${ignore($T)} (self.${index()})(req).await?; )+
+            Ok(())
+          }
+        }
+
+        impl<$($T,)+ ERR, RRD> ResMiddlewares<ERR, RRD> for ($($T,)+)
+        where
+          $($T: for<'any> FnFut<&'any mut Response<RRD>, Result<(), ERR>>,)+
+          ERR: From<crate::Error>
+        {
+          #[inline]
+          async fn apply_res_middlewares(&self, res: &mut Response<RRD>) -> Result<(), ERR> {
+            $( ${ignore($T)} (self.${index()})(res).await?; )+
+            Ok(())
+          }
+        }
+
+        impl<$($T,)+ ERR, RRD> PathManagement<ERR, RRD> for ($(Path<$T>,)+)
+        where
+          $($T: PathManagement<ERR, RRD>,)+
+          ERR: From<crate::Error>,
+          RRD: ReqResData
+        {
+          #[inline]
+          async fn manage_path(
+            &self,
+            _: bool,
+            _: &'static str,
+            req: Request<RRD>,
+            [begin, end]: [usize; 2],
+          ) -> Result<Response<RRD>, ERR> {
+            match req.rrd.uri().as_str().get(begin..end).unwrap_or_default() {
+              $(
+                ${ignore($T)}
+                elem if self.${index()}.name.starts_with(elem) => {
+                  return self.${index()}.value.manage_path(false, self.${index()}.name, req, [begin, end]).await;
+                }
+              )+
+              _ => return Err(ERR::from(HttpError::UriMismatch.into()))
+            }
           }
         }
       )+
@@ -45,11 +110,12 @@ macro_rules! tuple_impls {
         Decode, Encode, Typed,
         client::postgres::{DecodeValue, EncodeValue, Postgres, StructDecoder, StructEncoder}
       };
+
       $(
-        impl<'de, ERR, $($T),+> Decode<'de, Postgres<ERR>> for ($( $T, )+)
+        impl<'de, $($T,)+ ERR> Decode<'de, Postgres<ERR>> for ($( $T, )+)
         where
-          ERR: From<crate::Error>,
           $(for<'local_de> $T: Decode<'local_de, Postgres<ERR>>,)+
+          ERR: From<crate::Error>,
         {
           #[inline]
           fn decode(dv: &DecodeValue<'de>) -> Result<Self, ERR> {
@@ -59,10 +125,11 @@ macro_rules! tuple_impls {
             ))
           }
         }
-        impl<ERR, $($T),+> Encode<Postgres<ERR>> for ($( $T, )+)
+
+        impl<$($T,)+ ERR> Encode<Postgres<ERR>> for ($( $T, )+)
         where
-          ERR: From<crate::Error>,
           $($T: Encode<Postgres<ERR>> + Typed<Postgres<ERR>>,)+
+          ERR: From<crate::Error>,
         {
           #[inline]
           fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), ERR> {

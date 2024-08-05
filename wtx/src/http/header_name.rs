@@ -1,4 +1,4 @@
-#![expect(non_upper_case_globals, reason = "macro parameters")]
+#![allow(non_upper_case_globals, reason = "macro parameters")]
 
 macro_rules! create_statics {
   (

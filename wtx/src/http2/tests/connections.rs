@@ -2,7 +2,7 @@ use crate::{
   http::{Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{UriRef, UriString, _uri},
-  rng::StaticRng,
+  rng::NoStdRng,
 };
 use core::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
@@ -21,7 +21,7 @@ async fn client(uri: UriString) {
   rrb.headers_mut().set_max_bytes(6);
   rrb.headers_mut().reserve(6, 1).unwrap();
   let mut client = Http2Tokio::connect(
-    Http2Buffer::new(StaticRng::default()),
+    Http2Buffer::new(NoStdRng::default()),
     Http2Params::default(),
     TcpStream::connect(uri.host()).await.unwrap(),
   )
@@ -60,7 +60,7 @@ async fn server(uri: &UriString) {
     let (stream, _) = listener.accept().await.unwrap();
     let mut rrb = ReqResBuffer::default();
     let mut server =
-      Http2Tokio::accept(Http2Buffer::new(StaticRng::default()), Http2Params::default(), stream)
+      Http2Tokio::accept(Http2Buffer::new(NoStdRng::default()), Http2Params::default(), stream)
         .await
         .unwrap();
 

@@ -15,6 +15,7 @@ use crate::{
   misc::{LeaseMut, Lock, RefCounter, Stream},
   pool::{Pool, ResourceManager, SimplePool, SimplePoolResource},
 };
+use core::marker::PhantomData;
 
 pub use client_builder::ClientBuilder;
 pub(crate) use client_params::ClientParams;
@@ -32,8 +33,9 @@ pub struct Client<RL, RM> {
 
 /// Resource manager for [`Client`].
 #[derive(Debug)]
-pub struct ClientRM {
-  cp: ClientParams,
+pub struct ClientRM<S> {
+  _cp: ClientParams,
+  _phantom: PhantomData<S>,
 }
 
 impl<HD, RL, RM, RRB, S> Client<RL, RM>
@@ -87,8 +89,8 @@ mod tokio_rustls {
   use tokio_rustls::client::TlsStream;
 
   /// A [`Client`] using the elements of `tokio-rustls`.
-  pub type ClientTokioRustls = Client<Mutex<SimplePoolResource<Http2TokioRustls>>, ClientRM>;
-
+  pub type ClientTokioRustls =
+    Client<Mutex<SimplePoolResource<Http2TokioRustls>>, ClientRM<TlsStream<TcpStream>>>;
   type Http2TokioRustls =
     Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, TlsStream<TcpStream>, true>;
 
@@ -97,12 +99,14 @@ mod tokio_rustls {
     ///
     /// Connection is established using the elements provided by the `tokio-rustls` project.
     #[inline]
-    pub fn tokio_rustls(len: usize) -> ClientBuilder<Mutex<SimplePoolResource<Http2TokioRustls>>> {
-      ClientBuilder::new(len)
+    pub fn tokio_rustls(
+      len: usize,
+    ) -> ClientBuilder<Mutex<SimplePoolResource<Http2TokioRustls>>, TlsStream<TcpStream>> {
+      ClientBuilder::_new(len)
     }
   }
 
-  impl ResourceManager for ClientRM {
+  impl ResourceManager for ClientRM<TlsStream<TcpStream>> {
     type CreateAux = str;
     type Error = crate::Error;
     type RecycleAux = str;
@@ -113,7 +117,7 @@ mod tokio_rustls {
       let uri = UriRef::new(aux);
       Http2Tokio::connect(
         Http2Buffer::default(),
-        hp(&self.cp),
+        hp(&self._cp),
         TokioRustlsConnector::from_webpki_roots()
           .http2()
           .with_tcp_stream(uri.host(), uri.hostname())
@@ -140,7 +144,7 @@ mod tokio_rustls {
         .http2()
         .with_tcp_stream(uri.host(), uri.hostname())
         .await?;
-      *resource = Http2Tokio::connect(buffer, hp(&self.cp), stream).await?;
+      *resource = Http2Tokio::connect(buffer, hp(&self._cp), stream).await?;
       Ok(())
     }
   }
@@ -148,9 +152,9 @@ mod tokio_rustls {
   #[inline]
   fn hp(cp: &ClientParams) -> Http2Params {
     Http2Params::default()
-      .set_initial_window_len(cp.initial_window_len)
-      .set_max_body_len(cp.max_body_len)
-      .set_max_frame_len(cp.max_frame_len)
-      .set_max_headers_len(cp.max_headers_len)
+      .set_initial_window_len(cp._initial_window_len)
+      .set_max_body_len(cp._max_body_len)
+      .set_max_frame_len(cp._max_frame_len)
+      .set_max_headers_len(cp._max_headers_len)
   }
 }

@@ -28,11 +28,24 @@ pub struct ArrayVector<D, const N: usize> {
 
 impl<D, const N: usize> ArrayVector<D, N> {
   /// Constructs a new instance reusing any `data` elements delimited by `len`.
+  #[inline]
+  pub fn from_array<const M: usize>(array: [D; M]) -> Self {
+    const {
+      assert!(M <= N);
+    }
+    let mut this = Self::new();
+    for elem in array {
+      let _rslt = this.push(elem);
+    }
+    this
+  }
+
+  /// Constructs a new instance reusing any `data` elements delimited by `len`.
   #[expect(clippy::should_implement_trait, reason = "The std trait ins infallible")]
   #[inline]
-  pub fn from_iter(iter: impl Iterator<Item = D>) -> Result<Self, ArrayVectorError> {
+  pub fn from_iter(iter: impl IntoIterator<Item = D>) -> Result<Self, ArrayVectorError> {
     let mut this = Self::new();
-    for elem in iter.take(N) {
+    for elem in iter.into_iter().take(N) {
       this.push(elem)?;
     }
     Ok(this)

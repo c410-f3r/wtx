@@ -2,7 +2,7 @@ use crate::{
   http::StatusCode,
   http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_HPACK_LEN},
   misc::{from_utf8_basic, Vector},
-  rng::StaticRng,
+  rng::NoStdRng,
 };
 use alloc::{string::String, vec::Vec};
 use core::{fmt::Formatter, marker::PhantomData};
@@ -25,7 +25,7 @@ fn hpack_test_cases() {
   fetch_hpack_test_cases();
   let mut buffer = Vector::new();
   let mut decoder = HpackDecoder::new();
-  let mut encoder = HpackEncoder::new(StaticRng::default());
+  let mut encoder = HpackEncoder::new(NoStdRng::default());
   decoder.set_max_bytes(MAX_HEADER_LEN);
   encoder.set_max_dyn_super_bytes(MAX_HEADER_LEN);
   let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("hpack-test-case");

@@ -199,6 +199,11 @@ where
   Ok(())
 }
 
+#[cfg(feature = "std")]
+pub(crate) fn _number_or_available_parallelism(n: Option<usize>) -> crate::Result<usize> {
+  Ok(if let Some(elem) = n { elem } else { usize::from(std::thread::available_parallelism()?) })
+}
+
 #[cfg(feature = "ahash")]
 pub(crate) fn _random_state(mut rng: impl crate::rng::Rng) -> ahash::RandomState {
   let (seed0, seed1) = {

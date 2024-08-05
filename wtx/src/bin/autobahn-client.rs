@@ -5,9 +5,8 @@ use wtx::{
   misc::UriRef,
   rng::StdRng,
   web_socket::{
-    compression::Flate2,
-    handshake::{HeadersBuffer, WebSocketConnect, WebSocketConnectRaw},
-    CloseCode, FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
+    compression::Flate2, CloseCode, FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode,
+    WebSocketBuffer, WebSocketClient,
   },
 };
 
@@ -17,16 +16,16 @@ async fn main() {
   let host = "127.0.0.1:9080";
   let mut wsb = WebSocketBuffer::default();
   for case in 1..=get_case_count(fb, host, &mut wsb).await {
-    let (_, mut ws) = WebSocketConnectRaw {
-      compression: Flate2::default(),
+    let (_, mut ws) = WebSocketClient::connect(
+      Flate2::default(),
       fb,
-      headers_buffer: &mut HeadersBuffer::default(),
-      rng: StdRng::default(),
-      stream: TcpStream::connect(host).await.unwrap(),
-      uri: &UriRef::new(&format!("http://{host}/runCase?case={case}&agent=wtx")),
-      wsb: &mut wsb,
-    }
-    .connect([])
+      [],
+      &mut HeadersBuffer::default(),
+      StdRng::default(),
+      TcpStream::connect(host).await.unwrap(),
+      &UriRef::new(&format!("http://{host}/runCase?case={case}&agent=wtx")),
+      &mut wsb,
+    )
     .await
     .unwrap();
     loop {
@@ -45,16 +44,16 @@ async fn main() {
       }
     }
   }
-  WebSocketConnectRaw {
-    compression: (),
+  WebSocketClient::connect(
+    (),
     fb,
-    headers_buffer: &mut HeadersBuffer::default(),
-    rng: StdRng::default(),
-    stream: TcpStream::connect(host).await.unwrap(),
-    uri: &UriRef::new(&format!("http://{host}/updateReports?agent=wtx")),
+    [],
+    &mut HeadersBuffer::default(),
+    StdRng::default(),
+    TcpStream::connect(host).await.unwrap(),
+    &UriRef::new(&format!("http://{host}/updateReports?agent=wtx")),
     wsb,
-  }
-  .connect([])
+  )
   .await
   .unwrap()
   .1
@@ -64,16 +63,16 @@ async fn main() {
 }
 
 async fn get_case_count(fb: &mut FrameBufferVec, host: &str, wsb: &mut WebSocketBuffer) -> u32 {
-  let (_, mut ws) = WebSocketConnectRaw {
-    compression: (),
+  let (_, mut ws) = WebSocketClient::connect(
+    (),
     fb,
-    headers_buffer: &mut HeadersBuffer::default(),
-    rng: StdRng::default(),
-    stream: TcpStream::connect(host).await.unwrap(),
-    uri: &UriRef::new(&format!("http://{host}/getCaseCount")),
+    [],
+    &mut HeadersBuffer::default(),
+    StdRng::default(),
+    TcpStream::connect(host).await.unwrap(),
+    &UriRef::new(&format!("http://{host}/getCaseCount")),
     wsb,
-  }
-  .connect([])
+  )
   .await
   .unwrap();
   let rslt = ws.read_frame(fb).await.unwrap().text_payload().unwrap_or_default().parse().unwrap();

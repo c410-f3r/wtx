@@ -6,10 +6,8 @@ use wtx::{
   misc::UriRef,
   rng::StdRng,
   web_socket::{
-    handshake::{
-      HeadersBuffer, WebSocketAccept, WebSocketAcceptRaw, WebSocketConnect, WebSocketConnectRaw,
-    },
-    FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
+    FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode, WebSocketBuffer, WebSocketClient,
+    WebSocketServer,
   },
 };
 
@@ -17,16 +15,16 @@ pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
   let fb = &mut FrameBufferVec::default();
   let wsb = &mut WebSocketBuffer::default();
-  let (_, mut ws) = WebSocketConnectRaw {
+  let (_, mut ws) = WebSocketClient::connect(
+    (),
     fb,
-    headers_buffer: &mut HeadersBuffer::default(),
+    [],
+    &mut HeadersBuffer::default(),
+    StdRng::default(),
+    TcpStream::connect(uri.host()).await?,
+    &uri,
     wsb,
-    rng: StdRng::default(),
-    stream: TcpStream::connect(uri.host()).await?,
-    uri: &uri,
-    compression: (),
-  }
-  .connect([])
+  )
   .await?;
   let mut buffer = String::new();
   let mut reader = BufReader::new(tokio::io::stdin());
@@ -61,13 +59,13 @@ pub(crate) async fn _serve(
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
       let sun = || async move {
-        let mut ws = WebSocketAcceptRaw {
-          compression: (),
-          rng: StdRng::default(),
+        let mut ws = WebSocketServer::accept(
+          (),
+          StdRng::default(),
           stream,
-          wsb: WebSocketBuffer::default(),
-        }
-        .accept(|_| true)
+          WebSocketBuffer::default(),
+          |_| true,
+        )
         .await?;
         let mut fb = FrameBufferVec::default();
         loop {

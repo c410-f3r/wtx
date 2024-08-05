@@ -25,7 +25,7 @@ use core::marker::PhantomData;
 pub struct Executor<E, EB, S> {
   pub(crate) cs: ConnectionState,
   pub(crate) eb: EB,
-  pub(crate) phantom: PhantomData<E>,
+  pub(crate) phantom: PhantomData<fn() -> E>,
   pub(crate) stream: S,
 }
 

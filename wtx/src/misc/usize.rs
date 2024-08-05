@@ -1,20 +1,35 @@
-#![expect(clippy::as_conversions, reason = "some platforms were removed to allow infallible casts")]
+#![expect(
+  clippy::as_conversions,
+  clippy::cast_possible_truncation,
+  reason = "some platforms were removed to allow infallible casts"
+)]
+
+#[cfg(target_pointer_width = "16")]
+compile_error!("WTX does not support 16bit hardware");
 
 use core::ops::{Deref, DerefMut};
 
-/// An `usize` that can be infallible converted from an `u32`, which effectively kills the support
+/// An `usize` that can be infallible converted from an `u32`, which effectively drops the support
 /// for 16bit hardware.
 ///
-/// Additionally, 128bit support is also dropped.
+/// Additionally, 128bit memory addresses are also unsupported.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Usize(usize);
 
 impl Usize {
+  pub(crate) const IS_32: bool = cfg!(target_pointer_width = "32");
+
   #[inline]
   pub(crate) const fn from_u32(from: u32) -> Self {
-    #[cfg(target_pointer_width = "16")]
-    compile_error!("WTX does not support 16bit hardware");
     Self(from as usize)
+  }
+
+  #[inline]
+  pub(crate) const fn from_u64(from: u64) -> Option<Self> {
+    if Self::IS_32 {
+      return None;
+    }
+    Some(Self(from as usize))
   }
 
   #[inline]
@@ -73,7 +88,7 @@ impl From<u32> for Usize {
 impl From<usize> for Usize {
   #[inline]
   fn from(from: usize) -> Self {
-    Self(from)
+    Self::from_usize(from)
   }
 }
 

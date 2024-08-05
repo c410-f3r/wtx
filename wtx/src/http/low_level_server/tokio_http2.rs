@@ -1,32 +1,33 @@
 use crate::{
-  http::{server::OptionedServer, ReqResBuffer, Request, Response, StatusCode},
-  http2::{Http2Params, Http2Tokio},
+  http::{low_level_server::LowLevelServer, ReqResBuffer, Request, Response},
+  http2::{Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{FnFut, Stream},
 };
-use core::{fmt::Debug, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 
 type Http2Buffer = crate::http2::Http2Buffer<ReqResBuffer>;
 
-impl OptionedServer {
+impl LowLevelServer {
   /// Optioned HTTP/2 server using tokio.
   #[inline]
-  pub async fn tokio_http2<A, E, F, S, SF>(
-    addr: SocketAddr,
+  pub async fn tokio_http2<ACPT, AUX, E, F, S, SF>(
+    aux: AUX,
+    addr: &str,
     err_cb: impl Copy + Fn(E) + Send + 'static,
     handle_cb: F,
     http2_buffer_cb: fn() -> crate::Result<Http2Buffer>,
     http2_params_cb: impl Copy + Fn() -> Http2Params + Send + 'static,
     stream_buffer_cb: fn() -> crate::Result<ReqResBuffer>,
     (acceptor_cb, local_acceptor_cb, stream_cb): (
-      impl FnOnce() -> A + Send + 'static,
-      impl Copy + Fn(&A) -> A + Send + 'static,
-      impl Copy + Fn(A, TcpStream) -> SF + Send + 'static,
+      impl FnOnce() -> ACPT + Send + 'static,
+      impl Copy + Fn(&ACPT) -> ACPT + Send + 'static,
+      impl Copy + Fn(ACPT, TcpStream) -> SF + Send + 'static,
     ),
   ) -> crate::Result<()>
   where
-    A: Send + 'static,
-    E: Debug + From<crate::Error> + Send + 'static,
+    ACPT: Send + 'static,
+    AUX: Clone + Send + 'static,
+    E: From<crate::Error> + Send + 'static,
     S: Send
       + Stream<
         read(..): Send,
@@ -36,12 +37,11 @@ impl OptionedServer {
         write_all_vectored(..): Send,
       > + 'static,
     SF: Send + Future<Output = crate::Result<S>>,
-    for<'req, 'rrb> F: Copy
-      + FnFut<&'req mut Request<&'rrb mut ReqResBuffer>, Result<StatusCode, E>>
+    F: Copy
+      + FnFut<(AUX, Request<ReqResBuffer>), Result<Response<ReqResBuffer>, E>>
       + Send
       + 'static,
-    for<'req, 'rrb> <F as FnFut<&'req mut Request<&'rrb mut ReqResBuffer>, Result<StatusCode, E>>>::Future:
-      Send,
+    <F as FnFut<(AUX, Request<ReqResBuffer>), Result<Response<ReqResBuffer>, E>>>::Future: Send,
     for<'handle> &'handle F: Send,
   {
     let listener = TcpListener::bind(addr).await?;
@@ -50,8 +50,10 @@ impl OptionedServer {
       let http2_buffer = http2_buffer_cb()?;
       let (tcp_stream, _) = listener.accept().await?;
       let local_acceptor = local_acceptor_cb(&acceptor);
+      let local_aux = aux.clone();
       let _conn_jh = tokio::spawn(async move {
         let fut = manage_conn(
+          local_aux,
           http2_buffer,
           local_acceptor,
           tcp_stream,
@@ -69,18 +71,20 @@ impl OptionedServer {
   }
 }
 
-async fn manage_conn<A, E, F, S, SF>(
+async fn manage_conn<ACPT, AUX, E, F, S, SF>(
+  aux: AUX,
   http2_buffer: Http2Buffer,
-  local_acceptor: A,
+  local_acceptor: ACPT,
   tcp_stream: TcpStream,
   err_cb: impl Copy + Fn(E) + Send + 'static,
   handle_cb: F,
   http2_params_cb: impl Copy + Fn() -> Http2Params + Send + 'static,
   stream_buffer_cb: fn() -> crate::Result<ReqResBuffer>,
-  stream_cb: impl Copy + Fn(A, TcpStream) -> SF + Send + 'static,
+  stream_cb: impl Copy + Fn(ACPT, TcpStream) -> SF + Send + 'static,
 ) -> crate::Result<()>
 where
-  E: Debug + From<crate::Error> + Send + 'static,
+  AUX: Clone + Send + 'static,
+  E: From<crate::Error> + Send + 'static,
   S: Send
     + Stream<
       read(..): Send,
@@ -90,10 +94,8 @@ where
       write_all_vectored(..): Send,
     > + 'static,
   SF: Future<Output = crate::Result<S>> + Send,
-  for<'req, 'rrb> F:
-    Copy + FnFut<&'req mut Request<&'rrb mut ReqResBuffer>, Result<StatusCode, E>> + Send + 'static,
-  for<'req, 'rrb> <F as FnFut<&'req mut Request<&'rrb mut ReqResBuffer>, Result<StatusCode, E>>>::Future:
-    Send,
+  F: Copy + FnFut<(AUX, Request<ReqResBuffer>), Result<Response<ReqResBuffer>, E>> + Send + 'static,
+  <F as FnFut<(AUX, Request<ReqResBuffer>), Result<Response<ReqResBuffer>, E>>>::Future: Send,
   for<'handle> &'handle F: Send,
 {
   let stream = stream_cb(local_acceptor, tcp_stream).await?;
@@ -129,12 +131,18 @@ where
       },
       Ok(elem) => elem,
     };
+    let local_aux = aux.clone();
     let _stream_jh = tokio::spawn(async move {
       let fun = || async move {
-        let (mut rrb, method) = http2_stream.recv_req().await?;
-        let mut req = rrb.as_http2_request_mut(method);
-        let status_code = handle_cb(&mut req).await?;
-        let res = Response::http2(req.rrd, status_code);
+        let (rrb, method) = http2_stream.recv_req().await?;
+        let req = rrb.into_http2_request(method);
+        let res = match handle_cb((local_aux, req)).await {
+          Err(err) => {
+            http2_stream.send_go_away(Http2ErrorCode::InternalError).await;
+            return Err(err);
+          }
+          Ok(elem) => elem,
+        };
         http2_stream.send_res(res).await?;
         Ok::<_, E>(())
       };

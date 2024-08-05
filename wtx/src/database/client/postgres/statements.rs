@@ -248,13 +248,13 @@ mod tests {
       Statements,
     },
     misc::Vector,
-    rng::StaticRng,
+    rng::NoStdRng,
   };
 
   #[test]
   fn stmt_if_duplicated() {
     let stmt_hash = 123;
-    let mut stmts = Statements::new(100, &mut StaticRng::default());
+    let mut stmts = Statements::new(100, &mut NoStdRng::default());
     let PushRslt::Builder(builder) = stmts.push(stmt_hash) else { panic!() };
     let _ = builder.finish();
     let PushRslt::Stmt(_) = stmts.push(stmt_hash) else { panic!() };
@@ -262,7 +262,7 @@ mod tests {
 
   #[test]
   fn two_statements() {
-    let mut stmts = Statements::new(2, &mut StaticRng::default());
+    let mut stmts = Statements::new(2, &mut NoStdRng::default());
     stmts.num_of_elements_to_remove_when_full = 1;
 
     let stmt_id0 = 123;

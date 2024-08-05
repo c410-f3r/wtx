@@ -10,6 +10,11 @@ impl crate::rng::Rng for fastrand::Rng {
   }
 
   #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    self.u64(0..=u64::MAX).to_be_bytes()
+  }
+
+  #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     self.u128(0..=u128::MAX).to_be_bytes()
   }

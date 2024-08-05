@@ -51,11 +51,7 @@ where
 
   /// Sometimes it is desirable to eagerly initialize all instances.
   #[inline]
-  pub async fn init_all<'this>(
-    &'this self,
-    ca: &RM::CreateAux,
-    ra: &RM::RecycleAux,
-  ) -> Result<(), RM::Error> {
+  pub async fn init_all(&self, ca: &RM::CreateAux, ra: &RM::RecycleAux) -> Result<(), RM::Error> {
     for _ in 0..self.locks.len() {
       let _guard = self.get(ca, ra).await?;
     }

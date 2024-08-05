@@ -32,8 +32,9 @@ $rt test-with-features wtx futures-lite
 $rt test-with-features wtx glommio
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
-$rt test-with-features wtx http1
 $rt test-with-features wtx http2
+$rt test-with-features wtx http-client-framework
+$rt test-with-features wtx http-server-framework
 $rt test-with-features wtx httparse
 $rt test-with-features wtx memchr
 $rt test-with-features wtx miniserde
@@ -90,12 +91,4 @@ $rt test-with-features wtx-ui schema-manager-dev
 $rt test-with-features wtx-ui http-client
 $rt test-with-features wtx-ui web-socket
 
-cargo check --bin autobahn-client --features "flate2,optimization,tokio/rt-multi-thread,web-socket-handshake"
-cargo check --bin autobahn-server --features "flate2,optimization,pool,tokio/rt-multi-thread,web-socket-handshake"
-cargo check --bin h2spec-server --features "http2,tokio"
-
-cargo check --example database-client-postgres-tokio-rustls --features "_tokio-rustls-client,postgres"
-cargo check --example http2-client-tokio-rustls --features "_tokio-rustls-client,http2"
-cargo check --example http2-server-tokio-rustls --features "_tokio-rustls-client,http2,pool"
-cargo check --example web-socket-client-raw-tokio-rustls --features "_tokio-rustls-client,web-socket-handshake"
-cargo check --example web-socket-server-raw-tokio-rustls --features "pool,rustls-pemfile,tokio-rustls,web-socket-handshake"
+cargo check --all-features --all-targets

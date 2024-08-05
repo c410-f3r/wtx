@@ -7,23 +7,21 @@ use crate::{
     Sorp, StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
   },
   misc::{
-    LeaseMut, PartitionedFilledBuffer, PollOnce, Stream, Usize, _read_until, atoi, Lock, RefCounter,
+    LeaseMut, Lock, PartitionedFilledBuffer, PollOnce, RefCounter, Stream, Usize, _read_until,
   },
 };
 use core::pin::pin;
 
 #[inline]
 pub(crate) fn check_content_length<RRB>(
-  headers_idx: usize,
+  content_length: usize,
   sorp: &StreamOverallRecvParams<RRB>,
 ) -> crate::Result<()>
 where
   RRB: LeaseMut<ReqResBuffer>,
 {
-  if let Some(header) = sorp.rrb.lease().headers().get_by_idx(headers_idx) {
-    if sorp.rrb.lease().body().len() != atoi::<usize>(header.value)? {
-      return Err(protocol_err(Http2Error::InvalidHeaderData));
-    }
+  if sorp.rrb.lease().body().len() != content_length {
+    return Err(protocol_err(Http2Error::InvalidHeaderData));
   }
   Ok(())
 }
@@ -251,7 +249,7 @@ where
   rrb.clear();
 
   if fi.cf.has_eoh() {
-    let (content_length_idx, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
+    let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
       Some(pfb._current()),
       fi,
       hp,
@@ -263,7 +261,7 @@ where
     if hf.is_over_size() {
       return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
     }
-    return Ok((content_length_idx, hf.has_eos(), headers_cb(&hf)?));
+    return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
   rrb.extend_body(pfb._current())?;
@@ -284,13 +282,13 @@ where
     return Err(protocol_err(Http2Error::VeryLargeAmountOfContinuationFrames));
   }
 
-  let (content_length_idx, hf) =
+  let (content_length, hf) =
     HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(None, fi, hp, hpack_dec, rrb, uri_buffer)?;
   rrb.clear_body();
   if hf.is_over_size() {
     return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
   }
-  Ok((content_length_idx, hf.has_eos(), headers_cb(&hf)?))
+  Ok((content_length, hf.has_eos(), headers_cb(&hf)?))
 }
 
 #[inline]
