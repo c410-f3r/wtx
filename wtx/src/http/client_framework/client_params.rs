@@ -13,7 +13,7 @@ impl Default for ClientParams {
       _initial_window_len: 32 * 1024 * 1024,
       _max_body_len: 4 * 1024 * 1024,
       _max_frame_len: 64 * 1024,
-      _max_headers_len: 8_192,
+      _max_headers_len: 8 * 1024,
     }
   }
 }

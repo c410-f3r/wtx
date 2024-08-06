@@ -29,6 +29,7 @@ pub use wrappers::{get, post, Get, Post};
 /// Server
 #[derive(Debug)]
 pub struct ServerFramework<E, P, REQM, RESM> {
+  max_recv_streams_num: u32,
   phantom: PhantomData<fn() -> E>,
   router: Arc<Router<P, REQM, RESM>>,
 }
@@ -42,10 +43,10 @@ where
   Arc<Router<P, REQM, RESM>>: Send,
   Router<P, REQM, RESM>: PathManagement<E, ReqResBuffer, manage_path(..): Send>,
 {
-  /// Creates a new instance
+  /// Creates a new instance with default parameters.
   #[inline]
   pub fn new(router: Router<P, REQM, RESM>) -> Self {
-    Self { phantom: PhantomData, router: Arc::new(router) }
+    Self { max_recv_streams_num: 128, phantom: PhantomData, router: Arc::new(router) }
   }
 
   /// Starts listening to incoming requests based on the given `host`.
@@ -74,11 +75,21 @@ where
       err_cb,
       handle,
       || Ok(Http2Buffer::new(StdRng::default())),
-      Http2Params::default,
+      move || Http2Params::default().set_max_recv_streams_num(self.max_recv_streams_num),
       || Ok(ReqResBuffer::default()),
       (|| {}, |_| {}, |_, stream| async move { Ok(stream) }),
     )
     .await
+  }
+
+  /// Maximum number of receiving streams
+  ///
+  /// Prevents clients from opening more than the specified number of
+  /// streams/requests/interactions.
+  #[inline]
+  pub fn max_recv_streams_num(mut self, elem: u32) -> Self {
+    self.max_recv_streams_num = elem;
+    self
   }
 }
 
