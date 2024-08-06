@@ -57,6 +57,21 @@ where
     }
     Ok(())
   }
+
+  #[inline]
+  pub(crate) async fn into_for_each<FUN>(&self, mut cb: impl FnMut(R) -> FUN)
+  where
+    FUN: Future<Output = ()>,
+  {
+    for idx in 0..self.locks.len() {
+      if let Some(lock) = self.locks.get(idx) {
+        let mut resource = lock.lock().await;
+        if let Some(elem) = resource.0.take() {
+          cb(elem).await;
+        }
+      }
+    }
+  }
 }
 
 impl<R, RL, RM> Pool for SimplePool<RL, RM>

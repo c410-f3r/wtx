@@ -7,13 +7,13 @@ use std::marker::PhantomData;
 
 /// Allows the customization of parameters that control HTTP requests and responses.
 #[derive(Debug)]
-pub struct ClientBuilder<RL, S> {
+pub struct ClientFrameworkBuilder<RL, S> {
   cp: ClientParams,
   len: usize,
   phantom: PhantomData<(RL, S)>,
 }
 
-impl<RL, S> ClientBuilder<RL, S>
+impl<RL, S> ClientFrameworkBuilder<RL, S>
 where
   ClientFrameworkRM<S>: ResourceManager,
   RL: Lock<Resource = SimplePoolResource<<ClientFrameworkRM<S> as ResourceManager>::Resource>>,

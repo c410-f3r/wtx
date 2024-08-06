@@ -1,4 +1,4 @@
-mod client_builder;
+mod client_framework_builder;
 mod client_params;
 #[cfg(all(
   feature = "_integration-tests",
@@ -11,19 +11,19 @@ mod req_builder;
 
 use crate::{
   http::{Method, ReqResBuffer, ReqResData, ReqUri, Request, Response},
-  http2::{Http2, Http2Buffer, Http2Data, Http2Params},
+  http2::{Http2, Http2Buffer, Http2Data, Http2ErrorCode, Http2Params},
   misc::{LeaseMut, Lock, RefCounter, Stream},
   pool::{Pool, ResourceManager, SimplePool, SimplePoolResource},
 };
 use core::marker::PhantomData;
 
-pub use client_builder::ClientBuilder;
+pub use client_framework_builder::ClientFrameworkBuilder;
 pub(crate) use client_params::ClientParams;
 pub use req_builder::ReqBuilder;
 #[cfg(feature = "tokio")]
-pub use tokio::ClientTokio;
+pub use tokio::ClientFrameworkTokio;
 #[cfg(all(feature = "tokio-rustls", feature = "webpki-roots"))]
-pub use tokio_rustls::ClientTokioRustls;
+pub use tokio_rustls::ClientFrameworkTokioRustls;
 
 /// An optioned pool of different HTTP/2 connections lazily constructed from different URIs.
 ///
@@ -56,6 +56,12 @@ where
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
+  /// Closes all active connections
+  #[inline]
+  pub async fn close_all(&self) {
+    self.pool.into_for_each(|elem| elem.send_go_away(Http2ErrorCode::NoError)).await
+  }
+
   /// Sends an arbitrary request.
   ///
   /// If the pool is full, then this method will block until a connection is available.
@@ -83,7 +89,8 @@ where
 mod tokio {
   use crate::{
     http::{
-      client_framework::_hp, ClientBuilder, ClientFramework, ClientFrameworkRM, ReqResBuffer,
+      client_framework::_hp, ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM,
+      ReqResBuffer,
     },
     http2::{Http2Buffer, Http2Tokio},
     misc::UriRef,
@@ -92,17 +99,19 @@ mod tokio {
   use tokio::{net::TcpStream, sync::Mutex};
 
   /// A [`Client`] using the elements of `tokio`.
-  pub type ClientTokio =
+  pub type ClientFrameworkTokio =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<TcpStream>>;
   type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, TcpStream, true>;
 
-  impl ClientTokio {
+  impl ClientFrameworkTokio {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio` project.
     #[inline]
-    pub fn tokio(len: usize) -> ClientBuilder<Mutex<SimplePoolResource<Instance>>, TcpStream> {
-      ClientBuilder::_new(len)
+    pub fn tokio(
+      len: usize,
+    ) -> ClientFrameworkBuilder<Mutex<SimplePoolResource<Instance>>, TcpStream> {
+      ClientFrameworkBuilder::_new(len)
     }
   }
 
@@ -148,7 +157,8 @@ mod tokio {
 mod tokio_rustls {
   use crate::{
     http::{
-      client_framework::_hp, ClientBuilder, ClientFramework, ClientFrameworkRM, ReqResBuffer,
+      client_framework::_hp, ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM,
+      ReqResBuffer,
     },
     http2::{Http2Buffer, Http2Tokio},
     misc::{TokioRustlsConnector, UriRef},
@@ -158,19 +168,19 @@ mod tokio_rustls {
   use tokio_rustls::client::TlsStream;
 
   /// A [`Client`] using the elements of `tokio-rustls`.
-  pub type ClientTokioRustls =
+  pub type ClientFrameworkTokioRustls =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<TlsStream<TcpStream>>>;
   type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, TlsStream<TcpStream>, true>;
 
-  impl ClientTokioRustls {
+  impl ClientFrameworkTokioRustls {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio-rustls` project.
     #[inline]
     pub fn tokio_rustls(
       len: usize,
-    ) -> ClientBuilder<Mutex<SimplePoolResource<Instance>>, TlsStream<TcpStream>> {
-      ClientBuilder::_new(len)
+    ) -> ClientFrameworkBuilder<Mutex<SimplePoolResource<Instance>>, TlsStream<TcpStream>> {
+      ClientFrameworkBuilder::_new(len)
     }
   }
 
