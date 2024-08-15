@@ -339,17 +339,6 @@ impl<D> LeaseMut<Vector<D>> for Vector<D> {
   }
 }
 
-#[cfg(feature = "miniserde")]
-impl<D> miniserde::Serialize for Vector<D>
-where
-  D: miniserde::Serialize,
-{
-  #[inline]
-  fn begin(&self) -> miniserde::ser::Fragment<'_> {
-    self.data.begin()
-  }
-}
-
 #[cfg(feature = "serde")]
 impl<D> serde::Serialize for Vector<D>
 where

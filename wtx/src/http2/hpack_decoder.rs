@@ -6,7 +6,7 @@ use crate::{
     hpack_header::{HpackHeaderBasic, HpackHeaderName},
     huffman_decode,
     misc::protocol_err,
-    Http2Error,
+    Http2Error, Http2ErrorCode,
   },
   misc::{ArrayVector, Usize},
 };
@@ -64,7 +64,10 @@ impl HpackDecoder {
     }
     while let [first, ..] = data {
       self.manage_decode(*first, &mut data, &mut cb, || {
-        Err(protocol_err(Http2Error::InvalidDynTableSizeUpdate))
+        Err(crate::Error::Http2ErrorGoAway(
+          Http2ErrorCode::CompressionError,
+          Some(Http2Error::InvalidDynTableSizeUpdate),
+        ))
       })?;
     }
     Ok(())
@@ -90,12 +93,18 @@ impl HpackDecoder {
       }
       rslt
     } else {
-      return Err(protocol_err(Http2Error::InsufficientHpackBytes));
+      return Err(crate::Error::Http2ErrorGoAway(
+        Http2ErrorCode::CompressionError,
+        Some(Http2Error::InsufficientHpackBytes),
+      ));
     };
     let mut shift: u32 = 0;
     for _ in 0..3 {
       let [first, rest @ ..] = data else {
-        return Err(protocol_err(Http2Error::InsufficientHpackBytes));
+        return Err(crate::Error::Http2ErrorGoAway(
+          Http2ErrorCode::CompressionError,
+          Some(Http2Error::InsufficientHpackBytes),
+        ));
       };
       *data = rest;
       rslt.1 = rslt.1.wrapping_add(u32::from(first & 0b0111_1111) << shift);
@@ -161,7 +170,10 @@ impl HpackDecoder {
   ) -> crate::Result<(&'data [u8], &'data [u8], bool)> {
     let (first, len) = Self::decode_integer(data, 0b0111_1111)?;
     let Some((bytes_begin, bytes_end)) = data.split_at_checked(*Usize::from(len)) else {
-      return Err(protocol_err(Http2Error::InsufficientHpackBytes));
+      return Err(crate::Error::Http2ErrorGoAway(
+        Http2ErrorCode::CompressionError,
+        Some(Http2Error::InsufficientHpackBytes),
+      ));
     };
     let is_encoded = first & 0b1000_0000 == 0b1000_0000;
     Ok((bytes_begin, bytes_end, is_encoded))
@@ -218,7 +230,12 @@ impl HpackDecoder {
     idx: usize,
   ) -> crate::Result<(HpackHeaderBasic, (&'static [u8], &[u8]), (&'static [u8], &[u8]))> {
     Ok(match idx {
-      0 => return Err(protocol_err(Http2Error::InvalidHpackIdx(Some(0)))),
+      0 => {
+        return Err(crate::Error::Http2ErrorGoAway(
+          Http2ErrorCode::CompressionError,
+          Some(Http2Error::InvalidHpackIdx(Some(0))),
+        ))
+      }
       1 => (HpackHeaderBasic::Authority, (b":authority", &[]), (&[], &[])),
       2 => (HpackHeaderBasic::Method(Method::Get), (b":method", &[]), (b"GET", &[])),
       3 => (HpackHeaderBasic::Method(Method::Post), (b":method", &[]), (b"POST", &[])),
@@ -309,7 +326,10 @@ impl HpackDecoder {
       dyn_idx_with_offset => dyn_headers
         .get_by_idx(dyn_idx_with_offset.wrapping_sub(DYN_IDX_OFFSET))
         .ok_or_else(|| {
-          protocol_err(Http2Error::InvalidHpackIdx(dyn_idx_with_offset.try_into().ok()))
+          crate::Error::Http2ErrorGoAway(
+            Http2ErrorCode::CompressionError,
+            Some(Http2Error::InvalidHpackIdx(dyn_idx_with_offset.try_into().ok())),
+          )
         })
         .map(|el| (*el.misc, (&[][..], el.name_bytes), (&[][..], el.value_bytes)))?,
     })
@@ -344,10 +364,10 @@ impl HpackDecoder {
         size_update_cb()?;
         let local_max_bytes: u32 = Self::decode_integer(data, 0b0001_1111)?.1;
         if local_max_bytes > self.max_bytes.0 {
-          return Err(crate::Error::MISC_UnboundedNumber {
-            expected: 0..=self.max_bytes.0,
-            received: local_max_bytes,
-          });
+          return Err(crate::Error::Http2ErrorGoAway(
+            Http2ErrorCode::CompressionError,
+            Some(Http2Error::OutOfBoundsIndex),
+          ));
         }
         self.dyn_headers.set_max_bytes(*Usize::from(local_max_bytes), |_, _| {});
       }

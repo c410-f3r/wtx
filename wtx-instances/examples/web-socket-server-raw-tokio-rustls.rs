@@ -21,7 +21,11 @@ async fn main() {
     |err| eprintln!("Connection error: {err:?}"),
     handle,
     (
-      || TokioRustlsAcceptor::default().with_cert_chain_and_priv_key(CERT, KEY).unwrap(),
+      || {
+        TokioRustlsAcceptor::without_client_auth()
+          .build_with_cert_chain_and_priv_key(CERT, KEY)
+          .unwrap()
+      },
       |acceptor| acceptor.clone(),
       |acceptor, stream| async move { Ok(acceptor.accept(stream).await?) },
     ),

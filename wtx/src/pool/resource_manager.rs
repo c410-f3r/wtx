@@ -120,8 +120,7 @@ pub(crate) mod database {
       pool::{PostgresRM, ResourceManager},
       rng::StdRngSync,
     };
-    use core::mem;
-    use std::marker::PhantomData;
+    use core::{marker::PhantomData, mem};
     use tokio::net::TcpStream;
 
     impl<E> PostgresRM<E, TcpStream> {
@@ -189,8 +188,7 @@ pub(crate) mod database {
       pool::{PostgresRM, ResourceManager},
       rng::StdRngSync,
     };
-    use core::mem;
-    use std::marker::PhantomData;
+    use core::{marker::PhantomData, mem};
     use tokio::net::TcpStream;
     use tokio_rustls::client::TlsStream;
 
@@ -226,13 +224,11 @@ pub(crate) mod database {
             TcpStream::connect(uri.host()).await.map_err(Into::into)?,
             &mut &self.rng,
             |stream| async {
-              #[allow(unused_mut, reason = "features")]
-              let mut rslt = TokioRustlsConnector::from_webpki_roots();
-              #[cfg(feature = "rustls-pemfile")]
+              let mut rslt = TokioRustlsConnector::from_auto()?;
               if let Some(elem) = self._certs {
                 rslt = rslt.push_certs(elem)?;
               }
-              Ok(rslt.with_generic_stream(uri.hostname(), stream).await?)
+              Ok(rslt.connect_without_client_auth(uri.hostname(), stream).await?)
             },
           )
         })
@@ -258,13 +254,11 @@ pub(crate) mod database {
             TcpStream::connect(uri.host()).await.map_err(Into::into)?,
             &mut &self.rng,
             |stream| async {
-              #[allow(unused_mut, reason = "features")]
-              let mut rslt = TokioRustlsConnector::from_webpki_roots();
-              #[cfg(feature = "rustls-pemfile")]
+              let mut rslt = TokioRustlsConnector::from_auto()?;
               if let Some(elem) = self._certs {
                 rslt = rslt.push_certs(elem)?;
               }
-              Ok(rslt.with_generic_stream(uri.hostname(), stream).await?)
+              Ok(rslt.connect_without_client_auth(uri.hostname(), stream).await?)
             },
           )
         })?;

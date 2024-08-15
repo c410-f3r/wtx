@@ -109,7 +109,12 @@ impl<'uri> HeadersFrame<'uri> {
             is_malformed = true;
           }
           _ => {
-            let header_name = HeaderName::http2p(name)?;
+            let header_name = match HeaderName::http2p(name) {
+              Ok(elem) => elem,
+              Err(_err) => {
+                return Err(protocol_err(Http2Error::InvalidHeaderData));
+              }
+            };
             has_fields = true;
             let len = decoded_header_size(name.len(), value.len());
             expanded_headers_len = expanded_headers_len.wrapping_add(len);

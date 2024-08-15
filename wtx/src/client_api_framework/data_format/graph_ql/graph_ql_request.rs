@@ -1,21 +1,14 @@
 /// GraphQL request or operation, can be a query or a mutation.
-#[cfg_attr(feature = "miniserde", derive(miniserde::Serialize))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct GraphQlRequest<ON, Q, V> {
   /// Describes what type of operation you're intending to perform.
-  #[cfg_attr(
-    all(feature = "serde", not(feature = "miniserde")),
-    serde(skip_serializing_if = "Option::is_none")
-  )]
+  #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
   pub operation_name: Option<ON>,
   /// Describes the desired data to be fetched.
   pub query: Q,
   /// Separated data intended to help queries.
-  #[cfg_attr(
-    all(feature = "serde", not(feature = "miniserde")),
-    serde(skip_serializing_if = "Option::is_none")
-  )]
+  #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
   pub variables: Option<V>,
 }
 

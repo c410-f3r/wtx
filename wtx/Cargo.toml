@@ -3,48 +3,33 @@ cargo-features = ["edition2024"]
 [dependencies]
 ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
-async-std = { default-features = false, features = ["default"], optional = true, version = "1.0" }
 atoi = { default-features = false, optional = true, version = "2.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
-borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.4" }
-bytes = { default-features = false, optional = true, version = "1.0" }
+borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
-embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.4" }
-embassy-sync = { default-features = false, optional = true, version = "0.6" }
-embassy-time = { default-features = false, optional = true, version = "0.3" }
-embedded-io-async = { default-features = false, optional = true, version = "0.6" }
-embedded-tls = { default-features = false, features = ["async"], optional = true, version = "0.16" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
-futures-lite = { default-features = false, optional = true, version = "1.0" }
-glommio = { default-features = false, optional = true, version = "0.9" }
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
-memchr = { default-features = false, optional = true, version = "2.7" }
-miniserde = { default-features = false, optional = true, version = "0.1" }
-parking_lot = { default-features = false, optional = true, version = "0.12" }
+memchr = { default-features = false, optional = true, version = "2.0" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-protobuf = { default-features = false, optional = true, version = "3.4" }
+protobuf = { default-features = false, optional = true, version = "3.0" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
-rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.34" }
-rustls-pemfile = { default-features = false, features = ["std"], optional = true, version = "2.1" }
-rustls-pki-types = { default-features = false, optional = true, version = "1.4" }
+rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
+rustls-pemfile = { default-features = false, features = ["std"], optional = true, version = "2.0" }
+rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-serde_yaml = { default-features = false, optional = true, version = "0.9" }
-serde-xml-rs = { default-features = false, optional = true, version = "0.6" }
 sha1 = { default-features = false, optional = true, version = "0.10" }
 sha2 = { default-features = false, optional = true, version = "0.10" }
 simd-json = { default-features = false, features = ["serde_impl"], optional = true, version = "0.11" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
-smol = { default-features = false, optional = true, version = "2.0" }
-smoltcp = { default-features = false, optional = true, version = "0.11" }
 test-strategy = { default-features = false, optional = true, version = "0.4" }
 tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.26" }
@@ -55,13 +40,12 @@ webpki-roots = { default-features = false, optional = true, version = "0.26" }
 x509-certificate = { default-features = false, optional = true, version = "0.23" }
 
 [dev-dependencies]
-chrono = { default-features = false, features = ["clock"], version = "0.4" }
 tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread", "time"], version = "1.0" }
+wtx = { default-features = false, features = ["std", "tokio"], path = "./" }
 
 [features]
 ahash = ["dep:ahash", "hashbrown?/ahash"]
 arbitrary = ["dep:arbitrary", "std"]
-async-std = ["dep:async-std", "std"]
 atoi = ["dep:atoi"]
 base64 = ["dep:base64"]
 borsh = ["dep:borsh", "std"]
@@ -72,14 +56,8 @@ crypto-common = ["dep:crypto-common"]
 database = []
 default = []
 digest = ["dep:digest"]
-embassy-net = ["dep:embassy-net"]
-embassy-sync = ["dep:embassy-sync"]
-embassy-time = ["dep:embassy-time"]
-embedded-tls = ["dep:embedded-io-async", "dep:embedded-tls"]
 fastrand = ["dep:fastrand"]
 flate2 = ["dep:flate2"]
-futures-lite = ["dep:futures-lite"]
-glommio = ["futures-lite", "dep:glommio", "std"]
 hashbrown = ["dep:hashbrown"]
 hmac = ["dep:hmac"]
 http-client-framework = ["http2", "pool", "std"]
@@ -87,9 +65,7 @@ http-server-framework = ["http2", "tokio"]
 http2 = ["ahash", "hashbrown"]
 httparse = ["dep:httparse"]
 memchr = ["dep:memchr"]
-miniserde = ["dep:miniserde", "std"]
 optimization = ["atoi", "memchr", "simdutf8"]
-parking_lot = ["dep:parking_lot"]
 pool = []
 postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "sha2"]
 proptest = ["dep:proptest"]
@@ -98,36 +74,31 @@ rand = ["dep:rand"]
 ring = ["dep:ring"]
 rkyv = ["dep:rkyv"]
 rust_decimal = ["dep:rust_decimal"]
-rustls-pemfile = ["dep:rustls-pemfile"]
-rustls-pki-types = ["dep:rustls-pki-types"]
 schema-manager = ["database", "chrono"]
 schema-manager-dev = ["schema-manager"]
 serde = ["cl-aux?/serde", "dep:serde"]
 serde_json = ["serde", "dep:serde_json", "std"]
-serde_yaml = ["serde", "dep:serde_yaml", "std"]
-serde-xml-rs = ["serde", "dep:serde-xml-rs", "std"]
 sha1 = ["dep:sha1"]
 sha2 = ["dep:sha2"]
 simd-json = ["serde", "dep:simd-json", "std"]
 simdutf8 = ["dep:simdutf8"]
-smol = ["dep:smol", "std"]
-smoltcp = ["dep:smoltcp"]
-std = ["ahash?/std", "atoi?/std", "cl-aux?/std", "embassy-sync?/std", "memchr?/std", "miniserde?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
+std = ["ahash?/std", "atoi?/std", "cl-aux?/std", "memchr?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
 test-strategy = ["dep:test-strategy", "proptest", "std"]
 tokio = ["std", "dep:tokio"]
-tokio-rustls = ["ring", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
+tokio-rustls = ["ring", "dep:rustls-pemfile", "dep:rustls-pki-types", "tokio", "dep:tokio-rustls"]
 tracing = ["dep:tracing"]
+tracing-subscriber = ["dep:tracing-subscriber"]
 web-socket = []
 web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 webpki-roots = ["dep:webpki-roots"]
 x509-certificate = ["dep:x509-certificate"]
 
 _bench = []
-_hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "rkyv?/size_32", "simd-json?/allow-non-simd", "smoltcp?/medium-ip", "smoltcp?/proto-ipv4", "smoltcp?/socket-tcp"]
+_hack = ["rkyv?/size_32", "simd-json?/allow-non-simd"]
 _integration-tests = ["serde_json?/raw_value"]
 _proptest = ["proptest/std", "rust_decimal?/proptest", "std", "test-strategy"]
-_tokio-rustls-client = ["rustls-pemfile", "tokio-rustls/tls12", "webpki-roots"]
-_tracing-subscriber = ["tracing", "dep:tracing-subscriber", "dep:tracing-tree"]
+_tokio-rustls-client = ["tokio-rustls/tls12", "webpki-roots"]
+_tracing-tree = ["tracing", "tracing-subscriber", "dep:tracing-tree"]
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]

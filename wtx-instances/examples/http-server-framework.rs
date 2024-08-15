@@ -21,7 +21,7 @@ static POOL: LazyLock<SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>> = Lazy
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let router = Router::paths(paths!(
-    ("db/{id}", get(db)),
+    ("db/:id", get(db)),
     ("json", post(json)),
     (
       "say",
@@ -64,9 +64,9 @@ async fn json(mut req: Request<ReqResBuffer>) -> wtx::Result<Response<ReqResBuff
     _baz: &'bytes [u8],
   }
 
-  let _de: DeserializeExample<'_> = simd_json::from_slice(req.rrd.body_mut())?;
+  let _de: DeserializeExample<'_> = serde_json::from_slice(req.rrd.body_mut())?;
   req.rrd.clear();
-  simd_json::to_writer(&mut req.rrd, &SerializeExample { _baz: &[1, 2, 3, 4, 5] })?;
+  serde_json::to_writer(&mut req.rrd, &SerializeExample { _baz: &[1, 2, 3, 4, 5] })?;
   Ok(req.into_response(StatusCode::Ok))
 }
 

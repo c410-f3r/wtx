@@ -15,25 +15,3 @@ impl<D> Serialize<()> for XmlRequest<D> {
     Ok(())
   }
 }
-
-#[cfg(feature = "serde-xml-rs")]
-mod serde_xml_rs {
-  use crate::{
-    client_api_framework::{data_format::XmlRequest, dnsn::SerdeXmlRs},
-    misc::Vector,
-  };
-
-  impl<D> crate::client_api_framework::dnsn::Serialize<SerdeXmlRs> for XmlRequest<D>
-  where
-    D: serde::Serialize,
-  {
-    #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeXmlRs) -> crate::Result<()> {
-      if size_of::<D>() == 0 {
-        return Ok(());
-      }
-      serde_xml_rs::to_writer(bytes, &self.data)?;
-      Ok(())
-    }
-  }
-}

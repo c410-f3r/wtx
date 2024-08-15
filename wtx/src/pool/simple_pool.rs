@@ -59,7 +59,7 @@ where
   }
 
   #[inline]
-  pub(crate) async fn into_for_each<FUN>(&self, mut cb: impl FnMut(R) -> FUN)
+  pub(crate) async fn _into_for_each<FUN>(&self, mut cb: impl FnMut(R) -> FUN)
   where
     FUN: Future<Output = ()>,
   {
@@ -208,7 +208,7 @@ mod _tokio {
   }
 }
 
-#[cfg(all(feature = "tokio", test))]
+#[cfg(test)]
 mod tests {
   use crate::pool::{simple_pool::SimplePoolTokio, Pool, SimpleRM};
 

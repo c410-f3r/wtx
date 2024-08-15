@@ -3,8 +3,9 @@ use crate::{
     http2_params_send::Http2ParamsSend, misc::write_array, Http2Error, Http2ErrorCode, Http2Params,
     WindowUpdateFrame, U31,
   },
-  misc::Stream,
+  misc::StreamWriter,
 };
+use core::sync::atomic::AtomicBool;
 
 /// A "credit" system used to restrain the exchange of data.
 #[derive(Clone, Copy, Debug)]
@@ -122,16 +123,16 @@ impl<'any> WindowsPair<'any> {
   /// Controls window sizes received from external sources. Invalid or negative values trigger a
   /// frame dispatch to return to the default window size.
   #[inline]
-  pub(crate) async fn withdrawn_recv<S>(
+  pub(crate) async fn withdrawn_recv<SW>(
     &mut self,
     hp: &Http2Params,
-    is_conn_open: bool,
-    stream: &mut S,
+    is_conn_open: &AtomicBool,
+    stream_writer: &mut SW,
     stream_id: U31,
     value: U31,
   ) -> crate::Result<()>
   where
-    S: Stream,
+    SW: StreamWriter,
   {
     let iwl = U31::from_u32(hp.initial_window_len()).i32();
     self.conn.recv.withdrawn(None, value.i32())?;
@@ -144,7 +145,7 @@ impl<'any> WindowsPair<'any> {
         write_array(
           [&WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes()],
           is_conn_open,
-          stream,
+          stream_writer,
         )
         .await?;
       }
@@ -154,7 +155,7 @@ impl<'any> WindowsPair<'any> {
         write_array(
           [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
           is_conn_open,
-          stream,
+          stream_writer,
         )
         .await?;
       }
@@ -169,7 +170,7 @@ impl<'any> WindowsPair<'any> {
             &WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes(),
           ],
           is_conn_open,
-          stream,
+          stream_writer,
         )
         .await?;
       }

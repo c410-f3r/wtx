@@ -36,22 +36,16 @@ pub enum Error {
   DecodeError(base64::DecodeError),
   #[cfg(feature = "base64")]
   DecodeSliceError(base64::DecodeSliceError),
-  #[cfg(feature = "embassy-net")]
-  EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
   #[cfg(feature = "flate2")]
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
   Flate2DecompressError(Box<flate2::DecompressError>),
-  #[cfg(feature = "glommio")]
-  Glommio(Box<glommio::GlommioError<()>>),
   #[cfg(feature = "httparse")]
   HttpParse(httparse::Error),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
-  #[cfg(feature = "miniserde")]
-  Miniserde(miniserde::Error),
   #[cfg(feature = "postgres")]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "protobuf")]
@@ -62,23 +56,13 @@ pub enum Error {
   RkyvSer(Box<RkyvSer>),
   #[cfg(feature = "serde_json")]
   SerdeJson(serde_json::Error),
-  #[cfg(feature = "serde-xml-rs")]
-  SerdeXmlRs(Box<serde_xml_rs::Error>),
-  #[cfg(feature = "serde_yaml")]
-  SerdeYaml(serde_yaml::Error),
   #[cfg(feature = "simd-json")]
   SimdJson(Box<simd_json::Error>),
-  #[cfg(feature = "smoltcp")]
-  SmoltcpTcpRecvError(smoltcp::socket::tcp::RecvError),
-  #[cfg(feature = "smoltcp")]
-  SmoltcpTcpSendError(smoltcp::socket::tcp::SendError),
-  #[cfg(feature = "embedded-tls")]
-  TlsError(embedded_tls::TlsError),
   #[cfg(feature = "tokio")]
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tokio-rustls")]
   TokioRustlsError(Box<tokio_rustls::rustls::Error>),
-  #[cfg(feature = "_tracing-subscriber")]
+  #[cfg(feature = "tracing-subscriber")]
   TryInitError(tracing_subscriber::util::TryInitError),
   #[cfg(feature = "std")]
   TryLockError(std::sync::TryLockError<()>),
@@ -105,6 +89,8 @@ pub enum Error {
   BlocksQueueError(BlocksQueueError),
   #[cfg(feature = "client-api-framework")]
   ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
+  #[cfg(feature = "http-client-framework")]
+  HttpClientFrameworkError(crate::http::HttpClientFrameworkError),
   HttpError(crate::http::HttpError),
   #[cfg(feature = "http2")]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
@@ -134,10 +120,14 @@ pub enum Error {
   MISC_InvalidDatabaseUrl(&'static str),
   /// Backend couldn't perform passed query string
   MISC_InvalidSqlQuery,
-  /// Invalid URL
-  MISC_InvalidUrl,
+  /// Invalid URI
+  MISC_InvalidUri,
   /// Environment variable is not present
   MISC_MissingEnvVar,
+  /// There is no CA provider.
+  MISC_MissingCaProviders,
+  /// There is no parser to process PEM files.
+  MISC_MissingPemParser,
   /// A variant used to transform `Option`s into `Result`s
   MISC_NoInnerValue(&'static str),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
@@ -221,14 +211,6 @@ impl From<base64::DecodeSliceError> for Error {
   }
 }
 
-#[cfg(feature = "embassy-net")]
-impl From<embassy_net::tcp::Error> for Error {
-  #[inline]
-  fn from(from: embassy_net::tcp::Error) -> Self {
-    Self::EmbassyNet(from)
-  }
-}
-
 #[cfg(feature = "base64")]
 impl From<base64::EncodeSliceError> for Error {
   #[inline]
@@ -267,14 +249,6 @@ impl From<core::fmt::Error> for Error {
   }
 }
 
-#[cfg(feature = "glommio")]
-impl From<glommio::GlommioError<()>> for Error {
-  #[inline]
-  fn from(from: glommio::GlommioError<()>) -> Self {
-    Self::Glommio(from.into())
-  }
-}
-
 #[cfg(feature = "httparse")]
 impl From<httparse::Error> for Error {
   #[inline]
@@ -307,14 +281,6 @@ impl From<digest::MacError> for Error {
   #[inline]
   fn from(from: digest::MacError) -> Self {
     Self::MacError(from)
-  }
-}
-
-#[cfg(feature = "miniserde")]
-impl From<miniserde::Error> for Error {
-  #[inline]
-  fn from(from: miniserde::Error) -> Self {
-    Self::Miniserde(from)
   }
 }
 
@@ -365,51 +331,11 @@ impl From<serde_json::Error> for Error {
   }
 }
 
-#[cfg(feature = "serde-xml-rs")]
-impl From<serde_xml_rs::Error> for Error {
-  #[inline]
-  fn from(from: serde_xml_rs::Error) -> Self {
-    Self::SerdeXmlRs(from.into())
-  }
-}
-
-#[cfg(feature = "serde_yaml")]
-impl From<serde_yaml::Error> for Error {
-  #[inline]
-  fn from(from: serde_yaml::Error) -> Self {
-    Self::SerdeYaml(from)
-  }
-}
-
 #[cfg(feature = "simd-json")]
 impl From<simd_json::Error> for Error {
   #[inline]
   fn from(from: simd_json::Error) -> Self {
     Self::SimdJson(from.into())
-  }
-}
-
-#[cfg(feature = "smoltcp")]
-impl From<smoltcp::socket::tcp::RecvError> for Error {
-  #[inline]
-  fn from(from: smoltcp::socket::tcp::RecvError) -> Self {
-    Self::SmoltcpTcpRecvError(from)
-  }
-}
-
-#[cfg(feature = "smoltcp")]
-impl From<smoltcp::socket::tcp::SendError> for Error {
-  #[inline]
-  fn from(from: smoltcp::socket::tcp::SendError) -> Self {
-    Self::SmoltcpTcpSendError(from)
-  }
-}
-
-#[cfg(feature = "embedded-tls")]
-impl From<embedded_tls::TlsError> for Error {
-  #[inline]
-  fn from(from: embedded_tls::TlsError) -> Self {
-    Self::TlsError(from)
   }
 }
 
@@ -429,7 +355,7 @@ impl From<tokio_rustls::rustls::Error> for Error {
   }
 }
 
-#[cfg(feature = "_tracing-subscriber")]
+#[cfg(feature = "tracing-subscriber")]
 impl From<tracing_subscriber::util::TryInitError> for Error {
   #[inline]
   fn from(from: tracing_subscriber::util::TryInitError) -> Self {
@@ -507,6 +433,14 @@ impl From<crate::client_api_framework::ClientApiFrameworkError> for Error {
   #[inline]
   fn from(from: crate::client_api_framework::ClientApiFrameworkError) -> Self {
     Self::ClientApiFrameworkError(from)
+  }
+}
+
+#[cfg(feature = "http-client-framework")]
+impl From<crate::http::HttpClientFrameworkError> for Error {
+  #[inline]
+  fn from(from: crate::http::HttpClientFrameworkError) -> Self {
+    Self::HttpClientFrameworkError(from)
   }
 }
 

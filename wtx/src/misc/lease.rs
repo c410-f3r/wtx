@@ -210,26 +210,6 @@ mod str {
   }
 }
 
-#[cfg(feature = "parking_lot")]
-mod parking_lot {
-  use crate::misc::{Lease, LeaseMut};
-  use parking_lot::MutexGuard;
-
-  impl<T> Lease<T> for MutexGuard<'_, T> {
-    #[inline]
-    fn lease(&self) -> &T {
-      self
-    }
-  }
-
-  impl<T> LeaseMut<T> for MutexGuard<'_, T> {
-    #[inline]
-    fn lease_mut(&mut self) -> &mut T {
-      self
-    }
-  }
-}
-
 #[cfg(feature = "tokio")]
 mod tokio {
   use crate::misc::{Lease, LeaseMut};

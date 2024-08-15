@@ -24,7 +24,7 @@ macro_rules! create_and_impl {
     }
 
     impl<'slice, T, const N: usize> $name<'slice, T, N> {
-      #[expect(clippy::arithmetic_side_effects, reason = "`N` is not zero, therefore, no following arithmetic will panic")]
+      #[expect(clippy::arithmetic_side_effects, reason = "`N` is not zero")]
       #[inline]
       /// Returns an iterator over N elements of the slice at a time, starting at the beginning of
       /// the slice.

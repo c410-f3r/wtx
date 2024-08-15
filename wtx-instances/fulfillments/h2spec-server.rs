@@ -8,6 +8,8 @@ use wtx::{
 
 #[tokio::main]
 async fn main() {
+  #[cfg(feature = "_tracing-tree")]
+  let _rslt = wtx::misc::tracing_tree_init();
   LowLevelServer::tokio_http2(
     (),
     "127.0.0.1:9000",
@@ -16,7 +18,7 @@ async fn main() {
     || Ok(Http2Buffer::new(StdRng::default())),
     Http2Params::default,
     || Ok(ReqResBuffer::default()),
-    (|| {}, |_| {}, |_, stream| async move { Ok(stream) }),
+    (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
   )
   .await
   .unwrap()

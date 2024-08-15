@@ -4,7 +4,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 
-/// An element that can be represented from one or more database row, in other words, tables
+/// An element that can be represented from one or more database rows, in other words, entities
 /// with relationships.
 pub trait FromRecords<'exec, D>: Sized
 where

@@ -1,6 +1,4 @@
-use crate::http2::{
-  misc::protocol_err, CommonFlags, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31,
-};
+use crate::http2::{CommonFlags, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct PingFrame {
@@ -17,7 +15,10 @@ impl PingFrame {
   #[inline]
   pub(crate) fn read(bytes: &[u8], mut fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
-      return Err(protocol_err(Http2Error::InvalidPingFrameNonZeroId));
+      return Err(crate::Error::Http2ErrorGoAway(
+        Http2ErrorCode::FrameSizeError,
+        Some(Http2Error::InvalidPingFrameNonZeroId),
+      ));
     }
     fi.cf.only_ack();
     let [a, b, c, d, e, f, g, h] = bytes else {

@@ -11,7 +11,7 @@
 use crate::{
   http::{AbstractHeaders, Header, KnownHeaderName, Method, StatusCode},
   http2::{hpack_header::HpackHeaderBasic, huffman_encode, misc::protocol_err, Http2Error},
-  misc::{Usize, Vector, _random_state, _shift_bytes, _unreachable},
+  misc::{Usize, Vector, _random_state, _shift_copyable_chunks, _unreachable},
   rng::Rng,
 };
 use ahash::RandomState;
@@ -282,7 +282,7 @@ impl HpackEncoder {
         }
         _ => return Ok(()),
       }
-      let _ = _shift_bytes(
+      let _ = _shift_copyable_chunks(
         before_byte.wrapping_add(octets.into()),
         buffer,
         iter::once(after_byte..after_huffman),

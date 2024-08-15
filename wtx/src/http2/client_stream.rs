@@ -1,18 +1,23 @@
 use crate::{
   http::{ReqResBuffer, ReqResData, ReqUri, Request, StatusCode},
   http2::{
-    misc::{check_content_length, send_go_away, send_reset_stream},
+    misc::{
+      manage_initial_stream_receiving, manage_recurrent_stream_receiving,
+      process_higher_operation_err, send_go_away, send_reset_stream,
+    },
     send_msg::send_msg,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
-    StreamOverallRecvParams, StreamState, Windows, U31,
+    IsConnOpenSync, StreamOverallRecvParams, StreamState, Windows, U31,
   },
-  misc::{Lease, LeaseMut, Lock, RefCounter, Stream, Usize, _Span},
+  misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
 };
+use core::{future::poll_fn, pin::pin, task::Poll};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
 pub struct ClientStream<HD> {
   hd: HD,
+  is_conn_open: IsConnOpenSync,
   span: _Span,
   stream_id: U31,
   // Used after the initial sending
@@ -20,83 +25,89 @@ pub struct ClientStream<HD> {
 }
 
 impl<HD> ClientStream<HD> {
-  pub(crate) const fn new(hd: HD, span: _Span, stream_id: U31) -> Self {
-    Self { hd, span, stream_id, windows: Windows::new() }
+  #[inline]
+  pub(crate) const fn new(
+    hd: HD,
+    is_conn_open: IsConnOpenSync,
+    span: _Span,
+    stream_id: U31,
+  ) -> Self {
+    Self { hd, is_conn_open, span, stream_id, windows: Windows::new() }
   }
 }
 
-impl<HB, HD, RRB, S> ClientStream<HD>
+impl<HB, HD, RRB, SW> ClientStream<HD>
 where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, true>>,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, true>>,
   RRB: LeaseMut<ReqResBuffer>,
-  S: Stream,
+  SW: StreamWriter,
 {
   /// Receive response
   ///
   /// Higher operation that awaits for the data necessary to build a response and then closes the
   /// stream.
   ///
+  /// Returns [`Either::Left`] if the network/stream connection has been closed, either locally
+  /// or externally.
+  ///
   /// Should be called after [`Self::send_req`] is successfully executed.
   #[inline]
-  pub async fn recv_res(self, mut rrb: RRB) -> crate::Result<(RRB, StatusCode)> {
-    let _e = self.span._enter();
+  pub async fn recv_res(mut self, rrb: RRB) -> crate::Result<Either<RRB, (RRB, StatusCode)>> {
+    let rrb_opt = &mut Some(rrb);
+    let Self { hd, is_conn_open, span, stream_id, windows } = &mut self;
+    let _e = span._enter();
     _trace!("Receiving response");
-    {
-      let mut guard = self.hd.lock().await;
-      let hdpm = guard.parts_mut();
-      rrb.lease_mut().clear();
-      rrb.lease_mut().headers_mut().set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
-      drop(hdpm.hb.sorp.insert(
-        self.stream_id,
-        StreamOverallRecvParams {
-          body_len: 0,
-          content_length: None,
-          has_initial_header: false,
-          rrb,
-          span: _Span::_none(),
-          status_code: StatusCode::Ok,
-          stream_state: StreamState::HalfClosedLocal,
-          windows: self.windows,
-        },
-      ));
+    let mut lock_pin = pin!(hd.lock());
+    let rslt = poll_fn(|cx| {
+      let mut lock = lock_pin!(cx, hd, lock_pin);
+      let hdpm = lock.parts_mut();
+      if let Some(mut elem) = rrb_opt.take() {
+        if !manage_initial_stream_receiving(&hdpm, is_conn_open, &mut elem) {
+          return Poll::Ready(Ok(Either::Left(elem)));
+        }
+        drop(hdpm.hb.sorp.insert(
+          *stream_id,
+          StreamOverallRecvParams {
+            body_len: 0,
+            content_length: None,
+            has_initial_header: false,
+            is_stream_open: true,
+            rrb: elem,
+            status_code: StatusCode::Ok,
+            stream_state: StreamState::HalfClosedLocal,
+            waker: cx.waker().clone(),
+            windows: *windows,
+          },
+        ));
+        Poll::Pending
+      } else {
+        manage_recurrent_stream_receiving(cx, hdpm, is_conn_open, stream_id, |_, _, sorp| {
+          sorp.status_code
+        })
+      }
+    })
+    .await;
+    if let Err(err) = &rslt {
+      process_higher_operation_err(&err, hd).await;
     }
-    process_higher_operation!(
-      &self.hd,
-      |guard| {
-        let rslt = 'rslt: {
-          let hdpm = guard.parts_mut();
-          if hdpm.hb.sorp.get(&self.stream_id).map_or(false, |el| el.stream_state.recv_eos()) {
-            if let Some(sorp) = hdpm.hb.sorp.remove(&self.stream_id) {
-              if let Some(idx) = sorp.content_length {
-                if let Err(err) = check_content_length(idx, &sorp) {
-                  break 'rslt Err(err);
-                }
-              }
-              break 'rslt Ok(Some((sorp.rrb, sorp.status_code)));
-            }
-          }
-          Ok(None)
-        };
-        rslt
-      },
-      |_guard, elem| Ok(elem)
-    )
+    rslt
   }
 
   /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
   /// streams.
   #[inline]
   pub async fn send_go_away(self, error_code: Http2ErrorCode) {
-    let mut guard = self.hd.lock().await;
-    let hdpm = guard.parts_mut();
-    send_go_away(error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
+    send_go_away(error_code, &mut self.hd.lock().await.parts_mut()).await;
   }
 
   /// Send Request
   ///
   /// Higher operation that sends all data related to a request.
+  ///
+  /// Returns [`Option::None`] if the network/stream connection has been closed, either locally
+  /// or externally.
   ///
   /// Shouldn't be called more than once.
   #[inline]
@@ -104,7 +115,7 @@ where
     &mut self,
     req: Request<RRD>,
     req_uri: impl Into<ReqUri<'_>>,
-  ) -> crate::Result<()>
+  ) -> crate::Result<Option<()>>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
@@ -129,10 +140,11 @@ where
         },
         HpackStaticResponseHeaders::EMPTY,
       ),
+      &self.is_conn_open,
       self.stream_id,
       |hdpm| {
-        if let Some(elem) = hdpm.hb.scrp.remove(&self.stream_id) {
-          self.windows = elem.windows;
+        if let Some(scrp) = hdpm.hb.scrp.remove(&self.stream_id) {
+          self.windows = scrp.windows;
         }
       },
     )
@@ -143,6 +155,13 @@ where
   pub async fn send_reset(self, error_code: Http2ErrorCode) {
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
-    send_reset_stream(error_code, hdpm.hb, hdpm.stream, self.stream_id).await;
+    let _ = send_reset_stream(
+      error_code,
+      &mut hdpm.hb.scrp,
+      &mut hdpm.hb.sorp,
+      hdpm.stream_writer,
+      self.stream_id,
+    )
+    .await;
   }
 }

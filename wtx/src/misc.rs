@@ -9,7 +9,6 @@ mod either;
 mod enum_var_strings;
 mod filled_buffer_writer;
 mod fn_fut;
-mod fx_hasher;
 mod generic_time;
 mod incomplete_utf8_char;
 mod iter_wrapper;
@@ -18,7 +17,6 @@ mod lock;
 mod mem_transfer;
 mod optimization;
 mod partitioned_filled_buffer;
-mod poll_once;
 mod query_writer;
 mod queue;
 mod queue_utils;
@@ -46,20 +44,18 @@ pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
 pub use fn_fut::{FnFut, FnMutFut, FnOnceFut};
-pub use fx_hasher::FxHasher;
 pub use generic_time::GenericTime;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use iter_wrapper::IterWrapper;
 pub use lease::{Lease, LeaseMut};
 pub use lock::{Lock, SyncLock};
 pub use optimization::*;
-pub use poll_once::PollOnce;
 pub use query_writer::QueryWriter;
 pub use queue::{Queue, QueueError};
 pub use ref_counter::RefCounter;
 pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
-pub use stream::{BytesStream, Stream, TlsStream};
+pub use stream::{BytesStream, Stream, StreamReader, StreamWithTls, StreamWriter};
 pub use uri::{Uri, UriArrayString, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
@@ -67,7 +63,7 @@ pub use vector::{Vector, VectorError};
 #[allow(unused_imports, reason = "used in other features")]
 pub(crate) use {
   blocks_queue::{Block, BlocksQueue},
-  mem_transfer::_shift_bytes,
+  mem_transfer::_shift_copyable_chunks,
   partitioned_filled_buffer::PartitionedFilledBuffer,
   span::{_Entered, _Span},
 };
@@ -84,34 +80,28 @@ pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
 #[allow(clippy::unused_async, reason = "depends on the selected set of features")]
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
-  #[cfg(all(feature = "async-std", not(feature = "tokio")))]
-  {
-    async_std::task::sleep(duration).await;
-    Ok(())
-  }
-  #[cfg(all(feature = "tokio", not(feature = "async-std")))]
+  #[cfg(feature = "tokio")]
   {
     tokio::time::sleep(duration).await;
     Ok(())
   }
-  #[cfg(any(
-    all(feature = "async-std", feature = "tokio"),
-    all(not(feature = "tokio"), not(feature = "async-std"))
-  ))]
+  #[cfg(not(feature = "tokio"))]
   {
-    // Open to better alternatives
     let now = GenericTime::now();
-    loop {
+    core::future::poll_fn(|cx| {
       if now.elapsed()? >= duration {
-        return Ok(());
+        return core::task::Poll::Ready(Ok(()));
       }
-    }
+      cx.waker().wake_by_ref();
+      core::task::Poll::Pending
+    })
+    .await
   }
 }
 
 /// A tracing register with optioned parameters.
-#[cfg(feature = "_tracing-subscriber")]
-pub fn tracing_subscriber_init() -> Result<(), tracing_subscriber::util::TryInitError> {
+#[cfg(feature = "_tracing-tree")]
+pub fn tracing_tree_init() -> Result<(), tracing_subscriber::util::TryInitError> {
   use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
   };
@@ -217,15 +207,15 @@ pub(crate) fn _random_state(mut rng: impl crate::rng::Rng) -> ahash::RandomState
   ahash::RandomState::with_seeds(seed0, seed1, seed2, seed3)
 }
 
-pub(crate) async fn _read_until<const LEN: usize, S>(
+pub(crate) async fn _read_until<const LEN: usize, SR>(
   buffer: &mut [u8],
   read: &mut usize,
   start: usize,
-  stream: &mut S,
+  stream_reader: &mut SR,
 ) -> crate::Result<[u8; LEN]>
 where
   [u8; LEN]: Default,
-  S: Stream,
+  SR: StreamReader,
 {
   let until = start.wrapping_add(LEN);
   for _ in 0..LEN {
@@ -234,7 +224,7 @@ where
       break;
     }
     let actual_buffer = buffer.get_mut(*read..).unwrap_or_default();
-    let local_read = stream.read(actual_buffer).await?;
+    let local_read = stream_reader.read(actual_buffer).await?;
     if local_read == 0 {
       return Err(crate::Error::MISC_UnexpectedStreamEOF);
     }

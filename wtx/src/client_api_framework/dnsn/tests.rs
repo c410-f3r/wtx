@@ -45,7 +45,6 @@ where
 }
 
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize))]
-#[cfg_attr(feature = "miniserde", derive(miniserde::Serialize))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize))]
 #[cfg_attr(feature = "rkyv", archive_attr(derive(Debug, rkyv::bytecheck::CheckBytes)))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -56,7 +55,6 @@ pub(crate) struct Foo {
 }
 
 #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
-#[cfg_attr(feature = "miniserde", derive(miniserde::Deserialize))]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Deserialize))]
 #[cfg_attr(feature = "rkyv", archive_attr(derive(Debug, rkyv::bytecheck::CheckBytes)))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]

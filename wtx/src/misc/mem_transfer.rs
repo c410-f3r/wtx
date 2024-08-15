@@ -2,30 +2,25 @@ use core::{ops::Range, ptr};
 
 /// Transfers sequential `iter` chunks delimited by indices to a region starting at `begin`.
 ///
+/// ### Three delimited chunks shifted to the left
+///
 /// ```ignore
-/// // For example, a vector fragmented in 3 pieces where the last two digits of each piece are
-/// // shifted to the left
+/// |00|01|02|03|04|05|06|07|08|09|10|11|
+///        << <<
 ///
-///    |           |           |           |
-/// A: |00|01|02|03|04|05|06|07|08|09|10|11|
-///    |      << <<|           |           |
+/// |02|03|02|03|04|05|06|07|08|09|10|11|
+///  ^^ ^^             << <<
 ///
-///    |           |           |           |
-/// A: |02|03|02|03|04|05|06|07|08|09|10|11|
-///    |^^ ^^      |      << <<|           |
+/// |02|03|06|07|04|05|06|07|08|09|10|11|
+///  ^^ ^^ ^^ ^^                   << <<
 ///
-///    |           |           |           |
-/// A: |02|03|06|07|04|05|06|07|08|09|10|11|
-///    |^^ ^^ ^^ ^^|           |      << <<|
+/// |02|03|06|07|10|11|06|07|08|09|10|11|
+///  ^^ ^^ ^^ ^^ ^^ ^^
 ///
-///    |           |           |           |
-/// A: |02|03|06|07|10|11|06|07|08|09|10|11|
-///    |^^ ^^ ^^ ^^|^^ ^^      |           |
-///
-/// A: |02|03|06|07|10|11|
+/// |02|03|06|07|10|11|
 /// ```
 #[inline]
-pub(crate) fn _shift_bytes<T>(
+pub(crate) fn _shift_copyable_chunks<T>(
   begin: usize,
   slice: &mut [T],
   iter: impl IntoIterator<Item = Range<usize>>,
@@ -66,7 +61,7 @@ where
 #[cfg(feature = "_proptest")]
 #[cfg(test)]
 mod proptest {
-  use crate::misc::_shift_bytes;
+  use crate::misc::_shift_copyable_chunks;
   use alloc::vec::Vec;
   use core::ops::Range;
 
@@ -77,7 +72,7 @@ mod proptest {
     let mut data_clone = data.clone();
     begin = begin.min(data.len());
     end = end.min(data.len());
-    let rslt = _shift_bytes(0, &mut data, [begin..end]);
+    let rslt = _shift_copyable_chunks(0, &mut data, [begin..end]);
     data_clone.rotate_left(begin);
     data_clone.truncate(rslt.len());
     assert_eq!(rslt, &data_clone);
@@ -86,12 +81,12 @@ mod proptest {
 
 #[cfg(test)]
 mod test {
-  use crate::misc::mem_transfer::_shift_bytes;
+  use crate::misc::mem_transfer::_shift_copyable_chunks;
 
   #[test]
   fn _shift_bytes_has_correct_outputs() {
     let bytes = &mut [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-    assert_eq!(_shift_bytes(2, bytes, [4..6, 8..10]), &mut [0, 1, 4, 5, 8, 9]);
+    assert_eq!(_shift_copyable_chunks(2, bytes, [4..6, 8..10]), &mut [0, 1, 4, 5, 8, 9]);
     assert_eq!(bytes, &mut [0, 1, 4, 5, 8, 9, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
   }
 }

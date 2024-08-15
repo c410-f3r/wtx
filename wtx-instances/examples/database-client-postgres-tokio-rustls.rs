@@ -22,10 +22,11 @@ async fn main() {
     TcpStream::connect(uri_ref.host()).await.unwrap(),
     &mut rng,
     |stream| {
-      TokioRustlsConnector::from_webpki_roots()
+      TokioRustlsConnector::from_auto()
+        .unwrap()
         .push_certs(include_bytes!("../../.certs/root-ca.crt"))
         .unwrap()
-        .with_generic_stream(uri_ref.hostname(), stream)
+        .connect_without_client_auth(uri_ref.hostname(), stream)
     },
   )
   .await

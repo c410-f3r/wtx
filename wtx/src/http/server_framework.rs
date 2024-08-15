@@ -16,15 +16,15 @@ use crate::{
   http2::{Http2Buffer, Http2Params},
   rng::StdRng,
 };
-use core::fmt::Debug;
+use alloc::sync::Arc;
+use core::{fmt::Debug, marker::PhantomData};
 pub use middlewares::{ReqMiddlewares, ResMiddlewares};
 pub use path::Path;
 pub use path_fun::PathFun;
 pub use path_management::PathManagement;
 pub use paths::Paths;
 pub use router::Router;
-use std::{marker::PhantomData, sync::Arc};
-pub use wrappers::{get, post, Get, Post};
+pub use wrappers::{get, json, post, Get, Json, Post};
 
 /// Server
 #[derive(Debug)]
@@ -56,28 +56,46 @@ where
     host: &str,
     err_cb: impl Copy + Fn(E) + Send + 'static,
   ) -> crate::Result<()> {
-    async fn handle<E, P, REQM, RESM>(
-      (router, req): (Arc<Router<P, REQM, RESM>>, Request<ReqResBuffer>),
-    ) -> Result<Response<ReqResBuffer>, E>
-    where
-      E: Debug + From<crate::Error> + Send + 'static,
-      P: Send + 'static,
-      REQM: ReqMiddlewares<E, ReqResBuffer> + Send + 'static,
-      RESM: ResMiddlewares<E, ReqResBuffer> + Send + 'static,
-      Arc<Router<P, REQM, RESM>>: Send,
-      Router<P, REQM, RESM>: PathManagement<E, ReqResBuffer, manage_path(..): Send>,
-    {
-      router.manage_path(true, "", req, [0, 0]).await
-    }
     LowLevelServer::tokio_http2(
       Arc::clone(&self.router),
       host,
       err_cb,
-      handle,
+      Self::handle,
       || Ok(Http2Buffer::new(StdRng::default())),
       move || Http2Params::default().set_max_recv_streams_num(self.max_recv_streams_num),
       || Ok(ReqResBuffer::default()),
-      (|| {}, |_| {}, |_, stream| async move { Ok(stream) }),
+      (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
+    )
+    .await
+  }
+
+  /// Starts listening to incoming encrypted requests based on the given `host`.
+  #[cfg(feature = "tokio-rustls")]
+  #[inline]
+  pub async fn listen_tls(
+    self,
+    cert_chain: &'static [u8],
+    host: &str,
+    priv_key: &'static [u8],
+    err_cb: impl Copy + Fn(E) + Send + 'static,
+  ) -> crate::Result<()> {
+    LowLevelServer::tokio_http2(
+      Arc::clone(&self.router),
+      host,
+      err_cb,
+      Self::handle,
+      || Ok(Http2Buffer::new(StdRng::default())),
+      move || Http2Params::default().set_max_recv_streams_num(self.max_recv_streams_num),
+      || Ok(ReqResBuffer::default()),
+      (
+        || {
+          crate::misc::TokioRustlsAcceptor::without_client_auth()
+            .http2()
+            .build_with_cert_chain_and_priv_key(cert_chain, priv_key)
+        },
+        |acceptor| acceptor.clone(),
+        |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
+      ),
     )
     .await
   }
@@ -90,6 +108,20 @@ where
   pub fn max_recv_streams_num(mut self, elem: u32) -> Self {
     self.max_recv_streams_num = elem;
     self
+  }
+
+  async fn handle(
+    (router, req): (Arc<Router<P, REQM, RESM>>, Request<ReqResBuffer>),
+  ) -> Result<Response<ReqResBuffer>, E>
+  where
+    E: Debug + From<crate::Error> + Send + 'static,
+    P: Send + 'static,
+    REQM: ReqMiddlewares<E, ReqResBuffer> + Send + 'static,
+    RESM: ResMiddlewares<E, ReqResBuffer> + Send + 'static,
+    Arc<Router<P, REQM, RESM>>: Send,
+    Router<P, REQM, RESM>: PathManagement<E, ReqResBuffer, manage_path(..): Send>,
+  {
+    router.manage_path(true, "", req, [0, 0]).await
   }
 }
 

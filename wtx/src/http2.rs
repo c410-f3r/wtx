@@ -15,6 +15,7 @@ mod common_flags;
 mod continuation_frame;
 mod data_frame;
 mod frame_init;
+mod frame_reader;
 mod go_away_frame;
 mod headers_frame;
 mod hpack_decoder;
@@ -46,17 +47,24 @@ mod window;
 mod window_update_frame;
 
 use crate::{
-  http::{HttpError, ReqResBuffer, StatusCode},
-  http2::misc::{
-    process_higher_operation_err, protocol_err, read_header_and_continuations,
-    server_header_stream_state,
+  http::ReqResBuffer,
+  http2::misc::{manage_initial_stream_receiving, process_higher_operation_err, protocol_err},
+  misc::{
+    ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader,
+    StreamWriter, Usize,
   },
-  misc::{ConnectionState, LeaseMut, Lock, RefCounter, Stream, Usize, _Span},
 };
+use alloc::sync::Arc;
 pub use client_stream::ClientStream;
 pub(crate) use common_flags::CommonFlags;
 pub(crate) use continuation_frame::ContinuationFrame;
-use core::{mem, time::Duration};
+use core::{
+  future::poll_fn,
+  mem,
+  pin::pin,
+  sync::atomic::{AtomicBool, Ordering},
+  task::{Poll, Waker},
+};
 pub(crate) use data_frame::DataFrame;
 pub(crate) use frame_init::{FrameInit, FrameInitTy};
 pub(crate) use go_away_frame::GoAwayFrame;
@@ -94,49 +102,47 @@ pub(crate) const MAX_FRAME_LEN_UPPER_BOUND: u32 = max_frame_len_upper_bound!();
 pub(crate) const MAX_RECV_STREAMS_NUM: u32 = max_recv_streams_num!();
 pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
 
-const MAX_FINAL_DURATION: Duration = Duration::from_millis(300);
-const MAX_FINAL_FETCHES: u8 = 64;
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /// Http2 instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
-pub type Http2Tokio<HB, RRB, S, const IS_CLIENT: bool> =
-  Http2<Http2DataTokio<HB, RRB, S, IS_CLIENT>, IS_CLIENT>;
+pub type Http2Tokio<HB, RRB, SW, const IS_CLIENT: bool> =
+  Http2<Http2DataTokio<HB, RRB, SW, IS_CLIENT>, IS_CLIENT>;
 /// Http2Data instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
-pub type Http2DataTokio<HB, RRB, S, const IS_CLIENT: bool> =
-  alloc::sync::Arc<tokio::sync::Mutex<Http2Data<HB, RRB, S, IS_CLIENT>>>;
+pub type Http2DataTokio<HB, RRB, SW, const IS_CLIENT: bool> =
+  Arc<tokio::sync::Mutex<Http2Data<HB, RRB, SW, IS_CLIENT>>>;
 
-pub(crate) type Sorp<RRB> = HashMap<U31, StreamOverallRecvParams<RRB>>;
+pub(crate) type IsConnOpenSync = Arc<AtomicBool>;
 pub(crate) type Scrp = HashMap<U31, StreamControlRecvParams>;
+pub(crate) type Sorp<RRB> = HashMap<U31, StreamOverallRecvParams<RRB>>;
 
 /// Negotiates initial "handshakes" or connections and also manages the creation of streams.
 #[derive(Debug)]
 pub struct Http2<HD, const IS_CLIENT: bool> {
   hd: HD,
+  is_conn_open: IsConnOpenSync,
 }
 
-impl<HB, HD, RRB, S, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
+impl<HB, HD, RRB, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
 where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
   RRB: LeaseMut<ReqResBuffer>,
-  S: Stream,
+  SW: StreamWriter,
 {
   /// See [ConnectionState].
   #[inline]
   pub async fn connection_state(&self) -> ConnectionState {
-    ConnectionState::from(self.hd.lock().await.is_conn_open())
+    ConnectionState::from(self.is_conn_open.load(Ordering::Relaxed))
   }
 
   /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
   /// streams.
   #[inline]
   pub async fn send_go_away(self, error_code: Http2ErrorCode) {
-    let mut guard = self.hd.lock().await;
-    let hdpm = guard.parts_mut();
-    misc::send_go_away(error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
+    misc::send_go_away(error_code, &mut self.hd.lock().await.parts_mut()).await;
   }
 
   #[inline]
@@ -145,131 +151,139 @@ where
   }
 
   #[inline]
-  async fn apply_initial_params(
+  async fn manage_initial_params<const HAS_PREFACE: bool>(
     hb: &mut Http2Buffer<RRB>,
-    has_preface: bool,
     hp: &Http2Params,
-    stream: &mut S,
-  ) -> crate::Result<()> {
+    stream_writer: &mut SW,
+  ) -> crate::Result<(IsConnOpenSync, u32, PartitionedFilledBuffer)> {
     let sf = hp.to_settings_frame();
     if hp.initial_window_len() != initial_window_len!() {
       let wuf = WindowUpdateFrame::new(
         hp.initial_window_len().wrapping_sub(initial_window_len!()).into(),
         U31::ZERO,
       )?;
-      if has_preface {
-        stream.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
+      if HAS_PREFACE {
+        stream_writer.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
       } else {
-        stream.write_all_vectored(&[sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
+        stream_writer.write_all_vectored(&[sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
       }
     } else {
-      if has_preface {
-        stream.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45])]).await?;
+      if HAS_PREFACE {
+        stream_writer.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45])]).await?;
       } else {
-        stream.write_all(sf.bytes(&mut [0; 45])).await?;
+        stream_writer.write_all(sf.bytes(&mut [0; 45])).await?;
       }
     }
     hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
     hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
     hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()))?;
-    Ok(())
+    hb.is_conn_open.store(true, Ordering::Relaxed);
+    Ok((Arc::clone(&hb.is_conn_open), hp.max_frame_len(), mem::take(&mut hb.pfb)))
   }
 }
 
-impl<HB, HD, RRB, S> Http2<HD, false>
+impl<HB, HD, RRB, SW> Http2<HD, false>
 where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, false>>,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, false>>,
   RRB: LeaseMut<ReqResBuffer>,
-  S: Stream,
+  SW: StreamWriter,
 {
   /// Accepts an initial connection sending the local parameters to the remote peer.
   #[inline]
-  pub async fn accept(mut hb: HB, hp: Http2Params, mut stream: S) -> crate::Result<Self> {
+  pub async fn accept<SR>(
+    mut hb: HB,
+    hp: Http2Params,
+    (mut stream_reader, mut stream_writer): (SR, SW),
+  ) -> crate::Result<(impl Future<Output = crate::Result<()>>, Self)>
+  where
+    SR: StreamReader,
+  {
     hb.lease_mut().clear();
     let mut buffer = [0; 24];
-    stream.read_exact(&mut buffer).await?;
+    stream_reader.read_exact(&mut buffer).await?;
     if &buffer != PREFACE {
-      misc::send_go_away(Http2ErrorCode::ProtocolError, &mut true, U31::ZERO, &mut stream).await;
+      let _rslt = stream_writer
+        .write_all(&GoAwayFrame::new(Http2ErrorCode::ProtocolError, U31::ZERO).bytes())
+        .await;
       return Err(protocol_err(Http2Error::NoPreface));
     }
-    Self::apply_initial_params(hb.lease_mut(), false, &hp, &mut stream).await?;
-    Ok(Self { hd: HD::new(HD::Item::new(Http2Data::new(hb, hp, stream))) })
+    let (is_conn_open, max_frame_len, pfb) =
+      Self::manage_initial_params::<false>(hb.lease_mut(), &hp, &mut stream_writer).await?;
+    let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
+    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
+    Ok((frame_reader::frame_reader(hd, is_conn_open, max_frame_len, pfb, stream_reader), this))
   }
 
   /// Awaits for an initial header to create a stream.
+  ///
+  /// Returns [`Either::Left`] if the network connection has been closed, either locally
+  /// or externally.
   #[inline]
-  pub async fn stream(&mut self, mut rrb: RRB) -> crate::Result<ServerStream<HD>> {
-    rrb.lease_mut().clear();
-    process_higher_operation!(
-      &self.hd,
-      |guard| {
-        let rslt = 'rslt: {
-          let hdpm = guard.parts_mut();
-          let Some(fi) = hdpm.hb.initial_server_header.take() else {
-            break 'rslt Ok(None);
-          };
-          rrb.lease_mut().headers_mut().set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
-          let fut = read_header_and_continuations::<_, _, false, false>(
-            fi,
-            hdpm.hp,
-            &mut hdpm.hb.hpack_dec,
-            hdpm.is_conn_open,
-            &mut hdpm.hb.pfb,
-            rrb.lease_mut(),
-            hdpm.stream,
-            &mut hdpm.hb.uri_buffer,
-            |hf| hf.hsreqh().method.ok_or_else(|| HttpError::MissingRequestMethod.into()),
-          );
-          match fut.await {
-            Err(err) => break 'rslt Err(err),
-            Ok(elem) => Ok(Some((elem.0, fi, elem.1, elem.2))),
-          }
+  pub async fn stream(&mut self, rrb: RRB) -> Either<Option<RRB>, ServerStream<HD>> {
+    let Self { hd, is_conn_open } = self;
+    let rrb_opt = &mut Some(rrb);
+    let mut lock_pin = pin!(hd.lock());
+    match poll_fn(|cx| {
+      let mut lock = lock_pin!(cx, hd, lock_pin);
+      let hdpm = lock.parts_mut();
+      if let Some(mut elem) = rrb_opt.take() {
+        if !manage_initial_stream_receiving(&hdpm, &is_conn_open, &mut elem) {
+          return Poll::Ready(Either::Left(Some(elem)));
+        }
+        hdpm.hb.initial_server_header_buffers.push_back((elem, cx.waker().clone()));
+        Poll::Pending
+      } else {
+        if !is_conn_open.load(Ordering::Relaxed) {
+          return Poll::Ready(Either::Left(
+            hdpm.hb.initial_server_header_buffers.pop_front().map(|el| el.0),
+          ));
+        }
+        let Some((method, stream_id)) = hdpm.hb.initial_server_header_params.pop_front() else {
+          return Poll::Pending;
         };
-        rslt
-      },
-      |guard, elem| {
-        let (content_length, fi, has_eos, method) = elem;
-        let hdpm = guard.parts_mut();
-        drop(hdpm.hb.sorp.insert(
-          fi.stream_id,
-          StreamOverallRecvParams {
-            body_len: 0,
-            content_length,
-            has_initial_header: true,
-            rrb,
-            span: _Span::_none(),
-            status_code: StatusCode::Ok,
-            stream_state: server_header_stream_state(has_eos),
-            windows: Windows::initial(hdpm.hp, hdpm.hps),
-          },
-        ));
-        Ok(ServerStream::new(
-          self.hd.clone(),
-          method,
-          _trace_span!("Creating server stream", stream_id = fi.stream_id.u32()),
-          fi.stream_id,
-        ))
+        Poll::Ready(Either::Right((method, stream_id)))
       }
-    )
+    })
+    .await
+    {
+      Either::Left(elem) => Either::Left(elem),
+      Either::Right((method, stream_id)) => Either::Right(ServerStream::new(
+        hd.clone(),
+        Arc::clone(&is_conn_open),
+        method,
+        _trace_span!("New server stream", stream_id = %stream_id),
+        stream_id,
+      )),
+    }
   }
 }
 
-impl<HB, HD, RRB, S> Http2<HD, true>
+impl<HB, HD, RRB, SW> Http2<HD, true>
 where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, true>>,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, true>>,
   RRB: LeaseMut<ReqResBuffer>,
-  S: Stream,
+  SW: StreamWriter,
 {
   /// Tries to connect to a server sending the local parameters.
   #[inline]
-  pub async fn connect(mut hb: HB, hp: Http2Params, mut stream: S) -> crate::Result<Self> {
+  pub async fn connect<SR>(
+    mut hb: HB,
+    hp: Http2Params,
+    (stream_reader, mut stream_writer): (SR, SW),
+  ) -> crate::Result<(impl Future<Output = crate::Result<()>>, Self)>
+  where
+    SR: StreamReader,
+  {
     hb.lease_mut().clear();
-    Self::apply_initial_params(hb.lease_mut(), true, &hp, &mut stream).await?;
-    Ok(Self { hd: HD::new(HD::Item::new(Http2Data::new(hb, hp, stream))) })
+    let (is_conn_open, max_frame_len, pfb) =
+      Self::manage_initial_params::<true>(hb.lease_mut(), &hp, &mut stream_writer).await?;
+    let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
+    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
+    Ok((frame_reader::frame_reader(hd, is_conn_open, max_frame_len, pfb, stream_reader), this))
   }
 
   /// Opens a local stream.
@@ -278,22 +292,24 @@ where
     let hdpm = guard.parts_mut();
     if hdpm.hb.sorp.len() >= *Usize::from(hdpm.hp.max_concurrent_streams_num()) {
       drop(guard);
-      let err = Http2Error::ExceedAmountOfActiveConcurrentStreams;
-      return Err(process_higher_operation_err(protocol_err(err), &self.hd).await);
+      let err = protocol_err(Http2Error::ExceedAmountOfActiveConcurrentStreams);
+      process_higher_operation_err(&err, &self.hd).await;
+      return Err(err);
     }
     let stream_id = *hdpm.last_stream_id;
-    let span = _trace_span!("Creating client stream", stream_id = stream_id.u32());
+    let span = _trace_span!("New client stream", stream_id = %stream_id);
     drop(hdpm.hb.scrp.insert(
       stream_id,
       StreamControlRecvParams {
-        span: span.clone(),
+        is_stream_open: true,
         stream_state: StreamState::Idle,
+        waker: Waker::noop().clone(),
         windows: Windows::initial(hdpm.hp, hdpm.hps),
       },
     ));
     *hdpm.last_stream_id = hdpm.last_stream_id.wrapping_add(U31::TWO);
     drop(guard);
-    Ok(ClientStream::new(self.hd.clone(), span, stream_id))
+    Ok(ClientStream::new(self.hd.clone(), Arc::clone(&self.is_conn_open), span, stream_id))
   }
 }
 
@@ -303,6 +319,6 @@ where
 {
   #[inline]
   fn clone(&self) -> Self {
-    Self { hd: self.hd.clone() }
+    Self { hd: self.hd.clone(), is_conn_open: Arc::clone(&self.is_conn_open) }
   }
 }

@@ -1,4 +1,4 @@
-#[cfg(all(feature = "tokio", test))]
+#[cfg(test)]
 mod tests;
 
 use crate::{

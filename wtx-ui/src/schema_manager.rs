@@ -15,7 +15,7 @@ pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
   {
     let _rslt = dotenv::dotenv();
-    wtx::misc::tracing_subscriber_init()?;
+    wtx::misc::tracing_tree_init()?;
   }
 
   let var = std::env::var(DEFAULT_URI_VAR)?;
@@ -32,7 +32,7 @@ pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
       .await?;
       handle_commands(executor, sm).await?;
     }
-    _ => return Err(wtx::Error::MISC_InvalidUrl),
+    _ => return Err(wtx::Error::MISC_InvalidUri),
   }
   Ok(())
 }

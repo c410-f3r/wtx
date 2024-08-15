@@ -2,6 +2,8 @@
 
 A small and fast to compile framework that can interact with many built-in features like PostgreSQL connections.
 
+Activation feature is called `http-server-framework`.
+
 The bellow snippet requires ~30 dependencies and has an optimized binary size of ~690K.
 
 ```rust,edition2021,no_run

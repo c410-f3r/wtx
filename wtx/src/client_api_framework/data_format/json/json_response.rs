@@ -35,53 +35,6 @@ impl<D> Serialize<()> for JsonResponse<D> {
   }
 }
 
-#[cfg(feature = "miniserde")]
-mod miniserde {
-  use crate::{
-    client_api_framework::{
-      data_format::JsonResponse,
-      dnsn::{miniserde_serialize, Miniserde},
-    },
-    misc::{from_utf8_basic, Vector},
-  };
-  use core::fmt::Display;
-
-  impl<D> crate::client_api_framework::dnsn::Deserialize<Miniserde> for JsonResponse<D>
-  where
-    D: miniserde::Deserialize,
-  {
-    fn from_bytes(bytes: &[u8], _: &mut Miniserde) -> crate::Result<Self> {
-      Ok(Self { data: miniserde::json::from_str(from_utf8_basic(bytes)?)? })
-    }
-
-    fn seq_from_bytes<E>(
-      bytes: &[u8],
-      _: &mut Miniserde,
-      mut cb: impl FnMut(Self) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-      E: Display + From<crate::Error>,
-    {
-      let data_fn = || crate::Result::Ok(miniserde::json::from_str(from_utf8_basic(bytes)?)?);
-      cb(Self { data: data_fn()? })?;
-      Ok(())
-    }
-  }
-
-  impl<D> crate::client_api_framework::dnsn::Serialize<Miniserde> for JsonResponse<D>
-  where
-    D: miniserde::Serialize,
-  {
-    #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut Miniserde) -> crate::Result<()> {
-      if size_of::<D>() == 0 {
-        return Ok(());
-      }
-      miniserde_serialize(bytes, &self.data)
-    }
-  }
-}
-
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::{

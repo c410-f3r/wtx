@@ -72,7 +72,7 @@ impl Default for RequestCounter {
   }
 }
 
-#[cfg(all(feature = "tokio", test))]
+#[cfg(test)]
 mod tests {
   use crate::client_api_framework::misc::{RequestCounter, RequestLimit};
   use core::time::Duration;

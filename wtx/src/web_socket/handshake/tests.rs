@@ -27,8 +27,8 @@ static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);
 
 #[tokio::test]
 async fn client_and_server_frames() {
-  #[cfg(feature = "_tracing-subscriber")]
-  let _rslt = crate::misc::tracing_subscriber_init();
+  #[cfg(feature = "_tracing-tree")]
+  let _rslt = crate::misc::tracing_tree_init();
   do_test_client_and_server_frames((), ()).await;
 }
 
@@ -36,8 +36,8 @@ async fn client_and_server_frames() {
 #[tokio::test]
 async fn client_and_server_frames_compression() {
   use crate::web_socket::compression::Flate2;
-  #[cfg(feature = "_tracing-subscriber")]
-  let _rslt = crate::misc::tracing_subscriber_init();
+  #[cfg(feature = "_tracing-tree")]
+  let _rslt = crate::misc::tracing_tree_init();
   do_test_client_and_server_frames((), Flate2::default()).await;
   tokio::time::sleep(Duration::from_millis(200)).await;
   do_test_client_and_server_frames(Flate2::default(), ()).await;
