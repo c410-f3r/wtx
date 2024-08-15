@@ -4,7 +4,7 @@ use crate::{
     Response,
   },
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{LeaseMut, Lock, RefCounter, Stream},
+  misc::{LeaseMut, Lock, RefCounter, StreamWriter},
   pool::{ResourceManager, SimplePoolResource},
 };
 
@@ -38,14 +38,14 @@ where
 {
   /// Sends a request with inner parameters.
   #[inline]
-  pub async fn send<HD, RL, RM, S>(
+  pub async fn send<HD, RL, RM, SW>(
     self,
     client: &ClientFramework<RL, RM>,
     req_uri: impl Into<ReqUri<'_>>,
   ) -> crate::Result<Response<RRB>>
   where
     HD: RefCounter + 'static,
-    HD::Item: Lock<Resource = Http2Data<Http2Buffer<RRB>, RRB, S, true>>,
+    HD::Item: Lock<Resource = Http2Data<Http2Buffer<RRB>, RRB, SW, true>>,
     RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
     RM: ResourceManager<
       CreateAux = str,
@@ -54,7 +54,7 @@ where
       Resource = Http2<HD, true>,
     >,
     RRB: LeaseMut<ReqResBuffer> + ReqResData,
-    S: Stream,
+    SW: StreamWriter,
     for<'any> RL: 'any,
     for<'any> RM: 'any,
   {

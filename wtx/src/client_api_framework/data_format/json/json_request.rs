@@ -14,29 +14,6 @@ impl<D> Serialize<()> for JsonRequest<D> {
   }
 }
 
-#[cfg(feature = "miniserde")]
-mod miniserde {
-  use crate::{
-    client_api_framework::{
-      data_format::JsonRequest,
-      dnsn::{miniserde_serialize, Miniserde},
-    },
-    misc::Vector,
-  };
-
-  impl<D> crate::client_api_framework::dnsn::Serialize<Miniserde> for JsonRequest<D>
-  where
-    D: miniserde::Serialize,
-  {
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut Miniserde) -> crate::Result<()> {
-      if size_of::<D>() == 0 {
-        return Ok(());
-      }
-      miniserde_serialize(bytes, &self.data)
-    }
-  }
-}
-
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::{

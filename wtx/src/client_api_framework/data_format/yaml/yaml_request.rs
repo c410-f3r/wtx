@@ -15,25 +15,3 @@ impl<D> Serialize<()> for YamlRequest<D> {
     Ok(())
   }
 }
-
-#[cfg(feature = "serde_yaml")]
-mod serde_yaml {
-  use crate::{
-    client_api_framework::{data_format::YamlRequest, dnsn::SerdeYaml},
-    misc::Vector,
-  };
-
-  impl<D> crate::client_api_framework::dnsn::Serialize<SerdeYaml> for YamlRequest<D>
-  where
-    D: serde::Serialize,
-  {
-    #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeYaml) -> crate::Result<()> {
-      if size_of::<D>() == 0 {
-        return Ok(());
-      }
-      serde_yaml::to_writer(bytes, &self.data)?;
-      Ok(())
-    }
-  }
-}

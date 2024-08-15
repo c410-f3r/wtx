@@ -228,7 +228,7 @@ macro_rules! _max_frames_mismatches {
 macro_rules! _trace {
   ($($tt:tt)+) => {
     #[cfg(feature = "tracing")]
-    tracing::trace!($($tt)+);
+    tracing::trace!($($tt)+)
   };
 }
 

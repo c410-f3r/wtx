@@ -16,6 +16,8 @@ pub enum HttpError {
   MissingRequestMethod,
   /// Received response does not contain a status code field
   MissingResponseStatusCode,
+  /// Content-Type mismatch
+  UnexpectedContentType,
   /// HTTP version does not match the expected method.
   UnexpectedHttpMethod {
     /// Expected method

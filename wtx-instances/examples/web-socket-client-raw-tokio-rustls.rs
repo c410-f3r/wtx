@@ -1,6 +1,9 @@
 //! WebSocket CLI client.
 
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::{
+  io::{AsyncBufReadExt, BufReader},
+  net::TcpStream,
+};
 use wtx::{
   misc::{TokioRustlsConnector, UriString},
   rng::StdRng,
@@ -19,10 +22,11 @@ async fn main() {
     [],
     &mut HeadersBuffer::default(),
     StdRng::default(),
-    TokioRustlsConnector::from_webpki_roots()
+    TokioRustlsConnector::from_auto()
+      .unwrap()
       .push_certs(include_bytes!("../../.certs/root-ca.crt"))
       .unwrap()
-      .with_tcp_stream(uri.host(), uri.hostname())
+      .connect_without_client_auth(uri.hostname(), TcpStream::connect(uri.host()).await.unwrap())
       .await
       .unwrap(),
     &uri.to_ref(),

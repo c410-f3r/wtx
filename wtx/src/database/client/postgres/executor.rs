@@ -15,7 +15,7 @@ use crate::{
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
-  misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Stream, TlsStream},
+  misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Stream, StreamWithTls},
   rng::Rng,
 };
 use core::marker::PhantomData;
@@ -63,7 +63,7 @@ where
     F: Future<Output = crate::Result<S>>,
     IS: Stream,
     RNG: Rng,
-    S: TlsStream,
+    S: StreamWithTls,
   {
     eb.lease_mut().clear();
     let mut fbw = FilledBufferWriter::from(&mut eb.lease_mut().nb);

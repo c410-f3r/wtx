@@ -27,11 +27,11 @@ use {
   crate::misc::ArrayVector,
   alloc::string::String,
   core::cmp::Ordering,
-  std::path::{Path, PathBuf},
   std::{
     fmt::Write,
     fs::{read_to_string, DirEntry, File},
     io::Read,
+    path::{Path, PathBuf},
   },
 };
 

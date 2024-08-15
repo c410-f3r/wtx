@@ -1,9 +1,14 @@
 use crate::{
-  http2::{FrameInit, HpackDecoder, HpackEncoder, Scrp, Sorp, UriBuffer},
+  http::Method,
+  http2::{HpackDecoder, HpackEncoder, IsConnOpenSync, Scrp, Sorp, UriBuffer, U31},
   misc::{Lease, LeaseMut, PartitionedFilledBuffer, Vector},
   rng::Rng,
 };
-use alloc::boxed::Box;
+use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
+use core::{
+  sync::atomic::{AtomicBool, Ordering},
+  task::Waker,
+};
 use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.
@@ -12,7 +17,9 @@ pub struct Http2Buffer<RRB> {
   pub(crate) hpack_dec: HpackDecoder,
   pub(crate) hpack_enc: HpackEncoder,
   pub(crate) hpack_enc_buffer: Vector<u8>,
-  pub(crate) initial_server_header: Option<FrameInit>,
+  pub(crate) initial_server_header_buffers: VecDeque<(RRB, Waker)>,
+  pub(crate) initial_server_header_params: VecDeque<(Method, U31)>,
+  pub(crate) is_conn_open: IsConnOpenSync,
   pub(crate) pfb: PartitionedFilledBuffer,
   pub(crate) scrp: Scrp,
   pub(crate) sorp: Sorp<RRB>,
@@ -30,7 +37,9 @@ impl<RRB> Http2Buffer<RRB> {
       hpack_dec: HpackDecoder::new(),
       hpack_enc: HpackEncoder::new(rng),
       hpack_enc_buffer: Vector::new(),
-      initial_server_header: None,
+      initial_server_header_buffers: VecDeque::new(),
+      initial_server_header_params: VecDeque::new(),
+      is_conn_open: Arc::new(AtomicBool::new(false)),
       pfb: PartitionedFilledBuffer::new(),
       scrp: HashMap::new(),
       sorp: HashMap::new(),
@@ -44,7 +53,9 @@ impl<RRB> Http2Buffer<RRB> {
       hpack_dec,
       hpack_enc,
       hpack_enc_buffer,
-      initial_server_header,
+      initial_server_header_buffers,
+      initial_server_header_params,
+      is_conn_open,
       pfb,
       scrp,
       sorp,
@@ -53,7 +64,9 @@ impl<RRB> Http2Buffer<RRB> {
     hpack_dec.clear();
     hpack_enc.clear();
     hpack_enc_buffer.clear();
-    *initial_server_header = None;
+    initial_server_header_buffers.clear();
+    initial_server_header_params.clear();
+    is_conn_open.store(false, Ordering::Relaxed);
     pfb._clear();
     scrp.clear();
     sorp.clear();

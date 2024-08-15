@@ -1,4 +1,4 @@
-use crate::misc::{Vector, _shift_bytes};
+use crate::misc::{Vector, _shift_copyable_chunks};
 use core::{hint::assert_unchecked, iter, ptr};
 
 /// If memory is allocated, tail elements are shifted to the right.
@@ -41,7 +41,7 @@ where
   unsafe {
     assert_unchecked(allocated.len() >= curr_head || prev_cap >= prev_head);
   }
-  let _ = _shift_bytes(curr_head, allocated, iter::once(prev_head..prev_cap));
+  let _ = _shift_copyable_chunks(curr_head, allocated, iter::once(prev_head..prev_cap));
   *head = curr_head;
   Ok(Some(cap_diff))
 }

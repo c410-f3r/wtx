@@ -6,35 +6,42 @@ Passes the `hpack-test-case` and the `h2spec` test suites. Due to official depre
 
 Activation feature is called `http2`.
 
-```rust,edition2021
+```rust,edition2021,no_run
 extern crate tokio;
 extern crate wtx;
 
 use wtx::{
   http::{Method, Request, ReqResBuffer},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{from_utf8_basic, UriRef},
+  misc::{from_utf8_basic, Either, UriRef},
   rng::NoStdRng,
 };
 use std::net::ToSocketAddrs;
 use tokio::net::TcpStream;
 
-async fn client() {
+#[tokio::main]
+async fn main() {
   let uri = UriRef::new("127.0.0.1:9000");
-  let mut http2 = Http2Tokio::connect(
+  let (frame_reader, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(NoStdRng::default()),
     Http2Params::default(),
-    TcpStream::connect(uri.host().to_socket_addrs().unwrap().next().unwrap()).await.unwrap(),
+    TcpStream::connect(uri.host().to_socket_addrs().unwrap().next().unwrap()).await.unwrap().into_split(),
   )
   .await
   .unwrap();
+  let _jh = tokio::spawn(async move {
+    frame_reader.await.unwrap();
+  });
   let mut rrb = ReqResBuffer::default();
   let mut stream = http2.stream().await.unwrap();
   stream
     .send_req(Request::http2(Method::Get, b"Hello!"), &uri)
     .await
+    .unwrap()
     .unwrap();
-  let res = stream.recv_res(rrb).await.unwrap();
+  let Either::Right(res) = stream.recv_res(rrb).await.unwrap() else {
+    panic!();
+  };
   println!("{}", from_utf8_basic(res.0.body()).unwrap());
   http2.send_go_away(Http2ErrorCode::NoError).await;
 }

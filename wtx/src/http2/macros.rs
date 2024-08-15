@@ -1,43 +1,9 @@
-macro_rules! loop_until_some {
-  ($opt:expr) => {{
-    let resource = 'resource: {
-      for _ in 0.._max_frames_mismatches!() {
-        match $opt {
-          None => continue,
-          Some(elem) => break 'resource elem,
-        }
-      }
-      return Err(crate::http2::misc::protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches));
-    };
-    resource
+macro_rules! lock_pin {
+  ($cx:expr, $hd:expr, $lock_pin:expr) => {{
+    let lock = core::task::ready!($lock_pin.as_mut().poll($cx));
+    $lock_pin.set($hd.lock());
+    lock
   }};
-}
-
-macro_rules! process_higher_operation {
-  (
-    $hd:expr,
-    |$guard:ident| $cb:expr,
-    |$guard_end:ident, $elem_end:ident| $cb_end:expr
-  ) => {
-    'process_receipt: loop {
-      let err = 'err: {
-        let mut $guard = $hd.lock().await;
-        if let Err(err) = $guard.process_receipt().await {
-          break 'err err;
-        }
-        match $cb {
-          Err(err) => break 'err err,
-          Ok(None) => continue 'process_receipt,
-          Ok(Some(elem)) => {
-            let $elem_end = elem;
-            let mut $guard_end = $guard;
-            break 'process_receipt ($cb_end);
-          }
-        }
-      };
-      break Err(crate::http2::misc::process_higher_operation_err(err, $hd).await);
-    }
-  };
 }
 
 macro_rules! initial_window_len {

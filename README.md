@@ -55,7 +55,6 @@ For example, in a 32bit system you can allocate a maximum of 2^29 bytes of memor
 ## Possible future features
 
 * gRPC over HTTP/2 (<https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md>).
-* Web server framework
 * WebSocket over an HTTP/2 stream (<https://datatracker.ietf.org/doc/html/rfc8441>).
 * cURL bindings
 * WebTransport over HTTP/2 (<https://datatracker.ietf.org/doc/draft-ietf-webtrans-http2>).

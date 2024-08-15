@@ -1,16 +1,20 @@
 use crate::{
   http::ReqResBuffer,
   http2::{
-    http2_data::Http2DataPartsMut, http2_params_send::Http2ParamsSend, CommonFlags, FrameInit,
-    FrameInitTy, GoAwayFrame, HeadersFrame, HpackDecoder, HpackEncoder, Http2Buffer, Http2Data,
-    Http2Error, Http2ErrorCode, Http2Params, PingFrame, ResetStreamFrame, Scrp, SettingsFrame,
-    Sorp, StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
+    http2_data::Http2DataPartsMut, CommonFlags, FrameInit, FrameInitTy, GoAwayFrame, HeadersFrame,
+    HpackDecoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params, PingFrame,
+    ResetStreamFrame, Scrp, SettingsFrame, Sorp, StreamOverallRecvParams, StreamState, UriBuffer,
+    WindowUpdateFrame, U31,
   },
   misc::{
-    LeaseMut, Lock, PartitionedFilledBuffer, PollOnce, RefCounter, Stream, Usize, _read_until,
+    Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter, Usize,
+    _read_until,
   },
 };
-use core::pin::pin;
+use core::{
+  sync::atomic::{AtomicBool, Ordering},
+  task::{Context, Poll},
+};
 
 #[inline]
 pub(crate) fn check_content_length<RRB>(
@@ -26,102 +30,134 @@ where
   Ok(())
 }
 
+#[inline]
+pub(crate) fn manage_initial_stream_receiving<RRB, SW>(
+  hdpm: &Http2DataPartsMut<'_, RRB, SW>,
+  is_conn_open: &AtomicBool,
+  rrb: &mut RRB,
+) -> bool
+where
+  RRB: LeaseMut<ReqResBuffer>,
+{
+  if !is_conn_open.load(Ordering::Relaxed) {
+    return false;
+  }
+  rrb.lease_mut().clear();
+  rrb.lease_mut().headers_mut().set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
+  true
+}
+
+#[inline]
+pub(crate) fn manage_recurrent_stream_receiving<RRB, SW, T>(
+  cx: &mut Context<'_>,
+  mut hdpm: Http2DataPartsMut<'_, RRB, SW>,
+  is_conn_open: &AtomicBool,
+  stream_id: &U31,
+  cb: impl FnOnce(
+    &mut Context<'_>,
+    &mut Http2DataPartsMut<'_, RRB, SW>,
+    &StreamOverallRecvParams<RRB>,
+  ) -> T,
+) -> Poll<crate::Result<Either<RRB, (RRB, T)>>>
+where
+  RRB: LeaseMut<ReqResBuffer>,
+{
+  let Some(sorp) = hdpm.hb.sorp.get_mut(stream_id) else {
+    return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
+  };
+  'block: {
+    let rrb_opt = match (is_conn_open.load(Ordering::Relaxed), sorp.is_stream_open) {
+      (false, false) => {
+        let _opt = hdpm.hb.scrp.remove(stream_id);
+        hdpm.hb.sorp.remove(stream_id).map(|el| el.rrb)
+      }
+      (false, true) => hdpm.hb.sorp.remove(stream_id).map(|el| el.rrb),
+      (true, false) => {
+        let _opt = hdpm.hb.scrp.remove(stream_id);
+        hdpm.hb.sorp.remove(stream_id).map(|el| el.rrb)
+      }
+      (true, true) => {
+        break 'block;
+      }
+    };
+    if let Some(elem) = rrb_opt {
+      return Poll::Ready(Ok(Either::Left(elem)));
+    } else {
+      return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
+    }
+  }
+  if sorp.stream_state.recv_eos() {
+    if let Some(sorp) = hdpm.hb.sorp.remove(stream_id) {
+      if let Some(idx) = sorp.content_length {
+        check_content_length(idx, &sorp)?;
+      }
+      let rslt = cb(cx, &mut hdpm, &sorp);
+      return Poll::Ready(Ok(Either::Right((sorp.rrb, rslt))));
+    }
+  } else {
+    sorp.waker.clone_from(cx.waker());
+  }
+  Poll::Pending
+}
+
+#[inline]
 pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
   crate::Error::Http2ErrorGoAway(Http2ErrorCode::ProtocolError, Some(error))
 }
 
 #[inline]
-pub(crate) async fn process_higher_operation_err<HB, HD, RRB, S, const IS_CLIENT: bool>(
-  mut err: crate::Error,
+pub(crate) async fn process_higher_operation_err<HB, HD, RRB, SW, const IS_CLIENT: bool>(
+  err: &crate::Error,
   hd: &HD,
-) -> crate::Error
-where
+) where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, S, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
   RRB: LeaseMut<ReqResBuffer>,
-  S: Stream,
+  SW: StreamWriter,
 {
-  #[inline]
-  pub(crate) async fn send_based_on_error<RRB, S>(
-    err: crate::Error,
-    hdpm: Http2DataPartsMut<'_, RRB, S>,
-  ) -> crate::Error
-  where
-    RRB: LeaseMut<ReqResBuffer>,
-    S: Stream,
-  {
-    match &err {
-      crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
-        send_go_away(*http2_error_code, hdpm.is_conn_open, *hdpm.last_stream_id, hdpm.stream).await;
-      }
-      crate::Error::Http2ErrorReset(http2_error_code, _, stream_id) => {
-        send_reset_stream(*http2_error_code, hdpm.hb, hdpm.stream, stream_id.into()).await;
-      }
-      _ => {
-        send_go_away(
-          Http2ErrorCode::InternalError,
-          hdpm.is_conn_open,
-          *hdpm.last_stream_id,
-          hdpm.stream,
-        )
-        .await;
-      }
+  let mut lock = hd.lock().await;
+  let mut hdpm = lock.parts_mut();
+  match err {
+    crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
+      send_go_away(*http2_error_code, &mut hdpm).await;
     }
-    err
-  }
-
-  let now = crate::misc::GenericTime::now();
-  let mut idx: u8 = 0;
-  let mut has_reset_err = false;
-  loop {
-    let mut guard = hd.lock().await;
-    if idx >= crate::http2::MAX_FINAL_FETCHES {
-      err = send_based_on_error(err, guard.parts_mut()).await;
-      return err;
+    crate::Error::Http2ErrorReset(http2_error_code, _, stream_id) => {
+      let _ = send_reset_stream(
+        *http2_error_code,
+        &mut hdpm.hb.scrp,
+        &mut hdpm.hb.sorp,
+        hdpm.stream_writer,
+        stream_id.into(),
+      )
+      .await;
     }
-    has_reset_err |= matches!(&err, crate::Error::Http2ErrorReset(..));
-    let local_rslt = guard.process_receipt().await;
-    let hdpm = guard.parts_mut();
-    if has_reset_err {
-      if let Err(mut local_err) = local_rslt {
-        local_err = send_based_on_error(local_err, hdpm).await;
-        return local_err;
-      }
+    _ => {
+      send_go_away(Http2ErrorCode::InternalError, &mut hdpm).await;
     }
-    if now.elapsed().ok().map_or(true, |el| el >= crate::http2::MAX_FINAL_DURATION) {
-      err = send_based_on_error(err, hdpm).await;
-      return err;
-    }
-    idx = idx.wrapping_add(1);
   }
 }
 
 #[inline]
-pub(crate) async fn read_frame<S, const IS_HEADER_BLOCK: bool>(
-  hp: &mut Http2Params,
-  is_conn_open: &mut bool,
+pub(crate) async fn read_frame<SR, const IS_HEADER_BLOCK: bool>(
+  max_frame_len: u32,
   pfb: &mut PartitionedFilledBuffer,
-  stream: &mut S,
-) -> crate::Result<Option<FrameInit>>
+  stream_reader: &mut SR,
+) -> crate::Result<FrameInit>
 where
-  S: Stream,
+  SR: StreamReader,
 {
-  if !*is_conn_open {
-    return Err(crate::Error::Http2ErrorGoAway(Http2ErrorCode::Cancel, None));
-  }
   for _ in 0.._max_frames_mismatches!() {
     pfb._clear_if_following_is_empty();
     let mut read = pfb._following_len();
     let buffer = pfb._following_trail_mut();
-    let Some(array_rslt) = PollOnce(pin!(_read_until::<9, _>(buffer, &mut read, 0, stream))).await
-    else {
-      return Ok(None);
-    };
-    let array = array_rslt?;
+    let array = _read_until::<9, _>(buffer, &mut read, 0, stream_reader).await?;
     let (fi_opt, data_len) = FrameInit::from_array(array);
-    if data_len > hp.max_frame_len() {
-      return Err(protocol_err(Http2Error::LargeArbitraryFrameLen));
+    if data_len > max_frame_len {
+      return Err(crate::Error::Http2ErrorGoAway(
+        Http2ErrorCode::FrameSizeError,
+        Some(Http2Error::LargeArbitraryFrameLen),
+      ));
     }
     let frame_len = *Usize::from_u32(data_len.wrapping_add(9));
     let Some(fi) = fi_opt else {
@@ -132,7 +168,7 @@ where
         return Err(protocol_err(Http2Error::LargeIgnorableFrameLen));
       }
       let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
-        stream.read_skip(to_read).await?;
+        stream_reader.read_skip(to_read).await?;
         (pfb._buffer().len(), 0)
       } else {
         (pfb._current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
@@ -149,7 +185,7 @@ where
         break;
       }
       read = read.wrapping_add(
-        stream.read(pfb._following_trail_mut().get_mut(read..).unwrap_or_default()).await?,
+        stream_reader.read(pfb._following_trail_mut().get_mut(read..).unwrap_or_default()).await?,
       );
     }
     if !is_fulfilled {
@@ -160,31 +196,30 @@ where
       *Usize::from(data_len),
       read.wrapping_sub(frame_len),
     )?;
-    return Ok(Some(fi));
+    return Ok(fi);
   }
   Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
 }
 
 /// Reads frames and return the first that is NOT related to the connection
 #[inline]
-pub(crate) async fn read_frame_until<RRB, S>(
-  conn_windows: &mut Windows,
-  hp: &mut Http2Params,
-  hpack_enc: &mut HpackEncoder,
-  hps: &mut Http2ParamsSend,
-  is_conn_open: &mut bool,
+pub(crate) async fn read_frame_until<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
+  hd: &HD,
+  is_conn_open: &AtomicBool,
+  max_frame_len: u32,
   pfb: &mut PartitionedFilledBuffer,
-  scrp: &mut Scrp,
-  sorp: &mut Sorp<RRB>,
-  stream: &mut S,
-) -> crate::Result<Option<FrameInit>>
+  stream_reader: &mut SR,
+) -> crate::Result<FrameInit>
 where
-  S: Stream,
+  HB: LeaseMut<Http2Buffer<RRB>>,
+  HD: RefCounter,
+  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
+  RRB: LeaseMut<ReqResBuffer>,
+  SR: StreamReader,
+  SW: StreamWriter,
 {
   for _ in 0.._max_frames_mismatches!() {
-    let Some(fi) = read_frame::<_, false>(hp, is_conn_open, pfb, stream).await? else {
-      return Ok(None);
-    };
+    let fi = read_frame::<_, false>(max_frame_len, pfb, stream_reader).await?;
     match fi.ty {
       FrameInitTy::GoAway => {
         let gaf = GoAwayFrame::read(pfb._current(), fi)?;
@@ -194,21 +229,32 @@ where
         let mut pf = PingFrame::read(pfb._current(), fi)?;
         if !pf.has_ack() {
           pf.set_ack();
-          write_array([&pf.bytes()], *is_conn_open, stream).await?;
+          let mut lock = hd.lock().await;
+          write_array([&pf.bytes()], is_conn_open, lock.parts_mut().stream_writer).await?;
         }
         continue;
       }
       FrameInitTy::Settings => {
         let sf = SettingsFrame::read(pfb._current(), fi)?;
         if !sf.has_ack() {
-          hps.update(hpack_enc, scrp, &sf, sorp)?;
-          write_array([SettingsFrame::ack().bytes(&mut [0; 45])], *is_conn_open, stream).await?;
+          let mut lock = hd.lock().await;
+          let hdpm = lock.parts_mut();
+          hdpm.hps.update(&mut hdpm.hb.hpack_enc, &mut hdpm.hb.scrp, &sf, &mut hdpm.hb.sorp)?;
+          let array = &mut [0; 45];
+          write_array(
+            [SettingsFrame::ack().bytes(array)],
+            is_conn_open,
+            lock.parts_mut().stream_writer,
+          )
+          .await?;
         }
         continue;
       }
       FrameInitTy::WindowUpdate if fi.stream_id.is_zero() => {
         let wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
-        conn_windows.send.deposit(None, wuf.size_increment().i32())?;
+        let mut lock = hd.lock().await;
+        let hdpm = lock.parts_mut();
+        hdpm.windows.send.deposit(None, wuf.size_increment().i32())?;
         continue;
       }
       _ => {
@@ -217,7 +263,7 @@ where
         }
       }
     }
-    return Ok(Some(fi));
+    return Ok(fi);
   }
   Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
 }
@@ -225,22 +271,21 @@ where
 #[inline]
 pub(crate) async fn read_header_and_continuations<
   H,
-  S,
+  SR,
   const IS_CLIENT: bool,
   const IS_TRAILER: bool,
 >(
   fi: FrameInit,
   hp: &mut Http2Params,
   hpack_dec: &mut HpackDecoder,
-  is_conn_open: &mut bool,
   pfb: &mut PartitionedFilledBuffer,
   rrb: &mut ReqResBuffer,
-  stream: &mut S,
+  stream_reader: &mut SR,
   uri_buffer: &mut UriBuffer,
   mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
 ) -> crate::Result<(Option<usize>, bool, H)>
 where
-  S: Stream,
+  SR: StreamReader,
 {
   if IS_TRAILER && !fi.cf.has_eos() {
     return Err(protocol_err(Http2Error::MissingEOSInTrailer));
@@ -259,7 +304,10 @@ where
     )?;
 
     if hf.is_over_size() {
-      return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
+      return Err(crate::Error::Http2ErrorGoAway(
+        Http2ErrorCode::FrameSizeError,
+        Some(Http2Error::VeryLargeHeadersLen),
+      ));
     }
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
@@ -268,7 +316,7 @@ where
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
-      let frame_fi = loop_until_some!(read_frame::<_, true>(hp, is_conn_open, pfb, stream).await?);
+      let frame_fi = read_frame::<_, true>(hp.max_frame_len(), pfb, stream_reader).await?;
       let has_diff_id = fi.stream_id != frame_fi.stream_id;
       let is_not_continuation = frame_fi.ty != FrameInitTy::Continuation;
       if has_diff_id || is_not_continuation {
@@ -286,41 +334,66 @@ where
     HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(None, fi, hp, hpack_dec, rrb, uri_buffer)?;
   rrb.clear_body();
   if hf.is_over_size() {
-    return Err(protocol_err(Http2Error::VeryLargeHeadersLen));
+    return Err(crate::Error::Http2ErrorGoAway(
+      Http2ErrorCode::FrameSizeError,
+      Some(Http2Error::VeryLargeHeadersLen),
+    ));
   }
   Ok((content_length, hf.has_eos(), headers_cb(&hf)?))
 }
 
 #[inline]
-pub(crate) async fn send_go_away<S>(
+pub(crate) async fn send_go_away<SW, RRB>(
   error_code: Http2ErrorCode,
-  is_conn_open: &mut bool,
-  last_stream_id: U31,
-  stream: &mut S,
+  hdpm: &mut Http2DataPartsMut<'_, RRB, SW>,
 ) where
-  S: Stream,
+  SW: StreamWriter,
 {
-  *is_conn_open = false;
-  let _rslt = stream.write_all(&GoAwayFrame::new(error_code, last_stream_id).bytes()).await;
+  hdpm.hb.is_conn_open.store(false, Ordering::Relaxed);
+  let gaf = GoAwayFrame::new(error_code, *hdpm.last_stream_id);
+  let _rslt = hdpm.stream_writer.write_all(&gaf.bytes()).await;
+  for (_, waker) in hdpm.hb.initial_server_header_buffers.iter() {
+    waker.wake_by_ref();
+  }
+  for scrp in hdpm.hb.scrp.values() {
+    scrp.waker.wake_by_ref();
+  }
+  for sorp in hdpm.hb.sorp.values() {
+    sorp.waker.wake_by_ref();
+  }
 }
 
 #[inline]
-pub(crate) async fn send_reset_stream<RRB, S>(
+pub(crate) async fn send_reset_stream<RRB, SW>(
   error_code: Http2ErrorCode,
-  hb: &mut Http2Buffer<RRB>,
-  stream: &mut S,
+  scrp: &mut Scrp,
+  sorp: &mut Sorp<RRB>,
+  stream_writer: &mut SW,
   stream_id: U31,
-) where
-  S: Stream,
+) -> bool
+where
+  SW: StreamWriter,
 {
-  let _opt = hb.scrp.remove(&stream_id);
-  let _opt = hb.sorp.remove(&stream_id);
-  let _rslt = stream.write_all(&ResetStreamFrame::new(error_code, stream_id).bytes()).await;
+  let mut has_stored = false;
+  let _rslt = stream_writer.write_all(&ResetStreamFrame::new(error_code, stream_id).bytes()).await;
+  if let Some(scrp) = scrp.get_mut(&stream_id) {
+    has_stored = true;
+    scrp.is_stream_open = false;
+    scrp.stream_state = StreamState::Closed;
+    scrp.waker.wake_by_ref();
+  }
+  if let Some(sorp) = sorp.get_mut(&stream_id) {
+    has_stored = true;
+    sorp.is_stream_open = false;
+    sorp.stream_state = StreamState::Closed;
+    sorp.waker.wake_by_ref();
+  }
+  has_stored
 }
 
 #[inline]
-pub(crate) fn server_header_stream_state(is_eos: bool) -> StreamState {
-  if is_eos {
+pub(crate) fn server_header_stream_state(has_eos: bool) -> StreamState {
+  if has_eos {
     StreamState::HalfClosedRemote
   } else {
     StreamState::Open
@@ -345,15 +418,15 @@ pub(crate) fn trim_frame_pad(cf: CommonFlags, data: &mut &[u8]) -> crate::Result
 }
 
 #[inline]
-pub(crate) async fn write_array<S, const N: usize>(
+pub(crate) async fn write_array<SW, const N: usize>(
   array: [&[u8]; N],
-  is_conn_open: bool,
-  stream: &mut S,
+  is_conn_open: &AtomicBool,
+  stream_writer: &mut SW,
 ) -> crate::Result<()>
 where
-  S: Stream,
+  SW: StreamWriter,
 {
-  if !is_conn_open {
+  if !is_conn_open.load(Ordering::Relaxed) {
     return Ok(());
   }
   _trace!("Sending frame(s): {:?}", {
@@ -371,6 +444,6 @@ where
     }
     rslt
   });
-  stream.write_all_vectored(&array).await?;
+  stream_writer.write_all_vectored(&array).await?;
   Ok(())
 }

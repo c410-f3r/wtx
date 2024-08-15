@@ -48,7 +48,7 @@ pub enum Http2Error {
   InvalidGoAwayFrameNonZeroId,
   /// A container does not contain an element referred by the given idx
   InvalidHpackIdx(Option<u32>),
-  /// Header frame has mal formatted content
+  /// Header frame has mal-formatted content
   InvalidHeaderData,
   #[doc = stream_id_must_not_be_zero!()]
   InvalidHeadersFrameZeroId,
@@ -88,6 +88,8 @@ pub enum Http2Error {
   NoBuffersForNewStream,
   /// Counter-part did not return the correct bytes of a HTTP2 connection preface
   NoPreface,
+  /// Received index is greater than the supported range
+  OutOfBoundsIndex,
   /// Frame size must be within 16384 and 16777215
   OutOfBoundsMaxFrameSize,
   /// Window size must be within 0 and 2147483647
@@ -118,6 +120,8 @@ pub enum Http2Error {
   UnknownHeaderStreamReceiver,
   /// A stream ID is not locally stored to allow the processing of reset frames.
   UnknownResetStreamReceiver,
+  /// A stream ID is not locally stored.
+  UnknownStreamReceiver,
   /// A stream ID is not locally stored to allow the processing of window update frames.
   UnknownWindowUpdateStreamReceiver,
   /// Length of a header name or value is limited to 127 bytes.

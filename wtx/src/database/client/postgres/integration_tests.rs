@@ -26,10 +26,11 @@ async fn conn_scram_tls() {
     &mut rng,
     |stream| async {
       Ok(
-        crate::misc::TokioRustlsConnector::from_webpki_roots()
+        crate::misc::TokioRustlsConnector::from_auto()
+          .unwrap()
           .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
           .unwrap()
-          .with_generic_stream(uri.hostname(), stream)
+          .connect_without_client_auth(uri.hostname(), stream)
           .await
           .unwrap(),
       )

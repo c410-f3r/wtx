@@ -145,58 +145,6 @@ where
   }
 }
 
-#[cfg(feature = "embassy-sync")]
-mod embassy {
-  use crate::misc::Lock;
-  use embassy_sync::{
-    blocking_mutex::raw::RawMutex,
-    mutex::{Mutex, MutexGuard},
-  };
-
-  impl<M, T> Lock for Mutex<M, T>
-  where
-    M: RawMutex,
-  {
-    type Guard<'guard> = MutexGuard<'guard, M, Self::Resource>
-    where
-      Self: 'guard;
-    type Resource = T;
-
-    #[inline]
-    fn new(resource: Self::Resource) -> Self {
-      Mutex::new(resource)
-    }
-
-    #[inline]
-    async fn lock(&self) -> Self::Guard<'_> {
-      (*self).lock().await
-    }
-  }
-}
-
-#[cfg(feature = "parking_lot")]
-mod parking_lot {
-  use crate::misc::SyncLock;
-  use parking_lot::{Mutex, MutexGuard};
-
-  impl<T> SyncLock for Mutex<T> {
-    type Guard<'guard> = MutexGuard<'guard, Self::Resource>
-    where
-      Self: 'guard;
-    type Resource = T;
-
-    #[inline]
-    fn new(resource: Self::Resource) -> Self {
-      Mutex::new(resource)
-    }
-
-    #[inline]
-    fn lock(&self) -> Self::Guard<'_> {
-      (*self).lock()
-    }
-  }
-}
-
 #[cfg(feature = "std")]
 mod std {
   use crate::misc::SyncLock;

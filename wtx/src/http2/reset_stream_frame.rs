@@ -26,7 +26,9 @@ impl ResetStreamFrame {
       ));
     };
     Ok(Self {
-      error_code: u32::from_be_bytes([*a, *b, *c, *d]).try_into()?,
+      error_code: u32::from_be_bytes([*a, *b, *c, *d])
+        .try_into()
+        .unwrap_or(Http2ErrorCode::InternalError),
       stream_id: fi.stream_id,
     })
   }

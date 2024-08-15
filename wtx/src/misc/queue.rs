@@ -40,7 +40,7 @@ pub enum QueueError {
   WithCapacityOverflow,
 }
 
-/// A circular buffer where elements are added in only one-way.
+/// A circular buffer.
 pub struct Queue<D> {
   data: Vector<D>,
   head: usize,

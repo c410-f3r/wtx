@@ -3,7 +3,7 @@ use crate::{
   misc::Lock,
   pool::{ResourceManager, SimplePool, SimplePoolResource},
 };
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Allows the customization of parameters that control HTTP requests and responses.
 #[derive(Debug)]
