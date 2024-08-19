@@ -15,8 +15,7 @@ use crate::{
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
-  misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Stream, StreamWithTls},
-  rng::Rng,
+  misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Rng, Stream, StreamWithTls},
 };
 use core::marker::PhantomData;
 

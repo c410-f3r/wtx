@@ -6,15 +6,14 @@ use crate::{
     },
     Decode, Encode, Executor as _, Record, Records as _,
   },
-  misc::UriRef,
-  rng::NoStdRng,
+  misc::{NoStdRng, UriRef},
 };
 use alloc::string::String;
 use tokio::net::TcpStream;
 
 const SCRAM: &str = "postgres://wtx_scram:wtx@localhost:5432/wtx";
 
-#[cfg(feature = "_tokio-rustls-client")]
+#[cfg(feature = "webpki-roots")]
 #[tokio::test]
 async fn conn_scram_tls() {
   let uri = UriRef::new(SCRAM);

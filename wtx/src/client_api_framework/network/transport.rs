@@ -6,18 +6,21 @@ mod mock;
 mod std;
 mod transport_params;
 mod unit;
-#[cfg(feature = "http-client-framework")]
+#[cfg(feature = "http2")]
 mod wtx_http;
 #[cfg(feature = "web-socket")]
 mod wtx_ws;
 
 use crate::{
   client_api_framework::{
-    dnsn::{Deserialize, Serialize},
     misc::log_res,
     network::TransportGroup,
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
-    Api, Id,
+    Api,
+  },
+  data_transformation::{
+    dnsn::{Deserialize, Serialize},
+    Id,
   },
   misc::Lease,
 };
@@ -79,8 +82,8 @@ pub trait Transport<DRSR> {
     A::Error: From<E>,
     P: Package<A, DRSR, Self::Params>,
     P::ExternalRequestContent: Lease<Id> + Ord,
-    P::ExternalResponseContent: Lease<Id> + Ord,
-    RESS: DynContigColl<E, P::ExternalResponseContent>,
+    for<'de> P::ExternalResponseContent<'de>: Lease<Id> + Ord,
+    RESS: for<'de> DynContigColl<E, P::ExternalResponseContent<'de>>,
     for<'any> BatchElems<'any, A, DRSR, P, Self::Params>: Serialize<DRSR>,
   {
     async {
@@ -99,11 +102,11 @@ pub trait Transport<DRSR> {
   /// Internally calls [`Self::send_recv`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
-  fn send_recv_decode_contained<A, P>(
+  fn send_recv_decode_contained<'de, A, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<Output = Result<P::ExternalResponseContent, A::Error>>
+    pkgs_aux: &'de mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> impl Future<Output = Result<P::ExternalResponseContent<'de>, A::Error>>
   where
     A: Api,
     P: Package<A, DRSR, Self::Params>,
@@ -162,11 +165,8 @@ where
 #[cfg(test)]
 mod tests {
   use crate::{
-    client_api_framework::{
-      dnsn::{Deserialize, Serialize},
-      network::transport::TransportParams,
-      pkg::Package,
-    },
+    client_api_framework::{network::transport::TransportParams, pkg::Package},
+    data_transformation::dnsn::{Deserialize, Serialize},
     misc::Vector,
   };
 
@@ -178,7 +178,7 @@ mod tests {
     TP: TransportParams,
   {
     type ExternalRequestContent = _Ping;
-    type ExternalResponseContent = _Pong;
+    type ExternalResponseContent<'de> = _Pong;
     type PackageParams = ();
 
     fn ext_req_content(&self) -> &Self::ExternalRequestContent {
@@ -211,7 +211,7 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Pong(pub(crate) &'static str);
 
-  impl<DRSR> Deserialize<DRSR> for _Pong {
+  impl<DRSR> Deserialize<'_, DRSR> for _Pong {
     fn from_bytes(bytes: &[u8], _: &mut DRSR) -> crate::Result<Self> {
       assert_eq!(bytes, b"ping");
       Ok(Self("pong"))

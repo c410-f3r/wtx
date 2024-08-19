@@ -1,4 +1,4 @@
-create_enum! {
+_create_enum! {
   /// HTTP/2 error codes.
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum Http2ErrorCode<u32> {

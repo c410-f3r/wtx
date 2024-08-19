@@ -72,3 +72,22 @@ where
     (self)((atoi(elem).map_err(Into::into)?, req)).await
   }
 }
+
+#[cfg(feature = "grpc")]
+impl<DRSR, E, FUT, RRD> PathFun<E, RRD> for fn((crate::grpc::ServerData<DRSR>, Request<RRD>)) -> FUT
+where
+  DRSR: Default,
+  E: From<crate::Error>,
+  FUT: Future<Output = Result<Response<RRD>, E>>,
+  RRD: ReqResData,
+{
+  #[inline]
+  async fn call(
+    &self,
+    _: &'static str,
+    req: Request<RRD>,
+    _: [usize; 2],
+  ) -> Result<Response<RRD>, E> {
+    (self)((crate::grpc::ServerData::new(DRSR::default()), req)).await
+  }
+}

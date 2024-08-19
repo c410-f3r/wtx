@@ -353,6 +353,61 @@ where
   }
 }
 
+#[cfg(feature = "quick-protobuf")]
+impl quick_protobuf::writer::WriterBackend for &mut Vector<u8> {
+  #[inline]
+  fn pb_write_u8(&mut self, x: u8) -> quick_protobuf::Result<()> {
+    self.push(x).map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+
+  #[inline]
+  fn pb_write_u32(&mut self, x: u32) -> quick_protobuf::Result<()> {
+    self
+      .extend_from_slice(&x.to_be_bytes())
+      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+
+  #[inline]
+  fn pb_write_i32(&mut self, x: i32) -> quick_protobuf::Result<()> {
+    self
+      .extend_from_slice(&x.to_be_bytes())
+      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+
+  #[inline]
+  fn pb_write_f32(&mut self, x: f32) -> quick_protobuf::Result<()> {
+    self
+      .extend_from_slice(&x.to_be_bytes())
+      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+
+  #[inline]
+  fn pb_write_u64(&mut self, x: u64) -> quick_protobuf::Result<()> {
+    self
+      .extend_from_slice(&x.to_be_bytes())
+      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+
+  #[inline]
+  fn pb_write_i64(&mut self, x: i64) -> quick_protobuf::Result<()> {
+    self
+      .extend_from_slice(&x.to_be_bytes())
+      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+
+  #[inline]
+  fn pb_write_f64(&mut self, x: f64) -> quick_protobuf::Result<()> {
+    self
+      .extend_from_slice(&x.to_be_bytes())
+      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+
+  #[inline]
+  fn pb_write_all(&mut self, buf: &[u8]) -> quick_protobuf::Result<()> {
+    self.extend_from_slice(buf).map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
+  }
+}
+
 impl<D> Debug for Vector<D>
 where
   D: Debug,

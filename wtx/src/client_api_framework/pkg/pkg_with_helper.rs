@@ -1,5 +1,6 @@
-use crate::client_api_framework::{
-  data_format::JsonRpcRequest, network::transport::TransportParams, pkg::Package, Api, Id,
+use crate::{
+  client_api_framework::{network::transport::TransportParams, pkg::Package, Api},
+  data_transformation::{format::JsonRpcRequest, Id},
 };
 use core::{
   borrow::Borrow,
@@ -36,7 +37,7 @@ where
   TP: TransportParams,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
-  type ExternalResponseContent = P::ExternalResponseContent;
+  type ExternalResponseContent<'de> = P::ExternalResponseContent<'de>;
   type PackageParams = P::PackageParams;
 
   #[inline]

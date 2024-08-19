@@ -32,7 +32,7 @@ where
   S: Lease<str>,
 {
   #[inline]
-  pub(crate) const fn _dummy(uri: S) -> Self {
+  pub(crate) const fn _empty(uri: S) -> Self {
     Self { authority_start_idx: 0, href_start_idx: 0, initial_len: 0, uri }
   }
 
@@ -124,11 +124,25 @@ where
   #[inline]
   pub fn href(&self) -> &str {
     if let Some(elem) = self.uri.lease().get(self.href_start_idx.into()..) {
-      if !elem.is_empty() {
-        return elem;
-      }
+      return elem;
     }
-    "/"
+    ""
+  }
+
+  /// If empty, returns a slash.
+  ///
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// assert_eq!(uri.href(), "/path?query=value#hash");
+  /// ```
+  #[inline]
+  pub fn href_slash(&self) -> &str {
+    let href = self.href();
+    if href.is_empty() {
+      "/"
+    } else {
+      href
+    }
   }
 
   /// ```rust
@@ -266,11 +280,21 @@ where
 }
 
 impl UriString {
+  /// Removes all content.
+  #[inline]
+  pub fn clear(&mut self) {
+    let Self { authority_start_idx, href_start_idx, initial_len, uri } = self;
+    *authority_start_idx = 0;
+    *href_start_idx = 0;
+    *initial_len = 0;
+    uri.clear();
+  }
+
   /// Pushes an additional path only if there is no query.
   #[inline]
   pub fn push_path(&mut self, args: Arguments<'_>) -> crate::Result<()> {
     if !self.query().is_empty() {
-      return Err(crate::Error::MISC_UriCanNotBeOverwritten);
+      return Err(crate::Error::UriCanNotBeOverwritten);
     }
     self.uri.write_fmt(args)?;
     Ok(())
@@ -280,20 +304,21 @@ impl UriString {
   #[inline]
   pub fn query_writer(&mut self) -> crate::Result<QueryWriter<'_, String>> {
     if !self.query().is_empty() {
-      return Err(crate::Error::MISC_UriCanNotBeOverwritten);
+      return Err(crate::Error::UriCanNotBeOverwritten);
     }
     Ok(QueryWriter::new(&mut self.uri))
   }
 
   /// Clears the internal storage and makes room for a new base URI.
   #[inline]
-  pub fn reset(&mut self, uri: &str) {
+  pub fn reset(&mut self, uri: Arguments<'_>) -> crate::Result<()> {
     self.uri.clear();
-    self.uri.push_str(uri);
-    let (authority_start_idx, href_start_idx, initial_len) = Self::parts(uri);
+    self.uri.write_fmt(uri)?;
+    let (authority_start_idx, href_start_idx, initial_len) = Self::parts(&self.uri);
     self.authority_start_idx = authority_start_idx;
     self.href_start_idx = href_start_idx;
     self.initial_len = initial_len;
+    Ok(())
   }
 
   /// Truncates the internal storage with the length of the base URI created in this instance.
@@ -348,8 +373,8 @@ mod tests {
     assert_eq!(uri.path(), "/rewqd");
     assert_eq!(uri.query(), "");
     assert_eq!(uri.as_str(), "http://dasdas.com/rewqd");
-    uri.reset("");
-    assert_eq!(uri.path(), "/");
+    uri.clear();
+    assert_eq!(uri.path(), "");
     assert_eq!(uri.query(), "");
     assert_eq!(uri.as_str(), "");
   }

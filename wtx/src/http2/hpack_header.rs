@@ -70,7 +70,7 @@ impl HpackHeaderName {
     })
   }
 
-  pub(crate) fn is_field(&self) -> bool {
+  pub(crate) fn is_field(self) -> bool {
     matches!(self, HpackHeaderName::Field)
   }
 }

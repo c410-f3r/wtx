@@ -3,7 +3,7 @@
 use wtx::{
   http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
   http2::{Http2Buffer, Http2Params},
-  rng::StdRng,
+  misc::StdRng,
 };
 
 #[tokio::main]
@@ -21,13 +21,13 @@ async fn main() {
     (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
   )
   .await
-  .unwrap()
+  .unwrap();
 }
 
 async fn handle(
   (_, mut req): ((), Request<ReqResBuffer>),
 ) -> Result<Response<ReqResBuffer>, wtx::Error> {
   req.rrd.clear();
-  req.rrd.extend_body(b"Hello").unwrap();
+  req.rrd.data.extend_from_slice(b"Hello").unwrap();
   Ok(req.into_response(StatusCode::Ok))
 }

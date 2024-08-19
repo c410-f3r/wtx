@@ -2,10 +2,7 @@
 //!
 //! 1. Does not support padded headers when writing.
 //! 2. Does not support push promises (Deprecated by the RFC).
-//! 3. Does not support prioritization (Deprecated by he RFC).
-
-// Many elements where influenced by the code of the h2 repository (https://github.com/hyperium/h2)
-// so thanks to the authors.
+//! 3. Does not support prioritization (Deprecated by the RFC).
 
 #[macro_use]
 mod macros;
@@ -48,7 +45,9 @@ mod window_update_frame;
 
 use crate::{
   http::ReqResBuffer,
-  http2::misc::{manage_initial_stream_receiving, process_higher_operation_err, protocol_err},
+  http2::misc::{
+    manage_initial_stream_receiving, process_higher_operation_err, protocol_err, write_array,
+  },
   misc::{
     ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader,
     StreamWriter, Usize,
@@ -104,11 +103,11 @@ pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
 
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
-/// Http2 instance using the mutex from tokio.
+/// [`Http2`] instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
 pub type Http2Tokio<HB, RRB, SW, const IS_CLIENT: bool> =
   Http2<Http2DataTokio<HB, RRB, SW, IS_CLIENT>, IS_CLIENT>;
-/// Http2Data instance using the mutex from tokio.
+/// [`Http2Data`] instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
 pub type Http2DataTokio<HB, RRB, SW, const IS_CLIENT: bool> =
   Arc<tokio::sync::Mutex<Http2Data<HB, RRB, SW, IS_CLIENT>>>;
@@ -132,9 +131,9 @@ where
   RRB: LeaseMut<ReqResBuffer>,
   SW: StreamWriter,
 {
-  /// See [ConnectionState].
+  /// See [`ConnectionState`].
   #[inline]
-  pub async fn connection_state(&self) -> ConnectionState {
+  pub fn connection_state(&self) -> ConnectionState {
     ConnectionState::from(self.is_conn_open.load(Ordering::Relaxed))
   }
 
@@ -156,28 +155,30 @@ where
     hp: &Http2Params,
     stream_writer: &mut SW,
   ) -> crate::Result<(IsConnOpenSync, u32, PartitionedFilledBuffer)> {
+    hb.is_conn_open.store(true, Ordering::Relaxed);
     let sf = hp.to_settings_frame();
-    if hp.initial_window_len() != initial_window_len!() {
+    let sf_buffer = &mut [0; 45];
+    let sf_bytes = sf.bytes(sf_buffer);
+    if hp.initial_window_len() == initial_window_len!() {
+      if HAS_PREFACE {
+        write_array([PREFACE, sf_bytes], &hb.is_conn_open, stream_writer).await?;
+      } else {
+        write_array([sf_bytes], &hb.is_conn_open, stream_writer).await?;
+      }
+    } else {
       let wuf = WindowUpdateFrame::new(
         hp.initial_window_len().wrapping_sub(initial_window_len!()).into(),
         U31::ZERO,
       )?;
       if HAS_PREFACE {
-        stream_writer.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
+        write_array([PREFACE, sf_bytes, &wuf.bytes()], &hb.is_conn_open, stream_writer).await?;
       } else {
-        stream_writer.write_all_vectored(&[sf.bytes(&mut [0; 45]), &wuf.bytes()]).await?;
-      }
-    } else {
-      if HAS_PREFACE {
-        stream_writer.write_all_vectored(&[PREFACE, sf.bytes(&mut [0; 45])]).await?;
-      } else {
-        stream_writer.write_all(sf.bytes(&mut [0; 45])).await?;
+        write_array([sf_bytes, &wuf.bytes()], &hb.is_conn_open, stream_writer).await?;
       }
     }
     hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
     hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
     hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()))?;
-    hb.is_conn_open.store(true, Ordering::Relaxed);
     Ok((Arc::clone(&hb.is_conn_open), hp.max_frame_len(), mem::take(&mut hb.pfb)))
   }
 }
@@ -229,7 +230,7 @@ where
       let mut lock = lock_pin!(cx, hd, lock_pin);
       let hdpm = lock.parts_mut();
       if let Some(mut elem) = rrb_opt.take() {
-        if !manage_initial_stream_receiving(&hdpm, &is_conn_open, &mut elem) {
+        if !manage_initial_stream_receiving(&hdpm, is_conn_open, &mut elem) {
           return Poll::Ready(Either::Left(Some(elem)));
         }
         hdpm.hb.initial_server_header_buffers.push_back((elem, cx.waker().clone()));
@@ -251,7 +252,7 @@ where
       Either::Left(elem) => Either::Left(elem),
       Either::Right((method, stream_id)) => Either::Right(ServerStream::new(
         hd.clone(),
-        Arc::clone(&is_conn_open),
+        Arc::clone(is_conn_open),
         method,
         _trace_span!("New server stream", stream_id = %stream_id),
         stream_id,
@@ -287,6 +288,7 @@ where
   }
 
   /// Opens a local stream.
+  #[inline]
   pub async fn stream(&mut self) -> crate::Result<ClientStream<HD>> {
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();

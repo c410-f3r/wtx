@@ -433,7 +433,7 @@ mod pg_numeric {
         SIGN_NAN => return Err(PostgresError::DecimalCanNotBeConvertedFromNaN.into()),
         SIGN_NEG => Self::Negative,
         SIGN_POS => Self::Positive,
-        _ => return Err(crate::Error::MISC_UnexpectedUint { received: from.into() }),
+        _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
       })
     }
   }
@@ -615,7 +615,7 @@ mod rust_decimal {
           weight = weight.checked_sub(1)?;
           Some(())
         };
-        operations().ok_or_else(|| crate::Error::MISC_OutOfBoundsArithmetic)?;
+        operations().ok_or_else(|| crate::Error::OutOfBoundsArithmetic)?;
       }
       match sign {
         Sign::Positive => value.set_sign_positive(true),

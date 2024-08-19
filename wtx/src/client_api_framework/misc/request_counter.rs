@@ -84,7 +84,7 @@ mod tests {
   async fn awaits_when_called_with_counter_reinitialized() {
     const DURATION: Duration = Duration::from_millis(1000);
 
-    let rl = RequestLimit::new(2, DURATION).unwrap();
+    let rl = RequestLimit::new(2, DURATION);
     let mut rc = RequestCounter::new();
 
     async fn test(first_ms: Duration, rc: &mut RequestCounter, rl: &RequestLimit) {
@@ -106,7 +106,7 @@ mod tests {
 
   #[tokio::test]
   async fn counter_is_reinitialized_when_time_expires() {
-    let rl = RequestLimit::new(10, Duration::from_millis(1000)).unwrap();
+    let rl = RequestLimit::new(10, Duration::from_millis(1000));
     let mut rc = RequestCounter::new();
     assert_eq!(rc.counter, 0);
     rc.update_params(&rl).await.unwrap();
@@ -121,7 +121,7 @@ mod tests {
 
   #[tokio::test]
   async fn does_not_awaits_when_idle_is_greater_than_duration() {
-    let rl = RequestLimit::new(2, Duration::from_millis(50)).unwrap();
+    let rl = RequestLimit::new(2, Duration::from_millis(50));
     let mut rc = RequestCounter::new();
 
     async fn test(rc: &mut RequestCounter, rl: &RequestLimit) {
@@ -148,7 +148,7 @@ mod tests {
 
   #[tokio::test]
   async fn has_correct_counter_increment() {
-    let rl = RequestLimit::new(2, Duration::from_millis(100)).unwrap();
+    let rl = RequestLimit::new(2, Duration::from_millis(100));
     let mut rc = RequestCounter::new();
     assert_eq!(rc.counter, 0);
     rc.update_params(&rl).await.unwrap();
@@ -178,7 +178,7 @@ mod tests {
     }
 
     let _100 = Duration::from_millis(100);
-    let rl = RequestLimit::new(1, _100).unwrap();
+    let rl = RequestLimit::new(1, _100);
     let mut rc = RequestCounter::new();
     assert_eq!(rc.counter, 0);
     test(&mut rc, &rl, Duration::default()).await;

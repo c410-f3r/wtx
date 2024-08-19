@@ -124,23 +124,23 @@ impl<'attrs, 'module, 'others>
             DRSR
           > wtx::client_api_framework::pkg::Package<A, DRSR, #tp> for #camel_case_pkg_ident<
             #(#fpiv_params_iter,)*
-            wtx::client_api_framework::data_format::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
+            wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
           >
           where
             #(#fpiv_where_predicates_iter,)*
             #(#freqdiv_where_predicates_iter,)*
-            wtx::client_api_framework::data_format::#dfe_ext_req_ctnt_wrapper<
+            wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
-            >: wtx::client_api_framework::dnsn::Serialize<DRSR>,
-            wtx::client_api_framework::data_format::#dfe_ext_res_ctnt_wrapper<
+            >: wtx::data_transformation::dnsn::Serialize<DRSR>,
+            for<'de> wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
               #res_ident
-            >: wtx::client_api_framework::dnsn::Deserialize<DRSR>,
+            >: wtx::data_transformation::dnsn::Deserialize<'de, DRSR>,
             A: wtx::client_api_framework::Api<Error = <#api as wtx::client_api_framework::Api>::Error> + wtx::misc::LeaseMut<#api>,
           {
-            type ExternalRequestContent = wtx::client_api_framework::data_format::#dfe_ext_req_ctnt_wrapper<
+            type ExternalRequestContent = wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
             >;
-            type ExternalResponseContent = wtx::client_api_framework::data_format::#dfe_ext_res_ctnt_wrapper<
+            type ExternalResponseContent<'de> = wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
               #res_ident
             >;
             type PackageParams = #fpiv_ty;

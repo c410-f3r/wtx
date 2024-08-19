@@ -23,10 +23,9 @@ mod web_socket_error;
 use crate::{
   misc::{
     from_utf8_basic, from_utf8_ext, CompletionErr, ConnectionState, ExtUtf8Error,
-    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Stream, Vector, VectorError,
+    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Rng, Stream, Vector, VectorError,
     _read_until,
   },
-  rng::Rng,
   _MAX_PAYLOAD_LEN,
 };
 pub use close_code::CloseCode;
@@ -166,7 +165,7 @@ where
         .get(payload_start_idx..payload_start_idx.wrapping_add(payload_len))
         .unwrap_or_default();
       if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic(payload).is_err() {
-        return Err(crate::Error::MISC_InvalidUTF8);
+        return Err(crate::Error::InvalidUTF8);
       }
       payload_len
     } else {
@@ -183,7 +182,7 @@ where
                   Some(incomplete_ending_char)
                 }
                 Err(ExtUtf8Error::Invalid { .. }) => {
-                  return Err(crate::Error::MISC_InvalidUTF8);
+                  return Err(crate::Error::InvalidUTF8);
                 }
                 Ok(_) => None,
               })
@@ -673,7 +672,7 @@ where
       );
     }
     if !is_payload_filled {
-      return Err(crate::Error::MISC_UnexpectedBufferState);
+      return Err(crate::Error::UnexpectedBufferState);
     }
     Ok(())
   }
@@ -752,7 +751,7 @@ where
       let (rslt, remaining) = incomplete.complete(curr_payload);
       match rslt {
         Err(CompletionErr::HasInvalidBytes) => {
-          return Err(crate::Error::MISC_InvalidUTF8);
+          return Err(crate::Error::InvalidUTF8);
         }
         Err(CompletionErr::InsufficientInput) => {
           let _ = iuc.replace(incomplete);
@@ -768,7 +767,7 @@ where
         *iuc = Some(incomplete_ending_char);
       }
       Err(ExtUtf8Error::Invalid { .. }) => {
-        return Err(crate::Error::MISC_InvalidUTF8);
+        return Err(crate::Error::InvalidUTF8);
       }
       Ok(_) => {}
     }

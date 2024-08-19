@@ -29,7 +29,7 @@ impl<'data> Config<'data> {
       app_name: "",
       channel_binding: ChannelBinding::Prefer,
       connect_timeout: Duration::ZERO,
-      db: uri.path().get(1..).unwrap_or_default(),
+      db: uri.href().get(1..).unwrap_or_default(),
       host: uri.host(),
       keepalives: true,
       load_balance_hosts: LoadBalanceHosts::Disable,

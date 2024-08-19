@@ -6,17 +6,18 @@
 [![License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
 [![Rustc](https://img.shields.io/badge/rustc-nightly-blue")](https://blog.rust-lang.org/2023/12/28/Rust-1.80.0.html)
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Contains the implementations of 4 IETF RFCs ([RFC6455](https://datatracker.ietf.org/doc/html/rfc6455), [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541), [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692), [RFC9113](https://datatracker.ietf.org/doc/html/rfc9113)), 1 formal specification ([PostgreSQL](https://www.postgresql.org/docs/16/protocol.html)) and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Contains the implementations of 4 IETF RFCs ([RFC6455](https://datatracker.ietf.org/doc/html/rfc6455), [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541), [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692), [RFC9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [PostgreSQL](https://www.postgresql.org/docs/16/protocol.html)) and several other invented ideas.
 
 1. [Client API Framework](https://c410-f3r.github.io/wtx/client-api-framework/index.html)
-2. [Database Client](https://c410-f3r.github.io/wtx/database/client-connection.html)
-3. [Database Schema Manager](https://c410-f3r.github.io/wtx/database/schema-management.html)
-4. [HTTP Client Framework](https://c410-f3r.github.io/wtx/http-client-framework/index.html)
-5. [HTTP Server Framework](https://c410-f3r.github.io/wtx/http-server-framework/index.html)
-6. [HTTP2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
-7. [Pool Manager](https://c410-f3r.github.io/wtx/pool-manager/index.html)
-8. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
-9. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
+2. [Database Client](https://c410-f3r.github.io/wtx/database-client/index.html)
+3. [Database Schema Manager](https://c410-f3r.github.io/wtx/database-schema-managemer/index.html)
+4. [gRPC Client/Server](https://c410-f3r.github.io/wtx/grpc/index.html)
+5. [HTTP Client Framework](https://c410-f3r.github.io/wtx/http-client-framework/index.html)
+6. [HTTP Server Framework](https://c410-f3r.github.io/wtx/http-server-framework/index.html)
+7. [HTTP2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
+8. [Pool Manager](https://c410-f3r.github.io/wtx/pool-manager/index.html)
+9. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
+10. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
 
@@ -54,7 +55,6 @@ For example, in a 32bit system you can allocate a maximum of 2^29 bytes of memor
 
 ## Possible future features
 
-* gRPC over HTTP/2 (<https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md>).
 * WebSocket over an HTTP/2 stream (<https://datatracker.ietf.org/doc/html/rfc8441>).
 * cURL bindings
 * WebTransport over HTTP/2 (<https://datatracker.ietf.org/doc/draft-ietf-webtrans-http2>).

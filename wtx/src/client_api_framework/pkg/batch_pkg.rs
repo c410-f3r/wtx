@@ -1,9 +1,10 @@
 use crate::{
   client_api_framework::{
+    network::transport::TransportParams, pkg::Package, Api, ClientApiFrameworkError,
+  },
+  data_transformation::{
     dnsn::{Deserialize, Serialize},
-    network::transport::TransportParams,
-    pkg::Package,
-    Api, ClientApiFrameworkError, Id,
+    Id,
   },
   misc::Lease,
 };
@@ -27,7 +28,7 @@ where
   A: Api,
   P: Package<A, DRSR, TP>,
   P::ExternalRequestContent: Lease<Id> + Ord,
-  P::ExternalResponseContent: Lease<Id> + Ord,
+  for<'de> P::ExternalResponseContent<'de>: Lease<Id> + Ord,
   TP: TransportParams,
 {
   /// Deserializes a sequence of bytes and then pushes them to the provided buffer.
@@ -40,7 +41,7 @@ where
   ) -> Result<(), A::Error>
   where
     A::Error: From<E>,
-    B: DynContigColl<E, P::ExternalResponseContent>,
+    B: for<'de> DynContigColl<E, P::ExternalResponseContent<'de>>,
   {
     if self.0 .0.is_empty() {
       return Ok(());
@@ -105,7 +106,7 @@ where
   TP: TransportParams,
 {
   type ExternalRequestContent = BatchElems<'slice, A, DRSR, P, TP>;
-  type ExternalResponseContent = ();
+  type ExternalResponseContent<'de> = ();
   type PackageParams = ();
 
   #[inline]
@@ -162,16 +163,16 @@ pub struct BatchElems<'slice, A, DRSR, P, T>(&'slice mut [P], PhantomData<(A, DR
 mod serde_json {
   use crate::{
     client_api_framework::{
-      dnsn::SerdeJson,
       network::transport::TransportParams,
       pkg::{BatchElems, Package},
       Api,
     },
+    data_transformation::dnsn::SerdeJson,
     misc::Vector,
   };
   use serde::Serializer;
 
-  impl<A, DRSR, P, TP> crate::client_api_framework::dnsn::Serialize<SerdeJson>
+  impl<A, DRSR, P, TP> crate::data_transformation::dnsn::Serialize<SerdeJson>
     for BatchElems<'_, A, DRSR, P, TP>
   where
     A: Api,

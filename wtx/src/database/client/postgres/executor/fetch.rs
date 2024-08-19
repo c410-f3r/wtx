@@ -104,7 +104,7 @@ where
       );
     }
     if !is_payload_filled {
-      return Err(crate::Error::MISC_UnexpectedBufferState);
+      return Err(crate::Error::UnexpectedBufferState);
     }
     Ok(())
   }

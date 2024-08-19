@@ -22,7 +22,7 @@ pub enum ErrorPosition {
   Original(u32),
 }
 
-create_enum! {
+_create_enum! {
   /// The severity of a Postgres error or notice.
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum Severity<u8> {
@@ -257,7 +257,7 @@ impl TryFrom<&str> for DbError {
         if rest.is_empty() {
           break;
         }
-        return Err(crate::Error::MISC_UnexpectedString { length: rest.len() });
+        return Err(crate::Error::UnexpectedString { length: rest.len() });
       }
       let Some(data) = str_split1(rest, b'\0').next() else {
         return Err(PostgresError::InsufficientDbErrorBytes.into());
@@ -293,7 +293,7 @@ impl TryFrom<&str> for DbError {
         "s" => schema = Some(range),
         "t" => table = Some(range),
         _ => {
-          return Err(crate::Error::MISC_UnexpectedUint { received: atoi(ty.as_bytes())? });
+          return Err(crate::Error::UnexpectedUint { received: atoi(ty.as_bytes())? });
         }
       }
     }

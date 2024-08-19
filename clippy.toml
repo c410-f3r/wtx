@@ -12,5 +12,7 @@ doc-valid-idents = [
     "MiB",
     "PostgreSQL",
     "WebSocket",
+    "WebSockets",
     "WebTransport"
 ]
+too-many-arguments-threshold = 10

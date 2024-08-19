@@ -11,3 +11,9 @@ It is possible to directly decode responses using built-in methods provided by s
 For API consumers, the calling convention of `wtx` endpoints is based on fluent interfaces which makes the usage more pleasant and intuitive.
 
 Moreover, the project may in the future create automatic bindings for other languages in order to avoid having duplicated API repositories.
+
+## Example
+
+```rust,edition2021,no_run
+{{#rustdoc_include ../../../wtx-instances/examples/client-api-framework.rs}}
+```

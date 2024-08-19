@@ -1,6 +1,7 @@
 //! Client connection and schema management.
 
 pub mod client;
+mod database_error;
 mod database_ty;
 mod decode;
 mod encode;
@@ -18,6 +19,7 @@ mod transaction_manager;
 mod typed;
 mod value_ident;
 
+pub use database_error::DatabaseError;
 pub use database_ty::DatabaseTy;
 pub use decode::Decode;
 pub use encode::Encode;

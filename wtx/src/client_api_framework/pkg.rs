@@ -6,10 +6,9 @@ mod batch_pkg;
 mod pkg_with_helper;
 mod pkgs_aux;
 
-use crate::client_api_framework::{
-  dnsn::{Deserialize, Serialize},
-  network::transport::TransportParams,
-  Api,
+use crate::{
+  client_api_framework::{network::transport::TransportParams, Api},
+  data_transformation::dnsn::{Deserialize, Serialize},
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
 pub use pkg_with_helper::*;
@@ -31,7 +30,7 @@ where
   /// The expected data format that is going to be sent to an external actor.
   type ExternalRequestContent: Serialize<DRSR>;
   /// The expected data format returned by an external actor.
-  type ExternalResponseContent: Deserialize<DRSR>;
+  type ExternalResponseContent<'de>: Deserialize<'de, DRSR>;
   /// Any additional parameters used by this package.
   type PackageParams;
 
@@ -80,7 +79,7 @@ where
   TP: TransportParams,
 {
   type ExternalRequestContent = ();
-  type ExternalResponseContent = ();
+  type ExternalResponseContent<'de> = ();
   type PackageParams = ();
 
   #[inline]
@@ -111,7 +110,7 @@ where
   TP: TransportParams,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
-  type ExternalResponseContent = P::ExternalResponseContent;
+  type ExternalResponseContent<'de> = P::ExternalResponseContent<'de>;
   type PackageParams = P::PackageParams;
 
   #[inline]

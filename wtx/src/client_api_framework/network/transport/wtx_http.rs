@@ -8,17 +8,17 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  http::{ClientFramework, Header, Headers, KnownHeaderName, ReqResBuffer},
+  http::{ClientFramework, Header, KnownHeaderName, ReqResBuffer},
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{Lock, RefCounter, Stream, Vector},
+  misc::{Lock, RefCounter, StreamWriter},
   pool::{ResourceManager, SimplePoolResource},
 };
 use core::{mem, ops::Range};
 
-impl<DRSR, HD, RL, RM, S> Transport<DRSR> for ClientFramework<RL, RM>
+impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, S, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -26,7 +26,7 @@ where
     RecycleAux = str,
     Resource = Http2<HD, true>,
   >,
-  S: Stream,
+  SW: StreamWriter,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -62,10 +62,10 @@ where
   }
 }
 
-impl<DRSR, HD, RL, RM, S> Transport<DRSR> for &ClientFramework<RL, RM>
+impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for &ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, S, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -73,7 +73,7 @@ where
     RecycleAux = str,
     Resource = Http2<HD, true>,
   >,
-  S: Stream,
+  SW: StreamWriter,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -109,7 +109,7 @@ where
   }
 }
 
-async fn response<A, DRSR, HD, P, RL, RM, S>(
+async fn response<A, DRSR, HD, P, RL, RM, SW>(
   client: &ClientFramework<RL, RM>,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
@@ -118,7 +118,7 @@ where
   A: Api,
   P: Package<A, DRSR, HttpParams>,
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, S, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -126,7 +126,7 @@ where
     RecycleAux = str,
     Resource = Http2<HD, true>,
   >,
-  S: Stream,
+  SW: StreamWriter,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -156,19 +156,13 @@ where
       &[],
     )?;
   }
-  let rrb = {
-    let (mut rrb_data, mut rrb_headers) = (Vector::new(), Headers::new(0));
-    mem::swap(&mut rrb_data, &mut pkgs_aux.byte_buffer);
-    mem::swap(&mut rrb_headers, headers);
-    ReqResBuffer::new(rrb_data, rrb_headers)
-  };
-  {
-    let res = (*client).send(*method, rrb, &uri.to_ref()).await?;
-    let (mut rrb_data, mut rrb_headers) = res.rrd.into_parts();
-    mem::swap(&mut pkgs_aux.byte_buffer, &mut rrb_data);
-    mem::swap(headers, &mut rrb_headers);
-    pkgs_aux.tp.ext_res_params_mut().status_code = res.status_code;
-  }
+  let mut rrb = ReqResBuffer::default();
+  mem::swap(&mut rrb.data, &mut pkgs_aux.byte_buffer);
+  mem::swap(&mut rrb.headers, headers);
+  let mut res = (*client).send(*method, rrb, &uri.to_ref()).await?;
+  mem::swap(&mut pkgs_aux.byte_buffer, &mut res.rrd.data);
+  mem::swap(headers, &mut res.rrd.headers);
+  pkgs_aux.tp.ext_res_params_mut().status_code = res.status_code;
   manage_after_sending_related(pkg, pkgs_aux).await?;
   pkgs_aux.tp.reset();
   Ok(())

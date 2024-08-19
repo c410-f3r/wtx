@@ -8,8 +8,7 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api, ClientApiFrameworkError,
   },
-  misc::{LeaseMut, Stream},
-  rng::Rng,
+  misc::{LeaseMut, Rng, Stream},
   web_socket::{
     compression::NegotiatedCompression, FrameBufferVec, FrameBufferVecMut, FrameMutVec, OpCode,
     WebSocketBuffer, WebSocketClient,

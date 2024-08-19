@@ -1,15 +1,19 @@
 macro_rules! _local_write_all_vectored {
-  ($bytes:expr, |$io_slices:ident| $write:expr) => {{
-    let mut buffer = [std::io::IoSlice::new(&[]); 8];
-    let mut $io_slices = crate::misc::stream::convert_to_io_slices(&mut buffer, $bytes);
-    while !$io_slices.is_empty() {
-      match $write {
-        Err(e) => return Err(e.into()),
-        Ok(0) => return Err(crate::Error::MISC_UnexpectedStreamEOF),
-        Ok(n) => crate::misc::stream::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
+  ($bytes:expr, $this:ident, |$io_slices:ident| $write_many:expr) => {
+    if let [single] = $bytes {
+      <Self as crate::misc::StreamWriter>::write_all($this, single).await?;
+    } else {
+      let mut buffer = [std::io::IoSlice::new(&[]); 8];
+      let mut $io_slices = crate::misc::stream::convert_to_io_slices(&mut buffer, $bytes);
+      while !$io_slices.is_empty() {
+        match $write_many {
+          Err(e) => return Err(e.into()),
+          Ok(0) => return Err(crate::Error::UnexpectedStreamEOF),
+          Ok(n) => crate::misc::stream::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
+        }
       }
     }
-  }};
+  };
 }
 
 mod bytes_stream;

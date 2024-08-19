@@ -64,7 +64,7 @@ where
   /// Media type of the resource.
   #[inline]
   pub fn content_type(mut self, mime: Mime) -> crate::Result<Self> {
-    self.rrb.lease_mut().headers_mut().push_front(
+    self.rrb.lease_mut().headers.push_front(
       Header {
         is_sensitive: false,
         is_trailer: false,
@@ -79,7 +79,7 @@ where
   /// Characteristic string that lets servers and network peers identify the application.
   #[inline]
   pub fn user_agent(mut self, value: &[u8]) -> crate::Result<Self> {
-    self.rrb.lease_mut().headers_mut().push_front(
+    self.rrb.lease_mut().headers.push_front(
       Header {
         is_sensitive: false,
         is_trailer: false,

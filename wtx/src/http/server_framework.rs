@@ -12,9 +12,9 @@ mod router;
 mod wrappers;
 
 use crate::{
-  http::{LowLevelServer, ReqResBuffer, Request, Response},
-  http2::{Http2Buffer, Http2Params},
-  rng::StdRng,
+  http::{ConnParams, LowLevelServer, ReqResBuffer, Request, Response},
+  http2::Http2Buffer,
+  misc::StdRng,
 };
 use alloc::sync::Arc;
 use core::{fmt::Debug, marker::PhantomData};
@@ -29,6 +29,7 @@ pub use wrappers::{get, json, post, Get, Json, Post};
 /// Server
 #[derive(Debug)]
 pub struct ServerFramework<E, P, REQM, RESM> {
+  pub(crate) cp: ConnParams,
   max_recv_streams_num: u32,
   phantom: PhantomData<fn() -> E>,
   router: Arc<Router<P, REQM, RESM>>,
@@ -46,7 +47,12 @@ where
   /// Creates a new instance with default parameters.
   #[inline]
   pub fn new(router: Router<P, REQM, RESM>) -> Self {
-    Self { max_recv_streams_num: 128, phantom: PhantomData, router: Arc::new(router) }
+    Self {
+      cp: ConnParams::default(),
+      max_recv_streams_num: 128,
+      phantom: PhantomData,
+      router: Arc::new(router),
+    }
   }
 
   /// Starts listening to incoming requests based on the given `host`.
@@ -62,7 +68,7 @@ where
       err_cb,
       Self::handle,
       || Ok(Http2Buffer::new(StdRng::default())),
-      move || Http2Params::default().set_max_recv_streams_num(self.max_recv_streams_num),
+      move || self.cp.to_hp().set_max_recv_streams_num(self.max_recv_streams_num),
       || Ok(ReqResBuffer::default()),
       (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
     )
@@ -74,9 +80,8 @@ where
   #[inline]
   pub async fn listen_tls(
     self,
-    cert_chain: &'static [u8],
+    (cert_chain, priv_key): (&'static [u8], &'static [u8]),
     host: &str,
-    priv_key: &'static [u8],
     err_cb: impl Copy + Fn(E) + Send + 'static,
   ) -> crate::Result<()> {
     LowLevelServer::tokio_http2(
@@ -85,7 +90,7 @@ where
       err_cb,
       Self::handle,
       || Ok(Http2Buffer::new(StdRng::default())),
-      move || Http2Params::default().set_max_recv_streams_num(self.max_recv_streams_num),
+      move || self.cp.to_hp().set_max_recv_streams_num(self.max_recv_streams_num),
       || Ok(ReqResBuffer::default()),
       (
         || {
@@ -105,22 +110,17 @@ where
   /// Prevents clients from opening more than the specified number of
   /// streams/requests/interactions.
   #[inline]
+  #[must_use]
   pub fn max_recv_streams_num(mut self, elem: u32) -> Self {
     self.max_recv_streams_num = elem;
     self
   }
 
+  _conn_params_methods!(cp);
+
   async fn handle(
     (router, req): (Arc<Router<P, REQM, RESM>>, Request<ReqResBuffer>),
-  ) -> Result<Response<ReqResBuffer>, E>
-  where
-    E: Debug + From<crate::Error> + Send + 'static,
-    P: Send + 'static,
-    REQM: ReqMiddlewares<E, ReqResBuffer> + Send + 'static,
-    RESM: ResMiddlewares<E, ReqResBuffer> + Send + 'static,
-    Arc<Router<P, REQM, RESM>>: Send,
-    Router<P, REQM, RESM>: PathManagement<E, ReqResBuffer, manage_path(..): Send>,
-  {
+  ) -> Result<Response<ReqResBuffer>, E> {
     router.manage_path(true, "", req, [0, 0]).await
   }
 }

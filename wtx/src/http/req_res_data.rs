@@ -78,7 +78,7 @@ impl ReqResData for &[u8] {
 
   #[inline]
   fn uri(&self) -> UriRef<'_> {
-    UriRef::_dummy("")
+    UriRef::_empty("")
   }
 }
 
@@ -97,7 +97,7 @@ impl<const N: usize> ReqResData for [u8; N] {
 
   #[inline]
   fn uri(&self) -> UriRef<'_> {
-    UriRef::_dummy("")
+    UriRef::_empty("")
   }
 }
 
@@ -116,7 +116,7 @@ impl ReqResData for () {
 
   #[inline]
   fn uri(&self) -> UriRef<'_> {
-    UriRef::_dummy("")
+    UriRef::_empty("")
   }
 }
 
@@ -138,7 +138,7 @@ where
 
   #[inline]
   fn uri(&self) -> UriRef<'_> {
-    UriRef::_dummy("")
+    UriRef::_empty("")
   }
 }
 
@@ -160,7 +160,7 @@ where
 
   #[inline]
   fn uri(&self) -> UriRef<'_> {
-    UriRef::_dummy("")
+    UriRef::_empty("")
   }
 }
 
@@ -169,17 +169,17 @@ impl ReqResData for ReqResBuffer {
 
   #[inline]
   fn body(&self) -> &Self::Body {
-    (*self).body()
+    &self.data
   }
 
   #[inline]
   fn headers(&self) -> &Headers {
-    (*self).headers()
+    &self.headers
   }
 
   #[inline]
   fn uri(&self) -> UriRef<'_> {
-    (*self).uri()
+    self.uri.to_ref()
   }
 }
 

@@ -40,11 +40,6 @@ where
   }
 
   #[inline]
-  pub(crate) fn first(&self) -> Option<AbstractHeader<'_, M>> {
-    self.bq.first().as_ref().map(Self::map)
-  }
-
-  #[inline]
   pub(crate) fn get_by_idx(&self, idx: usize) -> Option<AbstractHeader<'_, M>> {
     self.bq.get(idx).as_ref().map(Self::map)
   }

@@ -20,7 +20,7 @@ impl Window {
   }
 
   #[inline]
-  pub(crate) const fn available(&self) -> i32 {
+  pub(crate) const fn available(self) -> i32 {
     self.available
   }
 
@@ -71,7 +71,7 @@ impl Window {
   }
 
   #[inline]
-  const fn is_invalid(&self) -> bool {
+  const fn is_invalid(self) -> bool {
     self.available <= 0
   }
 }

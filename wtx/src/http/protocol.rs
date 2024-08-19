@@ -1,4 +1,4 @@
-create_enum! {
+_create_enum! {
   /// How endpoints should communicate, which is similar but not equal to an URI scheme.
   #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
   pub enum Protocol<u8> {

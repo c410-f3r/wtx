@@ -1,8 +1,7 @@
 use crate::{
   http::Method,
   http2::{HpackDecoder, HpackEncoder, IsConnOpenSync, Scrp, Sorp, UriBuffer, U31},
-  misc::{Lease, LeaseMut, PartitionedFilledBuffer, Vector},
-  rng::Rng,
+  misc::{Lease, LeaseMut, PartitionedFilledBuffer, Rng, Vector},
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use core::{
@@ -78,7 +77,7 @@ impl<RRB> Http2Buffer<RRB> {
 impl<RRB> Default for Http2Buffer<RRB> {
   #[inline]
   fn default() -> Self {
-    Self::new(crate::rng::StdRng::default())
+    Self::new(crate::misc::StdRng::default())
   }
 }
 

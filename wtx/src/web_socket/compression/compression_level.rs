@@ -1,4 +1,4 @@
-create_enum! {
+_create_enum! {
   /// A scale from 0 to 9 where 0 means "no compression" and 9 means "take as long as you'd like".
   #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
   pub enum CompressionLevel<u8> {

@@ -7,8 +7,7 @@ use wtx::{
     schema_manager::{Commands, DbMigration, SchemaManagement, DEFAULT_CFG_FILE_NAME},
     Identifier, DEFAULT_URI_VAR,
   },
-  misc::UriRef,
-  rng::StdRng,
+  misc::{StdRng, UriRef},
 };
 
 pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
@@ -32,7 +31,7 @@ pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
       .await?;
       handle_commands(executor, sm).await?;
     }
-    _ => return Err(wtx::Error::MISC_InvalidUri),
+    _ => return Err(wtx::Error::InvalidUri),
   }
   Ok(())
 }

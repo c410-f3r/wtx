@@ -24,13 +24,15 @@ use crate::{
     misc::{process_higher_operation_err, protocol_err, read_frame_until},
     FrameInitTy, Http2Buffer, Http2Data, Http2Error, IsConnOpenSync, ProcessReceiptFrameTy,
   },
-  misc::{
-    GenericTime, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
-  },
+  misc::{LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter},
 };
 use core::{
-  future::poll_fn, marker::PhantomData, mem, pin::pin, sync::atomic::AtomicBool, task::Poll,
-  time::Duration,
+  future::poll_fn,
+  marker::PhantomData,
+  mem,
+  pin::pin,
+  sync::atomic::{AtomicBool, Ordering},
+  task::Poll,
 };
 
 pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
@@ -50,30 +52,13 @@ where
 {
   let span = _trace_span!("Starting the reading of frames");
   let _e = span._enter();
-  let mut params: Option<(crate::Error, GenericTime)> = None;
   loop {
-    let rslt = if let Some((error, timeout)) = params.take() {
-      if timeout.elapsed().map_or(true, |elapsed| elapsed >= Duration::from_millis(300)) {
-        finish(&error, &hd, &mut pfb).await;
-        return Err(error);
-      } else {
-        params = Some((error, timeout));
-      }
-      read(&hd, &is_conn_open, max_frame_len, &mut pfb, &mut stream_reader).await
-    } else {
-      read(&hd, &is_conn_open, max_frame_len, &mut pfb, &mut stream_reader).await
-    };
-    match rslt {
-      Ok(_) => {}
-      Err(rslt_error @ crate::Error::Http2ErrorGoAway(_, None)) => {
-        if params.is_none() {
-          params = Some((rslt_error, GenericTime::now()))
-        }
-      }
-      Err(rslt_error) => {
-        finish(&rslt_error, &hd, &mut pfb).await;
-        return Err(rslt_error);
-      }
+    if !is_conn_open.load(Ordering::Relaxed) {
+      return Ok(());
+    }
+    if let Err(err) = read(&hd, &is_conn_open, max_frame_len, &mut pfb, &mut stream_reader).await {
+      finish(&err, &hd, &mut pfb).await;
+      return Err(err);
     }
   }
 }
@@ -99,7 +84,7 @@ where
     FrameInitTy::Data => {
       let mut lock = hd.lock().await;
       let mut hdpm = lock.parts_mut();
-      prft!(fi, hdpm, &*is_conn_open, &mut pfb, stream_reader).data(&mut hdpm.hb.sorp).await?;
+      prft!(fi, hdpm, is_conn_open, &mut pfb, stream_reader).data(&mut hdpm.hb.sorp).await?;
     }
     FrameInitTy::Headers => {
       let mut lock = hd.lock().await;
@@ -108,59 +93,52 @@ where
         return Err(protocol_err(Http2Error::UnexpectedNonControlFrame));
       }
       if IS_CLIENT {
-        prft!(fi, hdpm, &*is_conn_open, &mut pfb, stream_reader)
+        prft!(fi, hdpm, is_conn_open, &mut pfb, stream_reader)
           .header_client(&mut hdpm.hb.sorp)
           .await?;
+      } else if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
+        prft!(fi, hdpm, is_conn_open, &mut pfb, stream_reader).header_server_trailer(elem).await?;
+      } else if let Some((rrb, waker)) = hdpm.hb.initial_server_header_buffers.pop_front() {
+        let rslt = prft!(fi, hdpm, is_conn_open, &mut pfb, stream_reader)
+          .header_server_init(&mut hdpm.hb.initial_server_header_params, rrb, &mut hdpm.hb.sorp)
+          .await;
+        waker.wake();
+        rslt?;
       } else {
-        if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
-          prft!(fi, hdpm, &*is_conn_open, &mut pfb, stream_reader)
-            .header_server_trailer(elem)
-            .await?;
-        } else {
-          if let Some((rrb, waker)) = hdpm.hb.initial_server_header_buffers.pop_front() {
-            let rslt = prft!(fi, hdpm, &*is_conn_open, &mut pfb, stream_reader)
-              .header_server_init(&mut hdpm.hb.initial_server_header_params, rrb, &mut hdpm.hb.sorp)
-              .await;
-            waker.wake();
-            rslt?;
-          } else {
-            drop(lock);
-            let mut lock_pin = pin!(hd.lock());
-            let (mut local_lock, rrb, waker) = poll_fn(|cx| {
-              let mut local_lock = lock_pin!(cx, hd, lock_pin);
-              let local_hdpm = local_lock.parts_mut();
-              let Some((rrb, waker)) = local_hdpm.hb.initial_server_header_buffers.pop_front()
-              else {
-                cx.waker().wake_by_ref();
-                return Poll::Pending;
-              };
-              Poll::Ready((local_lock, rrb, waker))
-            })
-            .await;
-            let mut local_hdpm = local_lock.parts_mut();
-            let rslt = prft!(fi, local_hdpm, &*is_conn_open, &mut pfb, stream_reader)
-              .header_server_init(
-                &mut local_hdpm.hb.initial_server_header_params,
-                rrb,
-                &mut local_hdpm.hb.sorp,
-              )
-              .await;
-            waker.wake();
-            rslt?;
-          }
-        }
+        drop(lock);
+        let mut lock_pin = pin!(hd.lock());
+        let (mut local_lock, rrb, waker) = poll_fn(|cx| {
+          let mut local_lock = lock_pin!(cx, hd, lock_pin);
+          let local_hdpm = local_lock.parts_mut();
+          let Some((rrb, waker)) = local_hdpm.hb.initial_server_header_buffers.pop_front() else {
+            cx.waker().wake_by_ref();
+            return Poll::Pending;
+          };
+          Poll::Ready((local_lock, rrb, waker))
+        })
+        .await;
+        let mut local_hdpm = local_lock.parts_mut();
+        let rslt = prft!(fi, local_hdpm, is_conn_open, &mut pfb, stream_reader)
+          .header_server_init(
+            &mut local_hdpm.hb.initial_server_header_params,
+            rrb,
+            &mut local_hdpm.hb.sorp,
+          )
+          .await;
+        waker.wake();
+        rslt?;
       }
     }
     FrameInitTy::Reset => {
       let mut lock = hd.lock().await;
       let mut hdpm = lock.parts_mut();
-      let prft = prft!(fi, hdpm, &*is_conn_open, &mut pfb, stream_reader);
+      let prft = prft!(fi, hdpm, is_conn_open, &mut pfb, stream_reader);
       prft.reset(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp).await?;
     }
     FrameInitTy::WindowUpdate if fi.stream_id.is_not_zero() => {
       let mut lock = hd.lock().await;
       let mut hdpm = lock.parts_mut();
-      let prft = prft!(fi, hdpm, &*is_conn_open, &mut pfb, stream_reader);
+      let prft = prft!(fi, hdpm, is_conn_open, &mut pfb, stream_reader);
       prft.window_update(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp)?;
     }
     _ => {

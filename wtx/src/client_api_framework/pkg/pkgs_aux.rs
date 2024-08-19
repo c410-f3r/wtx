@@ -1,9 +1,7 @@
 use crate::{
-  client_api_framework::{
-    data_format::{
-      BorshRequest, JsonRequest, JsonRpcRequest, VerbatimRequest, XmlRequest, YamlRequest,
-    },
-    network::transport::TransportParams,
+  client_api_framework::network::transport::TransportParams,
+  data_transformation::{
+    format::{BorshRequest, JsonRequest, JsonRpcRequest, VerbatimRequest},
     Id,
   },
   misc::Vector,
@@ -80,20 +78,6 @@ where
   pub fn verbatim_request<D>(&mut self, data: D) -> VerbatimRequest<D> {
     self.increase_requests_num();
     VerbatimRequest { data }
-  }
-
-  /// Constructs [XmlRequest] and also increases the number of requests.
-  #[inline]
-  pub fn xml_request<D>(&mut self, data: D) -> XmlRequest<D> {
-    self.increase_requests_num();
-    XmlRequest { data }
-  }
-
-  /// Constructs [YamlRequest] and also increases the number of requests.
-  #[inline]
-  pub fn yaml_request<D>(&mut self, data: D) -> YamlRequest<D> {
-    self.increase_requests_num();
-    YamlRequest { data }
   }
 
   fn increase_requests_num(&mut self) {

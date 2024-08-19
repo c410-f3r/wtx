@@ -15,7 +15,7 @@ pub trait StreamReader {
         }
         let read = self.read(bytes.get_mut(idx..).unwrap_or_default()).await?;
         if read == 0 {
-          return Err(crate::Error::MISC_UnexpectedStreamEOF);
+          return Err(crate::Error::UnexpectedStreamEOF);
         }
         idx = idx.wrapping_add(read);
       }
@@ -36,7 +36,7 @@ pub trait StreamReader {
         let slice = if let Some(el) = buffer.get_mut(..counter) { el } else { &mut buffer[..] };
         let read = self.read(slice).await?;
         if read == 0 {
-          return Err(crate::Error::MISC_UnexpectedStreamEOF);
+          return Err(crate::Error::UnexpectedStreamEOF);
         }
         counter = counter.wrapping_sub(read);
       }

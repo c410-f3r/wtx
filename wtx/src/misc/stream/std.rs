@@ -20,7 +20,7 @@ impl StreamWriter for TcpStream {
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
-    _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices));
+    _local_write_all_vectored!(bytes, self, |io_slices| self.write_vectored(io_slices));
     Ok(())
   }
 }

@@ -32,14 +32,17 @@ impl ResourceManager for () {
   type RecycleAux = ();
   type Resource = ();
 
+  #[inline]
   async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
     Ok(())
   }
 
+  #[inline]
   async fn is_invalid(&self, _: &Self::Resource) -> bool {
     false
   }
 
+  #[inline]
   async fn recycle(&self, _: &Self::RecycleAux, _: &mut Self::Resource) -> Result<(), Self::Error> {
     Ok(())
   }
@@ -88,7 +91,7 @@ where
 
 #[cfg(feature = "postgres")]
 pub(crate) mod database {
-  use crate::rng::StdRngSync;
+  use crate::misc::StdRngSync;
   use core::marker::PhantomData;
 
   /// Manages generic database executors.
@@ -117,8 +120,8 @@ pub(crate) mod database {
         client::postgres::{Executor, ExecutorBuffer},
         Executor as _,
       },
+      misc::StdRngSync,
       pool::{PostgresRM, ResourceManager},
-      rng::StdRngSync,
     };
     use core::{marker::PhantomData, mem};
     use tokio::net::TcpStream;
@@ -184,9 +187,8 @@ pub(crate) mod database {
         client::postgres::{Executor, ExecutorBuffer},
         Executor as _,
       },
-      misc::TokioRustlsConnector,
+      misc::{StdRngSync, TokioRustlsConnector},
       pool::{PostgresRM, ResourceManager},
-      rng::StdRngSync,
     };
     use core::{marker::PhantomData, mem};
     use tokio::net::TcpStream;

@@ -4,7 +4,7 @@
 //! 2. Data (0+)
 //! 3. Trailer (0 | 1), Continuation (0+)
 //!
-//! Control frames like Settings or WindowUpdate are out of scope.
+//! Control frames like Settings or `WindowUpdate` are out of scope.
 
 macro_rules! init {
   ($bytes:expr, $frame:expr) => {{
@@ -45,7 +45,7 @@ use core::{
 
 #[inline]
 pub(crate) async fn send_msg<HB, HD, RRB, SW, const IS_CLIENT: bool>(
-  data_bytes: &[u8],
+  mut data_bytes: &[u8],
   hd: &HD,
   headers: &Headers,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
@@ -69,7 +69,7 @@ where
     }
     let mut lock = lock_pin!(cx, hd, lock_pin);
     let fut = do_send_msg::<_, _, IS_CLIENT>(
-      data_bytes,
+      &mut data_bytes,
       (&mut has_headers, &mut has_data),
       headers,
       lock.parts_mut(),
@@ -82,9 +82,9 @@ where
       if let Some(is_fully_sent) = rslt? {
         if is_fully_sent {
           if IS_CLIENT {
-            _trace!("Request has been sent")
+            _trace!("Request has been sent");
           } else {
-            _trace!("Response has been sent")
+            _trace!("Response has been sent");
           };
           return Poll::Ready(Ok(Some(())));
         }
@@ -96,7 +96,7 @@ where
   })
   .await;
   if let Err(err) = &rslt {
-    process_higher_operation_err(&err, hd).await;
+    process_higher_operation_err(err, hd).await;
   }
   rslt
 }
@@ -109,7 +109,7 @@ fn change_final_stream_state<const IS_CLIENT: bool>(stream_state: &mut StreamSta
 #[inline]
 fn change_initial_stream_state<const IS_CLIENT: bool>(stream_state: &mut StreamState) {
   if IS_CLIENT {
-    *stream_state = StreamState::Open
+    *stream_state = StreamState::Open;
   }
 }
 
@@ -121,10 +121,10 @@ fn data_frame_len(bytes: &[u8]) -> U31 {
 // Tries to at least send initial headers when the windows size does not allow sending data frames
 #[inline]
 async fn do_send_msg<RRB, SW, const IS_CLIENT: bool>(
-  mut data_bytes: &[u8],
+  data_bytes: &mut &[u8],
   (has_headers, has_data): (&mut bool, &mut bool),
   headers: &Headers,
-  mut hdpm: Http2DataPartsMut<'_, RRB, SW>,
+  hdpm: Http2DataPartsMut<'_, RRB, SW>,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   stream_id: U31,
   waker: &Waker,
@@ -134,28 +134,26 @@ where
   RRB: LeaseMut<ReqResBuffer>,
   SW: StreamWriter,
 {
-  let Http2Buffer { hpack_enc, hpack_enc_buffer, is_conn_open, scrp, .. } = &mut hdpm.hb;
-  let Some(scrp) = scrp.get_mut(&stream_id) else {
+  let Http2Buffer { hpack_enc, hpack_enc_buffer, is_conn_open, scrp, .. } = hdpm.hb;
+  let Some(elem) = scrp.get_mut(&stream_id) else {
     return Err(protocol_err(Http2Error::BadLocalFlow));
   };
-  if !scrp.is_stream_open {
+  if !elem.is_stream_open {
     return Ok(None);
   }
-  if !scrp.stream_state.can_send_stream::<IS_CLIENT>() {
+  if !elem.stream_state.can_send_stream::<IS_CLIENT>() {
     return Err(protocol_err(Http2Error::InvalidSendStreamState));
   }
 
-  let mut wp = WindowsPair::new(hdpm.windows, &mut scrp.windows);
+  let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
 
   'msg: {
-    let available_send = if let Ok(elem @ 1..=u32::MAX) = u32::try_from(wp.available_send()) {
-      elem
-    } else {
+    let Ok(available_send @ 1..=u32::MAX) = u32::try_from(wp.available_send()) else {
       if !*has_headers {
+        encode_headers::<IS_CLIENT>(headers, (hpack_enc, hpack_enc_buffer), (hsreqh, hsresh))?;
         if write_standalone_headers::<SW, IS_CLIENT>(
           data_bytes,
-          headers,
-          (hpack_enc, hpack_enc_buffer),
+          hpack_enc_buffer,
           (hsreqh, hsresh),
           is_conn_open,
           hdpm.hps.max_frame_len,
@@ -166,10 +164,9 @@ where
         {
           break 'msg;
         }
-        change_initial_stream_state::<IS_CLIENT>(&mut scrp.stream_state);
+        change_initial_stream_state::<IS_CLIENT>(&mut elem.stream_state);
         *has_headers = true;
       }
-      scrp.waker.clone_from(waker);
       return Ok(Some(false));
     };
 
@@ -190,7 +187,7 @@ where
       {
         break 'msg;
       }
-      change_initial_stream_state::<IS_CLIENT>(&mut scrp.stream_state);
+      change_initial_stream_state::<IS_CLIENT>(&mut elem.stream_state);
       *has_headers = true;
     }
 
@@ -198,7 +195,7 @@ where
       if write_standalone_data(
         available_send,
         has_data,
-        &mut data_bytes,
+        data_bytes,
         headers.has_trailers(),
         is_conn_open,
         hdpm.hps.max_frame_len,
@@ -210,7 +207,8 @@ where
       {
         break 'msg;
       }
-      scrp.waker.clone_from(waker);
+      // There can be an available window size
+      waker.wake_by_ref();
       return Ok(Some(false));
     }
 
@@ -225,8 +223,7 @@ where
     )
     .await?;
   }
-
-  change_final_stream_state::<IS_CLIENT>(&mut scrp.stream_state);
+  change_final_stream_state::<IS_CLIENT>(&mut elem.stream_state);
   cb(hdpm);
   Ok(Some(true))
 }
@@ -281,19 +278,17 @@ where
   SW: StreamWriter,
 {
   #[inline]
-  fn has_valid(slice: &[u8], len: u32) -> Option<U31> {
-    if !slice.is_empty() && slice.len() <= *Usize::from(len) {
-      return Some(U31::from_u32(u32::try_from(slice.len()).ok()?));
+  fn has_delimited_bytes(data_bytes: &[u8], len: u32) -> Option<U31> {
+    if !data_bytes.is_empty() && data_bytes.len() <= *Usize::from(len) {
+      return Some(U31::from_u32(u32::try_from(data_bytes.len()).ok()?));
     }
     None
   }
 
   encode_headers::<IS_CLIENT>(headers, (hpack_enc, hpack_enc_buffer), (hsreqh, hsresh))?;
+
   'headers_with_others: {
-    let Some(data_len) = has_valid(data_bytes, available_send) else {
-      break 'headers_with_others;
-    };
-    let Some(_) = has_valid(&hpack_enc_buffer, available_send) else {
+    let Some(data_len) = has_delimited_bytes(data_bytes, available_send.min(max_frame_len)) else {
       break 'headers_with_others;
     };
     if headers.has_trailers() {
@@ -302,7 +297,10 @@ where
       let Some((headers_bytes, trailers_bytes)) = hpack_enc_buffer.split_at_checked(idx) else {
         break 'headers_with_others;
       };
-      let Some(_) = has_valid(trailers_bytes, available_send) else {
+      let Some(_) = has_delimited_bytes(headers_bytes, max_frame_len) else {
+        break 'headers_with_others;
+      };
+      let Some(_) = has_delimited_bytes(trailers_bytes, max_frame_len) else {
         break 'headers_with_others;
       };
       let mut frame0 = HeadersFrame::new((hsreqh, hsresh), stream_id);
@@ -328,6 +326,9 @@ where
       )
       .await?;
     } else {
+      let Some(_) = has_delimited_bytes(hpack_enc_buffer, max_frame_len) else {
+        break 'headers_with_others;
+      };
       let mut frame0 = HeadersFrame::new((hsreqh, hsresh), stream_id);
       let mut frame1 = DataFrame::new(data_len, stream_id);
       frame0.set_eoh();
@@ -350,8 +351,7 @@ where
 
   write_standalone_headers::<_, IS_CLIENT>(
     data_bytes,
-    headers,
-    (hpack_enc, hpack_enc_buffer),
+    hpack_enc_buffer,
     (hsreqh, hsresh),
     is_conn_open,
     max_frame_len,
@@ -423,11 +423,11 @@ where
   ) -> bool {
     if data.is_empty() {
       *has_data = true;
-      if !has_trailers {
+      if has_trailers {
+        false
+      } else {
         frame.set_eos();
         true
-      } else {
-        false
       }
     } else {
       false
@@ -481,8 +481,7 @@ where
 #[inline]
 async fn write_standalone_headers<SW, const IS_CLIENT: bool>(
   data_bytes: &[u8],
-  headers: &Headers,
-  (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
+  hpack_enc_buffer: &mut Vector<u8>,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   is_conn_open: &AtomicBool,
   max_frame_len: u32,
@@ -492,7 +491,6 @@ async fn write_standalone_headers<SW, const IS_CLIENT: bool>(
 where
   SW: StreamWriter,
 {
-  encode_headers::<IS_CLIENT>(headers, (hpack_enc, hpack_enc_buffer), (hsreqh, hsresh))?;
   let (left0, right0) = split_frame_bytes(hpack_enc_buffer, max_frame_len);
   let mut frame0 = HeadersFrame::new((hsreqh, hsresh), stream_id);
   let should_stop = if data_bytes.is_empty() {

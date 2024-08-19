@@ -14,6 +14,8 @@ use alloc::boxed::Box;
 
 const DYN_IDX_OFFSET: usize = 62;
 
+type RawHeaderPair<'value> = (&'static [u8], &'value [u8]);
+
 #[derive(Debug)]
 pub(crate) struct HpackDecoder {
   dyn_headers: AbstractHeaders<HpackHeaderBasic>,
@@ -224,11 +226,12 @@ impl HpackDecoder {
     Ok(rslt)
   }
 
+  #[expect(clippy::too_many_lines, reason = "defined by the specification")]
   #[inline]
   fn get(
     dyn_headers: &AbstractHeaders<HpackHeaderBasic>,
     idx: usize,
-  ) -> crate::Result<(HpackHeaderBasic, (&'static [u8], &[u8]), (&'static [u8], &[u8]))> {
+  ) -> crate::Result<(HpackHeaderBasic, RawHeaderPair<'_>, RawHeaderPair<'_>)> {
     Ok(match idx {
       0 => {
         return Err(crate::Error::Http2ErrorGoAway(
@@ -413,8 +416,7 @@ impl TryFrom<u8> for DecodeIdx {
 mod bench {
   use crate::{
     http2::{HpackDecoder, HpackEncoder},
-    misc::{Usize, Vector},
-    rng::NoStdRng,
+    misc::{NoStdRng, Usize, Vector},
   };
 
   #[bench]

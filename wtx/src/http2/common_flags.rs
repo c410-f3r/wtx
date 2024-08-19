@@ -23,27 +23,27 @@ impl CommonFlags {
   }
 
   #[inline]
-  pub(crate) const fn byte(&self) -> u8 {
+  pub(crate) const fn byte(self) -> u8 {
     self.0
   }
 
   #[inline]
-  pub(crate) const fn has_ack(&self) -> bool {
+  pub(crate) const fn has_ack(self) -> bool {
     self.0 & ACK == ACK
   }
 
   #[inline]
-  pub(crate) const fn has_eoh(&self) -> bool {
+  pub(crate) const fn has_eoh(self) -> bool {
     self.0 & EOH == EOH
   }
 
   #[inline]
-  pub(crate) const fn has_eos(&self) -> bool {
+  pub(crate) const fn has_eos(self) -> bool {
     self.0 & EOS == EOS
   }
 
   #[inline]
-  pub(crate) const fn has_pad(&self) -> bool {
+  pub(crate) const fn has_pad(self) -> bool {
     self.0 & PAD == PAD
   }
 

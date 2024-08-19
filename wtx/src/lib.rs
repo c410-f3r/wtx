@@ -18,17 +18,22 @@ mod macros;
 pub(crate) mod bench;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
+#[cfg(feature = "data-transformation")]
+pub mod data_transformation;
 #[cfg(feature = "database")]
 pub mod database;
 mod error;
+#[cfg(feature = "grpc")]
+pub mod grpc;
+#[cfg(feature = "http")]
 pub mod http;
 #[cfg(feature = "http2")]
 pub mod http2;
 pub mod misc;
 #[cfg(feature = "pool")]
 pub mod pool;
-pub mod rng;
-mod tuple_impls;
+#[cfg(test)]
+mod tests;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 

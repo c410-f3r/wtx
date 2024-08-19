@@ -4,15 +4,10 @@ High-level pool of HTTP clients that currently only supports HTTP/2. Allows mult
 
 Activation feature is called `http-client-framework`.
 
+## Example
+
+The bellow snippet requires ~25 dependencies and has an optimized binary size of ~700K.
+
 ```rust,edition2021,no_run
-extern crate wtx;
-
-use wtx::{http::{ClientFramework, ReqBuilder}, misc::{Uri, from_utf8_basic}};
-
-async fn get_and_print() -> wtx::Result<()> {
-  let client = ClientFramework::tokio_rustls(1).build();
-  let res = ReqBuilder::get().send(&client, &Uri::new("https:://www.dukcduckgo.com:443")).await?;
-  println!("{}", from_utf8_basic(res.rrd.body()).unwrap());
-  Ok(())
-}
+{{#rustdoc_include ../../../wtx-instances/examples/http-client-framework-tokio.rs}}
 ```
