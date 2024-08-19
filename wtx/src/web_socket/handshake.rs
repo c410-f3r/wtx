@@ -3,8 +3,7 @@ mod tests;
 
 use crate::{
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{bytes_split1, FilledBufferWriter, LeaseMut, Stream, UriRef, VectorError},
-  rng::Rng,
+  misc::{bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, VectorError},
   web_socket::{
     compression::NegotiatedCompression, misc::_trim_bytes, Compression, FrameBufferVec,
     WebSocketBuffer, WebSocketClient, WebSocketError, WebSocketServer,
@@ -56,7 +55,7 @@ where
       let read_buffer = nb._following_mut().get_mut(read..).unwrap_or_default();
       let local_read = stream.read(read_buffer).await?;
       if local_read == 0 {
-        return Err(crate::Error::MISC_UnexpectedStreamEOF);
+        return Err(crate::Error::UnexpectedStreamEOF);
       }
       read = read.wrapping_add(local_read);
       let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
@@ -139,7 +138,7 @@ where
       let read_buffer = fb.payload_mut().get_mut(read..).unwrap_or_default();
       let local_read = stream.read(read_buffer).await?;
       if local_read == 0 {
-        return Err(crate::Error::MISC_UnexpectedStreamEOF);
+        return Err(crate::Error::UnexpectedStreamEOF);
       }
       read = read.wrapping_add(local_read);
       match Response::new(&mut local_header).parse(fb.payload())? {
@@ -192,7 +191,7 @@ where
   C: Compression<true>,
 {
   let key = gen_key(key_buffer, rng);
-  fbw._extend_from_slices_group_rn(&[b"GET ", uri.href().as_bytes(), b" HTTP/1.1"])?;
+  fbw._extend_from_slices_group_rn(&[b"GET ", uri.href_slash().as_bytes(), b" HTTP/1.1"])?;
   for (name, value) in headers {
     fbw._extend_from_slices_group_rn(&[name, b": ", value])?;
   }

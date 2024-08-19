@@ -138,7 +138,7 @@ impl PartitionedFilledBuffer {
   ) -> crate::Result<()> {
     let [ant, cur, fol] = Self::_indcs_from_lengths(antecedent_len, current_len, following_len);
     if fol > self._buffer.len() {
-      return Err(crate::Error::MISC_InvalidPartitionedBufferBounds);
+      return Err(crate::Error::InvalidPartitionedBufferBounds);
     }
     self._antecedent_end_idx = ant;
     self._current_end_idx = cur;

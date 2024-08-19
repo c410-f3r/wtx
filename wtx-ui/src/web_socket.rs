@@ -3,8 +3,7 @@ use tokio::{
   net::{TcpListener, TcpStream},
 };
 use wtx::{
-  misc::UriRef,
-  rng::StdRng,
+  misc::{StdRng, UriRef},
   web_socket::{
     FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode, WebSocketBuffer, WebSocketClient,
     WebSocketServer,

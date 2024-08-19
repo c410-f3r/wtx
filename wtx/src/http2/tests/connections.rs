@@ -1,8 +1,8 @@
 use crate::{
   http::{Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{Either, UriRef, UriString, _uri},
-  rng::NoStdRng,
+  misc::{Either, NoStdRng, UriRef, UriString},
+  tests::_uri,
 };
 use core::time::Duration;
 use tokio::net::{tcp::OwnedWriteHalf, TcpListener, TcpStream};
@@ -18,8 +18,8 @@ async fn connections() {
 
 async fn client(uri: UriString) {
   let mut rrb = ReqResBuffer::default();
-  rrb.headers_mut().set_max_bytes(6);
-  rrb.headers_mut().reserve(6, 1).unwrap();
+  rrb.headers.set_max_bytes(6);
+  rrb.headers.reserve(6, 1).unwrap();
   let (frame_header, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(NoStdRng::default()),
     Http2Params::default(),
@@ -39,18 +39,18 @@ async fn client(uri: UriString) {
   _0(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.headers_mut().push_front((b"123", b"456").into(), &[]).unwrap();
+  rrb.headers.push_front((b"123", b"456").into(), &[]).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _1(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.extend_body(b"123").unwrap();
+  rrb.data.extend_from_slice(b"123").unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _2(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.extend_body(b"123").unwrap();
-  rrb.headers_mut().push_front((b"123", b"456").into(), &[]).unwrap();
+  rrb.data.extend_from_slice(b"123").unwrap();
+  rrb.headers.push_front((b"123", b"456").into(), &[]).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _3(rrb.body(), rrb.headers());
 

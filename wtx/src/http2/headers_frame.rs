@@ -52,13 +52,14 @@ impl<'uri> HeadersFrame<'uri> {
     self.is_over_size
   }
 
+  #[expect(clippy::too_many_lines, reason = "variables are highly coupled")]
   #[inline]
   pub(crate) fn read<const IS_CLIENT: bool, const IS_TRAILER: bool>(
     data: Option<&[u8]>,
     mut fi: FrameInit,
     hp: &Http2Params,
     hpack_dec: &mut HpackDecoder,
-    rrb: &mut ReqResBuffer,
+    (rrb, rrb_body_start): (&mut ReqResBuffer, usize),
     uri_buffer: &mut UriBuffer,
   ) -> crate::Result<(Option<usize>, Self)> {
     if fi.stream_id.is_zero() {
@@ -68,8 +69,8 @@ impl<'uri> HeadersFrame<'uri> {
     fi.cf.only_eoh_eos_pad();
     uri_buffer.clear();
 
-    let (rrb_body, rrb_headers) = rrb.parts_mut();
-    let mut data_bytes = data.unwrap_or(rrb_body);
+    let (rrb_body, rrb_headers, rrb_uri) = (&rrb.data, &mut rrb.headers, &mut rrb.uri);
+    let mut data_bytes = data.unwrap_or_else(|| rrb_body.get(rrb_body_start..).unwrap_or_default());
     let _ = trim_frame_pad(fi.cf, &mut data_bytes)?;
     let max_headers_len = *Usize::from(hp.max_headers_len());
     let mut content_length = None;
@@ -81,8 +82,8 @@ impl<'uri> HeadersFrame<'uri> {
     let mut protocol = None;
     let mut status = None;
 
-    hpack_dec.decode(data_bytes, |(elem, name, value)| {
-      match elem {
+    hpack_dec.decode(data_bytes, |(hhb, name, value)| {
+      match hhb {
         HpackHeaderBasic::Authority => {
           push_uri(
             &mut uri_buffer.authority,
@@ -110,7 +111,7 @@ impl<'uri> HeadersFrame<'uri> {
           }
           _ => {
             let header_name = match HeaderName::http2p(name) {
-              Ok(elem) => elem,
+              Ok(header_name) => header_name,
               Err(_err) => {
                 return Err(protocol_err(Http2Error::InvalidHeaderData));
               }
@@ -216,16 +217,15 @@ impl<'uri> HeadersFrame<'uri> {
           if uri_buffer.authority.is_empty() {
             return Err(protocol_err(Http2Error::InvalidHeaderData));
           }
-        } else {
-          if uri_buffer.path.is_empty() || uri_buffer.scheme.is_empty() {
-            return Err(protocol_err(Http2Error::InvalidHeaderData));
-          }
+        } else if uri_buffer.path.is_empty() || uri_buffer.scheme.is_empty() {
+          return Err(protocol_err(Http2Error::InvalidHeaderData));
         }
-        rrb.set_uri_from_parts(
+        rrb_uri.reset(format_args!(
+          "{}://{}{}",
           uri_buffer.scheme.as_str(),
           uri_buffer.authority.as_str(),
-          uri_buffer.path.as_str(),
-        )?;
+          uri_buffer.path.as_str()
+        ))?;
       }
     }
 

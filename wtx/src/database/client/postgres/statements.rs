@@ -1,7 +1,6 @@
 use crate::{
   database::{client::postgres::ty::Ty, Identifier},
-  misc::{_random_state, _unreachable},
-  rng::Rng,
+  misc::{Rng, _random_state, _unreachable},
 };
 use ahash::RandomState;
 use alloc::collections::VecDeque;
@@ -247,8 +246,7 @@ mod tests {
       ty::Ty,
       Statements,
     },
-    misc::Vector,
-    rng::NoStdRng,
+    misc::{NoStdRng, Vector},
   };
 
   #[test]

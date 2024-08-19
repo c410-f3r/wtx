@@ -48,8 +48,10 @@ use core::{
   ptr,
 };
 
-pub(crate) type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
-pub(crate) type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
+/// [`Block`] composed by references.
+type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
+/// [`Block`] composed by mutable references.
+type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 
 /// Errors of [`BlocksQueue`].
 #[derive(Debug)]
@@ -64,7 +66,7 @@ pub enum BlocksQueueError {
 
 /// A circular buffer where elements are added in one-way blocks that will never intersect
 /// boundaries.
-pub(crate) struct BlocksQueue<D, M> {
+pub struct BlocksQueue<D, M> {
   data: Vector<D>,
   head: usize,
   metadata: Queue<BlocksQueueMetadata<M>>,
@@ -72,13 +74,15 @@ pub(crate) struct BlocksQueue<D, M> {
 }
 
 impl<D, M> BlocksQueue<D, M> {
+  /// Creates a new empty instance.
   #[inline]
-  pub(crate) const fn new() -> Self {
+  pub const fn new() -> Self {
     Self { data: Vector::new(), head: 0, metadata: Queue::new(), tail: 0 }
   }
 
+  /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub(crate) fn with_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksQueueError> {
+  pub fn with_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksQueueError> {
     Ok(Self {
       data: Vector::with_capacity(elements)
         .map_err(|_err| BlocksQueueError::WithCapacityOverflow)?,
@@ -89,24 +93,28 @@ impl<D, M> BlocksQueue<D, M> {
     })
   }
 
+  /// Returns a pair of slices which contain, in order, the contents of the queue.
   #[inline]
-  pub(crate) fn as_slices(&self) -> (&[D], &[D]) {
+  pub fn as_slices(&self) -> (&[D], &[D]) {
     as_slices!(&[][..], as_ptr, slice_from_raw_parts, self, &)
   }
 
+  /// Returns the number of blocks the queue can hold without reallocating.
   #[cfg(test)]
   #[inline]
-  pub(crate) fn blocks_capacity(&self) -> usize {
+  pub fn blocks_capacity(&self) -> usize {
     self.metadata.capacity()
   }
 
+  /// Returns the number of blocks.
   #[inline]
-  pub(crate) fn blocks_len(&self) -> usize {
+  pub fn blocks_len(&self) -> usize {
     self.metadata.len()
   }
 
+  /// Clears the queue, removing all values.
   #[inline]
-  pub(crate) fn clear(&mut self) {
+  pub fn clear(&mut self) {
     let Self { data, head, metadata, tail } = self;
     data.clear();
     *head = 0;
@@ -114,44 +122,45 @@ impl<D, M> BlocksQueue<D, M> {
     *tail = 0;
   }
 
-  #[cfg(test)]
+  /// Returns the number of elements the queue can hold without reallocating.
   #[inline]
-  pub(crate) fn elements_capacity(&self) -> usize {
+  pub fn elements_capacity(&self) -> usize {
     self.data.capacity()
   }
 
+  /// Returns the number of elements.
   #[inline]
-  pub(crate) fn elements_len(&self) -> usize {
+  pub fn elements_len(&self) -> usize {
     self.data.len()
   }
 
+  /// Provides a reference to a block at the given index.
   #[inline]
-  pub(crate) fn first(&self) -> Option<BlockRef<'_, D, M>> {
-    self.get(0)
-  }
-
-  #[inline]
-  pub(crate) fn get(&self, idx: usize) -> Option<BlockRef<'_, D, M>> {
+  pub fn get(&self, idx: usize) -> Option<BlockRef<'_, D, M>> {
     Some(Self::do_get(&self.data, self.metadata.get(idx)?))
   }
 
+  /// Mutable version of [`Self::get`].
   #[inline]
-  pub(crate) fn get_mut(&mut self, idx: usize) -> Option<BlockMut<'_, D, M>> {
+  pub fn get_mut(&mut self, idx: usize) -> Option<BlockMut<'_, D, M>> {
     Some(Self::do_get_mut(&mut self.data, self.metadata.get_mut(idx)?))
   }
 
+  /// Returns a front-to-back iterator.
   #[inline]
-  pub(crate) fn iter(&self) -> impl Iterator<Item = BlockRef<'_, D, M>> {
+  pub fn iter(&self) -> impl Iterator<Item = BlockRef<'_, D, M>> {
     self.metadata.iter().map(|metadata| Self::do_get(&self.data, metadata))
   }
 
+  /// Returns the last block.
   #[inline]
-  pub(crate) fn last(&self) -> Option<BlockRef<'_, D, M>> {
+  pub fn last(&self) -> Option<BlockRef<'_, D, M>> {
     self.get(self.data.len().checked_sub(1)?)
   }
 
+  /// Removes the last element from the queue and returns it, or `None` if it is empty.
   #[inline]
-  pub(crate) fn pop_back(&mut self) -> Option<(M, &mut [D])> {
+  pub fn pop_back(&mut self) -> Option<(M, &mut [D])> {
     let metadata = self.metadata.pop_back()?;
     if let Some(elem) = self.metadata.last() {
       self.tail = elem.begin.wrapping_add(elem.len);
@@ -171,10 +180,11 @@ impl<D, M> BlocksQueue<D, M> {
     Some((metadata.misc, slice))
   }
 
+  /// Removes the first element and returns it, or [`Option::None`] if the queue is empty.
   #[inline]
-  pub(crate) fn pop_front(&mut self) -> Option<(M, &mut [D])> {
+  pub fn pop_front(&mut self) -> Option<(M, &mut [D])> {
     let metadata = self.metadata.pop_front()?;
-    if let Some(elem) = self.metadata.first() {
+    if let Some(elem) = self.metadata.get(0) {
       self.head = elem.begin;
     } else {
       self.head = 0;
@@ -257,8 +267,9 @@ where
   D: Copy,
   M: Copy,
 {
+  /// Prepends an block to the queue.
   #[inline]
-  pub(crate) fn push_front<const N: usize>(
+  pub fn push_front<const N: usize>(
     &mut self,
     data: [&[D]; N],
     misc: M,
@@ -298,8 +309,9 @@ where
     Ok(())
   }
 
+  /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
-  pub(crate) fn reserve(&mut self, blocks: usize, elements: usize) -> Result<(), BlocksQueueError> {
+  pub fn reserve(&mut self, blocks: usize, elements: usize) -> Result<(), BlocksQueueError> {
     let is_not_wrapped = !self.is_wrapped();
     let prev_head = self.head;
     let diff_opt = reserve(elements, &mut self.data, &mut self.head)
@@ -343,21 +355,25 @@ impl<D, M> Default for BlocksQueue<D, M> {
   }
 }
 
+/// Block
 #[derive(Debug, PartialEq)]
-pub(crate) struct Block<D, M>
+pub struct Block<D, M>
 where
   D: Lease<[D::Item]> + SingleTypeStorage,
 {
-  pub(crate) data: D,
-  pub(crate) misc: M,
-  pub(crate) range: Range<usize>,
+  /// Opaque data
+  pub data: D,
+  /// Miscellaneous
+  pub misc: M,
+  /// Range
+  pub range: Range<usize>,
 }
 
 #[derive(Clone, Copy, Debug)]
 struct BlocksQueueMetadata<M> {
-  pub(crate) begin: usize,
-  pub(crate) len: usize,
-  pub(crate) misc: M,
+  begin: usize,
+  len: usize,
+  misc: M,
 }
 
 // H = Head (Inclusive)

@@ -8,8 +8,8 @@ macro_rules! call_tests {
 }
 
 use crate::{
-  misc::_uri,
-  rng::NoStdRng,
+  misc::NoStdRng,
+  tests::_uri,
   web_socket::{
     compression::NegotiatedCompression, frame::FrameMutVec, handshake::HeadersBuffer, Compression,
     FrameBufferVec, OpCode, WebSocket, WebSocketBuffer, WebSocketClient, WebSocketClientOwned,

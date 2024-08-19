@@ -1,18 +1,18 @@
 //! Utility functions and structures
 
-pub(crate) mod seq_visitor;
-
 mod from_bytes;
 mod pair;
 mod request_counter;
 mod request_limit;
 mod request_throttling;
 
-use crate::client_api_framework::{
-  dnsn::Serialize,
-  network::transport::{Transport, TransportParams},
-  pkg::{Package, PkgsAux},
-  Api,
+use crate::{
+  client_api_framework::{
+    network::transport::{Transport, TransportParams},
+    pkg::{Package, PkgsAux},
+    Api,
+  },
+  data_transformation::dnsn::Serialize,
 };
 pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};
@@ -33,7 +33,7 @@ pub(crate) fn log_req<A, DRSR, P, T>(
   T: Transport<DRSR>,
 {
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
-    use crate::client_api_framework::dnsn::Serialize;
+    use crate::data_transformation::dnsn::Serialize;
     let mut vec = crate::misc::Vector::new();
     _pgk
       .ext_req_content_mut()

@@ -83,14 +83,14 @@ where
         ));
         Poll::Pending
       } else {
-        manage_recurrent_stream_receiving(cx, hdpm, is_conn_open, stream_id, |_, _, sorp| {
+        manage_recurrent_stream_receiving(cx, hdpm, is_conn_open, *stream_id, |_, _, sorp| {
           sorp.status_code
         })
       }
     })
     .await;
     if let Err(err) = &rslt {
-      process_higher_operation_err(&err, hd).await;
+      process_higher_operation_err(err, hd).await;
     }
     rslt
   }
@@ -134,7 +134,7 @@ where
         HpackStaticRequestHeaders {
           authority: uri.authority().as_bytes(),
           method: Some(req.method),
-          path: uri.href().as_bytes(),
+          path: uri.href_slash().as_bytes(),
           protocol: None,
           scheme: uri.schema().as_bytes(),
         },
@@ -151,7 +151,8 @@ where
     .await
   }
 
-  /// Sends a RST_STREAM frame to the peer, which cancels this stream.
+  /// Sends a `RST_STREAM` frame to the peer, which cancels this stream.
+  #[inline]
   pub async fn send_reset(self, error_code: Http2ErrorCode) {
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();

@@ -26,29 +26,33 @@ impl Http2ParamsSend {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);
     }
-    if let Some(elem) = sf.initial_window_size() {
-      match elem.cmp(&self.initial_window_len) {
+    if let Some(initial_window_size) = sf.initial_window_size() {
+      match initial_window_size.cmp(&self.initial_window_len) {
         Ordering::Equal => {}
         Ordering::Greater => {
-          let inc = elem.wrapping_sub(self.initial_window_len);
+          let inc = initial_window_size.wrapping_sub(self.initial_window_len);
           for (stream_id, elem) in scrp {
             elem.windows.send.deposit(Some(*stream_id), inc.i32())?;
+            elem.waker.wake_by_ref();
           }
           for (stream_id, elem) in sorp {
             elem.windows.send.deposit(Some(*stream_id), inc.i32())?;
+            elem.waker.wake_by_ref();
           }
         }
         Ordering::Less => {
-          let dec = self.initial_window_len.wrapping_sub(elem);
+          let dec = self.initial_window_len.wrapping_sub(initial_window_size);
           for (stream_id, elem) in scrp {
             elem.windows.send.withdrawn(Some(*stream_id), dec.i32())?;
+            elem.waker.wake_by_ref();
           }
           for (stream_id, elem) in sorp {
             elem.windows.send.withdrawn(Some(*stream_id), dec.i32())?;
+            elem.waker.wake_by_ref();
           }
         }
       }
-      self.initial_window_len = elem;
+      self.initial_window_len = initial_window_size;
     }
     if let Some(elem) = sf.header_table_size() {
       self.max_hpack_len = elem;

@@ -64,7 +64,7 @@ where
         cx,
         lock.parts_mut(),
         is_conn_open,
-        stream_id,
+        *stream_id,
         |local_cx, hdpm, sorp| {
           drop(hdpm.hb.scrp.insert(
             *stream_id,
@@ -81,7 +81,7 @@ where
     })
     .await;
     if let Err(err) = &rslt {
-      process_higher_operation_err(&err, hd).await;
+      process_higher_operation_err(err, hd).await;
     }
     rslt
   }
@@ -127,6 +127,7 @@ where
   }
 
   /// Sends a stream reset to the peer, which cancels this stream.
+  #[inline]
   pub async fn send_reset(self, error_code: Http2ErrorCode) {
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();

@@ -170,7 +170,7 @@ impl SettingsFrame {
     } = &mut settings_frame;
 
     for [a, b, c, d, e, f] in ArrayChunks::new(bytes) {
-      let Ok(setting) = Setting::new(&[*a, *b, *c, *d, *e, *f]) else {
+      let Ok(setting) = Setting::new([*a, *b, *c, *d, *e, *f]) else {
         continue;
       };
       match setting {
@@ -280,9 +280,9 @@ enum Setting {
 }
 
 impl Setting {
-  pub(crate) fn new(array: &[u8; 6]) -> crate::Result<Setting> {
+  pub(crate) fn new(array: [u8; 6]) -> crate::Result<Setting> {
     let [a, b, c, d, e, f] = array;
-    Setting::from_id((u16::from(*a) << 8) | u16::from(*b), u32::from_be_bytes([*c, *d, *e, *f]))
+    Setting::from_id((u16::from(a) << 8) | u16::from(b), u32::from_be_bytes([c, d, e, f]))
   }
 
   #[inline]

@@ -21,12 +21,14 @@ mod query_writer;
 mod queue;
 mod queue_utils;
 mod ref_counter;
+mod rng;
 mod role;
 mod single_type_storage;
 mod span;
 mod stream;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
+mod tuple_impls;
 mod uri;
 mod usize;
 mod utf8_errors;
@@ -37,7 +39,7 @@ pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError};
-pub use blocks_queue::BlocksQueueError;
+pub use blocks_queue::{Block, BlocksQueue, BlocksQueueError};
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
 pub use either::Either;
@@ -53,6 +55,7 @@ pub use optimization::*;
 pub use query_writer::QueryWriter;
 pub use queue::{Queue, QueueError};
 pub use ref_counter::RefCounter;
+pub use rng::*;
 pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, StreamReader, StreamWithTls, StreamWriter};
@@ -62,7 +65,6 @@ pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};
 #[allow(unused_imports, reason = "used in other features")]
 pub(crate) use {
-  blocks_queue::{Block, BlocksQueue},
   mem_transfer::_shift_copyable_chunks,
   partitioned_filled_buffer::PartitionedFilledBuffer,
   span::{_Entered, _Span},
@@ -73,7 +75,7 @@ pub(crate) use {
 #[inline]
 #[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
-  opt.ok_or(crate::Error::MISC_NoInnerValue(type_name::<T>()))
+  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>()))
 }
 
 /// Sleeps for the specified amount of time.
@@ -195,7 +197,7 @@ pub(crate) fn _number_or_available_parallelism(n: Option<usize>) -> crate::Resul
 }
 
 #[cfg(feature = "ahash")]
-pub(crate) fn _random_state(mut rng: impl crate::rng::Rng) -> ahash::RandomState {
+pub(crate) fn _random_state(mut rng: impl Rng) -> ahash::RandomState {
   let (seed0, seed1) = {
     let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = rng.u8_16();
     (u64::from_ne_bytes([a, b, c, d, e, f, g, h]), u64::from_ne_bytes([i, j, k, l, m, n, o, p]))
@@ -226,19 +228,11 @@ where
     let actual_buffer = buffer.get_mut(*read..).unwrap_or_default();
     let local_read = stream_reader.read(actual_buffer).await?;
     if local_read == 0 {
-      return Err(crate::Error::MISC_UnexpectedStreamEOF);
+      return Err(crate::Error::UnexpectedStreamEOF);
     }
     *read = read.wrapping_add(local_read);
   }
   Ok(buffer.get(start..until).and_then(|el| el.try_into().ok()).unwrap_or_else(_unlikely_dflt))
-}
-
-#[cfg(test)]
-pub(crate) fn _uri() -> UriString {
-  use core::sync::atomic::{AtomicU32, Ordering};
-  static PORT: AtomicU32 = AtomicU32::new(7000);
-  let uri = alloc::format!("http://127.0.0.1:{}", PORT.fetch_add(1, Ordering::Relaxed));
-  UriString::new(uri)
 }
 
 #[cold]

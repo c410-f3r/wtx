@@ -1,11 +1,11 @@
 use crate::{
   client_api_framework::{
-    dnsn::Deserialize,
     misc::log_res,
     network::transport::Transport,
     pkg::{Package, PkgsAux},
     Api,
   },
+  data_transformation::dnsn::Deserialize,
   misc::Lease,
 };
 use core::ops::Range;
@@ -30,10 +30,10 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
   /// Internally calls [`Self::retrieve`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
-  fn retrieve_and_decode_contained<A, P>(
+  fn retrieve_and_decode_contained<'de, A, P>(
     &mut self,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<Output = Result<P::ExternalResponseContent, A::Error>>
+    pkgs_aux: &'de mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> impl Future<Output = Result<P::ExternalResponseContent<'de>, A::Error>>
   where
     A: Api,
     P: Package<A, DRSR, Self::Params>,
@@ -41,12 +41,10 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
     async {
       let range = self.retrieve(pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      let rslt = P::ExternalResponseContent::from_bytes(
+      Ok(P::ExternalResponseContent::from_bytes(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,
-      )?;
-      pkgs_aux.byte_buffer.clear();
-      Ok(rslt)
+      )?)
     }
   }
 }

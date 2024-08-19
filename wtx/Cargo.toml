@@ -17,7 +17,7 @@ hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 memchr = { default-features = false, optional = true, version = "2.0" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-protobuf = { default-features = false, optional = true, version = "3.0" }
+quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
@@ -28,7 +28,6 @@ serde = { default-features = false, features = ["alloc", "derive"], optional = t
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 sha1 = { default-features = false, optional = true, version = "0.10" }
 sha2 = { default-features = false, optional = true, version = "0.10" }
-simd-json = { default-features = false, features = ["serde_impl"], optional = true, version = "0.11" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
 test-strategy = { default-features = false, optional = true, version = "0.4" }
 tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
@@ -51,8 +50,9 @@ base64 = ["dep:base64"]
 borsh = ["dep:borsh", "std"]
 chrono = ["dep:chrono"]
 cl-aux = ["dep:cl-aux"]
-client-api-framework = ["cl-aux"]
+client-api-framework = ["cl-aux", "data-transformation"]
 crypto-common = ["dep:crypto-common"]
+data-transformation = []
 database = []
 default = []
 digest = ["dep:digest"]
@@ -60,16 +60,18 @@ fastrand = ["dep:fastrand"]
 flate2 = ["dep:flate2"]
 hashbrown = ["dep:hashbrown"]
 hmac = ["dep:hmac"]
+grpc = ["data-transformation", "http-client-framework", "http-server-framework"]
+http = []
 http-client-framework = ["http2", "pool", "std"]
 http-server-framework = ["http2", "tokio"]
-http2 = ["ahash", "hashbrown"]
+http2 = ["ahash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
 memchr = ["dep:memchr"]
 optimization = ["atoi", "memchr", "simdutf8"]
 pool = []
 postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "sha2"]
 proptest = ["dep:proptest"]
-protobuf = ["dep:protobuf", "std"]
+quick-protobuf = ["dep:quick-protobuf", "std"]
 rand = ["dep:rand"]
 ring = ["dep:ring"]
 rkyv = ["dep:rkyv"]
@@ -80,7 +82,6 @@ serde = ["cl-aux?/serde", "dep:serde"]
 serde_json = ["serde", "dep:serde_json", "std"]
 sha1 = ["dep:sha1"]
 sha2 = ["dep:sha2"]
-simd-json = ["serde", "dep:simd-json", "std"]
 simdutf8 = ["dep:simdutf8"]
 std = ["ahash?/std", "atoi?/std", "cl-aux?/std", "memchr?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
 test-strategy = ["dep:test-strategy", "proptest", "std"]
@@ -88,16 +89,15 @@ tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "dep:rustls-pemfile", "dep:rustls-pki-types", "tokio", "dep:tokio-rustls"]
 tracing = ["dep:tracing"]
 tracing-subscriber = ["dep:tracing-subscriber"]
-web-socket = []
+web-socket = ["http"]
 web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 webpki-roots = ["dep:webpki-roots"]
 x509-certificate = ["dep:x509-certificate"]
 
 _bench = []
-_hack = ["rkyv?/size_32", "simd-json?/allow-non-simd"]
+_hack = ["rkyv?/size_32"]
 _integration-tests = ["serde_json?/raw_value"]
 _proptest = ["proptest/std", "rust_decimal?/proptest", "std", "test-strategy"]
-_tokio-rustls-client = ["tokio-rustls/tls12", "webpki-roots"]
 _tracing-tree = ["tracing", "tracing-subscriber", "dep:tracing-tree"]
 
 [package]

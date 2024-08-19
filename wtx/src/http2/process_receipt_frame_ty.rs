@@ -45,9 +45,8 @@ where
           Http2ErrorCode::StreamClosed,
           Some(Http2Error::UnknownDataStreamReceiver),
         ));
-      } else {
-        return Err(protocol_err(Http2Error::UnknownDataStreamReceiver));
       }
+      return Err(protocol_err(Http2Error::UnknownDataStreamReceiver));
     };
     if elem.stream_state.recv_eos() {
       return Err(crate::Error::Http2ErrorGoAway(
@@ -64,7 +63,7 @@ where
     };
     elem.body_len = local_body_len;
     let (df, body_bytes) = DataFrame::read(self.pfb._current(), self.fi)?;
-    elem.rrb.lease_mut().extend_body(body_bytes)?;
+    elem.rrb.lease_mut().data.extend_from_slice(body_bytes)?;
     WindowsPair::new(self.conn_windows, &mut elem.windows)
       .withdrawn_recv(
         self.hp,
@@ -124,7 +123,7 @@ where
 
   #[inline]
   pub(crate) async fn header_server_init(
-    mut self,
+    self,
     initial_server_header_params: &mut VecDeque<(Method, U31)>,
     mut rrb: RRB,
     sorp: &mut Sorp<RRB>,
@@ -137,15 +136,15 @@ where
     }
     *self.recv_streams_num = self.recv_streams_num.wrapping_add(1);
     *self.last_stream_id = self.fi.stream_id;
-    rrb.lease_mut().headers_mut().set_max_bytes(*Usize::from(self.hp.max_headers_len()));
+    rrb.lease_mut().headers.set_max_bytes(*Usize::from(self.hp.max_headers_len()));
     let (content_length, has_eos, method) = read_header_and_continuations::<_, _, false, false>(
       self.fi,
       self.hp,
-      &mut self.hpack_dec,
-      &mut self.pfb,
+      self.hpack_dec,
+      self.pfb,
       rrb.lease_mut(),
       self.stream_reader,
-      &mut self.uri_buffer,
+      self.uri_buffer,
       |hf| hf.hsreqh().method.ok_or_else(|| HttpError::MissingRequestMethod.into()),
     )
     .await?;

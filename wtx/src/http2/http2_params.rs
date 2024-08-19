@@ -27,6 +27,7 @@ impl Http2Params {
   /// current time this parameter has no effect.
   ///
   /// Corresponds to `SETTINGS_ENABLE_CONNECT_PROTOCOL`. Defaults to `false`.
+  #[inline]
   pub const fn enable_connect_protocol(&self) -> bool {
     self.enable_connect_protocol
   }
@@ -39,6 +40,7 @@ impl Http2Params {
   /// to
   #[doc = concat!(initial_window_len!())]
   /// bytes.
+  #[inline]
   pub const fn initial_window_len(&self) -> u32 {
     self.initial_window_len.u32()
   }
@@ -50,6 +52,7 @@ impl Http2Params {
   /// Defaults to
   #[doc = concat!(max_body_len!())]
   /// bytes.
+  #[inline]
   pub const fn max_body_len(&self) -> u32 {
     self.max_body_len
   }
@@ -59,6 +62,7 @@ impl Http2Params {
   /// Corresponds to `SETTINGS_MAX_CONCURRENT_STREAMS`. Defaults to
   #[doc = concat!(max_concurrent_streams_num!())]
   /// streams
+  #[inline]
   pub const fn max_concurrent_streams_num(&self) -> u32 {
     self.max_concurrent_streams_num
   }
@@ -71,6 +75,7 @@ impl Http2Params {
   /// Corresponds to `SETTINGS_MAX_HEADER_LIST_SIZE`. Defaults to
   #[doc = concat!(max_headers_len!())]
   /// bytes.
+  #[inline]
   pub const fn max_headers_len(&self) -> u32 {
     self.max_headers_len
   }
@@ -88,6 +93,7 @@ impl Http2Params {
   /// Corresponds to `SETTINGS_HEADER_TABLE_SIZE`. Defaults to
   #[doc = concat!(max_hpack_len!())]
   /// bytes.
+  #[inline]
   pub const fn max_hpack_len(&self) -> (u32, u32) {
     self.max_hpack_len
   }
@@ -103,6 +109,7 @@ impl Http2Params {
   /// bytes. Defaults to
   #[doc = concat!(max_frame_len!())]
   /// bytes.
+  #[inline]
   pub const fn max_frame_len(&self) -> u32 {
     self.max_frame_len
   }
@@ -114,6 +121,7 @@ impl Http2Params {
   /// Defaults to
   #[doc = concat!(max_recv_streams_num!())]
   /// streams
+  #[inline]
   pub const fn max_recv_streams_num(&self) -> u32 {
     self.max_recv_streams_num
   }
@@ -125,53 +133,70 @@ impl Http2Params {
   /// Defaults to
   #[doc = concat!(read_buffer_len!())]
   /// streams
+  #[inline]
   pub const fn read_buffer_len(&self) -> u32 {
     self.read_buffer_len
   }
 
   /// Mutable version of [`Self::initial_window_len`].
+  #[inline]
+  #[must_use]
   pub fn set_initial_window_len(mut self, value: u32) -> Self {
     self.initial_window_len = U31::from_u32(value);
     self
   }
 
   /// Mutable version of [`Self::max_body_len`].
+  #[inline]
+  #[must_use]
   pub fn set_max_body_len(mut self, value: u32) -> Self {
     self.max_body_len = value;
     self
   }
 
   /// Mutable version of [`Self::max_concurrent_streams_num`].
+  #[inline]
+  #[must_use]
   pub fn set_max_concurrent_streams_num(mut self, value: u32) -> Self {
     self.max_concurrent_streams_num = value;
     self
   }
 
   /// Mutable version of [`Self::max_headers_len`].
+  #[inline]
+  #[must_use]
   pub fn set_max_headers_len(mut self, value: u32) -> Self {
     self.max_headers_len = value;
     self
   }
 
   /// Mutable version of [`Self::max_hpack_len`].
+  #[inline]
+  #[must_use]
   pub fn set_max_hpack_len(mut self, value: (u32, u32)) -> Self {
     self.max_hpack_len = value;
     self
   }
 
   /// Mutable version of [`Self::max_frame_len`].
+  #[inline]
+  #[must_use]
   pub fn set_max_frame_len(mut self, value: u32) -> Self {
     self.max_frame_len = value.clamp(MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND);
     self
   }
 
   /// Mutable version of [`Self::max_recv_streams_num`].
+  #[inline]
+  #[must_use]
   pub fn set_max_recv_streams_num(mut self, value: u32) -> Self {
     self.max_recv_streams_num = value;
     self
   }
 
   /// Mutable version of [`Self::read_buffer_len`].
+  #[inline]
+  #[must_use]
   pub fn set_read_buffer_len(mut self, value: u32) -> Self {
     self.read_buffer_len = value;
     self
@@ -190,6 +215,7 @@ impl Http2Params {
 }
 
 impl Default for Http2Params {
+  #[inline]
   fn default() -> Self {
     Self {
       enable_connect_protocol: false,

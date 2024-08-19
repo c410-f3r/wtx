@@ -59,7 +59,7 @@ impl SirAuxItemValues {
         /// Final building method that creates a package with all the necessary values.
         pub fn #fn_ident(self) -> #pkg_ident<
           #(#fpiv_params_iter,)*
-          wtx::client_api_framework::data_format::#wrapper_ident<#freqdiv_ident<#freqdiv_params>>
+          wtx::data_transformation::format::#wrapper_ident<#freqdiv_ident<#freqdiv_params>>
         > {
           let data = self.data;
           let content = self.aux.#aux_call;

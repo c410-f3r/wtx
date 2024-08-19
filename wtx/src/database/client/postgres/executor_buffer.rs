@@ -3,8 +3,7 @@ use crate::{
     client::postgres::{ty::Ty, Statements},
     Identifier,
   },
-  misc::{Lease, LeaseMut, PartitionedFilledBuffer, Vector},
-  rng::Rng,
+  misc::{Lease, LeaseMut, PartitionedFilledBuffer, Rng, Vector},
 };
 use core::ops::Range;
 use hashbrown::HashMap;

@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package wtx;
+
+service GenericService {
+  rpc generic_method (GenericRequest) returns (GenericResponse) {}
+}
+
+message GenericRequest {
+  bytes generic_request_field0 = 1;
+  uint32 generic_request_field1 = 2;
+}
+
+message GenericResponse {
+  bytes generic_response_field0 = 1;
+  uint32 generic_response_field1 = 2;
+}

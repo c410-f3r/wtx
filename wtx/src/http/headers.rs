@@ -44,12 +44,6 @@ impl Headers {
     self.ab.headers_len()
   }
 
-  /// Returns the first header, if any.
-  #[inline]
-  pub fn first(&self) -> Option<Header<'_>> {
-    self.ab.first().map(Self::map)
-  }
-
   /// Returns the header's pair referenced by its index, if any.
   #[inline]
   pub fn get_by_idx(&self, idx: usize) -> Option<Header<'_>> {

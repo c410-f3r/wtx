@@ -2,8 +2,7 @@
 
 use tokio::net::TcpStream;
 use wtx::{
-  misc::UriRef,
-  rng::StdRng,
+  misc::{StdRng, UriRef},
   web_socket::{
     compression::Flate2, CloseCode, FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode,
     WebSocketBuffer, WebSocketClient,

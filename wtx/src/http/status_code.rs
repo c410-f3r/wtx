@@ -1,4 +1,4 @@
-create_enum! {
+_create_enum! {
   /// HTTP status codes.
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum StatusCode<u16> {

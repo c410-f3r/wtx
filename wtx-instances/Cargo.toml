@@ -3,53 +3,88 @@ cargo-features = ["edition2024"]
 # Examples
 
 [[example]]
-name = "database-client-postgres-tokio-rustls"
-path = "examples/database-client-postgres-tokio-rustls.rs"
-required-features = ["wtx/_tokio-rustls-client", "wtx/postgres"]
+name = "client-api-framework"
+path = "examples/client-api-framework.rs"
+required-features = ["wtx/client-api-framework", "wtx/tokio", "wtx/web-socket-handshake"]
 
 [[example]]
-name = "http-client-framework"
-path = "examples/http-client-framework.rs"
-required-features = ["wtx/http-client-framework", "wtx/tokio-rustls", "wtx/webpki-roots"]
+name = "database-client-postgres-tokio"
+path = "examples/database-client-postgres-tokio.rs"
+required-features = ["wtx/postgres", "wtx/tokio"]
 
 [[example]]
-name = "http-server-framework"
-path = "examples/http-server-framework.rs"
-required-features = ["wtx/http-server-framework", "wtx/pool", "wtx/postgres", "wtx/serde", "wtx/simd-json"]
+name = "grpc-client-tokio"
+path = "examples/grpc-client-tokio.rs"
+required-features = ["wtx/grpc", "wtx/quick-protobuf", "wtx/tokio"]
 
 [[example]]
-name = "web-socket-client-raw-tokio-rustls"
-path = "examples/web-socket-client-raw-tokio-rustls.rs"
-required-features = ["wtx/_tokio-rustls-client", "wtx/tokio", "wtx/web-socket-handshake"]
+name = "grpc-server-tokio-rustls"
+path = "examples/grpc-server-tokio-rustls.rs"
+required-features = ["wtx/grpc", "wtx/quick-protobuf", "wtx/tokio-rustls", "wtx/webpki-roots"]
 
 [[example]]
-name = "web-socket-server-raw-tokio-rustls"
-path = "examples/web-socket-server-raw-tokio-rustls.rs"
+name = "http-client-framework-tokio"
+path = "examples/http-client-framework-tokio.rs"
+required-features = ["wtx/http-client-framework", "wtx/tokio"]
+
+[[example]]
+name = "http-server-framework-tokio"
+path = "examples/http-server-framework-tokio.rs"
+required-features = ["wtx/http-server-framework", "wtx/pool", "wtx/postgres", "wtx/serde", "wtx/serde_json"]
+
+[[example]]
+name = "http2-client-tokio"
+path = "examples/http2-client-tokio.rs"
+required-features = ["wtx/http2", "wtx/tokio"]
+
+[[example]]
+name = "http2-server-tokio-rustls"
+path = "examples/http2-server-tokio-rustls.rs"
+required-features = ["wtx/http2", "wtx/tokio-rustls"]
+
+[[example]]
+name = "pool"
+path = "examples/pool.rs"
+required-features = ["wtx/pool"]
+
+[[example]]
+name = "web-socket-client-tokio"
+path = "examples/web-socket-client-tokio.rs"
+required-features = ["wtx/tokio", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+
+[[example]]
+name = "web-socket-server-tokio-rustls"
+path = "examples/web-socket-server-tokio-rustls.rs"
 required-features = ["wtx/pool", "wtx/tokio-rustls", "wtx/web-socket-handshake"]
 
 # Fulfillments
 
-[[bin]]
+[[example]]
 name = "autobahn-client"
 path = "fulfillments/autobahn-client.rs"
 required-features = ["wtx/flate2", "wtx/optimization", "wtx/tokio", "wtx/web-socket-handshake"]
 
-[[bin]]
+[[example]]
 name = "autobahn-server"
 path = "fulfillments/autobahn-server.rs"
 required-features = ["wtx/flate2", "wtx/optimization", "wtx/pool", "wtx/tokio", "wtx/web-socket-handshake"]
 
-[[bin]]
+[[example]]
 name = "h2spec-server"
 path = "fulfillments/h2spec-server.rs"
 required-features = ["wtx/http2", "wtx/tokio"]
 
+[build-dependencies]
+pb-rs = { default-features = false, version = "0.10" }
+
 [dependencies]
+quick-protobuf = { default-features = false, version = "0.8" }
 serde = { default-features = false, version = "1.0" }
-serde_json = { default-features = false,  features = ["alloc"], version = "1.0" }
+serde_json = { default-features = false, features = ["alloc"], version = "1.0" }
 tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.0" }
 tokio-rustls = { default-features = false, version = "0.26" }
-wtx = { default-features = false, path = "../wtx" }
+wtx = { default-features = false, features = ["grpc"], path = "../wtx" }
+wtx-macros = { default-features = false, path = "../wtx-macros" }
 
 [features]
 _tracing-tree = ["wtx/_tracing-tree"]

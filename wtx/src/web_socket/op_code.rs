@@ -1,4 +1,4 @@
-create_enum! {
+_create_enum! {
   /// Defines how to interpret the payload data.
   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]

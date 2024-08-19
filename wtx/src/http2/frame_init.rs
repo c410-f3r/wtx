@@ -1,6 +1,6 @@
 use crate::http2::{CommonFlags, U31};
 
-create_enum! {
+_create_enum! {
   #[derive(Debug, Copy, Clone, PartialEq, Eq)]
   pub(crate) enum FrameInitTy<u8> {
     Data = (0),
@@ -16,7 +16,7 @@ create_enum! {
 
 impl FrameInitTy {
   #[inline]
-  pub(crate) const fn byte(&self) -> u8 {
+  pub(crate) const fn byte(self) -> u8 {
     match self {
       Self::Data => 0,
       Self::Headers => 1,

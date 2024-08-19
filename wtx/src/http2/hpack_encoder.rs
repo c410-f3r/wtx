@@ -11,8 +11,7 @@
 use crate::{
   http::{AbstractHeaders, Header, KnownHeaderName, Method, StatusCode},
   http2::{hpack_header::HpackHeaderBasic, huffman_encode, misc::protocol_err, Http2Error},
-  misc::{Usize, Vector, _random_state, _shift_copyable_chunks, _unreachable},
-  rng::Rng,
+  misc::{Rng, Usize, Vector, _random_state, _shift_copyable_chunks, _unreachable},
 };
 use ahash::RandomState;
 use core::{
@@ -78,7 +77,7 @@ impl HpackEncoder {
     self.manage_size_update(buffer)?;
     for (hhb, value) in pseudo_headers {
       let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)))?;
-      self.manage_encode(buffer, (&[], value), idx)?;
+      Self::manage_encode(buffer, (&[], value), idx)?;
     }
     for Header { is_sensitive, name, value, .. } in user_headers {
       let idx = self.encode_idx(
@@ -86,7 +85,7 @@ impl HpackEncoder {
         HpackHeaderBasic::Field,
         Self::shi_user((name, value)),
       )?;
-      self.manage_encode(buffer, (name, value), idx)?;
+      Self::manage_encode(buffer, (name, value), idx)?;
     }
     Ok(())
   }
@@ -95,13 +94,13 @@ impl HpackEncoder {
   #[inline]
   pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u32) -> crate::Result<()> {
     if max_dyn_sub_bytes > self.max_dyn_super_bytes {
-      return Err(crate::Error::MISC_UnboundedNumber {
+      return Err(crate::Error::UnboundedNumber {
         expected: 0..=self.max_dyn_super_bytes,
         received: max_dyn_sub_bytes,
       });
     }
     match self.max_dyn_sub_bytes {
-      Some((lower, None)) | Some((lower, Some(_))) => {
+      Some((lower, None | Some(_))) => {
         if max_dyn_sub_bytes > lower {
           self.max_dyn_sub_bytes = Some((lower, Some(max_dyn_sub_bytes)));
         } else {
@@ -150,7 +149,7 @@ impl HpackEncoder {
     let pair_hash = pair_hasher.finish();
 
     if let (false, Some(pair_idx)) = (should_not_index, self.indcs.get(&pair_hash).copied()) {
-      return Ok(EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(pair_idx)));
+      return Ok(EncodeIdx::RefNameRefValue(self.idx_to_encode_idx(pair_idx)));
     }
 
     let name_hash = name_hasher.finish();
@@ -160,13 +159,13 @@ impl HpackEncoder {
       (false, Some(name_idx)) => {
         return self.store_header_with_ref_name::<false>(
           (name, value, is_sensitive),
-          self.from_indcs_to_encode_idx(name_idx),
+          self.idx_to_encode_idx(name_idx),
           pair_hash,
         );
       }
       (true, None) => return Ok(EncodeIdx::UnsavedNameUnsavedValue),
       (true, Some(name_idx)) => {
-        return Ok(EncodeIdx::RefNameUnsavedValue(self.from_indcs_to_encode_idx(name_idx)))
+        return Ok(EncodeIdx::RefNameUnsavedValue(self.idx_to_encode_idx(name_idx)))
       }
     }
 
@@ -187,7 +186,7 @@ impl HpackEncoder {
     let (name, value, is_sensitive) = header;
     let pair_hash = self.rs.hash_one((name, value));
     if let Some(common_idx) = self.indcs.get(&pair_hash).copied() {
-      return Ok(EncodeIdx::RefNameRefValue(self.from_indcs_to_encode_idx(common_idx)));
+      return Ok(EncodeIdx::RefNameRefValue(self.idx_to_encode_idx(common_idx)));
     }
     self.store_header_with_ref_name::<true>((name, value, is_sensitive), name_idx, pair_hash)
   }
@@ -219,11 +218,16 @@ impl HpackEncoder {
 
   #[inline]
   fn encode_int(buffer: &mut Vector<u8>, first_byte: u8, mut n: u32) -> crate::Result<u8> {
+    #[inline]
+    fn last_byte(n: u32) -> u8 {
+      n.to_be_bytes()[3]
+    }
+
     let mask = first_byte.wrapping_sub(1);
     buffer.reserve(4)?;
 
     if n < u32::from(mask) {
-      buffer.push(first_byte | n as u8)?;
+      buffer.push(first_byte | last_byte(n))?;
       return Ok(1);
     }
 
@@ -232,10 +236,10 @@ impl HpackEncoder {
 
     for len in 2..5 {
       if n <= 127 {
-        buffer.push(n as u8)?;
+        buffer.push(last_byte(n))?;
         return Ok(len);
       }
-      buffer.push(0b1000_0000 | n as u8)?;
+      buffer.push(0b1000_0000 | last_byte(n))?;
       n >>= 7;
     }
 
@@ -343,21 +347,20 @@ impl HpackEncoder {
   }
 
   #[inline]
-  fn from_indcs_to_encode_idx(&self, idx: u32) -> u32 {
+  fn idx_to_encode_idx(&self, idx: u32) -> u32 {
     self.idx.wrapping_sub(idx).wrapping_add(DYN_IDX_OFFSET)
   }
 
   #[inline]
   fn manage_encode(
-    &mut self,
     buffer: &mut Vector<u8>,
     header: (&[u8], &[u8]),
     idx: EncodeIdx,
   ) -> crate::Result<()> {
     let (name, value) = header;
     match idx {
-      EncodeIdx::RefNameRefValue(idx) => {
-        let _ = Self::encode_int(buffer, 0b1000_0000, idx)?;
+      EncodeIdx::RefNameRefValue(local_idx) => {
+        let _ = Self::encode_int(buffer, 0b1000_0000, local_idx)?;
       }
       EncodeIdx::RefNameSavedValue(name_idx) => {
         let _ = Self::encode_int(buffer, 0b0100_0000, name_idx)?;
@@ -434,7 +437,6 @@ impl HpackEncoder {
   fn shi_pseudo((hhb, value): (HpackHeaderBasic, &[u8])) -> Option<StaticHeader> {
     let (has_value, idx, name): (_, _, &[u8]) = match hhb {
       HpackHeaderBasic::Authority => (false, 1, b":authority"),
-      HpackHeaderBasic::Field => return None,
       HpackHeaderBasic::Method(method) => {
         let name = b":method";
         let (has_value, idx) = match method {
@@ -453,7 +455,6 @@ impl HpackEncoder {
         };
         (has_value, idx, name)
       }
-      HpackHeaderBasic::Protocol(_) => return None,
       HpackHeaderBasic::Scheme => {
         let name = b":path";
         let (has_value, idx) = match value {
@@ -477,13 +478,14 @@ impl HpackEncoder {
         };
         (has_value, idx, name)
       }
+      HpackHeaderBasic::Field | HpackHeaderBasic::Protocol(_) => return None,
     };
     Some(StaticHeader { has_value, idx, name })
   }
 
   #[inline]
   fn shi_user((name, value): (&[u8], &[u8])) -> Option<StaticHeader> {
-    let (has_value, idx, name) = match KnownHeaderName::try_from(name) {
+    let (has_value, idx, local_name) = match KnownHeaderName::try_from(name) {
       Ok(KnownHeaderName::AcceptCharset) => (false, 15, KnownHeaderName::AcceptCharset.into()),
       Ok(KnownHeaderName::AcceptEncoding) => {
         if value == b"gzip, deflate" {
@@ -553,7 +555,7 @@ impl HpackEncoder {
       Ok(KnownHeaderName::WwwAuthenticate) => (false, 61, KnownHeaderName::WwwAuthenticate.into()),
       _ => return None,
     };
-    Some(StaticHeader { has_value, idx, name })
+    Some(StaticHeader { has_value, idx, name: local_name })
   }
 
   #[inline]
@@ -597,12 +599,12 @@ impl HpackEncoder {
   }
 }
 
-/// https://datatracker.ietf.org/doc/html/rfc7541#section-6.2
+/// <https://datatracker.ietf.org/doc/html/rfc7541#section-6.2>
 ///
 /// Elements already stored (Ref) are encoded using their referenced indexes. Elements that were
 /// recently stored (Saved) or must not be stored (Unsaved) are encoded using their literal
 /// contents (Literal).
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum EncodeIdx {
   /// Both elements are already stored and the common referenced index is used for encoding.
   RefNameRefValue(u32),
@@ -642,8 +644,7 @@ struct StaticHeader {
 mod bench {
   use crate::{
     http2::HpackEncoder,
-    misc::{Usize, Vector},
-    rng::NoStdRng,
+    misc::{NoStdRng, Usize, Vector},
   };
 
   #[bench]

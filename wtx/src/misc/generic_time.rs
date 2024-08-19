@@ -29,14 +29,11 @@ impl GenericTime {
   pub fn duration_since(&self, _earlier: Self) -> crate::Result<Duration> {
     #[cfg(feature = "std")]
     {
-      self
-        .inner
-        .duration_since(_earlier.inner)
-        .map_err(|_err| crate::Error::MISC_InvalidHardwareTime)
+      self.inner.duration_since(_earlier.inner).map_err(|_err| crate::Error::InvalidHardwareTime)
     }
     #[cfg(not(feature = "std"))]
     {
-      Err(crate::Error::MISC_GenericTimeNeedsBackend)
+      Err(crate::Error::GenericTimeNeedsBackend)
     }
   }
 
@@ -55,7 +52,7 @@ impl GenericTime {
     }
     #[cfg(not(feature = "std"))]
     {
-      Err(crate::Error::MISC_GenericTimeNeedsBackend)
+      Err(crate::Error::GenericTimeNeedsBackend)
     }
   }
 }

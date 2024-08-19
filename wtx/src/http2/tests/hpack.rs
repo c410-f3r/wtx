@@ -1,8 +1,7 @@
 use crate::{
   http::StatusCode,
   http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_HPACK_LEN},
-  misc::{from_utf8_basic, Vector},
-  rng::NoStdRng,
+  misc::{from_utf8_basic, NoStdRng, Vector},
 };
 use alloc::{string::String, vec::Vec};
 use core::{fmt::Formatter, marker::PhantomData};

@@ -1,4 +1,4 @@
-create_enum! {
+_create_enum! {
   /// Migration repeatability
   #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
   pub enum Repeatability<u8> {

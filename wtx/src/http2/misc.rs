@@ -24,7 +24,7 @@ pub(crate) fn check_content_length<RRB>(
 where
   RRB: LeaseMut<ReqResBuffer>,
 {
-  if sorp.rrb.lease().body().len() != content_length {
+  if sorp.rrb.lease().data.len() != content_length {
     return Err(protocol_err(Http2Error::InvalidHeaderData));
   }
   Ok(())
@@ -43,7 +43,7 @@ where
     return false;
   }
   rrb.lease_mut().clear();
-  rrb.lease_mut().headers_mut().set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
+  rrb.lease_mut().headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
   true
 }
 
@@ -52,7 +52,7 @@ pub(crate) fn manage_recurrent_stream_receiving<RRB, SW, T>(
   cx: &mut Context<'_>,
   mut hdpm: Http2DataPartsMut<'_, RRB, SW>,
   is_conn_open: &AtomicBool,
-  stream_id: &U31,
+  stream_id: U31,
   cb: impl FnOnce(
     &mut Context<'_>,
     &mut Http2DataPartsMut<'_, RRB, SW>,
@@ -62,19 +62,32 @@ pub(crate) fn manage_recurrent_stream_receiving<RRB, SW, T>(
 where
   RRB: LeaseMut<ReqResBuffer>,
 {
-  let Some(sorp) = hdpm.hb.sorp.get_mut(stream_id) else {
+  let Some(sorp) = hdpm.hb.sorp.get_mut(&stream_id) else {
     return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
   };
   'block: {
     let rrb_opt = match (is_conn_open.load(Ordering::Relaxed), sorp.is_stream_open) {
       (false, false) => {
-        let _opt = hdpm.hb.scrp.remove(stream_id);
-        hdpm.hb.sorp.remove(stream_id).map(|el| el.rrb)
+        if let Some(elem) = hdpm.hb.scrp.remove(&stream_id) {
+          elem.waker.wake();
+        }
+        hdpm.hb.sorp.remove(&stream_id).map(|el| {
+          el.waker.wake();
+          el.rrb
+        })
       }
-      (false, true) => hdpm.hb.sorp.remove(stream_id).map(|el| el.rrb),
+      (false, true) => hdpm.hb.sorp.remove(&stream_id).map(|el| {
+        el.waker.wake();
+        el.rrb
+      }),
       (true, false) => {
-        let _opt = hdpm.hb.scrp.remove(stream_id);
-        hdpm.hb.sorp.remove(stream_id).map(|el| el.rrb)
+        if let Some(elem) = hdpm.hb.scrp.remove(&stream_id) {
+          elem.waker.wake();
+        }
+        hdpm.hb.sorp.remove(&stream_id).map(|el| {
+          el.waker.wake();
+          el.rrb
+        })
       }
       (true, true) => {
         break 'block;
@@ -82,17 +95,16 @@ where
     };
     if let Some(elem) = rrb_opt {
       return Poll::Ready(Ok(Either::Left(elem)));
-    } else {
-      return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
     }
+    return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
   }
   if sorp.stream_state.recv_eos() {
-    if let Some(sorp) = hdpm.hb.sorp.remove(stream_id) {
-      if let Some(idx) = sorp.content_length {
-        check_content_length(idx, &sorp)?;
+    if let Some(elem) = hdpm.hb.sorp.remove(&stream_id) {
+      if let Some(idx) = elem.content_length {
+        check_content_length(idx, &elem)?;
       }
-      let rslt = cb(cx, &mut hdpm, &sorp);
-      return Poll::Ready(Ok(Either::Right((sorp.rrb, rslt))));
+      let rslt = cb(cx, &mut hdpm, &elem);
+      return Poll::Ready(Ok(Either::Right((elem.rrb, rslt))));
     }
   } else {
     sorp.waker.clone_from(cx.waker());
@@ -189,7 +201,7 @@ where
       );
     }
     if !is_fulfilled {
-      return Err(crate::Error::MISC_UnexpectedBufferState);
+      return Err(crate::Error::UnexpectedBufferState);
     }
     pfb._set_indices(
       pfb._current_end_idx().wrapping_add(9),
@@ -252,14 +264,12 @@ where
       }
       FrameInitTy::WindowUpdate if fi.stream_id.is_zero() => {
         let wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
-        let mut lock = hd.lock().await;
-        let hdpm = lock.parts_mut();
-        hdpm.windows.send.deposit(None, wuf.size_increment().i32())?;
+        hd.lock().await.parts_mut().windows.send.deposit(None, wuf.size_increment().i32())?;
         continue;
       }
       _ => {
         if fi.stream_id.is_zero() {
-          return Err(protocol_err(Http2Error::FrameIsZeroButShouldNot));
+          return Err(protocol_err(Http2Error::FrameIdIsZeroButShouldNot));
         }
       }
     }
@@ -291,7 +301,12 @@ where
     return Err(protocol_err(Http2Error::MissingEOSInTrailer));
   }
 
-  rrb.clear();
+  let rrb_body_start = if IS_TRAILER {
+    rrb.data.len()
+  } else {
+    rrb.clear();
+    0
+  };
 
   if fi.cf.has_eoh() {
     let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
@@ -299,7 +314,7 @@ where
       fi,
       hp,
       hpack_dec,
-      rrb,
+      (rrb, rrb_body_start),
       uri_buffer,
     )?;
 
@@ -312,7 +327,7 @@ where
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
-  rrb.extend_body(pfb._current())?;
+  rrb.data.extend_from_slice(pfb._current())?;
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
@@ -322,7 +337,7 @@ where
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      rrb.extend_body(pfb._current())?;
+      rrb.data.extend_from_slice(pfb._current())?;
       if frame_fi.cf.has_eoh() {
         break 'continuation_frames;
       }
@@ -330,9 +345,19 @@ where
     return Err(protocol_err(Http2Error::VeryLargeAmountOfContinuationFrames));
   }
 
-  let (content_length, hf) =
-    HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(None, fi, hp, hpack_dec, rrb, uri_buffer)?;
-  rrb.clear_body();
+  let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
+    None,
+    fi,
+    hp,
+    hpack_dec,
+    (rrb, rrb_body_start),
+    uri_buffer,
+  )?;
+  if IS_TRAILER {
+    rrb.data.truncate(rrb_body_start);
+  } else {
+    rrb.clear();
+  }
   if hf.is_over_size() {
     return Err(crate::Error::Http2ErrorGoAway(
       Http2ErrorCode::FrameSizeError,
@@ -352,7 +377,7 @@ pub(crate) async fn send_go_away<SW, RRB>(
   hdpm.hb.is_conn_open.store(false, Ordering::Relaxed);
   let gaf = GoAwayFrame::new(error_code, *hdpm.last_stream_id);
   let _rslt = hdpm.stream_writer.write_all(&gaf.bytes()).await;
-  for (_, waker) in hdpm.hb.initial_server_header_buffers.iter() {
+  for (_, waker) in &hdpm.hb.initial_server_header_buffers {
     waker.wake_by_ref();
   }
   for scrp in hdpm.hb.scrp.values() {
@@ -376,17 +401,17 @@ where
 {
   let mut has_stored = false;
   let _rslt = stream_writer.write_all(&ResetStreamFrame::new(error_code, stream_id).bytes()).await;
-  if let Some(scrp) = scrp.get_mut(&stream_id) {
+  if let Some(elem) = scrp.get_mut(&stream_id) {
     has_stored = true;
-    scrp.is_stream_open = false;
-    scrp.stream_state = StreamState::Closed;
-    scrp.waker.wake_by_ref();
+    elem.is_stream_open = false;
+    elem.stream_state = StreamState::Closed;
+    elem.waker.wake_by_ref();
   }
-  if let Some(sorp) = sorp.get_mut(&stream_id) {
+  if let Some(elem) = sorp.get_mut(&stream_id) {
     has_stored = true;
-    sorp.is_stream_open = false;
-    sorp.stream_state = StreamState::Closed;
-    sorp.waker.wake_by_ref();
+    elem.is_stream_open = false;
+    elem.stream_state = StreamState::Closed;
+    elem.waker.wake_by_ref();
   }
   has_stored
 }
@@ -430,17 +455,27 @@ where
     return Ok(());
   }
   _trace!("Sending frame(s): {:?}", {
-    let mut is_prev_init = false;
-    let mut rslt = [None; N];
-    for (elem, frame) in rslt.iter_mut().zip(array.iter()) {
-      if let ([a, b, c, d, e, f, g, h, i], false) = (frame, is_prev_init) {
-        if let (Some(frame_init), _) = FrameInit::from_array([*a, *b, *c, *d, *e, *f, *g, *h, *i]) {
-          is_prev_init = true;
-          *elem = Some(frame_init);
-        }
-      } else {
-        is_prev_init = false;
+    let process = |elem: &mut Option<_>, frame: &[u8]| {
+      let [a, b, c, d, e, f, g, h, i, rest @ ..] = frame else {
+        return;
+      };
+      if rest.len() > 36 {
+        return;
       }
+      let (Some(fi), _) = FrameInit::from_array([*a, *b, *c, *d, *e, *f, *g, *h, *i]) else {
+        return;
+      };
+      *elem = Some(fi);
+    };
+    let mut rslt = [None; N];
+    let mut iter = rslt.iter_mut().zip(array.iter());
+    if let Some((elem, frame)) = iter.next() {
+      if frame != crate::http2::PREFACE {
+        process(elem, frame);
+      }
+    }
+    for (elem, frame) in iter {
+      process(elem, frame);
     }
     rslt
   });

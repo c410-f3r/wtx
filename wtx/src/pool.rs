@@ -4,7 +4,7 @@ mod resource_manager;
 #[cfg(feature = "std")]
 mod simple_pool;
 
-#[cfg(feature = "database")]
+#[cfg(feature = "postgres")]
 pub use resource_manager::database::PostgresRM;
 pub use resource_manager::{ResourceManager, SimpleRM};
 #[cfg(feature = "std")]
@@ -32,7 +32,7 @@ pub trait Pool {
   type GetElem<'this>
   where
     Self: 'this;
-  /// See [ResourceManager].
+  /// See [`ResourceManager`].
   type ResourceManager: ResourceManager;
 
   /// Tries to retrieve a free resource.

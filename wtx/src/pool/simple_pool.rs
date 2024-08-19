@@ -10,7 +10,7 @@ use core::{
 };
 use std::sync::Mutex;
 
-/// A [SimplePool] synchronized by [`tokio::sync::Mutex`].
+/// A [`SimplePool`] synchronized by [`tokio::sync::Mutex`].
 #[cfg(feature = "tokio")]
 pub type SimplePoolTokio<RM> =
   SimplePool<tokio::sync::Mutex<SimplePoolResource<<RM as ResourceManager>::Resource>>, RM>;
@@ -19,6 +19,7 @@ pub type SimplePoolTokio<RM> =
 #[derive(Clone, Debug)]
 pub struct SimplePool<RL, RM> {
   available_idxs: Arc<Mutex<Vec<usize>>>,
+  #[expect(clippy::rc_buffer, reason = "false-positive")]
   locks: Arc<Vec<RL>>,
   rm: Arc<RM>,
   waker: Arc<Mutex<Vec<Waker>>>,
@@ -84,7 +85,7 @@ where
   type GetElem<'this> = SimplePoolGetElem<RL::Guard<'this>>;
   type ResourceManager = RM;
 
-  #[expect(clippy::arithmetic_side_effects, reason = "`locks` will never be zero")]
+  #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
   #[inline]
   async fn get<'this>(
     &'this self,
@@ -108,9 +109,9 @@ where
       None => {
         resource.0 = Some(self.rm.create(ca).await?);
       }
-      Some(resource) => {
-        if self.rm.is_invalid(resource).await {
-          self.rm.recycle(ra, resource).await?;
+      Some(elem) => {
+        if self.rm.is_invalid(elem).await {
+          self.rm.recycle(ra, elem).await?;
         }
       }
     }
@@ -123,7 +124,7 @@ where
   }
 }
 
-/// Controls the guard locks related to [SimplePool].
+/// Controls the guard locks related to [`SimplePool`].
 #[derive(Debug)]
 pub struct SimplePoolGetElem<R> {
   available_idxs: Arc<Mutex<Vec<usize>>>,
@@ -156,22 +157,24 @@ impl<R> DerefMut for SimplePoolGetElem<R> {
 }
 
 impl<R> Drop for SimplePoolGetElem<R> {
+  #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
   #[inline]
   fn drop(&mut self) {
     self.available_idxs.lock().unwrap().push(self.idx);
     for waker in self.waker.lock().unwrap().drain(..) {
-      waker.wake()
+      waker.wake();
     }
   }
 }
 
-/// Resource related to [SimplePool].
+/// Resource related to [`SimplePool`].
 #[derive(Debug, PartialEq)]
 pub struct SimplePoolResource<T>(Option<T>);
 
 impl<R> Deref for SimplePoolResource<R> {
   type Target = R;
 
+  #[expect(clippy::unwrap_used, reason = "public instances always have valid contents")]
   #[inline]
   fn deref(&self) -> &Self::Target {
     self.0.as_ref().unwrap()
@@ -179,6 +182,7 @@ impl<R> Deref for SimplePoolResource<R> {
 }
 
 impl<R> DerefMut for SimplePoolResource<R> {
+  #[expect(clippy::unwrap_used, reason = "public instances always have valid contents")]
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.0.as_mut().unwrap()

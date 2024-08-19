@@ -5,8 +5,7 @@
 
 use tokio::runtime::Builder;
 use wtx::{
-  misc::BytesStream,
-  rng::NoStdRng,
+  misc::{BytesStream, NoStdRng},
   web_socket::{FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketServerOwned},
 };
 

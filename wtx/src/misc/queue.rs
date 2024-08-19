@@ -47,48 +47,50 @@ pub struct Queue<D> {
 }
 
 impl<D> Queue<D> {
+  /// Creates a new empty instance.
   #[inline]
-  pub(crate) const fn new() -> Self {
+  pub const fn new() -> Self {
     Self { data: Vector::new(), head: 0 }
   }
 
+  /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub(crate) fn with_capacity(cap: usize) -> Result<Self, QueueError> {
+  pub fn with_capacity(cap: usize) -> Result<Self, QueueError> {
     Ok(Self {
       data: Vector::with_capacity(cap).map_err(|_err| QueueError::WithCapacityOverflow)?,
       head: 0,
     })
   }
 
+  /// Returns a pair of slices which contain, in order, the contents of the queue.
   #[inline]
-  pub(crate) fn as_slices(&self) -> (&[D], &[D]) {
+  pub fn as_slices(&self) -> (&[D], &[D]) {
     as_slices!(&[][..], as_ptr, slice_from_raw_parts, self, &)
   }
 
+  /// Mutable version of [`Self::as_slices`].
   #[inline]
-  pub(crate) fn as_slices_mut(&mut self) -> (&mut [D], &mut [D]) {
+  pub fn as_slices_mut(&mut self) -> (&mut [D], &mut [D]) {
     as_slices!(&mut [][..], as_mut_ptr, slice_from_raw_parts_mut, self, &mut)
   }
 
+  /// Returns the number of elements the queue can hold without reallocating.
   #[cfg(test)]
   #[inline]
-  pub(crate) fn capacity(&self) -> usize {
+  pub fn capacity(&self) -> usize {
     self.data.capacity()
   }
 
+  /// Clears the queue, removing all values.
   #[inline]
-  pub(crate) fn clear(&mut self) {
+  pub fn clear(&mut self) {
     self.head = 0;
     self.data.clear();
   }
 
+  /// Provides a reference to the element at the given index.
   #[inline]
-  pub(crate) fn first(&self) -> Option<&D> {
-    self.get(0)
-  }
-
-  #[inline]
-  pub(crate) fn get(&self, mut idx: usize) -> Option<&D> {
+  pub fn get(&self, mut idx: usize) -> Option<&D> {
     if idx >= self.data.len() {
       return None;
     }
@@ -99,8 +101,9 @@ impl<D> Queue<D> {
     unsafe { Some(&*rslt) }
   }
 
+  /// Mutable version of [`Self::get`].
   #[inline]
-  pub(crate) fn get_mut(&mut self, mut idx: usize) -> Option<&mut D> {
+  pub fn get_mut(&mut self, mut idx: usize) -> Option<&mut D> {
     if idx >= self.data.len() {
       return None;
     }
@@ -111,30 +114,35 @@ impl<D> Queue<D> {
     unsafe { Some(&mut *rslt) }
   }
 
+  /// Returns a front-to-back iterator.
   #[inline]
-  pub(crate) fn iter(&self) -> impl Iterator<Item = &D> {
+  pub fn iter(&self) -> impl Iterator<Item = &D> {
     let (lhs, rhs) = self.as_slices();
     rhs.iter().chain(lhs)
   }
 
+  /// Mutable version of [`Self::iter`].
   #[inline]
-  pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut D> {
+  pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut D> {
     let (lhs, rhs) = self.as_slices_mut();
     rhs.iter_mut().chain(lhs)
   }
 
+  /// Returns the last element.
   #[inline]
-  pub(crate) fn last(&self) -> Option<&D> {
+  pub fn last(&self) -> Option<&D> {
     self.get(self.len().checked_sub(1)?)
   }
 
+  /// Returns the number of elements.
   #[inline]
-  pub(crate) fn len(&self) -> usize {
+  pub fn len(&self) -> usize {
     self.data.len()
   }
 
+  /// Removes the last element from the queue and returns it, or `None` if it is empty.
   #[inline]
-  pub(crate) fn pop_back(&mut self) -> Option<D> {
+  pub fn pop_back(&mut self) -> Option<D> {
     let new_len = self.data.len().checked_sub(1)?;
     // SAFETY: is within bounds
     unsafe {
@@ -147,8 +155,9 @@ impl<D> Queue<D> {
     unsafe { Some(ptr::read(src)) }
   }
 
+  /// Removes the first element and returns it, or [`Option::None`] if the queue is empty.
   #[inline]
-  pub(crate) fn pop_front(&mut self) -> Option<D> {
+  pub fn pop_front(&mut self) -> Option<D> {
     let new_len = self.data.len().checked_sub(1)?;
     let prev_head = self.head;
     self.head = wrap_add(self.data.capacity(), self.head, 1);
@@ -168,8 +177,9 @@ impl<D> Queue<D>
 where
   D: Copy,
 {
+  /// Prepends an element to the queue.
   #[inline]
-  pub(crate) fn push_front(&mut self, value: D) -> Result<(), QueueError> {
+  pub fn push_front(&mut self, value: D) -> Result<(), QueueError> {
     self.reserve(1).map_err(|_err| QueueError::PushFrontOverflow)?;
     let len = self.data.len();
     self.head = wrap_sub(self.data.capacity(), self.head, 1);
@@ -188,8 +198,9 @@ where
     Ok(())
   }
 
+  /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
-  pub(crate) fn reserve(&mut self, additional: usize) -> Result<(), QueueError> {
+  pub fn reserve(&mut self, additional: usize) -> Result<(), QueueError> {
     reserve(additional, &mut self.data, &mut self.head)
       .map(|_el| ())
       .map_err(|_err| QueueError::ReserveOverflow)

@@ -11,7 +11,7 @@ use crate::{
     },
     Identifier, DEFAULT_URI_VAR,
   },
-  rng::NoStdRng,
+  misc::NoStdRng,
 };
 use alloc::{string::String, vec::Vec};
 use core::fmt::Write;

@@ -5,8 +5,8 @@ if [ "$ARG" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-cargo build --bin h2spec-server --features="http2,tokio"
-cargo run --bin h2spec-server --features="http2,tokio" &> /tmp/h2spec-server.txt & cargo_pid=$!
+cargo build --example h2spec-server --features="http2,tokio" --release
+cargo run --example h2spec-server --features="http2,tokio" --release &> /tmp/h2spec-server.txt & cargo_pid=$!
 sleep 1
 touch /tmp/h2spec-server.xml
 
@@ -17,7 +17,11 @@ podman run \
 	--rm \
 	docker.io/summerwind/h2spec:2.6.0 h2spec -j "/tmp/h2spec-server.xml" --max-header-length 800 -p 9000 -v \
 		generic/1 \
-		generic/2 \
+		generic/2/1 \
+		generic/2/2 \
+		generic/2/3 \
+		`#generic/2/4 - Streams are immediately forgotten when closed` \
+		generic/2/5 \
 		generic/3.1 \
 		generic/3.2/1 \
 		generic/3.2/2 \

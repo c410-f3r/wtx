@@ -25,7 +25,7 @@ pub enum Http2Error {
   /// Number of active concurrent streams extrapolated the threshold
   ExceedAmountOfActiveConcurrentStreams,
   /// Frame has a zero stream ID but shouldn't because of its type.
-  FrameIsZeroButShouldNot,
+  FrameIdIsZeroButShouldNot,
   /// The system only supports 2 header frames when sending data
   HeadersOverflow,
   /// Couldn't decode a header into a hpack buffer

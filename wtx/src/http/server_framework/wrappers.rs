@@ -33,6 +33,7 @@ where
 }
 
 /// Creates a new [`Get`] instance with type inference.
+#[inline]
 pub fn get<I, O>(f: fn(I) -> O) -> Get<fn(I) -> O> {
   Get(f)
 }
@@ -76,6 +77,7 @@ where
 }
 
 /// Creates a new [`Json`] instance with type inference.
+#[inline]
 pub fn json<I, O>(f: fn(I) -> O) -> Json<fn(I) -> O> {
   Json(f)
 }
@@ -110,6 +112,7 @@ where
 }
 
 /// Creates a new [`Post`] instance with type inference.
+#[inline]
 pub fn post<I, O>(f: fn(I) -> O) -> Post<fn(I) -> O> {
   Post(f)
 }

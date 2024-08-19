@@ -3,7 +3,7 @@
 use tokio::net::TcpStream;
 use wtx::{
   http::LowLevelServer,
-  rng::StdRng,
+  misc::StdRng,
   web_socket::{
     compression::{Flate2, NegotiatedFlate2},
     FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServer,

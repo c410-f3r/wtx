@@ -65,7 +65,7 @@ where
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
-    _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
+    _local_write_all_vectored!(bytes, self, |io_slices| self.write_vectored(io_slices).await);
     Ok(())
   }
 }
@@ -108,7 +108,7 @@ where
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
-    _local_write_all_vectored!(bytes, |io_slices| self.write_vectored(io_slices).await);
+    _local_write_all_vectored!(bytes, self, |io_slices| self.write_vectored(io_slices).await);
     Ok(())
   }
 }

@@ -30,7 +30,7 @@ impl TokioRustlsConnector {
       Ok(this)
     }
     #[cfg(not(feature = "webpki-roots"))]
-    return Err(crate::Error::MISC_MissingCaProviders);
+    return Err(crate::Error::MissingCaProviders);
   }
 
   /// Connects using a generic stream without client authentication.

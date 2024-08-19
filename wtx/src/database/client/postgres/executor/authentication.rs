@@ -9,9 +9,8 @@ use crate::{
   },
   misc::{
     bytes_split1, from_utf8_basic, ArrayVector, ConnectionState, FilledBufferWriter, LeaseMut,
-    PartitionedFilledBuffer, Stream, Vector,
+    PartitionedFilledBuffer, Rng, Stream, Vector,
   },
-  rng::Rng,
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use hmac::{Hmac, Mac};

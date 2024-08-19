@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-. "$(dirname "$0")/common.sh" --source-only
+# WTX
+
+cargo check --all-features --all-targets
 
 # WTX Docs
 

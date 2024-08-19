@@ -155,7 +155,8 @@ mod tests {
       },
       pkg::PkgsAux,
     },
-    misc::{_uri, sleep},
+    misc::sleep,
+    tests::_uri,
   };
   use core::time::Duration;
   use std::{

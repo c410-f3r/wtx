@@ -1,4 +1,40 @@
-macro_rules! create_enum {
+macro_rules! _conn_params_methods {
+  ($($field:tt)+) => {
+    /// The initial amount of "credit" a counterpart can have for sending data.
+    #[inline]
+    #[must_use]
+    pub fn initial_window_len(mut self, elem: u32) -> Self {
+      self.$($field)+.initial_window_len = elem;
+      self
+    }
+
+    /// The maximum number of data bytes or the sum of all frames that composed the body data.
+    #[inline]
+    #[must_use]
+    pub fn max_body_len(mut self, elem: u32) -> Self {
+      self.$($field)+.max_body_len = elem;
+      self
+    }
+
+    /// Maximum frame ***payload*** length
+    #[inline]
+    #[must_use]
+    pub fn max_frame_len(mut self, elem: u32) -> Self {
+      self.$($field)+.max_frame_len = elem;
+      self
+    }
+
+    /// The maximum number of bytes of the entire set of headers in a request/response.
+    #[inline]
+    #[must_use]
+    pub fn max_headers_len(mut self, elem: u32) -> Self {
+      self.$($field)+.max_headers_len = elem;
+      self
+    }
+  };
+}
+
+macro_rules! _create_enum {
   (
     $(#[$container_mac:meta])*
     $v:vis enum $enum_ident:ident<$n:ty> {
@@ -75,7 +111,7 @@ macro_rules! create_enum {
       fn try_from(from: $n) -> crate::Result<Self> {
         let rslt = match from {
           $($variant_n_fixed => Self::$variant_ident_fixed,)*
-          _ => return Err(crate::Error::MISC_UnexpectedUint { received: from.into() }),
+          _ => return Err(crate::Error::UnexpectedUint { received: from.into() }),
         };
         Ok(rslt)
       }
@@ -96,7 +132,7 @@ macro_rules! create_enum {
               Self::$variant_ident_fixed
             },
           )*
-          _ => return Err(crate::Error::MISC_UnexpectedString { length: from.len() }),
+          _ => return Err(crate::Error::UnexpectedString { length: from.len() }),
         };
         Ok(rslt)
       }
@@ -116,7 +152,7 @@ macro_rules! create_enum {
             return Ok(Self::$variant_ident_fixed);
           }
         )*
-        Err(crate::Error::MISC_UnexpectedString { length: from.len() })
+        Err(crate::Error::UnexpectedString { length: from.len() })
       }
     }
   }

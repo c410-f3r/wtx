@@ -20,7 +20,6 @@ type RkyvSer = rkyv::ser::serializers::CompositeSerializerError<
 
 /// Grouped individual errors
 #[allow(missing_docs, reason = "Work in progress")]
-#[allow(non_camel_case_types, reason = "Useful for readability")]
 #[derive(Debug)]
 pub enum Error {
   // External - Misc
@@ -48,16 +47,14 @@ pub enum Error {
   MacError(digest::MacError),
   #[cfg(feature = "postgres")]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
-  #[cfg(feature = "protobuf")]
-  Protobuf(protobuf::Error),
+  #[cfg(feature = "quick-protobuf")]
+  QuickProtobuf(Box<quick_protobuf::Error>),
   #[cfg(feature = "rkyv")]
   RkyvDer(&'static str),
   #[cfg(feature = "rkyv")]
   RkyvSer(Box<RkyvSer>),
   #[cfg(feature = "serde_json")]
   SerdeJson(serde_json::Error),
-  #[cfg(feature = "simd-json")]
-  SimdJson(Box<simd_json::Error>),
   #[cfg(feature = "tokio")]
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tokio-rustls")]
@@ -82,6 +79,44 @@ pub enum Error {
   VarError(VarError),
   Utf8Error(core::str::Utf8Error),
 
+  // Generic
+  //
+  /// `GenericTime` needs a backend
+  GenericTimeNeedsBackend,
+  /// The hardware returned an incorrect time value
+  InvalidHardwareTime,
+  /// Indices are out-of-bounds or the number of bytes are too small.
+  InvalidPartitionedBufferBounds,
+  /// Invalid UTF-8.
+  InvalidUTF8,
+  /// Invalid URI
+  InvalidUri,
+  /// There is no CA provider.
+  MissingCaProviders,
+  /// A variant used to transform `Option`s into `Result`s
+  NoInnerValue(&'static str),
+  /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
+  OutOfBoundsArithmetic,
+  /// Unexpected Unsigned integer
+  UnboundedNumber {
+    expected: RangeInclusive<u32>,
+    received: u32,
+  },
+  /// A buffer was partially read or write but should in fact be fully processed.
+  UnexpectedBufferState,
+  /// Unexpected end of file when reading from a stream.
+  UnexpectedStreamEOF,
+  /// Unexpected String
+  UnexpectedString {
+    length: usize,
+  },
+  /// Unexpected Unsigned integer
+  UnexpectedUint {
+    received: u32,
+  },
+  /// Only appending is possible but overwritten is still viable through resetting.
+  UriCanNotBeOverwritten,
+
   // Internal
   //
   ArrayStringError(ArrayStringError),
@@ -89,8 +124,13 @@ pub enum Error {
   BlocksQueueError(BlocksQueueError),
   #[cfg(feature = "client-api-framework")]
   ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
+  #[cfg(feature = "database")]
+  DatabaseError(crate::database::DatabaseError),
+  #[cfg(feature = "data-transformation")]
+  DataTransformationError(crate::data_transformation::DataTransformationError),
   #[cfg(feature = "http-client-framework")]
   HttpClientFrameworkError(crate::http::HttpClientFrameworkError),
+  #[cfg(feature = "http")]
   HttpError(crate::http::HttpError),
   #[cfg(feature = "http2")]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
@@ -104,53 +144,6 @@ pub enum Error {
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
   WebSocketError(crate::web_socket::WebSocketError),
-
-  /// A "null" field received from the database was decoded as a non-nullable type or value.
-  DB_MissingFieldDataInDecoding,
-
-  /// `GenericTime` needs a backend
-  MISC_GenericTimeNeedsBackend,
-  /// The hardware returned an incorrect time value
-  MISC_InvalidHardwareTime,
-  /// Invalid UTF-8.
-  MISC_InvalidUTF8,
-  /// Indices are out-of-bounds or the number of bytes are too small.
-  MISC_InvalidPartitionedBufferBounds,
-  /// An expected value could not be found
-  MISC_InvalidDatabaseUrl(&'static str),
-  /// Backend couldn't perform passed query string
-  MISC_InvalidSqlQuery,
-  /// Invalid URI
-  MISC_InvalidUri,
-  /// Environment variable is not present
-  MISC_MissingEnvVar,
-  /// There is no CA provider.
-  MISC_MissingCaProviders,
-  /// There is no parser to process PEM files.
-  MISC_MissingPemParser,
-  /// A variant used to transform `Option`s into `Result`s
-  MISC_NoInnerValue(&'static str),
-  /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
-  MISC_OutOfBoundsArithmetic,
-  /// A buffer was partially read or write but should in fact be fully processed.
-  MISC_UnexpectedBufferState,
-  /// Unexpected end of file when reading from a stream.
-  MISC_UnexpectedStreamEOF,
-  /// Unexpected String
-  MISC_UnexpectedString {
-    length: usize,
-  },
-  /// Unexpected Unsigned integer
-  MISC_UnexpectedUint {
-    received: u32,
-  },
-  /// Unexpected Unsigned integer
-  MISC_UnboundedNumber {
-    expected: RangeInclusive<u32>,
-    received: u32,
-  },
-  /// Only appending is possible but overwritten is still viable through resetting.
-  MISC_UriCanNotBeOverwritten,
 }
 
 impl Display for Error {
@@ -299,11 +292,11 @@ impl From<crate::database::client::postgres::DbError> for Error {
   }
 }
 
-#[cfg(feature = "protobuf")]
-impl From<protobuf::Error> for Error {
+#[cfg(feature = "quick-protobuf")]
+impl From<quick_protobuf::Error> for Error {
   #[inline]
-  fn from(from: protobuf::Error) -> Self {
-    Self::Protobuf(from)
+  fn from(from: quick_protobuf::Error) -> Self {
+    Self::QuickProtobuf(from.into())
   }
 }
 
@@ -328,14 +321,6 @@ impl From<serde_json::Error> for Error {
   #[inline]
   fn from(from: serde_json::Error) -> Self {
     Self::SerdeJson(from)
-  }
-}
-
-#[cfg(feature = "simd-json")]
-impl From<simd_json::Error> for Error {
-  #[inline]
-  fn from(from: simd_json::Error) -> Self {
-    Self::SimdJson(from.into())
   }
 }
 
@@ -421,6 +406,7 @@ impl From<BlocksQueueError> for Error {
   }
 }
 
+#[cfg(feature = "http")]
 impl From<crate::http::HttpError> for Error {
   #[inline]
   fn from(from: crate::http::HttpError) -> Self {
@@ -433,6 +419,22 @@ impl From<crate::client_api_framework::ClientApiFrameworkError> for Error {
   #[inline]
   fn from(from: crate::client_api_framework::ClientApiFrameworkError) -> Self {
     Self::ClientApiFrameworkError(from)
+  }
+}
+
+#[cfg(feature = "database")]
+impl From<crate::database::DatabaseError> for Error {
+  #[inline]
+  fn from(from: crate::database::DatabaseError) -> Self {
+    Self::DatabaseError(from)
+  }
+}
+
+#[cfg(feature = "data-transformation")]
+impl From<crate::data_transformation::DataTransformationError> for Error {
+  #[inline]
+  fn from(from: crate::data_transformation::DataTransformationError) -> Self {
+    Self::DataTransformationError(from)
   }
 }
 

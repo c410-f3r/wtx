@@ -55,7 +55,7 @@ where
           let idx = str_pos1(after, b'/')?;
           Some(before.len().wrapping_add(3).wrapping_add(idx).wrapping_add(1))
         })
-        .unwrap_or_else(|| uri_str.len());
+        .unwrap_or(uri_str.len());
       (begin, uri_str.get(begin..).unwrap_or_default())
     } else {
       let local_begin = end.wrapping_add(1);
@@ -68,8 +68,7 @@ where
       )
     };
     let local_end = str_pos1(rest, b'/')
-      .map(|elem| elem.wrapping_add(local_begin))
-      .unwrap_or_else(|| uri_str.len());
+      .map_or_else(|| uri_str.len(), |element| element.wrapping_add(local_begin));
     self.req_middlewares.apply_req_middlewares(&mut req).await?;
     let req_path_indcs = [local_begin, local_end];
     let mut res = self.paths.collection.manage_path(false, "", req, req_path_indcs).await?;

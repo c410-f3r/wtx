@@ -42,7 +42,7 @@ impl U31 {
 
   #[inline]
   pub(crate) const fn i32(self) -> i32 {
-    self.0 as i32
+    i32::from_be_bytes(self.to_be_bytes())
   }
 
   #[inline]

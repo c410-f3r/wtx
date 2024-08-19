@@ -199,12 +199,12 @@ fn compress_or_decompress<NC, O>(
   let mut prev_total_in_sum = total_in_sum;
   loop {
     let Some(slice) = input.get(total_in_sum..) else {
-      return Err(crate::Error::MISC_UnexpectedBufferState);
+      return Err(crate::Error::UnexpectedBufferState);
     };
     call_cb(nc, slice, expand_output_cb(output, total_out_sum)?)?;
     total_in_sum = usize::try_from(total_in_cb(nc))?;
     if prev_total_in_sum == total_in_sum {
-      return Err(crate::Error::MISC_UnexpectedBufferState);
+      return Err(crate::Error::UnexpectedBufferState);
     }
     total_out_sum = usize::try_from(total_out_cb(nc))?;
     if total_in_sum == input.len() {
