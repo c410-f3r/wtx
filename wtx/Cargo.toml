@@ -106,14 +106,14 @@ categories = ["asynchronous", "database", "network-programming", "no-std", "web-
 description = "A collection of different transport implementations and related tools focused primarily on web technologies."
 documentation = "https://docs.rs/wtx"
 edition = "2024"
-exclude = ["examples", "src/bin", "tests"]
+exclude = ["tests"]
 homepage = "https://c410-f3r.github.io/wtx"
 keywords = ["api", "database", "http", "network", "websocket"]
 license = "Apache-2.0"
 name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-version = "0.14.0"
+version = "0.15.0"
 
 [package.metadata.docs.rs]
 all-features = true
