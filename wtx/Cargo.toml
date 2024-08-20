@@ -21,7 +21,7 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
-rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
+rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.36" }
 rustls-pemfile = { default-features = false, features = ["std"], optional = true, version = "2.0" }
 rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
