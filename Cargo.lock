@@ -1676,7 +1676,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "ahash 0.8.11",
  "arbitrary",
@@ -1742,7 +1742,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
