@@ -132,7 +132,7 @@ where
       return Err(protocol_err(Http2Error::UnexpectedStreamId));
     }
     if *self.recv_streams_num >= self.hp.max_recv_streams_num() {
-      return Err(protocol_err(Http2Error::ExceedAmountOfActiveConcurrentStreams));
+      return Err(protocol_err(Http2Error::ExceedAmountOfOpenedStreams));
     }
     *self.recv_streams_num = self.recv_streams_num.wrapping_add(1);
     *self.last_stream_id = self.fi.stream_id;

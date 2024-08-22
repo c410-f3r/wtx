@@ -22,7 +22,9 @@ pub enum Http2Error {
   /// The calling convention is not being respected. For example, in a client the method that reads
   /// data is being called before sending anything.
   BadLocalFlow,
-  /// Number of active concurrent streams extrapolated the threshold
+  /// The number of opened streams extrapolated the threshold
+  ExceedAmountOfOpenedStreams,
+  /// The number of active concurrent streams extrapolated the threshold
   ExceedAmountOfActiveConcurrentStreams,
   /// Frame has a zero stream ID but shouldn't because of its type.
   FrameIdIsZeroButShouldNot,

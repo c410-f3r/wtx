@@ -30,7 +30,6 @@ pub use wrappers::{get, json, post, Get, Json, Post};
 #[derive(Debug)]
 pub struct ServerFramework<E, P, REQM, RESM> {
   pub(crate) cp: ConnParams,
-  max_recv_streams_num: u32,
   phantom: PhantomData<fn() -> E>,
   router: Arc<Router<P, REQM, RESM>>,
 }
@@ -47,12 +46,7 @@ where
   /// Creates a new instance with default parameters.
   #[inline]
   pub fn new(router: Router<P, REQM, RESM>) -> Self {
-    Self {
-      cp: ConnParams::default(),
-      max_recv_streams_num: 128,
-      phantom: PhantomData,
-      router: Arc::new(router),
-    }
+    Self { cp: ConnParams::default(), phantom: PhantomData, router: Arc::new(router) }
   }
 
   /// Starts listening to incoming requests based on the given `host`.
@@ -68,7 +62,7 @@ where
       err_cb,
       Self::handle,
       || Ok(Http2Buffer::new(StdRng::default())),
-      move || self.cp.to_hp().set_max_recv_streams_num(self.max_recv_streams_num),
+      move || self.cp.to_hp(),
       || Ok(ReqResBuffer::default()),
       (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
     )
@@ -90,7 +84,7 @@ where
       err_cb,
       Self::handle,
       || Ok(Http2Buffer::new(StdRng::default())),
-      move || self.cp.to_hp().set_max_recv_streams_num(self.max_recv_streams_num),
+      move || self.cp.to_hp(),
       || Ok(ReqResBuffer::default()),
       (
         || {
@@ -103,17 +97,6 @@ where
       ),
     )
     .await
-  }
-
-  /// Maximum number of receiving streams
-  ///
-  /// Prevents clients from opening more than the specified number of
-  /// streams/requests/interactions.
-  #[inline]
-  #[must_use]
-  pub fn max_recv_streams_num(mut self, elem: u32) -> Self {
-    self.max_recv_streams_num = elem;
-    self
   }
 
   _conn_params_methods!(cp);
