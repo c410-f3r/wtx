@@ -16,6 +16,14 @@ macro_rules! _conn_params_methods {
       self
     }
 
+    /// Maximum number of active concurrent streams
+    #[inline]
+    #[must_use]
+    pub fn max_concurrent_streams_num(mut self, elem: u32) -> Self {
+      self.$($field)+.max_concurrent_streams_num = elem;
+      self
+    }
+
     /// Maximum frame ***payload*** length
     #[inline]
     #[must_use]
@@ -29,6 +37,16 @@ macro_rules! _conn_params_methods {
     #[must_use]
     pub fn max_headers_len(mut self, elem: u32) -> Self {
       self.$($field)+.max_headers_len = elem;
+      self
+    }
+
+    /// Maximum number of receiving streams
+    ///
+    /// Servers only. Prevents clients from opening more than the specified number of streams.
+    #[inline]
+    #[must_use]
+    pub fn max_max_recv_streams_num(mut self, elem: u32) -> Self {
+      self.$($field)+.max_recv_streams_num = elem;
       self
     }
   };
