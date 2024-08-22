@@ -18,7 +18,6 @@ use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let _rslt = wtx::misc::tracing_tree_init();
   let router = Router::paths(wtx::paths!((
     "wtx.GenericService/generic_method",
     post(wtx_generic_service_generic_method)
