@@ -1,3 +1,5 @@
+use core::future::Future;
+
 /// Simulates `impl for<'any> Fn(&'any ..) -> impl Future + 'any` due to the lack of compiler
 /// support.
 ///

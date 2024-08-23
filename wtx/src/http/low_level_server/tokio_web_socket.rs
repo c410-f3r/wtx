@@ -4,7 +4,7 @@ use crate::{
   pool::{Pool, SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer},
 };
-use core::fmt::Debug;
+use core::{fmt::Debug, future::Future};
 use std::sync::OnceLock;
 use tokio::{
   net::{TcpListener, TcpStream},

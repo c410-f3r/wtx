@@ -37,7 +37,7 @@ use crate::{
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
 };
 use core::{
-  future::poll_fn,
+  future::{poll_fn, Future},
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},
   task::{Poll, Waker},
@@ -255,7 +255,6 @@ fn encode_trailers(
   headers: &Headers,
   (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
 ) -> crate::Result<()> {
-  hpack_enc_buffer.clear();
   hpack_enc.encode(hpack_enc_buffer, [].into_iter(), headers.iter().filter(|el| el.is_trailer))?;
   Ok(())
 }

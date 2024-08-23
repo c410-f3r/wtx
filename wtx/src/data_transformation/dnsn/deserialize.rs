@@ -1,5 +1,3 @@
-use core::fmt::Display;
-
 /// Marker trait that has different bounds according to the given set of enabled deserializers.
 pub trait Deserialize<'de, DRSR>
 where
@@ -9,30 +7,18 @@ where
   fn from_bytes(bytes: &'de [u8], drsr: &mut DRSR) -> crate::Result<Self>;
 
   /// Similar to [`Self::from_bytes`] but deals with sequences instead of a single element.
-  fn seq_from_bytes<E>(
-    bytes: &'de [u8],
-    drsr: &mut DRSR,
-    cb: impl FnMut(Self) -> Result<(), E>,
-  ) -> Result<(), E>
-  where
-    E: Display + From<crate::Error>;
+  fn seq_from_bytes(bytes: &'de [u8], drsr: &mut DRSR)
+    -> impl Iterator<Item = crate::Result<Self>>;
 }
 
 impl<'de, DRSR> Deserialize<'de, DRSR> for () {
   #[inline]
-  fn from_bytes(_: &[u8], _: &mut DRSR) -> crate::Result<Self> {
+  fn from_bytes(_: &'de [u8], _: &mut DRSR) -> crate::Result<Self> {
     Ok(())
   }
 
   #[inline]
-  fn seq_from_bytes<E>(
-    _: &[u8],
-    _: &mut DRSR,
-    _: impl FnMut(Self) -> Result<(), E>,
-  ) -> Result<(), E>
-  where
-    E: From<crate::Error>,
-  {
-    Ok(())
+  fn seq_from_bytes(_: &'de [u8], _: &mut DRSR) -> impl Iterator<Item = crate::Result<Self>> {
+    [].into_iter()
   }
 }

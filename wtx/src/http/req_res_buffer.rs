@@ -1,6 +1,6 @@
 use crate::{
-  http::{Headers, Method, Request, Response, StatusCode, Version},
-  misc::{Lease, LeaseMut, UriString, Vector},
+  http::{Headers, Method, ReqResData, ReqResDataMut, Request, Response, StatusCode, Version},
+  misc::{Lease, LeaseMut, UriRef, UriString, Vector},
 };
 use alloc::string::String;
 
@@ -71,6 +71,32 @@ impl ReqResBuffer {
   #[inline]
   pub fn into_http2_response(self, status_code: StatusCode) -> Response<Self> {
     Response { rrd: self, status_code, version: Version::Http2 }
+  }
+}
+
+impl ReqResData for ReqResBuffer {
+  type Body = [u8];
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    &self.data
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    &self.headers
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    self.uri.to_ref()
+  }
+}
+
+impl ReqResDataMut for ReqResBuffer {
+  #[inline]
+  fn headers_mut(&mut self) -> &mut Headers {
+    &mut self.headers
   }
 }
 

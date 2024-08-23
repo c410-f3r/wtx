@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [[bin]]
 name = "web-socket"
 path = "web_socket.rs"
@@ -11,7 +9,7 @@ tokio = { default-features = false, features = ["rt"], version = "1.0" }
 wtx = { default-features = false, features = ["arbitrary", "web-socket"], path = "../wtx" }
 
 [package]
-edition = "2024"
+edition = "2021"
 name = "wtx-fuzz"
 publish = false
 version = "0.0.0"

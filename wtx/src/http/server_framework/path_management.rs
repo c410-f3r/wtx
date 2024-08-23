@@ -1,4 +1,5 @@
 use crate::http::{server_framework::Path, HttpError, ReqResData, Request, Response};
+use core::future::Future;
 
 /// Used by all structures that somehow interact with incoming requests.
 pub trait PathManagement<E, RRD>

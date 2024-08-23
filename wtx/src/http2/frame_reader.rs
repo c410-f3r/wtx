@@ -27,7 +27,7 @@ use crate::{
   misc::{LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter},
 };
 use core::{
-  future::poll_fn,
+  future::{poll_fn, Future},
   marker::PhantomData,
   mem,
   pin::pin,
@@ -79,7 +79,10 @@ where
   SR: StreamReader,
   SW: StreamWriter,
 {
-  let fi = read_frame_until(hd, is_conn_open, max_frame_len, pfb, stream_reader).await?;
+  let Some(fi) = read_frame_until(hd, is_conn_open, max_frame_len, pfb, stream_reader).await?
+  else {
+    return Ok(());
+  };
   match fi.ty {
     FrameInitTy::Data => {
       let mut lock = hd.lock().await;

@@ -1,5 +1,5 @@
 use alloc::{rc::Rc, sync::Arc};
-use core::ops::DerefMut;
+use core::{future::Future, ops::DerefMut};
 
 /// An asynchronous mutual exclusion primitive useful for protecting shared data.
 pub trait Lock {

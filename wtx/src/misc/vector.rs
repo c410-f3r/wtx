@@ -27,7 +27,7 @@ pub enum VectorError {
 /// A wrapper around the std's vector.
 #[cfg_attr(feature = "test-strategy", derive(test_strategy::Arbitrary))]
 #[cfg_attr(feature = "test-strategy", arbitrary(bound(D: proptest::arbitrary::Arbitrary + 'static)))]
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Vector<D> {
   data: Vec<D>,
 }

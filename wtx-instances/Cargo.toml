@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 # Examples
 
 [[example]]
@@ -90,7 +88,7 @@ wtx-macros = { default-features = false, path = "../wtx-macros" }
 _tracing-tree = ["wtx/_tracing-tree"]
 
 [package]
-edition = "2024"
+edition = "2021"
 name = "wtx-instances"
 publish = false
 version = "0.0.0"

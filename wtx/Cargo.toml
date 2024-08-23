@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [dependencies]
 ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
@@ -50,7 +48,7 @@ base64 = ["dep:base64"]
 borsh = ["dep:borsh", "std"]
 chrono = ["dep:chrono"]
 cl-aux = ["dep:cl-aux"]
-client-api-framework = ["cl-aux", "data-transformation"]
+client-api-framework = ["data-transformation"]
 crypto-common = ["dep:crypto-common"]
 data-transformation = []
 database = []
@@ -105,7 +103,7 @@ authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
 categories = ["asynchronous", "database", "network-programming", "no-std", "web-programming"]
 description = "A collection of different transport implementations and related tools focused primarily on web technologies."
 documentation = "https://docs.rs/wtx"
-edition = "2024"
+edition = "2021"
 exclude = ["tests"]
 homepage = "https://c410-f3r.github.io/wtx"
 keywords = ["api", "database", "http", "network", "websocket"]

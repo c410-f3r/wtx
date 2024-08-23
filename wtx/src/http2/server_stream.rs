@@ -11,7 +11,10 @@ use crate::{
   },
   misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
 };
-use core::{future::poll_fn, pin::pin};
+use core::{
+  future::{poll_fn, Future},
+  pin::pin,
+};
 
 /// Created when a server receives an initial stream.
 #[derive(Debug)]

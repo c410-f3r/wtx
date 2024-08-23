@@ -20,11 +20,8 @@ where
   }
 
   #[inline]
-  fn seq_from_bytes<E>(_: &[u8], _: &mut (), _: impl FnMut(Self) -> Result<(), E>) -> Result<(), E>
-  where
-    E: From<crate::Error>,
-  {
-    Ok(())
+  fn seq_from_bytes(_: &'de [u8], _: &mut ()) -> impl Iterator<Item = crate::Result<Self>> {
+    [].into_iter()
   }
 }
 
@@ -41,11 +38,9 @@ mod quick_protobuf {
     data_transformation::{
       dnsn::{Deserialize, QuickProtobuf, Serialize},
       format::ProtobufResponse,
-      DataTransformationError,
     },
     misc::Vector,
   };
-  use core::fmt::Display;
   use quick_protobuf::{BytesReader, MessageRead, MessageWrite, Writer};
 
   impl<'de, D> Deserialize<'de, QuickProtobuf> for ProtobufResponse<D>
@@ -58,15 +53,11 @@ mod quick_protobuf {
     }
 
     #[inline]
-    fn seq_from_bytes<E>(
-      _: &[u8],
+    fn seq_from_bytes(
+      _: &'de [u8],
       _: &mut QuickProtobuf,
-      _: impl FnMut(Self) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-      E: Display + From<crate::Error>,
-    {
-      Err(E::from(DataTransformationError::UnsupportedOperation.into()))
+    ) -> impl Iterator<Item = crate::Result<Self>> {
+      [].into_iter()
     }
   }
 

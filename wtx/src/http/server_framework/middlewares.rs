@@ -2,6 +2,7 @@ use crate::{
   http::{Request, Response},
   misc::FnFut,
 };
+use core::future::Future;
 
 /// Requests middlewares
 pub trait ReqMiddlewares<E, RRD>

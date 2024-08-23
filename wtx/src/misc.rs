@@ -228,7 +228,7 @@ where
     let actual_buffer = buffer.get_mut(*read..).unwrap_or_default();
     let local_read = stream_reader.read(actual_buffer).await?;
     if local_read == 0 {
-      return Err(crate::Error::UnexpectedStreamEOF);
+      return Err(crate::Error::UnexpectedStreamReadEOF);
     }
     *read = read.wrapping_add(local_read);
   }

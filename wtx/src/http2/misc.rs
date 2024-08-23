@@ -221,7 +221,7 @@ pub(crate) async fn read_frame_until<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>
   max_frame_len: u32,
   pfb: &mut PartitionedFilledBuffer,
   stream_reader: &mut SR,
-) -> crate::Result<FrameInit>
+) -> crate::Result<Option<FrameInit>>
 where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
@@ -235,7 +235,8 @@ where
     match fi.ty {
       FrameInitTy::GoAway => {
         let gaf = GoAwayFrame::read(pfb._current(), fi)?;
-        return Err(crate::Error::Http2ErrorGoAway(gaf.error_code(), None));
+        send_go_away(gaf.error_code(), &mut hd.lock().await.parts_mut()).await;
+        return Ok(None);
       }
       FrameInitTy::Ping => {
         let mut pf = PingFrame::read(pfb._current(), fi)?;
@@ -273,7 +274,7 @@ where
         }
       }
     }
-    return Ok(fi);
+    return Ok(Some(fi));
   }
   Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
 }

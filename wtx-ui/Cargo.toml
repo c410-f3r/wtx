@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [dependencies]
 clap = { default-features = false, features = ["derive", "help", "std", "usage"], optional = true, version = "4.0" }
 dotenv = { default-features = false, optional = true, version = "0.15" }
@@ -21,7 +19,7 @@ authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
 categories = ["asynchronous", "command-line-interface", "gui"]
 description = "Different user interfaces for WTX"
 documentation = "https://docs.rs/wtx-ui"
-edition = "2024"
+edition = "2021"
 keywords = ["io", "network", "websocket"]
 license = "Apache-2.0"
 name = "wtx-ui"

@@ -3,6 +3,7 @@ use crate::{
   http2::{Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},
 };
+use core::future::Future;
 use tokio::net::{TcpListener, TcpStream};
 
 type Http2Buffer = crate::http2::Http2Buffer<ReqResBuffer>;
@@ -28,10 +29,7 @@ impl LowLevelServer {
     ACPT: Send + 'static,
     AUX: Clone + Send + 'static,
     E: From<crate::Error> + Send + 'static,
-    SR: Send
-      + StreamReader<read(..): Send, read_exact(..): Send, read_skip(..): Send>
-      + Unpin
-      + 'static,
+    SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + Unpin + 'static,
     SW: Send + StreamWriter<write_all(..): Send, write_all_vectored(..): Send> + Unpin + 'static,
     SF: Send + Future<Output = crate::Result<(SR, SW)>>,
     F: Copy
@@ -82,10 +80,7 @@ async fn manage_conn<ACPT, AUX, E, F, SR, SW, SF>(
 where
   AUX: Clone + Send + 'static,
   E: From<crate::Error> + Send + 'static,
-  SR: Send
-    + StreamReader<read(..): Send, read_exact(..): Send, read_skip(..): Send>
-    + Unpin
-    + 'static,
+  SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + Unpin + 'static,
   SW: Send + StreamWriter<write_all(..): Send, write_all_vectored(..): Send> + Unpin + 'static,
   SF: Send + Future<Output = crate::Result<(SR, SW)>>,
   F: Copy + FnFut<(AUX, Request<ReqResBuffer>), Result<Response<ReqResBuffer>, E>> + Send + 'static,

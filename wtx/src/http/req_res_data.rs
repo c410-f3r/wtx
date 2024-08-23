@@ -1,5 +1,5 @@
 use crate::{
-  http::{Headers, ReqResBuffer},
+  http::Headers,
   misc::{Lease, Uri, UriRef},
 };
 use alloc::boxed::Box;
@@ -161,25 +161,6 @@ where
   #[inline]
   fn uri(&self) -> UriRef<'_> {
     UriRef::_empty("")
-  }
-}
-
-impl ReqResData for ReqResBuffer {
-  type Body = [u8];
-
-  #[inline]
-  fn body(&self) -> &Self::Body {
-    &self.data
-  }
-
-  #[inline]
-  fn headers(&self) -> &Headers {
-    &self.headers
-  }
-
-  #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    self.uri.to_ref()
   }
 }
 

@@ -20,11 +20,8 @@ where
   }
 
   #[inline]
-  fn seq_from_bytes<E>(_: &[u8], _: &mut (), _: impl FnMut(Self) -> Result<(), E>) -> Result<(), E>
-  where
-    E: From<crate::Error>,
-  {
-    Ok(())
+  fn seq_from_bytes(_: &'de [u8], _: &mut ()) -> impl Iterator<Item = crate::Result<Self>> {
+    [].into_iter()
   }
 }
 
@@ -37,8 +34,7 @@ impl<D> Serialize<()> for VerbatimResponse<D> {
 
 #[cfg(feature = "rkyv")]
 mod rkyv {
-  use crate::data_transformation::{dnsn::Rkyv, format::VerbatimResponse, DataTransformationError};
-  use core::fmt::Display;
+  use crate::data_transformation::{dnsn::Rkyv, format::VerbatimResponse};
   use rkyv::{
     bytecheck::CheckBytes, de::deserializers::SharedDeserializeMap,
     validation::validators::DefaultValidator, Archive,
@@ -50,6 +46,7 @@ mod rkyv {
     for<'any> D::Archived:
       CheckBytes<DefaultValidator<'any>> + rkyv::Deserialize<D, SharedDeserializeMap>,
   {
+    #[inline]
     fn from_bytes(bytes: &[u8], _: &mut Rkyv) -> crate::Result<Self> {
       Ok(Self {
         data: rkyv::from_bytes(bytes)
@@ -57,15 +54,9 @@ mod rkyv {
       })
     }
 
-    fn seq_from_bytes<E>(
-      _: &[u8],
-      _: &mut Rkyv,
-      _: impl FnMut(Self) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-      E: Display + From<crate::Error>,
-    {
-      Err(E::from(DataTransformationError::UnsupportedOperation.into()))
+    #[inline]
+    fn seq_from_bytes(_: &'de [u8], _: &mut Rkyv) -> impl Iterator<Item = crate::Result<Self>> {
+      [].into_iter()
     }
   }
 }

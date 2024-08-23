@@ -1,27 +1,10 @@
+use core::future::Future;
+
 /// A stream of values sent asynchronously.
 pub trait StreamReader {
   /// Pulls some bytes from this source into the specified buffer, returning how many bytes
   /// were read.
   fn read(&mut self, bytes: &mut [u8]) -> impl Future<Output = crate::Result<usize>>;
-
-  /// Reads the exact number of bytes required to fill `bytes`.
-  #[inline]
-  fn read_exact(&mut self, bytes: &mut [u8]) -> impl Future<Output = crate::Result<()>> {
-    async move {
-      let mut idx = 0;
-      for _ in 0..bytes.len() {
-        if idx >= bytes.len() {
-          break;
-        }
-        let read = self.read(bytes.get_mut(idx..).unwrap_or_default()).await?;
-        if read == 0 {
-          return Err(crate::Error::UnexpectedStreamEOF);
-        }
-        idx = idx.wrapping_add(read);
-      }
-      Ok(())
-    }
-  }
 
   /// Reads and at the same time discards exactly `len` bytes.
   #[inline]
@@ -36,7 +19,7 @@ pub trait StreamReader {
         let slice = if let Some(el) = buffer.get_mut(..counter) { el } else { &mut buffer[..] };
         let read = self.read(slice).await?;
         if read == 0 {
-          return Err(crate::Error::UnexpectedStreamEOF);
+          return Err(crate::Error::UnexpectedStreamReadEOF);
         }
         counter = counter.wrapping_sub(read);
       }

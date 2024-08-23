@@ -55,7 +55,7 @@ where
       let read_buffer = nb._following_mut().get_mut(read..).unwrap_or_default();
       let local_read = stream.read(read_buffer).await?;
       if local_read == 0 {
-        return Err(crate::Error::UnexpectedStreamEOF);
+        return Err(crate::Error::UnexpectedStreamReadEOF);
       }
       read = read.wrapping_add(local_read);
       let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
@@ -138,7 +138,7 @@ where
       let read_buffer = fb.payload_mut().get_mut(read..).unwrap_or_default();
       let local_read = stream.read(read_buffer).await?;
       if local_read == 0 {
-        return Err(crate::Error::UnexpectedStreamEOF);
+        return Err(crate::Error::UnexpectedStreamReadEOF);
       }
       read = read.wrapping_add(local_read);
       match Response::new(&mut local_header).parse(fb.payload())? {
