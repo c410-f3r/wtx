@@ -1,3 +1,5 @@
+use core::future::Future;
+
 /// Manages a set of atomic operations.
 pub trait TransactionManager: Sized {
   /// Executor

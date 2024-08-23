@@ -11,7 +11,11 @@ use crate::{
   },
   misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
 };
-use core::{future::poll_fn, pin::pin, task::Poll};
+use core::{
+  future::{poll_fn, Future},
+  pin::pin,
+  task::Poll,
+};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]

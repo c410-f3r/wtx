@@ -2,11 +2,13 @@
 //! framework.
 
 mod client;
+mod grpc_status_code;
 mod server;
 mod server_data;
 
 use crate::{data_transformation::dnsn::Serialize, misc::Vector};
 pub use client::Client;
+pub use grpc_status_code::GrpcStatusCode;
 pub use server::Server;
 pub use server_data::ServerData;
 

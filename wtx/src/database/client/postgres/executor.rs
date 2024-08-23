@@ -17,7 +17,7 @@ use crate::{
   },
   misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Rng, Stream, StreamWithTls},
 };
-use core::marker::PhantomData;
+use core::{future::Future, marker::PhantomData};
 
 /// Executor
 #[derive(Debug)]

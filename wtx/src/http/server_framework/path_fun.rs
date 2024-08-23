@@ -2,6 +2,7 @@ use crate::{
   http::{HttpError, ReqResData, Request, Response},
   misc::{atoi, bytes_pos1, bytes_split1},
 };
+use core::future::Future;
 
 /// Path function
 pub trait PathFun<E, RRD> {
@@ -78,8 +79,8 @@ impl<DRSR, E, FUT, RRD> PathFun<E, RRD> for fn((crate::grpc::ServerData<DRSR>, R
 where
   DRSR: Default,
   E: From<crate::Error>,
-  FUT: Future<Output = Result<Response<RRD>, E>>,
-  RRD: ReqResData,
+  FUT: Future<Output = Result<(crate::grpc::GrpcStatusCode, Response<RRD>), E>>,
+  RRD: crate::http::ReqResDataMut,
 {
   #[inline]
   async fn call(
@@ -88,6 +89,26 @@ where
     req: Request<RRD>,
     _: [usize; 2],
   ) -> Result<Response<RRD>, E> {
-    (self)((crate::grpc::ServerData::new(DRSR::default()), req)).await
+    let mut tuple = (self)((crate::grpc::ServerData::new(DRSR::default()), req)).await?;
+    tuple.1.rrd.headers_mut().clear();
+    tuple.1.rrd.headers_mut().push_front(
+      crate::http::Header {
+        is_sensitive: false,
+        is_trailer: false,
+        name: crate::http::KnownHeaderName::ContentType.into(),
+        value: b"application/grpc",
+      },
+      &[],
+    )?;
+    tuple.1.rrd.headers_mut().push_front(
+      crate::http::Header {
+        is_sensitive: false,
+        is_trailer: true,
+        name: b"grpc-status",
+        value: tuple.0.number_as_str().as_bytes(),
+      },
+      &[],
+    )?;
+    Ok(tuple.1)
   }
 }

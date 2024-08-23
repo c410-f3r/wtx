@@ -1,14 +1,7 @@
 use crate::{
-  client_api_framework::{
-    network::transport::TransportParams, pkg::Package, Api, ClientApiFrameworkError,
-  },
-  data_transformation::{
-    dnsn::{Deserialize, Serialize},
-    Id,
-  },
-  misc::Lease,
+  client_api_framework::{network::transport::TransportParams, pkg::Package, Api},
+  data_transformation::dnsn::Serialize,
 };
-use cl_aux::DynContigColl;
 use core::marker::PhantomData;
 
 /// Used to perform batch requests with multiple packages.
@@ -20,81 +13,6 @@ impl<'slice, A, DRSR, P, TP> BatchPkg<'slice, A, DRSR, P, TP> {
   #[inline]
   pub fn new(slice: &'slice mut [P]) -> Self {
     Self(BatchElems(slice, PhantomData), ())
-  }
-}
-
-impl<A, DRSR, P, TP> BatchPkg<'_, A, DRSR, P, TP>
-where
-  A: Api,
-  P: Package<A, DRSR, TP>,
-  P::ExternalRequestContent: Lease<Id> + Ord,
-  for<'de> P::ExternalResponseContent<'de>: Lease<Id> + Ord,
-  TP: TransportParams,
-{
-  /// Deserializes a sequence of bytes and then pushes them to the provided buffer.
-  #[inline]
-  pub fn decode_and_push_from_bytes<B, E>(
-    &mut self,
-    buffer: &mut B,
-    bytes: &[u8],
-    drsr: &mut DRSR,
-  ) -> Result<(), A::Error>
-  where
-    A::Error: From<E>,
-    B: for<'de> DynContigColl<E, P::ExternalResponseContent<'de>>,
-  {
-    if self.0 .0.is_empty() {
-      return Ok(());
-    }
-    Self::is_sorted(self.0 .0.iter().map(|elem| elem.ext_req_content().lease()))?;
-    let mut pkgs_idx = 0;
-    let mut responses_are_not_sorted = false;
-    P::ExternalResponseContent::seq_from_bytes(bytes, drsr, |eresc| {
-      let eresc_id = *eresc.lease();
-      let found_pkgs_idx = Self::search_slice(pkgs_idx, eresc_id, self.0 .0)?;
-      if pkgs_idx != found_pkgs_idx {
-        responses_are_not_sorted = true;
-      }
-      buffer.push(eresc).map_err(Into::into)?;
-      pkgs_idx = pkgs_idx.wrapping_add(1);
-      Ok::<_, A::Error>(())
-    })?;
-    if responses_are_not_sorted {
-      buffer.sort_unstable();
-    }
-    Ok(())
-  }
-
-  fn is_sorted<T>(mut iter: impl Iterator<Item = T>) -> crate::Result<()>
-  where
-    T: PartialOrd,
-  {
-    let mut is_sorted = true;
-    let Some(mut previous) = iter.next() else {
-      return Ok(());
-    };
-    for curr in iter {
-      if previous > curr {
-        is_sorted = false;
-        break;
-      }
-      previous = curr;
-    }
-    if is_sorted {
-      Ok(())
-    } else {
-      Err(ClientApiFrameworkError::BatchPackagesAreNotSorted.into())
-    }
-  }
-
-  // First try indexing and then falls back to binary search
-  fn search_slice(idx: usize, eresc_id: Id, pkgs: &[P]) -> crate::Result<usize> {
-    if pkgs.get(idx).map(|pkg| *pkg.ext_req_content().lease() == eresc_id).unwrap_or_default() {
-      return Ok(idx);
-    }
-    pkgs.binary_search_by(|req| req.ext_req_content().lease().cmp(&&eresc_id)).ok().ok_or(
-      ClientApiFrameworkError::ResponseIdIsNotPresentInTheOfSentBatchPackages(eresc_id).into(),
-    )
   }
 }
 

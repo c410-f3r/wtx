@@ -105,7 +105,9 @@ pub enum Error {
   /// A buffer was partially read or write but should in fact be fully processed.
   UnexpectedBufferState,
   /// Unexpected end of file when reading from a stream.
-  UnexpectedStreamEOF,
+  UnexpectedStreamReadEOF,
+  /// Unexpected end of file when writing to a stream.
+  UnexpectedStreamWriteEOF,
   /// Unexpected String
   UnexpectedString {
     length: usize,

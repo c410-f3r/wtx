@@ -116,11 +116,10 @@ mod serde {
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::{
-    data_transformation::{dnsn::SerdeJson, format::GraphQlResponse, seq_visitor::_SeqVisitor},
+    data_transformation::{dnsn::SerdeJson, format::GraphQlResponse},
     misc::Vector,
   };
-  use core::fmt::Display;
-  use serde::de::Deserializer;
+  use serde_json::{de::SliceRead, StreamDeserializer};
 
   impl<'de, D, E> crate::data_transformation::dnsn::Deserialize<'de, SerdeJson>
     for GraphQlResponse<D, E>
@@ -134,17 +133,11 @@ mod serde_json {
     }
 
     #[inline]
-    fn seq_from_bytes<ERR>(
+    fn seq_from_bytes(
       bytes: &'de [u8],
       _: &mut SerdeJson,
-      cb: impl FnMut(Self) -> Result<(), ERR>,
-    ) -> Result<(), ERR>
-    where
-      ERR: Display + From<crate::Error>,
-    {
-      let mut de = serde_json::Deserializer::from_slice(bytes);
-      de.deserialize_seq(_SeqVisitor::_new(cb)).map_err(Into::into)?;
-      Ok(())
+    ) -> impl Iterator<Item = crate::Result<Self>> {
+      StreamDeserializer::new(SliceRead::new(bytes)).map(|el| el.map_err(From::from))
     }
   }
 

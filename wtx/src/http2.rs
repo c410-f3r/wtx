@@ -58,7 +58,7 @@ pub use client_stream::ClientStream;
 pub(crate) use common_flags::CommonFlags;
 pub(crate) use continuation_frame::ContinuationFrame;
 use core::{
-  future::poll_fn,
+  future::{poll_fn, Future},
   mem,
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},
@@ -203,7 +203,7 @@ where
   {
     hb.lease_mut().clear();
     let mut buffer = [0; 24];
-    stream_reader.read_exact(&mut buffer).await?;
+    let _ = stream_reader.read(&mut buffer).await?;
     if &buffer != PREFACE {
       let _rslt = stream_writer
         .write_all(&GoAwayFrame::new(Http2ErrorCode::ProtocolError, U31::ZERO).bytes())

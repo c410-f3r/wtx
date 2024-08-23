@@ -8,7 +8,7 @@ macro_rules! _local_write_all_vectored {
       while !$io_slices.is_empty() {
         match $write_many {
           Err(e) => return Err(e.into()),
-          Ok(0) => return Err(crate::Error::UnexpectedStreamEOF),
+          Ok(0) => return Err(crate::Error::UnexpectedStreamWriteEOF),
           Ok(n) => crate::misc::stream::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
         }
       }

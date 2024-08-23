@@ -23,6 +23,7 @@ use crate::{
 };
 use alloc::{string::String, vec::Vec};
 pub use commands::*;
+use core::future::Future;
 pub use migration::*;
 pub use repeatability::Repeatability;
 pub use schema_manager_error::SchemaManagerError;

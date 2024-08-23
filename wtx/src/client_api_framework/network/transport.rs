@@ -18,15 +18,11 @@ use crate::{
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
     Api,
   },
-  data_transformation::{
-    dnsn::{Deserialize, Serialize},
-    Id,
-  },
+  data_transformation::dnsn::{Deserialize, Serialize},
   misc::Lease,
 };
 pub use bi_transport::*;
-use cl_aux::DynContigColl;
-use core::ops::Range;
+use core::{future::Future, ops::Range};
 pub use mock::*;
 pub use transport_params::*;
 
@@ -71,31 +67,28 @@ pub trait Transport<DRSR> {
   ///
   /// All the expected data must be available in a single response.
   #[inline]
-  fn send_recv_decode_batch<A, E, P, RESS>(
+  fn send_recv_decode_batch<'pkgs, 'pkgs_aux, A, P>(
     &mut self,
-    pkgs: &mut [P],
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-    ress: &mut RESS,
-  ) -> impl Future<Output = Result<(), A::Error>>
+    pkgs: &'pkgs mut [P],
+    pkgs_aux: &'pkgs_aux mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> impl Future<
+    Output = Result<
+      impl Iterator<Item = crate::Result<P::ExternalResponseContent<'pkgs_aux>>>,
+      A::Error,
+    >,
+  >
   where
     A: Api,
-    A::Error: From<E>,
     P: Package<A, DRSR, Self::Params>,
-    P::ExternalRequestContent: Lease<Id> + Ord,
-    for<'de> P::ExternalResponseContent<'de>: Lease<Id> + Ord,
-    RESS: for<'de> DynContigColl<E, P::ExternalResponseContent<'de>>,
-    for<'any> BatchElems<'any, A, DRSR, P, Self::Params>: Serialize<DRSR>,
+    BatchElems<'pkgs, A, DRSR, P, Self::Params>: Serialize<DRSR>,
   {
     async {
-      let batch_package = &mut BatchPkg::new(pkgs);
-      let range = self.send_recv(batch_package, pkgs_aux).await?;
+      let range = self.send_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      batch_package.decode_and_push_from_bytes(
-        ress,
+      Ok(P::ExternalResponseContent::seq_from_bytes(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,
-      )?;
-      Ok(())
+      ))
     }
   }
 
@@ -181,18 +174,22 @@ mod tests {
     type ExternalResponseContent<'de> = _Pong;
     type PackageParams = ();
 
+    #[inline]
     fn ext_req_content(&self) -> &Self::ExternalRequestContent {
       &self.0
     }
 
+    #[inline]
     fn ext_req_content_mut(&mut self) -> &mut Self::ExternalRequestContent {
       &mut self.0
     }
 
+    #[inline]
     fn pkg_params(&self) -> &Self::PackageParams {
       &self.1
     }
 
+    #[inline]
     fn pkg_params_mut(&mut self) -> &mut Self::PackageParams {
       &mut self.1
     }
@@ -202,6 +199,7 @@ mod tests {
   pub(crate) struct _Ping;
 
   impl<DRSR> Serialize<DRSR> for _Ping {
+    #[inline]
     fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut DRSR) -> crate::Result<()> {
       bytes.extend_from_slice(b"ping")?;
       Ok(())
@@ -211,21 +209,16 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Pong(pub(crate) &'static str);
 
-  impl<DRSR> Deserialize<'_, DRSR> for _Pong {
+  impl<'de, DRSR> Deserialize<'de, DRSR> for _Pong {
+    #[inline]
     fn from_bytes(bytes: &[u8], _: &mut DRSR) -> crate::Result<Self> {
       assert_eq!(bytes, b"ping");
       Ok(Self("pong"))
     }
 
-    fn seq_from_bytes<E>(
-      _: &[u8],
-      _: &mut DRSR,
-      _: impl FnMut(Self) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-      E: From<crate::Error>,
-    {
-      Ok(())
+    #[inline]
+    fn seq_from_bytes(_: &'de [u8], _: &mut DRSR) -> impl Iterator<Item = crate::Result<Self>> {
+      [].into_iter()
     }
   }
 }

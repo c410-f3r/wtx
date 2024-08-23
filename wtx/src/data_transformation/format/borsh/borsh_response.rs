@@ -20,11 +20,8 @@ where
   }
 
   #[inline]
-  fn seq_from_bytes<E>(_: &[u8], _: &mut (), _: impl FnMut(Self) -> Result<(), E>) -> Result<(), E>
-  where
-    E: From<crate::Error>,
-  {
-    Ok(())
+  fn seq_from_bytes(_: &'de [u8], _: &mut ()) -> impl Iterator<Item = crate::Result<Self>> {
+    [].into_iter()
   }
 }
 
@@ -37,9 +34,8 @@ impl<D> Serialize<()> for BorshResponse<D> {
 
 #[cfg(feature = "borsh")]
 mod borsh {
-  use crate::data_transformation::{dnsn::Borsh, format::BorshResponse, DataTransformationError};
+  use crate::data_transformation::{dnsn::Borsh, format::BorshResponse};
   use borsh::BorshDeserialize;
-  use core::fmt::Display;
 
   impl<'de, D> crate::data_transformation::dnsn::Deserialize<'de, Borsh> for BorshResponse<D>
   where
@@ -49,15 +45,8 @@ mod borsh {
       Ok(Self { data: D::deserialize(&mut bytes)? })
     }
 
-    fn seq_from_bytes<E>(
-      _: &[u8],
-      _: &mut Borsh,
-      _: impl FnMut(Self) -> Result<(), E>,
-    ) -> Result<(), E>
-    where
-      E: Display + From<crate::Error>,
-    {
-      Err(E::from(DataTransformationError::UnsupportedOperation.into()))
+    fn seq_from_bytes(_: &'de [u8], _: &mut Borsh) -> impl Iterator<Item = crate::Result<Self>> {
+      [].into_iter()
     }
   }
 }

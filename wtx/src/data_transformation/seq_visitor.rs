@@ -1,10 +1,10 @@
 use core::marker::PhantomData;
 
-pub(crate) struct _SeqVisitor<E, F, T>(F, PhantomData<(E, T)>);
+pub(crate) struct _SeqVisitor<A, E, F, R, T>(F, R, PhantomData<(A, E, T)>);
 
-impl<E, F, T> _SeqVisitor<E, F, T> {
-  pub(crate) fn _new(cb: F) -> Self {
-    Self(cb, PhantomData)
+impl<A, E, F, R, T> _SeqVisitor<A, E, F, R, T> {
+  pub(crate) fn _new(first: F, rest: R) -> Self {
+    Self(first, rest, PhantomData)
   }
 }
 
@@ -13,33 +13,55 @@ mod serde {
   use crate::data_transformation::seq_visitor::_SeqVisitor;
   use core::{
     any::type_name,
-    fmt::{Display, Formatter},
+    fmt::Formatter, marker::PhantomData,
   };
   use serde::{
     de::{Error as _, SeqAccess, Visitor},
     Deserialize,
   };
 
-  impl<'de, E, F, T> Visitor<'de> for _SeqVisitor<E, F, T>
+  impl<'de, A, E, F, R, T> Visitor<'de> for _SeqVisitor<A, E, F, R, T>
   where
-    E: Display,
-    F: FnMut(T) -> Result<(), E>,
+    E: From<SA::Error>,
+    F: FnOnce(T) -> Result<A, E>,
+    R: FnMut(A, T) -> Result<A, E>,
     T: Deserialize<'de>,
   {
-    type Value = ();
+    type Value = impl Iterator<Item = Result<T, E>>;
 
+    #[inline]
     fn expecting(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
       formatter.write_fmt(format_args!("generic sequence of {}", type_name::<T>()))
     }
 
-    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    #[inline]
+    fn visit_seq<SA>(mut self, mut seq: SA) -> Result<Self::Value, SA::Error>
     where
-      A: SeqAccess<'de>,
+      SA: SeqAccess<'de>,
     {
-      while let Some(elem) = seq.next_element::<T>()? {
-        (self.0)(elem).map_err(A::Error::custom)?;
+      struct Iter<'de, E, SA, T> {
+        phantom: PhantomData<(&'de (), E, T)>,
+        sa: SA
       }
-      Ok(())
+
+      impl<'de, E, SA, T> Iterator for Iter<'de, E, SA, T>
+      where
+        E: From<SA::Error>,
+        SA: SeqAccess<'de>,
+        T: Deserialize<'de>,
+      {
+        type Item = Result<T, E>;
+      
+        #[inline]
+        fn next(&mut self) -> Option<Self::Item> {
+          self.sa.next_element::<T>().map_err(E::from).transpose()
+        }
+      }
+      
+      Ok(Iter {
+        phantom: PhantomData,
+        sa: seq
+      })
     }
   }
 }

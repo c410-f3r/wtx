@@ -6,7 +6,6 @@ mod macros;
 mod data_transformation_error;
 pub mod dnsn;
 pub mod format;
-mod seq_visitor;
 
 pub use data_transformation_error::DataTransformationError;
 
