@@ -95,26 +95,6 @@ pub fn from_utf8_std(bytes: &[u8]) -> Result<&str, StdUtf8Error> {
   });
 }
 
-/// Internally uses `atoi` if the feature is active.
-#[cfg(not(feature = "atoi"))]
-#[inline]
-pub fn atoi<T>(bytes: &[u8]) -> crate::Result<T>
-where
-  T: core::str::FromStr,
-  T::Err: Into<crate::Error>,
-{
-  from_utf8_basic(bytes)?.parse().map_err(Into::into)
-}
-/// Internally uses `atoi` if the feature is active.
-#[cfg(feature = "atoi")]
-#[inline]
-pub fn atoi<T>(bytes: &[u8]) -> crate::Result<T>
-where
-  T: atoi::FromRadix10SignedChecked,
-{
-  atoi::atoi(bytes).ok_or(crate::Error::AtoiInvalidBytes)
-}
-
 /// Internally uses `memchr` if the feature is active.
 #[inline]
 pub fn str_pos1(str: &str, elem: u8) -> Option<usize> {

@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::PostgresError,
-  misc::{atoi, str_split1, UriRef},
+  misc::{str_split1, FromRadix10, UriRef},
 };
 use core::time::Duration;
 
@@ -34,7 +34,7 @@ impl<'data> Config<'data> {
       keepalives: true,
       load_balance_hosts: LoadBalanceHosts::Disable,
       password: uri.password(),
-      port: atoi(uri.port().as_bytes())?,
+      port: u16::from_radix_10(uri.port().as_bytes())?,
       target_session_attrs: TargetSessionAttrs::Any,
       tcp_user_timeout: Duration::ZERO,
       user: uri.user(),
@@ -63,7 +63,7 @@ impl<'data> Config<'data> {
         self.channel_binding = channel_binding;
       }
       "connect_timeout" => {
-        if let Ok(timeout) = atoi(value.as_bytes()) {
+        if let Ok(timeout) = u64::from_radix_10(value.as_bytes()) {
           self.connect_timeout = Duration::from_secs(timeout);
         }
       }
@@ -82,7 +82,7 @@ impl<'data> Config<'data> {
         };
       }
       "tcp_user_timeout" => {
-        if let Ok(timeout) = atoi(value.as_bytes()) {
+        if let Ok(timeout) = u64::from_radix_10(value.as_bytes()) {
           self.tcp_user_timeout = Duration::from_secs(timeout);
         }
       }

@@ -7,13 +7,15 @@ use crate::{
     },
     send_msg::send_msg,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
-    IsConnOpenSync, StreamOverallRecvParams, StreamState, Windows, U31,
+    StreamOverallRecvParams, StreamState, Windows, U31,
   },
   misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
 };
+use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
   pin::pin,
+  sync::atomic::AtomicBool,
   task::Poll,
 };
 
@@ -21,7 +23,7 @@ use core::{
 #[derive(Debug)]
 pub struct ClientStream<HD> {
   hd: HD,
-  is_conn_open: IsConnOpenSync,
+  is_conn_open: Arc<AtomicBool>,
   span: _Span,
   stream_id: U31,
   // Used after the initial sending
@@ -32,7 +34,7 @@ impl<HD> ClientStream<HD> {
   #[inline]
   pub(crate) const fn new(
     hd: HD,
-    is_conn_open: IsConnOpenSync,
+    is_conn_open: Arc<AtomicBool>,
     span: _Span,
     stream_id: U31,
   ) -> Self {
@@ -58,9 +60,9 @@ where
   ///
   /// Should be called after [`Self::send_req`] is successfully executed.
   #[inline]
-  pub async fn recv_res(mut self, rrb: RRB) -> crate::Result<Either<RRB, (RRB, StatusCode)>> {
+  pub async fn recv_res(&mut self, rrb: RRB) -> crate::Result<Either<RRB, (RRB, StatusCode)>> {
     let rrb_opt = &mut Some(rrb);
-    let Self { hd, is_conn_open, span, stream_id, windows } = &mut self;
+    let Self { hd, is_conn_open, span, stream_id, windows } = self;
     let _e = span._enter();
     _trace!("Receiving response");
     let mut lock_pin = pin!(hd.lock());

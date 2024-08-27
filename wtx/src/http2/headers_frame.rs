@@ -5,7 +5,7 @@ use crate::{
     CommonFlags, FrameInit, FrameInitTy, HpackDecoder, HpackHeaderBasic, HpackStaticRequestHeaders,
     HpackStaticResponseHeaders, Http2Error, Http2Params, UriBuffer, U31,
   },
-  misc::{atoi, from_utf8_basic, ArrayString, Usize},
+  misc::{from_utf8_basic, ArrayString, FromRadix10, Usize},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.
@@ -122,7 +122,7 @@ impl<'uri> HeadersFrame<'uri> {
             is_over_size = expanded_headers_len >= max_headers_len;
             if !is_over_size {
               if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
-                content_length = Some(atoi(value)?);
+                content_length = Some(usize::from_radix_10(value)?);
               }
               rrb_headers.push_front(
                 Header { is_sensitive: false, is_trailer: IS_TRAILER, name, value },

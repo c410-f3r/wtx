@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    ClientFramework, Header, KnownHeaderName, Method, Mime, ReqResBuffer, ReqResData, ReqUri,
-    Response,
+    client_framework::ClientFramework, Header, KnownHeaderName, Method, Mime, ReqResBuffer,
+    ReqResData, ReqUri, Response,
   },
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{LeaseMut, Lock, RefCounter, StreamWriter},

@@ -2,7 +2,7 @@
 
 mod abstract_headers;
 #[cfg(feature = "http-client-framework")]
-mod client_framework;
+pub mod client_framework;
 #[cfg(any(feature = "http-client-framework", feature = "http-server-framework"))]
 mod conn_params;
 mod generic_header;
@@ -26,8 +26,6 @@ mod status_code;
 mod version;
 
 pub(crate) use abstract_headers::AbstractHeaders;
-#[cfg(feature = "http-client-framework")]
-pub use client_framework::*;
 #[cfg(any(feature = "http-client-framework", feature = "http-server-framework"))]
 pub(crate) use conn_params::ConnParams;
 pub use generic_header::GenericHeader;

@@ -1,5 +1,7 @@
 //! Fetches and prints the response body of a provided URI.
 //!
+//! This snippet requires ~25 dependencies and has an optimized binary size of ~700K.
+//!
 //! Currently, only HTTP/2 is supported.
 //!
 //! USAGE: `./program http://www.example.com:80`
@@ -9,7 +11,7 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use wtx::{
-  http::{ClientFramework, Method, ReqResBuffer},
+  http::{client_framework::ClientFramework, Method, ReqResBuffer},
   misc::{from_utf8_basic, Uri},
 };
 

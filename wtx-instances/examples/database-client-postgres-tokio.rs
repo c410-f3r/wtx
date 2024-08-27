@@ -1,5 +1,7 @@
 //! Demonstrates different interactions with a PostgreSQL database.
 //!
+//! This snippet requires ~40 dependencies and has an optimized binary size of ~600K.
+//!
 //! USAGE: `./program postgres://USER:PASSWORD@localhost:5432/DATABASE`
 
 extern crate tokio;

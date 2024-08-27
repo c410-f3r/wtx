@@ -1,6 +1,6 @@
 use crate::{
   http::GenericHeader,
-  misc::{atoi, bytes_split1, FilledBufferWriter, VectorError},
+  misc::{bytes_split1, FilledBufferWriter, FromRadix10, VectorError},
   web_socket::{
     compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig,
     WebSocketError,
@@ -232,7 +232,7 @@ fn _manage_header_uniqueness(
 
 fn _byte_from_bytes(bytes: &[u8]) -> Option<u8> {
   let after_equals = bytes_split1(bytes, b'=').nth(1)?;
-  atoi(after_equals).ok()
+  u8::from_radix_10(after_equals).ok()
 }
 
 #[inline]

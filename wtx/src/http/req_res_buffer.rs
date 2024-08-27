@@ -75,7 +75,7 @@ impl ReqResBuffer {
 }
 
 impl ReqResData for ReqResBuffer {
-  type Body = [u8];
+  type Body = Vector<u8>;
 
   #[inline]
   fn body(&self) -> &Self::Body {
@@ -95,8 +95,18 @@ impl ReqResData for ReqResBuffer {
 
 impl ReqResDataMut for ReqResBuffer {
   #[inline]
+  fn body_mut(&mut self) -> &mut Self::Body {
+    &mut self.data
+  }
+
+  #[inline]
   fn headers_mut(&mut self) -> &mut Headers {
     &mut self.headers
+  }
+
+  #[inline]
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (&mut self.data, &mut self.headers, self.uri.to_ref())
   }
 }
 

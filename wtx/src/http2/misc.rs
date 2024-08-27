@@ -2,18 +2,19 @@ use crate::{
   http::ReqResBuffer,
   http2::{
     http2_data::Http2DataPartsMut, CommonFlags, FrameInit, FrameInitTy, GoAwayFrame, HeadersFrame,
-    HpackDecoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params, PingFrame,
-    ResetStreamFrame, Scrp, SettingsFrame, Sorp, StreamOverallRecvParams, StreamState, UriBuffer,
-    WindowUpdateFrame, U31,
+    HpackDecoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params,
+    ResetStreamFrame, Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer, U31,
   },
   misc::{
-    Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter, Usize,
-    _read_until,
+    AtomicWaker, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader,
+    StreamWriter, Usize, _read_until,
   },
 };
 use core::{
+  future::{poll_fn, Future},
+  pin::pin,
   sync::atomic::{AtomicBool, Ordering},
-  task::{Context, Poll},
+  task::{ready, Context, Poll},
 };
 
 #[inline]
@@ -152,131 +153,80 @@ pub(crate) async fn process_higher_operation_err<HB, HD, RRB, SW, const IS_CLIEN
 
 #[inline]
 pub(crate) async fn read_frame<SR, const IS_HEADER_BLOCK: bool>(
-  max_frame_len: u32,
-  pfb: &mut PartitionedFilledBuffer,
-  stream_reader: &mut SR,
-) -> crate::Result<FrameInit>
-where
-  SR: StreamReader,
-{
-  for _ in 0.._max_frames_mismatches!() {
-    pfb._clear_if_following_is_empty();
-    let mut read = pfb._following_len();
-    let buffer = pfb._following_trail_mut();
-    let array = _read_until::<9, _>(buffer, &mut read, 0, stream_reader).await?;
-    let (fi_opt, data_len) = FrameInit::from_array(array);
-    if data_len > max_frame_len {
-      return Err(crate::Error::Http2ErrorGoAway(
-        Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::LargeArbitraryFrameLen),
-      ));
-    }
-    let frame_len = *Usize::from_u32(data_len.wrapping_add(9));
-    let Some(fi) = fi_opt else {
-      if IS_HEADER_BLOCK {
-        return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
-      }
-      if data_len > 32 {
-        return Err(protocol_err(Http2Error::LargeIgnorableFrameLen));
-      }
-      let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
-        stream_reader.read_skip(to_read).await?;
-        (pfb._buffer().len(), 0)
-      } else {
-        (pfb._current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
-      };
-      pfb._set_indices(antecedent_len, 0, following_len)?;
-      continue;
-    };
-    _trace!("Received frame: {fi:?}");
-    let mut is_fulfilled = false;
-    pfb._expand_following(*Usize::from(data_len))?;
-    for _ in 0..=data_len {
-      if read >= frame_len {
-        is_fulfilled = true;
-        break;
-      }
-      read = read.wrapping_add(
-        stream_reader.read(pfb._following_trail_mut().get_mut(read..).unwrap_or_default()).await?,
-      );
-    }
-    if !is_fulfilled {
-      return Err(crate::Error::UnexpectedBufferState);
-    }
-    pfb._set_indices(
-      pfb._current_end_idx().wrapping_add(9),
-      *Usize::from(data_len),
-      read.wrapping_sub(frame_len),
-    )?;
-    return Ok(fi);
-  }
-  Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
-}
-
-/// Reads frames and return the first that is NOT related to the connection
-#[inline]
-pub(crate) async fn read_frame_until<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
-  hd: &HD,
   is_conn_open: &AtomicBool,
   max_frame_len: u32,
   pfb: &mut PartitionedFilledBuffer,
+  read_frame_waker: &AtomicWaker,
   stream_reader: &mut SR,
 ) -> crate::Result<Option<FrameInit>>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
   SR: StreamReader,
-  SW: StreamWriter,
 {
-  for _ in 0.._max_frames_mismatches!() {
-    let fi = read_frame::<_, false>(max_frame_len, pfb, stream_reader).await?;
-    match fi.ty {
-      FrameInitTy::GoAway => {
-        let gaf = GoAwayFrame::read(pfb._current(), fi)?;
-        send_go_away(gaf.error_code(), &mut hd.lock().await.parts_mut()).await;
-        return Ok(None);
+  let mut fut = pin!(async move {
+    for _ in 0.._max_frames_mismatches!() {
+      pfb._clear_if_following_is_empty();
+      let mut read = pfb._following_len();
+      let buffer = pfb._following_trail_mut();
+      let array = _read_until::<9, _>(buffer, &mut read, 0, stream_reader).await?;
+      let (fi_opt, data_len) = FrameInit::from_array(array);
+      if data_len > max_frame_len {
+        return Err(crate::Error::Http2ErrorGoAway(
+          Http2ErrorCode::FrameSizeError,
+          Some(Http2Error::LargeArbitraryFrameLen),
+        ));
       }
-      FrameInitTy::Ping => {
-        let mut pf = PingFrame::read(pfb._current(), fi)?;
-        if !pf.has_ack() {
-          pf.set_ack();
-          let mut lock = hd.lock().await;
-          write_array([&pf.bytes()], is_conn_open, lock.parts_mut().stream_writer).await?;
+      let frame_len = *Usize::from_u32(data_len.wrapping_add(9));
+      let Some(fi) = fi_opt else {
+        if IS_HEADER_BLOCK {
+          return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
         }
-        continue;
-      }
-      FrameInitTy::Settings => {
-        let sf = SettingsFrame::read(pfb._current(), fi)?;
-        if !sf.has_ack() {
-          let mut lock = hd.lock().await;
-          let hdpm = lock.parts_mut();
-          hdpm.hps.update(&mut hdpm.hb.hpack_enc, &mut hdpm.hb.scrp, &sf, &mut hdpm.hb.sorp)?;
-          let array = &mut [0; 45];
-          write_array(
-            [SettingsFrame::ack().bytes(array)],
-            is_conn_open,
-            lock.parts_mut().stream_writer,
-          )
-          .await?;
+        if data_len > 32 {
+          return Err(protocol_err(Http2Error::LargeIgnorableFrameLen));
         }
+        let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
+          stream_reader.read_skip(to_read).await?;
+          (pfb._buffer().len(), 0)
+        } else {
+          (pfb._current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
+        };
+        pfb._set_indices(antecedent_len, 0, following_len)?;
         continue;
-      }
-      FrameInitTy::WindowUpdate if fi.stream_id.is_zero() => {
-        let wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
-        hd.lock().await.parts_mut().windows.send.deposit(None, wuf.size_increment().i32())?;
-        continue;
-      }
-      _ => {
-        if fi.stream_id.is_zero() {
-          return Err(protocol_err(Http2Error::FrameIdIsZeroButShouldNot));
+      };
+      _trace!("Received frame: {fi:?}");
+      let mut is_fulfilled = false;
+      pfb._expand_following(*Usize::from(data_len))?;
+      for _ in 0..=data_len {
+        if read >= frame_len {
+          is_fulfilled = true;
+          break;
         }
+        read = read.wrapping_add(
+          stream_reader
+            .read(pfb._following_trail_mut().get_mut(read..).unwrap_or_default())
+            .await?,
+        );
       }
+      if !is_fulfilled {
+        return Err(crate::Error::UnexpectedBufferState);
+      }
+      pfb._set_indices(
+        pfb._current_end_idx().wrapping_add(9),
+        *Usize::from(data_len),
+        read.wrapping_sub(frame_len),
+      )?;
+      return Ok(fi);
     }
-    return Ok(Some(fi));
-  }
-  Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
+    Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
+  });
+  poll_fn(|cx| {
+    if !is_conn_open.load(Ordering::Relaxed) {
+      return Poll::Ready(Ok(None));
+    }
+    read_frame_waker.register(cx.waker());
+    let fi = ready!(fut.as_mut().poll(cx))?;
+    Poll::Ready(Ok(Some(fi)))
+  })
+  .await
 }
 
 #[inline]
@@ -287,9 +237,11 @@ pub(crate) async fn read_header_and_continuations<
   const IS_TRAILER: bool,
 >(
   fi: FrameInit,
+  is_conn_open: &AtomicBool,
   hp: &mut Http2Params,
   hpack_dec: &mut HpackDecoder,
   pfb: &mut PartitionedFilledBuffer,
+  read_frame_waker: &AtomicWaker,
   rrb: &mut ReqResBuffer,
   stream_reader: &mut SR,
   uri_buffer: &mut UriBuffer,
@@ -332,7 +284,17 @@ where
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
-      let frame_fi = read_frame::<_, true>(hp.max_frame_len(), pfb, stream_reader).await?;
+      let Some(frame_fi) = read_frame::<_, true>(
+        is_conn_open,
+        hp.max_frame_len(),
+        pfb,
+        read_frame_waker,
+        stream_reader,
+      )
+      .await?
+      else {
+        break 'continuation_frames;
+      };
       let has_diff_id = fi.stream_id != frame_fi.stream_id;
       let is_not_continuation = frame_fi.ty != FrameInitTy::Continuation;
       if has_diff_id || is_not_continuation {
@@ -387,6 +349,7 @@ pub(crate) async fn send_go_away<SW, RRB>(
   for sorp in hdpm.hb.sorp.values() {
     sorp.waker.wake_by_ref();
   }
+  hdpm.hb.read_frame_waker.wake();
 }
 
 #[inline]

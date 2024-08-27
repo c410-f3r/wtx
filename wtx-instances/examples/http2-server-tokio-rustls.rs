@@ -34,7 +34,8 @@ async fn main() {
 }
 
 async fn handle(
-  (_, mut req): ((), Request<ReqResBuffer>),
+  mut req: Request<ReqResBuffer>,
+  _: (),
 ) -> Result<Response<ReqResBuffer>, wtx::Error> {
   req.rrd.clear();
   Ok(req.into_response(StatusCode::Ok))

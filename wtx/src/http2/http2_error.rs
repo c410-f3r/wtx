@@ -34,8 +34,8 @@ pub enum Http2Error {
   HpackDecodingBufferIsTooSmall,
   /// There are no bytes left to decode HPACK headers.
   InsufficientHpackBytes,
-  #[doc = stream_id_must_not_be_zero!()]
-  InvalidContinuationFrameZeroId,
+  /// Continuation frame found in invalid order
+  InvalidContinuationFrame,
   /// Length is greater than [`u32::MAX`].
   InvalidDataFrameDataLen,
   #[doc = stream_id_must_not_be_zero!()]

@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{PostgresError, SqlState},
-  misc::{str_split1, Usize, _usize_range_from_u32_range, atoi, into_rslt},
+  misc::{str_split1, FromRadix10, Usize, _usize_range_from_u32_range, into_rslt},
 };
 use alloc::boxed::Box;
 use core::{
@@ -277,9 +277,9 @@ impl TryFrom<&str> for DbError {
         "C" => code = Some(SqlState::try_from(data)?),
         "D" => detail = Some(range),
         "H" => hint = Some(range),
-        "L" => line = Some(atoi(data.as_bytes())?),
+        "L" => line = Some(u32::from_radix_10(data.as_bytes())?),
         "M" => message = Some(range),
-        "P" => normal_position = Some(atoi(data.as_bytes())?),
+        "P" => normal_position = Some(u32::from_radix_10(data.as_bytes())?),
         "R" => routine = Some(range),
         "S" => severity_localized = Some(range),
         "V" => severity_nonlocalized = Some(Severity::try_from(data)?),
@@ -288,12 +288,14 @@ impl TryFrom<&str> for DbError {
         "d" => datatype = Some(range),
         "F" => file = Some(range),
         "n" => constraint = Some(range),
-        "p" => internal_position = Some(atoi(data.as_bytes())?),
+        "p" => internal_position = Some(u32::from_radix_10(data.as_bytes())?),
         "q" => internal_query = Some(range),
         "s" => schema = Some(range),
         "t" => table = Some(range),
         _ => {
-          return Err(crate::Error::UnexpectedUint { received: atoi(ty.as_bytes())? });
+          return Err(crate::Error::UnexpectedUint {
+            received: u32::from_radix_10(ty.as_bytes())?,
+          });
         }
       }
     }

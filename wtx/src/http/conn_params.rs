@@ -26,12 +26,12 @@ impl Default for ConnParams {
   #[inline]
   fn default() -> Self {
     Self {
-      initial_window_len: 32 * 1024 * 1024,
+      initial_window_len: u32::MAX,
       max_body_len: 4 * 1024 * 1024,
-      max_concurrent_streams_num: 1024,
+      max_concurrent_streams_num: u32::MAX,
       max_frame_len: 64 * 1024,
       max_headers_len: 8 * 1024,
-      max_recv_streams_num: 1024,
+      max_recv_streams_num: u32::MAX,
     }
   }
 }

@@ -44,9 +44,9 @@ where
   pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, RRB, SW> {
     Http2DataPartsMut {
       hb: self.hb.lease_mut(),
-      last_stream_id: &mut self.last_stream_id,
       hp: &mut self.hp,
       hps: &mut self.hps,
+      last_stream_id: &mut self.last_stream_id,
       recv_streams_num: &mut self.recv_streams_num,
       stream_writer: &mut self.stream_writer,
       windows: &mut self.windows,

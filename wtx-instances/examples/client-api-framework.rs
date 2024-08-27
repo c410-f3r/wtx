@@ -17,7 +17,7 @@ use wtx::{
     Api,
   },
   data_transformation::dnsn::SerdeJson,
-  http::ClientFrameworkTokio,
+  http::client_framework::ClientFrameworkTokio,
   misc::{NoStdRng, Uri},
   web_socket::{FrameBufferVec, HeadersBuffer, WebSocketBuffer, WebSocketClient},
 };

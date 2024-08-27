@@ -9,8 +9,6 @@ Activation feature is called `postgres`.
 
 ## Example
 
-The bellow snippet requires ~40 dependencies and has an optimized binary size of ~600K.
-
 ```rust,edition2021,no_run
 {{#rustdoc_include ../../../wtx-instances/examples/database-client-postgres-tokio.rs}}
 ```

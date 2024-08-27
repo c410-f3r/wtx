@@ -9,7 +9,7 @@ use crate::{
     DataFrame, FrameInit, HpackDecoder, Http2Error, Http2ErrorCode, Http2Params, ResetStreamFrame,
     Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
   },
-  misc::{LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter, Usize},
+  misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter, Usize},
 };
 use alloc::collections::VecDeque;
 use core::{marker::PhantomData, sync::atomic::AtomicBool, task::Waker};
@@ -25,6 +25,7 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, RRB, SR, SW> {
   pub(crate) last_stream_id: &'instance mut U31,
   pub(crate) pfb: &'instance mut PartitionedFilledBuffer,
   pub(crate) phantom: PhantomData<RRB>,
+  pub(crate) read_frame_waker: &'instance AtomicWaker,
   pub(crate) recv_streams_num: &'instance mut u32,
   pub(crate) stream_reader: &'instance mut SR,
   pub(crate) stream_writer: &'instance mut SW,
@@ -88,9 +89,11 @@ where
     let has_eos = if elem.has_initial_header {
       read_header_and_continuations::<_, _, true, true>(
         self.fi,
+        self.is_conn_open,
         self.hp,
         self.hpack_dec,
         self.pfb,
+        self.read_frame_waker,
         elem.rrb.lease_mut(),
         self.stream_reader,
         self.uri_buffer,
@@ -101,9 +104,11 @@ where
     } else {
       let (_, has_eos, status_code) = read_header_and_continuations::<_, _, true, false>(
         self.fi,
+        self.is_conn_open,
         self.hp,
         self.hpack_dec,
         self.pfb,
+        self.read_frame_waker,
         elem.rrb.lease_mut(),
         self.stream_reader,
         self.uri_buffer,
@@ -139,9 +144,11 @@ where
     rrb.lease_mut().headers.set_max_bytes(*Usize::from(self.hp.max_headers_len()));
     let (content_length, has_eos, method) = read_header_and_continuations::<_, _, false, false>(
       self.fi,
+      self.is_conn_open,
       self.hp,
       self.hpack_dec,
       self.pfb,
+      self.read_frame_waker,
       rrb.lease_mut(),
       self.stream_reader,
       self.uri_buffer,
@@ -177,9 +184,11 @@ where
     }
     let (_, has_eos, _) = read_header_and_continuations::<_, _, false, true>(
       self.fi,
+      self.is_conn_open,
       self.hp,
       self.hpack_dec,
       self.pfb,
+      self.read_frame_waker,
       sorp.rrb.lease_mut(),
       self.stream_reader,
       self.uri_buffer,

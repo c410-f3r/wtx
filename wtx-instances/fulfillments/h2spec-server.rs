@@ -25,7 +25,8 @@ async fn main() {
 }
 
 async fn handle(
-  (_, mut req): ((), Request<ReqResBuffer>),
+  mut req: Request<ReqResBuffer>,
+  _: (),
 ) -> Result<Response<ReqResBuffer>, wtx::Error> {
   req.rrd.clear();
   req.rrd.data.extend_from_slice(b"Hello").unwrap();

@@ -3,7 +3,7 @@ use core::{future::Future, ops::DerefMut};
 
 /// An asynchronous mutual exclusion primitive useful for protecting shared data.
 pub trait Lock {
-  /// See [`LockGuard`].
+  /// Lock type.
   type Guard<'guard>: DerefMut<Target = Self::Resource>
   where
     Self: 'guard;
@@ -60,7 +60,7 @@ where
 
 /// Synchronous counterpart of [Lock].
 pub trait SyncLock {
-  /// See [`LockGuard`].
+  /// Lock type.
   type Guard<'guard>: DerefMut<Target = Self::Resource>
   where
     Self: 'guard;

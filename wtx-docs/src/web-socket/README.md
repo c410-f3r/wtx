@@ -19,8 +19,6 @@ To get the most performance possible, try compiling your program with `RUSTFLAGS
 
 ## Client Example
 
-The bellow snippet requires ~35 dependencies and has an optimized binary size of ~550K.
-
 ```rust,edition2021,no_run
 {{#rustdoc_include ../../../wtx-instances/examples/web-socket-client-tokio.rs}}
 ```

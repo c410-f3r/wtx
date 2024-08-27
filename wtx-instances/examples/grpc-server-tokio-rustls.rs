@@ -11,7 +11,7 @@ use wtx::{
   grpc::{GrpcStatusCode, Server, ServerData},
   http::{
     server_framework::{post, Router},
-    ReqResBuffer, Request, Response, StatusCode,
+    ReqResBuffer, Request, StatusCode,
   },
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
@@ -32,8 +32,9 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn wtx_generic_service_generic_method(
-  (mut sd, mut req): (ServerData<QuickProtobuf>, Request<ReqResBuffer>),
-) -> wtx::Result<(GrpcStatusCode, Response<ReqResBuffer>)> {
+  req: &mut Request<ReqResBuffer>,
+  mut sd: ServerData<QuickProtobuf>,
+) -> wtx::Result<(StatusCode, GrpcStatusCode)> {
   let _generic_request: GenericRequest = sd.des_from_req_bytes(&req.rrd.data)?;
   req.rrd.clear();
   sd.ser_to_res_bytes(
@@ -43,5 +44,5 @@ async fn wtx_generic_service_generic_method(
       generic_response_field1: 321,
     },
   )?;
-  Ok((GrpcStatusCode::Ok, req.into_response(StatusCode::Ok)))
+  Ok((StatusCode::Ok, GrpcStatusCode::Ok))
 }

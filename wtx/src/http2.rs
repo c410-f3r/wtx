@@ -49,8 +49,8 @@ use crate::{
     manage_initial_stream_receiving, process_higher_operation_err, protocol_err, write_array,
   },
   misc::{
-    ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader,
-    StreamWriter, Usize,
+    AtomicWaker, ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter,
+    StreamReader, StreamWriter, Usize,
   },
 };
 use alloc::sync::Arc;
@@ -112,7 +112,6 @@ pub type Http2Tokio<HB, RRB, SW, const IS_CLIENT: bool> =
 pub type Http2DataTokio<HB, RRB, SW, const IS_CLIENT: bool> =
   Arc<tokio::sync::Mutex<Http2Data<HB, RRB, SW, IS_CLIENT>>>;
 
-pub(crate) type IsConnOpenSync = Arc<AtomicBool>;
 pub(crate) type Scrp = HashMap<U31, StreamControlRecvParams>;
 pub(crate) type Sorp<RRB> = HashMap<U31, StreamOverallRecvParams<RRB>>;
 
@@ -120,7 +119,7 @@ pub(crate) type Sorp<RRB> = HashMap<U31, StreamOverallRecvParams<RRB>>;
 #[derive(Debug)]
 pub struct Http2<HD, const IS_CLIENT: bool> {
   hd: HD,
-  is_conn_open: IsConnOpenSync,
+  is_conn_open: Arc<AtomicBool>,
 }
 
 impl<HB, HD, RRB, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
@@ -154,7 +153,7 @@ where
     hb: &mut Http2Buffer<RRB>,
     hp: &Http2Params,
     stream_writer: &mut SW,
-  ) -> crate::Result<(IsConnOpenSync, u32, PartitionedFilledBuffer)> {
+  ) -> crate::Result<(Arc<AtomicBool>, u32, PartitionedFilledBuffer, Arc<AtomicWaker>)> {
     hb.is_conn_open.store(true, Ordering::Relaxed);
     let sf = hp.to_settings_frame();
     let sf_buffer = &mut [0; 45];
@@ -179,7 +178,12 @@ where
     hb.hpack_dec.set_max_bytes(hp.max_hpack_len().0);
     hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
     hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()))?;
-    Ok((Arc::clone(&hb.is_conn_open), hp.max_frame_len(), mem::take(&mut hb.pfb)))
+    Ok((
+      Arc::clone(&hb.is_conn_open),
+      hp.max_frame_len(),
+      mem::take(&mut hb.pfb),
+      Arc::clone(&hb.read_frame_waker),
+    ))
   }
 }
 
@@ -210,11 +214,21 @@ where
         .await;
       return Err(protocol_err(Http2Error::NoPreface));
     }
-    let (is_conn_open, max_frame_len, pfb) =
+    let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<false>(hb.lease_mut(), &hp, &mut stream_writer).await?;
     let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
     let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
-    Ok((frame_reader::frame_reader(hd, is_conn_open, max_frame_len, pfb, stream_reader), this))
+    Ok((
+      frame_reader::frame_reader(
+        hd,
+        is_conn_open,
+        max_frame_len,
+        pfb,
+        read_frame_waker,
+        stream_reader,
+      ),
+      this,
+    ))
   }
 
   /// Awaits for an initial header to create a stream.
@@ -280,11 +294,21 @@ where
     SR: StreamReader,
   {
     hb.lease_mut().clear();
-    let (is_conn_open, max_frame_len, pfb) =
+    let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<true>(hb.lease_mut(), &hp, &mut stream_writer).await?;
     let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
     let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
-    Ok((frame_reader::frame_reader(hd, is_conn_open, max_frame_len, pfb, stream_reader), this))
+    Ok((
+      frame_reader::frame_reader(
+        hd,
+        is_conn_open,
+        max_frame_len,
+        pfb,
+        read_frame_waker,
+        stream_reader,
+      ),
+      this,
+    ))
   }
 
   /// Opens a local stream.

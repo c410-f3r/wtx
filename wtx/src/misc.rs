@@ -3,12 +3,14 @@
 mod array_chunks;
 mod array_string;
 mod array_vector;
+mod atomic_waker;
 mod blocks_queue;
 mod connection_state;
 mod either;
 mod enum_var_strings;
 mod filled_buffer_writer;
 mod fn_fut;
+mod from_radix_10;
 mod generic_time;
 mod incomplete_utf8_char;
 mod iter_wrapper;
@@ -39,13 +41,15 @@ pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError};
+pub use atomic_waker::AtomicWaker;
 pub use blocks_queue::{Block, BlocksQueue, BlocksQueueError};
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
-pub use fn_fut::{FnFut, FnMutFut, FnOnceFut};
+pub use fn_fut::*;
+pub use from_radix_10::FromRadix10;
 pub use generic_time::GenericTime;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use iter_wrapper::IterWrapper;
@@ -76,6 +80,36 @@ pub(crate) use {
 #[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
   opt.ok_or(crate::Error::NoInnerValue(type_name::<T>()))
+}
+
+/// Similar to `collect_seq` of `serde` but expects a `Result`.
+#[cfg(feature = "serde")]
+pub fn serde_collect_seq_rslt<E, I, S, T>(ser: S, into_iter: I) -> Result<(), E>
+where
+  E: From<S::Error>,
+  I: IntoIterator<Item = Result<T, E>>,
+  S: serde::Serializer<Ok = ()>,
+  T: serde::Serialize,
+{
+  use serde::ser::SerializeSeq;
+
+  fn iterator_len_hint<I>(iter: &I) -> Option<usize>
+  where
+    I: Iterator,
+  {
+    match iter.size_hint() {
+      (lo, Some(hi)) if lo == hi => Some(lo),
+      _ => None,
+    }
+  }
+
+  let iter = into_iter.into_iter();
+  let mut sq = ser.serialize_seq(iterator_len_hint(&iter))?;
+  for elem in iter {
+    sq.serialize_element(&elem?)?;
+  }
+  sq.end()?;
+  Ok(())
 }
 
 /// Sleeps for the specified amount of time.

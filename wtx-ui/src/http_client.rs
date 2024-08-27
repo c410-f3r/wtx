@@ -1,5 +1,5 @@
 use wtx::{
-  http::{ClientFramework, ReqBuilder},
+  http::client_framework::{ClientFramework, ReqBuilder},
   misc::{from_utf8_basic, Uri},
 };
 

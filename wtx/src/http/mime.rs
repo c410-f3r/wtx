@@ -5,6 +5,8 @@ pub enum Mime {
   Bytes,
   /// Anything
   Custom(&'static str),
+  /// Grpc
+  Grpc,
   /// JSON
   Json,
   /// JSON:API
@@ -26,6 +28,7 @@ impl Mime {
     match self {
       Self::Bytes => "application/octet-stream",
       Self::Custom(el) => el,
+      Self::Grpc => "application/grpc",
       Self::Json => "application/json",
       Self::JsonApi => "application/vnd.api+json",
       Self::Protobuf => "application/vnd.google.protobuf",

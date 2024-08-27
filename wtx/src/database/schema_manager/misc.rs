@@ -25,6 +25,7 @@ use {
     MigrationGroup, Repeatability, UserMigrationOwned,
   },
   crate::misc::ArrayVector,
+  crate::misc::FromRadix10,
   alloc::string::String,
   core::cmp::Ordering,
   std::{
@@ -265,7 +266,7 @@ fn dir_name_parts(s: &str) -> crate::Result<(String, i32)> {
       return None;
     }
     let mut split = s.split("__");
-    let version = crate::misc::atoi(split.next()?.as_bytes()).ok()?;
+    let version = i32::from_radix_10(split.next()?.as_bytes()).ok()?;
     let name = split.next()?.into();
     Some((name, version))
   };
@@ -280,7 +281,7 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, i32)> {
       return None;
     }
     let mut split = s.split("__");
-    let version = crate::misc::atoi(split.next()?.as_bytes()).ok()?;
+    let version = i32::from_radix_10(split.next()?.as_bytes()).ok()?;
     let name = split.next()?.strip_suffix(".sql")?.into();
     Some((name, version))
   };

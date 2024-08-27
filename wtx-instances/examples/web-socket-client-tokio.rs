@@ -1,6 +1,8 @@
 //! WebSocket CLI client that enables real-time communication by allowing users to send and
 //! receive messages through typing.
 //!
+//! This snippet requires ~35 dependencies and has an optimized binary size of ~550K.
+//!
 //! USAGE: `./program ws://www.example.com:80`
 
 extern crate tokio;
