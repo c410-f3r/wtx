@@ -45,16 +45,16 @@ macro_rules! tuple_impls {
     mod http_server_framework {
       use crate::{
         http::{
-          HttpError, Request, ReqResData, Response,
-          server_framework::{ReqMiddlewares, ResMiddlewares, PathManagement, Path}
+          HttpError, Request, ReqResData, Response, StatusCode,
+          server_framework::{ReqMiddlewares, ResMiddlewares, PathManagement, PathParams}
         },
-        misc::FnFut
+        misc::FnFut1
       };
 
       $(
         impl<$($T,)+ ERR, RRD> ReqMiddlewares<ERR, RRD> for ($($T,)+)
         where
-          $($T: for<'any> FnFut<&'any mut Request<RRD>, Result<(), ERR>>,)+
+          $($T: for<'any> FnFut1<&'any mut Request<RRD>, Result = Result<(), ERR>>,)+
           ERR: From<crate::Error>
         {
           #[inline]
@@ -66,19 +66,19 @@ macro_rules! tuple_impls {
 
         impl<$($T,)+ ERR, RRD> ResMiddlewares<ERR, RRD> for ($($T,)+)
         where
-          $($T: for<'any> FnFut<&'any mut Response<RRD>, Result<(), ERR>>,)+
+          $($T: for<'req, 'res> FnFut1<&'res mut Response<&'req mut RRD>, Result = Result<(), ERR>>,)+
           ERR: From<crate::Error>
         {
           #[inline]
-          async fn apply_res_middlewares(&self, res: &mut Response<RRD>) -> Result<(), ERR> {
-            $( ${ignore($T)} (self.${index()})(res).await?; )+
+          async fn apply_res_middlewares(&self, mut res: Response<&mut RRD>) -> Result<(), ERR> {
+            $( ${ignore($T)} (self.${index()})(&mut res).await?; )+
             Ok(())
           }
         }
 
-        impl<$($T,)+ ERR, RRD> PathManagement<ERR, RRD> for ($(Path<$T>,)+)
+        impl<$($T,)+ ERR, RRD> PathManagement<ERR, RRD> for ($(PathParams<$T>,)+)
         where
-          $($T: PathManagement<ERR, RRD>,)+
+        $($T: PathManagement<ERR, RRD>,)+
           ERR: From<crate::Error>,
           RRD: ReqResData
         {
@@ -87,10 +87,11 @@ macro_rules! tuple_impls {
             &self,
             _: bool,
             _: &'static str,
-            req: Request<RRD>,
+            req: &mut Request<RRD>,
             [begin, end]: [usize; 2],
-          ) -> Result<Response<RRD>, ERR> {
-            match req.rrd.uri().as_str().get(begin..end).unwrap_or_default() {
+          ) -> Result<StatusCode, ERR> {
+            let path = req.rrd.uri();
+            match path.as_str().get(begin..end).unwrap_or_default() {
               $(
                 ${ignore($T)}
                 elem if self.${index()}.name.starts_with(elem) => {

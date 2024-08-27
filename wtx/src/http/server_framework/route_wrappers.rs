@@ -1,28 +1,38 @@
+#![expect(clippy::partial_pub_fields, reason = "necessary due to type checker")]
+
 use crate::http::{
-  server_framework::{PathFun, PathManagement},
-  HttpError, KnownHeaderName, Method, Mime, ReqResData, Request, Response,
+  server_framework::{Endpoint, PathManagement},
+  HttpError, KnownHeaderName, Method, Mime, ReqResData, Request, StatusCode,
 };
+use core::marker::PhantomData;
 
 /// Requires a request of type `GET`.
 #[derive(Debug)]
-pub struct Get<PF>(
-  /// Path Function
-  pub PF,
+pub struct Get<A, T>(
+  /// Arbitrary type
+  pub T,
+  PhantomData<A>,
 );
 
-impl<E, PF, RRD> PathManagement<E, RRD> for Get<PF>
+/// Creates a new [`Get`] instance.
+#[inline]
+pub fn get<A, T>(ty: T) -> Get<A, T> {
+  Get(ty, PhantomData)
+}
+
+impl<A, E, RRD, T> PathManagement<E, RRD> for Get<A, T>
 where
   E: From<crate::Error>,
-  PF: PathFun<E, RRD>,
+  T: Endpoint<A, E, RRD>,
 {
   #[inline]
   async fn manage_path(
     &self,
     _: bool,
     matching_path: &'static str,
-    req: Request<RRD>,
+    req: &mut Request<RRD>,
     req_path_indcs: [usize; 2],
-  ) -> Result<Response<RRD>, E> {
+  ) -> Result<StatusCode, E> {
     if req.method != Method::Get {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
         expected: Method::Get,
@@ -32,23 +42,24 @@ where
   }
 }
 
-/// Creates a new [`Get`] instance with type inference.
-#[inline]
-pub fn get<I, O>(f: fn(I) -> O) -> Get<fn(I) -> O> {
-  Get(f)
-}
-
 /// Requires a request of type `POST` with json MIME.
 #[derive(Debug)]
-pub struct Json<PF>(
-  /// Path Function
-  pub PF,
+pub struct Json<A, T>(
+  /// Arbitrary type
+  pub T,
+  PhantomData<A>,
 );
 
-impl<E, PF, RRD> PathManagement<E, RRD> for Json<PF>
+/// Creates a new [`Json`] instance.
+#[inline]
+pub fn json<A, T>(ty: T) -> Json<A, T> {
+  Json(ty, PhantomData)
+}
+
+impl<A, E, T, RRD> PathManagement<E, RRD> for Json<A, T>
 where
   E: From<crate::Error>,
-  PF: PathFun<E, RRD>,
+  T: Endpoint<A, E, RRD>,
   RRD: ReqResData,
 {
   #[inline]
@@ -56,9 +67,9 @@ where
     &self,
     _: bool,
     matching_path: &'static str,
-    req: Request<RRD>,
+    req: &mut Request<RRD>,
     req_path_indcs: [usize; 2],
-  ) -> Result<Response<RRD>, E> {
+  ) -> Result<StatusCode, E> {
     if req
       .rrd
       .headers()
@@ -76,32 +87,33 @@ where
   }
 }
 
-/// Creates a new [`Json`] instance with type inference.
-#[inline]
-pub fn json<I, O>(f: fn(I) -> O) -> Json<fn(I) -> O> {
-  Json(f)
-}
-
 /// Requires a request of type `POST`.
 #[derive(Debug)]
-pub struct Post<PF>(
-  /// Path Function
-  pub PF,
+pub struct Post<A, T>(
+  /// Arbitrary type
+  pub T,
+  PhantomData<A>,
 );
 
-impl<E, PF, RRD> PathManagement<E, RRD> for Post<PF>
+/// Creates a new [`Post`] instance.
+#[inline]
+pub fn post<A, T>(ty: T) -> Post<A, T> {
+  Post(ty, PhantomData)
+}
+
+impl<A, E, T, RRD> PathManagement<E, RRD> for Post<A, T>
 where
   E: From<crate::Error>,
-  PF: PathFun<E, RRD>,
+  T: Endpoint<A, E, RRD>,
 {
   #[inline]
   async fn manage_path(
     &self,
     _: bool,
     matching_path: &'static str,
-    req: Request<RRD>,
+    req: &mut Request<RRD>,
     req_path_indcs: [usize; 2],
-  ) -> Result<Response<RRD>, E> {
+  ) -> Result<StatusCode, E> {
     if req.method != Method::Post {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
         expected: Method::Post,
@@ -109,10 +121,4 @@ where
     }
     self.0.call(matching_path, req, req_path_indcs).await
   }
-}
-
-/// Creates a new [`Post`] instance with type inference.
-#[inline]
-pub fn post<I, O>(f: fn(I) -> O) -> Post<fn(I) -> O> {
-  Post(f)
 }

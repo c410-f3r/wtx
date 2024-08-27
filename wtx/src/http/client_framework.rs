@@ -1,3 +1,5 @@
+//! Client framework
+
 mod client_framework_builder;
 mod http_client_framework_error;
 #[cfg(all(
@@ -33,7 +35,7 @@ pub struct ClientFramework<RL, RM> {
   pool: SimplePool<RL, RM>,
 }
 
-/// Resource manager for [`Client`].
+/// Resource manager for [`ClientFramework`].
 #[derive(Debug)]
 pub struct ClientFrameworkRM<S> {
   _cp: ConnParams,
@@ -93,7 +95,10 @@ where
 #[cfg(feature = "tokio")]
 mod tokio {
   use crate::{
-    http::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM, ReqResBuffer},
+    http::{
+      client_framework::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM},
+      ReqResBuffer,
+    },
     http2::{Http2Buffer, Http2Tokio},
     misc::UriRef,
     pool::{ResourceManager, SimplePoolResource},
@@ -103,7 +108,7 @@ mod tokio {
     sync::Mutex,
   };
 
-  /// A [`Client`] using the elements of `tokio`.
+  /// A [`ClientFramework`] using the elements of `tokio`.
   pub type ClientFrameworkTokio =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<TcpStream>>;
   type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, OwnedWriteHalf, true>;
@@ -169,7 +174,10 @@ mod tokio {
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls {
   use crate::{
-    http::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM, ReqResBuffer},
+    http::{
+      client_framework::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM},
+      ReqResBuffer,
+    },
     http2::{Http2Buffer, Http2Tokio},
     misc::{TokioRustlsConnector, UriRef},
     pool::{ResourceManager, SimplePoolResource},
@@ -177,7 +185,7 @@ mod tokio_rustls {
   use tokio::{io::WriteHalf, net::TcpStream, sync::Mutex};
   use tokio_rustls::client::TlsStream;
 
-  /// A [`Client`] using the elements of `tokio-rustls`.
+  /// A [`ClientFramework`] using the elements of `tokio-rustls`.
   pub type ClientFrameworkTokioRustls =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<Writer>>;
   type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, Writer, true>;

@@ -1,7 +1,7 @@
 use crate::{
   http::Method,
-  http2::{HpackDecoder, HpackEncoder, IsConnOpenSync, Scrp, Sorp, UriBuffer, U31},
-  misc::{Lease, LeaseMut, PartitionedFilledBuffer, Rng, Vector},
+  http2::{HpackDecoder, HpackEncoder, Scrp, Sorp, UriBuffer, U31},
+  misc::{AtomicWaker, Lease, LeaseMut, PartitionedFilledBuffer, Rng, Vector},
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use core::{
@@ -18,8 +18,9 @@ pub struct Http2Buffer<RRB> {
   pub(crate) hpack_enc_buffer: Vector<u8>,
   pub(crate) initial_server_header_buffers: VecDeque<(RRB, Waker)>,
   pub(crate) initial_server_header_params: VecDeque<(Method, U31)>,
-  pub(crate) is_conn_open: IsConnOpenSync,
+  pub(crate) is_conn_open: Arc<AtomicBool>,
   pub(crate) pfb: PartitionedFilledBuffer,
+  pub(crate) read_frame_waker: Arc<AtomicWaker>,
   pub(crate) scrp: Scrp,
   pub(crate) sorp: Sorp<RRB>,
   pub(crate) uri_buffer: Box<UriBuffer>,
@@ -40,6 +41,7 @@ impl<RRB> Http2Buffer<RRB> {
       initial_server_header_params: VecDeque::new(),
       is_conn_open: Arc::new(AtomicBool::new(false)),
       pfb: PartitionedFilledBuffer::new(),
+      read_frame_waker: Arc::new(AtomicWaker::new()),
       scrp: HashMap::new(),
       sorp: HashMap::new(),
       uri_buffer: Box::new(UriBuffer::new()),
@@ -56,6 +58,7 @@ impl<RRB> Http2Buffer<RRB> {
       initial_server_header_params,
       is_conn_open,
       pfb,
+      read_frame_waker,
       scrp,
       sorp,
       uri_buffer,
@@ -67,6 +70,7 @@ impl<RRB> Http2Buffer<RRB> {
     initial_server_header_params.clear();
     is_conn_open.store(false, Ordering::Relaxed);
     pfb._clear();
+    let _waker = read_frame_waker.take();
     scrp.clear();
     sorp.clear();
     uri_buffer.clear();

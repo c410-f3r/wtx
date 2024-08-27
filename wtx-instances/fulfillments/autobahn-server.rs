@@ -25,10 +25,8 @@ async fn main() {
 }
 
 async fn handle(
-  (fb, mut ws): (
-    &mut FrameBufferVec,
-    WebSocketServer<Option<NegotiatedFlate2>, StdRng, TcpStream, &mut WebSocketBuffer>,
-  ),
+  fb: &mut FrameBufferVec,
+  mut ws: WebSocketServer<Option<NegotiatedFlate2>, StdRng, TcpStream, &mut WebSocketBuffer>,
 ) -> wtx::Result<()> {
   loop {
     let mut frame = ws.read_frame(fb).await?;

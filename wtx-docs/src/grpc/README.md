@@ -11,8 +11,6 @@ Activation feature is called `grpc`.
 
 ## Client Example
 
-The bellow snippet requires ~40 dependencies and has an optimized binary size of ~700K.
-
 ```rust,edition2021,no_run
 {{#rustdoc_include ../../../wtx-instances/examples/grpc-client-tokio.rs}}
 ```

@@ -7,20 +7,23 @@ use crate::{
     },
     send_msg::send_msg,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
-    IsConnOpenSync, StreamControlRecvParams, U31,
+    StreamControlRecvParams, U31,
   },
-  misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
+  misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span, sleep},
 };
+use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
   pin::pin,
+  sync::atomic::AtomicBool,
+  time::Duration,
 };
 
 /// Created when a server receives an initial stream.
 #[derive(Debug)]
 pub struct ServerStream<HD> {
   hd: HD,
-  is_conn_open: IsConnOpenSync,
+  is_conn_open: Arc<AtomicBool>,
   method: Method,
   span: _Span,
   stream_id: U31,
@@ -30,7 +33,7 @@ impl<HD> ServerStream<HD> {
   #[inline]
   pub(crate) const fn new(
     hd: HD,
-    is_conn_open: IsConnOpenSync,
+    is_conn_open: Arc<AtomicBool>,
     method: Method,
     span: _Span,
     stream_id: U31,
@@ -105,14 +108,14 @@ where
   ///
   /// Should be called after [`Self::recv_req`] is successfully executed.
   #[inline]
-  pub async fn send_res<RRD>(self, res: Response<RRD>) -> crate::Result<Option<()>>
+  pub async fn send_res<RRD>(&mut self, res: Response<RRD>) -> crate::Result<Option<()>>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
     let _e = self.span._enter();
     _trace!("Sending response");
-    send_msg::<_, _, _, _, false>(
+    if send_msg::<_, _, _, _, false>(
       res.rrd.body().lease(),
       &self.hd,
       res.rrd.headers(),
@@ -122,11 +125,16 @@ where
       ),
       &self.is_conn_open,
       self.stream_id,
-      |hdpm| {
-        drop(hdpm.hb.scrp.remove(&self.stream_id));
-      },
+      |_| {},
     )
-    .await
+    .await?
+    .is_none()
+    {
+      return Ok(None);
+    }
+    sleep(Duration::from_millis(50)).await?;
+    drop(self.hd.lock().await.parts_mut().hb.scrp.remove(&self.stream_id));
+    Ok(Some(()))
   }
 
   /// Sends a stream reset to the peer, which cancels this stream.

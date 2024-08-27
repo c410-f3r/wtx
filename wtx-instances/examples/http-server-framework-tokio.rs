@@ -2,6 +2,8 @@
 //! middlewares, dynamic routes, PostgreSQL connections and JSON deserialization/serialization.
 //!
 //! Currently, only HTTP/2 is supported.
+//!
+//! This snippet requires ~50 dependencies and has an optimized binary size of ~900K.
 
 extern crate serde;
 extern crate serde_json;
@@ -15,9 +17,10 @@ use tokio::net::TcpStream;
 use wtx::{
   database::{Executor, Record},
   http::{
-    server_framework::{get, post, Router, ServerFramework},
+    server_framework::{get, post, PathOwned, Router, SerdeJson, ServerFramework},
     ReqResBuffer, Request, Response, StatusCode,
   },
+  misc::Vector,
   pool::{Pool, PostgresRM, SimplePoolTokio},
 };
 
@@ -28,12 +31,12 @@ static POOL: LazyLock<SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>> = Lazy
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let router = Router::paths(wtx::paths!(
-    ("db/:id", get(db)),
-    ("json", post(json)),
+    ("/db/:id", get(db)),
+    ("/json", post(json)),
     (
-      "say",
+      "/say",
       Router::new(
-        wtx::paths!(("hello", get(hello)), ("world", get(world))),
+        wtx::paths!(("/hello", get(hello)), ("/world", get(world))),
         (request_middleware,),
         (response_middleware,),
       ),
@@ -44,37 +47,32 @@ async fn main() -> wtx::Result<()> {
     .await
 }
 
-async fn db((id, mut req): (u32, Request<ReqResBuffer>)) -> wtx::Result<Response<ReqResBuffer>> {
+#[derive(serde::Deserialize)]
+struct DeserializeExample {
+  _foo: i32,
+  _bar: u64,
+}
+
+#[derive(serde::Serialize)]
+struct SerializeExample {
+  _baz: [u8; 4],
+}
+
+async fn db(vec: &mut Vector<u8>, PathOwned(id): PathOwned<u32>) -> wtx::Result<StatusCode> {
   let mut lock = POOL.get(&(), &()).await?;
   let record = lock.fetch_with_stmt("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
-  req.rrd.clear();
-  req.rrd.write_fmt(format_args!("Person of id `1` has name `{name}`"))?;
-  Ok(req.into_response(StatusCode::Ok))
+  vec.clear();
+  vec.write_fmt(format_args!("Person of id `1` has name `{name}`"))?;
+  Ok(StatusCode::Ok)
 }
 
-async fn hello(mut req: Request<ReqResBuffer>) -> wtx::Result<Response<ReqResBuffer>> {
-  req.rrd.clear();
-  req.rrd.data.extend_from_slice(b"hello")?;
-  Ok(req.into_response(StatusCode::Ok))
+async fn hello() -> &'static str {
+  "hello"
 }
 
-async fn json(mut req: Request<ReqResBuffer>) -> wtx::Result<Response<ReqResBuffer>> {
-  #[derive(serde::Deserialize)]
-  struct DeserializeExample<'str> {
-    _foo: i32,
-    _bar: &'str str,
-  }
-
-  #[derive(serde::Serialize)]
-  struct SerializeExample<'bytes> {
-    _baz: &'bytes [u8],
-  }
-
-  let _de: DeserializeExample<'_> = serde_json::from_slice(&mut req.rrd.data)?;
-  req.rrd.clear();
-  serde_json::to_writer(&mut req.rrd, &SerializeExample { _baz: &[1, 2, 3, 4, 5] })?;
-  Ok(req.into_response(StatusCode::Ok))
+async fn json(_: SerdeJson<DeserializeExample>) -> wtx::Result<SerdeJson<SerializeExample>> {
+  Ok(SerdeJson(SerializeExample { _baz: [1, 2, 3, 4] }))
 }
 
 async fn request_middleware(_: &mut Request<ReqResBuffer>) -> wtx::Result<()> {
@@ -82,13 +80,11 @@ async fn request_middleware(_: &mut Request<ReqResBuffer>) -> wtx::Result<()> {
   Ok(())
 }
 
-async fn response_middleware(_: &mut Response<ReqResBuffer>) -> wtx::Result<()> {
+async fn response_middleware(_: &mut Response<&mut ReqResBuffer>) -> wtx::Result<()> {
   println!("After response");
   Ok(())
 }
 
-async fn world(mut req: Request<ReqResBuffer>) -> wtx::Result<Response<ReqResBuffer>> {
-  req.rrd.clear();
-  req.rrd.data.extend_from_slice(b"world")?;
-  Ok(req.into_response(StatusCode::Ok))
+async fn world() -> &'static str {
+  "world"
 }

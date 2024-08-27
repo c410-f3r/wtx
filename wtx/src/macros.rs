@@ -275,7 +275,7 @@ macro_rules! _max_continuation_frames {
 
 macro_rules! _max_frames_mismatches {
   () => {
-    2_147_483_647
+    32
   };
 }
 

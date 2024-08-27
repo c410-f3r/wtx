@@ -5,7 +5,8 @@ use crate::{
   },
   grpc::serialize,
   http::{
-    ClientFramework, Header, Headers, KnownHeaderName, Method, ReqResBuffer, ReqUri, Response,
+    client_framework::ClientFramework, Header, Headers, KnownHeaderName, Method, ReqResBuffer,
+    ReqUri, Response,
   },
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{Lock, RefCounter, StreamWriter},
@@ -56,7 +57,7 @@ where
   ///
   /// Builds a valid unary gRPC request and awaits for a raw response.
   ///
-  /// It is necessary to call [`Self::deserialize`] to create the corresponding decoded element.
+  /// It is necessary to call [`Self::des_from_res_bytes`] to create the corresponding decoded element.
   #[inline]
   pub async fn send_unary_req<T>(
     &mut self,

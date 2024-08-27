@@ -455,6 +455,13 @@ impl<D> From<Vector<D>> for Vec<D> {
   }
 }
 
+impl core::fmt::Write for Vector<u8> {
+  #[inline]
+  fn write_str(&mut self, s: &str) -> core::fmt::Result {
+    self.extend_from_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)
+  }
+}
+
 #[cfg(feature = "std")]
 impl std::io::Write for Vector<u8> {
   #[inline]

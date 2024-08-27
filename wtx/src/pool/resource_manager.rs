@@ -2,7 +2,7 @@ use core::future::Future;
 
 /// Manager of a specific pool resource.
 pub trait ResourceManager {
-  /// Auxiliary data used by the [`Self::get`] method.
+  /// Auxiliary data used by the [`Self::create`] method.
   type CreateAux: ?Sized;
   /// Any custom error.
   type Error: From<crate::Error>;

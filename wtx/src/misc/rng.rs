@@ -7,7 +7,7 @@ mod rand;
 #[cfg(feature = "std")]
 mod std;
 
-use crate::misc::{atoi, Usize};
+use crate::misc::{FromRadix10, Usize};
 
 #[cfg(feature = "std")]
 pub use self::std::{StdRng, StdRngSync};
@@ -232,7 +232,9 @@ impl Default for NoStdRng {
     // SAFETY: Memory validation is not relevant
     let mut n = Usize::from_usize(unsafe { *ref_ptr }).into_u64();
     n = n.wrapping_add(11_400_714_819_323_198_485);
-    if let Some(env) = option_env!("WTX_NO_STD_RNG_SEED").and_then(|el| atoi(el.as_bytes()).ok()) {
+    if let Some(env) =
+      option_env!("WTX_NO_STD_RNG_SEED").and_then(|el| u64::from_radix_10(el.as_bytes()).ok())
+    {
       n = n.wrapping_add(env);
     }
     let location = Location::caller();

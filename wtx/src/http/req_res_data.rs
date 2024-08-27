@@ -188,6 +188,52 @@ where
 
 /// Mutable version of [`ReqResData`].
 pub trait ReqResDataMut: ReqResData {
+  /// Can be a sequence of mutable bytes, a mutable string or any other desired type.
+  fn body_mut(&mut self) -> &mut Self::Body;
+
   /// Mutable version of [`ReqResData::headers`].
   fn headers_mut(&mut self) -> &mut Headers;
+
+  /// Mutable parts
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>);
+}
+
+impl<T> ReqResDataMut for &mut T
+where
+  T: ReqResDataMut,
+{
+  #[inline]
+  fn body_mut(&mut self) -> &mut Self::Body {
+    (**self).body_mut()
+  }
+
+  #[inline]
+  fn headers_mut(&mut self) -> &mut Headers {
+    (**self).headers_mut()
+  }
+
+  #[inline]
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (**self).parts_mut()
+  }
+}
+
+impl<T> ReqResDataMut for Box<T>
+where
+  T: ReqResDataMut,
+{
+  #[inline]
+  fn body_mut(&mut self) -> &mut Self::Body {
+    (**self).body_mut()
+  }
+
+  #[inline]
+  fn headers_mut(&mut self) -> &mut Headers {
+    (**self).headers_mut()
+  }
+
+  #[inline]
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (**self).parts_mut()
+  }
 }

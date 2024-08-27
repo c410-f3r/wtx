@@ -1,5 +1,5 @@
 use crate::{
-  http::{ClientFramework, ReqBuilder},
+  http::client_framework::{ClientFramework, ReqBuilder},
   misc::Uri,
 };
 

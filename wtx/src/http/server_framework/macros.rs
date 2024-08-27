@@ -4,8 +4,6 @@ macro_rules! paths {
   (
     $( ( $name:expr, $value:expr $(,)? ) ),+ $(,)?
   ) => {
-    $crate::http::server_framework::Paths::new(
-      ( $( $crate::http::server_framework::Path::new($name, $value), )+ )
-    )
+    ( $( $crate::http::server_framework::PathParams::new($name, $value), )+ )
   };
 }

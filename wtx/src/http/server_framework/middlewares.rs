@@ -1,6 +1,6 @@
 use crate::{
   http::{Request, Response},
-  misc::FnFut,
+  misc::FnFut1,
 };
 use core::future::Future;
 
@@ -16,7 +16,7 @@ where
 impl<E, RRD, T> ReqMiddlewares<E, RRD> for &T
 where
   E: From<crate::Error>,
-  T: for<'any> FnFut<&'any mut Request<RRD>, Result<(), E>>,
+  T: for<'any> FnFut1<&'any mut Request<RRD>, Result = Result<(), E>>,
 {
   #[inline]
   async fn apply_req_middlewares(&self, req: &mut Request<RRD>) -> Result<(), E> {
@@ -38,7 +38,7 @@ where
 impl<E, RRD, T> ReqMiddlewares<E, RRD> for [T]
 where
   E: From<crate::Error>,
-  T: for<'any> FnFut<&'any mut Request<RRD>, Result<(), E>>,
+  T: for<'any> FnFut1<&'any mut Request<RRD>, Result = Result<(), E>>,
 {
   #[inline]
   async fn apply_req_middlewares(&self, req: &mut Request<RRD>) -> Result<(), E> {
@@ -55,17 +55,17 @@ where
   E: From<crate::Error>,
 {
   /// Modifies or halts responses.
-  fn apply_res_middlewares(&self, _: &mut Response<RRD>) -> impl Future<Output = Result<(), E>>;
+  fn apply_res_middlewares(&self, _: Response<&mut RRD>) -> impl Future<Output = Result<(), E>>;
 }
 
 impl<E, RRD, T> ResMiddlewares<E, RRD> for &T
 where
   E: From<crate::Error>,
-  T: for<'any> FnFut<&'any mut Response<RRD>, Result<(), E>>,
+  T: for<'req> FnFut1<Response<&'req mut RRD>, Result = Result<(), E>>,
 {
   #[inline]
-  async fn apply_res_middlewares(&self, req: &mut Response<RRD>) -> Result<(), E> {
-    (*self)(req).await?;
+  async fn apply_res_middlewares(&self, res: Response<&mut RRD>) -> Result<(), E> {
+    (*self)(res).await?;
     Ok(())
   }
 }
@@ -75,7 +75,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  async fn apply_res_middlewares(&self, _: &mut Response<RRD>) -> Result<(), E> {
+  async fn apply_res_middlewares(&self, _: Response<&mut RRD>) -> Result<(), E> {
     Ok(())
   }
 }
@@ -83,12 +83,12 @@ where
 impl<E, RRD, T> ResMiddlewares<E, RRD> for [T]
 where
   E: From<crate::Error>,
-  T: for<'any> FnFut<&'any mut Response<RRD>, Result<(), E>>,
+  T: for<'req, 'res> FnFut1<&'res mut Response<&'req mut RRD>, Result = Result<(), E>>,
 {
   #[inline]
-  async fn apply_res_middlewares(&self, req: &mut Response<RRD>) -> Result<(), E> {
+  async fn apply_res_middlewares(&self, mut res: Response<&mut RRD>) -> Result<(), E> {
     for elem in self {
-      (elem)(req).await?;
+      (elem)(&mut res).await?;
     }
     Ok(())
   }

@@ -28,7 +28,7 @@ pub use transport_params::*;
 
 /// Any means of transferring data between two parties.
 ///
-/// Please, see the [`crate::pkg::Package`] implementation of the desired package to know
+/// Please, see the [`Package`] implementation of the desired package to know
 /// more about the expected types as well as any other additional documentation.
 ///
 /// # Types

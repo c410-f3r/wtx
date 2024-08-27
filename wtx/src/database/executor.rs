@@ -99,8 +99,7 @@ pub trait Executor {
     T: FromRecord<Self::Database>,
   {
     async move {
-      let _records =
-        self.fetch_many_with_stmt(cmd, sv, |record| cb(T::from_record(record)?)).await?;
+      let _rec = self.fetch_many_with_stmt(cmd, sv, |record| cb(T::from_record(record)?)).await?;
       Ok(())
     }
   }

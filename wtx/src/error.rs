@@ -131,7 +131,7 @@ pub enum Error {
   #[cfg(feature = "data-transformation")]
   DataTransformationError(crate::data_transformation::DataTransformationError),
   #[cfg(feature = "http-client-framework")]
-  HttpClientFrameworkError(crate::http::HttpClientFrameworkError),
+  HttpClientFrameworkError(crate::http::client_framework::HttpClientFrameworkError),
   #[cfg(feature = "http")]
   HttpError(crate::http::HttpError),
   #[cfg(feature = "http2")]
@@ -441,9 +441,9 @@ impl From<crate::data_transformation::DataTransformationError> for Error {
 }
 
 #[cfg(feature = "http-client-framework")]
-impl From<crate::http::HttpClientFrameworkError> for Error {
+impl From<crate::http::client_framework::HttpClientFrameworkError> for Error {
   #[inline]
-  fn from(from: crate::http::HttpClientFrameworkError) -> Self {
+  fn from(from: crate::http::client_framework::HttpClientFrameworkError) -> Self {
     Self::HttpClientFrameworkError(from)
   }
 }

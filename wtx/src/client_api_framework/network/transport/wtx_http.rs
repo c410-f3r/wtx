@@ -8,7 +8,7 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  http::{ClientFramework, Header, KnownHeaderName, ReqResBuffer},
+  http::{client_framework::ClientFramework, Header, KnownHeaderName, ReqResBuffer},
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{Lock, RefCounter, StreamWriter},
   pool::{ResourceManager, SimplePoolResource},

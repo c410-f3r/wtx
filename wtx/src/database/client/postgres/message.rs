@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{Authentication, DbError, PostgresError},
-  misc::{atoi, bytes_rsplit1, bytes_split1, from_utf8_basic, ConnectionState},
+  misc::{bytes_rsplit1, bytes_split1, from_utf8_basic, ConnectionState, FromRadix10},
 };
 use core::any::type_name;
 
@@ -68,15 +68,13 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
       [b'C', _, _, _, _, rest @ ..] => {
         let rows = bytes_rsplit1(rest, b' ')
           .next()
-          .and_then(
-            |el| {
-              if let [all_but_last @ .., _] = el {
-                atoi(all_but_last).ok()
-              } else {
-                None
-              }
-            },
-          )
+          .and_then(|el| {
+            if let [all_but_last @ .., _] = el {
+              u64::from_radix_10(all_but_last).ok()
+            } else {
+              None
+            }
+          })
           .unwrap_or(0);
         Self::CommandComplete(rows)
       }

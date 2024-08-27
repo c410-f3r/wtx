@@ -8,8 +8,6 @@ Activation feature is called `http2`.
 
 ## Client Example
 
-The bellow snippet requires ~25 dependencies and has an optimized binary size of ~700K.
-
 ```rust,edition2021,no_run
 {{#rustdoc_include ../../../wtx-instances/examples/http2-client-tokio.rs}}
 ```

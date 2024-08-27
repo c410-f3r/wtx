@@ -27,7 +27,7 @@ where
   pub async fn listen(
     self,
     host: &str,
-    err_cb: impl Copy + Fn(crate::Error) + Send + 'static,
+    err_cb: impl Clone + Fn(crate::Error) + Send + 'static,
   ) -> crate::Result<()> {
     self.sf.listen(host, err_cb).await
   }
@@ -39,7 +39,7 @@ where
     self,
     (cert_chain, priv_key): (&'static [u8], &'static [u8]),
     host: &str,
-    err_cb: impl Copy + Fn(crate::Error) + Send + 'static,
+    err_cb: impl Clone + Fn(crate::Error) + Send + 'static,
   ) -> crate::Result<()> {
     self.sf.listen_tls((cert_chain, priv_key), host, err_cb).await
   }

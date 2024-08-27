@@ -36,10 +36,8 @@ async fn main() {
 }
 
 async fn handle(
-  (fb, mut ws): (
-    &mut FrameBufferVec,
-    WebSocketServer<(), StdRng, TlsStream<TcpStream>, &mut WebSocketBuffer>,
-  ),
+  fb: &mut FrameBufferVec,
+  mut ws: WebSocketServer<(), StdRng, TlsStream<TcpStream>, &mut WebSocketBuffer>,
 ) -> wtx::Result<()> {
   loop {
     let mut frame = ws.read_frame(fb).await?;

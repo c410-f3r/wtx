@@ -1,6 +1,6 @@
 use crate::{
   http::LowLevelServer,
-  misc::{FnFut, StdRng, Stream, Vector, _number_or_available_parallelism},
+  misc::{FnFut, FnFut2, StdRng, Stream, Vector, _number_or_available_parallelism},
   pool::{Pool, SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer},
 };
@@ -17,13 +17,13 @@ impl LowLevelServer {
   pub async fn tokio_web_socket<A, C, E, F, S, SF>(
     addr: &str,
     buffers_len_opt: Option<usize>,
-    compression: impl Copy + Fn() -> C + Send + 'static,
-    conn_err: impl Copy + Fn(E) + Send + 'static,
-    handle: F,
+    compression_cb: impl Clone + Fn() -> C + Send + 'static,
+    conn_err: impl Clone + Fn(E) + Send + 'static,
+    handle_cb: F,
     (acceptor_cb, local_acceptor_cb, stream_cb): (
       impl FnOnce() -> A + Send + 'static,
-      impl Copy + Fn(&A) -> A + Send + 'static,
-      impl Copy + Fn(A, TcpStream) -> SF + Send + 'static,
+      impl Clone + Fn(&A) -> A + Send + 'static,
+      impl Clone + Fn(A, TcpStream) -> SF + Send + 'static,
     ),
   ) -> crate::Result<()>
   where
@@ -31,24 +31,19 @@ impl LowLevelServer {
     C: Compression<false> + Send + 'static,
     C::NegotiatedCompression: Send,
     E: Debug + From<crate::Error> + Send + 'static,
-    for<'fb, 'wsb> F: Copy
-      + FnFut<
-        (
-          &'fb mut FrameBufferVec,
-          WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
-        ),
-        Result<(), E>,
+    for<'fb, 'wsb> F: Clone
+      + FnFut2<
+        &'fb mut FrameBufferVec,
+        WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
+        Result = Result<(), E>,
       > + Send
       + 'static,
     S: Stream<read(..): Send, write_all(..): Send> + Send,
     SF: Send + Future<Output = crate::Result<S>>,
-    for<'fb, 'wsb> <F as FnFut<
-      (
-        &'fb mut FrameBufferVec,
-        WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
-      ),
-      Result<(), E>,
-    >>::Future: Send,
+    for<'fb, 'wsb> <F as FnFut<(
+      &'fb mut FrameBufferVec,
+      WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
+    )>>::Future: Send,
     for<'handle> &'handle F: Send,
   {
     let buffers_len = _number_or_available_parallelism(buffers_len_opt)?;
@@ -59,20 +54,26 @@ impl LowLevelServer {
       let local_acceptor = local_acceptor_cb(&acceptor);
 
       let mut conn_buffer_guard = conn_buffer(buffers_len).await?;
+      let local_compression_cb = compression_cb.clone();
+      let local_conn_err = conn_err.clone();
+      let local_handle_cb = handle_cb.clone();
+      let local_stream_cb = stream_cb.clone();
       let _jh = tokio::spawn(async move {
         let (fb, wsb) = &mut ***conn_buffer_guard;
         let fun = || async move {
-          let stream = stream_cb(local_acceptor, tcp_stream).await?;
-          handle((
+          let stream = local_stream_cb(local_acceptor, tcp_stream).await?;
+          local_handle_cb(
             fb,
-            WebSocketServer::accept(compression(), StdRng::default(), stream, wsb, |_| true)
-              .await?,
-          ))
+            WebSocketServer::accept(local_compression_cb(), StdRng::default(), stream, wsb, |_| {
+              true
+            })
+            .await?,
+          )
           .await?;
           Ok::<_, E>(())
         };
         if let Err(err) = fun().await {
-          conn_err(err);
+          local_conn_err(err);
         }
       });
     }

@@ -3,8 +3,6 @@ use alloc::{string::String, vec::Vec};
 
 /// This trait only exists because of the lack of `impl TryFrom<&[u8]> for String` but such
 /// implementation probably will never be a thing.
-///
-/// Used by [`crate::network::transport::Mock`].
 pub trait FromBytes {
   /// Creates itself from a sequence of bytes.
   fn from_bytes(bytes: &[u8]) -> crate::Result<Self>

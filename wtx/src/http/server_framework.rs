@@ -3,13 +3,14 @@
 #[macro_use]
 mod macros;
 
+mod endpoint;
 mod middlewares;
-mod path;
-mod path_fun;
+mod param_wrappers;
 mod path_management;
-mod paths;
+mod path_params;
+mod response_finalizer;
+mod route_wrappers;
 mod router;
-mod wrappers;
 
 use crate::{
   http::{ConnParams, LowLevelServer, ReqResBuffer, Request, Response},
@@ -18,13 +19,14 @@ use crate::{
 };
 use alloc::sync::Arc;
 use core::{fmt::Debug, marker::PhantomData};
+pub use endpoint::Endpoint;
 pub use middlewares::{ReqMiddlewares, ResMiddlewares};
-pub use path::Path;
-pub use path_fun::PathFun;
+pub use param_wrappers::{PathOwned, PathStr, SerdeJson};
 pub use path_management::PathManagement;
-pub use paths::Paths;
+pub use path_params::PathParams;
+pub use response_finalizer::ResponseFinalizer;
+pub use route_wrappers::{get, json, post, Get, Json, Post};
 pub use router::Router;
-pub use wrappers::{get, json, post, Get, Json, Post};
 
 /// Server
 #[derive(Debug)]
@@ -36,10 +38,10 @@ pub struct ServerFramework<E, P, REQM, RESM> {
 
 impl<E, P, REQM, RESM> ServerFramework<E, P, REQM, RESM>
 where
-  E: Debug + From<crate::Error> + Send + 'static,
+  E: From<crate::Error> + Send + 'static,
   P: Send + 'static,
-  REQM: ReqMiddlewares<E, ReqResBuffer> + Send + 'static,
-  RESM: ResMiddlewares<E, ReqResBuffer> + Send + 'static,
+  REQM: ReqMiddlewares<E, ReqResBuffer, apply_req_middlewares(..): Send> + Send + 'static,
+  RESM: ResMiddlewares<E, ReqResBuffer, apply_res_middlewares(..): Send> + Send + 'static,
   Arc<Router<P, REQM, RESM>>: Send,
   Router<P, REQM, RESM>: PathManagement<E, ReqResBuffer, manage_path(..): Send>,
 {
@@ -54,15 +56,16 @@ where
   pub async fn listen(
     self,
     host: &str,
-    err_cb: impl Copy + Fn(E) + Send + 'static,
+    err_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> crate::Result<()> {
+    let local_cp = self.cp;
     LowLevelServer::tokio_http2(
       Arc::clone(&self.router),
       host,
       err_cb,
       Self::handle,
       || Ok(Http2Buffer::new(StdRng::default())),
-      move || self.cp.to_hp(),
+      move || local_cp.to_hp(),
       || Ok(ReqResBuffer::default()),
       (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
     )
@@ -76,7 +79,7 @@ where
     self,
     (cert_chain, priv_key): (&'static [u8], &'static [u8]),
     host: &str,
-    err_cb: impl Copy + Fn(E) + Send + 'static,
+    err_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> crate::Result<()> {
     LowLevelServer::tokio_http2(
       Arc::clone(&self.router),
@@ -102,9 +105,11 @@ where
   _conn_params_methods!(cp);
 
   async fn handle(
-    (router, req): (Arc<Router<P, REQM, RESM>>, Request<ReqResBuffer>),
+    mut req: Request<ReqResBuffer>,
+    router: Arc<Router<P, REQM, RESM>>,
   ) -> Result<Response<ReqResBuffer>, E> {
-    router.manage_path(true, "", req, [0, 0]).await
+    let status_code = router.manage_path(true, "", &mut req, [0, 0]).await?;
+    Ok(Response { rrd: req.rrd, status_code, version: req.version })
   }
 }
 
@@ -112,17 +117,17 @@ where
 mod tests {
   use crate::http::{
     server_framework::{get, Router, ServerFramework},
-    ReqResBuffer, Request, Response, StatusCode,
+    ReqResBuffer, Request, StatusCode,
   };
 
   #[tokio::test]
   async fn compiles() {
-    async fn one(req: Request<ReqResBuffer>) -> crate::Result<Response<ReqResBuffer>> {
-      Ok(req.into_response(StatusCode::Ok))
+    async fn one(_: &mut Request<ReqResBuffer>) -> crate::Result<StatusCode> {
+      Ok(StatusCode::Ok)
     }
 
-    async fn two(req: Request<ReqResBuffer>) -> crate::Result<Response<ReqResBuffer>> {
-      Ok(req.into_response(StatusCode::Ok))
+    async fn two(_: &mut Request<ReqResBuffer>) -> crate::Result<StatusCode> {
+      Ok(StatusCode::Ok)
     }
 
     let router = Router::paths(paths!(

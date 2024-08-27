@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::PostgresError,
-  misc::{atoi, bytes_split1, into_rslt},
+  misc::{bytes_split1, into_rslt, FromRadix10},
 };
 use core::any::type_name;
 
@@ -31,7 +31,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
         while let Some([key, _, local_rest @ ..]) = iter.next() {
           match key {
             b'i' => {
-              iterations = Some(atoi(local_rest)?);
+              iterations = Some(u32::from_radix_10(local_rest)?);
             }
             b'r' => {
               nonce = Some(local_rest);

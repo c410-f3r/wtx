@@ -17,11 +17,7 @@ podman run \
 	--rm \
 	docker.io/summerwind/h2spec:2.6.0 h2spec -j "/tmp/h2spec-server.xml" --max-header-length 800 -p 9000 -v \
 		generic/1 \
-		generic/2/1 \
-		generic/2/2 \
-		generic/2/3 \
-		`#generic/2/4 - Streams are immediately forgotten when closed` \
-		generic/2/5 \
+		generic/2 \
 		generic/3.1 \
 		generic/3.2/1 \
 		generic/3.2/2 \
