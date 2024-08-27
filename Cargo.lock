@@ -1671,7 +1671,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "ahash 0.8.11",
  "arbitrary",
