@@ -412,6 +412,8 @@ async fn reuses_cached_statement() {
 #[cfg(feature = "serde_json")]
 #[tokio::test]
 async fn serde_json() {
+  use crate::database::Json;
+
   #[derive(serde::Deserialize, serde::Serialize)]
   struct Col {
     a: i32,
@@ -421,9 +423,12 @@ async fn serde_json() {
   let mut exec = executor::<crate::Error>().await;
   exec.execute("CREATE TABLE IF NOT EXISTS serde_json (col JSONB NOT NULL)", |_| {}).await.unwrap();
   let col = (1u32, 2i64);
-  let _ = exec.execute_with_stmt("INSERT INTO serde_json VALUES ($1)", (&col,)).await.unwrap();
+  let _ = exec
+    .execute_with_stmt("INSERT INTO serde_json VALUES ($1::jsonb)", (Json(&col),))
+    .await
+    .unwrap();
   let record = exec.fetch_with_stmt("SELECT * FROM serde_json", ()).await.unwrap();
-  assert_eq!(record.decode::<_, (u32, i64)>(0).unwrap(), col);
+  assert_eq!(record.decode::<_, Json<(u32, i64)>>(0).unwrap(), Json(col));
 }
 
 async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {
