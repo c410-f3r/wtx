@@ -6,7 +6,7 @@ use wtx::http::server_framework::{get, CorsMiddleware, Router, ServerFrameworkBu
 async fn main() -> wtx::Result<()> {
   let router = Router::new(wtx::paths!(("/hello", get(hello))), (), CorsMiddleware::permissive())?;
   ServerFrameworkBuilder::new(router)
-    .no_aux()
+    .without_aux()
     .listen("0.0.0.0:9000", |error: wtx::Error| eprintln!("{error:?}"))
     .await?;
   Ok(())

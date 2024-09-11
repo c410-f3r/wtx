@@ -1,7 +1,6 @@
 //! Client framework
 
 mod client_framework_builder;
-mod http_client_framework_error;
 #[cfg(all(
   feature = "_integration-tests",
   feature = "tokio-rustls",
@@ -20,7 +19,6 @@ use crate::{
 use core::marker::PhantomData;
 
 pub use client_framework_builder::ClientFrameworkBuilder;
-pub use http_client_framework_error::HttpClientFrameworkError;
 pub use req_builder::ReqBuilder;
 #[cfg(feature = "tokio")]
 pub use tokio::ClientFrameworkTokio;
@@ -82,10 +80,10 @@ where
     let mut guard = self.pool.get(uri.as_str(), uri.as_str()).await?;
     let mut stream = guard.stream().await?;
     if stream.send_req(Request::http2(method, rrb.lease()), actual_req_uri).await?.is_none() {
-      return Err(HttpClientFrameworkError::ClosedConnection.into());
+      return Err(crate::Error::ClosedConnection);
     }
     let (res_rrb, status_code) = match stream.recv_res(rrb).await? {
-      Either::Left(_) => return Err(HttpClientFrameworkError::ClosedConnection.into()),
+      Either::Left(_) => return Err(crate::Error::ClosedConnection),
       Either::Right(elem) => elem,
     };
     Ok(Response::http2(res_rrb, status_code))

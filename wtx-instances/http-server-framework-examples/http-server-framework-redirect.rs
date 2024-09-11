@@ -10,7 +10,7 @@ async fn main() -> wtx::Result<()> {
   let router =
     Router::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
   ServerFrameworkBuilder::new(router)
-    .no_aux()
+    .without_aux()
     .listen(&wtx_instances::host_from_args(), |error| eprintln!("{error}"))
     .await
 }

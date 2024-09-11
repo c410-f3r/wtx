@@ -148,6 +148,6 @@ mod tests {
     ))
     .unwrap();
 
-    let _sf = ServerFrameworkBuilder::new(router).no_aux();
+    let _sf = ServerFrameworkBuilder::new(router).without_aux();
   }
 }
