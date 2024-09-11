@@ -34,9 +34,9 @@ use crate::{
     schema_manager::{DbMigration, MigrationGroup, UserMigration},
     Database, DatabaseTy, FromRecord, TransactionManager,
   },
-  misc::Lease,
+  misc::{Lease, Vector},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use core::fmt::Write;
 
 #[inline]
@@ -121,7 +121,7 @@ pub(crate) async fn _migrations_by_mg_version_query<E, D>(
   buffer_cmd: &mut String,
   executor: &mut E,
   mg_version: i32,
-  results: &mut Vec<DbMigration>,
+  results: &mut Vector<DbMigration>,
   schema_prefix: &str,
 ) -> crate::Result<()>
 where
@@ -149,7 +149,7 @@ where
   ))?;
   executor
     .simple_entities(buffer_cmd, (), |result| {
-      results.push(result);
+      results.push(result)?;
       Ok(())
     })
     .await?;

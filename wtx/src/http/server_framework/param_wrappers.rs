@@ -1,99 +1,43 @@
-/// URI path converted into an owned type.
-#[derive(Debug)]
-pub struct PathOwned<T>(
-  /// Arbitrary type
-  pub T,
-);
-
-/// String reference extracted from a URI path.
-#[derive(Debug)]
-pub struct PathStr<'uri>(
-  /// Arbitrary type
-  pub &'uri str,
-);
-
-/// Serializes and deserializes using `serde_json`
-#[derive(Debug)]
-pub struct SerdeJson<T>(
-  /// Arbitrary type
-  pub T,
-);
-
+mod path_owned;
+mod path_str;
 #[cfg(feature = "serde_json")]
-mod serde_json {
-  use crate::{
-    http::{
-      server_framework::{Endpoint, ResponseFinalizer, SerdeJson},
-      Header, KnownHeaderName, Mime, ReqResDataMut, Request, StatusCode,
-    },
-    misc::{serde_collect_seq_rslt, FnFut1, IterWrapper, Vector},
+mod serde_json;
+
+use crate::{
+  http::HttpError,
+  misc::{bytes_split1, UriRef},
+};
+pub use path_owned::PathOwned;
+pub use path_str::PathStr;
+#[cfg(feature = "serde_json")]
+pub use serde_json::SerdeJson;
+
+#[inline]
+fn manage_path<'uri>(
+  path_defs: (u8, &[(&'static str, u8)]),
+  uri: &'uri UriRef<'_>,
+) -> crate::Result<&'uri str> {
+  let fun = || {
+    let path = uri.path();
+    let mut prev_idx: usize = 0;
+    let mut iter = path_defs.1.iter().map(|el| el.0.as_bytes());
+    while let Some([b'/', sub_path_def @ ..]) = iter.next() {
+      prev_idx = prev_idx.wrapping_add(1);
+      let has_placeholder = bytes_split1(sub_path_def, b'/').any(|elem| {
+        if let [b'{', ..] = elem {
+          prev_idx = prev_idx.wrapping_add(1);
+          true
+        } else {
+          prev_idx = prev_idx.wrapping_add(elem.len());
+          false
+        }
+      });
+      if !has_placeholder {
+        continue;
+      };
+      return path.get(prev_idx..);
+    }
+    None
   };
-  use serde::{de::DeserializeOwned, Serialize};
-
-  impl<E, RRD, T> ResponseFinalizer<E, RRD> for SerdeJson<T>
-  where
-    E: From<crate::Error>,
-    RRD: ReqResDataMut<Body = Vector<u8>>,
-    T: Serialize,
-  {
-    #[inline]
-    fn finalize_response(self, req: &mut Request<RRD>) -> Result<StatusCode, E> {
-      push_content_type(req).map_err(crate::Error::from)?;
-      serde_json::to_writer(req.rrd.body_mut(), &self.0).map_err(crate::Error::from)?;
-      Ok(StatusCode::Ok)
-    }
-  }
-
-  impl<E, RRD, I, T> ResponseFinalizer<E, RRD> for SerdeJson<IterWrapper<I>>
-  where
-    E: From<crate::Error> + From<serde_json::Error>,
-    RRD: ReqResDataMut<Body = Vector<u8>>,
-    I: Iterator<Item = Result<T, E>>,
-    T: Serialize,
-  {
-    #[inline]
-    fn finalize_response(self, req: &mut Request<RRD>) -> Result<StatusCode, E> {
-      push_content_type(req).map_err(crate::Error::from)?;
-      serde_collect_seq_rslt(&mut serde_json::Serializer::new(req.rrd.body_mut()), self.0 .0)?;
-      Ok(StatusCode::Ok)
-    }
-  }
-
-  impl<E, F, RES, RRD, T> Endpoint<SerdeJson<T>, E, RRD> for F
-  where
-    E: From<crate::Error>,
-    F: FnFut1<SerdeJson<T>, Result = RES>,
-    RES: ResponseFinalizer<E, RRD>,
-    RRD: Default + ReqResDataMut<Body = Vector<u8>>,
-    T: DeserializeOwned,
-  {
-    #[inline]
-    async fn call(
-      &self,
-      _: &'static str,
-      req: &mut Request<RRD>,
-      _: [usize; 2],
-    ) -> Result<StatusCode, E> {
-      let elem = serde_json::from_slice(req.rrd.body()).map_err(crate::Error::from)?;
-      req.rrd.body_mut().clear();
-      (self)(SerdeJson(elem)).await.finalize_response(req)
-    }
-  }
-
-  #[inline]
-  fn push_content_type<RRD>(req: &mut Request<RRD>) -> crate::Result<()>
-  where
-    RRD: ReqResDataMut,
-  {
-    req.rrd.headers_mut().push_front(
-      Header {
-        is_sensitive: false,
-        is_trailer: false,
-        name: KnownHeaderName::ContentType.into(),
-        value: Mime::Json.as_str().as_bytes(),
-      },
-      &[],
-    )?;
-    Ok(())
-  }
+  fun().ok_or_else(|| crate::Error::from(HttpError::UriMismatch))
 }

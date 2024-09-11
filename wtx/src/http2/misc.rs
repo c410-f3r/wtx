@@ -32,11 +32,7 @@ where
 }
 
 #[inline]
-pub(crate) fn manage_initial_stream_receiving<RRB, SW>(
-  hdpm: &Http2DataPartsMut<'_, RRB, SW>,
-  is_conn_open: &AtomicBool,
-  rrb: &mut RRB,
-) -> bool
+pub(crate) fn manage_initial_stream_receiving<RRB>(is_conn_open: &AtomicBool, rrb: &mut RRB) -> bool
 where
   RRB: LeaseMut<ReqResBuffer>,
 {
@@ -44,7 +40,6 @@ where
     return false;
   }
   rrb.lease_mut().clear();
-  rrb.lease_mut().headers.set_max_bytes(*Usize::from(hdpm.hp.max_headers_len()));
   true
 }
 

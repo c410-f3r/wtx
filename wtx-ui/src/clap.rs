@@ -2,50 +2,101 @@ use clap::Parser;
 
 pub(crate) async fn init() -> wtx::Result<()> {
   let _args = Cli::parse();
+
+  #[cfg(feature = "unified")]
   match _args.commands {
     Commands::_Nothing => {}
     #[cfg(feature = "embed-migrations")]
     Commands::EmbedMigrations(elem) => {
-      crate::embed_migrations::embed_migrations(&elem.input, &elem.output).await?;
+      crate::embed_migrations::embed_migrations(elem).await?;
     }
     #[cfg(feature = "http-client")]
     Commands::HttpClient(elem) => {
-      crate::http_client::http_client(elem.uri).await?;
+      crate::http_client::http_client(elem).await;
     }
     #[cfg(feature = "schema-manager")]
     Commands::SchemaManager(schema_manager) => {
-      crate::schema_manager::schema_manager(&schema_manager).await?;
+      crate::schema_manager::schema_manager(schema_manager).await?;
     }
     #[cfg(feature = "web-socket")]
-    Commands::Ws(elem) => match (elem.connect, elem.serve) {
-      (None, None) | (Some(_), Some(_)) => {
-        panic!("Please connect to a server using `-c` or listen to requests using `-s`");
-      }
-      (None, Some(uri)) => {
-        crate::web_socket::_serve(
-          &uri,
-          |payload| println!("{payload:?}"),
-          |err| println!("{err}"),
-          |payload| println!("{payload}"),
-        )
-        .await?;
-      }
-      (Some(uri), None) => {
-        crate::web_socket::_connect(&uri, |payload| println!("{payload}")).await?;
-      }
-    },
+    Commands::WebSocket(elem) => manage_web_socket(elem).await,
   }
+
+  #[cfg(not(feature = "unified"))]
+  {
+    #[cfg(all(
+      feature = "embed-migrations",
+      not(any(feature = "http-client", feature = "schema-manager", feature = "web-socket"))
+    ))]
+    crate::embed_migrations::embed_migrations(_args.commands).await?;
+
+    #[cfg(all(
+      feature = "http-client",
+      not(any(feature = "embed-migrations", feature = "schema-manager", feature = "web-socket"))
+    ))]
+    crate::http_client::http_client(_args.commands).await;
+
+    #[cfg(all(
+      feature = "schema-manager",
+      not(any(feature = "embed-migrations", feature = "http-client", feature = "web-socket"))
+    ))]
+    crate::schema_manager::schema_manager(_args.commands).await?;
+
+    #[cfg(all(
+      feature = "web-socket",
+      not(any(feature = "embed-migrations", feature = "http-client", feature = "schema-manager"))
+    ))]
+    manage_web_socket(_args.commands).await;
+  }
+
   Ok(())
 }
 
 /// Command-line interface for different web transport implementations
 #[derive(Debug, clap::Parser)]
+#[cfg(feature = "unified")]
 #[command(author, long_about = None, name = "wtx", version)]
 struct Cli {
+  #[cfg(feature = "unified")]
   #[command(subcommand)]
   commands: Commands,
 }
 
+/// Command-line interface for different web transport implementations
+#[derive(Debug, clap::Parser)]
+#[cfg(not(feature = "unified"))]
+#[command(author, long_about = None, name = "wtx", version)]
+struct Cli {
+  #[cfg(all(
+    feature = "embed-migrations",
+    not(any(feature = "http-client", feature = "schema-manager", feature = "web-socket"))
+  ))]
+  #[clap(flatten)]
+  commands: EmbedMigrations,
+
+  #[cfg(all(
+    feature = "http-client",
+    not(any(feature = "embed-migrations", feature = "schema-manager", feature = "web-socket"))
+  ))]
+  #[clap(flatten)]
+  commands: HttpClient,
+
+  #[cfg(all(
+    feature = "schema-manager",
+    not(any(feature = "embed-migrations", feature = "http-client", feature = "web-socket"))
+  ))]
+  #[clap(flatten)]
+  commands: SchemaManager,
+
+  #[cfg(all(
+    feature = "web-socket",
+    not(any(feature = "embed-migrations", feature = "http-client", feature = "schema-manager"))
+  ))]
+  #[clap(flatten)]
+  commands: WebSocket,
+}
+
+#[cfg(feature = "unified")]
 #[derive(Debug, clap::Subcommand)]
 enum Commands {
   #[clap(skip)]
@@ -57,28 +108,51 @@ enum Commands {
   #[cfg(feature = "schema-manager")]
   SchemaManager(SchemaManager),
   #[cfg(feature = "web-socket")]
-  Ws(Ws),
+  WebSocket(WebSocket),
 }
 
 /// Embed migrations
 #[cfg(feature = "embed-migrations")]
 #[derive(Debug, clap::Args)]
-struct EmbedMigrations {
+pub(crate) struct EmbedMigrations {
   /// Configuration file path
   #[arg(default_value_t = wtx::database::schema_manager::DEFAULT_CFG_FILE_NAME.into(), short = 'i', value_name = "Path")]
-  input: String,
+  pub(crate) input: String,
   /// Rust file path
   #[arg(default_value = "embedded_migrations.rs", short = 'o', value_name = "Path")]
-  output: String,
+  pub(crate) output: String,
 }
 
 /// Http client
 #[cfg(feature = "http-client")]
 #[derive(Debug, clap::Args)]
-struct HttpClient {
-  /// URI
-  #[arg()]
-  uri: String,
+pub(crate) struct HttpClient {
+  /// HTTP POST data
+  #[arg(long, short)]
+  pub(crate) data: Option<String>,
+
+  /// Pass custom header(s) to server
+  #[arg(long, num_args = 1.., short = 'H', value_name = "HEADER")]
+  pub(crate) header: Vec<String>,
+
+  /// Specify request command to use
+  #[arg(default_value = "GET", long, short = 'X')]
+  pub(crate) method: wtx::http::Method,
+
+  /// Write to file instead of stdout
+  #[arg(long, short)]
+  pub(crate) output: Option<String>,
+
+  /// The URI to request
+  pub(crate) uri: String,
+
+  /// Specify a custom User-Agent
+  #[arg(long = "user-agent", short = 'A')]
+  pub(crate) user_agent: Option<String>,
+
+  /// Verbose mode
+  #[arg(action = clap::ArgAction::Count, help = "Output verbosity (-v, -vv or -vvv)", long, short)]
+  pub(crate) verbose: u8,
 }
 
 /// Schema Manager
@@ -131,11 +205,33 @@ pub(crate) enum SchemaManagerCommands {
 /// WebSocket
 #[cfg(feature = "web-socket")]
 #[derive(Debug, clap::Args)]
-struct Ws {
+struct WebSocket {
   /// Connects to a server
   #[arg(short = 'c', value_name = "URI")]
   connect: Option<String>,
   /// Listens external requests
   #[arg(short = 's', value_name = "URI")]
   serve: Option<String>,
+}
+
+#[cfg(feature = "web-socket")]
+async fn manage_web_socket(elem: WebSocket) {
+  match (elem.connect, elem.serve) {
+    (None, None) | (Some(_), Some(_)) => {
+      panic!("Please connect to a server using `-c` or listen to requests using `-s`");
+    }
+    (None, Some(uri)) => {
+      crate::web_socket::serve(
+        &uri,
+        |payload| println!("{payload:?}"),
+        |err| println!("{err}"),
+        |payload| println!("{payload}"),
+      )
+      .await
+      .unwrap();
+    }
+    (Some(uri), None) => {
+      crate::web_socket::connect(&uri, |payload| println!("{payload}")).await.unwrap();
+    }
+  }
 }

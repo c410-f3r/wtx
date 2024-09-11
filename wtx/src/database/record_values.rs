@@ -23,27 +23,6 @@ where
   fn len(&self) -> usize;
 }
 
-impl<D> RecordValues<D> for ()
-where
-  D: Database,
-{
-  #[inline]
-  fn encode_values<'buffer, 'tmp, A>(
-    &mut self,
-    _: &mut A,
-    _: &mut D::EncodeValue<'buffer, 'tmp>,
-    _: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
-    _: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
-  ) -> Result<usize, D::Error> {
-    Ok(0)
-  }
-
-  #[inline]
-  fn len(&self) -> usize {
-    0
-  }
-}
-
 impl<D, T> RecordValues<D> for &mut T
 where
   D: Database,
@@ -75,13 +54,13 @@ where
   fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    mut ev: &mut D::EncodeValue<'buffer, 'tmp>,
+    ev: &mut D::EncodeValue<'buffer, 'tmp>,
     mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
     mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
-    for elem in self.iter() {
-      encode(aux, elem, &mut ev, &mut n, &mut prefix_cb, &mut suffix_cb)?;
+    for elem in *self {
+      encode(aux, elem, ev, &mut n, &mut prefix_cb, &mut suffix_cb)?;
     }
     Ok(n)
   }

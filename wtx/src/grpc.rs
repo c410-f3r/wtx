@@ -2,15 +2,15 @@
 //! framework.
 
 mod client;
+mod grpc_manager;
+mod grpc_res_middleware;
 mod grpc_status_code;
-mod server;
-mod server_data;
 
 use crate::{data_transformation::dnsn::Serialize, misc::Vector};
 pub use client::Client;
+pub use grpc_manager::GrpcManager;
+pub use grpc_res_middleware::GrpcResMiddleware;
 pub use grpc_status_code::GrpcStatusCode;
-pub use server::Server;
-pub use server_data::ServerData;
 
 #[inline]
 fn serialize<DRSR, T>(bytes: &mut Vector<u8>, mut data: T, drsr: &mut DRSR) -> crate::Result<()>

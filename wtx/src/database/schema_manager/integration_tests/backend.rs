@@ -1,18 +1,21 @@
-use crate::database::{
-  schema_manager::{
-    integration_tests::{AuxTestParams, _migrate_doc_test},
-    Commands, DbMigration, SchemaManagement,
+use crate::{
+  database::{
+    schema_manager::{
+      integration_tests::{AuxTestParams, _migrate_doc_test},
+      Commands, DbMigration, SchemaManagement,
+    },
+    Identifier,
   },
-  Identifier,
+  misc::Vector,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use chrono::{DateTime, Duration, FixedOffset, Utc};
 
 pub(crate) async fn _backend_has_migration_with_utc_time<E>(
   (buffer_cmd, buffer_db_migrations, buffer_idents): (
     &mut String,
-    &mut Vec<DbMigration>,
-    &mut Vec<Identifier>,
+    &mut Vector<DbMigration>,
+    &mut Vector<Identifier>,
   ),
   c: &mut Commands<E>,
   _: AuxTestParams,

@@ -8,6 +8,7 @@ mod encode;
 mod executor;
 mod from_record;
 mod from_records;
+mod json;
 mod misc;
 mod record;
 mod record_values;
@@ -26,6 +27,7 @@ pub use encode::Encode;
 pub use executor::Executor;
 pub use from_record::FromRecord;
 pub use from_records::FromRecords;
+pub use json::Json;
 pub use misc::seek_related_entities;
 pub use record::Record;
 pub(crate) use record_values::encode;
@@ -49,7 +51,7 @@ pub trait Database {
   const BIND_PREFIX: &'static str;
   /// Some databases require bindings in ascending order.
   const IS_BIND_INCREASING: bool;
-  /// See [DatabaseTy].
+  /// See [`DatabaseTy`].
   const TY: DatabaseTy;
 
   /// Contains the data used to decode types.

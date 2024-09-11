@@ -1,74 +1,91 @@
-#![expect(clippy::partial_pub_fields, reason = "necessary due to type checker")]
-
-use crate::http::{
-  server_framework::{Endpoint, PathManagement},
-  HttpError, KnownHeaderName, Method, Mime, ReqResData, Request, StatusCode,
+use crate::{
+  http::{
+    server_framework::{Endpoint, PathManagement},
+    HttpError, KnownHeaderName, Method, Mime, ReqResData, Request, StatusCode,
+  },
+  misc::{ArrayVector, FnFut, Vector},
 };
-use core::marker::PhantomData;
 
 /// Requires a request of type `GET`.
 #[derive(Debug)]
-pub struct Get<A, T>(
+pub struct Get<T>(
   /// Arbitrary type
   pub T,
-  PhantomData<A>,
 );
 
 /// Creates a new [`Get`] instance.
 #[inline]
-pub fn get<A, T>(ty: T) -> Get<A, T> {
-  Get(ty, PhantomData)
+pub fn get<A, T>(ty: T) -> Get<T::Wrapper>
+where
+  T: FnFut<A>,
+{
+  Get(ty.into_wrapper())
 }
 
-impl<A, E, RRD, T> PathManagement<E, RRD> for Get<A, T>
+impl<CA, E, RA, RRD, T> PathManagement<CA, E, RA, RRD> for Get<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<A, E, RRD>,
+  T: Endpoint<CA, E, RA, RRD>,
 {
+  const IS_ROUTER: bool = false;
+
   #[inline]
   async fn manage_path(
     &self,
-    _: bool,
-    matching_path: &'static str,
+    ca: &mut CA,
+    path_defs: (u8, &[(&'static str, u8)]),
+    ra: &mut RA,
     req: &mut Request<RRD>,
-    req_path_indcs: [usize; 2],
   ) -> Result<StatusCode, E> {
     if req.method != Method::Get {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
         expected: Method::Get,
       })));
     }
-    self.0.call(matching_path, req, req_path_indcs).await
+    self.0.call(ca, path_defs, ra, req).await
+  }
+
+  #[inline]
+  fn paths_indices(
+    &self,
+    _: ArrayVector<(&'static str, u8), 8>,
+    _: &mut Vector<ArrayVector<(&'static str, u8), 8>>,
+  ) -> crate::Result<()> {
+    Ok(())
   }
 }
 
 /// Requires a request of type `POST` with json MIME.
 #[derive(Debug)]
-pub struct Json<A, T>(
+pub struct Json<T>(
   /// Arbitrary type
   pub T,
-  PhantomData<A>,
 );
 
 /// Creates a new [`Json`] instance.
 #[inline]
-pub fn json<A, T>(ty: T) -> Json<A, T> {
-  Json(ty, PhantomData)
+pub fn json<A, T>(ty: T) -> Json<T::Wrapper>
+where
+  T: FnFut<A>,
+{
+  Json(ty.into_wrapper())
 }
 
-impl<A, E, T, RRD> PathManagement<E, RRD> for Json<A, T>
+impl<CA, E, T, RA, RRD> PathManagement<CA, E, RA, RRD> for Json<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<A, E, RRD>,
+  T: Endpoint<CA, E, RA, RRD>,
   RRD: ReqResData,
 {
+  const IS_ROUTER: bool = false;
+
   #[inline]
   async fn manage_path(
     &self,
-    _: bool,
-    matching_path: &'static str,
+    ca: &mut CA,
+    path_defs: (u8, &[(&'static str, u8)]),
+    ra: &mut RA,
     req: &mut Request<RRD>,
-    req_path_indcs: [usize; 2],
   ) -> Result<StatusCode, E> {
     if req
       .rrd
@@ -83,42 +100,64 @@ where
         expected: Method::Post,
       })));
     }
-    self.0.call(matching_path, req, req_path_indcs).await
+    self.0.call(ca, path_defs, ra, req).await
+  }
+
+  #[inline]
+  fn paths_indices(
+    &self,
+    _: ArrayVector<(&'static str, u8), 8>,
+    _: &mut Vector<ArrayVector<(&'static str, u8), 8>>,
+  ) -> crate::Result<()> {
+    Ok(())
   }
 }
 
 /// Requires a request of type `POST`.
 #[derive(Debug)]
-pub struct Post<A, T>(
+pub struct Post<T>(
   /// Arbitrary type
   pub T,
-  PhantomData<A>,
 );
 
-/// Creates a new [`Post`] instance.
+/// Creates a new [`Json`] instance.
 #[inline]
-pub fn post<A, T>(ty: T) -> Post<A, T> {
-  Post(ty, PhantomData)
+pub fn post<A, T>(ty: T) -> Post<T::Wrapper>
+where
+  T: FnFut<A>,
+{
+  Post(ty.into_wrapper())
 }
 
-impl<A, E, T, RRD> PathManagement<E, RRD> for Post<A, T>
+impl<CA, E, T, RA, RRD> PathManagement<CA, E, RA, RRD> for Post<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<A, E, RRD>,
+  T: Endpoint<CA, E, RA, RRD>,
 {
+  const IS_ROUTER: bool = false;
+
   #[inline]
   async fn manage_path(
     &self,
-    _: bool,
-    matching_path: &'static str,
+    ca: &mut CA,
+    path_defs: (u8, &[(&'static str, u8)]),
+    ra: &mut RA,
     req: &mut Request<RRD>,
-    req_path_indcs: [usize; 2],
   ) -> Result<StatusCode, E> {
     if req.method != Method::Post {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
         expected: Method::Post,
       })));
     }
-    self.0.call(matching_path, req, req_path_indcs).await
+    self.0.call(ca, path_defs, ra, req).await
+  }
+
+  #[inline]
+  fn paths_indices(
+    &self,
+    _: ArrayVector<(&'static str, u8), 8>,
+    _: &mut Vector<ArrayVector<(&'static str, u8), 8>>,
+  ) -> crate::Result<()> {
+    Ok(())
   }
 }

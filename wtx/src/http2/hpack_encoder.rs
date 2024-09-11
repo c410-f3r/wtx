@@ -9,8 +9,10 @@
 // bytes or runtime performance.
 
 use crate::{
-  http::{AbstractHeaders, Header, KnownHeaderName, Method, StatusCode},
-  http2::{hpack_header::HpackHeaderBasic, huffman_encode, misc::protocol_err, Http2Error},
+  http::{Header, KnownHeaderName, Method, StatusCode},
+  http2::{
+    hpack_header::HpackHeaderBasic, huffman_encode, misc::protocol_err, HpackHeaders, Http2Error,
+  },
   misc::{Rng, Usize, Vector, _random_state, _shift_copyable_chunks, _unreachable},
 };
 use ahash::RandomState;
@@ -24,7 +26,7 @@ const DYN_IDX_OFFSET: u32 = 61;
 
 #[derive(Debug)]
 pub(crate) struct HpackEncoder {
-  dyn_headers: AbstractHeaders<Metadata>,
+  dyn_headers: HpackHeaders<Metadata>,
   idx: u32,
   indcs: HashMap<u64, u32>,
   // Defined by external actors.
@@ -41,7 +43,7 @@ impl HpackEncoder {
     RNG: Rng,
   {
     Self {
-      dyn_headers: AbstractHeaders::new(0),
+      dyn_headers: HpackHeaders::new(0),
       idx: 0,
       indcs: HashMap::new(),
       max_dyn_sub_bytes: None,
@@ -64,7 +66,7 @@ impl HpackEncoder {
     &mut self,
     buffer: &mut Vector<u8>,
     pseudo_headers: impl Iterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
-    user_headers: impl Iterator<Item = Header<'user>>,
+    user_headers: impl Iterator<Item = Header<'user, &'user [u8]>>,
   ) -> crate::Result<()> {
     self.adjust_indices(
       pseudo_headers
@@ -424,7 +426,7 @@ impl HpackEncoder {
     self.dyn_headers.push_front(
       Metadata { name_hash, pair_hash },
       name,
-      [value, &[]],
+      [value].into_iter(),
       is_sensitive,
       |metadata, _| {
         Self::remove_outdated_indices(&mut self.indcs, metadata);
@@ -643,6 +645,7 @@ struct StaticHeader {
 #[cfg(test)]
 mod bench {
   use crate::{
+    http::Header,
     http2::HpackEncoder,
     misc::{NoStdRng, Usize, Vector},
   };
@@ -658,7 +661,7 @@ mod bench {
       he.encode(
         &mut buffer,
         [].into_iter(),
-        data.chunks_exact(128).map(|el| (&el[..64], &el[64..]).into()),
+        data.chunks_exact(128).map(|el| Header::from_name_and_value(&el[..64], &el[64..])),
       )
       .unwrap();
     });

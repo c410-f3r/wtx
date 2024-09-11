@@ -44,7 +44,7 @@ pub use handshake::HeadersBuffer;
 pub use misc::Expand;
 use misc::{define_fb_from_header_params, op_code, FilledBuffer};
 pub use op_code::OpCode;
-pub(crate) use unmask::unmask;
+use unmask::unmask;
 pub use web_socket_buffer::WebSocketBuffer;
 pub use web_socket_error::WebSocketError;
 

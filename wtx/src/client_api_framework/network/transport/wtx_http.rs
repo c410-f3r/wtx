@@ -132,29 +132,19 @@ where
 {
   pkgs_aux.byte_buffer.clear();
   pkgs_aux.tp.ext_req_params_mut().headers.clear();
-  manage_before_sending_related(pkg, pkgs_aux, &*client).await?;
+  manage_before_sending_related(pkg, pkgs_aux, client).await?;
   let HttpReqParams { headers, method, mime, uri, user_agent } = pkgs_aux.tp.ext_req_params_mut();
   if let Some(elem) = mime {
-    headers.push_front(
-      Header {
-        is_sensitive: false,
-        is_trailer: false,
-        name: KnownHeaderName::ContentType.into(),
-        value: elem.as_str().as_bytes(),
-      },
-      &[],
-    )?;
+    headers.push_from_iter(Header::from_name_and_value(
+      KnownHeaderName::ContentType.into(),
+      [elem.as_str().as_bytes()],
+    ))?;
   }
   if let Some(elem) = user_agent {
-    headers.push_front(
-      Header {
-        is_sensitive: false,
-        is_trailer: false,
-        name: KnownHeaderName::UserAgent.into(),
-        value: elem._as_str().as_bytes(),
-      },
-      &[],
-    )?;
+    headers.push_from_iter(Header::from_name_and_value(
+      KnownHeaderName::UserAgent.into(),
+      [elem._as_str().as_bytes()],
+    ))?;
   }
   let mut rrb = ReqResBuffer::default();
   mem::swap(&mut rrb.data, &mut pkgs_aux.byte_buffer);

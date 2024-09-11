@@ -7,14 +7,14 @@ use wtx::{
     schema_manager::{Commands, DbMigration, SchemaManagement, DEFAULT_CFG_FILE_NAME},
     Identifier, DEFAULT_URI_VAR,
   },
-  misc::{StdRng, UriRef},
+  misc::{StdRng, UriRef, Vector},
 };
 
-pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
+pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
   {
     let _rslt = dotenv::dotenv();
-    wtx::misc::tracing_tree_init()?;
+    wtx::misc::tracing_tree_init(None)?;
   }
 
   let var = std::env::var(DEFAULT_URI_VAR)?;
@@ -29,7 +29,7 @@ pub(crate) async fn schema_manager(sm: &SchemaManager) -> wtx::Result<()> {
         TcpStream::connect(uri.host()).await.map_err(wtx::Error::from)?,
       )
       .await?;
-      handle_commands(executor, sm).await?;
+      handle_commands(executor, &sm).await?;
     }
     _ => return Err(wtx::Error::InvalidUri),
   }
@@ -52,8 +52,8 @@ where
   E: SchemaManagement,
 {
   let _buffer_cmd = &mut String::new();
-  let _buffer_db_migrations = &mut Vec::<DbMigration>::new();
-  let _buffer_idents = &mut Vec::<Identifier>::new();
+  let _buffer_db_migrations = &mut Vector::<DbMigration>::new();
+  let _buffer_idents = &mut Vector::<Identifier>::new();
 
   let mut commands = Commands::new(sm.files_num, executor);
   match &sm.commands {

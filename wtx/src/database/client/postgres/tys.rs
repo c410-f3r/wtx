@@ -10,7 +10,7 @@ macro_rules! proptest {
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut ev).unwrap();
       let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&DecodeValue::new(
         ev.fbw()._curr_bytes(),
-        &crate::database::client::postgres::Ty::Any,
+        crate::database::client::postgres::Ty::Any,
       ))
       .unwrap();
       assert_eq!(instance, decoded);
@@ -31,7 +31,7 @@ macro_rules! test {
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut ev).unwrap();
       let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&DecodeValue::new(
         ev.fbw()._curr_bytes(),
-        &crate::database::client::postgres::Ty::Any,
+        crate::database::client::postgres::Ty::Any,
       ))
       .unwrap();
       assert_eq!(instance, decoded);
@@ -53,8 +53,8 @@ mod array {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      Ok(from_utf8_basic(input.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
+    fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
+      Ok(from_utf8_basic(dv.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
     }
   }
   impl<E, const N: usize> Encode<Postgres<E>> for ArrayString<N>
@@ -236,8 +236,8 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(input: &DecodeValue<'exec>) -> Result<Self, E> {
-      Ok(input.bytes())
+    fn decode(dv: &DecodeValue<'exec>) -> Result<Self, E> {
+      Ok(dv.bytes())
     }
   }
   impl<E> Encode<Postgres<E>> for &[u8]
@@ -265,8 +265,8 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(input: &DecodeValue<'exec>) -> Result<Self, E> {
-      Ok(from_utf8_basic(input.bytes()).map_err(crate::Error::from)?)
+    fn decode(dv: &DecodeValue<'exec>) -> Result<Self, E> {
+      Ok(from_utf8_basic(dv.bytes()).map_err(crate::Error::from)?)
     }
   }
   impl<E> Encode<Postgres<E>> for &str
@@ -294,8 +294,8 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      Ok(from_utf8_basic(input.bytes()).map_err(crate::Error::from)?.into())
+    fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
+      Ok(from_utf8_basic(dv.bytes()).map_err(crate::Error::from)?.into())
     }
   }
   impl<E> Encode<Postgres<E>> for String
@@ -341,12 +341,12 @@ mod pg_numeric {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      let [a, b, c, d, e, f, g, h, rest @ ..] = input.bytes() else {
+    fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
+      let [a, b, c, d, e, f, g, h, rest @ ..] = dv.bytes() else {
         return Err(E::from(
           PostgresError::UnexpectedBufferSize {
             expected: 8,
-            received: Usize::from(input.bytes().len()).into(),
+            received: Usize::from(dv.bytes().len()).into(),
           }
           .into(),
         ));
@@ -455,12 +455,12 @@ mod primitives {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, E> {
-      let &[byte] = input.bytes() else {
+    fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
+      let &[byte] = dv.bytes() else {
         return Err(E::from(
           PostgresError::UnexpectedBufferSize {
             expected: 1,
-            received: Usize::from(input.bytes().len()).into(),
+            received: Usize::from(dv.bytes().len()).into(),
           }
           .into(),
         ));
@@ -687,4 +687,46 @@ mod rust_decimal {
   }
 
   proptest!(rust_decimal, Decimal);
+}
+
+#[cfg(feature = "serde_json")]
+mod serde_json {
+  use crate::database::{
+    client::postgres::{DecodeValue, EncodeValue, Postgres, PostgresError, Ty},
+    Decode, Encode, Json, Typed,
+  };
+  use serde::{Deserialize, Serialize};
+
+  impl<'de, E, T> Decode<'de, Postgres<E>> for Json<T>
+  where
+    E: From<crate::Error>,
+    T: Deserialize<'de>,
+  {
+    #[inline]
+    fn decode(input: &DecodeValue<'de>) -> Result<Self, E> {
+      let [1, rest @ ..] = input.bytes() else {
+        return Err(E::from(PostgresError::InvalidJsonFormat.into()));
+      };
+      let elem = serde_json::from_slice(rest).map(Json).map_err(Into::into)?;
+      Ok(elem)
+    }
+  }
+  impl<E, T> Encode<Postgres<E>> for Json<T>
+  where
+    E: From<crate::Error>,
+    T: Serialize,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_byte(1).map_err(Into::into)?;
+      serde_json::to_writer(ev.fbw(), &self.0).map_err(Into::into)?;
+      Ok(())
+    }
+  }
+  impl<E, T> Typed<Postgres<E>> for Json<T>
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Jsonb;
+  }
 }

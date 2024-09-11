@@ -1,6 +1,7 @@
 .scripts/autobahn/reports
 .vscode
 **/*.rs.bk
+**/curl
 **/hpack-test-case
 **/profile.json
 **/proptest-regressions

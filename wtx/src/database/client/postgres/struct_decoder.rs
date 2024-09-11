@@ -30,7 +30,7 @@ where
   #[inline]
   pub fn decode<T>(&mut self) -> Result<T, E>
   where
-    T: for<'de> Decode<'de, Postgres<E>>,
+    T: Decode<'any, Postgres<E>>,
   {
     Ok(self.decode_opt()?.ok_or_else(|| PostgresError::DecodingError.into())?)
   }
@@ -40,7 +40,7 @@ where
   #[inline]
   pub fn decode_opt<T>(&mut self) -> Result<Option<T>, E>
   where
-    T: for<'de> Decode<'de, Postgres<E>>,
+    T: Decode<'any, Postgres<E>>,
   {
     let [a, b, c, d, e, f, g, h, rest @ ..] = self.bytes else {
       return Ok(None);
@@ -53,6 +53,6 @@ where
       return Ok(None);
     };
     self.bytes = after;
-    Ok(Some(T::decode(&DecodeValue::new(before, &ty))?))
+    Ok(Some(T::decode(&DecodeValue::new(before, ty))?))
   }
 }

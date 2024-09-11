@@ -31,6 +31,16 @@ impl Rng for StdRng {
   }
 }
 
+#[cfg(feature = "http-server-framework")]
+impl crate::http::server_framework::ConnAux for StdRng {
+  type Init = Self;
+
+  #[inline]
+  fn conn_aux(init: Self::Init) -> crate::Result<Self> {
+    Ok(init)
+  }
+}
+
 impl Default for StdRng {
   #[inline]
   fn default() -> Self {

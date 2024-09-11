@@ -10,5 +10,5 @@ Activation feature is called `postgres`.
 ## Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/database-client-postgres-tokio.rs}}
+{{#rustdoc_include ../../../wtx-instances/database-examples/database-client-postgres.rs}}
 ```

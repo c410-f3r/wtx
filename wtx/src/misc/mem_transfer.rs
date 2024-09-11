@@ -61,12 +61,11 @@ where
 #[cfg(feature = "_proptest")]
 #[cfg(test)]
 mod proptest {
-  use crate::misc::_shift_copyable_chunks;
-  use alloc::vec::Vec;
+  use crate::misc::{Vector, _shift_copyable_chunks};
   use core::ops::Range;
 
   #[test_strategy::proptest]
-  fn shift_bytes(mut data: Vec<u8>, range: Range<u8>) {
+  fn shift_bytes(mut data: Vector<u8>, range: Range<u8>) {
     let mut begin: usize = range.start.into();
     let mut end: usize = range.end.into();
     let mut data_clone = data.clone();
@@ -75,7 +74,7 @@ mod proptest {
     let rslt = _shift_copyable_chunks(0, &mut data, [begin..end]);
     data_clone.rotate_left(begin);
     data_clone.truncate(rslt.len());
-    assert_eq!(rslt, &data_clone);
+    assert_eq!(rslt, data_clone.as_ref());
   }
 }
 

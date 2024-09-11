@@ -1,9 +1,9 @@
 use crate::{
-  http::StatusCode,
+  http::{Header, StatusCode},
   http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_HPACK_LEN},
   misc::{from_utf8_basic, NoStdRng, Vector},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use core::{fmt::Formatter, marker::PhantomData};
 use serde::{
   de::{Deserializer, MapAccess, Visitor},
@@ -21,7 +21,7 @@ const MAX_HEADER_LEN: u32 = 16384;
 
 #[test]
 fn hpack_test_cases() {
-  fetch_hpack_test_cases();
+  fetch_project();
   let mut buffer = Vector::new();
   let mut decoder = HpackDecoder::new();
   let mut encoder = HpackEncoder::new(NoStdRng::default());
@@ -49,7 +49,7 @@ fn hpack_test_cases() {
 #[derive(Debug, serde::Deserialize)]
 struct Case {
   header_table_size: Option<u32>,
-  headers: Vec<CaseHeader>,
+  headers: Vector<CaseHeader>,
   seqno: Option<u16>,
   wire: Option<String>,
 }
@@ -97,10 +97,10 @@ impl<'de> Deserialize<'de> for CaseHeader {
 
 #[derive(Debug, serde::Deserialize)]
 struct Root {
-  cases: Vec<Case>,
+  cases: Vector<Case>,
 }
 
-fn fetch_hpack_test_cases() {
+fn fetch_project() {
   let _output = Command::new("git")
     .arg("clone")
     .arg("https://github.com/http2jp/hpack-test-case")
@@ -120,7 +120,7 @@ pub(crate) const fn hhb_name<'name>(hhb: HpackHeaderBasic, name: &'name [u8]) ->
   }
 }
 
-fn parse_hex(hex: &[u8]) -> Vec<u8> {
+fn parse_hex(hex: &[u8]) -> Vector<u8> {
   let mut hex_bytes = hex
     .iter()
     .filter_map(|b| match b {
@@ -130,9 +130,9 @@ fn parse_hex(hex: &[u8]) -> Vec<u8> {
       _ => None,
     })
     .fuse();
-  let mut bytes = Vec::new();
+  let mut bytes = Vector::new();
   while let (Some(h), Some(l)) = (hex_bytes.next(), hex_bytes.next()) {
-    bytes.push(h << 4 | l)
+    bytes.push(h << 4 | l).unwrap();
   }
   bytes
 }
@@ -191,57 +191,51 @@ fn test_story_encoding_and_decoding(
       encoder.set_max_dyn_sub_bytes(MAX_HPACK_LEN).unwrap();
     }
 
-    let mut pseudo_headers = case
-      .headers
-      .iter()
-      .filter_map(|header| {
-        Some(match header.name.as_str() {
-          ":authority" => (HpackHeaderBasic::Authority, header.value.as_bytes()),
-          ":method" => {
-            let method = header.value.as_str().try_into().unwrap();
-            (HpackHeaderBasic::Method(method), method.strings().custom[0].as_bytes())
-          }
-          ":path" => (HpackHeaderBasic::Path, header.value.as_bytes()),
-          ":protocol" => {
-            let protocol = header.value.as_str().try_into().unwrap();
-            (HpackHeaderBasic::Protocol(protocol), protocol.strings().custom[0].as_bytes())
-          }
-          ":scheme" => (HpackHeaderBasic::Scheme, header.value.as_bytes()),
-          ":status" => {
-            let status: StatusCode = header.value.as_str().try_into().unwrap();
-            (HpackHeaderBasic::StatusCode(status), status.strings().number.as_bytes())
-          }
-          _ => return None,
-        })
-      })
-      .collect::<Vec<_>>();
-
-    let mut user_headers = case
-      .headers
-      .iter()
-      .filter_map(|header| {
-        if header.name.starts_with(":") {
-          None
-        } else {
-          Some((HpackHeaderBasic::Field, header.name.as_bytes(), header.value.as_bytes()))
+    let mut pseudo_headers = Vector::from_iter(case.headers.iter().filter_map(|header| {
+      Some(match header.name.as_str() {
+        ":authority" => (HpackHeaderBasic::Authority, header.value.as_bytes()),
+        ":method" => {
+          let method = header.value.as_str().try_into().unwrap();
+          (HpackHeaderBasic::Method(method), method.strings().custom[0].as_bytes())
         }
+        ":path" => (HpackHeaderBasic::Path, header.value.as_bytes()),
+        ":protocol" => {
+          let protocol = header.value.as_str().try_into().unwrap();
+          (HpackHeaderBasic::Protocol(protocol), protocol.strings().custom[0].as_bytes())
+        }
+        ":scheme" => (HpackHeaderBasic::Scheme, header.value.as_bytes()),
+        ":status" => {
+          let status: StatusCode = header.value.as_str().try_into().unwrap();
+          (HpackHeaderBasic::StatusCode(status), status.strings().number.as_bytes())
+        }
+        _ => return None,
       })
-      .collect::<Vec<_>>();
+    }))
+    .unwrap();
+
+    let mut user_headers = Vector::from_iter(case.headers.iter().filter_map(|header| {
+      if header.name.starts_with(":") {
+        None
+      } else {
+        Some((HpackHeaderBasic::Field, header.name.as_bytes(), header.value.as_bytes()))
+      }
+    }))
+    .unwrap();
 
     encoder
       .encode(
         buffer,
         pseudo_headers.iter().copied(),
-        user_headers.iter().map(|el| (el.1, el.2).into()),
+        user_headers.iter().map(|el| Header::from_name_and_value(el.1, el.2)),
       )
       .unwrap();
 
     decoder
       .decode(&buffer, |(hhb, name, value)| {
         if pseudo_headers.is_empty() {
-          assert_eq!((hhb, hhb_name(hhb, name), value), user_headers.remove(0));
+          assert_eq!((hhb, hhb_name(hhb, name), value), user_headers.remove(0).unwrap());
         } else {
-          assert_eq!((hhb, value), pseudo_headers.remove(0));
+          assert_eq!((hhb, value), pseudo_headers.remove(0).unwrap());
         }
         Ok(())
       })
@@ -253,8 +247,8 @@ fn test_story_encoding_and_decoding(
   }
 }
 
-fn test_story_wired_decoding(cases: &mut Vec<Case>, decoder: &mut HpackDecoder) {
-  for case in cases {
+fn test_story_wired_decoding(cases: &mut Vector<Case>, decoder: &mut HpackDecoder) {
+  for case in cases.iter_mut() {
     if let Some(elem) = case.header_table_size {
       decoder.set_max_bytes(elem);
     }
@@ -265,7 +259,7 @@ fn test_story_wired_decoding(cases: &mut Vec<Case>, decoder: &mut HpackDecoder) 
 
     decoder
       .decode(&parse_hex(wire.as_bytes()), |(hhb, name, value)| {
-        let case_header = case.headers.remove(0);
+        let case_header = case.headers.remove(0).unwrap();
         let (name, value) = strs(hhb, name, value);
         assert_eq!(case_header.name, name);
         assert_eq!(case_header.value, value);

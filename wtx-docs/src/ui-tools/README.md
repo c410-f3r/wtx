@@ -5,4 +5,4 @@
 - Embeds SQL migrations for `schema-manager`. Activation feature is called `embed-migrations`.
 - Runs SQL migrations managed by `schema-manager`. Activation feature is called `schema-manager` or `schema-manager-dev`.
 - Performs very basic WebSocket Client/Server operations. Activation feature is called `web-socket`.
-- Makes `GET` requests to arbitrary URIs. Activation feature is called `http-client`.
+- Makes requests to arbitrary URIs mimicking the interface of `cURL`. Activation feature is called `http-client`.

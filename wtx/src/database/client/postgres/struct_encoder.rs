@@ -56,7 +56,7 @@ where
   }
 }
 
-impl<'a, 'fbw, 'vec, E> Drop for StructEncoder<'a, 'fbw, 'vec, E> {
+impl<'buffer, 'fbw, 'vec, E> Drop for StructEncoder<'buffer, 'fbw, 'vec, E> {
   #[inline]
   fn drop(&mut self) {
     write_len(self.ev, self.start, self.len);

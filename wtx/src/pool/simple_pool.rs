@@ -16,7 +16,7 @@ pub type SimplePoolTokio<RM> =
   SimplePool<tokio::sync::Mutex<SimplePoolResource<<RM as ResourceManager>::Resource>>, RM>;
 
 /// Pool with a fixed number of elements.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct SimplePool<RL, RM> {
   available_idxs: Arc<Mutex<Vec<usize>>>,
   #[expect(clippy::rc_buffer, reason = "false-positive")]
@@ -75,6 +75,30 @@ where
   }
 }
 
+impl<R, RL, RM> SimplePool<RL, RM>
+where
+  RL: Lock<Resource = SimplePoolResource<R>>,
+  RM: ResourceManager<CreateAux = (), RecycleAux = (), Resource = R>,
+  for<'any> RL: 'any,
+  for<'any> RM: 'any,
+{
+  /// Shortcut for implementations that don't require inputs.
+  #[inline]
+  pub async fn get(&self) -> Result<<Self as Pool>::GetElem<'_>, RM::Error> {
+    <Self as Pool>::get(self, &(), &()).await
+  }
+}
+
+#[cfg(feature = "http-server-framework")]
+impl<RL, RM> crate::http::server_framework::ReqAux for SimplePool<RL, RM> {
+  type Init = Self;
+
+  #[inline]
+  fn req_aux<RRD>(init: Self::Init, _: &mut crate::http::Request<RRD>) -> crate::Result<Self> {
+    Ok(init)
+  }
+}
+
 impl<R, RL, RM> Pool for SimplePool<RL, RM>
 where
   RL: Lock<Resource = SimplePoolResource<R>>,
@@ -91,7 +115,7 @@ where
     &'this self,
     ca: &RM::CreateAux,
     ra: &RM::RecycleAux,
-  ) -> Result<Self::GetElem<'this>, <Self::ResourceManager as ResourceManager>::Error> {
+  ) -> Result<Self::GetElem<'this>, RM::Error> {
     let (idx, lock) = poll_fn(|ctx| {
       if let Some((idx, lock)) = self.available_idxs.lock().ok().and_then(|mut el| {
         let idx = el.pop()?;
@@ -121,6 +145,18 @@ where
       resource,
       waker: Arc::clone(&self.waker),
     })
+  }
+}
+
+impl<RL, RM> Clone for SimplePool<RL, RM> {
+  #[inline]
+  fn clone(&self) -> Self {
+    Self {
+      available_idxs: Arc::clone(&self.available_idxs),
+      locks: Arc::clone(&self.locks),
+      rm: Arc::clone(&self.rm),
+      waker: Arc::clone(&self.waker),
+    }
   }
 }
 
@@ -214,26 +250,23 @@ mod _tokio {
 
 #[cfg(test)]
 mod tests {
-  use crate::pool::{simple_pool::SimplePoolTokio, Pool, SimpleRM};
+  use crate::pool::{simple_pool::SimplePoolTokio, SimpleRM};
 
   #[tokio::test]
   async fn held_lock_is_not_modified() {
     let pool = pool();
-    let lhs_lock = pool.get(&(), &()).await.unwrap();
+    let lhs_lock = pool.get().await.unwrap();
 
-    ***pool.get(&(), &()).await.unwrap() = 1;
-    assert_eq!([***lhs_lock, ***pool.get(&(), &()).await.unwrap()], [0, 1]);
+    ***pool.get().await.unwrap() = 1;
+    assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 1]);
 
-    ***pool.get(&(), &()).await.unwrap() = 2;
-    assert_eq!([***lhs_lock, ***pool.get(&(), &()).await.unwrap()], [0, 2]);
+    ***pool.get().await.unwrap() = 2;
+    assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 2]);
 
     drop(lhs_lock);
 
-    ***pool.get(&(), &()).await.unwrap() = 1;
-    assert_eq!(
-      [***pool.get(&(), &()).await.unwrap(), ***pool.get(&(), &()).await.unwrap()],
-      [1, 2]
-    );
+    ***pool.get().await.unwrap() = 1;
+    assert_eq!([***pool.get().await.unwrap(), ***pool.get().await.unwrap()], [1, 2]);
   }
 
   fn pool() -> SimplePoolTokio<SimpleRM<fn() -> crate::Result<i32>>> {

@@ -4,11 +4,11 @@ use crate::database::client::postgres::ty::Ty;
 #[derive(Debug, PartialEq)]
 pub struct DecodeValue<'any> {
   bytes: &'any [u8],
-  ty: &'any Ty,
+  ty: Ty,
 }
 
 impl<'any> DecodeValue<'any> {
-  pub(crate) fn new(bytes: &'any [u8], ty: &'any Ty) -> Self {
+  pub(crate) fn new(bytes: &'any [u8], ty: Ty) -> Self {
     Self { bytes, ty }
   }
 
@@ -20,14 +20,14 @@ impl<'any> DecodeValue<'any> {
 
   /// Type of a column.
   #[inline]
-  pub fn ty(&self) -> &'any Ty {
-    self.ty
+  pub fn ty(&self) -> &Ty {
+    &self.ty
   }
 }
 
 impl<'any> Default for DecodeValue<'any> {
   #[inline]
   fn default() -> Self {
-    Self { bytes: &[], ty: &Ty::Any }
+    Self { bytes: &[], ty: Ty::Any }
   }
 }

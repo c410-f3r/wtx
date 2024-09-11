@@ -99,13 +99,14 @@ extern crate wtx;
 
 use std::path::Path;
 use wtx::database::{schema_manager::Commands, DEFAULT_URI_VAR};
+use wtx::misc::Vector;
 
 #[tokio::main]
 async fn main() {
   let mut commands = Commands::with_executor(());
   commands
     .migrate_from_dir(
-      (&mut String::default(), &mut Vec::default()),
+      (&mut String::default(), &mut Vector::default()),
       Path::new("my_custom_migration_group_path"),
     )
     .await
@@ -126,10 +127,11 @@ mod embedded_migrations {
 }
 
 use wtx::database::schema_manager::Commands;
+use wtx::misc::Vector;
 
 async fn migrate() -> wtx::Result<()> {
   Commands::with_executor(())
-    .migrate_from_groups((&mut String::new(), &mut Vec::new()), embedded_migrations::GROUPS)
+    .migrate_from_groups((&mut String::new(), &mut Vector::new()), embedded_migrations::GROUPS)
     .await
 }
 ```

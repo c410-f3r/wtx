@@ -1,9 +1,10 @@
 use crate::misc::{Lease, LeaseMut, _unlikely_elem};
-use alloc::vec::Vec;
+use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
-  fmt::{Debug, Formatter},
+  borrow::{Borrow, BorrowMut},
+  fmt::{Debug, Display, Formatter},
   hint::assert_unchecked,
-  ops::{Deref, DerefMut},
+  ops::{Deref, DerefMut, RangeBounds},
   ptr,
 };
 
@@ -23,6 +24,15 @@ pub enum VectorError {
   #[doc = doc_reserve_overflow!()]
   WithCapacityOverflow,
 }
+
+impl Display for VectorError {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    <Self as Debug>::fmt(self, f)
+  }
+}
+
+impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
 #[cfg_attr(feature = "test-strategy", derive(test_strategy::Arbitrary))]
@@ -94,6 +104,15 @@ impl<D> Vector<D> {
     self.data.clear();
   }
 
+  /// Clears the vector, removing all values.
+  #[inline]
+  pub fn drain<R>(&mut self, range: R) -> Drain<'_, D>
+  where
+    R: RangeBounds<usize>,
+  {
+    self.data.drain(range)
+  }
+
   /// Clones and appends all elements in the iterator.
   #[inline]
   pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = D>) -> Result<(), VectorError> {
@@ -162,6 +181,15 @@ impl<D> Vector<D> {
     Ok(())
   }
 
+  /// Shortens the vector, keeping the first len elements and dropping the rest.
+  #[inline]
+  pub fn remove(&mut self, idx: usize) -> Option<D> {
+    if idx >= self.data.len() {
+      return None;
+    }
+    Some(self.data.remove(idx))
+  }
+
   /// Reserves capacity for at least `additional` more elements to be inserted
   /// in the given instance. The collection may reserve more space to
   /// speculatively avoid frequent reallocations. After calling `reserve`,
@@ -208,6 +236,14 @@ impl<D> Vector<D>
 where
   D: Clone,
 {
+  /// Constructs a new instance with elements provided by `iter`.
+  #[inline]
+  pub fn from_cloneable_elem(len: usize, value: D) -> Result<Self, VectorError> {
+    let mut this = Self::with_capacity(len)?;
+    this.expand(len, value)?;
+    Ok(this)
+  }
+
   /// Resizes the instance in-place so that the current length is equal to `new_len`.
   ///
   /// Does nothing if `new_len` is equal or less than the current length.
@@ -215,13 +251,13 @@ where
   // NOTE: It is not possible to use `push` because of <https://github.com/rust-lang/rust/issues/124979>.
   #[inline]
   pub fn expand(&mut self, new_len: usize, value: D) -> Result<(), VectorError> {
-    let len = self.data.len();
+    let len: usize = self.data.len();
     let Some(diff @ 1..usize::MAX) = new_len.checked_sub(len) else {
       return Ok(());
     };
     self.reserve(diff)?;
     // SAFETY: `len` points to valid memory
-    let mut dst = unsafe { self.as_mut_ptr().add(len) };
+    let mut dst = unsafe { self.data.as_mut_ptr().add(len) };
     for _ in 1..diff {
       // SAFETY: `dst` points to valid memory
       unsafe {
@@ -248,6 +284,14 @@ impl<D> Vector<D>
 where
   D: Copy,
 {
+  /// Constructs a new instance with elements provided by `slice`.
+  #[inline]
+  pub fn from_slice(slice: &[D]) -> Result<Self, VectorError> {
+    let mut this = Self::new();
+    this.extend_from_slice(slice)?;
+    Ok(this)
+  }
+
   /// Iterates over the slice `other`, copies each element, and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
@@ -297,20 +341,6 @@ where
   }
 }
 
-impl<D> AsMut<[D]> for Vector<D> {
-  #[inline]
-  fn as_mut(&mut self) -> &mut [D] {
-    self
-  }
-}
-
-impl<D> AsRef<[D]> for Vector<D> {
-  #[inline]
-  fn as_ref(&self) -> &[D] {
-    self.as_slice()
-  }
-}
-
 impl<D> Lease<[D]> for Vector<D> {
   #[inline]
   fn lease(&self) -> &[D] {
@@ -340,16 +370,35 @@ impl<D> LeaseMut<Vector<D>> for Vector<D> {
 }
 
 #[cfg(feature = "serde")]
-impl<D> serde::Serialize for Vector<D>
-where
-  D: serde::Serialize,
-{
-  #[inline]
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+mod serde {
+  use crate::misc::Vector;
+  use alloc::vec::Vec;
+  use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+  impl<'de, T> Deserialize<'de> for Vector<T>
   where
-    S: serde::Serializer,
+    T: Deserialize<'de>,
   {
-    self.data.serialize(serializer)
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+      D: Deserializer<'de>,
+    {
+      Ok(Self::from_vec(Vec::deserialize(deserializer)?))
+    }
+  }
+
+  impl<D> Serialize for Vector<D>
+  where
+    D: Serialize,
+  {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      self.data.serialize(serializer)
+    }
   }
 }
 
@@ -408,6 +457,34 @@ impl quick_protobuf::writer::WriterBackend for &mut Vector<u8> {
   }
 }
 
+impl<D> AsMut<[D]> for Vector<D> {
+  #[inline]
+  fn as_mut(&mut self) -> &mut [D] {
+    self
+  }
+}
+
+impl<D> AsRef<[D]> for Vector<D> {
+  #[inline]
+  fn as_ref(&self) -> &[D] {
+    self.as_slice()
+  }
+}
+
+impl<D> Borrow<[D]> for Vector<D> {
+  #[inline]
+  fn borrow(&self) -> &[D] {
+    self
+  }
+}
+
+impl<D> BorrowMut<[D]> for Vector<D> {
+  #[inline]
+  fn borrow_mut(&mut self) -> &mut [D] {
+    self
+  }
+}
+
 impl<D> Debug for Vector<D>
 where
   D: Debug,
@@ -438,6 +515,16 @@ impl<D> DerefMut for Vector<D> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.data.as_mut_slice()
+  }
+}
+
+impl<D> IntoIterator for Vector<D> {
+  type Item = D;
+  type IntoIter = IntoIter<D>;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    self.data.into_iter()
   }
 }
 

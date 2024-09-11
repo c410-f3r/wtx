@@ -5,12 +5,13 @@ use {
     schema_manager::integration_tests, schema_manager::Commands, schema_manager::DbMigration,
     schema_manager::SchemaManagement, FromRecord, Identifier,
   },
-  alloc::{string::String, vec::Vec},
+  crate::misc::Vector,
+  alloc::string::String,
 };
 
 #[cfg(feature = "schema-manager-dev")]
 pub(crate) async fn _clean_drops_all_objs<E>(
-  (buffer_cmd, _, buffer_idents): (&mut String, &mut Vec<DbMigration>, &mut Vec<Identifier>),
+  (buffer_cmd, _, buffer_idents): (&mut String, &mut Vector<DbMigration>, &mut Vector<Identifier>),
   c: &mut Commands<E>,
   _: integration_tests::AuxTestParams,
 ) where

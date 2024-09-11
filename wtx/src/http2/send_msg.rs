@@ -26,7 +26,7 @@ macro_rules! init {
 }
 
 use crate::{
-  http::{Headers, ReqResBuffer},
+  http::{Headers, ReqResBuffer, Trailers},
   http2::{
     http2_data::Http2DataPartsMut,
     misc::{process_higher_operation_err, protocol_err, write_array},
@@ -196,7 +196,7 @@ where
         available_send,
         has_data,
         data_bytes,
-        headers.has_trailers(),
+        headers.trailers().has_any(),
         is_conn_open,
         hdpm.hps.max_frame_len,
         hdpm.stream_writer,
@@ -235,17 +235,30 @@ fn encode_headers<const IS_CLIENT: bool>(
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
 ) -> crate::Result<()> {
   hpack_enc_buffer.clear();
-  if headers.has_trailers() {
-    let iter = headers.iter().filter(|el| !el.is_trailer);
-    if IS_CLIENT {
-      hpack_enc.encode(hpack_enc_buffer, hsreqh.iter(), iter)?;
-    } else {
-      hpack_enc.encode(hpack_enc_buffer, hsresh.iter(), iter)?;
+  match headers.trailers() {
+    Trailers::None => {
+      if IS_CLIENT {
+        hpack_enc.encode(hpack_enc_buffer, hsreqh.iter(), headers.iter())?;
+      } else {
+        hpack_enc.encode(hpack_enc_buffer, hsresh.iter(), headers.iter())?;
+      }
     }
-  } else if IS_CLIENT {
-    hpack_enc.encode(hpack_enc_buffer, hsreqh.iter(), headers.iter())?;
-  } else {
-    hpack_enc.encode(hpack_enc_buffer, hsresh.iter(), headers.iter())?;
+    Trailers::Mixed => {
+      let iter = headers.iter().filter(|el| !el.is_trailer);
+      if IS_CLIENT {
+        hpack_enc.encode(hpack_enc_buffer, hsreqh.iter(), iter)?;
+      } else {
+        hpack_enc.encode(hpack_enc_buffer, hsresh.iter(), iter)?;
+      }
+    }
+    Trailers::Tail(idx) => {
+      let iter = headers.iter().take(idx);
+      if IS_CLIENT {
+        hpack_enc.encode(hpack_enc_buffer, hsreqh.iter(), iter)?;
+      } else {
+        hpack_enc.encode(hpack_enc_buffer, hsresh.iter(), iter)?;
+      }
+    }
   }
   Ok(())
 }
@@ -255,7 +268,18 @@ fn encode_trailers(
   headers: &Headers,
   (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
 ) -> crate::Result<()> {
-  hpack_enc.encode(hpack_enc_buffer, [].into_iter(), headers.iter().filter(|el| el.is_trailer))?;
+  let pseudo = [].into_iter();
+  match headers.trailers() {
+    Trailers::None => {
+      hpack_enc.encode(hpack_enc_buffer, pseudo, headers.iter())?;
+    }
+    Trailers::Mixed => {
+      hpack_enc.encode(hpack_enc_buffer, pseudo, headers.iter().filter(|el| el.is_trailer))?;
+    }
+    Trailers::Tail(idx) => {
+      hpack_enc.encode(hpack_enc_buffer, pseudo, headers.iter().skip(idx))?;
+    }
+  }
   Ok(())
 }
 
@@ -290,7 +314,7 @@ where
     let Some(data_len) = has_delimited_bytes(data_bytes, available_send.min(max_frame_len)) else {
       break 'headers_with_others;
     };
-    if headers.has_trailers() {
+    if headers.trailers().has_any() {
       let idx = hpack_enc_buffer.len();
       encode_trailers(headers, (hpack_enc, hpack_enc_buffer))?;
       let Some((headers_bytes, trailers_bytes)) = hpack_enc_buffer.split_at_checked(idx) else {

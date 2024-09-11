@@ -1,10 +1,11 @@
 //! Generic HTTP elements
 
-mod abstract_headers;
 #[cfg(feature = "http-client-framework")]
 pub mod client_framework;
 #[cfg(any(feature = "http-client-framework", feature = "http-server-framework"))]
 mod conn_params;
+#[cfg(feature = "http-cookie")]
+mod cookie;
 mod generic_header;
 mod generic_request;
 mod generic_response;
@@ -14,6 +15,7 @@ mod http_error;
 mod low_level_server;
 mod method;
 mod mime;
+mod percent_encoding;
 mod protocol;
 mod req_res_buffer;
 mod req_res_data;
@@ -22,27 +24,33 @@ mod request;
 mod response;
 #[cfg(feature = "http-server-framework")]
 pub mod server_framework;
+#[cfg(feature = "http-session")]
+mod session;
 mod status_code;
 mod version;
 
-pub(crate) use abstract_headers::AbstractHeaders;
 #[cfg(any(feature = "http-client-framework", feature = "http-server-framework"))]
 pub(crate) use conn_params::ConnParams;
+#[cfg(feature = "http-session")]
+pub use cookie::*;
 pub use generic_header::GenericHeader;
 pub use generic_request::GenericRequest;
 pub use generic_response::GenericResponse;
 pub use header_name::*;
-pub use headers::{Header, Headers};
+pub use headers::{Header, Headers, Trailers};
 pub use http_error::HttpError;
 pub use low_level_server::LowLevelServer;
 pub use method::Method;
 pub use mime::Mime;
+pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 pub use protocol::Protocol;
 pub use req_res_buffer::ReqResBuffer;
 pub use req_res_data::{ReqResData, ReqResDataMut};
 pub use req_uri::ReqUri;
 pub use request::Request;
 pub use response::Response;
+#[cfg(feature = "http-session")]
+pub use session::*;
 pub use status_code::StatusCode;
 pub use version::Version;
 

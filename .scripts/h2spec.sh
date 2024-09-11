@@ -5,8 +5,8 @@ if [ "$ARG" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-cargo build --example h2spec-server --features="http2,tokio" --release
-cargo run --example h2spec-server --features="http2,tokio" --release &> /tmp/h2spec-server.txt & cargo_pid=$!
+cargo build --bin h2spec-server --features="http2,tokio" --release
+cargo run --bin h2spec-server --features="http2,tokio" --release &> /tmp/h2spec-server.txt & cargo_pid=$!
 sleep 1
 touch /tmp/h2spec-server.xml
 

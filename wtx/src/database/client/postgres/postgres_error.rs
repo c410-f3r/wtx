@@ -7,6 +7,8 @@ pub enum PostgresError {
   DecodingError,
   /// There are no bytes left to build a `DbError`
   InsufficientDbErrorBytes,
+  /// JSONB is the only supported JSON format
+  InvalidJsonFormat,
   /// Postgres does not support large unsigned integers. For example, `u8` can only be stored
   /// and read with numbers up to 127.
   InvalidPostgresUint,

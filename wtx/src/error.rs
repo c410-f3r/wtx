@@ -1,4 +1,6 @@
-use crate::misc::{ArrayStringError, ArrayVectorError, BlocksQueueError, QueueError, VectorError};
+use crate::misc::{
+  ArrayStringError, ArrayVectorError, BlocksQueueError, FromRadix10Error, QueueError, VectorError,
+};
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
 use core::{
@@ -11,24 +13,23 @@ const _: () = {
   assert!(size_of::<Error>() == 24);
 };
 
-#[cfg(feature = "rkyv")]
-type RkyvSer = rkyv::ser::serializers::CompositeSerializerError<
-  core::convert::Infallible,
-  rkyv::ser::serializers::AllocScratchError,
-  rkyv::ser::serializers::SharedSerializeMapError,
->;
-
 /// Grouped individual errors
 #[allow(missing_docs, reason = "Work in progress")]
 #[derive(Debug)]
 pub enum Error {
   // External - Misc
   //
+  #[cfg(feature = "aes-gcm")]
+  AeadError(aes_gcm::aead::Error),
+  #[cfg(feature = "argon2")]
+  Argon2(argon2::Error),
   AtoiInvalidBytes,
   #[cfg(feature = "chrono")]
   ChronoParseError(chrono::ParseError),
   #[cfg(feature = "cl-aux")]
   ClAux(cl_aux::Error),
+  #[cfg(feature = "http-cookie")]
+  Cookie(crate::http::CookieError),
   #[cfg(feature = "crypto-common")]
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "base64")]
@@ -43,18 +44,20 @@ pub enum Error {
   Flate2DecompressError(Box<flate2::DecompressError>),
   #[cfg(feature = "httparse")]
   HttpParse(httparse::Error),
+  #[cfg(feature = "matchit")]
+  Matchit(matchit::MatchError),
+  #[cfg(feature = "matchit")]
+  MatchitInsertError(Box<matchit::InsertError>),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
   #[cfg(feature = "postgres")]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "quick-protobuf")]
   QuickProtobuf(Box<quick_protobuf::Error>),
-  #[cfg(feature = "rkyv")]
-  RkyvDer(&'static str),
-  #[cfg(feature = "rkyv")]
-  RkyvSer(Box<RkyvSer>),
   #[cfg(feature = "serde_json")]
   SerdeJson(serde_json::Error),
+  #[cfg(feature = "http-session")]
+  SessionError(crate::http::SessionError),
   #[cfg(feature = "tokio")]
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tokio-rustls")]
@@ -81,6 +84,8 @@ pub enum Error {
 
   // Generic
   //
+  /// A connection was unexpectedly closed by an external actor or because of a local error.
+  ClosedConnection,
   /// `GenericTime` needs a backend
   GenericTimeNeedsBackend,
   /// The hardware returned an incorrect time value
@@ -93,7 +98,7 @@ pub enum Error {
   InvalidUri,
   /// There is no CA provider.
   MissingCaProviders,
-  /// A variant used to transform `Option`s into `Result`s
+  /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(&'static str),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
   OutOfBoundsArithmetic,
@@ -130,6 +135,7 @@ pub enum Error {
   DatabaseError(crate::database::DatabaseError),
   #[cfg(feature = "data-transformation")]
   DataTransformationError(crate::data_transformation::DataTransformationError),
+  FromRadix10Error(FromRadix10Error),
   #[cfg(feature = "http-client-framework")]
   HttpClientFrameworkError(crate::http::client_framework::HttpClientFrameworkError),
   #[cfg(feature = "http")]
@@ -162,6 +168,24 @@ impl From<Error> for () {
   fn from(_: Error) -> Self {}
 }
 
+#[cfg(feature = "aes-gcm")]
+impl From<aes_gcm::aead::Error> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: aes_gcm::aead::Error) -> Self {
+    Self::AeadError(from)
+  }
+}
+
+#[cfg(feature = "argon2")]
+impl From<argon2::Error> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: argon2::Error) -> Self {
+    Self::Argon2(from)
+  }
+}
+
 #[cfg(feature = "chrono")]
 impl From<chrono::ParseError> for Error {
   #[inline]
@@ -176,6 +200,15 @@ impl From<cl_aux::Error> for Error {
   #[inline]
   fn from(from: cl_aux::Error) -> Self {
     Self::ClAux(from)
+  }
+}
+
+#[cfg(feature = "http-cookie")]
+impl From<crate::http::CookieError> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: crate::http::CookieError) -> Self {
+    Self::Cookie(from)
   }
 }
 
@@ -252,6 +285,22 @@ impl From<httparse::Error> for Error {
   }
 }
 
+#[cfg(feature = "matchit")]
+impl From<matchit::MatchError> for Error {
+  #[inline]
+  fn from(from: matchit::MatchError) -> Self {
+    Self::Matchit(from)
+  }
+}
+
+#[cfg(feature = "matchit")]
+impl From<matchit::InsertError> for Error {
+  #[inline]
+  fn from(from: matchit::InsertError) -> Self {
+    Self::MatchitInsertError(from.into())
+  }
+}
+
 #[cfg(feature = "std")]
 impl From<std::io::Error> for Error {
   #[inline]
@@ -302,27 +351,19 @@ impl From<quick_protobuf::Error> for Error {
   }
 }
 
-#[cfg(feature = "rkyv")]
-impl From<&'static str> for Error {
-  #[inline]
-  fn from(from: &'static str) -> Self {
-    Self::RkyvDer(from)
-  }
-}
-
-#[cfg(feature = "rkyv")]
-impl From<RkyvSer> for Error {
-  #[inline]
-  fn from(from: RkyvSer) -> Self {
-    Self::RkyvSer(from.into())
-  }
-}
-
 #[cfg(feature = "serde_json")]
 impl From<serde_json::Error> for Error {
   #[inline]
   fn from(from: serde_json::Error) -> Self {
     Self::SerdeJson(from)
+  }
+}
+
+#[cfg(feature = "http-session")]
+impl From<crate::http::SessionError> for Error {
+  #[inline]
+  fn from(from: crate::http::SessionError) -> Self {
+    Self::SessionError(from)
   }
 }
 
@@ -437,6 +478,13 @@ impl From<crate::data_transformation::DataTransformationError> for Error {
   #[inline]
   fn from(from: crate::data_transformation::DataTransformationError) -> Self {
     Self::DataTransformationError(from)
+  }
+}
+
+impl From<FromRadix10Error> for Error {
+  #[inline]
+  fn from(from: FromRadix10Error) -> Self {
+    Self::FromRadix10Error(from)
   }
 }
 

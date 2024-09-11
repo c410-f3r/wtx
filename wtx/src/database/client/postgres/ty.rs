@@ -3,349 +3,349 @@
 /// Type
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Ty {
-  /// Bool
+  /// ``Bool``
   Bool,
-  /// Bytea
+  /// `Bytea`
   Bytea,
-  /// Char
+  /// `Char`
   Char,
-  /// Name
+  /// `Name`
   Name,
-  /// Int8
+  /// `Int8`
   Int8,
-  /// Int2
+  /// `Int2`
   Int2,
-  /// Int2Vector
+  /// `Int2Vector`
   Int2Vector,
-  /// Int4
+  /// `Int4`
   Int4,
-  /// Regproc
+  /// `Regproc`
   Regproc,
-  /// Text
+  /// `Text`
   Text,
-  /// Oid
+  /// `Oid`
   Oid,
-  /// Tid
+  /// `Tid`
   Tid,
-  /// Xid
+  /// `Xid`
   Xid,
-  /// Cid
+  /// `Cid`
   Cid,
-  /// OidVector
+  /// `OidVector`
   OidVector,
-  /// PgDdlCommand
+  /// `PgDdlCommand`
   PgDdlCommand,
-  /// Json
+  /// `Json`
   Json,
-  /// Xml
+  /// `Xml`
   Xml,
-  /// XmlArray
+  /// `XmlArray`
   XmlArray,
-  /// PgNodeTree
+  /// `PgNodeTree`
   PgNodeTree,
-  /// JsonArray
+  /// `JsonArray`
   JsonArray,
-  /// TableAmHandler
+  /// `TableAmHandler`
   TableAmHandler,
-  /// Xid8Array
+  /// `Xid8Array`
   Xid8Array,
-  /// IndexAmHandler
+  /// `IndexAmHandler`
   IndexAmHandler,
-  /// Point
+  /// `Point`
   Point,
-  /// Lseg
+  /// `Lseg`
   Lseg,
-  /// Path
+  /// `Path`
   Path,
-  /// Box
+  /// `Box`
   Box,
-  /// Polygon
+  /// `Polygon`
   Polygon,
-  /// Line
+  /// `Line`
   Line,
-  /// LineArray
+  /// `LineArray`
   LineArray,
-  /// Cidr
+  /// `Cidr`
   Cidr,
-  /// CidrArray
+  /// `CidrArray`
   CidrArray,
-  /// Float4
+  /// `Float4`
   Float4,
-  /// Float8
+  /// `Float8`
   Float8,
-  /// Unknown
+  /// `Unknown`
   Unknown,
-  /// Circle
+  /// `Circle`
   Circle,
-  /// CircleArray
+  /// `CircleArray`
   CircleArray,
-  /// Macaddr8
+  /// `Macaddr8`
   Macaddr8,
-  /// Macaddr8Array
+  /// `Macaddr8Array`
   Macaddr8Array,
-  /// Money
+  /// `Money`
   Money,
-  /// MoneyArray
+  /// `MoneyArray`
   MoneyArray,
-  /// Macaddr
+  /// `Macaddr`
   Macaddr,
-  /// Inet
+  /// `Inet`
   Inet,
-  /// BoolArray
+  /// `BoolArray`
   BoolArray,
-  /// ByteaArray
+  /// `ByteaArray`
   ByteaArray,
-  /// CharArray
+  /// `CharArray`
   CharArray,
-  /// NameArray
+  /// `NameArray`
   NameArray,
-  /// Int2Array
+  /// `Int2Array`
   Int2Array,
-  /// Int2VectorArray
+  /// `Int2VectorArray`
   Int2VectorArray,
-  /// Int4Array
+  /// `Int4Array`
   Int4Array,
-  /// RegprocArray
+  /// `RegprocArray`
   RegprocArray,
-  /// TextArray
+  /// `TextArray`
   TextArray,
-  /// TidArray
+  /// `TidArray`
   TidArray,
-  /// XidArray
+  /// `XidArray`
   XidArray,
-  /// CidArray
+  /// `CidArray`
   CidArray,
-  /// OidVectorArray
+  /// `OidVectorArray`
   OidVectorArray,
-  /// BpcharArray
+  /// `BpcharArray`
   BpcharArray,
-  /// VarcharArray
+  /// `VarcharArray`
   VarcharArray,
-  /// Int8Array
+  /// `Int8Array`
   Int8Array,
-  /// PointArray
+  /// `PointArray`
   PointArray,
-  /// LsegArray
+  /// `LsegArray`
   LsegArray,
-  /// PathArray
+  /// `PathArray`
   PathArray,
-  /// BoxArray
+  /// `BoxArray`
   BoxArray,
-  /// Float4Array
+  /// `Float4Array`
   Float4Array,
-  /// Float8Array
+  /// `Float8Array`
   Float8Array,
-  /// PolygonArray
+  /// `PolygonArray`
   PolygonArray,
-  /// OidArray
+  /// `OidArray`
   OidArray,
-  /// Aclitem
+  /// `Aclitem`
   Aclitem,
-  /// AclitemArray
+  /// `AclitemArray`
   AclitemArray,
-  /// MacaddrArray
+  /// `MacaddrArray`
   MacaddrArray,
-  /// InetArray
+  /// `InetArray`
   InetArray,
-  /// Bpchar
+  /// `Bpchar`
   Bpchar,
-  /// Varchar
+  /// `Varchar`
   Varchar,
-  /// Date
+  /// `Date`
   Date,
-  /// Time
+  /// `Time`
   Time,
-  /// Timestamp
+  /// `Timestamp`
   Timestamp,
-  /// TimestampArray
+  /// `TimestampArray`
   TimestampArray,
-  /// DateArray
+  /// `DateArray`
   DateArray,
-  /// TimeArray
+  /// `TimeArray`
   TimeArray,
-  /// Timestamptz
+  /// `Timestamptz`
   Timestamptz,
-  /// TimestamptzArray
+  /// `TimestamptzArray`
   TimestamptzArray,
-  /// Interval
+  /// `Interval`
   Interval,
-  /// IntervalArray
+  /// `IntervalArray`
   IntervalArray,
-  /// NumericArray
+  /// `NumericArray`
   NumericArray,
-  /// CstringArray
+  /// `CstringArray`
   CstringArray,
-  /// Timetz
+  /// `Timetz`
   Timetz,
-  /// TimetzArray
+  /// `TimetzArray`
   TimetzArray,
-  /// Bit
+  /// `Bit`
   Bit,
-  /// BitArray
+  /// `BitArray`
   BitArray,
-  /// Varbit
+  /// `Varbit`
   Varbit,
-  /// VarbitArray
+  /// `VarbitArray`
   VarbitArray,
-  /// Numeric
+  /// `Numeric`
   Numeric,
-  /// Refcursor
+  /// `Refcursor`
   Refcursor,
-  /// RefcursorArray
+  /// `RefcursorArray`
   RefcursorArray,
-  /// Regprocedure
+  /// `Regprocedure`
   Regprocedure,
-  /// Regoper
+  /// `Regoper`
   Regoper,
-  /// Regoperator
+  /// `Regoperator`
   Regoperator,
-  /// Regclass
+  /// `Regclass`
   Regclass,
-  /// Regtype
+  /// `Regtype`
   Regtype,
-  /// RegprocedureArray
+  /// `RegprocedureArray`
   RegprocedureArray,
-  /// RegoperArray
+  /// `RegoperArray`
   RegoperArray,
-  /// RegoperatorArray
+  /// `RegoperatorArray`
   RegoperatorArray,
-  /// RegclassArray
+  /// `RegclassArray`
   RegclassArray,
-  /// RegtypeArray
+  /// `RegtypeArray`
   RegtypeArray,
-  /// Record
+  /// `Record`
   Record,
-  /// Cstring
+  /// `Cstring`
   Cstring,
-  /// Any
+  /// `Any`
   Any,
-  /// Anyarray
+  /// `Anyarray`
   Anyarray,
-  /// Void
+  /// `Void`
   Void,
-  /// Trigger
+  /// `Trigger`
   Trigger,
-  /// LanguageHandler
+  /// `LanguageHandler`
   LanguageHandler,
-  /// Internal
+  /// `Internal`
   Internal,
-  /// Anyelement
+  /// `Anyelement`
   Anyelement,
-  /// RecordArray
+  /// `RecordArray`
   RecordArray,
-  /// Anynonarray
+  /// `Anynonarray`
   Anynonarray,
-  /// TxidSnapshotArray
+  /// `TxidSnapshotArray`
   TxidSnapshotArray,
-  /// Uuid
+  /// `Uuid`
   Uuid,
-  /// UuidArray
+  /// `UuidArray`
   UuidArray,
-  /// TxidSnapshot
+  /// `TxidSnapshot`
   TxidSnapshot,
-  /// FdwHandler
+  /// `FdwHandler`
   FdwHandler,
-  /// PgLsn
+  /// `PgLsn`
   PgLsn,
-  /// PgLsnArray
+  /// `PgLsnArray`
   PgLsnArray,
-  /// TsmHandler
+  /// `TsmHandler`
   TsmHandler,
-  /// PgNdistinct
+  /// `PgNdistinct`
   PgNdistinct,
-  /// PgDependencies
+  /// `PgDependencies`
   PgDependencies,
-  /// Anyenum
+  /// `Anyenum`
   Anyenum,
-  /// TsVector
+  /// `TsVector`
   TsVector,
-  /// Tsquery
+  /// `Tsquery`
   Tsquery,
-  /// GtsVector
+  /// `GtsVector`
   GtsVector,
-  /// TsVectorArray
+  /// `TsVectorArray`
   TsVectorArray,
-  /// GtsVectorArray
+  /// `GtsVectorArray`
   GtsVectorArray,
-  /// TsqueryArray
+  /// `TsqueryArray`
   TsqueryArray,
-  /// Regconfig
+  /// `Regconfig`
   Regconfig,
-  /// RegconfigArray
+  /// `RegconfigArray`
   RegconfigArray,
-  /// Regdictionary
+  /// `Regdictionary`
   Regdictionary,
-  /// RegdictionaryArray
+  /// `RegdictionaryArray`
   RegdictionaryArray,
-  /// Jsonb
+  /// `Jsonb`
   Jsonb,
-  /// JsonbArray
+  /// `JsonbArray`
   JsonbArray,
-  /// AnyRange
+  /// `AnyRange`
   AnyRange,
-  /// EventTrigger
+  /// `EventTrigger`
   EventTrigger,
-  /// Int4Range
+  /// `Int4Range`
   Int4Range,
-  /// Int4RangeArray
+  /// `Int4RangeArray`
   Int4RangeArray,
-  /// NumRange
+  /// `NumRange`
   NumRange,
-  /// NumRangeArray
+  /// `NumRangeArray`
   NumRangeArray,
-  /// TsRange
+  /// `TsRange`
   TsRange,
-  /// TsRangeArray
+  /// `TsRangeArray`
   TsRangeArray,
-  /// TstzRange
+  /// `TstzRange`
   TstzRange,
-  /// TstzRangeArray
+  /// `TstzRangeArray`
   TstzRangeArray,
-  /// DateRange
+  /// `DateRange`
   DateRange,
-  /// DateRangeArray
+  /// `DateRangeArray`
   DateRangeArray,
-  /// Int8Range
+  /// `Int8Range`
   Int8Range,
-  /// Int8RangeArray
+  /// `Int8RangeArray`
   Int8RangeArray,
-  /// Jsonpath
+  /// `Jsonpath`
   Jsonpath,
-  /// JsonpathArray
+  /// `JsonpathArray`
   JsonpathArray,
-  /// Regnamespace
+  /// `Regnamespace`
   Regnamespace,
-  /// RegnamespaceArray
+  /// `RegnamespaceArray`
   RegnamespaceArray,
-  /// Regrole
+  /// `Regrole`
   Regrole,
-  /// RegroleArray
+  /// `RegroleArray`
   RegroleArray,
-  /// Regcollation
+  /// `Regcollation`
   Regcollation,
-  /// RegcollationArray
+  /// `RegcollationArray`
   RegcollationArray,
-  /// PgBrinBloomSummary
+  /// `PgBrinBloomSummary`
   PgBrinBloomSummary,
-  /// PgBrinMinmaxMultiSummary
+  /// `PgBrinMinmaxMultiSummary`
   PgBrinMinmaxMultiSummary,
-  /// PgMcvList
+  /// `PgMcvList`
   PgMcvList,
-  /// PgSnapshot
+  /// `PgSnapshot`
   PgSnapshot,
-  /// PgSnapshotArray
+  /// `PgSnapshotArray`
   PgSnapshotArray,
-  /// Xid8
+  /// `Xid8`
   Xid8,
-  /// Anycompatible
+  /// `Anycompatible`
   Anycompatible,
-  /// Anycompatiblearray
+  /// `Anycompatiblearray`
   Anycompatiblearray,
-  /// Anycompatiblenonarray
+  /// `Anycompatiblenonarray`
   Anycompatiblenonarray,
-  /// AnycompatibleRange
+  /// `AnycompatibleRange`
   AnycompatibleRange,
-  /// Custom
+  /// `Custom`
   Custom(u32),
 }
 

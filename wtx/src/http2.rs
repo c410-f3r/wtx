@@ -18,6 +18,7 @@ mod headers_frame;
 mod hpack_decoder;
 mod hpack_encoder;
 mod hpack_header;
+mod hpack_headers;
 mod hpack_static_headers;
 mod http2_buffer;
 mod http2_data;
@@ -72,6 +73,7 @@ pub(crate) use headers_frame::HeadersFrame;
 pub(crate) use hpack_decoder::HpackDecoder;
 pub(crate) use hpack_encoder::HpackEncoder;
 pub(crate) use hpack_header::HpackHeaderBasic;
+pub(crate) use hpack_headers::HpackHeaders;
 pub(crate) use hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders};
 pub use http2_buffer::Http2Buffer;
 pub use http2_data::Http2Data;
@@ -244,7 +246,7 @@ where
       let mut lock = lock_pin!(cx, hd, lock_pin);
       let hdpm = lock.parts_mut();
       if let Some(mut elem) = rrb_opt.take() {
-        if !manage_initial_stream_receiving(&hdpm, is_conn_open, &mut elem) {
+        if !manage_initial_stream_receiving(is_conn_open, &mut elem) {
           return Poll::Ready(Either::Left(Some(elem)));
         }
         hdpm.hb.initial_server_header_buffers.push_back((elem, cx.waker().clone()));

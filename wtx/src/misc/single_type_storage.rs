@@ -1,8 +1,8 @@
 use core::cell::RefCell;
 
-use alloc::{rc::Rc, sync::Arc, vec::Vec};
+use alloc::{rc::Rc, sync::Arc};
 
-use crate::misc::ArrayVector;
+use crate::misc::{ArrayVector, Vector};
 
 /// Internal trait not intended for public usage
 pub trait SingleTypeStorage {
@@ -55,7 +55,7 @@ impl<T> SingleTypeStorage for Rc<T> {
   type Item = T;
 }
 
-impl<T> SingleTypeStorage for Vec<T> {
+impl<T> SingleTypeStorage for Vector<T> {
   type Item = T;
 }
 

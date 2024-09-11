@@ -9,8 +9,6 @@ pub(crate) enum DataFormat {
   JsonRpc(String),
   Protobuf,
   Verbatim,
-  Xml,
-  Yaml,
 }
 
 impl DataFormat {
@@ -42,8 +40,6 @@ impl DataFormat {
       DataFormat::Json => rslt!(http_mime_type!(Json)),
       DataFormat::JsonRpc(_) => rslt!(http_method_and_mime_type!(Post, Json)),
       DataFormat::Protobuf => rslt!(http_mime_type!(Protobuf)),
-      DataFormat::Xml => rslt!(http_mime_type!(Xml)),
-      DataFormat::Yaml => rslt!(http_mime_type!(Yaml)),
       _ => TokenStream::new(),
     }
   }
@@ -53,15 +49,15 @@ impl DataFormat {
     match self {
       DataFormat::Borsh => DataFormatElems {
         dfe_data_format_builder_fn: ident_fn("build_borsh"),
-        dfe_ext_req_ctnt_wrapper: ident_fn("BorshRequest"),
-        dfe_ext_res_ctnt_wrapper: ident_fn("BorshResponse"),
-        dfe_pkgs_aux_call: quote::quote!(borsh_request(data)),
+        dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimRequest"),
+        dfe_ext_res_ctnt_wrapper: ident_fn("VerbatimResponse"),
+        dfe_pkgs_aux_call: quote::quote!(verbatim_request(data)),
       },
       DataFormat::Json => DataFormatElems {
         dfe_data_format_builder_fn: ident_fn("build_json"),
-        dfe_ext_req_ctnt_wrapper: ident_fn("JsonRequest"),
-        dfe_ext_res_ctnt_wrapper: ident_fn("JsonResponse"),
-        dfe_pkgs_aux_call: quote::quote!(json_request(data)),
+        dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimRequest"),
+        dfe_ext_res_ctnt_wrapper: ident_fn("VerbatimResponse"),
+        dfe_pkgs_aux_call: quote::quote!(verbatim_request(data)),
       },
       DataFormat::JsonRpc(method) => DataFormatElems {
         dfe_data_format_builder_fn: ident_fn("build_json_rpc"),
@@ -71,27 +67,15 @@ impl DataFormat {
       },
       DataFormat::Protobuf => DataFormatElems {
         dfe_data_format_builder_fn: ident_fn("build_protobuf"),
-        dfe_ext_req_ctnt_wrapper: ident_fn("ProtobufRequest"),
-        dfe_ext_res_ctnt_wrapper: ident_fn("ProtobufResponse"),
-        dfe_pkgs_aux_call: quote::quote!(protobuf_request(data)),
+        dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimRequest"),
+        dfe_ext_res_ctnt_wrapper: ident_fn("VerbatimResponse"),
+        dfe_pkgs_aux_call: quote::quote!(verbatim_request(data)),
       },
       DataFormat::Verbatim => DataFormatElems {
         dfe_data_format_builder_fn: ident_fn("build_verbatim"),
         dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimRequest"),
         dfe_ext_res_ctnt_wrapper: ident_fn("VerbatimResponse"),
         dfe_pkgs_aux_call: quote::quote!(verbatim_request(data)),
-      },
-      DataFormat::Xml => DataFormatElems {
-        dfe_data_format_builder_fn: ident_fn("build_xml"),
-        dfe_ext_req_ctnt_wrapper: ident_fn("XmlRequest"),
-        dfe_ext_res_ctnt_wrapper: ident_fn("XmlResponse"),
-        dfe_pkgs_aux_call: quote::quote!(xml_request(data)),
-      },
-      DataFormat::Yaml => DataFormatElems {
-        dfe_data_format_builder_fn: ident_fn("build_yaml"),
-        dfe_ext_req_ctnt_wrapper: ident_fn("YamlRequest"),
-        dfe_ext_res_ctnt_wrapper: ident_fn("YamlResponse"),
-        dfe_pkgs_aux_call: quote::quote!(yaml_request(data)),
       },
     }
   }
@@ -130,8 +114,6 @@ impl<'attrs> TryFrom<&'attrs NestedMeta> for DataFormat {
         "json" => Ok(Self::Json),
         "protobuf" => Ok(Self::Protobuf),
         "verbatim" => Ok(Self::Verbatim),
-        "xml" => Ok(Self::Xml),
-        "yaml" => Ok(Self::Yaml),
         _ => Err(crate::Error::UnknownDataFormat),
       }
     } else {

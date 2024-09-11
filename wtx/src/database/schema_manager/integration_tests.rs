@@ -11,9 +11,9 @@ use crate::{
     },
     Identifier, DEFAULT_URI_VAR,
   },
-  misc::NoStdRng,
+  misc::{NoStdRng, Vector},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use core::fmt::Write;
 use tokio::net::TcpStream;
 
@@ -35,8 +35,8 @@ macro_rules! create_integration_tests {
   ) => {
     pub(crate) async fn $fn_name() {
       let mut _buffer_cmd = String::new();
-      let mut _buffer_db_migrations = Vec::<DbMigration>::new();
-      let mut _buffer_idents = Vec::<Identifier>::new();
+      let mut _buffer_db_migrations = Vector::<DbMigration>::new();
+      let mut _buffer_idents = Vector::<Identifier>::new();
 
       create_integration_test!(
         {
@@ -141,7 +141,11 @@ pub(crate) fn _generic_schema() -> AuxTestParams {
 
 #[inline]
 pub(crate) async fn _migrate_doc_test<E>(
-  (buffer_cmd, buffer_db_migrations, _): (&mut String, &mut Vec<DbMigration>, &mut Vec<Identifier>),
+  (buffer_cmd, buffer_db_migrations, _): (
+    &mut String,
+    &mut Vector<DbMigration>,
+    &mut Vector<Identifier>,
+  ),
   c: &mut Commands<E>,
 ) -> MigrationGroup<&'static str>
 where

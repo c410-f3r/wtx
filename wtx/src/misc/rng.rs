@@ -28,6 +28,16 @@ where
   fn from_rng(rng: &mut RNG) -> Self;
 }
 
+impl<RNG> FromRng<RNG> for u8
+where
+  RNG: Rng,
+{
+  #[inline]
+  fn from_rng(rng: &mut RNG) -> Self {
+    rng.u8_8()[0]
+  }
+}
+
 impl<RNG> FromRng<RNG> for usize
 where
   RNG: Rng,
@@ -71,6 +81,17 @@ where
       if range.contains(&random) {
         return Some(random);
       }
+    }
+  }
+
+  /// Fills `slice` with random data.
+  #[inline]
+  fn fill_slice<T>(&mut self, slice: &mut [T])
+  where
+    T: FromRng<Self>,
+  {
+    for elem in slice {
+      *elem = T::from_rng(self);
     }
   }
 

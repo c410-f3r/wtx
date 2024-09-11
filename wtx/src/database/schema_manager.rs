@@ -19,9 +19,9 @@ pub mod toml_parser;
 
 use crate::{
   database::{executor::Executor, DatabaseTy, Identifier},
-  misc::Lease,
+  misc::{Lease, Vector},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 pub use commands::*;
 use core::future::Future;
 pub use migration::*;
@@ -50,7 +50,7 @@ pub trait SchemaManagement: Executor {
   /// Clears all database resources.
   fn clear(
     &mut self,
-    buffer: (&mut String, &mut Vec<Identifier>),
+    buffer: (&mut String, &mut Vector<Identifier>),
   ) -> impl Future<Output = crate::Result<()>>;
 
   /// Initial tables meant for initialization.
@@ -83,7 +83,7 @@ pub trait SchemaManagement: Executor {
     &mut self,
     buffer_cmd: &mut String,
     mg: &MigrationGroup<S>,
-    results: &mut Vec<DbMigration>,
+    results: &mut Vector<DbMigration>,
   ) -> impl Future<Output = crate::Result<()>>
   where
     S: Lease<str>;
@@ -93,14 +93,14 @@ pub trait SchemaManagement: Executor {
   fn table_names(
     &mut self,
     buffer_cmd: &mut String,
-    results: &mut Vec<Identifier>,
+    results: &mut Vector<Identifier>,
     schema: &str,
   ) -> impl Future<Output = crate::Result<()>>;
 }
 
 impl SchemaManagement for () {
   #[inline]
-  async fn clear(&mut self, _: (&mut String, &mut Vec<Identifier>)) -> crate::Result<()> {
+  async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
     Ok(())
   }
 
@@ -142,7 +142,7 @@ impl SchemaManagement for () {
     &mut self,
     _: &mut String,
     _: &MigrationGroup<S>,
-    _: &mut Vec<DbMigration>,
+    _: &mut Vector<DbMigration>,
   ) -> crate::Result<()>
   where
     S: Lease<str>,
@@ -154,7 +154,7 @@ impl SchemaManagement for () {
   async fn table_names(
     &mut self,
     _: &mut String,
-    _: &mut Vec<Identifier>,
+    _: &mut Vector<Identifier>,
     _: &str,
   ) -> crate::Result<()> {
     Ok(())
@@ -163,7 +163,7 @@ impl SchemaManagement for () {
 
 #[cfg(feature = "postgres")]
 mod postgres {
-  use alloc::{string::String, vec::Vec};
+  use alloc::string::String;
 
   use crate::{
     database::{
@@ -177,7 +177,7 @@ mod postgres {
       },
       DatabaseTy, Executor as _, Identifier,
     },
-    misc::{Lease, LeaseMut, Stream},
+    misc::{Lease, LeaseMut, Stream, Vector},
   };
 
   impl<EB, STREAM> SchemaManagement for Executor<crate::Error, EB, STREAM>
@@ -186,7 +186,7 @@ mod postgres {
     STREAM: Stream,
   {
     #[inline]
-    async fn clear(&mut self, buffer: (&mut String, &mut Vec<Identifier>)) -> crate::Result<()> {
+    async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
       _clear(buffer, self).await
     }
 
@@ -229,7 +229,7 @@ mod postgres {
       &mut self,
       buffer_cmd: &mut String,
       mg: &MigrationGroup<S>,
-      results: &mut Vec<DbMigration>,
+      results: &mut Vector<DbMigration>,
     ) -> crate::Result<()>
     where
       S: Lease<str>,
@@ -242,7 +242,7 @@ mod postgres {
     async fn table_names(
       &mut self,
       buffer_cmd: &mut String,
-      results: &mut Vec<Identifier>,
+      results: &mut Vector<Identifier>,
       schema: &str,
     ) -> crate::Result<()> {
       _table_names(buffer_cmd, self, results, schema).await

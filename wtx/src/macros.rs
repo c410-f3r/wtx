@@ -1,10 +1,10 @@
 macro_rules! _conn_params_methods {
-  ($($field:tt)+) => {
+  () => {
     /// The initial amount of "credit" a counterpart can have for sending data.
     #[inline]
     #[must_use]
     pub fn initial_window_len(mut self, elem: u32) -> Self {
-      self.$($field)+.initial_window_len = elem;
+      self.cp.initial_window_len = elem;
       self
     }
 
@@ -12,7 +12,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_body_len(mut self, elem: u32) -> Self {
-      self.$($field)+.max_body_len = elem;
+      self.cp.max_body_len = elem;
       self
     }
 
@@ -20,7 +20,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_concurrent_streams_num(mut self, elem: u32) -> Self {
-      self.$($field)+.max_concurrent_streams_num = elem;
+      self.cp.max_concurrent_streams_num = elem;
       self
     }
 
@@ -28,7 +28,23 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_frame_len(mut self, elem: u32) -> Self {
-      self.$($field)+.max_frame_len = elem;
+      self.cp.max_frame_len = elem;
+      self
+    }
+
+    /// Maximum HPACK length
+    ///
+    /// Indicates the maximum length of the HPACK structure that holds cached decoded headers
+    /// received from a counterpart.
+    ///
+    /// - The first parameter indicates the local HPACK ***decoder*** length that is externally
+    ///   advertised and can become the remote HPACK ***encoder*** length.
+    /// - The second parameter indicates the maximum local HPACK ***encoder*** length. In other words,
+    ///   it doesn't allow external actors to dictate very large lengths.
+    #[inline]
+    #[must_use]
+    pub fn max_hpack_len(mut self, elem: (u32, u32)) -> Self {
+      self.cp.max_hpack_len = elem;
       self
     }
 
@@ -36,7 +52,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_headers_len(mut self, elem: u32) -> Self {
-      self.$($field)+.max_headers_len = elem;
+      self.cp.max_headers_len = elem;
       self
     }
 
@@ -46,7 +62,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_recv_streams_num(mut self, elem: u32) -> Self {
-      self.$($field)+.max_recv_streams_num = elem;
+      self.cp.max_recv_streams_num = elem;
       self
     }
   };
@@ -122,6 +138,15 @@ macro_rules! _create_enum {
       }
     }
 
+    impl core::str::FromStr for $enum_ident {
+      type Err = crate::Error;
+
+      #[inline]
+      fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.try_into()
+      }
+   }
+
     impl TryFrom<$n> for $enum_ident {
       type Error = crate::Error;
 
@@ -140,19 +165,18 @@ macro_rules! _create_enum {
 
       #[inline]
       fn try_from(from: &str) -> crate::Result<Self> {
-        let rslt = match from {
+        match from {
           $(
             stringify!($variant_ident_fixed)
               | stringify!($variant_n_fixed)
               $(| $variant_str_fixed)?
               $(| $variant_str_fixed_n)* =>
             {
-              Self::$variant_ident_fixed
+              Ok(Self::$variant_ident_fixed)
             },
           )*
-          _ => return Err(crate::Error::UnexpectedString { length: from.len() }),
-        };
-        Ok(rslt)
+          _ => Err(crate::Error::UnexpectedString { length: from.len() }),
+        }
       }
     }
 
@@ -161,16 +185,18 @@ macro_rules! _create_enum {
 
       #[inline]
       fn try_from(from: &[u8]) -> crate::Result<Self> {
-        $(
-          if from == stringify!($variant_ident_fixed).as_bytes()
-            || from == stringify!($variant_n_fixed).as_bytes()
-            $(|| from == $variant_str_fixed.as_bytes())?
-            $(|| from == $variant_str_fixed_n.as_bytes())*
-          {
-            return Ok(Self::$variant_ident_fixed);
-          }
-        )*
-        Err(crate::Error::UnexpectedString { length: from.len() })
+        match from {
+          $(
+            from if from == stringify!($variant_ident_fixed).as_bytes()
+              || from == stringify!($variant_n_fixed).as_bytes()
+              $(|| from == $variant_str_fixed.as_bytes())?
+              $(|| from == $variant_str_fixed_n.as_bytes())* =>
+            {
+              Ok(Self::$variant_ident_fixed)
+            },
+          )*
+          _ => Err(crate::Error::UnexpectedString { length: from.len() }),
+        }
       }
     }
   }

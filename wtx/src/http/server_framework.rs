@@ -3,14 +3,20 @@
 #[macro_use]
 mod macros;
 
+mod conn_aux;
+mod cors_middleware;
 mod endpoint;
-mod middlewares;
+mod middleware;
 mod param_wrappers;
 mod path_management;
 mod path_params;
-mod response_finalizer;
+mod redirect;
+mod req_aux;
+mod res_finalizer;
 mod route_wrappers;
 mod router;
+mod server_framework_builder;
+mod state;
 
 use crate::{
   http::{ConnParams, LowLevelServer, ReqResBuffer, Request, Response},
@@ -18,39 +24,45 @@ use crate::{
   misc::StdRng,
 };
 use alloc::sync::Arc;
-use core::{fmt::Debug, marker::PhantomData};
+pub use conn_aux::ConnAux;
+use core::fmt::Debug;
+pub use cors_middleware::CorsMiddleware;
 pub use endpoint::Endpoint;
-pub use middlewares::{ReqMiddlewares, ResMiddlewares};
-pub use param_wrappers::{PathOwned, PathStr, SerdeJson};
+pub use middleware::{ReqMiddleware, ResMiddleware};
+pub use param_wrappers::*;
 pub use path_management::PathManagement;
 pub use path_params::PathParams;
-pub use response_finalizer::ResponseFinalizer;
+pub use redirect::Redirect;
+pub use req_aux::ReqAux;
+pub use res_finalizer::ResFinalizer;
 pub use route_wrappers::{get, json, post, Get, Json, Post};
 pub use router::Router;
+pub use server_framework_builder::ServerFrameworkBuilder;
+pub use state::{State, StateClean};
 
 /// Server
 #[derive(Debug)]
-pub struct ServerFramework<E, P, REQM, RESM> {
-  pub(crate) cp: ConnParams,
-  phantom: PhantomData<fn() -> E>,
-  router: Arc<Router<P, REQM, RESM>>,
+pub struct ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM> {
+  ca_cb: CAC,
+  cp: ConnParams,
+  ra_cb: RAC,
+  router: Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>,
 }
 
-impl<E, P, REQM, RESM> ServerFramework<E, P, REQM, RESM>
+impl<CA, CAC, E, P, RA, RAC, REQM, RESM> ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM>
 where
+  CA: Clone + ConnAux + Send + 'static,
+  CAC: Clone + Fn() -> CA::Init + Send + 'static,
   E: From<crate::Error> + Send + 'static,
   P: Send + 'static,
-  REQM: ReqMiddlewares<E, ReqResBuffer, apply_req_middlewares(..): Send> + Send + 'static,
-  RESM: ResMiddlewares<E, ReqResBuffer, apply_res_middlewares(..): Send> + Send + 'static,
-  Arc<Router<P, REQM, RESM>>: Send,
-  Router<P, REQM, RESM>: PathManagement<E, ReqResBuffer, manage_path(..): Send>,
+  RA: ReqAux + Send + 'static,
+  RAC: Clone + Fn() -> RA::Init + Send + 'static,
+  REQM: ReqMiddleware<CA, E, RA, ReqResBuffer, apply_req_middleware(..): Send> + Send + 'static,
+  RESM: ResMiddleware<CA, E, RA, ReqResBuffer, apply_res_middleware(..): Send> + Send + 'static,
+  Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>: Send,
+  Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>:
+    PathManagement<CA, E, RA, ReqResBuffer, manage_path(..): Send>,
 {
-  /// Creates a new instance with default parameters.
-  #[inline]
-  pub fn new(router: Router<P, REQM, RESM>) -> Self {
-    Self { cp: ConnParams::default(), phantom: PhantomData, router: Arc::new(router) }
-  }
-
   /// Starts listening to incoming requests based on the given `host`.
   #[inline]
   pub async fn listen(
@@ -58,15 +70,13 @@ where
     host: &str,
     err_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> crate::Result<()> {
-    let local_cp = self.cp;
+    let Self { ca_cb, cp, ra_cb, router } = self;
     LowLevelServer::tokio_http2(
-      Arc::clone(&self.router),
       host,
+      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(StdRng::default()), cp.to_hp())),
       err_cb,
       Self::handle,
-      || Ok(Http2Buffer::new(StdRng::default())),
-      move || local_cp.to_hp(),
-      || Ok(ReqResBuffer::default()),
+      move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::default())),
       (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
     )
     .await
@@ -81,14 +91,13 @@ where
     host: &str,
     err_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> crate::Result<()> {
+    let Self { ca_cb, cp, ra_cb, router } = self;
     LowLevelServer::tokio_http2(
-      Arc::clone(&self.router),
       host,
+      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(StdRng::default()), cp.to_hp())),
       err_cb,
       Self::handle,
-      || Ok(Http2Buffer::new(StdRng::default())),
-      move || self.cp.to_hp(),
-      || Ok(ReqResBuffer::default()),
+      move || Ok(((ra_cb.clone(), router.clone()), ReqResBuffer::default())),
       (
         || {
           crate::misc::TokioRustlsAcceptor::without_client_auth()
@@ -102,13 +111,14 @@ where
     .await
   }
 
-  _conn_params_methods!(cp);
-
   async fn handle(
+    mut ca: CA,
+    (ra_cb, router): (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>),
     mut req: Request<ReqResBuffer>,
-    router: Arc<Router<P, REQM, RESM>>,
   ) -> Result<Response<ReqResBuffer>, E> {
-    let status_code = router.manage_path(true, "", &mut req, [0, 0]).await?;
+    let mut ra = RA::req_aux(ra_cb(), &mut req)?;
+    let matched = router.router.at(req.rrd.uri.path()).map_err(From::from)?;
+    let status_code = router.manage_path(&mut ca, (0, matched.value), &mut ra, &mut req).await?;
     Ok(Response { rrd: req.rrd, status_code, version: req.version })
   }
 }
@@ -116,27 +126,28 @@ where
 #[cfg(test)]
 mod tests {
   use crate::http::{
-    server_framework::{get, Router, ServerFramework},
-    ReqResBuffer, Request, StatusCode,
+    server_framework::{get, Router, ServerFrameworkBuilder, StateClean},
+    ReqResBuffer, StatusCode,
   };
 
   #[tokio::test]
   async fn compiles() {
-    async fn one(_: &mut Request<ReqResBuffer>) -> crate::Result<StatusCode> {
+    async fn one(_: StateClean<'_, (), (), ReqResBuffer>) -> crate::Result<StatusCode> {
       Ok(StatusCode::Ok)
     }
 
-    async fn two(_: &mut Request<ReqResBuffer>) -> crate::Result<StatusCode> {
+    async fn two(_: StateClean<'_, (), (), ReqResBuffer>) -> crate::Result<StatusCode> {
       Ok(StatusCode::Ok)
     }
 
     let router = Router::paths(paths!(
-      ("aaa", Router::paths(paths!(("bbb", get(one)), ("ccc", get(two))))),
-      ("ddd", get(one)),
-      ("eee", get(two)),
-      ("fff", Router::paths(paths!(("ggg", get(one))))),
-    ));
+      ("/aaa", Router::paths(paths!(("/bbb", get(one)), ("/ccc", get(two)))).unwrap()),
+      ("/ddd", get(one)),
+      ("/eee", get(two)),
+      ("/fff", Router::paths(paths!(("/ggg", get(one)))).unwrap()),
+    ))
+    .unwrap();
 
-    let _sf = ServerFramework::new(router);
+    let _sf = ServerFrameworkBuilder::new(router).no_aux();
   }
 }

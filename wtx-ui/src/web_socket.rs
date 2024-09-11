@@ -10,7 +10,7 @@ use wtx::{
   },
 };
 
-pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
+pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
   let fb = &mut FrameBufferVec::default();
   let wsb = &mut WebSocketBuffer::default();
@@ -46,7 +46,7 @@ pub(crate) async fn _connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   Ok(())
 }
 
-pub(crate) async fn _serve(
+pub(crate) async fn serve(
   uri: &str,
   binary: fn(&[u8]),
   error: fn(wtx::Error),

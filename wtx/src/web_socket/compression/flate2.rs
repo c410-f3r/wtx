@@ -96,7 +96,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
 
   #[inline]
   fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
-    Ok(write_headers(&self.dc, fbw)?)
+    write_headers(&self.dc, fbw)
   }
 }
 
@@ -116,6 +116,7 @@ pub struct NegotiatedFlate2 {
 }
 
 impl NegotiatedCompression for NegotiatedFlate2 {
+  #[inline]
   fn compress<O>(
     &mut self,
     input: &[u8],
@@ -140,6 +141,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
     )
   }
 
+  #[inline]
   fn decompress<O>(
     &mut self,
     input: &[u8],
@@ -171,10 +173,17 @@ impl NegotiatedCompression for NegotiatedFlate2 {
 
   #[inline]
   fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
-    Ok(write_headers(&self.dc, fbw)?)
+    write_headers(&self.dc, fbw)
   }
 }
 
+#[inline]
+fn _byte_from_bytes(bytes: &[u8]) -> Option<u8> {
+  let after_equals = bytes_split1(bytes, b'=').nth(1)?;
+  u8::from_radix_10(after_equals).ok()
+}
+
+#[inline]
 fn compress_or_decompress<NC, O>(
   input: &[u8],
   nc: &mut NC,
@@ -217,6 +226,7 @@ fn compress_or_decompress<NC, O>(
   }
 }
 
+#[inline]
 fn _manage_header_uniqueness(
   flag: &mut bool,
   mut cb: impl FnMut() -> crate::Result<()>,
@@ -228,11 +238,6 @@ fn _manage_header_uniqueness(
     *flag = true;
     Ok(())
   }
-}
-
-fn _byte_from_bytes(bytes: &[u8]) -> Option<u8> {
-  let after_equals = bytes_split1(bytes, b'=').nth(1)?;
-  u8::from_radix_10(after_equals).ok()
 }
 
 #[inline]

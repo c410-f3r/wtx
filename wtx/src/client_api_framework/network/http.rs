@@ -5,6 +5,7 @@ use crate::{
   http::{Headers, Method, Mime, StatusCode},
   misc::UriString,
 };
+use alloc::string::String;
 
 #[derive(Debug)]
 #[doc = generic_trans_params_doc!()]
@@ -13,16 +14,16 @@ pub struct HttpParams(HttpReqParams, HttpResParams);
 impl HttpParams {
   /// For example, from `http://localhost`.
   #[inline]
-  pub fn from_uri(url: &str) -> Self {
+  pub fn from_uri(uri: String) -> Self {
     Self(
       HttpReqParams {
-        headers: Headers::new(4096),
+        headers: Headers::new(),
         method: Method::Get,
         mime: None,
-        uri: UriString::new(url.into()),
+        uri: UriString::new(uri),
         user_agent: None,
       },
-      HttpResParams { headers: Headers::new(4096), status_code: StatusCode::Forbidden },
+      HttpResParams { headers: Headers::new(), status_code: StatusCode::Forbidden },
     )
   }
 }

@@ -12,8 +12,6 @@ mod borsh;
 mod deserialize;
 #[cfg(feature = "quick-protobuf")]
 mod quick_protobuf;
-#[cfg(feature = "rkyv")]
-mod rkyv;
 #[cfg(feature = "serde_json")]
 mod serde_json;
 mod serialize;
@@ -22,8 +20,6 @@ mod serialize;
 pub use self::borsh::*;
 #[cfg(feature = "quick-protobuf")]
 pub use self::quick_protobuf::*;
-#[cfg(feature = "rkyv")]
-pub use self::rkyv::*;
 #[cfg(feature = "serde_json")]
 pub use self::serde_json::*;
 pub use deserialize::*;

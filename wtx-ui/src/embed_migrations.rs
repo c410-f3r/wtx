@@ -1,9 +1,10 @@
+use crate::clap::EmbedMigrations;
 use std::{fmt::Write, path::Path};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 use wtx::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml};
 
-pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<()> {
-  let (mut migration_groups, _) = parse_root_toml(Path::new(input))?;
+pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
+  let (mut migration_groups, _) = parse_root_toml(Path::new(&elem.input))?;
   let mut buffer = String::new();
 
   migration_groups.sort();
@@ -64,7 +65,7 @@ pub(crate) async fn embed_migrations(input: &str, output: &str) -> wtx::Result<(
     .create(true)
     .truncate(true)
     .write(true)
-    .open(output)
+    .open(&elem.output)
     .await?
     .write_all(buffer.as_bytes())
     .await?;

@@ -70,15 +70,10 @@ where
         let (method_bytes, method_header) = match (is_scram, is_scram_plus, config.channel_binding)
         {
           (false, false, _) => return Err(PostgresError::UnknownAuthenticationMethod.into()),
-          (true, false, ChannelBinding::Disable)
-          | (true, false, ChannelBinding::Prefer)
-          | (true, true, ChannelBinding::Disable) => {
+          (true, false | true, ChannelBinding::Disable) | (true, false, ChannelBinding::Prefer) => {
             (scram_sha_256!().as_slice(), b"n,,".as_slice())
           }
-          (false, true, ChannelBinding::Prefer)
-          | (false, true, ChannelBinding::Require)
-          | (true, true, ChannelBinding::Prefer)
-          | (true, true, ChannelBinding::Require) => {
+          (false | true, true, ChannelBinding::Prefer | ChannelBinding::Require) => {
             (scram_sha_256_plus!().as_slice(), b"p=tls-server-end-point,,".as_slice())
           }
           (false, true, ChannelBinding::Disable) => {

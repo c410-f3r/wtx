@@ -30,6 +30,6 @@ impl RequestLimit {
   /// Upper bound or maximum possible number of requests
   #[inline]
   pub fn limit(&self) -> u16 {
-    self.limit.into()
+    self.limit
   }
 }

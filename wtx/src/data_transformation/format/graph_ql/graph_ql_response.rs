@@ -1,17 +1,18 @@
-use crate::data_transformation::format::GraphQlResponseError;
-use alloc::vec::Vec;
+use crate::{data_transformation::format::GraphQlResponseError, misc::Vector};
 
 /// Replied from an issued [`crate::data_transformation::format::GraphQlRequest`].
 #[derive(Debug)]
 pub struct GraphQlResponse<D, E> {
   /// Content depends if request was successful or not.
-  pub result: Result<D, Vec<GraphQlResponseError<E>>>,
+  pub result: Result<D, Vector<GraphQlResponseError<E>>>,
 }
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::data_transformation::format::{GraphQlResponse, GraphQlResponseError};
-  use alloc::vec::Vec;
+  use crate::{
+    data_transformation::format::{GraphQlResponse, GraphQlResponseError},
+    misc::Vector,
+  };
   use core::marker::PhantomData;
   use serde::{de::Visitor, ser::SerializeStruct};
 
@@ -41,6 +42,7 @@ mod serde {
           formatter.write_str("struct GraphQlResponse")
         }
 
+        #[inline]
         fn visit_map<V>(self, mut map: V) -> Result<GraphQlResponse<D, E>, V::Error>
         where
           V: serde::de::MapAccess<'de>,
@@ -60,7 +62,7 @@ mod serde {
                 if errors.is_some() {
                   return Err(serde::de::Error::duplicate_field("errors"));
                 }
-                errors = Some(map.next_value::<Vec<GraphQlResponseError<E>>>()?);
+                errors = Some(map.next_value::<Vector<GraphQlResponseError<E>>>()?);
               }
             }
           }

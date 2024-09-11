@@ -20,11 +20,11 @@ To get the most performance possible, try compiling your program with `RUSTFLAGS
 ## Client Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/web-socket-client-tokio.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/web-socket-client.rs}}
 ```
 
 ## Server Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/web-socket-server-tokio-rustls.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/web-socket-server.rs}}
 ```

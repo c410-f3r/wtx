@@ -12,7 +12,7 @@ impl<'buffer, 'tmp> EncodeValue<'buffer, 'tmp> {
     Self { fbw }
   }
 
-  /// See [FilledBufferWriter].
+  /// See [`FilledBufferWriter`].
   #[inline]
   pub fn fbw(&mut self) -> &mut FilledBufferWriter<'buffer> {
     self.fbw

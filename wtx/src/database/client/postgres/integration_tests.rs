@@ -182,7 +182,7 @@ async fn custom_enum() {
     .unwrap();
   let record = exec.fetch_with_stmt("SELECT * FROM custom_enum_table;", ()).await.unwrap();
   assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
-  assert!(matches!(record.decode::<_, Enum>(1).unwrap(), Enum::Bar));
+  assert!(matches!(record.decode(1).unwrap(), Enum::Bar));
 }
 
 #[tokio::test]
@@ -407,6 +407,23 @@ async fn reuses_cached_statement() {
   let mut exec = executor::<crate::Error>().await;
   let _record = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
   let _record = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
+}
+
+#[cfg(feature = "serde_json")]
+#[tokio::test]
+async fn serde_json() {
+  #[derive(serde::Deserialize, serde::Serialize)]
+  struct Col {
+    a: i32,
+    b: u64,
+    c: String,
+  }
+  let mut exec = executor::<crate::Error>().await;
+  exec.execute("CREATE TABLE IF NOT EXISTS serde_json (col JSONB NOT NULL)", |_| {}).await.unwrap();
+  let col = (1u32, 2i64);
+  let _ = exec.execute_with_stmt("INSERT INTO serde_json VALUES ($1)", (&col,)).await.unwrap();
+  let record = exec.fetch_with_stmt("SELECT * FROM serde_json", ()).await.unwrap();
+  assert_eq!(record.decode::<_, (u32, i64)>(0).unwrap(), col);
 }
 
 async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {

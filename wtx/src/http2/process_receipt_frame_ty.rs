@@ -9,7 +9,7 @@ use crate::{
     DataFrame, FrameInit, HpackDecoder, Http2Error, Http2ErrorCode, Http2Params, ResetStreamFrame,
     Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
   },
-  misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter, Usize},
+  misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter},
 };
 use alloc::collections::VecDeque;
 use core::{marker::PhantomData, sync::atomic::AtomicBool, task::Waker};
@@ -141,7 +141,6 @@ where
     }
     *self.recv_streams_num = self.recv_streams_num.wrapping_add(1);
     *self.last_stream_id = self.fi.stream_id;
-    rrb.lease_mut().headers.set_max_bytes(*Usize::from(self.hp.max_headers_len()));
     let (content_length, has_eos, method) = read_header_and_continuations::<_, _, false, false>(
       self.fi,
       self.is_conn_open,

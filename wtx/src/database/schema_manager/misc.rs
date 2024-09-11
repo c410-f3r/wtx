@@ -15,17 +15,18 @@ use crate::{
     },
     DatabaseTy,
   },
-  misc::Lease,
+  misc::{FromRadix10, Lease},
 };
 use core::hash::{Hash, Hasher};
 #[cfg(feature = "std")]
 use {
-  crate::database::schema_manager::{
-    toml_parser::{toml, Expr},
-    MigrationGroup, Repeatability, UserMigrationOwned,
+  crate::{
+    database::schema_manager::{
+      toml_parser::{toml, Expr},
+      MigrationGroup, Repeatability, UserMigrationOwned,
+    },
+    misc::{ArrayVector, Vector},
   },
-  crate::misc::ArrayVector,
-  crate::misc::FromRadix10,
   alloc::string::String,
   core::cmp::Ordering,
   std::{
@@ -87,12 +88,12 @@ where
     let (mg, mut migrations_vec) = migrations_from_dir(path)?;
     migrations_vec.sort_by(cb);
     let migrations = migrations_vec.into_iter().map(move |local_path| {
-      let mut dbs = ArrayVector::new();
       let name;
+      let version;
+      let mut dbs = ArrayVector::new();
       let mut repeatability = None;
       let mut sql_down = String::default();
       let mut sql_up = String::default();
-      let version;
 
       if local_path.is_dir() {
         let dir_name = opt_to_inv_mig!(|| local_path.file_name()?.to_str())?;
@@ -155,9 +156,7 @@ where
 /// All paths to directories that contain migrations and optional seeds
 #[cfg(feature = "std")]
 #[inline]
-pub fn parse_root_toml(
-  cfg_path: &Path,
-) -> crate::Result<(alloc::vec::Vec<PathBuf>, Option<PathBuf>)> {
+pub fn parse_root_toml(cfg_path: &Path) -> crate::Result<(Vector<PathBuf>, Option<PathBuf>)> {
   let cfg_dir = cfg_path.parent().unwrap_or_else(|| Path::new("."));
   parse_root_toml_raw(File::open(cfg_path)?, cfg_dir)
 }
@@ -168,11 +167,11 @@ pub fn parse_root_toml(
 pub fn parse_root_toml_raw<R>(
   read: R,
   root: &Path,
-) -> crate::Result<(alloc::vec::Vec<PathBuf>, Option<PathBuf>)>
+) -> crate::Result<(Vector<PathBuf>, Option<PathBuf>)>
 where
   R: Read,
 {
-  let mut migration_groups = alloc::vec::Vec::new();
+  let mut migration_groups = Vector::new();
   let mut seeds = None;
 
   for (ident, toml_expr) in toml(read)? {
@@ -187,7 +186,7 @@ where
           if elem.is_empty() || !path.is_dir() || dir_name_parts(name).is_err() {
             continue;
           }
-          migration_groups.push(path);
+          migration_groups.push(path)?;
         }
       }
       ("seeds", Expr::String(elem)) => {
@@ -290,14 +289,13 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, i32)> {
 
 #[cfg(feature = "std")]
 #[inline]
-fn migrations_from_dir(
-  path: &Path,
-) -> crate::Result<(MigrationGroupParts, alloc::vec::Vec<PathBuf>)> {
+fn migrations_from_dir(path: &Path) -> crate::Result<(MigrationGroupParts, Vector<PathBuf>)> {
   let path_str = opt_to_inv_mig!(|| path.file_name()?.to_str())?;
   let (mg_name, mg_version) = dir_name_parts(path_str)?;
-  let migration_paths = read_dir(path)?
-    .map(|entry_rslt| Ok(entry_rslt?.path()))
-    .collect::<crate::Result<alloc::vec::Vec<PathBuf>>>()?;
+  let mut migration_paths = Vector::new();
+  for rslt in read_dir(path)? {
+    migration_paths.push(rslt?.path())?;
+  }
   Ok(((mg_name, mg_version), migration_paths))
 }
 

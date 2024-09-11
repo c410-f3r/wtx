@@ -123,7 +123,7 @@ where
         None => return _unlikely_elem(None),
         Some(elem) => elem,
       };
-      Some(DecodeValue::new(bytes, &column.ty))
+      Some(DecodeValue::new(bytes, column.ty))
     }
   }
 }
@@ -210,9 +210,9 @@ mod tests {
       }
     );
     assert_eq!(record.len(), 3);
-    assert_eq!(record.value(0), Some(DecodeValue::new(&[1][..], &column0().ty)));
-    assert_eq!(record.value(1), Some(DecodeValue::new(&[2, 3][..], &column1().ty)));
-    assert_eq!(record.value(2), Some(DecodeValue::new(&[4][..], &column2().ty)));
+    assert_eq!(record.value(0), Some(DecodeValue::new(&[1][..], column0().ty)));
+    assert_eq!(record.value(1), Some(DecodeValue::new(&[2, 3][..], column1().ty)));
+    assert_eq!(record.value(2), Some(DecodeValue::new(&[4][..], column2().ty)));
     assert_eq!(record.value(3), None);
   }
 }

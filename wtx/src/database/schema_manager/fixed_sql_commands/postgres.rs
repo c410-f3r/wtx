@@ -1,7 +1,8 @@
-use crate::database::{
-  client::postgres::Postgres, executor::Executor, Identifier, TransactionManager,
+use crate::{
+  database::{client::postgres::Postgres, executor::Executor, Identifier, TransactionManager},
+  misc::Vector,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use core::fmt::Write;
 
 pub(crate) const _CREATE_MIGRATION_TABLES: &str = concat!(
@@ -18,7 +19,7 @@ pub(crate) const _CREATE_MIGRATION_TABLES: &str = concat!(
 
 #[inline]
 pub(crate) async fn _clear<E>(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vec<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
 ) -> crate::Result<()>
 where
@@ -59,7 +60,7 @@ where
 #[inline]
 pub(crate) async fn _domains<E>(
   executor: &mut E,
-  results: &mut Vec<Identifier>,
+  results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
@@ -78,7 +79,7 @@ where
     ",
       (),
       |result| {
-        results.push(result);
+        results.push(result)?;
         Ok(())
       },
     )
@@ -87,7 +88,10 @@ where
 
 #[cfg(test)]
 #[inline]
-pub(crate) async fn _enums<E>(executor: &mut E, results: &mut Vec<Identifier>) -> crate::Result<()>
+pub(crate) async fn _enums<E>(
+  executor: &mut E,
+  results: &mut Vector<Identifier>,
+) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
@@ -103,7 +107,7 @@ where
     ",
       (),
       |result| {
-        results.push(result);
+        results.push(result)?;
         Ok(())
       },
     )
@@ -112,7 +116,7 @@ where
 
 #[inline]
 pub(crate) async fn _pg_proc<E>(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vec<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
   prokind: char,
 ) -> crate::Result<()>
@@ -137,7 +141,7 @@ where
   ))?;
   executor
     .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
-      buffer_idents.push(result);
+      buffer_idents.push(result)?;
       Ok(())
     })
     .await?;
@@ -148,7 +152,7 @@ where
 #[inline]
 pub(crate) async fn _sequences<E>(
   executor: &mut E,
-  results: &mut Vec<Identifier>,
+  results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
@@ -163,7 +167,7 @@ where
       sequence_schema = 'public'",
       (),
       |result| {
-        results.push(result);
+        results.push(result)?;
         Ok(())
       },
     )
@@ -174,7 +178,7 @@ where
 #[inline]
 pub(crate) async fn _schemas<E>(
   executor: &mut E,
-  results: &mut Vec<Identifier>,
+  results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
@@ -192,7 +196,7 @@ where
   ",
       (),
       |result| {
-        results.push(result);
+        results.push(result)?;
         Ok(())
       },
     )
@@ -202,7 +206,7 @@ where
 pub(crate) async fn _table_names<E>(
   buffer_cmd: &mut String,
   executor: &mut E,
-  results: &mut Vec<Identifier>,
+  results: &mut Vector<Identifier>,
   schema: &str,
 ) -> crate::Result<()>
 where
@@ -231,7 +235,7 @@ where
   ))?;
   executor
     .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
-      results.push(result);
+      results.push(result)?;
       Ok(())
     })
     .await?;
@@ -240,7 +244,10 @@ where
 }
 
 #[inline]
-pub(crate) async fn _types<E>(executor: &mut E, results: &mut Vec<Identifier>) -> crate::Result<()>
+pub(crate) async fn _types<E>(
+  executor: &mut E,
+  results: &mut Vector<Identifier>,
+) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
@@ -265,7 +272,7 @@ where
       AND t.typtype != 'd'",
       (),
       |result| {
-        results.push(result);
+        results.push(result)?;
         Ok(())
       },
     )
@@ -273,7 +280,10 @@ where
 }
 
 #[inline]
-pub(crate) async fn _views<E>(executor: &mut E, results: &mut Vec<Identifier>) -> crate::Result<()>
+pub(crate) async fn _views<E>(
+  executor: &mut E,
+  results: &mut Vector<Identifier>,
+) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
@@ -291,7 +301,7 @@ where
     ",
       (),
       |result| {
-        results.push(result);
+        results.push(result)?;
         Ok(())
       },
     )
@@ -299,10 +309,10 @@ where
 }
 
 fn _push_drop(
-  (buffer_cmd, buffer_idents): (&mut String, &mut Vec<Identifier>),
+  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   structure: &str,
 ) -> crate::Result<()> {
-  for identifier in &*buffer_idents {
+  for identifier in buffer_idents.iter() {
     buffer_cmd.write_fmt(format_args!(r#"DROP {structure} "{identifier}" CASCADE;"#))?;
   }
   buffer_idents.clear();

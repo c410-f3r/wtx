@@ -39,7 +39,7 @@ pub trait Executor {
   fn fetch_with_stmt<SC, RV>(
     &mut self,
     sc: SC,
-    sv: RV,
+    rv: RV,
   ) -> impl Future<
     Output = Result<<Self::Database as Database>::Record<'_>, <Self::Database as Database>::Error>,
   >
@@ -52,7 +52,7 @@ pub trait Executor {
   fn fetch_many_with_stmt<SC, RV>(
     &mut self,
     sc: SC,
-    sv: RV,
+    rv: RV,
     cb: impl FnMut(
       &<Self::Database as Database>::Record<'_>,
     ) -> Result<(), <Self::Database as Database>::Error>,
@@ -72,7 +72,7 @@ pub trait Executor {
     cmd: &str,
   ) -> impl Future<Output = Result<u64, <Self::Database as Database>::Error>>;
 
-  /// Retrieves a record and maps it to `T`. See [FromRecord].
+  /// Retrieves a record and maps it to `T`. See [`FromRecord`].
   #[inline]
   fn simple_entity<SV, T>(
     &mut self,
@@ -86,7 +86,7 @@ pub trait Executor {
     async move { T::from_record(&self.fetch_with_stmt(cmd, sv).await?) }
   }
 
-  /// Retrieves a set of records and maps them to the corresponding `T`. See [FromRecord].
+  /// Retrieves a set of records and maps them to the corresponding `T`. See [`FromRecord`].
   #[inline]
   fn simple_entities<SV, T>(
     &mut self,
