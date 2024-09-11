@@ -58,7 +58,7 @@ where
 impl<E, P, REQM, RESM> ServerFrameworkBuilder<(), E, P, (), REQM, RESM> {
   /// Build without state
   #[inline]
-  pub fn no_aux(self) -> ServerFramework<(), fn() -> (), E, P, (), fn() -> (), REQM, RESM> {
+  pub fn without_aux(self) -> ServerFramework<(), fn() -> (), E, P, (), fn() -> (), REQM, RESM> {
     ServerFramework { ca_cb: nothing, cp: self.cp, ra_cb: nothing, router: self.router }
   }
 }

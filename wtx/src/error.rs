@@ -136,8 +136,6 @@ pub enum Error {
   #[cfg(feature = "data-transformation")]
   DataTransformationError(crate::data_transformation::DataTransformationError),
   FromRadix10Error(FromRadix10Error),
-  #[cfg(feature = "http-client-framework")]
-  HttpClientFrameworkError(crate::http::client_framework::HttpClientFrameworkError),
   #[cfg(feature = "http")]
   HttpError(crate::http::HttpError),
   #[cfg(feature = "http2")]
@@ -485,14 +483,6 @@ impl From<FromRadix10Error> for Error {
   #[inline]
   fn from(from: FromRadix10Error) -> Self {
     Self::FromRadix10Error(from)
-  }
-}
-
-#[cfg(feature = "http-client-framework")]
-impl From<crate::http::client_framework::HttpClientFrameworkError> for Error {
-  #[inline]
-  fn from(from: crate::http::client_framework::HttpClientFrameworkError) -> Self {
-    Self::HttpClientFrameworkError(from)
   }
 }
 
