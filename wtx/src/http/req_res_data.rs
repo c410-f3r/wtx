@@ -73,7 +73,7 @@ impl ReqResData for &[u8] {
 
   #[inline]
   fn headers(&self) -> &Headers {
-    const { &Headers::new(0) }
+    const { &Headers::new() }
   }
 
   #[inline]
@@ -92,7 +92,7 @@ impl<const N: usize> ReqResData for [u8; N] {
 
   #[inline]
   fn headers(&self) -> &Headers {
-    const { &Headers::new(0) }
+    const { &Headers::new() }
   }
 
   #[inline]
@@ -102,16 +102,16 @@ impl<const N: usize> ReqResData for [u8; N] {
 }
 
 impl ReqResData for () {
-  type Body = ();
+  type Body = [u8];
 
   #[inline]
   fn body(&self) -> &Self::Body {
-    &()
+    &[]
   }
 
   #[inline]
   fn headers(&self) -> &Headers {
-    const { &Headers::new(0) }
+    const { &Headers::new() }
   }
 
   #[inline]
@@ -164,20 +164,39 @@ where
   }
 }
 
-impl<S> ReqResData for Uri<S>
-where
-  S: Lease<str>,
-{
-  type Body = ();
+impl ReqResData for Headers {
+  type Body = [u8];
 
   #[inline]
   fn body(&self) -> &Self::Body {
-    &()
+    &[]
   }
 
   #[inline]
   fn headers(&self) -> &Headers {
-    const { &Headers::new(0) }
+    self
+  }
+
+  #[inline]
+  fn uri(&self) -> UriRef<'_> {
+    UriRef::_empty("")
+  }
+}
+
+impl<S> ReqResData for Uri<S>
+where
+  S: Lease<str>,
+{
+  type Body = [u8];
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    &[]
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    const { &Headers::new() }
   }
 
   #[inline]
@@ -189,10 +208,19 @@ where
 /// Mutable version of [`ReqResData`].
 pub trait ReqResDataMut: ReqResData {
   /// Can be a sequence of mutable bytes, a mutable string or any other desired type.
-  fn body_mut(&mut self) -> &mut Self::Body;
+  #[inline]
+  fn body_mut(&mut self) -> &mut Self::Body {
+    self.parts_mut().0
+  }
+
+  /// Removes all values.
+  fn clear(&mut self);
 
   /// Mutable version of [`ReqResData::headers`].
-  fn headers_mut(&mut self) -> &mut Headers;
+  #[inline]
+  fn headers_mut(&mut self) -> &mut Headers {
+    self.parts_mut().1
+  }
 
   /// Mutable parts
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>);
@@ -205,6 +233,11 @@ where
   #[inline]
   fn body_mut(&mut self) -> &mut Self::Body {
     (**self).body_mut()
+  }
+
+  #[inline]
+  fn clear(&mut self) {
+    (**self).clear();
   }
 
   #[inline]
@@ -228,6 +261,11 @@ where
   }
 
   #[inline]
+  fn clear(&mut self) {
+    (**self).clear();
+  }
+
+  #[inline]
   fn headers_mut(&mut self) -> &mut Headers {
     (**self).headers_mut()
   }
@@ -235,5 +273,15 @@ where
   #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
     (**self).parts_mut()
+  }
+}
+
+impl ReqResDataMut for Headers {
+  #[inline]
+  fn clear(&mut self) {}
+
+  #[inline]
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (&mut [], self, UriRef::_empty(""))
   }
 }

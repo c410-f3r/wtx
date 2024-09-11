@@ -2,6 +2,7 @@ const ACK: u8 = 0b0000_0001;
 const EOH: u8 = 0b0000_0100;
 const EOS: u8 = 0b0000_0001;
 const PAD: u8 = 0b0000_1000;
+const PRI: u8 = 0b0010_0000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct CommonFlags(u8);
@@ -48,13 +49,18 @@ impl CommonFlags {
   }
 
   #[inline]
+  pub(crate) const fn has_pri(self) -> bool {
+    self.0 & PRI == PRI
+  }
+
+  #[inline]
   pub(crate) fn only_ack(&mut self) {
     self.0 &= ACK;
   }
 
   #[inline]
-  pub(crate) fn only_eoh_eos_pad(&mut self) {
-    self.0 &= EOH | EOS | PAD;
+  pub(crate) fn only_eoh_eos_pad_pri(&mut self) {
+    self.0 &= EOH | EOS | PAD | PRI;
   }
 
   #[inline]

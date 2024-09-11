@@ -10,8 +10,8 @@ use hmac::{digest::FixedOutput, Hmac, Mac};
 use sha2::{Digest, Sha256};
 
 #[inline]
-pub(crate) fn bind<'buffer, E, RV>(
-  fbw: &mut FilledBufferWriter<'buffer>,
+pub(crate) fn bind<E, RV>(
+  fbw: &mut FilledBufferWriter<'_>,
   portal: &str,
   mut rv: RV,
   _: &Statement<'_>,

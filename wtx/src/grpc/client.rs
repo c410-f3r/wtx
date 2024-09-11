@@ -1,7 +1,7 @@
 use crate::{
   data_transformation::{
     dnsn::{Deserialize, Serialize},
-    format::{ProtobufRequest, ProtobufResponse},
+    format::{VerbatimRequest, VerbatimResponse},
   },
   grpc::serialize,
   http::{
@@ -47,10 +47,10 @@ where
   #[inline]
   pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &'de [u8]) -> crate::Result<T>
   where
-    ProtobufResponse<T>: Deserialize<'de, DRSR>,
+    VerbatimResponse<T>: Deserialize<'de, DRSR>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(ProtobufResponse::from_bytes(elem, &mut self.drsr)?.data)
+    Ok(VerbatimResponse::from_bytes(elem, &mut self.drsr)?.data)
   }
 
   /// Send Unary Request
@@ -66,42 +66,30 @@ where
     mut rrb: ReqResBuffer,
   ) -> crate::Result<Response<ReqResBuffer>>
   where
-    ProtobufRequest<T>: Serialize<DRSR>,
+    VerbatimRequest<T>: Serialize<DRSR>,
   {
     rrb.data.clear();
     rrb.headers.clear();
     rrb.uri.truncate_with_initial_len();
     rrb.uri.push_path(format_args!("/{package}.{service}/{method}"))?;
-    serialize(&mut rrb.data, ProtobufRequest { data }, &mut self.drsr)?;
+    serialize(&mut rrb.data, VerbatimRequest { data }, &mut self.drsr)?;
     Self::push_headers(&mut rrb.headers)?;
     let res = self.cf.send(Method::Post, rrb, ReqUri::Data).await?;
     Ok(Response::http2(res.rrd, res.status_code))
   }
 
+  #[inline]
   fn push_headers(headers: &mut Headers) -> crate::Result<()> {
     let array = [
-      Header {
-        is_sensitive: false,
-        is_trailer: false,
-        name: KnownHeaderName::ContentType.into(),
-        value: b"application/grpc",
-      },
-      Header {
-        is_sensitive: false,
-        is_trailer: false,
-        name: KnownHeaderName::Te.into(),
-        value: b"trailers",
-      },
-      Header {
-        is_sensitive: false,
-        is_trailer: false,
-        name: KnownHeaderName::UserAgent.into(),
-        value: WTX_USER_AGENT.as_bytes(),
-      },
+      Header::from_name_and_value(
+        KnownHeaderName::ContentType.into(),
+        ["application/grpc".as_bytes()],
+      ),
+      Header::from_name_and_value(KnownHeaderName::Te.into(), ["trailers".as_bytes()]),
+      Header::from_name_and_value(KnownHeaderName::UserAgent.into(), [WTX_USER_AGENT.as_bytes()]),
     ];
-    headers.set_max_bytes(64);
     for header in array {
-      headers.push_front(header, &[])?;
+      headers.push_from_iter(header)?;
     }
     Ok(())
   }

@@ -5,6 +5,7 @@ mod array_string;
 mod array_vector;
 mod atomic_waker;
 mod blocks_queue;
+mod bytes_fmt;
 mod connection_state;
 mod either;
 mod enum_var_strings;
@@ -43,13 +44,14 @@ pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError};
 pub use atomic_waker::AtomicWaker;
 pub use blocks_queue::{Block, BlocksQueue, BlocksQueueError};
+pub use bytes_fmt::BytesFmt;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use filled_buffer_writer::FilledBufferWriter;
 pub use fn_fut::*;
-pub use from_radix_10::FromRadix10;
+pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use generic_time::GenericTime;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use iter_wrapper::IterWrapper;
@@ -137,25 +139,38 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
 
 /// A tracing register with optioned parameters.
 #[cfg(feature = "_tracing-tree")]
-pub fn tracing_tree_init() -> Result<(), tracing_subscriber::util::TryInitError> {
+pub fn tracing_tree_init(
+  fallback_opt: Option<&str>,
+) -> Result<(), tracing_subscriber::util::TryInitError> {
   use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
   };
-  let env_filter = EnvFilter::from_default_env();
+  let fallback = fallback_opt.unwrap_or("debug");
+  let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(fallback));
   let mut tracing_tree = tracing_tree::HierarchicalLayer::default();
   #[cfg(feature = "std")]
   {
     tracing_tree = tracing_tree.with_writer(std::io::stderr);
   }
   tracing_tree = tracing_tree
-    .with_indent_lines(true)
+    .with_deferred_spans(true)
     .with_indent_amount(2)
-    .with_thread_names(false)
+    .with_indent_lines(true)
+    .with_span_retrace(true)
+    .with_targets(true)
     .with_thread_ids(true)
-    .with_verbose_exit(false)
+    .with_thread_names(true)
     .with_verbose_entry(false)
-    .with_targets(true);
+    .with_verbose_exit(false);
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
+}
+
+/// Transforms an `u64` into a [`ArrayString`].
+#[inline]
+pub fn u64_array_string(n: u64) -> ArrayString<20> {
+  let mut str = ArrayString::new();
+  let _rslt = str.write_fmt(format_args!("{n}"));
+  str
 }
 
 #[expect(clippy::as_conversions, reason = "`match` correctly handles conversions")]

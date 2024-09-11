@@ -7,5 +7,5 @@ Activation feature is called `http-client-framework`.
 ## Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/http-client-framework-tokio.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/http-client-framework.rs}}
 ```

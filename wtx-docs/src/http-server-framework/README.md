@@ -9,5 +9,5 @@ Activation feature is called `http-server-framework`.
 ## Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/http-server-framework-tokio.rs}}
+{{#rustdoc_include ../../../wtx-instances/http-server-framework-examples/http-server-framework.rs}}
 ```

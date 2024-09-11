@@ -3,9 +3,9 @@ use crate::{
     schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
     DatabaseTy,
   },
-  misc::Lease,
+  misc::{Lease, Vector},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 #[cfg(feature = "std")]
 use {
   crate::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml},
@@ -24,7 +24,7 @@ where
   #[inline]
   pub async fn migrate<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &MigrationGroup<S>,
     user_migrations: I,
   ) -> crate::Result<()>
@@ -44,7 +44,7 @@ where
   #[inline]
   pub async fn migrate_from_dir(
     &mut self,
-    buffer: (&mut String, &mut Vec<DbMigration>),
+    buffer: (&mut String, &mut Vector<DbMigration>),
     path: &Path,
   ) -> crate::Result<()> {
     self.executor.create_wtx_tables().await?;
@@ -56,7 +56,7 @@ where
   #[inline]
   pub async fn migrate_from_toml_path(
     &mut self,
-    buffer: (&mut String, &mut Vec<DbMigration>),
+    buffer: (&mut String, &mut Vector<DbMigration>),
     path: &Path,
   ) -> crate::Result<()> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
@@ -69,7 +69,7 @@ where
   #[inline]
   pub async fn migrate_from_groups<DBS, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     groups: MigrationFromGroups<'_, '_, '_, DBS, S>,
   ) -> crate::Result<()>
   where
@@ -89,7 +89,7 @@ where
   #[inline]
   pub async fn migrate_from_groups_paths(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     migration_groups: &[PathBuf],
   ) -> crate::Result<()> {
     self.executor.create_wtx_tables().await?;
@@ -103,7 +103,7 @@ where
   #[inline]
   async fn do_migrate<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &MigrationGroup<S>,
     user_migrations: I,
   ) -> crate::Result<()>
@@ -128,12 +128,12 @@ where
   #[inline]
   async fn do_migrate_from_dir(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
   ) -> crate::Result<()> {
     let (mg, mut migrations) = group_and_migrations_from_path(path, Ord::cmp)?;
     self.executor.migrations(buffer_cmd, &mg, buffer_db_migrations).await?;
-    let mut tmp_migrations = Vec::new();
+    let mut tmp_migrations = Vector::new();
     loop_files!(
       tmp_migrations,
       migrations,

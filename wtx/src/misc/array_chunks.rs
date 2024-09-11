@@ -3,7 +3,6 @@ use core::{
   slice::{self, Iter, IterMut},
 };
 
-#[rustfmt::skip]
 macro_rules! create_and_impl {
   (
     $array:ty,

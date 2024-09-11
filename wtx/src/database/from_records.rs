@@ -19,6 +19,7 @@ where
   ) -> Result<Self, D::Error>;
 
   /// Should be called once in the initialization phase.
+  #[inline]
   fn from_records_initial(records: &D::Records<'exec>) -> Result<Self, D::Error>
   where
     for<'de> u64: Decode<'de, D>,

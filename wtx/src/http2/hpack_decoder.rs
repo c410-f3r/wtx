@@ -1,12 +1,10 @@
 use crate::{
-  http::{
-    AbstractHeaders, KnownHeaderName, Method, StatusCode, _HeaderNameBuffer, _HeaderValueBuffer,
-  },
+  http::{KnownHeaderName, Method, StatusCode, _HeaderNameBuffer, _HeaderValueBuffer},
   http2::{
     hpack_header::{HpackHeaderBasic, HpackHeaderName},
     huffman_decode,
     misc::protocol_err,
-    Http2Error, Http2ErrorCode,
+    HpackHeaders, Http2Error, Http2ErrorCode,
   },
   misc::{ArrayVector, Usize},
 };
@@ -18,7 +16,7 @@ type RawHeaderPair<'value> = (&'static [u8], &'value [u8]);
 
 #[derive(Debug)]
 pub(crate) struct HpackDecoder {
-  dyn_headers: AbstractHeaders<HpackHeaderBasic>,
+  dyn_headers: HpackHeaders<HpackHeaderBasic>,
   header_buffers: Box<(_HeaderNameBuffer, _HeaderValueBuffer)>,
   max_bytes: (u32, Option<u32>),
 }
@@ -27,7 +25,7 @@ impl HpackDecoder {
   #[inline]
   pub(crate) fn new() -> Self {
     Self {
-      dyn_headers: AbstractHeaders::new(0),
+      dyn_headers: HpackHeaders::new(0),
       header_buffers: Box::new((ArrayVector::new(), ArrayVector::new())),
       max_bytes: (0, None),
     }
@@ -161,7 +159,7 @@ impl HpackDecoder {
       (hhb, name, value)
     };
     if STORE {
-      self.dyn_headers.push_front(hhb, name, [value, &[]], false, |_, _| {})?;
+      self.dyn_headers.push_front(hhb, name, [value].into_iter(), false, |_, _| {})?;
     }
     Ok(())
   }
@@ -229,7 +227,7 @@ impl HpackDecoder {
   #[expect(clippy::too_many_lines, reason = "defined by the specification")]
   #[inline]
   fn get(
-    dyn_headers: &AbstractHeaders<HpackHeaderBasic>,
+    dyn_headers: &HpackHeaders<HpackHeaderBasic>,
     idx: usize,
   ) -> crate::Result<(HpackHeaderBasic, RawHeaderPair<'_>, RawHeaderPair<'_>)> {
     Ok(match idx {
@@ -415,6 +413,7 @@ impl TryFrom<u8> for DecodeIdx {
 #[cfg(test)]
 mod bench {
   use crate::{
+    http::Header,
     http2::{HpackDecoder, HpackEncoder},
     misc::{NoStdRng, Usize, Vector},
   };
@@ -433,7 +432,7 @@ mod bench {
     let mut he = HpackEncoder::new(NoStdRng::default());
     he.set_max_dyn_super_bytes(N);
     he.encode(&mut buffer, [].into_iter(), {
-      data.chunks_exact(128).map(|el| (&el[..64], &el[64..]).into())
+      data.chunks_exact(128).map(|el| Header::from_name_and_value(&el[..64], &el[64..]))
     })
     .unwrap();
     let mut hd = HpackDecoder::new();

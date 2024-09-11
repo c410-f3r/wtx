@@ -232,15 +232,14 @@ create_statics! {
 #[cfg(feature = "_bench")]
 #[cfg(test)]
 mod bench {
-  use crate::http::HeaderName;
-  use alloc::vec::Vec;
+  use crate::{http::HeaderName, misc::Vector};
 
   #[bench]
   fn http2p(b: &mut test::Bencher) {
     const LEN: usize = 32;
-    let mut data: Vec<u8> = Vec::with_capacity(LEN);
+    let mut data: Vector<u8> = Vector::with_capacity(LEN).unwrap();
     for idx in 0..LEN {
-      data.push(idx.clamp(106, 122).try_into().unwrap());
+      data.push(idx.clamp(106, 122).try_into().unwrap()).unwrap();
     }
     b.iter(|| {
       let _ = HeaderName::http2p(&data).unwrap();

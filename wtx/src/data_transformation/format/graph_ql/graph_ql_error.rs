@@ -1,4 +1,5 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use crate::misc::Vector;
+use alloc::{boxed::Box, string::String};
 
 /// Segment of a `GraphQL` document.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -28,9 +29,9 @@ pub struct GraphQlResponseError<E> {
   /// Any user custom value.
   pub extensions: Option<E>,
   /// List of columns and lines
-  pub locations: Option<Vec<GraphQlLocation>>,
+  pub locations: Option<Vector<GraphQlLocation>>,
   /// Error describer
   pub message: String,
   /// Full path to the result field where the error was raised.
-  pub path: Option<Vec<GraphQlPathSegment>>,
+  pub path: Option<Vector<GraphQlPathSegment>>,
 }

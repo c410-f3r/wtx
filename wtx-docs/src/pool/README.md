@@ -9,5 +9,5 @@ Activation feature is called `pool`.
 ## Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/pool.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/pool.rs}}
 ```

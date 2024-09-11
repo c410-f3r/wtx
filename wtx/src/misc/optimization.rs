@@ -1,4 +1,4 @@
-#![expect(clippy::disallowed_methods, reason = "used as fallbacks")]
+#![allow(clippy::disallowed_methods, reason = "used as fallbacks")]
 
 use crate::misc::{BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUtf8Error};
 
@@ -133,10 +133,7 @@ pub fn str_split1(str: &str, elem: u8) -> impl Iterator<Item = &str> {
     },
   );
   #[cfg(not(feature = "memchr"))]
-  return str
-    .as_bytes()
-    .split(move |el| *el == elem)
-    .filter_map(|bytes| from_utf8_basic(bytes).ok());
+  return str.split(char::from(elem));
 }
 
 /// Internally uses `memchr` if the feature is active.

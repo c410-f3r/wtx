@@ -1,7 +1,8 @@
 [dependencies]
+aes-gcm = { default-features = false, optional = true, version = "0.10" }
 ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
-atoi = { default-features = false, optional = true, version = "2.0" }
+argon2 = { default-features = false, optional = true, version = "0.5" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
@@ -13,12 +14,12 @@ flate2 = { default-features = false, features = ["zlib-rs"], optional = true, ve
 hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
+matchit = { default-features = false, optional = true, version = "0.8" }
 memchr = { default-features = false, optional = true, version = "2.0" }
 proptest = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand = { default-features = false, features = ["small_rng"], optional = true, version = "0.8" }
 ring = { default-features = false, optional = true, version = "0.17" }
-rkyv = { default-features = false, features = ["validation"], optional = true, version = "0.7" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls-pemfile = { default-features = false, features = ["std"], optional = true, version = "2.0" }
 rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
@@ -43,7 +44,6 @@ wtx = { default-features = false, features = ["std", "tokio"], path = "./" }
 [features]
 ahash = ["dep:ahash", "hashbrown?/ahash"]
 arbitrary = ["dep:arbitrary", "std"]
-atoi = ["dep:atoi"]
 base64 = ["dep:base64"]
 borsh = ["dep:borsh", "std"]
 chrono = ["dep:chrono"]
@@ -61,18 +61,20 @@ hmac = ["dep:hmac"]
 grpc = ["data-transformation", "http-client-framework", "http-server-framework"]
 http = []
 http-client-framework = ["http2", "pool", "std"]
-http-server-framework = ["http2", "tokio"]
+http-cookie = ["chrono/alloc", "http"]
+http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
+http-server-framework = ["http2", "matchit", "tokio"]
+http-session = ["chrono/serde", "http-cookie-secure", "serde_json"]
 http2 = ["ahash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
 memchr = ["dep:memchr"]
-optimization = ["atoi", "memchr", "simdutf8"]
+optimization = ["memchr", "simdutf8"]
 pool = []
 postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "sha2"]
 proptest = ["dep:proptest"]
 quick-protobuf = ["dep:quick-protobuf", "std"]
 rand = ["dep:rand"]
 ring = ["dep:ring"]
-rkyv = ["dep:rkyv"]
 rust_decimal = ["dep:rust_decimal"]
 schema-manager = ["database", "chrono"]
 schema-manager-dev = ["schema-manager"]
@@ -81,7 +83,7 @@ serde_json = ["serde", "dep:serde_json", "std"]
 sha1 = ["dep:sha1"]
 sha2 = ["dep:sha2"]
 simdutf8 = ["dep:simdutf8"]
-std = ["ahash?/std", "atoi?/std", "cl-aux?/std", "memchr?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
+std = ["ahash?/std", "cl-aux?/std", "memchr?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
 test-strategy = ["dep:test-strategy", "proptest", "std"]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "dep:rustls-pemfile", "dep:rustls-pki-types", "tokio", "dep:tokio-rustls"]
@@ -93,7 +95,6 @@ webpki-roots = ["dep:webpki-roots"]
 x509-certificate = ["dep:x509-certificate"]
 
 _bench = []
-_hack = ["rkyv?/size_32"]
 _integration-tests = ["serde_json?/raw_value"]
 _proptest = ["proptest/std", "rust_decimal?/proptest", "std", "test-strategy"]
 _tracing-tree = ["tracing", "tracing-subscriber", "dep:tracing-tree"]

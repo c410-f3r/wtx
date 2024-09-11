@@ -1,11 +1,14 @@
-use crate::database::{
-  schema_manager::{integration_tests::AuxTestParams, Commands, DbMigration, SchemaManagement},
-  Identifier,
+use crate::{
+  database::{
+    schema_manager::{integration_tests::AuxTestParams, Commands, DbMigration, SchemaManagement},
+    Identifier,
+  },
+  misc::Vector,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 
 pub(crate) async fn _migrate_works<E>(
-  (buffer_cmd, _, _): (&mut String, &mut Vec<DbMigration>, &mut Vec<Identifier>),
+  (buffer_cmd, _, _): (&mut String, &mut Vector<DbMigration>, &mut Vector<Identifier>),
   c: &mut Commands<E>,
   aux: AuxTestParams,
 ) where

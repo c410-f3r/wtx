@@ -157,3 +157,18 @@ impl<'vec> LeaseMut<FilledBufferWriter<'vec>> for FilledBufferWriter<'vec> {
     self
   }
 }
+
+#[cfg(feature = "std")]
+impl std::io::Write for FilledBufferWriter<'_> {
+  #[inline]
+  fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    let prev = self._len();
+    self._extend_from_slice(buf).map_err(std::io::Error::other)?;
+    Ok(self._len().wrapping_sub(prev))
+  }
+
+  #[inline]
+  fn flush(&mut self) -> std::io::Result<()> {
+    self._vec.flush()
+  }
+}

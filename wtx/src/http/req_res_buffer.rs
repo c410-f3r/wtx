@@ -17,7 +17,7 @@ pub struct ReqResBuffer {
 
 impl ReqResBuffer {
   pub(crate) const fn empty() -> Self {
-    ReqResBuffer::new(Vector::new(), Headers::new(0), UriString::_empty(String::new()))
+    ReqResBuffer::new(Vector::new(), Headers::new(), UriString::_empty(String::new()))
   }
 
   /// Constructor shortcut
@@ -97,6 +97,12 @@ impl ReqResDataMut for ReqResBuffer {
   #[inline]
   fn body_mut(&mut self) -> &mut Self::Body {
     &mut self.data
+  }
+
+  #[inline]
+  fn clear(&mut self) {
+    self.data.clear();
+    self.headers.clear();
   }
 
   #[inline]

@@ -70,7 +70,7 @@ where
       let mut lock = lock_pin!(cx, hd, lock_pin);
       let hdpm = lock.parts_mut();
       if let Some(mut elem) = rrb_opt.take() {
-        if !manage_initial_stream_receiving(&hdpm, is_conn_open, &mut elem) {
+        if !manage_initial_stream_receiving(is_conn_open, &mut elem) {
           return Poll::Ready(Ok(Either::Left(elem)));
         }
         drop(hdpm.hb.sorp.insert(

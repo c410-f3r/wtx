@@ -10,12 +10,11 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api, ClientApiFrameworkError,
   },
-  misc::Lease,
+  misc::{Lease, Vector},
 };
 use alloc::{
   borrow::{Cow, ToOwned},
   collections::VecDeque,
-  vec::Vec,
 };
 use core::{fmt::Debug, marker::PhantomData, ops::Range};
 
@@ -47,7 +46,7 @@ where
 {
   asserted: usize,
   phantom: PhantomData<TP>,
-  requests: Vec<Cow<'static, T>>,
+  requests: Vector<Cow<'static, T>>,
   responses: VecDeque<Cow<'static, T>>,
 }
 
@@ -110,7 +109,10 @@ where
     P: Package<A, DRSR, TP>,
   {
     manage_before_sending_related(pkg, pkgs_aux, &mut *self).await?;
-    self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?));
+    self
+      .requests
+      .push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))
+      .map_err(Into::into)?;
     pkgs_aux.byte_buffer.clear();
     manage_after_sending_related(pkg, pkgs_aux).await?;
     Ok(())
@@ -141,6 +143,6 @@ where
 {
   #[inline]
   fn default() -> Self {
-    Self { asserted: 0, phantom: PhantomData, requests: Vec::new(), responses: VecDeque::new() }
+    Self { asserted: 0, phantom: PhantomData, requests: Vector::new(), responses: VecDeque::new() }
   }
 }

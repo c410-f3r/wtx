@@ -36,5 +36,5 @@ where
     }
   }
 
-  _conn_params_methods!(cp);
+  _conn_params_methods!();
 }

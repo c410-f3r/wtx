@@ -232,7 +232,7 @@ pub(crate) mod database {
               if let Some(elem) = self._certs {
                 rslt = rslt.push_certs(elem)?;
               }
-              Ok(rslt.connect_without_client_auth(uri.hostname(), stream).await?)
+              rslt.connect_without_client_auth(uri.hostname(), stream).await
             },
           )
         })
@@ -262,7 +262,7 @@ pub(crate) mod database {
               if let Some(elem) = self._certs {
                 rslt = rslt.push_certs(elem)?;
               }
-              Ok(rslt.connect_without_client_auth(uri.hostname(), stream).await?)
+              rslt.connect_without_client_auth(uri.hostname(), stream).await
             },
           )
         })?;

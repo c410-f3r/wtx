@@ -15,10 +15,13 @@ _impl_se_collections!(
 mod tests {
   _create_dnsn_test!(
     json,
-    (JsonRequest, JsonResponse),
+    (VerbatimRequest, VerbatimResponse),
     SerdeJson as SerdeJson,
     (r#"{"foo":"foo"}"#.into(), r#"{"bar":"bar"}"#.into()),
-    (JsonRequest { data: Foo { foo: "foo" } }, JsonResponse { data: Bar { bar: "bar".into() } }),
+    (
+      VerbatimRequest { data: Foo { foo: "foo" } },
+      VerbatimResponse { data: Bar { bar: "bar".into() } }
+    ),
   );
 
   _create_dnsn_test!(

@@ -175,15 +175,14 @@ mod proptest {
     http2::{huffman_decode, huffman_encode},
     misc::Vector,
   };
-  use alloc::vec::Vec;
 
   #[test_strategy::proptest]
-  fn encode_and_decode(data: Vec<u8>) {
+  fn encode_and_decode(data: Vector<u8>) {
     let mut encoded = Vector::with_capacity(data.len()).unwrap();
     huffman_encode(&data, &mut encoded).unwrap();
     let mut decoded = _HeaderValueBuffer::default();
     if huffman_decode(&encoded, &mut decoded).is_ok() {
-      assert_eq!(&data, &*decoded);
+      assert_eq!(data.as_ref(), decoded.as_ref());
     }
   }
 }

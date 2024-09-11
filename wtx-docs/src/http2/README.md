@@ -9,11 +9,11 @@ Activation feature is called `http2`.
 ## Client Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/http2-client-tokio.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/http2-client.rs}}
 ```
 
 ## Server Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/http2-server-tokio-rustls.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/http2-server.rs}}
 ```

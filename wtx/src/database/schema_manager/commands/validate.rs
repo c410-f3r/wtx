@@ -6,9 +6,9 @@ use crate::{
     },
     DatabaseTy,
   },
-  misc::Lease,
+  misc::{Lease, Vector},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 #[cfg(feature = "std")]
 use {
   crate::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml},
@@ -24,7 +24,7 @@ where
   #[inline]
   pub async fn validate<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &MigrationGroup<S>,
     migrations: I,
   ) -> crate::Result<()>
@@ -44,12 +44,12 @@ where
   #[cfg(feature = "std")]
   pub async fn validate_from_toml(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
   ) -> crate::Result<()> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     migration_groups.sort_unstable();
-    for mg in migration_groups {
+    for mg in migration_groups.into_iter() {
       self.do_validate_from_dir((buffer_cmd, buffer_db_migrations), &mg).await?;
     }
     Ok(())
@@ -60,7 +60,7 @@ where
   #[cfg(feature = "std")]
   pub async fn validate_from_dir(
     &mut self,
-    buffer: (&mut String, &mut Vec<DbMigration>),
+    buffer: (&mut String, &mut Vector<DbMigration>),
     path: &Path,
   ) -> crate::Result<()> {
     self.do_validate_from_dir(buffer, path).await
@@ -104,13 +104,13 @@ where
   #[cfg(feature = "std")]
   async fn do_validate_from_dir(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
   ) -> crate::Result<()> {
     let opt = group_and_migrations_from_path(path, Ord::cmp);
     let Ok((mg, mut migrations)) = opt else { return Ok(()) };
     self.executor.migrations(buffer_cmd, &mg, buffer_db_migrations).await?;
-    let mut tmp_migrations = Vec::new();
+    let mut tmp_migrations = Vector::new();
     loop_files!(
       tmp_migrations,
       migrations,

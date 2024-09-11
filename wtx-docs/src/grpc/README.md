@@ -12,11 +12,11 @@ Activation feature is called `grpc`.
 ## Client Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/grpc-client-tokio.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/grpc-client.rs}}
 ```
 
 ## Server Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/examples/grpc-server-tokio-rustls.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/grpc-server.rs}}
 ```

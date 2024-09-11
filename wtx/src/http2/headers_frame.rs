@@ -66,12 +66,13 @@ impl<'uri> HeadersFrame<'uri> {
       return Err(protocol_err(Http2Error::InvalidHeadersFrameZeroId));
     }
 
-    fi.cf.only_eoh_eos_pad();
+    fi.cf.only_eoh_eos_pad_pri();
     uri_buffer.clear();
 
     let (rrb_body, rrb_headers, rrb_uri) = (&rrb.data, &mut rrb.headers, &mut rrb.uri);
     let mut data_bytes = data.unwrap_or_else(|| rrb_body.get(rrb_body_start..).unwrap_or_default());
     let _ = trim_frame_pad(fi.cf, &mut data_bytes)?;
+    trim_priority(fi.cf, &mut data_bytes);
     let max_headers_len = *Usize::from(hp.max_headers_len());
     let mut content_length = None;
     let mut expanded_headers_len = 0;
@@ -124,10 +125,12 @@ impl<'uri> HeadersFrame<'uri> {
               if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
                 content_length = Some(usize::from_radix_10(value)?);
               }
-              rrb_headers.push_front(
-                Header { is_sensitive: false, is_trailer: IS_TRAILER, name, value },
-                &[],
-              )?;
+              rrb_headers.push_from_iter(Header {
+                is_sensitive: false,
+                is_trailer: IS_TRAILER,
+                name,
+                value: [value],
+              })?;
             }
           }
         },
@@ -219,6 +222,7 @@ impl<'uri> HeadersFrame<'uri> {
           }
         } else if uri_buffer.path.is_empty() || uri_buffer.scheme.is_empty() {
           return Err(protocol_err(Http2Error::InvalidHeaderData));
+        } else {
         }
         rrb_uri.reset(format_args!(
           "{}://{}{}",
@@ -305,5 +309,15 @@ fn push_uri<const N: usize>(
     if !*is_over_size {
       let _ = from_utf8_basic(value).ok().and_then(|el| buffer.push_str(el).ok());
     }
+  }
+}
+
+#[inline]
+pub(crate) fn trim_priority(cf: CommonFlags, data: &mut &[u8]) {
+  if cf.has_pri() {
+    let [_, _, _, _, _, rest @ ..] = data else {
+      return;
+    };
+    *data = rest;
   }
 }

@@ -73,13 +73,14 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Extracts a slice containing the entire vector.
   #[inline]
-  pub fn as_slice(&self) -> &[D] {
-    self
+  pub const fn as_slice(&self) -> &[D] {
+    // SAFETY: `len` ensures initialized elements
+    unsafe { slice::from_raw_parts(self.as_ptr(), Usize::from_u32(self.len).into_usize()) }
   }
 
   /// The number of elements that can be stored.
   #[inline]
-  pub fn capacity(&self) -> u32 {
+  pub const fn capacity(&self) -> u32 {
     const {
       let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
       u32::from_be_bytes([a, b, c, d])
@@ -88,7 +89,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Clears the vector, removing all values.
   #[inline]
-  pub fn clear(&mut self) {
+  pub const fn clear(&mut self) {
     self.len = 0;
   }
 
@@ -107,8 +108,8 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Return the inner fixed size array, if the capacity is full.
   #[inline]
-  pub fn into_inner(self) -> Result<[D; N], ArrayVectorError> {
-    if *Usize::from(self.len) >= N {
+  pub const fn into_inner(self) -> Result<[D; N], ArrayVectorError> {
+    if Usize::from_u32(self.len).into_usize() >= N {
       // SAFETY: All elements are initialized
       Ok(unsafe { ptr::read(self.data.as_ptr().cast()) })
     } else {
@@ -118,7 +119,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Shortens the vector, removing the last element.
   #[inline]
-  pub fn pop(&mut self) -> bool {
+  pub const fn pop(&mut self) -> bool {
     if let Some(elem) = self.len.checked_sub(1) {
       self.len = elem;
       true
@@ -129,7 +130,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// How many elements can be added to this collection.
   #[inline]
-  pub fn remaining(&self) -> u32 {
+  pub const fn remaining(&self) -> u32 {
     self.capacity().wrapping_sub(self.len)
   }
 
@@ -265,8 +266,7 @@ impl<D, const N: usize> Deref for ArrayVector<D, N> {
 
   #[inline]
   fn deref(&self) -> &Self::Target {
-    // SAFETY: `len` ensures initialized elements
-    unsafe { slice::from_raw_parts(self.as_ptr(), *Usize::from(self.len)) }
+    self.as_slice()
   }
 }
 

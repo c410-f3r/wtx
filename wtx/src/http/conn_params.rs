@@ -5,6 +5,7 @@ pub(crate) struct ConnParams {
   pub(crate) max_concurrent_streams_num: u32,
   pub(crate) max_frame_len: u32,
   pub(crate) max_headers_len: u32,
+  pub(crate) max_hpack_len: (u32, u32),
   pub(crate) max_recv_streams_num: u32,
 }
 
@@ -18,6 +19,7 @@ impl ConnParams {
       .set_max_concurrent_streams_num(self.max_concurrent_streams_num)
       .set_max_frame_len(self.max_frame_len)
       .set_max_headers_len(self.max_headers_len)
+      .set_max_hpack_len(self.max_hpack_len)
       .set_max_recv_streams_num(self.max_recv_streams_num)
   }
 }
@@ -31,6 +33,7 @@ impl Default for ConnParams {
       max_concurrent_streams_num: u32::MAX,
       max_frame_len: 64 * 1024,
       max_headers_len: 8 * 1024,
+      max_hpack_len: (128 * 1024, 128 * 1024),
       max_recv_streams_num: u32::MAX,
     }
   }

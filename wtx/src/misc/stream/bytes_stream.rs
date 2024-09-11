@@ -1,11 +1,10 @@
-use crate::misc::{StreamReader, StreamWriter};
-use alloc::vec::Vec;
+use crate::misc::{StreamReader, StreamWriter, Vector};
 use core::cmp::Ordering;
 
 /// Stores written data to transfer when read.
 #[derive(Debug, Default)]
 pub struct BytesStream {
-  buffer: Vec<u8>,
+  buffer: Vector<u8>,
   idx: usize,
 }
 
@@ -46,14 +45,14 @@ impl StreamReader for BytesStream {
 impl StreamWriter for BytesStream {
   #[inline]
   async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-    self.buffer.extend_from_slice(bytes);
+    self.buffer.extend_from_slice(bytes)?;
     Ok(())
   }
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
     for elem in bytes {
-      self.buffer.extend_from_slice(elem);
+      self.buffer.extend_from_slice(elem)?;
     }
     Ok(())
   }

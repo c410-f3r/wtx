@@ -1,7 +1,7 @@
 use crate::{
   client_api_framework::network::transport::TransportParams,
   data_transformation::{
-    format::{BorshRequest, JsonRequest, JsonRpcRequest, VerbatimRequest},
+    format::{JsonRpcRequest, VerbatimRequest},
     Id,
   },
   misc::Vector,
@@ -50,20 +50,6 @@ where
   #[inline]
   pub fn built_requests(&self) -> Id {
     self.built_requests
-  }
-
-  /// Constructs [BorshRequest] and also increases the number of requests.
-  #[inline]
-  pub fn borsh_request<D>(&mut self, data: D) -> BorshRequest<D> {
-    self.increase_requests_num();
-    BorshRequest { data }
-  }
-
-  /// Constructs [JsonRequest] and also increases the number of requests.
-  #[inline]
-  pub fn json_request<D>(&mut self, data: D) -> JsonRequest<D> {
-    self.increase_requests_num();
-    JsonRequest { data }
   }
 
   /// Constructs [JsonRpcRequest] and also increases the number of requests.

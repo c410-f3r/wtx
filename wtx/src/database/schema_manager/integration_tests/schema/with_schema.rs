@@ -1,17 +1,20 @@
-use crate::database::{
-  schema_manager::{
-    integration_tests::{AuxTestParams, _migrate_doc_test},
-    Commands, DbMigration, SchemaManagement,
+use crate::{
+  database::{
+    schema_manager::{
+      integration_tests::{AuxTestParams, _migrate_doc_test},
+      Commands, DbMigration, SchemaManagement,
+    },
+    Identifier,
   },
-  Identifier,
+  misc::Vector,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<E>(
   (buffer_cmd, buffer_db_migrations, buffer_idents): (
     &mut String,
-    &mut Vec<DbMigration>,
-    &mut Vec<Identifier>,
+    &mut Vector<DbMigration>,
+    &mut Vector<Identifier>,
   ),
   c: &mut Commands<E>,
   _: AuxTestParams,
@@ -28,7 +31,7 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<E>(
 }
 
 pub(crate) async fn migrate_works<E>(
-  (buffer_cmd, _, _): (&mut String, &mut Vec<DbMigration>, &mut Vec<Identifier>),
+  (buffer_cmd, _, _): (&mut String, &mut Vector<DbMigration>, &mut Vector<Identifier>),
   c: &mut Commands<E>,
   aux: AuxTestParams,
 ) where

@@ -1,34 +1,76 @@
 #[doc = _internal_doc!()]
 #[inline]
-pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
-  let mut mask_u32 = u32::from_ne_bytes(mask);
-  // SAFETY: Changing a sequence of `u8` to `u32` should be fine
-  let (prefix, words, suffix) = unsafe { bytes.align_to_mut::<u32>() };
-  unmask_u8_slice(prefix, mask);
-  let mut shift = u32::try_from(prefix.len() & 3).unwrap_or_default();
-  if shift > 0 {
-    shift = shift.wrapping_mul(8);
-    if cfg!(target_endian = "big") {
-      mask_u32 = mask_u32.rotate_left(shift);
-    } else {
-      mask_u32 = mask_u32.rotate_right(shift);
-    }
+pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
+  #[cfg(target_feature = "avx512f")]
+  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_512);
+
+  #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_256);
+
+  #[cfg(all(
+    target_feature = "neon",
+    not(any(target_feature = "avx2", target_feature = "avx512f"))
+  ))]
+  let (is_128, unmask_chunks_slice) = (true, _unmask_chunks_slice_128);
+
+  #[cfg(all(
+    target_feature = "sse2",
+    not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
+  ))]
+  let (is_128, unmask_chunks_slice) = (true, _unmask_chunks_slice_128);
+
+  #[cfg(not(any(
+    target_feature = "avx2",
+    target_feature = "avx512f",
+    target_feature = "neon",
+    target_feature = "sse2"
+  )))]
+  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_fallback);
+
+  // SAFETY: Changing a sequence of `u8` should be fine
+  let (prefix, chunks, suffix) = unsafe { bytes.align_to_mut() };
+  unmask_u8_slice(prefix, mask, 0);
+  mask.rotate_left(prefix.len() % 4);
+  unmask_chunks_slice(chunks, mask);
+  unmask_u8_slice(suffix, mask, if is_128 { (chunks.len() % 2).wrapping_mul(2) } else { 0 });
+}
+
+#[inline]
+fn _unmask_chunks_slice_512(bytes: &mut [u64], [a, b, c, d]: [u8; 4]) {
+  let mask = u64::from_be_bytes([d, c, b, a, d, c, b, a]);
+  for elem in bytes {
+    *elem ^= mask;
   }
-  unmask_u32_slice(words, mask_u32);
-  unmask_u8_slice(suffix, mask_u32.to_ne_bytes());
+}
+
+#[inline]
+fn _unmask_chunks_slice_256(bytes: &mut [u32], [a, b, c, d]: [u8; 4]) {
+  let mask = u32::from_be_bytes([d, c, b, a]);
+  for elem in bytes {
+    *elem ^= mask;
+  }
 }
 
 #[expect(clippy::indexing_slicing, reason = "index will always be in-bounds")]
-fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4]) {
+#[inline]
+fn _unmask_chunks_slice_128(bytes: &mut [u16], [a, b, c, d]: [u8; 4]) {
+  let mask = [u16::from_be_bytes([b, a]), u16::from_be_bytes([d, c])];
   for (idx, elem) in bytes.iter_mut().enumerate() {
-    *elem ^= mask[idx & 3];
+    *elem ^= mask[idx & 1];
   }
 }
 
-fn unmask_u32_slice(bytes: &mut [u32], mask: u32) {
-  _iter4_mut!(bytes, {}, |elem| {
-    *elem ^= mask;
-  });
+#[inline]
+fn _unmask_chunks_slice_fallback(bytes: &mut [u8], mask: [u8; 4]) {
+  unmask_u8_slice(bytes, mask, 0);
+}
+
+#[expect(clippy::indexing_slicing, reason = "index will always be in-bounds")]
+#[inline]
+fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4], shift: usize) {
+  for (idx, elem) in bytes.iter_mut().enumerate() {
+    *elem ^= mask[idx.wrapping_add(shift) & 3];
+  }
 }
 
 #[cfg(feature = "_bench")]
@@ -49,23 +91,25 @@ mod proptest {
   use crate::misc::Vector;
 
   #[test_strategy::proptest]
-  fn unmask(mut data: Vector<u8>, mask: [u8; 4]) {
-    crate::web_socket::unmask(&mut data, mask);
+  fn unmask(mut payload: Vector<u8>, mask: [u8; 4]) {
+    payload.fill(0);
+    crate::web_socket::unmask(&mut payload, mask);
+    let expected = Vector::from_iter((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();
+    assert_eq!(payload, expected);
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::web_socket::unmask::unmask;
-  use alloc::{vec, vec::Vec};
+  use crate::{misc::Vector, web_socket::unmask::unmask};
 
   #[test]
   fn length_variation_unmask() {
-    for len in &[0, 2, 3, 8, 16, 18, 31, 32, 40] {
-      let mut payload = vec![0u8; *len];
+    for len in [0, 2, 3, 8, 16, 18, 31, 32, 40, 63, 100, 125, 256] {
+      let mut payload = Vector::from_cloneable_elem(len, 0).unwrap();
       let mask = [1, 2, 3, 4];
       unmask(&mut payload, mask);
-      let expected = (0..*len).map(|i| (i & 3) as u8 + 1).collect::<Vec<_>>();
+      let expected = Vector::from_iter((0..len).map(|idx| mask[idx & 3])).unwrap();
       assert_eq!(payload, expected);
     }
   }

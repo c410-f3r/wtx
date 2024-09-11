@@ -1,14 +1,17 @@
-use crate::database::{
-  schema_manager::{
-    integration_tests::AuxTestParams, Commands, DbMigration, MigrationGroup, SchemaManagement,
+use crate::{
+  database::{
+    schema_manager::{
+      integration_tests::AuxTestParams, Commands, DbMigration, MigrationGroup, SchemaManagement,
+    },
+    Identifier,
   },
-  Identifier,
+  misc::Vector,
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 use std::path::Path;
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schema<E>(
-  (buffer_cmd, _, buffer_idents): (&mut String, &mut Vec<DbMigration>, &mut Vec<Identifier>),
+  (buffer_cmd, _, buffer_idents): (&mut String, &mut Vector<DbMigration>, &mut Vector<Identifier>),
   c: &mut Commands<E>,
   aux: AuxTestParams,
 ) where
@@ -23,8 +26,8 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
 pub(crate) async fn rollback_works<E>(
   (buffer_cmd, buffer_db_migrations, buffer_idents): (
     &mut String,
-    &mut Vec<DbMigration>,
-    &mut Vec<Identifier>,
+    &mut Vector<DbMigration>,
+    &mut Vector<Identifier>,
   ),
   c: &mut Commands<E>,
   aux: AuxTestParams,

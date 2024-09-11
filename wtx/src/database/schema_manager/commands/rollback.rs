@@ -3,9 +3,9 @@ use crate::{
     schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
     DatabaseTy, TransactionManager,
   },
-  misc::Lease,
+  misc::{Lease, Vector},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::string::String;
 #[cfg(feature = "std")]
 use {
   crate::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml},
@@ -23,7 +23,7 @@ where
   #[inline]
   pub async fn rollback<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &MigrationGroup<S>,
     migrations: I,
     version: i32,
@@ -53,7 +53,7 @@ where
   #[cfg(feature = "std")]
   pub async fn rollback_from_toml(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     versions: &[i32],
   ) -> crate::Result<()> {
@@ -73,7 +73,7 @@ where
   #[cfg(feature = "std")]
   pub async fn rollback_from_dir(
     &mut self,
-    buffer: (&mut String, &mut Vec<DbMigration>),
+    buffer: (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     version: i32,
   ) -> crate::Result<()> {
@@ -84,13 +84,13 @@ where
   #[cfg(feature = "std")]
   async fn do_rollback_from_dir(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vec<DbMigration>),
+    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     version: i32,
   ) -> crate::Result<()> {
     let opt = group_and_migrations_from_path(path, |a, b| b.cmp(a));
     let Ok((mg, mut migrations)) = opt else { return Ok(()) };
-    let mut tmp_migrations = Vec::new();
+    let mut tmp_migrations = Vector::new();
     loop_files!(
       tmp_migrations,
       migrations,

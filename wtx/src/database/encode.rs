@@ -18,16 +18,6 @@ where
   }
 }
 
-impl<D> Encode<D> for ()
-where
-  D: Database,
-{
-  #[inline]
-  fn encode(&self, _: &mut D::EncodeValue<'_, '_>) -> Result<(), D::Error> {
-    Ok(())
-  }
-}
-
 impl Encode<()> for u32 {
   #[inline]
   fn encode(&self, _: &mut FilledBufferWriter<'_>) -> Result<(), crate::Error> {

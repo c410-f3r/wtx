@@ -1,5 +1,5 @@
 use crate::{
-  http::{Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
+  http::{Header, Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, NoStdRng, UriRef, UriString},
   tests::_uri,
@@ -10,7 +10,7 @@ use tokio::net::{tcp::OwnedWriteHalf, TcpListener, TcpStream};
 #[tokio::test]
 async fn connections() {
   #[cfg(feature = "_tracing-tree")]
-  let _rslt = crate::misc::tracing_tree_init();
+  let _rslt = crate::misc::tracing_tree_init(None);
   let uri = _uri();
   server(&uri).await;
   client(uri).await;
@@ -18,7 +18,6 @@ async fn connections() {
 
 async fn client(uri: UriString) {
   let mut rrb = ReqResBuffer::default();
-  rrb.headers.set_max_bytes(6);
   rrb.headers.reserve(6, 1).unwrap();
   let (frame_header, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(NoStdRng::default()),
@@ -39,7 +38,7 @@ async fn client(uri: UriString) {
   _0(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.headers.push_front((b"123", b"456").into(), &[]).unwrap();
+  rrb.headers.push_from_iter(Header::from_name_and_value(b"123", ["456".as_bytes()])).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _1(rrb.body(), rrb.headers());
 
@@ -50,7 +49,7 @@ async fn client(uri: UriString) {
 
   rrb.clear();
   rrb.data.extend_from_slice(b"123").unwrap();
-  rrb.headers.push_front((b"123", b"456").into(), &[]).unwrap();
+  rrb.headers.push_from_iter(Header::from_name_and_value(b"123", ["456".as_bytes()])).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _3(rrb.body(), rrb.headers());
 
@@ -125,17 +124,17 @@ async fn stream_client(
 
 #[track_caller]
 fn _0(body: &[u8], headers: &Headers) {
-  assert_eq!((body.len(), headers.bytes_len(), headers.elements_len()), (0, 0, 0));
+  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (0, 0, 0));
 }
 #[track_caller]
 fn _1(body: &[u8], headers: &Headers) {
-  assert_eq!((body.len(), headers.bytes_len(), headers.elements_len()), (0, 6, 1));
+  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (0, 6, 1));
 }
 #[track_caller]
 fn _2(body: &[u8], headers: &Headers) {
-  assert_eq!((body.len(), headers.bytes_len(), headers.elements_len()), (3, 0, 0));
+  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (3, 0, 0));
 }
 #[track_caller]
 fn _3(body: &[u8], headers: &Headers) {
-  assert_eq!((body.len(), headers.bytes_len(), headers.elements_len()), (3, 6, 1));
+  assert_eq!((body.len(), headers.bytes_len(), headers.headers_len()), (3, 6, 1));
 }
