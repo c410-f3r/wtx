@@ -94,19 +94,8 @@ where
   T: serde::Serialize,
 {
   use serde::ser::SerializeSeq;
-
-  fn iterator_len_hint<I>(iter: &I) -> Option<usize>
-  where
-    I: Iterator,
-  {
-    match iter.size_hint() {
-      (lo, Some(hi)) if lo == hi => Some(lo),
-      _ => None,
-    }
-  }
-
   let iter = into_iter.into_iter();
-  let mut sq = ser.serialize_seq(iterator_len_hint(&iter))?;
+  let mut sq = ser.serialize_seq(_conservative_size_hint_len(iter.size_hint()))?;
   for elem in iter {
     sq.serialize_element(&elem?)?;
   }
@@ -216,6 +205,14 @@ pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
       buffer[3] = shift(number, 0) & MASK6 | CONTINUATION;
       buffer
     }
+  }
+}
+
+#[inline]
+pub(crate) fn _conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
+  match size_hint {
+    (lo, Some(hi)) if lo == hi => Some(lo),
+    _ => None,
   }
 }
 

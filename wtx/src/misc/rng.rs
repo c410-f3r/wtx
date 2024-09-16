@@ -2,22 +2,20 @@
 
 #[cfg(feature = "fastrand")]
 mod fastrand;
+mod no_std_rng;
 #[cfg(feature = "rand")]
 mod rand;
 #[cfg(feature = "std")]
-mod std;
-
-use crate::misc::{FromRadix10, Usize};
+mod std_rng;
 
 #[cfg(feature = "std")]
-pub use self::std::{StdRng, StdRngSync};
-use alloc::boxed::Box;
+pub use self::std_rng::{StdRng, StdRngSync};
+use crate::misc::Usize;
 use core::{
   cell::Cell,
   ops::{Bound, RangeBounds},
-  panic::Location,
-  ptr,
 };
+pub use no_std_rng::NoStdRng;
 
 /// Allows the creation of random instances.
 pub trait FromRng<RNG>
@@ -207,60 +205,6 @@ where
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     (*self).u8_16()
-  }
-}
-
-/// Uses a combination of weak strategies that will likely result in poor results.
-///
-/// 1. The pointer of a heap allocation.
-/// 2. The number provided by the static `WTX_NO_STD_RNG_SEED` environment variable (if available).
-/// 3. The line and column of the caller location.
-#[derive(Clone, Copy, Debug)]
-pub struct NoStdRng(u64);
-
-impl Rng for NoStdRng {
-  #[inline]
-  fn u8(&mut self) -> u8 {
-    xor_u8(&mut self.0)
-  }
-
-  #[inline]
-  fn u8_4(&mut self) -> [u8; 4] {
-    xor_u8_4(&mut self.0)
-  }
-
-  #[inline]
-  fn u8_8(&mut self) -> [u8; 8] {
-    xor_u8_8(&mut self.0)
-  }
-
-  #[inline]
-  fn u8_16(&mut self) -> [u8; 16] {
-    xor_u8_16(&mut self.0)
-  }
-}
-
-impl Default for NoStdRng {
-  #[inline]
-  #[track_caller]
-  fn default() -> Self {
-    struct Foo {
-      _bar: usize,
-      _baz: usize,
-    }
-    let elem = Box::new(Foo { _bar: 1, _baz: 2 });
-    let ref_ptr = ptr::addr_of!(elem).cast();
-    // SAFETY: Memory validation is not relevant
-    let mut n = Usize::from_usize(unsafe { *ref_ptr }).into_u64();
-    n = n.wrapping_add(11_400_714_819_323_198_485);
-    if let Some(env) =
-      option_env!("WTX_NO_STD_RNG_SEED").and_then(|el| u64::from_radix_10(el.as_bytes()).ok())
-    {
-      n = n.wrapping_add(env);
-    }
-    let location = Location::caller();
-    n ^= n << (u64::from(location.column().wrapping_add(location.line())) % 17);
-    Self(n)
   }
 }
 

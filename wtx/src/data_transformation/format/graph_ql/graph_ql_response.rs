@@ -118,16 +118,19 @@ mod serde {
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::{
-    data_transformation::{dnsn::SerdeJson, format::GraphQlResponse},
+    data_transformation::{
+      dnsn::SerdeJson,
+      format::{misc::collect_using_serde_json, GraphQlResponse},
+    },
     misc::Vector,
   };
-  use serde_json::{de::SliceRead, StreamDeserializer};
+  use serde::{Deserialize, Serialize};
 
   impl<'de, D, E> crate::data_transformation::dnsn::Deserialize<'de, SerdeJson>
     for GraphQlResponse<D, E>
   where
-    D: serde::Deserialize<'de>,
-    E: serde::Deserialize<'de>,
+    D: Deserialize<'de>,
+    E: Deserialize<'de>,
   {
     #[inline]
     fn from_bytes(bytes: &'de [u8], _: &mut SerdeJson) -> crate::Result<Self> {
@@ -136,17 +139,18 @@ mod serde_json {
 
     #[inline]
     fn seq_from_bytes(
+      buffer: &mut Vector<Self>,
       bytes: &'de [u8],
       _: &mut SerdeJson,
-    ) -> impl Iterator<Item = crate::Result<Self>> {
-      StreamDeserializer::new(SliceRead::new(bytes)).map(|el| el.map_err(From::from))
+    ) -> crate::Result<()> {
+      collect_using_serde_json(buffer, bytes)
     }
   }
 
   impl<D, E> crate::data_transformation::dnsn::Serialize<SerdeJson> for GraphQlResponse<D, E>
   where
-    D: serde::Serialize,
-    E: serde::Serialize,
+    D: Serialize,
+    E: Serialize,
   {
     #[inline]
     fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {

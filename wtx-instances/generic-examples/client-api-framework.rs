@@ -88,7 +88,7 @@ async fn http_pair(
         rt: RequestThrottling::from_rl(RequestLimit::new(5, Duration::from_secs(1))),
       },
       SerdeJson,
-      HttpParams::from_uri("ws://generic_web_socket_uri.com:80".into()),
+      HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
     ),
     ClientFrameworkTokio::tokio(1).build(),
   )
@@ -101,14 +101,14 @@ async fn web_socket_pair() -> wtx::Result<
   >,
 > {
   let mut fb = FrameBufferVec::default();
-  let uri: Uri<&str> = Uri::new("ws://generic_web_socket_uri.com:80");
+  let uri = Uri::new("ws://generic_web_socket_uri.com");
   let web_socket = WebSocketClient::connect(
     (),
     &mut fb,
     [],
     &mut HeadersBuffer::default(),
     NoStdRng::default(),
-    TcpStream::connect(uri.host()).await?,
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri,
     WebSocketBuffer::default(),
   )

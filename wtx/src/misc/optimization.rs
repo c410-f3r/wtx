@@ -16,6 +16,18 @@ where
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
+pub fn bytes_rpos1<B>(bytes: B, elem: u8) -> Option<usize>
+where
+  B: Lease<[u8]>,
+{
+  #[cfg(feature = "memchr")]
+  return memchr::memrchr(elem, bytes.lease());
+  #[cfg(not(feature = "memchr"))]
+  return bytes.lease().iter().rposition(|byte| *byte == elem);
+}
+
+/// Internally uses `memchr` if the feature is active.
+#[inline]
 pub fn bytes_rsplit1(bytes: &[u8], elem: u8) -> impl Iterator<Item = &[u8]> {
   #[cfg(feature = "memchr")]
   return memchr::memrchr_iter(elem, bytes)
@@ -102,15 +114,6 @@ pub fn str_pos1(str: &str, elem: u8) -> Option<usize> {
   return memchr::memchr(elem, str.as_bytes());
   #[cfg(not(feature = "memchr"))]
   return str.as_bytes().iter().position(|byte| *byte == elem);
-}
-
-/// Internally uses `memchr` if the feature is active.
-#[inline]
-pub fn str_rpos1(str: &str, elem: u8) -> Option<usize> {
-  #[cfg(feature = "memchr")]
-  return memchr::memrchr(elem, str.as_bytes());
-  #[cfg(not(feature = "memchr"))]
-  return str.as_bytes().iter().rev().position(|byte| *byte == elem);
 }
 
 /// Internally uses `memchr` if the feature is active.

@@ -35,8 +35,8 @@ where
   }
 
   #[inline]
-  fn seq_from_bytes(_: &'de [u8], _: &mut ()) -> impl Iterator<Item = crate::Result<Self>> {
-    [].into_iter()
+  fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut ()) -> crate::Result<()> {
+    Ok(())
   }
 }
 
@@ -245,16 +245,17 @@ mod serde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use serde_json::{de::SliceRead, StreamDeserializer};
-
   use crate::{
-    data_transformation::{dnsn::SerdeJson, format::JsonRpcResponse},
+    data_transformation::{
+      dnsn::SerdeJson,
+      format::{misc::collect_using_serde_json, JsonRpcResponse},
+    },
     misc::Vector,
   };
 
   impl<'de, R> crate::data_transformation::dnsn::Deserialize<'de, SerdeJson> for JsonRpcResponse<R>
   where
-    R: for<'serde_de> serde::Deserialize<'serde_de>,
+    R: serde::Deserialize<'de>,
   {
     #[inline]
     fn from_bytes(bytes: &'de [u8], _: &mut SerdeJson) -> crate::Result<Self> {
@@ -263,10 +264,11 @@ mod serde_json {
 
     #[inline]
     fn seq_from_bytes(
+      buffer: &mut Vector<Self>,
       bytes: &'de [u8],
       _: &mut SerdeJson,
-    ) -> impl Iterator<Item = crate::Result<Self>> {
-      StreamDeserializer::new(SliceRead::new(bytes)).map(|el| el.map_err(crate::Error::from))
+    ) -> crate::Result<()> {
+      collect_using_serde_json(buffer, bytes)
     }
   }
 

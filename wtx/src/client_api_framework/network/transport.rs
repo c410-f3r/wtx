@@ -19,7 +19,7 @@ use crate::{
     Api,
   },
   data_transformation::dnsn::{Deserialize, Serialize},
-  misc::Lease,
+  misc::{Lease, Vector},
 };
 pub use bi_transport::*;
 use core::{future::Future, ops::Range};
@@ -69,14 +69,10 @@ pub trait Transport<DRSR> {
   #[inline]
   fn send_recv_decode_batch<'pkgs, 'pkgs_aux, A, P>(
     &mut self,
+    buffer: &mut Vector<P::ExternalResponseContent<'pkgs_aux>>,
     pkgs: &'pkgs mut [P],
     pkgs_aux: &'pkgs_aux mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<
-    Output = Result<
-      impl Iterator<Item = crate::Result<P::ExternalResponseContent<'pkgs_aux>>>,
-      A::Error,
-    >,
-  >
+  ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api,
     P: Package<A, DRSR, Self::Params>,
@@ -85,10 +81,12 @@ pub trait Transport<DRSR> {
     async {
       let range = self.send_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      Ok(P::ExternalResponseContent::seq_from_bytes(
+      P::ExternalResponseContent::seq_from_bytes(
+        buffer,
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,
-      ))
+      )?;
+      Ok(())
     }
   }
 
@@ -217,8 +215,8 @@ mod tests {
     }
 
     #[inline]
-    fn seq_from_bytes(_: &'de [u8], _: &mut DRSR) -> impl Iterator<Item = crate::Result<Self>> {
-      [].into_iter()
+    fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut DRSR) -> crate::Result<()> {
+      Ok(())
     }
   }
 }

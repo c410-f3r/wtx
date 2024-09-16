@@ -19,14 +19,14 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
 
   let var = std::env::var(DEFAULT_URI_VAR)?;
   let uri = UriRef::new(&var);
-  match uri.schema() {
+  match uri.scheme() {
     "postgres" | "postgresql" => {
       let mut rng = StdRng::default();
       let executor = Executor::connect(
         &Config::from_uri(&uri)?,
         ExecutorBuffer::with_default_params(&mut rng)?,
         &mut rng,
-        TcpStream::connect(uri.host()).await.map_err(wtx::Error::from)?,
+        TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(wtx::Error::from)?,
       )
       .await?;
       handle_commands(executor, &sm).await?;

@@ -8,6 +8,7 @@ use core::marker::PhantomData;
 /// Internal resource used in every new instance of `Http2`.
 #[derive(Debug)]
 pub struct Http2Data<HB, RRB, SW, const IS_CLIENT: bool> {
+  frame_reader_error: Option<crate::Error>,
   hb: HB,
   hp: Http2Params,
   hps: Http2ParamsSend,
@@ -29,6 +30,7 @@ where
     let hps = Http2ParamsSend::default();
     let windows = Windows::initial(&hp, &hps);
     Self {
+      frame_reader_error: None,
       hb,
       hp,
       hps,
@@ -43,6 +45,7 @@ where
   #[inline]
   pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, RRB, SW> {
     Http2DataPartsMut {
+      frame_reader_error: &mut self.frame_reader_error,
       hb: self.hb.lease_mut(),
       hp: &mut self.hp,
       hps: &mut self.hps,
@@ -73,6 +76,7 @@ impl<HB, RRB, SW, const IS_CLIENT: bool> LeaseMut<Http2Data<HB, RRB, SW, IS_CLIE
 }
 
 pub(crate) struct Http2DataPartsMut<'instance, RRB, SW> {
+  pub(crate) frame_reader_error: &'instance mut Option<crate::Error>,
   pub(crate) hb: &'instance mut Http2Buffer<RRB>,
   pub(crate) hp: &'instance mut Http2Params,
   pub(crate) hps: &'instance mut Http2ParamsSend,

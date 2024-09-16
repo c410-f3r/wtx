@@ -89,7 +89,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Clears the vector, removing all values.
   #[inline]
-  pub const fn clear(&mut self) {
+  pub fn clear(&mut self) {
     self.len = 0;
   }
 
@@ -108,7 +108,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Return the inner fixed size array, if the capacity is full.
   #[inline]
-  pub const fn into_inner(self) -> Result<[D; N], ArrayVectorError> {
+  pub fn into_inner(self) -> Result<[D; N], ArrayVectorError> {
     if Usize::from_u32(self.len).into_usize() >= N {
       // SAFETY: All elements are initialized
       Ok(unsafe { ptr::read(self.data.as_ptr().cast()) })
@@ -119,7 +119,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Shortens the vector, removing the last element.
   #[inline]
-  pub const fn pop(&mut self) -> bool {
+  pub fn pop(&mut self) -> bool {
     if let Some(elem) = self.len.checked_sub(1) {
       self.len = elem;
       true

@@ -55,7 +55,7 @@ where
 {
   let uri = _uri();
 
-  let listener = TcpListener::bind(uri.host()).await.unwrap();
+  let listener = TcpListener::bind(uri.hostname_with_implied_port()).await.unwrap();
   let _server_jh = tokio::spawn(async move {
     let (stream, _) = listener.accept().await.unwrap();
     let mut fb = FrameBufferVec::with_capacity(0);
@@ -89,7 +89,7 @@ where
     [],
     &mut HeadersBuffer::default(),
     NoStdRng::default(),
-    TcpStream::connect(uri.host()).await.unwrap(),
+    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     &uri.to_ref(),
     WebSocketBuffer::with_capacity(0, 0),
   )

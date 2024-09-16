@@ -19,7 +19,7 @@ pub struct State<'any, CA, RA, RRD> {
 
 impl<'any, CA, RA, RRD> State<'any, CA, RA, RRD> {
   #[inline]
-  pub(crate) const fn new(ca: &'any mut CA, ra: &'any mut RA, req: &'any mut Request<RRD>) -> Self {
+  pub(crate) fn new(ca: &'any mut CA, ra: &'any mut RA, req: &'any mut Request<RRD>) -> Self {
     Self { ca, ra, req }
   }
 }

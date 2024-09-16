@@ -6,8 +6,8 @@ use crate::{
     ResetStreamFrame, Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer, U31,
   },
   misc::{
-    AtomicWaker, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader,
-    StreamWriter, Usize, _read_until,
+    AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
+    Usize, _read_until,
   },
 };
 use core::{
@@ -29,6 +29,14 @@ where
     return Err(protocol_err(Http2Error::InvalidHeaderData));
   }
   Ok(())
+}
+
+#[inline]
+pub(crate) fn frame_reader_rslt(err: &mut Option<crate::Error>) -> crate::Result<()> {
+  match err.take() {
+    Some(elem) => Err(elem),
+    None => Ok(()),
+  }
 }
 
 #[inline]
@@ -54,7 +62,7 @@ pub(crate) fn manage_recurrent_stream_receiving<RRB, SW, T>(
     &mut Http2DataPartsMut<'_, RRB, SW>,
     &StreamOverallRecvParams<RRB>,
   ) -> T,
-) -> Poll<crate::Result<Either<RRB, (RRB, T)>>>
+) -> Poll<crate::Result<(RRB, Option<T>)>>
 where
   RRB: LeaseMut<ReqResBuffer>,
 {
@@ -90,7 +98,8 @@ where
       }
     };
     if let Some(elem) = rrb_opt {
-      return Poll::Ready(Ok(Either::Left(elem)));
+      frame_reader_rslt(hdpm.frame_reader_error)?;
+      return Poll::Ready(Ok((elem, None)));
     }
     return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
   }
@@ -100,7 +109,7 @@ where
         check_content_length(idx, &elem)?;
       }
       let rslt = cb(cx, &mut hdpm, &elem);
-      return Poll::Ready(Ok(Either::Right((elem.rrb, rslt))));
+      return Poll::Ready(Ok((elem.rrb, Some(rslt))));
     }
   } else {
     sorp.waker.clone_from(cx.waker());

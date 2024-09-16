@@ -68,11 +68,12 @@ where
       return Poll::Ready(Ok(None));
     }
     let mut lock = lock_pin!(cx, hd, lock_pin);
+    let hdpm = lock.parts_mut();
     let fut = do_send_msg::<_, _, IS_CLIENT>(
       &mut data_bytes,
       (&mut has_headers, &mut has_data),
       headers,
-      lock.parts_mut(),
+      hdpm,
       (hsreqh, hsresh),
       stream_id,
       cx.waker(),

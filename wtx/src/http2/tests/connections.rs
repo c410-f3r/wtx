@@ -13,24 +13,20 @@ async fn connections() {
   let _rslt = crate::misc::tracing_tree_init(None);
   let uri = _uri();
   server(&uri).await;
-  client(uri).await;
+  client(&uri).await;
 }
 
-async fn client(uri: UriString) {
+async fn client(uri: &UriString) {
   let mut rrb = ReqResBuffer::default();
   rrb.headers.reserve(6, 1).unwrap();
   let (frame_header, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(NoStdRng::default()),
     Http2Params::default(),
-    TcpStream::connect(uri.host()).await.unwrap().into_split(),
+    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap().into_split(),
   )
   .await
   .unwrap();
-  let _jh = tokio::spawn(async {
-    if let Err(err) = frame_header.await {
-      panic!("{:?}", err);
-    }
-  });
+  let _jh = tokio::spawn(frame_header);
 
   let uri_ref = uri.to_ref();
 
@@ -59,7 +55,7 @@ async fn client(uri: UriString) {
 }
 
 async fn server(uri: &UriString) {
-  let listener = TcpListener::bind(uri.host()).await.unwrap();
+  let listener = TcpListener::bind(uri.hostname_with_implied_port()).await.unwrap();
   let _server_jh = tokio::spawn(async move {
     let (stream, _) = listener.accept().await.unwrap();
     let mut rrb = ReqResBuffer::default();
@@ -97,10 +93,10 @@ async fn stream_server(
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
   loop {
-    let Either::Right(mut stream) = server.stream(rrb).await else {
+    let Either::Right(mut stream) = server.stream(rrb).await.unwrap() else {
       panic!();
     };
-    let Ok(Either::Right((mut req_rrb, method))) = stream.recv_req().await else {
+    let (mut req_rrb, Some(method)) = stream.recv_req().await.unwrap() else {
       panic!();
     };
     cb(req_rrb.as_http2_request_mut(method));
@@ -116,10 +112,7 @@ async fn stream_client(
 ) -> ReqResBuffer {
   let mut stream = client.stream().await.unwrap();
   stream.send_req(rrb.as_http2_request(Method::Get), uri).await.unwrap().unwrap();
-  match stream.recv_res(rrb).await.unwrap() {
-    Either::Left(_) => panic!(),
-    Either::Right(elem) => elem.0,
-  }
+  stream.recv_res(rrb).await.unwrap().0
 }
 
 #[track_caller]

@@ -32,6 +32,20 @@ impl Display for VectorError {
   }
 }
 
+impl From<VectorError> for u8 {
+  #[inline]
+  fn from(from: VectorError) -> Self {
+    match from {
+      VectorError::ExtendFromSliceOverflow => 0,
+      VectorError::ExtendFromSlicesOverflow => 1,
+      VectorError::OutOfBoundsInsertIdx => 2,
+      VectorError::PushOverflow => 3,
+      VectorError::ReserveOverflow => 4,
+      VectorError::WithCapacityOverflow => 5,
+    }
+  }
+}
+
 impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.

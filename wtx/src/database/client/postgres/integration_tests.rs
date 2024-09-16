@@ -11,7 +11,7 @@ use crate::{
 use alloc::string::String;
 use tokio::net::TcpStream;
 
-const SCRAM: &str = "postgres://wtx_scram:wtx@localhost:5432/wtx";
+const SCRAM: &str = "postgres://wtx_scram:wtx@localhost/wtx";
 
 #[cfg(feature = "webpki-roots")]
 #[tokio::test]
@@ -21,7 +21,7 @@ async fn conn_scram_tls() {
   let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng).unwrap(),
-    TcpStream::connect(uri.host()).await.unwrap(),
+    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     &mut rng,
     |stream| async {
       Ok(
@@ -438,7 +438,7 @@ async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng).unwrap(),
     &mut rng,
-    TcpStream::connect(uri.host()).await.unwrap(),
+    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
   )
   .await
   .unwrap()

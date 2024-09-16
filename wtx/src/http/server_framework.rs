@@ -25,7 +25,6 @@ use crate::{
 };
 use alloc::sync::Arc;
 pub use conn_aux::ConnAux;
-use core::fmt::Debug;
 pub use cors_middleware::CorsMiddleware;
 pub use endpoint::Endpoint;
 pub use middleware::{ReqMiddleware, ResMiddleware};

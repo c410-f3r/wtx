@@ -41,7 +41,7 @@ async fn main() -> wtx::Result<()> {
       )?,
     ),
   ))?;
-  let rm = PostgresRM::tokio("postgres://USER:PASSWORD@localhost:5432/DB_NAME");
+  let rm = PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME");
   let pool = Pool::new(4, rm);
   ServerFrameworkBuilder::new(router)
     .with_req_aux(move || pool.clone())
