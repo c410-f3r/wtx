@@ -166,7 +166,7 @@ where
   ///
   /// ```rust
   /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
-  /// assert_eq!(uri.href(), "/path?query=value#hash");
+  /// assert_eq!(uri.relative_reference(), "/path?query=value#hash");
   /// ```
   #[inline]
   pub fn relative_reference(&self) -> &str {
@@ -180,7 +180,7 @@ where
   ///
   /// ```rust
   /// let uri = wtx::misc::Uri::new("");
-  /// assert_eq!(uri.href(), "/");
+  /// assert_eq!(uri.relative_reference_slash(), "/");
   /// ```
   #[inline]
   pub fn relative_reference_slash(&self) -> &str {
@@ -196,7 +196,7 @@ where
   ///
   /// ```rust
   /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
-  /// assert_eq!(uri.schema(), "foo");
+  /// assert_eq!(uri.scheme(), "foo");
   /// ```
   #[inline]
   pub fn scheme(&self) -> &str {

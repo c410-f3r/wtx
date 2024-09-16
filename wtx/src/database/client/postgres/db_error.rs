@@ -60,7 +60,7 @@ pub struct DbError {
   message: Range<u32>,
   position: Option<ErrorPosition>,
   routine: Option<Range<u32>>,
-  schema: Option<Range<u32>>,
+  scheme: Option<Range<u32>>,
   severity_localized: Range<u32>,
   severity_nonlocalized: Option<Severity>,
   table: Option<Range<u32>>,
@@ -154,9 +154,9 @@ impl DbError {
   /// If the error was associated with a specific database object, the name of the schema
   /// containing that object, if any.
   #[inline]
-  pub fn schema(&self) -> Option<&str> {
+  pub fn scheme(&self) -> Option<&str> {
     self
-      .schema
+      .scheme
       .as_ref()
       .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
   }
@@ -211,7 +211,7 @@ impl Debug for DbError {
       .field("message", &self.message())
       .field("position", &self.position())
       .field("routine", &self.routine())
-      .field("schema", &self.schema())
+      .field("schema", &self.scheme())
       .field("severity_localized", &self.severity_localized())
       .field("severity_nonlocalized", &self.severity_nonlocalized())
       .field("table", &self.table())
@@ -323,7 +323,7 @@ impl TryFrom<&str> for DbError {
         Some(position) => Some(ErrorPosition::Original(position)),
       },
       routine,
-      schema,
+      scheme: schema,
       table,
       r#where,
     })
