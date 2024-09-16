@@ -8,6 +8,7 @@
 
 mod graph_ql;
 mod json_rpc;
+mod misc;
 mod verbatim;
 
 pub use graph_ql::*;

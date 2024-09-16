@@ -2,14 +2,7 @@
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
 #![doc = include_str!("../README.md")]
-#![feature(
-  const_mut_refs,
-  const_ptr_write,
-  const_refs_to_cell,
-  macro_metavar_expr,
-  noop_waker,
-  return_type_notation
-)]
+#![feature(macro_metavar_expr, noop_waker, return_type_notation, strict_provenance)]
 #![no_std]
 
 extern crate alloc;

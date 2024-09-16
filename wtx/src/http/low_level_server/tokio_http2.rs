@@ -91,20 +91,12 @@ where
   for<'handle> &'handle F: Send,
 {
   let (ca, http2_buffer, http2_params) = conn_cb()?;
-  let (frame_reader, mut http2) =
-    Http2Tokio::accept(http2_buffer, http2_params, stream_cb(local_acceptor, tcp_stream).await?)
-      .await?;
-  {
-    let local_err_cb = err_cb.clone();
-    let _jh = tokio::spawn(async move {
-      if let Err(err) = frame_reader.await {
-        local_err_cb(err.into());
-      }
-    });
-  }
+  let tuple = stream_cb(local_acceptor, tcp_stream).await?;
+  let (frame_reader, mut http2) = Http2Tokio::accept(http2_buffer, http2_params, tuple).await?;
+  let _jh = tokio::spawn(frame_reader);
   loop {
     let (ra, rrb) = req_cb()?;
-    let mut http2_stream = match http2.stream(rrb).await {
+    let mut http2_stream = match http2.stream(rrb).await? {
       Either::Left(_) => return Ok(()),
       Either::Right(elem) => elem,
     };
@@ -113,9 +105,10 @@ where
     let local_err_cb = err_cb.clone();
     let _stream_jh = tokio::spawn(async move {
       let fun = || async {
-        let (local_rrb, method) = match http2_stream.recv_req().await? {
-          Either::Left(_) => return Ok(()),
-          Either::Right(elem) => elem,
+        let (local_rrb, opt) = http2_stream.recv_req().await?;
+        let method = match opt {
+          None => return Ok(()),
+          Some(elem) => elem,
         };
         let req = local_rrb.into_http2_request(method);
         let res = local_handle_cb.call((local_ca, ra, req)).await?;

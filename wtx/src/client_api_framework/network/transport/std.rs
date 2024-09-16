@@ -169,7 +169,7 @@ mod tests {
     let uri_client = _uri();
     let uri_server = uri_client.to_string();
     let _server = tokio::spawn(async move {
-      let tcp_listener = TcpListener::bind(uri_server.host()).unwrap();
+      let tcp_listener = TcpListener::bind(uri_server.hostname_with_implied_port()).unwrap();
       let mut buffer = [0; 8];
       let (mut stream, _) = tcp_listener.accept().unwrap();
       let idx = stream.read(&mut buffer).unwrap();
@@ -177,7 +177,7 @@ mod tests {
     });
     sleep(Duration::from_millis(100)).await.unwrap();
     let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_uri(uri_client.as_str()));
-    let mut trans = TcpStream::connect(uri_client.host()).unwrap();
+    let mut trans = TcpStream::connect(uri_client.hostname_with_implied_port()).unwrap();
     let res = trans.send_recv_decode_contained(&mut _PingPong(_Ping, ()), &mut pa).await.unwrap();
     assert_eq!(res, _Pong("pong"));
   }

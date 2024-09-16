@@ -47,6 +47,10 @@ Anything marked with `#[bench]` in the repository is considered a low-level benc
 
 Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks over different periods of time.
 
+## Examples
+
+Demonstrations of different use-cases can be found in the `wtx-instances` directory as well as in the documentation.
+
 ## Limitations
 
 Does not support systems with 16bit memory addresses and expects the infallible addition of the sizes of 8 allocated chunks of memories, otherwise the program will overflow in certain arithmetic operations involving `usize` potentially resulting in unexpected operations.

@@ -40,7 +40,7 @@ pub async fn executor(
     &Config::from_uri(&uri)?,
     ExecutorBuffer::with_default_params(&mut rng)?,
     &mut rng,
-    TcpStream::connect(uri.host()).await?,
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
   )
   .await
 }

@@ -43,7 +43,7 @@ macro_rules! create_integration_tests {
           let uri = std::env::var(DEFAULT_URI_VAR).unwrap();
           let uri = crate::misc::UriRef::new(&uri);
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
-          let stream = TcpStream::connect(uri.host()).await.unwrap();
+          let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
           let mut rng = NoStdRng::default();
           crate::database::client::postgres::Executor::connect(
             &config,

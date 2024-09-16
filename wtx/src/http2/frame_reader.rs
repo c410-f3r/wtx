@@ -47,8 +47,7 @@ pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
   mut pfb: PartitionedFilledBuffer,
   read_frame_waker: Arc<AtomicWaker>,
   mut stream_reader: SR,
-) -> crate::Result<()>
-where
+) where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
@@ -70,33 +69,38 @@ where
     {
       Err(err) => {
         process_higher_operation_err(&err, &hd).await;
-        finish(&hd, &mut pfb).await;
-        return Err(err);
+        finish(Some(err), &hd, &mut pfb).await;
+        return;
       }
       Ok(None) => {
-        finish(&hd, &mut pfb).await;
-        return Ok(());
+        finish(None, &hd, &mut pfb).await;
+        return;
       }
       Ok(Some(fi)) => fi,
     };
     if let Err(err) = manage_fi(fi, &hd, &is_conn_open, &mut pfb, &mut stream_reader).await {
       process_higher_operation_err(&err, &hd).await;
-      finish(&hd, &mut pfb).await;
-      return Err(err);
+      finish(Some(err), &hd, &mut pfb).await;
     }
   }
 }
 
 #[inline]
-async fn finish<HB, HD, RRB, SW, const IS_CLIENT: bool>(hd: &HD, pfb: &mut PartitionedFilledBuffer)
-where
+async fn finish<HB, HD, RRB, SW, const IS_CLIENT: bool>(
+  err: Option<crate::Error>,
+  hd: &HD,
+  pfb: &mut PartitionedFilledBuffer,
+) where
   HB: LeaseMut<Http2Buffer<RRB>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
   RRB: LeaseMut<ReqResBuffer>,
   SW: StreamWriter,
 {
-  mem::swap(pfb, &mut hd.lock().await.parts_mut().hb.pfb);
+  let mut lock = hd.lock().await;
+  let hdpm = lock.parts_mut();
+  *hdpm.frame_reader_error = err;
+  mem::swap(pfb, &mut hdpm.hb.pfb);
   _trace!("Finishing the reading of frames");
 }
 

@@ -1,11 +1,9 @@
-use core::fmt::Debug;
-
 /// Additional information or metadata received or transmitted by a transport.
 pub trait TransportParams {
   /// For example, HTTP has request headers.
-  type ExternalRequestParams: Debug;
+  type ExternalRequestParams;
   /// For example, HTTP has response headers.
-  type ExternalResponseParams: Debug;
+  type ExternalResponseParams;
 
   /// External Request Parameters.
   fn ext_req_params(&self) -> &Self::ExternalRequestParams;

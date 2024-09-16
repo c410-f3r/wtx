@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::PostgresError,
-  misc::{str_split1, FromRadix10, UriRef},
+  misc::{into_rslt, str_split1, FromRadix10, UriRef},
 };
 use core::time::Duration;
 
@@ -29,17 +29,17 @@ impl<'data> Config<'data> {
       app_name: "",
       channel_binding: ChannelBinding::Prefer,
       connect_timeout: Duration::ZERO,
-      db: uri.href().get(1..).unwrap_or_default(),
+      db: uri.relative_reference().get(1..).unwrap_or_default(),
       host: uri.host(),
       keepalives: true,
       load_balance_hosts: LoadBalanceHosts::Disable,
       password: uri.password(),
-      port: u16::from_radix_10(uri.port().as_bytes())?,
+      port: into_rslt(uri.port())?,
       target_session_attrs: TargetSessionAttrs::Any,
       tcp_user_timeout: Duration::ZERO,
       user: uri.user(),
     };
-    for key_value in str_split1(uri.query(), b'&') {
+    for key_value in str_split1(uri.query_and_fragment(), b'&') {
       let mut iter = str_split1(key_value, b':');
       if let [Some(key), Some(value)] = [iter.next(), iter.next()] {
         this.set_param(key, value)?;

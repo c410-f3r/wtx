@@ -32,8 +32,8 @@ mod borsh {
     }
 
     #[inline]
-    fn seq_from_bytes(_: &'de [u8], _: &mut Borsh) -> impl Iterator<Item = crate::Result<Self>> {
-      [].into_iter()
+    fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut Borsh) -> crate::Result<()> {
+      Ok(())
     }
   }
 
@@ -55,6 +55,7 @@ mod quick_protobuf {
     data_transformation::{
       dnsn::{Deserialize, QuickProtobuf, Serialize},
       format::VerbatimRequest,
+      DataTransformationError,
     },
     misc::Vector,
   };
@@ -71,10 +72,11 @@ mod quick_protobuf {
 
     #[inline]
     fn seq_from_bytes(
+      _: &mut Vector<Self>,
       _: &'de [u8],
       _: &mut QuickProtobuf,
-    ) -> impl Iterator<Item = crate::Result<Self>> {
-      [].into_iter()
+    ) -> crate::Result<()> {
+      Err(DataTransformationError::UnsupportedOperation.into())
     }
   }
 

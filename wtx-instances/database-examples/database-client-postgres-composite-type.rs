@@ -14,7 +14,7 @@ use wtx::database::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = "postgres://USER:PASSWORD@localhost:5432/DATABASE";
+  let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
   let mut executor = wtx_instances::executor(&uri).await?;
   let _ = executor
     .execute_with_stmt(

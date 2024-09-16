@@ -191,13 +191,17 @@ where
   C: Compression<true>,
 {
   let key = gen_key(key_buffer, rng);
-  fbw._extend_from_slices_group_rn(&[b"GET ", uri.href_slash().as_bytes(), b" HTTP/1.1"])?;
+  fbw._extend_from_slices_group_rn(&[
+    b"GET ",
+    uri.relative_reference_slash().as_bytes(),
+    b" HTTP/1.1",
+  ])?;
   for (name, value) in headers {
     fbw._extend_from_slices_group_rn(&[name, b": ", value])?;
   }
   fbw._extend_from_slice_rn(b"Connection: Upgrade")?;
-  match (uri.schema(), uri.port()) {
-    ("http" | "ws", "80") | ("https" | "wss", "443") => {
+  match uri.port() {
+    Some(80 | 443) => {
       fbw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()])?;
     }
     _ => fbw._extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()])?,

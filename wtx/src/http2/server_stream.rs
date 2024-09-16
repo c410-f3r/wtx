@@ -9,7 +9,7 @@ use crate::{
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
     StreamControlRecvParams, U31,
   },
-  misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span, sleep},
+  misc::{Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span, sleep},
 };
 use alloc::sync::Arc;
 use core::{
@@ -54,12 +54,12 @@ where
   ///
   /// Higher operation that awaits for the data necessary to build a request.
   ///
-  /// Returns [`Either::Left`] if the network/stream connection has been closed, either locally
+  /// Returns [`Option::None`] if the network/stream connection has been closed, either locally
   /// or externally.
   ///
   /// Shouldn't be called more than once.
   #[inline]
-  pub async fn recv_req(&mut self) -> crate::Result<Either<RRB, (RRB, Method)>> {
+  pub async fn recv_req(&mut self) -> crate::Result<(RRB, Option<Method>)> {
     let Self { hd, is_conn_open, method, span, stream_id } = self;
     let _e = span._enter();
     _trace!("Receiving request");

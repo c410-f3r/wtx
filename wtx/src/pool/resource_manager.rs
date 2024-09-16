@@ -155,8 +155,12 @@ pub(crate) mod database {
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
         executor!(self.uri, |config, uri| {
           let eb = ExecutorBuffer::with_default_params(&mut &self.rng)?;
-          let stream = TcpStream::connect(uri.host()).await.map_err(Into::into)?;
-          Executor::connect(&config, eb, &mut &self.rng, stream)
+          Executor::connect(
+            &config,
+            eb,
+            &mut &self.rng,
+            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
+          )
         })
       }
 
@@ -174,7 +178,8 @@ pub(crate) mod database {
         let mut buffer = ExecutorBuffer::_empty();
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = executor!(self.uri, |config, uri| {
-          let stream = TcpStream::connect(uri.host()).await.map_err(Into::into)?;
+          let stream =
+            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?;
           Executor::connect(&config, buffer, &mut &self.rng, stream)
         })?;
         Ok(())
@@ -225,7 +230,7 @@ pub(crate) mod database {
           Executor::connect_encrypted(
             &config,
             ExecutorBuffer::with_default_params(&mut &self.rng)?,
-            TcpStream::connect(uri.host()).await.map_err(Into::into)?,
+            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             &mut &self.rng,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;
@@ -255,7 +260,7 @@ pub(crate) mod database {
           Executor::connect_encrypted(
             &config,
             ExecutorBuffer::with_default_params(&mut &self.rng)?,
-            TcpStream::connect(uri.host()).await.map_err(Into::into)?,
+            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             &mut &self.rng,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;

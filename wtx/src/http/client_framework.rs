@@ -13,7 +13,7 @@ mod req_builder;
 use crate::{
   http::{ConnParams, Method, ReqResBuffer, ReqResData, ReqUri, Request, Response},
   http2::{Http2, Http2Buffer, Http2Data, Http2ErrorCode},
-  misc::{Either, LeaseMut, Lock, RefCounter, StreamWriter},
+  misc::{LeaseMut, Lock, RefCounter, StreamWriter},
   pool::{Pool, ResourceManager, SimplePool, SimplePoolResource},
 };
 use core::marker::PhantomData;
@@ -82,9 +82,10 @@ where
     if stream.send_req(Request::http2(method, rrb.lease()), actual_req_uri).await?.is_none() {
       return Err(crate::Error::ClosedConnection);
     }
-    let (res_rrb, status_code) = match stream.recv_res(rrb).await? {
-      Either::Left(_) => return Err(crate::Error::ClosedConnection),
-      Either::Right(elem) => elem,
+    let (res_rrb, opt) = stream.recv_res(rrb).await?;
+    let status_code = match opt {
+      None => return Err(crate::Error::ClosedConnection),
+      Some(elem) => elem,
     };
     Ok(Response::http2(res_rrb, status_code))
   }
@@ -135,7 +136,7 @@ mod tokio {
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
         self._cp.to_hp(),
-        TcpStream::connect(uri.host()).await?.into_split(),
+        TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
       .await?;
       let _jh = tokio::spawn(frame_reader);
@@ -159,7 +160,7 @@ mod tokio {
       let (frame_reader, http2) = Http2Tokio::connect(
         buffer,
         self._cp.to_hp(),
-        TcpStream::connect(uri.host()).await?.into_split(),
+        TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
       .await?;
       let _jh = tokio::spawn(frame_reader);
@@ -216,7 +217,10 @@ mod tokio_rustls {
         tokio::io::split(
           TokioRustlsConnector::from_auto()?
             .http2()
-            .connect_without_client_auth(uri.hostname(), TcpStream::connect(uri.host()).await?)
+            .connect_without_client_auth(
+              uri.hostname(),
+              TcpStream::connect(uri.hostname_with_implied_port()).await?,
+            )
             .await?,
         ),
       )
@@ -245,7 +249,10 @@ mod tokio_rustls {
         tokio::io::split(
           TokioRustlsConnector::from_auto()?
             .http2()
-            .connect_without_client_auth(uri.hostname(), TcpStream::connect(uri.host()).await?)
+            .connect_without_client_auth(
+              uri.hostname(),
+              TcpStream::connect(uri.hostname_with_implied_port()).await?,
+            )
             .await?,
         ),
       )

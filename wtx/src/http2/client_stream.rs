@@ -2,14 +2,14 @@ use crate::{
   http::{ReqResBuffer, ReqResData, ReqUri, Request, StatusCode},
   http2::{
     misc::{
-      manage_initial_stream_receiving, manage_recurrent_stream_receiving,
+      frame_reader_rslt, manage_initial_stream_receiving, manage_recurrent_stream_receiving,
       process_higher_operation_err, send_go_away, send_reset_stream,
     },
     send_msg::send_msg,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
     StreamOverallRecvParams, StreamState, Windows, U31,
   },
-  misc::{Either, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
+  misc::{Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
 };
 use alloc::sync::Arc;
 use core::{
@@ -55,12 +55,12 @@ where
   /// Higher operation that awaits for the data necessary to build a response and then closes the
   /// stream.
   ///
-  /// Returns [`Either::Left`] if the network/stream connection has been closed, either locally
+  /// Returns [`Option::None`] if the network/stream connection has been closed, either locally
   /// or externally.
   ///
   /// Should be called after [`Self::send_req`] is successfully executed.
   #[inline]
-  pub async fn recv_res(&mut self, rrb: RRB) -> crate::Result<Either<RRB, (RRB, StatusCode)>> {
+  pub async fn recv_res(&mut self, rrb: RRB) -> crate::Result<(RRB, Option<StatusCode>)> {
     let rrb_opt = &mut Some(rrb);
     let Self { hd, is_conn_open, span, stream_id, windows } = self;
     let _e = span._enter();
@@ -71,7 +71,8 @@ where
       let hdpm = lock.parts_mut();
       if let Some(mut elem) = rrb_opt.take() {
         if !manage_initial_stream_receiving(is_conn_open, &mut elem) {
-          return Poll::Ready(Ok(Either::Left(elem)));
+          frame_reader_rslt(hdpm.frame_reader_error)?;
+          return Poll::Ready(Ok((elem, None)));
         }
         drop(hdpm.hb.sorp.insert(
           *stream_id,
@@ -140,9 +141,9 @@ where
         HpackStaticRequestHeaders {
           authority: uri.authority().as_bytes(),
           method: Some(req.method),
-          path: uri.href_slash().as_bytes(),
+          path: uri.relative_reference_slash().as_bytes(),
           protocol: None,
-          scheme: uri.schema().as_bytes(),
+          scheme: uri.scheme().as_bytes(),
         },
         HpackStaticResponseHeaders::EMPTY,
       ),

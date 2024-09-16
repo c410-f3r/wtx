@@ -47,7 +47,8 @@ mod window_update_frame;
 use crate::{
   http::ReqResBuffer,
   http2::misc::{
-    manage_initial_stream_receiving, process_higher_operation_err, protocol_err, write_array,
+    frame_reader_rslt, manage_initial_stream_receiving, process_higher_operation_err, protocol_err,
+    write_array,
   },
   misc::{
     AtomicWaker, ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter,
@@ -203,7 +204,7 @@ where
     mut hb: HB,
     hp: Http2Params,
     (mut stream_reader, mut stream_writer): (SR, SW),
-  ) -> crate::Result<(impl Future<Output = crate::Result<()>>, Self)>
+  ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {
@@ -238,7 +239,7 @@ where
   /// Returns [`Either::Left`] if the network connection has been closed, either locally
   /// or externally.
   #[inline]
-  pub async fn stream(&mut self, rrb: RRB) -> Either<Option<RRB>, ServerStream<HD>> {
+  pub async fn stream(&mut self, rrb: RRB) -> crate::Result<Either<Option<RRB>, ServerStream<HD>>> {
     let Self { hd, is_conn_open } = self;
     let rrb_opt = &mut Some(rrb);
     let mut lock_pin = pin!(hd.lock());
@@ -247,15 +248,17 @@ where
       let hdpm = lock.parts_mut();
       if let Some(mut elem) = rrb_opt.take() {
         if !manage_initial_stream_receiving(is_conn_open, &mut elem) {
-          return Poll::Ready(Either::Left(Some(elem)));
+          let rslt = frame_reader_rslt(hdpm.frame_reader_error);
+          return Poll::Ready(Either::Left((Some(elem), rslt)));
         }
         hdpm.hb.initial_server_header_buffers.push_back((elem, cx.waker().clone()));
         Poll::Pending
       } else {
         if !is_conn_open.load(Ordering::Relaxed) {
-          return Poll::Ready(Either::Left(
+          return Poll::Ready(Either::Left((
             hdpm.hb.initial_server_header_buffers.pop_front().map(|el| el.0),
-          ));
+            frame_reader_rslt(hdpm.frame_reader_error),
+          )));
         }
         let Some((method, stream_id)) = hdpm.hb.initial_server_header_params.pop_front() else {
           return Poll::Pending;
@@ -265,14 +268,17 @@ where
     })
     .await
     {
-      Either::Left(elem) => Either::Left(elem),
-      Either::Right((method, stream_id)) => Either::Right(ServerStream::new(
+      Either::Left(elem) => {
+        elem.1?;
+        Ok(Either::Left(elem.0))
+      }
+      Either::Right((method, stream_id)) => Ok(Either::Right(ServerStream::new(
         hd.clone(),
         Arc::clone(is_conn_open),
         method,
         _trace_span!("New server stream", stream_id = %stream_id),
         stream_id,
-      )),
+      ))),
     }
   }
 }
@@ -291,7 +297,7 @@ where
     mut hb: HB,
     hp: Http2Params,
     (stream_reader, mut stream_writer): (SR, SW),
-  ) -> crate::Result<(impl Future<Output = crate::Result<()>>, Self)>
+  ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {

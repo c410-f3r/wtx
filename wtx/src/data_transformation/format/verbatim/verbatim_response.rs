@@ -5,6 +5,8 @@ use crate::{
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[doc = generic_data_format_doc!("verbatim response")]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 pub struct VerbatimResponse<D> {
   /// Actual data
   pub data: D,
@@ -20,8 +22,8 @@ where
   }
 
   #[inline]
-  fn seq_from_bytes(_: &'de [u8], _: &mut ()) -> impl Iterator<Item = crate::Result<Self>> {
-    [].into_iter()
+  fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut ()) -> crate::Result<()> {
+    Ok(())
   }
 }
 
@@ -34,7 +36,10 @@ impl<D> Serialize<()> for VerbatimResponse<D> {
 
 #[cfg(feature = "borsh")]
 mod borsh {
-  use crate::data_transformation::{dnsn::Borsh, format::VerbatimResponse};
+  use crate::{
+    data_transformation::{dnsn::Borsh, format::VerbatimResponse, DataTransformationError},
+    misc::Vector,
+  };
   use borsh::BorshDeserialize;
 
   impl<'de, D> crate::data_transformation::dnsn::Deserialize<'de, Borsh> for VerbatimResponse<D>
@@ -47,8 +52,8 @@ mod borsh {
     }
 
     #[inline]
-    fn seq_from_bytes(_: &'de [u8], _: &mut Borsh) -> impl Iterator<Item = crate::Result<Self>> {
-      [].into_iter()
+    fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut Borsh) -> crate::Result<()> {
+      Err(DataTransformationError::UnsupportedOperation.into())
     }
   }
 }
@@ -59,6 +64,7 @@ mod quick_protobuf {
     data_transformation::{
       dnsn::{Deserialize, QuickProtobuf, Serialize},
       format::VerbatimResponse,
+      DataTransformationError,
     },
     misc::Vector,
   };
@@ -75,10 +81,11 @@ mod quick_protobuf {
 
     #[inline]
     fn seq_from_bytes(
+      _: &mut Vector<Self>,
       _: &'de [u8],
       _: &mut QuickProtobuf,
-    ) -> impl Iterator<Item = crate::Result<Self>> {
-      [].into_iter()
+    ) -> crate::Result<()> {
+      Err(DataTransformationError::UnsupportedOperation.into())
     }
   }
 
@@ -97,10 +104,12 @@ mod quick_protobuf {
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::{
-    data_transformation::{dnsn::SerdeJson, format::VerbatimResponse},
+    data_transformation::{
+      dnsn::SerdeJson,
+      format::{misc::collect_using_serde_json, VerbatimResponse},
+    },
     misc::Vector,
   };
-  use serde_json::{de::SliceRead, StreamDeserializer};
 
   impl<'de, D> crate::data_transformation::dnsn::Deserialize<'de, SerdeJson> for VerbatimResponse<D>
   where
@@ -113,11 +122,11 @@ mod serde_json {
 
     #[inline]
     fn seq_from_bytes(
+      buffer: &mut Vector<Self>,
       bytes: &'de [u8],
       _: &mut SerdeJson,
-    ) -> impl Iterator<Item = crate::Result<Self>> {
-      StreamDeserializer::new(SliceRead::new(bytes))
-        .map(|el| el.map(|data| VerbatimResponse { data }).map_err(From::from))
+    ) -> crate::Result<()> {
+      collect_using_serde_json(buffer, bytes)
     }
   }
 

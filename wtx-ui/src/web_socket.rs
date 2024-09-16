@@ -20,7 +20,7 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
     [],
     &mut HeadersBuffer::default(),
     StdRng::default(),
-    TcpStream::connect(uri.host()).await?,
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri,
     wsb,
   )
@@ -53,7 +53,7 @@ pub(crate) async fn serve(
   str: fn(&str),
 ) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
-  let listener = TcpListener::bind(uri.host()).await?;
+  let listener = TcpListener::bind(uri.hostname_with_implied_port()).await?;
   loop {
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {

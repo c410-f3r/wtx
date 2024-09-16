@@ -20,7 +20,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = Uri::new("ws://www.example.com:80");
+  let uri = Uri::new("ws://www.example.com");
   let fb = &mut FrameBufferVec::default();
   let (_, mut ws) = WebSocketClient::connect(
     (),
@@ -28,7 +28,7 @@ async fn main() -> wtx::Result<()> {
     [],
     &mut HeadersBuffer::default(),
     StdRng::default(),
-    TcpStream::connect(uri.host()).await?,
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri.to_ref(),
     WebSocketBuffer::default(),
   )
