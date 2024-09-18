@@ -9,7 +9,7 @@ macro_rules! _local_write_all_vectored {
         match $write_many {
           Err(e) => return Err(e.into()),
           Ok(0) => return Err(crate::Error::UnexpectedStreamWriteEOF),
-          Ok(n) => crate::misc::stream::advance_slices(&mut &$bytes[..], &mut $io_slices, n),
+          Ok(n) => std::io::IoSlice::advance_slices(&mut $io_slices, n),
         }
       }
     }
@@ -36,38 +36,6 @@ pub use stream_writer::StreamWriter;
 pub trait Stream: StreamReader + StreamWriter {}
 
 impl<T> Stream for T where T: StreamReader + StreamWriter {}
-
-#[expect(clippy::mut_mut, reason = "false-positive")]
-#[cfg(feature = "std")]
-#[inline]
-fn advance_slices<'bytes>(
-  bytes: &mut &[&'bytes [u8]],
-  io_slices: &mut &mut [::std::io::IoSlice<'bytes>],
-  written: usize,
-) {
-  let mut first_slice_idx = written;
-  let mut slices_idx: usize = 0;
-  for io_slice in io_slices.iter() {
-    let Some(diff) = first_slice_idx.checked_sub(io_slice.len()) else {
-      break;
-    };
-    first_slice_idx = diff;
-    slices_idx = slices_idx.wrapping_add(1);
-  }
-  let Some((local_bytes @ [first_bytes, ..], local_io_slices)) = bytes
-    .get(slices_idx..)
-    .and_then(|el| Some((el, core::mem::take(io_slices).get_mut(slices_idx..)?)))
-  else {
-    return;
-  };
-  *bytes = local_bytes;
-  *io_slices = local_io_slices;
-  let [first_io_slices, ..] = io_slices else {
-    return;
-  };
-  let slice = first_bytes.get(first_slice_idx..).unwrap_or_default();
-  *first_io_slices = ::std::io::IoSlice::new(slice);
-}
 
 #[cfg(feature = "std")]
 #[inline]

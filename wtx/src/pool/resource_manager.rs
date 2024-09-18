@@ -94,6 +94,7 @@ where
 #[cfg(feature = "postgres")]
 pub(crate) mod database {
   use crate::misc::StdRngSync;
+  use alloc::string::String;
   use core::marker::PhantomData;
 
   /// Manages generic database executors.
@@ -103,7 +104,7 @@ pub(crate) mod database {
     error: PhantomData<fn() -> E>,
     rng: StdRngSync,
     stream: PhantomData<S>,
-    uri: &'static str,
+    uri: String,
   }
 
   macro_rules! executor {
@@ -125,13 +126,14 @@ pub(crate) mod database {
       misc::StdRngSync,
       pool::{PostgresRM, ResourceManager},
     };
+    use alloc::string::String;
     use core::{marker::PhantomData, mem};
     use tokio::net::TcpStream;
 
     impl<E> PostgresRM<E, TcpStream> {
       /// Resource manager using the `tokio` project.
       #[inline]
-      pub fn tokio(uri: &'static str) -> Self {
+      pub fn tokio(uri: String) -> Self {
         Self {
           _certs: None,
           error: PhantomData,
@@ -153,7 +155,7 @@ pub(crate) mod database {
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-        executor!(self.uri, |config, uri| {
+        executor!(&self.uri, |config, uri| {
           let eb = ExecutorBuffer::with_default_params(&mut &self.rng)?;
           Executor::connect(
             &config,
@@ -177,7 +179,7 @@ pub(crate) mod database {
       ) -> Result<(), Self::Error> {
         let mut buffer = ExecutorBuffer::_empty();
         mem::swap(&mut buffer, &mut resource.eb);
-        *resource = executor!(self.uri, |config, uri| {
+        *resource = executor!(&self.uri, |config, uri| {
           let stream =
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?;
           Executor::connect(&config, buffer, &mut &self.rng, stream)
@@ -197,6 +199,7 @@ pub(crate) mod database {
       misc::{StdRngSync, TokioRustlsConnector},
       pool::{PostgresRM, ResourceManager},
     };
+    use alloc::string::String;
     use core::{marker::PhantomData, mem};
     use tokio::net::TcpStream;
     use tokio_rustls::client::TlsStream;
@@ -204,7 +207,7 @@ pub(crate) mod database {
     impl<E> PostgresRM<E, TlsStream<TcpStream>> {
       /// Resource manager using the `tokio-rustls` project.
       #[inline]
-      pub fn tokio_rustls(certs: Option<&'static [u8]>, uri: &'static str) -> Self {
+      pub fn tokio_rustls(certs: Option<&'static [u8]>, uri: String) -> Self {
         Self {
           _certs: certs,
           error: PhantomData,
@@ -226,7 +229,7 @@ pub(crate) mod database {
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-        executor!(self.uri, |config, uri| {
+        executor!(&self.uri, |config, uri| {
           Executor::connect_encrypted(
             &config,
             ExecutorBuffer::with_default_params(&mut &self.rng)?,
@@ -256,7 +259,7 @@ pub(crate) mod database {
       ) -> Result<(), Self::Error> {
         let mut buffer = ExecutorBuffer::_empty();
         mem::swap(&mut buffer, &mut resource.eb);
-        *resource = executor!(self.uri, |config, uri| {
+        *resource = executor!(&self.uri, |config, uri| {
           Executor::connect_encrypted(
             &config,
             ExecutorBuffer::with_default_params(&mut &self.rng)?,

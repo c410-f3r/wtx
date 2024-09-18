@@ -52,6 +52,7 @@ impl core::error::Error for VectorError {}
 #[cfg_attr(feature = "test-strategy", derive(test_strategy::Arbitrary))]
 #[cfg_attr(feature = "test-strategy", arbitrary(bound(D: proptest::arbitrary::Arbitrary + 'static)))]
 #[derive(Clone, Eq, PartialEq)]
+#[repr(transparent)]
 pub struct Vector<D> {
   data: Vec<D>,
 }
