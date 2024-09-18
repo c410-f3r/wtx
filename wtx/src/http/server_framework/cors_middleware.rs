@@ -1,6 +1,7 @@
 use crate::{
   http::{
-    server_framework::ResMiddleware, Header, KnownHeaderName, Method, ReqResDataMut, Response,
+    server_framework::{ConnAux, ResMiddleware},
+    Header, KnownHeaderName, Method, ReqResDataMut, Response,
   },
   misc::ArrayVector,
 };
@@ -103,6 +104,15 @@ impl CorsMiddleware {
   pub fn max_age(mut self, elem: u32) -> Self {
     self.max_age = Some(elem);
     self
+  }
+}
+
+impl ConnAux for CorsMiddleware {
+  type Init = CorsMiddleware;
+
+  #[inline]
+  fn conn_aux(init: Self::Init) -> crate::Result<Self> {
+    Ok(init)
   }
 }
 

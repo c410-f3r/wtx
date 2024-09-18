@@ -58,7 +58,7 @@ async fn main() -> wtx::Result<()> {
     (SessionDecoder::new(), SessionEnforcer::new([LOGIN, LOGOUT])),
     (),
   )?;
-  let pool = Pool::new(4, PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME"));
+  let pool = Pool::new(4, PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into()));
   let mut rng = StdRng::default();
   let mut key = [0; 16];
   rng.fill_slice(&mut key);

@@ -15,6 +15,11 @@ impl<RRD> Request<RRD>
 where
   RRD: ReqResData,
 {
+  #[inline]
+  pub(crate) fn _new(method: Method, rrd: RRD, version: Version) -> Self {
+    Self { method, rrd, version }
+  }
+
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
   pub fn http2(method: Method, rrd: RRD) -> Self {

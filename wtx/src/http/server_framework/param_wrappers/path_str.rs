@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::{param_wrappers::manage_path, Endpoint, ResFinalizer},
-    ReqResDataMut, Request, StatusCode,
+    server_framework::{param_wrappers::manage_path, Endpoint, ResFinalizer, StateClean},
+    Headers, ReqResDataMut, Request, StatusCode,
   },
   misc::{FnFut, FnFutWrapper},
 };
@@ -32,5 +32,31 @@ where
     let uri = req.rrd.uri();
     let path = manage_path(path_defs, &uri).map_err(From::from)?;
     self.0.call((PathStr(path),)).await.finalize_response(req)
+  }
+}
+
+impl<CA, E, F, RA, RES, RRD> Endpoint<CA, E, RA, RRD>
+  for FnFutWrapper<(StateClean<'_, CA, RA, (&mut RRD::Body, &mut Headers)>, PathStr<'_>), F>
+where
+  E: From<crate::Error>,
+  F: for<'any> FnFut<
+    (StateClean<'any, CA, RA, (&'any mut RRD::Body, &'any mut Headers)>, PathStr<'any>),
+    Result = RES,
+  >,
+  RES: ResFinalizer<E, RRD>,
+  RRD: ReqResDataMut,
+{
+  #[inline]
+  async fn call(
+    &self,
+    ca: &mut CA,
+    path_defs: (u8, &[(&'static str, u8)]),
+    ra: &mut RA,
+    req: &mut Request<RRD>,
+  ) -> Result<StatusCode, E> {
+    let (body, headers, uri) = req.rrd.parts_mut();
+    let mut new_req = Request::_new(req.method, (body, headers), req.version);
+    let path = manage_path(path_defs, &uri).map_err(From::from)?;
+    self.0.call((StateClean::new(ca, ra, &mut new_req), PathStr(path))).await.finalize_response(req)
   }
 }

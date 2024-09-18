@@ -128,7 +128,7 @@ where
     RRD::Body: Lease<[u8]>,
   {
     let _e = self.span._enter();
-    _trace!("Sending response");
+    _trace!("Sending request");
     let uri = match req_uri.into() {
       ReqUri::Data => &req.rrd.uri(),
       ReqUri::Param(elem) => elem,
