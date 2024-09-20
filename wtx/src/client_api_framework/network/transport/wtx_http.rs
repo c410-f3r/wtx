@@ -146,7 +146,7 @@ where
       [elem._as_str().as_bytes()],
     ))?;
   }
-  let mut rrb = ReqResBuffer::default();
+  let mut rrb = ReqResBuffer::empty();
   mem::swap(&mut rrb.data, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut rrb.headers, headers);
   let mut res = (*client).send(*method, rrb, &uri.to_ref()).await?;

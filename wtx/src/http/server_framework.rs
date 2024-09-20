@@ -75,7 +75,7 @@ where
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(StdRng::default()), cp.to_hp())),
       err_cb,
       Self::handle,
-      move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::default())),
+      move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
       (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
     )
     .await
@@ -96,7 +96,7 @@ where
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(StdRng::default()), cp.to_hp())),
       err_cb,
       Self::handle,
-      move || Ok(((ra_cb.clone(), router.clone()), ReqResBuffer::default())),
+      move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
       (
         || {
           crate::misc::TokioRustlsAcceptor::without_client_auth()

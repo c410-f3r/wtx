@@ -19,16 +19,18 @@ where
     ra: &mut GrpcManager<DRSR>,
     res: Response<&mut RRD>,
   ) -> Result<(), E> {
-    res.rrd.headers_mut().push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::ContentType.into(),
-      [Mime::Grpc.as_str().as_bytes()],
-    ))?;
-    res.rrd.headers_mut().push_from_iter(Header {
-      is_sensitive: false,
-      is_trailer: true,
-      name: b"grpc-status",
-      value: [ra.status_code_mut().number_as_str().as_bytes()],
-    })?;
+    res.rrd.headers_mut().push_from_iter_many([
+      Header::from_name_and_value(
+        KnownHeaderName::ContentType.into(),
+        [Mime::Grpc.as_str().as_bytes()].into_iter(),
+      ),
+      Header {
+        is_sensitive: false,
+        is_trailer: true,
+        name: b"grpc-status",
+        value: [ra.status_code_mut().number_as_str().as_bytes()].into_iter(),
+      },
+    ])?;
     Ok(())
   }
 }

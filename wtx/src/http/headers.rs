@@ -154,7 +154,7 @@ impl Headers {
   /// headers.push_from_fmt(Header::from_name_and_value(b"name", format_args!("{}", 1))).unwrap();
   /// assert_eq!(headers.get_by_idx(0).unwrap(), Header::from_name_and_value(b"name", "1".as_bytes()));
   /// ```
-  #[inline]
+  #[inline(always)]
   pub fn push_from_fmt(&mut self, header: Header<'_, Arguments<'_>>) -> crate::Result<()> {
     let header_begin = self.bytes.len();
     #[cfg(feature = "std")]
@@ -188,7 +188,7 @@ impl Headers {
   /// headers.push_from_iter(Header::from_name_and_value(b"name", ["value0".as_bytes(), "_value1".as_bytes()])).unwrap();
   /// assert_eq!(headers.get_by_idx(0).unwrap(), Header::from_name_and_value(b"name", "value0_value1".as_bytes()));
   /// ```
-  #[inline]
+  #[inline(always)]
   pub fn push_from_iter<'bytes, V>(&mut self, header: Header<'bytes, V>) -> crate::Result<()>
   where
     V: IntoIterator<Item = &'bytes [u8]>,
@@ -206,10 +206,7 @@ impl Headers {
     }
 
     let iter = header.value.into_iter();
-    let mut header_len = header.name.len();
-    for elem in iter.clone() {
-      header_len = header_len.wrapping_add(elem.len());
-    }
+    let header_len = Self::header_len(header.name, iter.clone());
     self.reserve(header_len, 1)?;
     let header_begin = self.bytes.len();
     let mut header_end = header_begin;
@@ -235,6 +232,26 @@ impl Headers {
     Ok(())
   }
 
+  /// Similarly to [`Self::push_from_iter`], pushes several headers.
+  #[inline]
+  pub fn push_from_iter_many<'bytes, const N: usize, V>(
+    &mut self,
+    headers: [Header<'bytes, V>; N],
+  ) -> crate::Result<()>
+  where
+    V: Clone + Iterator<Item = &'bytes [u8]>,
+  {
+    let mut header_len: usize = 0;
+    for header in &headers {
+      header_len = header_len.wrapping_add(Self::header_len(header.name, header.value.clone()));
+    }
+    self.reserve(header_len, N)?;
+    for header in headers {
+      self.push_from_iter(header)?;
+    }
+    Ok(())
+  }
+
   /// Reserves capacity for at least `bytes` more bytes to be inserted. The same thing is applied
   /// to the number of headers.
   ///
@@ -253,14 +270,28 @@ impl Headers {
   }
 
   #[inline]
+  fn header_len<'bytes>(header_name: &[u8], iter: impl Iterator<Item = &'bytes [u8]>) -> usize {
+    let mut header_len = header_name.len();
+    for elem in iter {
+      header_len = header_len.wrapping_add(elem.len());
+    }
+    header_len
+  }
+
+  #[inline]
   fn manage_trailers(is_trailer: bool, prev_len: usize, trailers: &mut Trailers) {
-    if is_trailer {
-      *trailers = match trailers {
+    *trailers = if is_trailer {
+      match trailers {
         Trailers::Mixed => Trailers::Mixed,
         Trailers::None => Trailers::Tail(prev_len),
         Trailers::Tail(idx) => Trailers::Tail(*idx),
       }
-    }
+    } else {
+      match trailers {
+        Trailers::Mixed | Trailers::Tail(_) => Trailers::Mixed,
+        Trailers::None => Trailers::None,
+      }
+    };
   }
 
   #[inline]

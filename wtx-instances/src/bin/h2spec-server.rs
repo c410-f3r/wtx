@@ -17,7 +17,7 @@ async fn main() -> wtx::Result<()> {
     || Ok(((), Http2Buffer::new(StdRng::default()), Http2Params::default())),
     |error| eprintln!("{error}"),
     handle,
-    || Ok(((), ReqResBuffer::default())),
+    || Ok(((), ReqResBuffer::empty())),
     (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
   )
   .await

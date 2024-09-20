@@ -18,7 +18,7 @@ use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let mut client = Client::new(ClientFramework::tokio(1).build(), QuickProtobuf);
-  let mut rrb = ReqResBuffer::default();
+  let mut rrb = ReqResBuffer::empty();
   rrb.uri.reset(format_args!("http://127.0.0.1:9000"))?;
   let res = client
     .send_unary_req(

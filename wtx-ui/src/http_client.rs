@@ -17,7 +17,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
     _ => tracing_tree_init(Some("trace")).unwrap(),
   }
   let client = ClientFramework::tokio_rustls(1).build();
-  let mut rrb = ReqResBuffer::default();
+  let mut rrb = ReqResBuffer::empty();
   for pair in header {
     let (name, values) = str_split_once1(&pair, b':').unwrap();
     rrb

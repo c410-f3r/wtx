@@ -16,7 +16,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("http://www.example.com");
-  let buffer = ReqResBuffer::default();
+  let buffer = ReqResBuffer::empty();
   let client = ClientFramework::tokio(1).build();
   let res = client.send(Method::Get, buffer, &uri.to_ref()).await?;
   println!("{}", from_utf8_basic(&res.rrd.data)?);
