@@ -23,7 +23,7 @@ async fn main() -> wtx::Result<()> {
   )
   .await?;
   let _jh = tokio::spawn(frame_reader);
-  let rrb = ReqResBuffer::default();
+  let rrb = ReqResBuffer::empty();
   let mut stream = http2.stream().await?;
   stream.send_req(Request::http2(Method::Get, b"Hello!"), &uri.to_ref()).await?;
   let (res_rrb, opt) = stream.recv_res(rrb).await?;

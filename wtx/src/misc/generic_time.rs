@@ -3,7 +3,8 @@ use core::time::Duration;
 /// Tries to support different time machineries of different platforms.
 ///
 /// Currently only supports `std`. For anything else, methods return errors.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct GenericTime {
   #[cfg(feature = "std")]
   inner: std::time::SystemTime,
@@ -21,6 +22,40 @@ impl GenericTime {
     }
     #[cfg(not(feature = "std"))]
     Self { _inner: () }
+  }
+
+  /// Returns `Some(t)` where `t` is the time `self + duration` if `t` can be represented as
+  /// `GenericTime` (which means it's inside the bounds of the underlying data structure), `None`
+  /// otherwise.
+  #[inline]
+  pub fn checked_add(&self, _duration: Duration) -> crate::Result<Self> {
+    #[cfg(feature = "std")]
+    {
+      Ok(Self {
+        inner: self.inner.checked_add(_duration).ok_or(crate::Error::InvalidHardwareTime)?,
+      })
+    }
+    #[cfg(not(feature = "std"))]
+    {
+      Err(crate::Error::GenericTimeNeedsBackend)
+    }
+  }
+
+  /// Returns `Some(t)` where `t` is the time `self - duration` if `t` can be represented as
+  /// `GenericTime` (which means it's inside the bounds of the underlying data structure), `None`
+  /// otherwise.
+  #[inline]
+  pub fn checked_sub(&self, _duration: Duration) -> crate::Result<Self> {
+    #[cfg(feature = "std")]
+    {
+      Ok(Self {
+        inner: self.inner.checked_sub(_duration).ok_or(crate::Error::InvalidHardwareTime)?,
+      })
+    }
+    #[cfg(not(feature = "std"))]
+    {
+      Err(crate::Error::GenericTimeNeedsBackend)
+    }
   }
 
   /// Returns the amount of time elapsed from another instant to this one,

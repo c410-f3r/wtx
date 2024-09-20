@@ -36,6 +36,12 @@ impl<RRB> ReqBuilder<RRB>
 where
   RRB: LeaseMut<ReqResBuffer>,
 {
+  /// A instance suitable for `GET` requests.
+  #[inline]
+  pub fn get(rrb: RRB) -> Self {
+    Self { method: Method::Get, rrb }
+  }
+
   /// Sends a request with inner parameters.
   #[inline]
   pub async fn send<HD, RL, RM, SW>(
@@ -80,16 +86,5 @@ where
       .headers
       .push_from_iter(Header::from_name_and_value(KnownHeaderName::UserAgent.into(), [value]))?;
     Ok(self)
-  }
-}
-
-impl<RRB> ReqBuilder<RRB>
-where
-  RRB: Default,
-{
-  /// Performs a heap allocation to create a buffer suitable for `GET` requests.
-  #[inline]
-  pub fn get() -> Self {
-    Self { method: Method::Get, rrb: RRB::default() }
   }
 }

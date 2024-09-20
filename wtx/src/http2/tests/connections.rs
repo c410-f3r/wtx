@@ -17,7 +17,7 @@ async fn connections() {
 }
 
 async fn client(uri: &UriString) {
-  let mut rrb = ReqResBuffer::default();
+  let mut rrb = ReqResBuffer::empty();
   rrb.headers.reserve(6, 1).unwrap();
   let (frame_header, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(NoStdRng::default()),
@@ -58,7 +58,7 @@ async fn server(uri: &UriString) {
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).await.unwrap();
   let _server_jh = tokio::spawn(async move {
     let (stream, _) = listener.accept().await.unwrap();
-    let mut rrb = ReqResBuffer::default();
+    let mut rrb = ReqResBuffer::empty();
     let (frame_header, mut http2) = Http2Tokio::accept(
       Http2Buffer::new(NoStdRng::default()),
       Http2Params::default(),

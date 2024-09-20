@@ -3,7 +3,8 @@ use core::{
   str,
 };
 
-/// A wrapper that allows the formatting of byte slices through [`Display`].
+/// A wrapper that allows the formatting of byte slices through [`Display`]. Should only
+/// be used with vectors.
 #[derive(Debug)]
 pub struct BytesFmt<'bytes>(
   /// Bytes
@@ -14,8 +15,7 @@ impl<'bytes> Display for BytesFmt<'bytes> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     for elem in self.0.iter().copied() {
-      // SAFETY: `BytesFmt` is intended to be used with vectors but even if the caller uses a
-      // string container, the worse-case scenario will be a sequence of strange characters.
+      // SAFETY: `BytesFmt` is intended to be used with vectors.
       f.write_str(unsafe { str::from_utf8_unchecked(&[elem]) })?;
     }
     Ok(())
