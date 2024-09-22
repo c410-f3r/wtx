@@ -3,7 +3,7 @@ use tokio::{
   net::{TcpListener, TcpStream},
 };
 use wtx::{
-  misc::{StdRng, UriRef},
+  misc::{simple_seed, UriRef, Xorshift64},
   web_socket::{
     FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode, WebSocketBuffer, WebSocketClient,
     WebSocketServer,
@@ -19,7 +19,7 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
     fb,
     [],
     &mut HeadersBuffer::default(),
-    StdRng::default(),
+    Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri,
     wsb,
@@ -60,7 +60,7 @@ pub(crate) async fn serve(
       let sun = || async move {
         let mut ws = WebSocketServer::accept(
           (),
-          StdRng::default(),
+          Xorshift64::from(simple_seed()),
           stream,
           WebSocketBuffer::default(),
           |_| true,

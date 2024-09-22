@@ -19,8 +19,10 @@
 //!
 //! ALTER TABLE session ADD CONSTRAINT session__user__fk FOREIGN KEY (user_id) REFERENCES "user" (id);
 //! ```
+//!
 
 use argon2::{Algorithm, Argon2, Block, Params, Version};
+use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use tokio::net::TcpStream;
 use wtx::{
   database::{Executor, Record},
@@ -28,7 +30,7 @@ use wtx::{
     server_framework::{get, post, Router, ServerFrameworkBuilder, State, StateClean},
     ReqResBuffer, ReqResData, SessionDecoder, SessionEnforcer, SessionTokio, StatusCode,
   },
-  misc::{Rng, StdRng},
+  misc::Rng,
   pool::{PostgresRM, SimplePoolTokio},
 };
 
@@ -47,7 +49,7 @@ const ARGON2_PARAMS: Params = {
 const LOGIN: &str = "/login";
 const LOGOUT: &str = "/logout";
 
-type ConnAux = (Session, StdRng);
+type ConnAux = (Session, ChaCha20Rng);
 type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
 type Session = SessionTokio<u32, wtx::Error, Pool>;
 
@@ -59,7 +61,7 @@ async fn main() -> wtx::Result<()> {
     (),
   )?;
   let pool = Pool::new(4, PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into()));
-  let mut rng = StdRng::default();
+  let mut rng = ChaCha20Rng::from_entropy();
   let mut key = [0; 16];
   rng.fill_slice(&mut key);
   let (expired_sessions, session) = Session::builder(key, pool).build();
@@ -68,9 +70,10 @@ async fn main() -> wtx::Result<()> {
       eprintln!("{err}");
     }
   });
+  let rng_clone = rng.clone();
   ServerFrameworkBuilder::new(router)
-    .with_conn_aux(move || (session.clone(), rng))
-    .listen("0.0.0.0:9000", |error: wtx::Error| eprintln!("{error:?}"))
+    .with_conn_aux(move || (session.clone(), rng_clone.clone()))
+    .listen("0.0.0.0:9000", rng, |error: wtx::Error| eprintln!("{error:?}"))
     .await?;
   Ok(())
 }

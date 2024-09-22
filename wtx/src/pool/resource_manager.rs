@@ -93,7 +93,7 @@ where
 
 #[cfg(feature = "postgres")]
 pub(crate) mod database {
-  use crate::misc::StdRngSync;
+  use crate::misc::Xorshift64Sync;
   use alloc::string::String;
   use core::marker::PhantomData;
 
@@ -102,7 +102,7 @@ pub(crate) mod database {
   pub struct PostgresRM<E, S> {
     _certs: Option<&'static [u8]>,
     error: PhantomData<fn() -> E>,
-    rng: StdRngSync,
+    rng: Xorshift64Sync,
     stream: PhantomData<S>,
     uri: String,
   }
@@ -123,7 +123,7 @@ pub(crate) mod database {
         client::postgres::{Executor, ExecutorBuffer},
         Executor as _,
       },
-      misc::StdRngSync,
+      misc::{simple_seed, Xorshift64Sync},
       pool::{PostgresRM, ResourceManager},
     };
     use alloc::string::String;
@@ -137,7 +137,7 @@ pub(crate) mod database {
         Self {
           _certs: None,
           error: PhantomData,
-          rng: StdRngSync::default(),
+          rng: Xorshift64Sync::from(simple_seed()),
           stream: PhantomData,
           uri,
         }
@@ -196,7 +196,7 @@ pub(crate) mod database {
         client::postgres::{Executor, ExecutorBuffer},
         Executor as _,
       },
-      misc::{StdRngSync, TokioRustlsConnector},
+      misc::{simple_seed, TokioRustlsConnector, Xorshift64Sync},
       pool::{PostgresRM, ResourceManager},
     };
     use alloc::string::String;
@@ -211,7 +211,7 @@ pub(crate) mod database {
         Self {
           _certs: certs,
           error: PhantomData,
-          rng: StdRngSync::default(),
+          rng: Xorshift64Sync::from(simple_seed()),
           stream: PhantomData,
           uri,
         }

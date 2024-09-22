@@ -8,7 +8,7 @@ macro_rules! call_tests {
 }
 
 use crate::{
-  misc::NoStdRng,
+  misc::{simple_seed, Xorshift64},
   tests::_uri,
   web_socket::{
     compression::NegotiatedCompression, frame::FrameMutVec, handshake::HeadersBuffer, Compression,
@@ -61,7 +61,7 @@ where
     let mut fb = FrameBufferVec::with_capacity(0);
     let mut ws = WebSocketServer::accept(
       server_compression,
-      NoStdRng::default(),
+      Xorshift64::from(simple_seed()),
       stream,
       WebSocketBuffer::with_capacity(0, 0),
       |_| true,
@@ -88,7 +88,7 @@ where
     &mut fb,
     [],
     &mut HeadersBuffer::default(),
-    NoStdRng::default(),
+    Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     &uri.to_ref(),
     WebSocketBuffer::with_capacity(0, 0),
@@ -122,9 +122,15 @@ where
 }
 
 trait Test<NC> {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>);
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  );
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>);
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  );
 }
 
 struct FragmentedText;
@@ -132,12 +138,18 @@ impl<NC> Test<NC> for FragmentedText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>) {
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  ) {
     write(FrameMutVec::new_unfin(fb, OpCode::Text, b"1").unwrap(), ws).await;
     write(FrameMutVec::new_fin(fb, OpCode::Continuation, b"23").unwrap(), ws).await;
   }
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>) {
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  ) {
     let text = ws.read_frame(fb).await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
     assert_eq!(b"123", text.fb().payload());
@@ -149,7 +161,10 @@ impl<NC> Test<NC> for HelloAndGoodbye
 where
   NC: NegotiatedCompression,
 {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>) {
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  ) {
     let hello = ws.read_frame(fb).await.unwrap();
     assert_eq!(OpCode::Text, hello.op_code());
     assert_eq!(b"Hello!", hello.fb().payload());
@@ -157,7 +172,10 @@ where
     assert_eq!(OpCode::Close, ws.read_frame(fb).await.unwrap().op_code());
   }
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>) {
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  ) {
     write(FrameMutVec::new_fin(fb, OpCode::Text, b"Hello!").unwrap(), ws).await;
     assert_eq!(ws.read_frame(&mut *fb).await.unwrap().fb().payload(), b"Goodbye!");
     write(FrameMutVec::new_fin(fb, OpCode::Close, &[]).unwrap(), ws).await;
@@ -169,7 +187,10 @@ impl<NC> Test<NC> for LargeFragmentedText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>) {
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  ) {
     let bytes = vec![51; 256 * 1024];
     write(FrameMutVec::new_unfin(fb, OpCode::Text, &bytes).unwrap(), ws).await;
     write(FrameMutVec::new_unfin(fb, OpCode::Continuation, &bytes).unwrap(), ws).await;
@@ -183,7 +204,10 @@ where
     write(FrameMutVec::new_fin(fb, OpCode::Continuation, &bytes).unwrap(), ws).await;
   }
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>) {
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  ) {
     let text = ws.read_frame(fb).await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
     assert_eq!(&vec![51; 10 * 256 * 1024], text.fb().payload());
@@ -195,13 +219,19 @@ impl<NC> Test<NC> for PingAndText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>) {
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  ) {
     write(FrameMutVec::new_fin(fb, OpCode::Ping, b"123").unwrap(), ws).await;
     write(FrameMutVec::new_fin(fb, OpCode::Text, b"ipat").unwrap(), ws).await;
     assert_eq!(OpCode::Pong, ws.read_frame(fb).await.unwrap().op_code());
   }
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>) {
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  ) {
     assert_eq!(b"ipat", ws.read_frame(fb).await.unwrap().fb().payload());
   }
 }
@@ -211,14 +241,20 @@ impl<NC> Test<NC> for PingBetweenFragmentedText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>) {
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  ) {
     write(FrameMutVec::new_unfin(fb, OpCode::Text, b"1").unwrap(), ws).await;
     write(FrameMutVec::new_fin(fb, OpCode::Ping, b"9").unwrap(), ws).await;
     write(FrameMutVec::new_fin(fb, OpCode::Continuation, b"23").unwrap(), ws).await;
     assert_eq!(OpCode::Pong, ws.read_frame(fb).await.unwrap().op_code());
   }
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>) {
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  ) {
     assert_eq!(OpCode::Text, ws.read_frame(fb).await.unwrap().op_code());
   }
 }
@@ -228,7 +264,10 @@ impl<NC> Test<NC> for SeveralBytes
 where
   NC: NegotiatedCompression,
 {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>) {
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  ) {
     write(FrameMutVec::new_unfin(fb, OpCode::Text, &[206]).unwrap(), ws).await;
     write(FrameMutVec::new_unfin(fb, OpCode::Continuation, &[186]).unwrap(), ws).await;
     write(FrameMutVec::new_unfin(fb, OpCode::Continuation, &[225]).unwrap(), ws).await;
@@ -243,7 +282,10 @@ where
     write(FrameMutVec::new_fin(fb, OpCode::Continuation, &[]).unwrap(), ws).await;
   }
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>) {
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  ) {
     let text = ws.read_frame(fb).await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
     assert_eq!("κόσμε".as_bytes(), text.fb().payload());
@@ -255,7 +297,10 @@ impl<NC> Test<NC> for TwoPings
 where
   NC: NegotiatedCompression,
 {
-  async fn client(fb: &mut FrameBufferVec, ws: &mut WebSocketClientOwned<NC, NoStdRng, TcpStream>) {
+  async fn client(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketClientOwned<NC, Xorshift64, TcpStream>,
+  ) {
     write(FrameMutVec::new_fin(fb, OpCode::Ping, b"0").unwrap(), ws).await;
     write(FrameMutVec::new_fin(fb, OpCode::Ping, b"1").unwrap(), ws).await;
     let _0 = ws.read_frame(fb).await.unwrap();
@@ -267,7 +312,10 @@ where
     write(FrameMutVec::new_fin(fb, OpCode::Text, b"").unwrap(), ws).await;
   }
 
-  async fn server(fb: &mut FrameBufferVec, ws: &mut WebSocketServerOwned<NC, NoStdRng, TcpStream>) {
+  async fn server(
+    fb: &mut FrameBufferVec,
+    ws: &mut WebSocketServerOwned<NC, Xorshift64, TcpStream>,
+  ) {
     let _0 = ws.read_frame(fb).await.unwrap();
     assert_eq!(OpCode::Text, _0.op_code());
     assert_eq!(b"", _0.fb().payload());
@@ -276,7 +324,7 @@ where
 
 async fn write<NC, const IS_CLIENT: bool>(
   mut frame: FrameMutVec<'_, IS_CLIENT>,
-  ws: &mut WebSocket<NC, NoStdRng, TcpStream, WebSocketBuffer, IS_CLIENT>,
+  ws: &mut WebSocket<NC, Xorshift64, TcpStream, WebSocketBuffer, IS_CLIENT>,
 ) where
   NC: NegotiatedCompression,
 {

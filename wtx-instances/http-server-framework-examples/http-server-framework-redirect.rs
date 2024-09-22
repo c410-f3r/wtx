@@ -1,8 +1,11 @@
 //! Different types of redirects.
 
-use wtx::http::{
-  server_framework::{get, Redirect, Router, ServerFrameworkBuilder, StateClean},
-  ReqResBuffer, StatusCode,
+use wtx::{
+  http::{
+    server_framework::{get, Redirect, Router, ServerFrameworkBuilder, StateClean},
+    ReqResBuffer, StatusCode,
+  },
+  misc::{simple_seed, Xorshift64},
 };
 
 #[tokio::main]
@@ -11,7 +14,9 @@ async fn main() -> wtx::Result<()> {
     Router::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
   ServerFrameworkBuilder::new(router)
     .without_aux()
-    .listen(&wtx_instances::host_from_args(), |error| eprintln!("{error}"))
+    .listen(&wtx_instances::host_from_args(), Xorshift64::from(simple_seed()), |error| {
+      eprintln!("{error}")
+    })
     .await
 }
 

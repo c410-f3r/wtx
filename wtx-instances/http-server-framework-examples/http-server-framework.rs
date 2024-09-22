@@ -21,7 +21,7 @@ use wtx::{
     },
     ReqResBuffer, Request, Response, StatusCode,
   },
-  misc::FnFutWrapper,
+  misc::{simple_seed, FnFutWrapper, Xorshift64},
   pool::{PostgresRM, SimplePoolTokio},
 };
 
@@ -45,7 +45,9 @@ async fn main() -> wtx::Result<()> {
   let pool = Pool::new(4, rm);
   ServerFrameworkBuilder::new(router)
     .with_req_aux(move || pool.clone())
-    .listen(&wtx_instances::host_from_args(), |error| eprintln!("{error:?}"))
+    .listen(&wtx_instances::host_from_args(), Xorshift64::from(simple_seed()), |error| {
+      eprintln!("{error:?}")
+    })
     .await
 }
 

@@ -7,14 +7,14 @@ extern crate wtx_instances;
 use wtx::{
   http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
   http2::{Http2Buffer, Http2Params},
-  misc::{StdRng, TokioRustlsAcceptor},
+  misc::{simple_seed, TokioRustlsAcceptor, Xorshift64},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   LowLevelServer::tokio_http2(
     &wtx_instances::host_from_args(),
-    || Ok(((), Http2Buffer::new(StdRng::default()), Http2Params::default())),
+    || Ok(((), Http2Buffer::new(Xorshift64::from(simple_seed())), Http2Params::default())),
     |error| eprintln!("{error}"),
     handle,
     || Ok(((), ReqResBuffer::empty())),

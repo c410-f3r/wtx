@@ -1,7 +1,7 @@
 use crate::{
   http::{Header, Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{Either, NoStdRng, UriRef, UriString},
+  misc::{simple_seed, Either, UriRef, UriString, Xorshift64},
   tests::_uri,
 };
 use core::time::Duration;
@@ -20,7 +20,7 @@ async fn client(uri: &UriString) {
   let mut rrb = ReqResBuffer::empty();
   rrb.headers.reserve(6, 1).unwrap();
   let (frame_header, mut http2) = Http2Tokio::connect(
-    Http2Buffer::new(NoStdRng::default()),
+    Http2Buffer::new(Xorshift64::from(simple_seed())),
     Http2Params::default(),
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap().into_split(),
   )
@@ -60,7 +60,7 @@ async fn server(uri: &UriString) {
     let (stream, _) = listener.accept().await.unwrap();
     let mut rrb = ReqResBuffer::empty();
     let (frame_header, mut http2) = Http2Tokio::accept(
-      Http2Buffer::new(NoStdRng::default()),
+      Http2Buffer::new(Xorshift64::from(simple_seed())),
       Http2Params::default(),
       stream.into_split(),
     )

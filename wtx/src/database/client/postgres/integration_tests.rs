@@ -6,7 +6,7 @@ use crate::{
     },
     Decode, Encode, Executor as _, Record, Records as _,
   },
-  misc::{NoStdRng, UriRef},
+  misc::{simple_seed, UriRef, Xorshift64},
 };
 use alloc::string::String;
 use tokio::net::TcpStream;
@@ -17,7 +17,7 @@ const SCRAM: &str = "postgres://wtx_scram:wtx@localhost/wtx";
 #[tokio::test]
 async fn conn_scram_tls() {
   let uri = UriRef::new(SCRAM);
-  let mut rng = NoStdRng::default();
+  let mut rng = Xorshift64::from(simple_seed());
   let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng).unwrap(),
@@ -433,7 +433,7 @@ async fn serde_json() {
 
 async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {
   let uri = UriRef::new(SCRAM);
-  let mut rng = NoStdRng::default();
+  let mut rng = Xorshift64::from(simple_seed());
   Executor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::with_default_params(&mut rng).unwrap(),

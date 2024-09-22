@@ -20,7 +20,7 @@ pub mod grpc_bindings;
 use tokio::net::TcpStream;
 use wtx::{
   database::client::postgres::{Config, Executor, ExecutorBuffer},
-  misc::{NoStdRng, Uri},
+  misc::{simple_seed, Uri, Xorshift64},
 };
 
 /// Certificate
@@ -35,7 +35,7 @@ pub async fn executor(
   uri_str: &str,
 ) -> wtx::Result<Executor<wtx::Error, ExecutorBuffer, TcpStream>> {
   let uri = Uri::new(uri_str);
-  let mut rng = NoStdRng::default();
+  let mut rng = Xorshift64::from(simple_seed());
   Executor::connect(
     &Config::from_uri(&uri)?,
     ExecutorBuffer::with_default_params(&mut rng)?,
