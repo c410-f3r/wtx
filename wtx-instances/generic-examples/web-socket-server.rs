@@ -9,7 +9,7 @@ use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
   http::LowLevelServer,
-  misc::{StdRng, TokioRustlsAcceptor},
+  misc::{TokioRustlsAcceptor, Xorshift64},
   web_socket::{FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServer},
 };
 
@@ -35,7 +35,7 @@ async fn main() -> wtx::Result<()> {
 
 async fn handle(
   fb: &mut FrameBufferVec,
-  mut ws: WebSocketServer<(), StdRng, TlsStream<TcpStream>, &mut WebSocketBuffer>,
+  mut ws: WebSocketServer<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer>,
 ) -> wtx::Result<()> {
   loop {
     let mut frame = ws.read_frame(fb).await?;

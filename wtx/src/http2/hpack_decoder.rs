@@ -415,7 +415,7 @@ mod bench {
   use crate::{
     http::Header,
     http2::{HpackDecoder, HpackEncoder},
-    misc::{NoStdRng, Usize, Vector},
+    misc::{simple_seed, Usize, Vector, Xorshift64},
   };
 
   #[bench]
@@ -429,7 +429,7 @@ mod bench {
       rslt
     };
     let mut buffer = Vector::with_capacity(*Usize::from(N)).unwrap();
-    let mut he = HpackEncoder::new(NoStdRng::default());
+    let mut he = HpackEncoder::new(Xorshift64::from(simple_seed()));
     he.set_max_dyn_super_bytes(N);
     he.encode(&mut buffer, [].into_iter(), {
       data.chunks_exact(128).map(|el| Header::from_name_and_value(&el[..64], &el[64..]))

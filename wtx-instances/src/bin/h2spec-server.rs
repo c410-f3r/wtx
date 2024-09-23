@@ -5,7 +5,7 @@
 use wtx::{
   http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
   http2::{Http2Buffer, Http2Params},
-  misc::StdRng,
+  misc::{simple_seed, Xorshift64},
 };
 
 #[tokio::main]
@@ -14,7 +14,7 @@ async fn main() -> wtx::Result<()> {
   let _rslt = wtx::misc::tracing_tree_init(None);
   LowLevelServer::tokio_http2(
     "127.0.0.1:9000",
-    || Ok(((), Http2Buffer::new(StdRng::default()), Http2Params::default())),
+    || Ok(((), Http2Buffer::new(Xorshift64::from(simple_seed())), Http2Params::default())),
     |error| eprintln!("{error}"),
     handle,
     || Ok(((), ReqResBuffer::empty())),

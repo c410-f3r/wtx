@@ -2,20 +2,18 @@
 
 #[cfg(feature = "fastrand")]
 mod fastrand;
-mod no_std_rng;
-#[cfg(feature = "rand")]
-mod rand;
-#[cfg(feature = "std")]
-mod std_rng;
+#[cfg(feature = "rand_chacha")]
+mod rand_chacha;
+mod seed;
+mod xorshift;
 
-#[cfg(feature = "std")]
-pub use self::std_rng::{StdRng, StdRngSync};
 use crate::misc::Usize;
 use core::{
   cell::Cell,
   ops::{Bound, RangeBounds},
 };
-pub use no_std_rng::NoStdRng;
+pub use seed::*;
+pub use xorshift::*;
 
 /// Allows the creation of random instances.
 pub trait FromRng<RNG>
@@ -32,7 +30,7 @@ where
 {
   #[inline]
   fn from_rng(rng: &mut RNG) -> Self {
-    rng.u8_8()[0]
+    rng.u8()
   }
 }
 
@@ -206,56 +204,4 @@ where
   fn u8_16(&mut self) -> [u8; 16] {
     (*self).u8_16()
   }
-}
-
-#[inline]
-fn u8(n: u64) -> u8 {
-  let [a, ..] = n.to_be_bytes();
-  a
-}
-
-#[inline]
-fn u8_4(n: u64) -> [u8; 4] {
-  let [a, b, c, d, ..] = n.to_be_bytes();
-  [a, b, c, d]
-}
-
-#[inline]
-fn u8_8(n: u64) -> [u8; 8] {
-  n.to_be_bytes()
-}
-
-#[inline]
-fn u8_16(first: u64, second: u64) -> [u8; 16] {
-  let [a, b, c, d, e, f, g, h] = first.to_be_bytes();
-  let [i, j, k, l, m, n, o, p] = second.to_be_bytes();
-  [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
-}
-
-#[inline]
-fn xor_numbers(seed: &mut u64) -> u64 {
-  *seed ^= *seed << 13;
-  *seed ^= *seed >> 17;
-  *seed ^= *seed << 5;
-  *seed
-}
-
-#[inline]
-fn xor_u8(seed: &mut u64) -> u8 {
-  u8(xor_numbers(seed))
-}
-
-#[inline]
-fn xor_u8_4(seed: &mut u64) -> [u8; 4] {
-  u8_4(xor_numbers(seed))
-}
-
-#[inline]
-fn xor_u8_8(seed: &mut u64) -> [u8; 8] {
-  u8_8(xor_numbers(seed))
-}
-
-#[inline]
-fn xor_u8_16(seed: &mut u64) -> [u8; 16] {
-  u8_16(xor_numbers(seed), xor_numbers(seed))
 }

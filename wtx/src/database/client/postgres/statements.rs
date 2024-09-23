@@ -246,13 +246,13 @@ mod tests {
       ty::Ty,
       Statements,
     },
-    misc::{NoStdRng, Vector},
+    misc::{simple_seed, Vector, Xorshift64},
   };
 
   #[test]
   fn stmt_if_duplicated() {
     let stmt_hash = 123;
-    let mut stmts = Statements::new(100, &mut NoStdRng::default());
+    let mut stmts = Statements::new(100, &mut Xorshift64::from(simple_seed()));
     let PushRslt::Builder(builder) = stmts.push(stmt_hash) else { panic!() };
     let _ = builder.finish();
     let PushRslt::Stmt(_) = stmts.push(stmt_hash) else { panic!() };
@@ -260,7 +260,7 @@ mod tests {
 
   #[test]
   fn two_statements() {
-    let mut stmts = Statements::new(2, &mut NoStdRng::default());
+    let mut stmts = Statements::new(2, &mut Xorshift64::from(simple_seed()));
     stmts.num_of_elements_to_remove_when_full = 1;
 
     let stmt_id0 = 123;

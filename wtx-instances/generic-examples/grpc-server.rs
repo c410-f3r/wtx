@@ -13,6 +13,7 @@ use wtx::{
     server_framework::{post, Router, ServerFrameworkBuilder, State},
     ReqResBuffer, StatusCode,
   },
+  misc::{simple_seed, Xorshift64},
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -28,6 +29,7 @@ async fn main() -> wtx::Result<()> {
     .listen_tls(
       (wtx_instances::CERT, wtx_instances::KEY),
       &wtx_instances::host_from_args(),
+      Xorshift64::from(simple_seed()),
       |error| eprintln!("{error}"),
     )
     .await

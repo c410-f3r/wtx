@@ -10,14 +10,14 @@ use tokio::net::TcpStream;
 use wtx::{
   http::{Method, ReqResBuffer, Request},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{from_utf8_basic, NoStdRng, Uri},
+  misc::{from_utf8_basic, simple_seed, Uri, Xorshift64},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("http://www.example.com");
   let (frame_reader, mut http2) = Http2Tokio::connect(
-    Http2Buffer::new(NoStdRng::default()),
+    Http2Buffer::new(Xorshift64::from(simple_seed())),
     Http2Params::default(),
     TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
   )

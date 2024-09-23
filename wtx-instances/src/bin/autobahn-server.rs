@@ -5,7 +5,7 @@
 use tokio::net::TcpStream;
 use wtx::{
   http::LowLevelServer,
-  misc::StdRng,
+  misc::Xorshift64,
   web_socket::{
     compression::{Flate2, NegotiatedFlate2},
     FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServer,
@@ -27,7 +27,7 @@ async fn main() -> wtx::Result<()> {
 
 async fn handle(
   fb: &mut FrameBufferVec,
-  mut ws: WebSocketServer<Option<NegotiatedFlate2>, StdRng, TcpStream, &mut WebSocketBuffer>,
+  mut ws: WebSocketServer<Option<NegotiatedFlate2>, Xorshift64, TcpStream, &mut WebSocketBuffer>,
 ) -> wtx::Result<()> {
   loop {
     let mut frame = ws.read_frame(fb).await?;

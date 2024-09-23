@@ -21,7 +21,7 @@ use wtx::{
   },
   data_transformation::dnsn::SerdeJson,
   http::client_framework::ClientFrameworkTokio,
-  misc::{NoStdRng, Uri},
+  misc::{simple_seed, Uri, Xorshift64},
   web_socket::{FrameBufferVec, HeadersBuffer, WebSocketBuffer, WebSocketClient},
 };
 
@@ -97,7 +97,7 @@ async fn http_pair(
 async fn web_socket_pair() -> wtx::Result<
   Pair<
     PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-    (FrameBufferVec, WebSocketClient<(), NoStdRng, TcpStream, WebSocketBuffer>),
+    (FrameBufferVec, WebSocketClient<(), Xorshift64, TcpStream, WebSocketBuffer>),
   >,
 > {
   let mut fb = FrameBufferVec::default();
@@ -107,7 +107,7 @@ async fn web_socket_pair() -> wtx::Result<
     &mut fb,
     [],
     &mut HeadersBuffer::default(),
-    NoStdRng::default(),
+    Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri,
     WebSocketBuffer::default(),

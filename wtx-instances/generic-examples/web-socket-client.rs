@@ -12,7 +12,7 @@ use tokio::{
   net::TcpStream,
 };
 use wtx::{
-  misc::{StdRng, Uri},
+  misc::{simple_seed, Uri, Xorshift64},
   web_socket::{
     FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode, WebSocketBuffer, WebSocketClient,
   },
@@ -27,7 +27,7 @@ async fn main() -> wtx::Result<()> {
     fb,
     [],
     &mut HeadersBuffer::default(),
-    StdRng::default(),
+    Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri.to_ref(),
     WebSocketBuffer::default(),

@@ -647,14 +647,14 @@ mod bench {
   use crate::{
     http::Header,
     http2::HpackEncoder,
-    misc::{NoStdRng, Usize, Vector},
+    misc::{simple_seed, Usize, Vector, Xorshift64},
   };
 
   #[bench]
   fn encode(b: &mut test::Bencher) {
     const N: u32 = 1024 * 1024 * 4;
     let data = crate::bench::_data(*Usize::from(N));
-    let mut he = HpackEncoder::new(NoStdRng::default());
+    let mut he = HpackEncoder::new(Xorshift64::from(simple_seed()));
     he.set_max_dyn_super_bytes(N);
     let mut buffer = Vector::new();
     b.iter(|| {

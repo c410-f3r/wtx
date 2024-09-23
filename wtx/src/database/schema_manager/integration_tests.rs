@@ -11,7 +11,7 @@ use crate::{
     },
     Identifier, DEFAULT_URI_VAR,
   },
-  misc::{NoStdRng, Vector},
+  misc::{Vector, Xorshift64},
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -44,7 +44,7 @@ macro_rules! create_integration_tests {
           let uri = crate::misc::UriRef::new(&uri);
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
-          let mut rng = NoStdRng::default();
+          let mut rng = Xorshift64::from(crate::misc::simple_seed());
           crate::database::client::postgres::Executor::connect(
             &config,
             crate::database::client::postgres::ExecutorBuffer::with_default_params(&mut rng).unwrap(),

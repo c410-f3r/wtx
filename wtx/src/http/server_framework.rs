@@ -21,7 +21,7 @@ mod state;
 use crate::{
   http::{ConnParams, LowLevelServer, ReqResBuffer, Request, Response},
   http2::Http2Buffer,
-  misc::StdRng,
+  misc::Rng,
 };
 use alloc::sync::Arc;
 pub use conn_aux::ConnAux;
@@ -64,15 +64,19 @@ where
 {
   /// Starts listening to incoming requests based on the given `host`.
   #[inline]
-  pub async fn listen(
+  pub async fn listen<RNG>(
     self,
     host: &str,
+    rng: RNG,
     err_cb: impl Clone + Fn(E) + Send + 'static,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<()>
+  where
+    RNG: Clone + Rng + Send + 'static,
+  {
     let Self { ca_cb, cp, ra_cb, router } = self;
     LowLevelServer::tokio_http2(
       host,
-      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(StdRng::default()), cp.to_hp())),
+      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp.to_hp())),
       err_cb,
       Self::handle,
       move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
@@ -84,16 +88,20 @@ where
   /// Starts listening to incoming encrypted requests based on the given `host`.
   #[cfg(feature = "tokio-rustls")]
   #[inline]
-  pub async fn listen_tls(
+  pub async fn listen_tls<RNG>(
     self,
     (cert_chain, priv_key): (&'static [u8], &'static [u8]),
     host: &str,
+    rng: RNG,
     err_cb: impl Clone + Fn(E) + Send + 'static,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<()>
+  where
+    RNG: Clone + Rng + Send + 'static,
+  {
     let Self { ca_cb, cp, ra_cb, router } = self;
     LowLevelServer::tokio_http2(
       host,
-      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(StdRng::default()), cp.to_hp())),
+      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp.to_hp())),
       err_cb,
       Self::handle,
       move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),

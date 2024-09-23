@@ -7,7 +7,7 @@ use wtx::{
     schema_manager::{Commands, DbMigration, SchemaManagement, DEFAULT_CFG_FILE_NAME},
     Identifier, DEFAULT_URI_VAR,
   },
-  misc::{StdRng, UriRef, Vector},
+  misc::{simple_seed, UriRef, Vector, Xorshift64},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
@@ -21,7 +21,7 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   let uri = UriRef::new(&var);
   match uri.scheme() {
     "postgres" | "postgresql" => {
-      let mut rng = StdRng::default();
+      let mut rng = Xorshift64::from(simple_seed());
       let executor = Executor::connect(
         &Config::from_uri(&uri)?,
         ExecutorBuffer::with_default_params(&mut rng)?,

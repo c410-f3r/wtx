@@ -1,6 +1,6 @@
 use crate::{
   http::LowLevelServer,
-  misc::{FnFut, StdRng, Stream, Vector, _number_or_available_parallelism},
+  misc::{FnFut, Stream, Vector, Xorshift64, _number_or_available_parallelism, simple_seed},
   pool::{SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer},
 };
@@ -35,7 +35,7 @@ impl LowLevelServer {
       + FnFut<
         (
           &'fb mut FrameBufferVec,
-          WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
+          WebSocketServer<C::NegotiatedCompression, Xorshift64, S, &'wsb mut WebSocketBuffer>,
         ),
         Result = Result<(), E>,
       > + Send
@@ -44,7 +44,7 @@ impl LowLevelServer {
     SF: Send + Future<Output = crate::Result<S>>,
     for<'fb, 'wsb> <F as FnFut<(
       &'fb mut FrameBufferVec,
-      WebSocketServer<C::NegotiatedCompression, StdRng, S, &'wsb mut WebSocketBuffer>,
+      WebSocketServer<C::NegotiatedCompression, Xorshift64, S, &'wsb mut WebSocketBuffer>,
     )>>::Future: Send,
     for<'handle> &'handle F: Send,
   {
@@ -69,7 +69,7 @@ impl LowLevelServer {
               fb,
               WebSocketServer::accept(
                 local_compression_cb(),
-                StdRng::default(),
+                Xorshift64::from(simple_seed()),
                 stream,
                 wsb,
                 |_| true,

@@ -38,7 +38,7 @@ $rt test-with-features wtx pool
 $rt test-with-features wtx postgres
 $rt test-with-features wtx proptest
 $rt test-with-features wtx quick-protobuf
-$rt test-with-features wtx rand
+$rt test-with-features wtx rand_chacha
 $rt test-with-features wtx ring
 $rt test-with-features wtx rust_decimal
 $rt test-with-features wtx schema-manager
