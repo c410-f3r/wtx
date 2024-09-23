@@ -5,7 +5,7 @@
 
 use tokio::runtime::Builder;
 use wtx::{
-  misc::{BytesStream, NoStdRng},
+  misc::{simple_seed, BytesStream, Xorshift64},
   web_socket::{FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketServerOwned},
 };
 
@@ -13,7 +13,7 @@ libfuzzer_sys::fuzz_target!(|data: (OpCode, &[u8])| {
   Builder::new_current_thread().enable_all().build().unwrap().block_on(async move {
     let Ok(mut ws) = WebSocketServerOwned::new(
       (),
-      NoStdRng::default(),
+      Xorshift64::from(simple_seed()),
       BytesStream::default(),
       WebSocketBuffer::default(),
     ) else {
