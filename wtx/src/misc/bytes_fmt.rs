@@ -11,7 +11,7 @@ pub struct BytesFmt<'bytes>(
   pub &'bytes [u8],
 );
 
-impl<'bytes> Display for BytesFmt<'bytes> {
+impl Display for BytesFmt<'_> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     for elem in self.0.iter().copied() {

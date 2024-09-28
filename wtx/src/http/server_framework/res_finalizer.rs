@@ -19,24 +19,26 @@ where
   }
 }
 
-impl<'any, CA, E, RA, RRD> ResFinalizer<E, RRD> for (StateClean<'any, CA, RA, RRD>, StatusCode)
+impl<CA, E, RA, RRD> ResFinalizer<E, RRD> for (StateClean<'_, CA, RA, RRD>, StatusCode)
 where
   E: From<crate::Error>,
   RRD: ReqResDataMut,
 {
   #[inline]
   fn finalize_response(self, _: &mut Request<RRD>) -> Result<StatusCode, E> {
+    self.0.req.rrd.clear();
     Ok(self.1)
   }
 }
 
-impl<'any, CA, E, RA, RRD> ResFinalizer<E, RRD> for StateClean<'any, CA, RA, RRD>
+impl<CA, E, RA, RRD> ResFinalizer<E, RRD> for StateClean<'_, CA, RA, RRD>
 where
   E: From<crate::Error>,
   RRD: ReqResDataMut,
 {
   #[inline]
   fn finalize_response(self, _: &mut Request<RRD>) -> Result<StatusCode, E> {
+    self.req.rrd.clear();
     Ok(StatusCode::Ok)
   }
 }

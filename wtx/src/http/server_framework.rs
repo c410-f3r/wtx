@@ -37,7 +37,7 @@ pub use res_finalizer::ResFinalizer;
 pub use route_wrappers::{get, json, post, Get, Json, Post};
 pub use router::Router;
 pub use server_framework_builder::ServerFrameworkBuilder;
-pub use state::{State, StateClean};
+pub use state::{State, StateClean, StateGeneric};
 
 /// Server
 #[derive(Debug)]
@@ -53,14 +53,15 @@ where
   CA: Clone + ConnAux + Send + 'static,
   CAC: Clone + Fn() -> CA::Init + Send + 'static,
   E: From<crate::Error> + Send + 'static,
-  P: Send + 'static,
+  P: PathManagement<CA, E, RA, ReqResBuffer, manage_path(..): Send> + Send + 'static,
   RA: ReqAux + Send + 'static,
   RAC: Clone + Fn() -> RA::Init + Send + 'static,
   REQM: ReqMiddleware<CA, E, RA, ReqResBuffer, apply_req_middleware(..): Send> + Send + 'static,
   RESM: ResMiddleware<CA, E, RA, ReqResBuffer, apply_res_middleware(..): Send> + Send + 'static,
   Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>: Send,
-  Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>:
-    PathManagement<CA, E, RA, ReqResBuffer, manage_path(..): Send>,
+  Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>: Send,
+  for<'any> &'any Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>: Send,
+  for<'any> &'any Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>: Send,
 {
   /// Starts listening to incoming requests based on the given `host`.
   #[inline]

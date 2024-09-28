@@ -372,7 +372,7 @@ mod pg_numeric {
           curr_slice = local_rest;
         }
         _PgNumeric::Number {
-          digits: ArrayVector::from_parts(array, digits.into()),
+          digits: ArrayVector::from_parts(array, Some(digits.into())),
           scale,
           sign: Sign::try_from(sign)?,
           weight,
@@ -659,8 +659,8 @@ mod rust_decimal {
       }
       digits.reverse();
 
-      let after_decimal = usize::from(scale.wrapping_add(3) / 4);
-      let weight = digits.len().wrapping_sub(after_decimal).wrapping_sub(1) as i16;
+      let after_decimal = scale.wrapping_add(3) / 4;
+      let weight = digits.len().wrapping_sub(after_decimal.into()).wrapping_sub(1) as i16;
 
       while let Some(&0) = digits.last() {
         let _ = digits.pop();

@@ -30,7 +30,6 @@ use wtx::{
     server_framework::{get, post, Router, ServerFrameworkBuilder, State, StateClean},
     ReqResBuffer, ReqResData, SessionDecoder, SessionEnforcer, SessionTokio, StatusCode,
   },
-  misc::Rng,
   pool::{PostgresRM, SimplePoolTokio},
 };
 
@@ -62,9 +61,7 @@ async fn main() -> wtx::Result<()> {
   )?;
   let pool = Pool::new(4, PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into()));
   let mut rng = ChaCha20Rng::from_entropy();
-  let mut key = [0; 16];
-  rng.fill_slice(&mut key);
-  let (expired_sessions, session) = Session::builder(key, pool).build();
+  let (expired_sessions, session) = Session::builder(pool).build_generating_key(&mut rng);
   tokio::spawn(async move {
     if let Err(err) = expired_sessions.await {
       eprintln!("{err}");

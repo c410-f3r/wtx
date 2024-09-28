@@ -47,8 +47,8 @@ where
 {
   /// Allows the specification of custom parameters.
   #[inline]
-  pub fn builder(key: SessionKey, store: SS) -> SessionBuilder<SS> {
-    SessionBuilder::new(key, store)
+  pub fn builder(store: SS) -> SessionBuilder<SS> {
+    SessionBuilder::new(store)
   }
 
   /// Removes the session from the store and also modifies headers.

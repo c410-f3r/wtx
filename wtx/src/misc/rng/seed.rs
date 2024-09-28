@@ -22,7 +22,9 @@ pub fn simple_seed() -> u64 {
   }
 
   let elem = Box::new(Foo { _bar: 1, _baz: 2 });
-  let ptr_addr = ptr::addr_of!(elem).addr();
+  // FIXME(STABLE): strict_provenance
+  // SAFETY: Memory location is not relevant
+  let ptr_addr = unsafe { *ptr::addr_of!(elem).cast() };
   let mut rslt = Usize::from_usize(ptr_addr).into_u64();
   rslt = rslt.wrapping_add(11_400_714_819_323_198_485);
   rslt = rslt.wrapping_add(COUNTER.fetch_add(3, Ordering::Release));

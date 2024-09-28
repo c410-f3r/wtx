@@ -2,7 +2,7 @@
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
 #![doc = include_str!("../README.md")]
-#![feature(macro_metavar_expr, noop_waker, return_type_notation, strict_provenance)]
+#![cfg_attr(feature = "tokio", feature(return_type_notation))]
 #![no_std]
 
 extern crate alloc;
