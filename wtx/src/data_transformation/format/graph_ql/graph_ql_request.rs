@@ -1,4 +1,4 @@
-/// `GraphQL` request or operation, can be a query or a mutation.
+/// `GraphQL` request/operation, can be a query or a mutation.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
 pub struct GraphQlRequest<ON, Q, V> {
@@ -18,12 +18,13 @@ mod serde_json {
     data_transformation::{dnsn::SerdeJson, format::GraphQlRequest},
     misc::Vector,
   };
+  use serde::Serialize;
 
   impl<ON, Q, V> crate::data_transformation::dnsn::Serialize<SerdeJson> for GraphQlRequest<ON, Q, V>
   where
-    ON: serde::Serialize,
-    Q: serde::Serialize,
-    V: serde::Serialize,
+    ON: Serialize,
+    Q: Serialize,
+    V: Serialize,
   {
     #[inline]
     fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {

@@ -14,27 +14,31 @@ mod serde {
     misc::Vector,
   };
   use core::marker::PhantomData;
-  use serde::{de::Visitor, ser::SerializeStruct};
+  use serde::{
+    de::{Deserializer, MapAccess, Visitor},
+    ser::{SerializeStruct, Serializer},
+    Deserialize, Serialize,
+  };
 
-  impl<'de, D, E> serde::Deserialize<'de> for GraphQlResponse<D, E>
+  impl<'de, D, E> Deserialize<'de> for GraphQlResponse<D, E>
   where
-    D: serde::Deserialize<'de>,
-    E: serde::Deserialize<'de>,
+    D: Deserialize<'de>,
+    E: Deserialize<'de>,
   {
     #[inline]
     fn deserialize<DE>(deserializer: DE) -> Result<GraphQlResponse<D, E>, DE::Error>
     where
-      DE: serde::de::Deserializer<'de>,
+      DE: Deserializer<'de>,
     {
       struct CustomVisitor<'de, D, E>(PhantomData<(D, E)>, PhantomData<&'de ()>)
       where
-        D: serde::Deserialize<'de>,
-        E: serde::Deserialize<'de>;
+        D: Deserialize<'de>,
+        E: Deserialize<'de>;
 
       impl<'de, D, E> Visitor<'de> for CustomVisitor<'de, D, E>
       where
-        D: serde::Deserialize<'de>,
-        E: serde::Deserialize<'de>,
+        D: Deserialize<'de>,
+        E: Deserialize<'de>,
       {
         type Value = GraphQlResponse<D, E>;
 
@@ -45,7 +49,7 @@ mod serde {
         #[inline]
         fn visit_map<V>(self, mut map: V) -> Result<GraphQlResponse<D, E>, V::Error>
         where
-          V: serde::de::MapAccess<'de>,
+          V: MapAccess<'de>,
         {
           let mut data = None;
           let mut errors = None;
@@ -86,15 +90,15 @@ mod serde {
     }
   }
 
-  impl<D, E> serde::Serialize for GraphQlResponse<D, E>
+  impl<D, E> Serialize for GraphQlResponse<D, E>
   where
-    D: serde::Serialize,
-    E: serde::Serialize,
+    D: Serialize,
+    E: Serialize,
   {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-      S: serde::ser::Serializer,
+      S: Serializer,
     {
       let mut state = serializer.serialize_struct("GraphQlResponse", 1)?;
       match self.result {

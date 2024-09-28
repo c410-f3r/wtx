@@ -108,7 +108,7 @@ pb-rs = { default-features = false, version = "0.10" }
 argon2 = { default-features = false, version = "0.5" }
 quick-protobuf = { default-features = false, version = "0.8" }
 rand_chacha = { default-features = false, version = "0.3" }
-rand_core = { default-features = false, feature = ["getrandom"], version = "0.6" }
+rand_core = { default-features = false, features = ["getrandom"], version = "0.6" }
 serde = { default-features = false, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], version = "1.0" }
 tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.0" }

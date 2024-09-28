@@ -1,10 +1,10 @@
+#![expect(clippy::mem_forget, reason = "out-of-bounds elements are manually dropped")]
+
 use crate::misc::{char_slice, Lease, LeaseMut, Usize};
 use core::{
-  array,
   cmp::Ordering,
   fmt::{self, Debug, Formatter},
-  iter,
-  mem::{needs_drop, MaybeUninit},
+  mem::{self, needs_drop, MaybeUninit},
   ops::{Deref, DerefMut},
   ptr, slice,
 };
@@ -21,59 +21,87 @@ pub enum ArrayVectorError {
 }
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
-pub struct ArrayVector<D, const N: usize> {
+pub struct ArrayVector<T, const N: usize> {
   len: u32,
-  data: [MaybeUninit<D>; N],
+  data: [MaybeUninit<T>; N],
 }
 
-impl<D, const N: usize> ArrayVector<D, N> {
-  /// Constructs a new instance reusing any `data` elements delimited by `len`.
+impl<T, const N: usize> ArrayVector<T, N> {
+  const _INSTANCE_CHECK: () = {
+    assert!(N <= Usize::from_u32(u32::MAX).into_usize());
+  };
+  const N_U32: u32 = {
+    let [a, b, c, d, ..] = Usize::from_usize(N).into_u64().to_le_bytes();
+    u32::from_le_bytes([a, b, c, d])
+  };
+  const NEEDS_DROP: bool = needs_drop::<T>();
+
+  /// Constructs a new instance from a fully initialized array.
   #[inline]
-  pub fn from_array<const M: usize>(array: [D; M]) -> Self {
-    const {
-      assert!(M <= N);
-    }
+  pub fn from_array(array: [T; N]) -> Self {
     let mut this = Self::new();
-    for elem in array {
-      let _rslt = this.push(elem);
+    this.len = Self::N_U32;
+    // SAFETY: The inner `data` as well as the provided `array` have the same layout in different
+    // memory regions
+    unsafe {
+      ptr::copy_nonoverlapping(array.as_ptr(), this.as_mut_ptr(), N);
     }
+    mem::forget(array);
     this
   }
 
-  /// Constructs a new instance reusing any `data` elements delimited by `len`.
-  #[expect(clippy::should_implement_trait, reason = "The std trait ins infallible")]
+  /// Constructs a new instance from an iterator.
+  ///
+  /// The iterator is capped at `N`.
+  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  pub fn from_iter(iter: impl IntoIterator<Item = D>) -> Result<Self, ArrayVectorError> {
+  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Result<Self, ArrayVectorError> {
     let mut this = Self::new();
     for elem in iter.into_iter().take(N) {
-      this.push(elem)?;
+      let _rslt = this.push(elem);
     }
     Ok(this)
   }
 
-  /// Constructs a new instance reusing any `data` elements delimited by `len`.
-  #[expect(clippy::needless_pass_by_value, reason = "false positive")]
+  /// Constructs a new instance reusing `data` elements optionally delimited by `len`.
+  ///
+  /// The actual length will be the smallest value among `M`, `N` and `len`
   #[inline]
-  pub fn from_parts(data: [D; N], len: u32) -> Self {
-    Self::instance_check();
-    let n = Self::instance_u32();
-    Self {
-      len: if len > n { n } else { len },
-      // SAFETY: `data` is fully initialized within `u32` bounds and `D` does not implement `Drop`
-      data: unsafe { ptr::from_ref::<[D; N]>(&data).cast::<[MaybeUninit<D>; N]>().read() },
+  pub fn from_parts<const M: usize>(mut data: [T; M], len: Option<u32>) -> Self {
+    let mut actual_len = u32::try_from(M).unwrap_or(u32::MAX).min(Self::N_U32);
+    if let Some(elem) = len {
+      actual_len = actual_len.min(elem);
     }
+    let actual_len_usize = Usize::from_u32(actual_len).into_usize();
+    let mut this = Self::new();
+    this.len = actual_len;
+    // SAFETY: The inner `data` as well as the provided `data` have the same layout in different
+    // memory regions
+    unsafe {
+      ptr::copy_nonoverlapping(data.as_ptr(), this.as_mut_ptr(), actual_len_usize);
+    }
+    if Self::NEEDS_DROP {
+      let diff_opt = data.len().checked_sub(actual_len_usize);
+      if let Some(diff @ 1..=usize::MAX) = diff_opt {
+        // SAFETY: Indices are within bounds
+        unsafe {
+          drop_elements(actual_len, diff, data.as_mut_ptr());
+        }
+      };
+    }
+    mem::forget(data);
+    this
   }
 
   /// Constructs a new empty instance.
   #[inline]
   pub const fn new() -> Self {
-    Self::instance_check();
     Self { len: 0, data: [const { MaybeUninit::uninit() }; N] }
   }
 
   /// Extracts a slice containing the entire vector.
   #[inline]
-  pub const fn as_slice(&self) -> &[D] {
+  pub const fn as_slice(&self) -> &[T] {
     // SAFETY: `len` ensures initialized elements
     unsafe { slice::from_raw_parts(self.as_ptr(), Usize::from_u32(self.len).into_usize()) }
   }
@@ -81,16 +109,13 @@ impl<D, const N: usize> ArrayVector<D, N> {
   /// The number of elements that can be stored.
   #[inline]
   pub const fn capacity(&self) -> u32 {
-    const {
-      let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
-      u32::from_be_bytes([a, b, c, d])
-    }
+    Self::N_U32
   }
 
   /// Clears the vector, removing all values.
   #[inline]
   pub fn clear(&mut self) {
-    self.len = 0;
+    self.truncate(0);
   }
 
   /// Iterates over the slice `other`, copies each element, and then appends
@@ -98,7 +123,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
   #[inline]
   pub fn extend_from_iter(
     &mut self,
-    iter: impl IntoIterator<Item = D>,
+    iter: impl IntoIterator<Item = T>,
   ) -> Result<(), ArrayVectorError> {
     for elem in iter {
       self.push(elem)?;
@@ -108,7 +133,7 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Return the inner fixed size array, if the capacity is full.
   #[inline]
-  pub fn into_inner(self) -> Result<[D; N], ArrayVectorError> {
+  pub fn into_inner(self) -> Result<[T; N], ArrayVectorError> {
     if Usize::from_u32(self.len).into_usize() >= N {
       // SAFETY: All elements are initialized
       Ok(unsafe { ptr::read(self.data.as_ptr().cast()) })
@@ -117,14 +142,21 @@ impl<D, const N: usize> ArrayVector<D, N> {
     }
   }
 
+  /// Returns the number of elements in the vector, also referred to as its ‘length’.
+  #[inline]
+  pub const fn len(&self) -> u32 {
+    self.len
+  }
+
   /// Shortens the vector, removing the last element.
   #[inline]
-  pub fn pop(&mut self) -> bool {
-    if let Some(elem) = self.len.checked_sub(1) {
-      self.len = elem;
-      true
+  pub fn pop(&mut self) -> Option<T> {
+    if let Some(new_len) = self.len.checked_sub(1) {
+      self.len = new_len;
+      // SAFETY: `new_len` is within bounds
+      Some(unsafe { self.get_owned(new_len) })
     } else {
-      false
+      None
     }
   }
 
@@ -136,63 +168,79 @@ impl<D, const N: usize> ArrayVector<D, N> {
 
   /// Appends an element to the back of the collection.
   #[inline]
-  pub fn push(&mut self, value: D) -> Result<(), ArrayVectorError> {
-    let Some(elem) = self.data.get_mut(*Usize::from(self.len)) else {
-      return Err(ArrayVectorError::PushOverflow);
-    };
-    *elem = MaybeUninit::new(value);
-    self.len = self.len.wrapping_add(1);
-    Ok(())
+  pub fn push(&mut self, value: T) -> Result<(), ArrayVectorError> {
+    self.do_push(value).map_err(|_err| ArrayVectorError::PushOverflow)
   }
 
   /// Shortens the vector, keeping the first `len` elements.
   #[inline]
-  pub fn truncate(&mut self, len: u32) {
-    self.len = len.min(self.capacity());
+  pub fn truncate(&mut self, new_len: u32) {
+    let len = self.len;
+    let Some(diff @ 1..=u32::MAX) = len.checked_sub(new_len) else {
+      return;
+    };
+    self.len = new_len;
+    if Self::NEEDS_DROP {
+      // SAFETY: Indices are within bounds
+      unsafe {
+        drop_elements(new_len, *Usize::from(diff), self.as_mut_ptr());
+      }
+    }
   }
 
   #[inline]
-  const fn as_ptr(&self) -> *const D {
-    self.data.as_ptr().cast()
-  }
-
-  #[inline]
-  fn as_mut_ptr(&mut self) -> *mut D {
+  fn as_mut_ptr(&mut self) -> *mut T {
     self.data.as_mut_ptr().cast()
   }
 
   #[inline]
-  const fn instance_check() {
-    const {
-      assert!(N <= Usize::from_u32(u32::MAX).into_usize() && !needs_drop::<D>());
-    }
+  const fn as_ptr(&self) -> *const T {
+    self.data.as_ptr().cast()
   }
 
   #[inline]
-  const fn instance_u32() -> u32 {
-    const {
-      let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
-      u32::from_be_bytes([a, b, c, d])
+  fn do_push(&mut self, value: T) -> Result<(), T> {
+    let len = self.len;
+    if len >= Self::N_U32 {
+      return Err(value);
     }
+    // SAFETY: `len` is within `N` bounds
+    let dst = unsafe { self.data.as_mut_ptr().add(Usize::from_u32(len).into_usize()) };
+    // SAFETY: `dst` points to valid uninitialized memory
+    unsafe {
+      ptr::write(dst, MaybeUninit::new(value));
+    }
+    self.len = len.wrapping_add(1);
+    Ok(())
+  }
+
+  #[inline]
+  unsafe fn get_owned(&mut self, idx: u32) -> T {
+    // SAFETY: It is up to the caller to provide a valid index
+    let src = unsafe { self.data.as_ptr().add(Usize::from_u32(idx).into_usize()) };
+    // SAFETY: If the index is valid, then the element exists
+    let elem = unsafe { ptr::read(src) };
+    // SAFETY: If the index is valid, then the element is initialized
+    unsafe { elem.assume_init() }
   }
 }
 
-impl<D, const N: usize> ArrayVector<D, N>
+impl<T, const N: usize> ArrayVector<T, N>
 where
-  D: Clone,
+  T: Clone,
 {
   /// Creates a new instance with the copyable elements of `slice`.
   #[inline]
-  pub fn from_cloneable_slice(slice: &[D]) -> Result<Self, ArrayVectorError> {
+  pub fn from_cloneable_slice(slice: &[T]) -> Result<Self, ArrayVectorError> {
     let mut this = Self::new();
     this.extend_from_cloneable_slice(slice)?;
     Ok(this)
   }
 
-  /// Iterates over the slice `other`, copies each element, and then appends
+  /// Iterates over the slice `other`, clones each element and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_cloneable_slice(&mut self, other: &[D]) -> Result<(), ArrayVectorError> {
+  pub fn extend_from_cloneable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
     for elem in other {
       self.push(elem.clone())?;
     }
@@ -200,41 +248,55 @@ where
   }
 }
 
-impl<D, const N: usize> ArrayVector<D, N>
+impl<T, const N: usize> ArrayVector<T, N>
 where
-  D: Copy,
+  T: Copy,
 {
   /// Creates a new instance with the copyable elements of `slice`.
   #[inline]
-  pub fn from_copyable_slice(slice: &[D]) -> Result<Self, ArrayVectorError> {
+  pub fn from_copyable_slice(slice: &[T]) -> Result<Self, ArrayVectorError> {
     let mut this = Self::new();
     this.extend_from_copyable_slice(slice)?;
     Ok(this)
   }
 
-  /// Iterates over the slice `other`, copies each element, and then appends
+  /// Iterates over the slice `other`, copies each element and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_copyable_slice(&mut self, other: &[D]) -> Result<(), ArrayVectorError> {
-    let this_len_u32 = self.len;
-    let other_len = other.len();
-    let Some(len_u32) = u32::try_from(other_len).ok().filter(|el| self.remaining() >= *el) else {
+  pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
+    let len = self.len;
+    let other_len_usize = other.len();
+    let other_len_u32 = 'block: {
+      if let Some(other_len_u32) = Usize::from_usize(other_len_usize).into_u32() {
+        if other_len_u32 <= self.remaining() {
+          break 'block other_len_u32;
+        }
+      }
       return Err(ArrayVectorError::ExtendFromSliceOverflow);
     };
     // SAFETY: The above check ensures bounds
-    let dst = unsafe { self.as_mut_ptr().add(*Usize::from_u32(this_len_u32)) };
+    let dst = unsafe { self.as_mut_ptr().add(Usize::from_u32(len).into_usize()) };
     // SAFETY: Parameters are valid
     unsafe {
-      ptr::copy_nonoverlapping(other.as_ptr(), dst, other_len);
+      ptr::copy_nonoverlapping(other.as_ptr(), dst, other_len_usize);
     }
-    self.len = self.len.wrapping_add(len_u32);
+    self.len = len.wrapping_add(other_len_u32);
+    Ok(())
+  }
+
+  /// Appends an copyable element to the back of the collection.
+  #[inline]
+  pub fn push_copyable(&mut self, value: T) -> Result<(), ArrayVectorError> {
+    if self.do_push(value).is_err() {
+      return Err(ArrayVectorError::PushOverflow);
+    }
     Ok(())
   }
 }
 
-impl<D, const N: usize> Clone for ArrayVector<D, N>
+impl<T, const N: usize> Clone for ArrayVector<T, N>
 where
-  D: Clone,
+  T: Clone,
 {
   #[inline]
   fn clone(&self) -> Self {
@@ -244,9 +306,9 @@ where
   }
 }
 
-impl<D, const N: usize> Debug for ArrayVector<D, N>
+impl<T, const N: usize> Debug for ArrayVector<T, N>
 where
-  D: Debug,
+  T: Debug,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -254,15 +316,15 @@ where
   }
 }
 
-impl<D, const N: usize> Default for ArrayVector<D, N> {
+impl<T, const N: usize> Default for ArrayVector<T, N> {
   #[inline]
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl<D, const N: usize> Deref for ArrayVector<D, N> {
-  type Target = [D];
+impl<T, const N: usize> Deref for ArrayVector<T, N> {
+  type Target = [T];
 
   #[inline]
   fn deref(&self) -> &Self::Target {
@@ -270,7 +332,7 @@ impl<D, const N: usize> Deref for ArrayVector<D, N> {
   }
 }
 
-impl<D, const N: usize> DerefMut for ArrayVector<D, N> {
+impl<T, const N: usize> DerefMut for ArrayVector<T, N> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     // SAFETY: `len` ensures initialized elements
@@ -278,29 +340,33 @@ impl<D, const N: usize> DerefMut for ArrayVector<D, N> {
   }
 }
 
-impl<D, const N: usize> Eq for ArrayVector<D, N> where D: Eq {}
-
-impl<D, const N: usize> IntoIterator for ArrayVector<D, N> {
-  type IntoIter =
-    iter::Map<iter::Take<array::IntoIter<MaybeUninit<D>, N>>, fn(MaybeUninit<D>) -> D>;
-  type Item = D;
-
+impl<T, const N: usize> Drop for ArrayVector<T, N> {
   #[inline]
-  fn into_iter(self) -> Self::IntoIter {
-    fn map<D>(elem: MaybeUninit<D>) -> D {
-      // SAFETY: Only maps initialized elements
-      unsafe { elem.assume_init() }
+  fn drop(&mut self) {
+    if Self::NEEDS_DROP {
+      self.clear();
     }
-    self.data.into_iter().take(*Usize::from(self.len)).map(map)
   }
 }
 
-impl<'any, D, const N: usize> IntoIterator for &'any ArrayVector<D, N>
+impl<T, const N: usize> Eq for ArrayVector<T, N> where T: Eq {}
+
+impl<T, const N: usize> IntoIterator for ArrayVector<T, N> {
+  type IntoIter = IntoIter<T, N>;
+  type Item = T;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    IntoIter { idx: 0, data: self }
+  }
+}
+
+impl<'any, T, const N: usize> IntoIterator for &'any ArrayVector<T, N>
 where
-  D: 'any,
+  T: 'any,
 {
-  type IntoIter = slice::Iter<'any, D>;
-  type Item = &'any D;
+  type IntoIter = slice::Iter<'any, T>;
+  type Item = &'any T;
 
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
@@ -308,12 +374,12 @@ where
   }
 }
 
-impl<'any, D, const N: usize> IntoIterator for &'any mut ArrayVector<D, N>
+impl<'any, T, const N: usize> IntoIterator for &'any mut ArrayVector<T, N>
 where
-  D: 'any,
+  T: 'any,
 {
-  type IntoIter = slice::IterMut<'any, D>;
-  type Item = &'any mut D;
+  type IntoIter = slice::IterMut<'any, T>;
+  type Item = &'any mut T;
 
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
@@ -321,23 +387,23 @@ where
   }
 }
 
-impl<D, const N: usize> Lease<[D]> for ArrayVector<D, N> {
+impl<T, const N: usize> Lease<[T]> for ArrayVector<T, N> {
   #[inline]
-  fn lease(&self) -> &[D] {
+  fn lease(&self) -> &[T] {
     self
   }
 }
 
-impl<D, const N: usize> LeaseMut<[D]> for ArrayVector<D, N> {
+impl<T, const N: usize> LeaseMut<[T]> for ArrayVector<T, N> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut [D] {
+  fn lease_mut(&mut self) -> &mut [T] {
     self
   }
 }
 
-impl<D, const N: usize> PartialEq for ArrayVector<D, N>
+impl<T, const N: usize> PartialEq for ArrayVector<T, N>
 where
-  D: PartialEq,
+  T: PartialEq,
 {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
@@ -345,19 +411,19 @@ where
   }
 }
 
-impl<D, const N: usize> PartialEq<[D]> for ArrayVector<D, N>
+impl<T, const N: usize> PartialEq<[T]> for ArrayVector<T, N>
 where
-  D: PartialEq,
+  T: PartialEq,
 {
   #[inline]
-  fn eq(&self, other: &[D]) -> bool {
+  fn eq(&self, other: &[T]) -> bool {
     **self == *other
   }
 }
 
-impl<D, const N: usize> PartialOrd for ArrayVector<D, N>
+impl<T, const N: usize> PartialOrd for ArrayVector<T, N>
 where
-  D: PartialOrd,
+  T: PartialOrd,
 {
   #[inline]
   fn ge(&self, other: &Self) -> bool {
@@ -385,9 +451,9 @@ where
   }
 }
 
-impl<D, const N: usize> Ord for ArrayVector<D, N>
+impl<T, const N: usize> Ord for ArrayVector<T, N>
 where
-  D: Ord,
+  T: Ord,
 {
   #[inline]
   fn cmp(&self, other: &Self) -> Ordering {
@@ -395,10 +461,10 @@ where
   }
 }
 
-impl<D, const N: usize> From<[D; N]> for ArrayVector<D, N> {
+impl<T, const N: usize> From<[T; N]> for ArrayVector<T, N> {
   #[inline]
-  fn from(from: [D; N]) -> Self {
-    Self::from_parts(from, Self::instance_u32())
+  fn from(from: [T; N]) -> Self {
+    Self::from_parts(from, None)
   }
 }
 
@@ -426,6 +492,82 @@ impl<const N: usize> std::io::Write for ArrayVector<u8, N> {
     let len = (*Usize::from(self.remaining())).min(buf.len());
     let _rslt = self.extend_from_copyable_slice(buf.get(..len).unwrap_or_default());
     Ok(len)
+  }
+}
+
+/// A by-value array iterator.
+#[derive(Debug)]
+pub struct IntoIter<T, const N: usize> {
+  idx: u32,
+  data: ArrayVector<T, N>,
+}
+
+impl<T, const N: usize> IntoIter<T, N> {
+  const NEEDS_DROP: bool = needs_drop::<T>();
+}
+
+impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
+  #[inline]
+  fn next_back(&mut self) -> Option<Self::Item> {
+    let Some(diff @ 1..=u32::MAX) = self.data.len.checked_sub(1) else {
+      return None;
+    };
+    self.data.len = diff;
+    // SAFETY: `diff` is within bounds
+    Some(unsafe { self.data.get_owned(diff) })
+  }
+}
+
+impl<T, const N: usize> Drop for IntoIter<T, N> {
+  #[inline]
+  fn drop(&mut self) {
+    let idx = self.idx;
+    let len = self.data.len;
+    self.data.len = 0;
+    if Self::NEEDS_DROP {
+      let diff = len.wrapping_sub(idx);
+      if diff > 0 {
+        // SAFETY: Indices are within bounds
+        unsafe {
+          drop_elements(idx, *Usize::from(diff), self.data.as_mut_ptr());
+        }
+      }
+    }
+  }
+}
+
+impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {}
+
+impl<T, const N: usize> Iterator for IntoIter<T, N> {
+  type Item = T;
+
+  #[inline]
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.idx >= self.data.len {
+      return None;
+    }
+    let idx = self.idx;
+    self.idx = idx.wrapping_add(1);
+    // SAFETY: `idx` is within bounds
+    Some(unsafe { self.data.get_owned(idx) })
+  }
+
+  #[inline]
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    let len = *Usize::from(self.data.len.wrapping_sub(self.idx));
+    (len, Some(len))
+  }
+}
+
+#[inline]
+unsafe fn drop_elements<T>(begin: u32, len: usize, ptr: *mut T) {
+  // SAFETY: It is up to the caller to provide a valid pointer with a valid index
+  let data = unsafe { ptr.add(*Usize::from(begin)) };
+  // SAFETY: It is up to the caller to provide a valid length
+  let elements = unsafe { slice::from_raw_parts_mut(data, len) };
+  // SAFETY: It is up to the caller to provide parameters that can lead to droppable elements
+  unsafe {
+    ptr::drop_in_place(elements);
   }
 }
 
@@ -464,22 +606,22 @@ mod serde {
     Deserialize, Deserializer, Serialize, Serializer,
   };
 
-  impl<'de, D, const N: usize> Deserialize<'de> for ArrayVector<D, N>
+  impl<'de, T, const N: usize> Deserialize<'de> for ArrayVector<T, N>
   where
-    D: Deserialize<'de>,
+    T: Deserialize<'de>,
   {
     #[inline]
     fn deserialize<DE>(deserializer: DE) -> Result<Self, DE::Error>
     where
       DE: Deserializer<'de>,
     {
-      struct ArrayVisitor<D, const N: usize>(PhantomData<D>);
+      struct ArrayVisitor<T, const N: usize>(PhantomData<T>);
 
-      impl<'de, D, const N: usize> Visitor<'de> for ArrayVisitor<D, N>
+      impl<'de, T, const N: usize> Visitor<'de> for ArrayVisitor<T, N>
       where
-        D: Deserialize<'de>,
+        T: Deserialize<'de>,
       {
-        type Value = ArrayVector<D, N>;
+        type Value = ArrayVector<T, N>;
 
         #[inline]
         fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
@@ -493,7 +635,7 @@ mod serde {
         {
           let mut this = ArrayVector::new();
           for elem in &mut this {
-            *elem = seq.next_element::<D>()?.ok_or_else(|| {
+            *elem = seq.next_element::<T>()?.ok_or_else(|| {
               de::Error::invalid_length(N, &"Array need more data to be constructed")
             })?;
           }
@@ -501,13 +643,13 @@ mod serde {
         }
       }
 
-      deserializer.deserialize_tuple(N, ArrayVisitor::<D, N>(PhantomData))
+      deserializer.deserialize_tuple(N, ArrayVisitor::<T, N>(PhantomData))
     }
   }
 
-  impl<D, const N: usize> Serialize for ArrayVector<D, N>
+  impl<T, const N: usize> Serialize for ArrayVector<T, N>
   where
-    D: Serialize,
+    T: Serialize,
   {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

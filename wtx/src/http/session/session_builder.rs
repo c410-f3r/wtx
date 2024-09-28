@@ -4,7 +4,7 @@ use crate::{
     session::{SessionInner, SessionKey},
     Session, SessionStore,
   },
-  misc::{sleep, Lock, Vector},
+  misc::{sleep, Lock, Rng, Vector},
 };
 use chrono::{DateTime, Utc};
 use core::{future::Future, marker::PhantomData, time::Duration};
@@ -14,13 +14,12 @@ use core::{future::Future, marker::PhantomData, time::Duration};
 pub struct SessionBuilder<SS> {
   pub(crate) cookie_def: CookieGeneric<&'static [u8], Vector<u8>>,
   pub(crate) inspection_interval: Duration,
-  pub(crate) key: SessionKey,
   pub(crate) store: SS,
 }
 
 impl<SS> SessionBuilder<SS> {
   #[inline]
-  pub(crate) const fn new(key: SessionKey, store: SS) -> Self {
+  pub(crate) const fn new(store: SS) -> Self {
     Self {
       cookie_def: CookieGeneric {
         domain: &[],
@@ -34,24 +33,52 @@ impl<SS> SessionBuilder<SS> {
         value: Vector::new(),
       },
       inspection_interval: Duration::from_secs(60 * 30),
-      key,
       store,
     }
   }
 
+  /// Creates a new [`Session`] with a random generated key. It is up to the caller to provide
+  /// a good RNG.
+  ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
   /// [`Self::inspection_interval`] and should be called in a separated task.
   ///
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build<CS, E, L>(self) -> (impl Future<Output = Result<(), E>>, Session<L, SS>)
+  pub fn build_generating_key<CS, E, L, RNG>(
+    self,
+    rng: &mut RNG,
+  ) -> (impl Future<Output = Result<(), E>>, Session<L, SS>)
+  where
+    E: From<crate::Error>,
+    L: Lock<Resource = SessionInner<CS, E>>,
+    RNG: Rng,
+    SS: Clone + SessionStore<CS, E>,
+  {
+    let mut key = [0; 16];
+    rng.fill_slice(&mut key);
+    Self::build_with_key(self, key)
+  }
+
+  /// Creates a new [`Session`] with the provided `key`.
+  ///
+  /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
+  /// [`Self::inspection_interval`] and should be called in a separated task.
+  ///
+  /// If the backing store already has a system that automatically removes outdated sessions like
+  /// SQL triggers, then the [`Future`] can be ignored.
+  #[inline]
+  pub fn build_with_key<CS, E, L>(
+    self,
+    key: SessionKey,
+  ) -> (impl Future<Output = Result<(), E>>, Session<L, SS>)
   where
     E: From<crate::Error>,
     L: Lock<Resource = SessionInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
-    let Self { cookie_def, inspection_interval, key, store } = self;
+    let Self { cookie_def, inspection_interval, store } = self;
     let mut local_store = store.clone();
     (
       async move {

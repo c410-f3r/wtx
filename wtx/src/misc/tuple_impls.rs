@@ -1,5 +1,7 @@
+// FIXME(STABLE): macro_metavar_expr
+
 macro_rules! impl_0_16 {
-  ($( ($($T:ident)*) )+) => {
+  ($( [$($T:ident($N:tt))*] )+) => {
     #[cfg(feature = "database")]
     mod database {
       use crate::database::{Database, Encode, RecordValues, encode};
@@ -20,10 +22,9 @@ macro_rules! impl_0_16 {
           ) -> Result<usize, DB::Error> {
             let mut _n: usize = 0;
             $(
-              ${ignore($T)}
               encode(
                 _aux,
-                &self.${index()},
+                &self.$N,
                 _ev,
                 &mut _n,
                 &mut _prefix_cb,
@@ -56,11 +57,11 @@ macro_rules! impl_0_16 {
         where
           $($T: ConnAux,)*
         {
-          type Init = ($(${ignore($T)} $T::Init,)*);
+          type Init = ($($T::Init,)*);
 
           #[inline]
           fn conn_aux(_init: Self::Init) -> crate::Result<Self> {
-            Ok(($( ${ignore($T)} $T::conn_aux(_init.${index()})?, )*))
+            Ok(($( $T::conn_aux(_init.$N)?, )*))
           }
         }
 
@@ -68,14 +69,14 @@ macro_rules! impl_0_16 {
         where
           $($T: ReqAux,)*
         {
-          type Init = ($(${ignore($T)} $T::Init,)*);
+          type Init = ($($T::Init,)*);
 
           #[inline]
           fn req_aux<RRD>(_init: Self::Init, _req: &mut Request<RRD>) -> crate::Result<Self>
           where
             RRD: ReqResDataMut
           {
-            Ok(($( ${ignore($T)} $T::req_aux(_init.${index()}, _req)?, )*))
+            Ok(($( $T::req_aux(_init.$N, _req)?, )*))
           }
         }
 
@@ -86,7 +87,7 @@ macro_rules! impl_0_16 {
         {
           #[inline]
           async fn apply_req_middleware(&self, _ca: &mut CA, _ra: &mut RA, _req: &mut Request<RRD>) -> Result<(), ERR> {
-            $( ${ignore($T)} self.${index()}.apply_req_middleware(_ca, _ra, _req).await?; )*
+            $( self.$N.apply_req_middleware(_ca, _ra, _req).await?; )*
             Ok(())
           }
         }
@@ -104,7 +105,7 @@ macro_rules! impl_0_16 {
                 status_code: _res.status_code,
                 version: _res.version,
               };
-              ${ignore($T)} self.${index()}.apply_res_middleware(_ca, _ra, local_res).await?;
+              self.$N.apply_res_middleware(_ca, _ra, local_res).await?;
             })*
             Ok(())
           }
@@ -128,10 +129,9 @@ macro_rules! impl_0_16 {
           ) -> Result<StatusCode, ERR> {
             match path_defs.1.get(usize::from(path_defs.0)).map(|el| el.1) {
               $(
-                ${ignore($T)}
-                Some(${index()}) => {
+                Some($N) => {
                   return self
-                    .${index()}
+                    .$N
                     .value
                     .manage_path(_ca, (path_defs.0.wrapping_add(1), path_defs.1), _ra, _req)
                     .await;
@@ -149,11 +149,10 @@ macro_rules! impl_0_16 {
           ) -> crate::Result<()> {
             let mut _idx: u8 = 0;
             $({
-              ${ignore($T)}
               let mut local_prev = _prev.clone();
-              local_prev.push((self.${index()}.full_path, _idx))?;
+              local_prev.push((self.$N.full_path, _idx))?;
               if $T::IS_ROUTER {
-                self.${index()}.value.paths_indices(local_prev, _vec)?;
+                self.$N.value.paths_indices(local_prev, _vec)?;
               } else {
                 _vec.push(local_prev)?;
               }
@@ -216,8 +215,7 @@ macro_rules! impl_0_16 {
           fn encode(&self, _ev: &mut EncodeValue<'_, '_>) -> Result<(), ERR> {
             let mut _ev = StructEncoder::<ERR>::new(_ev)?;
             $(
-              ${ignore($T)}
-              _ev = _ev.encode(&self.${index()})?;
+              _ev = _ev.encode(&self.$N)?;
             )*
             Ok(())
           }
@@ -228,21 +226,21 @@ macro_rules! impl_0_16 {
 }
 
 impl_0_16! {
-  ()
-  (A)
-  (A B)
-  (A B C)
-  (A B C D)
-  (A B C D E)
-  (A B C D E F)
-  (A B C D E F G)
-  (A B C D E F G H)
-  (A B C D E F G H I)
-  (A B C D E F G H I J)
-  (A B C D E F G H I J K)
-  (A B C D E F G H I J K L)
-  (A B C D E F G H I J K L M)
-  (A B C D E F G H I J K L M N)
-  (A B C D E F G H I J K L M N O)
-  (A B C D E F G H I J K L M N O P)
+  []
+  [A(0)]
+  [A(0) B(1)]
+  [A(0) B(1) C(2)]
+  [A(0) B(1) C(2) D(3)]
+  [A(0) B(1) C(2) D(3) E(4)]
+  [A(0) B(1) C(2) D(3) E(4) F(5)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14)]
+  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15)]
 }

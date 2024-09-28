@@ -13,7 +13,7 @@ pub(crate) struct HpackStaticRequestHeaders<'bytes> {
   pub(crate) scheme: &'bytes [u8],
 }
 
-impl<'bytes> HpackStaticRequestHeaders<'bytes> {
+impl HpackStaticRequestHeaders<'_> {
   pub(crate) const EMPTY: Self =
     Self { authority: &[], method: None, path: &[], protocol: None, scheme: &[] };
 

@@ -7,17 +7,21 @@
 #[cfg(target_pointer_width = "16")]
 compile_error!("WTX does not support 16bit hardware");
 
+macro_rules! u32_max {
+  () => {
+    4_294_967_295
+  };
+}
+
 use core::ops::{Deref, DerefMut};
 
 /// An `usize` that can be infallible converted from an `u32`, which effectively drops the support
 /// for 16bit hardware.
-///
-/// Additionally, 128bit memory addresses are also unsupported.
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Usize(usize);
 
 impl Usize {
-  pub(crate) const IS_32: bool = cfg!(target_pointer_width = "32");
+  const IS_32: bool = cfg!(target_pointer_width = "32");
 
   #[inline]
   pub(crate) const fn from_u32(from: u32) -> Self {
@@ -26,7 +30,7 @@ impl Usize {
 
   #[inline]
   pub(crate) const fn from_u64(from: u64) -> Option<Self> {
-    if Self::IS_32 {
+    if Self::IS_32 && from > u32_max!() {
       return None;
     }
     Some(Self(from as usize))
@@ -40,6 +44,14 @@ impl Usize {
   #[inline]
   pub(crate) const fn into_usize(self) -> usize {
     self.0
+  }
+
+  #[inline]
+  pub(crate) const fn into_u32(self) -> Option<u32> {
+    if !Self::IS_32 && self.0 > u32_max!() {
+      return None;
+    }
+    Some(self.0 as u32)
   }
 
   #[inline]

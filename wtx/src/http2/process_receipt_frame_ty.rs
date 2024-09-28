@@ -9,7 +9,7 @@ use crate::{
     DataFrame, FrameInit, HpackDecoder, Http2Error, Http2ErrorCode, Http2Params, ResetStreamFrame,
     Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
   },
-  misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter},
+  misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter, NOOP_WAKER},
 };
 use alloc::collections::VecDeque;
 use core::{marker::PhantomData, sync::atomic::AtomicBool, task::Waker};
@@ -32,7 +32,7 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, RRB, SR, SW> {
   pub(crate) uri_buffer: &'instance mut UriBuffer,
 }
 
-impl<'instance, RRB, SR, SW> ProcessReceiptFrameTy<'instance, RRB, SR, SW>
+impl<RRB, SR, SW> ProcessReceiptFrameTy<'_, RRB, SR, SW>
 where
   RRB: LeaseMut<ReqResBuffer>,
   SR: StreamReader,
@@ -166,7 +166,7 @@ where
         rrb,
         status_code: StatusCode::Ok,
         stream_state,
-        waker: Waker::noop().clone(),
+        waker: NOOP_WAKER.clone(),
         windows: Windows::initial(self.hp, self.hps),
       },
     ));

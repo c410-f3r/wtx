@@ -78,17 +78,20 @@ impl<P> PartialOrd for JsonRpcRequest<P> {
 #[cfg(feature = "serde")]
 mod serde {
   use crate::data_transformation::format::JsonRpcRequest;
+  use serde::{
+    ser::{SerializeStruct, Serializer},
+    Serialize,
+  };
 
-  impl<P> serde::Serialize for JsonRpcRequest<P>
+  impl<P> Serialize for JsonRpcRequest<P>
   where
-    P: serde::Serialize,
+    P: Serialize,
   {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-      S: serde::ser::Serializer,
+      S: Serializer,
     {
-      use serde::ser::SerializeStruct;
       let mut state = serializer.serialize_struct("JsonRpcRequest", 4)?;
       state.serialize_field("jsonrpc", "2.0")?;
       state.serialize_field("method", self.method)?;

@@ -3,7 +3,7 @@
 . "$(dirname "$0")/common.sh" --source-only
 
 $rt rustfmt
-$rt clippy -Aclippy::panic_in_result_fn
+$rt clippy -Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn
 
 cargo miri test -p wtx
 

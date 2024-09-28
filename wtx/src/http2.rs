@@ -52,7 +52,7 @@ use crate::{
   },
   misc::{
     AtomicWaker, ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter,
-    StreamReader, StreamWriter, Usize,
+    StreamReader, StreamWriter, Usize, NOOP_WAKER,
   },
 };
 use alloc::sync::Arc;
@@ -64,7 +64,7 @@ use core::{
   mem,
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},
-  task::{Poll, Waker},
+  task::Poll,
 };
 pub(crate) use data_frame::DataFrame;
 pub(crate) use frame_init::{FrameInit, FrameInitTy};
@@ -337,7 +337,7 @@ where
       StreamControlRecvParams {
         is_stream_open: true,
         stream_state: StreamState::Idle,
-        waker: Waker::noop().clone(),
+        waker: NOOP_WAKER.clone(),
         windows: Windows::initial(hdpm.hp, hdpm.hps),
       },
     ));
