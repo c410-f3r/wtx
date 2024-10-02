@@ -17,6 +17,8 @@ macro_rules! _local_write_all_vectored {
 }
 
 mod bytes_stream;
+#[cfg(feature = "monoio")]
+mod monoio;
 #[cfg(feature = "std")]
 mod std;
 mod stream_reader;
