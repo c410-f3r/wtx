@@ -13,24 +13,21 @@ use tokio::{
 };
 use wtx::{
   misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{
-    FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode, WebSocketBuffer, WebSocketClient,
-  },
+  web_socket::{FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketClient},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("ws://www.example.com");
   let fb = &mut FrameBufferVec::default();
-  let (_, mut ws) = WebSocketClient::connect(
+  let mut ws = WebSocketClient::connect(
     (),
-    fb,
     [],
-    &mut HeadersBuffer::default(),
     Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri.to_ref(),
     WebSocketBuffer::default(),
+    |_| wtx::Result::Ok(()),
   )
   .await?;
   let mut buffer = String::new();

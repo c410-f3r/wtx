@@ -73,8 +73,7 @@ fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4], shift: usize) {
   }
 }
 
-#[cfg(feature = "_bench")]
-#[cfg(test)]
+#[cfg(all(feature = "_bench", test))]
 mod bench {
   use crate::{bench::_data, web_socket::unmask};
 

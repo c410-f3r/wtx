@@ -65,9 +65,11 @@ where
     S: StreamWithTls,
   {
     eb.lease_mut().clear();
-    let mut fbw = FilledBufferWriter::from(&mut eb.lease_mut().nb);
-    encrypted_conn(&mut fbw)?;
-    initial_stream.write_all(fbw._curr_bytes()).await?;
+    {
+      let mut fbw = FilledBufferWriter::from(&mut eb.lease_mut().nb);
+      encrypted_conn(&mut fbw)?;
+      initial_stream.write_all(fbw._curr_bytes()).await?;
+    }
     let mut buf = [0];
     let _ = initial_stream.read(&mut buf).await?;
     if buf[0] != b'S' {

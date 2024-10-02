@@ -1,12 +1,12 @@
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests;
 
 use crate::{
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
   misc::{bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, VectorError},
   web_socket::{
-    compression::NegotiatedCompression, misc::_trim_bytes, Compression, FrameBufferVec,
-    WebSocketBuffer, WebSocketClient, WebSocketError, WebSocketServer,
+    compression::NegotiatedCompression, misc::_trim_bytes, Compression, WebSocketBuffer,
+    WebSocketClient, WebSocketError, WebSocketServer,
   },
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -15,19 +15,6 @@ use sha1::{Digest, Sha1};
 
 const MAX_READ_LEN: usize = 2 * 1024;
 const MAX_READ_HEADER_LEN: usize = 64;
-
-/// Necessary to decode incoming bytes of responses or requests.
-#[derive(Debug)]
-pub struct HeadersBuffer<H, const N: usize> {
-  pub(crate) _headers: [H; N],
-}
-
-impl<const N: usize> Default for HeadersBuffer<Header<'_>, N> {
-  #[inline]
-  fn default() -> Self {
-    Self { _headers: [EMPTY_HEADER; N] }
-  }
-}
 
 impl<NC, RNG, S, WSB> WebSocketServer<NC, RNG, S, WSB>
 where
@@ -38,64 +25,67 @@ where
 {
   /// Reads external data to establish an WebSocket connection.
   #[inline]
-  pub async fn accept<C>(
+  pub async fn accept<C, E>(
     compression: C,
     rng: RNG,
     mut stream: S,
     mut wsb: WSB,
-    cb: impl FnOnce(&dyn crate::http::GenericRequest) -> bool,
-  ) -> crate::Result<Self>
+    req_cb: impl FnOnce(&Request<'_, '_>) -> Result<(), E>,
+  ) -> Result<Self, E>
   where
     C: Compression<false, NegotiatedCompression = NC>,
+    E: From<crate::Error>,
   {
+    wsb.lease_mut()._clear();
     let nb = &mut wsb.lease_mut().nb;
-    nb._set_indices_through_expansion(0, 0, MAX_READ_LEN)?;
+    nb._expand_buffer(MAX_READ_LEN).map_err(From::from)?;
     let mut read = 0;
     loop {
-      let read_buffer = nb._following_mut().get_mut(read..).unwrap_or_default();
+      let read_buffer = nb._buffer_mut().get_mut(read..).unwrap_or_default();
       let local_read = stream.read(read_buffer).await?;
       if local_read == 0 {
-        return Err(crate::Error::UnexpectedStreamReadEOF);
+        return Err(crate::Error::UnexpectedStreamReadEOF.into());
       }
       read = read.wrapping_add(local_read);
       let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
       let mut req = Request::new(&mut req_buffer);
-      match req.parse(nb._following())? {
+      match req.parse(nb._following()).map_err(From::from)? {
         Status::Complete(_) => {
-          if !cb(&req) {
-            return Err(WebSocketError::InvalidAcceptRequest.into());
-          }
+          req_cb(&req)?;
           if !_trim_bytes(req.method()).eq_ignore_ascii_case(b"get") {
-            return Err(HttpError::UnexpectedHttpMethod { expected: Method::Get }.into());
+            return Err(
+              crate::Error::from(HttpError::UnexpectedHttpMethod { expected: Method::Get }).into(),
+            );
           }
           verify_common_header(req.headers)?;
           if !has_header_key_and_value(req.headers, b"sec-websocket-version", b"13") {
-            return Err(
-              HttpError::MissingHeader { expected: KnownHeaderName::SecWebsocketVersion }.into(),
-            );
+            let expected = KnownHeaderName::SecWebsocketVersion;
+            return Err(crate::Error::from(HttpError::MissingHeader(expected)).into());
           };
           let Some(key) = req.headers.iter().find_map(|el| {
             (el.name().eq_ignore_ascii_case(b"sec-websocket-key")).then_some(el.value())
           }) else {
             return Err(
-              HttpError::MissingHeader { expected: KnownHeaderName::SecWebsocketKey }.into(),
+              crate::Error::from(HttpError::MissingHeader(KnownHeaderName::SecWebsocketKey)).into(),
             );
           };
           let compression = compression.negotiate(req.headers.iter())?;
           let mut key_buffer = [0; 30];
           let swa = derived_key(&mut key_buffer, key);
-          let mut headers_buffer = HeadersBuffer::<_, 3>::default();
-          headers_buffer._headers[0] = Header { name: "Connection", value: b"Upgrade" };
-          headers_buffer._headers[1] = Header { name: "Sec-WebSocket-Accept", value: swa };
-          headers_buffer._headers[2] = Header { name: "Upgrade", value: b"websocket" };
-          let mut res = Response::new(&mut headers_buffer._headers);
+          let mut headers_buffer = [EMPTY_HEADER; 3];
+          headers_buffer[0] = Header { name: "Connection", value: b"Upgrade" };
+          headers_buffer[1] = Header { name: "Sec-WebSocket-Accept", value: swa };
+          headers_buffer[2] = Header { name: "Upgrade", value: b"websocket" };
+          let mut res = Response::new(&mut headers_buffer);
           res.code = Some(101);
           res.version = Some(req.version().into());
-          let mut fbw = nb.into();
-          let res_bytes = build_res(&compression, &mut fbw, res.headers)?;
-          stream.write_all(res_bytes).await?;
+          {
+            let mut fbw = nb.into();
+            build_res(&compression, &mut fbw, res.headers).map_err(From::from)?;
+            stream.write_all(fbw._curr_bytes()).await?;
+          }
           nb._clear();
-          return WebSocketServer::new(compression, rng, stream, wsb);
+          return WebSocketServer::new(compression, rng, stream, wsb).map_err(From::from);
         }
         Status::Partial => {}
       }
@@ -112,57 +102,64 @@ where
 {
   /// Sends data to establish an WebSocket connection.
   #[inline]
-  pub async fn connect<'fb, 'hb, 'headers, C>(
+  pub async fn connect<'headers, C, E>(
     compression: C,
-    fb: &'fb mut FrameBufferVec,
     headers: impl IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
-    headers_buffer: &'hb mut HeadersBuffer<Header<'fb>, MAX_READ_HEADER_LEN>,
     mut rng: RNG,
     mut stream: S,
     uri: &UriRef<'_>,
     mut wsb: WSB,
-  ) -> crate::Result<(Response<'hb, 'fb>, WebSocketClient<C::NegotiatedCompression, RNG, S, WSB>)>
+    res_cb: impl FnOnce(&Response<'_, '_>) -> Result<(), E>,
+  ) -> Result<WebSocketClient<C::NegotiatedCompression, RNG, S, WSB>, E>
   where
     C: Compression<true, NegotiatedCompression = NC>,
+    E: From<crate::Error>,
   {
+    wsb.lease_mut()._clear();
     let key_buffer = &mut [0; 26];
-    let nb = &mut wsb.lease_mut().nb;
-    nb._clear();
-    let mut fbw = nb.into();
-    let key = build_req(&compression, &mut fbw, headers, key_buffer, &mut rng, uri)?;
-    stream.write_all(fbw._curr_bytes()).await?;
-    let mut read = 0;
-    fb._set_indices_through_expansion(0, 0, MAX_READ_LEN)?;
-    let len = loop {
-      let mut local_header = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
-      let read_buffer = fb.payload_mut().get_mut(read..).unwrap_or_default();
-      let local_read = stream.read(read_buffer).await?;
-      if local_read == 0 {
-        return Err(crate::Error::UnexpectedStreamReadEOF);
-      }
-      read = read.wrapping_add(local_read);
-      match Response::new(&mut local_header).parse(fb.payload())? {
-        Status::Complete(len) => break len,
-        Status::Partial => {}
+    let key = {
+      let nb = &mut wsb.lease_mut().nb;
+      nb._expand_buffer(MAX_READ_LEN).map_err(From::from)?;
+      {
+        let fbw = &mut nb.into();
+        let key =
+          build_req(&compression, fbw, headers, key_buffer, &mut rng, uri).map_err(From::from)?;
+        stream.write_all(fbw._curr_bytes()).await?;
+        key
       }
     };
-    let mut res = Response::new(&mut headers_buffer._headers);
-    let _status = res.parse(fb.payload())?;
-    if res.code != Some(101) {
-      return Err(WebSocketError::MissingSwitchingProtocols.into());
-    }
-    verify_common_header(res.headers)?;
-    if !has_header_key_and_value(
-      res.headers,
-      b"sec-websocket-accept",
-      derived_key(&mut [0; 30], key),
-    ) {
-      return Err(HttpError::MissingHeader { expected: KnownHeaderName::SecWebsocketKey }.into());
-    }
-    let compression = compression.negotiate(res.headers.iter())?;
-    nb._set_indices_through_expansion(0, 0, read.wrapping_sub(len))?;
-    nb._following_mut().copy_from_slice(fb.payload().get(len..read).unwrap_or_default());
-    Ok((res, WebSocketClient::new(compression, rng, stream, wsb)?))
+    let mut read = 0;
+    let (compression, len) = loop {
+      let nb = &mut wsb.lease_mut().nb;
+      let local_read = stream.read(nb._buffer_mut().get_mut(read..).unwrap_or_default()).await?;
+      if local_read == 0 {
+        return Err(crate::Error::UnexpectedStreamReadEOF.into());
+      }
+      read = read.wrapping_add(local_read);
+      let mut httparse_headers = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
+      let mut res = Response::new(&mut httparse_headers);
+      let len = match res.parse(nb._buffer().get(..read).unwrap_or_default()).map_err(From::from)? {
+        Status::Complete(len) => len,
+        Status::Partial => continue,
+      };
+      if res.code != Some(101) {
+        return Err(crate::Error::from(WebSocketError::MissingSwitchingProtocols).into());
+      }
+      res_cb(&res)?;
+      verify_common_header(res.headers)?;
+      if !has_header_key_and_value(
+        res.headers,
+        b"sec-websocket-accept",
+        derived_key(&mut [0; 30], key),
+      ) {
+        return Err(
+          crate::Error::from(HttpError::MissingHeader(KnownHeaderName::SecWebsocketKey)).into(),
+        );
+      }
+      break (compression.negotiate(res.headers.iter())?, len);
+    };
+    wsb.lease_mut().nb._set_indices(0, len, read.wrapping_sub(len))?;
+    Ok(WebSocketClient::new(compression, rng, stream, wsb)?)
   }
 }
 
@@ -179,10 +176,10 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
 }
 
 /// Client request
-fn build_req<'bytes, 'kb, C>(
+fn build_req<'headers, 'kb, C>(
   compression: &C,
   fbw: &mut FilledBufferWriter<'_>,
-  headers: impl IntoIterator<Item = (&'bytes [u8], &'bytes [u8])>,
+  headers: impl IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
   key_buffer: &'kb mut [u8; 26],
   rng: &mut impl Rng,
   uri: &UriRef<'_>,
@@ -215,11 +212,11 @@ where
 }
 
 /// Server response
-fn build_res<'fpb, C>(
+fn build_res<C>(
   compression: &C,
-  fbw: &'fpb mut FilledBufferWriter<'fpb>,
+  fbw: &mut FilledBufferWriter<'_>,
   headers: &[Header<'_>],
-) -> Result<&'fpb [u8], VectorError>
+) -> Result<(), VectorError>
 where
   C: NegotiatedCompression,
 {
@@ -229,7 +226,7 @@ where
   }
   compression.write_res_headers(fbw)?;
   fbw._extend_from_slice_rn(b"")?;
-  Ok(fbw._curr_bytes())
+  Ok(())
 }
 
 fn derived_key<'buffer>(buffer: &'buffer mut [u8; 30], key: &[u8]) -> &'buffer [u8] {
@@ -257,10 +254,10 @@ fn has_header_key_and_value(headers: &[Header<'_>], key: &[u8], value: &[u8]) ->
 
 fn verify_common_header(buffer: &[Header<'_>]) -> crate::Result<()> {
   if !has_header_key_and_value(buffer, b"connection", b"upgrade") {
-    return Err(HttpError::MissingHeader { expected: KnownHeaderName::Connection }.into());
+    return Err(HttpError::MissingHeader(KnownHeaderName::Connection).into());
   }
   if !has_header_key_and_value(buffer, b"upgrade", b"websocket") {
-    return Err(HttpError::MissingHeader { expected: KnownHeaderName::Upgrade }.into());
+    return Err(HttpError::MissingHeader(KnownHeaderName::Upgrade).into());
   }
   Ok(())
 }

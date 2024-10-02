@@ -1,135 +1,136 @@
-use crate::misc::{FilledBufferWriter, Vector, VectorError, _unreachable};
+use crate::misc::{FilledBuffer, FilledBufferWriter, VectorError};
 use core::ops::Range;
 
 // ```
 // [ Antecedent | Current | Following | Trailing ]
+//              |         |           |          |
+//              |         |           |          |--> _antecedent_end_idx
+//              |         |           |
+//              |         |           |-------------> _current_end_idx
+//              |         |
+//              |         |-------------------------> _buffer.len()
+//              |
+//              |-----------------------------------> _buffer.capacity()
 // ```
 #[derive(Debug)]
 pub(crate) struct PartitionedFilledBuffer {
   _antecedent_end_idx: usize,
-  _buffer: Vector<u8>,
+  _buffer: FilledBuffer,
   _current_end_idx: usize,
-  _following_end_idx: usize,
 }
 
 impl PartitionedFilledBuffer {
+  #[inline]
   pub(crate) const fn new() -> Self {
-    Self {
-      _antecedent_end_idx: 0,
-      _buffer: Vector::new(),
-      _current_end_idx: 0,
-      _following_end_idx: 0,
-    }
+    Self { _antecedent_end_idx: 0, _buffer: FilledBuffer::_new(), _current_end_idx: 0 }
   }
 
-  pub(crate) fn _with_capacity(cap: usize) -> Self {
-    Self {
+  #[inline]
+  pub(crate) fn _with_capacity(cap: usize) -> Result<Self, VectorError> {
+    Ok(Self {
       _antecedent_end_idx: 0,
-      _buffer: _vector![0; cap],
+      _buffer: FilledBuffer::_with_capacity(cap)?,
       _current_end_idx: 0,
-      _following_end_idx: 0,
-    }
+    })
   }
 
+  #[inline]
   pub(crate) fn _antecedent_end_idx(&self) -> usize {
     self._antecedent_end_idx
   }
 
+  #[inline]
   pub(crate) fn _buffer(&self) -> &[u8] {
-    &self._buffer
+    self._buffer._all()
   }
 
+  #[inline]
   pub(crate) fn _buffer_mut(&mut self) -> &mut [u8] {
-    &mut self._buffer
+    self._buffer._all_mut()
   }
 
+  #[inline]
   pub(crate) fn _clear(&mut self) {
-    self._antecedent_end_idx = 0;
-    self._current_end_idx = 0;
-    self._following_end_idx = 0;
+    let Self { _antecedent_end_idx, _buffer, _current_end_idx } = self;
+    *_antecedent_end_idx = 0;
+    _buffer._clear();
+    *_current_end_idx = 0;
   }
 
+  #[inline]
   pub(crate) fn _clear_if_following_is_empty(&mut self) {
     if !self._has_following() {
       self._clear();
     }
   }
 
-  /// Current along side any trailing bytes
-  pub(crate) fn _current_trail_mut(&mut self) -> &mut [u8] {
-    if let Some(el) = self._buffer.get_mut(self._antecedent_end_idx..) {
-      el
-    } else {
-      _unreachable()
-    }
-  }
-
+  #[inline]
   pub(crate) fn _current(&self) -> &[u8] {
-    if let Some(el) = self._buffer.get(self._current_range()) {
-      el
-    } else {
-      _unreachable()
-    }
+    let range = self._current_range();
+    self._buffer().get(range).unwrap_or_default()
   }
 
+  #[inline]
   pub(crate) fn _current_end_idx(&self) -> usize {
     self._current_end_idx
   }
 
+  #[inline]
   pub(crate) fn _current_mut(&mut self) -> &mut [u8] {
     let range = self._current_range();
-    if let Some(el) = self._buffer.get_mut(range) {
-      el
-    } else {
-      _unreachable()
-    }
+    self._buffer.get_mut(range).unwrap_or_default()
   }
 
+  #[inline]
   pub(crate) fn _current_range(&self) -> Range<usize> {
-    self._antecedent_end_idx..self._current_end_idx
+    self._antecedent_end_idx()..self._current_end_idx()
   }
 
-  pub(crate) fn _expand_buffer(&mut self, new_len: usize) -> Result<(), VectorError> {
-    self._buffer.expand(new_len, 0)
+  #[inline]
+  pub(crate) fn _current_trail_mut(&mut self) -> &mut [u8] {
+    let idx = self._antecedent_end_idx();
+    self._buffer._all_mut().get_mut(idx..).unwrap_or_default()
   }
 
-  pub(crate) fn _expand_following(&mut self, new_len: usize) -> Result<(), VectorError> {
-    self._expand_buffer(self._following_end_idx.wrapping_add(new_len))
+  #[inline]
+  pub(crate) fn _expand_buffer(&mut self, additional: usize) -> Result<(), VectorError> {
+    self._buffer._reserve(additional)
   }
 
+  #[inline]
   pub(crate) fn _following(&self) -> &[u8] {
-    if let Some(el) = self._buffer.get(self._current_end_idx..self._following_end_idx) {
-      el
-    } else {
-      _unreachable()
-    }
+    let idx = self._current_end_idx();
+    self._buffer().get(idx..).unwrap_or_default()
   }
 
-  pub(crate) fn _following_mut(&mut self) -> &mut [u8] {
-    if let Some(el) = self._buffer.get_mut(self._current_end_idx..self._following_end_idx) {
-      el
-    } else {
-      _unreachable()
-    }
+  #[inline]
+  pub(crate) fn _following_end_idx(&self) -> usize {
+    self._buffer._len()
   }
 
+  #[inline]
   pub(crate) fn _following_len(&self) -> usize {
-    self._following_end_idx.wrapping_sub(self._current_end_idx)
+    self._following_end_idx().wrapping_sub(self._current_end_idx())
   }
 
-  /// Following bytes along side any trailing bytes
+  #[inline]
+  pub(crate) fn _following_mut(&mut self) -> &mut [u8] {
+    let idx = self._current_end_idx();
+    self._buffer.get_mut(idx..).unwrap_or_default()
+  }
+
+  #[inline]
   pub(crate) fn _following_trail_mut(&mut self) -> &mut [u8] {
-    if let Some(el) = self._buffer.get_mut(self._current_end_idx..) {
-      el
-    } else {
-      _unreachable()
-    }
+    let idx = self._current_end_idx();
+    self._buffer._all_mut().get_mut(idx..).unwrap_or_default()
   }
 
+  #[inline]
   pub(crate) fn _has_following(&self) -> bool {
-    self._following_end_idx > self._current_end_idx
+    self._following_end_idx() > self._current_end_idx()
   }
 
+  #[inline]
   pub(crate) fn _set_indices(
     &mut self,
     antecedent_len: usize,
@@ -137,28 +138,16 @@ impl PartitionedFilledBuffer {
     following_len: usize,
   ) -> crate::Result<()> {
     let [ant, cur, fol] = Self::_indcs_from_lengths(antecedent_len, current_len, following_len);
-    if fol > self._buffer.len() {
+    if fol > self._buffer._capacity() {
       return Err(crate::Error::InvalidPartitionedBufferBounds);
     }
     self._antecedent_end_idx = ant;
     self._current_end_idx = cur;
-    self._following_end_idx = fol;
+    self._buffer._set_len(fol);
     Ok(())
   }
 
-  pub(crate) fn _set_indices_through_expansion(
-    &mut self,
-    antecedent_len: usize,
-    current_len: usize,
-    following_len: usize,
-  ) -> Result<(), VectorError> {
-    let [ant, cur, fol] = Self::_indcs_from_lengths(antecedent_len, current_len, following_len);
-    self._antecedent_end_idx = ant;
-    self._current_end_idx = cur;
-    self._following_end_idx = fol;
-    self._expand_buffer(fol)
-  }
-
+  #[inline]
   fn _indcs_from_lengths(
     antecedent_len: usize,
     current_len: usize,
@@ -180,6 +169,6 @@ impl Default for PartitionedFilledBuffer {
 impl<'pfb> From<&'pfb mut PartitionedFilledBuffer> for FilledBufferWriter<'pfb> {
   #[inline]
   fn from(from: &'pfb mut PartitionedFilledBuffer) -> Self {
-    FilledBufferWriter::new(from._following_end_idx, &mut from._buffer)
+    FilledBufferWriter::new(from._following_end_idx(), &mut from._buffer)
   }
 }

@@ -1,4 +1,4 @@
-use crate::misc::Vector;
+use crate::misc::{BufferParam, Vector};
 
 /// Internal trait not intended for public usage
 pub trait Expand {
@@ -22,7 +22,7 @@ where
 {
   #[inline]
   fn expand(&mut self, len: usize) -> crate::Result<()> {
-    self.expand(len, T::default())?;
+    self.expand(BufferParam::Len(len), T::default())?;
     Ok(())
   }
 }

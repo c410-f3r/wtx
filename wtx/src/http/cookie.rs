@@ -25,6 +25,7 @@ pub(crate) fn decrypt(
   key: &[u8],
   (name, value): (&[u8], &[u8]),
 ) -> crate::Result<()> {
+  use crate::misc::BufferParam;
   use aes_gcm::{
     aead::{generic_array::GenericArray, AeadInPlace},
     Aes256Gcm, Tag,
@@ -34,7 +35,7 @@ pub(crate) fn decrypt(
   let start = buffer.len();
   let (nonce, content, tag) = {
     let expand_len = NONCE_LEN.wrapping_add(value.len()).wrapping_add(TAG_LEN);
-    buffer.expand(expand_len, 0)?;
+    buffer.expand(BufferParam::Additional(expand_len), 0)?;
     let actual_len = STANDARD.decode_slice(value, buffer)?;
     buffer.truncate(start.wrapping_add(actual_len));
     #[rustfmt::skip]
@@ -79,6 +80,7 @@ pub(crate) fn encrypt<RNG>(
 where
   RNG: Rng,
 {
+  use crate::misc::BufferParam;
   use aes_gcm::{
     aead::{generic_array::GenericArray, AeadInPlace},
     Aes256Gcm,
@@ -88,8 +90,8 @@ where
   let start = buffer.len();
   let content_len = NONCE_LEN.wrapping_add(value.len()).wrapping_add(TAG_LEN);
   let base64_len = base64::encoded_len(content_len, true).unwrap_or(usize::MAX);
-  buffer.expand(base64_len, 0)?;
-  buffer.extend_from_slices(&[[0; NONCE_LEN].as_slice(), value, [0; TAG_LEN].as_slice()])?;
+  buffer.expand(BufferParam::Additional(base64_len), 0)?;
+  let _ = buffer.extend_from_slices([[0; NONCE_LEN].as_slice(), value, [0; TAG_LEN].as_slice()])?;
   {
     let content_start = start.wrapping_add(base64_len);
     #[rustfmt::skip]

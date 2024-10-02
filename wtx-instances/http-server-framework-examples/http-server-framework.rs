@@ -6,7 +6,6 @@
 //! This snippet requires ~50 dependencies and has an optimized binary size of ~900K.
 
 extern crate serde;
-extern crate serde_json;
 extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;

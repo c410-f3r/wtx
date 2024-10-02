@@ -1,5 +1,4 @@
 pub(crate) mod expand;
-mod filled_buffer;
 
 use crate::{
   misc::LeaseMut,
@@ -7,7 +6,6 @@ use crate::{
 };
 use core::ops::Range;
 pub use expand::Expand;
-pub(crate) use filled_buffer::FilledBuffer;
 
 pub(crate) fn define_fb_from_header_params<B, const IS_CLIENT: bool>(
   fb: &mut FrameBuffer<B>,

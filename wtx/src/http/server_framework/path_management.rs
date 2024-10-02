@@ -67,7 +67,7 @@ where
   }
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::{
     http::{

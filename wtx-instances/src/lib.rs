@@ -15,12 +15,16 @@
   missing_docs
 )]
 
+#[cfg(feature = "grpc")]
 pub mod grpc_bindings;
 
-use tokio::net::TcpStream;
-use wtx::{
-  database::client::postgres::{Config, Executor, ExecutorBuffer},
-  misc::{simple_seed, Uri, Xorshift64},
+#[cfg(feature = "postgres")]
+use {
+  tokio::net::TcpStream,
+  wtx::{
+    database::client::postgres::{Config, Executor, ExecutorBuffer},
+    misc::{simple_seed, Uri, Xorshift64},
+  },
 };
 
 /// Certificate
@@ -30,8 +34,9 @@ pub static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
+#[cfg(feature = "postgres")]
 #[inline]
-pub async fn executor(
+pub async fn executor_postgres(
   uri_str: &str,
 ) -> wtx::Result<Executor<wtx::Error, ExecutorBuffer, TcpStream>> {
   let uri = Uri::new(uri_str);

@@ -123,18 +123,32 @@ macro_rules! impl_0_16 {
           async fn manage_path(
             &self,
             _ca: &mut CA,
-            path_defs: (u8, &[(&'static str, u8)]),
+            _path_defs: (u8, &[(&'static str, u8)]),
             _ra: &mut RA,
             _req: &mut Request<RRD>,
           ) -> Result<StatusCode, ERR> {
-            match path_defs.1.get(usize::from(path_defs.0)).map(|el| el.1) {
+            #[cfg(feature = "matchit")]
+            match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.1) {
               $(
                 Some($N) => {
                   return self
                     .$N
                     .value
-                    .manage_path(_ca, (path_defs.0.wrapping_add(1), path_defs.1), _ra, _req)
+                    .manage_path(_ca, (_path_defs.0.wrapping_add(1), _path_defs.1), _ra, _req)
                     .await;
+                }
+              )*
+              _ => Err(ERR::from(HttpError::UriMismatch.into()))
+            }
+            #[cfg(not(feature = "matchit"))]
+            match _req.rrd.uri().path() {
+              $(
+                elem if elem == self.$N.full_path => {
+                  return self
+                    .$N
+                    .value
+                    .manage_path(_ca, (_path_defs.0.wrapping_add(1), _path_defs.1), _ra, _req)
+                    .await
                 }
               )*
               _ => Err(ERR::from(HttpError::UriMismatch.into()))

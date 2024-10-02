@@ -72,7 +72,7 @@ impl LowLevelServer {
                 Xorshift64::from(simple_seed()),
                 stream,
                 wsb,
-                |_| true,
+                |_| crate::Result::Ok(()),
               )
               .await?,
             ))

@@ -49,7 +49,7 @@ impl<DRSR> Transport<DRSR> for () {
   }
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::client_api_framework::{network::transport::Transport, pkg::PkgsAux};
 

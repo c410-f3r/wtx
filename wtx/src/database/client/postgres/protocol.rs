@@ -193,10 +193,10 @@ pub(crate) fn sasl_second(
       let n = STANDARD.encode_slice(tls_server_end_point, local_fbw._remaining_bytes_mut())?;
       local_fbw._shift_idx(n)?;
     }
-    local_fbw._extend_from_slices(&[b",r=", response_nonce])?;
+    local_fbw._extend_from_slices([b",r=", response_nonce])?;
 
-    auth_data
-      .extend_from_slices(&[&b","[..], local_fbw._curr_bytes().get(5..).unwrap_or_default()])?;
+    let local_bytes = local_fbw._curr_bytes().get(5..).unwrap_or_default();
+    let _ = auth_data.extend_from_slices([&b","[..], local_bytes])?;
 
     let client_key: [u8; 32] = {
       let mut mac = Hmac::<Sha256>::new_from_slice(salted_password)?;

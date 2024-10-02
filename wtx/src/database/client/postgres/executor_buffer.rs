@@ -45,7 +45,7 @@ impl ExecutorBuffer {
     Ok(Self {
       conn_params: Vector::with_capacity(DFLT_PARAMS_LEN)?,
       ftb: Vector::new(),
-      nb: PartitionedFilledBuffer::_with_capacity(network_buffer_cap),
+      nb: PartitionedFilledBuffer::_with_capacity(network_buffer_cap)?,
       rb: Vector::with_capacity(records_buffer_cap)?,
       stmts: Statements::new(max_queries, rng),
       tb: HashMap::new(),

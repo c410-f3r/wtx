@@ -248,7 +248,7 @@ mod _tokio {
   }
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::pool::{simple_pool::SimplePoolTokio, SimpleRM};
 

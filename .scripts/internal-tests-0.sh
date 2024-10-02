@@ -5,13 +5,12 @@
 $rt rustfmt
 $rt clippy -Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn
 
-cargo miri test -p wtx
+cargo miri test --features http2,postgres,web-socket -p wtx
 
 # WTX
 
 $rt check-generic wtx
 $rt test-with-features wtx aes-gcm
-$rt test-with-features wtx ahash
 $rt test-with-features wtx arbitrary
 $rt test-with-features wtx argon2
 $rt test-with-features wtx base64
@@ -25,6 +24,7 @@ $rt test-with-features wtx database
 $rt test-with-features wtx digest
 $rt test-with-features wtx fastrand
 $rt test-with-features wtx flate2
+$rt test-with-features wtx foldhash
 $rt test-with-features wtx grpc
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
@@ -58,10 +58,11 @@ $rt test-with-features wtx web-socket-handshake
 $rt test-with-features wtx webpki-roots
 $rt test-with-features wtx x509-certificate
 
-$rt check-with-features wtx _bench
-$rt check-with-features wtx _integration-tests
-$rt check-with-features wtx _tracing-tree
+$rt test-with-features wtx _async-tests
+$rt test-with-features wtx _bench
+$rt test-with-features wtx _integration-tests
 $rt test-with-features wtx _proptest
+$rt test-with-features wtx _tracing-tree
 
 # WTX Macros
 

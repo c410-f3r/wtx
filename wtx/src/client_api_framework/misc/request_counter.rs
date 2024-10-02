@@ -72,7 +72,7 @@ impl Default for RequestCounter {
   }
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::client_api_framework::misc::{RequestCounter, RequestLimit};
   use core::time::Duration;

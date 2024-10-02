@@ -2,6 +2,7 @@
 
 mod client_framework_builder;
 #[cfg(all(
+  feature = "_async-tests",
   feature = "_integration-tests",
   feature = "tokio-rustls",
   feature = "webpki-roots",
@@ -135,7 +136,7 @@ mod tokio {
       let uri = UriRef::new(aux);
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
-        self._cp.to_hp(),
+        self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
       .await?;
@@ -159,7 +160,7 @@ mod tokio {
       resource._swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         buffer,
-        self._cp.to_hp(),
+        self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
       .await?;
@@ -213,7 +214,7 @@ mod tokio_rustls {
       let uri = UriRef::new(aux);
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
-        self._cp.to_hp(),
+        self._cp._to_hp(),
         tokio::io::split(
           TokioRustlsConnector::from_auto()?
             .http2()
@@ -245,7 +246,7 @@ mod tokio_rustls {
       resource._swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
-        self._cp.to_hp(),
+        self._cp._to_hp(),
         tokio::io::split(
           TokioRustlsConnector::from_auto()?
             .http2()

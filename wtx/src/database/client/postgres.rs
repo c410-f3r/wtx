@@ -8,7 +8,7 @@ mod decode_value;
 mod encode_value;
 mod executor;
 mod executor_buffer;
-#[cfg(all(feature = "_integration-tests", test))]
+#[cfg(all(feature = "_async-tests", feature = "_integration-tests", test))]
 mod integration_tests;
 mod message;
 mod msg_field;

@@ -6,7 +6,12 @@ mod macros;
 mod commands;
 pub mod doc_tests;
 pub(crate) mod fixed_sql_commands;
-#[cfg(all(feature = "_integration-tests", feature = "schema-manager-dev", test))]
+#[cfg(all(
+  feature = "_async-tests",
+  feature = "_integration-tests",
+  feature = "schema-manager-dev",
+  test
+))]
 mod integration_tests;
 mod migration;
 #[cfg(feature = "std")]

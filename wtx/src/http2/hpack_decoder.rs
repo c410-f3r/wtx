@@ -409,8 +409,7 @@ impl TryFrom<u8> for DecodeIdx {
   }
 }
 
-#[cfg(feature = "_bench")]
-#[cfg(test)]
+#[cfg(all(feature = "_bench", test))]
 mod bench {
   use crate::{
     http::Header,

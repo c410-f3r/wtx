@@ -1,6 +1,5 @@
 [dependencies]
 aes-gcm = { default-features = false, optional = true, version = "0.10" }
-ahash = { default-features = false, features = ["no-rng"], optional = true, version = "0.8" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 argon2 = { default-features = false, optional = true, version = "0.5" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
@@ -10,8 +9,9 @@ cl-aux = { default-features = false, optional = true, features = ["alloc"], vers
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
-flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
-hashbrown = { default-features = false, features = ["ahash", "allocator-api2", "inline-more"], optional = true, version = "0.14" }
+flate2 = { default-features = false, features = ["zlib-ng"], optional = true, version = "1.0" }
+foldhash = { default-features = false, optional = true, version = "0.1" }
+hashbrown = { default-features = false, features = ["inline-more"], optional = true, version = "0.15" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 matchit = { default-features = false, optional = true, version = "0.8" }
@@ -30,7 +30,7 @@ sha1 = { default-features = false, optional = true, version = "0.10" }
 sha2 = { default-features = false, optional = true, version = "0.10" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
 test-strategy = { default-features = false, optional = true, version = "0.4" }
-tokio = { default-features = false, features = ["io-util", "net", "sync", "time"], optional = true, version = "1.0" }
+tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
@@ -38,12 +38,7 @@ tracing-tree = { default-features = false, optional = true, version = "0.4" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
 x509-certificate = { default-features = false, optional = true, version = "0.23" }
 
-[dev-dependencies]
-tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread", "time"], version = "1.0" }
-wtx = { default-features = false, features = ["std", "tokio"], path = "./" }
-
 [features]
-ahash = ["dep:ahash", "hashbrown?/ahash"]
 arbitrary = ["dep:arbitrary", "std"]
 base64 = ["dep:base64"]
 borsh = ["dep:borsh", "std"]
@@ -57,21 +52,22 @@ default = []
 digest = ["dep:digest"]
 fastrand = ["dep:fastrand"]
 flate2 = ["dep:flate2"]
+foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
+grpc = ["data-transformation", "http-client-framework", "http-server-framework"]
 hashbrown = ["dep:hashbrown"]
 hmac = ["dep:hmac"]
-grpc = ["data-transformation", "http-client-framework", "http-server-framework"]
 http = []
 http-client-framework = ["http2", "pool", "std"]
 http-cookie = ["chrono/alloc", "http"]
 http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
-http-server-framework = ["http2", "matchit", "tokio"]
+http-server-framework = ["http2", "tokio"]
 http-session = ["chrono/serde", "http-cookie-secure", "serde_json"]
-http2 = ["ahash", "hashbrown", "http"]
+http2 = ["foldhash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
 memchr = ["dep:memchr"]
 optimization = ["memchr", "simdutf8"]
 pool = []
-postgres = ["ahash", "base64", "crypto-common", "database", "digest", "hashbrown", "hmac", "sha2"]
+postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 proptest = ["dep:proptest"]
 quick-protobuf = ["dep:quick-protobuf", "std"]
 rand_chacha = ["dep:rand_chacha", "dep:rand_core"]
@@ -84,7 +80,7 @@ serde_json = ["serde", "dep:serde_json", "std"]
 sha1 = ["dep:sha1"]
 sha2 = ["dep:sha2"]
 simdutf8 = ["dep:simdutf8"]
-std = ["ahash?/std", "cl-aux?/std", "memchr?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
+std = ["cl-aux?/std", "foldhash?/std", "memchr?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
 test-strategy = ["dep:test-strategy", "proptest", "std"]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "dep:rustls-pemfile", "dep:rustls-pki-types", "tokio", "dep:tokio-rustls"]
@@ -95,6 +91,7 @@ web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 webpki-roots = ["dep:webpki-roots"]
 x509-certificate = ["dep:x509-certificate"]
 
+_async-tests = ["tokio/macros", "tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []
 _integration-tests = ["serde_json?/raw_value"]
 _proptest = ["proptest/std", "rust_decimal?/proptest", "std", "test-strategy"]

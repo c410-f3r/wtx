@@ -194,15 +194,17 @@ impl Headers {
     V: IntoIterator<Item = &'bytes [u8]>,
     V::IntoIter: Clone,
   {
-    #[inline]
-    fn copy(bytes: &mut [u8], header_end: &mut usize, value: &[u8]) {
-      // SAFETY: `header_end is within bounds`
-      let dst = unsafe { bytes.as_mut_ptr().add(*header_end) };
-      // SAFETY: `reserve` allocated memory
-      unsafe {
-        ptr::copy_nonoverlapping(value.as_ptr(), dst, value.len());
-      }
-      *header_end = header_end.wrapping_add(value.len());
+    // FIXME(MIRI): a function, even it it is #[inline], breaks the tracking of the pointer
+    macro_rules! copy {
+      ($bytes:expr, $header_end:expr, $value:expr) => {{
+        // SAFETY: `header_end is within bounds`
+        let dst = unsafe { $bytes.as_mut_ptr().add(*$header_end) };
+        // SAFETY: `reserve` allocated memory
+        unsafe {
+          ptr::copy_nonoverlapping($value.as_ptr(), dst, $value.len());
+        }
+        *$header_end = $header_end.wrapping_add($value.len());
+      }};
     }
 
     let iter = header.value.into_iter();
@@ -210,10 +212,10 @@ impl Headers {
     self.reserve(header_len, 1)?;
     let header_begin = self.bytes.len();
     let mut header_end = header_begin;
-    copy(&mut self.bytes, &mut header_end, header.name);
+    copy!(&mut self.bytes, &mut header_end, header.name);
     let header_name_end = header_end;
     for value in iter {
-      copy(&mut self.bytes, &mut header_end, value);
+      copy!(&mut self.bytes, &mut header_end, value);
     }
     // SAFETY: `header_end is within bounds`
     unsafe {

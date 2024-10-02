@@ -4,17 +4,19 @@ macro_rules! proptest {
     #[cfg(test)]
     #[test_strategy::proptest]
     fn $name(instance: $ty) {
-      let mut vec = &mut crate::misc::Vector::new();
-      let mut fbw = crate::misc::FilledBufferWriter::new(0, &mut vec);
-      let mut ev = EncodeValue::new(&mut fbw);
-      Encode::<Postgres<crate::Error>>::encode(&instance, &mut ev).unwrap();
-      let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&DecodeValue::new(
-        ev.fbw()._curr_bytes(),
-        crate::database::client::postgres::Ty::Any,
-      ))
-      .unwrap();
-      assert_eq!(instance, decoded);
-      vec.clear();
+      let mut vec = &mut crate::misc::FilledBuffer::_new();
+      {
+        let mut fbw = crate::misc::FilledBufferWriter::new(0, &mut vec);
+        let mut ev = EncodeValue::new(&mut fbw);
+        Encode::<Postgres<crate::Error>>::encode(&instance, &mut ev).unwrap();
+        let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&DecodeValue::new(
+          ev.fbw()._curr_bytes(),
+          crate::database::client::postgres::Ty::Any,
+        ))
+        .unwrap();
+        assert_eq!(instance, decoded);
+      }
+      vec._clear();
     }
   };
 }
@@ -24,8 +26,8 @@ macro_rules! test {
     #[cfg(test)]
     #[test]
     fn $name() {
-      let mut vec = &mut crate::misc::Vector::new();
-      let mut fbw = crate::misc::FilledBufferWriter::new(0, &mut vec);
+      let vec = &mut crate::misc::FilledBuffer::_new();
+      let mut fbw = crate::misc::FilledBufferWriter::new(0, vec);
       let mut ev = EncodeValue::new(&mut fbw);
       let instance: $ty = $instance;
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut ev).unwrap();
