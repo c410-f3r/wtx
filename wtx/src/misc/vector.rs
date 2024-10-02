@@ -1,11 +1,11 @@
-use crate::misc::{Lease, LeaseMut, _unlikely_elem};
+use crate::misc::{BufferParam, Lease, LeaseMut, _unlikely_elem};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
   fmt::{Debug, Display, Formatter},
   hint::assert_unchecked,
   ops::{Deref, DerefMut, RangeBounds},
-  ptr,
+  ptr, slice,
 };
 
 /// Errors of [Vector].
@@ -21,8 +21,6 @@ pub enum VectorError {
   PushOverflow,
   #[doc = doc_reserve_overflow!()]
   ReserveOverflow,
-  #[doc = doc_reserve_overflow!()]
-  WithCapacityOverflow,
 }
 
 impl Display for VectorError {
@@ -41,7 +39,6 @@ impl From<VectorError> for u8 {
       VectorError::OutOfBoundsInsertIdx => 2,
       VectorError::PushOverflow => 3,
       VectorError::ReserveOverflow => 4,
-      VectorError::WithCapacityOverflow => 5,
     }
   }
 }
@@ -50,70 +47,115 @@ impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
 #[cfg_attr(feature = "test-strategy", derive(test_strategy::Arbitrary))]
-#[cfg_attr(feature = "test-strategy", arbitrary(bound(D: proptest::arbitrary::Arbitrary + 'static)))]
+#[cfg_attr(feature = "test-strategy", arbitrary(bound(T: proptest::arbitrary::Arbitrary + 'static)))]
 #[derive(Clone, Eq, PartialEq)]
 #[repr(transparent)]
-pub struct Vector<D> {
-  data: Vec<D>,
+pub struct Vector<T> {
+  data: Vec<T>,
 }
 
-impl<D> Vector<D> {
-  /// Constructs a new, empty instance.
-  #[inline]
-  pub const fn new() -> Self {
-    Self::from_vec(Vec::new())
-  }
-
+impl<T> Vector<T> {
   /// Constructs a new instance with elements provided by `iter`.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::from_iter(0u8..2).unwrap();
+  /// assert_eq!(vec.as_slice(), &[0, 1]);
+  /// ```
   #[expect(clippy::should_implement_trait, reason = "Std trait is infallible")]
   #[inline]
-  pub fn from_iter(iter: impl IntoIterator<Item = D>) -> Result<Self, VectorError> {
+  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Result<Self, VectorError> {
     let mut this = Self::new();
     this.extend_from_iter(iter)?;
     Ok(this)
   }
 
   /// Constructs a new instance based on an arbitrary [Vec].
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::<u8>::from_vec(Vec::new());
+  /// assert_eq!(vec.len(), 0);
+  /// ```
   #[inline]
-  pub const fn from_vec(data: Vec<D>) -> Self {
+  pub const fn from_vec(data: Vec<T>) -> Self {
     Self { data }
   }
 
-  /// Constructs a new, empty instance with at least the specified capacity.
+  /// Constructs a new, empty instance.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::<u8>::new();
+  /// assert_eq!(vec.len(), 0);
+  /// ```
   #[inline]
+  pub const fn new() -> Self {
+    Self::from_vec(Vec::new())
+  }
+
+  /// Constructs a new, empty instance with at least the specified capacity.
+  /// Constructs a new instance based on an arbitrary [Vec].
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::<u8>::with_capacity(2).unwrap();
+  /// assert!(vec.capacity() >= 2);
+  /// ```
+  #[inline(always)]
   pub fn with_capacity(cap: usize) -> Result<Self, VectorError> {
-    let mut this = Self { data: Vec::with_capacity(cap) };
-    this.reserve(cap).map_err(|_err| VectorError::WithCapacityOverflow)?;
+    let this = Self { data: Vec::with_capacity(cap) };
+    // SAFETY: `len` will never be greater than the current capacity
+    unsafe {
+      assert_unchecked(this.data.capacity() >= this.data.len());
+    }
     Ok(this)
   }
 
   /// Returns an unsafe mutable pointer to the vector's buffer, or a dangling
   /// raw pointer valid for zero sized reads if the vector didn't allocate.
   #[inline]
-  pub fn as_mut_ptr(&mut self) -> *mut D {
+  pub fn as_mut_ptr(&mut self) -> *mut T {
     self.data.as_mut_ptr()
+  }
+
+  /// Extracts a slice containing the entire mutable vector.
+  #[inline]
+  pub fn as_mut_slice(&mut self) -> &mut [T] {
+    self.data.as_mut_slice()
   }
 
   /// Returns a raw pointer to the vector's buffer, or a dangling raw pointer
   /// valid for zero sized reads if the vector didn't allocate.
   #[inline]
-  pub fn as_ptr(&self) -> *const D {
+  pub fn as_ptr(&self) -> *const T {
     self.data.as_ptr()
   }
 
   /// Extracts a slice containing the entire vector.
   #[inline]
-  pub fn as_slice(&self) -> &[D] {
+  pub fn as_slice(&self) -> &[T] {
     self.data.as_slice()
   }
 
   /// Returns the total number of elements the vector can hold without reallocating.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// assert_eq!(vec.capacity(), 0);
+  /// vec.push(1u8);
+  /// assert!(vec.capacity() >= 1);
+  /// ```
   #[inline]
   pub fn capacity(&self) -> usize {
     self.data.capacity()
   }
 
   /// Clears the vector, removing all values.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.push(1u8);
+  /// assert_eq!(vec.len(), 1);
+  /// vec.clear();
+  /// assert_eq!(vec.len(), 0);
+  /// ```
   #[inline]
   pub fn clear(&mut self) {
     self.data.clear();
@@ -121,7 +163,7 @@ impl<D> Vector<D> {
 
   /// Clears the vector, removing all values.
   #[inline]
-  pub fn drain<R>(&mut self, range: R) -> Drain<'_, D>
+  pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
   where
     R: RangeBounds<usize>,
   {
@@ -130,7 +172,9 @@ impl<D> Vector<D> {
 
   /// Clones and appends all elements in the iterator.
   #[inline]
-  pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = D>) -> Result<(), VectorError> {
+  pub fn extend_from_iter(&mut self, ii: impl IntoIterator<Item = T>) -> Result<(), VectorError> {
+    let iter = ii.into_iter();
+    self.data.reserve(iter.size_hint().0);
     for elem in iter {
       self.push(elem)?;
     }
@@ -139,7 +183,7 @@ impl<D> Vector<D> {
 
   /// Constructs a new instance with elements provided by `iter`.
   #[inline]
-  pub fn insert(&mut self, idx: usize, elem: D) -> Result<(), VectorError> {
+  pub fn insert(&mut self, idx: usize, elem: T) -> Result<(), VectorError> {
     let len = self.len();
     if idx > len {
       return _unlikely_elem(Err(VectorError::OutOfBoundsInsertIdx));
@@ -172,13 +216,13 @@ impl<D> Vector<D> {
 
   /// Removes the last element from a vector and returns it, or [None] if it is empty.
   #[inline]
-  pub fn pop(&mut self) -> Option<D> {
+  pub fn pop(&mut self) -> Option<T> {
     self.data.pop()
   }
 
   /// Appends an element to the back of the collection.
   #[inline]
-  pub fn push(&mut self, value: D) -> Result<(), VectorError> {
+  pub fn push(&mut self, value: T) -> Result<(), VectorError> {
     self.reserve(1).map_err(|_err| VectorError::PushOverflow)?;
     let len = self.data.len();
     // SAFETY: `len` points to valid memory
@@ -198,7 +242,7 @@ impl<D> Vector<D> {
 
   /// Shortens the vector, keeping the first len elements and dropping the rest.
   #[inline]
-  pub fn remove(&mut self, idx: usize) -> Option<D> {
+  pub fn remove(&mut self, idx: usize) -> Option<T> {
     if idx >= self.data.len() {
       return None;
     }
@@ -212,16 +256,10 @@ impl<D> Vector<D> {
   /// Does nothing if capacity is already sufficient.
   #[inline(always)]
   pub fn reserve(&mut self, additional: usize) -> Result<(), VectorError> {
-    let Some(desired_cap) = self.data.len().checked_add(additional) else {
-      return Ok(());
-    };
-    if self.data.capacity() >= desired_cap {
-      return Ok(());
-    }
     self.data.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
-    // SAFETY: `desired_cap` will never be greater than the current capacity
+    // SAFETY: `len` will never be greater than the current capacity
     unsafe {
-      assert_unchecked(self.data.capacity() >= desired_cap);
+      assert_unchecked(self.data.capacity() >= self.data.len());
     }
     Ok(())
   }
@@ -247,47 +285,35 @@ impl<D> Vector<D> {
   }
 }
 
-impl<D> Vector<D>
+impl<T> Vector<T>
 where
-  D: Clone,
+  T: Clone,
 {
   /// Constructs a new instance with elements provided by `iter`.
   #[inline]
-  pub fn from_cloneable_elem(len: usize, value: D) -> Result<Self, VectorError> {
+  pub fn from_cloneable_elem(len: usize, value: T) -> Result<Self, VectorError> {
     let mut this = Self::with_capacity(len)?;
-    this.expand(len, value)?;
+    this.expand(BufferParam::Len(len), value)?;
     Ok(this)
   }
 
-  /// Resizes the instance in-place so that the current length is equal to `new_len`.
+  /// Resizes the instance in-place so that the current length is equal to `bp`.
   ///
-  /// Does nothing if `new_len` is equal or less than the current length.
-  //
-  // NOTE: It is not possible to use `push` because of <https://github.com/rust-lang/rust/issues/124979>.
-  #[inline]
-  pub fn expand(&mut self, new_len: usize, value: D) -> Result<(), VectorError> {
-    let len: usize = self.data.len();
-    let Some(diff @ 1..usize::MAX) = new_len.checked_sub(len) else {
+  /// Does nothing if the calculated length is equal or less than the current length.
+  #[inline(always)]
+  pub fn expand(&mut self, bp: BufferParam, value: T) -> Result<(), VectorError> {
+    let len = self.data.len();
+    let Some((additional, new_len)) = bp.params(len) else {
       return Ok(());
     };
-    self.reserve(diff)?;
-    // SAFETY: `len` points to valid memory
-    let mut dst = unsafe { self.data.as_mut_ptr().add(len) };
-    for _ in 1..diff {
-      // SAFETY: `dst` points to valid memory
-      unsafe {
-        ptr::write(dst, value.clone());
-      }
-      // SAFETY: `dst` points to valid memory
-      unsafe {
-        dst = dst.add(1);
-      }
-    }
-    // SAFETY: `dst` points to valid memory
+    self.reserve(additional)?;
+    // SAFETY: there are initialized elements until `len`
+    let ptr = unsafe { self.data.as_mut_ptr().add(len) };
+    // SAFETY: memory has been allocated
     unsafe {
-      ptr::write(dst, value);
+      slice::from_raw_parts_mut(ptr, additional).fill(value);
     }
-    // SAFETY: is within bounds
+    // SAFETY: elements have been initialized
     unsafe {
       self.data.set_len(new_len);
     }
@@ -295,13 +321,13 @@ where
   }
 }
 
-impl<D> Vector<D>
+impl<T> Vector<T>
 where
-  D: Copy,
+  T: Copy,
 {
   /// Constructs a new instance with elements provided by `slice`.
   #[inline]
-  pub fn from_slice(slice: &[D]) -> Result<Self, VectorError> {
+  pub fn from_slice(slice: &[T]) -> Result<Self, VectorError> {
     let mut this = Self::new();
     this.extend_from_slice(slice)?;
     Ok(this)
@@ -310,15 +336,51 @@ where
   /// Iterates over the slice `other`, copies each element, and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_slice(&mut self, other: &[D]) -> Result<(), VectorError> {
+  pub fn extend_from_slice(&mut self, other: &[T]) -> Result<(), VectorError> {
+    self.reserve(other.len()).map_err(|_err| VectorError::ExtendFromSliceOverflow)?;
+    // SAFETY: memory has been allocated
+    unsafe {
+      self.do_extend_from_slice(other);
+    }
+    Ok(())
+  }
+
+  /// Generalization of [`Self::extend_from_slice`].
+  ///
+  /// Returns the sum of the lengths of all slices.
+  #[inline(always)]
+  pub fn extend_from_slices<'iter, I>(&mut self, others: I) -> Result<usize, VectorError>
+  where
+    I: IntoIterator<Item = &'iter [T]>,
+    I::IntoIter: Clone,
+    T: 'iter,
+  {
+    let mut len: usize = 0;
+    let iter = others.into_iter();
+    for other in iter.clone() {
+      let Some(curr_len) = len.checked_add(other.len()) else {
+        return Err(VectorError::ExtendFromSlicesOverflow);
+      };
+      len = curr_len;
+    }
+    self.reserve(len).map_err(|_err| VectorError::ExtendFromSlicesOverflow)?;
+    for other in iter {
+      // SAFETY: memory has been allocated
+      unsafe {
+        self.do_extend_from_slice(other);
+      }
+    }
+    Ok(len)
+  }
+
+  #[inline]
+  unsafe fn do_extend_from_slice(&mut self, other: &[T]) {
     let len = self.data.len();
     let other_len = other.len();
-    self.reserve(other_len).map_err(|_err| VectorError::ExtendFromSliceOverflow)?;
-    // SAFETY: a successful `reserve` already handles overflow
-    let new_len = unsafe { len.unchecked_add(other_len) };
-    // SAFETY: `len` points to valid memory
+    let new_len = len.wrapping_add(other_len);
+    // SAFETY: there are initialized elements until `len`
     let dst = unsafe { self.data.as_mut_ptr().add(len) };
-    // SAFETY: references are valid
+    // SAFETY: caller must ensure allocated space
     unsafe {
       ptr::copy_nonoverlapping(other.as_ptr(), dst, other_len);
     }
@@ -326,60 +388,33 @@ where
     unsafe {
       self.data.set_len(new_len);
     }
-    Ok(())
-  }
-
-  /// Generalization of [`Self::extend_from_slice`].
-  #[inline]
-  pub fn extend_from_slices<U, const N: usize>(
-    &mut self,
-    others: &[U; N],
-  ) -> Result<(), VectorError>
-  where
-    U: Lease<[D]>,
-  {
-    const {
-      assert!(N <= 8);
-    }
-    let mut len: usize = 0;
-    for other in others {
-      // SAFETY: 8 slices is feasible by contract
-      unsafe {
-        len = len.unchecked_add(other.lease().len());
-      }
-    }
-    self.reserve(len).map_err(|_err| VectorError::ExtendFromSlicesOverflow)?;
-    for other in others {
-      self.extend_from_slice(other.lease())?;
-    }
-    Ok(())
   }
 }
 
-impl<D> Lease<[D]> for Vector<D> {
+impl<T> Lease<[T]> for Vector<T> {
   #[inline]
-  fn lease(&self) -> &[D] {
+  fn lease(&self) -> &[T] {
     self.data.as_slice()
   }
 }
 
-impl<D> Lease<Vector<D>> for Vector<D> {
+impl<T> Lease<Vector<T>> for Vector<T> {
   #[inline]
-  fn lease(&self) -> &Vector<D> {
+  fn lease(&self) -> &Vector<T> {
     self
   }
 }
 
-impl<D> LeaseMut<[D]> for Vector<D> {
+impl<T> LeaseMut<[T]> for Vector<T> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut [D] {
+  fn lease_mut(&mut self) -> &mut [T] {
     self
   }
 }
 
-impl<D> LeaseMut<Vector<D>> for Vector<D> {
+impl<T> LeaseMut<Vector<T>> for Vector<T> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Vector<D> {
+  fn lease_mut(&mut self) -> &mut Vector<T> {
     self
   }
 }
@@ -403,9 +438,9 @@ mod serde {
     }
   }
 
-  impl<D> Serialize for Vector<D>
+  impl<T> Serialize for Vector<T>
   where
-    D: Serialize,
+    T: Serialize,
   {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -472,37 +507,37 @@ impl quick_protobuf::writer::WriterBackend for &mut Vector<u8> {
   }
 }
 
-impl<D> AsMut<[D]> for Vector<D> {
+impl<T> AsMut<[T]> for Vector<T> {
   #[inline]
-  fn as_mut(&mut self) -> &mut [D] {
+  fn as_mut(&mut self) -> &mut [T] {
     self
   }
 }
 
-impl<D> AsRef<[D]> for Vector<D> {
+impl<T> AsRef<[T]> for Vector<T> {
   #[inline]
-  fn as_ref(&self) -> &[D] {
+  fn as_ref(&self) -> &[T] {
     self.as_slice()
   }
 }
 
-impl<D> Borrow<[D]> for Vector<D> {
+impl<T> Borrow<[T]> for Vector<T> {
   #[inline]
-  fn borrow(&self) -> &[D] {
+  fn borrow(&self) -> &[T] {
     self
   }
 }
 
-impl<D> BorrowMut<[D]> for Vector<D> {
+impl<T> BorrowMut<[T]> for Vector<T> {
   #[inline]
-  fn borrow_mut(&mut self) -> &mut [D] {
+  fn borrow_mut(&mut self) -> &mut [T] {
     self
   }
 }
 
-impl<D> Debug for Vector<D>
+impl<T> Debug for Vector<T>
 where
-  D: Debug,
+  T: Debug,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
@@ -510,15 +545,15 @@ where
   }
 }
 
-impl<D> Default for Vector<D> {
+impl<T> Default for Vector<T> {
   #[inline]
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl<D> Deref for Vector<D> {
-  type Target = [D];
+impl<T> Deref for Vector<T> {
+  type Target = [T];
 
   #[inline]
   fn deref(&self) -> &Self::Target {
@@ -526,16 +561,16 @@ impl<D> Deref for Vector<D> {
   }
 }
 
-impl<D> DerefMut for Vector<D> {
+impl<T> DerefMut for Vector<T> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.data.as_mut_slice()
   }
 }
 
-impl<D> IntoIterator for Vector<D> {
-  type Item = D;
-  type IntoIter = IntoIter<D>;
+impl<T> IntoIterator for Vector<T> {
+  type Item = T;
+  type IntoIter = IntoIter<T>;
 
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
@@ -543,16 +578,16 @@ impl<D> IntoIterator for Vector<D> {
   }
 }
 
-impl<D> From<Vec<D>> for Vector<D> {
+impl<T> From<Vec<T>> for Vector<T> {
   #[inline]
-  fn from(from: Vec<D>) -> Self {
+  fn from(from: Vec<T>) -> Self {
     Vector::from_vec(from)
   }
 }
 
-impl<D> From<Vector<D>> for Vec<D> {
+impl<T> From<Vector<T>> for Vec<T> {
   #[inline]
-  fn from(from: Vector<D>) -> Self {
+  fn from(from: Vector<T>) -> Self {
     from.data
   }
 }
@@ -596,11 +631,11 @@ mod cl_aux {
     }
   }
 
-  impl<D> Extend<D> for Vector<D> {
+  impl<T> Extend<T> for Vector<T> {
     type Error = crate::Error;
 
     #[inline]
-    fn extend(&mut self, into_iter: impl IntoIterator<Item = D>) -> Result<(), Self::Error> {
+    fn extend(&mut self, into_iter: impl IntoIterator<Item = T>) -> Result<(), Self::Error> {
       self.extend_from_iter(into_iter)?;
       Ok(())
     }
@@ -637,109 +672,6 @@ mod cl_aux {
     fn with_capacity(input: Self::Input) -> Self {
       Vector::with_capacity(input).unwrap()
     }
-  }
-}
-
-#[cfg(feature = "_bench")]
-#[cfg(test)]
-mod bench {
-  use crate::misc::vector::Vector;
-  use alloc::vec::Vec;
-
-  #[rustfmt::skip]
-  macro_rules! extend_from_slice_batch {
-    ($instance_cb:expr) => {
-      $instance_cb(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-      $instance_cb(&[16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]);
-      $instance_cb(&[32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]);
-      $instance_cb(&[48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]);
-      $instance_cb(&[64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]);
-      $instance_cb(&[80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95]);
-      $instance_cb(&[96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111]);
-      $instance_cb(&[112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127]);
-      $instance_cb(&[128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143]);
-      $instance_cb(&[144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159]);
-      $instance_cb(&[160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175]);
-      $instance_cb(&[176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191]);
-      $instance_cb(&[192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207]);
-      $instance_cb(&[208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223]);
-      $instance_cb(&[224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239]);
-      $instance_cb(&[240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255]);
-    };
-  }
-
-  #[rustfmt::skip]
-  macro_rules! push_batch {
-    ($instance_cb:expr) => {
-      $instance_cb(0); $instance_cb(1); $instance_cb(2); $instance_cb(3); $instance_cb(4); $instance_cb(5); $instance_cb(6); $instance_cb(7);
-      $instance_cb(8); $instance_cb(9); $instance_cb(10); $instance_cb(11); $instance_cb(12); $instance_cb(13); $instance_cb(14); $instance_cb(15);
-      $instance_cb(16); $instance_cb(17); $instance_cb(18); $instance_cb(19); $instance_cb(20); $instance_cb(21); $instance_cb(22); $instance_cb(23);
-      $instance_cb(24); $instance_cb(25); $instance_cb(26); $instance_cb(27); $instance_cb(28); $instance_cb(29); $instance_cb(30); $instance_cb(31);
-      $instance_cb(32); $instance_cb(33); $instance_cb(34); $instance_cb(35); $instance_cb(36); $instance_cb(37); $instance_cb(38); $instance_cb(39);
-      $instance_cb(40); $instance_cb(41); $instance_cb(42); $instance_cb(43); $instance_cb(44); $instance_cb(45); $instance_cb(46); $instance_cb(47);
-      $instance_cb(48); $instance_cb(49); $instance_cb(50); $instance_cb(51); $instance_cb(52); $instance_cb(53); $instance_cb(54); $instance_cb(55);
-      $instance_cb(56); $instance_cb(57); $instance_cb(58); $instance_cb(59); $instance_cb(60); $instance_cb(61); $instance_cb(62); $instance_cb(63);
-    };
-  }
-
-  #[bench]
-  fn extend_from_slice_local(b: &mut test::Bencher) {
-    let mut vec = Vector::default();
-    b.iter(|| {
-      vec.reserve(256 * 4).unwrap();
-      extend_from_slice_batch!(|elem| {
-        vec.extend_from_slice(elem).unwrap();
-        vec.extend_from_slice(elem).unwrap();
-        vec.extend_from_slice(elem).unwrap();
-        vec.extend_from_slice(elem).unwrap();
-      });
-    });
-  }
-
-  #[bench]
-  fn extend_from_slice_std(b: &mut test::Bencher) {
-    let mut vec = Vec::default();
-    b.iter(|| {
-      vec.reserve(256 * 4);
-      extend_from_slice_batch!(|elem| {
-        vec.extend_from_slice(elem);
-        vec.extend_from_slice(elem);
-        vec.extend_from_slice(elem);
-        vec.extend_from_slice(elem);
-      });
-    });
-  }
-
-  #[bench]
-  fn push_local(b: &mut test::Bencher) {
-    let mut vec = Vector::default();
-    b.iter(|| {
-      vec.reserve(64 * 8).unwrap();
-      push_batch!(|elem| vec.push(elem).unwrap());
-      push_batch!(|elem| vec.push(elem).unwrap());
-      push_batch!(|elem| vec.push(elem).unwrap());
-      push_batch!(|elem| vec.push(elem).unwrap());
-      push_batch!(|elem| vec.push(elem).unwrap());
-      push_batch!(|elem| vec.push(elem).unwrap());
-      push_batch!(|elem| vec.push(elem).unwrap());
-      push_batch!(|elem| vec.push(elem).unwrap());
-    });
-  }
-
-  #[bench]
-  fn push_std(b: &mut test::Bencher) {
-    let mut vec = Vec::default();
-    b.iter(|| {
-      vec.reserve(64 * 8);
-      push_batch!(|elem| vec.push(elem));
-      push_batch!(|elem| vec.push(elem));
-      push_batch!(|elem| vec.push(elem));
-      push_batch!(|elem| vec.push(elem));
-      push_batch!(|elem| vec.push(elem));
-      push_batch!(|elem| vec.push(elem));
-      push_batch!(|elem| vec.push(elem));
-      push_batch!(|elem| vec.push(elem));
-    });
   }
 }
 

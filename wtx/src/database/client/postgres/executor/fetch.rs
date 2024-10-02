@@ -93,7 +93,7 @@ where
     stream: &mut S,
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
-    nb._expand_following(len)?;
+    nb._expand_buffer(len)?;
     for _ in 0..=len {
       if *read >= len {
         is_payload_filled = true;

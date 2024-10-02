@@ -15,11 +15,11 @@ use crate::{
   },
   misc::{Rng, Usize, Vector, _random_state, _shift_copyable_chunks, _unreachable},
 };
-use ahash::RandomState;
 use core::{
   hash::{BuildHasher, Hasher},
   iter,
 };
+use foldhash::fast::FixedState;
 use hashbrown::HashMap;
 
 const DYN_IDX_OFFSET: u32 = 61;
@@ -33,7 +33,7 @@ pub(crate) struct HpackEncoder {
   max_dyn_sub_bytes: Option<(u32, Option<u32>)>,
   // Defined by the system.
   max_dyn_super_bytes: u32,
-  rs: RandomState,
+  rs: FixedState,
 }
 
 impl HpackEncoder {
@@ -641,8 +641,7 @@ struct StaticHeader {
   name: &'static [u8],
 }
 
-#[cfg(feature = "_bench")]
-#[cfg(test)]
+#[cfg(all(feature = "_bench", test))]
 mod bench {
   use crate::{
     http::Header,

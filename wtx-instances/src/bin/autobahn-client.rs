@@ -4,8 +4,8 @@ use tokio::net::TcpStream;
 use wtx::{
   misc::{simple_seed, UriRef, Xorshift64},
   web_socket::{
-    compression::Flate2, CloseCode, FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode,
-    WebSocketBuffer, WebSocketClient,
+    compression::Flate2, CloseCode, FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
+    WebSocketClient,
   },
 };
 
@@ -15,15 +15,14 @@ async fn main() -> wtx::Result<()> {
   let host = "127.0.0.1:9080";
   let mut wsb = WebSocketBuffer::default();
   for case in 1..=get_case_count(fb, host, &mut wsb).await? {
-    let (_, mut ws) = WebSocketClient::connect(
+    let mut ws = WebSocketClient::connect(
       Flate2::default(),
-      fb,
       [],
-      &mut HeadersBuffer::default(),
       Xorshift64::from(simple_seed()),
       TcpStream::connect(host).await?,
       &UriRef::new(&format!("http://{host}/runCase?case={case}&agent=wtx")),
       &mut wsb,
+      |_| wtx::Result::Ok(()),
     )
     .await?;
     loop {
@@ -44,16 +43,14 @@ async fn main() -> wtx::Result<()> {
   }
   WebSocketClient::connect(
     (),
-    fb,
     [],
-    &mut HeadersBuffer::default(),
     Xorshift64::from(simple_seed()),
     TcpStream::connect(host).await?,
     &UriRef::new(&format!("http://{host}/updateReports?agent=wtx")),
     wsb,
+    |_| wtx::Result::Ok(()),
   )
   .await?
-  .1
   .write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[])?)
   .await
 }
@@ -63,15 +60,14 @@ async fn get_case_count(
   host: &str,
   wsb: &mut WebSocketBuffer,
 ) -> wtx::Result<u32> {
-  let (_, mut ws) = WebSocketClient::connect(
+  let mut ws = WebSocketClient::connect(
     (),
-    fb,
     [],
-    &mut HeadersBuffer::default(),
     Xorshift64::from(simple_seed()),
     TcpStream::connect(host).await?,
     &UriRef::new(&format!("http://{host}/getCaseCount")),
     wsb,
+    |_| wtx::Result::Ok(()),
   )
   .await?;
   let rslt = ws.read_frame(fb).await?.text_payload().unwrap_or_default().parse()?;

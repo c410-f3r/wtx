@@ -77,7 +77,7 @@ where
     let Self { ca_cb, cp, ra_cb, router } = self;
     LowLevelServer::tokio_http2(
       host,
-      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp.to_hp())),
+      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
       err_cb,
       Self::handle,
       move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
@@ -102,7 +102,7 @@ where
     let Self { ca_cb, cp, ra_cb, router } = self;
     LowLevelServer::tokio_http2(
       host,
-      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp.to_hp())),
+      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
       err_cb,
       Self::handle,
       move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
@@ -125,13 +125,16 @@ where
     mut req: Request<ReqResBuffer>,
   ) -> Result<Response<ReqResBuffer>, E> {
     let mut ra = RA::req_aux(ra_cb(), &mut req)?;
-    let matched = router.router.at(req.rrd.uri.path()).map_err(From::from)?;
-    let status_code = router.manage_path(&mut ca, (0, matched.value), &mut ra, &mut req).await?;
+    #[cfg(feature = "matchit")]
+    let num = router.router.at(req.rrd.uri.path()).map_err(From::from)?.value;
+    #[cfg(not(feature = "matchit"))]
+    let num = &[];
+    let status_code = router.manage_path(&mut ca, (0, num), &mut ra, &mut req).await?;
     Ok(Response { rrd: req.rrd, status_code, version: req.version })
   }
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::http::{
     server_framework::{get, Router, ServerFrameworkBuilder, StateClean},

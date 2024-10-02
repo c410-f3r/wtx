@@ -11,9 +11,9 @@ use crate::{
   misc::{simple_seed, Xorshift64},
   tests::_uri,
   web_socket::{
-    compression::NegotiatedCompression, frame::FrameMutVec, handshake::HeadersBuffer, Compression,
-    FrameBufferVec, OpCode, WebSocket, WebSocketBuffer, WebSocketClient, WebSocketClientOwned,
-    WebSocketServer, WebSocketServerOwned,
+    compression::NegotiatedCompression, frame::FrameMutVec, Compression, FrameBufferVec, OpCode,
+    WebSocket, WebSocketBuffer, WebSocketClient, WebSocketClientOwned, WebSocketServer,
+    WebSocketServerOwned,
   },
 };
 use alloc::vec;
@@ -63,8 +63,8 @@ where
       server_compression,
       Xorshift64::from(simple_seed()),
       stream,
-      WebSocketBuffer::with_capacity(0, 0),
-      |_| true,
+      WebSocketBuffer::with_capacity(0, 0).unwrap(),
+      |_| crate::Result::Ok(()),
     )
     .await
     .unwrap();
@@ -83,15 +83,14 @@ where
   });
 
   let mut fb = FrameBufferVec::with_capacity(0);
-  let (_, mut ws) = WebSocketClient::connect(
+  let mut ws = WebSocketClient::connect(
     client_compression,
-    &mut fb,
     [],
-    &mut HeadersBuffer::default(),
     Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     &uri.to_ref(),
-    WebSocketBuffer::with_capacity(0, 0),
+    WebSocketBuffer::with_capacity(0, 0).unwrap(),
+    |_| crate::Result::Ok(()),
   )
   .await
   .unwrap();

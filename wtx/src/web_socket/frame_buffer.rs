@@ -1,5 +1,5 @@
 use crate::{
-  misc::{Lease, LeaseMut, SingleTypeStorage, Vector, VectorError, _unreachable},
+  misc::{BufferParam, Lease, LeaseMut, SingleTypeStorage, Vector, VectorError, _unreachable},
   web_socket::{WebSocketError, DFLT_FRAME_BUFFER_VEC_LEN, MAX_CONTROL_FRAME_LEN, MAX_HDR_LEN_U8},
 };
 
@@ -161,24 +161,9 @@ where
 {
   pub(crate) fn expand_buffer(&mut self, new_len: usize) -> Result<(), VectorError> {
     if new_len > self.buffer.lease_mut().len() {
-      self.buffer.lease_mut().expand(new_len, 0)?;
+      self.buffer.lease_mut().expand(BufferParam::Len(new_len), 0)?;
     }
     Ok(())
-  }
-
-  pub(crate) fn _set_indices_through_expansion(
-    &mut self,
-    header_begin_idx: u8,
-    header_len: u8,
-    payload_len: usize,
-  ) -> Result<(), VectorError> {
-    let header_end_idx = Self::header_end_idx_from_parts(header_begin_idx, header_len);
-    let mut payload_end_idx = usize::from(header_end_idx).saturating_add(payload_len);
-    payload_end_idx = payload_end_idx.max(header_len.into());
-    self.header_begin_idx = header_begin_idx;
-    self.header_end_idx = header_end_idx;
-    self.payload_end_idx = payload_end_idx;
-    self.expand_buffer(payload_end_idx)
   }
 }
 

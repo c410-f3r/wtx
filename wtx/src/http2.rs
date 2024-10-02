@@ -37,7 +37,7 @@ mod server_stream;
 mod settings_frame;
 mod stream_receiver;
 mod stream_state;
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests;
 mod u31;
 mod uri_buffer;

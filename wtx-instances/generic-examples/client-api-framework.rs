@@ -1,7 +1,7 @@
 //! Illustrates how the `client-api-framework` feature facilitates the management and utilization
 //! of large API endpoints for both HTTP and WebSocket requests.
 //!
-//! Contains one API called `GenericThrottlingApi` and its two endpoints: a HTTP JSON-RPC
+//! Contains one API called `GenericThrottlingApi` and its two endpoints: an HTTP JSON-RPC
 //! `genericHttpRequest` and an WebSocket `genericWebSocketSubscription`.
 //!
 //! Everything that is not inside `main` should be constructed only once in your program.
@@ -22,7 +22,7 @@ use wtx::{
   data_transformation::dnsn::SerdeJson,
   http::client_framework::ClientFrameworkTokio,
   misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{FrameBufferVec, HeadersBuffer, WebSocketBuffer, WebSocketClient},
+  web_socket::{FrameBufferVec, WebSocketBuffer, WebSocketClient},
 };
 
 wtx::create_packages_aux_wrapper!();
@@ -80,54 +80,51 @@ mod generic_web_socket_subscription {
   pub type GenericWebSocketSubscriptionRes = u64;
 }
 
-async fn http_pair(
-) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientFrameworkTokio> {
-  Pair::new(
-    PkgsAux::from_minimum(
-      GenericThrottlingApi {
-        rt: RequestThrottling::from_rl(RequestLimit::new(5, Duration::from_secs(1))),
-      },
-      SerdeJson,
-      HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
-    ),
-    ClientFrameworkTokio::tokio(1).build(),
-  )
-}
-
-async fn web_socket_pair() -> wtx::Result<
-  Pair<
-    PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-    (FrameBufferVec, WebSocketClient<(), Xorshift64, TcpStream, WebSocketBuffer>),
-  >,
-> {
-  let mut fb = FrameBufferVec::default();
-  let uri = Uri::new("ws://generic_web_socket_uri.com");
-  let web_socket = WebSocketClient::connect(
-    (),
-    &mut fb,
-    [],
-    &mut HeadersBuffer::default(),
-    Xorshift64::from(simple_seed()),
-    TcpStream::connect(uri.hostname_with_implied_port()).await?,
-    &uri,
-    WebSocketBuffer::default(),
-  )
-  .await?
-  .1;
-  Ok(Pair::new(
-    PkgsAux::from_minimum(
-      GenericThrottlingApi {
-        rt: RequestThrottling::from_rl(RequestLimit::new(40, Duration::from_secs(2))),
-      },
-      SerdeJson,
-      WsParams::default(),
-    ),
-    (fb, web_socket),
-  ))
-}
-
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
+  async fn http_pair(
+  ) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientFrameworkTokio> {
+    Pair::new(
+      PkgsAux::from_minimum(
+        GenericThrottlingApi {
+          rt: RequestThrottling::from_rl(RequestLimit::new(5, Duration::from_secs(1))),
+        },
+        SerdeJson,
+        HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
+      ),
+      ClientFrameworkTokio::tokio(1).build(),
+    )
+  }
+
+  async fn web_socket_pair() -> wtx::Result<
+    Pair<
+      PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
+      (FrameBufferVec, WebSocketClient<(), Xorshift64, TcpStream, WebSocketBuffer>),
+    >,
+  > {
+    let uri = Uri::new("ws://generic_web_socket_uri.com");
+    let web_socket = WebSocketClient::connect(
+      (),
+      [],
+      Xorshift64::from(simple_seed()),
+      TcpStream::connect(uri.hostname_with_implied_port()).await?,
+      &uri,
+      WebSocketBuffer::default(),
+      |_| wtx::Result::Ok(()),
+    )
+    .await?;
+    Ok(Pair::new(
+      PkgsAux::from_minimum(
+        GenericThrottlingApi {
+          rt: RequestThrottling::from_rl(RequestLimit::new(40, Duration::from_secs(2))),
+        },
+        SerdeJson,
+        WsParams::default(),
+      ),
+      (FrameBufferVec::default(), web_socket),
+    ))
+  }
+
   let mut hp = http_pair().await;
   let _http_response_tuple = hp
     .trans

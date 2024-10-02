@@ -229,8 +229,7 @@ create_statics! {
   WwwAuthenticate = "www-authenticate";
 }
 
-#[cfg(feature = "_bench")]
-#[cfg(test)]
+#[cfg(all(feature = "_bench", test))]
 mod bench {
   use crate::{http::HeaderName, misc::Vector};
 

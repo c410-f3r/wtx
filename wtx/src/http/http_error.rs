@@ -8,10 +8,10 @@ pub enum HttpError {
   /// Invalid HTTP/2 or HTTP/3 header
   InvalidHttp2pContent,
   /// Missing Header
-  MissingHeader {
+  MissingHeader(
     /// Expected header name
-    expected: KnownHeaderName,
-  },
+    KnownHeaderName,
+  ),
   /// Received request does not contain a method field
   MissingRequestMethod,
   /// Received response does not contain a status code field

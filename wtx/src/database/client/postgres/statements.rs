@@ -2,8 +2,8 @@ use crate::{
   database::{client::postgres::ty::Ty, Identifier},
   misc::{Rng, _random_state, _unreachable},
 };
-use ahash::RandomState;
 use alloc::collections::VecDeque;
+use foldhash::fast::FixedState;
 use hashbrown::HashMap;
 
 const AVG_STMT_COLUMNS_LEN: usize = 4;
@@ -24,7 +24,7 @@ pub struct Statements {
   num_of_elements_to_remove_when_full: u8,
   params: VecDeque<Ty>,
   params_start: usize,
-  rs: RandomState,
+  rs: FixedState,
 }
 
 impl Statements {
@@ -53,7 +53,7 @@ impl Statements {
       info: VecDeque::new(),
       info_by_cmd_hash: HashMap::new(),
       info_by_cmd_hash_start: 0,
-      rs: RandomState::with_seeds(0, 0, 0, 0),
+      rs: FixedState::with_seed(0),
       max_stmts: 0,
       num_of_elements_to_remove_when_full: 0,
       params: VecDeque::new(),
@@ -122,7 +122,7 @@ impl Statements {
     }
   }
 
-  pub(crate) fn hasher_mut(&mut self) -> &mut RandomState {
+  pub(crate) fn hasher_mut(&mut self) -> &mut FixedState {
     &mut self.rs
   }
 

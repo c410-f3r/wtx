@@ -5,10 +5,12 @@ mod array_string;
 mod array_vector;
 mod atomic_waker;
 mod blocks_queue;
+mod buffer_param;
 mod bytes_fmt;
 mod connection_state;
 mod either;
 mod enum_var_strings;
+mod filled_buffer;
 mod filled_buffer_writer;
 mod fn_fut;
 mod from_radix_10;
@@ -45,6 +47,7 @@ pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError, IntoIter};
 pub use atomic_waker::AtomicWaker;
 pub use blocks_queue::{Block, BlocksQueue, BlocksQueueError};
+pub use buffer_param::BufferParam;
 pub use bytes_fmt::BytesFmt;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
@@ -73,6 +76,7 @@ pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};
 #[allow(unused_imports, reason = "used in other features")]
 pub(crate) use {
+  filled_buffer::FilledBuffer,
   mem_transfer::_shift_copyable_chunks,
   partitioned_filled_buffer::PartitionedFilledBuffer,
   span::{_Entered, _Span},
@@ -244,17 +248,10 @@ pub(crate) fn _number_or_available_parallelism(n: Option<usize>) -> crate::Resul
   Ok(if let Some(elem) = n { elem } else { usize::from(std::thread::available_parallelism()?) })
 }
 
-#[cfg(feature = "ahash")]
-pub(crate) fn _random_state(mut rng: impl Rng) -> ahash::RandomState {
-  let (seed0, seed1) = {
-    let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = rng.u8_16();
-    (u64::from_ne_bytes([a, b, c, d, e, f, g, h]), u64::from_ne_bytes([i, j, k, l, m, n, o, p]))
-  };
-  let (seed2, seed3) = {
-    let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = rng.u8_16();
-    (u64::from_ne_bytes([a, b, c, d, e, f, g, h]), u64::from_ne_bytes([i, j, k, l, m, n, o, p]))
-  };
-  ahash::RandomState::with_seeds(seed0, seed1, seed2, seed3)
+#[cfg(feature = "foldhash")]
+pub(crate) fn _random_state(mut rng: impl Rng) -> foldhash::fast::FixedState {
+  let [a, b, c, d, e, f, g, h] = rng.u8_8();
+  foldhash::fast::FixedState::with_seed(u64::from_le_bytes([a, b, c, d, e, f, g, h]))
 }
 
 pub(crate) async fn _read_until<const LEN: usize, SR>(

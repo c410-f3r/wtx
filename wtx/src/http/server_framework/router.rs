@@ -5,7 +5,6 @@ use crate::{
   },
   misc::{ArrayVector, Vector},
 };
-use alloc::string::String;
 use core::marker::PhantomData;
 
 /// Redirects requests to specific asynchronous functions based on the set of inner URIs.
@@ -15,6 +14,7 @@ pub struct Router<CA, E, P, RA, REQM, RESM, RRD> {
   pub(crate) phantom: PhantomData<(CA, E, RA, RRD)>,
   pub(crate) req_middlewares: REQM,
   pub(crate) res_middlewares: RESM,
+  #[cfg(feature = "matchit")]
   pub(crate) router: matchit::Router<ArrayVector<(&'static str, u8), 8>>,
 }
 
@@ -26,16 +26,25 @@ where
   /// Creates a new instance with paths and middlewares.
   #[inline]
   pub fn new(paths: P, req_middlewares: REQM, res_middlewares: RESM) -> crate::Result<Self> {
+    #[cfg(feature = "matchit")]
     let router = Self::router(&paths)?;
-    Ok(Self { paths, phantom: PhantomData, req_middlewares, res_middlewares, router })
+    Ok(Self {
+      paths,
+      phantom: PhantomData,
+      req_middlewares,
+      res_middlewares,
+      #[cfg(feature = "matchit")]
+      router,
+    })
   }
 
+  #[cfg(feature = "matchit")]
   fn router(paths: &P) -> crate::Result<matchit::Router<ArrayVector<(&'static str, u8), 8>>> {
     let mut vec = Vector::new();
     paths.paths_indices(ArrayVector::new(), &mut vec)?;
     let mut router = matchit::Router::new();
     for array in vec {
-      let mut key = String::new();
+      let mut key = alloc::string::String::new();
       for elem in &array {
         key.push_str(elem.0);
       }
@@ -53,8 +62,16 @@ where
   /// Creates a new instance of empty middlewares.
   #[inline]
   pub fn paths(paths: P) -> crate::Result<Self> {
+    #[cfg(feature = "matchit")]
     let router = Self::router(&paths)?;
-    Ok(Self { paths, phantom: PhantomData, req_middlewares: (), res_middlewares: (), router })
+    Ok(Self {
+      paths,
+      phantom: PhantomData,
+      req_middlewares: (),
+      res_middlewares: (),
+      #[cfg(feature = "matchit")]
+      router,
+    })
   }
 }
 

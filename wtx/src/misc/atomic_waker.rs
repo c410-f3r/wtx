@@ -98,7 +98,7 @@ unsafe impl Send for AtomicWaker {}
 // SAFETY: Concurrent access is manually managed
 unsafe impl Sync for AtomicWaker {}
 
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::misc::AtomicWaker;
   use alloc::sync::Arc;

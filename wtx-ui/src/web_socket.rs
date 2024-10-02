@@ -5,8 +5,7 @@ use tokio::{
 use wtx::{
   misc::{simple_seed, UriRef, Xorshift64},
   web_socket::{
-    FrameBufferVec, FrameMutVec, HeadersBuffer, OpCode, WebSocketBuffer, WebSocketClient,
-    WebSocketServer,
+    FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketClient, WebSocketServer,
   },
 };
 
@@ -14,15 +13,14 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
   let fb = &mut FrameBufferVec::default();
   let wsb = &mut WebSocketBuffer::default();
-  let (_, mut ws) = WebSocketClient::connect(
+  let mut ws = WebSocketClient::connect(
     (),
-    fb,
     [],
-    &mut HeadersBuffer::default(),
     Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri,
     wsb,
+    |_| wtx::Result::Ok(()),
   )
   .await?;
   let mut buffer = String::new();
@@ -63,7 +61,7 @@ pub(crate) async fn serve(
           Xorshift64::from(simple_seed()),
           stream,
           WebSocketBuffer::default(),
-          |_| true,
+          |_| wtx::Result::Ok(()),
         )
         .await?;
         let mut fb = FrameBufferVec::default();

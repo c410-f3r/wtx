@@ -27,7 +27,7 @@ pub fn simple_seed() -> u64 {
   let ptr_addr = unsafe { *ptr::addr_of!(elem).cast() };
   let mut rslt = Usize::from_usize(ptr_addr).into_u64();
   rslt = rslt.wrapping_add(11_400_714_819_323_198_485);
-  rslt = rslt.wrapping_add(COUNTER.fetch_add(3, Ordering::Release));
+  rslt = rslt.wrapping_add(COUNTER.fetch_add(1, Ordering::Release));
   let location = Location::caller();
   rslt = rslt.wrapping_add(u64::from(location.column().wrapping_add(location.line())));
   rslt

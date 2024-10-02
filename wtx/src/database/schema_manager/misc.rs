@@ -15,7 +15,7 @@ use crate::{
     },
     DatabaseTy,
   },
-  misc::{FromRadix10, Lease},
+  misc::Lease,
 };
 use core::hash::{Hash, Hasher};
 #[cfg(feature = "std")]
@@ -25,7 +25,7 @@ use {
       toml_parser::{toml, Expr},
       MigrationGroup, Repeatability, UserMigrationOwned,
     },
-    misc::{ArrayVector, Vector},
+    misc::{ArrayVector, FromRadix10, Vector},
   },
   alloc::string::String,
   core::cmp::Ordering,

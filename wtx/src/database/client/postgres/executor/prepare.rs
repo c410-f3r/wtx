@@ -34,11 +34,13 @@ where
   where
     RV: RecordValues<Postgres<E>>,
   {
-    let mut fbw = FilledBufferWriter::from(&mut *nb);
-    bind(&mut fbw, "", rv, stmt, stmt_id_str)?;
-    execute(&mut fbw, 0, "")?;
-    sync(&mut fbw)?;
-    fwsc.stream.write_all(fbw._curr_bytes()).await?;
+    {
+      let mut fbw = FilledBufferWriter::from(&mut *nb);
+      bind(&mut fbw, "", rv, stmt, stmt_id_str)?;
+      execute(&mut fbw, 0, "")?;
+      sync(&mut fbw)?;
+      fwsc.stream.write_all(fbw._curr_bytes()).await?;
+    }
     let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     let MessageTy::BindComplete = msg.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
@@ -64,11 +66,13 @@ where
 
     let stmt_cmd = sc.cmd().ok_or_else(|| E::from(PostgresError::UnknownStatementId.into()))?;
 
-    let mut fbw = FilledBufferWriter::from(&mut *nb);
-    parse(stmt_cmd, &mut fbw, fwsc.tys.iter().copied().map(Into::into), &stmt_id_str)?;
-    describe(&stmt_id_str, &mut fbw, b'S')?;
-    sync(&mut fbw)?;
-    fwsc.stream.write_all(fbw._curr_bytes()).await?;
+    {
+      let mut fbw = FilledBufferWriter::from(&mut *nb);
+      parse(stmt_cmd, &mut fbw, fwsc.tys.iter().copied().map(Into::into), &stmt_id_str)?;
+      describe(&stmt_id_str, &mut fbw, b'S')?;
+      sync(&mut fbw)?;
+      fwsc.stream.write_all(fbw._curr_bytes()).await?;
+    }
 
     let msg0 = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     let MessageTy::ParseComplete = msg0.ty else {

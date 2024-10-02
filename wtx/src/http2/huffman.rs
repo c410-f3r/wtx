@@ -133,8 +133,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
   Ok(())
 }
 
-#[cfg(feature = "_bench")]
-#[cfg(test)]
+#[cfg(all(feature = "_bench", test))]
 mod bench {
   use crate::{
     bench::_data,

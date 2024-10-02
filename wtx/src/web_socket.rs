@@ -22,9 +22,9 @@ mod web_socket_error;
 
 use crate::{
   misc::{
-    from_utf8_basic, from_utf8_ext, CompletionErr, ConnectionState, ExtUtf8Error,
-    IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Rng, Stream, Vector, VectorError,
-    _read_until,
+    from_utf8_basic, from_utf8_ext, BufferParam, CompletionErr, ConnectionState, ExtUtf8Error,
+    FilledBuffer, IncompleteUtf8Char, Lease, LeaseMut, PartitionedFilledBuffer, Rng, Stream,
+    Vector, _read_until,
   },
   _MAX_PAYLOAD_LEN,
 };
@@ -39,22 +39,20 @@ pub use frame_buffer::{
   FrameBuffer, FrameBufferControlArray, FrameBufferControlArrayMut, FrameBufferMut, FrameBufferVec,
   FrameBufferVecMut,
 };
-#[cfg(feature = "web-socket-handshake")]
-pub use handshake::HeadersBuffer;
 pub use misc::Expand;
-use misc::{define_fb_from_header_params, op_code, FilledBuffer};
+use misc::{define_fb_from_header_params, op_code};
 pub use op_code::OpCode;
 use unmask::unmask;
 pub use web_socket_buffer::WebSocketBuffer;
 pub use web_socket_error::WebSocketError;
 
+pub(crate) const DECOMPRESSION_SUFFIX: [u8; 4] = [0, 0, 255, 255];
 pub(crate) const DFLT_FRAME_BUFFER_VEC_LEN: usize = 32 * 1024;
 pub(crate) const MAX_CONTROL_FRAME_LEN: usize = MAX_HDR_LEN_USIZE + MAX_CONTROL_FRAME_PAYLOAD_LEN;
 pub(crate) const MAX_CONTROL_FRAME_PAYLOAD_LEN: usize = 125;
 pub(crate) const MAX_HDR_LEN_U8: u8 = 14;
 pub(crate) const MAX_HDR_LEN_USIZE: usize = 14;
 pub(crate) const MIN_HEADER_LEN_USIZE: usize = 2;
-pub(crate) const DECOMPRESSION_SUFFIX: &[u8; 4] = &[0, 0, 255, 255];
 
 /// Always masks the payload before sending.
 pub type WebSocketClient<NC, RNG, S, WSB> = WebSocket<NC, RNG, S, WSB, true>;
@@ -115,7 +113,7 @@ where
   #[inline]
   pub fn new(nc: NC, rng: RNG, stream: S, mut wsb: WSB) -> crate::Result<Self> {
     wsb.lease_mut().nb._clear_if_following_is_empty();
-    wsb.lease_mut().nb._expand_following(MAX_HDR_LEN_USIZE)?;
+    wsb.lease_mut().nb._expand_buffer(MAX_HDR_LEN_USIZE)?;
     Ok(Self { ct: ConnectionState::Open, max_payload_len: _MAX_PAYLOAD_LEN, nc, rng, stream, wsb })
   }
 
@@ -243,40 +241,34 @@ where
   fn compress_frame<'pb, B, FB>(
     frame: &Frame<FB, IS_CLIENT>,
     nc: &mut NC,
-    pb: &'pb mut PartitionedFilledBuffer,
+    pfb: &'pb mut PartitionedFilledBuffer,
   ) -> crate::Result<FrameMut<'pb, IS_CLIENT>>
   where
     B: LeaseMut<[u8]>,
     FB: LeaseMut<FrameBuffer<B>>,
   {
-    fn expand_pb<'pb, B>(
-      len_with_header: usize,
-      local_fb: &FrameBuffer<B>,
-      local_pb: &'pb mut PartitionedFilledBuffer,
-      written: usize,
-    ) -> Result<&'pb mut [u8], VectorError>
-    where
-      B: Lease<[u8]>,
-    {
-      let start = len_with_header.wrapping_add(written);
-      local_pb._expand_following(start.wrapping_add(local_fb.frame().len()).wrapping_add(128))?;
-      Ok(local_pb._following_trail_mut().get_mut(start..).unwrap_or_default())
-    }
-
     let fb = frame.fb().lease();
-    let len = pb._following_trail_mut().len();
+    let len = pfb._following_end_idx();
     let len_with_header = len.wrapping_add(fb.header().len());
     let mut payload_len = nc.compress(
       fb.payload(),
-      pb,
-      |local_pb| expand_pb(len_with_header, fb, local_pb, 0),
-      |local_pb, written| expand_pb(len_with_header, fb, local_pb, written),
+      pfb,
+      |local_pfb| {
+        local_pfb._expand_buffer(fb.frame().len().wrapping_add(128))?;
+        Ok(local_pfb._buffer_mut().get_mut(len_with_header..).unwrap_or_default())
+      },
+      |local_pfb, written| {
+        local_pfb._expand_buffer(128)?;
+        let start = len_with_header.wrapping_add(written);
+        Ok(local_pfb._buffer_mut().get_mut(start..).unwrap_or_default())
+      },
     )?;
     if frame.fin() {
       payload_len = payload_len.saturating_sub(4);
     }
     let mut compressed_fb = FrameBufferMut::new(
-      pb._following_trail_mut()
+      pfb
+        ._following_trail_mut()
         .get_mut(len..len_with_header.wrapping_add(payload_len))
         .unwrap_or_default(),
     );
@@ -301,9 +293,9 @@ where
   where
     B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
-    db.push_bytes(DECOMPRESSION_SUFFIX)?;
+    let _ = db._extend_from_slices([DECOMPRESSION_SUFFIX.as_slice()])?;
     let mut buffer_len = payload_start_idx
-      .checked_add(db.len())
+      .checked_add(db._len())
       .map(|element| element.max(lease_as_slice(fb.buffer()).len()));
     let payload_size = nc.decompress(
       db.get(payload_start_idx..).unwrap_or_default(),
@@ -311,7 +303,7 @@ where
       |local_fb| Ok(Self::begin_fb_bytes_mut(local_fb, payload_start_idx)),
       |local_fb, written| Self::expand_fb(&mut buffer_len, local_fb, payload_start_idx, written),
     )?;
-    db.clear();
+    db._clear();
     Ok(payload_size)
   }
 
@@ -323,7 +315,7 @@ where
   ) -> crate::Result<usize> {
     Self::copy_from_pb(&mut wsb.db, &mut wsb.nb, rfi, |local_pb, local_db| {
       let n = payload_start_idx.saturating_add(rfi.payload_len);
-      local_db.set_idx_through_expansion(n)?;
+      local_db._expand(BufferParam::Len(n))?;
       local_db
         .get_mut(payload_start_idx..n)
         .unwrap_or_default()
@@ -348,19 +340,19 @@ where
       .checked_add(rfi.payload_len)
       .map(|element| element.max(lease_as_slice(fb.buffer()).len()));
     let payload_len = Self::copy_from_pb(fb, pb, rfi, |local_pb, local_fb| {
-      local_pb._expand_buffer(local_pb._buffer().len().wrapping_add(4))?;
+      local_pb._expand_buffer(4)?;
       let curr_end_idx = local_pb._current().len();
       let curr_end_idx_4p = curr_end_idx.wrapping_add(4);
       let has_following = local_pb._has_following();
       let range = rfi.header_end_idx..curr_end_idx_4p;
       let input = local_pb._current_trail_mut().get_mut(range).unwrap_or_default();
-      let orig = if let [.., a, b, c, d] = input {
-        let array = [*a, *b, *c, *d];
+      let original = if let [.., a, b, c, d] = input {
+        let original = [*a, *b, *c, *d];
         *a = 0;
         *b = 0;
         *c = 255;
         *d = 255;
-        array
+        original
       } else {
         [0, 0, 0, 0]
       };
@@ -374,10 +366,10 @@ where
           },
         )?;
         if let [.., a, b, c, d] = input {
-          *a = orig[0];
-          *b = orig[1];
-          *c = orig[2];
-          *d = orig[3];
+          *a = original[0];
+          *b = original[1];
+          *c = original[2];
+          *d = original[3];
         }
         Ok(payload_len)
       } else {
@@ -661,7 +653,7 @@ where
     stream: &mut S,
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
-    pb._expand_following(rfi.frame_len)?;
+    pb._expand_buffer(rfi.frame_len)?;
     for _ in 0..=rfi.frame_len {
       if *read >= rfi.frame_len {
         is_payload_filled = true;
@@ -806,8 +798,7 @@ where
     B: LeaseMut<[u8]> + LeaseMut<Vector<u8>>,
   {
     let mut iuc = {
-      let (should_use_db, payload_len) =
-        copy_cb(fb, first_rfi, *total_frame_len, self.wsb.lease_mut())?;
+      let (use_db, payload_len) = copy_cb(fb, first_rfi, *total_frame_len, self.wsb.lease_mut())?;
       *total_frame_len = total_frame_len.wrapping_add(payload_len);
       match first_rfi.op_code {
         OpCode::Binary => None,
@@ -815,7 +806,7 @@ where
           &self.wsb.lease().db,
           fb,
           payload_start_idx..*total_frame_len,
-          should_use_db,
+          use_db,
         ))?,
         OpCode::Close | OpCode::Continuation | OpCode::Ping | OpCode::Pong => {
           return Err(WebSocketError::UnexpectedMessageFrame.into());
@@ -830,7 +821,7 @@ where
         let (should_use_db, payload_len) =
           copy_cb(fb, &rfi, *total_frame_len, self.wsb.lease_mut())?;
         *total_frame_len = total_frame_len.wrapping_add(payload_len);
-        let (db, nb) = self.wsb.lease_mut().parts_mut();
+        let (db, nb) = self.wsb.lease_mut()._parts_mut();
         let curr_payload = Self::curr_payload_bytes(db, fb, prev..*total_frame_len, should_use_db);
         if Self::manage_auto_reply(
           &mut self.ct,

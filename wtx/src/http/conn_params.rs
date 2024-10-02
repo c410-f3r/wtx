@@ -12,7 +12,7 @@ pub(crate) struct ConnParams {
 #[cfg(feature = "http2")]
 impl ConnParams {
   #[inline]
-  pub(crate) fn to_hp(self) -> crate::http2::Http2Params {
+  pub(crate) fn _to_hp(self) -> crate::http2::Http2Params {
     crate::http2::Http2Params::default()
       .set_initial_window_len(self.initial_window_len)
       .set_max_body_len(self.max_body_len)

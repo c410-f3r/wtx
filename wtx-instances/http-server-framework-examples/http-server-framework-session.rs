@@ -19,7 +19,6 @@
 //!
 //! ALTER TABLE session ADD CONSTRAINT session__user__fk FOREIGN KEY (user_id) REFERENCES "user" (id);
 //! ```
-//!
 
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
@@ -70,7 +69,7 @@ async fn main() -> wtx::Result<()> {
   let rng_clone = rng.clone();
   ServerFrameworkBuilder::new(router)
     .with_conn_aux(move || (session.clone(), rng_clone.clone()))
-    .listen("0.0.0.0:9000", rng, |error: wtx::Error| eprintln!("{error:?}"))
+    .listen("0.0.0.0:9000", rng, |err| eprintln!("{err:?}"))
     .await?;
   Ok(())
 }

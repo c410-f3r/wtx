@@ -8,6 +8,7 @@
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
+#[allow(unused_extern_crates, reason = "selection of features")]
 #[cfg(all(feature = "_bench", test))]
 extern crate test;
 

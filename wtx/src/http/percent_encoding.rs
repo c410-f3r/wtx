@@ -137,7 +137,8 @@ impl<'bytes> PercentDecode<'bytes> {
       }
       return Ok(false);
     };
-    vector.extend_from_slices(&[self.bytes.get(..idx).unwrap_or_default(), &[decoded_byte][..]])?;
+    let local_bytes = self.bytes.get(..idx).unwrap_or_default();
+    let _ = vector.extend_from_slices([local_bytes, &[decoded_byte][..]])?;
     while let [byte, rest @ ..] = bytes {
       bytes = rest;
       vector.push(if *byte == b'%' {

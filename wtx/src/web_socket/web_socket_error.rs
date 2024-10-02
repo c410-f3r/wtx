@@ -5,8 +5,6 @@ pub enum WebSocketError {
   ConnectionClosed,
   /// HTTP headers must be unique.
   DuplicatedHeader,
-  /// The requested received in a handshake on a server is not valid.
-  InvalidAcceptRequest,
   /// Received close frame has invalid parameters.
   InvalidCloseFrame,
   /// Received an invalid header compression parameter.
