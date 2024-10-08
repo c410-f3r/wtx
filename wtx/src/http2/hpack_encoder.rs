@@ -65,23 +65,26 @@ impl HpackEncoder {
   pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
     buffer: &mut Vector<u8>,
-    pseudo_headers: impl Iterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
-    user_headers: impl Iterator<Item = Header<'user, &'user [u8]>>,
+    pseudo_headers: impl IntoIterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
+    user_headers: impl IntoIterator<Item = Header<'user, &'user [u8]>>,
   ) -> crate::Result<()> {
+    let pseudo_headers_iter = pseudo_headers.into_iter();
+    let user_headers_iter = user_headers.into_iter();
     self.adjust_indices(
-      pseudo_headers
+      pseudo_headers_iter
         .size_hint()
         .1
-        .and_then(|el| el.checked_add(user_headers.size_hint().1?))
+        .and_then(|el| el.checked_add(user_headers_iter.size_hint().1?))
         .unwrap_or(usize::MAX),
     );
-    buffer.reserve(pseudo_headers.size_hint().0.wrapping_add(user_headers.size_hint().0))?;
+    let reserve = pseudo_headers_iter.size_hint().0.wrapping_add(user_headers_iter.size_hint().0);
+    buffer.reserve(reserve)?;
     self.manage_size_update(buffer)?;
-    for (hhb, value) in pseudo_headers {
+    for (hhb, value) in pseudo_headers_iter {
       let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)))?;
       Self::manage_encode(buffer, (&[], value), idx)?;
     }
-    for Header { is_sensitive, name, value, .. } in user_headers {
+    for Header { is_sensitive, name, value, .. } in user_headers_iter {
       let idx = self.encode_idx(
         (name, value, is_sensitive),
         HpackHeaderBasic::Field,

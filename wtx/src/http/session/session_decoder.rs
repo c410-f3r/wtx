@@ -2,10 +2,10 @@ use crate::{
   http::{
     cookie::{decrypt, CookieBytes},
     server_framework::ReqMiddleware,
-    KnownHeaderName, ReqResDataMut, Request, Session, SessionError, SessionInner, SessionState,
+    KnownHeaderName, ReqResBuffer, Request, Session, SessionError, SessionInner, SessionState,
     SessionStore,
   },
-  misc::{GenericTime, LeaseMut, Lock, Vector},
+  misc::{GenericTime, LeaseMut, Lock},
 };
 use chrono::DateTime;
 use core::marker::PhantomData;
@@ -28,13 +28,12 @@ impl<L, SS> SessionDecoder<L, SS> {
   }
 }
 
-impl<CA, CS, E, L, RA, RRD, SS> ReqMiddleware<CA, E, RA, RRD> for SessionDecoder<L, SS>
+impl<CA, CS, E, L, RA, SS> ReqMiddleware<CA, E, RA> for SessionDecoder<L, SS>
 where
   CA: LeaseMut<Session<L, SS>>,
   CS: DeserializeOwned + PartialEq,
   E: From<crate::Error>,
   L: Lock<Resource = SessionInner<CS, E>>,
-  RRD: ReqResDataMut<Body = Vector<u8>>,
   SS: SessionStore<CS, E>,
 {
   #[inline]
@@ -42,7 +41,7 @@ where
     &self,
     ca: &mut CA,
     _: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<(), E> {
     let Session { content, store } = ca.lease_mut();
     let SessionInner { cookie_def, phantom: _, key, state } = &mut *content.lock().await;
@@ -57,7 +56,8 @@ where
       }
       return Ok(());
     }
-    let (vector, headers, _) = req.rrd.parts_mut();
+    let lease = req.rrd.lease_mut();
+    let (vector, headers) = (&mut lease.body, &mut lease.headers);
     for header in headers.iter() {
       if header.name != <&[u8]>::from(KnownHeaderName::Cookie) {
         continue;

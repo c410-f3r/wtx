@@ -1,6 +1,6 @@
 use crate::http::{
   server_framework::{ConnAux, ReqAux, Router, ServerFramework},
-  ConnParams, ReqResBuffer,
+  ConnParams,
 };
 use alloc::sync::Arc;
 
@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 #[derive(Debug)]
 pub struct ServerFrameworkBuilder<CA, E, P, RA, REQM, RESM> {
   cp: ConnParams,
-  router: Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>,
+  router: Arc<Router<CA, E, P, RA, REQM, RESM>>,
 }
 
 impl<CA, E, P, RA, REQM, RESM> ServerFrameworkBuilder<CA, E, P, RA, REQM, RESM>
@@ -18,7 +18,7 @@ where
 {
   /// New instance with default connection values.
   #[inline]
-  pub fn new(router: Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>) -> Self {
+  pub fn new(router: Router<CA, E, P, RA, REQM, RESM>) -> Self {
     Self { cp: ConnParams::default(), router: Arc::new(router) }
   }
 

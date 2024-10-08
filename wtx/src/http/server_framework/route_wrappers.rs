@@ -1,7 +1,7 @@
 use crate::{
   http::{
     server_framework::{Endpoint, PathManagement},
-    HttpError, KnownHeaderName, Method, Mime, ReqResData, Request, StatusCode,
+    HttpError, KnownHeaderName, Method, Mime, ReqResBuffer, ReqResData, Request, StatusCode,
   },
   misc::{ArrayVector, FnFut, Vector},
 };
@@ -22,10 +22,10 @@ where
   Get(ty.into_wrapper())
 }
 
-impl<CA, E, RA, RRD, T> PathManagement<CA, E, RA, RRD> for Get<T>
+impl<CA, E, RA, T> PathManagement<CA, E, RA> for Get<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<CA, E, RA, RRD>,
+  T: Endpoint<CA, E, RA>,
 {
   const IS_ROUTER: bool = false;
 
@@ -35,7 +35,7 @@ where
     ca: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
     ra: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<StatusCode, E> {
     if req.method != Method::Get {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
@@ -71,11 +71,10 @@ where
   Json(ty.into_wrapper())
 }
 
-impl<CA, E, T, RA, RRD> PathManagement<CA, E, RA, RRD> for Json<T>
+impl<CA, E, T, RA> PathManagement<CA, E, RA> for Json<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<CA, E, RA, RRD>,
-  RRD: ReqResData,
+  T: Endpoint<CA, E, RA>,
 {
   const IS_ROUTER: bool = false;
 
@@ -85,7 +84,7 @@ where
     ca: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
     ra: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<StatusCode, E> {
     if req
       .rrd
@@ -129,10 +128,10 @@ where
   Post(ty.into_wrapper())
 }
 
-impl<CA, E, T, RA, RRD> PathManagement<CA, E, RA, RRD> for Post<T>
+impl<CA, E, T, RA> PathManagement<CA, E, RA> for Post<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<CA, E, RA, RRD>,
+  T: Endpoint<CA, E, RA>,
 {
   const IS_ROUTER: bool = false;
 
@@ -142,7 +141,7 @@ where
     ca: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
     ra: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<StatusCode, E> {
     if req.method != Method::Post {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {

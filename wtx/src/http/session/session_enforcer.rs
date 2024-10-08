@@ -2,7 +2,8 @@ use core::marker::PhantomData;
 
 use crate::{
   http::{
-    server_framework::ReqMiddleware, ReqResData, Request, Session, SessionError, SessionInner,
+    server_framework::ReqMiddleware, ReqResBuffer, ReqResData, Request, Session, SessionError,
+    SessionInner,
   },
   misc::{Lease, Lock},
 };
@@ -24,20 +25,18 @@ impl<L, SS, const N: usize> SessionEnforcer<L, SS, N> {
   }
 }
 
-impl<CA, CS, E, L, RA, RRD, SS, const N: usize> ReqMiddleware<CA, E, RA, RRD>
-  for SessionEnforcer<L, SS, N>
+impl<CA, CS, E, L, RA, SS, const N: usize> ReqMiddleware<CA, E, RA> for SessionEnforcer<L, SS, N>
 where
   CA: Lease<Session<L, SS>>,
   E: From<crate::Error>,
   L: Lock<Resource = SessionInner<CS, E>>,
-  RRD: ReqResData,
 {
   #[inline]
   async fn apply_req_middleware(
     &self,
     ca: &mut CA,
     _: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<(), E> {
     let uri = req.rrd.uri();
     let path = uri.path();

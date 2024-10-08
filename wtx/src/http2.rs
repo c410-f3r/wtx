@@ -26,6 +26,7 @@ mod http2_error;
 mod http2_error_code;
 mod http2_params;
 mod http2_params_send;
+mod http2_status;
 mod huffman;
 mod huffman_tables;
 mod misc;
@@ -81,6 +82,7 @@ pub use http2_data::Http2Data;
 pub use http2_error::Http2Error;
 pub use http2_error_code::Http2ErrorCode;
 pub use http2_params::Http2Params;
+pub use http2_status::Http2Status;
 pub(crate) use huffman::{huffman_decode, huffman_encode};
 pub(crate) use ping_frame::PingFrame;
 pub(crate) use process_receipt_frame_ty::ProcessReceiptFrameTy;
@@ -108,15 +110,15 @@ const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /// [`Http2`] instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
-pub type Http2Tokio<HB, RRB, SW, const IS_CLIENT: bool> =
-  Http2<Http2DataTokio<HB, RRB, SW, IS_CLIENT>, IS_CLIENT>;
+pub type Http2Tokio<HB, SW, const IS_CLIENT: bool> =
+  Http2<Http2DataTokio<HB, SW, IS_CLIENT>, IS_CLIENT>;
 /// [`Http2Data`] instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
-pub type Http2DataTokio<HB, RRB, SW, const IS_CLIENT: bool> =
-  Arc<tokio::sync::Mutex<Http2Data<HB, RRB, SW, IS_CLIENT>>>;
+pub type Http2DataTokio<HB, SW, const IS_CLIENT: bool> =
+  Arc<tokio::sync::Mutex<Http2Data<HB, SW, IS_CLIENT>>>;
 
 pub(crate) type Scrp = HashMap<U31, StreamControlRecvParams>;
-pub(crate) type Sorp<RRB> = HashMap<U31, StreamOverallRecvParams<RRB>>;
+pub(crate) type Sorp = HashMap<U31, StreamOverallRecvParams>;
 
 /// Negotiates initial "handshakes" or connections and also manages the creation of streams.
 #[derive(Debug)]
@@ -125,12 +127,11 @@ pub struct Http2<HD, const IS_CLIENT: bool> {
   is_conn_open: Arc<AtomicBool>,
 }
 
-impl<HB, HD, RRB, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
+impl<HB, HD, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   /// See [`ConnectionState`].
@@ -139,12 +140,7 @@ where
     ConnectionState::from(self.is_conn_open.load(Ordering::Relaxed))
   }
 
-  /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
-  /// streams.
-  #[inline]
-  pub async fn send_go_away(self, error_code: Http2ErrorCode) {
-    misc::send_go_away(error_code, &mut self.hd.lock().await.parts_mut()).await;
-  }
+  send_go_away_method!();
 
   #[inline]
   pub(crate) async fn _swap_buffers(&mut self, hb: &mut HB) {
@@ -153,7 +149,7 @@ where
 
   #[inline]
   async fn manage_initial_params<const HAS_PREFACE: bool>(
-    hb: &mut Http2Buffer<RRB>,
+    hb: &mut Http2Buffer,
     hp: &Http2Params,
     stream_writer: &mut SW,
   ) -> crate::Result<(Arc<AtomicBool>, u32, PartitionedFilledBuffer, Arc<AtomicWaker>)> {
@@ -190,12 +186,11 @@ where
   }
 }
 
-impl<HB, HD, RRB, SW> Http2<HD, false>
+impl<HB, HD, SW> Http2<HD, false>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, false>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
   SW: StreamWriter,
 {
   /// Accepts an initial connection sending the local parameters to the remote peer.
@@ -239,7 +234,10 @@ where
   /// Returns [`Either::Left`] if the network connection has been closed, either locally
   /// or externally.
   #[inline]
-  pub async fn stream(&mut self, rrb: RRB) -> crate::Result<Either<Option<RRB>, ServerStream<HD>>> {
+  pub async fn stream(
+    &mut self,
+    rrb: ReqResBuffer,
+  ) -> crate::Result<Either<Option<ReqResBuffer>, ServerStream<HD>>> {
     let Self { hd, is_conn_open } = self;
     let rrb_opt = &mut Some(rrb);
     let mut lock_pin = pin!(hd.lock());
@@ -283,12 +281,11 @@ where
   }
 }
 
-impl<HB, HD, RRB, SW> Http2<HD, true>
+impl<HB, HD, SW> Http2<HD, true>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, true>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, true>>,
   SW: StreamWriter,
 {
   /// Tries to connect to a server sending the local parameters.

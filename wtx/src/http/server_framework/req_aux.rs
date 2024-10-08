@@ -1,4 +1,4 @@
-use crate::http::{ReqResDataMut, Request};
+use crate::http::{ReqResBuffer, Request};
 
 /// Auxiliary structure for requests
 pub trait ReqAux: Sized {
@@ -6,7 +6,5 @@ pub trait ReqAux: Sized {
   type Init;
 
   /// Creates a new instance with [`ReqAux::Init`] as well as with a request.
-  fn req_aux<RRD>(init: Self::Init, req: &mut Request<RRD>) -> crate::Result<Self>
-  where
-    RRD: ReqResDataMut;
+  fn req_aux(init: Self::Init, req: &mut Request<ReqResBuffer>) -> crate::Result<Self>;
 }

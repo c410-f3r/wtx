@@ -26,7 +26,7 @@ macro_rules! init {
 }
 
 use crate::{
-  http::{Headers, ReqResBuffer, Trailers},
+  http::{Headers, Trailers},
   http2::{
     http2_data::Http2DataPartsMut,
     misc::{process_higher_operation_err, protocol_err, write_array},
@@ -44,20 +44,19 @@ use core::{
 };
 
 #[inline]
-pub(crate) async fn send_msg<HB, HD, RRB, SW, const IS_CLIENT: bool>(
+pub(crate) async fn send_msg<HB, HD, SW, const IS_CLIENT: bool>(
   mut data_bytes: &[u8],
   hd: &HD,
   headers: &Headers,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   is_conn_open: &AtomicBool,
   stream_id: U31,
-  mut cb: impl FnMut(Http2DataPartsMut<'_, RRB, SW>),
+  mut cb: impl FnMut(Http2DataPartsMut<'_, SW>),
 ) -> crate::Result<Option<()>>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   let (mut has_headers, mut has_data) = (false, false);
@@ -69,7 +68,7 @@ where
     }
     let mut lock = lock_pin!(cx, hd, lock_pin);
     let hdpm = lock.parts_mut();
-    let fut = do_send_msg::<_, _, IS_CLIENT>(
+    let fut = do_send_msg::<_, IS_CLIENT>(
       &mut data_bytes,
       (&mut has_headers, &mut has_data),
       headers,
@@ -121,18 +120,17 @@ fn data_frame_len(bytes: &[u8]) -> U31 {
 
 // Tries to at least send initial headers when the windows size does not allow sending data frames
 #[inline]
-async fn do_send_msg<RRB, SW, const IS_CLIENT: bool>(
+async fn do_send_msg<SW, const IS_CLIENT: bool>(
   data_bytes: &mut &[u8],
   (has_headers, has_data): (&mut bool, &mut bool),
   headers: &Headers,
-  hdpm: Http2DataPartsMut<'_, RRB, SW>,
+  hdpm: Http2DataPartsMut<'_, SW>,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   stream_id: U31,
   waker: &Waker,
-  cb: &mut impl FnMut(Http2DataPartsMut<'_, RRB, SW>),
+  cb: &mut impl FnMut(Http2DataPartsMut<'_, SW>),
 ) -> crate::Result<Option<bool>>
 where
-  RRB: LeaseMut<ReqResBuffer>,
   SW: StreamWriter,
 {
   let Http2Buffer { hpack_enc, hpack_enc_buffer, is_conn_open, scrp, .. } = hdpm.hb;
@@ -195,8 +193,9 @@ where
     if !*has_data {
       if write_standalone_data(
         available_send,
-        has_data,
         data_bytes,
+        false,
+        has_data,
         headers.trailers().has_any(),
         is_conn_open,
         hdpm.hps.max_frame_len,
@@ -216,7 +215,6 @@ where
     write_standalone_trailers(
       headers,
       (hpack_enc, hpack_enc_buffer),
-      (hsreqh, hsresh),
       is_conn_open,
       hdpm.hps.max_frame_len,
       hdpm.stream_writer,
@@ -269,16 +267,15 @@ fn encode_trailers(
   headers: &Headers,
   (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
 ) -> crate::Result<()> {
-  let pseudo = [].into_iter();
   match headers.trailers() {
     Trailers::None => {
-      hpack_enc.encode(hpack_enc_buffer, pseudo, headers.iter())?;
+      hpack_enc.encode(hpack_enc_buffer, [], headers.iter())?;
     }
     Trailers::Mixed => {
-      hpack_enc.encode(hpack_enc_buffer, pseudo, headers.iter().filter(|el| el.is_trailer))?;
+      hpack_enc.encode(hpack_enc_buffer, [], headers.iter().filter(|el| el.is_trailer))?;
     }
     Trailers::Tail(idx) => {
-      hpack_enc.encode(hpack_enc_buffer, pseudo, headers.iter().skip(idx))?;
+      hpack_enc.encode(hpack_enc_buffer, [], headers.iter().skip(idx))?;
     }
   }
   Ok(())
@@ -424,10 +421,11 @@ where
 
 /// Tries to send up two data frames in a single round trip. If exhausted, returns `true`.
 #[inline]
-async fn write_standalone_data<SW>(
+pub(crate) async fn write_standalone_data<SW>(
   available_send: u32,
-  has_data: &mut bool,
   data_bytes: &mut &[u8],
+  force_eos: bool,
+  has_data: &mut bool,
   has_trailers: bool,
   is_conn_open: &AtomicBool,
   max_frame_len: u32,
@@ -470,6 +468,9 @@ where
       let mut frame1 = DataFrame::new(data_frame_len(left1), stream_id);
       let frame1_len = data_frame_len(left1);
       let should_stop = should_stop(right1, &mut frame1, has_data, has_trailers);
+      if force_eos {
+        frame1.set_eos();
+      }
       write_array(
         [&init!(left0, frame0), left0, &init!(left1, frame1), left1],
         is_conn_open,
@@ -481,6 +482,9 @@ where
       Ok(should_stop)
     } else {
       let should_stop = should_stop(right0, &mut frame0, has_data, has_trailers);
+      if force_eos {
+        frame0.set_eos();
+      }
       write_array([&init!(left0, frame0), left0], is_conn_open, stream).await?;
       wp.withdrawn_send(Some(stream_id), frame0_len)?;
       *data_bytes = right0;
@@ -494,6 +498,9 @@ where
     let frame0_len = data_frame_len(left0);
     let mut frame0 = DataFrame::new(frame0_len, stream_id);
     let should_stop = should_stop(right0, &mut frame0, has_data, has_trailers);
+    if force_eos {
+      frame0.set_eos();
+    }
     write_array([&init!(left0, frame0), left0], is_conn_open, stream).await?;
     wp.withdrawn_send(Some(stream_id), frame0_len)?;
     *data_bytes = right0;
@@ -537,10 +544,9 @@ where
 
 /// Tries to send all trailer headers
 #[inline]
-async fn write_standalone_trailers<SW>(
+pub(crate) async fn write_standalone_trailers<SW>(
   headers: &Headers,
   (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
-  (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   is_conn_open: &AtomicBool,
   max_frame_len: u32,
   stream: &mut SW,
@@ -554,7 +560,10 @@ where
   let (left0 @ [_, ..], right0) = split_frame_bytes(hpack_enc_buffer, max_frame_len) else {
     return Ok(());
   };
-  let mut frame0 = HeadersFrame::new((hsreqh, hsresh), stream_id);
+  let mut frame0 = HeadersFrame::new(
+    (HpackStaticRequestHeaders::EMPTY, HpackStaticResponseHeaders::EMPTY),
+    stream_id,
+  );
   frame0.set_eos();
   write_headers_or_trailers(
     &mut frame0,

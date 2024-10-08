@@ -28,7 +28,7 @@ async fn main() -> wtx::Result<()> {
   stream.send_req(Request::http2(Method::Get, b"Hello!"), &uri.to_ref()).await?;
   let (res_rrb, opt) = stream.recv_res(rrb).await?;
   let _status_code = opt.unwrap();
-  println!("{}", from_utf8_basic(&res_rrb.data)?);
+  println!("{}", from_utf8_basic(&res_rrb.body)?);
   http2.send_go_away(Http2ErrorCode::NoError).await;
   Ok(())
 }

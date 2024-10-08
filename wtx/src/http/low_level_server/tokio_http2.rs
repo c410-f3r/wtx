@@ -1,17 +1,15 @@
 use crate::{
   http::{low_level_server::LowLevelServer, ReqResBuffer, Request, Response},
-  http2::{Http2ErrorCode, Http2Params, Http2Tokio},
+  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},
 };
 use core::future::Future;
 use tokio::net::{TcpListener, TcpStream};
 
-type Http2Buffer = crate::http2::Http2Buffer<ReqResBuffer>;
-
 impl LowLevelServer {
   /// Optioned HTTP/2 server using tokio.
   #[inline]
-  pub async fn tokio_http2<ACPT, CA, E, F, RA, SR, SF, SW>(
+  pub async fn tokio_high_http2<ACPT, CA, E, F, RA, SR, SF, SW>(
     addr: &str,
     conn_cb: impl Clone + Fn() -> crate::Result<(CA, Http2Buffer, Http2Params)> + Send + 'static,
     err_cb: impl Clone + Fn(E) + Send + 'static,
@@ -104,20 +102,19 @@ where
     let local_handle_cb = handle_cb.clone();
     let local_err_cb = err_cb.clone();
     let _stream_jh = tokio::spawn(async move {
-      let fun = || async {
-        let (local_rrb, opt) = http2_stream.recv_req().await?;
-        let method = match opt {
-          None => return Ok(()),
-          Some(elem) => elem,
-        };
-        let req = local_rrb.into_http2_request(method);
+      let fun = async {
+        let (local_rrb, is_open) = http2_stream.recv_req().await?;
+        if !is_open {
+          return Ok(());
+        }
+        let req = local_rrb.into_http2_request(http2_stream.method());
         let res = local_handle_cb.call((local_ca, ra, req)).await?;
         if http2_stream.send_res(res).await?.is_none() {
           return Ok(());
         }
         Ok::<_, E>(())
       };
-      if let Err(err) = fun().await {
+      if let Err(err) = fun.await {
         http2_stream.send_go_away(Http2ErrorCode::InternalError).await;
         local_err_cb(err);
       }

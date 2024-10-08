@@ -68,7 +68,7 @@ async fn db(
   let mut lock = state.ra.get().await?;
   let record = lock.fetch_with_stmt("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
-  state.req.rrd.data.write_fmt(format_args!("Person of id `1` has name `{name}`"))?;
+  state.req.rrd.body.write_fmt(format_args!("Person of id `1` has name `{name}`"))?;
   Ok(StatusCode::Ok)
 }
 

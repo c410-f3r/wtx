@@ -12,10 +12,10 @@ use crate::{
   misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter, NOOP_WAKER},
 };
 use alloc::collections::VecDeque;
-use core::{marker::PhantomData, sync::atomic::AtomicBool, task::Waker};
+use core::{sync::atomic::AtomicBool, task::Waker};
 
 #[derive(Debug)]
-pub(crate) struct ProcessReceiptFrameTy<'instance, RRB, SR, SW> {
+pub(crate) struct ProcessReceiptFrameTy<'instance, SR, SW> {
   pub(crate) conn_windows: &'instance mut Windows,
   pub(crate) fi: FrameInit,
   pub(crate) hp: &'instance mut Http2Params,
@@ -24,7 +24,6 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, RRB, SR, SW> {
   pub(crate) is_conn_open: &'instance AtomicBool,
   pub(crate) last_stream_id: &'instance mut U31,
   pub(crate) pfb: &'instance mut PartitionedFilledBuffer,
-  pub(crate) phantom: PhantomData<RRB>,
   pub(crate) read_frame_waker: &'instance AtomicWaker,
   pub(crate) recv_streams_num: &'instance mut u32,
   pub(crate) stream_reader: &'instance mut SR,
@@ -32,14 +31,13 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, RRB, SR, SW> {
   pub(crate) uri_buffer: &'instance mut UriBuffer,
 }
 
-impl<RRB, SR, SW> ProcessReceiptFrameTy<'_, RRB, SR, SW>
+impl<SR, SW> ProcessReceiptFrameTy<'_, SR, SW>
 where
-  RRB: LeaseMut<ReqResBuffer>,
   SR: StreamReader,
   SW: StreamWriter,
 {
   #[inline]
-  pub(crate) async fn data(self, sorp: &mut Sorp<RRB>) -> crate::Result<()> {
+  pub(crate) async fn data(self, sorp: &mut Sorp) -> crate::Result<()> {
     let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
       if self.fi.stream_id <= *self.last_stream_id {
         return Err(crate::Error::Http2ErrorGoAway(
@@ -64,7 +62,7 @@ where
     };
     elem.body_len = local_body_len;
     let (df, body_bytes) = DataFrame::read(self.pfb._current(), self.fi)?;
-    elem.rrb.lease_mut().data.extend_from_slice(body_bytes)?;
+    elem.rrb.lease_mut().body.extend_from_slice(body_bytes)?;
     WindowsPair::new(self.conn_windows, &mut elem.windows)
       .withdrawn_recv(
         self.hp,
@@ -82,7 +80,7 @@ where
   }
 
   #[inline]
-  pub(crate) async fn header_client(self, sorp: &mut Sorp<RRB>) -> crate::Result<()> {
+  pub(crate) async fn header_client(self, sorp: &mut Sorp) -> crate::Result<()> {
     let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
       return Err(protocol_err(Http2Error::UnknownHeaderStreamReceiver));
     };
@@ -94,7 +92,7 @@ where
         self.hpack_dec,
         self.pfb,
         self.read_frame_waker,
-        elem.rrb.lease_mut(),
+        &mut elem.rrb,
         self.stream_reader,
         self.uri_buffer,
         |_| Ok(()),
@@ -109,7 +107,7 @@ where
         self.hpack_dec,
         self.pfb,
         self.read_frame_waker,
-        elem.rrb.lease_mut(),
+        &mut elem.rrb,
         self.stream_reader,
         self.uri_buffer,
         |hf| hf.hsresh().status_code.ok_or_else(|| HttpError::MissingResponseStatusCode.into()),
@@ -130,8 +128,8 @@ where
   pub(crate) async fn header_server_init(
     self,
     initial_server_header_params: &mut VecDeque<(Method, U31)>,
-    mut rrb: RRB,
-    sorp: &mut Sorp<RRB>,
+    mut rrb: ReqResBuffer,
+    sorp: &mut Sorp,
   ) -> crate::Result<()> {
     if self.fi.stream_id <= *self.last_stream_id || self.fi.stream_id.u32() % 2 == 0 {
       return Err(protocol_err(Http2Error::UnexpectedStreamId));
@@ -148,7 +146,7 @@ where
       self.hpack_dec,
       self.pfb,
       self.read_frame_waker,
-      rrb.lease_mut(),
+      &mut rrb,
       self.stream_reader,
       self.uri_buffer,
       |hf| hf.hsreqh().method.ok_or_else(|| HttpError::MissingRequestMethod.into()),
@@ -176,7 +174,7 @@ where
   #[inline]
   pub(crate) async fn header_server_trailer(
     self,
-    sorp: &mut StreamOverallRecvParams<RRB>,
+    sorp: &mut StreamOverallRecvParams,
   ) -> crate::Result<()> {
     if sorp.stream_state.recv_eos() {
       return Err(protocol_err(Http2Error::UnexpectedHeaderFrame));
@@ -188,7 +186,7 @@ where
       self.hpack_dec,
       self.pfb,
       self.read_frame_waker,
-      sorp.rrb.lease_mut(),
+      &mut sorp.rrb,
       self.stream_reader,
       self.uri_buffer,
       |_| Ok(()),
@@ -202,7 +200,7 @@ where
   }
 
   #[inline]
-  pub(crate) async fn reset(self, scrp: &mut Scrp, sorp: &mut Sorp<RRB>) -> crate::Result<()> {
+  pub(crate) async fn reset(self, scrp: &mut Scrp, sorp: &mut Sorp) -> crate::Result<()> {
     let rsf = ResetStreamFrame::read(self.pfb._current(), self.fi)?;
     if !send_reset_stream(rsf.error_code(), scrp, sorp, self.stream_writer, self.fi.stream_id).await
     {
@@ -212,7 +210,7 @@ where
   }
 
   #[inline]
-  pub(crate) fn window_update(self, scrp: &mut Scrp, sorp: &mut Sorp<RRB>) -> crate::Result<()> {
+  pub(crate) fn window_update(self, scrp: &mut Scrp, sorp: &mut Sorp) -> crate::Result<()> {
     if let Some(elem) = scrp.get_mut(&self.fi.stream_id) {
       self.do_window_update(&mut elem.windows, &elem.waker)?;
       return Ok(());

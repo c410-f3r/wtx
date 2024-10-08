@@ -1,7 +1,7 @@
 use crate::{
   http::{
     server_framework::{Endpoint, ResFinalizer},
-    ReqResDataMut, Request, StatusCode,
+    ReqResBuffer, ReqResDataMut, Request, StatusCode,
   },
   misc::{FnFut, FnFutWrapper},
 };
@@ -41,12 +41,11 @@ where
   }
 }
 
-impl<CA, E, F, RA, RES, RRD, const CLEAN: bool> Endpoint<CA, E, RA, RRD>
-  for FnFutWrapper<(StateGeneric<'_, CA, RA, RRD, CLEAN>,), F>
+impl<CA, E, F, RA, RES, const CLEAN: bool> Endpoint<CA, E, RA>
+  for FnFutWrapper<(StateGeneric<'_, CA, RA, ReqResBuffer, CLEAN>,), F>
 where
-  F: for<'any> FnFut<(StateGeneric<'any, CA, RA, RRD, CLEAN>,), Result = RES>,
-  RES: ResFinalizer<E, RRD>,
-  RRD: ReqResDataMut,
+  F: for<'any> FnFut<(StateGeneric<'any, CA, RA, ReqResBuffer, CLEAN>,), Result = RES>,
+  RES: ResFinalizer<E>,
 {
   #[inline]
   async fn call(
@@ -54,8 +53,27 @@ where
     ca: &mut CA,
     _: (u8, &[(&'static str, u8)]),
     ra: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<StatusCode, E> {
     self.0.call((StateGeneric::new(ca, ra, req),)).await.finalize_response(req)
+  }
+}
+
+impl<'any, CA, RA, RRD, const CLEAN: bool> From<&'any mut (CA, RA, Request<RRD>)>
+  for StateGeneric<'any, CA, RA, RRD, CLEAN>
+{
+  #[inline]
+  fn from((ca, ra, req): &'any mut (CA, RA, Request<RRD>)) -> Self {
+    Self { ca, ra, req }
+  }
+}
+
+impl<'any, CA, RA, RRD, const CLEAN: bool>
+  From<&'any mut (&'any mut CA, &'any mut RA, Request<RRD>)>
+  for StateGeneric<'any, CA, RA, RRD, CLEAN>
+{
+  #[inline]
+  fn from((ca, ra, req): &'any mut (&'any mut CA, &'any mut RA, Request<RRD>)) -> Self {
+    Self { ca, ra, req }
   }
 }

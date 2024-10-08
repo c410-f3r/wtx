@@ -12,7 +12,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  LowLevelServer::tokio_http2(
+  LowLevelServer::tokio_high_http2(
     &wtx_instances::host_from_args(),
     || Ok(((), Http2Buffer::new(Xorshift64::from(simple_seed())), Http2Params::default())),
     |error| eprintln!("{error}"),

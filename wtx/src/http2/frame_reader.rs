@@ -9,7 +9,6 @@ macro_rules! prft {
       is_conn_open: &$hdpm.hb.is_conn_open,
       last_stream_id: &mut $hdpm.last_stream_id,
       pfb: $pfb,
-      phantom: PhantomData,
       read_frame_waker: &$hdpm.hb.read_frame_waker,
       recv_streams_num: &mut $hdpm.recv_streams_num,
       stream_reader: $stream_reader,
@@ -20,7 +19,6 @@ macro_rules! prft {
 }
 
 use crate::{
-  http::ReqResBuffer,
   http2::{
     misc::{process_higher_operation_err, protocol_err, read_frame, send_go_away, write_array},
     FrameInit, FrameInitTy, GoAwayFrame, Http2Buffer, Http2Data, Http2Error, PingFrame,
@@ -33,14 +31,13 @@ use crate::{
 use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
-  marker::PhantomData,
   mem,
   pin::pin,
   sync::atomic::AtomicBool,
   task::Poll,
 };
 
-pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
+pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
   hd: HD,
   is_conn_open: Arc<AtomicBool>,
   max_frame_len: u32,
@@ -48,10 +45,9 @@ pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
   read_frame_waker: Arc<AtomicWaker>,
   mut stream_reader: SR,
 ) where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -86,15 +82,14 @@ pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
 }
 
 #[inline]
-async fn finish<HB, HD, RRB, SW, const IS_CLIENT: bool>(
+async fn finish<HB, HD, SW, const IS_CLIENT: bool>(
   err: Option<crate::Error>,
   hd: &HD,
   pfb: &mut PartitionedFilledBuffer,
 ) where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   let mut lock = hd.lock().await;
@@ -105,7 +100,7 @@ async fn finish<HB, HD, RRB, SW, const IS_CLIENT: bool>(
 }
 
 #[inline]
-async fn manage_fi<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
+async fn manage_fi<HB, HD, SR, SW, const IS_CLIENT: bool>(
   fi: FrameInit,
   hd: &HD,
   is_conn_open: &AtomicBool,
@@ -113,10 +108,9 @@ async fn manage_fi<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
   stream_reader: &mut SR,
 ) -> crate::Result<()>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {

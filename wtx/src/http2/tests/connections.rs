@@ -39,12 +39,12 @@ async fn client(uri: &UriString) {
   _1(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.data.extend_from_slice(b"123").unwrap();
+  rrb.body.extend_from_slice(b"123").unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _2(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.data.extend_from_slice(b"123").unwrap();
+  rrb.body.extend_from_slice(b"123").unwrap();
   rrb.headers.push_from_iter(Header::from_name_and_value(b"123", ["456".as_bytes()])).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _3(rrb.body(), rrb.headers());
@@ -88,7 +88,7 @@ async fn server(uri: &UriString) {
 }
 
 async fn stream_server(
-  server: &mut Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, OwnedWriteHalf, false>,
+  server: &mut Http2Tokio<Http2Buffer, OwnedWriteHalf, false>,
   rrb: ReqResBuffer,
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
@@ -96,17 +96,18 @@ async fn stream_server(
     let Either::Right(mut stream) = server.stream(rrb).await.unwrap() else {
       panic!();
     };
-    let (mut req_rrb, Some(method)) = stream.recv_req().await.unwrap() else {
+    let (mut req_rrb, is_open) = stream.recv_req().await.unwrap();
+    if !is_open {
       panic!();
-    };
-    cb(req_rrb.as_http2_request_mut(method));
+    }
+    cb(req_rrb.as_http2_request_mut(stream.method()));
     stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap().unwrap();
     break req_rrb;
   }
 }
 
 async fn stream_client(
-  client: &mut Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, OwnedWriteHalf, true>,
+  client: &mut Http2Tokio<Http2Buffer, OwnedWriteHalf, true>,
   rrb: ReqResBuffer,
   uri: &UriRef<'_>,
 ) -> ReqResBuffer {

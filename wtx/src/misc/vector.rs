@@ -171,6 +171,12 @@ impl<T> Vector<T> {
   }
 
   /// Clones and appends all elements in the iterator.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.extend_from_iter(0..2);
+  /// assert_eq!(vec.as_slice(), &[0, 1]);
+  /// ```
   #[inline]
   pub fn extend_from_iter(&mut self, ii: impl IntoIterator<Item = T>) -> Result<(), VectorError> {
     let iter = ii.into_iter();
@@ -182,6 +188,14 @@ impl<T> Vector<T> {
   }
 
   /// Constructs a new instance with elements provided by `iter`.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..4).unwrap();
+  /// vec.insert(1, 4);
+  /// assert_eq!(vec.as_slice(), [1, 4, 2, 3]);
+  /// vec.insert(4, 5);
+  /// assert_eq!(vec.as_slice(), [1, 4, 2, 3, 5]);
+  /// ```
   #[inline]
   pub fn insert(&mut self, idx: usize, elem: T) -> Result<(), VectorError> {
     let len = self.len();
@@ -215,12 +229,24 @@ impl<T> Vector<T> {
   }
 
   /// Removes the last element from a vector and returns it, or [None] if it is empty.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..4).unwrap();
+  /// assert_eq!(vec.pop(), Some(3));
+  /// assert_eq!(vec.as_slice(), [1, 2]);
+  /// ```
   #[inline]
   pub fn pop(&mut self) -> Option<T> {
     self.data.pop()
   }
 
   /// Appends an element to the back of the collection.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.push(3);
+  /// assert_eq!(vec.as_slice(), [3]);
+  /// ```
   #[inline]
   pub fn push(&mut self, value: T) -> Result<(), VectorError> {
     self.reserve(1).map_err(|_err| VectorError::PushOverflow)?;
@@ -241,6 +267,12 @@ impl<T> Vector<T> {
   }
 
   /// Shortens the vector, keeping the first len elements and dropping the rest.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..4).unwrap();
+  /// assert_eq!(vec.remove(1), Some(2));
+  /// assert_eq!(vec.as_slice(), [1, 3]);
+  /// ```
   #[inline]
   pub fn remove(&mut self, idx: usize) -> Option<T> {
     if idx >= self.data.len() {
@@ -254,6 +286,12 @@ impl<T> Vector<T> {
   /// speculatively avoid frequent reallocations. After calling `reserve`,
   /// capacity will be greater than or equal to `self.len() + additional`.
   /// Does nothing if capacity is already sufficient.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::<u8>::new();
+  /// vec.reserve(10);
+  /// assert!(vec.capacity() >= 10);
+  /// ```
   #[inline(always)]
   pub fn reserve(&mut self, additional: usize) -> Result<(), VectorError> {
     self.data.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
@@ -265,6 +303,12 @@ impl<T> Vector<T> {
   }
 
   /// Shortens the vector, keeping the first len elements and dropping the rest.
+  ///
+  /// ```
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..6).unwrap();
+  /// vec.truncate(2);
+  /// assert_eq!(vec.as_slice(), [1, 2]);
+  /// ```
   #[inline]
   pub fn truncate(&mut self, len: usize) {
     self.data.truncate(len);

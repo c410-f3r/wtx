@@ -18,14 +18,11 @@ use core::{
 };
 
 #[inline]
-pub(crate) fn check_content_length<RRB>(
+pub(crate) fn check_content_length(
   content_length: usize,
-  sorp: &StreamOverallRecvParams<RRB>,
-) -> crate::Result<()>
-where
-  RRB: LeaseMut<ReqResBuffer>,
-{
-  if sorp.rrb.lease().data.len() != content_length {
+  sorp: &StreamOverallRecvParams,
+) -> crate::Result<()> {
+  if sorp.rrb.body.len() != content_length {
     return Err(protocol_err(Http2Error::InvalidHeaderData));
   }
   Ok(())
@@ -40,32 +37,25 @@ pub(crate) fn frame_reader_rslt(err: &mut Option<crate::Error>) -> crate::Result
 }
 
 #[inline]
-pub(crate) fn manage_initial_stream_receiving<RRB>(is_conn_open: &AtomicBool, rrb: &mut RRB) -> bool
-where
-  RRB: LeaseMut<ReqResBuffer>,
-{
+pub(crate) fn manage_initial_stream_receiving(
+  is_conn_open: &AtomicBool,
+  rrb: &mut ReqResBuffer,
+) -> bool {
   if !is_conn_open.load(Ordering::Relaxed) {
     return false;
   }
-  rrb.lease_mut().clear();
+  rrb.clear();
   true
 }
 
 #[inline]
-pub(crate) fn manage_recurrent_stream_receiving<RRB, SW, T>(
+pub(crate) fn manage_recurrent_stream_receiving<SW, T>(
   cx: &mut Context<'_>,
-  mut hdpm: Http2DataPartsMut<'_, RRB, SW>,
+  mut hdpm: Http2DataPartsMut<'_, SW>,
   is_conn_open: &AtomicBool,
   stream_id: U31,
-  cb: impl FnOnce(
-    &mut Context<'_>,
-    &mut Http2DataPartsMut<'_, RRB, SW>,
-    &StreamOverallRecvParams<RRB>,
-  ) -> T,
-) -> Poll<crate::Result<(RRB, Option<T>)>>
-where
-  RRB: LeaseMut<ReqResBuffer>,
-{
+  cb: impl FnOnce(&mut Context<'_>, &mut Http2DataPartsMut<'_, SW>, &StreamOverallRecvParams) -> T,
+) -> Poll<crate::Result<(ReqResBuffer, Option<T>)>> {
   let Some(sorp) = hdpm.hb.sorp.get_mut(&stream_id) else {
     return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
   };
@@ -123,14 +113,13 @@ pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
 }
 
 #[inline]
-pub(crate) async fn process_higher_operation_err<HB, HD, RRB, SW, const IS_CLIENT: bool>(
+pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bool>(
   err: &crate::Error,
   hd: &HD,
 ) where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   let mut lock = hd.lock().await;
@@ -259,7 +248,7 @@ where
   }
 
   let rrb_body_start = if IS_TRAILER {
-    rrb.data.len()
+    rrb.body.len()
   } else {
     rrb.clear();
     0
@@ -284,7 +273,7 @@ where
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
-  rrb.data.extend_from_slice(pfb._current())?;
+  rrb.body.extend_from_slice(pfb._current())?;
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
@@ -304,7 +293,7 @@ where
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      rrb.data.extend_from_slice(pfb._current())?;
+      rrb.body.extend_from_slice(pfb._current())?;
       if frame_fi.cf.has_eoh() {
         break 'continuation_frames;
       }
@@ -321,7 +310,7 @@ where
     uri_buffer,
   )?;
   if IS_TRAILER {
-    rrb.data.truncate(rrb_body_start);
+    rrb.body.truncate(rrb_body_start);
   } else {
     rrb.clear();
   }
@@ -335,9 +324,9 @@ where
 }
 
 #[inline]
-pub(crate) async fn send_go_away<SW, RRB>(
+pub(crate) async fn send_go_away<SW>(
   error_code: Http2ErrorCode,
-  hdpm: &mut Http2DataPartsMut<'_, RRB, SW>,
+  hdpm: &mut Http2DataPartsMut<'_, SW>,
 ) where
   SW: StreamWriter,
 {
@@ -357,10 +346,10 @@ pub(crate) async fn send_go_away<SW, RRB>(
 }
 
 #[inline]
-pub(crate) async fn send_reset_stream<RRB, SW>(
+pub(crate) async fn send_reset_stream<SW>(
   error_code: Http2ErrorCode,
   scrp: &mut Scrp,
-  sorp: &mut Sorp<RRB>,
+  sorp: &mut Sorp,
   stream_writer: &mut SW,
   stream_id: U31,
 ) -> bool

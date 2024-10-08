@@ -305,6 +305,43 @@ macro_rules! _max_frames_mismatches {
   };
 }
 
+macro_rules! _simd {
+  (
+    512 => $_512:expr,
+    256 => $_256:expr,
+    128 => $_128:expr,
+    _ => $fallback:expr $(,)?
+  ) => {{
+    #[cfg(target_feature = "avx512f")]
+    let rslt = $_512;
+
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+    let rslt = $_256;
+
+    #[cfg(all(
+      target_feature = "neon",
+      not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    let rslt = $_128;
+
+    #[cfg(all(
+      target_feature = "sse2",
+      not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
+    ))]
+    let rslt = $_128;
+
+    #[cfg(not(any(
+      target_feature = "avx2",
+      target_feature = "avx512f",
+      target_feature = "neon",
+      target_feature = "sse2"
+    )))]
+    let rslt = $fallback;
+
+    rslt
+  }};
+}
+
 macro_rules! _trace {
   ($($tt:tt)+) => {
     #[cfg(feature = "tracing")]

@@ -3,7 +3,7 @@ use crate::{
   http2::{
     misc::{
       frame_reader_rslt, manage_initial_stream_receiving, manage_recurrent_stream_receiving,
-      process_higher_operation_err, send_go_away, send_reset_stream,
+      process_higher_operation_err,
     },
     send_msg::send_msg,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
@@ -42,25 +42,29 @@ impl<HD> ClientStream<HD> {
   }
 }
 
-impl<HB, HD, RRB, SW> ClientStream<HD>
+impl<HB, HD, SW> ClientStream<HD>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, true>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, true>>,
   SW: StreamWriter,
 {
   /// Receive response
   ///
-  /// Higher operation that awaits for the data necessary to build a response and then closes the
+  /// High-level operation that awaits for the data necessary to build a response and then closes the
   /// stream.
   ///
   /// Returns [`Option::None`] if the network/stream connection has been closed, either locally
   /// or externally.
   ///
-  /// Should be called after [`Self::send_req`] is successfully executed.
+  /// Should be called after [`Self::send_req`] or any other low level methods that send data
+  /// are successfully executed. More specifically, should only be called in a half-closed stream
+  /// state.
   #[inline]
-  pub async fn recv_res(&mut self, rrb: RRB) -> crate::Result<(RRB, Option<StatusCode>)> {
+  pub async fn recv_res(
+    &mut self,
+    rrb: ReqResBuffer,
+  ) -> crate::Result<(ReqResBuffer, Option<StatusCode>)> {
     let rrb_opt = &mut Some(rrb);
     let Self { hd, is_conn_open, span, stream_id, windows } = self;
     let _e = span._enter();
@@ -102,16 +106,11 @@ where
     rslt
   }
 
-  /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
-  /// streams.
-  #[inline]
-  pub async fn send_go_away(self, error_code: Http2ErrorCode) {
-    send_go_away(error_code, &mut self.hd.lock().await.parts_mut()).await;
-  }
+  send_go_away_method!();
 
   /// Send Request
   ///
-  /// Higher operation that sends all data related to a request.
+  /// Sends all data related to a request.
   ///
   /// Returns [`Option::None`] if the network/stream connection has been closed, either locally
   /// or externally.
@@ -130,10 +129,10 @@ where
     let _e = self.span._enter();
     _trace!("Sending request");
     let uri = match req_uri.into() {
-      ReqUri::Data => &req.rrd.uri(),
+      ReqUri::Data => &req.rrd.uri().to_ref(),
       ReqUri::Param(elem) => elem,
     };
-    send_msg::<_, _, _, _, true>(
+    send_msg::<_, _, _, true>(
       req.rrd.body().lease(),
       &self.hd,
       req.rrd.headers(),
@@ -158,18 +157,11 @@ where
     .await
   }
 
-  /// Sends a `RST_STREAM` frame to the peer, which cancels this stream.
+  send_reset_method!();
+
+  /// Stream ID
   #[inline]
-  pub async fn send_reset(self, error_code: Http2ErrorCode) {
-    let mut guard = self.hd.lock().await;
-    let hdpm = guard.parts_mut();
-    let _ = send_reset_stream(
-      error_code,
-      &mut hdpm.hb.scrp,
-      &mut hdpm.hb.sorp,
-      hdpm.stream_writer,
-      self.stream_id,
-    )
-    .await;
+  pub async fn stream_id(&self) -> u32 {
+    self.stream_id.into()
   }
 }

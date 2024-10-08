@@ -1,31 +1,12 @@
 #[doc = _internal_doc!()]
 #[inline]
 pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
-  #[cfg(target_feature = "avx512f")]
-  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_512);
-
-  #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_256);
-
-  #[cfg(all(
-    target_feature = "neon",
-    not(any(target_feature = "avx2", target_feature = "avx512f"))
-  ))]
-  let (is_128, unmask_chunks_slice) = (true, _unmask_chunks_slice_128);
-
-  #[cfg(all(
-    target_feature = "sse2",
-    not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
-  ))]
-  let (is_128, unmask_chunks_slice) = (true, _unmask_chunks_slice_128);
-
-  #[cfg(not(any(
-    target_feature = "avx2",
-    target_feature = "avx512f",
-    target_feature = "neon",
-    target_feature = "sse2"
-  )))]
-  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_fallback);
+  let (is_128, unmask_chunks_slice) = _simd!(
+    512 => (false, _unmask_chunks_slice_512),
+    256 => (false, _unmask_chunks_slice_256),
+    128 => (true, _unmask_chunks_slice_128),
+    _ => (false, _unmask_chunks_slice_fallback)
+  );
 
   // SAFETY: Changing a sequence of `u8` should be fine
   let (prefix, chunks, suffix) = unsafe { bytes.align_to_mut() };

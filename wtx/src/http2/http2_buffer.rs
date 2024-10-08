@@ -1,5 +1,5 @@
 use crate::{
-  http::Method,
+  http::{Method, ReqResBuffer},
   http2::{HpackDecoder, HpackEncoder, Scrp, Sorp, UriBuffer, U31},
   misc::{simple_seed, AtomicWaker, Lease, LeaseMut, PartitionedFilledBuffer, Rng, Vector},
 };
@@ -12,21 +12,21 @@ use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.
 #[derive(Debug)]
-pub struct Http2Buffer<RRB> {
+pub struct Http2Buffer {
   pub(crate) hpack_dec: HpackDecoder,
   pub(crate) hpack_enc: HpackEncoder,
   pub(crate) hpack_enc_buffer: Vector<u8>,
-  pub(crate) initial_server_header_buffers: VecDeque<(RRB, Waker)>,
+  pub(crate) initial_server_header_buffers: VecDeque<(ReqResBuffer, Waker)>,
   pub(crate) initial_server_header_params: VecDeque<(Method, U31)>,
   pub(crate) is_conn_open: Arc<AtomicBool>,
   pub(crate) pfb: PartitionedFilledBuffer,
   pub(crate) read_frame_waker: Arc<AtomicWaker>,
   pub(crate) scrp: Scrp,
-  pub(crate) sorp: Sorp<RRB>,
+  pub(crate) sorp: Sorp,
   pub(crate) uri_buffer: Box<UriBuffer>,
 }
 
-impl<RRB> Http2Buffer<RRB> {
+impl Http2Buffer {
   /// Creates a new instance without pre-allocated resources.
   #[inline]
   pub fn new<RNG>(rng: RNG) -> Self
@@ -77,23 +77,23 @@ impl<RRB> Http2Buffer<RRB> {
   }
 }
 
-impl<RRB> Default for Http2Buffer<RRB> {
+impl Default for Http2Buffer {
   #[inline]
   fn default() -> Self {
     Self::new(crate::misc::Xorshift64::from(simple_seed()))
   }
 }
 
-impl<RRB> Lease<Http2Buffer<RRB>> for Http2Buffer<RRB> {
+impl Lease<Http2Buffer> for Http2Buffer {
   #[inline]
-  fn lease(&self) -> &Http2Buffer<RRB> {
+  fn lease(&self) -> &Http2Buffer {
     self
   }
 }
 
-impl<RRB> LeaseMut<Http2Buffer<RRB>> for Http2Buffer<RRB> {
+impl LeaseMut<Http2Buffer> for Http2Buffer {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Http2Buffer<RRB> {
+  fn lease_mut(&mut self) -> &mut Http2Buffer {
     self
   }
 }

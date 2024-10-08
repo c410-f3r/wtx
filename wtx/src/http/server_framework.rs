@@ -45,7 +45,7 @@ pub struct ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM> {
   ca_cb: CAC,
   cp: ConnParams,
   ra_cb: RAC,
-  router: Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>,
+  router: Arc<Router<CA, E, P, RA, REQM, RESM>>,
 }
 
 impl<CA, CAC, E, P, RA, RAC, REQM, RESM> ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM>
@@ -53,15 +53,15 @@ where
   CA: Clone + ConnAux + Send + 'static,
   CAC: Clone + Fn() -> CA::Init + Send + 'static,
   E: From<crate::Error> + Send + 'static,
-  P: PathManagement<CA, E, RA, ReqResBuffer, manage_path(..): Send> + Send + 'static,
+  P: PathManagement<CA, E, RA, manage_path(..): Send> + Send + 'static,
   RA: ReqAux + Send + 'static,
   RAC: Clone + Fn() -> RA::Init + Send + 'static,
-  REQM: ReqMiddleware<CA, E, RA, ReqResBuffer, apply_req_middleware(..): Send> + Send + 'static,
-  RESM: ResMiddleware<CA, E, RA, ReqResBuffer, apply_res_middleware(..): Send> + Send + 'static,
-  Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>: Send,
-  Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>: Send,
-  for<'any> &'any Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>: Send,
-  for<'any> &'any Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>: Send,
+  REQM: ReqMiddleware<CA, E, RA, apply_req_middleware(..): Send> + Send + 'static,
+  RESM: ResMiddleware<CA, E, RA, apply_res_middleware(..): Send> + Send + 'static,
+  Arc<Router<CA, E, P, RA, REQM, RESM>>: Send,
+  Router<CA, E, P, RA, REQM, RESM>: Send,
+  for<'any> &'any Arc<Router<CA, E, P, RA, REQM, RESM>>: Send,
+  for<'any> &'any Router<CA, E, P, RA, REQM, RESM>: Send,
 {
   /// Starts listening to incoming requests based on the given `host`.
   #[inline]
@@ -75,7 +75,7 @@ where
     RNG: Clone + Rng + Send + 'static,
   {
     let Self { ca_cb, cp, ra_cb, router } = self;
-    LowLevelServer::tokio_http2(
+    LowLevelServer::tokio_high_http2(
       host,
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
       err_cb,
@@ -100,7 +100,7 @@ where
     RNG: Clone + Rng + Send + 'static,
   {
     let Self { ca_cb, cp, ra_cb, router } = self;
-    LowLevelServer::tokio_http2(
+    LowLevelServer::tokio_high_http2(
       host,
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
       err_cb,
@@ -121,7 +121,7 @@ where
 
   async fn handle(
     mut ca: CA,
-    (ra_cb, router): (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>),
+    (ra_cb, router): (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM>>),
     mut req: Request<ReqResBuffer>,
   ) -> Result<Response<ReqResBuffer>, E> {
     let mut ra = RA::req_aux(ra_cb(), &mut req)?;

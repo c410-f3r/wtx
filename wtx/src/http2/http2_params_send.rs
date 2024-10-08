@@ -16,12 +16,12 @@ pub(crate) struct Http2ParamsSend {
 }
 
 impl Http2ParamsSend {
-  pub(crate) fn update<RRB>(
+  pub(crate) fn update(
     &mut self,
     hpack_enc: &mut HpackEncoder,
     scrp: &mut Scrp,
     sf: &SettingsFrame,
-    sorp: &mut Sorp<RRB>,
+    sorp: &mut Sorp,
   ) -> crate::Result<()> {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);

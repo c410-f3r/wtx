@@ -25,7 +25,7 @@ pub struct Client<DRSR, RL, RM> {
 impl<DRSR, HD, RL, RM, SW> Client<DRSR, RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -68,11 +68,11 @@ where
   where
     VerbatimRequest<T>: Serialize<DRSR>,
   {
-    rrb.data.clear();
+    rrb.body.clear();
     rrb.headers.clear();
     rrb.uri.truncate_with_initial_len();
     rrb.uri.push_path(format_args!("/{package}.{service}/{method}"))?;
-    serialize(&mut rrb.data, VerbatimRequest { data }, &mut self.drsr)?;
+    serialize(&mut rrb.body, VerbatimRequest { data }, &mut self.drsr)?;
     Self::push_headers(&mut rrb.headers)?;
     let res = self.cf.send(Method::Post, rrb, ReqUri::Data).await?;
     Ok(Response::http2(res.rrd, res.status_code))
