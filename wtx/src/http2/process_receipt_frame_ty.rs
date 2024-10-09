@@ -1,7 +1,8 @@
 use crate::{
-  http::{HttpError, Method, ReqResBuffer, StatusCode},
+  http::{HttpError, StatusCode},
   http2::{
     http2_params_send::Http2ParamsSend,
+    initial_server_header::InitialServerHeader,
     misc::{
       protocol_err, read_header_and_continuations, send_reset_stream, server_header_stream_state,
     },
@@ -11,8 +12,7 @@ use crate::{
   },
   misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter, NOOP_WAKER},
 };
-use alloc::collections::VecDeque;
-use core::{sync::atomic::AtomicBool, task::Waker};
+use core::{mem, sync::atomic::AtomicBool, task::Waker};
 
 #[derive(Debug)]
 pub(crate) struct ProcessReceiptFrameTy<'instance, SR, SW> {
@@ -127,10 +127,8 @@ where
   #[inline]
   pub(crate) async fn header_server_init(
     self,
-    initial_server_header_headers: &mut VecDeque<(Method, U31)>,
-    mut rrb: ReqResBuffer,
+    ish: &mut InitialServerHeader,
     sorp: &mut Sorp,
-    waker: Waker,
   ) -> crate::Result<()> {
     if self.fi.stream_id <= *self.last_stream_id || self.fi.stream_id.u32() % 2 == 0 {
       return Err(protocol_err(Http2Error::UnexpectedStreamId));
@@ -140,27 +138,21 @@ where
     }
     *self.recv_streams_num = self.recv_streams_num.wrapping_add(1);
     *self.last_stream_id = self.fi.stream_id;
-    let rslt = read_header_and_continuations::<_, _, false, false>(
+    let (content_length, has_eos, method) = read_header_and_continuations::<_, _, false, false>(
       self.fi,
       self.is_conn_open,
       self.hp,
       self.hpack_dec,
       self.pfb,
       self.read_frame_waker,
-      &mut rrb,
+      &mut ish.rrb,
       self.stream_reader,
       self.uri_buffer,
       |hf| hf.hsreqh().method.ok_or_else(|| HttpError::MissingRequestMethod.into()),
     )
-    .await;
-    let (content_length, has_eos, method) = match rslt {
-      Err(err) => {
-        waker.wake();
-        return Err(err);
-      }
-      Ok(elem) => elem,
-    };
-    initial_server_header_headers.push_back((method, self.fi.stream_id));
+    .await?;
+    ish.method = method;
+    ish.stream_id = self.fi.stream_id;
     let stream_state = server_header_stream_state(has_eos);
     drop(sorp.insert(
       self.fi.stream_id,
@@ -169,14 +161,13 @@ where
         content_length,
         has_initial_header: true,
         is_stream_open: true,
-        rrb,
+        rrb: mem::take(&mut ish.rrb),
         status_code: StatusCode::Ok,
         stream_state,
         waker: NOOP_WAKER.clone(),
         windows: Windows::initial(self.hp, self.hps),
       },
     ));
-    waker.wake();
     Ok(())
   }
 

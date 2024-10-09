@@ -18,7 +18,7 @@ async fn main() -> wtx::Result<()> {
   let uri = Uri::new("http://www.example.com");
   let (frame_reader, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(Xorshift64::from(simple_seed())),
-    (), 
+    (),
     Http2Params::default(),
     TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
   )

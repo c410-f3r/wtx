@@ -132,7 +132,7 @@ mod tokio {
       let uri = UriRef::new(aux);
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
-        (), 
+        (),
         self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
@@ -157,7 +157,7 @@ mod tokio {
       resource._swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         buffer,
-        (), 
+        (),
         self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
@@ -209,7 +209,7 @@ mod tokio_rustls {
       let uri = UriRef::new(aux);
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
-        (), 
+        (),
         self._cp._to_hp(),
         tokio::io::split(
           TokioRustlsConnector::from_auto()?
@@ -242,7 +242,7 @@ mod tokio_rustls {
       resource._swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
-        (), 
+        (),
         self._cp._to_hp(),
         tokio::io::split(
           TokioRustlsConnector::from_auto()?

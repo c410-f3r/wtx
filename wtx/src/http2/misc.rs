@@ -333,8 +333,8 @@ pub(crate) async fn send_go_away<SW>(
   hdpm.hb.is_conn_open.store(false, Ordering::Relaxed);
   let gaf = GoAwayFrame::new(error_code, *hdpm.last_stream_id);
   let _rslt = hdpm.stream_writer.write_all(&gaf.bytes()).await;
-  for (_, waker) in &hdpm.hb.initial_server_header_streams {
-    waker.wake_by_ref();
+  for (_, value) in hdpm.hb.initial_server_headers.iter() {
+    value.waker.wake_by_ref();
   }
   for scrp in hdpm.hb.scrp.values() {
     scrp.waker.wake_by_ref();

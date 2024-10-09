@@ -13,12 +13,10 @@ mod continuation_frame;
 mod data_frame;
 mod frame_init;
 mod frame_reader;
-mod initial_server_header;
 mod go_away_frame;
 mod headers_frame;
 mod hpack_decoder;
 mod hpack_encoder;
-mod http2_hook;
 mod hpack_header;
 mod hpack_headers;
 mod hpack_static_headers;
@@ -26,12 +24,14 @@ mod http2_buffer;
 mod http2_data;
 mod http2_error;
 mod http2_error_code;
+mod http2_hook;
 mod http2_params;
 mod http2_params_send;
 mod http2_status;
 mod huffman;
-mod index_map;
 mod huffman_tables;
+mod index_map;
+mod initial_server_header;
 mod misc;
 mod ping_frame;
 mod process_receipt_frame_ty;
@@ -49,7 +49,7 @@ mod window;
 mod window_update_frame;
 
 use crate::{
-  http::ReqResBuffer,
+  http::{Method, ReqResBuffer},
   http2::misc::{
     frame_reader_rslt, manage_initial_stream_receiving, process_higher_operation_err, protocol_err,
     write_array,
@@ -61,7 +61,6 @@ use crate::{
 };
 use alloc::sync::Arc;
 pub use client_stream::ClientStream;
-pub use http2_hook::Http2Hook;
 pub(crate) use common_flags::CommonFlags;
 pub(crate) use continuation_frame::ContinuationFrame;
 use core::{
@@ -85,6 +84,7 @@ pub use http2_buffer::Http2Buffer;
 pub use http2_data::Http2Data;
 pub use http2_error::Http2Error;
 pub use http2_error_code::Http2ErrorCode;
+pub use http2_hook::Http2Hook;
 pub use http2_params::Http2Params;
 pub use http2_status::Http2Status;
 pub(crate) use huffman::{huffman_decode, huffman_encode};
@@ -129,6 +129,7 @@ pub(crate) type Sorp = HashMap<U31, StreamOverallRecvParams>;
 pub struct Http2<HD, const IS_CLIENT: bool> {
   hd: HD,
   is_conn_open: Arc<AtomicBool>,
+  ish_id: u32,
 }
 
 impl<HB, HO, HD, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
@@ -220,7 +221,7 @@ where
     let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<false>(hb.lease_mut(), &hp, &mut stream_writer).await?;
     let hd = HD::new(HD::Item::new(Http2Data::new(hb, hook, hp, stream_writer)));
-    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
+    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open), ish_id: 0 };
     Ok((
       frame_reader::frame_reader(
         hd,
@@ -242,33 +243,41 @@ where
   pub async fn stream(
     &mut self,
     rrb: ReqResBuffer,
-  ) -> crate::Result<Either<Option<ReqResBuffer>, ServerStream<HD>>> {
-    let Self { hd, is_conn_open } = self;
+  ) -> crate::Result<Either<ReqResBuffer, ServerStream<HD>>> {
+    let Self { hd, is_conn_open, ish_id } = self;
+    let curr_ish_id = *ish_id;
+    *ish_id = ish_id.wrapping_add(1);
     let rrb_opt = &mut Some(rrb);
     let mut lock_pin = pin!(hd.lock());
     match poll_fn(|cx| {
       let mut lock = lock_pin!(cx, hd, lock_pin);
       let hdpm = lock.parts_mut();
-      if let Some(mut local_rrb) = rrb_opt.take() {
-        if !manage_initial_stream_receiving(is_conn_open, &mut local_rrb) {
-          return Poll::Ready(Either::Left((
-            Some(local_rrb),
-            frame_reader_rslt(hdpm.frame_reader_error),
-          )));
+      if let Some(mut this_rrb) = rrb_opt.take() {
+        if !manage_initial_stream_receiving(is_conn_open, &mut this_rrb) {
+          return Poll::Ready(Either::Left((this_rrb, frame_reader_rslt(hdpm.frame_reader_error))));
         }
-        hdpm.hb.initial_server_header_streams.push_back((local_rrb, cx.waker().clone()));
+        hdpm.hb.initial_server_headers.push_back(
+          curr_ish_id,
+          initial_server_header::InitialServerHeader {
+            method: Method::Get,
+            rrb: this_rrb,
+            stream_id: U31::ZERO,
+            waker: cx.waker().clone(),
+          },
+        );
         Poll::Pending
       } else {
+        let ish = hdpm.hb.initial_server_headers.remove(&curr_ish_id).unwrap();
+        hdpm.hb.initial_server_headers.decrease_cursor();
         if !is_conn_open.load(Ordering::Relaxed) {
-          return Poll::Ready(Either::Left((
-            hdpm.hb.initial_server_header_streams.pop_front().map(|el| el.0),
-            frame_reader_rslt(hdpm.frame_reader_error),
-          )));
+          let this_rrb = if ish.stream_id.is_zero() {
+            ish.rrb
+          } else {
+            mem::take(&mut hdpm.hb.sorp.get_mut(&ish.stream_id).unwrap().rrb)
+          };
+          return Poll::Ready(Either::Left((this_rrb, frame_reader_rslt(hdpm.frame_reader_error))));
         }
-        let Some((method, stream_id)) = hdpm.hb.initial_server_header_headers.pop_front() else {
-          return Poll::Pending;
-        };
-        Poll::Ready(Either::Right((method, stream_id)))
+        Poll::Ready(Either::Right((ish.method, ish.stream_id)))
       }
     })
     .await
@@ -310,7 +319,7 @@ where
     let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<true>(hb.lease_mut(), &hp, &mut stream_writer).await?;
     let hd = HD::new(HD::Item::new(Http2Data::new(hb, hook, hp, stream_writer)));
-    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
+    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open), ish_id: 0 };
     Ok((
       frame_reader::frame_reader(
         hd,
@@ -358,6 +367,6 @@ where
 {
   #[inline]
   fn clone(&self) -> Self {
-    Self { hd: self.hd.clone(), is_conn_open: Arc::clone(&self.is_conn_open) }
+    Self { hd: self.hd.clone(), is_conn_open: Arc::clone(&self.is_conn_open), ish_id: self.ish_id }
   }
 }

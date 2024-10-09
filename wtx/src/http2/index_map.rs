@@ -3,7 +3,8 @@ use hashbrown::HashMap;
 use std::collections::VecDeque;
 
 #[derive(Debug)]
-pub struct IndexMap<K, V> {
+pub(crate) struct IndexMap<K, V> {
+  cursor: usize,
   elements: HashMap<K, V>,
   keys: VecDeque<K>,
 }
@@ -13,48 +14,44 @@ where
   K: Clone + Copy + Eq + Hash,
 {
   #[inline]
-  pub fn new() -> Self {
-    Self { elements: HashMap::new(), keys: VecDeque::new() }
+  pub(crate) fn new() -> Self {
+    Self { cursor: 0, elements: HashMap::new(), keys: VecDeque::new() }
   }
 
   #[inline]
-  pub fn clear(&mut self) {
+  pub(crate) fn clear(&mut self) {
+    self.cursor = 0;
     self.elements.clear();
     self.keys.clear();
   }
 
   #[inline]
-  pub fn contains_key<Q>(&mut self, key: &Q) -> bool
-  where
-    K: Borrow<Q>,
-    Q: Eq + Hash + ?Sized,
-  {
-    self.elements.contains_key(key)
+  pub(crate) fn decrease_cursor(&mut self) {
+    self.cursor = self.cursor.wrapping_sub(1);
   }
 
   #[inline]
-  pub fn front_mut(&mut self) -> Option<&mut V> {
+  pub(crate) fn front_mut(&mut self) -> Option<&mut V> {
+    if self.cursor >= self.elements.len() {
+      return None;
+    }
     let key = self.keys.front()?;
     let value = self.elements.get_mut(key)?;
     Some(value)
   }
 
   #[inline]
-  pub fn get<Q>(&self, key: &Q) -> Option<&V>
-  where
-    K: Borrow<Q>,
-    Q: Eq + Hash + ?Sized,
-  {
-    self.elements.get(key.borrow())
+  pub(crate) fn increase_cursor(&mut self) {
+    self.cursor = self.cursor.wrapping_add(1);
   }
 
   #[inline]
-  pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+  pub(crate) fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
     self.elements.iter()
   }
 
   #[inline]
-  pub fn push_back(&mut self, key: K, value: V) -> Option<V> {
+  pub(crate) fn push_back(&mut self, key: K, value: V) -> Option<V> {
     let prev_value = self.elements.insert(key.clone(), value);
     if prev_value.is_none() {
       self.keys.push_back(key);
@@ -63,9 +60,15 @@ where
   }
 
   #[inline]
-  pub fn pop_front(&mut self) -> Option<(K, V)> {
-    let key = self.keys.pop_front()?;
-    let value = self.elements.remove(&key)?;
-    Some((key, value))
+  pub(crate) fn remove<Q>(&mut self, key: &Q) -> Option<V>
+  where
+    K: Borrow<Q>,
+    Q: Eq + Hash + ?Sized,
+  {
+    let value = self.elements.remove(key)?;
+    if self.elements.is_empty() {
+      self.keys.clear();
+    }
+    Some(value)
   }
 }

@@ -1,4 +1,2 @@
 /// Introspection points
-pub trait Http2Hook {
-
-}
+pub trait Http2Hook {}

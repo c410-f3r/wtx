@@ -137,34 +137,28 @@ where
         prft!(fi, hdpm, pfb, stream_reader).header_client(&mut hdpm.hb.sorp).await?;
       } else if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
         prft!(fi, hdpm, pfb, stream_reader).header_server_trailer(elem).await?;
-      } else if let Some((rrb, waker)) = hdpm.hb.initial_server_header_streams.pop_front() {
-        prft!(fi, hdpm, pfb, stream_reader)
-          .header_server_init(
-            &mut hdpm.hb.initial_server_header_headers,
-            rrb,
-            &mut hdpm.hb.sorp,
-            waker,
-          )
-          .await?;
+      } else if let Some(ish) = hdpm.hb.initial_server_headers.front_mut() {
+        let prft = prft!(fi, hdpm, pfb, stream_reader);
+        let rslt = prft.header_server_init(ish, &mut hdpm.hb.sorp).await;
+        ish.waker.wake_by_ref();
+        hdpm.hb.initial_server_headers.increase_cursor();
+        rslt?;
       } else {
         drop(lock);
         let mut lock_pin = pin!(hd.lock());
         poll_fn(|cx| {
           let mut local_lock = lock_pin!(cx, hd, lock_pin);
           let mut local_hdpm = local_lock.parts_mut();
-          let Some((rrb, waker)) = local_hdpm.hb.initial_server_header_streams.pop_front() else {
+          let Some(ish) = local_hdpm.hb.initial_server_headers.front_mut() else {
             cx.waker().wake_by_ref();
             return Poll::Pending;
           };
           let prft = prft!(fi, local_hdpm, pfb, stream_reader);
-          let poll = pin!(prft.header_server_init(
-            &mut local_hdpm.hb.initial_server_header_headers,
-            rrb,
-            &mut local_hdpm.hb.sorp,
-            waker
-          ))
-          .poll(cx);
-          Poll::Ready(ready!(poll))
+          let poll = pin!(prft.header_server_init(ish, &mut local_hdpm.hb.sorp)).poll(cx);
+          let rslt = ready!(poll);
+          ish.waker.wake_by_ref();
+          local_hdpm.hb.initial_server_headers.increase_cursor();
+          Poll::Ready(rslt)
         })
         .await?;
       }
