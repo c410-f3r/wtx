@@ -18,7 +18,7 @@ use core::{mem, ops::Range};
 impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, (), SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -65,7 +65,7 @@ where
 impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for &ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, (), SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -118,7 +118,7 @@ where
   A: Api,
   P: Package<A, DRSR, HttpParams>,
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, (), SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,

@@ -42,11 +42,11 @@ impl<HD> ClientStream<HD> {
   }
 }
 
-impl<HB, HD, SW> ClientStream<HD>
+impl<HB, HD, HO, SW> ClientStream<HD>
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, true>>,
   SW: StreamWriter,
 {
   /// Receive response
@@ -132,7 +132,7 @@ where
       ReqUri::Data => &req.rrd.uri().to_ref(),
       ReqUri::Param(elem) => elem,
     };
-    send_msg::<_, _, _, true>(
+    send_msg::<_, _, _, _, true>(
       req.rrd.body().lease(),
       &self.hd,
       req.rrd.headers(),

@@ -44,7 +44,7 @@ use core::{
 };
 
 #[inline]
-pub(crate) async fn send_msg<HB, HD, SW, const IS_CLIENT: bool>(
+pub(crate) async fn send_msg<HB, HD, HO, SW, const IS_CLIENT: bool>(
   mut data_bytes: &[u8],
   hd: &HD,
   headers: &Headers,
@@ -56,7 +56,7 @@ pub(crate) async fn send_msg<HB, HD, SW, const IS_CLIENT: bool>(
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   let (mut has_headers, mut has_data) = (false, false);

@@ -113,13 +113,13 @@ pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
 }
 
 #[inline]
-pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bool>(
+pub(crate) async fn process_higher_operation_err<HB, HD, HO, SW, const IS_CLIENT: bool>(
   err: &crate::Error,
   hd: &HD,
 ) where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   let mut lock = hd.lock().await;
@@ -333,7 +333,7 @@ pub(crate) async fn send_go_away<SW>(
   hdpm.hb.is_conn_open.store(false, Ordering::Relaxed);
   let gaf = GoAwayFrame::new(error_code, *hdpm.last_stream_id);
   let _rslt = hdpm.stream_writer.write_all(&gaf.bytes()).await;
-  for (_, waker) in &hdpm.hb.initial_server_header_buffers {
+  for (_, waker) in &hdpm.hb.initial_server_header_streams {
     waker.wake_by_ref();
   }
   for scrp in hdpm.hb.scrp.values() {

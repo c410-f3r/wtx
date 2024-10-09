@@ -42,11 +42,11 @@ impl<HD> ServerStream<HD> {
   }
 }
 
-impl<HB, HD, SW> ServerStream<HD>
+impl<HB, HD, HO, SW> ServerStream<HD>
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, false>>,
   SW: StreamWriter,
 {
   /// Low level operation that returns the current available flow control capacity of the
@@ -265,7 +265,7 @@ where
   {
     let _e = self.span._enter();
     _trace!("Sending response");
-    if send_msg::<_, _, _, false>(
+    if send_msg::<_, _, _, _, false>(
       res.rrd.body().lease(),
       &self.hd,
       res.rrd.headers(),

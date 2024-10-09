@@ -127,9 +127,10 @@ where
   #[inline]
   pub(crate) async fn header_server_init(
     self,
-    initial_server_header_params: &mut VecDeque<(Method, U31)>,
+    initial_server_header_headers: &mut VecDeque<(Method, U31)>,
     mut rrb: ReqResBuffer,
     sorp: &mut Sorp,
+    waker: Waker,
   ) -> crate::Result<()> {
     if self.fi.stream_id <= *self.last_stream_id || self.fi.stream_id.u32() % 2 == 0 {
       return Err(protocol_err(Http2Error::UnexpectedStreamId));
@@ -139,7 +140,7 @@ where
     }
     *self.recv_streams_num = self.recv_streams_num.wrapping_add(1);
     *self.last_stream_id = self.fi.stream_id;
-    let (content_length, has_eos, method) = read_header_and_continuations::<_, _, false, false>(
+    let rslt = read_header_and_continuations::<_, _, false, false>(
       self.fi,
       self.is_conn_open,
       self.hp,
@@ -151,8 +152,15 @@ where
       self.uri_buffer,
       |hf| hf.hsreqh().method.ok_or_else(|| HttpError::MissingRequestMethod.into()),
     )
-    .await?;
-    initial_server_header_params.push_back((method, self.fi.stream_id));
+    .await;
+    let (content_length, has_eos, method) = match rslt {
+      Err(err) => {
+        waker.wake();
+        return Err(err);
+      }
+      Ok(elem) => elem,
+    };
+    initial_server_header_headers.push_back((method, self.fi.stream_id));
     let stream_state = server_header_stream_state(has_eos);
     drop(sorp.insert(
       self.fi.stream_id,
@@ -168,6 +176,7 @@ where
         windows: Windows::initial(self.hp, self.hps),
       },
     ));
+    waker.wake();
     Ok(())
   }
 

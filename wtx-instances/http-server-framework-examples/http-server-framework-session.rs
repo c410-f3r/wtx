@@ -44,9 +44,6 @@ const ARGON2_PARAMS: Params = {
   };
   elem
 };
-const LOGIN: &str = "/login";
-const LOGOUT: &str = "/logout";
-
 type ConnAux = (Session, ChaCha20Rng);
 type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
 type Session = SessionTokio<u32, wtx::Error, Pool>;
@@ -54,8 +51,8 @@ type Session = SessionTokio<u32, wtx::Error, Pool>;
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let router = Router::new(
-    wtx::paths!((LOGIN, post(login)), (LOGOUT, get(logout)),),
-    (SessionDecoder::new(), SessionEnforcer::new([LOGIN, LOGOUT])),
+    wtx::paths!(("/login", post(login)), ("/logout", get(logout)),),
+    (SessionDecoder::new(), SessionEnforcer::new(["/admin"])),
     (),
   )?;
   let pool = Pool::new(4, PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into()));

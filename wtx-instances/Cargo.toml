@@ -11,6 +11,11 @@ path = "src/bin/autobahn-server.rs"
 required-features = ["wtx/flate2", "wtx/pool", "wtx/web-socket-handshake"]
 
 [[bin]]
+name = "h2load"
+path = "src/bin/h2load.rs"
+required-features = ["wtx/http2"]
+
+[[bin]]
 name = "h2spec-high-server"
 path = "src/bin/h2spec-high-server.rs"
 required-features = ["wtx/http2"]

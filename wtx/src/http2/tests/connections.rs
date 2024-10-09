@@ -21,6 +21,7 @@ async fn client(uri: &UriString) {
   rrb.headers.reserve(6, 1).unwrap();
   let (frame_header, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(Xorshift64::from(simple_seed())),
+    (),
     Http2Params::default(),
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap().into_split(),
   )
@@ -61,6 +62,7 @@ async fn server(uri: &UriString) {
     let mut rrb = ReqResBuffer::empty();
     let (frame_header, mut http2) = Http2Tokio::accept(
       Http2Buffer::new(Xorshift64::from(simple_seed())),
+      (),
       Http2Params::default(),
       stream.into_split(),
     )
@@ -88,7 +90,7 @@ async fn server(uri: &UriString) {
 }
 
 async fn stream_server(
-  server: &mut Http2Tokio<Http2Buffer, OwnedWriteHalf, false>,
+  server: &mut Http2Tokio<Http2Buffer, (), OwnedWriteHalf, false>,
   rrb: ReqResBuffer,
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
@@ -107,7 +109,7 @@ async fn stream_server(
 }
 
 async fn stream_client(
-  client: &mut Http2Tokio<Http2Buffer, OwnedWriteHalf, true>,
+  client: &mut Http2Tokio<Http2Buffer, (), OwnedWriteHalf, true>,
   rrb: ReqResBuffer,
   uri: &UriRef<'_>,
 ) -> ReqResBuffer {

@@ -13,15 +13,15 @@ use crate::{
 ///
 #[derive(Debug)]
 pub struct SessionEnforcer<L, SS, const N: usize> {
-  paths: [&'static str; N],
+  denied: [&'static str; N],
   phantom: PhantomData<(L, SS)>,
 }
 
 impl<L, SS, const N: usize> SessionEnforcer<L, SS, N> {
   /// Creates a new instance with paths that are not taken into consideration.
   #[inline]
-  pub fn new(paths: [&'static str; N]) -> Self {
-    Self { paths, phantom: PhantomData }
+  pub fn new(denied: [&'static str; N]) -> Self {
+    Self { denied, phantom: PhantomData }
   }
 }
 
@@ -40,7 +40,7 @@ where
   ) -> Result<(), E> {
     let uri = req.rrd.uri();
     let path = uri.path();
-    if self.paths.iter().any(|elem| *elem == path) {
+    if self.denied.iter().all(|elem| *elem != path) {
       return Ok(());
     }
     if ca.lease().content.lock().await.state().is_none() {

@@ -1,7 +1,7 @@
 //! HTTP/2
 //!
 //! 1. Does not support padded headers when writing.
-//! 2. Does not support push promises (Deprecated by the RFC).
+//! 2. Does not support push promises (Deprecated by major third-parties).
 //! 3. Does not support prioritization (Deprecated by the RFC).
 
 #[macro_use]
@@ -13,10 +13,12 @@ mod continuation_frame;
 mod data_frame;
 mod frame_init;
 mod frame_reader;
+mod initial_server_header;
 mod go_away_frame;
 mod headers_frame;
 mod hpack_decoder;
 mod hpack_encoder;
+mod http2_hook;
 mod hpack_header;
 mod hpack_headers;
 mod hpack_static_headers;
@@ -28,6 +30,7 @@ mod http2_params;
 mod http2_params_send;
 mod http2_status;
 mod huffman;
+mod index_map;
 mod huffman_tables;
 mod misc;
 mod ping_frame;
@@ -58,6 +61,7 @@ use crate::{
 };
 use alloc::sync::Arc;
 pub use client_stream::ClientStream;
+pub use http2_hook::Http2Hook;
 pub(crate) use common_flags::CommonFlags;
 pub(crate) use continuation_frame::ContinuationFrame;
 use core::{
@@ -110,12 +114,12 @@ const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /// [`Http2`] instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
-pub type Http2Tokio<HB, SW, const IS_CLIENT: bool> =
-  Http2<Http2DataTokio<HB, SW, IS_CLIENT>, IS_CLIENT>;
+pub type Http2Tokio<HB, HO, SW, const IS_CLIENT: bool> =
+  Http2<Http2DataTokio<HB, HO, SW, IS_CLIENT>, IS_CLIENT>;
 /// [`Http2Data`] instance using the mutex from tokio.
 #[cfg(feature = "tokio")]
-pub type Http2DataTokio<HB, SW, const IS_CLIENT: bool> =
-  Arc<tokio::sync::Mutex<Http2Data<HB, SW, IS_CLIENT>>>;
+pub type Http2DataTokio<HB, HO, SW, const IS_CLIENT: bool> =
+  Arc<tokio::sync::Mutex<Http2Data<HB, HO, SW, IS_CLIENT>>>;
 
 pub(crate) type Scrp = HashMap<U31, StreamControlRecvParams>;
 pub(crate) type Sorp = HashMap<U31, StreamOverallRecvParams>;
@@ -127,11 +131,11 @@ pub struct Http2<HD, const IS_CLIENT: bool> {
   is_conn_open: Arc<AtomicBool>,
 }
 
-impl<HB, HD, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
+impl<HB, HO, HD, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   /// See [`ConnectionState`].
@@ -186,17 +190,18 @@ where
   }
 }
 
-impl<HB, HD, SW> Http2<HD, false>
+impl<HB, HD, HO, SW> Http2<HD, false>
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, false>>,
   SW: StreamWriter,
 {
   /// Accepts an initial connection sending the local parameters to the remote peer.
   #[inline]
   pub async fn accept<SR>(
     mut hb: HB,
+    hook: HO,
     hp: Http2Params,
     (mut stream_reader, mut stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
@@ -214,7 +219,7 @@ where
     }
     let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<false>(hb.lease_mut(), &hp, &mut stream_writer).await?;
-    let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
+    let hd = HD::new(HD::Item::new(Http2Data::new(hb, hook, hp, stream_writer)));
     let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
     Ok((
       frame_reader::frame_reader(
@@ -244,21 +249,23 @@ where
     match poll_fn(|cx| {
       let mut lock = lock_pin!(cx, hd, lock_pin);
       let hdpm = lock.parts_mut();
-      if let Some(mut elem) = rrb_opt.take() {
-        if !manage_initial_stream_receiving(is_conn_open, &mut elem) {
-          let rslt = frame_reader_rslt(hdpm.frame_reader_error);
-          return Poll::Ready(Either::Left((Some(elem), rslt)));
+      if let Some(mut local_rrb) = rrb_opt.take() {
+        if !manage_initial_stream_receiving(is_conn_open, &mut local_rrb) {
+          return Poll::Ready(Either::Left((
+            Some(local_rrb),
+            frame_reader_rslt(hdpm.frame_reader_error),
+          )));
         }
-        hdpm.hb.initial_server_header_buffers.push_back((elem, cx.waker().clone()));
+        hdpm.hb.initial_server_header_streams.push_back((local_rrb, cx.waker().clone()));
         Poll::Pending
       } else {
         if !is_conn_open.load(Ordering::Relaxed) {
           return Poll::Ready(Either::Left((
-            hdpm.hb.initial_server_header_buffers.pop_front().map(|el| el.0),
+            hdpm.hb.initial_server_header_streams.pop_front().map(|el| el.0),
             frame_reader_rslt(hdpm.frame_reader_error),
           )));
         }
-        let Some((method, stream_id)) = hdpm.hb.initial_server_header_params.pop_front() else {
+        let Some((method, stream_id)) = hdpm.hb.initial_server_header_headers.pop_front() else {
           return Poll::Pending;
         };
         Poll::Ready(Either::Right((method, stream_id)))
@@ -281,17 +288,18 @@ where
   }
 }
 
-impl<HB, HD, SW> Http2<HD, true>
+impl<HB, HD, HO, SW> Http2<HD, true>
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, true>>,
   SW: StreamWriter,
 {
   /// Tries to connect to a server sending the local parameters.
   #[inline]
   pub async fn connect<SR>(
     mut hb: HB,
+    hook: HO,
     hp: Http2Params,
     (stream_reader, mut stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
@@ -301,7 +309,7 @@ where
     hb.lease_mut().clear();
     let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<true>(hb.lease_mut(), &hp, &mut stream_writer).await?;
-    let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
+    let hd = HD::new(HD::Item::new(Http2Data::new(hb, hook, hp, stream_writer)));
     let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open) };
     Ok((
       frame_reader::frame_reader(

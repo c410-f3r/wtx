@@ -34,10 +34,10 @@ use core::{
   mem,
   pin::pin,
   sync::atomic::AtomicBool,
-  task::Poll,
+  task::{ready, Poll},
 };
 
-pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
+pub(crate) async fn frame_reader<HB, HD, HO, SR, SW, const IS_CLIENT: bool>(
   hd: HD,
   is_conn_open: Arc<AtomicBool>,
   max_frame_len: u32,
@@ -47,7 +47,7 @@ pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
 ) where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -82,14 +82,14 @@ pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
 }
 
 #[inline]
-async fn finish<HB, HD, SW, const IS_CLIENT: bool>(
+async fn finish<HB, HD, HO, SW, const IS_CLIENT: bool>(
   err: Option<crate::Error>,
   hd: &HD,
   pfb: &mut PartitionedFilledBuffer,
 ) where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   let mut lock = hd.lock().await;
@@ -100,7 +100,7 @@ async fn finish<HB, HD, SW, const IS_CLIENT: bool>(
 }
 
 #[inline]
-async fn manage_fi<HB, HD, SR, SW, const IS_CLIENT: bool>(
+async fn manage_fi<HB, HD, HO, SR, SW, const IS_CLIENT: bool>(
   fi: FrameInit,
   hd: &HD,
   is_conn_open: &AtomicBool,
@@ -110,7 +110,7 @@ async fn manage_fi<HB, HD, SR, SW, const IS_CLIENT: bool>(
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -137,35 +137,36 @@ where
         prft!(fi, hdpm, pfb, stream_reader).header_client(&mut hdpm.hb.sorp).await?;
       } else if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
         prft!(fi, hdpm, pfb, stream_reader).header_server_trailer(elem).await?;
-      } else if let Some((rrb, waker)) = hdpm.hb.initial_server_header_buffers.pop_front() {
-        let rslt = prft!(fi, hdpm, pfb, stream_reader)
-          .header_server_init(&mut hdpm.hb.initial_server_header_params, rrb, &mut hdpm.hb.sorp)
-          .await;
-        waker.wake();
-        rslt?;
+      } else if let Some((rrb, waker)) = hdpm.hb.initial_server_header_streams.pop_front() {
+        prft!(fi, hdpm, pfb, stream_reader)
+          .header_server_init(
+            &mut hdpm.hb.initial_server_header_headers,
+            rrb,
+            &mut hdpm.hb.sorp,
+            waker,
+          )
+          .await?;
       } else {
         drop(lock);
         let mut lock_pin = pin!(hd.lock());
-        let (mut local_lock, rrb, waker) = poll_fn(|cx| {
+        poll_fn(|cx| {
           let mut local_lock = lock_pin!(cx, hd, lock_pin);
-          let local_hdpm = local_lock.parts_mut();
-          let Some((rrb, waker)) = local_hdpm.hb.initial_server_header_buffers.pop_front() else {
+          let mut local_hdpm = local_lock.parts_mut();
+          let Some((rrb, waker)) = local_hdpm.hb.initial_server_header_streams.pop_front() else {
             cx.waker().wake_by_ref();
             return Poll::Pending;
           };
-          Poll::Ready((local_lock, rrb, waker))
-        })
-        .await;
-        let mut local_hdpm = local_lock.parts_mut();
-        let rslt = prft!(fi, local_hdpm, pfb, stream_reader)
-          .header_server_init(
-            &mut local_hdpm.hb.initial_server_header_params,
+          let prft = prft!(fi, local_hdpm, pfb, stream_reader);
+          let poll = pin!(prft.header_server_init(
+            &mut local_hdpm.hb.initial_server_header_headers,
             rrb,
             &mut local_hdpm.hb.sorp,
-          )
-          .await;
-        waker.wake();
-        rslt?;
+            waker
+          ))
+          .poll(cx);
+          Poll::Ready(ready!(poll))
+        })
+        .await?;
       }
     }
     FrameInitTy::Ping => {

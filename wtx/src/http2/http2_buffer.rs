@@ -16,8 +16,8 @@ pub struct Http2Buffer {
   pub(crate) hpack_dec: HpackDecoder,
   pub(crate) hpack_enc: HpackEncoder,
   pub(crate) hpack_enc_buffer: Vector<u8>,
-  pub(crate) initial_server_header_buffers: VecDeque<(ReqResBuffer, Waker)>,
-  pub(crate) initial_server_header_params: VecDeque<(Method, U31)>,
+  pub(crate) initial_server_header_headers: VecDeque<(Method, U31)>,
+  pub(crate) initial_server_header_streams: VecDeque<(ReqResBuffer, Waker)>,
   pub(crate) is_conn_open: Arc<AtomicBool>,
   pub(crate) pfb: PartitionedFilledBuffer,
   pub(crate) read_frame_waker: Arc<AtomicWaker>,
@@ -37,8 +37,8 @@ impl Http2Buffer {
       hpack_dec: HpackDecoder::new(),
       hpack_enc: HpackEncoder::new(rng),
       hpack_enc_buffer: Vector::new(),
-      initial_server_header_buffers: VecDeque::new(),
-      initial_server_header_params: VecDeque::new(),
+      initial_server_header_headers: VecDeque::new(),
+      initial_server_header_streams: VecDeque::new(),
       is_conn_open: Arc::new(AtomicBool::new(false)),
       pfb: PartitionedFilledBuffer::new(),
       read_frame_waker: Arc::new(AtomicWaker::new()),
@@ -54,8 +54,8 @@ impl Http2Buffer {
       hpack_dec,
       hpack_enc,
       hpack_enc_buffer,
-      initial_server_header_buffers,
-      initial_server_header_params,
+      initial_server_header_headers,
+      initial_server_header_streams,
       is_conn_open,
       pfb,
       read_frame_waker,
@@ -66,8 +66,8 @@ impl Http2Buffer {
     hpack_dec.clear();
     hpack_enc.clear();
     hpack_enc_buffer.clear();
-    initial_server_header_buffers.clear();
-    initial_server_header_params.clear();
+    initial_server_header_headers.clear();
+    initial_server_header_streams.clear();
     is_conn_open.store(false, Ordering::Relaxed);
     pfb._clear();
     let _waker = read_frame_waker.take();
