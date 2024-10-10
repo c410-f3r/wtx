@@ -11,7 +11,7 @@ use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.
 #[derive(Debug)]
-pub struct Http2Buffer {
+pub struct Http2Buffer<HE> {
   pub(crate) hpack_dec: HpackDecoder,
   pub(crate) hpack_enc: HpackEncoder,
   pub(crate) hpack_enc_buffer: Vector<u8>,
@@ -20,11 +20,11 @@ pub struct Http2Buffer {
   pub(crate) pfb: PartitionedFilledBuffer,
   pub(crate) read_frame_waker: Arc<AtomicWaker>,
   pub(crate) scrp: Scrp,
-  pub(crate) sorp: Sorp,
+  pub(crate) sorp: Sorp<HE>,
   pub(crate) uri_buffer: Box<UriBuffer>,
 }
 
-impl Http2Buffer {
+impl<HE> Http2Buffer<HE> {
   /// Creates a new instance without pre-allocated resources.
   #[inline]
   pub fn new<RNG>(rng: RNG) -> Self
@@ -72,23 +72,23 @@ impl Http2Buffer {
   }
 }
 
-impl Default for Http2Buffer {
+impl<HE> Default for Http2Buffer<HE> {
   #[inline]
   fn default() -> Self {
     Self::new(crate::misc::Xorshift64::from(simple_seed()))
   }
 }
 
-impl Lease<Http2Buffer> for Http2Buffer {
+impl<HE> Lease<Http2Buffer<HE>> for Http2Buffer<HE> {
   #[inline]
-  fn lease(&self) -> &Http2Buffer {
+  fn lease(&self) -> &Http2Buffer<HE> {
     self
   }
 }
 
-impl LeaseMut<Http2Buffer> for Http2Buffer {
+impl<HE> LeaseMut<Http2Buffer<HE>> for Http2Buffer<HE> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Http2Buffer {
+  fn lease_mut(&mut self) -> &mut Http2Buffer<HE> {
     self
   }
 }

@@ -25,7 +25,7 @@ pub struct Client<DRSR, RL, RM> {
 impl<DRSR, HD, RL, RM, SW> Client<DRSR, RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, (), SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer<()>, (), SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,

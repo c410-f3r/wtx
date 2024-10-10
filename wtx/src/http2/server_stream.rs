@@ -1,11 +1,14 @@
 use crate::{
   http::{Headers, Method, ReqResBuffer, ReqResData, Response},
   http2::{
-    misc::{manage_recurrent_stream_receiving, process_higher_operation_err, protocol_err},
+    misc::{
+      manage_recurrent_stream_receiving, process_higher_operation_err, protocol_err, status_recv,
+      status_send,
+    },
     send_msg::{send_msg, write_standalone_data, write_standalone_trailers},
     window::WindowsPair,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error,
-    Http2ErrorCode, Http2Status, StreamControlRecvParams, U31,
+    Http2ErrorCode, Http2Hook, Http2RecvStatus, Http2SendStatus, StreamControlRecvParams, U31,
   },
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Vector, _Span, sleep, Lease},
 };
@@ -14,8 +17,8 @@ use core::{
   future::{poll_fn, Future},
   mem,
   pin::pin,
-  sync::atomic::{AtomicBool, Ordering},
-  task::Poll,
+  sync::atomic::AtomicBool,
+  task::{ready, Poll},
   time::Duration,
 };
 
@@ -44,9 +47,10 @@ impl<HD> ServerStream<HD> {
 
 impl<HB, HD, HO, SW> ServerStream<HD>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, false>>,
+  HO: Http2Hook<false>,
   SW: StreamWriter,
 {
   /// Low level operation that returns the current available flow control capacity of the
@@ -64,8 +68,13 @@ where
 
   /// Low level operation that retrieves a DATA frame sent by the remote peer. Shouldn't interact
   /// with [`Self::recv_req`].
+  ///
+  /// Returns [`Http2Status::Ok`] with `true` if no more data needs to be fetched..
   #[inline]
-  pub async fn fetch_data(&mut self, mut body: Vector<u8>) -> crate::Result<(Vector<u8>, bool)> {
+  pub async fn fetch_data(
+    &mut self,
+    mut body: Vector<u8>,
+  ) -> crate::Result<(Vector<u8>, Http2RecvStatus)> {
     let _e = self.span._enter();
     _trace!("Fetching data");
     body.clear();
@@ -74,15 +83,18 @@ where
     poll_fn(|cx| {
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
-      let Some(elem) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
+      let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
         return Poll::Ready(Err(protocol_err(Http2Error::BadLocalFlow)));
       };
       if let Some(local_body) = body_opt.take() {
-        elem.rrb.body = local_body;
-        elem.waker.clone_from(cx.waker());
+        if let Some(elem) = status_recv(&self.is_conn_open, sorp) {
+          return Poll::Ready(Ok((local_body, elem)));
+        }
+        sorp.rrb.body = local_body;
+        sorp.waker.clone_from(cx.waker());
         Poll::Pending
       } else {
-        Poll::Ready(Ok((mem::take(&mut elem.rrb.body), elem.is_stream_open)))
+        Poll::Ready(Ok((mem::take(&mut sorp.rrb.body), Http2RecvStatus::Ok)))
       }
     })
     .await
@@ -94,7 +106,7 @@ where
   pub async fn fetch_trailers(
     &mut self,
     mut trailers: Headers,
-  ) -> crate::Result<(Headers, Http2Status)> {
+  ) -> crate::Result<(Headers, Http2RecvStatus)> {
     let _e = self.span._enter();
     _trace!("Fetching trailers");
     trailers.clear();
@@ -103,34 +115,22 @@ where
     poll_fn(|cx| {
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
-      let Some(elem) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
+      let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
         return Poll::Ready(Err(protocol_err(Http2Error::BadLocalFlow)));
       };
       if let Some(local_trailers) = trailers_opt.take() {
-        if !self.is_conn_open.load(Ordering::Relaxed) {
-          return Poll::Ready(Ok((local_trailers, Http2Status::ClosedConnection)));
+        if let Some(elem) = status_recv(&self.is_conn_open, sorp) {
+          return Poll::Ready(Ok((local_trailers, elem)));
         }
-        if !elem.is_stream_open {
-          return Poll::Ready(Ok((local_trailers, Http2Status::ClosedStream)));
-        }
-        if elem.stream_state.recv_eos() {
-          return Poll::Ready(Ok((local_trailers, Http2Status::Ok)));
-        }
-        elem.rrb.headers = local_trailers;
-        elem.waker.clone_from(cx.waker());
+        sorp.rrb.headers = local_trailers;
+        sorp.waker.clone_from(cx.waker());
         Poll::Pending
       } else {
-        let local_trailers = mem::take(&mut elem.rrb.headers);
-        if !self.is_conn_open.load(Ordering::Relaxed) {
-          return Poll::Ready(Ok((local_trailers, Http2Status::ClosedConnection)));
+        let local_trailers = mem::take(&mut sorp.rrb.headers);
+        if let Some(elem) = status_recv(&self.is_conn_open, sorp) {
+          return Poll::Ready(Ok((local_trailers, elem)));
         }
-        if !elem.is_stream_open {
-          return Poll::Ready(Ok((local_trailers, Http2Status::ClosedStream)));
-        }
-        if elem.stream_state.recv_eos() {
-          return Poll::Ready(Ok((local_trailers, Http2Status::Eos)));
-        }
-        Poll::Ready(Ok((local_trailers, Http2Status::Ok)))
+        Poll::Ready(Ok((local_trailers, Http2RecvStatus::Ok)))
       }
     })
     .await
@@ -208,27 +208,26 @@ where
   ///
   /// Returns `false` if the stream was closed.
   #[inline]
-  pub async fn send_data(&mut self, mut data: &[u8], eos: bool) -> crate::Result<bool> {
+  pub async fn send_data(&mut self, mut data: &[u8], eos: bool) -> crate::Result<Http2SendStatus> {
     let _e = self.span._enter();
     _trace!("Sending data of {} bytes", data.len());
     let mut has_data = false;
-    while !has_data {
-      let mut lock = self.hd.lock().await;
+    let mut pin = pin!(self.hd.lock());
+    poll_fn(|cx| {
+      let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
-      let Some(elem) = hdpm.hb.scrp.get_mut(&self.stream_id) else {
-        return Err(protocol_err(Http2Error::BadLocalFlow));
+      let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
+        return Poll::Ready(Err(protocol_err(Http2Error::BadLocalFlow)));
       };
-      if !elem.is_stream_open {
-        return Ok(false);
+      if let Some(elem) = status_send::<_, false>(&self.is_conn_open, sorp) {
+        return Poll::Ready(Ok(elem));
       }
-      if !elem.stream_state.can_send_stream::<false>() {
-        return Err(protocol_err(Http2Error::InvalidSendStreamState));
-      }
-      let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
+      let mut wp = WindowsPair::new(hdpm.windows, &mut sorp.windows);
       let Ok(available_send @ 1..=u32::MAX) = u32::try_from(wp.available_send()) else {
-        continue;
+        cx.waker().wake_by_ref();
+        return Poll::Pending;
       };
-      let _ = write_standalone_data(
+      let fut = write_standalone_data(
         available_send,
         &mut data,
         eos,
@@ -239,10 +238,16 @@ where
         hdpm.stream_writer,
         self.stream_id,
         &mut wp,
-      )
-      .await?;
-    }
-    Ok(true)
+      );
+      ready!(pin!(fut).poll(cx))?;
+      if has_data {
+        Poll::Ready(Ok(Http2SendStatus::Ok))
+      } else {
+        cx.waker().wake_by_ref();
+        Poll::Pending
+      }
+    })
+    .await
   }
 
   send_go_away_method!();
@@ -296,16 +301,16 @@ where
   ///
   /// Returns `false` if the stream is already closed.
   #[inline]
-  pub async fn send_trailers(&mut self, trailers: &Headers) -> crate::Result<bool> {
+  pub async fn send_trailers(&mut self, trailers: &Headers) -> crate::Result<Http2SendStatus> {
     let _e = self.span._enter();
     _trace!("Sending {} trailers", trailers.headers_len());
     let mut lock = self.hd.lock().await;
     let hdpm = lock.parts_mut();
-    let Some(elem) = hdpm.hb.scrp.get_mut(&self.stream_id) else {
+    let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
       return Err(protocol_err(Http2Error::BadLocalFlow));
     };
-    if !elem.is_stream_open {
-      return Ok(false);
+    if let Some(elem) = status_send::<_, false>(&self.is_conn_open, sorp) {
+      return Ok(elem);
     }
     write_standalone_trailers(
       trailers,
@@ -316,7 +321,7 @@ where
       self.stream_id,
     )
     .await?;
-    Ok(true)
+    Ok(Http2SendStatus::Ok)
   }
 
   /// Stream ID

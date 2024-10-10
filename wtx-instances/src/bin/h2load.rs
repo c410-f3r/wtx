@@ -5,14 +5,14 @@
 use std::u32;
 
 use wtx::{
-  http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
+  http::{OptionedServer, ReqResBuffer, Request, Response, StatusCode},
   http2::{Http2Buffer, Http2Params},
   misc::{simple_seed, Xorshift64},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  LowLevelServer::tokio_high_http2(
+  OptionedServer::tokio_high_http2(
     "127.0.0.1:9000",
     || {
       Ok((
@@ -25,6 +25,7 @@ async fn main() -> wtx::Result<()> {
     },
     |error| eprintln!("{error}"),
     handle,
+    || Ok(()),
     || Ok(((), ReqResBuffer::empty())),
     (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
   )

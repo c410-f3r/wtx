@@ -3,6 +3,7 @@ macro_rules! prft {
     ProcessReceiptFrameTy {
       conn_windows: &mut $hdpm.windows,
       fi: $fi,
+      hook: $hdpm.hook,
       hp: &mut $hdpm.hp,
       hpack_dec: &mut $hdpm.hb.hpack_dec,
       hps: &mut $hdpm.hps,
@@ -21,7 +22,7 @@ macro_rules! prft {
 use crate::{
   http2::{
     misc::{process_higher_operation_err, protocol_err, read_frame, send_go_away, write_array},
-    FrameInit, FrameInitTy, GoAwayFrame, Http2Buffer, Http2Data, Http2Error, PingFrame,
+    FrameInit, FrameInitTy, GoAwayFrame, Http2Buffer, Http2Data, Http2Error, Http2Hook, PingFrame,
     ProcessReceiptFrameTy, SettingsFrame, WindowUpdateFrame,
   },
   misc::{
@@ -45,9 +46,10 @@ pub(crate) async fn frame_reader<HB, HD, HO, SR, SW, const IS_CLIENT: bool>(
   read_frame_waker: Arc<AtomicWaker>,
   mut stream_reader: SR,
 ) where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
+  HO: Http2Hook<IS_CLIENT>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -87,9 +89,10 @@ async fn finish<HB, HD, HO, SW, const IS_CLIENT: bool>(
   hd: &HD,
   pfb: &mut PartitionedFilledBuffer,
 ) where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
+  HO: Http2Hook<IS_CLIENT>,
   SW: StreamWriter,
 {
   let mut lock = hd.lock().await;
@@ -108,9 +111,10 @@ async fn manage_fi<HB, HD, HO, SR, SW, const IS_CLIENT: bool>(
   stream_reader: &mut SR,
 ) -> crate::Result<()>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
+  HO: Http2Hook<IS_CLIENT>,
   SR: StreamReader,
   SW: StreamWriter,
 {

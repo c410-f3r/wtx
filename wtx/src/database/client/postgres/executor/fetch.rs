@@ -68,7 +68,7 @@ where
     read: &mut usize,
     stream: &mut S,
   ) -> crate::Result<(u8, usize)> {
-    let buffer = nb._following_trail_mut();
+    let buffer = nb._following_rest_mut();
     let [mt_n, b, c, d, e] = _read_until::<5, S>(buffer, read, 0, stream).await?;
     let len: usize = u32::from_be_bytes([b, c, d, e]).try_into()?;
     Ok((mt_n, len.wrapping_add(1)))
@@ -100,7 +100,7 @@ where
         break;
       }
       *read = read.wrapping_add(
-        stream.read(nb._following_trail_mut().get_mut(*read..).unwrap_or_default()).await?,
+        stream.read(nb._following_rest_mut().get_mut(*read..).unwrap_or_default()).await?,
       );
     }
     if !is_payload_filled {

@@ -16,7 +16,7 @@ pub(crate) enum StreamState {
 
 impl StreamState {
   /// If the system can send to a peer regardless of the frame type.
-  pub(crate) fn can_send_stream<const IS_CLIENT: bool>(self) -> bool {
+  pub(crate) fn can_send<const IS_CLIENT: bool>(self) -> bool {
     if IS_CLIENT {
       matches!(self, Self::Idle | Self::Open)
     } else {

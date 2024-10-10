@@ -2,8 +2,9 @@ use crate::{
   http::ReqResBuffer,
   http2::{
     http2_data::Http2DataPartsMut, CommonFlags, FrameInit, FrameInitTy, GoAwayFrame, HeadersFrame,
-    HpackDecoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params,
-    ResetStreamFrame, Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer, U31,
+    HpackDecoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Hook, Http2Params,
+    Http2RecvStatus, Http2SendStatus, ResetStreamFrame, Scrp, Sorp, StreamOverallRecvParams,
+    StreamState, UriBuffer, U31,
   },
   misc::{
     AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
@@ -18,9 +19,9 @@ use core::{
 };
 
 #[inline]
-pub(crate) fn check_content_length(
+pub(crate) fn check_content_length<HE>(
   content_length: usize,
-  sorp: &StreamOverallRecvParams,
+  sorp: &StreamOverallRecvParams<HE>,
 ) -> crate::Result<()> {
   if sorp.rrb.body.len() != content_length {
     return Err(protocol_err(Http2Error::InvalidHeaderData));
@@ -49,13 +50,20 @@ pub(crate) fn manage_initial_stream_receiving(
 }
 
 #[inline]
-pub(crate) fn manage_recurrent_stream_receiving<SW, T>(
+pub(crate) fn manage_recurrent_stream_receiving<HO, SW, T, const IS_CLIENT: bool>(
   cx: &mut Context<'_>,
-  mut hdpm: Http2DataPartsMut<'_, SW>,
+  mut hdpm: Http2DataPartsMut<'_, HO, SW, IS_CLIENT>,
   is_conn_open: &AtomicBool,
   stream_id: U31,
-  cb: impl FnOnce(&mut Context<'_>, &mut Http2DataPartsMut<'_, SW>, &StreamOverallRecvParams) -> T,
-) -> Poll<crate::Result<(ReqResBuffer, Option<T>)>> {
+  cb: impl FnOnce(
+    &mut Context<'_>,
+    &mut Http2DataPartsMut<'_, HO, SW, IS_CLIENT>,
+    &StreamOverallRecvParams<HO::Element>,
+  ) -> T,
+) -> Poll<crate::Result<(ReqResBuffer, Option<T>)>>
+where
+  HO: Http2Hook<IS_CLIENT>,
+{
   let Some(sorp) = hdpm.hb.sorp.get_mut(&stream_id) else {
     return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
   };
@@ -117,9 +125,10 @@ pub(crate) async fn process_higher_operation_err<HB, HD, HO, SW, const IS_CLIENT
   err: &crate::Error,
   hd: &HD,
 ) where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
+  HO: Http2Hook<IS_CLIENT>,
   SW: StreamWriter,
 {
   let mut lock = hd.lock().await;
@@ -159,7 +168,7 @@ where
     for _ in 0.._max_frames_mismatches!() {
       pfb._clear_if_following_is_empty();
       let mut read = pfb._following_len();
-      let buffer = pfb._following_trail_mut();
+      let buffer = pfb._following_rest_mut();
       let array = _read_until::<9, _>(buffer, &mut read, 0, stream_reader).await?;
       let (fi_opt, data_len) = FrameInit::from_array(array);
       if data_len > max_frame_len {
@@ -194,9 +203,7 @@ where
           break;
         }
         read = read.wrapping_add(
-          stream_reader
-            .read(pfb._following_trail_mut().get_mut(read..).unwrap_or_default())
-            .await?,
+          stream_reader.read(pfb._following_rest_mut().get_mut(read..).unwrap_or_default()).await?,
         );
       }
       if !is_fulfilled {
@@ -324,10 +331,11 @@ where
 }
 
 #[inline]
-pub(crate) async fn send_go_away<SW>(
+pub(crate) async fn send_go_away<HO, SW, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
-  hdpm: &mut Http2DataPartsMut<'_, SW>,
+  hdpm: &mut Http2DataPartsMut<'_, HO, SW, IS_CLIENT>,
 ) where
+  HO: Http2Hook<IS_CLIENT>,
   SW: StreamWriter,
 {
   hdpm.hb.is_conn_open.store(false, Ordering::Relaxed);
@@ -346,10 +354,10 @@ pub(crate) async fn send_go_away<SW>(
 }
 
 #[inline]
-pub(crate) async fn send_reset_stream<SW>(
+pub(crate) async fn send_reset_stream<HE, SW>(
   error_code: Http2ErrorCode,
   scrp: &mut Scrp,
-  sorp: &mut Sorp,
+  sorp: &mut Sorp<HE>,
   stream_writer: &mut SW,
   stream_id: U31,
 ) -> bool
@@ -380,6 +388,40 @@ pub(crate) fn server_header_stream_state(has_eos: bool) -> StreamState {
   } else {
     StreamState::Open
   }
+}
+
+#[inline]
+pub(crate) fn status_recv<HE>(
+  is_conn_open: &AtomicBool,
+  sorp: &StreamOverallRecvParams<HE>,
+) -> Option<Http2RecvStatus> {
+  if !is_conn_open.load(Ordering::Relaxed) {
+    return Some(Http2RecvStatus::ClosedConnection);
+  }
+  if !sorp.is_stream_open {
+    return Some(Http2RecvStatus::ClosedStream);
+  }
+  if sorp.stream_state.recv_eos() {
+    return Some(Http2RecvStatus::Eos);
+  }
+  None
+}
+
+#[inline]
+pub(crate) fn status_send<HE, const IS_CLIENT: bool>(
+  is_conn_open: &AtomicBool,
+  sorp: &StreamOverallRecvParams<HE>,
+) -> Option<Http2SendStatus> {
+  if !is_conn_open.load(Ordering::Relaxed) {
+    return Some(Http2SendStatus::ClosedConnection);
+  }
+  if !sorp.is_stream_open {
+    return Some(Http2SendStatus::ClosedStream);
+  }
+  if sorp.stream_state.can_send::<IS_CLIENT>() {
+    return Some(Http2SendStatus::InvalidState);
+  }
+  None
 }
 
 #[inline]

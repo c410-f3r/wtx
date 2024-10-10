@@ -1,5 +1,5 @@
 use crate::{
-  http2::{http2_params_send::Http2ParamsSend, Http2Buffer, Http2Params, Windows, U31},
+  http2::{http2_params_send::Http2ParamsSend, Http2Buffer, Http2Hook, Http2Params, Windows, U31},
   misc::{Lease, LeaseMut, StreamWriter},
 };
 
@@ -19,7 +19,8 @@ pub struct Http2Data<HB, HO, SW, const IS_CLIENT: bool> {
 
 impl<HB, HO, SW, const IS_CLIENT: bool> Http2Data<HB, HO, SW, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
+  HO: Http2Hook<IS_CLIENT>,
   SW: StreamWriter,
 {
   #[inline]
@@ -40,10 +41,11 @@ where
   }
 
   #[inline]
-  pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, SW> {
+  pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, HO, SW, IS_CLIENT> {
     Http2DataPartsMut {
       frame_reader_error: &mut self.frame_reader_error,
       hb: self.hb.lease_mut(),
+      hook: &mut self.hook,
       hp: &mut self.hp,
       hps: &mut self.hps,
       last_stream_id: &mut self.last_stream_id,
@@ -72,9 +74,13 @@ impl<HB, HO, SW, const IS_CLIENT: bool> LeaseMut<Http2Data<HB, HO, SW, IS_CLIENT
   }
 }
 
-pub(crate) struct Http2DataPartsMut<'instance, SW> {
+pub(crate) struct Http2DataPartsMut<'instance, HO, SW, const IS_CLIENT: bool>
+where
+  HO: Http2Hook<IS_CLIENT>,
+{
   pub(crate) frame_reader_error: &'instance mut Option<crate::Error>,
-  pub(crate) hb: &'instance mut Http2Buffer,
+  pub(crate) hb: &'instance mut Http2Buffer<HO::Element>,
+  pub(crate) hook: &'instance mut HO,
   pub(crate) hp: &'instance mut Http2Params,
   pub(crate) hps: &'instance mut Http2ParamsSend,
   pub(crate) last_stream_id: &'instance mut U31,

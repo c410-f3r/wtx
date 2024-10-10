@@ -32,7 +32,7 @@ use crate::{
     misc::{process_higher_operation_err, protocol_err, write_array},
     window::WindowsPair,
     ContinuationFrame, DataFrame, HeadersFrame, HpackEncoder, HpackStaticRequestHeaders,
-    HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error, StreamState, U31,
+    HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error, Http2Hook, StreamState, U31,
   },
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
 };
@@ -51,12 +51,13 @@ pub(crate) async fn send_msg<HB, HD, HO, SW, const IS_CLIENT: bool>(
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   is_conn_open: &AtomicBool,
   stream_id: U31,
-  mut cb: impl FnMut(Http2DataPartsMut<'_, SW>),
+  mut cb: impl FnMut(Http2DataPartsMut<'_, HO, SW, IS_CLIENT>),
 ) -> crate::Result<Option<()>>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
+  HO: Http2Hook<IS_CLIENT>,
   SW: StreamWriter,
 {
   let (mut has_headers, mut has_data) = (false, false);
@@ -68,7 +69,7 @@ where
     }
     let mut lock = lock_pin!(cx, hd, lock_pin);
     let hdpm = lock.parts_mut();
-    let fut = do_send_msg::<_, IS_CLIENT>(
+    let fut = do_send_msg::<_, _, IS_CLIENT>(
       &mut data_bytes,
       (&mut has_headers, &mut has_data),
       headers,
@@ -120,17 +121,18 @@ fn data_frame_len(bytes: &[u8]) -> U31 {
 
 // Tries to at least send initial headers when the windows size does not allow sending data frames
 #[inline]
-async fn do_send_msg<SW, const IS_CLIENT: bool>(
+async fn do_send_msg<HO, SW, const IS_CLIENT: bool>(
   data_bytes: &mut &[u8],
   (has_headers, has_data): (&mut bool, &mut bool),
   headers: &Headers,
-  hdpm: Http2DataPartsMut<'_, SW>,
+  hdpm: Http2DataPartsMut<'_, HO, SW, IS_CLIENT>,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   stream_id: U31,
   waker: &Waker,
-  cb: &mut impl FnMut(Http2DataPartsMut<'_, SW>),
+  cb: &mut impl FnMut(Http2DataPartsMut<'_, HO, SW, IS_CLIENT>),
 ) -> crate::Result<Option<bool>>
 where
+  HO: Http2Hook<IS_CLIENT>,
   SW: StreamWriter,
 {
   let Http2Buffer { hpack_enc, hpack_enc_buffer, is_conn_open, scrp, .. } = hdpm.hb;
@@ -140,7 +142,7 @@ where
   if !elem.is_stream_open {
     return Ok(None);
   }
-  if !elem.stream_state.can_send_stream::<IS_CLIENT>() {
+  if !elem.stream_state.can_send::<IS_CLIENT>() {
     return Err(protocol_err(Http2Error::InvalidSendStreamState));
   }
 

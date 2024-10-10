@@ -44,7 +44,7 @@ pub struct ClientFrameworkRM<S> {
 impl<HD, RL, RM, SW> ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, (), SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer<()>, (), SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -107,7 +107,7 @@ mod tokio {
   /// A [`ClientFramework`] using the elements of `tokio`.
   pub type ClientFrameworkTokio =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<TcpStream>>;
-  type Instance = Http2Tokio<Http2Buffer, (), OwnedWriteHalf, true>;
+  type Instance = Http2Tokio<Http2Buffer<()>, (), OwnedWriteHalf, true>;
 
   impl ClientFrameworkTokio {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
@@ -183,7 +183,7 @@ mod tokio_rustls {
   /// A [`ClientFramework`] using the elements of `tokio-rustls`.
   pub type ClientFrameworkTokioRustls =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<Writer>>;
-  type Instance = Http2Tokio<Http2Buffer, (), Writer, true>;
+  type Instance = Http2Tokio<Http2Buffer<()>, (), Writer, true>;
   type Writer = WriteHalf<TlsStream<TcpStream>>;
 
   impl ClientFrameworkTokioRustls {

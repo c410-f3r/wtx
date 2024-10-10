@@ -4,9 +4,9 @@
 
 use tokio::net::TcpListener;
 use wtx::{
-  http::{ReqResBuffer, StatusCode},
-  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{simple_seed, Either, Xorshift64},
+  http::{Headers, ReqResBuffer},
+  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus, Http2Tokio},
+  misc::{simple_seed, Either, Vector, Xorshift64},
 };
 
 #[tokio::main]
@@ -29,17 +29,31 @@ async fn main() -> wtx::Result<()> {
           };
           let _stream_jh = tokio::spawn(async move {
             let fun = async {
-              let (local_rrb, is_open) = http2_stream.recv_req().await?;
-              if !is_open {
-                return Ok(());
+              let mut body = Vector::new();
+              let mut headers = Headers::new();
+              loop {
+                let (local_body, h2o) = http2_stream.fetch_data(body).await?;
+                body = local_body;
+                match h2o {
+                  Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream => {
+                    return Ok(())
+                  }
+                  Http2RecvStatus::Eos => break,
+                  Http2RecvStatus::Ok => continue,
+                }
               }
-              let mut req = local_rrb.into_http2_request(http2_stream.method());
-              req.rrd.clear();
-              req.rrd.body.extend_from_slice(b"Hello")?;
-              let res = req.into_response(StatusCode::Ok);
-              if http2_stream.send_res(res).await?.is_none() {
-                return Ok(());
+              loop {
+                let (local_headers, h2o) = http2_stream.fetch_trailers(headers).await?;
+                headers = local_headers;
+                match h2o {
+                  Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream => {
+                    return Ok(())
+                  }
+                  Http2RecvStatus::Eos => break,
+                  Http2RecvStatus::Ok => continue,
+                }
               }
+              let _ = http2_stream.send_data(b"Hello", true).await?;
               wtx::Result::Ok(())
             };
             if let Err(err) = fun.await {

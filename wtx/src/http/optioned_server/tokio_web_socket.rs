@@ -1,5 +1,5 @@
 use crate::{
-  http::LowLevelServer,
+  http::OptionedServer,
   misc::{FnFut, Stream, Vector, Xorshift64, _number_or_available_parallelism, simple_seed},
   pool::{SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer},
@@ -11,7 +11,7 @@ use tokio::{
   sync::MutexGuard,
 };
 
-impl LowLevelServer {
+impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
   pub async fn tokio_web_socket<ACPT, C, E, F, S, SF>(

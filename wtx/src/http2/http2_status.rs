@@ -1,12 +1,25 @@
-/// FDSFSD
+/// The possible states of a stream operation that is receiving data.
 #[derive(Clone, Copy, Debug)]
-pub enum Http2Status {
-  /// Closed connection
+pub enum Http2RecvStatus {
+  /// Connection was closed, either locally or externally.
   ClosedConnection,
-  /// Closed stream
+  /// Stream was closed, either locally or externally.
   ClosedStream,
-  /// End Of Stream
+  /// Remote peer sent an end of stream flag
   Eos,
+  /// Successful operation
+  Ok,
+}
+
+/// The possible states of a stream operation that is sending data.
+#[derive(Clone, Copy, Debug)]
+pub enum Http2SendStatus {
+  /// Connection was closed, either locally or externally.
+  ClosedConnection,
+  /// Stream was closed, either locally or externally.
+  ClosedStream,
+  /// The stream is in a state where it is impossible to locally send data.
+  InvalidState,
   /// Successful operation
   Ok,
 }

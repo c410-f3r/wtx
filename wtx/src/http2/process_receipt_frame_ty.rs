@@ -7,17 +7,19 @@ use crate::{
       protocol_err, read_header_and_continuations, send_reset_stream, server_header_stream_state,
     },
     window::WindowsPair,
-    DataFrame, FrameInit, HpackDecoder, Http2Error, Http2ErrorCode, Http2Params, ResetStreamFrame,
-    Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer, WindowUpdateFrame, Windows, U31,
+    DataFrame, FrameInit, HpackDecoder, Http2Error, Http2ErrorCode, Http2Hook, Http2Params,
+    ResetStreamFrame, Scrp, Sorp, StreamOverallRecvParams, StreamState, UriBuffer,
+    WindowUpdateFrame, Windows, U31,
   },
   misc::{AtomicWaker, LeaseMut, PartitionedFilledBuffer, StreamReader, StreamWriter, NOOP_WAKER},
 };
 use core::{mem, sync::atomic::AtomicBool, task::Waker};
 
 #[derive(Debug)]
-pub(crate) struct ProcessReceiptFrameTy<'instance, SR, SW> {
+pub(crate) struct ProcessReceiptFrameTy<'instance, HO, SR, SW, const IS_CLIENT: bool> {
   pub(crate) conn_windows: &'instance mut Windows,
   pub(crate) fi: FrameInit,
+  pub(crate) hook: &'instance mut HO,
   pub(crate) hp: &'instance mut Http2Params,
   pub(crate) hpack_dec: &'instance mut HpackDecoder,
   pub(crate) hps: &'instance mut Http2ParamsSend,
@@ -31,13 +33,14 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, SR, SW> {
   pub(crate) uri_buffer: &'instance mut UriBuffer,
 }
 
-impl<SR, SW> ProcessReceiptFrameTy<'_, SR, SW>
+impl<HO, SR, SW, const IS_CLIENT: bool> ProcessReceiptFrameTy<'_, HO, SR, SW, IS_CLIENT>
 where
+  HO: Http2Hook<IS_CLIENT>,
   SR: StreamReader,
   SW: StreamWriter,
 {
   #[inline]
-  pub(crate) async fn data(self, sorp: &mut Sorp) -> crate::Result<()> {
+  pub(crate) async fn data(self, sorp: &mut Sorp<HO::Element>) -> crate::Result<()> {
     let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
       if self.fi.stream_id <= *self.last_stream_id {
         return Err(crate::Error::Http2ErrorGoAway(
@@ -80,7 +83,7 @@ where
   }
 
   #[inline]
-  pub(crate) async fn header_client(self, sorp: &mut Sorp) -> crate::Result<()> {
+  pub(crate) async fn header_client(self, sorp: &mut Sorp<HO::Element>) -> crate::Result<()> {
     let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
       return Err(protocol_err(Http2Error::UnknownHeaderStreamReceiver));
     };
@@ -128,7 +131,7 @@ where
   pub(crate) async fn header_server_init(
     self,
     ish: &mut InitialServerHeader,
-    sorp: &mut Sorp,
+    sorp: &mut Sorp<HO::Element>,
   ) -> crate::Result<()> {
     if self.fi.stream_id <= *self.last_stream_id || self.fi.stream_id.u32() % 2 == 0 {
       return Err(protocol_err(Http2Error::UnexpectedStreamId));
@@ -160,6 +163,7 @@ where
         body_len: 0,
         content_length,
         has_initial_header: true,
+        hook_element: self.hook.init(&ish.rrb.headers)?,
         is_stream_open: true,
         rrb: mem::take(&mut ish.rrb),
         status_code: StatusCode::Ok,
@@ -174,7 +178,7 @@ where
   #[inline]
   pub(crate) async fn header_server_trailer(
     self,
-    sorp: &mut StreamOverallRecvParams,
+    sorp: &mut StreamOverallRecvParams<HO::Element>,
   ) -> crate::Result<()> {
     if sorp.stream_state.recv_eos() {
       return Err(protocol_err(Http2Error::UnexpectedHeaderFrame));
@@ -200,7 +204,11 @@ where
   }
 
   #[inline]
-  pub(crate) async fn reset(self, scrp: &mut Scrp, sorp: &mut Sorp) -> crate::Result<()> {
+  pub(crate) async fn reset(
+    self,
+    scrp: &mut Scrp,
+    sorp: &mut Sorp<HO::Element>,
+  ) -> crate::Result<()> {
     let rsf = ResetStreamFrame::read(self.pfb._current(), self.fi)?;
     if !send_reset_stream(rsf.error_code(), scrp, sorp, self.stream_writer, self.fi.stream_id).await
     {
@@ -210,7 +218,11 @@ where
   }
 
   #[inline]
-  pub(crate) fn window_update(self, scrp: &mut Scrp, sorp: &mut Sorp) -> crate::Result<()> {
+  pub(crate) fn window_update(
+    self,
+    scrp: &mut Scrp,
+    sorp: &mut Sorp<HO::Element>,
+  ) -> crate::Result<()> {
     if let Some(elem) = scrp.get_mut(&self.fi.stream_id) {
       self.do_window_update(&mut elem.windows, &elem.waker)?;
       return Ok(());

@@ -86,7 +86,7 @@ pub use http2_error::Http2Error;
 pub use http2_error_code::Http2ErrorCode;
 pub use http2_hook::Http2Hook;
 pub use http2_params::Http2Params;
-pub use http2_status::Http2Status;
+pub use http2_status::{Http2RecvStatus, Http2SendStatus};
 pub(crate) use huffman::{huffman_decode, huffman_encode};
 pub(crate) use ping_frame::PingFrame;
 pub(crate) use process_receipt_frame_ty::ProcessReceiptFrameTy;
@@ -122,7 +122,7 @@ pub type Http2DataTokio<HB, HO, SW, const IS_CLIENT: bool> =
   Arc<tokio::sync::Mutex<Http2Data<HB, HO, SW, IS_CLIENT>>>;
 
 pub(crate) type Scrp = HashMap<U31, StreamControlRecvParams>;
-pub(crate) type Sorp = HashMap<U31, StreamOverallRecvParams>;
+pub(crate) type Sorp<HE> = HashMap<U31, StreamOverallRecvParams<HE>>;
 
 /// Negotiates initial "handshakes" or connections and also manages the creation of streams.
 #[derive(Debug)]
@@ -134,9 +134,10 @@ pub struct Http2<HD, const IS_CLIENT: bool> {
 
 impl<HB, HO, HD, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, IS_CLIENT>>,
+  HO: Http2Hook<IS_CLIENT>,
   SW: StreamWriter,
 {
   /// See [`ConnectionState`].
@@ -154,7 +155,7 @@ where
 
   #[inline]
   async fn manage_initial_params<const HAS_PREFACE: bool>(
-    hb: &mut Http2Buffer,
+    hb: &mut Http2Buffer<HO::Element>,
     hp: &Http2Params,
     stream_writer: &mut SW,
   ) -> crate::Result<(Arc<AtomicBool>, u32, PartitionedFilledBuffer, Arc<AtomicWaker>)> {
@@ -193,23 +194,25 @@ where
 
 impl<HB, HD, HO, SW> Http2<HD, false>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, false>>,
+  HO: Http2Hook<false>,
   SW: StreamWriter,
 {
   /// Accepts an initial connection sending the local parameters to the remote peer.
   #[inline]
   pub async fn accept<SR>(
     mut hb: HB,
-    hook: HO,
-    hp: Http2Params,
+    mut hook: HO,
+    mut hp: Http2Params,
     (mut stream_reader, mut stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {
     hb.lease_mut().clear();
+    hp = hook.http2_params(hp);
     let mut buffer = [0; 24];
     let _ = stream_reader.read(&mut buffer).await?;
     if &buffer != PREFACE {
@@ -299,23 +302,25 @@ where
 
 impl<HB, HD, HO, SW> Http2<HD, true>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, true>>,
+  HO: Http2Hook<true>,
   SW: StreamWriter,
 {
   /// Tries to connect to a server sending the local parameters.
   #[inline]
   pub async fn connect<SR>(
     mut hb: HB,
-    hook: HO,
-    hp: Http2Params,
+    mut hook: HO,
+    mut hp: Http2Params,
     (stream_reader, mut stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {
     hb.lease_mut().clear();
+    hp = hook.http2_params(hp).set_enable_connect_protocol(false);
     let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<true>(hb.lease_mut(), &hp, &mut stream_writer).await?;
     let hd = HD::new(HD::Item::new(Http2Data::new(hb, hook, hp, stream_writer)));

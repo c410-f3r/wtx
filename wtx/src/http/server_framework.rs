@@ -19,7 +19,7 @@ mod server_framework_builder;
 mod state;
 
 use crate::{
-  http::{ConnParams, LowLevelServer, ReqResBuffer, Request, Response},
+  http::{ConnParams, OptionedServer, ReqResBuffer, Request, Response},
   http2::Http2Buffer,
   misc::Rng,
 };
@@ -75,11 +75,12 @@ where
     RNG: Clone + Rng + Send + 'static,
   {
     let Self { ca_cb, cp, ra_cb, router } = self;
-    LowLevelServer::tokio_high_http2(
+    OptionedServer::tokio_high_http2(
       host,
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
       err_cb,
       Self::handle,
+      || Ok(()),
       move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
       (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
     )
@@ -100,11 +101,12 @@ where
     RNG: Clone + Rng + Send + 'static,
   {
     let Self { ca_cb, cp, ra_cb, router } = self;
-    LowLevelServer::tokio_high_http2(
+    OptionedServer::tokio_high_http2(
       host,
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
       err_cb,
       Self::handle,
+      || Ok(()),
       move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
       (
         || {

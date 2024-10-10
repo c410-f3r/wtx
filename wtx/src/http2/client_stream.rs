@@ -7,7 +7,7 @@ use crate::{
     },
     send_msg::send_msg,
     HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
-    StreamOverallRecvParams, StreamState, Windows, U31,
+    Http2Hook, StreamOverallRecvParams, StreamState, Windows, U31,
   },
   misc::{Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
 };
@@ -44,9 +44,10 @@ impl<HD> ClientStream<HD> {
 
 impl<HB, HD, HO, SW> ClientStream<HD>
 where
-  HB: LeaseMut<Http2Buffer>,
+  HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<HB, HO, SW, true>>,
+  HO: Http2Hook<true>,
   SW: StreamWriter,
 {
   /// Receive response
@@ -84,6 +85,7 @@ where
             body_len: 0,
             content_length: None,
             has_initial_header: false,
+            hook_element: hdpm.hook.init(&elem.headers)?,
             is_stream_open: true,
             rrb: elem,
             status_code: StatusCode::Ok,

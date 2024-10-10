@@ -90,7 +90,7 @@ async fn server(uri: &UriString) {
 }
 
 async fn stream_server(
-  server: &mut Http2Tokio<Http2Buffer, (), OwnedWriteHalf, false>,
+  server: &mut Http2Tokio<Http2Buffer<()>, (), OwnedWriteHalf, false>,
   rrb: ReqResBuffer,
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
@@ -109,7 +109,7 @@ async fn stream_server(
 }
 
 async fn stream_client(
-  client: &mut Http2Tokio<Http2Buffer, (), OwnedWriteHalf, true>,
+  client: &mut Http2Tokio<Http2Buffer<()>, (), OwnedWriteHalf, true>,
   rrb: ReqResBuffer,
   uri: &UriRef<'_>,
 ) -> ReqResBuffer {
