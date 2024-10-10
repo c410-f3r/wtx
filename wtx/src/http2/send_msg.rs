@@ -28,7 +28,12 @@ macro_rules! init {
 use crate::{
   http::{Headers, Trailers},
   http2::{
-    http2_data::Http2DataPartsMut, misc::{process_higher_operation_err, protocol_err, write_array}, window::WindowsPair, ContinuationFrame, DataFrame, HeadersFrame, HpackEncoder, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error, Http2Hook, Http2SendStatus, StreamState, U31
+    http2_data::Http2DataPartsMut,
+    misc::{process_higher_operation_err, protocol_err, scrp_mut, write_array},
+    window::WindowsPair,
+    ContinuationFrame, DataFrame, HeadersFrame, HpackEncoder, HpackStaticRequestHeaders,
+    HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error, Http2Hook, Http2SendStatus,
+    StreamState, U31,
   },
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
 };
@@ -132,9 +137,7 @@ where
   SW: StreamWriter,
 {
   let Http2Buffer { hpack_enc, hpack_enc_buffer, is_conn_open, scrp, .. } = hdpm.hb;
-  let Some(elem) = scrp.get_mut(&stream_id) else {
-    return Err(protocol_err(Http2Error::BadLocalFlow));
-  };
+  let elem = scrp_mut(scrp, stream_id)?;
   if !elem.is_stream_open {
     return Ok(None);
   }

@@ -11,8 +11,10 @@ else
     autoreconf -fi
     ./configure --enable-debug --with-nghttp2 --without-ssl
     make
-    cd tests
+    cd tests/server
+    make
+    cd ..
 fi
 
-cargo build --bin wtx-ui --features http-client --release
+cargo build --bin wtx-ui --features _curl,http-client --release
 ./runtests.pl -d -n -c "$PWD/../../target/release/wtx-ui"

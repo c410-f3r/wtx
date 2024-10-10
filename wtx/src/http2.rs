@@ -52,7 +52,7 @@ use crate::{
   http::{Method, ReqResBuffer},
   http2::misc::{
     frame_reader_rslt, manage_initial_stream_receiving, process_higher_operation_err, protocol_err,
-    write_array,
+    sorp_mut, write_array,
   },
   misc::{
     AtomicWaker, ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter,
@@ -252,12 +252,15 @@ where
     *ish_id = ish_id.wrapping_add(1);
     let rrb_opt = &mut Some(rrb);
     let mut lock_pin = pin!(hd.lock());
-    match poll_fn(|cx| {
+    let rslt: crate::Result<_> = poll_fn(|cx| {
       let mut lock = lock_pin!(cx, hd, lock_pin);
       let hdpm = lock.parts_mut();
       if let Some(mut this_rrb) = rrb_opt.take() {
         if !manage_initial_stream_receiving(is_conn_open, &mut this_rrb) {
-          return Poll::Ready(Either::Left((this_rrb, frame_reader_rslt(hdpm.frame_reader_error))));
+          return Poll::Ready(Ok(Either::Left((
+            this_rrb,
+            frame_reader_rslt(hdpm.frame_reader_error),
+          ))));
         }
         hdpm.hb.initial_server_headers.push_back(
           curr_ish_id,
@@ -270,21 +273,26 @@ where
         );
         Poll::Pending
       } else {
-        let ish = hdpm.hb.initial_server_headers.remove(&curr_ish_id).unwrap();
+        let Some(ish) = hdpm.hb.initial_server_headers.remove(&curr_ish_id) else {
+          return Poll::Ready(Err(protocol_err(Http2Error::UnknownInitialServerHeaderId)));
+        };
         hdpm.hb.initial_server_headers.decrease_cursor();
         if !is_conn_open.load(Ordering::Relaxed) {
           let this_rrb = if ish.stream_id.is_zero() {
             ish.rrb
           } else {
-            mem::take(&mut hdpm.hb.sorp.get_mut(&ish.stream_id).unwrap().rrb)
+            mem::take(&mut sorp_mut(&mut hdpm.hb.sorp, ish.stream_id)?.rrb)
           };
-          return Poll::Ready(Either::Left((this_rrb, frame_reader_rslt(hdpm.frame_reader_error))));
+          return Poll::Ready(Ok(Either::Left((
+            this_rrb,
+            frame_reader_rslt(hdpm.frame_reader_error),
+          ))));
         }
-        Poll::Ready(Either::Right((ish.method, ish.stream_id)))
+        Poll::Ready(Ok(Either::Right((ish.method, ish.stream_id))))
       }
     })
-    .await
-    {
+    .await;
+    match rslt? {
       Either::Left(elem) => {
         elem.1?;
         Ok(Either::Left(elem.0))

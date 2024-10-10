@@ -2,7 +2,10 @@
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
 #![doc = include_str!("../README.md")]
-#![cfg_attr(feature = "tokio", feature(return_type_notation))]
+#![cfg_attr(
+  all(any(feature = "http2", feature = "web-socket-handshake"), feature = "tokio"),
+  feature(return_type_notation)
+)]
 #![no_std]
 
 extern crate alloc;

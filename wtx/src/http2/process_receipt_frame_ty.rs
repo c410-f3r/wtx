@@ -5,6 +5,7 @@ use crate::{
     initial_server_header::InitialServerHeader,
     misc::{
       protocol_err, read_header_and_continuations, send_reset_stream, server_header_stream_state,
+      sorp_mut,
     },
     window::WindowsPair,
     DataFrame, FrameInit, HpackDecoder, Http2Error, Http2ErrorCode, Http2Hook, Http2Params,
@@ -84,9 +85,7 @@ where
 
   #[inline]
   pub(crate) async fn header_client(self, sorp: &mut Sorp<HO::Element>) -> crate::Result<()> {
-    let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
-      return Err(protocol_err(Http2Error::UnknownHeaderStreamReceiver));
-    };
+    let elem = sorp_mut(sorp, self.fi.stream_id)?;
     let has_eos = if elem.has_initial_header {
       read_header_and_continuations::<_, _, true, true>(
         self.fi,

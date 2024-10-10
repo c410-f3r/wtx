@@ -3,8 +3,8 @@ use crate::{
   http2::{
     http2_data::Http2DataPartsMut, CommonFlags, FrameInit, FrameInitTy, GoAwayFrame, HeadersFrame,
     HpackDecoder, Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Hook, Http2Params,
-    Http2RecvStatus, Http2SendStatus, ResetStreamFrame, Scrp, Sorp, StreamOverallRecvParams,
-    StreamState, UriBuffer, U31,
+    Http2RecvStatus, Http2SendStatus, ResetStreamFrame, Scrp, Sorp, StreamControlRecvParams,
+    StreamOverallRecvParams, StreamState, UriBuffer, U31,
   },
   misc::{
     AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
@@ -38,6 +38,24 @@ pub(crate) fn frame_reader_rslt(err: &mut Option<crate::Error>) -> crate::Result
 }
 
 #[inline]
+#[track_caller]
+pub(crate) fn scrp_mut(
+  scrp: &mut Scrp,
+  stream_id: U31,
+) -> crate::Result<&mut StreamControlRecvParams> {
+  scrp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
+}
+
+#[inline]
+#[track_caller]
+pub(crate) fn sorp_mut<HE>(
+  sorp: &mut Sorp<HE>,
+  stream_id: U31,
+) -> crate::Result<&mut StreamOverallRecvParams<HE>> {
+  sorp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
+}
+
+#[inline]
 pub(crate) fn manage_initial_stream_receiving(
   is_conn_open: &AtomicBool,
   rrb: &mut ReqResBuffer,
@@ -64,9 +82,7 @@ pub(crate) fn manage_recurrent_stream_receiving<HO, SW, T, const IS_CLIENT: bool
 where
   HO: Http2Hook<IS_CLIENT>,
 {
-  let Some(sorp) = hdpm.hb.sorp.get_mut(&stream_id) else {
-    return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
-  };
+  let sorp = sorp_mut(&mut hdpm.hb.sorp, stream_id)?;
   'block: {
     let rrb_opt = match (is_conn_open.load(Ordering::Relaxed), sorp.is_stream_open) {
       (false, false) => {

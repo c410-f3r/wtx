@@ -2,13 +2,13 @@ use crate::{
   http::{Headers, Method, ReqResBuffer, ReqResData, Response},
   http2::{
     misc::{
-      manage_recurrent_stream_receiving, process_higher_operation_err, protocol_err, status_recv,
+      manage_recurrent_stream_receiving, process_higher_operation_err, sorp_mut, status_recv,
       status_send,
     },
     send_msg::{send_msg, write_standalone_data, write_standalone_trailers},
     window::WindowsPair,
-    HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error,
-    Http2ErrorCode, Http2Hook, Http2RecvStatus, Http2SendStatus, StreamControlRecvParams, U31,
+    HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
+    Http2Hook, Http2RecvStatus, Http2SendStatus, StreamControlRecvParams, U31,
   },
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Vector, _Span, sleep, Lease},
 };
@@ -59,9 +59,7 @@ where
   pub async fn capacity(&self) -> crate::Result<(i32, i32)> {
     let mut lock = self.hd.lock().await;
     let hdpm = lock.parts_mut();
-    let Some(elem) = hdpm.hb.scrp.get_mut(&self.stream_id) else {
-      return Err(protocol_err(Http2Error::BadLocalFlow));
-    };
+    let elem = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
     let wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
     Ok((wp.conn.send.available(), wp.stream.send.available()))
   }
@@ -83,9 +81,7 @@ where
     poll_fn(|cx| {
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
-      let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
-        return Poll::Ready(Err(protocol_err(Http2Error::BadLocalFlow)));
-      };
+      let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
       if let Some(local_body) = body_opt.take() {
         if let Some(elem) = status_recv(&self.is_conn_open, sorp) {
           return Poll::Ready(Ok((local_body, elem)));
@@ -115,9 +111,7 @@ where
     poll_fn(|cx| {
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
-      let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
-        return Poll::Ready(Err(protocol_err(Http2Error::BadLocalFlow)));
-      };
+      let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
       if let Some(local_trailers) = trailers_opt.take() {
         if let Some(elem) = status_recv(&self.is_conn_open, sorp) {
           return Poll::Ready(Ok((local_trailers, elem)));
@@ -192,9 +186,7 @@ where
   pub async fn reserve_capacity(&mut self, value: u32) -> crate::Result<()> {
     let mut lock = self.hd.lock().await;
     let hdpm = lock.parts_mut();
-    let Some(elem) = hdpm.hb.scrp.get_mut(&self.stream_id) else {
-      return Err(protocol_err(Http2Error::BadLocalFlow));
-    };
+    let elem = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
     let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
     wp.withdrawn_send(Some(self.stream_id), U31::from_u32(value))
   }
@@ -216,9 +208,7 @@ where
     poll_fn(|cx| {
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
-      let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
-        return Poll::Ready(Err(protocol_err(Http2Error::BadLocalFlow)));
-      };
+      let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
       if let Some(elem) = status_send::<_, false>(&self.is_conn_open, sorp) {
         return Poll::Ready(Ok(elem));
       }
@@ -305,9 +295,7 @@ where
     _trace!("Sending {} trailers", trailers.headers_len());
     let mut lock = self.hd.lock().await;
     let hdpm = lock.parts_mut();
-    let Some(sorp) = hdpm.hb.sorp.get_mut(&self.stream_id) else {
-      return Err(protocol_err(Http2Error::BadLocalFlow));
-    };
+    let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
     if let Some(elem) = status_send::<_, false>(&self.is_conn_open, sorp) {
       return Ok(elem);
     }
