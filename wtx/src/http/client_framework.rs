@@ -79,7 +79,7 @@ where
     };
     let mut guard = self.pool.get(uri.as_str(), uri.as_str()).await?;
     let mut stream = guard.stream().await?;
-    if stream.send_req(Request::http2(method, &rrb), actual_req_uri).await?.is_none() {
+    if stream.send_req(Request::http2(method, &rrb), actual_req_uri).await?.is_closed() {
       return Err(crate::Error::ClosedConnection);
     }
     let (res_rrb, opt) = stream.recv_res(rrb).await?;

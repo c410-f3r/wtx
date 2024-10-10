@@ -263,14 +263,14 @@ where
   /// are successfully executed. More specifically, should only be called in a half-closed stream
   /// state.
   #[inline]
-  pub async fn send_res<RRD>(&mut self, res: Response<RRD>) -> crate::Result<Option<()>>
+  pub async fn send_res<RRD>(&mut self, res: Response<RRD>) -> crate::Result<Http2SendStatus>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
     let _e = self.span._enter();
     _trace!("Sending response");
-    if send_msg::<_, _, _, _, false>(
+    let hss = send_msg::<_, _, _, _, false>(
       res.rrd.body().lease(),
       &self.hd,
       res.rrd.headers(),
@@ -282,14 +282,13 @@ where
       self.stream_id,
       |_| {},
     )
-    .await?
-    .is_none()
-    {
-      return Ok(None);
+    .await?;
+    if !matches!(hss, Http2SendStatus::ClosedConnection) {
+      return Ok(hss);
     }
     sleep(Duration::from_millis(50)).await?;
     drop(self.hd.lock().await.parts_mut().hb.scrp.remove(&self.stream_id));
-    Ok(Some(()))
+    Ok(Http2SendStatus::Ok)
   }
 
   send_reset_method!();

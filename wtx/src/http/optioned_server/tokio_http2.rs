@@ -124,7 +124,7 @@ where
         }
         let req = local_rrb.into_http2_request(http2_stream.method());
         let res = local_handle_cb.call((local_ca, ra, req)).await?;
-        if http2_stream.send_res(res).await?.is_none() {
+        if http2_stream.send_res(res).await?.is_closed() {
           return Ok(());
         }
         Ok::<_, E>(())

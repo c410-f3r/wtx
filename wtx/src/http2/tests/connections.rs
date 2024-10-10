@@ -103,7 +103,7 @@ async fn stream_server(
       panic!();
     }
     cb(req_rrb.as_http2_request_mut(stream.method()));
-    stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap().unwrap();
+    let _ = stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
     break req_rrb;
   }
 }
@@ -114,7 +114,7 @@ async fn stream_client(
   uri: &UriRef<'_>,
 ) -> ReqResBuffer {
   let mut stream = client.stream().await.unwrap();
-  stream.send_req(rrb.as_http2_request(Method::Get), uri).await.unwrap().unwrap();
+  let _ = stream.send_req(rrb.as_http2_request(Method::Get), uri).await.unwrap();
   stream.recv_res(rrb).await.unwrap().0
 }
 

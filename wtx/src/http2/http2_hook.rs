@@ -47,7 +47,7 @@ mod websocket {
     http::{Headers, HttpError, KnownHeaderName},
     http2::{Http2Hook, Http2Params},
     misc::{LeaseMut, Rng, Stream},
-    web_socket::{Frame, WebSocketBuffer, WebSocketServer},
+    web_socket::{WebSocketBuffer, WebSocketServer},
   };
 
   impl<RNG, S, WSB> Http2Hook<false> for WebSocketServer<(), RNG, S, WSB>

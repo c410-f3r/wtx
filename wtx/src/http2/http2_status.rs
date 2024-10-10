@@ -23,3 +23,11 @@ pub enum Http2SendStatus {
   /// Successful operation
   Ok,
 }
+
+impl Http2SendStatus {
+  /// Is closed connection or stream
+  #[inline]
+  pub fn is_closed(&self) -> bool {
+    matches!(self, Self::ClosedConnection | Self::ClosedStream)
+  }
+}

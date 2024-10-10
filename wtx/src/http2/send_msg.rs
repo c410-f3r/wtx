@@ -28,11 +28,7 @@ macro_rules! init {
 use crate::{
   http::{Headers, Trailers},
   http2::{
-    http2_data::Http2DataPartsMut,
-    misc::{process_higher_operation_err, protocol_err, write_array},
-    window::WindowsPair,
-    ContinuationFrame, DataFrame, HeadersFrame, HpackEncoder, HpackStaticRequestHeaders,
-    HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error, Http2Hook, StreamState, U31,
+    http2_data::Http2DataPartsMut, misc::{process_higher_operation_err, protocol_err, write_array}, window::WindowsPair, ContinuationFrame, DataFrame, HeadersFrame, HpackEncoder, HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2Error, Http2Hook, Http2SendStatus, StreamState, U31
   },
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
 };
@@ -52,7 +48,7 @@ pub(crate) async fn send_msg<HB, HD, HO, SW, const IS_CLIENT: bool>(
   is_conn_open: &AtomicBool,
   stream_id: U31,
   mut cb: impl FnMut(Http2DataPartsMut<'_, HO, SW, IS_CLIENT>),
-) -> crate::Result<Option<()>>
+) -> crate::Result<Http2SendStatus>
 where
   HB: LeaseMut<Http2Buffer<HO::Element>>,
   HD: RefCounter,
@@ -65,7 +61,7 @@ where
   let mut lock_pin = pin!(hd.lock());
   let rslt = poll_fn(move |cx| {
     if !is_conn_open.load(Ordering::Relaxed) {
-      return Poll::Ready(Ok(None));
+      return Poll::Ready(Ok(Http2SendStatus::ClosedConnection));
     }
     let mut lock = lock_pin!(cx, hd, lock_pin);
     let hdpm = lock.parts_mut();
@@ -87,10 +83,10 @@ where
           } else {
             _trace!("Response has been sent");
           };
-          return Poll::Ready(Ok(Some(())));
+          return Poll::Ready(Ok(Http2SendStatus::Ok));
         }
       } else {
-        return Poll::Ready(Ok(None));
+        return Poll::Ready(Ok(Http2SendStatus::ClosedStream));
       }
     }
     Poll::Pending
