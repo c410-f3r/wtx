@@ -275,7 +275,7 @@ where
     if !matches!(hss, Http2SendStatus::ClosedConnection) {
       return Ok(hss);
     }
-    sleep(Duration::from_millis(50)).await?;
+
     drop(self.hd.lock().await.parts_mut().hb.scrp.remove(&self.stream_id));
     Ok(Http2SendStatus::Ok)
   }
