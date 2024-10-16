@@ -2,15 +2,23 @@ use crate::misc::{FilledBuffer, FilledBufferWriter, VectorError};
 use core::ops::Range;
 
 // ```
-// [ Antecedent | Current | Following | Trailing ]
-//              |         |           |          |
-//              |         |           |          |--> _antecedent_end_idx
-//              |         |           |
-//              |         |           |-------------> _current_end_idx
-//              |         |
-//              |         |-------------------------> _buffer.len()
-//              |
-//              |-----------------------------------> _buffer.capacity()
+// [=========================All=========================]
+//
+// [=================Buffer=================|            ]
+//
+// [              |=============Current rest=============]
+//
+// [                          |======Following rest======]
+//
+// [==Antecedent==|==Current==|==Following==|==Trailing==]
+//                |           |             |            |
+//                |           |             |            |--> _buffer.capacity()
+//                |           |             |
+//                |           |             |-------------> _buffer.len()
+//                |           |
+//                |           |-------------------------> _current_end_idx
+//                |
+//                |-----------------------------------> _antecedent_end_idx
 // ```
 #[derive(Debug)]
 pub(crate) struct PartitionedFilledBuffer {
@@ -87,7 +95,7 @@ impl PartitionedFilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _current_trail_mut(&mut self) -> &mut [u8] {
+  pub(crate) fn _current_rest_mut(&mut self) -> &mut [u8] {
     let idx = self._antecedent_end_idx();
     self._buffer._all_mut().get_mut(idx..).unwrap_or_default()
   }
@@ -120,7 +128,7 @@ impl PartitionedFilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _following_trail_mut(&mut self) -> &mut [u8] {
+  pub(crate) fn _following_rest_mut(&mut self) -> &mut [u8] {
     let idx = self._current_end_idx();
     self._buffer._all_mut().get_mut(idx..).unwrap_or_default()
   }

@@ -46,7 +46,7 @@ macro_rules! impl_0_16 {
     mod http_server_framework {
       use crate::{
         http::{
-          HttpError, Request, ReqResData, ReqResDataMut, Response, StatusCode,
+          HttpError, Request, ReqResBuffer,  Response, StatusCode,
           server_framework::{ConnAux, ReqAux, ReqMiddleware, ResMiddleware, PathManagement, PathParams}
         },
         misc::{ArrayVector, Vector}
@@ -72,33 +72,30 @@ macro_rules! impl_0_16 {
           type Init = ($($T::Init,)*);
 
           #[inline]
-          fn req_aux<RRD>(_init: Self::Init, _req: &mut Request<RRD>) -> crate::Result<Self>
-          where
-            RRD: ReqResDataMut
-          {
+          fn req_aux(_init: Self::Init, _req: &mut Request<ReqResBuffer>) -> crate::Result<Self> {
             Ok(($( $T::req_aux(_init.$N, _req)?, )*))
           }
         }
 
-        impl<$($T,)* CA, ERR, RA, RRD> ReqMiddleware<CA, ERR, RA, RRD> for ($($T,)*)
+        impl<$($T,)* CA, ERR, RA> ReqMiddleware<CA, ERR, RA> for ($($T,)*)
         where
-          $($T: ReqMiddleware<CA, ERR, RA, RRD>,)*
+          $($T: ReqMiddleware<CA, ERR, RA>,)*
           ERR: From<crate::Error>
         {
           #[inline]
-          async fn apply_req_middleware(&self, _ca: &mut CA, _ra: &mut RA, _req: &mut Request<RRD>) -> Result<(), ERR> {
+          async fn apply_req_middleware(&self, _ca: &mut CA, _ra: &mut RA, _req: &mut Request<ReqResBuffer>) -> Result<(), ERR> {
             $( self.$N.apply_req_middleware(_ca, _ra, _req).await?; )*
             Ok(())
           }
         }
 
-        impl<$($T,)* CA, ERR, RA, RRD> ResMiddleware<CA, ERR, RA, RRD> for ($($T,)*)
+        impl<$($T,)* CA, ERR, RA> ResMiddleware<CA, ERR, RA> for ($($T,)*)
         where
-          $($T: ResMiddleware<CA, ERR, RA, RRD>,)*
+          $($T: ResMiddleware<CA, ERR, RA>,)*
           ERR: From<crate::Error>
         {
           #[inline]
-          async fn apply_res_middleware(&self, _ca: &mut CA, _ra: &mut RA, mut _res: Response<&mut RRD>) -> Result<(), ERR> {
+          async fn apply_res_middleware(&self, _ca: &mut CA, _ra: &mut RA, mut _res: Response<&mut ReqResBuffer>) -> Result<(), ERR> {
             $({
               let local_res = Response {
                 rrd: &mut *_res.rrd,
@@ -111,11 +108,10 @@ macro_rules! impl_0_16 {
           }
         }
 
-        impl<$($T,)* CA, ERR, RA, RRD> PathManagement<CA, ERR, RA, RRD> for ($(PathParams<$T>,)*)
+        impl<$($T,)* CA, ERR, RA> PathManagement<CA, ERR, RA> for ($(PathParams<$T>,)*)
         where
-          $($T: PathManagement<CA, ERR, RA, RRD>,)*
+          $($T: PathManagement<CA, ERR, RA>,)*
           ERR: From<crate::Error>,
-          RRD: ReqResData
         {
           const IS_ROUTER: bool = false;
 
@@ -125,7 +121,7 @@ macro_rules! impl_0_16 {
             _ca: &mut CA,
             _path_defs: (u8, &[(&'static str, u8)]),
             _ra: &mut RA,
-            _req: &mut Request<RRD>,
+            _req: &mut Request<ReqResBuffer>,
           ) -> Result<StatusCode, ERR> {
             #[cfg(feature = "matchit")]
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.1) {
@@ -141,7 +137,7 @@ macro_rules! impl_0_16 {
               _ => Err(ERR::from(HttpError::UriMismatch.into()))
             }
             #[cfg(not(feature = "matchit"))]
-            match _req.rrd.uri().path() {
+            match _req.rrd.uri.path() {
               $(
                 elem if elem == self.$N.full_path => {
                   return self

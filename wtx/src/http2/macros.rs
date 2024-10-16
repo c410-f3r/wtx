@@ -6,6 +6,36 @@ macro_rules! lock_pin {
   }};
 }
 
+macro_rules! send_go_away_method {
+  () => {
+    /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
+    /// streams.
+    #[inline]
+    pub async fn send_go_away(self, error_code: Http2ErrorCode) {
+      crate::http2::misc::send_go_away(error_code, &mut self.hd.lock().await.parts_mut()).await;
+    }
+  };
+}
+
+macro_rules! send_reset_method {
+  () => {
+    /// Sends a reset frame to the peer, which cancels this stream.
+    #[inline]
+    pub async fn send_reset(self, error_code: Http2ErrorCode) {
+      let mut guard = self.hd.lock().await;
+      let hdpm = guard.parts_mut();
+      let _ = crate::http2::misc::send_reset_stream(
+        error_code,
+        &mut hdpm.hb.scrp,
+        &mut hdpm.hb.sorp,
+        hdpm.stream_writer,
+        self.stream_id,
+      )
+      .await;
+    }
+  };
+}
+
 macro_rules! initial_window_len {
   () => {
     65_535

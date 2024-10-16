@@ -8,7 +8,7 @@ use core::{
   time::Duration,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct CookieGeneric<T, V> {
   pub(crate) domain: T,
   pub(crate) expire: Option<DateTime<Utc>>,

@@ -91,7 +91,11 @@ where
   let content_len = NONCE_LEN.wrapping_add(value.len()).wrapping_add(TAG_LEN);
   let base64_len = base64::encoded_len(content_len, true).unwrap_or(usize::MAX);
   buffer.expand(BufferParam::Additional(base64_len), 0)?;
-  let _ = buffer.extend_from_slices([[0; NONCE_LEN].as_slice(), value, [0; TAG_LEN].as_slice()])?;
+  let _ = buffer.extend_from_copyable_slices([
+    [0; NONCE_LEN].as_slice(),
+    value,
+    [0; TAG_LEN].as_slice(),
+  ])?;
   {
     let content_start = start.wrapping_add(base64_len);
     #[rustfmt::skip]

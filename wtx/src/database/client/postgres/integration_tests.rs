@@ -69,7 +69,7 @@ async fn custom_composite_type() {
         CREATE TYPE custom_composite_type AS (int_value INT, varchar_value VARCHAR);
         CREATE TABLE custom_composite_table (id INT, type custom_composite_type);
       ",
-      |_| {},
+      drop,
     )
     .await
     .unwrap();

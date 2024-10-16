@@ -196,7 +196,7 @@ pub(crate) fn sasl_second(
     local_fbw._extend_from_slices([b",r=", response_nonce])?;
 
     let local_bytes = local_fbw._curr_bytes().get(5..).unwrap_or_default();
-    let _ = auth_data.extend_from_slices([&b","[..], local_bytes])?;
+    let _ = auth_data.extend_from_copyable_slices([&b","[..], local_bytes])?;
 
     let client_key: [u8; 32] = {
       let mut mac = Hmac::<Sha256>::new_from_slice(salted_password)?;

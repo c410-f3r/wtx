@@ -1,6 +1,6 @@
 use crate::http::{
-  server_framework::ResFinalizer, Header, Headers, KnownHeaderName, ReqResDataMut, Request,
-  StatusCode,
+  server_framework::ResFinalizer, Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut,
+  Request, StatusCode,
 };
 
 /// Redirects a request to another location.
@@ -65,13 +65,12 @@ impl Redirect {
   }
 }
 
-impl<E, RRD> ResFinalizer<E, RRD> for Redirect
+impl<E> ResFinalizer<E> for Redirect
 where
   E: From<crate::Error>,
-  RRD: ReqResDataMut,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<RRD>) -> Result<StatusCode, E> {
+  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     Self::push_headers(req.rrd.headers_mut(), self.uri)?;
     Ok(self.status_code)
   }

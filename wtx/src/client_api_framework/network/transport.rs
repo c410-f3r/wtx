@@ -199,7 +199,7 @@ mod tests {
   impl<DRSR> Serialize<DRSR> for _Ping {
     #[inline]
     fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut DRSR) -> crate::Result<()> {
-      bytes.extend_from_slice(b"ping")?;
+      bytes.extend_from_copyable_slice(b"ping")?;
       Ok(())
     }
   }

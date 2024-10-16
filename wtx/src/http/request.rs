@@ -1,4 +1,4 @@
-use crate::http::{Method, ReqResData, Response, StatusCode, Version};
+use crate::http::{Method, Response, StatusCode, Version};
 
 /// An HTTP request received by a server or to be sent by a client.
 #[derive(Debug)]
@@ -11,10 +11,7 @@ pub struct Request<RRD> {
   pub version: Version,
 }
 
-impl<RRD> Request<RRD>
-where
-  RRD: ReqResData,
-{
+impl<RRD> Request<RRD> {
   #[inline]
   pub(crate) fn _new(method: Method, rrd: RRD, version: Version) -> Self {
     Self { method, rrd, version }

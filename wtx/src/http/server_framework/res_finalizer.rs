@@ -1,78 +1,71 @@
-use crate::{
-  http::{server_framework::StateClean, ReqResDataMut, Request, StatusCode},
-  misc::Vector,
-};
+use crate::http::{server_framework::StateClean, ReqResBuffer, Request, StatusCode};
 
 /// Modifies responses
-pub trait ResFinalizer<E, RRD> {
+pub trait ResFinalizer<E> {
   /// Finalize response
-  fn finalize_response(self, req: &mut Request<RRD>) -> Result<StatusCode, E>;
+  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E>;
 }
 
-impl<E, RRD> ResFinalizer<E, RRD> for ()
+impl<E> ResFinalizer<E> for ()
 where
   E: From<crate::Error>,
 {
   #[inline]
-  fn finalize_response(self, _: &mut Request<RRD>) -> Result<StatusCode, E> {
+  fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     Ok(StatusCode::Ok)
   }
 }
 
-impl<CA, E, RA, RRD> ResFinalizer<E, RRD> for (StateClean<'_, CA, RA, RRD>, StatusCode)
+impl<CA, E, RA> ResFinalizer<E> for (StateClean<'_, CA, RA, ReqResBuffer>, StatusCode)
 where
   E: From<crate::Error>,
-  RRD: ReqResDataMut,
 {
   #[inline]
-  fn finalize_response(self, _: &mut Request<RRD>) -> Result<StatusCode, E> {
+  fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     self.0.req.rrd.clear();
     Ok(self.1)
   }
 }
 
-impl<CA, E, RA, RRD> ResFinalizer<E, RRD> for StateClean<'_, CA, RA, RRD>
+impl<CA, E, RA> ResFinalizer<E> for StateClean<'_, CA, RA, ReqResBuffer>
 where
   E: From<crate::Error>,
-  RRD: ReqResDataMut,
 {
   #[inline]
-  fn finalize_response(self, _: &mut Request<RRD>) -> Result<StatusCode, E> {
+  fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     self.req.rrd.clear();
     Ok(StatusCode::Ok)
   }
 }
 
-impl<E, RRD> ResFinalizer<E, RRD> for StatusCode
+impl<E> ResFinalizer<E> for StatusCode
 where
   E: From<crate::Error>,
-  RRD: ReqResDataMut,
 {
   #[inline]
-  fn finalize_response(self, _: &mut Request<RRD>) -> Result<StatusCode, E> {
+  fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     Ok(self)
   }
 }
 
-impl<E, RRD> ResFinalizer<E, RRD> for &'static str
+impl<E> ResFinalizer<E> for &'static str
 where
   E: From<crate::Error>,
-  RRD: ReqResDataMut<Body = Vector<u8>>,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<RRD>) -> Result<StatusCode, E> {
-    req.rrd.body_mut().extend_from_slice(self.as_bytes()).map_err(From::from)?;
+  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+    req.rrd.body.extend_from_copyable_slice(self.as_bytes()).map_err(From::from)?;
     Ok(StatusCode::Ok)
   }
 }
 
-impl<E, RRD, T> ResFinalizer<E, RRD> for Result<T, E>
+impl<E, T> ResFinalizer<E> for Result<T, E>
 where
   E: From<crate::Error>,
-  T: ResFinalizer<E, RRD>,
+  T: ResFinalizer<E>,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<RRD>) -> Result<StatusCode, E> {
+  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     self.and_then(|elem| elem.finalize_response(req))
   }
 }

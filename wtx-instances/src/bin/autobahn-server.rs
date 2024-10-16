@@ -4,7 +4,7 @@
 
 use tokio::net::TcpStream;
 use wtx::{
-  http::LowLevelServer,
+  http::OptionedServer,
   misc::Xorshift64,
   web_socket::{
     compression::{Flate2, NegotiatedFlate2},
@@ -14,7 +14,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  LowLevelServer::tokio_web_socket(
+  OptionedServer::tokio_web_socket(
     "127.0.0.1:9070",
     None,
     Flate2::default,

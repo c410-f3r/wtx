@@ -2,7 +2,8 @@ use core::marker::PhantomData;
 
 use crate::{
   http::{
-    server_framework::ReqMiddleware, ReqResData, Request, Session, SessionError, SessionInner,
+    server_framework::ReqMiddleware, ReqResBuffer, ReqResData, Request, Session, SessionError,
+    SessionInner,
   },
   misc::{Lease, Lock},
 };
@@ -12,36 +13,34 @@ use crate::{
 ///
 #[derive(Debug)]
 pub struct SessionEnforcer<L, SS, const N: usize> {
-  paths: [&'static str; N],
+  denied: [&'static str; N],
   phantom: PhantomData<(L, SS)>,
 }
 
 impl<L, SS, const N: usize> SessionEnforcer<L, SS, N> {
   /// Creates a new instance with paths that are not taken into consideration.
   #[inline]
-  pub fn new(paths: [&'static str; N]) -> Self {
-    Self { paths, phantom: PhantomData }
+  pub fn new(denied: [&'static str; N]) -> Self {
+    Self { denied, phantom: PhantomData }
   }
 }
 
-impl<CA, CS, E, L, RA, RRD, SS, const N: usize> ReqMiddleware<CA, E, RA, RRD>
-  for SessionEnforcer<L, SS, N>
+impl<CA, CS, E, L, RA, SS, const N: usize> ReqMiddleware<CA, E, RA> for SessionEnforcer<L, SS, N>
 where
   CA: Lease<Session<L, SS>>,
   E: From<crate::Error>,
   L: Lock<Resource = SessionInner<CS, E>>,
-  RRD: ReqResData,
 {
   #[inline]
   async fn apply_req_middleware(
     &self,
     ca: &mut CA,
     _: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<(), E> {
     let uri = req.rrd.uri();
     let path = uri.path();
-    if self.paths.iter().any(|elem| *elem == path) {
+    if self.denied.iter().all(|elem| *elem != path) {
       return Ok(());
     }
     if ca.lease().content.lock().await.state().is_none() {

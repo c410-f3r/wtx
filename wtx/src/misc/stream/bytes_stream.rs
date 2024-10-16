@@ -45,14 +45,14 @@ impl StreamReader for BytesStream {
 impl StreamWriter for BytesStream {
   #[inline]
   async fn write_all(&mut self, bytes: &[u8]) -> crate::Result<()> {
-    self.buffer.extend_from_slice(bytes)?;
+    self.buffer.extend_from_copyable_slice(bytes)?;
     Ok(())
   }
 
   #[inline]
   async fn write_all_vectored(&mut self, bytes: &[&[u8]]) -> crate::Result<()> {
     for elem in bytes {
-      self.buffer.extend_from_slice(elem)?;
+      self.buffer.extend_from_copyable_slice(elem)?;
     }
     Ok(())
   }

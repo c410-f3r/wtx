@@ -12,9 +12,9 @@ mod integration_tests;
 mod req_builder;
 
 use crate::{
-  http::{ConnParams, Method, ReqResBuffer, ReqResData, ReqUri, Request, Response},
-  http2::{Http2, Http2Buffer, Http2Data, Http2ErrorCode},
-  misc::{LeaseMut, Lock, RefCounter, StreamWriter},
+  http::{ConnParams, Method, ReqResBuffer, ReqUri, Request, Response},
+  http2::{Http2, Http2Buffer, Http2Data, Http2ErrorCode, Http2RecvStatus},
+  misc::{Lock, RefCounter, StreamWriter},
   pool::{Pool, ResourceManager, SimplePool, SimplePoolResource},
 };
 use core::marker::PhantomData;
@@ -41,10 +41,10 @@ pub struct ClientFrameworkRM<S> {
   _phantom: PhantomData<S>,
 }
 
-impl<HD, RL, RM, RRB, SW> ClientFramework<RL, RM>
+impl<HD, RL, RM, SW> ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<RRB>, RRB, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer<()>, (), SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -52,7 +52,6 @@ where
     RecycleAux = str,
     Resource = Http2<HD, true>,
   >,
-  RRB: LeaseMut<ReqResBuffer> + ReqResData,
   SW: StreamWriter,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
@@ -70,23 +69,23 @@ where
   pub async fn send(
     &self,
     method: Method,
-    rrb: RRB,
+    rrb: ReqResBuffer,
     req_uri: impl Into<ReqUri<'_>>,
-  ) -> crate::Result<Response<RRB>> {
+  ) -> crate::Result<Response<ReqResBuffer>> {
     let actual_req_uri = req_uri.into();
     let uri = match actual_req_uri {
-      ReqUri::Data => &rrb.lease().uri(),
+      ReqUri::Data => &rrb.uri.to_ref(),
       ReqUri::Param(elem) => elem,
     };
     let mut guard = self.pool.get(uri.as_str(), uri.as_str()).await?;
     let mut stream = guard.stream().await?;
-    if stream.send_req(Request::http2(method, rrb.lease()), actual_req_uri).await?.is_none() {
+    if stream.send_req(Request::http2(method, &rrb), actual_req_uri).await?.is_closed() {
       return Err(crate::Error::ClosedConnection);
     }
-    let (res_rrb, opt) = stream.recv_res(rrb).await?;
-    let status_code = match opt {
-      None => return Err(crate::Error::ClosedConnection),
-      Some(elem) => elem,
+    let (hrs, res_rrb) = stream.recv_res(rrb).await?;
+    let status_code = match hrs {
+      Http2RecvStatus::Ok(elem) => elem,
+      _ => return Err(crate::Error::ClosedConnection),
     };
     Ok(Response::http2(res_rrb, status_code))
   }
@@ -95,10 +94,7 @@ where
 #[cfg(feature = "tokio")]
 mod tokio {
   use crate::{
-    http::{
-      client_framework::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM},
-      ReqResBuffer,
-    },
+    http::client_framework::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM},
     http2::{Http2Buffer, Http2Tokio},
     misc::UriRef,
     pool::{ResourceManager, SimplePoolResource},
@@ -111,7 +107,7 @@ mod tokio {
   /// A [`ClientFramework`] using the elements of `tokio`.
   pub type ClientFrameworkTokio =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<TcpStream>>;
-  type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, OwnedWriteHalf, true>;
+  type Instance = Http2Tokio<Http2Buffer<()>, (), OwnedWriteHalf, true>;
 
   impl ClientFrameworkTokio {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
@@ -136,6 +132,7 @@ mod tokio {
       let uri = UriRef::new(aux);
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
+        (),
         self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
@@ -160,6 +157,7 @@ mod tokio {
       resource._swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         buffer,
+        (),
         self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
@@ -174,10 +172,7 @@ mod tokio {
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls {
   use crate::{
-    http::{
-      client_framework::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM},
-      ReqResBuffer,
-    },
+    http::client_framework::{ClientFramework, ClientFrameworkBuilder, ClientFrameworkRM},
     http2::{Http2Buffer, Http2Tokio},
     misc::{TokioRustlsConnector, UriRef},
     pool::{ResourceManager, SimplePoolResource},
@@ -188,7 +183,7 @@ mod tokio_rustls {
   /// A [`ClientFramework`] using the elements of `tokio-rustls`.
   pub type ClientFrameworkTokioRustls =
     ClientFramework<Mutex<SimplePoolResource<Instance>>, ClientFrameworkRM<Writer>>;
-  type Instance = Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, Writer, true>;
+  type Instance = Http2Tokio<Http2Buffer<()>, (), Writer, true>;
   type Writer = WriteHalf<TlsStream<TcpStream>>;
 
   impl ClientFrameworkTokioRustls {
@@ -214,6 +209,7 @@ mod tokio_rustls {
       let uri = UriRef::new(aux);
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
+        (),
         self._cp._to_hp(),
         tokio::io::split(
           TokioRustlsConnector::from_auto()?
@@ -246,6 +242,7 @@ mod tokio_rustls {
       resource._swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
+        (),
         self._cp._to_hp(),
         tokio::io::split(
           TokioRustlsConnector::from_auto()?
