@@ -4,7 +4,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn initial_window_len(mut self, elem: u32) -> Self {
-      self.cp.initial_window_len = elem;
+      self.cp._initial_window_len = elem;
       self
     }
 
@@ -12,7 +12,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_body_len(mut self, elem: u32) -> Self {
-      self.cp.max_body_len = elem;
+      self.cp._max_body_len = elem;
       self
     }
 
@@ -20,7 +20,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_concurrent_streams_num(mut self, elem: u32) -> Self {
-      self.cp.max_concurrent_streams_num = elem;
+      self.cp._max_concurrent_streams_num = elem;
       self
     }
 
@@ -28,7 +28,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_frame_len(mut self, elem: u32) -> Self {
-      self.cp.max_frame_len = elem;
+      self.cp._max_frame_len = elem;
       self
     }
 
@@ -44,7 +44,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_hpack_len(mut self, elem: (u32, u32)) -> Self {
-      self.cp.max_hpack_len = elem;
+      self.cp._max_hpack_len = elem;
       self
     }
 
@@ -52,7 +52,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_headers_len(mut self, elem: u32) -> Self {
-      self.cp.max_headers_len = elem;
+      self.cp._max_headers_len = elem;
       self
     }
 
@@ -62,7 +62,7 @@ macro_rules! _conn_params_methods {
     #[inline]
     #[must_use]
     pub fn max_recv_streams_num(mut self, elem: u32) -> Self {
-      self.cp.max_recv_streams_num = elem;
+      self.cp._max_recv_streams_num = elem;
       self
     }
   };
@@ -303,6 +303,43 @@ macro_rules! _max_frames_mismatches {
   () => {
     32
   };
+}
+
+macro_rules! _simd {
+  (
+    512 => $_512:expr,
+    256 => $_256:expr,
+    128 => $_128:expr,
+    _ => $fallback:expr $(,)?
+  ) => {{
+    #[cfg(target_feature = "avx512f")]
+    let rslt = $_512;
+
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+    let rslt = $_256;
+
+    #[cfg(all(
+      target_feature = "neon",
+      not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    let rslt = $_128;
+
+    #[cfg(all(
+      target_feature = "sse2",
+      not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
+    ))]
+    let rslt = $_128;
+
+    #[cfg(not(any(
+      target_feature = "avx2",
+      target_feature = "avx512f",
+      target_feature = "neon",
+      target_feature = "sse2"
+    )))]
+    let rslt = $fallback;
+
+    rslt
+  }};
 }
 
 macro_rules! _trace {

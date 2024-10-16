@@ -1,7 +1,7 @@
 use crate::{
   http::{
     server_framework::{ConnAux, ResMiddleware},
-    Header, KnownHeaderName, Method, ReqResDataMut, Response,
+    Header, KnownHeaderName, Method, ReqResBuffer, ReqResDataMut, Response,
   },
   misc::ArrayVector,
 };
@@ -116,17 +116,16 @@ impl ConnAux for CorsMiddleware {
   }
 }
 
-impl<CA, E, RA, RRD> ResMiddleware<CA, E, RA, RRD> for CorsMiddleware
+impl<CA, E, RA> ResMiddleware<CA, E, RA> for CorsMiddleware
 where
   E: From<crate::Error>,
-  RRD: ReqResDataMut,
 {
   #[inline]
   async fn apply_res_middleware(
     &self,
     _: &mut CA,
     _: &mut RA,
-    res: Response<&mut RRD>,
+    res: Response<&mut ReqResBuffer>,
   ) -> Result<(), E> {
     let Self {
       allow_credentials,

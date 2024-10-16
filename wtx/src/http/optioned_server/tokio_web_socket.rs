@@ -1,5 +1,5 @@
 use crate::{
-  http::LowLevelServer,
+  http::OptionedServer,
   misc::{FnFut, Stream, Vector, Xorshift64, _number_or_available_parallelism, simple_seed},
   pool::{SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer},
@@ -11,7 +11,7 @@ use tokio::{
   sync::MutexGuard,
 };
 
-impl LowLevelServer {
+impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
   pub async fn tokio_web_socket<ACPT, C, E, F, S, SF>(
@@ -62,7 +62,7 @@ impl LowLevelServer {
       let local_stream_cb = stream_cb.clone();
       let _jh = tokio::spawn(async move {
         let (fb, wsb) = &mut ***conn_buffer_guard;
-        let fun = || async move {
+        let fun = async move {
           let stream = local_stream_cb(local_acceptor, tcp_stream).await?;
           local_handle_cb
             .call((
@@ -79,7 +79,7 @@ impl LowLevelServer {
             .await?;
           Ok::<_, E>(())
         };
-        if let Err(err) = fun().await {
+        if let Err(err) = fun.await {
           local_conn_err(err);
         }
       });

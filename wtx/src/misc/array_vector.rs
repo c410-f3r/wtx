@@ -44,7 +44,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
     // SAFETY: The inner `data` as well as the provided `array` have the same layout in different
     // memory regions
     unsafe {
-      ptr::copy_nonoverlapping(array.as_ptr(), this.as_mut_ptr(), N);
+      ptr::copy_nonoverlapping(array.as_ptr(), this.as_ptr_mut(), N);
     }
     mem::forget(array);
     this
@@ -78,14 +78,14 @@ impl<T, const N: usize> ArrayVector<T, N> {
     // SAFETY: The inner `data` as well as the provided `data` have the same layout in different
     // memory regions
     unsafe {
-      ptr::copy_nonoverlapping(data.as_ptr(), this.as_mut_ptr(), actual_len_usize);
+      ptr::copy_nonoverlapping(data.as_ptr(), this.as_ptr_mut(), actual_len_usize);
     }
     if Self::NEEDS_DROP {
       let diff_opt = data.len().checked_sub(actual_len_usize);
       if let Some(diff @ 1..=usize::MAX) = diff_opt {
         // SAFETY: Indices are within bounds
         unsafe {
-          drop_elements(actual_len, diff, data.as_mut_ptr());
+          drop_elements(diff, actual_len, data.as_mut_ptr());
         }
       };
     }
@@ -183,19 +183,19 @@ impl<T, const N: usize> ArrayVector<T, N> {
     if Self::NEEDS_DROP {
       // SAFETY: Indices are within bounds
       unsafe {
-        drop_elements(new_len, *Usize::from(diff), self.as_mut_ptr());
+        drop_elements(*Usize::from(diff), new_len, self.as_ptr_mut());
       }
     }
   }
 
   #[inline]
-  fn as_mut_ptr(&mut self) -> *mut T {
-    self.data.as_mut_ptr().cast()
+  const fn as_ptr(&self) -> *const T {
+    self.data.as_ptr().cast()
   }
 
   #[inline]
-  const fn as_ptr(&self) -> *const T {
-    self.data.as_ptr().cast()
+  fn as_ptr_mut(&mut self) -> *mut T {
+    self.data.as_mut_ptr().cast()
   }
 
   #[inline]
@@ -275,7 +275,7 @@ where
       return Err(ArrayVectorError::ExtendFromSliceOverflow);
     };
     // SAFETY: The above check ensures bounds
-    let dst = unsafe { self.as_mut_ptr().add(Usize::from_u32(len).into_usize()) };
+    let dst = unsafe { self.as_ptr_mut().add(Usize::from_u32(len).into_usize()) };
     // SAFETY: Parameters are valid
     unsafe {
       ptr::copy_nonoverlapping(other.as_ptr(), dst, other_len_usize);
@@ -336,7 +336,7 @@ impl<T, const N: usize> DerefMut for ArrayVector<T, N> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     // SAFETY: `len` ensures initialized elements
-    unsafe { slice::from_raw_parts_mut(self.as_mut_ptr(), *Usize::from(self.len)) }
+    unsafe { slice::from_raw_parts_mut(self.as_ptr_mut(), *Usize::from(self.len)) }
   }
 }
 
@@ -529,7 +529,7 @@ impl<T, const N: usize> Drop for IntoIter<T, N> {
       if diff > 0 {
         // SAFETY: Indices are within bounds
         unsafe {
-          drop_elements(idx, *Usize::from(diff), self.data.as_mut_ptr());
+          drop_elements(*Usize::from(diff), idx, self.data.as_ptr_mut());
         }
       }
     }
@@ -560,9 +560,9 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
 }
 
 #[inline]
-unsafe fn drop_elements<T>(begin: u32, len: usize, ptr: *mut T) {
+unsafe fn drop_elements<T>(len: usize, offset: u32, ptr: *mut T) {
   // SAFETY: It is up to the caller to provide a valid pointer with a valid index
-  let data = unsafe { ptr.add(*Usize::from(begin)) };
+  let data = unsafe { ptr.add(*Usize::from(offset)) };
   // SAFETY: It is up to the caller to provide a valid length
   let elements = unsafe { slice::from_raw_parts_mut(data, len) };
   // SAFETY: It is up to the caller to provide parameters that can lead to droppable elements

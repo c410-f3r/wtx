@@ -1,7 +1,6 @@
 macro_rules! proptest {
   ($name:ident, $ty:ty) => {
-    #[cfg(feature = "_proptest")]
-    #[cfg(test)]
+    #[cfg(all(feature = "_proptest", test))]
     #[test_strategy::proptest]
     fn $name(instance: $ty) {
       let mut vec = &mut crate::misc::FilledBuffer::_new();

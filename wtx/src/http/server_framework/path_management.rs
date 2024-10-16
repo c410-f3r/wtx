@@ -1,11 +1,11 @@
 use crate::{
-  http::{Request, StatusCode},
+  http::{ReqResBuffer, Request, StatusCode},
   misc::{ArrayVector, Vector},
 };
 use core::future::Future;
 
 /// Used by all structures that somehow interact with incoming requests.
-pub trait PathManagement<CA, E, RA, RRD>
+pub trait PathManagement<CA, E, RA>
 where
   E: From<crate::Error>,
 {
@@ -18,7 +18,7 @@ where
     ca: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
     ra: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> impl Future<Output = Result<StatusCode, E>>;
 
   /// Used internally to fill `vec` with the indices of all nested routes.
@@ -39,10 +39,10 @@ where
   ) -> crate::Result<()>;
 }
 
-impl<CA, E, RA, RRD, T> PathManagement<CA, E, RA, RRD> for &T
+impl<CA, E, RA, T> PathManagement<CA, E, RA> for &T
 where
   E: From<crate::Error>,
-  T: PathManagement<CA, E, RA, RRD>,
+  T: PathManagement<CA, E, RA>,
 {
   const IS_ROUTER: bool = T::IS_ROUTER;
 
@@ -52,7 +52,7 @@ where
     ca: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
     ra: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<StatusCode, E> {
     (*self).manage_path(ca, path_defs, ra, req).await
   }

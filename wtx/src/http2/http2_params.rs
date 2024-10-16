@@ -23,8 +23,8 @@ pub struct Http2Params {
 impl Http2Params {
   /// Enable connect protocol
   ///
-  /// Allows the execution of other protocols like WebSockets within HTTP/2 connections. At the
-  /// current time this parameter has no effect.
+  /// Servers only. Allows the execution of other protocols like WebSockets within HTTP/2
+  /// connections.
   ///
   /// Corresponds to `SETTINGS_ENABLE_CONNECT_PROTOCOL`. Defaults to `false`.
   #[inline]
@@ -136,6 +136,14 @@ impl Http2Params {
   #[inline]
   pub const fn read_buffer_len(&self) -> u32 {
     self.read_buffer_len
+  }
+
+  /// Mutable version of [`Self::enable_connect_protocol`].
+  #[inline]
+  #[must_use]
+  pub fn set_enable_connect_protocol(mut self, value: bool) -> Self {
+    self.enable_connect_protocol = value;
+    self
   }
 
   /// Mutable version of [`Self::initial_window_len`].

@@ -47,7 +47,7 @@ impl HpackDecoder {
     mut cb: impl FnMut((HpackHeaderBasic, &[u8], &[u8])) -> crate::Result<()>,
   ) -> crate::Result<()> {
     if let Some(elem) = self.max_bytes.1.take() {
-      self.dyn_headers.set_max_bytes(*Usize::from(elem), |_, _| {});
+      self.dyn_headers.set_max_bytes(*Usize::from(elem), |_| {});
       self.max_bytes.0 = elem;
     }
     let mut did_update = false;
@@ -71,6 +71,11 @@ impl HpackDecoder {
       })?;
     }
     Ok(())
+  }
+
+  #[inline]
+  pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
+    self.dyn_headers.reserve(headers, bytes)
   }
 
   // It is not possible to lower the initial set value
@@ -159,7 +164,7 @@ impl HpackDecoder {
       (hhb, name, value)
     };
     if STORE {
-      self.dyn_headers.push_front(hhb, name, [value].into_iter(), false, |_, _| {})?;
+      self.dyn_headers.push_front(hhb, name, [value].into_iter(), false, |_| {})?;
     }
     Ok(())
   }
@@ -370,7 +375,7 @@ impl HpackDecoder {
             Some(Http2Error::OutOfBoundsIndex),
           ));
         }
-        self.dyn_headers.set_max_bytes(*Usize::from(local_max_bytes), |_, _| {});
+        self.dyn_headers.set_max_bytes(*Usize::from(local_max_bytes), |_| {});
       }
     }
     Ok(())

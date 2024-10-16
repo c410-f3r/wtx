@@ -8,12 +8,22 @@ required-features = ["wtx/flate2", "wtx/web-socket-handshake"]
 [[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
-required-features = ["wtx/flate2", "wtx/pool", "wtx/web-socket-handshake"]
+required-features = ["wtx/flate2", "wtx/nightly", "wtx/pool", "wtx/web-socket-handshake"]
 
 [[bin]]
-name = "h2spec-server"
-path = "src/bin/h2spec-server.rs"
-required-features = ["wtx/http2"]
+name = "h2load"
+path = "src/bin/h2load.rs"
+required-features = ["wtx/http2", "wtx/nightly"]
+
+[[bin]]
+name = "h2spec-high-server"
+path = "src/bin/h2spec-high-server.rs"
+required-features = ["wtx/http2", "wtx/nightly"]
+
+[[bin]]
+name = "h2spec-low-server"
+path = "src/bin/h2spec-low-server.rs"
+required-features = ["wtx/http2", "wtx/nightly"]
 
 # Database Examples
 
@@ -117,7 +127,6 @@ wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
 
 [features]
-_tracing-tree = ["wtx/_tracing-tree"]
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
 postgres = ["wtx/postgres"]
 

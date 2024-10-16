@@ -131,7 +131,7 @@ where
     <Self as Transport<DRSR>>::send(self, pkg, pkgs_aux).await?;
     let response = self.pop_response()?;
     pkgs_aux.byte_buffer.clear();
-    pkgs_aux.byte_buffer.extend_from_slice(response.lease()).map_err(Into::into)?;
+    pkgs_aux.byte_buffer.extend_from_copyable_slice(response.lease()).map_err(Into::into)?;
     Ok(0..pkgs_aux.byte_buffer.len())
   }
 }

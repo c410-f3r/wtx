@@ -18,6 +18,7 @@ async fn main() -> wtx::Result<()> {
   let uri = Uri::new("http://www.example.com");
   let (frame_reader, mut http2) = Http2Tokio::connect(
     Http2Buffer::new(Xorshift64::from(simple_seed())),
+    (),
     Http2Params::default(),
     TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
   )
@@ -26,9 +27,8 @@ async fn main() -> wtx::Result<()> {
   let rrb = ReqResBuffer::empty();
   let mut stream = http2.stream().await?;
   stream.send_req(Request::http2(Method::Get, b"Hello!"), &uri.to_ref()).await?;
-  let (res_rrb, opt) = stream.recv_res(rrb).await?;
-  let _status_code = opt.unwrap();
-  println!("{}", from_utf8_basic(&res_rrb.data)?);
+  let (_, res_rrb) = stream.recv_res(rrb).await?;
+  println!("{}", from_utf8_basic(&res_rrb.body)?);
   http2.send_go_away(Http2ErrorCode::NoError).await;
   Ok(())
 }

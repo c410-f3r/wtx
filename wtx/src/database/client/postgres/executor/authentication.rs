@@ -166,7 +166,8 @@ where
       (
         {
           let mut vec = Vector::with_capacity(64)?;
-          let _ = vec.extend_from_slices([&b"n=,r="[..], &local_nonce, &b","[..], payload])?;
+          let _ =
+            vec.extend_from_copyable_slices([&b"n=,r="[..], &local_nonce, &b","[..], payload])?;
           vec
         },
         ArrayVector::<u8, 68>::from_copyable_slice(nonce)?,

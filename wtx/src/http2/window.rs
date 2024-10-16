@@ -118,7 +118,7 @@ impl<'any> WindowsPair<'any> {
     self.stream.send.available()
   }
 
-  /// withdrawn - Receive
+  /// Withdrawn - Receive
   ///
   /// Controls window sizes received from external sources. Invalid or negative values trigger a
   /// frame dispatch to return to the default window size.

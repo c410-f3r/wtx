@@ -268,7 +268,7 @@ where
     }
     let mut compressed_fb = FrameBufferMut::new(
       pfb
-        ._following_trail_mut()
+        ._following_rest_mut()
         .get_mut(len..len_with_header.wrapping_add(payload_len))
         .unwrap_or_default(),
     );
@@ -345,7 +345,7 @@ where
       let curr_end_idx_4p = curr_end_idx.wrapping_add(4);
       let has_following = local_pb._has_following();
       let range = rfi.header_end_idx..curr_end_idx_4p;
-      let input = local_pb._current_trail_mut().get_mut(range).unwrap_or_default();
+      let input = local_pb._current_rest_mut().get_mut(range).unwrap_or_default();
       let original = if let [.., a, b, c, d] = input {
         let original = [*a, *b, *c, *d];
         *a = 0;
@@ -585,7 +585,7 @@ where
     read: &mut usize,
     stream: &mut S,
   ) -> crate::Result<ReadFrameInfo> {
-    let buffer = pb._following_trail_mut();
+    let buffer = pb._following_rest_mut();
 
     let first_two = _read_until::<2, S>(buffer, read, 0, stream).await?;
 
@@ -660,7 +660,7 @@ where
         break;
       }
       *read = read.wrapping_add(
-        stream.read(pb._following_trail_mut().get_mut(*read..).unwrap_or_default()).await?,
+        stream.read(pb._following_rest_mut().get_mut(*read..).unwrap_or_default()).await?,
       );
     }
     if !is_payload_filled {

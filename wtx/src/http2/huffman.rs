@@ -166,8 +166,7 @@ mod bench {
   }
 }
 
-#[cfg(feature = "_proptest")]
-#[cfg(test)]
+#[cfg(all(feature = "_proptest", test))]
 mod proptest {
   use crate::{
     http::_HeaderValueBuffer,

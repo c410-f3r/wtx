@@ -13,8 +13,7 @@ pub use simple_pool::*;
 
 /// Manages HTTP/2 resources for clients and servers.
 #[cfg(feature = "http2")]
-pub type Http2BufferRM<RRB> =
-  SimpleRM<fn() -> Result<crate::http2::Http2Buffer<RRB>, crate::Error>>;
+pub type Http2BufferRM<HE> = SimpleRM<fn() -> Result<crate::http2::Http2Buffer<HE>, crate::Error>>;
 /// Manages resources for HTTP2 requests and responses.
 #[cfg(feature = "http2")]
 pub type StreamBufferRM = SimpleRM<fn() -> Result<crate::http::ReqResBuffer, crate::Error>>;

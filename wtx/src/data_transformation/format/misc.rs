@@ -36,10 +36,10 @@ mod serde_json {
         A: SeqAccess<'de>,
       {
         if let Some(elem) = seq.size_hint() {
-          self.0.reserve(elem).map_err(|err| A::Error::custom(err))?;
+          self.0.reserve(elem).map_err(A::Error::custom)?;
         }
         while let Some(elem) = seq.next_element()? {
-          self.0.push(elem).map_err(|err| A::Error::custom(err))?;
+          self.0.push(elem).map_err(A::Error::custom)?;
         }
         Ok(())
       }

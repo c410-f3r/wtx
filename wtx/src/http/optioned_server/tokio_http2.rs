@@ -1,21 +1,23 @@
 use crate::{
-  http::{low_level_server::LowLevelServer, ReqResBuffer, Request, Response},
-  http2::{Http2ErrorCode, Http2Params, Http2Tokio},
+  http::{optioned_server::OptionedServer, ReqResBuffer, Request, Response},
+  http2::{Http2Buffer, Http2ErrorCode, Http2Hook, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},
 };
 use core::future::Future;
 use tokio::net::{TcpListener, TcpStream};
 
-type Http2Buffer = crate::http2::Http2Buffer<ReqResBuffer>;
-
-impl LowLevelServer {
+impl OptionedServer {
   /// Optioned HTTP/2 server using tokio.
   #[inline]
-  pub async fn tokio_http2<ACPT, CA, E, F, RA, SR, SF, SW>(
+  pub async fn tokio_high_http2<ACPT, CA, E, F, HO, RA, SR, SF, SW>(
     addr: &str,
-    conn_cb: impl Clone + Fn() -> crate::Result<(CA, Http2Buffer, Http2Params)> + Send + 'static,
+    conn_cb: impl Clone
+      + Fn() -> crate::Result<(CA, Http2Buffer<HO::Element>, Http2Params)>
+      + Send
+      + 'static,
     err_cb: impl Clone + Fn(E) + Send + 'static,
     handle_cb: F,
+    hook_cb: impl Clone + Fn() -> crate::Result<HO> + Send + 'static,
     req_cb: impl Clone + Fn() -> crate::Result<(RA, ReqResBuffer)> + Send + 'static,
     (acceptor_cb, local_acceptor_cb, stream_cb): (
       impl FnOnce() -> crate::Result<ACPT> + Send + 'static,
@@ -32,6 +34,8 @@ impl LowLevelServer {
       + Send
       + 'static,
     F::Future: Send,
+    HO: Http2Hook<false> + Send + 'static,
+    HO::Element: Send + 'static,
     RA: Send + 'static,
     SF: Send + Future<Output = crate::Result<(SR, SW)>>,
     SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + Unpin + 'static,
@@ -46,6 +50,7 @@ impl LowLevelServer {
       let local_conn_cb = conn_cb.clone();
       let local_err_cb = err_cb.clone();
       let local_handle_cb = handle_cb.clone();
+      let local_hook_cb = hook_cb.clone();
       let local_req_cb = req_cb.clone();
       let local_stream_cb = stream_cb.clone();
       let _conn_jh = tokio::spawn(async move {
@@ -56,6 +61,7 @@ impl LowLevelServer {
           local_conn_cb,
           local_err_cb,
           local_handle_cb,
+          local_hook_cb,
           local_req_cb,
           local_stream_cb,
         );
@@ -67,12 +73,16 @@ impl LowLevelServer {
   }
 }
 
-async fn manage_conn<ACPT, CA, E, F, RA, SR, SF, SW>(
+async fn manage_conn<ACPT, CA, E, F, HO, RA, SR, SF, SW>(
   local_acceptor: ACPT,
   tcp_stream: TcpStream,
-  conn_cb: impl Clone + Fn() -> crate::Result<(CA, Http2Buffer, Http2Params)> + Send + 'static,
+  conn_cb: impl Clone
+    + Fn() -> crate::Result<(CA, Http2Buffer<HO::Element>, Http2Params)>
+    + Send
+    + 'static,
   err_cb: impl Clone + Fn(E) + Send + 'static,
   handle_cb: F,
+  hook_cb: impl Clone + Fn() -> crate::Result<HO> + Send + 'static,
   req_cb: impl Clone + Fn() -> crate::Result<(RA, ReqResBuffer)> + Send + 'static,
   stream_cb: impl Clone + Fn(ACPT, TcpStream) -> SF + Send + 'static,
 ) -> crate::Result<()>
@@ -84,6 +94,8 @@ where
     + Send
     + 'static,
   F::Future: Send,
+  HO: Http2Hook<false> + Send + 'static,
+  HO::Element: Send + 'static,
   RA: Send + 'static,
   SF: Send + Future<Output = crate::Result<(SR, SW)>>,
   SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + Unpin + 'static,
@@ -92,11 +104,12 @@ where
 {
   let (ca, http2_buffer, http2_params) = conn_cb()?;
   let tuple = stream_cb(local_acceptor, tcp_stream).await?;
-  let (frame_reader, mut http2) = Http2Tokio::accept(http2_buffer, http2_params, tuple).await?;
+  let tuple = Http2Tokio::accept(http2_buffer, hook_cb()?, http2_params, tuple).await?;
+  let (frame_reader, mut http2) = tuple;
   let _jh = tokio::spawn(frame_reader);
   loop {
     let (ra, rrb) = req_cb()?;
-    let mut http2_stream = match http2.stream(rrb).await? {
+    let (mut http2_stream, _) = match http2.stream(rrb, |_| {}).await? {
       Either::Left(_) => return Ok(()),
       Either::Right(elem) => elem,
     };
@@ -104,20 +117,19 @@ where
     let local_handle_cb = handle_cb.clone();
     let local_err_cb = err_cb.clone();
     let _stream_jh = tokio::spawn(async move {
-      let fun = || async {
-        let (local_rrb, opt) = http2_stream.recv_req().await?;
-        let method = match opt {
-          None => return Ok(()),
-          Some(elem) => elem,
-        };
-        let req = local_rrb.into_http2_request(method);
+      let fun = async {
+        let (hrs, local_rrb) = http2_stream.recv_req().await?;
+        if hrs.is_closed() {
+          return Ok(());
+        }
+        let req = local_rrb.into_http2_request(http2_stream.method());
         let res = local_handle_cb.call((local_ca, ra, req)).await?;
-        if http2_stream.send_res(res).await?.is_none() {
+        if http2_stream.send_res(res).await?.is_closed() {
           return Ok(());
         }
         Ok::<_, E>(())
       };
-      if let Err(err) = fun().await {
+      if let Err(err) = fun.await {
         http2_stream.send_go_away(Http2ErrorCode::InternalError).await;
         local_err_cb(err);
       }

@@ -1,23 +1,25 @@
 use crate::{
   grpc::GrpcManager,
-  http::{server_framework::ResMiddleware, Header, KnownHeaderName, Mime, ReqResDataMut, Response},
+  http::{
+    server_framework::ResMiddleware, Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut,
+    Response,
+  },
 };
 
 /// Applies gRPC headers
 #[derive(Debug)]
 pub struct GrpcResMiddleware;
 
-impl<CA, DRSR, E, RRD> ResMiddleware<CA, E, GrpcManager<DRSR>, RRD> for GrpcResMiddleware
+impl<CA, DRSR, E> ResMiddleware<CA, E, GrpcManager<DRSR>> for GrpcResMiddleware
 where
   E: From<crate::Error>,
-  RRD: ReqResDataMut,
 {
   #[inline]
   async fn apply_res_middleware(
     &self,
     _: &mut CA,
     ra: &mut GrpcManager<DRSR>,
-    res: Response<&mut RRD>,
+    res: Response<&mut ReqResBuffer>,
   ) -> Result<(), E> {
     res.rrd.headers_mut().push_from_iter_many([
       Header::from_name_and_value(

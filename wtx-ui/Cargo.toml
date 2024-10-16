@@ -15,6 +15,8 @@ schema-manager-dev = ["dotenv", "schema-manager", "wtx/_tracing-tree", "wtx/sche
 unified = []
 web-socket = ["clap", "wtx/web-socket-handshake"]
 
+_curl = []
+
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
 categories = ["asynchronous", "command-line-interface", "gui"]

@@ -21,7 +21,7 @@ impl FilledBuffer {
     let mut data = Vector::with_capacity(cap)?;
     // SAFETY: memory have been allocated
     unsafe {
-      slice::from_raw_parts_mut(data.as_mut_ptr(), data.capacity()).fill(0);
+      slice::from_raw_parts_mut(data.as_ptr_mut(), data.capacity()).fill(0);
     }
     Ok(Self { data })
   }
@@ -40,7 +40,7 @@ impl FilledBuffer {
     // SAFETY: allocated elements are always initialized
     unsafe {
       let len = self.data.capacity();
-      slice::from_raw_parts_mut(self.data.as_mut_ptr(), len)
+      slice::from_raw_parts_mut(self.data.as_ptr_mut(), len)
     }
   }
 
@@ -75,7 +75,7 @@ impl FilledBuffer {
     I::IntoIter: Clone,
   {
     let prev_cap = self.data.capacity();
-    let len = self.data.extend_from_slices(others)?;
+    let len = self.data.extend_from_copyable_slices(others)?;
     // SAFETY: memory have been allocated
     unsafe {
       self._fill_remaining_capacity(prev_cap);
@@ -118,7 +118,7 @@ impl FilledBuffer {
       return;
     };
     // SAFETY: caller must ensure `prev_cap` elements
-    let ptr = unsafe { self.data.as_mut_ptr().add(count) };
+    let ptr = unsafe { self.data.as_ptr_mut().add(count) };
     // SAFETY: caller must ensure allocated memory
     unsafe {
       slice::from_raw_parts_mut(ptr, diff).fill(0);
@@ -138,7 +138,7 @@ impl Deref for FilledBuffer {
 impl DerefMut for FilledBuffer {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
-    self.data.as_mut_slice()
+    self.data.as_slice_mut()
   }
 }
 
@@ -155,8 +155,7 @@ impl std::io::Write for FilledBuffer {
   }
 }
 
-#[cfg(feature = "_proptest")]
-#[cfg(test)]
+#[cfg(all(feature = "_proptest", test))]
 mod proptest {
   use crate::misc::FilledBuffer;
 

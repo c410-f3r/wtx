@@ -55,7 +55,7 @@ pub(crate) async fn serve(
   loop {
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
-      let sun = || async move {
+      let fun = async move {
         let mut ws = WebSocketServer::accept(
           (),
           Xorshift64::from(simple_seed()),
@@ -76,7 +76,7 @@ pub(crate) async fn serve(
         }
         wtx::Result::Ok(())
       };
-      if let Err(err) = sun().await {
+      if let Err(err) = fun.await {
         error(err);
       }
     });

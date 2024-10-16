@@ -5,8 +5,9 @@ use core::{
 
 const VTABLE: RawWakerVTable = RawWakerVTable::new(noop_clone, noop, noop, noop);
 
-// FIXME(STABLE): noop_waker
 /// A waker that does nothing.
+//
+// FIXME(STABLE): noop_waker
 pub static NOOP_WAKER: Waker = {
   let raw = RawWaker::new(ptr::null(), &VTABLE);
   // SAFETY: Contract is upheld

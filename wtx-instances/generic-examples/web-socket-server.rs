@@ -8,14 +8,14 @@ extern crate wtx_instances;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
-  http::LowLevelServer,
+  http::OptionedServer,
   misc::{TokioRustlsAcceptor, Xorshift64},
   web_socket::{FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServer},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  LowLevelServer::tokio_web_socket(
+  OptionedServer::tokio_web_socket(
     &wtx_instances::host_from_args(),
     None,
     || {},

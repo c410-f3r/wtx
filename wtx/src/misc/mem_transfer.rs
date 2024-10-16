@@ -1,4 +1,4 @@
-use core::{ops::Range, ptr};
+use core::{mem::needs_drop, ops::Range, ptr, slice};
 
 /// Transfers sequential `iter` chunks delimited by indices to a region starting at `begin`.
 ///
@@ -33,7 +33,7 @@ where
     return &mut [];
   }
   for Range { start, end } in iter {
-    let Some((diff, local_new_len)) = end.checked_sub(start).and_then(|diff| {
+    let Some((diff @ 1..usize::MAX, local_new_len)) = end.checked_sub(start).and_then(|diff| {
       let local_new_len = new_len.checked_add(diff)?;
       if local_new_len > slice.len() {
         return None;
@@ -48,6 +48,14 @@ where
     let src = unsafe { ptr.add(start) };
     // SAFETY: top-level check enforces bounds
     let dst = unsafe { ptr.add(new_len) };
+    if const { needs_drop::<T>() } {
+      // SAFETY: loop-level check enforces a valid `diff`
+      let dst_slice = unsafe { slice::from_raw_parts_mut(dst, diff) };
+      // SAFETY: `dst_slice` is initialized
+      unsafe {
+        ptr::drop_in_place(dst_slice);
+      }
+    }
     // SAFETY: loop-level check enforces a valid `diff`
     unsafe {
       ptr::copy(src, dst, diff);
@@ -58,8 +66,7 @@ where
   unsafe { slice.get_unchecked_mut(..new_len) }
 }
 
-#[cfg(feature = "_proptest")]
-#[cfg(test)]
+#[cfg(all(feature = "_proptest", test))]
 mod proptest {
   use crate::misc::{Vector, _shift_copyable_chunks};
   use core::ops::Range;

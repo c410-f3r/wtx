@@ -1,6 +1,6 @@
 use crate::{
   http::{Headers, Method, ReqResData, ReqResDataMut, Request, Response, StatusCode, Version},
-  misc::{Lease, LeaseMut, UriRef, UriString, Vector},
+  misc::{Lease, LeaseMut, UriString, Vector},
 };
 use alloc::string::String;
 
@@ -8,7 +8,7 @@ use alloc::string::String;
 #[derive(Debug)]
 pub struct ReqResBuffer {
   /// See [`Vector`].
-  pub data: Vector<u8>,
+  pub body: Vector<u8>,
   /// See [`Headers`].
   pub headers: Headers,
   /// See [`UriString`].
@@ -25,7 +25,7 @@ impl ReqResBuffer {
   /// Constructor shortcut
   #[inline]
   pub const fn new(data: Vector<u8>, headers: Headers, uri: UriString) -> Self {
-    Self { data, headers, uri }
+    Self { body: data, headers, uri }
   }
 
   /// Shortcut to create a HTTP/2 [Request].
@@ -57,7 +57,7 @@ impl ReqResBuffer {
   /// The internal vector as well as the internal headers are returned in a valid state.
   #[inline]
   pub fn clear(&mut self) {
-    let Self { data, headers, uri } = self;
+    let Self { body: data, headers, uri } = self;
     data.clear();
     headers.clear();
     uri.clear();
@@ -74,6 +74,12 @@ impl ReqResBuffer {
   pub fn into_http2_response(self, status_code: StatusCode) -> Response<Self> {
     Response { rrd: self, status_code, version: Version::Http2 }
   }
+
+  /// Mutable parts
+  #[inline]
+  pub fn parts_mut(&mut self) -> (&mut Vector<u8>, &mut Headers, &mut UriString) {
+    (&mut self.body, &mut self.headers, &mut self.uri)
+  }
 }
 
 impl ReqResData for ReqResBuffer {
@@ -81,7 +87,7 @@ impl ReqResData for ReqResBuffer {
 
   #[inline]
   fn body(&self) -> &Self::Body {
-    &self.data
+    &self.body
   }
 
   #[inline]
@@ -90,20 +96,20 @@ impl ReqResData for ReqResBuffer {
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    self.uri.to_ref()
+  fn uri(&self) -> &UriString {
+    &self.uri
   }
 }
 
 impl ReqResDataMut for ReqResBuffer {
   #[inline]
   fn body_mut(&mut self) -> &mut Self::Body {
-    &mut self.data
+    &mut self.body
   }
 
   #[inline]
   fn clear(&mut self) {
-    self.data.clear();
+    self.body.clear();
     self.headers.clear();
   }
 
@@ -113,15 +119,15 @@ impl ReqResDataMut for ReqResBuffer {
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
-    (&mut self.data, &mut self.headers, self.uri.to_ref())
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
+    (&mut self.body, &mut self.headers, &self.uri)
   }
 }
 
 impl Lease<[u8]> for ReqResBuffer {
   #[inline]
   fn lease(&self) -> &[u8] {
-    &self.data
+    &self.body
   }
 }
 
@@ -139,11 +145,25 @@ impl LeaseMut<ReqResBuffer> for ReqResBuffer {
   }
 }
 
+impl Default for ReqResBuffer {
+  #[inline]
+  fn default() -> Self {
+    Self::empty()
+  }
+}
+
+impl From<Vector<u8>> for ReqResBuffer {
+  #[inline]
+  fn from(from: Vector<u8>) -> Self {
+    Self { body: from, headers: Headers::new(), uri: UriString::_empty(String::new()) }
+  }
+}
+
 #[cfg(feature = "std")]
 impl core::fmt::Write for ReqResBuffer {
   #[inline]
   fn write_str(&mut self, s: &str) -> core::fmt::Result {
-    self.data.extend_from_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)
+    self.body.extend_from_copyable_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)
   }
 }
 
@@ -151,11 +171,11 @@ impl core::fmt::Write for ReqResBuffer {
 impl std::io::Write for ReqResBuffer {
   #[inline]
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-    self.data.write(buf)
+    self.body.write(buf)
   }
 
   #[inline]
   fn flush(&mut self) -> std::io::Result<()> {
-    self.data.flush()
+    self.body.flush()
   }
 }
