@@ -10,7 +10,7 @@ mkdir -p .scripts/autobahn/reports/fuzzingserver
 podman run \
 	-d \
 	-p 9080:9080 \
-	-v .scripts/autobahn/fuzzingserver-min.json:/fuzzingserver.json:ro \
+	-v .scripts/autobahn/fuzzingserver.json:/fuzzingserver.json:ro \
 	-v .scripts/autobahn:/autobahn \
 	--name fuzzingserver \
 	--net=host \

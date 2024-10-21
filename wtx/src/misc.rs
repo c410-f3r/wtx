@@ -251,7 +251,7 @@ pub(crate) fn _number_or_available_parallelism(n: Option<usize>) -> crate::Resul
 #[cfg(feature = "foldhash")]
 pub(crate) fn _random_state(mut rng: impl Rng) -> foldhash::fast::FixedState {
   let [a, b, c, d, e, f, g, h] = rng.u8_8();
-  foldhash::fast::FixedState::with_seed(u64::from_le_bytes([a, b, c, d, e, f, g, h]))
+  foldhash::fast::FixedState::with_seed(u64::from_ne_bytes([a, b, c, d, e, f, g, h]))
 }
 
 pub(crate) async fn _read_until<const LEN: usize, SR>(

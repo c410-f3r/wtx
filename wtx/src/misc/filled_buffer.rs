@@ -12,6 +12,16 @@ pub(crate) struct FilledBuffer {
 
 impl FilledBuffer {
   #[inline]
+  pub(crate) fn _from_vector(vector: Vector<u8>) -> Self {
+    let mut this = Self { data: vector };
+    // SAFETY: Zero input is always safe.
+    unsafe {
+      this._fill_remaining_capacity(0);
+    }
+    this
+  }
+
+  #[inline]
   pub(crate) const fn _new() -> Self {
     Self { data: Vector::new() }
   }
@@ -69,6 +79,12 @@ impl FilledBuffer {
   }
 
   #[inline]
+  pub(crate) fn _extend_from_slice(&mut self, other: &[u8]) -> Result<(), VectorError> {
+    let _ = self._extend_from_slices([other])?;
+    Ok(())
+  }
+
+  #[inline]
   pub(crate) fn _extend_from_slices<'iter, I>(&mut self, others: I) -> Result<usize, VectorError>
   where
     I: IntoIterator<Item = &'iter [u8]>,
@@ -81,11 +97,6 @@ impl FilledBuffer {
       self._fill_remaining_capacity(prev_cap);
     }
     Ok(len)
-  }
-
-  #[inline]
-  pub(crate) fn _len(&self) -> usize {
-    self.data.len()
   }
 
   #[inline(always)]
@@ -139,6 +150,25 @@ impl DerefMut for FilledBuffer {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.data.as_slice_mut()
+  }
+}
+
+impl From<FilledBuffer> for Vector<u8> {
+  #[inline]
+  fn from(from: FilledBuffer) -> Self {
+    from.data
+  }
+}
+
+impl From<Vector<u8>> for FilledBuffer {
+  #[inline]
+  fn from(from: Vector<u8>) -> Self {
+    let mut this = Self { data: from };
+    // SAFETY: Zero input is always safe.
+    unsafe {
+      this._fill_remaining_capacity(0);
+    }
+    this
   }
 }
 

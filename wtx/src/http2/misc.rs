@@ -217,7 +217,7 @@ where
       };
       _trace!("Received frame: {fi:?}");
       let mut is_fulfilled = false;
-      pfb._expand_buffer(*Usize::from(data_len))?;
+      pfb._reserve(*Usize::from(data_len))?;
       for _ in 0..=data_len {
         if read >= frame_len {
           is_fulfilled = true;

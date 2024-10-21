@@ -1,10 +1,10 @@
 /// The state of a connection between two parties.
 #[derive(Clone, Copy, Debug)]
 pub enum ConnectionState {
-  /// Is locally open. Does not necessary means that both parties are in the same state.
-  Open,
   /// Is locally closed. Does not necessary means that both parties are in the same state.
   Closed,
+  /// Is locally open. Does not necessary means that both parties are in the same state.
+  Open,
 }
 
 impl ConnectionState {
@@ -28,6 +28,16 @@ impl From<bool> for ConnectionState {
       Self::Open
     } else {
       Self::Closed
+    }
+  }
+}
+
+impl From<ConnectionState> for bool {
+  #[inline]
+  fn from(from: ConnectionState) -> Self {
+    match from {
+      ConnectionState::Closed => false,
+      ConnectionState::Open => true,
     }
   }
 }

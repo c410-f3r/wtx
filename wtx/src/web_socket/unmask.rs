@@ -56,12 +56,12 @@ fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4], shift: usize) {
 
 #[cfg(all(feature = "_bench", test))]
 mod bench {
-  use crate::{bench::_data, web_socket::unmask};
+  use crate::bench::_data;
 
   #[bench]
-  fn bench_unmask(b: &mut test::Bencher) {
+  fn unmask(b: &mut test::Bencher) {
     let mut data = _data(1024 * 1024 * 8);
-    b.iter(|| unmask(&mut data, [3, 5, 7, 11]));
+    b.iter(|| crate::web_socket::unmask::unmask(&mut data, [3, 5, 7, 11]));
   }
 }
 
@@ -72,7 +72,7 @@ mod proptest {
   #[test_strategy::proptest]
   fn unmask(mut payload: Vector<u8>, mask: [u8; 4]) {
     payload.fill(0);
-    crate::web_socket::unmask(&mut payload, mask);
+    crate::web_socket::unmask::unmask(&mut payload, mask);
     let expected = Vector::from_iter((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();
     assert_eq!(payload, expected);
   }

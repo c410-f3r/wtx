@@ -188,7 +188,7 @@ where
     hb.hpack_dec.reserve(4, 256)?;
     hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
     hb.hpack_enc.reserve(4, 256)?;
-    hb.pfb._expand_buffer(*Usize::from(hp.read_buffer_len()))?;
+    hb.pfb._reserve(*Usize::from(hp.read_buffer_len()))?;
     Ok((
       Arc::clone(&hb.is_conn_open),
       hp.max_frame_len(),

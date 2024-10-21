@@ -10,7 +10,7 @@ use tokio_rustls::server::TlsStream;
 use wtx::{
   http::OptionedServer,
   misc::{TokioRustlsAcceptor, Xorshift64},
-  web_socket::{FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServer},
+  web_socket::{OpCode, WebSocketBuffer, WebSocketServer},
 };
 
 #[tokio::main]
@@ -34,14 +34,14 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn handle(
-  fb: &mut FrameBufferVec,
   mut ws: WebSocketServer<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer>,
 ) -> wtx::Result<()> {
+  let (mut common, mut reader, mut writer) = ws.parts();
   loop {
-    let mut frame = ws.read_frame(fb).await?;
+    let mut frame = reader.read_frame(&mut common).await?;
     match frame.op_code() {
       OpCode::Binary | OpCode::Text => {
-        ws.write_frame(&mut frame).await?;
+        writer.write_frame(&mut common, &mut frame).await?;
       }
       OpCode::Close => break,
       _ => {}

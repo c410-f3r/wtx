@@ -4,14 +4,11 @@ use tokio::{
 };
 use wtx::{
   misc::{simple_seed, UriRef, Xorshift64},
-  web_socket::{
-    FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketClient, WebSocketServer,
-  },
+  web_socket::{Frame, OpCode, WebSocketBuffer, WebSocketClient, WebSocketServer},
 };
 
 pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
-  let fb = &mut FrameBufferVec::default();
   let wsb = &mut WebSocketBuffer::default();
   let mut ws = WebSocketClient::connect(
     (),
@@ -23,11 +20,11 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
     |_| wtx::Result::Ok(()),
   )
   .await?;
-  let mut buffer = String::new();
+  let mut buffer = Vec::new();
   let mut reader = BufReader::new(tokio::io::stdin());
   loop {
     tokio::select! {
-      frame_rslt = ws.read_frame(fb) => {
+      frame_rslt = ws.read_frame() => {
         let frame = frame_rslt?;
         match (frame.op_code(), frame.text_payload()) {
           (_, Some(elem)) => cb(elem),
@@ -35,9 +32,9 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
           _ => {}
         }
       }
-      read_rslt = reader.read_line(&mut buffer) => {
+      read_rslt = reader.read_until(b'\n', &mut buffer) => {
         let _ = read_rslt?;
-        ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Text, buffer.as_bytes())?).await?;
+        ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut buffer)).await?;
       }
     }
   }
@@ -64,12 +61,11 @@ pub(crate) async fn serve(
           |_| wtx::Result::Ok(()),
         )
         .await?;
-        let mut fb = FrameBufferVec::default();
         loop {
-          let frame = ws.read_frame(&mut fb).await?;
+          let frame = ws.read_frame().await?;
           match (frame.op_code(), frame.text_payload()) {
             (_, Some(elem)) => str(elem),
-            (OpCode::Binary, _) => binary(frame.fb().payload()),
+            (OpCode::Binary, _) => binary(frame.payload()),
             (OpCode::Close, _) => break,
             _ => {}
           }

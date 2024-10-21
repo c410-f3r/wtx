@@ -13,13 +13,12 @@ use tokio::{
 };
 use wtx::{
   misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketClient},
+  web_socket::{Frame, OpCode, WebSocketBuffer, WebSocketClient},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("ws://www.example.com");
-  let fb = &mut FrameBufferVec::default();
   let mut ws = WebSocketClient::connect(
     (),
     [],
@@ -30,11 +29,11 @@ async fn main() -> wtx::Result<()> {
     |_| wtx::Result::Ok(()),
   )
   .await?;
-  let mut buffer = String::new();
+  let mut buffer = Vec::new();
   let mut reader = BufReader::new(tokio::io::stdin());
   loop {
     tokio::select! {
-      frame_rslt = ws.read_frame(fb) => {
+      frame_rslt = ws.read_frame() => {
         let frame = frame_rslt?;
         match (frame.op_code(), frame.text_payload()) {
           (_, Some(elem)) => println!("{elem}"),
@@ -42,9 +41,9 @@ async fn main() -> wtx::Result<()> {
           _ => {}
         }
       }
-      read_rslt = reader.read_line(&mut buffer) => {
+      read_rslt = reader.read_until(b'\n', &mut buffer) => {
         let _ = read_rslt?;
-        ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Text, buffer.as_bytes())?).await?;
+        ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut buffer)).await?;
       }
     }
   }

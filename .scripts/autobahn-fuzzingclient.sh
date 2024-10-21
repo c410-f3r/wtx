@@ -5,13 +5,13 @@ if [ "$ARG" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-cargo build --bin autobahn-server --features flate2,optimization,pool,tokio,web-socket-handshake --release
-cargo run --bin autobahn-server --features flate2,optimization,pool,tokio,web-socket-handshake --release & cargo_pid=$!
+cargo build --bin autobahn-server --features flate2,nightly,optimization,pool,tokio,web-socket-handshake --release
+cargo run --bin autobahn-server --features flate2,nightly,optimization,pool,tokio,web-socket-handshake --release & cargo_pid=$!
 sleep 1
 mkdir -p .scripts/autobahn/reports/fuzzingclient
 podman run \
 	-p 9070:9070 \
-	-v .scripts/autobahn/fuzzingclient-min.json:/fuzzingclient.json:ro \
+	-v .scripts/autobahn/fuzzingclient.json:/fuzzingclient.json:ro \
 	-v .scripts/autobahn:/autobahn \
 	--name fuzzingclient \
 	--network host \

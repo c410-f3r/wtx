@@ -14,11 +14,11 @@ use core::ops::Range;
 //                |           |             |            |
 //                |           |             |            |--> _buffer.capacity()
 //                |           |             |
-//                |           |             |-------------> _buffer.len()
+//                |           |             |---------------> _buffer.len()
 //                |           |
-//                |           |-------------------------> _current_end_idx
+//                |           |-----------------------------> _current_end_idx
 //                |
-//                |-----------------------------------> _antecedent_end_idx
+//                |-----------------------------------------> _antecedent_end_idx
 // ```
 #[derive(Debug)]
 pub(crate) struct PartitionedFilledBuffer {
@@ -101,11 +101,6 @@ impl PartitionedFilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _expand_buffer(&mut self, additional: usize) -> Result<(), VectorError> {
-    self._buffer._reserve(additional)
-  }
-
-  #[inline]
   pub(crate) fn _following(&self) -> &[u8] {
     let idx = self._current_end_idx();
     self._buffer().get(idx..).unwrap_or_default()
@@ -113,7 +108,7 @@ impl PartitionedFilledBuffer {
 
   #[inline]
   pub(crate) fn _following_end_idx(&self) -> usize {
-    self._buffer._len()
+    self._buffer.len()
   }
 
   #[inline]
@@ -136,6 +131,11 @@ impl PartitionedFilledBuffer {
   #[inline]
   pub(crate) fn _has_following(&self) -> bool {
     self._following_end_idx() > self._current_end_idx()
+  }
+
+  #[inline]
+  pub(crate) fn _reserve(&mut self, additional: usize) -> Result<(), VectorError> {
+    self._buffer._reserve(additional)
   }
 
   #[inline]
