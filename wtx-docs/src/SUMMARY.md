@@ -11,3 +11,4 @@
 - [Pool](pool/README.md)
 - [UI tools](ui-tools/README.md)
 - [WebSocket](web-socket/README.md)
+- [WebSocket over HTTP/2](web-socket-over-http2/README.md)
