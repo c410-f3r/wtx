@@ -1,6 +1,7 @@
 //! Serves requests using low-level HTTP/2 resources along side self-made certificates.
 
 extern crate tokio;
+extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 
