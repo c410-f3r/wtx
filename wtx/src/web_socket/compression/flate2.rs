@@ -121,8 +121,8 @@ impl NegotiatedCompression for NegotiatedFlate2 {
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
-    mut rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
+    mut rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     compress_or_decompress(
       input,
@@ -146,7 +146,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     compress_or_decompress(
@@ -189,7 +189,7 @@ fn compress_or_decompress<NC, O>(
   nc: &mut NC,
   output: &mut O,
   reset: bool,
-  mut begin_output_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+  mut begin_output_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
   mut call_cb: impl FnMut(&mut NC, &[u8], &mut [u8]) -> crate::Result<()>,
   mut expand_output_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   mut reset_cb: impl FnMut(&mut NC),

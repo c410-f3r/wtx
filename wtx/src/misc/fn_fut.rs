@@ -1,3 +1,5 @@
+// FIXME(STABLE): async closures
+
 #![allow(non_snake_case, reason = "macro stuff")]
 
 macro_rules! create_and_implement {
@@ -64,6 +66,7 @@ create_and_implement!(&Self, Fn, FnFut, (A,));
 create_and_implement!(&Self, Fn, FnFut, (A, B,));
 create_and_implement!(&Self, Fn, FnFut, (A, B, C,));
 create_and_implement!(&Self, Fn, FnFut, (A, B, C, D,));
+create_and_implement!(&Self, Fn, FnFut, (A, B, C, D, E,));
 
 /// Simulates `impl for<'any> FnMut(&'any ..) -> impl Future + 'any` due to the lack of compiler
 /// support.
@@ -92,31 +95,4 @@ create_and_implement!(&mut Self, FnMut, FnMutFut, (A,));
 create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B,));
 create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C,));
 create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D,));
-
-/// Simulates `impl for<'any> FnOnce(&'any ..) -> impl Future + 'any` due to the lack of compiler
-/// support.
-///
-/// If applied as a function parameter, then callers must create their own async functions
-/// instead of using closures.
-///
-/// Credits to `Daniel Henry-Mantilla`.
-pub trait FnOnceFut<A> {
-  /// Returning future.
-  type Future: Future<Output = Self::Result>;
-  /// Function result.
-  type Result;
-  /// A wrapper that can be used to work around coherence rules.
-  type Wrapper;
-
-  /// Calls inner function that returns [`Self::Future`].
-  fn call(self, args: A) -> Self::Future;
-
-  /// Wraps itself with [`Self::Wrapper`].
-  fn into_wrapper(self) -> Self::Wrapper;
-}
-
-create_and_implement!(Self, FnOnce, FnOnceFut, ());
-create_and_implement!(Self, FnOnce, FnOnceFut, (A,));
-create_and_implement!(Self, FnOnce, FnOnceFut, (A, B,));
-create_and_implement!(Self, FnOnce, FnOnceFut, (A, B, C,));
-create_and_implement!(Self, FnOnce, FnOnceFut, (A, B, C, D,));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D, E,));

@@ -1,7 +1,7 @@
 use crate::{
   database::client::postgres::{
-    executor_buffer::ExecutorBufferPartsMut, query, Executor, ExecutorBuffer, MessageTy,
-    PostgresError,
+    executor_buffer::ExecutorBufferPartsMut, message::MessageTy, protocol::query, Executor,
+    ExecutorBuffer, PostgresError,
   },
   misc::{FilledBufferWriter, LeaseMut, Stream},
 };

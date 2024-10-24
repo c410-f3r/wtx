@@ -26,7 +26,7 @@ async fn main() -> wtx::Result<()> {
   )?;
   ServerFrameworkBuilder::new(router)
     .with_req_aux(|| QuickProtobuf::default())
-    .listen_tls(
+    .listen_tokio_rustls(
       (wtx_instances::CERT, wtx_instances::KEY),
       &wtx_instances::host_from_args(),
       Xorshift64::from(simple_seed()),
@@ -38,10 +38,10 @@ async fn main() -> wtx::Result<()> {
 async fn wtx_generic_service_generic_method(
   state: State<'_, (), GrpcManager<QuickProtobuf>, ReqResBuffer>,
 ) -> wtx::Result<StatusCode> {
-  let _generic_request: GenericRequest = state.ra.des_from_req_bytes(&state.req.rrd.data)?;
+  let _generic_request: GenericRequest = state.ra.des_from_req_bytes(&state.req.rrd.body)?;
   state.req.rrd.clear();
   state.ra.ser_to_res_bytes(
-    &mut state.req.rrd.data,
+    &mut state.req.rrd.body,
     GenericResponse {
       generic_response_field0: Cow::Borrowed(b"generic_response_value"),
       generic_response_field1: 321,

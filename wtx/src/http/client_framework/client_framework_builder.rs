@@ -1,7 +1,7 @@
 use crate::{
   http::{
     client_framework::{ClientFramework, ClientFrameworkRM},
-    ConnParams,
+    conn_params::ConnParams,
   },
   misc::Lock,
   pool::{ResourceManager, SimplePool, SimplePoolResource},

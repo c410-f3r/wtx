@@ -1,9 +1,12 @@
 use crate::{
   database::{
     client::postgres::{
+      authentication::Authentication,
       config::ChannelBinding,
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
-      sasl_first, sasl_second, Authentication, Config, Executor, MessageTy, PostgresError,
+      message::MessageTy,
+      protocol::{sasl_first, sasl_second},
+      Config, Executor, PostgresError,
     },
     Identifier,
   },
@@ -107,7 +110,7 @@ where
   }
 
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
-    self.eb.lease_mut().nb._expand_buffer(2048)?;
+    self.eb.lease_mut().nb._reserve(2048)?;
     loop {
       let ExecutorBufferPartsMut { conn_params, nb, .. } = self.eb.lease_mut().parts_mut();
       let msg = Self::fetch_msg_from_stream(&mut self.cs, nb, &mut self.stream).await?;
@@ -143,7 +146,7 @@ where
   {
     let tsep_data = tls_server_end_point.unwrap_or_default();
     let local_nonce = nonce(rng);
-    nb._expand_buffer(2048)?;
+    nb._reserve(2048)?;
     {
       let mut fbw = FilledBufferWriter::from(&mut *nb);
       sasl_first(&mut fbw, (method_bytes, method_header), &local_nonce)?;
@@ -166,7 +169,8 @@ where
       (
         {
           let mut vec = Vector::with_capacity(64)?;
-          let _ = vec.extend_from_slices([&b"n=,r="[..], &local_nonce, &b","[..], payload])?;
+          let _ =
+            vec.extend_from_copyable_slices([&b"n=,r="[..], &local_nonce, &b","[..], payload])?;
           vec
         },
         ArrayVector::<u8, 68>::from_copyable_slice(nonce)?,

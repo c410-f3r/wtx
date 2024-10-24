@@ -1,14 +1,23 @@
+#!/usr/bin/env bash
+
 set -euxo pipefail
 
-ARG=${1:-""}
-if [ "$ARG" != "ci" ]; then
+TY=${1:-"high"}
+CI=${2:-""}
+
+if [ "$CI" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-cargo build --bin h2spec-server --features="http2,tokio" --release
-cargo run --bin h2spec-server --features="http2,tokio" --release &> /tmp/h2spec-server.txt & cargo_pid=$!
-sleep 1
 touch /tmp/h2spec-server.xml
+
+if [ "$TY" != "high" ]; then
+	TY="low";
+fi;
+
+cargo build --bin "h2spec-$TY-server" --features="http2,nightly,tokio" --release
+cargo run --bin "h2spec-$TY-server" --features="http2,nightly,tokio" --release &> /tmp/h2spec-server.txt &
+sleep 1
 
 podman run \
 	-v "/tmp/h2spec-server.xml:/tmp/h2spec-server.xml" \
@@ -59,5 +68,3 @@ podman run \
 		http2/7 \
 		http2/8.1 \
 		`#http2/8.2 - Server push is unsupported`
-
-kill -9 $cargo_pid

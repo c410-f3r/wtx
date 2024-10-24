@@ -11,7 +11,8 @@
 use crate::{
   http::{Header, KnownHeaderName, Method, StatusCode},
   http2::{
-    hpack_header::HpackHeaderBasic, huffman_encode, misc::protocol_err, HpackHeaders, Http2Error,
+    hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders, huffman::huffman_encode,
+    misc::protocol_err, Http2Error,
   },
   misc::{Rng, Usize, Vector, _random_state, _shift_copyable_chunks, _unreachable},
 };
@@ -65,23 +66,26 @@ impl HpackEncoder {
   pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
     buffer: &mut Vector<u8>,
-    pseudo_headers: impl Iterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
-    user_headers: impl Iterator<Item = Header<'user, &'user [u8]>>,
+    pseudo_headers: impl IntoIterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
+    user_headers: impl IntoIterator<Item = Header<'user, &'user [u8]>>,
   ) -> crate::Result<()> {
+    let pseudo_headers_iter = pseudo_headers.into_iter();
+    let user_headers_iter = user_headers.into_iter();
     self.adjust_indices(
-      pseudo_headers
+      pseudo_headers_iter
         .size_hint()
         .1
-        .and_then(|el| el.checked_add(user_headers.size_hint().1?))
+        .and_then(|el| el.checked_add(user_headers_iter.size_hint().1?))
         .unwrap_or(usize::MAX),
     );
-    buffer.reserve(pseudo_headers.size_hint().0.wrapping_add(user_headers.size_hint().0))?;
+    let reserve = pseudo_headers_iter.size_hint().0.wrapping_add(user_headers_iter.size_hint().0);
+    buffer.reserve(reserve)?;
     self.manage_size_update(buffer)?;
-    for (hhb, value) in pseudo_headers {
+    for (hhb, value) in pseudo_headers_iter {
       let idx = self.encode_idx((&[], value, false), hhb, Self::shi_pseudo((hhb, value)))?;
       Self::manage_encode(buffer, (&[], value), idx)?;
     }
-    for Header { is_sensitive, name, value, .. } in user_headers {
+    for Header { is_sensitive, name, value, .. } in user_headers_iter {
       let idx = self.encode_idx(
         (name, value, is_sensitive),
         HpackHeaderBasic::Field,
@@ -90,6 +94,11 @@ impl HpackEncoder {
       Self::manage_encode(buffer, (name, value), idx)?;
     }
     Ok(())
+  }
+
+  #[inline]
+  pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
+    self.dyn_headers.reserve(headers, bytes)
   }
 
   // It is not possible to lower the initial set value
@@ -390,16 +399,16 @@ impl HpackEncoder {
   fn manage_size_update(&mut self, buffer: &mut Vector<u8>) -> crate::Result<()> {
     match self.max_dyn_sub_bytes.take() {
       Some((lower, None)) => {
-        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata, _| {
+        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata| {
           Self::remove_outdated_indices(&mut self.indcs, metadata);
         });
         let _ = Self::encode_int(buffer, 0b0010_0000, lower)?;
       }
       Some((lower, Some(upper))) => {
-        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata, _| {
+        self.dyn_headers.set_max_bytes(*Usize::from(lower), |metadata| {
           Self::remove_outdated_indices(&mut self.indcs, metadata);
         });
-        self.dyn_headers.set_max_bytes(*Usize::from(upper), |metadata, _| {
+        self.dyn_headers.set_max_bytes(*Usize::from(upper), |metadata| {
           Self::remove_outdated_indices(&mut self.indcs, metadata);
         });
         let _ = Self::encode_int(buffer, 0b0010_0000, lower)?;
@@ -428,7 +437,7 @@ impl HpackEncoder {
       name,
       [value].into_iter(),
       is_sensitive,
-      |metadata, _| {
+      |metadata| {
         Self::remove_outdated_indices(&mut self.indcs, metadata);
       },
     )?;
@@ -645,7 +654,7 @@ struct StaticHeader {
 mod bench {
   use crate::{
     http::Header,
-    http2::HpackEncoder,
+    http2::hpack_encoder::HpackEncoder,
     misc::{simple_seed, Usize, Vector, Xorshift64},
   };
 

@@ -7,7 +7,7 @@ Basic implementation that currently supports only unary calls.
 
 Due to the lack of an official parser, the definitions of a `Service` must be manually typed.
 
-Activation feature is called `grpc`.
+To use this functionality, it necessary to activate the `grpc` feature.
 
 ## Client Example
 

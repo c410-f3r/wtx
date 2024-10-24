@@ -3,7 +3,7 @@ aes-gcm = { default-features = false, optional = true, version = "0.10" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 argon2 = { default-features = false, optional = true, version = "0.5" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
-borsh = { default-features = false, features = ["derive", "std"], optional = true, version = "1.0" }
+borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
@@ -22,8 +22,8 @@ rand_chacha = { default-features = false, optional = true, version = "0.3" }
 rand_core = { default-features = false, optional = true, version = "0.6" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
-rustls-pemfile = { default-features = false, features = ["std"], optional = true, version = "2.0" }
-rustls-pki-types = { default-features = false, optional = true, version = "1.10" }
+rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
+rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 sha1 = { default-features = false, optional = true, version = "0.10" }
@@ -50,6 +50,7 @@ data-transformation = []
 database = []
 default = []
 digest = ["dep:digest"]
+executor = []
 fastrand = ["dep:fastrand"]
 flate2 = ["dep:flate2"]
 foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
@@ -65,7 +66,8 @@ http-session = ["chrono/serde", "http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
 memchr = ["dep:memchr"]
-optimization = ["memchr", "simdutf8"]
+nightly = ["hashbrown?/nightly"]
+optimization = ["memchr", "rand_chacha?/simd", "simdutf8"]
 pool = []
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 proptest = ["dep:proptest"]
@@ -80,7 +82,7 @@ serde_json = ["serde", "dep:serde_json", "std"]
 sha1 = ["dep:sha1"]
 sha2 = ["dep:sha2"]
 simdutf8 = ["dep:simdutf8"]
-std = ["cl-aux?/std", "foldhash?/std", "memchr?/std", "serde?/std", "serde_json?/std", "simdutf8?/std"]
+std = ["aes-gcm?/std", "argon2?/std", "base64?/std", "borsh?/std", "chrono?/std", "cl-aux?/std", "crypto-common?/std", "digest?/std", "fastrand?/std", "foldhash?/std", "hmac?/std", "httparse?/std", "memchr?/std", "proptest?/std", "quick-protobuf?/std", "rand_chacha?/std", "rand_core?/std", "ring?/std", "rust_decimal?/std", "rustls-pemfile?/std", "rustls-pki-types?/std", "serde?/std", "serde_json?/std", "sha1?/std", "sha2?/std", "simdutf8?/std", "tracing?/std", "tracing-subscriber?/std"]
 test-strategy = ["dep:test-strategy", "proptest", "std"]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "dep:rustls-pemfile", "dep:rustls-pki-types", "tokio", "dep:tokio-rustls"]

@@ -1,14 +1,14 @@
 use crate::{
   database::{
     client::postgres::{
-      bind, describe, execute,
       executor::commons::FetchWithStmtCommons,
       executor_buffer::ExecutorBuffer,
-      parse,
+      message::MessageTy,
+      msg_field::MsgField,
+      protocol::{bind, describe, execute, parse, sync},
       statements::{Column, PushRslt, Statement},
-      sync,
       ty::Ty,
-      Executor, MessageTy, MsgField, Postgres, PostgresError, Statements,
+      Executor, Postgres, PostgresError, Statements,
     },
     RecordValues, StmtCmd,
   },

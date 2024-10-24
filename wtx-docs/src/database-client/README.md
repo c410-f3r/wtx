@@ -3,9 +3,9 @@
 
 PostgreSQL is currently the only supported database. Implements <https://www.postgresql.org/docs/16/protocol.html>.
 
-More benchmarks are available at https://github.com/diesel-rs/metrics.
+More benchmarks are available at <https://github.com/diesel-rs/metrics>.
 
-Activation feature is called `postgres`.
+To use this functionality, it necessary to activate the `postgres` feature.
 
 ![PostgreSQL Benchmark](https://i.imgur.com/vf2tYxY.jpeg)
 

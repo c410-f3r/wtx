@@ -2,7 +2,7 @@
 
 Implementation of [RFC6455](https://datatracker.ietf.org/doc/html/rfc6455) and [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692).
 
-Activation feature is called `web-socket`.
+To use this functionality, it necessary to activate the `web-socket` feature.
 
 ![WebSocket Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
 

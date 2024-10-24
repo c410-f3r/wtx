@@ -51,13 +51,16 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
 
 /// Final compression parameters defined after a handshake.
 pub trait NegotiatedCompression {
+  /// If the implementation does nothing
+  const IS_NOOP: bool = false;
+
   /// Compress
   fn compress<O>(
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
-    rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
+    rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize>;
 
   /// Decompress
@@ -65,7 +68,7 @@ pub trait NegotiatedCompression {
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize>;
 
@@ -80,13 +83,15 @@ impl<T> NegotiatedCompression for &mut T
 where
   T: NegotiatedCompression,
 {
+  const IS_NOOP: bool = T::IS_NOOP;
+
   #[inline]
   fn compress<O>(
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
-    rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
+    rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     (**self).compress(input, output, begin_cb, rem_cb)
   }
@@ -96,7 +101,7 @@ where
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     (**self).decompress(input, output, begin_cb, rem_cb)
@@ -114,13 +119,15 @@ where
 }
 
 impl NegotiatedCompression for () {
+  const IS_NOOP: bool = true;
+
   #[inline]
   fn compress<O>(
     &mut self,
     _: &[u8],
     _: &mut O,
-    _: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
-    _: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
+    _: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
+    _: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     Ok(0)
   }
@@ -130,7 +137,7 @@ impl NegotiatedCompression for () {
     &mut self,
     _: &[u8],
     _: &mut O,
-    _: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    _: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
     _: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     Ok(0)
@@ -151,13 +158,15 @@ impl<T> NegotiatedCompression for Option<T>
 where
   T: NegotiatedCompression,
 {
+  const IS_NOOP: bool = T::IS_NOOP;
+
   #[inline]
   fn compress<O>(
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
-    rem_cb: impl FnMut(&mut O, usize) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
+    rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     match self {
       Some(el) => el.compress(input, output, begin_cb, rem_cb),
@@ -170,7 +179,7 @@ where
     &mut self,
     input: &[u8],
     output: &mut O,
-    begin_cb: impl FnMut(&mut O) -> Result<&mut [u8], VectorError>,
+    begin_cb: impl FnMut(&mut O) -> crate::Result<&mut [u8]>,
     rem_cb: impl FnMut(&mut O, usize) -> crate::Result<&mut [u8]>,
   ) -> crate::Result<usize> {
     match self {

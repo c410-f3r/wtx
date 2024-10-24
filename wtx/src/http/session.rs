@@ -9,7 +9,7 @@ use crate::{
   http::{
     cookie::{encrypt, CookieGeneric},
     server_framework::ConnAux,
-    Header, KnownHeaderName, ReqResDataMut,
+    Header, KnownHeaderName, ReqResBuffer, ReqResDataMut,
   },
   misc::{GenericTime, Lease, LeaseMut, Lock, Rng, Vector},
 };
@@ -81,7 +81,7 @@ where
   where
     CS: Serialize,
     RNG: Rng,
-    RRD: ReqResDataMut<Body = Vector<u8>>,
+    RRD: LeaseMut<ReqResBuffer>,
   {
     let SessionInner { cookie_def, phantom: _, key, state } = &mut *self.content.lock().await;
     cookie_def.value.clear();
@@ -93,18 +93,18 @@ where
     } else {
       SessionState { custom_state, expire: None, id }
     };
-    let idx = rrd.body().len();
-    serde_json::to_writer(rrd.body_mut(), &local_state).map_err(Into::into)?;
+    let idx = rrd.lease().body.len();
+    serde_json::to_writer(&mut rrd.lease_mut().body, &local_state).map_err(Into::into)?;
     *state = Some(local_state);
     let rslt = encrypt(
       &mut cookie_def.value,
       key,
-      (cookie_def.name, rrd.body().get(idx..).unwrap_or_default()),
+      (cookie_def.name, rrd.lease().body.get(idx..).unwrap_or_default()),
       rng,
     );
-    rrd.body_mut().truncate(idx);
+    rrd.lease_mut().body.truncate(idx);
     rslt?;
-    rrd.headers_mut().push_from_fmt(Header::from_name_and_value(
+    rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
       format_args!("{}", &cookie_def),
     ))?;

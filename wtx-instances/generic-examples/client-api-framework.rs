@@ -22,7 +22,7 @@ use wtx::{
   data_transformation::dnsn::SerdeJson,
   http::client_framework::ClientFrameworkTokio,
   misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{FrameBufferVec, WebSocketBuffer, WebSocketClient},
+  web_socket::{WebSocketBuffer, WebSocketClient},
 };
 
 wtx::create_packages_aux_wrapper!();
@@ -99,7 +99,7 @@ async fn main() -> wtx::Result<()> {
   async fn web_socket_pair() -> wtx::Result<
     Pair<
       PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-      (FrameBufferVec, WebSocketClient<(), Xorshift64, TcpStream, WebSocketBuffer>),
+      WebSocketClient<(), TcpStream, WebSocketBuffer>,
     >,
   > {
     let uri = Uri::new("ws://generic_web_socket_uri.com");
@@ -121,7 +121,7 @@ async fn main() -> wtx::Result<()> {
         SerdeJson,
         WsParams::default(),
       ),
-      (FrameBufferVec::default(), web_socket),
+      web_socket,
     ))
   }
 

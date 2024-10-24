@@ -148,7 +148,7 @@ impl Headers {
 
   /// Pushes a new header with its value composed by [`Arguments`].
   ///
-  /// ```
+  /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
   /// headers.push_from_fmt(Header::from_name_and_value(b"name", format_args!("{}", 1))).unwrap();
@@ -182,7 +182,7 @@ impl Headers {
 
   /// Pushes a new header with its value composed by several slices.
   ///
-  /// ```
+  /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
   /// headers.push_from_iter(Header::from_name_and_value(b"name", ["value0".as_bytes(), "_value1".as_bytes()])).unwrap();
@@ -194,28 +194,27 @@ impl Headers {
     V: IntoIterator<Item = &'bytes [u8]>,
     V::IntoIter: Clone,
   {
-    // FIXME(MIRI): a function, even it it is #[inline], breaks the tracking of the pointer
-    macro_rules! copy {
-      ($bytes:expr, $header_end:expr, $value:expr) => {{
-        // SAFETY: `header_end is within bounds`
-        let dst = unsafe { $bytes.as_mut_ptr().add(*$header_end) };
-        // SAFETY: `reserve` allocated memory
-        unsafe {
-          ptr::copy_nonoverlapping($value.as_ptr(), dst, $value.len());
-        }
-        *$header_end = $header_end.wrapping_add($value.len());
-      }};
+    #[inline]
+    fn copy(header_end: &mut usize, ptr: *mut u8, value: &[u8]) {
+      // SAFETY: `header_end is within bounds`
+      let dst = unsafe { ptr.add(*header_end) };
+      // SAFETY: `reserve` allocated memory
+      unsafe {
+        ptr::copy_nonoverlapping(value.as_ptr(), dst, value.len());
+      }
+      *header_end = header_end.wrapping_add(value.len());
     }
 
     let iter = header.value.into_iter();
     let header_len = Self::header_len(header.name, iter.clone());
     self.reserve(header_len, 1)?;
     let header_begin = self.bytes.len();
+    let ptr = self.bytes.as_ptr_mut();
     let mut header_end = header_begin;
-    copy!(&mut self.bytes, &mut header_end, header.name);
+    copy(&mut header_end, ptr, header.name);
     let header_name_end = header_end;
     for value in iter {
-      copy!(&mut self.bytes, &mut header_end, value);
+      copy(&mut header_end, ptr, value);
     }
     // SAFETY: `header_end is within bounds`
     unsafe {

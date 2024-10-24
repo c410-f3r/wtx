@@ -1,4 +1,9 @@
-use crate::http2::{CommonFlags, FrameInit, FrameInitTy, Http2Error, Http2ErrorCode, U31};
+use crate::http2::{
+  common_flags::CommonFlags,
+  frame_init::{FrameInit, FrameInitTy},
+  u31::U31,
+  Http2Error, Http2ErrorCode,
+};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct PingFrame {

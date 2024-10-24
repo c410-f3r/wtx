@@ -18,7 +18,7 @@ use core::{mem, ops::Range};
 impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -65,7 +65,7 @@ where
 impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for &ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -118,7 +118,7 @@ where
   A: Api,
   P: Package<A, DRSR, HttpParams>,
   HD: RefCounter + 'static,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer<ReqResBuffer>, ReqResBuffer, SW, true>>,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
     CreateAux = str,
@@ -147,10 +147,10 @@ where
     ))?;
   }
   let mut rrb = ReqResBuffer::empty();
-  mem::swap(&mut rrb.data, &mut pkgs_aux.byte_buffer);
+  mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut rrb.headers, headers);
   let mut res = (*client).send(*method, rrb, &uri.to_ref()).await?;
-  mem::swap(&mut pkgs_aux.byte_buffer, &mut res.rrd.data);
+  mem::swap(&mut pkgs_aux.byte_buffer, &mut res.rrd.body);
   mem::swap(headers, &mut res.rrd.headers);
   pkgs_aux.tp.ext_res_params_mut().status_code = res.status_code;
   manage_after_sending_related(pkg, pkgs_aux).await?;

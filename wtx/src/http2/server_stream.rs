@@ -1,30 +1,29 @@
 use crate::{
-  http::{Method, ReqResBuffer, ReqResData, Response},
+  http::{Method, Protocol, ReqResBuffer, ReqResData, Response},
   http2::{
-    misc::{
-      manage_recurrent_stream_receiving, process_higher_operation_err, send_go_away,
-      send_reset_stream,
-    },
+    hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
+    misc::{manage_recurrent_stream_receiving, process_higher_operation_err},
     send_msg::send_msg,
-    HpackStaticRequestHeaders, HpackStaticResponseHeaders, Http2Buffer, Http2Data, Http2ErrorCode,
-    StreamControlRecvParams, U31,
+    stream_receiver::StreamControlRecvParams,
+    u31::U31,
+    CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
   },
-  misc::{Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span, sleep},
+  misc::{Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, _Span},
 };
 use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
   pin::pin,
   sync::atomic::AtomicBool,
-  time::Duration,
 };
 
 /// Created when a server receives an initial stream.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ServerStream<HD> {
   hd: HD,
   is_conn_open: Arc<AtomicBool>,
   method: Method,
+  protocol: Option<Protocol>,
   span: _Span,
   stream_id: U31,
 }
@@ -35,32 +34,55 @@ impl<HD> ServerStream<HD> {
     hd: HD,
     is_conn_open: Arc<AtomicBool>,
     method: Method,
+    protocol: Option<Protocol>,
     span: _Span,
     stream_id: U31,
   ) -> Self {
-    Self { hd, is_conn_open, method, span, stream_id }
+    Self { hd, is_conn_open, method, protocol, span, stream_id }
   }
 }
 
-impl<HB, HD, RRB, SW> ServerStream<HD>
+impl<HB, HD, SW> ServerStream<HD>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, false>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
   SW: StreamWriter,
 {
+  /// See [`CommonStream`].
+  #[inline]
+  pub fn common(&mut self) -> CommonStream<'_, HD, false> {
+    CommonStream {
+      hd: &mut self.hd,
+      is_conn_open: &self.is_conn_open,
+      span: &mut self.span,
+      stream_id: self.stream_id,
+    }
+  }
+
+  /// See [`Method`].
+  #[inline]
+  pub fn method(&self) -> Method {
+    self.method
+  }
+
+  /// See [`Protocol`].
+  #[inline]
+  pub fn protocol(&self) -> Option<Protocol> {
+    self.protocol
+  }
+
   /// Receive request
   ///
-  /// Higher operation that awaits for the data necessary to build a request.
+  /// High level operation that awaits for the data necessary to build a request.
   ///
-  /// Returns [`Option::None`] if the network/stream connection has been closed, either locally
+  /// Returns `false` if the network/stream connection has been closed, either locally
   /// or externally.
   ///
   /// Shouldn't be called more than once.
   #[inline]
-  pub async fn recv_req(&mut self) -> crate::Result<(RRB, Option<Method>)> {
-    let Self { hd, is_conn_open, method, span, stream_id } = self;
+  pub async fn recv_req(&mut self) -> crate::Result<(Http2RecvStatus<(), ()>, ReqResBuffer)> {
+    let Self { hd, is_conn_open, method: _, protocol: _, span, stream_id } = self;
     let _e = span._enter();
     _trace!("Receiving request");
     let mut lock_pin = pin!(hd.lock());
@@ -81,7 +103,6 @@ where
               windows: sorp.windows,
             },
           ));
-          *method
         },
       )
     })
@@ -92,13 +113,6 @@ where
     rslt
   }
 
-  /// Sends a GOAWAY frame to the peer, which cancels the connection and consequently all ongoing
-  /// streams.
-  #[inline]
-  pub async fn send_go_away(self, error_code: Http2ErrorCode) {
-    send_go_away(error_code, &mut self.hd.lock().await.parts_mut()).await;
-  }
-
   /// Send Response
   ///
   /// Higher operation that sends all data related to a response and then closes the stream.
@@ -106,16 +120,18 @@ where
   /// Returns [`Option::None`] if the network/stream connection has been closed, either locally
   /// or externally.
   ///
-  /// Should be called after [`Self::recv_req`] is successfully executed.
+  /// Should be called after [`Self::recv_req`] or any other low level methods that receive data
+  /// are successfully executed. More specifically, should only be called in a half-closed stream
+  /// state.
   #[inline]
-  pub async fn send_res<RRD>(&mut self, res: Response<RRD>) -> crate::Result<Option<()>>
+  pub async fn send_res<RRD>(&mut self, res: Response<RRD>) -> crate::Result<Http2SendStatus>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
     let _e = self.span._enter();
     _trace!("Sending response");
-    if send_msg::<_, _, _, _, false>(
+    let hss = send_msg::<_, _, _, false>(
       res.rrd.body().lease(),
       &self.hd,
       res.rrd.headers(),
@@ -127,28 +143,28 @@ where
       self.stream_id,
       |_| {},
     )
-    .await?
-    .is_none()
-    {
-      return Ok(None);
+    .await?;
+    if !matches!(hss, Http2SendStatus::ClosedConnection) {
+      return Ok(hss);
     }
-    sleep(Duration::from_millis(50)).await?;
-    drop(self.hd.lock().await.parts_mut().hb.scrp.remove(&self.stream_id));
-    Ok(Some(()))
+    Ok(Http2SendStatus::Ok)
   }
+}
 
-  /// Sends a stream reset to the peer, which cancels this stream.
+impl<HD> Lease<ServerStream<HD>> for ServerStream<HD> {
   #[inline]
-  pub async fn send_reset(self, error_code: Http2ErrorCode) {
-    let mut guard = self.hd.lock().await;
-    let hdpm = guard.parts_mut();
-    let _ = send_reset_stream(
-      error_code,
-      &mut hdpm.hb.scrp,
-      &mut hdpm.hb.sorp,
-      hdpm.stream_writer,
-      self.stream_id,
-    )
-    .await;
+  fn lease(&self) -> &ServerStream<HD> {
+    self
   }
+}
+
+impl<HD> LeaseMut<ServerStream<HD>> for ServerStream<HD> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut ServerStream<HD> {
+    self
+  }
+}
+
+impl<HD> SingleTypeStorage for ServerStream<HD> {
+  type Item = HD;
 }

@@ -2,33 +2,42 @@
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
+use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
-  http::{LowLevelServer, ReqResBuffer, Request, Response, StatusCode},
-  http2::{Http2Buffer, Http2Params},
+  http::{Headers, OptionedServer, ReqResBuffer, Request, Response, StatusCode},
+  http2::{Http2Buffer, Http2Params, ServerStreamTokio},
   misc::{simple_seed, Xorshift64},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  #[cfg(feature = "_tracing-tree")]
-  let _rslt = wtx::misc::tracing_tree_init(None);
-  LowLevelServer::tokio_http2(
+  OptionedServer::tokio_high_http2(
     "127.0.0.1:9000",
+    auto,
     || Ok(((), Http2Buffer::new(Xorshift64::from(simple_seed())), Http2Params::default())),
     |error| eprintln!("{error}"),
-    handle,
+    manual,
     || Ok(((), ReqResBuffer::empty())),
     (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
   )
   .await
 }
 
-async fn handle(
+async fn auto(
   _: (),
   _: (),
   mut req: Request<ReqResBuffer>,
 ) -> Result<Response<ReqResBuffer>, wtx::Error> {
   req.rrd.clear();
-  req.rrd.data.extend_from_slice(b"Hello")?;
+  req.rrd.body.extend_from_copyable_slice(b"Hello")?;
   Ok(req.into_response(StatusCode::Ok))
+}
+
+async fn manual(
+  _: (),
+  _: (),
+  _: Headers,
+  _: ServerStreamTokio<Http2Buffer, OwnedWriteHalf, false>,
+) -> Result<(), wtx::Error> {
+  Ok(())
 }

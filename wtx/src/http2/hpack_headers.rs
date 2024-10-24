@@ -1,6 +1,6 @@
 use crate::misc::{Block, BlocksQueue};
-use core::fmt::{Debug, Formatter};
 
+#[derive(Debug)]
 pub(crate) struct HpackHeaders<M> {
   bq: BlocksQueue<u8, Metadata<M>>,
   max_bytes: usize,
@@ -47,7 +47,7 @@ where
     name: &'bytes [u8],
     values: I,
     is_sensitive: bool,
-    cb: impl FnMut(M, &mut [u8]),
+    cb: impl FnMut(M),
   ) -> crate::Result<()>
   where
     I: IntoIterator<Item = &'bytes [u8]>,
@@ -70,8 +70,14 @@ where
     Ok(())
   }
 
+  #[inline(always)]
+  pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
+    self.bq.reserve_front(headers, bytes)?;
+    Ok(())
+  }
+
   #[inline]
-  pub(crate) fn set_max_bytes(&mut self, max_bytes: usize, cb: impl FnMut(M, &mut [u8])) {
+  pub(crate) fn set_max_bytes(&mut self, max_bytes: usize, cb: impl FnMut(M)) {
     self.max_bytes = max_bytes;
     self.remove_until_max_bytes(0, cb);
   }
@@ -87,30 +93,17 @@ where
   }
 
   #[inline]
-  fn pop_back(&mut self) -> Option<(Metadata<M>, &mut [u8])> {
+  fn pop_back(&mut self) -> Option<Metadata<M>> {
     self.bq.pop_back()
   }
 
   #[inline]
-  fn remove_until_max_bytes(&mut self, additional: usize, mut cb: impl FnMut(M, &mut [u8])) {
+  fn remove_until_max_bytes(&mut self, additional: usize, mut cb: impl FnMut(M)) {
     while self.bytes_len().wrapping_add(additional) > self.max_bytes {
       if let Some(elem) = self.pop_back() {
-        cb(elem.0.misc, elem.1);
+        cb(elem.misc);
       }
     }
-  }
-}
-
-impl<M> Debug for HpackHeaders<M>
-where
-  M: Copy + Debug,
-{
-  #[inline]
-  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
-    f.debug_struct("AbstractHeaders")
-      .field("max_bytes", &self.max_bytes)
-      .field("bq", &self.bq)
-      .finish()
   }
 }
 

@@ -1,4 +1,4 @@
-use crate::misc::{BufferParam, Vector, VectorError};
+use crate::misc::{BufferMode, Vector, VectorError};
 use core::{
   fmt::Debug,
   ops::{Deref, DerefMut},
@@ -12,6 +12,16 @@ pub(crate) struct FilledBuffer {
 
 impl FilledBuffer {
   #[inline]
+  pub(crate) fn _from_vector(vector: Vector<u8>) -> Self {
+    let mut this = Self { data: vector };
+    // SAFETY: Zero input is always safe.
+    unsafe {
+      this._fill_remaining_capacity(0);
+    }
+    this
+  }
+
+  #[inline]
   pub(crate) const fn _new() -> Self {
     Self { data: Vector::new() }
   }
@@ -21,7 +31,7 @@ impl FilledBuffer {
     let mut data = Vector::with_capacity(cap)?;
     // SAFETY: memory have been allocated
     unsafe {
-      slice::from_raw_parts_mut(data.as_mut_ptr(), data.capacity()).fill(0);
+      slice::from_raw_parts_mut(data.as_ptr_mut(), data.capacity()).fill(0);
     }
     Ok(Self { data })
   }
@@ -40,7 +50,7 @@ impl FilledBuffer {
     // SAFETY: allocated elements are always initialized
     unsafe {
       let len = self.data.capacity();
-      slice::from_raw_parts_mut(self.data.as_mut_ptr(), len)
+      slice::from_raw_parts_mut(self.data.as_ptr_mut(), len)
     }
   }
 
@@ -55,7 +65,7 @@ impl FilledBuffer {
   }
 
   #[inline(always)]
-  pub(crate) fn _expand(&mut self, bp: BufferParam) -> Result<(), VectorError> {
+  pub(crate) fn _expand(&mut self, bp: BufferMode) -> Result<(), VectorError> {
     let len = self.data.len();
     let Some((additional, new_len)) = bp.params(len) else {
       return Ok(());
@@ -69,23 +79,24 @@ impl FilledBuffer {
   }
 
   #[inline]
+  pub(crate) fn _extend_from_slice(&mut self, other: &[u8]) -> Result<(), VectorError> {
+    let _ = self._extend_from_slices([other])?;
+    Ok(())
+  }
+
+  #[inline]
   pub(crate) fn _extend_from_slices<'iter, I>(&mut self, others: I) -> Result<usize, VectorError>
   where
     I: IntoIterator<Item = &'iter [u8]>,
     I::IntoIter: Clone,
   {
     let prev_cap = self.data.capacity();
-    let len = self.data.extend_from_slices(others)?;
+    let len = self.data.extend_from_copyable_slices(others)?;
     // SAFETY: memory have been allocated
     unsafe {
       self._fill_remaining_capacity(prev_cap);
     }
     Ok(len)
-  }
-
-  #[inline]
-  pub(crate) fn _len(&self) -> usize {
-    self.data.len()
   }
 
   #[inline(always)]
@@ -118,7 +129,7 @@ impl FilledBuffer {
       return;
     };
     // SAFETY: caller must ensure `prev_cap` elements
-    let ptr = unsafe { self.data.as_mut_ptr().add(count) };
+    let ptr = unsafe { self.data.as_ptr_mut().add(count) };
     // SAFETY: caller must ensure allocated memory
     unsafe {
       slice::from_raw_parts_mut(ptr, diff).fill(0);
@@ -138,7 +149,26 @@ impl Deref for FilledBuffer {
 impl DerefMut for FilledBuffer {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
-    self.data.as_mut_slice()
+    self.data.as_slice_mut()
+  }
+}
+
+impl From<FilledBuffer> for Vector<u8> {
+  #[inline]
+  fn from(from: FilledBuffer) -> Self {
+    from.data
+  }
+}
+
+impl From<Vector<u8>> for FilledBuffer {
+  #[inline]
+  fn from(from: Vector<u8>) -> Self {
+    let mut this = Self { data: from };
+    // SAFETY: Zero input is always safe.
+    unsafe {
+      this._fill_remaining_capacity(0);
+    }
+    this
   }
 }
 
@@ -155,8 +185,7 @@ impl std::io::Write for FilledBuffer {
   }
 }
 
-#[cfg(feature = "_proptest")]
-#[cfg(test)]
+#[cfg(all(feature = "_proptest", test))]
 mod proptest {
   use crate::misc::FilledBuffer;
 

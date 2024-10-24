@@ -10,7 +10,7 @@ async fn main() -> wtx::Result<()> {
   let router = Router::new(wtx::paths!(("/hello", get(hello))), (), CorsMiddleware::permissive())?;
   ServerFrameworkBuilder::new(router)
     .without_aux()
-    .listen("0.0.0.0:9000", Xorshift64::from(simple_seed()), |error: wtx::Error| {
+    .listen_tokio("0.0.0.0:9000", Xorshift64::from(simple_seed()), |error: wtx::Error| {
       eprintln!("{error:?}")
     })
     .await?;

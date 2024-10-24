@@ -137,7 +137,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
 mod bench {
   use crate::{
     bench::_data,
-    http2::{huffman_decode, huffman_encode},
+    http2::huffman::{huffman_decode, huffman_encode},
     misc::{ArrayVector, Vector},
   };
   use alloc::boxed::Box;
@@ -166,12 +166,11 @@ mod bench {
   }
 }
 
-#[cfg(feature = "_proptest")]
-#[cfg(test)]
+#[cfg(all(feature = "_proptest", test))]
 mod proptest {
   use crate::{
     http::_HeaderValueBuffer,
-    http2::{huffman_decode, huffman_encode},
+    http2::huffman::{huffman_decode, huffman_encode},
     misc::Vector,
   };
 

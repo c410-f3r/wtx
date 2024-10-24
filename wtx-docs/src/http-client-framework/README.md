@@ -2,7 +2,7 @@
 
 High-level pool of HTTP clients that currently only supports HTTP/2. Allows multiple connections that can be referenced in concurrent scenarios.
 
-Activation feature is called `http-client-framework`.
+To use this functionality, it necessary to activate the `http-client-framework` feature.
 
 ## Example
 

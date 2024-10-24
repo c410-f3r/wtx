@@ -3,9 +3,8 @@
 mod array_chunks;
 mod array_string;
 mod array_vector;
-mod atomic_waker;
 mod blocks_queue;
-mod buffer_param;
+mod buffer_mode;
 mod bytes_fmt;
 mod connection_state;
 mod either;
@@ -25,13 +24,13 @@ mod optimization;
 mod partitioned_filled_buffer;
 mod query_writer;
 mod queue;
-mod queue_utils;
 mod ref_counter;
 mod rng;
 mod role;
 mod single_type_storage;
 mod span;
 mod stream;
+mod sync;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
 mod tuple_impls;
@@ -45,9 +44,8 @@ pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError, IntoIter};
-pub use atomic_waker::AtomicWaker;
 pub use blocks_queue::{Block, BlocksQueue, BlocksQueueError};
-pub use buffer_param::BufferParam;
+pub use buffer_mode::BufferMode;
 pub use bytes_fmt::BytesFmt;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
@@ -70,6 +68,7 @@ pub use rng::*;
 pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, StreamReader, StreamWithTls, StreamWriter};
+pub use sync::*;
 pub use uri::{Uri, UriArrayString, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
@@ -80,6 +79,7 @@ pub(crate) use {
   mem_transfer::_shift_copyable_chunks,
   partitioned_filled_buffer::PartitionedFilledBuffer,
   span::{_Entered, _Span},
+  uri::_EMPTY_URI_STRING,
 };
 
 /// Useful when a request returns an optional field but the actual usage is within a
@@ -251,7 +251,7 @@ pub(crate) fn _number_or_available_parallelism(n: Option<usize>) -> crate::Resul
 #[cfg(feature = "foldhash")]
 pub(crate) fn _random_state(mut rng: impl Rng) -> foldhash::fast::FixedState {
   let [a, b, c, d, e, f, g, h] = rng.u8_8();
-  foldhash::fast::FixedState::with_seed(u64::from_le_bytes([a, b, c, d, e, f, g, h]))
+  foldhash::fast::FixedState::with_seed(u64::from_ne_bytes([a, b, c, d, e, f, g, h]))
 }
 
 pub(crate) async fn _read_until<const LEN: usize, SR>(

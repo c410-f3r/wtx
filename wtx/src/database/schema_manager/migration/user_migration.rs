@@ -1,7 +1,7 @@
 use crate::{
   database::{
     schema_manager::{
-      migration::MigrationCommon,
+      migration::migration_common::MigrationCommon,
       misc::{calc_checksum, is_sorted_and_unique},
       Repeatability,
     },

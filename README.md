@@ -4,9 +4,9 @@
 [![crates.io](https://img.shields.io/crates/v/wtx.svg)](https://crates.io/crates/wtx)
 [![Documentation](https://docs.rs/wtx/badge.svg)](https://docs.rs/wtx)
 [![License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
-[![Rustc](https://img.shields.io/badge/rustc-1.82-lightgray")](https://blog.rust-lang.org/2023/12/28/Rust-1.80.0.html)
+[![Rustc](https://img.shields.io/badge/rustc-1.82-lightgray")](https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html)
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Contains the implementations of 5 IETF RFCs ([RFC6265](https://datatracker.ietf.org/doc/html/rfc6265), [RFC6455](https://datatracker.ietf.org/doc/html/rfc6455), [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541), [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692), [RFC9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [PostgreSQL](https://www.postgresql.org/docs/16/protocol.html)) and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Contains the implementations of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
 1. [Client API Framework](https://c410-f3r.github.io/wtx/client-api-framework/index.html)
 2. [Database Client](https://c410-f3r.github.io/wtx/database-client/index.html)
@@ -18,6 +18,7 @@ A collection of different transport implementations and related tools focused pr
 8. [Pool Manager](https://c410-f3r.github.io/wtx/pool/index.html)
 9. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
 10. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
+11. [WebSocket over HTTP/2](https://c410-f3r.github.io/wtx/web-socket-over-http2/index.html)
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
 
@@ -47,18 +48,18 @@ Anything marked with `#[bench]` in the repository is considered a low-level benc
 
 Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks over different periods of time.
 
+## Transport Layer Security (TLS)
+
+When using a feature that requires network connection, it is often necessary to perform encrypted communication and since `wtx` is not hard-coded with a specific stream implementation, it is up to you to choose the best TLS provider.
+
+Some utilities like `TokioRustlsConnector` or `TokioRustlsAcceptor` are provided to make things more convenient but keep in mind that it is still necessary to activate a crate that provides certificates for client usage.
+
 ## Examples
 
 Demonstrations of different use-cases can be found in the `wtx-instances` directory as well as in the documentation.
 
 ## Limitations
 
-Does not support systems with 16bit memory addresses and expects the infallible addition of the sizes of 8 allocated chunks of memories, otherwise the program will overflow in certain arithmetic operations involving `usize` potentially resulting in unexpected operations.
+* Does not support systems with pointer length of 16 bits.
 
-For example, in a 32bit system you can allocate a maximum of 2^29 bytes of memory for at most 8 elements. Such a scenario should be viable with little swap memory due to the likely triggering of the OOM killer or through specific limiters like `ulimit`.
-
-## Possible future features
-
-* WebSocket over an HTTP/2 stream (<https://datatracker.ietf.org/doc/html/rfc8441>).
-* WebTransport over HTTP/2 (<https://datatracker.ietf.org/doc/draft-ietf-webtrans-http2>).
-* Static web server
+* Expects the infallible sum of the lengths of an arbitrary number of slices, otherwise the program will likely trigger an overflow that can possibly result in unexpected operations. For example, in a 32bit system such a scenario should be viable without swap memory or through specific limiters like `ulimit`.

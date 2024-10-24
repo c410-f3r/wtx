@@ -94,7 +94,10 @@ impl<RL, RM> crate::http::server_framework::ReqAux for SimplePool<RL, RM> {
   type Init = Self;
 
   #[inline]
-  fn req_aux<RRD>(init: Self::Init, _: &mut crate::http::Request<RRD>) -> crate::Result<Self> {
+  fn req_aux(
+    init: Self::Init,
+    _: &mut crate::http::Request<crate::http::ReqResBuffer>,
+  ) -> crate::Result<Self> {
     Ok(init)
   }
 }

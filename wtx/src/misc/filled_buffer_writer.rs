@@ -1,4 +1,4 @@
-use crate::misc::{BufferParam, FilledBuffer, Lease, LeaseMut, VectorError};
+use crate::misc::{BufferMode, FilledBuffer, Lease, LeaseMut, VectorError};
 
 /// Helper that manages the copy of initialized bytes.
 #[derive(Debug)]
@@ -85,7 +85,7 @@ impl<'vec> FilledBufferWriter<'vec> {
   #[inline]
   pub(crate) fn _shift_idx(&mut self, n: usize) -> Result<(), VectorError> {
     let new_len = self._curr_idx.wrapping_add(n);
-    self._vec._expand(BufferParam::Len(new_len))?;
+    self._vec._expand(BufferMode::Len(new_len))?;
     self._curr_idx = new_len;
     Ok(())
   }

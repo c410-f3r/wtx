@@ -1,6 +1,6 @@
 use crate::{
   http::Headers,
-  misc::{Lease, LeaseMut, Uri, UriRef},
+  misc::{Lease, LeaseMut, Uri, UriString, _EMPTY_URI_STRING},
 };
 use alloc::boxed::Box;
 
@@ -15,8 +15,8 @@ pub trait ReqResData {
   /// See [Headers].
   fn headers(&self) -> &Headers;
 
-  /// See [`UriRef`].
-  fn uri(&self) -> UriRef<'_>;
+  /// See [`UriString`].
+  fn uri(&self) -> &UriString;
 }
 
 impl<T> ReqResData for &T
@@ -36,7 +36,7 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
+  fn uri(&self) -> &UriString {
     (*self).uri()
   }
 }
@@ -58,7 +58,7 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
+  fn uri(&self) -> &UriString {
     (**self).uri()
   }
 }
@@ -77,8 +77,8 @@ impl ReqResData for &[u8] {
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    UriRef::_empty("")
+  fn uri(&self) -> &UriString {
+    &_EMPTY_URI_STRING
   }
 }
 
@@ -96,8 +96,8 @@ impl<const N: usize> ReqResData for [u8; N] {
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    UriRef::_empty("")
+  fn uri(&self) -> &UriString {
+    &_EMPTY_URI_STRING
   }
 }
 
@@ -115,8 +115,8 @@ impl ReqResData for () {
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    UriRef::_empty("")
+  fn uri(&self) -> &UriString {
+    &_EMPTY_URI_STRING
   }
 }
 
@@ -137,8 +137,8 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    UriRef::_empty("")
+  fn uri(&self) -> &UriString {
+    &_EMPTY_URI_STRING
   }
 }
 
@@ -159,8 +159,8 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    UriRef::_empty("")
+  fn uri(&self) -> &UriString {
+    &_EMPTY_URI_STRING
   }
 }
 
@@ -178,8 +178,8 @@ impl ReqResData for Headers {
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    UriRef::_empty("")
+  fn uri(&self) -> &UriString {
+    &_EMPTY_URI_STRING
   }
 }
 
@@ -200,8 +200,8 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> UriRef<'_> {
-    self.to_ref()
+  fn uri(&self) -> &UriString {
+    &_EMPTY_URI_STRING
   }
 }
 
@@ -223,7 +223,7 @@ pub trait ReqResDataMut: ReqResData {
   }
 
   /// Mutable parts
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>);
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString);
 }
 
 impl<T> ReqResDataMut for &mut T
@@ -246,7 +246,7 @@ where
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
     (**self).parts_mut()
   }
 }
@@ -271,7 +271,7 @@ where
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
     (**self).parts_mut()
   }
 }
@@ -281,8 +281,8 @@ impl ReqResDataMut for Headers {
   fn clear(&mut self) {}
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
-    (&mut [], self, UriRef::_empty(""))
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
+    (&mut [], self, &_EMPTY_URI_STRING)
   }
 }
 
@@ -294,7 +294,7 @@ where
   fn clear(&mut self) {}
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
-    (&mut self.0, self.1.lease_mut(), UriRef::_empty(""))
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
+    (&mut self.0, self.1.lease_mut(), &_EMPTY_URI_STRING)
   }
 }

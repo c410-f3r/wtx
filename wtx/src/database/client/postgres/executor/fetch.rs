@@ -1,8 +1,10 @@
 use crate::{
   database::{
     client::postgres::{
-      executor::commons::FetchWithStmtCommons, message::Message, statements::Statement, Executor,
-      ExecutorBuffer, MessageTy, Postgres, PostgresError, Record,
+      executor::commons::FetchWithStmtCommons,
+      message::{Message, MessageTy},
+      statements::Statement,
+      Executor, ExecutorBuffer, Postgres, PostgresError, Record,
     },
     RecordValues,
   },
@@ -68,7 +70,7 @@ where
     read: &mut usize,
     stream: &mut S,
   ) -> crate::Result<(u8, usize)> {
-    let buffer = nb._following_trail_mut();
+    let buffer = nb._following_rest_mut();
     let [mt_n, b, c, d, e] = _read_until::<5, S>(buffer, read, 0, stream).await?;
     let len: usize = u32::from_be_bytes([b, c, d, e]).try_into()?;
     Ok((mt_n, len.wrapping_add(1)))
@@ -93,14 +95,14 @@ where
     stream: &mut S,
   ) -> crate::Result<()> {
     let mut is_payload_filled = false;
-    nb._expand_buffer(len)?;
+    nb._reserve(len)?;
     for _ in 0..=len {
       if *read >= len {
         is_payload_filled = true;
         break;
       }
       *read = read.wrapping_add(
-        stream.read(nb._following_trail_mut().get_mut(*read..).unwrap_or_default()).await?,
+        stream.read(nb._following_rest_mut().get_mut(*read..).unwrap_or_default()).await?,
       );
     }
     if !is_payload_filled {

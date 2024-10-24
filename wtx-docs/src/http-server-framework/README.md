@@ -4,7 +4,7 @@ A small and fast to compile framework that can interact with many built-in featu
 
 If dynamic or nested routes are needed, then it is necessary to activate the `matchit` feature. Without it, only simple and flat routes will work.
 
-Activation feature is called `http-server-framework`.
+To use this functionality, it necessary to activate the `http-server-framework` feature.
 
 ![HTTP/2 Benchmarks](https://i.imgur.com/lUOX3iM.png)
 
