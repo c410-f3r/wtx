@@ -142,7 +142,7 @@ where
   Ok(0..len)
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::{
     client_api_framework::{

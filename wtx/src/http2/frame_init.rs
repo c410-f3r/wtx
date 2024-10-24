@@ -1,4 +1,4 @@
-use crate::http2::{CommonFlags, U31};
+use crate::http2::{common_flags::CommonFlags, u31::U31};
 
 _create_enum! {
   #[derive(Debug, Copy, Clone, PartialEq, Eq)]

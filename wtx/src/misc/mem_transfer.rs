@@ -33,7 +33,7 @@ where
     return &mut [];
   }
   for Range { start, end } in iter {
-    let Some((diff, local_new_len)) = end.checked_sub(start).and_then(|diff| {
+    let Some((diff @ 1..usize::MAX, local_new_len)) = end.checked_sub(start).and_then(|diff| {
       let local_new_len = new_len.checked_add(diff)?;
       if local_new_len > slice.len() {
         return None;
@@ -58,8 +58,7 @@ where
   unsafe { slice.get_unchecked_mut(..new_len) }
 }
 
-#[cfg(feature = "_proptest")]
-#[cfg(test)]
+#[cfg(all(feature = "_proptest", test))]
 mod proptest {
   use crate::misc::{Vector, _shift_copyable_chunks};
   use core::ops::Range;

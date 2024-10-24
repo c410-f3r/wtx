@@ -1,8 +1,8 @@
-#![allow(incomplete_features, reason = "essential async feature")]
+#![cfg_attr(feature = "nightly", allow(incomplete_features, reason = "essential async feature"))]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
 #![doc = include_str!("../README.md")]
-#![cfg_attr(feature = "tokio", feature(return_type_notation))]
+#![cfg_attr(feature = "nightly", feature(return_type_notation))]
 #![no_std]
 
 extern crate alloc;

@@ -8,14 +8,14 @@ extern crate wtx_instances;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
-  http::LowLevelServer,
-  misc::{TokioRustlsAcceptor, Xorshift64},
-  web_socket::{FrameBufferVec, OpCode, WebSocketBuffer, WebSocketServer},
+  http::OptionedServer,
+  misc::TokioRustlsAcceptor,
+  web_socket::{OpCode, WebSocketBuffer, WebSocketServer},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  LowLevelServer::tokio_web_socket(
+  OptionedServer::tokio_web_socket(
     &wtx_instances::host_from_args(),
     None,
     || {},
@@ -34,14 +34,14 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn handle(
-  fb: &mut FrameBufferVec,
-  mut ws: WebSocketServer<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer>,
+  mut ws: WebSocketServer<(), TlsStream<TcpStream>, &mut WebSocketBuffer>,
 ) -> wtx::Result<()> {
+  let (mut common, mut reader, mut writer) = ws.parts();
   loop {
-    let mut frame = ws.read_frame(fb).await?;
+    let mut frame = reader.read_frame(&mut common).await?;
     match frame.op_code() {
       OpCode::Binary | OpCode::Text => {
-        ws.write_frame(&mut frame).await?;
+        writer.write_frame(&mut common, &mut frame).await?;
       }
       OpCode::Close => break,
       _ => {}

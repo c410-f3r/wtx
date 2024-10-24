@@ -1,31 +1,12 @@
 #[doc = _internal_doc!()]
 #[inline]
 pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
-  #[cfg(target_feature = "avx512f")]
-  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_512);
-
-  #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_256);
-
-  #[cfg(all(
-    target_feature = "neon",
-    not(any(target_feature = "avx2", target_feature = "avx512f"))
-  ))]
-  let (is_128, unmask_chunks_slice) = (true, _unmask_chunks_slice_128);
-
-  #[cfg(all(
-    target_feature = "sse2",
-    not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
-  ))]
-  let (is_128, unmask_chunks_slice) = (true, _unmask_chunks_slice_128);
-
-  #[cfg(not(any(
-    target_feature = "avx2",
-    target_feature = "avx512f",
-    target_feature = "neon",
-    target_feature = "sse2"
-  )))]
-  let (is_128, unmask_chunks_slice) = (false, _unmask_chunks_slice_fallback);
+  let (is_128, unmask_chunks_slice) = _simd!(
+    512 => (false, _unmask_chunks_slice_512),
+    256 => (false, _unmask_chunks_slice_256),
+    128 => (true, _unmask_chunks_slice_128),
+    _ => (false, _unmask_chunks_slice_fallback)
+  );
 
   // SAFETY: Changing a sequence of `u8` should be fine
   let (prefix, chunks, suffix) = unsafe { bytes.align_to_mut() };
@@ -75,24 +56,23 @@ fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4], shift: usize) {
 
 #[cfg(all(feature = "_bench", test))]
 mod bench {
-  use crate::{bench::_data, web_socket::unmask};
+  use crate::bench::_data;
 
   #[bench]
-  fn bench_unmask(b: &mut test::Bencher) {
+  fn unmask(b: &mut test::Bencher) {
     let mut data = _data(1024 * 1024 * 8);
-    b.iter(|| unmask(&mut data, [3, 5, 7, 11]));
+    b.iter(|| crate::web_socket::unmask::unmask(&mut data, [3, 5, 7, 11]));
   }
 }
 
-#[cfg(test)]
-#[cfg(feature = "_proptest")]
+#[cfg(all(feature = "_proptest", test))]
 mod proptest {
   use crate::misc::Vector;
 
   #[test_strategy::proptest]
   fn unmask(mut payload: Vector<u8>, mask: [u8; 4]) {
     payload.fill(0);
-    crate::web_socket::unmask(&mut payload, mask);
+    crate::web_socket::unmask::unmask(&mut payload, mask);
     let expected = Vector::from_iter((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();
     assert_eq!(payload, expected);
   }

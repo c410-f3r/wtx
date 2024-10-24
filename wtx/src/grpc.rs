@@ -17,7 +17,7 @@ fn serialize<DRSR, T>(bytes: &mut Vector<u8>, mut data: T, drsr: &mut DRSR) -> c
 where
   T: Serialize<DRSR>,
 {
-  bytes.extend_from_slice(&[0; 5])?;
+  bytes.extend_from_copyable_slice(&[0; 5])?;
   let before_len = bytes.len();
   data.to_bytes(bytes, drsr)?;
   let after_len = bytes.len();

@@ -1,4 +1,4 @@
-use crate::misc::{BufferParam, Lease, LeaseMut, _unlikely_elem};
+use crate::misc::{BufferMode, Lease, LeaseMut, _unlikely_elem};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
@@ -108,17 +108,17 @@ impl<T> Vector<T> {
     Ok(this)
   }
 
-  /// Returns an unsafe mutable pointer to the vector's buffer, or a dangling
-  /// raw pointer valid for zero sized reads if the vector didn't allocate.
-  #[inline]
-  pub fn as_mut_ptr(&mut self) -> *mut T {
-    self.data.as_mut_ptr()
-  }
-
-  /// Extracts a slice containing the entire mutable vector.
-  #[inline]
-  pub fn as_mut_slice(&mut self) -> &mut [T] {
-    self.data.as_mut_slice()
+  /// Constructs a new, empty instance with the exact specified capacity.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::<u8>::with_exact_capacity(2).unwrap();
+  /// assert_eq!(vec.capacity(), 2);
+  /// ```
+  #[inline(always)]
+  pub fn with_exact_capacity(cap: usize) -> Result<Self, VectorError> {
+    let mut this = Self { data: Vec::new() };
+    this.reserve_exact(cap)?;
+    Ok(this)
   }
 
   /// Returns a raw pointer to the vector's buffer, or a dangling raw pointer
@@ -128,10 +128,23 @@ impl<T> Vector<T> {
     self.data.as_ptr()
   }
 
+  /// Returns an unsafe mutable pointer to the vector's buffer, or a dangling
+  /// raw pointer valid for zero sized reads if the vector didn't allocate.
+  #[inline]
+  pub fn as_ptr_mut(&mut self) -> *mut T {
+    self.data.as_mut_ptr()
+  }
+
   /// Extracts a slice containing the entire vector.
   #[inline]
   pub fn as_slice(&self) -> &[T] {
     self.data.as_slice()
+  }
+
+  /// Extracts a slice containing the entire mutable vector.
+  #[inline]
+  pub fn as_slice_mut(&mut self) -> &mut [T] {
+    self.data.as_mut_slice()
   }
 
   /// Returns the total number of elements the vector can hold without reallocating.
@@ -171,6 +184,12 @@ impl<T> Vector<T> {
   }
 
   /// Clones and appends all elements in the iterator.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.extend_from_iter(0..2);
+  /// assert_eq!(vec.as_slice(), &[0, 1]);
+  /// ```
   #[inline]
   pub fn extend_from_iter(&mut self, ii: impl IntoIterator<Item = T>) -> Result<(), VectorError> {
     let iter = ii.into_iter();
@@ -182,6 +201,14 @@ impl<T> Vector<T> {
   }
 
   /// Constructs a new instance with elements provided by `iter`.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..4).unwrap();
+  /// vec.insert(1, 4);
+  /// assert_eq!(vec.as_slice(), [1, 4, 2, 3]);
+  /// vec.insert(4, 5);
+  /// assert_eq!(vec.as_slice(), [1, 4, 2, 3, 5]);
+  /// ```
   #[inline]
   pub fn insert(&mut self, idx: usize, elem: T) -> Result<(), VectorError> {
     let len = self.len();
@@ -190,7 +217,7 @@ impl<T> Vector<T> {
     }
     self.reserve(1)?;
     // SAFETY: Top-level check ensures bounds
-    let ptr = unsafe { self.as_mut_ptr().add(idx) };
+    let ptr = unsafe { self.as_ptr_mut().add(idx) };
     if idx < len {
       // SAFETY: Top-level check ensures bounds
       let diff = unsafe { len.unchecked_sub(idx) };
@@ -215,12 +242,24 @@ impl<T> Vector<T> {
   }
 
   /// Removes the last element from a vector and returns it, or [None] if it is empty.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..4).unwrap();
+  /// assert_eq!(vec.pop(), Some(3));
+  /// assert_eq!(vec.as_slice(), [1, 2]);
+  /// ```
   #[inline]
   pub fn pop(&mut self) -> Option<T> {
     self.data.pop()
   }
 
   /// Appends an element to the back of the collection.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.push(3);
+  /// assert_eq!(vec.as_slice(), [3]);
+  /// ```
   #[inline]
   pub fn push(&mut self, value: T) -> Result<(), VectorError> {
     self.reserve(1).map_err(|_err| VectorError::PushOverflow)?;
@@ -241,6 +280,12 @@ impl<T> Vector<T> {
   }
 
   /// Shortens the vector, keeping the first len elements and dropping the rest.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..4).unwrap();
+  /// assert_eq!(vec.remove(1), Some(2));
+  /// assert_eq!(vec.as_slice(), [1, 3]);
+  /// ```
   #[inline]
   pub fn remove(&mut self, idx: usize) -> Option<T> {
     if idx >= self.data.len() {
@@ -254,6 +299,12 @@ impl<T> Vector<T> {
   /// speculatively avoid frequent reallocations. After calling `reserve`,
   /// capacity will be greater than or equal to `self.len() + additional`.
   /// Does nothing if capacity is already sufficient.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::<u8>::new();
+  /// vec.reserve(10);
+  /// assert!(vec.capacity() >= 10);
+  /// ```
   #[inline(always)]
   pub fn reserve(&mut self, additional: usize) -> Result<(), VectorError> {
     self.data.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
@@ -264,7 +315,33 @@ impl<T> Vector<T> {
     Ok(())
   }
 
+  /// Tries to reserve the minimum capacity for at least `additional`
+  /// elements to be inserted in the given instance. Unlike [`try_reserve`],
+  /// this will not deliberately over-allocate to speculatively avoid frequent
+  /// allocations.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::<u8>::new();
+  /// vec.reserve(10);
+  /// assert!(vec.capacity() >= 10);
+  /// ```
+  #[inline(always)]
+  pub fn reserve_exact(&mut self, additional: usize) -> Result<(), VectorError> {
+    self.data.try_reserve_exact(additional).map_err(|_err| VectorError::ReserveOverflow)?;
+    // SAFETY: `len` will never be greater than the current capacity
+    unsafe {
+      assert_unchecked(self.data.capacity() >= self.data.len());
+    }
+    Ok(())
+  }
+
   /// Shortens the vector, keeping the first len elements and dropping the rest.
+  ///
+  /// ```
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..6).unwrap();
+  /// vec.truncate(2);
+  /// assert_eq!(vec.as_slice(), [1, 2]);
+  /// ```
   #[inline]
   pub fn truncate(&mut self, len: usize) {
     self.data.truncate(len);
@@ -293,7 +370,7 @@ where
   #[inline]
   pub fn from_cloneable_elem(len: usize, value: T) -> Result<Self, VectorError> {
     let mut this = Self::with_capacity(len)?;
-    this.expand(BufferParam::Len(len), value)?;
+    this.expand(BufferMode::Len(len), value)?;
     Ok(this)
   }
 
@@ -301,7 +378,7 @@ where
   ///
   /// Does nothing if the calculated length is equal or less than the current length.
   #[inline(always)]
-  pub fn expand(&mut self, bp: BufferParam, value: T) -> Result<(), VectorError> {
+  pub fn expand(&mut self, bp: BufferMode, value: T) -> Result<(), VectorError> {
     let len = self.data.len();
     let Some((additional, new_len)) = bp.params(len) else {
       return Ok(());
@@ -329,19 +406,15 @@ where
   #[inline]
   pub fn from_slice(slice: &[T]) -> Result<Self, VectorError> {
     let mut this = Self::new();
-    this.extend_from_slice(slice)?;
+    this.extend_from_copyable_slice(slice)?;
     Ok(this)
   }
 
   /// Iterates over the slice `other`, copies each element, and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_slice(&mut self, other: &[T]) -> Result<(), VectorError> {
-    self.reserve(other.len()).map_err(|_err| VectorError::ExtendFromSliceOverflow)?;
-    // SAFETY: memory has been allocated
-    unsafe {
-      self.do_extend_from_slice(other);
-    }
+  pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), VectorError> {
+    let _ = self.extend_from_copyable_slices([other])?;
     Ok(())
   }
 
@@ -349,7 +422,7 @@ where
   ///
   /// Returns the sum of the lengths of all slices.
   #[inline(always)]
-  pub fn extend_from_slices<'iter, I>(&mut self, others: I) -> Result<usize, VectorError>
+  pub fn extend_from_copyable_slices<'iter, I>(&mut self, others: I) -> Result<usize, VectorError>
   where
     I: IntoIterator<Item = &'iter [T]>,
     I::IntoIter: Clone,
@@ -452,61 +525,6 @@ mod serde {
   }
 }
 
-#[cfg(feature = "quick-protobuf")]
-impl quick_protobuf::writer::WriterBackend for &mut Vector<u8> {
-  #[inline]
-  fn pb_write_u8(&mut self, x: u8) -> quick_protobuf::Result<()> {
-    self.push(x).map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-
-  #[inline]
-  fn pb_write_u32(&mut self, x: u32) -> quick_protobuf::Result<()> {
-    self
-      .extend_from_slice(&x.to_be_bytes())
-      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-
-  #[inline]
-  fn pb_write_i32(&mut self, x: i32) -> quick_protobuf::Result<()> {
-    self
-      .extend_from_slice(&x.to_be_bytes())
-      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-
-  #[inline]
-  fn pb_write_f32(&mut self, x: f32) -> quick_protobuf::Result<()> {
-    self
-      .extend_from_slice(&x.to_be_bytes())
-      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-
-  #[inline]
-  fn pb_write_u64(&mut self, x: u64) -> quick_protobuf::Result<()> {
-    self
-      .extend_from_slice(&x.to_be_bytes())
-      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-
-  #[inline]
-  fn pb_write_i64(&mut self, x: i64) -> quick_protobuf::Result<()> {
-    self
-      .extend_from_slice(&x.to_be_bytes())
-      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-
-  #[inline]
-  fn pb_write_f64(&mut self, x: f64) -> quick_protobuf::Result<()> {
-    self
-      .extend_from_slice(&x.to_be_bytes())
-      .map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-
-  #[inline]
-  fn pb_write_all(&mut self, buf: &[u8]) -> quick_protobuf::Result<()> {
-    self.extend_from_slice(buf).map_err(|_err| quick_protobuf::Error::UnexpectedEndOfBuffer)
-  }
-}
-
 impl<T> AsMut<[T]> for Vector<T> {
   #[inline]
   fn as_mut(&mut self) -> &mut [T] {
@@ -595,7 +613,7 @@ impl<T> From<Vector<T>> for Vec<T> {
 impl core::fmt::Write for Vector<u8> {
   #[inline]
   fn write_str(&mut self, s: &str) -> core::fmt::Result {
-    self.extend_from_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)
+    self.extend_from_copyable_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)
   }
 }
 
@@ -675,8 +693,7 @@ mod cl_aux {
   }
 }
 
-#[cfg(feature = "_proptest")]
-#[cfg(test)]
+#[cfg(all(feature = "_proptest", test))]
 mod _proptest {
   use crate::misc::Vector;
   use alloc::vec::Vec;

@@ -34,6 +34,8 @@ pub enum Http2Error {
   HpackDecodingBufferIsTooSmall,
   /// There are no bytes left to decode HPACK headers.
   InsufficientHpackBytes,
+  /// Content length has a value that is different than the actual payload length
+  InvalidContentLength,
   /// Continuation frame found in invalid order
   InvalidContinuationFrame,
   /// Length is greater than [`u32::MAX`].
@@ -114,14 +116,18 @@ pub enum Http2Error {
   UnexpectedPreFixedHeaderName,
   /// Servers must only receive odd IDs or IDs are lower than the current highest value
   UnexpectedStreamId,
-  /// Type is out of range or unsupported.
-  UnknownSettingFrameTy,
   /// A stream ID is not locally stored to allow the processing of data frames.
   UnknownDataStreamReceiver,
   /// A stream ID is not locally stored to allow the processing of header frames.
   UnknownHeaderStreamReceiver,
+  /// A programming error that shouldn't never happen
+  UnknownInitialServerHeaderId,
   /// A stream ID is not locally stored to allow the processing of reset frames.
   UnknownResetStreamReceiver,
+  /// Type is out of range or unsupported.
+  UnknownSettingFrameTy,
+  /// Stream id doesn't exist locally
+  UnknownStreamId,
   /// A stream ID is not locally stored.
   UnknownStreamReceiver,
   /// A stream ID is not locally stored to allow the processing of window update frames.

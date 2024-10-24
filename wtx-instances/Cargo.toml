@@ -8,12 +8,22 @@ required-features = ["wtx/flate2", "wtx/web-socket-handshake"]
 [[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
-required-features = ["wtx/flate2", "wtx/pool", "wtx/web-socket-handshake"]
+required-features = ["wtx/flate2", "wtx/nightly", "wtx/pool", "wtx/web-socket-handshake"]
 
 [[bin]]
-name = "h2spec-server"
-path = "src/bin/h2spec-server.rs"
-required-features = ["wtx/http2"]
+name = "h2load"
+path = "src/bin/h2load.rs"
+required-features = ["wtx/http2", "wtx/nightly"]
+
+[[bin]]
+name = "h2spec-high-server"
+path = "src/bin/h2spec-high-server.rs"
+required-features = ["wtx/http2", "wtx/nightly"]
+
+[[bin]]
+name = "h2spec-low-server"
+path = "src/bin/h2spec-low-server.rs"
+required-features = ["wtx/http2", "wtx/nightly"]
 
 # Database Examples
 
@@ -55,16 +65,6 @@ path = "generic-examples/http-client-framework.rs"
 required-features = ["wtx/http-client-framework"]
 
 [[example]]
-name = "http2-client"
-path = "generic-examples/http2-client.rs"
-required-features = ["wtx/http2"]
-
-[[example]]
-name = "http2-server"
-path = "generic-examples/http2-server.rs"
-required-features = ["wtx/http2", "wtx/tokio-rustls"]
-
-[[example]]
 name = "pool"
 path = "generic-examples/pool.rs"
 required-features = ["wtx/pool"]
@@ -101,6 +101,23 @@ name = "http-server-framework-session"
 path = "http-server-framework-examples/http-server-framework-session.rs"
 required-features = ["argon2", "rand_chacha", "rand_core", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "wtx/postgres", "wtx/rand_chacha"]
 
+# HTTP/2 Examples
+
+[[example]]
+name = "http2-client"
+path = "http2-examples/http2-client.rs"
+required-features = ["wtx/http2"]
+
+[[example]]
+name = "http2-server"
+path = "http2-examples/http2-server.rs"
+required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
+
+[[example]]
+name = "http2-web-socket"
+path = "http2-examples/http2-web-socket.rs"
+required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
+
 [build-dependencies]
 pb-rs = { default-features = false, optional = true, version = "0.10" }
 
@@ -117,7 +134,6 @@ wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
 
 [features]
-_tracing-tree = ["wtx/_tracing-tree"]
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
 postgres = ["wtx/postgres"]
 

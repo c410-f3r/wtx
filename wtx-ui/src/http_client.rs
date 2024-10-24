@@ -38,7 +38,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
       .unwrap();
   }
   if let Some(elem) = data {
-    rrb.data.extend_from_slice(elem.as_bytes()).unwrap();
+    rrb.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
   }
   let res = ReqBuilder::new(method, rrb).send(&client, &Uri::new(uri).to_ref()).await.unwrap();
   if let Some(elem) = output {
@@ -48,9 +48,9 @@ pub(crate) async fn http_client(http_client: HttpClient) {
       .write(true)
       .open(elem)
       .unwrap()
-      .write_all(&res.rrd.data)
+      .write_all(&res.rrd.body)
       .unwrap();
   } else {
-    println!("{}", from_utf8_basic(&res.rrd.data).unwrap());
+    println!("{}", from_utf8_basic(&res.rrd.body).unwrap());
   }
 }

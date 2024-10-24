@@ -1,6 +1,6 @@
 use crate::http2::{
-  HpackEncoder, Scrp, SettingsFrame, Sorp, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
-  MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN, U31,
+  hpack_encoder::HpackEncoder, settings_frame::SettingsFrame, u31::U31, Scrp, Sorp, MAX_FRAME_LEN,
+  MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN,
 };
 use core::cmp::Ordering;
 
@@ -16,12 +16,12 @@ pub(crate) struct Http2ParamsSend {
 }
 
 impl Http2ParamsSend {
-  pub(crate) fn update<RRB>(
+  pub(crate) fn update(
     &mut self,
     hpack_enc: &mut HpackEncoder,
     scrp: &mut Scrp,
     sf: &SettingsFrame,
-    sorp: &mut Sorp<RRB>,
+    sorp: &mut Sorp,
   ) -> crate::Result<()> {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);
@@ -32,22 +32,22 @@ impl Http2ParamsSend {
         Ordering::Greater => {
           let inc = initial_window_size.wrapping_sub(self.initial_window_len);
           for (stream_id, elem) in scrp {
-            elem.windows.send.deposit(Some(*stream_id), inc.i32())?;
+            elem.windows.send_mut().deposit(Some(*stream_id), inc.i32())?;
             elem.waker.wake_by_ref();
           }
           for (stream_id, elem) in sorp {
-            elem.windows.send.deposit(Some(*stream_id), inc.i32())?;
+            elem.windows.send_mut().deposit(Some(*stream_id), inc.i32())?;
             elem.waker.wake_by_ref();
           }
         }
         Ordering::Less => {
           let dec = self.initial_window_len.wrapping_sub(initial_window_size);
           for (stream_id, elem) in scrp {
-            elem.windows.send.withdrawn(Some(*stream_id), dec.i32())?;
+            elem.windows.send_mut().withdrawn(Some(*stream_id), dec.i32())?;
             elem.waker.wake_by_ref();
           }
           for (stream_id, elem) in sorp {
-            elem.windows.send.withdrawn(Some(*stream_id), dec.i32())?;
+            elem.windows.send_mut().withdrawn(Some(*stream_id), dec.i32())?;
             elem.waker.wake_by_ref();
           }
         }

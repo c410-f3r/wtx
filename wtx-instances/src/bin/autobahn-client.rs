@@ -3,18 +3,14 @@
 use tokio::net::TcpStream;
 use wtx::{
   misc::{simple_seed, UriRef, Xorshift64},
-  web_socket::{
-    compression::Flate2, CloseCode, FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer,
-    WebSocketClient,
-  },
+  web_socket::{compression::Flate2, Frame, OpCode, WebSocketBuffer, WebSocketClient},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let fb = &mut FrameBufferVec::default();
   let host = "127.0.0.1:9080";
   let mut wsb = WebSocketBuffer::default();
-  for case in 1..=get_case_count(fb, host, &mut wsb).await? {
+  for case in 1..=get_case_count(host, &mut wsb).await? {
     let mut ws = WebSocketClient::connect(
       Flate2::default(),
       [],
@@ -25,17 +21,17 @@ async fn main() -> wtx::Result<()> {
       |_| wtx::Result::Ok(()),
     )
     .await?;
+    let (mut common, mut reader, mut writer) = ws.parts();
     loop {
-      let mut frame = match ws.read_frame(fb).await {
-        Err(error) => {
-          eprintln!("Error: {error}");
-          ws.write_frame(&mut FrameMutVec::new_fin(fb, OpCode::Close, &[])?).await?;
+      let mut frame = match reader.read_frame(&mut common).await {
+        Err(_err) => {
+          ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
           break;
         }
         Ok(elem) => elem,
       };
       match frame.op_code() {
-        OpCode::Binary | OpCode::Text => ws.write_frame(&mut frame).await?,
+        OpCode::Binary | OpCode::Text => writer.write_frame(&mut common, &mut frame).await?,
         OpCode::Close => break,
         _ => {}
       }
@@ -51,15 +47,11 @@ async fn main() -> wtx::Result<()> {
     |_| wtx::Result::Ok(()),
   )
   .await?
-  .write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[])?)
+  .write_frame(&mut Frame::new_fin(OpCode::Close, &mut []))
   .await
 }
 
-async fn get_case_count(
-  fb: &mut FrameBufferVec,
-  host: &str,
-  wsb: &mut WebSocketBuffer,
-) -> wtx::Result<u32> {
+async fn get_case_count(host: &str, wsb: &mut WebSocketBuffer) -> wtx::Result<u32> {
   let mut ws = WebSocketClient::connect(
     (),
     [],
@@ -70,7 +62,7 @@ async fn get_case_count(
     |_| wtx::Result::Ok(()),
   )
   .await?;
-  let rslt = ws.read_frame(fb).await?.text_payload().unwrap_or_default().parse()?;
-  ws.write_frame(&mut FrameMutVec::close_from_params(CloseCode::Normal, fb, &[])?).await?;
+  let rslt = ws.read_frame().await?.text_payload().unwrap_or_default().parse()?;
+  ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
   Ok(rslt)
 }

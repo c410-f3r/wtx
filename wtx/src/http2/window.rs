@@ -1,7 +1,7 @@
 use crate::{
   http2::{
-    http2_params_send::Http2ParamsSend, misc::write_array, Http2Error, Http2ErrorCode, Http2Params,
-    WindowUpdateFrame, U31,
+    http2_params_send::Http2ParamsSend, misc::write_array, u31::U31,
+    window_update_frame::WindowUpdateFrame, Http2Error, Http2ErrorCode, Http2Params,
   },
   misc::StreamWriter,
 };
@@ -9,7 +9,7 @@ use core::sync::atomic::AtomicBool;
 
 /// A "credit" system used to restrain the exchange of data.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Window {
+pub struct Window {
   available: i32,
 }
 
@@ -19,6 +19,7 @@ impl Window {
     Self { available }
   }
 
+  /// The amount of data available to send or receive. Depends if you are a client or a server.
   #[inline]
   pub(crate) const fn available(self) -> i32 {
     self.available
@@ -76,13 +77,16 @@ impl Window {
   }
 }
 
+/// A "credit" system used to restrain the exchange of data.
+///
+/// Groups the sending the receiving  parameters.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Windows {
+pub struct Windows {
   /// Parameters used to received data. It is defined locally.
-  pub(crate) recv: Window,
+  recv: Window,
   /// Parameters used to send data. It is initially defined locally with default parameters
   /// and then defined by a remote peer.
-  pub(crate) send: Window,
+  send: Window,
 }
 
 impl Windows {
@@ -98,6 +102,24 @@ impl Windows {
   #[inline]
   pub(crate) const fn new() -> Self {
     Self { recv: Window::new(0), send: Window::new(0) }
+  }
+
+  /// Parameters used to received data. It is defined locally.
+  #[inline]
+  pub const fn recv(&self) -> Window {
+    self.recv
+  }
+
+  /// Parameters used to send data. It is initially defined locally with default parameters
+  /// and then defined by a remote peer.
+  #[inline]
+  pub const fn send(&self) -> Window {
+    self.send
+  }
+
+  #[inline]
+  pub(crate) fn send_mut(&mut self) -> &mut Window {
+    &mut self.send
   }
 }
 
@@ -118,7 +140,7 @@ impl<'any> WindowsPair<'any> {
     self.stream.send.available()
   }
 
-  /// withdrawn - Receive
+  /// Withdrawn - Receive
   ///
   /// Controls window sizes received from external sources. Invalid or negative values trigger a
   /// frame dispatch to return to the default window size.

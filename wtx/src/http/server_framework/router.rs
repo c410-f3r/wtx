@@ -1,7 +1,7 @@
 use crate::{
   http::{
     server_framework::{PathManagement, ReqMiddleware, ResMiddleware},
-    ReqResData, Request, Response, StatusCode,
+    ReqResBuffer, Request, Response, StatusCode,
   },
   misc::{ArrayVector, Vector},
 };
@@ -9,19 +9,19 @@ use core::marker::PhantomData;
 
 /// Redirects requests to specific asynchronous functions based on the set of inner URIs.
 #[derive(Debug)]
-pub struct Router<CA, E, P, RA, REQM, RESM, RRD> {
+pub struct Router<CA, E, P, RA, REQM, RESM> {
   pub(crate) paths: P,
-  pub(crate) phantom: PhantomData<(CA, E, RA, RRD)>,
+  pub(crate) phantom: PhantomData<(CA, E, RA)>,
   pub(crate) req_middlewares: REQM,
   pub(crate) res_middlewares: RESM,
   #[cfg(feature = "matchit")]
   pub(crate) router: matchit::Router<ArrayVector<(&'static str, u8), 8>>,
 }
 
-impl<CA, E, P, RA, REQM, RESM, RRD> Router<CA, E, P, RA, REQM, RESM, RRD>
+impl<CA, E, P, RA, REQM, RESM> Router<CA, E, P, RA, REQM, RESM>
 where
   E: From<crate::Error>,
-  P: PathManagement<CA, E, RA, RRD>,
+  P: PathManagement<CA, E, RA>,
 {
   /// Creates a new instance with paths and middlewares.
   #[inline]
@@ -54,10 +54,10 @@ where
   }
 }
 
-impl<CA, E, P, RA, RRD> Router<CA, E, P, RA, (), (), RRD>
+impl<CA, E, P, RA> Router<CA, E, P, RA, (), ()>
 where
   E: From<crate::Error>,
-  P: PathManagement<CA, E, RA, RRD>,
+  P: PathManagement<CA, E, RA>,
 {
   /// Creates a new instance of empty middlewares.
   #[inline]
@@ -75,14 +75,12 @@ where
   }
 }
 
-impl<CA, E, P, RA, REQM, RESM, RRD> PathManagement<CA, E, RA, RRD>
-  for Router<CA, E, P, RA, REQM, RESM, RRD>
+impl<CA, E, P, RA, REQM, RESM> PathManagement<CA, E, RA> for Router<CA, E, P, RA, REQM, RESM>
 where
   E: From<crate::Error>,
-  P: PathManagement<CA, E, RA, RRD>,
-  REQM: ReqMiddleware<CA, E, RA, RRD>,
-  RESM: ResMiddleware<CA, E, RA, RRD>,
-  RRD: ReqResData,
+  P: PathManagement<CA, E, RA>,
+  REQM: ReqMiddleware<CA, E, RA>,
+  RESM: ResMiddleware<CA, E, RA>,
 {
   const IS_ROUTER: bool = true;
 
@@ -92,7 +90,7 @@ where
     ca: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
     ra: &mut RA,
-    req: &mut Request<RRD>,
+    req: &mut Request<ReqResBuffer>,
   ) -> Result<StatusCode, E> {
     self.req_middlewares.apply_req_middleware(ca, ra, req).await?;
     let status_code = self.paths.manage_path(ca, path_defs, ra, req).await?;

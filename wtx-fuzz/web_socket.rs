@@ -6,10 +6,10 @@
 use tokio::runtime::Builder;
 use wtx::{
   misc::{simple_seed, BytesStream, Xorshift64},
-  web_socket::{FrameBufferVec, FrameMutVec, OpCode, WebSocketBuffer, WebSocketServerOwned},
+  web_socket::{Frame, OpCode, WebSocketBuffer, WebSocketServerOwned},
 };
 
-libfuzzer_sys::fuzz_target!(|data: (OpCode, &[u8])| {
+libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
   Builder::new_current_thread().enable_all().build().unwrap().block_on(async move {
     let Ok(mut ws) = WebSocketServerOwned::new(
       (),
@@ -20,13 +20,10 @@ libfuzzer_sys::fuzz_target!(|data: (OpCode, &[u8])| {
       return;
     };
     ws.set_max_payload_len(u16::MAX.into());
-    let fb = &mut FrameBufferVec::default();
-    let Ok(mut frame) = FrameMutVec::new_fin(fb, data.0, data.1) else {
-      return;
-    };
+    let mut frame = Frame::new_fin(data.0, data.1);
     if ws.write_frame(&mut frame).await.is_err() {
       return;
     };
-    let _rslt = ws.read_frame(fb).await;
+    let _rslt = ws.read_frame().await;
   });
 });

@@ -17,12 +17,10 @@ mod route_wrappers;
 mod router;
 mod server_framework_builder;
 mod state;
+#[cfg(feature = "nightly")]
+mod tokio;
 
-use crate::{
-  http::{ConnParams, LowLevelServer, ReqResBuffer, Request, Response},
-  http2::Http2Buffer,
-  misc::Rng,
-};
+use crate::http::{conn_params::ConnParams, ReqResBuffer, Request, Response};
 use alloc::sync::Arc;
 pub use conn_aux::ConnAux;
 pub use cors_middleware::CorsMiddleware;
@@ -42,86 +40,23 @@ pub use state::{State, StateClean, StateGeneric};
 /// Server
 #[derive(Debug)]
 pub struct ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM> {
-  ca_cb: CAC,
-  cp: ConnParams,
-  ra_cb: RAC,
-  router: Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>,
+  _ca_cb: CAC,
+  _cp: ConnParams,
+  _ra_cb: RAC,
+  _router: Arc<Router<CA, E, P, RA, REQM, RESM>>,
 }
 
 impl<CA, CAC, E, P, RA, RAC, REQM, RESM> ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM>
 where
-  CA: Clone + ConnAux + Send + 'static,
-  CAC: Clone + Fn() -> CA::Init + Send + 'static,
-  E: From<crate::Error> + Send + 'static,
-  P: PathManagement<CA, E, RA, ReqResBuffer, manage_path(..): Send> + Send + 'static,
-  RA: ReqAux + Send + 'static,
-  RAC: Clone + Fn() -> RA::Init + Send + 'static,
-  REQM: ReqMiddleware<CA, E, RA, ReqResBuffer, apply_req_middleware(..): Send> + Send + 'static,
-  RESM: ResMiddleware<CA, E, RA, ReqResBuffer, apply_res_middleware(..): Send> + Send + 'static,
-  Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>: Send,
-  Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>: Send,
-  for<'any> &'any Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>: Send,
-  for<'any> &'any Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>: Send,
+  E: From<crate::Error>,
+  P: PathManagement<CA, E, RA>,
+  RA: ReqAux,
+  REQM: ReqMiddleware<CA, E, RA>,
+  RESM: ResMiddleware<CA, E, RA>,
 {
-  /// Starts listening to incoming requests based on the given `host`.
-  #[inline]
-  pub async fn listen<RNG>(
-    self,
-    host: &str,
-    rng: RNG,
-    err_cb: impl Clone + Fn(E) + Send + 'static,
-  ) -> crate::Result<()>
-  where
-    RNG: Clone + Rng + Send + 'static,
-  {
-    let Self { ca_cb, cp, ra_cb, router } = self;
-    LowLevelServer::tokio_http2(
-      host,
-      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
-      err_cb,
-      Self::handle,
-      move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
-      (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
-    )
-    .await
-  }
-
-  /// Starts listening to incoming encrypted requests based on the given `host`.
-  #[cfg(feature = "tokio-rustls")]
-  #[inline]
-  pub async fn listen_tls<RNG>(
-    self,
-    (cert_chain, priv_key): (&'static [u8], &'static [u8]),
-    host: &str,
-    rng: RNG,
-    err_cb: impl Clone + Fn(E) + Send + 'static,
-  ) -> crate::Result<()>
-  where
-    RNG: Clone + Rng + Send + 'static,
-  {
-    let Self { ca_cb, cp, ra_cb, router } = self;
-    LowLevelServer::tokio_http2(
-      host,
-      move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
-      err_cb,
-      Self::handle,
-      move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
-      (
-        || {
-          crate::misc::TokioRustlsAcceptor::without_client_auth()
-            .http2()
-            .build_with_cert_chain_and_priv_key(cert_chain, priv_key)
-        },
-        |acceptor| acceptor.clone(),
-        |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
-      ),
-    )
-    .await
-  }
-
-  async fn handle(
+  async fn _auto(
     mut ca: CA,
-    (ra_cb, router): (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>),
+    (ra_cb, router): (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM>>),
     mut req: Request<ReqResBuffer>,
   ) -> Result<Response<ReqResBuffer>, E> {
     let mut ra = RA::req_aux(ra_cb(), &mut req)?;

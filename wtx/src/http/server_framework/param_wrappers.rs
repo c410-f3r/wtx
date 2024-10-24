@@ -5,7 +5,7 @@ mod serde_json;
 
 use crate::{
   http::HttpError,
-  misc::{bytes_split1, UriRef},
+  misc::{bytes_split1, UriString},
 };
 pub use path_owned::PathOwned;
 pub use path_str::PathStr;
@@ -15,7 +15,7 @@ pub use serde_json::SerdeJson;
 #[inline]
 fn manage_path<'uri>(
   path_defs: (u8, &[(&'static str, u8)]),
-  uri: &'uri UriRef<'_>,
+  uri: &'uri UriString,
 ) -> crate::Result<&'uri str> {
   let fun = || {
     let path = uri.path();

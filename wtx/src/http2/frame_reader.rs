@@ -9,7 +9,6 @@ macro_rules! prft {
       is_conn_open: &$hdpm.hb.is_conn_open,
       last_stream_id: &mut $hdpm.last_stream_id,
       pfb: $pfb,
-      phantom: PhantomData,
       read_frame_waker: &$hdpm.hb.read_frame_waker,
       recv_streams_num: &mut $hdpm.recv_streams_num,
       stream_reader: $stream_reader,
@@ -20,11 +19,15 @@ macro_rules! prft {
 }
 
 use crate::{
-  http::ReqResBuffer,
   http2::{
+    frame_init::{FrameInit, FrameInitTy},
+    go_away_frame::GoAwayFrame,
     misc::{process_higher_operation_err, protocol_err, read_frame, send_go_away, write_array},
-    FrameInit, FrameInitTy, GoAwayFrame, Http2Buffer, Http2Data, Http2Error, PingFrame,
-    ProcessReceiptFrameTy, SettingsFrame, WindowUpdateFrame,
+    ping_frame::PingFrame,
+    process_receipt_frame_ty::ProcessReceiptFrameTy,
+    settings_frame::SettingsFrame,
+    window_update_frame::WindowUpdateFrame,
+    Http2Buffer, Http2Data, Http2Error,
   },
   misc::{
     AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
@@ -33,14 +36,13 @@ use crate::{
 use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
-  marker::PhantomData,
   mem,
   pin::pin,
   sync::atomic::AtomicBool,
-  task::Poll,
+  task::{ready, Poll},
 };
 
-pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
+pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
   hd: HD,
   is_conn_open: Arc<AtomicBool>,
   max_frame_len: u32,
@@ -48,10 +50,9 @@ pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
   read_frame_waker: Arc<AtomicWaker>,
   mut stream_reader: SR,
 ) where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -86,26 +87,27 @@ pub(crate) async fn frame_reader<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
 }
 
 #[inline]
-async fn finish<HB, HD, RRB, SW, const IS_CLIENT: bool>(
+async fn finish<HB, HD, SW, const IS_CLIENT: bool>(
   err: Option<crate::Error>,
   hd: &HD,
   pfb: &mut PartitionedFilledBuffer,
 ) where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   let mut lock = hd.lock().await;
   let hdpm = lock.parts_mut();
-  *hdpm.frame_reader_error = err;
+  if let Some(elem) = err {
+    *hdpm.frame_reader_error = Some(elem);
+  }
   mem::swap(pfb, &mut hdpm.hb.pfb);
   _trace!("Finishing the reading of frames");
 }
 
 #[inline]
-async fn manage_fi<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
+async fn manage_fi<HB, HD, SR, SW, const IS_CLIENT: bool>(
   fi: FrameInit,
   hd: &HD,
   is_conn_open: &AtomicBool,
@@ -113,10 +115,9 @@ async fn manage_fi<HB, HD, RRB, SR, SW, const IS_CLIENT: bool>(
   stream_reader: &mut SR,
 ) -> crate::Result<()>
 where
-  HB: LeaseMut<Http2Buffer<RRB>>,
+  HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, RRB, SW, IS_CLIENT>>,
-  RRB: LeaseMut<ReqResBuffer>,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -143,35 +144,30 @@ where
         prft!(fi, hdpm, pfb, stream_reader).header_client(&mut hdpm.hb.sorp).await?;
       } else if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
         prft!(fi, hdpm, pfb, stream_reader).header_server_trailer(elem).await?;
-      } else if let Some((rrb, waker)) = hdpm.hb.initial_server_header_buffers.pop_front() {
-        let rslt = prft!(fi, hdpm, pfb, stream_reader)
-          .header_server_init(&mut hdpm.hb.initial_server_header_params, rrb, &mut hdpm.hb.sorp)
-          .await;
-        waker.wake();
+      } else if let Some(ish) = hdpm.hb.initial_server_headers.front_mut() {
+        let prft = prft!(fi, hdpm, pfb, stream_reader);
+        let rslt = prft.header_server_init(ish, &mut hdpm.hb.sorp).await;
+        ish.waker.wake_by_ref();
+        hdpm.hb.initial_server_headers.increase_cursor();
         rslt?;
       } else {
         drop(lock);
         let mut lock_pin = pin!(hd.lock());
-        let (mut local_lock, rrb, waker) = poll_fn(|cx| {
+        poll_fn(|cx| {
           let mut local_lock = lock_pin!(cx, hd, lock_pin);
-          let local_hdpm = local_lock.parts_mut();
-          let Some((rrb, waker)) = local_hdpm.hb.initial_server_header_buffers.pop_front() else {
+          let mut local_hdpm = local_lock.parts_mut();
+          let Some(ish) = local_hdpm.hb.initial_server_headers.front_mut() else {
             cx.waker().wake_by_ref();
             return Poll::Pending;
           };
-          Poll::Ready((local_lock, rrb, waker))
+          let prft = prft!(fi, local_hdpm, pfb, stream_reader);
+          let poll = pin!(prft.header_server_init(ish, &mut local_hdpm.hb.sorp)).poll(cx);
+          let rslt = ready!(poll);
+          ish.waker.wake_by_ref();
+          local_hdpm.hb.initial_server_headers.increase_cursor();
+          Poll::Ready(rslt)
         })
-        .await;
-        let mut local_hdpm = local_lock.parts_mut();
-        let rslt = prft!(fi, local_hdpm, pfb, stream_reader)
-          .header_server_init(
-            &mut local_hdpm.hb.initial_server_header_params,
-            rrb,
-            &mut local_hdpm.hb.sorp,
-          )
-          .await;
-        waker.wake();
-        rslt?;
+        .await?;
       }
     }
     FrameInitTy::Ping => {
@@ -205,7 +201,7 @@ where
     FrameInitTy::WindowUpdate => {
       if fi.stream_id.is_zero() {
         let wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
-        hd.lock().await.parts_mut().windows.send.deposit(None, wuf.size_increment().i32())?;
+        hd.lock().await.parts_mut().windows.send_mut().deposit(None, wuf.size_increment().i32())?;
       } else {
         let mut lock = hd.lock().await;
         let mut hdpm = lock.parts_mut();

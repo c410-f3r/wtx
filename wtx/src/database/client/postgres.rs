@@ -25,7 +25,6 @@ mod ty;
 mod tys;
 
 use crate::database::{Database, DatabaseTy};
-pub(crate) use authentication::Authentication;
 pub use config::Config;
 use core::marker::PhantomData;
 pub use db_error::{DbError, ErrorPosition, Severity};
@@ -33,10 +32,7 @@ pub use decode_value::DecodeValue;
 pub use encode_value::EncodeValue;
 pub use executor::Executor;
 pub use executor_buffer::ExecutorBuffer;
-pub(crate) use message::MessageTy;
-pub(crate) use msg_field::MsgField;
 pub use postgres_error::PostgresError;
-pub(crate) use protocol::*;
 pub use record::Record;
 pub use records::Records;
 pub use sql_state::SqlState;

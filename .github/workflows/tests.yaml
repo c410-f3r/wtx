@@ -44,7 +44,7 @@ jobs:
           use-tool-cache: true
       - run: .scripts/fuzz.sh
 
-  h2spec:
+  h2spec-high:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +54,19 @@ jobs:
           profile: minimal
           toolchain: nightly-2024-09-01
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/h2spec.sh ci
+      - run: .scripts/h2spec.sh high ci
+
+  h2spec-low:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly-2024-09-01
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/h2spec.sh low ci
 
   integration-tests:
     runs-on: ubuntu-latest

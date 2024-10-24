@@ -1,11 +1,17 @@
 use crate::{
   http::{Header, HeaderName, KnownHeaderName, Method, ReqResBuffer},
   http2::{
+    common_flags::CommonFlags,
+    frame_init::{FrameInit, FrameInitTy},
+    hpack_decoder::HpackDecoder,
+    hpack_header::HpackHeaderBasic,
+    hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{protocol_err, trim_frame_pad},
-    CommonFlags, FrameInit, FrameInitTy, HpackDecoder, HpackHeaderBasic, HpackStaticRequestHeaders,
-    HpackStaticResponseHeaders, Http2Error, Http2Params, UriBuffer, U31,
+    u31::U31,
+    uri_buffer::UriBuffer,
+    Http2Error, Http2Params,
   },
-  misc::{from_utf8_basic, ArrayString, FromRadix10, Usize},
+  misc::{from_utf8_basic, ArrayString, FromRadix10, LeaseMut, Usize},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.
@@ -69,7 +75,8 @@ impl<'uri> HeadersFrame<'uri> {
     fi.cf.only_eoh_eos_pad_pri();
     uri_buffer.clear();
 
-    let (rrb_body, rrb_headers, rrb_uri) = (&rrb.data, &mut rrb.headers, &mut rrb.uri);
+    let lease = rrb.lease_mut();
+    let (rrb_body, rrb_headers, rrb_uri) = (&lease.body, &mut lease.headers, &mut lease.uri);
     let mut data_bytes = data.unwrap_or_else(|| rrb_body.get(rrb_body_start..).unwrap_or_default());
     let _ = trim_frame_pad(fi.cf, &mut data_bytes)?;
     trim_priority(fi.cf, &mut data_bytes);

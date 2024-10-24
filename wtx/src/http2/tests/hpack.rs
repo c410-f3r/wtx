@@ -1,6 +1,9 @@
 use crate::{
   http::{Header, StatusCode},
-  http2::{HpackDecoder, HpackEncoder, HpackHeaderBasic, MAX_HPACK_LEN},
+  http2::{
+    hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
+    MAX_HPACK_LEN,
+  },
   misc::{from_utf8_basic, simple_seed, Vector, Xorshift64},
 };
 use alloc::string::String;

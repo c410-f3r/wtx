@@ -35,10 +35,10 @@ impl<'bytes> CookieBytes<'bytes> {
       let (name, value) = if let Some(elem) = bytes_split_once1(first_semicolon, b'=') {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
-        return Err(crate::Error::from(CookieError::IrregularCookie).into());
+        return Err(crate::Error::from(CookieError::IrregularCookie));
       };
       if name.is_empty() {
-        return Err(crate::Error::from(CookieError::MissingName).into());
+        return Err(crate::Error::from(CookieError::MissingName));
       }
       let before_name_len = vector.len();
       let has_decoded_name = PercentDecode::new(name).decode(vector)?;
@@ -70,7 +70,7 @@ impl<'bytes> CookieBytes<'bytes> {
       let (name, value) = if let Some(elem) = bytes_split_once1(semicolon, b'=') {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
-        return Err(crate::Error::from(CookieError::IrregularCookie).into());
+        return Err(crate::Error::from(CookieError::IrregularCookie));
       };
       make_lowercase::<12>(&mut lower_case, name);
       match (lower_case.as_ref(), value) {

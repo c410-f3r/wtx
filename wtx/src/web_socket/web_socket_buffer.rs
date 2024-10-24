@@ -1,35 +1,54 @@
-use crate::misc::{FilledBuffer, Lease, LeaseMut, PartitionedFilledBuffer, VectorError};
+use crate::misc::{Lease, LeaseMut, PartitionedFilledBuffer, Vector, VectorError};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[doc = _internal_buffer_doc!()]
 pub struct WebSocketBuffer {
-  /// Decompression buffer
-  pub(crate) db: FilledBuffer,
-  /// Network buffer
-  pub(crate) nb: PartitionedFilledBuffer,
+  pub(crate) network_buffer: PartitionedFilledBuffer,
+  pub(crate) writer_buffer: Vector<u8>,
+  pub(crate) reader_buffer_first: Vector<u8>,
+  pub(crate) reader_buffer_second: Vector<u8>,
 }
 
 impl WebSocketBuffer {
+  /// New empty instance
+  #[inline]
+  pub const fn new() -> Self {
+    Self {
+      network_buffer: PartitionedFilledBuffer::new(),
+      reader_buffer_first: Vector::new(),
+      reader_buffer_second: Vector::new(),
+      writer_buffer: Vector::new(),
+    }
+  }
+
   /// The elements used internally will be able to hold at least the specified amounts.
   #[inline]
   pub fn with_capacity(
-    decompression_buffer_cap: usize,
     network_buffer_cap: usize,
+    reader_buffer_cap: usize,
+    writer_buffer_cap: usize,
   ) -> Result<Self, VectorError> {
     Ok(Self {
-      db: FilledBuffer::_with_capacity(decompression_buffer_cap)?,
-      nb: PartitionedFilledBuffer::_with_capacity(network_buffer_cap)?,
+      network_buffer: PartitionedFilledBuffer::_with_capacity(network_buffer_cap)?,
+      reader_buffer_first: Vector::with_capacity(reader_buffer_cap)?,
+      reader_buffer_second: Vector::with_capacity(reader_buffer_cap)?,
+      writer_buffer: Vector::with_capacity(writer_buffer_cap)?,
     })
   }
 
   pub(crate) fn _clear(&mut self) {
-    let Self { db, nb } = self;
-    db._clear();
-    nb._clear();
+    let Self { network_buffer, reader_buffer_first, reader_buffer_second, writer_buffer } = self;
+    network_buffer._clear();
+    reader_buffer_first.clear();
+    reader_buffer_second.clear();
+    writer_buffer.clear();
   }
+}
 
-  pub(crate) fn _parts_mut(&mut self) -> (&mut FilledBuffer, &mut PartitionedFilledBuffer) {
-    (&mut self.db, &mut self.nb)
+impl Default for WebSocketBuffer {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
   }
 }
 

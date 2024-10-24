@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    client_framework::ClientFramework, Header, KnownHeaderName, Method, Mime, ReqResBuffer,
-    ReqResData, ReqUri, Response,
+    client_framework::ClientFramework, Header, KnownHeaderName, Method, Mime, ReqResBuffer, ReqUri,
+    Response,
   },
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{LeaseMut, Lock, RefCounter, StreamWriter},
@@ -14,31 +14,25 @@ use crate::{
 ///
 /// It is also possible to work directly with fields.
 #[derive(Debug)]
-pub struct ReqBuilder<RRB> {
+pub struct ReqBuilder {
   /// Method
   pub method: Method,
   /// Buffer
-  pub rrb: RRB,
+  pub rrb: ReqResBuffer,
 }
 
-impl<RRB> ReqBuilder<RRB>
-where
-  RRB: LeaseMut<ReqResBuffer>,
-{
+impl ReqBuilder {
   /// Constructor shortcut
   #[inline]
-  pub const fn new(method: Method, rrb: RRB) -> Self {
+  pub const fn new(method: Method, rrb: ReqResBuffer) -> Self {
     Self { method, rrb }
   }
 }
 
-impl<RRB> ReqBuilder<RRB>
-where
-  RRB: LeaseMut<ReqResBuffer>,
-{
+impl ReqBuilder {
   /// A instance suitable for `GET` requests.
   #[inline]
-  pub fn get(rrb: RRB) -> Self {
+  pub fn get(rrb: ReqResBuffer) -> Self {
     Self { method: Method::Get, rrb }
   }
 
@@ -48,10 +42,10 @@ where
     self,
     client: &ClientFramework<RL, RM>,
     req_uri: impl Into<ReqUri<'_>>,
-  ) -> crate::Result<Response<RRB>>
+  ) -> crate::Result<Response<ReqResBuffer>>
   where
     HD: RefCounter + 'static,
-    HD::Item: Lock<Resource = Http2Data<Http2Buffer<RRB>, RRB, SW, true>>,
+    HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
     RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
     RM: ResourceManager<
       CreateAux = str,
@@ -59,7 +53,6 @@ where
       RecycleAux = str,
       Resource = Http2<HD, true>,
     >,
-    RRB: LeaseMut<ReqResBuffer> + ReqResData,
     SW: StreamWriter,
     for<'any> RL: 'any,
     for<'any> RM: 'any,

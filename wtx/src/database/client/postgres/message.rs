@@ -1,5 +1,5 @@
 use crate::{
-  database::client::postgres::{Authentication, DbError, PostgresError},
+  database::client::postgres::{authentication::Authentication, DbError, PostgresError},
   misc::{bytes_rsplit1, bytes_split1, from_utf8_basic, ConnectionState, FromRadix10},
 };
 use core::any::type_name;

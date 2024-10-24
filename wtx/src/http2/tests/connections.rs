@@ -39,12 +39,12 @@ async fn client(uri: &UriString) {
   _1(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.data.extend_from_slice(b"123").unwrap();
+  rrb.body.extend_from_copyable_slice(b"123").unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _2(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.data.extend_from_slice(b"123").unwrap();
+  rrb.body.extend_from_copyable_slice(b"123").unwrap();
   rrb.headers.push_from_iter(Header::from_name_and_value(b"123", ["456".as_bytes()])).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _3(rrb.body(), rrb.headers());
@@ -88,31 +88,29 @@ async fn server(uri: &UriString) {
 }
 
 async fn stream_server(
-  server: &mut Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, OwnedWriteHalf, false>,
+  server: &mut Http2Tokio<Http2Buffer, OwnedWriteHalf, false>,
   rrb: ReqResBuffer,
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
   loop {
-    let Either::Right(mut stream) = server.stream(rrb).await.unwrap() else {
+    let Either::Right((mut stream, _)) = server.stream(rrb, |_, _, _| {}).await.unwrap() else {
       panic!();
     };
-    let (mut req_rrb, Some(method)) = stream.recv_req().await.unwrap() else {
-      panic!();
-    };
-    cb(req_rrb.as_http2_request_mut(method));
-    stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap().unwrap();
+    let (_, mut req_rrb) = stream.recv_req().await.unwrap();
+    cb(req_rrb.as_http2_request_mut(stream.method()));
+    let _ = stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
     break req_rrb;
   }
 }
 
 async fn stream_client(
-  client: &mut Http2Tokio<Http2Buffer<ReqResBuffer>, ReqResBuffer, OwnedWriteHalf, true>,
+  client: &mut Http2Tokio<Http2Buffer, OwnedWriteHalf, true>,
   rrb: ReqResBuffer,
   uri: &UriRef<'_>,
 ) -> ReqResBuffer {
   let mut stream = client.stream().await.unwrap();
-  stream.send_req(rrb.as_http2_request(Method::Get), uri).await.unwrap().unwrap();
-  stream.recv_res(rrb).await.unwrap().0
+  let _ = stream.send_req(rrb.as_http2_request(Method::Get), uri).await.unwrap();
+  stream.recv_res(rrb).await.unwrap().1
 }
 
 #[track_caller]

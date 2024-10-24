@@ -1,4 +1,8 @@
-use crate::http2::{CommonFlags, FrameInit, FrameInitTy, U31};
+use crate::http2::{
+  common_flags::CommonFlags,
+  frame_init::{FrameInit, FrameInitTy},
+  u31::U31,
+};
 
 #[derive(Debug)]
 pub(crate) struct ContinuationFrame {

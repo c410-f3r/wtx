@@ -13,19 +13,13 @@ pub use simple_pool::*;
 
 /// Manages HTTP/2 resources for clients and servers.
 #[cfg(feature = "http2")]
-pub type Http2BufferRM<RRB> =
-  SimpleRM<fn() -> Result<crate::http2::Http2Buffer<RRB>, crate::Error>>;
+pub type Http2BufferRM = SimpleRM<fn() -> crate::Result<crate::http2::Http2Buffer>>;
 /// Manages resources for HTTP2 requests and responses.
 #[cfg(feature = "http2")]
-pub type StreamBufferRM = SimpleRM<fn() -> Result<crate::http::ReqResBuffer, crate::Error>>;
+pub type StreamBufferRM = SimpleRM<fn() -> crate::Result<crate::http::ReqResBuffer>>;
 /// Manages WebSocket resources.
 #[cfg(feature = "web-socket")]
-pub type WebSocketRM = SimpleRM<
-  fn() -> Result<
-    (crate::web_socket::FrameBufferVec, crate::web_socket::WebSocketBuffer),
-    crate::Error,
-  >,
->;
+pub type WebSocketRM = SimpleRM<fn() -> crate::Result<crate::web_socket::WebSocketBuffer>>;
 
 /// A pool contains a set of resources that are behind some synchronism mechanism.
 pub trait Pool {

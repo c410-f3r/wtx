@@ -2,7 +2,9 @@
 
 A flexible client API framework for writing asynchronous, fast, organizable, scalable and maintainable applications. Supports several data formats, transports and custom parameters.
 
-Activation feature is called `client-api-framework`. Checkout the `wtx-apis` project to see a collection of APIs based on `wtx`.
+Checkout the `wtx-apis` project to see a collection of APIs based on `wtx`.
+
+To use this functionality, it necessary to activate the `client-api-framework` feature.
 
 ## Objective
 

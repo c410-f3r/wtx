@@ -1,8 +1,8 @@
 use crate::{
-  http::LowLevelServer,
-  misc::{FnFut, Stream, Vector, Xorshift64, _number_or_available_parallelism, simple_seed},
+  http::OptionedServer,
+  misc::{FnFut, Stream, Xorshift64, _number_or_available_parallelism, simple_seed},
   pool::{SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
-  web_socket::{Compression, FrameBuffer, FrameBufferVec, WebSocketBuffer, WebSocketServer},
+  web_socket::{Compression, WebSocketBuffer, WebSocketServer},
 };
 use core::{fmt::Debug, future::Future};
 use std::sync::OnceLock;
@@ -11,7 +11,7 @@ use tokio::{
   sync::MutexGuard,
 };
 
-impl LowLevelServer {
+impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
   pub async fn tokio_web_socket<ACPT, C, E, F, S, SF>(
@@ -31,20 +31,16 @@ impl LowLevelServer {
     C: Compression<false> + Send + 'static,
     C::NegotiatedCompression: Send,
     E: Debug + From<crate::Error> + Send + 'static,
-    for<'fb, 'wsb> F: Clone
+    for<'wsb> F: Clone
       + FnFut<
-        (
-          &'fb mut FrameBufferVec,
-          WebSocketServer<C::NegotiatedCompression, Xorshift64, S, &'wsb mut WebSocketBuffer>,
-        ),
+        (WebSocketServer<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer>,),
         Result = Result<(), E>,
       > + Send
       + 'static,
     S: Stream<read(..): Send, write_all(..): Send> + Send,
     SF: Send + Future<Output = crate::Result<S>>,
-    for<'fb, 'wsb> <F as FnFut<(
-      &'fb mut FrameBufferVec,
-      WebSocketServer<C::NegotiatedCompression, Xorshift64, S, &'wsb mut WebSocketBuffer>,
+    for<'wsb> <F as FnFut<(
+      WebSocketServer<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer>,
     )>>::Future: Send,
     for<'handle> &'handle F: Send,
   {
@@ -61,25 +57,22 @@ impl LowLevelServer {
       let local_handle_cb = handle_cb.clone();
       let local_stream_cb = stream_cb.clone();
       let _jh = tokio::spawn(async move {
-        let (fb, wsb) = &mut ***conn_buffer_guard;
-        let fun = || async move {
+        let wsb = &mut ***conn_buffer_guard;
+        let fun = async move {
           let stream = local_stream_cb(local_acceptor, tcp_stream).await?;
           local_handle_cb
-            .call((
-              fb,
-              WebSocketServer::accept(
-                local_compression_cb(),
-                Xorshift64::from(simple_seed()),
-                stream,
-                wsb,
-                |_| crate::Result::Ok(()),
-              )
-              .await?,
-            ))
+            .call((WebSocketServer::accept(
+              local_compression_cb(),
+              Xorshift64::from(simple_seed()),
+              stream,
+              wsb,
+              |_| crate::Result::Ok(()),
+            )
+            .await?,))
             .await?;
           Ok::<_, E>(())
         };
-        if let Err(err) = fun().await {
+        if let Err(err) = fun.await {
           local_conn_err(err);
         }
       });
@@ -89,11 +82,7 @@ impl LowLevelServer {
 
 async fn conn_buffer(
   len: usize,
-) -> crate::Result<
-  SimplePoolGetElem<
-    MutexGuard<'static, SimplePoolResource<(FrameBuffer<Vector<u8>>, WebSocketBuffer)>>,
-  >,
-> {
+) -> crate::Result<SimplePoolGetElem<MutexGuard<'static, SimplePoolResource<WebSocketBuffer>>>> {
   static POOL: OnceLock<SimplePoolTokio<WebSocketRM>> = OnceLock::new();
   POOL
     .get_or_init(|| SimplePoolTokio::new(len, WebSocketRM::new(|| Ok(Default::default()))))

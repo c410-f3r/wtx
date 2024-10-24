@@ -65,7 +65,14 @@ struct Cli {
 /// Command-line interface for different web transport implementations
 #[derive(Debug, clap::Parser)]
 #[cfg(not(feature = "unified"))]
-#[command(author, long_about = None, name = "wtx", version)]
+#[cfg_attr(
+  feature = "_curl",
+  command(
+    name = "curl",
+    version = "8.5.0 (x86_64-pc-linux-gnu) libcurl/8.5.0\nProtocols: http\nFeatures: HTTP2"
+  )
+)]
+#[cfg_attr(not(feature = "_curl"), command(author, long_about = None, name = "wtx", version))]
 struct Cli {
   #[cfg(all(
     feature = "embed-migrations",

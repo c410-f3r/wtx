@@ -7,11 +7,11 @@ mod simple_query;
 use crate::{
   database::{
     client::postgres::{
-      encrypted_conn,
       executor::commons::FetchWithStmtCommons,
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
-      initial_conn_msg, Config, MessageTy, Postgres, PostgresError, Record, Records,
-      TransactionManager,
+      message::MessageTy,
+      protocol::{encrypted_conn, initial_conn_msg},
+      Config, Postgres, PostgresError, Record, Records, TransactionManager,
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },

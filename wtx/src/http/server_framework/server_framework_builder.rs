@@ -1,6 +1,6 @@
 use crate::http::{
+  conn_params::ConnParams,
   server_framework::{ConnAux, ReqAux, Router, ServerFramework},
-  ConnParams, ReqResBuffer,
 };
 use alloc::sync::Arc;
 
@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 #[derive(Debug)]
 pub struct ServerFrameworkBuilder<CA, E, P, RA, REQM, RESM> {
   cp: ConnParams,
-  router: Arc<Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>>,
+  router: Arc<Router<CA, E, P, RA, REQM, RESM>>,
 }
 
 impl<CA, E, P, RA, REQM, RESM> ServerFrameworkBuilder<CA, E, P, RA, REQM, RESM>
@@ -18,7 +18,7 @@ where
 {
   /// New instance with default connection values.
   #[inline]
-  pub fn new(router: Router<CA, E, P, RA, REQM, RESM, ReqResBuffer>) -> Self {
+  pub fn new(router: Router<CA, E, P, RA, REQM, RESM>) -> Self {
     Self { cp: ConnParams::default(), router: Arc::new(router) }
   }
 
@@ -33,7 +33,7 @@ where
     CAC: Fn() -> CA::Init,
     RAC: Fn() -> RA::Init,
   {
-    ServerFramework { ca_cb, cp: self.cp, ra_cb, router: self.router }
+    ServerFramework { _ca_cb: ca_cb, _cp: self.cp, _ra_cb: ra_cb, _router: self.router }
   }
 
   /// Fills the initialization structures for all auxiliaries with default values.
@@ -51,7 +51,7 @@ where
     {
       T::default()
     }
-    ServerFramework { ca_cb: fun, cp: self.cp, ra_cb: fun, router: self.router }
+    ServerFramework { _ca_cb: fun, _cp: self.cp, _ra_cb: fun, _router: self.router }
   }
 }
 
@@ -59,7 +59,7 @@ impl<E, P, REQM, RESM> ServerFrameworkBuilder<(), E, P, (), REQM, RESM> {
   /// Build without state
   #[inline]
   pub fn without_aux(self) -> ServerFramework<(), fn() -> (), E, P, (), fn() -> (), REQM, RESM> {
-    ServerFramework { ca_cb: nothing, cp: self.cp, ra_cb: nothing, router: self.router }
+    ServerFramework { _ca_cb: nothing, _cp: self.cp, _ra_cb: nothing, _router: self.router }
   }
 }
 
@@ -76,7 +76,7 @@ where
   where
     CAC: Fn() -> CA::Init,
   {
-    ServerFramework { ca_cb, cp: self.cp, ra_cb: nothing, router: self.router }
+    ServerFramework { _ca_cb: ca_cb, _cp: self.cp, _ra_cb: nothing, _router: self.router }
   }
 }
 
@@ -93,7 +93,7 @@ where
   where
     RAC: Fn() -> RA::Init,
   {
-    ServerFramework { ca_cb: nothing, cp: self.cp, ra_cb, router: self.router }
+    ServerFramework { _ca_cb: nothing, _cp: self.cp, _ra_cb: ra_cb, _router: self.router }
   }
 }
 

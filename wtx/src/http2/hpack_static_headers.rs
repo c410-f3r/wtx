@@ -1,6 +1,6 @@
 use crate::{
   http::{Method, Protocol, StatusCode},
-  http2::HpackHeaderBasic,
+  http2::hpack_header::HpackHeaderBasic,
 };
 
 /// Mandatory headers of a HTTP/2 request

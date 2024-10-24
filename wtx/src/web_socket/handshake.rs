@@ -3,7 +3,9 @@ mod tests;
 
 use crate::{
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, VectorError},
+  misc::{
+    bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, VectorError, Xorshift64,
+  },
   web_socket::{
     compression::NegotiatedCompression, misc::_trim_bytes, Compression, WebSocketBuffer,
     WebSocketClient, WebSocketError, WebSocketServer,
@@ -16,10 +18,9 @@ use sha1::{Digest, Sha1};
 const MAX_READ_LEN: usize = 2 * 1024;
 const MAX_READ_HEADER_LEN: usize = 64;
 
-impl<NC, RNG, S, WSB> WebSocketServer<NC, RNG, S, WSB>
+impl<NC, S, WSB> WebSocketServer<NC, S, WSB>
 where
   NC: NegotiatedCompression,
-  RNG: Rng,
   S: Stream,
   WSB: LeaseMut<WebSocketBuffer>,
 {
@@ -27,7 +28,7 @@ where
   #[inline]
   pub async fn accept<C, E>(
     compression: C,
-    rng: RNG,
+    rng: Xorshift64,
     mut stream: S,
     mut wsb: WSB,
     req_cb: impl FnOnce(&Request<'_, '_>) -> Result<(), E>,
@@ -37,8 +38,8 @@ where
     E: From<crate::Error>,
   {
     wsb.lease_mut()._clear();
-    let nb = &mut wsb.lease_mut().nb;
-    nb._expand_buffer(MAX_READ_LEN).map_err(From::from)?;
+    let nb = &mut wsb.lease_mut().network_buffer;
+    nb._reserve(MAX_READ_LEN).map_err(From::from)?;
     let mut read = 0;
     loop {
       let read_buffer = nb._buffer_mut().get_mut(read..).unwrap_or_default();
@@ -93,10 +94,9 @@ where
   }
 }
 
-impl<NC, RNG, S, WSB> WebSocketClient<NC, RNG, S, WSB>
+impl<NC, S, WSB> WebSocketClient<NC, S, WSB>
 where
   NC: NegotiatedCompression,
-  RNG: Rng,
   S: Stream,
   WSB: LeaseMut<WebSocketBuffer>,
 {
@@ -105,12 +105,12 @@ where
   pub async fn connect<'headers, C, E>(
     compression: C,
     headers: impl IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
-    mut rng: RNG,
+    mut rng: Xorshift64,
     mut stream: S,
     uri: &UriRef<'_>,
     mut wsb: WSB,
     res_cb: impl FnOnce(&Response<'_, '_>) -> Result<(), E>,
-  ) -> Result<WebSocketClient<C::NegotiatedCompression, RNG, S, WSB>, E>
+  ) -> Result<WebSocketClient<C::NegotiatedCompression, S, WSB>, E>
   where
     C: Compression<true, NegotiatedCompression = NC>,
     E: From<crate::Error>,
@@ -118,8 +118,8 @@ where
     wsb.lease_mut()._clear();
     let key_buffer = &mut [0; 26];
     let key = {
-      let nb = &mut wsb.lease_mut().nb;
-      nb._expand_buffer(MAX_READ_LEN).map_err(From::from)?;
+      let nb = &mut wsb.lease_mut().network_buffer;
+      nb._reserve(MAX_READ_LEN).map_err(From::from)?;
       {
         let fbw = &mut nb.into();
         let key =
@@ -130,7 +130,7 @@ where
     };
     let mut read = 0;
     let (compression, len) = loop {
-      let nb = &mut wsb.lease_mut().nb;
+      let nb = &mut wsb.lease_mut().network_buffer;
       let local_read = stream.read(nb._buffer_mut().get_mut(read..).unwrap_or_default()).await?;
       if local_read == 0 {
         return Err(crate::Error::UnexpectedStreamReadEOF.into());
@@ -158,7 +158,7 @@ where
       }
       break (compression.negotiate(res.headers.iter())?, len);
     };
-    wsb.lease_mut().nb._set_indices(0, len, read.wrapping_sub(len))?;
+    wsb.lease_mut().network_buffer._set_indices(0, len, read.wrapping_sub(len))?;
     Ok(WebSocketClient::new(compression, rng, stream, wsb)?)
   }
 }

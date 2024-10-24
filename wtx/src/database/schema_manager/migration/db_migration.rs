@@ -1,6 +1,9 @@
 use crate::{
   database::{
-    schema_manager::{MigrationCommon, MigrationGroup, Repeatability, SchemaManagerError},
+    schema_manager::{
+      migration::migration_common::MigrationCommon, MigrationGroup, Repeatability,
+      SchemaManagerError,
+    },
     DatabaseTy, Identifier,
   },
   misc::FromRadix10,

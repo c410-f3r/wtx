@@ -44,7 +44,7 @@ async fn main() -> wtx::Result<()> {
   let pool = Pool::new(4, rm);
   ServerFrameworkBuilder::new(router)
     .with_req_aux(move || pool.clone())
-    .listen(&wtx_instances::host_from_args(), Xorshift64::from(simple_seed()), |error| {
+    .listen_tokio(&wtx_instances::host_from_args(), Xorshift64::from(simple_seed()), |error| {
       eprintln!("{error:?}")
     })
     .await
@@ -68,7 +68,7 @@ async fn db(
   let mut lock = state.ra.get().await?;
   let record = lock.fetch_with_stmt("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
-  state.req.rrd.data.write_fmt(format_args!("Person of id `1` has name `{name}`"))?;
+  state.req.rrd.body.write_fmt(format_args!("Person of id `1` has name `{name}`"))?;
   Ok(StatusCode::Ok)
 }
 
