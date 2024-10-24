@@ -1,4 +1,4 @@
-//! h2spec
+//! h2load
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
