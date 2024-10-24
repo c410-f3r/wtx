@@ -1,7 +1,7 @@
 # WebSocket over HTTP/2
 
 
-At the current time only servers support the handshake procedure defined in [RFC6455](https://https://datatracker.ietf.org/doc/html/rfc8441).
+At the current time only servers support the handshake procedure defined in [RFC8441](https://https://datatracker.ietf.org/doc/html/rfc8441).
 
 While HTTP/2 inherently supports full-duplex communication, web browsers typically don't expose this functionality directly to developers and that is why WebSocket tunneling over HTTP/2 is important.
 
