@@ -1,9 +1,3 @@
-use tokio::{
-  io::WriteHalf,
-  net::{tcp::OwnedWriteHalf, TcpStream},
-};
-use tokio_rustls::server::TlsStream;
-
 use crate::{
   http::{
     server_framework::{
@@ -13,9 +7,9 @@ use crate::{
   },
   http2::{Http2Buffer, ServerStreamTokio},
   misc::Rng,
-  web_socket::WebSocketError,
 };
 use std::sync::Arc;
+use tokio::net::{tcp::OwnedWriteHalf, TcpStream};
 
 impl<CA, CAC, E, P, RA, RAC, REQM, RESM> ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM>
 where
@@ -90,21 +84,28 @@ where
     .await
   }
 
+  #[inline]
   async fn manual_tokio(
     _: CA,
     _: (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM>>),
     _: Headers,
     _: ServerStreamTokio<Http2Buffer, OwnedWriteHalf, false>,
   ) -> Result<(), E> {
-    Err(E::from(crate::Error::WebSocketError(WebSocketError::ConnectionClosed)))
+    Err(E::from(crate::Error::ClosedConnection))
   }
 
+  #[cfg(feature = "tokio-rustls")]
+  #[inline]
   async fn manual_tokio_rustls(
     _: CA,
     _: (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM>>),
     _: Headers,
-    _: ServerStreamTokio<Http2Buffer, WriteHalf<TlsStream<TcpStream>>, false>,
+    _: ServerStreamTokio<
+      Http2Buffer,
+      tokio::io::WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
+      false,
+    >,
   ) -> Result<(), E> {
-    Err(E::from(crate::Error::WebSocketError(WebSocketError::ConnectionClosed)))
+    Err(E::from(crate::Error::ClosedConnection))
   }
 }
