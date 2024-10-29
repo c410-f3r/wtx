@@ -1,4 +1,4 @@
-use crate::web_socket::{CloseCode, OpCode, MAX_HEADER_LEN_USIZE};
+use crate::web_socket::{CloseCode, OpCode, MASK_MASK, MAX_HEADER_LEN_USIZE, OP_CODE_MASK};
 use core::ops::Range;
 
 /// The first two bytes of `payload` are filled with `code`. Does nothing if `payload` is
@@ -26,43 +26,26 @@ pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
     u8::from(fin) << 7 | rsv1 | u8::from(op_code)
   }
 
-  #[inline]
-  fn manage_mask<const IS_CLIENT: bool, const N: u8>(
-    second_byte: &mut u8,
-    [a, b, c, d]: [&mut u8; 4],
-  ) -> u8 {
-    if IS_CLIENT {
-      *second_byte &= 0b0111_1111;
-      *a = 0;
-      *b = 0;
-      *c = 0;
-      *d = 0;
-      N.wrapping_add(4)
-    } else {
-      N
-    }
-  }
-
   match payload_len {
     0..=125 => {
-      let [a, b, c, d, e, f, ..] = header;
+      let [a, b, ..] = header;
       *a = first_header_byte(fin, op_code, rsv1);
       *b = u8::try_from(payload_len).unwrap_or_default();
-      manage_mask::<IS_CLIENT, 2>(b, [c, d, e, f])
+      2
     }
     126..=0xFFFF => {
       let [len_c, len_d] = u16::try_from(payload_len).map(u16::to_be_bytes).unwrap_or_default();
-      let [a, b, c, d, e, f, g, h, ..] = header;
+      let [a, b, c, d, ..] = header;
       *a = first_header_byte(fin, op_code, rsv1);
       *b = 126;
       *c = len_c;
       *d = len_d;
-      manage_mask::<IS_CLIENT, 4>(b, [e, f, g, h])
+      4
     }
     _ => {
       let len = u64::try_from(payload_len).map(u64::to_be_bytes).unwrap_or_default();
       let [len_c, len_d, len_e, len_f, len_g, len_h, len_i, len_j] = len;
-      let [a, b, c, d, e, f, g, h, i, j, k, l, m, n] = header;
+      let [a, b, c, d, e, f, g, h, i, j, ..] = header;
       *a = first_header_byte(fin, op_code, rsv1);
       *b = 127;
       *c = len_c;
@@ -73,19 +56,19 @@ pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
       *h = len_h;
       *i = len_i;
       *j = len_j;
-      manage_mask::<IS_CLIENT, 10>(b, [k, l, m, n])
+      10
     }
   }
 }
 
 #[inline]
-pub(crate) fn op_code(first_header_byte: u8) -> crate::Result<OpCode> {
-  OpCode::try_from(first_header_byte & 0b0000_1111)
+pub(crate) const fn has_masked_frame(second_header_byte: u8) -> bool {
+  second_header_byte & MASK_MASK != 0
 }
 
 #[inline]
-pub(crate) fn _trim_bytes(bytes: &[u8]) -> &[u8] {
-  _trim_bytes_end(_trim_bytes_begin(bytes))
+pub(crate) fn op_code(first_header_byte: u8) -> crate::Result<OpCode> {
+  OpCode::try_from(first_header_byte & OP_CODE_MASK)
 }
 
 #[inline]
@@ -93,28 +76,4 @@ pub(crate) fn _truncated_slice<T>(slice: &[T], range: Range<usize>) -> &[T] {
   let start = range.start;
   let end = range.end.min(slice.len());
   slice.get(start..end).unwrap_or_default()
-}
-
-#[inline]
-fn _trim_bytes_begin(mut bytes: &[u8]) -> &[u8] {
-  while let [first, rest @ ..] = bytes {
-    if first.is_ascii_whitespace() {
-      bytes = rest;
-    } else {
-      break;
-    }
-  }
-  bytes
-}
-
-#[inline]
-fn _trim_bytes_end(mut bytes: &[u8]) -> &[u8] {
-  while let [rest @ .., last] = bytes {
-    if last.is_ascii_whitespace() {
-      bytes = rest;
-    } else {
-      break;
-    }
-  }
-  bytes
 }

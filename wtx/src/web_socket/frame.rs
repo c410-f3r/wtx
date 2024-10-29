@@ -1,7 +1,8 @@
 use crate::{
   misc::{Lease, Vector},
   web_socket::{
-    misc::fill_header_from_params, OpCode, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE,
+    misc::{fill_header_from_params, has_masked_frame},
+    OpCode, MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE,
   },
 };
 use core::str;
@@ -77,14 +78,24 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
   }
 
   #[inline]
-  pub(crate) fn header_mut(&mut self) -> &mut [u8] {
-    self.header_and_payload_mut().0
-  }
-
-  #[inline]
   pub(crate) fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
     let [a, b, ..] = &mut self.header;
     [a, b]
+  }
+
+  #[inline]
+  pub(crate) fn set_mask(&mut self, mask: [u8; 4]) {
+    if has_masked_frame(self.header[1]) {
+      return;
+    }
+    self.header_len = self.header_len.wrapping_add(4);
+    if let Some([_, a, .., b, c, d, e]) = self.header.get_mut(..self.header_len.into()) {
+      *a |= MASK_MASK;
+      *b = mask[0];
+      *c = mask[1];
+      *d = mask[2];
+      *e = mask[3];
+    }
   }
 }
 

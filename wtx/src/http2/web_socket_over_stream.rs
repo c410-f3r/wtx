@@ -1,8 +1,8 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  http::{Headers, Method, Protocol, StatusCode},
-  http2::{Http2Buffer, Http2Data, Http2RecvStatus, SendDataMode, ServerStream},
+  http::{Headers, KnownHeaderName, Method, Protocol, StatusCode},
+  http2::{Http2Buffer, Http2Data, Http2ErrorCode, Http2RecvStatus, SendDataMode, ServerStream},
   misc::{
     ConnectionState, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, Vector,
     Xorshift64,
@@ -14,7 +14,8 @@ use crate::{
       manage_text_of_first_continuation_frame, manage_text_of_recurrent_continuation_frames,
       unmask_nb,
     },
-    Frame, FrameMut, ReadFrameInfo,
+    web_socket_writer::manage_normal_frame,
+    Frame, FrameMut, OpCode, ReadFrameInfo,
   },
 };
 
@@ -25,15 +26,17 @@ pub fn is_web_socket_handshake(
   method: Method,
   protocol: Option<Protocol>,
 ) -> bool {
+  let bytes = KnownHeaderName::SecWebsocketVersion.into();
   method == Method::Connect
     && protocol == Some(Protocol::WebSocket)
-    && headers.get_by_name(b"sec-websocket-version").map(|el| el.value) == Some(b"13")
+    && headers.get_by_name(bytes).map(|el| el.value) == Some(b"13")
 }
 
 /// WebSocket tunneling
 #[derive(Debug)]
 pub struct WebSocketOverStream<S> {
   connection_state: ConnectionState,
+  no_masking: bool,
   rng: Xorshift64,
   stream: S,
 }
@@ -48,12 +51,25 @@ where
 {
   /// Creates a new instance sending an `Ok` status codes that confirms the WebSocket handshake.
   #[inline]
-  pub async fn new(headers: &Headers, rng: Xorshift64, mut stream: S) -> crate::Result<Self> {
+  pub async fn new(
+    headers: &Headers,
+    no_masking: bool,
+    rng: Xorshift64,
+    mut stream: S,
+  ) -> crate::Result<Self> {
     let hss = stream.lease_mut().common().send_headers(headers, false, StatusCode::Ok).await?;
     if hss.is_closed() {
       return Err(crate::Error::ClosedConnection);
     }
-    Ok(Self { connection_state: ConnectionState::Open, rng, stream })
+    Ok(Self { connection_state: ConnectionState::Open, no_masking, rng, stream })
+  }
+
+  /// Closes the stream as well as the WebSocket connection.
+  #[inline]
+  pub async fn close(&mut self) -> crate::Result<()> {
+    self.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
+    self.stream.lease_mut().common().send_reset(Http2ErrorCode::NoError).await;
+    Ok(())
   }
 
   /// Reads a frame from the stream.
@@ -67,7 +83,7 @@ where
   ) -> crate::Result<FrameMut<'buffer, false>> {
     buffer.clear();
     let first_rfi = loop {
-      let (rfi, is_eos) = recv_data(buffer, self.stream.lease_mut()).await?;
+      let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
       if !rfi.fin {
         if is_eos {
           return Err(crate::Error::ClosedConnection);
@@ -77,6 +93,7 @@ where
       if manage_auto_reply::<_, _, false>(
         self.stream.lease_mut(),
         &mut self.connection_state,
+        self.no_masking,
         rfi.op_code,
         buffer,
         &mut self.rng,
@@ -89,7 +106,7 @@ where
       }
     };
     loop {
-      let (rfi, is_eos) = recv_data(buffer, self.stream.lease_mut()).await?;
+      let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
       if !rfi.fin && is_eos {
         return Err(crate::Error::ClosedConnection);
       }
@@ -103,6 +120,7 @@ where
       if !manage_auto_reply::<_, _, false>(
         self.stream.lease_mut(),
         &mut self.connection_state,
+        self.no_masking,
         rfi.op_code,
         payload,
         &mut self.rng,
@@ -132,6 +150,12 @@ where
   where
     P: LeaseMut<[u8]>,
   {
+    manage_normal_frame::<_, _, false>(
+      &mut self.connection_state,
+      frame,
+      self.no_masking,
+      &mut self.rng,
+    );
     let (header, payload) = frame.header_and_payload();
     let hss = self
       .stream
@@ -149,6 +173,7 @@ where
 #[inline]
 async fn recv_data<'buffer, HB, HD, SW>(
   buffer: &'buffer mut Vector<u8>,
+  no_masking: bool,
   stream: &mut ServerStream<HD>,
 ) -> crate::Result<(ReadFrameInfo, bool)>
 where
@@ -168,10 +193,10 @@ where
     Http2RecvStatus::Ongoing(data) => (data, false),
   };
   let mut slice = data.as_slice();
-  let rfi = ReadFrameInfo::from_bytes::<_, false>(&mut slice, usize::MAX, &())?;
+  let rfi = ReadFrameInfo::from_bytes::<_, false>(&mut slice, usize::MAX, &(), no_masking)?;
   let before = buffer.len();
   buffer.extend_from_copyable_slice(slice)?;
-  unmask_nb::<false>(buffer.get_mut(before..).unwrap_or_default(), &rfi)?;
+  unmask_nb::<false>(buffer.get_mut(before..).unwrap_or_default(), no_masking, &rfi)?;
   Ok((rfi, is_eos))
 }
 

@@ -17,6 +17,10 @@ The "permessage-deflate" extension is the only supported compression format and 
 
 To get the most performance possible, try compiling your program with `RUSTFLAGS='-C target-cpu=native'` to allow `zlib-rs` to use more efficient SIMD instructions.
 
+## No masking
+
+Although not officially endorsed, the `no-masking` parameter described at https://datatracker.ietf.org/doc/html/draft-damjanovic-websockets-nomasking-02 is supported to increase performance. If such a feature is not desirable, please make sure to check the handshake parameters to avoid accidental scenarios.
+
 ## Client Example
 
 ```rust,edition2021,no_run

@@ -101,9 +101,12 @@ impl Headers {
     names: [&[u8]; N],
   ) -> [Option<Header<'_, &[u8]>>; N] {
     let mut rslt = [None; N];
-    for (header, value) in self.iter().zip(&mut rslt) {
-      if names.iter().any(|name| *name == header.name) {
-        *value = Some(header);
+    for header in self.iter() {
+      for (name, opt) in names.into_iter().zip(&mut rslt) {
+        if name == header.name {
+          *opt = Some(header);
+          break;
+        }
       }
     }
     rslt

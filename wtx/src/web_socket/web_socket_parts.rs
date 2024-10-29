@@ -23,6 +23,7 @@ pub struct WebSocketCommonPart<'instance, NC, S, const IS_CLIENT: bool> {
 pub struct WebSocketReaderPart<'instance, NC, S, const IS_CLIENT: bool> {
   pub(crate) max_payload_len: usize,
   pub(crate) network_buffer: &'instance mut PartitionedFilledBuffer,
+  pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<(NC, S)>,
   pub(crate) reader_buffer_first: &'instance mut Vector<u8>,
   pub(crate) reader_buffer_second: &'instance mut Vector<u8>,
@@ -46,6 +47,7 @@ where
     let Self {
       max_payload_len,
       network_buffer,
+      no_masking,
       phantom: _,
       reader_buffer_first,
       reader_buffer_second,
@@ -55,6 +57,7 @@ where
       *max_payload_len,
       nc,
       network_buffer,
+      *no_masking,
       reader_buffer_first,
       reader_buffer_second,
       rng,
@@ -70,6 +73,7 @@ where
 /// to the same instance.
 #[derive(Debug)]
 pub struct WebSocketWriterPart<'instance, NC, S, const IS_CLIENT: bool> {
+  pub(crate) no_masking: bool,
   pub(crate) phantom: PhantomData<(NC, S)>,
   pub(crate) writer_buffer: &'instance mut Vector<u8>,
 }
@@ -90,8 +94,17 @@ where
     P: LeaseMut<[u8]>,
   {
     let WebSocketCommonPart { connection_state, curr_payload: _, nc, rng, stream } = common;
-    let Self { phantom: _, writer_buffer } = self;
-    web_socket_writer::write_frame(connection_state, frame, nc, rng, stream, writer_buffer).await?;
+    let Self { no_masking, phantom: _, writer_buffer } = self;
+    web_socket_writer::write_frame(
+      connection_state,
+      frame,
+      *no_masking,
+      nc,
+      rng,
+      stream,
+      writer_buffer,
+    )
+    .await?;
     Ok(())
   }
 }

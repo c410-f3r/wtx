@@ -29,6 +29,7 @@ pub mod server_framework;
 #[cfg(feature = "http-session")]
 mod session;
 mod status_code;
+mod stream_mode;
 mod version;
 
 #[cfg(feature = "http-session")]
@@ -54,6 +55,7 @@ pub use response::Response;
 #[cfg(feature = "http-session")]
 pub use session::*;
 pub use status_code::StatusCode;
+pub use stream_mode::*;
 pub use version::Version;
 
 pub(crate) const _MAX_AUTHORITY_LEN: usize = 64;

@@ -102,6 +102,9 @@ pub enum Error {
   NoInnerValue(&'static str),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
   OutOfBoundsArithmetic,
+  /// An error that shouldn't exist. If this variant is raised, then it is very likely that the
+  /// involved code was not built the way it should be.
+  ProgrammingError,
   /// Unexpected Unsigned integer
   UnboundedNumber {
     expected: RangeInclusive<u32>,

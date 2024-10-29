@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    server_framework::{Endpoint, ResFinalizer},
+    server_framework::{Endpoint, ResFinalizer, StateGeneric},
     Header, KnownHeaderName, Mime, ReqResBuffer, Request, StatusCode,
   },
   misc::{serde_collect_seq_rslt, FnFut, FnFutWrapper, IterWrapper, LeaseMut},
@@ -32,6 +32,28 @@ where
     let elem = serde_json::from_slice(&req.rrd.lease_mut().body).map_err(crate::Error::from)?;
     req.rrd.lease_mut().clear();
     self.0.call((SerdeJson(elem),)).await.finalize_response(req)
+  }
+}
+
+impl<CA, E, F, RA, RES, T, const CLEAN: bool> Endpoint<CA, E, RA>
+  for FnFutWrapper<(StateGeneric<'_, CA, RA, ReqResBuffer, CLEAN>, SerdeJson<T>), F>
+where
+  E: From<crate::Error>,
+  F: for<'any> FnFut<(StateGeneric<'any, CA, RA, ReqResBuffer, CLEAN>, SerdeJson<T>), Result = RES>,
+  RES: ResFinalizer<E>,
+  T: DeserializeOwned,
+{
+  #[inline]
+  async fn call(
+    &self,
+    ca: &mut CA,
+    _: (u8, &[(&'static str, u8)]),
+    ra: &mut RA,
+    req: &mut Request<ReqResBuffer>,
+  ) -> Result<StatusCode, E> {
+    let elem = serde_json::from_slice(&req.rrd.lease_mut().body).map_err(crate::Error::from)?;
+    req.rrd.lease_mut().clear();
+    self.0.call((StateGeneric::new(ca, ra, req), SerdeJson(elem))).await.finalize_response(req)
   }
 }
 

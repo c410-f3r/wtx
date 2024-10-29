@@ -106,9 +106,6 @@ pub type Http2Tokio<HB, SW, const IS_CLIENT: bool> =
 pub type Http2DataTokio<HB, SW, const IS_CLIENT: bool> =
   Arc<tokio::sync::Mutex<Http2Data<HB, SW, IS_CLIENT>>>;
 /// [`ServerStream`] instance using the mutex from tokio;
-#[cfg(feature = "tokio")]
-pub type ServerStreamTokio<HB, SW, const IS_CLIENT: bool> =
-  ServerStream<Http2DataTokio<HB, SW, IS_CLIENT>>;
 
 pub(crate) type Scrp = HashMap<u31::U31, stream_receiver::StreamControlRecvParams>;
 pub(crate) type Sorp = HashMap<u31::U31, stream_receiver::StreamOverallRecvParams>;

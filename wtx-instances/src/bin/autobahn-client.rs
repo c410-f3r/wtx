@@ -14,6 +14,7 @@ async fn main() -> wtx::Result<()> {
     let mut ws = WebSocketClient::connect(
       Flate2::default(),
       [],
+      false,
       Xorshift64::from(simple_seed()),
       TcpStream::connect(host).await?,
       &UriRef::new(&format!("http://{host}/runCase?case={case}&agent=wtx")),
@@ -40,6 +41,7 @@ async fn main() -> wtx::Result<()> {
   WebSocketClient::connect(
     (),
     [],
+    false,
     Xorshift64::from(simple_seed()),
     TcpStream::connect(host).await?,
     &UriRef::new(&format!("http://{host}/updateReports?agent=wtx")),
@@ -55,6 +57,7 @@ async fn get_case_count(host: &str, wsb: &mut WebSocketBuffer) -> wtx::Result<u3
   let mut ws = WebSocketClient::connect(
     (),
     [],
+    false,
     Xorshift64::from(simple_seed()),
     TcpStream::connect(host).await?,
     &UriRef::new(&format!("http://{host}/getCaseCount")),

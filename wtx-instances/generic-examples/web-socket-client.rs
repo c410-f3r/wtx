@@ -22,6 +22,7 @@ async fn main() -> wtx::Result<()> {
   let mut ws = WebSocketClient::connect(
     (),
     [],
+    false,
     Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri.to_ref(),

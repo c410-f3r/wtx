@@ -1,29 +1,28 @@
 use crate::{
   http::OptionedServer,
   misc::{FnFut, Stream, Xorshift64, _number_or_available_parallelism, simple_seed},
-  pool::{SimplePoolGetElem, SimplePoolResource, SimplePoolTokio, WebSocketRM},
+  pool::{SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, WebSocketBuffer, WebSocketServer},
 };
 use core::{fmt::Debug, future::Future};
 use std::sync::OnceLock;
-use tokio::{
-  net::{TcpListener, TcpStream},
-  sync::MutexGuard,
-};
+use tokio::net::{TcpListener, TcpStream};
+
+static POOL: OnceLock<SimplePoolTokio<WebSocketRM>> = OnceLock::new();
 
 impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
-  pub async fn tokio_web_socket<ACPT, C, E, F, S, SF>(
+  pub async fn tokio_web_socket<ACPT, C, E, H, N, S>(
     addr: &str,
     buffers_len_opt: Option<usize>,
     compression_cb: impl Clone + Fn() -> C + Send + 'static,
     err_cb: impl Clone + Fn(E) + Send + 'static,
-    handle_cb: F,
-    (acceptor_cb, local_acceptor_cb, stream_cb): (
+    handle_cb: H,
+    (acceptor_cb, conn_acceptor_cb, net_cb): (
       impl FnOnce() -> crate::Result<ACPT> + Send + 'static,
       impl Clone + Fn(&ACPT) -> ACPT + Send + 'static,
-      impl Clone + Fn(ACPT, TcpStream) -> SF + Send + 'static,
+      impl Clone + Fn(ACPT, TcpStream) -> N + Send + 'static,
     ),
   ) -> crate::Result<()>
   where
@@ -31,40 +30,45 @@ impl OptionedServer {
     C: Compression<false> + Send + 'static,
     C::NegotiatedCompression: Send,
     E: Debug + From<crate::Error> + Send + 'static,
-    for<'wsb> F: Clone
+    for<'wsb> H: Clone
       + FnFut<
         (WebSocketServer<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer>,),
         Result = Result<(), E>,
       > + Send
       + 'static,
+    N: Send + Future<Output = crate::Result<S>>,
     S: Stream<read(..): Send, write_all(..): Send> + Send,
-    SF: Send + Future<Output = crate::Result<S>>,
-    for<'wsb> <F as FnFut<(
+    for<'wsb> <H as FnFut<(
       WebSocketServer<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer>,
     )>>::Future: Send,
-    for<'handle> &'handle F: Send,
+    for<'handle> &'handle H: Send,
   {
     let buffers_len = _number_or_available_parallelism(buffers_len_opt)?;
     let listener = TcpListener::bind(addr).await?;
     let acceptor = acceptor_cb()?;
     loop {
-      let (tcp_stream, _) = listener.accept().await?;
-      let local_acceptor = local_acceptor_cb(&acceptor);
-
-      let mut conn_buffer_guard = conn_buffer(buffers_len).await?;
-      let local_compression_cb = compression_cb.clone();
-      let local_conn_err = err_cb.clone();
-      let local_handle_cb = handle_cb.clone();
-      let local_stream_cb = stream_cb.clone();
+      let conn_acceptor = conn_acceptor_cb(&acceptor);
+      let conn_compression_cb = compression_cb.clone();
+      let conn_conn_err = err_cb.clone();
+      let conn_handle_cb = handle_cb.clone();
+      let conn_net_cb = net_cb.clone();
+      let tcp_stream = listener.accept().await?.0;
+      let mut conn_buffer = POOL
+        .get_or_init(|| {
+          SimplePoolTokio::new(buffers_len, WebSocketRM::new(|| Ok(Default::default())))
+        })
+        .get()
+        .await?;
       let _jh = tokio::spawn(async move {
-        let wsb = &mut ***conn_buffer_guard;
+        let wsb = &mut ***conn_buffer;
         let fun = async move {
-          let stream = local_stream_cb(local_acceptor, tcp_stream).await?;
-          local_handle_cb
+          let net = conn_net_cb(conn_acceptor, tcp_stream).await?;
+          conn_handle_cb
             .call((WebSocketServer::accept(
-              local_compression_cb(),
+              conn_compression_cb(),
+              true,
               Xorshift64::from(simple_seed()),
-              stream,
+              net,
               wsb,
               |_| crate::Result::Ok(()),
             )
@@ -73,19 +77,9 @@ impl OptionedServer {
           Ok::<_, E>(())
         };
         if let Err(err) = fun.await {
-          local_conn_err(err);
+          conn_conn_err(err);
         }
       });
     }
   }
-}
-
-async fn conn_buffer(
-  len: usize,
-) -> crate::Result<SimplePoolGetElem<MutexGuard<'static, SimplePoolResource<WebSocketBuffer>>>> {
-  static POOL: OnceLock<SimplePoolTokio<WebSocketRM>> = OnceLock::new();
-  POOL
-    .get_or_init(|| SimplePoolTokio::new(len, WebSocketRM::new(|| Ok(Default::default()))))
-    .get()
-    .await
 }

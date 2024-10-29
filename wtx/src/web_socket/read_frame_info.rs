@@ -1,8 +1,10 @@
 use crate::{
   misc::{PartitionedFilledBuffer, Stream, _read_until},
   web_socket::{
-    compression::NegotiatedCompression, misc::op_code, OpCode, WebSocketError,
-    MAX_CONTROL_PAYLOAD_LEN,
+    compression::NegotiatedCompression,
+    misc::{has_masked_frame, op_code},
+    OpCode, WebSocketError, FIN_MASK, MAX_CONTROL_PAYLOAD_LEN, PAYLOAD_MASK, RSV1_MASK, RSV2_MASK,
+    RSV3_MASK,
   },
 };
 
@@ -24,6 +26,7 @@ impl ReadFrameInfo {
     bytes: &mut &[u8],
     max_payload_len: usize,
     nc: &NC,
+    no_masking: bool,
   ) -> crate::Result<Self>
   where
     NC: NegotiatedCompression,
@@ -36,7 +39,7 @@ impl ReadFrameInfo {
       [*a, *b]
     };
     let tuple = Self::manage_first_two_bytes(first_two, nc)?;
-    let (fin, length_code, op_code, should_decompress) = tuple;
+    let (fin, length_code, masked, op_code, should_decompress) = tuple;
     let (mut header_len, payload_len) = match length_code {
       126 => {
         let [a, b, rest @ ..] = bytes else {
@@ -54,15 +57,16 @@ impl ReadFrameInfo {
       }
       _ => (2, length_code.into()),
     };
-    let mut mask = None;
-    if !IS_CLIENT {
+    let mask = if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
       let [a, b, c, d, rest @ ..] = bytes else {
         return Err(crate::Error::UnexpectedBufferState);
       };
       *bytes = rest;
-      mask = Some([*a, *b, *c, *d]);
       header_len = header_len.wrapping_add(4);
-    }
+      Some([*a, *b, *c, *d])
+    } else {
+      None
+    };
     Self::manage_final_params(fin, op_code, max_payload_len, payload_len)?;
     Ok(ReadFrameInfo { fin, header_len, mask, op_code, payload_len, should_decompress })
   }
@@ -72,6 +76,7 @@ impl ReadFrameInfo {
     max_payload_len: usize,
     nc: &NC,
     network_buffer: &mut PartitionedFilledBuffer,
+    no_masking: bool,
     read: &mut usize,
     stream: &mut S,
   ) -> crate::Result<Self>
@@ -82,7 +87,7 @@ impl ReadFrameInfo {
     let buffer = network_buffer._following_rest_mut();
     let first_two = _read_until::<2, S>(buffer, read, 0, stream).await?;
     let tuple = Self::manage_first_two_bytes(first_two, nc)?;
-    let (fin, length_code, op_code, should_decompress) = tuple;
+    let (fin, length_code, masked, op_code, should_decompress) = tuple;
     let (mut header_len, payload_len) = match length_code {
       126 => {
         let payload_len = _read_until::<2, S>(buffer, read, 2, stream).await?;
@@ -94,11 +99,13 @@ impl ReadFrameInfo {
       }
       _ => (2, length_code.into()),
     };
-    let mut mask = None;
-    if !IS_CLIENT {
-      mask = Some(_read_until::<4, S>(buffer, read, header_len.into(), stream).await?);
+    let mask = if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
+      let rslt = _read_until::<4, S>(buffer, read, header_len.into(), stream).await?;
       header_len = header_len.wrapping_add(4);
-    }
+      Some(rslt)
+    } else {
+      None
+    };
     Self::manage_final_params(fin, op_code, max_payload_len, payload_len)?;
     Ok(ReadFrameInfo { fin, header_len, mask, op_code, payload_len, should_decompress })
   }
@@ -123,13 +130,16 @@ impl ReadFrameInfo {
   }
 
   #[inline]
-  fn manage_first_two_bytes<NC>([a, b]: [u8; 2], nc: &NC) -> crate::Result<(bool, u8, OpCode, bool)>
+  fn manage_first_two_bytes<NC>(
+    [a, b]: [u8; 2],
+    nc: &NC,
+  ) -> crate::Result<(bool, u8, bool, OpCode, bool)>
   where
     NC: NegotiatedCompression,
   {
-    let rsv1 = a & 0b0100_0000;
-    let rsv2 = a & 0b0010_0000;
-    let rsv3 = a & 0b0001_0000;
+    let rsv1 = a & RSV1_MASK;
+    let rsv2 = a & RSV2_MASK;
+    let rsv3 = a & RSV3_MASK;
     if rsv2 != 0 || rsv3 != 0 {
       return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
     }
@@ -143,9 +153,27 @@ impl ReadFrameInfo {
     } else {
       rsv1 != 0
     };
-    let fin = a & 0b1000_0000 != 0;
-    let length_code = b & 0b0111_1111;
+    let fin = a & FIN_MASK != 0;
+    let length_code = b & PAYLOAD_MASK;
+    let masked = has_masked_frame(b);
     let op_code = op_code(a)?;
-    Ok((fin, length_code, op_code, should_decompress))
+    Ok((fin, length_code, masked, op_code, should_decompress))
+  }
+
+  #[inline]
+  fn manage_mask<const IS_CLIENT: bool>(masked: bool, no_masking: bool) -> crate::Result<bool> {
+    Ok(if IS_CLIENT {
+      false
+    } else if no_masking {
+      if masked {
+        return Err(WebSocketError::InvalidMaskBit.into());
+      }
+      false
+    } else {
+      if !masked {
+        return Err(WebSocketError::InvalidMaskBit.into());
+      }
+      true
+    })
   }
 }
