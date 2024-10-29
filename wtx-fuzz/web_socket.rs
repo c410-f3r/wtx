@@ -13,6 +13,7 @@ libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
   Builder::new_current_thread().enable_all().build().unwrap().block_on(async move {
     let Ok(mut ws) = WebSocketServerOwned::new(
       (),
+      false,
       Xorshift64::from(simple_seed()),
       BytesStream::default(),
       WebSocketBuffer::default(),

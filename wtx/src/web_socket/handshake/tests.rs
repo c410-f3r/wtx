@@ -26,26 +26,35 @@ static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(feature = "flate2")]
 #[tokio::test]
-async fn client_and_server_compressed() {
+async fn compressed() {
   use crate::web_socket::compression::Flate2;
   #[cfg(feature = "_tracing-tree")]
   let _rslt = crate::misc::tracing_tree_init(None);
-  do_test_client_and_server_frames((), Flate2::default()).await;
+  do_test_client_and_server_frames(((), false), (Flate2::default(), false)).await;
   tokio::time::sleep(Duration::from_millis(200)).await;
-  do_test_client_and_server_frames(Flate2::default(), ()).await;
+  do_test_client_and_server_frames((Flate2::default(), false), ((), false)).await;
   tokio::time::sleep(Duration::from_millis(200)).await;
-  do_test_client_and_server_frames(Flate2::default(), Flate2::default()).await;
+  do_test_client_and_server_frames((Flate2::default(), false), (Flate2::default(), false)).await;
 }
 
 #[tokio::test]
-async fn client_and_server_uncompressed() {
+async fn uncompressed() {
   #[cfg(feature = "_tracing-tree")]
   let _rslt = crate::misc::tracing_tree_init(None);
-  do_test_client_and_server_frames((), ()).await;
+  do_test_client_and_server_frames(((), false), ((), false)).await;
 }
 
-async fn do_test_client_and_server_frames<CC, SC>(client_compression: CC, server_compression: SC)
-where
+#[tokio::test]
+async fn uncompressed_no_masking() {
+  #[cfg(feature = "_tracing-tree")]
+  let _rslt = crate::misc::tracing_tree_init(None);
+  do_test_client_and_server_frames(((), true), ((), true)).await;
+}
+
+async fn do_test_client_and_server_frames<CC, SC>(
+  (client_compression, client_no_masking): (CC, bool),
+  (server_compression, server_no_masking): (SC, bool),
+) where
   CC: Compression<true> + Send,
   CC::NegotiatedCompression: Send,
   SC: Compression<false> + Send + 'static,
@@ -59,6 +68,7 @@ where
     let (stream, _) = listener.accept().await.unwrap();
     let mut ws = WebSocketServer::accept(
       server_compression,
+      server_no_masking,
       Xorshift64::from(simple_seed()),
       stream,
       WebSocketBuffer::new(),
@@ -83,6 +93,7 @@ where
   let mut ws = WebSocketClient::connect(
     client_compression,
     [],
+    client_no_masking,
     Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     &uri.to_ref(),
@@ -149,23 +160,13 @@ where
     let hello = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, hello.op_code());
     assert_eq!(b"Hello!", hello.payload());
-    ws.write_frame(&mut Frame::new_fin(
-      OpCode::Text,
-      &mut [b'G', b'o', b'o', b'd', b'b', b'y', b'e', b'!'],
-    ))
-    .await
-    .unwrap();
+    ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Goodbye!")).await.unwrap();
     assert_eq!(OpCode::Close, ws.read_frame().await.unwrap().op_code());
   }
 
   async fn server(ws: &mut WebSocketServerOwned<NC, TcpStream>) {
-    ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut [b'H', b'e', b'l', b'l', b'o', b'!']))
-      .await
-      .unwrap();
-    assert_eq!(
-      ws.read_frame().await.unwrap().payload(),
-      &mut [b'G', b'o', b'o', b'd', b'b', b'y', b'e', b'!']
-    );
+    ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Hello!")).await.unwrap();
+    assert_eq!(ws.read_frame().await.unwrap().payload(), b"Goodbye!");
     ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await.unwrap();
   }
 }
@@ -203,7 +204,7 @@ where
 {
   async fn client(ws: &mut WebSocketClientOwned<NC, TcpStream>) {
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [1, 2, 3])).await.unwrap();
-    ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut [b'i', b'p', b'a', b't'])).await.unwrap();
+    ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"ipat")).await.unwrap();
     assert_eq!(OpCode::Pong, ws.read_frame().await.unwrap().op_code());
   }
 

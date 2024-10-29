@@ -28,6 +28,7 @@ type ReadContinuationFramesCb = (
 pub(crate) async fn manage_auto_reply<A, RNG, const IS_CLIENT: bool>(
   aux: &mut A,
   connection_state: &mut ConnectionState,
+  no_masking: bool,
   op_code: OpCode,
   payload: &mut [u8],
   rng: &mut RNG,
@@ -58,6 +59,7 @@ where
               aux,
               connection_state,
               &mut Frame::new_fin(OpCode::Close, payload_ret),
+              no_masking,
               rng,
               write_control_frame_cb,
             )
@@ -70,6 +72,7 @@ where
         aux,
         connection_state,
         &mut Frame::new_fin(OpCode::Close, payload),
+        no_masking,
         rng,
         write_control_frame_cb,
       )
@@ -81,6 +84,7 @@ where
         aux,
         connection_state,
         &mut Frame::new_fin(OpCode::Pong, payload),
+        no_masking,
         rng,
         write_control_frame_cb,
       )
@@ -111,7 +115,7 @@ pub(crate) fn manage_op_code_of_continuation_frames(
       }
     }
     OpCode::Binary | OpCode::Close | OpCode::Ping | OpCode::Pong | OpCode::Text => {
-      return Err(WebSocketError::UnexpectedMessageFrame.into());
+      return Err(WebSocketError::UnexpectedFrame.into());
     }
   }
   Ok(false)
@@ -127,7 +131,7 @@ pub(crate) fn manage_op_code_of_first_continuation_frame(
     OpCode::Binary => Ok(None),
     OpCode::Text => cb(payload),
     OpCode::Close | OpCode::Continuation | OpCode::Ping | OpCode::Pong => {
-      Err(WebSocketError::UnexpectedMessageFrame.into())
+      Err(WebSocketError::UnexpectedFrame.into())
     }
   }
 }
@@ -142,7 +146,7 @@ pub(crate) fn manage_op_code_of_first_final_frame(
       return Ok(());
     }
     OpCode::Continuation => {
-      return Err(WebSocketError::UnexpectedMessageFrame.into());
+      return Err(WebSocketError::UnexpectedFrame.into());
     }
     OpCode::Text => {
       let _str_validation = from_utf8_basic(payload)?;
@@ -200,9 +204,10 @@ pub(crate) fn manage_text_of_recurrent_continuation_frames(
 #[inline]
 pub(crate) fn unmask_nb<const IS_CLIENT: bool>(
   network_buffer: &mut [u8],
+  no_masking: bool,
   rfi: &ReadFrameInfo,
 ) -> crate::Result<()> {
-  if !IS_CLIENT {
+  if !IS_CLIENT && !no_masking {
     unmask(network_buffer, rfi.mask.ok_or(WebSocketError::MissingFrameMask)?);
   }
   Ok(())
@@ -214,6 +219,7 @@ pub(crate) async fn read_frame_from_stream<'nb, 'rb, 'rslt, NC, RNG, S, const IS
   max_payload_len: usize,
   nc: &mut NC,
   network_buffer: &'nb mut PartitionedFilledBuffer,
+  no_masking: bool,
   reader_buffer_first: &'rb mut Vector<u8>,
   reader_buffer_second: &'rb mut Vector<u8>,
   rng: &mut RNG,
@@ -230,9 +236,14 @@ where
   let first_rfi = loop {
     network_buffer._clear_if_following_is_empty();
     reader_buffer_first.clear();
-    let rfi =
-      fetch_frame_from_stream::<_, _, IS_CLIENT>(max_payload_len, nc, network_buffer, stream)
-        .await?;
+    let rfi = fetch_frame_from_stream::<_, _, IS_CLIENT>(
+      max_payload_len,
+      nc,
+      network_buffer,
+      no_masking,
+      stream,
+    )
+    .await?;
     if !rfi.fin {
       break rfi;
     }
@@ -240,18 +251,20 @@ where
       copy_from_compressed_nb_to_rb1::<NC, IS_CLIENT>(
         nc,
         network_buffer,
+        no_masking,
         reader_buffer_first,
         &rfi,
       )?;
       (reader_buffer_first.as_slice_mut(), PayloadTy::FirstReader)
     } else {
       let current_mut = network_buffer._current_mut();
-      unmask_nb::<IS_CLIENT>(current_mut, &rfi)?;
+      unmask_nb::<IS_CLIENT>(current_mut, no_masking, &rfi)?;
       (current_mut, PayloadTy::Network)
     };
     if manage_auto_reply::<_, _, IS_CLIENT>(
       stream,
       connection_state,
+      no_masking,
       rfi.op_code,
       payload,
       rng,
@@ -276,6 +289,7 @@ where
       max_payload_len,
       nc,
       network_buffer,
+      no_masking,
       reader_buffer_first,
       rng,
       stream,
@@ -294,6 +308,7 @@ where
       max_payload_len,
       nc,
       network_buffer,
+      no_masking,
       reader_buffer_first,
       rng,
       stream,
@@ -310,11 +325,12 @@ where
 #[inline]
 fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
   network_buffer: &mut PartitionedFilledBuffer,
+  no_masking: bool,
   reader_buffer_first: &mut Vector<u8>,
   rfi: &ReadFrameInfo,
 ) -> crate::Result<()> {
   let current_mut = network_buffer._current_mut();
-  unmask_nb::<IS_CLIENT>(current_mut, rfi)?;
+  unmask_nb::<IS_CLIENT>(current_mut, no_masking, rfi)?;
   reader_buffer_first.extend_from_copyable_slice(current_mut)?;
   network_buffer._clear_if_following_is_empty();
   Ok(())
@@ -324,13 +340,14 @@ fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
 fn copy_from_compressed_nb_to_rb1<NC, const IS_CLIENT: bool>(
   nc: &mut NC,
   network_buffer: &mut PartitionedFilledBuffer,
+  no_masking: bool,
   reader_buffer_first: &mut Vector<u8>,
   rfi: &ReadFrameInfo,
 ) -> crate::Result<()>
 where
   NC: NegotiatedCompression,
 {
-  unmask_nb::<IS_CLIENT>(network_buffer._current_mut(), rfi)?;
+  unmask_nb::<IS_CLIENT>(network_buffer._current_mut(), no_masking, rfi)?;
   network_buffer._reserve(4)?;
   let curr_end_idx = network_buffer._current().len();
   let curr_end_idx_p4 = curr_end_idx.wrapping_add(4);
@@ -407,6 +424,7 @@ async fn fetch_frame_from_stream<NC, S, const IS_CLIENT: bool>(
   max_payload_len: usize,
   nc: &NC,
   network_buffer: &mut PartitionedFilledBuffer,
+  no_masking: bool,
   stream: &mut S,
 ) -> crate::Result<ReadFrameInfo>
 where
@@ -418,6 +436,7 @@ where
     max_payload_len,
     nc,
     network_buffer,
+    no_masking,
     &mut read,
     stream,
   )
@@ -463,6 +482,7 @@ async fn read_continuation_frames<NC, RNG, S, const IS_CLIENT: bool>(
   max_payload_len: usize,
   nc: &mut NC,
   network_buffer: &mut PartitionedFilledBuffer,
+  no_masking: bool,
   reader_buffer_first: &mut Vector<u8>,
   rng: &mut RNG,
   stream: &mut S,
@@ -473,23 +493,39 @@ where
   RNG: Rng,
   S: Stream,
 {
-  copy_from_arbitrary_nb_to_rb1::<IS_CLIENT>(network_buffer, reader_buffer_first, first_rfi)?;
+  copy_from_arbitrary_nb_to_rb1::<IS_CLIENT>(
+    network_buffer,
+    no_masking,
+    reader_buffer_first,
+    first_rfi,
+  )?;
   let mut iuc = manage_op_code_of_first_continuation_frame(
     first_rfi.op_code,
     reader_buffer_first,
     first_text_cb,
   )?;
   loop {
-    let mut rfi =
-      fetch_frame_from_stream::<_, _, IS_CLIENT>(max_payload_len, nc, network_buffer, stream)
-        .await?;
+    let mut rfi = fetch_frame_from_stream::<_, _, IS_CLIENT>(
+      max_payload_len,
+      nc,
+      network_buffer,
+      no_masking,
+      stream,
+    )
+    .await?;
     let begin = reader_buffer_first.len();
     rfi.should_decompress = first_rfi.should_decompress;
-    copy_from_arbitrary_nb_to_rb1::<IS_CLIENT>(network_buffer, reader_buffer_first, &rfi)?;
+    copy_from_arbitrary_nb_to_rb1::<IS_CLIENT>(
+      network_buffer,
+      no_masking,
+      reader_buffer_first,
+      &rfi,
+    )?;
     let payload = reader_buffer_first.get_mut(begin..).unwrap_or_default();
     if !manage_auto_reply::<_, _, IS_CLIENT>(
       stream,
       connection_state,
+      no_masking,
       rfi.op_code,
       payload,
       rng,
@@ -518,6 +554,7 @@ async fn write_control_frame<A, P, RNG, const IS_CLIENT: bool>(
   aux: &mut A,
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
+  no_masking: bool,
   rng: &mut RNG,
   wsc_cb: &mut impl for<'any> FnMutFut<
     (&'any mut A, &'any [u8], &'any [u8]),
@@ -528,7 +565,7 @@ where
   P: LeaseMut<[u8]>,
   RNG: Rng,
 {
-  manage_normal_frame(connection_state, frame, rng);
+  manage_normal_frame(connection_state, frame, no_masking, rng);
   wsc_cb.call((aux, frame.header(), frame.payload().lease())).await?;
   Ok(())
 }

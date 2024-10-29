@@ -13,6 +13,7 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let mut ws = WebSocketClient::connect(
     (),
     [],
+    false,
     Xorshift64::from(simple_seed()),
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
     &uri,
@@ -55,6 +56,7 @@ pub(crate) async fn serve(
       let fun = async move {
         let mut ws = WebSocketServer::accept(
           (),
+          false,
           Xorshift64::from(simple_seed()),
           stream,
           WebSocketBuffer::default(),

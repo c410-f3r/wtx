@@ -8,7 +8,6 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use core::mem;
-
 use tokio::net::TcpListener;
 use wtx::{
   http::{Headers, ReqResBuffer},
@@ -47,7 +46,7 @@ async fn main() -> wtx::Result<()> {
     return Ok(());
   };
   let mut buffer = Vector::new();
-  let mut wos = WebSocketOverStream::new(&Headers::new(), rng, &mut stream).await?;
+  let mut wos = WebSocketOverStream::new(&Headers::new(), false, rng, &mut stream).await?;
   loop {
     let mut frame = wos.read_frame(&mut buffer).await?;
     match (frame.op_code(), frame.text_payload()) {
@@ -57,6 +56,7 @@ async fn main() -> wtx::Result<()> {
     }
     wos.write_frame(&mut Frame::new_fin(OpCode::Text, frame.payload_mut())).await?;
   }
+  wos.close().await?;
   stream.common().clear(false).await?;
   Ok(())
 }

@@ -8,7 +8,7 @@ macro_rules! create_statics {
     )*
   ) => {
     /// A statically known set of header names
-    #[derive(Debug, Eq, PartialEq)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub enum KnownHeaderName {
       $(
         $(#[$mac])*
@@ -209,8 +209,10 @@ create_statics! {
   Referer = "referer";
   Refresh = "refresh";
   RetryAfter = "retry-after";
-  SecWebsocketVersion = "sec-websocket-version";
+  SecWebsocketAccept = "sec-websocket-accept";
+  SecWebsocketExtensions = "sec-websocket-extensions";
   SecWebsocketKey = "sec-websocket-key";
+  SecWebsocketVersion = "sec-websocket-version";
   Server = "server";
   ServerTiming = "server-timing";
   SetCookie = "set-cookie";

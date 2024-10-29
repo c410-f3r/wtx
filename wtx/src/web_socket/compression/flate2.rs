@@ -1,10 +1,7 @@
 use crate::{
-  http::GenericHeader,
+  http::{GenericHeader, KnownHeaderName},
   misc::{bytes_split1, FilledBufferWriter, FromRadix10, VectorError},
-  web_socket::{
-    compression::NegotiatedCompression, misc::_trim_bytes, Compression, DeflateConfig,
-    WebSocketError,
-  },
+  web_socket::{compression::NegotiatedCompression, Compression, DeflateConfig, WebSocketError},
 };
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
 
@@ -37,7 +34,8 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
 
     let mut has_extension = false;
 
-    for swe in headers.filter(|el| el.name().eq_ignore_ascii_case(b"sec-websocket-extensions")) {
+    let swe_bytes = KnownHeaderName::SecWebsocketExtensions.into();
+    for swe in headers.filter(|el| el.name().eq_ignore_ascii_case(swe_bytes)) {
       for permessage_deflate_option in bytes_split1(swe.value(), b',') {
         dc = DeflateConfig {
           client_max_window_bits: self.dc.client_max_window_bits,
@@ -47,7 +45,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
         let mut client_max_window_bits_flag = false;
         let mut permessage_deflate_flag = false;
         let mut server_max_window_bits_flag = false;
-        for param in bytes_split1(permessage_deflate_option, b';').map(_trim_bytes) {
+        for param in bytes_split1(permessage_deflate_option, b';').map(<[u8]>::trim_ascii) {
           if param == b"client_no_context_takeover" || param == b"server_no_context_takeover" {
           } else if param == b"permessage-deflate" {
             _manage_header_uniqueness(&mut permessage_deflate_flag, || Ok(()))?

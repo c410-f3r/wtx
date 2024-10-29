@@ -1,7 +1,7 @@
 use crate::http::{ReqResBuffer, Request};
 
-/// Auxiliary structure for requests
-pub trait ReqAux: Sized {
+/// Auxiliary structures for streams or requests.
+pub trait StreamAux: Sized {
   /// Initialization
   type Init;
 

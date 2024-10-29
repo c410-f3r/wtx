@@ -11,16 +11,16 @@ mod param_wrappers;
 mod path_management;
 mod path_params;
 mod redirect;
-mod req_aux;
 mod res_finalizer;
 mod route_wrappers;
 mod router;
 mod server_framework_builder;
 mod state;
+mod stream_aux;
 #[cfg(feature = "nightly")]
 mod tokio;
 
-use crate::http::{conn_params::ConnParams, ReqResBuffer, Request, Response};
+use crate::http::{conn_params::ConnParams, AutoStream, ReqResBuffer, Response};
 use alloc::sync::Arc;
 pub use conn_aux::ConnAux;
 pub use cors_middleware::CorsMiddleware;
@@ -30,42 +30,40 @@ pub use param_wrappers::*;
 pub use path_management::PathManagement;
 pub use path_params::PathParams;
 pub use redirect::Redirect;
-pub use req_aux::ReqAux;
 pub use res_finalizer::ResFinalizer;
 pub use route_wrappers::{get, json, post, Get, Json, Post};
 pub use router::Router;
 pub use server_framework_builder::ServerFrameworkBuilder;
 pub use state::{State, StateClean, StateGeneric};
+pub use stream_aux::StreamAux;
 
 /// Server
 #[derive(Debug)]
-pub struct ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM> {
+pub struct ServerFramework<CA, CAC, E, P, REQM, RESM, SA, SAC> {
   _ca_cb: CAC,
   _cp: ConnParams,
-  _ra_cb: RAC,
-  _router: Arc<Router<CA, E, P, RA, REQM, RESM>>,
+  _sa_cb: SAC,
+  _router: Arc<Router<CA, E, P, REQM, RESM, SA>>,
 }
 
-impl<CA, CAC, E, P, RA, RAC, REQM, RESM> ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM>
+impl<CA, CAC, E, P, REQM, RESM, SA, SAC> ServerFramework<CA, CAC, E, P, REQM, RESM, SA, SAC>
 where
   E: From<crate::Error>,
-  P: PathManagement<CA, E, RA>,
-  RA: ReqAux,
-  REQM: ReqMiddleware<CA, E, RA>,
-  RESM: ResMiddleware<CA, E, RA>,
+  P: PathManagement<CA, E, SA>,
+  REQM: ReqMiddleware<CA, E, SA>,
+  RESM: ResMiddleware<CA, E, SA>,
+  SA: StreamAux,
 {
   async fn _auto(
-    mut ca: CA,
-    (ra_cb, router): (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM>>),
-    mut req: Request<ReqResBuffer>,
+    mut _as: AutoStream<CA, (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>)>,
   ) -> Result<Response<ReqResBuffer>, E> {
-    let mut ra = RA::req_aux(ra_cb(), &mut req)?;
+    let mut sa = SA::req_aux(_as.sa.0(), &mut _as.req)?;
     #[cfg(feature = "matchit")]
-    let num = router.router.at(req.rrd.uri.path()).map_err(From::from)?.value;
+    let num = _as.sa.1.router.at(_as.req.rrd.uri.path()).map_err(From::from)?.value;
     #[cfg(not(feature = "matchit"))]
     let num = &[];
-    let status_code = router.manage_path(&mut ca, (0, num), &mut ra, &mut req).await?;
-    Ok(Response { rrd: req.rrd, status_code, version: req.version })
+    let status_code = _as.sa.1.manage_path(&mut _as.ca, (0, num), &mut sa, &mut _as.req).await?;
+    Ok(Response { rrd: _as.req.rrd, status_code, version: _as.req.version })
   }
 }
 

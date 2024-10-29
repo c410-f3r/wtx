@@ -9,19 +9,19 @@ use core::marker::PhantomData;
 
 /// Redirects requests to specific asynchronous functions based on the set of inner URIs.
 #[derive(Debug)]
-pub struct Router<CA, E, P, RA, REQM, RESM> {
+pub struct Router<CA, E, P, REQM, RESM, SA> {
   pub(crate) paths: P,
-  pub(crate) phantom: PhantomData<(CA, E, RA)>,
+  pub(crate) phantom: PhantomData<(CA, E, SA)>,
   pub(crate) req_middlewares: REQM,
   pub(crate) res_middlewares: RESM,
   #[cfg(feature = "matchit")]
   pub(crate) router: matchit::Router<ArrayVector<(&'static str, u8), 8>>,
 }
 
-impl<CA, E, P, RA, REQM, RESM> Router<CA, E, P, RA, REQM, RESM>
+impl<CA, E, P, REQM, RESM, SA> Router<CA, E, P, REQM, RESM, SA>
 where
   E: From<crate::Error>,
-  P: PathManagement<CA, E, RA>,
+  P: PathManagement<CA, E, SA>,
 {
   /// Creates a new instance with paths and middlewares.
   #[inline]
@@ -54,10 +54,10 @@ where
   }
 }
 
-impl<CA, E, P, RA> Router<CA, E, P, RA, (), ()>
+impl<CA, E, P, SA> Router<CA, E, P, (), (), SA>
 where
   E: From<crate::Error>,
-  P: PathManagement<CA, E, RA>,
+  P: PathManagement<CA, E, SA>,
 {
   /// Creates a new instance of empty middlewares.
   #[inline]
@@ -75,12 +75,12 @@ where
   }
 }
 
-impl<CA, E, P, RA, REQM, RESM> PathManagement<CA, E, RA> for Router<CA, E, P, RA, REQM, RESM>
+impl<CA, E, P, REQM, RESM, SA> PathManagement<CA, E, SA> for Router<CA, E, P, REQM, RESM, SA>
 where
   E: From<crate::Error>,
-  P: PathManagement<CA, E, RA>,
-  REQM: ReqMiddleware<CA, E, RA>,
-  RESM: ResMiddleware<CA, E, RA>,
+  P: PathManagement<CA, E, SA>,
+  REQM: ReqMiddleware<CA, E, SA>,
+  RESM: ResMiddleware<CA, E, SA>,
 {
   const IS_ROUTER: bool = true;
 
@@ -89,7 +89,7 @@ where
     &self,
     ca: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
+    ra: &mut SA,
     req: &mut Request<ReqResBuffer>,
   ) -> Result<StatusCode, E> {
     self.req_middlewares.apply_req_middleware(ca, ra, req).await?;

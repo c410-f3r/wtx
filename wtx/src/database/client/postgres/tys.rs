@@ -318,6 +318,108 @@ mod collections {
   proptest!(string, String);
 }
 
+mod ip {
+  use crate::database::{
+    client::postgres::{DecodeValue, EncodeValue, Postgres, Ty},
+    Decode, Encode, Typed,
+  };
+  use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+  impl<'exec, E> Decode<'exec, Postgres<E>> for IpAddr
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(dv: &DecodeValue<'exec>) -> Result<Self, E> {
+      Ok(match dv.bytes() {
+        [2, ..] => IpAddr::V4(Ipv4Addr::decode(dv)?),
+        [3, ..] => IpAddr::V6(Ipv6Addr::decode(dv)?),
+        _ => panic!(),
+      })
+    }
+  }
+  impl<E> Encode<Postgres<E>> for IpAddr
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      match self {
+        IpAddr::V4(ipv4_addr) => ipv4_addr.encode(ev),
+        IpAddr::V6(ipv6_addr) => ipv6_addr.encode(ev),
+      }
+    }
+  }
+  impl<E> Typed<Postgres<E>> for IpAddr
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Inet;
+  }
+  test!(ipaddr_v4, IpAddr, IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)));
+  test!(ipaddr_v6, IpAddr, IpAddr::V6(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8)));
+
+  impl<'exec, E> Decode<'exec, Postgres<E>> for Ipv4Addr
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(dv: &DecodeValue<'exec>) -> Result<Self, E> {
+      let [2, 32, 0, 4, e, f, g, h] = dv.bytes() else {
+        panic!();
+      };
+      Ok(Ipv4Addr::from([*e, *f, *g, *h]))
+    }
+  }
+  impl<E> Encode<Postgres<E>> for Ipv4Addr
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_slices([&[2, 32, 0, 4][..], &self.octets()]).map_err(Into::into)?;
+      Ok(())
+    }
+  }
+  impl<E> Typed<Postgres<E>> for Ipv4Addr
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Inet;
+  }
+  test!(ipv4, Ipv4Addr, Ipv4Addr::new(1, 2, 3, 4));
+
+  impl<'exec, E> Decode<'exec, Postgres<E>> for Ipv6Addr
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(dv: &DecodeValue<'exec>) -> Result<Self, E> {
+      let [3, 128, 0, 16, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t] = dv.bytes() else {
+        panic!();
+      };
+      Ok(Ipv6Addr::from([*e, *f, *g, *h, *i, *j, *k, *l, *m, *n, *o, *p, *q, *r, *s, *t]))
+    }
+  }
+  impl<E> Encode<Postgres<E>> for Ipv6Addr
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_slices([&[3, 128, 0, 16][..], &self.octets()]).map_err(Into::into)?;
+      Ok(())
+    }
+  }
+  impl<E> Typed<Postgres<E>> for Ipv6Addr
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Inet;
+  }
+  test!(ipv6, Ipv6Addr, Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8));
+}
+
 mod pg_numeric {
   use crate::{
     database::{

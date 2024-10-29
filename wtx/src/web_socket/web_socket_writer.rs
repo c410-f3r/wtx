@@ -1,6 +1,9 @@
 use crate::{
   misc::{BufferMode, ConnectionState, Lease, LeaseMut, Rng, Stream, Vector, Xorshift64},
-  web_socket::{compression::NegotiatedCompression, unmask::unmask, Frame, FrameMut, OpCode},
+  web_socket::{
+    compression::NegotiatedCompression, misc::has_masked_frame, unmask::unmask, Frame, FrameMut,
+    OpCode,
+  },
 };
 
 #[inline]
@@ -29,6 +32,7 @@ pub(crate) fn manage_frame_compression<'cb, P, NC, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   nc: &mut NC,
   frame: &mut Frame<P, IS_CLIENT>,
+  no_masking: bool,
   rng: &mut Xorshift64,
   writer_buffer: &'cb mut Vector<u8>,
 ) -> crate::Result<FrameMut<'cb, IS_CLIENT>>
@@ -40,7 +44,7 @@ where
     *connection_state = ConnectionState::Closed;
   }
   let mut compressed_frame = compress_frame(frame, nc, writer_buffer)?;
-  mask_frame(&mut compressed_frame, rng);
+  mask_frame(&mut compressed_frame, no_masking, rng);
   Ok(compressed_frame)
 }
 
@@ -48,6 +52,7 @@ where
 pub(crate) fn manage_normal_frame<P, RNG, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
+  no_masking: bool,
   rng: &mut RNG,
 ) where
   P: LeaseMut<[u8]>,
@@ -56,13 +61,14 @@ pub(crate) fn manage_normal_frame<P, RNG, const IS_CLIENT: bool>(
   if frame.op_code() == OpCode::Close {
     *connection_state = ConnectionState::Closed;
   }
-  mask_frame(frame, rng);
+  mask_frame(frame, no_masking, rng);
 }
 
 #[inline]
 pub(crate) async fn write_frame<NC, P, S, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
+  no_masking: bool,
   nc: &mut NC,
   rng: &mut Xorshift64,
   stream: &mut S,
@@ -74,10 +80,10 @@ where
   S: Stream,
 {
   if manage_compression(frame, nc) {
-    let nframe = manage_frame_compression(connection_state, nc, frame, rng, writer_buffer)?;
-    stream.write_all_vectored(&[nframe.header(), nframe.payload()]).await?;
+    let fr = manage_frame_compression(connection_state, nc, frame, no_masking, rng, writer_buffer)?;
+    stream.write_all_vectored(&[fr.header(), fr.payload()]).await?;
   } else {
-    manage_normal_frame::<_, _, IS_CLIENT>(connection_state, frame, rng);
+    manage_normal_frame::<_, _, IS_CLIENT>(connection_state, frame, no_masking, rng);
     let (header, payload) = frame.header_and_payload_mut();
     stream.write_all_vectored(&[header, payload.lease()]).await?;
   }
@@ -120,27 +126,17 @@ where
 }
 
 #[inline]
-const fn has_masked_frame(second_header_byte: u8) -> bool {
-  second_header_byte & 0b1000_0000 != 0
-}
-
-#[inline]
-fn mask_frame<P, RNG, const IS_CLIENT: bool>(frame: &mut Frame<P, IS_CLIENT>, rng: &mut RNG)
-where
+fn mask_frame<P, RNG, const IS_CLIENT: bool>(
+  frame: &mut Frame<P, IS_CLIENT>,
+  no_masking: bool,
+  rng: &mut RNG,
+) where
   P: LeaseMut<[u8]>,
   RNG: Rng,
 {
-  if IS_CLIENT {
-    if let [_, second_byte, .., a, b, c, d] = frame.header_mut() {
-      if !has_masked_frame(*second_byte) {
-        *second_byte |= 0b1000_0000;
-        let mask = rng.u8_4();
-        *a = mask[0];
-        *b = mask[1];
-        *c = mask[2];
-        *d = mask[3];
-        unmask(frame.payload_mut().lease_mut(), mask);
-      }
-    }
+  if IS_CLIENT && !no_masking && !has_masked_frame(*frame.header_first_two_mut()[1]) {
+    let mask: [u8; 4] = rng.u8_4();
+    frame.set_mask(mask);
+    unmask(frame.payload_mut().lease_mut(), mask);
   }
 }

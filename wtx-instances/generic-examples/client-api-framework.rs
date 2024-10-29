@@ -106,6 +106,7 @@ async fn main() -> wtx::Result<()> {
     let web_socket = WebSocketClient::connect(
       (),
       [],
+      false,
       Xorshift64::from(simple_seed()),
       TcpStream::connect(uri.hostname_with_implied_port()).await?,
       &uri,

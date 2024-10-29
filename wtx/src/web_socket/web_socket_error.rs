@@ -11,6 +11,8 @@ pub enum WebSocketError {
   InvalidCompressionHeaderParameter,
   /// Header indices are out-of-bounds or the number of bytes are too small.
   InvalidFrameHeaderBounds,
+  /// The client sent an invalid mask bit.
+  InvalidMaskBit,
   /// Payload indices are out-of-bounds or the number of bytes are too small.
   InvalidPayloadBounds,
   /// Server received a frame without a mask.
@@ -25,9 +27,8 @@ pub enum WebSocketError {
   ReservedBitsAreNotZero,
   /// Received control frame wasn't supposed to be fragmented.
   UnexpectedFragmentedControlFrame,
-  /// The first frame of a message is a continuation or the following frames are not a
-  /// continuation.
-  UnexpectedMessageFrame,
+  /// For example, the first frame of a message is a continuation.
+  UnexpectedFrame,
   /// Control frames have a maximum allowed size.
   VeryLargeControlFrame,
   /// Frame payload exceeds the defined threshold.

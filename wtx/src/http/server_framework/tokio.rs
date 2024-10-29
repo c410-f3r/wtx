@@ -1,30 +1,30 @@
 use crate::{
   http::{
     server_framework::{
-      ConnAux, PathManagement, ReqAux, ReqMiddleware, ResMiddleware, Router, ServerFramework,
+      ConnAux, PathManagement, ReqMiddleware, ResMiddleware, Router, ServerFramework, StreamAux,
     },
-    Headers, OptionedServer, ReqResBuffer,
+    ManualServerStreamTokio, OptionedServer, ReqResBuffer, StreamMode,
   },
-  http2::{Http2Buffer, ServerStreamTokio},
+  http2::Http2Buffer,
   misc::Rng,
 };
 use std::sync::Arc;
-use tokio::net::{tcp::OwnedWriteHalf, TcpStream};
+use tokio::net::tcp::OwnedWriteHalf;
 
-impl<CA, CAC, E, P, RA, RAC, REQM, RESM> ServerFramework<CA, CAC, E, P, RA, RAC, REQM, RESM>
+impl<CA, CAC, E, P, REQM, RESM, SA, SAC> ServerFramework<CA, CAC, E, P, REQM, RESM, SA, SAC>
 where
   CA: Clone + ConnAux + Send + 'static,
   CAC: Clone + Fn() -> CA::Init + Send + 'static,
   E: From<crate::Error> + Send + 'static,
-  P: PathManagement<CA, E, RA, manage_path(..): Send> + Send + 'static,
-  RA: ReqAux + Send + 'static,
-  RAC: Clone + Fn() -> RA::Init + Send + 'static,
-  REQM: ReqMiddleware<CA, E, RA, apply_req_middleware(..): Send> + Send + 'static,
-  RESM: ResMiddleware<CA, E, RA, apply_res_middleware(..): Send> + Send + 'static,
-  Arc<Router<CA, E, P, RA, REQM, RESM>>: Send,
-  Router<CA, E, P, RA, REQM, RESM>: Send,
-  for<'any> &'any Arc<Router<CA, E, P, RA, REQM, RESM>>: Send,
-  for<'any> &'any Router<CA, E, P, RA, REQM, RESM>: Send,
+  P: PathManagement<CA, E, SA, manage_path(..): Send> + Send + 'static,
+  REQM: ReqMiddleware<CA, E, SA, apply_req_middleware(..): Send> + Send + 'static,
+  RESM: ResMiddleware<CA, E, SA, apply_res_middleware(..): Send> + Send + 'static,
+  SA: StreamAux + Send + 'static,
+  SAC: Clone + Fn() -> SA::Init + Send + 'static,
+  Arc<Router<CA, E, P, REQM, RESM, SA>>: Send,
+  Router<CA, E, P, REQM, RESM, SA>: Send,
+  for<'any> &'any Arc<Router<CA, E, P, REQM, RESM, SA>>: Send,
+  for<'any> &'any Router<CA, E, P, REQM, RESM, SA>: Send,
 {
   /// Starts listening to incoming requests based on the given `host`.
   #[inline]
@@ -37,14 +37,15 @@ where
   where
     RNG: Clone + Rng + Send + 'static,
   {
-    let Self { _ca_cb: ca_cb, _cp: cp, _ra_cb: ra_cb, _router: router } = self;
+    let Self { _ca_cb: ca_cb, _cp: cp, _sa_cb: sa_cb, _router: router } = self;
     OptionedServer::tokio_high_http2(
       host,
       Self::_auto,
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
       err_cb,
       Self::manual_tokio,
-      move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
+      move || Ok(((sa_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
+      |_, _, _| Ok(StreamMode::Auto),
       (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
     )
     .await
@@ -63,7 +64,7 @@ where
   where
     RNG: Clone + Rng + Send + 'static,
   {
-    let Self { _ca_cb: ca_cb, _cp: cp, _ra_cb: ra_cb, _router: router } = self;
+    let Self { _ca_cb: ca_cb, _cp: cp, _sa_cb: ra_cb, _router: router } = self;
     OptionedServer::tokio_high_http2(
       host,
       Self::_auto,
@@ -71,6 +72,7 @@ where
       err_cb,
       Self::manual_tokio_rustls,
       move || Ok(((ra_cb.clone(), Arc::clone(&router)), ReqResBuffer::empty())),
+      |_, _, _| Ok(StreamMode::Auto),
       (
         || {
           crate::misc::TokioRustlsAcceptor::without_client_auth()
@@ -86,10 +88,12 @@ where
 
   #[inline]
   async fn manual_tokio(
-    _: CA,
-    _: (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM>>),
-    _: Headers,
-    _: ServerStreamTokio<Http2Buffer, OwnedWriteHalf, false>,
+    _: ManualServerStreamTokio<
+      CA,
+      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
+      Http2Buffer,
+      OwnedWriteHalf,
+    >,
   ) -> Result<(), E> {
     Err(E::from(crate::Error::ClosedConnection))
   }
@@ -97,13 +101,11 @@ where
   #[cfg(feature = "tokio-rustls")]
   #[inline]
   async fn manual_tokio_rustls(
-    _: CA,
-    _: (impl Fn() -> RA::Init, Arc<Router<CA, E, P, RA, REQM, RESM>>),
-    _: Headers,
-    _: ServerStreamTokio<
+    _: ManualServerStreamTokio<
+      CA,
+      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
       Http2Buffer,
-      tokio::io::WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
-      false,
+      tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
     >,
   ) -> Result<(), E> {
     Err(E::from(crate::Error::ClosedConnection))

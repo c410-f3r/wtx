@@ -47,7 +47,7 @@ macro_rules! impl_0_16 {
       use crate::{
         http::{
           HttpError, Request, ReqResBuffer,  Response, StatusCode,
-          server_framework::{ConnAux, ReqAux, ReqMiddleware, ResMiddleware, PathManagement, PathParams}
+          server_framework::{ConnAux, StreamAux, ReqMiddleware, ResMiddleware, PathManagement, PathParams}
         },
         misc::{ArrayVector, Vector}
       };
@@ -65,9 +65,9 @@ macro_rules! impl_0_16 {
           }
         }
 
-        impl<$($T,)*> ReqAux for ($($T,)*)
+        impl<$($T,)*> StreamAux for ($($T,)*)
         where
-          $($T: ReqAux,)*
+          $($T: StreamAux,)*
         {
           type Init = ($($T::Init,)*);
 

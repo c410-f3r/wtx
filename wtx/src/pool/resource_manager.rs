@@ -180,9 +180,12 @@ pub(crate) mod database {
         let mut buffer = ExecutorBuffer::_empty();
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = executor!(&self.uri, |config, uri| {
-          let stream =
-            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?;
-          Executor::connect(&config, buffer, &mut &self.rng, stream)
+          Executor::connect(
+            &config,
+            buffer,
+            &mut &self.rng,
+            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
+          )
         })?;
         Ok(())
       }

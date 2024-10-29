@@ -15,7 +15,7 @@ mod web_socket_buffer;
 mod web_socket_error;
 mod web_socket_parts;
 pub(crate) mod web_socket_reader;
-mod web_socket_writer;
+pub(crate) mod web_socket_writer;
 
 use crate::{
   misc::{ConnectionState, LeaseMut, Stream, Xorshift64},
@@ -36,8 +36,15 @@ pub use web_socket_buffer::WebSocketBuffer;
 pub use web_socket_error::WebSocketError;
 pub use web_socket_parts::{WebSocketCommonPart, WebSocketReaderPart, WebSocketWriterPart};
 
+const FIN_MASK: u8 = 0b1000_0000;
+const MASK_MASK: u8 = 0b1000_0000;
 const MAX_CONTROL_PAYLOAD_LEN: usize = 125;
 const MAX_HEADER_LEN_USIZE: usize = 14;
+const OP_CODE_MASK: u8 = 0b0000_1111;
+const PAYLOAD_MASK: u8 = 0b0111_1111;
+const RSV1_MASK: u8 = 0b0100_0000;
+const RSV2_MASK: u8 = 0b0010_0000;
+const RSV3_MASK: u8 = 0b0001_0000;
 
 /// Always masks the payload before sending.
 pub type WebSocketClient<NC, S, WSB> = WebSocket<NC, S, WSB, true>;
@@ -61,6 +68,7 @@ pub struct WebSocket<NC, S, WSB, const IS_CLIENT: bool> {
   curr_payload: PayloadTy,
   max_payload_len: usize,
   nc: NC,
+  no_masking: bool,
   rng: Xorshift64,
   stream: S,
   wsb: WSB,
@@ -83,7 +91,13 @@ where
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
-  pub fn new(nc: NC, rng: Xorshift64, stream: S, mut wsb: WSB) -> crate::Result<Self> {
+  pub fn new(
+    nc: NC,
+    no_masking: bool,
+    rng: Xorshift64,
+    stream: S,
+    mut wsb: WSB,
+  ) -> crate::Result<Self> {
     wsb.lease_mut().network_buffer._clear_if_following_is_empty();
     wsb.lease_mut().network_buffer._reserve(MAX_HEADER_LEN_USIZE)?;
     Ok(Self {
@@ -91,6 +105,7 @@ where
       curr_payload: PayloadTy::None,
       max_payload_len: _MAX_PAYLOAD_LEN,
       nc,
+      no_masking,
       rng,
       stream,
       wsb,
@@ -118,7 +133,16 @@ where
     WebSocketReaderPart<'_, NC, S, IS_CLIENT>,
     WebSocketWriterPart<'_, NC, S, IS_CLIENT>,
   ) {
-    let WebSocket { connection_state, curr_payload, nc, rng, stream, wsb, max_payload_len } = self;
+    let WebSocket {
+      connection_state,
+      curr_payload,
+      nc,
+      no_masking,
+      rng,
+      stream,
+      wsb,
+      max_payload_len,
+    } = self;
     let WebSocketBuffer {
       writer_buffer,
       network_buffer,
@@ -130,11 +154,12 @@ where
       WebSocketReaderPart {
         max_payload_len: *max_payload_len,
         network_buffer,
+        no_masking: *no_masking,
         phantom: PhantomData,
         reader_buffer_first,
         reader_buffer_second,
       },
-      WebSocketWriterPart { phantom: PhantomData, writer_buffer },
+      WebSocketWriterPart { no_masking: *no_masking, phantom: PhantomData, writer_buffer },
     )
   }
 
@@ -144,7 +169,16 @@ where
   /// until all fragments are received.
   #[inline]
   pub async fn read_frame(&mut self) -> crate::Result<FrameMut<'_, IS_CLIENT>> {
-    let WebSocket { connection_state, curr_payload, max_payload_len, nc, rng, stream, wsb } = self;
+    let WebSocket {
+      connection_state,
+      curr_payload,
+      max_payload_len,
+      nc,
+      no_masking,
+      rng,
+      stream,
+      wsb,
+    } = self;
     let WebSocketBuffer {
       network_buffer,
       reader_buffer_first,
@@ -156,6 +190,7 @@ where
       *max_payload_len,
       nc,
       network_buffer,
+      *no_masking,
       reader_buffer_first,
       reader_buffer_second,
       rng,
@@ -172,9 +207,18 @@ where
   where
     P: LeaseMut<[u8]>,
   {
-    let WebSocket { connection_state, nc, rng, stream, wsb, .. } = self;
+    let WebSocket { connection_state, nc, no_masking, rng, stream, wsb, .. } = self;
     let WebSocketBuffer { writer_buffer, .. } = wsb.lease_mut();
-    web_socket_writer::write_frame(connection_state, frame, nc, rng, stream, writer_buffer).await?;
+    web_socket_writer::write_frame(
+      connection_state,
+      frame,
+      *no_masking,
+      nc,
+      rng,
+      stream,
+      writer_buffer,
+    )
+    .await?;
     Ok(())
   }
 }

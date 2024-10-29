@@ -82,6 +82,33 @@ pub(crate) use {
   uri::_EMPTY_URI_STRING,
 };
 
+/// Hashes a password using the `argon2` algorithm.
+#[cfg(feature = "argon2")]
+#[inline]
+pub fn argon2_pwd(pwd: &[u8], salt: &[u8]) -> crate::Result<[u8; 32]> {
+  use argon2::{Algorithm, Argon2, Params, Version};
+  const OUT_LEN: usize = 32;
+  const PARAMS: Params = {
+    let Ok(elem) = Params::new(
+      Params::DEFAULT_M_COST,
+      Params::DEFAULT_T_COST,
+      Params::DEFAULT_P_COST,
+      Some(OUT_LEN),
+    ) else {
+      panic!();
+    };
+    elem
+  };
+  let mut out = [0; OUT_LEN];
+  Argon2::new(Algorithm::Argon2id, Version::V0x13, PARAMS).hash_password_into_with_memory(
+    pwd,
+    salt,
+    &mut out,
+    &mut [argon2::Block::new(); PARAMS.block_count()],
+  )?;
+  Ok(out)
+}
+
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [`core::result::Result`] context.
 #[inline]

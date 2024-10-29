@@ -1,4 +1,4 @@
-//! Serves requests using low-level HTTP/2 resources along side self-made certificates.
+//! HTTP/2 server that uses optioned parameters.
 
 extern crate tokio;
 extern crate tokio_rustls;
@@ -8,8 +8,11 @@ extern crate wtx_instances;
 use tokio::{io::WriteHalf, net::TcpStream};
 use tokio_rustls::server::TlsStream;
 use wtx::{
-  http::{Headers, OptionedServer, ReqResBuffer, Request, Response, StatusCode},
-  http2::{Http2Buffer, Http2Params, ServerStreamTokio, WebSocketOverStream},
+  http::{
+    AutoStream, ManualServerStreamTokio, OptionedServer, ReqResBuffer, Response, StatusCode,
+    StreamMode,
+  },
+  http2::{is_web_socket_handshake, Http2Buffer, Http2Params, WebSocketOverStream},
   misc::{simple_seed, TokioRustlsAcceptor, Vector, Xorshift64},
   web_socket::{Frame, OpCode},
 };
@@ -31,6 +34,13 @@ async fn main() -> wtx::Result<()> {
     |error| eprintln!("{error}"),
     manual,
     || Ok((Vector::new(), ReqResBuffer::empty())),
+    |headers, method, protocol| {
+      Ok(if is_web_socket_handshake(headers, method, protocol) {
+        StreamMode::Manual
+      } else {
+        StreamMode::Auto
+      })
+    },
     (
       || {
         TokioRustlsAcceptor::without_client_auth()
@@ -44,25 +54,19 @@ async fn main() -> wtx::Result<()> {
   .await
 }
 
-async fn auto(
-  _: (),
-  _: Vector<u8>,
-  mut req: Request<ReqResBuffer>,
-) -> Result<Response<ReqResBuffer>, wtx::Error> {
-  req.rrd.clear();
-  Ok(req.into_response(StatusCode::Ok))
+async fn auto(mut ha: AutoStream<(), Vector<u8>>) -> Result<Response<ReqResBuffer>, wtx::Error> {
+  ha.req.rrd.clear();
+  Ok(ha.req.into_response(StatusCode::Ok))
 }
 
 async fn manual(
-  _: (),
-  mut buffer: Vector<u8>,
-  _: Headers,
-  stream: ServerStreamTokio<Http2Buffer, WriteHalf<TlsStream<TcpStream>>, false>,
+  mut hm: ManualServerStreamTokio<(), Vector<u8>, Http2Buffer, WriteHalf<TlsStream<TcpStream>>>,
 ) -> Result<(), wtx::Error> {
   let rng = Xorshift64::from(simple_seed());
-  let mut wos = WebSocketOverStream::new(&Headers::new(), rng, stream).await?;
+  hm.headers.clear();
+  let mut wos = WebSocketOverStream::new(&hm.headers, false, rng, hm.stream).await?;
   loop {
-    let mut frame = wos.read_frame(&mut buffer).await?;
+    let mut frame = wos.read_frame(&mut hm.sa).await?;
     match (frame.op_code(), frame.text_payload()) {
       (_, Some(elem)) => println!("{elem}"),
       (OpCode::Close, _) => break,
@@ -70,5 +74,6 @@ async fn manual(
     }
     wos.write_frame(&mut Frame::new_fin(OpCode::Text, frame.payload_mut())).await?;
   }
+  wos.close().await?;
   Ok(())
 }
