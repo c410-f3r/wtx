@@ -38,7 +38,7 @@ where
     RNG: Clone + Rng + Send + 'static,
   {
     let Self { _ca_cb: ca_cb, _cp: cp, _sa_cb: sa_cb, _router: router } = self;
-    OptionedServer::tokio_high_http2(
+    OptionedServer::http2_tokio(
       host,
       Self::_auto,
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
@@ -65,7 +65,7 @@ where
     RNG: Clone + Rng + Send + 'static,
   {
     let Self { _ca_cb: ca_cb, _cp: cp, _sa_cb: ra_cb, _router: router } = self;
-    OptionedServer::tokio_high_http2(
+    OptionedServer::http2_tokio(
       host,
       Self::_auto,
       move || Ok((CA::conn_aux(ca_cb())?, Http2Buffer::new(rng.clone()), cp._to_hp())),
@@ -90,8 +90,9 @@ where
   async fn manual_tokio(
     _: ManualServerStreamTokio<
       CA,
-      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
       Http2Buffer,
+      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
+      (),
       OwnedWriteHalf,
     >,
   ) -> Result<(), E> {
@@ -103,8 +104,9 @@ where
   async fn manual_tokio_rustls(
     _: ManualServerStreamTokio<
       CA,
-      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
       Http2Buffer,
+      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
+      (),
       tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
     >,
   ) -> Result<(), E> {

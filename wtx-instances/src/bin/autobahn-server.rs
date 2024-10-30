@@ -13,7 +13,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  OptionedServer::tokio_web_socket(
+  OptionedServer::web_socket_tokio(
     "127.0.0.1:9070",
     None,
     Flate2::default,

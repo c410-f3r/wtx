@@ -1,7 +1,9 @@
 
 # Client Connection
 
-PostgreSQL is currently the only supported database. Implements <https://www.postgresql.org/docs/16/protocol.html>.
+Provides a set of functions that establish connections, execute queries and manage data transactions with different databases.
+
+At the current time PostgreSQL is the only supported database. Implements <https://www.postgresql.org/docs/16/protocol.html>.
 
 More benchmarks are available at <https://github.com/diesel-rs/metrics>.
 

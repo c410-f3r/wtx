@@ -14,7 +14,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  OptionedServer::tokio_high_http2(
+  OptionedServer::http2_tokio(
     "127.0.0.1:9000",
     auto,
     || {
@@ -40,7 +40,7 @@ async fn auto(mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer>, wtx:
 }
 
 async fn manual(
-  _: ManualServerStreamTokio<(), (), Http2Buffer, OwnedWriteHalf>,
+  _: ManualServerStreamTokio<(), Http2Buffer, (), (), OwnedWriteHalf>,
 ) -> Result<(), wtx::Error> {
   Ok(())
 }

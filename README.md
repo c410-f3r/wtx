@@ -52,7 +52,7 @@ Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks ov
 
 When using a feature that requires network connection, it is often necessary to perform encrypted communication and since `wtx` is not hard-coded with a specific stream implementation, it is up to you to choose the best TLS provider.
 
-Some utilities like `TokioRustlsConnector` or `TokioRustlsAcceptor` are provided to make things more convenient but keep in mind that it is still necessary to activate a crate that provides certificates for client usage.
+Some utilities like `TokioRustlsConnector` or `TokioRustlsAcceptor` are available to make things more convenient but keep in mind that it is still necessary to activate a crate that provides certificates for client usage.
 
 ## Examples
 
@@ -60,6 +60,6 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 
 ## Limitations
 
-* Does not support systems with pointer length of 16 bits.
+* Does not support systems with a pointer length of 16 bits.
 
 * Expects the infallible sum of the lengths of an arbitrary number of slices, otherwise the program will likely trigger an overflow that can possibly result in unexpected operations. For example, in a 32bit system such a scenario should be viable without swap memory or through specific limiters like `ulimit`.

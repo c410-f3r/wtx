@@ -15,7 +15,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  OptionedServer::tokio_web_socket(
+  OptionedServer::web_socket_tokio(
     &wtx_instances::host_from_args(),
     None,
     || {},

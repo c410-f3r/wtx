@@ -7,9 +7,9 @@ use crate::{
 };
 
 /// [`StateGeneric`] with original content
-pub type State<'any, CA, RA, RRD> = StateGeneric<'any, CA, RA, RRD, false>;
+pub type State<'any, CA, SA, RRD> = StateGeneric<'any, CA, SA, RRD, false>;
 /// [`StateGeneric`] with cleaned content
-pub type StateClean<'any, CA, RA, RRD> = StateGeneric<'any, CA, RA, RRD, true>;
+pub type StateClean<'any, CA, SA, RRD> = StateGeneric<'any, CA, SA, RRD, true>;
 
 /// State of a connection
 ///
@@ -18,62 +18,68 @@ pub type StateClean<'any, CA, RA, RRD> = StateGeneric<'any, CA, RA, RRD, true>;
 /// When used in an endpoint's argument, request data is automatically cleaned. When used as the return type of an
 /// endpoint, response data is automatically cleaned.
 #[derive(Debug)]
-pub struct StateGeneric<'any, CA, RA, RRD, const CLEAN: bool> {
+pub struct StateGeneric<'any, CA, SA, RRD, const CLEAN: bool> {
   /// Connection auxiliary
-  pub ca: &'any mut CA,
-  /// Request auxiliary
-  pub ra: &'any mut RA,
+  pub conn_aux: &'any mut CA,
   /// Request/Response Data
   pub req: &'any mut Request<RRD>,
+  /// Request auxiliary
+  pub stream_aux: &'any mut SA,
 }
 
-impl<'any, CA, RA, RRD, const CLEAN: bool> StateGeneric<'any, CA, RA, RRD, CLEAN>
+impl<'any, CA, SA, RRD, const CLEAN: bool> StateGeneric<'any, CA, SA, RRD, CLEAN>
 where
   RRD: ReqResDataMut,
 {
   /// Creates an instance with erased `RRD` data if `CLEAN` is true.
   #[inline]
-  pub fn new(ca: &'any mut CA, ra: &'any mut RA, req: &'any mut Request<RRD>) -> Self {
+  pub fn new(
+    conn_aux: &'any mut CA,
+    stream_aux: &'any mut SA,
+    req: &'any mut Request<RRD>,
+  ) -> Self {
     if CLEAN {
       req.rrd.clear();
     }
-    Self { ca, ra, req }
+    Self { conn_aux, stream_aux, req }
   }
 }
 
-impl<CA, E, F, RA, RES, const CLEAN: bool> Endpoint<CA, E, RA>
-  for FnFutWrapper<(StateGeneric<'_, CA, RA, ReqResBuffer, CLEAN>,), F>
+impl<CA, E, F, SA, RES, const CLEAN: bool> Endpoint<CA, E, SA>
+  for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>,), F>
 where
-  F: for<'any> FnFut<(StateGeneric<'any, CA, RA, ReqResBuffer, CLEAN>,), Result = RES>,
+  F: for<'any> FnFut<(StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>,), Result = RES>,
   RES: ResFinalizer<E>,
 {
   #[inline]
   async fn call(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     _: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
-    self.0.call((StateGeneric::new(ca, ra, req),)).await.finalize_response(req)
+    self.0.call((StateGeneric::new(conn_aux, stream_aux, req),)).await.finalize_response(req)
   }
 }
 
-impl<'any, CA, RA, RRD, const CLEAN: bool> From<&'any mut (CA, RA, Request<RRD>)>
-  for StateGeneric<'any, CA, RA, RRD, CLEAN>
+impl<'any, CA, SA, RRD, const CLEAN: bool> From<&'any mut (CA, SA, Request<RRD>)>
+  for StateGeneric<'any, CA, SA, RRD, CLEAN>
 {
   #[inline]
-  fn from((ca, ra, req): &'any mut (CA, RA, Request<RRD>)) -> Self {
-    Self { ca, ra, req }
+  fn from((conn_aux, stream_aux, req): &'any mut (CA, SA, Request<RRD>)) -> Self {
+    Self { conn_aux, stream_aux, req }
   }
 }
 
-impl<'any, CA, RA, RRD, const CLEAN: bool>
-  From<&'any mut (&'any mut CA, &'any mut RA, Request<RRD>)>
-  for StateGeneric<'any, CA, RA, RRD, CLEAN>
+impl<'any, CA, SA, RRD, const CLEAN: bool>
+  From<&'any mut (&'any mut CA, &'any mut SA, Request<RRD>)>
+  for StateGeneric<'any, CA, SA, RRD, CLEAN>
 {
   #[inline]
-  fn from((ca, ra, req): &'any mut (&'any mut CA, &'any mut RA, Request<RRD>)) -> Self {
-    Self { ca, ra, req }
+  fn from(
+    (conn_aux, stream_aux, req): &'any mut (&'any mut CA, &'any mut SA, Request<RRD>),
+  ) -> Self {
+    Self { conn_aux, stream_aux, req }
   }
 }

@@ -65,7 +65,7 @@ async fn db(
   state: StateClean<'_, (), Pool, ReqResBuffer>,
   PathOwned(id): PathOwned<u32>,
 ) -> wtx::Result<StatusCode> {
-  let mut lock = state.ra.get().await?;
+  let mut lock = state.stream_aux.get().await?;
   let record = lock.fetch_with_stmt("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
   state.req.rrd.body.write_fmt(format_args!("Person of id `1` has name `{name}`"))?;

@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    optioned_server::OptionedServer, AutoStream, Headers, ManualServerStreamTokio, ManualStream,
-    Method, Protocol, ReqResBuffer, Response, StreamMode,
+    optioned_server::OptionedServer, AutoStream, Headers, ManualServerStreamTokio, Method,
+    Protocol, ReqResBuffer, Response, StreamMode,
   },
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},
@@ -12,7 +12,7 @@ use tokio::net::{TcpListener, TcpStream};
 impl OptionedServer {
   /// Optioned HTTP/2 server using tokio.
   #[inline]
-  pub async fn tokio_high_http2<A, ACPT, CA, E, M, N, SA, SR, SW>(
+  pub async fn http2_tokio<A, ACPT, CA, E, M, N, SA, SMA, SR, SW>(
     addr: &str,
     auto_cb: A,
     conn_cb: impl Clone + Fn() -> crate::Result<(CA, Http2Buffer, Http2Params)> + Send + 'static,
@@ -20,7 +20,7 @@ impl OptionedServer {
     manual_cb: M,
     stream_cb: impl Clone + Fn() -> crate::Result<(SA, ReqResBuffer)> + Send + 'static,
     stream_mode_cb: impl Clone
-      + Fn(&mut Headers, Method, Option<Protocol>) -> Result<StreamMode, E>
+      + Fn(&mut Headers, Method, Option<Protocol>) -> Result<StreamMode<SMA>, E>
       + Send
       + Sync
       + 'static,
@@ -40,12 +40,13 @@ impl OptionedServer {
     ACPT: Send + 'static,
     E: From<crate::Error> + Send + 'static,
     M: Clone
-      + FnFut<(ManualServerStreamTokio<CA, SA, Http2Buffer, SW>,), Result = Result<(), E>>
+      + FnFut<(ManualServerStreamTokio<CA, Http2Buffer, SA, SMA, SW>,), Result = Result<(), E>>
       + Send
       + 'static,
     M::Future: Send,
     N: Future<Output = crate::Result<(SR, SW)>> + Send,
     SA: Send + 'static,
+    SMA: Send + 'static,
     SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + Unpin + 'static,
     SW: Send + StreamWriter<write_all(..): Send, write_all_vectored(..): Send> + Unpin + 'static,
     for<'handle> &'handle A: Send,
@@ -76,12 +77,12 @@ impl OptionedServer {
           .await?;
           let _frame_reader_jh = tokio::spawn(frame_reader);
           loop {
-            let (sa, rrb) = conn_stream_cb()?;
+            let (stream_aux, rrb) = conn_stream_cb()?;
             let (mut stream, headers_opt) = match http2
               .stream(rrb, |headers, method, protocol| {
                 Ok::<_, E>(match conn_stream_mode_cb(headers, method, protocol)? {
                   StreamMode::Auto => None,
-                  StreamMode::Manual => Some(mem::take(headers)),
+                  StreamMode::Manual(ma) => Some((mem::take(headers), ma)),
                 })
               })
               .await?
@@ -95,14 +96,15 @@ impl OptionedServer {
             let stream_manual_cb = conn_manual_cb.clone();
             let _stream_jh = tokio::spawn(async move {
               let stream_fun = async {
-                if let Some(headers) = headers_opt? {
+                if let Some((headers, stream_mode_aux)) = headers_opt? {
                   stream_manual_cb
-                    .call((ManualStream {
-                      ca: stream_ca,
+                    .call((ManualServerStreamTokio {
+                      conn_aux: stream_ca,
                       headers,
                       peer,
-                      sa,
                       stream: stream.clone(),
+                      stream_aux,
+                      stream_mode_aux,
                     },))
                     .await?;
                   return Ok(());
@@ -112,7 +114,7 @@ impl OptionedServer {
                   return Ok(());
                 }
                 let req = local_rrb.into_http2_request(stream.method());
-                let _as = AutoStream { ca: stream_ca, peer, req, sa };
+                let _as = AutoStream { conn_aux: stream_ca, peer, req, stream_aux };
                 let res = stream_auto_cb.call((_as,)).await?;
                 if stream.send_res(res).await?.is_closed() {
                   return Ok(());

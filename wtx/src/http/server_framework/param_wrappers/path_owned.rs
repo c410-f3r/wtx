@@ -14,7 +14,7 @@ pub struct PathOwned<T>(
   pub T,
 );
 
-impl<CA, E, F, P, RA, RES> Endpoint<CA, E, RA> for FnFutWrapper<(PathOwned<P>,), F>
+impl<CA, E, F, P, RES, SA> Endpoint<CA, E, SA> for FnFutWrapper<(PathOwned<P>,), F>
 where
   E: From<crate::Error>,
   P: FromStr,
@@ -27,8 +27,8 @@ where
     &self,
     _: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    _: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    _: &mut SA,
   ) -> Result<StatusCode, E> {
     req.rrd.clear();
     let path = manage_path(path_defs, &req.rrd.uri).map_err(From::from)?;
@@ -37,25 +37,29 @@ where
   }
 }
 
-impl<CA, E, F, P, RA, RES, const CLEAN: bool> Endpoint<CA, E, RA>
-  for FnFutWrapper<(StateGeneric<'_, CA, RA, ReqResBuffer, CLEAN>, PathOwned<P>), F>
+impl<CA, E, F, P, RES, SA, const CLEAN: bool> Endpoint<CA, E, SA>
+  for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>, PathOwned<P>), F>
 where
   E: From<crate::Error>,
   P: FromStr,
   P::Err: Into<crate::Error>,
-  F: for<'any> FnFut<(StateGeneric<'any, CA, RA, ReqResBuffer, CLEAN>, PathOwned<P>), Result = RES>,
+  F: for<'any> FnFut<(StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>, PathOwned<P>), Result = RES>,
   RES: ResFinalizer<E>,
 {
   #[inline]
   async fn call(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
     let path = manage_path(path_defs, &req.rrd.uri).map_err(From::from)?;
     let path_owned = PathOwned(P::from_str(path).map_err(Into::into)?);
-    self.0.call((StateGeneric::new(ca, ra, req), path_owned)).await.finalize_response(req)
+    self
+      .0
+      .call((StateGeneric::new(conn_aux, stream_aux, req), path_owned))
+      .await
+      .finalize_response(req)
   }
 }

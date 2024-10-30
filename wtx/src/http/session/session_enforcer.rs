@@ -25,7 +25,7 @@ impl<L, SS, const N: usize> SessionEnforcer<L, SS, N> {
   }
 }
 
-impl<CA, CS, E, L, RA, SS, const N: usize> ReqMiddleware<CA, E, RA> for SessionEnforcer<L, SS, N>
+impl<CA, CS, E, L, SA, SS, const N: usize> ReqMiddleware<CA, E, SA> for SessionEnforcer<L, SS, N>
 where
   CA: Lease<Session<L, SS>>,
   E: From<crate::Error>,
@@ -34,16 +34,16 @@ where
   #[inline]
   async fn apply_req_middleware(
     &self,
-    ca: &mut CA,
-    _: &mut RA,
+    conn_aux: &mut CA,
     req: &mut Request<ReqResBuffer>,
+    _: &mut SA,
   ) -> Result<(), E> {
     let uri = req.rrd.uri();
     let path = uri.path();
     if self.denied.iter().all(|elem| *elem != path) {
       return Ok(());
     }
-    if ca.lease().content.lock().await.state().is_none() {
+    if conn_aux.lease().content.lock().await.state().is_none() {
       return Err(crate::Error::from(SessionError::RequiredSessionInPath).into());
     }
     Ok(())

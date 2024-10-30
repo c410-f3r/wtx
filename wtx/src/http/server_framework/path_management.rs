@@ -5,7 +5,7 @@ use crate::{
 use core::future::Future;
 
 /// Used by all structures that somehow interact with incoming requests.
-pub trait PathManagement<CA, E, RA>
+pub trait PathManagement<CA, E, SA>
 where
   E: From<crate::Error>,
 {
@@ -15,10 +15,10 @@ where
   /// Creates a response based on a request.
   fn manage_path(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> impl Future<Output = Result<StatusCode, E>>;
 
   /// Used internally to fill `vec` with the indices of all nested routes.
@@ -39,22 +39,22 @@ where
   ) -> crate::Result<()>;
 }
 
-impl<CA, E, RA, T> PathManagement<CA, E, RA> for &T
+impl<CA, E, SA, T> PathManagement<CA, E, SA> for &T
 where
   E: From<crate::Error>,
-  T: PathManagement<CA, E, RA>,
+  T: PathManagement<CA, E, SA>,
 {
   const IS_ROUTER: bool = T::IS_ROUTER;
 
   #[inline]
   async fn manage_path(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
-    (*self).manage_path(ca, path_defs, ra, req).await
+    (*self).manage_path(conn_aux, path_defs, req, stream_aux).await
   }
 
   #[inline]

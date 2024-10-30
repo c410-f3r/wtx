@@ -19,7 +19,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  OptionedServer::tokio_high_http2(
+  OptionedServer::http2_tokio(
     &wtx_instances::host_from_args(),
     auto,
     || {
@@ -36,7 +36,7 @@ async fn main() -> wtx::Result<()> {
     || Ok((Vector::new(), ReqResBuffer::empty())),
     |headers, method, protocol| {
       Ok(if is_web_socket_handshake(headers, method, protocol) {
-        StreamMode::Manual
+        StreamMode::Manual(())
       } else {
         StreamMode::Auto
       })
@@ -60,13 +60,13 @@ async fn auto(mut ha: AutoStream<(), Vector<u8>>) -> Result<Response<ReqResBuffe
 }
 
 async fn manual(
-  mut hm: ManualServerStreamTokio<(), Vector<u8>, Http2Buffer, WriteHalf<TlsStream<TcpStream>>>,
+  mut hm: ManualServerStreamTokio<(), Http2Buffer, Vector<u8>, (), WriteHalf<TlsStream<TcpStream>>>,
 ) -> Result<(), wtx::Error> {
   let rng = Xorshift64::from(simple_seed());
   hm.headers.clear();
   let mut wos = WebSocketOverStream::new(&hm.headers, false, rng, hm.stream).await?;
   loop {
-    let mut frame = wos.read_frame(&mut hm.sa).await?;
+    let mut frame = wos.read_frame(&mut hm.stream_aux).await?;
     match (frame.op_code(), frame.text_payload()) {
       (_, Some(elem)) => println!("{elem}"),
       (OpCode::Close, _) => break,

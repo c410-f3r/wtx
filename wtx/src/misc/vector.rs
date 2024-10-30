@@ -136,12 +136,24 @@ impl<T> Vector<T> {
   }
 
   /// Extracts a slice containing the entire vector.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.push(1u8).unwrap();
+  /// assert_eq!(vec.as_slice(), &[1]);
+  /// ```
   #[inline]
   pub fn as_slice(&self) -> &[T] {
     self.data.as_slice()
   }
 
   /// Extracts a slice containing the entire mutable vector.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.push(1u8).unwrap();
+  /// assert_eq!(vec.as_slice_mut(), &mut [1]);
+  /// ```
   #[inline]
   pub fn as_slice_mut(&mut self) -> &mut [T] {
     self.data.as_mut_slice()
@@ -377,6 +389,12 @@ where
   /// Resizes the instance in-place so that the current length is equal to `bp`.
   ///
   /// Does nothing if the calculated length is equal or less than the current length.
+  ///
+  /// ```rust
+  /// let mut vec = wtx::misc::Vector::new();
+  /// vec.expand(wtx::misc::BufferMode::Len(4), 0u8).unwrap();
+  /// assert_eq!(vec.len(), 4);
+  /// ```
   #[inline(always)]
   pub fn expand(&mut self, bp: BufferMode, value: T) -> Result<(), VectorError> {
     let len = self.data.len();
