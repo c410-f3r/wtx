@@ -1,6 +1,13 @@
 # HTTP Server Framework
 
-A small and fast to compile framework that can interact with many built-in features like PostgreSQL connections.
+A small and fast to compile framework that can interact with many built-in features.
+
+* Databases
+* JSON
+* Middlewares
+* Streaming
+* URI router
+* WebSocket
 
 If dynamic or nested routes are needed, then it is necessary to activate the `matchit` feature. Without it, only simple and flat routes will work.
 

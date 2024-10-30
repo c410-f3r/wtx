@@ -1,6 +1,6 @@
 # Schema Management
 
-Embedded and CLI workflows using raw SQL commands.
+Embedded and CLI workflows using raw SQL commands. A schema manager is a tool thats allows developers to define, track and apply changes to database structures over time, ensuring consistency across different environments.
 
 Activation feature is called `schema-manager`.
 

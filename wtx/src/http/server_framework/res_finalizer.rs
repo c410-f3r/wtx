@@ -16,7 +16,7 @@ where
   }
 }
 
-impl<CA, E, RA> ResFinalizer<E> for (StateClean<'_, CA, RA, ReqResBuffer>, StatusCode)
+impl<CA, E, SA> ResFinalizer<E> for (StateClean<'_, CA, SA, ReqResBuffer>, StatusCode)
 where
   E: From<crate::Error>,
 {
@@ -27,7 +27,7 @@ where
   }
 }
 
-impl<CA, E, RA> ResFinalizer<E> for StateClean<'_, CA, RA, ReqResBuffer>
+impl<CA, E, SA> ResFinalizer<E> for StateClean<'_, CA, SA, ReqResBuffer>
 where
   E: From<crate::Error>,
 {

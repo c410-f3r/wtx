@@ -22,27 +22,27 @@ where
   Get(ty.into_wrapper())
 }
 
-impl<CA, E, RA, T> PathManagement<CA, E, RA> for Get<T>
+impl<CA, E, SA, T> PathManagement<CA, E, SA> for Get<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<CA, E, RA>,
+  T: Endpoint<CA, E, SA>,
 {
   const IS_ROUTER: bool = false;
 
   #[inline]
   async fn manage_path(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
     if req.method != Method::Get {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
         expected: Method::Get,
       })));
     }
-    self.0.call(ca, path_defs, ra, req).await
+    self.0.call(conn_aux, path_defs, req, stream_aux).await
   }
 
   #[inline]
@@ -71,20 +71,20 @@ where
   Json(ty.into_wrapper())
 }
 
-impl<CA, E, T, RA> PathManagement<CA, E, RA> for Json<T>
+impl<CA, E, T, SA> PathManagement<CA, E, SA> for Json<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<CA, E, RA>,
+  T: Endpoint<CA, E, SA>,
 {
   const IS_ROUTER: bool = false;
 
   #[inline]
   async fn manage_path(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
     if req
       .rrd
@@ -99,7 +99,7 @@ where
         expected: Method::Post,
       })));
     }
-    self.0.call(ca, path_defs, ra, req).await
+    self.0.call(conn_aux, path_defs, req, stream_aux).await
   }
 
   #[inline]
@@ -128,27 +128,27 @@ where
   Post(ty.into_wrapper())
 }
 
-impl<CA, E, T, RA> PathManagement<CA, E, RA> for Post<T>
+impl<CA, E, T, SA> PathManagement<CA, E, SA> for Post<T>
 where
   E: From<crate::Error>,
-  T: Endpoint<CA, E, RA>,
+  T: Endpoint<CA, E, SA>,
 {
   const IS_ROUTER: bool = false;
 
   #[inline]
   async fn manage_path(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
     if req.method != Method::Post {
       return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
         expected: Method::Post,
       })));
     }
-    self.0.call(ca, path_defs, ra, req).await
+    self.0.call(conn_aux, path_defs, req, stream_aux).await
   }
 
   #[inline]

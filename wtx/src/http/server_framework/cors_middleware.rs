@@ -116,7 +116,7 @@ impl ConnAux for CorsMiddleware {
   }
 }
 
-impl<CA, E, RA> ResMiddleware<CA, E, RA> for CorsMiddleware
+impl<CA, E, SA> ResMiddleware<CA, E, SA> for CorsMiddleware
 where
   E: From<crate::Error>,
 {
@@ -124,8 +124,8 @@ where
   async fn apply_res_middleware(
     &self,
     _: &mut CA,
-    _: &mut RA,
     res: Response<&mut ReqResBuffer>,
+    _: &mut SA,
   ) -> Result<(), E> {
     let Self {
       allow_credentials,

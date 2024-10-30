@@ -4,7 +4,7 @@ An asynchronous pool of arbitrary objects where each element is dynamically crea
 
 Can also be used for database connections, which is quite handy because it enhances the performance of executing commands and alleviates the use of hardware resources.
 
-Activation feature is called `pool`.
+To use this functionality, it necessary to activate the `pool` feature.
 
 ## Example
 

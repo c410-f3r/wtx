@@ -18,8 +18,8 @@ where
   async fn apply_res_middleware(
     &self,
     _: &mut CA,
-    ra: &mut GrpcManager<DRSR>,
     res: Response<&mut ReqResBuffer>,
+    sa: &mut GrpcManager<DRSR>,
   ) -> Result<(), E> {
     res.rrd.headers_mut().push_from_iter_many([
       Header::from_name_and_value(
@@ -30,7 +30,7 @@ where
         is_sensitive: false,
         is_trailer: true,
         name: b"grpc-status",
-        value: [ra.status_code_mut().number_as_str().as_bytes()].into_iter(),
+        value: [sa.status_code_mut().number_as_str().as_bytes()].into_iter(),
       },
     ])?;
     Ok(())

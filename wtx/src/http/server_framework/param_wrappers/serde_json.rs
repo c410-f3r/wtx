@@ -14,7 +14,7 @@ pub struct SerdeJson<T>(
   pub T,
 );
 
-impl<CA, E, F, RA, RES, T> Endpoint<CA, E, RA> for FnFutWrapper<(SerdeJson<T>,), F>
+impl<CA, E, F, RES, SA, T> Endpoint<CA, E, SA> for FnFutWrapper<(SerdeJson<T>,), F>
 where
   E: From<crate::Error>,
   F: FnFut<(SerdeJson<T>,), Result = RES>,
@@ -26,8 +26,8 @@ where
     &self,
     _: &mut CA,
     _: (u8, &[(&'static str, u8)]),
-    _: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    _: &mut SA,
   ) -> Result<StatusCode, E> {
     let elem = serde_json::from_slice(&req.rrd.lease_mut().body).map_err(crate::Error::from)?;
     req.rrd.lease_mut().clear();
@@ -35,25 +35,29 @@ where
   }
 }
 
-impl<CA, E, F, RA, RES, T, const CLEAN: bool> Endpoint<CA, E, RA>
-  for FnFutWrapper<(StateGeneric<'_, CA, RA, ReqResBuffer, CLEAN>, SerdeJson<T>), F>
+impl<CA, E, F, RES, SA, T, const CLEAN: bool> Endpoint<CA, E, SA>
+  for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>, SerdeJson<T>), F>
 where
   E: From<crate::Error>,
-  F: for<'any> FnFut<(StateGeneric<'any, CA, RA, ReqResBuffer, CLEAN>, SerdeJson<T>), Result = RES>,
+  F: for<'any> FnFut<(StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>, SerdeJson<T>), Result = RES>,
   RES: ResFinalizer<E>,
   T: DeserializeOwned,
 {
   #[inline]
   async fn call(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     _: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
     let elem = serde_json::from_slice(&req.rrd.lease_mut().body).map_err(crate::Error::from)?;
     req.rrd.lease_mut().clear();
-    self.0.call((StateGeneric::new(ca, ra, req), SerdeJson(elem))).await.finalize_response(req)
+    self
+      .0
+      .call((StateGeneric::new(conn_aux, stream_aux, req), SerdeJson(elem)))
+      .await
+      .finalize_response(req)
   }
 }
 

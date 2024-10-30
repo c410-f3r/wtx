@@ -61,7 +61,7 @@ async fn main() -> wtx::Result<()> {
 
 #[inline]
 async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  let (session, rng) = state.ca;
+  let (session, rng) = state.conn_aux;
   if session.content.lock().await.state().is_some() {
     session.delete_session_cookie(&mut state.req.rrd).await?;
     return Ok(StatusCode::Forbidden);
@@ -87,7 +87,7 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<Statu
 
 #[inline]
 async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  state.ca.0.delete_session_cookie(&mut state.req.rrd).await?;
+  state.conn_aux.0.delete_session_cookie(&mut state.req.rrd).await?;
   Ok(StatusCode::Ok)
 }
 

@@ -5,18 +5,18 @@ use crate::{
 use core::future::Future;
 
 /// Endpoint that generates a response.
-pub trait Endpoint<CA, E, RA> {
+pub trait Endpoint<CA, E, SA> {
   /// Calls endpoint logic
   fn call(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> impl Future<Output = Result<StatusCode, E>>;
 }
 
-impl<CA, E, F, RA, RES> Endpoint<CA, E, RA> for FnFutWrapper<(), F>
+impl<CA, E, F, SA, RES> Endpoint<CA, E, SA> for FnFutWrapper<(), F>
 where
   F: FnFut<(), Result = RES>,
   RES: ResFinalizer<E>,
@@ -26,8 +26,8 @@ where
     &self,
     _: &mut CA,
     _: (u8, &[(&'static str, u8)]),
-    _: &mut RA,
     req: &mut Request<ReqResBuffer>,
+    _: &mut SA,
   ) -> Result<StatusCode, E> {
     req.rrd.clear();
     self.0.call(()).await.finalize_response(req)

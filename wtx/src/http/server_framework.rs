@@ -57,12 +57,16 @@ where
   async fn _auto(
     mut _as: AutoStream<CA, (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>)>,
   ) -> Result<Response<ReqResBuffer>, E> {
-    let mut sa = SA::req_aux(_as.sa.0(), &mut _as.req)?;
+    let mut stream_aux = SA::req_aux(_as.stream_aux.0(), &mut _as.req)?;
     #[cfg(feature = "matchit")]
-    let num = _as.sa.1.router.at(_as.req.rrd.uri.path()).map_err(From::from)?.value;
+    let num = _as.stream_aux.1.router.at(_as.req.rrd.uri.path()).map_err(From::from)?.value;
     #[cfg(not(feature = "matchit"))]
     let num = &[];
-    let status_code = _as.sa.1.manage_path(&mut _as.ca, (0, num), &mut sa, &mut _as.req).await?;
+    let status_code = _as
+      .stream_aux
+      .1
+      .manage_path(&mut _as.conn_aux, (0, num), &mut _as.req, &mut stream_aux)
+      .await?;
     Ok(Response { rrd: _as.req.rrd, status_code, version: _as.req.version })
   }
 }

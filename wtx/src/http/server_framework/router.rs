@@ -87,15 +87,15 @@ where
   #[inline]
   async fn manage_path(
     &self,
-    ca: &mut CA,
+    conn_aux: &mut CA,
     path_defs: (u8, &[(&'static str, u8)]),
-    ra: &mut SA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
-    self.req_middlewares.apply_req_middleware(ca, ra, req).await?;
-    let status_code = self.paths.manage_path(ca, path_defs, ra, req).await?;
+    self.req_middlewares.apply_req_middleware(conn_aux, req, stream_aux).await?;
+    let status_code = self.paths.manage_path(conn_aux, path_defs, req, stream_aux).await?;
     let res = Response { rrd: &mut req.rrd, status_code, version: req.version };
-    self.res_middlewares.apply_res_middleware(ca, ra, res).await?;
+    self.res_middlewares.apply_res_middleware(conn_aux, res, stream_aux).await?;
     Ok(status_code)
   }
 

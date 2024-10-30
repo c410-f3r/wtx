@@ -5,66 +5,66 @@ use crate::{
 use core::future::Future;
 
 /// Request middleware
-pub trait ReqMiddleware<CA, E, RA>
+pub trait ReqMiddleware<CA, E, SA>
 where
   E: From<crate::Error>,
 {
   /// Modifies or halts requests.
   fn apply_req_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> impl Future<Output = Result<(), E>>;
 }
 
-impl<CA, E, RA, T> ReqMiddleware<CA, E, RA> for &T
+impl<CA, E, SA, T> ReqMiddleware<CA, E, SA> for &T
 where
   E: From<crate::Error>,
   T: for<'any> FnFut<
-    (&'any mut CA, &'any mut RA, &'any mut Request<ReqResBuffer>),
+    (&'any mut CA, &'any mut SA, &'any mut Request<ReqResBuffer>),
     Result = Result<(), E>,
   >,
 {
   #[inline]
   async fn apply_req_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<(), E> {
-    self.call((ca, ra, req)).await?;
+    self.call((conn_aux, stream_aux, req)).await?;
     Ok(())
   }
 }
 
-impl<CA, E, RA, T> ReqMiddleware<CA, E, RA> for [T]
+impl<CA, E, SA, T> ReqMiddleware<CA, E, SA> for [T]
 where
   E: From<crate::Error>,
   T: for<'any> FnFut<
-    (&'any mut CA, &'any mut RA, &'any mut Request<ReqResBuffer>),
+    (&'any mut CA, &'any mut SA, &'any mut Request<ReqResBuffer>),
     Result = Result<(), E>,
   >,
 {
   #[inline]
   async fn apply_req_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<(), E> {
     for elem in self {
-      elem.call((ca, ra, req)).await?;
+      elem.call((conn_aux, stream_aux, req)).await?;
     }
     Ok(())
   }
 }
 
-impl<CA, E, F, RA> ReqMiddleware<CA, E, RA>
-  for FnFutWrapper<(&mut CA, &mut RA, &mut Request<ReqResBuffer>), F>
+impl<CA, E, F, SA> ReqMiddleware<CA, E, SA>
+  for FnFutWrapper<(&mut CA, &mut SA, &mut Request<ReqResBuffer>), F>
 where
   F: for<'any> FnFut<
-    (&'any mut CA, &'any mut RA, &'any mut Request<ReqResBuffer>),
+    (&'any mut CA, &'any mut SA, &'any mut Request<ReqResBuffer>),
     Result = Result<(), E>,
   >,
   E: From<crate::Error>,
@@ -72,78 +72,78 @@ where
   #[inline]
   async fn apply_req_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<(), E> {
-    self.0.call((ca, ra, req)).await?;
+    self.0.call((conn_aux, stream_aux, req)).await?;
     Ok(())
   }
 }
 
 /// Response middleware
-pub trait ResMiddleware<CA, E, RA>
+pub trait ResMiddleware<CA, E, SA>
 where
   E: From<crate::Error>,
 {
   /// Modifies or halts responses.
   fn apply_res_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     res: Response<&mut ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> impl Future<Output = Result<(), E>>;
 }
 
-impl<CA, E, RA, T> ResMiddleware<CA, E, RA> for &T
+impl<CA, E, SA, T> ResMiddleware<CA, E, SA> for &T
 where
   E: From<crate::Error>,
   T: for<'any> FnFut<
-    (&'any mut CA, &'any mut RA, Response<&'any mut ReqResBuffer>),
+    (&'any mut CA, &'any mut SA, Response<&'any mut ReqResBuffer>),
     Result = Result<(), E>,
   >,
 {
   #[inline]
   async fn apply_res_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     res: Response<&mut ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<(), E> {
-    self.call((ca, ra, res)).await?;
+    self.call((conn_aux, stream_aux, res)).await?;
     Ok(())
   }
 }
 
-impl<CA, E, RA, T> ResMiddleware<CA, E, RA> for [T]
+impl<CA, E, SA, T> ResMiddleware<CA, E, SA> for [T]
 where
   E: From<crate::Error>,
   T: for<'any> FnFut<
-    (&'any mut CA, &'any mut RA, Response<&'any mut ReqResBuffer>),
+    (&'any mut CA, &'any mut SA, Response<&'any mut ReqResBuffer>),
     Result = Result<(), E>,
   >,
 {
   #[inline]
   async fn apply_res_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     res: Response<&mut ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<(), E> {
     for elem in self {
       let local_res =
         Response { rrd: &mut *res.rrd, status_code: res.status_code, version: res.version };
-      elem.call((ca, ra, local_res)).await?;
+      elem.call((conn_aux, stream_aux, local_res)).await?;
     }
     Ok(())
   }
 }
 
-impl<CA, E, F, RA> ResMiddleware<CA, E, RA>
-  for FnFutWrapper<(&mut CA, &mut RA, Response<&mut ReqResBuffer>), F>
+impl<CA, E, F, SA> ResMiddleware<CA, E, SA>
+  for FnFutWrapper<(&mut CA, &mut SA, Response<&mut ReqResBuffer>), F>
 where
   F: for<'any> FnFut<
-    (&'any mut CA, &'any mut RA, Response<&'any mut ReqResBuffer>),
+    (&'any mut CA, &'any mut SA, Response<&'any mut ReqResBuffer>),
     Result = Result<(), E>,
   >,
   E: From<crate::Error>,
@@ -151,11 +151,11 @@ where
   #[inline]
   async fn apply_res_middleware(
     &self,
-    ca: &mut CA,
-    ra: &mut RA,
+    conn_aux: &mut CA,
     res: Response<&mut ReqResBuffer>,
+    stream_aux: &mut SA,
   ) -> Result<(), E> {
-    self.0.call((ca, ra, res)).await?;
+    self.0.call((conn_aux, stream_aux, res)).await?;
     Ok(())
   }
 }

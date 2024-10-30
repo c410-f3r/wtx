@@ -77,40 +77,40 @@ macro_rules! impl_0_16 {
           }
         }
 
-        impl<$($T,)* CA, ERR, RA> ReqMiddleware<CA, ERR, RA> for ($($T,)*)
+        impl<$($T,)* CA, ERR, SA> ReqMiddleware<CA, ERR, SA> for ($($T,)*)
         where
-          $($T: ReqMiddleware<CA, ERR, RA>,)*
+          $($T: ReqMiddleware<CA, ERR, SA>,)*
           ERR: From<crate::Error>
         {
           #[inline]
-          async fn apply_req_middleware(&self, _ca: &mut CA, _ra: &mut RA, _req: &mut Request<ReqResBuffer>) -> Result<(), ERR> {
-            $( self.$N.apply_req_middleware(_ca, _ra, _req).await?; )*
+          async fn apply_req_middleware(&self, _conn_aux: &mut CA, _req: &mut Request<ReqResBuffer>, _stream_aux: &mut SA) -> Result<(), ERR> {
+            $( self.$N.apply_req_middleware(_conn_aux, _req, _stream_aux).await?; )*
             Ok(())
           }
         }
 
-        impl<$($T,)* CA, ERR, RA> ResMiddleware<CA, ERR, RA> for ($($T,)*)
+        impl<$($T,)* CA, ERR, SA> ResMiddleware<CA, ERR, SA> for ($($T,)*)
         where
-          $($T: ResMiddleware<CA, ERR, RA>,)*
+          $($T: ResMiddleware<CA, ERR, SA>,)*
           ERR: From<crate::Error>
         {
           #[inline]
-          async fn apply_res_middleware(&self, _ca: &mut CA, _ra: &mut RA, mut _res: Response<&mut ReqResBuffer>) -> Result<(), ERR> {
+          async fn apply_res_middleware(&self, _conn_aux: &mut CA, mut _res: Response<&mut ReqResBuffer>, _stream_aux: &mut SA) -> Result<(), ERR> {
             $({
               let local_res = Response {
                 rrd: &mut *_res.rrd,
                 status_code: _res.status_code,
                 version: _res.version,
               };
-              self.$N.apply_res_middleware(_ca, _ra, local_res).await?;
+              self.$N.apply_res_middleware(_conn_aux, local_res, _stream_aux).await?;
             })*
             Ok(())
           }
         }
 
-        impl<$($T,)* CA, ERR, RA> PathManagement<CA, ERR, RA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* CA, ERR, SA> PathManagement<CA, ERR, SA> for ($(PathParams<$T>,)*)
         where
-          $($T: PathManagement<CA, ERR, RA>,)*
+          $($T: PathManagement<CA, ERR, SA>,)*
           ERR: From<crate::Error>,
         {
           const IS_ROUTER: bool = false;
@@ -118,10 +118,10 @@ macro_rules! impl_0_16 {
           #[inline]
           async fn manage_path(
             &self,
-            _ca: &mut CA,
+            _conn_aux: &mut CA,
             _path_defs: (u8, &[(&'static str, u8)]),
-            _ra: &mut RA,
             _req: &mut Request<ReqResBuffer>,
+            _stream_aux: &mut SA,
           ) -> Result<StatusCode, ERR> {
             #[cfg(feature = "matchit")]
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.1) {
@@ -130,7 +130,7 @@ macro_rules! impl_0_16 {
                   return self
                     .$N
                     .value
-                    .manage_path(_ca, (_path_defs.0.wrapping_add(1), _path_defs.1), _ra, _req)
+                    .manage_path(_conn_aux, (_path_defs.0.wrapping_add(1), _path_defs.1), _req, _stream_aux)
                     .await;
                 }
               )*
@@ -143,7 +143,7 @@ macro_rules! impl_0_16 {
                   return self
                     .$N
                     .value
-                    .manage_path(_ca, (_path_defs.0.wrapping_add(1), _path_defs.1), _ra, _req)
+                    .manage_path(_conn_aux, (_path_defs.0.wrapping_add(1), _path_defs.1), _req, _stream_aux)
                     .await
                 }
               )*

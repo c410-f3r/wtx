@@ -13,7 +13,7 @@ static POOL: OnceLock<SimplePoolTokio<WebSocketRM>> = OnceLock::new();
 impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
-  pub async fn tokio_web_socket<ACPT, C, E, H, N, S>(
+  pub async fn web_socket_tokio<ACPT, C, E, H, N, S>(
     addr: &str,
     buffers_len_opt: Option<usize>,
     compression_cb: impl Clone + Fn() -> C + Send + 'static,

@@ -28,7 +28,7 @@ impl<L, SS> SessionDecoder<L, SS> {
   }
 }
 
-impl<CA, CS, E, L, RA, SS> ReqMiddleware<CA, E, RA> for SessionDecoder<L, SS>
+impl<CA, CS, E, L, SA, SS> ReqMiddleware<CA, E, SA> for SessionDecoder<L, SS>
 where
   CA: LeaseMut<Session<L, SS>>,
   CS: DeserializeOwned + PartialEq,
@@ -39,11 +39,11 @@ where
   #[inline]
   async fn apply_req_middleware(
     &self,
-    ca: &mut CA,
-    _: &mut RA,
+    conn_aux: &mut CA,
     req: &mut Request<ReqResBuffer>,
+    _: &mut SA,
   ) -> Result<(), E> {
-    let Session { content, store } = ca.lease_mut();
+    let Session { content, store } = conn_aux.lease_mut();
     let SessionInner { cookie_def, phantom: _, key, state } = &mut *content.lock().await;
     if let Some(elem) = state {
       if let Some(expire) = &elem.expire {

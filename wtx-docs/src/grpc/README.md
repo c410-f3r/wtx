@@ -1,7 +1,7 @@
 
 # gRPC
 
-Basic implementation that currently supports only unary calls.
+Basic implementation that currently only supports unary calls. gRPC is an high-performance remote procedure call framework developed by Google that enables efficient communication between distributed systems, particularly in microservices architectures.
 
 `wtx` does not provide built-in deserialization or serialization utilities capable of manipulate protobuf files. Instead, users are free to choose any third-party that generates Rust bindings and implements the internal `Deserialize` and `Serialize` traits.
 
