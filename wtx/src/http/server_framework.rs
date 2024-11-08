@@ -25,7 +25,7 @@ use alloc::sync::Arc;
 pub use conn_aux::ConnAux;
 pub use cors_middleware::CorsMiddleware;
 pub use endpoint::Endpoint;
-pub use middleware::{ReqMiddleware, ResMiddleware};
+pub use middleware::Middleware;
 pub use param_wrappers::*;
 pub use path_management::PathManagement;
 pub use path_params::PathParams;
@@ -39,23 +39,22 @@ pub use stream_aux::StreamAux;
 
 /// Server
 #[derive(Debug)]
-pub struct ServerFramework<CA, CAC, E, P, REQM, RESM, SA, SAC> {
+pub struct ServerFramework<CA, CAC, E, M, P, SA, SAC> {
   _ca_cb: CAC,
   _cp: ConnParams,
   _sa_cb: SAC,
-  _router: Arc<Router<CA, E, P, REQM, RESM, SA>>,
+  _router: Arc<Router<CA, E, M, P, SA>>,
 }
 
-impl<CA, CAC, E, P, REQM, RESM, SA, SAC> ServerFramework<CA, CAC, E, P, REQM, RESM, SA, SAC>
+impl<CA, CAC, E, M, P, SA, SAC> ServerFramework<CA, CAC, E, M, P, SA, SAC>
 where
   E: From<crate::Error>,
+  M: Middleware<CA, E, SA>,
   P: PathManagement<CA, E, SA>,
-  REQM: ReqMiddleware<CA, E, SA>,
-  RESM: ResMiddleware<CA, E, SA>,
   SA: StreamAux,
 {
   async fn _auto(
-    mut _as: AutoStream<CA, (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>)>,
+    mut _as: AutoStream<CA, (impl Fn() -> SA::Init, Arc<Router<CA, E, M, P, SA>>)>,
   ) -> Result<Response<ReqResBuffer>, E> {
     let mut stream_aux = SA::req_aux(_as.stream_aux.0(), &mut _as.req)?;
     #[cfg(feature = "matchit")]

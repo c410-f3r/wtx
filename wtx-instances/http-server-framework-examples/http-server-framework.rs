@@ -10,17 +10,17 @@ extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
-use core::fmt::Write;
+use core::{fmt::Write, ops::ControlFlow};
 use tokio::net::TcpStream;
 use wtx::{
   database::{Executor, Record},
   http::{
     server_framework::{
-      get, post, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean,
+      get, post, Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean,
     },
     ReqResBuffer, Request, Response, StatusCode,
   },
-  misc::{simple_seed, FnFutWrapper, Xorshift64},
+  misc::{simple_seed, Xorshift64},
   pool::{PostgresRM, SimplePoolTokio},
 };
 
@@ -33,11 +33,7 @@ async fn main() -> wtx::Result<()> {
     ("/json", post(json)),
     (
       "/say",
-      Router::new(
-        wtx::paths!(("/hello", get(hello)), ("/world", get(world))),
-        FnFutWrapper::from(request_middleware),
-        FnFutWrapper::from(response_middleware),
-      )?,
+      Router::new(wtx::paths!(("/hello", get(hello)), ("/world", get(world))), CustomMiddleware,)?,
     ),
   ))?;
   let rm = PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into());
@@ -80,24 +76,39 @@ async fn json(_: SerdeJson<DeserializeExample>) -> wtx::Result<SerdeJson<Seriali
   Ok(SerdeJson(SerializeExample { _baz: [1, 2, 3, 4] }))
 }
 
-async fn request_middleware(
-  _: &mut (),
-  _: &mut Pool,
-  _: &mut Request<ReqResBuffer>,
-) -> wtx::Result<()> {
-  println!("Before response");
-  Ok(())
-}
-
-async fn response_middleware(
-  _: &mut (),
-  _: &mut Pool,
-  _: Response<&mut ReqResBuffer>,
-) -> wtx::Result<()> {
-  println!("After response");
-  Ok(())
-}
-
 async fn world() -> &'static str {
   "world"
+}
+
+struct CustomMiddleware;
+
+impl Middleware<(), wtx::Error, Pool> for CustomMiddleware {
+  type Aux = ();
+
+  #[inline]
+  fn aux(&self) -> Self::Aux {
+    ()
+  }
+
+  async fn req(
+    &self,
+    _: &mut (),
+    _: &mut Self::Aux,
+    _: &mut Request<ReqResBuffer>,
+    _: &mut Pool,
+  ) -> wtx::Result<ControlFlow<StatusCode, ()>> {
+    println!("Inspecting request");
+    Ok(ControlFlow::Continue(()))
+  }
+
+  async fn res(
+    &self,
+    _: &mut (),
+    _: &mut Self::Aux,
+    _: Response<&mut ReqResBuffer>,
+    _: &mut Pool,
+  ) -> wtx::Result<ControlFlow<StatusCode, ()>> {
+    println!("Inspecting response");
+    Ok(ControlFlow::Continue(()))
+  }
 }

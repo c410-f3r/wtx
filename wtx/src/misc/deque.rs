@@ -1,3 +1,38 @@
+// 1. Valid instances
+//
+// In a double ended queue it is possible to store elements in 2 logical ways.
+//
+// 1.1. Contiguous
+//
+// No boundary intersections
+//
+// |   |   | A | B | C |   |   |   |   |
+//
+// 1.2. Wrapping
+//
+// The order doesn't matter, front elements will always stay at the right-hand-side
+// and back elements will always stay at the left-hand-side.
+//
+// 1.2.1 Pushing an element to the back of the queue.
+//
+// |   |   |   |   |   |   |   | A | B |
+// -------------------------------------
+// | C |   |   |   |   |   |   | A | B |
+//
+// 1.2.2 Prepending an element to the front of the queue.
+//
+// | A | B |   |   |   |   |   |   |   |
+// -------------------------------------
+// | B | C |   |   |   |   |   |   | A |
+//
+// 2. Invalid instances
+//
+// It is impossible to exist a wrapping non-contiguous queue like in the following examples.
+//
+// | B | C | D |   |   |   | A |   |   |
+//
+// |   | A | B |   | C |   |   |   |   |
+
 macro_rules! as_slices {
   ($empty:expr, $ptr:ident, $slice:ident, $this:expr, $($ref:tt)*) => {{
     let capacity = $this.data.capacity();
@@ -22,21 +57,21 @@ macro_rules! as_slices {
   }}
 }
 
-#[cfg(all(feature = "_proptest", test))]
-mod proptest;
+#[cfg(kani)]
+mod kani;
 #[cfg(test)]
 mod tests;
 
-use crate::misc::Vector;
+use crate::misc::{BufferMode, Vector};
 use core::{
   fmt::{Debug, Formatter},
   mem::needs_drop,
   ptr, slice,
 };
 
-/// Errors of [Queue].
+/// Errors of [Deque].
 #[derive(Debug)]
-pub enum QueueError {
+pub enum DequeueError {
   #[doc = doc_single_elem_cap_overflow!()]
   ExtendFromSliceOverflow,
   #[doc = doc_single_elem_cap_overflow!()]
@@ -47,14 +82,25 @@ pub enum QueueError {
   WithCapacityOverflow,
 }
 
-/// A circular buffer.
-pub struct Queue<T> {
+/// A double-ended queue implemented with a growable ring buffer.
+//
+// # Illustration
+//
+// |   |   | A | B | C | D |   |   |   |   |
+//         |               |               |--> data.capacity()
+//         |               |
+//         |               |------------------> tail
+//         |
+//         |----------------------------------> head
+//
+// The vector length is a shorcut for the sum of head of tail elements.
+pub struct Deque<T> {
   data: Vector<T>,
   head: usize,
   tail: usize,
 }
 
-impl<T> Queue<T> {
+impl<T> Deque<T> {
   const NEEDS_DROP: bool = needs_drop::<T>();
 
   /// Creates a new empty instance.
@@ -65,9 +111,9 @@ impl<T> Queue<T> {
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_capacity(cap: usize) -> Result<Self, QueueError> {
+  pub fn with_capacity(cap: usize) -> Result<Self, DequeueError> {
     Ok(Self {
-      data: Vector::with_capacity(cap).map_err(|_err| QueueError::WithCapacityOverflow)?,
+      data: Vector::with_capacity(cap).map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
       tail: 0,
     })
@@ -75,9 +121,9 @@ impl<T> Queue<T> {
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_exact_capacity(cap: usize) -> Result<Self, QueueError> {
+  pub fn with_exact_capacity(cap: usize) -> Result<Self, DequeueError> {
     Ok(Self {
-      data: Vector::with_capacity(cap).map_err(|_err| QueueError::WithCapacityOverflow)?,
+      data: Vector::with_capacity(cap).map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
       tail: 0,
     })
@@ -100,7 +146,7 @@ impl<T> Queue<T> {
   /// Returns a pair of slices which contain, in order, the contents of the queue.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::with_capacity(8).unwrap();
+  /// let mut queue = wtx::misc::Deque::with_capacity(8).unwrap();
   /// queue.push_front(3).unwrap();
   /// queue.push_back(1).unwrap();
   /// queue.push_back(2).unwrap();
@@ -114,7 +160,7 @@ impl<T> Queue<T> {
   /// Mutable version of [`Self::as_slices`].
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_front(3);
   /// queue.push_back(1);
   /// queue.push_back(2);
@@ -140,10 +186,102 @@ impl<T> Queue<T> {
     *tail = 0;
   }
 
+  /// Appends elements to the back of the instance so that the current length is equal to `bp`.
+  ///
+  /// Does nothing if the calculated length is equal or less than the current length.
+  ///
+  /// ```rust
+  /// let mut queue = wtx::misc::Deque::new();
+  /// queue.expand_back(wtx::misc::BufferMode::Len(4), 1);
+  /// assert_eq!(queue.as_slices(), (&[1, 1, 1, 1][..], &[][..]));
+  /// ```
+  #[inline(always)]
+  pub fn expand_back(&mut self, bm: BufferMode, value: T) -> Result<usize, DequeueError>
+  where
+    T: Clone,
+  {
+    let len = self.data.len();
+    let Some((additional, new_len)) = bm.params(len) else {
+      return Ok(0);
+    };
+    let rr = self.prolong_back(additional)?;
+    // SAFETY: Elements were allocated
+    unsafe {
+      self.expand(additional, rr.begin, new_len, value);
+    }
+    Ok(additional)
+  }
+
+  /// Prepends elements to the front of the instance so that the current length is equal to `bp`.
+  ///
+  /// Does nothing if the calculated length is equal or less than the current length.
+  ///
+  /// ```rust
+  /// let mut queue = wtx::misc::Deque::new();
+  /// queue.expand_front(wtx::misc::BufferMode::Len(4), 1);
+  /// assert_eq!(queue.as_slices(), (&[1, 1, 1, 1][..], &[][..]));
+  /// ```
+  #[inline(always)]
+  pub fn expand_front(&mut self, bp: BufferMode, value: T) -> Result<(usize, usize), DequeueError>
+  where
+    T: Clone,
+  {
+    let len = self.data.len();
+    let Some((additional, new_len)) = bp.params(len) else {
+      return Ok((0, 0));
+    };
+    let rr = self.prolong_front(additional)?;
+    // SAFETY: Elements were allocated
+    unsafe {
+      self.expand(additional, rr.begin, new_len, value);
+    }
+    Ok((additional, rr.head_shift))
+  }
+
+  /// Appends all elements of the iterator.
+  ///
+  /// ```rust
+  /// let mut queue = wtx::misc::Deque::new();
+  /// queue.extend_back_from_iter([1, 2]);
+  /// assert_eq!(queue.len(), 2);
+  /// ```
+  #[inline]
+  pub fn extend_back_from_iter(
+    &mut self,
+    ii: impl IntoIterator<Item = T>,
+  ) -> Result<(), DequeueError> {
+    let iter = ii.into_iter();
+    let _ = self.reserve_back(iter.size_hint().0)?;
+    for elem in iter {
+      self.push_back(elem)?;
+    }
+    Ok(())
+  }
+
+  /// Prepends all elements of the iterator.
+  ///
+  /// ```rust
+  /// let mut queue = wtx::misc::Deque::new();
+  /// queue.extend_front_from_iter([1, 2]);
+  /// assert_eq!(queue.len(), 2);
+  /// ```
+  #[inline]
+  pub fn extend_front_from_iter(
+    &mut self,
+    ii: impl IntoIterator<Item = T>,
+  ) -> Result<(), DequeueError> {
+    let iter = ii.into_iter();
+    let _ = self.reserve_front(iter.size_hint().0)?;
+    for elem in iter {
+      self.push_front(elem)?;
+    }
+    Ok(())
+  }
+
   /// Provides a reference to the element at the given index.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_back(1);
   /// queue.push_back(3);
   /// assert_eq!(queue.get(0), Some(&1));
@@ -153,7 +291,7 @@ impl<T> Queue<T> {
     if idx >= self.data.len() {
       return None;
     }
-    idx = wrap_add(self.data.capacity(), self.head, idx);
+    idx = wrap_add_idx(self.data.capacity(), self.head, idx);
     // SAFETY: `idx` points to valid memory
     let rslt = unsafe { self.data.as_ptr().add(idx) };
     // SAFETY: `idx` points to valid memory
@@ -163,7 +301,7 @@ impl<T> Queue<T> {
   /// Mutable version of [`Self::get`].
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_back(1);
   /// queue.push_back(3);
   /// assert_eq!(queue.get_mut(0), Some(&mut 1));
@@ -173,7 +311,7 @@ impl<T> Queue<T> {
     if idx >= self.data.len() {
       return None;
     }
-    idx = wrap_add(self.data.capacity(), self.head, idx);
+    idx = wrap_add_idx(self.data.capacity(), self.head, idx);
     // SAFETY: `idx` points to valid memory
     let rslt = unsafe { self.data.as_ptr_mut().add(idx) };
     // SAFETY: `idx` points to valid memory
@@ -183,7 +321,7 @@ impl<T> Queue<T> {
   /// Returns a front-to-back iterator.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_back(1);
   /// queue.push_front(3);
   /// let mut iter = queue.iter();
@@ -200,7 +338,7 @@ impl<T> Queue<T> {
   /// Mutable version of [`Self::iter`].
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_back(1);
   /// queue.push_front(3);
   /// let mut iter = queue.iter_mut();
@@ -229,7 +367,7 @@ impl<T> Queue<T> {
   /// Removes the last element from the queue and returns it, or `None` if it is empty.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_back(1);
   /// queue.push_back(3);
   /// queue.pop_back();
@@ -238,7 +376,7 @@ impl<T> Queue<T> {
   #[inline]
   pub fn pop_back(&mut self) -> Option<T> {
     let new_len = self.data.len().checked_sub(1)?;
-    let curr_tail = wrap_sub(self.data.capacity(), self.tail, 1);
+    let curr_tail = wrap_sub_idx(self.data.capacity(), self.tail, 1);
     self.tail = curr_tail;
     // SAFETY: is within bounds
     unsafe {
@@ -253,7 +391,7 @@ impl<T> Queue<T> {
   /// Removes the first element and returns it, or [`Option::None`] if the queue is empty.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_back(1);
   /// queue.push_back(3);
   /// queue.pop_front();
@@ -263,7 +401,7 @@ impl<T> Queue<T> {
   pub fn pop_front(&mut self) -> Option<T> {
     let new_len = self.data.len().checked_sub(1)?;
     let prev_head = self.head;
-    self.head = wrap_add(self.data.capacity(), prev_head, 1);
+    self.head = wrap_add_idx(self.data.capacity(), prev_head, 1);
     // SAFETY: is within bounds
     unsafe {
       self.data.set_len(new_len);
@@ -277,17 +415,17 @@ impl<T> Queue<T> {
   /// Appends an element to the back of the queue.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_back(1);
   /// queue.push_back(3);
   /// assert_eq!(queue.as_slices(), (&[1, 3][..], &[][..]));
   /// ```
   #[inline]
-  pub fn push_back(&mut self, value: T) -> Result<(), QueueError> {
-    let _ = self.reserve_back(1).map_err(|_err| QueueError::PushFrontOverflow)?;
+  pub fn push_back(&mut self, value: T) -> Result<(), DequeueError> {
+    let _ = self.reserve_back(1).map_err(|_err| DequeueError::PushFrontOverflow)?;
     let len = self.data.len();
     let tail = self.tail;
-    self.tail = wrap_add(self.data.capacity(), tail, 1);
+    self.tail = wrap_add_idx(self.data.capacity(), tail, 1);
     // SAFETY: `idx` is within bounds
     let dst = unsafe { self.data.as_ptr_mut().add(tail) };
     // SAFETY: `dst` points to valid memory
@@ -304,16 +442,16 @@ impl<T> Queue<T> {
   /// Prepends an element to the queue.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_front(1);
   /// queue.push_front(3);
   /// assert_eq!(queue.as_slices(), (&[3, 1][..], &[][..]));
   /// ```
   #[inline]
-  pub fn push_front(&mut self, value: T) -> Result<(), QueueError> {
-    let _ = self.reserve_front(1).map_err(|_err| QueueError::PushFrontOverflow)?;
+  pub fn push_front(&mut self, value: T) -> Result<(), DequeueError> {
+    let _ = self.reserve_front(1).map_err(|_err| DequeueError::PushFrontOverflow)?;
     let len = self.data.len();
-    self.head = wrap_sub(self.data.capacity(), self.head, 1);
+    self.head = wrap_sub_idx(self.data.capacity(), self.head, 1);
     // SAFETY: `self.head` points to valid memory
     let dst = unsafe { self.data.as_ptr_mut().add(self.head) };
     // SAFETY: `dst` points to valid memory
@@ -330,23 +468,23 @@ impl<T> Queue<T> {
   /// Reserves capacity for at least additional more elements to be inserted at the back of the
   /// queue.
   #[inline(always)]
-  pub fn reserve_back(&mut self, additional: usize) -> Result<usize, QueueError> {
-    let tuple = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
-    Ok(tuple.2)
+  pub fn reserve_back(&mut self, additional: usize) -> Result<usize, DequeueError> {
+    let rr = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
+    Ok(rr.head_shift)
   }
 
   /// Reserves capacity for at least additional more elements to be inserted at the front of the
   /// queue.
   #[inline(always)]
-  pub fn reserve_front(&mut self, additional: usize) -> Result<usize, QueueError> {
-    let tuple = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
-    Ok(tuple.2)
+  pub fn reserve_front(&mut self, additional: usize) -> Result<usize, DequeueError> {
+    let rr = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
+    Ok(rr.head_shift)
   }
 
   /// Shortens the queue, keeping the first `new_len` elements.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_front(1);
   /// queue.push_front(3);
   /// queue.push_back(5);
@@ -405,7 +543,7 @@ impl<T> Queue<T> {
   /// Shortens the queue, keeping the last `new_len` elements.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_front(1);
   /// queue.push_front(3);
   /// queue.push_back(5);
@@ -460,17 +598,110 @@ impl<T> Queue<T> {
       self.data.set_len(new_len);
     }
   }
+
+  #[inline]
+  pub(crate) fn head(&self) -> usize {
+    self.head
+  }
+
+  #[inline]
+  pub(crate) fn tail(&self) -> usize {
+    self.tail
+  }
+
+  #[inline]
+  unsafe fn expand(&mut self, additional: usize, begin: usize, new_len: usize, value: T)
+  where
+    T: Clone,
+  {
+    // SAFETY: it is up to the caller to pass valid elements and enough allocated capacity
+    let ptr = unsafe { self.data.as_ptr_mut().add(begin) };
+    // SAFETY: it is up to the caller to pass valid elements and enough allocated capacity
+    unsafe {
+      slice::from_raw_parts_mut(ptr, additional).fill(value);
+    }
+    // SAFETY: it is up to the caller to pass valid elements and enough allocated capacity
+    unsafe {
+      self.data.set_len(new_len);
+    }
+  }
+
+  #[inline]
+  fn prolong_back(&mut self, additional: usize) -> Result<ReserveRslt, DequeueError> {
+    let rr = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
+    self.tail = rr.begin.wrapping_add(additional);
+    Ok(rr)
+  }
+
+  #[inline]
+  fn prolong_front(&mut self, additional: usize) -> Result<ReserveRslt, DequeueError> {
+    let rr = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
+    self.head = rr.begin;
+    Ok(rr)
+  }
+
+  #[inline]
+  fn slices_len<'iter>(iter: impl Iterator<Item = &'iter [T]>) -> usize
+  where
+    T: 'iter,
+  {
+    let mut len: usize = 0;
+    for other in iter {
+      len = len.wrapping_add(other.len());
+    }
+    len
+  }
 }
 
-impl<T> Queue<T>
+impl<T> Deque<T>
 where
   T: Copy,
 {
-  /// Iterates over the `others` slices, copies each element, and then prepends
-  /// it to this vector. The `others` slices are traversed in-order.
+  /// Iterates over the `others` slices, copies each element, and then appends
+  /// them to this instance. `others` are traversed in-order.
   ///
   /// ```rust
-  /// let mut queue = wtx::misc::Queue::new();
+  /// let mut queue = wtx::misc::Deque::new();
+  /// queue.push_back(4);
+  /// queue.extend_back_from_copyable_slices([&[2, 3][..]]);
+  /// queue.extend_back_from_copyable_slices([&[0, 1][..], &[1][..]]);
+  /// assert_eq!(queue.as_slices(), (&[4, 2, 3, 0, 1, 1][..], &[][..]));
+  /// ```
+  #[inline]
+  pub fn extend_back_from_copyable_slices<'iter, I>(
+    &mut self,
+    others: I,
+  ) -> Result<usize, DequeueError>
+  where
+    I: IntoIterator<Item = &'iter [T]>,
+    I::IntoIter: Clone,
+    T: 'iter,
+  {
+    let iter = others.into_iter();
+    let others_len = Self::slices_len(iter.clone());
+    let rr = self.prolong_back(others_len)?;
+    let mut shift = rr.begin;
+    for other in iter {
+      // SAFETY: `self.head` points to valid memory
+      let dst = unsafe { self.data.as_ptr_mut().add(shift) };
+      // SAFETY: `dst` points to valid memory
+      unsafe {
+        ptr::copy_nonoverlapping(other.as_ptr(), dst, other.len());
+      }
+      shift = shift.wrapping_add(other.len());
+    }
+    // SAFETY: is within bounds
+    unsafe {
+      self.data.set_len(self.data.len().wrapping_add(others_len));
+    }
+    Ok(others_len)
+  }
+
+  /// Iterates over the `others` slices, copies each element, and then prepends
+  /// them to this instance. `others` are traversed in-order.
+  ///
+  /// ```rust
+  /// let mut queue = wtx::misc::Deque::new();
   /// queue.push_front(4);
   /// queue.extend_front_from_copyable_slices([&[2, 3][..]]);
   /// queue.extend_front_from_copyable_slices([&[0, 1][..], &[1][..]]);
@@ -480,59 +711,62 @@ where
   pub fn extend_front_from_copyable_slices<'iter, I>(
     &mut self,
     others: I,
-  ) -> Result<(usize, usize), QueueError>
+  ) -> Result<(usize, usize), DequeueError>
   where
     I: IntoIterator<Item = &'iter [T]>,
     I::IntoIter: Clone,
     T: 'iter,
   {
-    let mut others_len: usize = 0;
     let iter = others.into_iter();
-    for other in iter.clone() {
-      let Some(curr_len) = others_len.checked_add(other.len()) else {
-        return Err(QueueError::ExtendFromSliceOverflow);
-      };
-      others_len = curr_len;
-    }
-    let tuple = reserve::<_, false>(others_len, &mut self.data, &mut self.head, &mut self.tail)?;
-    let mut head = tuple.0;
-    self.head = head;
+    let others_len = Self::slices_len(iter.clone());
+    let rr = self.prolong_front(others_len)?;
+    let mut shift = rr.begin;
     for other in iter {
       // SAFETY: `self.head` points to valid memory
-      let dst = unsafe { self.data.as_ptr_mut().add(head) };
+      let dst = unsafe { self.data.as_ptr_mut().add(shift) };
       // SAFETY: `dst` points to valid memory
       unsafe {
         ptr::copy_nonoverlapping(other.as_ptr(), dst, other.len());
       }
-      head = head.wrapping_add(other.len());
+      shift = shift.wrapping_add(other.len());
     }
     // SAFETY: is within bounds
     unsafe {
       self.data.set_len(self.data.len().wrapping_add(others_len));
     }
-    Ok((others_len, tuple.2))
-  }
-
-  pub(crate) fn head(&self) -> usize {
-    self.head
+    Ok((others_len, rr.head_shift))
   }
 }
 
-impl<T> Debug for Queue<T>
+impl<T> Debug for Deque<T>
 where
   T: Debug,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
     let (front, back) = self.as_slices();
-    f.debug_struct("Queue").field("front", &front).field("back", &back).finish()
+    f.debug_struct("Deque").field("front", &front).field("back", &back).finish()
   }
 }
 
-impl<T> Default for Queue<T> {
+impl<T> Default for Deque<T> {
   #[inline]
   fn default() -> Self {
     Self::new()
+  }
+}
+
+struct ReserveRslt {
+  /// Starting  indexwhere the `additional` number of elements can be inserted.
+  begin: usize,
+  /// The number os places the head must be shift.
+  head_shift: usize,
+}
+
+impl ReserveRslt {
+  #[inline]
+  fn new(begin: usize, head_shift: usize) -> Self {
+    Self { begin, head_shift }
   }
 }
 
@@ -579,35 +813,35 @@ fn is_wrapping(head: usize, len: usize, tail: usize) -> bool {
   }
 }
 
-/// Returns the starting and ending index where the `additional` number of elements
-/// can be inserted.
+/// Allocates `additional` capacity for the contiguous insertion of back or front elements. This
+/// also means that the free capacity of intersections is not considered.
 #[inline(always)]
 fn reserve<D, const IS_BACK: bool>(
   additional: usize,
   data: &mut Vector<D>,
   head: &mut usize,
   tail: &mut usize,
-) -> Result<(usize, usize, usize), QueueError> {
+) -> Result<ReserveRslt, DequeueError> {
   let len = data.len();
   let prev_cap = data.capacity();
-  data.reserve(additional).map_err(|_err| QueueError::ReserveOverflow)?;
+  data.reserve(additional).map_err(|_err| DequeueError::ReserveOverflow)?;
   let curr_cap = data.capacity();
   let prev_head = prev_cap.min(*head);
   let prev_tail = prev_cap.min(*tail);
   if len == 0 {
     return Ok(if IS_BACK {
-      (0, additional, 0)
+      ReserveRslt::new(0, 0)
     } else {
-      (curr_cap.wrapping_sub(additional), curr_cap, 0)
+      ReserveRslt::new(curr_cap.wrapping_sub(additional), 0)
     });
   }
   if is_wrapping(prev_head, len, prev_tail) {
     let free_slots = prev_head.wrapping_sub(prev_tail);
     if free_slots >= additional {
       return Ok(if IS_BACK {
-        (prev_tail, prev_tail.wrapping_add(additional), 0)
+        ReserveRslt::new(prev_tail, 0)
       } else {
-        (prev_head.wrapping_sub(additional), prev_head, 0)
+        ReserveRslt::new(prev_head.wrapping_sub(additional), 0)
       });
     }
     let front_len = prev_cap.wrapping_sub(prev_head);
@@ -621,20 +855,20 @@ fn reserve<D, const IS_BACK: bool>(
       ptr::copy(src, dst, front_len);
     }
     *head = curr_head;
-    if IS_BACK {
-      Ok((prev_tail, prev_tail.wrapping_add(additional), 0))
+    Ok(if IS_BACK {
+      ReserveRslt::new(prev_tail, 0)
     } else {
-      Ok((curr_head.wrapping_sub(additional), curr_head, curr_cap.wrapping_sub(prev_cap)))
-    }
+      ReserveRslt::new(curr_head.wrapping_sub(additional), curr_cap.wrapping_sub(prev_cap))
+    })
   } else {
     let left_free = prev_head;
     let right_free = curr_cap.wrapping_sub(prev_tail);
     if IS_BACK {
       if right_free >= additional {
-        return Ok((prev_tail, prev_tail.wrapping_add(additional), 0));
+        return Ok(ReserveRslt::new(prev_tail, 0));
       }
       if right_free == 0 && left_free >= additional {
-        return Ok((0, additional, 0));
+        return Ok(ReserveRslt::new(0, 0));
       }
       // SAFETY: `prev_head` is equal or less than the current capacity
       let src = unsafe { data.as_ptr_mut().add(prev_head) };
@@ -645,13 +879,13 @@ fn reserve<D, const IS_BACK: bool>(
       let curr_tail = len;
       *head = 0;
       *tail = curr_tail;
-      Ok((curr_tail, curr_tail.wrapping_add(additional), 0))
+      Ok(ReserveRslt::new(curr_tail, 0))
     } else {
       if left_free >= additional {
-        return Ok((prev_head.wrapping_sub(additional), prev_head, 0));
+        return Ok(ReserveRslt::new(prev_head.wrapping_sub(additional), 0));
       }
       if left_free == 0 && right_free >= additional {
-        return Ok((curr_cap.wrapping_sub(additional), curr_cap, 0));
+        return Ok(ReserveRslt::new(curr_cap.wrapping_sub(additional), 0));
       }
       let curr_head = curr_cap.wrapping_sub(len);
       // SAFETY: `prev_head` is equal or less than the current capacity
@@ -664,14 +898,14 @@ fn reserve<D, const IS_BACK: bool>(
       }
       *head = curr_head;
       *tail = curr_cap;
-      Ok((curr_head.wrapping_sub(additional), curr_head, right_free))
+      Ok(ReserveRslt::new(curr_head.wrapping_sub(additional), right_free))
     }
   }
 }
 
 #[inline]
-fn wrap_add(capacity: usize, idx: usize, value: usize) -> usize {
-  wrap_idx(idx.wrapping_add(value), capacity)
+fn wrap_add_idx(capacity: usize, idx: usize, offset: usize) -> usize {
+  wrap_idx(idx.wrapping_add(offset), capacity)
 }
 
 #[inline]
@@ -680,10 +914,6 @@ fn wrap_idx(idx: usize, cap: usize) -> usize {
 }
 
 #[inline]
-fn wrap_sub(capacity: usize, idx: usize, value: usize) -> usize {
-  #[inline]
-  fn wrap_idx(idx: usize, cap: usize) -> usize {
-    idx.checked_sub(cap).unwrap_or(idx)
-  }
-  wrap_idx(idx.wrapping_sub(value).wrapping_add(capacity), capacity)
+fn wrap_sub_idx(capacity: usize, idx: usize, offset: usize) -> usize {
+  wrap_idx(idx.wrapping_sub(offset).wrapping_add(capacity), capacity)
 }

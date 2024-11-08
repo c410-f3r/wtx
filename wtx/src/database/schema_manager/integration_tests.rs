@@ -47,7 +47,7 @@ macro_rules! create_integration_tests {
           let mut rng = Xorshift64::from(crate::misc::simple_seed());
           crate::database::client::postgres::Executor::connect(
             &config,
-            crate::database::client::postgres::ExecutorBuffer::with_default_params(&mut rng).unwrap(),
+            crate::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
             &mut rng,
             stream,
           ).await.unwrap()

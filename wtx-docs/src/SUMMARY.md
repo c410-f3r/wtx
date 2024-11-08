@@ -4,7 +4,7 @@
 - [Client API Framework](client-api-framework/README.md)
 - [Database Client](database-client/README.md)
 - [Database Schema Manager](database-schema-manager/README.md)
-- [Grpc](grpc/README.md)
+- [gRPC](grpc/README.md)
 - [HTTP/2](http2/README.md)
 - [HTTP Client Framework](http-client-framework/README.md)
 - [HTTP Server Framework](http-server-framework/README.md)

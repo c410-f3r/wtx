@@ -25,11 +25,16 @@ macro_rules! get_mut {
   }
 }
 
+mod block;
+mod blocks_deque_builder;
+mod metadata;
 #[cfg(test)]
 mod tests;
 
-use crate::misc::Queue;
-use core::{ops::Range, ptr};
+use crate::misc::Deque;
+pub use block::Block;
+pub use blocks_deque_builder::BlocksDequeBuilder;
+use core::ptr;
 
 /// [`Block`] composed by references.
 type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
@@ -38,7 +43,7 @@ type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 
 /// Errors of [`BlocksQueue`].
 #[derive(Debug)]
-pub enum BlocksQueueError {
+pub enum BlocksDequeError {
   #[doc = doc_single_elem_cap_overflow!()]
   PushOverflow,
   #[doc = doc_reserve_overflow!()]
@@ -47,40 +52,39 @@ pub enum BlocksQueueError {
   WithCapacityOverflow,
 }
 
-/// A circular buffer where elements are added in one-way blocks that will never intersect
-/// boundaries.
+/// A circular buffer where elements are added in blocks that will never intersect boundaries.
 #[derive(Debug)]
-pub struct BlocksQueue<D, M> {
-  data: Queue<D>,
-  metadata: Queue<Metadata<M>>,
+pub struct BlocksDeque<D, M> {
+  data: Deque<D>,
+  metadata: Deque<metadata::Metadata<M>>,
 }
 
-impl<D, M> BlocksQueue<D, M> {
+impl<D, M> BlocksDeque<D, M> {
   /// Creates a new empty instance.
   #[inline]
   pub const fn new() -> Self {
-    Self { data: Queue::new(), metadata: Queue::new() }
+    Self { data: Deque::new(), metadata: Deque::new() }
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksQueueError> {
+  pub fn with_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksDequeError> {
     Ok(Self {
-      data: Queue::with_capacity(elements)
-        .map_err(|_err| BlocksQueueError::WithCapacityOverflow)?,
-      metadata: Queue::with_capacity(blocks)
-        .map_err(|_err| BlocksQueueError::WithCapacityOverflow)?,
+      data: Deque::with_capacity(elements)
+        .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
+      metadata: Deque::with_capacity(blocks)
+        .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
     })
   }
 
   /// Constructs a new, empty instance with the exact specified capacity.
   #[inline]
-  pub fn with_exact_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksQueueError> {
+  pub fn with_exact_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksDequeError> {
     Ok(Self {
-      data: Queue::with_exact_capacity(elements)
-        .map_err(|_err| BlocksQueueError::WithCapacityOverflow)?,
-      metadata: Queue::with_exact_capacity(blocks)
-        .map_err(|_err| BlocksQueueError::WithCapacityOverflow)?,
+      data: Deque::with_exact_capacity(elements)
+        .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
+      metadata: Deque::with_exact_capacity(blocks)
+        .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
     })
   }
 
@@ -100,6 +104,18 @@ impl<D, M> BlocksQueue<D, M> {
   #[inline]
   pub fn blocks_len(&self) -> usize {
     self.metadata.len()
+  }
+
+  /// See [`BlocksDequeBuilder`].
+  #[inline]
+  pub fn builder_back(&mut self) -> BlocksDequeBuilder<'_, D, M, true> {
+    BlocksDequeBuilder::new(self)
+  }
+
+  /// See [`BlocksDequeBuilder`].
+  #[inline]
+  pub fn builder_front(&mut self) -> BlocksDequeBuilder<'_, D, M, false> {
+    BlocksDequeBuilder::new(self)
   }
 
   /// Clears the queue, removing all values.
@@ -151,12 +167,6 @@ impl<D, M> BlocksQueue<D, M> {
       .map(move |elem| do_get!(BlockMut, elem, data.as_ptr_mut(), slice_from_raw_parts_mut, &mut))
   }
 
-  /// Returns the last block.
-  #[inline]
-  pub fn last(&self) -> Option<BlockRef<'_, D, M>> {
-    self.get(self.data.len().checked_sub(1)?)
-  }
-
   /// Removes the last element from the queue and returns it, or `None` if it is empty.
   #[inline]
   pub fn pop_back(&mut self) -> Option<M> {
@@ -173,9 +183,37 @@ impl<D, M> BlocksQueue<D, M> {
     Some(metadata.misc)
   }
 
-  /// Prepends an block to the queue.
+  /// Appends a block to the end of the queue.
   #[inline]
-  pub fn push_front<'data, I>(&mut self, data: I, misc: M) -> Result<(), BlocksQueueError>
+  pub fn push_back_from_copyable_data<'data, I>(
+    &mut self,
+    data: I,
+    misc: M,
+  ) -> Result<(), BlocksDequeError>
+  where
+    D: Copy + 'data,
+    I: IntoIterator<Item = &'data [D]>,
+    I::IntoIter: Clone,
+  {
+    let total_data_len = self
+      .data
+      .extend_back_from_copyable_slices(data)
+      .map_err(|_err| BlocksDequeError::PushOverflow)?;
+    let begin = self.data.tail().wrapping_sub(total_data_len);
+    self
+      .metadata
+      .push_back(metadata::Metadata { begin, len: total_data_len, misc })
+      .map_err(|_err| BlocksDequeError::PushOverflow)?;
+    Ok(())
+  }
+
+  /// Prepends a block to the queue.
+  #[inline]
+  pub fn push_front_from_coyable_data<'data, I>(
+    &mut self,
+    data: I,
+    misc: M,
+  ) -> Result<(), BlocksDequeError>
   where
     D: Copy + 'data,
     I: IntoIterator<Item = &'data [D]>,
@@ -184,24 +222,25 @@ impl<D, M> BlocksQueue<D, M> {
     let (total_data_len, head_shift) = self
       .data
       .extend_front_from_copyable_slices(data)
-      .map_err(|_err| BlocksQueueError::PushOverflow)?;
+      .map_err(|_err| BlocksDequeError::PushOverflow)?;
     self
       .metadata
-      .push_front(Metadata { begin: self.data.head(), len: total_data_len, misc })
-      .map_err(|_err| BlocksQueueError::PushOverflow)?;
+      .push_front(metadata::Metadata { begin: self.data.head(), len: total_data_len, misc })
+      .map_err(|_err| BlocksDequeError::PushOverflow)?;
     self.adjust_metadata(head_shift, 1);
     Ok(())
   }
 
   /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
-  pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> Result<(), BlocksQueueError> {
-    let _ = self.metadata.reserve_front(blocks).map_err(|_er| BlocksQueueError::ReserveOverflow)?;
-    let n = self.data.reserve_front(elements).map_err(|_err| BlocksQueueError::ReserveOverflow)?;
+  pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> Result<(), BlocksDequeError> {
+    let _ = self.metadata.reserve_front(blocks).map_err(|_er| BlocksDequeError::ReserveOverflow)?;
+    let n = self.data.reserve_front(elements).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     self.adjust_metadata(n, 0);
     Ok(())
   }
 
+  // Only used in front operations
   #[inline]
   fn adjust_metadata(&mut self, head_shift: usize, skip: usize) {
     if head_shift > 0 {
@@ -212,27 +251,9 @@ impl<D, M> BlocksQueue<D, M> {
   }
 }
 
-impl<D, M> Default for BlocksQueue<D, M> {
+impl<D, M> Default for BlocksDeque<D, M> {
   #[inline]
   fn default() -> Self {
     Self::new()
   }
-}
-
-/// Block
-#[derive(Debug, PartialEq)]
-pub struct Block<D, M> {
-  /// Opaque data
-  pub data: D,
-  /// Miscellaneous
-  pub misc: M,
-  /// Range
-  pub range: Range<usize>,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct Metadata<M> {
-  begin: usize,
-  len: usize,
-  misc: M,
 }

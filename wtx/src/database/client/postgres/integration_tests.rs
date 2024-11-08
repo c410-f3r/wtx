@@ -20,7 +20,7 @@ async fn conn_scram_tls() {
   let mut rng = Xorshift64::from(simple_seed());
   let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::with_default_params(&mut rng).unwrap(),
+    ExecutorBuffer::new(usize::MAX, &mut rng),
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     &mut rng,
     |stream| async {
@@ -436,7 +436,7 @@ async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {
   let mut rng = Xorshift64::from(simple_seed());
   Executor::connect(
     &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::with_default_params(&mut rng).unwrap(),
+    ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
   )

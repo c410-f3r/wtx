@@ -3,6 +3,12 @@ use crate::http::{KnownHeaderName, Method};
 /// Http error
 #[derive(Debug)]
 pub enum HttpError {
+  /// Client requrested a CORS header that isn't allowed
+  ForbiddenCorsHeader,
+  /// Client requrested a CORS method that isn't allowed
+  ForbiddenCorsMethod,
+  /// Client requrested a CORS origin that isn't allowed
+  ForbiddenCorsOrigin,
   /// The length of a header field must be within a threshold.
   HeaderFieldIsTooLarge,
   /// Invalid HTTP/2 or HTTP/3 header

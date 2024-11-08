@@ -42,7 +42,7 @@ pub(crate) enum MessageTy<'bytes> {
   /// Notification response.
   NotificationResponse,
   /// Parameters of a query.
-  ParameterDescription(&'bytes [u8]),
+  ParameterDescription(u16, &'bytes [u8]),
   /// Parameter status report.
   ParameterStatus(&'bytes [u8], &'bytes [u8]),
   /// Parse request was successful.
@@ -52,7 +52,7 @@ pub(crate) enum MessageTy<'bytes> {
   /// Backend is ready to process another query.
   ReadyForQuery,
   /// Single row data.
-  RowDescription(&'bytes [u8]),
+  RowDescription(u16, &'bytes [u8]),
 }
 
 impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes> {
@@ -100,13 +100,17 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
         let (name, value) = rslt().ok_or(PostgresError::UnexpectedDatabaseMessageBytes)?;
         Self::ParameterStatus(name, value)
       }
-      [b'T', _, _, _, _, _a, _b, rest @ ..] => Self::RowDescription(rest),
+      [b'T', _, _, _, _, a, b, rest @ ..] => {
+        Self::RowDescription(u16::from_be_bytes([*a, *b]), rest)
+      }
       [b'Z', _, _, _, _, _] => Self::ReadyForQuery,
       [b'c', ..] => Self::CopyDone,
       [b'd', ..] => Self::CopyData,
       [b'n', ..] => Self::NoData,
       [b's', ..] => Self::PortalSuspended,
-      [b't', _, _, _, _, _a, _b, rest @ ..] => Self::ParameterDescription(rest),
+      [b't', _, _, _, _, a, b, rest @ ..] => {
+        Self::ParameterDescription(u16::from_be_bytes([*a, *b]), rest)
+      }
       _ => {
         return Err(
           PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),

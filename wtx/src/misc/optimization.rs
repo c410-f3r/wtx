@@ -44,7 +44,7 @@ pub fn bytes_rsplit1(bytes: &[u8], elem: u8) -> impl Iterator<Item = &[u8]> {
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn bytes_split1(bytes: &[u8], elem: u8) -> impl Iterator<Item = &[u8]> {
+pub fn bytes_split1(bytes: &[u8], elem: u8) -> impl Clone + Iterator<Item = &[u8]> {
   #[cfg(feature = "memchr")]
   return memchr::memchr_iter(elem, bytes).chain(core::iter::once(bytes.len())).scan(
     0,

@@ -63,6 +63,7 @@ impl<'buffer, 'fbw, 'vec, E> Drop for StructEncoder<'buffer, 'fbw, 'vec, E> {
   }
 }
 
+#[inline]
 fn write_len(ev: &mut EncodeValue<'_, '_>, start: usize, len: u32) {
   let Some([a, b, c, d, ..]) = ev.fbw()._curr_bytes_mut().get_mut(start..) else {
     return;

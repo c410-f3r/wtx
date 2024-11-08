@@ -7,11 +7,13 @@ use crate::{
   misc::{
     from_utf8_basic, from_utf8_ext, BufferMode, CompletionErr, ConnectionState, ExtUtf8Error,
     FnMutFut, IncompleteUtf8Char, LeaseMut, PartitionedFilledBuffer, Rng, Stream, Vector,
+    _read_payload,
   },
   web_socket::{
     compression::NegotiatedCompression, fill_with_close_code, payload_ty::PayloadTy,
     read_frame_info::ReadFrameInfo, unmask::unmask, web_socket_writer::manage_normal_frame,
     CloseCode, Frame, FrameMut, OpCode, WebSocketError, MAX_CONTROL_PAYLOAD_LEN,
+    MAX_HEADER_LEN_USIZE,
   },
 };
 
@@ -232,9 +234,7 @@ where
   RNG: Rng,
   S: Stream,
 {
-  reader_buffer_second.clear();
   let first_rfi = loop {
-    network_buffer._clear_if_following_is_empty();
     reader_buffer_first.clear();
     let rfi = fetch_frame_from_stream::<_, _, IS_CLIENT>(
       max_payload_len,
@@ -282,6 +282,7 @@ where
       return Ok((Frame::new(true, rfi.op_code, borrow_checker, nc.rsv1()), payload_ty));
     }
   };
+  reader_buffer_second.clear();
   if first_rfi.should_decompress {
     read_continuation_frames::<_, _, _, IS_CLIENT>(
       connection_state,
@@ -332,7 +333,6 @@ fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
   let current_mut = network_buffer._current_mut();
   unmask_nb::<IS_CLIENT>(current_mut, no_masking, rfi)?;
   reader_buffer_first.extend_from_copyable_slice(current_mut)?;
-  network_buffer._clear_if_following_is_empty();
   Ok(())
 }
 
@@ -431,6 +431,8 @@ where
   NC: NegotiatedCompression,
   S: Stream,
 {
+  network_buffer._clear_if_following_is_empty();
+  network_buffer._reserve(MAX_HEADER_LEN_USIZE)?;
   let mut read = network_buffer._following_len();
   let rfi = ReadFrameInfo::from_stream::<_, _, IS_CLIENT>(
     max_payload_len,
@@ -441,38 +443,9 @@ where
     stream,
   )
   .await?;
-  let frame_len = rfi.payload_len.wrapping_add(rfi.header_len.into());
-  fetch_payload_from_stream(frame_len, network_buffer, &mut read, stream).await?;
-  network_buffer._set_indices(
-    network_buffer._current_end_idx().wrapping_add(rfi.header_len.into()),
-    rfi.payload_len,
-    read.wrapping_sub(frame_len),
-  )?;
+  let header_len = rfi.header_len.into();
+  _read_payload((header_len, rfi.payload_len), network_buffer, &mut read, stream).await?;
   Ok(rfi)
-}
-
-#[inline]
-async fn fetch_payload_from_stream<S>(
-  frame_len: usize,
-  network_buffer: &mut PartitionedFilledBuffer,
-  read: &mut usize,
-  stream: &mut S,
-) -> crate::Result<()>
-where
-  S: Stream,
-{
-  network_buffer._reserve(frame_len)?;
-  for _ in 0..=frame_len {
-    if *read >= frame_len {
-      return Ok(());
-    }
-    *read = read.wrapping_add(
-      stream
-        .read(network_buffer._following_rest_mut().get_mut(*read..).unwrap_or_default())
-        .await?,
-    );
-  }
-  Err(crate::Error::UnexpectedBufferState)
 }
 
 #[inline]

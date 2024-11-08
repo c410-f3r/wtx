@@ -19,6 +19,14 @@ pub type UriString = Uri<String>;
 /// ```txt
 /// foo://user:password@hostname:80/path?query=value#hash
 /// ```
+//
+// foo:// | user:password@hostname:80 | /path |?query=value#hash
+//        |                           |       |
+//        |                           |       |-> query_start
+//        |                           |
+//        |                           |---------> href_start
+//        |
+//        |-------------------------------------> authority_start
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S>
 where
@@ -110,6 +118,17 @@ where
   #[inline]
   pub fn hostname_with_implied_port(&self) -> (&str, u16) {
     (self.hostname(), self.port().unwrap_or_default())
+  }
+
+  /// Returns the number of characters.
+  ///
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// assert_eq!(uri.len(), 53);
+  /// ```
+  #[inline]
+  pub fn len(&self) -> usize {
+    self.uri.lease().len()
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.1>

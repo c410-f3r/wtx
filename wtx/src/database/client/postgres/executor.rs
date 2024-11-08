@@ -143,16 +143,15 @@ where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
+    let Self { cs, eb, phantom: _, stream } = self;
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut rows = 0;
-    let mut fwsc =
-      FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] };
-    let (_, stmt_id_str, stmt) =
-      Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts, vb).await?;
-    Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id_str).await?;
+    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
+    let (_, stmt_id, stmt) = Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts).await?;
+    Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id).await?;
     loop {
-      let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
+      let msg = Self::fetch_msg_from_stream(cs, nb, stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(local_rows) => {
           rows = local_rows;
@@ -179,11 +178,11 @@ where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
-    let fwsc =
-      &mut FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] };
-    let (_, stmt_id_str, stmt) = Self::write_send_await_stmt_prot(fwsc, nb, sc, stmts, vb).await?;
-    Self::write_send_await_fetch_with_stmt_wo_prot(fwsc, nb, rv, stmt, &stmt_id_str, vb).await
+    let Self { cs, eb, phantom: _, stream } = self;
+    let ExecutorBufferPartsMut { nb, stmts, vb, .. } = eb.lease_mut().parts_mut();
+    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
+    let (_, stmt_id, stmt) = Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts).await?;
+    Self::write_send_await_fetch_with_stmt_wo_prot(&mut fwsc, nb, rv, stmt, &stmt_id, vb).await
   }
 
   #[inline]
@@ -197,29 +196,28 @@ where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
   {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
+    let Self { cs, eb, phantom: _, stream } = self;
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
-    let mut fwsc =
-      FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] };
-    let (_, stmt_id_str, stmt) =
-      Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts, vb).await?;
-    Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id_str).await?;
+    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
+    let (_, stmt_id, stmt) = Self::write_send_await_stmt_prot(&mut fwsc, nb, sc, stmts).await?;
+    Self::write_send_await_stmt_initial(&mut fwsc, nb, rv, &stmt, &stmt_id).await?;
     let begin = nb._current_end_idx();
     let begin_data = nb._current_end_idx().wrapping_add(7);
     loop {
-      let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
+      let msg = Self::fetch_msg_from_stream(cs, nb, stream).await?;
       match msg.ty {
+        MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
         MessageTy::DataRow(len) => {
           let bytes = nb._buffer().get(begin_data..nb._current_end_idx()).unwrap_or_default();
           let range_begin = nb._antecedent_end_idx().wrapping_sub(begin);
           let range_end = nb._current_end_idx().wrapping_sub(begin_data);
           cb(&Record::parse(bytes, range_begin..range_end, stmt.clone(), vb, len)?)?;
-          fwsc.rb.push(vb.len()).map_err(Into::into)?;
+          rb.push(vb.len()).map_err(Into::into)?;
         }
         MessageTy::ReadyForQuery => {
           break;
         }
-        MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
         _ => {
           return Err(<_>::from(
             PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into(),
@@ -241,19 +239,11 @@ where
 
   #[inline]
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
-    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = self.eb.lease_mut().parts_mut();
+    let Self { cs, eb, phantom: _, stream } = self;
+    let ExecutorBufferPartsMut { nb, rb, stmts, vb, .. } = eb.lease_mut().parts_mut();
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
-    Ok(
-      Self::write_send_await_stmt_prot(
-        &mut FetchWithStmtCommons { cs: &mut self.cs, rb, stream: &mut self.stream, tys: &[] },
-        nb,
-        cmd,
-        stmts,
-        vb,
-      )
-      .await?
-      .0,
-    )
+    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
+    Ok(Self::write_send_await_stmt_prot(&mut fwsc, nb, cmd, stmts).await?.0)
   }
 
   #[inline]

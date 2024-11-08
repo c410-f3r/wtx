@@ -10,12 +10,9 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api, ClientApiFrameworkError,
   },
-  misc::{Lease, Vector},
+  misc::{Deque, Lease, Vector},
 };
-use alloc::{
-  borrow::{Cow, ToOwned},
-  collections::VecDeque,
-};
+use alloc::borrow::{Cow, ToOwned};
 use core::{fmt::Debug, marker::PhantomData, ops::Range};
 
 /// For API's that send and received raw bytes.
@@ -47,7 +44,7 @@ where
   asserted: usize,
   phantom: PhantomData<TP>,
   requests: Vector<Cow<'static, T>>,
-  responses: VecDeque<Cow<'static, T>>,
+  responses: Deque<Cow<'static, T>>,
 }
 
 impl<T, TP> Mock<T, TP>
@@ -81,7 +78,7 @@ where
   /// Stores `res` into the inner response storage
   #[inline]
   pub fn push_response(&mut self, res: Cow<'static, T>) {
-    self.responses.push_back(res);
+    self.responses.push_back(res).unwrap();
   }
 
   fn pop_response(&mut self) -> crate::Result<Cow<'static, T>> {
@@ -143,6 +140,6 @@ where
 {
   #[inline]
   fn default() -> Self {
-    Self { asserted: 0, phantom: PhantomData, requests: Vector::new(), responses: VecDeque::new() }
+    Self { asserted: 0, phantom: PhantomData, requests: Vector::new(), responses: Deque::new() }
   }
 }

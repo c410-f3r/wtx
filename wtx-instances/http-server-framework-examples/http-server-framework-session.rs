@@ -7,17 +7,18 @@
 //! CREATE TABLE "user" (
 //!   id INT NOT NULL PRIMARY KEY,
 //!   email VARCHAR(128) NOT NULL,
+//!   first_name VARCHAR(32) NOT NULL,
 //!   password BYTEA NOT NULL,
-//!   salt BYTEA NOT NULL
+//!   salt CHAR(32) NOT NULL
 //! );
 //! ALTER TABLE "user" ADD CONSTRAINT user__email__uq UNIQUE (email);
 //!
-//! CREATE TABLE session (
+//! CREATE TABLE "session" (
 //!   id BYTEA NOT NULL PRIMARY KEY,
 //!   user_id INT NOT NULL,
 //!   expires_at TIMESTAMPTZ NOT NULL
 //! );
-//! ALTER TABLE session ADD CONSTRAINT session__user__fk FOREIGN KEY (user_id) REFERENCES "user" (id);
+//! ALTER TABLE "session" ADD CONSTRAINT session__user__fk FOREIGN KEY (user_id) REFERENCES "user" (id);
 //! ```
 
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
@@ -28,7 +29,7 @@ use wtx::{
     server_framework::{get, post, Router, ServerFrameworkBuilder, State, StateClean},
     ReqResBuffer, ReqResData, SessionDecoder, SessionEnforcer, SessionTokio, StatusCode,
   },
-  misc::argon2_pwd,
+  misc::{argon2_pwd, Vector},
   pool::{PostgresRM, SimplePoolTokio},
 };
 
@@ -38,14 +39,13 @@ type Session = SessionTokio<u32, wtx::Error, Pool>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let router = Router::new(
-    wtx::paths!(("/login", post(login)), ("/logout", get(logout)),),
-    (SessionDecoder::new(), SessionEnforcer::new(["/admin"])),
-    (),
-  )?;
   let pool = Pool::new(4, PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into()));
   let mut rng = ChaCha20Rng::from_entropy();
   let (expired_sessions, session) = Session::builder(pool).build_generating_key(&mut rng);
+  let router = Router::new(
+    wtx::paths!(("/login", post(login)), ("/logout", get(logout)),),
+    (SessionDecoder::new(session.clone()), SessionEnforcer::new(["/admin"], session.clone())),
+  )?;
   tokio::spawn(async move {
     if let Err(err) = expired_sessions.await {
       eprintln!("{err}");
@@ -61,33 +61,35 @@ async fn main() -> wtx::Result<()> {
 
 #[inline]
 async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  let (session, rng) = state.conn_aux;
-  if session.content.lock().await.state().is_some() {
-    session.delete_session_cookie(&mut state.req.rrd).await?;
+  let (Session { manager, store }, rng) = state.conn_aux;
+  if manager.inner.lock().await.state().is_some() {
+    manager.delete_session_cookie(&mut state.req.rrd, store).await?;
     return Ok(StatusCode::Forbidden);
   }
   let user: UserLoginReq<'_> = serde_json::from_slice(state.req.rrd.body())?;
-  let mut executor_guard = session.store.get().await?;
-  let record = executor_guard
-    .fetch_with_stmt("SELECT id,password,salt FROM user WHERE email = $1", (user.email,))
+  let mut guard = store.get().await?;
+  let record = guard
+    .fetch_with_stmt("SELECT id,first_name,password,salt FROM user WHERE email = $1", (user.email,))
     .await?;
   let id = record.decode::<_, u32>(0)?;
-  let password_db = record.decode::<_, &[u8]>(1)?;
-  let salt = record.decode::<_, &[u8]>(2)?;
-  let password_req = argon2_pwd(user.password.as_bytes(), salt)?;
+  let first_name = record.decode::<_, &str>(1)?;
+  let pw_db = record.decode::<_, &[u8]>(2)?;
+  let salt = record.decode::<_, &str>(3)?;
+  let pw_req = argon2_pwd::<32>(&mut Vector::new(), user.password.as_bytes(), salt.as_bytes())?;
   state.req.rrd.clear();
-  if password_db != &password_req {
+  if pw_db != &pw_req {
     return Ok(StatusCode::Unauthorized);
   }
-  drop(executor_guard);
-  session.set_session_cookie(id, rng, &mut state.req.rrd).await?;
-  serde_json::to_writer(&mut state.req.rrd.body, &UserLoginRes { id })?;
+  serde_json::to_writer(&mut state.req.rrd.body, &UserLoginRes { id, name: first_name })?;
+  drop(guard);
+  manager.set_session_cookie(id, rng, &mut state.req.rrd, store).await?;
   Ok(StatusCode::Ok)
 }
 
 #[inline]
 async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  state.conn_aux.0.delete_session_cookie(&mut state.req.rrd).await?;
+  let (Session { manager, store }, _) = state.conn_aux;
+  manager.delete_session_cookie(&mut state.req.rrd, store).await?;
   Ok(StatusCode::Ok)
 }
 
@@ -98,6 +100,7 @@ struct UserLoginReq<'req> {
 }
 
 #[derive(Debug, serde::Serialize)]
-struct UserLoginRes {
+struct UserLoginRes<'se> {
   id: u32,
+  name: &'se str,
 }

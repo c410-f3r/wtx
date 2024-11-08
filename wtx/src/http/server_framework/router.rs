@@ -1,38 +1,36 @@
 use crate::{
   http::{
-    server_framework::{PathManagement, ReqMiddleware, ResMiddleware},
+    server_framework::{Middleware, PathManagement},
     ReqResBuffer, Request, Response, StatusCode,
   },
   misc::{ArrayVector, Vector},
 };
-use core::marker::PhantomData;
+use core::{marker::PhantomData, ops::ControlFlow};
 
 /// Redirects requests to specific asynchronous functions based on the set of inner URIs.
 #[derive(Debug)]
-pub struct Router<CA, E, P, REQM, RESM, SA> {
+pub struct Router<CA, E, M, P, SA> {
+  pub(crate) middlewares: M,
   pub(crate) paths: P,
   pub(crate) phantom: PhantomData<(CA, E, SA)>,
-  pub(crate) req_middlewares: REQM,
-  pub(crate) res_middlewares: RESM,
   #[cfg(feature = "matchit")]
   pub(crate) router: matchit::Router<ArrayVector<(&'static str, u8), 8>>,
 }
 
-impl<CA, E, P, REQM, RESM, SA> Router<CA, E, P, REQM, RESM, SA>
+impl<CA, E, M, P, SA> Router<CA, E, M, P, SA>
 where
   E: From<crate::Error>,
   P: PathManagement<CA, E, SA>,
 {
   /// Creates a new instance with paths and middlewares.
   #[inline]
-  pub fn new(paths: P, req_middlewares: REQM, res_middlewares: RESM) -> crate::Result<Self> {
+  pub fn new(paths: P, middlewares: M) -> crate::Result<Self> {
     #[cfg(feature = "matchit")]
     let router = Self::router(&paths)?;
     Ok(Self {
+      middlewares,
       paths,
       phantom: PhantomData,
-      req_middlewares,
-      res_middlewares,
       #[cfg(feature = "matchit")]
       router,
     })
@@ -54,7 +52,7 @@ where
   }
 }
 
-impl<CA, E, P, SA> Router<CA, E, P, (), (), SA>
+impl<CA, E, P, SA> Router<CA, E, (), P, SA>
 where
   E: From<crate::Error>,
   P: PathManagement<CA, E, SA>,
@@ -65,22 +63,20 @@ where
     #[cfg(feature = "matchit")]
     let router = Self::router(&paths)?;
     Ok(Self {
+      middlewares: (),
       paths,
       phantom: PhantomData,
-      req_middlewares: (),
-      res_middlewares: (),
       #[cfg(feature = "matchit")]
       router,
     })
   }
 }
 
-impl<CA, E, P, REQM, RESM, SA> PathManagement<CA, E, SA> for Router<CA, E, P, REQM, RESM, SA>
+impl<CA, E, M, P, SA> PathManagement<CA, E, SA> for Router<CA, E, M, P, SA>
 where
   E: From<crate::Error>,
+  M: Middleware<CA, E, SA>,
   P: PathManagement<CA, E, SA>,
-  REQM: ReqMiddleware<CA, E, SA>,
-  RESM: ResMiddleware<CA, E, SA>,
 {
   const IS_ROUTER: bool = true;
 
@@ -92,10 +88,15 @@ where
     req: &mut Request<ReqResBuffer>,
     stream_aux: &mut SA,
   ) -> Result<StatusCode, E> {
-    self.req_middlewares.apply_req_middleware(conn_aux, req, stream_aux).await?;
+    let mw_aux = &mut self.middlewares.aux();
+    if let ControlFlow::Break(el) = self.middlewares.req(conn_aux, mw_aux, req, stream_aux).await? {
+      return Ok(el);
+    }
     let status_code = self.paths.manage_path(conn_aux, path_defs, req, stream_aux).await?;
     let res = Response { rrd: &mut req.rrd, status_code, version: req.version };
-    self.res_middlewares.apply_res_middleware(conn_aux, res, stream_aux).await?;
+    if let ControlFlow::Break(el) = self.middlewares.res(conn_aux, mw_aux, res, stream_aux).await? {
+      return Ok(el);
+    }
     Ok(status_code)
   }
 

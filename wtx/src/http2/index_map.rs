@@ -1,4 +1,4 @@
-use alloc::collections::VecDeque;
+use crate::misc::Deque;
 use core::{borrow::Borrow, hash::Hash};
 use hashbrown::HashMap;
 
@@ -6,7 +6,7 @@ use hashbrown::HashMap;
 pub(crate) struct IndexMap<K, V> {
   cursor: usize,
   elements: HashMap<K, V>,
-  keys: VecDeque<K>,
+  keys: Deque<K>,
 }
 
 impl<K, V> IndexMap<K, V>
@@ -15,7 +15,7 @@ where
 {
   #[inline]
   pub(crate) fn new() -> Self {
-    Self { cursor: 0, elements: HashMap::new(), keys: VecDeque::new() }
+    Self { cursor: 0, elements: HashMap::new(), keys: Deque::new() }
   }
 
   #[inline]
@@ -35,7 +35,7 @@ where
     if self.cursor >= self.elements.len() {
       return None;
     }
-    let key = self.keys.front()?;
+    let key = self.keys.get(0)?;
     let value = self.elements.get_mut(key)?;
     Some(value)
   }
@@ -54,7 +54,7 @@ where
   pub(crate) fn push_back(&mut self, key: K, value: V) -> Option<V> {
     let prev_value = self.elements.insert(key.clone(), value);
     if prev_value.is_none() {
-      self.keys.push_back(key);
+      self.keys.push_back(key).ok()?;
     }
     prev_value
   }

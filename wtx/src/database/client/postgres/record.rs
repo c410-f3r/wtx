@@ -52,7 +52,8 @@ impl<'exec, E> Record<'exec, E> {
     let initial_value_offset = bytes_range.start;
     let mut curr_value_offset = bytes_range.start;
 
-    match (bytes.get(bytes_range), values_len) {
+    let local_bytes = bytes.get(bytes_range);
+    match (local_bytes, values_len) {
       (Some([a, b, c, d, rest @ ..]), 1..=u16::MAX) => {
         bytes = rest;
         fun(&mut curr_value_offset, [*a, *b, *c, *d])?;
@@ -114,7 +115,7 @@ where
       None
     } else {
       let begin = range.start.wrapping_sub(self.initial_value_offset);
-      let column = match self.stmt.columns.get(idx) {
+      let column = match self.stmt.column(idx) {
         None => return _unlikely_elem(None),
         Some(elem) => elem,
       };
@@ -131,7 +132,7 @@ where
 impl<'exec, E> ValueIdent<Record<'exec, E>> for str {
   #[inline]
   fn idx(&self, input: &Record<'exec, E>) -> Option<usize> {
-    input.stmt.columns.iter().position(|column| column.name.as_str() == self)
+    input.stmt.columns().position(|column| column.name.as_str() == self)
   }
 }
 
@@ -177,7 +178,7 @@ mod tests {
       client::postgres::{
         statements::Statement,
         tests::{column0, column1, column2},
-        DecodeValue, Record,
+        DecodeValue, Record, Ty,
       },
       Record as _,
     },
@@ -188,9 +189,9 @@ mod tests {
   #[test]
   fn returns_correct_values() {
     let bytes = &[0, 0, 0, 1, 1, 0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 4];
-    let columns = &[column0(), column1(), column2()];
+    let values = &[(column0(), Ty::Any), (column1(), Ty::Any), (column2(), Ty::Any)];
     let mut values_bytes_offsets = Vector::new();
-    let stmt = Statement::new(columns, &[]);
+    let stmt = Statement::new(3, 0, values);
     let record = Record::<crate::Error>::parse(
       bytes,
       0..bytes.len(),

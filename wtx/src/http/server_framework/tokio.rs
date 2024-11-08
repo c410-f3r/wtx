@@ -1,30 +1,28 @@
 use crate::{
   http::{
-    server_framework::{
-      ConnAux, PathManagement, ReqMiddleware, ResMiddleware, Router, ServerFramework, StreamAux,
-    },
+    server_framework::{ConnAux, Middleware, PathManagement, Router, ServerFramework, StreamAux},
     ManualServerStreamTokio, OptionedServer, ReqResBuffer, StreamMode,
   },
   http2::Http2Buffer,
   misc::Rng,
 };
-use std::sync::Arc;
+use alloc::sync::Arc;
 use tokio::net::tcp::OwnedWriteHalf;
 
-impl<CA, CAC, E, P, REQM, RESM, SA, SAC> ServerFramework<CA, CAC, E, P, REQM, RESM, SA, SAC>
+impl<CA, CAC, E, M, P, SA, SAC> ServerFramework<CA, CAC, E, M, P, SA, SAC>
 where
   CA: Clone + ConnAux + Send + 'static,
   CAC: Clone + Fn() -> CA::Init + Send + 'static,
   E: From<crate::Error> + Send + 'static,
+  M: Middleware<CA, E, SA, req(..): Send, res(..): Send> + Send + 'static,
+  M::Aux: Send + 'static,
   P: PathManagement<CA, E, SA, manage_path(..): Send> + Send + 'static,
-  REQM: ReqMiddleware<CA, E, SA, apply_req_middleware(..): Send> + Send + 'static,
-  RESM: ResMiddleware<CA, E, SA, apply_res_middleware(..): Send> + Send + 'static,
   SA: StreamAux + Send + 'static,
   SAC: Clone + Fn() -> SA::Init + Send + 'static,
-  Arc<Router<CA, E, P, REQM, RESM, SA>>: Send,
-  Router<CA, E, P, REQM, RESM, SA>: Send,
-  for<'any> &'any Arc<Router<CA, E, P, REQM, RESM, SA>>: Send,
-  for<'any> &'any Router<CA, E, P, REQM, RESM, SA>: Send,
+  Arc<Router<CA, E, M, P, SA>>: Send,
+  Router<CA, E, M, P, SA>: Send,
+  for<'any> &'any Arc<Router<CA, E, M, P, SA>>: Send,
+  for<'any> &'any Router<CA, E, M, P, SA>: Send,
 {
   /// Starts listening to incoming requests based on the given `host`.
   #[inline]
@@ -91,7 +89,7 @@ where
     _: ManualServerStreamTokio<
       CA,
       Http2Buffer,
-      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
+      (impl Fn() -> SA::Init, Arc<Router<CA, E, M, P, SA>>),
       (),
       OwnedWriteHalf,
     >,
@@ -105,7 +103,7 @@ where
     _: ManualServerStreamTokio<
       CA,
       Http2Buffer,
-      (impl Fn() -> SA::Init, Arc<Router<CA, E, P, REQM, RESM, SA>>),
+      (impl Fn() -> SA::Init, Arc<Router<CA, E, M, P, SA>>),
       (),
       tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
     >,

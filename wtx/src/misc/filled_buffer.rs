@@ -185,12 +185,13 @@ impl std::io::Write for FilledBuffer {
   }
 }
 
-#[cfg(all(feature = "_proptest", test))]
-mod proptest {
+#[cfg(kani)]
+mod kani {
   use crate::misc::FilledBuffer;
 
-  #[test_strategy::proptest]
-  fn reserve_is_allocation(reserve: u8) {
+  #[kani::proof]
+  fn reserve_is_allocation() {
+    let reserve: u8 = kani::any();
     let mut vec = FilledBuffer::_new();
     vec._reserve(reserve.into()).unwrap();
     assert!(vec._capacity() >= reserve.into());

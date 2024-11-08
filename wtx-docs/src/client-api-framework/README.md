@@ -4,7 +4,7 @@ A flexible client API framework for writing asynchronous, fast, organizable, sca
 
 Checkout the `wtx-apis` project to see a collection of APIs based on `wtx`.
 
-To use this functionality, it necessary to activate the `client-api-framework` feature.
+To use this functionality, it is necessary to activate the `client-api-framework` feature.
 
 ## Objective
 

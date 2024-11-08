@@ -46,8 +46,7 @@ impl From<VectorError> for u8 {
 impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
-#[cfg_attr(feature = "test-strategy", derive(test_strategy::Arbitrary))]
-#[cfg_attr(feature = "test-strategy", arbitrary(bound(T: proptest::arbitrary::Arbitrary + 'static)))]
+//#[cfg_attr(kani, derive(kani::Arbitrary))]
 #[derive(Clone, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct Vector<T> {
@@ -195,7 +194,7 @@ impl<T> Vector<T> {
     self.data.drain(range)
   }
 
-  /// Clones and appends all elements in the iterator.
+  /// Appends all elements of the iterator.
   ///
   /// ```rust
   /// let mut vec = wtx::misc::Vector::new();
@@ -711,24 +710,35 @@ mod cl_aux {
   }
 }
 
-#[cfg(all(feature = "_proptest", test))]
-mod _proptest {
+#[cfg(kani)]
+mod kani {
   use crate::misc::Vector;
-  use alloc::vec::Vec;
 
-  #[test_strategy::proptest]
-  fn insert(elem: u8, idx: usize, mut vec: Vec<u8>) {
+  #[kani::proof]
+  fn extend_from_iter() {
+    let mut from = Vector::from_vec(kani::vec::any_vec::<u8, 128>());
+    let to = kani::vec::any_vec::<u8, 128>();
+    from.extend_from_iter(to.into_iter()).unwrap();
+  }
+
+  #[kani::proof]
+  fn insert() {
+    let elem = kani::any();
+    let idx = kani::any();
+    let mut vec = kani::vec::any_vec::<u8, 128>();
     let mut vector = Vector::from_vec(vec.clone());
     if idx > vec.len() {
-      return Ok(());
+      return;
     }
     vec.insert(idx, elem);
     vector.insert(idx, elem).unwrap();
     assert_eq!(vec.as_slice(), vector.as_slice());
   }
 
-  #[test_strategy::proptest]
-  fn push(elem: u8, mut vec: Vec<u8>) {
+  #[kani::proof]
+  fn push() {
+    let elem = kani::any();
+    let mut vec = kani::vec::any_vec::<u8, 128>();
     let mut vector = Vector::from_vec(vec.clone());
     vec.push(elem);
     vector.push(elem).unwrap();

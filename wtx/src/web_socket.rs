@@ -91,15 +91,13 @@ where
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
-  pub fn new(
+  pub const fn new(
     nc: NC,
     no_masking: bool,
     rng: Xorshift64,
     stream: S,
-    mut wsb: WSB,
+    wsb: WSB,
   ) -> crate::Result<Self> {
-    wsb.lease_mut().network_buffer._clear_if_following_is_empty();
-    wsb.lease_mut().network_buffer._reserve(MAX_HEADER_LEN_USIZE)?;
     Ok(Self {
       connection_state: ConnectionState::Open,
       curr_payload: PayloadTy::None,

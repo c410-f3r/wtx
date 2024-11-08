@@ -46,11 +46,12 @@ macro_rules! impl_0_16 {
     mod http_server_framework {
       use crate::{
         http::{
-          HttpError, Request, ReqResBuffer,  Response, StatusCode,
-          server_framework::{ConnAux, StreamAux, ReqMiddleware, ResMiddleware, PathManagement, PathParams}
+          HttpError, Response, Request, ReqResBuffer, StatusCode,
+          server_framework::{ConnAux, Middleware, StreamAux, PathManagement, PathParams}
         },
         misc::{ArrayVector, Vector}
       };
+      use core::ops::ControlFlow;
 
       $(
         impl<$($T,)*> ConnAux for ($($T,)*)
@@ -77,34 +78,53 @@ macro_rules! impl_0_16 {
           }
         }
 
-        impl<$($T,)* CA, ERR, SA> ReqMiddleware<CA, ERR, SA> for ($($T,)*)
+        impl<$($T,)* CA, ERR, SA> Middleware<CA, ERR, SA> for ($($T,)*)
         where
-          $($T: ReqMiddleware<CA, ERR, SA>,)*
+          $($T: Middleware<CA, ERR, SA>,)*
           ERR: From<crate::Error>
         {
-          #[inline]
-          async fn apply_req_middleware(&self, _conn_aux: &mut CA, _req: &mut Request<ReqResBuffer>, _stream_aux: &mut SA) -> Result<(), ERR> {
-            $( self.$N.apply_req_middleware(_conn_aux, _req, _stream_aux).await?; )*
-            Ok(())
-          }
-        }
+          type Aux = ($($T::Aux,)*);
 
-        impl<$($T,)* CA, ERR, SA> ResMiddleware<CA, ERR, SA> for ($($T,)*)
-        where
-          $($T: ResMiddleware<CA, ERR, SA>,)*
-          ERR: From<crate::Error>
-        {
           #[inline]
-          async fn apply_res_middleware(&self, _conn_aux: &mut CA, mut _res: Response<&mut ReqResBuffer>, _stream_aux: &mut SA) -> Result<(), ERR> {
+          fn aux(&self) -> Self::Aux {
+            ($(self.$N.aux(),)*)
+          }
+
+          #[inline]
+          async fn req(
+            &self,
+            _conn_aux: &mut CA,
+            _mx_aux: &mut Self::Aux,
+            _req: &mut Request<ReqResBuffer>,
+            _stream_aux: &mut SA,
+          ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
+            $({
+              if let ControlFlow::Break(status_code) = self.$N.req(_conn_aux, &mut _mx_aux.$N, _req, _stream_aux).await? {
+                return Ok(ControlFlow::Break(status_code));
+              }
+            })*
+            Ok(ControlFlow::Continue(()))
+          }
+
+          #[inline]
+          async fn res(
+            &self,
+            _conn_aux: &mut CA,
+            _mx_aux: &mut Self::Aux,
+            _res: Response<&mut ReqResBuffer>,
+            _stream_aux: &mut SA,
+          ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
               let local_res = Response {
                 rrd: &mut *_res.rrd,
                 status_code: _res.status_code,
                 version: _res.version,
               };
-              self.$N.apply_res_middleware(_conn_aux, local_res, _stream_aux).await?;
+              if let ControlFlow::Break(status_code) = self.$N.res(_conn_aux, &mut _mx_aux.$N, local_res, _stream_aux).await? {
+                return Ok(ControlFlow::Break(status_code));
+              }
             })*
-            Ok(())
+            Ok(ControlFlow::Continue(()))
           }
         }
 

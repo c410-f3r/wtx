@@ -1,9 +1,10 @@
-use crate::misc::Queue;
-use alloc::{collections::VecDeque, vec::Vec};
+use crate::misc::Deque;
+use alloc::collections::VecDeque;
 
-#[test_strategy::proptest]
-fn queue(bytes: Vec<u8>) {
-  let mut queue = Queue::with_capacity(bytes.len()).unwrap();
+#[kani::proof]
+fn queue() {
+  let bytes = kani::vec::any_vec::<u8, 128>();
+  let mut queue = Deque::with_capacity(bytes.len()).unwrap();
   let mut vec_deque = VecDeque::with_capacity(bytes.len());
 
   for byte in bytes.iter().copied() {

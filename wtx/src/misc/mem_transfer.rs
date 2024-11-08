@@ -58,22 +58,18 @@ where
   unsafe { slice.get_unchecked_mut(..new_len) }
 }
 
-#[cfg(all(feature = "_proptest", test))]
-mod proptest {
-  use crate::misc::{Vector, _shift_copyable_chunks};
-  use core::ops::Range;
+#[cfg(kani)]
+mod kani {
+  use crate::misc::_shift_copyable_chunks;
+  use alloc::vec::Vec;
 
-  #[test_strategy::proptest]
-  fn shift_bytes(mut data: Vector<u8>, range: Range<u8>) {
-    let mut begin: usize = range.start.into();
-    let mut end: usize = range.end.into();
-    let mut data_clone = data.clone();
-    begin = begin.min(data.len());
-    end = end.min(data.len());
-    let rslt = _shift_copyable_chunks(0, &mut data, [begin..end]);
-    data_clone.rotate_left(begin);
-    data_clone.truncate(rslt.len());
-    assert_eq!(rslt, data_clone.as_ref());
+  #[kani::proof]
+  fn shift_bytes() {
+    let begin = kani::any();
+    let tuples = kani::vec::any_vec::<(usize, usize), 128>();
+    let ranges: Vec<_> = tuples.into_iter().map(|el| el.0..el.1).collect();
+    let mut slice = kani::vec::any_vec::<u8, 128>();
+    let _ = _shift_copyable_chunks(begin, &mut slice, ranges.into_iter());
   }
 }
 

@@ -48,6 +48,7 @@ impl<'data> Config<'data> {
     Ok(this)
   }
 
+  #[inline]
   fn set_param(&mut self, key: &str, value: &'data str) -> crate::Result<()> {
     match key {
       "application_name" => {

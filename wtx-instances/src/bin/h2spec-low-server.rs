@@ -2,8 +2,7 @@
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
-use std::mem;
-
+use core::mem;
 use tokio::net::TcpListener;
 use wtx::{
   http::{ReqResBuffer, StatusCode},

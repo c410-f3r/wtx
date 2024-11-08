@@ -7,7 +7,7 @@ At the current time PostgreSQL is the only supported database. Implements <https
 
 More benchmarks are available at <https://github.com/diesel-rs/metrics>.
 
-To use this functionality, it necessary to activate the `postgres` feature.
+To use this functionality, it is necessary to activate the `postgres` feature.
 
 ![PostgreSQL Benchmark](https://i.imgur.com/vf2tYxY.jpeg)
 

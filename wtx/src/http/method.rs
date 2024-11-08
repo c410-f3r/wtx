@@ -23,6 +23,23 @@ _create_enum! {
   }
 }
 
+impl Method {
+  /// An array containing the whole set of variants
+  pub const ALL: [Self; 9] = [
+    Self::Connect,
+    Self::Delete,
+    Self::Get,
+    Self::Head,
+    Self::Options,
+    Self::Patch,
+    Self::Post,
+    Self::Put,
+    Self::Trace,
+  ];
+  /// The number of variants
+  pub const VARIANTS: u8 = 9;
+}
+
 #[cfg(feature = "serde")]
 mod serde {
   use crate::http::Method;
