@@ -1,5 +1,5 @@
 use crate::{
-  misc::{PartitionedFilledBuffer, Stream, _read_until},
+  misc::{PartitionedFilledBuffer, Stream, _read_header},
   web_socket::{
     compression::NegotiatedCompression,
     misc::{has_masked_frame, op_code},
@@ -85,26 +85,37 @@ impl ReadFrameInfo {
     S: Stream,
   {
     let buffer = network_buffer._following_rest_mut();
-    let first_two = _read_until::<2, S>(buffer, read, 0, stream).await?;
+    let first_two = _read_header::<0, 2, S>(buffer, read, stream).await?;
     let tuple = Self::manage_first_two_bytes(first_two, nc)?;
     let (fin, length_code, masked, op_code, should_decompress) = tuple;
-    let (mut header_len, payload_len) = match length_code {
+    let mut mask = None;
+    let (header_len, payload_len) = match length_code {
       126 => {
-        let payload_len = _read_until::<2, S>(buffer, read, 2, stream).await?;
-        (4u8, u16::from_be_bytes(payload_len).into())
+        let payload_len = _read_header::<2, 2, S>(buffer, read, stream).await?;
+        if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
+          mask = Some(_read_header::<4, 4, S>(buffer, read, stream).await?);
+          (8, u16::from_be_bytes(payload_len).into())
+        } else {
+          (4, u16::from_be_bytes(payload_len).into())
+        }
       }
       127 => {
-        let payload_len = _read_until::<8, S>(buffer, read, 2, stream).await?;
-        (10, u64::from_be_bytes(payload_len).try_into()?)
+        let payload_len = _read_header::<2, 8, S>(buffer, read, stream).await?;
+        if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
+          mask = Some(_read_header::<10, 4, S>(buffer, read, stream).await?);
+          (14, u64::from_be_bytes(payload_len).try_into()?)
+        } else {
+          (10, u64::from_be_bytes(payload_len).try_into()?)
+        }
       }
-      _ => (2, length_code.into()),
-    };
-    let mask = if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
-      let rslt = _read_until::<4, S>(buffer, read, header_len.into(), stream).await?;
-      header_len = header_len.wrapping_add(4);
-      Some(rslt)
-    } else {
-      None
+      _ => {
+        if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
+          mask = Some(_read_header::<2, 4, S>(buffer, read, stream).await?);
+          (6, length_code.into())
+        } else {
+          (2, length_code.into())
+        }
+      }
     };
     Self::manage_final_params(fin, op_code, max_payload_len, payload_len)?;
     Ok(ReadFrameInfo { fin, header_len, mask, op_code, payload_len, should_decompress })

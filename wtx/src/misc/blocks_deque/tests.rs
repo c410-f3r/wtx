@@ -5,7 +5,7 @@
 // RO = Right Occupied
 // T = Tail (Exclusive)
 
-use crate::misc::{blocks_queue::BlockRef, BlocksQueue};
+use crate::misc::{blocks_deque::BlockRef, BlocksDeque};
 
 // [. . . . . . . .]: Empty - (LF=8, LO=0,RF=0, RO=0) - (H=0, T=0)
 // [. . . . . . . H]: Push front - (LF=7, LO=0, RF=0, RO=1) - (H=7, T=8)
@@ -27,25 +27,25 @@ use crate::misc::{blocks_queue::BlockRef, BlocksQueue};
 // [. . . . . . . .]: Pop back - (LF=8, LO=0, RF=0, RO=0) - (H=0, T=0)
 #[test]
 fn pop_back() {
-  let mut bq = BlocksQueue::with_exact_capacity(4, 8).unwrap();
+  let mut bq = BlocksDeque::with_exact_capacity(4, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
 
-  bq.push_front([&[1][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[1][..]], ()).unwrap();
   check_state(&bq, 1, 1, &[1], &[]);
 
-  bq.push_front([&[2, 3][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[2, 3][..]], ()).unwrap();
   check_state(&bq, 2, 3, &[2, 3, 1], &[]);
 
-  bq.push_front([&[4, 5], &[6][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[4, 5], &[6][..]], ()).unwrap();
   check_state(&bq, 3, 6, &[4, 5, 6, 2, 3, 1], &[]);
 
-  bq.push_front([&[7, 8][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[7, 8][..]], ()).unwrap();
   check_state(&bq, 4, 8, &[7, 8, 4, 5, 6, 2, 3, 1], &[]);
 
   let _ = bq.pop_back();
   check_state(&bq, 3, 7, &[7, 8, 4, 5, 6, 2, 3], &[]);
 
-  bq.push_front([&[9][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[9][..]], ()).unwrap();
   check_state(&bq, 4, 8, &[9], &[7, 8, 4, 5, 6, 2, 3]);
 
   let _ = bq.pop_back();
@@ -54,10 +54,10 @@ fn pop_back() {
   let _ = bq.pop_back();
   check_state(&bq, 2, 3, &[9], &[7, 8]);
 
-  bq.push_front([&[10], &[11, 12][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[10], &[11, 12][..]], ()).unwrap();
   check_state(&bq, 3, 6, &[10, 11, 12, 9], &[7, 8]);
 
-  bq.push_front([&[13, 14][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[13, 14][..]], ()).unwrap();
   check_state(&bq, 4, 8, &[13, 14, 10, 11, 12, 9], &[7, 8]);
 
   let _ = bq.pop_back();
@@ -69,10 +69,10 @@ fn pop_back() {
   let _ = bq.pop_back();
   check_state(&bq, 1, 2, &[13, 14], &[]);
 
-  bq.push_front([&[15][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[15][..]], ()).unwrap();
   check_state(&bq, 2, 3, &[15, 13, 14], &[]);
 
-  bq.push_front([&[16][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[16][..]], ()).unwrap();
   check_state(&bq, 3, 4, &[16, 15, 13, 14], &[]);
 
   let _ = bq.pop_back();
@@ -92,13 +92,13 @@ fn pop_back() {
 // [. . . . . . . .]: Pop back - (LF=8, LO=0, RF=0, RO=0) - (H=0, T=0)
 #[test]
 fn pop_front() {
-  let mut bq = BlocksQueue::with_exact_capacity(2, 8).unwrap();
+  let mut bq = BlocksDeque::with_exact_capacity(2, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
 
-  bq.push_front([&[1, 2, 3][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[1, 2, 3][..]], ()).unwrap();
   check_state(&bq, 1, 3, &[1, 2, 3], &[]);
 
-  bq.push_front([&[4, 5], &[6, 7, 8][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[4, 5], &[6, 7, 8][..]], ()).unwrap();
   check_state(&bq, 2, 8, &[4, 5, 6, 7, 8, 1, 2, 3], &[]);
 
   let _ = bq.pop_front();
@@ -112,14 +112,14 @@ fn pop_front() {
 // [H * * *]: Push front - (LF=0, LO=0, RF=0, RO=4) - (H=0, T=4)
 #[test]
 fn push_reserve_and_push() {
-  let mut bq = BlocksQueue::new();
+  let mut bq = BlocksDeque::new();
   bq.reserve_front(1, 4).unwrap();
-  bq.push_front([&[0, 1, 2, 3][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[0, 1, 2, 3][..]], ()).unwrap();
   check_state(&bq, 1, 4, &[0, 1, 2, 3], &[]);
   assert_eq!(bq.get(0), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 0..4 }));
   assert_eq!(bq.get(1), None);
   bq.reserve_front(1, 6).unwrap();
-  bq.push_front([&[4, 5, 6, 7, 8, 9][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[4, 5, 6, 7, 8, 9][..]], ()).unwrap();
   check_state(&bq, 2, 10, &[4, 5, 6, 7, 8, 9, 0, 1, 2, 3], &[]);
   assert_eq!(bq.get(0), Some(BlockRef { data: &[4, 5, 6, 7, 8, 9], misc: &(), range: 0..6 }));
   assert_eq!(bq.get(1), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 6..10 }));
@@ -157,11 +157,11 @@ fn wrap_pop_front() {
 // [. . H * * * * * ]: Push front - (LF=2, LO=0, RF=0, RO=6)
 // [. . H * . . . . ]: Pop back - (LF=2, LO=0, RF=4, RO=0)
 // [. . . H * * * * ]: Push front - (LF=3, LO=0, RF=0, RO=5)
-fn wrap_initial() -> BlocksQueue<i32, ()> {
-  let mut bq = BlocksQueue::with_exact_capacity(6, 8).unwrap();
+fn wrap_initial() -> BlocksDeque<i32, ()> {
+  let mut bq = BlocksDeque::with_exact_capacity(6, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
   for _ in 0..6 {
-    bq.push_front([&[0][..]], ()).unwrap();
+    bq.push_front_from_coyable_data([&[0][..]], ()).unwrap();
   }
   check_state(&bq, 6, 6, &[0, 0, 0, 0, 0, 0], &[]);
   for idx in 0..6 {
@@ -174,7 +174,7 @@ fn wrap_initial() -> BlocksQueue<i32, ()> {
   check_state(&bq, 2, 2, &[0, 0], &[]);
   assert_eq!(bq.get(0).unwrap().data, &[0]);
   assert_eq!(bq.get(1).unwrap().data, &[0]);
-  bq.push_front([&[1, 2, 3][..]], ()).unwrap();
+  bq.push_front_from_coyable_data([&[1, 2, 3][..]], ()).unwrap();
   check_state(&bq, 3, 5, &[1, 2, 3, 0, 0], &[]);
   assert_eq!(bq.get(0).unwrap().data, &[1, 2, 3]);
   assert_eq!(bq.get(1).unwrap().data, &[0]);
@@ -184,7 +184,7 @@ fn wrap_initial() -> BlocksQueue<i32, ()> {
 
 #[track_caller]
 fn check_state(
-  bq: &BlocksQueue<i32, ()>,
+  bq: &BlocksDeque<i32, ()>,
   blocks_len: usize,
   elements_len: usize,
   front: &[i32],

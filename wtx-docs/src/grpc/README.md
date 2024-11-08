@@ -7,7 +7,7 @@ Basic implementation that currently only supports unary calls. gRPC is an high-p
 
 Due to the lack of an official parser, the definitions of a `Service` must be manually typed.
 
-To use this functionality, it necessary to activate the `grpc` feature.
+To use this functionality, it is necessary to activate the `grpc` feature.
 
 ## Client Example
 

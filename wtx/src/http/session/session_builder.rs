@@ -1,8 +1,8 @@
 use crate::{
   http::{
     cookie::{CookieGeneric, SameSite},
-    session::{SessionInner, SessionKey},
-    Session, SessionStore,
+    session::{SessionKey, SessionManagerInner},
+    Session, SessionManager, SessionStore,
   },
   misc::{sleep, Lock, Rng, Vector},
 };
@@ -46,17 +46,17 @@ impl<SS> SessionBuilder<SS> {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_generating_key<CS, E, L, RNG>(
+  pub fn build_generating_key<CS, E, I, RNG>(
     self,
     rng: &mut RNG,
-  ) -> (impl Future<Output = Result<(), E>>, Session<L, SS>)
+  ) -> (impl Future<Output = Result<(), E>>, Session<I, SS>)
   where
     E: From<crate::Error>,
-    L: Lock<Resource = SessionInner<CS, E>>,
+    I: Lock<Resource = SessionManagerInner<CS, E>>,
     RNG: Rng,
     SS: Clone + SessionStore<CS, E>,
   {
-    let mut key = [0; 16];
+    let mut key = [0; 32];
     rng.fill_slice(&mut key);
     Self::build_with_key(self, key)
   }
@@ -69,13 +69,13 @@ impl<SS> SessionBuilder<SS> {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_with_key<CS, E, L>(
+  pub fn build_with_key<CS, E, I>(
     self,
     key: SessionKey,
-  ) -> (impl Future<Output = Result<(), E>>, Session<L, SS>)
+  ) -> (impl Future<Output = Result<(), E>>, Session<I, SS>)
   where
     E: From<crate::Error>,
-    L: Lock<Resource = SessionInner<CS, E>>,
+    I: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
     let Self { cookie_def, inspection_interval, store } = self;
@@ -88,7 +88,9 @@ impl<SS> SessionBuilder<SS> {
         }
       },
       Session {
-        content: L::new(SessionInner { cookie_def, phantom: PhantomData, key, state: None }),
+        manager: SessionManager {
+          inner: I::new(SessionManagerInner { cookie_def, phantom: PhantomData, key, state: None }),
+        },
         store,
       },
     )

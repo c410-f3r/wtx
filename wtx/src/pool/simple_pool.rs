@@ -90,6 +90,15 @@ where
 }
 
 #[cfg(feature = "http-server-framework")]
+impl<RL, RM> crate::http::server_framework::ConnAux for SimplePool<RL, RM> {
+  type Init = Self;
+
+  #[inline]
+  fn conn_aux(init: Self::Init) -> crate::Result<Self> {
+    Ok(init)
+  }
+}
+#[cfg(feature = "http-server-framework")]
 impl<RL, RM> crate::http::server_framework::StreamAux for SimplePool<RL, RM> {
   type Init = Self;
 

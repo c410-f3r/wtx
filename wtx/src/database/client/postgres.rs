@@ -78,18 +78,18 @@ mod tests {
   use crate::database::client::postgres::{statements::Column, Ty};
 
   pub(crate) fn column0() -> Column {
-    Column { name: "a".try_into().unwrap(), ty: Ty::VarcharArray }
+    Column::new("a".try_into().unwrap(), Ty::VarcharArray)
   }
 
   pub(crate) fn column1() -> Column {
-    Column { name: "b".try_into().unwrap(), ty: Ty::Int8 }
+    Column::new("b".try_into().unwrap(), Ty::Int8)
   }
 
   pub(crate) fn column2() -> Column {
-    Column { name: "c".try_into().unwrap(), ty: Ty::Char }
+    Column::new("c".try_into().unwrap(), Ty::Char)
   }
 
   pub(crate) fn column3() -> Column {
-    Column { name: "d".try_into().unwrap(), ty: Ty::Date }
+    Column::new("d".try_into().unwrap(), Ty::Date)
   }
 }

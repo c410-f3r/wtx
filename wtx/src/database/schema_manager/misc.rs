@@ -28,9 +28,8 @@ use {
     misc::{ArrayVector, FromRadix10, Vector},
   },
   alloc::string::String,
-  core::cmp::Ordering,
+  core::{cmp::Ordering, fmt::Write},
   std::{
-    fmt::Write,
     fs::{read_to_string, DirEntry, File},
     io::Read,
     path::{Path, PathBuf},

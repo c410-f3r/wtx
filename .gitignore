@@ -4,7 +4,6 @@
 **/curl
 **/hpack-test-case
 **/profile.json
-**/proptest-regressions
 **/rustc-ice-*.txt
 **/target
 mdbook-target

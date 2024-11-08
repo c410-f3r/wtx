@@ -4,7 +4,7 @@ Implementation of [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541) and [
 
 Passes the `hpack-test-case` and the `h2spec` test suites. Due to official deprecation, prioritization is not supported and due to the lack of third-party support, server-push is also not supported.
 
-To use this functionality, it necessary to activate the `http2` feature.
+To use this functionality, it is necessary to activate the `http2` feature.
 
 ## Client Example
 

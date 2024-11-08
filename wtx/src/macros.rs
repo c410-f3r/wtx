@@ -307,10 +307,10 @@ macro_rules! _max_frames_mismatches {
 
 macro_rules! _simd {
   (
-    512 => $_512:expr,
-    256 => $_256:expr,
+    fallback => $fallback:expr,
     128 => $_128:expr,
-    _ => $fallback:expr $(,)?
+    256 => $_256:expr,
+    512 => $_512:expr $(,)?
   ) => {{
     #[cfg(target_feature = "avx512f")]
     let rslt = $_512;
@@ -339,6 +339,52 @@ macro_rules! _simd {
     let rslt = $fallback;
 
     rslt
+  }};
+}
+
+macro_rules! _simd_bytes {
+  (
+    ($align:ident, $bytes:expr),
+    (|$bytes_ident_a:ident| $bytes_expr_a:expr, |$bytes_ident_b:ident| $bytes_expr_b:expr),
+    |$_16:ident| $_128:expr,
+    |$_32:ident| $_256:expr,
+    |$_64:ident| $_512:expr  $(,)?
+  ) => {{
+    // SAFETY: Changing a sequence of `u8` should be fine
+    let (_prefix, _chunks, _suffix) = unsafe { $bytes.$align() };
+    _simd! {
+      fallback => {
+        let $bytes_ident_a = _prefix;
+        $bytes_expr_a;
+      }
+      128 => {
+        let $bytes_ident_a = _prefix;
+        $bytes_expr_a;
+        let _: [[u8; 64]] = *_chunks;
+        let $_16 = _chunks;
+        $_128
+        let $bytes_ident_b = _suffix;
+        $bytes_expr_b;
+      },
+      256 => {
+        let $bytes_ident_a = _prefix;
+        $bytes_expr_a;
+        let _: [[u8; 32]] = *_chunks;
+        let $_16 = _chunks;
+        $_128
+        let $bytes_ident_b = _suffix;
+        $bytes_expr_b;
+      },
+      512 => {
+        let $bytes_ident_a = _prefix;
+        $bytes_expr_a;
+        let _: [[u8; 16]] = *_chunks;
+        let $_16 = _chunks;
+        $_128
+        let $bytes_ident_b = _suffix;
+        $bytes_expr_b;
+      },
+    }
   }};
 }
 

@@ -102,6 +102,7 @@ pub(crate) mod database {
   pub struct PostgresRM<E, S> {
     _certs: Option<&'static [u8]>,
     error: PhantomData<fn() -> E>,
+    max_stmts: usize,
     rng: Xorshift64Sync,
     stream: PhantomData<S>,
     uri: String,
@@ -121,7 +122,7 @@ pub(crate) mod database {
     use crate::{
       database::{
         client::postgres::{Executor, ExecutorBuffer},
-        Executor as _,
+        Executor as _, DEFAULT_MAX_STMTS,
       },
       misc::{simple_seed, Xorshift64Sync},
       pool::{PostgresRM, ResourceManager},
@@ -137,6 +138,7 @@ pub(crate) mod database {
         Self {
           _certs: None,
           error: PhantomData,
+          max_stmts: DEFAULT_MAX_STMTS,
           rng: Xorshift64Sync::from(simple_seed()),
           stream: PhantomData,
           uri,
@@ -156,10 +158,9 @@ pub(crate) mod database {
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
         executor!(&self.uri, |config, uri| {
-          let eb = ExecutorBuffer::with_default_params(&mut &self.rng)?;
           Executor::connect(
             &config,
-            eb,
+            ExecutorBuffer::new(self.max_stmts, &mut &self.rng),
             &mut &self.rng,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
           )
@@ -177,7 +178,7 @@ pub(crate) mod database {
         _: &Self::RecycleAux,
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
-        let mut buffer = ExecutorBuffer::_empty();
+        let mut buffer = ExecutorBuffer::new(self.max_stmts, &mut &self.rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = executor!(&self.uri, |config, uri| {
           Executor::connect(
@@ -197,7 +198,7 @@ pub(crate) mod database {
     use crate::{
       database::{
         client::postgres::{Executor, ExecutorBuffer},
-        Executor as _,
+        Executor as _, DEFAULT_MAX_STMTS,
       },
       misc::{simple_seed, TokioRustlsConnector, Xorshift64Sync},
       pool::{PostgresRM, ResourceManager},
@@ -214,6 +215,7 @@ pub(crate) mod database {
         Self {
           _certs: certs,
           error: PhantomData,
+          max_stmts: DEFAULT_MAX_STMTS,
           rng: Xorshift64Sync::from(simple_seed()),
           stream: PhantomData,
           uri,
@@ -235,7 +237,7 @@ pub(crate) mod database {
         executor!(&self.uri, |config, uri| {
           Executor::connect_encrypted(
             &config,
-            ExecutorBuffer::with_default_params(&mut &self.rng)?,
+            ExecutorBuffer::new(self.max_stmts, &mut &self.rng),
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             &mut &self.rng,
             |stream| async {
@@ -260,12 +262,12 @@ pub(crate) mod database {
         _: &Self::RecycleAux,
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
-        let mut buffer = ExecutorBuffer::_empty();
+        let mut buffer = ExecutorBuffer::new(self.max_stmts, &mut &self.rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = executor!(&self.uri, |config, uri| {
           Executor::connect_encrypted(
             &config,
-            ExecutorBuffer::with_default_params(&mut &self.rng)?,
+            buffer,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             &mut &self.rng,
             |stream| async {

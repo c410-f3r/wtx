@@ -91,7 +91,7 @@ mod tests {
       client::postgres::{
         statements::Statement,
         tests::{column0, column1, column2},
-        DecodeValue, Record, Records,
+        DecodeValue, Record, Records, Ty,
       },
       Record as _, Records as _,
     },
@@ -101,8 +101,8 @@ mod tests {
   #[test]
   fn returns_correct_values() {
     let bytes = &[0, 0, 0, 2, 1, 2, 0, 0, 0, 2, 3, 4, 9, 9, 9, 0, 1, 0, 0, 0, 4, 5, 6, 7, 8];
-    let columns = &[column0(), column1(), column2()];
-    let stmt = Statement::new(columns, &[]);
+    let values = &[(column0(), Ty::Any), (column1(), Ty::Any), (column2(), Ty::Any)];
+    let stmt = Statement::new(3, 0, values);
     let mut records_values_offsets = Vector::new();
     let mut values_bytes_offsets = Vector::new();
     assert_eq!(

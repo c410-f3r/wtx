@@ -1,14 +1,15 @@
 use crate::{
   http::{
     cookie::{decrypt, CookieBytes},
-    server_framework::ReqMiddleware,
-    KnownHeaderName, ReqResBuffer, Request, Session, SessionError, SessionInner, SessionState,
-    SessionStore,
+    server_framework::Middleware,
+    KnownHeaderName, ReqResBuffer, Request, Response, Session, SessionError, SessionManagerInner,
+    SessionState, SessionStore, StatusCode,
   },
   misc::{GenericTime, LeaseMut, Lock},
+  pool::{Pool, ResourceManager},
 };
 use chrono::DateTime;
-use core::marker::PhantomData;
+use core::ops::ControlFlow;
 use serde::de::DeserializeOwned;
 
 /// Decodes cookies received from requests and manages them.
@@ -16,45 +17,55 @@ use serde::de::DeserializeOwned;
 /// The use of this structure without [`Session`] or used after the applicability of [`Session`]
 /// is a NO-OP.
 #[derive(Debug)]
-pub struct SessionDecoder<L, SS> {
-  phantom: PhantomData<(L, SS)>,
+pub struct SessionDecoder<I, S> {
+  session: Session<I, S>,
 }
 
-impl<L, SS> SessionDecoder<L, SS> {
+impl<I, S> SessionDecoder<I, S> {
   /// New instance
   #[inline]
-  pub fn new() -> Self {
-    Self { phantom: PhantomData }
+  pub fn new(session: Session<I, S>) -> Self {
+    Self { session }
   }
 }
 
-impl<CA, CS, E, L, SA, SS> ReqMiddleware<CA, E, SA> for SessionDecoder<L, SS>
+impl<CA, CS, E, I, RM, SA, S> Middleware<CA, E, SA> for SessionDecoder<I, S>
 where
-  CA: LeaseMut<Session<L, SS>>,
   CS: DeserializeOwned + PartialEq,
   E: From<crate::Error>,
-  L: Lock<Resource = SessionInner<CS, E>>,
-  SS: SessionStore<CS, E>,
+  I: Lock<Resource = SessionManagerInner<CS, E>>,
+  S: Pool<ResourceManager = RM>,
+  for<'any> S::GetElem<'any>: LeaseMut<RM::Resource>,
+  RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
+  RM::Resource: SessionStore<CS, E>,
 {
+  type Aux = ();
+
   #[inline]
-  async fn apply_req_middleware(
+  fn aux(&self) -> Self::Aux {
+    ()
+  }
+
+  #[inline]
+  async fn req(
     &self,
-    conn_aux: &mut CA,
+    _: &mut CA,
+    _: &mut Self::Aux,
     req: &mut Request<ReqResBuffer>,
     _: &mut SA,
-  ) -> Result<(), E> {
-    let Session { content, store } = conn_aux.lease_mut();
-    let SessionInner { cookie_def, phantom: _, key, state } = &mut *content.lock().await;
+  ) -> Result<ControlFlow<StatusCode, ()>, E> {
+    let SessionManagerInner { cookie_def, key, state, .. } =
+      &mut *self.session.manager.inner.lock().await;
     if let Some(elem) = state {
       if let Some(expire) = &elem.expire {
         let millis = i64::try_from(GenericTime::timestamp()?.as_millis()).unwrap_or_default();
         let date_time = DateTime::from_timestamp_millis(millis).unwrap_or_default();
         if expire >= &date_time {
-          let _rslt = store.delete(&elem.id).await;
+          let _rslt = self.session.store.get(&(), &()).await?.lease_mut().delete(&elem.id).await;
           return Err(crate::Error::from(SessionError::ExpiredSession).into());
         }
       }
-      return Ok(());
+      return Ok(ControlFlow::Continue(()));
     }
     let lease = req.rrd.lease_mut();
     let (vector, headers) = (&mut lease.body, &mut lease.headers);
@@ -79,24 +90,29 @@ where
       let rslt_des = serde_json::from_slice(&cookie_def.value).map_err(Into::into);
       cookie_def.value.clear();
       let state_des: SessionState<CS> = rslt_des?;
-      let state_db_opt = store.read(&state_des.id).await?;
+      let state_db_opt =
+        self.session.store.get(&(), &()).await?.lease_mut().read(&state_des.id).await?;
       let Some(state_db) = state_db_opt else {
         return Err(crate::Error::from(SessionError::MissingStoredSession).into());
       };
       if state_db != state_des {
-        store.delete(&state_des.id).await?;
+        self.session.store.get(&(), &()).await?.lease_mut().delete(&state_des.id).await?;
         return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
       }
       *state = Some(state_des);
       break;
     }
-    Ok(())
+    Ok(ControlFlow::Continue(()))
   }
-}
 
-impl<L, SS> Default for SessionDecoder<L, SS> {
   #[inline]
-  fn default() -> Self {
-    Self::new()
+  async fn res(
+    &self,
+    _: &mut CA,
+    _: &mut Self::Aux,
+    _: Response<&mut ReqResBuffer>,
+    _: &mut SA,
+  ) -> Result<ControlFlow<StatusCode, ()>, E> {
+    Ok(ControlFlow::Continue(()))
   }
 }

@@ -1,7 +1,7 @@
-macro_rules! proptest {
+macro_rules! kani {
   ($name:ident, $ty:ty) => {
-    #[cfg(all(feature = "_proptest", test))]
-    #[test_strategy::proptest]
+    #[cfg(kani)]
+    #[kani::proof]
     fn $name(instance: $ty) {
       let mut vec = &mut crate::misc::FilledBuffer::_new();
       {
@@ -296,7 +296,10 @@ mod collections {
   {
     #[inline]
     fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
-      Ok(from_utf8_basic(dv.bytes()).map_err(crate::Error::from)?.into())
+      match from_utf8_basic(dv.bytes()).map_err(crate::Error::from) {
+        Ok(elem) => Ok(elem.into()),
+        Err(err) => Err(err.into()),
+      }
     }
   }
   impl<E> Encode<Postgres<E>> for String
@@ -315,12 +318,12 @@ mod collections {
   {
     const TY: Ty = Ty::Text;
   }
-  proptest!(string, String);
+  kani!(string, String);
 }
 
 mod ip {
   use crate::database::{
-    client::postgres::{DecodeValue, EncodeValue, Postgres, Ty},
+    client::postgres::{DecodeValue, EncodeValue, Postgres, PostgresError, Ty},
     Decode, Encode, Typed,
   };
   use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -334,7 +337,7 @@ mod ip {
       Ok(match dv.bytes() {
         [2, ..] => IpAddr::V4(Ipv4Addr::decode(dv)?),
         [3, ..] => IpAddr::V6(Ipv6Addr::decode(dv)?),
-        _ => panic!(),
+        _ => return Err(E::from(PostgresError::InvalidIpFormat.into())),
       })
     }
   }
@@ -366,7 +369,7 @@ mod ip {
     #[inline]
     fn decode(dv: &DecodeValue<'exec>) -> Result<Self, E> {
       let [2, 32, 0, 4, e, f, g, h] = dv.bytes() else {
-        panic!();
+        return Err(E::from(PostgresError::InvalidIpFormat.into()));
       };
       Ok(Ipv4Addr::from([*e, *f, *g, *h]))
     }
@@ -396,7 +399,7 @@ mod ip {
     #[inline]
     fn decode(dv: &DecodeValue<'exec>) -> Result<Self, E> {
       let [3, 128, 0, 16, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t] = dv.bytes() else {
-        panic!();
+        return Err(E::from(PostgresError::InvalidIpFormat.into()));
       };
       Ok(Ipv6Addr::from([*e, *f, *g, *h, *i, *j, *k, *l, *m, *n, *o, *p, *q, *r, *s, *t]))
     }
@@ -588,8 +591,8 @@ mod primitives {
     const TY: Ty = Ty::Bool;
   }
 
-  proptest!(bool_true, bool);
-  proptest!(bool_false, bool);
+  kani!(bool_true, bool);
+  kani!(bool_false, bool);
 
   macro_rules! impl_integer_from_array {
     ($instance:expr, [$($elem:ident),+], ($signed:ident, $signed_pg_ty:expr), ($unsigned:ident, $unsigned_pg_ty:expr)) => {
@@ -789,7 +792,7 @@ mod rust_decimal {
     const TY: Ty = Ty::Numeric;
   }
 
-  proptest!(rust_decimal, Decimal);
+  kani!(rust_decimal, Decimal);
 }
 
 #[cfg(feature = "serde_json")]

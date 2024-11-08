@@ -1,26 +1,36 @@
+use core::ops::ControlFlow;
+
 use crate::{
   grpc::GrpcManager,
   http::{
-    server_framework::ResMiddleware, Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut,
-    Response,
+    server_framework::Middleware, Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut,
+    Request, Response, StatusCode,
   },
 };
 
 /// Applies gRPC headers
 #[derive(Debug)]
-pub struct GrpcResMiddleware;
+pub struct GrpcMiddleware;
 
-impl<CA, DRSR, E> ResMiddleware<CA, E, GrpcManager<DRSR>> for GrpcResMiddleware
+impl<CA, DRSR, E> Middleware<CA, E, GrpcManager<DRSR>> for GrpcMiddleware
 where
   E: From<crate::Error>,
 {
+  type Aux = ();
+
   #[inline]
-  async fn apply_res_middleware(
+  fn aux(&self) -> Self::Aux {
+    ()
+  }
+
+  #[inline]
+  async fn req(
     &self,
     _: &mut CA,
-    res: Response<&mut ReqResBuffer>,
+    _: &mut Self::Aux,
+    res: &mut Request<ReqResBuffer>,
     sa: &mut GrpcManager<DRSR>,
-  ) -> Result<(), E> {
+  ) -> Result<ControlFlow<StatusCode, ()>, E> {
     res.rrd.headers_mut().push_from_iter_many([
       Header::from_name_and_value(
         KnownHeaderName::ContentType.into(),
@@ -33,6 +43,17 @@ where
         value: [sa.status_code_mut().number_as_str().as_bytes()].into_iter(),
       },
     ])?;
-    Ok(())
+    Ok(ControlFlow::Continue(()))
+  }
+
+  #[inline]
+  async fn res(
+    &self,
+    _: &mut CA,
+    _: &mut Self::Aux,
+    _: Response<&mut ReqResBuffer>,
+    _: &mut GrpcManager<DRSR>,
+  ) -> Result<ControlFlow<StatusCode, ()>, E> {
+    Ok(ControlFlow::Continue(()))
   }
 }

@@ -17,7 +17,7 @@ use crate::{
   },
   misc::{
     AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
-    Usize, _read_until,
+    Usize, _read_header, _read_payload,
   },
 };
 use core::{
@@ -191,9 +191,10 @@ where
   let mut fut = pin!(async move {
     for _ in 0.._max_frames_mismatches!() {
       pfb._clear_if_following_is_empty();
+      pfb._reserve(9)?;
       let mut read = pfb._following_len();
       let buffer = pfb._following_rest_mut();
-      let array = _read_until::<9, _>(buffer, &mut read, 0, stream_reader).await?;
+      let array = _read_header::<0, 9, _>(buffer, &mut read, stream_reader).await?;
       let (fi_opt, data_len) = FrameInit::from_array(array);
       if data_len > max_frame_len {
         return Err(crate::Error::Http2ErrorGoAway(
@@ -201,7 +202,7 @@ where
           Some(Http2Error::LargeArbitraryFrameLen),
         ));
       }
-      let frame_len = *Usize::from_u32(data_len.wrapping_add(9));
+      let data_len_usize = *Usize::from_u32(data_len);
       let Some(fi) = fi_opt else {
         if IS_HEADER_BLOCK {
           return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
@@ -209,6 +210,7 @@ where
         if data_len > 32 {
           return Err(protocol_err(Http2Error::LargeIgnorableFrameLen));
         }
+        let frame_len = data_len_usize.wrapping_add(9);
         let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
           stream_reader.read_skip(to_read).await?;
           (pfb._buffer().len(), 0)
@@ -219,25 +221,7 @@ where
         continue;
       };
       _trace!("Received frame: {fi:?}");
-      let mut is_fulfilled = false;
-      pfb._reserve(*Usize::from(data_len))?;
-      for _ in 0..=data_len {
-        if read >= frame_len {
-          is_fulfilled = true;
-          break;
-        }
-        read = read.wrapping_add(
-          stream_reader.read(pfb._following_rest_mut().get_mut(read..).unwrap_or_default()).await?,
-        );
-      }
-      if !is_fulfilled {
-        return Err(crate::Error::UnexpectedBufferState);
-      }
-      pfb._set_indices(
-        pfb._current_end_idx().wrapping_add(9),
-        *Usize::from(data_len),
-        read.wrapping_sub(frame_len),
-      )?;
+      _read_payload((9, data_len_usize), pfb, &mut read, stream_reader).await?;
       return Ok(fi);
     }
     Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))

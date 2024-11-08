@@ -1,8 +1,8 @@
-use crate::misc::{queue::is_wrapping, Queue};
+use crate::misc::{deque::is_wrapping, Deque};
 
 #[test]
 fn as_slices() {
-  let mut queue = Queue::with_capacity(4).unwrap();
+  let mut queue = Deque::with_capacity(4).unwrap();
   queue.push_front(1).unwrap();
   queue.push_back(5).unwrap();
   assert_eq!(queue.as_slices(), (&[1][..], &[5][..]));
@@ -10,7 +10,7 @@ fn as_slices() {
 
 #[test]
 fn clear() {
-  let mut queue = Queue::with_capacity(1).unwrap();
+  let mut queue = Deque::with_capacity(1).unwrap();
   assert_eq!(queue.len(), 0);
   queue.push_front(1).unwrap();
   assert_eq!(queue.len(), 1);
@@ -20,7 +20,7 @@ fn clear() {
 
 #[test]
 fn get() {
-  let mut queue = Queue::with_capacity(1).unwrap();
+  let mut queue = Deque::with_capacity(1).unwrap();
   assert_eq!(queue.get(0), None);
   assert_eq!(queue.get_mut(0), None);
   queue.push_front(1).unwrap();
@@ -43,7 +43,7 @@ fn heads_tails_and_slices() {
 fn impossible_instances() {
   // . . . . H (4-5)
   {
-    let mut queue = Queue::with_exact_capacity(5).unwrap();
+    let mut queue = Deque::with_exact_capacity(5).unwrap();
     queue.push_back(1).unwrap();
     queue.push_back(1).unwrap();
     queue.push_back(1).unwrap();
@@ -57,7 +57,7 @@ fn impossible_instances() {
   }
   // H * * * T (0-5)
   {
-    let mut queue = Queue::with_exact_capacity(5).unwrap();
+    let mut queue = Deque::with_exact_capacity(5).unwrap();
     queue.push_back(1).unwrap();
     queue.push_back(2).unwrap();
     queue.push_back(3).unwrap();
@@ -124,7 +124,7 @@ fn pop_front() {
 
 #[test]
 fn push_front() {
-  let mut queue = Queue::with_capacity(1).unwrap();
+  let mut queue = Deque::with_capacity(1).unwrap();
   assert_eq!(queue.len(), 0);
   queue.push_front(1).unwrap();
   assert_eq!(queue.len(), 1);
@@ -132,7 +132,7 @@ fn push_front() {
 
 #[test]
 fn push_when_full() {
-  let mut bq = Queue::with_capacity(5).unwrap();
+  let mut bq = Deque::with_capacity(5).unwrap();
   bq.push_front(0).unwrap();
   bq.push_front(1).unwrap();
   bq.push_front(2).unwrap();
@@ -147,7 +147,7 @@ fn push_when_full() {
 
 #[test]
 fn reserve() {
-  let mut queue = Queue::<u8>::new();
+  let mut queue = Deque::<u8>::new();
   assert_eq!(queue.capacity(), 0);
   let _ = queue.reserve_back(10).unwrap();
   assert!(queue.capacity() >= 10);
@@ -156,29 +156,29 @@ fn reserve() {
 }
 
 fn instances(
-  single_begin: impl FnOnce(&mut Queue<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
-  single_end: impl FnOnce(&mut Queue<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
-  single_both_sides: impl FnOnce(&mut Queue<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
-  full_begin: impl FnOnce(&mut Queue<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
-  full_end: impl FnOnce(&mut Queue<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
+  single_begin: impl FnOnce(&mut Deque<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
+  single_end: impl FnOnce(&mut Deque<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
+  single_both_sides: impl FnOnce(&mut Deque<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
+  full_begin: impl FnOnce(&mut Deque<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
+  full_end: impl FnOnce(&mut Deque<i32>) -> (usize, usize, &'static [i32], &'static [i32]),
 ) {
   // H . . . . (0-1)
   {
-    let mut queue = Queue::with_exact_capacity(5).unwrap();
+    let mut queue = Deque::with_exact_capacity(5).unwrap();
     queue.push_back(1).unwrap();
     let (head, tail, front, back) = single_begin(&mut queue);
     verify_instance(&queue, head, tail, front, back);
   }
   // . . . . H (4-0)
   {
-    let mut queue = Queue::with_exact_capacity(5).unwrap();
+    let mut queue = Deque::with_exact_capacity(5).unwrap();
     queue.push_front(1).unwrap();
     let (head, tail, front, back) = single_end(&mut queue);
     verify_instance(&queue, head, tail, front, back);
   }
   // T . . . H (4-1)
   {
-    let mut queue = Queue::with_exact_capacity(5).unwrap();
+    let mut queue = Deque::with_exact_capacity(5).unwrap();
     queue.push_back(2).unwrap();
     queue.push_front(1).unwrap();
     let (head, tail, front, back) = single_both_sides(&mut queue);
@@ -187,7 +187,7 @@ fn instances(
   }
   // H * * * T (0-0)
   {
-    let mut queue = Queue::with_exact_capacity(5).unwrap();
+    let mut queue = Deque::with_exact_capacity(5).unwrap();
     queue.push_front(5).unwrap();
     queue.push_front(4).unwrap();
     queue.push_front(3).unwrap();
@@ -202,7 +202,7 @@ fn instances(
   }
   // * * * T H (4-4)
   {
-    let mut queue = Queue::with_exact_capacity(5).unwrap();
+    let mut queue = Deque::with_exact_capacity(5).unwrap();
     queue.push_front(1).unwrap();
     queue.push_back(2).unwrap();
     queue.push_back(3).unwrap();
@@ -214,7 +214,7 @@ fn instances(
 }
 
 #[track_caller]
-fn verify_instance(queue: &Queue<i32>, head: usize, tail: usize, front: &[i32], back: &[i32]) {
+fn verify_instance(queue: &Deque<i32>, head: usize, tail: usize, front: &[i32], back: &[i32]) {
   assert_eq!((queue.head, queue.tail, queue.as_slices()), (head, tail, (front, back)));
   assert_eq!(queue.len(), front.len() + back.len());
   if is_wrapping(queue.head, queue.data.len(), queue.tail) {

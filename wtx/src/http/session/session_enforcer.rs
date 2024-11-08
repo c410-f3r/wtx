@@ -1,51 +1,68 @@
-use core::marker::PhantomData;
-
 use crate::{
   http::{
-    server_framework::ReqMiddleware, ReqResBuffer, ReqResData, Request, Session, SessionError,
-    SessionInner,
+    server_framework::Middleware, ReqResBuffer, ReqResData, Request, Response, Session,
+    SessionError, SessionManagerInner, StatusCode,
   },
-  misc::{Lease, Lock},
+  misc::Lock,
 };
+use core::ops::ControlFlow;
 
 /// Enforces stored session in all requests.
 ///
 ///
 #[derive(Debug)]
-pub struct SessionEnforcer<L, SS, const N: usize> {
+pub struct SessionEnforcer<I, S, const N: usize> {
   denied: [&'static str; N],
-  phantom: PhantomData<(L, SS)>,
+  session: Session<I, S>,
 }
 
-impl<L, SS, const N: usize> SessionEnforcer<L, SS, N> {
+impl<I, S, const N: usize> SessionEnforcer<I, S, N> {
   /// Creates a new instance with paths that are not taken into consideration.
   #[inline]
-  pub fn new(denied: [&'static str; N]) -> Self {
-    Self { denied, phantom: PhantomData }
+  pub fn new(denied: [&'static str; N], session: Session<I, S>) -> Self {
+    Self { denied, session }
   }
 }
 
-impl<CA, CS, E, L, SA, SS, const N: usize> ReqMiddleware<CA, E, SA> for SessionEnforcer<L, SS, N>
+impl<CA, CS, E, I, S, SA, const N: usize> Middleware<CA, E, SA> for SessionEnforcer<I, S, N>
 where
-  CA: Lease<Session<L, SS>>,
   E: From<crate::Error>,
-  L: Lock<Resource = SessionInner<CS, E>>,
+  I: Lock<Resource = SessionManagerInner<CS, E>>,
 {
+  type Aux = ();
+
   #[inline]
-  async fn apply_req_middleware(
+  fn aux(&self) -> Self::Aux {
+    ()
+  }
+
+  #[inline]
+  async fn req(
     &self,
-    conn_aux: &mut CA,
+    _: &mut CA,
+    _: &mut Self::Aux,
     req: &mut Request<ReqResBuffer>,
     _: &mut SA,
-  ) -> Result<(), E> {
+  ) -> Result<ControlFlow<StatusCode, ()>, E> {
     let uri = req.rrd.uri();
     let path = uri.path();
     if self.denied.iter().all(|elem| *elem != path) {
-      return Ok(());
+      return Ok(ControlFlow::Continue(()));
     }
-    if conn_aux.lease().content.lock().await.state().is_none() {
+    if self.session.manager.inner.lock().await.state().is_none() {
       return Err(crate::Error::from(SessionError::RequiredSessionInPath).into());
     }
-    Ok(())
+    Ok(ControlFlow::Continue(()))
+  }
+
+  #[inline]
+  async fn res(
+    &self,
+    _: &mut CA,
+    _: &mut Self::Aux,
+    _: Response<&mut ReqResBuffer>,
+    _: &mut SA,
+  ) -> Result<ControlFlow<StatusCode, ()>, E> {
+    Ok(ControlFlow::Continue(()))
   }
 }

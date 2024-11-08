@@ -1,5 +1,5 @@
 use crate::misc::{
-  ArrayStringError, ArrayVectorError, BlocksQueueError, FromRadix10Error, QueueError, VectorError,
+  ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FromRadix10Error, VectorError,
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -131,7 +131,7 @@ pub enum Error {
   //
   ArrayStringError(ArrayStringError),
   ArrayVectorError(ArrayVectorError),
-  BlocksQueueError(BlocksQueueError),
+  BlocksQueueError(BlocksDequeError),
   #[cfg(feature = "client-api-framework")]
   ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
   #[cfg(feature = "database")]
@@ -147,7 +147,7 @@ pub enum Error {
   Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
   #[cfg(feature = "postgres")]
   PostgresError(crate::database::client::postgres::PostgresError),
-  QueueError(QueueError),
+  QueueError(DequeueError),
   #[cfg(feature = "schema-manager")]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
   VectorError(VectorError),
@@ -443,9 +443,9 @@ impl From<ArrayVectorError> for Error {
   }
 }
 
-impl From<BlocksQueueError> for Error {
+impl From<BlocksDequeError> for Error {
   #[inline]
-  fn from(from: BlocksQueueError) -> Self {
+  fn from(from: BlocksDequeError) -> Self {
     Self::BlocksQueueError(from)
   }
 }
@@ -497,9 +497,9 @@ impl From<crate::database::client::postgres::PostgresError> for Error {
   }
 }
 
-impl From<QueueError> for Error {
+impl From<DequeueError> for Error {
   #[inline]
-  fn from(from: QueueError) -> Self {
+  fn from(from: DequeueError) -> Self {
     Self::QueueError(from)
   }
 }

@@ -14,7 +14,7 @@ A collection of different transport implementations and related tools focused pr
 4. [gRPC Client/Server](https://c410-f3r.github.io/wtx/grpc/index.html)
 5. [HTTP Client Framework](https://c410-f3r.github.io/wtx/http-client-framework/index.html)
 6. [HTTP Server Framework](https://c410-f3r.github.io/wtx/http-server-framework/index.html)
-7. [HTTP2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
+7. [HTTP/2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
 8. [Pool Manager](https://c410-f3r.github.io/wtx/pool/index.html)
 9. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
 10. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)

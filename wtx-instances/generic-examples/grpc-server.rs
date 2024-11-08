@@ -8,7 +8,7 @@ extern crate wtx_instances;
 use std::borrow::Cow;
 use wtx::{
   data_transformation::dnsn::QuickProtobuf,
-  grpc::{GrpcManager, GrpcResMiddleware},
+  grpc::{GrpcManager, GrpcMiddleware},
   http::{
     server_framework::{post, Router, ServerFrameworkBuilder, State},
     ReqResBuffer, StatusCode,
@@ -21,8 +21,7 @@ use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 async fn main() -> wtx::Result<()> {
   let router = Router::new(
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
-    (),
-    GrpcResMiddleware,
+    GrpcMiddleware,
   )?;
   ServerFrameworkBuilder::new(router)
     .with_req_aux(|| QuickProtobuf::default())

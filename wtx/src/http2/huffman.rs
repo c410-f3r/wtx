@@ -166,16 +166,17 @@ mod bench {
   }
 }
 
-#[cfg(all(feature = "_proptest", test))]
-mod proptest {
+#[cfg(kani)]
+mod kani {
   use crate::{
     http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
     misc::Vector,
   };
 
-  #[test_strategy::proptest]
+  #[kani::proof]
   fn encode_and_decode(data: Vector<u8>) {
+    let data = kani::any();
     let mut encoded = Vector::with_capacity(data.len()).unwrap();
     huffman_encode(&data, &mut encoded).unwrap();
     let mut decoded = _HeaderValueBuffer::default();

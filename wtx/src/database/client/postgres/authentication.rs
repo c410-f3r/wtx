@@ -14,6 +14,8 @@ pub(crate) enum Authentication<'bytes> {
 
 impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
   type Error = crate::Error;
+
+  #[inline]
   fn try_from(bytes: &'bytes [u8]) -> Result<Self, Self::Error> {
     let (n, rest) = if let [a, b, c, d, rest @ ..] = bytes {
       (u32::from_be_bytes([*a, *b, *c, *d]), rest)

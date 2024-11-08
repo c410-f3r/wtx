@@ -5,7 +5,7 @@ services:
         environment:
             POSTGRES_DB: wtx
             POSTGRES_PASSWORD: wtx
-        image: postgres:16
+        image: postgres:17
         ports:
             - 5432:5432
         volumes:

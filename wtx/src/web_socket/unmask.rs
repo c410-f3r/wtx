@@ -1,43 +1,52 @@
 #[doc = _internal_doc!()]
 #[inline]
 pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
-  let (is_128, unmask_chunks_slice) = _simd!(
-    512 => (false, _unmask_chunks_slice_512),
-    256 => (false, _unmask_chunks_slice_256),
-    128 => (true, _unmask_chunks_slice_128),
-    _ => (false, _unmask_chunks_slice_fallback)
+  let unmask_chunks_slice = _simd!(
+    fallback => _unmask_chunks_slice_fallback,
+    128 => _unmask_chunks_slice_128,
+    256 => _unmask_chunks_slice_256,
+    512 => _unmask_chunks_slice_512
   );
-
   // SAFETY: Changing a sequence of `u8` should be fine
   let (prefix, chunks, suffix) = unsafe { bytes.align_to_mut() };
   unmask_u8_slice(prefix, mask, 0);
   mask.rotate_left(prefix.len() % 4);
   unmask_chunks_slice(chunks, mask);
-  unmask_u8_slice(suffix, mask, if is_128 { (chunks.len() % 2).wrapping_mul(2) } else { 0 });
+  unmask_u8_slice(suffix, mask, 0);
 }
 
 #[inline]
-fn _unmask_chunks_slice_512(bytes: &mut [u64], [a, b, c, d]: [u8; 4]) {
-  let mask = u64::from_be_bytes([d, c, b, a, d, c, b, a]);
-  for elem in bytes {
-    *elem ^= mask;
+fn _unmask_chunks_slice_512(slice: &mut [[u8; 64]], [a, b, c, d]: [u8; 4]) {
+  let mask = [
+    a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+    a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+  ];
+  for array in slice {
+    for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
+      *array_elem ^= mask_elem;
+    }
   }
 }
 
 #[inline]
-fn _unmask_chunks_slice_256(bytes: &mut [u32], [a, b, c, d]: [u8; 4]) {
-  let mask = u32::from_be_bytes([d, c, b, a]);
-  for elem in bytes {
-    *elem ^= mask;
+fn _unmask_chunks_slice_256(slice: &mut [[u8; 32]], [a, b, c, d]: [u8; 4]) {
+  let mask = [
+    a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+  ];
+  for array in slice {
+    for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
+      *array_elem ^= mask_elem;
+    }
   }
 }
 
-#[expect(clippy::indexing_slicing, reason = "index will always be in-bounds")]
 #[inline]
-fn _unmask_chunks_slice_128(bytes: &mut [u16], [a, b, c, d]: [u8; 4]) {
-  let mask = [u16::from_be_bytes([b, a]), u16::from_be_bytes([d, c])];
-  for (idx, elem) in bytes.iter_mut().enumerate() {
-    *elem ^= mask[idx & 1];
+fn _unmask_chunks_slice_128(slice: &mut [[u8; 16]], [a, b, c, d]: [u8; 4]) {
+  let mask = [a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d];
+  for array in slice {
+    for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
+      *array_elem ^= mask_elem;
+    }
   }
 }
 
@@ -65,12 +74,14 @@ mod bench {
   }
 }
 
-#[cfg(all(feature = "_proptest", test))]
-mod proptest {
+#[cfg(kani)]
+mod kani {
   use crate::misc::Vector;
 
-  #[test_strategy::proptest]
-  fn unmask(mut payload: Vector<u8>, mask: [u8; 4]) {
+  #[kani::proof]
+  fn unmask() {
+    let mask = kani::any();
+    let mut payload = Vector::from(kani::vec::any_vec::<u8, 128>());
     payload.fill(0);
     crate::web_socket::unmask::unmask(&mut payload, mask);
     let expected = Vector::from_iter((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();

@@ -1,8 +1,8 @@
-use crate::misc::{Block, BlocksQueue};
+use crate::misc::{Block, BlocksDeque};
 
 #[derive(Debug)]
 pub(crate) struct HpackHeaders<M> {
-  bq: BlocksQueue<u8, Metadata<M>>,
+  bq: BlocksDeque<u8, Metadata<M>>,
   max_bytes: usize,
 }
 
@@ -12,7 +12,7 @@ where
 {
   #[inline]
   pub(crate) const fn new(max_bytes: usize) -> Self {
-    Self { bq: BlocksQueue::new(), max_bytes }
+    Self { bq: BlocksDeque::new(), max_bytes }
   }
 
   #[inline]
@@ -63,7 +63,7 @@ where
       return Ok(());
     }
     self.remove_until_max_bytes(local_len, cb);
-    self.bq.push_front(
+    self.bq.push_front_from_coyable_data(
       [name].into_iter().chain(iter),
       Metadata { is_sensitive, misc, name_len: name.len() },
     )?;

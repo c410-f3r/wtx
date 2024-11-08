@@ -38,6 +38,8 @@ pub use transaction_manager::TransactionManager;
 pub use typed::Typed;
 pub use value_ident::ValueIdent;
 
+/// The default value for the maximum number of cached statements
+pub const DEFAULT_MAX_STMTS: usize = 128;
 /// Default environment variable name for the database URL
 pub const DEFAULT_URI_VAR: &str = "DATABASE_URI";
 
