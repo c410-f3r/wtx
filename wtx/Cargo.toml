@@ -8,7 +8,7 @@ chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
-fastrand = { default-features = false, optional = true, version = "2.0" }
+fastrand = { default-features = false, optional = true, version = "2.2" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.1" }
 hashbrown = { default-features = false, features = ["inline-more"], optional = true, version = "0.15" }
