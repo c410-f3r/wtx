@@ -1,4 +1,5 @@
-use alloc::{rc::Rc, sync::Arc};
+use crate::misc::Arc;
+use alloc::rc::Rc;
 use core::ops::Deref;
 
 /// Reference Counter

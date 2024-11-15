@@ -7,7 +7,7 @@ While HTTP/2 inherently supports full-duplex communication, web browsers typical
 1. Servers can efficiently handle multiple concurrent streams within a single TCP connection
 2. Client applications can continue using existing WebSocket APIs without modification
 
-For this particular scenario, the `no-masking` parameter defined in <https://datatracker.ietf.org/doc/html/draft-damjanovic-websockets-nomasking-02> is also supported.
+For this particular scenario the `no-masking` parameter defined in <https://datatracker.ietf.org/doc/html/draft-damjanovic-websockets-nomasking-02> is also supported.
 
 To use this functionality, it is necessary to activate the `http2` and `web-socket` features.
 

@@ -20,6 +20,8 @@ A collection of different transport implementations and related tools focused pr
 10. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
 11. [WebSocket over HTTP/2](https://c410-f3r.github.io/wtx/web-socket-over-http2/index.html)
 
+Every feature is optional and must be set at compile time. Please see the intended documentation for further information.
+
 Embedded devices with a working heap allocator can use this `no_std` crate.
 
 ## Performance

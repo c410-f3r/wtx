@@ -1,10 +1,6 @@
-use crate::misc::Usize;
+use crate::misc::{AtomicU64, Usize};
 use alloc::boxed::Box;
-use core::{
-  panic::Location,
-  ptr,
-  sync::atomic::{AtomicU64, Ordering},
-};
+use core::{panic::Location, ptr, sync::atomic::Ordering};
 
 /// Uses a combination of weak strategies that will likely result in poor results.
 ///

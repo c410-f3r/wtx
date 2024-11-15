@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::{Endpoint, ResFinalizer},
-    ReqResBuffer, ReqResDataMut, Request, StatusCode,
+    server_framework::{Endpoint, ResFinalizer, RouteMatch},
+    AutoStream, ReqResBuffer, ReqResDataMut, Request, StatusCode,
   },
   misc::{FnFut, FnFutWrapper},
 };
@@ -45,21 +45,28 @@ where
   }
 }
 
-impl<CA, E, F, SA, RES, const CLEAN: bool> Endpoint<CA, E, SA>
+impl<CA, E, F, RES, S, SA, const CLEAN: bool> Endpoint<CA, E, S, SA>
   for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>,), F>
 where
+  E: From<crate::Error>,
   F: for<'any> FnFut<(StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>,), Result = RES>,
   RES: ResFinalizer<E>,
 {
   #[inline]
-  async fn call(
+  async fn auto(
     &self,
-    conn_aux: &mut CA,
-    _: (u8, &[(&'static str, u8)]),
-    req: &mut Request<ReqResBuffer>,
-    stream_aux: &mut SA,
+    auto_stream: &mut AutoStream<CA, SA>,
+    _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    self.0.call((StateGeneric::new(conn_aux, stream_aux, req),)).await.finalize_response(req)
+    self
+      .0
+      .call((StateGeneric::new(
+        &mut auto_stream.conn_aux,
+        &mut auto_stream.stream_aux,
+        &mut auto_stream.req,
+      ),))
+      .await
+      .finalize_response(&mut auto_stream.req)
   }
 }
 

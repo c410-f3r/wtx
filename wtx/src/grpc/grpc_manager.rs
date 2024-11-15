@@ -4,7 +4,7 @@ use crate::{
     format::{VerbatimRequest, VerbatimResponse},
   },
   grpc::{serialize, GrpcStatusCode},
-  http::{server_framework::StreamAux, ReqResBuffer},
+  http::server_framework::StreamAux,
   misc::Vector,
 };
 
@@ -57,7 +57,7 @@ where
   type Init = DRSR;
 
   #[inline]
-  fn req_aux(init: Self::Init, _: &mut crate::http::Request<ReqResBuffer>) -> crate::Result<Self> {
+  fn stream_aux(init: Self::Init) -> crate::Result<Self> {
     Ok(GrpcManager::from_drsr(init))
   }
 }

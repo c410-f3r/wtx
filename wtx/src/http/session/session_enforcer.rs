@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::Middleware, ReqResBuffer, ReqResData, Request, Response, Session,
-    SessionError, SessionManagerInner, StatusCode,
+    server_framework::Middleware, ReqResBuffer, Request, Response, Session, SessionError,
+    SessionManagerInner, StatusCode,
   },
   misc::Lock,
 };
@@ -44,8 +44,7 @@ where
     req: &mut Request<ReqResBuffer>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    let uri = req.rrd.uri();
-    let path = uri.path();
+    let path = req.rrd.uri.path();
     if self.denied.iter().all(|elem| *elem != path) {
       return Ok(ControlFlow::Continue(()));
     }

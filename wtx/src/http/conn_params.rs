@@ -1,5 +1,6 @@
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ConnParams {
+  pub(crate) _enable_connect_protocol: bool,
   pub(crate) _initial_window_len: u32,
   pub(crate) _max_body_len: u32,
   pub(crate) _max_concurrent_streams_num: u32,
@@ -14,6 +15,7 @@ impl ConnParams {
   #[inline]
   pub(crate) fn _to_hp(self) -> crate::http2::Http2Params {
     crate::http2::Http2Params::default()
+      .set_enable_connect_protocol(self._enable_connect_protocol)
       .set_initial_window_len(self._initial_window_len)
       .set_max_body_len(self._max_body_len)
       .set_max_concurrent_streams_num(self._max_concurrent_streams_num)
@@ -28,6 +30,7 @@ impl Default for ConnParams {
   #[inline]
   fn default() -> Self {
     Self {
+      _enable_connect_protocol: false,
       _initial_window_len: u32::MAX,
       _max_body_len: 4 * 1024 * 1024,
       _max_concurrent_streams_num: u32::MAX,

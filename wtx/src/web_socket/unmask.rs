@@ -1,65 +1,50 @@
 #[doc = _internal_doc!()]
 #[inline]
 pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
-  let unmask_chunks_slice = _simd!(
-    fallback => _unmask_chunks_slice_fallback,
-    128 => _unmask_chunks_slice_128,
-    256 => _unmask_chunks_slice_256,
-    512 => _unmask_chunks_slice_512
+  _simd_bytes!(
+    (align_to_mut, bytes),
+    |bytes| {
+      #[allow(clippy::indexing_slicing, reason = "index will never be out-of-bounds")]
+      for (idx, elem) in bytes.iter_mut().enumerate() {
+        *elem ^= mask[idx & 3];
+      }
+    },
+    |prefix| mask.rotate_left(prefix.len() % 4),
+    |_16| {
+      let [a, b, c, d] = mask;
+      do_unmask(&[a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d], _16);
+    },
+    |_32| {
+      let [a, b, c, d] = mask;
+      do_unmask(
+        &[
+          a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
+          c, d,
+        ],
+        _32,
+      );
+    },
+    |_64| {
+      let [a, b, c, d] = mask;
+      do_unmask(
+        &[
+          a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
+          c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+          a, b, c, d,
+        ],
+        _64,
+      );
+    },
+    |_suffix| {}
   );
-  // SAFETY: Changing a sequence of `u8` should be fine
-  let (prefix, chunks, suffix) = unsafe { bytes.align_to_mut() };
-  unmask_u8_slice(prefix, mask, 0);
-  mask.rotate_left(prefix.len() % 4);
-  unmask_chunks_slice(chunks, mask);
-  unmask_u8_slice(suffix, mask, 0);
 }
 
 #[inline]
-fn _unmask_chunks_slice_512(slice: &mut [[u8; 64]], [a, b, c, d]: [u8; 4]) {
-  let mask = [
-    a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-    a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-  ];
+fn do_unmask<const N: usize>(mask: &[u8], slice: &mut [[u8; N]]) {
   for array in slice {
     for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
       *array_elem ^= mask_elem;
     }
-  }
-}
-
-#[inline]
-fn _unmask_chunks_slice_256(slice: &mut [[u8; 32]], [a, b, c, d]: [u8; 4]) {
-  let mask = [
-    a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-  ];
-  for array in slice {
-    for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
-      *array_elem ^= mask_elem;
-    }
-  }
-}
-
-#[inline]
-fn _unmask_chunks_slice_128(slice: &mut [[u8; 16]], [a, b, c, d]: [u8; 4]) {
-  let mask = [a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d];
-  for array in slice {
-    for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
-      *array_elem ^= mask_elem;
-    }
-  }
-}
-
-#[inline]
-fn _unmask_chunks_slice_fallback(bytes: &mut [u8], mask: [u8; 4]) {
-  unmask_u8_slice(bytes, mask, 0);
-}
-
-#[expect(clippy::indexing_slicing, reason = "index will always be in-bounds")]
-#[inline]
-fn unmask_u8_slice(bytes: &mut [u8], mask: [u8; 4], shift: usize) {
-  for (idx, elem) in bytes.iter_mut().enumerate() {
-    *elem ^= mask[idx.wrapping_add(shift) & 3];
   }
 }
 

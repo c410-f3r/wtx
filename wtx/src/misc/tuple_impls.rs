@@ -46,8 +46,9 @@ macro_rules! impl_0_16 {
     mod http_server_framework {
       use crate::{
         http::{
-          HttpError, Response, Request, ReqResBuffer, StatusCode,
-          server_framework::{ConnAux, Middleware, StreamAux, PathManagement, PathParams}
+          OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
+          ReqResBuffer, Response,
+          server_framework::{ConnAux, Endpoint, Middleware, StreamAux, RouteMatch, EndpointNode, PathParams}
         },
         misc::{ArrayVector, Vector}
       };
@@ -73,8 +74,8 @@ macro_rules! impl_0_16 {
           type Init = ($($T::Init,)*);
 
           #[inline]
-          fn req_aux(_init: Self::Init, _req: &mut Request<ReqResBuffer>) -> crate::Result<Self> {
-            Ok(($( $T::req_aux(_init.$N, _req)?, )*))
+          fn stream_aux(_init: Self::Init) -> crate::Result<Self> {
+            Ok(($( $T::stream_aux(_init.$N)?, )*))
           }
         }
 
@@ -94,12 +95,13 @@ macro_rules! impl_0_16 {
           async fn req(
             &self,
             _conn_aux: &mut CA,
-            _mx_aux: &mut Self::Aux,
+            _mw_aux: &mut Self::Aux,
             _req: &mut Request<ReqResBuffer>,
             _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
-              if let ControlFlow::Break(status_code) = self.$N.req(_conn_aux, &mut _mx_aux.$N, _req, _stream_aux).await? {
+              let rslt = self.$N.req(_conn_aux, &mut _mw_aux.$N, _req, _stream_aux).await?;
+              if let ControlFlow::Break(status_code) = rslt {
                 return Ok(ControlFlow::Break(status_code));
               }
             })*
@@ -110,7 +112,7 @@ macro_rules! impl_0_16 {
           async fn res(
             &self,
             _conn_aux: &mut CA,
-            _mx_aux: &mut Self::Aux,
+            _mw_aux: &mut Self::Aux,
             _res: Response<&mut ReqResBuffer>,
             _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
@@ -120,7 +122,8 @@ macro_rules! impl_0_16 {
                 status_code: _res.status_code,
                 version: _res.version,
               };
-              if let ControlFlow::Break(status_code) = self.$N.res(_conn_aux, &mut _mx_aux.$N, local_res, _stream_aux).await? {
+              let rslt = self.$N.res(_conn_aux, &mut _mw_aux.$N, local_res, _stream_aux).await?;
+              if let ControlFlow::Break(status_code) = rslt {
                 return Ok(ControlFlow::Break(status_code));
               }
             })*
@@ -128,42 +131,40 @@ macro_rules! impl_0_16 {
           }
         }
 
-        impl<$($T,)* CA, ERR, SA> PathManagement<CA, ERR, SA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* CA, ERR, S, SA> Endpoint<CA, ERR, S, SA> for ($(PathParams<$T>,)*)
         where
-          $($T: PathManagement<CA, ERR, SA>,)*
+          $($T: Endpoint<CA, ERR, S, SA>,)*
           ERR: From<crate::Error>,
         {
-          const IS_ROUTER: bool = false;
+          const OM: OperationMode = OperationMode::Auto;
 
           #[inline]
-          async fn manage_path(
+          async fn auto(
             &self,
-            _conn_aux: &mut CA,
-            _path_defs: (u8, &[(&'static str, u8)]),
-            _req: &mut Request<ReqResBuffer>,
-            _stream_aux: &mut SA,
+            _auto_stream: &mut AutoStream<CA, SA>,
+            _path_defs: (u8, &[RouteMatch]),
           ) -> Result<StatusCode, ERR> {
             #[cfg(feature = "matchit")]
-            match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.1) {
+            match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
               $(
                 Some($N) => {
                   return self
                     .$N
                     .value
-                    .manage_path(_conn_aux, (_path_defs.0.wrapping_add(1), _path_defs.1), _req, _stream_aux)
+                    .auto(_auto_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await;
                 }
               )*
               _ => Err(ERR::from(HttpError::UriMismatch.into()))
             }
             #[cfg(not(feature = "matchit"))]
-            match _req.rrd.uri.path() {
+            match _auto_stream.req.rrd.uri.path() {
               $(
                 elem if elem == self.$N.full_path => {
                   return self
                     .$N
                     .value
-                    .manage_path(_conn_aux, (_path_defs.0.wrapping_add(1), _path_defs.1), _req, _stream_aux)
+                    .auto(_auto_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await
                 }
               )*
@@ -172,21 +173,61 @@ macro_rules! impl_0_16 {
           }
 
           #[inline]
+          async fn manual(
+            &self,
+            _manual_stream: ManualStream<CA, S, SA>,
+            _path_defs: (u8, &[RouteMatch]),
+          ) -> Result<(), ERR> {
+            #[cfg(feature = "matchit")]
+            match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
+              $(
+                Some($N) => {
+                  return self
+                    .$N
+                    .value
+                    .manual(_manual_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
+                    .await;
+                }
+              )*
+              _ => Err(ERR::from(HttpError::UriMismatch.into()))
+            }
+            #[cfg(not(feature = "matchit"))]
+            match _manual_stream.req.rrd.uri.path() {
+              $(
+                elem if elem == self.$N.full_path => {
+                  return self
+                    .$N
+                    .value
+                    .manual(_manual_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
+                    .await
+                }
+              )*
+              _ => Err(ERR::from(HttpError::UriMismatch.into()))
+            }
+          }
+        }
+
+        impl<$($T,)* CA, ERR, S, SA> EndpointNode<CA, ERR, S, SA> for ($(PathParams<$T>,)*)
+        where
+          $($T: EndpointNode<CA, ERR, S, SA>,)*
+          ERR: From<crate::Error>,
+        {
+          const IS_ROUTER: bool = false;
+
+          #[inline]
           fn paths_indices(
             &self,
-            _prev: ArrayVector<(&'static str, u8), 8>,
-            _vec: &mut Vector<ArrayVector<(&'static str, u8), 8>>
+            _prev: ArrayVector<RouteMatch, 4>,
+            _vec: &mut Vector<ArrayVector<RouteMatch, 4>>
           ) -> crate::Result<()> {
-            let mut _idx: u8 = 0;
             $({
               let mut local_prev = _prev.clone();
-              local_prev.push((self.$N.full_path, _idx))?;
+              local_prev.push(RouteMatch::new($N, $T::OM, self.$N.full_path))?;
               if $T::IS_ROUTER {
                 self.$N.value.paths_indices(local_prev, _vec)?;
               } else {
                 _vec.push(local_prev)?;
               }
-              _idx = _idx.wrapping_add(1);
             })*
             Ok(())
           }

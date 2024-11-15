@@ -29,7 +29,7 @@ impl<I, S> SessionDecoder<I, S> {
   }
 }
 
-impl<CA, CS, E, I, RM, SA, S> Middleware<CA, E, SA> for SessionDecoder<I, S>
+impl<CA, CS, E, I, RM, S, SA> Middleware<CA, E, SA> for SessionDecoder<I, S>
 where
   CS: DeserializeOwned + PartialEq,
   E: From<crate::Error>,
@@ -54,8 +54,8 @@ where
     req: &mut Request<ReqResBuffer>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    let SessionManagerInner { cookie_def, key, state, .. } =
-      &mut *self.session.manager.inner.lock().await;
+    let mut guard = self.session.manager.inner.lock().await;
+    let SessionManagerInner { cookie_def, key, state, .. } = &mut *guard;
     if let Some(elem) = state {
       if let Some(expire) = &elem.expire {
         let millis = i64::try_from(GenericTime::timestamp()?.as_millis()).unwrap_or_default();
@@ -67,9 +67,7 @@ where
       }
       return Ok(ControlFlow::Continue(()));
     }
-    let lease = req.rrd.lease_mut();
-    let (vector, headers) = (&mut lease.body, &mut lease.headers);
-    for header in headers.iter() {
+    for header in req.rrd.headers.iter() {
       if header.name != <&[u8]>::from(KnownHeaderName::Cookie) {
         continue;
       }
@@ -77,15 +75,15 @@ where
       if cookie.generic.name != cookie_def.name {
         continue;
       }
-      let idx = vector.len();
-      vector.extend_from_copyable_slice(&cookie_def.value).map_err(Into::into)?;
+      let idx = req.rrd.body.len();
+      req.rrd.body.extend_from_copyable_slice(&cookie_def.value).map_err(Into::into)?;
       cookie_def.value.clear();
       let dec_rslt = decrypt(
         &mut cookie_def.value,
         key,
-        (cookie_def.name, vector.get(idx..).unwrap_or_default()),
+        (cookie_def.name, req.rrd.body.get(idx..).unwrap_or_default()),
       );
-      vector.truncate(idx);
+      req.rrd.body.truncate(idx);
       dec_rslt?;
       let rslt_des = serde_json::from_slice(&cookie_def.value).map_err(Into::into);
       cookie_def.value.clear();

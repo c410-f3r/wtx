@@ -52,17 +52,16 @@ mod window;
 mod window_update_frame;
 
 use crate::{
-  http::{Headers, Method, Protocol, ReqResBuffer},
+  http::{Method, Protocol, ReqResBuffer, Request},
   http2::misc::{
     frame_reader_rslt, manage_initial_stream_receiving, process_higher_operation_err, protocol_err,
     sorp_mut, write_array,
   },
   misc::{
-    AtomicWaker, ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter,
+    Arc, AtomicWaker, ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter,
     StreamReader, StreamWriter, Usize, NOOP_WAKER,
   },
 };
-use alloc::sync::Arc;
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
 use core::{
@@ -82,7 +81,7 @@ pub use http2_status::{Http2RecvStatus, Http2SendStatus};
 pub use send_data_mode::{SendDataMode, SendDataModeBytes};
 pub use server_stream::ServerStream;
 #[cfg(feature = "web-socket")]
-pub use web_socket_over_stream::{is_web_socket_handshake, WebSocketOverStream};
+pub use web_socket_over_stream::WebSocketOverStream;
 pub use window::{Window, Windows};
 
 pub(crate) const MAX_BODY_LEN: u32 = max_body_len!();
@@ -105,7 +104,6 @@ pub type Http2Tokio<HB, SW, const IS_CLIENT: bool> =
 #[cfg(feature = "tokio")]
 pub type Http2DataTokio<HB, SW, const IS_CLIENT: bool> =
   Arc<tokio::sync::Mutex<Http2Data<HB, SW, IS_CLIENT>>>;
-/// [`ServerStream`] instance using the mutex from tokio;
 
 pub(crate) type Scrp = HashMap<u31::U31, stream_receiver::StreamControlRecvParams>;
 pub(crate) type Sorp = HashMap<u31::U31, stream_receiver::StreamOverallRecvParams>;
@@ -232,7 +230,7 @@ where
   pub async fn stream<T>(
     &mut self,
     rrb: ReqResBuffer,
-    cb: impl Fn(&mut Headers, Method, Option<Protocol>) -> T,
+    cb: impl FnOnce(Request<&mut ReqResBuffer>, Option<Protocol>) -> T,
   ) -> crate::Result<Either<ReqResBuffer, (ServerStream<HD>, T)>> {
     let Self { hd, is_conn_open, ish_id } = self;
     let curr_ish_id = *ish_id;
@@ -240,8 +238,8 @@ where
     let rrb_opt = &mut Some(rrb);
     let mut lock_pin = pin!(hd.lock());
     let rslt = poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, hd, lock_pin);
-      let hdpm = lock.parts_mut();
+      let mut guard = lock_pin!(cx, hd, lock_pin);
+      let hdpm = guard.parts_mut();
       if let Some(mut this_rrb) = rrb_opt.take() {
         if !manage_initial_stream_receiving(is_conn_open, &mut this_rrb) {
           return Poll::Ready(Ok(Either::Left((
@@ -276,12 +274,7 @@ where
             frame_reader_rslt(hdpm.frame_reader_error),
           ))));
         }
-        let rslt = cb(
-          &mut sorp_mut(&mut hdpm.hb.sorp, ish.stream_id)?.rrb.headers,
-          ish.method,
-          ish.protocol,
-        );
-        Poll::Ready(Ok(Either::Right((ish.method, ish.protocol, ish.stream_id, rslt))))
+        Poll::Ready(Ok(Either::Right((ish.method, ish.protocol, ish.stream_id, guard))))
       }
     })
     .await;
@@ -290,17 +283,22 @@ where
         elem.1?;
         Ok(Either::Left(elem.0))
       }
-      Either::Right((method, protocol, stream_id, elem_cb)) => Ok(Either::Right((
-        ServerStream::new(
-          hd.clone(),
-          Arc::clone(is_conn_open),
-          method,
-          protocol,
-          _trace_span!("New server stream", stream_id = %stream_id),
-          stream_id,
-        ),
-        elem_cb,
-      ))),
+      Either::Right((method, protocol, stream_id, mut guard)) => {
+        let sorp = sorp_mut(&mut guard.parts_mut().hb.sorp, stream_id)?;
+        let elem_cb = cb(Request::http2(method, &mut sorp.rrb), protocol);
+        drop(guard);
+        Ok(Either::Right((
+          ServerStream::new(
+            hd.clone(),
+            Arc::clone(is_conn_open),
+            method,
+            protocol,
+            _trace_span!("New server stream", stream_id = %stream_id),
+            stream_id,
+          ),
+          elem_cb,
+        )))
+      }
     }
   }
 }

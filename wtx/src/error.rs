@@ -58,6 +58,8 @@ pub enum Error {
   SerdeJson(serde_json::Error),
   #[cfg(feature = "http-session")]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "embedded-tls")]
+  TlsError(embedded_tls::TlsError),
   #[cfg(feature = "tokio")]
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tokio-rustls")]
@@ -150,6 +152,8 @@ pub enum Error {
   QueueError(DequeueError),
   #[cfg(feature = "schema-manager")]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
+  #[cfg(feature = "http-server-framework")]
+  ServerFrameworkError(crate::http::server_framework::ServerFrameworkError),
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
   WebSocketError(crate::web_socket::WebSocketError),
@@ -368,6 +372,14 @@ impl From<crate::http::SessionError> for Error {
   }
 }
 
+#[cfg(feature = "embedded-tls")]
+impl From<embedded_tls::TlsError> for Error {
+  #[inline]
+  fn from(from: embedded_tls::TlsError) -> Self {
+    Self::TlsError(from)
+  }
+}
+
 #[cfg(feature = "tokio")]
 impl From<tokio::task::JoinError> for Error {
   #[inline]
@@ -509,6 +521,14 @@ impl From<crate::database::schema_manager::SchemaManagerError> for Error {
   #[inline]
   fn from(from: crate::database::schema_manager::SchemaManagerError) -> Self {
     Self::SchemaManagerError(from)
+  }
+}
+
+#[cfg(feature = "http-server-framework")]
+impl From<crate::http::server_framework::ServerFrameworkError> for Error {
+  #[inline]
+  fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
+    Self::ServerFrameworkError(from)
   }
 }
 

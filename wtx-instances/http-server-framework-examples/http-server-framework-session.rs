@@ -54,7 +54,7 @@ async fn main() -> wtx::Result<()> {
   let rng_clone = rng.clone();
   ServerFrameworkBuilder::new(router)
     .with_conn_aux(move || (session.clone(), rng_clone.clone()))
-    .listen_tokio("0.0.0.0:9000", rng, |err| eprintln!("{err:?}"))
+    .tokio("0.0.0.0:9000", rng, |err| eprintln!("{err:?}"), |_| Ok(()))
     .await?;
   Ok(())
 }

@@ -27,7 +27,7 @@ pub type UriString = Uri<String>;
 //        |                           |---------> href_start
 //        |
 //        |-------------------------------------> authority_start
-#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S>
 where
   S: ?Sized,

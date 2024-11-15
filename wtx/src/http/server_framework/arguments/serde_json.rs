@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::{Endpoint, ResFinalizer, StateGeneric},
-    Header, KnownHeaderName, Mime, ReqResBuffer, Request, StatusCode,
+    server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
+    AutoStream, Header, KnownHeaderName, Mime, ReqResBuffer, Request, StatusCode,
   },
   misc::{serde_collect_seq_rslt, FnFut, FnFutWrapper, IterWrapper, LeaseMut},
 };
@@ -14,7 +14,7 @@ pub struct SerdeJson<T>(
   pub T,
 );
 
-impl<CA, E, F, RES, SA, T> Endpoint<CA, E, SA> for FnFutWrapper<(SerdeJson<T>,), F>
+impl<CA, E, F, RES, S, SA, T> Endpoint<CA, E, S, SA> for FnFutWrapper<(SerdeJson<T>,), F>
 where
   E: From<crate::Error>,
   F: FnFut<(SerdeJson<T>,), Result = RES>,
@@ -22,20 +22,19 @@ where
   T: DeserializeOwned,
 {
   #[inline]
-  async fn call(
+  async fn auto(
     &self,
-    _: &mut CA,
-    _: (u8, &[(&'static str, u8)]),
-    req: &mut Request<ReqResBuffer>,
-    _: &mut SA,
+    auto_stream: &mut AutoStream<CA, SA>,
+    _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let elem = serde_json::from_slice(&req.rrd.lease_mut().body).map_err(crate::Error::from)?;
-    req.rrd.lease_mut().clear();
-    self.0.call((SerdeJson(elem),)).await.finalize_response(req)
+    let elem =
+      serde_json::from_slice(&auto_stream.req.rrd.lease_mut().body).map_err(crate::Error::from)?;
+    auto_stream.req.rrd.lease_mut().clear();
+    self.0.call((SerdeJson(elem),)).await.finalize_response(&mut auto_stream.req)
   }
 }
 
-impl<CA, E, F, RES, SA, T, const CLEAN: bool> Endpoint<CA, E, SA>
+impl<CA, E, F, RES, S, SA, T, const CLEAN: bool> Endpoint<CA, E, S, SA>
   for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>, SerdeJson<T>), F>
 where
   E: From<crate::Error>,
@@ -44,20 +43,26 @@ where
   T: DeserializeOwned,
 {
   #[inline]
-  async fn call(
+  async fn auto(
     &self,
-    conn_aux: &mut CA,
-    _: (u8, &[(&'static str, u8)]),
-    req: &mut Request<ReqResBuffer>,
-    stream_aux: &mut SA,
+    auto_stream: &mut AutoStream<CA, SA>,
+    _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let elem = serde_json::from_slice(&req.rrd.lease_mut().body).map_err(crate::Error::from)?;
-    req.rrd.lease_mut().clear();
+    let elem =
+      serde_json::from_slice(&auto_stream.req.rrd.lease_mut().body).map_err(crate::Error::from)?;
+    auto_stream.req.rrd.lease_mut().clear();
     self
       .0
-      .call((StateGeneric::new(conn_aux, stream_aux, req), SerdeJson(elem)))
+      .call((
+        StateGeneric::new(
+          &mut auto_stream.conn_aux,
+          &mut auto_stream.stream_aux,
+          &mut auto_stream.req,
+        ),
+        SerdeJson(elem),
+      ))
       .await
-      .finalize_response(req)
+      .finalize_response(&mut auto_stream.req)
   }
 }
 

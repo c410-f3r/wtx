@@ -20,7 +20,7 @@ type SessionKey = [u8; 32];
 /// [`Session`] backed by `tokio`
 #[cfg(feature = "tokio")]
 pub type SessionTokio<CS, E, S> =
-  Session<alloc::sync::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>, S>;
+  Session<crate::misc::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>, S>;
 
 /// Allows the management of state across requests within a connection.
 #[derive(Clone, Debug)]

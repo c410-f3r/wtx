@@ -8,9 +8,8 @@ use crate::{
     u31::U31,
     CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
   },
-  misc::{Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, _Span},
+  misc::{Arc, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, _Span},
 };
-use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
   pin::pin,

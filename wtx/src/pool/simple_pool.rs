@@ -1,8 +1,8 @@
 use crate::{
-  misc::Lock,
+  misc::{Arc, Lock},
   pool::{Pool, ResourceManager},
 };
-use alloc::{sync::Arc, vec::Vec};
+use alloc::vec::Vec;
 use core::{
   future::{poll_fn, Future},
   ops::{Deref, DerefMut},
@@ -103,10 +103,7 @@ impl<RL, RM> crate::http::server_framework::StreamAux for SimplePool<RL, RM> {
   type Init = Self;
 
   #[inline]
-  fn req_aux(
-    init: Self::Init,
-    _: &mut crate::http::Request<crate::http::ReqResBuffer>,
-  ) -> crate::Result<Self> {
+  fn stream_aux(init: Self::Init) -> crate::Result<Self> {
     Ok(init)
   }
 }

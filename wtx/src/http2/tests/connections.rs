@@ -93,7 +93,7 @@ async fn stream_server(
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
   loop {
-    let Either::Right((mut stream, _)) = server.stream(rrb, |_, _, _| {}).await.unwrap() else {
+    let Either::Right((mut stream, _)) = server.stream(rrb, |_, _| {}).await.unwrap() else {
       panic!();
     };
     let (_, mut req_rrb) = stream.recv_req().await.unwrap();

@@ -1,4 +1,5 @@
-use alloc::{rc::Rc, sync::Arc};
+use crate::misc::Arc;
+use alloc::rc::Rc;
 use core::{future::Future, ops::DerefMut};
 
 /// An asynchronous mutual exclusion primitive useful for protecting shared data.

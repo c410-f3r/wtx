@@ -17,6 +17,8 @@ macro_rules! _local_write_all_vectored {
 }
 
 mod bytes_stream;
+#[cfg(feature = "embedded-tls")]
+mod embedded_tls;
 #[cfg(feature = "std")]
 mod std;
 mod stream_reader;

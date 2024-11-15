@@ -1,7 +1,7 @@
-use crate::misc::Backoff;
+use crate::misc::{AtomicUsize, Backoff};
 use core::{
   mem,
-  sync::atomic::{fence, AtomicUsize, Ordering},
+  sync::atomic::{fence, Ordering},
 };
 
 pub(crate) struct SeqLock {

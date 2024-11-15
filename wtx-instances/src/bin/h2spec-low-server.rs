@@ -24,7 +24,7 @@ async fn main() -> wtx::Result<()> {
         let _jh = tokio::spawn(frame_reader);
         loop {
           let (mut http2_stream, headers) = match http2
-            .stream(ReqResBuffer::default(), |headers, _, _| mem::take(headers))
+            .stream(ReqResBuffer::default(), |req, _| mem::take(&mut req.rrd.headers))
             .await?
           {
             Either::Left(_) => return wtx::Result::Ok(()),

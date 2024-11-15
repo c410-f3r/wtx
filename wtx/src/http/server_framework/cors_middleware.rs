@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    server_framework::{ConnAux, Middleware},
+    server_framework::{ConnAux, Middleware, ServerFrameworkError},
     Header, Headers, HttpError, KnownHeaderName, Method, ReqResBuffer, Request, Response,
     StatusCode,
   },
@@ -341,7 +341,7 @@ impl CorsMiddleware {
       }
     }
     if matched_headers != uniques.len() {
-      return Err(HttpError::ForbiddenCorsHeader.into());
+      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsHeader).into());
     }
     let mut iter = uniques.iter();
     if let Some(elem) = iter.next() {
@@ -366,7 +366,7 @@ impl CorsMiddleware {
         || a.as_bytes() == acrm.value
         || b.as_bytes() == acrm.value
     }) {
-      return Err(HttpError::ForbiddenCorsMethod.into());
+      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsMethod).into());
     }
     Ok(())
   }
@@ -382,7 +382,7 @@ impl CorsMiddleware {
     } else if let Some(allowed_origin) = self.allowed_origin(origin.value) {
       allowed_origin.as_bytes()
     } else {
-      return Err(HttpError::ForbiddenCorsOrigin.into());
+      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsOrigin).into());
     };
     body.extend_from_copyable_slice(actual_origin).map_err(crate::Error::from)?;
     Ok(())
@@ -420,9 +420,9 @@ where
         self.manage_preflight_methods(acrm)?;
         let idx = req.rrd.body.len();
         self.manage_preflight_origin(&mut req.rrd.body, Self::extract_origin(origin_opt)?)?;
-        let (headers, origin) = req.rrd.body.split_at_checked(idx).unwrap_or_default();
+        let (headers_bytes, origin_bytes) = req.rrd.body.split_at_checked(idx).unwrap_or_default();
         req.rrd.headers.clear();
-        self.apply_preflight_response(headers, origin, &mut req.rrd.headers).await?;
+        self.apply_preflight_response(headers_bytes, origin_bytes, &mut req.rrd.headers).await?;
         req.rrd.body.clear();
         return Ok(ControlFlow::Break(StatusCode::Ok));
       } else {

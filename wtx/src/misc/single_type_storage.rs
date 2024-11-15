@@ -1,8 +1,6 @@
+use crate::misc::{Arc, ArrayVector, Vector};
+use alloc::rc::Rc;
 use core::cell::RefCell;
-
-use alloc::{rc::Rc, sync::Arc};
-
-use crate::misc::{ArrayVector, Vector};
 
 /// Internal trait not intended for public usage
 pub trait SingleTypeStorage {
