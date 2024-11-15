@@ -9,8 +9,8 @@ use tokio::{io::WriteHalf, net::TcpStream};
 use tokio_rustls::server::TlsStream;
 use wtx::{
   http::{
-    AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Response,
-    StatusCode, is_web_socket_handshake
+    is_web_socket_handshake, AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer,
+    ReqResBuffer, Response, StatusCode,
   },
   http2::{Http2Buffer, Http2Params, WebSocketOverStream},
   misc::{simple_seed, TokioRustlsAcceptor, Vector, Xorshift64},
