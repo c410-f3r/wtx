@@ -38,7 +38,7 @@ tracing = { default-features = false, features = ["attributes"], optional = true
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
-x509-certificate = { default-features = false, optional = true, version = "0.23" }
+x509-certificate = { default-features = false, optional = true, version = "0.24" }
 
 [features]
 arbitrary = ["dep:arbitrary", "std"]
@@ -149,7 +149,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.82"
-version = "0.23.0"
+version = "0.24.0"
 
 [package.metadata.docs.rs]
 all-features = true
