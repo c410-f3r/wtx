@@ -2052,7 +2052,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "aes-gcm 0.11.0-pre.2",
  "arbitrary",
@@ -2154,9 +2154,9 @@ dependencies = [
 
 [[package]]
 name = "x509-certificate"
-version = "0.23.1"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66534846dec7a11d7c50a74b7cdb208b9a581cad890b7866430d438455847c85"
+checksum = "e57b9f8bcae7c1f36479821ae826d75050c60ce55146fd86d3553ed2573e2762"
 dependencies = [
  "bcder",
  "bytes",
