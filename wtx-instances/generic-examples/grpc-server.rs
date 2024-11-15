@@ -25,11 +25,12 @@ async fn main() -> wtx::Result<()> {
   )?;
   ServerFrameworkBuilder::new(router)
     .with_req_aux(|| QuickProtobuf::default())
-    .listen_tokio_rustls(
+    .tokio_rustls(
       (wtx_instances::CERT, wtx_instances::KEY),
       &wtx_instances::host_from_args(),
       Xorshift64::from(simple_seed()),
       |error| eprintln!("{error}"),
+      |_| Ok(()),
     )
     .await
 }

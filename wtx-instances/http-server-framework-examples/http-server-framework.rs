@@ -1,5 +1,5 @@
-//! An HTTP server framework showcasing nested routes, request middlewares, response
-//! middlewares, dynamic routes, PostgreSQL connections and JSON deserialization/serialization.
+//! An HTTP server framework showcasing nested routes, middlewares, manual streams, dynamic routes,
+//! PostgreSQL connections and JSON deserialization/serialization.
 //!
 //! Currently, only HTTP/2 is supported.
 //!
@@ -11,15 +11,16 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use core::{fmt::Write, ops::ControlFlow};
-use tokio::net::TcpStream;
+use tokio::net::{tcp::OwnedWriteHalf, TcpStream};
 use wtx::{
   database::{Executor, Record},
   http::{
     server_framework::{
       get, post, Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean,
     },
-    ReqResBuffer, Request, Response, StatusCode,
+    ManualStream, ReqResBuffer, Request, Response, StatusCode,
   },
+  http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
   misc::{simple_seed, Xorshift64},
   pool::{PostgresRM, SimplePoolTokio},
 };
@@ -35,14 +36,18 @@ async fn main() -> wtx::Result<()> {
       "/say",
       Router::new(wtx::paths!(("/hello", get(hello)), ("/world", get(world))), CustomMiddleware,)?,
     ),
+    ("/stream", get(stream)),
   ))?;
   let rm = PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into());
   let pool = Pool::new(4, rm);
   ServerFrameworkBuilder::new(router)
     .with_req_aux(move || pool.clone())
-    .listen_tokio(&wtx_instances::host_from_args(), Xorshift64::from(simple_seed()), |error| {
-      eprintln!("{error:?}")
-    })
+    .tokio(
+      &wtx_instances::host_from_args(),
+      Xorshift64::from(simple_seed()),
+      |error| eprintln!("{error:?}"),
+      |_| Ok(()),
+    )
     .await
 }
 
@@ -74,6 +79,17 @@ async fn hello() -> &'static str {
 
 async fn json(_: SerdeJson<DeserializeExample>) -> wtx::Result<SerdeJson<SerializeExample>> {
   Ok(SerdeJson(SerializeExample { _baz: [1, 2, 3, 4] }))
+}
+
+async fn stream(
+  mut manual_stream: ManualStream<
+    (),
+    ServerStream<Http2DataTokio<Http2Buffer, OwnedWriteHalf, false>>,
+    Pool,
+  >,
+) -> wtx::Result<()> {
+  manual_stream.stream.common().send_go_away(Http2ErrorCode::NoError).await;
+  Ok(())
 }
 
 async fn world() -> &'static str {

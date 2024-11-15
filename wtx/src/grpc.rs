@@ -3,13 +3,13 @@
 
 mod client;
 mod grpc_manager;
-mod grpc_res_middleware;
+mod grpc_middleware;
 mod grpc_status_code;
 
 use crate::{data_transformation::dnsn::Serialize, misc::Vector};
 pub use client::Client;
 pub use grpc_manager::GrpcManager;
-pub use grpc_res_middleware::GrpcMiddleware;
+pub use grpc_middleware::GrpcMiddleware;
 pub use grpc_status_code::GrpcStatusCode;
 
 #[inline]

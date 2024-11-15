@@ -14,9 +14,12 @@ async fn main() -> wtx::Result<()> {
     Router::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
   ServerFrameworkBuilder::new(router)
     .without_aux()
-    .listen_tokio(&wtx_instances::host_from_args(), Xorshift64::from(simple_seed()), |error| {
-      eprintln!("{error}")
-    })
+    .tokio(
+      &wtx_instances::host_from_args(),
+      Xorshift64::from(simple_seed()),
+      |error| eprintln!("{error}"),
+      |_| Ok(()),
+    )
     .await
 }
 

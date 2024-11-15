@@ -5,8 +5,8 @@
 use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
   http::{
-    AutoStream, ManualServerStreamTokio, OptionedServer, ReqResBuffer, Response, StatusCode,
-    StreamMode,
+    AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Response,
+    StatusCode,
   },
   http2::{Http2Buffer, Http2Params},
   misc::{simple_seed, Xorshift64},
@@ -20,21 +20,22 @@ async fn main() -> wtx::Result<()> {
     || Ok(((), Http2Buffer::new(Xorshift64::from(simple_seed())), Http2Params::default())),
     |error| eprintln!("{error}"),
     manual,
+    |_, _, _, _| Ok(((), OperationMode::Auto)),
     || Ok(((), ReqResBuffer::empty())),
-    |_, _, _| Ok(StreamMode::Auto),
     (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
   )
   .await
 }
 
-async fn auto(mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer>, wtx::Error> {
+async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer>, wtx::Error> {
   ha.req.rrd.clear();
   ha.req.rrd.body.extend_from_copyable_slice(b"Hello")?;
   Ok(ha.req.into_response(StatusCode::Ok))
 }
 
 async fn manual(
-  _: ManualServerStreamTokio<(), Http2Buffer, (), (), OwnedWriteHalf>,
+  _: (),
+  _: ManualServerStreamTokio<(), Http2Buffer, (), OwnedWriteHalf>,
 ) -> Result<(), wtx::Error> {
   Ok(())
 }

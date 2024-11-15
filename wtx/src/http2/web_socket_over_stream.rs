@@ -1,7 +1,7 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  http::{Headers, KnownHeaderName, Method, Protocol, StatusCode},
+  http::{Headers, StatusCode},
   http2::{Http2Buffer, Http2Data, Http2ErrorCode, Http2RecvStatus, SendDataMode, ServerStream},
   misc::{
     ConnectionState, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, Vector,
@@ -18,19 +18,6 @@ use crate::{
     Frame, FrameMut, OpCode, ReadFrameInfo,
   },
 };
-
-/// Verifies if the initial received headers represent a WebSocket connection.
-#[inline]
-pub fn is_web_socket_handshake(
-  headers: &Headers,
-  method: Method,
-  protocol: Option<Protocol>,
-) -> bool {
-  let bytes = KnownHeaderName::SecWebsocketVersion.into();
-  method == Method::Connect
-    && protocol == Some(Protocol::WebSocket)
-    && headers.get_by_name(bytes).map(|el| el.value) == Some(b"13")
-}
 
 /// WebSocket tunneling
 #[derive(Debug)]

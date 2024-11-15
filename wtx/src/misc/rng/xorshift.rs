@@ -1,5 +1,5 @@
-use crate::misc::Rng;
-use core::sync::atomic::{AtomicU64, Ordering};
+use crate::misc::{AtomicU64, Rng};
+use core::sync::atomic::Ordering;
 
 /// Xorshift that deals with 64 bits numbers.
 #[derive(Clone, Copy, Debug)]

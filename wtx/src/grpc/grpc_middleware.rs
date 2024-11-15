@@ -1,12 +1,11 @@
-use core::ops::ControlFlow;
-
 use crate::{
   grpc::GrpcManager,
   http::{
-    server_framework::Middleware, Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut,
-    Request, Response, StatusCode,
+    server_framework::Middleware, Header, KnownHeaderName, Mime, ReqResBuffer, Request, Response,
+    StatusCode,
   },
 };
+use core::ops::ControlFlow;
 
 /// Applies gRPC headers
 #[derive(Debug)]
@@ -28,10 +27,10 @@ where
     &self,
     _: &mut CA,
     _: &mut Self::Aux,
-    res: &mut Request<ReqResBuffer>,
-    sa: &mut GrpcManager<DRSR>,
+    req: &mut Request<ReqResBuffer>,
+    stream_aux: &mut GrpcManager<DRSR>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    res.rrd.headers_mut().push_from_iter_many([
+    req.rrd.headers.push_from_iter_many([
       Header::from_name_and_value(
         KnownHeaderName::ContentType.into(),
         [Mime::Grpc.as_str().as_bytes()].into_iter(),
@@ -40,7 +39,7 @@ where
         is_sensitive: false,
         is_trailer: true,
         name: b"grpc-status",
-        value: [sa.status_code_mut().number_as_str().as_bytes()].into_iter(),
+        value: [stream_aux.status_code_mut().number_as_str().as_bytes()].into_iter(),
       },
     ])?;
     Ok(ControlFlow::Continue(()))

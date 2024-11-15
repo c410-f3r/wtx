@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    optioned_server::OptionedServer, AutoStream, Headers, ManualServerStreamTokio, Method,
-    Protocol, ReqResBuffer, Response, StreamMode,
+    optioned_server::OptionedServer, AutoStream, ManualServerStreamTokio, OperationMode, Protocol,
+    ReqResBuffer, Request, Response,
   },
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},
@@ -12,18 +12,14 @@ use tokio::net::{TcpListener, TcpStream};
 impl OptionedServer {
   /// Optioned HTTP/2 server using tokio.
   #[inline]
-  pub async fn http2_tokio<A, ACPT, CA, E, M, N, SA, SMA, SR, SW>(
+  pub async fn http2_tokio<A, ACPT, CA, E, HA, M, N, OM, SA, SR, SW>(
     addr: &str,
     auto_cb: A,
     conn_cb: impl Clone + Fn() -> crate::Result<(CA, Http2Buffer, Http2Params)> + Send + 'static,
     err_cb: impl Clone + Fn(E) + Send + 'static,
     manual_cb: M,
+    operation_mode: OM,
     stream_cb: impl Clone + Fn() -> crate::Result<(SA, ReqResBuffer)> + Send + 'static,
-    stream_mode_cb: impl Clone
-      + Fn(&mut Headers, Method, Option<Protocol>) -> Result<StreamMode<SMA>, E>
-      + Send
-      + Sync
-      + 'static,
     (acceptor_cb, conn_acceptor_cb, net_cb): (
       impl FnOnce() -> crate::Result<ACPT> + Send + 'static,
       impl Clone + Fn(&ACPT) -> ACPT + Send + 'static,
@@ -32,25 +28,32 @@ impl OptionedServer {
   ) -> crate::Result<()>
   where
     A: Clone
-      + FnFut<(AutoStream<CA, SA>,), Result = Result<Response<ReqResBuffer>, E>>
+      + FnFut<(HA, AutoStream<CA, SA>), Result = Result<Response<ReqResBuffer>, E>>
       + Send
       + 'static,
     A::Future: Send,
     CA: Clone + Send + 'static,
     ACPT: Send + 'static,
     E: From<crate::Error> + Send + 'static,
+    HA: Send + 'static,
     M: Clone
-      + FnFut<(ManualServerStreamTokio<CA, Http2Buffer, SA, SMA, SW>,), Result = Result<(), E>>
+      + FnFut<(HA, ManualServerStreamTokio<CA, Http2Buffer, SA, SW>), Result = Result<(), E>>
       + Send
       + 'static,
     M::Future: Send,
     N: Future<Output = crate::Result<(SR, SW)>> + Send,
+    OM: Clone
+      + Fn(&CA, Option<Protocol>, Request<&mut ReqResBuffer>, &SA) -> Result<(HA, OperationMode), E>
+      + Send
+      + 'static,
     SA: Send + 'static,
-    SMA: Send + 'static,
     SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + Unpin + 'static,
     SW: Send + StreamWriter<write_all(..): Send, write_all_vectored(..): Send> + Unpin + 'static,
-    for<'handle> &'handle A: Send,
-    for<'handle> &'handle M: Send,
+    for<'any> &'any A: Send,
+    for<'any> &'any CA: Send,
+    for<'any> &'any M: Send,
+    for<'any> &'any OM: Send,
+    for<'any> &'any SA: Send,
   {
     let listener = TcpListener::bind(addr).await?;
     let acceptor = acceptor_cb()?;
@@ -64,48 +67,71 @@ impl OptionedServer {
       let conn_manual_cb = manual_cb.clone();
       let conn_net_cb = net_cb.clone();
       let conn_stream_cb = stream_cb.clone();
-      let conn_stream_mode_cb = stream_mode_cb.clone();
+      let conn_op_cb = operation_mode.clone();
       let _conn_jh = tokio::spawn(async move {
-        let another_conn_err_cb = conn_err_cb.clone();
-        let conn_fun = async move {
+        let initial = async move {
           let (conn_ca, http2_buffer, http2_params) = conn_conn_cb()?;
-          let (frame_reader, mut http2) = Http2Tokio::accept(
+          let (frame_reader, http2) = Http2Tokio::accept(
             http2_buffer,
             http2_params,
-            conn_net_cb(conn_acceptor, tcp_stream).await?,
+            conn_net_cb(conn_acceptor, tcp_stream).await.map_err(Into::into)?,
           )
-          .await?;
-          let _frame_reader_jh = tokio::spawn(frame_reader);
+          .await
+          .map_err(Into::into)?;
+          Ok::<_, E>((conn_ca, frame_reader, http2))
+        };
+        let (conn_ca, frame_reader, mut http2) = match initial.await {
+          Err(err) => {
+            conn_err_cb(err);
+            return;
+          }
+          Ok(elem) => elem,
+        };
+        let another_conn_err_cb = conn_err_cb.clone();
+        let another_http2 = http2.clone();
+        let _frame_reader_jh = tokio::spawn(frame_reader);
+        let rest = async move {
           loop {
-            let (stream_aux, rrb) = conn_stream_cb()?;
-            let (mut stream, headers_opt) = match http2
-              .stream(rrb, |headers, method, protocol| {
-                Ok::<_, E>(match conn_stream_mode_cb(headers, method, protocol)? {
-                  StreamMode::Auto => None,
-                  StreamMode::Manual(ma) => Some((mem::take(headers), ma)),
+            let stream_ca = conn_ca.clone();
+            let (stream_aux, rrb) = conn_stream_cb().map_err(Into::into)?;
+            let (mut stream, rslt) = match http2
+              .stream(rrb, |req, protocol| {
+                let op = conn_op_cb(
+                  &stream_ca,
+                  protocol,
+                  Request { method: req.method, rrd: &mut *req.rrd, version: req.version },
+                  &stream_aux,
+                )?;
+                Ok::<_, E>(match op.1 {
+                  OperationMode::Auto => (op.0, None),
+                  OperationMode::Manual => (op.0, Some(mem::take(req.rrd))),
                 })
               })
-              .await?
+              .await
+              .map_err(Into::into)?
             {
               Either::Left(_) => return Ok(()),
               Either::Right(elem) => elem,
             };
+            let (headers_aux, opt) = rslt?;
             let stream_auto_cb = conn_auto_cb.clone();
-            let stream_ca = conn_ca.clone();
             let stream_err_cb = conn_err_cb.clone();
             let stream_manual_cb = conn_manual_cb.clone();
             let _stream_jh = tokio::spawn(async move {
               let stream_fun = async {
-                if let Some((headers, stream_mode_aux)) = headers_opt? {
+                if let Some(local_rrb) = opt {
                   stream_manual_cb
-                    .call((ManualServerStreamTokio {
-                      conn_aux: stream_ca,
-                      headers,
-                      peer,
-                      stream: stream.clone(),
-                      stream_aux,
-                      stream_mode_aux,
-                    },))
+                    .call((
+                      headers_aux,
+                      ManualServerStreamTokio {
+                        conn_aux: stream_ca,
+                        peer,
+                        protocol: stream.protocol(),
+                        req: Request::http2(stream.method(), local_rrb),
+                        stream: stream.clone(),
+                        stream_aux,
+                      },
+                    ))
                     .await?;
                   return Ok(());
                 }
@@ -114,8 +140,14 @@ impl OptionedServer {
                   return Ok(());
                 }
                 let req = local_rrb.into_http2_request(stream.method());
-                let _as = AutoStream { conn_aux: stream_ca, peer, req, stream_aux };
-                let res = stream_auto_cb.call((_as,)).await?;
+                let auto_stream = AutoStream {
+                  conn_aux: stream_ca,
+                  peer,
+                  protocol: stream.protocol(),
+                  req,
+                  stream_aux,
+                };
+                let res = stream_auto_cb.call((headers_aux, auto_stream)).await?;
                 if stream.send_res(res).await?.is_closed() {
                   return Ok(());
                 }
@@ -130,8 +162,9 @@ impl OptionedServer {
             });
           }
         };
-        if let Err(err) = conn_fun.await {
-          another_conn_err_cb(E::from(err));
+        if let Err(err) = rest.await {
+          another_http2.send_go_away(Http2ErrorCode::NoError).await;
+          another_conn_err_cb(err);
         }
       });
     }

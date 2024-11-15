@@ -27,7 +27,7 @@ where
 
   #[inline]
   pub(crate) fn decrease_cursor(&mut self) {
-    self.cursor = self.cursor.wrapping_sub(1);
+    self.cursor = self.cursor.saturating_sub(1);
   }
 
   #[inline]
@@ -42,7 +42,7 @@ where
 
   #[inline]
   pub(crate) fn increase_cursor(&mut self) {
-    self.cursor = self.cursor.wrapping_add(1);
+    self.cursor = self.cursor.saturating_add(1);
   }
 
   #[inline]

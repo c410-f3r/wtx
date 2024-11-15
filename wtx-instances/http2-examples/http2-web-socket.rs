@@ -10,8 +10,8 @@ extern crate wtx_instances;
 use core::mem;
 use tokio::net::TcpListener;
 use wtx::{
-  http::{Headers, ReqResBuffer},
-  http2::{is_web_socket_handshake, Http2Buffer, Http2Params, Http2Tokio, WebSocketOverStream},
+  http::{is_web_socket_handshake, Headers, ReqResBuffer},
+  http2::{Http2Buffer, Http2Params, Http2Tokio, WebSocketOverStream},
   misc::{simple_seed, Either, TokioRustlsAcceptor, Vector, Xorshift64},
   web_socket::{Frame, OpCode},
 };
@@ -34,8 +34,9 @@ async fn main() -> wtx::Result<()> {
   .await?;
   tokio::spawn(frame_reader);
   let (mut stream, headers_opt) = match http2
-    .stream(ReqResBuffer::empty(), |headers, method, protocol| {
-      is_web_socket_handshake(headers, method, protocol).then(|| mem::take(headers))
+    .stream(ReqResBuffer::empty(), |req, protocol| {
+      let rslt = is_web_socket_handshake(&req.rrd.headers, req.method, protocol);
+      rslt.then(|| mem::take(&mut req.rrd.headers))
     })
     .await?
   {

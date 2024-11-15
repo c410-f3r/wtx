@@ -11,9 +11,8 @@ use crate::{
     window::WindowsPair,
     Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus, SendDataMode,
   },
-  misc::{LeaseMut, Lock, RefCounter, StreamWriter, Vector, _Span},
+  misc::{Arc, LeaseMut, Lock, RefCounter, StreamWriter, Vector, _Span},
 };
-use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
   mem,

@@ -30,10 +30,10 @@ use crate::{
     Http2Buffer, Http2Data, Http2Error,
   },
   misc::{
-    AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
+    Arc, AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader,
+    StreamWriter,
   },
 };
-use alloc::sync::Arc;
 use core::{
   future::{poll_fn, Future},
   mem,

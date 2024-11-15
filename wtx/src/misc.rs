@@ -10,6 +10,7 @@ mod connection_state;
 mod deque;
 mod either;
 mod enum_var_strings;
+mod facades;
 mod filled_buffer;
 mod filled_buffer_writer;
 mod fn_fut;
@@ -29,7 +30,6 @@ mod ref_counter;
 mod rng;
 mod role;
 mod single_type_storage;
-mod span;
 mod stream;
 mod sync;
 #[cfg(feature = "tokio-rustls")]
@@ -53,6 +53,7 @@ use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
 pub use deque::{Deque, DequeueError};
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
+pub use facades::arc::Arc;
 pub use filled_buffer_writer::FilledBufferWriter;
 pub use fn_fut::*;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
@@ -77,10 +78,11 @@ pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};
 #[allow(unused_imports, reason = "used in other features")]
 pub(crate) use {
+  facades::span::{_Entered, _Span},
+  facades::{atomic_u64::AtomicU64, atomic_usize::AtomicUsize},
   filled_buffer::FilledBuffer,
   mem_transfer::_shift_copyable_chunks,
   partitioned_filled_buffer::PartitionedFilledBuffer,
-  span::{_Entered, _Span},
   uri::_EMPTY_URI_STRING,
 };
 

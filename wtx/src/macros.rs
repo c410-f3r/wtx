@@ -94,6 +94,7 @@ macro_rules! _create_enum {
       /// See [`crate::misc::EnumVarStrings`].
       #[inline]
       $v const fn strings(&self) -> crate::misc::EnumVarStrings<{
+        #[allow(unused_mut, reason = "macro stuff")]
         let mut n;
         $({
           #[allow(unused_mut, reason = "repetition can be empty")]
@@ -308,28 +309,10 @@ macro_rules! _max_frames_mismatches {
 macro_rules! _simd {
   (
     fallback => $fallback:expr,
-    128 => $_128:expr,
-    256 => $_256:expr,
-    512 => $_512:expr $(,)?
+    16 => $_16:expr,
+    32 => $_32:expr,
+    64 => $_64:expr $(,)?
   ) => {{
-    #[cfg(target_feature = "avx512f")]
-    let rslt = $_512;
-
-    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-    let rslt = $_256;
-
-    #[cfg(all(
-      target_feature = "neon",
-      not(any(target_feature = "avx2", target_feature = "avx512f"))
-    ))]
-    let rslt = $_128;
-
-    #[cfg(all(
-      target_feature = "sse2",
-      not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
-    ))]
-    let rslt = $_128;
-
     #[cfg(not(any(
       target_feature = "avx2",
       target_feature = "avx512f",
@@ -338,6 +321,24 @@ macro_rules! _simd {
     )))]
     let rslt = $fallback;
 
+    #[cfg(all(
+      target_feature = "neon",
+      not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    let rslt = $_16;
+
+    #[cfg(all(
+      target_feature = "sse2",
+      not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
+    ))]
+    let rslt = $_16;
+
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+    let rslt = $_32;
+
+    #[cfg(target_feature = "avx512f")]
+    let rslt = $_64;
+
     rslt
   }};
 }
@@ -345,44 +346,43 @@ macro_rules! _simd {
 macro_rules! _simd_bytes {
   (
     ($align:ident, $bytes:expr),
-    (|$bytes_ident_a:ident| $bytes_expr_a:expr, |$bytes_ident_b:ident| $bytes_expr_b:expr),
-    |$_16:ident| $_128:expr,
-    |$_32:ident| $_256:expr,
-    |$_64:ident| $_512:expr  $(,)?
+    |$bytes_ident:ident| $bytes_expr:expr,
+    |$before_align_ident:ident| $before_align_expr:expr,
+    |$_16_ident:ident| $_16_expr:expr,
+    |$_32_ident:ident| $_32_expr:expr,
+    |$_64_ident:ident| $_64_expr:expr,
+    |$after_align_ident:ident| $after_align_expr:expr $(,)?
   ) => {{
     // SAFETY: Changing a sequence of `u8` should be fine
     let (_prefix, _chunks, _suffix) = unsafe { $bytes.$align() };
     _simd! {
       fallback => {
-        let $bytes_ident_a = _prefix;
-        $bytes_expr_a;
-      }
-      128 => {
-        let $bytes_ident_a = _prefix;
-        $bytes_expr_a;
-        let _: [[u8; 64]] = *_chunks;
-        let $_16 = _chunks;
-        $_128
-        let $bytes_ident_b = _suffix;
-        $bytes_expr_b;
+        let _: [u8] = *$bytes;
+        let $bytes_ident = $bytes; $bytes_expr;
       },
-      256 => {
-        let $bytes_ident_a = _prefix;
-        $bytes_expr_a;
-        let _: [[u8; 32]] = *_chunks;
-        let $_16 = _chunks;
-        $_128
-        let $bytes_ident_b = _suffix;
-        $bytes_expr_b;
-      },
-      512 => {
-        let $bytes_ident_a = _prefix;
-        $bytes_expr_a;
+      16 => {
         let _: [[u8; 16]] = *_chunks;
-        let $_16 = _chunks;
-        $_128
-        let $bytes_ident_b = _suffix;
-        $bytes_expr_b;
+        let $bytes_ident = _prefix; $bytes_expr
+        let $before_align_ident = $bytes_ident; $before_align_expr;
+        let $_16_ident = _chunks; $_16_expr;
+        let $after_align_ident = _suffix; $after_align_expr;
+        let $bytes_ident = $after_align_ident; $bytes_expr
+      },
+      32 => {
+        let _: [[u8; 32]] = *_chunks;
+        let $bytes_ident = _prefix; $bytes_expr
+        let $before_align_ident = $bytes_ident; $before_align_expr;
+        let $_32_ident = _chunks; $_32_expr;
+        let $after_align_ident = _suffix; $after_align_expr;
+        let $bytes_ident = $after_align_ident; $bytes_expr
+      },
+      64 => {
+        let _: [[u8; 64]] = *_chunks;
+        let $bytes_ident = _prefix; $bytes_expr
+        let $before_align_ident = $bytes_ident; $before_align_expr;
+        let $_64_ident = _chunks; $_64_expr;
+        let $after_align_ident = _suffix; $after_align_expr;
+        let $bytes_ident = $after_align_ident; $bytes_expr
       },
     }
   }};

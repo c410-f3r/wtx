@@ -15,6 +15,7 @@ mod http_error;
 mod method;
 mod mime;
 mod misc;
+mod operation_mode;
 #[cfg(feature = "nightly")]
 mod optioned_server;
 mod percent_encoding;
@@ -29,7 +30,6 @@ pub mod server_framework;
 #[cfg(feature = "http-session")]
 mod session;
 mod status_code;
-mod stream_mode;
 mod version;
 
 #[cfg(feature = "http-session")]
@@ -43,6 +43,7 @@ pub use http_error::HttpError;
 pub use method::Method;
 pub use mime::Mime;
 pub use misc::*;
+pub use operation_mode::*;
 #[cfg(feature = "nightly")]
 pub use optioned_server::OptionedServer;
 pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
@@ -55,7 +56,6 @@ pub use response::Response;
 #[cfg(feature = "http-session")]
 pub use session::*;
 pub use status_code::StatusCode;
-pub use stream_mode::*;
 pub use version::Version;
 
 pub(crate) const _MAX_AUTHORITY_LEN: usize = 64;

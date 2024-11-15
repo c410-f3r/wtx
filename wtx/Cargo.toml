@@ -8,6 +8,8 @@ chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
+embedded-io-async = { default-features = false, optional = true, version = "0.6" }
+embedded-tls = { default-features = false, optional = true, version = "0.17" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.1" }
@@ -16,6 +18,8 @@ hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 matchit = { default-features = false, optional = true, version = "0.8" }
 memchr = { default-features = false, optional = true, version = "2.0" }
+portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
+portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand_chacha = { default-features = false, optional = true, version = "0.3" }
 rand_core = { default-features = false, optional = true, version = "0.6" }
@@ -48,6 +52,7 @@ data-transformation = []
 database = []
 default = []
 digest = ["dep:digest"]
+embedded-tls = ["embedded-io-async", "dep:embedded-tls"]
 executor = []
 fastrand = ["dep:fastrand"]
 flate2 = ["dep:flate2"]
@@ -67,6 +72,7 @@ memchr = ["dep:memchr"]
 nightly = ["hashbrown?/nightly"]
 optimization = ["memchr", "simdutf8"]
 pool = []
+portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 quick-protobuf = ["dep:quick-protobuf", "std"]
 rand_chacha = ["dep:rand_chacha", "dep:rand_core"]
@@ -79,7 +85,39 @@ serde_json = ["serde", "dep:serde_json", "std"]
 sha1 = ["dep:sha1"]
 sha2 = ["dep:sha2"]
 simdutf8 = ["dep:simdutf8"]
-std = ["aes-gcm?/std", "argon2?/std", "base64?/std", "borsh?/std", "chrono?/std", "cl-aux?/std", "crypto-common?/std", "digest?/std", "fastrand?/std", "foldhash?/std", "hmac?/std", "httparse?/std", "memchr?/std", "quick-protobuf?/std", "rand_chacha?/std", "rand_core?/std", "ring?/std", "rust_decimal?/std", "rustls-pemfile?/std", "rustls-pki-types?/std", "serde?/std", "serde_json?/std", "sha1?/std", "sha2?/std", "simdutf8?/std", "tracing?/std", "tracing-subscriber?/std"]
+std = [
+  "aes-gcm?/std",
+  "argon2?/std",
+  "base64?/std",
+  "borsh?/std",
+  "chrono?/std",
+  "cl-aux?/std",
+  "crypto-common?/std",
+  "digest?/std",
+  "embedded-io-async?/std",
+  "embedded-tls?/std",
+  "fastrand?/std",
+  "foldhash?/std",
+  "hmac?/std",
+  "httparse?/std",
+  "memchr?/std",
+  "portable-atomic?/std",
+  "portable-atomic-util?/std",
+  "quick-protobuf?/std",
+  "rand_chacha?/std",
+  "rand_core?/std",
+  "ring?/std",
+  "rust_decimal?/std",
+  "rustls-pemfile?/std",
+  "rustls-pki-types?/std",
+  "serde?/std",
+  "serde_json?/std",
+  "sha1?/std", 
+  "sha2?/std",
+  "simdutf8?/std",
+  "tracing?/std",
+  "tracing-subscriber?/std"
+]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "dep:rustls-pemfile", "dep:rustls-pki-types", "tokio", "dep:tokio-rustls"]
 tracing = ["dep:tracing"]
