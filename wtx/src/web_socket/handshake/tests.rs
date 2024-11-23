@@ -15,7 +15,6 @@ use crate::{
     WebSocketClient, WebSocketClientOwned, WebSocketServer, WebSocketServerOwned,
   },
 };
-use alloc::vec;
 use core::{
   sync::atomic::{AtomicBool, Ordering},
   time::Duration,
@@ -177,7 +176,7 @@ where
   NC: NegotiatedCompression,
 {
   async fn client(ws: &mut WebSocketClientOwned<NC, TcpStream>) {
-    let bytes = || vec![b'1'; 256 * 1024];
+    let bytes = || _vector![b'1'; 256 * 1024];
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut bytes())).await.unwrap();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Continuation, &mut bytes())).await.unwrap();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Continuation, &mut bytes())).await.unwrap();
@@ -193,7 +192,7 @@ where
   async fn server(ws: &mut WebSocketServerOwned<NC, TcpStream>) {
     let text = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
-    assert_eq!(&vec![b'1'; 10 * 256 * 1024], text.payload());
+    assert_eq!(_vector![b'1'; 10 * 256 * 1024].as_slice(), *text.payload());
   }
 }
 

@@ -1,4 +1,6 @@
-use crate::pkg::{fir::fir_custom_field_field_attr::FirCustomFieldFieldAttr, keywords};
+use crate::client_api_framework::pkg::{
+  fir::fir_custom_field_field_attr::FirCustomFieldFieldAttr, keywords,
+};
 use syn::{
   parse::{Parse, ParseStream},
   spanned::Spanned,

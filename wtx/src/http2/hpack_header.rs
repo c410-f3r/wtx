@@ -15,7 +15,7 @@ pub(crate) enum HpackHeaderBasic {
 }
 
 impl HpackHeaderBasic {
-  pub(crate) const fn len(self, name: &[u8], value: &[u8]) -> usize {
+  pub(crate) const fn len(self, name: &str, value: &[u8]) -> usize {
     match self {
       HpackHeaderBasic::Authority => 10usize.wrapping_add(value.len()).wrapping_add(32),
       HpackHeaderBasic::Field => name.len().wrapping_add(value.len()).wrapping_add(32),

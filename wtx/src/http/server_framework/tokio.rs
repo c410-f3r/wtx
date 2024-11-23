@@ -44,7 +44,7 @@ where
     host: &str,
     rng: RNG,
     err_cb: impl Clone + Fn(E) + Send + 'static,
-    operation_mode: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
+    headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
   ) -> crate::Result<()>
   where
     RNG: Clone + Rng + Send + 'static,
@@ -58,7 +58,7 @@ where
       Self::tokio_manual,
       move |_, _, req, sa| {
         let rslt = Self::_route_params(req.rrd.uri.path(), &sa.1)?;
-        operation_mode(req)?;
+        headers_cb(req)?;
         Ok(rslt)
       },
       move || Ok(((_sa_cb.clone(), Arc::clone(&_router)), ReqResBuffer::empty())),
@@ -116,7 +116,7 @@ where
     host: &str,
     rng: RNG,
     err_cb: impl Clone + Fn(E) + Send + 'static,
-    operation_mode: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
+    headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
   ) -> crate::Result<()>
   where
     RNG: Clone + Rng + Send + 'static,
@@ -130,7 +130,7 @@ where
       Self::tokio_rustls_manual,
       move |_, _, req, sa| {
         let rslt = Self::_route_params(req.rrd.uri.path(), &sa.1)?;
-        operation_mode(req)?;
+        headers_cb(req)?;
         Ok(rslt)
       },
       move || Ok(((_sa_cb.clone(), Arc::clone(&_router)), ReqResBuffer::empty())),

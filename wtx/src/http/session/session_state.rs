@@ -2,7 +2,7 @@ use crate::http::session::SessionId;
 use chrono::{DateTime, Utc};
 
 /// Data that is saved in the corresponding store.
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SessionState<CS> {
   /// Custom state
   pub custom_state: CS,

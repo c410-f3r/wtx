@@ -21,6 +21,7 @@ pub(crate) enum Error {
   Syn(syn::Error),
   UnknownDataFormat,
   UnknownTransport(Span),
+  UnsupportedStructure,
 }
 
 impl From<syn::Error> for Error {
@@ -98,6 +99,7 @@ impl From<Error> for syn::Error {
       Error::Syn(error) => error,
       Error::UnknownDataFormat => syn::Error::new(Span::call_site(), "Unknown data format."),
       Error::UnknownTransport(span) => syn::Error::new(span, "Unknown transport."),
+      Error::UnsupportedStructure => syn::Error::new(Span::call_site(), "Unsupported structure."),
     }
   }
 }

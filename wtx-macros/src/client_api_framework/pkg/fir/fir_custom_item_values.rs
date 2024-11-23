@@ -1,4 +1,4 @@
-use crate::pkg::{
+use crate::client_api_framework::pkg::{
   enum_struct_or_type::EnumStructOrType, fir::fir_custom_field_field_attr::FirCustomFieldFieldAttr,
 };
 use syn::{punctuated::Punctuated, GenericParam, Ident, Token, Type, WherePredicate};
@@ -26,9 +26,9 @@ macro_rules! create_fir_custom_item_values {
     $($cb:expr)?,
   ) => {
     use crate::{
-      item_with_attr_span::ItemWithAttrSpan,
+      client_api_framework::item_with_attr_span::ItemWithAttrSpan,
       misc::push_doc_if_inexistent,
-      pkg::{
+      client_api_framework::pkg::{
         enum_struct_or_type::EnumStructOrType,
         fir::{
           fir_custom_field_attr::FirCustomFieldAttr,

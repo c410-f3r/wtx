@@ -36,6 +36,8 @@ pub enum Error {
   DecodeError(base64::DecodeError),
   #[cfg(feature = "base64")]
   DecodeSliceError(base64::DecodeSliceError),
+  #[cfg(feature = "embassy-net")]
+  EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
   #[cfg(feature = "flate2")]
@@ -241,6 +243,14 @@ impl From<base64::DecodeSliceError> for Error {
   #[track_caller]
   fn from(from: base64::DecodeSliceError) -> Self {
     Self::DecodeSliceError(from)
+  }
+}
+
+#[cfg(feature = "embassy-net")]
+impl From<embassy_net::tcp::Error> for Error {
+  #[inline]
+  fn from(from: embassy_net::tcp::Error) -> Self {
+    Self::EmbassyNet(from)
   }
 }
 

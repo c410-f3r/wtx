@@ -1,4 +1,4 @@
-use crate::pkg::keywords;
+use crate::client_api_framework::pkg::keywords;
 use proc_macro2::Span;
 use syn::{
   parse::{Parse, ParseBuffer, ParseStream},

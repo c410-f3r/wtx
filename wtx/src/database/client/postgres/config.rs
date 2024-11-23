@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::PostgresError,
-  misc::{into_rslt, str_split1, FromRadix10, UriRef},
+  misc::{into_rslt, str_split1, str_split_once1, FromRadix10, UriRef},
 };
 use core::time::Duration;
 
@@ -29,8 +29,8 @@ impl<'data> Config<'data> {
       app_name: "",
       channel_binding: ChannelBinding::Prefer,
       connect_timeout: Duration::ZERO,
-      db: uri.relative_reference().get(1..).unwrap_or_default(),
-      host: uri.host(),
+      db: uri.path().get(1..).unwrap_or_default(),
+      host: uri.hostname(),
       keepalives: true,
       load_balance_hosts: LoadBalanceHosts::Disable,
       password: uri.password(),
@@ -39,9 +39,15 @@ impl<'data> Config<'data> {
       tcp_user_timeout: Duration::ZERO,
       user: uri.user(),
     };
-    for key_value in str_split1(uri.query_and_fragment(), b'&') {
-      let mut iter = str_split1(key_value, b':');
-      if let [Some(key), Some(value)] = [iter.next(), iter.next()] {
+    let mut pair_iter = str_split1(uri.query_and_fragment(), b'&');
+    if let Some(mut key_value) = pair_iter.next() {
+      key_value = key_value.get(1..).unwrap_or_default();
+      if let Some((key, value)) = str_split_once1(key_value, b'=') {
+        this.set_param(key, value)?;
+      }
+    }
+    for key_value in pair_iter {
+      if let Some((key, value)) = str_split_once1(key_value, b'=') {
         this.set_param(key, value)?;
       }
     }
@@ -110,4 +116,24 @@ pub(crate) enum LoadBalanceHosts {
 pub(crate) enum TargetSessionAttrs {
   Any,
   ReadWrite,
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    database::client::postgres::{config::ChannelBinding, Config},
+    misc::Uri,
+  };
+
+  #[test]
+  fn from_uri() {
+    let uri = Uri::new("postgres://ab:cd@ef:5432/gh?application_name=ij&channel_binding=disable");
+    let config = Config::from_uri(&uri).unwrap();
+    assert_eq!(config.app_name, "ij");
+    assert_eq!(config.channel_binding, ChannelBinding::Disable);
+    assert_eq!(config.db, "gh");
+    assert_eq!(config.host, "ef");
+    assert_eq!(config.password, "cd");
+    assert_eq!(config.user, "ab");
+  }
 }

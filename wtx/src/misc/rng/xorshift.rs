@@ -7,16 +7,6 @@ pub struct Xorshift64 {
   value: u64,
 }
 
-#[cfg(feature = "http-server-framework")]
-impl crate::http::server_framework::ConnAux for Xorshift64 {
-  type Init = Self;
-
-  #[inline]
-  fn conn_aux(init: Self::Init) -> crate::Result<Self> {
-    Ok(init)
-  }
-}
-
 impl Rng for Xorshift64 {
   #[inline]
   fn u8(&mut self) -> u8 {

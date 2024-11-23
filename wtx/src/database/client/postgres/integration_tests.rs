@@ -21,8 +21,8 @@ async fn conn_scram_tls() {
   let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
-    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     &mut rng,
+    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     |stream| async {
       Ok(
         crate::misc::TokioRustlsConnector::from_auto()

@@ -238,8 +238,8 @@ pub(crate) mod database {
           Executor::connect_encrypted(
             &config,
             ExecutorBuffer::new(self.max_stmts, &mut &self.rng),
-            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             &mut &self.rng,
+            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;
               if let Some(elem) = self._certs {
@@ -268,8 +268,8 @@ pub(crate) mod database {
           Executor::connect_encrypted(
             &config,
             buffer,
-            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             &mut &self.rng,
+            TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;
               if let Some(elem) = self._certs {

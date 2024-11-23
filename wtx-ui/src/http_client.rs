@@ -23,7 +23,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
     rrb
       .headers
       .push_from_iter(Header::from_name_and_value(
-        name.trim().as_bytes(),
+        name.trim(),
         values.split(',').map(|el| el.trim().as_bytes()),
       ))
       .unwrap();
