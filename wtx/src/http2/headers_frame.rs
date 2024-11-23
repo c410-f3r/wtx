@@ -1,5 +1,5 @@
 use crate::{
-  http::{Header, HeaderName, KnownHeaderName, Method, ReqResBuffer},
+  http::{Header, KnownHeaderName, Method, ReqResBuffer},
   http2::{
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
@@ -100,11 +100,11 @@ impl<'uri> HeadersFrame<'uri> {
             &mut is_malformed,
             &mut is_over_size,
             max_headers_len,
-            name,
+            name.str(),
             value,
           );
         }
-        HpackHeaderBasic::Field => match KnownHeaderName::try_from(name) {
+        HpackHeaderBasic::Field => match KnownHeaderName::try_from(name.str().as_bytes()) {
           Ok(
             KnownHeaderName::Connection
             | KnownHeaderName::KeepAlive
@@ -118,24 +118,20 @@ impl<'uri> HeadersFrame<'uri> {
             is_malformed = true;
           }
           _ => {
-            let header_name = match HeaderName::http2p(name) {
-              Ok(header_name) => header_name,
-              Err(_err) => {
-                return Err(protocol_err(Http2Error::InvalidHeaderData));
-              }
-            };
             has_fields = true;
-            let len = decoded_header_size(name.len(), value.len());
+            let len = decoded_header_size(name.str().len(), value.len());
             expanded_headers_len = expanded_headers_len.wrapping_add(len);
             is_over_size = expanded_headers_len >= max_headers_len;
             if !is_over_size {
-              if let Ok(KnownHeaderName::ContentLength) = KnownHeaderName::try_from(header_name) {
+              if let Ok(KnownHeaderName::ContentLength) =
+                KnownHeaderName::try_from(name.str().as_bytes())
+              {
                 content_length = Some(usize::from_radix_10(value)?);
               }
               rrb_headers.push_from_iter(Header {
                 is_sensitive: false,
                 is_trailer: IS_TRAILER,
-                name,
+                name: name.str(),
                 value: [value],
               })?;
             }
@@ -149,7 +145,7 @@ impl<'uri> HeadersFrame<'uri> {
             &mut is_over_size,
             method.is_some(),
             max_headers_len,
-            name,
+            name.str(),
             value,
           ) {
             method = Some(local_method);
@@ -163,7 +159,7 @@ impl<'uri> HeadersFrame<'uri> {
             &mut is_malformed,
             &mut is_over_size,
             max_headers_len,
-            name,
+            name.str(),
             value,
           );
         }
@@ -175,7 +171,7 @@ impl<'uri> HeadersFrame<'uri> {
             &mut is_over_size,
             protocol.is_some(),
             max_headers_len,
-            name,
+            name.str(),
             value,
           ) {
             protocol = Some(local_protocol);
@@ -189,7 +185,7 @@ impl<'uri> HeadersFrame<'uri> {
             &mut is_malformed,
             &mut is_over_size,
             max_headers_len,
-            name,
+            name.str(),
             value,
           );
         }
@@ -201,7 +197,7 @@ impl<'uri> HeadersFrame<'uri> {
             &mut is_over_size,
             status.is_some(),
             max_headers_len,
-            name,
+            name.str(),
             value,
           ) {
             status = Some(local_status);
@@ -282,7 +278,7 @@ fn push_enum(
   is_over_size: &mut bool,
   is_some: bool,
   max_headers_len: usize,
-  name: &[u8],
+  name: &str,
   value: &[u8],
 ) -> bool {
   if *has_fields || is_some {
@@ -304,7 +300,7 @@ fn push_uri<const N: usize>(
   is_malformed: &mut bool,
   is_over_size: &mut bool,
   max_headers_len: usize,
-  name: &[u8],
+  name: &str,
   value: &[u8],
 ) {
   if *has_fields || !buffer.is_empty() {

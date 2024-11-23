@@ -1,4 +1,6 @@
-use crate::{item_with_attr_span::ItemWithAttrSpan, misc::push_doc_if_inexistent};
+use crate::{
+  client_api_framework::item_with_attr_span::ItemWithAttrSpan, misc::push_doc_if_inexistent,
+};
 use proc_macro2::Ident;
 use syn::Item;
 

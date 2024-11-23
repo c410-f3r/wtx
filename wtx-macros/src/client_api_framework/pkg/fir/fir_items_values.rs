@@ -1,4 +1,4 @@
-use crate::{
+use crate::client_api_framework::{
   contained_attrs::ContainedAttrs,
   item_with_attr_span::ItemWithAttrSpan,
   pkg::{

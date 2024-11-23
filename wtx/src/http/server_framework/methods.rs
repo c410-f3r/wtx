@@ -10,7 +10,6 @@ fn check_method<E>(expected: Method, received: Method) -> Result<(), E>
 where
   E: From<crate::Error>,
 {
-  std::dbg!(received);
   if expected != received {
     return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod { expected })));
   }

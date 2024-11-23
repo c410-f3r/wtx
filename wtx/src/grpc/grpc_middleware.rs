@@ -38,7 +38,7 @@ where
       Header {
         is_sensitive: false,
         is_trailer: true,
-        name: b"grpc-status",
+        name: "grpc-status",
         value: [stream_aux.status_code_mut().number_as_str().as_bytes()].into_iter(),
       },
     ])?;

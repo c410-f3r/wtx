@@ -99,7 +99,7 @@ required-features = ["wtx/http-server-framework"]
 [[example]]
 name = "http-server-framework-session"
 path = "http-server-framework-examples/http-server-framework-session.rs"
-required-features = ["argon2", "rand_chacha", "rand_core", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "wtx/postgres", "wtx/rand_chacha"]
+required-features = ["argon2", "rand_chacha", "rand_core", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "wtx/postgres", "wtx/rand_chacha", "wtx-macros"]
 
 # HTTP/2 Examples
 

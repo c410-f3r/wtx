@@ -1,4 +1,4 @@
-use crate::{
+use crate::client_api_framework::{
   item_with_attr_span::ItemWithAttrSpan,
   pkg::{
     fir::fir_aux_field_attr::FirAuxFieldAttr,

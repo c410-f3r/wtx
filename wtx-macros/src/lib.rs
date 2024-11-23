@@ -2,14 +2,10 @@
 
 #![expect(clippy::too_many_lines, reason = "Unimportant")]
 
-mod api_params;
-mod contained_attrs;
+mod client_api_framework;
 mod error;
-mod item_with_attr_span;
+mod http;
 mod misc;
-mod owned_or_ref;
-mod pkg;
-mod transport_group;
 
 use error::Error;
 
@@ -24,7 +20,16 @@ pub fn api_params(
   attrs: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  match api_params::api_params(attrs, item) {
+  match client_api_framework::api_params::api_params(attrs, item) {
+    Err(err) => syn::Error::from(err).to_compile_error().into(),
+    Ok(elem) => elem,
+  }
+}
+
+/// Connection Auxiliary
+#[proc_macro_derive(ConnAux)]
+pub fn conn_aux(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  match http::conn_aux(item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }
@@ -56,7 +61,7 @@ pub fn pkg(
   attr: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  match pkg::pkg(attr, item) {
+  match client_api_framework::pkg::pkg(attr, item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }

@@ -7,7 +7,7 @@ macro_rules! create_fir_hook_item_values {
     $fn_args_idents:expr,
     $error:ident,
   ) => {
-    use crate::item_with_attr_span::ItemWithAttrSpan;
+    use crate::client_api_framework::item_with_attr_span::ItemWithAttrSpan;
     use proc_macro2::TokenStream;
     use syn::{punctuated::Punctuated, FnArg, Item, ItemFn, Pat, Token};
 

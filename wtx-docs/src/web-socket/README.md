@@ -2,6 +2,8 @@
 
 Implementation of [RFC6455](https://datatracker.ietf.org/doc/html/rfc6455) and [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692). WebSocket is a communication protocol that enables full-duplex communication between a client (typically a web browser) and a server over a single TCP connection. Unlike traditional HTTP, which is request-response based, WebSocket allows real-time data exchange without the need for polling.
 
+In-house benchmarks are available at <https://c410-f3r.github.io/wtx-bench>. If you are aware of other benchmark tools, please open an discussion in the GitHub project.
+
 To use this functionality, it is necessary to activate the `web-socket` feature.
 
 ![WebSocket Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
@@ -21,7 +23,7 @@ To get the most performance possible, try compiling your program with `RUSTFLAGS
 
 Although not officially endorsed, the `no-masking` parameter described at <https://datatracker.ietf.org/doc/html/draft-damjanovic-websockets-nomasking-02> is supported to increase performance. If such a thing is not desirable, please make sure to check the handshake parameters to avoid accidental scenarios.
 
-To make everything work as intended both partys, client and server, need to implement this feature. For example, web browser won't stop masking frames.
+To make everything work as intended both parties, client and server, need to implement this feature. For example, web browser won't stop masking frames.
 
 ## Client Example
 

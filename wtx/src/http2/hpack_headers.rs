@@ -1,4 +1,5 @@
 use crate::misc::{Block, BlocksDeque};
+use core::str;
 
 #[derive(Debug)]
 pub(crate) struct HpackHeaders<M> {
@@ -44,7 +45,7 @@ where
   pub(crate) fn push_front<'bytes, I>(
     &mut self,
     misc: M,
-    name: &'bytes [u8],
+    name: &'bytes str,
     values: I,
     is_sensitive: bool,
     cb: impl FnMut(M),
@@ -64,7 +65,7 @@ where
     }
     self.remove_until_max_bytes(local_len, cb);
     self.bq.push_front_from_coyable_data(
-      [name].into_iter().chain(iter),
+      [name.as_bytes()].into_iter().chain(iter),
       Metadata { is_sensitive, misc, name_len: name.len() },
     )?;
     Ok(())
@@ -87,7 +88,11 @@ where
     AbstractHeader {
       is_sensitive: block.misc.is_sensitive,
       misc: &block.misc.misc,
-      name_bytes: block.data.get(..block.misc.name_len).unwrap_or_default(),
+      name_bytes: {
+        let str = block.data.get(..block.misc.name_len).unwrap_or_default();
+        // SAFETY: Input methods only accept UTF-8 data
+        unsafe { str::from_utf8_unchecked(str) }
+      },
       value_bytes: block.data.get(block.misc.name_len..).unwrap_or_default(),
     }
   }
@@ -111,7 +116,7 @@ where
 pub(crate) struct AbstractHeader<'ah, M> {
   pub(crate) is_sensitive: bool,
   pub(crate) misc: &'ah M,
-  pub(crate) name_bytes: &'ah [u8],
+  pub(crate) name_bytes: &'ah str,
   pub(crate) value_bytes: &'ah [u8],
 }
 

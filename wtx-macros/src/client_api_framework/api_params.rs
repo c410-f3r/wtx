@@ -1,6 +1,9 @@
 mod attrs;
 
-use crate::{misc::create_ident, owned_or_ref::OwnedOrRef, transport_group::TransportGroup};
+use crate::{
+  client_api_framework::{owned_or_ref::OwnedOrRef, transport_group::TransportGroup},
+  misc::create_ident,
+};
 use proc_macro2::{Ident, Span};
 use quote::ToTokens;
 use syn::{

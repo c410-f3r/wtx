@@ -40,17 +40,10 @@ macro_rules! create_statics {
       }
     }
 
-    impl From<KnownHeaderName> for HeaderNameStaticBytes {
+    impl From<KnownHeaderName> for HeaderName<&str> {
       #[inline]
       fn from(from: KnownHeaderName) -> Self {
-        HeaderNameStaticBytes::new(<&[u8]>::from(from))
-      }
-    }
-
-    impl From<KnownHeaderName> for HeaderNameStaticStr {
-      #[inline]
-      fn from(from: KnownHeaderName) -> Self {
-        HeaderNameStaticStr::new(<&str>::from(from))
+        Self(<&str>::from(from))
       }
     }
 
@@ -71,21 +64,23 @@ macro_rules! create_statics {
 
     impl<S> TryFrom<HeaderName<S>> for KnownHeaderName
     where
-      S: Lease<[u8]>
+      S: Lease<str>
     {
       type Error = HttpError;
 
       #[inline]
       fn try_from(from: HeaderName<S>) -> Result<Self, Self::Error> {
-        KnownHeaderName::try_from(from.bytes())
+        KnownHeaderName::try_from(from.str().as_bytes())
       }
     }
   };
 }
 
+use core::str;
+
 use crate::misc::Lease;
 
-const HTTP2P_TABLE: &[u8; 256] = &[
+const TABLE: &[u8; 256] = &[
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, b'!', b'"', b'#', b'$', b'%', b'&', b'\'', 0, 0, b'*', b'+', 0, b'-', b'.', 0, b'0', b'1',
   b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -100,44 +95,18 @@ const HTTP2P_TABLE: &[u8; 256] = &[
 
 use crate::http::HttpError;
 
-/// [`HeaderName`] composed by static bytes.
-pub type HeaderNameStaticBytes = HeaderName<&'static [u8]>;
-/// [`HeaderName`] composed by a static string.
-pub type HeaderNameStaticStr = HeaderName<&'static str>;
-
 /// HTTP header name
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct HeaderName<S>(S);
 
 impl<S> HeaderName<S>
 where
-  S: Lease<[u8]>,
+  S: Lease<str>,
 {
-  /// HTTP/2 Plus
-  ///
-  /// Expects a valid HTTP/2 or HTTP/3 content.
+  /// New generic instance that doesn't verify `content`.
   #[inline]
-  pub fn http2p(content: S) -> Result<Self, HttpError> {
-    _iter4!(content.lease(), {}, |byte| {
-      if let Some(elem) = HTTP2P_TABLE.get(usize::from(*byte)).copied() {
-        if elem == 0 {
-          return Err(HttpError::InvalidHttp2pContent);
-        }
-      }
-    });
-    Ok(Self(content))
-  }
-
-  /// Instance from a generic type content.
-  #[inline]
-  pub const fn new(content: S) -> Self {
+  pub const fn new_unchecked(content: S) -> Self {
     Self(content)
-  }
-
-  /// Generic type content in bytes form
-  #[inline]
-  pub fn bytes(&self) -> &[u8] {
-    self.0.lease()
   }
 
   /// Generic type content.
@@ -145,12 +114,50 @@ where
   pub const fn content(&self) -> &S {
     &self.0
   }
+
+  /// Generic type content in string form
+  #[inline]
+  pub fn str(&self) -> &str {
+    self.0.lease()
+  }
+
+  #[inline]
+  const fn check(content: &[u8]) -> Result<&str, HttpError> {
+    let mut idx: usize = 0;
+    loop {
+      if idx >= content.len() {
+        break;
+      }
+      #[expect(clippy::as_conversions, reason = "Lack of const traits")]
+      #[expect(
+        clippy::indexing_slicing,
+        reason = "An array of 256 elements will never panic with a 0..255 index"
+      )]
+      if TABLE[content[idx] as usize] == 0 {
+        return Err(HttpError::InvalidHttp2pContent);
+      }
+      idx = idx.wrapping_add(1);
+    }
+    // SAFETY: `TABLE` is a subset of ASCII
+    unsafe { Ok(str::from_utf8_unchecked(content)) }
+  }
+}
+
+impl<'this> HeaderName<&'this str> {
+  /// New instance from a set of bytes
+  #[inline]
+  pub const fn from_bytes(content: &'this [u8]) -> Result<Self, HttpError> {
+    match Self::check(content) {
+      Ok(elem) => Ok(HeaderName(elem)),
+      Err(err) => Err(err),
+    }
+  }
 }
 
 impl<'hn> From<HeaderName<&'hn str>> for HeaderName<&'hn [u8]> {
   #[inline]
   fn from(from: HeaderName<&'hn str>) -> Self {
-    Self::new(from.0.as_bytes())
+    Self(from.0.as_bytes())
   }
 }
 
@@ -229,21 +236,4 @@ create_statics! {
   Via = "via";
   Warning = "warning";
   WwwAuthenticate = "www-authenticate";
-}
-
-#[cfg(all(feature = "_bench", test))]
-mod bench {
-  use crate::{http::HeaderName, misc::Vector};
-
-  #[bench]
-  fn http2p(b: &mut test::Bencher) {
-    const LEN: usize = 32;
-    let mut data: Vector<u8> = Vector::with_capacity(LEN).unwrap();
-    for idx in 0..LEN {
-      data.push(idx.clamp(106, 122).try_into().unwrap()).unwrap();
-    }
-    b.iter(|| {
-      let _ = HeaderName::http2p(&data).unwrap();
-    });
-  }
 }

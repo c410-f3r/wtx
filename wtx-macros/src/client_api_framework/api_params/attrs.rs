@@ -1,4 +1,4 @@
-use crate::transport_group::TransportGroup;
+use crate::client_api_framework::transport_group::TransportGroup;
 use syn::{Meta, MetaList, NestedMeta, Path};
 
 #[derive(Debug)]

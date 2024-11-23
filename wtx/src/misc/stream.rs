@@ -1,3 +1,15 @@
+macro_rules! _local_write_all {
+  ($bytes:expr, $write:expr) => {{
+    while !$bytes.is_empty() {
+      match $write {
+        Err(e) => return Err(e.into()),
+        Ok(0) => return { Err(crate::Error::UnexpectedStreamWriteEOF) },
+        Ok(n) => $bytes = $bytes.get(n..).unwrap_or_default(),
+      }
+    }
+  }};
+}
+
 macro_rules! _local_write_all_vectored {
   ($bytes:expr, $this:ident, |$io_slices:ident| $write_many:expr) => {
     if let [single] = $bytes {
@@ -17,6 +29,8 @@ macro_rules! _local_write_all_vectored {
 }
 
 mod bytes_stream;
+#[cfg(feature = "embassy-net")]
+mod embassy_net;
 #[cfg(feature = "embedded-tls")]
 mod embedded_tls;
 #[cfg(feature = "std")]

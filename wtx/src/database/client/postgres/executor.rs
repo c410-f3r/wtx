@@ -54,8 +54,8 @@ where
   pub async fn connect_encrypted<F, IS, RNG>(
     config: &Config<'_>,
     mut eb: EB,
-    mut initial_stream: IS,
     rng: &mut RNG,
+    mut stream: IS,
     cb: impl FnOnce(IS) -> F,
   ) -> crate::Result<Self>
   where
@@ -68,14 +68,14 @@ where
     {
       let mut fbw = FilledBufferWriter::from(&mut eb.lease_mut().nb);
       encrypted_conn(&mut fbw)?;
-      initial_stream.write_all(fbw._curr_bytes()).await?;
+      stream.write_all(fbw._curr_bytes()).await?;
     }
     let mut buf = [0];
-    let _ = initial_stream.read(&mut buf).await?;
+    let _ = stream.read(&mut buf).await?;
     if buf[0] != b'S' {
       return Err(PostgresError::ServerDoesNotSupportEncryption.into());
     }
-    let stream = cb(initial_stream).await?;
+    let stream = cb(stream).await?;
     let tls_server_end_point = stream.tls_server_end_point()?;
     Self::do_connect(config, eb, rng, stream, tls_server_end_point.as_ref().map(Lease::lease)).await
   }

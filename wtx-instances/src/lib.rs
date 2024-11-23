@@ -39,8 +39,6 @@ pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 pub async fn executor_postgres(
   uri_str: &str,
 ) -> wtx::Result<Executor<wtx::Error, ExecutorBuffer, TcpStream>> {
-  use std::usize;
-
   let uri = Uri::new(uri_str);
   let mut rng = Xorshift64::from(simple_seed());
   Executor::connect(

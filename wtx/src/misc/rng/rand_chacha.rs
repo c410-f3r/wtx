@@ -2,16 +2,6 @@ use rand_core::RngCore;
 
 macro_rules! implement {
   ($struct:ty) => {
-    #[cfg(feature = "http-server-framework")]
-    impl crate::http::server_framework::ConnAux for $struct {
-      type Init = Self;
-
-      #[inline]
-      fn conn_aux(init: Self::Init) -> crate::Result<Self> {
-        Ok(init)
-      }
-    }
-
     impl crate::misc::rng::Rng for $struct {
       #[inline]
       fn u8(&mut self) -> u8 {

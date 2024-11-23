@@ -111,15 +111,15 @@ fn fetch_project() {
     .unwrap();
 }
 
-pub(crate) const fn hhb_name<'name>(hhb: HpackHeaderBasic, name: &'name [u8]) -> &'name [u8] {
+pub(crate) const fn hhb_name<'name>(hhb: HpackHeaderBasic, name: &'name str) -> &'name str {
   match hhb {
-    HpackHeaderBasic::Authority => b":authority",
+    HpackHeaderBasic::Authority => ":authority",
     HpackHeaderBasic::Field => name,
-    HpackHeaderBasic::Method(_) => b":method",
-    HpackHeaderBasic::Path => b":path",
-    HpackHeaderBasic::Protocol(_) => b":protocol",
-    HpackHeaderBasic::Scheme => b":scheme",
-    HpackHeaderBasic::StatusCode(_) => b":status",
+    HpackHeaderBasic::Method(_) => ":method",
+    HpackHeaderBasic::Path => ":path",
+    HpackHeaderBasic::Protocol(_) => ":protocol",
+    HpackHeaderBasic::Scheme => ":scheme",
+    HpackHeaderBasic::StatusCode(_) => ":status",
   }
 }
 
@@ -142,12 +142,12 @@ fn parse_hex(hex: &[u8]) -> Vector<u8> {
 
 fn strs<'key, 'value>(
   hhb: HpackHeaderBasic,
-  name: &'key [u8],
+  name: &'key str,
   value: &'value [u8],
 ) -> (&'key str, &'value str) {
   match hhb {
     HpackHeaderBasic::Authority => (":authority", from_utf8_basic(value).unwrap()),
-    HpackHeaderBasic::Field => (from_utf8_basic(name).unwrap(), from_utf8_basic(value).unwrap()),
+    HpackHeaderBasic::Field => (name, from_utf8_basic(value).unwrap()),
     HpackHeaderBasic::Method(elem) => (":method", elem.strings().custom[0]),
     HpackHeaderBasic::Path => (":path", from_utf8_basic(value).unwrap()),
     HpackHeaderBasic::Protocol(elem) => (":protocol", elem.strings().custom[0]),
@@ -220,7 +220,7 @@ fn test_story_encoding_and_decoding(
       if header.name.starts_with(":") {
         None
       } else {
-        Some((HpackHeaderBasic::Field, header.name.as_bytes(), header.value.as_bytes()))
+        Some((HpackHeaderBasic::Field, header.name.as_str(), header.value.as_bytes()))
       }
     }))
     .unwrap();
@@ -236,7 +236,7 @@ fn test_story_encoding_and_decoding(
     decoder
       .decode(&buffer, |(hhb, name, value)| {
         if pseudo_headers.is_empty() {
-          assert_eq!((hhb, hhb_name(hhb, name), value), user_headers.remove(0).unwrap());
+          assert_eq!((hhb, hhb_name(hhb, name.str()), value), user_headers.remove(0).unwrap());
         } else {
           assert_eq!((hhb, value), pseudo_headers.remove(0).unwrap());
         }
@@ -263,7 +263,7 @@ fn test_story_wired_decoding(cases: &mut Vector<Case>, decoder: &mut HpackDecode
     decoder
       .decode(&parse_hex(wire.as_bytes()), |(hhb, name, value)| {
         let case_header = case.headers.remove(0).unwrap();
-        let (name, value) = strs(hhb, name, value);
+        let (name, value) = strs(hhb, name.str(), value);
         assert_eq!(case_header.name, name);
         assert_eq!(case_header.value, value);
         Ok(())

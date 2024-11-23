@@ -27,33 +27,39 @@ use wtx::{
   database::{Executor, Record},
   http::{
     server_framework::{get, post, Router, ServerFrameworkBuilder, State, StateClean},
-    ReqResBuffer, ReqResData, SessionDecoder, SessionEnforcer, SessionTokio, StatusCode,
+    ReqResBuffer, ReqResData, SessionDecoder, SessionEnforcer, SessionManagerTokio, SessionState,
+    StatusCode,
   },
   misc::{argon2_pwd, Vector},
   pool::{PostgresRM, SimplePoolTokio},
 };
 
-type ConnAux = (Session, ChaCha20Rng);
 type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
-type Session = SessionTokio<u32, wtx::Error, Pool>;
+type SessionManager = SessionManagerTokio<u32, wtx::Error>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let pool = Pool::new(4, PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into()));
+  let uri = "postgres://USER:PASSWORD@localhost/DB_NAME";
+  let mut pool = Pool::new(4, PostgresRM::tokio(uri.into()));
   let mut rng = ChaCha20Rng::from_entropy();
-  let (expired_sessions, session) = Session::builder(pool).build_generating_key(&mut rng);
+  let (expired, sm) = SessionManager::builder().build_generating_key(&mut rng, &mut pool);
   let router = Router::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout)),),
-    (SessionDecoder::new(session.clone()), SessionEnforcer::new(["/admin"], session.clone())),
+    (SessionDecoder::new(sm.clone(), pool.clone()), SessionEnforcer::new(["/admin"])),
   )?;
   tokio::spawn(async move {
-    if let Err(err) = expired_sessions.await {
+    if let Err(err) = expired.await {
       eprintln!("{err}");
     }
   });
   let rng_clone = rng.clone();
   ServerFrameworkBuilder::new(router)
-    .with_conn_aux(move || (session.clone(), rng_clone.clone()))
+    .with_conn_aux(move || ConnAux {
+      pool: pool.clone(),
+      rng: rng_clone.clone(),
+      session_manager: sm.clone(),
+      session_state: None,
+    })
     .tokio("0.0.0.0:9000", rng, |err| eprintln!("{err:?}"), |_| Ok(()))
     .await?;
   Ok(())
@@ -61,14 +67,14 @@ async fn main() -> wtx::Result<()> {
 
 #[inline]
 async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  let (Session { manager, store }, rng) = state.conn_aux;
-  if manager.inner.lock().await.state().is_some() {
-    manager.delete_session_cookie(&mut state.req.rrd, store).await?;
+  let ConnAux { pool, rng, session_manager, session_state } = state.conn_aux;
+  if session_state.is_some() {
+    session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
     return Ok(StatusCode::Forbidden);
   }
   let user: UserLoginReq<'_> = serde_json::from_slice(state.req.rrd.body())?;
-  let mut guard = store.get().await?;
-  let record = guard
+  let mut pool_guard = pool.get().await?;
+  let record = pool_guard
     .fetch_with_stmt("SELECT id,first_name,password,salt FROM user WHERE email = $1", (user.email,))
     .await?;
   let id = record.decode::<_, u32>(0)?;
@@ -81,16 +87,24 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<Statu
     return Ok(StatusCode::Unauthorized);
   }
   serde_json::to_writer(&mut state.req.rrd.body, &UserLoginRes { id, name: first_name })?;
-  drop(guard);
-  manager.set_session_cookie(id, rng, &mut state.req.rrd, store).await?;
+  drop(pool_guard);
+  session_manager.set_session_cookie(id, rng, &mut state.req.rrd, pool).await?;
   Ok(StatusCode::Ok)
 }
 
 #[inline]
 async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  let (Session { manager, store }, _) = state.conn_aux;
-  manager.delete_session_cookie(&mut state.req.rrd, store).await?;
+  let ConnAux { pool, rng: _, session_manager, session_state } = state.conn_aux;
+  session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
   Ok(StatusCode::Ok)
+}
+
+#[derive(Clone, Debug, wtx_macros::ConnAux)]
+struct ConnAux {
+  pool: Pool,
+  rng: ChaCha20Rng,
+  session_manager: SessionManager,
+  session_state: Option<SessionState<u32>>,
 }
 
 #[derive(Debug, serde::Deserialize)]

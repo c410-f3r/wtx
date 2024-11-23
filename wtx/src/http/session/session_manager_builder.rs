@@ -2,7 +2,7 @@ use crate::{
   http::{
     cookie::{CookieGeneric, SameSite},
     session::{SessionKey, SessionManagerInner},
-    Session, SessionManager, SessionStore,
+    SessionManager, SessionStore,
   },
   misc::{sleep, Lock, Rng, Vector},
 };
@@ -11,15 +11,14 @@ use core::{future::Future, marker::PhantomData, time::Duration};
 
 /// Default and optional parameters for the construction of a [`Session`].
 #[derive(Debug)]
-pub struct SessionBuilder<SS> {
+pub struct SessionManagerBuilder {
   pub(crate) cookie_def: CookieGeneric<&'static [u8], Vector<u8>>,
   pub(crate) inspection_interval: Duration,
-  pub(crate) store: SS,
 }
 
-impl<SS> SessionBuilder<SS> {
+impl SessionManagerBuilder {
   #[inline]
-  pub(crate) const fn new(store: SS) -> Self {
+  pub(crate) const fn new() -> Self {
     Self {
       cookie_def: CookieGeneric {
         domain: &[],
@@ -33,7 +32,6 @@ impl<SS> SessionBuilder<SS> {
         value: Vector::new(),
       },
       inspection_interval: Duration::from_secs(60 * 30),
-      store,
     }
   }
 
@@ -46,10 +44,11 @@ impl<SS> SessionBuilder<SS> {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_generating_key<CS, E, I, RNG>(
+  pub fn build_generating_key<CS, E, I, RNG, SS>(
     self,
     rng: &mut RNG,
-  ) -> (impl Future<Output = Result<(), E>>, Session<I, SS>)
+    session_store: &mut SS,
+  ) -> (impl Future<Output = Result<(), E>>, SessionManager<I>)
   where
     E: From<crate::Error>,
     I: Lock<Resource = SessionManagerInner<CS, E>>,
@@ -58,7 +57,7 @@ impl<SS> SessionBuilder<SS> {
   {
     let mut key = [0; 32];
     rng.fill_slice(&mut key);
-    Self::build_with_key(self, key)
+    Self::build_with_key(self, key, session_store)
   }
 
   /// Creates a new [`Session`] with the provided `key`.
@@ -69,17 +68,18 @@ impl<SS> SessionBuilder<SS> {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_with_key<CS, E, I>(
+  pub fn build_with_key<CS, E, I, SS>(
     self,
     key: SessionKey,
-  ) -> (impl Future<Output = Result<(), E>>, Session<I, SS>)
+    session_store: &mut SS,
+  ) -> (impl Future<Output = Result<(), E>>, SessionManager<I>)
   where
     E: From<crate::Error>,
     I: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
-    let Self { cookie_def, inspection_interval, store } = self;
-    let mut local_store = store.clone();
+    let Self { cookie_def, inspection_interval } = self;
+    let mut local_store = session_store.clone();
     (
       async move {
         loop {
@@ -87,11 +87,8 @@ impl<SS> SessionBuilder<SS> {
           sleep(inspection_interval).await.map_err(Into::into)?;
         }
       },
-      Session {
-        manager: SessionManager {
-          inner: I::new(SessionManagerInner { cookie_def, phantom: PhantomData, key, state: None }),
-        },
-        store,
+      SessionManager {
+        inner: I::new(SessionManagerInner { cookie_def, phantom: PhantomData, key }),
       },
     )
   }

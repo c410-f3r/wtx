@@ -79,7 +79,7 @@ impl<CA, E, EN, M, S> ServerFrameworkBuilder<CA, E, EN, M, S, ()>
 where
   CA: ConnAux,
 {
-  /// Sets the initializing strut for `CAA` and sets the request auxiliary to `()`.
+  /// Sets the initializing strut for `CA` and sets the request auxiliary to `()`.
   #[inline]
   pub fn with_conn_aux<CAC>(
     self,

@@ -1,5 +1,5 @@
-use crate::misc::{BytesFmt, Lease, LeaseMut, Vector};
-use core::{fmt::Arguments, ptr};
+use crate::misc::{Lease, LeaseMut, Vector};
+use core::{fmt::Arguments, ptr, str};
 
 /// Determines how trailers are placed in the headers
 #[derive(Clone, Copy, Debug)]
@@ -58,7 +58,7 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_iter(Header::from_name_and_value(b"name", ["value".as_bytes()])).unwrap();
+  /// headers.push_from_iter(Header::from_name_and_value("name", ["value".as_bytes()])).unwrap();
   /// assert_eq!(headers.bytes_len(), 9);
   /// assert_eq!(headers.headers_len(), 1);
   /// headers.clear();
@@ -82,7 +82,7 @@ impl Headers {
   /// Returns the header that is referenced by `name`, if any.
   #[inline]
   pub fn get_by_name(&self, name: &[u8]) -> Option<Header<'_, &[u8]>> {
-    self.iter().find(|el| el.name == name)
+    self.iter().find(|el| el.name.as_bytes() == name)
   }
 
   /// Returns all first optional headers that are referenced by `names`.
@@ -90,7 +90,7 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_iter(Header::from_name_and_value(b"name0", [])).unwrap();
+  /// headers.push_from_iter(Header::from_name_and_value("name0", [])).unwrap();
   /// let array = headers.get_many_by_name(["name0".as_bytes(), "name1".as_bytes()]);
   /// assert!(array[0].is_some());
   /// assert!(array[1].is_none());
@@ -103,7 +103,7 @@ impl Headers {
     let mut rslt = [None; N];
     for header in self.iter() {
       for (name, opt) in names.into_iter().zip(&mut rslt) {
-        if name == header.name {
+        if name == header.name.as_bytes() {
           *opt = Some(header);
           break;
         }
@@ -129,7 +129,7 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_iter(Header::from_name_and_value(b"name", ["value".as_bytes()])).unwrap();
+  /// headers.push_from_iter(Header::from_name_and_value("name", ["value".as_bytes()])).unwrap();
   /// assert_eq!(headers.bytes_len(), 9);
   /// assert_eq!(headers.headers_len(), 1);
   /// let _ = headers.pop();
@@ -154,8 +154,8 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_fmt(Header::from_name_and_value(b"name", format_args!("{}", 1))).unwrap();
-  /// assert_eq!(headers.get_by_idx(0).unwrap(), Header::from_name_and_value(b"name", "1".as_bytes()));
+  /// headers.push_from_fmt(Header::from_name_and_value("name", format_args!("{}", 1))).unwrap();
+  /// assert_eq!(headers.get_by_idx(0).unwrap(), Header::from_name_and_value("name", "1".as_bytes()));
   /// ```
   #[inline(always)]
   pub fn push_from_fmt(&mut self, header: Header<'_, Arguments<'_>>) -> crate::Result<()> {
@@ -163,12 +163,12 @@ impl Headers {
     #[cfg(feature = "std")]
     {
       use std::io::Write;
-      self.bytes.write_fmt(format_args!("{}{}", BytesFmt(header.name), header.value))?;
+      self.bytes.write_fmt(format_args!("{}{}", header.name, header.value))?;
     }
     #[cfg(not(feature = "std"))]
     {
       use core::fmt::Write;
-      self.bytes.write_fmt(format_args!("{}{}", BytesFmt(header.name), header.value))?;
+      self.bytes.write_fmt(format_args!("{}{}", header.name, header.value))?;
     }
     let prev_len = self.headers_parts.len();
     self.headers_parts.push(HeaderParts {
@@ -188,8 +188,8 @@ impl Headers {
   /// ```rust
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
-  /// headers.push_from_iter(Header::from_name_and_value(b"name", ["value0".as_bytes(), "_value1".as_bytes()])).unwrap();
-  /// assert_eq!(headers.get_by_idx(0).unwrap(), Header::from_name_and_value(b"name", "value0_value1".as_bytes()));
+  /// headers.push_from_iter(Header::from_name_and_value("name", ["value0".as_bytes(), "_value1".as_bytes()])).unwrap();
+  /// assert_eq!(headers.get_by_idx(0).unwrap(), Header::from_name_and_value("name", "value0_value1".as_bytes()));
   /// ```
   #[inline(always)]
   pub fn push_from_iter<'bytes, V>(&mut self, header: Header<'bytes, V>) -> crate::Result<()>
@@ -214,7 +214,7 @@ impl Headers {
     let header_begin = self.bytes.len();
     let ptr = self.bytes.as_ptr_mut();
     let mut header_end = header_begin;
-    copy(&mut header_end, ptr, header.name);
+    copy(&mut header_end, ptr, header.name.as_bytes());
     let header_name_end = header_end;
     for value in iter {
       copy(&mut header_end, ptr, value);
@@ -274,7 +274,7 @@ impl Headers {
   }
 
   #[inline]
-  fn header_len<'bytes>(header_name: &[u8], iter: impl Iterator<Item = &'bytes [u8]>) -> usize {
+  fn header_len<'bytes>(header_name: &str, iter: impl Iterator<Item = &'bytes [u8]>) -> usize {
     let mut header_len = header_name.len();
     for elem in iter {
       header_len = header_len.wrapping_add(elem.len());
@@ -311,7 +311,11 @@ impl Headers {
     Header {
       is_sensitive,
       is_trailer,
-      name: bytes.get(header_begin..header_name_end).unwrap_or_default(),
+      name: {
+        let str = bytes.get(header_begin..header_name_end).unwrap_or_default();
+        // SAFETY: Input methods only accept UTF-8 data
+        unsafe { str::from_utf8_unchecked(str) }
+      },
       value: bytes.get(header_name_end..header_end).unwrap_or_default(),
     }
   }
@@ -350,7 +354,7 @@ pub struct Header<'any, V> {
   /// The applicability and semantics depends on the HTTP version.
   pub is_trailer: bool,
   /// Header name
-  pub name: &'any [u8],
+  pub name: &'any str,
   /// Header value
   pub value: V,
 }
@@ -358,7 +362,7 @@ pub struct Header<'any, V> {
 impl<'any, V> Header<'any, V> {
   /// Sets `is_sensitive` and `is_trailer` to `false`.
   #[inline]
-  pub fn from_name_and_value(name: &'any [u8], value: V) -> Self {
+  pub fn from_name_and_value(name: &'any str, value: V) -> Self {
     Self { is_sensitive: false, is_trailer: false, name, value }
   }
 }
