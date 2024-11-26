@@ -80,52 +80,52 @@ mod generic_web_socket_subscription {
   pub type GenericWebSocketSubscriptionRes = u64;
 }
 
+async fn http_pair(
+) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientFrameworkTokio> {
+  Pair::new(
+    PkgsAux::from_minimum(
+      GenericThrottlingApi {
+        rt: RequestThrottling::from_rl(RequestLimit::new(5, Duration::from_secs(1))),
+      },
+      SerdeJson,
+      HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
+    ),
+    ClientFrameworkTokio::tokio(1).build(),
+  )
+}
+
+async fn web_socket_pair() -> wtx::Result<
+  Pair<
+    PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
+    WebSocketClient<(), TcpStream, WebSocketBuffer>,
+  >,
+> {
+  let uri = Uri::new("ws://generic_web_socket_uri.com");
+  let web_socket = WebSocketClient::connect(
+    (),
+    [],
+    false,
+    Xorshift64::from(simple_seed()),
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
+    &uri,
+    WebSocketBuffer::default(),
+    |_| wtx::Result::Ok(()),
+  )
+  .await?;
+  Ok(Pair::new(
+    PkgsAux::from_minimum(
+      GenericThrottlingApi {
+        rt: RequestThrottling::from_rl(RequestLimit::new(40, Duration::from_secs(2))),
+      },
+      SerdeJson,
+      WsParams::default(),
+    ),
+    web_socket,
+  ))
+}
+
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  async fn http_pair(
-  ) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientFrameworkTokio> {
-    Pair::new(
-      PkgsAux::from_minimum(
-        GenericThrottlingApi {
-          rt: RequestThrottling::from_rl(RequestLimit::new(5, Duration::from_secs(1))),
-        },
-        SerdeJson,
-        HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
-      ),
-      ClientFrameworkTokio::tokio(1).build(),
-    )
-  }
-
-  async fn web_socket_pair() -> wtx::Result<
-    Pair<
-      PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-      WebSocketClient<(), TcpStream, WebSocketBuffer>,
-    >,
-  > {
-    let uri = Uri::new("ws://generic_web_socket_uri.com");
-    let web_socket = WebSocketClient::connect(
-      (),
-      [],
-      false,
-      Xorshift64::from(simple_seed()),
-      TcpStream::connect(uri.hostname_with_implied_port()).await?,
-      &uri,
-      WebSocketBuffer::default(),
-      |_| wtx::Result::Ok(()),
-    )
-    .await?;
-    Ok(Pair::new(
-      PkgsAux::from_minimum(
-        GenericThrottlingApi {
-          rt: RequestThrottling::from_rl(RequestLimit::new(40, Duration::from_secs(2))),
-        },
-        SerdeJson,
-        WsParams::default(),
-      ),
-      web_socket,
-    ))
-  }
-
   let mut hp = http_pair().await;
   let _http_response_tuple = hp
     .trans

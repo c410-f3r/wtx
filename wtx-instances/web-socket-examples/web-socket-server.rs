@@ -36,7 +36,7 @@ async fn main() -> wtx::Result<()> {
 async fn handle(
   mut ws: WebSocketServer<(), TlsStream<TcpStream>, &mut WebSocketBuffer>,
 ) -> wtx::Result<()> {
-  let (mut common, mut reader, mut writer) = ws.parts();
+  let (mut common, mut reader, mut writer) = ws.parts_mut();
   loop {
     let mut frame = reader.read_frame(&mut common).await?;
     match frame.op_code() {

@@ -22,7 +22,7 @@ async fn main() -> wtx::Result<()> {
       |_| wtx::Result::Ok(()),
     )
     .await?;
-    let (mut common, mut reader, mut writer) = ws.parts();
+    let (mut common, mut reader, mut writer) = ws.parts_mut();
     loop {
       let mut frame = match reader.read_frame(&mut common).await {
         Err(_err) => {

@@ -1,3 +1,5 @@
+// Common functions that used be used by pure WebSocket structures or tunneling protocols.
+//
 // |    Frame   |   With Decompression     | Without Decompression |
 // |------------|--------------------------|-----------------------|
 // |Single      |(NB -> RB1)¹              |(NB)¹                  |
@@ -6,23 +8,131 @@
 use crate::{
   misc::{
     from_utf8_basic, from_utf8_ext, BufferMode, CompletionErr, ConnectionState, ExtUtf8Error,
-    FnMutFut, IncompleteUtf8Char, LeaseMut, PartitionedFilledBuffer, Rng, Stream, Vector,
-    _read_payload,
+    FnMutFut, IncompleteUtf8Char, LeaseMut, PartitionedFilledBuffer, Rng, StreamReader,
+    StreamWriter, Vector, _read_payload,
   },
   web_socket::{
-    compression::NegotiatedCompression, fill_with_close_code, payload_ty::PayloadTy,
-    read_frame_info::ReadFrameInfo, unmask::unmask, web_socket_writer::manage_normal_frame,
-    CloseCode, Frame, FrameMut, OpCode, WebSocketError, MAX_CONTROL_PAYLOAD_LEN,
-    MAX_HEADER_LEN_USIZE,
+    compression::NegotiatedCompression, fill_with_close_code, read_frame_info::ReadFrameInfo,
+    unmask::unmask, web_socket_writer::manage_normal_frame, CloseCode, Frame, OpCode,
+    WebSocketError, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE,
   },
 };
 
 const DECOMPRESSION_SUFFIX: [u8; 4] = [0, 0, 255, 255];
 
-type ReadContinuationFramesCb = (
-  fn(&[u8]) -> crate::Result<Option<IncompleteUtf8Char>>,
-  fn(&[u8], &mut Option<IncompleteUtf8Char>) -> crate::Result<()>,
-);
+#[inline]
+pub(crate) fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
+  network_buffer: &mut PartitionedFilledBuffer,
+  no_masking: bool,
+  reader_buffer_first: &mut Vector<u8>,
+  rfi: &ReadFrameInfo,
+) -> crate::Result<()> {
+  let current_mut = network_buffer._current_mut();
+  unmask_nb::<IS_CLIENT>(current_mut, no_masking, rfi)?;
+  reader_buffer_first.extend_from_copyable_slice(current_mut)?;
+  Ok(())
+}
+
+#[inline]
+pub(crate) fn copy_from_compressed_nb_to_rb1<NC, const IS_CLIENT: bool>(
+  nc: &mut NC,
+  network_buffer: &mut PartitionedFilledBuffer,
+  no_masking: bool,
+  reader_buffer_first: &mut Vector<u8>,
+  rfi: &ReadFrameInfo,
+) -> crate::Result<()>
+where
+  NC: NegotiatedCompression,
+{
+  unmask_nb::<IS_CLIENT>(network_buffer._current_mut(), no_masking, rfi)?;
+  network_buffer._reserve(4)?;
+  let curr_end_idx = network_buffer._current().len();
+  let curr_end_idx_p4 = curr_end_idx.wrapping_add(4);
+  let has_following = network_buffer._has_following();
+  let input = network_buffer._current_rest_mut().get_mut(..curr_end_idx_p4).unwrap_or_default();
+  let original = if let [.., a, b, c, d] = input {
+    let original = [*a, *b, *c, *d];
+    *a = DECOMPRESSION_SUFFIX[0];
+    *b = DECOMPRESSION_SUFFIX[1];
+    *c = DECOMPRESSION_SUFFIX[2];
+    *d = DECOMPRESSION_SUFFIX[3];
+    original
+  } else {
+    [0, 0, 0, 0]
+  };
+  let before = reader_buffer_first.len();
+  let additional = input.len().saturating_mul(2);
+  let payload_len_rslt = nc.decompress(
+    input,
+    reader_buffer_first,
+    |local_rb| expand_rb(additional, local_rb, before),
+    |local_rb, written| expand_rb(additional, local_rb, before.wrapping_add(written)),
+  );
+  if has_following {
+    if let [.., a, b, c, d] = input {
+      *a = original[0];
+      *b = original[1];
+      *c = original[2];
+      *d = original[3];
+    }
+  }
+  let payload_len = payload_len_rslt?;
+  reader_buffer_first.truncate(before.wrapping_add(payload_len));
+  Ok(())
+}
+
+#[inline]
+pub(crate) fn copy_from_compressed_rb1_to_rb2<NC>(
+  first_rfi: &ReadFrameInfo,
+  nc: &mut NC,
+  reader_buffer_first: &mut Vector<u8>,
+  reader_buffer_second: &mut Vector<u8>,
+) -> crate::Result<()>
+where
+  NC: NegotiatedCompression,
+{
+  reader_buffer_first.extend_from_copyable_slice(&DECOMPRESSION_SUFFIX)?;
+  let additional = reader_buffer_first.len().saturating_mul(2);
+  let payload_len = nc.decompress(
+    reader_buffer_first,
+    reader_buffer_second,
+    |local_rb| expand_rb(additional, local_rb, 0),
+    |local_rb, written| expand_rb(additional, local_rb, written),
+  )?;
+  reader_buffer_second.truncate(payload_len);
+  if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic(reader_buffer_second).is_err() {
+    return Err(crate::Error::InvalidUTF8);
+  }
+  Ok(())
+}
+
+#[inline]
+pub(crate) async fn fetch_frame_from_stream<SR, const IS_CLIENT: bool>(
+  max_payload_len: usize,
+  (nc_is_noop, nc_rsv1): (bool, u8),
+  network_buffer: &mut PartitionedFilledBuffer,
+  no_masking: bool,
+  stream: &mut SR,
+) -> crate::Result<ReadFrameInfo>
+where
+  SR: StreamReader,
+{
+  network_buffer._clear_if_following_is_empty();
+  network_buffer._reserve(MAX_HEADER_LEN_USIZE)?;
+  let mut read = network_buffer._following_len();
+  let rfi = ReadFrameInfo::from_stream::<_, IS_CLIENT>(
+    max_payload_len,
+    (nc_is_noop, nc_rsv1),
+    network_buffer,
+    no_masking,
+    &mut read,
+    stream,
+  )
+  .await?;
+  let header_len = rfi.header_len.into();
+  _read_payload((header_len, rfi.payload_len), network_buffer, &mut read, stream).await?;
+  Ok(rfi)
+}
 
 /// If this method returns `false`, then a `ping` frame was received and the caller should fetch
 /// more external data in order to get the desired frame.
@@ -216,196 +326,15 @@ pub(crate) fn unmask_nb<const IS_CLIENT: bool>(
 }
 
 #[inline]
-pub(crate) async fn read_frame_from_stream<'nb, 'rb, 'rslt, NC, RNG, S, const IS_CLIENT: bool>(
-  connection_state: &mut ConnectionState,
-  max_payload_len: usize,
-  nc: &mut NC,
-  network_buffer: &'nb mut PartitionedFilledBuffer,
-  no_masking: bool,
-  reader_buffer_first: &'rb mut Vector<u8>,
-  reader_buffer_second: &'rb mut Vector<u8>,
-  rng: &mut RNG,
-  stream: &mut S,
-) -> crate::Result<(FrameMut<'rslt, IS_CLIENT>, PayloadTy)>
-where
-  'nb: 'rslt,
-  'rb: 'rslt,
-  NC: NegotiatedCompression,
-  RNG: Rng,
-  S: Stream,
-{
-  let first_rfi = loop {
-    reader_buffer_first.clear();
-    let rfi = fetch_frame_from_stream::<_, _, IS_CLIENT>(
-      max_payload_len,
-      nc,
-      network_buffer,
-      no_masking,
-      stream,
-    )
-    .await?;
-    if !rfi.fin {
-      break rfi;
-    }
-    let (payload, payload_ty) = if rfi.should_decompress {
-      copy_from_compressed_nb_to_rb1::<NC, IS_CLIENT>(
-        nc,
-        network_buffer,
-        no_masking,
-        reader_buffer_first,
-        &rfi,
-      )?;
-      (reader_buffer_first.as_slice_mut(), PayloadTy::FirstReader)
-    } else {
-      let current_mut = network_buffer._current_mut();
-      unmask_nb::<IS_CLIENT>(current_mut, no_masking, &rfi)?;
-      (current_mut, PayloadTy::Network)
-    };
-    if manage_auto_reply::<_, _, IS_CLIENT>(
-      stream,
-      connection_state,
-      no_masking,
-      rfi.op_code,
-      payload,
-      rng,
-      &mut write_control_frame_cb,
-    )
-    .await?
-    {
-      manage_op_code_of_first_final_frame(rfi.op_code, payload)?;
-      // FIXME(STABLE): Use `payload` with polonius
-      let borrow_checker = if rfi.should_decompress {
-        reader_buffer_first.as_slice_mut()
-      } else {
-        network_buffer._current_mut()
-      };
-      return Ok((Frame::new(true, rfi.op_code, borrow_checker, nc.rsv1()), payload_ty));
-    }
-  };
-  reader_buffer_second.clear();
-  if first_rfi.should_decompress {
-    read_continuation_frames::<_, _, _, IS_CLIENT>(
-      connection_state,
-      &first_rfi,
-      max_payload_len,
-      nc,
-      network_buffer,
-      no_masking,
-      reader_buffer_first,
-      rng,
-      stream,
-      (|_| Ok(None), |_, _| Ok(())),
-    )
-    .await?;
-    copy_from_compressed_rb1_to_rb2(&first_rfi, nc, reader_buffer_first, reader_buffer_second)?;
-    Ok((
-      Frame::new(true, first_rfi.op_code, reader_buffer_second, nc.rsv1()),
-      PayloadTy::SecondReader,
-    ))
-  } else {
-    read_continuation_frames::<_, _, _, IS_CLIENT>(
-      connection_state,
-      &first_rfi,
-      max_payload_len,
-      nc,
-      network_buffer,
-      no_masking,
-      reader_buffer_first,
-      rng,
-      stream,
-      (manage_text_of_first_continuation_frame, manage_text_of_recurrent_continuation_frames),
-    )
-    .await?;
-    Ok((
-      Frame::new(true, first_rfi.op_code, reader_buffer_first, nc.rsv1()),
-      PayloadTy::FirstReader,
-    ))
-  }
-}
-
-#[inline]
-fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
-  network_buffer: &mut PartitionedFilledBuffer,
-  no_masking: bool,
-  reader_buffer_first: &mut Vector<u8>,
-  rfi: &ReadFrameInfo,
-) -> crate::Result<()> {
-  let current_mut = network_buffer._current_mut();
-  unmask_nb::<IS_CLIENT>(current_mut, no_masking, rfi)?;
-  reader_buffer_first.extend_from_copyable_slice(current_mut)?;
-  Ok(())
-}
-
-#[inline]
-fn copy_from_compressed_nb_to_rb1<NC, const IS_CLIENT: bool>(
-  nc: &mut NC,
-  network_buffer: &mut PartitionedFilledBuffer,
-  no_masking: bool,
-  reader_buffer_first: &mut Vector<u8>,
-  rfi: &ReadFrameInfo,
+pub(crate) async fn write_control_frame_cb<SW>(
+  stream: &mut SW,
+  header: &[u8],
+  payload: &[u8],
 ) -> crate::Result<()>
 where
-  NC: NegotiatedCompression,
+  SW: StreamWriter,
 {
-  unmask_nb::<IS_CLIENT>(network_buffer._current_mut(), no_masking, rfi)?;
-  network_buffer._reserve(4)?;
-  let curr_end_idx = network_buffer._current().len();
-  let curr_end_idx_p4 = curr_end_idx.wrapping_add(4);
-  let has_following = network_buffer._has_following();
-  let input = network_buffer._current_rest_mut().get_mut(..curr_end_idx_p4).unwrap_or_default();
-  let original = if let [.., a, b, c, d] = input {
-    let original = [*a, *b, *c, *d];
-    *a = DECOMPRESSION_SUFFIX[0];
-    *b = DECOMPRESSION_SUFFIX[1];
-    *c = DECOMPRESSION_SUFFIX[2];
-    *d = DECOMPRESSION_SUFFIX[3];
-    original
-  } else {
-    [0, 0, 0, 0]
-  };
-  let before = reader_buffer_first.len();
-  let additional = input.len().saturating_mul(2);
-  let payload_len_rslt = nc.decompress(
-    input,
-    reader_buffer_first,
-    |local_rb| expand_rb(additional, local_rb, before),
-    |local_rb, written| expand_rb(additional, local_rb, before.wrapping_add(written)),
-  );
-  if has_following {
-    if let [.., a, b, c, d] = input {
-      *a = original[0];
-      *b = original[1];
-      *c = original[2];
-      *d = original[3];
-    }
-  }
-  let payload_len = payload_len_rslt?;
-  reader_buffer_first.truncate(before.wrapping_add(payload_len));
-  Ok(())
-}
-
-#[inline]
-fn copy_from_compressed_rb1_to_rb2<NC>(
-  first_rfi: &ReadFrameInfo,
-  nc: &mut NC,
-  reader_buffer_first: &mut Vector<u8>,
-  reader_buffer_second: &mut Vector<u8>,
-) -> crate::Result<()>
-where
-  NC: NegotiatedCompression,
-{
-  reader_buffer_first.extend_from_copyable_slice(&DECOMPRESSION_SUFFIX)?;
-  let additional = reader_buffer_first.len().saturating_mul(2);
-  let payload_len = nc.decompress(
-    reader_buffer_first,
-    reader_buffer_second,
-    |local_rb| expand_rb(additional, local_rb, 0),
-    |local_rb, written| expand_rb(additional, local_rb, written),
-  )?;
-  reader_buffer_second.truncate(payload_len);
-  if matches!(first_rfi.op_code, OpCode::Text) && from_utf8_basic(reader_buffer_second).is_err() {
-    return Err(crate::Error::InvalidUTF8);
-  }
+  stream.write_all_vectored(&[header, payload]).await?;
   Ok(())
 }
 
@@ -417,109 +346,6 @@ fn expand_rb(
 ) -> crate::Result<&mut [u8]> {
   reader_buffer_first.expand(BufferMode::Additional(additional), 0)?;
   Ok(reader_buffer_first.get_mut(written..).unwrap_or_default())
-}
-
-#[inline]
-async fn fetch_frame_from_stream<NC, S, const IS_CLIENT: bool>(
-  max_payload_len: usize,
-  nc: &NC,
-  network_buffer: &mut PartitionedFilledBuffer,
-  no_masking: bool,
-  stream: &mut S,
-) -> crate::Result<ReadFrameInfo>
-where
-  NC: NegotiatedCompression,
-  S: Stream,
-{
-  network_buffer._clear_if_following_is_empty();
-  network_buffer._reserve(MAX_HEADER_LEN_USIZE)?;
-  let mut read = network_buffer._following_len();
-  let rfi = ReadFrameInfo::from_stream::<_, _, IS_CLIENT>(
-    max_payload_len,
-    nc,
-    network_buffer,
-    no_masking,
-    &mut read,
-    stream,
-  )
-  .await?;
-  let header_len = rfi.header_len.into();
-  _read_payload((header_len, rfi.payload_len), network_buffer, &mut read, stream).await?;
-  Ok(rfi)
-}
-
-#[inline]
-async fn read_continuation_frames<NC, RNG, S, const IS_CLIENT: bool>(
-  connection_state: &mut ConnectionState,
-  first_rfi: &ReadFrameInfo,
-  max_payload_len: usize,
-  nc: &mut NC,
-  network_buffer: &mut PartitionedFilledBuffer,
-  no_masking: bool,
-  reader_buffer_first: &mut Vector<u8>,
-  rng: &mut RNG,
-  stream: &mut S,
-  (first_text_cb, recurrent_text_cb): ReadContinuationFramesCb,
-) -> crate::Result<()>
-where
-  NC: NegotiatedCompression,
-  RNG: Rng,
-  S: Stream,
-{
-  copy_from_arbitrary_nb_to_rb1::<IS_CLIENT>(
-    network_buffer,
-    no_masking,
-    reader_buffer_first,
-    first_rfi,
-  )?;
-  let mut iuc = manage_op_code_of_first_continuation_frame(
-    first_rfi.op_code,
-    reader_buffer_first,
-    first_text_cb,
-  )?;
-  loop {
-    let mut rfi = fetch_frame_from_stream::<_, _, IS_CLIENT>(
-      max_payload_len,
-      nc,
-      network_buffer,
-      no_masking,
-      stream,
-    )
-    .await?;
-    let begin = reader_buffer_first.len();
-    rfi.should_decompress = first_rfi.should_decompress;
-    copy_from_arbitrary_nb_to_rb1::<IS_CLIENT>(
-      network_buffer,
-      no_masking,
-      reader_buffer_first,
-      &rfi,
-    )?;
-    let payload = reader_buffer_first.get_mut(begin..).unwrap_or_default();
-    if !manage_auto_reply::<_, _, IS_CLIENT>(
-      stream,
-      connection_state,
-      no_masking,
-      rfi.op_code,
-      payload,
-      rng,
-      &mut write_control_frame_cb,
-    )
-    .await?
-    {
-      reader_buffer_first.truncate(begin);
-      continue;
-    }
-    if manage_op_code_of_continuation_frames(
-      rfi.fin,
-      first_rfi.op_code,
-      &mut iuc,
-      rfi.op_code,
-      payload,
-      recurrent_text_cb,
-    )? {
-      return Ok(());
-    }
-  }
 }
 
 #[inline]
@@ -540,18 +366,5 @@ where
 {
   manage_normal_frame(connection_state, frame, no_masking, rng);
   wsc_cb.call((aux, frame.header(), frame.payload().lease())).await?;
-  Ok(())
-}
-
-#[inline]
-async fn write_control_frame_cb<S>(
-  stream: &mut S,
-  header: &[u8],
-  payload: &[u8],
-) -> crate::Result<()>
-where
-  S: Stream,
-{
-  stream.write_all_vectored(&[header, payload]).await?;
   Ok(())
 }

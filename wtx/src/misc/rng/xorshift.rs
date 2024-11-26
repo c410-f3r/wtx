@@ -1,4 +1,4 @@
-use crate::misc::{AtomicU64, Rng};
+use crate::misc::{AtomicU64, Lease, LeaseMut, Rng};
 use core::sync::atomic::Ordering;
 
 /// Xorshift that deals with 64 bits numbers.
@@ -26,6 +26,20 @@ impl Rng for Xorshift64 {
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     xor_u8_16(&mut self.value)
+  }
+}
+
+impl Lease<Xorshift64> for Xorshift64 {
+  #[inline]
+  fn lease(&self) -> &Xorshift64 {
+    self
+  }
+}
+
+impl LeaseMut<Xorshift64> for Xorshift64 {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Xorshift64 {
+    self
   }
 }
 

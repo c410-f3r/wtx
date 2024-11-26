@@ -2,7 +2,7 @@
 
 Implementation of [RFC6455](https://datatracker.ietf.org/doc/html/rfc6455) and [RFC7692](https://datatracker.ietf.org/doc/html/rfc7692). WebSocket is a communication protocol that enables full-duplex communication between a client (typically a web browser) and a server over a single TCP connection. Unlike traditional HTTP, which is request-response based, WebSocket allows real-time data exchange without the need for polling.
 
-In-house benchmarks are available at <https://c410-f3r.github.io/wtx-bench>. If you are aware of other benchmark tools, please open an discussion in the GitHub project.
+In-house benchmarks are available at <https://c410-f3r.github.io/wtx-bench>. If you are aware of other benchmark tools, please open a discussion in the GitHub project.
 
 To use this functionality, it is necessary to activate the `web-socket` feature.
 
@@ -28,11 +28,11 @@ To make everything work as intended both parties, client and server, need to imp
 ## Client Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/web-socket-client.rs}}
+{{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-client.rs}}
 ```
 
 ## Server Example
 
 ```rust,edition2021,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/web-socket-server.rs}}
+{{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-server.rs}}
 ```

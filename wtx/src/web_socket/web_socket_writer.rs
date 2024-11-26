@@ -1,5 +1,7 @@
+// Common functions that used be used by pure WebSocket structures or tunneling protocols.
+
 use crate::{
-  misc::{BufferMode, ConnectionState, Lease, LeaseMut, Rng, Stream, Vector, Xorshift64},
+  misc::{BufferMode, ConnectionState, Lease, LeaseMut, Rng, StreamWriter, Vector, Xorshift64},
   web_socket::{
     compression::NegotiatedCompression, misc::has_masked_frame, unmask::unmask, Frame, FrameMut,
     OpCode,
@@ -65,19 +67,19 @@ pub(crate) fn manage_normal_frame<P, RNG, const IS_CLIENT: bool>(
 }
 
 #[inline]
-pub(crate) async fn write_frame<NC, P, S, const IS_CLIENT: bool>(
+pub(crate) async fn write_frame<NC, P, SW, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
   nc: &mut NC,
   rng: &mut Xorshift64,
-  stream: &mut S,
+  stream: &mut SW,
   writer_buffer: &mut Vector<u8>,
 ) -> crate::Result<()>
 where
   NC: NegotiatedCompression,
   P: LeaseMut<[u8]>,
-  S: Stream,
+  SW: StreamWriter,
 {
   if manage_compression(frame, nc) {
     let fr = manage_frame_compression(connection_state, nc, frame, no_masking, rng, writer_buffer)?;
