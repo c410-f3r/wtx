@@ -42,7 +42,7 @@ pub enum GrpcStatusCode {
 
 impl GrpcStatusCode {
   #[inline]
-  pub(crate) fn number_as_str(self) -> &'static str {
+  pub(crate) fn _number_as_str(self) -> &'static str {
     match self {
       GrpcStatusCode::Ok => "0",
       GrpcStatusCode::Cancelled => "1",

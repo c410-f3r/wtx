@@ -4,7 +4,6 @@ use crate::{
     format::{VerbatimRequest, VerbatimResponse},
   },
   grpc::{serialize, GrpcStatusCode},
-  http::server_framework::StreamAux,
   misc::Vector,
 };
 
@@ -50,7 +49,8 @@ impl<DRSR> GrpcManager<DRSR> {
   }
 }
 
-impl<DRSR> StreamAux for GrpcManager<DRSR>
+#[cfg(feature = "grpc-server")]
+impl<DRSR> crate::http::server_framework::StreamAux for GrpcManager<DRSR>
 where
   DRSR: Default,
 {

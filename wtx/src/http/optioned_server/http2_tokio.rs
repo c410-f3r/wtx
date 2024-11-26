@@ -32,8 +32,8 @@ impl OptionedServer {
       + Send
       + 'static,
     A::Future: Send,
-    CA: Clone + Send + 'static,
     ACPT: Send + 'static,
+    CA: Clone + Send + 'static,
     E: From<crate::Error> + Send + 'static,
     HA: Send + 'static,
     M: Clone

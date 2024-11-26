@@ -1,14 +1,18 @@
 //! gRPC (gRPC Remote Procedure Calls) is a high performance remote procedure call (RPC)
 //! framework.
 
+#[cfg(feature = "grpc-client")]
 mod client;
 mod grpc_manager;
+#[cfg(feature = "grpc-server")]
 mod grpc_middleware;
 mod grpc_status_code;
 
 use crate::{data_transformation::dnsn::Serialize, misc::Vector};
+#[cfg(feature = "grpc-client")]
 pub use client::Client;
 pub use grpc_manager::GrpcManager;
+#[cfg(feature = "grpc-server")]
 pub use grpc_middleware::GrpcMiddleware;
 pub use grpc_status_code::GrpcStatusCode;
 
