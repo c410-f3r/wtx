@@ -1,4 +1,4 @@
-use crate::misc::{FilledBuffer, FilledBufferWriter, VectorError};
+use crate::misc::{FilledBuffer, FilledBufferWriter, Lease, LeaseMut, VectorError};
 use core::ops::Range;
 
 // ```
@@ -171,6 +171,20 @@ impl PartitionedFilledBuffer {
     let current_end_idx = antecedent_len.saturating_add(current_len);
     let following_end_idx = current_end_idx.saturating_add(following_len);
     [antecedent_len, current_end_idx, following_end_idx]
+  }
+}
+
+impl Lease<PartitionedFilledBuffer> for PartitionedFilledBuffer {
+  #[inline]
+  fn lease(&self) -> &PartitionedFilledBuffer {
+    self
+  }
+}
+
+impl LeaseMut<PartitionedFilledBuffer> for PartitionedFilledBuffer {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut PartitionedFilledBuffer {
+    self
   }
 }
 

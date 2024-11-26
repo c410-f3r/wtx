@@ -57,7 +57,7 @@ required-features = ["grpc"]
 [[example]]
 name = "grpc-server"
 path = "generic-examples/grpc-server.rs"
-required-features = ["grpc", "wtx/tokio-rustls", "wtx/webpki-roots"]
+required-features = ["grpc", "wtx/tokio-rustls"]
 
 [[example]]
 name = "http-client-framework"
@@ -68,16 +68,6 @@ required-features = ["wtx/http-client-framework"]
 name = "pool"
 path = "generic-examples/pool.rs"
 required-features = ["wtx/pool"]
-
-[[example]]
-name = "web-socket-client"
-path = "generic-examples/web-socket-client.rs"
-required-features = ["wtx/web-socket-handshake", "wtx/webpki-roots"]
-
-[[example]]
-name = "web-socket-server"
-path = "generic-examples/web-socket-server.rs"
-required-features = ["tokio-rustls", "wtx/pool", "wtx/tokio-rustls", "wtx/web-socket-handshake"]
 
 # HTTP Server Framework Examples
 
@@ -117,6 +107,23 @@ required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
 name = "http2-web-socket"
 path = "http2-examples/http2-web-socket.rs"
 required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
+
+# WebSocket Examples
+
+[[example]]
+name = "web-socket-client"
+path = "web-socket-examples/web-socket-client.rs"
+required-features = ["wtx/web-socket-handshake"]
+
+[[example]]
+name = "web-socket-concurrent-client"
+path = "web-socket-examples/web-socket-concurrent-client.rs"
+required-features = ["wtx/tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+
+[[example]]
+name = "web-socket-server"
+path = "web-socket-examples/web-socket-server.rs"
+required-features = ["tokio-rustls", "wtx/pool", "wtx/tokio-rustls", "wtx/web-socket-handshake"]
 
 [build-dependencies]
 pb-rs = { default-features = false, optional = true, version = "0.10" }

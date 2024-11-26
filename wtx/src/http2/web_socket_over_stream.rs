@@ -180,7 +180,7 @@ where
     Http2RecvStatus::Ongoing(data) => (data, false),
   };
   let mut slice = data.as_slice();
-  let rfi = ReadFrameInfo::from_bytes::<_, false>(&mut slice, usize::MAX, &(), no_masking)?;
+  let rfi = ReadFrameInfo::from_bytes::<false>(&mut slice, usize::MAX, (true, 0), no_masking)?;
   let before = buffer.len();
   buffer.extend_from_copyable_slice(slice)?;
   unmask_nb::<false>(buffer.get_mut(before..).unwrap_or_default(), no_masking, &rfi)?;

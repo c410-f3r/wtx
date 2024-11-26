@@ -293,14 +293,14 @@ where
 }
 
 #[inline]
-pub(crate) async fn _read_payload<S>(
+pub(crate) async fn _read_payload<SR>(
   (header_len, payload_len): (usize, usize),
   network_buffer: &mut PartitionedFilledBuffer,
   read: &mut usize,
-  stream: &mut S,
+  stream: &mut SR,
 ) -> crate::Result<()>
 where
-  S: StreamReader,
+  SR: StreamReader,
 {
   let frame_len = header_len.wrapping_add(payload_len);
   network_buffer._reserve(frame_len)?;
