@@ -52,12 +52,12 @@ required-features = ["wtx/client-api-framework", "wtx/http-client-framework", "w
 [[example]]
 name = "grpc-client"
 path = "generic-examples/grpc-client.rs"
-required-features = ["grpc"]
+required-features = ["grpc-client"]
 
 [[example]]
 name = "grpc-server"
 path = "generic-examples/grpc-server.rs"
-required-features = ["grpc", "wtx/tokio-rustls"]
+required-features = ["grpc-server", "wtx/tokio-rustls"]
 
 [[example]]
 name = "http-client-framework"

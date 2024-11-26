@@ -26,6 +26,8 @@ $rt test-with-features wtx fastrand
 $rt test-with-features wtx flate2
 $rt test-with-features wtx foldhash
 $rt test-with-features wtx grpc
+$rt test-with-features wtx grpc-client
+$rt test-with-features wtx grpc-server
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
 $rt test-with-features wtx http-client-framework

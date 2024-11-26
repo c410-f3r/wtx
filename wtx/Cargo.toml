@@ -58,14 +58,16 @@ executor = []
 fastrand = ["dep:fastrand"]
 flate2 = ["dep:flate2"]
 foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
-grpc = ["data-transformation", "http-client-framework", "http-server-framework"]
+grpc = ["data-transformation"]
+grpc-client = ["grpc", "http-client-framework"]
+grpc-server = ["grpc", "http-server-framework"]
 hashbrown = ["dep:hashbrown"]
 hmac = ["dep:hmac"]
 http = []
 http-client-framework = ["http2", "pool", "std"]
 http-cookie = ["chrono/alloc", "http"]
 http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
-http-server-framework = ["http2", "tokio"]
+http-server-framework = ["http2"]
 http-session = ["chrono/serde", "http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
@@ -151,7 +153,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.82"
-version = "0.24.0"
+version = "0.25.0"
 
 [package.metadata.docs.rs]
 all-features = true
