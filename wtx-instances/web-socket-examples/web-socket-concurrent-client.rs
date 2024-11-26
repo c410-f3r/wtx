@@ -13,7 +13,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("ws://www.example.com");
-  let connector = TokioRustlsConnector::from_auto()?;
+  let connector = TokioRustlsConnector::from_auto()?.push_certs(wtx_instances::ROOT_CA)?;
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
   let ws = WebSocketClient::connect(
     (),
