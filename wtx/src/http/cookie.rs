@@ -1,12 +1,10 @@
-mod cookie_bytes;
+pub(crate) mod cookie_bytes;
 mod cookie_error;
-mod cookie_generic;
+pub(crate) mod cookie_generic;
 mod same_site;
 
-use crate::misc::{ArrayVector, Rng, Vector, _shift_copyable_chunks};
-pub(crate) use cookie_bytes::CookieBytes;
+use crate::misc::{mem_transfer::_shift_copyable_chunks, ArrayVector, Rng, Vector};
 pub use cookie_error::CookieError;
-pub(crate) use cookie_generic::CookieGeneric;
 use core::str;
 pub use same_site::SameSite;
 

@@ -25,7 +25,7 @@ macro_rules! test {
     #[cfg(test)]
     #[test]
     fn $name() {
-      let vec = &mut crate::misc::FilledBuffer::_new();
+      let vec = &mut crate::misc::filled_buffer::FilledBuffer::_new();
       let mut fbw = crate::misc::FilledBufferWriter::new(0, vec);
       let mut ev = EncodeValue::new(&mut fbw);
       let instance: $ty = $instance;

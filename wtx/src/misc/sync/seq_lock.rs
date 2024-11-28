@@ -1,4 +1,4 @@
-use crate::misc::{AtomicUsize, Backoff};
+use crate::misc::{facades::atomic_usize::AtomicUsize, Backoff};
 use core::{
   mem,
   sync::atomic::{fence, Ordering},

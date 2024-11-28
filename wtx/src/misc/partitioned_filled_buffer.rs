@@ -1,4 +1,4 @@
-use crate::misc::{FilledBuffer, FilledBufferWriter, Lease, LeaseMut, VectorError};
+use crate::misc::{filled_buffer::FilledBuffer, FilledBufferWriter, Lease, LeaseMut, VectorError};
 use core::ops::Range;
 
 // ```

@@ -11,7 +11,7 @@ mod from_records;
 mod json;
 mod misc;
 mod record;
-mod record_values;
+pub(crate) mod record_values;
 mod records;
 #[cfg(feature = "schema-manager")]
 pub mod schema_manager;
@@ -30,7 +30,6 @@ pub use from_records::FromRecords;
 pub use json::Json;
 pub use misc::seek_related_entities;
 pub use record::Record;
-pub(crate) use record_values::encode;
 pub use record_values::RecordValues;
 pub use records::Records;
 pub use stmt_cmd::StmtCmd;

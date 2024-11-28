@@ -1,4 +1,4 @@
-use crate::misc::{BufferMode, FilledBuffer, Lease, LeaseMut, VectorError};
+use crate::misc::{filled_buffer::FilledBuffer, BufferMode, Lease, LeaseMut, VectorError};
 
 /// Helper that manages the copy of initialized bytes.
 #[derive(Debug)]

@@ -3,14 +3,14 @@ use crate::{
     client::postgres::{
       executor::commons::FetchWithStmtCommons,
       message::{Message, MessageTy},
-      statements::Statement,
+      statements::statement::Statement,
       Executor, ExecutorBuffer, Postgres, PostgresError, Record,
     },
     RecordValues,
   },
   misc::{
-    ConnectionState, LeaseMut, PartitionedFilledBuffer, Stream, Usize, Vector, _read_header,
-    _read_payload,
+    partitioned_filled_buffer::PartitionedFilledBuffer, ConnectionState, LeaseMut, Stream, Usize,
+    Vector, _read_header, _read_payload,
   },
 };
 use core::ops::Range;

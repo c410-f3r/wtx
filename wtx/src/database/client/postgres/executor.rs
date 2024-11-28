@@ -119,7 +119,8 @@ where
   S: Stream,
 {
   type Database = Postgres<E>;
-  type TransactionManager<'tm> = TransactionManager<'tm, E, EB, S>
+  type TransactionManager<'tm>
+    = TransactionManager<'tm, E, EB, S>
   where
     Self: 'tm;
 

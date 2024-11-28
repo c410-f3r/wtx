@@ -47,7 +47,8 @@ impl<T> Pool for &T
 where
   T: Pool,
 {
-  type GetElem<'this> = T::GetElem<'this>
+  type GetElem<'this>
+    = T::GetElem<'this>
   where
     Self: 'this;
   type ResourceManager = T::ResourceManager;

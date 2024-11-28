@@ -205,7 +205,7 @@ mod kani {
 
 #[cfg(test)]
 mod tests {
-  use crate::misc::FilledBuffer;
+  use crate::misc::filled_buffer::FilledBuffer;
 
   #[test]
   fn extend_from_slices_with_increasing_cap() {

@@ -23,7 +23,8 @@ impl<T> Lock for Arc<T>
 where
   T: Lock,
 {
-  type Guard<'guard> = T::Guard<'guard>
+  type Guard<'guard>
+    = T::Guard<'guard>
   where
     Self: 'guard;
   type Resource = T::Resource;
@@ -43,7 +44,8 @@ impl<T> Lock for Rc<T>
 where
   T: Lock,
 {
-  type Guard<'guard> = T::Guard<'guard>
+  type Guard<'guard>
+    = T::Guard<'guard>
   where
     Self: 'guard;
   type Resource = T::Resource;
@@ -80,7 +82,8 @@ impl<T> SyncLock for Arc<T>
 where
   T: SyncLock,
 {
-  type Guard<'guard> = T::Guard<'guard>
+  type Guard<'guard>
+    = T::Guard<'guard>
   where
     Self: 'guard;
   type Resource = T::Resource;
@@ -100,7 +103,8 @@ impl<T> SyncLock for Rc<T>
 where
   T: SyncLock,
 {
-  type Guard<'guard> = T::Guard<'guard>
+  type Guard<'guard>
+    = T::Guard<'guard>
   where
     Self: 'guard;
   type Resource = T::Resource;
@@ -122,7 +126,8 @@ mod std {
   use std::sync::{Mutex, MutexGuard, TryLockError};
 
   impl<T> SyncLock for Mutex<T> {
-    type Guard<'guard> = MutexGuard<'guard, Self::Resource>
+    type Guard<'guard>
+      = MutexGuard<'guard, Self::Resource>
     where
       Self: 'guard;
     type Resource = T;
@@ -152,7 +157,8 @@ mod tokio {
   use tokio::sync::{Mutex, MutexGuard};
 
   impl<T> Lock for Mutex<T> {
-    type Guard<'guard> = MutexGuard<'guard, Self::Resource>
+    type Guard<'guard>
+      = MutexGuard<'guard, Self::Resource>
     where
       Self: 'guard;
     type Resource = T;

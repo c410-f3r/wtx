@@ -1,6 +1,6 @@
 use crate::{
   database::{
-    client::postgres::{statements::Statement, DecodeValue, Postgres, PostgresError},
+    client::postgres::{statements::statement::Statement, DecodeValue, Postgres, PostgresError},
     Database, ValueIdent,
   },
   misc::{Vector, _unlikely_dflt, _unlikely_elem},
@@ -176,7 +176,7 @@ mod tests {
   use crate::{
     database::{
       client::postgres::{
-        statements::Statement,
+        statements::statement::Statement,
         tests::{column0, column1, column2},
         DecodeValue, Record, Ty,
       },

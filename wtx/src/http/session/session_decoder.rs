@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    cookie::{decrypt, CookieBytes},
+    cookie::{cookie_bytes::CookieBytes, decrypt},
     server_framework::Middleware,
     KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,

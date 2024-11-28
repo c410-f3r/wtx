@@ -30,8 +30,8 @@ use crate::{
     Http2Buffer, Http2Data, Http2Error,
   },
   misc::{
-    Arc, AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader,
-    StreamWriter,
+    partitioned_filled_buffer::PartitionedFilledBuffer, Arc, AtomicWaker, LeaseMut, Lock,
+    RefCounter, StreamReader, StreamWriter,
   },
 };
 use core::{

@@ -1,4 +1,6 @@
-use crate::misc::{Lease, LeaseMut, PartitionedFilledBuffer, Vector, VectorError};
+use crate::misc::{
+  partitioned_filled_buffer::PartitionedFilledBuffer, Lease, LeaseMut, Vector, VectorError,
+};
 
 #[derive(Debug)]
 #[doc = _internal_buffer_doc!()]

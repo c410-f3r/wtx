@@ -57,7 +57,8 @@ where
   const TY: DatabaseTy = DatabaseTy::Postgres;
 
   type DecodeValue<'exec> = DecodeValue<'exec>;
-  type EncodeValue<'buffer, 'tmp> = EncodeValue<'buffer, 'tmp>
+  type EncodeValue<'buffer, 'tmp>
+    = EncodeValue<'buffer, 'tmp>
   where
     'buffer: 'tmp;
   type Error = E;
@@ -75,7 +76,7 @@ impl<E> Default for Postgres<E> {
 
 #[cfg(test)]
 mod tests {
-  use crate::database::client::postgres::{statements::Column, Ty};
+  use crate::database::client::postgres::{statements::column::Column, Ty};
 
   pub(crate) fn column0() -> Column {
     Column::new("a".try_into().unwrap(), Ty::VarcharArray)

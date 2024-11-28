@@ -5,8 +5,6 @@ use crate::misc::{
 use alloc::string::String;
 use core::fmt::{Arguments, Debug, Display, Formatter, Write};
 
-pub(crate) static _EMPTY_URI_STRING: UriString = UriString::_empty(String::new());
-
 /// [Uri] with an owned array.
 pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;
 /// [Uri] with a string reference.
