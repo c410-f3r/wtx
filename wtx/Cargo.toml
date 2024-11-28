@@ -8,7 +8,7 @@ chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
-embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.4" }
+embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.5" }
 embedded-io-async = { default-features = false, optional = true, version = "0.6" }
 embedded-tls = { default-features = false, optional = true, git = "https://github.com/drogue-iot/embedded-tls" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
