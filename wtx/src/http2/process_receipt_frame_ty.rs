@@ -19,7 +19,10 @@ use crate::{
     window_update_frame::WindowUpdateFrame,
     Http2Error, Http2ErrorCode, Http2Params, Scrp, Sorp,
   },
-  misc::{AtomicWaker, PartitionedFilledBuffer, StreamReader, StreamWriter, NOOP_WAKER},
+  misc::{
+    partitioned_filled_buffer::PartitionedFilledBuffer, AtomicWaker, StreamReader, StreamWriter,
+    NOOP_WAKER,
+  },
 };
 use core::{mem, sync::atomic::AtomicBool, task::Waker};
 

@@ -8,7 +8,9 @@ use crate::{
     u31::U31,
     CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
   },
-  misc::{Arc, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, _Span},
+  misc::{
+    facades::span::_Span, Arc, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter,
+  },
 };
 use core::{
   future::{poll_fn, Future},

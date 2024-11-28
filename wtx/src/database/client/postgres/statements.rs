@@ -1,25 +1,21 @@
-mod column;
-mod statement;
-mod statement_builder;
-mod statements_misc;
+pub(crate) mod column;
+pub(crate) mod statement;
+pub(crate) mod statement_builder;
+pub(crate) mod statements_misc;
 
 use crate::{
   database::client::postgres::ty::Ty,
   misc::{BlocksDeque, Rng, _random_state},
 };
-pub(crate) use column::Column;
 use foldhash::fast::FixedState;
 use hashbrown::HashMap;
-pub(crate) use statement::Statement;
-pub(crate) use statement_builder::StatementBuilder;
-pub(crate) use statements_misc::StatementsMisc;
 
 /// Statements
 #[derive(Debug)]
 pub struct Statements {
   max_stmts: usize,
   rs: FixedState,
-  stmts: BlocksDeque<(Column, Ty), StatementsMisc>,
+  stmts: BlocksDeque<(column::Column, Ty), statements_misc::StatementsMisc>,
   stmts_indcs: HashMap<u64, usize>,
 }
 
@@ -56,7 +52,7 @@ impl Statements {
   }
 
   #[inline]
-  pub(crate) fn builder(&mut self) -> StatementBuilder<'_> {
+  pub(crate) fn builder(&mut self) -> statement_builder::StatementBuilder<'_> {
     if self.stmts.blocks_len() >= self.max_stmts {
       let to_remove = (self.max_stmts / 2).max(1);
       for _ in 0..to_remove {
@@ -70,7 +66,7 @@ impl Statements {
         true
       })
     }
-    StatementBuilder::new(&mut self.stmts, &mut self.stmts_indcs)
+    statement_builder::StatementBuilder::new(&mut self.stmts, &mut self.stmts_indcs)
   }
 
   #[inline]
@@ -81,13 +77,13 @@ impl Statements {
   }
 
   #[inline]
-  pub(crate) fn get_by_idx(&self, idx: usize) -> Option<Statement<'_>> {
+  pub(crate) fn get_by_idx(&self, idx: usize) -> Option<statement::Statement<'_>> {
     let stmt = self.stmts.get(idx)?;
-    Some(Statement::new(stmt.misc.columns_len, stmt.misc.types_len, stmt.data))
+    Some(statement::Statement::new(stmt.misc.columns_len, stmt.misc.types_len, stmt.data))
   }
 
   #[inline]
-  pub(crate) fn get_by_stmt_hash(&self, stmt_hash: u64) -> Option<Statement<'_>> {
+  pub(crate) fn get_by_stmt_hash(&self, stmt_hash: u64) -> Option<statement::Statement<'_>> {
     self.get_by_idx(*self.stmts_indcs.get(&stmt_hash)?)
   }
 
@@ -101,7 +97,7 @@ impl Statements {
 mod tests {
   use crate::{
     database::client::postgres::{
-      statements::StatementsMisc,
+      statements::statements_misc::StatementsMisc,
       tests::{column0, column1, column2, column3},
       ty::Ty,
       Statements,

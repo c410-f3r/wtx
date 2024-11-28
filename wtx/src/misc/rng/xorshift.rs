@@ -1,4 +1,4 @@
-use crate::misc::{AtomicU64, Lease, LeaseMut, Rng};
+use crate::misc::{facades::atomic_u64::AtomicU64, Lease, LeaseMut, Rng};
 use core::sync::atomic::Ordering;
 
 /// Xorshift that deals with 64 bits numbers.

@@ -1,7 +1,7 @@
 use crate::{
   misc::{
-    ConnectionState, LeaseMut, Lock, PartitionedFilledBuffer, Stream, StreamReader, StreamWriter,
-    Vector, Xorshift64,
+    partitioned_filled_buffer::PartitionedFilledBuffer, ConnectionState, LeaseMut, Lock, Stream,
+    StreamReader, StreamWriter, Vector, Xorshift64,
   },
   web_socket::{
     compression::NegotiatedCompression, payload_ty::PayloadTy,

@@ -16,8 +16,8 @@ use crate::{
     Http2SendStatus, Scrp, Sorp,
   },
   misc::{
-    AtomicWaker, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter, StreamReader, StreamWriter,
-    Usize, _read_header, _read_payload,
+    partitioned_filled_buffer::PartitionedFilledBuffer, AtomicWaker, LeaseMut, Lock, RefCounter,
+    StreamReader, StreamWriter, Usize, _read_header, _read_payload,
   },
 };
 use core::{

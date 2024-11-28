@@ -1,6 +1,8 @@
 use crate::{
   database::{
-    client::postgres::{statements::Statement, Config, EncodeValue, Oid, Postgres, PostgresError},
+    client::postgres::{
+      statements::statement::Statement, Config, EncodeValue, Oid, Postgres, PostgresError,
+    },
     RecordValues,
   },
   misc::{FilledBufferWriter, Vector},

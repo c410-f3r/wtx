@@ -1,5 +1,8 @@
 use crate::{
-  misc::{ConnectionState, LeaseMut, PartitionedFilledBuffer, Stream, Vector, Xorshift64},
+  misc::{
+    partitioned_filled_buffer::PartitionedFilledBuffer, ConnectionState, LeaseMut, Stream, Vector,
+    Xorshift64,
+  },
   web_socket::{
     compression::NegotiatedCompression,
     payload_ty::PayloadTy,

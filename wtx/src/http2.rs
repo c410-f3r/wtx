@@ -58,8 +58,8 @@ use crate::{
     sorp_mut, write_array,
   },
   misc::{
-    Arc, AtomicWaker, ConnectionState, Either, LeaseMut, Lock, PartitionedFilledBuffer, RefCounter,
-    StreamReader, StreamWriter, Usize, NOOP_WAKER,
+    partitioned_filled_buffer::PartitionedFilledBuffer, Arc, AtomicWaker, ConnectionState, Either,
+    LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, Usize, NOOP_WAKER,
   },
 };
 pub use client_stream::ClientStream;

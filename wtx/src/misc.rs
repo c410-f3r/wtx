@@ -10,8 +10,8 @@ mod connection_state;
 mod deque;
 mod either;
 mod enum_var_strings;
-mod facades;
-mod filled_buffer;
+pub(crate) mod facades;
+pub(crate) mod filled_buffer;
 mod filled_buffer_writer;
 mod fn_fut;
 mod from_radix_10;
@@ -21,10 +21,10 @@ mod interspace;
 mod iter_wrapper;
 mod lease;
 mod lock;
-mod mem_transfer;
+pub(crate) mod mem_transfer;
 mod noop_waker;
 mod optimization;
-mod partitioned_filled_buffer;
+pub(crate) mod partitioned_filled_buffer;
 mod query_writer;
 mod ref_counter;
 mod rng;
@@ -76,15 +76,6 @@ pub use uri::{Uri, UriArrayString, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};
-#[allow(unused_imports, reason = "used in other features")]
-pub(crate) use {
-  facades::span::{_Entered, _Span},
-  facades::{atomic_u64::AtomicU64, atomic_usize::AtomicUsize},
-  filled_buffer::FilledBuffer,
-  mem_transfer::_shift_copyable_chunks,
-  partitioned_filled_buffer::PartitionedFilledBuffer,
-  uri::_EMPTY_URI_STRING,
-};
 
 /// Hashes a password using the `argon2` algorithm.
 #[cfg(feature = "argon2")]
@@ -295,7 +286,7 @@ where
 #[inline]
 pub(crate) async fn _read_payload<SR>(
   (header_len, payload_len): (usize, usize),
-  network_buffer: &mut PartitionedFilledBuffer,
+  network_buffer: &mut partitioned_filled_buffer::PartitionedFilledBuffer,
   read: &mut usize,
   stream: &mut SR,
 ) -> crate::Result<()>

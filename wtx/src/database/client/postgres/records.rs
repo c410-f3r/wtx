@@ -1,4 +1,4 @@
-use crate::database::client::postgres::{statements::Statement, Postgres, Record};
+use crate::database::client::postgres::{statements::statement::Statement, Postgres, Record};
 use core::{marker::PhantomData, ops::Range};
 
 /// Records
@@ -89,7 +89,7 @@ mod tests {
   use crate::{
     database::{
       client::postgres::{
-        statements::Statement,
+        statements::statement::Statement,
         tests::{column0, column1, column2},
         DecodeValue, Record, Records, Ty,
       },

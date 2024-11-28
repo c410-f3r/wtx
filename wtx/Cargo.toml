@@ -8,9 +8,9 @@ chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
-embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.4" }
+embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.5" }
 embedded-io-async = { default-features = false, optional = true, version = "0.6" }
-embedded-tls = { default-features = false, optional = true, git = "https://github.com/drogue-iot/embedded-tls" }
+embedded-tls = { default-features = false, optional = true, version = "0.17" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.1" }
@@ -72,7 +72,7 @@ http-session = ["chrono/serde", "http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
 memchr = ["dep:memchr"]
-nightly = ["hashbrown?/nightly"]
+nightly = [] #FIXME(STABLE): "hashbrown?/nightly"
 optimization = ["memchr", "simdutf8"]
 pool = []
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]

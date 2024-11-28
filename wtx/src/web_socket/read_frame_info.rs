@@ -1,5 +1,5 @@
 use crate::{
-  misc::{PartitionedFilledBuffer, StreamReader, _read_header},
+  misc::{partitioned_filled_buffer::PartitionedFilledBuffer, StreamReader, _read_header},
   web_socket::{
     misc::{has_masked_frame, op_code},
     OpCode, WebSocketError, FIN_MASK, MAX_CONTROL_PAYLOAD_LEN, PAYLOAD_MASK, RSV1_MASK, RSV2_MASK,

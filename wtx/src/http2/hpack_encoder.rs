@@ -14,7 +14,7 @@ use crate::{
     hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders, huffman::huffman_encode,
     misc::protocol_err, Http2Error,
   },
-  misc::{Rng, Usize, Vector, _random_state, _shift_copyable_chunks, _unreachable},
+  misc::{Rng, Usize, Vector, _random_state, _unreachable, mem_transfer::_shift_copyable_chunks},
 };
 use core::{
   hash::{BuildHasher, Hasher},

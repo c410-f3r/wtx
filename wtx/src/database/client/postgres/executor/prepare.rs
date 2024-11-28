@@ -6,13 +6,16 @@ use crate::{
       message::MessageTy,
       msg_field::MsgField,
       protocol::{bind, describe, execute, parse, sync},
-      statements::{Column, Statement, StatementsMisc},
+      statements::{column::Column, statement::Statement, statements_misc::StatementsMisc},
       ty::Ty,
       Executor, Postgres, PostgresError, Statements,
     },
     RecordValues, StmtCmd,
   },
-  misc::{ArrayString, FilledBufferWriter, LeaseMut, PartitionedFilledBuffer, Stream},
+  misc::{
+    partitioned_filled_buffer::PartitionedFilledBuffer, ArrayString, FilledBufferWriter, LeaseMut,
+    Stream,
+  },
 };
 
 impl<E, EB, S> Executor<E, EB, S>

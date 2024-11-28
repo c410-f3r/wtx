@@ -13,7 +13,7 @@ use crate::{
     window::Windows,
     CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
   },
-  misc::{Arc, Lease, LeaseMut, Lock, RefCounter, StreamWriter, _Span},
+  misc::{facades::span::_Span, Arc, Lease, LeaseMut, Lock, RefCounter, StreamWriter},
 };
 use core::{
   future::{poll_fn, Future},

@@ -1,8 +1,10 @@
 use crate::{
   http::Headers,
-  misc::{Lease, LeaseMut, Uri, UriString, _EMPTY_URI_STRING},
+  misc::{Lease, LeaseMut, Uri, UriString},
 };
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::String};
+
+static EMPTY_URI_STRING: UriString = UriString::_empty(String::new());
 
 /// Groups the elements of an HTTP request/response.
 pub trait ReqResData {
@@ -78,7 +80,7 @@ impl ReqResData for &[u8] {
 
   #[inline]
   fn uri(&self) -> &UriString {
-    &_EMPTY_URI_STRING
+    &EMPTY_URI_STRING
   }
 }
 
@@ -97,7 +99,7 @@ impl<const N: usize> ReqResData for [u8; N] {
 
   #[inline]
   fn uri(&self) -> &UriString {
-    &_EMPTY_URI_STRING
+    &EMPTY_URI_STRING
   }
 }
 
@@ -116,7 +118,7 @@ impl ReqResData for () {
 
   #[inline]
   fn uri(&self) -> &UriString {
-    &_EMPTY_URI_STRING
+    &EMPTY_URI_STRING
   }
 }
 
@@ -138,7 +140,7 @@ where
 
   #[inline]
   fn uri(&self) -> &UriString {
-    &_EMPTY_URI_STRING
+    &EMPTY_URI_STRING
   }
 }
 
@@ -160,7 +162,7 @@ where
 
   #[inline]
   fn uri(&self) -> &UriString {
-    &_EMPTY_URI_STRING
+    &EMPTY_URI_STRING
   }
 }
 
@@ -179,7 +181,7 @@ impl ReqResData for Headers {
 
   #[inline]
   fn uri(&self) -> &UriString {
-    &_EMPTY_URI_STRING
+    &EMPTY_URI_STRING
   }
 }
 
@@ -201,7 +203,7 @@ where
 
   #[inline]
   fn uri(&self) -> &UriString {
-    &_EMPTY_URI_STRING
+    &EMPTY_URI_STRING
   }
 }
 
@@ -282,7 +284,7 @@ impl ReqResDataMut for Headers {
 
   #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
-    (&mut [], self, &_EMPTY_URI_STRING)
+    (&mut [], self, &EMPTY_URI_STRING)
   }
 }
 
@@ -295,6 +297,6 @@ where
 
   #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
-    (&mut self.0, self.1.lease_mut(), &_EMPTY_URI_STRING)
+    (&mut self.0, self.1.lease_mut(), &EMPTY_URI_STRING)
   }
 }

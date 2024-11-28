@@ -23,7 +23,7 @@ license = "MIT"
 name = "wtx-macros"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-version = "0.3.0"
+version = "0.4.0"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -4,7 +4,7 @@ macro_rules! impl_0_16 {
   ($( [$($T:ident($N:tt))*] )+) => {
     #[cfg(feature = "database")]
     mod database {
-      use crate::database::{Database, Encode, RecordValues, encode};
+      use crate::database::{Database, Encode, RecordValues, record_values::encode};
 
       $(
         impl<DB, $($T,)*> RecordValues<DB> for ($( $T, )*)

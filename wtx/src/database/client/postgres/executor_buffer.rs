@@ -1,6 +1,6 @@
 use crate::{
   database::{client::postgres::Statements, Identifier},
-  misc::{Lease, LeaseMut, PartitionedFilledBuffer, Rng, Vector},
+  misc::{partitioned_filled_buffer::PartitionedFilledBuffer, Lease, LeaseMut, Rng, Vector},
 };
 use core::ops::Range;
 use hashbrown::HashMap;

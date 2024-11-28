@@ -1,4 +1,4 @@
-use crate::misc::AtomicUsize;
+use crate::misc::facades::atomic_usize::AtomicUsize;
 use core::{
   cell::UnsafeCell,
   fmt::{self, Debug},

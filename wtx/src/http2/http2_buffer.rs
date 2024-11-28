@@ -3,7 +3,10 @@ use crate::{
     hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, index_map::IndexMap,
     initial_server_header::InitialServerHeader, uri_buffer::UriBuffer, Scrp, Sorp,
   },
-  misc::{simple_seed, Arc, AtomicWaker, Lease, LeaseMut, PartitionedFilledBuffer, Rng, Vector},
+  misc::{
+    partitioned_filled_buffer::PartitionedFilledBuffer, simple_seed, Arc, AtomicWaker, Lease,
+    LeaseMut, Rng, Vector,
+  },
 };
 use alloc::boxed::Box;
 use core::sync::atomic::{AtomicBool, Ordering};

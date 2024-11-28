@@ -1,7 +1,7 @@
 use crate::{
   database::{
     client::postgres::{
-      statements::{column::Column, StatementsMisc},
+      statements::{column::Column, statements_misc::StatementsMisc},
       Ty,
     },
     Identifier,

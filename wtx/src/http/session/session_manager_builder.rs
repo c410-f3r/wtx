@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    cookie::{CookieGeneric, SameSite},
+    cookie::{cookie_generic::CookieGeneric, SameSite},
     session::{SessionKey, SessionManagerInner},
     SessionManager, SessionStore,
   },

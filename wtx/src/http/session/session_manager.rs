@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    cookie::{encrypt, CookieGeneric},
+    cookie::{cookie_generic::CookieGeneric, encrypt},
     session::SessionKey,
     Header, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder, SessionState,
     SessionStore,
