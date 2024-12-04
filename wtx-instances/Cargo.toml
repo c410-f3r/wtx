@@ -135,7 +135,7 @@ rand_chacha = { default-features = false, optional = true, version = "0.3" }
 rand_core = { default-features = false, features = ["getrandom"], optional = true, version = "0.6" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], version = "1.0" }
+tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], version = "1.42" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
