@@ -37,7 +37,7 @@ pub trait Record<'exec>: Sized {
     CI: ValueIdent<Self>;
 }
 
-impl<'exec> Record<'exec> for () {
+impl Record<'_> for () {
   type Database = ();
 
   #[inline]

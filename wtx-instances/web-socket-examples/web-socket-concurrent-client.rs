@@ -1,4 +1,4 @@
-//! WebSocket client that reads and writes frames in different tasks.
+//! Encrypted WebSocket client that reads and writes frames in different tasks.
 
 extern crate tokio;
 extern crate wtx;

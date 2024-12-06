@@ -19,14 +19,14 @@ impl<'buffer, 'tmp> EncodeValue<'buffer, 'tmp> {
   }
 }
 
-impl<'buffer, 'tmp> Lease<FilledBufferWriter<'buffer>> for EncodeValue<'buffer, 'tmp> {
+impl<'buffer> Lease<FilledBufferWriter<'buffer>> for EncodeValue<'buffer, '_> {
   #[inline]
   fn lease(&self) -> &FilledBufferWriter<'buffer> {
     self.fbw
   }
 }
 
-impl<'buffer, 'tmp> LeaseMut<FilledBufferWriter<'buffer>> for EncodeValue<'buffer, 'tmp> {
+impl<'buffer> LeaseMut<FilledBufferWriter<'buffer>> for EncodeValue<'buffer, '_> {
   #[inline]
   fn lease_mut(&mut self) -> &mut FilledBufferWriter<'buffer> {
     self.fbw

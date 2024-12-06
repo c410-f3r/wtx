@@ -1,5 +1,5 @@
 use crate::client_api_framework::{
-  contained_attrs::ContainedAttrs,
+  contained_attrs::ContainedAttrs as _,
   item_with_attr_span::ItemWithAttrSpan,
   pkg::{
     fir::fir_item_attr::{FirItemAttr, FirItemAttrTy},

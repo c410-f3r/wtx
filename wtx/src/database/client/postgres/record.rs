@@ -136,7 +136,7 @@ impl<'exec, E> ValueIdent<Record<'exec, E>> for str {
   }
 }
 
-impl<'exec, E> PartialEq for Record<'exec, E> {
+impl<E> PartialEq for Record<'_, E> {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     self.bytes == other.bytes

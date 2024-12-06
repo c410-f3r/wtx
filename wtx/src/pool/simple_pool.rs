@@ -19,7 +19,6 @@ pub type SimplePoolTokio<RM> =
 #[derive(Debug)]
 pub struct SimplePool<RL, RM> {
   available_idxs: Arc<Mutex<Vec<usize>>>,
-  #[expect(clippy::rc_buffer, reason = "false-positive")]
   locks: Arc<Vec<RL>>,
   rm: Arc<RM>,
   waker: Arc<Mutex<Vec<Waker>>>,

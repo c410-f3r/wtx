@@ -262,15 +262,15 @@ where
 #[inline]
 fn check_header_value((name, value): (KnownHeaderName, Option<&[u8]>)) -> crate::Result<&[u8]> {
   let Some(elem) = value else {
-    return Err(crate::Error::from(HttpError::MissingHeader(name)).into());
+    return Err(crate::Error::from(HttpError::MissingHeader(name)));
   };
   Ok(elem)
 }
 
 #[inline]
-fn check_headers<'header, 'headers, const N: usize>(
+fn check_headers<'headers, const N: usize>(
   array: [(KnownHeaderName, Option<&[u8]>); N],
-  headers: &'headers [Header<'header>],
+  headers: &'headers [Header<'_>],
 ) -> crate::Result<[(KnownHeaderName, Option<&'headers [u8]>); N]> {
   let mut rslt = [(KnownHeaderName::Accept, None); N];
   for header in headers {

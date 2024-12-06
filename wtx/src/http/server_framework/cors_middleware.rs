@@ -68,7 +68,7 @@ impl CorsMiddleware {
     Self {
       allow_credentials: true,
       allow_headers: (true, ArrayVector::new()),
-      allow_methods: (false, ArrayVector::from_array(Method::ALL.into())),
+      allow_methods: (false, ArrayVector::from_array(Method::ALL)),
       allow_origins: (true, ArrayVector::new()),
       expose_headers: (true, ArrayVector::new()),
       max_age: None,
@@ -176,7 +176,7 @@ impl CorsMiddleware {
   }
 
   #[inline]
-  fn allowed_origin<'this>(&'this self, origin: &[u8]) -> Option<&'static str> {
+  fn allowed_origin(&self, origin: &[u8]) -> Option<&'static str> {
     self.allow_origins.1.iter().find(|el| el.as_bytes() == origin).copied()
   }
 
@@ -317,13 +317,13 @@ impl CorsMiddleware {
   fn extract_origin<'any>(
     opt: Option<Header<'any, &'any [u8]>>,
   ) -> crate::Result<Header<'any, &'any [u8]>> {
-    Ok(opt.ok_or_else(|| HttpError::MissingHeader(KnownHeaderName::Origin))?)
+    Ok(opt.ok_or(HttpError::MissingHeader(KnownHeaderName::Origin))?)
   }
 
   #[inline]
-  fn manage_preflight_headers<'bytes>(
+  fn manage_preflight_headers(
     &self,
-    acrh: Header<'_, &'bytes [u8]>,
+    acrh: Header<'_, &[u8]>,
     body: &mut Vector<u8>,
   ) -> crate::Result<()> {
     if self.allow_headers.0 {
@@ -341,7 +341,7 @@ impl CorsMiddleware {
       }
     }
     if matched_headers != uniques.len() {
-      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsHeader).into());
+      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsHeader));
     }
     let mut iter = uniques.iter();
     if let Some(elem) = iter.next() {
@@ -366,7 +366,7 @@ impl CorsMiddleware {
         || a.as_bytes() == acrm.value
         || b.as_bytes() == acrm.value
     }) {
-      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsMethod).into());
+      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsMethod));
     }
     Ok(())
   }
@@ -382,7 +382,7 @@ impl CorsMiddleware {
     } else if let Some(allowed_origin) = self.allowed_origin(origin.value) {
       allowed_origin.as_bytes()
     } else {
-      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsOrigin).into());
+      return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsOrigin));
     };
     body.extend_from_copyable_slice(actual_origin).map_err(crate::Error::from)?;
     Ok(())

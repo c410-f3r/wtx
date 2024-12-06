@@ -40,6 +40,8 @@ pub enum Error {
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
+  #[cfg(feature = "embedded-tls")]
+  EmbassyTlsError(embedded_tls::TlsError),
   #[cfg(feature = "flate2")]
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
@@ -52,20 +54,20 @@ pub enum Error {
   MatchitInsertError(Box<matchit::InsertError>),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
+  #[cfg(feature = "rustls-pki-types")]
+  PemError(Box<rustls_pki_types::pem::Error>),
   #[cfg(feature = "postgres")]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "quick-protobuf")]
   QuickProtobuf(Box<quick_protobuf::Error>),
+  #[cfg(feature = "rustls")]
+  RustlsError(Box<rustls::Error>),
   #[cfg(feature = "serde_json")]
   SerdeJson(serde_json::Error),
   #[cfg(feature = "http-session")]
   SessionError(crate::http::SessionError),
-  #[cfg(feature = "embedded-tls")]
-  TlsError(embedded_tls::TlsError),
   #[cfg(feature = "tokio")]
   TokioJoinError(Box<tokio::task::JoinError>),
-  #[cfg(feature = "tokio-rustls")]
-  TokioRustlsError(Box<tokio_rustls::rustls::Error>),
   #[cfg(feature = "tracing-subscriber")]
   TryInitError(tracing_subscriber::util::TryInitError),
   #[cfg(feature = "std")]
@@ -156,6 +158,8 @@ pub enum Error {
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
   #[cfg(feature = "http-server-framework")]
   ServerFrameworkError(crate::http::server_framework::ServerFrameworkError),
+  #[cfg(feature = "tls")]
+  TlsError(crate::tls::TlsError),
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
   WebSocketError(crate::web_socket::WebSocketError),
@@ -262,6 +266,14 @@ impl From<base64::EncodeSliceError> for Error {
   }
 }
 
+#[cfg(feature = "embedded-tls")]
+impl From<embedded_tls::TlsError> for Error {
+  #[inline]
+  fn from(from: embedded_tls::TlsError) -> Self {
+    Self::EmbassyTlsError(from)
+  }
+}
+
 #[cfg(feature = "flate2")]
 impl From<flate2::CompressError> for Error {
   #[inline]
@@ -350,6 +362,13 @@ impl From<core::num::ParseIntError> for Error {
   }
 }
 
+#[cfg(feature = "rustls-pki-types")]
+impl From<rustls_pki_types::pem::Error> for Error {
+  #[inline]
+  fn from(from: rustls_pki_types::pem::Error) -> Self {
+    Self::PemError(from.into())
+  }
+}
 #[cfg(feature = "postgres")]
 impl From<crate::database::client::postgres::DbError> for Error {
   #[inline]
@@ -363,6 +382,14 @@ impl From<quick_protobuf::Error> for Error {
   #[inline]
   fn from(from: quick_protobuf::Error) -> Self {
     Self::QuickProtobuf(from.into())
+  }
+}
+
+#[cfg(feature = "rustls")]
+impl From<rustls::Error> for Error {
+  #[inline]
+  fn from(from: rustls::Error) -> Self {
+    Self::RustlsError(from.into())
   }
 }
 
@@ -382,27 +409,11 @@ impl From<crate::http::SessionError> for Error {
   }
 }
 
-#[cfg(feature = "embedded-tls")]
-impl From<embedded_tls::TlsError> for Error {
-  #[inline]
-  fn from(from: embedded_tls::TlsError) -> Self {
-    Self::TlsError(from)
-  }
-}
-
 #[cfg(feature = "tokio")]
 impl From<tokio::task::JoinError> for Error {
   #[inline]
   fn from(from: tokio::task::JoinError) -> Self {
     Self::TokioJoinError(from.into())
-  }
-}
-
-#[cfg(feature = "tokio-rustls")]
-impl From<tokio_rustls::rustls::Error> for Error {
-  #[inline]
-  fn from(from: tokio_rustls::rustls::Error) -> Self {
-    Self::TokioRustlsError(from.into())
   }
 }
 
@@ -539,6 +550,14 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   #[inline]
   fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
+  }
+}
+
+#[cfg(feature = "tls")]
+impl From<crate::tls::TlsError> for Error {
+  #[inline]
+  fn from(from: crate::tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 

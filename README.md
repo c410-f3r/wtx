@@ -4,9 +4,9 @@
 [![crates.io](https://img.shields.io/crates/v/wtx.svg)](https://crates.io/crates/wtx)
 [![Documentation](https://docs.rs/wtx/badge.svg)](https://docs.rs/wtx)
 [![License](https://img.shields.io/badge/license-APACHE2-blue.svg)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
-[![Rustc](https://img.shields.io/badge/rustc-1.82-lightgray")](https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html)
+[![Rustc](https://img.shields.io/badge/rustc-1.83-lightgray")](https://blog.rust-lang.org/2024/11/28/Rust-1.83.0.html)
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Contains the implementations of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
 1. [Client API Framework](https://c410-f3r.github.io/wtx/client-api-framework/index.html)
 2. [Database Client](https://c410-f3r.github.io/wtx/database-client/index.html)

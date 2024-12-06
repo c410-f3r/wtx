@@ -5,7 +5,7 @@ use crate::{
 use alloc::string::String;
 use core::fmt::Write;
 
-pub(crate) const _CREATE_MIGRATION_TABLES: &str = concat!(
+pub(crate) static _CREATE_MIGRATION_TABLES: &str = concat!(
   "CREATE SCHEMA IF NOT EXISTS _wtx; \
   CREATE TABLE IF NOT EXISTS _wtx._wtx_migration_group (",
   _wtx_migration_group_columns!(),

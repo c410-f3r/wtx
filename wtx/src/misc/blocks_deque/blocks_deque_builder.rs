@@ -77,7 +77,7 @@ impl<'db, D, M, const IS_BACK: bool> BlocksDequeBuilder<'db, D, M, IS_BACK> {
 // some_fallible_operation(...)?;
 // builder.build();
 // ```
-impl<'db, D, M, const IS_BACK: bool> Drop for BlocksDequeBuilder<'db, D, M, IS_BACK> {
+impl<D, M, const IS_BACK: bool> Drop for BlocksDequeBuilder<'_, D, M, IS_BACK> {
   #[inline]
   fn drop(&mut self) {
     if !self.was_built {

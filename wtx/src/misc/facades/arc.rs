@@ -31,14 +31,27 @@ impl<T> Clone for Arc<T> {
 }
 
 impl<T> Deref for Arc<T> {
-  #[cfg(feature = "portable-atomic-util")]
-  type Target = T;
-  #[cfg(not(feature = "portable-atomic-util"))]
   type Target = T;
 
   #[inline]
   fn deref(&self) -> &Self::Target {
     &self.0
+  }
+}
+
+#[cfg(feature = "portable-atomic-util")]
+impl<T> From<Arc<T>> for portable_atomic_util::Arc<T> {
+  #[inline]
+  fn from(from: Arc<T>) -> Self {
+    from.0
+  }
+}
+
+#[cfg(feature = "portable-atomic-util")]
+impl<T> From<portable_atomic_util::Arc<T>> for Arc<T> {
+  #[inline]
+  fn from(from: portable_atomic_util::Arc<T>) -> Self {
+    Self(from)
   }
 }
 
@@ -50,10 +63,10 @@ impl<T> From<Arc<T>> for alloc::sync::Arc<T> {
   }
 }
 
-#[cfg(feature = "portable-atomic-util")]
-impl<T> From<Arc<T>> for portable_atomic_util::Arc<T> {
+#[cfg(not(feature = "portable-atomic-util"))]
+impl<T> From<alloc::sync::Arc<T>> for Arc<T> {
   #[inline]
-  fn from(from: Arc<T>) -> Self {
-    from.0
+  fn from(from: alloc::sync::Arc<T>) -> Self {
+    Self(from)
   }
 }

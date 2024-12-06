@@ -5,9 +5,9 @@ use crate::{
   misc::create_ident,
 };
 use proc_macro2::{Ident, Span};
-use quote::ToTokens;
+use quote::ToTokens as _;
 use syn::{
-  parse_macro_input, punctuated::Punctuated, spanned::Spanned, AttributeArgs, Item, Path,
+  parse_macro_input, punctuated::Punctuated, spanned::Spanned as _, AttributeArgs, Item, Path,
   PathArguments, PathSegment,
 };
 

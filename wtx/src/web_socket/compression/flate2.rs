@@ -132,7 +132,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
         let _ = this.compress.compress(local_input, output_butes, FlushCompress::Sync);
         Ok(())
       },
-      |a, b| Ok(rem_cb(a, b)?),
+      |a, b| rem_cb(a, b),
       |this| this.compress.reset(),
       |this| this.compress.total_in(),
       |this| this.compress.total_out(),

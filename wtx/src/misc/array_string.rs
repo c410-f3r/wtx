@@ -327,7 +327,7 @@ mod serde {
     {
       struct ArrayStringVisitor<const N: usize>(PhantomData<[u8; N]>);
 
-      impl<'de, const N: usize> Visitor<'de> for ArrayStringVisitor<N> {
+      impl<const N: usize> Visitor<'_> for ArrayStringVisitor<N> {
         type Value = ArrayString<N>;
 
         #[inline]

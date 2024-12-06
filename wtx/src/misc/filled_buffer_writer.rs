@@ -105,7 +105,7 @@ impl<'vec> LeaseMut<FilledBufferWriter<'vec>> for FilledBufferWriter<'vec> {
   }
 }
 
-impl<'vec> Drop for FilledBufferWriter<'vec> {
+impl Drop for FilledBufferWriter<'_> {
   #[inline]
   fn drop(&mut self) {
     self._vec._truncate(self._initial_idx);

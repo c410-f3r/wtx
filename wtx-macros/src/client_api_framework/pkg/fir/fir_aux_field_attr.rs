@@ -1,7 +1,7 @@
 use crate::client_api_framework::pkg::keywords;
 use syn::{
   parse::{Parse, ParseStream},
-  spanned::Spanned,
+  spanned::Spanned as _,
 };
 
 #[derive(Debug)]

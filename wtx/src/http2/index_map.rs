@@ -52,7 +52,7 @@ where
 
   #[inline]
   pub(crate) fn push_back(&mut self, key: K, value: V) -> Option<V> {
-    let prev_value = self.elements.insert(key.clone(), value);
+    let prev_value = self.elements.insert(key, value);
     if prev_value.is_none() {
       self.keys.push_back(key).ok()?;
     }

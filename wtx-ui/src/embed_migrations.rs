@@ -10,7 +10,7 @@ pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
   migration_groups.sort();
 
   buffer.push_str(
-    "#[rustfmt::skip]pub(crate) const GROUPS: wtx::database::schema_manager::EmbeddedMigrationsTy = &[",
+    "#[rustfmt::skip]pub(crate) static GROUPS: wtx::database::schema_manager::EmbeddedMigrationsTy = &[",
   );
 
   for mg_path in migration_groups {
