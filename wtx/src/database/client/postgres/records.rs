@@ -71,7 +71,7 @@ where
   }
 }
 
-impl<'exec, E> Default for Records<'exec, E> {
+impl<E> Default for Records<'_, E> {
   #[inline]
   fn default() -> Self {
     Self {

@@ -9,21 +9,21 @@ where
   fn decode(dv: &D::DecodeValue<'de>) -> Result<Self, D::Error>;
 }
 
-impl<'de> Decode<'de, ()> for &str {
+impl Decode<'_, ()> for &str {
   #[inline]
   fn decode(_: &()) -> Result<Self, crate::Error> {
     Ok("")
   }
 }
 
-impl<'de> Decode<'de, ()> for u32 {
+impl Decode<'_, ()> for u32 {
   #[inline]
   fn decode(_: &()) -> Result<Self, crate::Error> {
     Ok(0)
   }
 }
 
-impl<'de> Decode<'de, ()> for u64 {
+impl Decode<'_, ()> for u64 {
   #[inline]
   fn decode(_: &()) -> Result<Self, crate::Error> {
     Ok(0)

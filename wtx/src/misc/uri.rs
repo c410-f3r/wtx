@@ -1,9 +1,9 @@
 use crate::misc::{
-  QueryWriter, _unlikely_dflt, bytes_pos1, bytes_rpos1, str_split_once1, ArrayString, FromRadix10,
-  Lease,
+  QueryWriter, _unlikely_dflt, bytes_pos1, bytes_rpos1, str_split_once1, ArrayString,
+  FromRadix10 as _, Lease,
 };
 use alloc::string::String;
-use core::fmt::{Arguments, Debug, Display, Formatter, Write};
+use core::fmt::{Arguments, Debug, Display, Formatter, Write as _};
 
 /// [Uri] with an owned array.
 pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;

@@ -77,7 +77,8 @@ impl Database for () {
   const TY: DatabaseTy = DatabaseTy::Unit;
 
   type DecodeValue<'exec> = ();
-  type EncodeValue<'buffer, 'tmp> = crate::misc::FilledBufferWriter<'buffer>
+  type EncodeValue<'buffer, 'tmp>
+    = crate::misc::FilledBufferWriter<'buffer>
   where
     'buffer: 'tmp;
   type Error = crate::Error;

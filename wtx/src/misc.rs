@@ -49,7 +49,7 @@ pub use blocks_deque::{Block, BlocksDeque, BlocksDequeBuilder, BlocksDequeError}
 pub use buffer_mode::BufferMode;
 pub use bytes_fmt::BytesFmt;
 pub use connection_state::ConnectionState;
-use core::{any::type_name, fmt::Write, ops::Range, time::Duration};
+use core::{any::type_name, fmt::Write as _, ops::Range, time::Duration};
 pub use deque::{Deque, DequeueError};
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
@@ -57,7 +57,7 @@ pub use facades::arc::Arc;
 pub use filled_buffer_writer::FilledBufferWriter;
 pub use fn_fut::*;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
-pub use generic_time::GenericTime;
+pub use generic_time::{GenericTime, GenericTimeProvider};
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use iter_wrapper::IterWrapper;

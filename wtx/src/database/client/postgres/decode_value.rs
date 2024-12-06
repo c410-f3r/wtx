@@ -25,7 +25,7 @@ impl<'any> DecodeValue<'any> {
   }
 }
 
-impl<'any> Default for DecodeValue<'any> {
+impl Default for DecodeValue<'_> {
   #[inline]
   fn default() -> Self {
     Self { bytes: &[], ty: Ty::Any }

@@ -159,12 +159,7 @@ where
       &mut ish.rrb,
       self.stream_reader,
       self.uri_buffer,
-      |hf| {
-        Ok((
-          hf.hsreqh().method.ok_or_else(|| HttpError::MissingRequestMethod)?,
-          hf.hsreqh().protocol,
-        ))
-      },
+      |hf| Ok((hf.hsreqh().method.ok_or(HttpError::MissingRequestMethod)?, hf.hsreqh().protocol)),
     )
     .await?;
     let (content_length, has_eos, (method, protocol)) = tuple;

@@ -13,7 +13,7 @@ use fir::{
   fir_req_item_values::FirReqItemValues, fir_res_item_values::FirResItemValues,
 };
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
+use quote::ToTokens as _;
 use sir::{sir_final_values::SirFinalValues, sir_pkg_attr::SirPkaAttr};
 use syn::{
   parse_macro_input,

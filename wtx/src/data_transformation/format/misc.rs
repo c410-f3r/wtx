@@ -19,7 +19,7 @@ mod serde_json {
   {
     struct Buffer<'any, T>(&'any mut Vector<T>);
 
-    impl<'any, 'de, T> Visitor<'de> for Buffer<'any, T>
+    impl<'de, T> Visitor<'de> for Buffer<'_, T>
     where
       T: Deserialize<'de>,
     {

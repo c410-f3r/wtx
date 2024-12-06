@@ -73,8 +73,8 @@ where
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-      if let Some(elem) = status_recv(&self.is_conn_open, sorp, |local_sorp| {
-        check_content_length(&local_sorp)?;
+      if let Some(elem) = status_recv(self.is_conn_open, sorp, |local_sorp| {
+        check_content_length(local_sorp)?;
         Ok(mem::take(&mut local_sorp.rrb.body))
       })? {
         return Poll::Ready(Ok(elem));
@@ -105,7 +105,7 @@ where
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-      if let Some(elem) = status_recv(&self.is_conn_open, sorp, |local_sorp| {
+      if let Some(elem) = status_recv(self.is_conn_open, sorp, |local_sorp| {
         Ok(mem::take(&mut local_sorp.rrb.headers))
       })? {
         return Poll::Ready(Ok(elem));
@@ -129,7 +129,7 @@ where
     let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
     wp.withdrawn_recv(
       hdpm.hp,
-      &self.is_conn_open,
+      self.is_conn_open,
       hdpm.stream_writer,
       self.stream_id,
       U31::from_u32(value),
@@ -173,7 +173,7 @@ where
       let mut lock = lock_pin!(cx, self.hd, pin);
       let hdpm = lock.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-      if let Some(elem) = status_send::<false>(&self.is_conn_open, sorp) {
+      if let Some(elem) = status_send::<false>(self.is_conn_open, sorp) {
         return Poll::Ready(Ok(elem));
       }
       let mut wp = WindowsPair::new(hdpm.windows, &mut sorp.windows);
@@ -187,7 +187,7 @@ where
         is_eos,
         &mut has_data,
         false,
-        &self.is_conn_open,
+        self.is_conn_open,
         hdpm.hps.max_frame_len,
         hdpm.stream_writer,
         self.stream_id,
@@ -224,7 +224,7 @@ where
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
     let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-    if let Some(elem) = status_send::<false>(&self.is_conn_open, sorp) {
+    if let Some(elem) = status_send::<false>(self.is_conn_open, sorp) {
       return Ok(elem);
     }
     let hsreh = HpackStaticResponseHeaders { status_code: Some(status_code) };
@@ -236,7 +236,7 @@ where
     let _ = write_standalone_headers::<_, IS_CLIENT>(
       &mut hdpm.hb.hpack_enc_buffer,
       (HpackStaticRequestHeaders::EMPTY, hsreh),
-      &self.is_conn_open,
+      self.is_conn_open,
       is_eos,
       hdpm.hps.max_frame_len,
       hdpm.stream_writer,
@@ -274,13 +274,13 @@ where
     let mut lock = self.hd.lock().await;
     let hdpm = lock.parts_mut();
     let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-    if let Some(elem) = status_send::<false>(&self.is_conn_open, sorp) {
+    if let Some(elem) = status_send::<false>(self.is_conn_open, sorp) {
       return Ok(elem);
     }
     write_standalone_trailers(
       trailers,
       (&mut hdpm.hb.hpack_enc, &mut hdpm.hb.hpack_enc_buffer),
-      &self.is_conn_open,
+      self.is_conn_open,
       hdpm.hps.max_frame_len,
       hdpm.stream_writer,
       self.stream_id,

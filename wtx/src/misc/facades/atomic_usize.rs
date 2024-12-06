@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut};
 
-/// A thread-safe reference-counting pointer. ‘Arc’ stands for ‘Atomically Reference Counted’.
+/// An integer type which can be safely shared between threads.
 #[derive(Debug)]
 pub(crate) struct AtomicUsize(
   #[cfg(feature = "portable-atomic")] portable_atomic::AtomicUsize,

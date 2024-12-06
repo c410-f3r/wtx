@@ -123,7 +123,7 @@ extern crate wtx;
 
 // This is an example! The actual contents are filled by the `wtx-ui embed-migrations` binary call.
 mod embedded_migrations {
-  pub(crate) const GROUPS: wtx::database::schema_manager::EmbeddedMigrationsTy = &[];
+  pub(crate) static GROUPS: wtx::database::schema_manager::EmbeddedMigrationsTy = &[];
 }
 
 use wtx::database::schema_manager::Commands;

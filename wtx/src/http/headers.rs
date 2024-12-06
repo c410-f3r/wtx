@@ -162,12 +162,12 @@ impl Headers {
     let header_begin = self.bytes.len();
     #[cfg(feature = "std")]
     {
-      use std::io::Write;
+      use std::io::Write as _;
       self.bytes.write_fmt(format_args!("{}{}", header.name, header.value))?;
     }
     #[cfg(not(feature = "std"))]
     {
-      use core::fmt::Write;
+      use core::fmt::Write as _;
       self.bytes.write_fmt(format_args!("{}{}", header.name, header.value))?;
     }
     let prev_len = self.headers_parts.len();

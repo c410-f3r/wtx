@@ -22,7 +22,6 @@ pub use request_throttling::RequestThrottling;
 
 /// Used in all implementations of [`crate::Transport::send`] and/or
 /// [`crate::Transport::send_recv``].
-#[expect(clippy::needless_pass_by_value, reason = "borrow checker woes")]
 pub(crate) fn log_req<A, DRSR, P, T>(
   _pgk: &mut P,
   _pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,

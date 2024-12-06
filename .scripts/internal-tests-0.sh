@@ -3,7 +3,7 @@
 . "$(dirname "$0")/common.sh" --source-only
 
 $rt rustfmt
-$rt clippy -Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn
+$rt clippy -Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn,-Aclippy::used_underscore_items
 
 cargo miri test --features http2,postgres,web-socket -p wtx two_sta
 
@@ -13,6 +13,7 @@ $rt check-generic wtx
 $rt test-with-features wtx aes-gcm
 $rt test-with-features wtx arbitrary
 $rt test-with-features wtx argon2
+$rt test-with-features wtx aws-lc-rs,_hack
 $rt test-with-features wtx base64
 $rt test-with-features wtx borsh
 $rt test-with-features wtx chrono
@@ -22,6 +23,7 @@ $rt test-with-features wtx crypto-common
 $rt test-with-features wtx data-transformation
 $rt test-with-features wtx database
 $rt test-with-features wtx digest
+$rt test-with-features wtx embassy-time
 $rt test-with-features wtx fastrand
 $rt test-with-features wtx flate2
 $rt test-with-features wtx foldhash
@@ -42,6 +44,7 @@ $rt test-with-features wtx quick-protobuf
 $rt test-with-features wtx rand_chacha
 $rt test-with-features wtx ring
 $rt test-with-features wtx rust_decimal
+$rt test-with-features wtx rustls
 $rt test-with-features wtx schema-manager
 $rt test-with-features wtx schema-manager-dev
 $rt test-with-features wtx serde

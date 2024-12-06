@@ -150,7 +150,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
 
   /// Shortens the vector, removing the last element.
   #[inline]
-  pub fn pop(&mut self) -> Option<T> {
+  pub const fn pop(&mut self) -> Option<T> {
     if let Some(new_len) = self.len.checked_sub(1) {
       self.len = new_len;
       // SAFETY: `new_len` is within bounds
@@ -194,12 +194,12 @@ impl<T, const N: usize> ArrayVector<T, N> {
   }
 
   #[inline]
-  fn as_ptr_mut(&mut self) -> *mut T {
+  const fn as_ptr_mut(&mut self) -> *mut T {
     self.data.as_mut_ptr().cast()
   }
 
   #[inline]
-  fn do_push(&mut self, value: T) -> Result<(), T> {
+  const fn do_push(&mut self, value: T) -> Result<(), T> {
     let len = self.len;
     if len >= Self::N_U32 {
       return Err(value);
@@ -215,7 +215,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
   }
 
   #[inline]
-  unsafe fn get_owned(&mut self, idx: u32) -> T {
+  const unsafe fn get_owned(&mut self, idx: u32) -> T {
     // SAFETY: It is up to the caller to provide a valid index
     let src = unsafe { self.data.as_ptr().add(Usize::from_u32(idx).into_usize()) };
     // SAFETY: If the index is valid, then the element exists
@@ -263,7 +263,7 @@ where
   /// Iterates over the slice `other`, copies each element and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
+  pub const fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
     let len = self.len;
     let other_len_usize = other.len();
     let other_len_u32 = 'block: {
@@ -281,15 +281,6 @@ where
       ptr::copy_nonoverlapping(other.as_ptr(), dst, other_len_usize);
     }
     self.len = len.wrapping_add(other_len_u32);
-    Ok(())
-  }
-
-  /// Appends an copyable element to the back of the collection.
-  #[inline]
-  pub fn push_copyable(&mut self, value: T) -> Result<(), ArrayVectorError> {
-    if self.do_push(value).is_err() {
-      return Err(ArrayVectorError::PushOverflow);
-    }
     Ok(())
   }
 }

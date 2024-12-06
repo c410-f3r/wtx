@@ -1,4 +1,4 @@
-#[rustfmt::skip]pub(crate) const GROUPS: wtx::database::schema_manager::EmbeddedMigrationsTy = &[{const INITIAL: &wtx::database::schema_manager::MigrationGroup<&'static str> = &wtx::database::schema_manager::MigrationGroup::new("INITIAL",1);const INITIAL_MIGRATIONS: &[wtx::database::schema_manager::UserMigrationRef<'static, 'static>] = &[wtx::database::schema_manager::UserMigrationRef::from_all_parts(7573493478190316387,&[],"create_author",None,"DROP TABLE author;","CREATE TABLE author (
+#[rustfmt::skip]pub(crate) static GROUPS: wtx::database::schema_manager::EmbeddedMigrationsTy = &[{const INITIAL: &wtx::database::schema_manager::MigrationGroup<&'static str> = &wtx::database::schema_manager::MigrationGroup::new("INITIAL",1);const INITIAL_MIGRATIONS: &[wtx::database::schema_manager::UserMigrationRef<'static, 'static>] = &[wtx::database::schema_manager::UserMigrationRef::from_all_parts(7573493478190316387,&[],"create_author",None,"DROP TABLE author;","CREATE TABLE author (
   id INT NOT NULL PRIMARY KEY,
   first_name VARCHAR(50) NOT NULL,
   last_name VARCHAR(50) NOT NULL,

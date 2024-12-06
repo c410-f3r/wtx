@@ -80,7 +80,7 @@ impl<'bytes, const IS_SCATTERED: bool> SendDataModeBytes<'bytes, IS_SCATTERED>
     'first: 'rslt,
     'this: 'rslt,
   {
-    [first, &self[0], &[]]
+    [first, self[0], &[]]
   }
 
   #[inline]
@@ -105,7 +105,7 @@ impl<'bytes> SendDataModeBytes<'bytes, false> for [&'bytes [u8]; 2] {
     'first: 'rslt,
     'this: 'rslt,
   {
-    [first, &self[0], &self[1]]
+    [first, self[0], self[1]]
   }
 
   #[inline]

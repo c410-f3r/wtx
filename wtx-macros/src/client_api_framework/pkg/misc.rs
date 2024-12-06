@@ -1,7 +1,7 @@
 use proc_macro2::Span;
-use quote::ToTokens;
+use quote::ToTokens as _;
 use syn::{
-  parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Paren,
+  parse::Parse, punctuated::Punctuated, spanned::Spanned as _, token::Paren,
   AngleBracketedGenericArguments, Attribute, GenericArgument, GenericParam, Generics,
   PathArguments, PathSegment, Token, Type, TypePath, TypeTuple, WherePredicate,
 };
