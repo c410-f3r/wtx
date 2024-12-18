@@ -1,6 +1,6 @@
 //! WTX - Macros
 
-#![expect(clippy::too_many_lines, reason = "Unimportant")]
+#![allow(clippy::too_many_lines)]
 
 mod client_api_framework;
 mod error;

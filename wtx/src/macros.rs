@@ -83,7 +83,7 @@ macro_rules! _create_enum {
       $($(#[$variant_mac_fixed])* $variant_ident_fixed,)*
     }
 
-    #[allow(dead_code, reason = "outside may or may not use methods")]
+    #[allow(dead_code)]
     impl $enum_ident {
       #[inline]
       /// The total number of variants
@@ -94,15 +94,15 @@ macro_rules! _create_enum {
       /// See [`crate::misc::EnumVarStrings`].
       #[inline]
       $v const fn strings(&self) -> crate::misc::EnumVarStrings<{
-        #[allow(unused_mut, reason = "macro stuff")]
+        #[allow(unused_mut)]
         let mut n;
         $({
-          #[allow(unused_mut, reason = "repetition can be empty")]
+          #[allow(unused_mut)]
           let mut local_n = 0;
           let _ = $variant_n_fixed;
           $({ let _ = $variant_str_fixed; local_n += 1; })?
           $({ let _ = $variant_str_fixed_n; local_n += 1; })*
-          #[allow(unused_assignments, reason = "repetition can be empty")]
+          #[allow(unused_assignments)]
           { n = local_n; }
         })*
         n
@@ -119,10 +119,7 @@ macro_rules! _create_enum {
       }
     }
 
-    #[allow(
-      unused_qualifications,
-      reason = "macro shouldn't control what the outside uses"
-    )]
+    #[allow(unused_qualifications)]
     impl core::fmt::Display for $enum_ident {
       #[inline]
       fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

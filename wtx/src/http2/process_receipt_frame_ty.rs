@@ -20,8 +20,8 @@ use crate::{
     Http2Error, Http2ErrorCode, Http2Params, Scrp, Sorp,
   },
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, AtomicWaker, StreamReader, StreamWriter,
-    NOOP_WAKER,
+    noop_waker, partitioned_filled_buffer::PartitionedFilledBuffer, AtomicWaker, StreamReader,
+    StreamWriter,
   },
 };
 use core::{mem, sync::atomic::AtomicBool, task::Waker};
@@ -178,7 +178,7 @@ where
         rrb: mem::take(&mut ish.rrb),
         status_code: StatusCode::Ok,
         stream_state,
-        waker: NOOP_WAKER.clone(),
+        waker: noop_waker(),
         windows: Windows::initial(self.hp, self.hps),
       },
     ));

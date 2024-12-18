@@ -1,6 +1,6 @@
 //! Build
 
-#[expect(clippy::unwrap_used, reason = "illustration purposes")]
+#[allow(clippy::unwrap_used)]
 #[cfg(feature = "grpc")]
 mod grpc {
   use pb_rs::{types::FileDescriptor, ConfigBuilder};

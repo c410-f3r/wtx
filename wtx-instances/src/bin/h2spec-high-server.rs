@@ -1,6 +1,6 @@
 //! h2spec
 
-#![expect(clippy::print_stderr, reason = "internal")]
+#![allow(clippy::print_stderr)]
 
 use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{

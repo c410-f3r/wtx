@@ -37,7 +37,7 @@ impl OptionedServer {
       > + Send
       + 'static,
     N: Send + Future<Output = crate::Result<S>>,
-    S: Stream<read(..): Send, write_all(..): Send> + Send,
+    S: Stream<read(): Send, write_all(): Send> + Send,
     for<'wsb> <H as FnFut<(
       WebSocketServer<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer>,
     )>>::Future: Send,

@@ -117,7 +117,7 @@ where
   type GetElem<'this> = SimplePoolGetElem<RL::Guard<'this>>;
   type ResourceManager = RM;
 
-  #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
+  #[allow(clippy::unwrap_used)]
   #[inline]
   async fn get<'this>(
     &'this self,
@@ -201,7 +201,7 @@ impl<R> DerefMut for SimplePoolGetElem<R> {
 }
 
 impl<R> Drop for SimplePoolGetElem<R> {
-  #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
+  #[allow(clippy::unwrap_used)]
   #[inline]
   fn drop(&mut self) {
     self.available_idxs.lock().unwrap().push(self.idx);
@@ -218,7 +218,7 @@ pub struct SimplePoolResource<T>(Option<T>);
 impl<R> Deref for SimplePoolResource<R> {
   type Target = R;
 
-  #[expect(clippy::unwrap_used, reason = "public instances always have valid contents")]
+  #[allow(clippy::unwrap_used)]
   #[inline]
   fn deref(&self) -> &Self::Target {
     self.0.as_ref().unwrap()
@@ -226,7 +226,7 @@ impl<R> Deref for SimplePoolResource<R> {
 }
 
 impl<R> DerefMut for SimplePoolResource<R> {
-  #[expect(clippy::unwrap_used, reason = "public instances always have valid contents")]
+  #[allow(clippy::unwrap_used)]
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.0.as_mut().unwrap()

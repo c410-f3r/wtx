@@ -119,7 +119,7 @@ where
       rslt = rslt.mul(Wrapping(ten));
       rslt = rslt.add(Wrapping(digit));
     }
-    #[expect(clippy::arithmetic_side_effects, reason = "false-positive")]
+    #[allow(clippy::arithmetic_side_effects)]
     Ok(-rslt.0)
   } else {
     if bytes.len() > max_positive_digits.into() {

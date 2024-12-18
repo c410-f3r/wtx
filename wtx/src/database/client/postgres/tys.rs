@@ -645,7 +645,7 @@ mod primitives {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
           Err(E::from(PostgresError::UnexpectedBufferSize {
-            expected: Usize::from(size_of::<$ty>()).into(),
+            expected: Usize::from(core::mem::size_of::<$ty>()).into(),
             received: Usize::from(input.bytes().len()).into()
           }.into()))
         }

@@ -3,7 +3,7 @@ use crate::{
     client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
     Decode,
   },
-  misc::Usize,
+  misc::{Usize, _split_at_checked},
 };
 use core::marker::PhantomData;
 
@@ -49,7 +49,7 @@ where
     let Ok(length) = u32::try_from(i32::from_be_bytes([*e, *f, *g, *h])) else {
       return Ok(None);
     };
-    let Some((before, after)) = rest.split_at_checked(*Usize::from(length)) else {
+    let Some((before, after)) = _split_at_checked(rest, *Usize::from(length)) else {
       return Ok(None);
     };
     self.bytes = after;

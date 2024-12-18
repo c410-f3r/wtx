@@ -23,13 +23,13 @@ macro_rules! create_and_impl {
     }
 
     impl<'slice, T, const N: usize> $name<'slice, T, N> {
-      #[expect(clippy::arithmetic_side_effects, reason = "`N` is not zero")]
+      #[allow(clippy::arithmetic_side_effects)]
       #[inline]
       /// Returns an iterator over N elements of the slice at a time, starting at the beginning of
       /// the slice.
       pub fn new(slice: $slice) -> Self {
         const {
-          assert!(N > 0 && size_of::<T>() > 0);
+          assert!(N > 0 && core::mem::size_of::<T>() > 0);
         }
         let len = slice.len() / N;
         let (multiple_of_n, remainder) = slice.$split_method(len * N);

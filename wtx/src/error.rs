@@ -1,7 +1,7 @@
 use crate::misc::{
   ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FromRadix10Error, VectorError,
 };
-#[allow(unused_imports, reason = "Depends on the selection of features")]
+#[allow(unused_imports)]
 use alloc::boxed::Box;
 use core::{
   fmt::{Debug, Display, Formatter},
@@ -10,11 +10,11 @@ use core::{
 
 #[cfg(target_pointer_width = "64")]
 const _: () = {
-  assert!(size_of::<Error>() == 24);
+  assert!(core::mem::size_of::<Error>() == 24);
 };
 
 /// Grouped individual errors
-#[allow(missing_docs, reason = "Work in progress")]
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub enum Error {
   // External - Misc
@@ -27,7 +27,7 @@ pub enum Error {
   #[cfg(feature = "chrono")]
   ChronoParseError(chrono::ParseError),
   #[cfg(feature = "cl-aux")]
-  ClAux(cl_aux::Error),
+  ClAux(Box<cl_aux::Error>),
   #[cfg(feature = "http-cookie")]
   Cookie(crate::http::CookieError),
   #[cfg(feature = "crypto-common")]
@@ -54,8 +54,6 @@ pub enum Error {
   MatchitInsertError(Box<matchit::InsertError>),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
-  #[cfg(feature = "rustls-pki-types")]
-  PemError(Box<rustls_pki_types::pem::Error>),
   #[cfg(feature = "postgres")]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "quick-protobuf")]
@@ -158,8 +156,6 @@ pub enum Error {
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
   #[cfg(feature = "http-server-framework")]
   ServerFrameworkError(crate::http::server_framework::ServerFrameworkError),
-  #[cfg(feature = "tls")]
-  TlsError(crate::tls::TlsError),
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
   WebSocketError(crate::web_socket::WebSocketError),
@@ -172,7 +168,8 @@ impl Display for Error {
   }
 }
 
-impl core::error::Error for Error {}
+#[cfg(feature = "std")]
+impl std::error::Error for Error {}
 
 impl From<Error> for () {
   #[inline]
@@ -210,7 +207,7 @@ impl From<chrono::ParseError> for Error {
 impl From<cl_aux::Error> for Error {
   #[inline]
   fn from(from: cl_aux::Error) -> Self {
-    Self::ClAux(from)
+    Self::ClAux(from.into())
   }
 }
 
@@ -362,13 +359,6 @@ impl From<core::num::ParseIntError> for Error {
   }
 }
 
-#[cfg(feature = "rustls-pki-types")]
-impl From<rustls_pki_types::pem::Error> for Error {
-  #[inline]
-  fn from(from: rustls_pki_types::pem::Error) -> Self {
-    Self::PemError(from.into())
-  }
-}
 #[cfg(feature = "postgres")]
 impl From<crate::database::client::postgres::DbError> for Error {
   #[inline]
@@ -550,14 +540,6 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   #[inline]
   fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
-  }
-}
-
-#[cfg(feature = "tls")]
-impl From<crate::tls::TlsError> for Error {
-  #[inline]
-  fn from(from: crate::tls::TlsError) -> Self {
-    Self::TlsError(from)
   }
 }
 

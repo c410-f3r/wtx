@@ -7,7 +7,7 @@ use crate::{
     misc::protocol_err,
     Http2Error, Http2ErrorCode,
   },
-  misc::{ArrayVector, Usize},
+  misc::{ArrayVector, Usize, _split_at_checked},
 };
 use alloc::boxed::Box;
 
@@ -179,7 +179,7 @@ impl HpackDecoder {
     data: &mut &'data [u8],
   ) -> crate::Result<(&'data [u8], &'data [u8], bool)> {
     let (first, len) = Self::decode_integer(data, 0b0111_1111)?;
-    let Some((bytes_begin, bytes_end)) = data.split_at_checked(*Usize::from(len)) else {
+    let Some((bytes_begin, bytes_end)) = _split_at_checked(data, *Usize::from(len)) else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::CompressionError,
         Some(Http2Error::InsufficientHpackBytes),
@@ -234,7 +234,7 @@ impl HpackDecoder {
     Ok(rslt)
   }
 
-  #[expect(clippy::too_many_lines, reason = "defined by the specification")]
+  #[allow(clippy::too_many_lines)]
   #[inline]
   fn get(
     dyn_headers: &HpackHeaders<HpackHeaderBasic>,

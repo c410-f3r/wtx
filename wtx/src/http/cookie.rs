@@ -20,11 +20,14 @@ static FMT4: &str = "%a, %d-%b-%Y %H:%M:%S GMT";
 #[inline]
 pub(crate) fn decrypt(
   buffer: &mut Vector<u8>,
-  key: &[u8; 32],
+  key: &[u8],
   (name, value): (&[u8], &[u8]),
 ) -> crate::Result<()> {
   use crate::misc::BufferMode;
-  use aes_gcm::{aead::AeadInPlace, aes::cipher::Array, Aes256Gcm};
+  use aes_gcm::{
+    aead::{generic_array::GenericArray, AeadInPlace},
+    Aes256Gcm, Tag,
+  };
   use base64::{engine::general_purpose::STANDARD, Engine};
 
   let start = buffer.len();
@@ -51,12 +54,13 @@ pub(crate) fn decrypt(
     };
     rslt
   };
-  <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*key)).decrypt_in_place_detached(
-    &Array(nonce),
-    name,
-    content,
-    &Array(tag),
-  )?;
+  <Aes256Gcm as aes_gcm::aead::KeyInit>::new(GenericArray::from_slice(key))
+    .decrypt_in_place_detached(
+      GenericArray::from_slice(&nonce),
+      name,
+      content,
+      Tag::from_slice(&tag),
+    )?;
   let idx = start.wrapping_sub(TAG_LEN);
   let _ = _shift_copyable_chunks(0, buffer, [NONCE_LEN..idx]);
   buffer.truncate(idx.wrapping_sub(NONCE_LEN));
@@ -67,15 +71,18 @@ pub(crate) fn decrypt(
 #[inline]
 pub(crate) fn encrypt<RNG>(
   buffer: &mut Vector<u8>,
-  key: &[u8; 32],
+  key: &[u8],
   (name, value): (&[u8], &[u8]),
   mut rng: RNG,
 ) -> crate::Result<()>
 where
   RNG: Rng,
 {
-  use crate::misc::BufferMode;
-  use aes_gcm::{aead::AeadInPlace, aes::cipher::Array, Aes256Gcm};
+  use crate::misc::{BufferMode, _split_at_mut_checked};
+  use aes_gcm::{
+    aead::{generic_array::GenericArray, AeadInPlace},
+    Aes256Gcm,
+  };
   use base64::{engine::general_purpose::STANDARD, Engine};
 
   let start = buffer.len();
@@ -111,9 +118,9 @@ where
     *a9 = c9;
     *a10 = c10;
     *a11 = c11;
-    let aes = <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*key));
+    let aes = <Aes256Gcm as aes_gcm::aead::KeyInit>::new(GenericArray::from_slice(key));
     let nonce = [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11];
-    let tag = aes.encrypt_in_place_detached(&Array(nonce), name, content)?;
+    let tag = aes.encrypt_in_place_detached(GenericArray::from_slice(&nonce), name, content)?;
     let [d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15] = tag.into();
     *b0 = d0;
     *b1 = d1;
@@ -132,8 +139,9 @@ where
     *b14 = d14;
     *b15 = d15;
   };
-  let slice_mut = buffer.get_mut(start..).and_then(|el| el.split_at_mut_checked(base64_len));
-  let Some((base64, content)) = slice_mut else {
+  let Some((base64, content)) =
+    buffer.get_mut(start..).and_then(|el| _split_at_mut_checked(el, base64_len))
+  else {
     return Ok(());
   };
   let base64_idx = STANDARD.encode_slice(content, base64)?;

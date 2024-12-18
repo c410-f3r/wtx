@@ -4,7 +4,7 @@ use crate::{
     percent_encoding::PercentDecode,
     CookieError,
   },
-  misc::{bytes_split1, bytes_split_once1, ArrayVector, FromRadix10, Vector},
+  misc::{bytes_split1, bytes_split_once1, ArrayVector, FromRadix10, Vector, _trim_bytes},
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use core::{str, time::Duration};
@@ -33,7 +33,7 @@ impl<'bytes> CookieBytes<'bytes> {
     let mut cookie: CookieGeneric<&'bytes [u8], &'bytes [u8]> = {
       let first_semicolon = semicolons.next().unwrap_or_default();
       let (name, value) = if let Some(elem) = bytes_split_once1(first_semicolon, b'=') {
-        (elem.0.trim_ascii(), elem.1.trim_ascii())
+        (_trim_bytes(elem.0), _trim_bytes(elem.1))
       } else {
         return Err(crate::Error::from(CookieError::IrregularCookie));
       };
@@ -68,7 +68,7 @@ impl<'bytes> CookieBytes<'bytes> {
     let mut lower_case = ArrayVector::<u8, 12>::new();
     for semicolon in semicolons {
       let (name, value) = if let Some(elem) = bytes_split_once1(semicolon, b'=') {
-        (elem.0.trim_ascii(), elem.1.trim_ascii())
+        (_trim_bytes(elem.0), _trim_bytes(elem.1))
       } else {
         return Err(crate::Error::from(CookieError::IrregularCookie));
       };

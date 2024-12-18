@@ -1,8 +1,4 @@
-#![expect(
-  clippy::as_conversions,
-  clippy::cast_possible_truncation,
-  reason = "some platforms were removed to allow infallible casts"
-)]
+#![allow(clippy::as_conversions, clippy::cast_possible_truncation)]
 
 #[cfg(target_pointer_width = "16")]
 compile_error!("WTX does not support 16bit hardware");

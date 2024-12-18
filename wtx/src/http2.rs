@@ -58,8 +58,8 @@ use crate::{
     sorp_mut, write_array,
   },
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, Arc, AtomicWaker, ConnectionState, Either,
-    LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, Usize, NOOP_WAKER,
+    noop_waker, partitioned_filled_buffer::PartitionedFilledBuffer, Arc, AtomicWaker,
+    ConnectionState, Either, LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, Usize,
   },
 };
 pub use client_stream::ClientStream;
@@ -357,7 +357,7 @@ where
       stream_receiver::StreamControlRecvParams {
         is_stream_open: true,
         stream_state: stream_state::StreamState::Idle,
-        waker: NOOP_WAKER.clone(),
+        waker: noop_waker(),
         windows: Windows::initial(hdpm.hp, hdpm.hps),
       },
     ));

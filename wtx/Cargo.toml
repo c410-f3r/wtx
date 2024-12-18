@@ -1,18 +1,14 @@
 [dependencies]
-aes-gcm = { default-features = false, optional = true, version = "0.11.0-pre.2" }
+aes-gcm = { default-features = false, optional = true, version = "0.10" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 argon2 = { default-features = false, optional = true, version = "0.5" }
 aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
-cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
+cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "4.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
-embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.5" }
-embassy-time = { default-features = false, optional = true, version = "0.3" }
-embedded-io-async = { default-features = false, optional = true, version = "0.6" }
-embedded-tls = { default-features = false, optional = true, version = "0.17" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.1" }
@@ -52,7 +48,6 @@ client-api-framework = ["data-transformation"]
 data-transformation = []
 database = []
 default = []
-embedded-tls = ["embedded-io-async", "dep:embedded-tls"]
 executor = []
 foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
 grpc = ["data-transformation"]
@@ -86,9 +81,6 @@ std = [
   "cl-aux?/std",
   "crypto-common?/std",
   "digest?/std",
-  "embassy-time?/std",
-  "embedded-io-async?/std",
-  "embedded-tls?/std",
   "fastrand?/std",
   "foldhash?/std",
   "hmac?/std",
@@ -119,12 +111,9 @@ web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 
 _async-tests = ["tokio/macros", "tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []
-_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Crate must not decide for downstream users
+_hack = ["aws-lc-rs?/aws-lc-sys"] # Crate must not decide for downstream users
 _integration-tests = ["serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "dep:tracing-tree"]
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
 [package]
 authors = ["Caio Fernandes <c410.f3r@gmail.com>"]
@@ -139,7 +128,7 @@ license = "Apache-2.0"
 name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-rust-version = "1.83"
+rust-version = "1.79"
 version = "0.25.0"
 
 [package.metadata.docs.rs]

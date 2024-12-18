@@ -4,7 +4,7 @@ use crate::{
     Header, Headers, HttpError, KnownHeaderName, Method, ReqResBuffer, Request, Response,
     StatusCode,
   },
-  misc::{bytes_split1, ArrayVector, Intersperse, Vector},
+  misc::{_split_at_checked, bytes_split1, ArrayVector, Intersperse, Vector, _trim_bytes},
 };
 use core::ops::ControlFlow;
 use hashbrown::HashSet;
@@ -332,7 +332,7 @@ impl CorsMiddleware {
     }
     let mut uniques = HashSet::new();
     for sub_header in bytes_split1(acrh.value, b',') {
-      let _ = uniques.insert(sub_header.trim_ascii());
+      let _ = uniques.insert(_trim_bytes(sub_header));
     }
     let mut matched_headers: usize = 0;
     for allow_header in self.allow_headers.1.iter() {
@@ -420,7 +420,8 @@ where
         self.manage_preflight_methods(acrm)?;
         let idx = req.rrd.body.len();
         self.manage_preflight_origin(&mut req.rrd.body, Self::extract_origin(origin_opt)?)?;
-        let (headers_bytes, origin_bytes) = req.rrd.body.split_at_checked(idx).unwrap_or_default();
+        let (headers_bytes, origin_bytes) =
+          _split_at_checked(&req.rrd.body, idx).unwrap_or_default();
         req.rrd.headers.clear();
         self.apply_preflight_response(headers_bytes, origin_bytes, &mut req.rrd.headers).await?;
         req.rrd.body.clear();

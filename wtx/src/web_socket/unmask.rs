@@ -4,7 +4,7 @@ pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
   _simd_bytes!(
     (align_to_mut, bytes),
     |bytes| {
-      #[allow(clippy::indexing_slicing, reason = "index will never be out-of-bounds")]
+      #[allow(clippy::indexing_slicing)]
       for (idx, elem) in bytes.iter_mut().enumerate() {
         *elem ^= mask[idx & 3];
       }

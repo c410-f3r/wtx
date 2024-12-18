@@ -41,7 +41,7 @@ use crate::{
     window::WindowsPair,
     Http2Buffer, Http2Data, Http2Error, Http2SendStatus, SendDataMode,
   },
-  misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
+  misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector, _split_at_checked},
 };
 use core::{
   future::{poll_fn, Future},
@@ -494,7 +494,7 @@ where
     if headers.trailers().has_any() {
       let idx = hpack_enc_buffer.len();
       encode_trailers(headers, (hpack_enc, hpack_enc_buffer))?;
-      let Some((headers_bytes, trailers_bytes)) = hpack_enc_buffer.split_at_checked(idx) else {
+      let Some((headers_bytes, trailers_bytes)) = _split_at_checked(hpack_enc_buffer, idx) else {
         break 'headers_with_others;
       };
       let Some(_) = has_delimited_bytes(headers_bytes, max_frame_len) else {

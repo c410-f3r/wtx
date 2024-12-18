@@ -1,6 +1,6 @@
 // FIXME(STABLE): async closures
 
-#![allow(non_snake_case, reason = "macro stuff")]
+#![allow(non_snake_case)]
 
 macro_rules! create_and_implement {
   ($this:ty, $fn_ty:ident, $fn_fut_ty:ident, ($($tys:ident,)*)) => {

@@ -1,4 +1,4 @@
-#![allow(clippy::as_conversions, reason = "address is only used as an heuristic to retrieve locks")]
+#![allow(clippy::as_conversions)]
 
 use crate::misc::{sync::seq_lock::SeqLock, CachePadded};
 use core::{
@@ -151,6 +151,6 @@ impl<T> UnwindSafe for AtomicCell<T> where T: Send {}
 
 #[inline]
 fn lock(addr: usize) -> &'static SeqLock {
-  #[allow(clippy::indexing_slicing, reason = "modulo result will always be in-bounds")]
+  #[allow(clippy::indexing_slicing)]
   &LOCKS[addr % LEN].0
 }

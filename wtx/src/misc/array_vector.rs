@@ -1,4 +1,4 @@
-#![expect(clippy::mem_forget, reason = "out-of-bounds elements are manually dropped")]
+#![allow(clippy::mem_forget)]
 
 use crate::misc::{char_slice, Lease, LeaseMut, Usize};
 use core::{
@@ -53,7 +53,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
   /// Constructs a new instance from an iterator.
   ///
   /// The iterator is capped at `N`.
-  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
+  #[allow(clippy::should_implement_trait)]
   #[inline]
   pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Result<Self, ArrayVectorError> {
     let mut this = Self::new();
@@ -150,7 +150,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
 
   /// Shortens the vector, removing the last element.
   #[inline]
-  pub const fn pop(&mut self) -> Option<T> {
+  pub fn pop(&mut self) -> Option<T> {
     if let Some(new_len) = self.len.checked_sub(1) {
       self.len = new_len;
       // SAFETY: `new_len` is within bounds
@@ -194,12 +194,12 @@ impl<T, const N: usize> ArrayVector<T, N> {
   }
 
   #[inline]
-  const fn as_ptr_mut(&mut self) -> *mut T {
+  fn as_ptr_mut(&mut self) -> *mut T {
     self.data.as_mut_ptr().cast()
   }
 
   #[inline]
-  const fn do_push(&mut self, value: T) -> Result<(), T> {
+  fn do_push(&mut self, value: T) -> Result<(), T> {
     let len = self.len;
     if len >= Self::N_U32 {
       return Err(value);
@@ -215,7 +215,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
   }
 
   #[inline]
-  const unsafe fn get_owned(&mut self, idx: u32) -> T {
+  unsafe fn get_owned(&mut self, idx: u32) -> T {
     // SAFETY: It is up to the caller to provide a valid index
     let src = unsafe { self.data.as_ptr().add(Usize::from_u32(idx).into_usize()) };
     // SAFETY: If the index is valid, then the element exists
@@ -263,7 +263,7 @@ where
   /// Iterates over the slice `other`, copies each element and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub const fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
+  pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
     let len = self.len;
     let other_len_usize = other.len();
     let other_len_u32 = 'block: {

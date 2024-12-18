@@ -58,7 +58,7 @@ impl<'uri> HeadersFrame<'uri> {
     self.is_over_size
   }
 
-  #[expect(clippy::too_many_lines, reason = "variables are highly coupled")]
+  #[allow(clippy::too_many_lines)]
   #[inline]
   pub(crate) fn read<const IS_CLIENT: bool, const IS_TRAILER: bool>(
     data: Option<&[u8]>,

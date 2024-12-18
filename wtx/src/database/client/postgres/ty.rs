@@ -1,4 +1,4 @@
-#![expect(clippy::too_many_lines, reason = "PostgreSQL stuff")]
+#![allow(clippy::too_many_lines)]
 
 /// Type
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

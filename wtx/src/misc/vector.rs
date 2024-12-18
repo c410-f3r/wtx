@@ -3,7 +3,6 @@ use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
   fmt::{Debug, Display, Formatter},
-  hint::assert_unchecked,
   ops::{Deref, DerefMut, RangeBounds},
   ptr, slice,
 };
@@ -43,7 +42,8 @@ impl From<VectorError> for u8 {
   }
 }
 
-impl core::error::Error for VectorError {}
+#[cfg(feature = "std")]
+impl std::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
 //#[cfg_attr(kani, derive(kani::Arbitrary))]
@@ -60,7 +60,7 @@ impl<T> Vector<T> {
   /// let mut vec = wtx::misc::Vector::from_iter(0u8..2).unwrap();
   /// assert_eq!(vec.as_slice(), &[0, 1]);
   /// ```
-  #[expect(clippy::should_implement_trait, reason = "Std trait is infallible")]
+  #[allow(clippy::should_implement_trait)]
   #[inline]
   pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Result<Self, VectorError> {
     let mut this = Self::new();
@@ -100,10 +100,6 @@ impl<T> Vector<T> {
   #[inline(always)]
   pub fn with_capacity(cap: usize) -> Result<Self, VectorError> {
     let this = Self { data: Vec::with_capacity(cap) };
-    // SAFETY: `len` will never be greater than the current capacity
-    unsafe {
-      assert_unchecked(this.data.capacity() >= this.data.len());
-    }
     Ok(this)
   }
 
@@ -319,10 +315,6 @@ impl<T> Vector<T> {
   #[inline(always)]
   pub fn reserve(&mut self, additional: usize) -> Result<(), VectorError> {
     self.data.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
-    // SAFETY: `len` will never be greater than the current capacity
-    unsafe {
-      assert_unchecked(self.data.capacity() >= self.data.len());
-    }
     Ok(())
   }
 
@@ -339,10 +331,6 @@ impl<T> Vector<T> {
   #[inline(always)]
   pub fn reserve_exact(&mut self, additional: usize) -> Result<(), VectorError> {
     self.data.try_reserve_exact(additional).map_err(|_err| VectorError::ReserveOverflow)?;
-    // SAFETY: `len` will never be greater than the current capacity
-    unsafe {
-      assert_unchecked(self.data.capacity() >= self.data.len());
-    }
     Ok(())
   }
 

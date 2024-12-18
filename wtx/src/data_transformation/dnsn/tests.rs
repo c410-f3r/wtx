@@ -1,4 +1,4 @@
-#![allow(dead_code, reason = "Depends on selected features")]
+#![allow(dead_code)]
 
 use crate::{
   client_api_framework::pkg::Package,

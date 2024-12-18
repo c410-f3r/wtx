@@ -47,8 +47,8 @@ impl OptionedServer {
       + Send
       + 'static,
     SA: Send + 'static,
-    SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + Unpin + 'static,
-    SW: Send + StreamWriter<write_all(..): Send, write_all_vectored(..): Send> + Unpin + 'static,
+    SR: Send + StreamReader<read(): Send, read_skip(): Send> + Unpin + 'static,
+    SW: Send + StreamWriter<write_all(): Send, write_all_vectored(): Send> + Unpin + 'static,
     for<'any> &'any A: Send,
     for<'any> &'any CA: Send,
     for<'any> &'any M: Send,

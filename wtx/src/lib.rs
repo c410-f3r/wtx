@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "nightly", allow(incomplete_features, reason = "essential async feature"))]
+#![cfg_attr(feature = "nightly", allow(incomplete_features))]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
 #![doc = include_str!("../README.md")]
@@ -8,7 +8,7 @@
 extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
-#[allow(unused_extern_crates, reason = "selection of features")]
+#[allow(unused_extern_crates)]
 #[cfg(all(feature = "_bench", test))]
 extern crate test;
 
@@ -35,8 +35,6 @@ pub mod misc;
 pub mod pool;
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "tls")]
-pub mod tls;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 

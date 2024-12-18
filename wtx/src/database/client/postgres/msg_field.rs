@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{Oid, PostgresError},
-  misc::{bytes_pos1, from_utf8_basic},
+  misc::{_split_at_checked, bytes_pos1, from_utf8_basic},
 };
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ impl<'bytes> MsgField<'bytes> {
         let Some((
           name_bytes,
           &[_, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, ..],
-        )) = value.split_at_checked(idx)
+        )) = _split_at_checked(value, idx)
         else {
           return None;
         };

@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals, reason = "macro parameters")]
+#![allow(non_upper_case_globals)]
 
 macro_rules! create_statics {
   (
@@ -128,11 +128,8 @@ where
       if idx >= content.len() {
         break;
       }
-      #[expect(clippy::as_conversions, reason = "Lack of const traits")]
-      #[expect(
-        clippy::indexing_slicing,
-        reason = "An array of 256 elements will never panic with a 0..255 index"
-      )]
+      #[allow(clippy::as_conversions)]
+      #[allow(clippy::indexing_slicing)]
       if TABLE[content[idx] as usize] == 0 {
         return Err(HttpError::InvalidHttp2pContent);
       }

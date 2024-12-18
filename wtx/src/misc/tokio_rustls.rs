@@ -145,7 +145,7 @@ impl TokioRustlsAcceptor {
 #[inline]
 fn invalid_input_err<E>(err: E) -> std::io::Error
 where
-  E: Into<Box<dyn core::error::Error + Send + Sync>>,
+  E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
   std::io::Error::new(std::io::ErrorKind::InvalidInput, err)
 }

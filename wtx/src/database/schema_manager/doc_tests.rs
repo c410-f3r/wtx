@@ -1,5 +1,5 @@
-#![expect(clippy::missing_panics_doc, reason = "examples never panic")]
-#![expect(clippy::unwrap_used, reason = "intended for tests only")]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::unwrap_used)]
 
 //! Instances mostly used for documentation tests
 

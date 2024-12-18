@@ -63,7 +63,7 @@ pub use interspace::Intersperse;
 pub use iter_wrapper::IterWrapper;
 pub use lease::{Lease, LeaseMut};
 pub use lock::{Lock, SyncLock};
-pub use noop_waker::NOOP_WAKER;
+pub use noop_waker::noop_waker;
 pub use optimization::*;
 pub use query_writer::QueryWriter;
 pub use ref_counter::RefCounter;
@@ -134,7 +134,7 @@ where
 }
 
 /// Sleeps for the specified amount of time.
-#[allow(clippy::unused_async, reason = "depends on the selected set of features")]
+#[allow(clippy::unused_async)]
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
   #[cfg(feature = "tokio")]
@@ -193,8 +193,8 @@ pub fn u64_array_string(n: u64) -> ArrayString<20> {
   str
 }
 
-#[expect(clippy::as_conversions, reason = "`match` correctly handles conversions")]
-#[expect(clippy::cast_possible_truncation, reason = "`match` correctly handles truncations")]
+#[allow(clippy::as_conversions)]
+#[allow(clippy::cast_possible_truncation)]
 #[inline]
 pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
   #[inline]
@@ -271,7 +271,7 @@ where
   SR: StreamReader,
 {
   loop {
-    let (lhs, rhs) = buffer.split_at_mut_checked(*read).unwrap_or_default();
+    let (lhs, rhs) = _split_at_mut_checked(buffer, *read).unwrap_or_default();
     if let Some(slice) = lhs.get(BEGIN..BEGIN.wrapping_add(LEN)) {
       return Ok(slice.try_into().unwrap_or_default());
     }
@@ -348,4 +348,67 @@ pub(crate) const fn _unreachable() -> ! {
 #[inline]
 pub(crate) fn _usize_range_from_u32_range(range: Range<u32>) -> Range<usize> {
   *Usize::from(range.start)..*Usize::from(range.end)
+}
+
+#[inline]
+pub(crate) fn _split_at_checked<T>(slice: &[T], mid: usize) -> Option<(&[T], &[T])> {
+  if mid <= slice.len() {
+    // SAFETY: `[ptr; mid]` and `[mid; len]` are inside `self`, which
+    // fulfills the requirements of `split_at_unchecked`.
+    Some(unsafe { slice.split_at_unchecked(mid) })
+  } else {
+    None
+  }
+}
+
+#[inline]
+pub(crate) fn _split_at_checked_str(str: &str, mid: usize) -> Option<(&str, &str)> {
+  // is_char_boundary checks that the index is in [0, .len()]
+  if str.is_char_boundary(mid) {
+    // SAFETY: just checked that `mid` is on a char boundary.
+    Some(unsafe { (str.get_unchecked(0..mid), str.get_unchecked(mid..str.len())) })
+  } else {
+    None
+  }
+}
+
+#[inline]
+#[must_use]
+pub(crate) fn _split_at_mut_checked<T>(
+  slice: &mut [T],
+  mid: usize,
+) -> Option<(&mut [T], &mut [T])> {
+  if mid <= slice.len() {
+    // SAFETY: `[ptr; mid]` and `[mid; len]` are inside `self`, which
+    // fulfills the requirements of `split_at_unchecked`.
+    Some(unsafe { slice.split_at_mut_unchecked(mid) })
+  } else {
+    None
+  }
+}
+
+pub(crate) fn _trim_bytes(bytes: &[u8]) -> &[u8] {
+  _trim_bytes_end(_trim_bytes_begin(bytes))
+}
+
+fn _trim_bytes_begin(mut bytes: &[u8]) -> &[u8] {
+  while let [first, rest @ ..] = bytes {
+    if first.is_ascii_whitespace() {
+      bytes = rest;
+    } else {
+      break;
+    }
+  }
+  bytes
+}
+
+fn _trim_bytes_end(mut bytes: &[u8]) -> &[u8] {
+  while let [rest @ .., last] = bytes {
+    if last.is_ascii_whitespace() {
+      bytes = rest;
+    } else {
+      break;
+    }
+  }
+  bytes
 }

@@ -14,7 +14,7 @@ pub(crate) type ExprStringTy = ArrayString<128>;
 pub(crate) type IdentTy = ArrayString<64>;
 pub(crate) type RootParamsTy = ArrayVector<(IdentTy, Expr), 2>;
 
-#[expect(clippy::large_enum_variant, reason = "work in progress")]
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq)]
 pub(crate) enum Expr {
   Array(ExprArrayTy),

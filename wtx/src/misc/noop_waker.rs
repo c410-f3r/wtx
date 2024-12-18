@@ -8,11 +8,11 @@ const VTABLE: RawWakerVTable = RawWakerVTable::new(noop_clone, noop, noop, noop)
 /// A waker that does nothing.
 //
 // FIXME(STABLE): noop_waker
-pub static NOOP_WAKER: Waker = {
+pub fn noop_waker() -> Waker {
   let raw = RawWaker::new(ptr::null(), &VTABLE);
   // SAFETY: Contract is upheld
   unsafe { Waker::from_raw(raw) }
-};
+}
 
 unsafe fn noop(_: *const ()) {}
 

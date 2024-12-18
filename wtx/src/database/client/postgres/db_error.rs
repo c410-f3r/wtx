@@ -1,6 +1,8 @@
 use crate::{
   database::client::postgres::{PostgresError, SqlState},
-  misc::{str_split1, FromRadix10, Usize, _usize_range_from_u32_range, into_rslt},
+  misc::{
+    str_split1, FromRadix10, Usize, _split_at_checked_str, _usize_range_from_u32_range, into_rslt,
+  },
 };
 use alloc::boxed::Box;
 use core::{
@@ -249,7 +251,7 @@ impl TryFrom<&str> for DbError {
       let Some(curr) = from.get(*Usize::from(idx)..) else {
         break;
       };
-      let Some((ty, rest)) = curr.split_at_checked(1) else {
+      let Some((ty, rest)) = _split_at_checked_str(curr, 1) else {
         break;
       };
       idx = idx.wrapping_add(1);

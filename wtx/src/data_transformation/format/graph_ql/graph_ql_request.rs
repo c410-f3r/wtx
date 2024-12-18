@@ -28,7 +28,7 @@ mod serde_json {
   {
     #[inline]
     fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      if size_of::<Self>() == 0 {
+      if core::mem::size_of::<Self>() == 0 {
         return Ok(());
       }
       serde_json::to_writer(bytes, self)?;

@@ -1,4 +1,4 @@
-#![expect(clippy::indexing_slicing, reason = "intended for testing environments")]
+#![allow(clippy::indexing_slicing)]
 
 use crate::{
   client_api_framework::{

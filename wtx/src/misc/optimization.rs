@@ -1,6 +1,8 @@
-#![allow(clippy::disallowed_methods, reason = "used as fallbacks")]
+#![allow(clippy::disallowed_methods)]
 
-use crate::misc::{BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUtf8Error};
+use crate::misc::{
+  BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUtf8Error, _split_at_checked,
+};
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
@@ -83,8 +85,7 @@ pub fn from_utf8_ext(bytes: &[u8]) -> Result<&str, ExtUtf8Error> {
   };
   match err.error_len {
     None => Err(ExtUtf8Error::Incomplete {
-      incomplete_ending_char: bytes
-        .split_at_checked(err.valid_up_to)
+      incomplete_ending_char: _split_at_checked(bytes, err.valid_up_to)
         .and_then(|(_valid_bytes, after_valid)| IncompleteUtf8Char::new(after_valid))
         .ok_or(ExtUtf8Error::Invalid)?,
     }),

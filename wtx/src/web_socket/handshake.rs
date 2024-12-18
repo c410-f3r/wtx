@@ -21,6 +21,7 @@ use crate::{
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
   misc::{
     bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, VectorError, Xorshift64,
+    _trim_bytes,
   },
   web_socket::{
     compression::NegotiatedCompression, Compression, WebSocket, WebSocketBuffer, WebSocketError,
@@ -73,7 +74,7 @@ where
       match req.parse(nb._following()).map_err(From::from)? {
         Status::Complete(_) => {
           req_cb(&req)?;
-          if !req.method().trim_ascii().eq_ignore_ascii_case(b"get") {
+          if !_trim_bytes(req.method()).eq_ignore_ascii_case(b"get") {
             return Err(
               crate::Error::from(HttpError::UnexpectedHttpMethod { expected: Method::Get }).into(),
             );
@@ -274,14 +275,14 @@ fn check_headers<'headers, const N: usize>(
 ) -> crate::Result<[(KnownHeaderName, Option<&'headers [u8]>); N]> {
   let mut rslt = [(KnownHeaderName::Accept, None); N];
   for header in headers {
-    let trimmed_name = header.name().trim_ascii();
-    let trimmed_value = header.value().trim_ascii();
+    let trimmed_name = _trim_bytes(header.name());
+    let trimmed_value = _trim_bytes(header.value());
     for ((name, value_opt), rslt_elem) in array.into_iter().zip(&mut rslt) {
       let has_name = rslt_elem.1.is_none() && trimmed_name.eq_ignore_ascii_case(name.into());
       if has_name {
         if let Some(value) = value_opt {
           for sub_value in bytes_split1(trimmed_value, b',') {
-            if sub_value.trim_ascii().eq_ignore_ascii_case(value) {
+            if _trim_bytes(sub_value).eq_ignore_ascii_case(value) {
               *rslt_elem = (name, Some(sub_value));
               break;
             }
