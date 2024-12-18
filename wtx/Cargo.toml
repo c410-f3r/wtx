@@ -2,7 +2,7 @@
 aes-gcm = { default-features = false, optional = true, version = "0.11.0-pre.2" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 argon2 = { default-features = false, optional = true, version = "0.5" }
-aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
+aws-lc-rs = { default-features = false, optional = true, version = "1.12" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
