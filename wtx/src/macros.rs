@@ -1,3 +1,11 @@
+/// Creates a vector containing the arguments.
+#[macro_export]
+macro_rules! vector {
+  ($($tt:tt)+) => {
+    $crate::misc::Vector::from_vec(alloc::vec![$($tt)+])
+  };
+}
+
 macro_rules! _conn_params_methods {
   () => {
     /// The initial amount of "credit" a counterpart can have for sending data.
@@ -403,11 +411,5 @@ macro_rules! _trace_span {
       #[cfg(not(feature = "tracing"))]
       ()
     )
-  };
-}
-
-macro_rules! _vector {
-  ($($tt:tt)+) => {
-    crate::misc::Vector::from_vec(alloc::vec![$($tt)+])
   };
 }

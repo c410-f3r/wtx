@@ -14,6 +14,15 @@ use crate::{
 };
 use core::marker::PhantomData;
 
+/// Owned reader and writer pair
+#[derive(Debug)]
+pub struct WebSocketPartsOwned<C, NC, SR, SW, const IS_CLIENT: bool> {
+  /// Reader
+  pub reader: WebSocketReaderPartOwned<C, NC, SR, IS_CLIENT>,
+  /// Writer
+  pub writer: WebSocketWriterPartOwned<C, NC, SW, IS_CLIENT>,
+}
+
 /// Auxiliary structure used by [`WebSocketReaderPartOwned`] and [`WebSocketWriterPartOwned`]
 #[derive(Debug)]
 pub struct WebSocketCommonPartOwned<NC, SW, const IS_CLIENT: bool> {
@@ -36,6 +45,18 @@ where
   SR: StreamReader,
   SW: StreamWriter,
 {
+  /// The current frame payload that is set when [`Self::read_frame`] is called, otherwise,
+  /// returns an empty slice.
+  #[inline]
+  pub fn curr_payload(&mut self) -> &mut [u8] {
+    match self.wsrp.curr_payload {
+      PayloadTy::Network => self.wsrp.network_buffer._current_mut(),
+      PayloadTy::None => &mut [],
+      PayloadTy::FirstReader => self.wsrp.reader_buffer_first.as_slice_mut(),
+      PayloadTy::SecondReader => self.wsrp.reader_buffer_second.as_slice_mut(),
+    }
+  }
+
   /// Reads a frame from the stream.
   ///
   /// If a frame is made up of other sub-frames or continuations, then everything is collected

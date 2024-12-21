@@ -4,16 +4,25 @@ use wtx::client_api_framework::pkg::PkgsAux;
 use wtx::client_api_framework::pkg::Package;
 use wtx::client_api_framework::network::TransportGroup;
 use wtx::client_api_framework::network::transport::Transport;
+use wtx::client_api_framework::network::transport::RecievingTransport;
+use wtx::client_api_framework::network::transport::SendingTransport;
 use wtx::client_api_framework::network::transport::TransportParams;
-use core::ops::Range;
 use wtx::client_api_framework::Api;
-
+use core::ops::Range;
 struct CustomTransport;
 
-impl<DRSR> Transport<DRSR> for CustomTransport {
-  const GROUP: TransportGroup = TransportGroup::Custom("Custom");
-  type Params = CustomTransportParams;
+impl<DRSR> RecievingTransport<DRSR> for CustomTransport {
+  #[inline]
+  async fn recv<A>(&mut self, _: &mut PkgsAux<A, DRSR, Self::Params>) -> Result<Range<usize>, A::Error>
+  where
+    A: Api,
+  {
+    Ok(0..0)
+  }
+}
 
+impl<DRSR> SendingTransport<DRSR> for CustomTransport {
+  #[inline]
   async fn send<A, P>(
     &mut self,
     _: &mut P,
@@ -25,18 +34,11 @@ impl<DRSR> Transport<DRSR> for CustomTransport {
   {
     Ok(())
   }
+}
 
-  async fn send_recv<A, P>(
-    &mut self,
-    _: &mut P,
-    _: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> Result<Range<usize>, A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Params>,
-  {
-    Ok(0..0)
-  }
+impl<DRSR> Transport<DRSR> for CustomTransport {
+  const GROUP: TransportGroup = TransportGroup::Custom("Custom");
+  type Params = CustomTransportParams;
 }
 
 struct CustomTransportParams(());

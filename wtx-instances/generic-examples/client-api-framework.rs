@@ -16,13 +16,13 @@ use tokio::net::TcpStream;
 use wtx::{
   client_api_framework::{
     misc::{Pair, RequestLimit, RequestThrottling},
-    network::{transport::Transport, HttpParams, WsParams},
+    network::{transport::SendingRecievingTransport, HttpParams, WsParams},
     Api,
   },
   data_transformation::dnsn::SerdeJson,
   http::client_framework::ClientFrameworkTokio,
   misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{WebSocketBuffer, WebSocketClient},
+  web_socket::{WebSocket, WebSocketBuffer},
 };
 
 wtx::create_packages_aux_wrapper!();
@@ -97,11 +97,11 @@ async fn http_pair(
 async fn web_socket_pair() -> wtx::Result<
   Pair<
     PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-    WebSocketClient<(), TcpStream, WebSocketBuffer>,
+    WebSocket<(), TcpStream, WebSocketBuffer, true>,
   >,
 > {
   let uri = Uri::new("ws://generic_web_socket_uri.com");
-  let web_socket = WebSocketClient::connect(
+  let web_socket = WebSocket::connect(
     (),
     [],
     false,

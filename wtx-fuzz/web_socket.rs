@@ -6,12 +6,12 @@
 use tokio::runtime::Builder;
 use wtx::{
   misc::{simple_seed, BytesStream, Xorshift64},
-  web_socket::{Frame, OpCode, WebSocketBuffer, WebSocketServerOwned},
+  web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
 };
 
 libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
   Builder::new_current_thread().enable_all().build().unwrap().block_on(async move {
-    let Ok(mut ws) = WebSocketServerOwned::new(
+    let Ok(mut ws) = WebSocket::<_, _, _, false>::new(
       (),
       false,
       Xorshift64::from(simple_seed()),

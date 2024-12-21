@@ -2,7 +2,7 @@ use crate::{
   http::OptionedServer,
   misc::{FnFut, Stream, Xorshift64, _number_or_available_parallelism, simple_seed},
   pool::{SimplePoolTokio, WebSocketRM},
-  web_socket::{Compression, WebSocketBuffer, WebSocketServer},
+  web_socket::{Compression, WebSocket, WebSocketBuffer},
 };
 use core::{fmt::Debug, future::Future};
 use std::sync::OnceLock;
@@ -32,14 +32,14 @@ impl OptionedServer {
     E: Debug + From<crate::Error> + Send + 'static,
     for<'wsb> H: Clone
       + FnFut<
-        (WebSocketServer<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer>,),
+        (WebSocket<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer, false>,),
         Result = Result<(), E>,
       > + Send
       + 'static,
     N: Send + Future<Output = crate::Result<S>>,
     S: Stream<read(..): Send, write_all(..): Send> + Send,
     for<'wsb> <H as FnFut<(
-      WebSocketServer<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer>,
+      WebSocket<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer, false>,
     )>>::Future: Send,
     for<'handle> &'handle H: Send,
   {
@@ -64,7 +64,7 @@ impl OptionedServer {
         let fun = async move {
           let net = conn_net_cb(conn_acceptor, tcp_stream).await?;
           conn_handle_cb
-            .call((WebSocketServer::accept(
+            .call((WebSocket::accept(
               conn_compression_cb(),
               true,
               Xorshift64::from(simple_seed()),

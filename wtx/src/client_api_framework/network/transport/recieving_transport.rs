@@ -10,27 +10,25 @@ use crate::{
 };
 use core::{future::Future, ops::Range};
 
-/// Bidirectional Transport
-///
-/// Similar to [Transport] but expects an connection where clients call poll data from the server.
+/// Transport that receives package data.
 ///
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait BiTransport<DRSR>: Transport<DRSR> {
+pub trait RecievingTransport<DRSR>: Transport<DRSR> {
   /// Retrieves data from the server filling the internal buffer and returning the amount of
   /// bytes written.
-  fn retrieve<A>(
+  fn recv<A>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<Output = crate::Result<Range<usize>>>
+  ) -> impl Future<Output = Result<Range<usize>, A::Error>>
   where
     A: Api;
 
   /// Internally calls [`Self::retrieve`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
-  fn retrieve_and_decode_contained<'de, A, P>(
+  fn recv_decode_contained<'de, A, P>(
     &mut self,
     pkgs_aux: &'de mut PkgsAux<A, DRSR, Self::Params>,
   ) -> impl Future<Output = Result<P::ExternalResponseContent<'de>, A::Error>>
@@ -39,7 +37,7 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
     P: Package<A, DRSR, Self::Params>,
   {
     async {
-      let range = self.retrieve(pkgs_aux).await?;
+      let range = self.recv(pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
       Ok(P::ExternalResponseContent::from_bytes(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
@@ -49,18 +47,18 @@ pub trait BiTransport<DRSR>: Transport<DRSR> {
   }
 }
 
-impl<DRSR, T> BiTransport<DRSR> for &mut T
+impl<DRSR, T> RecievingTransport<DRSR> for &mut T
 where
-  T: BiTransport<DRSR>,
+  T: RecievingTransport<DRSR>,
 {
   #[inline]
-  async fn retrieve<A>(
+  async fn recv<A>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> crate::Result<Range<usize>>
+  ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
   {
-    (**self).retrieve(pkgs_aux).await
+    (**self).recv(pkgs_aux).await
   }
 }

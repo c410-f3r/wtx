@@ -67,7 +67,7 @@ macro_rules! _create_dnsn_test {
     mod $name {
       use crate::{
         client_api_framework::{
-          network::transport::{Mock, Transport},
+          network::transport::{Mock, SendingRecievingTransport},
           pkg::PkgsAux,
         },
         data_transformation::{

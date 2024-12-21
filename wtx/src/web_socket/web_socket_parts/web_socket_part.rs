@@ -56,7 +56,7 @@ where
       reader_buffer_first,
       reader_buffer_second,
     } = self;
-    let (frame, payload_ty) = read_frame_from_stream!(
+    let (frame, payload_ty) = read_frame!(
       *max_payload_len,
       (NC::IS_NOOP, *nc_rsv1),
       network_buffer.lease_mut(),
@@ -100,7 +100,7 @@ where
       reader_buffer_second,
     } = self;
     let parts = &mut (stream_reader, common);
-    let (frame, payload_ty) = read_frame_from_stream!(
+    let (frame, payload_ty) = read_frame!(
       *max_payload_len,
       (NC::IS_NOOP, *nc_rsv1),
       network_buffer.lease_mut(),

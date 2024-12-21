@@ -44,6 +44,18 @@ where
   NC: NegotiatedCompression,
   S: Stream,
 {
+  /// The current frame payload that is set when [`Self::read_frame`] is called, otherwise,
+  /// returns an empty slice.
+  #[inline]
+  pub fn curr_payload(&mut self) -> &mut [u8] {
+    match self.wsrp.curr_payload {
+      PayloadTy::Network => self.wsrp.network_buffer._current_mut(),
+      PayloadTy::None => &mut [],
+      PayloadTy::FirstReader => self.wsrp.reader_buffer_first.as_slice_mut(),
+      PayloadTy::SecondReader => self.wsrp.reader_buffer_second.as_slice_mut(),
+    }
+  }
+
   /// Reads a frame from the stream.
   ///
   /// If a frame is made up of other sub-frames or continuations, then everything is collected

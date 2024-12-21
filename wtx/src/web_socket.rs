@@ -46,7 +46,8 @@ pub use web_socket_error::WebSocketError;
 pub use web_socket_parts::{
   web_socket_part_mut::{WebSocketCommonPartMut, WebSocketReaderPartMut, WebSocketWriterPartMut},
   web_socket_part_owned::{
-    WebSocketCommonPartOwned, WebSocketReaderPartOwned, WebSocketWriterPartOwned,
+    WebSocketCommonPartOwned, WebSocketPartsOwned, WebSocketReaderPartOwned,
+    WebSocketWriterPartOwned,
   },
 };
 
@@ -60,18 +61,12 @@ const RSV1_MASK: u8 = 0b0100_0000;
 const RSV2_MASK: u8 = 0b0010_0000;
 const RSV3_MASK: u8 = 0b0001_0000;
 
-/// [`WebSocket`] instance for clients.
-pub type WebSocketClient<NC, S, WSB> = WebSocket<NC, S, WSB, true>;
 /// [`WebSocketClient`] with a mutable reference of [`WebSocketBuffer`].
-pub type WebSocketClientMut<'wsb, NC, S> = WebSocket<NC, S, &'wsb mut WebSocketBuffer, true>;
+pub type WebSocketMut<'wsb, NC, S, const IS_CLIENT: bool> =
+  WebSocket<NC, S, &'wsb mut WebSocketBuffer, IS_CLIENT>;
 /// [`WebSocketClient`] with an owned [`WebSocketBuffer`].
-pub type WebSocketClientOwned<NC, S> = WebSocket<NC, S, WebSocketBuffer, true>;
-/// [`WebSocket`] instance for servers
-pub type WebSocketServer<NC, S, WSB> = WebSocket<NC, S, WSB, false>;
-/// [`WebSocketServer`] with a mutable reference of [`WebSocketBuffer`].
-pub type WebSocketServerMut<'wsb, NC, S> = WebSocket<NC, S, &'wsb mut WebSocketBuffer, false>;
-/// [`WebSocketServer`] with an owned [`WebSocketBuffer`].
-pub type WebSocketServerOwned<NC, S> = WebSocket<NC, S, WebSocketBuffer, false>;
+pub type WebSocketOwned<NC, S, const IS_CLIENT: bool> =
+  WebSocket<NC, S, WebSocketBuffer, IS_CLIENT>;
 
 /// Full-duplex communication over an asynchronous stream.
 ///
@@ -206,7 +201,7 @@ where
       writer_buffer: _,
     } = wsb.lease_mut();
     let nc_rsv1 = nc.rsv1();
-    let (frame, payload_ty) = read_frame_from_stream!(
+    let (frame, payload_ty) = read_frame!(
       *max_payload_len,
       (NC::IS_NOOP, nc_rsv1),
       network_buffer,
@@ -259,10 +254,7 @@ where
   pub fn into_parts<C, SR, SW>(
     self,
     split: impl FnOnce(S) -> (SR, SW),
-  ) -> (
-    WebSocketReaderPartOwned<C, NC, SR, IS_CLIENT>,
-    WebSocketWriterPartOwned<C, NC, SW, IS_CLIENT>,
-  )
+  ) -> WebSocketPartsOwned<C, NC, SR, SW, IS_CLIENT>
   where
     C: Clone + Lock<Resource = WebSocketCommonPartOwned<NC, SW, IS_CLIENT>>,
   {
@@ -287,8 +279,8 @@ where
     let common = C::new(WebSocketCommonPartOwned {
       wsc: WebSocketCommonPart { connection_state, nc, rng, stream: stream_writer },
     });
-    (
-      WebSocketReaderPartOwned {
+    WebSocketPartsOwned {
+      reader: WebSocketReaderPartOwned {
         common: common.clone(),
         phantom: PhantomData,
         stream_reader,
@@ -302,11 +294,11 @@ where
           reader_buffer_second,
         },
       },
-      WebSocketWriterPartOwned {
+      writer: WebSocketWriterPartOwned {
         common,
         phantom: PhantomData,
         wswp: WebSocketWriterPart { no_masking, writer_buffer },
       },
-    )
+    }
   }
 }
