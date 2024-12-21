@@ -2494,6 +2494,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-tree",
+ "uuid",
  "webpki-roots",
  "x509-certificate",
 ]
