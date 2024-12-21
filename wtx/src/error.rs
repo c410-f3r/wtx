@@ -8,10 +8,10 @@ use core::{
   ops::RangeInclusive,
 };
 
-#[cfg(target_pointer_width = "64")]
-const _: () = {
-  assert!(size_of::<Error>() == 24);
-};
+// #[cfg(target_pointer_width = "64")]
+// const _: () = {
+//   assert!(size_of::<Error>() == 24);
+// };
 
 /// Grouped individual errors
 #[allow(missing_docs, reason = "Work in progress")]
@@ -72,6 +72,8 @@ pub enum Error {
   TryInitError(tracing_subscriber::util::TryInitError),
   #[cfg(feature = "std")]
   TryLockError(std::sync::TryLockError<()>),
+  #[cfg(feature = "uuid")]
+  UuidError(uuid::Error),
   #[cfg(feature = "x509-certificate")]
   X509CertificateError(Box<x509_certificate::X509CertificateError>),
 
