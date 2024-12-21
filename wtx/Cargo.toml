@@ -41,6 +41,7 @@ tokio-rustls = { default-features = false, features = ["ring"], optional = true,
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
+uuid = { default-features = false, optional = true, version = "1.11.0" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
 x509-certificate = { default-features = false, optional = true, version = "0.24" }
 
@@ -113,6 +114,7 @@ std = [
 ]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls", "dep:rustls-pemfile", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
+uuid = ["dep:uuid"]
 web-socket = ["http"]
 web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 

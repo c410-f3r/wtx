@@ -836,3 +836,50 @@ mod serde_json {
     const TY: Ty = Ty::Jsonb;
   }
 }
+
+#[cfg(feature = "uuid")]
+mod uuid {
+  use std::prelude::v1::Box;
+
+  use uuid::{Error as UuidError, Uuid};
+
+  use crate::database::{
+    client::postgres::{DecodeValue, EncodeValue, Postgres, Ty},
+    Decode, Encode, Typed,
+  };
+
+  impl<'de, E> Decode<'de, Postgres<E>> for Uuid
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(input: &DecodeValue<'de>) -> Result<Self, E> {
+      let elem = Uuid::from_slice(input.bytes()).map_err(Into::into)?;
+      Ok(elem)
+    }
+  }
+
+  impl<E> Encode<Postgres<E>> for Uuid
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw()._extend_from_slice(self.as_bytes()).map_err(Into::into)?;
+      Ok(())
+    }
+  }
+
+  impl<E> Typed<Postgres<E>> for Uuid
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Uuid;
+  }
+
+  impl From<UuidError> for crate::Error {
+    fn from(value: UuidError) -> Self {
+      Self::UuidError(Box::new(value))
+    }
+  }
+}
