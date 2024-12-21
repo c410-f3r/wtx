@@ -54,8 +54,6 @@ pub enum Error {
   MatchitInsertError(Box<matchit::InsertError>),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
-  #[cfg(feature = "rustls-pki-types")]
-  PemError(Box<rustls_pki_types::pem::Error>),
   #[cfg(feature = "postgres")]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "quick-protobuf")]
@@ -158,8 +156,6 @@ pub enum Error {
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
   #[cfg(feature = "http-server-framework")]
   ServerFrameworkError(crate::http::server_framework::ServerFrameworkError),
-  #[cfg(feature = "tls")]
-  TlsError(crate::tls::TlsError),
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
   WebSocketError(crate::web_socket::WebSocketError),
@@ -362,13 +358,6 @@ impl From<core::num::ParseIntError> for Error {
   }
 }
 
-#[cfg(feature = "rustls-pki-types")]
-impl From<rustls_pki_types::pem::Error> for Error {
-  #[inline]
-  fn from(from: rustls_pki_types::pem::Error) -> Self {
-    Self::PemError(from.into())
-  }
-}
 #[cfg(feature = "postgres")]
 impl From<crate::database::client::postgres::DbError> for Error {
   #[inline]
@@ -550,14 +539,6 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   #[inline]
   fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
-  }
-}
-
-#[cfg(feature = "tls")]
-impl From<crate::tls::TlsError> for Error {
-  #[inline]
-  fn from(from: crate::tls::TlsError) -> Self {
-    Self::TlsError(from)
   }
 }
 

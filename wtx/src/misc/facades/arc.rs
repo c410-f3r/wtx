@@ -8,14 +8,25 @@ pub struct Arc<T>(
 );
 
 impl<T> Arc<T> {
+  /// Constructs a new instance.
   #[inline]
-  pub(crate) fn new(data: T) -> Self {
+  pub fn new(data: T) -> Self {
     Self(
       #[cfg(feature = "portable-atomic-util")]
       portable_atomic_util::Arc::new(data),
       #[cfg(not(feature = "portable-atomic-util"))]
       alloc::sync::Arc::new(data),
     )
+  }
+
+  /// Returns a mutable reference into the given `Arc`, if there are
+  /// no other `Arc` or [`Weak`] pointers to the same allocation.
+  #[inline]
+  pub fn get_mut(this: &mut Self) -> Option<&mut T> {
+    #[cfg(feature = "portable-atomic-util")]
+    return portable_atomic_util::Arc::get_mut(&mut this.0);
+    #[cfg(not(feature = "portable-atomic-util"))]
+    return alloc::sync::Arc::get_mut(&mut this.0);
   }
 }
 

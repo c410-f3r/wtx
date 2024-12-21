@@ -75,7 +75,7 @@ macro_rules! read_continuation_frames {
   };
 }
 
-macro_rules! read_frame_from_stream {
+macro_rules! read_frame {
   (
     $max_payload_len:expr,
     ($nc_is_noop:expr, $nc_rsv1:expr),

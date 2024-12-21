@@ -4,13 +4,13 @@ use tokio::{
 };
 use wtx::{
   misc::{simple_seed, UriRef, Xorshift64},
-  web_socket::{Frame, OpCode, WebSocketBuffer, WebSocketClient, WebSocketServer},
+  web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
 };
 
 pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
   let wsb = &mut WebSocketBuffer::default();
-  let mut ws = WebSocketClient::connect(
+  let mut ws = WebSocket::connect(
     (),
     [],
     false,
@@ -54,7 +54,7 @@ pub(crate) async fn serve(
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
       let fun = async move {
-        let mut ws = WebSocketServer::accept(
+        let mut ws = WebSocket::accept(
           (),
           false,
           Xorshift64::from(simple_seed()),

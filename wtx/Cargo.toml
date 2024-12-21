@@ -28,7 +28,7 @@ rand_chacha = { default-features = false, optional = true, version = "0.3" }
 rand_core = { default-features = false, optional = true, version = "0.6" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
-rustls = { default-features = false, optional = true, version = "0.23" }
+rustls = { default-features = false, features = ["tls12"], optional = true, version = "0.23" }
 rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
 rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
@@ -111,7 +111,6 @@ std = [
   "tracing?/std",
   "tracing-subscriber?/std"
 ]
-tls = []
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls", "dep:rustls-pemfile", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
 web-socket = ["http"]

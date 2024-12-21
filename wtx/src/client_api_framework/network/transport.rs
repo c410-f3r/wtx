@@ -1,7 +1,9 @@
 //! Implementations of the [Transport] trait.
 
-mod bi_transport;
 mod mock;
+mod recieving_transport;
+mod sending_recieving_transport;
+mod sending_transport;
 #[cfg(feature = "std")]
 mod std;
 mod transport_params;
@@ -11,20 +13,12 @@ mod wtx_http;
 #[cfg(feature = "web-socket")]
 mod wtx_ws;
 
-use crate::{
-  client_api_framework::{
-    misc::log_res,
-    network::TransportGroup,
-    pkg::{BatchElems, BatchPkg, Package, PkgsAux},
-    Api,
-  },
-  data_transformation::dnsn::{Deserialize, Serialize},
-  misc::{Lease, Vector},
-};
-pub use bi_transport::*;
-use core::{future::Future, ops::Range};
-pub use mock::*;
-pub use transport_params::*;
+use crate::client_api_framework::network::TransportGroup;
+pub use mock::{Mock, MockBytes, MockStr};
+pub use recieving_transport::RecievingTransport;
+pub use sending_recieving_transport::SendingRecievingTransport;
+pub use sending_transport::SendingTransport;
+pub use transport_params::TransportParams;
 
 /// Any means of transferring data between two parties.
 ///
@@ -40,78 +34,6 @@ pub trait Transport<DRSR> {
   /// Every transport has request and response parameters.
   type Params: TransportParams;
 
-  /// Sends a request without trying to retrieve any counterpart data.
-  fn send<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<Output = Result<(), A::Error>>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Params>;
-
-  /// Sends a request and then awaits its counterpart data response.
-  ///
-  /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
-  fn send_recv<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<Output = Result<Range<usize>, A::Error>>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Params>;
-
-  /// Convenient method similar to [`Self::send_recv_decode_contained`] but used for batch
-  /// requests.
-  ///
-  /// All the expected data must be available in a single response.
-  #[inline]
-  fn send_recv_decode_batch<'pkgs, 'pkgs_aux, A, P>(
-    &mut self,
-    buffer: &mut Vector<P::ExternalResponseContent<'pkgs_aux>>,
-    pkgs: &'pkgs mut [P],
-    pkgs_aux: &'pkgs_aux mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<Output = Result<(), A::Error>>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Params>,
-    BatchElems<'pkgs, A, DRSR, P, Self::Params>: Serialize<DRSR>,
-  {
-    async {
-      let range = self.send_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.lease());
-      P::ExternalResponseContent::seq_from_bytes(
-        buffer,
-        pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
-        &mut pkgs_aux.drsr,
-      )?;
-      Ok(())
-    }
-  }
-
-  /// Internally calls [`Self::send_recv`] and then tries to decode the defined response specified
-  /// in [`Package::ExternalResponseContent`].
-  #[inline]
-  fn send_recv_decode_contained<'de, A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &'de mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> impl Future<Output = Result<P::ExternalResponseContent<'de>, A::Error>>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Params>,
-  {
-    async {
-      let range = self.send_recv(pkg, pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.lease());
-      Ok(P::ExternalResponseContent::from_bytes(
-        pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
-        &mut pkgs_aux.drsr,
-      )?)
-    }
-  }
-
   /// Instance counterpart of [`Self::GROUP`].
   #[inline]
   fn ty(&self) -> TransportGroup {
@@ -125,32 +47,6 @@ where
 {
   const GROUP: TransportGroup = T::GROUP;
   type Params = T::Params;
-
-  #[inline]
-  async fn send<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> Result<(), A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Params>,
-  {
-    (**self).send(pkg, pkgs_aux).await
-  }
-
-  #[inline]
-  async fn send_recv<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> Result<Range<usize>, A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Params>,
-  {
-    (**self).send_recv(pkg, pkgs_aux).await
-  }
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@
 **/profile.json
 **/rustc-ice-*.txt
 **/target
+boringssl
 mdbook-target
 wtx-docs/book
 wtx-fuzz/artifacts

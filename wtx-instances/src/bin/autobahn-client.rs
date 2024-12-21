@@ -3,7 +3,7 @@
 use tokio::net::TcpStream;
 use wtx::{
   misc::{simple_seed, UriRef, Xorshift64},
-  web_socket::{compression::Flate2, Frame, OpCode, WebSocketBuffer, WebSocketClient},
+  web_socket::{compression::Flate2, Frame, OpCode, WebSocket, WebSocketBuffer},
 };
 
 #[tokio::main]
@@ -11,7 +11,7 @@ async fn main() -> wtx::Result<()> {
   let host = "127.0.0.1:9080";
   let mut wsb = WebSocketBuffer::default();
   for case in 1..=get_case_count(host, &mut wsb).await? {
-    let mut ws = WebSocketClient::connect(
+    let mut ws = WebSocket::connect(
       Flate2::default(),
       [],
       false,
@@ -38,7 +38,7 @@ async fn main() -> wtx::Result<()> {
       }
     }
   }
-  WebSocketClient::connect(
+  WebSocket::connect(
     (),
     [],
     false,
@@ -54,7 +54,7 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn get_case_count(host: &str, wsb: &mut WebSocketBuffer) -> wtx::Result<u32> {
-  let mut ws = WebSocketClient::connect(
+  let mut ws = WebSocket::connect(
     (),
     [],
     false,

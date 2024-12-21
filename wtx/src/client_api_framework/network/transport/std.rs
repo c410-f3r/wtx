@@ -2,8 +2,8 @@ use crate::{
   client_api_framework::{
     misc::{manage_after_sending_related, manage_before_sending_related},
     network::{
-      transport::{Transport, TransportParams},
-      TcpParams, TransportGroup, UdpParams,
+      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
+      TcpParams, TransportGroup,
     },
     pkg::{Package, PkgsAux},
     Api, ClientApiFrameworkError,
@@ -13,13 +13,24 @@ use crate::{
 use core::ops::Range;
 use std::{
   io::{Read, Write},
-  net::{TcpStream, UdpSocket},
+  net::TcpStream,
 };
 
-impl<DRSR> Transport<DRSR> for TcpStream {
-  const GROUP: TransportGroup = TransportGroup::TCP;
-  type Params = TcpParams;
+impl<DRSR> RecievingTransport<DRSR> for TcpStream {
+  #[inline]
+  async fn recv<A>(
+    &mut self,
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<Range<usize>, A::Error>
+  where
+    A: Api,
+  {
+    let len = self.read(pkgs_aux.byte_buffer.as_mut()).map_err(Into::into)?;
+    Ok(0..len)
+  }
+}
 
+impl<DRSR> SendingTransport<DRSR> for TcpStream {
   #[inline]
   async fn send<A, P>(
     &mut self,
@@ -32,53 +43,11 @@ impl<DRSR> Transport<DRSR> for TcpStream {
   {
     send(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.write(bytes)?)).await
   }
-
-  #[inline]
-  async fn send_recv<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, TcpParams>,
-  ) -> Result<Range<usize>, A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, TcpParams>,
-  {
-    send_recv(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.read(bytes)?)).await
-  }
 }
 
-impl<DRSR> Transport<DRSR> for UdpSocket {
-  const GROUP: TransportGroup = TransportGroup::UDP;
-  type Params = UdpParams;
-
-  #[inline]
-  async fn send<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, UdpParams>,
-  ) -> Result<(), A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, UdpParams>,
-  {
-    send(pkg, pkgs_aux, self, |bytes, ext_req_params, trans| {
-      Ok(trans.send_to(bytes, ext_req_params.url.as_str())?)
-    })
-    .await
-  }
-
-  #[inline]
-  async fn send_recv<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, UdpParams>,
-  ) -> Result<Range<usize>, A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, UdpParams>,
-  {
-    send_recv(pkg, pkgs_aux, self, |bytes, _, trans| Ok(trans.recv(bytes)?)).await
-  }
+impl<DRSR> Transport<DRSR> for TcpStream {
+  const GROUP: TransportGroup = TransportGroup::TCP;
+  type Params = TcpParams;
 }
 
 async fn send<A, DRSR, P, T>(
@@ -121,27 +90,6 @@ where
   }
 }
 
-async fn send_recv<A, DRSR, P, T>(
-  pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
-  trans: &mut T,
-  cb: impl Fn(
-    &mut [u8],
-    &<T::Params as TransportParams>::ExternalRequestParams,
-    &mut T,
-  ) -> crate::Result<usize>,
-) -> Result<Range<usize>, A::Error>
-where
-  A: Api,
-  P: Package<A, DRSR, T::Params>,
-  T: Transport<DRSR>,
-{
-  trans.send(pkg, pkgs_aux).await?;
-  let slice = pkgs_aux.byte_buffer.as_mut();
-  let len = cb(slice, pkgs_aux.tp.ext_req_params(), trans)?;
-  Ok(0..len)
-}
-
 #[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::{
@@ -149,9 +97,9 @@ mod tests {
       network::{
         transport::{
           tests::{_Ping, _PingPong, _Pong},
-          Transport,
+          SendingRecievingTransport,
         },
-        TcpParams, UdpParams,
+        TcpParams,
       },
       pkg::PkgsAux,
     },
@@ -161,7 +109,7 @@ mod tests {
   use core::time::Duration;
   use std::{
     io::{Read, Write},
-    net::{TcpListener, TcpStream, UdpSocket},
+    net::{TcpListener, TcpStream},
   };
 
   #[tokio::test(flavor = "multi_thread")]
@@ -178,15 +126,6 @@ mod tests {
     sleep(Duration::from_millis(100)).await.unwrap();
     let mut pa = PkgsAux::from_minimum((), (), TcpParams::from_uri(uri_client.as_str()));
     let mut trans = TcpStream::connect(uri_client.hostname_with_implied_port()).unwrap();
-    let res = trans.send_recv_decode_contained(&mut _PingPong(_Ping, ()), &mut pa).await.unwrap();
-    assert_eq!(res, _Pong("pong"));
-  }
-
-  #[tokio::test]
-  async fn udp() {
-    let addr = "127.0.0.1:12346";
-    let mut pa = PkgsAux::from_minimum((), (), UdpParams::from_uri(addr));
-    let mut trans = UdpSocket::bind(addr).unwrap();
     let res = trans.send_recv_decode_contained(&mut _PingPong(_Ping, ()), &mut pa).await.unwrap();
     assert_eq!(res, _Pong("pong"));
   }

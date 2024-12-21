@@ -4,7 +4,7 @@ use crate::{
   client_api_framework::{
     misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
     network::{
-      transport::{Transport, TransportParams},
+      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
       TransportGroup,
     },
     pkg::{Package, PkgsAux},
@@ -27,7 +27,7 @@ pub type MockStr<TP> = Mock<str, TP>;
 /// ```rust,no_run
 /// # async fn fun() -> wtx::Result<()> {
 /// use wtx::client_api_framework::{
-///   network::transport::{MockStr, Transport},
+///   network::transport::{MockStr, SendingRecievingTransport},
 ///   pkg::PkgsAux,
 /// };
 /// let _ = MockStr::default()
@@ -86,15 +86,33 @@ where
   }
 }
 
-impl<DRSR, T, TP> Transport<DRSR> for Mock<T, TP>
+impl<DRSR, T, TP> RecievingTransport<DRSR> for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
-  const GROUP: TransportGroup = TransportGroup::Stub;
-  type Params = TP;
+  #[inline]
+  async fn recv<A>(
+    &mut self,
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<Range<usize>, A::Error>
+  where
+    A: Api,
+  {
+    let response = self.pop_response()?;
+    pkgs_aux.byte_buffer.clear();
+    pkgs_aux.byte_buffer.extend_from_copyable_slice(response.lease()).map_err(Into::into)?;
+    Ok(0..pkgs_aux.byte_buffer.len())
+  }
+}
 
+impl<DRSR, T, TP> SendingTransport<DRSR> for Mock<T, TP>
+where
+  T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
+  TP: TransportParams,
+  <T as ToOwned>::Owned: Debug + FromBytes,
+{
   #[inline]
   async fn send<A, P>(
     &mut self,
@@ -114,23 +132,16 @@ where
     manage_after_sending_related(pkg, pkgs_aux).await?;
     Ok(())
   }
+}
 
-  #[inline]
-  async fn send_recv<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<Range<usize>, A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, TP>,
-  {
-    <Self as Transport<DRSR>>::send(self, pkg, pkgs_aux).await?;
-    let response = self.pop_response()?;
-    pkgs_aux.byte_buffer.clear();
-    pkgs_aux.byte_buffer.extend_from_copyable_slice(response.lease()).map_err(Into::into)?;
-    Ok(0..pkgs_aux.byte_buffer.len())
-  }
+impl<DRSR, T, TP> Transport<DRSR> for Mock<T, TP>
+where
+  T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
+  TP: TransportParams,
+  <T as ToOwned>::Owned: Debug + FromBytes,
+{
+  const GROUP: TransportGroup = TransportGroup::Stub;
+  type Params = TP;
 }
 
 impl<T, TP> Default for Mock<T, TP>

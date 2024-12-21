@@ -47,7 +47,7 @@ impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
 //#[cfg_attr(kani, derive(kani::Arbitrary))]
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct Vector<T> {
   data: Vec<T>,
@@ -346,6 +346,24 @@ impl<T> Vector<T> {
     Ok(())
   }
 
+  /// Retains only the elements specified by the predicate.
+  ///
+  /// In other words, remove all elements `e` for which `f(&e)` returns `false`.
+  /// This method operates in place, visiting each element exactly once in the
+  /// original order, and preserves the order of the retained elements.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// let mut vec = wtx::misc::Vector::from_iter(1u8..5).unwrap();
+  /// vec.retain(|&x| x % 2 == 0);
+  /// assert_eq!(vec.as_slice(), [2, 4]);
+  /// ```
+  #[inline(always)]
+  pub fn retain(&mut self, f: impl FnMut(&T) -> bool) {
+    self.data.retain(f);
+  }
+
   /// Shortens the vector, keeping the first len elements and dropping the rest.
   ///
   /// ```
@@ -603,16 +621,6 @@ impl<T> DerefMut for Vector<T> {
   }
 }
 
-impl<T> IntoIterator for Vector<T> {
-  type Item = T;
-  type IntoIter = IntoIter<T>;
-
-  #[inline]
-  fn into_iter(self) -> Self::IntoIter {
-    self.data.into_iter()
-  }
-}
-
 impl<T> From<Vec<T>> for Vector<T> {
   #[inline]
   fn from(from: Vec<T>) -> Self {
@@ -624,6 +632,16 @@ impl<T> From<Vector<T>> for Vec<T> {
   #[inline]
   fn from(from: Vector<T>) -> Self {
     from.data
+  }
+}
+
+impl<T> IntoIterator for Vector<T> {
+  type Item = T;
+  type IntoIter = IntoIter<T>;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    self.data.into_iter()
   }
 }
 

@@ -13,13 +13,13 @@ use tokio::{
 };
 use wtx::{
   misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{Frame, OpCode, WebSocketBuffer, WebSocketClient},
+  web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("ws://www.example.com");
-  let mut ws = WebSocketClient::connect(
+  let mut ws = WebSocket::connect(
     (),
     [],
     false,

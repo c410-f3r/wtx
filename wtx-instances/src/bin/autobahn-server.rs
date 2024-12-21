@@ -7,7 +7,7 @@ use wtx::{
   http::OptionedServer,
   web_socket::{
     compression::{Flate2, NegotiatedFlate2},
-    OpCode, WebSocketBuffer, WebSocketServer,
+    OpCode, WebSocket, WebSocketBuffer,
   },
 };
 
@@ -25,7 +25,7 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn handle(
-  mut ws: WebSocketServer<Option<NegotiatedFlate2>, TcpStream, &mut WebSocketBuffer>,
+  mut ws: WebSocket<Option<NegotiatedFlate2>, TcpStream, &mut WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.parts_mut();
   loop {

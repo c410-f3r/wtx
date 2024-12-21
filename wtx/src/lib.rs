@@ -35,8 +35,6 @@ pub mod misc;
 pub mod pool;
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "tls")]
-pub mod tls;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 

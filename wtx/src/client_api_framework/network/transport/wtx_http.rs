@@ -2,7 +2,7 @@ use crate::{
   client_api_framework::{
     misc::{manage_after_sending_related, manage_before_sending_related},
     network::{
-      transport::{Transport, TransportParams},
+      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
       HttpParams, HttpReqParams, TransportGroup,
     },
     pkg::{Package, PkgsAux},
@@ -15,7 +15,7 @@ use crate::{
 };
 use core::{mem, ops::Range};
 
-impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for ClientFramework<RL, RM>
+impl<DRSR, HD, RL, RM, SW> RecievingTransport<DRSR> for ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -30,9 +30,33 @@ where
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
-  const GROUP: TransportGroup = TransportGroup::HTTP;
-  type Params = HttpParams;
+  #[inline]
+  async fn recv<A>(
+    &mut self,
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<Range<usize>, A::Error>
+  where
+    A: Api,
+  {
+    Ok(0..pkgs_aux.byte_buffer.len())
+  }
+}
 
+impl<DRSR, HD, RL, RM, SW> SendingTransport<DRSR> for ClientFramework<RL, RM>
+where
+  HD: RefCounter + 'static,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
+  RM: ResourceManager<
+    CreateAux = str,
+    Error = crate::Error,
+    RecycleAux = str,
+    Resource = Http2<HD, true>,
+  >,
+  SW: StreamWriter,
+  for<'any> RL: 'any,
+  for<'any> RM: 'any,
+{
   #[inline]
   async fn send<A, P>(
     &mut self,
@@ -46,19 +70,67 @@ where
     response(self, pkg, pkgs_aux).await?;
     Ok(())
   }
+}
 
+impl<DRSR, RL, RM> Transport<DRSR> for ClientFramework<RL, RM> {
+  const GROUP: TransportGroup = TransportGroup::HTTP;
+  type Params = HttpParams;
+}
+
+impl<DRSR, HD, RL, RM, SW> RecievingTransport<DRSR> for &ClientFramework<RL, RM>
+where
+  HD: RefCounter + 'static,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
+  RM: ResourceManager<
+    CreateAux = str,
+    Error = crate::Error,
+    RecycleAux = str,
+    Resource = Http2<HD, true>,
+  >,
+  SW: StreamWriter,
+  for<'any> RL: 'any,
+  for<'any> RM: 'any,
+{
   #[inline]
-  async fn send_recv<A, P>(
+  async fn recv<A>(
+    &mut self,
+    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+  ) -> Result<Range<usize>, A::Error>
+  where
+    A: Api,
+  {
+    Ok(0..pkgs_aux.byte_buffer.len())
+  }
+}
+
+impl<DRSR, HD, RL, RM, SW> SendingTransport<DRSR> for &ClientFramework<RL, RM>
+where
+  HD: RefCounter + 'static,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
+  RM: ResourceManager<
+    CreateAux = str,
+    Error = crate::Error,
+    RecycleAux = str,
+    Resource = Http2<HD, true>,
+  >,
+  SW: StreamWriter,
+  for<'any> RL: 'any,
+  for<'any> RM: 'any,
+{
+  #[inline]
+  async fn send<A, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
-  ) -> Result<Range<usize>, A::Error>
+  ) -> Result<(), A::Error>
   where
     A: Api,
     P: Package<A, DRSR, HttpParams>,
   {
     response(self, pkg, pkgs_aux).await?;
-    Ok(0..pkgs_aux.byte_buffer.len())
+    Ok(())
   }
 }
 
@@ -79,34 +151,6 @@ where
 {
   const GROUP: TransportGroup = TransportGroup::HTTP;
   type Params = HttpParams;
-
-  #[inline]
-  async fn send<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
-  ) -> Result<(), A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, HttpParams>,
-  {
-    response(self, pkg, pkgs_aux).await?;
-    Ok(())
-  }
-
-  #[inline]
-  async fn send_recv<A, P>(
-    &mut self,
-    pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
-  ) -> Result<Range<usize>, A::Error>
-  where
-    A: Api,
-    P: Package<A, DRSR, HttpParams>,
-  {
-    response(self, pkg, pkgs_aux).await?;
-    Ok(0..pkgs_aux.byte_buffer.len())
-  }
 }
 
 async fn response<A, DRSR, HD, P, RL, RM, SW>(
