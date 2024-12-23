@@ -443,6 +443,14 @@ impl<T> From<std::sync::TryLockError<T>> for Error {
   }
 }
 
+#[cfg(feature = "uuid")]
+impl From<uuid::Error> for Error {
+  #[inline]
+  fn from(value: uuid::Error) -> Self {
+    Self::UuidError(value.into())
+  }
+}
+
 #[cfg(feature = "x509-certificate")]
 impl From<x509_certificate::X509CertificateError> for Error {
   #[inline]

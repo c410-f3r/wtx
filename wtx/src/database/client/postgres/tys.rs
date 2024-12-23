@@ -839,14 +839,11 @@ mod serde_json {
 
 #[cfg(feature = "uuid")]
 mod uuid {
-  use std::prelude::v1::Box;
-
-  use uuid::{Error as UuidError, Uuid};
-
   use crate::database::{
     client::postgres::{DecodeValue, EncodeValue, Postgres, Ty},
     Decode, Encode, Typed,
   };
+  use uuid::Uuid;
 
   impl<'de, E> Decode<'de, Postgres<E>> for Uuid
   where
@@ -877,9 +874,5 @@ mod uuid {
     const TY: Ty = Ty::Uuid;
   }
 
-  impl From<UuidError> for crate::Error {
-    fn from(value: UuidError) -> Self {
-      Self::UuidError(Box::new(value))
-    }
-  }
+  test!(uuid, Uuid, Uuid::max());
 }
