@@ -7,6 +7,8 @@ use core::fmt::{Arguments, Debug, Display, Formatter, Write as _};
 
 /// [Uri] with an owned array.
 pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;
+/// [Uri] with an owned string.
+pub type UriCow<'uri> = Uri<alloc::borrow::Cow<'uri, str>>;
 /// [Uri] with a string reference.
 pub type UriRef<'uri> = Uri<&'uri str>;
 /// [Uri] with an owned string.
