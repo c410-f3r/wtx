@@ -70,6 +70,8 @@ pub enum Error {
   TryInitError(tracing_subscriber::util::TryInitError),
   #[cfg(feature = "std")]
   TryLockError(std::sync::TryLockError<()>),
+  #[cfg(feature = "uuid")]
+  UuidError(Box<uuid::Error>),
   #[cfg(feature = "x509-certificate")]
   X509CertificateError(Box<x509_certificate::X509CertificateError>),
 
@@ -438,6 +440,14 @@ impl<T> From<std::sync::TryLockError<T>> for Error {
       }
       std::sync::TryLockError::WouldBlock => std::sync::TryLockError::WouldBlock,
     })
+  }
+}
+
+#[cfg(feature = "uuid")]
+impl From<uuid::Error> for Error {
+  #[inline]
+  fn from(value: uuid::Error) -> Self {
+    Self::UuidError(value.into())
   }
 }
 

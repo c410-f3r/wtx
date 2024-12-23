@@ -56,6 +56,7 @@ $rt test-with-features wtx std
 $rt test-with-features wtx tokio
 $rt test-with-features wtx tokio-rustls
 $rt test-with-features wtx tracing
+$rt test-with-features wtx uuid
 $rt test-with-features wtx web-socket
 $rt test-with-features wtx web-socket-handshake
 $rt test-with-features wtx webpki-roots
