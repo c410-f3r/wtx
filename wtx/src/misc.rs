@@ -72,7 +72,7 @@ pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, StreamReader, StreamWithTls, StreamWriter};
 pub use sync::*;
-pub use uri::{Uri, UriArrayString, UriRef, UriString};
+pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};

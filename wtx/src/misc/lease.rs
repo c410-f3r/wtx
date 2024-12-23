@@ -63,6 +63,16 @@ impl LeaseMut<[u8]> for () {
   }
 }
 
+impl<T> Lease<T> for alloc::borrow::Cow<'_, T>
+where
+  T: alloc::borrow::ToOwned + ?Sized,
+{
+  #[inline]
+  fn lease(&self) -> &T {
+    self.as_ref()
+  }
+}
+
 impl<T> Lease<Option<T>> for Option<T> {
   #[inline]
   fn lease(&self) -> &Option<T> {
