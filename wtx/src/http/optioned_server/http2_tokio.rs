@@ -74,10 +74,9 @@ impl OptionedServer {
           let (frame_reader, http2) = Http2Tokio::accept(
             http2_buffer,
             http2_params,
-            conn_net_cb(conn_acceptor, tcp_stream).await.map_err(Into::into)?,
+            conn_net_cb(conn_acceptor, tcp_stream).await?,
           )
-          .await
-          .map_err(Into::into)?;
+          .await?;
           Ok::<_, E>((conn_ca, frame_reader, http2))
         };
         let (conn_ca, frame_reader, mut http2) = match initial.await {
@@ -93,7 +92,7 @@ impl OptionedServer {
         let rest = async move {
           loop {
             let stream_ca = conn_ca.clone();
-            let (stream_aux, rrb) = conn_stream_cb().map_err(Into::into)?;
+            let (stream_aux, rrb) = conn_stream_cb()?;
             let (mut stream, rslt) = match http2
               .stream(rrb, |req, protocol| {
                 let op = conn_op_cb(
@@ -107,8 +106,7 @@ impl OptionedServer {
                   OperationMode::Manual => (op.0, Some(mem::take(req.rrd))),
                 })
               })
-              .await
-              .map_err(Into::into)?
+              .await?
             {
               Either::Left(_) => return Ok(()),
               Either::Right(elem) => elem,

@@ -358,9 +358,9 @@ impl UriString {
 
   /// Clears the internal storage and makes room for a new base URI.
   #[inline]
-  pub fn reset(&mut self, uri: Arguments<'_>) -> crate::Result<()> {
+  pub fn reset(&mut self, cb: impl FnOnce(&mut String) -> crate::Result<()>) -> crate::Result<()> {
     self.uri.clear();
-    self.uri.write_fmt(uri)?;
+    cb(&mut self.uri)?;
     let (initial_len, authority_start, href_start, query_start) = Self::parts(&self.uri);
     self.authority_start = authority_start;
     self.href_start = href_start;

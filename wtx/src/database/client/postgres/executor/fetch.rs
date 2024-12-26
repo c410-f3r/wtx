@@ -54,7 +54,7 @@ where
       let record_range = range.start.wrapping_add(7)..range.end;
       Some((nb._buffer().get(record_range)?, len))
     }) {
-      Record::parse(record_bytes, 0..record_bytes.len(), stmt, vb, len).map_err(From::from)
+      Ok(Record::parse(record_bytes, 0..record_bytes.len(), stmt, vb, len)?)
     } else {
       Err(E::from(PostgresError::NoRecord.into()))
     }

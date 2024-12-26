@@ -29,7 +29,7 @@ where
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
     auto_stream.req.rrd.clear();
-    let path = manage_path(path_defs, &auto_stream.req.rrd.uri).map_err(From::from)?;
+    let path = manage_path(path_defs, &auto_stream.req.rrd.uri)?;
     let path_owned = PathOwned(P::from_str(path).map_err(Into::into)?);
     self.0.call((path_owned,)).await.finalize_response(&mut auto_stream.req)
   }
@@ -50,7 +50,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let path = manage_path(path_defs, &auto_stream.req.rrd.uri).map_err(From::from)?;
+    let path = manage_path(path_defs, &auto_stream.req.rrd.uri)?;
     let path_owned = PathOwned(P::from_str(path).map_err(Into::into)?);
     self
       .0

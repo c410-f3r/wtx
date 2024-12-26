@@ -111,7 +111,7 @@ impl<T> Deque<T> {
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_capacity(cap: usize) -> Result<Self, DequeueError> {
+  pub fn with_capacity(cap: usize) -> crate::Result<Self> {
     Ok(Self {
       data: Vector::with_capacity(cap).map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
@@ -121,7 +121,7 @@ impl<T> Deque<T> {
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_exact_capacity(cap: usize) -> Result<Self, DequeueError> {
+  pub fn with_exact_capacity(cap: usize) -> crate::Result<Self> {
     Ok(Self {
       data: Vector::with_capacity(cap).map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
@@ -196,7 +196,7 @@ impl<T> Deque<T> {
   /// assert_eq!(queue.as_slices(), (&[1, 1, 1, 1][..], &[][..]));
   /// ```
   #[inline(always)]
-  pub fn expand_back(&mut self, bm: BufferMode, value: T) -> Result<usize, DequeueError>
+  pub fn expand_back(&mut self, bm: BufferMode, value: T) -> crate::Result<usize>
   where
     T: Clone,
   {
@@ -222,7 +222,7 @@ impl<T> Deque<T> {
   /// assert_eq!(queue.as_slices(), (&[1, 1, 1, 1][..], &[][..]));
   /// ```
   #[inline(always)]
-  pub fn expand_front(&mut self, bp: BufferMode, value: T) -> Result<(usize, usize), DequeueError>
+  pub fn expand_front(&mut self, bp: BufferMode, value: T) -> crate::Result<(usize, usize)>
   where
     T: Clone,
   {
@@ -246,10 +246,7 @@ impl<T> Deque<T> {
   /// assert_eq!(queue.len(), 2);
   /// ```
   #[inline]
-  pub fn extend_back_from_iter(
-    &mut self,
-    ii: impl IntoIterator<Item = T>,
-  ) -> Result<(), DequeueError> {
+  pub fn extend_back_from_iter(&mut self, ii: impl IntoIterator<Item = T>) -> crate::Result<()> {
     let iter = ii.into_iter();
     let _ = self.reserve_back(iter.size_hint().0)?;
     for elem in iter {
@@ -266,10 +263,7 @@ impl<T> Deque<T> {
   /// assert_eq!(queue.len(), 2);
   /// ```
   #[inline]
-  pub fn extend_front_from_iter(
-    &mut self,
-    ii: impl IntoIterator<Item = T>,
-  ) -> Result<(), DequeueError> {
+  pub fn extend_front_from_iter(&mut self, ii: impl IntoIterator<Item = T>) -> crate::Result<()> {
     let iter = ii.into_iter();
     let _ = self.reserve_front(iter.size_hint().0)?;
     for elem in iter {
@@ -421,7 +415,7 @@ impl<T> Deque<T> {
   /// assert_eq!(queue.as_slices(), (&[1, 3][..], &[][..]));
   /// ```
   #[inline]
-  pub fn push_back(&mut self, value: T) -> Result<(), DequeueError> {
+  pub fn push_back(&mut self, value: T) -> crate::Result<()> {
     let _ = self.reserve_back(1).map_err(|_err| DequeueError::PushFrontOverflow)?;
     let len = self.data.len();
     let tail = self.tail;
@@ -448,7 +442,7 @@ impl<T> Deque<T> {
   /// assert_eq!(queue.as_slices(), (&[3, 1][..], &[][..]));
   /// ```
   #[inline]
-  pub fn push_front(&mut self, value: T) -> Result<(), DequeueError> {
+  pub fn push_front(&mut self, value: T) -> crate::Result<()> {
     let _ = self.reserve_front(1).map_err(|_err| DequeueError::PushFrontOverflow)?;
     let len = self.data.len();
     self.head = wrap_sub_idx(self.data.capacity(), self.head, 1);
@@ -468,7 +462,7 @@ impl<T> Deque<T> {
   /// Reserves capacity for at least additional more elements to be inserted at the back of the
   /// queue.
   #[inline(always)]
-  pub fn reserve_back(&mut self, additional: usize) -> Result<usize, DequeueError> {
+  pub fn reserve_back(&mut self, additional: usize) -> crate::Result<usize> {
     let rr = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
     Ok(rr.head_shift)
   }
@@ -476,7 +470,7 @@ impl<T> Deque<T> {
   /// Reserves capacity for at least additional more elements to be inserted at the front of the
   /// queue.
   #[inline(always)]
-  pub fn reserve_front(&mut self, additional: usize) -> Result<usize, DequeueError> {
+  pub fn reserve_front(&mut self, additional: usize) -> crate::Result<usize> {
     let rr = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
     Ok(rr.head_shift)
   }
@@ -627,14 +621,14 @@ impl<T> Deque<T> {
   }
 
   #[inline]
-  fn prolong_back(&mut self, additional: usize) -> Result<ReserveRslt, DequeueError> {
+  fn prolong_back(&mut self, additional: usize) -> crate::Result<ReserveRslt> {
     let rr = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
     self.tail = rr.begin.wrapping_add(additional);
     Ok(rr)
   }
 
   #[inline]
-  fn prolong_front(&mut self, additional: usize) -> Result<ReserveRslt, DequeueError> {
+  fn prolong_front(&mut self, additional: usize) -> crate::Result<ReserveRslt> {
     let rr = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
     self.head = rr.begin;
     Ok(rr)
@@ -668,10 +662,7 @@ where
   /// assert_eq!(queue.as_slices(), (&[4, 2, 3, 0, 1, 1][..], &[][..]));
   /// ```
   #[inline]
-  pub fn extend_back_from_copyable_slices<'iter, I>(
-    &mut self,
-    others: I,
-  ) -> Result<usize, DequeueError>
+  pub fn extend_back_from_copyable_slices<'iter, I>(&mut self, others: I) -> crate::Result<usize>
   where
     I: IntoIterator<Item = &'iter [T]>,
     I::IntoIter: Clone,
@@ -711,7 +702,7 @@ where
   pub fn extend_front_from_copyable_slices<'iter, I>(
     &mut self,
     others: I,
-  ) -> Result<(usize, usize), DequeueError>
+  ) -> crate::Result<(usize, usize)>
   where
     I: IntoIterator<Item = &'iter [T]>,
     I::IntoIter: Clone,
@@ -821,7 +812,7 @@ fn reserve<D, const IS_BACK: bool>(
   data: &mut Vector<D>,
   head: &mut usize,
   tail: &mut usize,
-) -> Result<ReserveRslt, DequeueError> {
+) -> crate::Result<ReserveRslt> {
   let len = data.len();
   let prev_cap = data.capacity();
   data.reserve(additional).map_err(|_err| DequeueError::ReserveOverflow)?;

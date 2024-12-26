@@ -26,7 +26,7 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
         &Config::from_uri(&uri)?,
         ExecutorBuffer::new(usize::MAX, &mut rng),
         &mut rng,
-        TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(wtx::Error::from)?,
+        TcpStream::connect(uri.hostname_with_implied_port()).await?,
       )
       .await?;
       handle_commands(executor, &sm).await?;

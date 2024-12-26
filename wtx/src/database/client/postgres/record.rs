@@ -161,12 +161,7 @@ mod array {
     fn from_record(
       record: &crate::database::client::postgres::record::Record<'_, E>,
     ) -> Result<Self, E> {
-      Ok(
-        from_utf8_basic(into_rslt(record.value(0))?.bytes())
-          .map_err(From::from)?
-          .try_into()
-          .map_err(From::from)?,
-      )
+      Ok(from_utf8_basic(into_rslt(record.value(0))?.bytes()).map_err(From::from)?.try_into()?)
     }
   }
 }

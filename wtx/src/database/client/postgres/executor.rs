@@ -214,7 +214,7 @@ where
           let range_begin = nb._antecedent_end_idx().wrapping_sub(begin);
           let range_end = nb._current_end_idx().wrapping_sub(begin_data);
           cb(&Record::parse(bytes, range_begin..range_end, stmt.clone(), vb, len)?)?;
-          rb.push(vb.len()).map_err(Into::into)?;
+          rb.push(vb.len())?;
         }
         MessageTy::ReadyForQuery => {
           break;

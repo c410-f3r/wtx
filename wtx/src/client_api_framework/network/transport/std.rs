@@ -78,10 +78,7 @@ where
     slice = slice.get(sent..).unwrap_or_default();
   }
   pkgs_aux.byte_buffer.clear();
-  pkgs_aux
-    .byte_buffer
-    .extend_from_iter((0..pkgs_aux.byte_buffer.capacity()).map(|_| 0))
-    .map_err(Into::into)?;
+  pkgs_aux.byte_buffer.extend_from_iter((0..pkgs_aux.byte_buffer.capacity()).map(|_| 0))?;
   manage_after_sending_related(pkg, pkgs_aux).await?;
   if everything_was_sent {
     Ok(())

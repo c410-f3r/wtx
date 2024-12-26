@@ -33,7 +33,7 @@ pub trait SendingRecievingTransport<DRSR>:
   {
     async {
       self.send(pkg, pkgs_aux).await?;
-      Ok(self.recv(pkgs_aux).await?)
+      self.recv(pkgs_aux).await
     }
   }
 

@@ -69,14 +69,14 @@ where
     Ok(Self {
       common: MigrationCommon {
         checksum: _checksum_from_str(from.decode("checksum")?)?,
-        name: from.decode::<_, &str>("name")?.try_into().map_err(From::from)?,
+        name: from.decode::<_, &str>("name")?.try_into()?,
         repeatability: _from_u32(from.decode_opt("repeatability")?),
         version: from.decode("version")?,
       },
       created_on: from.decode("created_on")?,
       db_ty: DatabaseTy::Postgres,
       group: MigrationGroup::new(
-        from.decode::<_, &str>("omg_name")?.try_into().map_err(From::from)?,
+        from.decode::<_, &str>("omg_name")?.try_into()?,
         from.decode("omg_version")?,
       ),
     })

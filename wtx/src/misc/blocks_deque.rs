@@ -68,7 +68,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksDequeError> {
+  pub fn with_capacity(blocks: usize, elements: usize) -> crate::Result<Self> {
     Ok(Self {
       data: Deque::with_capacity(elements)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
@@ -79,7 +79,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Constructs a new, empty instance with the exact specified capacity.
   #[inline]
-  pub fn with_exact_capacity(blocks: usize, elements: usize) -> Result<Self, BlocksDequeError> {
+  pub fn with_exact_capacity(blocks: usize, elements: usize) -> crate::Result<Self> {
     Ok(Self {
       data: Deque::with_exact_capacity(elements)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
@@ -185,11 +185,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Appends a block to the end of the queue.
   #[inline]
-  pub fn push_back_from_copyable_data<'data, I>(
-    &mut self,
-    data: I,
-    misc: M,
-  ) -> Result<(), BlocksDequeError>
+  pub fn push_back_from_copyable_data<'data, I>(&mut self, data: I, misc: M) -> crate::Result<()>
   where
     D: Copy + 'data,
     I: IntoIterator<Item = &'data [D]>,
@@ -209,11 +205,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Prepends a block to the queue.
   #[inline]
-  pub fn push_front_from_coyable_data<'data, I>(
-    &mut self,
-    data: I,
-    misc: M,
-  ) -> Result<(), BlocksDequeError>
+  pub fn push_front_from_coyable_data<'data, I>(&mut self, data: I, misc: M) -> crate::Result<()>
   where
     D: Copy + 'data,
     I: IntoIterator<Item = &'data [D]>,
@@ -233,7 +225,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
-  pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> Result<(), BlocksDequeError> {
+  pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> crate::Result<()> {
     let _ = self.metadata.reserve_front(blocks).map_err(|_er| BlocksDequeError::ReserveOverflow)?;
     let n = self.data.reserve_front(elements).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     self.adjust_metadata(n, 0);

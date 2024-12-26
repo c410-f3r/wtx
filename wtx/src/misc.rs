@@ -39,6 +39,7 @@ mod uri;
 mod usize;
 mod utf8_errors;
 mod vector;
+mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
@@ -76,6 +77,7 @@ pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};
+pub use wrapper::Wrapper;
 
 /// Hashes a password using the `argon2` algorithm.
 #[cfg(feature = "argon2")]

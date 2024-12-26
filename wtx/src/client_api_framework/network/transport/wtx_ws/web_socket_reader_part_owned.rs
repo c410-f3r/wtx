@@ -29,7 +29,7 @@ where
   where
     A: Api,
   {
-    recv(self.read_frame().await?, pkgs_aux).await.map_err(Into::into)
+    Ok(recv(self.read_frame().await?, pkgs_aux).await?)
   }
 }
 

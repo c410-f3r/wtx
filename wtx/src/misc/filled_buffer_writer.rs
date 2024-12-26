@@ -1,4 +1,4 @@
-use crate::misc::{filled_buffer::FilledBuffer, BufferMode, Lease, LeaseMut, VectorError};
+use crate::misc::{filled_buffer::FilledBuffer, BufferMode, Lease, LeaseMut};
 
 /// Helper that manages the copy of initialized bytes.
 #[derive(Debug)]
@@ -12,6 +12,13 @@ impl<'vec> FilledBufferWriter<'vec> {
   #[inline]
   pub(crate) fn new(start: usize, vec: &'vec mut FilledBuffer) -> Self {
     Self { _curr_idx: start, _initial_idx: start, _vec: vec }
+  }
+
+  /// Iterates over the slice `other`, copies each element, and then appends
+  /// it to this vector. The `other` slice is traversed in-order.
+  #[inline]
+  pub fn extend_from_slice(&mut self, other: &[u8]) -> crate::Result<()> {
+    self._extend_from_slices([other])
   }
 
   #[inline]
@@ -30,17 +37,12 @@ impl<'vec> FilledBufferWriter<'vec> {
   }
 
   #[inline]
-  pub(crate) fn _extend_from_byte(&mut self, byte: u8) -> Result<(), VectorError> {
+  pub(crate) fn _extend_from_byte(&mut self, byte: u8) -> crate::Result<()> {
     self._extend_from_slices([&[byte][..]])
   }
 
   #[inline]
-  pub(crate) fn _extend_from_slice(&mut self, slice: &[u8]) -> Result<(), VectorError> {
-    self._extend_from_slices([slice])
-  }
-
-  #[inline]
-  pub(crate) fn _extend_from_slices<'iter, I>(&mut self, slices: I) -> Result<(), VectorError>
+  pub(crate) fn _extend_from_slices<'iter, I>(&mut self, slices: I) -> crate::Result<()>
   where
     I: IntoIterator<Item = &'iter [u8]>,
     I::IntoIter: Clone,
@@ -52,28 +54,25 @@ impl<'vec> FilledBufferWriter<'vec> {
 
   /// The `c` suffix means that `slice` is copied as a C string.
   #[inline]
-  pub(crate) fn _extend_from_slice_c(&mut self, slice: &[u8]) -> Result<(), VectorError> {
+  pub(crate) fn _extend_from_slice_c(&mut self, slice: &[u8]) -> crate::Result<()> {
     self._extend_from_slices([slice, &[0]])
   }
 
   /// The `each_c` suffix means that each slice is copied as a C string.
   #[inline]
-  pub(crate) fn _extend_from_slices_each_c(&mut self, slices: &[&[u8]]) -> Result<(), VectorError> {
+  pub(crate) fn _extend_from_slices_each_c(&mut self, slices: &[&[u8]]) -> crate::Result<()> {
     self._extend_from_slices(slices.iter().flat_map(|el| [*el, &[0]]))
   }
 
   /// The `rn` suffix means that `slice` is copied with a final `\r\n` new line.
   #[inline]
-  pub(crate) fn _extend_from_slice_rn(&mut self, slice: &[u8]) -> Result<(), VectorError> {
+  pub(crate) fn _extend_from_slice_rn(&mut self, slice: &[u8]) -> crate::Result<()> {
     self._extend_from_slices([slice, "\r\n".as_bytes()])
   }
 
   /// The `group_rn` suffix means that only the last slice is copied with a final `\r\n` new line.
   #[inline]
-  pub(crate) fn _extend_from_slices_group_rn(
-    &mut self,
-    slices: &[&[u8]],
-  ) -> Result<(), VectorError> {
+  pub(crate) fn _extend_from_slices_group_rn(&mut self, slices: &[&[u8]]) -> crate::Result<()> {
     self._extend_from_slices(slices.iter().copied().chain(["\r\n".as_bytes()]))
   }
 
@@ -83,7 +82,7 @@ impl<'vec> FilledBufferWriter<'vec> {
   }
 
   #[inline]
-  pub(crate) fn _shift_idx(&mut self, n: usize) -> Result<(), VectorError> {
+  pub(crate) fn _shift_idx(&mut self, n: usize) -> crate::Result<()> {
     let new_len = self._curr_idx.wrapping_add(n);
     self._vec._expand(BufferMode::Len(new_len))?;
     self._curr_idx = new_len;
@@ -116,7 +115,7 @@ impl Drop for FilledBufferWriter<'_> {
 impl std::io::Write for FilledBufferWriter<'_> {
   #[inline]
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-    self._extend_from_slice(buf).map_err(std::io::Error::other)?;
+    self.extend_from_slice(buf).map_err(std::io::Error::other)?;
     Ok(buf.len())
   }
 

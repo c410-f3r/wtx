@@ -19,9 +19,7 @@ macro_rules! check_headers {
 
 use crate::{
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{
-    bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, VectorError, Xorshift64,
-  },
+  misc::{bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, Xorshift64},
   web_socket::{
     compression::NegotiatedCompression, Compression, WebSocket, WebSocketBuffer, WebSocketError,
   },
@@ -59,7 +57,7 @@ where
   {
     wsb.lease_mut()._clear();
     let nb = &mut wsb.lease_mut().network_buffer;
-    nb._reserve(MAX_READ_LEN).map_err(From::from)?;
+    nb._reserve(MAX_READ_LEN)?;
     let mut read = 0;
     loop {
       let read_buffer = nb._buffer_mut().get_mut(read..).unwrap_or_default();
@@ -99,11 +97,11 @@ where
           res.version = Some(req.version().into());
           {
             let mut fbw = nb.into();
-            build_res(&mut fbw, res.headers, &nc, no_masking).map_err(From::from)?;
+            build_res(&mut fbw, res.headers, &nc, no_masking)?;
             stream.write_all(fbw._curr_bytes()).await?;
           }
           nb._clear();
-          return WebSocket::new(nc, no_masking, rng, stream, wsb).map_err(From::from);
+          return Ok(WebSocket::new(nc, no_masking, rng, stream, wsb)?);
         }
         Status::Partial => {}
       }
@@ -137,11 +135,10 @@ where
     let key_buffer = &mut [0; 26];
     let key = {
       let nb = &mut wsb.lease_mut().network_buffer;
-      nb._reserve(MAX_READ_LEN).map_err(From::from)?;
+      nb._reserve(MAX_READ_LEN)?;
       {
         let fbw = &mut nb.into();
-        let key_rslt = build_req(&compression, fbw, headers, key_buffer, no_masking, &mut rng, uri);
-        let key = key_rslt.map_err(From::from)?;
+        let key = build_req(&compression, fbw, headers, key_buffer, no_masking, &mut rng, uri)?;
         stream.write_all(fbw._curr_bytes()).await?;
         key
       }
@@ -201,7 +198,7 @@ fn build_req<'headers, 'kb, C>(
   no_masking: bool,
   rng: &mut impl Rng,
   uri: &UriRef<'_>,
-) -> Result<&'kb [u8], VectorError>
+) -> crate::Result<&'kb [u8]>
 where
   C: Compression<true>,
 {
@@ -239,7 +236,7 @@ fn build_res<NC>(
   headers: &[Header<'_>],
   nc: &NC,
   no_masking: bool,
-) -> Result<(), VectorError>
+) -> crate::Result<()>
 where
   NC: NegotiatedCompression,
 {

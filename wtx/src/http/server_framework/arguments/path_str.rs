@@ -29,7 +29,7 @@ where
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
     auto_stream.req.rrd.clear();
-    let path = manage_path(path_defs, &auto_stream.req.rrd.uri).map_err(From::from)?;
+    let path = manage_path(path_defs, &auto_stream.req.rrd.uri)?;
     self.0.call((PathStr(path),)).await.finalize_response(&mut auto_stream.req)
   }
 }
@@ -56,7 +56,7 @@ where
     let (body, headers, uri) = auto_stream.req.rrd.parts_mut();
     let mut new_req =
       Request::_new(auto_stream.req.method, (body, headers), auto_stream.req.version);
-    let path = manage_path(path_defs, uri).map_err(From::from)?;
+    let path = manage_path(path_defs, uri)?;
     self
       .0
       .call((

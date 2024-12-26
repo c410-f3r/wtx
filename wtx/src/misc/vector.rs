@@ -1,4 +1,4 @@
-use crate::misc::{BufferMode, Lease, LeaseMut, _unlikely_elem};
+use crate::misc::{BufferMode, Lease, LeaseMut, Wrapper, _unlikely_elem};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
@@ -62,7 +62,7 @@ impl<T> Vector<T> {
   /// ```
   #[expect(clippy::should_implement_trait, reason = "Std trait is infallible")]
   #[inline]
-  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Result<Self, VectorError> {
+  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
     let mut this = Self::new();
     this.extend_from_iter(iter)?;
     Ok(this)
@@ -98,7 +98,7 @@ impl<T> Vector<T> {
   /// assert!(vec.capacity() >= 2);
   /// ```
   #[inline(always)]
-  pub fn with_capacity(cap: usize) -> Result<Self, VectorError> {
+  pub fn with_capacity(cap: usize) -> crate::Result<Self> {
     let this = Self { data: Vec::with_capacity(cap) };
     // SAFETY: `len` will never be greater than the current capacity
     unsafe {
@@ -114,7 +114,7 @@ impl<T> Vector<T> {
   /// assert_eq!(vec.capacity(), 2);
   /// ```
   #[inline(always)]
-  pub fn with_exact_capacity(cap: usize) -> Result<Self, VectorError> {
+  pub fn with_exact_capacity(cap: usize) -> crate::Result<Self> {
     let mut this = Self { data: Vec::new() };
     this.reserve_exact(cap)?;
     Ok(this)
@@ -202,7 +202,7 @@ impl<T> Vector<T> {
   /// assert_eq!(vec.as_slice(), &[0, 1]);
   /// ```
   #[inline]
-  pub fn extend_from_iter(&mut self, ii: impl IntoIterator<Item = T>) -> Result<(), VectorError> {
+  pub fn extend_from_iter(&mut self, ii: impl IntoIterator<Item = T>) -> crate::Result<()> {
     let iter = ii.into_iter();
     self.data.reserve(iter.size_hint().0);
     for elem in iter {
@@ -221,10 +221,10 @@ impl<T> Vector<T> {
   /// assert_eq!(vec.as_slice(), [1, 4, 2, 3, 5]);
   /// ```
   #[inline]
-  pub fn insert(&mut self, idx: usize, elem: T) -> Result<(), VectorError> {
+  pub fn insert(&mut self, idx: usize, elem: T) -> crate::Result<()> {
     let len = self.len();
     if idx > len {
-      return _unlikely_elem(Err(VectorError::OutOfBoundsInsertIdx));
+      return _unlikely_elem(Err(VectorError::OutOfBoundsInsertIdx.into()));
     }
     self.reserve(1)?;
     // SAFETY: Top-level check ensures bounds
@@ -272,7 +272,7 @@ impl<T> Vector<T> {
   /// assert_eq!(vec.as_slice(), [3]);
   /// ```
   #[inline]
-  pub fn push(&mut self, value: T) -> Result<(), VectorError> {
+  pub fn push(&mut self, value: T) -> crate::Result<()> {
     self.reserve(1).map_err(|_err| VectorError::PushOverflow)?;
     let len = self.data.len();
     // SAFETY: `len` points to valid memory
@@ -317,7 +317,7 @@ impl<T> Vector<T> {
   /// assert!(vec.capacity() >= 10);
   /// ```
   #[inline(always)]
-  pub fn reserve(&mut self, additional: usize) -> Result<(), VectorError> {
+  pub fn reserve(&mut self, additional: usize) -> crate::Result<()> {
     self.data.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
     // SAFETY: `len` will never be greater than the current capacity
     unsafe {
@@ -337,7 +337,7 @@ impl<T> Vector<T> {
   /// assert!(vec.capacity() >= 10);
   /// ```
   #[inline(always)]
-  pub fn reserve_exact(&mut self, additional: usize) -> Result<(), VectorError> {
+  pub fn reserve_exact(&mut self, additional: usize) -> crate::Result<()> {
     self.data.try_reserve_exact(additional).map_err(|_err| VectorError::ReserveOverflow)?;
     // SAFETY: `len` will never be greater than the current capacity
     unsafe {
@@ -397,7 +397,7 @@ where
 {
   /// Constructs a new instance with elements provided by `iter`.
   #[inline]
-  pub fn from_cloneable_elem(len: usize, value: T) -> Result<Self, VectorError> {
+  pub fn from_cloneable_elem(len: usize, value: T) -> crate::Result<Self> {
     let mut this = Self::with_capacity(len)?;
     this.expand(BufferMode::Len(len), value)?;
     Ok(this)
@@ -413,7 +413,7 @@ where
   /// assert_eq!(vec.len(), 4);
   /// ```
   #[inline(always)]
-  pub fn expand(&mut self, bp: BufferMode, value: T) -> Result<(), VectorError> {
+  pub fn expand(&mut self, bp: BufferMode, value: T) -> crate::Result<()> {
     let len = self.data.len();
     let Some((additional, new_len)) = bp.params(len) else {
       return Ok(());
@@ -439,7 +439,7 @@ where
 {
   /// Constructs a new instance with elements provided by `slice`.
   #[inline]
-  pub fn from_slice(slice: &[T]) -> Result<Self, VectorError> {
+  pub fn from_slice(slice: &[T]) -> crate::Result<Self> {
     let mut this = Self::new();
     this.extend_from_copyable_slice(slice)?;
     Ok(this)
@@ -448,7 +448,7 @@ where
   /// Iterates over the slice `other`, copies each element, and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), VectorError> {
+  pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> crate::Result<()> {
     let _ = self.extend_from_copyable_slices([other])?;
     Ok(())
   }
@@ -457,7 +457,7 @@ where
   ///
   /// Returns the sum of the lengths of all slices.
   #[inline(always)]
-  pub fn extend_from_copyable_slices<'iter, I>(&mut self, others: I) -> Result<usize, VectorError>
+  pub fn extend_from_copyable_slices<'iter, I>(&mut self, others: I) -> crate::Result<usize>
   where
     I: IntoIterator<Item = &'iter [T]>,
     I::IntoIter: Clone,
@@ -467,7 +467,7 @@ where
     let iter = others.into_iter();
     for other in iter.clone() {
       let Some(curr_len) = len.checked_add(other.len()) else {
-        return Err(VectorError::ExtendFromSlicesOverflow);
+        return Err(VectorError::ExtendFromSlicesOverflow.into());
       };
       len = curr_len;
     }
@@ -632,6 +632,19 @@ impl<T> From<Vector<T>> for Vec<T> {
   #[inline]
   fn from(from: Vector<T>) -> Self {
     from.data
+  }
+}
+
+impl<E, T> FromIterator<T> for Wrapper<Result<Vector<T>, E>>
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn from_iter<I>(iter: I) -> Self
+  where
+    I: IntoIterator<Item = T>,
+  {
+    Wrapper(Vector::from_iter(iter).map_err(crate::Error::into))
   }
 }
 

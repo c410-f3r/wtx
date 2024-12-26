@@ -3,6 +3,4 @@
 pub struct Wrapper<T>(
   /// Element
   pub T,
-)
-where
-  T: Iterator;
+);

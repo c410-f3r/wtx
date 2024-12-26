@@ -142,6 +142,6 @@ where
 
   #[inline]
   fn stmt_id_str(stmt_hash: u64) -> crate::Result<ArrayString<22>> {
-    Ok(ArrayString::try_from(format_args!("s{stmt_hash}"))?)
+    ArrayString::try_from(format_args!("s{stmt_hash}"))
   }
 }

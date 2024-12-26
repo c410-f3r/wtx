@@ -1,6 +1,4 @@
-use crate::misc::{
-  partitioned_filled_buffer::PartitionedFilledBuffer, Lease, LeaseMut, Vector, VectorError,
-};
+use crate::misc::{partitioned_filled_buffer::PartitionedFilledBuffer, Lease, LeaseMut, Vector};
 
 #[derive(Debug)]
 #[doc = _internal_buffer_doc!()]
@@ -29,7 +27,7 @@ impl WebSocketBuffer {
     network_buffer_cap: usize,
     reader_buffer_cap: usize,
     writer_buffer_cap: usize,
-  ) -> Result<Self, VectorError> {
+  ) -> crate::Result<Self> {
     Ok(Self {
       network_buffer: PartitionedFilledBuffer::_with_capacity(network_buffer_cap)?,
       reader_buffer_first: Vector::with_capacity(reader_buffer_cap)?,

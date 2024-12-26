@@ -327,7 +327,7 @@ impl CorsMiddleware {
     body: &mut Vector<u8>,
   ) -> crate::Result<()> {
     if self.allow_headers.0 {
-      body.extend_from_copyable_slice(acrh.value).map_err(crate::Error::from)?;
+      body.extend_from_copyable_slice(acrh.value)?;
       return Ok(());
     }
     let mut uniques = HashSet::new();
@@ -345,11 +345,11 @@ impl CorsMiddleware {
     }
     let mut iter = uniques.iter();
     if let Some(elem) = iter.next() {
-      body.extend_from_copyable_slice(elem).map_err(crate::Error::from)?;
+      body.extend_from_copyable_slice(elem)?;
     }
     for elem in iter {
       let slices = [",".as_bytes(), elem];
-      let _ = body.extend_from_copyable_slices(slices).map_err(crate::Error::from)?;
+      let _ = body.extend_from_copyable_slices(slices)?;
     }
     Ok(())
   }
@@ -384,7 +384,7 @@ impl CorsMiddleware {
     } else {
       return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsOrigin));
     };
-    body.extend_from_copyable_slice(actual_origin).map_err(crate::Error::from)?;
+    body.extend_from_copyable_slice(actual_origin)?;
     Ok(())
   }
 }

@@ -81,7 +81,7 @@ where
   {
     let SessionManagerInner { cookie_def, phantom: _, key } = &mut *self.inner.lock().await;
     cookie_def.value.clear();
-    let id = GenericTime::timestamp().map_err(Into::into)?.as_nanos().to_be_bytes();
+    let id = GenericTime::timestamp()?.as_nanos().to_be_bytes();
     let local_state = if let Some(elem) = cookie_def.expire {
       let local_state = SessionState { custom_state, expire: Some(elem), id };
       store.create(&local_state).await?;
