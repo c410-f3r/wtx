@@ -21,7 +21,7 @@ where
   #[inline]
   pub fn new(ev: &'ev mut EncodeValue<'buffer, 'tmp>) -> Result<Self, E> {
     let start = ev.fbw()._len();
-    ev.fbw()._extend_from_slice(&[0; 4]).map_err(Into::into)?;
+    ev.fbw().extend_from_slice(&[0; 4])?;
     Ok(Self { ev, len: 0, phantom: PhantomData, start })
   }
 
@@ -40,12 +40,12 @@ where
   where
     T: Encode<Postgres<E>>,
   {
-    self.ev.fbw()._extend_from_slice(&u32::from(ty).to_be_bytes()).map_err(Into::into)?;
+    self.ev.fbw().extend_from_slice(&u32::from(ty).to_be_bytes())?;
     if value.is_null() {
-      self.ev.fbw()._extend_from_slice(&(-1i32).to_be_bytes()).map_err(Into::into)?;
+      self.ev.fbw().extend_from_slice(&(-1i32).to_be_bytes())?;
     } else {
       let len_start = self.ev.fbw()._len();
-      self.ev.fbw()._extend_from_slice(&[0; 4]).map_err(Into::into)?;
+      self.ev.fbw().extend_from_slice(&[0; 4])?;
       let elem_start = self.ev.fbw()._len();
       value.encode(self.ev)?;
       let len = self.ev.fbw()._len().wrapping_sub(elem_start).try_into().unwrap_or_default();

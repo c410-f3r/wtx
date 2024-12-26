@@ -55,7 +55,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
   /// The iterator is capped at `N`.
   #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> Result<Self, ArrayVectorError> {
+  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
     let mut this = Self::new();
     for elem in iter.into_iter().take(N) {
       let _rslt = this.push(elem);
@@ -121,10 +121,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
   /// Iterates over the slice `other`, copies each element, and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_iter(
-    &mut self,
-    iter: impl IntoIterator<Item = T>,
-  ) -> Result<(), ArrayVectorError> {
+  pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = T>) -> crate::Result<()> {
     for elem in iter {
       self.push(elem)?;
     }
@@ -133,12 +130,12 @@ impl<T, const N: usize> ArrayVector<T, N> {
 
   /// Return the inner fixed size array, if the capacity is full.
   #[inline]
-  pub fn into_inner(self) -> Result<[T; N], ArrayVectorError> {
+  pub fn into_inner(self) -> crate::Result<[T; N]> {
     if Usize::from_u32(self.len).into_usize() >= N {
       // SAFETY: All elements are initialized
       Ok(unsafe { ptr::read(self.data.as_ptr().cast()) })
     } else {
-      Err(ArrayVectorError::IntoInnerIncomplete)
+      Err(ArrayVectorError::IntoInnerIncomplete.into())
     }
   }
 
@@ -168,8 +165,9 @@ impl<T, const N: usize> ArrayVector<T, N> {
 
   /// Appends an element to the back of the collection.
   #[inline]
-  pub fn push(&mut self, value: T) -> Result<(), ArrayVectorError> {
-    self.do_push(value).map_err(|_err| ArrayVectorError::PushOverflow)
+  pub fn push(&mut self, value: T) -> crate::Result<()> {
+    self.do_push(value).map_err(|_err| ArrayVectorError::PushOverflow)?;
+    Ok(())
   }
 
   /// Shortens the vector, keeping the first `len` elements.
@@ -231,7 +229,7 @@ where
 {
   /// Creates a new instance with the copyable elements of `slice`.
   #[inline]
-  pub fn from_cloneable_slice(slice: &[T]) -> Result<Self, ArrayVectorError> {
+  pub fn from_cloneable_slice(slice: &[T]) -> crate::Result<Self> {
     let mut this = Self::new();
     this.extend_from_cloneable_slice(slice)?;
     Ok(this)
@@ -240,7 +238,7 @@ where
   /// Iterates over the slice `other`, clones each element and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub fn extend_from_cloneable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
+  pub fn extend_from_cloneable_slice(&mut self, other: &[T]) -> crate::Result<()> {
     for elem in other {
       self.push(elem.clone())?;
     }
@@ -254,7 +252,7 @@ where
 {
   /// Creates a new instance with the copyable elements of `slice`.
   #[inline]
-  pub fn from_copyable_slice(slice: &[T]) -> Result<Self, ArrayVectorError> {
+  pub fn from_copyable_slice(slice: &[T]) -> crate::Result<Self> {
     let mut this = Self::new();
     this.extend_from_copyable_slice(slice)?;
     Ok(this)
@@ -263,7 +261,7 @@ where
   /// Iterates over the slice `other`, copies each element and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]
-  pub const fn extend_from_copyable_slice(&mut self, other: &[T]) -> Result<(), ArrayVectorError> {
+  pub const fn extend_from_copyable_slice(&mut self, other: &[T]) -> crate::Result<()> {
     let len = self.len;
     let other_len_usize = other.len();
     let other_len_u32 = 'block: {
@@ -272,7 +270,7 @@ where
           break 'block other_len_u32;
         }
       }
-      return Err(ArrayVectorError::ExtendFromSliceOverflow);
+      return Err(crate::Error::ArrayVectorError(ArrayVectorError::ExtendFromSliceOverflow));
     };
     // SAFETY: The above check ensures bounds
     let dst = unsafe { self.as_ptr_mut().add(Usize::from_u32(len).into_usize()) };

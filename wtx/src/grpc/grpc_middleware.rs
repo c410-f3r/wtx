@@ -18,9 +18,7 @@ where
   type Aux = ();
 
   #[inline]
-  fn aux(&self) -> Self::Aux {
-    ()
-  }
+  fn aux(&self) -> Self::Aux {}
 
   #[inline]
   async fn req(

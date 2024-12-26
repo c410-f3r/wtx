@@ -1,4 +1,4 @@
-use crate::misc::{filled_buffer::FilledBuffer, FilledBufferWriter, Lease, LeaseMut, VectorError};
+use crate::misc::{filled_buffer::FilledBuffer, FilledBufferWriter, Lease, LeaseMut};
 use core::ops::Range;
 
 // ```
@@ -34,7 +34,7 @@ impl PartitionedFilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _with_capacity(cap: usize) -> Result<Self, VectorError> {
+  pub(crate) fn _with_capacity(cap: usize) -> crate::Result<Self> {
     Ok(Self {
       _antecedent_end_idx: 0,
       _buffer: FilledBuffer::_with_capacity(cap)?,
@@ -134,7 +134,7 @@ impl PartitionedFilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _reserve(&mut self, additional: usize) -> Result<(), VectorError> {
+  pub(crate) fn _reserve(&mut self, additional: usize) -> crate::Result<()> {
     self._buffer._reserve(additional)
   }
 

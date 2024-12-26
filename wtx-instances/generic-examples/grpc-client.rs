@@ -19,7 +19,10 @@ use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 async fn main() -> wtx::Result<()> {
   let mut client = Client::new(ClientFramework::tokio(1).build(), QuickProtobuf);
   let mut rrb = ReqResBuffer::empty();
-  rrb.uri.reset(format_args!("http://127.0.0.1:9000"))?;
+  rrb.uri.reset(|el| {
+    el.push_str("http://127.0.0.1:9000");
+    Ok(())
+  })?;
   let res = client
     .send_unary_req(
       ("wtx", "GenericService", "generic_method"),

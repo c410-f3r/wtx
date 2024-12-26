@@ -84,7 +84,7 @@ impl SessionManagerBuilder {
       async move {
         loop {
           local_store.delete_expired().await?;
-          sleep(inspection_interval).await.map_err(Into::into)?;
+          sleep(inspection_interval).await?;
         }
       },
       SessionManager {

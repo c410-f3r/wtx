@@ -45,7 +45,7 @@ macro_rules! impl_signed {
     $(
       impl FromRadix10 for $ty {
         #[inline]
-        fn from_radix_10(bytes: &[u8]) -> Result<Self, FromRadix10Error> {
+        fn from_radix_10(bytes: &[u8]) -> crate::Result<Self> {
           signed(
             bytes,
             (count_max_negative_digits!($ty), count_max_positive_digits!($ty)),
@@ -63,7 +63,7 @@ macro_rules! impl_unsigned {
     $(
       impl FromRadix10 for $ty {
         #[inline]
-        fn from_radix_10(bytes: &[u8]) -> Result<Self, FromRadix10Error> {
+        fn from_radix_10(bytes: &[u8]) -> crate::Result<Self> {
           unsigned(bytes, count_max_positive_digits!($ty), (0, 10), |byte| ascii_to_number!(byte))
         }
       }
@@ -90,7 +90,7 @@ pub enum FromRadix10Error {
 /// Tries to convert a set of bytes into an integer value.
 pub trait FromRadix10: Sized {
   /// Tries to convert a set of bytes into an integer value.
-  fn from_radix_10(bytes: &[u8]) -> Result<Self, FromRadix10Error>;
+  fn from_radix_10(bytes: &[u8]) -> crate::Result<Self>;
 }
 
 #[inline]
@@ -99,7 +99,7 @@ fn signed<T>(
   (max_negative_digits, max_positive_digits): (u8, u8),
   (zero, ten): (T, T),
   mut cb: impl FnMut(u8) -> Result<T, FromRadix10Error>,
-) -> Result<T, FromRadix10Error>
+) -> crate::Result<T>
 where
   T: Copy + Neg<Output = T>,
   Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>,
@@ -107,11 +107,11 @@ where
 {
   let mut iter = bytes.iter().copied();
   let Some(first_byte) = iter.next() else {
-    return Err(FromRadix10Error::EmptyBytes);
+    return Err(FromRadix10Error::EmptyBytes.into());
   };
   if first_byte == b'-' {
     if iter.len() > max_negative_digits.into() {
-      return Err(FromRadix10Error::VeryLargeBytesLen);
+      return Err(FromRadix10Error::VeryLargeBytesLen.into());
     }
     let mut rslt = Wrapping(zero);
     for byte in iter.take(max_negative_digits.into()) {
@@ -123,7 +123,7 @@ where
     Ok(-rslt.0)
   } else {
     if bytes.len() > max_positive_digits.into() {
-      return Err(FromRadix10Error::VeryLargeBytesLen);
+      return Err(FromRadix10Error::VeryLargeBytesLen.into());
     }
     let mut digit = cb(first_byte)?;
     let mut rslt = Wrapping(digit);
@@ -142,17 +142,17 @@ fn unsigned<T>(
   max_positive_digits: u8,
   (zero, ten): (T, T),
   mut cb: impl FnMut(u8) -> Result<T, FromRadix10Error>,
-) -> Result<T, FromRadix10Error>
+) -> crate::Result<T>
 where
   T: Copy,
   Wrapping<T>: Add<Wrapping<T>, Output = Wrapping<T>>,
   Wrapping<T>: Mul<Wrapping<T>, Output = Wrapping<T>>,
 {
   if bytes.is_empty() {
-    return Err(FromRadix10Error::EmptyBytes);
+    return Err(FromRadix10Error::EmptyBytes.into());
   }
   if bytes.len() > max_positive_digits.into() {
-    return Err(FromRadix10Error::VeryLargeBytesLen);
+    return Err(FromRadix10Error::VeryLargeBytesLen.into());
   }
   let mut rslt = Wrapping(zero);
   for byte in bytes.iter().copied().take(max_positive_digits.into()) {

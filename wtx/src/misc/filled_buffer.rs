@@ -1,10 +1,11 @@
-use crate::misc::{BufferMode, Vector, VectorError};
+use crate::misc::{BufferMode, Vector};
 use core::{
   fmt::Debug,
   ops::{Deref, DerefMut},
   slice,
 };
 
+/// A buffer that is always filled with initialized bytes.
 #[derive(Debug, Default)]
 pub(crate) struct FilledBuffer {
   data: Vector<u8>,
@@ -27,7 +28,7 @@ impl FilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _with_capacity(cap: usize) -> Result<Self, VectorError> {
+  pub(crate) fn _with_capacity(cap: usize) -> crate::Result<Self> {
     let mut data = Vector::with_capacity(cap)?;
     // SAFETY: memory have been allocated
     unsafe {
@@ -65,7 +66,7 @@ impl FilledBuffer {
   }
 
   #[inline(always)]
-  pub(crate) fn _expand(&mut self, bp: BufferMode) -> Result<(), VectorError> {
+  pub(crate) fn _expand(&mut self, bp: BufferMode) -> crate::Result<()> {
     let len = self.data.len();
     let Some((additional, new_len)) = bp.params(len) else {
       return Ok(());
@@ -79,13 +80,13 @@ impl FilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _extend_from_slice(&mut self, other: &[u8]) -> Result<(), VectorError> {
+  pub(crate) fn _extend_from_slice(&mut self, other: &[u8]) -> crate::Result<()> {
     let _ = self._extend_from_slices([other])?;
     Ok(())
   }
 
   #[inline]
-  pub(crate) fn _extend_from_slices<'iter, I>(&mut self, others: I) -> Result<usize, VectorError>
+  pub(crate) fn _extend_from_slices<'iter, I>(&mut self, others: I) -> crate::Result<usize>
   where
     I: IntoIterator<Item = &'iter [u8]>,
     I::IntoIter: Clone,
@@ -100,7 +101,7 @@ impl FilledBuffer {
   }
 
   #[inline(always)]
-  pub(crate) fn _reserve(&mut self, additional: usize) -> Result<(), VectorError> {
+  pub(crate) fn _reserve(&mut self, additional: usize) -> crate::Result<()> {
     let prev_cap = self.data.capacity();
     self.data.reserve(additional)?;
     // SAFETY: memory have been allocated

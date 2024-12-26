@@ -112,8 +112,8 @@ pub(crate) mod database {
     ($uri_str:expr, |$config:ident, $uri:ident| $cb:expr) => {{
       let $uri = crate::misc::UriRef::new($uri_str);
       let config_rslt = crate::database::client::postgres::Config::from_uri(&$uri);
-      let $config = config_rslt.map_err(Into::into)?;
-      $cb.await.map_err(Into::into)
+      let $config = config_rslt?;
+      Ok($cb.await?)
     }};
   }
 

@@ -71,7 +71,7 @@ impl<const N: usize> ArrayString<N> {
 
   /// Appends an element to the back of the collection.
   #[inline]
-  pub fn push(&mut self, ch: char) -> Result<(), ArrayStringError> {
+  pub fn push(&mut self, ch: char) -> crate::Result<()> {
     self.push_bytes(ArrayStringError::PushOverflow, char_slice(&mut [0; 4], ch))
   }
 
@@ -82,7 +82,7 @@ impl<const N: usize> ArrayString<N> {
   ///
   /// If there is no available capacity.
   #[inline]
-  pub fn push_str(&mut self, str: &str) -> Result<(), ArrayStringError> {
+  pub fn push_str(&mut self, str: &str) -> crate::Result<()> {
     self.push_bytes(ArrayStringError::PushStrOverflow, str.as_bytes())
   }
 
@@ -94,10 +94,10 @@ impl<const N: usize> ArrayString<N> {
 
   /// How many elements can be added to this collection.
   #[inline]
-  pub fn replace(&mut self, start: usize, str: &str) -> Result<(), ArrayStringError> {
+  pub fn replace(&mut self, start: usize, str: &str) -> crate::Result<()> {
     let Some(slice) = start.checked_add(str.len()).and_then(|end| self.data.get_mut(start..end))
     else {
-      return Err(ArrayStringError::ReplaceHasOutOfBoundsParams);
+      return Err(ArrayStringError::ReplaceHasOutOfBoundsParams.into());
     };
     slice.copy_from_slice(str.as_bytes());
     Ok(())
@@ -124,10 +124,10 @@ impl<const N: usize> ArrayString<N> {
   }
 
   #[inline]
-  fn push_bytes(&mut self, error: ArrayStringError, other: &[u8]) -> Result<(), ArrayStringError> {
+  fn push_bytes(&mut self, error: ArrayStringError, other: &[u8]) -> crate::Result<()> {
     let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining_capacity() >= *el)
     else {
-      return Err(error);
+      return Err(error.into());
     };
     let begin = *Usize::from(self.len);
     let end = *Usize::from(self.len.wrapping_add(len));
@@ -252,7 +252,7 @@ impl<const N: usize> Ord for ArrayString<N> {
 }
 
 impl<'args, const N: usize> TryFrom<Arguments<'args>> for ArrayString<N> {
-  type Error = ArrayStringError;
+  type Error = crate::Error;
 
   #[inline]
   fn try_from(from: Arguments<'args>) -> Result<Self, Self::Error> {
@@ -263,7 +263,7 @@ impl<'args, const N: usize> TryFrom<Arguments<'args>> for ArrayString<N> {
 }
 
 impl<const N: usize> TryFrom<&str> for ArrayString<N> {
-  type Error = ArrayStringError;
+  type Error = crate::Error;
 
   #[inline]
   fn try_from(from: &str) -> Result<Self, Self::Error> {

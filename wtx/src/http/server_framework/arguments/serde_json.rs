@@ -73,7 +73,7 @@ where
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    push_content_type(req).map_err(crate::Error::from)?;
+    push_content_type(req)?;
     serde_json::to_writer(&mut req.rrd.lease_mut().body, &self.0).map_err(crate::Error::from)?;
     Ok(StatusCode::Ok)
   }
@@ -87,7 +87,7 @@ where
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    push_content_type(req).map_err(crate::Error::from)?;
+    push_content_type(req)?;
     serde_collect_seq_rslt(
       &mut serde_json::Serializer::new(&mut req.rrd.lease_mut().body),
       self.0 .0,

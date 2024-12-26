@@ -54,7 +54,7 @@ where
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    req.rrd.body.extend_from_copyable_slice(self.as_bytes()).map_err(From::from)?;
+    req.rrd.body.extend_from_copyable_slice(self.as_bytes())?;
     Ok(StatusCode::Ok)
   }
 }

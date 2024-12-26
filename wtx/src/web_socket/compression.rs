@@ -8,10 +8,7 @@ mod window_bits;
 
 #[cfg(feature = "flate2")]
 pub use self::flate2::{Flate2, NegotiatedFlate2};
-use crate::{
-  http::GenericHeader,
-  misc::{FilledBufferWriter, VectorError},
-};
+use crate::{http::GenericHeader, misc::FilledBufferWriter};
 pub use compression_level::CompressionLevel;
 pub use deflate_config::DeflateConfig;
 pub use window_bits::WindowBits;
@@ -29,7 +26,7 @@ pub trait Compression<const IS_CLIENT: bool> {
   ) -> crate::Result<Self::NegotiatedCompression>;
 
   /// Writes headers bytes that will be sent to the server.
-  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError>;
+  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()>;
 }
 
 impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
@@ -44,7 +41,7 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for () {
   }
 
   #[inline]
-  fn write_req_headers(&self, _: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+  fn write_req_headers(&self, _: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -76,7 +73,7 @@ pub trait NegotiatedCompression {
   fn rsv1(&self) -> u8;
 
   /// Write response headers
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError>;
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()>;
 }
 
 impl<T> NegotiatedCompression for &mut T
@@ -113,7 +110,7 @@ where
   }
 
   #[inline]
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
     (**self).write_res_headers(fbw)
   }
 }
@@ -149,7 +146,7 @@ impl NegotiatedCompression for () {
   }
 
   #[inline]
-  fn write_res_headers(&self, _: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+  fn write_res_headers(&self, _: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -197,7 +194,7 @@ where
   }
 
   #[inline]
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> Result<(), VectorError> {
+  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
     match self {
       Some(el) => el.write_res_headers(fbw),
       None => ().write_res_headers(fbw),

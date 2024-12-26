@@ -44,9 +44,7 @@ where
   type Aux = ();
 
   #[inline]
-  fn aux(&self) -> Self::Aux {
-    ()
-  }
+  fn aux(&self) -> Self::Aux {}
 
   #[inline]
   async fn req(
@@ -78,7 +76,7 @@ where
         continue;
       }
       let idx = req.rrd.body.len();
-      req.rrd.body.extend_from_copyable_slice(&cookie_def.value).map_err(Into::into)?;
+      req.rrd.body.extend_from_copyable_slice(&cookie_def.value)?;
       cookie_def.value.clear();
       let dec_rslt = decrypt(
         &mut cookie_def.value,

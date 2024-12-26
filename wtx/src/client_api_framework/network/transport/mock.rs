@@ -102,10 +102,7 @@ where
   {
     let response = self.pop_response()?;
     pkgs_aux.byte_buffer.clear();
-    pkgs_aux
-      .byte_buffer
-      .extend_from_copyable_slice(response.as_ref().lease())
-      .map_err(Into::into)?;
+    pkgs_aux.byte_buffer.extend_from_copyable_slice(response.as_ref().lease())?;
     Ok(0..pkgs_aux.byte_buffer.len())
   }
 }
@@ -127,10 +124,7 @@ where
     P: Package<A, DRSR, TP>,
   {
     manage_before_sending_related(pkg, pkgs_aux, &mut *self).await?;
-    self
-      .requests
-      .push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))
-      .map_err(Into::into)?;
+    self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
     pkgs_aux.byte_buffer.clear();
     manage_after_sending_related(pkg, pkgs_aux).await?;
     Ok(())

@@ -24,20 +24,16 @@ where
   RV: RecordValues<Postgres<E>>,
 {
   write(fbw, true, Some(b'B'), |local_fbw| {
-    local_fbw
-      ._extend_from_slices_each_c(&[portal.as_bytes(), stmt_id_str.as_bytes()])
-      .map_err(Into::into)?;
+    local_fbw._extend_from_slices_each_c(&[portal.as_bytes(), stmt_id_str.as_bytes()])?;
     let rv_len = rv.len();
 
     write_iter(local_fbw, (0..rv_len).map(|_| 1i16), None, |elem, local_local_fbw| {
-      local_local_fbw._extend_from_slice(&elem.to_be_bytes())?;
+      local_local_fbw.extend_from_slice(&elem.to_be_bytes())?;
       Ok(())
     })?;
 
     {
-      local_fbw
-        ._extend_from_slice(&i16::try_from(rv_len).map_err(Into::into)?.to_be_bytes())
-        .map_err(Into::into)?;
+      local_fbw.extend_from_slice(&i16::try_from(rv_len).map_err(Into::into)?.to_be_bytes())?;
       let mut aux = (0usize, 0);
       let _ = rv.encode_values(
         &mut aux,
@@ -45,7 +41,7 @@ where
         |(counter, start), local_ev| {
           *counter = counter.wrapping_add(1);
           *start = local_ev.fbw()._len();
-          let _rslt = local_ev.fbw()._extend_from_slice(&[0; 4]);
+          let _rslt = local_ev.fbw().extend_from_slice(&[0; 4]);
           4
         },
         |(_, start), local_ev, is_null, elem_len| {
@@ -67,7 +63,7 @@ where
     }
 
     write_iter(local_fbw, &[1i16], None, |elem, local_local_fbw| {
-      local_local_fbw._extend_from_slice(&elem.to_be_bytes())?;
+      local_local_fbw.extend_from_slice(&elem.to_be_bytes())?;
       Ok(())
     })?;
 
@@ -91,7 +87,7 @@ pub(crate) fn describe(
 #[inline]
 pub(crate) fn encrypted_conn(fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
   write(fbw, true, None, |local_fbw| {
-    local_fbw._extend_from_slice(&0b0000_0100_1101_0010_0001_0110_0010_1111i32.to_be_bytes())?;
+    local_fbw.extend_from_slice(&0b0000_0100_1101_0010_0001_0110_0010_1111i32.to_be_bytes())?;
     Ok::<_, crate::Error>(())
   })
 }
@@ -104,7 +100,7 @@ pub(crate) fn execute(
 ) -> crate::Result<()> {
   write(fbw, true, Some(b'E'), |local_fbw| {
     local_fbw._extend_from_slice_c(portal.as_bytes())?;
-    local_fbw._extend_from_slice(&max_rows.to_be_bytes())?;
+    local_fbw.extend_from_slice(&max_rows.to_be_bytes())?;
     Ok::<_, crate::Error>(())
   })
 }
@@ -115,7 +111,7 @@ pub(crate) fn initial_conn_msg(
   fbw: &mut FilledBufferWriter<'_>,
 ) -> crate::Result<()> {
   write(fbw, true, None, |local_fbw| {
-    local_fbw._extend_from_slice(&0b11_0000_0000_0000_0000i32.to_be_bytes())?;
+    local_fbw.extend_from_slice(&0b11_0000_0000_0000_0000i32.to_be_bytes())?;
     local_fbw._extend_from_slices_each_c(&[b"user", config.user.as_bytes()])?;
     local_fbw._extend_from_slices_each_c(&[b"database", config.db.as_bytes()])?;
     if !config.app_name.is_empty() {
@@ -144,7 +140,7 @@ pub(crate) fn parse(
   write(fbw, true, Some(b'P'), |local_fbw| {
     local_fbw._extend_from_slices_each_c(&[name.as_bytes(), cmd.as_bytes()])?;
     write_iter(local_fbw, iter, None, |ty, local_local_fbw| {
-      local_local_fbw._extend_from_slice(&ty.to_be_bytes())?;
+      local_local_fbw.extend_from_slice(&ty.to_be_bytes())?;
       Ok(())
     })
   })
@@ -167,9 +163,9 @@ pub(crate) fn sasl_first(
   write(fbw, true, Some(b'p'), |local_fbw| {
     local_fbw._extend_from_slice_c(method_bytes)?;
     write(local_fbw, false, None, |local_local_fbw| {
-      local_local_fbw._extend_from_slice(method_header)?;
-      local_local_fbw._extend_from_slice(b"n=,r=")?;
-      local_local_fbw._extend_from_slice(nonce)?;
+      local_local_fbw.extend_from_slice(method_header)?;
+      local_local_fbw.extend_from_slice(b"n=,r=")?;
+      local_local_fbw.extend_from_slice(nonce)?;
       Ok::<_, crate::Error>(())
     })
   })?;
@@ -186,7 +182,7 @@ pub(crate) fn sasl_second(
   tls_server_end_point: &[u8],
 ) -> crate::Result<()> {
   write(fbw, true, Some(b'p'), |local_fbw| {
-    local_fbw._extend_from_slice(b"c=")?;
+    local_fbw.extend_from_slice(b"c=")?;
     {
       let n = STANDARD.encode_slice(method_header, local_fbw._remaining_bytes_mut())?;
       local_fbw._shift_idx(n)?;
@@ -223,7 +219,7 @@ pub(crate) fn sasl_second(
     }
 
     {
-      local_fbw._extend_from_slice(b",p=")?;
+      local_fbw.extend_from_slice(b",p=")?;
       let n = STANDARD.encode_slice(client_proof, local_fbw._remaining_bytes_mut())?;
       local_fbw._shift_idx(n)?;
     }
@@ -249,15 +245,15 @@ where
   E: From<crate::Error>,
 {
   if let Some(elem) = prefix {
-    fbw._extend_from_byte(elem).map_err(Into::into)?;
+    fbw._extend_from_byte(elem)?;
   }
   let (len_before, start) = if include_len {
     let len = fbw._len();
-    fbw._extend_from_slice(&[0; 4]).map_err(Into::into)?;
+    fbw.extend_from_slice(&[0; 4])?;
     (len, len)
   } else {
     let start = fbw._len();
-    fbw._extend_from_slice(&[0; 4]).map_err(Into::into)?;
+    fbw.extend_from_slice(&[0; 4])?;
     (fbw._len(), start)
   };
   cb(fbw)?;
@@ -283,10 +279,10 @@ where
   E: From<crate::Error>,
 {
   if let Some(elem) = prefix {
-    fbw._extend_from_byte(elem).map_err(Into::into)?;
+    fbw._extend_from_byte(elem)?;
   }
   let len_before = fbw._len();
-  fbw._extend_from_slice(&[0; 2]).map_err(Into::into)?;
+  fbw.extend_from_slice(&[0; 2])?;
   let mut counter: usize = 0;
   for elem in iter.into_iter().take(u16::MAX.into()) {
     cb(elem, fbw)?;

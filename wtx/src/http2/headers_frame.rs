@@ -227,12 +227,21 @@ impl<'uri> HeadersFrame<'uri> {
           return Err(protocol_err(Http2Error::InvalidHeaderData));
         } else {
         }
-        rrb_uri.reset(format_args!(
-          "{}://{}{}",
-          uri_buffer.scheme.as_str(),
-          uri_buffer.authority.as_str(),
-          uri_buffer.path.as_str()
-        ))?;
+        rrb_uri.reset(|buffer| {
+          buffer.reserve(*Usize::from(
+            uri_buffer
+              .scheme
+              .len()
+              .wrapping_add(uri_buffer.authority.len())
+              .wrapping_add(uri_buffer.path.len())
+              .wrapping_add(3),
+          ));
+          buffer.push_str(uri_buffer.scheme.as_str());
+          buffer.push_str("://");
+          buffer.push_str(uri_buffer.authority.as_str());
+          buffer.push_str(uri_buffer.path.as_str());
+          Ok(())
+        })?;
       }
     }
 

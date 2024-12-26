@@ -55,7 +55,7 @@ mod array {
   {
     #[inline]
     fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
-      Ok(from_utf8_basic(dv.bytes()).map_err(Into::into)?.try_into().map_err(Into::into)?)
+      Ok(from_utf8_basic(dv.bytes()).map_err(Into::into)?.try_into()?)
     }
   }
   impl<E, const N: usize> Encode<Postgres<E>> for ArrayString<N>
@@ -64,7 +64,7 @@ mod array {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_slice(self.as_str().as_bytes()).map_err(Into::into)?;
+      ev.fbw().extend_from_slice(self.as_str().as_bytes())?;
       Ok(())
     }
   }
@@ -247,7 +247,7 @@ mod collections {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_slice(self).map_err(Into::into)?;
+      ev.fbw().extend_from_slice(self)?;
       Ok(())
     }
   }
@@ -276,7 +276,7 @@ mod collections {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_slice(self.as_bytes()).map_err(Into::into)?;
+      ev.fbw().extend_from_slice(self.as_bytes())?;
       Ok(())
     }
   }
@@ -308,7 +308,7 @@ mod collections {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_slice(self.as_bytes()).map_err(Into::into)?;
+      ev.fbw().extend_from_slice(self.as_bytes())?;
       Ok(())
     }
   }
@@ -380,7 +380,7 @@ mod ip {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_slices([&[2, 32, 0, 4][..], &self.octets()]).map_err(Into::into)?;
+      ev.fbw()._extend_from_slices([&[2, 32, 0, 4][..], &self.octets()])?;
       Ok(())
     }
   }
@@ -410,7 +410,7 @@ mod ip {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_slices([&[3, 128, 0, 16][..], &self.octets()]).map_err(Into::into)?;
+      ev.fbw()._extend_from_slices([&[3, 128, 0, 16][..], &self.octets()])?;
       Ok(())
     }
   }
@@ -494,19 +494,19 @@ mod pg_numeric {
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
       match self {
         _PgNumeric::NaN => {
-          ev.fbw()._extend_from_slice(&0i16.to_be_bytes()).map_err(Into::into)?;
-          ev.fbw()._extend_from_slice(&0i16.to_be_bytes()).map_err(Into::into)?;
-          ev.fbw()._extend_from_slice(&SIGN_NAN.to_be_bytes()).map_err(Into::into)?;
-          ev.fbw()._extend_from_slice(&0u16.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw().extend_from_slice(&0i16.to_be_bytes())?;
+          ev.fbw().extend_from_slice(&0i16.to_be_bytes())?;
+          ev.fbw().extend_from_slice(&SIGN_NAN.to_be_bytes())?;
+          ev.fbw().extend_from_slice(&0u16.to_be_bytes())?;
         }
         _PgNumeric::Number { digits, scale, sign, weight } => {
           let len: i16 = digits.len().try_into().map_err(Into::into)?;
-          ev.fbw()._extend_from_slice(&len.to_be_bytes()).map_err(Into::into)?;
-          ev.fbw()._extend_from_slice(&weight.to_be_bytes()).map_err(Into::into)?;
-          ev.fbw()._extend_from_slice(&u16::from(*sign).to_be_bytes()).map_err(Into::into)?;
-          ev.fbw()._extend_from_slice(&scale.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw().extend_from_slice(&len.to_be_bytes())?;
+          ev.fbw().extend_from_slice(&weight.to_be_bytes())?;
+          ev.fbw().extend_from_slice(&u16::from(*sign).to_be_bytes())?;
+          ev.fbw().extend_from_slice(&scale.to_be_bytes())?;
           for digit in digits {
-            ev.fbw()._extend_from_slice(&digit.to_be_bytes()).map_err(Into::into)?;
+            ev.fbw().extend_from_slice(&digit.to_be_bytes())?;
           }
         }
       }
@@ -580,7 +580,7 @@ mod primitives {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_byte((*self).into()).map_err(Into::into)?;
+      ev.fbw()._extend_from_byte((*self).into())?;
       Ok(())
     }
   }
@@ -618,7 +618,7 @@ mod primitives {
           if *self >> const { $unsigned::BITS - 1 } == 1 {
             return Err(E::from(PostgresError::InvalidPostgresUint.into()));
           }
-          ev.fbw()._extend_from_slice(&self.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw().extend_from_slice(&self.to_be_bytes())?;
           Ok(())
         }
       }
@@ -657,7 +657,7 @@ mod primitives {
       {
         #[inline]
         fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-          ev.fbw()._extend_from_slice(&self.to_be_bytes()).map_err(Into::into)?;
+          ev.fbw().extend_from_slice(&self.to_be_bytes())?;
           Ok(())
         }
       }
@@ -760,7 +760,7 @@ mod rust_decimal {
 
       let mut digits = ArrayVector::new();
       while mantissa != 0 {
-        digits.push((mantissa % 10_000) as i16).map_err(From::from)?;
+        digits.push((mantissa % 10_000) as i16)?;
         mantissa /= 10_000;
       }
       digits.reverse();
@@ -824,7 +824,7 @@ mod serde_json {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_byte(1).map_err(Into::into)?;
+      ev.fbw()._extend_from_byte(1)?;
       serde_json::to_writer(ev.fbw(), &self.0).map_err(Into::into)?;
       Ok(())
     }
@@ -862,7 +862,7 @@ mod uuid {
   {
     #[inline]
     fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
-      ev.fbw()._extend_from_slice(self.as_bytes()).map_err(Into::into)?;
+      ev.fbw().extend_from_slice(self.as_bytes())?;
       Ok(())
     }
   }
