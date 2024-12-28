@@ -1,3 +1,8 @@
+use crate::{
+  data_transformation::dnsn::{DecodeWrapper, Dnsn, EncodeWrapper},
+  misc::{Decode, DecodeSeq, Encode, Vector},
+};
+
 /// `GraphQL` request/operation, can be a query or a mutation.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
@@ -12,26 +17,56 @@ pub struct GraphQlRequest<ON, Q, V> {
   pub variables: Option<V>,
 }
 
+impl<'de, ON, Q, V> Decode<'de, Dnsn<()>> for GraphQlRequest<ON, Q, V>
+where
+  Q: Default,
+{
+  #[inline]
+  fn decode(_: &mut DecodeWrapper<'_, 'de, ()>) -> crate::Result<Self> {
+    Ok(Self { operation_name: None, query: Q::default(), variables: None })
+  }
+}
+
+impl<'de, ON, Q, V> DecodeSeq<'de, Dnsn<()>> for GraphQlRequest<ON, Q, V>
+where
+  Q: Default,
+{
+  #[inline]
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'_, 'de, ()>) -> crate::Result<()> {
+    Ok(())
+  }
+}
+
+impl<ON, Q, V> Encode<Dnsn<()>> for GraphQlRequest<ON, Q, V> {
+  #[inline]
+  fn encode(&self, _: &mut EncodeWrapper<'_, ()>) -> crate::Result<()> {
+    Ok(())
+  }
+}
+
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::{
-    data_transformation::{dnsn::SerdeJson, format::GraphQlRequest},
-    misc::Vector,
+    data_transformation::{
+      dnsn::{Dnsn, EncodeWrapper, SerdeJson},
+      format::GraphQlRequest,
+    },
+    misc::Encode,
   };
   use serde::Serialize;
 
-  impl<ON, Q, V> crate::data_transformation::dnsn::Serialize<SerdeJson> for GraphQlRequest<ON, Q, V>
+  impl<ON, Q, V> Encode<Dnsn<SerdeJson>> for GraphQlRequest<ON, Q, V>
   where
     ON: Serialize,
     Q: Serialize,
     V: Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
+    fn encode(&self, ew: &mut EncodeWrapper<'_, SerdeJson>) -> crate::Result<()> {
       if size_of::<Self>() == 0 {
         return Ok(());
       }
-      serde_json::to_writer(bytes, self)?;
+      serde_json::to_writer(&mut *ew.vector, self)?;
       Ok(())
     }
   }

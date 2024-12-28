@@ -5,8 +5,8 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  data_transformation::dnsn::Deserialize,
-  misc::Lease,
+  data_transformation::dnsn::DecodeWrapper,
+  misc::{Decode, Lease},
 };
 use core::{future::Future, ops::Range};
 
@@ -15,7 +15,10 @@ use core::{future::Future, ops::Range};
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait RecievingTransport<DRSR>: Transport<DRSR> {
+pub trait RecievingTransport<DRSR>: Transport<DRSR>
+where
+  for<'any> DRSR: 'any,
+{
   /// Retrieves data from the server filling the internal buffer and returning the amount of
   /// bytes written.
   fn recv<A>(
@@ -39,10 +42,10 @@ pub trait RecievingTransport<DRSR>: Transport<DRSR> {
     async {
       let range = self.recv(pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      Ok(P::ExternalResponseContent::from_bytes(
+      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(
         pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,
-      )?)
+      ))?)
     }
   }
 }
@@ -50,6 +53,7 @@ pub trait RecievingTransport<DRSR>: Transport<DRSR> {
 impl<DRSR, T> RecievingTransport<DRSR> for &mut T
 where
   T: RecievingTransport<DRSR>,
+  for<'any> DRSR: 'any,
 {
   #[inline]
   async fn recv<A>(

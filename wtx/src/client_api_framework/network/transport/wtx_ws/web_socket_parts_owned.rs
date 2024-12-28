@@ -18,6 +18,7 @@ where
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
 {
   #[inline]
   async fn recv<A>(
@@ -37,6 +38,7 @@ where
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
 {
   #[inline]
   async fn send<A, P>(

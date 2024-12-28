@@ -58,6 +58,31 @@ impl DbMigration {
   }
 }
 
+#[cfg(feature = "mysql")]
+impl<E> crate::database::FromRecord<crate::database::client::mysql::Mysql<E>> for DbMigration
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn from_record(from: &crate::database::client::mysql::Record<'_, E>) -> Result<Self, E> {
+    use crate::database::Record as _;
+    Ok(Self {
+      common: MigrationCommon {
+        checksum: _checksum_from_str(from.decode("checksum")?)?,
+        name: from.decode::<_, &str>("name")?.try_into().map_err(From::from)?,
+        repeatability: _from_u32(from.decode_opt("repeatability")?),
+        version: from.decode("version")?,
+      },
+      created_on: from.decode("created_on")?,
+      db_ty: DatabaseTy::Mysql,
+      group: MigrationGroup::new(
+        from.decode::<_, &str>("omg_name")?.try_into().map_err(From::from)?,
+        from.decode("omg_version")?,
+      ),
+    })
+  }
+}
+
 #[cfg(feature = "postgres")]
 impl<E> crate::database::FromRecord<crate::database::client::postgres::Postgres<E>> for DbMigration
 where

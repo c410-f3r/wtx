@@ -1,6 +1,6 @@
 use crate::{
-  database::{Database, Encode},
-  misc::{IterWrapper, Lease},
+  database::Database,
+  misc::{Encode, IterWrapper, Lease},
 };
 
 /// Values that can passed to a record as parameters. For example, in a query.
@@ -12,9 +12,9 @@ where
   fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    ev: &mut D::EncodeValue<'buffer, 'tmp>,
-    prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
-    suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+    ev: &mut D::EncodeWrapper<'buffer, 'tmp>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
   ) -> Result<usize, D::Error>
   where
     'buffer: 'tmp;
@@ -32,9 +32,9 @@ where
   fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    ev: &mut D::EncodeValue<'buffer, 'tmp>,
-    prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
-    suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+    ev: &mut D::EncodeWrapper<'buffer, 'tmp>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     (**self).encode_values(aux, ev, prefix_cb, suffix_cb)
   }
@@ -54,9 +54,9 @@ where
   fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    ev: &mut D::EncodeValue<'buffer, 'tmp>,
-    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
-    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+    ev: &mut D::EncodeWrapper<'buffer, 'tmp>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     for elem in *self {
@@ -81,9 +81,9 @@ where
   fn encode_values<'buffer, 'tmp, A>(
     &mut self,
     aux: &mut A,
-    ev: &mut D::EncodeValue<'buffer, 'tmp>,
-    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
-    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+    ev: &mut D::EncodeWrapper<'buffer, 'tmp>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
   ) -> Result<usize, D::Error> {
     let mut n: usize = 0;
     for elem in self.0.by_ref() {
@@ -102,19 +102,19 @@ where
 pub(crate) fn encode<'buffer, 'tmp, A, D, T>(
   aux: &mut A,
   elem: &T,
-  ev: &mut D::EncodeValue<'buffer, 'tmp>,
+  ev: &mut D::EncodeWrapper<'buffer, 'tmp>,
   n: &mut usize,
-  prefix_cb: &mut impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>) -> usize,
-  suffix_cb: &mut impl FnMut(&mut A, &mut D::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+  prefix_cb: &mut impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>) -> usize,
+  suffix_cb: &mut impl FnMut(&mut A, &mut D::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
 ) -> Result<(), D::Error>
 where
   D: Database,
   T: Encode<D>,
 {
   *n = n.wrapping_add(prefix_cb(aux, ev));
-  let elem_before = ev.lease()._len();
+  let elem_before = ev.lease().len();
   elem.encode(ev)?;
-  let elem_len = ev.lease()._len().wrapping_sub(elem_before);
+  let elem_len = ev.lease().len().wrapping_sub(elem_before);
   *n = n.wrapping_add(elem_len);
   *n = n.wrapping_add(suffix_cb(aux, ev, elem.is_null(), elem_len));
   Ok(())

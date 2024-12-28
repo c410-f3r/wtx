@@ -1,16 +1,27 @@
-use crate::misc::{filled_buffer::FilledBuffer, BufferMode, Lease, LeaseMut};
+use crate::misc::{BufferMode, FilledBufferVectorMut, Lease, LeaseMut, Vector};
 
-/// Helper that manages the copy of initialized bytes.
+/// Helper that appends data into a [FilledBufferVectorMut].
+pub type SuffixWriterFbvm<'fb> = SuffixWriter<FilledBufferVectorMut<'fb>>;
+/// Helper that appends data into a mutable vector.
+pub type SuffixWriterMut<'vec> = SuffixWriter<&'vec mut Vector<u8>>;
+
+/// Helper that appends data
 #[derive(Debug)]
-pub struct FilledBufferWriter<'vec> {
+pub struct SuffixWriter<V>
+where
+  V: LeaseMut<Vector<u8>>,
+{
   _curr_idx: usize,
   _initial_idx: usize,
-  _vec: &'vec mut FilledBuffer,
+  _vec: V,
 }
 
-impl<'vec> FilledBufferWriter<'vec> {
+impl<V> SuffixWriter<V>
+where
+  V: LeaseMut<Vector<u8>>,
+{
   #[inline]
-  pub(crate) fn new(start: usize, vec: &'vec mut FilledBuffer) -> Self {
+  pub(crate) fn new(start: usize, vec: V) -> Self {
     Self { _curr_idx: start, _initial_idx: start, _vec: vec }
   }
 
@@ -23,12 +34,12 @@ impl<'vec> FilledBufferWriter<'vec> {
 
   #[inline]
   pub(crate) fn _curr_bytes(&self) -> &[u8] {
-    self._vec.get(self._initial_idx..self._curr_idx).unwrap_or_default()
+    self._vec.lease().get(self._initial_idx..self._curr_idx).unwrap_or_default()
   }
 
   #[inline]
   pub(crate) fn _curr_bytes_mut(&mut self) -> &mut [u8] {
-    self._vec.get_mut(self._initial_idx..self._curr_idx).unwrap_or_default()
+    self._vec.lease_mut().get_mut(self._initial_idx..self._curr_idx).unwrap_or_default()
   }
 
   #[inline]
@@ -47,7 +58,7 @@ impl<'vec> FilledBufferWriter<'vec> {
     I: IntoIterator<Item = &'iter [u8]>,
     I::IntoIter: Clone,
   {
-    let sum = self._vec._extend_from_slices(slices)?;
+    let sum = self._vec.lease_mut().extend_from_copyable_slices(slices)?;
     self._curr_idx = self._curr_idx.wrapping_add(sum);
     Ok(())
   }
@@ -78,41 +89,53 @@ impl<'vec> FilledBufferWriter<'vec> {
 
   #[inline]
   pub(crate) fn _remaining_bytes_mut(&mut self) -> &mut [u8] {
-    self._vec._all_mut().get_mut(self._curr_idx..).unwrap_or_default()
+    self._vec.lease_mut().get_mut(self._curr_idx..).unwrap_or_default()
   }
 
   #[inline]
   pub(crate) fn _shift_idx(&mut self, n: usize) -> crate::Result<()> {
     let new_len = self._curr_idx.wrapping_add(n);
-    self._vec._expand(BufferMode::Len(new_len))?;
+    self._vec.lease_mut().expand(BufferMode::Len(new_len), 0)?;
     self._curr_idx = new_len;
     Ok(())
   }
 }
 
-impl<'vec> Lease<FilledBufferWriter<'vec>> for FilledBufferWriter<'vec> {
+impl<V> Lease<SuffixWriter<V>> for SuffixWriter<V>
+where
+  V: LeaseMut<Vector<u8>>,
+{
   #[inline]
-  fn lease(&self) -> &FilledBufferWriter<'vec> {
+  fn lease(&self) -> &SuffixWriter<V> {
     self
   }
 }
 
-impl<'vec> LeaseMut<FilledBufferWriter<'vec>> for FilledBufferWriter<'vec> {
+impl<V> LeaseMut<SuffixWriter<V>> for SuffixWriter<V>
+where
+  V: LeaseMut<Vector<u8>>,
+{
   #[inline]
-  fn lease_mut(&mut self) -> &mut FilledBufferWriter<'vec> {
+  fn lease_mut(&mut self) -> &mut SuffixWriter<V> {
     self
   }
 }
 
-impl Drop for FilledBufferWriter<'_> {
+impl<V> Drop for SuffixWriter<V>
+where
+  V: LeaseMut<Vector<u8>>,
+{
   #[inline]
   fn drop(&mut self) {
-    self._vec._truncate(self._initial_idx);
+    self._vec.lease_mut().truncate(self._initial_idx);
   }
 }
 
 #[cfg(feature = "std")]
-impl std::io::Write for FilledBufferWriter<'_> {
+impl<V> std::io::Write for SuffixWriter<V>
+where
+  V: LeaseMut<Vector<u8>>,
+{
   #[inline]
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
     self.extend_from_slice(buf).map_err(std::io::Error::other)?;
@@ -121,6 +144,6 @@ impl std::io::Write for FilledBufferWriter<'_> {
 
   #[inline]
   fn flush(&mut self) -> std::io::Result<()> {
-    self._vec.flush()
+    self._vec.lease_mut().flush()
   }
 }

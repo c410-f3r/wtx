@@ -29,6 +29,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/autobahn-fuzzingserver.sh ci
 
+  boringssl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly-2024-10-13
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/boringssl.sh
+
   fuzz:
     runs-on: ubuntu-latest
     steps:
@@ -70,6 +82,12 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scripts: [
+          "integration-tests",
+          "integration-tests-mysql",
+        ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -81,8 +99,7 @@ jobs:
       - run: sudo apt install docker-compose -y
       - run: docker-compose -f .test-utils/docker-compose.yml up -d
       - run: sleep 30
-      - run: .scripts/integration-tests.sh
-
+      - run: .scripts/${{ matrix.scripts }}.sh
 
   internal-tests-0:
     runs-on: ubuntu-latest

@@ -314,6 +314,7 @@ where
     self.port = match uri {
       [b'h', b't', b't', b'p', b's', ..] | [b'w', b's', b's', ..] => Some(443),
       [b'h', b't', b't', b'p', ..] | [b'w', b's', ..] => Some(80),
+      [b'm', b'y', b's', b'q', b'l', ..] => Some(3306),
       [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', b'q', b'l', ..]
       | [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', ..] => Some(5432),
       _ => return,

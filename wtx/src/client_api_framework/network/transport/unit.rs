@@ -9,7 +9,10 @@ use crate::client_api_framework::{
 };
 use core::ops::Range;
 
-impl<DRSR> RecievingTransport<DRSR> for () {
+impl<DRSR> RecievingTransport<DRSR> for ()
+where
+  for<'any> DRSR: 'any,
+{
   #[inline]
   async fn recv<A>(
     &mut self,
@@ -22,7 +25,10 @@ impl<DRSR> RecievingTransport<DRSR> for () {
   }
 }
 
-impl<DRSR> SendingTransport<DRSR> for () {
+impl<DRSR> SendingTransport<DRSR> for ()
+where
+  for<'any> DRSR: 'any,
+{
   #[inline]
   async fn send<A, P>(
     &mut self,

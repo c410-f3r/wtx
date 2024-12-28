@@ -91,7 +91,7 @@ mod tests {
       client::postgres::{
         statements::statement::Statement,
         tests::{column0, column1, column2},
-        DecodeValue, Record, Records, Ty,
+        DecodeWrapper, Record, Records, Ty,
       },
       Record as _, Records as _,
     },
@@ -142,8 +142,8 @@ mod tests {
         &[(false, 0..2), (false, 6..8)]
       )
     );
-    assert_eq!(first_record.value(0).unwrap(), DecodeValue::new(&[1, 2], column0().ty));
-    assert_eq!(first_record.value(1).unwrap(), DecodeValue::new(&[3, 4], column1().ty));
+    assert_eq!(first_record.value(0).unwrap(), DecodeWrapper::new(&[1, 2], column0().ty));
+    assert_eq!(first_record.value(1).unwrap(), DecodeWrapper::new(&[3, 4], column1().ty));
 
     let second_record = records.get(1).unwrap();
     assert_eq!(&second_record, &Record::_new(&[5, 6, 7, 8], 17, stmt.clone(), &[(false, 17..21)]));

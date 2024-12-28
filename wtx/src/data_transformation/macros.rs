@@ -42,16 +42,15 @@ macro_rules! _impl_se_collections {
     vec: |$vec_self:ident, $vec_bytes:ident, $vec_drsr:ident| $vec_block:block
   ) => {
     $(
-      impl<T, const N: usize> crate::data_transformation::dnsn::Serialize<$drsr> for [T; N]
+      impl<T, const N: usize> crate::misc::Encode<crate::data_transformation::dnsn::Dnsn<$drsr>> for [T; N]
       where
         T: $bound,
       {
         #[inline]
-        fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()>
-        {
+        fn encode(&self, ew: &mut crate::data_transformation::dnsn::EncodeWrapper<'_, SerdeJson>) -> crate::Result<()> {
           let $array_self = self;
-          let $array_bytes = bytes;
-          let $array_drsr = drsr;
+          let $array_bytes = &mut *ew.vector;
+          let $array_drsr = &mut *ew.drsr;
           $array_block;
           Ok(())
         }
@@ -59,44 +58,44 @@ macro_rules! _impl_se_collections {
     )?
 
     $(
-      impl<T, const N: usize> crate::data_transformation::dnsn::Serialize<$drsr> for crate::misc::ArrayVector<T, N>
+      impl<T, const N: usize> crate::misc::Encode<crate::data_transformation::dnsn::Dnsn<$drsr>> for crate::misc::ArrayVector<T, N>
       where
         T: $bound,
       {
         #[inline]
-        fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()> {
+        fn encode(&self, ew: &mut crate::data_transformation::dnsn::EncodeWrapper<'_, SerdeJson>) -> crate::Result<()> {
           let $arrayvector_self = self;
-          let $arrayvector_bytes = bytes;
-          let $arrayvector_drsr = drsr;
+          let $arrayvector_bytes = &mut *ew.vector;
+          let $arrayvector_drsr = &mut *ew.drsr;
           $arrayvector_block;
           Ok(())
         }
       }
     )?
 
-    impl<T> crate::data_transformation::dnsn::Serialize<$drsr> for &'_ [T]
+    impl<T> crate::misc::Encode<crate::data_transformation::dnsn::Dnsn<$drsr>> for &'_ [T]
     where
       T: $bound,
     {
       #[inline]
-      fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()> {
+      fn encode(&self, ew: &mut crate::data_transformation::dnsn::EncodeWrapper<'_, SerdeJson>) -> crate::Result<()> {
         let $slice_ref_self = self;
-        let $slice_ref_bytes = bytes;
-        let $slice_ref_drsr = drsr;
+        let $slice_ref_bytes = &mut *ew.vector;
+        let $slice_ref_drsr = &mut *ew.drsr;
         $slice_ref_block;
         Ok(())
       }
     }
 
-    impl<T> crate::data_transformation::dnsn::Serialize<$drsr> for crate::misc::Vector<T>
+    impl<T> crate::misc::Encode<crate::data_transformation::dnsn::Dnsn<$drsr>> for crate::misc::Vector<T>
     where
       T: $bound,
     {
       #[inline]
-      fn to_bytes(&mut self, bytes: &mut crate::misc::Vector<u8>, drsr: &mut $drsr) -> crate::Result<()>  {
+      fn encode(&self, ew: &mut crate::data_transformation::dnsn::EncodeWrapper<'_, SerdeJson>) -> crate::Result<()> {
         let $vec_self = self;
-        let $vec_bytes = bytes;
-        let $vec_drsr = drsr;
+        let $vec_bytes = &mut *ew.vector;
+        let $vec_drsr = &mut *ew.drsr;
         $vec_block;
         Ok(())
       }

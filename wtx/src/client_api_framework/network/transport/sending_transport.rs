@@ -10,7 +10,10 @@ use core::future::Future;
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait SendingTransport<DRSR>: Transport<DRSR> {
+pub trait SendingTransport<DRSR>: Transport<DRSR>
+where
+  for<'any> DRSR: 'any,
+{
   /// Sends a request without trying to retrieve any counterpart data.
   fn send<A, P>(
     &mut self,
@@ -25,6 +28,7 @@ pub trait SendingTransport<DRSR>: Transport<DRSR> {
 impl<DRSR, T> SendingTransport<DRSR> for &mut T
 where
   T: SendingTransport<DRSR>,
+  for<'any> DRSR: 'any,
 {
   #[inline]
   async fn send<A, P>(

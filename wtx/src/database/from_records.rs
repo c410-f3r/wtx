@@ -1,6 +1,6 @@
 use crate::{
-  database::{Database, Decode, Records},
-  misc::into_rslt,
+  database::{Database, Records},
+  misc::{into_rslt, Decode},
 };
 use alloc::boxed::Box;
 

@@ -3,7 +3,7 @@ use crate::{
     executor_buffer::ExecutorBufferPartsMut, message::MessageTy, protocol::query, Executor,
     ExecutorBuffer, PostgresError,
   },
-  misc::{FilledBufferWriter, LeaseMut, Stream},
+  misc::{LeaseMut, Stream, SuffixWriterFbvm},
 };
 
 impl<E, EB, S> Executor<E, EB, S>
@@ -20,9 +20,9 @@ where
     {
       let ExecutorBufferPartsMut { nb, rb, vb, .. } = self.eb.lease_mut().parts_mut();
       ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
-      let mut fbw = FilledBufferWriter::from(&mut self.eb.lease_mut().nb);
-      query(cmd.as_bytes(), &mut fbw)?;
-      self.stream.write_all(fbw._curr_bytes()).await?;
+      let mut sw = SuffixWriterFbvm::from(self.eb.lease_mut().nb.suffix_writer());
+      query(cmd.as_bytes(), &mut sw)?;
+      self.stream.write_all(sw._curr_bytes()).await?;
     }
     loop {
       let nb = &mut self.eb.lease_mut().nb;

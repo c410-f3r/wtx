@@ -12,7 +12,8 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  data_transformation::dnsn::Serialize,
+  data_transformation::dnsn::EncodeWrapper,
+  misc::Encode,
 };
 pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};
@@ -30,13 +31,13 @@ pub(crate) fn log_req<A, DRSR, P, T>(
   A: Api,
   P: Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
+  for<'any> DRSR: 'any,
 {
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
-    use crate::data_transformation::dnsn::Serialize;
     let mut vec = crate::misc::Vector::new();
     _pgk
       .ext_req_content_mut()
-      .to_bytes(&mut vec, &mut _pkgs_aux.drsr)
+      .encode(&mut EncodeWrapper::new(&mut _pkgs_aux.drsr, &mut vec))
       .and_then(|_| Ok(alloc::string::String::from(crate::misc::from_utf8_basic(&vec)?)))
   });
 }
@@ -58,6 +59,7 @@ where
   A: Api,
   P: Package<A, DRSR, TP>,
   TP: TransportParams,
+  for<'any> DRSR: 'any,
 {
   pkgs_aux.api.after_sending().await?;
   pkg.after_sending(&mut pkgs_aux.api, pkgs_aux.tp.ext_res_params_mut()).await?;
@@ -73,9 +75,12 @@ where
   A: Api,
   P: Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
+  for<'any> DRSR: 'any,
 {
   log_req(pkg, pkgs_aux, trans);
-  pkg.ext_req_content_mut().to_bytes(&mut pkgs_aux.byte_buffer, &mut pkgs_aux.drsr)?;
+  pkg
+    .ext_req_content_mut()
+    .encode(&mut EncodeWrapper::new(&mut pkgs_aux.drsr, &mut pkgs_aux.byte_buffer))?;
   pkgs_aux.api.before_sending().await?;
   pkg
     .before_sending(&mut pkgs_aux.api, pkgs_aux.tp.ext_req_params_mut(), &pkgs_aux.byte_buffer)

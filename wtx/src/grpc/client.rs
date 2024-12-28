@@ -1,6 +1,6 @@
 use crate::{
   data_transformation::{
-    dnsn::{Deserialize, Serialize},
+    dnsn::{DecodeWrapper, Dnsn},
     format::{VerbatimRequest, VerbatimResponse},
   },
   grpc::serialize,
@@ -9,7 +9,7 @@ use crate::{
     ReqUri, Response,
   },
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{Lock, RefCounter, StreamWriter},
+  misc::{Decode, Encode, Lock, RefCounter, StreamWriter},
   pool::{ResourceManager, SimplePoolResource},
 };
 
@@ -34,6 +34,7 @@ where
     Resource = Http2<HD, true>,
   >,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -45,12 +46,12 @@ where
 
   /// Deserialize From Response Bytes
   #[inline]
-  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &'de [u8]) -> crate::Result<T>
+  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimResponse<T>: Deserialize<'de, DRSR>,
+    VerbatimResponse<T>: Decode<'de, Dnsn<DRSR>>,
   {
-    let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimResponse::from_bytes(elem, &mut self.drsr)?.data)
+    let mut elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
+    Ok(VerbatimResponse::decode(&mut DecodeWrapper::new(&mut elem, &mut self.drsr))?.data)
   }
 
   /// Send Unary Request
@@ -66,7 +67,7 @@ where
     mut rrb: ReqResBuffer,
   ) -> crate::Result<Response<ReqResBuffer>>
   where
-    VerbatimRequest<T>: Serialize<DRSR>,
+    VerbatimRequest<T>: Encode<Dnsn<DRSR>>,
   {
     rrb.body.clear();
     rrb.headers.clear();

@@ -9,15 +9,17 @@ Due to the lack of an official parser, the definitions of a `Service` must be ma
 
 Independent benchmarks are available <https://github.com/LesnyRumcajs/grpc_bench>.
 
-To use this functionality, it is necessary to activate the `grpc` feature.
-
 ## Client Example
+
+To use this functionality, it is necessary to activate the `grpc-client` feature.
 
 ```rust,edition2021,no_run
 {{#rustdoc_include ../../../wtx-instances/generic-examples/grpc-client.rs}}
 ```
 
 ## Server Example
+
+To use this functionality, it is necessary to activate the `grpc-server` feature.
 
 ```rust,edition2021,no_run
 {{#rustdoc_include ../../../wtx-instances/generic-examples/grpc-server.rs}}

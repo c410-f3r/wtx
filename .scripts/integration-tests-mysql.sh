@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+export DATABASE_URI_MYSQL='mysql://wtx:wtx@localhost:3307/wtx'
+
+cargo test --features mysql,_integration-tests --release -- --test-threads=1
+
+export DATABASE_URI_MYSQL='mysql://wtx:wtx@localhost:3308/wtx'
+
+cargo test --features mysql,_integration-tests --release -- --test-threads=1

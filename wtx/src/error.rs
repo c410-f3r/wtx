@@ -40,8 +40,6 @@ pub enum Error {
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
-  #[cfg(feature = "embedded-tls")]
-  EmbassyTlsError(embedded_tls::TlsError),
   #[cfg(feature = "flate2")]
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
@@ -64,6 +62,8 @@ pub enum Error {
   SerdeJson(serde_json::Error),
   #[cfg(feature = "http-session")]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "tls")]
+  TlsError(crate::tls::TlsError),
   #[cfg(feature = "tokio")]
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tracing-subscriber")]
@@ -264,14 +264,6 @@ impl From<base64::EncodeSliceError> for Error {
   }
 }
 
-#[cfg(feature = "embedded-tls")]
-impl From<embedded_tls::TlsError> for Error {
-  #[inline]
-  fn from(from: embedded_tls::TlsError) -> Self {
-    Self::EmbassyTlsError(from)
-  }
-}
-
 #[cfg(feature = "flate2")]
 impl From<flate2::CompressError> for Error {
   #[inline]
@@ -397,6 +389,14 @@ impl From<crate::http::SessionError> for Error {
   #[inline]
   fn from(from: crate::http::SessionError) -> Self {
     Self::SessionError(from)
+  }
+}
+
+#[cfg(feature = "tls")]
+impl From<crate::tls::TlsError> for Error {
+  #[inline]
+  fn from(from: crate::tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 

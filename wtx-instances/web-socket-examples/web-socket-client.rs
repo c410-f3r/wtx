@@ -12,24 +12,16 @@ use tokio::{
   net::TcpStream,
 };
 use wtx::{
-  misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
+  misc::Uri,
+  web_socket::{Frame, OpCode, WebSocketConnector},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("ws://www.example.com");
-  let mut ws = WebSocket::connect(
-    (),
-    [],
-    false,
-    Xorshift64::from(simple_seed()),
-    TcpStream::connect(uri.hostname_with_implied_port()).await?,
-    &uri.to_ref(),
-    WebSocketBuffer::default(),
-    |_| wtx::Result::Ok(()),
-  )
-  .await?;
+  let mut ws = WebSocketConnector::default()
+    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri.to_ref())
+    .await?;
   let mut buffer = Vec::new();
   let mut reader = BufReader::new(tokio::io::stdin());
   loop {

@@ -8,7 +8,8 @@ mod pkgs_aux;
 
 use crate::{
   client_api_framework::{network::transport::TransportParams, Api},
-  data_transformation::dnsn::{Deserialize, Serialize},
+  data_transformation::dnsn::Dnsn,
+  misc::{DecodeSeq, Encode},
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
 use core::future::Future;
@@ -27,11 +28,12 @@ pub trait Package<A, DRSR, TP>
 where
   A: Api,
   TP: TransportParams,
+  for<'any> DRSR: 'any,
 {
   /// The expected data format that is going to be sent to an external actor.
-  type ExternalRequestContent: Serialize<DRSR>;
+  type ExternalRequestContent: Encode<Dnsn<DRSR>>;
   /// The expected data format returned by an external actor.
-  type ExternalResponseContent<'de>: Deserialize<'de, DRSR>;
+  type ExternalResponseContent<'de>: DecodeSeq<'de, Dnsn<DRSR>>;
   /// Any additional parameters used by this package.
   type PackageParams;
 
@@ -78,6 +80,7 @@ where
 impl<DRSR, TP> Package<(), DRSR, TP> for ()
 where
   TP: TransportParams,
+  for<'any> DRSR: 'any,
 {
   type ExternalRequestContent = ();
   type ExternalResponseContent<'de> = ();
@@ -109,6 +112,7 @@ where
   A: Api,
   P: Package<A, DRSR, TP>,
   TP: TransportParams,
+  for<'any> DRSR: 'any,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent<'de> = P::ExternalResponseContent<'de>;

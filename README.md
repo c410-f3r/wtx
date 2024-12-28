@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MPL2-blue.svg)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
 [![Rustc](https://img.shields.io/badge/rustc-1.83-lightgray")](https://blog.rust-lang.org/2024/11/28/Rust-1.83.0.html)
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 7 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [8446](https://datatracker.ietf.org/doc/html/rfc8446), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 3 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [MySQL](https://dev.mysql.com/doc/dev/mysql-server/latest/), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
 1. [Client API Framework](https://c410-f3r.github.io/wtx/client-api-framework/index.html)
 2. [Database Client](https://c410-f3r.github.io/wtx/database-client/index.html)
@@ -16,11 +16,12 @@ A collection of different transport implementations and related tools focused pr
 6. [HTTP Server Framework](https://c410-f3r.github.io/wtx/http-server-framework/index.html)
 7. [HTTP/2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
 8. [Pool Manager](https://c410-f3r.github.io/wtx/pool/index.html)
-9. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
-10. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
-11. [WebSocket over HTTP/2](https://c410-f3r.github.io/wtx/web-socket-over-http2/index.html)
+9. [TLS](https://c410-f3r.github.io/wtx/tls/index.html)
+10. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
+11. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
+12. [WebSocket over HTTP/2](https://c410-f3r.github.io/wtx/web-socket-over-http2/index.html)
 
-Every feature is optional and must be set at compile time. Please see the intended documentation for further information.
+Everything is optional and must be set at compile time. Please see the intended documentation for further information.
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
 

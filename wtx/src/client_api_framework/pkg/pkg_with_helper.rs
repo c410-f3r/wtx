@@ -35,6 +35,7 @@ where
   A: Api,
   P: Package<A, DRSR, TP>,
   TP: TransportParams,
+  for<'any> DRSR: 'any,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent<'de> = P::ExternalResponseContent<'de>;

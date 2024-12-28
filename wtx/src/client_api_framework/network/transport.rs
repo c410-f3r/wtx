@@ -53,8 +53,8 @@ where
 mod tests {
   use crate::{
     client_api_framework::{network::transport::TransportParams, pkg::Package},
-    data_transformation::dnsn::{Deserialize, Serialize},
-    misc::Vector,
+    data_transformation::dnsn::{DecodeWrapper, Dnsn, EncodeWrapper},
+    misc::{Decode, DecodeSeq, Encode, Vector},
   };
 
   #[derive(Debug, Eq, PartialEq)]
@@ -63,6 +63,7 @@ mod tests {
   impl<DRSR, TP> Package<(), DRSR, TP> for _PingPong
   where
     TP: TransportParams,
+    for<'any> DRSR: 'any,
   {
     type ExternalRequestContent = _Ping;
     type ExternalResponseContent<'de> = _Pong;
@@ -92,10 +93,13 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Ping;
 
-  impl<DRSR> Serialize<DRSR> for _Ping {
+  impl<DRSR> Encode<Dnsn<DRSR>> for _Ping
+  where
+    for<'any> DRSR: 'any,
+  {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut DRSR) -> crate::Result<()> {
-      bytes.extend_from_copyable_slice(b"ping")?;
+    fn encode(&self, ew: &mut EncodeWrapper<'_, DRSR>) -> crate::Result<()> {
+      ew.vector.extend_from_copyable_slice(b"ping")?;
       Ok(())
     }
   }
@@ -103,15 +107,20 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Pong(pub(crate) &'static str);
 
-  impl<'de, DRSR> Deserialize<'de, DRSR> for _Pong {
-    #[inline]
-    fn from_bytes(bytes: &[u8], _: &mut DRSR) -> crate::Result<Self> {
-      assert_eq!(bytes, b"ping");
+  impl<'de, DRSR> Decode<'de, Dnsn<DRSR>> for _Pong
+  where
+    for<'any> DRSR: 'any,
+  {
+    fn decode(_: &mut DecodeWrapper<'_, 'de, DRSR>) -> crate::Result<Self> {
       Ok(Self("pong"))
     }
+  }
 
-    #[inline]
-    fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut DRSR) -> crate::Result<()> {
+  impl<'de, DRSR> DecodeSeq<'de, Dnsn<DRSR>> for _Pong
+  where
+    for<'any> DRSR: 'any,
+  {
+    fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'_, 'de, DRSR>) -> crate::Result<()> {
       Ok(())
     }
   }

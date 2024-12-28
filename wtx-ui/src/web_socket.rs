@@ -3,24 +3,15 @@ use tokio::{
   net::{TcpListener, TcpStream},
 };
 use wtx::{
-  misc::{simple_seed, UriRef, Xorshift64},
-  web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
+  misc::UriRef,
+  web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector},
 };
 
 pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
-  let wsb = &mut WebSocketBuffer::default();
-  let mut ws = WebSocket::connect(
-    (),
-    [],
-    false,
-    Xorshift64::from(simple_seed()),
-    TcpStream::connect(uri.hostname_with_implied_port()).await?,
-    &uri,
-    wsb,
-    |_| wtx::Result::Ok(()),
-  )
-  .await?;
+  let mut ws = WebSocketConnector::default()
+    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri)
+    .await?;
   let mut buffer = Vec::new();
   let mut reader = BufReader::new(tokio::io::stdin());
   loop {
@@ -54,15 +45,7 @@ pub(crate) async fn serve(
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
       let fun = async move {
-        let mut ws = WebSocket::accept(
-          (),
-          false,
-          Xorshift64::from(simple_seed()),
-          stream,
-          WebSocketBuffer::default(),
-          |_| wtx::Result::Ok(()),
-        )
-        .await?;
+        let mut ws = WebSocketAcceptor::default().accept(stream).await?;
         loop {
           let frame = ws.read_frame().await?;
           match (frame.op_code(), frame.text_payload()) {

@@ -104,15 +104,3 @@ impl GenericTime {
     return Err(crate::Error::GenericTimeNeedsBackend);
   }
 }
-
-/// Provides the current time
-#[derive(Debug)]
-pub struct GenericTimeProvider;
-
-#[cfg(feature = "rustls")]
-impl rustls::time_provider::TimeProvider for GenericTimeProvider {
-  #[inline]
-  fn current_time(&self) -> Option<rustls_pki_types::UnixTime> {
-    Some(rustls_pki_types::UnixTime::since_unix_epoch(GenericTime::timestamp().ok()?))
-  }
-}

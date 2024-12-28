@@ -5,8 +5,8 @@ use crate::{
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
     Api,
   },
-  data_transformation::dnsn::{Deserialize, Serialize},
-  misc::{Lease, Vector},
+  data_transformation::dnsn::{DecodeWrapper, Dnsn},
+  misc::{Decode, DecodeSeq, Encode, Lease, Vector},
 };
 use core::{future::Future, ops::Range};
 
@@ -17,6 +17,8 @@ use core::{future::Future, ops::Range};
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
 pub trait SendingRecievingTransport<DRSR>:
   RecievingTransport<DRSR> + SendingTransport<DRSR>
+where
+  for<'any> DRSR: 'any,
 {
   /// Sends a request and then awaits its counterpart data response.
   ///
@@ -51,15 +53,17 @@ pub trait SendingRecievingTransport<DRSR>:
   where
     A: Api,
     P: Package<A, DRSR, Self::Params>,
-    BatchElems<'pkgs, A, DRSR, P, Self::Params>: Serialize<DRSR>,
+    BatchElems<'pkgs, A, DRSR, P, Self::Params>: Encode<Dnsn<DRSR>>,
   {
     async {
       let range = self.send_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      P::ExternalResponseContent::seq_from_bytes(
+      P::ExternalResponseContent::decode_seq(
         buffer,
-        pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
-        &mut pkgs_aux.drsr,
+        &mut DecodeWrapper::new(
+          &mut pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
+          &mut pkgs_aux.drsr,
+        ),
       )?;
       Ok(())
     }
@@ -80,15 +84,17 @@ pub trait SendingRecievingTransport<DRSR>:
     async {
       let range = self.send_recv(pkg, pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      Ok(P::ExternalResponseContent::from_bytes(
-        pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
+      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(
+        &mut pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
         &mut pkgs_aux.drsr,
-      )?)
+      ))?)
     }
   }
 }
 
-impl<DRSR, T> SendingRecievingTransport<DRSR> for T where
-  T: RecievingTransport<DRSR> + SendingTransport<DRSR>
+impl<DRSR, T> SendingRecievingTransport<DRSR> for T
+where
+  T: RecievingTransport<DRSR> + SendingTransport<DRSR>,
+  for<'any> DRSR: 'any,
 {
 }

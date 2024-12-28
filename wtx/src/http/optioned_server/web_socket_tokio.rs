@@ -1,8 +1,8 @@
 use crate::{
   http::OptionedServer,
-  misc::{FnFut, Stream, Xorshift64, _number_or_available_parallelism, simple_seed},
+  misc::{FnFut, Stream, _number_or_available_parallelism},
   pool::{SimplePoolTokio, WebSocketRM},
-  web_socket::{Compression, WebSocket, WebSocketBuffer},
+  web_socket::{Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer},
 };
 use core::{fmt::Debug, future::Future};
 use std::sync::OnceLock;
@@ -64,15 +64,12 @@ impl OptionedServer {
         let fun = async move {
           let net = conn_net_cb(conn_acceptor, tcp_stream).await?;
           conn_handle_cb
-            .call((WebSocket::accept(
-              conn_compression_cb(),
-              true,
-              Xorshift64::from(simple_seed()),
-              net,
-              wsb,
-              |_| crate::Result::Ok(()),
-            )
-            .await?,))
+            .call((WebSocketAcceptor::default()
+              .compression(conn_compression_cb())
+              .no_masking(true)
+              .wsb(wsb)
+              .accept(net)
+              .await?,))
             .await?;
           Ok::<_, E>(())
         };

@@ -1,5 +1,8 @@
 use crate::{
-  database::client::postgres::{authentication::Authentication, DbError, PostgresError},
+  database::{
+    client::postgres::{authentication::Authentication, DbError, PostgresError},
+    DatabaseError,
+  },
   misc::{bytes_rsplit1, bytes_split1, from_utf8_basic, ConnectionState, FromRadix10},
 };
 use core::any::type_name;
@@ -113,7 +116,7 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
       }
       _ => {
         return Err(
-          PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
+          DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
         )
       }
     };

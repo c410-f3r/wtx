@@ -18,6 +18,7 @@ where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
 {
   #[inline]
   async fn send<A, P>(

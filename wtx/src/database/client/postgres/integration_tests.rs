@@ -1,12 +1,12 @@
 use crate::{
   database::{
     client::postgres::{
-      Config, DecodeValue, EncodeValue, Executor, ExecutorBuffer, Postgres, PostgresError,
+      Config, DecodeWrapper, EncodeWrapper, Executor, ExecutorBuffer, Postgres, PostgresError,
       StructDecoder, StructEncoder, Ty,
     },
-    Decode, Encode, Executor as _, Record, Records as _,
+    Executor as _, Record, Records as _,
   },
-  misc::{simple_seed, UriRef, Xorshift64},
+  misc::{simple_seed, Decode, Encode, UriRef, Xorshift64},
 };
 use alloc::string::String;
 use tokio::net::TcpStream;
@@ -18,22 +18,14 @@ const SCRAM: &str = "postgres://wtx_scram:wtx@localhost/wtx";
 async fn conn_scram_tls() {
   let uri = UriRef::new(SCRAM);
   let mut rng = Xorshift64::from(simple_seed());
+  let mut tls_config = crate::tls::Config::new();
+  tls_config.set_ca(include_bytes!("../../../../../.certs/root-ca.crt"));
   let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    |stream| async {
-      Ok(
-        crate::misc::TokioRustlsConnector::from_auto()
-          .unwrap()
-          .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
-          .unwrap()
-          .connect_without_client_auth(uri.hostname(), stream)
-          .await
-          .unwrap(),
-      )
-    },
+    (crate::tls::TlsStreamBuffer::default(), &tls_config),
   )
   .await
   .unwrap();
@@ -45,15 +37,15 @@ async fn custom_composite_type() {
   struct CustomCompositeType(u32, String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
-      let mut sd = StructDecoder::<crate::Error>::new(input);
+    fn decode(dw: &mut DecodeWrapper) -> Result<Self, crate::Error> {
+      let mut sd = StructDecoder::<crate::Error>::new(dw);
       Ok(Self(sd.decode()?, sd.decode()?))
     }
   }
 
   impl Encode<Postgres<crate::Error>> for CustomCompositeType {
-    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
-      let _ev = StructEncoder::<crate::Error>::new(ev)?
+    fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+      let _ev = StructEncoder::<crate::Error>::new(ew)?
         .encode(self.0)?
         .encode_with_ty(&self.1, Ty::Varchar)?;
       Ok(())
@@ -94,14 +86,14 @@ async fn custom_domain() {
   struct CustomDomain(String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomDomain {
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
-      Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(input)?))
+    fn decode(dw: &mut DecodeWrapper) -> Result<Self, crate::Error> {
+      Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(dw)?))
     }
   }
 
   impl Encode<Postgres<crate::Error>> for CustomDomain {
-    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
-      <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, ev)?;
+    fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+      <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, ew)?;
       Ok(())
     }
   }
@@ -140,8 +132,8 @@ async fn custom_enum() {
   }
 
   impl Decode<'_, Postgres<crate::Error>> for Enum {
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
-      let s = <&str as Decode<Postgres<crate::Error>>>::decode(input)?;
+    fn decode(dw: &mut DecodeWrapper) -> Result<Self, crate::Error> {
+      let s = <&str as Decode<Postgres<crate::Error>>>::decode(dw)?;
       Ok(match s {
         "foo" => Self::Foo,
         "bar" => Self::Bar,
@@ -152,13 +144,13 @@ async fn custom_enum() {
   }
 
   impl Encode<Postgres<crate::Error>> for Enum {
-    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
+    fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
       let s = match self {
         Enum::Foo => "foo",
         Enum::Bar => "bar",
         Enum::Baz => "baz",
       };
-      <_ as Encode<Postgres<crate::Error>>>::encode(&s, ev)?;
+      <_ as Encode<Postgres<crate::Error>>>::encode(&s, ew)?;
       Ok(())
     }
   }

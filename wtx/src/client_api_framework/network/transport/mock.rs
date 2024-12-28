@@ -91,6 +91,7 @@ where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
   <T as ToOwned>::Owned: Debug + FromBytes,
+  for<'any> DRSR: 'any,
 {
   #[inline]
   async fn recv<A>(
@@ -112,6 +113,7 @@ where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
   <T as ToOwned>::Owned: Debug + FromBytes,
+  for<'any> DRSR: 'any,
 {
   #[inline]
   async fn send<A, P>(

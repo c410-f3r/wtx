@@ -27,6 +27,7 @@ where
     Resource = Http2<HD, true>,
   >,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -54,6 +55,7 @@ where
     Resource = Http2<HD, true>,
   >,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -89,6 +91,7 @@ where
     Resource = Http2<HD, true>,
   >,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -116,6 +119,7 @@ where
     Resource = Http2<HD, true>,
   >,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {
@@ -171,6 +175,7 @@ where
     Resource = Http2<HD, true>,
   >,
   SW: StreamWriter,
+  for<'any> DRSR: 'any,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
 {

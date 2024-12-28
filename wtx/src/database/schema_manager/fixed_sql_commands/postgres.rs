@@ -203,6 +203,7 @@ where
     .await
 }
 
+#[inline]
 pub(crate) async fn _table_names<E>(
   buffer_cmd: &mut String,
   executor: &mut E,
@@ -215,7 +216,7 @@ where
   let before = buffer_cmd.len();
   buffer_cmd.write_fmt(format_args!(
     "SELECT
-    tables.table_name AS generic_column
+      tables.table_name AS generic_column
     FROM
       information_schema.tables tables
       -- that don't depend on an extension

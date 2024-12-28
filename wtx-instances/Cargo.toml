@@ -1,4 +1,4 @@
-# Fulfillments Binaries
+# Fulfillment Binaries
 
 [[bin]]
 name = "autobahn-client"
@@ -9,6 +9,11 @@ required-features = ["wtx/flate2", "wtx/web-socket-handshake"]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
 required-features = ["wtx/flate2", "wtx/nightly", "wtx/pool", "wtx/web-socket-handshake"]
+
+[[bin]]
+name = "boringssl"
+path = "src/bin/boringssl.rs"
+required-features = ["wtx/tls"]
 
 [[bin]]
 name = "h2load"
@@ -28,19 +33,24 @@ required-features = ["wtx/http2", "wtx/nightly"]
 # Database Examples
 
 [[example]]
+name = "database-client-mysql"
+path = "database-examples/database-client-mysql.rs"
+required-features = ["mysql"]
+
+[[example]]
 name = "database-client-postgres"
 path = "database-examples/database-client-postgres.rs"
-required-features = ["wtx/postgres"]
+required-features = ["postgres"]
 
 [[example]]
 name = "database-client-postgres-composite-type"
 path = "database-examples/database-client-postgres-composite-type.rs"
-required-features = ["wtx/postgres"]
+required-features = ["postgres"]
 
 [[example]]
 name = "database-client-postgres-enum"
 path = "database-examples/database-client-postgres-enum.rs"
-required-features = ["wtx/postgres"]
+required-features = ["postgres"]
 
 # Generic Examples
 
@@ -57,7 +67,7 @@ required-features = ["grpc-client"]
 [[example]]
 name = "grpc-server"
 path = "generic-examples/grpc-server.rs"
-required-features = ["grpc-server", "wtx/tokio-rustls"]
+required-features = ["grpc-server", "wtx/rustls"]
 
 [[example]]
 name = "http-client-framework"
@@ -69,12 +79,17 @@ name = "pool"
 path = "generic-examples/pool.rs"
 required-features = ["wtx/pool"]
 
+[[example]]
+name = "tls"
+path = "generic-examples/tls.rs"
+required-features = ["tls"]
+
 # HTTP Server Framework Examples
 
 [[example]]
 name = "http-server-framework"
 path = "http-server-framework-examples/http-server-framework.rs"
-required-features = ["serde", "wtx/http-server-framework", "wtx/matchit", "wtx/pool", "wtx/postgres", "wtx/serde_json"]
+required-features = ["serde", "wtx/http-server-framework", "wtx/matchit", "wtx/pool", "postgres", "wtx/serde_json"]
 
 [[example]]
 name = "http-server-framework-cors"
@@ -89,7 +104,7 @@ required-features = ["wtx/http-server-framework"]
 [[example]]
 name = "http-server-framework-session"
 path = "http-server-framework-examples/http-server-framework-session.rs"
-required-features = ["argon2", "rand_chacha", "rand_core", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "wtx/postgres", "wtx/rand_chacha", "wtx-macros"]
+required-features = ["argon2", "rand_chacha", "rand_core", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "postgres", "wtx/rand_chacha", "wtx-macros"]
 
 # HTTP/2 Examples
 
@@ -101,12 +116,12 @@ required-features = ["wtx/http2"]
 [[example]]
 name = "http2-server"
 path = "http2-examples/http2-server.rs"
-required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
+required-features = ["wtx/http2", "wtx/rustls", "wtx/web-socket"]
 
 [[example]]
 name = "http2-web-socket"
 path = "http2-examples/http2-web-socket.rs"
-required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
+required-features = ["wtx/http2", "wtx/rustls", "wtx/web-socket"]
 
 # WebSocket Examples
 
@@ -118,12 +133,12 @@ required-features = ["wtx/web-socket-handshake"]
 [[example]]
 name = "web-socket-concurrent-client"
 path = "web-socket-examples/web-socket-concurrent-client.rs"
-required-features = ["wtx/tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+required-features = ["wtx/rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
 
 [[example]]
 name = "web-socket-server"
 path = "web-socket-examples/web-socket-server.rs"
-required-features = ["tokio-rustls", "wtx/pool", "wtx/tokio-rustls", "wtx/web-socket-handshake"]
+required-features = ["wtx/pool", "wtx/rustls", "wtx/web-socket-handshake"]
 
 [build-dependencies]
 pb-rs = { default-features = false, optional = true, version = "0.10" }
@@ -136,13 +151,14 @@ rand_core = { default-features = false, features = ["getrandom"], optional = tru
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], version = "1.0" }
-tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
 
 [features]
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
+mysql = ["wtx/mysql"]
 postgres = ["wtx/postgres"]
+tls = ["wtx/tls"]
 
 [package]
 edition = "2021"

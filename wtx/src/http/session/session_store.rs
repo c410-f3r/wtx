@@ -87,9 +87,9 @@ where
 #[cfg(feature = "pool")]
 mod pool {
   use crate::{
-    database::{client::postgres::Postgres, Decode, Encode},
+    database::client::postgres::Postgres,
     http::session::{SessionId, SessionState, SessionStore},
-    misc::Lock,
+    misc::{Decode, Encode, Lock},
     pool::{ResourceManager, SimplePool, SimplePoolResource},
     Error,
   };
@@ -136,10 +136,10 @@ mod postgres {
   use crate::{
     database::{
       client::postgres::{Executor, ExecutorBuffer, Postgres},
-      Decode, Encode, Executor as _, Record,
+      Executor as _, Record,
     },
     http::session::{SessionId, SessionState, SessionStore},
-    misc::{LeaseMut, Stream},
+    misc::{Decode, Encode, LeaseMut, Stream},
     Error,
   };
 

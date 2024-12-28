@@ -1,10 +1,10 @@
 use crate::{
   data_transformation::{
-    dnsn::{Deserialize, Serialize},
+    dnsn::{DecodeWrapper, Dnsn},
     format::{VerbatimRequest, VerbatimResponse},
   },
   grpc::{serialize, GrpcStatusCode},
-  misc::Vector,
+  misc::{Decode, Encode, Vector},
 };
 
 /// Responsible for managing internal structures that interact with gRPC.
@@ -14,7 +14,10 @@ pub struct GrpcManager<DRSR> {
   status_code: GrpcStatusCode,
 }
 
-impl<DRSR> GrpcManager<DRSR> {
+impl<DRSR> GrpcManager<DRSR>
+where
+  for<'any> DRSR: 'any,
+{
   /// From Deserializer/Serializer
   ///
   /// Instance has an initial [`GrpcStatusCode::Ok`] that can be modified in endpoints.
@@ -25,19 +28,19 @@ impl<DRSR> GrpcManager<DRSR> {
 
   /// Deserialize From Request Bytes.
   #[inline]
-  pub fn des_from_req_bytes<'de, T>(&mut self, bytes: &'de [u8]) -> crate::Result<T>
+  pub fn des_from_req_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimRequest<T>: Deserialize<'de, DRSR>,
+    VerbatimRequest<T>: Decode<'de, Dnsn<DRSR>>,
   {
-    let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimRequest::from_bytes(elem, &mut self.drsr)?.data)
+    let mut elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
+    Ok(VerbatimRequest::decode(&mut DecodeWrapper::new(&mut elem, &mut self.drsr))?.data)
   }
 
   /// Serialize to Response Bytes
   #[inline]
   pub fn ser_to_res_bytes<T>(&mut self, bytes: &mut Vector<u8>, data: T) -> crate::Result<()>
   where
-    VerbatimResponse<T>: Serialize<DRSR>,
+    VerbatimResponse<T>: Encode<Dnsn<DRSR>>,
   {
     serialize(bytes, VerbatimResponse { data }, &mut self.drsr)
   }
@@ -53,6 +56,7 @@ impl<DRSR> GrpcManager<DRSR> {
 impl<DRSR> crate::http::server_framework::StreamAux for GrpcManager<DRSR>
 where
   DRSR: Default,
+  for<'any> DRSR: 'any,
 {
   type Init = DRSR;
 

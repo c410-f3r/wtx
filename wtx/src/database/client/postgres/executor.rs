@@ -7,17 +7,18 @@ mod simple_query;
 use crate::{
   database::{
     client::postgres::{
+      self,
       executor::commons::FetchWithStmtCommons,
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
       message::MessageTy,
       protocol::{encrypted_conn, initial_conn_msg},
-      Config, Postgres, PostgresError, Record, Records, TransactionManager,
+      Postgres, PostgresError, Record, Records, TransactionManager,
     },
     Database, RecordValues, StmtCmd, TransactionManager as _,
   },
-  misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Rng, Stream, StreamWithTls},
+  misc::{ConnectionState, DEController, LeaseMut, Rng, Stream, SuffixWriter},
 };
-use core::{future::Future, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// Executor
 #[derive(Debug)]
@@ -36,7 +37,7 @@ where
   /// Connects with an unencrypted stream.
   #[inline]
   pub async fn connect<RNG>(
-    config: &Config<'_>,
+    config: &postgres::Config<'_>,
     mut eb: EB,
     rng: &mut RNG,
     stream: S,
@@ -48,38 +49,6 @@ where
     Self::do_connect(config, eb, rng, stream, None).await
   }
 
-  /// Initially connects with an unencrypted stream that should be later upgraded to an encrypted
-  /// stream.
-  #[inline]
-  pub async fn connect_encrypted<F, IS, RNG>(
-    config: &Config<'_>,
-    mut eb: EB,
-    rng: &mut RNG,
-    mut stream: IS,
-    cb: impl FnOnce(IS) -> F,
-  ) -> crate::Result<Self>
-  where
-    F: Future<Output = crate::Result<S>>,
-    IS: Stream,
-    RNG: Rng,
-    S: StreamWithTls,
-  {
-    eb.lease_mut().clear();
-    {
-      let mut fbw = FilledBufferWriter::from(&mut eb.lease_mut().nb);
-      encrypted_conn(&mut fbw)?;
-      stream.write_all(fbw._curr_bytes()).await?;
-    }
-    let mut buf = [0];
-    let _ = stream.read(&mut buf).await?;
-    if buf[0] != b'S' {
-      return Err(PostgresError::ServerDoesNotSupportEncryption.into());
-    }
-    let stream = cb(stream).await?;
-    let tls_server_end_point = stream.tls_server_end_point()?;
-    Self::do_connect(config, eb, rng, stream, tls_server_end_point.as_ref().map(Lease::lease)).await
-  }
-
   /// Mutable buffer reference
   #[inline]
   pub fn eb_mut(&mut self) -> &mut ExecutorBuffer {
@@ -88,7 +57,7 @@ where
 
   #[inline]
   async fn do_connect<RNG>(
-    config: &Config<'_>,
+    config: &postgres::Config<'_>,
     eb: EB,
     rng: &mut RNG,
     stream: S,
@@ -104,11 +73,55 @@ where
     Ok(this)
   }
 
-  async fn send_initial_conn_msg(&mut self, config: &Config<'_>) -> crate::Result<()> {
-    let mut fbw = FilledBufferWriter::from(&mut self.eb.lease_mut().nb);
-    initial_conn_msg(config, &mut fbw)?;
-    self.stream.write_all(fbw._curr_bytes()).await?;
+  async fn send_initial_conn_msg(&mut self, config: &postgres::Config<'_>) -> crate::Result<()> {
+    let mut sw = SuffixWriter::from(self.eb.lease_mut().nb.suffix_writer());
+    initial_conn_msg(config, &mut sw)?;
+    self.stream.write_all(sw._curr_bytes()).await?;
     Ok(())
+  }
+}
+
+#[cfg(feature = "tls")]
+impl<E, EB, S, TB> Executor<E, EB, crate::tls::TlsStream<S, TB, true>>
+where
+  EB: LeaseMut<ExecutorBuffer>,
+  S: Stream,
+  TB: LeaseMut<crate::tls::TlsStreamBuffer>,
+{
+  /// Initially connects with an unencrypted stream that should be later upgraded to an encrypted
+  /// stream.
+  #[inline]
+  pub async fn connect_encrypted<RNG>(
+    config: &postgres::Config<'_>,
+    mut eb: EB,
+    rng: &mut RNG,
+    mut stream: S,
+    (tls_buffer, tls_config): (TB, &crate::tls::Config<'_>),
+  ) -> crate::Result<Self>
+  where
+    RNG: Rng,
+    TB: LeaseMut<crate::tls::TlsStreamBuffer>,
+  {
+    eb.lease_mut().clear();
+    {
+      let mut sw = SuffixWriter::from(eb.lease_mut().nb.suffix_writer());
+      encrypted_conn(&mut sw)?;
+      stream.write_all(sw._curr_bytes()).await?;
+    }
+    let mut buf = [0];
+    let _ = stream.read(&mut buf).await?;
+    if buf[0] != b'S' {
+      return Err(PostgresError::ServerDoesNotSupportEncryption.into());
+    }
+
+    Self::do_connect(
+      config,
+      eb,
+      rng,
+      crate::tls::TlsStream::connect(tls_config, stream, tls_buffer).await?,
+      None,
+    )
+    .await
   }
 }
 
@@ -139,7 +152,7 @@ where
     &mut self,
     sc: SC,
     rv: RV,
-  ) -> Result<u64, <Self::Database as Database>::Error>
+  ) -> Result<u64, <Self::Database as DEController>::Error>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,

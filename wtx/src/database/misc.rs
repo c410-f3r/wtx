@@ -1,4 +1,7 @@
-use crate::database::{records::Records, Database, Decode, FromRecords, Record};
+use crate::{
+  database::{records::Records, Database, FromRecords, Record},
+  misc::Decode,
+};
 
 /// Seeks all rows that have an ID equal to `parent_record_id`.
 #[inline]

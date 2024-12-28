@@ -1,6 +1,9 @@
 use crate::{
-  data_transformation::{dnsn::Serialize, Id},
-  misc::{Lease, Vector},
+  data_transformation::{
+    dnsn::{DecodeWrapper, Dnsn, EncodeWrapper},
+    Id,
+  },
+  misc::{Decode, DecodeSeq, Encode, Lease, Vector},
 };
 use core::{
   borrow::Borrow,
@@ -21,9 +24,29 @@ pub struct JsonRpcRequest<P> {
   pub params: P,
 }
 
-impl<P> Serialize<()> for JsonRpcRequest<P> {
+impl<'de, P> Decode<'de, Dnsn<()>> for JsonRpcRequest<P>
+where
+  P: Default,
+{
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
+  fn decode(_: &mut DecodeWrapper<'_, 'de, ()>) -> crate::Result<Self> {
+    Ok(Self { id: 0, method: "", params: P::default() })
+  }
+}
+
+impl<'de, P> DecodeSeq<'de, Dnsn<()>> for JsonRpcRequest<P>
+where
+  P: Default,
+{
+  #[inline]
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'_, 'de, ()>) -> crate::Result<()> {
+    Ok(())
+  }
+}
+
+impl<P> Encode<Dnsn<()>> for JsonRpcRequest<P> {
+  #[inline]
+  fn encode(&self, _: &mut EncodeWrapper<'_, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -107,17 +130,24 @@ mod serde {
 #[cfg(feature = "serde_json")]
 mod serde_json {
   use crate::{
-    data_transformation::{dnsn::SerdeJson, format::JsonRpcRequest},
-    misc::Vector,
+    data_transformation::{
+      dnsn::{Dnsn, EncodeWrapper, SerdeJson},
+      format::JsonRpcRequest,
+    },
+    misc::Encode,
   };
+  use serde::Serialize;
 
-  impl<P> crate::data_transformation::dnsn::Serialize<SerdeJson> for JsonRpcRequest<P>
+  impl<P> Encode<Dnsn<SerdeJson>> for JsonRpcRequest<P>
   where
-    P: serde::Serialize,
+    P: Serialize,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      serde_json::to_writer(bytes, self)?;
+    fn encode(&self, ew: &mut EncodeWrapper<'_, SerdeJson>) -> crate::Result<()> {
+      if size_of::<Self>() == 0 {
+        return Ok(());
+      }
+      serde_json::to_writer(&mut *ew.vector, self)?;
       Ok(())
     }
   }

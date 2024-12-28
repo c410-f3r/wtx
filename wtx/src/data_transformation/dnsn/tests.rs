@@ -2,7 +2,8 @@
 
 use crate::{
   client_api_framework::pkg::Package,
-  data_transformation::dnsn::{Deserialize, Serialize},
+  data_transformation::dnsn::Dnsn,
+  misc::{DecodeSeq, Encode},
 };
 use alloc::string::String;
 use core::marker::PhantomData;
@@ -18,8 +19,9 @@ impl<EREQC, ERESC> FooBar<EREQC, ERESC> {
 
 impl<DRSR, EREQC, ERESC> Package<(), DRSR, ()> for FooBar<EREQC, ERESC>
 where
-  EREQC: Serialize<DRSR>,
-  ERESC: for<'de> Deserialize<'de, DRSR>,
+  EREQC: Encode<Dnsn<DRSR>>,
+  ERESC: for<'de> DecodeSeq<'de, Dnsn<DRSR>>,
+  for<'any> DRSR: 'any,
 {
   type ExternalRequestContent = EREQC;
   type ExternalResponseContent<'de> = ERESC;

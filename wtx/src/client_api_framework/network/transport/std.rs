@@ -16,7 +16,10 @@ use std::{
   net::TcpStream,
 };
 
-impl<DRSR> RecievingTransport<DRSR> for TcpStream {
+impl<DRSR> RecievingTransport<DRSR> for TcpStream
+where
+  for<'any> DRSR: 'any,
+{
   #[inline]
   async fn recv<A>(
     &mut self,
@@ -30,7 +33,10 @@ impl<DRSR> RecievingTransport<DRSR> for TcpStream {
   }
 }
 
-impl<DRSR> SendingTransport<DRSR> for TcpStream {
+impl<DRSR> SendingTransport<DRSR> for TcpStream
+where
+  for<'any> DRSR: 'any,
+{
   #[inline]
   async fn send<A, P>(
     &mut self,
@@ -64,6 +70,7 @@ where
   A: Api,
   P: Package<A, DRSR, T::Params>,
   T: Transport<DRSR>,
+  for<'any> DRSR: 'any,
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;

@@ -32,7 +32,7 @@ async fn main() -> wtx::Result<()> {
 struct CustomCompositeType(u32, u64);
 
 impl Decode<'_, Postgres<wtx::Error>> for CustomCompositeType {
-  fn decode(input: &DecodeValue<'_>) -> Result<Self, wtx::Error> {
+  fn decode(dv: &mut DecodeValue) -> Result<Self, wtx::Error> {
     let mut sd = StructDecoder::<wtx::Error>::new(input);
     Ok(Self(sd.decode()?, sd.decode()?))
   }

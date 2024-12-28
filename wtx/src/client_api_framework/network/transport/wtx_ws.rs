@@ -43,6 +43,7 @@ where
   A: Api,
   P: Package<A, DRSR, WsParams>,
   T: Transport<DRSR, Params = WsParams>,
+  for<'any> DRSR: 'any,
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;

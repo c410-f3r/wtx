@@ -14,7 +14,9 @@ mod op_code;
 mod payload_ty;
 mod read_frame_info;
 mod unmask;
+mod web_socket_acceptor;
 mod web_socket_buffer;
+mod web_socket_connector;
 mod web_socket_error;
 mod web_socket_parts;
 pub(crate) mod web_socket_reader;
@@ -41,7 +43,9 @@ pub use frame::{
 pub use misc::fill_with_close_code;
 pub use op_code::OpCode;
 pub use read_frame_info::ReadFrameInfo;
+pub use web_socket_acceptor::WebSocketAcceptor;
 pub use web_socket_buffer::WebSocketBuffer;
+pub use web_socket_connector::WebSocketConnector;
 pub use web_socket_error::WebSocketError;
 pub use web_socket_parts::{
   web_socket_part_mut::{WebSocketCommonPartMut, WebSocketReaderPartMut, WebSocketWriterPartMut},

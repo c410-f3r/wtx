@@ -4,7 +4,8 @@ macro_rules! impl_0_16 {
   ($( [$($T:ident($N:tt))*] )+) => {
     #[cfg(feature = "database")]
     mod database {
-      use crate::database::{Database, Encode, RecordValues, record_values::encode};
+      use crate::database::{Database, RecordValues, record_values::encode};
+      use crate::misc::Encode;
 
       $(
         impl<DB, $($T,)*> RecordValues<DB> for ($( $T, )*)
@@ -16,9 +17,9 @@ macro_rules! impl_0_16 {
           fn encode_values<'buffer, 'tmp, AUX>(
             &mut self,
             _aux: &mut AUX,
-            _ev: &mut DB::EncodeValue<'buffer, 'tmp>,
-            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>) -> usize,
-            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+            _ev: &mut DB::EncodeWrapper<'buffer, 'tmp>,
+            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'buffer, 'tmp>) -> usize,
+            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
           ) -> Result<usize, DB::Error> {
             let mut _n: usize = 0;
             $(
@@ -257,9 +258,11 @@ macro_rules! impl_0_16 {
 
     #[cfg(feature = "postgres")]
     mod postgres {
-      use crate::database::{
-        Decode, Encode, Typed,
-        client::postgres::{DecodeValue, EncodeValue, Postgres, StructDecoder, StructEncoder}
+      use crate::{
+        database::{
+          Typed, client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder},
+        },
+        misc::{Decode, Encode}
       };
 
       $(
@@ -269,8 +272,8 @@ macro_rules! impl_0_16 {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn decode(dv: &DecodeValue<'de>) -> Result<Self, ERR> {
-            let mut _sd = StructDecoder::<ERR>::new(dv);
+          fn decode(dw: &mut DecodeWrapper<'de>) -> Result<Self, ERR> {
+            let mut _sd = StructDecoder::<ERR>::new(dw);
             Ok((
               $( _sd.decode::<$T>()?, )*
             ))
@@ -283,8 +286,8 @@ macro_rules! impl_0_16 {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _ev: &mut EncodeValue<'_, '_>) -> Result<(), ERR> {
-            let mut _ev = StructEncoder::<ERR>::new(_ev)?;
+          fn encode(&self, _ew: &mut EncodeWrapper<'_, '_>) -> Result<(), ERR> {
+            let mut _ev = StructEncoder::<ERR>::new(_ew)?;
             $(
               _ev = _ev.encode(&self.$N)?;
             )*

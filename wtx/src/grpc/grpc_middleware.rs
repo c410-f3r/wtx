@@ -14,6 +14,7 @@ pub struct GrpcMiddleware;
 impl<CA, DRSR, E> Middleware<CA, E, GrpcManager<DRSR>> for GrpcMiddleware
 where
   E: From<crate::Error>,
+  for<'any> DRSR: 'any,
 {
   type Aux = ();
 

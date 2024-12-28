@@ -12,7 +12,7 @@ use crate::{
   },
   misc::{
     bytes_split1, from_utf8_basic, partitioned_filled_buffer::PartitionedFilledBuffer, ArrayVector,
-    ConnectionState, FilledBufferWriter, LeaseMut, Rng, Stream, Vector,
+    ConnectionState, LeaseMut, Rng, Stream, SuffixWriterFbvm, Vector,
   },
 };
 use base64::prelude::{Engine as _, BASE64_STANDARD};
@@ -152,9 +152,9 @@ where
     let local_nonce = nonce(rng);
     nb._reserve(2048)?;
     {
-      let mut fbw = FilledBufferWriter::from(&mut *nb);
-      sasl_first(&mut fbw, (method_bytes, method_header), &local_nonce)?;
-      stream.write_all(fbw._curr_bytes()).await?;
+      let mut sw = SuffixWriterFbvm::from(nb.suffix_writer());
+      sasl_first(&mut sw, (method_bytes, method_header), &local_nonce)?;
+      stream.write_all(sw._curr_bytes()).await?;
     }
 
     let (mut auth_data, response_nonce, salted_password) = {
@@ -183,16 +183,16 @@ where
     };
 
     {
-      let mut fbw = FilledBufferWriter::from(&mut *nb);
+      let mut sw = SuffixWriterFbvm::from(nb.suffix_writer());
       sasl_second(
         &mut auth_data,
-        &mut fbw,
+        &mut sw,
         method_header,
         &response_nonce,
         &salted_password,
         tsep_data,
       )?;
-      stream.write_all(fbw._curr_bytes()).await?;
+      stream.write_all(sw._curr_bytes()).await?;
     }
 
     {

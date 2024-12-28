@@ -1,6 +1,7 @@
 use crate::{
   client_api_framework::{network::transport::TransportParams, pkg::Package, Api},
-  data_transformation::dnsn::Serialize,
+  data_transformation::dnsn::Dnsn,
+  misc::Encode,
 };
 use core::marker::PhantomData;
 
@@ -19,9 +20,10 @@ impl<'slice, A, DRSR, P, TP> BatchPkg<'slice, A, DRSR, P, TP> {
 impl<'slice, A, DRSR, P, TP> Package<A, DRSR, TP> for BatchPkg<'slice, A, DRSR, P, TP>
 where
   A: Api,
-  BatchElems<'slice, A, DRSR, P, TP>: Serialize<DRSR>,
+  BatchElems<'slice, A, DRSR, P, TP>: Encode<Dnsn<DRSR>>,
   P: Package<A, DRSR, TP>,
   TP: TransportParams,
+  for<'any> DRSR: 'any,
 {
   type ExternalRequestContent = BatchElems<'slice, A, DRSR, P, TP>;
   type ExternalResponseContent<'de> = ();
@@ -85,22 +87,22 @@ mod serde_json {
       pkg::{BatchElems, Package},
       Api,
     },
-    data_transformation::dnsn::SerdeJson,
-    misc::Vector,
+    data_transformation::dnsn::{Dnsn, EncodeWrapper, SerdeJson},
+    misc::Encode,
   };
-  use serde::Serializer;
+  use serde::{Serialize, Serializer};
 
-  impl<A, DRSR, P, TP> crate::data_transformation::dnsn::Serialize<SerdeJson>
-    for BatchElems<'_, A, DRSR, P, TP>
+  impl<A, DRSR, P, TP> Encode<Dnsn<SerdeJson>> for BatchElems<'_, A, DRSR, P, TP>
   where
     A: Api,
     P: Package<A, DRSR, TP>,
-    P::ExternalRequestContent: serde::Serialize,
+    P::ExternalRequestContent: Serialize,
     TP: TransportParams,
+    for<'any> DRSR: 'any,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      serde_json::Serializer::new(bytes)
+    fn encode(&self, ew: &mut EncodeWrapper<'_, SerdeJson>) -> crate::Result<()> {
+      serde_json::Serializer::new(&mut *ew.vector)
         .collect_seq(self.0.iter().map(Package::ext_req_content))?;
       Ok(())
     }

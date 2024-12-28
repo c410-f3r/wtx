@@ -19,9 +19,10 @@ macro_rules! check_headers {
 
 use crate::{
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{bytes_split1, FilledBufferWriter, LeaseMut, Rng, Stream, UriRef, Xorshift64},
+  misc::{bytes_split1, LeaseMut, Rng, Stream, SuffixWriterFbvm, UriRef},
   web_socket::{
-    compression::NegotiatedCompression, Compression, WebSocket, WebSocketBuffer, WebSocketError,
+    compression::NegotiatedCompression, Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer,
+    WebSocketConnector, WebSocketError,
   },
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -35,28 +36,24 @@ const UPGRADE: &str = "Upgrade";
 const VERSION: &str = "13";
 const WEBSOCKET: &str = "websocket";
 
-impl<NC, S, WSB> WebSocket<NC, S, WSB, false>
+impl<C, E, R, WSB> WebSocketAcceptor<C, R, WSB>
 where
-  NC: NegotiatedCompression,
-  S: Stream,
+  C: Compression<false>,
+  E: From<crate::Error>,
+  R: FnOnce(&Request<'_, '_>) -> Result<(), E>,
   WSB: LeaseMut<WebSocketBuffer>,
 {
   /// Reads external data to establish an WebSocket connection.
   #[inline]
-  pub async fn accept<C, E>(
-    compression: C,
-    mut no_masking: bool,
-    rng: Xorshift64,
+  pub async fn accept<S>(
+    mut self,
     mut stream: S,
-    mut wsb: WSB,
-    req_cb: impl FnOnce(&Request<'_, '_>) -> Result<(), E>,
-  ) -> Result<Self, E>
+  ) -> Result<WebSocket<C::NegotiatedCompression, S, WSB, false>, E>
   where
-    C: Compression<false, NegotiatedCompression = NC>,
-    E: From<crate::Error>,
+    S: Stream,
   {
-    wsb.lease_mut()._clear();
-    let nb = &mut wsb.lease_mut().network_buffer;
+    self.wsb.lease_mut()._clear();
+    let nb = &mut self.wsb.lease_mut().network_buffer;
     nb._reserve(MAX_READ_LEN)?;
     let mut read = 0;
     loop {
@@ -70,7 +67,7 @@ where
       let mut req = Request::new(&mut req_buffer);
       match req.parse(nb._following()).map_err(From::from)? {
         Status::Complete(_) => {
-          req_cb(&req)?;
+          (self.req)(&req)?;
           if !req.method().trim_ascii().eq_ignore_ascii_case(b"get") {
             return Err(
               crate::Error::from(HttpError::UnexpectedHttpMethod { expected: Method::Get }).into(),
@@ -83,10 +80,10 @@ where
             (KnownHeaderName::SecWebsocketKey, None),
             (KnownHeaderName::SecWebsocketVersion, Some(VERSION.as_bytes()))
           );
-          no_masking &= check_header_value(c).map_or(false, has_no_masking);
+          self.no_masking &= check_header_value(c).map_or(false, has_no_masking);
           let key = check_header_value(d)?;
           let _ = check_header_value(e)?;
-          let nc = compression.negotiate(req.headers.iter())?;
+          let nc = self.compression.negotiate(req.headers.iter())?;
           let swa = derived_key(&mut key_buffer, key);
           let mut headers_buffer = [EMPTY_HEADER; 3];
           headers_buffer[0] = Header { name: "Connection", value: UPGRADE.as_bytes() };
@@ -96,12 +93,12 @@ where
           res.code = Some(101);
           res.version = Some(req.version().into());
           {
-            let mut fbw = nb.into();
-            build_res(&mut fbw, res.headers, &nc, no_masking)?;
-            stream.write_all(fbw._curr_bytes()).await?;
+            let mut sw = nb.suffix_writer();
+            build_res(&mut sw, res.headers, &nc, self.no_masking)?;
+            stream.write_all(sw._curr_bytes()).await?;
           }
           nb._clear();
-          return Ok(WebSocket::new(nc, no_masking, rng, stream, wsb)?);
+          return Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb)?);
         }
         Status::Partial => {}
       }
@@ -109,43 +106,47 @@ where
   }
 }
 
-impl<NC, S, WSB> WebSocket<NC, S, WSB, true>
+impl<'headers, C, E, H, R, WSB> WebSocketConnector<C, H, R, WSB>
 where
-  NC: NegotiatedCompression,
-  S: Stream,
+  C: Compression<true>,
+  E: From<crate::Error>,
+  H: IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
+  R: FnOnce(&Response<'_, '_>) -> Result<(), E>,
   WSB: LeaseMut<WebSocketBuffer>,
 {
   /// Sends data to establish an WebSocket connection.
   #[inline]
-  pub async fn connect<'headers, C, E>(
-    compression: C,
-    headers: impl IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
-    mut no_masking: bool,
-    mut rng: Xorshift64,
+  pub async fn connect<S>(
+    mut self,
     mut stream: S,
     uri: &UriRef<'_>,
-    mut wsb: WSB,
-    res_cb: impl FnOnce(&Response<'_, '_>) -> Result<(), E>,
   ) -> Result<WebSocket<C::NegotiatedCompression, S, WSB, true>, E>
   where
-    C: Compression<true, NegotiatedCompression = NC>,
-    E: From<crate::Error>,
+    S: Stream,
   {
-    wsb.lease_mut()._clear();
+    self.wsb.lease_mut()._clear();
     let key_buffer = &mut [0; 26];
     let key = {
-      let nb = &mut wsb.lease_mut().network_buffer;
+      let nb = &mut self.wsb.lease_mut().network_buffer;
       nb._reserve(MAX_READ_LEN)?;
       {
-        let fbw = &mut nb.into();
-        let key = build_req(&compression, fbw, headers, key_buffer, no_masking, &mut rng, uri)?;
-        stream.write_all(fbw._curr_bytes()).await?;
+        let mut sw = nb.suffix_writer();
+        let key = build_req(
+          &self.compression,
+          &mut sw,
+          self.headers,
+          key_buffer,
+          self.no_masking,
+          &mut self.rng,
+          uri,
+        )?;
+        stream.write_all(sw._curr_bytes()).await?;
         key
       }
     };
     let mut read = 0;
     let (nc, len) = loop {
-      let nb = &mut wsb.lease_mut().network_buffer;
+      let nb = &mut self.wsb.lease_mut().network_buffer;
       let local_read = stream.read(nb._buffer_mut().get_mut(read..).unwrap_or_default()).await?;
       if local_read == 0 {
         return Err(crate::Error::UnexpectedStreamReadEOF.into());
@@ -160,18 +161,18 @@ where
       if res.code != Some(101) {
         return Err(crate::Error::from(WebSocketError::MissingSwitchingProtocols).into());
       }
-      res_cb(&res)?;
+      (self.res)(&res)?;
       let [_, _, c, d] = check_headers!(
         res.headers,
         (KnownHeaderName::SecWebsocketAccept, Some(derived_key(&mut [0; 30], key))),
         (KnownHeaderName::SecWebsocketExtensions, None)
       );
       drop(check_header_value(c));
-      no_masking &= check_header_value(d).map_or(false, has_no_masking);
-      break (compression.negotiate(res.headers.iter())?, len);
+      self.no_masking &= check_header_value(d).map_or(false, has_no_masking);
+      break (self.compression.negotiate(res.headers.iter())?, len);
     };
-    wsb.lease_mut().network_buffer._set_indices(0, len, read.wrapping_sub(len))?;
-    Ok(WebSocket::new(nc, no_masking, rng, stream, wsb)?)
+    self.wsb.lease_mut().network_buffer._set_indices(0, len, read.wrapping_sub(len))?;
+    Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb)?)
   }
 }
 
@@ -192,7 +193,7 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
 #[inline]
 fn build_req<'headers, 'kb, C>(
   compression: &C,
-  fbw: &mut FilledBufferWriter<'_>,
+  sw: &mut SuffixWriterFbvm<'_>,
   headers: impl IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
   key_buffer: &'kb mut [u8; 26],
   no_masking: bool,
@@ -203,36 +204,36 @@ where
   C: Compression<true>,
 {
   let key = gen_key(key_buffer, rng);
-  fbw._extend_from_slices_group_rn(&[
+  sw._extend_from_slices_group_rn(&[
     b"GET ",
     uri.relative_reference_slash().as_bytes(),
     b" HTTP/1.1",
   ])?;
   for (name, value) in headers {
-    fbw._extend_from_slices_group_rn(&[name, b": ", value])?;
+    sw._extend_from_slices_group_rn(&[name, b": ", value])?;
   }
-  fbw._extend_from_slice_rn(b"Connection: Upgrade")?;
+  sw._extend_from_slice_rn(b"Connection: Upgrade")?;
   match uri.port() {
     Some(80 | 443) => {
-      fbw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()])?;
+      sw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()])?;
     }
-    _ => fbw._extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()])?,
+    _ => sw._extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()])?,
   }
   if no_masking {
-    fbw._extend_from_slice_rn(b"Sec-WebSocket-Extensions: no-masking")?;
+    sw._extend_from_slice_rn(b"Sec-WebSocket-Extensions: no-masking")?;
   }
-  fbw._extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key])?;
-  fbw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13")?;
-  fbw._extend_from_slice_rn(b"Upgrade: websocket")?;
-  compression.write_req_headers(fbw)?;
-  fbw._extend_from_slice_rn(b"")?;
+  sw._extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key])?;
+  sw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13")?;
+  sw._extend_from_slice_rn(b"Upgrade: websocket")?;
+  compression.write_req_headers(sw)?;
+  sw._extend_from_slice_rn(b"")?;
   Ok(key)
 }
 
 /// Server response
 #[inline]
 fn build_res<NC>(
-  fbw: &mut FilledBufferWriter<'_>,
+  sw: &mut SuffixWriterFbvm<'_>,
   headers: &[Header<'_>],
   nc: &NC,
   no_masking: bool,
@@ -240,19 +241,19 @@ fn build_res<NC>(
 where
   NC: NegotiatedCompression,
 {
-  fbw._extend_from_slice_rn(b"HTTP/1.1 101 Switching Protocols")?;
+  sw._extend_from_slice_rn(b"HTTP/1.1 101 Switching Protocols")?;
   for header in headers {
-    fbw._extend_from_slices_group_rn(&[header.name(), b": ", header.value()])?;
+    sw._extend_from_slices_group_rn(&[header.name(), b": ", header.value()])?;
   }
   if no_masking {
-    fbw._extend_from_slices_group_rn(&[
+    sw._extend_from_slices_group_rn(&[
       KnownHeaderName::SecWebsocketExtensions.into(),
       b": ",
       NO_MASKING.as_bytes(),
     ])?;
   }
-  nc.write_res_headers(fbw)?;
-  fbw._extend_from_slice_rn(b"")?;
+  nc.write_res_headers(sw)?;
+  sw._extend_from_slice_rn(b"")?;
   Ok(())
 }
 

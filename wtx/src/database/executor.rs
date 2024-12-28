@@ -2,7 +2,7 @@
 
 use crate::{
   database::{Database, FromRecord, RecordValues, StmtCmd, TransactionManager},
-  misc::ConnectionState,
+  misc::{ConnectionState, DEController},
 };
 use core::future::Future;
 
@@ -29,7 +29,7 @@ pub trait Executor {
     &mut self,
     sc: SC,
     rv: RV,
-  ) -> impl Future<Output = Result<u64, <Self::Database as Database>::Error>>
+  ) -> impl Future<Output = Result<u64, <Self::Database as DEController>::Error>>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd;
@@ -41,7 +41,10 @@ pub trait Executor {
     sc: SC,
     rv: RV,
   ) -> impl Future<
-    Output = Result<<Self::Database as Database>::Record<'_>, <Self::Database as Database>::Error>,
+    Output = Result<
+      <Self::Database as Database>::Record<'_>,
+      <Self::Database as DEController>::Error,
+    >,
   >
   where
     RV: RecordValues<Self::Database>,
@@ -55,9 +58,12 @@ pub trait Executor {
     rv: RV,
     cb: impl FnMut(
       &<Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as Database>::Error>,
+    ) -> Result<(), <Self::Database as DEController>::Error>,
   ) -> impl Future<
-    Output = Result<<Self::Database as Database>::Records<'_>, <Self::Database as Database>::Error>,
+    Output = Result<
+      <Self::Database as Database>::Records<'_>,
+      <Self::Database as DEController>::Error,
+    >,
   >
   where
     RV: RecordValues<Self::Database>,
@@ -70,7 +76,7 @@ pub trait Executor {
   fn prepare(
     &mut self,
     cmd: &str,
-  ) -> impl Future<Output = Result<u64, <Self::Database as Database>::Error>>;
+  ) -> impl Future<Output = Result<u64, <Self::Database as DEController>::Error>>;
 
   /// Retrieves a record and maps it to `T`. See [`FromRecord`].
   #[inline]
@@ -78,7 +84,7 @@ pub trait Executor {
     &mut self,
     cmd: &str,
     sv: SV,
-  ) -> impl Future<Output = Result<T, <Self::Database as Database>::Error>>
+  ) -> impl Future<Output = Result<T, <Self::Database as DEController>::Error>>
   where
     T: FromRecord<Self::Database>,
     SV: RecordValues<Self::Database>,
@@ -92,8 +98,8 @@ pub trait Executor {
     &mut self,
     cmd: &str,
     sv: SV,
-    mut cb: impl FnMut(T) -> Result<(), <Self::Database as Database>::Error>,
-  ) -> impl Future<Output = Result<(), <Self::Database as Database>::Error>>
+    mut cb: impl FnMut(T) -> Result<(), <Self::Database as DEController>::Error>,
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
   where
     SV: RecordValues<Self::Database>,
     T: FromRecord<Self::Database>,
@@ -123,7 +129,7 @@ impl Executor for () {
     &mut self,
     _: SC,
     _: RV,
-  ) -> Result<u64, <Self::Database as Database>::Error>
+  ) -> Result<u64, <Self::Database as DEController>::Error>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
@@ -136,7 +142,7 @@ impl Executor for () {
     &mut self,
     _: S,
     _: RV,
-  ) -> Result<<Self::Database as Database>::Record<'_>, <Self::Database as Database>::Error>
+  ) -> Result<<Self::Database as Database>::Record<'_>, <Self::Database as DEController>::Error>
   where
     RV: RecordValues<Self::Database>,
     S: StmtCmd,
@@ -151,8 +157,8 @@ impl Executor for () {
     _: RV,
     _: impl FnMut(
       &<Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as Database>::Error>,
-  ) -> Result<(), <Self::Database as Database>::Error>
+    ) -> Result<(), <Self::Database as DEController>::Error>,
+  ) -> Result<(), <Self::Database as DEController>::Error>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
@@ -166,7 +172,7 @@ impl Executor for () {
   }
 
   #[inline]
-  async fn prepare(&mut self, _: &str) -> Result<u64, <Self::Database as Database>::Error> {
+  async fn prepare(&mut self, _: &str) -> Result<u64, <Self::Database as DEController>::Error> {
     Ok(0)
   }
 

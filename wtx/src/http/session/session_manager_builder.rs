@@ -4,7 +4,7 @@ use crate::{
     session::{SessionKey, SessionManagerInner},
     SessionManager, SessionStore,
   },
-  misc::{sleep, Lock, Rng, Vector},
+  misc::{sleep, CryptoRng, Lock, Vector},
 };
 use chrono::{DateTime, Utc};
 use core::{future::Future, marker::PhantomData, time::Duration};
@@ -52,7 +52,7 @@ impl SessionManagerBuilder {
   where
     E: From<crate::Error>,
     I: Lock<Resource = SessionManagerInner<CS, E>>,
-    RNG: Rng,
+    RNG: CryptoRng,
     SS: Clone + SessionStore<CS, E>,
   {
     let mut key = [0; 32];
