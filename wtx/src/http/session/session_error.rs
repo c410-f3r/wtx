@@ -8,5 +8,5 @@ pub enum SessionError {
   /// REceived a session that doesn't exist in the store
   MissingStoredSession,
   /// Path required a session, but there was none
-  RequiredSessionInPath,
+  RequiredSession,
 }

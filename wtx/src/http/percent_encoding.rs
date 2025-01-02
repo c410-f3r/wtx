@@ -1,8 +1,8 @@
 use crate::misc::Vector;
 use core::str;
 
-const ASCII_RANGE_LEN: usize = 0x80;
-const BITS_PER_CHUNK: usize = 8 * 32;
+const ASCII_RANGE_LEN: usize = 128;
+const BITS_PER_CHUNK: usize = 32;
 
 /// Characters or bytes in the ASCII range.
 #[derive(Clone, Copy, Debug)]
@@ -11,6 +11,18 @@ pub struct AsciiSet {
 }
 
 impl AsciiSet {
+  /// Characters from 0x00 to 0x1F (C0 controls), and 0x7F (DEL).
+  ///
+  /// <https://url.spec.whatwg.org/#c0-control-percent-encode-set>
+  pub const CONTROLS: &AsciiSet = &AsciiSet { mask: [u32::MAX, 0, 0, 2_147_483_648] };
+
+  /// An empty set.
+  pub const EMPTY: AsciiSet = AsciiSet { mask: [0; ASCII_RANGE_LEN / BITS_PER_CHUNK] };
+
+  /// Everything but letters or digits.
+  pub const NON_ALPHANUMERIC: AsciiSet =
+    AsciiSet { mask: [u32::MAX, 4_227_923_967, 4_160_749_569, 4_160_749_569] };
+
   /// Adds a character into the set.
   #[inline]
   #[must_use]
@@ -72,24 +84,21 @@ impl<'bytes> Iterator for PercentEncode<'bytes> {
 
   #[inline]
   fn next(&mut self) -> Option<&'bytes [u8]> {
-    if let Some((&byte, remaining)) = self.bytes.split_first() {
-      if self.ascii_set.should_percent_encode(byte) {
-        self.bytes = remaining;
-        Some(percent_encode_byte(byte).as_bytes())
-      } else {
-        for (idx, local_byte) in remaining.iter().copied().enumerate() {
-          if self.ascii_set.should_percent_encode(local_byte) {
-            let (rslt, local_remaining) = self.bytes.split_at(idx.wrapping_add(1));
-            self.bytes = local_remaining;
-            return Some(rslt);
-          }
-        }
-        let rslt = self.bytes;
-        self.bytes = &[][..];
-        Some(rslt)
-      }
+    let (&byte, remaining) = self.bytes.split_first()?;
+    if self.ascii_set.should_percent_encode(byte) {
+      self.bytes = remaining;
+      Some(percent_encode_str(byte).as_bytes())
     } else {
-      None
+      for (idx, local_byte) in remaining.iter().copied().enumerate() {
+        if self.ascii_set.should_percent_encode(local_byte) {
+          let (left, right) = self.bytes.split_at_checked(idx.wrapping_add(1))?;
+          self.bytes = right;
+          return Some(left);
+        }
+      }
+      let rslt = self.bytes;
+      self.bytes = &[][..];
+      Some(rslt)
     }
   }
 
@@ -126,8 +135,8 @@ impl<'bytes> PercentDecode<'bytes> {
     let decoded_byte = 'unmodified: {
       while let [first, rest @ ..] = bytes {
         bytes = rest;
-        idx = idx.wrapping_add(1);
         if *first != b'%' {
+          idx = idx.wrapping_add(1);
           continue;
         }
         let Some(byte) = manage_percent_char(&mut bytes) else {
@@ -137,8 +146,8 @@ impl<'bytes> PercentDecode<'bytes> {
       }
       return Ok(false);
     };
-    let local_bytes = self.bytes.get(..idx).unwrap_or_default();
-    let _ = vector.extend_from_copyable_slices([local_bytes, &[decoded_byte][..]])?;
+    let normal_bytes = self.bytes.get(..idx).unwrap_or_default();
+    let _ = vector.extend_from_copyable_slices([normal_bytes, &[decoded_byte][..]])?;
     while let [byte, rest @ ..] = bytes {
       bytes = rest;
       vector.push(if *byte == b'%' {
@@ -163,7 +172,7 @@ fn manage_percent_char(bytes: &mut &[u8]) -> Option<u8> {
 }
 
 #[inline]
-fn percent_encode_byte(byte: u8) -> &'static str {
+fn percent_encode_str(byte: u8) -> &'static str {
   static TABLE: &[u8; 768] = b"\
     %00%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F\
     %10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F\
@@ -182,8 +191,34 @@ fn percent_encode_byte(byte: u8) -> &'static str {
     %E0%E1%E2%E3%E4%E5%E6%E7%E8%E9%EA%EB%EC%ED%EE%EF\
     %F0%F1%F2%F3%F4%F5%F6%F7%F8%F9%FA%FB%FC%FD%FE%FF\
   ";
-  let idx = usize::from(byte).wrapping_add(3);
+  let idx = usize::from(byte).wrapping_mul(3);
   let slice = TABLE.get(idx..idx.wrapping_add(3)).unwrap_or_default();
   // SAFETY: TABLE is ascii-only
   unsafe { str::from_utf8_unchecked(slice) }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    http::{AsciiSet, PercentDecode, PercentEncode},
+    misc::Vector,
+  };
+
+  #[test]
+  fn decode() {
+    let decoded = "y+DvKRKG/sTPjjmItrMFJZcCE/MBi5rlXPXsNA==";
+    let encoded = "y%2BDvKRKG%2FsTPjjmItrMFJZcCE%2FMBi5rlXPXsNA%3D%3D";
+    let mut buffer = Vector::new();
+    let _ = PercentDecode::new(encoded.as_bytes()).decode(&mut buffer).unwrap();
+    assert_eq!(buffer.as_slice(), decoded.as_bytes());
+  }
+
+  #[test]
+  fn encode() {
+    let mut buffer = Vector::new();
+    for elem in PercentEncode::new(b"hello world?", &AsciiSet::NON_ALPHANUMERIC) {
+      buffer.extend_from_copyable_slice(elem).unwrap();
+    }
+    assert_eq!(buffer.as_ref(), b"hello%20world%3F");
+  }
 }

@@ -22,7 +22,7 @@ impl SessionManagerBuilder {
     Self {
       cookie_def: CookieGeneric {
         domain: &[],
-        expire: None,
+        expires: None,
         http_only: true,
         max_age: None,
         name: "id".as_bytes(),
@@ -44,15 +44,15 @@ impl SessionManagerBuilder {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_generating_key<CS, E, I, RNG, SS>(
+  pub fn build_generating_key<CS, E, RNG, SMI, SS>(
     self,
     rng: &mut RNG,
     session_store: &mut SS,
-  ) -> (impl Future<Output = Result<(), E>>, SessionManager<I>)
+  ) -> (impl Future<Output = Result<(), E>>, SessionManager<SMI>)
   where
     E: From<crate::Error>,
-    I: Lock<Resource = SessionManagerInner<CS, E>>,
     RNG: Rng,
+    SMI: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
     let mut key = [0; 32];
@@ -68,14 +68,14 @@ impl SessionManagerBuilder {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_with_key<CS, E, I, SS>(
+  pub fn build_with_key<CS, E, SMI, SS>(
     self,
     key: SessionKey,
     session_store: &mut SS,
-  ) -> (impl Future<Output = Result<(), E>>, SessionManager<I>)
+  ) -> (impl Future<Output = Result<(), E>>, SessionManager<SMI>)
   where
     E: From<crate::Error>,
-    I: Lock<Resource = SessionManagerInner<CS, E>>,
+    SMI: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
     let Self { cookie_def, inspection_interval } = self;
@@ -88,7 +88,7 @@ impl SessionManagerBuilder {
         }
       },
       SessionManager {
-        inner: I::new(SessionManagerInner { cookie_def, phantom: PhantomData, key }),
+        inner: SMI::new(SessionManagerInner { cookie_def, phantom: PhantomData, key }),
       },
     )
   }
@@ -101,9 +101,12 @@ impl SessionManagerBuilder {
   }
 
   /// Indicates the maximum lifetime of the cookie as an HTTP-date timestamp.
+  ///
+  /// If [Self::max_age] is set, then this parameter is ignored when setting the cookie in the
+  /// header.
   #[inline]
   pub fn expires(mut self, elem: Option<DateTime<Utc>>) -> Self {
-    self.cookie_def.expire = elem;
+    self.cookie_def.expires = elem;
     self
   }
 
@@ -140,7 +143,7 @@ impl SessionManagerBuilder {
   /// header.
   #[inline]
   pub fn path(mut self, elem: &'static [u8]) -> Self {
-    self.cookie_def.domain = elem;
+    self.cookie_def.path = elem;
     self
   }
 

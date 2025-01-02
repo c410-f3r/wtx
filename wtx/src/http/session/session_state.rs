@@ -7,7 +7,7 @@ pub struct SessionState<CS> {
   /// Custom state
   pub custom_state: CS,
   /// Cookie expiration
-  pub expire: Option<DateTime<Utc>>,
+  pub expires: Option<DateTime<Utc>>,
   /// Identifier
   pub id: SessionId,
 }

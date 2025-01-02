@@ -11,7 +11,7 @@ use core::{
 #[derive(Debug)]
 pub(crate) struct CookieGeneric<T, V> {
   pub(crate) domain: T,
-  pub(crate) expire: Option<DateTime<Utc>>,
+  pub(crate) expires: Option<DateTime<Utc>>,
   pub(crate) http_only: bool,
   pub(crate) max_age: Option<Duration>,
   pub(crate) name: T,
@@ -32,7 +32,7 @@ where
     if !self.domain.lease().is_empty() {
       f.write_fmt(format_args!("; Domain={}", BytesFmt(self.domain.lease())))?;
     }
-    if let Some(elem) = self.expire {
+    if let Some(elem) = self.expires {
       f.write_fmt(format_args!("; Expires={}", elem.format(FMT1)))?;
     }
     if self.http_only {

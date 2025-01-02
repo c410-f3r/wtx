@@ -14,8 +14,7 @@ pub struct Router<CA, E, EN, M, S, SA> {
   #[cfg(feature = "matchit")]
   pub(crate) _matcher: matchit::Router<(ArrayVector<RouteMatch, 4>, OperationMode)>,
   #[cfg(not(feature = "matchit"))]
-  pub(crate) _matcher:
-    (hashbrown::HashMap<alloc::string::String, OperationMode>, Option<OperationMode>),
+  pub(crate) _matcher: hashbrown::HashMap<alloc::string::String, OperationMode>,
   pub(crate) middlewares: M,
   pub(crate) phantom: PhantomData<(CA, E, S, SA)>,
 }
@@ -59,50 +58,17 @@ where
   #[cfg(not(feature = "matchit"))]
   fn _matcher(
     paths: &EN,
-  ) -> crate::Result<(
-    hashbrown::HashMap<alloc::string::String, OperationMode>,
-    Option<OperationMode>,
-  )> {
+  ) -> crate::Result<hashbrown::HashMap<alloc::string::String, OperationMode>> {
     let mut paths_indices = Vector::new();
     paths.paths_indices(ArrayVector::new(), &mut paths_indices)?;
     let mut paths = hashbrown::HashMap::new();
-    if let Some(om) = Self::unique_om(&paths_indices) {
-      return Ok((paths, Some(om)));
-    }
     for array in paths_indices {
       let [first, ..] = array.as_slice() else {
         continue;
       };
       let _ = paths.insert(first.path.into(), first.om);
     }
-    Ok((paths, None))
-  }
-
-  #[inline]
-  #[cfg(not(feature = "matchit"))]
-  fn unique_om(paths_indices: &[ArrayVector<RouteMatch, 4>]) -> Option<OperationMode> {
-    let mut array_iter = paths_indices.iter();
-    let Some(first_array) = array_iter.next() else {
-      return None;
-    };
-    let mut first_array_iter = first_array.iter();
-    let Some(first_elem) = first_array_iter.next() else {
-      return None;
-    };
-    let om = first_elem.om;
-    for elem in first_array_iter {
-      if elem.om != om {
-        return None;
-      }
-    }
-    for array in array_iter {
-      for elem in array {
-        if elem.om != om {
-          return None;
-        }
-      }
-    }
-    Some(om)
+    Ok(paths)
   }
 }
 

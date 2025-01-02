@@ -27,8 +27,7 @@ use wtx::{
   database::{Executor, Record},
   http::{
     server_framework::{get, post, Router, ServerFrameworkBuilder, State, StateClean},
-    ReqResBuffer, ReqResData, SessionDecoder, SessionEnforcer, SessionManagerTokio, SessionState,
-    StatusCode,
+    ReqResBuffer, ReqResData, SessionDecoder, SessionManagerTokio, SessionState, StatusCode,
   },
   misc::{argon2_pwd, Vector},
   pool::{PostgresRM, SimplePoolTokio},
@@ -44,8 +43,8 @@ async fn main() -> wtx::Result<()> {
   let mut rng = ChaCha20Rng::from_entropy();
   let (expired, sm) = SessionManager::builder().build_generating_key(&mut rng, &mut pool);
   let router = Router::new(
-    wtx::paths!(("/login", post(login)), ("/logout", get(logout)),),
-    (SessionDecoder::new(sm.clone(), pool.clone()), SessionEnforcer::new(["/admin"])),
+    wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
+    SessionDecoder::new(sm.clone(), pool.clone()),
   )?;
   tokio::spawn(async move {
     if let Err(err) = expired.await {
@@ -95,7 +94,9 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<Statu
 #[inline]
 async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
   let ConnAux { pool, rng: _, session_manager, session_state } = state.conn_aux;
-  session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
+  if session_state.is_some() {
+    session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
+  }
   Ok(StatusCode::Ok)
 }
 

@@ -26,8 +26,6 @@ impl<'bytes> CookieBytes<'bytes> {
     'local_bytes: 'bytes,
     'vector: 'bytes,
   {
-    vector.clear();
-
     let mut semicolons = bytes_split1(bytes, b';');
 
     let mut cookie: CookieGeneric<&'bytes [u8], &'bytes [u8]> = {
@@ -46,7 +44,7 @@ impl<'bytes> CookieBytes<'bytes> {
       let has_decoded_value = PercentDecode::new(value).decode(vector)?;
       CookieGeneric {
         domain: &[],
-        expire: None,
+        expires: None,
         http_only: false,
         max_age: None,
         name: if has_decoded_name {
@@ -86,7 +84,7 @@ impl<'bytes> CookieBytes<'bytes> {
             .or_else(|_| NaiveDateTime::parse_from_str(str, FMT4))
             .map(|elem| DateTime::from_naive_utc_and_offset(elem, Utc))
           {
-            cookie.expire = Some(elem)
+            cookie.expires = Some(elem)
           }
         }
         (b"httponly", _) => cookie.http_only = true,

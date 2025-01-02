@@ -21,8 +21,8 @@ use wtx::{
   },
   data_transformation::dnsn::SerdeJson,
   http::client_framework::ClientFrameworkTokio,
-  misc::{simple_seed, Uri, Xorshift64},
-  web_socket::{WebSocket, WebSocketBuffer},
+  misc::Uri,
+  web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
 
 wtx::create_packages_aux_wrapper!();
@@ -101,17 +101,9 @@ async fn web_socket_pair() -> wtx::Result<
   >,
 > {
   let uri = Uri::new("ws://generic_web_socket_uri.com");
-  let web_socket = WebSocket::connect(
-    (),
-    [],
-    false,
-    Xorshift64::from(simple_seed()),
-    TcpStream::connect(uri.hostname_with_implied_port()).await?,
-    &uri,
-    WebSocketBuffer::default(),
-    |_| wtx::Result::Ok(()),
-  )
-  .await?;
+  let web_socket = WebSocketConnector::default()
+    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri)
+    .await?;
   Ok(Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {

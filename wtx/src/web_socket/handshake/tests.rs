@@ -8,11 +8,10 @@ macro_rules! call_tests {
 }
 
 use crate::{
-  misc::{simple_seed, Xorshift64},
   tests::_uri,
   web_socket::{
-    compression::NegotiatedCompression, Compression, Frame, OpCode, WebSocket, WebSocketBuffer,
-    WebSocketOwned,
+    compression::NegotiatedCompression, Compression, Frame, OpCode, WebSocketAcceptor,
+    WebSocketConnector, WebSocketOwned,
   },
 };
 use core::{
@@ -65,16 +64,12 @@ async fn do_test_client_and_server_frames<CC, SC>(
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).await.unwrap();
   let _server_jh = tokio::spawn(async move {
     let (stream, _) = listener.accept().await.unwrap();
-    let mut ws = WebSocket::accept(
-      server_compression,
-      server_no_masking,
-      Xorshift64::from(simple_seed()),
-      stream,
-      WebSocketBuffer::new(),
-      |_| crate::Result::Ok(()),
-    )
-    .await
-    .unwrap();
+    let mut ws = WebSocketAcceptor::default()
+      .compression(server_compression)
+      .no_masking(server_no_masking)
+      .accept(stream)
+      .await
+      .unwrap();
     call_tests!(
       (server, &mut ws),
       FragmentedText,
@@ -89,18 +84,12 @@ async fn do_test_client_and_server_frames<CC, SC>(
     HAS_SERVER_FINISHED.store(true, Ordering::Relaxed);
   });
 
-  let mut ws = WebSocket::connect(
-    client_compression,
-    [],
-    client_no_masking,
-    Xorshift64::from(simple_seed()),
-    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    &uri.to_ref(),
-    WebSocketBuffer::new(),
-    |_| crate::Result::Ok(()),
-  )
-  .await
-  .unwrap();
+  let mut ws = WebSocketConnector::default()
+    .compression(client_compression)
+    .no_masking(client_no_masking)
+    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(), &uri.to_ref())
+    .await
+    .unwrap();
   call_tests!(
     (client, &mut ws),
     FragmentedText,
