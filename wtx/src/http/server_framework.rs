@@ -19,6 +19,8 @@ mod server_framework_builder;
 mod server_framework_error;
 mod state;
 mod stream_aux;
+#[cfg(all(feature = "_async-tests", feature = "matchit", test))]
+mod tests;
 #[cfg(feature = "nightly")]
 mod tokio;
 
@@ -93,48 +95,9 @@ where
     #[cfg(feature = "matchit")]
     return Ok(router._matcher.at(path).map_err(From::from)?.value.clone());
     #[cfg(not(feature = "matchit"))]
-    {
-      if let Some(om) = router._matcher.1 {
-        return Ok((ArrayVector::new(), om));
-      }
-      Ok((
-        ArrayVector::new(),
-        *router._matcher.0.get(path).ok_or_else(|| ServerFrameworkError::UnknownPath.into())?,
-      ))
-    }
-  }
-}
-
-#[cfg(all(feature = "_async-tests", test))]
-mod tests {
-  use crate::http::{
-    server_framework::{get, Router, ServerFrameworkBuilder, StateClean},
-    ManualStream, ReqResBuffer, StatusCode,
-  };
-
-  #[tokio::test]
-  async fn compiles() {
-    async fn one(_: StateClean<'_, (), (), ReqResBuffer>) -> crate::Result<StatusCode> {
-      Ok(StatusCode::Ok)
-    }
-
-    async fn two(_: StateClean<'_, (), (), ReqResBuffer>) -> crate::Result<StatusCode> {
-      Ok(StatusCode::Ok)
-    }
-
-    async fn three(_: ManualStream<(), (), ()>) -> crate::Result<()> {
-      Ok(())
-    }
-
-    let router = Router::paths(paths!(
-      ("/aaa", Router::paths(paths!(("/bbb", get(one)), ("/ccc", get(two)))).unwrap()),
-      ("/ddd", get(one)),
-      ("/eee", get(two)),
-      ("/fff", Router::paths(paths!(("/ggg", get(one)))).unwrap()),
-      ("/eee", get(three)),
-    ))
-    .unwrap();
-
-    let _sf = ServerFrameworkBuilder::new(router).without_aux();
+    return Ok((
+      ArrayVector::new(),
+      *router._matcher.get(path).ok_or_else(|| ServerFrameworkError::UnknownPath.into())?,
+    ));
   }
 }

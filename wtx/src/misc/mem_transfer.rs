@@ -33,7 +33,7 @@ where
     return &mut [];
   }
   for Range { start, end } in iter {
-    let Some((diff @ 1..usize::MAX, local_new_len)) = end.checked_sub(start).and_then(|diff| {
+    let Some((diff @ 1..=usize::MAX, local_new_len)) = end.checked_sub(start).and_then(|diff| {
       let local_new_len = new_len.checked_add(diff)?;
       if local_new_len > slice.len() {
         return None;

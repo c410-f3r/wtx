@@ -3,7 +3,7 @@ mod cookie_error;
 pub(crate) mod cookie_generic;
 mod same_site;
 
-use crate::misc::{mem_transfer::_shift_copyable_chunks, ArrayVector, Rng, Vector};
+use crate::misc::{ArrayVector, Rng, Vector};
 pub use cookie_error::CookieError;
 use core::str;
 pub use same_site::SameSite;
@@ -18,27 +18,27 @@ static FMT4: &str = "%a, %d-%b-%Y %H:%M:%S GMT";
 
 #[cfg(feature = "http-cookie-secure")]
 #[inline]
-pub(crate) fn decrypt(
-  buffer: &mut Vector<u8>,
+pub(crate) fn decrypt<'buffer>(
+  buffer: &'buffer mut Vector<u8>,
   key: &[u8; 32],
   (name, value): (&[u8], &[u8]),
-) -> crate::Result<()> {
+) -> crate::Result<&'buffer mut [u8]> {
   use crate::misc::BufferMode;
   use aes_gcm::{aead::AeadInPlace, aes::cipher::Array, Aes256Gcm};
   use base64::{engine::general_purpose::STANDARD, Engine};
 
-  let start = buffer.len();
+  #[rustfmt::skip]
   let (nonce, content, tag) = {
-    let expand_len = NONCE_LEN.wrapping_add(value.len()).wrapping_add(TAG_LEN);
-    buffer.expand(BufferMode::Additional(expand_len), 0)?;
-    let actual_len = STANDARD.decode_slice(value, buffer)?;
-    buffer.truncate(start.wrapping_add(actual_len));
-    #[rustfmt::skip]
-    let rslt = if let Some([
+    let start = buffer.len();
+    buffer.expand(BufferMode::Additional(base64::decoded_len_estimate(value.len())), 0)?;
+    let buffer_slice = buffer.get_mut(start..).unwrap_or_default();
+    let len = STANDARD.decode_slice(value, buffer_slice)?;
+    let end = start.wrapping_add(len);
+    if let Some([
       a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
       content @ ..,
       b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
-    ]) = buffer.get_mut(start..)
+    ]) = buffer.get_mut(start..end)
     {
       (
         [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11],
@@ -48,8 +48,7 @@ pub(crate) fn decrypt(
     }
     else {
       ([0u8; NONCE_LEN], &mut [][..], [0u8; TAG_LEN])
-    };
-    rslt
+    }
   };
   <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*key)).decrypt_in_place_detached(
     &Array(nonce),
@@ -57,10 +56,7 @@ pub(crate) fn decrypt(
     content,
     &Array(tag),
   )?;
-  let idx = start.wrapping_sub(TAG_LEN);
-  let _ = _shift_copyable_chunks(0, buffer, [NONCE_LEN..idx]);
-  buffer.truncate(idx.wrapping_sub(NONCE_LEN));
-  Ok(())
+  Ok(content)
 }
 
 #[cfg(feature = "http-cookie-secure")]
@@ -88,13 +84,12 @@ where
     [0; TAG_LEN].as_slice(),
   ])?;
   {
-    let content_start = start.wrapping_add(base64_len);
     #[rustfmt::skip]
     let Some([
       a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
       content @ ..,
       b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
-    ]) = buffer.get_mut(content_start..)
+    ]) = buffer.get_mut(start.wrapping_add(base64_len)..)
     else {
       return Ok(());
     };
@@ -136,7 +131,7 @@ where
   let Some((base64, content)) = slice_mut else {
     return Ok(());
   };
-  let base64_idx = STANDARD.encode_slice(content, base64)?;
+  let base64_idx = STANDARD.encode_slice(&mut *content, base64)?;
   buffer.truncate(start.wrapping_add(base64_idx));
   Ok(())
 }

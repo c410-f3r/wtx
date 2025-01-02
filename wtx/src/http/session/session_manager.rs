@@ -7,7 +7,7 @@ use crate::{
   },
   misc::{GenericTime, Lease, LeaseMut, Lock, Rng, Vector},
 };
-use chrono::DateTime;
+use chrono::{DateTime, TimeDelta, Utc};
 use core::marker::PhantomData;
 use serde::Serialize;
 
@@ -18,15 +18,15 @@ pub type SessionManagerTokio<CS, E> =
 
 /// Manages sessions
 #[derive(Clone, Debug)]
-pub struct SessionManager<I> {
+pub struct SessionManager<SMI> {
   /// Inner content
-  pub inner: I,
+  pub inner: SMI,
 }
 
-impl<CS, E, I> SessionManager<I>
+impl<CS, E, SMI> SessionManager<SMI>
 where
   E: From<crate::Error>,
-  I: Lock<Resource = SessionManagerInner<CS, E>>,
+  SMI: Lock<Resource = SessionManagerInner<CS, E>>,
 {
   /// Allows the specification of custom parameters.
   #[inline]
@@ -47,17 +47,23 @@ where
     S: SessionStore<CS, E>,
   {
     let SessionManagerInner { cookie_def, phantom: _, key: _ } = &mut *self.inner.lock().await;
-    if let Some(elem) = state.take() {
+    let Some(elem) = state.take() else {
+      return Ok(());
+    };
+    if elem.expires.is_some() {
       store.delete(&elem.id).await?;
     }
-    let prev_expire = cookie_def.expire;
-    cookie_def.expire = Some(DateTime::from_timestamp_nanos(0));
+    let prev_expires = cookie_def.expires;
+    let prev_max_age = cookie_def.max_age;
+    cookie_def.expires = Some(DateTime::from_timestamp_nanos(0));
+    cookie_def.max_age = None;
     cookie_def.value.clear();
     let rslt = rrd.headers_mut().push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
       format_args!("{cookie_def}"),
     ));
-    cookie_def.expire = prev_expire;
+    cookie_def.expires = prev_expires;
+    cookie_def.max_age = prev_max_age;
     rslt?;
     Ok(())
   }
@@ -80,17 +86,29 @@ where
     S: SessionStore<CS, E>,
   {
     let SessionManagerInner { cookie_def, phantom: _, key } = &mut *self.inner.lock().await;
-    cookie_def.value.clear();
     let id = GenericTime::timestamp()?.as_nanos().to_be_bytes();
-    let local_state = if let Some(elem) = cookie_def.expire {
-      let local_state = SessionState { custom_state, expire: Some(elem), id };
-      store.create(&local_state).await?;
-      local_state
-    } else {
-      SessionState { custom_state, expire: None, id }
+    let local_state = match (cookie_def.expires, cookie_def.max_age) {
+      (None, None) => SessionState { custom_state, expires: None, id },
+      (Some(expires), None) => {
+        let local_state = SessionState { custom_state, expires: Some(expires), id };
+        store.create(&local_state).await?;
+        local_state
+      }
+      (Some(_), Some(max_age)) | (None, Some(max_age)) => {
+        let Some(expires_from_max_age) = TimeDelta::from_std(max_age)
+          .ok()
+          .and_then(|element| Utc::now().checked_add_signed(element))
+        else {
+          return Err(crate::Error::GenericTimeNeedsBackend.into());
+        };
+        let local_state = SessionState { custom_state, expires: Some(expires_from_max_age), id };
+        store.create(&local_state).await?;
+        local_state
+      }
     };
     let idx = rrd.lease().body.len();
     serde_json::to_writer(&mut rrd.lease_mut().body, &local_state).map_err(Into::into)?;
+    cookie_def.value.clear();
     let rslt = encrypt(
       &mut cookie_def.value,
       key,

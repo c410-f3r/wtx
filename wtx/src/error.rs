@@ -98,6 +98,8 @@ pub enum Error {
   InvalidHardwareTime,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
+  /// Underlying time structure couldn't hold the value generated during an arihtmetic operation.
+  InvalidTimeArithmetic,
   /// Invalid UTF-8.
   InvalidUTF8,
   /// Invalid URI

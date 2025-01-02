@@ -33,14 +33,14 @@ impl GenericTime {
   pub fn checked_add(&self, _duration: Duration) -> crate::Result<Self> {
     #[cfg(feature = "std")]
     return Ok(Self {
-      _inner: self._inner.checked_add(_duration).ok_or(crate::Error::InvalidHardwareTime)?,
+      _inner: self._inner.checked_add(_duration).ok_or(crate::Error::InvalidTimeArithmetic)?,
     });
     #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
     return Ok(Self {
       _inner: self
         ._inner
         .checked_add(embassy_time::Duration::from_secs(_duration.as_secs()))
-        .ok_or(crate::Error::InvalidHardwareTime)?,
+        .ok_or(crate::Error::InvalidTimeArithmetic)?,
     });
     #[cfg(not(any(feature = "std", feature = "embassy-time")))]
     return Err(crate::Error::GenericTimeNeedsBackend);
@@ -53,14 +53,14 @@ impl GenericTime {
   pub fn checked_sub(&self, _duration: Duration) -> crate::Result<Self> {
     #[cfg(feature = "std")]
     return Ok(Self {
-      _inner: self._inner.checked_sub(_duration).ok_or(crate::Error::InvalidHardwareTime)?,
+      _inner: self._inner.checked_sub(_duration).ok_or(crate::Error::InvalidTimeArithmetic)?,
     });
     #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
     return Ok(Self {
       _inner: self
         ._inner
         .checked_sub(embassy_time::Duration::from_secs(_duration.as_secs()))
-        .ok_or(crate::Error::InvalidHardwareTime)?,
+        .ok_or(crate::Error::InvalidTimeArithmetic)?,
     });
     #[cfg(not(any(feature = "std", feature = "embassy-time")))]
     return Err(crate::Error::GenericTimeNeedsBackend);
@@ -80,7 +80,7 @@ impl GenericTime {
       self
         ._inner
         .checked_duration_since(_earlier._inner)
-        .ok_or(crate::Error::InvalidHardwareTime)?
+        .ok_or(crate::Error::InvalidTimeArithmetic)?
         .as_micros(),
     ));
     #[cfg(not(any(feature = "std", feature = "embassy-time")))]

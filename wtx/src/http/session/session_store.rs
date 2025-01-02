@@ -148,7 +148,9 @@ mod postgres {
   ///
   /// ```sql
   /// CREATE TABLE session (
-  ///   expires_at TIMESTAMPTZ NOT NULL
+  ///   id BYTEA NOT NULL PRIMARY KEY,
+  ///   expires_at TIMESTAMPTZ NOT NULL,
+  ///   custom_state SOME_CUSTOM_TY NOT NULL
   /// );
   /// ```
   ///
@@ -166,7 +168,7 @@ mod postgres {
       let _ = self
         .execute_with_stmt(
           "INSERT INTO session VALUES ($1, $2, $3)",
-          (state.id.as_slice(), state.expire, &state.custom_state),
+          (state.id.as_slice(), state.expires, &state.custom_state),
         )
         .await?;
       Ok(())
@@ -186,11 +188,11 @@ mod postgres {
 
     #[inline]
     async fn read(&mut self, id: &SessionId) -> Result<Option<SessionState<CS>>, E> {
-      let rec = self.fetch_with_stmt("SELECT FROM session WHERE id=$1", (id.as_slice(),)).await?;
+      let rec = self.fetch_with_stmt("SELECT * FROM session WHERE id=$1", (id.as_slice(),)).await?;
       Ok(Some(SessionState {
-        custom_state: rec.decode(1)?,
-        expire: Some(rec.decode(2)?),
-        id: rec.decode::<_, &[u8]>(0)?.try_into().map_err(From::from)?,
+        custom_state: rec.decode(2)?,
+        expires: Some(rec.decode(1)?),
+        id: *id,
       }))
     }
 
@@ -199,7 +201,7 @@ mod postgres {
       let _ = self
         .execute_with_stmt(
           "UPDATE session SET id=$1,expires_at=$2,user_state=$3 WHERE id=$4",
-          (state.id.as_slice(), state.expire, &state.custom_state, id.as_slice()),
+          (state.id.as_slice(), state.expires, &state.custom_state, id.as_slice()),
         )
         .await?;
       Ok(())

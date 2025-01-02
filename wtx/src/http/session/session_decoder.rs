@@ -17,27 +17,27 @@ use serde::de::DeserializeOwned;
 /// The use of this structure without [`Session`] or used after the applicability of [`Session`]
 /// is a NO-OP.
 #[derive(Debug)]
-pub struct SessionDecoder<I, S> {
-  session_manager: SessionManager<I>,
-  session_store: S,
+pub struct SessionDecoder<SMI, SS> {
+  session_manager: SessionManager<SMI>,
+  session_store: SS,
 }
 
-impl<I, S> SessionDecoder<I, S> {
+impl<SMI, SS> SessionDecoder<SMI, SS> {
   /// New instance
   #[inline]
-  pub fn new(session_manager: SessionManager<I>, session_store: S) -> Self {
+  pub fn new(session_manager: SessionManager<SMI>, session_store: SS) -> Self {
     Self { session_manager, session_store }
   }
 }
 
-impl<CA, CS, E, I, RM, S, SA> Middleware<CA, E, SA> for SessionDecoder<I, S>
+impl<CA, CS, E, RM, SMI, SS, SA> Middleware<CA, E, SA> for SessionDecoder<SMI, SS>
 where
   CA: LeaseMut<Option<SessionState<CS>>>,
-  CS: DeserializeOwned + PartialEq,
+  CS: DeserializeOwned + PartialEq + core::fmt::Debug,
   E: From<crate::Error>,
-  I: Lock<Resource = SessionManagerInner<CS, E>>,
-  S: Pool<ResourceManager = RM>,
-  for<'any> S::GetElem<'any>: LeaseMut<RM::Resource>,
+  SMI: Lock<Resource = SessionManagerInner<CS, E>>,
+  SS: Pool<ResourceManager = RM>,
+  for<'any> SS::GetElem<'any>: LeaseMut<RM::Resource>,
   RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
   RM::Resource: SessionStore<CS, E>,
 {
@@ -57,10 +57,10 @@ where
     let mut session_guard = self.session_manager.inner.lock().await;
     let SessionManagerInner { cookie_def, key, .. } = &mut *session_guard;
     if let Some(elem) = ca.lease() {
-      if let Some(expire) = &elem.expire {
+      if let Some(expires) = &elem.expires {
         let millis = i64::try_from(GenericTime::timestamp()?.as_millis()).unwrap_or_default();
         let date_time = DateTime::from_timestamp_millis(millis).unwrap_or_default();
-        if expire >= &date_time {
+        if expires >= &date_time {
           let _rslt = self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.id).await;
           return Err(crate::Error::from(SessionError::ExpiredSession).into());
         }
@@ -71,36 +71,30 @@ where
       if header.name != <&str>::from(KnownHeaderName::Cookie) {
         continue;
       }
-      let cookie = CookieBytes::parse(header.value, &mut cookie_def.value)?;
-      if cookie.generic.name != cookie_def.name {
-        continue;
-      }
-      let idx = req.rrd.body.len();
-      req.rrd.body.extend_from_copyable_slice(&cookie_def.value)?;
-      cookie_def.value.clear();
-      let dec_rslt = decrypt(
-        &mut cookie_def.value,
-        key,
-        (cookie_def.name, req.rrd.body.get(idx..).unwrap_or_default()),
-      );
-      req.rrd.body.truncate(idx);
-      dec_rslt?;
-      let rslt_des = serde_json::from_slice(&cookie_def.value).map_err(Into::into);
-      cookie_def.value.clear();
-      let state_des: SessionState<CS> = rslt_des?;
-      let state_db_opt = {
-        let mut guard = self.session_store.get(&(), &()).await?;
-        guard.lease_mut().read(&state_des.id).await?
+      let ss_des: SessionState<CS> = {
+        let idx = req.rrd.body.len();
+        let cookie_des = CookieBytes::parse(header.value, &mut req.rrd.body)?;
+        if cookie_des.generic.name != cookie_def.name {
+          continue;
+        }
+        let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
+        let decrypt_rslt = decrypt(&mut cookie_def.value, key, (name, value));
+        req.rrd.body.truncate(idx);
+        let value_json = decrypt_rslt?;
+        let json_rslt = serde_json::from_slice(value_json);
+        cookie_def.value.clear();
+        json_rslt.map_err(Into::into)?
       };
-      let Some(state_db) = state_db_opt else {
+      let ss_db_opt = self.session_store.get(&(), &()).await?.lease_mut().read(&ss_des.id).await?;
+      let Some(ss_db) = ss_db_opt else {
         return Err(crate::Error::from(SessionError::MissingStoredSession).into());
       };
-      if state_db != state_des {
-        self.session_store.get(&(), &()).await?.lease_mut().delete(&state_des.id).await?;
+      if ss_db.custom_state != ss_des.custom_state {
+        self.session_store.get(&(), &()).await?.lease_mut().delete(&ss_des.id).await?;
         return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
       }
       let session_state: &mut Option<_> = ca.lease_mut();
-      *session_state = Some(state_des);
+      *session_state = Some(ss_des);
       break;
     }
     Ok(ControlFlow::Continue(()))
