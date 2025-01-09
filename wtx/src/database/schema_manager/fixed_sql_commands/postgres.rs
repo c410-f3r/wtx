@@ -1,5 +1,5 @@
 use crate::{
-  database::{client::postgres::Postgres, executor::Executor, Identifier, TransactionManager},
+  database::{client::postgres::Postgres, executor::Executor, Identifier},
   misc::Vector,
 };
 use alloc::string::String;
@@ -49,10 +49,13 @@ where
   _types(executor, buffer_idents).await?;
   _push_drop((buffer_cmd, buffer_idents), "TYPE")?;
 
-  let mut tm = executor.transaction().await?;
-  tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
+  executor
+    .transaction(|this| async {
+      this.execute(buffer_cmd.as_str(), |_| {}).await?;
+      Ok(((), this))
+    })
+    .await?;
   buffer_cmd.clear();
-  tm.commit().await?;
 
   Ok(())
 }

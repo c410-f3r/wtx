@@ -15,8 +15,9 @@ impl Display for BytesFmt<'_> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     for elem in self.0.iter().copied() {
+      let slice = &[elem];
       // SAFETY: `BytesFmt` is intended to be used with vectors.
-      f.write_str(unsafe { str::from_utf8_unchecked(&[elem]) })?;
+      f.write_str(unsafe { str::from_utf8_unchecked(slice) })?;
     }
     Ok(())
   }

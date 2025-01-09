@@ -188,7 +188,7 @@ impl std::io::Write for FilledBuffer {
 
 #[cfg(kani)]
 mod kani {
-  use crate::misc::FilledBuffer;
+  use crate::misc::filled_buffer::FilledBuffer;
 
   #[kani::proof]
   fn reserve_is_allocation() {

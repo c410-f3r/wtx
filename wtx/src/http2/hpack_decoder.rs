@@ -245,7 +245,7 @@ impl HpackDecoder {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::CompressionError,
           Some(Http2Error::InvalidHpackIdx(Some(0))),
-        ))
+        ));
       }
       1 => (HpackHeaderBasic::Authority, (":authority", ""), (&[][..], &[][..])),
       2 => (HpackHeaderBasic::Method(Method::Get), (":method", ""), ("GET".as_bytes(), &[][..])),
@@ -413,7 +413,7 @@ impl HpackDecoder {
               Http2ErrorCode::CompressionError,
               Some(Http2Error::InvalidHpackIdx(dyn_idx_with_offset.try_into().ok())),
             )
-          })
+          });
       }
     };
     Ok((hhb, (HeaderName::new_unchecked(name.0), HeaderName::new_unchecked(name.1)), value))

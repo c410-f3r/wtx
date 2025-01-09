@@ -9,7 +9,7 @@ mod session_store;
 pub use session_decoder::SessionDecoder;
 pub use session_enforcer::SessionEnforcer;
 pub use session_error::SessionError;
-pub use session_manager::{SessionManager, SessionManagerInner, SessionManagerTokio};
+pub use session_manager::*;
 pub use session_manager_builder::SessionManagerBuilder;
 pub use session_state::SessionState;
 pub use session_store::SessionStore;

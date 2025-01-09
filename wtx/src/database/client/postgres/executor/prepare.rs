@@ -113,7 +113,7 @@ where
           let Some(element) = elements.get_mut(usize::from(idx)) else {
             break;
           };
-          element.0 = Column::new(msg_field.name.try_into().map_err(Into::into)?, ty);
+          element.0 = Column::new(msg_field.name.try_into()?, ty);
           if let Some(elem @ [_not_empty, ..]) = rd.get(read..) {
             rd = elem;
           } else {
@@ -123,7 +123,9 @@ where
         columns_len
       }
       _ => {
-        return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg2.tag }.into()))
+        return Err(E::from(
+          PostgresError::UnexpectedDatabaseMessage { received: msg2.tag }.into(),
+        ));
       }
     };
 

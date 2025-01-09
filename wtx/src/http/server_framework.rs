@@ -21,7 +21,7 @@ mod state;
 mod stream_aux;
 #[cfg(all(feature = "_async-tests", feature = "matchit", test))]
 mod tests;
-#[cfg(feature = "nightly")]
+#[cfg(all(feature = "nightly", feature = "tokio"))]
 mod tokio;
 
 use crate::{

@@ -1,5 +1,5 @@
 use crate::{
-  database::{executor::Executor, schema_manager::Commands, TransactionManager},
+  database::{executor::Executor, schema_manager::Commands, Database},
   misc::Lease,
 };
 use alloc::string::String;
@@ -14,7 +14,11 @@ where
   ///
   /// It is up to be caller to actually seed the database with data.
   #[inline]
-  pub async fn seed<I, S>(&mut self, buffer_cmd: &mut String, seeds: I) -> crate::Result<()>
+  pub async fn seed<I, S>(
+    &mut self,
+    buffer_cmd: &mut String,
+    seeds: I,
+  ) -> Result<(), <E::Database as Database>::Error>
   where
     I: Iterator<Item = S>,
     S: Lease<str>,
@@ -22,9 +26,13 @@ where
     for elem in seeds {
       buffer_cmd.push_str(elem.lease());
     }
-    let mut tm = self.executor.transaction().await?;
-    tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
-    tm.commit().await?;
+    self
+      .executor
+      .transaction(|this| async {
+        this.execute(buffer_cmd.as_str(), |_| {}).await?;
+        Ok(((), this))
+      })
+      .await?;
     buffer_cmd.clear();
     Ok(())
   }
@@ -32,7 +40,11 @@ where
   /// Applies `Commands::seed` from a set of files located inside a given `dir`.
   #[cfg(feature = "std")]
   #[inline]
-  pub async fn seed_from_dir(&mut self, buffer_cmd: &mut String, dir: &Path) -> crate::Result<()> {
+  pub async fn seed_from_dir(
+    &mut self,
+    buffer_cmd: &mut String,
+    dir: &Path,
+  ) -> Result<(), <E::Database as Database>::Error> {
     let iter = crate::database::schema_manager::misc::files(dir)?.filter_map(|el_rslt| {
       let el = el_rslt.ok()?;
       read_to_string(el.path()).ok()

@@ -3,7 +3,7 @@
 . "$(dirname "$0")/common.sh" --source-only
 
 $rt rustfmt
-$rt clippy -Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn,-Aclippy::used_underscore_items
+$rt clippy -Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn,-Aclippy::used_underscore_items,-Aclippy::arbitrary_source_item_ordering
 
 cargo miri test --features http2,postgres,web-socket -p wtx two_sta
 

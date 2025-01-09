@@ -5,7 +5,7 @@ use wtx::{
   database::{
     client::postgres::{Config, Executor, ExecutorBuffer},
     schema_manager::{Commands, DbMigration, SchemaManagement, DEFAULT_CFG_FILE_NAME},
-    Identifier, DEFAULT_URI_VAR,
+    Database, Identifier, DEFAULT_URI_VAR,
   },
   misc::{simple_seed, UriRef, Vector, Xorshift64},
 };
@@ -47,7 +47,10 @@ fn toml_file_path(sm: &SchemaManager) -> wtx::Result<Cow<'_, Path>> {
 }
 
 #[inline]
-async fn handle_commands<E>(executor: E, sm: &SchemaManager) -> wtx::Result<()>
+async fn handle_commands<E>(
+  executor: E,
+  sm: &SchemaManager,
+) -> Result<(), <E::Database as Database>::Error>
 where
   E: SchemaManagement,
 {

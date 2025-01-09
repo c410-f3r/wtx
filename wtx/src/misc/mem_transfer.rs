@@ -60,7 +60,7 @@ where
 
 #[cfg(kani)]
 mod kani {
-  use crate::misc::_shift_copyable_chunks;
+  use crate::misc::mem_transfer::_shift_copyable_chunks;
   use alloc::vec::Vec;
 
   #[kani::proof]

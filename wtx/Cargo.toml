@@ -106,7 +106,7 @@ std = [
   "rustls-pki-types?/std",
   "serde?/std",
   "serde_json?/std",
-  "sha1?/std", 
+  "sha1?/std",
   "sha2?/std",
   "simdutf8?/std",
   "tracing?/std",
@@ -139,7 +139,7 @@ license = "MPL-2.0"
 name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-rust-version = "1.83"
+rust-version = "1.84"
 version = "0.26.0"
 
 [package.metadata.docs.rs]

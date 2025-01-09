@@ -3,11 +3,12 @@ use crate::{
     schema_manager::{
       integration_tests::AuxTestParams, Commands, DbMigration, MigrationGroup, SchemaManagement,
     },
-    Identifier,
+    Database, Identifier,
   },
   misc::Vector,
 };
 use alloc::string::String;
+use core::fmt::Debug;
 use std::path::Path;
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schema<E>(
@@ -33,6 +34,7 @@ pub(crate) async fn rollback_works<E>(
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
+  <E::Database as Database>::Error: Debug,
 {
   let path = Path::new("../.test-utils/migrations.toml");
   c.migrate_from_toml_path((buffer_cmd, buffer_db_migrations), path).await.unwrap();

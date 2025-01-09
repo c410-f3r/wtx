@@ -62,7 +62,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
       _ => {
         return Err(
           PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
-        )
+        );
       }
     })
   }

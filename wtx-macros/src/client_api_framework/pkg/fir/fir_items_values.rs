@@ -11,8 +11,8 @@ use syn::Item;
 
 #[derive(Debug)]
 pub(crate) struct FirItemsValues<'module> {
-  pub(crate) aux: Option<ItemWithAttrSpan<(), &'module mut Item>>,
   pub(crate) after_sending: Option<ItemWithAttrSpan<(), &'module Item>>,
+  pub(crate) aux: Option<ItemWithAttrSpan<(), &'module mut Item>>,
   pub(crate) before_sending: Option<ItemWithAttrSpan<(), &'module Item>>,
   pub(crate) params: Option<ItemWithAttrSpan<(), &'module mut Item>>,
   pub(crate) req_data: ItemWithAttrSpan<(), &'module mut Item>,

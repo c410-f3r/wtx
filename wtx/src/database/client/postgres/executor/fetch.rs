@@ -9,8 +9,8 @@ use crate::{
     RecordValues,
   },
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, ConnectionState, LeaseMut, Stream, Usize,
-    Vector, _read_header, _read_payload,
+    ConnectionState, LeaseMut, Stream, Usize, Vector, _read_header, _read_payload,
+    partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 use core::ops::Range;
@@ -46,7 +46,7 @@ where
         _ => {
           return Err(E::from(
             PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into(),
-          ))
+          ));
         }
       }
     }
@@ -75,8 +75,8 @@ where
   //
   // The value of `Len` is payload length plus 4, therefore, the frame length is `Len` plus 1.
   #[inline]
-  async fn fetch_one_msg_from_stream<'nb>(
-    nb: &'nb mut PartitionedFilledBuffer,
+  async fn fetch_one_msg_from_stream(
+    nb: &mut PartitionedFilledBuffer,
     stream: &mut S,
   ) -> crate::Result<u8> {
     nb._reserve(5)?;
@@ -89,8 +89,8 @@ where
   }
 
   #[inline]
-  async fn fetch_representative_msg_from_stream<'nb>(
-    nb: &'nb mut PartitionedFilledBuffer,
+  async fn fetch_representative_msg_from_stream(
+    nb: &mut PartitionedFilledBuffer,
     stream: &mut S,
   ) -> crate::Result<u8> {
     let mut tag = Self::fetch_one_msg_from_stream(&mut *nb, stream).await?;

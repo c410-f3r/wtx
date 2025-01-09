@@ -20,7 +20,6 @@ mod sql_state;
 mod statements;
 mod struct_decoder;
 mod struct_encoder;
-mod transaction_manager;
 mod ty;
 mod tys;
 
@@ -39,7 +38,6 @@ pub use sql_state::SqlState;
 pub use statements::Statements;
 pub use struct_decoder::StructDecoder;
 pub use struct_encoder::StructEncoder;
-pub use transaction_manager::TransactionManager;
 pub use ty::Ty;
 
 pub(crate) type Oid = u32;

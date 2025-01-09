@@ -47,8 +47,8 @@ impl SessionManagerBuilder {
   pub fn build_generating_key<CS, E, RNG, SMI, SS>(
     self,
     rng: &mut RNG,
-    session_store: &mut SS,
-  ) -> (impl Future<Output = Result<(), E>>, SessionManager<SMI>)
+    session_store: SS,
+  ) -> (impl Future<Output = Result<(), E>> + use<CS, E, RNG, SMI, SS>, SessionManager<SMI>)
   where
     E: From<crate::Error>,
     RNG: Rng,
@@ -71,7 +71,7 @@ impl SessionManagerBuilder {
   pub fn build_with_key<CS, E, SMI, SS>(
     self,
     key: SessionKey,
-    session_store: &mut SS,
+    mut session_store: SS,
   ) -> (impl Future<Output = Result<(), E>>, SessionManager<SMI>)
   where
     E: From<crate::Error>,
@@ -79,11 +79,10 @@ impl SessionManagerBuilder {
     SS: Clone + SessionStore<CS, E>,
   {
     let Self { cookie_def, inspection_interval } = self;
-    let mut local_store = session_store.clone();
     (
       async move {
         loop {
-          local_store.delete_expired().await?;
+          session_store.delete_expired().await?;
           sleep(inspection_interval).await?;
         }
       },

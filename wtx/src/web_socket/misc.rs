@@ -23,7 +23,7 @@ pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
 ) -> u8 {
   #[inline]
   fn first_header_byte(fin: bool, op_code: OpCode, rsv1: u8) -> u8 {
-    u8::from(fin) << 7 | rsv1 | u8::from(op_code)
+    (u8::from(fin) << 7) | rsv1 | u8::from(op_code)
   }
 
   match payload_len {

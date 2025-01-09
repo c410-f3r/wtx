@@ -114,7 +114,7 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
       _ => {
         return Err(
           PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
-        )
+        );
       }
     };
     Ok(rslt)

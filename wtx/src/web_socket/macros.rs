@@ -102,7 +102,7 @@ macro_rules! read_frame {
           break rfi;
         }
         let WebSocketCommonPart { connection_state, nc, rng, stream } = $stream_writer_expr;
-        let (payload, payload_ty) = if rfi.should_decompress {
+        let payload = if rfi.should_decompress {
           web_socket_reader::copy_from_compressed_nb_to_rb1::<NC, IS_CLIENT>(
             nc,
             $network_buffer,
@@ -110,11 +110,11 @@ macro_rules! read_frame {
             $reader_buffer_first,
             &rfi,
           )?;
-          ($reader_buffer_first.as_slice_mut(), PayloadTy::FirstReader)
+          $reader_buffer_first.as_slice_mut()
         } else {
           let current_mut = $network_buffer._current_mut();
           web_socket_reader::unmask_nb::<IS_CLIENT>(current_mut, $no_masking, &rfi)?;
-          (current_mut, PayloadTy::Network)
+          current_mut
         };
         if web_socket_reader::manage_auto_reply::<_, _, IS_CLIENT>(
           stream,
@@ -134,7 +134,7 @@ macro_rules! read_frame {
           } else {
             $network_buffer._current_mut()
           };
-          break 'rffs_block (Frame::new(true, rfi.op_code, borrow_checker, $nc_rsv1), payload_ty);
+          break 'rffs_block Frame::new(true, rfi.op_code, borrow_checker, $nc_rsv1);
         }
       };
       $reader_buffer_second.clear();
@@ -159,10 +159,7 @@ macro_rules! read_frame {
             )
           }
         );
-        (
-          Frame::new(true, first_rfi.op_code, $reader_buffer_second, $nc_rsv1),
-          PayloadTy::SecondReader,
-        )
+        Frame::new(true, first_rfi.op_code, $reader_buffer_second, $nc_rsv1)
       } else {
         read_continuation_frames!(
           &first_rfi,
@@ -180,10 +177,7 @@ macro_rules! read_frame {
           ),
           |_, _, _, _| Ok(())
         );
-        (
-          Frame::new(true, first_rfi.op_code, $reader_buffer_first, $nc_rsv1),
-          PayloadTy::FirstReader,
-        )
+        Frame::new(true, first_rfi.op_code, $reader_buffer_first, $nc_rsv1)
       }
     }
   };
