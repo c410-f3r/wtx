@@ -1,6 +1,6 @@
 # WTX
 
-[![CI](https://github.com/c410-f3r/wtx/workflows/CI/badge.svg)](https://github.com/c410-f3r/wtx/actions?query=workflow%3ACI+branch%3Amain)
+[![CI](https://github.com/c410-f3r/wtx/workflows/CI/badge.svg)](https://github.com/c410-f3r/wtx/actions?query=workflow%3ATests)
 [![crates.io](https://img.shields.io/crates/v/wtx.svg)](https://crates.io/crates/wtx)
 [![Documentation](https://docs.rs/wtx/badge.svg)](https://docs.rs/wtx)
 [![License](https://img.shields.io/badge/license-MPL2-blue.svg)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
