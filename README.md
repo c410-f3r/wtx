@@ -1,10 +1,21 @@
 # WTX
 
-[![CI](https://github.com/c410-f3r/wtx/workflows/CI/badge.svg)](https://github.com/c410-f3r/wtx/actions?query=workflow%3ATests)
-[![crates.io](https://img.shields.io/crates/v/wtx.svg)](https://crates.io/crates/wtx)
-[![Documentation](https://docs.rs/wtx/badge.svg)](https://docs.rs/wtx)
-[![License](https://img.shields.io/badge/license-MPL2-blue.svg)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
-[![Rustc](https://img.shields.io/badge/rustc-1.84-lightgray")](https://blog.rust-lang.org/2025/01/09/Rust-1.84.0.html)
+[![crates.io][crates-badge]][crates-url]
+[![docs][docs-badge]][docs-url]
+[![license][license-badge]][license-url]
+[![rustc][rustc-badge]][rustc-url]
+[![Tests][actions-badge]][actions-url]
+
+[actions-badge]: https://github.com/c410-f3r/wtx/workflows/Tests/badge.svg
+[actions-url]: https://github.com/c410-f3r/wtx/actions?query=workflow%3ATests+branch%3Amaster
+[crates-badge]: https://img.shields.io/crates/v/wtx.svg?color=blue
+[crates-url]: https://crates.io/crates/wtx
+[docs-badge]: https://docs.rs/wtx/badge.svg
+[docs-url]: https://docs.rs/wtx
+[license-badge]: https://img.shields.io/badge/license-MPL2-blue.svg
+[license-url]: https://github.com/c410-f3r/wtx/blob/master/LICENSE
+[rustc-badge]: https://img.shields.io/badge/rustc-1.84-blue
+[rustc-url]: https://blog.rust-lang.org/2025/01/09/Rust-1.84.0.html
 
 A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 2 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
