@@ -4,7 +4,7 @@ use crate::{
     StreamReader, StreamWriter, Vector, Xorshift64,
   },
   web_socket::{
-    compression::NegotiatedCompression, payload_ty::PayloadTy,
+    compression::NegotiatedCompression,
     web_socket_parts::web_socket_part_owned::WebSocketCommonPartOwned, web_socket_writer, Frame,
     FrameMut,
   },
@@ -19,8 +19,7 @@ pub(crate) struct WebSocketCommonPart<CS, NC, RNG, S, const IS_CLIENT: bool> {
 }
 
 #[derive(Debug)]
-pub(crate) struct WebSocketReaderPart<PFB, PT, V, const IS_CLIENT: bool> {
-  pub(crate) curr_payload: PT,
+pub(crate) struct WebSocketReaderPart<PFB, V, const IS_CLIENT: bool> {
   pub(crate) max_payload_len: usize,
   pub(crate) nc_rsv1: u8,
   pub(crate) network_buffer: PFB,
@@ -29,10 +28,9 @@ pub(crate) struct WebSocketReaderPart<PFB, PT, V, const IS_CLIENT: bool> {
   pub(crate) reader_buffer_second: V,
 }
 
-impl<PFB, PT, V, const IS_CLIENT: bool> WebSocketReaderPart<PFB, PT, V, IS_CLIENT>
+impl<PFB, V, const IS_CLIENT: bool> WebSocketReaderPart<PFB, V, IS_CLIENT>
 where
   PFB: LeaseMut<PartitionedFilledBuffer>,
-  PT: LeaseMut<PayloadTy>,
   V: LeaseMut<Vector<u8>>,
 {
   #[inline]
@@ -48,7 +46,6 @@ where
   {
     let WebSocketCommonPart { connection_state, nc, rng, stream } = common;
     let Self {
-      curr_payload,
       max_payload_len,
       nc_rsv1,
       network_buffer,
@@ -56,7 +53,7 @@ where
       reader_buffer_first,
       reader_buffer_second,
     } = self;
-    let (frame, payload_ty) = read_frame!(
+    let frame = read_frame!(
       *max_payload_len,
       (NC::IS_NOOP, *nc_rsv1),
       network_buffer.lease_mut(),
@@ -74,7 +71,6 @@ where
         }
       )
     );
-    *curr_payload.lease_mut() = payload_ty;
     Ok(frame)
   }
 
@@ -91,7 +87,6 @@ where
     SW: StreamWriter,
   {
     let Self {
-      curr_payload,
       max_payload_len,
       network_buffer,
       nc_rsv1,
@@ -100,7 +95,7 @@ where
       reader_buffer_second,
     } = self;
     let parts = &mut (stream_reader, common);
-    let (frame, payload_ty) = read_frame!(
+    let frame = read_frame!(
       *max_payload_len,
       (NC::IS_NOOP, *nc_rsv1),
       network_buffer.lease_mut(),
@@ -110,7 +105,6 @@ where
       parts,
       (&mut parts.0, &mut parts.1.lock().await.wsc)
     );
-    *curr_payload.lease_mut() = payload_ty;
     Ok(frame)
   }
 }

@@ -99,7 +99,7 @@ where
   A: Parse,
 {
   let mut iter = attrs.iter().enumerate().filter_map(|(idx, attr)| {
-    attr.path.segments.first().map_or(false, |segment| segment.ident == "pkg").then_some(idx)
+    attr.path.segments.first().is_some_and(|segment| segment.ident == "pkg").then_some(idx)
   });
   let Some(idx) = iter.next() else { return Ok(None) };
   let has_more_than_one = iter.next().is_some();

@@ -6,6 +6,13 @@ mod keywords;
 mod misc;
 mod sir;
 
+use crate::{
+  client_api_framework::{
+    item_with_attr_span::ItemWithAttrSpan,
+    pkg::{fir::fir_after_sending_item_values::FirAfterSendingItemValues, misc::unit_type},
+  },
+  misc::push_doc,
+};
 use fir::{
   fir_aux_item_values::FirAuxItemValues,
   fir_before_sending_item_values::FirBeforeSendingItemValues, fir_items_values::FirItemsValues,
@@ -20,14 +27,6 @@ use syn::{
   punctuated::Punctuated,
   token::{Eq, Pub, Semi, Type},
   AttributeArgs, Generics, Item, ItemMod, ItemType, VisPublic, Visibility,
-};
-
-use crate::{
-  client_api_framework::{
-    item_with_attr_span::ItemWithAttrSpan,
-    pkg::{fir::fir_after_sending_item_values::FirAfterSendingItemValues, misc::unit_type},
-  },
-  misc::push_doc,
 };
 
 pub(crate) fn pkg(

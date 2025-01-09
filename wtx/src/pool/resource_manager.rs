@@ -101,14 +101,14 @@ pub(crate) mod database {
   #[derive(Debug)]
   pub struct PostgresRM<E, S> {
     _certs: Option<&'static [u8]>,
-    error: PhantomData<fn() -> E>,
-    max_stmts: usize,
-    rng: Xorshift64Sync,
-    stream: PhantomData<S>,
-    uri: String,
+    _error: PhantomData<fn() -> E>,
+    _max_stmts: usize,
+    _rng: Xorshift64Sync,
+    _stream: PhantomData<S>,
+    _uri: String,
   }
 
-  macro_rules! executor {
+  macro_rules! _executor {
     ($uri_str:expr, |$config:ident, $uri:ident| $cb:expr) => {{
       let $uri = crate::misc::UriRef::new($uri_str);
       let config_rslt = crate::database::client::postgres::Config::from_uri(&$uri);
@@ -137,11 +137,11 @@ pub(crate) mod database {
       pub fn tokio(uri: String) -> Self {
         Self {
           _certs: None,
-          error: PhantomData,
-          max_stmts: DEFAULT_MAX_STMTS,
-          rng: Xorshift64Sync::from(simple_seed()),
-          stream: PhantomData,
-          uri,
+          _error: PhantomData,
+          _max_stmts: DEFAULT_MAX_STMTS,
+          _rng: Xorshift64Sync::from(simple_seed()),
+          _stream: PhantomData,
+          _uri: uri,
         }
       }
     }
@@ -157,11 +157,12 @@ pub(crate) mod database {
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-        executor!(&self.uri, |config, uri| {
+        let mut rng = &self._rng;
+        _executor!(&self._uri, |config, uri| {
           Executor::connect(
             &config,
-            ExecutorBuffer::new(self.max_stmts, &mut &self.rng),
-            &mut &self.rng,
+            ExecutorBuffer::new(self._max_stmts, &mut rng),
+            &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
           )
         })
@@ -178,13 +179,14 @@ pub(crate) mod database {
         _: &Self::RecycleAux,
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
-        let mut buffer = ExecutorBuffer::new(self.max_stmts, &mut &self.rng);
+        let mut rng = &self._rng;
+        let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
-        *resource = executor!(&self.uri, |config, uri| {
+        *resource = _executor!(&self._uri, |config, uri| {
           Executor::connect(
             &config,
             buffer,
-            &mut &self.rng,
+            &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
           )
         })?;
@@ -214,11 +216,11 @@ pub(crate) mod database {
       pub fn tokio_rustls(certs: Option<&'static [u8]>, uri: String) -> Self {
         Self {
           _certs: certs,
-          error: PhantomData,
-          max_stmts: DEFAULT_MAX_STMTS,
-          rng: Xorshift64Sync::from(simple_seed()),
-          stream: PhantomData,
-          uri,
+          _error: PhantomData,
+          _max_stmts: DEFAULT_MAX_STMTS,
+          _rng: Xorshift64Sync::from(simple_seed()),
+          _stream: PhantomData,
+          _uri: uri,
         }
       }
     }
@@ -234,11 +236,12 @@ pub(crate) mod database {
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-        executor!(&self.uri, |config, uri| {
+        let mut rng = &self._rng;
+        _executor!(&self._uri, |config, uri| {
           Executor::connect_encrypted(
             &config,
-            ExecutorBuffer::new(self.max_stmts, &mut &self.rng),
-            &mut &self.rng,
+            ExecutorBuffer::new(self._max_stmts, &mut rng),
+            &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;
@@ -262,13 +265,14 @@ pub(crate) mod database {
         _: &Self::RecycleAux,
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
-        let mut buffer = ExecutorBuffer::new(self.max_stmts, &mut &self.rng);
+        let mut rng = &self._rng;
+        let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
-        *resource = executor!(&self.uri, |config, uri| {
+        *resource = _executor!(&self._uri, |config, uri| {
           Executor::connect_encrypted(
             &config,
             buffer,
-            &mut &self.rng,
+            &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;

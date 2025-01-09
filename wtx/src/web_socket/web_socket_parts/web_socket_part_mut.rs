@@ -5,7 +5,6 @@ use crate::{
   },
   web_socket::{
     compression::NegotiatedCompression,
-    payload_ty::PayloadTy,
     web_socket_parts::web_socket_part::{
       WebSocketCommonPart, WebSocketReaderPart, WebSocketWriterPart,
     },
@@ -33,7 +32,6 @@ pub struct WebSocketReaderPartMut<'instance, NC, S, const IS_CLIENT: bool> {
   pub(crate) phantom: PhantomData<(NC, S)>,
   pub(crate) wsrp: WebSocketReaderPart<
     &'instance mut PartitionedFilledBuffer,
-    &'instance mut PayloadTy,
     &'instance mut Vector<u8>,
     IS_CLIENT,
   >,
@@ -44,18 +42,6 @@ where
   NC: NegotiatedCompression,
   S: Stream,
 {
-  /// The current frame payload that is set when [`Self::read_frame`] is called, otherwise,
-  /// returns an empty slice.
-  #[inline]
-  pub fn curr_payload(&mut self) -> &mut [u8] {
-    match self.wsrp.curr_payload {
-      PayloadTy::Network => self.wsrp.network_buffer._current_mut(),
-      PayloadTy::None => &mut [],
-      PayloadTy::FirstReader => self.wsrp.reader_buffer_first.as_slice_mut(),
-      PayloadTy::SecondReader => self.wsrp.reader_buffer_second.as_slice_mut(),
-    }
-  }
-
   /// Reads a frame from the stream.
   ///
   /// If a frame is made up of other sub-frames or continuations, then everything is collected

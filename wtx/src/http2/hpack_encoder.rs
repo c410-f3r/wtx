@@ -176,7 +176,7 @@ impl HpackEncoder {
       }
       (true, None) => return Ok(EncodeIdx::UnsavedNameUnsavedValue),
       (true, Some(name_idx)) => {
-        return Ok(EncodeIdx::RefNameUnsavedValue(self.idx_to_encode_idx(name_idx)))
+        return Ok(EncodeIdx::RefNameUnsavedValue(self.idx_to_encode_idx(name_idx)));
       }
     }
 

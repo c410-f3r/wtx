@@ -80,7 +80,7 @@ where
             (KnownHeaderName::SecWebsocketKey, None),
             (KnownHeaderName::SecWebsocketVersion, Some(VERSION.as_bytes()))
           );
-          self.no_masking &= check_header_value(c).map_or(false, has_no_masking);
+          self.no_masking &= check_header_value(c).is_ok_and(has_no_masking);
           let key = check_header_value(d)?;
           let _ = check_header_value(e)?;
           let nc = self.compression.negotiate(req.headers.iter())?;
@@ -168,7 +168,7 @@ where
         (KnownHeaderName::SecWebsocketExtensions, None)
       );
       drop(check_header_value(c));
-      self.no_masking &= check_header_value(d).map_or(false, has_no_masking);
+      self.no_masking &= check_header_value(d).is_ok_and(has_no_masking);
       break (self.compression.negotiate(res.headers.iter())?, len);
     };
     self.wsb.lease_mut().network_buffer._set_indices(0, len, read.wrapping_sub(len))?;

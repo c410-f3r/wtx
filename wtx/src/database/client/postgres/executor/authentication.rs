@@ -83,10 +83,10 @@ where
             (scram_sha_256_plus!().as_slice(), b"p=tls-server-end-point,,".as_slice())
           }
           (false, true, ChannelBinding::Disable) => {
-            return Err(PostgresError::RequiredChannel.into())
+            return Err(PostgresError::RequiredChannel.into());
           }
           (true, false, ChannelBinding::Require) => {
-            return Err(PostgresError::MissingChannel.into())
+            return Err(PostgresError::MissingChannel.into());
           }
         };
         Self::sasl_authenticate(

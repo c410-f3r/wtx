@@ -11,9 +11,9 @@ use crate::{
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
       message::MessageTy,
       protocol::{encrypted_conn, initial_conn_msg},
-      Config, Postgres, PostgresError, Record, Records, TransactionManager,
+      Config, Postgres, PostgresError, Record, Records,
     },
-    Database, RecordValues, StmtCmd, TransactionManager as _,
+    Database, RecordValues, StmtCmd,
   },
   misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Rng, Stream, StreamWithTls},
 };
@@ -119,10 +119,6 @@ where
   S: Stream,
 {
   type Database = Postgres<E>;
-  type TransactionManager<'tm>
-    = TransactionManager<'tm, E, EB, S>
-  where
-    Self: 'tm;
 
   #[inline]
   fn connection_state(&self) -> ConnectionState {
@@ -162,7 +158,7 @@ where
         _ => {
           return Err(<_>::from(
             PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into(),
-          ))
+          ));
         }
       }
     }
@@ -245,14 +241,5 @@ where
     ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
     let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
     Ok(Self::write_send_await_stmt_prot(&mut fwsc, nb, cmd, stmts).await?.0)
-  }
-
-  #[inline]
-  async fn transaction(&mut self) -> crate::Result<Self::TransactionManager<'_>> {
-    let ExecutorBufferPartsMut { nb, rb, vb, .. } = self.eb.lease_mut().parts_mut();
-    ExecutorBuffer::clear_cmd_buffers(nb, rb, vb);
-    let mut tm = TransactionManager::new(self);
-    tm.begin().await?;
-    Ok(tm)
   }
 }

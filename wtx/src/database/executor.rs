@@ -1,7 +1,7 @@
 //! Database
 
 use crate::{
-  database::{Database, FromRecord, RecordValues, StmtCmd, TransactionManager},
+  database::{Database, FromRecord, RecordValues, StmtCmd},
   misc::ConnectionState,
 };
 use core::future::Future;
@@ -10,10 +10,6 @@ use core::future::Future;
 pub trait Executor {
   /// See [Database].
   type Database: Database;
-  /// Manages atomic operations.
-  type TransactionManager<'tm>: TransactionManager<Executor = Self>
-  where
-    Self: 'tm;
 
   /// Sometimes the backend can discontinue the connection.
   fn connection_state(&self) -> ConnectionState;
@@ -104,14 +100,25 @@ pub trait Executor {
     }
   }
 
-  /// Initially calls `begin` and the returns [`Self::TransactionManager`], which implies in an
-  /// following mandatory `commit` call by the caller.
-  fn transaction(&mut self) -> impl Future<Output = crate::Result<Self::TransactionManager<'_>>>;
+  /// Makes internal calls to "BEGIN" and "COMMIT".
+  fn transaction<'this, F, R>(
+    &'this mut self,
+    fun: impl FnOnce(&'this mut Self) -> F,
+  ) -> impl Future<Output = Result<R, <Self::Database as Database>::Error>>
+  where
+    F: Future<Output = Result<(R, &'this mut Self), <Self::Database as Database>::Error>>,
+  {
+    async move {
+      self.execute("BEGIN", |_| {}).await?;
+      let (rslt, this) = fun(self).await?;
+      this.execute("COMMIT", |_| {}).await?;
+      Ok(rslt)
+    }
+  }
 }
 
 impl Executor for () {
   type Database = ();
-  type TransactionManager<'tm> = ();
 
   #[inline]
   async fn execute(&mut self, _: &str, _: impl FnMut(u64)) -> crate::Result<()> {
@@ -168,10 +175,5 @@ impl Executor for () {
   #[inline]
   async fn prepare(&mut self, _: &str) -> Result<u64, <Self::Database as Database>::Error> {
     Ok(0)
-  }
-
-  #[inline]
-  async fn transaction(&mut self) -> crate::Result<Self::TransactionManager<'_>> {
-    Ok(())
   }
 }

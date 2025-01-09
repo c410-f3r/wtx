@@ -148,7 +148,7 @@ mod chrono {
           None => {
             return Err(E::from(
               PostgresError::UnexpectedValueFromBytes { expected: "date" }.into(),
-            ))
+            ));
           }
         },
         ev,
@@ -195,7 +195,7 @@ mod chrono {
           None => {
             return Err(E::from(
               PostgresError::UnexpectedValueFromBytes { expected: "timestamp" }.into(),
-            ))
+            ));
           }
         },
         ev,

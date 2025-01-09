@@ -1,3 +1,5 @@
+use core::any::type_name;
+
 use crate::database::{Database, DatabaseError, Decode, ValueIdent};
 
 /// A collection of values.
@@ -12,7 +14,11 @@ pub trait Record<'exec>: Sized {
     CI: ValueIdent<Self>,
     D: Decode<'exec, Self::Database>,
   {
-    D::decode(&self.value(ci).ok_or_else(|| DatabaseError::MissingFieldDataInDecoding.into())?)
+    D::decode(
+      &self
+        .value(ci)
+        .ok_or_else(|| DatabaseError::MissingFieldDataInDecoding(type_name::<D>()).into())?,
+    )
   }
 
   /// Tries to retrieve and decode an optional value.

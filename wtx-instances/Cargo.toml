@@ -89,7 +89,7 @@ required-features = ["wtx/http-server-framework"]
 [[example]]
 name = "http-server-framework-session"
 path = "http-server-framework-examples/http-server-framework-session.rs"
-required-features = ["argon2", "rand_chacha", "rand_core", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "wtx/postgres", "wtx/rand_chacha", "wtx-macros"]
+required-features = ["rand_chacha", "rand_core", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "wtx/postgres", "wtx/rand_chacha", "wtx-macros"]
 
 # HTTP/2 Examples
 
@@ -129,7 +129,6 @@ required-features = ["tokio-rustls", "wtx/pool", "wtx/tokio-rustls", "wtx/web-so
 pb-rs = { default-features = false, optional = true, version = "0.10" }
 
 [dependencies]
-argon2 = { default-features = false, optional = true, version = "0.5" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand_chacha = { default-features = false, optional = true, version = "0.3" }
 rand_core = { default-features = false, features = ["getrandom"], optional = true, version = "0.6" }

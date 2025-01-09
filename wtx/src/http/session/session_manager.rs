@@ -2,8 +2,8 @@ use crate::{
   http::{
     cookie::{cookie_generic::CookieGeneric, encrypt},
     session::SessionKey,
-    Header, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder, SessionState,
-    SessionStore,
+    Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
+    SessionState, SessionStore,
   },
   misc::{GenericTime, Lease, LeaseMut, Lock, Rng, Vector},
 };
@@ -53,18 +53,7 @@ where
     if elem.expires.is_some() {
       store.delete(&elem.id).await?;
     }
-    let prev_expires = cookie_def.expires;
-    let prev_max_age = cookie_def.max_age;
-    cookie_def.expires = Some(DateTime::from_timestamp_nanos(0));
-    cookie_def.max_age = None;
-    cookie_def.value.clear();
-    let rslt = rrd.headers_mut().push_from_fmt(Header::from_name_and_value(
-      KnownHeaderName::SetCookie.into(),
-      format_args!("{cookie_def}"),
-    ));
-    cookie_def.expires = prev_expires;
-    cookie_def.max_age = prev_max_age;
-    rslt?;
+    Self::clear_cookie(cookie_def, rrd.headers_mut())?;
     Ok(())
   }
 
@@ -122,6 +111,25 @@ where
       format_args!("{}", &cookie_def),
     ))?;
     Ok(())
+  }
+
+  #[inline]
+  pub(crate) fn clear_cookie(
+    cookie_def: &mut CookieGeneric<&'static [u8], Vector<u8>>,
+    headers: &mut Headers,
+  ) -> crate::Result<()> {
+    let prev_expires = cookie_def.expires;
+    let prev_max_age = cookie_def.max_age;
+    cookie_def.expires = Some(DateTime::from_timestamp_nanos(0));
+    cookie_def.max_age = None;
+    cookie_def.value.clear();
+    let rslt = headers.push_from_fmt(Header::from_name_and_value(
+      KnownHeaderName::SetCookie.into(),
+      format_args!("{cookie_def}"),
+    ));
+    cookie_def.expires = prev_expires;
+    cookie_def.max_age = prev_max_age;
+    rslt
   }
 }
 

@@ -1,7 +1,7 @@
 use crate::{
   database::{
     schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
-    DatabaseTy, TransactionManager,
+    Database, DatabaseTy,
   },
   misc::{Lease, Vector},
 };
@@ -27,7 +27,7 @@ where
     mg: &MigrationGroup<S>,
     migrations: I,
     version: i32,
-  ) -> crate::Result<()>
+  ) -> Result<(), <E::Database as Database>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -39,9 +39,13 @@ where
     for elem in filtered_by_db.map(UserMigration::sql_down) {
       buffer_cmd.push_str(elem);
     }
-    let mut tm = self.executor.transaction().await?;
-    tm.executor().execute(buffer_cmd.as_str(), |_| {}).await?;
-    tm.commit().await?;
+    self
+      .executor
+      .transaction(|this| async {
+        this.execute(buffer_cmd.as_str(), |_| {}).await?;
+        Ok(((), this))
+      })
+      .await?;
     buffer_cmd.clear();
     self.executor.delete_migrations(buffer_cmd, mg, version).await?;
     buffer_db_migrations.clear();
@@ -56,10 +60,10 @@ where
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     versions: &[i32],
-  ) -> crate::Result<()> {
+  ) -> Result<(), <E::Database as Database>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     if migration_groups.len() != versions.len() {
-      return Err(SchemaManagerError::DifferentRollbackVersions.into());
+      return Err(crate::Error::from(SchemaManagerError::DifferentRollbackVersions).into());
     }
     migration_groups.sort_by(|a, b| b.cmp(a));
     for (mg, &version) in migration_groups.into_iter().zip(versions) {
@@ -76,7 +80,7 @@ where
     buffer: (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     version: i32,
-  ) -> crate::Result<()> {
+  ) -> Result<(), <E::Database as Database>::Error> {
     self.do_rollback_from_dir(buffer, path, version).await
   }
 
@@ -87,7 +91,7 @@ where
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     version: i32,
-  ) -> crate::Result<()> {
+  ) -> Result<(), <E::Database as Database>::Error> {
     let opt = group_and_migrations_from_path(path, |a, b| b.cmp(a));
     let Ok((mg, mut migrations)) = opt else { return Ok(()) };
     let mut tmp_migrations = Vector::new();

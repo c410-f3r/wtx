@@ -13,14 +13,6 @@ pub struct SessionEnforcer<CS> {
   phantom: PhantomData<CS>,
 }
 
-impl<CS> SessionEnforcer<CS> {
-  /// Creates a new instance with paths that are not taken into consideration.
-  #[inline]
-  pub fn new() -> Self {
-    Self { phantom: PhantomData }
-  }
-}
-
 impl<CA, CS, E, SA> Middleware<CA, E, SA> for SessionEnforcer<CS>
 where
   CA: LeaseMut<Option<SessionState<CS>>>,
@@ -54,5 +46,12 @@ where
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     Ok(ControlFlow::Continue(()))
+  }
+}
+
+impl<CS> Default for SessionEnforcer<CS> {
+  #[inline]
+  fn default() -> Self {
+    Self { phantom: PhantomData }
   }
 }

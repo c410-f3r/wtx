@@ -11,7 +11,6 @@ mod frame;
 mod handshake;
 mod misc;
 mod op_code;
-mod payload_ty;
 mod read_frame_info;
 mod unmask;
 #[cfg(feature = "web-socket-handshake")]
@@ -28,7 +27,6 @@ use crate::{
   misc::{ConnectionState, LeaseMut, Lock, Stream, Xorshift64},
   web_socket::{
     compression::NegotiatedCompression,
-    payload_ty::PayloadTy,
     web_socket_parts::web_socket_part::{
       WebSocketCommonPart, WebSocketReaderPart, WebSocketWriterPart,
     },
@@ -82,7 +80,6 @@ pub type WebSocketOwned<NC, S, const IS_CLIENT: bool> =
 #[derive(Debug)]
 pub struct WebSocket<NC, S, WSB, const IS_CLIENT: bool> {
   connection_state: ConnectionState,
-  curr_payload: PayloadTy,
   max_payload_len: usize,
   nc: NC,
   no_masking: bool,
@@ -117,7 +114,6 @@ where
   ) -> crate::Result<Self> {
     Ok(Self {
       connection_state: ConnectionState::Open,
-      curr_payload: PayloadTy::None,
       max_payload_len: _MAX_PAYLOAD_LEN,
       nc,
       no_masking,
@@ -125,18 +121,6 @@ where
       stream,
       wsb,
     })
-  }
-
-  /// The current frame payload that is set when [`Self::read_frame`] is called, otherwise,
-  /// returns an empty slice.
-  #[inline]
-  pub fn curr_payload(&mut self) -> &mut [u8] {
-    match self.curr_payload {
-      PayloadTy::Network => self.wsb.lease_mut().network_buffer._current_mut(),
-      PayloadTy::None => &mut [],
-      PayloadTy::FirstReader => self.wsb.lease_mut().reader_buffer_first.as_slice_mut(),
-      PayloadTy::SecondReader => self.wsb.lease_mut().reader_buffer_second.as_slice_mut(),
-    }
   }
 
   /// Different mutable parts that allow sending received frames using common elements.
@@ -148,16 +132,7 @@ where
     WebSocketReaderPartMut<'_, NC, S, IS_CLIENT>,
     WebSocketWriterPartMut<'_, NC, S, IS_CLIENT>,
   ) {
-    let WebSocket {
-      connection_state,
-      curr_payload,
-      nc,
-      no_masking,
-      rng,
-      stream,
-      wsb,
-      max_payload_len,
-    } = self;
+    let WebSocket { connection_state, nc, no_masking, rng, stream, wsb, max_payload_len } = self;
     let WebSocketBuffer {
       writer_buffer,
       network_buffer,
@@ -170,7 +145,6 @@ where
       WebSocketReaderPartMut {
         phantom: PhantomData,
         wsrp: WebSocketReaderPart {
-          curr_payload,
           max_payload_len: *max_payload_len,
           nc_rsv1,
           network_buffer,
@@ -192,16 +166,7 @@ where
   /// until all fragments are received.
   #[inline]
   pub async fn read_frame(&mut self) -> crate::Result<FrameMut<'_, IS_CLIENT>> {
-    let WebSocket {
-      connection_state,
-      curr_payload,
-      max_payload_len,
-      nc,
-      no_masking,
-      rng,
-      stream,
-      wsb,
-    } = self;
+    let WebSocket { connection_state, max_payload_len, nc, no_masking, rng, stream, wsb } = self;
     let WebSocketBuffer {
       network_buffer,
       reader_buffer_first,
@@ -209,7 +174,7 @@ where
       writer_buffer: _,
     } = wsb.lease_mut();
     let nc_rsv1 = nc.rsv1();
-    let (frame, payload_ty) = read_frame!(
+    let frame = read_frame!(
       *max_payload_len,
       (NC::IS_NOOP, nc_rsv1),
       network_buffer,
@@ -227,7 +192,6 @@ where
         }
       )
     );
-    *curr_payload = payload_ty;
     Ok(frame)
   }
 
@@ -266,16 +230,7 @@ where
   where
     C: Clone + Lock<Resource = WebSocketCommonPartOwned<NC, SW, IS_CLIENT>>,
   {
-    let WebSocket {
-      connection_state,
-      curr_payload,
-      nc,
-      no_masking,
-      rng,
-      stream,
-      wsb,
-      max_payload_len,
-    } = self;
+    let WebSocket { connection_state, nc, no_masking, rng, stream, wsb, max_payload_len } = self;
     let WebSocketBuffer {
       writer_buffer,
       network_buffer,
@@ -293,7 +248,6 @@ where
         phantom: PhantomData,
         stream_reader,
         wsrp: WebSocketReaderPart {
-          curr_payload,
           max_payload_len,
           nc_rsv1,
           network_buffer,

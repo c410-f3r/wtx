@@ -16,7 +16,6 @@ mod records;
 #[cfg(feature = "schema-manager")]
 pub mod schema_manager;
 mod stmt_cmd;
-mod transaction_manager;
 mod typed;
 mod value_ident;
 
@@ -33,7 +32,6 @@ pub use record::Record;
 pub use record_values::RecordValues;
 pub use records::Records;
 pub use stmt_cmd::StmtCmd;
-pub use transaction_manager::TransactionManager;
 pub use typed::Typed;
 pub use value_ident::ValueIdent;
 

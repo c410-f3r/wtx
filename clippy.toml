@@ -1,22 +1,22 @@
 disallowed-methods = [
-    "<[u8]>::rsplit",
-    "<[u8]>::split",
-    "alloc::sync::Arc",
-    "core::str::from_utf8",
-    "core::sync::atomic::AtomicU64",
-    "core::sync::atomic::AtomicUsize",
-    "str::rsplit",
+  "<[u8]>::rsplit",
+  "<[u8]>::split",
+  "alloc::sync::Arc",
+  "core::str::from_utf8",
+  "core::sync::atomic::AtomicU64",
+  "core::sync::atomic::AtomicUsize",
+  "str::rsplit",
 ]
 disallowed-types = [
-    "std::collections::HashMap",
-    "std::collections::HashSet"
+  "std::collections::HashMap",
+  "std::collections::HashSet"
 ]
 doc-valid-idents = [
-    "MiB",
-    "PostgreSQL",
-    "WebSocket",
-    "WebSockets",
-    "WebTransport"
+  "MiB",
+  "PostgreSQL",
+  "WebSocket",
+  "WebSockets",
+  "WebTransport"
 ]
 too-many-arguments-threshold = 10
 type-complexity-threshold = 500

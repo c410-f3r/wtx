@@ -31,7 +31,7 @@ pub struct CommonStream<'instance, HD, const IS_CLIENT: bool> {
   pub(crate) stream_id: U31,
 }
 
-impl<'instance, HB, HD, SW, const IS_CLIENT: bool> CommonStream<'instance, HD, IS_CLIENT>
+impl<HB, HD, SW, const IS_CLIENT: bool> CommonStream<'_, HD, IS_CLIENT>
 where
   HB: LeaseMut<Http2Buffer>,
   HD: RefCounter,

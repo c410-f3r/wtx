@@ -158,8 +158,8 @@ where
 }
 
 #[inline]
-async fn recv_data<'buffer, HB, HD, SW>(
-  buffer: &'buffer mut Vector<u8>,
+async fn recv_data<HB, HD, SW>(
+  buffer: &mut Vector<u8>,
   no_masking: bool,
   stream: &mut ServerStream<HD>,
 ) -> crate::Result<(ReadFrameInfo, bool)>

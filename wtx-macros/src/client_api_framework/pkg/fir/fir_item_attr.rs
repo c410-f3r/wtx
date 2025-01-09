@@ -6,6 +6,16 @@ use syn::{
 };
 
 #[derive(Debug)]
+pub(crate) enum FirItemAttrTy {
+  AfterSending,
+  Aux,
+  BeforeSending,
+  Params,
+  Req,
+  Res,
+}
+
+#[derive(Debug)]
 pub(crate) struct FirItemAttr {
   pub(crate) span: Span,
   pub(crate) ty: FirItemAttrTy,
@@ -15,16 +25,6 @@ impl FirItemAttr {
   pub(crate) fn new(span: Span, ty: FirItemAttrTy) -> Self {
     Self { span, ty }
   }
-}
-
-#[derive(Debug)]
-pub(crate) enum FirItemAttrTy {
-  AfterSending,
-  Aux,
-  BeforeSending,
-  Params,
-  Req,
-  Res,
 }
 
 impl Parse for FirItemAttr {

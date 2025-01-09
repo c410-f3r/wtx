@@ -37,7 +37,7 @@ async fn main() -> wtx::Result<()> {
                 let hrs = common.recv_data().await?;
                 match hrs {
                   Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream => {
-                    return Ok(())
+                    return Ok(());
                   }
                   Http2RecvStatus::Eos(_) => break,
                   Http2RecvStatus::Ongoing(_) => continue,

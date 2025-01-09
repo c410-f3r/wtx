@@ -31,6 +31,12 @@ To make everything work as intended both parties, client and server, need to imp
 {{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-client.rs}}
 ```
 
+## Concurrent Client Example
+
+```rust,edition2021,no_run
+{{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-concurrent-client.rs}}
+```
+
 ## Server Example
 
 ```rust,edition2021,no_run

@@ -614,7 +614,7 @@ mod serde {
 
         #[inline]
         fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
-          formatter.write_fmt(format_args!("an array with {N} elements"))
+          formatter.write_fmt(format_args!("a vector with at most {N} elements"))
         }
 
         #[inline]
@@ -623,16 +623,16 @@ mod serde {
           A: SeqAccess<'de>,
         {
           let mut this = ArrayVector::new();
-          for elem in &mut this {
-            *elem = seq.next_element::<T>()?.ok_or_else(|| {
-              de::Error::invalid_length(N, &"Array need more data to be constructed")
+          while let Some(elem) = seq.next_element()? {
+            this.push(elem).map_err(|_err| {
+              de::Error::invalid_length(N, &"vector need more data to be constructed")
             })?;
           }
           Ok(this)
         }
       }
 
-      deserializer.deserialize_tuple(N, ArrayVisitor::<T, N>(PhantomData))
+      deserializer.deserialize_seq(ArrayVisitor::<T, N>(PhantomData))
     }
   }
 
