@@ -10,5 +10,5 @@ pub mod network;
 pub mod pkg;
 mod tests;
 
-pub use api::Api;
+pub use api::{Api, ApiId};
 pub use client_api_framework_error::ClientApiFrameworkError;

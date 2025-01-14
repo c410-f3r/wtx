@@ -15,10 +15,10 @@ use core::{future::Future, ops::Range};
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait RecievingTransport<DRSR>: Transport<DRSR> {
+pub trait RecievingTransport: Transport {
   /// Retrieves data from the server filling the internal buffer and returning the amount of
   /// bytes written.
-  fn recv<A>(
+  fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> impl Future<Output = Result<Range<usize>, A::Error>>
@@ -28,7 +28,7 @@ pub trait RecievingTransport<DRSR>: Transport<DRSR> {
   /// Internally calls [`Self::retrieve`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
-  fn recv_decode_contained<'de, A, P>(
+  fn recv_decode_contained<'de, A, DRSR, P>(
     &mut self,
     pkgs_aux: &'de mut PkgsAux<A, DRSR, Self::Params>,
   ) -> impl Future<Output = Result<P::ExternalResponseContent<'de>, A::Error>>
@@ -47,12 +47,12 @@ pub trait RecievingTransport<DRSR>: Transport<DRSR> {
   }
 }
 
-impl<DRSR, T> RecievingTransport<DRSR> for &mut T
+impl<T> RecievingTransport for &mut T
 where
-  T: RecievingTransport<DRSR>,
+  T: RecievingTransport,
 {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>

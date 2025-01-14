@@ -25,11 +25,11 @@ pub use request_throttling::RequestThrottling;
 pub(crate) fn log_req<A, DRSR, P, T>(
   _pgk: &mut P,
   _pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
-  _trans: T,
+  _trans: &mut T,
 ) where
   A: Api,
   P: Package<A, DRSR, T::Params>,
-  T: Transport<DRSR>,
+  T: Transport,
 {
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
     use crate::data_transformation::dnsn::Serialize;
@@ -67,12 +67,12 @@ where
 pub(crate) async fn manage_before_sending_related<A, DRSR, P, T>(
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
-  trans: T,
+  trans: &mut T,
 ) -> Result<(), A::Error>
 where
   A: Api,
   P: Package<A, DRSR, T::Params>,
-  T: Transport<DRSR>,
+  T: Transport,
 {
   log_req(pkg, pkgs_aux, trans);
   pkg.ext_req_content_mut().to_bytes(&mut pkgs_aux.byte_buffer, &mut pkgs_aux.drsr)?;

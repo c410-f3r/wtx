@@ -8,14 +8,16 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  http::{client_framework::ClientFramework, Header, KnownHeaderName, ReqResBuffer},
+  http::{
+    client_framework::ClientFramework, Header, KnownHeaderName, ReqResBuffer, WTX_USER_AGENT,
+  },
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{Lock, RefCounter, StreamWriter},
   pool::{ResourceManager, SimplePoolResource},
 };
 use core::{mem, ops::Range};
 
-impl<DRSR, HD, RL, RM, SW> RecievingTransport<DRSR> for ClientFramework<RL, RM>
+impl<HD, RL, RM, SW> RecievingTransport for ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -31,7 +33,7 @@ where
   for<'any> RM: 'any,
 {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>
@@ -42,7 +44,7 @@ where
   }
 }
 
-impl<DRSR, HD, RL, RM, SW> SendingTransport<DRSR> for ClientFramework<RL, RM>
+impl<HD, RL, RM, SW> SendingTransport for ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -58,7 +60,7 @@ where
   for<'any> RM: 'any,
 {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
@@ -72,12 +74,12 @@ where
   }
 }
 
-impl<DRSR, RL, RM> Transport<DRSR> for ClientFramework<RL, RM> {
+impl<RL, RM> Transport for ClientFramework<RL, RM> {
   const GROUP: TransportGroup = TransportGroup::HTTP;
   type Params = HttpParams;
 }
 
-impl<DRSR, HD, RL, RM, SW> RecievingTransport<DRSR> for &ClientFramework<RL, RM>
+impl<HD, RL, RM, SW> RecievingTransport for &ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -93,7 +95,7 @@ where
   for<'any> RM: 'any,
 {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>
@@ -104,7 +106,7 @@ where
   }
 }
 
-impl<DRSR, HD, RL, RM, SW> SendingTransport<DRSR> for &ClientFramework<RL, RM>
+impl<HD, RL, RM, SW> SendingTransport for &ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -120,7 +122,7 @@ where
   for<'any> RM: 'any,
 {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
@@ -134,7 +136,7 @@ where
   }
 }
 
-impl<DRSR, HD, RL, RM, SW> Transport<DRSR> for &ClientFramework<RL, RM>
+impl<HD, RL, RM, SW> Transport for &ClientFramework<RL, RM>
 where
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -154,7 +156,7 @@ where
 }
 
 async fn response<A, DRSR, HD, P, RL, RM, SW>(
-  client: &ClientFramework<RL, RM>,
+  mut client: &ClientFramework<RL, RM>,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, HttpParams>,
 ) -> Result<(), A::Error>
@@ -176,18 +178,16 @@ where
 {
   pkgs_aux.byte_buffer.clear();
   pkgs_aux.tp.ext_req_params_mut().headers.clear();
-  manage_before_sending_related(pkg, pkgs_aux, client).await?;
-  let HttpReqParams { headers, method, mime, uri, user_agent } = pkgs_aux.tp.ext_req_params_mut();
+  manage_before_sending_related(pkg, pkgs_aux, &mut client).await?;
+  let HttpReqParams { headers, method, mime, uri } = pkgs_aux.tp.ext_req_params_mut();
+  headers.push_from_iter(Header::from_name_and_value(
+    KnownHeaderName::UserAgent.into(),
+    [WTX_USER_AGENT.as_bytes()],
+  ))?;
   if let Some(elem) = mime {
     headers.push_from_iter(Header::from_name_and_value(
       KnownHeaderName::ContentType.into(),
       [elem.as_str().as_bytes()],
-    ))?;
-  }
-  if let Some(elem) = user_agent {
-    headers.push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::UserAgent.into(),
-      [elem._as_str().as_bytes()],
     ))?;
   }
   let mut rrb = ReqResBuffer::empty();

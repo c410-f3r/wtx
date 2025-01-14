@@ -86,14 +86,14 @@ where
   }
 }
 
-impl<DRSR, T, TP> RecievingTransport<DRSR> for Mock<T, TP>
+impl<T, TP> RecievingTransport for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>
@@ -107,14 +107,14 @@ where
   }
 }
 
-impl<DRSR, T, TP> SendingTransport<DRSR> for Mock<T, TP>
+impl<T, TP> SendingTransport for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -131,7 +131,7 @@ where
   }
 }
 
-impl<DRSR, T, TP> Transport<DRSR> for Mock<T, TP>
+impl<T, TP> Transport for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,

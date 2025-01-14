@@ -1,4 +1,4 @@
-_create_enum! {
+create_enum! {
   /// Specifies a tunneling protocol
   #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
   pub enum Protocol<u8> {

@@ -1,4 +1,4 @@
-_create_enum! {
+create_enum! {
   /// SQLSTATE error code
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum SqlState<u16> {

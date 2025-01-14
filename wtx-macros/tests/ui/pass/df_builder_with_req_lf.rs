@@ -5,7 +5,7 @@ wtx::create_packages_aux_wrapper!();
 
 type Api = ();
 
-#[wtx_macros::pkg(api(super::Api), data_format(json), transport(http))]
+#[wtx_macros::pkg(data_format(json), id(super::Api), transport(http))]
 mod pkg {
   #[pkg::aux]
   impl super::PkgsAux<(), (), ()> {

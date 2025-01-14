@@ -28,13 +28,14 @@ use wtx::{
 wtx::create_packages_aux_wrapper!();
 
 #[derive(Debug)]
-#[wtx_macros::api_params(pkgs_aux(PkgsAux), transport(http, ws))]
+#[wtx_macros::api(error(wtx::Error), pkgs_aux(PkgsAux), transport(http, ws))]
 pub struct GenericThrottlingApi {
   pub rt: RequestThrottling,
 }
 
 impl Api for GenericThrottlingApi {
   type Error = wtx::Error;
+  type Id = GenericThrottlingApiId;
 
   async fn before_sending(&mut self) -> Result<(), Self::Error> {
     self.rt.rc.update_params(&self.rt.rl).await?;
@@ -43,8 +44,8 @@ impl Api for GenericThrottlingApi {
 }
 
 #[wtx_macros::pkg(
-  api(crate::GenericThrottlingApi),
   data_format(json_rpc("genericHttpRequest")),
+  id(crate::GenericThrottlingApiId),
   transport(http)
 )]
 mod generic_http_request {
@@ -60,8 +61,8 @@ mod generic_http_request {
 }
 
 #[wtx_macros::pkg(
-  api(crate::GenericThrottlingApi),
   data_format(json_rpc("genericWebSocketSubscription")),
+  id(crate::GenericThrottlingApiId),
   transport(ws)
 )]
 mod generic_web_socket_subscription {

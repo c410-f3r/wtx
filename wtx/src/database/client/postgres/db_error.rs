@@ -22,7 +22,7 @@ pub enum ErrorPosition {
   Original(u32),
 }
 
-_create_enum! {
+create_enum! {
   /// The severity of a Postgres error or notice.
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum Severity<u8> {

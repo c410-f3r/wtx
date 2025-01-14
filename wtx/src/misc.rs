@@ -63,7 +63,7 @@ pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use iter_wrapper::IterWrapper;
 pub use lease::{Lease, LeaseMut};
-pub use lock::{Lock, SyncLock};
+pub use lock::Lock;
 pub use noop_waker::NOOP_WAKER;
 pub use optimization::*;
 pub use query_writer::QueryWriter;

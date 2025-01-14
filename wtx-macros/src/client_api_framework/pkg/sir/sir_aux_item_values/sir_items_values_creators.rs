@@ -1,14 +1,16 @@
-use crate::client_api_framework::pkg::{
-  enum_struct_or_type::EnumStructOrType,
-  fir::{fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef},
-  misc::{
-    inner_angle_bracketed_values, is_unit_type, parts_from_generics, split_params, EMPTY_GEN_ARGS,
-    EMPTY_PATH_SEGS,
+use crate::{
+  client_api_framework::pkg::{
+    enum_struct_or_type::EnumStructOrType,
+    fir::{fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef},
+    misc::{
+      inner_angle_bracketed_values, is_unit_type, split_params, EMPTY_GEN_ARGS, EMPTY_PATH_SEGS,
+    },
+    sir::sir_aux_item_values::{
+      BuilderCommonValues, BuilderExtendedValues, CreateMethodReturningBuilderParams,
+      FnCommonValues, SirAuxItemValues,
+    },
   },
-  sir::sir_aux_item_values::{
-    BuilderCommonValues, BuilderExtendedValues, CreateMethodReturningBuilderParams, FnCommonValues,
-    SirAuxItemValues,
-  },
+  misc::parts_from_generics,
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{Fields, FnArg, ImplItemMethod, ReturnType, Type};

@@ -1,9 +1,9 @@
-use crate::client_api_framework::{
-  item_with_attr_span::ItemWithAttrSpan,
-  pkg::{
-    fir::fir_aux_field_attr::FirAuxFieldAttr,
-    misc::{parts_from_generics, take_unique_pkg_attr},
+use crate::{
+  client_api_framework::{
+    item_with_attr_span::ItemWithAttrSpan,
+    pkg::{fir::fir_aux_field_attr::FirAuxFieldAttr, misc::take_unique_pkg_attr},
   },
+  misc::parts_from_generics,
 };
 use proc_macro2::Span;
 use syn::{

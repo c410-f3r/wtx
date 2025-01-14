@@ -15,14 +15,12 @@ use core::{future::Future, ops::Range};
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait SendingRecievingTransport<DRSR>:
-  RecievingTransport<DRSR> + SendingTransport<DRSR>
-{
+pub trait SendingRecievingTransport: RecievingTransport + SendingTransport {
   /// Sends a request and then awaits its counterpart data response.
   ///
   /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
   #[inline]
-  fn send_recv<A, P>(
+  fn send_recv<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -42,7 +40,7 @@ pub trait SendingRecievingTransport<DRSR>:
   ///
   /// All the expected data must be available in a single response.
   #[inline]
-  fn send_recv_decode_batch<'pkgs, 'pkgs_aux, A, P>(
+  fn send_recv_decode_batch<'pkgs, 'pkgs_aux, A, DRSR, P>(
     &mut self,
     buffer: &mut Vector<P::ExternalResponseContent<'pkgs_aux>>,
     pkgs: &'pkgs mut [P],
@@ -68,7 +66,7 @@ pub trait SendingRecievingTransport<DRSR>:
   /// Internally calls [`Self::send_recv`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
-  fn send_recv_decode_contained<'de, A, P>(
+  fn send_recv_decode_contained<'de, A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &'de mut PkgsAux<A, DRSR, Self::Params>,
@@ -88,7 +86,4 @@ pub trait SendingRecievingTransport<DRSR>:
   }
 }
 
-impl<DRSR, T> SendingRecievingTransport<DRSR> for T where
-  T: RecievingTransport<DRSR> + SendingTransport<DRSR>
-{
-}
+impl<T> SendingRecievingTransport for T where T: RecievingTransport + SendingTransport {}

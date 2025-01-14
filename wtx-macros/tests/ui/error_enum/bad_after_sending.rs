@@ -1,4 +1,4 @@
-#[wtx_macros::pkg(api(Foo), data_format(json))]
+#[wtx_macros::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[pkg::after_sending]
   async fn after_sending(foo: i32) -> wtx::Result<()> {

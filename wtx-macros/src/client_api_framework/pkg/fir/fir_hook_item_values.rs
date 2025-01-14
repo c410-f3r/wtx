@@ -3,7 +3,6 @@ macro_rules! create_fir_hook_item_values {
     $struct:ident,
     $fn_call_idents:ident,
     $item:ident,
-    $fn_name:expr,
     $fn_args_idents:expr,
     $error:ident,
   ) => {

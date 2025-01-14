@@ -10,9 +10,9 @@ use core::future::Future;
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait SendingTransport<DRSR>: Transport<DRSR> {
+pub trait SendingTransport: Transport {
   /// Sends a request without trying to retrieve any counterpart data.
-  fn send<A, P>(
+  fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -22,12 +22,12 @@ pub trait SendingTransport<DRSR>: Transport<DRSR> {
     P: Package<A, DRSR, Self::Params>;
 }
 
-impl<DRSR, T> SendingTransport<DRSR> for &mut T
+impl<T> SendingTransport for &mut T
 where
-  T: SendingTransport<DRSR>,
+  T: SendingTransport,
 {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,

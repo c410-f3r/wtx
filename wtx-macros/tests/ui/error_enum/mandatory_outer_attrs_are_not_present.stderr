@@ -1,7 +1,7 @@
-error: All packages must have an `api` and a `data_format` attribute. For example, #[pkg(api(SomeApi), data_format(json))]
+error: All packages must have a `data_format` and an `id` attribute. For example, #[pkg(data_format(json), id(SomeApi))]
  --> tests/ui/error_enum/mandatory_outer_attrs_are_not_present.rs:1:1
   |
-1 | #[wtx_macros::pkg(api(Foo), data_format())]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1 | #[wtx_macros::pkg(data_format(), id(Foo))]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in the attribute macro `wtx_macros::pkg` (in Nightly builds, run with -Z macro-backtrace for more info)
