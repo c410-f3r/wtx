@@ -15,14 +15,14 @@ use crate::{
 };
 use core::ops::Range;
 
-impl<DRSR, NC, S, WSB> RecievingTransport<DRSR> for WebSocket<NC, S, WSB, true>
+impl<NC, S, WSB> RecievingTransport for WebSocket<NC, S, WSB, true>
 where
   NC: NegotiatedCompression,
   S: Stream,
   WSB: LeaseMut<WebSocketBuffer>,
 {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>
@@ -33,14 +33,14 @@ where
   }
 }
 
-impl<DRSR, NC, S, WSB> SendingTransport<DRSR> for WebSocket<NC, S, WSB, true>
+impl<NC, S, WSB> SendingTransport for WebSocket<NC, S, WSB, true>
 where
   NC: NegotiatedCompression,
   S: Stream,
   WSB: LeaseMut<WebSocketBuffer>,
 {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
@@ -54,7 +54,7 @@ where
   }
 }
 
-impl<DRSR, NC, S, WSB> Transport<DRSR> for WebSocket<NC, S, WSB, true>
+impl<NC, S, WSB> Transport for WebSocket<NC, S, WSB, true>
 where
   NC: NegotiatedCompression,
   S: Stream,

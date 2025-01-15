@@ -2,14 +2,13 @@ use proc_macro2::Span;
 use quote::ToTokens as _;
 use syn::{
   parse::Parse, punctuated::Punctuated, spanned::Spanned as _, token::Paren,
-  AngleBracketedGenericArguments, Attribute, GenericArgument, GenericParam, Generics,
-  PathArguments, PathSegment, Token, Type, TypePath, TypeTuple, WherePredicate,
+  AngleBracketedGenericArguments, Attribute, GenericArgument, GenericParam, PathArguments,
+  PathSegment, Token, Type, TypePath, TypeTuple,
 };
 
 pub(crate) const EMPTY_GEN_ARGS: &Punctuated<GenericArgument, Token![,]> = &Punctuated::new();
 pub(crate) const EMPTY_GEN_PARAMS: &Punctuated<GenericParam, Token![,]> = &Punctuated::new();
 pub(crate) const EMPTY_PATH_SEGS: &Punctuated<PathSegment, Token![::]> = &Punctuated::new();
-pub(crate) const EMPTY_WHERE_PREDS: &Punctuated<WherePredicate, Token![,]> = &Punctuated::new();
 
 pub(crate) fn from_camel_case_to_snake_case(string: &str) -> String {
   let mut snake_case_string = String::new();
@@ -76,12 +75,6 @@ pub(crate) fn manage_unique_attribute<T>(opt: Option<&T>, span: Span) -> crate::
   } else {
     Ok(())
   }
-}
-
-pub(crate) fn parts_from_generics(
-  generics: &Generics,
-) -> (&Punctuated<GenericParam, Token![,]>, &Punctuated<WherePredicate, Token![,]>) {
-  (&generics.params, generics.where_clause.as_ref().map_or(EMPTY_WHERE_PREDS, |el| &el.predicates))
 }
 
 pub(crate) fn split_params(

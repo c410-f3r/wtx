@@ -13,14 +13,14 @@ use crate::{
   },
 };
 
-impl<C, DRSR, NC, SW> SendingTransport<DRSR> for WebSocketWriterPartOwned<C, NC, SW, true>
+impl<C, NC, SW> SendingTransport for WebSocketWriterPartOwned<C, NC, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
   SW: StreamWriter,
 {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
@@ -34,7 +34,7 @@ where
   }
 }
 
-impl<C, DRSR, NC, SW> Transport<DRSR> for WebSocketWriterPartOwned<C, NC, SW, true>
+impl<C, NC, SW> Transport for WebSocketWriterPartOwned<C, NC, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,

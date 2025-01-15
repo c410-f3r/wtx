@@ -1,5 +1,5 @@
 error: Unknown transport.
- --> tests/ui/error_enum/unknown_transport.rs:1:58
+ --> tests/ui/error_enum/unknown_transport.rs:1:59
   |
-1 | #[wtx_macros::pkg(api(Foo), data_format(json), transport(dasdasd))]
-  |                                                          ^^^^^^^
+1 | #[wtx_macros::pkg(data_format(json), id(FooId), transport(dasdasd))]
+  |                                                           ^^^^^^^

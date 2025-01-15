@@ -6,14 +6,12 @@ use crate::{
   grpc::serialize,
   http::{
     client_framework::ClientFramework, Header, Headers, KnownHeaderName, Method, ReqResBuffer,
-    ReqUri, Response,
+    ReqUri, Response, WTX_USER_AGENT,
   },
   http2::{Http2, Http2Buffer, Http2Data},
   misc::{Lock, RefCounter, StreamWriter},
   pool::{ResourceManager, SimplePoolResource},
 };
-
-const WTX_USER_AGENT: &str = concat!("wtx/", env!("CARGO_PKG_VERSION"));
 
 /// Performs requests to gRPC servers.
 #[derive(Debug)]

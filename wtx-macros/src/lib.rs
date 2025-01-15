@@ -11,16 +11,16 @@ use error::Error;
 
 type Result<T> = core::result::Result<T, Error>;
 
-/// API Parameters
+/// API
 ///
 /// Creates types referring an API and its possible de-serializers/serializers or transport
 /// variants.
 #[proc_macro_attribute]
-pub fn api_params(
+pub fn api(
   attrs: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-  match client_api_framework::api_params::api_params(attrs, item) {
+  match client_api_framework::api::api(attrs, item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }
@@ -43,7 +43,7 @@ pub fn conn_aux(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// ```rust
 /// struct SomeApi;
 ///
-/// #[wtx_macros::pkg(api(SomeApi), data_format(json_rpc("SomeEndpoint")))]
+/// #[wtx_macros::pkg(data_format(json_rpc("SomeEndpoint")), id(SomeApiId))]
 /// mod pkg {
 ///   #[pkg::req_data]
 ///   pub struct SomeEndpointReq<'string> {

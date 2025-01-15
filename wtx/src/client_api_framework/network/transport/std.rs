@@ -16,9 +16,9 @@ use std::{
   net::TcpStream,
 };
 
-impl<DRSR> RecievingTransport<DRSR> for TcpStream {
+impl RecievingTransport for TcpStream {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>
@@ -30,9 +30,9 @@ impl<DRSR> RecievingTransport<DRSR> for TcpStream {
   }
 }
 
-impl<DRSR> SendingTransport<DRSR> for TcpStream {
+impl SendingTransport for TcpStream {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TcpParams>,
@@ -45,7 +45,7 @@ impl<DRSR> SendingTransport<DRSR> for TcpStream {
   }
 }
 
-impl<DRSR> Transport<DRSR> for TcpStream {
+impl Transport for TcpStream {
   const GROUP: TransportGroup = TransportGroup::TCP;
   type Params = TcpParams;
 }
@@ -63,7 +63,7 @@ async fn send<A, DRSR, P, T>(
 where
   A: Api,
   P: Package<A, DRSR, T::Params>,
-  T: Transport<DRSR>,
+  T: Transport,
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;

@@ -28,7 +28,7 @@ pub use transport_params::TransportParams;
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait Transport<DRSR> {
+pub trait Transport {
   /// Every transport has an [TransportGroup] identifier.
   const GROUP: TransportGroup;
   /// Every transport has request and response parameters.
@@ -41,9 +41,9 @@ pub trait Transport<DRSR> {
   }
 }
 
-impl<DRSR, T> Transport<DRSR> for &mut T
+impl<T> Transport for &mut T
 where
-  T: Transport<DRSR>,
+  T: Transport,
 {
   const GROUP: TransportGroup = T::GROUP;
   type Params = T::Params;

@@ -92,6 +92,8 @@ pub enum Error {
   //
   /// A connection was unexpectedly closed by an external actor or because of a local error.
   ClosedConnection,
+  /// Generic error
+  Generic(&'static str),
   /// `GenericTime` needs a backend
   GenericTimeNeedsBackend,
   /// The hardware returned an incorrect time value

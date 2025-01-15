@@ -6,8 +6,8 @@ use syn::Path;
 
 #[derive(Debug)]
 pub(crate) struct SirPkaAttr<'attrs> {
-  pub(crate) api: &'attrs Path,
   pub(crate) data_formats: Vec<DataFormat>,
+  pub(crate) id: &'attrs Path,
   pub(crate) transport_groups: Vec<TransportGroup>,
 }
 
@@ -24,8 +24,8 @@ impl<'attrs> TryFrom<FirPkgAttr<'attrs>> for SirPkaAttr<'attrs> {
       return Err(crate::Error::MandatoryOuterAttrsAreNotPresent);
     }
     Ok(Self {
-      api: fea.api,
       data_formats,
+      id: fea.id,
       transport_groups: fea
         .transports
         .into_iter()

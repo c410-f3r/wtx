@@ -11,9 +11,9 @@ use wtx::client_api_framework::Api;
 use core::ops::Range;
 struct CustomTransport;
 
-impl<DRSR> RecievingTransport<DRSR> for CustomTransport {
+impl RecievingTransport for CustomTransport {
   #[inline]
-  async fn recv<A>(&mut self, _: &mut PkgsAux<A, DRSR, Self::Params>) -> Result<Range<usize>, A::Error>
+  async fn recv<A, DRSR>(&mut self, _: &mut PkgsAux<A, DRSR, Self::Params>) -> Result<Range<usize>, A::Error>
   where
     A: Api,
   {
@@ -21,9 +21,9 @@ impl<DRSR> RecievingTransport<DRSR> for CustomTransport {
   }
 }
 
-impl<DRSR> SendingTransport<DRSR> for CustomTransport {
+impl SendingTransport for CustomTransport {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     _: &mut P,
     _: &mut PkgsAux<A, DRSR, Self::Params>,
@@ -36,7 +36,7 @@ impl<DRSR> SendingTransport<DRSR> for CustomTransport {
   }
 }
 
-impl<DRSR> Transport<DRSR> for CustomTransport {
+impl Transport for CustomTransport {
   const GROUP: TransportGroup = TransportGroup::Custom("Custom");
   type Params = CustomTransportParams;
 }
@@ -68,7 +68,7 @@ impl TransportParams for CustomTransportParams {
 
 type Nothing = ();
 
-#[wtx_macros::pkg(api(super::Nothing), data_format(json), transport(custom(crate::CustomTransport)))]
+#[wtx_macros::pkg(data_format(json), id(super::Nothing), transport(custom(crate::CustomTransport)))]
 mod pkg {
   #[pkg::req_data]
   struct Req;

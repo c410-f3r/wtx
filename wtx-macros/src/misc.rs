@@ -2,8 +2,11 @@ use proc_macro2::{Ident, Span, TokenStream};
 use syn::{
   punctuated::Punctuated,
   token::{Bracket, Pound},
-  AttrStyle, Attribute, Path, PathArguments, PathSegment,
+  AttrStyle, Attribute, GenericParam, Generics, Path, PathArguments, PathSegment, Token,
+  WherePredicate,
 };
+
+pub(crate) const EMPTY_WHERE_PREDS: &Punctuated<WherePredicate, Token![,]> = &Punctuated::new();
 
 pub(crate) fn attrs_by_names<'attrs, const N: usize>(
   attrs: &'attrs [Attribute],
@@ -51,6 +54,12 @@ pub(crate) fn extend_with_tmp_suffix<'suf>(
 
 pub(crate) fn has_at_least_one_doc(attrs: &[Attribute]) -> bool {
   attrs_by_names(attrs, ["doc"])[0].is_some()
+}
+
+pub(crate) fn parts_from_generics(
+  generics: &Generics,
+) -> (&Punctuated<GenericParam, Token![,]>, &Punctuated<WherePredicate, Token![,]>) {
+  (&generics.params, generics.where_clause.as_ref().map_or(EMPTY_WHERE_PREDS, |el| &el.predicates))
 }
 
 pub(crate) fn push_doc(attrs: &mut Vec<Attribute>, doc: &str) {

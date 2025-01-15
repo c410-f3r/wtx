@@ -48,3 +48,36 @@ impl TransportParams for () {
   #[inline]
   fn reset(&mut self) {}
 }
+
+impl<TP> TransportParams for &mut TP
+where
+  TP: TransportParams,
+{
+  type ExternalRequestParams = TP::ExternalRequestParams;
+  type ExternalResponseParams = TP::ExternalResponseParams;
+
+  #[inline]
+  fn ext_req_params(&self) -> &Self::ExternalRequestParams {
+    (**self).ext_req_params()
+  }
+
+  #[inline]
+  fn ext_req_params_mut(&mut self) -> &mut Self::ExternalRequestParams {
+    (**self).ext_req_params_mut()
+  }
+
+  #[inline]
+  fn ext_res_params(&self) -> &Self::ExternalResponseParams {
+    (**self).ext_res_params()
+  }
+
+  #[inline]
+  fn ext_res_params_mut(&mut self) -> &mut Self::ExternalResponseParams {
+    (**self).ext_res_params_mut()
+  }
+
+  #[inline]
+  fn reset(&mut self) {
+    (**self).reset()
+  }
+}

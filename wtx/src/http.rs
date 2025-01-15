@@ -58,14 +58,16 @@ pub use session::*;
 pub use status_code::StatusCode;
 pub use version::Version;
 
-pub(crate) const _MAX_AUTHORITY_LEN: usize = 64;
-pub(crate) const _MAX_PATH_LEN: usize = 128;
-pub(crate) const _MAX_SCHEME_LEN: usize = 16;
-
 /// Maximum number of bytes for the name of a header.
 pub const MAX_HEADER_NAME_LEN: usize = 128;
 /// Maximum number of bytes for the value of a header.
 pub const MAX_HEADER_VALUE_LEN: usize = 1024 + 1024;
+/// Current user agent of this project
+pub const WTX_USER_AGENT: &str = concat!("wtx/", env!("CARGO_PKG_VERSION"));
+
+pub(crate) const _MAX_AUTHORITY_LEN: usize = 64;
+pub(crate) const _MAX_PATH_LEN: usize = 128;
+pub(crate) const _MAX_SCHEME_LEN: usize = 16;
 
 pub(crate) type _HeaderNameBuffer = crate::misc::ArrayVector<u8, MAX_HEADER_NAME_LEN>;
 pub(crate) type _HeaderValueBuffer = crate::misc::ArrayVector<u8, MAX_HEADER_VALUE_LEN>;

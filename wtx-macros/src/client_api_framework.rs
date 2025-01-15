@@ -1,4 +1,4 @@
-pub(crate) mod api_params;
+pub(crate) mod api;
 pub(crate) mod contained_attrs;
 pub(crate) mod item_with_attr_span;
 pub(crate) mod owned_or_ref;

@@ -1,6 +1,6 @@
 use crate::http2::{common_flags::CommonFlags, u31::U31};
 
-_create_enum! {
+create_enum! {
   #[derive(Debug, Copy, Clone, PartialEq, Eq)]
   pub(crate) enum FrameInitTy<u8> {
     Data = (0),

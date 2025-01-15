@@ -2,6 +2,11 @@ use proc_macro2::Span;
 
 #[derive(Debug)]
 pub(crate) enum Error {
+  // Api
+  AbsentApiError,
+  UnknownApiMode(Span),
+
+  // Pkg
   AbsentFieldInUnnamedStruct(Span),
   AbsentReqOrRes(Span),
   BadAfterSending(Span),
@@ -17,7 +22,7 @@ pub(crate) enum Error {
   IncorrectJsonRpcDataFormat,
   MandatoryOuterAttrsAreNotPresent,
   NoEnumStructOrType(Span),
-  ResponsesCanNotHaveTypeParams(Span),
+  ResponsesCanHaveAtMostOneLt(Span),
   Syn(syn::Error),
   UnknownDataFormat,
   UnknownTransport(Span),
@@ -33,6 +38,12 @@ impl From<syn::Error> for Error {
 impl From<Error> for syn::Error {
   fn from(from: Error) -> Self {
     match from {
+      Error::AbsentApiError => {
+        syn::Error::new(Span::call_site(), "All APIs must have an `error(SOME_ERROR) attribute`")
+      }
+      Error::UnknownApiMode(span) => {
+        syn::Error::new(span, "Unknown mode. Possible values are `auto` or `manual`")
+      }
       Error::AbsentFieldInUnnamedStruct(span) => syn::Error::new(
         span,
         "Unnamed structures must have a `#[pkg::field]` attribute on each field.",
@@ -87,14 +98,14 @@ impl From<Error> for syn::Error {
       ),
       Error::MandatoryOuterAttrsAreNotPresent => syn::Error::new(
         Span::call_site(),
-        "All packages must have an `api` and a `data_format` attribute. For example, \
-          #[pkg(api(SomeApi), data_format(json))]",
+        "All packages must have a `data_format` and an `id` attribute. For example, \
+          #[pkg(data_format(json), id(SomeApi))]",
       ),
       Error::NoEnumStructOrType(span) => {
         syn::Error::new(span, "Invalid item. Expected enum, struct or type.")
       }
-      Error::ResponsesCanNotHaveTypeParams(span) => {
-        syn::Error::new(span, "Responses can not have type parameters")
+      Error::ResponsesCanHaveAtMostOneLt(span) => {
+        syn::Error::new(span, "Responses can have at most one lifetime. Types aren't supported")
       }
       Error::Syn(error) => error,
       Error::UnknownDataFormat => syn::Error::new(Span::call_site(), "Unknown data format."),

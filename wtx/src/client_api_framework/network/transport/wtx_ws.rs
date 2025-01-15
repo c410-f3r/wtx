@@ -42,7 +42,7 @@ async fn send<A, DRSR, P, T>(
 where
   A: Api,
   P: Package<A, DRSR, WsParams>,
-  T: Transport<DRSR, Params = WsParams>,
+  T: Transport<Params = WsParams>,
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;

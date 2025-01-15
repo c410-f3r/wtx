@@ -1,4 +1,4 @@
-#[wtx_macros::pkg(api(Foo), data_format(json))]
+#[wtx_macros::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[pkg::aux]
   #[pkg::aux]
@@ -12,7 +12,7 @@ mod pkg {
   struct Res;
 }
 
-#[wtx_macros::pkg(api(Foo), data_format(json))]
+#[wtx_macros::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[pkg::before_sending]
   #[pkg::before_sending]
@@ -28,7 +28,7 @@ mod pkg {
   struct Res;
 }
 
-#[wtx_macros::pkg(api(Foo), data_format(json))]
+#[wtx_macros::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[derive(Debug)]
   #[pkg::req_data]

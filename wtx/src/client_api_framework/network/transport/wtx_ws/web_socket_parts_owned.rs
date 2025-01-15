@@ -12,7 +12,7 @@ use crate::{
 };
 use core::ops::Range;
 
-impl<C, DRSR, NC, SR, SW> RecievingTransport<DRSR> for WebSocketPartsOwned<C, NC, SR, SW, true>
+impl<C, NC, SR, SW> RecievingTransport for WebSocketPartsOwned<C, NC, SR, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
@@ -20,7 +20,7 @@ where
   SW: StreamWriter,
 {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>
@@ -31,7 +31,7 @@ where
   }
 }
 
-impl<C, DRSR, NC, SR, SW> SendingTransport<DRSR> for WebSocketPartsOwned<C, NC, SR, SW, true>
+impl<C, NC, SR, SW> SendingTransport for WebSocketPartsOwned<C, NC, SR, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
@@ -39,7 +39,7 @@ where
   SW: StreamWriter,
 {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
@@ -52,7 +52,7 @@ where
   }
 }
 
-impl<C, DRSR, NC, SR, SW> Transport<DRSR> for WebSocketPartsOwned<C, NC, SR, SW, true>
+impl<C, NC, SR, SW> Transport for WebSocketPartsOwned<C, NC, SR, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,

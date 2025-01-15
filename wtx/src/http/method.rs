@@ -1,4 +1,4 @@
-_create_enum! {
+create_enum! {
   /// HTTP method
   #[derive(Clone, Copy, Debug, Eq, PartialEq)]
   pub enum Method<u8> {

@@ -1,4 +1,4 @@
-#[wtx_macros::pkg(api(Foo), data_format(json_rpc(Bar)))]
+#[wtx_macros::pkg(data_format(json_rpc(Bar)), id(Foo))]
 mod pkg {
   #[pkg::req_data]
   struct Req;

@@ -1,14 +1,17 @@
-use crate::client_api_framework::pkg::{
-  data_format::DataFormat,
-  fir::{
-    fir_aux_item_values::FirAuxItemValues, fir_params_items_values::FirParamsItemValues,
-    fir_req_item_values::FirReqItemValues,
+use crate::{
+  client_api_framework::pkg::{
+    data_format::DataFormat,
+    fir::{
+      fir_aux_item_values::FirAuxItemValues, fir_params_items_values::FirParamsItemValues,
+      fir_req_item_values::FirReqItemValues,
+    },
+    misc::{EMPTY_GEN_ARGS, EMPTY_PATH_SEGS},
+    sir::sir_aux_item_values::{
+      BuilderCommonValues, BuilderExtendedValues, CreateMethodReturningBuilderParams,
+      FnCommonValues, SirAuxItemValues,
+    },
   },
-  misc::{EMPTY_GEN_ARGS, EMPTY_PATH_SEGS, EMPTY_WHERE_PREDS},
-  sir::sir_aux_item_values::{
-    BuilderCommonValues, BuilderExtendedValues, CreateMethodReturningBuilderParams, FnCommonValues,
-    SirAuxItemValues,
-  },
+  misc::EMPTY_WHERE_PREDS,
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{punctuated::Punctuated, GenericParam, Lifetime, LifetimeDef};

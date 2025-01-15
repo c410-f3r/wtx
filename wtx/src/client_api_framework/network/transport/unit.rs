@@ -9,9 +9,9 @@ use crate::client_api_framework::{
 };
 use core::ops::Range;
 
-impl<DRSR> RecievingTransport<DRSR> for () {
+impl RecievingTransport for () {
   #[inline]
-  async fn recv<A>(
+  async fn recv<A, DRSR>(
     &mut self,
     _: &mut PkgsAux<A, DRSR, Self::Params>,
   ) -> Result<Range<usize>, A::Error>
@@ -22,9 +22,9 @@ impl<DRSR> RecievingTransport<DRSR> for () {
   }
 }
 
-impl<DRSR> SendingTransport<DRSR> for () {
+impl SendingTransport for () {
   #[inline]
-  async fn send<A, P>(
+  async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
@@ -48,7 +48,7 @@ impl<DRSR> SendingTransport<DRSR> for () {
 ///   ().send_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ())).await?;
 /// # Ok(()) }
 /// ```
-impl<DRSR> Transport<DRSR> for () {
+impl Transport for () {
   const GROUP: TransportGroup = TransportGroup::Stub;
   type Params = ();
 }

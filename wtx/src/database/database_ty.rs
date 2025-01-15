@@ -1,4 +1,4 @@
-_create_enum! {
+create_enum! {
   /// Database
   #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
   pub enum DatabaseTy<u8> {

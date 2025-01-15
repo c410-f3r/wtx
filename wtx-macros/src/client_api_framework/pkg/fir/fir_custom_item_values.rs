@@ -27,7 +27,7 @@ macro_rules! create_fir_custom_item_values {
   ) => {
     use crate::{
       client_api_framework::item_with_attr_span::ItemWithAttrSpan,
-      misc::push_doc_if_inexistent,
+      misc::{parts_from_generics, push_doc_if_inexistent},
       client_api_framework::pkg::{
         enum_struct_or_type::EnumStructOrType,
         fir::{
@@ -35,7 +35,7 @@ macro_rules! create_fir_custom_item_values {
           fir_custom_field_field_attr::FirCustomFieldFieldAttr,
           fir_custom_item_values::FirCustomItemValuesRef,
         },
-        misc::{parts_from_generics, take_unique_pkg_attr},
+        misc::take_unique_pkg_attr,
       },
     };
     use proc_macro2::Ident;

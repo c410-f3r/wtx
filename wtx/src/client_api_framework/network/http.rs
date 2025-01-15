@@ -21,7 +21,6 @@ impl HttpParams {
         method: Method::Get,
         mime: None,
         uri: UriString::new(uri),
-        user_agent: None,
       },
       HttpResParams { headers: Headers::new(), status_code: StatusCode::Forbidden },
     )
@@ -58,24 +57,8 @@ impl TransportParams for HttpParams {
     self.0.method = Method::Get;
     self.0.mime = None;
     self.0.uri.truncate_with_initial_len();
-    self.0.user_agent = None;
     self.1.headers.clear();
     self.1.status_code = StatusCode::Forbidden;
-  }
-}
-
-/// Characteristic string that lets servers and network peers identify a client.
-#[derive(Clone, Copy, Debug)]
-pub enum HttpUserAgent {
-  /// Generic Mozilla
-  Mozilla,
-}
-
-impl HttpUserAgent {
-  pub(crate) fn _as_str(self) -> &'static str {
-    match self {
-      Self::Mozilla => "Mozilla",
-    }
   }
 }
 
@@ -90,8 +73,6 @@ pub struct HttpReqParams {
   pub mime: Option<Mime>,
   /// URI.
   pub uri: UriString,
-  /// User agent.
-  pub user_agent: Option<HttpUserAgent>,
 }
 
 #[doc = generic_trans_res_params_doc!("HTTP")]
