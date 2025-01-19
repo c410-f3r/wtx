@@ -1,8 +1,8 @@
 //! Generic HTTP elements
 
-#[cfg(feature = "http-client-framework")]
-pub mod client_framework;
-#[cfg(any(feature = "http-client-framework", feature = "http-server-framework"))]
+#[cfg(feature = "http-client-pool")]
+pub mod client_pool;
+#[cfg(any(feature = "http-client-pool", feature = "http-server-framework"))]
 mod conn_params;
 #[cfg(feature = "http-cookie")]
 mod cookie;
@@ -20,6 +20,8 @@ mod operation_mode;
 mod optioned_server;
 mod percent_encoding;
 mod protocol;
+#[cfg(feature = "http2")]
+mod req_builder;
 mod req_res_buffer;
 mod req_res_data;
 mod req_uri;
@@ -48,6 +50,8 @@ pub use operation_mode::*;
 pub use optioned_server::OptionedServer;
 pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 pub use protocol::Protocol;
+#[cfg(feature = "http2")]
+pub use req_builder::ReqBuilder;
 pub use req_res_buffer::ReqResBuffer;
 pub use req_res_data::{ReqResData, ReqResDataMut};
 pub use req_uri::ReqUri;

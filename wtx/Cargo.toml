@@ -13,7 +13,7 @@ embassy-net = { default-features = false, features = ["tcp"], optional = true, v
 embassy-time = { default-features = false, optional = true, version = "0.3" }
 embedded-io-async = { default-features = false, optional = true, version = "0.6" }
 embedded-tls = { default-features = false, optional = true, version = "0.17" }
-fastrand = { default-features = false, optional = true, version = "2.3" }
+fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.1" }
 hashbrown = { default-features = false, features = ["inline-more"], optional = true, version = "0.15" }
@@ -46,6 +46,7 @@ webpki-roots = { default-features = false, optional = true, version = "0.26" }
 x509-certificate = { default-features = false, optional = true, version = "0.24" }
 
 [features]
+32-tuple-impls = []
 arbitrary = ["dep:arbitrary", "std"]
 aws-lc-rs = ["dep:aws-lc-rs", "rustls?/aws-lc-rs"]
 borsh = ["dep:borsh", "std"]
@@ -57,10 +58,10 @@ embedded-tls = ["embedded-io-async", "dep:embedded-tls"]
 executor = []
 foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
 grpc = ["data-transformation"]
-grpc-client = ["grpc", "http-client-framework"]
+grpc-client = ["grpc", "http-client-pool"]
 grpc-server = ["grpc", "http-server-framework"]
 http = []
-http-client-framework = ["http2", "pool", "std"]
+http-client-pool = ["http2", "pool", "std"]
 http-cookie = ["chrono/alloc", "http"]
 http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
 http-server-framework = ["http2"]

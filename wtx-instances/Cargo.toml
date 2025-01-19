@@ -47,7 +47,7 @@ required-features = ["wtx/postgres"]
 [[example]]
 name = "client-api-framework"
 path = "generic-examples/client-api-framework.rs"
-required-features = ["wtx/client-api-framework", "wtx/http-client-framework", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
+required-features = ["wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
 
 [[example]]
 name = "grpc-client"
@@ -60,9 +60,9 @@ path = "generic-examples/grpc-server.rs"
 required-features = ["wtx/grpc-server", "wtx/tokio-rustls"]
 
 [[example]]
-name = "http-client-framework"
-path = "generic-examples/http-client-framework.rs"
-required-features = ["wtx/http-client-framework"]
+name = "http-client-pool"
+path = "generic-examples/http-client-pool.rs"
+required-features = ["wtx/http-client-pool"]
 
 [[example]]
 name = "pool"

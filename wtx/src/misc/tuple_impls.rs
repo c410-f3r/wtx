@@ -1,6 +1,6 @@
 // FIXME(STABLE): macro_metavar_expr
 
-macro_rules! impl_0_16 {
+macro_rules! impl_tuples {
   ($( [$($T:ident($N:tt))*] )+) => {
     #[cfg(feature = "database")]
     mod database {
@@ -131,9 +131,9 @@ macro_rules! impl_0_16 {
           }
         }
 
-        impl<$($T,)* CA, ERR, S, SA> Endpoint<CA, ERR, S, SA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* CA, ERR, STREAM, SA> Endpoint<CA, ERR, STREAM, SA> for ($(PathParams<$T>,)*)
         where
-          $($T: Endpoint<CA, ERR, S, SA>,)*
+          $($T: Endpoint<CA, ERR, STREAM, SA>,)*
           ERR: From<crate::Error>,
         {
           const OM: OperationMode = OperationMode::Auto;
@@ -175,7 +175,7 @@ macro_rules! impl_0_16 {
           #[inline]
           async fn manual(
             &self,
-            _manual_stream: ManualStream<CA, S, SA>,
+            _manual_stream: ManualStream<CA, STREAM, SA>,
             _path_defs: (u8, &[RouteMatch]),
           ) -> Result<(), ERR> {
             #[cfg(feature = "matchit")]
@@ -207,9 +207,9 @@ macro_rules! impl_0_16 {
           }
         }
 
-        impl<$($T,)* CA, ERR, S, SA> EndpointNode<CA, ERR, S, SA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* CA, ERR, STREAM, SA> EndpointNode<CA, ERR, STREAM, SA> for ($(PathParams<$T>,)*)
         where
-          $($T: EndpointNode<CA, ERR, S, SA>,)*
+          $($T: EndpointNode<CA, ERR, STREAM, SA>,)*
           ERR: From<crate::Error>,
         {
           const IS_ROUTER: bool = false;
@@ -296,22 +296,46 @@ macro_rules! impl_0_16 {
   }
 }
 
-impl_0_16! {
-  []
-  [A(0)]
-  [A(0) B(1)]
-  [A(0) B(1) C(2)]
-  [A(0) B(1) C(2) D(3)]
-  [A(0) B(1) C(2) D(3) E(4)]
-  [A(0) B(1) C(2) D(3) E(4) F(5)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14)]
-  [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15)]
+mod _16_tuple_impls {
+  impl_tuples! {
+    []
+    [A(0)]
+    [A(0) B(1)]
+    [A(0) B(1) C(2)]
+    [A(0) B(1) C(2) D(3)]
+    [A(0) B(1) C(2) D(3) E(4)]
+    [A(0) B(1) C(2) D(3) E(4) F(5)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15)]
+  }
+}
+
+#[cfg(feature = "32-tuple-impls")]
+mod _32_tuple_impls {
+  impl_tuples! {
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28) AD(29)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28) AD(29) AE(30)]
+    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28) AD(29) AE(30) AF(31)]
+  }
 }

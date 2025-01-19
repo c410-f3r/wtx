@@ -123,7 +123,7 @@ impl<'attrs, 'module, 'others>
             faiv,
             fpiv: None,
             freqdiv: Some(freqdiv),
-            ident: data_builder_ident,
+            ident: params_builder_ident,
           },
           BuilderExtendedValues {
             bcv: BuilderCommonValues {

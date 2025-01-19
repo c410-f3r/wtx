@@ -13,7 +13,7 @@ use wtx::{
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
   {
-    let _rslt = dotenv::dotenv();
+    let _rslt = dotenvy::dotenv();
     wtx::misc::tracing_tree_init(None)?;
   }
 

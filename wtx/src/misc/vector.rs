@@ -635,10 +635,7 @@ impl<T> From<Vector<T>> for Vec<T> {
   }
 }
 
-impl<E, T> FromIterator<T> for Wrapper<Result<Vector<T>, E>>
-where
-  E: From<crate::Error>,
-{
+impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
   #[inline]
   fn from_iter<I>(iter: I) -> Self
   where

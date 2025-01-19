@@ -22,6 +22,7 @@ pub use request_throttling::RequestThrottling;
 
 /// Used in all implementations of [`crate::Transport::send`] and/or
 /// [`crate::Transport::send_recv``].
+#[inline]
 pub(crate) fn log_req<A, DRSR, P, T>(
   _pgk: &mut P,
   _pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
@@ -46,10 +47,12 @@ pub(crate) fn log_req<A, DRSR, P, T>(
 ///
 /// Not used in [`crate::network::transport::Transport::send_recv_decode_batch`] because
 /// [`crate::Requests::decode_responses`] takes precedence.
+#[inline]
 pub(crate) fn log_res(_res: &[u8]) {
   _debug!("Response: {:?}", crate::misc::from_utf8_basic(_res));
 }
 
+#[inline]
 pub(crate) async fn manage_after_sending_related<A, DRSR, P, TP>(
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -64,6 +67,7 @@ where
   Ok(())
 }
 
+#[inline]
 pub(crate) async fn manage_before_sending_related<A, DRSR, P, T>(
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,

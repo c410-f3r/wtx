@@ -8,7 +8,7 @@ mod sending_transport;
 mod std;
 mod transport_params;
 mod unit;
-#[cfg(feature = "http2")]
+#[cfg(feature = "http-client-pool")]
 mod wtx_http;
 #[cfg(feature = "web-socket")]
 mod wtx_ws;

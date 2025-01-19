@@ -311,6 +311,7 @@ where
     .await
 }
 
+#[inline]
 fn _push_drop(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   structure: &str,

@@ -58,6 +58,7 @@ impl IncompleteUtf8Char {
     }
   }
 
+  #[inline]
   fn push_to_build_valid_char(&mut self, bytes: &[u8]) -> (usize, Option<CompletionErr>) {
     let initial_len = self.len;
     let to_write_len = {

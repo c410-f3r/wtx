@@ -90,14 +90,17 @@ impl fmt::Display for DbMigration {
   }
 }
 
+#[inline]
 fn _checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
   Ok(u64::from_radix_10(bytes).map_err(|_err| SchemaManagerError::ChecksumMustBeANumber)?)
 }
 
+#[inline]
 fn _fixed_from_naive_utc(naive: NaiveDateTime) -> DateTime<Utc> {
   DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc)
 }
 
+#[inline]
 fn _from_u32(n: Option<u32>) -> Option<Repeatability> {
   match n? {
     0 => Some(Repeatability::Always),
@@ -105,6 +108,7 @@ fn _from_u32(n: Option<u32>) -> Option<Repeatability> {
   }
 }
 
+#[inline]
 fn _mssql_date_hack(s: &str) -> crate::Result<DateTime<Utc>> {
   let naive_rslt = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S");
   let naive = naive_rslt?;

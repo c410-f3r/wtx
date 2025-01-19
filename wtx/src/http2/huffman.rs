@@ -7,10 +7,12 @@ use crate::{
   misc::{ArrayVector, Vector, _unreachable},
 };
 
+#[inline]
 pub(crate) fn huffman_decode<const N: usize>(
   from: &[u8],
   wb: &mut ArrayVector<u8, N>,
 ) -> crate::Result<()> {
+  #[inline]
   fn decode_4_bits(
     curr_state: &mut u8,
     input: u8,
@@ -75,6 +77,7 @@ pub(crate) fn huffman_decode<const N: usize>(
   Ok(())
 }
 
+#[inline]
 pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<()> {
   const MASK: u64 = 0b1111_1111;
 
