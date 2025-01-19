@@ -59,7 +59,8 @@ use crate::{
   },
   misc::{
     partitioned_filled_buffer::PartitionedFilledBuffer, Arc, AtomicWaker, ConnectionState, Either,
-    LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, Usize, NOOP_WAKER,
+    Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamReader, StreamWriter, Usize,
+    NOOP_WAKER,
   },
 };
 pub use client_stream::ClientStream;
@@ -365,6 +366,24 @@ where
     drop(guard);
     Ok(ClientStream::new(self.hd.clone(), Arc::clone(&self.is_conn_open), span, stream_id))
   }
+}
+
+impl<HD, const IS_CLIENT: bool> Lease<Http2<HD, IS_CLIENT>> for Http2<HD, IS_CLIENT> {
+  #[inline]
+  fn lease(&self) -> &Http2<HD, IS_CLIENT> {
+    self
+  }
+}
+
+impl<HD, const IS_CLIENT: bool> LeaseMut<Http2<HD, IS_CLIENT>> for Http2<HD, IS_CLIENT> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Http2<HD, IS_CLIENT> {
+    self
+  }
+}
+
+impl<HD, const IS_CLIENT: bool> SingleTypeStorage for Http2<HD, IS_CLIENT> {
+  type Item = HD;
 }
 
 impl<HD, const IS_CLIENT: bool> Clone for Http2<HD, IS_CLIENT>

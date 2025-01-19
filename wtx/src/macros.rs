@@ -18,9 +18,9 @@ macro_rules! create_enum {
     #[allow(dead_code, reason = "outside may or may not use methods")]
     impl $enum_ident {
       #[inline]
-      /// Iterates over all variants
-      $v fn iter() -> impl Iterator<Item = Self> {
-        [$( $enum_ident::$variant_ident_fixed, )*].into_iter()
+      /// An array that contains all variants
+      $v fn all() -> [Self; { Self::len() }] {
+        [$( $enum_ident::$variant_ident_fixed, )*]
       }
 
       #[inline]

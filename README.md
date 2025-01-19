@@ -23,7 +23,7 @@ A collection of different transport implementations and related tools focused pr
 2. [Database Client](https://c410-f3r.github.io/wtx/database-client/index.html)
 3. [Database Schema Manager](https://c410-f3r.github.io/wtx/database-schema-manager/index.html)
 4. [gRPC Client/Server](https://c410-f3r.github.io/wtx/grpc/index.html)
-5. [HTTP Client Framework](https://c410-f3r.github.io/wtx/http-client-framework/index.html)
+5. [HTTP Client Pool](https://c410-f3r.github.io/wtx/http-client-pool/index.html)
 6. [HTTP Server Framework](https://c410-f3r.github.io/wtx/http-server-framework/index.html)
 7. [HTTP/2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
 8. [Pool Manager](https://c410-f3r.github.io/wtx/pool/index.html)

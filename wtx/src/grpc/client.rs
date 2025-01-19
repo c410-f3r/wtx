@@ -5,40 +5,30 @@ use crate::{
   },
   grpc::serialize,
   http::{
-    client_framework::ClientFramework, Header, Headers, KnownHeaderName, Method, ReqResBuffer,
-    ReqUri, Response, WTX_USER_AGENT,
+    Header, Headers, KnownHeaderName, ReqBuilder, ReqResBuffer, ReqUri, Response, WTX_USER_AGENT,
   },
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{Lock, RefCounter, StreamWriter},
-  pool::{ResourceManager, SimplePoolResource},
+  misc::{LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter},
 };
 
 /// Performs requests to gRPC servers.
 #[derive(Debug)]
-pub struct Client<DRSR, RL, RM> {
-  cf: ClientFramework<RL, RM>,
+pub struct Client<C, DRSR> {
+  client: C,
   drsr: DRSR,
 }
 
-impl<DRSR, HD, RL, RM, SW> Client<DRSR, RL, RM>
+impl<C, DRSR, HD, SW> Client<C, DRSR>
 where
+  C: LeaseMut<Http2<HD, true>> + SingleTypeStorage<Item = HD>,
   HD: RefCounter + 'static,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
-  RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
-  RM: ResourceManager<
-    CreateAux = str,
-    Error = crate::Error,
-    RecycleAux = str,
-    Resource = Http2<HD, true>,
-  >,
   SW: StreamWriter,
-  for<'any> RL: 'any,
-  for<'any> RM: 'any,
 {
   /// Constructor
   #[inline]
-  pub fn new(cf: ClientFramework<RL, RM>, drsr: DRSR) -> Self {
-    Self { cf, drsr }
+  pub fn new(client: C, drsr: DRSR) -> Self {
+    Self { client, drsr }
   }
 
   /// Deserialize From Response Bytes
@@ -72,7 +62,7 @@ where
     rrb.uri.push_path(format_args!("/{package}.{service}/{method}"))?;
     serialize(&mut rrb.body, VerbatimRequest { data }, &mut self.drsr)?;
     Self::push_headers(&mut rrb.headers)?;
-    let res = self.cf.send(Method::Post, rrb, ReqUri::Data).await?;
+    let res = ReqBuilder::post(rrb).send(self.client.lease_mut(), ReqUri::Data).await?;
     Ok(Response::http2(res.rrd, res.status_code))
   }
 

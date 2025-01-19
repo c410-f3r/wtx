@@ -210,6 +210,7 @@ impl Http2Params {
     self
   }
 
+  #[inline]
   pub(crate) fn to_settings_frame(&self) -> SettingsFrame {
     let mut settings_frame = SettingsFrame::empty();
     settings_frame.set_enable_connect_protocol(Some(self.enable_connect_protocol));

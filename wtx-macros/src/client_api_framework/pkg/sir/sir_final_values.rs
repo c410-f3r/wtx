@@ -71,7 +71,7 @@ impl<'attrs, 'module, 'others>
       Option<FirBeforeSendingItemValues<'module>>,
     ),
   ) -> Result<Self, Self::Error> {
-    let FirParamsItemValues { fpiv_ty, fpiv_params, fpiv_where_predicates, .. } = &fpiv;
+    let FirParamsItemValues { fpiv_ident, fpiv_params, fpiv_where_predicates, .. } = &fpiv;
     let FirReqItemValues { freqdiv_ident, freqdiv_params, freqdiv_where_predicates, .. } = freqdiv;
     let FirResItemValues { fresdiv_ident, fresdiv_params, .. } = fresdiv;
     let SirPkaAttr { data_formats, id, transport_groups } = &spa;
@@ -128,14 +128,15 @@ impl<'attrs, 'module, 'others>
           fasiv_opt.as_ref().map(|el| &el.fasiv_item.sig.ident).into_iter();
         let fbsiv_fn_name_ident_iter =
           fbsiv_opt.as_ref().map(|el| &el.fbsiv_item.sig.ident).into_iter();
-        let fpiv_params_iter = fpiv_params.iter();
+        let fpiv_params_iter0 = fpiv_params.iter();
+        let fpiv_params_iter1 = fpiv_params.iter();
         let fpiv_where_predicates_iter = fpiv_where_predicates.iter();
         let freqdiv_where_predicates_iter = freqdiv_where_predicates.iter();
         let tp = Self::transport_params(transport_group);
         let (lts, tys) = Self::pkg_params(&freqdiv, &fpiv);
         package_impls.push(quote::quote!(
           impl<#(#lts,)* #(#tys,)* A, DRSR> wtx::client_api_framework::pkg::Package<A, DRSR, #tp> for #camel_case_pkg_ident<
-            #(#fpiv_params_iter,)*
+            #(#fpiv_params_iter0,)*
             wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
           >
           where
@@ -158,7 +159,7 @@ impl<'attrs, 'module, 'others>
             type ExternalResponseContent<'de> = wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter1)*>
             >;
-            type PackageParams = #fpiv_ty;
+            type PackageParams = #fpiv_ident<#(#fpiv_params_iter1)*>;
 
             #[inline]
             async fn after_sending(
@@ -206,7 +207,8 @@ impl<'attrs, 'module, 'others>
       }
     }
 
-    let fpiv_params_iter = fpiv_params.iter();
+    let fpiv_params_iter0 = fpiv_params.iter();
+    let fpiv_params_iter1 = fpiv_params.iter();
     Ok(Self {
       auxs: saiv_tts,
       package: quote::quote!(
@@ -215,14 +217,14 @@ impl<'attrs, 'module, 'others>
         ///
         /// For more information, please see the official API's documentation.
         #[derive(Debug)]
-        pub struct #camel_case_pkg_ident<#(#fpiv_params_iter,)* C>
+        pub struct #camel_case_pkg_ident<#(#fpiv_params_iter0,)* C>
         where
           #fpiv_where_predicates
         {
           /// Content. Data format containing request data.
           pub content: C,
           /// Parameters. Used across the package lifetime.
-          pub params: #fpiv_ty,
+          pub params: #fpiv_ident<#(#fpiv_params_iter1)*>,
         }
       ),
       package_impls,

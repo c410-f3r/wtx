@@ -32,7 +32,7 @@ $rt test-with-features wtx grpc-client
 $rt test-with-features wtx grpc-server
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx hmac
-$rt test-with-features wtx http-client-framework
+$rt test-with-features wtx http-client-pool
 $rt test-with-features wtx http-server-framework
 $rt test-with-features wtx http2
 $rt test-with-features wtx httparse

@@ -20,7 +20,7 @@ use wtx::{
     Api,
   },
   data_transformation::dnsn::SerdeJson,
-  http::client_framework::ClientFrameworkTokio,
+  http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
   misc::Uri,
   web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
@@ -82,7 +82,7 @@ mod generic_web_socket_subscription {
 }
 
 async fn http_pair(
-) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientFrameworkTokio> {
+) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn()>> {
   Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
@@ -91,7 +91,7 @@ async fn http_pair(
       SerdeJson,
       HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
     ),
-    ClientFrameworkTokio::tokio(1).build(),
+    ClientPoolBuilder::tokio(1).build(),
   )
 }
 

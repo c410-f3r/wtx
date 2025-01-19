@@ -3,7 +3,7 @@
 #![allow(non_snake_case, reason = "macro stuff")]
 
 macro_rules! create_and_implement {
-  ($this:ty, $fn_ty:ident, $fn_fut_ty:ident, ($($tys:ident,)*)) => {
+  ($this:ty, $fn_ty:ident, $fn_fut_ty:ident, ($($tys:ident),*)) => {
     impl<$($tys,)* FUN, FUT, RSLT> $fn_fut_ty<($($tys,)*)> for FUN
     where
       FUN: $fn_ty($($tys,)*) -> FUT,
@@ -62,11 +62,11 @@ pub trait FnFut<A> {
 }
 
 create_and_implement!(&Self, Fn, FnFut, ());
-create_and_implement!(&Self, Fn, FnFut, (A,));
-create_and_implement!(&Self, Fn, FnFut, (A, B,));
-create_and_implement!(&Self, Fn, FnFut, (A, B, C,));
-create_and_implement!(&Self, Fn, FnFut, (A, B, C, D,));
-create_and_implement!(&Self, Fn, FnFut, (A, B, C, D, E,));
+create_and_implement!(&Self, Fn, FnFut, (A));
+create_and_implement!(&Self, Fn, FnFut, (A, B));
+create_and_implement!(&Self, Fn, FnFut, (A, B, C));
+create_and_implement!(&Self, Fn, FnFut, (A, B, C, D));
+create_and_implement!(&Self, Fn, FnFut, (A, B, C, D, E));
 
 /// Simulates `impl for<'any> FnMut(&'any ..) -> impl Future + 'any` due to the lack of compiler
 /// support.
@@ -91,8 +91,8 @@ pub trait FnMutFut<A> {
 }
 
 create_and_implement!(&mut Self, FnMut, FnMutFut, ());
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A,));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B,));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C,));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D,));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D, E,));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (A));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D, E));

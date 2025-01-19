@@ -1,6 +1,6 @@
 use crate::http2::{
-  hpack_encoder::HpackEncoder, settings_frame::SettingsFrame, u31::U31, Scrp, Sorp, MAX_FRAME_LEN,
-  MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN,
+  hpack_encoder::HpackEncoder, settings_frame::SettingsFrame, u31::U31, Scrp, Sorp, Window,
+  MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN,
 };
 use core::cmp::Ordering;
 
@@ -16,6 +16,7 @@ pub(crate) struct Http2ParamsSend {
 }
 
 impl Http2ParamsSend {
+  #[inline]
   pub(crate) fn update(
     &mut self,
     hpack_enc: &mut HpackEncoder,
@@ -26,33 +27,32 @@ impl Http2ParamsSend {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);
     }
-    if let Some(initial_window_size) = sf.initial_window_size() {
-      match initial_window_size.cmp(&self.initial_window_len) {
-        Ordering::Equal => {}
-        Ordering::Greater => {
-          let inc = initial_window_size.wrapping_sub(self.initial_window_len);
-          for (stream_id, elem) in scrp {
-            elem.windows.send_mut().deposit(Some(*stream_id), inc.i32())?;
-            elem.waker.wake_by_ref();
+    'update: {
+      if let Some(initial_window_size) = sf.initial_window_size() {
+        let ordering = initial_window_size.cmp(&self.initial_window_len);
+        let (cb, diff): (fn(U31, U31, &mut Window) -> _, U31) = match ordering {
+          Ordering::Equal => {
+            break 'update;
           }
-          for (stream_id, elem) in sorp {
-            elem.windows.send_mut().deposit(Some(*stream_id), inc.i32())?;
-            elem.waker.wake_by_ref();
-          }
+          Ordering::Greater => (
+            |diff, stream_id, window| window.deposit(Some(stream_id), diff.i32()),
+            initial_window_size.wrapping_sub(self.initial_window_len),
+          ),
+          Ordering::Less => (
+            |diff, stream_id, window| window.withdrawn(Some(stream_id), diff.i32()),
+            self.initial_window_len.wrapping_sub(initial_window_size),
+          ),
+        };
+        for (stream_id, elem) in scrp {
+          cb(diff, *stream_id, elem.windows.send_mut())?;
+          elem.waker.wake_by_ref();
         }
-        Ordering::Less => {
-          let dec = self.initial_window_len.wrapping_sub(initial_window_size);
-          for (stream_id, elem) in scrp {
-            elem.windows.send_mut().withdrawn(Some(*stream_id), dec.i32())?;
-            elem.waker.wake_by_ref();
-          }
-          for (stream_id, elem) in sorp {
-            elem.windows.send_mut().withdrawn(Some(*stream_id), dec.i32())?;
-            elem.waker.wake_by_ref();
-          }
+        for (stream_id, elem) in sorp {
+          cb(diff, *stream_id, elem.windows.send_mut())?;
+          elem.waker.wake_by_ref();
         }
+        self.initial_window_len = initial_window_size;
       }
-      self.initial_window_len = initial_window_size;
     }
     if let Some(elem) = sf.header_table_size() {
       self.max_hpack_len = elem;

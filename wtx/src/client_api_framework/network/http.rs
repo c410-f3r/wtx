@@ -3,7 +3,7 @@
 use crate::{
   client_api_framework::network::transport::TransportParams,
   http::{Headers, Method, Mime, StatusCode},
-  misc::UriString,
+  misc::{Lease, LeaseMut, UriString},
 };
 use alloc::string::String;
 
@@ -24,6 +24,20 @@ impl HttpParams {
       },
       HttpResParams { headers: Headers::new(), status_code: StatusCode::Forbidden },
     )
+  }
+}
+
+impl Lease<HttpParams> for HttpParams {
+  #[inline]
+  fn lease(&self) -> &HttpParams {
+    self
+  }
+}
+
+impl LeaseMut<HttpParams> for HttpParams {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut HttpParams {
+    self
   }
 }
 
