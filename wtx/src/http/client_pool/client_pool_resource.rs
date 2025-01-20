@@ -1,4 +1,4 @@
-/// Client framework resource
+/// Client pool resource
 #[derive(Debug)]
 pub struct ClientPoolResource<AUX, C> {
   /// Auxiliary structure

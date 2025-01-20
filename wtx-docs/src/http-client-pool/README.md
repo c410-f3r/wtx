@@ -1,4 +1,4 @@
-# HTTP Client Framework
+# HTTP Client Pool
 
 High-level pool of HTTP clients that currently only supports HTTP/2. Allows multiple connections that can be referenced in concurrent scenarios.
 

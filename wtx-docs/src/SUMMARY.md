@@ -6,7 +6,7 @@
 - [Database Schema Manager](database-schema-manager/README.md)
 - [gRPC](grpc/README.md)
 - [HTTP/2](http2/README.md)
-- [HTTP Client Framework](http-client-pool/README.md)
+- [HTTP Client Pool](http-client-pool/README.md)
 - [HTTP Server Framework](http-server-framework/README.md)
 - [Pool](pool/README.md)
 - [UI tools](ui-tools/README.md)
