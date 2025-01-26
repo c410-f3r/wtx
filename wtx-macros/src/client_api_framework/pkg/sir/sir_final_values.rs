@@ -176,7 +176,7 @@ impl<'attrs, 'module, 'others>
               &mut self,
               _api: &mut A,
               _ext_req_params: &mut <#tp as wtx::client_api_framework::network::transport::TransportParams>::ExternalRequestParams,
-              _req_bytes: &[u8],
+              _req_bytes: &mut wtx::misc::Vector<u8>
             ) -> Result<(), A::Error> {
               #before_sending_defaults
               #( #fbsiv_fn_name_ident_iter(#fbsiv_fn_call_idents).await?; )*

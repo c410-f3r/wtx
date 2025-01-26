@@ -4,6 +4,7 @@
 
 mod client_api_framework;
 mod error;
+mod from_records;
 mod http;
 mod misc;
 
@@ -62,6 +63,15 @@ pub fn pkg(
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
   match client_api_framework::pkg::pkg(attr, item) {
+    Err(err) => syn::Error::from(err).to_compile_error().into(),
+    Ok(elem) => elem,
+  }
+}
+
+/// From records
+#[proc_macro_derive(FromRecords, attributes(from_records))]
+pub fn from_records(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  match from_records::from_records(item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }

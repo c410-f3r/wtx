@@ -1,5 +1,5 @@
 use crate::{
-  database::{Database, Decode, Records},
+  database::{Database, Records},
   misc::into_rslt,
 };
 use alloc::boxed::Box;
@@ -12,19 +12,17 @@ where
 {
   /// Constructs a single instance based on an arbitrary number of rows.
   fn from_records(
-    col_idx: &mut usize,
-    curr_record: &D::Record<'exec>,
-    curr_record_idx: &mut usize,
+    curr_params: (&mut usize, &D::Record<'exec>, &mut usize),
     records: &D::Records<'exec>,
   ) -> Result<Self, D::Error>;
 
   /// Should be called once in the initialization phase.
   #[inline]
-  fn from_records_initial(records: &D::Records<'exec>) -> Result<Self, D::Error>
-  where
-    for<'de> u64: Decode<'de, D>,
-  {
-    Self::from_records(&mut 0, &into_rslt(records.get(0))?, &mut 0, records)
+  fn from_records_initial(records: &D::Records<'exec>) -> Result<Self, D::Error> {
+    let curr_field_idx = &mut 0;
+    let curr_record = &into_rslt(records.get(0))?;
+    let curr_record_idx = &mut 0;
+    Self::from_records((curr_field_idx, curr_record, curr_record_idx), records)
   }
 }
 
@@ -34,9 +32,7 @@ where
 {
   #[inline]
   fn from_records(
-    _: &mut usize,
-    _: &D::Record<'exec>,
-    _: &mut usize,
+    _: (&mut usize, &D::Record<'exec>, &mut usize),
     _: &D::Records<'exec>,
   ) -> Result<Self, D::Error> {
     Ok(())
@@ -50,11 +46,9 @@ where
 {
   #[inline]
   fn from_records(
-    col_idx: &mut usize,
-    curr_record: &D::Record<'exec>,
-    curr_record_idx: &mut usize,
+    (curr_field_idx, curr_record, curr_record_idx): (&mut usize, &D::Record<'exec>, &mut usize),
     records: &D::Records<'exec>,
   ) -> Result<Self, D::Error> {
-    Ok(Box::new(T::from_records(col_idx, curr_record, curr_record_idx, records)?))
+    Ok(Box::new(T::from_records((curr_field_idx, curr_record, curr_record_idx), records)?))
   }
 }

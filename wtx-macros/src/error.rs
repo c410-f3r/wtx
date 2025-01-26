@@ -6,6 +6,11 @@ pub(crate) enum Error {
   AbsentApiError,
   UnknownApiMode(Span),
 
+  // FromRecords
+  MissingDatabase(Span),
+  MissingId(Span),
+  UnknownFieldTy(Span),
+
   // Pkg
   AbsentFieldInUnnamedStruct(Span),
   AbsentReqOrRes(Span),
@@ -41,9 +46,19 @@ impl From<Error> for syn::Error {
       Error::AbsentApiError => {
         syn::Error::new(Span::call_site(), "All APIs must have an `error(SOME_ERROR) attribute`")
       }
+      Error::MissingDatabase(span) => {
+        syn::Error::new(span, "It is necessary to specify a database")
+      }
+      Error::MissingId(span) => {
+        syn::Error::new(span, "Structures marked with `many` must have a ID field")
+      }
       Error::UnknownApiMode(span) => {
         syn::Error::new(span, "Unknown mode. Possible values are `auto` or `manual`")
       }
+      Error::UnknownFieldTy(span) => syn::Error::new(
+        span,
+        "Unknown field ty. Possible values are `decode`, `id`, `many` and `ony`",
+      ),
       Error::AbsentFieldInUnnamedStruct(span) => syn::Error::new(
         span,
         "Unnamed structures must have a `#[pkg::field]` attribute on each field.",
@@ -70,7 +85,7 @@ impl From<Error> for syn::Error {
       Error::BadBeforeSending(span) => syn::Error::new(
         span,
         "`#[pkg::before_sending]` must be an async function named `before_sending` containing any \
-        combination of `api: &mut SomeApi`, `params: &mut SomePackageParams` and `res_params: &mut \
+        combination of `api: &mut SomeApi`, `params: &mut SomePackageParams` or `res_params: &mut \
         SomeResponseParams`.",
       ),
       Error::BadField(span) => syn::Error::new(

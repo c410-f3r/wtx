@@ -23,7 +23,7 @@ where
 {
   if headers
     .get_by_name(KnownHeaderName::ContentType.into())
-    .is_none_or(|el| el.value == Mime::Json.as_str().as_bytes())
+    .is_none_or(|el| el.value == Mime::ApplicationJson.as_str().as_bytes())
   {
     return Err(E::from(crate::Error::from(HttpError::UnexpectedContentType)));
   }

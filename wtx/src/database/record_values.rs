@@ -1,6 +1,6 @@
 use crate::{
   database::{Database, Encode},
-  misc::{IterWrapper, Lease},
+  misc::{Lease, Wrapper},
 };
 
 /// Values that can passed to a record as parameters. For example, in a query.
@@ -71,7 +71,7 @@ where
   }
 }
 
-impl<D, I, T> RecordValues<D> for IterWrapper<I>
+impl<D, I, T> RecordValues<D> for Wrapper<I>
 where
   D: Database,
   I: Iterator<Item = T>,

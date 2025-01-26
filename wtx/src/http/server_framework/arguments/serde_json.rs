@@ -3,7 +3,7 @@ use crate::{
     server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
     AutoStream, Header, KnownHeaderName, Mime, ReqResBuffer, Request, StatusCode,
   },
-  misc::{serde_collect_seq_rslt, FnFut, FnFutWrapper, IterWrapper, LeaseMut},
+  misc::{serde_collect_seq_rslt, FnFut, FnFutWrapper, LeaseMut, Wrapper},
 };
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -79,7 +79,7 @@ where
   }
 }
 
-impl<E, I, T> ResFinalizer<E> for SerdeJson<IterWrapper<I>>
+impl<E, I, T> ResFinalizer<E> for SerdeJson<Wrapper<I>>
 where
   E: From<crate::Error> + From<serde_json::Error>,
   I: Iterator<Item = Result<T, E>>,
@@ -100,7 +100,7 @@ where
 fn push_content_type(req: &mut Request<ReqResBuffer>) -> crate::Result<()> {
   req.rrd.lease_mut().headers.push_from_iter(Header::from_name_and_value(
     KnownHeaderName::ContentType.into(),
-    [Mime::Json.as_str().as_bytes()],
+    [Mime::ApplicationJson.as_str().as_bytes()],
   ))?;
   Ok(())
 }

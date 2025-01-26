@@ -1,24 +1,26 @@
 /// Used to specify the data type that is going to be sent to a counterpart.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Mime {
-  /// Opaque bytes
-  Bytes,
+  /// application/grpc
+  ApplicationGrpc,
+  /// application/json
+  ApplicationJson,
+  /// application/octet-stream
+  ApplicationOctetStream,
+  /// application/vnd.google.protobuf
+  ApplicationVndGoogleProtobuf,
+  /// application/xml
+  ApplicationXml,
+  /// application/x-www-form-urlencoded
+  ApplicationXWwwFormUrlEncoded,
+  /// application/yaml
+  ApplicationYaml,
   /// Anything
   Custom(&'static str),
-  /// Grpc
-  Grpc,
-  /// JSON
-  Json,
-  /// JSON:API
-  JsonApi,
-  /// Protocol buffer
-  Protobuf,
-  /// Plain text
-  Text,
-  /// XML
-  Xml,
-  /// YAML
-  Yaml,
+  /// multipart/form-data
+  MultipartFormData,
+  /// text/plain
+  TextPlain,
 }
 
 impl Mime {
@@ -26,15 +28,16 @@ impl Mime {
   #[inline]
   pub fn as_str(&self) -> &'static str {
     match self {
-      Self::Bytes => "application/octet-stream",
+      Self::ApplicationGrpc => "application/grpc",
+      Self::ApplicationJson => "application/json",
+      Self::ApplicationOctetStream => "application/octet-stream",
+      Self::ApplicationVndGoogleProtobuf => "application/vnd.google.protobuf",
+      Self::ApplicationXml => "application/xml",
+      Self::ApplicationXWwwFormUrlEncoded => "application/x-www-form-urlencoded",
+      Self::ApplicationYaml => "application/yaml",
       Self::Custom(el) => el,
-      Self::Grpc => "application/grpc",
-      Self::Json => "application/json",
-      Self::JsonApi => "application/vnd.api+json",
-      Self::Protobuf => "application/vnd.google.protobuf",
-      Self::Text => "text/plain",
-      Self::Xml => "application/xml",
-      Self::Yaml => "application/yaml",
+      Self::MultipartFormData => "multipart/form-data",
+      Self::TextPlain => "text/plain",
     }
   }
 }

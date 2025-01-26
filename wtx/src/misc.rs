@@ -19,7 +19,6 @@ mod fun;
 mod generic_time;
 mod incomplete_utf8_char;
 mod interspace;
-mod iter_wrapper;
 mod lease;
 mod lock;
 pub(crate) mod mem_transfer;
@@ -63,7 +62,6 @@ pub use fun::Fun;
 pub use generic_time::{GenericTime, GenericTimeProvider};
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
-pub use iter_wrapper::IterWrapper;
 pub use lease::{Lease, LeaseMut};
 pub use lock::Lock;
 pub use noop_waker::NOOP_WAKER;
@@ -135,6 +133,18 @@ where
   }
   sq.end()?;
   Ok(())
+}
+
+/// Serializes an iterator that implements `Clone`.
+#[cfg(feature = "serde")]
+#[inline]
+pub fn serde_serialize_iter<I, S>(iter: I, serializer: S) -> Result<S::Ok, S::Error>
+where
+  I: Clone + Iterator,
+  I::Item: serde::Serialize,
+  S: serde::Serializer,
+{
+  serializer.collect_seq(iter.clone())
 }
 
 /// Sleeps for the specified amount of time.
