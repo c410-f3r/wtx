@@ -9,6 +9,7 @@ mod pkgs_aux;
 use crate::{
   client_api_framework::{network::transport::TransportParams, Api},
   data_transformation::dnsn::{Deserialize, Serialize},
+  misc::Vector,
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
 use core::future::Future;
@@ -53,7 +54,7 @@ where
     &mut self,
     _: &mut A,
     _: &mut TP::ExternalRequestParams,
-    _: &[u8],
+    _: &mut Vector<u8>,
   ) -> impl Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
   }
@@ -128,7 +129,7 @@ where
     &mut self,
     api: &mut A,
     ext_req_params: &mut TP::ExternalRequestParams,
-    req_bytes: &[u8],
+    req_bytes: &mut Vector<u8>,
   ) -> Result<(), A::Error> {
     (**self).before_sending(api, ext_req_params, req_bytes).await
   }

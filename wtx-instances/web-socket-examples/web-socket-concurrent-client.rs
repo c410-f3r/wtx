@@ -12,11 +12,14 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = Uri::new("ws://www.example.com");
-  let connector = TokioRustlsConnector::from_auto()?.push_certs(wtx_instances::ROOT_CA)?;
+  let uri = Uri::new("wss://www.example.com");
+  let tls_connector = TokioRustlsConnector::from_auto()?.push_certs(wtx_instances::ROOT_CA)?;
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
   let ws = WebSocketConnector::default()
-    .connect(connector.connect_without_client_auth(uri.hostname(), stream).await?, &uri.to_ref())
+    .connect(
+      tls_connector.connect_without_client_auth(uri.hostname(), stream).await?,
+      &uri.to_ref(),
+    )
     .await?;
   let mut parts = ws.into_parts::<Arc<Mutex<_>>, _, _>(|el| tokio::io::split(el));
   let reader_jh = tokio::spawn(async move {

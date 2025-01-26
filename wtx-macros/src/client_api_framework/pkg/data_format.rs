@@ -39,9 +39,9 @@ impl DataFormat {
       };
     }
     match *self {
-      DataFormat::Json => rslt!(http_mime_type!(Json)),
-      DataFormat::JsonRpc(_) => rslt!(http_method_and_mime_type!(Post, Json)),
-      DataFormat::Protobuf => rslt!(http_mime_type!(Protobuf)),
+      DataFormat::Json => rslt!(http_mime_type!(ApplicationJson)),
+      DataFormat::JsonRpc(_) => rslt!(http_method_and_mime_type!(Post, ApplicationJson)),
+      DataFormat::Protobuf => rslt!(http_mime_type!(ApplicationVndGoogleProtobuf)),
       _ => TokenStream::new(),
     }
   }

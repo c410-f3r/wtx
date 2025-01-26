@@ -1,6 +1,7 @@
 use crate::{
   client_api_framework::{network::transport::TransportParams, pkg::Package, Api},
   data_transformation::{format::JsonRpcRequest, Id},
+  misc::Vector,
 };
 use core::{
   borrow::Borrow,
@@ -54,7 +55,7 @@ where
     &mut self,
     api: &mut A,
     ext_req_params: &mut TP::ExternalRequestParams,
-    req_bytes: &[u8],
+    req_bytes: &mut Vector<u8>,
   ) -> Result<(), A::Error> {
     self.pkg.before_sending(api, ext_req_params, req_bytes).await
   }

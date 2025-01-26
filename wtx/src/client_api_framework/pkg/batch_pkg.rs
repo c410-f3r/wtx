@@ -1,6 +1,7 @@
 use crate::{
   client_api_framework::{network::transport::TransportParams, pkg::Package, Api},
   data_transformation::dnsn::Serialize,
+  misc::Vector,
 };
 use core::marker::PhantomData;
 
@@ -44,7 +45,7 @@ where
     &mut self,
     api: &mut A,
     ext_req_params: &mut TP::ExternalRequestParams,
-    req_bytes: &[u8],
+    req_bytes: &mut Vector<u8>,
   ) -> Result<(), A::Error> {
     for elem in &mut *self.0 .0 {
       elem.before_sending(api, ext_req_params, req_bytes).await?;

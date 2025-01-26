@@ -259,6 +259,25 @@ mod collections {
   }
   test!(bytes, &[u8], &[1, 2, 3, 4]);
 
+  // str
+
+  impl<E> Encode<Postgres<E>> for str
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw().extend_from_slice(self.as_bytes())?;
+      Ok(())
+    }
+  }
+  impl<E> Typed<Postgres<E>> for str
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::Text;
+  }
+
   // &str
 
   impl<'exec, E> Decode<'exec, Postgres<E>> for &'exec str

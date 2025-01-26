@@ -1,4 +1,4 @@
-use crate::http::{server_framework::StateClean, ReqResBuffer, Request, StatusCode};
+use crate::http::{ReqResBuffer, Request, StatusCode};
 
 /// Modifies responses
 pub trait ResFinalizer<E> {
@@ -12,28 +12,6 @@ where
 {
   #[inline]
   fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    Ok(StatusCode::Ok)
-  }
-}
-
-impl<CA, E, SA> ResFinalizer<E> for (StateClean<'_, CA, SA, ReqResBuffer>, StatusCode)
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    self.0.req.rrd.clear();
-    Ok(self.1)
-  }
-}
-
-impl<CA, E, SA> ResFinalizer<E> for StateClean<'_, CA, SA, ReqResBuffer>
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    self.req.rrd.clear();
     Ok(StatusCode::Ok)
   }
 }

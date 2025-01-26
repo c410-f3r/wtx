@@ -8,29 +8,6 @@ use syn::{
 
 pub(crate) const EMPTY_WHERE_PREDS: &Punctuated<WherePredicate, Token![,]> = &Punctuated::new();
 
-pub(crate) fn attrs_by_names<'attrs, const N: usize>(
-  attrs: &'attrs [Attribute],
-  names: [&str; N],
-) -> [Option<&'attrs Attribute>; N] {
-  let mut rslt = [None; N];
-  for attr in attrs {
-    let Some(last) = attr.path.segments.last() else {
-      continue;
-    };
-    let s = last.ident.to_string();
-    for (name, rslt_attr) in names.iter().zip(&mut rslt) {
-      if rslt_attr.is_some() {
-        continue;
-      }
-      if name == &s {
-        *rslt_attr = Some(attr);
-        break;
-      }
-    }
-  }
-  rslt
-}
-
 pub(crate) fn create_ident<'suf>(
   string: &mut String,
   suffixes: impl IntoIterator<Item = &'suf str>,
@@ -78,6 +55,29 @@ pub(crate) fn single_elem<T>(mut iter: impl Iterator<Item = T>) -> Option<T> {
     return None;
   }
   Some(first)
+}
+
+fn attrs_by_names<'attrs, const N: usize>(
+  attrs: &'attrs [Attribute],
+  names: [&str; N],
+) -> [Option<&'attrs Attribute>; N] {
+  let mut rslt = [None; N];
+  for attr in attrs {
+    let Some(last) = attr.path.segments.last() else {
+      continue;
+    };
+    let s = last.ident.to_string();
+    for (name, rslt_attr) in names.iter().zip(&mut rslt) {
+      if rslt_attr.is_some() {
+        continue;
+      }
+      if name == &s {
+        *rslt_attr = Some(attr);
+        break;
+      }
+    }
+  }
+  rslt
 }
 
 fn push_attr<'any>(

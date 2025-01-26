@@ -70,6 +70,13 @@ where
   }
 }
 
+impl<'any, CA, SA, RRD> From<State<'any, CA, SA, RRD>> for StateClean<'any, CA, SA, RRD> {
+  #[inline]
+  fn from(state: State<'any, CA, SA, RRD>) -> Self {
+    Self { conn_aux: state.conn_aux, req: state.req, stream_aux: state.stream_aux }
+  }
+}
+
 impl<'any, CA, SA, RRD, const CLEAN: bool> From<&'any mut (CA, SA, Request<RRD>)>
   for StateGeneric<'any, CA, SA, RRD, CLEAN>
 {

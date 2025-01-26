@@ -24,7 +24,7 @@ pub use request_throttling::RequestThrottling;
 /// [`crate::Transport::send_recv``].
 #[inline]
 pub(crate) fn log_req<A, DRSR, P, T>(
-  _pgk: &mut P,
+  _pkg: &mut P,
   _pkgs_aux: &mut PkgsAux<A, DRSR, T::Params>,
   _trans: &mut T,
 ) where
@@ -35,7 +35,7 @@ pub(crate) fn log_req<A, DRSR, P, T>(
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
     use crate::data_transformation::dnsn::Serialize;
     let mut vec = crate::misc::Vector::new();
-    _pgk
+    _pkg
       .ext_req_content_mut()
       .to_bytes(&mut vec, &mut _pkgs_aux.drsr)
       .and_then(|_| Ok(alloc::string::String::from(crate::misc::from_utf8_basic(&vec)?)))
@@ -79,10 +79,10 @@ where
   T: Transport,
 {
   log_req(pkg, pkgs_aux, trans);
-  pkg.ext_req_content_mut().to_bytes(&mut pkgs_aux.byte_buffer, &mut pkgs_aux.drsr)?;
   pkgs_aux.api.before_sending().await?;
   pkg
-    .before_sending(&mut pkgs_aux.api, pkgs_aux.tp.ext_req_params_mut(), &pkgs_aux.byte_buffer)
+    .before_sending(&mut pkgs_aux.api, pkgs_aux.tp.ext_req_params_mut(), &mut pkgs_aux.byte_buffer)
     .await?;
+  pkg.ext_req_content_mut().to_bytes(&mut pkgs_aux.byte_buffer, &mut pkgs_aux.drsr)?;
   Ok(())
 }
