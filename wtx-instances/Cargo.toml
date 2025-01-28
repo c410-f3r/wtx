@@ -130,7 +130,7 @@ pb-rs = { default-features = false, optional = true, version = "0.10" }
 
 [dependencies]
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
-rand_chacha = { default-features = false, optional = true, version = "0.3" }
+rand_chacha = { default-features = false, optional = true, version = "0.9" }
 rand_core = { default-features = false, features = ["getrandom"], optional = true, version = "0.6" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }

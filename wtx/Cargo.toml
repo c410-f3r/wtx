@@ -24,7 +24,7 @@ memchr = { default-features = false, optional = true, version = "2.0" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
-rand_chacha = { default-features = false, optional = true, version = "0.3" }
+rand_chacha = { default-features = false, optional = true, version = "0.9" }
 rand_core = { default-features = false, optional = true, version = "0.6" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
