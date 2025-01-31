@@ -223,13 +223,12 @@ mod chrono {
 mod collections {
   use crate::{
     database::{
-      client::postgres::{DecodeValue, EncodeValue, Postgres, Ty},
+      client::postgres::{DecodeValue, EncodeValue, Postgres, PostgresError, Ty},
       Decode, Encode, Typed,
     },
     misc::from_utf8_basic,
   };
-  use alloc::string::String;
-
+  use alloc::{string::String, vec::Vec};
   // &[u8]
 
   impl<'exec, E> Decode<'exec, Postgres<E>> for &'exec [u8]
@@ -337,6 +336,75 @@ mod collections {
   {
     const TY: Ty = Ty::Text;
   }
+
+  // Text Array
+
+  impl<E> Decode<'_, Postgres<E>> for Vec<String>
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(dv: &DecodeValue<'_>) -> Result<Self, E> {
+      let mut bytes = dv.bytes().to_vec();
+      let bytes_mut = bytes.as_mut_slice();
+      let [a, b, c, d, _, _, _, _, e, f, g, h, i, j, k, l, _, _, _, _, ref mut rest @ ..] =
+        bytes_mut
+      else {
+        return Err(E::from(PostgresError::DecodingError.into()));
+      };
+      let dims = u32::from_be_bytes([*a, *b, *c, *d]);
+      let oid = u32::from_be_bytes([*e, *f, *g, *h]);
+      let len = u32::from_be_bytes([*i, *j, *k, *l]);
+
+      if dims != 1 || oid != 25 {
+        return Err(E::from(PostgresError::DecodingError.into()));
+      }
+
+      let mut vec = Vec::with_capacity(len as usize);
+      let mut new_rest = &mut *rest;
+      loop {
+        let lenbytes = &new_rest[..4];
+        let len = u32::from_be_bytes(lenbytes.try_into().unwrap());
+        new_rest = &mut new_rest[4..];
+
+        let str = std::str::from_utf8(&new_rest[..(len as usize)])
+          .map_err(|err| E::from(PostgresError::DecodingError.into()))?;
+        vec.push(str.into());
+        new_rest = &mut new_rest[len as usize..];
+
+        if new_rest.is_empty() {
+          break;
+        }
+      }
+
+      Ok(vec)
+    }
+  }
+  impl<E> Encode<Postgres<E>> for Vec<String>
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), E> {
+      ev.fbw().extend_from_slice(1.to_be_bytes())?;
+      ev.fbw().extend_from_slice(0.to_be_bytes())?;
+      ev.fbw().extend_from_slice(25.to_be_bytes())?;
+      ev.fbw().extend_from_slice(self.len().to_be_bytes())?;
+
+      for s in self {
+        ev.fbw().extend_from_slice(s.len().to_be_bytes())?;
+        ev.fbw().extend_from_slice(s.as_bytes())?;
+      }
+      Ok(())
+    }
+  }
+  impl<E> Typed<Postgres<E>> for Vec<String>
+  where
+    E: From<crate::Error>,
+  {
+    const TY: Ty = Ty::TextArray;
+  }
+
   kani!(string, String);
 }
 
