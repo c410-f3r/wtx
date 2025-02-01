@@ -1,3 +1,5 @@
+use crate::{data_transformation::dnsn::Serialize, misc::Vector};
+
 /// `GraphQL` request/operation, can be a query or a mutation.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug)]
@@ -10,6 +12,23 @@ pub struct GraphQlRequest<ON, Q, V> {
   /// Separated data intended to help queries.
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
   pub variables: Option<V>,
+}
+
+impl<ON, Q, V> Serialize<()> for GraphQlRequest<ON, Q, V> {
+  #[inline]
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
+    Ok(())
+  }
+}
+
+impl<DRSR, ON, Q, V> Serialize<&mut DRSR> for GraphQlRequest<ON, Q, V>
+where
+  GraphQlRequest<ON, Q, V>: Serialize<DRSR>,
+{
+  #[inline]
+  fn to_bytes(&mut self, bytes: &mut Vector<u8>, drsr: &mut &mut DRSR) -> crate::Result<()> {
+    self.to_bytes(bytes, drsr)
+  }
 }
 
 #[cfg(feature = "serde_json")]

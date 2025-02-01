@@ -7,22 +7,26 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  misc::{Lock, StreamReader, StreamWriter},
-  web_socket::{compression::NegotiatedCompression, WebSocketCommonPartOwned, WebSocketPartsOwned},
+  misc::{LeaseMut, Lock, StreamReader, StreamWriter},
+  web_socket::{
+    compression::NegotiatedCompression, WebSocketCommonPartOwned, WebSocketPartsOwned,
+    WebSocketWriterPartOwned,
+  },
 };
 use core::ops::Range;
 
-impl<C, NC, SR, SW> RecievingTransport for WebSocketPartsOwned<C, NC, SR, SW, true>
+impl<C, NC, SR, SW, TP> RecievingTransport<TP> for WebSocketPartsOwned<C, NC, SR, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,
+  TP: LeaseMut<WsParams>,
 {
   #[inline]
   async fn recv<A, DRSR>(
     &mut self,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
@@ -31,34 +35,35 @@ where
   }
 }
 
-impl<C, NC, SR, SW> SendingTransport for WebSocketPartsOwned<C, NC, SR, SW, true>
+impl<C, NC, SR, SW, TP> SendingTransport<TP> for WebSocketPartsOwned<C, NC, SR, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,
+  TP: LeaseMut<WsParams>,
 {
   #[inline]
   async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: Package<A, DRSR, WsParams>,
+    P: Package<A, DRSR, Self::Inner, TP>,
   {
     self.writer.send(pkg, pkgs_aux).await
   }
 }
 
-impl<C, NC, SR, SW> Transport for WebSocketPartsOwned<C, NC, SR, SW, true>
+impl<C, NC, SR, SW, TP> Transport<TP> for WebSocketPartsOwned<C, NC, SR, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,
 {
-  const GROUP: TransportGroup = TransportGroup::TCP;
-  type Params = WsParams;
+  const GROUP: TransportGroup = TransportGroup::WebSocket;
+  type Inner = WebSocketWriterPartOwned<C, NC, SW, true>;
 }

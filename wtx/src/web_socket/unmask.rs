@@ -1,6 +1,6 @@
 #[doc = _internal_doc!()]
 #[inline]
-pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
+pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
   _simd_bytes!(
     (align_to_mut, bytes),
     |bytes| {
@@ -9,14 +9,17 @@ pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
         *elem ^= mask[idx & 3];
       }
     },
-    |prefix| mask.rotate_left(prefix.len() % 4),
+    |prefix| {
+      let mut local_mask = mask;
+      local_mask.rotate_left(prefix.len() % 4);
+    },
     |_16| {
       let [a, b, c, d] = mask;
-      do_unmask(&[a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d], _16);
+      _do_unmask(&[a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d], _16);
     },
     |_32| {
       let [a, b, c, d] = mask;
-      do_unmask(
+      _do_unmask(
         &[
           a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
           c, d,
@@ -26,7 +29,7 @@ pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
     },
     |_64| {
       let [a, b, c, d] = mask;
-      do_unmask(
+      _do_unmask(
         &[
           a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
           c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
@@ -40,7 +43,7 @@ pub(crate) fn unmask(bytes: &mut [u8], mut mask: [u8; 4]) {
 }
 
 #[inline]
-fn do_unmask<const N: usize>(mask: &[u8], slice: &mut [[u8; N]]) {
+fn _do_unmask<const N: usize>(mask: &[u8], slice: &mut [[u8; N]]) {
   for array in slice {
     for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
       *array_elem ^= mask_elem;

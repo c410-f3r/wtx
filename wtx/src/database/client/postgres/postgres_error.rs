@@ -33,9 +33,9 @@ pub enum PostgresError {
   /// Received size differs from expected size.
   UnexpectedBufferSize {
     /// Expected
-    expected: u64,
+    expected: u32,
     /// Received
-    received: u64,
+    received: u32,
   },
   /// Received an unexpected message type.
   UnexpectedDatabaseMessage {

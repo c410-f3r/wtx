@@ -16,7 +16,7 @@ use tokio::net::TcpStream;
 use wtx::{
   client_api_framework::{
     misc::{Pair, RequestLimit, RequestThrottling},
-    network::{transport::SendingRecievingTransport, HttpParams, WsParams},
+    network::{transport::SendingReceivingTransport, HttpParams, WsParams},
     Api,
   },
   data_transformation::dnsn::SerdeJson,

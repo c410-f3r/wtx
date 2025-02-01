@@ -1,6 +1,22 @@
+use crate::misc::{Lease, LeaseMut};
+
 /// Type that indicates the usage of the `borsh` dependency.
 #[derive(Debug, Default)]
 pub struct Borsh;
+
+impl Lease<Borsh> for Borsh {
+  #[inline]
+  fn lease(&self) -> &Borsh {
+    self
+  }
+}
+
+impl LeaseMut<Borsh> for Borsh {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Borsh {
+    self
+  }
+}
 
 #[cfg(test)]
 mod tests {

@@ -1,19 +1,23 @@
 //! Custom transport through `transport(Custom)`.
 
-use wtx::client_api_framework::pkg::PkgsAux;
-use wtx::client_api_framework::pkg::Package;
-use wtx::client_api_framework::network::TransportGroup;
-use wtx::client_api_framework::network::transport::Transport;
-use wtx::client_api_framework::network::transport::RecievingTransport;
-use wtx::client_api_framework::network::transport::SendingTransport;
-use wtx::client_api_framework::network::transport::TransportParams;
-use wtx::client_api_framework::Api;
 use core::ops::Range;
+use wtx::client_api_framework::{
+  network::{
+    transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
+    TransportGroup,
+  },
+  pkg::{Package, PkgsAux},
+  Api,
+};
+
 struct CustomTransport;
 
-impl RecievingTransport for CustomTransport {
+impl RecievingTransport<CustomTransportParams> for CustomTransport {
   #[inline]
-  async fn recv<A, DRSR>(&mut self, _: &mut PkgsAux<A, DRSR, Self::Params>) -> Result<Range<usize>, A::Error>
+  async fn recv<A, DRSR>(
+    &mut self,
+    _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
+  ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
   {
@@ -21,24 +25,24 @@ impl RecievingTransport for CustomTransport {
   }
 }
 
-impl SendingTransport for CustomTransport {
+impl SendingTransport<CustomTransportParams> for CustomTransport {
   #[inline]
   async fn send<A, DRSR, P>(
     &mut self,
     _: &mut P,
-    _: &mut PkgsAux<A, DRSR, Self::Params>,
+    _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: Package<A, DRSR, Self::Params>,
+    P: Package<A, DRSR, Self, CustomTransportParams>,
   {
     Ok(())
   }
 }
 
-impl Transport for CustomTransport {
+impl Transport<CustomTransportParams> for CustomTransport {
   const GROUP: TransportGroup = TransportGroup::Custom("Custom");
-  type Params = CustomTransportParams;
+  type Inner = Self;
 }
 
 struct CustomTransportParams(());
@@ -59,16 +63,16 @@ impl TransportParams for CustomTransportParams {
     &self.0
   }
 
-    fn ext_res_params_mut(&mut self) -> &mut Self::ExternalResponseParams {
+  fn ext_res_params_mut(&mut self) -> &mut Self::ExternalResponseParams {
     &mut self.0
   }
 
-    fn reset(&mut self) {}
+  fn reset(&mut self) {}
 }
 
 type Nothing = ();
 
-#[wtx_macros::pkg(data_format(json), id(super::Nothing), transport(custom(crate::CustomTransport)))]
+#[wtx_macros::pkg(data_format(json), id(super::Nothing), transport(custom(crate::CustomTransportParams)))]
 mod pkg {
   #[pkg::req_data]
   struct Req;
@@ -77,5 +81,4 @@ mod pkg {
   struct Res;
 }
 
-fn main() {
-}
+fn main() {}

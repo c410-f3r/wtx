@@ -471,7 +471,7 @@ mod pg_numeric {
         return Err(E::from(
           PostgresError::UnexpectedBufferSize {
             expected: 8,
-            received: Usize::from(dv.bytes().len()).into(),
+            received: Usize::from(dv.bytes().len()).into_u64().try_into().unwrap_or(u32::MAX),
           }
           .into(),
         ));
@@ -585,7 +585,7 @@ mod primitives {
         return Err(E::from(
           PostgresError::UnexpectedBufferSize {
             expected: 1,
-            received: Usize::from(dv.bytes().len()).into(),
+            received: Usize::from(dv.bytes().len()).into_u64().try_into().unwrap_or(u32::MAX),
           }
           .into(),
         ));
@@ -664,8 +664,8 @@ mod primitives {
             return Ok(<$ty>::from_be_bytes([$($elem),+]));
           }
           Err(E::from(PostgresError::UnexpectedBufferSize {
-            expected: Usize::from(size_of::<$ty>()).into(),
-            received: Usize::from(input.bytes().len()).into()
+            expected: Usize::from(size_of::<$ty>()).into_u64().try_into().unwrap_or(u32::MAX),
+            received: Usize::from(input.bytes().len()).into_u64().try_into().unwrap_or(u32::MAX)
           }.into()))
         }
       }

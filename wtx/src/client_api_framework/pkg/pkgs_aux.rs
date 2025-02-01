@@ -1,5 +1,4 @@
 use crate::{
-  client_api_framework::network::transport::TransportParams,
   data_transformation::{
     format::{JsonRpcRequest, VerbatimRequest},
     Id,
@@ -17,10 +16,7 @@ use crate::{
 /// * `DRSR`: DeserializeR/SerializeR
 /// * `TP`: Transport Parameters
 #[derive(Debug)]
-pub struct PkgsAux<A, DRSR, TP>
-where
-  TP: TransportParams,
-{
+pub struct PkgsAux<A, DRSR, TP> {
   /// API instance.
   pub api: A,
   /// Used by practically all transports to serialize or receive data in any desired operation.
@@ -31,17 +27,20 @@ where
   pub drsr: DRSR,
   /// External request and response parameters.
   pub tp: TP,
-  built_requests: Id,
+  pub(crate) built_requests: Id,
 }
 
-impl<A, DRSR, TP> PkgsAux<A, DRSR, TP>
-where
-  TP: TransportParams,
-{
+impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   /// Creates an instance with the minimum amount of mandatory parameters.
   #[inline]
   pub fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
     Self { api, byte_buffer: Vector::new(), drsr, tp, built_requests: 0 }
+  }
+
+  /// New instance
+  #[inline]
+  pub fn new(api: A, byte_buffer: Vector<u8>, drsr: DRSR, tp: TP) -> Self {
+    Self { api, byte_buffer, drsr, tp, built_requests: 0 }
   }
 
   /// The number of constructed requests that is not necessarily equal the number of sent requests.

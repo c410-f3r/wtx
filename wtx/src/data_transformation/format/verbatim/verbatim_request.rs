@@ -14,6 +14,16 @@ impl<D> Serialize<()> for VerbatimRequest<D> {
   }
 }
 
+impl<D, DRSR> Serialize<&mut DRSR> for VerbatimRequest<D>
+where
+  VerbatimRequest<D>: Serialize<DRSR>,
+{
+  #[inline]
+  fn to_bytes(&mut self, bytes: &mut Vector<u8>, drsr: &mut &mut DRSR) -> crate::Result<()> {
+    self.to_bytes(bytes, drsr)
+  }
+}
+
 #[cfg(feature = "borsh")]
 mod borsh {
   use crate::{

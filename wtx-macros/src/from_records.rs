@@ -118,6 +118,8 @@ pub(crate) fn from_records(
 
         #( let #decodes_after_id = _curr_record.#decodes_after_id_method(*_curr_field_idx)?; *_curr_field_idx = _curr_field_idx.wrapping_add(1); )*
 
+        #( let #ones = <_>::from_records((_curr_field_idx, _curr_record, _curr_record_idx), _records)?; )*
+
         #(
           let mut #manys: #manys_ty = <_>::default();
           wtx::database::seek_related_entities(
@@ -127,8 +129,6 @@ pub(crate) fn from_records(
             |elem| Ok(#manys.push(elem).map_err(wtx::Error::from)?)
           )?;
         )*
-
-        #( let #ones = <_>::from_records((_curr_field_idx, _curr_record, _curr_record_idx), _records)?; )*
 
         Ok(Self {
           #(#decodes_before_id,)*

@@ -7,7 +7,7 @@ mod pkg_with_helper;
 mod pkgs_aux;
 
 use crate::{
-  client_api_framework::{network::transport::TransportParams, Api},
+  client_api_framework::Api,
   data_transformation::dnsn::{Deserialize, Serialize},
   misc::Vector,
 };
@@ -23,11 +23,10 @@ pub use pkgs_aux::*;
 ///
 /// `A`: Associated API.
 /// `DRSR`: DeserializeR/SerializeR
-/// `TP`: Transport Parameters
-pub trait Package<A, DRSR, TP>
+/// `T`: Transport
+pub trait Package<A, DRSR, T, TP>
 where
   A: Api,
-  TP: TransportParams,
 {
   /// The expected data format that is going to be sent to an external actor.
   type ExternalRequestContent: Serialize<DRSR>;
@@ -41,8 +40,8 @@ where
   #[inline]
   fn after_sending(
     &mut self,
-    _: &mut A,
-    _: &mut TP::ExternalResponseParams,
+    _: (&mut A, &mut Vector<u8>, &mut DRSR),
+    _: (&mut T, &mut TP),
   ) -> impl Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
   }
@@ -52,9 +51,8 @@ where
   #[inline]
   fn before_sending(
     &mut self,
-    _: &mut A,
-    _: &mut TP::ExternalRequestParams,
-    _: &mut Vector<u8>,
+    _: (&mut A, &mut Vector<u8>, &mut DRSR),
+    _: (&mut T, &mut TP),
   ) -> impl Future<Output = Result<(), A::Error>> {
     async { Ok(()) }
   }
@@ -76,9 +74,9 @@ where
   fn pkg_params_mut(&mut self) -> &mut Self::PackageParams;
 }
 
-impl<DRSR, TP> Package<(), DRSR, TP> for ()
+impl<A, DRSR, T, TP> Package<A, DRSR, T, TP> for ()
 where
-  TP: TransportParams,
+  A: Api,
 {
   type ExternalRequestContent = ();
   type ExternalResponseContent<'de> = ();
@@ -105,11 +103,10 @@ where
   }
 }
 
-impl<A, DRSR, P, TP> Package<A, DRSR, TP> for &mut P
+impl<A, DRSR, P, T, TP> Package<A, DRSR, T, TP> for &mut P
 where
   A: Api,
-  P: Package<A, DRSR, TP>,
-  TP: TransportParams,
+  P: Package<A, DRSR, T, TP>,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent<'de> = P::ExternalResponseContent<'de>;
@@ -118,20 +115,19 @@ where
   #[inline]
   async fn after_sending(
     &mut self,
-    api: &mut A,
-    ext_res_params: &mut TP::ExternalResponseParams,
+    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
-    (**self).after_sending(api, ext_res_params).await
+    (**self).after_sending((api, bytes, drsr), (trans, trans_params)).await
   }
 
   #[inline]
   async fn before_sending(
     &mut self,
-    api: &mut A,
-    ext_req_params: &mut TP::ExternalRequestParams,
-    req_bytes: &mut Vector<u8>,
+    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
-    (**self).before_sending(api, ext_req_params, req_bytes).await
+    (**self).before_sending((api, bytes, drsr), (trans, trans_params)).await
   }
 
   #[inline]

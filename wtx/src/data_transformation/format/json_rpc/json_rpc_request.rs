@@ -28,6 +28,16 @@ impl<P> Serialize<()> for JsonRpcRequest<P> {
   }
 }
 
+impl<DRSR, P> Serialize<&mut DRSR> for JsonRpcRequest<P>
+where
+  JsonRpcRequest<P>: Serialize<DRSR>,
+{
+  #[inline]
+  fn to_bytes(&mut self, bytes: &mut Vector<u8>, drsr: &mut &mut DRSR) -> crate::Result<()> {
+    self.to_bytes(bytes, drsr)
+  }
+}
+
 impl<P> Borrow<Id> for JsonRpcRequest<P> {
   #[inline]
   fn borrow(&self) -> &Id {

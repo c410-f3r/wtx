@@ -27,10 +27,39 @@ where
   }
 }
 
+impl<'de, D, DRSR> Deserialize<'de, &mut DRSR> for VerbatimResponse<D>
+where
+  VerbatimResponse<D>: Deserialize<'de, DRSR>,
+{
+  #[inline]
+  fn from_bytes(bytes: &'de [u8], drsr: &mut &mut DRSR) -> crate::Result<Self> {
+    <VerbatimResponse<D>>::from_bytes(bytes, drsr)
+  }
+
+  #[inline]
+  fn seq_from_bytes(
+    buffer: &mut Vector<Self>,
+    bytes: &'de [u8],
+    drsr: &mut &mut DRSR,
+  ) -> crate::Result<()> {
+    <VerbatimResponse<D>>::seq_from_bytes(buffer, bytes, drsr)
+  }
+}
+
 impl<D> Serialize<()> for VerbatimResponse<D> {
   #[inline]
   fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
     Ok(())
+  }
+}
+
+impl<D, DRSR> Serialize<&mut DRSR> for VerbatimResponse<D>
+where
+  VerbatimResponse<D>: Serialize<DRSR>,
+{
+  #[inline]
+  fn to_bytes(&mut self, bytes: &mut Vector<u8>, drsr: &mut &mut DRSR) -> crate::Result<()> {
+    self.to_bytes(bytes, drsr)
   }
 }
 

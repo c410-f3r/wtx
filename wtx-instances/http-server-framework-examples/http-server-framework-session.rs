@@ -40,7 +40,7 @@ type SessionManager = SessionManagerTokio<u32, wtx::Error>;
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DB_NAME";
   let pool = Pool::new(4, PostgresRM::tokio(uri.into()));
-  let mut rng = ChaCha20Rng::from_entropy();
+  let mut rng = ChaCha20Rng::try_from_os_rng()?;
   let (expired, sm) = SessionManager::builder().build_generating_key(&mut rng, pool.clone());
   let router = Router::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),

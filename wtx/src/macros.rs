@@ -362,6 +362,7 @@ macro_rules! _simd_bytes {
     let (_prefix, _chunks, _suffix) = unsafe { $bytes.$align() };
     _simd! {
       fallback => {
+        let _: [u8] = *_chunks;
         let _: [u8] = *$bytes;
         let $bytes_ident = $bytes; $bytes_expr;
       },

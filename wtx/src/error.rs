@@ -46,6 +46,8 @@ pub enum Error {
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
   Flate2DecompressError(Box<flate2::DecompressError>),
+  #[cfg(feature = "getrandom")]
+  GetRandomError(getrandom::Error),
   #[cfg(feature = "httparse")]
   HttpParse(httparse::Error),
   #[cfg(feature = "matchit")]
@@ -289,6 +291,14 @@ impl From<flate2::DecompressError> for Error {
   #[inline]
   fn from(from: flate2::DecompressError) -> Self {
     Self::Flate2DecompressError(from.into())
+  }
+}
+
+#[cfg(feature = "getrandom")]
+impl From<getrandom::Error> for Error {
+  #[inline]
+  fn from(from: getrandom::Error) -> Self {
+    Self::GetRandomError(from)
   }
 }
 
