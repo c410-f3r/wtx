@@ -9,10 +9,6 @@ pub enum TransportGroup {
   HTTP,
   /// Mock or dummy implementations
   Stub,
-  /// Transmission Control Protocol
-  TCP,
-  /// User Datagram Protocol
-  UDP,
   /// WebSocket
   WebSocket,
 }
@@ -24,8 +20,6 @@ impl From<TransportGroup> for &'static str {
       TransportGroup::Custom(elem) => elem,
       TransportGroup::HTTP => "HTTP",
       TransportGroup::Stub => "Stub",
-      TransportGroup::TCP => "TCP",
-      TransportGroup::UDP => "UDP",
       TransportGroup::WebSocket => "WebSocket",
     }
   }

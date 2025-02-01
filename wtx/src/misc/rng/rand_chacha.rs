@@ -1,4 +1,4 @@
-use rand_core::RngCore;
+use rand_chacha::rand_core::RngCore;
 
 macro_rules! implement {
   ($struct:ty) => {

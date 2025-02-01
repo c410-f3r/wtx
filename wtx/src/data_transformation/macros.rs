@@ -32,10 +32,29 @@ macro_rules! generic_data_format_doc {
   };
 }
 
+//macro_rules! _impl_se {
+//  (
+//    ($drsr:ty, $bound:path)
+//  ) => {
+//    impl<D> crate::data_transformation::dnsn::Serialize<&mut SerdeJson> for VerbatimRequest<D>
+//    where
+//      D: serde::Serialize,
+//    {
+//      #[inline]
+//      fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut &mut SerdeJson) -> crate::Result<()> {
+//        if size_of::<D>() == 0 {
+//          return Ok(());
+//        }
+//        serde_json::to_writer(bytes, &self.data)?;
+//        Ok(())
+//      }
+//    }
+//  }
+//}
+
 macro_rules! _impl_se_collections {
   (
-    for $drsr:ty => $bound:path;
-
+    ($drsr:ty, $bound:path),
     $( array: |$array_self:ident, $array_bytes:ident, $array_drsr:ident| $array_block:block )?
     $( arrayvector: |$arrayvector_self:ident, $arrayvector_bytes:ident, $arrayvector_drsr:ident| $arrayvector_block:block )?
     slice_ref: |$slice_ref_self:ident, $slice_ref_bytes:ident, $slice_ref_drsr:ident| $slice_ref_block:block
@@ -74,7 +93,7 @@ macro_rules! _impl_se_collections {
       }
     )?
 
-    impl<T> crate::data_transformation::dnsn::Serialize<$drsr> for &'_ [T]
+    impl<T> crate::data_transformation::dnsn::Serialize<$drsr> for &[T]
     where
       T: $bound,
     {

@@ -5,7 +5,7 @@ use crate::{
   },
   misc::{Lease, Vector},
 };
-use alloc::string::String;
+use alloc::boxed::Box;
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -20,7 +20,7 @@ pub struct JsonRpcResponse<R> {
   /// The same value specified in the request.
   pub id: Id,
   /// Optional parameter returns by the counterpart.
-  pub method: Option<String>,
+  pub method: Option<Box<str>>,
   /// Contains the `result` or the `error` field.
   pub result: crate::Result<R>,
 }
@@ -37,6 +37,25 @@ where
   #[inline]
   fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut ()) -> crate::Result<()> {
     Ok(())
+  }
+}
+
+impl<'de, D, DRSR> Deserialize<'de, &mut DRSR> for JsonRpcResponse<D>
+where
+  JsonRpcResponse<D>: Deserialize<'de, DRSR>,
+{
+  #[inline]
+  fn from_bytes(bytes: &'de [u8], drsr: &mut &mut DRSR) -> crate::Result<Self> {
+    <JsonRpcResponse<D>>::from_bytes(bytes, drsr)
+  }
+
+  #[inline]
+  fn seq_from_bytes(
+    buffer: &mut Vector<Self>,
+    bytes: &'de [u8],
+    drsr: &mut &mut DRSR,
+  ) -> crate::Result<()> {
+    <JsonRpcResponse<D>>::seq_from_bytes(buffer, bytes, drsr)
   }
 }
 

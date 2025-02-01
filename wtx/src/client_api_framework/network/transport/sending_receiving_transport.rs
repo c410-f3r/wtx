@@ -15,7 +15,7 @@ use core::{future::Future, ops::Range};
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait SendingRecievingTransport: RecievingTransport + SendingTransport {
+pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTransport<TP> {
   /// Sends a request and then awaits its counterpart data response.
   ///
   /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
@@ -23,11 +23,11 @@ pub trait SendingRecievingTransport: RecievingTransport + SendingTransport {
   fn send_recv<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<Range<usize>, A::Error>>
   where
     A: Api,
-    P: Package<A, DRSR, Self::Params>,
+    P: Package<A, DRSR, Self::Inner, TP>,
   {
     async {
       self.send(pkg, pkgs_aux).await?;
@@ -44,12 +44,12 @@ pub trait SendingRecievingTransport: RecievingTransport + SendingTransport {
     &mut self,
     buffer: &mut Vector<P::ExternalResponseContent<'pkgs_aux>>,
     pkgs: &'pkgs mut [P],
-    pkgs_aux: &'pkgs_aux mut PkgsAux<A, DRSR, Self::Params>,
+    pkgs_aux: &'pkgs_aux mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api,
-    P: Package<A, DRSR, Self::Params>,
-    BatchElems<'pkgs, A, DRSR, P, Self::Params>: Serialize<DRSR>,
+    P: Package<A, DRSR, Self::Inner, TP>,
+    BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Serialize<DRSR>,
   {
     async {
       let range = self.send_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
@@ -69,11 +69,11 @@ pub trait SendingRecievingTransport: RecievingTransport + SendingTransport {
   fn send_recv_decode_contained<'de, A, DRSR, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &'de mut PkgsAux<A, DRSR, Self::Params>,
+    pkgs_aux: &'de mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<P::ExternalResponseContent<'de>, A::Error>>
   where
     A: Api,
-    P: Package<A, DRSR, Self::Params>,
+    P: Package<A, DRSR, Self::Inner, TP>,
   {
     async {
       let range = self.send_recv(pkg, pkgs_aux).await?;
@@ -86,4 +86,7 @@ pub trait SendingRecievingTransport: RecievingTransport + SendingTransport {
   }
 }
 
-impl<T> SendingRecievingTransport for T where T: RecievingTransport + SendingTransport {}
+impl<T, TP> SendingReceivingTransport<TP> for T where
+  T: RecievingTransport<TP> + SendingTransport<TP>
+{
+}

@@ -1,4 +1,7 @@
-use crate::client_api_framework::network::transport::TransportParams;
+use crate::{
+  client_api_framework::network::transport::TransportParams,
+  misc::{Lease, LeaseMut},
+};
 
 /// How the WebSocket request should be issued.
 #[derive(Clone, Copy, Debug)]
@@ -12,6 +15,20 @@ pub enum WsReqParamsTy {
 #[derive(Debug)]
 #[doc = generic_trans_params_doc!()]
 pub struct WsParams(WsReqParams, WsResParams);
+
+impl Lease<WsParams> for WsParams {
+  #[inline]
+  fn lease(&self) -> &WsParams {
+    self
+  }
+}
+
+impl LeaseMut<WsParams> for WsParams {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut WsParams {
+    self
+  }
+}
 
 impl TransportParams for WsParams {
   type ExternalRequestParams = WsReqParams;

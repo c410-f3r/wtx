@@ -1,5 +1,5 @@
 use crate::{
-  client_api_framework::{network::transport::TransportParams, pkg::Package, Api},
+  client_api_framework::{pkg::Package, Api},
   data_transformation::{format::JsonRpcRequest, Id},
   misc::Vector,
 };
@@ -31,11 +31,10 @@ impl<H, P> PkgWithHelper<H, P> {
   }
 }
 
-impl<A, DRSR, H, P, TP> Package<A, DRSR, TP> for PkgWithHelper<H, P>
+impl<A, DRSR, H, P, T, TP> Package<A, DRSR, T, TP> for PkgWithHelper<H, P>
 where
   A: Api,
-  P: Package<A, DRSR, TP>,
-  TP: TransportParams,
+  P: Package<A, DRSR, T, TP>,
 {
   type ExternalRequestContent = P::ExternalRequestContent;
   type ExternalResponseContent<'de> = P::ExternalResponseContent<'de>;
@@ -44,20 +43,19 @@ where
   #[inline]
   async fn after_sending(
     &mut self,
-    api: &mut A,
-    ext_res_params: &mut TP::ExternalResponseParams,
+    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
-    self.pkg.after_sending(api, ext_res_params).await
+    self.pkg.after_sending((api, bytes, drsr), (trans, trans_params)).await
   }
 
   #[inline]
   async fn before_sending(
     &mut self,
-    api: &mut A,
-    ext_req_params: &mut TP::ExternalRequestParams,
-    req_bytes: &mut Vector<u8>,
+    (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
+    (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
-    self.pkg.before_sending(api, ext_req_params, req_bytes).await
+    self.pkg.before_sending((api, bytes, drsr), (trans, trans_params)).await
   }
 
   #[inline]

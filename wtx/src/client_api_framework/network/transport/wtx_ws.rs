@@ -13,14 +13,14 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api, ClientApiFrameworkError,
   },
-  misc::{FnMutFut, Vector},
+  misc::{FnMutFut, LeaseMut, Vector},
   web_socket::{Frame, OpCode},
 };
 use core::ops::Range;
 
-async fn recv<A, DRSR>(
+async fn recv<A, DRSR, TP>(
   frame: Frame<&mut [u8], true>,
-  pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> crate::Result<Range<usize>> {
   pkgs_aux.byte_buffer.clear();
   if let OpCode::Close = frame.op_code() {
@@ -30,9 +30,9 @@ async fn recv<A, DRSR>(
   Ok(0..pkgs_aux.byte_buffer.len())
 }
 
-async fn send<A, DRSR, P, T>(
+async fn send<A, DRSR, P, T, TP>(
   pkg: &mut P,
-  pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
   mut cb: impl for<'any> FnMutFut<
     (Frame<&'any mut Vector<u8>, true>, &'any mut T),
@@ -41,18 +41,19 @@ async fn send<A, DRSR, P, T>(
 ) -> Result<(), A::Error>
 where
   A: Api,
-  P: Package<A, DRSR, WsParams>,
-  T: Transport<Params = WsParams>,
+  P: Package<A, DRSR, T, TP>,
+  T: Transport<TP>,
+  TP: LeaseMut<WsParams>,
 {
   pkgs_aux.byte_buffer.clear();
   manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;
-  let op_code = match pkgs_aux.tp.ext_req_params_mut().ty {
+  let op_code = match pkgs_aux.tp.lease_mut().ext_req_params_mut().ty {
     WsReqParamsTy::Bytes => OpCode::Binary,
     WsReqParamsTy::String => OpCode::Text,
   };
   cb.call((Frame::new_fin(op_code, &mut pkgs_aux.byte_buffer), trans)).await?;
   pkgs_aux.byte_buffer.clear();
-  manage_after_sending_related(pkg, pkgs_aux).await?;
-  pkgs_aux.tp.reset();
+  manage_after_sending_related(pkg, pkgs_aux, trans).await?;
+  pkgs_aux.tp.lease_mut().reset();
   Ok(())
 }

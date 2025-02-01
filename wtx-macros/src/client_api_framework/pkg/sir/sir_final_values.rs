@@ -31,15 +31,12 @@ impl SirFinalValues {
     let (b_lts, b_tys) = split_params(freqdiv.freqdiv_params);
     (a_lts.chain(b_lts), a_tys.chain(b_tys))
   }
+
   fn transport_params(transport_group: &TransportGroup) -> TokenStream {
     match transport_group {
-      TransportGroup::Custom(tt) => {
-        quote::quote!(<#tt as wtx::client_api_framework::network::transport::Transport>::Params)
-      }
+      TransportGroup::Custom(tt) => tt.clone(),
       TransportGroup::Http => quote::quote!(wtx::client_api_framework::network::HttpParams),
       TransportGroup::Stub => quote::quote!(()),
-      TransportGroup::Tcp => quote::quote!(wtx::client_api_framework::network::TcpParams),
-      TransportGroup::Udp => quote::quote!(wtx::client_api_framework::network::UdpParams),
       TransportGroup::WebSocket => quote::quote!(wtx::client_api_framework::network::WsParams),
     }
   }
@@ -80,7 +77,7 @@ impl<'attrs, 'module, 'others>
       let mut iter = fresdiv_params.iter();
       if let Some(elem) = iter.next() {
         if matches!(elem, GenericParam::Lifetime(_)) && iter.next().is_none() {
-          Some(quote::quote!('de))
+          Some(quote::quote!('__de))
         } else {
           // FIXME(STABLE): non_lifetime_binders
           return Err(crate::Error::ResponsesCanHaveAtMostOneLt(fresdiv_ident.span()));
@@ -99,7 +96,11 @@ impl<'attrs, 'module, 'others>
     };
 
     let fasiv_fn_call_idents = fasiv_opt.as_ref().map(|el| &el.fasiv_fn_call_idents);
+    let fasiv_fn_where_predicates = fasiv_opt.as_ref().map(|el| &el.fasiv_where_predicates);
+
     let fbsiv_fn_call_idents = fbsiv_opt.as_ref().map(|el| &el.fbsiv_fn_call_idents);
+    let fbsiv_fn_where_predicates = fbsiv_opt.as_ref().map(|el| &el.fbsiv_where_predicates);
+
     let saiv_tts = faiv_opt
       .as_ref()
       .map(|elem| {
@@ -120,7 +121,11 @@ impl<'attrs, 'module, 'others>
     for data_format in data_formats {
       let DataFormatElems { dfe_ext_req_ctnt_wrapper, dfe_ext_res_ctnt_wrapper, .. } =
         data_format.elems();
-      for transport_group in transport_groups {
+      let iter = transport_groups
+        .iter()
+        .map(|el| (false, el))
+        .chain(transport_groups.iter().map(|el| (true, el)));
+      for (is_mut, transport_group) in iter {
         let res_lf_iter0 = res_lf.iter();
         let res_lf_iter1 = res_lf.iter();
         let before_sending_defaults = data_format.before_sending_defaults(transport_group);
@@ -132,23 +137,37 @@ impl<'attrs, 'module, 'others>
         let fpiv_params_iter1 = fpiv_params.iter();
         let fpiv_where_predicates_iter = fpiv_where_predicates.iter();
         let freqdiv_where_predicates_iter = freqdiv_where_predicates.iter();
-        let tp = Self::transport_params(transport_group);
         let (lts, tys) = Self::pkg_params(&freqdiv, &fpiv);
+        let is_mut_lf = is_mut.then(|| quote::quote! { '__is_mut }).into_iter();
+        let tp = {
+          let tt = Self::transport_params(transport_group);
+          if is_mut {
+            quote::quote!(&'__is_mut mut #tt)
+          } else {
+            tt
+          }
+        };
         package_impls.push(quote::quote!(
-          impl<#(#lts,)* #(#tys,)* A, DRSR> wtx::client_api_framework::pkg::Package<A, DRSR, #tp> for #camel_case_pkg_ident<
+          impl<
+            #(#is_mut_lf,)* #(#lts,)* #(#tys,)* __API, __DRSR, __TRANSPORT
+          > wtx::client_api_framework::pkg::Package<
+          __API, __DRSR, __TRANSPORT, #tp
+          > for #camel_case_pkg_ident<
             #(#fpiv_params_iter0,)*
             wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
           >
           where
+            #fasiv_fn_where_predicates
+            #fbsiv_fn_where_predicates
             #(#fpiv_where_predicates_iter,)*
             #(#freqdiv_where_predicates_iter,)*
             wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
-            >: wtx::data_transformation::dnsn::Serialize<DRSR>,
-            for<'de> wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
+            >: wtx::data_transformation::dnsn::Serialize<__DRSR>,
+            for<'__de> wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter0)*>
-            >: wtx::data_transformation::dnsn::Deserialize<'de, DRSR>,
-            A: wtx::client_api_framework::Api<
+            >: wtx::data_transformation::dnsn::Deserialize<'__de, __DRSR>,
+            __API: wtx::client_api_framework::Api<
               Error = <<#id as wtx::client_api_framework::ApiId>::Api as wtx::client_api_framework::Api>::Error,
               Id = #id
             > + wtx::misc::LeaseMut<<#id as wtx::client_api_framework::ApiId>::Api>,
@@ -156,17 +175,17 @@ impl<'attrs, 'module, 'others>
             type ExternalRequestContent = wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
             >;
-            type ExternalResponseContent<'de> = wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
+            type ExternalResponseContent<'__de> = wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter1)*>
             >;
-            type PackageParams = #fpiv_ident<#(#fpiv_params_iter1)*>;
+            type PackageParams = #fpiv_ident< #(#fpiv_params_iter1)* >;
 
             #[inline]
             async fn after_sending(
               &mut self,
-              _api: &mut A,
-              _ext_res_params: &mut <#tp as wtx::client_api_framework::network::transport::TransportParams>::ExternalResponseParams,
-            ) -> Result<(), A::Error> {
+              (_api, _bytes, _drsr): (&mut __API, &mut wtx::misc::Vector<u8>, &mut __DRSR),
+              (_trans, _trans_params): (&mut __TRANSPORT, &mut #tp),
+            ) -> Result<(), __API::Error> {
               #( #fasiv_fn_name_ident_iter(#fasiv_fn_call_idents).await?; )*
               Ok(())
             }
@@ -174,10 +193,9 @@ impl<'attrs, 'module, 'others>
             #[inline]
             async fn before_sending(
               &mut self,
-              _api: &mut A,
-              _ext_req_params: &mut <#tp as wtx::client_api_framework::network::transport::TransportParams>::ExternalRequestParams,
-              _req_bytes: &mut wtx::misc::Vector<u8>
-            ) -> Result<(), A::Error> {
+              (_api, _bytes, _drsr): (&mut __API, &mut wtx::misc::Vector<u8>, &mut __DRSR),
+              (_trans, _trans_params): (&mut __TRANSPORT, &mut #tp),
+            ) -> Result<(), __API::Error> {
               #before_sending_defaults
               #( #fbsiv_fn_name_ident_iter(#fbsiv_fn_call_idents).await?; )*
               Ok(())

@@ -2,6 +2,7 @@ use crate::misc::{BufferMode, Lease, LeaseMut, Wrapper, _unlikely_elem};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
+  cmp::Ordering,
   fmt::{Debug, Display, Formatter},
   hint::assert_unchecked,
   ops::{Deref, DerefMut, RangeBounds},
@@ -47,7 +48,7 @@ impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
 //#[cfg_attr(kani, derive(kani::Arbitrary))]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct Vector<T> {
   data: Vec<T>,
@@ -645,6 +646,8 @@ impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
   }
 }
 
+impl<T> Eq for Vector<T> where T: Eq {}
+
 impl<T> IntoIterator for Vector<T> {
   type Item = T;
   type IntoIter = IntoIter<T>;
@@ -652,6 +655,66 @@ impl<T> IntoIterator for Vector<T> {
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
     self.data.into_iter()
+  }
+}
+
+impl<T> PartialEq for Vector<T>
+where
+  T: PartialEq,
+{
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    **self == **other
+  }
+}
+
+impl<T> PartialEq<[T]> for Vector<T>
+where
+  T: PartialEq,
+{
+  #[inline]
+  fn eq(&self, other: &[T]) -> bool {
+    **self == *other
+  }
+}
+
+impl<T> PartialOrd for Vector<T>
+where
+  T: PartialOrd,
+{
+  #[inline]
+  fn ge(&self, other: &Self) -> bool {
+    (**self).ge(&**other)
+  }
+
+  #[inline]
+  fn gt(&self, other: &Self) -> bool {
+    (**self).gt(&**other)
+  }
+
+  #[inline]
+  fn le(&self, other: &Self) -> bool {
+    (**self).le(&**other)
+  }
+
+  #[inline]
+  fn lt(&self, other: &Self) -> bool {
+    (**self).lt(&**other)
+  }
+
+  #[inline]
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    (**self).partial_cmp(&**other)
+  }
+}
+
+impl<T> Ord for Vector<T>
+where
+  T: Ord,
+{
+  #[inline]
+  fn cmp(&self, other: &Self) -> Ordering {
+    (**self).cmp(other)
   }
 }
 

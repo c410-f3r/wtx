@@ -1,10 +1,25 @@
+use crate::misc::{Lease, LeaseMut};
+
 /// Type that indicates the usage of the `serde_json` dependency.
 #[derive(Debug)]
 pub struct SerdeJson;
 
-_impl_se_collections!(
-  for SerdeJson => serde::Serialize;
+impl Lease<SerdeJson> for SerdeJson {
+  #[inline]
+  fn lease(&self) -> &SerdeJson {
+    self
+  }
+}
 
+impl LeaseMut<SerdeJson> for SerdeJson {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut SerdeJson {
+    self
+  }
+}
+
+_impl_se_collections!(
+  (SerdeJson, serde::Serialize),
   array: |this, bytes, _drsr| { serde_json::to_writer(bytes, &this[..])?; }
   arrayvector: |this, bytes, _drsr| { serde_json::to_writer(bytes, this)?; }
   slice_ref: |this, bytes, _drsr| { serde_json::to_writer(bytes, this)?; }

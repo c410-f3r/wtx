@@ -38,7 +38,7 @@ pub struct ClientPool<RL, RM> {
 
 impl<AUX, HD, RL, RM, SW> ClientPool<RL, RM>
 where
-  HD: RefCounter + 'static,
+  HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<

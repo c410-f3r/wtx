@@ -16,6 +16,7 @@ embedded-tls = { default-features = false, optional = true, version = "0.17" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.1" }
+getrandom = { default-features = false, optional = true, version = "0.3" }
 hashbrown = { default-features = false, features = ["inline-more"], optional = true, version = "0.15" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
@@ -24,8 +25,7 @@ memchr = { default-features = false, optional = true, version = "2.0" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
-rand_chacha = { default-features = false, optional = true, version = "0.3" }
-rand_core = { default-features = false, optional = true, version = "0.6" }
+rand_chacha = { default-features = false, optional = true, version = "0.9" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls = { default-features = false, features = ["tls12"], optional = true, version = "0.23" }
@@ -73,7 +73,7 @@ pool = []
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 quick-protobuf = ["dep:quick-protobuf", "std"]
-rand_chacha = ["dep:rand_chacha", "dep:rand_core"]
+rand_chacha = ["dep:rand_chacha", "getrandom"]
 rustls = ["dep:rustls", "rustls-pki-types"]
 schema-manager = ["database", "chrono"]
 schema-manager-dev = ["schema-manager"]
@@ -93,6 +93,7 @@ std = [
   "embedded-tls?/std",
   "fastrand?/std",
   "foldhash?/std",
+  "getrandom?/std",
   "hmac?/std",
   "httparse?/std",
   "memchr?/std",
@@ -100,7 +101,6 @@ std = [
   "portable-atomic-util?/std",
   "quick-protobuf?/std",
   "rand_chacha?/std",
-  "rand_core?/std",
   "ring?/std",
   "rust_decimal?/std",
   "rustls-pemfile?/std",

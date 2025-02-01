@@ -27,7 +27,7 @@ pub type MockStr<TP> = Mock<str, TP>;
 /// ```rust,no_run
 /// # async fn fun() -> wtx::Result<()> {
 /// use wtx::client_api_framework::{
-///   network::transport::{MockStr, SendingRecievingTransport},
+///   network::transport::{MockStr, SendingReceivingTransport},
 ///   pkg::PkgsAux,
 /// };
 /// let _ = MockStr::default()
@@ -86,7 +86,7 @@ where
   }
 }
 
-impl<T, TP> RecievingTransport for Mock<T, TP>
+impl<T, TP> RecievingTransport<TP> for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
@@ -95,7 +95,7 @@ where
   #[inline]
   async fn recv<A, DRSR>(
     &mut self,
-    pkgs_aux: &mut PkgsAux<A, DRSR, Self::Params>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
@@ -107,7 +107,7 @@ where
   }
 }
 
-impl<T, TP> SendingTransport for Mock<T, TP>
+impl<T, TP> SendingTransport<TP> for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
@@ -121,24 +121,24 @@ where
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: Package<A, DRSR, TP>,
+    P: Package<A, DRSR, Self::Inner, TP>,
   {
     manage_before_sending_related(pkg, pkgs_aux, &mut *self).await?;
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
     pkgs_aux.byte_buffer.clear();
-    manage_after_sending_related(pkg, pkgs_aux).await?;
+    manage_after_sending_related(pkg, pkgs_aux, &mut *self).await?;
     Ok(())
   }
 }
 
-impl<T, TP> Transport for Mock<T, TP>
+impl<T, TP> Transport<TP> for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   const GROUP: TransportGroup = TransportGroup::Stub;
-  type Params = TP;
+  type Inner = Self;
 }
 
 impl<T, TP> Default for Mock<T, TP>

@@ -70,30 +70,37 @@ where
   }
 }
 
-impl<'any, CA, SA, RRD> From<State<'any, CA, SA, RRD>> for StateClean<'any, CA, SA, RRD> {
+impl<'any, CA, SA, RRD> From<State<'any, CA, SA, RRD>> for StateClean<'any, CA, SA, RRD>
+where
+  RRD: ReqResDataMut,
+{
   #[inline]
   fn from(state: State<'any, CA, SA, RRD>) -> Self {
-    Self { conn_aux: state.conn_aux, req: state.req, stream_aux: state.stream_aux }
+    Self::new(state.conn_aux, state.stream_aux, state.req)
   }
 }
 
 impl<'any, CA, SA, RRD, const CLEAN: bool> From<&'any mut (CA, SA, Request<RRD>)>
   for StateGeneric<'any, CA, SA, RRD, CLEAN>
+where
+  RRD: ReqResDataMut,
 {
   #[inline]
   fn from((conn_aux, stream_aux, req): &'any mut (CA, SA, Request<RRD>)) -> Self {
-    Self { conn_aux, stream_aux, req }
+    Self::new(conn_aux, stream_aux, req)
   }
 }
 
 impl<'any, CA, SA, RRD, const CLEAN: bool>
   From<&'any mut (&'any mut CA, &'any mut SA, Request<RRD>)>
   for StateGeneric<'any, CA, SA, RRD, CLEAN>
+where
+  RRD: ReqResDataMut,
 {
   #[inline]
   fn from(
     (conn_aux, stream_aux, req): &'any mut (&'any mut CA, &'any mut SA, Request<RRD>),
   ) -> Self {
-    Self { conn_aux, stream_aux, req }
+    Self::new(conn_aux, stream_aux, req)
   }
 }

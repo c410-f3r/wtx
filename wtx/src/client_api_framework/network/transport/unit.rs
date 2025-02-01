@@ -9,12 +9,9 @@ use crate::client_api_framework::{
 };
 use core::ops::Range;
 
-impl RecievingTransport for () {
+impl<TP> RecievingTransport<TP> for () {
   #[inline]
-  async fn recv<A, DRSR>(
-    &mut self,
-    _: &mut PkgsAux<A, DRSR, Self::Params>,
-  ) -> Result<Range<usize>, A::Error>
+  async fn recv<A, DRSR>(&mut self, _: &mut PkgsAux<A, DRSR, TP>) -> Result<Range<usize>, A::Error>
   where
     A: Api,
   {
@@ -22,19 +19,19 @@ impl RecievingTransport for () {
   }
 }
 
-impl SendingTransport for () {
+impl<TP> SendingTransport<TP> for () {
   #[inline]
   async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, ()>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: Package<A, DRSR, ()>,
+    P: Package<A, DRSR, Self::Inner, TP>,
   {
     manage_before_sending_related(pkg, pkgs_aux, self).await?;
-    manage_after_sending_related(pkg, pkgs_aux).await?;
+    manage_after_sending_related(pkg, pkgs_aux, self).await?;
     Ok(())
   }
 }
@@ -43,24 +40,23 @@ impl SendingTransport for () {
 ///
 /// ```rust,no_run
 /// # async fn fun() -> wtx::Result<()> {
-/// use wtx::client_api_framework::{network::transport::SendingRecievingTransport, pkg::PkgsAux};
+/// use wtx::client_api_framework::{network::transport::SendingReceivingTransport, pkg::PkgsAux};
 /// let _ =
 ///   ().send_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ())).await?;
 /// # Ok(()) }
 /// ```
-impl Transport for () {
+impl<TP> Transport<TP> for () {
   const GROUP: TransportGroup = TransportGroup::Stub;
-  type Params = ();
+  type Inner = ();
 }
 
 #[cfg(all(feature = "_async-tests", test))]
 mod tests {
-  use crate::client_api_framework::{network::transport::SendingRecievingTransport, pkg::PkgsAux};
+  use crate::client_api_framework::{network::transport::SendingReceivingTransport, pkg::PkgsAux};
 
   #[tokio::test]
   async fn unit() {
     let mut pa = PkgsAux::from_minimum((), (), ());
-    let mut trans = ();
-    assert_eq!(trans.send_recv_decode_contained(&mut (), &mut pa).await.unwrap(), ());
+    assert_eq!(().send_recv_decode_contained(&mut (), &mut pa).await.unwrap(), ());
   }
 }

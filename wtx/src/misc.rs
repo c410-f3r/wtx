@@ -199,6 +199,14 @@ pub fn tracing_tree_init(
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
 }
 
+/// Transforms an `u32` into a [`ArrayString`].
+#[inline]
+pub fn u32_array_string(n: u32) -> ArrayString<10> {
+  let mut str = ArrayString::new();
+  let _rslt = str.write_fmt(format_args!("{n}"));
+  str
+}
+
 /// Transforms an `u64` into a [`ArrayString`].
 #[inline]
 pub fn u64_array_string(n: u64) -> ArrayString<20> {

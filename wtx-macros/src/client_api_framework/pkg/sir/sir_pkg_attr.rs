@@ -23,14 +23,8 @@ impl<'attrs> TryFrom<FirPkgAttr<'attrs>> for SirPkaAttr<'attrs> {
     if data_formats.is_empty() {
       return Err(crate::Error::MandatoryOuterAttrsAreNotPresent);
     }
-    Ok(Self {
-      data_formats,
-      id: fea.id,
-      transport_groups: fea
-        .transports
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect::<crate::Result<_>>()?,
-    })
+    let transport_groups =
+      fea.transports.into_iter().map(TryInto::try_into).collect::<crate::Result<_>>()?;
+    Ok(Self { data_formats, id: fea.id, transport_groups })
   }
 }

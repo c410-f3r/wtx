@@ -1,10 +1,67 @@
-use crate::{data_transformation::format::GraphQlResponseError, misc::Vector};
+use crate::{
+  data_transformation::{
+    dnsn::{Deserialize, Serialize},
+    format::GraphQlResponseError,
+  },
+  misc::Vector,
+};
 
 /// Replied from an issued [`crate::data_transformation::format::GraphQlRequest`].
 #[derive(Debug)]
 pub struct GraphQlResponse<D, E> {
   /// Content depends if request was successful or not.
   pub result: Result<D, Vector<GraphQlResponseError<E>>>,
+}
+
+impl<'de, D, E> Deserialize<'de, ()> for GraphQlResponse<D, E>
+where
+  D: Default,
+{
+  #[inline]
+  fn from_bytes(_: &[u8], _: &mut ()) -> crate::Result<Self> {
+    Ok(Self { result: Ok(D::default()) })
+  }
+
+  #[inline]
+  fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut ()) -> crate::Result<()> {
+    Ok(())
+  }
+}
+
+impl<'de, D, DRSR, E> Deserialize<'de, &mut DRSR> for GraphQlResponse<D, E>
+where
+  GraphQlResponse<D, E>: Deserialize<'de, DRSR>,
+{
+  #[inline]
+  fn from_bytes(bytes: &'de [u8], drsr: &mut &mut DRSR) -> crate::Result<Self> {
+    <GraphQlResponse<D, E>>::from_bytes(bytes, drsr)
+  }
+
+  #[inline]
+  fn seq_from_bytes(
+    buffer: &mut Vector<Self>,
+    bytes: &'de [u8],
+    drsr: &mut &mut DRSR,
+  ) -> crate::Result<()> {
+    <GraphQlResponse<D, E>>::seq_from_bytes(buffer, bytes, drsr)
+  }
+}
+
+impl<D, E> Serialize<()> for GraphQlResponse<D, E> {
+  #[inline]
+  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
+    Ok(())
+  }
+}
+
+impl<D, DRSR, E> Serialize<&mut DRSR> for GraphQlResponse<D, E>
+where
+  GraphQlResponse<D, E>: Serialize<DRSR>,
+{
+  #[inline]
+  fn to_bytes(&mut self, bytes: &mut Vector<u8>, drsr: &mut &mut DRSR) -> crate::Result<()> {
+    self.to_bytes(bytes, drsr)
+  }
 }
 
 #[cfg(feature = "serde")]

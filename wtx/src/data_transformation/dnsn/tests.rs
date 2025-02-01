@@ -16,7 +16,7 @@ impl<EREQC, ERESC> FooBar<EREQC, ERESC> {
   }
 }
 
-impl<DRSR, EREQC, ERESC> Package<(), DRSR, ()> for FooBar<EREQC, ERESC>
+impl<DRSR, EREQC, ERESC, T> Package<(), DRSR, T, ()> for FooBar<EREQC, ERESC>
 where
   EREQC: Serialize<DRSR>,
   ERESC: for<'de> Deserialize<'de, DRSR>,
@@ -67,7 +67,7 @@ macro_rules! _create_dnsn_test {
     mod $name {
       use crate::{
         client_api_framework::{
-          network::transport::{Mock, SendingRecievingTransport},
+          network::transport::{Mock, SendingReceivingTransport},
           pkg::PkgsAux,
         },
         data_transformation::{

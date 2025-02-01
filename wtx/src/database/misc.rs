@@ -14,6 +14,8 @@ where
   ID: Decode<'exec, D> + PartialEq,
 {
   let initial_col_idx = *curr_field_idx;
+  let prev_record_idx = *curr_record_idx;
+  let mut next_col_idx = *curr_field_idx;
   loop {
     let Some(curr_record) = records.get(*curr_record_idx) else {
       break;
@@ -21,11 +23,14 @@ where
     let local_parent_record_id = curr_record.decode::<_, ID>(parent_record_id_column_idx)?;
     if local_parent_record_id == parent_record_id {
       entity_cb(T::from_records((curr_field_idx, &curr_record, curr_record_idx), records)?)?;
+      next_col_idx = *curr_field_idx;
       *curr_field_idx = initial_col_idx;
       *curr_record_idx = curr_record_idx.wrapping_add(1);
     } else {
       break;
     }
   }
+  *curr_field_idx = next_col_idx;
+  *curr_record_idx = prev_record_idx;
   Ok(())
 }

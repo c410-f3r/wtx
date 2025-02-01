@@ -8,8 +8,6 @@ pub(crate) enum TransportGroup {
   Custom(TokenStream),
   Http,
   Stub,
-  Tcp,
-  Udp,
   WebSocket,
 }
 
@@ -24,8 +22,6 @@ impl<'attrs> TryFrom<&'attrs NestedMeta> for TransportGroup {
         Ok(match ps.ident.to_string().as_str() {
           "http" => Self::Http,
           "stub" => Self::Stub,
-          "tcp" => Self::Tcp,
-          "udp" => Self::Udp,
           "ws" => Self::WebSocket,
           _ => return err(ps.ident.span()),
         })

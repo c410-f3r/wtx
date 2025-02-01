@@ -7,41 +7,42 @@ use crate::{
     pkg::{Package, PkgsAux},
     Api,
   },
-  misc::{Lock, StreamWriter, Vector},
+  misc::{LeaseMut, Lock, StreamWriter, Vector},
   web_socket::{
     compression::NegotiatedCompression, Frame, WebSocketCommonPartOwned, WebSocketWriterPartOwned,
   },
 };
 
-impl<C, NC, SW> SendingTransport for WebSocketWriterPartOwned<C, NC, SW, true>
+impl<C, NC, SW, TP> SendingTransport<TP> for WebSocketWriterPartOwned<C, NC, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
   SW: StreamWriter,
+  TP: LeaseMut<WsParams>,
 {
   #[inline]
   async fn send<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
-    pkgs_aux: &mut PkgsAux<A, DRSR, WsParams>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
-    P: Package<A, DRSR, WsParams>,
+    P: Package<A, DRSR, Self::Inner, TP>,
   {
     send(pkg, pkgs_aux, self, cb).await?;
     Ok(())
   }
 }
 
-impl<C, NC, SW> Transport for WebSocketWriterPartOwned<C, NC, SW, true>
+impl<C, NC, SW, TP> Transport<TP> for WebSocketWriterPartOwned<C, NC, SW, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
   SW: StreamWriter,
 {
-  const GROUP: TransportGroup = TransportGroup::TCP;
-  type Params = WsParams;
+  const GROUP: TransportGroup = TransportGroup::WebSocket;
+  type Inner = Self;
 }
 
 async fn cb<C, NC, SW>(

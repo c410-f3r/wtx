@@ -32,6 +32,12 @@ macro_rules! create_packages_aux_wrapper {
       pub fn from_minimum(api: $api_ty, drsr: DRSR, tp: TP) -> Self {
         Self($crate::client_api_framework::pkg::PkgsAux::from_minimum(api, drsr, tp))
       }
+
+      /// Proxy of [`$crate::client_api_framework::pkg::PkgsAux::new`].
+      #[inline]
+      pub fn new(api: $api_ty, byte_buffer: $crate::misc::Vector<u8>, drsr: DRSR, tp: TP) -> Self {
+        Self($crate::client_api_framework::pkg::PkgsAux::new(api, byte_buffer, drsr, tp))
+      }
     }
 
     impl<$($api_param,)? DRSR, TP> core::ops::Deref for $name<$api_ty, DRSR, TP>

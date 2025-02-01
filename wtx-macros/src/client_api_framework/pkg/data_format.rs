@@ -17,17 +17,19 @@ impl DataFormat {
   pub(crate) fn before_sending_defaults(&self, tg: &TransportGroup) -> TokenStream {
     macro_rules! http_method_and_mime_type {
       ($method:ident, $mime:ident) => {
-        quote::quote!(
-          _ext_req_params.method = wtx::http::Method::$method;
-          _ext_req_params.mime = Some(wtx::http::Mime::$mime);
-        )
+        quote::quote!({
+          use wtx::client_api_framework::network::transport::TransportParams;
+          _trans_params.ext_req_params_mut().method = wtx::http::Method::$method;
+          _trans_params.ext_req_params_mut().mime = Some(wtx::http::Mime::$mime);
+        })
       };
     }
     macro_rules! http_mime_type {
       ($mime:ident) => {
-        quote::quote!(
-          _ext_req_params.mime = Some(wtx::http::Mime::$mime);
-        )
+        quote::quote!({
+          use wtx::client_api_framework::network::transport::TransportParams;
+          _trans_params.ext_req_params_mut().mime = Some(wtx::http::Mime::$mime);
+        })
       };
     }
     macro_rules! rslt {

@@ -71,8 +71,8 @@ pub(crate) fn api(
   let generic_pair_tt = quote::quote_spanned!(api_ident.span() =>
     #[allow(unused_qualifications)]
     #[doc = concat!("[wtx::client_api_framework::misc::Pair] with [", stringify!(#api_ident), "] as the API.")]
-    pub type #generic_pair_ident<DRSR, T, #api_params> = wtx::client_api_framework::misc::Pair<
-      #pkgs_aux_path<#api_ident<#api_params>, DRSR, <T as wtx::client_api_framework::network::transport::Transport>::Params>,
+    pub type #generic_pair_ident<DRSR, T, TP, #api_params> = wtx::client_api_framework::misc::Pair<
+      #pkgs_aux_path<#api_ident<#api_params>, DRSR, TP>,
       T
     >;
   );
@@ -100,8 +100,6 @@ pub(crate) fn api(
       }
       TransportGroup::Http => ["Http", "HttpParams"],
       TransportGroup::Stub => ["Stub", "()"],
-      TransportGroup::Tcp => ["Tcp", "TcpParams"],
-      TransportGroup::Udp => ["Udp", "UdpParams"],
       TransportGroup::WebSocket => ["Ws", "WsParams"],
     };
     let local_tp_ident = Ident::new(params, Span::mixed_site());

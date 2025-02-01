@@ -71,7 +71,7 @@ impl From<Error> for syn::Error {
       Error::BadAfterSending(span) => syn::Error::new(
         span,
         "`#[pkg::after_sending]` must be an async function named `after_sending` containing any \
-        combination of `api: &mut SomeApi`, `params: &mut SomePackageParams`, `req_bytes: &[u8]`, \
+        combination of `api: &mut SomeApi`, `params: &mut SomePackageParams`, `bytes: &[u8]`, \
         and `req_params: &mut SomeRequestParams`.",
       ),
       Error::BadAux(span) => syn::Error::new(
