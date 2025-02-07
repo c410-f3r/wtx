@@ -37,10 +37,6 @@ where
     T: Display,
     U: Lease<Option<T>>,
   {
-    if let Some(value) = opt.lease() {
-      self.write(param, value)
-    } else {
-      Ok(self)
-    }
+    if let Some(value) = opt.lease() { self.write(param, value) } else { Ok(self) }
   }
 }

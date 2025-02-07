@@ -1,6 +1,7 @@
 use crate::{
   http::{Header, KnownHeaderName, Method, ReqResBuffer},
   http2::{
+    Http2Error, Http2Params,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     hpack_decoder::HpackDecoder,
@@ -9,9 +10,8 @@ use crate::{
     misc::{protocol_err, trim_frame_pad},
     u31::U31,
     uri_buffer::UriBuffer,
-    Http2Error, Http2Params,
   },
-  misc::{from_utf8_basic, ArrayString, FromRadix10, LeaseMut, Usize},
+  misc::{ArrayString, FromRadix10, LeaseMut, Usize, from_utf8_basic},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.

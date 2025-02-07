@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::{arguments::manage_path, Endpoint, ResFinalizer, RouteMatch, StateGeneric},
     AutoStream, ReqResBuffer, StatusCode,
+    server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric, arguments::manage_path},
   },
   misc::{FnFut, FnFutWrapper},
 };

@@ -25,16 +25,18 @@ macro_rules! _serial_id {
   };
 }
 
+#[cfg(feature = "mysql")]
+pub(crate) mod mysql;
 #[cfg(feature = "postgres")]
 pub(crate) mod postgres;
 
 use crate::{
   database::{
+    Database, DatabaseTy, FromRecord,
     executor::Executor,
     schema_manager::{DbMigration, MigrationGroup, UserMigration},
-    Database, DatabaseTy, FromRecord,
   },
-  misc::{Lease, Vector},
+  misc::{DEController, Lease, Vector},
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -67,7 +69,7 @@ pub(crate) async fn _insert_migrations<'migration, DBS, E, I, S>(
   mg: &MigrationGroup<S>,
   migrations: I,
   schema_prefix: &str,
-) -> Result<(), <E::Database as Database>::Error>
+) -> Result<(), <E::Database as DEController>::Error>
 where
   DBS: Lease<[DatabaseTy]> + 'migration,
   E: Executor,
@@ -135,7 +137,7 @@ pub(crate) async fn _migrations_by_mg_version_query<E, D>(
   schema_prefix: &str,
 ) -> crate::Result<()>
 where
-  D: Database<Error = crate::Error>,
+  D: Database<Aux = (), Error = crate::Error>,
   E: Executor<Database = D>,
   DbMigration: FromRecord<E::Database>,
 {

@@ -1,6 +1,6 @@
 #![allow(clippy::as_conversions, reason = "address is only used as an heuristic to retrieve locks")]
 
-use crate::misc::{sync::seq_lock::SeqLock, CachePadded};
+use crate::misc::{CachePadded, sync::seq_lock::SeqLock};
 use core::{
   cell::UnsafeCell,
   fmt::{Debug, Formatter},

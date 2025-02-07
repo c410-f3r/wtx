@@ -1,7 +1,7 @@
 use crate::misc::single_elem;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens as _;
-use syn::{punctuated::Punctuated, Meta, NestedMeta, Path, PathSegment, Token};
+use syn::{Meta, NestedMeta, Path, PathSegment, Token, punctuated::Punctuated};
 
 #[derive(Debug)]
 pub(crate) enum TransportGroup {

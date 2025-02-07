@@ -40,8 +40,6 @@ pub enum Error {
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
-  #[cfg(feature = "embedded-tls")]
-  EmbassyTlsError(embedded_tls::TlsError),
   #[cfg(feature = "flate2")]
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
@@ -134,7 +132,7 @@ pub enum Error {
   },
   /// Unexpected Unsigned integer
   UnexpectedUint {
-    received: u32,
+    received: u64,
   },
   /// Only appending is possible but overwritten is still viable through resetting.
   UriCanNotBeOverwritten,
@@ -157,6 +155,8 @@ pub enum Error {
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
   Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
+  #[cfg(feature = "mysql")]
+  MysqlError(crate::database::client::mysql::MysqlError),
   #[cfg(feature = "postgres")]
   PostgresError(crate::database::client::postgres::PostgresError),
   QueueError(DequeueError),
@@ -267,14 +267,6 @@ impl From<base64::EncodeSliceError> for Error {
   #[inline]
   fn from(from: base64::EncodeSliceError) -> Self {
     Self::EncodeSliceError(from)
-  }
-}
-
-#[cfg(feature = "embedded-tls")]
-impl From<embedded_tls::TlsError> for Error {
-  #[inline]
-  fn from(from: embedded_tls::TlsError) -> Self {
-    Self::EmbassyTlsError(from)
   }
 }
 
@@ -532,6 +524,14 @@ impl From<FromRadix10Error> for Error {
   #[inline]
   fn from(from: FromRadix10Error) -> Self {
     Self::FromRadix10Error(from)
+  }
+}
+
+#[cfg(feature = "mysql")]
+impl From<crate::database::client::mysql::MysqlError> for Error {
+  #[inline]
+  fn from(from: crate::database::client::mysql::MysqlError) -> Self {
+    Self::MysqlError(from)
   }
 }
 

@@ -4,10 +4,10 @@ mod keywords {
 
 use crate::misc::parts_from_generics;
 use syn::{
+  Data, DeriveInput, Fields, GenericParam, Ident, Path, Type,
   parse::{Parse, ParseStream},
   parse_macro_input,
   spanned::Spanned as _,
-  Data, DeriveInput, Fields, GenericParam, Ident, Path, Type,
 };
 
 pub(crate) fn from_records(
@@ -30,7 +30,7 @@ pub(crate) fn from_records(
   let additional_where_predicates = params.iter().filter_map(|el| {
     if let GenericParam::Type(type_param) = el {
       let ident = &type_param.ident;
-      Some(quote::quote! { #ident: wtx::database::Decode<'exec, #database>, })
+      Some(quote::quote! { #ident: wtx::misc::Decode<'exec, #database>, })
     } else {
       None
     }

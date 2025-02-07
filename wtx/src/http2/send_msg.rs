@@ -28,6 +28,7 @@ macro_rules! init {
 use crate::{
   http::{Headers, Trailers},
   http2::{
+    Http2Buffer, Http2Data, Http2Error, Http2SendStatus, SendDataMode,
     continuation_frame::ContinuationFrame,
     data_frame::DataFrame,
     headers_frame::HeadersFrame,
@@ -39,12 +40,11 @@ use crate::{
     stream_state::StreamState,
     u31::U31,
     window::WindowsPair,
-    Http2Buffer, Http2Data, Http2Error, Http2SendStatus, SendDataMode,
   },
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
 };
 use core::{
-  future::{poll_fn, Future},
+  future::{Future, poll_fn},
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},
   task::{Poll, Waker},

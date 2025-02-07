@@ -1,4 +1,4 @@
-# Fulfillments Binaries
+# Fulfillment Binaries
 
 [[bin]]
 name = "autobahn-client"
@@ -26,6 +26,11 @@ path = "src/bin/h2spec-low-server.rs"
 required-features = ["wtx/http2", "wtx/nightly"]
 
 # Database Examples
+
+[[example]]
+name = "database-client-mysql"
+path = "database-examples/database-client-mysql.rs"
+required-features = ["wtx/mysql"]
 
 [[example]]
 name = "database-client-postgres"
@@ -140,10 +145,11 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 
 [features]
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
+mysql = ["wtx/mysql"]
 postgres = ["wtx/postgres"]
 
 [package]
-edition = "2021"
+edition = "2024"
 name = "wtx-instances"
 publish = false
 version = "0.0.0"

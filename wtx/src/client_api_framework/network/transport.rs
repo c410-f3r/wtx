@@ -6,7 +6,7 @@ mod sending_receiving_transport;
 mod sending_transport;
 mod transport_params;
 mod unit;
-#[cfg(feature = "http-client-pool")]
+#[cfg(feature = "http2")]
 mod wtx_http;
 #[cfg(feature = "web-socket")]
 mod wtx_ws;
@@ -47,8 +47,8 @@ where
 mod tests {
   use crate::{
     client_api_framework::pkg::Package,
-    data_transformation::dnsn::{Deserialize, Serialize},
-    misc::Vector,
+    data_transformation::dnsn::{De, DecodeWrapper, EncodeWrapper},
+    misc::{Decode, DecodeSeq, Encode, Vector},
   };
 
   #[derive(Debug, Eq, PartialEq)]
@@ -83,10 +83,10 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Ping;
 
-  impl<DRSR> Serialize<DRSR> for _Ping {
+  impl<DRSR> Encode<De<DRSR>> for _Ping {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut DRSR) -> crate::Result<()> {
-      bytes.extend_from_copyable_slice(b"ping")?;
+    fn encode(&self, _: &mut DRSR, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+      ew.vector.extend_from_copyable_slice(b"ping")?;
       Ok(())
     }
   }
@@ -94,15 +94,18 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Pong(pub(crate) &'static str);
 
-  impl<'de, DRSR> Deserialize<'de, DRSR> for _Pong {
-    #[inline]
-    fn from_bytes(bytes: &[u8], _: &mut DRSR) -> crate::Result<Self> {
-      assert_eq!(bytes, b"ping");
+  impl<'de, DRSR> Decode<'de, De<DRSR>> for _Pong {
+    fn decode(_: &mut DRSR, _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
       Ok(Self("pong"))
     }
+  }
 
-    #[inline]
-    fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut DRSR) -> crate::Result<()> {
+  impl<'de, DRSR> DecodeSeq<'de, De<DRSR>> for _Pong {
+    fn decode_seq(
+      _: &mut DRSR,
+      _: &mut Vector<Self>,
+      _: &mut DecodeWrapper<'de>,
+    ) -> crate::Result<()> {
       Ok(())
     }
   }

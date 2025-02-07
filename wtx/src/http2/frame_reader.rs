@@ -20,6 +20,7 @@ macro_rules! prft {
 
 use crate::{
   http2::{
+    Http2Buffer, Http2Data, Http2Error,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
     misc::{process_higher_operation_err, protocol_err, read_frame, send_go_away, write_array},
@@ -27,19 +28,18 @@ use crate::{
     process_receipt_frame_ty::ProcessReceiptFrameTy,
     settings_frame::SettingsFrame,
     window_update_frame::WindowUpdateFrame,
-    Http2Buffer, Http2Data, Http2Error,
   },
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, Arc, AtomicWaker, LeaseMut, Lock,
-    RefCounter, StreamReader, StreamWriter,
+    Arc, AtomicWaker, LeaseMut, Lock, RefCounter, StreamReader, StreamWriter,
+    partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 use core::{
-  future::{poll_fn, Future},
+  future::{Future, poll_fn},
   mem,
   pin::pin,
   sync::atomic::AtomicBool,
-  task::{ready, Poll},
+  task::{Poll, ready},
 };
 
 pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(

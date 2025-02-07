@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
     AutoStream, ManualStream, OperationMode, Response, StatusCode,
+    server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
   },
   misc::{ArrayVector, Vector},
 };

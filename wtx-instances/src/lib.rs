@@ -18,12 +18,12 @@
 #[cfg(feature = "grpc")]
 pub mod grpc_bindings;
 
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "mysql", feature = "postgres"))]
 use {
   tokio::net::TcpStream,
   wtx::{
-    database::client::postgres::{Config, Executor, ExecutorBuffer},
-    misc::{simple_seed, Uri, Xorshift64},
+    database::client::{mysql, postgres},
+    misc::{Uri, Xorshift64, simple_seed},
   },
 };
 
@@ -34,16 +34,30 @@ pub static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
+#[cfg(feature = "mysql")]
+#[inline]
+pub async fn executor_mysql(
+  uri_str: &str,
+) -> wtx::Result<mysql::MysqlExecutor<wtx::Error, mysql::ExecutorBuffer, TcpStream>> {
+  let uri = Uri::new(uri_str);
+  mysql::MysqlExecutor::connect(
+    &mysql::Config::from_uri(&uri)?,
+    mysql::ExecutorBuffer::new(),
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
+  )
+  .await
+}
+
 #[cfg(feature = "postgres")]
 #[inline]
 pub async fn executor_postgres(
   uri_str: &str,
-) -> wtx::Result<Executor<wtx::Error, ExecutorBuffer, TcpStream>> {
+) -> wtx::Result<postgres::PostgresExecutor<wtx::Error, postgres::ExecutorBuffer, TcpStream>> {
   let uri = Uri::new(uri_str);
   let mut rng = Xorshift64::from(simple_seed());
-  Executor::connect(
-    &Config::from_uri(&uri)?,
-    ExecutorBuffer::new(usize::MAX, &mut rng),
+  postgres::PostgresExecutor::connect(
+    &postgres::Config::from_uri(&uri)?,
+    postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
   )

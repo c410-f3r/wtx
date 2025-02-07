@@ -1,6 +1,7 @@
 use crate::{
   http::{Headers, StatusCode},
   http2::{
+    Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus, SendDataMode,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{check_content_length, frame_reader_rslt, sorp_mut, status_recv, status_send},
     send_data_mode::SendDataModeBytes,
@@ -9,16 +10,15 @@ use crate::{
     },
     u31::U31,
     window::WindowsPair,
-    Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus, SendDataMode,
   },
-  misc::{facades::span::_Span, Arc, LeaseMut, Lock, RefCounter, StreamWriter, Vector},
+  misc::{Arc, LeaseMut, Lock, RefCounter, StreamWriter, Vector, facades::span::_Span},
 };
 use core::{
-  future::{poll_fn, Future},
+  future::{Future, poll_fn},
   mem,
   pin::pin,
   sync::atomic::AtomicBool,
-  task::{ready, Poll},
+  task::{Poll, ready},
 };
 
 /// Groups common client and server operations as well as low level methods that deal with

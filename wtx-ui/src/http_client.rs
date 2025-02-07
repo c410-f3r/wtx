@@ -1,8 +1,8 @@
 use crate::clap::HttpClient;
 use std::{fs::OpenOptions, io::Write};
 use wtx::{
-  http::{client_pool::ClientPoolBuilder, Header, KnownHeaderName, ReqBuilder, ReqResBuffer},
-  misc::{from_utf8_basic, str_split_once1, tracing_tree_init, Uri},
+  http::{Header, KnownHeaderName, ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
+  misc::{Uri, from_utf8_basic, str_split_once1, tracing_tree_init},
 };
 
 pub(crate) async fn http_client(http_client: HttpClient) {

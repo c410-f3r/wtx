@@ -1,7 +1,7 @@
 use crate::{
   database::{
-    schema_manager::{integration_tests::AuxTestParams, Commands, DbMigration, SchemaManagement},
     Identifier,
+    schema_manager::{Commands, DbMigration, SchemaManagement, integration_tests::AuxTestParams},
   },
   misc::Vector,
 };

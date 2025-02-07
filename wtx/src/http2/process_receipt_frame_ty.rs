@@ -1,6 +1,7 @@
 use crate::{
   http::{HttpError, StatusCode},
   http2::{
+    Http2Error, Http2ErrorCode, Http2Params, Scrp, Sorp,
     data_frame::DataFrame,
     frame_init::FrameInit,
     hpack_decoder::HpackDecoder,
@@ -17,11 +18,10 @@ use crate::{
     uri_buffer::UriBuffer,
     window::{Windows, WindowsPair},
     window_update_frame::WindowUpdateFrame,
-    Http2Error, Http2ErrorCode, Http2Params, Scrp, Sorp,
   },
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, AtomicWaker, StreamReader, StreamWriter,
-    NOOP_WAKER,
+    AtomicWaker, NOOP_WAKER, StreamReader, StreamWriter,
+    partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 use core::{mem, sync::atomic::AtomicBool, task::Waker};

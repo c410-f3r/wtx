@@ -1,9 +1,11 @@
-use crate::database::client::postgres::{statements::statement::Statement, Postgres, Record};
+use crate::database::client::postgres::{
+  Postgres, PostgresRecord, statements::statement::Statement,
+};
 use core::{marker::PhantomData, ops::Range};
 
 /// Records
 #[derive(Debug)]
-pub struct Records<'exec, E> {
+pub struct PostgresRecords<'exec, E> {
   pub(crate) bytes: &'exec [u8],
   pub(crate) phantom: PhantomData<fn() -> E>,
   /// Each element represents a record and an offset of `values_bytes_offsets`.
@@ -13,7 +15,7 @@ pub struct Records<'exec, E> {
   pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
-impl<'exec, E> Records<'exec, E> {
+impl<'exec, E> PostgresRecords<'exec, E> {
   #[inline]
   pub(crate) fn _new(
     bytes: &'exec [u8],
@@ -25,14 +27,14 @@ impl<'exec, E> Records<'exec, E> {
   }
 }
 
-impl<'exec, E> crate::database::Records<'exec> for Records<'exec, E>
+impl<'exec, E> crate::database::Records<'exec> for PostgresRecords<'exec, E>
 where
   E: From<crate::Error>,
 {
   type Database = Postgres<E>;
 
   #[inline]
-  fn get(&self, record_idx: usize) -> Option<Record<'exec, E>> {
+  fn get(&self, record_idx: usize) -> Option<PostgresRecord<'exec, E>> {
     let slice = self.records_values_offsets.get(..record_idx.wrapping_add(1))?;
     let (record_bytes_range, record_values_bytes_offsets) = match slice {
       [] => return None,
@@ -51,7 +53,7 @@ where
       }
     };
     let initial_value_offset = record_bytes_range.start;
-    Some(Record {
+    Some(PostgresRecord {
       bytes: self.bytes.get(record_bytes_range)?,
       initial_value_offset,
       stmt: self.stmt.clone(),
@@ -61,7 +63,7 @@ where
   }
 
   #[inline]
-  fn iter(&self) -> impl Iterator<Item = Record<'exec, E>> {
+  fn iter(&self) -> impl Iterator<Item = PostgresRecord<'exec, E>> {
     (0..self.len()).filter_map(|idx| self.get(idx))
   }
 
@@ -71,7 +73,7 @@ where
   }
 }
 
-impl<E> Default for Records<'_, E> {
+impl<E> Default for PostgresRecords<'_, E> {
   #[inline]
   fn default() -> Self {
     Self {
@@ -88,12 +90,12 @@ impl<E> Default for Records<'_, E> {
 mod tests {
   use crate::{
     database::{
+      Record as _, Records as _,
       client::postgres::{
+        DecodeWrapper, PostgresRecord, PostgresRecords, Ty,
         statements::statement::Statement,
         tests::{column0, column1, column2},
-        DecodeValue, Record, Records, Ty,
       },
-      Record as _, Records as _,
     },
     misc::Vector,
   };
@@ -106,8 +108,8 @@ mod tests {
     let mut records_values_offsets = Vector::new();
     let mut values_bytes_offsets = Vector::new();
     assert_eq!(
-      Record::parse(bytes, 0..12, stmt.clone(), &mut values_bytes_offsets, 2).unwrap(),
-      Record::<crate::Error>::_new(
+      PostgresRecord::parse(bytes, 0..12, stmt.clone(), &mut values_bytes_offsets, 2).unwrap(),
+      PostgresRecord::<crate::Error>::_new(
         &[1, 2, 0, 0, 0, 2, 3, 4],
         0,
         stmt.clone(),
@@ -116,12 +118,12 @@ mod tests {
     );
     records_values_offsets.push(values_bytes_offsets.len()).unwrap();
     assert_eq!(
-      Record::parse(bytes, 17..25, stmt.clone(), &mut values_bytes_offsets, 1).unwrap(),
-      Record::<crate::Error>::_new(&[5, 6, 7, 8], 17, stmt.clone(), &[(false, 17..21)])
+      PostgresRecord::parse(bytes, 17..25, stmt.clone(), &mut values_bytes_offsets, 1).unwrap(),
+      PostgresRecord::<crate::Error>::_new(&[5, 6, 7, 8], 17, stmt.clone(), &[(false, 17..21)])
     );
     records_values_offsets.push(values_bytes_offsets.len()).unwrap();
 
-    let records = Records::<crate::Error>::_new(
+    let records = PostgresRecords::<crate::Error>::_new(
       &bytes[4..],
       &records_values_offsets,
       stmt.clone(),
@@ -135,18 +137,21 @@ mod tests {
     let first_record = records.get(0).unwrap();
     assert_eq!(
       &first_record,
-      &Record::<crate::Error>::_new(
+      &PostgresRecord::<crate::Error>::_new(
         &[1, 2, 0, 0, 0, 2, 3, 4],
         0,
         stmt.clone(),
         &[(false, 0..2), (false, 6..8)]
       )
     );
-    assert_eq!(first_record.value(0).unwrap(), DecodeValue::new(&[1, 2], column0().ty));
-    assert_eq!(first_record.value(1).unwrap(), DecodeValue::new(&[3, 4], column1().ty));
+    assert_eq!(first_record.value(0).unwrap(), DecodeWrapper::new(&[1, 2], column0().ty));
+    assert_eq!(first_record.value(1).unwrap(), DecodeWrapper::new(&[3, 4], column1().ty));
 
     let second_record = records.get(1).unwrap();
-    assert_eq!(&second_record, &Record::_new(&[5, 6, 7, 8], 17, stmt.clone(), &[(false, 17..21)]));
+    assert_eq!(
+      &second_record,
+      &PostgresRecord::_new(&[5, 6, 7, 8], 17, stmt.clone(), &[(false, 17..21)])
+    );
 
     assert_eq!(records.iter().count(), 2);
   }

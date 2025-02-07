@@ -1,9 +1,9 @@
 #[cfg(feature = "schema-manager-dev")]
 use {
   crate::database::{
-    client::postgres::Postgres, schema_manager::fixed_sql_commands::postgres,
-    schema_manager::integration_tests, schema_manager::Commands, schema_manager::DbMigration,
-    schema_manager::SchemaManagement, FromRecord, Identifier,
+    FromRecord, Identifier, client::postgres::Postgres, schema_manager::Commands,
+    schema_manager::DbMigration, schema_manager::SchemaManagement,
+    schema_manager::fixed_sql_commands::postgres, schema_manager::integration_tests,
   },
   crate::misc::Vector,
   alloc::string::String,

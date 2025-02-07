@@ -1,6 +1,6 @@
 use crate::http2::{
-  hpack_encoder::HpackEncoder, settings_frame::SettingsFrame, u31::U31, Scrp, Sorp, Window,
-  MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN,
+  MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN, Scrp, Sorp,
+  Window, hpack_encoder::HpackEncoder, settings_frame::SettingsFrame, u31::U31,
 };
 use core::cmp::Ordering;
 

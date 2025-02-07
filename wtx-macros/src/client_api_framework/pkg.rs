@@ -23,10 +23,9 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens as _;
 use sir::{sir_final_values::SirFinalValues, sir_pkg_attr::SirPkaAttr};
 use syn::{
-  parse_macro_input,
+  AttributeArgs, Generics, Item, ItemMod, ItemType, VisPublic, Visibility, parse_macro_input,
   punctuated::Punctuated,
   token::{Eq, Pub, Semi, Type},
-  AttributeArgs, Generics, Item, ItemMod, ItemType, VisPublic, Visibility,
 };
 
 pub(crate) fn pkg(

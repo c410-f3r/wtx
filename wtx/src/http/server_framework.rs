@@ -25,7 +25,7 @@ mod tests;
 mod tokio;
 
 use crate::{
-  http::{conn_params::ConnParams, AutoStream, OperationMode, ReqResBuffer, Response},
+  http::{AutoStream, OperationMode, ReqResBuffer, Response, conn_params::ConnParams},
   misc::{Arc, ArrayVector},
 };
 pub use arguments::*;
@@ -34,10 +34,10 @@ pub use cors_middleware::CorsMiddleware;
 pub use endpoint::Endpoint;
 pub use endpoint_node::EndpointNode;
 pub use methods::{
-  get::{get, Get},
-  json::{json, Json},
-  post::{post, Post},
-  web_socket::{web_socket, WebSocket},
+  get::{Get, get},
+  json::{Json, json},
+  post::{Post, post},
+  web_socket::{WebSocket, web_socket},
 };
 pub use middleware::Middleware;
 pub use path_params::PathParams;

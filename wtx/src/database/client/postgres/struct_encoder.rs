@@ -1,28 +1,31 @@
-use crate::database::{
-  client::postgres::{EncodeValue, Postgres, Ty},
-  Encode, Typed,
+use crate::{
+  database::{
+    Typed,
+    client::postgres::{EncodeWrapper, Postgres, Ty},
+  },
+  misc::Encode,
 };
 use core::marker::PhantomData;
 
 /// Encodes a Rust struct into a custom PostgreSQL type that represents a table.
 #[derive(Debug)]
-pub struct StructEncoder<'buffer, 'ev, 'tmp, E> {
-  ev: &'ev mut EncodeValue<'buffer, 'tmp>,
+pub struct StructEncoder<'buffer, 'ew, 'tmp, E> {
+  ew: &'ew mut EncodeWrapper<'buffer, 'tmp>,
   len: u32,
   phantom: PhantomData<fn() -> E>,
   start: usize,
 }
 
-impl<'buffer, 'ev, 'tmp, E> StructEncoder<'buffer, 'ev, 'tmp, E>
+impl<'buffer, 'ew, 'tmp, E> StructEncoder<'buffer, 'ew, 'tmp, E>
 where
   E: From<crate::Error>,
 {
   /// Pushes initial encoding data.
   #[inline]
-  pub fn new(ev: &'ev mut EncodeValue<'buffer, 'tmp>) -> Result<Self, E> {
-    let start = ev.fbw()._len();
-    ev.fbw().extend_from_slice(&[0; 4])?;
-    Ok(Self { ev, len: 0, phantom: PhantomData, start })
+  pub fn new(ew: &'ew mut EncodeWrapper<'buffer, 'tmp>) -> Result<Self, E> {
+    let start = ew.sw()._len();
+    ew.sw().extend_from_slice(&[0; 4])?;
+    Ok(Self { ew, len: 0, phantom: PhantomData, start })
   }
 
   /// Encodes `value` with the [`Ty`] originated from [`Typed`].
@@ -40,16 +43,16 @@ where
   where
     T: Encode<Postgres<E>>,
   {
-    self.ev.fbw().extend_from_slice(&u32::from(ty).to_be_bytes())?;
+    self.ew.sw().extend_from_slice(&u32::from(ty).to_be_bytes())?;
     if value.is_null() {
-      self.ev.fbw().extend_from_slice(&(-1i32).to_be_bytes())?;
+      self.ew.sw().extend_from_slice(&(-1i32).to_be_bytes())?;
     } else {
-      let len_start = self.ev.fbw()._len();
-      self.ev.fbw().extend_from_slice(&[0; 4])?;
-      let elem_start = self.ev.fbw()._len();
-      value.encode(self.ev)?;
-      let len = self.ev.fbw()._len().wrapping_sub(elem_start).try_into().unwrap_or_default();
-      write_len(self.ev, len_start, len);
+      let len_start = self.ew.sw()._len();
+      self.ew.sw().extend_from_slice(&[0; 4])?;
+      let elem_start = self.ew.sw()._len();
+      value.encode(&mut (), self.ew)?;
+      let len = self.ew.sw()._len().wrapping_sub(elem_start).try_into().unwrap_or_default();
+      write_len(self.ew, len_start, len);
     }
     self.len = self.len.wrapping_add(1);
     Ok(self)
@@ -59,13 +62,13 @@ where
 impl<E> Drop for StructEncoder<'_, '_, '_, E> {
   #[inline]
   fn drop(&mut self) {
-    write_len(self.ev, self.start, self.len);
+    write_len(self.ew, self.start, self.len);
   }
 }
 
 #[inline]
-fn write_len(ev: &mut EncodeValue<'_, '_>, start: usize, len: u32) {
-  let Some([a, b, c, d, ..]) = ev.fbw()._curr_bytes_mut().get_mut(start..) else {
+fn write_len(ew: &mut EncodeWrapper<'_, '_>, start: usize, len: u32) {
+  let Some([a, b, c, d, ..]) = ew.sw()._curr_bytes_mut().get_mut(start..) else {
     return;
   };
   let [e, f, g, h] = len.to_be_bytes();

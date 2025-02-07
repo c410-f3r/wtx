@@ -1,7 +1,7 @@
 use crate::{
-  client_api_framework::{pkg::Package, Api},
-  data_transformation::dnsn::Serialize,
-  misc::Vector,
+  client_api_framework::{Api, pkg::Package},
+  data_transformation::dnsn::De,
+  misc::{Encode, Vector},
 };
 use core::marker::PhantomData;
 
@@ -20,7 +20,7 @@ impl<'slice, A, DRSR, P, T, TP> BatchPkg<'slice, A, DRSR, P, T, TP> {
 impl<'slice, A, DRSR, P, T, TP> Package<A, DRSR, T, TP> for BatchPkg<'slice, A, DRSR, P, T, TP>
 where
   A: Api,
-  BatchElems<'slice, A, DRSR, P, T, TP>: Serialize<DRSR>,
+  BatchElems<'slice, A, DRSR, P, T, TP>: Encode<De<DRSR>>,
   P: Package<A, DRSR, T, TP>,
 {
   type ExternalRequestContent = BatchElems<'slice, A, DRSR, P, T, TP>;
@@ -33,7 +33,7 @@ where
     (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
     (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
-    for elem in &mut *self.0 .0 {
+    for elem in &mut *self.0.0 {
       elem.after_sending((api, bytes, drsr), (trans, trans_params)).await?;
     }
     Ok(())
@@ -45,7 +45,7 @@ where
     (api, bytes, drsr): (&mut A, &mut Vector<u8>, &mut DRSR),
     (trans, trans_params): (&mut T, &mut TP),
   ) -> Result<(), A::Error> {
-    for elem in &mut *self.0 .0 {
+    for elem in &mut *self.0.0 {
       elem.before_sending((api, bytes, drsr), (trans, trans_params)).await?;
     }
     Ok(())
@@ -80,17 +80,16 @@ pub struct BatchElems<'slice, A, DRSR, P, T, TP>(&'slice mut [P], PhantomData<(A
 mod serde_json {
   use crate::{
     client_api_framework::{
+      Api,
       network::transport::Transport,
       pkg::{BatchElems, Package},
-      Api,
     },
-    data_transformation::dnsn::SerdeJson,
-    misc::Vector,
+    data_transformation::dnsn::{De, EncodeWrapper, SerdeJson},
+    misc::Encode,
   };
-  use serde::Serializer;
+  use serde::Serializer as _;
 
-  impl<A, DRSR, P, T, TP> crate::data_transformation::dnsn::Serialize<SerdeJson>
-    for BatchElems<'_, A, DRSR, P, T, TP>
+  impl<A, DRSR, P, T, TP> Encode<De<SerdeJson>> for BatchElems<'_, A, DRSR, P, T, TP>
   where
     A: Api,
     P: Package<A, DRSR, T, TP>,
@@ -98,8 +97,8 @@ mod serde_json {
     T: Transport<TP>,
   {
     #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      serde_json::Serializer::new(bytes)
+    fn encode(&self, _: &mut SerdeJson, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+      serde_json::Serializer::new(&mut *ew.vector)
         .collect_seq(self.0.iter().map(Package::ext_req_content))?;
       Ok(())
     }

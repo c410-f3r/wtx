@@ -10,8 +10,8 @@ macro_rules! call_tests {
 use crate::{
   tests::_uri,
   web_socket::{
-    compression::NegotiatedCompression, Compression, Frame, OpCode, WebSocketAcceptor,
-    WebSocketConnector, WebSocketOwned,
+    Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
+    compression::NegotiatedCompression,
   },
 };
 use core::{

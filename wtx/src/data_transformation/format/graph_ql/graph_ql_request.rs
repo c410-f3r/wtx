@@ -1,4 +1,7 @@
-use crate::{data_transformation::dnsn::Serialize, misc::Vector};
+use crate::{
+  data_transformation::dnsn::{De, DecodeWrapper, EncodeWrapper},
+  misc::{Decode, DecodeSeq, Encode, Vector},
+};
 
 /// `GraphQL` request/operation, can be a query or a mutation.
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -14,44 +17,43 @@ pub struct GraphQlRequest<ON, Q, V> {
   pub variables: Option<V>,
 }
 
-impl<ON, Q, V> Serialize<()> for GraphQlRequest<ON, Q, V> {
+impl<'de, ON, Q, V> Decode<'de, De<()>> for GraphQlRequest<ON, Q, V>
+where
+  Q: Default,
+{
   #[inline]
-  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
+  fn decode(_: &mut (), _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+    Ok(Self { operation_name: None, query: Q::default(), variables: None })
+  }
+}
+
+impl<'de, ON, Q, V> DecodeSeq<'de, De<()>> for GraphQlRequest<ON, Q, V>
+where
+  Q: Default,
+{
+  #[inline]
+  fn decode_seq(_: &mut (), _: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
     Ok(())
   }
 }
 
-impl<DRSR, ON, Q, V> Serialize<&mut DRSR> for GraphQlRequest<ON, Q, V>
-where
-  GraphQlRequest<ON, Q, V>: Serialize<DRSR>,
-{
+impl<ON, Q, V> Encode<De<()>> for GraphQlRequest<ON, Q, V> {
   #[inline]
-  fn to_bytes(&mut self, bytes: &mut Vector<u8>, drsr: &mut &mut DRSR) -> crate::Result<()> {
-    self.to_bytes(bytes, drsr)
+  fn encode(&self, _: &mut (), _: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    Ok(())
   }
 }
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::{
-    data_transformation::{dnsn::SerdeJson, format::GraphQlRequest},
-    misc::Vector,
-  };
+  use crate::data_transformation::{dnsn::SerdeJson, format::GraphQlRequest};
   use serde::Serialize;
 
-  impl<ON, Q, V> crate::data_transformation::dnsn::Serialize<SerdeJson> for GraphQlRequest<ON, Q, V>
-  where
-    ON: Serialize,
-    Q: Serialize,
-    V: Serialize,
-  {
-    #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      if size_of::<Self>() == 0 {
-        return Ok(());
-      }
-      serde_json::to_writer(bytes, self)?;
-      Ok(())
+  _impl_enc! {
+    GraphQlRequest<ON: Serialize, Q: Serialize, V: Serialize>,
+    SerdeJson,
+    |this, _aux, ew| {
+      serde_json::to_writer(&mut *ew.vector, this)?;
     }
   }
 }

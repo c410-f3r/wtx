@@ -7,8 +7,8 @@ use crate::{
 };
 use proc_macro2::Span;
 use syn::{
-  punctuated::Punctuated, GenericParam, ImplItem, ImplItemMethod, Item, Token, Type, Visibility,
-  WherePredicate,
+  GenericParam, ImplItem, ImplItemMethod, Item, Token, Type, Visibility, WherePredicate,
+  punctuated::Punctuated,
 };
 
 #[derive(Debug)]

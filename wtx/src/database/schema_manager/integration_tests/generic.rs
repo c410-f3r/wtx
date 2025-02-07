@@ -1,11 +1,11 @@
 use crate::{
   database::{
+    Identifier,
     schema_manager::{
-      integration_tests::AuxTestParams, Commands, DbMigration, MigrationGroup, SchemaManagement,
+      Commands, DbMigration, MigrationGroup, SchemaManagement, integration_tests::AuxTestParams,
     },
-    Database, Identifier,
   },
-  misc::Vector,
+  misc::{DEController, Vector},
 };
 use alloc::string::String;
 use core::fmt::Debug;
@@ -34,7 +34,7 @@ pub(crate) async fn rollback_works<E>(
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
-  <E::Database as Database>::Error: Debug,
+  <E::Database as DEController>::Error: Debug,
 {
   let path = Path::new("../.test-utils/migrations.toml");
   c.migrate_from_toml_path((buffer_cmd, buffer_db_migrations), path).await.unwrap();

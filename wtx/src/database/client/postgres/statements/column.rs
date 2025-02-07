@@ -1,4 +1,4 @@
-use crate::database::{client::postgres::Ty, Identifier};
+use crate::database::{Identifier, client::postgres::Ty};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Column {

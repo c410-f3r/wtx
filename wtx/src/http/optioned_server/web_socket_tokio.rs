@@ -1,6 +1,6 @@
 use crate::{
   http::OptionedServer,
-  misc::{FnFut, Stream, _number_or_available_parallelism},
+  misc::{_number_or_available_parallelism, FnFut, Stream},
   pool::{SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer},
 };

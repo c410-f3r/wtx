@@ -1,8 +1,7 @@
 use crate::{
   http::{
-    is_web_socket_handshake,
+    AutoStream, ManualStream, OperationMode, StatusCode, is_web_socket_handshake,
     server_framework::{Endpoint, EndpointNode, RouteMatch, ServerFrameworkError},
-    AutoStream, ManualStream, OperationMode, StatusCode,
   },
   misc::{ArrayVector, FnFut, Vector},
 };

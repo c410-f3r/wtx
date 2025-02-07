@@ -1,12 +1,12 @@
 use crate::{
   client_api_framework::{
+    Api,
     misc::log_res,
     network::transport::{RecievingTransport, SendingTransport},
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
-    Api,
   },
-  data_transformation::dnsn::{Deserialize, Serialize},
-  misc::{Lease, Vector},
+  data_transformation::dnsn::{De, DecodeWrapper},
+  misc::{Decode, DecodeSeq, Encode, Lease, Vector},
 };
 use core::{future::Future, ops::Range};
 
@@ -49,15 +49,15 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
   where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
-    BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Serialize<DRSR>,
+    BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Encode<De<DRSR>>,
   {
     async {
       let range = self.send_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      P::ExternalResponseContent::seq_from_bytes(
-        buffer,
-        pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
+      P::ExternalResponseContent::decode_seq(
         &mut pkgs_aux.drsr,
+        buffer,
+        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
       )?;
       Ok(())
     }
@@ -78,9 +78,9 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
     async {
       let range = self.send_recv(pkg, pkgs_aux).await?;
       log_res(pkgs_aux.byte_buffer.lease());
-      Ok(P::ExternalResponseContent::from_bytes(
-        pkgs_aux.byte_buffer.get(range).unwrap_or_default(),
+      Ok(P::ExternalResponseContent::decode(
         &mut pkgs_aux.drsr,
+        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
       )?)
     }
   }

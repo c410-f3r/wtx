@@ -31,11 +31,7 @@ mod httparse {
   impl GenericResponse for httparse::Response<'_, '_> {
     #[inline]
     fn code(&self) -> u16 {
-      if let Some(el) = self.code {
-        el
-      } else {
-        _unreachable()
-      }
+      if let Some(el) = self.code { el } else { _unreachable() }
     }
 
     #[inline]

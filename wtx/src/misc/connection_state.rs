@@ -40,11 +40,7 @@ impl LeaseMut<ConnectionState> for ConnectionState {
 impl From<bool> for ConnectionState {
   #[inline]
   fn from(from: bool) -> Self {
-    if from {
-      Self::Open
-    } else {
-      Self::Closed
-    }
+    if from { Self::Open } else { Self::Closed }
   }
 }
 

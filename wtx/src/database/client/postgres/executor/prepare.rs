@@ -1,6 +1,8 @@
 use crate::{
   database::{
+    RecordValues, StmtCmd,
     client::postgres::{
+      Postgres, PostgresError, PostgresExecutor, Statements,
       executor::commons::FetchWithStmtCommons,
       executor_buffer::ExecutorBuffer,
       message::MessageTy,
@@ -8,17 +10,15 @@ use crate::{
       protocol::{bind, describe, execute, parse, sync},
       statements::{column::Column, statement::Statement, statements_misc::StatementsMisc},
       ty::Ty,
-      Executor, Postgres, PostgresError, Statements,
     },
-    RecordValues, StmtCmd,
   },
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, ArrayString, FilledBufferWriter, LeaseMut,
-    Stream,
+    ArrayString, LeaseMut, Stream, SuffixWriterFbvm,
+    partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 
-impl<E, EB, S> Executor<E, EB, S>
+impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
   E: From<crate::Error>,
   EB: LeaseMut<ExecutorBuffer>,
@@ -36,11 +36,11 @@ where
     RV: RecordValues<Postgres<E>>,
   {
     {
-      let mut fbw = FilledBufferWriter::from(&mut *nb);
-      bind(&mut fbw, "", rv, stmt, stmt_id_str)?;
-      execute(&mut fbw, 0, "")?;
-      sync(&mut fbw)?;
-      fwsc.stream.write_all(fbw._curr_bytes()).await?;
+      let mut sw = SuffixWriterFbvm::from(nb._suffix_writer());
+      bind(&mut sw, "", rv, stmt, stmt_id_str)?;
+      execute(&mut sw, 0, "")?;
+      sync(&mut sw)?;
+      fwsc.stream.write_all(sw._curr_bytes()).await?;
     }
     let msg = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;
     let MessageTy::BindComplete = msg.ty else {
@@ -69,11 +69,11 @@ where
     let stmt_cmd = sc.cmd().ok_or_else(|| E::from(PostgresError::UnknownStatementId.into()))?;
 
     {
-      let mut fbw = FilledBufferWriter::from(&mut *nb);
-      parse(stmt_cmd, &mut fbw, fwsc.tys.iter().copied().map(Into::into), &stmt_id_str)?;
-      describe(&stmt_id_str, &mut fbw, b'S')?;
-      sync(&mut fbw)?;
-      fwsc.stream.write_all(fbw._curr_bytes()).await?;
+      let mut sw = SuffixWriterFbvm::from(nb._suffix_writer());
+      parse(stmt_cmd, &mut sw, fwsc.tys.iter().copied().map(Into::into), &stmt_id_str)?;
+      describe(&stmt_id_str, &mut sw, b'S')?;
+      sync(&mut sw)?;
+      fwsc.stream.write_all(sw._curr_bytes()).await?;
     }
 
     let msg0 = Self::fetch_msg_from_stream(fwsc.cs, nb, fwsc.stream).await?;

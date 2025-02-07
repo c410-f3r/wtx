@@ -1,10 +1,10 @@
 #![expect(clippy::mem_forget, reason = "out-of-bounds elements are manually dropped")]
 
-use crate::misc::{char_slice, Lease, LeaseMut, Usize};
+use crate::misc::{Lease, LeaseMut, Usize, char_slice};
 use core::{
   cmp::Ordering,
   fmt::{self, Debug, Formatter},
-  mem::{self, needs_drop, MaybeUninit},
+  mem::{self, MaybeUninit, needs_drop},
   ops::{Deref, DerefMut},
   ptr, slice,
 };
@@ -87,7 +87,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
         unsafe {
           drop_elements(diff, actual_len, data.as_mut_ptr());
         }
-      };
+      }
     }
     mem::forget(data);
     this
@@ -590,9 +590,9 @@ mod serde {
   use crate::misc::ArrayVector;
   use core::{fmt::Formatter, marker::PhantomData};
   use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{self, SeqAccess, Visitor},
     ser::SerializeTuple,
-    Deserialize, Deserializer, Serialize, Serializer,
   };
 
   impl<'de, T, const N: usize> Deserialize<'de> for ArrayVector<T, N>

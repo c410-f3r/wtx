@@ -14,7 +14,7 @@ use crate::{
   misc::EMPTY_WHERE_PREDS,
 };
 use proc_macro2::{Ident, Span, TokenStream};
-use syn::{punctuated::Punctuated, GenericParam, Lifetime, LifetimeDef};
+use syn::{GenericParam, Lifetime, LifetimeDef, punctuated::Punctuated};
 
 impl SirAuxItemValues {
   pub(super) fn push_builder_method_returning_builder(

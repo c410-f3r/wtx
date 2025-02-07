@@ -1,0 +1,6 @@
+// TODOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+// Unificar os comandos clear e table_names
+// Tentar remover a duplicacao das implemetnatcoes de tipos
+// Tentar remover duplicacao do dbMigration
+// FromRecord esta duplicado
+// VErificar a implementacao do chono

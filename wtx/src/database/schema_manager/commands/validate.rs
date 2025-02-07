@@ -1,10 +1,10 @@
 use crate::{
   database::{
-    schema_manager::{
-      misc::is_migration_divergent, Commands, DbMigration, MigrationGroup, Repeatability,
-      SchemaManagement, SchemaManagerError, UserMigration,
-    },
     DatabaseTy,
+    schema_manager::{
+      Commands, DbMigration, MigrationGroup, Repeatability, SchemaManagement, SchemaManagerError,
+      UserMigration, misc::is_migration_divergent,
+    },
   },
   misc::{Lease, Vector},
 };

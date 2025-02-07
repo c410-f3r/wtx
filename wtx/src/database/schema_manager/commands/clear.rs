@@ -1,7 +1,7 @@
 use crate::{
   database::{
-    schema_manager::{Commands, SchemaManagement},
     Identifier,
+    schema_manager::{Commands, SchemaManagement},
   },
   misc::Vector,
 };

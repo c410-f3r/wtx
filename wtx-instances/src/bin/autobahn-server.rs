@@ -6,8 +6,8 @@ use tokio::net::TcpStream;
 use wtx::{
   http::OptionedServer,
   web_socket::{
-    compression::{Flate2, NegotiatedFlate2},
     OpCode, WebSocket, WebSocketBuffer,
+    compression::{Flate2, NegotiatedFlate2},
   },
 };
 

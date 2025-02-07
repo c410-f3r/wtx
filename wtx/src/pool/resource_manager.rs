@@ -121,10 +121,10 @@ pub(crate) mod database {
   mod tokio {
     use crate::{
       database::{
-        client::postgres::{Executor, ExecutorBuffer},
-        Executor as _, DEFAULT_MAX_STMTS,
+        DEFAULT_MAX_STMTS, Executor as _,
+        client::postgres::{ExecutorBuffer, PostgresExecutor},
       },
-      misc::{simple_seed, Xorshift64Sync},
+      misc::{Xorshift64Sync, simple_seed},
       pool::{PostgresRM, ResourceManager},
     };
     use alloc::string::String;
@@ -153,13 +153,13 @@ pub(crate) mod database {
       type CreateAux = ();
       type Error = E;
       type RecycleAux = ();
-      type Resource = Executor<E, ExecutorBuffer, TcpStream>;
+      type Resource = PostgresExecutor<E, ExecutorBuffer, TcpStream>;
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
         let mut rng = &self._rng;
         _executor!(&self._uri, |config, uri| {
-          Executor::connect(
+          PostgresExecutor::connect(
             &config,
             ExecutorBuffer::new(self._max_stmts, &mut rng),
             &mut rng,
@@ -183,7 +183,7 @@ pub(crate) mod database {
         let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = _executor!(&self._uri, |config, uri| {
-          Executor::connect(
+          PostgresExecutor::connect(
             &config,
             buffer,
             &mut rng,
@@ -199,10 +199,10 @@ pub(crate) mod database {
   mod tokio_rustls {
     use crate::{
       database::{
-        client::postgres::{Executor, ExecutorBuffer},
-        Executor as _, DEFAULT_MAX_STMTS,
+        DEFAULT_MAX_STMTS, Executor as _,
+        client::postgres::{ExecutorBuffer, PostgresExecutor},
       },
-      misc::{simple_seed, TokioRustlsConnector, Xorshift64Sync},
+      misc::{TokioRustlsConnector, Xorshift64Sync, simple_seed},
       pool::{PostgresRM, ResourceManager},
     };
     use alloc::string::String;
@@ -232,13 +232,13 @@ pub(crate) mod database {
       type CreateAux = ();
       type Error = E;
       type RecycleAux = ();
-      type Resource = Executor<E, ExecutorBuffer, TlsStream<TcpStream>>;
+      type Resource = PostgresExecutor<E, ExecutorBuffer, TlsStream<TcpStream>>;
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
         let mut rng = &self._rng;
         _executor!(&self._uri, |config, uri| {
-          Executor::connect_encrypted(
+          PostgresExecutor::connect_encrypted(
             &config,
             ExecutorBuffer::new(self._max_stmts, &mut rng),
             &mut rng,
@@ -269,7 +269,7 @@ pub(crate) mod database {
         let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = _executor!(&self._uri, |config, uri| {
-          Executor::connect_encrypted(
+          PostgresExecutor::connect_encrypted(
             &config,
             buffer,
             &mut rng,

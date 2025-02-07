@@ -3,11 +3,11 @@ use std::{borrow::Cow, env::current_dir, path::Path};
 use tokio::net::TcpStream;
 use wtx::{
   database::{
-    client::postgres::{Config, Executor, ExecutorBuffer},
-    schema_manager::{Commands, DbMigration, SchemaManagement, DEFAULT_CFG_FILE_NAME},
-    Database, Identifier, DEFAULT_URI_VAR,
+    DEFAULT_URI_VAR, Identifier,
+    client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
+    schema_manager::{Commands, DEFAULT_CFG_FILE_NAME, DbMigration, SchemaManagement},
   },
-  misc::{simple_seed, UriRef, Vector, Xorshift64},
+  misc::{DEController, UriRef, Vector, Xorshift64, simple_seed},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
@@ -22,7 +22,7 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   match uri.scheme() {
     "postgres" | "postgresql" => {
       let mut rng = Xorshift64::from(simple_seed());
-      let executor = Executor::connect(
+      let executor = PostgresExecutor::connect(
         &Config::from_uri(&uri)?,
         ExecutorBuffer::new(usize::MAX, &mut rng),
         &mut rng,
@@ -50,7 +50,7 @@ fn toml_file_path(sm: &SchemaManager) -> wtx::Result<Cow<'_, Path>> {
 async fn handle_commands<E>(
   executor: E,
   sm: &SchemaManager,
-) -> Result<(), <E::Database as Database>::Error>
+) -> Result<(), <E::Database as DEController>::Error>
 where
   E: SchemaManagement,
 {

@@ -1,11 +1,11 @@
 use crate::{
   http::{
-    server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
     AutoStream, Header, KnownHeaderName, Mime, ReqResBuffer, Request, StatusCode,
+    server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
   },
-  misc::{serde_collect_seq_rslt, FnFut, FnFutWrapper, LeaseMut, Wrapper},
+  misc::{FnFut, FnFutWrapper, LeaseMut},
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 /// Serializes and deserializes using `serde_json`
 #[derive(Debug)]
@@ -75,23 +75,6 @@ where
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     push_content_type(req)?;
     serde_json::to_writer(&mut req.rrd.lease_mut().body, &self.0).map_err(crate::Error::from)?;
-    Ok(StatusCode::Ok)
-  }
-}
-
-impl<E, I, T> ResFinalizer<E> for SerdeJson<Wrapper<I>>
-where
-  E: From<crate::Error> + From<serde_json::Error>,
-  I: Iterator<Item = Result<T, E>>,
-  T: Serialize,
-{
-  #[inline]
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    push_content_type(req)?;
-    serde_collect_seq_rslt(
-      &mut serde_json::Serializer::new(&mut req.rrd.lease_mut().body),
-      self.0 .0,
-    )?;
     Ok(StatusCode::Ok)
   }
 }

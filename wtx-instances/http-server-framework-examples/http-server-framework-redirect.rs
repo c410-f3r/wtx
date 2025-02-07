@@ -2,10 +2,10 @@
 
 use wtx::{
   http::{
-    server_framework::{get, Redirect, Router, ServerFrameworkBuilder, StateClean},
     ReqResBuffer, StatusCode,
+    server_framework::{Redirect, Router, ServerFrameworkBuilder, StateClean, get},
   },
-  misc::{simple_seed, Xorshift64},
+  misc::{Xorshift64, simple_seed},
 };
 
 #[tokio::main]

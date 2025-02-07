@@ -1,9 +1,9 @@
 use proc_macro2::Span;
 use quote::ToTokens as _;
 use syn::{
-  parse::Parse, punctuated::Punctuated, spanned::Spanned as _, token::Paren,
   AngleBracketedGenericArguments, Attribute, GenericArgument, GenericParam, PathArguments,
-  PathSegment, Token, Type, TypePath, TypeTuple,
+  PathSegment, Token, Type, TypePath, TypeTuple, parse::Parse, punctuated::Punctuated,
+  spanned::Spanned as _, token::Paren,
 };
 
 pub(crate) const EMPTY_GEN_ARGS: &Punctuated<GenericArgument, Token![,]> = &Punctuated::new();
@@ -70,11 +70,7 @@ pub(crate) fn is_unit_type(ty_tuple: &TypeTuple) -> bool {
 }
 
 pub(crate) fn manage_unique_attribute<T>(opt: Option<&T>, span: Span) -> crate::Result<()> {
-  if opt.is_some() {
-    Err(crate::Error::DuplicatedGlobalPkgAttr(span))
-  } else {
-    Ok(())
-  }
+  if opt.is_some() { Err(crate::Error::DuplicatedGlobalPkgAttr(span)) } else { Ok(()) }
 }
 
 pub(crate) fn split_params(

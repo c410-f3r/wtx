@@ -1,10 +1,10 @@
 use crate::{
   http::{
-    cookie::{cookie_generic::CookieGeneric, SameSite},
-    session::{SessionKey, SessionManagerInner},
     SessionManager, SessionStore,
+    cookie::{SameSite, cookie_generic::CookieGeneric},
+    session::{SessionKey, SessionManagerInner},
   },
-  misc::{sleep, Lock, Rng, Vector},
+  misc::{CryptoRng, Lock, Vector, sleep},
 };
 use chrono::{DateTime, Utc};
 use core::{future::Future, marker::PhantomData, time::Duration};
@@ -51,7 +51,7 @@ impl SessionManagerBuilder {
   ) -> (impl Future<Output = Result<(), E>> + use<CS, E, RNG, SMI, SS>, SessionManager<SMI>)
   where
     E: From<crate::Error>,
-    RNG: Rng,
+    RNG: CryptoRng,
     SMI: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {

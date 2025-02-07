@@ -5,7 +5,7 @@ pub(crate) mod statements_misc;
 
 use crate::{
   database::client::postgres::ty::Ty,
-  misc::{BlocksDeque, Rng, _random_state},
+  misc::{_random_state, BlocksDeque, Rng},
 };
 use foldhash::fast::FixedState;
 use hashbrown::HashMap;
@@ -97,12 +97,12 @@ impl Statements {
 mod tests {
   use crate::{
     database::client::postgres::{
+      Statements,
       statements::statements_misc::StatementsMisc,
       tests::{column0, column1, column2, column3},
       ty::Ty,
-      Statements,
     },
-    misc::{simple_seed, Xorshift64},
+    misc::{Xorshift64, simple_seed},
   };
 
   // FIXME(MIRI): The modification of the vector's length makes MIRI think that there is an

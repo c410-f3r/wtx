@@ -1,6 +1,6 @@
 use crate::{
   data_transformation::{
-    dnsn::{Deserialize, Serialize},
+    dnsn::{De, DecodeWrapper},
     format::{VerbatimRequest, VerbatimResponse},
   },
   grpc::serialize,
@@ -8,7 +8,7 @@ use crate::{
     Header, Headers, KnownHeaderName, ReqBuilder, ReqResBuffer, ReqUri, Response, WTX_USER_AGENT,
   },
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter},
+  misc::{Decode, Encode, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter},
 };
 
 /// Performs requests to gRPC servers.
@@ -21,7 +21,7 @@ pub struct Client<C, DRSR> {
 impl<C, DRSR, HD, SW> Client<C, DRSR>
 where
   C: LeaseMut<Http2<HD, true>> + SingleTypeStorage<Item = HD>,
-  HD: RefCounter + 'static,
+  HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   SW: StreamWriter,
 {
@@ -33,12 +33,12 @@ where
 
   /// Deserialize From Response Bytes
   #[inline]
-  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &'de [u8]) -> crate::Result<T>
+  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimResponse<T>: Deserialize<'de, DRSR>,
+    VerbatimResponse<T>: Decode<'de, De<DRSR>>,
   {
-    let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimResponse::from_bytes(elem, &mut self.drsr)?.data)
+    let mut elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
+    Ok(VerbatimResponse::decode(&mut self.drsr, &mut DecodeWrapper::new(elem))?.data)
   }
 
   /// Send Unary Request
@@ -54,7 +54,7 @@ where
     mut rrb: ReqResBuffer,
   ) -> crate::Result<Response<ReqResBuffer>>
   where
-    VerbatimRequest<T>: Serialize<DRSR>,
+    VerbatimRequest<T>: Encode<De<DRSR>>,
   {
     rrb.body.clear();
     rrb.headers.clear();

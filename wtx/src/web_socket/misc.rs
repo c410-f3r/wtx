@@ -1,4 +1,4 @@
-use crate::web_socket::{CloseCode, OpCode, MASK_MASK, MAX_HEADER_LEN_USIZE, OP_CODE_MASK};
+use crate::web_socket::{CloseCode, MASK_MASK, MAX_HEADER_LEN_USIZE, OP_CODE_MASK, OpCode};
 use core::ops::Range;
 
 /// The first two bytes of `payload` are filled with `code`. Does nothing if `payload` is

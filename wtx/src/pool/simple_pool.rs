@@ -4,7 +4,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 use core::{
-  future::{poll_fn, Future},
+  future::{Future, poll_fn},
   ops::{Deref, DerefMut},
   task::{Poll, Waker},
 };
@@ -258,7 +258,7 @@ mod _tokio {
 
 #[cfg(all(feature = "_async-tests", test))]
 mod tests {
-  use crate::pool::{simple_pool::SimplePoolTokio, SimpleRM};
+  use crate::pool::{SimpleRM, simple_pool::SimplePoolTokio};
 
   #[tokio::test]
   async fn held_lock_is_not_modified() {

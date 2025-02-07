@@ -1,4 +1,4 @@
-use crate::database::client::postgres::{statements::column::Column, Ty};
+use crate::database::client::postgres::{Ty, statements::column::Column};
 
 /// ```sql
 /// SELECT a,b,c,d FROM table WHERE e = $1 AND f = $2

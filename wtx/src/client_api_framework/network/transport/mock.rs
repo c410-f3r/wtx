@@ -2,13 +2,13 @@
 
 use crate::{
   client_api_framework::{
-    misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
+    Api, ClientApiFrameworkError,
+    misc::{FromBytes, manage_after_sending_related, manage_before_sending_related},
     network::{
-      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
       TransportGroup,
+      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
     },
     pkg::{Package, PkgsAux},
-    Api, ClientApiFrameworkError,
   },
   misc::{Deque, Lease, Vector},
 };

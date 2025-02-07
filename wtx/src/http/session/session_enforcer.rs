@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::Middleware, ReqResBuffer, Request, Response, SessionError, SessionState,
-    StatusCode,
+    ReqResBuffer, Request, Response, SessionError, SessionState, StatusCode,
+    server_framework::Middleware,
   },
   misc::LeaseMut,
 };

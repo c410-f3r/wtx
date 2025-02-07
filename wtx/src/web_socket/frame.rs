@@ -1,8 +1,8 @@
 use crate::{
   misc::{Lease, Vector},
   web_socket::{
+    MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE, OpCode,
     misc::{fill_header_from_params, has_masked_frame},
-    OpCode, MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE,
   },
 };
 use core::str;

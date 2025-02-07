@@ -1,4 +1,4 @@
-use crate::misc::{char_slice, from_utf8_basic, BasicUtf8Error, Lease, Usize};
+use crate::misc::{BasicUtf8Error, Lease, Usize, char_slice, from_utf8_basic};
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -312,11 +312,11 @@ mod arbitrary {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::misc::{from_utf8_basic, ArrayString};
+  use crate::misc::{ArrayString, from_utf8_basic};
   use core::{fmt::Formatter, marker::PhantomData};
   use serde::{
-    de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
   };
 
   impl<'de, const N: usize> Deserialize<'de> for ArrayString<N> {

@@ -1,5 +1,5 @@
 use crate::{
-  http::{client_pool::ClientPoolBuilder, ReqBuilder, ReqResBuffer},
+  http::{ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
   misc::Uri,
 };
 

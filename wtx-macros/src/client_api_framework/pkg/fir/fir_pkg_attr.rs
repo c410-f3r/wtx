@@ -1,4 +1,4 @@
-use syn::{punctuated::Punctuated, Meta, MetaList, NestedMeta, Path, Token};
+use syn::{Meta, MetaList, NestedMeta, Path, Token, punctuated::Punctuated};
 
 const EMPTY_NESTED_META: &Punctuated<NestedMeta, Token![,]> = &Punctuated::new();
 
@@ -48,9 +48,5 @@ fn first_nested_meta_path(meta_list: &MetaList) -> Option<&Path> {
   let Some(NestedMeta::Meta(meta)) = meta_list.nested.first() else {
     return None;
   };
-  if let Meta::Path(elem) = meta {
-    Some(elem)
-  } else {
-    None
-  }
+  if let Meta::Path(elem) = meta { Some(elem) } else { None }
 }

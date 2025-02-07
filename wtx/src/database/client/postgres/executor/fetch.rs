@@ -1,21 +1,21 @@
 use crate::{
   database::{
+    RecordValues,
     client::postgres::{
+      ExecutorBuffer, Postgres, PostgresError, PostgresExecutor, PostgresRecord,
       executor::commons::FetchWithStmtCommons,
       message::{Message, MessageTy},
       statements::statement::Statement,
-      Executor, ExecutorBuffer, Postgres, PostgresError, Record,
     },
-    RecordValues,
   },
   misc::{
-    ConnectionState, LeaseMut, Stream, Usize, Vector, _read_header, _read_payload,
+    _read_header, _read_payload, ConnectionState, LeaseMut, Stream, Usize, Vector,
     partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 use core::ops::Range;
 
-impl<E, EB, S> Executor<E, EB, S>
+impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
@@ -28,7 +28,7 @@ where
     stmt: Statement<'any>,
     stmt_id_str: &str,
     vb: &'any mut Vector<(bool, Range<usize>)>,
-  ) -> Result<Record<'any, E>, E>
+  ) -> Result<PostgresRecord<'any, E>, E>
   where
     E: From<crate::Error>,
     RV: RecordValues<Postgres<E>>,
@@ -54,7 +54,7 @@ where
       let record_range = range.start.wrapping_add(7)..range.end;
       Some((nb._buffer().get(record_range)?, len))
     }) {
-      Ok(Record::parse(record_bytes, 0..record_bytes.len(), stmt, vb, len)?)
+      Ok(PostgresRecord::parse(record_bytes, 0..record_bytes.len(), stmt, vb, len)?)
     } else {
       Err(E::from(PostgresError::NoRecord.into()))
     }

@@ -1,11 +1,11 @@
 use crate::{
   database::{
+    DatabaseTy,
     schema_manager::{
+      Repeatability,
       migration::migration_common::MigrationCommon,
       misc::{calc_checksum, is_sorted_and_unique},
-      Repeatability,
     },
-    DatabaseTy,
   },
   misc::{ArrayVector, Lease},
 };

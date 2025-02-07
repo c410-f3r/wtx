@@ -1,15 +1,15 @@
 use crate::{
   database::{
-    client::postgres::{statements::statement::Statement, DecodeValue, Postgres, PostgresError},
-    Database, ValueIdent,
+    ValueIdent,
+    client::postgres::{DecodeWrapper, Postgres, PostgresError, statements::statement::Statement},
   },
-  misc::{Vector, _unlikely_dflt, _unlikely_elem},
+  misc::{_unlikely_dflt, _unlikely_elem, DEController, Vector},
 };
 use core::{marker::PhantomData, ops::Range};
 
 /// Record
 #[derive(Debug)]
-pub struct Record<'exec, E> {
+pub struct PostgresRecord<'exec, E> {
   pub(crate) bytes: &'exec [u8],
   pub(crate) initial_value_offset: usize,
   pub(crate) phantom: PhantomData<fn() -> E>,
@@ -17,7 +17,7 @@ pub struct Record<'exec, E> {
   pub(crate) values_bytes_offsets: &'exec [(bool, Range<usize>)],
 }
 
-impl<'exec, E> Record<'exec, E> {
+impl<'exec, E> PostgresRecord<'exec, E> {
   #[inline]
   pub(crate) fn _new(
     bytes: &'exec [u8],
@@ -90,7 +90,7 @@ impl<'exec, E> Record<'exec, E> {
   }
 }
 
-impl<'exec, E> crate::database::Record<'exec> for Record<'exec, E>
+impl<'exec, E> crate::database::Record<'exec> for PostgresRecord<'exec, E>
 where
   E: From<crate::Error>,
 {
@@ -102,7 +102,7 @@ where
   }
 
   #[inline]
-  fn value<CI>(&self, ci: CI) -> Option<<Self::Database as Database>::DecodeValue<'exec>>
+  fn value<CI>(&self, ci: CI) -> Option<<Self::Database as DEController>::DecodeWrapper<'exec>>
   where
     CI: ValueIdent<Self>,
   {
@@ -124,19 +124,19 @@ where
         None => return _unlikely_elem(None),
         Some(elem) => elem,
       };
-      Some(DecodeValue::new(bytes, column.ty))
+      Some(DecodeWrapper::new(bytes, column.ty))
     }
   }
 }
 
-impl<'exec, E> ValueIdent<Record<'exec, E>> for str {
+impl<'exec, E> ValueIdent<PostgresRecord<'exec, E>> for str {
   #[inline]
-  fn idx(&self, input: &Record<'exec, E>) -> Option<usize> {
+  fn idx(&self, input: &PostgresRecord<'exec, E>) -> Option<usize> {
     input.stmt.columns().position(|column| column.name.as_str() == self)
   }
 }
 
-impl<E> PartialEq for Record<'_, E> {
+impl<E> PartialEq for PostgresRecord<'_, E> {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     self.bytes == other.bytes
@@ -149,8 +149,8 @@ impl<E> PartialEq for Record<'_, E> {
 
 mod array {
   use crate::{
-    database::{client::postgres::Postgres, FromRecord, Record},
-    misc::{from_utf8_basic, into_rslt, ArrayString},
+    database::{FromRecord, Record, client::postgres::Postgres},
+    misc::{ArrayString, from_utf8_basic, into_rslt},
   };
 
   impl<E, const N: usize> FromRecord<Postgres<E>> for ArrayString<N>
@@ -159,7 +159,7 @@ mod array {
   {
     #[inline]
     fn from_record(
-      record: &crate::database::client::postgres::record::Record<'_, E>,
+      record: &crate::database::client::postgres::record::PostgresRecord<'_, E>,
     ) -> Result<Self, E> {
       Ok(from_utf8_basic(into_rslt(record.value(0))?.bytes()).map_err(From::from)?.try_into()?)
     }
@@ -170,12 +170,12 @@ mod array {
 mod tests {
   use crate::{
     database::{
+      Record as _,
       client::postgres::{
+        DecodeWrapper, PostgresRecord, Ty,
         statements::statement::Statement,
         tests::{column0, column1, column2},
-        DecodeValue, Record, Ty,
       },
-      Record as _,
     },
     misc::Vector,
   };
@@ -187,7 +187,7 @@ mod tests {
     let values = &[(column0(), Ty::Any), (column1(), Ty::Any), (column2(), Ty::Any)];
     let mut values_bytes_offsets = Vector::new();
     let stmt = Statement::new(3, 0, values);
-    let record = Record::<crate::Error>::parse(
+    let record = PostgresRecord::<crate::Error>::parse(
       bytes,
       0..bytes.len(),
       stmt.clone(),
@@ -197,7 +197,7 @@ mod tests {
     .unwrap();
     assert_eq!(
       record,
-      Record {
+      PostgresRecord {
         bytes: &[1, 0, 0, 0, 2, 2, 3, 0, 0, 0, 1, 4],
         initial_value_offset: 0,
         stmt,
@@ -206,9 +206,9 @@ mod tests {
       }
     );
     assert_eq!(record.len(), 3);
-    assert_eq!(record.value(0), Some(DecodeValue::new(&[1][..], column0().ty)));
-    assert_eq!(record.value(1), Some(DecodeValue::new(&[2, 3][..], column1().ty)));
-    assert_eq!(record.value(2), Some(DecodeValue::new(&[4][..], column2().ty)));
+    assert_eq!(record.value(0), Some(DecodeWrapper::new(&[1][..], column0().ty)));
+    assert_eq!(record.value(1), Some(DecodeWrapper::new(&[2, 3][..], column1().ty)));
+    assert_eq!(record.value(2), Some(DecodeWrapper::new(&[4][..], column2().ty)));
     assert_eq!(record.value(3), None);
   }
 }

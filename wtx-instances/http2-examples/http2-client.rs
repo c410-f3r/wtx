@@ -10,7 +10,7 @@ use tokio::net::TcpStream;
 use wtx::{
   http::{Method, ReqResBuffer, Request},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{from_utf8_basic, simple_seed, Uri, Xorshift64},
+  misc::{Uri, Xorshift64, from_utf8_basic, simple_seed},
 };
 
 #[tokio::main]

@@ -1,19 +1,19 @@
 use crate::{
   http::{Method, Protocol, ReqResBuffer, ReqResData, Response},
   http2::{
+    CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{manage_recurrent_stream_receiving, process_higher_operation_err},
     send_msg::send_msg,
     stream_receiver::StreamControlRecvParams,
     u31::U31,
-    CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
   },
   misc::{
-    facades::span::_Span, Arc, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter,
+    Arc, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, facades::span::_Span,
   },
 };
 use core::{
-  future::{poll_fn, Future},
+  future::{Future, poll_fn},
   pin::pin,
   sync::atomic::AtomicBool,
 };

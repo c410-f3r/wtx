@@ -1,50 +1,22 @@
 //! Random Number Generators
 
+mod crypto_rng;
 #[cfg(feature = "fastrand")]
 mod fastrand;
+mod from_rng;
 #[cfg(feature = "rand_chacha")]
 mod rand_chacha;
 mod seed;
 mod xorshift;
 
-use crate::misc::Usize;
 use core::{
   cell::Cell,
   ops::{Bound, RangeBounds},
 };
+pub use crypto_rng::CryptoRng;
+pub use from_rng::FromRng;
 pub use seed::*;
 pub use xorshift::*;
-
-/// Allows the creation of random instances.
-pub trait FromRng<RNG>
-where
-  RNG: Rng,
-{
-  /// Creates a new instance based on `rng`.
-  fn from_rng(rng: &mut RNG) -> Self;
-}
-
-impl<RNG> FromRng<RNG> for u8
-where
-  RNG: Rng,
-{
-  #[inline]
-  fn from_rng(rng: &mut RNG) -> Self {
-    rng.u8()
-  }
-}
-
-impl<RNG> FromRng<RNG> for usize
-where
-  RNG: Rng,
-{
-  #[inline]
-  fn from_rng(rng: &mut RNG) -> Self {
-    Usize::from_u64(u64::from_be_bytes(rng.u8_8()))
-      .unwrap_or_else(|| Usize::from_u32(u32::from_be_bytes(rng.u8_4())))
-      .into_usize()
-  }
-}
 
 /// Abstraction tailored for the needs of this project. Each implementation should manage how
 /// seeds are retrieved as well as how numbers are generated.

@@ -11,7 +11,7 @@ use std::borrow::Cow;
 use wtx::{
   data_transformation::dnsn::QuickProtobuf,
   grpc::Client,
-  http::{client_pool::ClientPoolBuilder, ReqResBuffer, ReqResData},
+  http::{ReqResBuffer, ReqResData, client_pool::ClientPoolBuilder},
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -36,7 +36,8 @@ async fn main() -> wtx::Result<()> {
       rrb,
     )
     .await?;
-  let generic_response: GenericResponse = client.des_from_res_bytes(res.rrd.body())?;
+  let generic_response: GenericResponse =
+    client.des_from_res_bytes(&mut res.rrd.body().as_ref())?;
   println!("{:?}", generic_response);
   Ok(())
 }

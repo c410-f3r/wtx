@@ -8,9 +8,9 @@ mod validate;
 
 use crate::{
   database::{
-    executor::Executor,
-    schema_manager::{UserMigration, DEFAULT_BATCH_SIZE},
     Database, DatabaseTy,
+    executor::Executor,
+    schema_manager::{DEFAULT_BATCH_SIZE, UserMigration},
   },
   misc::Lease,
 };
@@ -56,11 +56,7 @@ where
     S: Lease<str> + 'migration,
   {
     migrations.filter(move |m| {
-      if m.dbs().is_empty() {
-        true
-      } else {
-        m.dbs().contains(&<E::Database as Database>::TY)
-      }
+      if m.dbs().is_empty() { true } else { m.dbs().contains(&<E::Database as Database>::TY) }
     })
   }
 }

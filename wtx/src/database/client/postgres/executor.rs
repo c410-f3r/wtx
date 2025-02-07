@@ -6,29 +6,29 @@ mod simple_query;
 
 use crate::{
   database::{
+    Database, RecordValues, StmtCmd,
     client::postgres::{
+      Config, Postgres, PostgresError, PostgresRecord, PostgresRecords,
       executor::commons::FetchWithStmtCommons,
       executor_buffer::{ExecutorBuffer, ExecutorBufferPartsMut},
       message::MessageTy,
       protocol::{encrypted_conn, initial_conn_msg},
-      Config, Postgres, PostgresError, Record, Records,
     },
-    Database, RecordValues, StmtCmd,
   },
-  misc::{ConnectionState, FilledBufferWriter, Lease, LeaseMut, Rng, Stream, StreamWithTls},
+  misc::{ConnectionState, DEController, Lease, LeaseMut, Rng, Stream, StreamWithTls},
 };
 use core::{future::Future, marker::PhantomData};
 
 /// Executor
 #[derive(Debug)]
-pub struct Executor<E, EB, S> {
+pub struct PostgresExecutor<E, EB, S> {
   pub(crate) cs: ConnectionState,
   pub(crate) eb: EB,
   pub(crate) phantom: PhantomData<fn() -> E>,
   pub(crate) stream: S,
 }
 
-impl<E, EB, S> Executor<E, EB, S>
+impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
@@ -66,9 +66,9 @@ where
   {
     eb.lease_mut().clear();
     {
-      let mut fbw = FilledBufferWriter::from(&mut eb.lease_mut().nb);
-      encrypted_conn(&mut fbw)?;
-      stream.write_all(fbw._curr_bytes()).await?;
+      let mut sw = eb.lease_mut().nb._suffix_writer();
+      encrypted_conn(&mut sw)?;
+      stream.write_all(sw._curr_bytes()).await?;
     }
     let mut buf = [0];
     let _ = stream.read(&mut buf).await?;
@@ -105,14 +105,14 @@ where
   }
 
   async fn send_initial_conn_msg(&mut self, config: &Config<'_>) -> crate::Result<()> {
-    let mut fbw = FilledBufferWriter::from(&mut self.eb.lease_mut().nb);
-    initial_conn_msg(config, &mut fbw)?;
-    self.stream.write_all(fbw._curr_bytes()).await?;
+    let mut sw = self.eb.lease_mut().nb._suffix_writer();
+    initial_conn_msg(config, &mut sw)?;
+    self.stream.write_all(sw._curr_bytes()).await?;
     Ok(())
   }
 }
 
-impl<E, EB, S> crate::database::Executor for Executor<E, EB, S>
+impl<E, EB, S> crate::database::Executor for PostgresExecutor<E, EB, S>
 where
   E: From<crate::Error>,
   EB: LeaseMut<ExecutorBuffer>,
@@ -135,7 +135,7 @@ where
     &mut self,
     sc: SC,
     rv: RV,
-  ) -> Result<u64, <Self::Database as Database>::Error>
+  ) -> Result<u64, <Self::Database as DEController>::Error>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
@@ -209,7 +209,7 @@ where
           let bytes = nb._buffer().get(begin_data..nb._current_end_idx()).unwrap_or_default();
           let range_begin = nb._antecedent_end_idx().wrapping_sub(begin);
           let range_end = nb._current_end_idx().wrapping_sub(begin_data);
-          cb(&Record::parse(bytes, range_begin..range_end, stmt.clone(), vb, len)?)?;
+          cb(&PostgresRecord::parse(bytes, range_begin..range_end, stmt.clone(), vb, len)?)?;
           rb.push(vb.len())?;
         }
         MessageTy::ReadyForQuery => {
@@ -222,7 +222,7 @@ where
         }
       }
     }
-    Ok(Records {
+    Ok(PostgresRecords {
       bytes: nb
         ._buffer()
         .get(begin_data.wrapping_add(4)..nb._current_end_idx())

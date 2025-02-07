@@ -1,10 +1,10 @@
 use crate::{
   http2::{
+    Http2Error, Http2ErrorCode, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     misc::protocol_err,
     u31::U31,
-    Http2Error, Http2ErrorCode, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND,
   },
   misc::ArrayChunks,
 };

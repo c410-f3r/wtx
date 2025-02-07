@@ -1,4 +1,4 @@
-use crate::misc::{facades::atomic_u64::AtomicU64, Usize};
+use crate::misc::{Usize, facades::atomic_u64::AtomicU64};
 use alloc::boxed::Box;
 use core::{panic::Location, ptr, sync::atomic::Ordering};
 

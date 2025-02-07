@@ -7,9 +7,12 @@ extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
-use wtx::database::{
-  client::postgres::{DecodeValue, EncodeValue, Postgres, StructDecoder, StructEncoder},
-  Decode, Encode, Executor as _, Record,
+use wtx::{
+  database::{
+    Executor as _, Record,
+    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder},
+  },
+  misc::{Decode, Encode},
 };
 
 #[tokio::main]
@@ -32,15 +35,15 @@ async fn main() -> wtx::Result<()> {
 struct CustomCompositeType(u32, u64);
 
 impl Decode<'_, Postgres<wtx::Error>> for CustomCompositeType {
-  fn decode(input: &DecodeValue<'_>) -> Result<Self, wtx::Error> {
-    let mut sd = StructDecoder::<wtx::Error>::new(input);
+  fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, wtx::Error> {
+    let mut sd = StructDecoder::<wtx::Error>::new(dv);
     Ok(Self(sd.decode()?, sd.decode()?))
   }
 }
 
 impl Encode<Postgres<wtx::Error>> for CustomCompositeType {
-  fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), wtx::Error> {
-    let _ev = StructEncoder::<wtx::Error>::new(ev)?.encode(self.0)?.encode(self.1)?;
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), wtx::Error> {
+    let _ev = StructEncoder::<wtx::Error>::new(ew)?.encode(self.0)?.encode(self.1)?;
     Ok(())
   }
 }

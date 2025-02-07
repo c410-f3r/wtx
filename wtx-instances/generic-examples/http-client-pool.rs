@@ -9,8 +9,8 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use wtx::{
-  http::{client_pool::ClientPoolBuilder, ReqBuilder, ReqResBuffer},
-  misc::{from_utf8_basic, Uri},
+  http::{ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
+  misc::{Uri, from_utf8_basic},
 };
 
 #[tokio::main]

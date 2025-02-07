@@ -1,4 +1,4 @@
-use crate::misc::{BufferMode, Lease, LeaseMut, Wrapper, _unlikely_elem};
+use crate::misc::{_unlikely_elem, BufferMode, Lease, LeaseMut, Wrapper};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
@@ -642,7 +642,7 @@ impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
   where
     I: IntoIterator<Item = T>,
   {
-    Wrapper(Vector::from_iter(iter).map_err(crate::Error::into))
+    Wrapper(Vector::from_iter(iter))
   }
 }
 

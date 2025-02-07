@@ -1,10 +1,10 @@
 use crate::{
   database::{
-    client::postgres::{
-      statements::{column::Column, statements_misc::StatementsMisc},
-      Ty,
-    },
     Identifier,
+    client::postgres::{
+      Ty,
+      statements::{column::Column, statements_misc::StatementsMisc},
+    },
   },
   misc::{BlocksDeque, BlocksDequeBuilder, BufferMode},
 };

@@ -1,4 +1,4 @@
-use crate::misc::{BufferMode, Vector};
+use crate::misc::{BufferMode, Lease, LeaseMut, Vector};
 use core::{
   fmt::Debug,
   ops::{Deref, DerefMut},
@@ -7,19 +7,19 @@ use core::{
 
 /// A buffer that is always filled with initialized bytes.
 #[derive(Debug, Default)]
-pub(crate) struct FilledBuffer {
+pub struct FilledBuffer {
   data: Vector<u8>,
 }
 
 impl FilledBuffer {
   #[inline]
-  pub(crate) fn _from_vector(vector: Vector<u8>) -> Self {
-    let mut this = Self { data: vector };
-    // SAFETY: Zero input is always safe.
+  pub(crate) fn _from_vector(mut vector: Vector<u8>) -> Self {
+    let prev_init = vector.len();
+    // SAFETY: Elements up to `len` are always initialized
     unsafe {
-      this._fill_remaining_capacity(0);
+      _fill_remaining_capacity(&mut vector, prev_init);
     }
-    this
+    Self { data: vector }
   }
 
   #[inline]
@@ -91,22 +91,22 @@ impl FilledBuffer {
     I: IntoIterator<Item = &'iter [u8]>,
     I::IntoIter: Clone,
   {
-    let prev_cap = self.data.capacity();
+    let prev_init = self.data.capacity();
     let len = self.data.extend_from_copyable_slices(others)?;
-    // SAFETY: memory have been allocated
+    // SAFETY: Inner elements up to `capacity` are always initialized
     unsafe {
-      self._fill_remaining_capacity(prev_cap);
+      _fill_remaining_capacity(&mut self.data, prev_init);
     }
     Ok(len)
   }
 
   #[inline(always)]
   pub(crate) fn _reserve(&mut self, additional: usize) -> crate::Result<()> {
-    let prev_cap = self.data.capacity();
+    let prev_init = self.data.capacity();
     self.data.reserve(additional)?;
-    // SAFETY: memory have been allocated
+    // SAFETY: Inner elements up to `capacity` are always initialized
     unsafe {
-      self._fill_remaining_capacity(prev_cap);
+      _fill_remaining_capacity(&mut self.data, prev_init);
     }
     Ok(())
   }
@@ -124,17 +124,8 @@ impl FilledBuffer {
   }
 
   #[inline]
-  unsafe fn _fill_remaining_capacity(&mut self, prev_cap: usize) {
-    let count = self.data.len().max(prev_cap);
-    let Some(diff @ 1..=usize::MAX) = self.data.capacity().checked_sub(count) else {
-      return;
-    };
-    // SAFETY: caller must ensure `prev_cap` elements
-    let ptr = unsafe { self.data.as_ptr_mut().add(count) };
-    // SAFETY: caller must ensure allocated memory
-    unsafe {
-      slice::from_raw_parts_mut(ptr, diff).fill(0);
-    }
+  pub(crate) fn _vector_mut(&mut self) -> FilledBufferVectorMut<'_> {
+    FilledBufferVectorMut { prev_init: self.data.capacity(), vector: &mut self.data }
   }
 }
 
@@ -164,12 +155,7 @@ impl From<FilledBuffer> for Vector<u8> {
 impl From<Vector<u8>> for FilledBuffer {
   #[inline]
   fn from(from: Vector<u8>) -> Self {
-    let mut this = Self { data: from };
-    // SAFETY: Zero input is always safe.
-    unsafe {
-      this._fill_remaining_capacity(0);
-    }
-    this
+    Self::_from_vector(from)
   }
 }
 
@@ -183,6 +169,51 @@ impl std::io::Write for FilledBuffer {
   #[inline]
   fn flush(&mut self) -> std::io::Result<()> {
     self.data.flush()
+  }
+}
+
+/// A wrapper that allows the direct usage of [Vector].
+#[derive(Debug)]
+pub struct FilledBufferVectorMut<'fb> {
+  prev_init: usize,
+  vector: &'fb mut Vector<u8>,
+}
+
+impl Lease<Vector<u8>> for FilledBufferVectorMut<'_> {
+  #[inline]
+  fn lease(&self) -> &Vector<u8> {
+    self.vector
+  }
+}
+
+impl LeaseMut<Vector<u8>> for FilledBufferVectorMut<'_> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Vector<u8> {
+    self.vector
+  }
+}
+
+impl Drop for FilledBufferVectorMut<'_> {
+  #[inline]
+  fn drop(&mut self) {
+    // SAFETY: Inner elements up to `capacity` are always initialized
+    unsafe {
+      _fill_remaining_capacity(self.vector, self.prev_init);
+    }
+  }
+}
+
+#[inline]
+unsafe fn _fill_remaining_capacity(data: &mut Vector<u8>, prev_init: usize) {
+  let count = data.len().max(prev_init);
+  let Some(diff @ 1..=usize::MAX) = data.capacity().checked_sub(count) else {
+    return;
+  };
+  // SAFETY: caller must ensure `prev_init` elements
+  let ptr = unsafe { data.as_ptr_mut().add(count) };
+  // SAFETY: caller must ensure allocated memory
+  unsafe {
+    slice::from_raw_parts_mut(ptr, diff).fill(0);
   }
 }
 
@@ -206,7 +237,7 @@ mod kani {
 
 #[cfg(test)]
 mod tests {
-  use crate::misc::filled_buffer::FilledBuffer;
+  use crate::misc::FilledBuffer;
 
   #[test]
   fn extend_from_slices_with_increasing_cap() {

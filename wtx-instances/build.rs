@@ -3,9 +3,9 @@
 #[expect(clippy::unwrap_used, reason = "illustration purposes")]
 #[cfg(feature = "grpc")]
 mod grpc {
-  use pb_rs::{types::FileDescriptor, ConfigBuilder};
+  use pb_rs::{ConfigBuilder, types::FileDescriptor};
   use std::{
-    fs::{remove_dir_all, DirBuilder},
+    fs::{DirBuilder, remove_dir_all},
     path::Path,
   };
 

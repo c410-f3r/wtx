@@ -5,7 +5,7 @@
 
 use tokio::runtime::Builder;
 use wtx::{
-  misc::{simple_seed, BytesStream, Xorshift64},
+  misc::{BytesStream, Xorshift64, simple_seed},
   web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
 };
 

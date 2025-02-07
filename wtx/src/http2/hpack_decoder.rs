@@ -1,11 +1,11 @@
 use crate::{
-  http::{HeaderName, KnownHeaderName, Method, StatusCode, _HeaderNameBuffer, _HeaderValueBuffer},
+  http::{_HeaderNameBuffer, _HeaderValueBuffer, HeaderName, KnownHeaderName, Method, StatusCode},
   http2::{
+    Http2Error, Http2ErrorCode,
     hpack_header::{HpackHeaderBasic, HpackHeaderName},
     hpack_headers::HpackHeaders,
     huffman::huffman_decode,
     misc::protocol_err,
-    Http2Error, Http2ErrorCode,
   },
   misc::{ArrayVector, Usize},
 };
@@ -204,11 +204,7 @@ impl HpackDecoder {
       (HpackHeaderName::new(buffer)?, &**buffer)
     } else {
       let hhn = HpackHeaderName::new(before)?;
-      if hhn.is_field() {
-        (hhn, before)
-      } else {
-        (hhn, &[][..])
-      }
+      if hhn.is_field() { (hhn, before) } else { (hhn, &[][..]) }
     };
     *data = after;
     Ok((hhn, HeaderName::from_bytes(bytes)?))

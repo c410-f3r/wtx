@@ -3,7 +3,7 @@
 use tokio::net::TcpStream;
 use wtx::{
   misc::UriRef,
-  web_socket::{compression::Flate2, Frame, OpCode, WebSocketConnector},
+  web_socket::{Frame, OpCode, WebSocketConnector, compression::Flate2},
 };
 
 #[tokio::main]

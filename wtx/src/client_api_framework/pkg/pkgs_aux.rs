@@ -1,7 +1,7 @@
 use crate::{
   data_transformation::{
-    format::{JsonRpcRequest, VerbatimRequest},
     Id,
+    format::{JsonRpcRequest, VerbatimRequest},
   },
   misc::Vector,
 };

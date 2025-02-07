@@ -1,27 +1,24 @@
 use crate::{
-  database::{
-    client::postgres::{DecodeValue, Postgres, PostgresError, Ty},
-    Decode,
-  },
-  misc::Usize,
+  database::client::postgres::{DecodeWrapper, Postgres, PostgresError, Ty},
+  misc::{Decode, Usize},
 };
 use core::marker::PhantomData;
 
 /// Decodes a custom PostgreSQL type that represents a table into a Rust struct.
 #[derive(Debug)]
-pub struct StructDecoder<'any, E> {
-  bytes: &'any [u8],
+pub struct StructDecoder<'de, E> {
+  bytes: &'de [u8],
   phantom: PhantomData<fn() -> E>,
 }
 
-impl<'any, E> StructDecoder<'any, E>
+impl<'de, E> StructDecoder<'de, E>
 where
   E: From<crate::Error>,
 {
   /// Decodes initial data.
   #[inline]
-  pub fn new(dv: &DecodeValue<'any>) -> Self {
-    let bytes = if let [_, _, _, _, rest @ ..] = dv.bytes() { rest } else { dv.bytes() };
+  pub fn new(dw: &mut DecodeWrapper<'de>) -> Self {
+    let bytes = if let [_, _, _, _, rest @ ..] = dw.bytes() { rest } else { dw.bytes() };
     Self { bytes, phantom: PhantomData }
   }
 
@@ -30,7 +27,7 @@ where
   #[inline]
   pub fn decode<T>(&mut self) -> Result<T, E>
   where
-    T: Decode<'any, Postgres<E>>,
+    T: Decode<'de, Postgres<E>>,
   {
     Ok(self.decode_opt()?.ok_or_else(|| PostgresError::DecodingError.into())?)
   }
@@ -40,7 +37,7 @@ where
   #[inline]
   pub fn decode_opt<T>(&mut self) -> Result<Option<T>, E>
   where
-    T: Decode<'any, Postgres<E>>,
+    T: Decode<'de, Postgres<E>>,
   {
     let [a, b, c, d, e, f, g, h, rest @ ..] = self.bytes else {
       return Ok(None);
@@ -53,6 +50,6 @@ where
       return Ok(None);
     };
     self.bytes = after;
-    Ok(Some(T::decode(&DecodeValue::new(before, ty))?))
+    Ok(Some(T::decode(&mut (), &mut DecodeWrapper::new(before, ty))?))
   }
 }

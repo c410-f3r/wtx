@@ -15,9 +15,9 @@ use core::time::Duration;
 use tokio::net::TcpStream;
 use wtx::{
   client_api_framework::{
-    misc::{Pair, RequestLimit, RequestThrottling},
-    network::{transport::SendingReceivingTransport, HttpParams, WsParams},
     Api,
+    misc::{Pair, RequestLimit, RequestThrottling},
+    network::{HttpParams, WsParams, transport::SendingReceivingTransport},
   },
   data_transformation::dnsn::SerdeJson,
   http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
@@ -81,8 +81,8 @@ mod generic_web_socket_subscription {
   pub type GenericWebSocketSubscriptionRes = u64;
 }
 
-async fn http_pair(
-) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn()>> {
+async fn http_pair()
+-> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn()>> {
   Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {

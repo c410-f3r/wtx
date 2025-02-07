@@ -1,7 +1,7 @@
 use crate::http2::{
-  settings_frame::SettingsFrame, u31::U31, MAX_BODY_LEN, MAX_CONCURRENT_STREAMS_NUM, MAX_FRAME_LEN,
-  MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, MAX_HEADERS_LEN, MAX_HPACK_LEN,
-  MAX_RECV_STREAMS_NUM, READ_BUFFER_LEN,
+  MAX_BODY_LEN, MAX_CONCURRENT_STREAMS_NUM, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
+  MAX_FRAME_LEN_UPPER_BOUND, MAX_HEADERS_LEN, MAX_HPACK_LEN, MAX_RECV_STREAMS_NUM, READ_BUFFER_LEN,
+  settings_frame::SettingsFrame, u31::U31,
 };
 
 /// Indicates to a remote peer the receiving parameters of a connection as well as its streams.

@@ -2,13 +2,13 @@
 
 use crate::{
   database::{
-    schema_manager::{
-      toml_parser::{toml, Expr},
-      Repeatability, SchemaManagerError,
-    },
     DatabaseTy,
+    schema_manager::{
+      Repeatability, SchemaManagerError,
+      toml_parser::{Expr, toml},
+    },
   },
-  misc::{str_split1, ArrayVector},
+  misc::{ArrayVector, str_split1},
 };
 use alloc::string::String;
 use std::io::{BufRead, BufReader, Read};
@@ -159,8 +159,8 @@ where
 #[cfg(test)]
 mod tests {
   use crate::database::{
-    schema_manager::{migration_parser::parse_unified_migration, Repeatability},
     DatabaseTy,
+    schema_manager::{Repeatability, migration_parser::parse_unified_migration},
   };
 
   #[test]
@@ -189,9 +189,9 @@ mod tests {
     let with_incorrect_declaration = parse_unified_migration(s.as_bytes()).unwrap();
     assert!(with_incorrect_declaration.cfg.dbs.is_empty());
 
-    let s = "-- wtx dbs mssql,postgres\n-- wtx IN\nSOMETHING";
+    let s = "-- wtx dbs mysql,postgres\n-- wtx IN\nSOMETHING";
     let two_dbs = parse_unified_migration(s.as_bytes()).unwrap();
-    assert_eq!(two_dbs.cfg.dbs[0], DatabaseTy::Mssql);
+    assert_eq!(two_dbs.cfg.dbs[0], DatabaseTy::Mysql);
     assert_eq!(two_dbs.cfg.dbs[1], DatabaseTy::Postgres);
   }
 

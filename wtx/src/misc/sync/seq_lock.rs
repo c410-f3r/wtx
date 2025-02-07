@@ -1,7 +1,7 @@
-use crate::misc::{facades::atomic_usize::AtomicUsize, Backoff};
+use crate::misc::{Backoff, facades::atomic_usize::AtomicUsize};
 use core::{
   mem,
-  sync::atomic::{fence, Ordering},
+  sync::atomic::{Ordering, fence},
 };
 
 pub(crate) struct SeqLock {
@@ -17,11 +17,7 @@ impl SeqLock {
   #[inline]
   pub(crate) fn optimistic_read(&self) -> Option<usize> {
     let state = self.state.load(Ordering::Acquire);
-    if state == 1 {
-      None
-    } else {
-      Some(state)
-    }
+    if state == 1 { None } else { Some(state) }
   }
 
   /// Returns `true` if the current stamp is equal to `stamp`.

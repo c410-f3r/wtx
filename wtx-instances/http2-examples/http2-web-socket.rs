@@ -10,9 +10,9 @@ extern crate wtx_instances;
 use core::mem;
 use tokio::net::TcpListener;
 use wtx::{
-  http::{is_web_socket_handshake, Headers, ReqResBuffer},
+  http::{Headers, ReqResBuffer, is_web_socket_handshake},
   http2::{Http2Buffer, Http2Params, Http2Tokio, WebSocketOverStream},
-  misc::{simple_seed, Either, TokioRustlsAcceptor, Vector, Xorshift64},
+  misc::{Either, TokioRustlsAcceptor, Vector, Xorshift64, simple_seed},
   web_socket::{Frame, OpCode},
 };
 

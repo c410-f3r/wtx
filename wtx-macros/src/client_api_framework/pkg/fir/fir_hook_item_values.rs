@@ -13,7 +13,7 @@ macro_rules! create_fir_hook_item_values {
     };
     use proc_macro2::TokenStream;
     use syn::{
-      punctuated::Punctuated, FnArg, GenericParam, Item, ItemFn, Pat, Token, WherePredicate,
+      FnArg, GenericParam, Item, ItemFn, Pat, Token, WherePredicate, punctuated::Punctuated,
     };
 
     pub(crate) struct $struct<'module> {

@@ -39,20 +39,12 @@ mod httparse {
   impl GenericRequest for httparse::Request<'_, '_> {
     #[inline]
     fn method(&self) -> &[u8] {
-      if let Some(el) = self.method {
-        el.as_bytes()
-      } else {
-        _unreachable()
-      }
+      if let Some(el) = self.method { el.as_bytes() } else { _unreachable() }
     }
 
     #[inline]
     fn path(&self) -> &[u8] {
-      if let Some(el) = self.path {
-        el.as_bytes()
-      } else {
-        _unreachable()
-      }
+      if let Some(el) = self.path { el.as_bytes() } else { _unreachable() }
     }
 
     #[inline]

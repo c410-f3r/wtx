@@ -3,8 +3,8 @@
 use crate::{
   misc::{BufferMode, ConnectionState, Lease, LeaseMut, Rng, StreamWriter, Vector, Xorshift64},
   web_socket::{
-    compression::NegotiatedCompression, misc::has_masked_frame, unmask::unmask, Frame, FrameMut,
-    OpCode,
+    Frame, FrameMut, OpCode, compression::NegotiatedCompression, misc::has_masked_frame,
+    unmask::unmask,
   },
 };
 

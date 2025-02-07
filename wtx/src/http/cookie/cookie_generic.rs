@@ -1,5 +1,5 @@
 use crate::{
-  http::cookie::{SameSite, FMT1},
+  http::cookie::{FMT1, SameSite},
   misc::{BytesFmt, Lease},
 };
 use chrono::{DateTime, Utc};

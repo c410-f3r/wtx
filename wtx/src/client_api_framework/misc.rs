@@ -8,11 +8,12 @@ mod request_throttling;
 
 use crate::{
   client_api_framework::{
+    Api,
     network::transport::Transport,
     pkg::{Package, PkgsAux},
-    Api,
   },
-  data_transformation::dnsn::Serialize,
+  data_transformation::dnsn::EncodeWrapper,
+  misc::Encode,
 };
 pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};
@@ -33,11 +34,10 @@ pub(crate) fn log_req<A, DRSR, P, T, TP>(
   T: Transport<TP>,
 {
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", {
-    use crate::data_transformation::dnsn::Serialize;
     let mut vec = crate::misc::Vector::new();
     _pkg
       .ext_req_content_mut()
-      .to_bytes(&mut vec, &mut _pkgs_aux.drsr)
+      .encode(&mut _pkgs_aux.drsr, &mut EncodeWrapper::new(&mut vec))
       .and_then(|_| Ok(alloc::string::String::from(crate::misc::from_utf8_basic(&vec)?)))
   });
 }
@@ -92,6 +92,8 @@ where
       (trans, &mut pkgs_aux.tp),
     )
     .await?;
-  pkg.ext_req_content_mut().to_bytes(&mut pkgs_aux.byte_buffer, &mut pkgs_aux.drsr)?;
+  pkg
+    .ext_req_content_mut()
+    .encode(&mut pkgs_aux.drsr, &mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
   Ok(())
 }
