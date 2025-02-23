@@ -1,10 +1,10 @@
 #![expect(clippy::mem_forget, reason = "out-of-bounds elements are manually dropped")]
 
-use crate::misc::{char_slice, Lease, LeaseMut, Usize};
+use crate::misc::{Lease, LeaseMut, Usize, Wrapper, char_slice};
 use core::{
   cmp::Ordering,
   fmt::{self, Debug, Formatter},
-  mem::{self, needs_drop, MaybeUninit},
+  mem::{self, MaybeUninit, needs_drop},
   ops::{Deref, DerefMut},
   ptr, slice,
 };
@@ -87,7 +87,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
         unsafe {
           drop_elements(diff, actual_len, data.as_mut_ptr());
         }
-      };
+      }
     }
     mem::forget(data);
     this
@@ -340,6 +340,16 @@ impl<T, const N: usize> Drop for ArrayVector<T, N> {
 
 impl<T, const N: usize> Eq for ArrayVector<T, N> where T: Eq {}
 
+impl<T, const N: usize> FromIterator<T> for Wrapper<crate::Result<ArrayVector<T, N>>> {
+  #[inline]
+  fn from_iter<I>(iter: I) -> Self
+  where
+    I: IntoIterator<Item = T>,
+  {
+    Wrapper(ArrayVector::from_iter(iter))
+  }
+}
+
 impl<T, const N: usize> IntoIterator for ArrayVector<T, N> {
   type IntoIter = IntoIter<T, N>;
   type Item = T;
@@ -454,6 +464,20 @@ impl<T, const N: usize> From<[T; N]> for ArrayVector<T, N> {
   #[inline]
   fn from(from: [T; N]) -> Self {
     Self::from_parts(from, None)
+  }
+}
+
+impl<T, const N: usize> TryFrom<&[T]> for ArrayVector<T, N>
+where
+  T: Clone,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: &[T]) -> Result<Self, Self::Error> {
+    let mut this = Self::new();
+    this.extend_from_cloneable_slice(from)?;
+    Ok(this)
   }
 }
 
@@ -590,9 +614,9 @@ mod serde {
   use crate::misc::ArrayVector;
   use core::{fmt::Formatter, marker::PhantomData};
   use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{self, SeqAccess, Visitor},
     ser::SerializeTuple,
-    Deserialize, Deserializer, Serialize, Serializer,
   };
 
   impl<'de, T, const N: usize> Deserialize<'de> for ArrayVector<T, N>

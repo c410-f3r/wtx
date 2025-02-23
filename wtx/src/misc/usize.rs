@@ -117,3 +117,21 @@ impl From<Usize> for u128 {
     from.0 as u128
   }
 }
+
+impl TryFrom<u64> for Usize {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: u64) -> Result<Self, Self::Error> {
+    Self::from_u64(from).ok_or(crate::Error::UsizeConversionOverflow)
+  }
+}
+
+impl TryFrom<Usize> for u32 {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: Usize) -> Result<Self, Self::Error> {
+    from.into_u32().ok_or(crate::Error::UsizeConversionOverflow)
+  }
+}

@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    optioned_server::OptionedServer, AutoStream, ManualServerStreamTokio, OperationMode, Protocol,
-    ReqResBuffer, Request, Response,
+    AutoStream, ManualServerStreamTokio, OperationMode, Protocol, ReqResBuffer, Request, Response,
+    optioned_server::OptionedServer,
   },
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},

@@ -24,8 +24,8 @@ pub(crate) fn decrypt<'buffer>(
   (name, value): (&[u8], &[u8]),
 ) -> crate::Result<&'buffer mut [u8]> {
   use crate::misc::BufferMode;
-  use aes_gcm::{aead::AeadInPlace, aes::cipher::Array, Aes256Gcm};
-  use base64::{engine::general_purpose::STANDARD, Engine};
+  use aes_gcm::{Aes256Gcm, aead::AeadInPlace, aes::cipher::Array};
+  use base64::{Engine, engine::general_purpose::STANDARD};
 
   #[rustfmt::skip]
   let (nonce, content, tag) = {
@@ -71,8 +71,8 @@ where
   RNG: Rng,
 {
   use crate::misc::BufferMode;
-  use aes_gcm::{aead::AeadInPlace, aes::cipher::Array, Aes256Gcm};
-  use base64::{engine::general_purpose::STANDARD, Engine};
+  use aes_gcm::{Aes256Gcm, aead::AeadInPlace, aes::cipher::Array};
+  use base64::{Engine, engine::general_purpose::STANDARD};
 
   let start = buffer.len();
   let content_len = NONCE_LEN.wrapping_add(value.len()).wrapping_add(TAG_LEN);

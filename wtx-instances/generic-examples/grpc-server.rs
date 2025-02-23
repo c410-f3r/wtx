@@ -10,10 +10,10 @@ use wtx::{
   data_transformation::dnsn::QuickProtobuf,
   grpc::{GrpcManager, GrpcMiddleware},
   http::{
-    server_framework::{post, Router, ServerFrameworkBuilder, State},
     ReqResBuffer, StatusCode,
+    server_framework::{Router, ServerFrameworkBuilder, State, post},
   },
-  misc::{simple_seed, Xorshift64},
+  misc::{Xorshift64, simple_seed},
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -39,7 +39,7 @@ async fn wtx_generic_service_generic_method(
   state: State<'_, (), GrpcManager<QuickProtobuf>, ReqResBuffer>,
 ) -> wtx::Result<StatusCode> {
   let _generic_request: GenericRequest =
-    state.stream_aux.des_from_req_bytes(&state.req.rrd.body)?;
+    state.stream_aux.des_from_req_bytes(&mut state.req.rrd.body.as_ref())?;
   state.req.rrd.clear();
   state.stream_aux.ser_to_res_bytes(
     &mut state.req.rrd.body,

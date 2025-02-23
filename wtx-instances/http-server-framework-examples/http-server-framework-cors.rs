@@ -1,8 +1,8 @@
 //! The `CorsMiddleware` middleware inserts permissive CORS headers in every response.
 
 use wtx::{
-  http::server_framework::{get, CorsMiddleware, Router, ServerFrameworkBuilder},
-  misc::{simple_seed, Xorshift64},
+  http::server_framework::{CorsMiddleware, Router, ServerFrameworkBuilder, get},
+  misc::{Xorshift64, simple_seed},
 };
 
 #[tokio::main]

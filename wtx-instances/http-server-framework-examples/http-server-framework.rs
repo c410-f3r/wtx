@@ -11,17 +11,17 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use core::{fmt::Write, ops::ControlFlow};
-use tokio::net::{tcp::OwnedWriteHalf, TcpStream};
+use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
   database::{Executor, Record},
   http::{
-    server_framework::{
-      get, post, Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean,
-    },
     ManualStream, ReqResBuffer, Request, Response, StatusCode,
+    server_framework::{
+      Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean, get, post,
+    },
   },
   http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
-  misc::{simple_seed, Xorshift64},
+  misc::{Xorshift64, simple_seed},
   pool::{PostgresRM, SimplePoolTokio},
 };
 

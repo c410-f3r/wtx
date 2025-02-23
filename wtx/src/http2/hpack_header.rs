@@ -1,6 +1,6 @@
 use crate::{
   http::{Method, Protocol, StatusCode},
-  http2::{misc::protocol_err, Http2Error},
+  http2::{Http2Error, misc::protocol_err},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

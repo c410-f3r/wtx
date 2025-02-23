@@ -11,6 +11,7 @@ mod generic_request;
 mod generic_response;
 mod header_name;
 mod headers;
+mod http_client;
 mod http_error;
 mod method;
 mod mime;
@@ -18,7 +19,6 @@ mod misc;
 mod operation_mode;
 #[cfg(feature = "nightly")]
 mod optioned_server;
-mod percent_encoding;
 mod protocol;
 #[cfg(feature = "http2")]
 mod req_builder;
@@ -41,6 +41,7 @@ pub use generic_request::GenericRequest;
 pub use generic_response::GenericResponse;
 pub use header_name::*;
 pub use headers::{Header, Headers, Trailers};
+pub use http_client::HttpClient;
 pub use http_error::HttpError;
 pub use method::Method;
 pub use mime::Mime;
@@ -48,7 +49,6 @@ pub use misc::*;
 pub use operation_mode::*;
 #[cfg(feature = "nightly")]
 pub use optioned_server::OptionedServer;
-pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 pub use protocol::Protocol;
 #[cfg(feature = "http2")]
 pub use req_builder::ReqBuilder;
@@ -65,7 +65,7 @@ pub use version::Version;
 /// Maximum number of bytes for the name of a header.
 pub const MAX_HEADER_NAME_LEN: usize = 128;
 /// Maximum number of bytes for the value of a header.
-pub const MAX_HEADER_VALUE_LEN: usize = 1024 + 1024;
+pub const MAX_HEADER_VALUE_LEN: usize = 1024 * 2 + 128;
 /// Current user agent of this project
 pub const WTX_USER_AGENT: &str = concat!("wtx/", env!("CARGO_PKG_VERSION"));
 

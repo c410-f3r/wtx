@@ -16,7 +16,7 @@ proc-macro = true
 [package]
 categories = ["asynchronous", "data-structures", "network-programming"]
 description = "Procedural macros for wtx"
-edition = "2021"
+edition = "2024"
 exclude = ["tests"]
 keywords = ["api", "client", "io", "network"]
 license = "MPL-2.0"

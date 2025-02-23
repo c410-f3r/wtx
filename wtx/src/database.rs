@@ -3,8 +3,6 @@
 pub mod client;
 mod database_error;
 mod database_ty;
-mod decode;
-mod encode;
 mod executor;
 mod from_record;
 mod from_records;
@@ -21,8 +19,6 @@ mod value_ident;
 
 pub use database_error::DatabaseError;
 pub use database_ty::DatabaseTy;
-pub use decode::Decode;
-pub use encode::Encode;
 pub use executor::Executor;
 pub use from_record::FromRecord;
 pub use from_records::FromRecords;
@@ -45,22 +41,10 @@ pub const DEFAULT_URI_VAR: &str = "DATABASE_URI";
 pub type Identifier = crate::misc::ArrayString<64>;
 
 /// Database
-pub trait Database {
-  /// Prefix used to bind parameterized queries.
-  const BIND_PREFIX: &'static str;
-  /// Some databases require bindings in ascending order.
-  const IS_BIND_INCREASING: bool;
+pub trait Database: crate::misc::DEController {
   /// See [`DatabaseTy`].
   const TY: DatabaseTy;
 
-  /// Contains the data used to decode types.
-  type DecodeValue<'exec>;
-  /// Contains the data used to decode types.
-  type EncodeValue<'buffer, 'tmp>: crate::misc::LeaseMut<crate::misc::FilledBufferWriter<'buffer>>
-  where
-    'buffer: 'tmp;
-  /// See [`crate::Error`].
-  type Error: From<crate::Error>;
   /// See [Record].
   type Record<'exec>: Record<'exec, Database = Self>;
   /// See [Records].
@@ -70,16 +54,8 @@ pub trait Database {
 }
 
 impl Database for () {
-  const BIND_PREFIX: &'static str = "$";
-  const IS_BIND_INCREASING: bool = true;
   const TY: DatabaseTy = DatabaseTy::Unit;
 
-  type DecodeValue<'exec> = ();
-  type EncodeValue<'buffer, 'tmp>
-    = crate::misc::FilledBufferWriter<'buffer>
-  where
-    'buffer: 'tmp;
-  type Error = crate::Error;
   type Record<'exec> = ();
   type Records<'exec> = ();
   type Ty = ();

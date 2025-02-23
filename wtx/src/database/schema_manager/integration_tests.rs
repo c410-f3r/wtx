@@ -5,16 +5,16 @@ mod schema;
 
 use crate::{
   database::{
+    Executor, Identifier,
     schema_manager::{
-      doc_tests::{migration, migration_group},
       Commands, DbMigration, MigrationGroup, SchemaManagement,
+      doc_tests::{migration, migration_group},
     },
-    Identifier, DEFAULT_URI_VAR,
   },
-  misc::{Vector, Xorshift64},
+  misc::{DEController, Vector},
 };
 use alloc::string::String;
-use core::fmt::Write;
+use core::fmt::{Debug, Write};
 use tokio::net::TcpStream;
 
 macro_rules! create_integration_test {
@@ -31,6 +31,7 @@ macro_rules! create_integration_test {
 macro_rules! create_integration_tests {
   (
     $fn_name:ident,
+    mysql: $($mysql:path),*;
     postgres: $($postgres:path),*;
   ) => {
     pub(crate) async fn $fn_name() {
@@ -38,14 +39,34 @@ macro_rules! create_integration_tests {
       let mut _buffer_db_migrations = Vector::<DbMigration>::new();
       let mut _buffer_idents = Vector::<Identifier>::new();
 
+      #[cfg(feature = "mysql")]
       create_integration_test!(
         {
-          let uri = std::env::var(DEFAULT_URI_VAR).unwrap();
-          let uri = crate::misc::UriRef::new(&uri);
+          let uri_string = std::env::var("DATABASE_URI_MYSQL").unwrap();
+          let uri = crate::misc::UriRef::new(&uri_string);
+          let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
+          let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
+          let mut rng = crate::misc::Xorshift64::from(crate::misc::simple_seed());
+          crate::database::client::mysql::MysqlExecutor::connect(
+            &config,
+            crate::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
+            stream,
+          ).await.unwrap()
+        },
+        (&mut _buffer_cmd, &mut _buffer_db_migrations, &mut _buffer_idents),
+        _generic_schema(),
+        $($mysql),*
+      );
+
+      #[cfg(feature = "postgres")]
+      create_integration_test!(
+        {
+          let uri_string = std::env::var("DATABASE_URI_POSTGRESQL").unwrap();
+          let uri = crate::misc::UriRef::new(&uri_string);
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
-          let mut rng = Xorshift64::from(crate::misc::simple_seed());
-          crate::database::client::postgres::Executor::connect(
+          let mut rng = crate::misc::Xorshift64::from(crate::misc::simple_seed());
+          crate::database::client::postgres::PostgresExecutor::connect(
             &config,
             crate::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
             &mut rng,
@@ -62,6 +83,7 @@ macro_rules! create_integration_tests {
 
 macro_rules! create_all_integration_tests {
   (
+    mysql: $($mysql:path),*;
     postgres: $($postgres:path),*;
 
     generic: $($fun:path),*;
@@ -71,16 +93,19 @@ macro_rules! create_all_integration_tests {
   ) => {
     create_integration_tests!(
       integration_tests_db,
+      mysql: $($mysql),*;
       postgres: $($postgres),*;
     );
 
     create_integration_tests!(
       integration_tests_generic,
+      mysql: $($fun),*;
       postgres: $($fun),*;
     );
 
     create_integration_tests!(
       integration_tests_schema,
+      mysql: $($without_schema),*;
       postgres: $($with_schema),*;
     );
 
@@ -96,6 +121,8 @@ macro_rules! create_all_integration_tests {
 create_all_integration_tests!(
   // Database
 
+  mysql:
+    db::mysql::_clean_drops_all_objs;
   postgres:
     db::postgres::_clean_drops_all_objs;
 
@@ -128,9 +155,10 @@ pub(crate) async fn create_foo_table<E>(
   schema_prefix: &str,
 ) where
   E: SchemaManagement,
+  <<E as Executor>::Database as DEController>::Error: Debug,
 {
-  buffer_cmd.write_fmt(format_args!("CREATE TABLE {}foo(id INT)", schema_prefix)).unwrap();
-  c.executor.execute(buffer_cmd.as_str(), |_| {}).await.unwrap();
+  buffer_cmd.write_fmt(format_args!("CREATE TABLE {schema_prefix}foo(id INT)")).unwrap();
+  c.executor.execute(buffer_cmd.as_str(), |_| Ok(())).await.unwrap();
   buffer_cmd.clear();
 }
 
@@ -154,11 +182,6 @@ where
   let mg = migration_group();
   c.migrate((buffer_cmd, buffer_db_migrations), &mg, [migration()].iter()).await.unwrap();
   mg
-}
-
-#[inline]
-pub(crate) fn _mssql_schema() -> AuxTestParams {
-  AuxTestParams { default_schema: "dbo", wtx_schema: "_wtx", schema_regulator: 0 }
 }
 
 #[inline]

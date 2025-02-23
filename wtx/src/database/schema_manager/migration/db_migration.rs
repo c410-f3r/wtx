@@ -1,10 +1,10 @@
 use crate::{
   database::{
-    schema_manager::{
-      migration::migration_common::MigrationCommon, MigrationGroup, Repeatability,
-      SchemaManagerError,
-    },
     DatabaseTy, Identifier,
+    schema_manager::{
+      MigrationGroup, Repeatability, SchemaManagerError,
+      migration::migration_common::MigrationCommon,
+    },
   },
   misc::FromRadix10,
 };
@@ -58,13 +58,40 @@ impl DbMigration {
   }
 }
 
+#[cfg(feature = "mysql")]
+impl<E> crate::database::FromRecord<crate::database::client::mysql::Mysql<E>> for DbMigration
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn from_record(from: &crate::database::client::mysql::MysqlRecord<'_, E>) -> Result<Self, E> {
+    use crate::database::Record as _;
+    Ok(Self {
+      common: MigrationCommon {
+        checksum: _checksum_from_str(from.decode("checksum")?)?,
+        name: from.decode::<_, &str>("name")?.try_into()?,
+        repeatability: _from_u32(from.decode_opt("repeatability")?),
+        version: from.decode("version")?,
+      },
+      created_on: from.decode("created_on")?,
+      db_ty: DatabaseTy::Mysql,
+      group: MigrationGroup::new(
+        from.decode::<_, &str>("omg_name")?.try_into()?,
+        from.decode("omg_version")?,
+      ),
+    })
+  }
+}
+
 #[cfg(feature = "postgres")]
 impl<E> crate::database::FromRecord<crate::database::client::postgres::Postgres<E>> for DbMigration
 where
   E: From<crate::Error>,
 {
   #[inline]
-  fn from_record(from: &crate::database::client::postgres::Record<'_, E>) -> Result<Self, E> {
+  fn from_record(
+    from: &crate::database::client::postgres::PostgresRecord<'_, E>,
+  ) -> Result<Self, E> {
     use crate::database::Record as _;
     Ok(Self {
       common: MigrationCommon {

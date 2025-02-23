@@ -1,7 +1,7 @@
 use crate::client_api_framework::pkg::{
   enum_struct_or_type::EnumStructOrType, fir::fir_custom_field_field_attr::FirCustomFieldFieldAttr,
 };
-use syn::{punctuated::Punctuated, GenericParam, Ident, Token, Type, WherePredicate};
+use syn::{GenericParam, Ident, Token, Type, WherePredicate, punctuated::Punctuated};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FirCustomItemValuesRef<'any, 'module> {

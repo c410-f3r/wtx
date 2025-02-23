@@ -1,5 +1,5 @@
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields};
+use syn::{Data, DeriveInput, Fields, parse_macro_input};
 
 pub(crate) fn conn_aux(item: proc_macro::TokenStream) -> crate::Result<proc_macro::TokenStream> {
   let input = parse_macro_input::parse::<DeriveInput>(item)?;

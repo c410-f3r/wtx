@@ -6,6 +6,6 @@ To use this functionality, it is necessary to activate the `http-client-pool` fe
 
 ## Example
 
-```rust,edition2021,no_run
+```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-instances/generic-examples/http-client-pool.rs}}
 ```

@@ -1,9 +1,9 @@
 use crate::http::{
-  server_framework::{
-    endpoint::Endpoint, get, ConnAux, Middleware, Router, ServerFramework, ServerFrameworkBuilder,
-    StateClean, StreamAux,
-  },
   AutoStream, ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
+  server_framework::{
+    ConnAux, Middleware, Router, ServerFramework, ServerFrameworkBuilder, StateClean, StreamAux,
+    endpoint::Endpoint, get,
+  },
 };
 use core::{
   net::{IpAddr, Ipv4Addr},
@@ -99,15 +99,35 @@ async fn nested_middlewares() {
   async fn add11(
     state: StateClean<'_, Counter, Counter, ReqResBuffer>,
   ) -> crate::Result<StatusCode> {
+    assert_eq!(state.conn_aux.0, 6);
+    assert_eq!(state.stream_aux.0, 6);
     state.conn_aux.0 += 11;
     state.stream_aux.0 += 11;
     Ok(StatusCode::Ok)
   }
 
-  async fn add13(mut state: ManualStream<Counter, (), Counter>) -> crate::Result<()> {
+  async fn add12(mut state: ManualStream<Counter, (), Counter>) -> crate::Result<()> {
     state.conn_aux.0 += 13;
     state.stream_aux.0 += 13;
     Ok(())
+  }
+
+  async fn add13(
+    state: StateClean<'_, Counter, Counter, ReqResBuffer>,
+  ) -> crate::Result<StatusCode> {
+    state.conn_aux.0 += 15;
+    state.stream_aux.0 += 15;
+    Ok(StatusCode::Ok)
+  }
+
+  async fn add14(
+    state: StateClean<'_, Counter, Counter, ReqResBuffer>,
+  ) -> crate::Result<StatusCode> {
+    assert_eq!(state.conn_aux.0, 3);
+    assert_eq!(state.stream_aux.0, 3);
+    state.conn_aux.0 += 17;
+    state.stream_aux.0 += 17;
+    Ok(StatusCode::Ok)
   }
 
   let router = Router::new(
@@ -118,41 +138,74 @@ async fn nested_middlewares() {
           paths!(
             (
               "/bbb",
-              Router::new(paths!(("/ccc", get(add11)), ("/ddd", get(add11))), CounterMw).unwrap()
+              Router::new(paths!(("/ccc", get(add11)), ("/ddd", get(add12))), CounterMw).unwrap()
             ),
-            ("/eee", get(add11))
+            ("/eee", get(add13))
           ),
           (),
         )
         .unwrap()
       ),
-      ("/fff", get(add13)),
+      ("/fff", get(add14)),
     ),
     CounterMw,
   )
   .unwrap();
 
   let sf = ServerFrameworkBuilder::new(router).with_dflt_aux();
-  let mut rrd = ReqResBuffer::default();
-  rrd
-    .uri
-    .reset(|el| {
-      el.push_str("http://localhost/aaa/bbb/ccc");
-      Ok(())
-    })
-    .unwrap();
-  let path = rrd.uri.path();
-  let el = ServerFramework::<_, (), _, _, _, _, _, ()>::_route_params(&path, &sf._router).unwrap();
-  let mut router_auto_stream = AutoStream {
+  let mut auto_stream = AutoStream {
     conn_aux: Counter(0),
     peer: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
     protocol: None,
     req: Request::http2(Method::Get, ReqResBuffer::default()),
     stream_aux: Counter(0),
   };
-  let _ = sf._router.auto(&mut router_auto_stream, (0, &el.0)).await.unwrap();
-  // 3 + 3 + 11 + 7 + 7
-  assert_eq!(router_auto_stream.conn_aux.0, 31);
-  // 3 + 3 + 11 + 7 + 7
-  assert_eq!(router_auto_stream.stream_aux.0, 31);
+
+  {
+    auto_stream
+      .req
+      .rrd
+      .uri
+      .reset(|el| {
+        el.push_str("http://localhost/aaa/bbb/ccc");
+        Ok(())
+      })
+      .unwrap();
+    let el = ServerFramework::<_, (), _, _, _, _, _, ()>::_route_params(
+      auto_stream.req.rrd.uri.path(),
+      &sf._router,
+    )
+    .unwrap();
+    let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
+    // 3 + 3 + 11 + 7 + 7
+    assert_eq!(auto_stream.conn_aux.0, 31);
+    // 3 + 3 + 11 + 7 + 7
+    assert_eq!(auto_stream.stream_aux.0, 31);
+  }
+
+  auto_stream.conn_aux = Counter(0);
+  auto_stream.req.rrd.clear();
+  auto_stream.stream_aux = Counter(0);
+
+  {
+    auto_stream
+      .req
+      .rrd
+      .uri
+      .reset(|el| {
+        el.push_str("http://localhost/fff");
+        Ok(())
+      })
+      .unwrap();
+    let el = ServerFramework::<_, (), _, _, _, _, _, ()>::_route_params(
+      auto_stream.req.rrd.uri.path(),
+      &sf._router,
+    )
+    .unwrap();
+    let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
+    // 3 + 17 + 7
+    assert_eq!(auto_stream.conn_aux.0, 27);
+    // 3 + 17 + 7
+    assert_eq!(auto_stream.stream_aux.0, 27);
+  }
 }

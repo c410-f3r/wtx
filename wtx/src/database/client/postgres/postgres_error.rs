@@ -30,13 +30,6 @@ pub enum PostgresError {
   ServerDoesNotSupportEncryption,
   /// A query
   StatementHashCollision,
-  /// Received size differs from expected size.
-  UnexpectedBufferSize {
-    /// Expected
-    expected: u32,
-    /// Received
-    received: u32,
-  },
   /// Received an unexpected message type.
   UnexpectedDatabaseMessage {
     /// Received
@@ -44,17 +37,10 @@ pub enum PostgresError {
   },
   /// Received an expected message type but the related bytes are in an unexpected state.
   UnexpectedDatabaseMessageBytes,
-  /// Bytes don't represent expected type
-  UnexpectedValueFromBytes {
-    /// Expected
-    expected: &'static str,
-  },
   /// The system does not support a requested authentication method.
   UnknownAuthenticationMethod,
   /// The system does not support a provided parameter.
   UnknownConfigurationParameter,
-  /// Received a statement ID that is not present in the local cache.
-  UnknownStatementId,
   /// The system only supports decimals with 64 digits.
   VeryLargeDecimal,
 }

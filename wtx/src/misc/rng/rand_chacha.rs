@@ -2,7 +2,9 @@ use rand_chacha::rand_core::RngCore;
 
 macro_rules! implement {
   ($struct:ty) => {
-    impl crate::misc::rng::Rng for $struct {
+    impl crate::misc::CryptoRng for $struct {}
+
+    impl crate::misc::Rng for $struct {
       #[inline]
       fn u8(&mut self) -> u8 {
         let [a, ..] = self.next_u32().to_be_bytes();

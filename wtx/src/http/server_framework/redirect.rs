@@ -1,6 +1,6 @@
 use crate::http::{
-  server_framework::ResFinalizer, Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut,
-  Request, StatusCode,
+  Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, Request, StatusCode,
+  server_framework::ResFinalizer,
 };
 
 /// Redirects a request to another location.

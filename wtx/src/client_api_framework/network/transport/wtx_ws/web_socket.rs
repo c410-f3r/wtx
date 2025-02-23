@@ -1,17 +1,17 @@
 use crate::{
   client_api_framework::{
+    Api,
     network::{
-      transport::{
-        wtx_ws::{recv, send},
-        RecievingTransport, SendingTransport, Transport,
-      },
       TransportGroup, WsParams,
+      transport::{
+        RecievingTransport, SendingTransport, Transport,
+        wtx_ws::{recv, send_bytes, send_pkg},
+      },
     },
     pkg::{Package, PkgsAux},
-    Api,
   },
   misc::{LeaseMut, Stream, Vector},
-  web_socket::{compression::NegotiatedCompression, Frame, WebSocket, WebSocketBuffer},
+  web_socket::{Frame, WebSocket, WebSocketBuffer, compression::NegotiatedCompression},
 };
 use core::ops::Range;
 
@@ -41,7 +41,19 @@ where
   WSB: LeaseMut<WebSocketBuffer>,
 {
   #[inline]
-  async fn send<A, DRSR, P>(
+  async fn send_bytes<A>(
+    &mut self,
+    mut bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, (), TP>,
+  ) -> Result<(), A::Error>
+  where
+    A: Api,
+  {
+    send_bytes(&mut bytes, pkgs_aux, self, cb).await
+  }
+
+  #[inline]
+  async fn send_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -50,8 +62,7 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
-    send(pkg, pkgs_aux, self, cb).await?;
-    Ok(())
+    send_pkg(pkg, pkgs_aux, self, cb).await
   }
 }
 

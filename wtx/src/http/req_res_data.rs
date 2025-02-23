@@ -144,6 +144,29 @@ where
   }
 }
 
+impl<B, H, U> ReqResData for (B, H, U)
+where
+  H: Lease<Headers>,
+  U: Lease<UriString>,
+{
+  type Body = B;
+
+  #[inline]
+  fn body(&self) -> &Self::Body {
+    &self.0
+  }
+
+  #[inline]
+  fn headers(&self) -> &Headers {
+    self.1.lease()
+  }
+
+  #[inline]
+  fn uri(&self) -> &UriString {
+    self.2.lease()
+  }
+}
+
 impl<T> ReqResData for Box<T>
 where
   T: ReqResData,
@@ -298,5 +321,19 @@ where
   #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
     (&mut self.0, self.1.lease_mut(), &EMPTY_URI_STRING)
+  }
+}
+
+impl<B, H, U> ReqResDataMut for (B, H, U)
+where
+  H: LeaseMut<Headers>,
+  U: Lease<UriString>,
+{
+  #[inline]
+  fn clear(&mut self) {}
+
+  #[inline]
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
+    (&mut self.0, self.1.lease_mut(), self.2.lease())
   }
 }

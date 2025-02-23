@@ -11,11 +11,7 @@ impl Role {
   /// Instance shortcut.
   #[inline]
   pub fn from_is_client(is_client: bool) -> Self {
-    if is_client {
-      Self::Client
-    } else {
-      Self::Server
-    }
+    if is_client { Self::Client } else { Self::Server }
   }
 }
 

@@ -3,7 +3,7 @@ use crate::{
     enum_struct_or_type::EnumStructOrType,
     fir::{fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef},
     misc::{
-      inner_angle_bracketed_values, is_unit_type, split_params, EMPTY_GEN_ARGS, EMPTY_PATH_SEGS,
+      EMPTY_GEN_ARGS, EMPTY_PATH_SEGS, inner_angle_bracketed_values, is_unit_type, split_params,
     },
     sir::sir_aux_item_values::{
       BuilderCommonValues, BuilderExtendedValues, CreateMethodReturningBuilderParams,
@@ -132,11 +132,7 @@ impl SirAuxItemValues {
     let (fn_params, fn_where_predicates) = parts_from_generics(&iim.sig.generics);
     let fn_args_iter_fn = || {
       iim.sig.inputs.iter().filter_map(|fn_arg| {
-        if let FnArg::Typed(pat_type) = fn_arg {
-          Some(pat_type)
-        } else {
-          None
-        }
+        if let FnArg::Typed(pat_type) = fn_arg { Some(pat_type) } else { None }
       })
     };
 

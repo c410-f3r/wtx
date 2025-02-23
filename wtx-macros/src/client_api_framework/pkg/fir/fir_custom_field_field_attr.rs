@@ -1,8 +1,8 @@
 use crate::client_api_framework::pkg::keywords;
 use proc_macro2::Ident;
 use syn::{
-  parse::{Parse, ParseStream},
   LitStr, Token,
+  parse::{Parse, ParseStream},
 };
 
 #[derive(Debug)]

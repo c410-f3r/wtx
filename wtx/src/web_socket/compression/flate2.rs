@@ -1,7 +1,7 @@
 use crate::{
   http::{GenericHeader, KnownHeaderName},
-  misc::{bytes_split1, FilledBufferWriter, FromRadix10},
-  web_socket::{compression::NegotiatedCompression, Compression, DeflateConfig, WebSocketError},
+  misc::{FromRadix10, SuffixWriterFbvm, bytes_split1},
+  web_socket::{Compression, DeflateConfig, WebSocketError, compression::NegotiatedCompression},
 };
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
 
@@ -93,8 +93,8 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
   }
 
   #[inline]
-  fn write_req_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
-    write_headers(&self.dc, fbw)
+  fn write_req_headers(&self, sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
+    write_headers(&self.dc, sw)
   }
 }
 
@@ -170,8 +170,8 @@ impl NegotiatedCompression for NegotiatedFlate2 {
   }
 
   #[inline]
-  fn write_res_headers(&self, fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
-    write_headers(&self.dc, fbw)
+  fn write_res_headers(&self, sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
+    write_headers(&self.dc, sw)
   }
 }
 
@@ -241,8 +241,8 @@ fn _manage_header_uniqueness(
 }
 
 #[inline]
-fn write_headers(dc: &DeflateConfig, fbw: &mut FilledBufferWriter<'_>) -> crate::Result<()> {
-  fbw._extend_from_slices_group_rn(&[
+fn write_headers(dc: &DeflateConfig, sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
+  sw._extend_from_slices_group_rn(&[
     b"Sec-Websocket-Extensions: ",
     b"permessage-deflate; ",
     b"client_max_window_bits=",

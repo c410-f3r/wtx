@@ -1,14 +1,14 @@
 use crate::{
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, ConnectionState, LeaseMut, Stream, Vector,
-    Xorshift64,
+    ConnectionState, LeaseMut, Stream, Vector, Xorshift64,
+    partitioned_filled_buffer::PartitionedFilledBuffer,
   },
   web_socket::{
+    Frame, FrameMut,
     compression::NegotiatedCompression,
     web_socket_parts::web_socket_part::{
       WebSocketCommonPart, WebSocketReaderPart, WebSocketWriterPart,
     },
-    Frame, FrameMut,
   },
 };
 use core::marker::PhantomData;

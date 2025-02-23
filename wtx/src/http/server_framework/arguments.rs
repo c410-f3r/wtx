@@ -4,8 +4,8 @@ mod path_str;
 mod serde_json;
 
 use crate::{
-  http::{server_framework::RouteMatch, HttpError},
-  misc::{bytes_split1, UriString},
+  http::{HttpError, server_framework::RouteMatch},
+  misc::{UriString, bytes_split1},
 };
 pub use path_owned::PathOwned;
 pub use path_str::PathStr;
@@ -39,5 +39,5 @@ fn manage_path<'uri>(
     }
     None
   };
-  fun().ok_or_else(|| crate::Error::from(HttpError::UriMismatch))
+  fun().ok_or_else(|| crate::Error::from(HttpError::MissingUriPlaceholder))
 }

@@ -21,15 +21,15 @@
 //! ALTER TABLE "session" ADD CONSTRAINT session__user__fk FOREIGN KEY (user_id) REFERENCES "user" (id);
 //! ```
 
-use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
+use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use tokio::net::TcpStream;
 use wtx::{
   database::{Executor, Record},
   http::{
-    server_framework::{get, post, Router, ServerFrameworkBuilder, State, StateClean},
     ReqResBuffer, ReqResData, SessionDecoder, SessionManagerTokio, SessionState, StatusCode,
+    server_framework::{Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
-  misc::{argon2_pwd, Vector},
+  misc::{Vector, argon2_pwd},
   pool::{PostgresRM, SimplePoolTokio},
 };
 

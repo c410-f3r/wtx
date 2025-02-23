@@ -40,8 +40,8 @@ where
 mod tests {
   use crate::{
     http::{
-      server_framework::{get, EndpointNode, RouteMatch, Router, StateClean},
       ManualStream, OperationMode, ReqResBuffer, StatusCode,
+      server_framework::{EndpointNode, RouteMatch, Router, StateClean, get},
     },
     misc::{ArrayVector, Vector},
   };

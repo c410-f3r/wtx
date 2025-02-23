@@ -1,16 +1,16 @@
 use crate::{
   client_api_framework::{
+    Api,
     network::{
-      transport::{RecievingTransport, SendingTransport, Transport},
       TransportGroup, WsParams,
+      transport::{RecievingTransport, SendingTransport, Transport},
     },
     pkg::{Package, PkgsAux},
-    Api,
   },
   misc::{LeaseMut, Lock, StreamReader, StreamWriter},
   web_socket::{
-    compression::NegotiatedCompression, WebSocketCommonPartOwned, WebSocketPartsOwned,
-    WebSocketWriterPartOwned,
+    WebSocketCommonPartOwned, WebSocketPartsOwned, WebSocketWriterPartOwned,
+    compression::NegotiatedCompression,
   },
 };
 use core::ops::Range;
@@ -44,7 +44,19 @@ where
   TP: LeaseMut<WsParams>,
 {
   #[inline]
-  async fn send<A, DRSR, P>(
+  async fn send_bytes<A>(
+    &mut self,
+    bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, (), TP>,
+  ) -> Result<(), A::Error>
+  where
+    A: Api,
+  {
+    self.writer.send_bytes(bytes, pkgs_aux).await
+  }
+
+  #[inline]
+  async fn send_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -53,7 +65,7 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
-    self.writer.send(pkg, pkgs_aux).await
+    self.writer.send_pkg(pkg, pkgs_aux).await
   }
 }
 

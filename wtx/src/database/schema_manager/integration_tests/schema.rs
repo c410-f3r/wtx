@@ -3,7 +3,7 @@ pub(crate) mod without_schema;
 
 use crate::{
   database::schema_manager::{
-    integration_tests::AuxTestParams, Commands, MigrationGroup, SchemaManagement,
+    Commands, MigrationGroup, SchemaManagement, integration_tests::AuxTestParams,
   },
   misc::Vector,
 };

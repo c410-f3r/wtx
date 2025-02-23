@@ -22,7 +22,7 @@ impl HttpParams {
         mime: None,
         uri: UriString::new(uri),
       },
-      HttpResParams { headers: Headers::new(), status_code: StatusCode::Forbidden },
+      HttpResParams { status_code: StatusCode::Forbidden },
     )
   }
 }
@@ -46,33 +46,21 @@ impl TransportParams for HttpParams {
   type ExternalResponseParams = HttpResParams;
 
   #[inline]
-  fn ext_req_params(&self) -> &Self::ExternalRequestParams {
-    &self.0
+  fn ext_params(&self) -> (&Self::ExternalRequestParams, &Self::ExternalResponseParams) {
+    (&self.0, &self.1)
   }
 
   #[inline]
-  fn ext_req_params_mut(&mut self) -> &mut Self::ExternalRequestParams {
-    &mut self.0
-  }
-
-  #[inline]
-  fn ext_res_params(&self) -> &Self::ExternalResponseParams {
-    &self.1
-  }
-
-  #[inline]
-  fn ext_res_params_mut(&mut self) -> &mut Self::ExternalResponseParams {
-    &mut self.1
+  fn ext_params_mut(
+    &mut self,
+  ) -> (&mut Self::ExternalRequestParams, &mut Self::ExternalResponseParams) {
+    (&mut self.0, &mut self.1)
   }
 
   #[inline]
   fn reset(&mut self) {
-    self.0.headers.clear();
-    self.0.method = Method::Get;
-    self.0.mime = None;
-    self.0.uri.truncate_with_initial_len();
-    self.1.headers.clear();
-    self.1.status_code = StatusCode::Forbidden;
+    self.0.reset();
+    self.1.reset();
   }
 }
 
@@ -89,11 +77,27 @@ pub struct HttpReqParams {
   pub uri: UriString,
 }
 
+impl HttpReqParams {
+  /// Sets the inner parameters with their default values.
+  #[inline]
+  pub fn reset(&mut self) {
+    self.headers.clear();
+    self.method = Method::Get;
+    self.mime = None;
+  }
+}
+
 #[doc = generic_trans_res_params_doc!("HTTP")]
 #[derive(Debug)]
 pub struct HttpResParams {
-  /// Http headers.
-  pub headers: Headers,
   /// Status code.
   pub status_code: StatusCode,
+}
+
+impl HttpResParams {
+  /// Sets the inner parameters with their default values.
+  #[inline]
+  pub fn reset(&mut self) {
+    self.status_code = StatusCode::InternalServerError;
+  }
 }

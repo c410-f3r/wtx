@@ -1,7 +1,7 @@
 use crate::client_api_framework::{
+  Api,
   network::transport::Transport,
   pkg::{Package, PkgsAux},
-  Api,
 };
 use core::future::Future;
 
@@ -11,8 +11,17 @@ use core::future::Future;
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
 pub trait SendingTransport<TP>: Transport<TP> {
-  /// Sends a request without trying to retrieve any counterpart data.
-  fn send<A, DRSR, P>(
+  /// Sends a sequence of bytes without trying to retrieve any counterpart data.
+  fn send_bytes<A>(
+    &mut self,
+    bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, (), TP>,
+  ) -> impl Future<Output = Result<(), A::Error>>
+  where
+    A: Api;
+
+  /// Sends a package without trying to retrieve any counterpart data.
+  fn send_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -27,7 +36,19 @@ where
   T: SendingTransport<TP>,
 {
   #[inline]
-  async fn send<A, DRSR, P>(
+  async fn send_bytes<A>(
+    &mut self,
+    bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, (), TP>,
+  ) -> Result<(), A::Error>
+  where
+    A: Api,
+  {
+    (**self).send_bytes(bytes, pkgs_aux).await
+  }
+
+  #[inline]
+  async fn send_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -36,6 +57,6 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
-    (**self).send(pkg, pkgs_aux).await
+    (**self).send_pkg(pkg, pkgs_aux).await
   }
 }

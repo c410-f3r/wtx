@@ -2,7 +2,7 @@
 
 use crate::{
   database::schema_manager::SchemaManagerError,
-  misc::{str_split1, ArrayString, ArrayVector},
+  misc::{ArrayString, ArrayVector, str_split1},
 };
 use alloc::string::String;
 use std::io::{BufRead, BufReader, Read};
@@ -145,7 +145,7 @@ fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    database::schema_manager::toml_parser::{toml, Expr, ExprArrayTy},
+    database::schema_manager::toml_parser::{Expr, ExprArrayTy, toml},
     misc::ArrayVector,
   };
 

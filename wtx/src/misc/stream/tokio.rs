@@ -2,8 +2,8 @@ use crate::misc::{StreamReader, StreamWriter};
 use tokio::{
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
   net::{
-    tcp::{OwnedReadHalf, OwnedWriteHalf},
     TcpStream,
+    tcp::{OwnedReadHalf, OwnedWriteHalf},
   },
 };
 
