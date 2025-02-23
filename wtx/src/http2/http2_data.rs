@@ -1,6 +1,6 @@
 use crate::{
   http2::{
-    http2_params_send::Http2ParamsSend, u31::U31, window::Windows, Http2Buffer, Http2Params,
+    Http2Buffer, Http2Params, http2_params_send::Http2ParamsSend, u31::U31, window::Windows,
   },
   misc::{Lease, LeaseMut, StreamWriter},
 };

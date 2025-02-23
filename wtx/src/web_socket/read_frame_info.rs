@@ -1,9 +1,9 @@
 use crate::{
-  misc::{StreamReader, _read_header, partitioned_filled_buffer::PartitionedFilledBuffer},
+  misc::{_read_header, StreamReader, partitioned_filled_buffer::PartitionedFilledBuffer},
   web_socket::{
+    FIN_MASK, MAX_CONTROL_PAYLOAD_LEN, OpCode, PAYLOAD_MASK, RSV1_MASK, RSV2_MASK, RSV3_MASK,
+    WebSocketError,
     misc::{has_masked_frame, op_code},
-    OpCode, WebSocketError, FIN_MASK, MAX_CONTROL_PAYLOAD_LEN, PAYLOAD_MASK, RSV1_MASK, RSV2_MASK,
-    RSV3_MASK,
   },
 };
 

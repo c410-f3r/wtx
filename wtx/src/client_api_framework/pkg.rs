@@ -8,8 +8,8 @@ mod pkgs_aux;
 
 use crate::{
   client_api_framework::Api,
-  data_transformation::dnsn::{Deserialize, Serialize},
-  misc::Vector,
+  data_transformation::dnsn::De,
+  misc::{DecodeSeq, Encode, Vector},
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
 use core::future::Future;
@@ -29,9 +29,9 @@ where
   A: Api,
 {
   /// The expected data format that is going to be sent to an external actor.
-  type ExternalRequestContent: Serialize<DRSR>;
+  type ExternalRequestContent: Encode<De<DRSR>>;
   /// The expected data format returned by an external actor.
-  type ExternalResponseContent<'de>: Deserialize<'de, DRSR>;
+  type ExternalResponseContent<'de>: DecodeSeq<'de, De<DRSR>>;
   /// Any additional parameters used by this package.
   type PackageParams;
 

@@ -9,12 +9,15 @@ mod tests;
 
 #[cfg(feature = "borsh")]
 mod borsh;
-mod deserialize;
+mod de;
+mod decode_wrapper;
+mod encode_wrapper;
 #[cfg(feature = "quick-protobuf")]
 mod quick_protobuf;
 #[cfg(feature = "serde_json")]
 mod serde_json;
-mod serialize;
+#[cfg(feature = "serde_urlencoded")]
+mod urlencoded;
 
 #[cfg(feature = "borsh")]
 pub use self::borsh::*;
@@ -22,5 +25,8 @@ pub use self::borsh::*;
 pub use self::quick_protobuf::*;
 #[cfg(feature = "serde_json")]
 pub use self::serde_json::*;
-pub use deserialize::*;
-pub use serialize::*;
+pub use de::De;
+pub use decode_wrapper::DecodeWrapper;
+pub use encode_wrapper::EncodeWrapper;
+#[cfg(feature = "serde_urlencoded")]
+pub use urlencoded::Urlencoded;

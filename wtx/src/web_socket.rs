@@ -24,6 +24,7 @@ pub(crate) mod web_socket_reader;
 pub(crate) mod web_socket_writer;
 
 use crate::{
+  _MAX_PAYLOAD_LEN,
   misc::{ConnectionState, LeaseMut, Lock, Stream, Xorshift64},
   web_socket::{
     compression::NegotiatedCompression,
@@ -31,7 +32,6 @@ use crate::{
       WebSocketCommonPart, WebSocketReaderPart, WebSocketWriterPart,
     },
   },
-  _MAX_PAYLOAD_LEN,
 };
 pub use close_code::CloseCode;
 pub use compression::{Compression, CompressionLevel, DeflateConfig};

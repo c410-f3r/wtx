@@ -58,15 +58,15 @@ use crate::{
     sorp_mut, write_array,
   },
   misc::{
-    partitioned_filled_buffer::PartitionedFilledBuffer, Arc, AtomicWaker, ConnectionState, Either,
-    Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamReader, StreamWriter, Usize,
-    NOOP_WAKER,
+    Arc, AtomicWaker, ConnectionState, Either, Lease, LeaseMut, Lock, NOOP_WAKER, RefCounter,
+    SingleTypeStorage, StreamReader, StreamWriter, Usize,
+    partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
 use core::{
-  future::{poll_fn, Future},
+  future::{Future, poll_fn},
   mem,
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},

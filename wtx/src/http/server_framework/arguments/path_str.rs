@@ -1,10 +1,10 @@
 use crate::{
   http::{
-    server_framework::{
-      arguments::{manage_path, RouteMatch},
-      Endpoint, ResFinalizer, StateGeneric,
-    },
     AutoStream, Headers, Request, StatusCode,
+    server_framework::{
+      Endpoint, ResFinalizer, StateGeneric,
+      arguments::{RouteMatch, manage_path},
+    },
   },
   misc::{FnFut, FnFutWrapper, Vector},
 };
@@ -42,9 +42,9 @@ impl<CA, E, F, RES, S, SA, const CLEAN: bool> Endpoint<CA, E, S, SA>
 where
   E: From<crate::Error>,
   F: for<'any> FnFut<
-    (StateGeneric<'any, CA, SA, (&'any mut Vector<u8>, &'any mut Headers), CLEAN>, PathStr<'any>),
-    Result = RES,
-  >,
+      (StateGeneric<'any, CA, SA, (&'any mut Vector<u8>, &'any mut Headers), CLEAN>, PathStr<'any>),
+      Result = RES,
+    >,
   RES: ResFinalizer<E>,
 {
   #[inline]

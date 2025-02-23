@@ -1,6 +1,6 @@
 use crate::{
   client_api_framework::misc::RequestLimit,
-  misc::{sleep, GenericTime},
+  misc::{GenericTime, sleep},
 };
 use core::time::Duration;
 

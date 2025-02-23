@@ -9,15 +9,19 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use wtx::{
-  http::{client_pool::ClientPoolBuilder, ReqBuilder, ReqResBuffer},
-  misc::{from_utf8_basic, Uri},
+  http::{HttpClient, Method, ReqResBuffer, client_pool::ClientPoolBuilder},
+  misc::{Uri, from_utf8_basic},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = Uri::new("http://www.example.com");
-  let res = ReqBuilder::get(ReqResBuffer::empty())
-    .send(&mut ClientPoolBuilder::tokio(1).build().lock(&uri).await?.client, &uri)
+  let uri = Uri::new("SOME_URI");
+  let res = ClientPoolBuilder::tokio(1)
+    .build()
+    .lock(&uri)
+    .await?
+    .client
+    .send_recv_single(Method::Get, &uri, ReqResBuffer::empty())
     .await?;
   println!("{}", from_utf8_basic(&res.rrd.body)?);
   Ok(())

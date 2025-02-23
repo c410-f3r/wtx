@@ -40,8 +40,6 @@ pub enum Error {
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
-  #[cfg(feature = "embedded-tls")]
-  EmbassyTlsError(embedded_tls::TlsError),
   #[cfg(feature = "flate2")]
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
@@ -62,8 +60,12 @@ pub enum Error {
   QuickProtobuf(Box<quick_protobuf::Error>),
   #[cfg(feature = "rustls")]
   RustlsError(Box<rustls::Error>),
+  #[cfg(feature = "serde")]
+  SerdeDeValue(::serde::de::value::Error),
   #[cfg(feature = "serde_json")]
   SerdeJson(serde_json::Error),
+  #[cfg(feature = "serde_urlencoded")]
+  SerdeUrlencodedSer(Box<serde_urlencoded::ser::Error>),
   #[cfg(feature = "http-session")]
   SessionError(crate::http::SessionError),
   #[cfg(feature = "tokio")]
@@ -96,6 +98,8 @@ pub enum Error {
   ClosedConnection,
   /// Generic error
   Generic(&'static str),
+  /// Generic error
+  GenericOwned(Box<str>),
   /// `GenericTime` needs a backend
   GenericTimeNeedsBackend,
   /// The hardware returned an incorrect time value
@@ -134,10 +138,12 @@ pub enum Error {
   },
   /// Unexpected Unsigned integer
   UnexpectedUint {
-    received: u32,
+    received: u64,
   },
   /// Only appending is possible but overwritten is still viable through resetting.
   UriCanNotBeOverwritten,
+  /// In the current platform a number is larger than `usize`.
+  UsizeConversionOverflow,
 
   // Internal
   //
@@ -157,6 +163,8 @@ pub enum Error {
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
   Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
+  #[cfg(feature = "mysql")]
+  MysqlError(crate::database::client::mysql::MysqlError),
   #[cfg(feature = "postgres")]
   PostgresError(crate::database::client::postgres::PostgresError),
   QueueError(DequeueError),
@@ -267,14 +275,6 @@ impl From<base64::EncodeSliceError> for Error {
   #[inline]
   fn from(from: base64::EncodeSliceError) -> Self {
     Self::EncodeSliceError(from)
-  }
-}
-
-#[cfg(feature = "embedded-tls")]
-impl From<embedded_tls::TlsError> for Error {
-  #[inline]
-  fn from(from: embedded_tls::TlsError) -> Self {
-    Self::EmbassyTlsError(from)
   }
 }
 
@@ -398,11 +398,27 @@ impl From<rustls::Error> for Error {
   }
 }
 
+#[cfg(feature = "serde")]
+impl From<::serde::de::value::Error> for Error {
+  #[inline]
+  fn from(from: ::serde::de::value::Error) -> Self {
+    Self::SerdeDeValue(from)
+  }
+}
+
 #[cfg(feature = "serde_json")]
 impl From<serde_json::Error> for Error {
   #[inline]
   fn from(from: serde_json::Error) -> Self {
     Self::SerdeJson(from)
+  }
+}
+
+#[cfg(feature = "serde_urlencoded")]
+impl From<serde_urlencoded::ser::Error> for Error {
+  #[inline]
+  fn from(from: serde_urlencoded::ser::Error) -> Self {
+    Self::SerdeUrlencodedSer(from.into())
   }
 }
 
@@ -535,6 +551,14 @@ impl From<FromRadix10Error> for Error {
   }
 }
 
+#[cfg(feature = "mysql")]
+impl From<crate::database::client::mysql::MysqlError> for Error {
+  #[inline]
+  fn from(from: crate::database::client::mysql::MysqlError) -> Self {
+    Self::MysqlError(from)
+  }
+}
+
 #[cfg(feature = "postgres")]
 impl From<crate::database::client::postgres::PostgresError> for Error {
   #[inline]
@@ -593,4 +617,20 @@ pub enum VarError {
   /// valid unicode data. The found data is returned as a payload of this
   /// variant.
   NotUnicode,
+}
+
+#[cfg(feature = "serde")]
+mod serde {
+  use alloc::string::ToString;
+  use core::fmt::Display;
+
+  impl serde::ser::Error for crate::Error {
+    #[inline]
+    fn custom<T>(msg: T) -> Self
+    where
+      T: Display,
+    {
+      Self::GenericOwned(msg.to_string().into())
+    }
+  }
 }

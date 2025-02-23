@@ -7,15 +7,15 @@ use crate::{
       fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef,
       fir_params_items_values::FirParamsItemValues, fir_req_item_values::FirReqItemValues,
     },
-    misc::{from_camel_case_to_snake_case, split_params, EMPTY_GEN_PARAMS},
+    misc::{EMPTY_GEN_PARAMS, from_camel_case_to_snake_case, split_params},
     sir::sir_pkg_attr::SirPkaAttr,
   },
   misc::{create_ident, extend_with_tmp_suffix},
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{
-  punctuated::Punctuated, GenericArgument, GenericParam, ImplItemMethod, PathSegment, Token,
-  WherePredicate,
+  GenericArgument, GenericParam, ImplItemMethod, PathSegment, Token, WherePredicate,
+  punctuated::Punctuated,
 };
 
 pub(crate) struct SirAuxItemValues {

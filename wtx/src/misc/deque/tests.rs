@@ -1,4 +1,4 @@
-use crate::misc::{deque::is_wrapping, Deque};
+use crate::misc::{Deque, deque::is_wrapping};
 
 #[test]
 fn as_slices() {

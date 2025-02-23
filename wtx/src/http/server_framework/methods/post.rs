@@ -1,7 +1,7 @@
 use crate::{
   http::{
-    server_framework::{methods::check_method, Endpoint, EndpointNode, RouteMatch},
     AutoStream, ManualStream, Method, OperationMode, StatusCode,
+    server_framework::{Endpoint, EndpointNode, RouteMatch, methods::check_method},
   },
   misc::{ArrayVector, FnFut, Vector},
 };

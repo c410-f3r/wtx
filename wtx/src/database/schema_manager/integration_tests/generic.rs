@@ -1,11 +1,11 @@
 use crate::{
   database::{
+    Executor, Identifier,
     schema_manager::{
-      integration_tests::AuxTestParams, Commands, DbMigration, MigrationGroup, SchemaManagement,
+      Commands, DbMigration, MigrationGroup, SchemaManagement, integration_tests::AuxTestParams,
     },
-    Database, Identifier,
   },
-  misc::Vector,
+  misc::{DEController, Vector},
 };
 use alloc::string::String;
 use core::fmt::Debug;
@@ -17,8 +17,9 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
+  <<E as Executor>::Database as DEController>::Error: Debug,
 {
-  c.executor.execute("CREATE TABLE IF NOT EXISTS foo(id INT)", |_| {}).await.unwrap();
+  c.executor.execute("CREATE TABLE IF NOT EXISTS foo(id INT)", |_| Ok(())).await.unwrap();
   c.executor.table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();
   assert_eq!(buffer_idents.len(), 1);
   buffer_idents.clear();
@@ -34,7 +35,7 @@ pub(crate) async fn rollback_works<E>(
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
-  <E::Database as Database>::Error: Debug,
+  <E::Database as DEController>::Error: Debug,
 {
   let path = Path::new("../.test-utils/migrations.toml");
   c.migrate_from_toml_path((buffer_cmd, buffer_db_migrations), path).await.unwrap();

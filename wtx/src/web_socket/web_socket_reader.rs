@@ -7,14 +7,14 @@
 
 use crate::{
   misc::{
-    BufferMode, CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char,
-    LeaseMut, Rng, StreamReader, StreamWriter, Vector, _read_payload, from_utf8_basic,
+    _read_payload, BufferMode, CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut,
+    IncompleteUtf8Char, LeaseMut, Rng, StreamReader, StreamWriter, Vector, from_utf8_basic,
     from_utf8_ext, partitioned_filled_buffer::PartitionedFilledBuffer,
   },
   web_socket::{
+    CloseCode, Frame, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE, OpCode, WebSocketError,
     compression::NegotiatedCompression, fill_with_close_code, read_frame_info::ReadFrameInfo,
-    unmask::unmask, web_socket_writer::manage_normal_frame, CloseCode, Frame, OpCode,
-    WebSocketError, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE,
+    unmask::unmask, web_socket_writer::manage_normal_frame,
   },
 };
 
@@ -274,7 +274,7 @@ pub(crate) fn manage_text_of_first_continuation_frame(
 ) -> crate::Result<Option<IncompleteUtf8Char>> {
   Ok(match from_utf8_ext(payload) {
     Err(ExtUtf8Error::Incomplete { incomplete_ending_char, .. }) => Some(incomplete_ending_char),
-    Err(ExtUtf8Error::Invalid { .. }) => {
+    Err(ExtUtf8Error::Invalid) => {
       return Err(crate::Error::InvalidUTF8);
     }
     Ok(_) => None,
@@ -305,7 +305,7 @@ pub(crate) fn manage_text_of_recurrent_continuation_frames(
     Err(ExtUtf8Error::Incomplete { incomplete_ending_char, .. }) => {
       *iuc = Some(incomplete_ending_char);
     }
-    Err(ExtUtf8Error::Invalid { .. }) => {
+    Err(ExtUtf8Error::Invalid) => {
       return Err(crate::Error::InvalidUTF8);
     }
     Ok(_) => {}

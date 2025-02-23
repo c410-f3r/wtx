@@ -1,4 +1,4 @@
-use crate::misc::{BufferMode, Lease, LeaseMut, Wrapper, _unlikely_elem};
+use crate::misc::{_unlikely_elem, BufferMode, Lease, LeaseMut, Wrapper};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
@@ -6,7 +6,8 @@ use core::{
   fmt::{Debug, Display, Formatter},
   hint::assert_unchecked,
   ops::{Deref, DerefMut, RangeBounds},
-  ptr, slice,
+  ptr,
+  slice::{self, Iter, IterMut},
 };
 
 /// Errors of [Vector].
@@ -642,7 +643,7 @@ impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
   where
     I: IntoIterator<Item = T>,
   {
-    Wrapper(Vector::from_iter(iter).map_err(crate::Error::into))
+    Wrapper(Vector::from_iter(iter))
   }
 }
 
@@ -655,6 +656,26 @@ impl<T> IntoIterator for Vector<T> {
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
     self.data.into_iter()
+  }
+}
+
+impl<'any, T> IntoIterator for &'any Vector<T> {
+  type Item = &'any T;
+  type IntoIter = Iter<'any, T>;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    self.data.iter()
+  }
+}
+
+impl<'any, T> IntoIterator for &'any mut Vector<T> {
+  type Item = &'any mut T;
+  type IntoIter = IterMut<'any, T>;
+
+  #[inline]
+  fn into_iter(self) -> Self::IntoIter {
+    self.data.iter_mut()
   }
 }
 

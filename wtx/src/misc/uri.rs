@@ -1,6 +1,6 @@
 use crate::misc::{
-  ArrayString, FromRadix10 as _, Lease, QueryWriter, _unlikely_dflt, bytes_pos1, bytes_rpos1,
-  str_split_once1,
+  _unlikely_dflt, ArrayString, FromRadix10 as _, Lease, LeaseMut, QueryWriter, bytes_pos1,
+  bytes_rpos1, str_split_once1,
 };
 use alloc::string::String;
 use core::fmt::{Arguments, Debug, Display, Formatter, Write as _};
@@ -88,11 +88,7 @@ where
   #[inline]
   pub fn host(&self) -> &str {
     let authority = self.authority();
-    if let Some(elem) = str_split_once1(authority, b'@') {
-      elem.1
-    } else {
-      authority
-    }
+    if let Some(elem) = str_split_once1(authority, b'@') { elem.1 } else { authority }
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2>
@@ -139,11 +135,7 @@ where
   /// ```
   #[inline]
   pub fn password(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.userinfo(), b':') {
-      elem.1
-    } else {
-      ""
-    }
+    if let Some(elem) = str_split_once1(self.userinfo(), b':') { elem.1 } else { "" }
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.3>
@@ -206,11 +198,7 @@ where
   #[inline]
   pub fn relative_reference_slash(&self) -> &str {
     let relative_reference = self.relative_reference();
-    if relative_reference.is_empty() {
-      "/"
-    } else {
-      relative_reference
-    }
+    if relative_reference.is_empty() { "/" } else { relative_reference }
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.1>
@@ -260,11 +248,7 @@ where
   /// ```
   #[inline]
   pub fn user(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.userinfo(), b':') {
-      elem.0
-    } else {
-      ""
-    }
+    if let Some(elem) = str_split_once1(self.userinfo(), b':') { elem.0 } else { "" }
   }
 
   /// ```rust
@@ -273,11 +257,7 @@ where
   /// ```
   #[inline]
   pub fn userinfo(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.authority(), b'@') {
-      elem.0
-    } else {
-      ""
-    }
+    if let Some(elem) = str_split_once1(self.authority(), b'@') { elem.0 } else { "" }
   }
 
   fn parts(uri: &str) -> (u16, u8, u8, u16) {
@@ -314,6 +294,7 @@ where
     self.port = match uri {
       [b'h', b't', b't', b'p', b's', ..] | [b'w', b's', b's', ..] => Some(443),
       [b'h', b't', b't', b'p', ..] | [b'w', b's', ..] => Some(80),
+      [b'm', b'y', b's', b'q', b'l', ..] => Some(3306),
       [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', b'q', b'l', ..]
       | [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', ..] => Some(5432),
       _ => return,
@@ -374,6 +355,32 @@ impl UriString {
   pub fn truncate_with_initial_len(&mut self) {
     self.uri.truncate(self.initial_len.into());
     self.query_start = self.query_start.min(self.initial_len);
+  }
+
+  #[inline]
+  pub(crate) fn _buffer(
+    &mut self,
+    cb: impl FnOnce(&mut String) -> crate::Result<()>,
+  ) -> crate::Result<()> {
+    let idx = self.uri.len();
+    let rslt = cb(&mut self.uri);
+    self.uri.truncate(idx);
+    rslt?;
+    Ok(())
+  }
+}
+
+impl<S> Lease<Uri<S>> for Uri<S> {
+  #[inline]
+  fn lease(&self) -> &Uri<S> {
+    self
+  }
+}
+
+impl<S> LeaseMut<Uri<S>> for Uri<S> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut Uri<S> {
+    self
   }
 }
 

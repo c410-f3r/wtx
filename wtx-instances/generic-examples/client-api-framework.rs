@@ -15,9 +15,9 @@ use core::time::Duration;
 use tokio::net::TcpStream;
 use wtx::{
   client_api_framework::{
-    misc::{Pair, RequestLimit, RequestThrottling},
-    network::{transport::SendingReceivingTransport, HttpParams, WsParams},
     Api,
+    misc::{Pair, RequestLimit, RequestThrottling},
+    network::{HttpParams, WsParams, transport::SendingReceivingTransport},
   },
   data_transformation::dnsn::SerdeJson,
   http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
@@ -81,8 +81,8 @@ mod generic_web_socket_subscription {
   pub type GenericWebSocketSubscriptionRes = u64;
 }
 
-async fn http_pair(
-) -> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn()>> {
+async fn http_pair()
+-> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn()>> {
   Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
@@ -122,7 +122,7 @@ async fn main() -> wtx::Result<()> {
   let mut hp = http_pair().await;
   let _http_response_tuple = hp
     .trans
-    .send_recv_decode_contained(
+    .send_pkg_recv_decode_contained(
       &mut hp.pkgs_aux.generic_http_request().data(123).build(),
       &mut hp.pkgs_aux,
     )
@@ -132,7 +132,7 @@ async fn main() -> wtx::Result<()> {
   let mut wsp = web_socket_pair().await?;
   let _web_socket_subscription_id = wsp
     .trans
-    .send_recv_decode_contained(
+    .send_pkg_recv_decode_contained(
       &mut wsp.pkgs_aux.generic_web_socket_subscription().data("Hello", None).build(),
       &mut wsp.pkgs_aux,
     )

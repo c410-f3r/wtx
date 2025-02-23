@@ -10,6 +10,7 @@ pub(crate) enum DataFormat {
   Json,
   JsonRpc(String),
   Protobuf,
+  Urlencoded,
   Verbatim,
 }
 
@@ -44,6 +45,7 @@ impl DataFormat {
       DataFormat::Json => rslt!(http_mime_type!(ApplicationJson)),
       DataFormat::JsonRpc(_) => rslt!(http_method_and_mime_type!(Post, ApplicationJson)),
       DataFormat::Protobuf => rslt!(http_mime_type!(ApplicationVndGoogleProtobuf)),
+      DataFormat::Urlencoded => rslt!(http_mime_type!(ApplicationXWwwFormUrlEncoded)),
       _ => TokenStream::new(),
     }
   }
@@ -71,6 +73,12 @@ impl DataFormat {
       },
       DataFormat::Protobuf => DataFormatElems {
         dfe_data_format_builder_fn: ident_fn("build_protobuf"),
+        dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimRequest"),
+        dfe_ext_res_ctnt_wrapper: ident_fn("VerbatimResponse"),
+        dfe_pkgs_aux_call: quote::quote!(verbatim_request(data)),
+      },
+      DataFormat::Urlencoded => DataFormatElems {
+        dfe_data_format_builder_fn: ident_fn("build_urlencoded"),
         dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimRequest"),
         dfe_ext_res_ctnt_wrapper: ident_fn("VerbatimResponse"),
         dfe_pkgs_aux_call: quote::quote!(verbatim_request(data)),
@@ -117,6 +125,7 @@ impl<'attrs> TryFrom<&'attrs NestedMeta> for DataFormat {
         "borsh" => Ok(Self::Borsh),
         "json" => Ok(Self::Json),
         "protobuf" => Ok(Self::Protobuf),
+        "urlencoded" => Ok(Self::Urlencoded),
         "verbatim" => Ok(Self::Verbatim),
         _ => Err(crate::Error::UnknownDataFormat),
       }

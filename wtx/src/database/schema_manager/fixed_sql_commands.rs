@@ -25,16 +25,18 @@ macro_rules! _serial_id {
   };
 }
 
+#[cfg(feature = "mysql")]
+pub(crate) mod mysql;
 #[cfg(feature = "postgres")]
 pub(crate) mod postgres;
 
 use crate::{
   database::{
+    Database, DatabaseTy, FromRecord,
     executor::Executor,
     schema_manager::{DbMigration, MigrationGroup, UserMigration},
-    Database, DatabaseTy, FromRecord,
   },
-  misc::{Lease, Vector},
+  misc::{DEController, Lease, Vector},
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -46,7 +48,7 @@ pub(crate) async fn _delete_migrations<E, S>(
   mg: &MigrationGroup<S>,
   schema_prefix: &str,
   version: i32,
-) -> crate::Result<()>
+) -> Result<(), <E::Database as DEController>::Error>
 where
   E: Executor,
   S: Lease<str>,
@@ -54,8 +56,8 @@ where
   buffer_cmd.write_fmt(format_args!(
     "DELETE FROM {schema_prefix}_wtx_migration WHERE _wtx_migration_omg_version = {mg_version} AND version > {version}",
     mg_version = mg.version(),
-  ))?;
-  executor.execute(buffer_cmd.as_str(), |_| {}).await?;
+  )).map_err(crate::Error::from)?;
+  executor.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
   buffer_cmd.clear();
   Ok(())
 }
@@ -67,7 +69,7 @@ pub(crate) async fn _insert_migrations<'migration, DBS, E, I, S>(
   mg: &MigrationGroup<S>,
   migrations: I,
   schema_prefix: &str,
-) -> Result<(), <E::Database as Database>::Error>
+) -> Result<(), <E::Database as DEController>::Error>
 where
   DBS: Lease<[DatabaseTy]> + 'migration,
   E: Executor,
@@ -85,7 +87,7 @@ where
       mg_version = mg.version(),
     ))
     .map_err(Into::into)?;
-  executor.execute(buffer_cmd.as_str(), |_| {}).await?;
+  executor.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
   buffer_cmd.clear();
 
   for migration in migrations.clone() {
@@ -93,7 +95,7 @@ where
   }
   executor
     .transaction(|this| async {
-      this.execute(buffer_cmd.as_str(), |_| {}).await?;
+      this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
       Ok(((), this))
     })
     .await?;
@@ -117,7 +119,7 @@ where
   }
   executor
     .transaction(|this| async {
-      this.execute(buffer_cmd.as_str(), |_| {}).await?;
+      this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
       Ok(((), this))
     })
     .await?;
@@ -135,7 +137,7 @@ pub(crate) async fn _migrations_by_mg_version_query<E, D>(
   schema_prefix: &str,
 ) -> crate::Result<()>
 where
-  D: Database<Error = crate::Error>,
+  D: Database<Aux = (), Error = crate::Error>,
   E: Executor<Database = D>,
   DbMigration: FromRecord<E::Database>,
 {

@@ -9,7 +9,7 @@ use wtx::{
     StatusCode,
   },
   http2::{Http2Buffer, Http2Params},
-  misc::{simple_seed, Xorshift64},
+  misc::{Xorshift64, simple_seed},
 };
 
 #[tokio::main]

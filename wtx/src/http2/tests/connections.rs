@@ -1,11 +1,11 @@
 use crate::{
   http::{Header, Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{simple_seed, Either, UriRef, UriString, Xorshift64},
+  misc::{Either, UriRef, UriString, Xorshift64, simple_seed},
   tests::_uri,
 };
 use core::time::Duration;
-use tokio::net::{tcp::OwnedWriteHalf, TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpStream, tcp::OwnedWriteHalf};
 
 #[tokio::test]
 async fn connections() {

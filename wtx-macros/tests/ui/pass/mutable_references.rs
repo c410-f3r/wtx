@@ -26,9 +26,9 @@ mod pkg {
 
 fn main() {
   let mut api = ();
-  let mut drsr = ();
+  let drsr = ();
   let mut tp = ();
   let mut trans = ();
-  let mut pkgs_aux = PkgsAux::from_minimum(&mut api, &mut drsr, &mut tp);
-  let _ = trans.send(&mut pkgs_aux.foo().build(), &mut pkgs_aux);
+  let mut pkgs_aux = PkgsAux::from_minimum(&mut api, drsr, &mut tp);
+  let _ = trans.send_pkg(&mut pkgs_aux.foo().build(), &mut pkgs_aux);
 }

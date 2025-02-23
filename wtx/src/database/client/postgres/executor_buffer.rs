@@ -1,6 +1,6 @@
 use crate::{
-  database::{client::postgres::Statements, Identifier},
-  misc::{partitioned_filled_buffer::PartitionedFilledBuffer, Lease, LeaseMut, Rng, Vector},
+  database::{Identifier, client::postgres::PostgresStatements},
+  misc::{Lease, LeaseMut, Rng, Vector, partitioned_filled_buffer::PartitionedFilledBuffer},
 };
 use core::ops::Range;
 use hashbrown::HashMap;
@@ -15,7 +15,7 @@ pub struct ExecutorBuffer {
   /// Records Buffer.
   pub(crate) rb: Vector<usize>,
   /// Statements
-  pub(crate) stmts: Statements,
+  pub(crate) stmts: PostgresStatements,
   /// Values Buffer.
   pub(crate) vb: Vector<(bool, Range<usize>)>,
 }
@@ -31,7 +31,7 @@ impl ExecutorBuffer {
       cp: HashMap::new(),
       nb: PartitionedFilledBuffer::new(),
       rb: Vector::new(),
-      stmts: Statements::new(max_stmts, rng),
+      stmts: PostgresStatements::new(max_stmts, rng),
       vb: Vector::new(),
     }
   }
@@ -50,7 +50,7 @@ impl ExecutorBuffer {
       cp: HashMap::with_capacity(4),
       nb: PartitionedFilledBuffer::_with_capacity(network_buffer_cap)?,
       rb: Vector::with_capacity(rows_cap)?,
-      stmts: Statements::with_capacity(columns_cap, max_stmts, rng, stmts_cap)?,
+      stmts: PostgresStatements::with_capacity(columns_cap, max_stmts, rng, stmts_cap)?,
       vb: Vector::with_capacity(rows_cap.saturating_mul(columns_cap))?,
     })
   }
@@ -108,6 +108,6 @@ pub(crate) struct ExecutorBufferPartsMut<'eb> {
   pub(crate) cp: &'eb mut HashMap<Identifier, Identifier>,
   pub(crate) nb: &'eb mut PartitionedFilledBuffer,
   pub(crate) rb: &'eb mut Vector<usize>,
-  pub(crate) stmts: &'eb mut Statements,
+  pub(crate) stmts: &'eb mut PostgresStatements,
   pub(crate) vb: &'eb mut Vector<(bool, Range<usize>)>,
 }

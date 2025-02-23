@@ -141,17 +141,13 @@ impl<'attrs, 'module, 'others>
         let is_mut_lf = is_mut.then(|| quote::quote! { '__is_mut }).into_iter();
         let tp = {
           let tt = Self::transport_params(transport_group);
-          if is_mut {
-            quote::quote!(&'__is_mut mut #tt)
-          } else {
-            tt
-          }
+          if is_mut { quote::quote!(&'__is_mut mut #tt) } else { tt }
         };
         package_impls.push(quote::quote!(
           impl<
             #(#is_mut_lf,)* #(#lts,)* #(#tys,)* __API, __DRSR, __TRANSPORT
           > wtx::client_api_framework::pkg::Package<
-          __API, __DRSR, __TRANSPORT, #tp
+            __API, __DRSR, __TRANSPORT, #tp
           > for #camel_case_pkg_ident<
             #(#fpiv_params_iter0,)*
             wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
@@ -163,10 +159,10 @@ impl<'attrs, 'module, 'others>
             #(#freqdiv_where_predicates_iter,)*
             wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
-            >: wtx::data_transformation::dnsn::Serialize<__DRSR>,
+            >: wtx::misc::Encode<wtx::data_transformation::dnsn::De<__DRSR>>,
             for<'__de> wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter0)*>
-            >: wtx::data_transformation::dnsn::Deserialize<'__de, __DRSR>,
+            >: wtx::misc::DecodeSeq<'__de, wtx::data_transformation::dnsn::De<__DRSR>>,
             __API: wtx::client_api_framework::Api<
               Error = <<#id as wtx::client_api_framework::ApiId>::Api as wtx::client_api_framework::Api>::Error,
               Id = #id

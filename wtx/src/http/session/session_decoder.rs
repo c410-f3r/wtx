@@ -1,9 +1,9 @@
 use crate::{
   http::{
-    cookie::{cookie_bytes::CookieBytes, decrypt},
-    server_framework::Middleware,
     KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,
+    cookie::{cookie_bytes::CookieBytes, decrypt},
+    server_framework::Middleware,
   },
   misc::{GenericTime, Lease, LeaseMut, Lock},
   pool::{Pool, ResourceManager},
@@ -13,9 +13,6 @@ use core::ops::ControlFlow;
 use serde::de::DeserializeOwned;
 
 /// Decodes cookies received from requests and manages them.
-///
-/// The use of this structure without [`Session`] or used after the applicability of [`Session`]
-/// is a NO-OP.
 #[derive(Debug)]
 pub struct SessionDecoder<SMI, SS> {
   session_manager: SessionManager<SMI>,
@@ -33,7 +30,7 @@ impl<SMI, SS> SessionDecoder<SMI, SS> {
 impl<CA, CS, E, RM, SMI, SS, SA> Middleware<CA, E, SA> for SessionDecoder<SMI, SS>
 where
   CA: LeaseMut<Option<SessionState<CS>>>,
-  CS: DeserializeOwned + PartialEq + core::fmt::Debug,
+  CS: DeserializeOwned + PartialEq,
   E: From<crate::Error>,
   SMI: Lock<Resource = SessionManagerInner<CS, E>>,
   SS: Pool<ResourceManager = RM>,
