@@ -7,7 +7,7 @@ use crate::{
   client_api_framework::{
     Api, ClientApiFrameworkError,
     misc::{
-      manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      _log_res, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
@@ -25,7 +25,7 @@ async fn recv<A, DRSR, TP>(
   frame: Frame<&mut [u8], true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> crate::Result<Range<usize>> {
-  pkgs_aux.byte_buffer.clear();
+  _log_res(&pkgs_aux.byte_buffer);
   if let OpCode::Close = frame.op_code() {
     return Err(ClientApiFrameworkError::ClosedWsConnection.into());
   }
@@ -52,7 +52,6 @@ where
     WsReqParamsTy::String => OpCode::Text,
   };
   send(aux, &mut pkgs_aux.byte_buffer, op_code, trans).await?;
-  pkgs_aux.byte_buffer.clear();
   after_sending(aux, pkgs_aux, &mut *trans).await?;
   pkgs_aux.tp.lease_mut().reset();
   Ok(())

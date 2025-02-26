@@ -1,12 +1,11 @@
 use crate::{
   client_api_framework::{
     Api,
-    misc::log_res,
     network::transport::{RecievingTransport, SendingTransport},
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
   },
   data_transformation::dnsn::{De, DecodeWrapper},
-  misc::{Decode, DecodeSeq, Encode, Lease, Vector},
+  misc::{Decode, DecodeSeq, Encode, Vector},
 };
 use core::{future::Future, ops::Range};
 
@@ -20,10 +19,10 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
   ///
   /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
   #[inline]
-  fn send_bytes_recv<A>(
+  fn send_bytes_recv<A, DRSR>(
     &mut self,
     bytes: &[u8],
-    pkgs_aux: &mut PkgsAux<A, (), TP>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<Range<usize>, A::Error>>
   where
     A: Api,
@@ -71,11 +70,10 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
   {
     async {
       let range = self.send_pkg_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.lease());
       P::ExternalResponseContent::decode_seq(
         &mut pkgs_aux.drsr,
         buffer,
-        &mut DecodeWrapper::_new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
+        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
       )?;
       Ok(())
     }
@@ -95,10 +93,9 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
   {
     async {
       let range = self.send_pkg_recv(pkg, pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.lease());
       Ok(P::ExternalResponseContent::decode(
         &mut pkgs_aux.drsr,
-        &mut DecodeWrapper::_new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
+        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
       )?)
     }
   }

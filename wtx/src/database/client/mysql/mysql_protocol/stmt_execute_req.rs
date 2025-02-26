@@ -16,7 +16,7 @@ pub(crate) struct StmtExecuteReq<'any, 'stmts, RV> {
   pub(crate) stmt: &'any MysqlStatement<'stmts>,
 }
 
-impl<'any, 'stmts, DO, E, RV> Encode<MysqlProtocol<DO, E>> for StmtExecuteReq<'any, 'stmts, RV>
+impl<DO, E, RV> Encode<MysqlProtocol<DO, E>> for StmtExecuteReq<'_, '_, RV>
 where
   E: From<crate::Error>,
   RV: RecordValues<Mysql<E>>,

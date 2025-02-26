@@ -1,12 +1,11 @@
 use crate::{
   client_api_framework::{
     Api,
-    misc::log_res,
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
   data_transformation::dnsn::DecodeWrapper,
-  misc::{Decode, Lease},
+  misc::Decode,
 };
 use core::{future::Future, ops::Range};
 
@@ -38,10 +37,9 @@ pub trait RecievingTransport<TP>: Sized + Transport<TP> {
   {
     async {
       let range = self.recv(pkgs_aux).await?;
-      log_res(pkgs_aux.byte_buffer.lease());
       Ok(P::ExternalResponseContent::decode(
         &mut pkgs_aux.drsr,
-        &mut DecodeWrapper::_new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
+        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
       )?)
     }
   }

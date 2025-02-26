@@ -27,7 +27,7 @@ pub use request_throttling::RequestThrottling;
 /// Not used in [`crate::network::transport::Transport::send_recv_decode_batch`] because
 /// [`crate::Requests::decode_responses`] takes precedence.
 #[inline]
-pub(crate) fn log_res(_res: &[u8]) {
+pub(crate) fn _log_res(_res: &[u8]) {
   _debug!("Response: {:?}", crate::misc::from_utf8_basic(_res));
 }
 
@@ -73,7 +73,6 @@ where
   A: Api,
   T: Transport<TP>,
 {
-  pkgs_aux.byte_buffer.clear();
   log_req_bytes(bytes, trans);
   pkgs_aux.api.before_sending().await?;
   Ok(())
@@ -90,7 +89,6 @@ where
   P: Package<A, DRSR, T, TP>,
   T: Transport<TP>,
 {
-  pkgs_aux.byte_buffer.clear();
   log_req_pkg(pkg, pkgs_aux, trans);
   pkgs_aux.api.before_sending().await?;
   pkg
@@ -101,7 +99,7 @@ where
     .await?;
   pkg
     .ext_req_content_mut()
-    .encode(&mut pkgs_aux.drsr, &mut EncodeWrapper::_new(&mut pkgs_aux.byte_buffer))?;
+    .encode(&mut pkgs_aux.drsr, &mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
   Ok(())
 }
 
@@ -126,7 +124,7 @@ fn log_req_pkg<A, DRSR, P, T, TP>(
   let idx = _pkgs_aux.byte_buffer.len();
   let _rslt = _pkg
     .ext_req_content_mut()
-    .encode(&mut _pkgs_aux.drsr, &mut EncodeWrapper::_new(&mut _pkgs_aux.byte_buffer));
+    .encode(&mut _pkgs_aux.drsr, &mut EncodeWrapper::new(&mut _pkgs_aux.byte_buffer));
   log_req_bytes(_pkgs_aux.byte_buffer.get(idx..).unwrap_or_default(), _trans);
   _pkgs_aux.byte_buffer.truncate(idx);
 }

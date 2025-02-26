@@ -116,7 +116,7 @@ where
             } else {
               (&[][..], &[][..])
             },
-            config.password.as_deref().unwrap_or_default().as_bytes(),
+            config.password.unwrap_or_default().as_bytes(),
           )?;
           let payload = AuthSwitchReq(&bytes);
           write_packet((capabilities, sequence_id), enc_buffer, payload, stream).await?;

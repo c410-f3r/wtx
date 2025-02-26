@@ -37,16 +37,8 @@ pub(crate) async fn http_client(http_client: HttpClient) {
     rrb.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
   }
   let uri = Uri::new(uri);
-  let uri_ref = uri.to_ref();
-  let res = ClientPoolBuilder::tokio_rustls(1)
-    .build()
-    .lock(&uri_ref)
-    .await
-    .unwrap()
-    .client
-    .send_recv_single(method, &uri_ref, rrb)
-    .await
-    .unwrap();
+  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
+  let res = client.send_recv_single(method, rrb, &uri.to_ref()).await.unwrap();
   if let Some(elem) = output {
     OpenOptions::new()
       .create(true)

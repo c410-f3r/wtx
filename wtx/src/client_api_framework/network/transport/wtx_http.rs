@@ -2,7 +2,7 @@ use crate::{
   client_api_framework::{
     Api,
     misc::{
-      manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      _log_res, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
@@ -31,6 +31,7 @@ where
   where
     A: Api,
   {
+    _log_res(&pkgs_aux.byte_buffer);
     Ok(0..pkgs_aux.byte_buffer.len())
   }
 }
@@ -42,15 +43,15 @@ where
   TP: LeaseMut<HttpParams>,
 {
   #[inline]
-  async fn send_bytes<A>(
+  async fn send_bytes<A, DRSR>(
     &mut self,
-    mut bytes: &[u8],
-    pkgs_aux: &mut PkgsAux<A, (), TP>,
+    bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
   {
-    send_bytes(&mut bytes, self, pkgs_aux).await
+    send_bytes(bytes, self, pkgs_aux).await
   }
 
   #[inline]
@@ -78,7 +79,7 @@ where
 
 #[inline]
 async fn send<A, AUX, DRSR, HD, SW, TP>(
-  mut aux: AUX,
+  mut aux: &mut AUX,
   client: &mut Http2<HD, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   before_sending: impl AsyncFnOnce(
@@ -122,9 +123,11 @@ where
     ))?;
   }
   let mut rrb = ReqResBuffer::empty();
+  mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut rrb.headers, headers);
   // Only servers use the URI buffer so there is no need for URI swaps
   let mut res = send(&mut aux, *method, rrb, client, &uri.to_ref()).await?;
+  mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut res.rrd.headers, headers);
   *status_code = res.status_code;
   after_sending(&mut aux, pkgs_aux, client).await?;
@@ -133,7 +136,7 @@ where
 
 #[inline]
 async fn send_bytes<A, DRSR, HD, SW, TP>(
-  bytes: &[u8],
+  mut bytes: &[u8],
   client: &mut Http2<HD, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> Result<(), A::Error>
@@ -145,12 +148,12 @@ where
   TP: LeaseMut<HttpParams>,
 {
   send(
-    bytes,
+    &mut bytes,
     client,
     pkgs_aux,
     async move |aux, pa, tr| manage_before_sending_bytes(aux, pa, tr).await,
     async move |aux, method, mut rrb, tr, uri| {
-      let stream = tr.send_req(method, uri, (aux, &mut rrb.headers)).await?;
+      let stream = tr.send_req(method, (aux, &mut rrb.headers), uri).await?;
       tr.recv_res(rrb, stream).await
     },
     async move |_, pa, _| manage_after_sending_bytes(pa).await,
@@ -177,7 +180,7 @@ where
     client,
     pkgs_aux,
     async move |aux, pa, tr| manage_before_sending_pkg(aux, pa, tr).await,
-    async move |_, method, rrb, tr, uri| tr.send_recv_single(method, uri, rrb).await,
+    async move |_, method, rrb, tr, uri| tr.send_recv_single(method, rrb, uri).await,
     async move |aux, pa, tr| manage_after_sending_pkg(aux, pa, tr).await,
   )
   .await
@@ -188,6 +191,7 @@ mod http_client_pool {
   use crate::{
     client_api_framework::{
       Api,
+      misc::_log_res,
       network::{
         HttpParams, TransportGroup,
         transport::{
@@ -227,6 +231,7 @@ mod http_client_pool {
     where
       A: Api,
     {
+      _log_res(&pkgs_aux.byte_buffer);
       Ok(0..pkgs_aux.byte_buffer.len())
     }
   }
@@ -247,16 +252,16 @@ mod http_client_pool {
     for<'any> RM: 'any,
   {
     #[inline]
-    async fn send_bytes<A>(
+    async fn send_bytes<A, DRSR>(
       &mut self,
-      mut bytes: &[u8],
-      pkgs_aux: &mut PkgsAux<A, (), TP>,
+      bytes: &[u8],
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<(), A::Error>
     where
       A: Api,
     {
       send_bytes(
-        &mut bytes,
+        bytes,
         &mut self.lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().uri.to_ref()).await?.client,
         pkgs_aux,
       )
@@ -321,6 +326,7 @@ mod http_client_pool {
     where
       A: Api,
     {
+      _log_res(&pkgs_aux.byte_buffer);
       Ok(0..pkgs_aux.byte_buffer.len())
     }
   }
@@ -341,16 +347,16 @@ mod http_client_pool {
     for<'any> RM: 'any,
   {
     #[inline]
-    async fn send_bytes<A>(
+    async fn send_bytes<A, DRSR>(
       &mut self,
-      mut bytes: &[u8],
-      pkgs_aux: &mut PkgsAux<A, (), TP>,
+      bytes: &[u8],
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<(), A::Error>
     where
       A: Api,
     {
       send_bytes(
-        &mut bytes,
+        bytes,
         &mut self.lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().uri.to_ref()).await?.client,
         pkgs_aux,
       )

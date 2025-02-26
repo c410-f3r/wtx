@@ -46,7 +46,7 @@ impl AuthPlugin {
           fetch_msg(net_buffer, sequence_id, stream).await?;
           //let rsa_pub_key = net_buffer._current().get(1..).unwrap_or_default();
 
-          Self::xor_slice((&auth_plugin_data.0, &auth_plugin_data.1), &mut pw_array);
+          Self::xor_slice((&auth_plugin_data.0, auth_plugin_data.1), &mut pw_array);
 
           //let pkey = RsaPublicKey::from_public_key_pem(std::str::from_utf8(rsa_pub_key)?)?;
           //let padding = Oaep::new::<sha1::Sha1>();
@@ -83,8 +83,8 @@ impl AuthPlugin {
     let mut hash = ctx.finalize_reset();
     ctx.update(hash);
     let another_hash = ctx.finalize_reset();
-    ctx.update(&data.0);
-    ctx.update(&data.1);
+    ctx.update(data.0);
+    ctx.update(data.1);
     ctx.update(another_hash);
     let with_seed_hash = ctx.finalize();
     Self::xor_slice((&with_seed_hash, &[]), &mut hash);

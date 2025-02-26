@@ -23,4 +23,4 @@ members = [
     "wtx-macros",
     "wtx-ui"
 ]
-resolver = "2"
+resolver = "3"
