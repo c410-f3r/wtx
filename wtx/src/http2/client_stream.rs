@@ -1,5 +1,5 @@
 use crate::{
-  http::{ReqResBuffer, ReqResData, ReqUri, Request, StatusCode},
+  http::{ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{
     CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
@@ -13,7 +13,7 @@ use crate::{
     u31::U31,
     window::Windows,
   },
-  misc::{Arc, Lease, LeaseMut, Lock, RefCounter, StreamWriter, facades::span::_Span},
+  misc::{Arc, Lease, LeaseMut, Lock, RefCounter, StreamWriter, UriRef, facades::span::_Span},
 };
 use core::{
   future::{Future, poll_fn},
@@ -133,7 +133,7 @@ where
   pub async fn send_req<RRD>(
     &mut self,
     req: Request<RRD>,
-    req_uri: impl Into<ReqUri<'_>>,
+    uri: &UriRef<'_>,
   ) -> crate::Result<Http2SendStatus>
   where
     RRD: ReqResData,
@@ -141,10 +141,6 @@ where
   {
     let _e = self.span._enter();
     _trace!("Sending request");
-    let uri = match req_uri.into() {
-      ReqUri::Data => &req.rrd.uri().to_ref(),
-      ReqUri::Param(elem) => elem,
-    };
     send_msg::<_, _, _, true>(
       req.rrd.body().lease(),
       &self.hd,

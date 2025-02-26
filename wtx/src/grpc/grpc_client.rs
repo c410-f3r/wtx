@@ -5,11 +5,10 @@ use crate::{
   },
   grpc::serialize,
   http::{
-    Header, Headers, HttpClient, KnownHeaderName, Method, ReqResBuffer, ReqUri, Response,
-    WTX_USER_AGENT,
+    Header, Headers, HttpClient, KnownHeaderName, Method, ReqResBuffer, Response, WTX_USER_AGENT,
   },
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{Decode, Encode, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter},
+  misc::{Decode, Encode, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, UriRef},
 };
 
 /// Performs requests to gRPC servers.
@@ -39,7 +38,7 @@ where
     VerbatimResponse<T>: Decode<'de, De<DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimResponse::decode(&mut self.drsr, &mut DecodeWrapper::_new(elem))?.data)
+    Ok(VerbatimResponse::decode(&mut self.drsr, &mut DecodeWrapper::new(elem))?.data)
   }
 
   /// Send Unary Request
@@ -50,20 +49,17 @@ where
   #[inline]
   pub async fn send_unary_req<T>(
     &mut self,
-    (package, service, method): (&str, &str, &str),
     data: T,
     mut rrb: ReqResBuffer,
+    uri: &UriRef<'_>,
   ) -> crate::Result<Response<ReqResBuffer>>
   where
     VerbatimRequest<T>: Encode<De<DRSR>>,
   {
-    rrb.body.clear();
-    rrb.headers.clear();
-    rrb.uri.truncate_with_initial_len();
-    rrb.uri.push_path(format_args!("/{package}.{service}/{method}"))?;
+    rrb.clear();
     serialize(&mut rrb.body, VerbatimRequest { data }, &mut self.drsr)?;
     Self::push_headers(&mut rrb.headers)?;
-    let res = self.client.lease_mut().send_recv_single(Method::Post, ReqUri::Data, rrb).await?;
+    let res = self.client.lease_mut().send_recv_single(Method::Post, rrb, uri).await?;
     Ok(Response::http2(res.rrd, res.status_code))
   }
 

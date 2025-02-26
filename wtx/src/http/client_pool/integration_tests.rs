@@ -6,35 +6,14 @@ use crate::{
 #[tokio::test]
 async fn popular_sites() {
   let uri = Uri::new("https://github.com");
-  let _res = ClientPoolBuilder::tokio_rustls(1)
-    .build()
-    .lock(&uri)
-    .await
-    .unwrap()
-    .client
-    .send_recv_single(Method::Get, &uri, ReqResBuffer::empty())
-    .await
-    .unwrap();
+  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
+  let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await.unwrap();
 
   let uri = Uri::new("https://duckduckgo.com");
-  let _res = ClientPoolBuilder::tokio_rustls(1)
-    .build()
-    .lock(&uri)
-    .await
-    .unwrap()
-    .client
-    .send_recv_single(Method::Get, &uri, ReqResBuffer::empty())
-    .await
-    .unwrap();
+  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
+  let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await.unwrap();
 
   let uri = Uri::new("https://www.google.com");
-  let _res = ClientPoolBuilder::tokio_rustls(1)
-    .build()
-    .lock(&uri)
-    .await
-    .unwrap()
-    .client
-    .send_recv_single(Method::Get, &uri, ReqResBuffer::empty())
-    .await
-    .unwrap();
+  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
+  let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await.unwrap();
 }

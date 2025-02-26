@@ -55,7 +55,7 @@ impl<'attrs> TryFrom<&'attrs [NestedMeta]> for Attrs<'attrs> {
       }
     }
     Ok(Self {
-      error: error.ok_or(crate::Error::AbsentApiError)?,
+      error: error.ok_or(crate::Error::AbsentApi)?,
       mode: mode.unwrap_or(Mode::Manual),
       pkgs_aux,
       transports,

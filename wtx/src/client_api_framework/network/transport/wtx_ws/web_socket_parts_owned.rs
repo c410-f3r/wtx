@@ -44,10 +44,10 @@ where
   TP: LeaseMut<WsParams>,
 {
   #[inline]
-  async fn send_bytes<A>(
+  async fn send_bytes<A, DRSR>(
     &mut self,
     bytes: &[u8],
-    pkgs_aux: &mut PkgsAux<A, (), TP>,
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,

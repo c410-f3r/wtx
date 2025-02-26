@@ -26,10 +26,10 @@ impl RecievingTransport<CustomTransportParams> for CustomTransport {
 }
 
 impl SendingTransport<CustomTransportParams> for CustomTransport {
-  async fn send_bytes<A>(
+  async fn send_bytes<A, DRSR>(
     &mut self,
     _: &[u8],
-    _: &mut PkgsAux<A, (), CustomTransportParams>,
+    _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
   ) -> Result<(), A::Error>
   where
     A: Api

@@ -26,7 +26,7 @@ where
 {
   bytes.extend_from_copyable_slice(&[0; 5])?;
   let before_len = bytes.len();
-  data.encode(drsr, &mut EncodeWrapper::_new(bytes))?;
+  data.encode(drsr, &mut EncodeWrapper::new(bytes))?;
   let after_len = bytes.len();
   if let [_, a, b, c, d, ..] = bytes.as_mut() {
     let len = u32::try_from(after_len.wrapping_sub(before_len)).unwrap_or_default();

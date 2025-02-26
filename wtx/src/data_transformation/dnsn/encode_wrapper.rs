@@ -7,13 +7,14 @@ pub struct EncodeWrapper<'any> {
 }
 
 impl<'any> EncodeWrapper<'any> {
+  /// New instance
   #[inline]
-  pub(crate) fn _new(vector: &'any mut Vector<u8>) -> Self {
+  pub const fn new(vector: &'any mut Vector<u8>) -> Self {
     Self { vector }
   }
 }
 
-impl<'any> Lease<[u8]> for EncodeWrapper<'any> {
+impl Lease<[u8]> for EncodeWrapper<'_> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.vector

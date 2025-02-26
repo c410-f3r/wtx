@@ -7,8 +7,9 @@ pub struct DecodeWrapper<'de> {
 }
 
 impl<'de> DecodeWrapper<'de> {
+  /// New instance
   #[inline]
-  pub(crate) fn _new(bytes: &'de [u8]) -> Self {
+  pub const fn new(bytes: &'de [u8]) -> Self {
     Self { bytes }
   }
 }

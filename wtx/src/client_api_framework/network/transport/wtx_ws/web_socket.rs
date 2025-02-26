@@ -41,15 +41,15 @@ where
   WSB: LeaseMut<WebSocketBuffer>,
 {
   #[inline]
-  async fn send_bytes<A>(
+  async fn send_bytes<A, DRSR>(
     &mut self,
-    mut bytes: &[u8],
-    pkgs_aux: &mut PkgsAux<A, (), TP>,
+    bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
   {
-    send_bytes(&mut bytes, pkgs_aux, self, cb).await
+    send_bytes(bytes, pkgs_aux, self, cb).await
   }
 
   #[inline]

@@ -191,13 +191,14 @@ impl SirAuxItemValues {
     cmrbp: &CreateMethodReturningBuilderParams<'_>,
   ) -> TokenStream {
     let CreateMethodReturningBuilderParams {
-      builder_aux_field_constr,
       bev:
         BuilderExtendedValues {
           bcv: BuilderCommonValues { ident: builder_ident, .. },
           data_field_constr: builder_data_field_constr,
+          fn_stmts: builder_fn_stmts,
           params_field_constr: builder_params_field_constr,
         },
+      builder_aux_field_constr,
       fn_common_values:
         FnCommonValues {
           fn_args,
@@ -221,6 +222,7 @@ impl SirAuxItemValues {
 
     let builder_data_field_constr_iter = builder_data_field_constr.iter();
     let builder_params_field_constr_iter = builder_params_field_constr.iter();
+    let builder_fn_stmts_iter = builder_fn_stmts.iter();
     let fn_ret_wrapper_last_segment_gen_args_iter =
       fn_ret_wrapper_last_segment_gen_args.iter().skip(1);
 
@@ -238,6 +240,7 @@ impl SirAuxItemValues {
       where
         #fn_where_predicates
       {
+        #(#builder_fn_stmts_iter)*
         #fn_ret_wrapper_variant_ident (#builder_ident {
           #(params: #builder_params_field_constr_iter,)*
           #(data: #builder_data_field_constr_iter,)*

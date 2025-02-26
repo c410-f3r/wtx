@@ -24,7 +24,6 @@ mod protocol;
 mod req_builder;
 mod req_res_buffer;
 mod req_res_data;
-mod req_uri;
 mod request;
 mod response;
 #[cfg(feature = "http-server-framework")]
@@ -54,7 +53,6 @@ pub use protocol::Protocol;
 pub use req_builder::ReqBuilder;
 pub use req_res_buffer::ReqResBuffer;
 pub use req_res_data::{ReqResData, ReqResDataMut};
-pub use req_uri::ReqUri;
 pub use request::Request;
 pub use response::Response;
 #[cfg(feature = "http-session")]

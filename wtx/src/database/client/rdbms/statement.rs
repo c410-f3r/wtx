@@ -62,11 +62,11 @@ impl<'stmts, A, C, T> Statement<'stmts, A, C, T> {
 
   #[inline]
   pub(crate) fn _values(&self) -> &[(C, T)] {
-    &self.values
+    self.values
   }
 }
 
-impl<'stmts, A, C, T> Default for Statement<'stmts, A, C, T>
+impl<A, C, T> Default for Statement<'_, A, C, T>
 where
   A: Default,
 {
