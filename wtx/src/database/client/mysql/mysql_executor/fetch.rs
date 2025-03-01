@@ -4,7 +4,8 @@ use crate::{
   database::{
     RecordValues, StmtCmd,
     client::mysql::{
-      ExecutorBuffer, Mysql, MysqlExecutor, MysqlRecord, MysqlStatement, MysqlStatements,
+      ExecutorBuffer, Mysql, MysqlError, MysqlExecutor, MysqlRecord, MysqlStatement,
+      MysqlStatements,
       column::Column,
       misc::{decode, fetch_msg, fetch_protocol, send_packet},
       mysql_protocol::{
@@ -38,7 +39,7 @@ where
     loop {
       fetch_msg(net_buffer, sequence_id, stream).await?;
       let [first0, rest0 @ ..] = net_buffer._current() else {
-        panic!();
+        return Err(E::from(MysqlError::InvalidFetchBytes.into()));
       };
       let mut local_rest = rest0;
       if *first0 == 0 || *first0 == 255 {
@@ -71,7 +72,7 @@ where
         }
         if IS_SINGLE {
           if has_at_least_one_record {
-            panic!();
+            return Err(E::from(MysqlError::NonSingleFetch.into()));
           } else {
             has_at_least_one_record = true;
           }

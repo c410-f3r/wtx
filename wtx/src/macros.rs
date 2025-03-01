@@ -123,7 +123,10 @@ macro_rules! create_enum {
               Ok(Self::$variant_ident_fixed)
             },
           )*
-          _ => Err($crate::Error::UnexpectedString { length: from.len() }),
+          _ => Err($crate::Error::UnexpectedBytes {
+            length: from.len().try_into().unwrap_or(u16::MAX),
+            ty: core::any::type_name::<Self>().split("::").last().and_then(|el| el.get(..8)).unwrap_or_default().try_into()?,
+          }),
         }
       }
     }

@@ -2,9 +2,10 @@ use crate::{
   database::{
     Identifier,
     client::mysql::{
+      MysqlError,
       mysql_protocol::{
         MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
-        lenenc_bytes::LenencBytes,
+        lenenc_content::LenencContent,
       },
       ty::Ty,
     },
@@ -26,15 +27,15 @@ where
 {
   #[inline]
   fn decode(aux: &mut (), dw: &mut DecodeWrapperProtocol<'_, '_, DO>) -> Result<Self, E> {
-    let _catalog = LenencBytes::decode(aux, dw)?.0;
-    let _schema = LenencBytes::decode(aux, dw)?.0;
-    let _table_alias = LenencBytes::decode(aux, dw)?.0;
-    let _table = LenencBytes::decode(aux, dw)?.0;
-    let alias = LenencBytes::decode(aux, dw)?.0;
-    let name = LenencBytes::decode(aux, dw)?.0;
+    let _catalog = LenencContent::decode(aux, dw)?.0;
+    let _schema = LenencContent::decode(aux, dw)?.0;
+    let _table_alias = LenencContent::decode(aux, dw)?.0;
+    let _table = LenencContent::decode(aux, dw)?.0;
+    let alias = LenencContent::decode(aux, dw)?.0;
+    let name = LenencContent::decode(aux, dw)?.0;
     let _next_len = Lenenc::decode(aux, dw)?;
     let [a, b, c, d, e, f, g, h, i, j] = dw.bytes else {
-      panic!();
+      return Err(E::from(MysqlError::InvalidColumnBytes.into()));
     };
     let _collation = u16::from_le_bytes([*a, *b]);
     let _max_size = u32::from_le_bytes([*c, *d, *e, *f]);

@@ -1,5 +1,6 @@
 use crate::{
   database::client::mysql::{
+    MysqlError,
     mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
     status::Status,
   },
@@ -17,10 +18,10 @@ where
   #[inline]
   fn decode(_: &mut (), dw: &mut DecodeWrapperProtocol<'_, '_, DO>) -> Result<Self, E> {
     let [a, b, c, d, e] = dw.bytes else {
-      panic!();
+      return Err(E::from(MysqlError::InvalidEofBytes.into()));
     };
     if *a != 254 {
-      panic!();
+      return Err(E::from(MysqlError::InvalidEofBytes.into()));
     }
     let _warnings = u16::from_le_bytes([*b, *c]);
     let status = Status::try_from(u16::from_le_bytes([*d, *e]))?;

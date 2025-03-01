@@ -1,6 +1,7 @@
 use crate::{
-  database::client::mysql::mysql_protocol::{
-    MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol,
+  database::client::mysql::{
+    MysqlError,
+    mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
   misc::Decode,
 };
@@ -19,10 +20,10 @@ where
   #[inline]
   fn decode(_: &mut (), dw: &mut DecodeWrapperProtocol<'de, '_, DO>) -> Result<Self, E> {
     let [a, b, c, d, e, f, g, h, i, _, k, l] = dw.bytes else {
-      panic!();
+      return Err(E::from(MysqlError::InvalidPrepareBytes.into()));
     };
     if *a != 0x00 {
-      panic!();
+      return Err(E::from(MysqlError::InvalidPrepareBytes.into()));
     }
     let statement_id = u32::from_le_bytes([*b, *c, *d, *e]);
     let columns = u16::from_le_bytes([*f, *g]);

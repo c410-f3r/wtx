@@ -11,6 +11,7 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use core::{fmt::Write, ops::ControlFlow};
+use rand_chacha::rand_core::SeedableRng;
 use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
   database::{Executor, Record},
@@ -25,7 +26,7 @@ use wtx::{
   pool::{PostgresRM, SimplePoolTokio},
 };
 
-type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
+type Pool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, TcpStream>>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -38,7 +39,10 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  let rm = PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into());
+  let rm = PostgresRM::tokio(
+    rand_chacha::ChaCha20Rng::try_from_os_rng()?,
+    "postgres://USER:PASSWORD@localhost/DB_NAME".into(),
+  );
   let pool = Pool::new(4, rm);
   ServerFrameworkBuilder::new(router)
     .with_req_aux(move || pool.clone())

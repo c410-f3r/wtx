@@ -29,7 +29,7 @@ fn compiles() {
     ("/ddd", get(one)),
     ("/eee", get(two)),
     ("/fff", Router::paths(paths!(("/ggg", get(one)))).unwrap()),
-    ("/eee", get(three)),
+    ("/hhh", get(three)),
   ))
   .unwrap();
 

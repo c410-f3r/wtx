@@ -2,7 +2,6 @@
 aes-gcm = { default-features = false, optional = true, version = "0.11.0-pre.2" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 argon2 = { default-features = false, optional = true, version = "0.5" }
-aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 chrono = { default-features = false, optional = true, version = "0.4" }
@@ -20,7 +19,6 @@ hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 matchit = { default-features = false, optional = true, version = "0.8" }
 memchr = { default-features = false, optional = true, version = "2.0" }
-num-bigint = { default-features = false, optional = true, version = "0.4" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
@@ -29,7 +27,7 @@ rand_core = { default-features = false, optional = true, version = "0.9" }
 ring = { default-features = false, optional = true, version = "0.17" }
 #rsa = { branch = "baloo/rand-core/0.9.0", default-features = false, optional = true, git = "https://github.com/baloo/RSA" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
-rustls = { default-features = false, features = ["tls12"], optional = true, version = "0.23" }
+rustls = { default-features = false, optional = true, version = "0.23" }
 rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
 rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
@@ -39,18 +37,17 @@ sha1 = { default-features = false, optional = true, version = "0.10" }
 sha2 = { default-features = false, optional = true, version = "0.10" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
 tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
-tokio-rustls = { default-features = false, features = ["ring"], optional = true, version = "0.26" }
+tokio-rustls = { default-features = false, features = ["ring", "tls12"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
-uuid = { default-features = false, optional = true, version = "1.15" }
+uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
 x509-certificate = { default-features = false, optional = true, version = "0.24" }
 
 [features]
 32-tuple-impls = []
 arbitrary = ["dep:arbitrary", "std"]
-aws-lc-rs = ["dep:aws-lc-rs", "rustls?/aws-lc-rs"]
 borsh = ["dep:borsh", "std"]
 client-api-framework = ["data-transformation"]
 data-transformation = []
@@ -68,14 +65,13 @@ http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-
 http-server-framework = ["http2"]
 http-session = ["chrono/now", "chrono/serde", "http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
-mysql = ["database", "foldhash", "hashbrown", "num-bigint", "rand-compat", "sha2"]
+mysql = ["database", "digest", "foldhash", "hashbrown", "rand-compat", "sha1", "sha2"]
 nightly = [] # FIXME(stable): "hashbrown?/nightly"
 optimization = ["memchr", "simdutf8"]
 pool = []
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 quick-protobuf = ["dep:quick-protobuf", "std"]
-rand_chacha = ["dep:rand_chacha", "getrandom"]
 rand-compat = ["rand_core"]
 rustls = ["dep:rustls", "rustls-pki-types"]
 schema-manager = ["database", "chrono/now"]
@@ -116,13 +112,13 @@ std = [
   "tracing-subscriber?/std"
 ]
 tokio = ["std", "dep:tokio"]
-tokio-rustls = ["ring", "rustls", "dep:rustls-pemfile", "rustls-pki-types", "tokio", "dep:tokio-rustls"]
+tokio-rustls = ["ring", "rustls", "dep:rustls-pemfile", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
 web-socket = ["http"]
 web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 
 _async-tests = ["tokio/macros", "tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []
-_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Crate must not decide for downstream users
+_hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Crate must not decide for downstream users
 _integration-tests = ["serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "dep:tracing-tree"]
 

@@ -1,6 +1,6 @@
 use crate::{
   database::client::mysql::{
-    Config, ExecutorBuffer, MysqlExecutor,
+    Config, ExecutorBuffer, MysqlError, MysqlExecutor,
     auth_plugin::AuthPlugin,
     capability::Capability,
     misc::{decode, fetch_msg, write_packet},
@@ -49,6 +49,7 @@ where
     fetch_msg(net_buffer, sequence_id, stream).await?;
     let mut bytes = net_buffer._current();
     let res: HandshakeRes<'_> = decode(&mut bytes, ())?;
+    capabilities &= res.capabilities;
     Ok((capabilities, res))
   }
 
@@ -60,7 +61,6 @@ where
     handshake_res: &HandshakeRes<'_>,
     stream: &mut S,
   ) -> Result<(), E> {
-    *capabilities &= handshake_res.capabilities;
     let tuple = (handshake_res.auth_plugin, config.password);
     let auth_response = if let (Some(plugin), Some(pw)) = tuple {
       Some(plugin.mask_pw(
@@ -96,9 +96,6 @@ where
     loop {
       fetch_msg(net_buffer, sequence_id, stream).await?;
       match net_buffer._current() {
-        [] => {
-          break;
-        }
         [0, rest @ ..] => {
           let mut local_rest = rest;
           let _: OkRes = decode(&mut local_rest, ())?;
@@ -121,28 +118,30 @@ where
           let payload = AuthSwitchReq(&bytes);
           write_packet((capabilities, sequence_id), enc_buffer, payload, stream).await?;
         }
-        [_, rest @ ..] => {
-          if let (Some(plugin), Some(password)) = (plugin, &config.password) {
-            let [a, b, ..] = rest else {
-              panic!();
-            };
-            if plugin
-              .manage_caching_sha2::<_, _, IS_TLS>(
-                (auth_plugin_data.0, &auth_plugin_data.1),
-                [*a, *b],
-                (capabilities, sequence_id),
-                enc_buffer,
-                net_buffer,
-                password,
-                stream,
-              )
-              .await?
-            {
-              break;
-            }
-          } else {
-            panic!();
-          }
+        [a, rest @ ..] => {
+          let (Some(plugin), Some(password)) = (plugin, &config.password) else {
+            return Err(E::from(MysqlError::InvalidConnectionBytes.into()));
+          };
+          let [b, ..] = rest else {
+            return Err(E::from(MysqlError::InvalidConnectionBytes.into()));
+          };
+          let is_auth_ok = plugin
+            .manage_caching_sha2::<_, _, IS_TLS>(
+              (auth_plugin_data.0, &auth_plugin_data.1),
+              [*a, *b],
+              (capabilities, sequence_id),
+              enc_buffer,
+              net_buffer,
+              password,
+              stream,
+            )
+            .await?;
+          if is_auth_ok {
+            break;
+          };
+        }
+        _ => {
+          return Err(E::from(MysqlError::InvalidConnectionBytes.into()));
         }
       }
     }

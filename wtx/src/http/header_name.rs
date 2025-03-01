@@ -76,9 +76,11 @@ macro_rules! create_statics {
   };
 }
 
+use crate::{
+  http::HttpError,
+  misc::{Lease, from_utf8_basic},
+};
 use core::str;
-
-use crate::misc::Lease;
 
 const TABLE: &[u8; 256] = &[
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -92,8 +94,6 @@ const TABLE: &[u8; 256] = &[
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
-
-use crate::http::HttpError;
 
 /// HTTP header name
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -122,21 +122,18 @@ where
   }
 
   #[inline]
-  const fn check(content: &[u8]) -> Result<&str, HttpError> {
-    let mut idx: usize = 0;
-    loop {
-      if idx >= content.len() {
-        break;
-      }
-      #[expect(clippy::as_conversions, reason = "Lack of const traits")]
+  fn check_header_name(content: &[u8]) -> crate::Result<&str> {
+    if content.first().copied() == Some(b':') {
+      return Ok(from_utf8_basic(content)?);
+    }
+    for idx in content {
       #[expect(
         clippy::indexing_slicing,
         reason = "An array of 256 elements will never panic with a 0..255 index"
       )]
-      if TABLE[content[idx] as usize] == 0 {
-        return Err(HttpError::InvalidHttp2pContent);
+      if TABLE[usize::from(*idx)] == 0 {
+        return Err(HttpError::InvalidHttp2pContent.into());
       }
-      idx = idx.wrapping_add(1);
     }
     // SAFETY: `TABLE` is a subset of ASCII
     unsafe { Ok(str::from_utf8_unchecked(content)) }
@@ -146,11 +143,8 @@ where
 impl<'this> HeaderName<&'this str> {
   /// New instance from a set of bytes
   #[inline]
-  pub const fn from_bytes(content: &'this [u8]) -> Result<Self, HttpError> {
-    match Self::check(content) {
-      Ok(elem) => Ok(HeaderName(elem)),
-      Err(err) => Err(err),
-    }
+  pub fn from_bytes(content: &'this [u8]) -> crate::Result<Self> {
+    Ok(HeaderName(Self::check_header_name(content)?))
   }
 }
 

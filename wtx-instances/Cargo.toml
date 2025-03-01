@@ -30,7 +30,7 @@ required-features = ["wtx/http2", "wtx/nightly"]
 [[example]]
 name = "database-client-mysql"
 path = "database-examples/database-client-mysql.rs"
-required-features = ["wtx/mysql"]
+required-features = ["mysql"]
 
 [[example]]
 name = "database-client-postgres"
@@ -145,8 +145,9 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 
 [features]
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
-mysql = ["wtx/mysql"]
-postgres = ["wtx/postgres"]
+mysql = ["rand_chacha", "wtx/mysql"]
+postgres = ["rand_chacha", "wtx/postgres"]
+rand_chacha = ["dep:rand_chacha", "wtx/rand_chacha"]
 
 [package]
 edition = "2024"

@@ -5,13 +5,14 @@ use crate::{
   },
   misc::{ArrayVector, Stream, Vector, partitioned_filled_buffer::PartitionedFilledBuffer},
 };
-use sha2::{Digest, Sha256};
+use digest::{Digest, FixedOutputReset, Update, generic_array::GenericArray};
 //use rsa::{pkcs8::DecodePublicKey, Oaep, RsaPublicKey};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum AuthPlugin {
   CachingSha2,
-  MySqlClear,
+  MysqlClear,
+  MysqlNativePassword,
 }
 
 impl AuthPlugin {
@@ -19,7 +20,7 @@ impl AuthPlugin {
   pub(crate) async fn manage_caching_sha2<E, S, const IS_TLS: bool>(
     self,
     auth_plugin_data: ([u8; 8], &[u8]),
-    bytes: [u8; 2],
+    [a, b]: [u8; 2],
     (capabilities, sequence_id): (&mut u64, &mut u8),
     enc_buffer: &mut Vector<u8>,
     net_buffer: &mut PartitionedFilledBuffer,
@@ -30,15 +31,15 @@ impl AuthPlugin {
     E: From<crate::Error>,
     S: Stream,
   {
-    let [a, b] = bytes;
     match self {
       AuthPlugin::CachingSha2 if a == 1 => match b {
         3 => Ok(true),
         4 => {
           let mut pw_array: ArrayVector<u8, 32> = password.as_bytes().try_into()?;
-          pw_array.push(0)?;
+          pw_array.push(b'\0')?;
           if IS_TLS {
-            //return Ok(to_asciz(password));
+            write_packet((capabilities, sequence_id), enc_buffer, &pw_array[..], stream).await?;
+            return Ok(false);
           }
 
           write_packet((capabilities, sequence_id), enc_buffer, &[2][..], stream).await?;
@@ -50,13 +51,15 @@ impl AuthPlugin {
 
           //let pkey = RsaPublicKey::from_public_key_pem(std::str::from_utf8(rsa_pub_key)?)?;
           //let padding = Oaep::new::<sha1::Sha1>();
-          //pkey.encrypt(&mut thread_rng(), padding, &pass[..]).map_err(Error::protocol);
+          //let bytes = pkey.encrypt(&mut thread_rng(), padding, &pass[..]).map_err(Error::protocol);
+          // write_packet((capabilities, sequence_id), enc_buffer, bytes, stream).await?;
 
-          Ok(false)
+          //Ok(false)
+          panic!();
         }
-        _ => panic!(),
+        _ => return Err(E::from(MysqlError::InvalidAuthPluginBytes.into())),
       },
-      _ => panic!(),
+      _ => return Err(E::from(MysqlError::InvalidAuthPluginBytes.into())),
     }
   }
 
@@ -67,8 +70,13 @@ impl AuthPlugin {
     pw: &[u8],
   ) -> crate::Result<ArrayVector<u8, 32>> {
     match self {
-      AuthPlugin::CachingSha2 => Ok(Self::sha2_mask(auth_plugin_data, pw).as_slice().try_into()?),
-      AuthPlugin::MySqlClear => {
+      AuthPlugin::CachingSha2 => {
+        Ok(Self::mask(sha2::Sha256::new(), auth_plugin_data, pw).as_slice().try_into()?)
+      }
+      AuthPlugin::MysqlNativePassword => {
+        Ok(Self::mask(sha1::Sha1::new(), auth_plugin_data, pw).as_slice().try_into()?)
+      }
+      AuthPlugin::MysqlClear => {
         let mut rslt: ArrayVector<u8, 32> = pw.try_into()?;
         rslt.push(0)?;
         Ok(rslt)
@@ -77,15 +85,18 @@ impl AuthPlugin {
   }
 
   #[inline]
-  fn sha2_mask(data: (&[u8], &[u8]), pw: &[u8]) -> [u8; 32] {
-    let mut ctx = Sha256::new();
-    ctx.update(pw);
+  fn mask<T, const N: usize>(mut ctx: T, data: (&[u8], &[u8]), pw: &[u8]) -> [u8; N]
+  where
+    T: Digest + FixedOutputReset,
+    [u8; N]: From<GenericArray<u8, <T as digest::OutputSizeUser>::OutputSize>>,
+  {
+    Update::update(&mut ctx, pw);
     let mut hash = ctx.finalize_reset();
-    ctx.update(hash);
+    Update::update(&mut ctx, hash.as_ref());
     let another_hash = ctx.finalize_reset();
-    ctx.update(data.0);
-    ctx.update(data.1);
-    ctx.update(another_hash);
+    Update::update(&mut ctx, data.0);
+    Update::update(&mut ctx, data.1);
+    Update::update(&mut ctx, another_hash.as_ref());
     let with_seed_hash = ctx.finalize();
     Self::xor_slice((&with_seed_hash, &[]), &mut hash);
     hash.into()
@@ -105,7 +116,8 @@ impl From<AuthPlugin> for &'static str {
   fn from(from: AuthPlugin) -> Self {
     match from {
       AuthPlugin::CachingSha2 => "caching_sha2_password",
-      AuthPlugin::MySqlClear => "mysql_clear_password",
+      AuthPlugin::MysqlClear => "mysql_clear_password",
+      AuthPlugin::MysqlNativePassword => "mysql_native_password",
     }
   }
 }
@@ -117,7 +129,8 @@ impl TryFrom<&[u8]> for AuthPlugin {
   fn try_from(from: &[u8]) -> Result<Self, Self::Error> {
     Ok(match from {
       b"caching_sha2_password" => AuthPlugin::CachingSha2,
-      b"mysql_clear_password" => AuthPlugin::MySqlClear,
+      b"mysql_clear_password" => AuthPlugin::MysqlClear,
+      b"mysql_native_password" => AuthPlugin::MysqlNativePassword,
       _ => return Err(MysqlError::UnknownAuthPlugin.into()),
     })
   }

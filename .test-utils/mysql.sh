@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euxo pipefail
-DATA_DIR="$PGDATA"
+DATA_DIR="/var/lib/mysql"
 echo "-----BEGIN CERTIFICATE-----
 MIIDGzCCAgOgAwIBAgIULfMxOCpH518ImycugYA+u89m790wDQYJKoZIhvcNAQEL
 BQAwHTELMAkGA1UEBhMCRkkxDjAMBgNVBAMMBXZhaGlkMB4XDTI1MDIyODEzMTE1
@@ -68,21 +68,6 @@ UIMwi+MtTfyyZfYLCqHAAHDPl8Qjm4gGtiMhGQG+dOhX9d5rEIwLeVoMe/suV2Oh
 6XQvFiWn5A1EwOyyDpTf/6+cK44bKLg9UgPdEmn47R0AE7BOTy9EPaUuWHSOzTI3
 GrDDewJI1SYDD5Sj2qQcvUw=
 -----END PRIVATE KEY-----" > $DATA_DIR/key.pem
-chmod 0600 $PGDATA/key.pem
-cat >> "$PGDATA/postgresql.conf" <<-EOF
-ssl = on
-ssl_ca_file = 'root-ca.crt'
-ssl_cert_file = 'cert.pem'
-ssl_key_file = 'key.pem'
-EOF
-cat > "$PGDATA/pg_hba.conf" <<-EOF
-host    all wtx_scram   0.0.0.0/0   scram-sha-256
-host    all wtx_scram       ::0/0   scram-sha-256
-EOF
-
-psql -v ON_ERROR_STOP=1 --username $POSTGRES_USER <<-EOF
-    SET password_encryption TO 'scram-sha-256';
-    CREATE ROLE wtx_scram PASSWORD 'wtx' LOGIN;
-    GRANT ALL ON DATABASE wtx TO wtx_scram;
-    ALTER DATABASE wtx OWNER TO wtx_scram;
-EOF
+chown mysql:mysql /var/lib/mysql/cert.pem /var/lib/mysql/key.pem
+chmod 0600 /var/lib/mysql/cert.pem /var/lib/mysql/key.pem
+mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE USER 'no_password'@'%'; GRANT SELECT ON wtx.* TO 'no_password'@'%';"

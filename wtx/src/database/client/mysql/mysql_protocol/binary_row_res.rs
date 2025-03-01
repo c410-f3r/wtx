@@ -1,14 +1,13 @@
-use core::ops::Range;
-
 use crate::{
   database::client::mysql::{
-    MysqlStatement, Ty,
+    MysqlError, MysqlStatement, Ty,
     mysql_protocol::{
       MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
     },
   },
   misc::{Decode, Usize, Vector},
 };
+use core::ops::Range;
 
 type Params<'any> = (&'any MysqlStatement<'any>, &'any mut Vector<(bool, Range<usize>)>);
 
@@ -22,15 +21,15 @@ where
   #[inline]
   fn decode(aux: &mut (), dw: &mut DecodeWrapperProtocol<'de, '_, Params<'_>>) -> Result<Self, E> {
     let [a, rest0 @ ..] = dw.bytes else {
-      panic!();
+      return Err(E::from(MysqlError::InvalidBinaryRowBytes.into()));
     };
     *dw.bytes = rest0;
     if *a != 0 {
-      panic!();
+      return Err(E::from(MysqlError::InvalidBinaryRowBytes.into()));
     }
     let bitmap_len = dw.other.0._columns_len().wrapping_add(9) / 8;
     let Some((bitmap, rest1)) = dw.bytes.split_at_checked(bitmap_len) else {
-      panic!();
+      return Err(E::from(MysqlError::InvalidBinaryRowBytes.into()));
     };
     *dw.bytes = rest1;
     dw.other.1.reserve(dw.other.0._columns_len())?;
@@ -76,7 +75,7 @@ where
           usize::from(*dw.bytes.first().unwrap())
         }
 
-        Ty::Null => panic!(),
+        Ty::Null => return Err(E::from(MysqlError::InvalidBinaryRowBytes.into())),
       };
       let begin = idx;
       idx = idx.wrapping_add(len);

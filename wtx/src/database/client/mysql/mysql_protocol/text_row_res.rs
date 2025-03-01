@@ -1,6 +1,9 @@
 use crate::{
-  database::client::mysql::mysql_protocol::{
-    MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
+  database::client::mysql::{
+    MysqlError,
+    mysql_protocol::{
+      MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
+    },
   },
   misc::{Decode, Usize, Vector},
 };
@@ -21,7 +24,7 @@ where
     let mut idx = 0;
     for _ in 0..dw.other.0 {
       let [first, rest @ ..] = dw.bytes else {
-        panic!();
+        return Err(E::from(MysqlError::InvalidTextRowBytes.into()));
       };
       if *first == 251 {
         dw.other.1.push((true, idx..idx))?;
