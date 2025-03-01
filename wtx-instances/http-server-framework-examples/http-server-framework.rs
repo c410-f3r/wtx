@@ -5,6 +5,7 @@
 //!
 //! This snippet requires ~50 dependencies and has an optimized binary size of ~900K.
 
+extern crate rand_chacha;
 extern crate serde;
 extern crate tokio;
 extern crate wtx;

@@ -146,7 +146,7 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 [features]
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
 mysql = ["rand_chacha", "wtx/mysql"]
-postgres = ["rand_chacha", "wtx/postgres"]
+postgres = ["rand_chacha", "wtx/getrandom", "wtx/postgres"]
 rand_chacha = ["dep:rand_chacha", "wtx/rand_chacha"]
 
 [package]

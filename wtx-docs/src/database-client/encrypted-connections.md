@@ -77,7 +77,7 @@ podman run \
 
 Now it is just a matter of including the root CA certificate in the `wtx` client. With everything properly configured, an successful encrypted connection should be expected.
 
-```rust,edition2024,no_run
+```text
 #[tokio::test]
 async fn tls() {
   let uri = UriRef::new("SOME_URI");
