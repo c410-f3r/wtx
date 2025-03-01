@@ -1,5 +1,6 @@
 use crate::misc::{
-  ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FromRadix10Error, VectorError,
+  ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError,
+  FromRadix10Error, VectorError,
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -128,11 +129,16 @@ pub enum Error {
   },
   /// A buffer was partially read or write but should in fact be fully processed.
   UnexpectedBufferState,
+  /// Unexpected bytes
+  UnexpectedBytes {
+    length: u16,
+    ty: ArrayString<8>,
+  },
   /// Unexpected end of file when reading from a stream.
   UnexpectedStreamReadEOF,
   /// Unexpected end of file when writing to a stream.
   UnexpectedStreamWriteEOF,
-  /// Unexpected String
+  /// Unexpected string
   UnexpectedString {
     length: usize,
   },

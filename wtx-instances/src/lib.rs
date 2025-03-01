@@ -63,8 +63,10 @@ pub async fn executor_postgres(
     TcpStream,
   >,
 > {
+  use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
+
   let uri = Uri::new(uri_str);
-  let mut rng = Xorshift64::from(simple_seed());
+  let mut rng = ChaCha20Rng::try_from_os_rng()?;
   wtx::database::client::postgres::PostgresExecutor::connect(
     &wtx::database::client::postgres::Config::from_uri(&uri)?,
     wtx::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),

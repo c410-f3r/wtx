@@ -1,4 +1,5 @@
 use crate::clap::{SchemaManager, SchemaManagerCommands};
+use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use std::{borrow::Cow, env::current_dir, path::Path};
 use tokio::net::TcpStream;
 use wtx::{
@@ -7,7 +8,7 @@ use wtx::{
     client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
     schema_manager::{Commands, DEFAULT_CFG_FILE_NAME, DbMigration, SchemaManagement},
   },
-  misc::{DEController, UriRef, Vector, Xorshift64, simple_seed},
+  misc::{DEController, UriRef, Vector},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
@@ -21,7 +22,7 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   let uri = UriRef::new(&var);
   match uri.scheme() {
     "postgres" | "postgresql" => {
-      let mut rng = Xorshift64::from(simple_seed());
+      let mut rng = ChaCha20Rng::try_from_os_rng()?;
       let executor = PostgresExecutor::connect(
         &Config::from_uri(&uri)?,
         ExecutorBuffer::new(usize::MAX, &mut rng),

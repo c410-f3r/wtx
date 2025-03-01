@@ -7,16 +7,18 @@ use crate::{
   database::{
     Database, Executor, RecordValues, Records, StmtCmd,
     client::mysql::{
-      Config, ExecutorBuffer, Mysql, MysqlRecord, MysqlRecords, capability::Capability,
+      Config, ExecutorBuffer, Mysql, MysqlError, MysqlRecord, MysqlRecords, capability::Capability,
       misc::write_packet, mysql_protocol::initial_req::InitialReq,
     },
   },
-  misc::{ConnectionState, DEController, LeaseMut, Stream, StreamWithTls, Usize},
+  misc::{
+    ConnectionState, CryptoRng, DEController, LeaseMut, Stream, StreamWithTls, Usize, into_rslt,
+  },
 };
 use core::marker::PhantomData;
 
-pub(crate) const DFLT_PACKET_SIZE: u32 = 1024;
-pub(crate) const MAX_PAYLOAD: u32 = 16777215;
+pub(crate) const DFLT_PACKET_SIZE: u32 = 1024 * 1024 * 4;
+pub(crate) const MAX_PAYLOAD: u32 = 16_777_215;
 
 /// Executor
 #[derive(Debug)]
@@ -79,12 +81,14 @@ where
   pub async fn connect_encrypted<F, IS, RNG>(
     config: &Config<'_>,
     mut eb: EB,
+    _rng: &mut RNG,
     mut stream: IS,
     cb: impl FnOnce(IS) -> F,
   ) -> Result<Self, E>
   where
     F: Future<Output = crate::Result<S>>,
     IS: Stream,
+    RNG: CryptoRng,
     S: StreamWithTls,
   {
     eb.lease_mut().clear();
@@ -93,7 +97,11 @@ where
     let tuple = Self::connect0(config, net_buffer, &mut sequence_id, &mut stream).await?;
     let (mut capabilities, handshake_res) = tuple;
     {
-      capabilities |= u64::from(Capability::Ssl);
+      let ssl_n = u64::from(Capability::Ssl);
+      if handshake_res.capabilities & ssl_n == 0 {
+        return Err(crate::Error::from(MysqlError::UnsupportedServerSsl).into());
+      }
+      capabilities |= ssl_n;
       let req = InitialReq { collation: config.collation, max_packet_size: DFLT_PACKET_SIZE };
       write_packet((&mut capabilities, &mut sequence_id), enc_buffer, req, &mut stream).await?;
       enc_buffer.clear();
@@ -205,9 +213,7 @@ where
       },
     )
     .await?;
-    let Some(record_len) = record_len_opt else {
-      panic!();
-    };
+    let record_len = into_rslt(record_len_opt)?;
     Ok(MysqlRecord {
       bytes: enc_buffer.get(..record_len).unwrap_or_default(),
       phantom: PhantomData,

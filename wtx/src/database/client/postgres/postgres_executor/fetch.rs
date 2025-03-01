@@ -1,6 +1,6 @@
 use crate::{
   database::{
-    RecordValues,
+    DatabaseError, RecordValues,
     client::postgres::{
       ExecutorBuffer, Postgres, PostgresError, PostgresExecutor, PostgresRecord, PostgresStatement,
       message::{Message, MessageTy},
@@ -55,7 +55,7 @@ where
     }) {
       Ok(PostgresRecord::parse(record_bytes, 0..record_bytes.len(), stmt, vb, len)?)
     } else {
-      Err(E::from(PostgresError::NoRecord.into()))
+      Err(E::from(DatabaseError::MissingRecord.into()))
     }
   }
 

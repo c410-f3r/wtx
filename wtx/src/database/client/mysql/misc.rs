@@ -90,6 +90,7 @@ where
   write_packet((capabilities, sequence_id), enc_buffer, payload, stream).await
 }
 
+// Only used in the connection phase
 #[inline]
 pub(crate) async fn write_packet<E, S, T>(
   (capabilities, sequence_id): (&mut u64, &mut u8),
@@ -103,8 +104,7 @@ where
   T: Encode<MysqlProtocol<(), E>>,
 {
   let mut ew = EncodeWrapperProtocol::new(capabilities, enc_buffer);
-  PacketReq(payload, PhantomData).encode(&mut ew, sequence_id, stream).await?;
-  stream.write_all(enc_buffer).await?;
+  PacketReq(payload, PhantomData).encode_and_write(&mut ew, sequence_id, stream).await?;
   Ok(())
 }
 

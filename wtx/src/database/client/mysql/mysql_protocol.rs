@@ -9,7 +9,7 @@ pub(crate) mod handshake_req;
 pub(crate) mod handshake_res;
 pub(crate) mod initial_req;
 pub(crate) mod lenenc;
-pub(crate) mod lenenc_bytes;
+pub(crate) mod lenenc_content;
 pub(crate) mod ok_res;
 pub(crate) mod packet_req;
 pub(crate) mod prepare_req;

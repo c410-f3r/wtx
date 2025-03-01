@@ -231,6 +231,18 @@ pub fn u64_array(data: &mut U64Array, mut value: u64) -> &str {
   unsafe { core::str::from_utf8_unchecked(slice) }
 }
 
+#[inline]
+pub(crate) fn _32_bytes_seed() -> [u8; 32] {
+  let seed = simple_seed();
+  let mut rng = Xorshift64::from(seed);
+  let [a0, b0, c0, d0, e0, f0, g0, h0, i0, j0, k0, l0, m0, n0, o0, p0] = rng.u8_16();
+  let [a1, b1, c1, d1, e1, f1, g1, h1, i1, j1, k1, l1, m1, n1, o1, p1] = rng.u8_16();
+  [
+    a0, b0, c0, d0, e0, f0, g0, h0, i0, j0, k0, l0, m0, n0, o0, p0, a1, b1, c1, d1, e1, f1, g1, h1,
+    i1, j1, k1, l1, m1, n1, o1, p1,
+  ]
+}
+
 #[expect(clippy::as_conversions, reason = "`match` correctly handles conversions")]
 #[expect(clippy::cast_possible_truncation, reason = "`match` correctly handles truncations")]
 #[inline]

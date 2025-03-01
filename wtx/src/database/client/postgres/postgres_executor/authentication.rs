@@ -11,8 +11,8 @@ use crate::{
     },
   },
   misc::{
-    ArrayVector, ConnectionState, LeaseMut, Rng, Stream, SuffixWriterFbvm, Vector, bytes_split1,
-    from_utf8_basic, partitioned_filled_buffer::PartitionedFilledBuffer,
+    ArrayVector, ConnectionState, CryptoRng, LeaseMut, Stream, SuffixWriterFbvm, Vector,
+    bytes_split1, from_utf8_basic, partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 use base64::prelude::{BASE64_STANDARD, Engine as _};
@@ -40,7 +40,7 @@ where
     tls_server_end_point: Option<&[u8]>,
   ) -> crate::Result<()>
   where
-    RNG: Rng,
+    RNG: CryptoRng,
   {
     let ExecutorBufferPartsMut { nb, .. } = self.eb.lease_mut().parts_mut();
     let msg0 = Self::fetch_msg_from_stream(&mut self.cs, nb, &mut self.stream).await?;
@@ -145,10 +145,11 @@ where
     tls_server_end_point: Option<&[u8]>,
   ) -> crate::Result<()>
   where
-    RNG: Rng,
+    RNG: CryptoRng,
   {
     let tsep_data = tls_server_end_point.unwrap_or_default();
-    let local_nonce = nonce(rng);
+    let mut local_nonce = [0; 24];
+    rng.fill_slice(&mut local_nonce);
     {
       let mut sw = SuffixWriterFbvm::from(nb._suffix_writer());
       sasl_first(&mut sw, (method_bytes, method_header), &local_nonce)?;
@@ -212,28 +213,6 @@ where
 
     Ok(())
   }
-}
-
-#[inline]
-fn nonce<RNG>(rng: &mut RNG) -> [u8; 24]
-where
-  RNG: Rng,
-{
-  let mut rslt = [0; 24];
-  let mut idx = 0;
-  'outer: for _ in 0..rslt.len() {
-    for elem in rng.u8_16() {
-      if idx >= rslt.len() {
-        break 'outer;
-      }
-      let has_valid_char = matches!(elem, b'\x21'..=b'\x2b' | b'\x2d'..=b'\x7e');
-      if let (true, Some(byte)) = (has_valid_char, rslt.get_mut(idx)) {
-        *byte = elem;
-        idx = idx.wrapping_add(1);
-      }
-    }
-  }
-  rslt
 }
 
 #[inline]

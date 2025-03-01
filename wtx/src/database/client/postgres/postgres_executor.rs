@@ -15,7 +15,7 @@ use crate::{
       protocol::{encrypted_conn, initial_conn_msg},
     },
   },
-  misc::{ConnectionState, DEController, Lease, LeaseMut, Rng, Stream, StreamWithTls},
+  misc::{ConnectionState, CryptoRng, DEController, Lease, LeaseMut, Stream, StreamWithTls},
 };
 use core::{future::Future, marker::PhantomData};
 
@@ -42,7 +42,7 @@ where
     stream: S,
   ) -> crate::Result<Self>
   where
-    RNG: Rng,
+    RNG: CryptoRng,
   {
     eb.lease_mut().clear();
     Self::do_connect(config, eb, rng, stream, None).await
@@ -61,7 +61,7 @@ where
   where
     F: Future<Output = crate::Result<S>>,
     IS: Stream,
-    RNG: Rng,
+    RNG: CryptoRng,
     S: StreamWithTls,
   {
     eb.lease_mut().clear();
@@ -96,7 +96,7 @@ where
     tls_server_end_point: Option<&[u8]>,
   ) -> crate::Result<Self>
   where
-    RNG: Rng,
+    RNG: CryptoRng,
   {
     let mut this = Self { eb, cs: ConnectionState::Open, phantom: PhantomData, stream };
     this.send_initial_conn_msg(config).await?;

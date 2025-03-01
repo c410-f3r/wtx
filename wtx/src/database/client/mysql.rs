@@ -11,6 +11,8 @@ mod decode_wrapper;
 mod encode_wrapper;
 mod executor_buffer;
 mod flags;
+//#[cfg(all(feature = "_async-tests", feature = "_integration-tests", test))]
+//mod integration_tests;
 mod misc;
 mod mysql_error;
 mod mysql_executor;

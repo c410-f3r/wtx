@@ -3,6 +3,8 @@
 pub enum DatabaseError {
   /// A "null" field received from the database was decoded as a non-nullable type or value.
   MissingFieldDataInDecoding(&'static str),
+  /// Expected one record but got none.
+  MissingRecord,
   /// Received size differs from expected size.
   UnexpectedBufferSize {
     /// Expected

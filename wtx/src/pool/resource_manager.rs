@@ -93,17 +93,16 @@ where
 
 #[cfg(feature = "postgres")]
 pub(crate) mod database {
-  use crate::misc::Xorshift64Sync;
   use alloc::string::String;
   use core::marker::PhantomData;
 
   /// Manages generic database executors.
   #[derive(Debug)]
-  pub struct PostgresRM<E, S> {
+  pub struct PostgresRM<E, RNG, S> {
     _certs: Option<&'static [u8]>,
     _error: PhantomData<fn() -> E>,
     _max_stmts: usize,
-    _rng: Xorshift64Sync,
+    _rng: RNG,
     _stream: PhantomData<S>,
     _uri: String,
   }
@@ -124,31 +123,32 @@ pub(crate) mod database {
         DEFAULT_MAX_STMTS, Executor as _,
         client::postgres::{ExecutorBuffer, PostgresExecutor},
       },
-      misc::{Xorshift64Sync, simple_seed},
+      misc::CryptoRng,
       pool::{PostgresRM, ResourceManager},
     };
     use alloc::string::String;
     use core::{marker::PhantomData, mem};
     use tokio::net::TcpStream;
 
-    impl<E> PostgresRM<E, TcpStream> {
+    impl<E, RNG> PostgresRM<E, RNG, TcpStream> {
       /// Resource manager using the `tokio` project.
       #[inline]
-      pub fn tokio(uri: String) -> Self {
+      pub const fn tokio(rng: RNG, uri: String) -> Self {
         Self {
           _certs: None,
           _error: PhantomData,
           _max_stmts: DEFAULT_MAX_STMTS,
-          _rng: Xorshift64Sync::from(simple_seed()),
+          _rng: rng,
           _stream: PhantomData,
           _uri: uri,
         }
       }
     }
 
-    impl<E> ResourceManager for PostgresRM<E, TcpStream>
+    impl<E, RNG> ResourceManager for PostgresRM<E, RNG, TcpStream>
     where
       E: From<crate::Error>,
+      RNG: Clone + CryptoRng,
     {
       type CreateAux = ();
       type Error = E;
@@ -157,7 +157,7 @@ pub(crate) mod database {
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-        let mut rng = &self._rng;
+        let mut rng = self._rng.clone();
         _executor!(&self._uri, |config, uri| {
           PostgresExecutor::connect(
             &config,
@@ -179,7 +179,7 @@ pub(crate) mod database {
         _: &Self::RecycleAux,
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
-        let mut rng = &self._rng;
+        let mut rng = self._rng.clone();
         let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = _executor!(&self._uri, |config, uri| {
@@ -202,7 +202,7 @@ pub(crate) mod database {
         DEFAULT_MAX_STMTS, Executor as _,
         client::postgres::{ExecutorBuffer, PostgresExecutor},
       },
-      misc::{TokioRustlsConnector, Xorshift64Sync, simple_seed},
+      misc::{CryptoRng, TokioRustlsConnector},
       pool::{PostgresRM, ResourceManager},
     };
     use alloc::string::String;
@@ -210,24 +210,25 @@ pub(crate) mod database {
     use tokio::net::TcpStream;
     use tokio_rustls::client::TlsStream;
 
-    impl<E> PostgresRM<E, TlsStream<TcpStream>> {
+    impl<E, RNG> PostgresRM<E, RNG, TlsStream<TcpStream>> {
       /// Resource manager using the `tokio-rustls` project.
       #[inline]
-      pub fn tokio_rustls(certs: Option<&'static [u8]>, uri: String) -> Self {
+      pub const fn tokio_rustls(certs: Option<&'static [u8]>, rng: RNG, uri: String) -> Self {
         Self {
           _certs: certs,
           _error: PhantomData,
           _max_stmts: DEFAULT_MAX_STMTS,
-          _rng: Xorshift64Sync::from(simple_seed()),
+          _rng: rng,
           _stream: PhantomData,
           _uri: uri,
         }
       }
     }
 
-    impl<E> ResourceManager for PostgresRM<E, TlsStream<TcpStream>>
+    impl<E, RNG> ResourceManager for PostgresRM<E, RNG, TlsStream<TcpStream>>
     where
       E: From<crate::Error>,
+      RNG: Clone + CryptoRng,
     {
       type CreateAux = ();
       type Error = E;
@@ -236,7 +237,7 @@ pub(crate) mod database {
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-        let mut rng = &self._rng;
+        let mut rng = self._rng.clone();
         _executor!(&self._uri, |config, uri| {
           PostgresExecutor::connect_encrypted(
             &config,
@@ -265,7 +266,7 @@ pub(crate) mod database {
         _: &Self::RecycleAux,
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
-        let mut rng = &self._rng;
+        let mut rng = self._rng.clone();
         let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = _executor!(&self._uri, |config, uri| {
