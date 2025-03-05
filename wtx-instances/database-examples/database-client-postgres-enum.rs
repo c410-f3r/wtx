@@ -36,8 +36,8 @@ enum Enum {
 }
 
 impl Decode<'_, Postgres<wtx::Error>> for Enum {
-  fn decode(aux: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, wtx::Error> {
-    let s = <&str as Decode<Postgres<wtx::Error>>>::decode(aux, dv)?;
+  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, wtx::Error> {
+    let s = <&str as Decode<Postgres<wtx::Error>>>::decode(aux, dw)?;
     Ok(match s {
       "foo" => Self::Foo,
       "bar" => Self::Bar,
@@ -60,5 +60,13 @@ impl Encode<Postgres<wtx::Error>> for Enum {
 }
 
 impl Typed<Postgres<wtx::Error>> for Enum {
-  const TY: Option<Ty> = None;
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    None
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    None
+  }
 }

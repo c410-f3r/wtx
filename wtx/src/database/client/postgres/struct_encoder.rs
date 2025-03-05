@@ -34,7 +34,8 @@ where
   where
     T: Encode<Postgres<E>> + Typed<Postgres<E>>,
   {
-    self.encode_with_ty(value, const { T::TY.unwrap() })
+    let ty = value.runtime_ty().unwrap_or(Ty::Any);
+    self.encode_with_ty(value, ty)
   }
 
   /// Encodes `value` with the provided `ty`.

@@ -60,7 +60,7 @@ where
   total = total.wrapping_add(payload_len.wrapping_add(4));
   let first_byte = pfb._current().first().copied();
   if payload_len == Usize::from(MAX_PAYLOAD).into_usize() {
-    return Err(crate::Error::from(MysqlError::UnsupportedPayloadLen).into());
+    return Err(crate::Error::from(MysqlError::UnsupportedPayloadLen));
   }
   *sequence_id = local_sequence_id;
   if first_byte == Some(255) {

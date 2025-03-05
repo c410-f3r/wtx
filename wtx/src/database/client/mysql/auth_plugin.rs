@@ -65,9 +65,9 @@ impl AuthPlugin {
 
           Ok(false)
         }
-        _ => return Err(E::from(MysqlError::InvalidAuthPluginBytes.into())),
+        _ => Err(E::from(MysqlError::InvalidAuthPluginBytes.into())),
       },
-      _ => return Err(E::from(MysqlError::InvalidAuthPluginBytes.into())),
+      _ => Err(E::from(MysqlError::InvalidAuthPluginBytes.into())),
     }
   }
 

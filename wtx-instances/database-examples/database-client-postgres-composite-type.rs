@@ -35,8 +35,8 @@ async fn main() -> wtx::Result<()> {
 struct CustomCompositeType(u32, u64);
 
 impl Decode<'_, Postgres<wtx::Error>> for CustomCompositeType {
-  fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, wtx::Error> {
-    let mut sd = StructDecoder::<wtx::Error>::new(dv);
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, wtx::Error> {
+    let mut sd = StructDecoder::<wtx::Error>::new(dw);
     Ok(Self(sd.decode()?, sd.decode()?))
   }
 }
@@ -49,5 +49,13 @@ impl Encode<Postgres<wtx::Error>> for CustomCompositeType {
 }
 
 impl Typed<Postgres<wtx::Error>> for CustomCompositeType {
-  const TY: Option<Ty> = None;
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    None
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    None
+  }
 }

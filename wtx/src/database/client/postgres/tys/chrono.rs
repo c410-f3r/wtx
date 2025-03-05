@@ -37,7 +37,15 @@ where
   E: From<crate::Error>,
   TZ: TimeZone,
 {
-  const TY: Option<Ty> = Some(Ty::Timestamptz);
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Timestamptz)
+  }
 }
 
 impl<E> Decode<'_, Postgres<E>> for NaiveDate
@@ -83,7 +91,15 @@ impl<E> Typed<Postgres<E>> for NaiveDate
 where
   E: From<crate::Error>,
 {
-  const TY: Option<Ty> = Some(Ty::Date);
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Date)
+  }
 }
 
 impl<E> Decode<'_, Postgres<E>> for NaiveDateTime
@@ -133,7 +149,15 @@ impl<E> Typed<Postgres<E>> for NaiveDateTime
 where
   E: From<crate::Error>,
 {
-  const TY: Option<Ty> = Some(Ty::Timestamp);
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Timestamp)
+  }
 }
 
 fn pg_epoch_nd() -> Option<NaiveDate> {

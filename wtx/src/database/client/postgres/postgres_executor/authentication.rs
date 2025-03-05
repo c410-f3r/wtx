@@ -220,7 +220,6 @@ where
 }
 
 #[inline]
-
 fn nonce<RNG>(rng: &mut RNG) -> [u8; 24]
 where
   RNG: CryptoRng,

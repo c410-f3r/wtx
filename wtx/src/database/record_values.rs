@@ -90,7 +90,7 @@ where
     mut cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
   ) -> Result<(), D::Error> {
     for elem in *self {
-      cb(elem.is_null(), T::TY)?;
+      cb(elem.is_null(), elem.runtime_ty())?;
     }
     Ok(())
   }
@@ -129,7 +129,7 @@ where
     mut cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
   ) -> Result<(), D::Error> {
     for elem in self.0.clone() {
-      cb(elem.is_null(), T::TY)?;
+      cb(elem.is_null(), elem.runtime_ty())?;
     }
     Ok(())
   }

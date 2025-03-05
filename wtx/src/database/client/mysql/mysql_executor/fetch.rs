@@ -46,7 +46,7 @@ where
       let local_rest_first = local_rest.first().copied();
       if local_rest_first == Some(0) || local_rest_first == Some(255) {
         let res: OkRes = decode(&mut local_rest, ())?;
-        if u16::from(res.statuses) & smre == smre {
+        if res.statuses & smre == smre {
           continue;
         }
         affected_rows = affected_rows.wrapping_add(res.affected_rows);
@@ -71,7 +71,7 @@ where
         if current.first() == Some(&254) && current.len() < 9 {
           let res: OkRes = decode(&mut current, ())?;
           cb_end(0)?;
-          if u16::from(res.statuses) & smre == smre {
+          if res.statuses & smre == smre {
             break;
           }
           return Ok(());

@@ -43,7 +43,7 @@ macro_rules! impl_tuples {
           #[allow(unused_mut, reason = "0-arity tuple")]
           #[inline]
           fn walk(&self, mut _cb: impl FnMut(bool, Option<DB::Ty>) -> Result<(), DB::Error>) -> Result<(), DB::Error> {
-            $( _cb(self.$N.is_null(), $T::TY)?; )*
+            $( _cb(self.$N.is_null(), self.$N.runtime_ty())?; )*
             Ok(())
           }
         }

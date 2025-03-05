@@ -10,7 +10,6 @@ db_file_init() {
     local remote_data_dir=$2
 
     echo "#!/usr/bin/env bash" > $local_file
-    echo "set -euxo pipefail" >> $local_file
     echo "DATA_DIR=\"$remote_data_dir\"" >> $local_file
     echo "echo \"$(cat $CERTS_DIR/root-ca.crt)\" > \$DATA_DIR/root-ca.crt" >> $local_file
     echo "echo \"$(cat $CERTS_DIR/cert.pem)\" > \$DATA_DIR/cert.pem" >> $local_file
@@ -43,7 +42,17 @@ db_file_init $MYSQL_LOCAL_FILE $MYSQL_REMOTE_DATA_DIR
 echo "chown mysql:mysql $MYSQL_REMOTE_DATA_DIR/cert.pem $MYSQL_REMOTE_DATA_DIR/key.pem" >> $MYSQL_LOCAL_FILE
 echo "chmod 0600 $MYSQL_REMOTE_DATA_DIR/cert.pem $MYSQL_REMOTE_DATA_DIR/key.pem" >> $MYSQL_LOCAL_FILE
 
-echo "mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" -e \"CREATE USER 'no_password'@'%'; GRANT SELECT ON wtx.* TO 'no_password'@'%';\"" >> $MYSQL_LOCAL_FILE
+echo "CLIENT=\"\"
+if command -v mysql &> /dev/null; then
+  CLIENT=mysql
+elif command -v mariadb &> /dev/null; then
+  CLIENT=mariadb
+else
+  echo "Neither mysql nor mariadb client found!"
+  exit 1
+fi
+\$CLIENT -uroot -p\"\$MYSQL_ROOT_PASSWORD\" -e \"CREATE USER 'no_password'@'%'; GRANT SELECT ON wtx.* TO 'no_password'@'%';\"
+" >> $MYSQL_LOCAL_FILE
 
 # PostgreSQL
 

@@ -81,7 +81,15 @@ mod array {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Text);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Text)
+    }
   }
 
   test!(array_string, ArrayString<4>, ArrayString::try_from("123").unwrap());
@@ -122,7 +130,15 @@ mod collections {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::ByteaArray);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::ByteaArray)
+    }
   }
   test!(bytes, &[u8], &[1, 2, 3, 4]);
 
@@ -142,7 +158,15 @@ mod collections {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Text);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <&Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Text)
+    }
   }
 
   // &str
@@ -170,7 +194,15 @@ mod collections {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Text);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Text)
+    }
   }
   test!(str, &str, "1234");
 
@@ -202,7 +234,15 @@ mod collections {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Text);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Text)
+    }
   }
   kani!(string, String);
 }
@@ -246,7 +286,15 @@ mod ip {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Inet);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Inet)
+    }
   }
   test!(ipaddr_v4, IpAddr, IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4)));
   test!(ipaddr_v6, IpAddr, IpAddr::V6(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8)));
@@ -277,7 +325,15 @@ mod ip {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Inet);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Inet)
+    }
   }
   test!(ipv4, Ipv4Addr, Ipv4Addr::new(1, 2, 3, 4));
 
@@ -307,7 +363,15 @@ mod ip {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Inet);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Inet)
+    }
   }
   test!(ipv6, Ipv6Addr, Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8));
 }
@@ -477,7 +541,15 @@ mod primitives {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<Ty> = Some(Ty::Bool);
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      <Self as Typed<Postgres<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      Some(Ty::Bool)
+    }
   }
 
   kani!(bool_true, bool);
@@ -515,7 +587,15 @@ mod primitives {
       where
         E: From<crate::Error>
       {
-        const TY: Option<Ty> = Some($unsigned_pg_ty);
+        #[inline]
+        fn runtime_ty(&self) -> Option<Ty> {
+          <Self as Typed<Postgres<E>>>::static_ty()
+        }
+
+        #[inline]
+        fn static_ty() -> Option<Ty> {
+          Some($unsigned_pg_ty)
+        }
       }
 
       test!($unsigned, $unsigned, $instance);
@@ -555,7 +635,15 @@ mod primitives {
       where
         E: From<crate::Error>
       {
-        const TY: Option<Ty> = Some($pg_ty);
+        #[inline]
+        fn runtime_ty(&self) -> Option<Ty> {
+          <Self as Typed<Postgres<E>>>::static_ty()
+        }
+
+        #[inline]
+        fn static_ty() -> Option<Ty> {
+          Some($pg_ty)
+        }
       }
 
       test!($ty, $ty, $instance);
