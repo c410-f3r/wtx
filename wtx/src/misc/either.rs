@@ -1,7 +1,7 @@
 use crate::misc::Lease;
 
 /// An enum that can contain two different types.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Either<L, R> {
   /// Left
   Left(L),

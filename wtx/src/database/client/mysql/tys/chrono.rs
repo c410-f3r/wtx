@@ -13,8 +13,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-    let naive = <NaiveDateTime as Decode<Mysql<E>>>::decode(aux, dv)?;
+  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+    let naive = <NaiveDateTime as Decode<Mysql<E>>>::decode(aux, dw)?;
     Ok(Utc.from_utc_datetime(&naive))
   }
 }
@@ -31,7 +31,15 @@ impl<E> Typed<Mysql<E>> for DateTime<Utc>
 where
   E: From<crate::Error>,
 {
-  const TY: Option<TyParams> = Some(TyParams::binary(Ty::Timestamp));
+  #[inline]
+  fn runtime_ty(&self) -> Option<TyParams> {
+    <Self as Typed<Mysql<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<TyParams> {
+    Some(TyParams::binary(Ty::Timestamp))
+  }
 }
 
 impl<E> Decode<'_, Mysql<E>> for NaiveDate
@@ -39,8 +47,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-    date_decode(dv).map(|el| el.1).map_err(E::from)
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+    date_decode(dw).map(|el| el.1).map_err(E::from)
   }
 }
 impl<E> Encode<Mysql<E>> for NaiveDate
@@ -56,7 +64,15 @@ impl<E> Typed<Mysql<E>> for NaiveDate
 where
   E: From<crate::Error>,
 {
-  const TY: Option<TyParams> = Some(TyParams::binary(Ty::Date));
+  #[inline]
+  fn runtime_ty(&self) -> Option<TyParams> {
+    <Self as Typed<Mysql<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<TyParams> {
+    Some(TyParams::binary(Ty::Date))
+  }
 }
 
 impl<E> Decode<'_, Mysql<E>> for NaiveDateTime
@@ -64,8 +80,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-    let (len, date, bytes) = date_decode(dv).map_err(E::from)?;
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+    let (len, date, bytes) = date_decode(dw).map_err(E::from)?;
     Ok(if len > 4 {
       date.and_time(time_decode(bytes)?)
     } else {
@@ -91,16 +107,24 @@ impl<E> Typed<Mysql<E>> for NaiveDateTime
 where
   E: From<crate::Error>,
 {
-  const TY: Option<TyParams> = Some(TyParams::binary(Ty::Datetime));
+  #[inline]
+  fn runtime_ty(&self) -> Option<TyParams> {
+    <Self as Typed<Mysql<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<TyParams> {
+    Some(TyParams::binary(Ty::Datetime))
+  }
 }
 
 #[inline]
-fn date_decode<'de>(dv: &mut DecodeWrapper<'de>) -> crate::Result<(u8, NaiveDate, &'de [u8])> {
-  let [len, year_a, year_b, month, day, rest @ ..] = dv.bytes() else {
+fn date_decode<'de>(dw: &mut DecodeWrapper<'de>) -> crate::Result<(u8, NaiveDate, &'de [u8])> {
+  let [len, year_a, year_b, month, day, rest @ ..] = dw.bytes() else {
     return Err(
       DatabaseError::UnexpectedBufferSize {
         expected: 5,
-        received: Usize::from(dv.bytes().len()).into_u32().unwrap_or(u32::MAX),
+        received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX),
       }
       .into(),
     );

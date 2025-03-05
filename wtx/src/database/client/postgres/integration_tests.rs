@@ -37,7 +37,15 @@ async fn custom_composite_type() {
   }
 
   impl Typed<Postgres<crate::Error>> for CustomCompositeType {
-    const TY: Option<Ty> = None;
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      None
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      None
+    }
   }
 
   let mut exec = executor::<crate::Error>().await;
@@ -87,7 +95,15 @@ async fn custom_domain() {
   }
 
   impl Typed<Postgres<crate::Error>> for CustomDomain {
-    const TY: Option<Ty> = None;
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      None
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      None
+    }
   }
 
   let mut exec = executor::<crate::Error>().await;
@@ -148,7 +164,15 @@ async fn custom_enum() {
   }
 
   impl Typed<Postgres<crate::Error>> for Enum {
-    const TY: Option<Ty> = None;
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      None
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      None
+    }
   }
 
   let mut exec = executor::<crate::Error>().await;

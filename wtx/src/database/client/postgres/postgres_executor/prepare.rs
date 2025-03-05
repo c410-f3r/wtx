@@ -107,7 +107,7 @@ where
           S: Stream,
         {
           let mut sw = SuffixWriterFbvm::from(local_nb._suffix_writer());
-          sw._extend_from_slices([&[b'S'], stmt._aux.as_bytes(), &[0]])?;
+          sw._extend_from_slices([b"S", stmt._aux.as_bytes(), &[0]])?;
           local_fwsc.stream.write_all(sw._curr_bytes()).await?;
           Ok(())
         }
@@ -167,7 +167,7 @@ where
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg3.tag }.into()));
     };
 
-    let sm = StatementsMisc::new(stmt_cmd_id_array.clone(), columns_len.into(), types_len.into());
+    let sm = StatementsMisc::new(stmt_cmd_id_array, columns_len.into(), types_len.into());
     let idx = builder.build(stmt_cmd_id, sm)?;
     let Some(stmt) = stmts.get_by_idx(idx) else {
       return Err(crate::Error::ProgrammingError.into());

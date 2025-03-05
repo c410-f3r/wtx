@@ -33,7 +33,15 @@ impl<E> Typed<Postgres<E>> for Uuid
 where
   E: From<crate::Error>,
 {
-  const TY: Option<Ty> = Some(Ty::Uuid);
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Uuid)
+  }
 }
 
 test!(uuid, Uuid, Uuid::max());

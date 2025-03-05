@@ -3,11 +3,10 @@ use crate::{
     DatabaseError, Executor as _, Record, Records as _,
     client::mysql::{Config, ExecutorBuffer, MysqlExecutor},
   },
-  misc::{_32_bytes_seed, UriRef, Xorshift64, simple_seed},
+  misc::{UriRef, Xorshift64, simple_seed},
 };
 use alloc::string::String;
 use core::fmt::Debug;
-use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use std::{env, sync::LazyLock};
 use tokio::net::TcpStream;
 
@@ -33,33 +32,33 @@ async fn execute() {
 async fn record() {
   let mut exec = executor::<crate::Error>().await;
 
-  let _0c_1p = exec.fetch_with_stmt("SELECT 1 WHERE 0=?", (1,)).await;
+  let _0c_1p = exec.fetch_with_stmt("SELECT '1' WHERE 0=?", (1,)).await;
   assert!(matches!(_0c_1p.unwrap_err(), crate::Error::DatabaseError(DatabaseError::MissingRecord)));
-  let _0c_2p = exec.fetch_with_stmt("SELECT 1 WHERE 0=? AND 1=?", (1, 2)).await;
+  let _0c_2p = exec.fetch_with_stmt("SELECT '1' WHERE 0=? AND 1=?", (1, 2)).await;
   assert!(matches!(_0c_2p.unwrap_err(), crate::Error::DatabaseError(DatabaseError::MissingRecord)));
 
-  let _1c_0p = exec.fetch_with_stmt("SELECT 1", ()).await.unwrap();
+  let _1c_0p = exec.fetch_with_stmt("SELECT '1'", ()).await.unwrap();
   assert_eq!(_1c_0p.len(), 1);
-  assert_eq!(_1c_0p.decode::<_, u64>(0).unwrap(), 1);
-  let _1c_1p = exec.fetch_with_stmt("SELECT 1 WHERE 0=?", (0,)).await.unwrap();
+  assert_eq!(_1c_0p.decode::<_, &str>(0).unwrap(), "1");
+  let _1c_1p = exec.fetch_with_stmt("SELECT '1' WHERE 0=?", (0,)).await.unwrap();
   assert_eq!(_1c_1p.len(), 1);
-  assert_eq!(_1c_1p.decode::<_, u64>(0).unwrap(), 1);
-  let _1c_2p = exec.fetch_with_stmt("SELECT 1 WHERE 0=? AND 1=?", (0, 1)).await.unwrap();
+  assert_eq!(_1c_1p.decode::<_, &str>(0).unwrap(), "1");
+  let _1c_2p = exec.fetch_with_stmt("SELECT '1' WHERE 0=? AND 1=?", (0, 1)).await.unwrap();
   assert_eq!(_1c_2p.len(), 1);
-  assert_eq!(_1c_2p.decode::<_, u64>(0).unwrap(), 1);
+  assert_eq!(_1c_2p.decode::<_, &str>(0).unwrap(), "1");
 
-  let _2c_0p = exec.fetch_with_stmt("SELECT 1,2", ()).await.unwrap();
+  let _2c_0p = exec.fetch_with_stmt("SELECT '1','2'", ()).await.unwrap();
   assert_eq!(_2c_0p.len(), 2);
-  assert_eq!(_2c_0p.decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_2c_0p.decode::<_, u64>(1).unwrap(), 2);
-  let _2c_1p = exec.fetch_with_stmt("SELECT 1,2 WHERE 0=?", (0,)).await.unwrap();
+  assert_eq!(_2c_0p.decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_2c_0p.decode::<_, &str>(1).unwrap(), "2");
+  let _2c_1p = exec.fetch_with_stmt("SELECT '1','2' WHERE 0=?", (0,)).await.unwrap();
   assert_eq!(_2c_1p.len(), 2);
-  assert_eq!(_2c_1p.decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_2c_1p.decode::<_, u64>(1).unwrap(), 2);
-  let _2c_2p = exec.fetch_with_stmt("SELECT 1,2 WHERE 0=? AND 1=?", (0, 1)).await.unwrap();
+  assert_eq!(_2c_1p.decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_2c_1p.decode::<_, &str>(1).unwrap(), "2");
+  let _2c_2p = exec.fetch_with_stmt("SELECT '1','2' WHERE 0=? AND 1=?", (0, 1)).await.unwrap();
   assert_eq!(_2c_2p.len(), 2);
-  assert_eq!(_2c_2p.decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_2c_2p.decode::<_, u64>(1).unwrap(), 2);
+  assert_eq!(_2c_2p.decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_2c_2p.decode::<_, &str>(1).unwrap(), "2");
 }
 
 #[tokio::test]
@@ -68,59 +67,63 @@ async fn records() {
 
   // 0 rows, 0 columns
 
-  let _0r_0c_1p = exec.fetch_many_with_stmt("SELECT 1 WHERE 0=?", (1,), |_| Ok(())).await.unwrap();
+  let _0r_0c_1p =
+    exec.fetch_many_with_stmt("SELECT '1' WHERE 0=?", (1,), |_| Ok(())).await.unwrap();
   assert_eq!(_0r_0c_1p.len(), 0);
   let _0r_0c_2p =
-    exec.fetch_many_with_stmt("SELECT 1 WHERE 0=? AND 1=?", (1, 2), |_| Ok(())).await.unwrap();
+    exec.fetch_many_with_stmt("SELECT '1' WHERE 0=? AND 1=?", (1, 2), |_| Ok(())).await.unwrap();
   assert_eq!(_0r_0c_2p.len(), 0);
 
   // 1 row,  1 column
 
-  let _1r_1c_0p = exec.fetch_many_with_stmt("SELECT 1", (), |_| Ok(())).await.unwrap();
+  let _1r_1c_0p = exec.fetch_many_with_stmt("SELECT '1'", (), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_1c_0p.len(), 1);
-  assert_eq!(_1r_1c_0p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
+  assert_eq!(_1r_1c_0p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
   assert_eq!(_1r_1c_0p.get(0).unwrap().len(), 1);
-  let _1r_1c_1p = exec.fetch_many_with_stmt("SELECT 1 WHERE 0=?", (0,), |_| Ok(())).await.unwrap();
+  let _1r_1c_1p =
+    exec.fetch_many_with_stmt("SELECT '1' WHERE 0=?", (0,), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_1c_1p.len(), 1);
-  assert_eq!(_1r_1c_1p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
+  assert_eq!(_1r_1c_1p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
   assert_eq!(_1r_1c_1p.get(0).unwrap().len(), 1);
   let _1r_1c_2p =
-    exec.fetch_many_with_stmt("SELECT 1 WHERE 0=? AND 1=?", (0, 1), |_| Ok(())).await.unwrap();
+    exec.fetch_many_with_stmt("SELECT '1' WHERE 0=? AND 1=?", (0, 1), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_1c_2p.len(), 1);
-  assert_eq!(_1r_1c_2p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
+  assert_eq!(_1r_1c_2p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
   assert_eq!(_1r_1c_2p.get(0).unwrap().len(), 1);
 
   // 1 row, 2 columns
 
-  let _1r_2c_0p = exec.fetch_many_with_stmt("SELECT 1,2", (), |_| Ok(())).await.unwrap();
+  let _1r_2c_0p = exec.fetch_many_with_stmt("SELECT '1','2'", (), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_2c_0p.len(), 1);
-  assert_eq!(_1r_2c_0p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_1r_2c_0p.get(0).unwrap().decode::<_, u64>(1).unwrap(), 2);
+  assert_eq!(_1r_2c_0p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_1r_2c_0p.get(0).unwrap().decode::<_, &str>(1).unwrap(), "2");
   let _1r_2c_1p =
-    exec.fetch_many_with_stmt("SELECT 1,2 WHERE 0=?", (0,), |_| Ok(())).await.unwrap();
+    exec.fetch_many_with_stmt("SELECT '1','2' WHERE 0=?", (0,), |_| Ok(())).await.unwrap();
   assert_eq!(_1r_2c_1p.len(), 1);
-  assert_eq!(_1r_2c_1p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_1r_2c_1p.get(0).unwrap().decode::<_, u64>(1).unwrap(), 2);
-  let _1r_2c_2p =
-    exec.fetch_many_with_stmt("SELECT 1,2 WHERE 0=? AND 1=?", (0, 1), |_| Ok(())).await.unwrap();
+  assert_eq!(_1r_2c_1p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_1r_2c_1p.get(0).unwrap().decode::<_, &str>(1).unwrap(), "2");
+  let _1r_2c_2p = exec
+    .fetch_many_with_stmt("SELECT '1','2' WHERE 0=? AND 1=?", (0, 1), |_| Ok(()))
+    .await
+    .unwrap();
   assert_eq!(_1r_2c_2p.len(), 1);
-  assert_eq!(_1r_2c_2p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_1r_2c_2p.get(0).unwrap().decode::<_, u64>(1).unwrap(), 2);
+  assert_eq!(_1r_2c_2p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_1r_2c_2p.get(0).unwrap().decode::<_, &str>(1).unwrap(), "2");
 
   // 2 rows, 1 column
 
   let _2r_1c_0p = exec
-    .fetch_many_with_stmt("SELECT * FROM (SELECT 1 UNION ALL SELECT 2) AS foo", (), |_| Ok(()))
+    .fetch_many_with_stmt("SELECT * FROM (SELECT '1' UNION ALL SELECT 2) AS foo", (), |_| Ok(()))
     .await
     .unwrap();
   assert_eq!(_2r_1c_0p.len(), 2);
   assert_eq!(_2r_1c_0p.get(0).unwrap().len(), 1);
-  assert_eq!(_2r_1c_0p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
+  assert_eq!(_2r_1c_0p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
   assert_eq!(_2r_1c_0p.get(1).unwrap().len(), 1);
-  assert_eq!(_2r_1c_0p.get(1).unwrap().decode::<_, u64>(0).unwrap(), 2);
+  assert_eq!(_2r_1c_0p.get(1).unwrap().decode::<_, &str>(0).unwrap(), "2");
   let _2r_1c_1p = exec
     .fetch_many_with_stmt(
-      "SELECT * FROM (SELECT 1 UNION ALL SELECT 2) AS foo  WHERE 0=?",
+      "SELECT * FROM (SELECT '1' UNION ALL SELECT 2) AS foo  WHERE 0=?",
       (0,),
       |_| Ok(()),
     )
@@ -128,12 +131,12 @@ async fn records() {
     .unwrap();
   assert_eq!(_2r_1c_1p.len(), 2);
   assert_eq!(_2r_1c_1p.get(0).unwrap().len(), 1);
-  assert_eq!(_2r_1c_1p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
+  assert_eq!(_2r_1c_1p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
   assert_eq!(_2r_1c_1p.get(1).unwrap().len(), 1);
-  assert_eq!(_2r_1c_1p.get(1).unwrap().decode::<_, u64>(0).unwrap(), 2);
+  assert_eq!(_2r_1c_1p.get(1).unwrap().decode::<_, &str>(0).unwrap(), "2");
   let _2r_1c_2p = exec
     .fetch_many_with_stmt(
-      "SELECT * FROM (SELECT 1 AS foo UNION ALL SELECT 2) AS t (foo) WHERE 0=? AND 1=?",
+      "SELECT * FROM (SELECT '1' AS foo UNION ALL SELECT 2) AS t (foo) WHERE 0=? AND 1=?",
       (0, 1),
       |_| Ok(()),
     )
@@ -141,15 +144,15 @@ async fn records() {
     .unwrap();
   assert_eq!(_2r_1c_2p.len(), 2);
   assert_eq!(_2r_1c_2p.get(0).unwrap().len(), 1);
-  assert_eq!(_2r_1c_2p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
+  assert_eq!(_2r_1c_2p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
   assert_eq!(_2r_1c_2p.get(1).unwrap().len(), 1);
-  assert_eq!(_2r_1c_2p.get(1).unwrap().decode::<_, u64>(0).unwrap(), 2);
+  assert_eq!(_2r_1c_2p.get(1).unwrap().decode::<_, &str>(0).unwrap(), "2");
 
   // 2 rows, 2 columns
 
   let _2r_2c_0p = exec
     .fetch_many_with_stmt(
-      "SELECT * FROM (SELECT 1,2 UNION ALL SELECT 3,4) AS t (foo,bar)",
+      "SELECT * FROM (SELECT '1','2' UNION ALL SELECT 3,4) AS t (foo,bar)",
       (),
       |_| Ok(()),
     )
@@ -157,14 +160,14 @@ async fn records() {
     .unwrap();
   assert_eq!(_2r_2c_0p.len(), 2);
   assert_eq!(_2r_2c_0p.get(0).unwrap().len(), 2);
-  assert_eq!(_2r_2c_0p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_2r_2c_0p.get(0).unwrap().decode::<_, u64>(1).unwrap(), 2);
+  assert_eq!(_2r_2c_0p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_2r_2c_0p.get(0).unwrap().decode::<_, &str>(1).unwrap(), "2");
   assert_eq!(_2r_2c_0p.get(1).unwrap().len(), 2);
-  assert_eq!(_2r_2c_0p.get(1).unwrap().decode::<_, u64>(0).unwrap(), 3);
-  assert_eq!(_2r_2c_0p.get(1).unwrap().decode::<_, u64>(1).unwrap(), 4);
+  assert_eq!(_2r_2c_0p.get(1).unwrap().decode::<_, &str>(0).unwrap(), "3");
+  assert_eq!(_2r_2c_0p.get(1).unwrap().decode::<_, &str>(1).unwrap(), "4");
   let _2r_2c_1p = exec
     .fetch_many_with_stmt(
-      "SELECT * FROM (SELECT 1,2 UNION ALL SELECT 3,4) AS t (foo,bar) WHERE 0=?",
+      "SELECT * FROM (SELECT '1','2' UNION ALL SELECT 3,4) AS t (foo,bar) WHERE 0=?",
       (0,),
       |_| Ok(()),
     )
@@ -172,14 +175,14 @@ async fn records() {
     .unwrap();
   assert_eq!(_2r_2c_1p.len(), 2);
   assert_eq!(_2r_2c_1p.get(0).unwrap().len(), 2);
-  assert_eq!(_2r_2c_1p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_2r_2c_1p.get(0).unwrap().decode::<_, u64>(1).unwrap(), 2);
+  assert_eq!(_2r_2c_1p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_2r_2c_1p.get(0).unwrap().decode::<_, &str>(1).unwrap(), "2");
   assert_eq!(_2r_2c_1p.get(1).unwrap().len(), 2);
-  assert_eq!(_2r_2c_1p.get(1).unwrap().decode::<_, u64>(0).unwrap(), 3);
-  assert_eq!(_2r_2c_1p.get(1).unwrap().decode::<_, u64>(1).unwrap(), 4);
+  assert_eq!(_2r_2c_1p.get(1).unwrap().decode::<_, &str>(0).unwrap(), "3");
+  assert_eq!(_2r_2c_1p.get(1).unwrap().decode::<_, &str>(1).unwrap(), "4");
   let _2r_2c_2p = exec
     .fetch_many_with_stmt(
-      "SELECT * FROM (SELECT 1,2 UNION ALL SELECT 3,4) AS t (foo,bar) WHERE 0=? AND 1=?",
+      "SELECT * FROM (SELECT '1','2' UNION ALL SELECT 3,4) AS t (foo,bar) WHERE 0=? AND 1=?",
       (0, 1),
       |_| Ok(()),
     )
@@ -187,16 +190,18 @@ async fn records() {
     .unwrap();
   assert_eq!(_2r_2c_2p.len(), 2);
   assert_eq!(_2r_2c_2p.get(0).unwrap().len(), 2);
-  assert_eq!(_2r_2c_2p.get(0).unwrap().decode::<_, u64>(0).unwrap(), 1);
-  assert_eq!(_2r_2c_2p.get(0).unwrap().decode::<_, u64>(1).unwrap(), 2);
+  assert_eq!(_2r_2c_2p.get(0).unwrap().decode::<_, &str>(0).unwrap(), "1");
+  assert_eq!(_2r_2c_2p.get(0).unwrap().decode::<_, &str>(1).unwrap(), "2");
   assert_eq!(_2r_2c_2p.get(1).unwrap().len(), 2);
-  assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, u64>(0).unwrap(), 3);
-  assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, u64>(1).unwrap(), 4);
+  assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, &str>(0).unwrap(), "3");
+  assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, &str>(1).unwrap(), "4");
 }
 
 #[cfg(feature = "tokio-rustls")]
 #[tokio::test]
 async fn tls() {
+  use crate::misc::_32_bytes_seed;
+  use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
   let mut rng = ChaCha20Rng::from_seed(_32_bytes_seed());

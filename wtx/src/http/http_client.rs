@@ -123,11 +123,11 @@ mod http2 {
     }
 
     #[inline]
-    async fn send_req<'uri, RRD>(
+    async fn send_req<RRD>(
       &mut self,
       method: Method,
       rrd: RRD,
-      uri: &UriRef<'uri>,
+      uri: &UriRef<'_>,
     ) -> crate::Result<Self::Stream>
     where
       RRD: ReqResData,
@@ -181,11 +181,11 @@ mod http_client_pool {
     }
 
     #[inline]
-    async fn send_req<'uri, RRD>(
+    async fn send_req<RRD>(
       &mut self,
       method: Method,
       rrd: RRD,
-      uri: &UriRef<'uri>,
+      uri: &UriRef<'_>,
     ) -> crate::Result<Self::Stream>
     where
       RRD: ReqResData,
@@ -228,11 +228,11 @@ mod http_client_pool {
     }
 
     #[inline]
-    async fn send_req<'uri, RRD>(
+    async fn send_req<RRD>(
       &mut self,
       method: Method,
       rrd: RRD,
-      uri: &UriRef<'uri>,
+      uri: &UriRef<'_>,
     ) -> crate::Result<Self::Stream>
     where
       RRD: ReqResData,

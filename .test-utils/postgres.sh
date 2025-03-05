@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euxo pipefail
 DATA_DIR="$PGDATA"
 echo "-----BEGIN CERTIFICATE-----
 MIIDGzCCAgOgAwIBAgIULfMxOCpH518ImycugYA+u89m790wDQYJKoZIhvcNAQEL

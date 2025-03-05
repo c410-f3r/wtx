@@ -105,7 +105,15 @@ impl<E> Typed<Postgres<E>> for Decimal
 where
   E: From<crate::Error>,
 {
-  const TY: Option<Ty> = Some(Ty::Numeric);
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Numeric)
+  }
 }
 
 kani!(rust_decimal, Decimal);

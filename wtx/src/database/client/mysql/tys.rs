@@ -46,9 +46,9 @@ mod collections {
   use crate::{
     database::{
       Typed,
-      client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams},
+      client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams, misc::encoded_len},
     },
-    misc::{ArrayString, Decode, Encode, from_utf8_basic},
+    misc::{ArrayString, Decode, Encode, Usize, from_utf8_basic},
   };
   use alloc::string::String;
 
@@ -59,8 +59,8 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(_: &mut (), dv: &mut DecodeWrapper<'exec>) -> Result<Self, E> {
-      Ok(dv.bytes())
+    fn decode(_: &mut (), dw: &mut DecodeWrapper<'exec>) -> Result<Self, E> {
+      Ok(dw.bytes())
     }
   }
   impl<E> Encode<Mysql<E>> for &[u8]
@@ -69,7 +69,8 @@ mod collections {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-      ew.sw().extend_from_copyable_slice(self)?;
+      let len = encoded_len(*Usize::from(self.len()))?;
+      let _ = ew.sw().extend_from_copyable_slices([len.as_slice(), self])?;
       Ok(())
     }
   }
@@ -77,9 +78,16 @@ mod collections {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<TyParams> = Some(TyParams::binary(Ty::Blob));
+    #[inline]
+    fn runtime_ty(&self) -> Option<TyParams> {
+      <Self as Typed<Mysql<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<TyParams> {
+      Some(TyParams::binary(Ty::Blob))
+    }
   }
-  test!(bytes, &[u8], &[1, 2, 3, 4]);
 
   // String
 
@@ -88,8 +96,8 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-      Ok(from_utf8_basic(dv.bytes()).map_err(Into::into)?.try_into()?)
+    fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+      Ok(<&str as Decode<Mysql<E>>>::decode(aux, dw)?.try_into()?)
     }
   }
   impl<E, const N: usize> Encode<Mysql<E>> for ArrayString<N>
@@ -97,26 +105,35 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-      ew.sw().extend_from_copyable_slice(self.as_str().as_bytes())?;
-      Ok(())
+    fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+      <&str as Encode<Mysql<E>>>::encode(&self.as_str(), aux, ew)
     }
   }
   impl<E, const N: usize> Typed<Mysql<E>> for ArrayString<N>
   where
     E: From<crate::Error>,
   {
-    const TY: Option<TyParams> = Some(TyParams::empty(Ty::VarString));
+    #[inline]
+    fn runtime_ty(&self) -> Option<TyParams> {
+      <Self as Typed<Mysql<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<TyParams> {
+      Some(TyParams::empty(Ty::VarString))
+    }
   }
-  test!(array_string, ArrayString<4>, ArrayString::try_from("123").unwrap());
 
   impl<'exec, E> Decode<'exec, Mysql<E>> for &'exec str
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(_: &mut (), dv: &mut DecodeWrapper<'exec>) -> Result<Self, E> {
-      Ok(from_utf8_basic(dv.bytes()).map_err(crate::Error::from)?)
+    fn decode(aux: &mut (), dw: &mut DecodeWrapper<'exec>) -> Result<Self, E> {
+      Ok(
+        from_utf8_basic(<&[u8] as Decode<Mysql<E>>>::decode(aux, dw)?)
+          .map_err(crate::Error::from)?,
+      )
     }
   }
   impl<E> Encode<Mysql<E>> for &str
@@ -124,18 +141,24 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-      ew.sw().extend_from_copyable_slice(self.as_bytes())?;
-      Ok(())
+    fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+      <&[u8] as Encode<Mysql<E>>>::encode(&self.as_bytes(), aux, ew)
     }
   }
   impl<E> Typed<Mysql<E>> for &str
   where
     E: From<crate::Error>,
   {
-    const TY: Option<TyParams> = Some(TyParams::empty(Ty::VarString));
+    #[inline]
+    fn runtime_ty(&self) -> Option<TyParams> {
+      <Self as Typed<Mysql<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<TyParams> {
+      Some(TyParams::empty(Ty::VarString))
+    }
   }
-  test!(str, &str, "1234");
 
   // String
 
@@ -144,11 +167,8 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-      match from_utf8_basic(dv.bytes()).map_err(crate::Error::from) {
-        Ok(elem) => Ok(elem.into()),
-        Err(err) => Err(err.into()),
-      }
+    fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+      <&str as Decode<Mysql<E>>>::decode(aux, dw).map(String::from)
     }
   }
   impl<E> Encode<Mysql<E>> for String
@@ -156,16 +176,23 @@ mod collections {
     E: From<crate::Error>,
   {
     #[inline]
-    fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-      ew.sw().extend_from_copyable_slice(self.as_bytes())?;
-      Ok(())
+    fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+      <&str as Encode<Mysql<E>>>::encode(&self.as_str(), aux, ew)
     }
   }
   impl<E> Typed<Mysql<E>> for String
   where
     E: From<crate::Error>,
   {
-    const TY: Option<TyParams> = Some(TyParams::empty(Ty::VarString));
+    #[inline]
+    fn runtime_ty(&self) -> Option<TyParams> {
+      <Self as Typed<Mysql<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<TyParams> {
+      Some(TyParams::empty(Ty::VarString))
+    }
   }
   kani!(string, String);
 }
@@ -186,12 +213,12 @@ mod primitives {
     E: From<crate::Error>,
   {
     #[inline]
-    fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-      let &[byte] = dv.bytes() else {
+    fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+      let &[byte] = dw.bytes() else {
         return Err(E::from(
           DatabaseError::UnexpectedBufferSize {
             expected: 1,
-            received: Usize::from(dv.bytes().len()).into_u32().unwrap_or(u32::MAX),
+            received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX),
           }
           .into(),
         ));
@@ -213,7 +240,15 @@ mod primitives {
   where
     E: From<crate::Error>,
   {
-    const TY: Option<TyParams> = Some(TyParams::unsigned(Ty::Tiny));
+    #[inline]
+    fn runtime_ty(&self) -> Option<TyParams> {
+      <Self as Typed<Mysql<E>>>::static_ty()
+    }
+
+    #[inline]
+    fn static_ty() -> Option<TyParams> {
+      Some(TyParams::unsigned(Ty::Tiny))
+    }
   }
 
   macro_rules! impl_integer_from_array {
@@ -225,13 +260,13 @@ mod primitives {
           E: From<crate::Error>,
         {
           #[inline]
-          fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-            if let &[$($elem,)+] = dv.bytes() {
+          fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+            if let &[$($elem,)+] = dw.bytes() {
               return Ok(<Self>::from_le_bytes([$($elem),+]));
             }
             Err(E::from(DatabaseError::UnexpectedBufferSize {
               expected: Usize::from(size_of::<Self>()).into_u32().unwrap_or(u32::MAX),
-              received: Usize::from(dv.bytes().len()).into_u32().unwrap_or(u32::MAX)
+              received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX)
             }.into()))
           }
         }
@@ -249,7 +284,15 @@ mod primitives {
         where
           E: From<crate::Error>
         {
-          const TY: Option<TyParams> = Some($unsigned_pg_ty);
+          #[inline]
+          fn runtime_ty(&self) -> Option<TyParams> {
+            <Self as Typed<Mysql<E>>>::static_ty()
+          }
+
+          #[inline]
+          fn static_ty() -> Option<TyParams> {
+            Some($unsigned_pg_ty)
+          }
         }
 
         test!($unsigned, $unsigned, $instance);
@@ -263,13 +306,13 @@ mod primitives {
           E: From<crate::Error>,
         {
           #[inline]
-          fn decode(_: &mut (), dv: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-            if let &[$($elem,)+] = dv.bytes() {
+          fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+            if let &[$($elem,)+] = dw.bytes() {
               return Ok(<Self>::from_le_bytes([$($elem),+]));
             }
             Err(E::from(DatabaseError::UnexpectedBufferSize {
               expected: Usize::from(size_of::<Self>()).into_u32().unwrap_or(u32::MAX),
-              received: Usize::from(dv.bytes().len()).into_u32().unwrap_or(u32::MAX)
+              received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX)
             }.into()))
           }
         }
@@ -289,7 +332,15 @@ mod primitives {
         where
           E: From<crate::Error>
         {
-          const TY: Option<TyParams> = Some($pg_ty);
+          #[inline]
+          fn runtime_ty(&self) -> Option<TyParams> {
+            <Self as Typed<Mysql<E>>>::static_ty()
+          }
+
+          #[inline]
+          fn static_ty() -> Option<TyParams> {
+            Some($pg_ty)
+          }
         }
 
         test!($ty, $ty, $instance);

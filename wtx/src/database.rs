@@ -28,7 +28,7 @@ pub use record::Record;
 pub use record_values::RecordValues;
 pub use records::Records;
 pub use stmt_cmd::StmtCmd;
-pub use typed::Typed;
+pub use typed::{Typed, TypedEncode};
 pub use value_ident::ValueIdent;
 
 /// The default value for the maximum number of cached statements

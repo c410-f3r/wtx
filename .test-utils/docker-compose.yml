@@ -9,11 +9,12 @@ services:
             MARIADB_PASSWORD: wtx
             MARIADB_ROOT_PASSWORD: wtx
             MARIADB_USER: wtx
-        image: mariadb:11
+        image: docker.io/mariadb:11
         ports:
             - 3306:3306
         volumes:
-            - ./../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
+            - ../.test-utils/my.cnf:/etc/mysql/my.cnf
+            - ../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
 
     mysql_9:
         environment:
@@ -22,11 +23,12 @@ services:
             MYSQL_ROOT_HOST: '%'
             MYSQL_ROOT_PASSWORD: wtx
             MYSQL_USER: wtx
-        image: mysql:9
+        image: docker.io/mysql:9
         ports:
             - 3307:3306
         volumes:
-            - ./../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
+            - ../.test-utils/my.cnf:/etc/mysql/my.cnf
+            - ../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
 
     percona_9:
         environment:
@@ -34,11 +36,12 @@ services:
             MYSQL_PASSWORD: wtx
             MYSQL_ROOT_PASSWORD: wtx
             MYSQL_USER: wtx
-        image: percona:8
+        image: docker.io/percona:8
         ports:
             - 3308:3306
         volumes:
-            - ./../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
+            - ../.test-utils/my.cnf:/etc/mysql/my.cnf
+            - ../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
 
     # PostgreSQL
 
@@ -46,8 +49,8 @@ services:
         environment:
             POSTGRES_DB: wtx
             POSTGRES_PASSWORD: wtx
-        image: postgres:17
+        image: docker.io/postgres:17
         ports:
             - 5432:5432
         volumes:
-            - ./../.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh
+            - ../.test-utils/postgres.sh:/docker-entrypoint-initdb.d/setup.sh

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euxo pipefail
 DATA_DIR="/var/lib/mysql"
 echo "-----BEGIN CERTIFICATE-----
 MIIDGzCCAgOgAwIBAgIULfMxOCpH518ImycugYA+u89m790wDQYJKoZIhvcNAQEL
@@ -70,4 +69,14 @@ GrDDewJI1SYDD5Sj2qQcvUw=
 -----END PRIVATE KEY-----" > $DATA_DIR/key.pem
 chown mysql:mysql /var/lib/mysql/cert.pem /var/lib/mysql/key.pem
 chmod 0600 /var/lib/mysql/cert.pem /var/lib/mysql/key.pem
-mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE USER 'no_password'@'%'; GRANT SELECT ON wtx.* TO 'no_password'@'%';"
+CLIENT=""
+if command -v mysql &> /dev/null; then
+  CLIENT=mysql
+elif command -v mariadb &> /dev/null; then
+  CLIENT=mariadb
+else
+  echo Neither mysql nor mariadb client found!
+  exit 1
+fi
+$CLIENT -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE USER 'no_password'@'%'; GRANT SELECT ON wtx.* TO 'no_password'@'%';"
+
