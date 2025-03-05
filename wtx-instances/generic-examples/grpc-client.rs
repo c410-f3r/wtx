@@ -10,33 +10,30 @@ extern crate wtx_instances;
 use std::borrow::Cow;
 use wtx::{
   data_transformation::dnsn::QuickProtobuf,
-  grpc::Client,
-  http::{client_pool::ClientPoolBuilder, ReqResBuffer, ReqResData},
+  grpc::GrpcClient,
+  http::{ReqResBuffer, client_pool::ClientPoolBuilder},
+  misc::UriRef,
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let mut rrb = ReqResBuffer::empty();
-  rrb.uri.reset(|el| {
-    el.push_str("http://127.0.0.1:9000");
-    Ok(())
-  })?;
+  let rrb = ReqResBuffer::empty();
   let uri_ref = rrb.uri.to_ref();
   let pool = ClientPoolBuilder::tokio(1).build();
   let mut guard = pool.lock(&uri_ref).await?;
-  let mut client = Client::new(&mut guard.client, QuickProtobuf);
+  let mut client = GrpcClient::new(&mut guard.client, QuickProtobuf);
   let res = client
     .send_unary_req(
-      ("wtx", "GenericService", "generic_method"),
       GenericRequest {
         generic_request_field0: Cow::Borrowed(b"generic_request_value"),
         generic_request_field1: 123,
       },
       rrb,
+      &UriRef::new("http://127.0.0.1:9000/wtx.GenericService/generic_method"),
     )
     .await?;
-  let generic_response: GenericResponse = client.des_from_res_bytes(res.rrd.body())?;
+  let generic_response: GenericResponse = client.des_from_res_bytes(&mut res.rrd.body.as_ref())?;
   println!("{:?}", generic_response);
   Ok(())
 }

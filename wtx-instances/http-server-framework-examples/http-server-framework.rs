@@ -5,27 +5,29 @@
 //!
 //! This snippet requires ~50 dependencies and has an optimized binary size of ~900K.
 
+extern crate rand_chacha;
 extern crate serde;
 extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
 use core::{fmt::Write, ops::ControlFlow};
-use tokio::net::{tcp::OwnedWriteHalf, TcpStream};
+use rand_chacha::rand_core::SeedableRng;
+use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
   database::{Executor, Record},
   http::{
-    server_framework::{
-      get, post, Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean,
-    },
     ManualStream, ReqResBuffer, Request, Response, StatusCode,
+    server_framework::{
+      Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean, get, post,
+    },
   },
   http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
-  misc::{simple_seed, Xorshift64},
+  misc::{Xorshift64, simple_seed},
   pool::{PostgresRM, SimplePoolTokio},
 };
 
-type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
+type Pool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, TcpStream>>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -38,7 +40,10 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  let rm = PostgresRM::tokio("postgres://USER:PASSWORD@localhost/DB_NAME".into());
+  let rm = PostgresRM::tokio(
+    rand_chacha::ChaCha20Rng::try_from_os_rng()?,
+    "postgres://USER:PASSWORD@localhost/DB_NAME".into(),
+  );
   let pool = Pool::new(4, rm);
   ServerFrameworkBuilder::new(router)
     .with_req_aux(move || pool.clone())

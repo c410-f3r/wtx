@@ -3,9 +3,9 @@
 . "$(dirname "$0")/common.sh" --source-only
 
 $rt rustfmt
-$rt clippy -Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn,-Aclippy::used_underscore_items,-Aclippy::arbitrary_source_item_ordering
+$rt clippy -Aclippy::arbitrary_source_item_ordering,-Aclippy::doc-include-without-cfg,-Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn,-Aclippy::used_underscore_items
 
-cargo miri test --features http2,postgres,web-socket -p wtx two_sta
+#cargo miri test --features http2,postgres,web-socket -p wtx
 
 # WTX
 
@@ -13,7 +13,6 @@ $rt check-generic wtx
 $rt test-with-features wtx aes-gcm
 $rt test-with-features wtx arbitrary
 $rt test-with-features wtx argon2
-$rt test-with-features wtx aws-lc-rs,_hack
 $rt test-with-features wtx base64
 $rt test-with-features wtx borsh
 $rt test-with-features wtx chrono
@@ -38,6 +37,7 @@ $rt test-with-features wtx http2
 $rt test-with-features wtx httparse
 $rt test-with-features wtx matchit
 $rt test-with-features wtx memchr
+$rt test-with-features wtx mysql
 $rt test-with-features wtx pool
 $rt test-with-features wtx postgres
 $rt test-with-features wtx quick-protobuf

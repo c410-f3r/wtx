@@ -1,4 +1,4 @@
-use crate::http::{session::SessionId, SessionState};
+use crate::http::{SessionState, session::SessionId};
 use core::future::Future;
 
 /// Abstraction for different session storages.
@@ -87,11 +87,11 @@ where
 #[cfg(feature = "pool")]
 mod pool {
   use crate::{
-    database::{client::postgres::Postgres, Decode, Encode},
-    http::session::{SessionId, SessionState, SessionStore},
-    misc::Lock,
-    pool::{ResourceManager, SimplePool, SimplePoolResource},
     Error,
+    database::client::postgres::Postgres,
+    http::session::{SessionId, SessionState, SessionStore},
+    misc::{Decode, Encode, Lock},
+    pool::{ResourceManager, SimplePool, SimplePoolResource},
   };
 
   impl<CS, E, R, RL, RM> SessionStore<CS, E> for SimplePool<RL, RM>
@@ -134,13 +134,13 @@ mod pool {
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
+    Error,
     database::{
-      client::postgres::{Executor, ExecutorBuffer, Postgres},
-      Decode, Encode, Executor as _, Record,
+      Executor as _, Record, Typed,
+      client::postgres::{ExecutorBuffer, Postgres, PostgresExecutor},
     },
     http::session::{SessionId, SessionState, SessionStore},
-    misc::{LeaseMut, Stream},
-    Error,
+    misc::{Decode, Encode, LeaseMut, Stream},
   };
 
   /// Expects the following SQL table definition in your database. Column names can be changed
@@ -156,9 +156,9 @@ mod postgres {
   ///
   /// Change `SOME_TY` to any type you want, just make sure that it implements [`Decode`] and
   /// [`Encode`] in the Rust side.
-  impl<CS, E, EB, S> SessionStore<CS, E> for Executor<E, EB, S>
+  impl<CS, E, EB, S> SessionStore<CS, E> for PostgresExecutor<E, EB, S>
   where
-    CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>>,
+    CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>> + Typed<Postgres<E>>,
     E: From<Error>,
     EB: LeaseMut<ExecutorBuffer>,
     S: Stream,
@@ -182,7 +182,7 @@ mod postgres {
 
     #[inline]
     async fn delete_expired(&mut self) -> Result<(), E> {
-      self.execute("DELETE FROM session WHERE expires_at <= NOW()", |_| {}).await?;
+      self.execute("DELETE FROM session WHERE expires_at <= NOW()", |_| Ok(())).await?;
       Ok(())
     }
 

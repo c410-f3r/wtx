@@ -1,4 +1,4 @@
-use crate::misc::{facades::atomic_u64::AtomicU64, Usize};
+use crate::misc::{Usize, facades::atomic_u64::AtomicU64};
 use alloc::boxed::Box;
 use core::{panic::Location, ptr, sync::atomic::Ordering};
 
@@ -12,9 +12,7 @@ pub fn simple_seed() -> u64 {
   static COUNTER: AtomicU64 = AtomicU64::new(0);
   let heap = Box::new(0u8);
   let location = Location::caller();
-  // FIXME(STABLE): strict_provenance
-  // SAFETY: Memory location is not relevant
-  let ptr_addr = unsafe { *ptr::addr_of!(heap).cast() };
+  let ptr_addr = ptr::addr_of!(heap).addr();
   let mut seed = Usize::from_usize(ptr_addr).into_u64();
   seed = mix(seed, COUNTER.fetch_add(1, Ordering::Release));
   seed = mix(seed, u64::from(location.column().wrapping_add(location.line())));

@@ -8,8 +8,8 @@ use crate::{
 use proc_macro2::{Ident, Span};
 use quote::ToTokens as _;
 use syn::{
-  parse_macro_input, punctuated::Punctuated, spanned::Spanned as _, AttributeArgs, Item, Path,
-  PathArguments, PathSegment,
+  AttributeArgs, Item, Path, PathArguments, PathSegment, parse_macro_input, punctuated::Punctuated,
+  spanned::Spanned as _,
 };
 
 pub(crate) fn api(

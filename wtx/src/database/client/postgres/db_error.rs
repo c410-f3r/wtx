@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{PostgresError, SqlState},
-  misc::{FromRadix10, Usize, _usize_range_from_u32_range, into_rslt, str_split1},
+  misc::{_usize_range_from_u32_range, FromRadix10, Usize, into_rslt, str_split1},
 };
 use alloc::boxed::Box;
 use core::{
@@ -294,7 +294,7 @@ impl TryFrom<&str> for DbError {
         "t" => table = Some(range),
         _ => {
           return Err(crate::Error::UnexpectedUint {
-            received: u32::from_radix_10(ty.as_bytes())?,
+            received: u64::from_radix_10(ty.as_bytes())?,
           });
         }
       }

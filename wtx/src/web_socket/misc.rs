@@ -1,4 +1,4 @@
-use crate::web_socket::{CloseCode, OpCode, MASK_MASK, MAX_HEADER_LEN_USIZE, OP_CODE_MASK};
+use crate::web_socket::{CloseCode, MASK_MASK, MAX_HEADER_LEN_USIZE, OP_CODE_MASK, OpCode};
 use core::ops::Range;
 
 /// The first two bytes of `payload` are filled with `code`. Does nothing if `payload` is
@@ -33,7 +33,7 @@ pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
       *b = u8::try_from(payload_len).unwrap_or_default();
       2
     }
-    126..=0xFFFF => {
+    126..=65535 => {
       let [len_c, len_d] = u16::try_from(payload_len).map(u16::to_be_bytes).unwrap_or_default();
       let [a, b, c, d, ..] = header;
       *a = first_header_byte(fin, op_code, rsv1);

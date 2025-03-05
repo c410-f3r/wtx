@@ -18,7 +18,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = Uri::new("ws://www.example.com");
+  let uri = Uri::new("SOME_URI");
   let mut ws = WebSocketConnector::default()
     .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri.to_ref())
     .await?;

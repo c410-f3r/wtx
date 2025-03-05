@@ -2,7 +2,8 @@
 
 use crate::{
   client_api_framework::pkg::Package,
-  data_transformation::dnsn::{Deserialize, Serialize},
+  data_transformation::dnsn::De,
+  misc::{DecodeSeq, Encode},
 };
 use alloc::string::String;
 use core::marker::PhantomData;
@@ -18,8 +19,8 @@ impl<EREQC, ERESC> FooBar<EREQC, ERESC> {
 
 impl<DRSR, EREQC, ERESC, T> Package<(), DRSR, T, ()> for FooBar<EREQC, ERESC>
 where
-  EREQC: Serialize<DRSR>,
-  ERESC: for<'de> Deserialize<'de, DRSR>,
+  EREQC: Encode<De<DRSR>>,
+  ERESC: for<'de> DecodeSeq<'de, De<DRSR>>,
 {
   type ExternalRequestContent = EREQC;
   type ExternalResponseContent<'de> = ERESC;
@@ -86,7 +87,7 @@ macro_rules! _create_dnsn_test {
         trans.push_response($raw_der);
         assert_eq!(
           trans
-            .send_recv_decode_contained(&mut FooBar::<_, $res<Bar>>::_new($fmt_ser), pkgs_aux)
+            .send_pkg_recv_decode_contained(&mut FooBar::<_, $res<Bar>>::_new($fmt_ser), pkgs_aux)
             .await
             .unwrap(),
           $fmt_der

@@ -1,15 +1,15 @@
 use crate::{
   database::{
+    DatabaseTy,
     schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
-    Database, DatabaseTy,
   },
-  misc::{Lease, Vector},
+  misc::{DEController, Lease, Vector},
 };
 use alloc::string::String;
 #[cfg(feature = "std")]
 use {
-  crate::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml},
   crate::database::schema_manager::SchemaManagerError,
+  crate::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml},
   std::path::Path,
 };
 
@@ -27,7 +27,7 @@ where
     mg: &MigrationGroup<S>,
     migrations: I,
     version: i32,
-  ) -> Result<(), <E::Database as Database>::Error>
+  ) -> Result<(), <E::Database as DEController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -42,7 +42,7 @@ where
     self
       .executor
       .transaction(|this| async {
-        this.execute(buffer_cmd.as_str(), |_| {}).await?;
+        this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
         Ok(((), this))
       })
       .await?;
@@ -60,7 +60,7 @@ where
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     versions: &[i32],
-  ) -> Result<(), <E::Database as Database>::Error> {
+  ) -> Result<(), <E::Database as DEController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     if migration_groups.len() != versions.len() {
       return Err(crate::Error::from(SchemaManagerError::DifferentRollbackVersions).into());
@@ -80,7 +80,7 @@ where
     buffer: (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     version: i32,
-  ) -> Result<(), <E::Database as Database>::Error> {
+  ) -> Result<(), <E::Database as DEController>::Error> {
     self.do_rollback_from_dir(buffer, path, version).await
   }
 
@@ -91,7 +91,7 @@ where
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     version: i32,
-  ) -> Result<(), <E::Database as Database>::Error> {
+  ) -> Result<(), <E::Database as DEController>::Error> {
     let opt = group_and_migrations_from_path(path, |a, b| b.cmp(a));
     let Ok((mg, mut migrations)) = opt else { return Ok(()) };
     let mut tmp_migrations = Vector::new();

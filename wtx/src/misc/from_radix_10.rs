@@ -155,7 +155,7 @@ where
     return Err(FromRadix10Error::VeryLargeBytesLen.into());
   }
   let mut rslt = Wrapping(zero);
-  for byte in bytes.iter().copied().take(max_positive_digits.into()) {
+  for byte in bytes.iter().copied() {
     let digit = cb(byte)?;
     rslt = rslt.mul(Wrapping(ten));
     rslt = rslt.add(Wrapping(digit));

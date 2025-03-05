@@ -1,9 +1,9 @@
 use crate::{
   data_transformation::{
-    dnsn::{Deserialize, Serialize},
+    dnsn::{De, DecodeWrapper, EncodeWrapper},
     format::GraphQlResponseError,
   },
-  misc::Vector,
+  misc::{Decode, DecodeSeq, Encode, Vector},
 };
 
 /// Replied from an issued [`crate::data_transformation::format::GraphQlRequest`].
@@ -13,54 +13,30 @@ pub struct GraphQlResponse<D, E> {
   pub result: Result<D, Vector<GraphQlResponseError<E>>>,
 }
 
-impl<'de, D, E> Deserialize<'de, ()> for GraphQlResponse<D, E>
+impl<'de, D, E> Decode<'de, De<()>> for GraphQlResponse<D, E>
 where
   D: Default,
 {
   #[inline]
-  fn from_bytes(_: &[u8], _: &mut ()) -> crate::Result<Self> {
+  fn decode(_: &mut (), _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self { result: Ok(D::default()) })
   }
+}
 
+impl<'de, D, E> DecodeSeq<'de, De<()>> for GraphQlResponse<D, E>
+where
+  D: Default,
+{
   #[inline]
-  fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut ()) -> crate::Result<()> {
+  fn decode_seq(_: &mut (), _: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
     Ok(())
   }
 }
 
-impl<'de, D, DRSR, E> Deserialize<'de, &mut DRSR> for GraphQlResponse<D, E>
-where
-  GraphQlResponse<D, E>: Deserialize<'de, DRSR>,
-{
+impl<D, E> Encode<De<()>> for GraphQlResponse<D, E> {
   #[inline]
-  fn from_bytes(bytes: &'de [u8], drsr: &mut &mut DRSR) -> crate::Result<Self> {
-    <GraphQlResponse<D, E>>::from_bytes(bytes, drsr)
-  }
-
-  #[inline]
-  fn seq_from_bytes(
-    buffer: &mut Vector<Self>,
-    bytes: &'de [u8],
-    drsr: &mut &mut DRSR,
-  ) -> crate::Result<()> {
-    <GraphQlResponse<D, E>>::seq_from_bytes(buffer, bytes, drsr)
-  }
-}
-
-impl<D, E> Serialize<()> for GraphQlResponse<D, E> {
-  #[inline]
-  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
+  fn encode(&self, _: &mut (), _: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     Ok(())
-  }
-}
-
-impl<D, DRSR, E> Serialize<&mut DRSR> for GraphQlResponse<D, E>
-where
-  GraphQlResponse<D, E>: Serialize<DRSR>,
-{
-  #[inline]
-  fn to_bytes(&mut self, bytes: &mut Vector<u8>, drsr: &mut &mut DRSR) -> crate::Result<()> {
-    self.to_bytes(bytes, drsr)
   }
 }
 
@@ -72,9 +48,9 @@ mod serde {
   };
   use core::marker::PhantomData;
   use serde::{
+    Deserialize, Serialize,
     de::{Deserializer, MapAccess, Visitor},
     ser::{SerializeStruct, Serializer},
-    Deserialize, Serialize,
   };
 
   impl<'de, D, E> Deserialize<'de> for GraphQlResponse<D, E>
@@ -87,6 +63,13 @@ mod serde {
     where
       DE: Deserializer<'de>,
     {
+      #[derive(Debug, serde::Deserialize)]
+      #[serde(field_identifier, rename_all = "lowercase")]
+      enum Field {
+        Data,
+        Errors,
+      }
+
       struct CustomVisitor<'de, D, E>(PhantomData<(D, E)>, PhantomData<&'de ()>)
       where
         D: Deserialize<'de>,
@@ -167,59 +150,37 @@ mod serde {
       state.end()
     }
   }
-
-  #[derive(Debug, serde::Deserialize)]
-  #[serde(field_identifier, rename_all = "lowercase")]
-  enum Field {
-    Data,
-    Errors,
-  }
 }
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::{
-    data_transformation::{
-      dnsn::SerdeJson,
-      format::{misc::collect_using_serde_json, GraphQlResponse},
-    },
-    misc::Vector,
+  use crate::data_transformation::{
+    dnsn::SerdeJson,
+    format::{GraphQlResponse, misc::collect_using_serde_json},
   };
   use serde::{Deserialize, Serialize};
 
-  impl<'de, D, E> crate::data_transformation::dnsn::Deserialize<'de, SerdeJson>
-    for GraphQlResponse<D, E>
-  where
-    D: Deserialize<'de>,
-    E: Deserialize<'de>,
-  {
-    #[inline]
-    fn from_bytes(bytes: &'de [u8], _: &mut SerdeJson) -> crate::Result<Self> {
-      Ok(serde_json::from_slice(bytes)?)
-    }
-
-    #[inline]
-    fn seq_from_bytes(
-      buffer: &mut Vector<Self>,
-      bytes: &'de [u8],
-      _: &mut SerdeJson,
-    ) -> crate::Result<()> {
-      collect_using_serde_json(buffer, bytes)
+  _impl_dec! {
+    GraphQlResponse<D: Deserialize<'de>, E: Deserialize<'de>>,
+    SerdeJson,
+    |_aux, dw| {
+      Ok(serde_json::from_slice(dw.bytes)?)
     }
   }
 
-  impl<D, E> crate::data_transformation::dnsn::Serialize<SerdeJson> for GraphQlResponse<D, E>
-  where
-    D: Serialize,
-    E: Serialize,
-  {
-    #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      if size_of::<Self>() == 0 {
-        return Ok(());
-      }
-      serde_json::to_writer(bytes, &self.result)?;
-      Ok(())
+  _impl_dec_seq! {
+    GraphQlResponse<D: Deserialize<'de>, E: Deserialize<'de>>,
+    SerdeJson,
+    |_aux, buffer, dw| {
+      collect_using_serde_json(buffer, &mut dw.bytes)
+    }
+  }
+
+  _impl_enc! {
+    GraphQlResponse<D: Serialize, E: Serialize>,
+    SerdeJson,
+    |this, _aux, ew| {
+      serde_json::to_writer(&mut *ew.vector, &this.result)?;
     }
   }
 }

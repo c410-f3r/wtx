@@ -3,6 +3,7 @@
 - [Introduction](README.md)
 - [Client API Framework](client-api-framework/README.md)
 - [Database Client](database-client/README.md)
+  - [Encrypted Connections](database-client/encrypted-connections.md)
 - [Database Schema Manager](database-schema-manager/README.md)
 - [gRPC](grpc/README.md)
 - [HTTP/2](http2/README.md)

@@ -43,7 +43,7 @@ impl Method {
 #[cfg(feature = "serde")]
 mod serde {
   use crate::http::Method;
-  use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+  use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
   impl<'de> Deserialize<'de> for Method {
     #[inline]

@@ -16,6 +16,6 @@ Moreover, the project may in the future create automatic bindings for other lang
 
 ## Example
 
-```rust,edition2021,no_run
+```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-instances/generic-examples/client-api-framework.rs}}
 ```

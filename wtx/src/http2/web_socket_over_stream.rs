@@ -8,6 +8,7 @@ use crate::{
     Xorshift64,
   },
   web_socket::{
+    Frame, FrameMut, OpCode, ReadFrameInfo,
     web_socket_reader::{
       manage_auto_reply, manage_op_code_of_continuation_frames,
       manage_op_code_of_first_continuation_frame, manage_op_code_of_first_final_frame,
@@ -15,7 +16,6 @@ use crate::{
       unmask_nb,
     },
     web_socket_writer::manage_normal_frame,
-    Frame, FrameMut, OpCode, ReadFrameInfo,
   },
 };
 

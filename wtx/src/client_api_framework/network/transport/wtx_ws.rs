@@ -5,15 +5,18 @@ mod web_socket_writer_part_owned;
 
 use crate::{
   client_api_framework::{
-    misc::{manage_after_sending_related, manage_before_sending_related},
+    Api, ClientApiFrameworkError,
+    misc::{
+      _log_res, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      manage_before_sending_pkg,
+    },
     network::{
-      transport::{Transport, TransportParams},
       WsParams, WsReqParamsTy,
+      transport::{Transport, TransportParams},
     },
     pkg::{Package, PkgsAux},
-    Api, ClientApiFrameworkError,
   },
-  misc::{FnMutFut, LeaseMut, Vector},
+  misc::{LeaseMut, Vector},
   web_socket::{Frame, OpCode},
 };
 use core::ops::Range;
@@ -22,7 +25,7 @@ async fn recv<A, DRSR, TP>(
   frame: Frame<&mut [u8], true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> crate::Result<Range<usize>> {
-  pkgs_aux.byte_buffer.clear();
+  _log_res(&pkgs_aux.byte_buffer);
   if let OpCode::Close = frame.op_code() {
     return Err(ClientApiFrameworkError::ClosedWsConnection.into());
   }
@@ -30,14 +33,60 @@ async fn recv<A, DRSR, TP>(
   Ok(0..pkgs_aux.byte_buffer.len())
 }
 
-async fn send<A, DRSR, P, T, TP>(
+async fn send<A, AUX, DRSR, T, TP>(
+  aux: &mut AUX,
+  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+  trans: &mut T,
+  before_sending: impl AsyncFnOnce(&mut AUX, &mut PkgsAux<A, DRSR, TP>, &mut T) -> Result<(), A::Error>,
+  send: impl AsyncFnOnce(&mut AUX, &mut Vector<u8>, OpCode, &mut T) -> crate::Result<()>,
+  after_sending: impl AsyncFnOnce(&mut AUX, &mut PkgsAux<A, DRSR, TP>, &mut T) -> Result<(), A::Error>,
+) -> Result<(), A::Error>
+where
+  A: Api,
+  T: Transport<TP>,
+  TP: LeaseMut<WsParams>,
+{
+  before_sending(aux, pkgs_aux, &mut *trans).await?;
+  let op_code = match pkgs_aux.tp.lease_mut().ext_req_params_mut().ty {
+    WsReqParamsTy::Bytes => OpCode::Binary,
+    WsReqParamsTy::String => OpCode::Text,
+  };
+  send(aux, &mut pkgs_aux.byte_buffer, op_code, trans).await?;
+  after_sending(aux, pkgs_aux, &mut *trans).await?;
+  pkgs_aux.tp.lease_mut().reset();
+  Ok(())
+}
+
+async fn send_bytes<A, DRSR, T, TP>(
+  mut bytes: &[u8],
+  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+  trans: &mut T,
+  cb: impl AsyncFnOnce(Frame<&mut Vector<u8>, true>, &mut T) -> crate::Result<()>,
+) -> Result<(), A::Error>
+where
+  A: Api,
+  T: Transport<TP>,
+  TP: LeaseMut<WsParams>,
+{
+  send(
+    &mut bytes,
+    pkgs_aux,
+    trans,
+    async move |aux, pa, tr| manage_before_sending_bytes(aux, pa, tr).await,
+    async move |aux, buffer, op_code, trans| {
+      buffer.extend_from_copyable_slice(aux)?;
+      cb(Frame::new_fin(op_code, buffer), trans).await
+    },
+    async move |_, pa, _| manage_after_sending_bytes(pa).await,
+  )
+  .await
+}
+
+async fn send_pkg<A, DRSR, P, T, TP>(
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
-  mut cb: impl for<'any> FnMutFut<
-    (Frame<&'any mut Vector<u8>, true>, &'any mut T),
-    Result = crate::Result<()>,
-  >,
+  cb: impl AsyncFnOnce(Frame<&mut Vector<u8>, true>, &mut T) -> crate::Result<()>,
 ) -> Result<(), A::Error>
 where
   A: Api,
@@ -45,15 +94,13 @@ where
   T: Transport<TP>,
   TP: LeaseMut<WsParams>,
 {
-  pkgs_aux.byte_buffer.clear();
-  manage_before_sending_related(pkg, pkgs_aux, &mut *trans).await?;
-  let op_code = match pkgs_aux.tp.lease_mut().ext_req_params_mut().ty {
-    WsReqParamsTy::Bytes => OpCode::Binary,
-    WsReqParamsTy::String => OpCode::Text,
-  };
-  cb.call((Frame::new_fin(op_code, &mut pkgs_aux.byte_buffer), trans)).await?;
-  pkgs_aux.byte_buffer.clear();
-  manage_after_sending_related(pkg, pkgs_aux, trans).await?;
-  pkgs_aux.tp.lease_mut().reset();
-  Ok(())
+  send(
+    pkg,
+    pkgs_aux,
+    trans,
+    async move |aux, pa, tr| manage_before_sending_pkg(aux, pa, tr).await,
+    async move |_, buffer, op_code, trans| cb(Frame::new_fin(op_code, buffer), trans).await,
+    async move |aux, pa, tr| manage_after_sending_pkg(aux, pa, tr).await,
+  )
+  .await
 }

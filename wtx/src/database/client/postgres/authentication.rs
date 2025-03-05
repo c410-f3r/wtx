@@ -1,6 +1,6 @@
 use crate::{
-  database::client::postgres::PostgresError,
-  misc::{bytes_split1, into_rslt, FromRadix10},
+  database::DatabaseError,
+  misc::{FromRadix10, bytes_split1, into_rslt},
 };
 use core::any::type_name;
 
@@ -20,7 +20,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
     let (n, rest) = if let [a, b, c, d, rest @ ..] = bytes {
       (u32::from_be_bytes([*a, *b, *c, *d]), rest)
     } else {
-      return Err(PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into());
+      return Err(DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into());
     };
     Ok(match n {
       0 => Self::Ok,
@@ -61,7 +61,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
       }
       _ => {
         return Err(
-          PostgresError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
+          DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),
         );
       }
     })

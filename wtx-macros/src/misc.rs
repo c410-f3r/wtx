@@ -1,9 +1,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{
-  punctuated::Punctuated,
-  token::{Bracket, Pound},
   AttrStyle, Attribute, GenericParam, Generics, Path, PathArguments, PathSegment, Token,
   WherePredicate,
+  punctuated::Punctuated,
+  token::{Bracket, Pound},
 };
 
 pub(crate) const EMPTY_WHERE_PREDS: &Punctuated<WherePredicate, Token![,]> = &Punctuated::new();

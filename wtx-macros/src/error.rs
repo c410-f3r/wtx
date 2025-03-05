@@ -3,7 +3,7 @@ use proc_macro2::Span;
 #[derive(Debug)]
 pub(crate) enum Error {
   // Api
-  AbsentApiError,
+  AbsentApi,
   UnknownApiMode(Span),
 
   // FromRecords
@@ -43,7 +43,7 @@ impl From<syn::Error> for Error {
 impl From<Error> for syn::Error {
   fn from(from: Error) -> Self {
     match from {
-      Error::AbsentApiError => {
+      Error::AbsentApi => {
         syn::Error::new(Span::call_site(), "All APIs must have an `error(SOME_ERROR) attribute`")
       }
       Error::MissingDatabase(span) => {

@@ -1,4 +1,4 @@
-use crate::misc::{filled_buffer::FilledBuffer, FilledBufferWriter, Lease, LeaseMut};
+use crate::misc::{FilledBuffer, Lease, LeaseMut, SuffixWriter, suffix_writer::SuffixWriterFbvm};
 use core::ops::Range;
 
 // ```
@@ -14,7 +14,7 @@ use core::ops::Range;
 //                |           |             |            |
 //                |           |             |            |--> _buffer.capacity()
 //                |           |             |
-//                |           |             |---------------> _buffer.len()
+//                |           |             |---------------> _following_end_idx (_buffer.len())
 //                |           |
 //                |           |-----------------------------> _current_end_idx
 //                |
@@ -48,12 +48,12 @@ impl PartitionedFilledBuffer {
   }
 
   #[inline]
-  pub(crate) fn _buffer(&self) -> &[u8] {
+  pub(crate) fn _all(&self) -> &[u8] {
     self._buffer._all()
   }
 
   #[inline]
-  pub(crate) fn _buffer_mut(&mut self) -> &mut [u8] {
+  pub(crate) fn _all_mut(&mut self) -> &mut [u8] {
     self._buffer._all_mut()
   }
 
@@ -75,7 +75,7 @@ impl PartitionedFilledBuffer {
   #[inline]
   pub(crate) fn _current(&self) -> &[u8] {
     let range = self._current_range();
-    self._buffer().get(range).unwrap_or_default()
+    self._all().get(range).unwrap_or_default()
   }
 
   #[inline]
@@ -103,7 +103,7 @@ impl PartitionedFilledBuffer {
   #[inline]
   pub(crate) fn _following(&self) -> &[u8] {
     let idx = self._current_end_idx();
-    self._buffer().get(idx..).unwrap_or_default()
+    self._all().get(idx..).unwrap_or_default()
   }
 
   #[inline]
@@ -163,6 +163,11 @@ impl PartitionedFilledBuffer {
   }
 
   #[inline]
+  pub(crate) fn _suffix_writer(&mut self) -> SuffixWriterFbvm<'_> {
+    SuffixWriter::_new(self._following_end_idx(), self._buffer._vector_mut())
+  }
+
+  #[inline]
   fn _indcs_from_lengths(
     antecedent_len: usize,
     current_len: usize,
@@ -192,12 +197,5 @@ impl Default for PartitionedFilledBuffer {
   #[inline]
   fn default() -> Self {
     Self::new()
-  }
-}
-
-impl<'pfb> From<&'pfb mut PartitionedFilledBuffer> for FilledBufferWriter<'pfb> {
-  #[inline]
-  fn from(from: &'pfb mut PartitionedFilledBuffer) -> Self {
-    FilledBufferWriter::new(from._following_end_idx(), &mut from._buffer)
   }
 }

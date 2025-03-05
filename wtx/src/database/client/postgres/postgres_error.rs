@@ -21,8 +21,6 @@ pub enum PostgresError {
   /// It is required to connect using a TLS channel but the server didn't provide any. Probably
   /// because the connection is unencrypted.
   MissingChannel,
-  /// Expected one record but got none.
-  NoRecord,
   /// It is required to connect without using a TLS channel but the server only provided a way to
   /// connect using channels. Probably because the connection is encrypted.
   RequiredChannel,
@@ -30,13 +28,6 @@ pub enum PostgresError {
   ServerDoesNotSupportEncryption,
   /// A query
   StatementHashCollision,
-  /// Received size differs from expected size.
-  UnexpectedBufferSize {
-    /// Expected
-    expected: u32,
-    /// Received
-    received: u32,
-  },
   /// Received an unexpected message type.
   UnexpectedDatabaseMessage {
     /// Received
@@ -44,17 +35,10 @@ pub enum PostgresError {
   },
   /// Received an expected message type but the related bytes are in an unexpected state.
   UnexpectedDatabaseMessageBytes,
-  /// Bytes don't represent expected type
-  UnexpectedValueFromBytes {
-    /// Expected
-    expected: &'static str,
-  },
   /// The system does not support a requested authentication method.
   UnknownAuthenticationMethod,
   /// The system does not support a provided parameter.
   UnknownConfigurationParameter,
-  /// Received a statement ID that is not present in the local cache.
-  UnknownStatementId,
   /// The system only supports decimals with 64 digits.
   VeryLargeDecimal,
 }

@@ -1,4 +1,4 @@
-// FIXME(STABLE): async closures
+// FIXME(STABLE): async closures that don't imply !Send
 
 #![allow(non_snake_case, reason = "macro stuff")]
 

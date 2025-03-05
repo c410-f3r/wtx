@@ -23,7 +23,7 @@ mod schema_manager_error;
 pub mod toml_parser;
 
 use crate::{
-  database::{executor::Executor, DatabaseTy, Identifier},
+  database::{DatabaseTy, Identifier, executor::Executor},
   misc::{Lease, Vector},
 };
 use alloc::string::String;
@@ -38,7 +38,8 @@ pub const DEFAULT_BATCH_SIZE: usize = 128;
 /// Default configuration file name.
 pub const DEFAULT_CFG_FILE_NAME: &str = "wtx.toml";
 pub(crate) const _WTX: &str = "wtx";
-pub(crate) const _WTX_SCHEMA_PREFIX: &str = "_wtx.";
+pub(crate) const _WTX_PREFIX: &str = "_wtx";
+pub(crate) const _WTX_SCHEMA: &str = "_wtx.";
 
 /// Useful in constant environments where the type must be explicitly declared.
 ///
@@ -166,38 +167,37 @@ impl SchemaManagement for () {
   }
 }
 
-#[cfg(feature = "postgres")]
-mod postgres {
-  use alloc::string::String;
-
+#[cfg(feature = "mysql")]
+mod mysql {
   use crate::{
     database::{
-      client::postgres::{Executor, ExecutorBuffer},
+      DatabaseTy, Executor as _, Identifier,
+      client::mysql::{ExecutorBuffer, MysqlExecutor},
       schema_manager::{
+        DbMigration, MigrationGroup, SchemaManagement, UserMigration,
         fixed_sql_commands::{
           _delete_migrations, _insert_migrations, _migrations_by_mg_version_query,
-          postgres::{_clear, _table_names, _CREATE_MIGRATION_TABLES},
+          mysql::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
         },
-        DbMigration, MigrationGroup, SchemaManagement, UserMigration, _WTX_SCHEMA_PREFIX,
       },
-      DatabaseTy, Executor as _, Identifier,
     },
     misc::{Lease, LeaseMut, Stream, Vector},
   };
+  use alloc::string::String;
 
-  impl<EB, STREAM> SchemaManagement for Executor<crate::Error, EB, STREAM>
+  impl<EB, STREAM> SchemaManagement for MysqlExecutor<crate::Error, EB, STREAM>
   where
     EB: LeaseMut<ExecutorBuffer>,
     STREAM: Stream,
   {
     #[inline]
-    async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
-      _clear(buffer, self).await
+    async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+      _clear(self).await
     }
 
     #[inline]
     async fn create_wtx_tables(&mut self) -> crate::Result<()> {
-      self.execute(_CREATE_MIGRATION_TABLES, |_| {}).await?;
+      self.execute(_CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
       Ok(())
     }
 
@@ -211,7 +211,7 @@ mod postgres {
     where
       S: Lease<str>,
     {
-      _delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA_PREFIX, version).await
+      _delete_migrations(buffer_cmd, self, mg, "", version).await
     }
 
     #[inline]
@@ -226,7 +226,7 @@ mod postgres {
       I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
       S: Lease<str> + 'migration,
     {
-      _insert_migrations(buffer_cmd, self, mg, migrations, _WTX_SCHEMA_PREFIX).await
+      _insert_migrations(buffer_cmd, self, mg, migrations, "").await
     }
 
     #[inline]
@@ -239,8 +239,94 @@ mod postgres {
     where
       S: Lease<str>,
     {
-      _migrations_by_mg_version_query(buffer_cmd, self, mg.version(), results, _WTX_SCHEMA_PREFIX)
-        .await
+      _migrations_by_mg_version_query(buffer_cmd, self, mg.version(), results, "").await
+    }
+
+    #[inline]
+    async fn table_names(
+      &mut self,
+      _: &mut String,
+      results: &mut Vector<Identifier>,
+      _: &str,
+    ) -> crate::Result<()> {
+      _table_names(self, results).await
+    }
+  }
+}
+
+#[cfg(feature = "postgres")]
+mod postgres {
+  use crate::{
+    database::{
+      DatabaseTy, Executor as _, Identifier,
+      client::postgres::{ExecutorBuffer, PostgresExecutor},
+      schema_manager::{
+        _WTX_SCHEMA, DbMigration, MigrationGroup, SchemaManagement, UserMigration,
+        fixed_sql_commands::{
+          _delete_migrations, _insert_migrations, _migrations_by_mg_version_query,
+          postgres::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
+        },
+      },
+    },
+    misc::{Lease, LeaseMut, Stream, Vector},
+  };
+  use alloc::string::String;
+
+  impl<EB, STREAM> SchemaManagement for PostgresExecutor<crate::Error, EB, STREAM>
+  where
+    EB: LeaseMut<ExecutorBuffer>,
+    STREAM: Stream,
+  {
+    #[inline]
+    async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+      _clear(buffer, self).await
+    }
+
+    #[inline]
+    async fn create_wtx_tables(&mut self) -> crate::Result<()> {
+      self.execute(_CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
+      Ok(())
+    }
+
+    #[inline]
+    async fn delete_migrations<S>(
+      &mut self,
+      buffer_cmd: &mut String,
+      mg: &MigrationGroup<S>,
+      version: i32,
+    ) -> crate::Result<()>
+    where
+      S: Lease<str>,
+    {
+      _delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA, version).await
+    }
+
+    #[inline]
+    async fn insert_migrations<'migration, DBS, I, S>(
+      &mut self,
+      buffer_cmd: &mut String,
+      mg: &MigrationGroup<S>,
+      migrations: I,
+    ) -> crate::Result<()>
+    where
+      DBS: Lease<[DatabaseTy]> + 'migration,
+      I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
+      S: Lease<str> + 'migration,
+    {
+      _insert_migrations(buffer_cmd, self, mg, migrations, _WTX_SCHEMA).await
+    }
+
+    #[inline]
+    async fn migrations<S>(
+      &mut self,
+      buffer_cmd: &mut String,
+      mg: &MigrationGroup<S>,
+      results: &mut Vector<DbMigration>,
+    ) -> crate::Result<()>
+    where
+      S: Lease<str>,
+    {
+      _migrations_by_mg_version_query(buffer_cmd, self, mg.version(), results, _WTX_SCHEMA).await
     }
 
     #[inline]

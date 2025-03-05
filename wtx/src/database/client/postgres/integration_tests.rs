@@ -1,43 +1,19 @@
 use crate::{
   database::{
+    DatabaseError, Executor as _, Record, Records as _, Typed,
     client::postgres::{
-      Config, DecodeValue, EncodeValue, Executor, ExecutorBuffer, Postgres, PostgresError,
+      Config, DecodeWrapper, EncodeWrapper, ExecutorBuffer, Postgres, PostgresExecutor,
       StructDecoder, StructEncoder, Ty,
     },
-    Decode, Encode, Executor as _, Record, Records as _,
   },
-  misc::{simple_seed, UriRef, Xorshift64},
+  misc::{_32_bytes_seed, Decode, Encode, UriRef},
 };
 use alloc::string::String;
+use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
+use std::{env, sync::LazyLock};
 use tokio::net::TcpStream;
 
-const SCRAM: &str = "postgres://wtx_scram:wtx@localhost/wtx";
-
-#[cfg(feature = "webpki-roots")]
-#[tokio::test]
-async fn conn_scram_tls() {
-  let uri = UriRef::new(SCRAM);
-  let mut rng = Xorshift64::from(simple_seed());
-  let _executor = Executor::<crate::Error, _, _>::connect_encrypted(
-    &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::new(usize::MAX, &mut rng),
-    &mut rng,
-    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    |stream| async {
-      Ok(
-        crate::misc::TokioRustlsConnector::from_auto()
-          .unwrap()
-          .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
-          .unwrap()
-          .connect_without_client_auth(uri.hostname(), stream)
-          .await
-          .unwrap(),
-      )
-    },
-  )
-  .await
-  .unwrap();
-}
+const URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_POSTGRES").unwrap());
 
 #[tokio::test]
 async fn custom_composite_type() {
@@ -45,19 +21,23 @@ async fn custom_composite_type() {
   struct CustomCompositeType(u32, String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
-      let mut sd = StructDecoder::<crate::Error>::new(input);
+    fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
+      let mut sd = StructDecoder::<crate::Error>::new(dw);
       Ok(Self(sd.decode()?, sd.decode()?))
     }
   }
 
   impl Encode<Postgres<crate::Error>> for CustomCompositeType {
-    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
-      let _ev = StructEncoder::<crate::Error>::new(ev)?
+    fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+      let _ev = StructEncoder::<crate::Error>::new(ew)?
         .encode(self.0)?
         .encode_with_ty(&self.1, Ty::Varchar)?;
       Ok(())
     }
+  }
+
+  impl Typed<Postgres<crate::Error>> for CustomCompositeType {
+    const TY: Option<Ty> = None;
   }
 
   let mut exec = executor::<crate::Error>().await;
@@ -69,7 +49,7 @@ async fn custom_composite_type() {
         CREATE TYPE custom_composite_type AS (int_value INT, varchar_value VARCHAR);
         CREATE TABLE custom_composite_table (id INT, type custom_composite_type);
       ",
-      |_| {},
+      |_| Ok(()),
     )
     .await
     .unwrap();
@@ -94,16 +74,20 @@ async fn custom_domain() {
   struct CustomDomain(String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomDomain {
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
-      Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(input)?))
+    fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
+      Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(aux, dw)?))
     }
   }
 
   impl Encode<Postgres<crate::Error>> for CustomDomain {
-    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
-      <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, ev)?;
+    fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+      <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, aux, ew)?;
       Ok(())
     }
+  }
+
+  impl Typed<Postgres<crate::Error>> for CustomDomain {
+    const TY: Option<Ty> = None;
   }
 
   let mut exec = executor::<crate::Error>().await;
@@ -115,7 +99,7 @@ async fn custom_domain() {
         CREATE DOMAIN custom_domain AS VARCHAR(64);
         CREATE TABLE custom_domain_table (id INT, domain custom_domain);
       ",
-      |_| {},
+      |_| Ok(()),
     )
     .await
     .unwrap();
@@ -140,8 +124,8 @@ async fn custom_enum() {
   }
 
   impl Decode<'_, Postgres<crate::Error>> for Enum {
-    fn decode(input: &DecodeValue<'_>) -> Result<Self, crate::Error> {
-      let s = <&str as Decode<Postgres<crate::Error>>>::decode(input)?;
+    fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
+      let s = <&str as Decode<Postgres<crate::Error>>>::decode(aux, dw)?;
       Ok(match s {
         "foo" => Self::Foo,
         "bar" => Self::Bar,
@@ -152,15 +136,19 @@ async fn custom_enum() {
   }
 
   impl Encode<Postgres<crate::Error>> for Enum {
-    fn encode(&self, ev: &mut EncodeValue<'_, '_>) -> Result<(), crate::Error> {
+    fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
       let s = match self {
         Enum::Foo => "foo",
         Enum::Bar => "bar",
         Enum::Baz => "baz",
       };
-      <_ as Encode<Postgres<crate::Error>>>::encode(&s, ev)?;
+      <_ as Encode<Postgres<crate::Error>>>::encode(&s, aux, ew)?;
       Ok(())
     }
+  }
+
+  impl Typed<Postgres<crate::Error>> for Enum {
+    const TY: Option<Ty> = None;
   }
 
   let mut exec = executor::<crate::Error>().await;
@@ -172,7 +160,7 @@ async fn custom_enum() {
         CREATE TYPE custom_enum AS ENUM ('foo', 'bar', 'baz');
         CREATE TABLE custom_enum_table (id INT, domain custom_enum);
       ",
-      |_| {},
+      |_| Ok(()),
     )
     .await
     .unwrap();
@@ -199,8 +187,8 @@ async fn custom_error() {
   }
 
   let mut exec = executor::<CustomError>().await;
-  let _ = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
-  let _ = exec.fetch_with_stmt("SELECT 1 WHERE 0=0", ()).await.unwrap();
+  let _record = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1", (0,)).await.unwrap();
+  let _record = exec.fetch_with_stmt("SELECT 1 WHERE 0=0", ()).await.unwrap();
 }
 
 #[tokio::test]
@@ -239,11 +227,11 @@ async fn record() {
   let mut exec = executor::<crate::Error>().await;
 
   let _0c_0p = exec.fetch_with_stmt("", ()).await;
-  assert!(matches!(_0c_0p.unwrap_err(), crate::Error::PostgresError(PostgresError::NoRecord)));
+  assert!(matches!(_0c_0p.unwrap_err(), crate::Error::DatabaseError(DatabaseError::MissingRecord)));
   let _0c_1p = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1", (1,)).await;
-  assert!(matches!(_0c_1p.unwrap_err(), crate::Error::PostgresError(PostgresError::NoRecord)));
+  assert!(matches!(_0c_1p.unwrap_err(), crate::Error::DatabaseError(DatabaseError::MissingRecord)));
   let _0c_2p = exec.fetch_with_stmt("SELECT 1 WHERE 0=$1 AND 1=$2", (1, 2)).await;
-  assert!(matches!(_0c_2p.unwrap_err(), crate::Error::PostgresError(PostgresError::NoRecord)));
+  assert!(matches!(_0c_2p.unwrap_err(), crate::Error::DatabaseError(DatabaseError::MissingRecord)));
 
   let _1c_0p = exec.fetch_with_stmt("SELECT 1", ()).await.unwrap();
   assert_eq!(_1c_0p.len(), 1);
@@ -399,7 +387,7 @@ async fn records() {
 async fn records_after_prepare() {
   let mut exec = executor::<crate::Error>().await;
   let _ = exec.prepare("SELECT 1").await.unwrap();
-  let _ = exec.fetch_many_with_stmt("SELECT 1", (), |_| Ok(())).await.unwrap();
+  let _record = exec.fetch_many_with_stmt("SELECT 1", (), |_| Ok(())).await.unwrap();
 }
 
 #[tokio::test]
@@ -421,7 +409,10 @@ async fn serde_json() {
     c: String,
   }
   let mut exec = executor::<crate::Error>().await;
-  exec.execute("CREATE TABLE IF NOT EXISTS serde_json (col JSONB NOT NULL)", |_| {}).await.unwrap();
+  exec
+    .execute("CREATE TABLE IF NOT EXISTS serde_json (col JSONB NOT NULL)", |_| Ok(()))
+    .await
+    .unwrap();
   let col = (1u32, 2i64);
   let _ = exec
     .execute_with_stmt("INSERT INTO serde_json VALUES ($1::jsonb)", (Json(&col),))
@@ -431,10 +422,37 @@ async fn serde_json() {
   assert_eq!(record.decode::<_, Json<(u32, i64)>>(0).unwrap(), Json(col));
 }
 
-async fn executor<E>() -> Executor<E, ExecutorBuffer, TcpStream> {
-  let uri = UriRef::new(SCRAM);
-  let mut rng = Xorshift64::from(simple_seed());
-  Executor::connect(
+#[cfg(feature = "tokio-rustls")]
+#[tokio::test]
+async fn tls() {
+  let uri_string = &*URI;
+  let uri = UriRef::new(uri_string.as_str());
+  let mut rng = ChaCha20Rng::from_seed(_32_bytes_seed());
+  let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
+    &Config::from_uri(&uri).unwrap(),
+    ExecutorBuffer::new(usize::MAX, &mut rng),
+    &mut rng,
+    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
+    |stream| async {
+      Ok(
+        crate::misc::TokioRustlsConnector::default()
+          .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
+          .unwrap()
+          .connect_without_client_auth(uri.hostname(), stream)
+          .await
+          .unwrap(),
+      )
+    },
+  )
+  .await
+  .unwrap();
+}
+
+async fn executor<E>() -> PostgresExecutor<E, ExecutorBuffer, TcpStream> {
+  let uri_string = &*URI;
+  let uri = UriRef::new(uri_string.as_str());
+  let mut rng = ChaCha20Rng::from_seed(_32_bytes_seed());
+  PostgresExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,

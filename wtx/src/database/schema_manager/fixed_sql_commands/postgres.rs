@@ -1,5 +1,5 @@
 use crate::{
-  database::{client::postgres::Postgres, executor::Executor, Identifier},
+  database::{Identifier, client::postgres::Postgres, executor::Executor},
   misc::Vector,
 };
 use alloc::string::String;
@@ -51,7 +51,7 @@ where
 
   executor
     .transaction(|this| async {
-      this.execute(buffer_cmd.as_str(), |_| {}).await?;
+      this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
       Ok(((), this))
     })
     .await?;
@@ -206,6 +206,7 @@ where
     .await
 }
 
+#[inline]
 pub(crate) async fn _table_names<E>(
   buffer_cmd: &mut String,
   executor: &mut E,
@@ -218,7 +219,7 @@ where
   let before = buffer_cmd.len();
   buffer_cmd.write_fmt(format_args!(
     "SELECT
-    tables.table_name AS generic_column
+      tables.table_name AS generic_column
     FROM
       information_schema.tables tables
       -- that don't depend on an extension

@@ -7,15 +7,15 @@ use crate::{
       fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef,
       fir_params_items_values::FirParamsItemValues, fir_req_item_values::FirReqItemValues,
     },
-    misc::{from_camel_case_to_snake_case, split_params, EMPTY_GEN_PARAMS},
+    misc::{EMPTY_GEN_PARAMS, from_camel_case_to_snake_case, split_params},
     sir::sir_pkg_attr::SirPkaAttr,
   },
   misc::{create_ident, extend_with_tmp_suffix},
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{
-  punctuated::Punctuated, GenericArgument, GenericParam, ImplItemMethod, PathSegment, Token,
-  WherePredicate,
+  GenericArgument, GenericParam, ImplItemMethod, PathSegment, Token, WherePredicate,
+  punctuated::Punctuated,
 };
 
 pub(crate) struct SirAuxItemValues {
@@ -92,6 +92,11 @@ impl<'attrs, 'module, 'others>
     let data_builder_fn_name_ident = &Ident::new("data", Span::mixed_site());
     let data_builder_ident = &create_ident(camel_case_id, ["DataBuilder"]);
     let data_format_builder_ident = &create_ident(camel_case_id, ["DataFormatBuilder"]);
+    let fn_stmts = quote::quote!({
+      use wtx::client_api_framework::network::transport::TransportParams;
+      self.byte_buffer.clear();
+      self.tp.reset();
+    });
     let params_builder_fn_name_ident = &Ident::new("params", Span::mixed_site());
     let params_builder_ident = &create_ident(camel_case_id, ["ParamsBuilder"]);
     let pkgs_aux_fn_name_ident = &Ident::new(&snake_case_id, Span::mixed_site());
@@ -112,6 +117,7 @@ impl<'attrs, 'module, 'others>
               fpiv: None,
             },
             data_field_constr: Some(&data_builder_fn_ret_constr),
+            fn_stmts: None,
             params_field_constr: None,
           },
         );
@@ -133,12 +139,14 @@ impl<'attrs, 'module, 'others>
               fpiv: Some(fpiv),
             },
             data_field_constr: Some(&quote::quote!(self.data)),
+            fn_stmts: None,
             params_field_constr: Some(&params_builder_fn_ret_constr),
           },
         );
         BuilderExtendedValues {
           bcv: BuilderCommonValues { ident: data_builder_ident, faiv, freqdiv: None, fpiv: None },
           data_field_constr: None,
+          fn_stmts: Some(&fn_stmts),
           params_field_constr: None,
         }
       }
@@ -156,6 +164,7 @@ impl<'attrs, 'module, 'others>
               fpiv: Some(fpiv),
             },
             data_field_constr: Some(&data_builder_fn_ret_constr),
+            fn_stmts: None,
             params_field_constr: Some(&params_builder_fn_ret_constr),
           },
         );
@@ -167,6 +176,7 @@ impl<'attrs, 'module, 'others>
             fpiv: Some(fpiv),
           },
           data_field_constr: None,
+          fn_stmts: Some(&fn_stmts),
           params_field_constr: Some(&params_builder_fn_ret_constr),
         }
       }
@@ -189,6 +199,7 @@ impl<'attrs, 'module, 'others>
               fpiv: Some(fpiv),
             },
             data_field_constr: Some(&data_builder_fn_ret_constr),
+            fn_stmts: None,
             params_field_constr: Some(&params_builder_fn_ret_constr),
           },
         );
@@ -200,6 +211,7 @@ impl<'attrs, 'module, 'others>
             fpiv: None,
           },
           data_field_constr: Some(&data_builder_fn_ret_constr),
+          fn_stmts: Some(&fn_stmts),
           params_field_constr: None,
         }
       }
@@ -211,6 +223,7 @@ impl<'attrs, 'module, 'others>
           fpiv: Some(fpiv),
         },
         data_field_constr: Some(&data_builder_fn_ret_constr),
+        fn_stmts: Some(&fn_stmts),
         params_field_constr: Some(&params_builder_fn_ret_constr),
       },
     };
@@ -250,6 +263,7 @@ struct BuilderCommonValues<'any> {
 struct BuilderExtendedValues<'any> {
   bcv: BuilderCommonValues<'any>,
   data_field_constr: Option<&'any TokenStream>,
+  fn_stmts: Option<&'any TokenStream>,
   params_field_constr: Option<&'any TokenStream>,
 }
 

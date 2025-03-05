@@ -1,4 +1,4 @@
-# Fulfillments Binaries
+# Fulfillment Binaries
 
 [[bin]]
 name = "autobahn-client"
@@ -26,6 +26,11 @@ path = "src/bin/h2spec-low-server.rs"
 required-features = ["wtx/http2", "wtx/nightly"]
 
 # Database Examples
+
+[[example]]
+name = "database-client-mysql"
+path = "database-examples/database-client-mysql.rs"
+required-features = ["mysql"]
 
 [[example]]
 name = "database-client-postgres"
@@ -104,8 +109,8 @@ path = "http2-examples/http2-server.rs"
 required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
 
 [[example]]
-name = "http2-web-socket"
-path = "http2-examples/http2-web-socket.rs"
+name = "http2-server-web-socket"
+path = "http2-examples/http2-server-web-socket.rs"
 required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
 
 # WebSocket Examples
@@ -116,8 +121,8 @@ path = "web-socket-examples/web-socket-client.rs"
 required-features = ["wtx/web-socket-handshake"]
 
 [[example]]
-name = "web-socket-concurrent-client"
-path = "web-socket-examples/web-socket-concurrent-client.rs"
+name = "web-socket-client-concurrent"
+path = "web-socket-examples/web-socket-client-concurrent.rs"
 required-features = ["wtx/tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
 
 [[example]]
@@ -133,17 +138,19 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand_chacha = { default-features = false, features = ["os_rng"], optional = true, version = "0.9" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], version = "1.0" }
+tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
 
 [features]
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
-postgres = ["wtx/postgres"]
+mysql = ["rand_chacha", "wtx/mysql"]
+postgres = ["rand_chacha", "wtx/getrandom", "wtx/postgres"]
+rand_chacha = ["dep:rand_chacha", "wtx/rand_chacha"]
 
 [package]
-edition = "2021"
+edition = "2024"
 name = "wtx-instances"
 publish = false
 version = "0.0.0"

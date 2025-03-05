@@ -17,6 +17,6 @@ To use this functionality, it is necessary to activate the `http-server-framewor
 
 ## Example
 
-```rust,edition2021,no_run
+```txt
 {{#rustdoc_include ../../../wtx-instances/http-server-framework-examples/http-server-framework.rs}}
 ```

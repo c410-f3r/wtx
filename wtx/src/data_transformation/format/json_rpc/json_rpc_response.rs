@@ -1,9 +1,9 @@
 use crate::{
   data_transformation::{
-    dnsn::{Deserialize, Serialize},
     Id,
+    dnsn::{De, DecodeWrapper, EncodeWrapper},
   },
-  misc::{Lease, Vector},
+  misc::{Decode, DecodeSeq, Encode, Lease, Vector},
 };
 use alloc::boxed::Box;
 use core::{
@@ -25,51 +25,37 @@ pub struct JsonRpcResponse<R> {
   pub result: crate::Result<R>,
 }
 
-impl<'de, D> Deserialize<'de, ()> for JsonRpcResponse<D>
-where
-  D: Default,
-{
-  #[inline]
-  fn from_bytes(_: &'de [u8], _: &mut ()) -> crate::Result<Self> {
-    Ok(Self { id: 0, method: None, result: Ok(D::default()) })
-  }
-
-  #[inline]
-  fn seq_from_bytes(_: &mut Vector<Self>, _: &'de [u8], _: &mut ()) -> crate::Result<()> {
-    Ok(())
-  }
-}
-
-impl<'de, D, DRSR> Deserialize<'de, &mut DRSR> for JsonRpcResponse<D>
-where
-  JsonRpcResponse<D>: Deserialize<'de, DRSR>,
-{
-  #[inline]
-  fn from_bytes(bytes: &'de [u8], drsr: &mut &mut DRSR) -> crate::Result<Self> {
-    <JsonRpcResponse<D>>::from_bytes(bytes, drsr)
-  }
-
-  #[inline]
-  fn seq_from_bytes(
-    buffer: &mut Vector<Self>,
-    bytes: &'de [u8],
-    drsr: &mut &mut DRSR,
-  ) -> crate::Result<()> {
-    <JsonRpcResponse<D>>::seq_from_bytes(buffer, bytes, drsr)
-  }
-}
-
-impl<D> Serialize<()> for JsonRpcResponse<D> {
-  #[inline]
-  fn to_bytes(&mut self, _: &mut Vector<u8>, _: &mut ()) -> crate::Result<()> {
-    Ok(())
-  }
-}
-
 impl<P> Borrow<Id> for JsonRpcResponse<P> {
   #[inline]
   fn borrow(&self) -> &Id {
     &self.id
+  }
+}
+
+impl<'de, R> Decode<'de, De<()>> for JsonRpcResponse<R>
+where
+  R: Default,
+{
+  #[inline]
+  fn decode(_: &mut (), _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+    Ok(Self { id: 0, method: None, result: Ok(R::default()) })
+  }
+}
+
+impl<'de, R> DecodeSeq<'de, De<()>> for JsonRpcResponse<R>
+where
+  R: Default,
+{
+  #[inline]
+  fn decode_seq(_: &mut (), _: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
+    Ok(())
+  }
+}
+
+impl<D> Encode<De<()>> for JsonRpcResponse<D> {
+  #[inline]
+  fn encode(&self, _: &mut (), _: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    Ok(())
   }
 }
 
@@ -116,14 +102,14 @@ impl<R> PartialOrd for JsonRpcResponse<R> {
 #[cfg(feature = "serde")]
 mod serde {
   use crate::data_transformation::{
-    format::{JsonRpcResponse, JsonRpcResponseError},
     DataTransformationError,
+    format::{JsonRpcResponse, JsonRpcResponseError},
   };
   use core::marker::PhantomData;
   use serde::{
+    Deserialize, Serialize,
     de::{Deserializer, MapAccess, Visitor},
     ser::{SerializeStruct, Serializer},
-    Deserialize, Serialize,
   };
 
   impl<'de, R> Deserialize<'de> for JsonRpcResponse<R>
@@ -264,41 +250,33 @@ mod serde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::{
-    data_transformation::{
-      dnsn::SerdeJson,
-      format::{misc::collect_using_serde_json, JsonRpcResponse},
-    },
-    misc::Vector,
+  use crate::data_transformation::{
+    dnsn::SerdeJson,
+    format::{JsonRpcResponse, misc::collect_using_serde_json},
   };
+  use serde::{Deserialize, Serialize};
 
-  impl<'de, R> crate::data_transformation::dnsn::Deserialize<'de, SerdeJson> for JsonRpcResponse<R>
-  where
-    R: serde::Deserialize<'de>,
-  {
-    #[inline]
-    fn from_bytes(bytes: &'de [u8], _: &mut SerdeJson) -> crate::Result<Self> {
-      Ok(serde_json::from_slice(bytes)?)
-    }
-
-    #[inline]
-    fn seq_from_bytes(
-      buffer: &mut Vector<Self>,
-      bytes: &'de [u8],
-      _: &mut SerdeJson,
-    ) -> crate::Result<()> {
-      collect_using_serde_json(buffer, bytes)
+  _impl_dec! {
+    JsonRpcResponse<R: Deserialize<'de>>,
+    SerdeJson,
+    |_aux, dw| {
+      Ok(serde_json::from_slice(dw.bytes)?)
     }
   }
 
-  impl<R> crate::data_transformation::dnsn::Serialize<SerdeJson> for JsonRpcResponse<R>
-  where
-    R: serde::Serialize,
-  {
-    #[inline]
-    fn to_bytes(&mut self, bytes: &mut Vector<u8>, _: &mut SerdeJson) -> crate::Result<()> {
-      serde_json::to_writer(bytes, self)?;
-      Ok(())
+  _impl_dec_seq! {
+    JsonRpcResponse<R: Deserialize<'de>>,
+    SerdeJson,
+    |_aux, buffer, dw| {
+      collect_using_serde_json(buffer, &mut dw.bytes)
+    }
+  }
+
+  _impl_enc! {
+    JsonRpcResponse<R: Serialize>,
+    SerdeJson,
+    |this, _aux, ew| {
+      serde_json::to_writer(&mut *ew.vector, this)?;
     }
   }
 }

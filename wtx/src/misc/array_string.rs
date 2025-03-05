@@ -1,4 +1,4 @@
-use crate::misc::{char_slice, from_utf8_basic, BasicUtf8Error, Lease, Usize};
+use crate::misc::{BasicUtf8Error, Lease, Usize, char_slice, from_utf8_basic};
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -32,10 +32,23 @@ impl<const N: usize> ArrayString<N> {
   /// Constructs a new, empty instance.
   #[inline]
   pub fn from_parts(data: [u8; N], len: u32) -> Result<Self, BasicUtf8Error> {
+    let n = Self::instance_u32();
+    let actual_len = if len > n { n } else { len };
+    let _ = from_utf8_basic(data.get(..*Usize::from(actual_len)).unwrap_or_default())?;
+    // SAFETY: Delimited data is UTF-8
+    Ok(unsafe { Self::from_parts_unchecked(data, actual_len) })
+  }
+
+  /// Constructs a new, empty instance without verifying if the delimited bytes are valid UTF-8.
+  ///
+  /// # Safety
+  ///
+  /// It is up to the called to pass valid UTF-8 bytes until `len`.
+  #[inline]
+  pub const unsafe fn from_parts_unchecked(data: [u8; N], len: u32) -> Self {
     Self::instance_check();
     let n = Self::instance_u32();
-    let _ = from_utf8_basic(&data)?;
-    Ok(Self { len: if len > n { n } else { len }, data })
+    Self { len: if len > n { n } else { len }, data }
   }
 
   /// Constructs a new, empty instance.
@@ -262,6 +275,17 @@ impl<'args, const N: usize> TryFrom<Arguments<'args>> for ArrayString<N> {
   }
 }
 
+impl<const N: usize> TryFrom<&[u8]> for ArrayString<N> {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: &[u8]) -> Result<Self, Self::Error> {
+    let mut this = Self::default();
+    this.push_str(from_utf8_basic(from)?)?;
+    Ok(this)
+  }
+}
+
 impl<const N: usize> TryFrom<&str> for ArrayString<N> {
   type Error = crate::Error;
 
@@ -312,11 +336,11 @@ mod arbitrary {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::misc::{from_utf8_basic, ArrayString};
+  use crate::misc::{ArrayString, from_utf8_basic};
   use core::{fmt::Formatter, marker::PhantomData};
   use serde::{
-    de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
   };
 
   impl<'de, const N: usize> Deserialize<'de> for ArrayString<N> {

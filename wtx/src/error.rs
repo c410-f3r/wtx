@@ -1,5 +1,6 @@
 use crate::misc::{
-  ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FromRadix10Error, VectorError,
+  ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError,
+  FromRadix10Error, VectorError,
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -40,8 +41,6 @@ pub enum Error {
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
   EncodeSliceError(base64::EncodeSliceError),
-  #[cfg(feature = "embedded-tls")]
-  EmbassyTlsError(embedded_tls::TlsError),
   #[cfg(feature = "flate2")]
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
@@ -56,16 +55,26 @@ pub enum Error {
   MatchitInsertError(Box<matchit::InsertError>),
   #[cfg(feature = "digest")]
   MacError(digest::MacError),
+  #[cfg(feature = "mysql")]
+  MysqlDbError(Box<crate::database::client::mysql::DbError>),
   #[cfg(feature = "postgres")]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "quick-protobuf")]
   QuickProtobuf(Box<quick_protobuf::Error>),
+  #[cfg(feature = "rsa")]
+  RsaError(Box<rsa::Error>),
   #[cfg(feature = "rustls")]
   RustlsError(Box<rustls::Error>),
+  #[cfg(feature = "serde")]
+  SerdeDeValue(::serde::de::value::Error),
   #[cfg(feature = "serde_json")]
   SerdeJson(serde_json::Error),
+  #[cfg(feature = "serde_urlencoded")]
+  SerdeUrlencodedSer(Box<serde_urlencoded::ser::Error>),
   #[cfg(feature = "http-session")]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "spki")]
+  SpkiError(Box<spki::Error>),
   #[cfg(feature = "tokio")]
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tracing-subscriber")]
@@ -96,6 +105,8 @@ pub enum Error {
   ClosedConnection,
   /// Generic error
   Generic(&'static str),
+  /// Generic error
+  GenericOwned(Box<str>),
   /// `GenericTime` needs a backend
   GenericTimeNeedsBackend,
   /// The hardware returned an incorrect time value
@@ -124,20 +135,27 @@ pub enum Error {
   },
   /// A buffer was partially read or write but should in fact be fully processed.
   UnexpectedBufferState,
+  /// Unexpected bytes
+  UnexpectedBytes {
+    length: u16,
+    ty: ArrayString<8>,
+  },
   /// Unexpected end of file when reading from a stream.
   UnexpectedStreamReadEOF,
   /// Unexpected end of file when writing to a stream.
   UnexpectedStreamWriteEOF,
-  /// Unexpected String
+  /// Unexpected string
   UnexpectedString {
     length: usize,
   },
   /// Unexpected Unsigned integer
   UnexpectedUint {
-    received: u32,
+    received: u64,
   },
   /// Only appending is possible but overwritten is still viable through resetting.
   UriCanNotBeOverwritten,
+  /// In the current platform a number is larger than `usize`.
+  UsizeConversionOverflow,
 
   // Internal
   //
@@ -157,6 +175,8 @@ pub enum Error {
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
   Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
+  #[cfg(feature = "mysql")]
+  MysqlError(crate::database::client::mysql::MysqlError),
   #[cfg(feature = "postgres")]
   PostgresError(crate::database::client::postgres::PostgresError),
   QueueError(DequeueError),
@@ -270,14 +290,6 @@ impl From<base64::EncodeSliceError> for Error {
   }
 }
 
-#[cfg(feature = "embedded-tls")]
-impl From<embedded_tls::TlsError> for Error {
-  #[inline]
-  fn from(from: embedded_tls::TlsError) -> Self {
-    Self::EmbassyTlsError(from)
-  }
-}
-
 #[cfg(feature = "flate2")]
 impl From<flate2::CompressError> for Error {
   #[inline]
@@ -367,6 +379,14 @@ impl From<digest::MacError> for Error {
   }
 }
 
+#[cfg(feature = "mysql")]
+impl From<crate::database::client::mysql::DbError> for Error {
+  #[inline]
+  fn from(from: crate::database::client::mysql::DbError) -> Self {
+    Self::MysqlDbError(from.into())
+  }
+}
+
 impl From<core::num::ParseIntError> for Error {
   #[inline]
   fn from(from: core::num::ParseIntError) -> Self {
@@ -390,11 +410,27 @@ impl From<quick_protobuf::Error> for Error {
   }
 }
 
+#[cfg(feature = "rsa")]
+impl From<rsa::Error> for Error {
+  #[inline]
+  fn from(from: rsa::Error) -> Self {
+    Self::RsaError(from.into())
+  }
+}
+
 #[cfg(feature = "rustls")]
 impl From<rustls::Error> for Error {
   #[inline]
   fn from(from: rustls::Error) -> Self {
     Self::RustlsError(from.into())
+  }
+}
+
+#[cfg(feature = "serde")]
+impl From<::serde::de::value::Error> for Error {
+  #[inline]
+  fn from(from: ::serde::de::value::Error) -> Self {
+    Self::SerdeDeValue(from)
   }
 }
 
@@ -406,11 +442,27 @@ impl From<serde_json::Error> for Error {
   }
 }
 
+#[cfg(feature = "serde_urlencoded")]
+impl From<serde_urlencoded::ser::Error> for Error {
+  #[inline]
+  fn from(from: serde_urlencoded::ser::Error) -> Self {
+    Self::SerdeUrlencodedSer(from.into())
+  }
+}
+
 #[cfg(feature = "http-session")]
 impl From<crate::http::SessionError> for Error {
   #[inline]
   fn from(from: crate::http::SessionError) -> Self {
     Self::SessionError(from)
+  }
+}
+
+#[cfg(feature = "spki")]
+impl From<spki::Error> for Error {
+  #[inline]
+  fn from(from: spki::Error) -> Self {
+    Self::SpkiError(from.into())
   }
 }
 
@@ -535,6 +587,14 @@ impl From<FromRadix10Error> for Error {
   }
 }
 
+#[cfg(feature = "mysql")]
+impl From<crate::database::client::mysql::MysqlError> for Error {
+  #[inline]
+  fn from(from: crate::database::client::mysql::MysqlError) -> Self {
+    Self::MysqlError(from)
+  }
+}
+
 #[cfg(feature = "postgres")]
 impl From<crate::database::client::postgres::PostgresError> for Error {
   #[inline]
@@ -593,4 +653,20 @@ pub enum VarError {
   /// valid unicode data. The found data is returned as a payload of this
   /// variant.
   NotUnicode,
+}
+
+#[cfg(feature = "serde")]
+mod serde {
+  use alloc::string::ToString;
+  use core::fmt::Display;
+
+  impl serde::ser::Error for crate::Error {
+    #[inline]
+    fn custom<T>(msg: T) -> Self
+    where
+      T: Display,
+    {
+      Self::GenericOwned(msg.to_string().into())
+    }
+  }
 }

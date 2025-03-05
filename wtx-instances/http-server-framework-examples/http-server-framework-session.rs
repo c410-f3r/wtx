@@ -21,25 +21,26 @@
 //! ALTER TABLE "session" ADD CONSTRAINT session__user__fk FOREIGN KEY (user_id) REFERENCES "user" (id);
 //! ```
 
-use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
+use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use tokio::net::TcpStream;
 use wtx::{
   database::{Executor, Record},
   http::{
-    server_framework::{get, post, Router, ServerFrameworkBuilder, State, StateClean},
     ReqResBuffer, ReqResData, SessionDecoder, SessionManagerTokio, SessionState, StatusCode,
+    server_framework::{Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
-  misc::{argon2_pwd, Vector},
+  misc::{Vector, argon2_pwd},
   pool::{PostgresRM, SimplePoolTokio},
 };
 
-type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
+type Pool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, TcpStream>>;
 type SessionManager = SessionManagerTokio<u32, wtx::Error>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DB_NAME";
-  let pool = Pool::new(4, PostgresRM::tokio(uri.into()));
+  let rng = rand_chacha::ChaCha20Rng::try_from_os_rng()?;
+  let pool = Pool::new(4, PostgresRM::tokio(rng, uri.into()));
   let mut rng = ChaCha20Rng::try_from_os_rng()?;
   let (expired, sm) = SessionManager::builder().build_generating_key(&mut rng, pool.clone());
   let router = Router::new(

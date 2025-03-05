@@ -797,11 +797,7 @@ unsafe fn drop_elements<T>(len: usize, offset: usize, ptr: *mut T) {
 /// ```
 #[inline]
 fn is_wrapping(head: usize, len: usize, tail: usize) -> bool {
-  if tail > head {
-    false
-  } else {
-    len > 0
-  }
+  if tail > head { false } else { len > 0 }
 }
 
 /// Allocates `additional` capacity for the contiguous insertion of back or front elements. This

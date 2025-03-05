@@ -11,10 +11,10 @@
 use crate::{
   http::{Header, KnownHeaderName, Method, StatusCode},
   http2::{
-    hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders, huffman::huffman_encode,
-    misc::protocol_err, Http2Error,
+    Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
+    huffman::huffman_encode, misc::protocol_err,
   },
-  misc::{Rng, Usize, Vector, _random_state, _unreachable, mem_transfer::_shift_copyable_chunks},
+  misc::{_random_state, _unreachable, Rng, Usize, Vector, mem_transfer::_shift_copyable_chunks},
 };
 use core::{
   hash::{BuildHasher, Hasher},

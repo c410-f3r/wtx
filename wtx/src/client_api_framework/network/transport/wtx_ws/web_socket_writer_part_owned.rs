@@ -1,15 +1,18 @@
 use crate::{
   client_api_framework::{
+    Api,
     network::{
-      transport::{wtx_ws::send, SendingTransport, Transport},
       TransportGroup, WsParams,
+      transport::{
+        SendingTransport, Transport,
+        wtx_ws::{send_bytes, send_pkg},
+      },
     },
     pkg::{Package, PkgsAux},
-    Api,
   },
   misc::{LeaseMut, Lock, StreamWriter, Vector},
   web_socket::{
-    compression::NegotiatedCompression, Frame, WebSocketCommonPartOwned, WebSocketWriterPartOwned,
+    Frame, WebSocketCommonPartOwned, WebSocketWriterPartOwned, compression::NegotiatedCompression,
   },
 };
 
@@ -21,7 +24,19 @@ where
   TP: LeaseMut<WsParams>,
 {
   #[inline]
-  async fn send<A, DRSR, P>(
+  async fn send_bytes<A, DRSR>(
+    &mut self,
+    bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+  ) -> Result<(), A::Error>
+  where
+    A: Api,
+  {
+    send_bytes(bytes, pkgs_aux, self, cb).await
+  }
+
+  #[inline]
+  async fn send_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -30,8 +45,7 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
-    send(pkg, pkgs_aux, self, cb).await?;
-    Ok(())
+    send_pkg(pkg, pkgs_aux, self, cb).await
   }
 }
 

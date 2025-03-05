@@ -1,50 +1,54 @@
 //! Random Number Generators
 
+macro_rules! _implement_crypto_rng {
+  ($struct:ty) => {
+    impl crate::misc::CryptoRng for $struct {}
+
+    impl crate::misc::Rng for $struct {
+      #[inline]
+      fn u8(&mut self) -> u8 {
+        let [a, ..] = self.next_u32().to_be_bytes();
+        a
+      }
+
+      #[inline]
+      fn u8_4(&mut self) -> [u8; 4] {
+        self.next_u32().to_be_bytes()
+      }
+
+      #[inline]
+      fn u8_8(&mut self) -> [u8; 8] {
+        let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
+        [a, b, c, d, e, f, g, h]
+      }
+
+      #[inline]
+      fn u8_16(&mut self) -> [u8; 16] {
+        let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
+        let [i, j, k, l, m, n, o, p] = self.next_u64().to_be_bytes();
+        [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+      }
+    }
+  };
+}
+
+mod crypto_rng;
 #[cfg(feature = "fastrand")]
 mod fastrand;
+mod from_rng;
 #[cfg(feature = "rand_chacha")]
 mod rand_chacha;
 mod seed;
 mod xorshift;
 
-use crate::misc::Usize;
 use core::{
   cell::Cell,
   ops::{Bound, RangeBounds},
 };
+pub use crypto_rng::CryptoRng;
+pub use from_rng::FromRng;
 pub use seed::*;
 pub use xorshift::*;
-
-/// Allows the creation of random instances.
-pub trait FromRng<RNG>
-where
-  RNG: Rng,
-{
-  /// Creates a new instance based on `rng`.
-  fn from_rng(rng: &mut RNG) -> Self;
-}
-
-impl<RNG> FromRng<RNG> for u8
-where
-  RNG: Rng,
-{
-  #[inline]
-  fn from_rng(rng: &mut RNG) -> Self {
-    rng.u8()
-  }
-}
-
-impl<RNG> FromRng<RNG> for usize
-where
-  RNG: Rng,
-{
-  #[inline]
-  fn from_rng(rng: &mut RNG) -> Self {
-    Usize::from_u64(u64::from_be_bytes(rng.u8_8()))
-      .unwrap_or_else(|| Usize::from_u32(u32::from_be_bytes(rng.u8_4())))
-      .into_usize()
-  }
-}
 
 /// Abstraction tailored for the needs of this project. Each implementation should manage how
 /// seeds are retrieved as well as how numbers are generated.

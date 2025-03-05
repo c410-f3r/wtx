@@ -1,7 +1,7 @@
 use crate::{
   database::{
-    schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
     DatabaseTy,
+    schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
   },
   misc::{Lease, Vector},
 };

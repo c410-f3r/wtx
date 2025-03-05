@@ -4,28 +4,29 @@ macro_rules! impl_tuples {
   ($( [$($T:ident($N:tt))*] )+) => {
     #[cfg(feature = "database")]
     mod database {
-      use crate::database::{Database, Encode, RecordValues, record_values::encode};
+      use crate::database::{Database, RecordValues, Typed, record_values::encode};
+      use crate::misc::Encode;
 
       $(
         impl<DB, $($T,)*> RecordValues<DB> for ($( $T, )*)
         where
-          DB: Database,
-          $($T: Encode<DB>,)*
+          DB: Database<Aux = ()>,
+          $($T: Encode<DB> + Typed<DB>,)*
         {
           #[inline]
           fn encode_values<'buffer, 'tmp, AUX>(
-            &mut self,
+            &self,
             _aux: &mut AUX,
-            _ev: &mut DB::EncodeValue<'buffer, 'tmp>,
-            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>) -> usize,
-            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeValue<'buffer, 'tmp>, bool, usize) -> usize,
+            _ew: &mut DB::EncodeWrapper<'buffer, 'tmp>,
+            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'buffer, 'tmp>) -> usize,
+            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
           ) -> Result<usize, DB::Error> {
             let mut _n: usize = 0;
             $(
               encode(
                 _aux,
                 &self.$N,
-                _ev,
+                _ew,
                 &mut _n,
                 &mut _prefix_cb,
                 &mut _suffix_cb
@@ -37,6 +38,13 @@ macro_rules! impl_tuples {
           #[inline]
           fn len(&self) -> usize {
             const { 0 $(+ { const $T: usize = 1; $T })* }
+          }
+
+          #[allow(unused_mut, reason = "0-arity tuple")]
+          #[inline]
+          fn walk(&self, mut _cb: impl FnMut(bool, Option<DB::Ty>) -> Result<(), DB::Error>) -> Result<(), DB::Error> {
+            $( _cb(self.$N.is_null(), $T::TY)?; )*
+            Ok(())
           }
         }
       )+
@@ -257,9 +265,11 @@ macro_rules! impl_tuples {
 
     #[cfg(feature = "postgres")]
     mod postgres {
-      use crate::database::{
-        Decode, Encode, Typed,
-        client::postgres::{DecodeValue, EncodeValue, Postgres, StructDecoder, StructEncoder}
+      use crate::{
+        database::{
+          Typed, client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder},
+        },
+        misc::{Decode, Encode}
       };
 
       $(
@@ -269,8 +279,8 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn decode(dv: &DecodeValue<'de>) -> Result<Self, ERR> {
-            let mut _sd = StructDecoder::<ERR>::new(dv);
+          fn decode(_: &mut (), dw: &mut DecodeWrapper<'de>) -> Result<Self, ERR> {
+            let mut _sd = StructDecoder::<ERR>::new(dw);
             Ok((
               $( _sd.decode::<$T>()?, )*
             ))
@@ -283,8 +293,8 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _ev: &mut EncodeValue<'_, '_>) -> Result<(), ERR> {
-            let mut _ev = StructEncoder::<ERR>::new(_ev)?;
+          fn encode(&self, _: &mut (), _ew: &mut EncodeWrapper<'_, '_>) -> Result<(), ERR> {
+            let mut _ev = StructEncoder::<ERR>::new(_ew)?;
             $(
               _ev = _ev.encode(&self.$N)?;
             )*

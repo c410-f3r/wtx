@@ -18,14 +18,8 @@
 #[cfg(feature = "grpc")]
 pub mod grpc_bindings;
 
-#[cfg(feature = "postgres")]
-use {
-  tokio::net::TcpStream,
-  wtx::{
-    database::client::postgres::{Config, Executor, ExecutorBuffer},
-    misc::{simple_seed, Uri, Xorshift64},
-  },
-};
+#[cfg(any(feature = "mysql", feature = "postgres"))]
+use {tokio::net::TcpStream, wtx::misc::Uri};
 
 /// Certificate
 pub static CERT: &[u8] = include_bytes!("../../.certs/cert.pem");
@@ -34,16 +28,45 @@ pub static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
+#[cfg(feature = "mysql")]
+#[inline]
+pub async fn executor_mysql(
+  uri_str: &str,
+) -> wtx::Result<
+  wtx::database::client::mysql::MysqlExecutor<
+    wtx::Error,
+    wtx::database::client::mysql::ExecutorBuffer,
+    TcpStream,
+  >,
+> {
+  let uri = Uri::new(uri_str);
+  let mut rng = wtx::misc::Xorshift64::from(wtx::misc::simple_seed());
+  wtx::database::client::mysql::MysqlExecutor::connect(
+    &wtx::database::client::mysql::Config::from_uri(&uri)?,
+    wtx::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
+  )
+  .await
+}
+
 #[cfg(feature = "postgres")]
 #[inline]
 pub async fn executor_postgres(
   uri_str: &str,
-) -> wtx::Result<Executor<wtx::Error, ExecutorBuffer, TcpStream>> {
+) -> wtx::Result<
+  wtx::database::client::postgres::PostgresExecutor<
+    wtx::Error,
+    wtx::database::client::postgres::ExecutorBuffer,
+    TcpStream,
+  >,
+> {
+  use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
+
   let uri = Uri::new(uri_str);
-  let mut rng = Xorshift64::from(simple_seed());
-  Executor::connect(
-    &Config::from_uri(&uri)?,
-    ExecutorBuffer::new(usize::MAX, &mut rng),
+  let mut rng = ChaCha20Rng::try_from_os_rng()?;
+  wtx::database::client::postgres::PostgresExecutor::connect(
+    &wtx::database::client::postgres::Config::from_uri(&uri)?,
+    wtx::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
   )

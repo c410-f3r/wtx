@@ -1,6 +1,8 @@
 use crate::{
   http::ReqResBuffer,
   http2::{
+    Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params, Http2RecvStatus,
+    Http2SendStatus, Scrp, Sorp,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
@@ -12,19 +14,17 @@ use crate::{
     stream_state::StreamState,
     u31::U31,
     uri_buffer::UriBuffer,
-    Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params, Http2RecvStatus,
-    Http2SendStatus, Scrp, Sorp,
   },
   misc::{
-    AtomicWaker, LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, Usize, _read_header,
-    _read_payload, partitioned_filled_buffer::PartitionedFilledBuffer,
+    _read_header, _read_payload, AtomicWaker, LeaseMut, Lock, RefCounter, StreamReader,
+    StreamWriter, Usize, partitioned_filled_buffer::PartitionedFilledBuffer,
   },
 };
 use core::{
-  future::{poll_fn, Future},
+  future::{Future, poll_fn},
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},
-  task::{ready, Context, Poll},
+  task::{Context, Poll, ready},
 };
 
 #[inline]
@@ -213,7 +213,7 @@ where
         let frame_len = data_len_usize.wrapping_add(9);
         let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
           stream_reader.read_skip(to_read).await?;
-          (pfb._buffer().len(), 0)
+          (pfb._all().len(), 0)
         } else {
           (pfb._current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
         };
@@ -390,11 +390,7 @@ where
 
 #[inline]
 pub(crate) fn server_header_stream_state(has_eos: bool) -> StreamState {
-  if has_eos {
-    StreamState::HalfClosedRemote
-  } else {
-    StreamState::Open
-  }
+  if has_eos { StreamState::HalfClosedRemote } else { StreamState::Open }
 }
 
 #[inline]

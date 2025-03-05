@@ -26,8 +26,18 @@ impl RecievingTransport<CustomTransportParams> for CustomTransport {
 }
 
 impl SendingTransport<CustomTransportParams> for CustomTransport {
-  #[inline]
-  async fn send<A, DRSR, P>(
+  async fn send_bytes<A, DRSR>(
+    &mut self,
+    _: &[u8],
+    _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
+  ) -> Result<(), A::Error>
+  where
+    A: Api
+  {
+    Ok(())
+  }
+
+  async fn send_pkg<A, DRSR, P>(
     &mut self,
     _: &mut P,
     _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
@@ -45,26 +55,18 @@ impl Transport<CustomTransportParams> for CustomTransport {
   type Inner = Self;
 }
 
-struct CustomTransportParams(());
+struct CustomTransportParams((), ());
 
 impl TransportParams for CustomTransportParams {
   type ExternalRequestParams = ();
   type ExternalResponseParams = ();
 
-  fn ext_req_params(&self) -> &Self::ExternalRequestParams {
-    &self.0
+  fn ext_params(&self) -> (&Self::ExternalRequestParams, &Self::ExternalResponseParams) {
+    (&self.0, &self.1)
   }
 
-  fn ext_req_params_mut(&mut self) -> &mut Self::ExternalRequestParams {
-    &mut self.0
-  }
-
-  fn ext_res_params(&self) -> &Self::ExternalResponseParams {
-    &self.0
-  }
-
-  fn ext_res_params_mut(&mut self) -> &mut Self::ExternalResponseParams {
-    &mut self.0
+  fn ext_params_mut(&mut self) -> (&mut Self::ExternalRequestParams, &mut Self::ExternalResponseParams) {
+    (&mut self.0, &mut self.1)
   }
 
   fn reset(&mut self) {}

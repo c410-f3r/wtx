@@ -42,11 +42,11 @@ where
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
   RM: ResourceManager<
-    CreateAux = str,
-    Error = crate::Error,
-    RecycleAux = str,
-    Resource = ClientPoolResource<AUX, Http2<HD, true>>,
-  >,
+      CreateAux = str,
+      Error = crate::Error,
+      RecycleAux = str,
+      Resource = ClientPoolResource<AUX, Http2<HD, true>>,
+    >,
   SW: StreamWriter,
   for<'any> RL: 'any,
   for<'any> RM: 'any,
@@ -66,9 +66,9 @@ where
   #[inline]
   pub async fn lock(
     &self,
-    req_uri: &UriRef<'_>,
+    uri: &UriRef<'_>,
   ) -> crate::Result<SimplePoolGetElem<<RL as Lock>::Guard<'_>>> {
-    self.pool.get(req_uri.as_str(), req_uri.as_str()).await
+    self.pool.get(uri.as_str(), uri.as_str()).await
   }
 }
 
@@ -81,7 +81,7 @@ mod tokio {
     pool::{ResourceManager, SimplePoolResource},
   };
   use tokio::{
-    net::{tcp::OwnedWriteHalf, TcpStream},
+    net::{TcpStream, tcp::OwnedWriteHalf},
     sync::Mutex,
   };
 

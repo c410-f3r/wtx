@@ -1,10 +1,10 @@
 use crate::{
   http2::{
-    huffman_tables::{DECODED, DECODE_TABLE, ENCODE_TABLE, END_OF_STRING, ERROR},
-    misc::protocol_err,
     Http2Error, Http2ErrorCode,
+    huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
+    misc::protocol_err,
   },
-  misc::{ArrayVector, Vector, _unreachable},
+  misc::{_unreachable, ArrayVector, Vector},
 };
 
 #[inline]

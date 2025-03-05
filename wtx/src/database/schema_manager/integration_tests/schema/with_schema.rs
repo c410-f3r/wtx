@@ -1,10 +1,10 @@
 use crate::{
   database::{
-    schema_manager::{
-      integration_tests::{AuxTestParams, _migrate_doc_test},
-      Commands, DbMigration, SchemaManagement,
-    },
     Identifier,
+    schema_manager::{
+      Commands, DbMigration, SchemaManagement,
+      integration_tests::{_migrate_doc_test, AuxTestParams},
+    },
   },
   misc::Vector,
 };

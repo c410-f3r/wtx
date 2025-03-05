@@ -2,13 +2,16 @@
 
 use crate::{
   client_api_framework::{
-    misc::{manage_after_sending_related, manage_before_sending_related, FromBytes},
+    Api, ClientApiFrameworkError,
+    misc::{
+      FromBytes, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      manage_before_sending_pkg,
+    },
     network::{
-      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
       TransportGroup,
+      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
     },
     pkg::{Package, PkgsAux},
-    Api, ClientApiFrameworkError,
   },
   misc::{Deque, Lease, Vector},
 };
@@ -31,7 +34,7 @@ pub type MockStr<TP> = Mock<str, TP>;
 ///   pkg::PkgsAux,
 /// };
 /// let _ = MockStr::default()
-///   .send_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ()))
+///   .send_pkg_recv_decode_contained(&mut (), &mut PkgsAux::from_minimum((), (), ()))
 ///   .await?;
 /// # Ok(()) }
 /// ```
@@ -114,7 +117,23 @@ where
   <T as ToOwned>::Owned: Debug + FromBytes,
 {
   #[inline]
-  async fn send<A, DRSR, P>(
+  async fn send_bytes<A, DRSR>(
+    &mut self,
+    bytes: &[u8],
+    pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+  ) -> Result<(), A::Error>
+  where
+    A: Api,
+  {
+    manage_before_sending_bytes(bytes, pkgs_aux, &mut *self).await?;
+    self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
+    pkgs_aux.byte_buffer.clear();
+    manage_after_sending_bytes(pkgs_aux).await?;
+    Ok(())
+  }
+
+  #[inline]
+  async fn send_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -123,10 +142,10 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
-    manage_before_sending_related(pkg, pkgs_aux, &mut *self).await?;
+    manage_before_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
     pkgs_aux.byte_buffer.clear();
-    manage_after_sending_related(pkg, pkgs_aux, &mut *self).await?;
+    manage_after_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
     Ok(())
   }
 }

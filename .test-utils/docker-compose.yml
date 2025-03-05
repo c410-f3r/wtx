@@ -1,6 +1,47 @@
 version: "3"
 
 services:
+    # MySQL
+
+    mariadb_11:
+        environment:
+            MARIADB_DATABASE: wtx
+            MARIADB_PASSWORD: wtx
+            MARIADB_ROOT_PASSWORD: wtx
+            MARIADB_USER: wtx
+        image: mariadb:11
+        ports:
+            - 3306:3306
+        volumes:
+            - ./../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
+
+    mysql_9:
+        environment:
+            MYSQL_DATABASE: wtx
+            MYSQL_PASSWORD: wtx
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_ROOT_PASSWORD: wtx
+            MYSQL_USER: wtx
+        image: mysql:9
+        ports:
+            - 3307:3306
+        volumes:
+            - ./../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
+
+    percona_9:
+        environment:
+            MYSQL_DATABASE: wtx
+            MYSQL_PASSWORD: wtx
+            MYSQL_ROOT_PASSWORD: wtx
+            MYSQL_USER: wtx
+        image: percona:8
+        ports:
+            - 3308:3306
+        volumes:
+            - ./../.test-utils/mysql.sh:/docker-entrypoint-initdb.d/setup.sh
+
+    # PostgreSQL
+
     postgres_scram:
         environment:
             POSTGRES_DB: wtx

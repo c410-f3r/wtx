@@ -2,12 +2,12 @@ use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use rustls_pki_types::ServerName;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::{
+  TlsAcceptor, TlsConnector,
   client::TlsStream,
   rustls::{
-    client::WantsClientCert, server::WantsServerCert, ClientConfig, ConfigBuilder, RootCertStore,
-    ServerConfig,
+    ClientConfig, ConfigBuilder, RootCertStore, ServerConfig, client::WantsClientCert,
+    server::WantsServerCert,
   },
-  TlsAcceptor, TlsConnector,
 };
 
 /// TLS client using `tokio-rustls` and associated crates.

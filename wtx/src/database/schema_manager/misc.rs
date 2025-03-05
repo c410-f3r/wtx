@@ -9,11 +9,11 @@ macro_rules! opt_to_inv_mig {
 
 use crate::{
   database::{
-    schema_manager::{
-      migration::{DbMigration, UserMigration},
-      SchemaManagerError,
-    },
     DatabaseTy,
+    schema_manager::{
+      SchemaManagerError,
+      migration::{DbMigration, UserMigration},
+    },
   },
   misc::Lease,
 };
@@ -22,15 +22,15 @@ use core::hash::{Hash, Hasher};
 use {
   crate::{
     database::schema_manager::{
-      toml_parser::{toml, Expr},
       MigrationGroup, Repeatability, UserMigrationOwned,
+      toml_parser::{Expr, toml},
     },
     misc::{ArrayVector, FromRadix10, Vector},
   },
   alloc::string::String,
   core::{cmp::Ordering, fmt::Write},
   std::{
-    fs::{read_to_string, DirEntry, File},
+    fs::{DirEntry, File, read_to_string},
     io::Read,
     path::{Path, PathBuf},
   },
@@ -71,8 +71,8 @@ where
 {
   use crate::{
     database::schema_manager::{
-      migration_parser::{parse_migration_toml, parse_unified_migration},
       SchemaManagerError,
+      migration_parser::{parse_migration_toml, parse_unified_migration},
     },
     misc::ArrayString,
   };

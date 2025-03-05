@@ -26,7 +26,7 @@ macro_rules! create_enum {
       #[inline]
       /// The total number of variants
       $v const fn len() -> usize {
-        const { 0 $( + { let _ = $variant_n_fixed; 1 })* }
+        const { 0 $( + { let _: $n = $variant_n_fixed; 1 })* }
       }
 
       /// See [`$crate::misc::EnumVarStrings`].
@@ -37,7 +37,7 @@ macro_rules! create_enum {
         $({
           #[allow(unused_mut, reason = "repetition can be empty")]
           let mut local_n = 0;
-          let _ = $variant_n_fixed;
+          let _: $n = $variant_n_fixed;
           $({ let _ = $variant_str_fixed; local_n += 1; })?
           $({ let _ = $variant_str_fixed_n; local_n += 1; })*
           #[allow(unused_assignments, reason = "repetition can be empty")]
@@ -123,7 +123,10 @@ macro_rules! create_enum {
               Ok(Self::$variant_ident_fixed)
             },
           )*
-          _ => Err($crate::Error::UnexpectedString { length: from.len() }),
+          _ => Err($crate::Error::UnexpectedBytes {
+            length: from.len().try_into().unwrap_or(u16::MAX),
+            ty: core::any::type_name::<Self>().split("::").last().and_then(|el| el.get(..8)).unwrap_or_default().try_into()?,
+          }),
         }
       }
     }

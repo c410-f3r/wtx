@@ -6,7 +6,7 @@ where
   D: Database,
 {
   /// Concrete type object.
-  const TY: D::Ty;
+  const TY: Option<D::Ty>;
 }
 
 impl<D, T> Typed<D> for &T
@@ -14,5 +14,13 @@ where
   D: Database,
   T: Typed<D>,
 {
-  const TY: D::Ty = T::TY;
+  const TY: Option<D::Ty> = T::TY;
+}
+
+impl<D, T> Typed<D> for Option<T>
+where
+  D: Database,
+  T: Typed<D>,
+{
+  const TY: Option<D::Ty> = T::TY;
 }

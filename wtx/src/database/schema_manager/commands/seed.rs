@@ -1,6 +1,6 @@
 use crate::{
-  database::{executor::Executor, schema_manager::Commands, Database},
-  misc::Lease,
+  database::{executor::Executor, schema_manager::Commands},
+  misc::{DEController, Lease},
 };
 use alloc::string::String;
 #[cfg(feature = "std")]
@@ -18,7 +18,7 @@ where
     &mut self,
     buffer_cmd: &mut String,
     seeds: I,
-  ) -> Result<(), <E::Database as Database>::Error>
+  ) -> Result<(), <E::Database as DEController>::Error>
   where
     I: Iterator<Item = S>,
     S: Lease<str>,
@@ -29,7 +29,7 @@ where
     self
       .executor
       .transaction(|this| async {
-        this.execute(buffer_cmd.as_str(), |_| {}).await?;
+        this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
         Ok(((), this))
       })
       .await?;
@@ -44,7 +44,7 @@ where
     &mut self,
     buffer_cmd: &mut String,
     dir: &Path,
-  ) -> Result<(), <E::Database as Database>::Error> {
+  ) -> Result<(), <E::Database as DEController>::Error> {
     let iter = crate::database::schema_manager::misc::files(dir)?.filter_map(|el_rslt| {
       let el = el_rslt.ok()?;
       read_to_string(el.path()).ok()

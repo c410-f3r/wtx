@@ -1,19 +1,19 @@
 use crate::{
   http::{Header, StatusCode},
   http2::{
-    hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
-    MAX_HPACK_LEN,
+    MAX_HPACK_LEN, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
+    hpack_header::HpackHeaderBasic,
   },
-  misc::{from_utf8_basic, simple_seed, Vector, Xorshift64},
+  misc::{Vector, Xorshift64, from_utf8_basic, simple_seed},
 };
 use alloc::string::String;
 use core::{fmt::Formatter, marker::PhantomData};
 use serde::{
-  de::{Deserializer, MapAccess, Visitor},
   Deserialize,
+  de::{Deserializer, MapAccess, Visitor},
 };
 use std::{
-  fs::{read_dir, File},
+  fs::{File, read_dir},
   io::Read,
   path::Path,
   process::Command,

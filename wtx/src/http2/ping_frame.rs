@@ -1,8 +1,8 @@
 use crate::http2::{
+  Http2Error, Http2ErrorCode,
   common_flags::CommonFlags,
   frame_init::{FrameInit, FrameInitTy},
   u31::U31,
-  Http2Error, Http2ErrorCode,
 };
 
 #[derive(Debug, Eq, PartialEq)]
