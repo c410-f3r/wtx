@@ -1,0 +1,40 @@
+mod certificate_revocation_list;
+pub mod cipher_suite;
+mod client_cert_verifier;
+mod client_hello;
+mod config;
+mod crypto_sets;
+mod de;
+mod extension_ty;
+mod extensions;
+mod max_fragment_length;
+mod misc;
+mod named_group;
+mod revocation_reason;
+mod revoked_certificate;
+mod server_cert_verifier;
+mod signature_scheme;
+mod signed_certificate_data;
+mod state;
+mod structs;
+mod tls_error;
+mod tls_stream;
+mod tls_stream_buffer;
+
+pub use certificate_revocation_list::CertificateRevocationList;
+pub use client_cert_verifier::ClientCertVerifier;
+pub use config::Config;
+pub use crypto_sets::{AwsLc, Ring, RustCrypto};
+pub use max_fragment_length::MaxFragmentLength;
+pub use named_group::NamedGroup;
+pub use revocation_reason::RevocationReasonCode;
+pub use revoked_certificate::RevokedCertificate;
+pub use server_cert_verifier::ServerCertVerifier;
+pub use signature_scheme::SignatureScheme;
+pub use signed_certificate_data::SignedCertificateData;
+pub use tls_error::TlsError;
+pub use tls_stream::TlsStream;
+pub use tls_stream_buffer::TlsStreamBuffer;
+
+/// Identifier of a certificate
+pub type SerialNumber = crate::misc::ArrayVector<u8, 20>;

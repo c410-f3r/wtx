@@ -446,7 +446,7 @@ async fn serde_json() {
   assert_eq!(record.decode::<_, Json<(u32, i64)>>(0).unwrap(), Json(col));
 }
 
-#[cfg(feature = "tokio-rustls")]
+#[cfg(feature = "ring")]
 #[tokio::test]
 async fn tls() {
   let uri_string = &*URI;

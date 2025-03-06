@@ -1,7 +1,6 @@
 //! HTTP/2 server that uses optioned parameters.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 

@@ -197,7 +197,7 @@ async fn records() {
   assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, &str>(1).unwrap(), "4");
 }
 
-#[cfg(feature = "tokio-rustls")]
+#[cfg(feature = "ring")]
 #[tokio::test]
 async fn tls() {
   use crate::misc::_32_bytes_seed;

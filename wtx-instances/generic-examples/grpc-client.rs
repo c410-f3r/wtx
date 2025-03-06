@@ -11,8 +11,7 @@ use std::borrow::Cow;
 use wtx::{
   data_transformation::dnsn::QuickProtobuf,
   grpc::GrpcClient,
-  http::{ReqResBuffer, client_pool::ClientPoolBuilder},
-  misc::UriRef,
+  http::{ReqResBuffer, ReqResData, client_pool::ClientPoolBuilder},
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 

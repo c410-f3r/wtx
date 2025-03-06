@@ -123,7 +123,6 @@ where
     ))?;
   }
   let mut rrb = ReqResBuffer::empty();
-  mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut rrb.headers, headers);
   // Only servers use the URI buffer so there is no need for URI swaps
   let mut res = send(&mut aux, *method, rrb, client, &uri.to_ref()).await?;
