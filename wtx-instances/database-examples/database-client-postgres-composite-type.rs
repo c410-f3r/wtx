@@ -9,8 +9,8 @@ extern crate wtx_instances;
 
 use wtx::{
   database::{
-    Executor as _, Record, Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder, Ty},
+    Executor as _, Record,
+    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder},
   },
   misc::{Decode, Encode},
 };

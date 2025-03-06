@@ -10,6 +10,7 @@
 - [HTTP Client Pool](http-client-pool/README.md)
 - [HTTP Server Framework](http-server-framework/README.md)
 - [Pool](pool/README.md)
+- [TLS](tls/README.md)
 - [UI tools](ui-tools/README.md)
 - [WebSocket](web-socket/README.md)
 - [WebSocket over HTTP/2](web-socket-over-http2/README.md)

@@ -38,8 +38,6 @@ mod single_type_storage;
 mod stream;
 mod suffix_writer;
 mod sync;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
 mod tuple_impls;
 mod uri;
 mod usize;
@@ -47,8 +45,6 @@ mod utf8_errors;
 mod vector;
 mod wrapper;
 
-#[cfg(feature = "tokio-rustls")]
-pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use array_string::{ArrayString, ArrayStringError};
 pub use array_vector::{ArrayVector, ArrayVectorError, IntoIter};
