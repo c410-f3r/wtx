@@ -14,7 +14,7 @@ use crate::{
   misc::{Arc, LeaseMut, Lock, RefCounter, StreamWriter, Vector, facades::span::_Span},
 };
 use core::{
-  future::{Future, poll_fn},
+  future::poll_fn,
   mem,
   pin::pin,
   sync::atomic::AtomicBool,

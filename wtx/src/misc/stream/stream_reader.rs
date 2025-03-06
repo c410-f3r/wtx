@@ -1,5 +1,3 @@
-use core::future::Future;
-
 /// A stream of values sent asynchronously.
 pub trait StreamReader {
   /// Pulls some bytes from this source into the specified buffer, returning how many bytes

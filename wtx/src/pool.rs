@@ -4,7 +4,6 @@ mod resource_manager;
 #[cfg(feature = "std")]
 mod simple_pool;
 
-use core::future::Future;
 #[cfg(feature = "postgres")]
 pub use resource_manager::database::PostgresRM;
 pub use resource_manager::{ResourceManager, SimpleRM};

@@ -44,7 +44,7 @@ use crate::{
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
 };
 use core::{
-  future::{Future, poll_fn},
+  future::poll_fn,
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},
   task::{Poll, Waker},

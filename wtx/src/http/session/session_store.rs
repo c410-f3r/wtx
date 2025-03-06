@@ -1,5 +1,4 @@
 use crate::http::{SessionState, session::SessionId};
-use core::future::Future;
 
 /// Abstraction for different session storages.
 pub trait SessionStore<CS, E> {

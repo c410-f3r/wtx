@@ -15,12 +15,7 @@ use crate::{
   },
   misc::{Arc, Lease, LeaseMut, Lock, RefCounter, StreamWriter, UriRef, facades::span::_Span},
 };
-use core::{
-  future::{Future, poll_fn},
-  pin::pin,
-  sync::atomic::AtomicBool,
-  task::Poll,
-};
+use core::{future::poll_fn, pin::pin, sync::atomic::AtomicBool, task::Poll};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
