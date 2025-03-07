@@ -35,7 +35,7 @@ use crate::{
   },
 };
 use core::{
-  future::{Future, poll_fn},
+  future::poll_fn,
   mem,
   pin::pin,
   sync::atomic::AtomicBool,

@@ -4,7 +4,6 @@ use crate::{
   database::{Database, FromRecord, RecordValues, StmtCmd},
   misc::{ConnectionState, DEController},
 };
-use core::future::Future;
 
 /// A connection for executing database commands.
 pub trait Executor {

@@ -1,5 +1,3 @@
-use core::future::Future;
-
 /// A stream of values written asynchronously.
 pub trait StreamWriter {
   /// Attempts to write ***all*** `bytes`.

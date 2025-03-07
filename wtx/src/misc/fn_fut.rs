@@ -26,7 +26,7 @@ macro_rules! create_and_implement {
   };
 }
 
-use core::{future::Future, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// A wrapper for function/closures implementations.
 #[derive(Debug)]

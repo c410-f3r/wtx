@@ -20,7 +20,7 @@ use crate::{
   },
   misc::{ConnectionState, CryptoRng, DEController, Lease, LeaseMut, Stream, StreamWithTls},
 };
-use core::{future::Future, marker::PhantomData};
+use core::marker::PhantomData;
 
 /// Executor
 #[derive(Debug)]

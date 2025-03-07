@@ -12,11 +12,7 @@ use crate::{
     Arc, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, facades::span::_Span,
   },
 };
-use core::{
-  future::{Future, poll_fn},
-  pin::pin,
-  sync::atomic::AtomicBool,
-};
+use core::{future::poll_fn, pin::pin, sync::atomic::AtomicBool};
 
 /// Created when a server receives an initial stream.
 #[derive(Clone, Debug)]

@@ -66,7 +66,7 @@ use crate::{
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
 use core::{
-  future::{Future, poll_fn},
+  future::poll_fn,
   mem,
   pin::pin,
   sync::atomic::{AtomicBool, Ordering},

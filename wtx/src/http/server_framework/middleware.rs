@@ -1,5 +1,5 @@
 use crate::http::{ReqResBuffer, Request, Response, StatusCode};
-use core::{future::Future, ops::ControlFlow};
+use core::ops::ControlFlow;
 
 /// Request middleware
 pub trait Middleware<CA, E, SA>

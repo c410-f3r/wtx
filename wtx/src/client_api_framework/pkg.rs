@@ -12,7 +12,6 @@ use crate::{
   misc::{DecodeSeq, Encode, Vector},
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
-use core::future::Future;
 pub use pkg_with_helper::*;
 pub use pkgs_aux::*;
 

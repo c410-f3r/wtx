@@ -7,7 +7,7 @@ use crate::{
   data_transformation::dnsn::{De, DecodeWrapper},
   misc::{Decode, DecodeSeq, Encode, Vector},
 };
-use core::{future::Future, ops::Range};
+use core::ops::Range;
 
 /// Transport that sends and receives package data
 ///

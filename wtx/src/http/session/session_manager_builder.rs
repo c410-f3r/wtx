@@ -7,7 +7,7 @@ use crate::{
   misc::{CryptoRng, Lock, Vector, sleep},
 };
 use chrono::{DateTime, Utc};
-use core::{future::Future, marker::PhantomData, time::Duration};
+use core::{marker::PhantomData, time::Duration};
 
 /// Default and optional parameters for the construction of a [`Session`].
 #[derive(Debug)]

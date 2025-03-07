@@ -1,5 +1,3 @@
-use core::future::Future;
-
 /// Manager of a specific pool resource.
 pub trait ResourceManager {
   /// Auxiliary data used by the [`Self::create`] method.

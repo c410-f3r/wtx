@@ -3,7 +3,6 @@ use crate::client_api_framework::{
   network::transport::Transport,
   pkg::{Package, PkgsAux},
 };
-use core::future::Future;
 
 /// Transport that sends package data.
 ///

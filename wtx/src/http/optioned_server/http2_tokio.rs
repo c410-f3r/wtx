@@ -6,7 +6,7 @@ use crate::{
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},
 };
-use core::{future::Future, mem};
+use core::mem;
 use tokio::net::{TcpListener, TcpStream};
 
 impl OptionedServer {

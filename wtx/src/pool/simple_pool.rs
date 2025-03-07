@@ -4,7 +4,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 use core::{
-  future::{Future, poll_fn},
+  future::poll_fn,
   ops::{Deref, DerefMut},
   task::{Poll, Waker},
 };

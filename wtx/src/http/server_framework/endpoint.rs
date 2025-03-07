@@ -5,7 +5,6 @@ use crate::{
   },
   misc::{FnFut, FnFutWrapper},
 };
-use core::future::Future;
 
 /// Endpoint that generates a response.
 pub trait Endpoint<CA, E, S, SA>
