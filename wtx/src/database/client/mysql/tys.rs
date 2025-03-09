@@ -31,7 +31,7 @@ macro_rules! test {
       Encode::<Mysql<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
       let decoded: $ty = Decode::<Mysql<crate::Error>>::decode(
         &mut (),
-        &mut DecodeWrapper::new(ew.sw(), crate::database::client::mysql::Ty::Tiny),
+        &mut DecodeWrapper::new(ew.buffer(), crate::database::client::mysql::Ty::Tiny),
       )
       .unwrap();
       assert_eq!(instance, decoded);
@@ -70,7 +70,7 @@ mod collections {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
       let len = encoded_len(*Usize::from(self.len()))?;
-      let _ = ew.sw().extend_from_copyable_slices([len.as_slice(), self])?;
+      let _ = ew.buffer().extend_from_copyable_slices([len.as_slice(), self])?;
       Ok(())
     }
   }
@@ -232,7 +232,7 @@ mod primitives {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-      ew.sw().push((*self).into())?;
+      ew.buffer().push((*self).into())?;
       Ok(())
     }
   }
@@ -276,7 +276,7 @@ mod primitives {
         {
           #[inline]
           fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-            ew.sw().extend_from_copyable_slice(&self.to_le_bytes()).map_err(Into::into)?;
+            ew.buffer().extend_from_copyable_slice(&self.to_le_bytes()).map_err(Into::into)?;
             Ok(())
           }
         }
@@ -323,7 +323,7 @@ mod primitives {
         {
           #[inline]
           fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-            ew.sw().extend_from_copyable_slice(&self.to_le_bytes()).map_err(Into::into)?;
+            ew.buffer().extend_from_copyable_slice(&self.to_le_bytes()).map_err(Into::into)?;
             Ok(())
           }
         }

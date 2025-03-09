@@ -13,7 +13,7 @@ pub struct Post<T>(
   pub T,
 );
 
-/// Creates a new [`Json`] instance.
+/// Creates a new [`Post`] instance.
 #[inline]
 pub fn post<A, T>(ty: T) -> Post<T::Wrapper>
 where

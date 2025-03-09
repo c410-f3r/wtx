@@ -28,8 +28,8 @@ where
 {
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.sw()._extend_from_byte(1)?;
-    serde_json::to_writer(ew.sw(), &self.0).map_err(Into::into)?;
+    ew.buffer()._extend_from_byte(1)?;
+    serde_json::to_writer(ew.buffer(), &self.0).map_err(Into::into)?;
     Ok(())
   }
 }

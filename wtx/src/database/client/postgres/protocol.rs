@@ -46,13 +46,13 @@ where
         &mut EncodeWrapper::new(local_sw),
         |(counter, start), local_ev| {
           *counter = counter.wrapping_add(1);
-          *start = local_ev.sw()._len();
-          let _rslt = local_ev.sw().extend_from_slice(&[0; 4]);
+          *start = local_ev.buffer()._len();
+          let _rslt = local_ev.buffer().extend_from_slice(&[0; 4]);
           4
         },
         |(_, start), local_ev, is_null, elem_len| {
           let written = if is_null { -1i32 } else { i32::try_from(elem_len).unwrap_or(i32::MAX) };
-          let bytes_opt = local_ev.sw()._curr_bytes_mut().get_mut(*start..);
+          let bytes_opt = local_ev.buffer()._curr_bytes_mut().get_mut(*start..);
           if let Some([a0, b0, c0, d0, ..]) = bytes_opt {
             let [a1, b1, c1, d1] = written.to_be_bytes();
             *a0 = a1;

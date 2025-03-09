@@ -329,7 +329,7 @@ impl<T> Vector<T> {
   }
 
   /// Tries to reserve the minimum capacity for at least `additional`
-  /// elements to be inserted in the given instance. Unlike [`try_reserve`],
+  /// elements to be inserted in the given instance. Unlike [`Self::reserve`],
   /// this will not deliberately over-allocate to speculatively avoid frequent
   /// allocations.
   ///
@@ -455,7 +455,7 @@ where
     Ok(())
   }
 
-  /// Generalization of [`Self::extend_from_slice`].
+  /// Generalization of [`Self::extend_from_copyable_slice`].
   ///
   /// Returns the sum of the lengths of all slices.
   #[inline(always)]

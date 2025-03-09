@@ -24,7 +24,7 @@ where
 {
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.sw().extend_from_slice(self.as_bytes())?;
+    ew.buffer().extend_from_slice(self.as_bytes())?;
     Ok(())
   }
 }

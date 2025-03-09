@@ -32,7 +32,10 @@ macro_rules! test {
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
       let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(
         &mut (),
-        &mut DecodeWrapper::new(ew.sw()._curr_bytes(), crate::database::client::postgres::Ty::Any),
+        &mut DecodeWrapper::new(
+          ew.buffer()._curr_bytes(),
+          crate::database::client::postgres::Ty::Any,
+        ),
       )
       .unwrap();
       assert_eq!(instance, decoded);
@@ -73,7 +76,7 @@ mod array {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw().extend_from_slice(self.as_str().as_bytes())?;
+      ew.buffer().extend_from_slice(self.as_str().as_bytes())?;
       Ok(())
     }
   }
@@ -122,7 +125,7 @@ mod collections {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw().extend_from_slice(self)?;
+      ew.buffer().extend_from_slice(self)?;
       Ok(())
     }
   }
@@ -150,7 +153,7 @@ mod collections {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw().extend_from_slice(self.as_bytes())?;
+      ew.buffer().extend_from_slice(self.as_bytes())?;
       Ok(())
     }
   }
@@ -186,7 +189,7 @@ mod collections {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw().extend_from_slice(self.as_bytes())?;
+      ew.buffer().extend_from_slice(self.as_bytes())?;
       Ok(())
     }
   }
@@ -226,7 +229,7 @@ mod collections {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw().extend_from_slice(self.as_bytes())?;
+      ew.buffer().extend_from_slice(self.as_bytes())?;
       Ok(())
     }
   }
@@ -317,7 +320,7 @@ mod ip {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw()._extend_from_slices([&[2, 32, 0, 4][..], &self.octets()])?;
+      ew.buffer()._extend_from_slices([&[2, 32, 0, 4][..], &self.octets()])?;
       Ok(())
     }
   }
@@ -355,7 +358,7 @@ mod ip {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw()._extend_from_slices([&[3, 128, 0, 16][..], &self.octets()])?;
+      ew.buffer()._extend_from_slices([&[3, 128, 0, 16][..], &self.octets()])?;
       Ok(())
     }
   }
@@ -447,19 +450,19 @@ mod pg_numeric {
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
       match self {
         _PgNumeric::NaN => {
-          ew.sw().extend_from_slice(&0i16.to_be_bytes())?;
-          ew.sw().extend_from_slice(&0i16.to_be_bytes())?;
-          ew.sw().extend_from_slice(&SIGN_NAN.to_be_bytes())?;
-          ew.sw().extend_from_slice(&0u16.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&0i16.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&0i16.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&SIGN_NAN.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&0u16.to_be_bytes())?;
         }
         _PgNumeric::Number { digits, scale, sign, weight } => {
           let len: i16 = digits.len().try_into().map_err(Into::into)?;
-          ew.sw().extend_from_slice(&len.to_be_bytes())?;
-          ew.sw().extend_from_slice(&weight.to_be_bytes())?;
-          ew.sw().extend_from_slice(&u16::from(*sign).to_be_bytes())?;
-          ew.sw().extend_from_slice(&scale.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&len.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&weight.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&u16::from(*sign).to_be_bytes())?;
+          ew.buffer().extend_from_slice(&scale.to_be_bytes())?;
           for digit in digits {
-            ew.sw().extend_from_slice(&digit.to_be_bytes())?;
+            ew.buffer().extend_from_slice(&digit.to_be_bytes())?;
           }
         }
       }
@@ -533,7 +536,7 @@ mod primitives {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.sw()._extend_from_byte((*self).into())?;
+      ew.buffer()._extend_from_byte((*self).into())?;
       Ok(())
     }
   }
@@ -579,7 +582,7 @@ mod primitives {
           if *self >> const { $unsigned::BITS - 1 } == 1 {
             return Err(E::from(PostgresError::InvalidPostgresUint.into()));
           }
-          ew.sw().extend_from_slice(&self.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&self.to_be_bytes())?;
           Ok(())
         }
       }
@@ -626,7 +629,7 @@ mod primitives {
       {
         #[inline]
         fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-          ew.sw().extend_from_slice(&self.to_be_bytes())?;
+          ew.buffer().extend_from_slice(&self.to_be_bytes())?;
           Ok(())
         }
       }

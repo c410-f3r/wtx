@@ -33,7 +33,7 @@ impl ReqBuilder {
 
 impl ReqBuilder {
   /// Applies a header field in the form of `Authorization: Basic <credentials>` where
-  /// <credentials> is the Base64 encoding of `id` and `pw` joined by a single colon `:`.
+  /// `credentials` is the Base64 encoding of `id` and `pw` joined by a single colon `:`.
   #[inline]
   #[cfg(feature = "base64")]
   pub fn auth_basic(mut self, id: Arguments<'_>, pw: Arguments<'_>) -> crate::Result<Self> {

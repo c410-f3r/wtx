@@ -11,7 +11,7 @@ use hashbrown::HashSet;
 
 const MAX_HEADEARS: usize = 8;
 const MAX_METHODS: usize = Method::VARIANTS as usize;
-const MAX_ORIGINS: usize = 2;
+const MAX_ORIGINS: usize = 4;
 
 type AllowHeaders = (bool, ArrayVector<&'static str, MAX_HEADEARS>);
 type AllowMethods = (bool, ArrayVector<Method, MAX_METHODS>);

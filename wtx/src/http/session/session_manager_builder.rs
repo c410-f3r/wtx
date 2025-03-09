@@ -9,7 +9,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use core::{marker::PhantomData, time::Duration};
 
-/// Default and optional parameters for the construction of a [`Session`].
+/// Default and optional parameters for the construction of a [`SessionManager`].
 #[derive(Debug)]
 pub struct SessionManagerBuilder {
   pub(crate) cookie_def: CookieGeneric<&'static [u8], Vector<u8>>,
@@ -35,8 +35,8 @@ impl SessionManagerBuilder {
     }
   }
 
-  /// Creates a new [`Session`] with a random generated key. It is up to the caller to provide
-  /// a good RNG.
+  /// Creates a new [`SessionManager`] with a random generated key. It is up to the caller to
+  /// provide a good RNG.
   ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
   /// [`Self::inspection_interval`] and should be called in a separated task.
@@ -60,7 +60,7 @@ impl SessionManagerBuilder {
     Self::build_with_key(self, key, session_store)
   }
 
-  /// Creates a new [`Session`] with the provided `key`.
+  /// Creates a new [`SessionManager`] with the provided `key`.
   ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
   /// [`Self::inspection_interval`] and should be called in a separated task.
@@ -116,7 +116,7 @@ impl SessionManagerBuilder {
     self
   }
 
-  /// The amount of time the inspection future return by [Self::build] will wait before
+  /// The amount of time the future returned by the building methods will wait before
   /// deleting expired sessions.
   #[inline]
   pub fn inspection_interval(mut self, elem: Duration) -> Self {

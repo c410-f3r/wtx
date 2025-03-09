@@ -61,9 +61,7 @@ where
   /// Receive Data
   ///
   /// Low level operation that retrieves a DATA frame sent by the remote peer. Shouldn't interact
-  /// with higher operations.
-  ///
-  /// Returns [`Http2Status::Ok`] with `true` if no more data needs to be fetched.
+  /// with higher operations that receive data.
   #[inline]
   pub async fn recv_data(&mut self) -> crate::Result<Http2RecvStatus<Vector<u8>, Vector<u8>>> {
     let _e = self.span._enter();
@@ -95,7 +93,7 @@ where
   /// Receive Trailers
   ///
   /// Low level operation that retrieves one or more frames that compose a header. Shouldn't interact
-  /// with higher operations.
+  /// with higher operations that receive data.
   #[inline]
   pub async fn recv_trailers(&mut self) -> crate::Result<Http2RecvStatus<Headers, ()>> {
     let _e = self.span._enter();
@@ -152,7 +150,7 @@ where
 
   /// Low level operation that sends the content of `data` as one or more DATA frames. If `eos` is
   /// true, then the last frame is set with the end-of-stream flag. Shouldn't interact with
-  /// [`Self::send_res`].
+  /// higher operations that send data.
   ///
   /// This method will spin until the entirety of `data` is sent and such behavior depends on the
   /// current available window size as well as the negotiated maximum frame length.
@@ -208,7 +206,7 @@ where
 
   /// Low level operation that sends the content of `headers` with at most two frames. If `is_eos`
   /// is true, then the last frame is set with the end-of-stream flag. Shouldn't interact with
-  /// [`Self::send_res`].
+  /// higher operations that send data.
   ///
   /// If two frames aren't enough for the contents of `headers`, try increasing the maximum frame
   /// length.
@@ -262,7 +260,7 @@ where
   }
 
   /// Low level operation that sends headers that are preceded by DATA frames and then closes
-  /// the stream. Shouldn't interact with [`Self::send_res`].
+  /// the stream. Shouldn't interact with higher operations that send data.
   ///
   /// An error will probably be returned if the end-of-stream flag was set in previous operations.
   ///

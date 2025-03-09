@@ -8,6 +8,7 @@ mod client_api_framework_error;
 pub mod misc;
 pub mod network;
 pub mod pkg;
+#[cfg(test)]
 mod tests;
 
 pub use api::{Api, ApiId};

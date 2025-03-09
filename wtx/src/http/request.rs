@@ -5,7 +5,7 @@ use crate::http::{Method, Response, StatusCode, Version};
 pub struct Request<RRD> {
   /// See [`Method`].
   pub method: Method,
-  /// See [`ReqResData`].
+  /// See [`crate::http::ReqResData`].
   pub rrd: RRD,
   /// See [`Version`].
   pub version: Version,
