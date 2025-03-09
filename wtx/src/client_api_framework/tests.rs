@@ -1,5 +1,6 @@
 use crate::misc::Vector;
 
+#[allow(unreachable_pub, reason = "tests")]
 #[test]
 fn compiles() {
   create_packages_aux_wrapper!();
