@@ -67,10 +67,10 @@ const RSV1_MASK: u8 = 0b0100_0000;
 const RSV2_MASK: u8 = 0b0010_0000;
 const RSV3_MASK: u8 = 0b0001_0000;
 
-/// [`WebSocketClient`] with a mutable reference of [`WebSocketBuffer`].
+/// [`WebSocket`] with a mutable reference of [`WebSocketBuffer`].
 pub type WebSocketMut<'wsb, NC, S, const IS_CLIENT: bool> =
   WebSocket<NC, S, &'wsb mut WebSocketBuffer, IS_CLIENT>;
-/// [`WebSocketClient`] with an owned [`WebSocketBuffer`].
+/// [`WebSocket`] with an owned [`WebSocketBuffer`].
 pub type WebSocketOwned<NC, S, const IS_CLIENT: bool> =
   WebSocket<NC, S, WebSocketBuffer, IS_CLIENT>;
 

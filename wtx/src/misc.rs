@@ -201,13 +201,13 @@ pub fn tracing_tree_init(
 
 /// Transforms an `u32` into a [`ArrayString`].
 #[inline]
-pub fn u32_array_string(n: u32) -> ArrayString<10> {
+pub fn u32_string(n: u32) -> ArrayString<10> {
   let mut str = ArrayString::new();
   let _rslt = str.write_fmt(format_args!("{n}"));
   str
 }
 
-/// Fills an `u64` into a [`U64Array`].
+/// Fills an `u64` into a [`ArrayString`].
 #[inline]
 pub fn u64_string(mut value: u64) -> U64String {
   let mut idx: u8 = 20;

@@ -20,7 +20,7 @@ impl<T> Arc<T> {
   }
 
   /// Returns a mutable reference into the given `Arc`, if there are
-  /// no other `Arc` or [`Weak`] pointers to the same allocation.
+  /// no other `Arc` or `Weak` pointers to the same allocation.
   #[inline]
   pub fn get_mut(this: &mut Self) -> Option<&mut T> {
     #[cfg(feature = "portable-atomic-util")]

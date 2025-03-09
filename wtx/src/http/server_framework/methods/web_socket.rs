@@ -13,7 +13,7 @@ pub struct WebSocket<T>(
   pub T,
 );
 
-/// Creates a new [`Json`] instance.
+/// Creates a new [`WebSocket`] instance.
 #[inline]
 pub fn web_socket<A, T>(ty: T) -> WebSocket<T::Wrapper>
 where

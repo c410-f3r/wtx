@@ -24,7 +24,7 @@ pub trait RecievingTransport<TP>: Sized + Transport<TP> {
   where
     A: Api;
 
-  /// Internally calls [`Self::retrieve`] and then tries to decode the defined response specified
+  /// Internally calls [`Self::recv`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
   fn recv_decode_contained<'de, A, DRSR, P>(

@@ -41,7 +41,7 @@ type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
 /// [`Block`] composed by mutable references.
 type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 
-/// Errors of [`BlocksQueue`].
+/// Errors of [`BlocksDeque`].
 #[derive(Debug)]
 pub enum BlocksDequeError {
   #[doc = doc_single_elem_cap_overflow!()]

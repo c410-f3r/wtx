@@ -64,7 +64,7 @@ impl AsciiSet {
   }
 }
 
-/// The return type of [`percent_encode`] and [`utf8_percent_encode`].
+/// Responsible for encoding `Percent-encoding` bytes.
 #[derive(Clone, Copy, Debug)]
 pub struct PercentEncode<'bytes> {
   bytes: &'bytes [u8],
@@ -108,7 +108,7 @@ impl<'bytes> Iterator for PercentEncode<'bytes> {
   }
 }
 
-/// The return type of [`percent_decode`].
+/// Responsible for managing decoding `Percent-encoding` bytes.
 #[derive(Clone, Copy, Debug)]
 pub struct PercentDecode<'bytes> {
   bytes: &'bytes [u8],

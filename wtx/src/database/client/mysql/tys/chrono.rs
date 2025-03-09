@@ -143,7 +143,7 @@ fn date_encode(date: &NaiveDate, ew: &mut EncodeWrapper<'_>, len: u8) -> crate::
     DatabaseError::UnexpectedValueFromBytes { expected: type_name::<NaiveDate>() }
   })?;
   let [year_a, year_b] = year.to_le_bytes();
-  ew.sw().extend_from_copyable_slice(&[
+  ew.buffer().extend_from_copyable_slice(&[
     len,
     year_a,
     year_b,
@@ -192,9 +192,9 @@ fn time_encode(
   let second = time.second().try_into().unwrap_or_default();
   if include_micros {
     let [a, b, c, d] = (time.nanosecond() / 1000).to_le_bytes();
-    ew.sw().extend_from_copyable_slice(&[hour, minute, second, a, b, c, d])?;
+    ew.buffer().extend_from_copyable_slice(&[hour, minute, second, a, b, c, d])?;
   } else {
-    ew.sw().extend_from_copyable_slice(&[hour, minute, second])?;
+    ew.buffer().extend_from_copyable_slice(&[hour, minute, second])?;
   }
   Ok(())
 }

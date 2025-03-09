@@ -20,7 +20,7 @@ pub use transport_params::TransportParams;
 
 /// Any means of transferring data between two parties.
 ///
-/// Please, see the [`Package`] implementation of the desired package to know
+/// Please, see the [`crate::client_api_framework::pkg::Package`] implementation of the desired package to know
 /// more about the expected types as well as any other additional documentation.
 pub trait Transport<TP> {
   /// See [TransportGroup].
