@@ -2,21 +2,21 @@
 
 use crate::{
   client_api_framework::{
-    Api, ClientApiFrameworkError,
+    Api, ClientApiFrameworkError, SendBytesSource,
     misc::{
       FromBytes, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
       TransportGroup,
-      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
+      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams},
     },
     pkg::{Package, PkgsAux},
   },
   misc::{Deque, Lease, Vector},
 };
 use alloc::borrow::{Cow, ToOwned};
-use core::{fmt::Debug, marker::PhantomData, ops::Range};
+use core::{fmt::Debug, marker::PhantomData};
 
 /// For API's that send and received raw bytes.
 pub type MockBytes<TP> = Mock<[u8], TP>;
@@ -89,7 +89,7 @@ where
   }
 }
 
-impl<T, TP> RecievingTransport<TP> for Mock<T, TP>
+impl<T, TP> ReceivingTransport<TP> for Mock<T, TP>
 where
   T: Debug + Lease<[u8]> + PartialEq + ToOwned + 'static + ?Sized,
   TP: TransportParams,
@@ -99,14 +99,15 @@ where
   async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<Range<usize>, A::Error>
+    _: Self::ReqId,
+  ) -> Result<(), A::Error>
   where
     A: Api,
   {
     let response = self.pop_response()?;
     pkgs_aux.byte_buffer.clear();
     pkgs_aux.byte_buffer.extend_from_copyable_slice(response.as_ref().lease())?;
-    Ok(0..pkgs_aux.byte_buffer.len())
+    Ok(())
   }
 }
 
@@ -119,7 +120,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
@@ -158,6 +159,7 @@ where
 {
   const GROUP: TransportGroup = TransportGroup::Stub;
   type Inner = Self;
+  type ReqId = ();
 }
 
 impl<T, TP> Default for Mock<T, TP>

@@ -6,12 +6,25 @@ extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
-use wtx::database::{Executor as _, Record, Records};
+use tokio::net::TcpStream;
+use wtx::{
+  database::{
+    Executor, Record, Records,
+    client::mysql::{Config, ExecutorBuffer, MysqlExecutor},
+  },
+  misc::{Uri, Xorshift64},
+};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = "mysql://USER:PASSWORD@localhost/DATABASE";
-  let mut executor = wtx_instances::executor_mysql(&uri).await?;
+  let uri = Uri::new("mysql://USER:PASSWORD@localhost/DATABASE");
+  let mut rng = Xorshift64::from(wtx::misc::simple_seed());
+  let mut executor = MysqlExecutor::connect(
+    &Config::from_uri(&uri)?,
+    ExecutorBuffer::new(usize::MAX, &mut rng),
+    TcpStream::connect(uri.hostname_with_implied_port()).await?,
+  )
+  .await?;
   let records = executor
     .fetch_many_with_stmt("SELECT id, name FROM example", (), |_| Ok::<_, wtx::Error>(()))
     .await?;

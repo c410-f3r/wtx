@@ -3,7 +3,7 @@ use crate::{
     Api,
     network::{
       TransportGroup, WsParams,
-      transport::{RecievingTransport, Transport, wtx_ws::recv},
+      transport::{ReceivingTransport, Transport, wtx_ws::recv},
     },
     pkg::PkgsAux,
   },
@@ -12,9 +12,8 @@ use crate::{
     WebSocketCommonPartOwned, WebSocketReaderPartOwned, compression::NegotiatedCompression,
   },
 };
-use core::ops::Range;
 
-impl<C, NC, SR, SW, TP> RecievingTransport<TP> for WebSocketReaderPartOwned<C, NC, SR, true>
+impl<C, NC, SR, SW, TP> ReceivingTransport<TP> for WebSocketReaderPartOwned<C, NC, SR, true>
 where
   C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
   NC: NegotiatedCompression,
@@ -26,11 +25,13 @@ where
   async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<Range<usize>, A::Error>
+    _: Self::ReqId,
+  ) -> Result<(), A::Error>
   where
     A: Api,
   {
-    Ok(recv(self.read_frame().await?, pkgs_aux).await?)
+    recv(self.read_frame().await?, pkgs_aux).await?;
+    Ok(())
   }
 }
 
@@ -43,4 +44,5 @@ where
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
   type Inner = Self;
+  type ReqId = ();
 }

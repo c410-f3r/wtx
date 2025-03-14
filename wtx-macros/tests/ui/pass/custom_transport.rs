@@ -1,34 +1,34 @@
 //! Custom transport through `transport(Custom)`.
 
-use core::ops::Range;
 use wtx::client_api_framework::{
   network::{
-    transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
+    transport::{ReceivingTransport, SendingTransport, Transport, TransportParams},
     TransportGroup,
   },
   pkg::{Package, PkgsAux},
-  Api,
+  Api, SendBytesSource
 };
 
 struct CustomTransport;
 
-impl RecievingTransport<CustomTransportParams> for CustomTransport {
+impl ReceivingTransport<CustomTransportParams> for CustomTransport {
   #[inline]
   async fn recv<A, DRSR>(
     &mut self,
     _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
-  ) -> Result<Range<usize>, A::Error>
+    _: Self::ReqId,
+  ) -> Result<(), A::Error>
   where
     A: Api,
   {
-    Ok(0..0)
+    Ok(())
   }
 }
 
 impl SendingTransport<CustomTransportParams> for CustomTransport {
   async fn send_bytes<A, DRSR>(
     &mut self,
-    _: &[u8],
+    _: SendBytesSource<'_>,
     _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
   ) -> Result<(), A::Error>
   where
@@ -53,6 +53,7 @@ impl SendingTransport<CustomTransportParams> for CustomTransport {
 impl Transport<CustomTransportParams> for CustomTransport {
   const GROUP: TransportGroup = TransportGroup::Custom("Custom");
   type Inner = Self;
+  type ReqId = ();
 }
 
 struct CustomTransportParams((), ());

@@ -1,35 +1,34 @@
 use crate::{
   client_api_framework::{
-    Api,
-    network::transport::{RecievingTransport, SendingTransport},
+    Api, SendBytesSource,
+    network::transport::{ReceivingTransport, SendingTransport},
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
   },
   data_transformation::dnsn::{De, DecodeWrapper},
   misc::{Decode, DecodeSeq, Encode, Vector},
 };
-use core::ops::Range;
 
 /// Transport that sends and receives package data
 ///
 /// # Types
 ///
 /// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTransport<TP> {
+pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTransport<TP> {
   /// Sends a sequence of bytes and then awaits its counterpart data response.
   ///
   /// The returned bytes are stored in `pkgs_aux` and its length is returned by this method.
   #[inline]
   fn send_bytes_recv<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> impl Future<Output = Result<Range<usize>, A::Error>>
+  ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api,
   {
-    async {
-      self.send_bytes(bytes, pkgs_aux).await?;
-      self.recv(pkgs_aux).await
+    async move {
+      let req_id = self.send_bytes(bytes, pkgs_aux).await?;
+      self.recv(pkgs_aux, req_id).await
     }
   }
 
@@ -41,14 +40,14 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> impl Future<Output = Result<Range<usize>, A::Error>>
+  ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     async {
-      self.send_pkg(pkg, pkgs_aux).await?;
-      self.recv(pkgs_aux).await
+      let req_id = self.send_pkg(pkg, pkgs_aux).await?;
+      self.recv(pkgs_aux, req_id).await
     }
   }
 
@@ -69,11 +68,11 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
     BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Encode<De<DRSR>>,
   {
     async {
-      let range = self.send_pkg_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
+      self.send_pkg_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
       P::ExternalResponseContent::decode_seq(
         &mut pkgs_aux.drsr,
         buffer,
-        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
+        &mut DecodeWrapper::new(&pkgs_aux.byte_buffer),
       )?;
       Ok(())
     }
@@ -92,16 +91,16 @@ pub trait SendingReceivingTransport<TP>: RecievingTransport<TP> + SendingTranspo
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     async {
-      let range = self.send_pkg_recv(pkg, pkgs_aux).await?;
+      self.send_pkg_recv(pkg, pkgs_aux).await?;
       Ok(P::ExternalResponseContent::decode(
         &mut pkgs_aux.drsr,
-        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
+        &mut DecodeWrapper::new(&pkgs_aux.byte_buffer),
       )?)
     }
   }
 }
 
 impl<T, TP> SendingReceivingTransport<TP> for T where
-  T: RecievingTransport<TP> + SendingTransport<TP>
+  T: ReceivingTransport<TP> + SendingTransport<TP>
 {
 }

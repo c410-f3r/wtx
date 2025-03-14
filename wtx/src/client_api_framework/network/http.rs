@@ -84,6 +84,7 @@ impl HttpReqParams {
     self.headers.clear();
     self.method = Method::Get;
     self.mime = None;
+    self.uri.truncate_with_initial_len();
   }
 }
 

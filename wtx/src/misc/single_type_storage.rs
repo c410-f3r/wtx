@@ -8,11 +8,8 @@ pub trait SingleTypeStorage {
   type Item;
 }
 
-impl<T> SingleTypeStorage for Option<T>
-where
-  T: SingleTypeStorage,
-{
-  type Item = T::Item;
+impl SingleTypeStorage for () {
+  type Item = ();
 }
 
 impl<T> SingleTypeStorage for &T
@@ -43,6 +40,13 @@ impl<T> SingleTypeStorage for &'_ mut [T] {
 
 impl<T> SingleTypeStorage for Arc<T> {
   type Item = T;
+}
+
+impl<T> SingleTypeStorage for Option<T>
+where
+  T: SingleTypeStorage,
+{
+  type Item = T::Item;
 }
 
 impl<T> SingleTypeStorage for RefCell<T> {

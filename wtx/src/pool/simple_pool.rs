@@ -215,6 +215,15 @@ impl<R> Drop for SimplePoolGetElem<R> {
 #[derive(Debug, PartialEq)]
 pub struct SimplePoolResource<T>(Option<T>);
 
+impl<T> SimplePoolResource<T> {
+  /// Returns the inner element.
+  #[expect(clippy::unwrap_used, reason = "public instances always have valid contents")]
+  #[inline]
+  pub fn into_inner(self) -> T {
+    self.0.unwrap()
+  }
+}
+
 impl<R> Deref for SimplePoolResource<R> {
   type Target = R;
 

@@ -1,21 +1,17 @@
 use crate::client_api_framework::{
-  Api,
+  Api, SendBytesSource,
   network::transport::Transport,
   pkg::{Package, PkgsAux},
 };
 
 /// Transport that sends package data.
-///
-/// # Types
-///
-/// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
 pub trait SendingTransport<TP>: Transport<TP> {
   /// Sends a sequence of bytes without trying to retrieve any counterpart data.
   fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> impl Future<Output = Result<(), A::Error>>
+  ) -> impl Future<Output = Result<Self::ReqId, A::Error>>
   where
     A: Api;
 
@@ -24,7 +20,7 @@ pub trait SendingTransport<TP>: Transport<TP> {
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> impl Future<Output = Result<(), A::Error>>
+  ) -> impl Future<Output = Result<Self::ReqId, A::Error>>
   where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>;
@@ -37,9 +33,9 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<(), A::Error>
+  ) -> Result<Self::ReqId, A::Error>
   where
     A: Api,
   {
@@ -51,11 +47,51 @@ where
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<(), A::Error>
+  ) -> Result<Self::ReqId, A::Error>
   where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     (**self).send_pkg(pkg, pkgs_aux).await
+  }
+}
+
+#[cfg(feature = "tokio")]
+mod tokio {
+  use crate::client_api_framework::{
+    Api, SendBytesSource,
+    network::transport::SendingTransport,
+    pkg::{Package, PkgsAux},
+  };
+  use tokio::sync::MappedMutexGuard;
+
+  impl<T, TP> SendingTransport<TP> for MappedMutexGuard<'_, T>
+  where
+    T: SendingTransport<TP>,
+  {
+    #[inline]
+    async fn send_bytes<A, DRSR>(
+      &mut self,
+      bytes: SendBytesSource<'_>,
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+    ) -> Result<Self::ReqId, A::Error>
+    where
+      A: Api,
+    {
+      (**self).send_bytes(bytes, pkgs_aux).await
+    }
+
+    #[inline]
+    async fn send_pkg<A, DRSR, P>(
+      &mut self,
+      pkg: &mut P,
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+    ) -> Result<Self::ReqId, A::Error>
+    where
+      A: Api,
+      P: Package<A, DRSR, Self::Inner, TP>,
+    {
+      (**self).send_pkg(pkg, pkgs_aux).await
+    }
   }
 }

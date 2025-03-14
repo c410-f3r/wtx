@@ -154,3 +154,22 @@ fn lock(addr: usize) -> &'static SeqLock {
   #[allow(clippy::indexing_slicing, reason = "modulo result will always be in-bounds")]
   &LOCKS[addr % LEN].0
 }
+
+#[cfg(feature = "serde")]
+mod serde {
+  use crate::misc::AtomicCell;
+  use serde::{Serialize, Serializer};
+
+  impl<T> Serialize for AtomicCell<T>
+  where
+    T: Copy + Serialize,
+  {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      T::serialize(&self.load(), serializer)
+    }
+  }
+}
