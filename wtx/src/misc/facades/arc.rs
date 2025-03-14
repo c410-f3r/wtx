@@ -81,3 +81,22 @@ impl<T> From<alloc::sync::Arc<T>> for Arc<T> {
     Self(from)
   }
 }
+
+#[cfg(feature = "serde")]
+mod serde {
+  use crate::misc::Arc;
+  use serde::{Serialize, Serializer};
+
+  impl<T> Serialize for Arc<T>
+  where
+    T: Serialize,
+  {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      T::serialize(self, serializer)
+    }
+  }
+}

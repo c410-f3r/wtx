@@ -47,9 +47,9 @@ where
 /// Identification of an API.
 pub trait ApiId {
   /// Associated API
-  type Api: Api;
+  type Api<T>: Api;
 }
 
 impl ApiId for () {
-  type Api = ();
+  type Api<T> = ();
 }

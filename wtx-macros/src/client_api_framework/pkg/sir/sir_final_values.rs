@@ -145,7 +145,7 @@ impl<'attrs, 'module, 'others>
         };
         package_impls.push(quote::quote!(
           impl<
-            #(#is_mut_lf,)* #(#lts,)* #(#tys,)* __API, __DRSR, __TRANSPORT
+            #(#is_mut_lf,)* #(#lts,)* #(#tys,)* __API, __API_PARAMS, __DRSR, __TRANSPORT
           > wtx::client_api_framework::pkg::Package<
             __API, __DRSR, __TRANSPORT, #tp
           > for #camel_case_pkg_ident<
@@ -164,9 +164,11 @@ impl<'attrs, 'module, 'others>
               #fresdiv_ident<#(#res_lf_iter0)*>
             >: wtx::misc::DecodeSeq<'__de, wtx::data_transformation::dnsn::De<__DRSR>>,
             __API: wtx::client_api_framework::Api<
-              Error = <<#id as wtx::client_api_framework::ApiId>::Api as wtx::client_api_framework::Api>::Error,
-              Id = #id
-            > + wtx::misc::LeaseMut<<#id as wtx::client_api_framework::ApiId>::Api>,
+                Error = <<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as wtx::client_api_framework::Api>::Error,
+                Id = #id
+              >
+              + wtx::misc::LeaseMut<<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS>>
+              + wtx::misc::SingleTypeStorage<Item = __API_PARAMS>
           {
             type ExternalRequestContent = wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>

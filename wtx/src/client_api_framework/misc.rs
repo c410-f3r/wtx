@@ -8,7 +8,7 @@ mod request_throttling;
 
 use crate::{
   client_api_framework::{
-    Api,
+    Api, SendBytesSource,
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
@@ -65,7 +65,7 @@ where
 
 #[inline]
 pub(crate) async fn manage_before_sending_bytes<A, DRSR, T, TP>(
-  bytes: &[u8],
+  bytes: SendBytesSource<'_>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
 ) -> Result<(), A::Error>
@@ -73,7 +73,7 @@ where
   A: Api,
   T: Transport<TP>,
 {
-  log_req_bytes(bytes, trans);
+  log_req_bytes(bytes.bytes(&pkgs_aux.byte_buffer), trans);
   pkgs_aux.api.before_sending().await?;
   Ok(())
 }
@@ -89,7 +89,6 @@ where
   P: Package<A, DRSR, T, TP>,
   T: Transport<TP>,
 {
-  log_req_pkg(pkg, pkgs_aux, trans);
   pkgs_aux.api.before_sending().await?;
   pkg
     .before_sending(
@@ -100,6 +99,7 @@ where
   pkg
     .ext_req_content_mut()
     .encode(&mut pkgs_aux.drsr, &mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
+  log_req_bytes(&pkgs_aux.byte_buffer, trans);
   Ok(())
 }
 
@@ -109,22 +109,4 @@ where
   T: Transport<TP>,
 {
   _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", crate::misc::from_utf8_basic(_bytes));
-}
-
-#[inline]
-fn log_req_pkg<A, DRSR, P, T, TP>(
-  _pkg: &mut P,
-  _pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  _trans: &mut T,
-) where
-  A: Api,
-  P: Package<A, DRSR, T, TP>,
-  T: Transport<TP>,
-{
-  let idx = _pkgs_aux.byte_buffer.len();
-  let _rslt = _pkg
-    .ext_req_content_mut()
-    .encode(&mut _pkgs_aux.drsr, &mut EncodeWrapper::new(&mut _pkgs_aux.byte_buffer));
-  log_req_bytes(_pkgs_aux.byte_buffer.get(idx..).unwrap_or_default(), _trans);
-  _pkgs_aux.byte_buffer.truncate(idx);
 }

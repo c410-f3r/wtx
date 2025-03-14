@@ -13,7 +13,7 @@ mod wtx_ws;
 
 use crate::client_api_framework::network::TransportGroup;
 pub use mock::{Mock, MockBytes, MockStr};
-pub use recieving_transport::RecievingTransport;
+pub use recieving_transport::ReceivingTransport;
 pub use sending_receiving_transport::SendingReceivingTransport;
 pub use sending_transport::SendingTransport;
 pub use transport_params::TransportParams;
@@ -27,6 +27,8 @@ pub trait Transport<TP> {
   const GROUP: TransportGroup;
   /// The inner implementation.
   type Inner: Transport<TP>;
+  /// If applicable, can be used by clients to poll specific sent requests.
+  type ReqId;
 
   /// Instance counterpart of [`Self::GROUP`].
   #[inline]
@@ -41,6 +43,22 @@ where
 {
   const GROUP: TransportGroup = T::GROUP;
   type Inner = T::Inner;
+  type ReqId = T::ReqId;
+}
+
+#[cfg(feature = "tokio")]
+mod tokio {
+  use crate::client_api_framework::network::{TransportGroup, transport::Transport};
+  use tokio::sync::MappedMutexGuard;
+
+  impl<T, TP> Transport<TP> for MappedMutexGuard<'_, T>
+  where
+    T: Transport<TP>,
+  {
+    const GROUP: TransportGroup = T::GROUP;
+    type Inner = T::Inner;
+    type ReqId = T::ReqId;
+  }
 }
 
 #[cfg(test)]

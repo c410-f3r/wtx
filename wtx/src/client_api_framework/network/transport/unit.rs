@@ -1,24 +1,27 @@
 use crate::client_api_framework::{
-  Api,
+  Api, SendBytesSource,
   misc::{
     manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
     manage_before_sending_pkg,
   },
   network::{
     TransportGroup,
-    transport::{RecievingTransport, SendingTransport, Transport},
+    transport::{ReceivingTransport, SendingTransport, Transport},
   },
   pkg::{Package, PkgsAux},
 };
-use core::ops::Range;
 
-impl<TP> RecievingTransport<TP> for () {
+impl<TP> ReceivingTransport<TP> for () {
   #[inline]
-  async fn recv<A, DRSR>(&mut self, _: &mut PkgsAux<A, DRSR, TP>) -> Result<Range<usize>, A::Error>
+  async fn recv<A, DRSR>(
+    &mut self,
+    _: &mut PkgsAux<A, DRSR, TP>,
+    _: Self::ReqId,
+  ) -> Result<(), A::Error>
   where
     A: Api,
   {
-    Ok(0..0)
+    Ok(())
   }
 }
 
@@ -26,7 +29,7 @@ impl<TP> SendingTransport<TP> for () {
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
@@ -65,6 +68,7 @@ impl<TP> SendingTransport<TP> for () {
 impl<TP> Transport<TP> for () {
   const GROUP: TransportGroup = TransportGroup::Stub;
   type Inner = ();
+  type ReqId = ();
 }
 
 #[cfg(all(feature = "_async-tests", test))]

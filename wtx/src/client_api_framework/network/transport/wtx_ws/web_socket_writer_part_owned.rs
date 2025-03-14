@@ -1,6 +1,6 @@
 use crate::{
   client_api_framework::{
-    Api,
+    Api, SendBytesSource,
     network::{
       TransportGroup, WsParams,
       transport::{
@@ -26,7 +26,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
@@ -57,6 +57,7 @@ where
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
   type Inner = Self;
+  type ReqId = ();
 }
 
 async fn cb<C, NC, SW>(

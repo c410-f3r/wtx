@@ -1,10 +1,10 @@
 use crate::{
   client_api_framework::{
-    Api,
+    Api, SendBytesSource,
     network::{
       TransportGroup, WsParams,
       transport::{
-        RecievingTransport, SendingTransport, Transport,
+        ReceivingTransport, SendingTransport, Transport,
         wtx_ws::{recv, send_bytes, send_pkg},
       },
     },
@@ -13,9 +13,8 @@ use crate::{
   misc::{LeaseMut, Stream, Vector},
   web_socket::{Frame, WebSocket, WebSocketBuffer, compression::NegotiatedCompression},
 };
-use core::ops::Range;
 
-impl<NC, S, TP, WSB> RecievingTransport<TP> for WebSocket<NC, S, WSB, true>
+impl<NC, S, TP, WSB> ReceivingTransport<TP> for WebSocket<NC, S, WSB, true>
 where
   NC: NegotiatedCompression,
   S: Stream,
@@ -25,11 +24,13 @@ where
   async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<Range<usize>, A::Error>
+    _: Self::ReqId,
+  ) -> Result<(), A::Error>
   where
     A: Api,
   {
-    Ok(recv(self.read_frame().await?, pkgs_aux).await?)
+    recv(self.read_frame().await?, pkgs_aux).await?;
+    Ok(())
   }
 }
 
@@ -43,7 +44,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
@@ -74,6 +75,7 @@ where
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
   type Inner = Self;
+  type ReqId = ();
 }
 
 async fn cb<NC, S, WSB>(

@@ -7,20 +7,16 @@ use crate::{
   data_transformation::dnsn::DecodeWrapper,
   misc::Decode,
 };
-use core::ops::Range;
 
 /// Transport that receives package data.
-///
-/// # Types
-///
-/// * `DRSR`: `D`eserialize`R`/`S`erialize`R`
-pub trait RecievingTransport<TP>: Sized + Transport<TP> {
+pub trait ReceivingTransport<TP>: Sized + Transport<TP> {
   /// Retrieves data from the server filling the internal buffer and returning the amount of
   /// bytes written.
   fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> impl Future<Output = Result<Range<usize>, A::Error>>
+    req_id: Self::ReqId,
+  ) -> impl Future<Output = Result<(), A::Error>>
   where
     A: Api;
 
@@ -30,33 +26,58 @@ pub trait RecievingTransport<TP>: Sized + Transport<TP> {
   fn recv_decode_contained<'de, A, DRSR, P>(
     &mut self,
     pkgs_aux: &'de mut PkgsAux<A, DRSR, TP>,
+    req_id: Self::ReqId,
   ) -> impl Future<Output = Result<P::ExternalResponseContent<'de>, A::Error>>
   where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     async {
-      let range = self.recv(pkgs_aux).await?;
+      self.recv(pkgs_aux, req_id).await?;
       Ok(P::ExternalResponseContent::decode(
         &mut pkgs_aux.drsr,
-        &mut DecodeWrapper::new(pkgs_aux.byte_buffer.get(range).unwrap_or_default()),
+        &mut DecodeWrapper::new(&pkgs_aux.byte_buffer),
       )?)
     }
   }
 }
 
-impl<T, TP> RecievingTransport<TP> for &mut T
+impl<T, TP> ReceivingTransport<TP> for &mut T
 where
-  T: RecievingTransport<TP>,
+  T: ReceivingTransport<TP>,
 {
   #[inline]
   async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<Range<usize>, A::Error>
+    req_id: Self::ReqId,
+  ) -> Result<(), A::Error>
   where
     A: Api,
   {
-    (**self).recv(pkgs_aux).await
+    (**self).recv(pkgs_aux, req_id).await
+  }
+}
+
+#[cfg(feature = "tokio")]
+mod tokio {
+  use crate::client_api_framework::{Api, network::transport::ReceivingTransport, pkg::PkgsAux};
+  use tokio::sync::MappedMutexGuard;
+
+  impl<T, TP> ReceivingTransport<TP> for MappedMutexGuard<'_, T>
+  where
+    T: ReceivingTransport<TP>,
+  {
+    #[inline]
+    async fn recv<A, DRSR>(
+      &mut self,
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+      req_id: Self::ReqId,
+    ) -> Result<(), A::Error>
+    where
+      A: Api,
+    {
+      (**self).recv(pkgs_aux, req_id).await
+    }
   }
 }

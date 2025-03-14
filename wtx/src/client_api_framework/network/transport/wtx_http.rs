@@ -1,38 +1,41 @@
 use crate::{
   client_api_framework::{
-    Api,
+    Api, SendBytesSource,
     misc::{
       _log_res, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
       HttpParams, HttpReqParams, HttpResParams, TransportGroup,
-      transport::{RecievingTransport, SendingTransport, Transport, TransportParams},
+      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams},
     },
     pkg::{Package, PkgsAux},
   },
-  http::{Header, HttpClient, KnownHeaderName, Method, ReqResBuffer, Response, WTX_USER_AGENT},
-  http2::{Http2, Http2Buffer, Http2Data},
-  misc::{LeaseMut, Lock, RefCounter, StreamWriter, UriRef},
+  http::{Header, HttpClient, KnownHeaderName, ReqResBuffer, WTX_USER_AGENT},
+  http2::{ClientStream, Http2, Http2Buffer, Http2Data},
+  misc::{LeaseMut, Lock, RefCounter, StreamWriter},
 };
-use core::{mem, ops::Range};
+use core::mem;
 
-impl<HD, SW, TP> RecievingTransport<TP> for Http2<HD, true>
+impl<HD, SW, TP> ReceivingTransport<TP> for Http2<HD, true>
 where
   HD: RefCounter,
   HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
   SW: StreamWriter,
+  TP: LeaseMut<HttpParams>,
 {
   #[inline]
   async fn recv<A, DRSR>(
     &mut self,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<Range<usize>, A::Error>
+    req_id: Self::ReqId,
+  ) -> Result<(), A::Error>
   where
     A: Api,
   {
+    recv(self, pkgs_aux, req_id).await?;
     _log_res(&pkgs_aux.byte_buffer);
-    Ok(0..pkgs_aux.byte_buffer.len())
+    Ok(())
   }
 }
 impl<HD, SW, TP> SendingTransport<TP> for Http2<HD, true>
@@ -45,9 +48,9 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: SendBytesSource<'_>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<(), A::Error>
+  ) -> Result<Self::ReqId, A::Error>
   where
     A: Api,
   {
@@ -59,7 +62,7 @@ where
     &mut self,
     pkg: &mut P,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  ) -> Result<(), A::Error>
+  ) -> Result<Self::ReqId, A::Error>
   where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
@@ -75,43 +78,17 @@ where
 {
   const GROUP: TransportGroup = TransportGroup::HTTP;
   type Inner = Self;
+  type ReqId = ClientStream<HD>;
 }
 
 #[inline]
-async fn send<A, AUX, DRSR, HD, SW, TP>(
-  mut aux: &mut AUX,
-  client: &mut Http2<HD, true>,
-  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  before_sending: impl AsyncFnOnce(
-    &mut AUX,
-    &mut PkgsAux<A, DRSR, TP>,
-    &mut Http2<HD, true>,
-  ) -> Result<(), A::Error>,
-  send: impl AsyncFnOnce(
-    &mut AUX,
-    Method,
-    ReqResBuffer,
-    &mut Http2<HD, true>,
-    &UriRef<'_>,
-  ) -> crate::Result<Response<ReqResBuffer>>,
-  after_sending: impl AsyncFnOnce(
-    &mut AUX,
-    &mut PkgsAux<A, DRSR, TP>,
-    &mut Http2<HD, true>,
-  ) -> Result<(), A::Error>,
-) -> Result<(), A::Error>
+fn manage_params<A, DRSR, TP>(pkgs_aux: &mut PkgsAux<A, DRSR, TP>) -> Result<(), A::Error>
 where
   A: Api,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
-  SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
-  before_sending(&mut aux, pkgs_aux, client).await?;
-  let tp = pkgs_aux.tp.lease_mut();
-  let (req_params, res_params) = tp.ext_params_mut();
-  let HttpReqParams { headers, method, mime, uri } = req_params;
-  let HttpResParams { status_code } = res_params;
+  let params = pkgs_aux.tp.lease_mut();
+  let HttpReqParams { headers, mime, .. } = &mut params.ext_params_mut().0;
   headers.push_from_iter(Header::from_name_and_value(
     KnownHeaderName::UserAgent.into(),
     [WTX_USER_AGENT.as_bytes()],
@@ -122,23 +99,14 @@ where
       [elem.as_str().as_bytes()],
     ))?;
   }
-  let mut rrb = ReqResBuffer::empty();
-  mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
-  mem::swap(&mut rrb.headers, headers);
-  // Only servers use the URI buffer so there is no need for URI swaps
-  let mut res = send(&mut aux, *method, rrb, client, &uri.to_ref()).await?;
-  mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
-  mem::swap(&mut res.rrd.headers, headers);
-  *status_code = res.status_code;
-  after_sending(&mut aux, pkgs_aux, client).await?;
   Ok(())
 }
 
 #[inline]
-async fn send_bytes<A, DRSR, HD, SW, TP>(
-  mut bytes: &[u8],
+async fn recv<A, DRSR, HD, SW, TP>(
   client: &mut Http2<HD, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+  req_id: ClientStream<HD>,
 ) -> Result<(), A::Error>
 where
   A: Api,
@@ -147,18 +115,42 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
-  send(
-    &mut bytes,
-    client,
-    pkgs_aux,
-    async move |aux, pa, tr| manage_before_sending_bytes(aux, pa, tr).await,
-    async move |aux, method, mut rrb, tr, uri| {
-      let stream = tr.send_req(method, (aux, &mut rrb.headers), uri).await?;
-      tr.recv_res(rrb, stream).await
-    },
-    async move |_, pa, _| manage_after_sending_bytes(pa).await,
-  )
-  .await
+  let tp = pkgs_aux.tp.lease_mut();
+  let (req_params, res_params) = tp.ext_params_mut();
+  let HttpReqParams { headers, .. } = req_params;
+  let HttpResParams { status_code } = res_params;
+  let mut rrb = ReqResBuffer::empty();
+  mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
+  mem::swap(&mut rrb.headers, headers);
+  rrb.clear();
+  let mut res = client.recv_res(rrb, req_id).await?;
+  mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
+  mem::swap(&mut res.rrd.headers, headers);
+  *status_code = res.status_code;
+  Ok(())
+}
+
+#[inline]
+async fn send_bytes<A, DRSR, HD, SW, TP>(
+  bytes: SendBytesSource<'_>,
+  client: &mut Http2<HD, true>,
+  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+) -> Result<ClientStream<HD>, A::Error>
+where
+  A: Api,
+  HD: RefCounter,
+  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  SW: StreamWriter,
+  TP: LeaseMut<HttpParams>,
+{
+  manage_before_sending_bytes(bytes, pkgs_aux, client).await?;
+  manage_params(pkgs_aux)?;
+  let params = pkgs_aux.tp.lease_mut();
+  let HttpReqParams { headers, method, uri, .. } = &mut params.ext_params_mut().0;
+  let rslt =
+    client.send_req(*method, (bytes.bytes(&pkgs_aux.byte_buffer), headers), &uri.to_ref()).await?;
+  manage_after_sending_bytes(pkgs_aux).await?;
+  Ok(rslt)
 }
 
 #[inline]
@@ -166,7 +158,7 @@ async fn send_pkg<A, DRSR, HD, P, SW, TP>(
   client: &mut Http2<HD, true>,
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-) -> Result<(), A::Error>
+) -> Result<ClientStream<HD>, A::Error>
 where
   A: Api,
   HD: RefCounter,
@@ -175,40 +167,37 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
-  send(
-    pkg,
-    client,
-    pkgs_aux,
-    async move |aux, pa, tr| manage_before_sending_pkg(aux, pa, tr).await,
-    async move |_, method, rrb, tr, uri| tr.send_recv_single(method, rrb, uri).await,
-    async move |aux, pa, tr| manage_after_sending_pkg(aux, pa, tr).await,
-  )
-  .await
+  manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
+  manage_params(pkgs_aux)?;
+  let params = pkgs_aux.tp.lease_mut();
+  let HttpReqParams { headers, method, uri, .. } = &mut params.ext_params_mut().0;
+  let rslt = client.send_req(*method, (&pkgs_aux.byte_buffer, headers), &uri.to_ref()).await?;
+  manage_after_sending_pkg(pkg, pkgs_aux, client).await?;
+  Ok(rslt)
 }
 
 #[cfg(feature = "http-client-pool")]
 mod http_client_pool {
   use crate::{
     client_api_framework::{
-      Api,
+      Api, SendBytesSource,
       misc::_log_res,
       network::{
         HttpParams, TransportGroup,
         transport::{
-          RecievingTransport, SendingTransport, Transport, TransportParams,
-          wtx_http::{send_bytes, send_pkg},
+          ReceivingTransport, SendingTransport, Transport, TransportParams,
+          wtx_http::{recv, send_bytes, send_pkg},
         },
       },
       pkg::{Package, PkgsAux},
     },
     http::client_pool::{ClientPool, ClientPoolResource},
-    http2::{Http2, Http2Buffer, Http2Data},
+    http2::{ClientStream, Http2, Http2Buffer, Http2Data},
     misc::{LeaseMut, Lock, RefCounter, StreamWriter},
     pool::{ResourceManager, SimplePoolResource},
   };
-  use core::ops::Range;
 
-  impl<AUX, HD, RL, RM, SW, TP> RecievingTransport<TP> for ClientPool<RL, RM>
+  impl<AUX, HD, RL, RM, SW, TP> ReceivingTransport<TP> for ClientPool<RL, RM>
   where
     HD: RefCounter,
     HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -220,6 +209,7 @@ mod http_client_pool {
         Resource = ClientPoolResource<AUX, Http2<HD, true>>,
       >,
     SW: StreamWriter,
+    TP: LeaseMut<HttpParams>,
     for<'any> RL: 'any,
     for<'any> RM: 'any,
   {
@@ -227,12 +217,19 @@ mod http_client_pool {
     async fn recv<A, DRSR>(
       &mut self,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<Range<usize>, A::Error>
+      req_id: Self::ReqId,
+    ) -> Result<(), A::Error>
     where
       A: Api,
     {
+      recv(
+        &mut self.lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().uri.to_ref()).await?.client,
+        pkgs_aux,
+        req_id,
+      )
+      .await?;
       _log_res(&pkgs_aux.byte_buffer);
-      Ok(0..pkgs_aux.byte_buffer.len())
+      Ok(())
     }
   }
   impl<AUX, HD, RL, RM, SW, TP> SendingTransport<TP> for ClientPool<RL, RM>
@@ -254,9 +251,9 @@ mod http_client_pool {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: &[u8],
+      bytes: SendBytesSource<'_>,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<(), A::Error>
+    ) -> Result<Self::ReqId, A::Error>
     where
       A: Api,
     {
@@ -273,7 +270,7 @@ mod http_client_pool {
       &mut self,
       pkg: &mut P,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<(), A::Error>
+    ) -> Result<Self::ReqId, A::Error>
     where
       A: Api,
       P: Package<A, DRSR, Self::Inner, TP>,
@@ -301,9 +298,10 @@ mod http_client_pool {
   {
     const GROUP: TransportGroup = TransportGroup::HTTP;
     type Inner = Http2<HD, true>;
+    type ReqId = ClientStream<HD>;
   }
 
-  impl<AUX, HD, RL, RM, SW, TP> RecievingTransport<TP> for &ClientPool<RL, RM>
+  impl<AUX, HD, RL, RM, SW, TP> ReceivingTransport<TP> for &ClientPool<RL, RM>
   where
     HD: RefCounter,
     HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
@@ -315,6 +313,7 @@ mod http_client_pool {
         Resource = ClientPoolResource<AUX, Http2<HD, true>>,
       >,
     SW: StreamWriter,
+    TP: LeaseMut<HttpParams>,
     for<'any> RL: 'any,
     for<'any> RM: 'any,
   {
@@ -322,12 +321,19 @@ mod http_client_pool {
     async fn recv<A, DRSR>(
       &mut self,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<Range<usize>, A::Error>
+      req_id: Self::ReqId,
+    ) -> Result<(), A::Error>
     where
       A: Api,
     {
+      recv(
+        &mut self.lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().uri.to_ref()).await?.client,
+        pkgs_aux,
+        req_id,
+      )
+      .await?;
       _log_res(&pkgs_aux.byte_buffer);
-      Ok(0..pkgs_aux.byte_buffer.len())
+      Ok(())
     }
   }
   impl<AUX, HD, RL, RM, SW, TP> SendingTransport<TP> for &ClientPool<RL, RM>
@@ -349,9 +355,9 @@ mod http_client_pool {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: &[u8],
+      bytes: SendBytesSource<'_>,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<(), A::Error>
+    ) -> Result<Self::ReqId, A::Error>
     where
       A: Api,
     {
@@ -368,7 +374,7 @@ mod http_client_pool {
       &mut self,
       pkg: &mut P,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<(), A::Error>
+    ) -> Result<Self::ReqId, A::Error>
     where
       A: Api,
       P: Package<A, DRSR, Self::Inner, TP>,
@@ -398,5 +404,6 @@ mod http_client_pool {
   {
     const GROUP: TransportGroup = TransportGroup::HTTP;
     type Inner = Http2<HD, true>;
+    type ReqId = ClientStream<HD>;
   }
 }

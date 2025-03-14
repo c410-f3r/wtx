@@ -6,7 +6,7 @@ use crate::{
   misc::{create_ident, parts_from_generics},
 };
 use proc_macro2::{Ident, Span};
-use quote::ToTokens as _;
+use quote::{ToTokens as _, quote};
 use syn::{
   AttributeArgs, Item, Path, PathArguments, PathSegment, parse_macro_input, punctuated::Punctuated,
   spanned::Spanned as _,
@@ -42,6 +42,12 @@ pub(crate) fn api(
   let api_string = api_ident.to_string();
   let (api_params, _api_where_predicates) = parts_from_generics(api_generics);
 
+  let api_id_gat_ty = if api_params.is_empty() {
+    quote::quote!()
+  } else {
+    quote! { __ApiParams }
+  };
+
   let mut buffer = String::new();
   buffer.push_str(&api_string);
 
@@ -51,7 +57,7 @@ pub(crate) fn api(
     pub struct #id_ident;
 
     impl wtx::client_api_framework::ApiId for #id_ident {
-      type Api = #api_ident;
+      type Api<__ApiParams> = #api_ident<#api_id_gat_ty>;
     }
   );
 
@@ -139,6 +145,12 @@ pub(crate) fn api(
     ));
   }
 
+  let sts_ty = if api_params.is_empty() {
+    quote::quote! { () }
+  } else {
+    api_params.to_token_stream()
+  };
+
   Ok(
     quote::quote!(
       impl<#api_params> wtx::misc::Lease<#api_ident<#api_params>> for #api_ident<#api_params> {
@@ -153,6 +165,10 @@ pub(crate) fn api(
         fn lease_mut(&mut self) -> &mut #api_ident<#api_params> {
           self
         }
+      }
+
+      impl<#api_params> wtx::misc::SingleTypeStorage for #api_ident<#api_params> {
+        type Item = #sts_ty;
       }
 
       #id_impl
