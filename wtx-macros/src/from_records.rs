@@ -47,7 +47,7 @@ pub(crate) fn from_records(
   match &input.data {
     Data::Struct(data) => match &data.fields {
       Fields::Named(fields) => {
-        for elem in &fields.named {
+        for (idx, elem) in fields.named.iter().enumerate() {
           let mut ty_opt = None;
           for attr in &elem.attrs {
             if let Some(first) = attr.path.segments.first() {
@@ -70,9 +70,9 @@ pub(crate) fn from_records(
             }
             FieldTy::Id => {
               if id_opt.is_none() {
-                id_opt = elem.ident.as_ref();
+                id_opt = Some((idx, elem.ident.as_ref(), &elem.ty));
               } else {
-                return Err(crate::Error::MissingId(name.span()));
+                return Err(crate::Error::DuplicatedId(name.span()));
               }
             }
             FieldTy::Many => {
@@ -90,17 +90,27 @@ pub(crate) fn from_records(
     _ => return Err(crate::Error::UnsupportedStructure),
   }
 
-  if !manys.is_empty() && id_opt.is_none() {
-    return Err(crate::Error::MissingId(name.span()));
-  }
-  let id_iter0 = id_opt.iter();
-  let id_iter1 = id_opt.iter();
+  let (id_idx, id_ident, id_ty) = match (manys.is_empty(), id_opt) {
+    (false, None) => return Err(crate::Error::MissingId(name.span())),
+    (true, None) => (quote::quote!(None), None, quote::quote!(())),
+    (_, Some((id_idx, id_ident, id_ty))) => {
+      (quote::quote!(Some(#id_idx)), id_ident, quote::quote!(#id_ty))
+    }
+  };
+
+  let id_ident_iter0 = id_ident.iter();
+  let id_ident_iter1 = id_ident.iter();
+
   let expanded = quote::quote! {
     impl<'exec, #params> wtx::database::FromRecords<'exec, #database> for #name<#params>
     where
       #(#additional_where_predicates)*
       #where_predicates
     {
+      const ID_IDX: Option<usize> = #id_idx;
+
+      type IdTy = #id_ty;
+
       #[inline]
       fn from_records(
         (_curr_field_idx, _curr_record, _curr_record_idx): (&mut usize, &<#database as wtx::database::Database>::Record<'exec>,  &mut usize),
@@ -112,8 +122,8 @@ pub(crate) fn from_records(
 
         #(
           let _parent_id_column_idx = *_curr_field_idx;
-          let #id_iter0 = _curr_record.decode(*_curr_field_idx)?; *_curr_field_idx = _curr_field_idx.wrapping_add(1);
-          let _parent_id_iter0 = #id_iter0;
+          let #id_ident_iter0: #id_ty = _curr_record.decode(*_curr_field_idx)?; *_curr_field_idx = _curr_field_idx.wrapping_add(1);
+          let _parent_id_iter0 = #id_ident_iter0;
         )*
 
         #( let #decodes_after_id = _curr_record.#decodes_after_id_method(*_curr_field_idx)?; *_curr_field_idx = _curr_field_idx.wrapping_add(1); )*
@@ -132,7 +142,7 @@ pub(crate) fn from_records(
 
         Ok(Self {
           #(#decodes_before_id,)*
-          #(#id_iter1,)*
+          #(#id_ident_iter1,)*
           #(#decodes_after_id,)*
           #(#manys,)*
           #(#ones,)*

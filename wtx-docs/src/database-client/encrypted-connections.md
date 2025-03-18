@@ -40,7 +40,7 @@ ssl-cert=/var/lib/mysql/cert.pem
 ssl-key=/var/lib/mysql/key.pem
 ```
 
-Now it is just a matter of placing these certificates in the container at the specified locations ***AND*** setting the same files as read-only for the current user. As far as I can tell, there are three possible ways.
+Then you need to place these certificates in the container at the specified locations ***AND*** set the same files as read-only for the current user. As far as I can tell, there are three possible ways.
 
 1. Create a custom Docker image.
 2. List a set of volume mappings along side some initial script.
