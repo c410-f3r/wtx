@@ -34,11 +34,12 @@ async fn recv<A, DRSR, TP>(
   frame: Frame<&mut [u8], true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> crate::Result<()> {
-  _log_res(&pkgs_aux.byte_buffer);
   if let OpCode::Close = frame.op_code() {
     return Err(ClientApiFrameworkError::ClosedWsConnection.into());
   }
+  pkgs_aux.byte_buffer.clear();
   pkgs_aux.byte_buffer.extend_from_copyable_slice(frame.payload())?;
+  _log_res(&pkgs_aux.byte_buffer);
   Ok(())
 }
 
