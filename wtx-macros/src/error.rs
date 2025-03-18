@@ -7,6 +7,7 @@ pub(crate) enum Error {
   UnknownApiMode(Span),
 
   // FromRecords
+  DuplicatedId(Span),
   MissingDatabase(Span),
   MissingId(Span),
   UnknownFieldTy(Span),
@@ -46,6 +47,7 @@ impl From<Error> for syn::Error {
       Error::AbsentApi => {
         syn::Error::new(Span::call_site(), "All APIs must have an `error(SOME_ERROR) attribute`")
       }
+      Error::DuplicatedId(span) => syn::Error::new(span, "A record must have only one ID field"),
       Error::MissingDatabase(span) => {
         syn::Error::new(span, "It is necessary to specify a database")
       }

@@ -91,13 +91,14 @@ where
 
 #[cfg(feature = "postgres")]
 pub(crate) mod database {
+  use crate::misc::Vector;
   use alloc::string::String;
   use core::marker::PhantomData;
 
   /// Manages generic database executors.
   #[derive(Debug)]
   pub struct PostgresRM<E, RNG, S> {
-    _certs: Option<&'static [u8]>,
+    _certs: Option<Vector<u8>>,
     _error: PhantomData<fn() -> E>,
     _max_stmts: usize,
     _rng: RNG,
@@ -200,7 +201,7 @@ pub(crate) mod database {
         DEFAULT_MAX_STMTS, Executor as _,
         client::postgres::{ExecutorBuffer, PostgresExecutor},
       },
-      misc::{CryptoRng, TokioRustlsConnector},
+      misc::{CryptoRng, TokioRustlsConnector, Vector},
       pool::{PostgresRM, ResourceManager},
     };
     use alloc::string::String;
@@ -211,7 +212,7 @@ pub(crate) mod database {
     impl<E, RNG> PostgresRM<E, RNG, TlsStream<TcpStream>> {
       /// Resource manager using the `tokio-rustls` project.
       #[inline]
-      pub const fn tokio_rustls(certs: Option<&'static [u8]>, rng: RNG, uri: String) -> Self {
+      pub const fn tokio_rustls(certs: Option<Vector<u8>>, rng: RNG, uri: String) -> Self {
         Self {
           _certs: certs,
           _error: PhantomData,
@@ -244,8 +245,8 @@ pub(crate) mod database {
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;
-              if let Some(elem) = self._certs {
-                rslt = rslt.push_certs(elem)?;
+              if let Some(elem) = &self._certs {
+                rslt = rslt.push_certs(elem.as_slice())?;
               }
               rslt.connect_without_client_auth(uri.hostname(), stream).await
             },
@@ -275,8 +276,8 @@ pub(crate) mod database {
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             |stream| async {
               let mut rslt = TokioRustlsConnector::from_auto()?;
-              if let Some(elem) = self._certs {
-                rslt = rslt.push_certs(elem)?;
+              if let Some(elem) = &self._certs {
+                rslt = rslt.push_certs(elem.as_slice())?;
               }
               rslt.connect_without_client_auth(uri.hostname(), stream).await
             },

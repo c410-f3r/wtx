@@ -112,7 +112,7 @@ where
   #[inline]
   pub async fn tokio_rustls<RNG>(
     self,
-    (cert_chain, priv_key): (&'static [u8], &'static [u8]),
+    (cert_chain, priv_key): (&[u8], &[u8]),
     host: &str,
     rng: RNG,
     err_cb: impl Clone + Fn(E) + Send + 'static,
@@ -122,6 +122,9 @@ where
     RNG: Clone + Rng + Send + 'static,
   {
     let Self { _ca_cb, _cp, _sa_cb, _router } = self;
+    let tls_acceptor = crate::misc::TokioRustlsAcceptor::without_client_auth()
+      .http2()
+      .build_with_cert_chain_and_priv_key(cert_chain, priv_key)?;
     OptionedServer::http2_tokio(
       host,
       Self::_auto,
@@ -135,11 +138,7 @@ where
       },
       move || Ok(((_sa_cb.clone(), Arc::clone(&_router)), ReqResBuffer::empty())),
       (
-        || {
-          crate::misc::TokioRustlsAcceptor::without_client_auth()
-            .http2()
-            .build_with_cert_chain_and_priv_key(cert_chain, priv_key)
-        },
+        || Ok(tls_acceptor),
         |acceptor| acceptor.clone(),
         |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
       ),
