@@ -30,7 +30,7 @@ use crate::{
 };
 pub use arguments::*;
 pub use conn_aux::ConnAux;
-pub use cors_middleware::CorsMiddleware;
+pub use cors_middleware::{CorsMiddleware, OriginResponse};
 pub use endpoint::Endpoint;
 pub use endpoint_node::EndpointNode;
 pub use methods::{
