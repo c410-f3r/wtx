@@ -15,7 +15,8 @@ type AllowMethods = (bool, Vector<Method>);
 type AllowOrigins = (bool, Vector<String>);
 type ExposeHeaders = (bool, Vector<String>);
 
-/// Used to manage origins of CORS responses
+/// Used internally to manage the origins of CORS responses.
+#[derive(Debug)]
 pub enum OriginResponse {
   /// An internal origin is passed to the response
   AllowedFromInternalList(usize),
