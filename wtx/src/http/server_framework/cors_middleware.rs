@@ -4,19 +4,26 @@ use crate::{
     StatusCode,
     server_framework::{ConnAux, Middleware, ServerFrameworkError},
   },
-  misc::{ArrayVector, Intersperse, Vector, bytes_split1},
+  misc::{Intersperse, Vector, bytes_split1},
 };
+use alloc::string::String;
 use core::ops::ControlFlow;
 use hashbrown::HashSet;
 
-const MAX_HEADEARS: usize = 8;
-const MAX_METHODS: usize = Method::VARIANTS as usize;
-const MAX_ORIGINS: usize = 4;
+type AllowHeaders = (bool, Vector<String>);
+type AllowMethods = (bool, Vector<Method>);
+type AllowOrigins = (bool, Vector<String>);
+type ExposeHeaders = (bool, Vector<String>);
 
-type AllowHeaders = (bool, ArrayVector<&'static str, MAX_HEADEARS>);
-type AllowMethods = (bool, ArrayVector<Method, MAX_METHODS>);
-type AllowOrigins = (bool, ArrayVector<&'static str, MAX_ORIGINS>);
-type ExposeHeaders = (bool, ArrayVector<&'static str, MAX_HEADEARS>);
+/// Used to manage origins of CORS responses
+pub enum OriginResponse {
+  /// An internal origin is passed to the response
+  AllowedFromInternalList(usize),
+  /// No origin in response
+  None,
+  /// Response origin is "*"
+  Wildcard,
+}
 
 /// Cross-origin resource sharing
 #[derive(Debug)]
@@ -48,10 +55,10 @@ impl CorsMiddleware {
   pub const fn new() -> Self {
     Self {
       allow_credentials: false,
-      allow_headers: (false, ArrayVector::new()),
-      allow_methods: (false, ArrayVector::new()),
-      allow_origins: (false, ArrayVector::new()),
-      expose_headers: (false, ArrayVector::new()),
+      allow_headers: (false, Vector::new()),
+      allow_methods: (false, Vector::new()),
+      allow_origins: (false, Vector::new()),
+      expose_headers: (false, Vector::new()),
       max_age: None,
     }
   }
@@ -64,15 +71,15 @@ impl CorsMiddleware {
   /// * No caching
   #[inline]
   #[must_use]
-  pub fn permissive() -> Self {
-    Self {
+  pub fn permissive() -> crate::Result<Self> {
+    Ok(Self {
       allow_credentials: true,
-      allow_headers: (true, ArrayVector::new()),
-      allow_methods: (false, ArrayVector::from_array(Method::ALL)),
-      allow_origins: (true, ArrayVector::new()),
-      expose_headers: (true, ArrayVector::new()),
+      allow_headers: (true, Vector::new()),
+      allow_methods: (false, Vector::from_iter(Method::ALL.into_iter())?),
+      allow_origins: (true, Vector::new()),
+      expose_headers: (true, Vector::new()),
       max_age: None,
-    }
+    })
   }
 
   /// <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials>
@@ -91,14 +98,14 @@ impl CorsMiddleware {
   pub fn allow_headers(
     mut self,
     is_wildcard: bool,
-    specifics: impl IntoIterator<Item = &'static str>,
+    specifics: impl IntoIterator<Item = String>,
   ) -> Self {
     if is_wildcard {
       self.allow_headers.0 = true;
     } else {
       self.allow_headers.0 = false;
       self.allow_headers.1.clear();
-      let iter = specifics.into_iter().take(MAX_HEADEARS);
+      let iter = specifics.into_iter();
       let _rslt = self.allow_headers.1.extend_from_iter(iter);
     }
     self
@@ -119,7 +126,7 @@ impl CorsMiddleware {
     } else {
       self.allow_methods.0 = false;
       self.allow_methods.1.clear();
-      let iter = specifics.into_iter().take(MAX_METHODS);
+      let iter = specifics.into_iter();
       let _rslt = self.allow_methods.1.extend_from_iter(iter);
     }
     self
@@ -133,14 +140,14 @@ impl CorsMiddleware {
   pub fn allow_origins(
     mut self,
     is_wildcard: bool,
-    specifics: impl IntoIterator<Item = &'static str>,
+    specifics: impl IntoIterator<Item = String>,
   ) -> Self {
     if is_wildcard {
       self.allow_origins.0 = true;
     } else {
       self.allow_origins.0 = false;
       self.allow_origins.1.clear();
-      let iter = specifics.into_iter().take(MAX_ORIGINS);
+      let iter = specifics.into_iter();
       let _rslt = self.allow_origins.1.extend_from_iter(iter);
     }
     self
@@ -154,14 +161,14 @@ impl CorsMiddleware {
   pub fn expose_headers(
     mut self,
     is_wildcard: bool,
-    specifics: impl IntoIterator<Item = &'static str>,
+    specifics: impl IntoIterator<Item = String>,
   ) -> Self {
     if is_wildcard {
       self.expose_headers.0 = true;
     } else {
       self.expose_headers.0 = false;
       self.expose_headers.1.clear();
-      let iter = specifics.into_iter().take(MAX_HEADEARS);
+      let iter = specifics.into_iter();
       let _rslt = self.expose_headers.1.extend_from_iter(iter);
     }
     self
@@ -176,8 +183,13 @@ impl CorsMiddleware {
   }
 
   #[inline]
-  fn allowed_origin(&self, origin: &[u8]) -> Option<&'static str> {
-    self.allow_origins.1.iter().find(|el| el.as_bytes() == origin).copied()
+  fn allowed_origin<'this>(&'this self, origin: &[u8]) -> Option<(&'this str, usize)> {
+    self
+      .allow_origins
+      .1
+      .iter()
+      .enumerate()
+      .find_map(|(idx, el)| (el.as_bytes() == origin).then(|| (el.as_str(), idx)))
   }
 
   #[inline]
@@ -271,7 +283,7 @@ impl CorsMiddleware {
   #[inline]
   async fn apply_normal_response(
     &self,
-    origin: Option<&str>,
+    origin_response: &OriginResponse,
     headers: &mut Headers,
   ) -> crate::Result<()> {
     let Self {
@@ -283,8 +295,17 @@ impl CorsMiddleware {
       max_age: _,
     } = self;
     Self::apply_allow_credentials(*allow_credentials, headers)?;
-    if let Some(elem) = origin {
-      Self::apply_allow_origin(elem.as_bytes(), headers)?;
+    match origin_response {
+      OriginResponse::AllowedFromInternalList(idx) => {
+        Self::apply_allow_origin(
+          self.allow_origins.1.get(*idx).map(|el| el.as_bytes()).unwrap_or_default(),
+          headers,
+        )?;
+      }
+      OriginResponse::None => {}
+      OriginResponse::Wildcard => {
+        Self::apply_allow_origin(b"*", headers)?;
+      }
     }
     Self::apply_expose_headers(expose_headers, headers)?;
     Ok(())
@@ -380,7 +401,7 @@ impl CorsMiddleware {
     let actual_origin = if self.allow_origins.0 {
       origin.value
     } else if let Some(allowed_origin) = self.allowed_origin(origin.value) {
-      allowed_origin.as_bytes()
+      allowed_origin.0.as_bytes()
     } else {
       return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsOrigin));
     };
@@ -393,11 +414,11 @@ impl<CA, E, SA> Middleware<CA, E, SA> for CorsMiddleware
 where
   E: From<crate::Error>,
 {
-  type Aux = Option<&'static str>;
+  type Aux = OriginResponse;
 
   #[inline]
   fn aux(&self) -> Self::Aux {
-    None
+    OriginResponse::None
   }
 
   #[inline]
@@ -432,9 +453,9 @@ where
       req.rrd.headers.get_by_name(KnownHeaderName::Origin.into())
     };
     if self.allow_origins.0 {
-      *mw_aux = Some("*");
+      *mw_aux = OriginResponse::Wildcard
     } else if let Some(origin) = self.allowed_origin(Self::extract_origin(origin_opt)?.value) {
-      *mw_aux = Some(origin);
+      *mw_aux = OriginResponse::AllowedFromInternalList(origin.1)
     }
     Ok(ControlFlow::Continue(()))
   }
@@ -447,7 +468,7 @@ where
     res: Response<&mut ReqResBuffer>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    self.apply_normal_response(*mw_aux, &mut res.rrd.headers).await?;
+    self.apply_normal_response(mw_aux, &mut res.rrd.headers).await?;
     Ok(ControlFlow::Continue(()))
   }
 }

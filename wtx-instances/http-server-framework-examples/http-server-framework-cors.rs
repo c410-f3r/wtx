@@ -7,7 +7,7 @@ use wtx::{
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let router = Router::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::permissive())?;
+  let router = Router::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::permissive()?)?;
   ServerFrameworkBuilder::new(router)
     .without_aux()
     .tokio(
