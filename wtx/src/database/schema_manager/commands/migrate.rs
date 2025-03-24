@@ -129,22 +129,19 @@ where
     let curr_applied_migrations;
     let curr_last_db_migration_version = filtered_by_db.clone().last().map(|el| el.version());
     let prev_db_migrations = Usize::from(buffer_db_migrations.len()).into_u64();
-    let mut curr_db_migrations = prev_db_migrations;
     let mut prev_last_db_migration_version = None;
     if let Some(last_db_mig_version) = buffer_db_migrations.last().map(DbMigration::version) {
       let to_apply = filtered_by_db.filter(move |e| e.version() > last_db_mig_version);
       curr_applied_migrations = Usize::from(to_apply.clone().count()).into();
-      curr_db_migrations = curr_db_migrations.wrapping_add(curr_applied_migrations);
       prev_last_db_migration_version = Some(last_db_mig_version);
       self.executor.insert_migrations(buffer_cmd, mg, to_apply).await?;
     } else {
-      curr_applied_migrations = Usize::from(buffer_db_migrations.len()).into();
+      curr_applied_migrations = Usize::from(filtered_by_db.clone().count()).into();
       self.executor.insert_migrations(buffer_cmd, mg, filtered_by_db).await?;
     }
     buffer_db_migrations.clear();
     Ok(MigrationStatus {
       curr_applied_migrations,
-      curr_db_migrations,
       curr_last_db_migration_version,
       mg_version: mg.version(),
       prev_last_db_migration_version,

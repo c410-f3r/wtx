@@ -6,7 +6,7 @@ use crate::{
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut, StreamReader, StreamWriter},
 };
-use core::mem;
+use core::{mem, net::IpAddr};
 use tokio::net::{TcpListener, TcpStream};
 
 impl OptionedServer {
@@ -118,6 +118,8 @@ impl OptionedServer {
             let _stream_jh = tokio::spawn(async move {
               let stream_fun = async {
                 if let Some(local_rrb) = opt {
+                  let req = Request::http2(stream.method(), local_rrb);
+                  log_req(&peer, &req);
                   stream_manual_cb
                     .call((
                       headers_aux,
@@ -125,7 +127,7 @@ impl OptionedServer {
                         conn_aux: stream_ca,
                         peer,
                         protocol: stream.protocol(),
-                        req: Request::http2(stream.method(), local_rrb),
+                        req,
                         stream: stream.clone(),
                         stream_aux,
                       },
@@ -138,6 +140,7 @@ impl OptionedServer {
                   return Ok(());
                 }
                 let req = local_rrb.into_http2_request(stream.method());
+                log_req(&peer, &req);
                 let auto_stream = AutoStream {
                   conn_aux: stream_ca,
                   peer,
@@ -167,4 +170,17 @@ impl OptionedServer {
       });
     }
   }
+}
+
+fn log_req(_peer: &IpAddr, _req: &Request<ReqResBuffer>) {
+  let method = _req.method;
+  let path = _req.rrd.uri.path();
+  let version = _req.version;
+  #[cfg(feature = "chrono")]
+  let time = "";
+  #[cfg(not(feature = "chrono"))]
+  let time = crate::misc::GenericTime::timestamp()
+    .ok()
+    .and_then(|el| chrono::DateTime::from_timestamp(el.as_secs().try_into().ok()?, 0));
+  _debug!(r#"{_peer} [{time:?}] "{method} {path} {version}""#,);
 }
