@@ -177,10 +177,10 @@ fn log_req(_peer: &IpAddr, _req: &Request<ReqResBuffer>) {
   let path = _req.rrd.uri.path();
   let version = _req.version;
   #[cfg(feature = "chrono")]
-  let time = "";
-  #[cfg(not(feature = "chrono"))]
   let time = crate::misc::GenericTime::timestamp()
     .ok()
     .and_then(|el| chrono::DateTime::from_timestamp(el.as_secs().try_into().ok()?, 0));
+  #[cfg(not(feature = "chrono"))]
+  let time = "";
   _debug!(r#"{_peer} [{time:?}] "{method} {path} {version}""#,);
 }
