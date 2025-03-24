@@ -16,6 +16,7 @@ mod integration_tests;
 mod migration;
 #[cfg(feature = "std")]
 pub mod migration_parser;
+mod migration_status;
 pub mod misc;
 mod repeatability;
 mod schema_manager_error;
@@ -28,8 +29,8 @@ use crate::{
 };
 use alloc::string::String;
 pub use commands::*;
-
 pub use migration::*;
+pub use migration_status::MigrationStatus;
 pub use repeatability::Repeatability;
 pub use schema_manager_error::SchemaManagerError;
 
@@ -50,6 +51,8 @@ pub type EmbeddedMigrationsTy = &'static [(
   &'static MigrationGroup<&'static str>,
   &'static [UserMigrationRef<'static, 'static>],
 )];
+/// The version or ID of a migration
+pub type VersionTy = u32;
 
 /// Contains methods responsible to manage database migrations.
 pub trait SchemaManagement: Executor {
@@ -67,7 +70,7 @@ pub trait SchemaManagement: Executor {
     &mut self,
     buffer_cmd: &mut String,
     mg: &MigrationGroup<S>,
-    version: i32,
+    version: VersionTy,
   ) -> impl Future<Output = crate::Result<()>>
   where
     S: Lease<str>;
@@ -84,7 +87,7 @@ pub trait SchemaManagement: Executor {
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
     S: Lease<str> + 'migration;
 
-  /// Retrieves all migrations of the given `mg` group.
+  /// Retrieves all migrations of the given `mg` group in ascending order.
   fn migrations<S>(
     &mut self,
     buffer_cmd: &mut String,
@@ -120,7 +123,7 @@ impl SchemaManagement for () {
     &mut self,
     _: &mut String,
     _: &MigrationGroup<S>,
-    _: i32,
+    _: VersionTy,
   ) -> crate::Result<()>
   where
     S: Lease<str>,
@@ -174,7 +177,7 @@ mod mysql {
       DatabaseTy, Executor as _, Identifier,
       client::mysql::{ExecutorBuffer, MysqlExecutor},
       schema_manager::{
-        DbMigration, MigrationGroup, SchemaManagement, UserMigration,
+        DbMigration, MigrationGroup, SchemaManagement, UserMigration, VersionTy,
         fixed_sql_commands::{
           _delete_migrations, _insert_migrations, _migrations_by_mg_version_query,
           mysql::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
@@ -206,7 +209,7 @@ mod mysql {
       &mut self,
       buffer_cmd: &mut String,
       mg: &MigrationGroup<S>,
-      version: i32,
+      version: VersionTy,
     ) -> crate::Result<()>
     where
       S: Lease<str>,
@@ -261,7 +264,7 @@ mod postgres {
       DatabaseTy, Executor as _, Identifier,
       client::postgres::{ExecutorBuffer, PostgresExecutor},
       schema_manager::{
-        _WTX_SCHEMA, DbMigration, MigrationGroup, SchemaManagement, UserMigration,
+        _WTX_SCHEMA, DbMigration, MigrationGroup, SchemaManagement, UserMigration, VersionTy,
         fixed_sql_commands::{
           _delete_migrations, _insert_migrations, _migrations_by_mg_version_query,
           postgres::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
@@ -293,7 +296,7 @@ mod postgres {
       &mut self,
       buffer_cmd: &mut String,
       mg: &MigrationGroup<S>,
-      version: i32,
+      version: VersionTy,
     ) -> crate::Result<()>
     where
       S: Lease<str>,

@@ -2,7 +2,7 @@ use crate::{
   database::{
     Identifier,
     schema_manager::{
-      Commands, DbMigration, SchemaManagement,
+      self, Commands, DbMigration, MigrationStatus, SchemaManagement,
       integration_tests::{_migrate_doc_test, AuxTestParams},
     },
   },
@@ -11,10 +11,11 @@ use crate::{
 use alloc::string::String;
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<E>(
-  (buffer_cmd, buffer_db_migrations, buffer_idents): (
+  (buffer_cmd, buffer_db_migrations, buffer_idents, _): (
     &mut String,
     &mut Vector<DbMigration>,
     &mut Vector<Identifier>,
+    &mut Vector<MigrationStatus>,
   ),
   c: &mut Commands<E>,
   _: AuxTestParams,
@@ -31,12 +32,16 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<E>(
 }
 
 pub(crate) async fn migrate_works<E>(
-  (buffer_cmd, _, _): (&mut String, &mut Vector<DbMigration>, &mut Vector<Identifier>),
+  (buffer_cmd, _, _, _): (
+    &mut String,
+    &mut Vector<DbMigration>,
+    &mut Vector<Identifier>,
+    &mut Vector<MigrationStatus>,
+  ),
   c: &mut Commands<E>,
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
 {
-  crate::database::schema_manager::integration_tests::schema::migrate_works(buffer_cmd, c, aux, 2)
-    .await
+  schema_manager::integration_tests::schema::migrate_works(buffer_cmd, c, aux, 2).await
 }

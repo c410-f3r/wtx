@@ -2,7 +2,8 @@ use crate::{
   database::{
     Executor, Identifier,
     schema_manager::{
-      Commands, DbMigration, MigrationGroup, SchemaManagement, integration_tests::AuxTestParams,
+      Commands, DbMigration, MigrationGroup, MigrationStatus, SchemaManagement,
+      integration_tests::AuxTestParams,
     },
   },
   misc::{DEController, Vector},
@@ -12,7 +13,12 @@ use core::fmt::Debug;
 use std::path::Path;
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schema<E>(
-  (buffer_cmd, _, buffer_idents): (&mut String, &mut Vector<DbMigration>, &mut Vector<Identifier>),
+  (buffer_cmd, _, buffer_idents, _): (
+    &mut String,
+    &mut Vector<DbMigration>,
+    &mut Vector<Identifier>,
+    &mut Vector<MigrationStatus>,
+  ),
   c: &mut Commands<E>,
   aux: AuxTestParams,
 ) where
@@ -26,10 +32,11 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
 }
 
 pub(crate) async fn rollback_works<E>(
-  (buffer_cmd, buffer_db_migrations, buffer_idents): (
+  (buffer_cmd, buffer_db_migrations, buffer_idents, buffer_status): (
     &mut String,
     &mut Vector<DbMigration>,
     &mut Vector<Identifier>,
+    &mut Vector<MigrationStatus>,
   ),
   c: &mut Commands<E>,
   aux: AuxTestParams,
@@ -38,7 +45,7 @@ pub(crate) async fn rollback_works<E>(
   <E::Database as DEController>::Error: Debug,
 {
   let path = Path::new("../.test-utils/migrations.toml");
-  c.migrate_from_toml_path((buffer_cmd, buffer_db_migrations), path).await.unwrap();
+  c.migrate_from_toml_path((buffer_cmd, buffer_db_migrations, buffer_status), path).await.unwrap();
   c.rollback_from_toml((buffer_cmd, buffer_db_migrations), path, &[0, 0][..]).await.unwrap();
   let initial = MigrationGroup::new("initial", 1);
   let more_stuff = MigrationGroup::new("more_stuff", 2);

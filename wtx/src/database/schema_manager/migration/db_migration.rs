@@ -2,7 +2,7 @@ use crate::{
   database::{
     DatabaseTy, Identifier,
     schema_manager::{
-      MigrationGroup, Repeatability, SchemaManagerError,
+      MigrationGroup, Repeatability, SchemaManagerError, VersionTy,
       migration::migration_common::MigrationCommon,
     },
   },
@@ -53,7 +53,7 @@ impl DbMigration {
 
   /// Version
   #[inline]
-  pub fn version(&self) -> i32 {
+  pub fn version(&self) -> VersionTy {
     self.common.version
   }
 }

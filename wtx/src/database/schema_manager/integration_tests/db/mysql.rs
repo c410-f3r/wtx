@@ -2,7 +2,7 @@
 use {
   crate::database::{
     FromRecord, Identifier, client::mysql::Mysql, schema_manager::Commands,
-    schema_manager::DbMigration, schema_manager::SchemaManagement,
+    schema_manager::DbMigration, schema_manager::MigrationStatus, schema_manager::SchemaManagement,
     schema_manager::integration_tests,
   },
   crate::misc::Vector,
@@ -11,7 +11,12 @@ use {
 
 #[cfg(feature = "schema-manager-dev")]
 pub(crate) async fn _clean_drops_all_objs<E>(
-  (buffer_cmd, _, buffer_idents): (&mut String, &mut Vector<DbMigration>, &mut Vector<Identifier>),
+  (buffer_cmd, _, buffer_idents, _): (
+    &mut String,
+    &mut Vector<DbMigration>,
+    &mut Vector<Identifier>,
+    &mut Vector<MigrationStatus>,
+  ),
   c: &mut Commands<E>,
   _: integration_tests::AuxTestParams,
 ) where

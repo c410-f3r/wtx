@@ -1,3 +1,5 @@
+use crate::database::schema_manager::VersionTy;
+
 /// Schema Manager Error
 #[derive(Debug)]
 pub enum SchemaManagerError {
@@ -8,7 +10,7 @@ pub enum SchemaManagerError {
   /// Different rollback versions
   DifferentRollbackVersions,
   /// Divergent migrations
-  DivergentMigration(i32),
+  DivergentMigration(VersionTy),
   /// Validation - Migrations number
   DivergentMigrationsNum {
     /// Expected

@@ -2,7 +2,7 @@ use crate::{
   database::{
     DatabaseTy,
     schema_manager::{
-      Repeatability,
+      Repeatability, VersionTy,
       migration::migration_common::MigrationCommon,
       misc::{calc_checksum, is_sorted_and_unique},
     },
@@ -44,7 +44,7 @@ where
     repeatability: Option<Repeatability>,
     sql_down: S,
     sql_up: S,
-    version: i32,
+    version: VersionTy,
   ) -> Self {
     Self {
       dbs,
@@ -61,7 +61,7 @@ where
     name: S,
     repeatability: Option<Repeatability>,
     [sql_up, sql_down]: [S; 2],
-    version: i32,
+    version: VersionTy,
   ) -> crate::Result<Self> {
     is_sorted_and_unique(dbs.lease())?;
     let checksum = calc_checksum(name.lease(), sql_up.lease(), sql_down.lease(), version);
@@ -164,7 +164,7 @@ where
   /// assert_eq!(migration().version(), 1)
   /// ```
   #[inline]
-  pub fn version(&self) -> i32 {
+  pub fn version(&self) -> VersionTy {
     self.common.version
   }
 }
