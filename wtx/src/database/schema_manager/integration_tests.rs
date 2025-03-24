@@ -7,7 +7,7 @@ use crate::{
   database::{
     Executor, Identifier,
     schema_manager::{
-      Commands, DbMigration, MigrationGroup, SchemaManagement,
+      Commands, DbMigration, MigrationGroup, MigrationStatus, SchemaManagement,
       doc_tests::{migration, migration_group},
     },
   },
@@ -20,7 +20,7 @@ use tokio::net::TcpStream;
 macro_rules! create_integration_test {
   ($executor:expr, $buffer:expr, $aux:expr, $($fun:path),*) => {{
     $({
-      let (_buffer_cmd, _, _buffer_idents) = $buffer;
+      let (_buffer_cmd, _, _buffer_idents, _) = $buffer;
       let mut commands = crate::database::schema_manager::Commands::with_executor($executor);
       commands.clear((_buffer_cmd, _buffer_idents)).await.unwrap();
       $fun($buffer, &mut commands, $aux).await;
@@ -38,6 +38,7 @@ macro_rules! create_integration_tests {
       let mut _buffer_cmd = String::new();
       let mut _buffer_db_migrations = Vector::<DbMigration>::new();
       let mut _buffer_idents = Vector::<Identifier>::new();
+      let mut _buffer_status = Vector::<MigrationStatus>::new();
 
       #[cfg(feature = "mysql")]
       create_integration_test!(
@@ -53,7 +54,7 @@ macro_rules! create_integration_tests {
             stream,
           ).await.unwrap()
         },
-        (&mut _buffer_cmd, &mut _buffer_db_migrations, &mut _buffer_idents),
+        (&mut _buffer_cmd, &mut _buffer_db_migrations, &mut _buffer_idents, &mut _buffer_status),
         _generic_schema(),
         $($mysql),*
       );
@@ -74,7 +75,7 @@ macro_rules! create_integration_tests {
             stream,
           ).await.unwrap()
         },
-        (&mut _buffer_cmd, &mut _buffer_db_migrations, &mut _buffer_idents),
+        (&mut _buffer_cmd, &mut _buffer_db_migrations, &mut _buffer_idents, &mut _buffer_status),
         _pg_schema(),
         $($postgres),*
       );
@@ -181,7 +182,7 @@ where
   E: SchemaManagement,
 {
   let mg = migration_group();
-  c.migrate((buffer_cmd, buffer_db_migrations), &mg, [migration()].iter()).await.unwrap();
+  let _s = c.migrate((buffer_cmd, buffer_db_migrations), &mg, [migration()].iter()).await.unwrap();
   mg
 }
 

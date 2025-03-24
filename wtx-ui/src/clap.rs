@@ -201,7 +201,7 @@ pub(crate) enum SchemaManagerCommands {
   #[cfg(feature = "schema-manager-dev")]
   MigrateAndSeed {},
   /// Returns database state to a point
-  Rollback { versions: Vec<i32> },
+  Rollback { versions: Vec<u32> },
   /// Populates the database with data intended for testing
   #[cfg(feature = "schema-manager-dev")]
   Seed {},

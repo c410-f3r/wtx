@@ -124,7 +124,8 @@ impl TokioRustlsAcceptor {
   ) -> crate::Result<TlsAcceptor> {
     let mut config = self.builder.with_single_cert(
       rustls_pemfile::certs(&mut &*cert_chain).collect::<Result<_, _>>()?,
-      rustls_pemfile::private_key(&mut &*priv_key)?.ok_or_else(|| invalid_input_err("No key"))?,
+      rustls_pemfile::private_key(&mut &*priv_key)?
+        .ok_or_else(|| invalid_input_err("No private key"))?,
     )?;
     if self.is_http2 {
       config.alpn_protocols.clear();

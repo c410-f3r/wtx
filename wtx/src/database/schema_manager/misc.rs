@@ -11,7 +11,7 @@ use crate::{
   database::{
     DatabaseTy,
     schema_manager::{
-      SchemaManagerError,
+      SchemaManagerError, VersionTy,
       migration::{DbMigration, UserMigration},
     },
   },
@@ -37,7 +37,7 @@ use {
 };
 
 #[cfg(feature = "std")]
-type MigrationGroupParts = (String, i32);
+type MigrationGroupParts = (String, VersionTy);
 #[cfg(feature = "std")]
 type MigrationParts = (
   ArrayVector<DatabaseTy, { DatabaseTy::len() }>,
@@ -45,7 +45,7 @@ type MigrationParts = (
   Option<Repeatability>,
   String,
   String,
-  i32,
+  VersionTy,
 );
 
 /// All files of a given `path`.
@@ -203,7 +203,7 @@ where
 }
 
 #[inline]
-pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, version: i32) -> u64 {
+pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, version: VersionTy) -> u64 {
   #[expect(deprecated, reason = "Useful")]
   let mut hasher = core::hash::SipHasher::new();
   name.hash(&mut hasher);
@@ -247,7 +247,7 @@ where
 
 #[inline]
 fn binary_search_migration_by_version(
-  version: i32,
+  version: VersionTy,
   migrations: &[DbMigration],
 ) -> Option<&DbMigration> {
   match migrations.binary_search_by(|m| m.version().cmp(&version)) {
@@ -258,13 +258,13 @@ fn binary_search_migration_by_version(
 
 #[cfg(feature = "std")]
 #[inline]
-fn dir_name_parts(s: &str) -> crate::Result<(String, i32)> {
+fn dir_name_parts(s: &str) -> crate::Result<(String, VersionTy)> {
   let f = || {
     if !s.is_ascii() {
       return None;
     }
     let mut split = s.split("__");
-    let version = i32::from_radix_10(split.next()?.as_bytes()).ok()?;
+    let version = VersionTy::from_radix_10(split.next()?.as_bytes()).ok()?;
     let name = split.next()?.into();
     Some((name, version))
   };
@@ -273,13 +273,13 @@ fn dir_name_parts(s: &str) -> crate::Result<(String, i32)> {
 
 #[cfg(feature = "std")]
 #[inline]
-fn migration_file_name_parts(s: &str) -> crate::Result<(String, i32)> {
+fn migration_file_name_parts(s: &str) -> crate::Result<(String, VersionTy)> {
   let f = || {
     if !s.is_ascii() {
       return None;
     }
     let mut split = s.split("__");
-    let version = i32::from_radix_10(split.next()?.as_bytes()).ok()?;
+    let version = VersionTy::from_radix_10(split.next()?.as_bytes()).ok()?;
     let name = split.next()?.strip_suffix(".sql")?.into();
     Some((name, version))
   };

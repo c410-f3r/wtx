@@ -34,7 +34,7 @@ use crate::{
   database::{
     Database, DatabaseTy, FromRecord,
     executor::Executor,
-    schema_manager::{DbMigration, MigrationGroup, UserMigration},
+    schema_manager::{DbMigration, MigrationGroup, UserMigration, VersionTy},
   },
   misc::{DEController, Lease, Vector},
 };
@@ -47,7 +47,7 @@ pub(crate) async fn _delete_migrations<E, S>(
   executor: &mut E,
   mg: &MigrationGroup<S>,
   schema_prefix: &str,
-  version: i32,
+  version: VersionTy,
 ) -> Result<(), <E::Database as DEController>::Error>
 where
   E: Executor,
@@ -132,7 +132,7 @@ where
 pub(crate) async fn _migrations_by_mg_version_query<E, D>(
   buffer_cmd: &mut String,
   executor: &mut E,
-  mg_version: i32,
+  mg_version: VersionTy,
   results: &mut Vector<DbMigration>,
   schema_prefix: &str,
 ) -> crate::Result<()>

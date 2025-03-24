@@ -1,7 +1,9 @@
 use crate::{
   database::{
     DatabaseTy,
-    schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration},
+    schema_manager::{
+      Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration, VersionTy,
+    },
   },
   misc::{DEController, Lease, Vector},
 };
@@ -26,7 +28,7 @@ where
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &MigrationGroup<S>,
     migrations: I,
-    version: i32,
+    version: VersionTy,
   ) -> Result<(), <E::Database as DEController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
@@ -59,7 +61,7 @@ where
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
-    versions: &[i32],
+    versions: &[VersionTy],
   ) -> Result<(), <E::Database as DEController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     if migration_groups.len() != versions.len() {
@@ -79,7 +81,7 @@ where
     &mut self,
     buffer: (&mut String, &mut Vector<DbMigration>),
     path: &Path,
-    version: i32,
+    version: VersionTy,
   ) -> Result<(), <E::Database as DEController>::Error> {
     self.do_rollback_from_dir(buffer, path, version).await
   }
@@ -90,7 +92,7 @@ where
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
-    version: i32,
+    version: VersionTy,
   ) -> Result<(), <E::Database as DEController>::Error> {
     let opt = group_and_migrations_from_path(path, |a, b| b.cmp(a));
     let Ok((mg, mut migrations)) = opt else { return Ok(()) };

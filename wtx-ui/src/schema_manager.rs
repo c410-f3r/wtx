@@ -6,7 +6,9 @@ use wtx::{
   database::{
     DEFAULT_URI_VAR, Identifier,
     client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
-    schema_manager::{Commands, DEFAULT_CFG_FILE_NAME, DbMigration, SchemaManagement},
+    schema_manager::{
+      Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
+    },
   },
   misc::{DEController, UriRef, Vector},
 };
@@ -58,6 +60,7 @@ where
   let _buffer_cmd = &mut String::new();
   let _buffer_db_migrations = &mut Vector::<DbMigration>::new();
   let _buffer_idents = &mut Vector::<Identifier>::new();
+  let _buffer_status = &mut Vector::<MigrationStatus>::new();
 
   let mut commands = Commands::new(sm.files_num, executor);
   match &sm.commands {
@@ -67,7 +70,10 @@ where
     }
     SchemaManagerCommands::Migrate {} => {
       commands
-        .migrate_from_toml_path((_buffer_cmd, _buffer_db_migrations), &toml_file_path(sm)?)
+        .migrate_from_toml_path(
+          (_buffer_cmd, _buffer_db_migrations, _buffer_status),
+          &toml_file_path(sm)?,
+        )
         .await?;
     }
     #[cfg(feature = "schema-manager-dev")]
@@ -75,7 +81,10 @@ where
       let (migration_groups, seeds) =
         wtx::database::schema_manager::misc::parse_root_toml(&toml_file_path(sm)?)?;
       commands
-        .migrate_from_groups_paths((_buffer_cmd, _buffer_db_migrations), &migration_groups)
+        .migrate_from_groups_paths(
+          (_buffer_cmd, _buffer_db_migrations, _buffer_status),
+          &migration_groups,
+        )
         .await?;
       commands.seed_from_dir(_buffer_cmd, seeds_file_path(sm, seeds.as_deref())?).await?;
     }

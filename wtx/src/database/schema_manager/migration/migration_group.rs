@@ -1,4 +1,4 @@
-use crate::misc::Lease;
+use crate::{database::schema_manager::VersionTy, misc::Lease};
 
 /// A set of unique migrations
 ///
@@ -8,7 +8,7 @@ use crate::misc::Lease;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MigrationGroup<S> {
   name: S,
-  version: i32,
+  version: VersionTy,
 }
 
 impl<S> MigrationGroup<S>
@@ -17,7 +17,7 @@ where
 {
   /// Creates a new instance from all necessary parameters.
   #[inline]
-  pub const fn new(name: S, version: i32) -> Self {
+  pub const fn new(name: S, version: VersionTy) -> Self {
     Self { name, version }
   }
 
@@ -43,7 +43,7 @@ where
   /// assert_eq!(migration_group().version(), 1);
   /// ```
   #[inline]
-  pub fn version(&self) -> i32 {
+  pub fn version(&self) -> VersionTy {
     self.version
   }
 }
