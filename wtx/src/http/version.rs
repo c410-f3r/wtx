@@ -3,11 +3,11 @@ create_enum! {
   /// HTTP version
   pub enum Version<u8> {
     /// HTTP/1
-    Http1 = (0),
+    Http1 = (0, "HTTP/1"),
     /// HTTP/1.1
-    Http1_1 = (1),
+    Http1_1 = (1, "HTTP/1.1"),
     /// HTTP/2
     #[default]
-    Http2 = (2),
+    Http2 = (2, "HTTP/2"),
   }
 }
