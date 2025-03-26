@@ -173,14 +173,15 @@ impl OptionedServer {
 }
 
 fn log_req(_peer: &IpAddr, _req: &Request<ReqResBuffer>) {
-  let method = _req.method;
-  let path = _req.rrd.uri.path();
-  let version = _req.version;
+  let _method = _req.method.strings().custom[0];
+  let _path = _req.rrd.uri.path();
+  let _version = _req.version.strings().custom[0];
   #[cfg(feature = "chrono")]
-  let time = crate::misc::GenericTime::timestamp()
+  let _time = crate::misc::GenericTime::timestamp()
     .ok()
-    .and_then(|el| chrono::DateTime::from_timestamp(el.as_secs().try_into().ok()?, 0));
+    .and_then(|el| chrono::DateTime::from_timestamp(el.as_secs().try_into().ok()?, 0))
+    .unwrap_or_default();
   #[cfg(not(feature = "chrono"))]
-  let time = "";
-  _debug!(r#"{_peer} [{time:?}] "{method} {path} {version}""#,);
+  let _time = "";
+  _debug!(r#"{_peer} [{_time}] "{_method} {_path} {_version}""#,);
 }
