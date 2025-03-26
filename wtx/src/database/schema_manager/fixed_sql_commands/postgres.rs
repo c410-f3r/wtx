@@ -12,7 +12,7 @@ pub(crate) static _CREATE_MIGRATION_TABLES: &str = concat!(
   ");
   CREATE TABLE IF NOT EXISTS _wtx._wtx_migration (",
   _serial_id!(),
-  "created_on TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+  "created_on TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,",
   _wtx_migration_columns!(),
   ");"
 );

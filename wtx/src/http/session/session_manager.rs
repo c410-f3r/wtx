@@ -75,7 +75,7 @@ where
     S: SessionStore<CS, E>,
   {
     let SessionManagerInner { cookie_def, phantom: _, key } = &mut *self.inner.lock().await;
-    let id = GenericTime::timestamp()?.as_nanos().to_be_bytes();
+    let id = GenericTime::now_timestamp()?.as_nanos().to_be_bytes();
     let local_state = match (cookie_def.expires, cookie_def.max_age) {
       (None, None) => SessionState { custom_state, expires: None, id },
       (Some(expires), None) => {

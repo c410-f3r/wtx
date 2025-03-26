@@ -46,7 +46,7 @@ The SQL file itself is composed by two parts, one for migrations (`-- wtx IN` se
 
 CREATE TABLE author (
   id INT NOT NULL PRIMARY KEY,
-  added TIMESTAMP NOT NULL,
+  added TIMESTAMPTZ NOT NULL,
   birthdate DATE NOT NULL,
   email VARCHAR(100) NOT NULL,
   first_name VARCHAR(50) NOT NULL,
@@ -65,7 +65,7 @@ One cool thing about the expected file configuration is that it can also be divi
 
 CREATE TABLE author (
   id INT NOT NULL PRIMARY KEY,
-  added TIMESTAMP NOT NULL,
+  added TIMESTAMPTZ NOT NULL,
   birthdate DATE NOT NULL,
   email VARCHAR(100) NOT NULL,
   first_name VARCHAR(50) NOT NULL,

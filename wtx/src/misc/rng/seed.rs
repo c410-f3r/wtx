@@ -29,7 +29,7 @@ pub fn std_seed() -> u64 {
   use core::hash::{BuildHasher, Hasher};
   use std::hash::RandomState;
   let mut seed = Hasher::finish(&BuildHasher::build_hasher(&RandomState::new()));
-  if let Ok(timestamp) = GenericTime::timestamp().map(|el| el.as_nanos()) {
+  if let Ok(timestamp) = GenericTime::now_timestamp().map(|el| el.as_nanos()) {
     let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = timestamp.to_le_bytes();
     let hi = u64::from_le_bytes([a, b, c, d, e, f, g, h]);
     let lo = u64::from_le_bytes([i, j, k, l, m, n, o, p]);

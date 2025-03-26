@@ -15,7 +15,18 @@ pub struct GenericTime {
 }
 
 impl GenericTime {
-  /// Returns an instant corresponding to "now".
+  /// Instance that refers the UNIX epoch (1970-01-01).
+  #[inline]
+  pub const fn epoch() -> crate::Result<Self> {
+    #[cfg(feature = "std")]
+    return Ok(Self { _inner: std::time::UNIX_EPOCH });
+    #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
+    return Ok(Self { _inner: embassy_time::Instant::from_secs(0) });
+    #[cfg(not(any(feature = "std", feature = "embassy-time")))]
+    return Err(crate::Error::GenericTimeNeedsBackend);
+  }
+
+  /// Instant that refers the current time.
   #[inline]
   pub fn now() -> Self {
     #[cfg(feature = "std")]
@@ -24,6 +35,12 @@ impl GenericTime {
     return Self { _inner: embassy_time::Instant::now() };
     #[cfg(not(any(feature = "std", feature = "embassy-time")))]
     return Self { _inner: () };
+  }
+
+  /// UNIX timestamp of the current time.
+  #[inline]
+  pub fn now_timestamp() -> crate::Result<Duration> {
+    Self::now().duration_since(Self::epoch()?)
   }
 
   /// Returns `Some(t)` where `t` is the time `self + duration` if `t` can be represented as
@@ -93,14 +110,9 @@ impl GenericTime {
     Self::now().duration_since(*self)
   }
 
-  /// UNIX timestamp of the current time
+  /// UNIX timestamp based on the current instance.
   #[inline]
-  pub fn timestamp() -> crate::Result<Duration> {
-    #[cfg(feature = "std")]
-    return Self::now().duration_since(Self { _inner: std::time::UNIX_EPOCH });
-    #[cfg(all(feature = "embassy-time", not(any(feature = "std"))))]
-    return Self::now().duration_since(Self { _inner: embassy_time::Instant::from_secs(0) });
-    #[cfg(not(any(feature = "std", feature = "embassy-time")))]
-    return Err(crate::Error::GenericTimeNeedsBackend);
+  pub fn timestamp(&self) -> crate::Result<Duration> {
+    self.duration_since(Self::epoch()?)
   }
 }
