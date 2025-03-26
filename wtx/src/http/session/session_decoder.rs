@@ -55,7 +55,7 @@ where
     let SessionManagerInner { cookie_def, key, .. } = &mut *session_guard;
     if let Some(elem) = ca.lease() {
       if let Some(expires) = &elem.expires {
-        let millis = i64::try_from(GenericTime::timestamp()?.as_millis()).unwrap_or_default();
+        let millis = i64::try_from(GenericTime::now_timestamp()?.as_millis()).unwrap_or_default();
         let date_time = DateTime::from_timestamp_millis(millis).unwrap_or_default();
         if expires >= &date_time {
           let _rslt = self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.id).await;

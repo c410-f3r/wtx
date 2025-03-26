@@ -177,7 +177,7 @@ fn log_req(_peer: &IpAddr, _req: &Request<ReqResBuffer>) {
   let _path = _req.rrd.uri.path();
   let _version = _req.version.strings().custom[0];
   #[cfg(feature = "chrono")]
-  let _time = crate::misc::GenericTime::timestamp()
+  let _time = crate::misc::GenericTime::now_timestamp()
     .ok()
     .and_then(|el| chrono::DateTime::from_timestamp(el.as_secs().try_into().ok()?, 0))
     .unwrap_or_default();
