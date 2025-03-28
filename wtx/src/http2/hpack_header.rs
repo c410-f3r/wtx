@@ -15,7 +15,7 @@ pub(crate) enum HpackHeaderBasic {
 }
 
 impl HpackHeaderBasic {
-  pub(crate) const fn len(self, name: &str, value: &[u8]) -> usize {
+  pub(crate) const fn len(self, name: &str, value: &str) -> usize {
     match self {
       HpackHeaderBasic::Authority => 10usize.wrapping_add(value.len()).wrapping_add(32),
       HpackHeaderBasic::Field => name.len().wrapping_add(value.len()).wrapping_add(32),
@@ -28,11 +28,11 @@ impl HpackHeaderBasic {
   }
 }
 
-impl TryFrom<(HpackHeaderName, &[u8])> for HpackHeaderBasic {
+impl TryFrom<(HpackHeaderName, &str)> for HpackHeaderBasic {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: (HpackHeaderName, &[u8])) -> Result<Self, Self::Error> {
+  fn try_from(from: (HpackHeaderName, &str)) -> Result<Self, Self::Error> {
     Ok(match from.0 {
       HpackHeaderName::Authority => HpackHeaderBasic::Authority,
       HpackHeaderName::Field => HpackHeaderBasic::Field,

@@ -66,8 +66,8 @@ impl HpackEncoder {
   pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
     buffer: &mut Vector<u8>,
-    pseudo_headers: impl IntoIterator<Item = (HpackHeaderBasic, &'pseudo [u8])>,
-    user_headers: impl IntoIterator<Item = Header<'user, &'user [u8]>>,
+    pseudo_headers: impl IntoIterator<Item = (HpackHeaderBasic, &'pseudo str)>,
+    user_headers: impl IntoIterator<Item = Header<'user, &'user str>>,
   ) -> crate::Result<()> {
     let pseudo_headers_iter = pseudo_headers.into_iter();
     let user_headers_iter = user_headers.into_iter();
@@ -147,7 +147,7 @@ impl HpackEncoder {
   #[inline]
   fn dyn_idx(
     &mut self,
-    header: (&str, &[u8], bool),
+    header: (&str, &str, bool),
     should_not_index: bool,
   ) -> crate::Result<EncodeIdx> {
     let (name, value, is_sensitive) = header;
@@ -156,7 +156,7 @@ impl HpackEncoder {
     name_hasher.write(name.as_bytes());
 
     let mut pair_hasher = name_hasher.clone();
-    pair_hasher.write(value);
+    pair_hasher.write(value.as_bytes());
     let pair_hash = pair_hasher.finish();
 
     if let (false, Some(pair_idx)) = (should_not_index, self.indcs.get(&pair_hash).copied()) {
@@ -191,7 +191,7 @@ impl HpackEncoder {
   #[inline]
   fn dyn_idx_with_static_name(
     &mut self,
-    header: (&str, &[u8], bool),
+    header: (&str, &str, bool),
     name_idx: u32,
   ) -> crate::Result<EncodeIdx> {
     let (name, value, is_sensitive) = header;
@@ -205,7 +205,7 @@ impl HpackEncoder {
   #[inline]
   fn encode_idx(
     &mut self,
-    header: (&str, &[u8], bool),
+    header: (&str, &str, bool),
     hhb: HpackHeaderBasic,
     static_header: Option<StaticHeader>,
   ) -> crate::Result<EncodeIdx> {
@@ -260,14 +260,14 @@ impl HpackEncoder {
   // 1. 0 -> 0xxxx -> 4xxxx
   // 2,3,4. 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
   #[inline]
-  fn encode_str(buffer: &mut Vector<u8>, bytes: &[u8]) -> crate::Result<()> {
+  fn encode_str(buffer: &mut Vector<u8>, bytes: &str) -> crate::Result<()> {
     let before_byte = buffer.len();
     buffer.push(0)?;
     if bytes.is_empty() {
       return Ok(());
     }
     let after_byte = buffer.len();
-    huffman_encode(bytes, buffer)?;
+    huffman_encode(bytes.as_bytes(), buffer)?;
     let after_huffman = buffer.len();
     let len_usize = after_huffman.wrapping_sub(after_byte);
     let fits_in_1_byte = len_usize < 0b0111_1111;
@@ -353,7 +353,7 @@ impl HpackEncoder {
 
   // Very large headers are not good candidates for indexing.
   #[inline]
-  fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &str, value: &[u8]) -> bool {
+  fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &str, value: &str) -> bool {
     hhb.len(name, value) >= (self.dyn_headers.max_bytes() / 4).wrapping_mul(3)
   }
 
@@ -365,7 +365,7 @@ impl HpackEncoder {
   #[inline]
   fn manage_encode(
     buffer: &mut Vector<u8>,
-    header: (&str, &[u8]),
+    header: (&str, &str),
     idx: EncodeIdx,
   ) -> crate::Result<()> {
     let (name, value) = header;
@@ -383,12 +383,12 @@ impl HpackEncoder {
       }
       EncodeIdx::SavedNameSavedValue => {
         buffer.push(0b0100_0000)?;
-        Self::encode_str(buffer, name.as_bytes())?;
+        Self::encode_str(buffer, name)?;
         Self::encode_str(buffer, value)?;
       }
       EncodeIdx::UnsavedNameUnsavedValue => {
         buffer.push(0b0001_0000)?;
-        Self::encode_str(buffer, name.as_bytes())?;
+        Self::encode_str(buffer, name)?;
         Self::encode_str(buffer, value)?;
       }
     }
@@ -428,14 +428,14 @@ impl HpackEncoder {
   #[inline]
   fn push_dyn_headers(
     &mut self,
-    (name, value, is_sensitive): (&str, &[u8], bool),
+    (name, value, is_sensitive): (&str, &str, bool),
     (name_hash, pair_hash): (Option<u64>, u64),
   ) -> crate::Result<()> {
     self.idx = self.idx.wrapping_add(1);
     self.dyn_headers.push_front(
       Metadata { name_hash, pair_hash },
       name,
-      [value].into_iter(),
+      [value.as_bytes()].into_iter(),
       is_sensitive,
       |metadata| {
         Self::remove_outdated_indices(&mut self.indcs, metadata);
@@ -445,7 +445,7 @@ impl HpackEncoder {
   }
 
   #[inline]
-  fn shi_pseudo((hhb, value): (HpackHeaderBasic, &[u8])) -> Option<StaticHeader> {
+  fn shi_pseudo((hhb, value): (HpackHeaderBasic, &str)) -> Option<StaticHeader> {
     let (has_value, idx, name): (_, _, &str) = match hhb {
       HpackHeaderBasic::Authority => (false, 1, ":authority"),
       HpackHeaderBasic::Method(method) => {
@@ -460,8 +460,8 @@ impl HpackEncoder {
       HpackHeaderBasic::Path => {
         let name = ":path";
         let (has_value, idx) = match value {
-          b"/" => (true, 4),
-          b"/index.html" => (true, 5),
+          "/" => (true, 4),
+          "/index.html" => (true, 5),
           _ => (false, 4),
         };
         (has_value, idx, name)
@@ -469,8 +469,8 @@ impl HpackEncoder {
       HpackHeaderBasic::Scheme => {
         let name = ":path";
         let (has_value, idx) = match value {
-          b"http" => (true, 6),
-          b"https" => (true, 7),
+          "http" => (true, 6),
+          "https" => (true, 7),
           _ => (false, 6),
         };
         (has_value, idx, name)
@@ -495,11 +495,11 @@ impl HpackEncoder {
   }
 
   #[inline]
-  fn shi_user((name, value): (&str, &[u8])) -> Option<StaticHeader> {
+  fn shi_user((name, value): (&str, &str)) -> Option<StaticHeader> {
     let (has_value, idx, local_name) = match KnownHeaderName::try_from(name.as_bytes()) {
       Ok(KnownHeaderName::AcceptCharset) => (false, 15, KnownHeaderName::AcceptCharset.into()),
       Ok(KnownHeaderName::AcceptEncoding) => {
-        if value == b"gzip, deflate" {
+        if value == "gzip, deflate" {
           (true, 16, KnownHeaderName::AcceptEncoding.into())
         } else {
           (false, 16, KnownHeaderName::AcceptEncoding.into())
@@ -572,7 +572,7 @@ impl HpackEncoder {
   #[inline]
   fn should_not_index(
     &self,
-    (name, value, is_sensitive): (&str, &[u8], bool),
+    (name, value, is_sensitive): (&str, &str, bool),
     hhb: HpackHeaderBasic,
   ) -> bool {
     is_sensitive
@@ -591,7 +591,7 @@ impl HpackEncoder {
   #[inline]
   fn store_header_with_ref_name<const HAS_STATIC_NAME: bool>(
     &mut self,
-    (name, value, is_sensitive): (&str, &[u8], bool),
+    (name, value, is_sensitive): (&str, &str, bool),
     name_idx: u32,
     pair_hash: u64,
   ) -> crate::Result<EncodeIdx> {

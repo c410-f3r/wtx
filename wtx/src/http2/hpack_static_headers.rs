@@ -6,23 +6,23 @@ use crate::{
 /// Mandatory headers of a HTTP/2 request
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct HpackStaticRequestHeaders<'bytes> {
-  pub(crate) authority: &'bytes [u8],
+  pub(crate) authority: &'bytes str,
   pub(crate) method: Option<Method>,
-  pub(crate) path: &'bytes [u8],
+  pub(crate) path: &'bytes str,
   pub(crate) protocol: Option<Protocol>,
-  pub(crate) scheme: &'bytes [u8],
+  pub(crate) scheme: &'bytes str,
 }
 
 impl HpackStaticRequestHeaders<'_> {
   pub(crate) const EMPTY: Self =
-    Self { authority: &[], method: None, path: &[], protocol: None, scheme: &[] };
+    Self { authority: "", method: None, path: "", protocol: None, scheme: "" };
 
   #[inline]
-  pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &[u8])> {
+  pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &str)> {
     let Self { authority, method, path, protocol, scheme } = *self;
     let enums = [
-      method.map(|el| (HpackHeaderBasic::Method(el), &[][..])),
-      protocol.map(|el| (HpackHeaderBasic::Protocol(el), &[][..])),
+      method.map(|el| (HpackHeaderBasic::Method(el), "")),
+      protocol.map(|el| (HpackHeaderBasic::Protocol(el), "")),
     ]
     .into_iter()
     .flatten();
@@ -46,8 +46,8 @@ pub(crate) struct HpackStaticResponseHeaders {
 impl HpackStaticResponseHeaders {
   pub(crate) const EMPTY: Self = Self { status_code: None };
 
-  pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &[u8])> {
+  pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &str)> {
     let Self { status_code } = *self;
-    status_code.map(|el| (HpackHeaderBasic::StatusCode(el), &[][..])).into_iter()
+    status_code.map(|el| (HpackHeaderBasic::StatusCode(el), "")).into_iter()
   }
 }

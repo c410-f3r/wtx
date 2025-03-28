@@ -57,10 +57,7 @@ impl Redirect {
 
   #[inline]
   fn push_headers(headers: &mut Headers, uri: &str) -> crate::Result<()> {
-    headers.push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::Location.into(),
-      [uri.as_bytes()],
-    ))?;
+    headers.push_from_iter(Header::from_name_and_value(KnownHeaderName::Location.into(), [uri]))?;
     Ok(())
   }
 }

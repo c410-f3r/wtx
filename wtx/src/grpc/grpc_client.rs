@@ -68,13 +68,10 @@ where
     headers.push_from_iter_many([
       Header::from_name_and_value(
         KnownHeaderName::ContentType.into(),
-        ["application/grpc".as_bytes()].into_iter(),
+        ["application/grpc"].into_iter(),
       ),
-      Header::from_name_and_value(KnownHeaderName::Te.into(), ["trailers".as_bytes()].into_iter()),
-      Header::from_name_and_value(
-        KnownHeaderName::UserAgent.into(),
-        [WTX_USER_AGENT.as_bytes()].into_iter(),
-      ),
+      Header::from_name_and_value(KnownHeaderName::Te.into(), ["trailers"].into_iter()),
+      Header::from_name_and_value(KnownHeaderName::UserAgent.into(), [WTX_USER_AGENT].into_iter()),
     ])?;
     Ok(())
   }

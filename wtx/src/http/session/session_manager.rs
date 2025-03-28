@@ -8,7 +8,10 @@ use crate::{
   misc::{GenericTime, Lease, LeaseMut, Lock, Rng, Vector},
 };
 use chrono::{DateTime, TimeDelta, Utc};
-use core::marker::PhantomData;
+use core::{
+  fmt::{Debug, Formatter},
+  marker::PhantomData,
+};
 use serde::Serialize;
 
 /// [`SessionManager`] backed by `tokio`
@@ -134,9 +137,18 @@ where
 }
 
 /// Allows the management of state across requests within a connection.
-#[derive(Debug)]
 pub struct SessionManagerInner<CS, E> {
   pub(crate) cookie_def: CookieGeneric<&'static [u8], Vector<u8>>,
   pub(crate) key: SessionKey,
   pub(crate) phantom: PhantomData<(CS, E)>,
+}
+
+impl<CS, E> Debug for SessionManagerInner<CS, E> {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.debug_struct("SessionManagerInner")
+      .field("cookie_def", &self.cookie_def)
+      .field("phantom", &self.phantom)
+      .finish()
+  }
 }

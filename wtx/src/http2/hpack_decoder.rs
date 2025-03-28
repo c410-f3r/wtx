@@ -7,14 +7,14 @@ use crate::{
     huffman::huffman_decode,
     misc::protocol_err,
   },
-  misc::{ArrayVector, Usize},
+  misc::{Usize, from_utf8_basic},
 };
 use alloc::boxed::Box;
 
 const DYN_IDX_OFFSET: usize = 62;
 
 type RawHeaderName<'value> = (HeaderName<&'static str>, HeaderName<&'value str>);
-type RawHeaderValue<'value> = (&'static [u8], &'value [u8]);
+type RawHeaderValue<'value> = (&'static str, &'value str);
 
 #[derive(Debug)]
 pub(crate) struct HpackDecoder {
@@ -28,7 +28,7 @@ impl HpackDecoder {
   pub(crate) fn new() -> Self {
     Self {
       dyn_headers: HpackHeaders::new(0),
-      header_buffers: Box::new((ArrayVector::new(), ArrayVector::new())),
+      header_buffers: Box::new((_HeaderNameBuffer::new(), _HeaderValueBuffer::new())),
       max_bytes: (0, None),
     }
   }
@@ -46,7 +46,7 @@ impl HpackDecoder {
   pub(crate) fn decode(
     &mut self,
     mut data: &[u8],
-    mut cb: impl FnMut((HpackHeaderBasic, HeaderName<&str>, &[u8])) -> crate::Result<()>,
+    mut cb: impl FnMut((HpackHeaderBasic, HeaderName<&str>, &str)) -> crate::Result<()>,
   ) -> crate::Result<()> {
     if let Some(elem) = self.max_bytes.1.take() {
       self.dyn_headers.set_max_bytes(*Usize::from(elem), |_| {});
@@ -132,7 +132,7 @@ impl HpackDecoder {
     &mut self,
     data: &mut &[u8],
     mask: u8,
-    elem_cb: &mut impl FnMut((HpackHeaderBasic, HeaderName<&str>, &[u8])) -> crate::Result<()>,
+    elem_cb: &mut impl FnMut((HpackHeaderBasic, HeaderName<&str>, &str)) -> crate::Result<()>,
   ) -> crate::Result<()> {
     let idx = Self::decode_integer(data, mask)?.1;
     let has_indexed_name = idx != 0;
@@ -160,7 +160,13 @@ impl HpackDecoder {
         static_name.str()
       };
       if STORE {
-        self.dyn_headers.push_front(new_hhb, name, [value].into_iter(), false, |_| {})?;
+        self.dyn_headers.push_front(
+          new_hhb,
+          name,
+          [value.as_bytes()].into_iter(),
+          false,
+          |_| {},
+        )?;
       }
     } else {
       let (hhn, name) = Self::decode_string_name(&mut self.header_buffers.0, data)?;
@@ -168,7 +174,13 @@ impl HpackDecoder {
       let hhb = HpackHeaderBasic::try_from((hhn, value))?;
       elem_cb((hhb, name, value))?;
       if STORE {
-        self.dyn_headers.push_front(hhb, name.str(), [value].into_iter(), false, |_| {})?;
+        self.dyn_headers.push_front(
+          hhb,
+          name.str(),
+          [value.as_bytes()].into_iter(),
+          false,
+          |_| {},
+        )?;
       }
     }
     Ok(())
@@ -200,7 +212,7 @@ impl HpackDecoder {
   {
     let (before, after, is_encoded) = Self::decode_string_init(data)?;
     let (hhn, bytes) = if is_encoded {
-      huffman_decode(before, buffer)?;
+      let _ = huffman_decode(before, buffer)?;
       (HpackHeaderName::new(buffer)?, &**buffer)
     } else {
       let hhn = HpackHeaderName::new(before)?;
@@ -214,18 +226,13 @@ impl HpackDecoder {
   fn decode_string_value<'buffer, 'data, 'rslt>(
     buffer: &'buffer mut _HeaderValueBuffer,
     bytes: &mut &'data [u8],
-  ) -> crate::Result<&'rslt [u8]>
+  ) -> crate::Result<&'rslt str>
   where
     'buffer: 'rslt,
     'data: 'rslt,
   {
     let (before, after, is_encoded) = Self::decode_string_init(bytes)?;
-    let rslt = if is_encoded {
-      huffman_decode(before, buffer)?;
-      buffer
-    } else {
-      before
-    };
+    let rslt = if is_encoded { huffman_decode(before, buffer)? } else { from_utf8_basic(before)? };
     *bytes = after;
     Ok(rslt)
   }
@@ -243,157 +250,81 @@ impl HpackDecoder {
           Some(Http2Error::InvalidHpackIdx(Some(0))),
         ));
       }
-      1 => (HpackHeaderBasic::Authority, (":authority", ""), (&[][..], &[][..])),
-      2 => (HpackHeaderBasic::Method(Method::Get), (":method", ""), ("GET".as_bytes(), &[][..])),
-      3 => (HpackHeaderBasic::Method(Method::Post), (":method", ""), ("POST".as_bytes(), &[][..])),
-      4 => (HpackHeaderBasic::Path, (":path", ""), ("/".as_bytes(), &[][..])),
-      5 => (HpackHeaderBasic::Path, (":path", ""), ("/index.html".as_bytes(), &[][..])),
-      6 => (HpackHeaderBasic::Scheme, (":scheme", ""), ("http".as_bytes(), &[][..])),
-      7 => (HpackHeaderBasic::Scheme, (":scheme", ""), ("https".as_bytes(), &[][..])),
-      8 => {
-        (HpackHeaderBasic::StatusCode(StatusCode::Ok), (":status", ""), ("200".as_bytes(), &[][..]))
+      1 => (HpackHeaderBasic::Authority, (":authority", ""), ("", "")),
+      2 => (HpackHeaderBasic::Method(Method::Get), (":method", ""), ("GET", "")),
+      3 => (HpackHeaderBasic::Method(Method::Post), (":method", ""), ("POST", "")),
+      4 => (HpackHeaderBasic::Path, (":path", ""), ("/", "")),
+      5 => (HpackHeaderBasic::Path, (":path", ""), ("/index.html", "")),
+      6 => (HpackHeaderBasic::Scheme, (":scheme", ""), ("http", "")),
+      7 => (HpackHeaderBasic::Scheme, (":scheme", ""), ("https", "")),
+      8 => (HpackHeaderBasic::StatusCode(StatusCode::Ok), (":status", ""), ("200", "")),
+      9 => (HpackHeaderBasic::StatusCode(StatusCode::NoContent), (":status", ""), ("204", "")),
+      10 => {
+        (HpackHeaderBasic::StatusCode(StatusCode::PartialContent), (":status", ""), ("206", ""))
       }
-      9 => (
-        HpackHeaderBasic::StatusCode(StatusCode::NoContent),
-        (":status", ""),
-        ("204".as_bytes(), &[][..]),
-      ),
-      10 => (
-        HpackHeaderBasic::StatusCode(StatusCode::PartialContent),
-        (":status", ""),
-        ("206".as_bytes(), &[][..]),
-      ),
-      11 => (
-        HpackHeaderBasic::StatusCode(StatusCode::NotModified),
-        (":status", ""),
-        ("304".as_bytes(), &[][..]),
-      ),
-      12 => (
-        HpackHeaderBasic::StatusCode(StatusCode::BadRequest),
-        (":status", ""),
-        ("400".as_bytes(), &[][..]),
-      ),
-      13 => (
-        HpackHeaderBasic::StatusCode(StatusCode::NotFound),
-        (":status", ""),
-        ("404".as_bytes(), &[][..]),
-      ),
+      11 => (HpackHeaderBasic::StatusCode(StatusCode::NotModified), (":status", ""), ("304", "")),
+      12 => (HpackHeaderBasic::StatusCode(StatusCode::BadRequest), (":status", ""), ("400", "")),
+      13 => (HpackHeaderBasic::StatusCode(StatusCode::NotFound), (":status", ""), ("404", "")),
       14 => (
         HpackHeaderBasic::StatusCode(StatusCode::InternalServerError),
         (":status", ""),
-        ("500".as_bytes(), &[][..]),
+        ("500", ""),
       ),
-      15 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::AcceptCharset.into(), ""), (&[][..], &[][..]))
-      }
+      15 => (HpackHeaderBasic::Field, (KnownHeaderName::AcceptCharset.into(), ""), ("", "")),
       16 => (
         HpackHeaderBasic::Field,
         (KnownHeaderName::AcceptEncoding.into(), ""),
-        ("gzip, deflate".as_bytes(), &[][..]),
+        ("gzip, deflate", ""),
       ),
-      17 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::AcceptLanguage.into(), ""), (&[][..], &[][..]))
+      17 => (HpackHeaderBasic::Field, (KnownHeaderName::AcceptLanguage.into(), ""), ("", "")),
+      18 => (HpackHeaderBasic::Field, (KnownHeaderName::AcceptRanges.into(), ""), ("", "")),
+      19 => (HpackHeaderBasic::Field, (KnownHeaderName::Accept.into(), ""), ("", "")),
+      20 => {
+        (HpackHeaderBasic::Field, (KnownHeaderName::AccessControlAllowOrigin.into(), ""), ("", ""))
       }
-      18 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::AcceptRanges.into(), ""), (&[][..], &[][..]))
+      21 => (HpackHeaderBasic::Field, (KnownHeaderName::Age.into(), ""), ("", "")),
+      22 => (HpackHeaderBasic::Field, (KnownHeaderName::Allow.into(), ""), ("", "")),
+      23 => (HpackHeaderBasic::Field, (KnownHeaderName::Authorization.into(), ""), ("", "")),
+      24 => (HpackHeaderBasic::Field, (KnownHeaderName::CacheControl.into(), ""), ("", "")),
+      25 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentDisposition.into(), ""), ("", "")),
+      26 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentEncoding.into(), ""), ("", "")),
+      27 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentLanguage.into(), ""), ("", "")),
+      28 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentLength.into(), ""), ("", "")),
+      29 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentLocation.into(), ""), ("", "")),
+      30 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentRange.into(), ""), ("", "")),
+      31 => (HpackHeaderBasic::Field, (KnownHeaderName::ContentType.into(), ""), ("", "")),
+      32 => (HpackHeaderBasic::Field, (KnownHeaderName::Cookie.into(), ""), ("", "")),
+      33 => (HpackHeaderBasic::Field, (KnownHeaderName::Date.into(), ""), ("", "")),
+      34 => (HpackHeaderBasic::Field, (KnownHeaderName::Etag.into(), ""), ("", "")),
+      35 => (HpackHeaderBasic::Field, (KnownHeaderName::Expect.into(), ""), ("", "")),
+      36 => (HpackHeaderBasic::Field, (KnownHeaderName::Expires.into(), ""), ("", "")),
+      37 => (HpackHeaderBasic::Field, (KnownHeaderName::From.into(), ""), ("", "")),
+      38 => (HpackHeaderBasic::Field, (KnownHeaderName::Host.into(), ""), ("", "")),
+      39 => (HpackHeaderBasic::Field, (KnownHeaderName::IfMatch.into(), ""), ("", "")),
+      40 => (HpackHeaderBasic::Field, (KnownHeaderName::IfModifiedSince.into(), ""), ("", "")),
+      41 => (HpackHeaderBasic::Field, (KnownHeaderName::IfNoneMatch.into(), ""), ("", "")),
+      42 => (HpackHeaderBasic::Field, (KnownHeaderName::IfRange.into(), ""), ("", "")),
+      43 => (HpackHeaderBasic::Field, (KnownHeaderName::IfUnmodifiedSince.into(), ""), ("", "")),
+      44 => (HpackHeaderBasic::Field, (KnownHeaderName::LastModified.into(), ""), ("", "")),
+      45 => (HpackHeaderBasic::Field, (KnownHeaderName::Link.into(), ""), ("", "")),
+      46 => (HpackHeaderBasic::Field, (KnownHeaderName::Location.into(), ""), ("", "")),
+      47 => (HpackHeaderBasic::Field, (KnownHeaderName::MaxForwards.into(), ""), ("", "")),
+      48 => (HpackHeaderBasic::Field, (KnownHeaderName::ProxyAuthenticate.into(), ""), ("", "")),
+      49 => (HpackHeaderBasic::Field, (KnownHeaderName::ProxyAuthorization.into(), ""), ("", "")),
+      50 => (HpackHeaderBasic::Field, (KnownHeaderName::Range.into(), ""), ("", "")),
+      51 => (HpackHeaderBasic::Field, (KnownHeaderName::Referer.into(), ""), ("", "")),
+      52 => (HpackHeaderBasic::Field, (KnownHeaderName::Refresh.into(), ""), ("", "")),
+      53 => (HpackHeaderBasic::Field, (KnownHeaderName::RetryAfter.into(), ""), ("", "")),
+      54 => (HpackHeaderBasic::Field, (KnownHeaderName::Server.into(), ""), ("", "")),
+      55 => (HpackHeaderBasic::Field, (KnownHeaderName::SetCookie.into(), ""), ("", "")),
+      56 => {
+        (HpackHeaderBasic::Field, (KnownHeaderName::StrictTransportSecurity.into(), ""), ("", ""))
       }
-      19 => (HpackHeaderBasic::Field, (KnownHeaderName::Accept.into(), ""), (&[][..], &[][..])),
-      20 => (
-        HpackHeaderBasic::Field,
-        (KnownHeaderName::AccessControlAllowOrigin.into(), ""),
-        (&[][..], &[][..]),
-      ),
-      21 => (HpackHeaderBasic::Field, (KnownHeaderName::Age.into(), ""), (&[][..], &[][..])),
-      22 => (HpackHeaderBasic::Field, (KnownHeaderName::Allow.into(), ""), (&[][..], &[][..])),
-      23 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::Authorization.into(), ""), (&[][..], &[][..]))
-      }
-      24 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::CacheControl.into(), ""), (&[][..], &[][..]))
-      }
-      25 => (
-        HpackHeaderBasic::Field,
-        (KnownHeaderName::ContentDisposition.into(), ""),
-        (&[][..], &[][..]),
-      ),
-      26 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::ContentEncoding.into(), ""), (&[][..], &[][..]))
-      }
-      27 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::ContentLanguage.into(), ""), (&[][..], &[][..]))
-      }
-      28 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::ContentLength.into(), ""), (&[][..], &[][..]))
-      }
-      29 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::ContentLocation.into(), ""), (&[][..], &[][..]))
-      }
-      30 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::ContentRange.into(), ""), (&[][..], &[][..]))
-      }
-      31 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::ContentType.into(), ""), (&[][..], &[][..]))
-      }
-      32 => (HpackHeaderBasic::Field, (KnownHeaderName::Cookie.into(), ""), (&[][..], &[][..])),
-      33 => (HpackHeaderBasic::Field, (KnownHeaderName::Date.into(), ""), (&[][..], &[][..])),
-      34 => (HpackHeaderBasic::Field, (KnownHeaderName::Etag.into(), ""), (&[][..], &[][..])),
-      35 => (HpackHeaderBasic::Field, (KnownHeaderName::Expect.into(), ""), (&[][..], &[][..])),
-      36 => (HpackHeaderBasic::Field, (KnownHeaderName::Expires.into(), ""), (&[][..], &[][..])),
-      37 => (HpackHeaderBasic::Field, (KnownHeaderName::From.into(), ""), (&[][..], &[][..])),
-      38 => (HpackHeaderBasic::Field, (KnownHeaderName::Host.into(), ""), (&[][..], &[][..])),
-      39 => (HpackHeaderBasic::Field, (KnownHeaderName::IfMatch.into(), ""), (&[][..], &[][..])),
-      40 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::IfModifiedSince.into(), ""), (&[][..], &[][..]))
-      }
-      41 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::IfNoneMatch.into(), ""), (&[][..], &[][..]))
-      }
-      42 => (HpackHeaderBasic::Field, (KnownHeaderName::IfRange.into(), ""), (&[][..], &[][..])),
-      43 => (
-        HpackHeaderBasic::Field,
-        (KnownHeaderName::IfUnmodifiedSince.into(), ""),
-        (&[][..], &[][..]),
-      ),
-      44 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::LastModified.into(), ""), (&[][..], &[][..]))
-      }
-      45 => (HpackHeaderBasic::Field, (KnownHeaderName::Link.into(), ""), (&[][..], &[][..])),
-      46 => (HpackHeaderBasic::Field, (KnownHeaderName::Location.into(), ""), (&[][..], &[][..])),
-      47 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::MaxForwards.into(), ""), (&[][..], &[][..]))
-      }
-      48 => (
-        HpackHeaderBasic::Field,
-        (KnownHeaderName::ProxyAuthenticate.into(), ""),
-        (&[][..], &[][..]),
-      ),
-      49 => (
-        HpackHeaderBasic::Field,
-        (KnownHeaderName::ProxyAuthorization.into(), ""),
-        (&[][..], &[][..]),
-      ),
-      50 => (HpackHeaderBasic::Field, (KnownHeaderName::Range.into(), ""), (&[][..], &[][..])),
-      51 => (HpackHeaderBasic::Field, (KnownHeaderName::Referer.into(), ""), (&[][..], &[][..])),
-      52 => (HpackHeaderBasic::Field, (KnownHeaderName::Refresh.into(), ""), (&[][..], &[][..])),
-      53 => (HpackHeaderBasic::Field, (KnownHeaderName::RetryAfter.into(), ""), (&[][..], &[][..])),
-      54 => (HpackHeaderBasic::Field, (KnownHeaderName::Server.into(), ""), (&[][..], &[][..])),
-      55 => (HpackHeaderBasic::Field, (KnownHeaderName::SetCookie.into(), ""), (&[][..], &[][..])),
-      56 => (
-        HpackHeaderBasic::Field,
-        (KnownHeaderName::StrictTransportSecurity.into(), ""),
-        (&[][..], &[][..]),
-      ),
-      57 => (
-        HpackHeaderBasic::Field,
-        (KnownHeaderName::TransferEncoding.into(), ""),
-        (&[][..], &[][..]),
-      ),
-      58 => (HpackHeaderBasic::Field, (KnownHeaderName::UserAgent.into(), ""), (&[][..], &[][..])),
-      59 => (HpackHeaderBasic::Field, (KnownHeaderName::Vary.into(), ""), (&[][..], &[][..])),
-      60 => (HpackHeaderBasic::Field, (KnownHeaderName::Via.into(), ""), (&[][..], &[][..])),
-      61 => {
-        (HpackHeaderBasic::Field, (KnownHeaderName::WwwAuthenticate.into(), ""), (&[][..], &[][..]))
-      }
+      57 => (HpackHeaderBasic::Field, (KnownHeaderName::TransferEncoding.into(), ""), ("", "")),
+      58 => (HpackHeaderBasic::Field, (KnownHeaderName::UserAgent.into(), ""), ("", "")),
+      59 => (HpackHeaderBasic::Field, (KnownHeaderName::Vary.into(), ""), ("", "")),
+      60 => (HpackHeaderBasic::Field, (KnownHeaderName::Via.into(), ""), ("", "")),
+      61 => (HpackHeaderBasic::Field, (KnownHeaderName::WwwAuthenticate.into(), ""), ("", "")),
       dyn_idx_with_offset => {
         return dyn_headers
           .get_by_idx(dyn_idx_with_offset.wrapping_sub(DYN_IDX_OFFSET))
@@ -401,7 +332,8 @@ impl HpackDecoder {
             (
               *el.misc,
               (HeaderName::new_unchecked(""), HeaderName::new_unchecked(el.name_bytes)),
-              (&[][..], el.value_bytes),
+              // SAFETY: Everything previously inserted in `dyn_headers` is UTF-8
+              ("", unsafe { str::from_utf8_unchecked(el.value_bytes) }),
             )
           })
           .ok_or_else(|| {
@@ -420,7 +352,7 @@ impl HpackDecoder {
     &mut self,
     byte: u8,
     data: &mut &[u8],
-    elem_cb: &mut impl FnMut((HpackHeaderBasic, HeaderName<&str>, &[u8])) -> crate::Result<()>,
+    elem_cb: &mut impl FnMut((HpackHeaderBasic, HeaderName<&str>, &str)) -> crate::Result<()>,
     mut size_update_cb: impl FnMut() -> crate::Result<()>,
   ) -> crate::Result<()> {
     match DecodeIdx::try_from(byte)? {

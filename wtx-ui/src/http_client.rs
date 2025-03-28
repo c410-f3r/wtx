@@ -20,7 +20,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
       .headers
       .push_from_iter(Header::from_name_and_value(
         name.trim(),
-        values.split(',').map(|el| el.trim().as_bytes()),
+        values.split(',').map(|el| el.trim()),
       ))
       .unwrap();
   }
@@ -29,7 +29,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
       .headers
       .push_from_iter(Header::from_name_and_value(
         KnownHeaderName::UserAgent.into(),
-        [elem.as_bytes()],
+        [elem.as_str()],
       ))
       .unwrap();
   }
