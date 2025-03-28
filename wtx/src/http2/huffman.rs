@@ -136,39 +136,6 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
   Ok(())
 }
 
-#[cfg(all(feature = "_bench", test))]
-mod bench {
-  use crate::{
-    bench::_data,
-    http2::huffman::{huffman_decode, huffman_encode},
-    misc::{ArrayVector, Vector},
-  };
-  use alloc::boxed::Box;
-
-  #[bench]
-  fn decode(b: &mut test::Bencher) {
-    const N: usize = 1024 * 512;
-    let data = {
-      let mut dest = Vector::with_capacity(N).unwrap();
-      huffman_encode(&_data(N), &mut dest).unwrap();
-      dest
-    };
-    let mut dest = Box::new(ArrayVector::<_, N>::default());
-    b.iter(|| {
-      let _ = huffman_decode(&data, &mut dest).unwrap();
-      dest.clear();
-    });
-  }
-
-  #[bench]
-  fn encode(b: &mut test::Bencher) {
-    const N: usize = 1024 * 1024 * 4;
-    let mut data = _data(N);
-    let mut dest = Vector::with_capacity(N).unwrap();
-    b.iter(|| huffman_encode(&mut data, &mut dest));
-  }
-}
-
 #[cfg(kani)]
 mod kani {
   use crate::{
