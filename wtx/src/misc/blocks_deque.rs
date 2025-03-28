@@ -205,7 +205,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Prepends a block to the queue.
   #[inline]
-  pub fn push_front_from_coyable_data<'data, I>(&mut self, data: I, misc: M) -> crate::Result<()>
+  pub fn push_front_from_copyable_data<'data, I>(&mut self, data: I, misc: M) -> crate::Result<()>
   where
     D: Copy + 'data,
     I: IntoIterator<Item = &'data [D]>,

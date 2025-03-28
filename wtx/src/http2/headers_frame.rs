@@ -11,7 +11,7 @@ use crate::{
     u31::U31,
     uri_buffer::UriBuffer,
   },
-  misc::{ArrayString, FromRadix10, LeaseMut, Usize, from_utf8_basic},
+  misc::{ArrayString, LeaseMut, Usize},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.
@@ -114,7 +114,7 @@ impl<'uri> HeadersFrame<'uri> {
           ) => {
             is_malformed = true;
           }
-          Ok(KnownHeaderName::Te) if value != b"trailers" => {
+          Ok(KnownHeaderName::Te) if value != "trailers" => {
             is_malformed = true;
           }
           _ => {
@@ -126,7 +126,7 @@ impl<'uri> HeadersFrame<'uri> {
               if let Ok(KnownHeaderName::ContentLength) =
                 KnownHeaderName::try_from(name.str().as_bytes())
               {
-                content_length = Some(usize::from_radix_10(value)?);
+                content_length = Some(value.parse()?);
               }
               rrb_headers.push_from_iter(Header {
                 is_sensitive: false,
@@ -249,13 +249,7 @@ impl<'uri> HeadersFrame<'uri> {
       content_length,
       Self {
         cf: fi.cf,
-        hsreqh: HpackStaticRequestHeaders {
-          authority: &[],
-          method,
-          path: &[],
-          protocol,
-          scheme: &[],
-        },
+        hsreqh: HpackStaticRequestHeaders { authority: "", method, path: "", protocol, scheme: "" },
         hsresh: HpackStaticResponseHeaders { status_code: status },
         is_over_size,
         stream_id: fi.stream_id,
@@ -288,7 +282,7 @@ fn push_enum(
   is_some: bool,
   max_headers_len: usize,
   name: &str,
-  value: &[u8],
+  value: &str,
 ) -> bool {
   if *has_fields || is_some {
     *is_malformed = true;
@@ -310,7 +304,7 @@ fn push_uri<const N: usize>(
   is_over_size: &mut bool,
   max_headers_len: usize,
   name: &str,
-  value: &[u8],
+  value: &str,
 ) {
   if *has_fields || !buffer.is_empty() {
     *is_malformed = true;
@@ -319,7 +313,7 @@ fn push_uri<const N: usize>(
     *expanded_headers_len = expanded_headers_len.wrapping_add(len);
     *is_over_size = *expanded_headers_len >= max_headers_len;
     if !*is_over_size {
-      let _ = from_utf8_basic(value).ok().and_then(|el| buffer.push_str(el).ok());
+      let _ = buffer.push_str(value).ok();
     }
   }
 }

@@ -34,7 +34,7 @@ async fn client(uri: &UriString) {
   _0(rrb.body(), rrb.headers());
 
   rrb.clear();
-  rrb.headers.push_from_iter(Header::from_name_and_value("123", ["456".as_bytes()])).unwrap();
+  rrb.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _1(rrb.body(), rrb.headers());
 
@@ -45,7 +45,7 @@ async fn client(uri: &UriString) {
 
   rrb.clear();
   rrb.body.extend_from_copyable_slice(b"123").unwrap();
-  rrb.headers.push_from_iter(Header::from_name_and_value("123", ["456".as_bytes()])).unwrap();
+  rrb.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
   rrb = stream_client(&mut http2, rrb, &uri_ref).await;
   _3(rrb.body(), rrb.headers());
 

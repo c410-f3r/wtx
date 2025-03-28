@@ -70,7 +70,7 @@ where
       }
       let ss_des: SessionState<CS> = {
         let idx = req.rrd.body.len();
-        let cookie_des = CookieBytes::parse(header.value, &mut req.rrd.body)?;
+        let cookie_des = CookieBytes::parse(header.value.as_bytes(), &mut req.rrd.body)?;
         if cookie_des.generic.name != cookie_def.name {
           continue;
         }

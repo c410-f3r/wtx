@@ -51,7 +51,8 @@ impl ReqBuilder {
       let ReqResBuffer { body, headers, uri: _ } = self.rrb.lease_mut();
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::Authorization.into(),
-        [body.get(body_idx..).unwrap_or_default()],
+        // SAFETY: Everything after `body_idx` is UTF-8
+        [unsafe { str::from_utf8_unchecked(body.get(body_idx..).unwrap_or_default()) }],
       ))
     };
     if let Err(err) = fun() {
@@ -85,7 +86,7 @@ impl ReqBuilder {
   pub fn content_type(mut self, mime: Mime) -> crate::Result<Self> {
     self.rrb.lease_mut().headers.push_from_iter(Header::from_name_and_value(
       KnownHeaderName::ContentType.into(),
-      [mime.as_str().as_bytes()],
+      [mime.as_str()],
     ))?;
     Ok(self)
   }
@@ -135,7 +136,7 @@ impl ReqBuilder {
 
   /// Characteristic string that lets servers and network peers identify the application.
   #[inline]
-  pub fn user_agent(mut self, value: &[u8]) -> crate::Result<Self> {
+  pub fn user_agent(mut self, value: &str) -> crate::Result<Self> {
     self
       .rrb
       .lease_mut()

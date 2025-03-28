@@ -64,7 +64,7 @@ where
       return Ok(());
     }
     self.remove_until_max_bytes(local_len, cb);
-    self.bq.push_front_from_coyable_data(
+    self.bq.push_front_from_copyable_data(
       [name.as_bytes()].into_iter().chain(iter),
       Metadata { is_sensitive, misc, name_len: name.len() },
     )?;

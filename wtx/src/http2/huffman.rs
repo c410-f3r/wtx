@@ -4,14 +4,14 @@ use crate::{
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::{_unreachable, ArrayVector, Vector},
+  misc::{_unreachable, ArrayVector, Vector, from_utf8_basic},
 };
 
 #[inline]
-pub(crate) fn huffman_decode<const N: usize>(
+pub(crate) fn huffman_decode<'to, const N: usize>(
   from: &[u8],
-  wb: &mut ArrayVector<u8, N>,
-) -> crate::Result<()> {
+  to: &'to mut ArrayVector<u8, N>,
+) -> crate::Result<&'to str> {
   #[inline]
   fn decode_4_bits(
     curr_state: &mut u8,
@@ -41,7 +41,7 @@ pub(crate) fn huffman_decode<const N: usize>(
   let mut is_ok = true;
   let mut end_of_string = false;
 
-  wb.clear();
+  to.clear();
 
   _iter4!(
     from,
@@ -53,11 +53,11 @@ pub(crate) fn huffman_decode<const N: usize>(
     |elem| {
       let left_nibble = elem >> 4;
       if let Some(byte) = decode_4_bits(&mut curr_state, left_nibble, &mut end_of_string)? {
-        is_ok = wb.push(byte).is_ok();
+        is_ok = to.push(byte).is_ok();
       }
       let right_nibble = elem & 0b0000_1111;
       if let Some(byte) = decode_4_bits(&mut curr_state, right_nibble, &mut end_of_string)? {
-        is_ok = wb.push(byte).is_ok();
+        is_ok = to.push(byte).is_ok();
       }
     }
   );
@@ -74,7 +74,7 @@ pub(crate) fn huffman_decode<const N: usize>(
     ));
   }
 
-  Ok(())
+  Ok(from_utf8_basic(to)?)
 }
 
 #[inline]
@@ -136,39 +136,6 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
   Ok(())
 }
 
-#[cfg(all(feature = "_bench", test))]
-mod bench {
-  use crate::{
-    bench::_data,
-    http2::huffman::{huffman_decode, huffman_encode},
-    misc::{ArrayVector, Vector},
-  };
-  use alloc::boxed::Box;
-
-  #[bench]
-  fn decode(b: &mut test::Bencher) {
-    const N: usize = 1024 * 512;
-    let data = {
-      let mut dest = Vector::with_capacity(N).unwrap();
-      huffman_encode(&_data(N), &mut dest).unwrap();
-      dest
-    };
-    let mut dest = Box::new(ArrayVector::<_, N>::default());
-    b.iter(|| {
-      huffman_decode(&data, &mut dest).unwrap();
-      dest.clear();
-    });
-  }
-
-  #[bench]
-  fn encode(b: &mut test::Bencher) {
-    const N: usize = 1024 * 1024 * 4;
-    let mut data = _data(N);
-    let mut dest = Vector::with_capacity(N).unwrap();
-    b.iter(|| huffman_encode(&mut data, &mut dest));
-  }
-}
-
 #[cfg(kani)]
 mod kani {
   use crate::{
@@ -219,7 +186,7 @@ mod test {
     bytes: &[u8],
     encoded: &[u8],
   ) {
-    huffman_decode(encoded, decode_buffer).unwrap();
+    let _ = huffman_decode(encoded, decode_buffer).unwrap();
     assert_eq!(&**decode_buffer, bytes);
 
     huffman_encode(&*bytes, encode_buffer).unwrap();

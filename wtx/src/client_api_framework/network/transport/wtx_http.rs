@@ -91,12 +91,12 @@ where
   let HttpReqParams { headers, mime, .. } = &mut params.ext_params_mut().0;
   headers.push_from_iter(Header::from_name_and_value(
     KnownHeaderName::UserAgent.into(),
-    [WTX_USER_AGENT.as_bytes()],
+    [WTX_USER_AGENT],
   ))?;
   if let Some(elem) = mime {
     headers.push_from_iter(Header::from_name_and_value(
       KnownHeaderName::ContentType.into(),
-      [elem.as_str().as_bytes()],
+      [elem.as_str()],
     ))?;
   }
   Ok(())

@@ -4,7 +4,7 @@ use crate::{
     MAX_HPACK_LEN, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
     hpack_header::HpackHeaderBasic,
   },
-  misc::{Vector, Xorshift64, from_utf8_basic, simple_seed},
+  misc::{Vector, Xorshift64, simple_seed},
 };
 use alloc::string::String;
 use core::{fmt::Formatter, marker::PhantomData};
@@ -143,15 +143,15 @@ fn parse_hex(hex: &[u8]) -> Vector<u8> {
 fn strs<'key, 'value>(
   hhb: HpackHeaderBasic,
   name: &'key str,
-  value: &'value [u8],
+  value: &'value str,
 ) -> (&'key str, &'value str) {
   match hhb {
-    HpackHeaderBasic::Authority => (":authority", from_utf8_basic(value).unwrap()),
-    HpackHeaderBasic::Field => (name, from_utf8_basic(value).unwrap()),
+    HpackHeaderBasic::Authority => (":authority", value),
+    HpackHeaderBasic::Field => (name, value),
     HpackHeaderBasic::Method(elem) => (":method", elem.strings().custom[0]),
-    HpackHeaderBasic::Path => (":path", from_utf8_basic(value).unwrap()),
+    HpackHeaderBasic::Path => (":path", value),
     HpackHeaderBasic::Protocol(elem) => (":protocol", elem.strings().custom[0]),
-    HpackHeaderBasic::Scheme => (":scheme", from_utf8_basic(value).unwrap()),
+    HpackHeaderBasic::Scheme => (":scheme", value),
     HpackHeaderBasic::StatusCode(elem) => (":status", elem.strings().number),
   }
 }
@@ -196,20 +196,20 @@ fn test_story_encoding_and_decoding(
 
     let mut pseudo_headers = Vector::from_iter(case.headers.iter().filter_map(|header| {
       Some(match header.name.as_str() {
-        ":authority" => (HpackHeaderBasic::Authority, header.value.as_bytes()),
+        ":authority" => (HpackHeaderBasic::Authority, header.value.as_str()),
         ":method" => {
           let method = header.value.as_str().try_into().unwrap();
-          (HpackHeaderBasic::Method(method), method.strings().custom[0].as_bytes())
+          (HpackHeaderBasic::Method(method), method.strings().custom[0])
         }
-        ":path" => (HpackHeaderBasic::Path, header.value.as_bytes()),
+        ":path" => (HpackHeaderBasic::Path, header.value.as_str()),
         ":protocol" => {
           let protocol = header.value.as_str().try_into().unwrap();
-          (HpackHeaderBasic::Protocol(protocol), protocol.strings().custom[0].as_bytes())
+          (HpackHeaderBasic::Protocol(protocol), protocol.strings().custom[0])
         }
-        ":scheme" => (HpackHeaderBasic::Scheme, header.value.as_bytes()),
+        ":scheme" => (HpackHeaderBasic::Scheme, header.value.as_str()),
         ":status" => {
           let status: StatusCode = header.value.as_str().try_into().unwrap();
-          (HpackHeaderBasic::StatusCode(status), status.strings().number.as_bytes())
+          (HpackHeaderBasic::StatusCode(status), status.strings().number)
         }
         _ => return None,
       })
@@ -220,7 +220,7 @@ fn test_story_encoding_and_decoding(
       if header.name.starts_with(":") {
         None
       } else {
-        Some((HpackHeaderBasic::Field, header.name.as_str(), header.value.as_bytes()))
+        Some((HpackHeaderBasic::Field, header.name.as_str(), header.value.as_str()))
       }
     }))
     .unwrap();

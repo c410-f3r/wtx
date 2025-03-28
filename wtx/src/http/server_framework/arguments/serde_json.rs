@@ -83,7 +83,7 @@ where
 fn push_content_type(req: &mut Request<ReqResBuffer>) -> crate::Result<()> {
   req.rrd.lease_mut().headers.push_from_iter(Header::from_name_and_value(
     KnownHeaderName::ContentType.into(),
-    [Mime::ApplicationJson.as_str().as_bytes()],
+    [Mime::ApplicationJson.as_str()],
   ))?;
   Ok(())
 }

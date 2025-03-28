@@ -30,22 +30,22 @@ fn pop_back() {
   let mut bq = BlocksDeque::with_exact_capacity(4, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
 
-  bq.push_front_from_coyable_data([&[1][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[1][..]], ()).unwrap();
   check_state(&bq, 1, 1, &[1], &[]);
 
-  bq.push_front_from_coyable_data([&[2, 3][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[2, 3][..]], ()).unwrap();
   check_state(&bq, 2, 3, &[2, 3, 1], &[]);
 
-  bq.push_front_from_coyable_data([&[4, 5], &[6][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[4, 5], &[6][..]], ()).unwrap();
   check_state(&bq, 3, 6, &[4, 5, 6, 2, 3, 1], &[]);
 
-  bq.push_front_from_coyable_data([&[7, 8][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[7, 8][..]], ()).unwrap();
   check_state(&bq, 4, 8, &[7, 8, 4, 5, 6, 2, 3, 1], &[]);
 
   let _ = bq.pop_back();
   check_state(&bq, 3, 7, &[7, 8, 4, 5, 6, 2, 3], &[]);
 
-  bq.push_front_from_coyable_data([&[9][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[9][..]], ()).unwrap();
   check_state(&bq, 4, 8, &[9], &[7, 8, 4, 5, 6, 2, 3]);
 
   let _ = bq.pop_back();
@@ -54,10 +54,10 @@ fn pop_back() {
   let _ = bq.pop_back();
   check_state(&bq, 2, 3, &[9], &[7, 8]);
 
-  bq.push_front_from_coyable_data([&[10], &[11, 12][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[10], &[11, 12][..]], ()).unwrap();
   check_state(&bq, 3, 6, &[10, 11, 12, 9], &[7, 8]);
 
-  bq.push_front_from_coyable_data([&[13, 14][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[13, 14][..]], ()).unwrap();
   check_state(&bq, 4, 8, &[13, 14, 10, 11, 12, 9], &[7, 8]);
 
   let _ = bq.pop_back();
@@ -69,10 +69,10 @@ fn pop_back() {
   let _ = bq.pop_back();
   check_state(&bq, 1, 2, &[13, 14], &[]);
 
-  bq.push_front_from_coyable_data([&[15][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[15][..]], ()).unwrap();
   check_state(&bq, 2, 3, &[15, 13, 14], &[]);
 
-  bq.push_front_from_coyable_data([&[16][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[16][..]], ()).unwrap();
   check_state(&bq, 3, 4, &[16, 15, 13, 14], &[]);
 
   let _ = bq.pop_back();
@@ -95,10 +95,10 @@ fn pop_front() {
   let mut bq = BlocksDeque::with_exact_capacity(2, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
 
-  bq.push_front_from_coyable_data([&[1, 2, 3][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[1, 2, 3][..]], ()).unwrap();
   check_state(&bq, 1, 3, &[1, 2, 3], &[]);
 
-  bq.push_front_from_coyable_data([&[4, 5], &[6, 7, 8][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[4, 5], &[6, 7, 8][..]], ()).unwrap();
   check_state(&bq, 2, 8, &[4, 5, 6, 7, 8, 1, 2, 3], &[]);
 
   let _ = bq.pop_front();
@@ -114,12 +114,12 @@ fn pop_front() {
 fn push_reserve_and_push() {
   let mut bq = BlocksDeque::new();
   bq.reserve_front(1, 4).unwrap();
-  bq.push_front_from_coyable_data([&[0, 1, 2, 3][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[0, 1, 2, 3][..]], ()).unwrap();
   check_state(&bq, 1, 4, &[0, 1, 2, 3], &[]);
   assert_eq!(bq.get(0), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 0..4 }));
   assert_eq!(bq.get(1), None);
   bq.reserve_front(1, 6).unwrap();
-  bq.push_front_from_coyable_data([&[4, 5, 6, 7, 8, 9][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[4, 5, 6, 7, 8, 9][..]], ()).unwrap();
   check_state(&bq, 2, 10, &[4, 5, 6, 7, 8, 9, 0, 1, 2, 3], &[]);
   assert_eq!(bq.get(0), Some(BlockRef { data: &[4, 5, 6, 7, 8, 9], misc: &(), range: 0..6 }));
   assert_eq!(bq.get(1), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 6..10 }));
@@ -161,7 +161,7 @@ fn wrap_initial() -> BlocksDeque<i32, ()> {
   let mut bq = BlocksDeque::with_exact_capacity(6, 8).unwrap();
   check_state(&bq, 0, 0, &[], &[]);
   for _ in 0..6 {
-    bq.push_front_from_coyable_data([&[0][..]], ()).unwrap();
+    bq.push_front_from_copyable_data([&[0][..]], ()).unwrap();
   }
   check_state(&bq, 6, 6, &[0, 0, 0, 0, 0, 0], &[]);
   for idx in 0..6 {
@@ -174,7 +174,7 @@ fn wrap_initial() -> BlocksDeque<i32, ()> {
   check_state(&bq, 2, 2, &[0, 0], &[]);
   assert_eq!(bq.get(0).unwrap().data, &[0]);
   assert_eq!(bq.get(1).unwrap().data, &[0]);
-  bq.push_front_from_coyable_data([&[1, 2, 3][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[1, 2, 3][..]], ()).unwrap();
   check_state(&bq, 3, 5, &[1, 2, 3, 0, 0], &[]);
   assert_eq!(bq.get(0).unwrap().data, &[1, 2, 3]);
   assert_eq!(bq.get(1).unwrap().data, &[0]);

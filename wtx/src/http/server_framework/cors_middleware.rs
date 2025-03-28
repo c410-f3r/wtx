@@ -4,7 +4,7 @@ use crate::{
     StatusCode,
     server_framework::{ConnAux, Middleware, ServerFrameworkError},
   },
-  misc::{Intersperse, Vector, bytes_split1},
+  misc::{Intersperse, Vector, str_split1},
 };
 use alloc::string::String;
 use core::ops::ControlFlow;
@@ -184,13 +184,13 @@ impl CorsMiddleware {
   }
 
   #[inline]
-  fn allowed_origin<'this>(&'this self, origin: &[u8]) -> Option<(&'this str, usize)> {
+  fn allowed_origin<'this>(&'this self, origin: &str) -> Option<(&'this str, usize)> {
     self
       .allow_origins
       .1
       .iter()
       .enumerate()
-      .find_map(|(idx, el)| (el.as_bytes() == origin).then(|| (el.as_str(), idx)))
+      .find_map(|(idx, el)| (el == origin).then(|| (el.as_str(), idx)))
   }
 
   #[inline]
@@ -198,14 +198,14 @@ impl CorsMiddleware {
     if allow_credentials {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlAllowCredentials.into(),
-        ["true".as_bytes()],
+        ["true"],
       ))?;
     }
     Ok(())
   }
 
   #[inline]
-  fn apply_allow_headers(allow_headers: &[u8], headers: &mut Headers) -> crate::Result<()> {
+  fn apply_allow_headers(allow_headers: &str, headers: &mut Headers) -> crate::Result<()> {
     if !allow_headers.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlAllowHeaders.into(),
@@ -223,7 +223,7 @@ impl CorsMiddleware {
     if *is_wildcard {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlAllowMethods.into(),
-        ["*".as_bytes()],
+        ["*"],
       ))?;
     } else if !specifics.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
@@ -231,9 +231,9 @@ impl CorsMiddleware {
         Intersperse::new(
           specifics.iter().map(|el| {
             let [_, name] = el.strings().custom;
-            name.as_bytes()
+            name
           }),
-          b",",
+          ",",
         ),
       ))?;
     } else {
@@ -242,7 +242,7 @@ impl CorsMiddleware {
   }
 
   #[inline]
-  fn apply_allow_origin(origin: &[u8], headers: &mut Headers) -> crate::Result<()> {
+  fn apply_allow_origin(origin: &str, headers: &mut Headers) -> crate::Result<()> {
     headers.push_from_iter(Header::from_name_and_value(
       KnownHeaderName::AccessControlAllowOrigin.into(),
       [origin],
@@ -258,12 +258,12 @@ impl CorsMiddleware {
     if *is_wildcard {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlExposeHeaders.into(),
-        ["*".as_bytes()],
+        ["*"],
       ))?;
     } else if !specifics.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlExposeHeaders.into(),
-        Intersperse::new(specifics.iter().map(|el| el.as_bytes()), b","),
+        Intersperse::new(specifics.iter().map(|el| el.as_str()), ","),
       ))?;
     } else {
     }
@@ -299,13 +299,13 @@ impl CorsMiddleware {
     match origin_response {
       OriginResponse::AllowedFromInternalList(idx) => {
         Self::apply_allow_origin(
-          self.allow_origins.1.get(*idx).map(|el| el.as_bytes()).unwrap_or_default(),
+          self.allow_origins.1.get(*idx).map(|el| el.as_str()).unwrap_or_default(),
           headers,
         )?;
       }
       OriginResponse::None => {}
       OriginResponse::Wildcard => {
-        Self::apply_allow_origin(b"*", headers)?;
+        Self::apply_allow_origin("*", headers)?;
       }
     }
     Self::apply_expose_headers(expose_headers, headers)?;
@@ -315,8 +315,8 @@ impl CorsMiddleware {
   #[inline]
   async fn apply_preflight_response(
     &self,
-    evaluated_allow_headers: &[u8],
-    evaluated_allow_origin: &[u8],
+    evaluated_allow_headers: &str,
+    evaluated_allow_origin: &str,
     headers: &mut Headers,
   ) -> crate::Result<()> {
     let Self {
@@ -337,28 +337,28 @@ impl CorsMiddleware {
 
   #[inline]
   fn extract_origin<'any>(
-    opt: Option<Header<'any, &'any [u8]>>,
-  ) -> crate::Result<Header<'any, &'any [u8]>> {
+    opt: Option<Header<'any, &'any str>>,
+  ) -> crate::Result<Header<'any, &'any str>> {
     Ok(opt.ok_or(HttpError::MissingHeader(KnownHeaderName::Origin))?)
   }
 
   #[inline]
   fn manage_preflight_headers(
     &self,
-    acrh: Header<'_, &[u8]>,
+    acrh: Header<'_, &str>,
     body: &mut Vector<u8>,
   ) -> crate::Result<()> {
     if self.allow_headers.0 {
-      body.extend_from_copyable_slice(acrh.value)?;
+      body.extend_from_copyable_slice(acrh.value.as_bytes())?;
       return Ok(());
     }
     let mut uniques = HashSet::new();
-    for sub_header in bytes_split1(acrh.value, b',') {
+    for sub_header in str_split1(acrh.value, b',') {
       let _ = uniques.insert(sub_header.trim_ascii());
     }
     let mut matched_headers: usize = 0;
     for allow_header in self.allow_headers.1.iter() {
-      if uniques.contains(allow_header.as_bytes()) {
+      if uniques.contains(allow_header.as_str()) {
         matched_headers = matched_headers.wrapping_add(1);
       }
     }
@@ -367,26 +367,23 @@ impl CorsMiddleware {
     }
     let mut iter = uniques.iter();
     if let Some(elem) = iter.next() {
-      body.extend_from_copyable_slice(elem)?;
+      body.extend_from_copyable_slice(elem.as_bytes())?;
     }
     for elem in iter {
-      let slices = [",".as_bytes(), elem];
-      let _ = body.extend_from_copyable_slices(slices)?;
+      let _ = body.extend_from_copyable_slices([",".as_bytes(), elem.as_bytes()])?;
     }
     Ok(())
   }
 
   #[inline]
-  fn manage_preflight_methods(&self, acrm: Header<'_, &[u8]>) -> crate::Result<()> {
+  fn manage_preflight_methods(&self, acrm: Header<'_, &str>) -> crate::Result<()> {
     if self.allow_methods.0 {
       return Ok(());
     }
     if !self.allow_methods.1.iter().any(|method| {
       let strings = method.strings();
       let [a, b] = strings.custom;
-      strings.ident.as_bytes() == acrm.value
-        || a.as_bytes() == acrm.value
-        || b.as_bytes() == acrm.value
+      strings.ident == acrm.value || a == acrm.value || b == acrm.value
     }) {
       return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsMethod));
     }
@@ -397,16 +394,16 @@ impl CorsMiddleware {
   fn manage_preflight_origin(
     &self,
     body: &mut Vector<u8>,
-    origin: Header<'_, &[u8]>,
+    origin: Header<'_, &str>,
   ) -> crate::Result<()> {
     let actual_origin = if self.allow_origins.0 {
       origin.value
     } else if let Some(allowed_origin) = self.allowed_origin(origin.value) {
-      allowed_origin.0.as_bytes()
+      allowed_origin.0
     } else {
       return Err(crate::Error::from(ServerFrameworkError::ForbiddenCorsOrigin));
     };
-    body.extend_from_copyable_slice(actual_origin)?;
+    body.extend_from_copyable_slice(actual_origin.as_bytes())?;
     Ok(())
   }
 }
@@ -444,7 +441,15 @@ where
         self.manage_preflight_origin(&mut req.rrd.body, Self::extract_origin(origin_opt)?)?;
         let (headers_bytes, origin_bytes) = req.rrd.body.split_at_checked(idx).unwrap_or_default();
         req.rrd.headers.clear();
-        self.apply_preflight_response(headers_bytes, origin_bytes, &mut req.rrd.headers).await?;
+        self
+          .apply_preflight_response(
+            // SAFETY: Every single element of `req.rrd.bod` was previously inserted with UTF-8
+            unsafe { str::from_utf8_unchecked(headers_bytes) },
+            // SAFETY: Every single element of `req.rrd.bod` was previously inserted with UTF-8
+            unsafe { str::from_utf8_unchecked(origin_bytes) },
+            &mut req.rrd.headers,
+          )
+          .await?;
         req.rrd.body.clear();
         return Ok(ControlFlow::Break(StatusCode::Ok));
       } else {

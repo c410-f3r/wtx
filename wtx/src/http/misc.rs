@@ -13,7 +13,7 @@ pub fn is_web_socket_handshake(
   let bytes = KnownHeaderName::SecWebsocketVersion.into();
   method == Method::Connect
     && protocol == Some(Protocol::WebSocket)
-    && headers.get_by_name(bytes).map(|el| el.value) == Some(b"13")
+    && headers.get_by_name(bytes).map(|el| el.value) == Some("13")
 }
 
 /// Used as an auxiliary tool for tests.

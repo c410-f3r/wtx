@@ -21,10 +21,10 @@ fn check_json<E>(headers: &Headers, method: Method) -> Result<(), E>
 where
   E: From<crate::Error>,
 {
-  if headers
+  let header = headers
     .get_by_name(KnownHeaderName::ContentType.into())
-    .is_none_or(|el| el.value != Mime::ApplicationJson.as_str().as_bytes())
-  {
+    .ok_or(crate::Error::from(HttpError::MissingHeader(KnownHeaderName::ContentType)))?;
+  if header.value != Mime::ApplicationJson.as_str() {
     return Err(E::from(crate::Error::from(HttpError::UnexpectedContentType)));
   }
   if method != Method::Post {

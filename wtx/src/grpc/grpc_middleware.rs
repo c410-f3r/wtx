@@ -31,13 +31,13 @@ where
     req.rrd.headers.push_from_iter_many([
       Header::from_name_and_value(
         KnownHeaderName::ContentType.into(),
-        [Mime::ApplicationGrpc.as_str().as_bytes()].into_iter(),
+        [Mime::ApplicationGrpc.as_str()].into_iter(),
       ),
       Header {
         is_sensitive: false,
         is_trailer: true,
         name: "grpc-status",
-        value: [stream_aux.status_code_mut()._number_as_str().as_bytes()].into_iter(),
+        value: [stream_aux.status_code_mut()._number_as_str()].into_iter(),
       },
     ])?;
     Ok(ControlFlow::Continue(()))

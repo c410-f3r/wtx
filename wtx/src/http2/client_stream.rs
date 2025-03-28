@@ -142,11 +142,11 @@ where
       req.rrd.headers(),
       (
         HpackStaticRequestHeaders {
-          authority: uri.authority().as_bytes(),
+          authority: uri.authority(),
           method: Some(req.method),
-          path: uri.relative_reference_slash().as_bytes(),
+          path: uri.relative_reference_slash(),
           protocol: None,
-          scheme: uri.scheme().as_bytes(),
+          scheme: uri.scheme(),
         },
         HpackStaticResponseHeaders::EMPTY,
       ),
