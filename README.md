@@ -19,21 +19,25 @@
 
 A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 3 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [MySQL](https://dev.mysql.com/doc/dev/mysql-server/latest/), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
-1. [Client API Framework](https://c410-f3r.github.io/wtx/client-api-framework/index.html)
-2. [Database Client](https://c410-f3r.github.io/wtx/database-client/index.html)
-3. [Database Schema Manager](https://c410-f3r.github.io/wtx/database-schema-manager/index.html)
-4. [gRPC Client/Server](https://c410-f3r.github.io/wtx/grpc/index.html)
-5. [HTTP Client Pool](https://c410-f3r.github.io/wtx/http-client-pool/index.html)
-6. [HTTP Server Framework](https://c410-f3r.github.io/wtx/http-server-framework/index.html)
-7. [HTTP/2 Client/Server](https://c410-f3r.github.io/wtx/http2/index.html)
-8. [Pool Manager](https://c410-f3r.github.io/wtx/pool/index.html)
-9. [UI tools](https://c410-f3r.github.io/wtx/ui-tools/index.html)
-10. [WebSocket Client/Server](https://c410-f3r.github.io/wtx/web-socket/index.html)
-11. [WebSocket over HTTP/2](https://c410-f3r.github.io/wtx/web-socket-over-http2/index.html)
-
 Every feature is optional and must be set at compile time. Please see the intended documentation for further information.
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
+
+## Comparisons
+
+In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following comparison table to see how our built-from-scratch technologies compare with other similar implementations.
+
+| Technology                                         | Similar Implementations                                                        | Feature (`wtx`)          |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------ |
+| [Client API Framework][client-api-framework]       | N/A                                                                            | client-api-framework     |
+| [Database Client][database-client]                 | [diesel][diesel], [sqlx][sqlx]                                                 | postgres, mysql          |
+| [Database Schema Manager][database-schema-manager] | [refinery][refinery]                                                           | schema-manager           |
+| [gRPC][grpc]                                       | [tonic][tonic]                                                                 | grpc-client, grpc-server |
+| [HTTP Client Pool][http-client-pool]               | [reqwest][reqwest]                                                             | http-client-pool         |
+| [HTTP Server Framework][http-server-framework]     | [actix-web][actix-web], [axum][axum]                                           | http-server-framework    |
+| [HTTP/2][http2]                                    | [h2][h2]                                                                       | http2                    |
+| [Pool][pool]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                                 | pool                     |
+| [WebSocket][web-socket]                            | [async-tungstenite][async-tungstenite], [tokio-tungstenite][tokio-tungstenite] | web-socket               |
 
 ## Performance
 
@@ -76,3 +80,27 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 * Does not support systems with a pointer length of 16 bits.
 
 * Expects the infallible sum of the lengths of an arbitrary number of slices, otherwise the program will likely trigger an overflow that can possibly result in unexpected operations. For example, in a 32bit system such a scenario should be viable without swap memory or through specific limiters like `ulimit`.
+
+[client-api-framework]: https://c410-f3r.github.io/wtx/client-api-framework/index.html
+[database-client]: https://c410-f3r.github.io/wtx/database-client/index.html
+[database-schema-manager]: https://c410-f3r.github.io/wtx/database-schema-manager/index.html
+[grpc]: https://c410-f3r.github.io/wtx/grpc/index.html
+[http-client-pool]: https://c410-f3r.github.io/wtx/http-client-pool/index.html
+[http-server-framework]: https://c410-f3r.github.io/wtx/http-server-framework/index.html
+[http2]: https://c410-f3r.github.io/wtx/http2/index.html
+[pool]: https://c410-f3r.github.io/wtx/pool/index.html
+[web-socket]: https://c410-f3r.github.io/wtx/web-socket/index.html
+
+[actix-web]: https://github.com/actix/actix-web
+[async-tungstenite]: https://github.com/sdroege/async-tungstenite
+[axum]: https://github.com/tokio-rs/axum
+[bb8]: https://github.com/djc/bb8
+[deadpool]: https://github.com/deadpool-rs/deadpool
+[diesel]: https://github.com/diesel-rs/diesel
+[h2]: https://github.com/hyperium/h2
+[r2d2]: https://github.com/sfackler/r2d2
+[refinery]: https://github.com/rust-db/refinery
+[reqwest]: https://github.com/seanmonstar/reqwest
+[sqlx]: https://github.com/launchbadge/sqlx
+[tokio-tungstenite]: https://github.com/snapview/tokio-tungstenite
+[tonic]: https://github.com/hyperium/tonic

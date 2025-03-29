@@ -12,8 +12,9 @@ pub struct Request<RRD> {
 }
 
 impl<RRD> Request<RRD> {
+  /// Constructor shortcut
   #[inline]
-  pub(crate) fn _new(method: Method, rrd: RRD, version: Version) -> Self {
+  pub const fn new(method: Method, rrd: RRD, version: Version) -> Self {
     Self { method, rrd, version }
   }
 

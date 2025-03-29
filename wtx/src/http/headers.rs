@@ -356,7 +356,7 @@ impl Default for Headers {
 }
 
 /// A field of an HTTP request or response.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Header<'any, V> {
   /// If the name/value should NOT be cached.
   ///
@@ -377,18 +377,6 @@ impl<'any, V> Header<'any, V> {
   #[inline]
   pub fn from_name_and_value(name: &'any str, value: V) -> Self {
     Self { is_sensitive: false, is_trailer: false, name, value }
-  }
-}
-
-impl Debug for Header<'_, &str> {
-  #[inline]
-  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("Header")
-      .field("is_sensitive", &self.is_sensitive)
-      .field("is_trailer", &self.is_trailer)
-      .field("name", &self.name)
-      .field("value", &self.value)
-      .finish()
   }
 }
 
