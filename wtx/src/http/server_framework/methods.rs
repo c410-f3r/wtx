@@ -24,7 +24,7 @@ where
   let header = headers
     .get_by_name(KnownHeaderName::ContentType.into())
     .ok_or(crate::Error::from(HttpError::MissingHeader(KnownHeaderName::ContentType)))?;
-  if header.value != Mime::ApplicationJson.as_str() {
+  if !header.value.starts_with(Mime::ApplicationJson.as_str()) {
     return Err(E::from(crate::Error::from(HttpError::UnexpectedContentType)));
   }
   if method != Method::Post {

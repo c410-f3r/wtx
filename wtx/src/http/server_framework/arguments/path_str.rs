@@ -55,7 +55,7 @@ where
   ) -> Result<StatusCode, E> {
     let (body, headers, uri) = auto_stream.req.rrd.parts_mut();
     let mut new_req =
-      Request::_new(auto_stream.req.method, (body, headers), auto_stream.req.version);
+      Request::new(auto_stream.req.method, (body, headers), auto_stream.req.version);
     let path = manage_path(path_defs, uri)?;
     self
       .0
