@@ -1,9 +1,7 @@
 use crate::{
   database::{
     DatabaseTy,
-    schema_manager::{
-      Commands, DbMigration, MigrationGroup, SchemaManagement, UserMigration, VersionTy,
-    },
+    schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, Uid, UserMigration},
   },
   misc::{DEController, Lease, Vector},
 };
@@ -19,7 +17,8 @@ impl<E> Commands<E>
 where
   E: SchemaManagement,
 {
-  /// Rollbacks the migrations of a group to a given `version`.
+  /// Rollbacks all migrations of a group after the specific user ID that identifies a
+  /// migration group.
   ///
   /// Before issuing a rollback, all migrations are validated.
   #[inline]
@@ -28,7 +27,7 @@ where
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &MigrationGroup<S>,
     migrations: I,
-    version: VersionTy,
+    uid: Uid,
   ) -> Result<(), <E::Database as DEController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
@@ -49,28 +48,38 @@ where
       })
       .await?;
     buffer_cmd.clear();
-    self.executor.delete_migrations(buffer_cmd, mg, version).await?;
+    self.executor.delete_migrations(buffer_cmd, mg, uid).await?;
     buffer_db_migrations.clear();
     Ok(())
   }
 
-  /// Applies `rollback` to a set of groups according to the configuration file
+  /// Applies `rollback` to a set of groups according to the configuration file.
+  ///
+  /// Each `uids` corresponds to each migration group in ascending order. If `None`, then
+  /// all migrations will be reverted.
   #[inline]
   #[cfg(feature = "std")]
   pub async fn rollback_from_toml(
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
-    versions: &[VersionTy],
+    uids: Option<&[Uid]>,
   ) -> Result<(), <E::Database as DEController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
-    if migration_groups.len() != versions.len() {
-      return Err(crate::Error::from(SchemaManagerError::DifferentRollbackVersions).into());
-    }
     migration_groups.sort_by(|a, b| b.cmp(a));
-    for (mg, &version) in migration_groups.into_iter().zip(versions) {
-      self.do_rollback_from_dir((buffer_cmd, buffer_db_migrations), &mg, version).await?;
-    }
+    if let Some(elem) = uids {
+      if migration_groups.len() != elem.len() {
+        return Err(crate::Error::from(SchemaManagerError::DifferentRollbackUids).into());
+      }
+      for (mg, &uid) in migration_groups.into_iter().zip(elem) {
+        self.rollback_from_dir((buffer_cmd, buffer_db_migrations), &mg, uid).await?;
+      }
+    } else {
+      let iter = (0..migration_groups.len()).map(|_| 0);
+      for (mg, uid) in migration_groups.into_iter().zip(iter) {
+        self.rollback_from_dir((buffer_cmd, buffer_db_migrations), &mg, uid).await?;
+      }
+    };
     Ok(())
   }
 
@@ -79,31 +88,19 @@ where
   #[cfg(feature = "std")]
   pub async fn rollback_from_dir(
     &mut self,
-    buffer: (&mut String, &mut Vector<DbMigration>),
-    path: &Path,
-    version: VersionTy,
-  ) -> Result<(), <E::Database as DEController>::Error> {
-    self.do_rollback_from_dir(buffer, path, version).await
-  }
-
-  #[inline]
-  #[cfg(feature = "std")]
-  async fn do_rollback_from_dir(
-    &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
-    version: VersionTy,
+    uid: Uid,
   ) -> Result<(), <E::Database as DEController>::Error> {
-    let opt = group_and_migrations_from_path(path, |a, b| b.cmp(a));
-    let Ok((mg, mut migrations)) = opt else { return Ok(()) };
+    let Ok((mg, mut migrations)) = group_and_migrations_from_path(path, |a, b| b.cmp(a)) else {
+      return Ok(());
+    };
     let mut tmp_migrations = Vector::new();
     loop_files!(
       tmp_migrations,
       migrations,
       self.batch_size(),
-      self
-        .rollback((buffer_cmd, buffer_db_migrations), &mg, tmp_migrations.iter(), version)
-        .await?
+      self.rollback((buffer_cmd, buffer_db_migrations), &mg, tmp_migrations.iter(), uid).await?
     );
     Ok(())
   }

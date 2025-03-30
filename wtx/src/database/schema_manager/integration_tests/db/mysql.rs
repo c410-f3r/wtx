@@ -25,13 +25,13 @@ pub(crate) async fn _clean_drops_all_objs<E>(
 {
   integration_tests::create_foo_table(buffer_cmd, c, "").await;
 
-  c.executor.table_names(buffer_cmd, buffer_idents, "").await.unwrap();
+  c._executor_mut().table_names(buffer_cmd, buffer_idents, "").await.unwrap();
   assert_eq!(buffer_idents.len(), 1);
   buffer_idents.clear();
 
   c.clear((buffer_cmd, buffer_idents)).await.unwrap();
 
-  c.executor.table_names(buffer_cmd, buffer_idents, "").await.unwrap();
+  c._executor_mut().table_names(buffer_cmd, buffer_idents, "").await.unwrap();
   assert_eq!(buffer_idents.len(), 0);
   buffer_idents.clear();
 }

@@ -12,6 +12,12 @@ pub struct Response<RRD> {
 }
 
 impl<RRD> Response<RRD> {
+  /// Constructor shortcut
+  #[inline]
+  pub const fn new(rrd: RRD, status_code: StatusCode, version: Version) -> Self {
+    Self { rrd, status_code, version }
+  }
+
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
   pub fn http2(data: RRD, status_code: StatusCode) -> Self {

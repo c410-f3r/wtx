@@ -20,9 +20,8 @@ mod operation_mode;
 #[cfg(feature = "nightly")]
 mod optioned_server;
 mod protocol;
-#[cfg(feature = "http2")]
-mod req_builder;
 mod req_res_buffer;
+mod req_res_builder;
 mod req_res_data;
 mod request;
 mod response;
@@ -49,9 +48,8 @@ pub use operation_mode::*;
 #[cfg(feature = "nightly")]
 pub use optioned_server::OptionedServer;
 pub use protocol::Protocol;
-#[cfg(feature = "http2")]
-pub use req_builder::ReqBuilder;
 pub use req_res_buffer::ReqResBuffer;
+pub use req_res_builder::*;
 pub use req_res_data::{ReqResData, ReqResDataMut};
 pub use request::Request;
 pub use response::Response;

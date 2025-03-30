@@ -1,4 +1,4 @@
-use crate::database::schema_manager::VersionTy;
+use crate::database::schema_manager::Uid;
 
 /// Schema Manager Error
 #[derive(Debug)]
@@ -7,10 +7,10 @@ pub enum SchemaManagerError {
   ChecksumMustBeANumber,
   /// Databases must be sorted and unique
   DatabasesMustBeSortedAndUnique,
-  /// Different rollback versions
-  DifferentRollbackVersions,
+  /// Different rollback user IDs
+  DifferentRollbackUids,
   /// Divergent migrations
-  DivergentMigration(VersionTy),
+  DivergentMigration(Uid),
   /// Validation - Migrations number
   DivergentMigrationsNum {
     /// Expected

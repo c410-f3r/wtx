@@ -64,6 +64,18 @@ where
 
   let mut commands = Commands::new(sm.files_num, executor);
   match &sm.commands {
+    SchemaManagerCommands::CheckFullRollback {} => {
+      commands
+        .rollback_from_toml((_buffer_cmd, _buffer_db_migrations), &toml_file_path(sm)?, None)
+        .await?;
+      commands.all_elements((_buffer_cmd, _buffer_idents)).await?;
+      let mut iter = _buffer_idents.iter();
+      let (Some("_wtx"), None) = (iter.next().map(|el| el.as_str()), iter.next()) else {
+        eprintln!("{:?}", _buffer_idents);
+        let msg = "The rollback operation didn't leave the database in a clean state";
+        return Err(wtx::Error::Generic(msg).into());
+      };
+    }
     #[cfg(feature = "schema-manager-dev")]
     SchemaManagerCommands::Clean {} => {
       commands.clear((_buffer_cmd, _buffer_idents)).await?;
@@ -90,7 +102,11 @@ where
     }
     SchemaManagerCommands::Rollback { versions: _versions } => {
       commands
-        .rollback_from_toml((_buffer_cmd, _buffer_db_migrations), &toml_file_path(sm)?, _versions)
+        .rollback_from_toml(
+          (_buffer_cmd, _buffer_db_migrations),
+          &toml_file_path(sm)?,
+          Some(_versions),
+        )
         .await?;
     }
     #[cfg(feature = "schema-manager-dev")]

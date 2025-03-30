@@ -18,6 +18,49 @@ pub(crate) static _CREATE_MIGRATION_TABLES: &str = concat!(
 );
 
 #[inline]
+pub(crate) async fn _all_elements<E>(
+  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  executor: &mut E,
+  schemas_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  sequences_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  domains_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  functions_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  views_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  table_names_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  procedures_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+  types_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
+) -> crate::Result<()>
+where
+  E: Executor<Database = Postgres<crate::Error>>,
+{
+  _schemas(executor, buffer_idents).await?;
+  schemas_cb((buffer_cmd, buffer_idents))?;
+
+  _sequences(executor, buffer_idents).await?;
+  sequences_cb((buffer_cmd, buffer_idents))?;
+
+  _domains(executor, buffer_idents).await?;
+  domains_cb((buffer_cmd, buffer_idents))?;
+
+  _functions((buffer_cmd, buffer_idents), executor).await?;
+  functions_cb((buffer_cmd, buffer_idents))?;
+
+  _views(executor, buffer_idents).await?;
+  views_cb((buffer_cmd, buffer_idents))?;
+
+  _table_names(buffer_cmd, executor, buffer_idents, "public").await?;
+  table_names_cb((buffer_cmd, buffer_idents))?;
+
+  _procedures((buffer_cmd, buffer_idents), executor).await?;
+  procedures_cb((buffer_cmd, buffer_idents))?;
+
+  _types(executor, buffer_idents).await?;
+  types_cb((buffer_cmd, buffer_idents))?;
+
+  Ok(())
+}
+
+#[inline]
 pub(crate) async fn _clear<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
@@ -25,30 +68,19 @@ pub(crate) async fn _clear<E>(
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  _schemas(executor, buffer_idents).await?;
-  _push_drop((buffer_cmd, buffer_idents), "SCHEMA")?;
-
-  _sequences(executor, buffer_idents).await?;
-  _push_drop((buffer_cmd, buffer_idents), "SEQUENCE")?;
-
-  _domains(executor, buffer_idents).await?;
-  _push_drop((buffer_cmd, buffer_idents), "DOMAIN")?;
-
-  _pg_proc((buffer_cmd, buffer_idents), executor, 'f').await?;
-  _push_drop((buffer_cmd, buffer_idents), "FUNCTION")?;
-
-  _views(executor, buffer_idents).await?;
-  _push_drop((buffer_cmd, buffer_idents), "VIEW")?;
-
-  _table_names(buffer_cmd, executor, buffer_idents, "public").await?;
-  _push_drop((buffer_cmd, buffer_idents), "TABLE")?;
-
-  _pg_proc((buffer_cmd, buffer_idents), executor, 'p').await?;
-  _push_drop((buffer_cmd, buffer_idents), "PROCEDURE")?;
-
-  _types(executor, buffer_idents).await?;
-  _push_drop((buffer_cmd, buffer_idents), "TYPE")?;
-
+  _all_elements(
+    (buffer_cmd, buffer_idents),
+    executor,
+    |buffer| _push_drop(buffer, "SCHEMA"),
+    |buffer| _push_drop(buffer, "SEQUENCE"),
+    |buffer| _push_drop(buffer, "DOMAIN"),
+    |buffer| _push_drop(buffer, "FUNCTION"),
+    |buffer| _push_drop(buffer, "VIEW"),
+    |buffer| _push_drop(buffer, "TABLE"),
+    |buffer| _push_drop(buffer, "PROCEDURE"),
+    |buffer| _push_drop(buffer, "TYPE"),
+  )
+  .await?;
   executor
     .transaction(|this| async {
       this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
@@ -56,7 +88,6 @@ where
     })
     .await?;
   buffer_cmd.clear();
-
   Ok(())
 }
 
@@ -89,66 +120,27 @@ where
     .await
 }
 
-#[cfg(test)]
 #[inline]
-pub(crate) async fn _enums<E>(
+pub(crate) async fn _functions<E>(
+  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
-  results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  executor
-    .simple_entities(
-      "SELECT
-      t.typname AS generic_column
-    FROM
-      pg_catalog.pg_type t
-      INNER JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
-    WHERE
-      n.nspname = 'public' AND  t.typtype = 'e'
-    ",
-      (),
-      |result| {
-        results.push(result)?;
-        Ok(())
-      },
-    )
-    .await
+  _pg_proc((buffer_cmd, buffer_idents), executor, 'f').await?;
+  Ok(())
 }
 
 #[inline]
-pub(crate) async fn _pg_proc<E>(
+pub(crate) async fn _procedures<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
-  prokind: char,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  let before = buffer_cmd.len();
-  buffer_cmd.write_fmt(format_args!(
-    "
-    SELECT
-      proname AS generic_column
-    FROM
-      pg_proc
-      INNER JOIN pg_namespace ns ON (pg_proc.pronamespace = ns.oid)
-      -- that don't depend on an extension
-      LEFT JOIN pg_depend dep ON dep.objid = pg_proc.oid AND dep.deptype = 'e'
-    WHERE
-      ns.nspname = 'public'
-      AND dep.objid IS NULL
-      AND pg_proc.prokind = '{prokind}'
-    ",
-  ))?;
-  executor
-    .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
-      buffer_idents.push(result)?;
-      Ok(())
-    })
-    .await?;
-  buffer_cmd.truncate(before);
+  _pg_proc((buffer_cmd, buffer_idents), executor, 'p').await?;
   Ok(())
 }
 
@@ -237,13 +229,14 @@ where
         WHERE inhrelid = (quote_ident(tables.table_schema)||'.'||quote_ident(tables.table_name))::regclass::oid)
       )",
   ))?;
-  executor
+  let rslt = executor
     .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
       results.push(result)?;
       Ok(())
     })
-    .await?;
+    .await;
   buffer_cmd.truncate(before);
+  rslt?;
   Ok(())
 }
 
@@ -310,6 +303,42 @@ where
       },
     )
     .await
+}
+
+#[inline]
+async fn _pg_proc<E>(
+  (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+  executor: &mut E,
+  prokind: char,
+) -> crate::Result<()>
+where
+  E: Executor<Database = Postgres<crate::Error>>,
+{
+  let before = buffer_cmd.len();
+  buffer_cmd.write_fmt(format_args!(
+    "
+    SELECT
+      proname AS generic_column
+    FROM
+      pg_proc
+      INNER JOIN pg_namespace ns ON (pg_proc.pronamespace = ns.oid)
+      -- that don't depend on an extension
+      LEFT JOIN pg_depend dep ON dep.objid = pg_proc.oid AND dep.deptype = 'e'
+    WHERE
+      ns.nspname = 'public'
+      AND dep.objid IS NULL
+      AND pg_proc.prokind = '{prokind}'
+    ",
+  ))?;
+  let rslt = executor
+    .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
+      buffer_idents.push(result)?;
+      Ok(())
+    })
+    .await;
+  buffer_cmd.truncate(before);
+  rslt?;
+  Ok(())
 }
 
 #[inline]
