@@ -11,7 +11,7 @@ use crate::{
   database::{
     DatabaseTy,
     schema_manager::{
-      SchemaManagerError, VersionTy,
+      SchemaManagerError, Uid,
       migration::{DbMigration, UserMigration},
     },
   },
@@ -25,7 +25,7 @@ use {
       MigrationGroup, Repeatability, UserMigrationOwned,
       toml_parser::{Expr, toml},
     },
-    misc::{ArrayVector, FromRadix10, Vector},
+    misc::{ArrayVector, Vector},
   },
   alloc::string::String,
   core::{cmp::Ordering, fmt::Write},
@@ -37,7 +37,7 @@ use {
 };
 
 #[cfg(feature = "std")]
-type MigrationGroupParts = (String, VersionTy);
+type MigrationGroupParts = (String, Uid);
 #[cfg(feature = "std")]
 type MigrationParts = (
   ArrayVector<DatabaseTy, { DatabaseTy::len() }>,
@@ -45,7 +45,7 @@ type MigrationParts = (
   Option<Repeatability>,
   String,
   String,
-  VersionTy,
+  Uid,
 );
 
 /// All files of a given `path`.
@@ -88,7 +88,7 @@ where
     migrations_vec.sort_by(cb);
     let migrations = migrations_vec.into_iter().map(move |local_path| {
       let name;
-      let version;
+      let uid;
       let mut dbs = ArrayVector::new();
       let mut repeatability = None;
       let mut sql_down = String::default();
@@ -98,7 +98,7 @@ where
         let dir_name = opt_to_inv_mig!(|| local_path.file_name()?.to_str())?;
         let parts = dir_name_parts(dir_name)?;
         name = parts.0;
-        version = parts.1;
+        uid = parts.1;
 
         let mut cfg_file_name = ArrayString::<64>::new();
         cfg_file_name.write_fmt(format_args!("{dir_name}.toml"))?;
@@ -128,7 +128,7 @@ where
       } else if let Some(Some(file_name)) = local_path.file_name().map(|e| e.to_str()) {
         let parts = migration_file_name_parts(file_name)?;
         name = parts.0;
-        version = parts.1;
+        uid = parts.1;
         let pm = parse_unified_migration(File::open(local_path)?)?;
         dbs = pm.cfg.dbs;
         repeatability = pm.cfg.repeatability;
@@ -137,17 +137,17 @@ where
       } else {
         return Err(SchemaManagerError::InvalidMigration.into());
       }
-      Ok((dbs, name, repeatability, sql_down, sql_up, version))
+      Ok((dbs, name, repeatability, sql_down, sql_up, uid))
     });
 
     Ok((mg, migrations))
   }
 
-  let ((mg_name, mg_version), ms) = group_and_migrations_from_path(path, cb)?;
-  let mg = MigrationGroup::new(mg_name, mg_version);
+  let ((mg_name, mg_uid), ms) = group_and_migrations_from_path(path, cb)?;
+  let mg = MigrationGroup::new(mg_name, mg_uid);
   let mapped = ms.map(|rslt| {
-    let (dbs, name, repeatability, sql_down, sql_up, version) = rslt?;
-    UserMigrationOwned::from_user_parts(dbs, name, repeatability, [sql_up, sql_down], version)
+    let (dbs, name, repeatability, sql_down, sql_up, uid) = rslt?;
+    UserMigrationOwned::from_user_parts(dbs, name, repeatability, [sql_up, sql_down], uid)
   });
   Ok((mg, mapped))
 }
@@ -203,13 +203,16 @@ where
 }
 
 #[inline]
-pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, version: VersionTy) -> u64 {
-  #[expect(deprecated, reason = "Useful")]
+pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, uid: Uid) -> u64 {
+  #[expect(
+    deprecated,
+    reason = "IFAICT, this use-case doesn't require a different hashing algorithm"
+  )]
   let mut hasher = core::hash::SipHasher::new();
   name.hash(&mut hasher);
   sql_up.hash(&mut hasher);
   sql_down.hash(&mut hasher);
-  version.hash(&mut hasher);
+  uid.hash(&mut hasher);
   hasher.finish()
 }
 
@@ -222,14 +225,14 @@ where
   DBS: Lease<[DatabaseTy]>,
   S: Lease<str>,
 {
-  let version = migration.version();
-  let opt = binary_search_migration_by_version(version, db_migrations);
+  let uid = migration.uid();
+  let opt = binary_search_migration_by_uid(db_migrations, uid);
   let Some(db_migration) = opt else {
     return false;
   };
   migration.checksum() != db_migration.checksum()
     || migration.name() != db_migration.name()
-    || migration.version() != db_migration.version()
+    || migration.uid() != db_migration.uid()
 }
 
 pub(crate) fn is_sorted_and_unique<T>(slice: &[T]) -> crate::Result<()>
@@ -246,11 +249,8 @@ where
 }
 
 #[inline]
-fn binary_search_migration_by_version(
-  version: VersionTy,
-  migrations: &[DbMigration],
-) -> Option<&DbMigration> {
-  match migrations.binary_search_by(|m| m.version().cmp(&version)) {
+fn binary_search_migration_by_uid(migrations: &[DbMigration], uid: Uid) -> Option<&DbMigration> {
+  match migrations.binary_search_by(|m| m.uid().cmp(&uid)) {
     Err(_) => None,
     Ok(rslt) => migrations.get(rslt),
   }
@@ -258,30 +258,30 @@ fn binary_search_migration_by_version(
 
 #[cfg(feature = "std")]
 #[inline]
-fn dir_name_parts(s: &str) -> crate::Result<(String, VersionTy)> {
+fn dir_name_parts(s: &str) -> crate::Result<(String, Uid)> {
   let f = || {
     if !s.is_ascii() {
       return None;
     }
     let mut split = s.split("__");
-    let version = VersionTy::from_radix_10(split.next()?.as_bytes()).ok()?;
+    let uid = split.next()?.parse().ok()?;
     let name = split.next()?.into();
-    Some((name, version))
+    Some((name, uid))
   };
   f().ok_or(SchemaManagerError::InvalidMigration.into())
 }
 
 #[cfg(feature = "std")]
 #[inline]
-fn migration_file_name_parts(s: &str) -> crate::Result<(String, VersionTy)> {
+fn migration_file_name_parts(s: &str) -> crate::Result<(String, Uid)> {
   let f = || {
     if !s.is_ascii() {
       return None;
     }
     let mut split = s.split("__");
-    let version = VersionTy::from_radix_10(split.next()?.as_bytes()).ok()?;
+    let uid = split.next()?.parse().ok()?;
     let name = split.next()?.strip_suffix(".sql")?.into();
-    Some((name, version))
+    Some((name, uid))
   };
   f().ok_or(SchemaManagerError::InvalidMigration.into())
 }
@@ -290,12 +290,12 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, VersionTy)> {
 #[inline]
 fn migrations_from_dir(path: &Path) -> crate::Result<(MigrationGroupParts, Vector<PathBuf>)> {
   let path_str = opt_to_inv_mig!(|| path.file_name()?.to_str())?;
-  let (mg_name, mg_version) = dir_name_parts(path_str)?;
+  let (mg_name, mg_uid) = dir_name_parts(path_str)?;
   let mut migration_paths = Vector::new();
   for rslt in read_dir(path)? {
     migration_paths.push(rslt?.path())?;
   }
-  Ok(((mg_name, mg_version), migration_paths))
+  Ok(((mg_name, mg_uid), migration_paths))
 }
 
 #[cfg(feature = "std")]

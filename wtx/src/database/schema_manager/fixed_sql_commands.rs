@@ -3,18 +3,18 @@
 
 macro_rules! _wtx_migration_columns {
   () => {
-    "_wtx_migration_omg_version INT NOT NULL, \
+    "_wtx_migration_mg_uid INT NOT NULL, \
     checksum VARCHAR(20) NOT NULL, \
     name VARCHAR(128) NOT NULL, \
     repeatability INTEGER NULL, \
-    version INT NOT NULL, \
-    CONSTRAINT _wtx_migration_unq UNIQUE (version, _wtx_migration_omg_version)"
+    uid INT NOT NULL, \
+    CONSTRAINT _wtx_migration_unq UNIQUE (uid, _wtx_migration_mg_uid)"
   };
 }
 
 macro_rules! _wtx_migration_group_columns {
   () => {
-    "version INT NOT NULL PRIMARY KEY, \
+    "uid INT NOT NULL PRIMARY KEY, \
     name VARCHAR(128) NOT NULL"
   };
 }
@@ -34,7 +34,7 @@ use crate::{
   database::{
     Database, DatabaseTy, FromRecord,
     executor::Executor,
-    schema_manager::{DbMigration, MigrationGroup, UserMigration, VersionTy},
+    schema_manager::{DbMigration, MigrationGroup, Uid, UserMigration},
   },
   misc::{DEController, Lease, Vector},
 };
@@ -47,15 +47,15 @@ pub(crate) async fn _delete_migrations<E, S>(
   executor: &mut E,
   mg: &MigrationGroup<S>,
   schema_prefix: &str,
-  version: VersionTy,
+  uid: Uid,
 ) -> Result<(), <E::Database as DEController>::Error>
 where
   E: Executor,
   S: Lease<str>,
 {
   buffer_cmd.write_fmt(format_args!(
-    "DELETE FROM {schema_prefix}_wtx_migration WHERE _wtx_migration_omg_version = {mg_version} AND version > {version}",
-    mg_version = mg.version(),
+    "DELETE FROM {schema_prefix}_wtx_migration WHERE _wtx_migration_mg_uid = {mg_uid} AND uid > {uid}",
+    mg_uid = mg.uid(),
   )).map_err(crate::Error::from)?;
   executor.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
   buffer_cmd.clear();
@@ -78,13 +78,13 @@ where
 {
   buffer_cmd
     .write_fmt(format_args!(
-      "INSERT INTO {schema_prefix}_wtx_migration_group (version, name)
-    SELECT * FROM (SELECT {mg_version} AS version, '{mg_name}' AS name) AS tmp
+      "INSERT INTO {schema_prefix}_wtx_migration_group (uid, name)
+    SELECT * FROM (SELECT {mg_uid} AS uid, '{mg_name}' AS name) AS tmp
     WHERE NOT EXISTS (
-      SELECT 1 FROM {schema_prefix}_wtx_migration_group WHERE version = {mg_version}
+      SELECT 1 FROM {schema_prefix}_wtx_migration_group WHERE uid = {mg_uid}
     );",
       mg_name = mg.name(),
-      mg_version = mg.version(),
+      mg_uid = mg.uid(),
     ))
     .map_err(Into::into)?;
   executor.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
@@ -105,14 +105,14 @@ where
     buffer_cmd
       .write_fmt(format_args!(
         "INSERT INTO {schema_prefix}_wtx_migration (
-        version, _wtx_migration_omg_version, checksum, name
+        uid, _wtx_migration_mg_uid, checksum, name
       ) VALUES (
-        {m_version}, {mg_version}, '{m_checksum}', '{m_name}'
+        {m_uid}, {mg_uid}, '{m_checksum}', '{m_name}'
       );",
         m_checksum = migration.checksum(),
         m_name = migration.name(),
-        m_version = migration.version(),
-        mg_version = mg.version(),
+        m_uid = migration.uid(),
+        mg_uid = mg.uid(),
         schema_prefix = schema_prefix,
       ))
       .map_err(Into::into)?;
@@ -129,10 +129,10 @@ where
 }
 
 #[inline]
-pub(crate) async fn _migrations_by_mg_version_query<E, D>(
+pub(crate) async fn _migrations_by_mg_uid_query<E, D>(
   buffer_cmd: &mut String,
   executor: &mut E,
-  mg_version: VersionTy,
+  mg_uid: Uid,
   results: &mut Vector<DbMigration>,
   schema_prefix: &str,
 ) -> crate::Result<()>
@@ -143,9 +143,9 @@ where
 {
   buffer_cmd.write_fmt(format_args!(
     "SELECT \
-      _wtx_migration.version, \
-      _wtx_migration_group.version as omg_version, \
-      _wtx_migration_group.name as omg_name, \
+      _wtx_migration.uid, \
+      _wtx_migration_group.uid as mg_uid, \
+      _wtx_migration_group.name as mg_name, \
       _wtx_migration.checksum, \
       _wtx_migration.created_on, \
       _wtx_migration.name, \
@@ -153,11 +153,11 @@ where
     FROM \
       {schema_prefix}_wtx_migration_group \
     JOIN \
-      {schema_prefix}_wtx_migration ON _wtx_migration._wtx_migration_omg_version = _wtx_migration_group.version \
+      {schema_prefix}_wtx_migration ON _wtx_migration._wtx_migration_mg_uid = _wtx_migration_group.uid \
     WHERE \
-      _wtx_migration_group.version = {mg_version} \
+      _wtx_migration_group.uid = {mg_uid} \
     ORDER BY \
-      _wtx_migration.version ASC;",
+      _wtx_migration.uid ASC;",
   ))?;
   executor
     .simple_entities(buffer_cmd, (), |result| {

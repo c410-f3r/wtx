@@ -82,7 +82,7 @@ where
         Some(Repeatability::Always) => {}
         _ => {
           if is_migration_divergent(db_migrations, migration) {
-            return Err(SchemaManagerError::DivergentMigration(migration.version()).into());
+            return Err(SchemaManagerError::DivergentMigration(migration.uid()).into());
           }
         }
       }

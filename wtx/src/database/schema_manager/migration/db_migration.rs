@@ -2,7 +2,7 @@ use crate::{
   database::{
     DatabaseTy, Identifier,
     schema_manager::{
-      MigrationGroup, Repeatability, SchemaManagerError, VersionTy,
+      MigrationGroup, Repeatability, SchemaManagerError, Uid,
       migration::migration_common::MigrationCommon,
     },
   },
@@ -51,10 +51,10 @@ impl DbMigration {
     &self.common.name
   }
 
-  /// Version
+  /// User ID
   #[inline]
-  pub fn version(&self) -> VersionTy {
-    self.common.version
+  pub fn uid(&self) -> Uid {
+    self.common.uid
   }
 }
 
@@ -69,14 +69,14 @@ where
     let checksum = _checksum_from_str(from.decode("checksum")?)?;
     let name = from.decode::<_, &str>("name")?.try_into()?;
     let repeatability = _from_u32(from.decode_opt("repeatability")?);
-    let version = from.decode("version")?;
+    let uid = from.decode("uid")?;
     Ok(Self {
-      common: MigrationCommon { checksum, name, repeatability, version },
+      common: MigrationCommon { checksum, name, repeatability, uid },
       created_on: from.decode("created_on")?,
       db_ty: DatabaseTy::Mysql,
       group: MigrationGroup::new(
-        from.decode::<_, &str>("omg_name")?.try_into()?,
-        from.decode("omg_version")?,
+        from.decode::<_, &str>("mg_name")?.try_into()?,
+        from.decode("mg_uid")?,
       ),
     })
   }
@@ -97,13 +97,13 @@ where
         checksum: _checksum_from_str(from.decode("checksum")?)?,
         name: from.decode::<_, &str>("name")?.try_into()?,
         repeatability: _from_u32(from.decode_opt("repeatability")?),
-        version: from.decode("version")?,
+        uid: from.decode("uid")?,
       },
       created_on: from.decode("created_on")?,
       db_ty: DatabaseTy::Postgres,
       group: MigrationGroup::new(
-        from.decode::<_, &str>("omg_name")?.try_into()?,
-        from.decode("omg_version")?,
+        from.decode::<_, &str>("mg_name")?.try_into()?,
+        from.decode("mg_uid")?,
       ),
     })
   }
@@ -112,7 +112,7 @@ where
 impl fmt::Display for DbMigration {
   #[inline]
   fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(fmt, "{}__{}", self.common.version, self.common.name)
+    write!(fmt, "{}__{}", self.common.uid, self.common.name)
   }
 }
 

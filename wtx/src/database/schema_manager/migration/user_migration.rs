@@ -2,7 +2,7 @@ use crate::{
   database::{
     DatabaseTy,
     schema_manager::{
-      Repeatability, VersionTy,
+      Repeatability, Uid,
       migration::migration_common::MigrationCommon,
       misc::{calc_checksum, is_sorted_and_unique},
     },
@@ -44,14 +44,9 @@ where
     repeatability: Option<Repeatability>,
     sql_down: S,
     sql_up: S,
-    version: VersionTy,
+    uid: Uid,
   ) -> Self {
-    Self {
-      dbs,
-      common: MigrationCommon { checksum, name, repeatability, version },
-      sql_down,
-      sql_up,
-    }
+    Self { dbs, common: MigrationCommon { checksum, name, repeatability, uid }, sql_down, sql_up }
   }
 
   /// Creates a new instance from all necessary input parameters that a user should provide.
@@ -61,13 +56,13 @@ where
     name: S,
     repeatability: Option<Repeatability>,
     [sql_up, sql_down]: [S; 2],
-    version: VersionTy,
+    uid: Uid,
   ) -> crate::Result<Self> {
     is_sorted_and_unique(dbs.lease())?;
-    let checksum = calc_checksum(name.lease(), sql_up.lease(), sql_down.lease(), version);
+    let checksum = calc_checksum(name.lease(), sql_up.lease(), sql_down.lease(), uid);
     Ok(Self {
       dbs,
-      common: MigrationCommon { checksum, name, repeatability, version },
+      common: MigrationCommon { checksum, name, repeatability, uid },
       sql_down,
       sql_up,
     })
@@ -155,16 +150,16 @@ where
     self.sql_up.lease()
   }
 
-  /// UserMigration version
+  /// User ID
   ///
   /// # Example
   ///
   /// ```rust
   /// use wtx::database::schema_manager::doc_tests::migration;
-  /// assert_eq!(migration().version(), 1)
+  /// assert_eq!(migration().uid(), 1)
   /// ```
   #[inline]
-  pub fn version(&self) -> VersionTy {
-    self.common.version
+  pub fn uid(&self) -> Uid {
+    self.common.uid
   }
 }

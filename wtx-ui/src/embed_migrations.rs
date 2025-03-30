@@ -16,16 +16,16 @@ pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
   for mg_path in migration_groups {
     let (mg, ms) = group_and_migrations_from_path(&mg_path, Ord::cmp)?;
     let mg_name = mg.name().to_ascii_uppercase();
-    let mg_version = mg.version();
+    let mg_uid = mg.uid();
 
     buffer.write_fmt(format_args!(
       concat!(
         "{{",
-        r#"const {mg_name}: &wtx::database::schema_manager::MigrationGroup<&'static str> = &wtx::database::schema_manager::MigrationGroup::new("{mg_name}",{mg_version});"#,
+        r#"const {mg_name}: &wtx::database::schema_manager::MigrationGroup<&'static str> = &wtx::database::schema_manager::MigrationGroup::new("{mg_name}",{mg_uid});"#,
         r#"const {mg_name}_MIGRATIONS: &[wtx::database::schema_manager::UserMigrationRef<'static, 'static>] = &["#
       ),
       mg_name = mg_name,
-      mg_version = mg_version
+      mg_uid = mg_uid
     ))?;
 
     for rslt in ms {
@@ -35,7 +35,7 @@ pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
       let name = migration.name();
       let sql_down = migration.sql_down();
       let sql_up = migration.sql_up();
-      let version = migration.version();
+      let uid = migration.uid();
 
       buffer.write_fmt(format_args!(
         "wtx::database::schema_manager::UserMigrationRef::from_all_parts({checksum},&["
@@ -53,7 +53,7 @@ pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
           elem.strings().ident
         ))?,
       }
-      buffer.write_fmt(format_args!(r#","{sql_down}","{sql_up}",{version}),"#))?;
+      buffer.write_fmt(format_args!(r#","{sql_down}","{sql_up}",{uid}),"#))?;
     }
 
     buffer.write_fmt(format_args!("];({mg_name},{mg_name}_MIGRATIONS)}},"))?;

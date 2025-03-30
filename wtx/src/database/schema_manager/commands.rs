@@ -8,18 +8,19 @@ mod validate;
 
 use crate::{
   database::{
-    Database, DatabaseTy,
+    Database, DatabaseTy, Identifier,
     executor::Executor,
-    schema_manager::{DEFAULT_BATCH_SIZE, UserMigration},
+    schema_manager::{DEFAULT_BATCH_SIZE, SchemaManagement, UserMigration},
   },
-  misc::Lease,
+  misc::{Lease, Vector},
 };
+use alloc::string::String;
 
 /// SQL commands facade
 #[derive(Debug)]
 pub struct Commands<E> {
   batch_size: usize,
-  pub(crate) executor: E,
+  executor: E,
 }
 
 impl<E> Commands<E>
@@ -46,6 +47,12 @@ where
     self.batch_size
   }
 
+  /// Allows the access of the internal executor
+  #[inline]
+  pub(crate) fn _executor_mut(&mut self) -> &mut E {
+    &mut self.executor
+  }
+
   #[inline]
   fn filter_by_db<'migration, DBS, I, S>(
     migrations: I,
@@ -58,5 +65,19 @@ where
     migrations.filter(move |m| {
       if m.dbs().is_empty() { true } else { m.dbs().contains(&<E::Database as Database>::TY) }
     })
+  }
+}
+
+impl<E> Commands<E>
+where
+  E: SchemaManagement,
+{
+  /// Retrieves all inserted elements.
+  #[inline]
+  pub async fn all_elements(
+    &mut self,
+    buffer: (&mut String, &mut Vector<Identifier>),
+  ) -> crate::Result<()> {
+    self.executor.all_elements(buffer).await
   }
 }

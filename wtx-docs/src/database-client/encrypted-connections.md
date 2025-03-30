@@ -63,19 +63,19 @@ Everything should be ready on the server side.
 
 ```bash
 podman run \
-    --name SOME_CONTAINER_NAME \
-    -d \
-    -e MYSQL_DATABASE=SOME_DATABASE \
-    -e MYSQL_PASSWORD=SOME_PASSWORD \
-    -e MYSQL_ROOT_PASSWORD=SOME_ROOT_PASSWORD \
-    -e MYSQL_USER=SOME_USER \
-    -p 3306:3306 \
-    -v SOME_DIRECTORY/my.cnf:/etc/mysql/my.cnf \
-    -v SOME_DIRECTORY/setup.sh:/docker-entrypoint-initdb.d/setup.sh \
-    docker.io/library/mysql:9
+  --name SOME_CONTAINER_NAME \
+  -d \
+  -e MYSQL_DATABASE=SOME_DATABASE \
+  -e MYSQL_PASSWORD=SOME_PASSWORD \
+  -e MYSQL_ROOT_PASSWORD=SOME_ROOT_PASSWORD \
+  -e MYSQL_USER=SOME_USER \
+  -p 3306:3306 \
+  -v SOME_DIRECTORY/my.cnf:/etc/mysql/my.cnf \
+  -v SOME_DIRECTORY/setup.sh:/docker-entrypoint-initdb.d/setup.sh \
+  docker.io/library/mysql:9
 ```
 
-Now it is just a matter of including the root CA certificate in the `wtx` client. With everything properly configured, an successful encrypted connection should be expected.
+Now it is just a matter of including the root CA certificate in the `wtx` client. With everything properly configured, a successful encrypted connection should be expected.
 
 ```text
 #[tokio::test]
@@ -127,11 +127,11 @@ EOF
 
 ```bash
 podman run \
-    --name SOME_CONTAINER_NAME \
-    -d \
-    -e POSTGRES_DB=SOME_DB \
-    -e POSTGRES_PASSWORD=SOME_PASSWORD \
-    -p 5432:5432 \
-    -v SOME_DIRECTORY/setup.sh:/docker-entrypoint-initdb.d/setup.sh \
-    docker.io/library/postgres:17
+  --name SOME_CONTAINER_NAME \
+  -d \
+  -e POSTGRES_DB=SOME_DB \
+  -e POSTGRES_PASSWORD=SOME_PASSWORD \
+  -p 5432:5432 \
+  -v SOME_DIRECTORY/setup.sh:/docker-entrypoint-initdb.d/setup.sh \
+  docker.io/library/postgres:17
 ```

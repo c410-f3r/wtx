@@ -21,7 +21,7 @@ impl<E> Commands<E>
 where
   E: SchemaManagement,
 {
-  /// Migrates everything inside a group that is greater than the last migration version within the
+  /// Migrates everything inside a group that is greater than the last migration ID within the
   /// database
   #[inline]
   pub async fn migrate<'migration, DBS, I, S>(
@@ -127,13 +127,13 @@ where
     let filtered_by_db = Self::filter_by_db(user_migrations);
     Self::do_validate(buffer_db_migrations, filtered_by_db.clone())?;
     let curr_applied_migrations;
-    let curr_last_db_migration_version = filtered_by_db.clone().last().map(|el| el.version());
+    let curr_last_db_migration_uid = filtered_by_db.clone().last().map(|el| el.uid());
     let prev_db_migrations = Usize::from(buffer_db_migrations.len()).into_u64();
-    let mut prev_last_db_migration_version = None;
-    if let Some(last_db_mig_version) = buffer_db_migrations.last().map(DbMigration::version) {
-      let to_apply = filtered_by_db.filter(move |e| e.version() > last_db_mig_version);
+    let mut prev_last_db_migration_uid = None;
+    if let Some(last_db_mig_uid) = buffer_db_migrations.last().map(DbMigration::uid) {
+      let to_apply = filtered_by_db.filter(move |e| e.uid() > last_db_mig_uid);
       curr_applied_migrations = Usize::from(to_apply.clone().count()).into();
-      prev_last_db_migration_version = Some(last_db_mig_version);
+      prev_last_db_migration_uid = Some(last_db_mig_uid);
       self.executor.insert_migrations(buffer_cmd, mg, to_apply).await?;
     } else {
       curr_applied_migrations = Usize::from(filtered_by_db.clone().count()).into();
@@ -142,9 +142,9 @@ where
     buffer_db_migrations.clear();
     Ok(MigrationStatus {
       curr_applied_migrations,
-      curr_last_db_migration_version,
-      mg_version: mg.version(),
-      prev_last_db_migration_version,
+      curr_last_db_migration_uid,
+      mg_uid: mg.uid(),
+      prev_last_db_migration_uid,
       prev_db_migrations,
     })
   }

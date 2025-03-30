@@ -51,12 +51,18 @@ pub type EmbeddedMigrationsTy = &'static [(
   &'static MigrationGroup<&'static str>,
   &'static [UserMigrationRef<'static, 'static>],
 )];
-/// The version or ID of a migration
-pub type VersionTy = u32;
+/// Identifiers provided by users for migrations.
+pub type Uid = u32;
 
 /// Contains methods responsible to manage database migrations.
 pub trait SchemaManagement: Executor {
-  /// Clears all database resources.
+  /// Retrieves all inserted elements.
+  fn all_elements(
+    &mut self,
+    buffer: (&mut String, &mut Vector<Identifier>),
+  ) -> impl Future<Output = crate::Result<()>>;
+
+  /// Cleans all database resources.
   fn clear(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
@@ -65,12 +71,12 @@ pub trait SchemaManagement: Executor {
   /// Initial tables meant for initialization.
   fn create_wtx_tables(&mut self) -> impl Future<Output = crate::Result<()>>;
 
-  /// Removes every migration of a given group `mg`` that is greater than `version`.
+  /// Removes every migration of a given group `mg`` that is greater than `uid`.
   fn delete_migrations<S>(
     &mut self,
     buffer_cmd: &mut String,
     mg: &MigrationGroup<S>,
-    version: VersionTy,
+    uid: Uid,
   ) -> impl Future<Output = crate::Result<()>>
   where
     S: Lease<str>;
@@ -109,6 +115,11 @@ pub trait SchemaManagement: Executor {
 
 impl SchemaManagement for () {
   #[inline]
+  async fn all_elements(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+    Ok(())
+  }
+
+  #[inline]
   async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
     Ok(())
   }
@@ -123,7 +134,7 @@ impl SchemaManagement for () {
     &mut self,
     _: &mut String,
     _: &MigrationGroup<S>,
-    _: VersionTy,
+    _: Uid,
   ) -> crate::Result<()>
   where
     S: Lease<str>,
@@ -177,9 +188,9 @@ mod mysql {
       DatabaseTy, Executor as _, Identifier,
       client::mysql::{ExecutorBuffer, MysqlExecutor},
       schema_manager::{
-        DbMigration, MigrationGroup, SchemaManagement, UserMigration, VersionTy,
+        DbMigration, MigrationGroup, SchemaManagement, Uid, UserMigration,
         fixed_sql_commands::{
-          _delete_migrations, _insert_migrations, _migrations_by_mg_version_query,
+          _delete_migrations, _insert_migrations, _migrations_by_mg_uid_query,
           mysql::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
         },
       },
@@ -193,6 +204,15 @@ mod mysql {
     EB: LeaseMut<ExecutorBuffer>,
     STREAM: Stream,
   {
+    #[inline]
+    async fn all_elements(
+      &mut self,
+      buffer: (&mut String, &mut Vector<Identifier>),
+    ) -> crate::Result<()> {
+      self.table_names(buffer.0, buffer.1, "").await?;
+      Ok(())
+    }
+
     #[inline]
     async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
       _clear(self).await
@@ -209,12 +229,12 @@ mod mysql {
       &mut self,
       buffer_cmd: &mut String,
       mg: &MigrationGroup<S>,
-      version: VersionTy,
+      uid: Uid,
     ) -> crate::Result<()>
     where
       S: Lease<str>,
     {
-      _delete_migrations(buffer_cmd, self, mg, "", version).await
+      _delete_migrations(buffer_cmd, self, mg, "", uid).await
     }
 
     #[inline]
@@ -242,7 +262,7 @@ mod mysql {
     where
       S: Lease<str>,
     {
-      _migrations_by_mg_version_query(buffer_cmd, self, mg.version(), results, "").await
+      _migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, "").await
     }
 
     #[inline]
@@ -264,10 +284,10 @@ mod postgres {
       DatabaseTy, Executor as _, Identifier,
       client::postgres::{ExecutorBuffer, PostgresExecutor},
       schema_manager::{
-        _WTX_SCHEMA, DbMigration, MigrationGroup, SchemaManagement, UserMigration, VersionTy,
+        _WTX_SCHEMA, DbMigration, MigrationGroup, SchemaManagement, Uid, UserMigration,
         fixed_sql_commands::{
-          _delete_migrations, _insert_migrations, _migrations_by_mg_version_query,
-          postgres::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
+          _delete_migrations, _insert_migrations, _migrations_by_mg_uid_query,
+          postgres::{_CREATE_MIGRATION_TABLES, _all_elements, _clear, _table_names},
         },
       },
     },
@@ -280,6 +300,27 @@ mod postgres {
     EB: LeaseMut<ExecutorBuffer>,
     STREAM: Stream,
   {
+    #[inline]
+    async fn all_elements(
+      &mut self,
+      (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
+    ) -> crate::Result<()> {
+      _all_elements(
+        (buffer_cmd, buffer_idents),
+        self,
+        |_| Ok(()),
+        |_| Ok(()),
+        |_| Ok(()),
+        |_| Ok(()),
+        |_| Ok(()),
+        |_| Ok(()),
+        |_| Ok(()),
+        |_| Ok(()),
+      )
+      .await?;
+      Ok(())
+    }
+
     #[inline]
     async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
       _clear(buffer, self).await
@@ -296,12 +337,12 @@ mod postgres {
       &mut self,
       buffer_cmd: &mut String,
       mg: &MigrationGroup<S>,
-      version: VersionTy,
+      uid: Uid,
     ) -> crate::Result<()>
     where
       S: Lease<str>,
     {
-      _delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA, version).await
+      _delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA, uid).await
     }
 
     #[inline]
@@ -329,7 +370,7 @@ mod postgres {
     where
       S: Lease<str>,
     {
-      _migrations_by_mg_version_query(buffer_cmd, self, mg.version(), results, _WTX_SCHEMA).await
+      _migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, _WTX_SCHEMA).await
     }
 
     #[inline]

@@ -192,6 +192,8 @@ pub(crate) struct SchemaManager {
 
 #[derive(Debug, clap::Subcommand)]
 pub(crate) enum SchemaManagerCommands {
+  /// Checks if a full rollback leaves the database without previously inserted elements.
+  CheckFullRollback {},
   /// Clean all database objects. For example, tables, triggers or procedures
   #[cfg(feature = "schema-manager-dev")]
   Clean {},
@@ -200,7 +202,7 @@ pub(crate) enum SchemaManagerCommands {
   /// Shortcut.
   #[cfg(feature = "schema-manager-dev")]
   MigrateAndSeed {},
-  /// Returns database state to a point
+  /// Returns the database state to certain points
   Rollback { versions: Vec<u32> },
   /// Populates the database with data intended for testing
   #[cfg(feature = "schema-manager-dev")]
