@@ -2175,7 +2175,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "aes-gcm",
  "arbitrary",

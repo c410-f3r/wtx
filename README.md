@@ -25,9 +25,9 @@ Embedded devices with a working heap allocator can use this `no_std` crate.
 
 ## Comparisons
 
-In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following comparison table to see how our built-from-scratch technologies compare with other similar implementations.
+In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following comparison table to see how some built-from-scratch implementations compare with other similar projects.
 
-| Technology                                         | Similar Implementations                                                        | Feature (`wtx`)          |
+| Technology                                         | Similar projects                                                               | Feature (`wtx`)          |
 | -------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------ |
 | [Client API Framework][client-api-framework]       | N/A                                                                            | client-api-framework     |
 | [Database Client][database-client]                 | [diesel][diesel], [sqlx][sqlx]                                                 | postgres, mysql          |
