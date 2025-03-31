@@ -1,7 +1,9 @@
 use crate::{
   database::{
     DatabaseTy,
-    schema_manager::{Commands, DbMigration, MigrationGroup, SchemaManagement, Uid, UserMigration},
+    schema_manager::{
+      Commands, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
+    },
   },
   misc::{DEController, Lease, Vector},
 };
@@ -25,7 +27,7 @@ where
   pub async fn rollback<'migration, DBS, I, S>(
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
-    mg: &MigrationGroup<S>,
+    mg: &UserMigrationGroup<S>,
     migrations: I,
     uid: Uid,
   ) -> Result<(), <E::Database as DEController>::Error>

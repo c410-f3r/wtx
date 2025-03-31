@@ -43,6 +43,14 @@ impl<RRD> ReqBuilder<RRD> {
   }
 }
 
+impl<'rrd, RRD> ReqBuilder<&'rrd mut RRD> {
+  /// Constructor shortcut that has a default `GET` method
+  #[inline]
+  pub fn from_req_mut(req: &'rrd mut Request<RRD>) -> Self {
+    Self { method: req.method, rrb: ReqResBuilder::new(&mut req.rrd), version: req.version }
+  }
+}
+
 impl<RRD> AsMut<ReqBuilder<RRD>> for ReqBuilder<RRD> {
   #[inline]
   fn as_mut(&mut self) -> &mut ReqBuilder<RRD> {

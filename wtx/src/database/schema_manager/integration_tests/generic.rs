@@ -2,7 +2,7 @@ use crate::{
   database::{
     Executor, Identifier,
     schema_manager::{
-      Commands, DbMigration, MigrationGroup, MigrationStatus, SchemaManagement,
+      Commands, DbMigration, MigrationStatus, SchemaManagement, UserMigrationGroup,
       integration_tests::AuxTestParams,
     },
   },
@@ -47,8 +47,8 @@ pub(crate) async fn rollback_works<E>(
   let path = Path::new("../.test-utils/migrations.toml");
   c.migrate_from_toml_path((buffer_cmd, buffer_db_migrations, buffer_status), path).await.unwrap();
   c.rollback_from_toml((buffer_cmd, buffer_db_migrations), path, None).await.unwrap();
-  let initial = MigrationGroup::new("initial", 1);
-  let more_stuff = MigrationGroup::new("more_stuff", 2);
+  let initial = UserMigrationGroup::new("initial", 1);
+  let more_stuff = UserMigrationGroup::new("more_stuff", 2);
 
   c._executor_mut().migrations(buffer_cmd, &initial, buffer_db_migrations).await.unwrap();
   assert_eq!(buffer_db_migrations.len(), 0);

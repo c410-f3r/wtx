@@ -2,8 +2,8 @@ use crate::{
   database::{
     DatabaseTy,
     schema_manager::{
-      Commands, DbMigration, MigrationGroup, Repeatability, SchemaManagement, SchemaManagerError,
-      UserMigration, misc::is_migration_divergent,
+      Commands, DbMigration, Repeatability, SchemaManagement, SchemaManagerError, UserMigration,
+      UserMigrationGroup, misc::is_migration_divergent,
     },
   },
   misc::{Lease, Vector},
@@ -25,7 +25,7 @@ where
   pub async fn validate<'migration, DBS, I, S>(
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
-    mg: &MigrationGroup<S>,
+    mg: &UserMigrationGroup<S>,
     migrations: I,
   ) -> crate::Result<()>
   where

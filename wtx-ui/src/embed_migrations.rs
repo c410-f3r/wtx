@@ -21,7 +21,7 @@ pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
     buffer.write_fmt(format_args!(
       concat!(
         "{{",
-        r#"const {mg_name}: &wtx::database::schema_manager::MigrationGroup<&'static str> = &wtx::database::schema_manager::MigrationGroup::new("{mg_name}",{mg_uid});"#,
+        r#"const {mg_name}: &wtx::database::schema_manager::UserMigrationGroup<&'static str> = &wtx::database::schema_manager::UserMigrationGroup::new("{mg_name}",{mg_uid});"#,
         r#"const {mg_name}_MIGRATIONS: &[wtx::database::schema_manager::UserMigrationRef<'static, 'static>] = &["#
       ),
       mg_name = mg_name,

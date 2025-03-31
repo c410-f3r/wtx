@@ -3,7 +3,7 @@ pub(crate) mod without_schema;
 
 use crate::{
   database::schema_manager::{
-    Commands, MigrationGroup, SchemaManagement, integration_tests::AuxTestParams,
+    Commands, SchemaManagement, UserMigrationGroup, integration_tests::AuxTestParams,
   },
   misc::Vector,
 };
@@ -22,7 +22,7 @@ pub(crate) async fn migrate_works<E>(
   let mut db_migrations = Vector::new();
   let mut status = Vector::new();
   c.migrate_from_toml_path((buffer_cmd, &mut db_migrations, &mut status), path).await.unwrap();
-  let initial = MigrationGroup::new("initial", 1);
+  let initial = UserMigrationGroup::new("initial", 1);
   c._executor_mut().migrations(buffer_cmd, &initial, &mut db_migrations).await.unwrap();
   assert_eq!(db_migrations[0].checksum(), 7573493478190316387);
   assert_eq!(db_migrations[0].uid(), 1);
@@ -34,7 +34,7 @@ pub(crate) async fn migrate_works<E>(
   assert_eq!(db_migrations[3].uid(), 4);
   assert_eq!(db_migrations[3].name(), "insert_post");
   assert_eq!(db_migrations.get(4), None);
-  let more_stuff = MigrationGroup::new("more_stuff", 2);
+  let more_stuff = UserMigrationGroup::new("more_stuff", 2);
   db_migrations.clear();
   c._executor_mut().migrations(buffer_cmd, &more_stuff, &mut db_migrations).await.unwrap();
   assert_eq!(db_migrations[0].checksum(), 8208328219135761847);

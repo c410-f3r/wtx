@@ -73,8 +73,8 @@ where
   /// # Example
   ///
   /// ```rust
-  /// use wtx::database::schema_manager::doc_tests::migration;
-  /// assert_eq!(migration().checksum(), 9297329847391907999)
+  /// use wtx::database::schema_manager::doc_tests::user_migration;
+  /// assert_eq!(user_migration().checksum(), 9297329847391907999)
   /// ```
   #[inline]
   pub fn checksum(&self) -> u64 {
@@ -88,8 +88,8 @@ where
   /// # Example
   ///
   /// ```rust
-  /// use wtx::database::schema_manager::doc_tests::migration;
-  /// assert_eq!(migration().dbs(), [])
+  /// use wtx::database::schema_manager::doc_tests::user_migration;
+  /// assert_eq!(user_migration().dbs(), [])
   /// ```
   #[inline]
   pub fn dbs(&self) -> &[DatabaseTy] {
@@ -101,8 +101,8 @@ where
   /// # Example
   ///
   /// ```rust
-  /// use wtx::database::schema_manager::doc_tests::migration;
-  /// assert_eq!(migration().name(), "create_author")
+  /// use wtx::database::schema_manager::doc_tests::user_migration;
+  /// assert_eq!(user_migration().name(), "create_author")
   /// ```
   #[inline]
   pub fn name(&self) -> &str {
@@ -114,8 +114,8 @@ where
   /// # Example
   ///
   /// ```rust
-  /// use wtx::database::schema_manager::doc_tests::migration;
-  /// assert_eq!(migration().repeatability(), None)
+  /// use wtx::database::schema_manager::doc_tests::user_migration;
+  /// assert_eq!(user_migration().repeatability(), None)
   /// ```
   #[inline]
   pub fn repeatability(&self) -> Option<Repeatability> {
@@ -127,8 +127,8 @@ where
   /// # Example
   ///
   /// ```rust
-  /// use wtx::database::schema_manager::doc_tests::migration;
-  /// assert_eq!(migration().sql_down(), "DROP TABLE author");
+  /// use wtx::database::schema_manager::doc_tests::user_migration;
+  /// assert_eq!(user_migration().sql_down(), "DROP TABLE author");
   /// ```
   #[inline]
   pub fn sql_down(&self) -> &str {
@@ -140,9 +140,9 @@ where
   /// # Example
   ///
   /// ```rust
-  /// use wtx::database::schema_manager::doc_tests::migration;
+  /// use wtx::database::schema_manager::doc_tests::user_migration;
   /// let mg = assert_eq!(
-  ///   migration().sql_up(),
+  ///   user_migration().sql_up(),
   ///   "CREATE TABLE author (id INT NOT NULL PRIMARY KEY, name VARCHAR(50) NOT NULL)"
   /// );
   #[inline]
@@ -155,8 +155,8 @@ where
   /// # Example
   ///
   /// ```rust
-  /// use wtx::database::schema_manager::doc_tests::migration;
-  /// assert_eq!(migration().uid(), 1)
+  /// use wtx::database::schema_manager::doc_tests::user_migration;
+  /// assert_eq!(user_migration().uid(), 1)
   /// ```
   #[inline]
   pub fn uid(&self) -> Uid {
