@@ -2,8 +2,8 @@ mod req_builder;
 mod res_builder;
 
 use crate::{
-  http::{Header, KnownHeaderName, Mime, req_res_buffer::ReqResBuffer},
-  misc::LeaseMut,
+  http::{Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut},
+  misc::{LeaseMut, Vector},
 };
 use core::fmt::Arguments;
 pub use req_builder::ReqBuilder;
@@ -24,10 +24,7 @@ impl<RRD> ReqResBuilder<RRD> {
   }
 }
 
-impl<RRD> ReqResBuilder<RRD>
-where
-  RRD: LeaseMut<ReqResBuffer>,
-{
+impl ReqResBuilder<ReqResBuffer> {
   /// Applies a header field in the form of `Authorization: Basic <credentials>` where
   /// `credentials` is the Base64 encoding of `id` and `pw` joined by a single colon `:`.
   #[inline]
@@ -57,33 +54,19 @@ where
     }
     Ok(self)
   }
+}
 
-  /// Applies a header field in the form of `Authorization: Bearer <token>`.
-  #[inline]
-  pub fn auth_bearer(&mut self, token: Arguments<'_>) -> crate::Result<&mut Self> {
-    self.rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
-      KnownHeaderName::Authorization.into(),
-      format_args!("Bearer {token}"),
-    ))?;
-    Ok(self)
-  }
-
+impl<RRD> ReqResBuilder<RRD>
+where
+  RRD: ReqResDataMut,
+  RRD::Body: LeaseMut<Vector<u8>>,
+{
   /// Injects a sequence of bytes into the internal buffer.
   ///
   /// No `content-type` header is applied in this method.
   #[inline]
   pub fn bytes(&mut self, data: &[u8]) -> crate::Result<&mut Self> {
-    self.rrd.lease_mut().body.extend_from_copyable_slice(data)?;
-    Ok(self)
-  }
-
-  /// Media type of the resource.
-  #[inline]
-  pub fn content_type(&mut self, mime: Mime) -> crate::Result<&mut Self> {
-    self.rrd.lease_mut().headers.push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::ContentType.into(),
-      [mime.as_str()],
-    ))?;
+    self.rrd.body_mut().lease_mut().extend_from_copyable_slice(data)?;
     Ok(self)
   }
 
@@ -96,7 +79,7 @@ where
   where
     T: serde::Serialize,
   {
-    serde_json::to_writer(&mut self.rrd.lease_mut().body, data)?;
+    serde_json::to_writer(&mut self.rrd.body_mut().lease_mut(), data)?;
     self.content_type(Mime::ApplicationJson)
   }
 
@@ -112,8 +95,8 @@ where
   {
     self
       .rrd
+      .body_mut()
       .lease_mut()
-      .body
       .extend_from_copyable_slice(serde_urlencoded::to_string(data)?.as_bytes())?;
     self.content_type(Mime::ApplicationXWwwFormUrlEncoded)
   }
@@ -123,8 +106,33 @@ where
   /// A `content-type` header of type `text/plain` is also applied.
   #[inline]
   pub fn text(&mut self, data: &[u8]) -> crate::Result<&mut Self> {
-    self.rrd.lease_mut().body.extend_from_copyable_slice(data)?;
+    self.rrd.body_mut().lease_mut().extend_from_copyable_slice(data)?;
     self.content_type(Mime::TextPlain)
+  }
+}
+
+impl<RRD> ReqResBuilder<RRD>
+where
+  RRD: ReqResDataMut,
+{
+  /// Applies a header field in the form of `Authorization: Bearer <token>`.
+  #[inline]
+  pub fn auth_bearer(&mut self, token: Arguments<'_>) -> crate::Result<&mut Self> {
+    self.rrd.headers_mut().push_from_fmt(Header::from_name_and_value(
+      KnownHeaderName::Authorization.into(),
+      format_args!("Bearer {token}"),
+    ))?;
+    Ok(self)
+  }
+
+  /// Media type of the resource.
+  #[inline]
+  pub fn content_type(&mut self, mime: Mime) -> crate::Result<&mut Self> {
+    self.rrd.headers_mut().push_from_iter(Header::from_name_and_value(
+      KnownHeaderName::ContentType.into(),
+      [mime.as_str()],
+    ))?;
+    Ok(self)
   }
 
   /// Characteristic string that lets servers and network peers identify the application.
@@ -132,8 +140,7 @@ where
   pub fn user_agent(&mut self, value: &str) -> crate::Result<&mut Self> {
     self
       .rrd
-      .lease_mut()
-      .headers
+      .headers_mut()
       .push_from_iter(Header::from_name_and_value(KnownHeaderName::UserAgent.into(), [value]))?;
     Ok(self)
   }

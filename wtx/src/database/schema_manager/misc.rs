@@ -22,7 +22,7 @@ use core::hash::{Hash, Hasher};
 use {
   crate::{
     database::schema_manager::{
-      MigrationGroup, Repeatability, UserMigrationOwned,
+      Repeatability, UserMigrationGroup, UserMigrationOwned,
       toml_parser::{Expr, toml},
     },
     misc::{ArrayVector, Vector},
@@ -65,7 +65,10 @@ pub fn files(dir: &Path) -> crate::Result<impl Iterator<Item = crate::Result<Dir
 pub fn group_and_migrations_from_path<F>(
   path: &Path,
   cb: F,
-) -> crate::Result<(MigrationGroup<String>, impl Iterator<Item = crate::Result<UserMigrationOwned>>)>
+) -> crate::Result<(
+  UserMigrationGroup<String>,
+  impl Iterator<Item = crate::Result<UserMigrationOwned>>,
+)>
 where
   F: FnMut(&PathBuf, &PathBuf) -> Ordering,
 {
@@ -144,7 +147,7 @@ where
   }
 
   let ((mg_name, mg_uid), ms) = group_and_migrations_from_path(path, cb)?;
-  let mg = MigrationGroup::new(mg_name, mg_uid);
+  let mg = UserMigrationGroup::new(mg_name, mg_uid);
   let mapped = ms.map(|rslt| {
     let (dbs, name, repeatability, sql_down, sql_up, uid) = rslt?;
     UserMigrationOwned::from_user_parts(dbs, name, repeatability, [sql_up, sql_down], uid)

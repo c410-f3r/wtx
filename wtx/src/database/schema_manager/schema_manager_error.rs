@@ -9,6 +9,8 @@ pub enum SchemaManagerError {
   DatabasesMustBeSortedAndUnique,
   /// Different rollback user IDs
   DifferentRollbackUids,
+  /// The group version of the migration group is older than the current supported version.
+  DivergentGroupVersions(u32, u32),
   /// Divergent migrations
   DivergentMigration(Uid),
   /// Validation - Migrations number

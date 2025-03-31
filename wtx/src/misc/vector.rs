@@ -1,4 +1,4 @@
-use crate::misc::{_unlikely_elem, BufferMode, Lease, LeaseMut, Wrapper};
+use crate::misc::{_unlikely_elem, BufferMode, Clear, Lease, LeaseMut, Wrapper};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
@@ -501,6 +501,13 @@ where
   }
 }
 
+impl<T> Clear for Vector<T> {
+  #[inline]
+  fn clear(&mut self) {
+    (*self).clear();
+  }
+}
+
 impl<T> Lease<[T]> for Vector<T> {
   #[inline]
   fn lease(&self) -> &[T] {
@@ -526,39 +533,6 @@ impl<T> LeaseMut<Vector<T>> for Vector<T> {
   #[inline]
   fn lease_mut(&mut self) -> &mut Vector<T> {
     self
-  }
-}
-
-#[cfg(feature = "serde")]
-mod serde {
-  use crate::misc::Vector;
-  use alloc::vec::Vec;
-  use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-  impl<'de, T> Deserialize<'de> for Vector<T>
-  where
-    T: Deserialize<'de>,
-  {
-    #[inline]
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-      D: Deserializer<'de>,
-    {
-      Ok(Self::from_vec(Vec::deserialize(deserializer)?))
-    }
-  }
-
-  impl<T> Serialize for Vector<T>
-  where
-    T: Serialize,
-  {
-    #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-      S: Serializer,
-    {
-      self.data.serialize(serializer)
-    }
   }
 }
 
@@ -855,5 +829,38 @@ mod kani {
     vec.push(elem);
     vector.push(elem).unwrap();
     assert_eq!(vec.as_slice(), vector.as_slice());
+  }
+}
+
+#[cfg(feature = "serde")]
+mod serde {
+  use crate::misc::Vector;
+  use alloc::vec::Vec;
+  use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+  impl<'de, T> Deserialize<'de> for Vector<T>
+  where
+    T: Deserialize<'de>,
+  {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+      D: Deserializer<'de>,
+    {
+      Ok(Self::from_vec(Vec::deserialize(deserializer)?))
+    }
+  }
+
+  impl<T> Serialize for Vector<T>
+  where
+    T: Serialize,
+  {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      self.data.serialize(serializer)
+    }
   }
 }

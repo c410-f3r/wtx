@@ -38,6 +38,8 @@ pub use schema_manager_error::SchemaManagerError;
 pub const DEFAULT_BATCH_SIZE: usize = 128;
 /// Default configuration file name.
 pub const DEFAULT_CFG_FILE_NAME: &str = "wtx.toml";
+/// Schema API version
+pub const VERSION: u32 = 1;
 pub(crate) const _WTX: &str = "wtx";
 pub(crate) const _WTX_PREFIX: &str = "_wtx";
 pub(crate) const _WTX_SCHEMA: &str = "_wtx.";
@@ -48,7 +50,7 @@ pub(crate) const _WTX_SCHEMA: &str = "_wtx.";
 /// const MIGRATIONS: EmbeddedMigrationsTy = embed_migrations!("SOME_CFG_FILE.toml");
 /// ```
 pub type EmbeddedMigrationsTy = &'static [(
-  &'static MigrationGroup<&'static str>,
+  &'static UserMigrationGroup<&'static str>,
   &'static [UserMigrationRef<'static, 'static>],
 )];
 /// Identifiers provided by users for migrations.
@@ -75,7 +77,7 @@ pub trait SchemaManagement: Executor {
   fn delete_migrations<S>(
     &mut self,
     buffer_cmd: &mut String,
-    mg: &MigrationGroup<S>,
+    mg: &UserMigrationGroup<S>,
     uid: Uid,
   ) -> impl Future<Output = crate::Result<()>>
   where
@@ -85,7 +87,7 @@ pub trait SchemaManagement: Executor {
   fn insert_migrations<'migration, DBS, I, S>(
     &mut self,
     buffer_cmd: &mut String,
-    mg: &MigrationGroup<S>,
+    mg: &UserMigrationGroup<S>,
     migrations: I,
   ) -> impl Future<Output = crate::Result<()>>
   where
@@ -97,7 +99,7 @@ pub trait SchemaManagement: Executor {
   fn migrations<S>(
     &mut self,
     buffer_cmd: &mut String,
-    mg: &MigrationGroup<S>,
+    mg: &UserMigrationGroup<S>,
     results: &mut Vector<DbMigration>,
   ) -> impl Future<Output = crate::Result<()>>
   where
@@ -133,7 +135,7 @@ impl SchemaManagement for () {
   async fn delete_migrations<S>(
     &mut self,
     _: &mut String,
-    _: &MigrationGroup<S>,
+    _: &UserMigrationGroup<S>,
     _: Uid,
   ) -> crate::Result<()>
   where
@@ -146,7 +148,7 @@ impl SchemaManagement for () {
   async fn insert_migrations<'migration, DBS, I, S>(
     &mut self,
     _: &mut String,
-    _: &MigrationGroup<S>,
+    _: &UserMigrationGroup<S>,
     _: I,
   ) -> crate::Result<()>
   where
@@ -161,7 +163,7 @@ impl SchemaManagement for () {
   async fn migrations<S>(
     &mut self,
     _: &mut String,
-    _: &MigrationGroup<S>,
+    _: &UserMigrationGroup<S>,
     _: &mut Vector<DbMigration>,
   ) -> crate::Result<()>
   where
@@ -188,7 +190,7 @@ mod mysql {
       DatabaseTy, Executor as _, Identifier,
       client::mysql::{ExecutorBuffer, MysqlExecutor},
       schema_manager::{
-        DbMigration, MigrationGroup, SchemaManagement, Uid, UserMigration,
+        DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
         fixed_sql_commands::{
           _delete_migrations, _insert_migrations, _migrations_by_mg_uid_query,
           mysql::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
@@ -228,7 +230,7 @@ mod mysql {
     async fn delete_migrations<S>(
       &mut self,
       buffer_cmd: &mut String,
-      mg: &MigrationGroup<S>,
+      mg: &UserMigrationGroup<S>,
       uid: Uid,
     ) -> crate::Result<()>
     where
@@ -241,7 +243,7 @@ mod mysql {
     async fn insert_migrations<'migration, DBS, I, S>(
       &mut self,
       buffer_cmd: &mut String,
-      mg: &MigrationGroup<S>,
+      mg: &UserMigrationGroup<S>,
       migrations: I,
     ) -> crate::Result<()>
     where
@@ -256,7 +258,7 @@ mod mysql {
     async fn migrations<S>(
       &mut self,
       buffer_cmd: &mut String,
-      mg: &MigrationGroup<S>,
+      mg: &UserMigrationGroup<S>,
       results: &mut Vector<DbMigration>,
     ) -> crate::Result<()>
     where
@@ -284,7 +286,7 @@ mod postgres {
       DatabaseTy, Executor as _, Identifier,
       client::postgres::{ExecutorBuffer, PostgresExecutor},
       schema_manager::{
-        _WTX_SCHEMA, DbMigration, MigrationGroup, SchemaManagement, Uid, UserMigration,
+        _WTX_SCHEMA, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
         fixed_sql_commands::{
           _delete_migrations, _insert_migrations, _migrations_by_mg_uid_query,
           postgres::{_CREATE_MIGRATION_TABLES, _all_elements, _clear, _table_names},
@@ -336,7 +338,7 @@ mod postgres {
     async fn delete_migrations<S>(
       &mut self,
       buffer_cmd: &mut String,
-      mg: &MigrationGroup<S>,
+      mg: &UserMigrationGroup<S>,
       uid: Uid,
     ) -> crate::Result<()>
     where
@@ -349,7 +351,7 @@ mod postgres {
     async fn insert_migrations<'migration, DBS, I, S>(
       &mut self,
       buffer_cmd: &mut String,
-      mg: &MigrationGroup<S>,
+      mg: &UserMigrationGroup<S>,
       migrations: I,
     ) -> crate::Result<()>
     where
@@ -364,7 +366,7 @@ mod postgres {
     async fn migrations<S>(
       &mut self,
       buffer_cmd: &mut String,
-      mg: &MigrationGroup<S>,
+      mg: &UserMigrationGroup<S>,
       results: &mut Vector<DbMigration>,
     ) -> crate::Result<()>
     where

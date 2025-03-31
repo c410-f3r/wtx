@@ -7,8 +7,8 @@ use crate::{
   database::{
     Executor, Identifier,
     schema_manager::{
-      Commands, DbMigration, MigrationGroup, MigrationStatus, SchemaManagement,
-      doc_tests::{migration, migration_group},
+      Commands, DbMigration, MigrationStatus, SchemaManagement, UserMigrationGroup,
+      doc_tests::{user_migration, user_migration_group},
     },
   },
   misc::{DEController, Vector},
@@ -177,12 +177,12 @@ pub(crate) async fn _migrate_doc_test<E>(
     &mut Vector<Identifier>,
   ),
   c: &mut Commands<E>,
-) -> MigrationGroup<&'static str>
+) -> UserMigrationGroup<&'static str>
 where
   E: SchemaManagement,
 {
-  let mg = migration_group();
-  let _s = c.migrate((buffer_cmd, buffer_db_migrations), &mg, [migration()].iter()).await.unwrap();
+  let mg = user_migration_group();
+  let _s = c.migrate((buffer_cmd, buffer_db_migrations), &mg, [&user_migration()]).await.unwrap();
   mg
 }
 

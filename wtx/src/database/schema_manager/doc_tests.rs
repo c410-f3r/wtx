@@ -3,7 +3,7 @@
 
 //! Instances mostly used for documentation tests
 
-use crate::database::schema_manager::{MigrationGroup, UserMigrationRef};
+use crate::database::schema_manager::{UserMigrationGroup, UserMigrationRef};
 
 /// ```rust
 /// let _ = wtx::database::schema_manager::UserMigrationRef::from_user_parts(
@@ -18,7 +18,7 @@ use crate::database::schema_manager::{MigrationGroup, UserMigrationRef};
 /// );
 /// ```
 #[inline]
-pub fn migration() -> UserMigrationRef<'static, 'static> {
+pub fn user_migration() -> UserMigrationRef<'static, 'static> {
   UserMigrationRef::from_user_parts(
     &[],
     "create_author",
@@ -33,9 +33,9 @@ pub fn migration() -> UserMigrationRef<'static, 'static> {
 }
 
 /// ```rust
-/// let _ = wtx::database::schema_manager::MigrationGroup::new("initial", 1);
+/// let _ = wtx::database::schema_manager::UserMigrationGroup::new("initial", 1);
 /// ```
 #[inline]
-pub fn migration_group() -> MigrationGroup<&'static str> {
-  MigrationGroup::new("initial", 1)
+pub fn user_migration_group() -> UserMigrationGroup<&'static str> {
+  UserMigrationGroup::new("initial", 1)
 }

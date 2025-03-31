@@ -2,7 +2,7 @@ use crate::{
   database::{
     DatabaseTy, Identifier,
     schema_manager::{
-      MigrationGroup, Repeatability, SchemaManagerError, Uid,
+      DbMigrationGroup, Repeatability, SchemaManagerError, Uid,
       migration::migration_common::MigrationCommon,
     },
   },
@@ -17,7 +17,7 @@ pub struct DbMigration {
   common: MigrationCommon<Identifier>,
   created_on: DateTime<Utc>,
   db_ty: DatabaseTy,
-  group: MigrationGroup<Identifier>,
+  group: DbMigrationGroup<Identifier>,
 }
 
 impl DbMigration {
@@ -41,7 +41,7 @@ impl DbMigration {
 
   /// Group
   #[inline]
-  pub fn group(&self) -> &MigrationGroup<Identifier> {
+  pub fn group(&self) -> &DbMigrationGroup<Identifier> {
     &self.group
   }
 
@@ -74,9 +74,10 @@ where
       common: MigrationCommon { checksum, name, repeatability, uid },
       created_on: from.decode("created_on")?,
       db_ty: DatabaseTy::Mysql,
-      group: MigrationGroup::new(
+      group: DbMigrationGroup::new(
         from.decode::<_, &str>("mg_name")?.try_into()?,
         from.decode("mg_uid")?,
+        from.decode("mg_version")?,
       ),
     })
   }
@@ -101,9 +102,10 @@ where
       },
       created_on: from.decode("created_on")?,
       db_ty: DatabaseTy::Postgres,
-      group: MigrationGroup::new(
+      group: DbMigrationGroup::new(
         from.decode::<_, &str>("mg_name")?.try_into()?,
         from.decode("mg_uid")?,
+        from.decode("mg_version")?,
       ),
     })
   }

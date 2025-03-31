@@ -15,7 +15,8 @@ macro_rules! _wtx_migration_columns {
 macro_rules! _wtx_migration_group_columns {
   () => {
     "uid INT NOT NULL PRIMARY KEY, \
-    name VARCHAR(128) NOT NULL"
+    name VARCHAR(128) NOT NULL,
+    version INT NOT NULL"
   };
 }
 
@@ -34,7 +35,7 @@ use crate::{
   database::{
     Database, DatabaseTy, FromRecord,
     executor::Executor,
-    schema_manager::{DbMigration, MigrationGroup, Uid, UserMigration},
+    schema_manager::{DbMigration, Uid, UserMigration, UserMigrationGroup, VERSION},
   },
   misc::{DEController, Lease, Vector},
 };
@@ -45,7 +46,7 @@ use core::fmt::Write;
 pub(crate) async fn _delete_migrations<E, S>(
   buffer_cmd: &mut String,
   executor: &mut E,
-  mg: &MigrationGroup<S>,
+  mg: &UserMigrationGroup<S>,
   schema_prefix: &str,
   uid: Uid,
 ) -> Result<(), <E::Database as DEController>::Error>
@@ -66,7 +67,7 @@ where
 pub(crate) async fn _insert_migrations<'migration, DBS, E, I, S>(
   buffer_cmd: &mut String,
   executor: &mut E,
-  mg: &MigrationGroup<S>,
+  mg: &UserMigrationGroup<S>,
   migrations: I,
   schema_prefix: &str,
 ) -> Result<(), <E::Database as DEController>::Error>
@@ -78,8 +79,8 @@ where
 {
   buffer_cmd
     .write_fmt(format_args!(
-      "INSERT INTO {schema_prefix}_wtx_migration_group (uid, name)
-    SELECT * FROM (SELECT {mg_uid} AS uid, '{mg_name}' AS name) AS tmp
+      "INSERT INTO {schema_prefix}_wtx_migration_group (uid, name, version)
+    SELECT * FROM (SELECT {mg_uid} AS uid, '{mg_name}' AS name, {VERSION} AS version) AS tmp
     WHERE NOT EXISTS (
       SELECT 1 FROM {schema_prefix}_wtx_migration_group WHERE uid = {mg_uid}
     );",
@@ -146,6 +147,7 @@ where
       _wtx_migration.uid, \
       _wtx_migration_group.uid as mg_uid, \
       _wtx_migration_group.name as mg_name, \
+      _wtx_migration_group.version as mg_version, \
       _wtx_migration.checksum, \
       _wtx_migration.created_on, \
       _wtx_migration.name, \

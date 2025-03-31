@@ -1,6 +1,6 @@
 use crate::{
   http::Headers,
-  misc::{Lease, LeaseMut, Uri, UriString},
+  misc::{Clear, Lease, LeaseMut, Uri, UriString},
 };
 use alloc::{boxed::Box, string::String};
 
@@ -303,7 +303,9 @@ where
 
 impl ReqResDataMut for Headers {
   #[inline]
-  fn clear(&mut self) {}
+  fn clear(&mut self) {
+    self.headers_mut().clear();
+  }
 
   #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
@@ -313,10 +315,14 @@ impl ReqResDataMut for Headers {
 
 impl<B, H> ReqResDataMut for (B, H)
 where
+  B: Clear,
   H: LeaseMut<Headers>,
 {
   #[inline]
-  fn clear(&mut self) {}
+  fn clear(&mut self) {
+    self.body_mut().clear();
+    self.headers_mut().clear();
+  }
 
   #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
@@ -326,11 +332,15 @@ where
 
 impl<B, H, U> ReqResDataMut for (B, H, U)
 where
+  B: Clear,
   H: LeaseMut<Headers>,
   U: Lease<UriString>,
 {
   #[inline]
-  fn clear(&mut self) {}
+  fn clear(&mut self) {
+    self.body_mut().clear();
+    self.headers_mut().clear();
+  }
 
   #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {

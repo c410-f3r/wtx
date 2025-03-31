@@ -2,7 +2,8 @@ use crate::{
   database::{
     DatabaseTy,
     schema_manager::{
-      Commands, DbMigration, MigrationGroup, MigrationStatus, SchemaManagement, UserMigration,
+      Commands, DbMigration, MigrationStatus, SchemaManagement, SchemaManagerError, UserMigration,
+      UserMigrationGroup, VERSION,
     },
   },
   misc::{Lease, Usize, Vector},
@@ -15,7 +16,7 @@ use {
 };
 
 type MigrationFromGroups<'slice, 'migration_group, 'migration_slice, DBS, S> =
-  &'slice [(&'migration_group MigrationGroup<S>, &'migration_slice [UserMigration<DBS, S>])];
+  &'slice [(&'migration_group UserMigrationGroup<S>, &'migration_slice [UserMigration<DBS, S>])];
 
 impl<E> Commands<E>
 where
@@ -27,18 +28,19 @@ where
   pub async fn migrate<'migration, DBS, I, S>(
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
-    mg: &MigrationGroup<S>,
+    mg: &UserMigrationGroup<S>,
     user_migrations: I,
   ) -> crate::Result<MigrationStatus>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
-    I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
+    I: IntoIterator<Item = &'migration UserMigration<DBS, S>>,
+    I::IntoIter: Clone,
     S: Lease<str> + 'migration,
   {
     buffer_db_migrations.clear();
     self.executor.create_wtx_tables().await?;
     self.executor.migrations(buffer_cmd, mg, buffer_db_migrations).await?;
-    self.do_migrate((buffer_cmd, buffer_db_migrations), mg, user_migrations).await
+    self.do_migrate((buffer_cmd, buffer_db_migrations), mg, user_migrations.into_iter()).await
   }
 
   /// Applies `migrate` to a set of migrations according to a given directory
@@ -116,7 +118,7 @@ where
   async fn do_migrate<'migration, DBS, I, S>(
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
-    mg: &MigrationGroup<S>,
+    mg: &UserMigrationGroup<S>,
     user_migrations: I,
   ) -> crate::Result<MigrationStatus>
   where
@@ -130,10 +132,15 @@ where
     let curr_last_db_migration_uid = filtered_by_db.clone().last().map(|el| el.uid());
     let prev_db_migrations = Usize::from(buffer_db_migrations.len()).into_u64();
     let mut prev_last_db_migration_uid = None;
-    if let Some(last_db_mig_uid) = buffer_db_migrations.last().map(DbMigration::uid) {
-      let to_apply = filtered_by_db.filter(move |e| e.uid() > last_db_mig_uid);
+    if let Some(last_db_mig) = buffer_db_migrations.last() {
+      if last_db_mig.group().version() != VERSION {
+        return Err(
+          SchemaManagerError::DivergentGroupVersions(last_db_mig.group().version(), VERSION).into(),
+        );
+      }
+      let to_apply = filtered_by_db.filter(move |e| e.uid() > last_db_mig.uid());
       curr_applied_migrations = Usize::from(to_apply.clone().count()).into();
-      prev_last_db_migration_uid = Some(last_db_mig_uid);
+      prev_last_db_migration_uid = Some(last_db_mig.uid());
       self.executor.insert_migrations(buffer_cmd, mg, to_apply).await?;
     } else {
       curr_applied_migrations = Usize::from(filtered_by_db.clone().count()).into();

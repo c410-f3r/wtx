@@ -11,7 +11,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  http::{Header, HttpClient, KnownHeaderName, ReqResBuffer, WTX_USER_AGENT},
+  http::{HttpClient, ReqResBuffer, ResBuilder, WTX_USER_AGENT},
   http2::{ClientStream, Http2, Http2Buffer, Http2Data},
   misc::{LeaseMut, Lock, RefCounter, StreamWriter},
 };
@@ -89,15 +89,10 @@ where
 {
   let params = pkgs_aux.tp.lease_mut();
   let HttpReqParams { headers, mime, .. } = &mut params.ext_params_mut().0;
-  headers.push_from_iter(Header::from_name_and_value(
-    KnownHeaderName::UserAgent.into(),
-    [WTX_USER_AGENT],
-  ))?;
+  let mut rb = ResBuilder::ok(headers);
+  let _ = rb.user_agent(WTX_USER_AGENT)?;
   if let Some(elem) = mime {
-    headers.push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::ContentType.into(),
-      [elem.as_str()],
-    ))?;
+    let _ = rb.content_type(*elem)?;
   }
   Ok(())
 }

@@ -55,6 +55,7 @@ pub use array_vector::{ArrayVector, ArrayVectorError, IntoIter};
 pub use blocks_deque::{Block, BlocksDeque, BlocksDequeBuilder, BlocksDequeError};
 pub use buffer_mode::BufferMode;
 pub use bytes_fmt::BytesFmt;
+pub use clear::Clear;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, fmt::Write as _, ops::Range, time::Duration};
 pub use decode::{Decode, DecodeSeq};
