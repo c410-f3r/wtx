@@ -127,7 +127,7 @@ where
     A: Api,
   {
     manage_before_sending_bytes(bytes, pkgs_aux, &mut *self).await?;
-    self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
+    self.requests.push(Cow::Owned(FromBytes::from_bytes(bytes.bytes(&pkgs_aux.byte_buffer))?))?;
     pkgs_aux.byte_buffer.clear();
     manage_after_sending_bytes(pkgs_aux).await?;
     Ok(())

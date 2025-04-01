@@ -19,8 +19,6 @@
 
 A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 3 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [MySQL](https://dev.mysql.com/doc/dev/mysql-server/latest/), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
-Every feature is optional and must be set at compile time. Please see the intended documentation for further information.
-
 Embedded devices with a working heap allocator can use this `no_std` crate.
 
 ## Comparisons
@@ -38,6 +36,8 @@ In a way, `wtx` can be seen as an amalgamation that consolidates the functionali
 | [HTTP/2][http2]                                    | [h2][h2]                                                                       | http2                    |
 | [Pool][pool]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                                 | pool                     |
 | [WebSocket][web-socket]                            | [async-tungstenite][async-tungstenite], [tokio-tungstenite][tokio-tungstenite] | web-socket               |
+
+Please note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <c410-f3r.github.io/wtx>.
 
 ## Performance
 

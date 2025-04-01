@@ -9,7 +9,7 @@ mod request_throttling;
 use crate::{
   client_api_framework::{
     Api, SendBytesSource,
-    network::transport::Transport,
+    network::{TransportGroup, transport::Transport},
     pkg::{Package, PkgsAux},
   },
   data_transformation::dnsn::EncodeWrapper,
@@ -27,8 +27,12 @@ pub use request_throttling::RequestThrottling;
 /// Not used in [`crate::network::transport::Transport::send_recv_decode_batch`] because
 /// [`crate::Requests::decode_responses`] takes precedence.
 #[inline]
-pub(crate) fn _log_res(_res: &[u8]) {
-  _debug!("Response: {:?}", crate::misc::from_utf8_basic(_res));
+pub(crate) fn _log_res(_log_body: bool, _res: &[u8], _tg: TransportGroup) {
+  if _log_body {
+    _debug!(trans_ty = display(_tg), "Response: {:?}", crate::misc::from_utf8_basic(_res));
+  } else {
+    _debug!(trans_ty = display(_tg), "Response");
+  }
 }
 
 #[inline]
@@ -73,7 +77,7 @@ where
   A: Api,
   T: Transport<TP>,
 {
-  log_req_bytes(bytes.bytes(&pkgs_aux.byte_buffer), trans);
+  log_req(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, trans);
   pkgs_aux.api.before_sending().await?;
   Ok(())
 }
@@ -99,14 +103,18 @@ where
   pkg
     .ext_req_content_mut()
     .encode(&mut pkgs_aux.drsr, &mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
-  log_req_bytes(&pkgs_aux.byte_buffer, trans);
+  log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, trans);
   Ok(())
 }
 
 #[inline]
-fn log_req_bytes<T, TP>(_bytes: &[u8], _trans: &mut T)
+fn log_req<T, TP>(_bytes: &[u8], _log_body: bool, _trans: &mut T)
 where
   T: Transport<TP>,
 {
-  _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", crate::misc::from_utf8_basic(_bytes));
+  if _log_body {
+    _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", crate::misc::from_utf8_basic(_bytes));
+  } else {
+    _debug!(trans_ty = display(_trans.ty()), "Request");
+  }
 }
