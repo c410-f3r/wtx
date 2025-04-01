@@ -11,7 +11,7 @@ use crate::{
       manage_before_sending_pkg,
     },
     network::{
-      WsParams, WsReqParamsTy,
+      TransportGroup, WsParams, WsReqParamsTy,
       transport::{Transport, TransportParams},
     },
     pkg::{Package, PkgsAux},
@@ -39,7 +39,7 @@ async fn recv<A, DRSR, TP>(
   }
   pkgs_aux.byte_buffer.clear();
   pkgs_aux.byte_buffer.extend_from_copyable_slice(frame.payload())?;
-  _log_res(&pkgs_aux.byte_buffer);
+  _log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::WebSocket);
   Ok(())
 }
 

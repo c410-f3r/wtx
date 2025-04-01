@@ -25,6 +25,11 @@ pub struct PkgsAux<A, DRSR, TP> {
   pub byte_buffer: Vector<u8>,
   /// Deserializer/Serializer instance
   pub drsr: DRSR,
+  /// The second element is a back-up of the first element. Such a structure is used
+  /// by transports.
+  ///
+  /// See [Self::log_body]
+  pub log_body: (bool, bool),
   /// External request and response parameters.
   pub tp: TP,
   pub(crate) built_requests: Id,
@@ -34,13 +39,13 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   /// Creates an instance with the minimum amount of mandatory parameters.
   #[inline]
   pub fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
-    Self { api, byte_buffer: Vector::new(), drsr, tp, built_requests: 0 }
+    Self { api, byte_buffer: Vector::new(), drsr, log_body: (false, false), tp, built_requests: 0 }
   }
 
   /// New instance
   #[inline]
-  pub fn new(api: A, byte_buffer: Vector<u8>, drsr: DRSR, tp: TP) -> Self {
-    Self { api, byte_buffer, drsr, tp, built_requests: 0 }
+  pub fn new(api: A, byte_buffer: Vector<u8>, drsr: DRSR, log_body: bool, tp: TP) -> Self {
+    Self { api, byte_buffer, drsr, log_body: (log_body, false), tp, built_requests: 0 }
   }
 
   /// The number of constructed requests that is not necessarily equal the number of sent requests.
@@ -49,6 +54,12 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   #[inline]
   pub fn built_requests(&self) -> Id {
     self.built_requests
+  }
+
+  /// Whether to show the contents of a request/response.
+  #[inline]
+  pub fn log_body(&mut self, elem: bool) {
+    self.log_body.0 = elem;
   }
 
   /// Constructs [JsonRpcRequest] and also increases the number of requests.

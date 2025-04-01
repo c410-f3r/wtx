@@ -34,7 +34,6 @@ where
     A: Api,
   {
     recv(self, pkgs_aux, req_id).await?;
-    _log_res(&pkgs_aux.byte_buffer);
     Ok(())
   }
 }
@@ -122,6 +121,7 @@ where
   mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut res.rrd.headers, headers);
   *status_code = res.status_code;
+  _log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::HTTP);
   Ok(())
 }
 
@@ -176,7 +176,6 @@ mod http_client_pool {
   use crate::{
     client_api_framework::{
       Api, SendBytesSource,
-      misc::_log_res,
       network::{
         HttpParams, TransportGroup,
         transport::{
@@ -223,7 +222,6 @@ mod http_client_pool {
         req_id,
       )
       .await?;
-      _log_res(&pkgs_aux.byte_buffer);
       Ok(())
     }
   }
@@ -327,7 +325,6 @@ mod http_client_pool {
         req_id,
       )
       .await?;
-      _log_res(&pkgs_aux.byte_buffer);
       Ok(())
     }
   }
