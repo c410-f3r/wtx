@@ -18,7 +18,7 @@ async fn main() -> wtx::Result<()> {
     let _conn_jh = tokio::spawn(async move {
       let fun = async {
         let http2_params = Http2Params::default();
-        let http2_buffer = Http2Buffer::new(Xorshift64::from(simple_seed()));
+        let http2_buffer = Http2Buffer::new(&mut Xorshift64::from(simple_seed()));
         let tuple = Http2Tokio::accept(http2_buffer, http2_params, tcp_stream.into_split()).await?;
         let (frame_reader, mut http2) = tuple;
         let _jh = tokio::spawn(frame_reader);

@@ -12,13 +12,13 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   let router =
     Router::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
-  ServerFrameworkBuilder::new(router)
+  ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
     .without_aux()
     .tokio(
       &wtx_instances::host_from_args(),
-      Xorshift64::from(simple_seed()),
       |error| eprintln!("{error}"),
       |_| Ok(()),
+      |error| eprintln!("{error}"),
     )
     .await
 }

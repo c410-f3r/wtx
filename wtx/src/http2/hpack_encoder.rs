@@ -39,7 +39,7 @@ pub(crate) struct HpackEncoder {
 
 impl HpackEncoder {
   #[inline]
-  pub(crate) fn new<RNG>(rng: RNG) -> Self
+  pub(crate) fn new<RNG>(rng: &mut RNG) -> Self
   where
     RNG: Rng,
   {

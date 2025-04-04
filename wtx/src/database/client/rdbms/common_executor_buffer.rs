@@ -15,7 +15,7 @@ pub(crate) struct CommonExecutorBuffer<A, C, T> {
 impl<A, C, T> CommonExecutorBuffer<A, C, T> {
   /// With provided capacity.
   #[inline]
-  pub(crate) fn new<RNG>(max_stmts: usize, rng: RNG) -> Self
+  pub(crate) fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
   where
     RNG: Rng,
   {

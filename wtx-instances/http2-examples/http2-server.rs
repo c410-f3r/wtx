@@ -20,20 +20,28 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
-    &wtx_instances::host_from_args(),
-    auto,
-    || {
+    (
+      TokioRustlsAcceptor::without_client_auth()
+        .http2()
+        .build_with_cert_chain_and_priv_key(wtx_instances::CERT, wtx_instances::KEY)?,
+      &wtx_instances::host_from_args(),
+      (),
+      (),
+    ),
+    |_| {},
+    |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
+    |error| eprintln!("{error}"),
+    |_| {
       Ok((
         (),
-        Http2Buffer::new(Xorshift64::from(simple_seed())),
+        Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
         Http2Params::default()
           .set_enable_connect_protocol(true)
           .set_max_hpack_len((128 * 1024, 128 * 1024)),
       ))
     },
-    |error| eprintln!("{error}"),
-    manual,
-    |_, protocol, req, _| {
+    |_| Ok((Vector::new(), ReqResBuffer::empty())),
+    |_, _, protocol, req, _| {
       Ok((
         (),
         if is_web_socket_handshake(&mut req.rrd.headers, req.method, protocol) {
@@ -43,16 +51,9 @@ async fn main() -> wtx::Result<()> {
         },
       ))
     },
-    || Ok((Vector::new(), ReqResBuffer::empty())),
-    (
-      || {
-        TokioRustlsAcceptor::without_client_auth()
-          .http2()
-          .build_with_cert_chain_and_priv_key(wtx_instances::CERT, wtx_instances::KEY)
-      },
-      |acceptor| acceptor.clone(),
-      |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
-    ),
+    |error| eprintln!("{error}"),
+    auto,
+    manual,
   )
   .await
 }

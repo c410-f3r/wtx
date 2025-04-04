@@ -1,4 +1,4 @@
-use crate::misc::{BasicUtf8Error, Lease, Usize, char_slice, from_utf8_basic};
+use crate::misc::{Lease, Usize, char_slice, from_utf8_basic};
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -11,14 +11,18 @@ use core::{
 /// Errors of [`ArrayString`].
 #[derive(Debug)]
 pub enum ArrayStringError {
-  #[doc = doc_out_of_bounds_params!()]
-  ReplaceHasOutOfBoundsParams,
   #[doc = doc_bad_format!()]
   BadFormat,
+  #[doc = doc_many_elems_cap_overflow!()]
+  FromIterOverflow,
+  /// Inner array is not fully
+  IncompleteArray,
   #[doc = doc_single_elem_cap_overflow!()]
   PushOverflow,
   #[doc = doc_many_elems_cap_overflow!()]
   PushStrOverflow,
+  #[doc = doc_out_of_bounds_params!()]
+  ReplaceHasOutOfBoundsParams,
 }
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
@@ -30,8 +34,25 @@ pub struct ArrayString<const N: usize> {
 
 impl<const N: usize> ArrayString<N> {
   /// Constructs a new, empty instance.
+  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  pub fn from_parts(data: [u8; N], len: u32) -> Result<Self, BasicUtf8Error> {
+  pub fn from_iter(into_iter: impl IntoIterator<Item = u8>) -> crate::Result<Self> {
+    let mut iter = into_iter.into_iter();
+    let mut data = [0; N];
+    let mut len: u32 = 0;
+    for (iter_elem, data_elem) in iter.by_ref().take(N).zip(data.iter_mut()) {
+      *data_elem = iter_elem;
+      len = len.wrapping_add(1);
+    }
+    if iter.next().is_some() {
+      return Err(ArrayStringError::FromIterOverflow.into());
+    }
+    Self::from_parts(data, len)
+  }
+
+  /// Constructs a new, empty instance.
+  #[inline]
+  pub fn from_parts(data: [u8; N], len: u32) -> crate::Result<Self> {
     let n = Self::instance_u32();
     let actual_len = if len > n { n } else { len };
     let _ = from_utf8_basic(data.get(..*Usize::from(actual_len)).unwrap_or_default())?;
@@ -56,6 +77,22 @@ impl<const N: usize> ArrayString<N> {
   pub const fn new() -> Self {
     Self::instance_check();
     Self { len: 0, data: [0; N] }
+  }
+
+  /// Constructs a new instance full of `NULL` characters.
+  #[inline]
+  pub const fn zeroed() -> Self {
+    Self::instance_check();
+    Self { len: Self::instance_u32(), data: [0; N] }
+  }
+
+  /// The filled elements that composed a string.
+  #[inline]
+  pub fn array(&self) -> crate::Result<&[u8; N]> {
+    if *Usize::from(self.len) == N {
+      return Ok(&self.data);
+    }
+    Err(ArrayStringError::IncompleteArray.into())
   }
 
   /// The filled elements that composed a string.

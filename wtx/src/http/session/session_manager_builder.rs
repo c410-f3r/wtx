@@ -2,9 +2,9 @@ use crate::{
   http::{
     SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},
-    session::{SessionKey, SessionManagerInner},
+    session::{SessionManagerInner, SessionSecret},
   },
-  misc::{CryptoRng, Lock, Vector, sleep},
+  misc::{ArrayString, CryptoRng, Lock, Vector, sleep},
 };
 use chrono::{DateTime, Utc};
 use core::{marker::PhantomData, time::Duration};
@@ -12,7 +12,7 @@ use core::{marker::PhantomData, time::Duration};
 /// Default and optional parameters for the construction of a [`SessionManager`].
 #[derive(Debug)]
 pub struct SessionManagerBuilder {
-  pub(crate) cookie_def: CookieGeneric<&'static [u8], Vector<u8>>,
+  pub(crate) cookie_def: CookieGeneric<&'static str, Vector<u8>>,
   pub(crate) inspection_interval: Duration,
 }
 
@@ -21,12 +21,12 @@ impl SessionManagerBuilder {
   pub(crate) const fn new() -> Self {
     Self {
       cookie_def: CookieGeneric {
-        domain: &[],
+        domain: "",
         expires: None,
         http_only: true,
         max_age: None,
-        name: "id".as_bytes(),
-        path: "/".as_bytes(),
+        name: "id",
+        path: "/",
         same_site: Some(SameSite::Strict),
         secure: true,
         value: Vector::new(),
@@ -35,7 +35,7 @@ impl SessionManagerBuilder {
     }
   }
 
-  /// Creates a new [`SessionManager`] with a random generated key. It is up to the caller to
+  /// Creates a new [`SessionManager`] with random generated keys. It is up to the caller to
   /// provide a good RNG.
   ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
@@ -48,19 +48,25 @@ impl SessionManagerBuilder {
     self,
     rng: &mut RNG,
     session_store: SS,
-  ) -> (impl Future<Output = Result<(), E>> + use<CS, E, RNG, SMI, SS>, SessionManager<SMI>)
+  ) -> crate::Result<(
+    impl Future<Output = Result<(), E>> + use<CS, E, RNG, SMI, SS>,
+    SessionManager<SMI>,
+  )>
   where
     E: From<crate::Error>,
     RNG: CryptoRng,
     SMI: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
-    let mut key = [0; 32];
-    rng.fill_slice(&mut key);
-    Self::build_with_key(self, key, session_store)
+    Ok(Self::build_with_key(
+      self,
+      ArrayString::from_iter(rng.ascii_graphic_iter().take(32))?,
+      session_store,
+    ))
   }
 
-  /// Creates a new [`SessionManager`] with the provided `key`.
+  /// Creates a new [`SessionManager`] with the provided key. It is up to the caller to
+  /// provide a cryptographically secure secret.
   ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
   /// [`Self::inspection_interval`] and should be called in a separated task.
@@ -70,7 +76,7 @@ impl SessionManagerBuilder {
   #[inline]
   pub fn build_with_key<CS, E, SMI, SS>(
     self,
-    key: SessionKey,
+    session_secret: SessionSecret,
     mut session_store: SS,
   ) -> (impl Future<Output = Result<(), E>>, SessionManager<SMI>)
   where
@@ -87,14 +93,14 @@ impl SessionManagerBuilder {
         }
       },
       SessionManager {
-        inner: SMI::new(SessionManagerInner { cookie_def, phantom: PhantomData, key }),
+        inner: SMI::new(SessionManagerInner { cookie_def, phantom: PhantomData, session_secret }),
       },
     )
   }
 
   /// Defines the host to which the cookie will be sent.
   #[inline]
-  pub const fn domain(mut self, elem: &'static [u8]) -> Self {
+  pub const fn domain(mut self, elem: &'static str) -> Self {
     self.cookie_def.domain = elem;
     self
   }
@@ -126,7 +132,7 @@ impl SessionManagerBuilder {
 
   /// Cookie name.
   #[inline]
-  pub fn name(mut self, elem: &'static [u8]) -> Self {
+  pub fn name(mut self, elem: &'static str) -> Self {
     self.cookie_def.name = elem;
     self
   }
@@ -141,7 +147,7 @@ impl SessionManagerBuilder {
   /// Indicates the path that must exist in the requested URL for the browser to send the Cookie
   /// header.
   #[inline]
-  pub fn path(mut self, elem: &'static [u8]) -> Self {
+  pub fn path(mut self, elem: &'static str) -> Self {
     self.cookie_def.path = elem;
     self
   }

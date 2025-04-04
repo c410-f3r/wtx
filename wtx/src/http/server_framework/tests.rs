@@ -33,7 +33,7 @@ fn compiles() {
   ))
   .unwrap();
 
-  let _sf = ServerFrameworkBuilder::new(router).without_aux();
+  let _sf = ServerFrameworkBuilder::new((), router).without_aux();
 }
 
 // /aaa ->   /bbb ->  /ccc
@@ -152,7 +152,7 @@ async fn nested_middlewares() {
   )
   .unwrap();
 
-  let sf = ServerFrameworkBuilder::new(router).with_dflt_aux();
+  let sf = ServerFrameworkBuilder::new((), router).with_dflt_aux();
   let mut auto_stream = AutoStream {
     conn_aux: Counter(0),
     peer: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
@@ -171,7 +171,7 @@ async fn nested_middlewares() {
         Ok(())
       })
       .unwrap();
-    let el = ServerFramework::<_, (), _, _, _, _, _, ()>::_route_params(
+    let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::_route_params(
       auto_stream.req.rrd.uri.path(),
       &sf._router,
     )
@@ -197,7 +197,7 @@ async fn nested_middlewares() {
         Ok(())
       })
       .unwrap();
-    let el = ServerFramework::<_, (), _, _, _, _, _, ()>::_route_params(
+    let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::_route_params(
       auto_stream.req.rrd.uri.path(),
       &sf._router,
     )

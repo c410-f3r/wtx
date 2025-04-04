@@ -34,7 +34,7 @@ where
     let protocol_41_n = u64::from(Capability::Protocol41);
     if dw.other & protocol_41_n == protocol_41_n {
       if let [b'#', c, d, e, f, g, rest1 @ ..] = rest0 {
-        let array = ArrayString::from_parts([*c, *d, *e, *f, *g], 5).map_err(crate::Error::from)?;
+        let array = ArrayString::from_parts([*c, *d, *e, *f, *g], 5)?;
         sql_state = Some(array);
         bytes = rest1;
       }

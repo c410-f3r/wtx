@@ -27,7 +27,7 @@ fn hpack_test_cases() {
   fetch_project();
   let mut buffer = Vector::new();
   let mut decoder = HpackDecoder::new();
-  let mut encoder = HpackEncoder::new(Xorshift64::from(simple_seed()));
+  let mut encoder = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
   decoder.set_max_bytes(MAX_HEADER_LEN);
   encoder.set_max_dyn_super_bytes(MAX_HEADER_LEN);
   let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("hpack-test-case");

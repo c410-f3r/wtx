@@ -45,13 +45,13 @@ async fn main() -> wtx::Result<()> {
     "postgres://USER:PASSWORD@localhost/DB_NAME".into(),
   );
   let pool = Pool::new(4, rm);
-  ServerFrameworkBuilder::new(router)
-    .with_req_aux(move || pool.clone())
+  ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
+    .with_stream_aux(move |_| pool.clone())
     .tokio(
       &wtx_instances::host_from_args(),
-      Xorshift64::from(simple_seed()),
       |error| eprintln!("{error:?}"),
       |_| Ok(()),
+      |error| eprintln!("{error:?}"),
     )
     .await
 }

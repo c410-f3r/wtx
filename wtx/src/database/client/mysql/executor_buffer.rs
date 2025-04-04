@@ -13,7 +13,7 @@ pub struct ExecutorBuffer {
 impl ExecutorBuffer {
   /// New instance
   #[inline]
-  pub fn new<RNG>(max_stmts: usize, rng: RNG) -> Self
+  pub fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
   where
     RNG: Rng,
   {

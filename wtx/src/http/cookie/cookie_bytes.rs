@@ -3,7 +3,7 @@ use crate::{
     CookieError,
     cookie::{FMT1, FMT2, FMT3, FMT4, SameSite, cookie_generic::CookieGeneric, make_lowercase},
   },
-  misc::{ArrayVector, FromRadix10, PercentDecode, Vector, bytes_split_once1, bytes_split1},
+  misc::{ArrayVector, PercentDecode, Vector, str_split_once1, str_split1},
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use core::{str, time::Duration};
@@ -11,25 +11,25 @@ use core::{str, time::Duration};
 /// A cookie is a small piece of data a server sends to a user's web browser.
 #[derive(Debug)]
 pub(crate) struct CookieBytes<'bytes> {
-  pub(crate) generic: CookieGeneric<&'bytes [u8], &'bytes [u8]>,
+  pub(crate) generic: CookieGeneric<&'bytes str, &'bytes str>,
 }
 
 impl<'bytes> CookieBytes<'bytes> {
   /// Creates a new instance based on a sequence of bytes received from a request.
   #[inline]
   pub(crate) fn parse<'local_bytes, 'vector>(
-    bytes: &'local_bytes [u8],
+    bytes: &'local_bytes str,
     vector: &'vector mut Vector<u8>,
   ) -> crate::Result<Self>
   where
     'local_bytes: 'bytes,
     'vector: 'bytes,
   {
-    let mut semicolons = bytes_split1(bytes, b';');
+    let mut semicolons = str_split1(bytes, b';');
 
-    let mut cookie: CookieGeneric<&'bytes [u8], &'bytes [u8]> = {
+    let mut cookie: CookieGeneric<&'bytes str, &'bytes str> = {
       let first_semicolon = semicolons.next().unwrap_or_default();
-      let (name, value) = if let Some(elem) = bytes_split_once1(first_semicolon, b'=') {
+      let (name, value) = if let Some(elem) = str_split_once1(first_semicolon, b'=') {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
         return Err(crate::Error::from(CookieError::IrregularCookie));
@@ -38,24 +38,30 @@ impl<'bytes> CookieBytes<'bytes> {
         return Err(crate::Error::from(CookieError::MissingName));
       }
       let before_name_len = vector.len();
-      let has_decoded_name = PercentDecode::new(name).decode(vector)?;
+      let has_decoded_name = PercentDecode::new(name.as_bytes()).decode(vector)?;
       let before_value_len = vector.len();
-      let has_decoded_value = PercentDecode::new(value).decode(vector)?;
+      let has_decoded_value = PercentDecode::new(value.as_bytes()).decode(vector)?;
       CookieGeneric {
-        domain: &[],
+        domain: "",
         expires: None,
         http_only: false,
         max_age: None,
         name: if has_decoded_name {
-          vector.get(before_name_len..before_value_len).unwrap_or_default()
+          // SAFETY: Everything after before_name_len is ASCII percent-encoding
+          unsafe {
+            str::from_utf8_unchecked(
+              vector.get(before_name_len..before_value_len).unwrap_or_default(),
+            )
+          }
         } else {
           name
         },
-        path: &[],
+        path: "",
         same_site: None,
         secure: false,
         value: if has_decoded_value {
-          vector.get(before_value_len..).unwrap_or_default()
+          // SAFETY: Everything after before_value_len is ASCII percent-encoding
+          unsafe { str::from_utf8_unchecked(vector.get(before_value_len..).unwrap_or_default()) }
         } else {
           value
         },
@@ -64,23 +70,21 @@ impl<'bytes> CookieBytes<'bytes> {
 
     let mut lower_case = ArrayVector::<u8, 12>::new();
     for semicolon in semicolons {
-      let (name, value) = if let Some(elem) = bytes_split_once1(semicolon, b'=') {
+      let (name, value) = if let Some(elem) = str_split_once1(semicolon, b'=') {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
         return Err(crate::Error::from(CookieError::IrregularCookie));
       };
       make_lowercase::<12>(&mut lower_case, name);
-      match (lower_case.as_ref(), value) {
+      match (lower_case.as_ref(), value.as_bytes()) {
         (b"domain", [_, ..]) => {
           cookie.domain = value;
         }
         (b"expires", [_, ..]) => {
-          // SAFETY: `parse_from_str` will check the string content
-          let str = unsafe { str::from_utf8_unchecked(value) };
-          if let Ok(elem) = NaiveDateTime::parse_from_str(str, FMT1)
-            .or_else(|_| NaiveDateTime::parse_from_str(str, FMT2))
-            .or_else(|_| NaiveDateTime::parse_from_str(str, FMT3))
-            .or_else(|_| NaiveDateTime::parse_from_str(str, FMT4))
+          if let Ok(elem) = NaiveDateTime::parse_from_str(value, FMT1)
+            .or_else(|_| NaiveDateTime::parse_from_str(value, FMT2))
+            .or_else(|_| NaiveDateTime::parse_from_str(value, FMT3))
+            .or_else(|_| NaiveDateTime::parse_from_str(value, FMT4))
             .map(|elem| DateTime::from_naive_utc_and_offset(elem, Utc))
           {
             cookie.expires = Some(elem)
@@ -89,14 +93,15 @@ impl<'bytes> CookieBytes<'bytes> {
         (b"httponly", _) => cookie.http_only = true,
         (b"max-age", [first, rest @ ..]) => {
           let is_negative = *first == b'-';
-          let local_value = if is_negative { rest } else { value };
+          let local_value = if is_negative { rest } else { value.as_bytes() };
           if !local_value.iter().all(|el| el.is_ascii_digit()) {
             continue;
           }
           cookie.max_age = Some(if is_negative {
             Duration::ZERO
           } else {
-            u64::from_radix_10(value)
+            value
+              .parse::<u64>()
               .map(Duration::from_secs)
               .unwrap_or_else(|_| Duration::from_secs(u64::MAX))
           })

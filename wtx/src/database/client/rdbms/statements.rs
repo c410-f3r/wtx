@@ -18,7 +18,7 @@ pub(crate) struct Statements<A, C, T> {
 
 impl<A, C, T> Statements<A, C, T> {
   #[inline]
-  pub(crate) fn new<RNG>(max_stmts: usize, rng: RNG) -> Self
+  pub(crate) fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
   where
     RNG: Rng,
   {
@@ -34,7 +34,7 @@ impl<A, C, T> Statements<A, C, T> {
   pub(crate) fn with_capacity<RNG>(
     columns: usize,
     max_stmts: usize,
-    rng: RNG,
+    rng: &mut RNG,
     stmts: usize,
   ) -> crate::Result<Self>
   where

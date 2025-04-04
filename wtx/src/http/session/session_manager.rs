@@ -3,9 +3,9 @@ use crate::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
     SessionState, SessionStore,
     cookie::{cookie_generic::CookieGeneric, encrypt},
-    session::SessionKey,
+    session::SessionSecret,
   },
-  misc::{GenericTime, Lease, LeaseMut, Lock, Rng, Vector},
+  misc::{ArrayString, Lease, LeaseMut, Lock, Rng, Vector},
 };
 use chrono::{DateTime, TimeDelta, Utc};
 use core::{
@@ -49,12 +49,12 @@ where
     RRD: ReqResDataMut,
     S: SessionStore<CS, E>,
   {
-    let SessionManagerInner { cookie_def, phantom: _, key: _ } = &mut *self.inner.lock().await;
+    let SessionManagerInner { cookie_def, .. } = &mut *self.inner.lock().await;
     let Some(elem) = state.take() else {
       return Ok(());
     };
-    if elem.expires.is_some() {
-      store.delete(&elem.id).await?;
+    if elem.expires_at.is_some() {
+      store.delete(&elem.session_key).await?;
     }
     Self::clear_cookie(cookie_def, rrd.headers_mut())?;
     Ok(())
@@ -67,7 +67,7 @@ where
   pub async fn set_session_cookie<RNG, RRD, S>(
     &mut self,
     custom_state: CS,
-    rng: RNG,
+    mut rng: RNG,
     rrd: &mut RRD,
     store: &mut S,
   ) -> Result<(), E>
@@ -77,48 +77,56 @@ where
     RRD: LeaseMut<ReqResBuffer>,
     S: SessionStore<CS, E>,
   {
-    let SessionManagerInner { cookie_def, phantom: _, key } = &mut *self.inner.lock().await;
-    let id = GenericTime::now_timestamp()?.as_nanos().to_be_bytes();
+    let inner = &mut *self.inner.lock().await;
+    let SessionManagerInner { cookie_def, session_secret, .. } = inner;
+    let session_csrf = ArrayString::from_iter(rng.ascii_graphic_iter().take(32))?;
+    let session_key = ArrayString::from_iter(rng.ascii_graphic_iter().take(32))?;
     let local_state = match (cookie_def.expires, cookie_def.max_age) {
-      (None, None) => SessionState { custom_state, expires: None, id },
-      (Some(expires), None) => {
-        let local_state = SessionState { custom_state, expires: Some(expires), id };
-        store.create(&local_state).await?;
-        local_state
+      (None, None) => SessionState { session_csrf, custom_state, expires_at: None, session_key },
+      (Some(expires_at), None) => {
+        let elem = SessionState::new(custom_state, Some(expires_at), session_csrf, session_key);
+        store.create(&elem).await?;
+        elem
       }
       (Some(_), Some(max_age)) | (None, Some(max_age)) => {
-        let Some(expires_from_max_age) = TimeDelta::from_std(max_age)
+        let Some(expires_at) = TimeDelta::from_std(max_age)
           .ok()
           .and_then(|element| Utc::now().checked_add_signed(element))
         else {
           return Err(crate::Error::GenericTimeNeedsBackend.into());
         };
-        let local_state = SessionState { custom_state, expires: Some(expires_from_max_age), id };
-        store.create(&local_state).await?;
-        local_state
+        let elem = SessionState::new(custom_state, Some(expires_at), session_csrf, session_key);
+        store.create(&elem).await?;
+        elem
       }
     };
     let idx = rrd.lease().body.len();
     serde_json::to_writer(&mut rrd.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
-    let rslt = encrypt(
+    let enc_rslt = encrypt(
       &mut cookie_def.value,
-      key,
-      (cookie_def.name, rrd.lease().body.get(idx..).unwrap_or_default()),
+      session_secret.array()?,
+      (cookie_def.name.as_bytes(), rrd.lease().body.get(idx..).unwrap_or_default()),
       rng,
     );
     rrd.lease_mut().body.truncate(idx);
-    rslt?;
-    rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
+    enc_rslt?;
+    let headers_rslt = rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
-      format_args!("{}", &cookie_def),
+      format_args!("{cookie_def}"),
+    ));
+    cookie_def.value.clear();
+    headers_rslt?;
+    rrd.lease_mut().headers.push_from_iter(Header::from_name_and_value(
+      KnownHeaderName::XCsrfToken.into(),
+      [local_state.session_csrf.as_str()],
     ))?;
     Ok(())
   }
 
   #[inline]
   pub(crate) fn clear_cookie(
-    cookie_def: &mut CookieGeneric<&'static [u8], Vector<u8>>,
+    cookie_def: &mut CookieGeneric<&'static str, Vector<u8>>,
     headers: &mut Headers,
   ) -> crate::Result<()> {
     let prev_expires = cookie_def.expires;
@@ -138,9 +146,9 @@ where
 
 /// Allows the management of state across requests within a connection.
 pub struct SessionManagerInner<CS, E> {
-  pub(crate) cookie_def: CookieGeneric<&'static [u8], Vector<u8>>,
-  pub(crate) key: SessionKey,
+  pub(crate) cookie_def: CookieGeneric<&'static str, Vector<u8>>,
   pub(crate) phantom: PhantomData<(CS, E)>,
+  pub(crate) session_secret: SessionSecret,
 }
 
 impl<CS, E> Debug for SessionManagerInner<CS, E> {

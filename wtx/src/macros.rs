@@ -115,10 +115,10 @@ macro_rules! create_enum {
       fn try_from(from: &[u8]) -> $crate::Result<Self> {
         match from {
           $(
-            from if from == stringify!($variant_ident_fixed).as_bytes()
-              || from == stringify!($variant_n_fixed).as_bytes()
-              $(|| from == $variant_str_fixed.as_bytes())?
-              $(|| from == $variant_str_fixed_n.as_bytes())* =>
+            from if from == const { stringify!($variant_ident_fixed).as_bytes() }
+              || from == const { stringify!($variant_n_fixed).as_bytes() }
+              $(|| from == const { $variant_str_fixed.as_bytes() })?
+              $(|| from == const { $variant_str_fixed_n.as_bytes() })* =>
             {
               Ok(Self::$variant_ident_fixed)
             },

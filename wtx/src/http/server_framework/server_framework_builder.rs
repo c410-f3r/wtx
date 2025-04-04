@@ -8,20 +8,21 @@ use crate::{
 
 /// Server
 #[derive(Debug)]
-pub struct ServerFrameworkBuilder<CA, E, EN, M, S, SA> {
+pub struct ServerFrameworkBuilder<CA, CBP, E, EN, M, S, SA> {
+  cbp: CBP,
   cp: ConnParams,
   router: Arc<Router<CA, E, EN, M, S, SA>>,
 }
 
-impl<CA, E, EN, M, S, SA> ServerFrameworkBuilder<CA, E, EN, M, S, SA>
+impl<CA, CBP, E, EN, M, S, SA> ServerFrameworkBuilder<CA, CBP, E, EN, M, S, SA>
 where
   CA: ConnAux,
   SA: StreamAux,
 {
   /// New instance with default connection values.
   #[inline]
-  pub fn new(router: Router<CA, E, EN, M, S, SA>) -> Self {
-    Self { cp: ConnParams::default(), router: Arc::new(router) }
+  pub fn new(cbp: CBP, router: Router<CA, E, EN, M, S, SA>) -> Self {
+    Self { cbp, cp: ConnParams::default(), router: Arc::new(router) }
   }
 
   /// Maximum number of active concurrent streams
@@ -34,79 +35,118 @@ where
 
   /// Sets the initialization structures for both `CA` and `SA`.
   #[inline]
-  pub fn with_aux<CAC, SAC>(
+  pub fn with_aux<CACB, SACB>(
     self,
-    ca_cb: CAC,
-    ra_cb: SAC,
-  ) -> ServerFramework<CA, CAC, E, EN, M, S, SA, SAC>
+    ca_cb: CACB,
+    ra_cb: SACB,
+  ) -> ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB>
   where
-    CAC: Fn() -> CA::Init,
-    SAC: Fn() -> SA::Init,
+    CACB: Fn(CBP) -> CA::Init,
+    SACB: Fn(&mut CA) -> SA::Init,
   {
-    ServerFramework { _ca_cb: ca_cb, _cp: self.cp, _sa_cb: ra_cb, _router: self.router }
+    ServerFramework {
+      _ca_cb: ca_cb,
+      _cbp: self.cbp,
+      _cp: self.cp,
+      _sa_cb: ra_cb,
+      _router: self.router,
+    }
   }
 
   /// Fills the initialization structures for all auxiliaries with default values.
   #[inline]
   pub fn with_dflt_aux(
     self,
-  ) -> ServerFramework<CA, fn() -> CA::Init, E, EN, M, S, SA, fn() -> SA::Init>
+  ) -> ServerFramework<CA, fn(CBP) -> CA::Init, CBP, E, EN, M, S, SA, fn(&mut CA) -> SA::Init>
   where
     CA::Init: Default,
     SA::Init: Default,
   {
-    fn fun<T>() -> T
+    fn dflt_conn<CBP, T>(_: CBP) -> T
     where
       T: Default,
     {
       T::default()
     }
-    ServerFramework { _ca_cb: fun, _cp: self.cp, _sa_cb: fun, _router: self.router }
+    fn dflt_stream<CA, T>(_: &mut CA) -> T
+    where
+      T: Default,
+    {
+      T::default()
+    }
+    ServerFramework {
+      _ca_cb: dflt_conn,
+      _cbp: self.cbp,
+      _cp: self.cp,
+      _sa_cb: dflt_stream,
+      _router: self.router,
+    }
   }
 
   _conn_params_methods!();
 }
 
-impl<E, EN, M, S> ServerFrameworkBuilder<(), E, EN, M, S, ()> {
+impl<CBP, E, EN, M, S> ServerFrameworkBuilder<(), CBP, E, EN, M, S, ()> {
   /// Build without state
   #[inline]
-  pub fn without_aux(self) -> ServerFramework<(), fn() -> (), E, EN, M, S, (), fn() -> ()> {
-    ServerFramework { _ca_cb: nothing, _cp: self.cp, _sa_cb: nothing, _router: self.router }
+  pub fn without_aux(
+    self,
+  ) -> ServerFramework<(), fn(CBP) -> (), CBP, E, EN, M, S, (), fn(&mut ()) -> ()> {
+    ServerFramework {
+      _ca_cb: nothing_conn,
+      _cbp: self.cbp,
+      _cp: self.cp,
+      _sa_cb: nothing_stream,
+      _router: self.router,
+    }
   }
 }
 
-impl<CA, E, EN, M, S> ServerFrameworkBuilder<CA, E, EN, M, S, ()>
+impl<CA, CBP, E, EN, M, S> ServerFrameworkBuilder<CA, CBP, E, EN, M, S, ()>
 where
   CA: ConnAux,
 {
   /// Sets the initializing strut for `CA` and sets the request auxiliary to `()`.
   #[inline]
-  pub fn with_conn_aux<CAC>(
+  pub fn with_conn_aux<CACB>(
     self,
-    ca_cb: CAC,
-  ) -> ServerFramework<CA, CAC, E, EN, M, S, (), fn() -> ()>
+    ca_cb: CACB,
+  ) -> ServerFramework<CA, CACB, CBP, E, EN, M, S, (), fn(&mut CA) -> ()>
   where
-    CAC: Fn() -> CA::Init,
+    CACB: Fn(CBP) -> CA::Init,
   {
-    ServerFramework { _ca_cb: ca_cb, _cp: self.cp, _sa_cb: nothing, _router: self.router }
+    ServerFramework {
+      _ca_cb: ca_cb,
+      _cbp: self.cbp,
+      _cp: self.cp,
+      _sa_cb: nothing_stream,
+      _router: self.router,
+    }
   }
 }
 
-impl<E, EN, M, S, SA> ServerFrameworkBuilder<(), E, EN, M, S, SA>
+impl<CBP, E, EN, M, S, SA> ServerFrameworkBuilder<(), CBP, E, EN, M, S, SA>
 where
   SA: StreamAux,
 {
   /// Sets the initializing strut for `SA` and sets the connection auxiliary to `()`.
   #[inline]
-  pub fn with_req_aux<SAC>(
+  pub fn with_stream_aux<SACB>(
     self,
-    ra_cb: SAC,
-  ) -> ServerFramework<(), fn() -> (), E, EN, M, S, SA, SAC>
+    ra_cb: SACB,
+  ) -> ServerFramework<(), fn(CBP) -> (), CBP, E, EN, M, S, SA, SACB>
   where
-    SAC: Fn() -> SA::Init,
+    SACB: Fn(&mut ()) -> SA::Init,
   {
-    ServerFramework { _ca_cb: nothing, _cp: self.cp, _sa_cb: ra_cb, _router: self.router }
+    ServerFramework {
+      _ca_cb: nothing_conn,
+      _cbp: self.cbp,
+      _cp: self.cp,
+      _sa_cb: ra_cb,
+      _router: self.router,
+    }
   }
 }
 
-fn nothing() {}
+fn nothing_conn<CBP>(_: CBP) {}
+fn nothing_stream<CA>(_: &mut CA) {}

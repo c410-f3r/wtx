@@ -14,11 +14,12 @@
 //! ALTER TABLE "user" ADD CONSTRAINT user__email__uq UNIQUE (email);
 //!
 //! CREATE TABLE "session" (
-//!   id BYTEA NOT NULL PRIMARY KEY,
-//!   user_id INT NOT NULL,
+//!   key VARCHAR(32) NOT NULL PRIMARY KEY,
+//!   csrf VARCHAR(32) NOT NULL,
+//!   custom_state INT NOT NULL,
 //!   expires_at TIMESTAMPTZ NOT NULL
 //! );
-//! ALTER TABLE "session" ADD CONSTRAINT session__user__fk FOREIGN KEY (user_id) REFERENCES "user" (id);
+//! ALTER TABLE "session" ADD CONSTRAINT session__user__fk FOREIGN KEY (custom_state) REFERENCES "user" (id);
 //! ```
 
 use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
@@ -26,41 +27,41 @@ use tokio::net::TcpStream;
 use wtx::{
   database::{Executor, Record},
   http::{
-    ReqResBuffer, ReqResData, SessionDecoder, SessionManagerTokio, SessionState, StatusCode,
+    ReqResBuffer, ReqResData, SessionManagerTokio, SessionMiddleware, SessionState, StatusCode,
     server_framework::{Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
   misc::{Vector, argon2_pwd},
   pool::{PostgresRM, SimplePoolTokio},
 };
 
-type Pool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, TcpStream>>;
+type DbPool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, TcpStream>>;
 type SessionManager = SessionManagerTokio<u32, wtx::Error>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DB_NAME";
-  let rng = rand_chacha::ChaCha20Rng::try_from_os_rng()?;
-  let pool = Pool::new(4, PostgresRM::tokio(rng, uri.into()));
-  let mut rng = ChaCha20Rng::try_from_os_rng()?;
-  let (expired, sm) = SessionManager::builder().build_generating_key(&mut rng, pool.clone());
+  let mut db_rng = rand_chacha::ChaCha20Rng::try_from_os_rng()?;
+  let mut server_rng = ChaCha20Rng::from_rng(&mut db_rng);
+  let db_pool = DbPool::new(4, PostgresRM::tokio(db_rng, uri.into()));
+  let builder = SessionManager::builder();
+  let (expired_sessions, sm) = builder.build_generating_key(&mut server_rng, db_pool.clone())?;
   let router = Router::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
-    SessionDecoder::new(sm.clone(), pool.clone()),
+    SessionMiddleware::new(Vector::new(), sm.clone(), db_pool.clone()),
   )?;
   tokio::spawn(async move {
-    if let Err(err) = expired.await {
+    if let Err(err) = expired_sessions.await {
       eprintln!("{err}");
     }
   });
-  let rng_clone = rng.clone();
-  ServerFrameworkBuilder::new(router)
-    .with_conn_aux(move || ConnAux {
-      pool: pool.clone(),
-      rng: rng_clone.clone(),
+  ServerFrameworkBuilder::new(server_rng, router)
+    .with_conn_aux(move |local_rng| ConnAux {
+      pool: db_pool.clone(),
+      rng: local_rng,
       session_manager: sm.clone(),
       session_state: None,
     })
-    .tokio("0.0.0.0:9000", rng, |err| eprintln!("{err:?}"), |_| Ok(()))
+    .tokio("0.0.0.0:9000", |err| eprintln!("{err:?}"), |_| Ok(()), |err| eprintln!("{err:?}"))
     .await?;
   Ok(())
 }
@@ -103,7 +104,7 @@ async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result
 
 #[derive(Clone, Debug, wtx_macros::ConnAux)]
 struct ConnAux {
-  pool: Pool,
+  pool: DbPool,
   rng: ChaCha20Rng,
   session_manager: SessionManager,
   session_state: Option<SessionState<u32>>,

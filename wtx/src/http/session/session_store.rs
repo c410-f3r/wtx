@@ -1,24 +1,27 @@
-use crate::http::{SessionState, session::SessionId};
+use crate::http::{SessionState, session::SessionKey};
 
 /// Abstraction for different session storages.
 pub trait SessionStore<CS, E> {
   /// Stores a new [`SessionState`].
   fn create(&mut self, state: &SessionState<CS>) -> impl Future<Output = Result<(), E>>;
 
-  /// Removes the [`SessionState`] that is identified by `id`.
-  fn delete(&mut self, id: &SessionId) -> impl Future<Output = Result<(), E>>;
+  /// Removes the [`SessionState`] that is identified by `session_key`.
+  fn delete(&mut self, session_key: &SessionKey) -> impl Future<Output = Result<(), E>>;
 
   /// Removes all expired sessions.
   fn delete_expired(&mut self) -> impl Future<Output = Result<(), E>>;
 
-  /// Loads the [`SessionState`] that is identified by `id`.
-  fn read(&mut self, id: &SessionId) -> impl Future<Output = Result<Option<SessionState<CS>>, E>>;
+  /// Loads the [`SessionState`] that is identified by `session_key`.
+  fn read(
+    &mut self,
+    session_key: SessionKey,
+  ) -> impl Future<Output = Result<Option<SessionState<CS>>, E>>;
 
-  /// Overwrites the [`SessionState`] that is identified by `id` with the contents of
+  /// Overwrites the [`SessionState`] that is identified by `session_key` with the contents of
   /// `state`.
   fn update(
     &mut self,
-    id: &SessionId,
+    session_key: &SessionKey,
     state: &SessionState<CS>,
   ) -> impl Future<Output = Result<(), E>>;
 }
@@ -33,7 +36,7 @@ where
   }
 
   #[inline]
-  async fn delete(&mut self, _: &SessionId) -> Result<(), E> {
+  async fn delete(&mut self, _: &SessionKey) -> Result<(), E> {
     Ok(())
   }
 
@@ -43,12 +46,12 @@ where
   }
 
   #[inline]
-  async fn read(&mut self, _: &SessionId) -> Result<Option<SessionState<CS>>, E> {
+  async fn read(&mut self, _: SessionKey) -> Result<Option<SessionState<CS>>, E> {
     Ok(None)
   }
 
   #[inline]
-  async fn update(&mut self, _: &SessionId, _: &SessionState<CS>) -> Result<(), E> {
+  async fn update(&mut self, _: &SessionKey, _: &SessionState<CS>) -> Result<(), E> {
     Ok(())
   }
 }
@@ -63,8 +66,8 @@ where
   }
 
   #[inline]
-  async fn delete(&mut self, id: &SessionId) -> Result<(), E> {
-    (*self).delete(id).await
+  async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
+    (*self).delete(session_key).await
   }
 
   #[inline]
@@ -73,22 +76,21 @@ where
   }
 
   #[inline]
-  async fn read(&mut self, id: &SessionId) -> Result<Option<SessionState<CS>>, E> {
-    (*self).read(id).await
+  async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
+    (*self).read(session_key).await
   }
 
   #[inline]
-  async fn update(&mut self, id: &SessionId, state: &SessionState<CS>) -> Result<(), E> {
-    (*self).update(id, state).await
+  async fn update(&mut self, session_key: &SessionKey, state: &SessionState<CS>) -> Result<(), E> {
+    (*self).update(session_key, state).await
   }
 }
 
 #[cfg(feature = "pool")]
 mod pool {
   use crate::{
-    Error,
     database::client::postgres::Postgres,
-    http::session::{SessionId, SessionState, SessionStore},
+    http::session::{SessionKey, SessionState, SessionStore},
     misc::{Decode, Encode, Lock},
     pool::{ResourceManager, SimplePool, SimplePoolResource},
   };
@@ -96,7 +98,7 @@ mod pool {
   impl<CS, E, R, RL, RM> SessionStore<CS, E> for SimplePool<RL, RM>
   where
     CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>>,
-    E: From<Error>,
+    E: From<crate::Error>,
     R: SessionStore<CS, E>,
     RL: Lock<Resource = SimplePoolResource<R>>,
     RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = (), Resource = R>,
@@ -109,8 +111,8 @@ mod pool {
     }
 
     #[inline]
-    async fn delete(&mut self, id: &SessionId) -> Result<(), E> {
-      self.get().await?.delete(id).await
+    async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
+      self.get().await?.delete(session_key).await
     }
 
     #[inline]
@@ -119,13 +121,17 @@ mod pool {
     }
 
     #[inline]
-    async fn read(&mut self, id: &SessionId) -> Result<Option<SessionState<CS>>, E> {
-      self.get().await?.read(id).await
+    async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
+      self.get().await?.read(session_key).await
     }
 
     #[inline]
-    async fn update(&mut self, id: &SessionId, state: &SessionState<CS>) -> Result<(), E> {
-      self.get().await?.update(id, state).await
+    async fn update(
+      &mut self,
+      session_key: &SessionKey,
+      state: &SessionState<CS>,
+    ) -> Result<(), E> {
+      self.get().await?.update(session_key, state).await
     }
   }
 }
@@ -133,49 +139,49 @@ mod pool {
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
-    Error,
     database::{
       Executor as _, Record, Typed,
       client::postgres::{ExecutorBuffer, Postgres, PostgresExecutor},
     },
-    http::session::{SessionId, SessionState, SessionStore},
+    http::session::{SessionKey, SessionState, SessionStore},
     misc::{Decode, Encode, LeaseMut, Stream},
   };
 
-  /// Expects the following SQL table definition in your database. Column names can be changed
-  /// but not their sequence.
+  /// Expects the following SQL table definition in your database. Column names can NOT be changed.
   ///
   /// ```sql
-  /// CREATE TABLE session (
-  ///   id BYTEA NOT NULL PRIMARY KEY,
-  ///   expires_at TIMESTAMPTZ NOT NULL,
-  ///   custom_state SOME_CUSTOM_TY NOT NULL
+  /// CREATE TABLE "session" (
+  ///   key VARCHAR(32) NOT NULL PRIMARY KEY,
+  ///   csrf VARCHAR(32) NOT NULL,
+  ///   custom_state SOME_CUSTOM_TY NOT NULL,
+  ///   expires_at TIMESTAMPTZ NOT NULL
   /// );
   /// ```
   ///
-  /// Change `SOME_TY` to any type you want, just make sure that it implements [`Decode`] and
+  /// Change `SOME_CUSTOM_TY` to any type you want, just make sure that it implements [`Decode`] and
   /// [`Encode`] in the Rust side.
   impl<CS, E, EB, S> SessionStore<CS, E> for PostgresExecutor<E, EB, S>
   where
     CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>> + Typed<Postgres<E>>,
-    E: From<Error>,
+    E: From<crate::Error>,
     EB: LeaseMut<ExecutorBuffer>,
     S: Stream,
   {
     #[inline]
     async fn create(&mut self, state: &SessionState<CS>) -> Result<(), E> {
+      let SessionState { custom_state, expires_at, session_csrf, session_key } = state;
       let _ = self
         .execute_with_stmt(
-          "INSERT INTO session VALUES ($1, $2, $3)",
-          (state.id.as_slice(), state.expires, &state.custom_state),
+          "INSERT INTO session (key, csrf, custom_state, expires_at) VALUES ($1, $2, $3, $4)",
+          (session_key, session_csrf, custom_state, expires_at),
         )
         .await?;
       Ok(())
     }
 
     #[inline]
-    async fn delete(&mut self, id: &SessionId) -> Result<(), E> {
-      let _ = self.execute_with_stmt("DELETE FROM session WHERE id=$1", (id.as_slice(),)).await?;
+    async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
+      let _ = self.execute_with_stmt("DELETE FROM session WHERE key=$1", (session_key,)).await?;
       Ok(())
     }
 
@@ -186,21 +192,33 @@ mod postgres {
     }
 
     #[inline]
-    async fn read(&mut self, id: &SessionId) -> Result<Option<SessionState<CS>>, E> {
-      let rec = self.fetch_with_stmt("SELECT * FROM session WHERE id=$1", (id.as_slice(),)).await?;
+    async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
+      let rec = self
+        .fetch_with_stmt(
+          "SELECT csrf, custom_state, expires_at FROM session WHERE key=$1",
+          (&session_key,),
+        )
+        .await?;
       Ok(Some(SessionState {
-        custom_state: rec.decode(2)?,
-        expires: Some(rec.decode(1)?),
-        id: *id,
+        session_csrf: rec.decode::<_, &[u8]>(0)?.try_into()?,
+        custom_state: rec.decode(1)?,
+        expires_at: Some(rec.decode(2)?),
+        session_key,
       }))
     }
 
     #[inline]
-    async fn update(&mut self, id: &SessionId, state: &SessionState<CS>) -> Result<(), E> {
+    async fn update(
+      &mut self,
+      session_key: &SessionKey,
+      state: &SessionState<CS>,
+    ) -> Result<(), E> {
+      let SessionState { session_csrf, custom_state, expires_at, session_key: state_session_key } =
+        state;
       let _ = self
         .execute_with_stmt(
-          "UPDATE session SET id=$1,expires_at=$2,user_state=$3 WHERE id=$4",
-          (state.id.as_slice(), state.expires, &state.custom_state, id.as_slice()),
+          "UPDATE session SET key=$1,csrf=$2,custom_state=$3,expires_at=$4 WHERE key=$5",
+          (state_session_key, session_csrf, custom_state, expires_at, session_key),
         )
         .await?;
       Ok(())

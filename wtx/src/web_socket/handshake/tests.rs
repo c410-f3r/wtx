@@ -135,7 +135,7 @@ where
   async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
     let text = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
-    assert_eq!(&[b'1', b'2', b'3'], text.payload());
+    assert_eq!(b"123", text.payload());
   }
 }
 
@@ -216,7 +216,7 @@ where
   async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
     let text = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
-    assert_eq!(&[b'1', b'2', b'3'], text.payload());
+    assert_eq!(b"123", text.payload());
   }
 }
 
