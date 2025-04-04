@@ -1,4 +1,4 @@
-use crate::misc::{Lease, LeaseMut, Rng, facades::atomic_u64::AtomicU64};
+use crate::misc::{Lease, LeaseMut, Rng, SeedableRng, facades::atomic_u64::AtomicU64};
 use core::sync::atomic::Ordering;
 
 /// Xorshift that deals with 64 bits numbers.
@@ -26,6 +26,16 @@ impl Rng for Xorshift64 {
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     xor_u8_16(&mut self.value)
+  }
+}
+
+impl SeedableRng for Xorshift64 {
+  #[inline]
+  fn from_rng<R>(rng: &mut R) -> Self
+  where
+    R: Rng,
+  {
+    Self { value: u64::from_ne_bytes(rng.u8_8()) }
   }
 }
 
@@ -90,6 +100,16 @@ impl Rng for Xorshift64Sync {
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     u8_16(self.modify(), self.modify())
+  }
+}
+
+impl SeedableRng for Xorshift64Sync {
+  #[inline]
+  fn from_rng<R>(rng: &mut R) -> Self
+  where
+    R: Rng,
+  {
+    Self { value: AtomicU64::new(u64::from_ne_bytes(rng.u8_8())) }
   }
 }
 
@@ -172,4 +192,18 @@ fn xor_u8_8(seed: &mut u64) -> [u8; 8] {
 #[inline]
 fn xor_u8_16(seed: &mut u64) -> [u8; 16] {
   u8_16(xor_numbers(seed), xor_numbers(seed))
+}
+
+#[cfg(feature = "http-server-framework")]
+mod http_server_framework {
+  use crate::{http::server_framework::ConnAux, misc::Xorshift64};
+
+  impl ConnAux for Xorshift64 {
+    type Init = Self;
+
+    #[inline]
+    fn conn_aux(init: Self::Init) -> crate::Result<Self> {
+      Ok(init)
+    }
+  }
 }

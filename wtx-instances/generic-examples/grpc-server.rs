@@ -23,14 +23,14 @@ async fn main() -> wtx::Result<()> {
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
   )?;
-  ServerFrameworkBuilder::new(router)
-    .with_req_aux(|| QuickProtobuf::default())
+  ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
+    .with_stream_aux(|_| QuickProtobuf::default())
     .tokio_rustls(
       (wtx_instances::CERT, wtx_instances::KEY),
       &wtx_instances::host_from_args(),
-      Xorshift64::from(simple_seed()),
       |error| eprintln!("{error}"),
       |_| Ok(()),
+      |error| eprintln!("{error}"),
     )
     .await
 }

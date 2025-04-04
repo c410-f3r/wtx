@@ -30,7 +30,7 @@ pub struct Http2Buffer {
 impl Http2Buffer {
   /// Creates a new instance without pre-allocated resources.
   #[inline]
-  pub fn new<RNG>(rng: RNG) -> Self
+  pub fn new<RNG>(rng: &mut RNG) -> Self
   where
     RNG: Rng,
   {
@@ -78,7 +78,7 @@ impl Http2Buffer {
 impl Default for Http2Buffer {
   #[inline]
   fn default() -> Self {
-    Self::new(crate::misc::Xorshift64::from(simple_seed()))
+    Self::new(&mut crate::misc::Xorshift64::from(simple_seed()))
   }
 }
 

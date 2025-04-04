@@ -20,7 +20,7 @@ static FMT4: &str = "%a, %d-%b-%Y %H:%M:%S GMT";
 #[inline]
 pub(crate) fn decrypt<'buffer>(
   buffer: &'buffer mut Vector<u8>,
-  key: &[u8; 32],
+  secret: &[u8; 32],
   (name, value): (&[u8], &[u8]),
 ) -> crate::Result<&'buffer mut [u8]> {
   use crate::misc::BufferMode;
@@ -50,7 +50,7 @@ pub(crate) fn decrypt<'buffer>(
       ([0u8; NONCE_LEN], &mut [][..], [0u8; TAG_LEN])
     }
   };
-  <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*key)).decrypt_in_place_detached(
+  <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*secret)).decrypt_in_place_detached(
     &Array(nonce),
     name,
     content,
@@ -63,7 +63,7 @@ pub(crate) fn decrypt<'buffer>(
 #[inline]
 pub(crate) fn encrypt<RNG>(
   buffer: &mut Vector<u8>,
-  key: &[u8; 32],
+  secret: &[u8; 32],
   (name, value): (&[u8], &[u8]),
   mut rng: RNG,
 ) -> crate::Result<()>
@@ -106,7 +106,7 @@ where
     *a9 = c9;
     *a10 = c10;
     *a11 = c11;
-    let aes = <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*key));
+    let aes = <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*secret));
     let nonce = [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11];
     let tag = aes.encrypt_in_place_detached(&Array(nonce), name, content)?;
     let [d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15] = tag.into();
@@ -137,9 +137,9 @@ where
 }
 
 #[inline]
-fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVector<u8, 12>, slice: &[u8]) {
+fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVector<u8, 12>, slice: &str) {
   buffer.clear();
   let sub_slice = slice.get(..slice.len().min(UPPER_BOUND)).unwrap_or_default();
-  let _rslt = buffer.extend_from_copyable_slice(sub_slice);
+  let _rslt = buffer.extend_from_copyable_slice(sub_slice.as_bytes());
   buffer.make_ascii_lowercase();
 }

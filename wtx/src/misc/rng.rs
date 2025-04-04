@@ -1,32 +1,48 @@
 //! Random Number Generators
 
-macro_rules! _implement_crypto_rng {
+macro_rules! _implement_rand {
   ($struct:ty) => {
     impl crate::misc::CryptoRng for $struct {}
 
     impl crate::misc::Rng for $struct {
       #[inline]
       fn u8(&mut self) -> u8 {
+        use rand_chacha::rand_core::RngCore;
         let [a, ..] = self.next_u32().to_be_bytes();
         a
       }
 
       #[inline]
       fn u8_4(&mut self) -> [u8; 4] {
+        use rand_chacha::rand_core::RngCore;
         self.next_u32().to_be_bytes()
       }
 
       #[inline]
       fn u8_8(&mut self) -> [u8; 8] {
+        use rand_chacha::rand_core::RngCore;
         let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
         [a, b, c, d, e, f, g, h]
       }
 
       #[inline]
       fn u8_16(&mut self) -> [u8; 16] {
+        use rand_chacha::rand_core::RngCore;
         let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
         let [i, j, k, l, m, n, o, p] = self.next_u64().to_be_bytes();
         [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+      }
+    }
+
+    impl crate::misc::SeedableRng for $struct {
+      #[inline]
+      fn from_rng<R>(rng: &mut R) -> Self
+      where
+        R: crate::misc::Rng,
+      {
+        let mut seed = <Self as rand_chacha::rand_core::SeedableRng>::Seed::default();
+        rng.fill_slice(&mut seed);
+        rand_chacha::rand_core::SeedableRng::from_seed(seed)
       }
     }
   };
@@ -39,15 +55,18 @@ mod from_rng;
 #[cfg(feature = "rand_chacha")]
 mod rand_chacha;
 mod seed;
+mod seedable_rng;
 mod xorshift;
 
 use core::{
   cell::Cell,
+  iter,
   ops::{Bound, RangeBounds},
 };
 pub use crypto_rng::CryptoRng;
 pub use from_rng::FromRng;
 pub use seed::*;
+pub use seedable_rng::SeedableRng;
 pub use xorshift::*;
 
 /// Abstraction tailored for the needs of this project. Each implementation should manage how
@@ -56,6 +75,12 @@ pub trait Rng
 where
   Self: Sized,
 {
+  /// Returns an infinite iterator that will always output printable ASCII bytes.
+  #[inline]
+  fn ascii_graphic_iter(&mut self) -> impl Iterator<Item = u8> {
+    iter::repeat_with(|| self.u8_8()).flat_map(IntoIterator::into_iter).filter(u8::is_ascii_graphic)
+  }
+
   /// Creates an element that is within the given `range`.
   #[inline]
   fn elem_from_range<R, T>(&mut self, range: &R) -> Option<T>
@@ -207,5 +232,21 @@ where
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     (*self).u8_16()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::misc::{Rng, Vector, Xorshift64};
+
+  #[test]
+  fn ascii_graphic_bytes() {
+    let mut rng = Xorshift64::from(123);
+    let bytes = Vector::from_iter(rng.ascii_graphic_iter().take(16)).unwrap();
+    assert_ne!(&bytes[0..8], &bytes[8..16]);
+    for elem in &bytes {
+      assert!(elem.is_ascii_graphic());
+    }
+    assert_ne!(bytes, Vector::from_iter(rng.ascii_graphic_iter().take(16)).unwrap());
   }
 }

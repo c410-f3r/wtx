@@ -52,14 +52,15 @@ pub use stream_aux::StreamAux;
 
 /// Server
 #[derive(Debug)]
-pub struct ServerFramework<CA, CAC, E, EN, M, S, SA, SAC> {
-  _ca_cb: CAC,
+pub struct ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB> {
+  _ca_cb: CACB,
+  _cbp: CBP,
   _cp: ConnParams,
-  _sa_cb: SAC,
+  _sa_cb: SACB,
   _router: Arc<Router<CA, E, EN, M, S, SA>>,
 }
 
-impl<CA, CAC, E, EN, M, S, SA, SAC> ServerFramework<CA, CAC, E, EN, M, S, SA, SAC>
+impl<CA, CACB, CBP, E, EN, M, S, SA, SACB> ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB>
 where
   E: From<crate::Error>,
   EN: EndpointNode<CA, E, S, SA>,
@@ -68,23 +69,11 @@ where
 {
   #[inline]
   async fn _auto(
-    headers_aux: ArrayVector<RouteMatch, 4>,
-    auto_stream: AutoStream<CA, (impl Fn() -> SA::Init, Arc<Router<CA, E, EN, M, S, SA>>)>,
+    headers_aux: (ArrayVector<RouteMatch, 4>, Arc<Router<CA, E, EN, M, S, SA>>),
+    mut auto_stream: AutoStream<CA, SA>,
   ) -> Result<Response<ReqResBuffer>, E> {
-    let (cb, router) = auto_stream.stream_aux;
-    let mut router_auto_stream = AutoStream {
-      conn_aux: auto_stream.conn_aux,
-      peer: auto_stream.peer,
-      protocol: auto_stream.protocol,
-      req: auto_stream.req,
-      stream_aux: SA::stream_aux(cb())?,
-    };
-    let status_code = router.auto(&mut router_auto_stream, (0, &headers_aux)).await?;
-    Ok(Response {
-      rrd: router_auto_stream.req.rrd,
-      status_code,
-      version: router_auto_stream.req.version,
-    })
+    let status_code = headers_aux.1.auto(&mut auto_stream, (0, &headers_aux.0)).await?;
+    Ok(Response { rrd: auto_stream.req.rrd, status_code, version: auto_stream.req.version })
   }
 
   #[inline]

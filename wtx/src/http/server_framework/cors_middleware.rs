@@ -71,7 +71,6 @@ impl CorsMiddleware {
   /// * All headers are exposed (wildcard).
   /// * No caching
   #[inline]
-  #[must_use]
   pub fn permissive() -> crate::Result<Self> {
     Ok(Self {
       allow_credentials: true,
@@ -190,7 +189,7 @@ impl CorsMiddleware {
       .1
       .iter()
       .enumerate()
-      .find_map(|(idx, el)| (el == origin).then(|| (el.as_str(), idx)))
+      .find_map(|(idx, el)| (el == origin).then_some((el.as_str(), idx)))
   }
 
   #[inline]

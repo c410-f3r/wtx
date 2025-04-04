@@ -23,7 +23,7 @@ where
     };
 
     let initial_local_id_opt = if let Some(idx) = local_id_field_idx {
-      Some(curr_record.decode::<_, T::IdTy>(usize::from(idx))?)
+      Some(curr_record.decode::<_, T::IdTy>(idx)?)
     } else {
       None
     };
@@ -46,7 +46,7 @@ where
         break;
       };
       if let (Some(idx), Some(initial_local_id)) = (local_id_field_idx, initial_local_id_opt) {
-        let curr_local_id_opt = curr_record.decode_opt::<_, T::IdTy>(usize::from(idx))?;
+        let curr_local_id_opt = curr_record.decode_opt::<_, T::IdTy>(idx)?;
         let Some(curr_local_id) = curr_local_id_opt else {
           *curr_record_idx = curr_record_idx.wrapping_add(1);
           continue;
@@ -92,7 +92,7 @@ where
 {
   let local_parent_record_id = curr_record.decode::<_, T::IdTy>(parent_record_id_field_idx)?;
   if &local_parent_record_id == parent_record_id {
-    entity_cb(T::from_records((curr_field_idx, &curr_record, curr_record_idx), records)?)?;
+    entity_cb(T::from_records((curr_field_idx, curr_record, curr_record_idx), records)?)?;
     *next_field_idx = *curr_field_idx;
     *curr_field_idx = initial_field_idx;
     *curr_record_idx = curr_record_idx.wrapping_add(1);

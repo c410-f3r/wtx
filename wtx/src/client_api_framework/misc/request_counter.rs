@@ -177,25 +177,25 @@ mod tests {
       assert!(now.elapsed() >= duration);
     }
 
-    let _100 = Duration::from_millis(100);
-    let rl = RequestLimit::new(1, _100);
+    let one_hundred = Duration::from_millis(100);
+    let rl = RequestLimit::new(1, one_hundred);
     let mut rc = RequestCounter::new();
     assert_eq!(rc.counter, 0);
     test(&mut rc, &rl, Duration::default()).await;
     assert_eq!(rc.counter, 2);
-    test(&mut rc, &rl, _100 - Duration::from_millis(1)).await;
+    test(&mut rc, &rl, one_hundred - Duration::from_millis(1)).await;
     assert_eq!(rc.counter, 1);
     test(&mut rc, &rl, Duration::default()).await;
     assert_eq!(rc.counter, 2);
-    test(&mut rc, &rl, _100 - Duration::from_millis(1)).await;
+    test(&mut rc, &rl, one_hundred - Duration::from_millis(1)).await;
     assert_eq!(rc.counter, 1);
     test(&mut rc, &rl, Duration::default()).await;
     assert_eq!(rc.counter, 2);
-    test(&mut rc, &rl, _100 - Duration::from_millis(1)).await;
+    test(&mut rc, &rl, one_hundred - Duration::from_millis(1)).await;
     assert_eq!(rc.counter, 1);
     test(&mut rc, &rl, Duration::default()).await;
     assert_eq!(rc.counter, 2);
-    test(&mut rc, &rl, _100 - Duration::from_millis(1)).await;
+    test(&mut rc, &rl, one_hundred - Duration::from_millis(1)).await;
     assert_eq!(rc.counter, 1);
   }
 }

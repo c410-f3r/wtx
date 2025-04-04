@@ -15,14 +15,16 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
-    "127.0.0.1:9000",
-    auto,
-    || Ok(((), Http2Buffer::new(Xorshift64::from(simple_seed())), Http2Params::default())),
+    ((), "127.0.0.1:9000", (), ()),
+    |_| {},
+    |_, stream| async move { Ok(stream.into_split()) },
     |error| eprintln!("{error}"),
+    |_| Ok(((), Http2Buffer::new(&mut Xorshift64::from(simple_seed())), Http2Params::default())),
+    |_| Ok(((), ReqResBuffer::empty())),
+    |_, _, _, _, _| Ok(((), OperationMode::Auto)),
+    |error| eprintln!("{error}"),
+    auto,
     manual,
-    |_, _, _, _| Ok(((), OperationMode::Auto)),
-    || Ok(((), ReqResBuffer::empty())),
-    (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream.into_split()) }),
   )
   .await
 }

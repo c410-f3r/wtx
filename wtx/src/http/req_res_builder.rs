@@ -79,7 +79,7 @@ where
   where
     T: serde::Serialize,
   {
-    serde_json::to_writer(&mut self.rrd.body_mut().lease_mut(), data)?;
+    serde_json::to_writer(self.rrd.body_mut().lease_mut(), data)?;
     self.content_type(Mime::ApplicationJson)
   }
 

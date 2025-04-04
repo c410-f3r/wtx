@@ -230,4 +230,5 @@ create_statics! {
   Via = "via";
   Warning = "warning";
   WwwAuthenticate = "www-authenticate";
+  XCsrfToken = "x-csrf-token";
 }
