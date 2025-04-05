@@ -1,6 +1,6 @@
-pub(crate) mod cookie_bytes;
 mod cookie_error;
 pub(crate) mod cookie_generic;
+pub(crate) mod cookie_str;
 mod same_site;
 
 use crate::misc::{ArrayVector, Rng, Vector};
