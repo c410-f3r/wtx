@@ -1,6 +1,6 @@
 use crate::{
   http::cookie::{FMT1, SameSite},
-  misc::{BytesFmt, Lease},
+  misc::Lease,
 };
 use chrono::{DateTime, Utc};
 use core::{
@@ -21,16 +21,37 @@ pub(crate) struct CookieGeneric<T, V> {
   pub(crate) value: V,
 }
 
+impl<T, V> CookieGeneric<T, V> {
+  #[inline]
+  pub(crate) fn map_mut<'this, NT, NV>(
+    &'this mut self,
+    mut data: impl FnMut(&'this mut T) -> NT,
+    value: impl FnOnce(&'this mut V) -> NV,
+  ) -> CookieGeneric<NT, NV> {
+    CookieGeneric {
+      domain: data(&mut self.domain),
+      expires: self.expires,
+      http_only: self.http_only,
+      max_age: self.max_age,
+      name: data(&mut self.name),
+      path: data(&mut self.path),
+      same_site: self.same_site,
+      secure: self.secure,
+      value: value(&mut self.value),
+    }
+  }
+}
+
 impl<T, V> Display for CookieGeneric<T, V>
 where
-  T: Lease<[u8]>,
-  V: Lease<[u8]>,
+  T: Lease<str>,
+  V: Lease<str>,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_fmt(format_args!("{}={}", BytesFmt(self.name.lease()), BytesFmt(self.value.lease())))?;
+    f.write_fmt(format_args!("{}={}", self.name.lease(), self.value.lease()))?;
     if !self.domain.lease().is_empty() {
-      f.write_fmt(format_args!("; Domain={}", BytesFmt(self.domain.lease())))?;
+      f.write_fmt(format_args!("; Domain={}", self.domain.lease()))?;
     }
     if let Some(elem) = self.expires {
       f.write_fmt(format_args!("; Expires={}", elem.format(FMT1)))?;
@@ -42,7 +63,7 @@ where
       f.write_fmt(format_args!("; Max-Age={}", elem.as_secs()))?;
     }
     if !self.path.lease().is_empty() {
-      f.write_fmt(format_args!("; Path={}", BytesFmt(self.path.lease())))?;
+      f.write_fmt(format_args!("; Path={}", self.path.lease()))?;
     }
     if let Some(elem) = self.same_site {
       f.write_fmt(format_args!("; SameSite={elem}"))?;

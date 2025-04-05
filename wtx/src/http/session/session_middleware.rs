@@ -2,7 +2,7 @@ use crate::{
   http::{
     KnownHeaderName, Method, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,
-    cookie::{cookie_bytes::CookieBytes, decrypt},
+    cookie::{cookie_str::CookieStr, decrypt},
     server_framework::Middleware,
   },
   misc::{GenericTime, Lease, LeaseMut, Lock, Vector},
@@ -73,16 +73,17 @@ where
     }
     let mut session_exists = false;
     let mut x_csrf_token_value = None;
+    // Iterates over all headers because a request can contain multiple cookies.
     for header in req.rrd.headers.iter() {
       if header.name == <&str>::from(KnownHeaderName::XCsrfToken) {
         x_csrf_token_value = Some(header.value);
       }
-      if header.name != <&str>::from(KnownHeaderName::Cookie) {
+      if session_exists || header.name != <&str>::from(KnownHeaderName::Cookie) {
         continue;
       }
       let ss_des: SessionState<CS> = {
         let idx = req.rrd.body.len();
-        let cookie_des = CookieBytes::parse(header.value, &mut req.rrd.body)?;
+        let cookie_des = CookieStr::parse(header.value, &mut req.rrd.body)?;
         if cookie_des.generic.name != cookie_def.name {
           continue;
         }
@@ -113,8 +114,8 @@ where
         || req.method == Method::Put;
       let session_csrf_opt = Some(ss_des.session_csrf.as_ref());
       if is_mutable && session_csrf_opt != x_csrf_token_value.map(|el| el.as_bytes()) {
-        let _rslt =
-          self.session_store.get(&(), &()).await?.lease_mut().delete(&ss_des.session_key).await;
+        let session_key = &ss_des.session_key;
+        let _rslt = self.session_store.get(&(), &()).await?.lease_mut().delete(session_key).await;
         return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
       }
       *ca.lease_mut() = Some(ss_des);

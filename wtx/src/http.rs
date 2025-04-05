@@ -59,7 +59,7 @@ pub use status_code::StatusCode;
 pub use version::Version;
 
 /// Maximum number of bytes for the name of a header.
-pub const MAX_HEADER_NAME_LEN: usize = 128;
+pub const MAX_HEADER_NAME_LEN: usize = 48;
 /// Maximum number of bytes for the value of a header.
 pub const MAX_HEADER_VALUE_LEN: usize = 1024 * 3;
 /// Current user agent of this project

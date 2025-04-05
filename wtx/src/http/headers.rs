@@ -93,15 +93,12 @@ impl Headers {
   /// use wtx::http::{Header, Headers};
   /// let mut headers = Headers::new();
   /// headers.push_from_iter(Header::from_name_and_value("name0", [])).unwrap();
-  /// let array = headers.get_many_by_name([b"name0", b"name1"]);
+  /// let array = headers.get_by_names([b"name0", b"name1"]);
   /// assert!(array[0].is_some());
   /// assert!(array[1].is_none());
   /// ```
   #[inline]
-  pub fn get_many_by_name<const N: usize>(
-    &self,
-    names: [&[u8]; N],
-  ) -> [Option<Header<'_, &str>>; N] {
+  pub fn get_by_names<const N: usize>(&self, names: [&[u8]; N]) -> [Option<Header<'_, &str>>; N] {
     let mut rslt = [None; N];
     for header in self.iter() {
       for (name, opt) in names.into_iter().zip(&mut rslt) {

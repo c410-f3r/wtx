@@ -427,7 +427,7 @@ where
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     let origin_opt = if req.method == Method::Options {
-      let [acrh_opt, acrm_opt, origin_opt] = req.rrd.headers.get_many_by_name([
+      let [acrh_opt, acrm_opt, origin_opt] = req.rrd.headers.get_by_names([
         KnownHeaderName::AccessControlRequestHeaders.into(),
         KnownHeaderName::AccessControlRequestMethod.into(),
         KnownHeaderName::Origin.into(),

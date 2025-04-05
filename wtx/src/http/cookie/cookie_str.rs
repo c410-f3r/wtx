@@ -10,24 +10,24 @@ use core::{str, time::Duration};
 
 /// A cookie is a small piece of data a server sends to a user's web browser.
 #[derive(Debug)]
-pub(crate) struct CookieBytes<'bytes> {
-  pub(crate) generic: CookieGeneric<&'bytes str, &'bytes str>,
+pub(crate) struct CookieStr<'str> {
+  pub(crate) generic: CookieGeneric<&'str str, &'str str>,
 }
 
-impl<'bytes> CookieBytes<'bytes> {
+impl<'str> CookieStr<'str> {
   /// Creates a new instance based on a sequence of bytes received from a request.
   #[inline]
-  pub(crate) fn parse<'local_bytes, 'vector>(
-    bytes: &'local_bytes str,
+  pub(crate) fn parse<'local_str, 'vector>(
+    str: &'local_str str,
     vector: &'vector mut Vector<u8>,
   ) -> crate::Result<Self>
   where
-    'local_bytes: 'bytes,
-    'vector: 'bytes,
+    'local_str: 'str,
+    'vector: 'str,
   {
-    let mut semicolons = str_split1(bytes, b';');
+    let mut semicolons = str_split1(str, b';');
 
-    let mut cookie: CookieGeneric<&'bytes str, &'bytes str> = {
+    let mut cookie: CookieGeneric<&'str str, &'str str> = {
       let first_semicolon = semicolons.next().unwrap_or_default();
       let (name, value) = if let Some(elem) = str_split_once1(first_semicolon, b'=') {
         (elem.0.trim_ascii(), elem.1.trim_ascii())

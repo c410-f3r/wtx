@@ -113,7 +113,16 @@ where
     enc_rslt?;
     let headers_rslt = rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
-      format_args!("{cookie_def}"),
+      format_args!(
+        "{}",
+        cookie_def.map_mut(
+          move |el| el,
+          |el| {
+            // SAFETY: `encrypt` filled `cookie_def.value` with Base64, which is ASCII.
+            unsafe { str::from_utf8_unchecked(el.as_slice()) }
+          }
+        )
+      ),
     ));
     cookie_def.value.clear();
     headers_rslt?;
@@ -136,7 +145,7 @@ where
     cookie_def.value.clear();
     let rslt = headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
-      format_args!("{cookie_def}"),
+      format_args!("{}", cookie_def.map_mut(move |el| el, |_| "")),
     ));
     cookie_def.expires = prev_expires;
     cookie_def.max_age = prev_max_age;
