@@ -107,19 +107,29 @@ impl<E> Default for Postgres<E> {
 mod array {
   use crate::{
     database::{
-      FromRecord, Record,
-      client::postgres::{Postgres, postgres_record::PostgresRecord},
+      FromRecords, FromRecordsParams, Record,
+      client::postgres::{Postgres, PostgresRecord, PostgresRecords},
     },
     misc::{ArrayString, from_utf8_basic, into_rslt},
   };
 
-  impl<E, const N: usize> FromRecord<Postgres<E>> for ArrayString<N>
+  impl<'exec, E, const N: usize> FromRecords<'exec, Postgres<E>> for ArrayString<N>
   where
-    E: From<crate::Error>,
+    E: From<crate::Error> + core::fmt::Debug,
   {
+    const ID_IDX: Option<usize> = None;
+    type IdTy = ();
+
     #[inline]
-    fn from_record(record: &PostgresRecord<'_, E>) -> Result<Self, E> {
-      Ok(from_utf8_basic(into_rslt(record.value(0))?.bytes()).map_err(From::from)?.try_into()?)
+    fn from_records(
+      curr_params: &mut FromRecordsParams<PostgresRecord<'exec, E>>,
+      _: &PostgresRecords<'_, E>,
+    ) -> Result<Self, E> {
+      let rslt = from_utf8_basic(into_rslt(curr_params.curr_record.value(0))?.bytes())
+        .map_err(From::from)?
+        .try_into()?;
+      curr_params.inc_consumed_records(1);
+      Ok(rslt)
     }
   }
 }

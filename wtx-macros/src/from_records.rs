@@ -113,32 +113,46 @@ pub(crate) fn from_records(
 
       #[inline]
       fn from_records(
-        (_curr_field_idx, _curr_record, _curr_record_idx): (&mut usize, &<#database as wtx::database::Database>::Record<'exec>,  &mut usize),
+        _curr_params: &mut wtx::database::FromRecordsParams<<#database as wtx::database::Database>::Record<'exec>>,
         _records: &<#database as wtx::database::Database>::Records<'exec>,
       ) -> Result<Self, crate::Error> {
         use wtx::database::Record as _;
 
-        #( let #decodes_before_id = _curr_record.#decodes_before_id_method(*_curr_field_idx)?; *_curr_field_idx = _curr_field_idx.wrapping_add(1); )*
+        #(
+          let #decodes_before_id = _curr_params.curr_record.#decodes_before_id_method(_curr_params.curr_field_idx)?;
+          _curr_params.inc_field_idx();
+        )*
 
         #(
-          let _parent_id_column_idx = *_curr_field_idx;
-          let #id_ident_iter0: #id_ty = _curr_record.decode(*_curr_field_idx)?; *_curr_field_idx = _curr_field_idx.wrapping_add(1);
+          let _parent_id_column_idx = _curr_params.curr_field_idx;
+          let #id_ident_iter0: #id_ty = _curr_params.curr_record.decode(_curr_params.curr_field_idx)?;
+          _curr_params.inc_field_idx();
           let _parent_id_iter0 = #id_ident_iter0;
         )*
 
-        #( let #decodes_after_id = _curr_record.#decodes_after_id_method(*_curr_field_idx)?; *_curr_field_idx = _curr_field_idx.wrapping_add(1); )*
+        #(
+          let #decodes_after_id = _curr_params.curr_record.#decodes_after_id_method(_curr_params.curr_field_idx)?;
+          _curr_params.inc_field_idx();
+        )*
 
-        #( let #ones = <_>::from_records((_curr_field_idx, _curr_record, _curr_record_idx), _records)?; )*
+        #(
+          let #ones = <_>::from_records(_curr_params, _records)?;
+        )*
 
+        let prev_consumed_records = _curr_params.consumed_records;
         #(
           let mut #manys: #manys_ty = <_>::default();
           wtx::database::seek_related_entities(
-            (_curr_field_idx, _curr_record_idx),
+            _curr_params,
             (_parent_id_iter0, _parent_id_column_idx),
             _records,
             |elem| Ok(#manys.push(elem).map_err(wtx::Error::from)?)
           )?;
         )*
+
+        if prev_consumed_records == _curr_params.consumed_records {
+          _curr_params.inc_consumed_records(1);
+        }
 
         Ok(Self {
           #(#decodes_before_id,)*

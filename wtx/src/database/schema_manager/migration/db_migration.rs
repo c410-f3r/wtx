@@ -59,55 +59,76 @@ impl DbMigration {
 }
 
 #[cfg(feature = "mysql")]
-impl<E> crate::database::FromRecord<crate::database::client::mysql::Mysql<E>> for DbMigration
+impl<'exec, E> crate::database::FromRecords<'exec, crate::database::client::mysql::Mysql<E>>
+  for DbMigration
 where
   E: From<crate::Error>,
 {
+  const ID_IDX: Option<usize> = None;
+  type IdTy = ();
+
   #[inline]
-  fn from_record(from: &crate::database::client::mysql::MysqlRecord<'_, E>) -> Result<Self, E> {
+  fn from_records(
+    curr_params: &mut crate::database::FromRecordsParams<
+      crate::database::client::mysql::MysqlRecord<'exec, E>,
+    >,
+    _: &crate::database::client::mysql::MysqlRecords<'exec, E>,
+  ) -> Result<Self, E> {
     use crate::database::Record as _;
-    let checksum = _checksum_from_str(from.decode("checksum")?)?;
-    let name = from.decode::<_, &str>("name")?.try_into()?;
-    let repeatability = _from_u32(from.decode_opt("repeatability")?);
-    let uid = from.decode("uid")?;
-    Ok(Self {
-      common: MigrationCommon { checksum, name, repeatability, uid },
-      created_on: from.decode("created_on")?,
+    let rslt = Self {
+      common: MigrationCommon {
+        checksum: _checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
+        name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
+        repeatability: _from_u32(curr_params.curr_record.decode_opt("repeatability")?),
+        uid: curr_params.curr_record.decode("uid")?,
+      },
+      created_on: curr_params.curr_record.decode("created_on")?,
       db_ty: DatabaseTy::Mysql,
       group: DbMigrationGroup::new(
-        from.decode::<_, &str>("mg_name")?.try_into()?,
-        from.decode("mg_uid")?,
-        from.decode("mg_version")?,
+        curr_params.curr_record.decode::<_, &str>("mg_name")?.try_into()?,
+        curr_params.curr_record.decode("mg_uid")?,
+        curr_params.curr_record.decode("mg_version")?,
       ),
-    })
+    };
+    curr_params.inc_consumed_records(1);
+    Ok(rslt)
   }
 }
 
 #[cfg(feature = "postgres")]
-impl<E> crate::database::FromRecord<crate::database::client::postgres::Postgres<E>> for DbMigration
+impl<'exec, E> crate::database::FromRecords<'exec, crate::database::client::postgres::Postgres<E>>
+  for DbMigration
 where
   E: From<crate::Error>,
 {
+  const ID_IDX: Option<usize> = None;
+  type IdTy = ();
+
   #[inline]
-  fn from_record(
-    from: &crate::database::client::postgres::PostgresRecord<'_, E>,
+  fn from_records(
+    curr_params: &mut crate::database::FromRecordsParams<
+      crate::database::client::postgres::PostgresRecord<'exec, E>,
+    >,
+    _: &crate::database::client::postgres::PostgresRecords<'exec, E>,
   ) -> Result<Self, E> {
     use crate::database::Record as _;
-    Ok(Self {
+    let rslt = Self {
       common: MigrationCommon {
-        checksum: _checksum_from_str(from.decode("checksum")?)?,
-        name: from.decode::<_, &str>("name")?.try_into()?,
-        repeatability: _from_u32(from.decode_opt("repeatability")?),
-        uid: from.decode("uid")?,
+        checksum: _checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
+        name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
+        repeatability: _from_u32(curr_params.curr_record.decode_opt("repeatability")?),
+        uid: curr_params.curr_record.decode("uid")?,
       },
-      created_on: from.decode("created_on")?,
+      created_on: curr_params.curr_record.decode("created_on")?,
       db_ty: DatabaseTy::Postgres,
       group: DbMigrationGroup::new(
-        from.decode::<_, &str>("mg_name")?.try_into()?,
-        from.decode("mg_uid")?,
-        from.decode("mg_version")?,
+        curr_params.curr_record.decode::<_, &str>("mg_name")?.try_into()?,
+        curr_params.curr_record.decode("mg_uid")?,
+        curr_params.curr_record.decode("mg_version")?,
       ),
-    })
+    };
+    curr_params.inc_consumed_records(1);
+    Ok(rslt)
   }
 }
 

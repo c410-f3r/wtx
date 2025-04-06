@@ -1,7 +1,7 @@
 //! Database
 
 use crate::{
-  database::{Database, FromRecord, RecordValues, StmtCmd},
+  database::{Database, RecordValues, StmtCmd},
   misc::{ConnectionState, DEController},
 };
 
@@ -76,38 +76,6 @@ pub trait Executor {
     &mut self,
     cmd: &str,
   ) -> impl Future<Output = Result<u64, <Self::Database as DEController>::Error>>;
-
-  /// Retrieves a record and maps it to `T`. See [`FromRecord`].
-  #[inline]
-  fn simple_entity<SV, T>(
-    &mut self,
-    cmd: &str,
-    sv: SV,
-  ) -> impl Future<Output = Result<T, <Self::Database as DEController>::Error>>
-  where
-    T: FromRecord<Self::Database>,
-    SV: RecordValues<Self::Database>,
-  {
-    async move { T::from_record(&self.fetch_with_stmt(cmd, sv).await?) }
-  }
-
-  /// Retrieves a set of records and maps them to the corresponding `T`. See [`FromRecord`].
-  #[inline]
-  fn simple_entities<SV, T>(
-    &mut self,
-    cmd: &str,
-    sv: SV,
-    mut cb: impl FnMut(T) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
-  where
-    SV: RecordValues<Self::Database>,
-    T: FromRecord<Self::Database>,
-  {
-    async move {
-      let _rec = self.fetch_many_with_stmt(cmd, sv, |record| cb(T::from_record(record)?)).await?;
-      Ok(())
-    }
-  }
 
   /// Makes internal calls to "BEGIN" and "COMMIT".
   fn transaction<'this, F, R>(

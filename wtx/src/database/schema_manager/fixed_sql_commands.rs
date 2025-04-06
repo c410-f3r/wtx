@@ -33,7 +33,7 @@ pub(crate) mod postgres;
 
 use crate::{
   database::{
-    Database, DatabaseTy, FromRecord,
+    Database, DatabaseTy, FromRecords,
     executor::Executor,
     schema_manager::{DbMigration, Uid, UserMigration, UserMigrationGroup, VERSION},
   },
@@ -130,9 +130,9 @@ where
 }
 
 #[inline]
-pub(crate) async fn _migrations_by_mg_uid_query<E, D>(
+pub(crate) async fn _migrations_by_mg_uid_query<'exec, E, D>(
   buffer_cmd: &mut String,
-  executor: &mut E,
+  executor: &'exec mut E,
   mg_uid: Uid,
   results: &mut Vector<DbMigration>,
   schema_prefix: &str,
@@ -140,7 +140,7 @@ pub(crate) async fn _migrations_by_mg_uid_query<E, D>(
 where
   D: Database<Aux = (), Error = crate::Error>,
   E: Executor<Database = D>,
-  DbMigration: FromRecord<E::Database>,
+  DbMigration: FromRecords<'exec, E::Database>,
 {
   buffer_cmd.write_fmt(format_args!(
     "SELECT \
@@ -161,12 +161,14 @@ where
     ORDER BY \
       _wtx_migration.uid ASC;",
   ))?;
-  executor
-    .simple_entities(buffer_cmd, (), |result| {
-      results.push(result)?;
-      Ok(())
-    })
-    .await?;
+  for elem in DbMigration::many(
+    &executor.fetch_many_with_stmt(buffer_cmd.as_str(), (), |_elem| Ok(())).await?,
+  ) {
+    if let Err(elem) = results.push(elem?) {
+      buffer_cmd.clear();
+      return Err(elem);
+    }
+  }
   buffer_cmd.clear();
   Ok(())
 }

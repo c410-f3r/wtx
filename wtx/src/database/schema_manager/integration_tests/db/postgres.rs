@@ -1,7 +1,7 @@
 #[cfg(feature = "schema-manager-dev")]
 use {
   crate::database::{
-    FromRecord, Identifier, client::postgres::Postgres, schema_manager::Commands,
+    FromRecords, Identifier, client::postgres::Postgres, schema_manager::Commands,
     schema_manager::DbMigration, schema_manager::MigrationStatus, schema_manager::SchemaManagement,
     schema_manager::fixed_sql_commands::postgres, schema_manager::integration_tests,
   },
@@ -10,18 +10,18 @@ use {
 };
 
 #[cfg(feature = "schema-manager-dev")]
-pub(crate) async fn _clean_drops_all_objs<E>(
+pub(crate) async fn _clean_drops_all_objs<'exec, E>(
   (buffer_cmd, _, buffer_idents, _): (
     &mut String,
     &mut Vector<DbMigration>,
     &mut Vector<Identifier>,
     &mut Vector<MigrationStatus>,
   ),
-  c: &mut Commands<E>,
+  c: &'exec mut Commands<E>,
   _: integration_tests::AuxTestParams,
 ) where
   E: SchemaManagement<Database = Postgres<crate::Error>>,
-  Identifier: FromRecord<Postgres<crate::Error>>,
+  Identifier: FromRecords<'exec, Postgres<crate::Error>>,
 {
   integration_tests::create_foo_table(buffer_cmd, c, "public.").await;
   c._executor_mut().execute("CREATE SCHEMA bar", |_| Ok(())).await.unwrap();
