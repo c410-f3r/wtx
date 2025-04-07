@@ -109,17 +109,30 @@ impl<E> Default for Mysql<E> {
 
 mod array {
   use crate::{
-    database::{FromRecord, Record, client::mysql::Mysql},
+    database::{
+      FromRecords, FromRecordsParams, Record,
+      client::mysql::{Mysql, MysqlRecord, MysqlRecords},
+    },
     misc::{ArrayString, from_utf8_basic, into_rslt},
   };
 
-  impl<E, const N: usize> FromRecord<Mysql<E>> for ArrayString<N>
+  impl<'exec, E, const N: usize> FromRecords<'exec, Mysql<E>> for ArrayString<N>
   where
     E: From<crate::Error>,
   {
+    const ID_IDX: Option<usize> = None;
+    type IdTy = ();
+
     #[inline]
-    fn from_record(record: &crate::database::client::mysql::MysqlRecord<'_, E>) -> Result<Self, E> {
-      Ok(from_utf8_basic(into_rslt(record.value(0))?.bytes()).map_err(From::from)?.try_into()?)
+    fn from_records(
+      curr_params: &mut FromRecordsParams<MysqlRecord<'exec, E>>,
+      _: &MysqlRecords<'_, E>,
+    ) -> Result<Self, E> {
+      let rslt = from_utf8_basic(into_rslt(curr_params.curr_record.value(0))?.bytes())
+        .map_err(From::from)?
+        .try_into()?;
+      curr_params.inc_consumed_records(1);
+      Ok(rslt)
     }
   }
 }

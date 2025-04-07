@@ -1,5 +1,5 @@
 use crate::{
-  database::{Executor, Identifier, client::mysql::Mysql},
+  database::{Executor, FromRecords, Identifier, client::mysql::Mysql},
   misc::Vector,
 };
 
@@ -48,19 +48,15 @@ pub(crate) async fn _table_names<E>(
 where
   E: Executor<Database = Mysql<crate::Error>>,
 {
-  let cmd = "
-    SELECT
+  let cmd = "SELECT
       all_tables.table_name AS table_name
     FROM
       information_schema.tables AS all_tables
     WHERE
-      all_tables.table_schema NOT IN ('performance_schema') AND all_tables.table_type IN ('BASE TABLE', 'SYSTEM VERSIONED')
-  ";
-  executor
-    .simple_entities(cmd, (), |result| {
-      results.push(result)?;
-      Ok(())
-    })
-    .await?;
+      all_tables.table_schema NOT IN ('performance_schema') AND all_tables.table_type IN ('BASE TABLE', 'SYSTEM VERSIONED')";
+  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    results.push(elem?)?;
+  }
   Ok(())
 }

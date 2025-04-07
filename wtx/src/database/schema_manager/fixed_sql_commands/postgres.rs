@@ -1,5 +1,5 @@
 use crate::{
-  database::{Identifier, client::postgres::Postgres, executor::Executor},
+  database::{FromRecords, Identifier, client::postgres::Postgres, executor::Executor},
   misc::Vector,
 };
 use alloc::string::String;
@@ -99,25 +99,19 @@ pub(crate) async fn _domains<E>(
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  executor
-    .simple_entities(
-      "
-    SELECT
+  let cmd = "SELECT
       t.typname AS generic_column
     FROM pg_catalog.pg_type t
       LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
       LEFT JOIN pg_depend dep ON dep.objid = t.oid AND dep.deptype = 'e'
     WHERE t.typtype = 'd'
       AND n.nspname = 'public'
-      AND dep.objid IS NULL
-    ",
-      (),
-      |result| {
-        results.push(result)?;
-        Ok(())
-      },
-    )
-    .await
+      AND dep.objid IS NULL";
+  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    results.push(elem?)?;
+  }
+  Ok(())
 }
 
 #[inline]
@@ -152,21 +146,16 @@ pub(crate) async fn _sequences<E>(
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  executor
-    .simple_entities(
-      "SELECT
+  let cmd = "SELECT
       sequence_name AS generic_column
     FROM
       information_schema.sequences
     WHERE
-      sequence_schema = 'public'",
-      (),
-      |result| {
-        results.push(result)?;
-        Ok(())
-      },
-    )
-    .await?;
+      sequence_schema = 'public'";
+  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    results.push(elem?)?;
+  }
   Ok(())
 }
 
@@ -178,24 +167,19 @@ pub(crate) async fn _schemas<E>(
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  executor
-    .simple_entities(
-      "SELECT
+  let cmd = "SELECT
     pc_ns.nspname AS generic_column
   FROM
     pg_catalog.pg_namespace pc_ns
   WHERE
     nspname NOT IN ('information_schema', 'pg_catalog', 'public')
     AND nspname NOT LIKE 'pg_toast%'
-    AND nspname NOT LIKE 'pg_temp_%'
-  ",
-      (),
-      |result| {
-        results.push(result)?;
-        Ok(())
-      },
-    )
-    .await
+    AND nspname NOT LIKE 'pg_temp_%'";
+  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    results.push(elem?)?;
+  }
+  Ok(())
 }
 
 #[inline]
@@ -229,14 +213,16 @@ where
         WHERE inhrelid = (quote_ident(tables.table_schema)||'.'||quote_ident(tables.table_name))::regclass::oid)
       )",
   ))?;
-  let rslt = executor
-    .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
-      results.push(result)?;
-      Ok(())
-    })
-    .await;
+  let records = executor
+    .fetch_many_with_stmt(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
+    .await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    if let Err(elem) = results.push(elem?) {
+      buffer_cmd.truncate(before);
+      return Err(elem);
+    }
+  }
   buffer_cmd.truncate(before);
-  rslt?;
   Ok(())
 }
 
@@ -248,9 +234,7 @@ pub(crate) async fn _types<E>(
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  executor
-    .simple_entities(
-      "SELECT
+  let cmd = "SELECT
       typname AS generic_column
     FROM
       pg_catalog.pg_type t
@@ -266,14 +250,12 @@ where
         select oid from pg_catalog.pg_namespace where nspname = 'public'
       )
       AND dep.objid is null
-      AND t.typtype != 'd'",
-      (),
-      |result| {
-        results.push(result)?;
-        Ok(())
-      },
-    )
-    .await
+      AND t.typtype != 'd'";
+  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    results.push(elem?)?;
+  }
+  Ok(())
 }
 
 #[inline]
@@ -284,25 +266,19 @@ pub(crate) async fn _views<E>(
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  executor
-    .simple_entities(
-      "
-    SELECT
+  let cmd = "SELECT
       relname AS generic_column
     FROM pg_catalog.pg_class c
       JOIN pg_namespace n ON n.oid = c.relnamespace
       LEFT JOIN pg_depend dep ON dep.objid = c.oid AND dep.deptype = 'e'
     WHERE c.relkind = 'v'
       AND  n.nspname = 'public'
-      AND dep.objid IS NULL
-    ",
-      (),
-      |result| {
-        results.push(result)?;
-        Ok(())
-      },
-    )
-    .await
+      AND dep.objid IS NULL";
+  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    results.push(elem?)?;
+  }
+  Ok(())
 }
 
 #[inline]
@@ -316,8 +292,7 @@ where
 {
   let before = buffer_cmd.len();
   buffer_cmd.write_fmt(format_args!(
-    "
-    SELECT
+    "SELECT
       proname AS generic_column
     FROM
       pg_proc
@@ -327,17 +302,18 @@ where
     WHERE
       ns.nspname = 'public'
       AND dep.objid IS NULL
-      AND pg_proc.prokind = '{prokind}'
-    ",
+      AND pg_proc.prokind = '{prokind}'",
   ))?;
-  let rslt = executor
-    .simple_entities(buffer_cmd.get(before..).unwrap_or_default(), (), |result| {
-      buffer_idents.push(result)?;
-      Ok(())
-    })
-    .await;
+  let records = executor
+    .fetch_many_with_stmt(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
+    .await?;
+  for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
+    if let Err(elem) = buffer_idents.push(elem?) {
+      buffer_cmd.truncate(before);
+      return Err(elem);
+    }
+  }
   buffer_cmd.truncate(before);
-  rslt?;
   Ok(())
 }
 

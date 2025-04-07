@@ -206,6 +206,16 @@ mod primitives {
     misc::{Decode, Encode, Usize},
   };
 
+  impl<E> Decode<'_, Mysql<E>> for ()
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(_: &mut (), _: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+      Ok(())
+    }
+  }
+
   // bool
 
   impl<E> Decode<'_, Mysql<E>> for bool
