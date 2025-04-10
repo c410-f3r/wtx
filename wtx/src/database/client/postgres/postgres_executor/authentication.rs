@@ -15,7 +15,7 @@ use crate::{
   },
   misc::{
     ArrayVector, ConnectionState, CryptoRng, LeaseMut, Stream, SuffixWriterFbvm, Vector,
-    bytes_split1, from_utf8_basic, partitioned_filled_buffer::PartitionedFilledBuffer,
+    bytes_split1, from_utf8_basic, net::PartitionedFilledBuffer,
   },
 };
 use base64::prelude::{BASE64_STANDARD, Engine as _};

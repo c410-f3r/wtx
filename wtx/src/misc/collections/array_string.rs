@@ -64,7 +64,7 @@ impl<const N: usize> ArrayString<N> {
   ///
   /// # Safety
   ///
-  /// It is up to the called to pass valid UTF-8 bytes until `len`.
+  /// It is up to the caller to pass valid UTF-8 bytes until `len`.
   #[inline]
   pub const unsafe fn from_parts_unchecked(data: [u8; N], len: u32) -> Self {
     Self::instance_check();

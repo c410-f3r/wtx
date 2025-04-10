@@ -14,7 +14,9 @@ use crate::{
     Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
     huffman::huffman_encode, misc::protocol_err,
   },
-  misc::{_random_state, _unreachable, Rng, Usize, Vector, mem_transfer::_shift_copyable_chunks},
+  misc::{
+    _random_state, Rng, Usize, Vector, bytes_transfer::shift_copyable_chunks, hints::_unreachable,
+  },
 };
 use core::{
   hash::{BuildHasher, Hasher},
@@ -297,7 +299,7 @@ impl HpackEncoder {
         }
         _ => return Ok(()),
       }
-      let _ = _shift_copyable_chunks(
+      let _ = shift_copyable_chunks(
         before_byte.wrapping_add(octets.into()),
         buffer,
         iter::once(after_byte..after_huffman),

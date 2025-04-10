@@ -1,7 +1,7 @@
 use crate::{
   misc::{
-    ConnectionState, LeaseMut, Lock, StreamReader, StreamWriter, Vector, Xorshift64,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
+    ConnectionState, LeaseMut, Lock, Rng, StreamReader, StreamWriter, Vector,
+    net::PartitionedFilledBuffer,
   },
   web_socket::{
     Frame, FrameMut,
@@ -15,32 +15,33 @@ use core::marker::PhantomData;
 
 /// Owned reader and writer pair
 #[derive(Debug)]
-pub struct WebSocketPartsOwned<C, NC, SR, SW, const IS_CLIENT: bool> {
+pub struct WebSocketPartsOwned<C, NC, R, SR, SW, const IS_CLIENT: bool> {
   /// Reader
-  pub reader: WebSocketReaderPartOwned<C, NC, SR, IS_CLIENT>,
+  pub reader: WebSocketReaderPartOwned<C, NC, R, SR, IS_CLIENT>,
   /// Writer
-  pub writer: WebSocketWriterPartOwned<C, NC, SW, IS_CLIENT>,
+  pub writer: WebSocketWriterPartOwned<C, NC, R, SW, IS_CLIENT>,
 }
 
 /// Auxiliary structure used by [`WebSocketReaderPartOwned`] and [`WebSocketWriterPartOwned`]
 #[derive(Debug)]
-pub struct WebSocketCommonPartOwned<NC, SW, const IS_CLIENT: bool> {
-  pub(crate) wsc: WebSocketCommonPart<ConnectionState, NC, Xorshift64, SW, IS_CLIENT>,
+pub struct WebSocketCommonPartOwned<NC, R, SW, const IS_CLIENT: bool> {
+  pub(crate) wsc: WebSocketCommonPart<ConnectionState, NC, R, SW, IS_CLIENT>,
 }
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketReaderPartOwned<C, NC, SR, const IS_CLIENT: bool> {
+pub struct WebSocketReaderPartOwned<C, NC, R, SR, const IS_CLIENT: bool> {
   pub(crate) common: C,
-  pub(crate) phantom: PhantomData<(NC, SR)>,
+  pub(crate) phantom: PhantomData<(NC, R, SR)>,
   pub(crate) stream_reader: SR,
   pub(crate) wsrp: WebSocketReaderPart<PartitionedFilledBuffer, Vector<u8>, IS_CLIENT>,
 }
 
-impl<C, NC, SR, SW, const IS_CLIENT: bool> WebSocketReaderPartOwned<C, NC, SR, IS_CLIENT>
+impl<C, NC, R, SR, SW, const IS_CLIENT: bool> WebSocketReaderPartOwned<C, NC, R, SR, IS_CLIENT>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, IS_CLIENT>>,
+  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, IS_CLIENT>>,
   NC: NegotiatedCompression,
+  R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -56,16 +57,17 @@ where
 
 /// Writer that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketWriterPartOwned<C, NC, SW, const IS_CLIENT: bool> {
+pub struct WebSocketWriterPartOwned<C, NC, R, SW, const IS_CLIENT: bool> {
   pub(crate) common: C,
-  pub(crate) phantom: PhantomData<(NC, SW)>,
+  pub(crate) phantom: PhantomData<(NC, R, SW)>,
   pub(crate) wswp: WebSocketWriterPart<Vector<u8>, IS_CLIENT>,
 }
 
-impl<C, NC, SW, const IS_CLIENT: bool> WebSocketWriterPartOwned<C, NC, SW, IS_CLIENT>
+impl<C, NC, R, SW, const IS_CLIENT: bool> WebSocketWriterPartOwned<C, NC, R, SW, IS_CLIENT>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, IS_CLIENT>>,
+  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, IS_CLIENT>>,
   NC: NegotiatedCompression,
+  R: Rng,
   SW: StreamWriter,
 {
   /// Writes a frame to the stream.

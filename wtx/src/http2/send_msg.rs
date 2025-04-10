@@ -42,11 +42,11 @@ use crate::{
     window::WindowsPair,
   },
   misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
+  sync::{AtomicBool, Ordering},
 };
 use core::{
   future::poll_fn,
   pin::pin,
-  sync::atomic::{AtomicBool, Ordering},
   task::{Poll, Waker},
 };
 

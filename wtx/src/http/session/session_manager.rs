@@ -17,7 +17,7 @@ use serde::Serialize;
 /// [`SessionManager`] backed by `tokio`
 #[cfg(feature = "tokio")]
 pub type SessionManagerTokio<CS, E> =
-  SessionManager<crate::misc::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>>;
+  SessionManager<crate::sync::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>>;
 
 /// Manages sessions
 #[derive(Clone, Debug)]

@@ -16,14 +16,14 @@ use crate::{
     uri_buffer::UriBuffer,
   },
   misc::{
-    _read_header, _read_payload, AtomicWaker, LeaseMut, Lock, RefCounter, StreamReader,
-    StreamWriter, Usize, partitioned_filled_buffer::PartitionedFilledBuffer,
+    LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, Usize,
+    net::{PartitionedFilledBuffer, read_header, read_payload},
   },
+  sync::{AtomicBool, AtomicWaker, Ordering},
 };
 use core::{
   future::poll_fn,
   pin::pin,
-  sync::atomic::{AtomicBool, Ordering},
   task::{Context, Poll, ready},
 };
 
@@ -194,7 +194,7 @@ where
       pfb._reserve(9)?;
       let mut read = pfb._following_len();
       let buffer = pfb._following_rest_mut();
-      let array = _read_header::<0, 9, _>(buffer, &mut read, stream_reader).await?;
+      let array = read_header::<0, 9, _>(buffer, &mut read, stream_reader).await?;
       let (fi_opt, data_len) = FrameInit::from_array(array);
       if data_len > max_frame_len {
         return Err(crate::Error::Http2ErrorGoAway(
@@ -221,7 +221,7 @@ where
         continue;
       };
       _trace!("Received frame: {fi:?}");
-      _read_payload((9, data_len_usize), pfb, &mut read, stream_reader).await?;
+      read_payload((9, data_len_usize), pfb, &mut read, stream_reader).await?;
       return Ok(fi);
     }
     Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))

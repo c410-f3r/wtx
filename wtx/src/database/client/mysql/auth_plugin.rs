@@ -3,10 +3,7 @@ use crate::{
     MysqlError,
     misc::{fetch_msg, write_packet},
   },
-  misc::{
-    ArrayVector, Stream, Vector, from_utf8_basic,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
-  },
+  misc::{ArrayVector, Stream, Vector, from_utf8_basic, net::PartitionedFilledBuffer},
 };
 use digest::{Digest, FixedOutputReset, Update, generic_array::GenericArray};
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};

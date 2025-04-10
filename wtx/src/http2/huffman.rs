@@ -4,7 +4,7 @@ use crate::{
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::{_unreachable, ArrayVector, Vector, from_utf8_basic},
+  misc::{ArrayVector, Vector, from_utf8_basic, hints::_unreachable},
 };
 
 #[inline]

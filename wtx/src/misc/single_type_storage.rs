@@ -1,4 +1,4 @@
-use crate::misc::{Arc, ArrayVector, Vector};
+use crate::misc::{ArrayVector, Vector};
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
@@ -38,7 +38,8 @@ impl<T> SingleTypeStorage for &'_ mut [T] {
   type Item = T;
 }
 
-impl<T> SingleTypeStorage for Arc<T> {
+#[cfg(feature = "sync")]
+impl<T> SingleTypeStorage for crate::sync::Arc<T> {
   type Item = T;
 }
 

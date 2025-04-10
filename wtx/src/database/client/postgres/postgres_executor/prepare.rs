@@ -16,8 +16,8 @@ use crate::{
     },
   },
   misc::{
-    ArrayString, LeaseMut, Stream, SuffixWriterFbvm, U64String,
-    partitioned_filled_buffer::PartitionedFilledBuffer, u64_string,
+    ArrayString, LeaseMut, Stream, SuffixWriterFbvm, U64String, net::PartitionedFilledBuffer,
+    u64_string,
   },
 };
 

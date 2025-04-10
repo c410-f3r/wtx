@@ -51,6 +51,7 @@ mod web_socket_over_stream;
 mod window;
 mod window_update_frame;
 
+pub use crate::sync::Ordering;
 use crate::{
   http::{Method, Protocol, ReqResBuffer, Request},
   http2::misc::{
@@ -58,10 +59,10 @@ use crate::{
     sorp_mut, write_array,
   },
   misc::{
-    Arc, AtomicWaker, ConnectionState, Either, Lease, LeaseMut, Lock, NOOP_WAKER, RefCounter,
-    SingleTypeStorage, StreamReader, StreamWriter, Usize,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
+    ConnectionState, Either, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamReader,
+    StreamWriter, Usize, net::PartitionedFilledBuffer,
   },
+  sync::{Arc, AtomicBool, AtomicWaker},
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
@@ -69,8 +70,7 @@ use core::{
   future::poll_fn,
   mem,
   pin::pin,
-  sync::atomic::{AtomicBool, Ordering},
-  task::Poll,
+  task::{Poll, Waker},
 };
 use hashbrown::HashMap;
 pub use http2_buffer::Http2Buffer;
@@ -358,7 +358,7 @@ where
       stream_receiver::StreamControlRecvParams {
         is_stream_open: true,
         stream_state: stream_state::StreamState::Idle,
-        waker: NOOP_WAKER.clone(),
+        waker: Waker::noop().clone(),
         windows: Windows::initial(hdpm.hp, hdpm.hps),
       },
     ));

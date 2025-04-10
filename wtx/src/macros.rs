@@ -406,7 +406,7 @@ macro_rules! _trace {
 
 macro_rules! _trace_span {
   ($($tt:tt)+) => {
-    crate::misc::facades::span::_Span::_new(
+    crate::misc::span::Span::new(
       #[cfg(feature = "tracing")]
       tracing::trace_span!($($tt)+),
       #[cfg(not(feature = "tracing"))]

@@ -7,19 +7,19 @@ use httparse::Response;
 
 /// WebSocket connector
 #[derive(Debug)]
-pub struct WebSocketConnector<C, H, R, WSB> {
+pub struct WebSocketConnector<C, H, R, RNG, WSB> {
   pub(crate) compression: C,
   pub(crate) headers: H,
   pub(crate) no_masking: bool,
   pub(crate) res: R,
-  pub(crate) rng: Xorshift64,
+  pub(crate) rng: RNG,
   pub(crate) wsb: WSB,
 }
 
-impl<C, H, R, WSB> WebSocketConnector<C, H, R, WSB> {
+impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
   /// Defaults to no compression.
   #[inline]
-  pub fn compression<NC>(self, elem: NC) -> WebSocketConnector<NC, H, R, WSB> {
+  pub fn compression<NC>(self, elem: NC) -> WebSocketConnector<NC, H, R, RNG, WSB> {
     WebSocketConnector {
       compression: elem,
       headers: self.headers,
@@ -32,7 +32,7 @@ impl<C, H, R, WSB> WebSocketConnector<C, H, R, WSB> {
 
   /// Additional header that must be sent in the request.
   #[inline]
-  pub fn headers<NH>(self, elem: NH) -> WebSocketConnector<C, NH, R, WSB> {
+  pub fn headers<NH>(self, elem: NH) -> WebSocketConnector<C, NH, R, RNG, WSB> {
     WebSocketConnector {
       compression: self.compression,
       headers: elem,
@@ -47,14 +47,14 @@ impl<C, H, R, WSB> WebSocketConnector<C, H, R, WSB> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  pub fn no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R, WSB> {
+  pub fn no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R, RNG, WSB> {
     self.no_masking = elem;
     self
   }
 
   /// Response callback.
   #[inline]
-  pub fn res<NR>(self, elem: NR) -> WebSocketConnector<C, H, NR, WSB> {
+  pub fn res<NR>(self, elem: NR) -> WebSocketConnector<C, H, NR, RNG, WSB> {
     WebSocketConnector {
       compression: self.compression,
       headers: self.headers,
@@ -67,14 +67,14 @@ impl<C, H, R, WSB> WebSocketConnector<C, H, R, WSB> {
 
   /// Random number generator
   #[inline]
-  pub fn rng(mut self, elem: Xorshift64) -> WebSocketConnector<C, H, R, WSB> {
+  pub fn rng(mut self, elem: RNG) -> WebSocketConnector<C, H, R, RNG, WSB> {
     self.rng = elem;
     self
   }
 
   /// WebSocket Buffer
   #[inline]
-  pub fn wsb<NWSB>(self, elem: NWSB) -> WebSocketConnector<C, H, R, NWSB> {
+  pub fn wsb<NWSB>(self, elem: NWSB) -> WebSocketConnector<C, H, R, RNG, NWSB> {
     WebSocketConnector {
       compression: self.compression,
       headers: self.headers,
@@ -91,6 +91,7 @@ impl Default
     (),
     IntoIter<(&'static [u8], &'static [u8]), 0>,
     fn(&Response<'_, '_>) -> Result<(), crate::Error>,
+    Xorshift64,
     WebSocketBuffer,
   >
 {

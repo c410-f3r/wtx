@@ -8,8 +8,9 @@ use crate::{
     },
   },
   misc::{
-    _read_header, _read_payload, _unlikely_elem, ArrayVector, Decode, Encode, Stream, Usize,
-    Vector, partitioned_filled_buffer::PartitionedFilledBuffer,
+    ArrayVector, Decode, Encode, Stream, Usize, Vector,
+    hints::unlikely_elem,
+    net::{PartitionedFilledBuffer, read_header, read_payload},
   },
 };
 use core::marker::PhantomData;
@@ -64,7 +65,7 @@ where
   }
   *sequence_id = local_sequence_id;
   if first_byte == Some(255) {
-    return _unlikely_elem({
+    return unlikely_elem({
       let db_error: crate::Result<DbError> = decode(&mut pfb._current(), capabilities);
       Err(db_error?.into())
     });
@@ -136,8 +137,8 @@ where
   pfb._reserve(4)?;
   let mut read = pfb._following_len();
   let buffer = pfb._following_rest_mut();
-  let [a0, b0, c0, sequence_id] = _read_header::<0, 4, S>(buffer, &mut read, stream).await?;
+  let [a0, b0, c0, sequence_id] = read_header::<0, 4, S>(buffer, &mut read, stream).await?;
   let payload_len = Usize::from(u32::from_le_bytes([a0, b0, c0, 0])).into_usize();
-  _read_payload((4, payload_len), pfb, &mut read, stream).await?;
+  read_payload((4, payload_len), pfb, &mut read, stream).await?;
   Ok((payload_len, sequence_id.wrapping_add(1)))
 }

@@ -4,8 +4,8 @@ use crate::{
     u31::U31, window_update_frame::WindowUpdateFrame,
   },
   misc::StreamWriter,
+  sync::AtomicBool,
 };
-use core::sync::atomic::AtomicBool;
 
 /// A "credit" system used to restrain the exchange of data.
 #[derive(Clone, Copy, Debug)]

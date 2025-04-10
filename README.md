@@ -25,19 +25,19 @@ Embedded devices with a working heap allocator can use this `no_std` crate.
 
 In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following comparison table to see how some built-from-scratch implementations compare with other similar projects.
 
-| Technology                                         | Similar projects                                                               | Feature (`wtx`)          |
-| -------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------ |
-| [Client API Framework][client-api-framework]       | N/A                                                                            | client-api-framework     |
-| [Database Client][database-client]                 | [diesel][diesel], [sqlx][sqlx]                                                 | postgres, mysql          |
-| [Database Schema Manager][database-schema-manager] | [refinery][refinery]                                                           | schema-manager           |
-| [gRPC][grpc]                                       | [tonic][tonic]                                                                 | grpc-client, grpc-server |
-| [HTTP Client Pool][http-client-pool]               | [reqwest][reqwest]                                                             | http-client-pool         |
-| [HTTP Server Framework][http-server-framework]     | [actix-web][actix-web], [axum][axum]                                           | http-server-framework    |
-| [HTTP/2][http2]                                    | [h2][h2]                                                                       | http2                    |
-| [Pool][pool]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                                 | pool                     |
-| [WebSocket][web-socket]                            | [async-tungstenite][async-tungstenite], [tokio-tungstenite][tokio-tungstenite] | web-socket               |
+| Technology                                         | Similar Projects                                                   | Feature (`wtx`)          | Dependencies(`wtx`) |
+| -------------------------------------------------- | ------------------------------------------------------------------ | ------------------------ | ------------------- |
+| [Client API Framework][client-api-framework]       | N/A                                                                | client-api-framework     | 0                   |
+| [Database Client][database-client]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          | 17                  |
+| [Database Schema Manager][database-schema-manager] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           | 2                   |
+| [gRPC][grpc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server | 2, 2                |
+| [HTTP Client Pool][http-client-pool]               | [libcurl][libcurl], [reqwest][reqwest]                             | http-client-pool         | 2                   |
+| [HTTP Server Framework][http-server-framework]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    | 2                   |
+| [HTTP/2][http2]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    | 2                   |
+| [Pool][pool]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     | 0                   |
+| [WebSocket][web-socket]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     | 10                  |
 
-Please note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <c410-f3r.github.io/wtx>.
+Please note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
 
 ## Performance
 
@@ -91,16 +91,24 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 [pool]: https://c410-f3r.github.io/wtx/pool/index.html
 [web-socket]: https://c410-f3r.github.io/wtx/web-socket/index.html
 
-[actix-web]: https://github.com/actix/actix-web
-[async-tungstenite]: https://github.com/sdroege/async-tungstenite
 [axum]: https://github.com/tokio-rs/axum
 [bb8]: https://github.com/djc/bb8
 [deadpool]: https://github.com/deadpool-rs/deadpool
 [diesel]: https://github.com/diesel-rs/diesel
+[fastapi]: https://github.com/fastapi/fastapi
+[flyway]: https://github.com/flyway/flyway
+[grpc]: https://github.com/grpc/grpc
 [h2]: https://github.com/hyperium/h2
+[jdbc]: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
+[libcurl]: https://github.com/curl/curl
+[liquibase]: https://github.com/liquibase/liquibase
+[nghttp2]: https://github.com/nghttp2/nghttp2
+[odbc]: https://learn.microsoft.com/en-us/sql/odbc
 [r2d2]: https://github.com/sfackler/r2d2
 [refinery]: https://github.com/rust-db/refinery
 [reqwest]: https://github.com/seanmonstar/reqwest
+[spring-boot]: https://github.com/spring-projects/spring-boot
 [sqlx]: https://github.com/launchbadge/sqlx
 [tokio-tungstenite]: https://github.com/snapview/tokio-tungstenite
 [tonic]: https://github.com/hyperium/tonic
+[uWebSockets]: https://github.com/uNetworking/uWebSockets

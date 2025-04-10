@@ -7,9 +7,9 @@
 
 use crate::{
   misc::{
-    _read_payload, BufferMode, CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut,
-    IncompleteUtf8Char, LeaseMut, Rng, StreamReader, StreamWriter, Vector, from_utf8_basic,
-    from_utf8_ext, partitioned_filled_buffer::PartitionedFilledBuffer,
+    BufferMode, CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char,
+    LeaseMut, Rng, StreamReader, StreamWriter, Vector, from_utf8_basic, from_utf8_ext,
+    net::{PartitionedFilledBuffer, read_payload},
   },
   web_socket::{
     CloseCode, Frame, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE, OpCode, WebSocketError,
@@ -130,7 +130,7 @@ where
   )
   .await?;
   let header_len = rfi.header_len.into();
-  _read_payload((header_len, rfi.payload_len), network_buffer, &mut read, stream).await?;
+  read_payload((header_len, rfi.payload_len), network_buffer, &mut read, stream).await?;
   Ok(rfi)
 }
 

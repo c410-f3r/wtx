@@ -17,6 +17,7 @@ getrandom = { default-features = false, optional = true, version = "0.3" }
 hashbrown = { default-features = false, features = ["inline-more"], optional = true, version = "0.15" }
 hmac = { default-features = false, optional = true, version = "0.12" }
 httparse = { default-features = false, optional = true, version = "1.0" }
+loom = { default-features = false, optional = true, version = "0.7" }
 matchit = { default-features = false, optional = true, version = "0.8" }
 memchr = { default-features = false, optional = true, version = "2.0" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
@@ -47,6 +48,9 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "0.26" }
 x509-certificate = { default-features = false, optional = true, version = "0.24" }
 
+[dev-dependencies]
+wtx = { default-features = false, features = ["sync"], path = "."}
+
 [features]
 32-tuple-impls = []
 arbitrary = ["dep:arbitrary", "std"]
@@ -66,11 +70,12 @@ http-cookie = ["chrono/alloc", "http"]
 http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
 http-server-framework = ["http2"]
 http-session = ["chrono/now", "chrono/serde", "http-cookie-secure", "serde_json"]
-http2 = ["foldhash", "hashbrown", "http"]
+http2 = ["foldhash", "hashbrown", "http", "sync"]
+loom = ["dep:loom", "std"]
 mysql = ["database", "digest", "foldhash", "hashbrown", "rand_0_8", "rand-compat", "rsa/pem", "spki", "sha1", "sha2"]
 nightly = [] # FIXME(stable): "hashbrown?/nightly"
 optimization = ["memchr", "simdutf8"]
-pool = []
+pool = ["sync"]
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 quick-protobuf = ["dep:quick-protobuf", "std"]
@@ -113,6 +118,7 @@ std = [
   "tracing?/std",
   "tracing-subscriber?/std"
 ]
+sync = []
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls", "dep:rustls-pemfile", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
 web-socket = ["http"]

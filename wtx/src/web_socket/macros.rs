@@ -50,7 +50,7 @@ macro_rules! read_continuation_frames {
           $no_masking,
           rfi.op_code,
           payload,
-          rng.lease_mut(),
+          rng,
           &mut web_socket_reader::write_control_frame_cb,
         )
         .await?
@@ -122,7 +122,7 @@ macro_rules! read_frame {
           $no_masking,
           rfi.op_code,
           payload,
-          rng.lease_mut(),
+          rng,
           &mut web_socket_reader::write_control_frame_cb,
         )
         .await?

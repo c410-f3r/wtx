@@ -29,16 +29,13 @@ use crate::{
     settings_frame::SettingsFrame,
     window_update_frame::WindowUpdateFrame,
   },
-  misc::{
-    Arc, AtomicWaker, LeaseMut, Lock, RefCounter, StreamReader, StreamWriter,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
-  },
+  misc::{LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, net::PartitionedFilledBuffer},
+  sync::{Arc, AtomicBool, AtomicWaker},
 };
 use core::{
   future::poll_fn,
   mem,
   pin::pin,
-  sync::atomic::AtomicBool,
   task::{Poll, ready},
 };
 
@@ -57,7 +54,7 @@ pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
   SW: StreamWriter,
 {
   let span = _trace_span!("Starting the reading of frames");
-  let _e = span._enter();
+  let _e = span.enter();
   loop {
     let fi = match read_frame::<_, false>(
       &is_conn_open,

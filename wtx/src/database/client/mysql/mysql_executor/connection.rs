@@ -13,10 +13,7 @@ use crate::{
       },
     },
   },
-  misc::{
-    ArrayVector, LeaseMut, Stream, Vector, from_utf8_basic,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
-  },
+  misc::{ArrayVector, LeaseMut, Stream, Vector, from_utf8_basic, net::PartitionedFilledBuffer},
 };
 
 impl<E, EB, S> MysqlExecutor<E, EB, S>

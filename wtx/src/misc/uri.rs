@@ -1,6 +1,6 @@
 use crate::misc::{
-  _unlikely_dflt, ArrayString, FromRadix10 as _, Lease, LeaseMut, QueryWriter, bytes_pos1,
-  bytes_rpos1, str_split_once1,
+  ArrayString, FromRadix10 as _, Lease, LeaseMut, QueryWriter, bytes_pos1, bytes_rpos1,
+  str_split_once1,
 };
 use alloc::string::String;
 use core::fmt::{Arguments, Debug, Display, Formatter, Write as _};
@@ -72,11 +72,7 @@ where
   /// ```
   #[inline]
   pub fn authority(&self) -> &str {
-    self
-      .uri
-      .lease()
-      .get(self.authority_start.into()..self.href_start.into())
-      .unwrap_or_else(_unlikely_dflt)
+    self.uri.lease().get(self.authority_start.into()..self.href_start.into()).unwrap_or_default()
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2>

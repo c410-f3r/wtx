@@ -11,13 +11,13 @@ use crate::{
     u31::U31,
     window::WindowsPair,
   },
-  misc::{Arc, LeaseMut, Lock, RefCounter, StreamWriter, Vector, facades::span::_Span},
+  misc::{LeaseMut, Lock, RefCounter, StreamWriter, Vector, span::Span},
+  sync::{Arc, AtomicBool},
 };
 use core::{
   future::poll_fn,
   mem,
   pin::pin,
-  sync::atomic::AtomicBool,
   task::{Poll, ready},
 };
 
@@ -27,7 +27,7 @@ use core::{
 pub struct CommonStream<'instance, HD, const IS_CLIENT: bool> {
   pub(crate) hd: &'instance mut HD,
   pub(crate) is_conn_open: &'instance Arc<AtomicBool>,
-  pub(crate) span: &'instance mut _Span,
+  pub(crate) span: &'instance mut Span,
   pub(crate) stream_id: U31,
 }
 
@@ -64,7 +64,7 @@ where
   /// with higher operations that receive data.
   #[inline]
   pub async fn recv_data(&mut self) -> crate::Result<Http2RecvStatus<Vector<u8>, Vector<u8>>> {
-    let _e = self.span._enter();
+    let _e = self.span.enter();
     _trace!("Fetching data");
     let mut pin = pin!(self.hd.lock());
     poll_fn(|cx| {
@@ -96,7 +96,7 @@ where
   /// with higher operations that receive data.
   #[inline]
   pub async fn recv_trailers(&mut self) -> crate::Result<Http2RecvStatus<Headers, ()>> {
-    let _e = self.span._enter();
+    let _e = self.span.enter();
     _trace!("Fetching trailers");
     let mut pin = pin!(self.hd.lock());
     poll_fn(|cx| {
@@ -163,7 +163,7 @@ where
   where
     B: SendDataModeBytes<'bytes, IS_SCATTERED>,
   {
-    let _e = self.span._enter();
+    let _e = self.span.enter();
     _trace!("Sending data");
     let mut has_data = false;
     let mut pin = pin!(self.hd.lock());
@@ -217,7 +217,7 @@ where
     is_eos: bool,
     status_code: StatusCode,
   ) -> crate::Result<Http2SendStatus> {
-    let _e = self.span._enter();
+    let _e = self.span.enter();
     _trace!("Sending headers");
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
@@ -267,7 +267,7 @@ where
   /// Returns `false` if the stream is already closed.
   #[inline]
   pub async fn send_trailers(&mut self, trailers: &Headers) -> crate::Result<Http2SendStatus> {
-    let _e = self.span._enter();
+    let _e = self.span.enter();
     _trace!("Sending {} trailers", trailers.headers_len());
     let mut lock = self.hd.lock().await;
     let hdpm = lock.parts_mut();

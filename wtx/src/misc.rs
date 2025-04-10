@@ -1,20 +1,25 @@
 //! Miscellaneous
 
+#[cfg(feature = "http2")]
+pub(crate) mod bytes_transfer;
+#[cfg(feature = "postgres")]
+pub(crate) mod counter_writer;
+pub(crate) mod hints;
+#[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
+pub(crate) mod net;
+#[cfg(feature = "http2")]
+pub(crate) mod span;
+
 mod array_chunks;
-mod array_string;
-mod array_vector;
-mod blocks_deque;
 mod buffer_mode;
 mod clear;
+mod collections;
 mod connection_state;
-pub(crate) mod counter_writer;
 mod decode;
 mod decontroller;
-mod deque;
 mod either;
 mod encode;
 mod enum_var_strings;
-pub(crate) mod facades;
 mod filled_buffer;
 mod fn_fut;
 mod from_radix_10;
@@ -24,10 +29,8 @@ mod incomplete_utf8_char;
 mod interspace;
 mod lease;
 mod lock;
-pub(crate) mod mem_transfer;
-mod noop_waker;
+mod num_array;
 mod optimization;
-pub(crate) mod partitioned_filled_buffer;
 mod percent_encoding;
 mod query_writer;
 mod ref_counter;
@@ -36,7 +39,6 @@ mod role;
 mod single_type_storage;
 mod stream;
 mod suffix_writer;
-mod sync;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
 mod tuple_impls;
@@ -49,20 +51,16 @@ mod wrapper;
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
-pub use array_string::{ArrayString, ArrayStringError};
-pub use array_vector::{ArrayVector, ArrayVectorError, IntoIter};
-pub use blocks_deque::{Block, BlocksDeque, BlocksDequeBuilder, BlocksDequeError};
 pub use buffer_mode::BufferMode;
 pub use clear::Clear;
+pub use collections::*;
 pub use connection_state::ConnectionState;
-use core::{any::type_name, fmt::Write as _, ops::Range, time::Duration};
+use core::{any::type_name, ops::Range, time::Duration};
 pub use decode::{Decode, DecodeSeq};
 pub use decontroller::DEController;
-pub use deque::{Deque, DequeueError};
 pub use either::Either;
 pub use encode::Encode;
 pub use enum_var_strings::EnumVarStrings;
-pub use facades::arc::Arc;
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::*;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
@@ -72,7 +70,7 @@ pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use lease::{Lease, LeaseMut};
 pub use lock::Lock;
-pub use noop_waker::NOOP_WAKER;
+pub use num_array::*;
 pub use optimization::*;
 pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 pub use query_writer::QueryWriter;
@@ -82,14 +80,11 @@ pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, StreamReader, StreamWithTls, StreamWriter};
 pub use suffix_writer::{SuffixWriter, SuffixWriterFbvm, SuffixWriterMut};
-pub use sync::*;
 pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use vector::{Vector, VectorError};
 pub use wrapper::Wrapper;
-
-pub(crate) type U64String = ArrayString<20>;
 
 /// Hashes a password using the `argon2` algorithm.
 #[cfg(feature = "argon2")]
@@ -114,8 +109,10 @@ pub fn argon2_pwd<const N: usize>(
   };
   blocks.expand(BufferMode::Len(params.block_count()), argon2::Block::new())?;
   let mut out = [0; N];
-  Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
-    .hash_password_into_with_memory(pwd, salt, &mut out, blocks)?;
+  let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+  let rslt = argon2.hash_password_into_with_memory(pwd, salt, &mut out, &mut *blocks);
+  blocks.clear();
+  rslt?;
   Ok(out)
 }
 
@@ -198,50 +195,6 @@ pub fn tracing_tree_init(
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
 }
 
-/// Transforms an `u32` into a [`ArrayString`].
-#[inline]
-pub fn u32_string(n: u32) -> ArrayString<10> {
-  let mut str = ArrayString::new();
-  let _rslt = str.write_fmt(format_args!("{n}"));
-  str
-}
-
-/// Fills an `u64` into a [`ArrayString`].
-#[inline]
-pub fn u64_string(mut value: u64) -> U64String {
-  let mut idx: u8 = 20;
-  let mut buffer = [0u8; 20];
-  for local_idx in 1..=20 {
-    idx = 20u8.wrapping_sub(local_idx);
-    let Some(elem) = buffer.get_mut(usize::from(idx)) else {
-      break;
-    };
-    *elem = u8::try_from(value % 10).unwrap_or_default().wrapping_add(48);
-    value /= 10;
-    if value == 0 {
-      break;
-    }
-  }
-  let mut data = [0; 20];
-  let len = 20u16.wrapping_sub(idx.into());
-  let slice = data.get_mut(..usize::from(len)).unwrap_or_default();
-  slice.copy_from_slice(buffer.get(usize::from(idx)..).unwrap_or_default());
-  // SAFETY: Numbers are ASCII
-  unsafe { U64String::from_parts_unchecked(data, len.into()) }
-}
-
-#[inline]
-pub(crate) fn _32_bytes_seed() -> [u8; 32] {
-  let seed = simple_seed();
-  let mut rng = Xorshift64::from(seed);
-  let [a0, b0, c0, d0, e0, f0, g0, h0, i0, j0, k0, l0, m0, n0, o0, p0] = rng.u8_16();
-  let [a1, b1, c1, d1, e1, f1, g1, h1, i1, j1, k1, l1, m1, n1, o1, p1] = rng.u8_16();
-  [
-    a0, b0, c0, d0, e0, f0, g0, h0, i0, j0, k0, l0, m0, n0, o0, p0, a1, b1, c1, d1, e1, f1, g1, h1,
-    i1, j1, k1, l1, m1, n1, o1, p1,
-  ]
-}
-
 #[expect(clippy::as_conversions, reason = "`match` correctly handles conversions")]
 #[expect(clippy::cast_possible_truncation, reason = "`match` correctly handles truncations")]
 #[inline]
@@ -313,104 +266,6 @@ where
 }
 
 #[inline]
-pub(crate) async fn _read_header<const BEGIN: usize, const LEN: usize, SR>(
-  buffer: &mut [u8],
-  read: &mut usize,
-  stream_reader: &mut SR,
-) -> crate::Result<[u8; LEN]>
-where
-  [u8; LEN]: Default,
-  SR: StreamReader,
-{
-  loop {
-    let (lhs, rhs) = buffer.split_at_mut_checked(*read).unwrap_or_default();
-    if let Some(slice) = lhs.get(BEGIN..BEGIN.wrapping_add(LEN)) {
-      return Ok(slice.try_into().unwrap_or_default());
-    }
-    let local_read = stream_reader.read(rhs).await?;
-    if local_read == 0 {
-      return Err(crate::Error::ClosedConnection);
-    }
-    *read = read.wrapping_add(local_read);
-  }
-}
-
-#[inline]
-pub(crate) async fn _read_payload<SR>(
-  (header_len, payload_len): (usize, usize),
-  pfb: &mut partitioned_filled_buffer::PartitionedFilledBuffer,
-  read: &mut usize,
-  stream: &mut SR,
-) -> crate::Result<()>
-where
-  SR: StreamReader,
-{
-  let frame_len = header_len.wrapping_add(payload_len);
-  pfb._reserve(frame_len)?;
-  loop {
-    if *read >= frame_len {
-      break;
-    }
-    let local_buffer = pfb._following_rest_mut().get_mut(*read..).unwrap_or_default();
-    let local_read = stream.read(local_buffer).await?;
-    if local_read == 0 {
-      return Err(crate::Error::ClosedConnection);
-    }
-    *read = read.wrapping_add(local_read);
-  }
-  pfb._set_indices(
-    pfb._current_end_idx().wrapping_add(header_len),
-    payload_len,
-    read.wrapping_sub(frame_len),
-  )?;
-  Ok(())
-}
-
-#[cold]
-#[inline(never)]
-#[track_caller]
-pub(crate) fn _unlikely_cb<T>(cb: impl FnOnce() -> T) -> T {
-  cb()
-}
-
-#[cold]
-#[inline(never)]
-#[track_caller]
-pub(crate) fn _unlikely_dflt<T>() -> T
-where
-  T: Default,
-{
-  T::default()
-}
-
-#[cold]
-#[inline(never)]
-#[track_caller]
-pub(crate) fn _unlikely_elem<T>(elem: T) -> T {
-  elem
-}
-
-#[cold]
-#[inline(never)]
-#[track_caller]
-pub(crate) const fn _unreachable() -> ! {
-  panic!("Entered in a branch that should be impossible, which is likely a programming error");
-}
-
-#[inline]
 pub(crate) fn _usize_range_from_u32_range(range: Range<u32>) -> Range<usize> {
   *Usize::from(range.start)..*Usize::from(range.end)
-}
-
-#[cfg(test)]
-pub(crate) mod tests {
-  use crate::misc::u64_string;
-
-  #[test]
-  fn has_correct_stmt_number() {
-    assert_eq!(u64_string(0).as_str(), "0");
-    assert_eq!(u64_string(12).as_str(), "12");
-    assert_eq!(u64_string(1844674407370955161).as_str(), "1844674407370955161");
-    assert_eq!(u64_string(18446744073709551615).as_str(), "18446744073709551615");
-  }
 }

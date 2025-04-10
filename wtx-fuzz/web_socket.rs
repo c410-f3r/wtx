@@ -11,7 +11,7 @@ use wtx::{
 
 libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
   Builder::new_current_thread().enable_all().build().unwrap().block_on(async move {
-    let Ok(mut ws) = WebSocket::<_, _, _, false>::new(
+    let Ok(mut ws) = WebSocket::<_, _, _, _, false>::new(
       (),
       false,
       Xorshift64::from(simple_seed()),

@@ -7,16 +7,17 @@ use crate::{
     },
     pkg::PkgsAux,
   },
-  misc::{LeaseMut, Lock, StreamReader, StreamWriter},
+  misc::{LeaseMut, Lock, Rng, StreamReader, StreamWriter},
   web_socket::{
     WebSocketCommonPartOwned, WebSocketReaderPartOwned, compression::NegotiatedCompression,
   },
 };
 
-impl<C, NC, SR, SW, TP> ReceivingTransport<TP> for WebSocketReaderPartOwned<C, NC, SR, true>
+impl<C, NC, R, SR, SW, TP> ReceivingTransport<TP> for WebSocketReaderPartOwned<C, NC, R, SR, true>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
+  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, true>>,
   NC: NegotiatedCompression,
+  R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
   TP: LeaseMut<WsParams>,
@@ -35,9 +36,9 @@ where
   }
 }
 
-impl<C, NC, SR, SW, TP> Transport<TP> for WebSocketReaderPartOwned<C, NC, SR, true>
+impl<C, NC, R, SR, SW, TP> Transport<TP> for WebSocketReaderPartOwned<C, NC, R, SR, true>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, true>>,
+  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, true>>,
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,

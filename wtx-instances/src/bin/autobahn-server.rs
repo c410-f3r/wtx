@@ -5,6 +5,7 @@
 use tokio::net::TcpStream;
 use wtx::{
   http::OptionedServer,
+  misc::Xorshift64,
   web_socket::{
     OpCode, WebSocket, WebSocketBuffer,
     compression::{Flate2, NegotiatedFlate2},
@@ -25,7 +26,7 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn handle(
-  mut ws: WebSocket<Option<NegotiatedFlate2>, TcpStream, &mut WebSocketBuffer, false>,
+  mut ws: WebSocket<Option<NegotiatedFlate2>, Xorshift64, TcpStream, &mut WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.parts_mut();
   loop {

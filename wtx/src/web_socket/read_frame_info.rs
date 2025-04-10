@@ -1,5 +1,8 @@
 use crate::{
-  misc::{_read_header, StreamReader, partitioned_filled_buffer::PartitionedFilledBuffer},
+  misc::{
+    StreamReader,
+    net::{PartitionedFilledBuffer, read_header},
+  },
   web_socket::{
     FIN_MASK, MAX_CONTROL_PAYLOAD_LEN, OpCode, PAYLOAD_MASK, RSV1_MASK, RSV2_MASK, RSV3_MASK,
     WebSocketError,
@@ -80,24 +83,24 @@ impl ReadFrameInfo {
     SR: StreamReader,
   {
     let buffer = network_buffer._following_rest_mut();
-    let first_two = _read_header::<0, 2, SR>(buffer, read, stream).await?;
+    let first_two = read_header::<0, 2, SR>(buffer, read, stream).await?;
     let tuple = Self::manage_first_two_bytes(first_two, (nc_is_noop, nc_rsv1))?;
     let (fin, length_code, masked, op_code, should_decompress) = tuple;
     let mut mask = None;
     let (header_len, payload_len) = match length_code {
       126 => {
-        let payload_len = _read_header::<2, 2, SR>(buffer, read, stream).await?;
+        let payload_len = read_header::<2, 2, SR>(buffer, read, stream).await?;
         if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
-          mask = Some(_read_header::<4, 4, SR>(buffer, read, stream).await?);
+          mask = Some(read_header::<4, 4, SR>(buffer, read, stream).await?);
           (8, u16::from_be_bytes(payload_len).into())
         } else {
           (4, u16::from_be_bytes(payload_len).into())
         }
       }
       127 => {
-        let payload_len = _read_header::<2, 8, SR>(buffer, read, stream).await?;
+        let payload_len = read_header::<2, 8, SR>(buffer, read, stream).await?;
         if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
-          mask = Some(_read_header::<10, 4, SR>(buffer, read, stream).await?);
+          mask = Some(read_header::<10, 4, SR>(buffer, read, stream).await?);
           (14, u64::from_be_bytes(payload_len).try_into()?)
         } else {
           (10, u64::from_be_bytes(payload_len).try_into()?)
@@ -105,7 +108,7 @@ impl ReadFrameInfo {
       }
       _ => {
         if Self::manage_mask::<IS_CLIENT>(masked, no_masking)? {
-          mask = Some(_read_header::<2, 4, SR>(buffer, read, stream).await?);
+          mask = Some(read_header::<2, 4, SR>(buffer, read, stream).await?);
           (6, length_code.into())
         } else {
           (2, length_code.into())

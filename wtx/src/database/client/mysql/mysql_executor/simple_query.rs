@@ -5,7 +5,7 @@ use crate::{
     ExecutorBuffer, MysqlExecutor, MysqlStatement, misc::send_packet,
     mysql_protocol::query_req::QueryReq,
   },
-  misc::{LeaseMut, Stream, Vector, partitioned_filled_buffer::PartitionedFilledBuffer},
+  misc::{LeaseMut, Stream, Vector, net::PartitionedFilledBuffer},
 };
 
 impl<E, EB, S> MysqlExecutor<E, EB, S>

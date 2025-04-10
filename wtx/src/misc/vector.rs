@@ -1,4 +1,4 @@
-use crate::misc::{_unlikely_elem, BufferMode, Clear, Lease, LeaseMut, Wrapper};
+use crate::misc::{BufferMode, Clear, Lease, LeaseMut, Wrapper, hints::unlikely_elem};
 use alloc::vec::{Drain, IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
@@ -226,7 +226,7 @@ impl<T> Vector<T> {
   pub fn insert(&mut self, idx: usize, elem: T) -> crate::Result<()> {
     let len = self.len();
     if idx > len {
-      return _unlikely_elem(Err(VectorError::OutOfBoundsInsertIdx.into()));
+      return unlikely_elem(Err(VectorError::OutOfBoundsInsertIdx.into()));
     }
     self.reserve(1)?;
     // SAFETY: Top-level check ensures bounds
