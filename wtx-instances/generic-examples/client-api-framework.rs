@@ -21,7 +21,7 @@ use wtx::{
   },
   data_transformation::dnsn::SerdeJson,
   http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
-  misc::Uri,
+  misc::{Uri, Xorshift64},
   web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
 
@@ -98,7 +98,7 @@ async fn http_pair()
 async fn web_socket_pair() -> wtx::Result<
   Pair<
     PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-    WebSocket<(), TcpStream, WebSocketBuffer, true>,
+    WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>,
   >,
 > {
   let uri = Uri::new("ws://generic_web_socket_uri.com");

@@ -1,6 +1,6 @@
 #![allow(clippy::as_conversions, reason = "address is only used as an heuristic to retrieve locks")]
 
-use crate::misc::{CachePadded, sync::seq_lock::SeqLock};
+use crate::sync::{CachePadded, SeqLock};
 use core::{
   cell::UnsafeCell,
   fmt::{Debug, Formatter},
@@ -28,7 +28,7 @@ impl<T> AtomicCell<T> {
   /// Returns inner data.
   ///
   /// ```rust
-  /// let ac = wtx::misc::AtomicCell::new(7);
+  /// let ac = wtx::sync::AtomicCell::new(7);
   /// assert_eq!(ac.into_inner(), 7);
   /// ```
   #[inline]
@@ -39,7 +39,7 @@ impl<T> AtomicCell<T> {
   /// Loads a value from the atomic cell.
   ///
   /// ```rust
-  /// let ac = wtx::misc::AtomicCell::new(7);
+  /// let ac = wtx::sync::AtomicCell::new(7);
   /// assert_eq!(ac.load(), 7);
   /// ```
   #[inline]
@@ -69,7 +69,7 @@ impl<T> AtomicCell<T> {
   /// Stores `value` into the atomic cell.
   ///
   /// ```
-  /// let ac = wtx::misc::AtomicCell::new(7);
+  /// let ac = wtx::sync::AtomicCell::new(7);
   /// assert_eq!(ac.load(), 7);
   /// ac.store(8);
   /// assert_eq!(ac.load(), 8);
@@ -92,7 +92,7 @@ impl<T> AtomicCell<T> {
   /// Stores `value` into the atomic cell and returns the previous value.
   ///
   /// ```
-  /// let ac = wtx::misc::AtomicCell::new(7);
+  /// let ac = wtx::sync::AtomicCell::new(7);
   /// assert_eq!(ac.load(), 7);
   /// assert_eq!(ac.swap(8), 7);
   /// assert_eq!(ac.load(), 8);
@@ -157,7 +157,7 @@ fn lock(addr: usize) -> &'static SeqLock {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::misc::AtomicCell;
+  use crate::sync::AtomicCell;
   use serde::{Serialize, Serializer};
 
   impl<T> Serialize for AtomicCell<T>

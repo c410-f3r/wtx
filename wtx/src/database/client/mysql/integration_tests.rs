@@ -200,7 +200,7 @@ async fn records() {
 #[cfg(feature = "tokio-rustls")]
 #[tokio::test]
 async fn tls() {
-  use crate::misc::_32_bytes_seed;
+  use crate::tests::_32_bytes_seed;
   use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());

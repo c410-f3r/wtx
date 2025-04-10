@@ -1,6 +1,6 @@
 use crate::{
   http::OptionedServer,
-  misc::{_number_or_available_parallelism, FnFut, Stream},
+  misc::{_number_or_available_parallelism, FnFut, Stream, Xorshift64},
   pool::{SimplePoolTokio, WebSocketRM},
   web_socket::{Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer},
 };
@@ -32,14 +32,14 @@ impl OptionedServer {
     E: Debug + From<crate::Error> + Send + 'static,
     for<'wsb> H: Clone
       + FnFut<
-        (WebSocket<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer, false>,),
+        (WebSocket<C::NegotiatedCompression, Xorshift64, S, &'wsb mut WebSocketBuffer, false>,),
         Result = Result<(), E>,
       > + Send
       + 'static,
     N: Send + Future<Output = crate::Result<S>>,
     S: Stream<read(..): Send, write_all(..): Send> + Send,
     for<'wsb> <H as FnFut<(
-      WebSocket<C::NegotiatedCompression, S, &'wsb mut WebSocketBuffer, false>,
+      WebSocket<C::NegotiatedCompression, Xorshift64, S, &'wsb mut WebSocketBuffer, false>,
     )>>::Future: Send,
     for<'handle> &'handle H: Send,
   {

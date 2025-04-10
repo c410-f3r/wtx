@@ -13,7 +13,7 @@ use crate::{
       status::Status,
     },
   },
-  misc::{LeaseMut, Stream, Usize, Vector, partitioned_filled_buffer::PartitionedFilledBuffer},
+  misc::{LeaseMut, Stream, Usize, Vector, net::PartitionedFilledBuffer},
 };
 use core::ops::Range;
 

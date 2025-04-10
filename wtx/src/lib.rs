@@ -32,6 +32,8 @@ pub mod http2;
 pub mod misc;
 #[cfg(feature = "pool")]
 pub mod pool;
+#[cfg(feature = "sync")]
+pub mod sync;
 #[cfg(test)]
 mod tests;
 #[cfg(feature = "web-socket")]

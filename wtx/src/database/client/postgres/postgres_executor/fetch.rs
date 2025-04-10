@@ -8,8 +8,8 @@ use crate::{
     },
   },
   misc::{
-    _read_header, _read_payload, ConnectionState, LeaseMut, Stream, Usize, Vector,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
+    ConnectionState, LeaseMut, Stream, Usize, Vector,
+    net::{PartitionedFilledBuffer, read_header, read_payload},
   },
 };
 use core::ops::Range;
@@ -81,9 +81,9 @@ where
     net_buffer._reserve(5)?;
     let mut read = net_buffer._following_len();
     let buffer = net_buffer._following_rest_mut();
-    let [a, b, c, d, e] = _read_header::<0, 5, S>(buffer, &mut read, stream).await?;
+    let [a, b, c, d, e] = read_header::<0, 5, S>(buffer, &mut read, stream).await?;
     let len = Usize::from(u32::from_be_bytes([b, c, d, e])).into_usize().wrapping_add(1);
-    _read_payload((0, len), net_buffer, &mut read, stream).await?;
+    read_payload((0, len), net_buffer, &mut read, stream).await?;
     Ok(a)
   }
 

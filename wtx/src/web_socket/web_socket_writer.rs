@@ -1,7 +1,7 @@
 // Common functions that used be used by pure WebSocket structures or tunneling protocols.
 
 use crate::{
-  misc::{BufferMode, ConnectionState, Lease, LeaseMut, Rng, StreamWriter, Vector, Xorshift64},
+  misc::{BufferMode, ConnectionState, Lease, LeaseMut, Rng, StreamWriter, Vector},
   web_socket::{
     Frame, FrameMut, OpCode, compression::NegotiatedCompression, misc::has_masked_frame,
     unmask::unmask,
@@ -30,17 +30,18 @@ where
 }
 
 #[inline]
-pub(crate) fn manage_frame_compression<'cb, P, NC, const IS_CLIENT: bool>(
+pub(crate) fn manage_frame_compression<'cb, NC, P, R, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   nc: &mut NC,
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
-  rng: &mut Xorshift64,
+  rng: &mut R,
   writer_buffer: &'cb mut Vector<u8>,
 ) -> crate::Result<FrameMut<'cb, IS_CLIENT>>
 where
-  P: LeaseMut<[u8]>,
   NC: NegotiatedCompression,
+  P: LeaseMut<[u8]>,
+  R: Rng,
 {
   if frame.op_code() == OpCode::Close {
     *connection_state = ConnectionState::Closed;
@@ -51,14 +52,14 @@ where
 }
 
 #[inline]
-pub(crate) fn manage_normal_frame<P, RNG, const IS_CLIENT: bool>(
+pub(crate) fn manage_normal_frame<P, R, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
-  rng: &mut RNG,
+  rng: &mut R,
 ) where
   P: LeaseMut<[u8]>,
-  RNG: Rng,
+  R: Rng,
 {
   if frame.op_code() == OpCode::Close {
     *connection_state = ConnectionState::Closed;
@@ -67,18 +68,19 @@ pub(crate) fn manage_normal_frame<P, RNG, const IS_CLIENT: bool>(
 }
 
 #[inline]
-pub(crate) async fn write_frame<NC, P, SW, const IS_CLIENT: bool>(
+pub(crate) async fn write_frame<NC, P, R, SW, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
   nc: &mut NC,
-  rng: &mut Xorshift64,
+  rng: &mut R,
   stream: &mut SW,
   writer_buffer: &mut Vector<u8>,
 ) -> crate::Result<()>
 where
   NC: NegotiatedCompression,
   P: LeaseMut<[u8]>,
+  R: Rng,
   SW: StreamWriter,
 {
   if manage_compression(frame, nc) {
@@ -128,13 +130,13 @@ where
 }
 
 #[inline]
-fn mask_frame<P, RNG, const IS_CLIENT: bool>(
+fn mask_frame<P, R, const IS_CLIENT: bool>(
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
-  rng: &mut RNG,
+  rng: &mut R,
 ) where
   P: LeaseMut<[u8]>,
-  RNG: Rng,
+  R: Rng,
 {
   if IS_CLIENT && !no_masking && !has_masked_frame(*frame.header_first_two_mut()[1]) {
     let mask: [u8; 4] = rng.u8_4();

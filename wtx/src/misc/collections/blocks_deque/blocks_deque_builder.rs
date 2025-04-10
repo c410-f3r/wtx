@@ -1,6 +1,7 @@
+use crate::misc::{
+  BlocksDeque, BlocksDequeError, BufferMode, collections::blocks_deque::metadata::Metadata,
+};
 use core::slice;
-
-use crate::misc::{BlocksDeque, BlocksDequeError, BufferMode, blocks_deque::metadata::Metadata};
 
 /// Allows the construction of a single block through the insertion of indivial elements.
 #[derive(Debug)]

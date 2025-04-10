@@ -19,12 +19,10 @@ use crate::{
     window::{Windows, WindowsPair},
     window_update_frame::WindowUpdateFrame,
   },
-  misc::{
-    AtomicWaker, NOOP_WAKER, StreamReader, StreamWriter,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
-  },
+  misc::{StreamReader, StreamWriter, net::PartitionedFilledBuffer},
+  sync::{AtomicBool, AtomicWaker},
 };
-use core::{mem, sync::atomic::AtomicBool, task::Waker};
+use core::{mem, task::Waker};
 
 #[derive(Debug)]
 pub(crate) struct ProcessReceiptFrameTy<'instance, SR, SW> {
@@ -178,7 +176,7 @@ where
         rrb: mem::take(&mut ish.rrb),
         status_code: StatusCode::Ok,
         stream_state,
-        waker: NOOP_WAKER.clone(),
+        waker: Waker::noop().clone(),
         windows: Windows::initial(self.hp, self.hps),
       },
     ));

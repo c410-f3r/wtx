@@ -35,7 +35,7 @@ required-features = ["mysql"]
 [[example]]
 name = "database-client-postgres"
 path = "database-examples/database-client-postgres.rs"
-required-features = ["wtx/postgres"]
+required-features = ["postgres"]
 
 [[example]]
 name = "database-client-postgres-composite-type"
@@ -52,7 +52,7 @@ required-features = ["wtx/postgres"]
 [[example]]
 name = "client-api-framework"
 path = "generic-examples/client-api-framework.rs"
-required-features = ["wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
+required-features = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
 
 [[example]]
 name = "grpc-client"

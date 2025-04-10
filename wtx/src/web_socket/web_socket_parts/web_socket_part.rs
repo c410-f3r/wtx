@@ -1,7 +1,7 @@
 use crate::{
   misc::{
-    ConnectionState, LeaseMut, Lock, Stream, StreamReader, StreamWriter, Vector, Xorshift64,
-    partitioned_filled_buffer::PartitionedFilledBuffer,
+    ConnectionState, LeaseMut, Lock, Rng, Stream, StreamReader, StreamWriter, Vector,
+    net::PartitionedFilledBuffer,
   },
   web_socket::{
     Frame, FrameMut, compression::NegotiatedCompression,
@@ -10,10 +10,10 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct WebSocketCommonPart<CS, NC, RNG, S, const IS_CLIENT: bool> {
+pub(crate) struct WebSocketCommonPart<CS, NC, R, S, const IS_CLIENT: bool> {
   pub(crate) connection_state: CS,
   pub(crate) nc: NC,
-  pub(crate) rng: RNG,
+  pub(crate) rng: R,
   pub(crate) stream: S,
 }
 
@@ -33,14 +33,14 @@ where
   V: LeaseMut<Vector<u8>>,
 {
   #[inline]
-  pub(crate) async fn read_frame_from_stream<CS, NC, RNG, S>(
+  pub(crate) async fn read_frame_from_stream<CS, NC, R, S>(
     &mut self,
-    common: &mut WebSocketCommonPart<CS, NC, RNG, S, IS_CLIENT>,
+    common: &mut WebSocketCommonPart<CS, NC, R, S, IS_CLIENT>,
   ) -> crate::Result<FrameMut<'_, IS_CLIENT>>
   where
     CS: LeaseMut<ConnectionState>,
     NC: NegotiatedCompression,
-    RNG: LeaseMut<Xorshift64>,
+    R: Rng,
     S: Stream,
   {
     let WebSocketCommonPart { connection_state, nc, rng, stream } = common;
@@ -74,14 +74,15 @@ where
   }
 
   #[inline]
-  pub(crate) async fn read_frame_from_parts<C, NC, SR, SW>(
+  pub(crate) async fn read_frame_from_parts<C, NC, R, SR, SW>(
     &mut self,
     common: &mut C,
     stream_reader: &mut SR,
   ) -> crate::Result<FrameMut<'_, IS_CLIENT>>
   where
-    C: Lock<Resource = WebSocketCommonPartOwned<NC, SW, IS_CLIENT>>,
+    C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, IS_CLIENT>>,
     NC: NegotiatedCompression,
+    R: Rng,
     SR: StreamReader,
     SW: StreamWriter,
   {
@@ -121,16 +122,16 @@ where
   V: LeaseMut<Vector<u8>>,
 {
   #[inline]
-  pub(crate) async fn write_frame<CS, NC, P, RNG, SW>(
+  pub(crate) async fn write_frame<CS, NC, P, R, SW>(
     &mut self,
-    common: &mut WebSocketCommonPart<CS, NC, RNG, SW, IS_CLIENT>,
+    common: &mut WebSocketCommonPart<CS, NC, R, SW, IS_CLIENT>,
     frame: &mut Frame<P, IS_CLIENT>,
   ) -> crate::Result<()>
   where
     CS: LeaseMut<ConnectionState>,
     NC: NegotiatedCompression,
     P: LeaseMut<[u8]>,
-    RNG: LeaseMut<Xorshift64>,
+    R: Rng,
     SW: StreamWriter,
   {
     let WebSocketCommonPart { connection_state, nc, rng, stream } = common;
@@ -140,7 +141,7 @@ where
       frame,
       *no_masking,
       nc,
-      rng.lease_mut(),
+      rng,
       stream,
       writer_buffer.lease_mut(),
     )

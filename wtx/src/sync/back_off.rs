@@ -7,7 +7,7 @@ use core::{
 const SPIN_LIMIT: u32 = 6;
 const YIELD_LIMIT: u32 = 10;
 
-/// Performs exponential backoff in spin loops, which reduces contention and improves overall
+/// Performs exponential backoff in spin loops, which reduces contention that may improve overall
 /// performance.
 pub struct Backoff {
   step: Cell<u32>,

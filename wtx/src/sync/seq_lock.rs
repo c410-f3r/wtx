@@ -1,10 +1,9 @@
-use crate::misc::{Backoff, facades::atomic_usize::AtomicUsize};
-use core::{
-  mem,
-  sync::atomic::{Ordering, fence},
-};
+use crate::sync::{AtomicUsize, Backoff, Ordering, fence};
+use core::mem;
 
-pub(crate) struct SeqLock {
+/// Sequential lock
+#[derive(Debug)]
+pub struct SeqLock {
   state: AtomicUsize,
 }
 

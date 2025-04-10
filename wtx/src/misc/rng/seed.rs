@@ -1,27 +1,22 @@
-use crate::misc::{Usize, facades::atomic_u64::AtomicU64};
+use crate::misc::Usize;
 use alloc::boxed::Box;
-use core::{panic::Location, ptr, sync::atomic::Ordering};
+use core::{panic::Location, ptr};
 
 /// Uses a combination of weak strategies that will likely result in poor results.
 ///
 /// 1. The address of a heap allocation.
-/// 2. The value of an ever increasing static counter.
-/// 3. The line and column of the caller location.
+/// 2. The line and column of the caller location.
 #[inline]
 pub fn simple_seed() -> u64 {
-  static COUNTER: AtomicU64 = AtomicU64::new(0);
-  let heap = Box::new(0u8);
+  let heap = Box::new(1u8);
   let location = Location::caller();
   let ptr_addr = ptr::addr_of!(heap).addr();
   let mut seed = Usize::from_usize(ptr_addr).into_u64();
-  seed = mix(seed, COUNTER.fetch_add(1, Ordering::Release));
   seed = mix(seed, u64::from(location.column().wrapping_add(location.line())));
   seed
 }
 
 /// Seed retrieved from the machinery of the standard library.
-///
-/// This method is slower than [`simple_seed`] but will probably deliver better results.
 #[cfg(feature = "std")]
 #[inline]
 pub fn std_seed() -> u64 {
@@ -48,6 +43,7 @@ fn folded_multiplication(x: u64, y: u64) -> u64 {
   hi ^ lo
 }
 
+// Credits to the `foldhash` project.
 #[inline]
 fn mix(seed: u64, n: u64) -> u64 {
   const FIXED: u64 = 10_526_836_309_316_205_339;

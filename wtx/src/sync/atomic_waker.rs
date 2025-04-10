@@ -1,8 +1,7 @@
-use crate::misc::facades::atomic_usize::AtomicUsize;
+use crate::sync::{AtomicUsize, Ordering};
 use core::{
   cell::UnsafeCell,
   fmt::{self, Debug},
-  sync::atomic::Ordering::{AcqRel, Acquire, Release},
   task::Waker,
 };
 
@@ -28,7 +27,7 @@ impl AtomicWaker {
   pub fn register(&self, waker: &Waker) {
     match self
       .state
-      .compare_exchange(WAITING, REGISTERING, Acquire, Acquire)
+      .compare_exchange(WAITING, REGISTERING, Ordering::Acquire, Ordering::Acquire)
       .unwrap_or_else(|el| el)
     {
       WAITING => {
@@ -38,11 +37,15 @@ impl AtomicWaker {
           Some(elem) => elem.clone_from(waker),
           _ => *waker_opt = Some(waker.clone()),
         }
-        if self.state.compare_exchange(REGISTERING, WAITING, AcqRel, Acquire).is_err() {
+        if self
+          .state
+          .compare_exchange(REGISTERING, WAITING, Ordering::AcqRel, Ordering::Acquire)
+          .is_err()
+        {
           let Some(local_waker) = waker_opt.take() else {
             return;
           };
-          let _ = self.state.swap(WAITING, AcqRel);
+          let _ = self.state.swap(WAITING, Ordering::AcqRel);
           local_waker.wake();
         }
       }
@@ -56,11 +59,11 @@ impl AtomicWaker {
   /// Returns the last [Waker] passed to [`Self::register`], if any.
   #[inline]
   pub fn take(&self) -> Option<Waker> {
-    match self.state.fetch_or(WAKING, AcqRel) {
+    match self.state.fetch_or(WAKING, Ordering::AcqRel) {
       WAITING => {
         // SAFETY: Lock was acquire through `fetch_or` so the last waker can be retrieved.
         let waker = unsafe { (*self.waker.get()).take() };
-        let _ = self.state.fetch_and(!WAKING, Release);
+        let _ = self.state.fetch_and(!WAKING, Ordering::Release);
         waker
       }
       _ => None,
@@ -98,12 +101,8 @@ unsafe impl Sync for AtomicWaker {}
 
 #[cfg(all(feature = "_async-tests", test))]
 mod tests {
-  use crate::misc::{Arc, AtomicWaker};
-  use core::{
-    future::poll_fn,
-    sync::atomic::{AtomicBool, Ordering},
-    task::Poll,
-  };
+  use crate::sync::{Arc, AtomicBool, AtomicWaker, Ordering};
+  use core::{future::poll_fn, task::Poll};
   use std::thread;
   use tokio::runtime::Builder;
 

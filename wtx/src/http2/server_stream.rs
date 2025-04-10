@@ -8,11 +8,10 @@ use crate::{
     stream_receiver::StreamControlRecvParams,
     u31::U31,
   },
-  misc::{
-    Arc, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, facades::span::_Span,
-  },
+  misc::{Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamWriter, span::Span},
+  sync::{Arc, AtomicBool},
 };
-use core::{future::poll_fn, pin::pin, sync::atomic::AtomicBool};
+use core::{future::poll_fn, pin::pin};
 
 /// Created when a server receives an initial stream.
 #[derive(Clone, Debug)]
@@ -21,7 +20,7 @@ pub struct ServerStream<HD> {
   is_conn_open: Arc<AtomicBool>,
   method: Method,
   protocol: Option<Protocol>,
-  span: _Span,
+  span: Span,
   stream_id: U31,
 }
 
@@ -32,7 +31,7 @@ impl<HD> ServerStream<HD> {
     is_conn_open: Arc<AtomicBool>,
     method: Method,
     protocol: Option<Protocol>,
-    span: _Span,
+    span: Span,
     stream_id: U31,
   ) -> Self {
     Self { hd, is_conn_open, method, protocol, span, stream_id }
@@ -80,7 +79,7 @@ where
   #[inline]
   pub async fn recv_req(&mut self) -> crate::Result<(Http2RecvStatus<(), ()>, ReqResBuffer)> {
     let Self { hd, is_conn_open, method: _, protocol: _, span, stream_id } = self;
-    let _e = span._enter();
+    let _e = span.enter();
     _trace!("Receiving request");
     let mut lock_pin = pin!(hd.lock());
     let rslt = poll_fn(|cx| {
@@ -126,7 +125,7 @@ where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
-    let _e = self.span._enter();
+    let _e = self.span.enter();
     _trace!("Sending response");
     let hss = send_msg::<_, _, _, false>(
       res.rrd.body().lease(),

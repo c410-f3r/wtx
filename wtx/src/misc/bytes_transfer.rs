@@ -20,7 +20,7 @@ use core::{ops::Range, ptr};
 /// |02|03|06|07|10|11|
 /// ```
 #[inline]
-pub(crate) fn _shift_copyable_chunks<T>(
+pub(crate) fn shift_copyable_chunks<T>(
   begin: usize,
   slice: &mut [T],
   iter: impl IntoIterator<Item = Range<usize>>,
@@ -60,7 +60,7 @@ where
 
 #[cfg(kani)]
 mod kani {
-  use crate::misc::mem_transfer::_shift_copyable_chunks;
+  use crate::misc::bytes_transfer::shift_copyable_chunks;
   use alloc::vec::Vec;
 
   #[kani::proof]
@@ -69,18 +69,18 @@ mod kani {
     let tuples = kani::vec::any_vec::<(usize, usize), 128>();
     let ranges: Vec<_> = tuples.into_iter().map(|el| el.0..el.1).collect();
     let mut slice = kani::vec::any_vec::<u8, 128>();
-    let _ = _shift_copyable_chunks(begin, &mut slice, ranges.into_iter());
+    let _ = shift_copyable_chunks(begin, &mut slice, ranges.into_iter());
   }
 }
 
 #[cfg(test)]
 mod test {
-  use crate::misc::mem_transfer::_shift_copyable_chunks;
+  use crate::misc::bytes_transfer::shift_copyable_chunks;
 
   #[test]
   fn _shift_bytes_has_correct_outputs() {
     let bytes = &mut [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-    assert_eq!(_shift_copyable_chunks(2, bytes, [4..6, 8..10]), &mut [0, 1, 4, 5, 8, 9]);
+    assert_eq!(shift_copyable_chunks(2, bytes, [4..6, 8..10]), &mut [0, 1, 4, 5, 8, 9]);
     assert_eq!(bytes, &mut [0, 1, 4, 5, 8, 9, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
   }
 }

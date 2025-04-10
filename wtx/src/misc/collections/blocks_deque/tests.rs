@@ -5,7 +5,7 @@
 // RO = Right Occupied
 // T = Tail (Exclusive)
 
-use crate::misc::{BlocksDeque, blocks_deque::BlockRef};
+use crate::misc::{BlocksDeque, collections::blocks_deque::BlockRef};
 
 // [. . . . . . . .]: Empty - (LF=8, LO=0,RF=0, RO=0) - (H=0, T=0)
 // [. . . . . . . H]: Push front - (LF=7, LO=0, RF=0, RO=1) - (H=7, T=8)

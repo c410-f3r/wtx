@@ -3,13 +3,10 @@ use crate::{
     Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, index_map::IndexMap,
     initial_server_header::InitialServerHeader, uri_buffer::UriBuffer,
   },
-  misc::{
-    Arc, AtomicWaker, Lease, LeaseMut, Rng, Vector,
-    partitioned_filled_buffer::PartitionedFilledBuffer, simple_seed,
-  },
+  misc::{Lease, LeaseMut, Rng, Vector, net::PartitionedFilledBuffer, simple_seed},
+  sync::{Arc, AtomicBool, AtomicWaker, Ordering},
 };
 use alloc::boxed::Box;
-use core::sync::atomic::{AtomicBool, Ordering};
 use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.

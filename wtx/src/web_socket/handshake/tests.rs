@@ -8,16 +8,15 @@ macro_rules! call_tests {
 }
 
 use crate::{
+  misc::Xorshift64,
+  sync::{AtomicBool, Ordering},
   tests::_uri,
   web_socket::{
     Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
     compression::NegotiatedCompression,
   },
 };
-use core::{
-  sync::atomic::{AtomicBool, Ordering},
-  time::Duration,
-};
+use core::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 
 static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);
@@ -117,9 +116,9 @@ async fn do_test_client_and_server_frames<CC, SC>(
 }
 
 trait Test<NC> {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>);
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>);
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>);
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>);
 }
 
 struct FragmentedText;
@@ -127,12 +126,12 @@ impl<NC> Test<NC> for FragmentedText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>) {
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut [b'1'])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Continuation, &mut [b'2', b'3'])).await.unwrap();
   }
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let text = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
     assert_eq!(b"123", text.payload());
@@ -144,7 +143,7 @@ impl<NC> Test<NC> for HelloAndGoodbye
 where
   NC: NegotiatedCompression,
 {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>) {
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     let hello = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, hello.op_code());
     assert_eq!(b"Hello!", hello.payload());
@@ -152,7 +151,7 @@ where
     assert_eq!(OpCode::Close, ws.read_frame().await.unwrap().op_code());
   }
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Hello!")).await.unwrap();
     assert_eq!(ws.read_frame().await.unwrap().payload(), b"Goodbye!");
     ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await.unwrap();
@@ -164,7 +163,7 @@ impl<NC> Test<NC> for LargeFragmentedText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>) {
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     let bytes = || vector![b'1'; 256 * 1024];
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut bytes())).await.unwrap();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Continuation, &mut bytes())).await.unwrap();
@@ -178,7 +177,7 @@ where
     ws.write_frame(&mut Frame::new_fin(OpCode::Continuation, &mut bytes())).await.unwrap();
   }
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let text = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
     assert_eq!(vector![b'1'; 10 * 256 * 1024].as_slice(), *text.payload());
@@ -190,13 +189,13 @@ impl<NC> Test<NC> for PingAndText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>) {
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [1, 2, 3])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"ipat")).await.unwrap();
     assert_eq!(OpCode::Pong, ws.read_frame().await.unwrap().op_code());
   }
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     assert_eq!(b"ipat", ws.read_frame().await.unwrap().payload());
   }
 }
@@ -206,14 +205,14 @@ impl<NC> Test<NC> for PingBetweenFragmentedText
 where
   NC: NegotiatedCompression,
 {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>) {
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut [b'1'])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [b'9'])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Continuation, &mut [b'2', b'3'])).await.unwrap();
     assert_eq!(OpCode::Pong, ws.read_frame().await.unwrap().op_code());
   }
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let text = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
     assert_eq!(b"123", text.payload());
@@ -225,7 +224,7 @@ impl<NC> Test<NC> for SeveralBytes
 where
   NC: NegotiatedCompression,
 {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>) {
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut [206])).await.unwrap();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Continuation, &mut [186])).await.unwrap();
     ws.write_frame(&mut Frame::new_unfin(OpCode::Continuation, &mut [225])).await.unwrap();
@@ -240,7 +239,7 @@ where
     ws.write_frame(&mut Frame::new_fin(OpCode::Continuation, &mut [])).await.unwrap();
   }
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let text = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, text.op_code());
     assert_eq!("κόσμε".as_bytes(), *text.payload());
@@ -252,7 +251,7 @@ impl<NC> Test<NC> for TwoPings
 where
   NC: NegotiatedCompression,
 {
-  async fn client(ws: &mut WebSocketOwned<NC, TcpStream, true>) {
+  async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [b'0'])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [b'1'])).await.unwrap();
     let _0 = ws.read_frame().await.unwrap();
@@ -264,7 +263,7 @@ where
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut [])).await.unwrap();
   }
 
-  async fn server(ws: &mut WebSocketOwned<NC, TcpStream, false>) {
+  async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let _0 = ws.read_frame().await.unwrap();
     assert_eq!(OpCode::Text, _0.op_code());
     assert_eq!(b"", _0.payload());

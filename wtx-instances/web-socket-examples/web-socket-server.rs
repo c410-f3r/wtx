@@ -9,7 +9,7 @@ use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
   http::OptionedServer,
-  misc::TokioRustlsAcceptor,
+  misc::{TokioRustlsAcceptor, Xorshift64},
   web_socket::{OpCode, WebSocket, WebSocketBuffer},
 };
 
@@ -34,7 +34,7 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn handle(
-  mut ws: WebSocket<(), TlsStream<TcpStream>, &mut WebSocketBuffer, false>,
+  mut ws: WebSocket<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.parts_mut();
   loop {

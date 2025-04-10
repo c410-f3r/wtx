@@ -6,7 +6,8 @@ use crate::{
       StructDecoder, StructEncoder, Ty,
     },
   },
-  misc::{_32_bytes_seed, Decode, Encode, UriRef},
+  misc::{Decode, Encode, UriRef},
+  tests::_32_bytes_seed,
 };
 use alloc::string::String;
 use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};

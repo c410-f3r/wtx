@@ -13,16 +13,17 @@ use crate::{
     u31::U31,
     window::Windows,
   },
-  misc::{Arc, Lease, LeaseMut, Lock, RefCounter, StreamWriter, UriRef, facades::span::_Span},
+  misc::{Lease, LeaseMut, Lock, RefCounter, StreamWriter, UriRef, span::Span},
+  sync::{Arc, AtomicBool},
 };
-use core::{future::poll_fn, pin::pin, sync::atomic::AtomicBool, task::Poll};
+use core::{future::poll_fn, pin::pin, task::Poll};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
 pub struct ClientStream<HD> {
   hd: HD,
   is_conn_open: Arc<AtomicBool>,
-  span: _Span,
+  span: Span,
   stream_id: U31,
   // Used after the initial sending
   windows: Windows,
@@ -33,7 +34,7 @@ impl<HD> ClientStream<HD> {
   pub(crate) const fn new(
     hd: HD,
     is_conn_open: Arc<AtomicBool>,
-    span: _Span,
+    span: Span,
     stream_id: U31,
   ) -> Self {
     Self { hd, is_conn_open, span, stream_id, windows: Windows::new() }
@@ -76,7 +77,7 @@ where
   ) -> crate::Result<(Http2RecvStatus<StatusCode, ()>, ReqResBuffer)> {
     let rrb_opt = &mut Some(rrb);
     let Self { hd, is_conn_open, span, stream_id, windows } = self;
-    let _e = span._enter();
+    let _e = span.enter();
     _trace!("Receiving response");
     let mut lock_pin = pin!(hd.lock());
     let rslt = poll_fn(|cx| {
@@ -134,7 +135,7 @@ where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
-    let _e = self.span._enter();
+    let _e = self.span.enter();
     _trace!("Sending request");
     send_msg::<_, _, _, true>(
       req.rrd.body().lease(),
