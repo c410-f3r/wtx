@@ -7,7 +7,7 @@ use crate::{
   misc::{Intersperse, Vector, str_split1},
 };
 use alloc::string::String;
-use core::ops::ControlFlow;
+use core::{ops::ControlFlow, str};
 use hashbrown::HashSet;
 
 type AllowHeaders = (bool, Vector<String>);
@@ -443,9 +443,9 @@ where
         self
           .apply_preflight_response(
             // SAFETY: Every single element of `req.rrd.bod` was previously inserted with UTF-8
-            unsafe { std::str::from_utf8_unchecked(headers_bytes) },
+            unsafe { str::from_utf8_unchecked(headers_bytes) },
             // SAFETY: Every single element of `req.rrd.bod` was previously inserted with UTF-8
-            unsafe { std::str::from_utf8_unchecked(origin_bytes) },
+            unsafe { str::from_utf8_unchecked(origin_bytes) },
             &mut req.rrd.headers,
           )
           .await?;
