@@ -7,7 +7,7 @@ use crate::{
   misc::{Intersperse, Vector, str_split1},
 };
 use alloc::string::String;
-use core::ops::ControlFlow;
+use core::{ops::ControlFlow, str};
 use hashbrown::HashSet;
 
 type AllowHeaders = (bool, Vector<String>);

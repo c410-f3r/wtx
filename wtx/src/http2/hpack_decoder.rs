@@ -10,6 +10,7 @@ use crate::{
   misc::{Usize, from_utf8_basic},
 };
 use alloc::boxed::Box;
+use core::str;
 
 const DYN_IDX_OFFSET: usize = 62;
 
@@ -154,7 +155,7 @@ impl HpackDecoder {
         self.header_buffers.0.extend_from_copyable_slice(dyn_name.str().as_bytes())?;
         let bytes = self.header_buffers.0.get_mut(..dyn_name.str().len()).unwrap_or_default();
         // SAFETY: Just a temporary copy of an already existing string
-        unsafe { core::str::from_utf8_unchecked(bytes) }
+        unsafe { str::from_utf8_unchecked(bytes) }
       } else {
         elem_cb((new_hhb, static_name, value))?;
         static_name.str()
