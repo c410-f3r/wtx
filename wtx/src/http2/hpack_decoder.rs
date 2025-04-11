@@ -333,7 +333,7 @@ impl HpackDecoder {
               *el.misc,
               (HeaderName::new_unchecked(""), HeaderName::new_unchecked(el.name_bytes)),
               // SAFETY: Everything previously inserted in `dyn_headers` is UTF-8
-              ("", unsafe { str::from_utf8_unchecked(el.value_bytes) }),
+              ("", unsafe { std::str::from_utf8_unchecked(el.value_bytes) }),
             )
           })
           .ok_or_else(|| {
