@@ -16,10 +16,10 @@ use crate::{
     uri_buffer::UriBuffer,
   },
   misc::{
-    LeaseMut, Lock, RefCounter, StreamReader, StreamWriter, Usize,
+    AtomicBool, AtomicWaker, LeaseMut, Lock, Ordering, RefCounter, StreamReader, StreamWriter,
+    Usize,
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },
-  sync::{AtomicBool, AtomicWaker, Ordering},
 };
 use core::{
   future::poll_fn,

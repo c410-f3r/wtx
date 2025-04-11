@@ -1,3 +1,4 @@
+use crate::misc::Arc;
 use alloc::rc::Rc;
 use core::ops::Deref;
 
@@ -13,13 +14,12 @@ pub trait RefCounter: Clone + Deref<Target = Self::Item> {
   fn new(elem: Self::Item) -> Self;
 }
 
-#[cfg(feature = "sync")]
-impl<T> RefCounter for crate::sync::Arc<T> {
+impl<T> RefCounter for Arc<T> {
   type Item = T;
 
   #[inline]
   fn new(elem: Self::Item) -> Self {
-    crate::sync::Arc::new(elem)
+    Arc::new(elem)
   }
 }
 

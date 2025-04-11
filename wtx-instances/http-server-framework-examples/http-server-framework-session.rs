@@ -41,7 +41,7 @@ type SessionManager = SessionManagerTokio<u32, wtx::Error>;
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DB_NAME";
   let mut db_rng = rand_chacha::ChaCha20Rng::try_from_os_rng()?;
-  let mut server_rng = ChaCha20Rng::from_rng(&mut db_rng);
+  let Ok(mut server_rng) = ChaCha20Rng::try_from_rng(&mut db_rng);
   let db_pool = DbPool::new(4, PostgresRM::tokio(db_rng, uri.into()));
   let builder = SessionManager::builder();
   let (expired_sessions, sm) = builder.build_generating_key(&mut server_rng, db_pool.clone())?;
@@ -84,7 +84,7 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<Statu
   let salt = record.decode::<_, &str>(3)?;
   let pw_req = argon2_pwd::<32>(&mut Vector::new(), user.password.as_bytes(), salt.as_bytes())?;
   state.req.rrd.clear();
-  if pw_db != &pw_req {
+  if pw_db != pw_req {
     return Ok(StatusCode::Unauthorized);
   }
   serde_json::to_writer(&mut state.req.rrd.body, &UserLoginRes { id, name: first_name })?;

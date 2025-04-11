@@ -162,11 +162,10 @@ mod ring {
 }
 
 mod smart_pointers {
-  use crate::misc::{Lease, LeaseMut};
+  use crate::misc::{Arc, Lease, LeaseMut};
   use alloc::boxed::Box;
 
-  #[cfg(feature = "sync")]
-  impl<T> Lease<T> for crate::sync::Arc<T> {
+  impl<T> Lease<T> for Arc<T> {
     #[inline]
     fn lease(&self) -> &T {
       self

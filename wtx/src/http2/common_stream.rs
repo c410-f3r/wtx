@@ -11,8 +11,7 @@ use crate::{
     u31::U31,
     window::WindowsPair,
   },
-  misc::{LeaseMut, Lock, RefCounter, StreamWriter, Vector, span::Span},
-  sync::{Arc, AtomicBool},
+  misc::{Arc, AtomicBool, LeaseMut, Lock, RefCounter, StreamWriter, Vector, span::Span},
 };
 use core::{
   future::poll_fn,

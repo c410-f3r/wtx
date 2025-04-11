@@ -11,7 +11,7 @@ use wtx::database::{Executor as _, Record, Records};
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
-  let mut executor = wtx_instances::executor_postgres(&uri).await?;
+  let mut executor = wtx_instances::executor_postgres(uri).await?;
   executor
     .transaction(|this| async {
       this.execute("CREATE TABLE IF NOT EXISTS example(id INT, name VARCHAR)", |_| Ok(())).await?;

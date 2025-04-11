@@ -19,8 +19,7 @@ use crate::{
     window::{Windows, WindowsPair},
     window_update_frame::WindowUpdateFrame,
   },
-  misc::{StreamReader, StreamWriter, net::PartitionedFilledBuffer},
-  sync::{AtomicBool, AtomicWaker},
+  misc::{AtomicBool, AtomicWaker, StreamReader, StreamWriter, net::PartitionedFilledBuffer},
 };
 use core::{mem, task::Waker};
 

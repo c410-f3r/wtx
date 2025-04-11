@@ -45,7 +45,7 @@ impl ReqResBuilder<ReqResBuffer> {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::Authorization.into(),
         // SAFETY: Everything after `body_idx` is UTF-8
-        [unsafe { str::from_utf8_unchecked(body.get(body_idx..).unwrap_or_default()) }],
+        [unsafe { core::str::from_utf8_unchecked(body.get(body_idx..).unwrap_or_default()) }],
       ))
     };
     if let Err(err) = fun() {

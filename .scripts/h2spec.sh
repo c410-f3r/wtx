@@ -15,8 +15,8 @@ if [ "$TY" != "high" ]; then
 	TY="low";
 fi;
 
-cargo build --bin "h2spec-$TY-server" --features="http2,nightly,tokio" --release
-cargo run --bin "h2spec-$TY-server" --features="http2,nightly,tokio" --release &> /tmp/h2spec-server.txt &
+cargo build --bin "h2spec-$TY-server" --features h2spec-$TY-server --release
+cargo run --bin "h2spec-$TY-server" --features h2spec-$TY-server --release &> /tmp/h2spec-server.txt &
 sleep 1
 
 podman run \

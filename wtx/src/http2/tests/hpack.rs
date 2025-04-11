@@ -111,7 +111,7 @@ fn fetch_project() {
     .unwrap();
 }
 
-pub(crate) const fn hhb_name<'name>(hhb: HpackHeaderBasic, name: &'name str) -> &'name str {
+pub(crate) const fn hhb_name(hhb: HpackHeaderBasic, name: &str) -> &str {
   match hhb {
     HpackHeaderBasic::Authority => ":authority",
     HpackHeaderBasic::Field => name,
@@ -234,7 +234,7 @@ fn test_story_encoding_and_decoding(
       .unwrap();
 
     decoder
-      .decode(&buffer, |(hhb, name, value)| {
+      .decode(buffer, |(hhb, name, value)| {
         if pseudo_headers.is_empty() {
           assert_eq!((hhb, hhb_name(hhb, name.str()), value), user_headers.remove(0).unwrap());
         } else {

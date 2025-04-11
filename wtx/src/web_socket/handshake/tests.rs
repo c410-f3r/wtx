@@ -8,8 +8,7 @@ macro_rules! call_tests {
 }
 
 use crate::{
-  misc::Xorshift64,
-  sync::{AtomicBool, Ordering},
+  misc::{AtomicBool, Ordering, Xorshift64},
   tests::_uri,
   web_socket::{
     Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
@@ -254,18 +253,18 @@ where
   async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [b'0'])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [b'1'])).await.unwrap();
-    let _0 = ws.read_frame().await.unwrap();
-    assert_eq!(OpCode::Pong, _0.op_code());
-    assert_eq!(b"0", _0.payload());
-    let _1 = ws.read_frame().await.unwrap();
-    assert_eq!(OpCode::Pong, _1.op_code());
-    assert_eq!(b"1", _1.payload());
+    let zero = ws.read_frame().await.unwrap();
+    assert_eq!(OpCode::Pong, zero.op_code());
+    assert_eq!(b"0", zero.payload());
+    let one = ws.read_frame().await.unwrap();
+    assert_eq!(OpCode::Pong, one.op_code());
+    assert_eq!(b"1", one.payload());
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut [])).await.unwrap();
   }
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
-    let _0 = ws.read_frame().await.unwrap();
-    assert_eq!(OpCode::Text, _0.op_code());
-    assert_eq!(b"", _0.payload());
+    let zero = ws.read_frame().await.unwrap();
+    assert_eq!(OpCode::Text, zero.op_code());
+    assert_eq!(b"", zero.payload());
   }
 }

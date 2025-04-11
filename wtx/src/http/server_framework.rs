@@ -26,8 +26,7 @@ mod tokio;
 
 use crate::{
   http::{AutoStream, OperationMode, ReqResBuffer, Response, conn_params::ConnParams},
-  misc::ArrayVector,
-  sync::Arc,
+  misc::{Arc, ArrayVector},
 };
 pub use arguments::*;
 pub use conn_aux::ConnAux;

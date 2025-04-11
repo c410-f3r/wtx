@@ -32,7 +32,7 @@ mod tests {
     json,
     (VerbatimRequest, VerbatimResponse),
     SerdeJson as SerdeJson,
-    (r#"{"foo":"foo"}"#.into(), r#"{"bar":"bar"}"#.into()),
+    (r#"{"foo":"foo"}"#, r#"{"bar":"bar"}"#.into()),
     (
       VerbatimRequest { data: Foo { foo: "foo" } },
       VerbatimResponse { data: Bar { bar: "bar".into() } }
@@ -44,7 +44,7 @@ mod tests {
     (JsonRpcRequest, JsonRpcResponse),
     SerdeJson as SerdeJson,
     (
-      r#"{"jsonrpc":"2.0","method":"method","params":{"foo":"foo"},"id":0}"#.into(),
+      r#"{"jsonrpc":"2.0","method":"method","params":{"foo":"foo"},"id":0}"#,
       r#"{"jsonrpc":"2.0","method":"method","result":{"bar":"bar"},"id":0}"#.into()
     ),
     (

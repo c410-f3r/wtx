@@ -14,7 +14,7 @@ use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use std::{env, sync::LazyLock};
 use tokio::net::TcpStream;
 
-const URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_POSTGRES").unwrap());
+static URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_POSTGRES").unwrap());
 
 #[tokio::test]
 async fn custom_composite_type() {

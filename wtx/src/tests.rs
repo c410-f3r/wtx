@@ -2,7 +2,7 @@ use crate::misc::{Rng, UriString, Xorshift64, simple_seed};
 
 #[inline]
 pub(crate) fn _uri() -> UriString {
-  use crate::sync::{AtomicU32, Ordering};
+  use crate::misc::{AtomicU32, Ordering};
   static PORT: AtomicU32 = AtomicU32::new(7000);
   let uri = alloc::format!("http://127.0.0.1:{}", PORT.fetch_add(1, Ordering::Relaxed));
   UriString::new(uri)

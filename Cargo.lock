@@ -2417,7 +2417,6 @@ dependencies = [
  "tracing-tree",
  "uuid",
  "webpki-roots",
- "wtx",
  "x509-certificate",
 ]
 

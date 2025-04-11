@@ -56,17 +56,23 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
     self.built_requests
   }
 
-  /// Whether to show the contents of a request/response.
-  #[inline]
-  pub fn log_body(&mut self, elem: bool) {
-    self.log_body.0 = elem;
-  }
-
   /// Constructs [JsonRpcRequest] and also increases the number of requests.
   #[inline]
   pub fn json_rpc_request<P>(&mut self, method: &'static str, params: P) -> JsonRpcRequest<P> {
     self.increase_requests_num();
     JsonRpcRequest { id: self.built_requests, method, params }
+  }
+
+  /// Logs sending or receiving bytes.
+  #[inline]
+  pub fn log_body(&mut self) {
+    self.log_body.0 = true;
+  }
+
+  /// Whether to show the contents of a request/response.
+  #[inline]
+  pub fn set_log_body(&mut self, elem: bool) {
+    self.log_body.0 = elem;
   }
 
   /// Constructs [VerbatimRequest] and also increases the number of requests.

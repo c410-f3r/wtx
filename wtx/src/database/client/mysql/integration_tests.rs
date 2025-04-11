@@ -10,7 +10,7 @@ use core::fmt::Debug;
 use std::{env, sync::LazyLock};
 use tokio::net::TcpStream;
 
-const URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_MYSQL").unwrap());
+static URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_MYSQL").unwrap());
 
 #[tokio::test]
 async fn execute() {

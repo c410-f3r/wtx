@@ -24,7 +24,7 @@ async fn main() -> wtx::Result<()> {
     GrpcMiddleware,
   )?;
   ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
-    .with_stream_aux(|_| QuickProtobuf::default())
+    .with_stream_aux(|_| QuickProtobuf)
     .tokio_rustls(
       (wtx_instances::CERT, wtx_instances::KEY),
       &wtx_instances::host_from_args(),

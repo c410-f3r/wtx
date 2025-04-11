@@ -84,7 +84,7 @@ impl<T> From<alloc::sync::Arc<T>> for Arc<T> {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::sync::Arc;
+  use crate::misc::Arc;
   use serde::{Serialize, Serializer};
 
   impl<T> Serialize for Arc<T>

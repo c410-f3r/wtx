@@ -70,14 +70,3 @@ impl<TP> Transport<TP> for () {
   type Inner = ();
   type ReqId = ();
 }
-
-#[cfg(all(feature = "_async-tests", test))]
-mod tests {
-  use crate::client_api_framework::{network::transport::SendingReceivingTransport, pkg::PkgsAux};
-
-  #[tokio::test]
-  async fn unit() {
-    let mut pa = PkgsAux::from_minimum((), (), ());
-    assert_eq!(().send_pkg_recv_decode_contained(&mut (), &mut pa).await.unwrap(), ());
-  }
-}

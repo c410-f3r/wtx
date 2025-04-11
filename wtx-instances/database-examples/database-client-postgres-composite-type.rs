@@ -18,7 +18,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
-  let mut executor = wtx_instances::executor_postgres(&uri).await?;
+  let mut executor = wtx_instances::executor_postgres(uri).await?;
   let _ = executor
     .execute_with_stmt(
       "INSERT INTO custom_composite_table VALUES ($1, $2::custom_composite_type)",

@@ -1,4 +1,8 @@
 //! HTTP/2 server that uses optioned parameters.
+//!
+//! Automatic stream are handled by the system while manual stream are handled by the user. In
+//! this particular example all manual streams are considered to be WebSocket connections over
+//! HTTP/2.
 
 extern crate tokio;
 extern crate tokio_rustls;
@@ -44,7 +48,7 @@ async fn main() -> wtx::Result<()> {
     |_, _, protocol, req, _| {
       Ok((
         (),
-        if is_web_socket_handshake(&mut req.rrd.headers, req.method, protocol) {
+        if is_web_socket_handshake(&req.rrd.headers, req.method, protocol) {
           OperationMode::Manual
         } else {
           OperationMode::Auto

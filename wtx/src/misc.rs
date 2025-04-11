@@ -39,6 +39,7 @@ mod role;
 mod single_type_storage;
 mod stream;
 mod suffix_writer;
+mod sync;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
 mod tuple_impls;
@@ -80,6 +81,7 @@ pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use stream::{BytesStream, Stream, StreamReader, StreamWithTls, StreamWriter};
 pub use suffix_writer::{SuffixWriter, SuffixWriterFbvm, SuffixWriterMut};
+pub use sync::*;
 pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};

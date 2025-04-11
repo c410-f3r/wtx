@@ -3,8 +3,10 @@ use crate::{
     Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, index_map::IndexMap,
     initial_server_header::InitialServerHeader, uri_buffer::UriBuffer,
   },
-  misc::{Lease, LeaseMut, Rng, Vector, net::PartitionedFilledBuffer, simple_seed},
-  sync::{Arc, AtomicBool, AtomicWaker, Ordering},
+  misc::{
+    Arc, AtomicBool, AtomicWaker, Lease, LeaseMut, Ordering, Rng, Vector,
+    net::PartitionedFilledBuffer, simple_seed,
+  },
 };
 use alloc::boxed::Box;
 use hashbrown::HashMap;
