@@ -1,3 +1,4 @@
+use crate::misc::Arc;
 use alloc::rc::Rc;
 use core::ops::DerefMut;
 
@@ -18,8 +19,7 @@ pub trait Lock {
   fn lock(&self) -> impl Future<Output = Self::Guard<'_>>;
 }
 
-#[cfg(feature = "sync")]
-impl<T> Lock for crate::sync::Arc<T>
+impl<T> Lock for Arc<T>
 where
   T: Lock,
 {
@@ -31,7 +31,7 @@ where
 
   #[inline]
   fn new(resource: Self::Resource) -> Self {
-    crate::sync::Arc::new(T::new(resource))
+    Arc::new(T::new(resource))
   }
 
   #[inline]

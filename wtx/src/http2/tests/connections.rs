@@ -92,15 +92,13 @@ async fn stream_server(
   rrb: ReqResBuffer,
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
-  loop {
-    let Either::Right((mut stream, _)) = server.stream(rrb, |_, _| {}).await.unwrap() else {
-      panic!();
-    };
-    let (_, mut req_rrb) = stream.recv_req().await.unwrap();
-    cb(req_rrb.as_http2_request_mut(stream.method()));
-    let _ = stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
-    break req_rrb;
-  }
+  let Either::Right((mut stream, _)) = server.stream(rrb, |_, _| {}).await.unwrap() else {
+    panic!();
+  };
+  let (_, mut req_rrb) = stream.recv_req().await.unwrap();
+  cb(req_rrb.as_http2_request_mut(stream.method()));
+  let _ = stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
+  req_rrb
 }
 
 async fn stream_client(

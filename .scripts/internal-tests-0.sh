@@ -5,7 +5,7 @@
 $rt rustfmt
 $rt clippy -Aclippy::arbitrary_source_item_ordering,-Aclippy::doc-include-without-cfg,-Aclippy::little-endian-bytes,-Aclippy::panic-in-result-fn,-Aclippy::used_underscore_items
 
-#cargo miri test --features http2,postgres,web-socket -p wtx
+cargo miri test --features http2,postgres,web-socket -p wtx
 
 # WTX
 

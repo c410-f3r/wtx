@@ -51,7 +51,6 @@ mod web_socket_over_stream;
 mod window;
 mod window_update_frame;
 
-pub use crate::sync::Ordering;
 use crate::{
   http::{Method, Protocol, ReqResBuffer, Request},
   http2::misc::{
@@ -59,10 +58,9 @@ use crate::{
     sorp_mut, write_array,
   },
   misc::{
-    ConnectionState, Either, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, StreamReader,
-    StreamWriter, Usize, net::PartitionedFilledBuffer,
+    Arc, AtomicBool, AtomicWaker, ConnectionState, Either, Lease, LeaseMut, Lock, Ordering,
+    RefCounter, SingleTypeStorage, StreamReader, StreamWriter, Usize, net::PartitionedFilledBuffer,
   },
-  sync::{Arc, AtomicBool, AtomicWaker},
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;

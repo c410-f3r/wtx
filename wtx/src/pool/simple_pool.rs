@@ -1,7 +1,6 @@
 use crate::{
-  misc::Lock,
+  misc::{Arc, Lock},
   pool::{Pool, ResourceManager},
-  sync::Arc,
 };
 use alloc::vec::Vec;
 use core::{

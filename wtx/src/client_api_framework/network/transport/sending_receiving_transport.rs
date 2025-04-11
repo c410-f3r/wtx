@@ -68,7 +68,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
     BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Encode<De<DRSR>>,
   {
     async {
-      self.send_pkg_recv(&mut BatchPkg::new(pkgs), pkgs_aux).await?;
+      self.send_pkg_recv(&mut BatchPkg::new(pkgs, pkgs_aux), pkgs_aux).await?;
       P::ExternalResponseContent::decode_seq(
         &mut pkgs_aux.drsr,
         buffer,

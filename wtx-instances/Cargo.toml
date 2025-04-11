@@ -3,132 +3,127 @@
 [[bin]]
 name = "autobahn-client"
 path = "src/bin/autobahn-client.rs"
-required-features = ["wtx/flate2", "wtx/web-socket-handshake"]
+required-features = ["autobahn-client"]
 
 [[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
-required-features = ["wtx/flate2", "wtx/nightly", "wtx/pool", "wtx/web-socket-handshake"]
+required-features = ["autobahn-server"]
 
 [[bin]]
 name = "h2load"
 path = "src/bin/h2load.rs"
-required-features = ["wtx/http2", "wtx/nightly"]
+required-features = ["h2load"]
 
 [[bin]]
 name = "h2spec-high-server"
 path = "src/bin/h2spec-high-server.rs"
-required-features = ["wtx/http2", "wtx/nightly"]
+required-features = ["h2spec-high-server"]
 
 [[bin]]
 name = "h2spec-low-server"
 path = "src/bin/h2spec-low-server.rs"
-required-features = ["wtx/http2", "wtx/nightly"]
+required-features = ["h2spec-low-server"]
 
 # Database Examples
 
 [[example]]
 name = "database-client-mysql"
 path = "database-examples/database-client-mysql.rs"
-required-features = ["mysql"]
+required-features = ["database-client-mysql"]
 
 [[example]]
 name = "database-client-postgres"
 path = "database-examples/database-client-postgres.rs"
-required-features = ["postgres"]
+required-features = ["database-client-postgres"]
 
 [[example]]
 name = "database-client-postgres-composite-type"
 path = "database-examples/database-client-postgres-composite-type.rs"
-required-features = ["wtx/postgres"]
+required-features = ["database-client-postgres-composite-type"]
 
 [[example]]
 name = "database-client-postgres-enum"
 path = "database-examples/database-client-postgres-enum.rs"
-required-features = ["wtx/postgres"]
+required-features = ["database-client-postgres-enum"]
 
 # Generic Examples
 
 [[example]]
 name = "client-api-framework"
 path = "generic-examples/client-api-framework.rs"
-required-features = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
+required-features = ["client-api-framework"]
 
 [[example]]
 name = "grpc-client"
 path = "generic-examples/grpc-client.rs"
-required-features = ["wtx/grpc-client"]
+required-features = ["grpc-client"]
 
 [[example]]
 name = "grpc-server"
 path = "generic-examples/grpc-server.rs"
-required-features = ["wtx/grpc-server", "wtx/tokio-rustls"]
+required-features = ["grpc-server"]
 
 [[example]]
 name = "http-client-pool"
 path = "generic-examples/http-client-pool.rs"
-required-features = ["wtx/http-client-pool"]
+required-features = ["http-client-pool"]
 
 [[example]]
 name = "pool"
 path = "generic-examples/pool.rs"
-required-features = ["wtx/pool"]
+required-features = ["pool"]
 
 # HTTP Server Framework Examples
 
 [[example]]
 name = "http-server-framework"
 path = "http-server-framework-examples/http-server-framework.rs"
-required-features = ["serde", "wtx/http-server-framework", "wtx/matchit", "wtx/pool", "wtx/postgres", "wtx/serde_json"]
+required-features = ["http-server-framework"]
 
 [[example]]
 name = "http-server-framework-cors"
 path = "http-server-framework-examples/http-server-framework-cors.rs"
-required-features = ["wtx/http-server-framework"]
+required-features = ["http-server-framework-cors"]
 
 [[example]]
 name = "http-server-framework-redirect"
 path = "http-server-framework-examples/http-server-framework-redirect.rs"
-required-features = ["wtx/http-server-framework"]
+required-features = ["http-server-framework-redirect"]
 
 [[example]]
 name = "http-server-framework-session"
 path = "http-server-framework-examples/http-server-framework-session.rs"
-required-features = ["rand_chacha", "serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/pool", "wtx/postgres", "wtx/rand_chacha", "wtx-macros"]
+required-features = ["http-server-framework-session"]
 
 # HTTP/2 Examples
 
 [[example]]
 name = "http2-client"
 path = "http2-examples/http2-client.rs"
-required-features = ["wtx/http2"]
+required-features = ["http2-client"]
 
 [[example]]
 name = "http2-server"
 path = "http2-examples/http2-server.rs"
-required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
-
-[[example]]
-name = "http2-server-web-socket"
-path = "http2-examples/http2-server-web-socket.rs"
-required-features = ["wtx/http2", "wtx/tokio-rustls", "wtx/web-socket"]
+required-features = ["http2-server"]
 
 # WebSocket Examples
 
 [[example]]
 name = "web-socket-client"
 path = "web-socket-examples/web-socket-client.rs"
-required-features = ["wtx/web-socket-handshake"]
+required-features = ["web-socket-client"]
 
 [[example]]
 name = "web-socket-client-concurrent"
 path = "web-socket-examples/web-socket-client-concurrent.rs"
-required-features = ["wtx/tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+required-features = ["web-socket-client-concurrent"]
 
 [[example]]
 name = "web-socket-server"
 path = "web-socket-examples/web-socket-server.rs"
-required-features = ["tokio-rustls", "wtx/pool", "wtx/tokio-rustls", "wtx/web-socket-handshake"]
+required-features = ["web-socket-server"]
 
 [build-dependencies]
 pb-rs = { default-features = false, optional = true, version = "0.10" }
@@ -144,10 +139,40 @@ wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
 
 [features]
+autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
+autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/pool", "wtx/web-socket-handshake"]
+h2load = ["wtx/http2", "wtx/nightly"]
+h2spec-high-server = ["wtx/http2", "wtx/nightly"]
+h2spec-low-server = ["wtx/http2"]
+
+database-client-mysql = ["mysql"]
+database-client-postgres = ["postgres"]
+database-client-postgres-composite-type = ["postgres"]
+database-client-postgres-enum = ["postgres"]
+
+client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
+grpc-client = ["grpc", "wtx/grpc-client"]
+grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly"]
+http-client-pool = ["wtx/http-client-pool"]
+pool = ["wtx/pool"]
+
+http-server-framework = ["rand_chacha", "serde", "wtx/getrandom", "wtx/http-server-framework", "wtx/nightly", "wtx/pool", "wtx/postgres", "wtx/serde_json"]
+http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
+http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
+http-server-framework-session = ["rand_chacha", "serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/nightly", "wtx/pool", "wtx/postgres", "wtx-macros"]
+
+http2-client = ["wtx/http2"]
+http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]
+
+web-socket-client = ["wtx/web-socket-handshake"]
+web-socket-client-concurrent = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-server = ["tokio-rustls", "wtx/pool", "wtx/web-socket-handshake"]
+
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
 mysql = ["rand_chacha", "wtx/mysql"]
 postgres = ["rand_chacha", "wtx/getrandom", "wtx/postgres"]
 rand_chacha = ["dep:rand_chacha", "wtx/rand_chacha"]
+tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 
 [package]
 edition = "2024"

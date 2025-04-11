@@ -76,9 +76,7 @@ where
   fn many(records: &D::Records<'exec>) -> impl Iterator<Item = Result<Self, D::Error>> {
     FromRecordsParams::init::<D>(records).into_iter().flat_map(move |mut params| {
       iter::from_fn(move || {
-        let Some(record) = records.get(params.consumed_records) else {
-          return None;
-        };
+        let record = records.get(params.consumed_records)?;
         params.curr_field_idx = 0;
         params.curr_record = record;
         params.curr_record_idx = params.consumed_records;

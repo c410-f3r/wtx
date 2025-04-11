@@ -189,7 +189,7 @@ mod test {
     let _ = huffman_decode(encoded, decode_buffer).unwrap();
     assert_eq!(&**decode_buffer, bytes);
 
-    huffman_encode(&*bytes, encode_buffer).unwrap();
+    huffman_encode(bytes, encode_buffer).unwrap();
     assert_eq!(&**encode_buffer, encoded);
 
     decode_buffer.clear();

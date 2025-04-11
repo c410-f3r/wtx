@@ -107,9 +107,7 @@ impl Middleware<(), wtx::Error, Pool> for CustomMiddleware {
   type Aux = ();
 
   #[inline]
-  fn aux(&self) -> Self::Aux {
-    ()
-  }
+  fn aux(&self) -> Self::Aux {}
 
   async fn req(
     &self,

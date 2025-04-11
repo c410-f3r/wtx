@@ -1,4 +1,4 @@
-use crate::sync::{AtomicUsize, Backoff, Ordering, fence};
+use crate::misc::{AtomicUsize, Backoff, Ordering, fence};
 use core::mem;
 
 /// Sequential lock

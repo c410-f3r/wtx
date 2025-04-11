@@ -25,17 +25,17 @@ Embedded devices with a working heap allocator can use this `no_std` crate.
 
 In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following comparison table to see how some built-from-scratch implementations compare with other similar projects.
 
-| Technology                                         | Similar Projects                                                   | Feature (`wtx`)          | Dependencies(`wtx`) |
-| -------------------------------------------------- | ------------------------------------------------------------------ | ------------------------ | ------------------- |
-| [Client API Framework][client-api-framework]       | N/A                                                                | client-api-framework     | 0                   |
-| [Database Client][database-client]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          | 17                  |
-| [Database Schema Manager][database-schema-manager] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           | 2                   |
-| [gRPC][grpc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server | 2, 2                |
-| [HTTP Client Pool][http-client-pool]               | [libcurl][libcurl], [reqwest][reqwest]                             | http-client-pool         | 2                   |
-| [HTTP Server Framework][http-server-framework]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    | 2                   |
-| [HTTP/2][http2]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    | 2                   |
-| [Pool][pool]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     | 0                   |
-| [WebSocket][web-socket]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     | 10                  |
+| Technology                                         | Similar Projects                                                   | Feature (`wtx`)          |
+| -------------------------------------------------- | ------------------------------------------------------------------ | ------------------------ |
+| [Client API Framework][client-api-framework]       | N/A                                                                | client-api-framework     |
+| [Database Client][database-client]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          |
+| [Database Schema Manager][database-schema-manager] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           |
+| [gRPC][grpc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server |
+| [HTTP Client Pool][http-client-pool]               | [libcurl][libcurl], [reqwest][reqwest]                             | http-client-pool         |
+| [HTTP Server Framework][http-server-framework]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
+| [HTTP/2][http2]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
+| [Pool][pool]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     |
+| [WebSocket][web-socket]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     |
 
 Please note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
 
@@ -64,6 +64,21 @@ There are mainly 2 things that impact performance, the chosen runtime and the nu
 Anything marked with `#[bench]` in the repository is considered a low-level benchmark in the sense that they measure very specific operations that generally serve as the basis for other parts.
 
 Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks over different periods of time.
+
+## Development benchmarks
+
+These numbers provide an estimate of the expected waiting times when developing with `wtx`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
+
+| Technology            | Dependencies | Clean Check | Clean Debug Build | Clean Opt Build |
+| --------------------- | ------------ | ----------- | ----------------- | --------------- |
+| Client API Framework  | 31           | 6.22s       | 7.77s             | 9.45s           |
+| gRPC Client           | 16           | 4.81s       | 5.99s             | 7.31s           |
+| HTTP Client Pool      | 15           | 4.67s       | 6.04s             | 7.06s           |
+| HTTP Server Framework | 37           | 8.17s       | 10.69s            | 11.56s          |
+| Postgres Client       | 30           | 5.06s       | 6.10s             | 6.86s           |
+| WebSocket Client      | 22           | 4.34s       | 4.92s             | 5.64s           |
+
+All tests were performed on a AMD Ryzen 9 5900X processor.
 
 ## Transport Layer Security (TLS)
 

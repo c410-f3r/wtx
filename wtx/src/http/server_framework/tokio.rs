@@ -6,8 +6,7 @@ use crate::{
     },
   },
   http2::{Http2Buffer, Http2DataTokio, ServerStream},
-  misc::{ArrayVector, SeedableRng},
-  sync::Arc,
+  misc::{Arc, ArrayVector, SeedableRng},
 };
 use tokio::net::tcp::OwnedWriteHalf;
 

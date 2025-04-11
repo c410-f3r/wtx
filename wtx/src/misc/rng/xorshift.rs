@@ -1,6 +1,4 @@
-use crate::misc::{Lease, LeaseMut, Rng, SeedableRng};
-#[cfg(feature = "sync")]
-pub use sync::Xorshift64Sync;
+use crate::misc::{AtomicU64, Lease, LeaseMut, Ordering, Rng, SeedableRng};
 
 /// Xorshift that deals with 64 bits numbers.
 #[derive(Clone, Copy, Debug)]
@@ -61,96 +59,85 @@ impl From<u64> for Xorshift64 {
   }
 }
 
-#[cfg(feature = "sync")]
-mod sync {
-  use crate::{
-    misc::{
-      Rng, SeedableRng,
-      rng::xorshift::{u8, u8_4, u8_8, u8_16, xor_numbers},
-    },
-    sync::{AtomicU64, Ordering},
-  };
+/// Xorshift that deals with 64 bits numbers.
+///
+/// Suitable for multi-thread environments.
+#[derive(Debug)]
+pub struct Xorshift64Sync {
+  value: AtomicU64,
+}
 
-  /// Xorshift that deals with 64 bits numbers.
-  ///
-  /// Suitable for multi-thread environments.
-  #[derive(Debug)]
-  pub struct Xorshift64Sync {
-    value: AtomicU64,
+impl Xorshift64Sync {
+  #[inline]
+  fn modify(&self) -> u64 {
+    self
+      .value
+      .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |mut el| {
+        let _ = xor_numbers(&mut el);
+        Some(el)
+      })
+      .unwrap_or_else(|el| el)
+  }
+}
+
+impl Rng for Xorshift64Sync {
+  #[inline]
+  fn u8(&mut self) -> u8 {
+    u8(self.modify())
   }
 
-  impl Xorshift64Sync {
-    #[inline]
-    fn modify(&self) -> u64 {
-      self
-        .value
-        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |mut el| {
-          let _ = xor_numbers(&mut el);
-          Some(el)
-        })
-        .unwrap_or_else(|el| el)
-    }
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    u8_4(self.modify())
   }
 
-  impl Rng for Xorshift64Sync {
-    #[inline]
-    fn u8(&mut self) -> u8 {
-      u8(self.modify())
-    }
-
-    #[inline]
-    fn u8_4(&mut self) -> [u8; 4] {
-      u8_4(self.modify())
-    }
-
-    #[inline]
-    fn u8_8(&mut self) -> [u8; 8] {
-      u8_8(self.modify())
-    }
-
-    #[inline]
-    fn u8_16(&mut self) -> [u8; 16] {
-      u8_16(self.modify(), self.modify())
-    }
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    u8_8(self.modify())
   }
 
-  impl SeedableRng for Xorshift64Sync {
-    #[inline]
-    fn from_rng<R>(rng: &mut R) -> Self
-    where
-      R: Rng,
-    {
-      Self { value: AtomicU64::new(u64::from_ne_bytes(rng.u8_8())) }
-    }
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    u8_16(self.modify(), self.modify())
+  }
+}
+
+impl SeedableRng for Xorshift64Sync {
+  #[inline]
+  fn from_rng<R>(rng: &mut R) -> Self
+  where
+    R: Rng,
+  {
+    Self { value: AtomicU64::new(u64::from_ne_bytes(rng.u8_8())) }
+  }
+}
+
+impl Rng for &Xorshift64Sync {
+  #[inline]
+  fn u8(&mut self) -> u8 {
+    u8(self.modify())
   }
 
-  impl Rng for &Xorshift64Sync {
-    #[inline]
-    fn u8(&mut self) -> u8 {
-      u8(self.modify())
-    }
-
-    #[inline]
-    fn u8_4(&mut self) -> [u8; 4] {
-      u8_4(self.modify())
-    }
-
-    #[inline]
-    fn u8_8(&mut self) -> [u8; 8] {
-      u8_8(self.modify())
-    }
-
-    #[inline]
-    fn u8_16(&mut self) -> [u8; 16] {
-      u8_16(self.modify(), self.modify())
-    }
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    u8_4(self.modify())
   }
 
-  impl From<u64> for Xorshift64Sync {
-    #[inline]
-    fn from(value: u64) -> Self {
-      Self { value: AtomicU64::new(value) }
-    }
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    u8_8(self.modify())
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    u8_16(self.modify(), self.modify())
+  }
+}
+
+impl From<u64> for Xorshift64Sync {
+  #[inline]
+  fn from(value: u64) -> Self {
+    Self { value: AtomicU64::new(value) }
   }
 }
 

@@ -6,8 +6,7 @@ extern crate wtx_instances;
 
 use tokio::{net::TcpStream, sync::Mutex};
 use wtx::{
-  misc::{TokioRustlsConnector, Uri},
-  sync::Arc,
+  misc::{Arc, TokioRustlsConnector, Uri},
   web_socket::{Frame, OpCode, WebSocketConnector},
 };
 
@@ -22,7 +21,7 @@ async fn main() -> wtx::Result<()> {
       &uri.to_ref(),
     )
     .await?;
-  let mut parts = ws.into_parts::<Arc<Mutex<_>>, _, _>(|el| tokio::io::split(el));
+  let mut parts = ws.into_parts::<Arc<Mutex<_>>, _, _>(tokio::io::split);
   let reader_jh = tokio::spawn(async move {
     loop {
       let frame = parts.reader.read_frame().await?;

@@ -67,9 +67,7 @@ async fn nested_middlewares() {
   impl Middleware<Counter, crate::Error, Counter> for CounterMw {
     type Aux = ();
 
-    fn aux(&self) -> Self::Aux {
-      ()
-    }
+    fn aux(&self) -> Self::Aux {}
 
     async fn req(
       &self,

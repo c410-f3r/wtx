@@ -7,8 +7,8 @@ if [ "$ARG" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-cargo build --bin h2load --features="wtx/http2,wtx/nightly" --profile deploy
-cargo run --bin h2load --features="wtx/http2,wtx/nightly" --profile deploy &
+cargo build --bin h2load --features h2load --profile deploy
+cargo run --bin h2load --features h2load --profile deploy &
 sleep 1
 
 h2load -c100 --log-file=/tmp/h2load.txt -m10 -n100000 --no-tls-proto=h2c http://localhost:9000

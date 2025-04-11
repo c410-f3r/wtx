@@ -1,7 +1,7 @@
 /// An atomic fence.
 #[expect(clippy::disallowed_methods, reason = "this is the only placed")]
 #[inline]
-pub fn fence(order: crate::sync::Ordering) {
+pub fn fence(order: crate::misc::Ordering) {
   #[cfg(feature = "portable-atomic")]
   return portable_atomic::fence(order);
   #[cfg(all(feature = "loom", not(any(feature = "portable-atomic"))))]

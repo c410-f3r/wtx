@@ -41,8 +41,7 @@ use crate::{
     u31::U31,
     window::WindowsPair,
   },
-  misc::{LeaseMut, Lock, RefCounter, StreamWriter, Usize, Vector},
-  sync::{AtomicBool, Ordering},
+  misc::{AtomicBool, LeaseMut, Lock, Ordering, RefCounter, StreamWriter, Usize, Vector},
 };
 use core::{
   future::poll_fn,
