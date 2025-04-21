@@ -1,6 +1,4 @@
 //! Demonstrates different interactions with a PostgreSQL database.
-//!
-//! This snippet requires ~40 dependencies and has an optimized binary size of ~600K.
 
 extern crate tokio;
 extern crate wtx;

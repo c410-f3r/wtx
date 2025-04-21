@@ -1,6 +1,4 @@
 //! Fetches an URI using low-level HTTP/2 resources.
-//!
-//! This snippet requires ~25 dependencies and has an optimized binary size of ~700K.
 
 extern crate tokio;
 extern crate wtx;

@@ -1,22 +1,39 @@
 use crate::misc::ArrayString;
 use core::ops::{DivAssign, Rem};
 
+pub(crate) type I16String = ArrayString<5>;
+pub(crate) type U16String = ArrayString<5>;
 pub(crate) type U32String = ArrayString<10>;
 pub(crate) type U64String = ArrayString<20>;
 
-/// Transforms an `u32` into a [`ArrayString`].
+/// Transforms an `i16` into an [`ArrayString`].
+#[inline]
+pub fn i16_string(value: i16) -> I16String {
+  num_string::<5, 5, i16>(value)
+}
+
+/// Transforms an `u16` into an [`ArrayString`].
+#[inline]
+pub fn u16_string(value: u16) -> U16String {
+  num_string::<5, 5, u16>(value)
+}
+
+/// Transforms an `u32` into an [`ArrayString`].
 #[inline]
 pub fn u32_string(value: u32) -> U32String {
   num_string::<10, 10, u32>(value)
 }
 
-/// Fills an `u64` into a [`ArrayString`].
+/// Fills an `u64` into an [`ArrayString`].
 #[inline]
 pub fn u64_string(value: u64) -> U64String {
   num_string::<20, 20, u64>(value)
 }
 
-#[expect(clippy::arithmetic_side_effects, reason = "% and / will never overflow with 10")]
+#[expect(
+  clippy::arithmetic_side_effects,
+  reason = "% and / will never overflow with 5, 10 and 20 integer literals"
+)]
 #[inline]
 fn num_string<const U8: u8, const USIZE: usize, T>(mut value: T) -> ArrayString<USIZE>
 where

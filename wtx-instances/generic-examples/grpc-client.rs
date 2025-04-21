@@ -1,7 +1,5 @@
 //! gRPC client that uses the structure definitions found in the `wtx_instances::grpc_bindings`
 //! module.
-//!
-//! This snippet requires ~40 dependencies and has an optimized binary size of ~700K.
 
 extern crate tokio;
 extern crate wtx;

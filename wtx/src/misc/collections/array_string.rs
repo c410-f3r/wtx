@@ -177,10 +177,10 @@ impl<const N: usize> ArrayString<N> {
   fn push_bytes(&mut self, error: ArrayStringError, other: &[u8]) -> crate::Result<()> {
     let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining_capacity() >= *el)
     else {
-      return Err(error.into());
+      return Err(crate::Error::ArrayStringError(error));
     };
-    let begin = *Usize::from(self.len);
-    let end = *Usize::from(self.len.wrapping_add(len));
+    let begin = Usize::from_u32(self.len).into_usize();
+    let end = Usize::from_u32(self.len.wrapping_add(len)).into_usize();
     self.data.get_mut(begin..end).unwrap_or_default().copy_from_slice(other);
     self.len = self.len.wrapping_add(len);
     Ok(())
