@@ -14,5 +14,5 @@ To use this functionality, it is necessary to activate the `http2` and `web-sock
 ## Example
 
 ```rust,2024,no_run
-{{#rustdoc_include ../../../wtx-instances/http2-examples/http2-server-web-socket.rs}}
+{{#rustdoc_include ../../../wtx-instances/http2-examples/http2-server.rs}}
 ```

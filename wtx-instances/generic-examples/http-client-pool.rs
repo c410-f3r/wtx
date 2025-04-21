@@ -1,7 +1,5 @@
 //! Fetches and prints the response body of a provided URI.
 //!
-//! This snippet requires ~25 dependencies and has an optimized binary size of ~700K.
-//!
 //! Currently, only HTTP/2 is supported.
 
 extern crate tokio;

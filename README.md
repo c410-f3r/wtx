@@ -23,7 +23,7 @@ Embedded devices with a working heap allocator can use this `no_std` crate.
 
 ## Comparisons
 
-In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following comparison table to see how some built-from-scratch implementations compare with other similar projects.
+In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following table to see how some built-from-scratch implementations compare with other similar projects.
 
 | Technology                                         | Similar Projects                                                   | Feature (`wtx`)          |
 | -------------------------------------------------- | ------------------------------------------------------------------ | ------------------------ |
@@ -69,16 +69,16 @@ Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks ov
 
 These numbers provide an estimate of the expected waiting times when developing with `wtx`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
 
-| Technology            | Dependencies | Clean Check | Clean Debug Build | Clean Opt Build |
-| --------------------- | ------------ | ----------- | ----------------- | --------------- |
-| Client API Framework  | 31           | 6.22s       | 7.77s             | 9.45s           |
-| gRPC Client           | 16           | 4.81s       | 5.99s             | 7.31s           |
-| HTTP Client Pool      | 15           | 4.67s       | 6.04s             | 7.06s           |
-| HTTP Server Framework | 37           | 8.17s       | 10.69s            | 11.56s          |
-| Postgres Client       | 30           | 5.06s       | 6.10s             | 6.86s           |
-| WebSocket Client      | 22           | 4.34s       | 4.92s             | 5.64s           |
+| Technology            | Dependencies | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
+| --------------------- | ------------ | ----------- | ----------------- | --------------- | -------- |
+| Client API Framework  | 31           | 6.22s       | 7.77s             | 9.45s           | 872K     |
+| gRPC Client           | 16           | 4.81s       | 5.99s             | 7.31s           | 736K     |
+| HTTP Client Pool      | 15           | 4.67s       | 6.04s             | 7.06s           | 728K     |
+| HTTP Server Framework | 37           | 8.17s       | 10.69s            | 11.56s          | 996K     |
+| Postgres Client       | 30           | 5.06s       | 6.10s             | 6.86s           | 652K     |
+| WebSocket Client      | 22           | 4.34s       | 4.92s             | 5.64s           | 560K     |
 
-All tests were performed on a AMD Ryzen 9 5900X processor.
+All tests were performed on an AMD Ryzen 9 5900X processor.
 
 ## Transport Layer Security (TLS)
 

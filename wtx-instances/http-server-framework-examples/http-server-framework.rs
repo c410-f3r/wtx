@@ -2,8 +2,6 @@
 //! PostgreSQL connections and JSON deserialization/serialization.
 //!
 //! Currently, only HTTP/2 is supported.
-//!
-//! This snippet requires ~50 dependencies and has an optimized binary size of ~900K.
 
 extern crate rand_chacha;
 extern crate serde;
