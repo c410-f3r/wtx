@@ -25,17 +25,17 @@ Embedded devices with a working heap allocator can use this `no_std` crate.
 
 In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following table to see how some built-from-scratch implementations compare with other similar projects.
 
-| Technology                                         | Similar Projects                                                   | Feature (`wtx`)          |
-| -------------------------------------------------- | ------------------------------------------------------------------ | ------------------------ |
-| [Client API Framework][client-api-framework]       | N/A                                                                | client-api-framework     |
-| [Database Client][database-client]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          |
-| [Database Schema Manager][database-schema-manager] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           |
-| [gRPC][grpc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server |
-| [HTTP Client Pool][http-client-pool]               | [libcurl][libcurl], [reqwest][reqwest]                             | http-client-pool         |
-| [HTTP Server Framework][http-server-framework]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
-| [HTTP/2][http2]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
-| [Pool][pool]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     |
-| [WebSocket][web-socket]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     |
+| Technology                                             | Similar Projects                                                   | Feature (`wtx`)          |
+| ------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------ |
+| [Client API Framework][client-api-framework-doc]       | N/A                                                                | client-api-framework     |
+| [Database Client][database-client-doc]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          |
+| [Database Schema Manager][database-schema-manager-doc] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           |
+| [gRPC][grpc-doc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server |
+| [HTTP Client Pool][http-client-pool-doc]               | [libcurl][libcurl], [reqwest][reqwest]                             | http-client-pool         |
+| [HTTP Server Framework][http-server-framework-doc]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
+| [HTTP/2][http2-doc]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
+| [Pool][pool-doc]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     |
+| [WebSocket][web-socket-doc]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     |
 
 Please note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
 
@@ -96,15 +96,15 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 
 * Expects the infallible sum of the lengths of an arbitrary number of slices, otherwise the program will likely trigger an overflow that can possibly result in unexpected operations. For example, in a 32bit system such a scenario should be viable without swap memory or through specific limiters like `ulimit`.
 
-[client-api-framework]: https://c410-f3r.github.io/wtx/client-api-framework/index.html
-[database-client]: https://c410-f3r.github.io/wtx/database-client/index.html
-[database-schema-manager]: https://c410-f3r.github.io/wtx/database-schema-manager/index.html
-[grpc]: https://c410-f3r.github.io/wtx/grpc/index.html
-[http-client-pool]: https://c410-f3r.github.io/wtx/http-client-pool/index.html
-[http-server-framework]: https://c410-f3r.github.io/wtx/http-server-framework/index.html
-[http2]: https://c410-f3r.github.io/wtx/http2/index.html
-[pool]: https://c410-f3r.github.io/wtx/pool/index.html
-[web-socket]: https://c410-f3r.github.io/wtx/web-socket/index.html
+[client-api-framework-doc]: https://c410-f3r.github.io/wtx/client-api-framework/index.html
+[database-client-doc]: https://c410-f3r.github.io/wtx/database-client/index.html
+[database-schema-manager-doc]: https://c410-f3r.github.io/wtx/database-schema-manager/index.html
+[grpc-doc]: https://c410-f3r.github.io/wtx/grpc/index.html
+[http-client-pool-doc]: https://c410-f3r.github.io/wtx/http-client-pool/index.html
+[http-server-framework-doc]: https://c410-f3r.github.io/wtx/http-server-framework/index.html
+[http2-doc]: https://c410-f3r.github.io/wtx/http2/index.html
+[pool-doc]: https://c410-f3r.github.io/wtx/pool/index.html
+[web-socket-doc]: https://c410-f3r.github.io/wtx/web-socket/index.html
 
 [axum]: https://github.com/tokio-rs/axum
 [bb8]: https://github.com/djc/bb8
