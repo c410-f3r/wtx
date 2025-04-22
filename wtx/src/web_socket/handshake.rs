@@ -111,7 +111,7 @@ impl<'headers, C, E, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB>
 where
   C: Compression<true>,
   E: From<crate::Error>,
-  H: IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
+  H: IntoIterator<Item = (&'headers str, &'headers str)>,
   R: FnOnce(&Response<'_, '_>) -> Result<(), E>,
   RNG: Rng,
   WSB: LeaseMut<WebSocketBuffer>,
@@ -196,7 +196,7 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
 fn build_req<'headers, 'kb, C>(
   compression: &C,
   sw: &mut SuffixWriterFbvm<'_>,
-  headers: impl IntoIterator<Item = (&'headers [u8], &'headers [u8])>,
+  headers: impl IntoIterator<Item = (&'headers str, &'headers str)>,
   key_buffer: &'kb mut [u8; 26],
   no_masking: bool,
   rng: &mut impl Rng,
@@ -211,9 +211,6 @@ where
     uri.relative_reference_slash().as_bytes(),
     b" HTTP/1.1",
   ])?;
-  for (name, value) in headers {
-    sw._extend_from_slices_group_rn(&[name, b": ", value])?;
-  }
   sw._extend_from_slice_rn(b"Connection: Upgrade")?;
   match uri.port() {
     Some(80 | 443) => {
@@ -227,6 +224,9 @@ where
   }
   sw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13")?;
   sw._extend_from_slice_rn(b"Upgrade: websocket")?;
+  for (name, value) in headers {
+    sw._extend_from_slices_group_rn(&[name.as_bytes(), b": ", value.as_bytes()])?;
+  }
   compression.write_req_headers(sw)?;
   sw._extend_from_slice_rn(b"")?;
   Ok(key)

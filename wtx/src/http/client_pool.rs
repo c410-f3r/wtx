@@ -26,7 +26,7 @@ pub use tokio::ClientPoolTokio;
 #[cfg(feature = "tokio-rustls")]
 pub use tokio_rustls::ClientPoolTokioRustls;
 
-type NoAuxFn = fn();
+type NoAuxFn = fn(&());
 
 /// An optioned pool of different HTTP connections lazily constructed from different URIs.
 ///
@@ -77,7 +77,7 @@ mod tokio {
   use crate::{
     http::client_pool::{ClientPool, ClientPoolBuilder, ClientPoolRM, ClientPoolResource, NoAuxFn},
     http2::{Http2Buffer, Http2Tokio},
-    misc::{Fun, UriRef},
+    misc::UriRef,
     pool::{ResourceManager, SimplePoolResource},
   };
   use tokio::{
@@ -86,30 +86,28 @@ mod tokio {
   };
 
   /// A [`ClientPool`] using the elements of `tokio`.
-  pub type ClientPoolTokio<F> = ClientPool<
-    Mutex<SimplePoolResource<Resource<<F as Fun<()>>::Output>>>,
-    ClientPoolRM<F, TcpStream>,
-  >;
+  pub type ClientPoolTokio<A, AI, AO> =
+    ClientPool<Mutex<SimplePoolResource<Resource<AO>>>, ClientPoolRM<A, AI, TcpStream>>;
   type Resource<AUX> = ClientPoolResource<AUX, Http2Tokio<Http2Buffer, OwnedWriteHalf, true>>;
 
-  impl<AUX> ClientPoolBuilder<NoAuxFn, Mutex<SimplePoolResource<Resource<AUX>>>, TcpStream> {
+  impl<AUX> ClientPoolBuilder<NoAuxFn, (), Mutex<SimplePoolResource<Resource<AUX>>>, TcpStream> {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio` project.
     #[inline]
     pub fn tokio(len: usize) -> Self {
-      Self::_no_aux_fun(len)
+      Self::_no_fun(len)
     }
   }
 
-  impl<AUX, F> ResourceManager for ClientPoolRM<F, TcpStream>
+  impl<A, AI, AO> ResourceManager for ClientPoolRM<A, AI, TcpStream>
   where
-    F: Fn() -> AUX,
+    A: Fn(&AI) -> AO,
   {
     type CreateAux = str;
     type Error = crate::Error;
     type RecycleAux = str;
-    type Resource = Resource<AUX>;
+    type Resource = Resource<AO>;
 
     #[inline]
     async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -121,7 +119,7 @@ mod tokio {
       )
       .await?;
       let _jh = tokio::spawn(frame_reader);
-      Ok(ClientPoolResource { aux: (self._fun)(), client: http2 })
+      Ok(ClientPoolResource { aux: (self._aux)(&self._aux_input), client: http2 })
     }
 
     #[inline]
@@ -156,38 +154,36 @@ mod tokio_rustls {
   use crate::{
     http::client_pool::{ClientPool, ClientPoolBuilder, ClientPoolRM, ClientPoolResource, NoAuxFn},
     http2::{Http2Buffer, Http2Tokio},
-    misc::{Fun, TokioRustlsConnector, UriRef},
+    misc::{TokioRustlsConnector, UriRef},
     pool::{ResourceManager, SimplePoolResource},
   };
   use tokio::{io::WriteHalf, net::TcpStream, sync::Mutex};
   use tokio_rustls::client::TlsStream;
 
   /// A [`ClientPool`] using the elements of `tokio-rustls`.
-  pub type ClientPoolTokioRustls<F> = ClientPool<
-    Mutex<SimplePoolResource<Resource<<F as Fun<()>>::Output>>>,
-    ClientPoolRM<F, Writer>,
-  >;
+  pub type ClientPoolTokioRustls<A, AI, AO> =
+    ClientPool<Mutex<SimplePoolResource<Resource<AO>>>, ClientPoolRM<A, AI, Writer>>;
   type Resource<AUX> = ClientPoolResource<AUX, Http2Tokio<Http2Buffer, Writer, true>>;
   type Writer = WriteHalf<TlsStream<TcpStream>>;
 
-  impl<AUX> ClientPoolBuilder<NoAuxFn, Mutex<SimplePoolResource<Resource<AUX>>>, Writer> {
+  impl<AUX> ClientPoolBuilder<NoAuxFn, (), Mutex<SimplePoolResource<Resource<AUX>>>, Writer> {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio-rustls` project.
     #[inline]
     pub fn tokio_rustls(len: usize) -> Self {
-      Self::_no_aux_fun(len)
+      Self::_no_fun(len)
     }
   }
 
-  impl<AUX, F> ResourceManager for ClientPoolRM<F, Writer>
+  impl<A, AI, AO> ResourceManager for ClientPoolRM<A, AI, Writer>
   where
-    F: Fn() -> AUX,
+    A: Fn(&AI) -> AO,
   {
     type CreateAux = str;
     type Error = crate::Error;
     type RecycleAux = str;
-    type Resource = Resource<AUX>;
+    type Resource = Resource<AO>;
 
     #[inline]
     async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -207,7 +203,7 @@ mod tokio_rustls {
       )
       .await?;
       let _jh = tokio::spawn(frame_reader);
-      Ok(ClientPoolResource { aux: (self._fun)(), client: http2 })
+      Ok(ClientPoolResource { aux: (self._aux)(&self._aux_input), client: http2 })
     }
 
     #[inline]

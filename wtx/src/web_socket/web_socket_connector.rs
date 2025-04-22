@@ -89,7 +89,7 @@ impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
 impl Default
   for WebSocketConnector<
     (),
-    IntoIter<(&'static [u8], &'static [u8]), 0>,
+    IntoIter<(&'static str, &'static str), 0>,
     fn(&Response<'_, '_>) -> Result<(), crate::Error>,
     Xorshift64,
     WebSocketBuffer,

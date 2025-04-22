@@ -18,6 +18,7 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
   let mut ws = WebSocketConnector::default()
+    .headers([("custom-key", "CUSTOM_VALUE")]) // Headers are optional. This method can be omitted.
     .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri.to_ref())
     .await?;
   let mut buffer = Vec::new();

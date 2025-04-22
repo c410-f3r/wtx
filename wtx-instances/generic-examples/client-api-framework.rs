@@ -82,7 +82,7 @@ mod generic_web_socket_subscription {
 }
 
 async fn http_pair()
--> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn()>> {
+-> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn(&()), (), ()>> {
   Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
