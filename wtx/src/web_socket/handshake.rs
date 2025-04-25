@@ -161,7 +161,9 @@ where
         Status::Partial => continue,
       };
       if res.code != Some(101) {
-        return Err(crate::Error::from(WebSocketError::MissingSwitchingProtocols).into());
+        return Err(
+          crate::Error::from(WebSocketError::MissingSwitchingProtocols { found: res.code }).into(),
+        );
       }
       (self.res)(&res)?;
       let [_, _, c, d] = check_headers!(

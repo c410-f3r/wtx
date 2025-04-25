@@ -155,7 +155,7 @@ where
   match op_code {
     OpCode::Close => {
       if connection_state.is_closed() {
-        return Err(WebSocketError::ConnectionClosed.into());
+        return Err(crate::Error::ClosedConnection);
       }
       *connection_state = ConnectionState::Closed;
       match payload {

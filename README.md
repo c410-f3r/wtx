@@ -31,7 +31,7 @@ In a way, `wtx` can be seen as an amalgamation that consolidates the functionali
 | [Database Client][database-client-doc]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          |
 | [Database Schema Manager][database-schema-manager-doc] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           |
 | [gRPC][grpc-doc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server |
-| [HTTP Client Pool][http-client-pool-doc]               | [libcurl][libcurl], [reqwest][reqwest]                             | http-client-pool         |
+| [HTTP Client Pool][http-client-pool-doc]               | [reqwest][reqwest]                             | http-client-pool         |
 | [HTTP Server Framework][http-server-framework-doc]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
 | [HTTP/2][http2-doc]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
 | [Pool][pool-doc]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     |
@@ -47,7 +47,7 @@ Many things that generally improve performance are used in the project, to name 
 2. **Memory allocation**: Whenever possible, all heap allocations are called only once at the start of an instance creation and additionally, stack memory usage is preferably prioritized over heap memory.
 3. **Fewer dependencies**: No third-party is injected by default. In other words, additional dependencies are up to the user through the selection of Cargo features, which decreases compilation times. For example, you can see the mere 16 dependencies required by the PostgreSQL client using `cargo tree -e normal --features postgres`.
 
-Since memory are usually held at the instance level instead of being created and dropped on the fly, it is worth noting that its usage can growth significantly depending on the use-case. If appropriated, try using a shared pool of resources or try limiting how much data can be exchanged between parties.
+Since memory are usually held at the instance level instead of being created and dropped on the fly, its usage can growth significantly depending on the use-case. If appropriated, try using a shared pool of resources or try limiting how much data can be exchanged between parties.
 
 ## High-level benchmarks
 
@@ -77,8 +77,6 @@ These numbers provide an estimate of the expected waiting times when developing 
 | HTTP Server Framework | 37           | 8.17s       | 10.69s            | 11.56s          | 996K     |
 | Postgres Client       | 30           | 5.06s       | 6.10s             | 6.86s           | 652K     |
 | WebSocket Client      | 22           | 4.34s       | 4.92s             | 5.64s           | 560K     |
-
-All tests were performed on an AMD Ryzen 9 5900X processor.
 
 ## Transport Layer Security (TLS)
 
@@ -115,7 +113,6 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 [grpc]: https://github.com/grpc/grpc
 [h2]: https://github.com/hyperium/h2
 [jdbc]: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
-[libcurl]: https://github.com/curl/curl
 [liquibase]: https://github.com/liquibase/liquibase
 [nghttp2]: https://github.com/nghttp2/nghttp2
 [odbc]: https://learn.microsoft.com/en-us/sql/odbc

@@ -5,8 +5,6 @@ use crate::http::{KnownHeaderName, Method};
 pub enum HttpError {
   /// Generic request error
   BadRequest,
-  /// The length of a header field must be within a threshold.
-  HeaderFieldIsTooLarge,
   /// Invalid HTTP/2 or HTTP/3 header
   InvalidHttp2pContent,
   /// Missing Header

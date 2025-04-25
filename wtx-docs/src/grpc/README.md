@@ -1,4 +1,3 @@
-
 # gRPC
 
 Basic implementation that currently only supports unary calls. gRPC is an high-performance remote procedure call framework developed by Google that enables efficient communication between distributed systems, particularly in microservices architectures.

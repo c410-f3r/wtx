@@ -187,6 +187,16 @@ impl<T> Vector<T> {
     self.data.clear();
   }
 
+  /// Removes all but the first of consecutive elements in the vector satisfying a given equality
+  /// relation.
+  #[inline]
+  pub fn dedup_by<F>(&mut self, same_bucket: F)
+  where
+    F: FnMut(&mut T, &mut T) -> bool,
+  {
+    self.data.dedup_by(same_bucket);
+  }
+
   /// Clears the vector, removing all values.
   #[inline]
   pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
