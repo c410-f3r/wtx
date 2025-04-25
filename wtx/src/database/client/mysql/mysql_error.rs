@@ -11,12 +11,8 @@ pub enum MysqlError {
   InvalidColumnBytes,
   /// Invalid connection bytes
   InvalidConnectionBytes,
-  /// Invalid end of file bytes
-  InvalidEofBytes,
   /// Invalid error packet response bytes
   InvalidErrPacketResBytes,
-  /// Invalid fetch bytes
-  InvalidFetchBytes,
   /// Invalid handshake bytes
   InvalidHandshakeBytes,
   /// Invalid lenenc content bytes

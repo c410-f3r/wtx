@@ -14,89 +14,121 @@ const _: () = {
   assert!(size_of::<Error>() == 24);
 };
 
+macro_rules! associated_element_doc {
+  () => {
+    "See the documentation of the associated element."
+  };
+}
+
 /// Grouped individual errors
-#[allow(missing_docs, reason = "Work in progress")]
 #[derive(Debug)]
 pub enum Error {
-  // External - Misc
+  // External - Third parties
   //
   #[cfg(feature = "aes-gcm")]
+  #[doc = associated_element_doc!()]
   AeadError(aes_gcm::aead::Error),
   #[cfg(feature = "argon2")]
+  #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
-  AtoiInvalidBytes,
   #[cfg(feature = "chrono")]
+  #[doc = associated_element_doc!()]
   ChronoParseError(chrono::ParseError),
   #[cfg(feature = "cl-aux")]
+  #[doc = associated_element_doc!()]
   ClAux(cl_aux::Error),
-  #[cfg(feature = "http-cookie")]
-  Cookie(crate::http::CookieError),
   #[cfg(feature = "crypto-common")]
+  #[doc = associated_element_doc!()]
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "base64")]
+  #[doc = associated_element_doc!()]
   DecodeError(base64::DecodeError),
   #[cfg(feature = "base64")]
+  #[doc = associated_element_doc!()]
   DecodeSliceError(base64::DecodeSliceError),
   #[cfg(feature = "embassy-net")]
+  #[doc = associated_element_doc!()]
   EmbassyNet(embassy_net::tcp::Error),
   #[cfg(feature = "base64")]
+  #[doc = associated_element_doc!()]
   EncodeSliceError(base64::EncodeSliceError),
   #[cfg(feature = "flate2")]
+  #[doc = associated_element_doc!()]
   Flate2CompressError(flate2::CompressError),
   #[cfg(feature = "flate2")]
+  #[doc = associated_element_doc!()]
   Flate2DecompressError(Box<flate2::DecompressError>),
   #[cfg(feature = "getrandom")]
+  #[doc = associated_element_doc!()]
   GetRandomError(getrandom::Error),
   #[cfg(feature = "httparse")]
+  #[doc = associated_element_doc!()]
   HttpParse(httparse::Error),
   #[cfg(feature = "matchit")]
+  #[doc = associated_element_doc!()]
   Matchit(matchit::MatchError),
   #[cfg(feature = "matchit")]
+  #[doc = associated_element_doc!()]
   MatchitInsertError(Box<matchit::InsertError>),
   #[cfg(feature = "digest")]
+  #[doc = associated_element_doc!()]
   MacError(digest::MacError),
-  #[cfg(feature = "mysql")]
-  MysqlDbError(Box<crate::database::client::mysql::DbError>),
-  #[cfg(feature = "postgres")]
-  PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "quick-protobuf")]
+  #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
   #[cfg(feature = "rsa")]
+  #[doc = associated_element_doc!()]
   RsaError(Box<rsa::Error>),
   #[cfg(feature = "rustls")]
+  #[doc = associated_element_doc!()]
   RustlsError(Box<rustls::Error>),
   #[cfg(feature = "serde")]
+  #[doc = associated_element_doc!()]
   SerdeDeValue(::serde::de::value::Error),
   #[cfg(feature = "serde_json")]
+  #[doc = associated_element_doc!()]
   SerdeJson(serde_json::Error),
   #[cfg(feature = "serde_urlencoded")]
+  #[doc = associated_element_doc!()]
   SerdeUrlencodedSer(Box<serde_urlencoded::ser::Error>),
-  #[cfg(feature = "http-session")]
-  SessionError(crate::http::SessionError),
   #[cfg(feature = "spki")]
+  #[doc = associated_element_doc!()]
   SpkiError(Box<spki::Error>),
   #[cfg(feature = "tokio")]
+  #[doc = associated_element_doc!()]
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tracing-subscriber")]
+  #[doc = associated_element_doc!()]
   TryInitError(tracing_subscriber::util::TryInitError),
   #[cfg(feature = "std")]
+  #[doc = associated_element_doc!()]
   TryLockError(std::sync::TryLockError<()>),
   #[cfg(feature = "uuid")]
+  #[doc = associated_element_doc!()]
   UuidError(Box<uuid::Error>),
   #[cfg(feature = "x509-certificate")]
+  #[doc = associated_element_doc!()]
   X509CertificateError(Box<x509_certificate::X509CertificateError>),
 
   // External - Std
   //
+  #[doc = associated_element_doc!()]
   AddrParseError(core::net::AddrParseError),
+  #[doc = associated_element_doc!()]
   Fmt(core::fmt::Error),
   #[cfg(feature = "std")]
+  #[doc = associated_element_doc!()]
   IoError(std::io::Error),
+  #[doc = associated_element_doc!()]
   ParseIntError(core::num::ParseIntError),
+  #[doc = associated_element_doc!()]
   TryFromIntError(core::num::TryFromIntError),
+  #[doc = associated_element_doc!()]
   TryFromSliceError(core::array::TryFromSliceError),
   #[cfg(feature = "std")]
+  #[doc = associated_element_doc!()]
   VarError(VarError),
+  #[doc = associated_element_doc!()]
   Utf8Error(core::str::Utf8Error),
 
   // Generic
@@ -130,14 +162,18 @@ pub enum Error {
   ProgrammingError,
   /// Unexpected Unsigned integer
   UnboundedNumber {
+    /// Expected bounds
     expected: RangeInclusive<u32>,
+    /// Received number
     received: u32,
   },
   /// A buffer was partially read or write but should in fact be fully processed.
   UnexpectedBufferState,
   /// Unexpected bytes
   UnexpectedBytes {
+    /// Length of the unexpected bytes
     length: u16,
+    /// Name of the associated entity
     ty: ArrayString<8>,
   },
   /// Unexpected end of file when reading from a stream.
@@ -146,10 +182,12 @@ pub enum Error {
   UnexpectedStreamWriteEOF,
   /// Unexpected string
   UnexpectedString {
+    /// Length of the unexpected string
     length: usize,
   },
   /// Unexpected Unsigned integer
   UnexpectedUint {
+    /// Number value
     received: u64,
   },
   /// Only appending is possible but overwritten is still viable through resetting.
@@ -159,33 +197,62 @@ pub enum Error {
 
   // Internal
   //
+  #[doc = associated_element_doc!()]
   ArrayStringError(ArrayStringError),
+  #[doc = associated_element_doc!()]
   ArrayVectorError(ArrayVectorError),
+  #[doc = associated_element_doc!()]
   BlocksQueueError(BlocksDequeError),
   #[cfg(feature = "client-api-framework")]
+  #[doc = associated_element_doc!()]
   ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
+  #[cfg(feature = "http-cookie")]
+  #[doc = associated_element_doc!()]
+  Cookie(crate::http::CookieError),
   #[cfg(feature = "database")]
+  #[doc = associated_element_doc!()]
   DatabaseError(crate::database::DatabaseError),
   #[cfg(feature = "data-transformation")]
+  #[doc = associated_element_doc!()]
   DataTransformationError(crate::data_transformation::DataTransformationError),
+  #[doc = associated_element_doc!()]
   FromRadix10Error(FromRadix10Error),
   #[cfg(feature = "http")]
+  #[doc = associated_element_doc!()]
   HttpError(crate::http::HttpError),
   #[cfg(feature = "http2")]
+  #[doc = associated_element_doc!()]
   Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
   #[cfg(feature = "http2")]
+  #[doc = associated_element_doc!()]
   Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
   #[cfg(feature = "mysql")]
+  #[doc = associated_element_doc!()]
+  MysqlDbError(Box<crate::database::client::mysql::DbError>),
+  #[cfg(feature = "mysql")]
+  #[doc = associated_element_doc!()]
   MysqlError(crate::database::client::mysql::MysqlError),
   #[cfg(feature = "postgres")]
+  #[doc = associated_element_doc!()]
+  PostgresDbError(Box<crate::database::client::postgres::DbError>),
+  #[cfg(feature = "postgres")]
+  #[doc = associated_element_doc!()]
   PostgresError(crate::database::client::postgres::PostgresError),
+  #[doc = associated_element_doc!()]
   QueueError(DequeueError),
   #[cfg(feature = "schema-manager")]
+  #[doc = associated_element_doc!()]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
   #[cfg(feature = "http-server-framework")]
+  #[doc = associated_element_doc!()]
   ServerFrameworkError(crate::http::server_framework::ServerFrameworkError),
+  #[cfg(feature = "http-session")]
+  #[doc = associated_element_doc!()]
+  SessionError(crate::http::SessionError),
+  #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
+  #[doc = associated_element_doc!()]
   WebSocketError(crate::web_socket::WebSocketError),
 }
 

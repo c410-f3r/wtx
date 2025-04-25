@@ -5,6 +5,7 @@
 - [Database Client](database-client/README.md)
   - [Encrypted Connections](database-client/encrypted-connections.md)
 - [Database Schema Manager](database-schema-manager/README.md)
+- [Error Handling](error-handling/README.md)
 - [gRPC](grpc/README.md)
 - [HTTP Client Pool](http-client-pool/README.md)
 - [HTTP Server Framework](http-server-framework/README.md)

@@ -19,15 +19,10 @@ macro_rules! stream_id_must_not_be_zero {
 /// Errors for `Http2`.
 #[derive(Debug)]
 pub enum Http2Error {
-  /// The calling convention is not being respected. For example, in a client the method that reads
-  /// data is being called before sending anything.
-  BadLocalFlow,
   /// The number of opened streams extrapolated the threshold
   ExceedAmountOfOpenedStreams,
   /// The number of active concurrent streams extrapolated the threshold
   ExceedAmountOfActiveConcurrentStreams,
-  /// Frame has a zero stream ID but shouldn't because of its type.
-  FrameIdIsZeroButShouldNot,
   /// The system only supports 2 header frames when sending data
   HeadersOverflow,
   /// Couldn't decode a header into a hpack buffer
@@ -88,8 +83,6 @@ pub enum Http2Error {
   LargeIgnorableFrameLen,
   /// All trailer frames must include the EOS flag
   MissingEOSInTrailer,
-  /// There are no buffers to create to new stream
-  NoBuffersForNewStream,
   /// Counter-part did not return the correct bytes of a HTTP2 connection preface
   NoPreface,
   /// Received index is greater than the supported range
@@ -98,10 +91,6 @@ pub enum Http2Error {
   OutOfBoundsMaxFrameSize,
   /// Window size must be within 0 and 2147483647
   OutOfBoundsWindowSize,
-  /// It is not possible to add trailers without data frames
-  TrailersWithoutData,
-  /// A stream frame was expected but instead a connection frame was received
-  UnexpectedConnFrame,
   /// Received frame should be a continuation frame with correct ID
   UnexpectedContinuationFrame,
   /// Decoding logic encountered an unexpected ending string signal.
@@ -118,8 +107,6 @@ pub enum Http2Error {
   UnexpectedStreamId,
   /// A stream ID is not locally stored to allow the processing of data frames.
   UnknownDataStreamReceiver,
-  /// A stream ID is not locally stored to allow the processing of header frames.
-  UnknownHeaderStreamReceiver,
   /// A programming error that shouldn't never happen
   UnknownInitialServerHeaderId,
   /// A stream ID is not locally stored to allow the processing of reset frames.
@@ -134,10 +121,6 @@ pub enum Http2Error {
   UnknownWindowUpdateStreamReceiver,
   /// Length of a header name or value is limited to 127 bytes.
   UnsupportedHeaderNameOrValueLen,
-  /// Push frames are deprecated and unsupported
-  UnsupportedPushFrame,
-  /// Server Push is deprecated and unsupported.
-  UnsupportedServerPush,
   #[doc = concat!(
     "The system does not support more than",
     _max_continuation_frames!(),
@@ -154,6 +137,4 @@ pub enum Http2Error {
   VeryLargeHeaderInteger,
   /// Received headers is too large to sent
   VeryLargeHeadersLen,
-  /// Windows size can not be reduced
-  WindowSizeCanNotBeReduced,
 }

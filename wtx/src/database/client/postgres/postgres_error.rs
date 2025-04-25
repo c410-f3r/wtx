@@ -26,8 +26,6 @@ pub enum PostgresError {
   RequiredChannel,
   /// Server does not support encryption
   ServerDoesNotSupportEncryption,
-  /// A query
-  StatementHashCollision,
   /// Received an unexpected message type.
   UnexpectedDatabaseMessage {
     /// Received
