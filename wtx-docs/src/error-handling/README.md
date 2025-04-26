@@ -2,9 +2,13 @@
 
 The majority of operations performed by `WTX` is fallible, in other words, most functions or methods return a `Result` enum instead of panicking under the hook. A considerable effort is put to hint the compiler that a branch is unreachable to optimize code generation but that is another topic.
 
-Due to this characteristic, it is encouraged that downstream users create their own `Error` enum with a `Wtx` variant along side a `From` trait implementation.
+Due to this characteristic downstream users are encouraged to create their own `Error` enum with a `WTX` variant along side a `From` trait implementation. Not the mention the unlocking of the useful `?` operator that performs the automatically conversion any supported error element.
 
-```rust
+```rust2024
+extern crate wtx;
+
+use wtx::misc::FromRadix10;
+
 pub enum Error {
     MyDogAteMyHomework,
     RanOutOfCoffee,
@@ -16,21 +20,15 @@ impl From<wtx::Error> for MyCustomErrors {
         Self::Wtx(from)
     }
 }
-```
-
-Now you can enjoy using the `?` operator, which automatically wraps any error element supported by `Wtx` into your own local `Error` enum.
-
-```rust
-use wtx::misc::FromRadix10;
 
 fn main() -> Result<(), Error> {
     let _u16_from_bytes = u16::from_radix_10(&[1, 2][..])?;
-    let _u16_from_i8 = u16::try_from(-1i8).map_err(wtx::Error::from)?;
+    let _u16_from_i8 = u16::try_from(1i8).map_err(wtx::Error::from)?;
     Ok(())
 }
 ```
 
-All these conventions are of course optional. If desired everything can be unwrapped with the `Result::unwrap` method.
+All these conventions are of course optional. If desired everything can be unwrapped using the `Result::unwrap` method.
 
 ## Internal size constraint
 
