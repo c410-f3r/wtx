@@ -1,11 +1,13 @@
 use core::ops::Range;
 
 use crate::{
+  collection::Vector,
   database::client::mysql::{
     ExecutorBuffer, MysqlExecutor, MysqlStatement, misc::send_packet,
     mysql_protocol::query_req::QueryReq,
   },
-  misc::{LeaseMut, Stream, Vector, net::PartitionedFilledBuffer},
+  misc::{LeaseMut, net::PartitionedFilledBuffer},
+  stream::Stream,
 };
 
 impl<E, EB, S> MysqlExecutor<E, EB, S>

@@ -2,7 +2,7 @@
 
 use wtx::{
   http::server_framework::{CorsMiddleware, Router, ServerFrameworkBuilder, get},
-  misc::{Xorshift64, simple_seed},
+  rng::{Xorshift64, simple_seed},
 };
 
 #[tokio::main]

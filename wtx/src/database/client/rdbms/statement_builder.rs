@@ -1,6 +1,6 @@
 use crate::{
+  collection::{BlocksDeque, BlocksDequeBuilder, ExpansionTy},
   database::client::rdbms::statements_misc::StatementsMisc,
-  misc::{BlocksDeque, BlocksDequeBuilder, BufferMode},
 };
 use hashbrown::HashMap;
 
@@ -37,7 +37,7 @@ impl<'stmts, A, C, T> StatementBuilder<'stmts, A, C, T> {
     C: Clone,
     T: Clone,
   {
-    let _ = self.builder.expand(BufferMode::Additional(additional), elem)?;
+    let _ = self.builder.expand(ExpansionTy::Additional(additional), elem)?;
     Ok(self)
   }
 

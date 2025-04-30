@@ -1,6 +1,7 @@
 use crate::{
+  collection::Vector,
   http::{Headers, Method, ReqResData, ReqResDataMut, Request, Response, StatusCode, Version},
-  misc::{Lease, LeaseMut, UriString, Vector},
+  misc::{Lease, LeaseMut, UriString},
 };
 use alloc::string::String;
 

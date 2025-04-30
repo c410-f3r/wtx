@@ -1,6 +1,6 @@
 use crate::{
+  collection::Vector,
   http::{Headers, KnownHeaderName, Method, Protocol, ReqResBuffer, Request},
-  misc::Vector,
 };
 
 /// Verifies if the initial received headers represent a WebSocket connection.

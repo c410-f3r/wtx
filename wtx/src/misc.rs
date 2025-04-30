@@ -11,9 +11,7 @@ pub(crate) mod net;
 pub(crate) mod span;
 
 mod array_chunks;
-mod buffer_mode;
 mod clear;
-mod collections;
 mod connection_state;
 mod de_controller;
 mod decode;
@@ -32,30 +30,23 @@ mod optimization;
 mod percent_encoding;
 mod query_writer;
 mod ref_counter;
-mod rng;
 mod role;
 mod single_type_storage;
-mod stream;
 mod suffix_writer;
-mod sync;
-mod time;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
 mod tuple_impls;
 mod uri;
 mod usize;
 mod utf8_errors;
-mod vector;
 mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use array_chunks::{ArrayChunks, ArrayChunksMut};
-pub use buffer_mode::BufferMode;
 pub use clear::Clear;
-pub use collections::*;
 pub use connection_state::ConnectionState;
-use core::{any::type_name, ops::Range, time::Duration};
+use core::{any::type_name, time::Duration};
 pub use de_controller::DEController;
 pub use decode::{Decode, DecodeSeq};
 pub use either::Either;
@@ -73,28 +64,25 @@ pub use optimization::*;
 pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 pub use query_writer::QueryWriter;
 pub use ref_counter::RefCounter;
-pub use rng::*;
 pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
-pub use stream::{BytesStream, Stream, StreamReader, StreamWithTls, StreamWriter};
 pub use suffix_writer::{SuffixWriter, SuffixWriterFbvm, SuffixWriterMut};
-pub use sync::*;
-pub use time::*;
 pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
-pub use vector::{Vector, VectorError};
 pub use wrapper::Wrapper;
 
 /// Hashes a password using the `argon2` algorithm.
 #[cfg(feature = "argon2")]
 #[inline]
 pub fn argon2_pwd<const N: usize>(
-  blocks: &mut Vector<argon2::Block>,
+  blocks: &mut crate::collection::Vector<argon2::Block>,
   pwd: &[u8],
   salt: &[u8],
 ) -> crate::Result<[u8; N]> {
+  use crate::collection::ExpansionTy;
   use argon2::{Algorithm, Argon2, Params, Version};
+
   let params = const {
     let output_len = Some(N);
     let Ok(elem) = Params::new(
@@ -107,7 +95,7 @@ pub fn argon2_pwd<const N: usize>(
     };
     elem
   };
-  blocks.expand(BufferMode::Len(params.block_count()), argon2::Block::new())?;
+  blocks.expand(ExpansionTy::Len(params.block_count()), argon2::Block::new())?;
   let mut out = [0; N];
   let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
   let rslt = argon2.hash_password_into_with_memory(pwd, salt, &mut out, &mut *blocks);
@@ -134,9 +122,16 @@ where
   S: serde::Serializer,
   T: serde::Serialize,
 {
+  #[inline]
+  fn conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
+    match size_hint {
+      (lo, Some(hi)) if lo == hi => Some(lo),
+      _ => None,
+    }
+  }
   use serde::ser::{Error, SerializeSeq};
   let iter = into_iter.into_iter();
-  let mut sq = ser.serialize_seq(_conservative_size_hint_len(iter.size_hint()))?;
+  let mut sq = ser.serialize_seq(conservative_size_hint_len(iter.size_hint()))?;
   for elem in iter {
     sq.serialize_element(&elem.map_err(S::Error::custom)?)?;
   }
@@ -154,7 +149,7 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
   }
   #[cfg(not(feature = "tokio"))]
   {
-    let now = GenericTime::now();
+    let now = crate::time::Instant::now();
     core::future::poll_fn(|cx| {
       if now.elapsed()? >= duration {
         return core::task::Poll::Ready(Ok(()));
@@ -195,7 +190,6 @@ pub fn tracing_tree_init(
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
 }
 
-#[expect(clippy::as_conversions, reason = "`match` correctly handles conversions")]
 #[expect(clippy::cast_possible_truncation, reason = "`match` correctly handles truncations")]
 #[inline]
 pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
@@ -241,31 +235,18 @@ pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
   }
 }
 
+#[cfg(all(feature = "foldhash", any(feature = "http2", feature = "mysql", feature = "postgres")))]
 #[inline]
-pub(crate) fn _conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
-  match size_hint {
-    (lo, Some(hi)) if lo == hi => Some(lo),
-    _ => None,
-  }
-}
-
-#[cfg(feature = "std")]
-#[inline]
-pub(crate) fn _number_or_available_parallelism(n: Option<usize>) -> crate::Result<usize> {
-  Ok(if let Some(elem) = n { elem } else { usize::from(std::thread::available_parallelism()?) })
-}
-
-#[cfg(feature = "foldhash")]
-#[inline]
-pub(crate) fn _random_state<RNG>(rng: &mut RNG) -> foldhash::fast::FixedState
+pub(crate) fn random_state<RNG>(rng: &mut RNG) -> foldhash::fast::FixedState
 where
-  RNG: Rng,
+  RNG: crate::rng::Rng,
 {
   let [a, b, c, d, e, f, g, h] = rng.u8_8();
   foldhash::fast::FixedState::with_seed(u64::from_ne_bytes([a, b, c, d, e, f, g, h]))
 }
 
+#[cfg(feature = "postgres")]
 #[inline]
-pub(crate) fn _usize_range_from_u32_range(range: Range<u32>) -> Range<usize> {
+pub(crate) fn usize_range_from_u32_range(range: core::ops::Range<u32>) -> core::ops::Range<usize> {
   *Usize::from(range.start)..*Usize::from(range.end)
 }

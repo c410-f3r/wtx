@@ -162,7 +162,10 @@ mod ring {
 }
 
 mod smart_pointers {
-  use crate::misc::{Arc, Lease, LeaseMut};
+  use crate::{
+    misc::{Lease, LeaseMut},
+    sync::Arc,
+  };
   use alloc::boxed::Box;
 
   impl<T> Lease<T> for Arc<T> {

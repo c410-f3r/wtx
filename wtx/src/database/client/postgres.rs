@@ -106,11 +106,12 @@ impl<E> Default for Postgres<E> {
 
 mod array {
   use crate::{
+    collection::ArrayString,
     database::{
       FromRecords, FromRecordsParams, Record,
       client::postgres::{Postgres, PostgresRecord, PostgresRecords},
     },
-    misc::{ArrayString, from_utf8_basic, into_rslt},
+    misc::{from_utf8_basic, into_rslt},
   };
 
   impl<'exec, E, const N: usize> FromRecords<'exec, Postgres<E>> for ArrayString<N>

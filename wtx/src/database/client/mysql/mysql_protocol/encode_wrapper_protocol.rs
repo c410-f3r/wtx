@@ -1,4 +1,4 @@
-use crate::misc::{Lease, Vector};
+use crate::{collection::Vector, misc::Lease};
 
 pub(crate) struct EncodeWrapperProtocol<'any> {
   pub(crate) capabilities: &'any mut u64,

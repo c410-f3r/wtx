@@ -12,12 +12,14 @@ extern crate wtx_instances;
 use tokio::{io::WriteHalf, net::TcpStream};
 use tokio_rustls::server::TlsStream;
 use wtx::{
+  collection::Vector,
   http::{
     AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Response,
     StatusCode, is_web_socket_handshake,
   },
   http2::{Http2Buffer, Http2Params, WebSocketOverStream},
-  misc::{TokioRustlsAcceptor, Vector, Xorshift64, simple_seed},
+  misc::TokioRustlsAcceptor,
+  rng::{Xorshift64, simple_seed},
   web_socket::{Frame, OpCode},
 };
 

@@ -1,4 +1,4 @@
-use crate::misc::Vector;
+use crate::collection::Vector;
 use core::str;
 
 const ASCII_RANGE_LEN: usize = 128;
@@ -195,7 +195,10 @@ fn percent_encode_str(byte: u8) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-  use crate::misc::{AsciiSet, PercentDecode, PercentEncode, Vector};
+  use crate::{
+    collection::Vector,
+    misc::{AsciiSet, PercentDecode, PercentEncode},
+  };
 
   #[test]
   fn decode() {

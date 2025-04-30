@@ -1,4 +1,7 @@
-use crate::misc::{BufferMode, FilledBufferVectorMut, Lease, LeaseMut, Vector};
+use crate::{
+  collection::{ExpansionTy, Vector},
+  misc::{FilledBufferVectorMut, Lease, LeaseMut},
+};
 
 /// Helper that appends data into a [`FilledBufferVectorMut`].
 pub type SuffixWriterFbvm<'fb> = SuffixWriter<FilledBufferVectorMut<'fb>>;
@@ -39,7 +42,7 @@ where
     cb: impl FnOnce(&mut [u8]) -> crate::Result<usize>,
   ) -> crate::Result<()> {
     let prev_len = self._vec.lease().len();
-    self._vec.lease_mut().expand(BufferMode::Additional(n), 0)?;
+    self._vec.lease_mut().expand(ExpansionTy::Additional(n), 0)?;
     let written = cb(self._vec.lease_mut().get_mut(self._curr_idx..).unwrap_or_default())?;
     self._curr_idx = self._curr_idx.wrapping_add(written);
     self._vec.lease_mut().truncate(prev_len.wrapping_add(written));

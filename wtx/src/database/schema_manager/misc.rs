@@ -21,11 +21,11 @@ use core::hash::{Hash, Hasher};
 #[cfg(feature = "std")]
 use {
   crate::{
+    collection::{ArrayVector, Vector},
     database::schema_manager::{
       Repeatability, UserMigrationGroup, UserMigrationOwned,
       toml_parser::{Expr, toml},
     },
-    misc::{ArrayVector, Vector},
   },
   alloc::string::String,
   core::{cmp::Ordering, fmt::Write},
@@ -73,11 +73,11 @@ where
   F: FnMut(&PathBuf, &PathBuf) -> Ordering,
 {
   use crate::{
+    collection::ArrayString,
     database::schema_manager::{
       SchemaManagerError,
       migration_parser::{parse_migration_toml, parse_unified_migration},
     },
-    misc::ArrayString,
   };
 
   fn group_and_migrations_from_path<F>(

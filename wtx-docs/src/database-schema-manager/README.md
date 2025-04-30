@@ -99,7 +99,7 @@ extern crate wtx;
 
 use std::path::Path;
 use wtx::database::{schema_manager::Commands, DEFAULT_URI_VAR};
-use wtx::misc::Vector;
+use wtx::collection::Vector;
 
 #[tokio::main]
 async fn main() {
@@ -127,7 +127,7 @@ mod embedded_migrations {
 }
 
 use wtx::database::schema_manager::Commands;
-use wtx::misc::Vector;
+use wtx::collection::Vector;
 
 async fn migrate() -> wtx::Result<()> {
   Commands::with_executor(())

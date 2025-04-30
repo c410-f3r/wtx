@@ -1,4 +1,4 @@
-use crate::misc::Vector;
+use crate::collection::Vector;
 use alloc::{boxed::Box, string::String};
 
 /// Segment of a `GraphQL` document.

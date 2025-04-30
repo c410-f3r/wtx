@@ -1,8 +1,9 @@
 //! Migration TOML parser
 
 use crate::{
+  collection::{ArrayString, ArrayVector},
   database::schema_manager::SchemaManagerError,
-  misc::{ArrayString, ArrayVector, str_split1},
+  misc::str_split1,
 };
 use alloc::string::String;
 use std::io::{BufRead, BufReader, Read};
@@ -145,8 +146,8 @@ fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
 #[cfg(test)]
 mod tests {
   use crate::{
+    collection::ArrayVector,
     database::schema_manager::toml_parser::{Expr, ExprArrayTy, toml},
-    misc::ArrayVector,
   };
 
   #[test]

@@ -1,4 +1,5 @@
 use crate::{
+  collection::ArrayString,
   database::{
     DatabaseError, RecordValues, StmtCmd,
     client::{
@@ -15,10 +16,8 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  misc::{
-    ArrayString, LeaseMut, Stream, SuffixWriterFbvm, U64String, net::PartitionedFilledBuffer,
-    u64_string,
-  },
+  misc::{LeaseMut, SuffixWriterFbvm, U64String, net::PartitionedFilledBuffer, u64_string},
+  stream::Stream,
 };
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>

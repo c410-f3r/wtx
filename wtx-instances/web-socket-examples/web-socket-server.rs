@@ -9,7 +9,8 @@ use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
   http::OptionedServer,
-  misc::{TokioRustlsAcceptor, Xorshift64},
+  misc::TokioRustlsAcceptor,
+  rng::Xorshift64,
   web_socket::{OpCode, WebSocket, WebSocketBuffer},
 };
 

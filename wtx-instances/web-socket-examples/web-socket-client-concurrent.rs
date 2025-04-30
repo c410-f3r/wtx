@@ -6,7 +6,8 @@ extern crate wtx_instances;
 
 use tokio::{net::TcpStream, sync::Mutex};
 use wtx::{
-  misc::{Arc, TokioRustlsConnector, Uri},
+  misc::{TokioRustlsConnector, Uri},
+  sync::Arc,
   web_socket::{Frame, OpCode, WebSocketConnector},
 };
 

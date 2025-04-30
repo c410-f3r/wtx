@@ -1,6 +1,9 @@
-use crate::misc::{
-  ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError,
-  FromRadix10Error, VectorError,
+use crate::{
+  collection::{
+    ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
+  },
+  misc::FromRadix10Error,
+  time::TimeError,
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -139,14 +142,8 @@ pub enum Error {
   Generic(&'static str),
   /// Generic error
   GenericOwned(Box<str>),
-  /// `GenericTime` needs a backend
-  GenericTimeNeedsBackend,
-  /// The hardware returned an incorrect time value
-  InvalidHardwareTime,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
-  /// Underlying time structure couldn't hold the value generated during an arihtmetic operation.
-  InvalidTimeArithmetic,
   /// Invalid UTF-8.
   InvalidUTF8,
   /// Invalid URI
@@ -163,9 +160,9 @@ pub enum Error {
   /// Unexpected Unsigned integer
   UnboundedNumber {
     /// Expected bounds
-    expected: RangeInclusive<u32>,
+    expected: RangeInclusive<i32>,
     /// Received number
-    received: u32,
+    received: i32,
   },
   /// A buffer was partially read or write but should in fact be fully processed.
   UnexpectedBufferState,
@@ -249,6 +246,8 @@ pub enum Error {
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
+  #[doc = associated_element_doc!()]
+  TimeError(TimeError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -690,6 +689,13 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   #[inline]
   fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
+  }
+}
+
+impl From<TimeError> for Error {
+  #[inline]
+  fn from(from: TimeError) -> Self {
+    Self::TimeError(from)
   }
 }
 

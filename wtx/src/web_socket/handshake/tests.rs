@@ -8,7 +8,8 @@ macro_rules! call_tests {
 }
 
 use crate::{
-  misc::{AtomicBool, Ordering, Xorshift64},
+  rng::Xorshift64,
+  sync::{AtomicBool, Ordering},
   tests::_uri,
   web_socket::{
     Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,

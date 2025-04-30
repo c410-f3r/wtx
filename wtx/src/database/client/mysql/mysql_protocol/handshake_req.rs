@@ -1,4 +1,5 @@
 use crate::{
+  collection::ArrayVector,
   database::client::mysql::{
     auth_plugin::AuthPlugin,
     capability::Capability,
@@ -8,7 +9,7 @@ use crate::{
       MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol, initial_req::InitialReq,
     },
   },
-  misc::{ArrayVector, Encode},
+  misc::Encode,
 };
 
 pub(crate) struct HandshakeReq<'bytes> {

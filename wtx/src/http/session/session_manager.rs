@@ -1,11 +1,14 @@
 use crate::{
+  collection::{ArrayString, Vector},
   http::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
     SessionState, SessionStore,
     cookie::{cookie_generic::CookieGeneric, encrypt},
     session::SessionSecret,
   },
-  misc::{ArrayString, Lease, LeaseMut, Lock, Rng, Vector},
+  misc::{Lease, LeaseMut, Lock},
+  rng::Rng,
+  time::TimeError,
 };
 use chrono::{DateTime, TimeDelta, Utc};
 use core::{
@@ -18,7 +21,7 @@ use serde::Serialize;
 /// [`SessionManager`] backed by `tokio`
 #[cfg(feature = "tokio")]
 pub type SessionManagerTokio<CS, E> =
-  SessionManager<crate::misc::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>>;
+  SessionManager<crate::sync::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>>;
 
 /// Manages sessions
 #[derive(Clone, Debug)]
@@ -94,7 +97,7 @@ where
           .ok()
           .and_then(|element| Utc::now().checked_add_signed(element))
         else {
-          return Err(crate::Error::GenericTimeNeedsBackend.into());
+          return Err(crate::Error::from(TimeError::InstantNeedsBackend).into());
         };
         let elem = SessionState::new(custom_state, Some(expires_at), session_csrf, session_key);
         store.create(&elem).await?;

@@ -1,7 +1,8 @@
 use crate::{
   http::{Header, Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{Either, UriRef, UriString, Xorshift64, simple_seed},
+  misc::{Either, UriRef, UriString},
+  rng::{Xorshift64, simple_seed},
   tests::_uri,
 };
 use core::time::Duration;

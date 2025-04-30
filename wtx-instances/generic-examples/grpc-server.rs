@@ -13,7 +13,7 @@ use wtx::{
     ReqResBuffer, StatusCode,
     server_framework::{Router, ServerFrameworkBuilder, State, post},
   },
-  misc::{Xorshift64, simple_seed},
+  rng::{Xorshift64, simple_seed},
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 

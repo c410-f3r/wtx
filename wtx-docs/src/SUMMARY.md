@@ -11,6 +11,7 @@
 - [HTTP Server Framework](http-server-framework/README.md)
 - [HTTP/2](http2/README.md)
 - [Pool](pool/README.md)
+- [Time](time/README.md)
 - [UI tools](ui-tools/README.md)
 - [WebSocket](web-socket/README.md)
 - [WebSocket over HTTP/2](web-socket-over-http2/README.md)

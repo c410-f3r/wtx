@@ -16,10 +16,11 @@ use crate::{
     uri_buffer::UriBuffer,
   },
   misc::{
-    AtomicBool, AtomicWaker, LeaseMut, Lock, Ordering, RefCounter, StreamReader, StreamWriter,
-    Usize,
+    LeaseMut, Lock, RefCounter, Usize,
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },
+  stream::{StreamReader, StreamWriter},
+  sync::{AtomicBool, AtomicWaker, Ordering},
 };
 use core::{
   future::poll_fn,
@@ -199,7 +200,7 @@ where
       if data_len > max_frame_len {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::FrameSizeError,
-          Some(Http2Error::LargeArbitraryFrameLen),
+          Some(Http2Error::LargeArbitraryFrameLen { received: data_len, max: max_frame_len }),
         ));
       }
       let data_len_usize = *Usize::from_u32(data_len);

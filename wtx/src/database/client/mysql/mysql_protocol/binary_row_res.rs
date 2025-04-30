@@ -1,11 +1,12 @@
 use crate::{
+  collection::Vector,
   database::client::mysql::{
     MysqlError, MysqlStatement, Ty,
     mysql_protocol::{
       MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
     },
   },
-  misc::{Decode, Usize, Vector},
+  misc::{Decode, Usize},
 };
 use core::ops::Range;
 

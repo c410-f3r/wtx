@@ -3,8 +3,9 @@ use crate::{
     Api,
     pkg::{Package, PkgsAux},
   },
+  collection::Vector,
   data_transformation::dnsn::De,
-  misc::{Encode, Vector},
+  misc::Encode,
 };
 use core::marker::PhantomData;
 

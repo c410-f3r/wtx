@@ -1,9 +1,10 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   http::{
     CookieError,
     cookie::{FMT1, FMT2, FMT3, FMT4, SameSite, cookie_generic::CookieGeneric, make_lowercase},
   },
-  misc::{ArrayVector, PercentDecode, Vector, str_split_once1, str_split1},
+  misc::{PercentDecode, str_split_once1, str_split1},
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use core::{str, time::Duration};

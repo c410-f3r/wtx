@@ -1,12 +1,14 @@
 use crate::{
+  collection::Vector,
   http::{
     KnownHeaderName, Method, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,
     cookie::{cookie_str::CookieStr, decrypt},
     server_framework::Middleware,
   },
-  misc::{GenericTime, Lease, LeaseMut, Lock, Vector},
+  misc::{Lease, LeaseMut, Lock},
   pool::{Pool, ResourceManager},
+  time::Instant,
 };
 use alloc::string::String;
 use chrono::DateTime;
@@ -61,7 +63,7 @@ where
     let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
     if let Some(elem) = ca.lease() {
       if let Some(expires) = &elem.expires_at {
-        let millis = i64::try_from(GenericTime::now_timestamp()?.as_millis()).unwrap_or_default();
+        let millis = i64::try_from(Instant::now_timestamp()?.as_millis()).unwrap_or_default();
         let date_time = DateTime::from_timestamp_millis(millis).unwrap_or_default();
         if expires >= &date_time {
           let _rslt =

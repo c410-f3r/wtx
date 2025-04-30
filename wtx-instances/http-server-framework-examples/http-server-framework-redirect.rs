@@ -5,7 +5,7 @@ use wtx::{
     ReqResBuffer, StatusCode,
     server_framework::{Redirect, Router, ServerFrameworkBuilder, StateClean, get},
   },
-  misc::{Xorshift64, simple_seed},
+  rng::{Xorshift64, simple_seed},
 };
 
 #[tokio::main]

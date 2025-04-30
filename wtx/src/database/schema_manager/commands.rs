@@ -7,12 +7,13 @@ mod seed;
 mod validate;
 
 use crate::{
+  collection::Vector,
   database::{
     Database, DatabaseTy, Identifier,
     executor::Executor,
     schema_manager::{DEFAULT_BATCH_SIZE, SchemaManagement, UserMigration},
   },
-  misc::{Lease, Vector},
+  misc::Lease,
 };
 use alloc::string::String;
 

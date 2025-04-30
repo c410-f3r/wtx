@@ -6,11 +6,14 @@
 // |Continuation|(NB -> RB1)* (RB1 -> RB2)¹|(NB -> RB2)*           |
 
 use crate::{
+  collection::{ExpansionTy, Vector},
   misc::{
-    BufferMode, CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char,
-    LeaseMut, Rng, StreamReader, StreamWriter, Vector, from_utf8_basic, from_utf8_ext,
+    CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char, LeaseMut,
+    from_utf8_basic, from_utf8_ext,
     net::{PartitionedFilledBuffer, read_payload},
   },
+  rng::Rng,
+  stream::{StreamReader, StreamWriter},
   web_socket::{
     CloseCode, Frame, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE, OpCode, WebSocketError,
     compression::NegotiatedCompression, fill_with_close_code, read_frame_info::ReadFrameInfo,
@@ -344,7 +347,7 @@ fn expand_rb(
   reader_buffer_first: &mut Vector<u8>,
   written: usize,
 ) -> crate::Result<&mut [u8]> {
-  reader_buffer_first.expand(BufferMode::Additional(additional), 0)?;
+  reader_buffer_first.expand(ExpansionTy::Additional(additional), 0)?;
   Ok(reader_buffer_first.get_mut(written..).unwrap_or_default())
 }
 

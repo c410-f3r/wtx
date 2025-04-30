@@ -1,9 +1,10 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   http::{
     AutoStream, ManualStream, OperationMode, StatusCode,
     server_framework::{Endpoint, EndpointNode, RouteMatch, methods::check_json},
   },
-  misc::{ArrayVector, FnFut, Vector},
+  misc::FnFut,
 };
 
 /// Requires a request of type `POST` with json MIME.

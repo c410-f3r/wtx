@@ -1,6 +1,7 @@
 use crate::{
+  collection::Vector,
   data_transformation::dnsn::{De, DecodeWrapper, EncodeWrapper},
-  misc::{Decode, DecodeSeq, Encode, Vector},
+  misc::{Decode, DecodeSeq, Encode},
 };
 
 /// `GraphQL` request/operation, can be a query or a mutation.

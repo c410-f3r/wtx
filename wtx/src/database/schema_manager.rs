@@ -24,8 +24,9 @@ mod schema_manager_error;
 pub mod toml_parser;
 
 use crate::{
+  collection::Vector,
   database::{DatabaseTy, Identifier, executor::Executor},
-  misc::{Lease, Vector},
+  misc::Lease,
 };
 use alloc::string::String;
 pub use commands::*;
@@ -186,18 +187,20 @@ impl SchemaManagement for () {
 #[cfg(feature = "mysql")]
 mod mysql {
   use crate::{
+    collection::Vector,
     database::{
       DatabaseTy, Executor as _, Identifier,
       client::mysql::{ExecutorBuffer, MysqlExecutor},
       schema_manager::{
         DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
         fixed_sql_commands::{
-          _delete_migrations, _insert_migrations, _migrations_by_mg_uid_query,
-          mysql::{_CREATE_MIGRATION_TABLES, _clear, _table_names},
+          common::{delete_migrations, insert_migrations, migrations_by_mg_uid_query},
+          mysql::{CREATE_MIGRATION_TABLES, clear, table_names},
         },
       },
     },
-    misc::{Lease, LeaseMut, Stream, Vector},
+    misc::{Lease, LeaseMut},
+    stream::Stream,
   };
   use alloc::string::String;
 
@@ -217,12 +220,12 @@ mod mysql {
 
     #[inline]
     async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
-      _clear(self).await
+      clear(self).await
     }
 
     #[inline]
     async fn create_wtx_tables(&mut self) -> crate::Result<()> {
-      self.execute(_CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
+      self.execute(CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
       Ok(())
     }
 
@@ -236,7 +239,7 @@ mod mysql {
     where
       S: Lease<str>,
     {
-      _delete_migrations(buffer_cmd, self, mg, "", uid).await
+      delete_migrations(buffer_cmd, self, mg, "", uid).await
     }
 
     #[inline]
@@ -251,7 +254,7 @@ mod mysql {
       I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
       S: Lease<str> + 'migration,
     {
-      _insert_migrations(buffer_cmd, self, mg, migrations, "").await
+      insert_migrations(buffer_cmd, self, mg, migrations, "").await
     }
 
     #[inline]
@@ -264,7 +267,7 @@ mod mysql {
     where
       S: Lease<str>,
     {
-      _migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, "").await
+      migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, "").await
     }
 
     #[inline]
@@ -274,7 +277,7 @@ mod mysql {
       results: &mut Vector<Identifier>,
       _: &str,
     ) -> crate::Result<()> {
-      _table_names(self, results).await
+      table_names(self, results).await
     }
   }
 }
@@ -282,18 +285,20 @@ mod mysql {
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
+    collection::Vector,
     database::{
       DatabaseTy, Executor as _, Identifier,
       client::postgres::{ExecutorBuffer, PostgresExecutor},
       schema_manager::{
         _WTX_SCHEMA, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
         fixed_sql_commands::{
-          _delete_migrations, _insert_migrations, _migrations_by_mg_uid_query,
-          postgres::{_CREATE_MIGRATION_TABLES, _all_elements, _clear, _table_names},
+          common::{delete_migrations, insert_migrations, migrations_by_mg_uid_query},
+          postgres::{CREATE_MIGRATION_TABLES, all_elements, clear, table_names},
         },
       },
     },
-    misc::{Lease, LeaseMut, Stream, Vector},
+    misc::{Lease, LeaseMut},
+    stream::Stream,
   };
   use alloc::string::String;
 
@@ -307,7 +312,7 @@ mod postgres {
       &mut self,
       (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
     ) -> crate::Result<()> {
-      _all_elements(
+      all_elements(
         (buffer_cmd, buffer_idents),
         self,
         |_| Ok(()),
@@ -325,12 +330,12 @@ mod postgres {
 
     #[inline]
     async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
-      _clear(buffer, self).await
+      clear(buffer, self).await
     }
 
     #[inline]
     async fn create_wtx_tables(&mut self) -> crate::Result<()> {
-      self.execute(_CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
+      self.execute(CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
       Ok(())
     }
 
@@ -344,7 +349,7 @@ mod postgres {
     where
       S: Lease<str>,
     {
-      _delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA, uid).await
+      delete_migrations(buffer_cmd, self, mg, _WTX_SCHEMA, uid).await
     }
 
     #[inline]
@@ -359,7 +364,7 @@ mod postgres {
       I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
       S: Lease<str> + 'migration,
     {
-      _insert_migrations(buffer_cmd, self, mg, migrations, _WTX_SCHEMA).await
+      insert_migrations(buffer_cmd, self, mg, migrations, _WTX_SCHEMA).await
     }
 
     #[inline]
@@ -372,7 +377,7 @@ mod postgres {
     where
       S: Lease<str>,
     {
-      _migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, _WTX_SCHEMA).await
+      migrations_by_mg_uid_query(buffer_cmd, self, mg.uid(), results, _WTX_SCHEMA).await
     }
 
     #[inline]
@@ -382,7 +387,7 @@ mod postgres {
       results: &mut Vector<Identifier>,
       schema: &str,
     ) -> crate::Result<()> {
-      _table_names(buffer_cmd, self, results, schema).await
+      table_names(buffer_cmd, self, results, schema).await
     }
   }
 }

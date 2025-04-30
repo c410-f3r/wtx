@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   database::{
     DatabaseError, RecordValues,
     client::postgres::{
@@ -8,9 +9,10 @@ use crate::{
     },
   },
   misc::{
-    ConnectionState, LeaseMut, Stream, Usize, Vector,
+    ConnectionState, LeaseMut, Usize,
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },
+  stream::Stream,
 };
 use core::ops::Range;
 

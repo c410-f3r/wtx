@@ -1,4 +1,7 @@
-use crate::misc::{BufferMode, Lease, LeaseMut, Vector};
+use crate::{
+  collection::{ExpansionTy, Vector},
+  misc::{Lease, LeaseMut},
+};
 use core::{
   fmt::Debug,
   ops::{Deref, DerefMut},
@@ -66,9 +69,9 @@ impl FilledBuffer {
   }
 
   #[inline(always)]
-  pub(crate) fn _expand(&mut self, bp: BufferMode) -> crate::Result<()> {
+  pub(crate) fn _expand(&mut self, et: ExpansionTy) -> crate::Result<()> {
     let len = self.data.len();
-    let Some((additional, new_len)) = bp.params(len) else {
+    let Some((additional, new_len)) = et.params(len) else {
       return Ok(());
     };
     self._reserve(additional)?;

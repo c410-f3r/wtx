@@ -1,6 +1,7 @@
 use crate::{
+  collection::Vector,
   data_transformation::dnsn::{De, DecodeWrapper, EncodeWrapper},
-  misc::{Decode, DecodeSeq, Encode, Vector},
+  misc::{Decode, DecodeSeq, Encode},
 };
 
 /// A wrapper for data types that don't require a special pre-fixed structure.

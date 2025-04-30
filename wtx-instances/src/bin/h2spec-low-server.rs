@@ -7,7 +7,8 @@ use tokio::net::TcpListener;
 use wtx::{
   http::{ReqResBuffer, StatusCode},
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus, Http2Tokio, SendDataMode},
-  misc::{Either, Xorshift64, simple_seed},
+  misc::Either,
+  rng::{Xorshift64, simple_seed},
 };
 
 #[tokio::main]

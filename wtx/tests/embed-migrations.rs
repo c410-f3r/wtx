@@ -5,7 +5,7 @@
 #[allow(dead_code)]
 mod embedded_migrations;
 
-use wtx::{database::schema_manager::Commands, misc::Vector};
+use wtx::{collection::Vector, database::schema_manager::Commands};
 
 /// Compiles
 pub async fn compiles() {

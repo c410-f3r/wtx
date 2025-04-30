@@ -3,7 +3,8 @@ use crate::{
     Http2Error, Http2ErrorCode, Http2Params, http2_params_send::Http2ParamsSend, misc::write_array,
     u31::U31, window_update_frame::WindowUpdateFrame,
   },
-  misc::{AtomicBool, StreamWriter},
+  stream::StreamWriter,
+  sync::AtomicBool,
 };
 
 /// A "credit" system used to restrain the exchange of data.

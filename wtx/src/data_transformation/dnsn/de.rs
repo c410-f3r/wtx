@@ -31,7 +31,7 @@ impl<DRSR> DecodeSeq<'_, De<DRSR>> for () {
   #[inline]
   fn decode_seq(
     _: &mut DRSR,
-    _: &mut crate::misc::Vector<Self>,
+    _: &mut crate::collection::Vector<Self>,
     _: &mut DecodeWrapper<'_>,
   ) -> crate::Result<()> {
     Ok(())

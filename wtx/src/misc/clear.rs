@@ -1,4 +1,4 @@
-use crate::misc::{ArrayString, ArrayVector};
+use crate::collection::{ArrayString, ArrayVector};
 use alloc::{string::String, vec::Vec};
 
 /// See [`Clear::clear`] for more information.

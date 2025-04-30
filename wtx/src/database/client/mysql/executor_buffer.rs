@@ -1,6 +1,8 @@
 use crate::{
+  collection::Vector,
   database::client::mysql::MysqlCommonExecutorBuffer,
-  misc::{Lease, LeaseMut, Rng, Vector},
+  misc::{Lease, LeaseMut},
+  rng::Rng,
 };
 
 #[derive(Debug)]

@@ -25,12 +25,13 @@
 use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use tokio::net::TcpStream;
 use wtx::{
+  collection::Vector,
   database::{Executor, Record},
   http::{
     ReqResBuffer, ReqResData, SessionManagerTokio, SessionMiddleware, SessionState, StatusCode,
     server_framework::{Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
-  misc::{Vector, argon2_pwd},
+  misc::argon2_pwd,
   pool::{PostgresRM, SimplePoolTokio},
 };
 

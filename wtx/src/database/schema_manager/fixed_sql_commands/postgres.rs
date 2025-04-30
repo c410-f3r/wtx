@@ -1,11 +1,11 @@
 use crate::{
+  collection::Vector,
   database::{FromRecords, Identifier, client::postgres::Postgres, executor::Executor},
-  misc::Vector,
 };
 use alloc::string::String;
 use core::fmt::Write;
 
-pub(crate) static _CREATE_MIGRATION_TABLES: &str = concat!(
+pub(crate) static CREATE_MIGRATION_TABLES: &str = concat!(
   "CREATE SCHEMA IF NOT EXISTS _wtx; \
   CREATE TABLE IF NOT EXISTS _wtx._wtx_migration_group (",
   _wtx_migration_group_columns!(),
@@ -18,7 +18,7 @@ pub(crate) static _CREATE_MIGRATION_TABLES: &str = concat!(
 );
 
 #[inline]
-pub(crate) async fn _all_elements<E>(
+pub(crate) async fn all_elements<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
   schemas_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
@@ -33,52 +33,52 @@ pub(crate) async fn _all_elements<E>(
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  _schemas(executor, buffer_idents).await?;
+  schemas(executor, buffer_idents).await?;
   schemas_cb((buffer_cmd, buffer_idents))?;
 
-  _sequences(executor, buffer_idents).await?;
+  sequences(executor, buffer_idents).await?;
   sequences_cb((buffer_cmd, buffer_idents))?;
 
-  _domains(executor, buffer_idents).await?;
+  domains(executor, buffer_idents).await?;
   domains_cb((buffer_cmd, buffer_idents))?;
 
-  _functions((buffer_cmd, buffer_idents), executor).await?;
+  functions((buffer_cmd, buffer_idents), executor).await?;
   functions_cb((buffer_cmd, buffer_idents))?;
 
-  _views(executor, buffer_idents).await?;
+  views(executor, buffer_idents).await?;
   views_cb((buffer_cmd, buffer_idents))?;
 
-  _table_names(buffer_cmd, executor, buffer_idents, "public").await?;
+  table_names(buffer_cmd, executor, buffer_idents, "public").await?;
   table_names_cb((buffer_cmd, buffer_idents))?;
 
-  _procedures((buffer_cmd, buffer_idents), executor).await?;
+  procedures((buffer_cmd, buffer_idents), executor).await?;
   procedures_cb((buffer_cmd, buffer_idents))?;
 
-  _types(executor, buffer_idents).await?;
+  types(executor, buffer_idents).await?;
   types_cb((buffer_cmd, buffer_idents))?;
 
   Ok(())
 }
 
 #[inline]
-pub(crate) async fn _clear<E>(
+pub(crate) async fn clear<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  _all_elements(
+  all_elements(
     (buffer_cmd, buffer_idents),
     executor,
-    |buffer| _push_drop(buffer, "SCHEMA"),
-    |buffer| _push_drop(buffer, "SEQUENCE"),
-    |buffer| _push_drop(buffer, "DOMAIN"),
-    |buffer| _push_drop(buffer, "FUNCTION"),
-    |buffer| _push_drop(buffer, "VIEW"),
-    |buffer| _push_drop(buffer, "TABLE"),
-    |buffer| _push_drop(buffer, "PROCEDURE"),
-    |buffer| _push_drop(buffer, "TYPE"),
+    |buffer| push_drop(buffer, "SCHEMA"),
+    |buffer| push_drop(buffer, "SEQUENCE"),
+    |buffer| push_drop(buffer, "DOMAIN"),
+    |buffer| push_drop(buffer, "FUNCTION"),
+    |buffer| push_drop(buffer, "VIEW"),
+    |buffer| push_drop(buffer, "TABLE"),
+    |buffer| push_drop(buffer, "PROCEDURE"),
+    |buffer| push_drop(buffer, "TYPE"),
   )
   .await?;
   executor
@@ -92,7 +92,7 @@ where
 }
 
 #[inline]
-pub(crate) async fn _domains<E>(
+pub(crate) async fn domains<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
@@ -115,31 +115,31 @@ where
 }
 
 #[inline]
-pub(crate) async fn _functions<E>(
+pub(crate) async fn functions<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  _pg_proc((buffer_cmd, buffer_idents), executor, 'f').await?;
+  pg_proc((buffer_cmd, buffer_idents), executor, 'f').await?;
   Ok(())
 }
 
 #[inline]
-pub(crate) async fn _procedures<E>(
+pub(crate) async fn procedures<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
 ) -> crate::Result<()>
 where
   E: Executor<Database = Postgres<crate::Error>>,
 {
-  _pg_proc((buffer_cmd, buffer_idents), executor, 'p').await?;
+  pg_proc((buffer_cmd, buffer_idents), executor, 'p').await?;
   Ok(())
 }
 
 #[inline]
-pub(crate) async fn _sequences<E>(
+pub(crate) async fn sequences<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
@@ -160,7 +160,7 @@ where
 }
 
 #[inline]
-pub(crate) async fn _schemas<E>(
+pub(crate) async fn schemas<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
@@ -183,7 +183,7 @@ where
 }
 
 #[inline]
-pub(crate) async fn _table_names<E>(
+pub(crate) async fn table_names<E>(
   buffer_cmd: &mut String,
   executor: &mut E,
   results: &mut Vector<Identifier>,
@@ -227,7 +227,7 @@ where
 }
 
 #[inline]
-pub(crate) async fn _types<E>(
+pub(crate) async fn types<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
@@ -259,7 +259,7 @@ where
 }
 
 #[inline]
-pub(crate) async fn _views<E>(
+pub(crate) async fn views<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
 ) -> crate::Result<()>
@@ -282,7 +282,7 @@ where
 }
 
 #[inline]
-async fn _pg_proc<E>(
+async fn pg_proc<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
   prokind: char,
@@ -318,7 +318,7 @@ where
 }
 
 #[inline]
-fn _push_drop(
+fn push_drop(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   structure: &str,
 ) -> crate::Result<()> {

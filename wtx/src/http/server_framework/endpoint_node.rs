@@ -1,6 +1,6 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   http::server_framework::{Endpoint, RouteMatch},
-  misc::{ArrayVector, Vector},
 };
 
 /// Can be a terminal endpoint, a router, or a set of paths.
@@ -39,11 +39,11 @@ where
 #[cfg(all(feature = "_async-tests", test))]
 mod tests {
   use crate::{
+    collection::{ArrayVector, Vector},
     http::{
       ManualStream, OperationMode, ReqResBuffer, StatusCode,
       server_framework::{EndpointNode, RouteMatch, Router, StateClean, get},
     },
-    misc::{ArrayVector, Vector},
   };
 
   //     /a          /f/g          /i/j/k

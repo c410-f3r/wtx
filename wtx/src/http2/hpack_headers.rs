@@ -1,4 +1,4 @@
-use crate::misc::{Block, BlocksDeque};
+use crate::collection::{Block, BlocksDeque};
 use core::str;
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{PostgresError, SqlState},
-  misc::{_usize_range_from_u32_range, FromRadix10, Usize, into_rslt, str_split1},
+  misc::{FromRadix10, Usize, into_rslt, str_split1, usize_range_from_u32_range},
 };
 use alloc::boxed::Box;
 use core::{
@@ -80,7 +80,7 @@ impl DbError {
     self
       .column
       .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+      .and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// If the error was associated with a specific constraint, the name of the constraint.
@@ -89,7 +89,7 @@ impl DbError {
     self
       .constraint
       .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+      .and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// If the error was associated with a specific data type, the name of the data type.
@@ -98,7 +98,7 @@ impl DbError {
     self
       .datatype
       .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+      .and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// An optional secondary error message carrying more detail about the problem. Might run to
@@ -108,19 +108,19 @@ impl DbError {
     self
       .detail
       .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+      .and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// The file name of the source-code location where the error was reported.
   #[inline]
   pub fn file(&self) -> Option<&str> {
-    self.file.as_ref().and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+    self.file.as_ref().and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// An optional suggestion what to do about the problem.
   #[inline]
   pub fn hint(&self) -> Option<&str> {
-    self.hint.as_ref().and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+    self.hint.as_ref().and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// The line number of the source-code location where the error was reported.
@@ -132,7 +132,7 @@ impl DbError {
   /// The primary human-readable error message.
   #[inline]
   pub fn message(&self) -> &str {
-    self.buffer.get(_usize_range_from_u32_range(self.message.clone())).unwrap_or_default()
+    self.buffer.get(usize_range_from_u32_range(self.message.clone())).unwrap_or_default()
   }
 
   /// The field value is a decimal ASCII integer, indicating an error cursor position as an index
@@ -148,7 +148,7 @@ impl DbError {
     self
       .routine
       .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+      .and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// If the error was associated with a specific database object, the name of the schema
@@ -158,16 +158,13 @@ impl DbError {
     self
       .scheme
       .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+      .and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// Localized severity.
   #[inline]
   pub fn severity_localized(&self) -> &str {
-    self
-      .buffer
-      .get(_usize_range_from_u32_range(self.severity_localized.clone()))
-      .unwrap_or_default()
+    self.buffer.get(usize_range_from_u32_range(self.severity_localized.clone())).unwrap_or_default()
   }
 
   /// Nonlocalized `severity`.
@@ -179,10 +176,7 @@ impl DbError {
   /// If the error was associated with a specific table, the name of the table.
   #[inline]
   pub fn table(&self) -> Option<&str> {
-    self
-      .table
-      .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+    self.table.as_ref().and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// An indication of the context in which the error occurred. Presently this includes a call
@@ -192,7 +186,7 @@ impl DbError {
     self
       .r#where
       .as_ref()
-      .and_then(|range| self.buffer.get(_usize_range_from_u32_range(range.clone())))
+      .and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 }
 

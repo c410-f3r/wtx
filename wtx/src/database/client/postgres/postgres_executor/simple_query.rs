@@ -2,7 +2,8 @@ use crate::{
   database::client::postgres::{
     ExecutorBuffer, PostgresError, PostgresExecutor, message::MessageTy, protocol::query,
   },
-  misc::{ConnectionState, LeaseMut, Stream, SuffixWriterFbvm, net::PartitionedFilledBuffer},
+  misc::{ConnectionState, LeaseMut, SuffixWriterFbvm, net::PartitionedFilledBuffer},
+  stream::Stream,
 };
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>

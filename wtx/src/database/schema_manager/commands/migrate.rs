@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -6,7 +7,7 @@ use crate::{
       UserMigrationGroup, VERSION,
     },
   },
-  misc::{Lease, Usize, Vector},
+  misc::{Lease, Usize},
 };
 use alloc::string::String;
 #[cfg(feature = "std")]

@@ -109,11 +109,12 @@ impl<E> Default for Mysql<E> {
 
 mod array {
   use crate::{
+    collection::ArrayString,
     database::{
       FromRecords, FromRecordsParams, Record,
       client::mysql::{Mysql, MysqlRecord, MysqlRecords},
     },
-    misc::{ArrayString, from_utf8_basic, into_rslt},
+    misc::{from_utf8_basic, into_rslt},
   };
 
   impl<'exec, E, const N: usize> FromRecords<'exec, Mysql<E>> for ArrayString<N>

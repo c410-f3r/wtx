@@ -1,10 +1,10 @@
 # Error Handling
 
-The majority of operations performed by `WTX` is fallible, in other words, most functions or methods return a `Result` enum instead of panicking under the hook. A considerable effort is put to hint the compiler that a branch is unreachable to optimize code generation but that is another topic.
+The majority of operations performed by `WTX` is fallible, in other words, most functions or methods return a `Result` enum instead of panicking under the hood. A considerable effort is put to hint the compiler that a branch is unreachable to optimize code generation but that is another topic.
 
 Due to this characteristic downstream users are encouraged to create their own `Error` enum with a `WTX` variant along side a `From` trait implementation. Not the mention the unlocking of the useful `?` operator that performs the automatically conversion any supported error element.
 
-```rust2024
+```rust,edition2024
 extern crate wtx;
 
 use wtx::misc::FromRadix10;
@@ -40,9 +40,9 @@ A large enum aggressively used in several places can cause a negative runtime im
 
 Some real-world use-cases and associated benchmarks.
 
-* https://ziglang.org/download/0.8.0/release-notes.html#Reworked-Memory-Layout
-* https://github.com/rust-lang/rust/pull/100441
-* https://github.com/rust-lang/rust/pull/95715
+* <https://ziglang.org/download/0.8.0/release-notes.html#Reworked-Memory-Layout>
+* <https://github.com/rust-lang/rust/pull/100441>
+* <https://github.com/rust-lang/rust/pull/95715>
 
 That is why `WTX` has an enforced `Error` enum size of 24 bytes that will hopefully get smaller in future and that is also the reason why `WTX` has so many bare variants.
 

@@ -65,8 +65,9 @@ mod tokio {
 mod tests {
   use crate::{
     client_api_framework::pkg::Package,
+    collection::Vector,
     data_transformation::dnsn::{De, DecodeWrapper, EncodeWrapper},
-    misc::{Decode, DecodeSeq, Encode, Vector},
+    misc::{Decode, DecodeSeq, Encode},
   };
 
   #[derive(Debug, Eq, PartialEq)]

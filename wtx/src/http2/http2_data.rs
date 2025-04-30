@@ -2,7 +2,8 @@ use crate::{
   http2::{
     Http2Buffer, Http2Params, http2_params_send::Http2ParamsSend, u31::U31, window::Windows,
   },
-  misc::{Lease, LeaseMut, StreamWriter},
+  misc::{Lease, LeaseMut},
+  stream::StreamWriter,
 };
 
 /// Internal resource used in every new instance of `Http2`.

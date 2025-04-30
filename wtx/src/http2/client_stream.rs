@@ -13,7 +13,9 @@ use crate::{
     u31::U31,
     window::Windows,
   },
-  misc::{Arc, AtomicBool, Lease, LeaseMut, Lock, RefCounter, StreamWriter, UriRef, span::Span},
+  misc::{Lease, LeaseMut, Lock, RefCounter, UriRef, span::Span},
+  stream::StreamWriter,
+  sync::{Arc, AtomicBool},
 };
 use core::{future::poll_fn, pin::pin, task::Poll};
 

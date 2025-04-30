@@ -8,8 +8,9 @@ mod pkgs_aux;
 
 use crate::{
   client_api_framework::Api,
+  collection::Vector,
   data_transformation::dnsn::De,
-  misc::{DecodeSeq, Encode, Vector},
+  misc::{DecodeSeq, Encode},
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
 pub use pkg_with_helper::*;

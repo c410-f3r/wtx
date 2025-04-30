@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   http::{
     AutoStream, Headers, Request, StatusCode,
     server_framework::{
@@ -6,7 +7,7 @@ use crate::{
       arguments::{RouteMatch, manage_path},
     },
   },
-  misc::{FnFut, FnFutWrapper, Vector},
+  misc::{FnFut, FnFutWrapper},
 };
 
 /// String reference extracted from a URI path.

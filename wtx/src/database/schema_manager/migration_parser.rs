@@ -1,6 +1,7 @@
 //! Migration file parser
 
 use crate::{
+  collection::ArrayVector,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -8,7 +9,7 @@ use crate::{
       toml_parser::{Expr, toml},
     },
   },
-  misc::{ArrayVector, str_split1},
+  misc::str_split1,
 };
 use alloc::string::String;
 use std::io::{BufRead, BufReader, Read};

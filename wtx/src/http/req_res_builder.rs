@@ -2,8 +2,9 @@ mod req_builder;
 mod res_builder;
 
 use crate::{
+  collection::Vector,
   http::{Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut},
-  misc::{LeaseMut, Vector},
+  misc::LeaseMut,
 };
 use core::fmt::Arguments;
 pub use req_builder::ReqBuilder;
@@ -115,6 +116,16 @@ impl<RRD> ReqResBuilder<RRD>
 where
   RRD: ReqResDataMut,
 {
+  /// Which formats the request should receive.
+  #[inline]
+  pub fn accept(&mut self, value: Arguments<'_>) -> crate::Result<&mut Self> {
+    self
+      .rrd
+      .headers_mut()
+      .push_from_fmt(Header::from_name_and_value(KnownHeaderName::Accept.into(), value))?;
+    Ok(self)
+  }
+
   /// Applies a header field in the form of `Authorization: Bearer <token>`.
   #[inline]
   pub fn auth_bearer(&mut self, token: Arguments<'_>) -> crate::Result<&mut Self> {
@@ -132,6 +143,16 @@ where
       KnownHeaderName::ContentType.into(),
       [mime.as_str()],
     ))?;
+    Ok(self)
+  }
+
+  /// The host and port number of the server to which the request is being sent.
+  #[inline]
+  pub fn host(&mut self, value: Arguments<'_>) -> crate::Result<&mut Self> {
+    self
+      .rrd
+      .headers_mut()
+      .push_from_fmt(Header::from_name_and_value(KnownHeaderName::Host.into(), value))?;
     Ok(self)
   }
 

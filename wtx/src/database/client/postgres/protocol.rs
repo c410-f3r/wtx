@@ -1,10 +1,11 @@
 use crate::{
+  collection::Vector,
   database::{
     RecordValues,
     client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError, PostgresStatement},
   },
   misc::{
-    SuffixWriterFbvm, Vector,
+    SuffixWriterFbvm,
     counter_writer::{CounterWriter, I16Counter, I32Counter},
   },
 };

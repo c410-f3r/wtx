@@ -76,7 +76,12 @@ pub enum Http2Error {
   /// Size increment must be greater than zero
   InvalidWindowUpdateZeroIncrement,
   /// Received arbitrary frame extrapolates delimited maximum length
-  LargeArbitraryFrameLen,
+  LargeArbitraryFrameLen {
+    /// Received length from a response
+    received: u32,
+    /// Maximum configured length
+    max: u32,
+  },
   /// Set of received data frames extrapolate delimited maximum length
   LargeBodyLen(Option<u32>, u32),
   /// Ignorable frames extrapolates delimited maximum length

@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   database::{
     Record, ValueIdent,
     client::{
@@ -6,7 +7,7 @@ use crate::{
       rdbms::value,
     },
   },
-  misc::{DEController, Lease, Vector},
+  misc::{DEController, Lease},
 };
 use core::ops::Range;
 

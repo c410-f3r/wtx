@@ -1,6 +1,6 @@
 use crate::{
+  collection::ArrayString,
   http::{_MAX_AUTHORITY_LEN, _MAX_PATH_LEN, _MAX_SCHEME_LEN},
-  misc::ArrayString,
 };
 
 #[derive(Debug)]

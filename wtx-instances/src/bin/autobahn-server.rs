@@ -5,7 +5,7 @@
 use tokio::net::TcpStream;
 use wtx::{
   http::OptionedServer,
-  misc::Xorshift64,
+  rng::Xorshift64,
   web_socket::{
     OpCode, WebSocket, WebSocketBuffer,
     compression::{Flate2, NegotiatedFlate2},

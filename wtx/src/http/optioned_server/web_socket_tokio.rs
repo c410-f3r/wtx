@@ -1,7 +1,9 @@
 use crate::{
   http::OptionedServer,
-  misc::{_number_or_available_parallelism, FnFut, Stream, Xorshift64},
+  misc::FnFut,
   pool::{SimplePoolTokio, WebSocketRM},
+  rng::Xorshift64,
+  stream::Stream,
   web_socket::{Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer},
 };
 use core::fmt::Debug;
@@ -43,7 +45,7 @@ impl OptionedServer {
     )>>::Future: Send,
     for<'handle> &'handle H: Send,
   {
-    let buffers_len = _number_or_available_parallelism(buffers_len_opt)?;
+    let buffers_len = number_or_available_parallelism(buffers_len_opt)?;
     let listener = TcpListener::bind(addr).await?;
     let acceptor = acceptor_cb()?;
     loop {
@@ -79,4 +81,9 @@ impl OptionedServer {
       });
     }
   }
+}
+
+#[inline]
+pub(crate) fn number_or_available_parallelism(n: Option<usize>) -> crate::Result<usize> {
+  Ok(if let Some(elem) = n { elem } else { usize::from(std::thread::available_parallelism()?) })
 }

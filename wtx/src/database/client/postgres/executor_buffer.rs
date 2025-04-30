@@ -1,6 +1,7 @@
 use crate::{
   database::{Identifier, client::postgres::PostgresCommonExecutorBuffer},
-  misc::{Lease, LeaseMut, Rng},
+  misc::{Lease, LeaseMut},
+  rng::Rng,
 };
 use hashbrown::HashMap;
 

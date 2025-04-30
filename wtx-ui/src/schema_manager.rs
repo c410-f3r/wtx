@@ -3,6 +3,7 @@ use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use std::{borrow::Cow, env::current_dir, path::Path};
 use tokio::net::TcpStream;
 use wtx::{
+  collection::Vector,
   database::{
     DEFAULT_URI_VAR, Identifier,
     client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
@@ -10,7 +11,7 @@ use wtx::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
   },
-  misc::{DEController, UriRef, Vector},
+  misc::{DEController, UriRef},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {

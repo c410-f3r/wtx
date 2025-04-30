@@ -16,7 +16,8 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  misc::{FnMutFut, LeaseMut, Vector},
+  collection::Vector,
+  misc::{FnMutFut, LeaseMut},
   web_socket::{Frame, OpCode},
 };
 

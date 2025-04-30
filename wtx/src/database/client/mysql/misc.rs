@@ -1,4 +1,5 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   database::client::mysql::{
     DbError, MysqlError,
     mysql_executor::MAX_PAYLOAD,
@@ -8,10 +9,11 @@ use crate::{
     },
   },
   misc::{
-    ArrayVector, Decode, Encode, Stream, Usize, Vector,
+    Decode, Encode, Usize,
     hints::unlikely_elem,
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },
+  stream::Stream,
 };
 use core::marker::PhantomData;
 
