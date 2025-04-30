@@ -5,8 +5,8 @@
 
 use tokio::runtime::Builder;
 use wtx::{
+  rng::{Xorshift64, simple_seed},
   stream::BytesStream,
-  sync::{Xorshift64, simple_seed},
   web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
 };
 
