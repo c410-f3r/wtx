@@ -1,6 +1,6 @@
 # Time
 
-Provides basic primitives to work with time-related operations. At the current time only UTC timezones are supported.
+Provides basic primitives to work with time-related operations.
 
 * `Time`: Clock time with nanosecond precision.
 * `Date`: Proleptic Gregorian calendar. Can represent years from -32767 to +32767.
@@ -11,5 +11,5 @@ Web development generally requires time structures, as such, this feature isn't 
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-server.rs}}
+{{#rustdoc_include ../../../wtx-instances/generic-examples/time.rs}}
 ```
