@@ -10,7 +10,10 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  misc::{LeaseMut, Rng, Stream, Vector},
+  collection::Vector,
+  misc::LeaseMut,
+  rng::Rng,
+  stream::Stream,
   web_socket::{Frame, WebSocket, WebSocketBuffer, compression::NegotiatedCompression},
 };
 

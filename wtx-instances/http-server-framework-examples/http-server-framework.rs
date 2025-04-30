@@ -21,8 +21,8 @@ use wtx::{
     },
   },
   http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
-  misc::{Xorshift64, simple_seed},
   pool::{PostgresRM, SimplePoolTokio},
+  rng::{Xorshift64, simple_seed},
 };
 
 type Pool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, TcpStream>>;

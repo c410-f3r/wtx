@@ -1,12 +1,14 @@
+use core::sync::atomic::Ordering;
+
 use crate::{
+  collection::Vector,
   http2::{
     Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, index_map::IndexMap,
     initial_server_header::InitialServerHeader, uri_buffer::UriBuffer,
   },
-  misc::{
-    Arc, AtomicBool, AtomicWaker, Lease, LeaseMut, Ordering, Rng, Vector,
-    net::PartitionedFilledBuffer, simple_seed,
-  },
+  misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
+  rng::{Rng, Xorshift64, simple_seed},
+  sync::{Arc, AtomicBool, AtomicWaker},
 };
 use alloc::boxed::Box;
 use hashbrown::HashMap;
@@ -77,7 +79,7 @@ impl Http2Buffer {
 impl Default for Http2Buffer {
   #[inline]
   fn default() -> Self {
-    Self::new(&mut crate::misc::Xorshift64::from(simple_seed()))
+    Self::new(&mut Xorshift64::from(simple_seed()))
   }
 }
 

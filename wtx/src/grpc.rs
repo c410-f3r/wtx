@@ -9,9 +9,11 @@ mod grpc_middleware;
 mod grpc_status_code;
 
 use crate::{
+  collection::Vector,
   data_transformation::dnsn::{De, EncodeWrapper},
-  misc::{Encode, Vector},
+  misc::Encode,
 };
+
 #[cfg(feature = "grpc-client")]
 pub use grpc_client::GrpcClient;
 pub use grpc_manager::GrpcManager;

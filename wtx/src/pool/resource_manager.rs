@@ -91,7 +91,7 @@ where
 
 #[cfg(feature = "postgres")]
 pub(crate) mod database {
-  use crate::misc::Vector;
+  use crate::collection::Vector;
   use alloc::string::String;
   use core::marker::PhantomData;
 
@@ -122,8 +122,8 @@ pub(crate) mod database {
         DEFAULT_MAX_STMTS, Executor as _,
         client::postgres::{ExecutorBuffer, PostgresExecutor},
       },
-      misc::CryptoRng,
       pool::{PostgresRM, ResourceManager},
+      rng::CryptoRng,
     };
     use alloc::string::String;
     use core::{marker::PhantomData, mem};
@@ -197,12 +197,14 @@ pub(crate) mod database {
   #[cfg(feature = "tokio-rustls")]
   mod tokio_rustls {
     use crate::{
+      collection::Vector,
       database::{
         DEFAULT_MAX_STMTS, Executor as _,
         client::postgres::{ExecutorBuffer, PostgresExecutor},
       },
-      misc::{CryptoRng, TokioRustlsConnector, Vector},
+      misc::TokioRustlsConnector,
       pool::{PostgresRM, ResourceManager},
+      rng::CryptoRng,
     };
     use alloc::string::String;
     use core::{marker::PhantomData, mem};

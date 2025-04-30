@@ -26,6 +26,7 @@ macro_rules! init {
 }
 
 use crate::{
+  collection::Vector,
   http::{Headers, Trailers},
   http2::{
     Http2Buffer, Http2Data, Http2Error, Http2SendStatus, SendDataMode,
@@ -41,11 +42,14 @@ use crate::{
     u31::U31,
     window::WindowsPair,
   },
-  misc::{AtomicBool, LeaseMut, Lock, Ordering, RefCounter, StreamWriter, Usize, Vector},
+  misc::{LeaseMut, Lock, RefCounter, Usize},
+  stream::StreamWriter,
+  sync::AtomicBool,
 };
 use core::{
   future::poll_fn,
   pin::pin,
+  sync::atomic::Ordering,
   task::{Poll, Waker},
 };
 
@@ -355,7 +359,6 @@ where
   if !elem.stream_state.can_send::<IS_CLIENT>() {
     return Err(protocol_err(Http2Error::InvalidSendStreamState));
   }
-
   let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
 
   'msg: {

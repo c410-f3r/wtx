@@ -21,7 +21,8 @@ use wtx::{
   },
   data_transformation::dnsn::SerdeJson,
   http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
-  misc::{Uri, Xorshift64},
+  misc::Uri,
+  rng::Xorshift64,
   web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
 

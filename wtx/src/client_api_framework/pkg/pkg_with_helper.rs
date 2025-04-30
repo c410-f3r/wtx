@@ -1,7 +1,7 @@
 use crate::{
   client_api_framework::{Api, pkg::Package},
+  collection::Vector,
   data_transformation::{Id, format::JsonRpcRequest},
-  misc::Vector,
 };
 use core::{
   borrow::Borrow,

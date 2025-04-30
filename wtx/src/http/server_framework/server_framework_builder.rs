@@ -3,7 +3,7 @@ use crate::{
     conn_params::ConnParams,
     server_framework::{ConnAux, Router, ServerFramework, StreamAux},
   },
-  misc::Arc,
+  sync::Arc,
 };
 
 /// Server

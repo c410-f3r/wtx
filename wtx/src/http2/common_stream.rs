@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   http::{Headers, StatusCode},
   http2::{
     Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus, SendDataMode,
@@ -11,7 +12,9 @@ use crate::{
     u31::U31,
     window::WindowsPair,
   },
-  misc::{Arc, AtomicBool, LeaseMut, Lock, RefCounter, StreamWriter, Vector, span::Span},
+  misc::{LeaseMut, Lock, RefCounter, span::Span},
+  stream::StreamWriter,
+  sync::{Arc, AtomicBool},
 };
 use core::{
   future::poll_fn,

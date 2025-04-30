@@ -1,5 +1,6 @@
 use crate::{
-  misc::{Lease, Vector},
+  collection::Vector,
+  misc::Lease,
   web_socket::{
     MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE, OpCode,
     misc::{fill_header_from_params, has_masked_frame},

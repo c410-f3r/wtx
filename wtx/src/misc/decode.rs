@@ -1,4 +1,4 @@
-use crate::misc::{Vector, de_controller::DEController};
+use crate::{collection::Vector, misc::de_controller::DEController};
 
 /// A data structure that can be deserialized from a data format.
 pub trait Decode<'de, DEC>: Sized

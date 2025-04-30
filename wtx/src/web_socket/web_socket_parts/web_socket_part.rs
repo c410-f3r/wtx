@@ -1,8 +1,8 @@
 use crate::{
-  misc::{
-    ConnectionState, LeaseMut, Lock, Rng, Stream, StreamReader, StreamWriter, Vector,
-    net::PartitionedFilledBuffer,
-  },
+  collection::Vector,
+  misc::{ConnectionState, LeaseMut, Lock, net::PartitionedFilledBuffer},
+  rng::Rng,
+  stream::{Stream, StreamReader, StreamWriter},
   web_socket::{
     Frame, FrameMut, compression::NegotiatedCompression,
     web_socket_parts::web_socket_part_owned::WebSocketCommonPartOwned, web_socket_writer,

@@ -73,7 +73,7 @@ macro_rules! _impl_dec_seq {
       #[inline]
       fn decode_seq(
         $aux: &mut $drsr,
-        $buffer: &mut crate::misc::Vector<Self>,
+        $buffer: &mut crate::collection::Vector<Self>,
         $dw: &mut crate::data_transformation::dnsn::DecodeWrapper<'de>,
       ) -> crate::Result<()> {
         $impl
@@ -87,7 +87,7 @@ macro_rules! _impl_dec_seq {
       #[inline]
       fn decode_seq(
         aux: &mut &mut $drsr,
-        buffer: &mut crate::misc::Vector<Self>,
+        buffer: &mut crate::collection::Vector<Self>,
         dw: &mut crate::data_transformation::dnsn::DecodeWrapper<'de>,
       ) -> crate::Result<()> {
         <$struct<$($ty,)*>>::decode_seq(*aux, buffer, dw)
@@ -158,7 +158,7 @@ macro_rules! _impl_se_collections {
     )?
 
     $(
-      impl<T, const N: usize> crate::misc::Encode<crate::data_transformation::dnsn::De<$drsr>> for crate::misc::ArrayVector<T, N>
+      impl<T, const N: usize> crate::misc::Encode<crate::data_transformation::dnsn::De<$drsr>> for crate::collection::ArrayVector<T, N>
       where
         T: $bound,
       {
@@ -185,7 +185,7 @@ macro_rules! _impl_se_collections {
       }
     }
 
-    impl<T> crate::misc::Encode<crate::data_transformation::dnsn::De<$drsr>> for crate::misc::Vector<T>
+    impl<T> crate::misc::Encode<crate::data_transformation::dnsn::De<$drsr>> for crate::collection::Vector<T>
     where
       T: $bound,
     {

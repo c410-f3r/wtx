@@ -1,4 +1,5 @@
 use crate::{
+  collection::{ArrayString, Vector},
   database::{
     DatabaseError, StmtCmd,
     client::{
@@ -15,9 +16,8 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  misc::{
-    ArrayString, LeaseMut, Stream, U64String, Vector, net::PartitionedFilledBuffer, u64_string,
-  },
+  misc::{LeaseMut, U64String, net::PartitionedFilledBuffer, u64_string},
+  stream::Stream,
 };
 
 impl<E, EB, S> MysqlExecutor<E, EB, S>

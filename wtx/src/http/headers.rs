@@ -1,4 +1,7 @@
-use crate::misc::{Lease, LeaseMut, Vector};
+use crate::{
+  collection::Vector,
+  misc::{Lease, LeaseMut},
+};
 use core::{
   fmt::{Arguments, Debug, Formatter},
   ptr, str,

@@ -1,9 +1,9 @@
 use crate::{
+  collection::Vector,
   database::{
     Identifier,
     schema_manager::{Commands, SchemaManagement},
   },
-  misc::Vector,
 };
 use alloc::string::String;
 

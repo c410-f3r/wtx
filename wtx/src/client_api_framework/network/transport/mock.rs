@@ -13,7 +13,8 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  misc::{Deque, Lease, Vector},
+  collection::{Deque, Vector},
+  misc::Lease,
 };
 use alloc::borrow::{Cow, ToOwned};
 use core::{fmt::Debug, marker::PhantomData};

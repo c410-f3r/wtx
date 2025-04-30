@@ -3,7 +3,6 @@
 #![allow(
   clippy::allow_attributes_without_reason,
   clippy::arithmetic_side_effects,
-  clippy::as_conversions,
   clippy::cast_lossless,
   clippy::missing_inline_in_public_items,
   clippy::mod_module_files,
@@ -40,7 +39,7 @@ pub async fn executor_mysql(
   >,
 > {
   let uri = Uri::new(uri_str);
-  let mut rng = wtx::misc::Xorshift64::from(wtx::misc::simple_seed());
+  let mut rng = wtx::rng::Xorshift64::from(wtx::rng::simple_seed());
   wtx::database::client::mysql::MysqlExecutor::connect(
     &wtx::database::client::mysql::Config::from_uri(&uri)?,
     wtx::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),

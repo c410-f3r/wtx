@@ -1,4 +1,7 @@
-use crate::misc::{Arc, ArrayVector, Vector};
+use crate::{
+  collection::{ArrayVector, Vector},
+  sync::Arc,
+};
 use alloc::rc::Rc;
 use core::cell::RefCell;
 

@@ -35,7 +35,7 @@ macro_rules! create_packages_aux_wrapper {
 
       /// Proxy of [`$crate::client_api_framework::pkg::PkgsAux::new`].
       #[inline]
-      pub fn new(api: $api_ty, byte_buffer: $crate::misc::Vector<u8>, drsr: DRSR, log_body: bool, tp: TP) -> Self {
+      pub fn new(api: $api_ty, byte_buffer: $crate::collection::Vector<u8>, drsr: DRSR, log_body: bool, tp: TP) -> Self {
         Self($crate::client_api_framework::pkg::PkgsAux::new(api, byte_buffer, drsr, log_body, tp))
       }
     }

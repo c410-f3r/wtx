@@ -1,4 +1,5 @@
 use crate::{
+  collection::ArrayVector,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -7,7 +8,7 @@ use crate::{
       misc::{calc_checksum, is_sorted_and_unique},
     },
   },
-  misc::{ArrayVector, Lease},
+  misc::Lease,
 };
 use alloc::string::String;
 

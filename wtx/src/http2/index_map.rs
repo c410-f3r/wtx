@@ -1,4 +1,4 @@
-use crate::misc::Deque;
+use crate::collection::Deque;
 use core::{borrow::Borrow, hash::Hash};
 use hashbrown::HashMap;
 

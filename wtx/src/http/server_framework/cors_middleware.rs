@@ -1,10 +1,11 @@
 use crate::{
+  collection::Vector,
   http::{
     Header, Headers, HttpError, KnownHeaderName, Method, ReqResBuffer, Request, Response,
     StatusCode,
     server_framework::{ConnAux, Middleware, ServerFrameworkError},
   },
-  misc::{Intersperse, Vector, str_split1},
+  misc::{Intersperse, str_split1},
 };
 use alloc::string::String;
 use core::{ops::ControlFlow, str};

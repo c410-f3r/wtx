@@ -1,4 +1,5 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   database::{
     Executor,
     client::mysql::{
@@ -13,7 +14,8 @@ use crate::{
       },
     },
   },
-  misc::{ArrayVector, LeaseMut, Stream, Vector, from_utf8_basic, net::PartitionedFilledBuffer},
+  misc::{LeaseMut, from_utf8_basic, net::PartitionedFilledBuffer},
+  stream::Stream,
 };
 
 impl<E, EB, S> MysqlExecutor<E, EB, S>

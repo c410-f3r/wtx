@@ -1,8 +1,10 @@
 use crate::{
+  collection::BlocksDeque,
   database::client::rdbms::{
     statement::StatementMut, statement_builder::StatementBuilder, statements_misc::StatementsMisc,
   },
-  misc::{_random_state, BlocksDeque, FnMutFut, Rng},
+  misc::{FnMutFut, random_state},
+  rng::Rng,
 };
 use foldhash::fast::FixedState;
 use hashbrown::HashMap;
@@ -24,7 +26,7 @@ impl<A, C, T> Statements<A, C, T> {
   {
     Self {
       max_stmts: max_stmts.max(1),
-      rs: _random_state(rng),
+      rs: random_state(rng),
       stmts: BlocksDeque::new(),
       stmts_indcs: HashMap::new(),
     }
@@ -42,7 +44,7 @@ impl<A, C, T> Statements<A, C, T> {
   {
     Ok(Self {
       max_stmts: max_stmts.max(1),
-      rs: _random_state(rng),
+      rs: random_state(rng),
       stmts: BlocksDeque::with_capacity(stmts, columns)?,
       stmts_indcs: HashMap::with_capacity(stmts),
     })
@@ -116,7 +118,7 @@ mod tests {
       statements_misc::StatementsMisc,
       tests::{_column0, _column1, _column2, _column3},
     },
-    misc::{Xorshift64, simple_seed},
+    rng::{Xorshift64, simple_seed},
   };
 
   // FIXME(MIRI): The modification of the vector's length makes MIRI think that there is an

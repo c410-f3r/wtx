@@ -64,7 +64,7 @@ mod bench {
 
 #[cfg(kani)]
 mod kani {
-  use crate::misc::Vector;
+  use crate::collection::Vector;
 
   #[kani::proof]
   fn unmask() {
@@ -79,7 +79,7 @@ mod kani {
 
 #[cfg(test)]
 mod tests {
-  use crate::{misc::Vector, web_socket::unmask::unmask};
+  use crate::{collection::Vector, web_socket::unmask::unmask};
 
   #[test]
   fn length_variation_unmask() {

@@ -1,11 +1,11 @@
 #[cfg(feature = "schema-manager-dev")]
 use {
+  crate::collection::Vector,
   crate::database::{
     FromRecords, Identifier, client::postgres::Postgres, schema_manager::Commands,
     schema_manager::DbMigration, schema_manager::MigrationStatus, schema_manager::SchemaManagement,
     schema_manager::fixed_sql_commands::postgres, schema_manager::integration_tests,
   },
-  crate::misc::Vector,
   alloc::string::String,
 };
 
@@ -43,7 +43,7 @@ pub(crate) async fn _clean_drops_all_objs<'exec, E>(
     .await
     .unwrap();
 
-  postgres::_all_elements(
+  postgres::all_elements(
     (buffer_cmd, buffer_idents),
     &mut c._executor_mut(),
     |buffer| {
@@ -92,7 +92,7 @@ pub(crate) async fn _clean_drops_all_objs<'exec, E>(
 
   c.clear((buffer_cmd, buffer_idents)).await.unwrap();
 
-  postgres::_all_elements(
+  postgres::all_elements(
     (buffer_cmd, buffer_idents),
     c._executor_mut(),
     |buffer| {

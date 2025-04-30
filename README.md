@@ -23,7 +23,7 @@ Embedded devices with a working heap allocator can use this `no_std` crate.
 
 ## Comparisons
 
-In a way, `wtx` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following table to see how some built-from-scratch implementations compare with other similar projects.
+In a way, `WTX` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following table to see how some built-from-scratch implementations compare with other similar projects.
 
 | Technology                                             | Similar Projects                                                   | Feature (`wtx`)          |
 | ------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------ |
@@ -45,7 +45,7 @@ Many things that generally improve performance are used in the project, to name 
 
 1. **Manual vectorization**: When an algorithm is known for processing large amounts of data, several experiments are performed to analyze the best way to split loops in order to allow the compiler to take advantage of SIMD instructions in x86 processors.
 2. **Memory allocation**: Whenever possible, all heap allocations are called only once at the start of an instance creation and additionally, stack memory usage is preferably prioritized over heap memory.
-3. **Fewer dependencies**: No third-party is injected by default. In other words, additional dependencies are up to the user through the selection of Cargo features, which decreases compilation times. For example, you can see the mere 16 dependencies required by the PostgreSQL client using `cargo tree -e normal --features postgres`.
+3. **Fewer dependencies**: No third-party is injected by default. In other words, additional dependencies are up to the user through the selection of Cargo features, which decreases compilation times. For example, you can see the mere 13 dependencies required by the PostgreSQL client using `cargo tree -e normal --features postgres`.
 
 Since memory are usually held at the instance level instead of being created and dropped on the fly, its usage can growth significantly depending on the use-case. If appropriated, try using a shared pool of resources or try limiting how much data can be exchanged between parties.
 
@@ -67,20 +67,24 @@ Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks ov
 
 ## Development benchmarks
 
-These numbers provide an estimate of the expected waiting times when developing with `wtx`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
+These numbers provide an estimate of the expected waiting times when developing with `WTX`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
 
-| Technology            | Dependencies | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
-| --------------------- | ------------ | ----------- | ----------------- | --------------- | -------- |
-| Client API Framework  | 31           | 6.22s       | 7.77s             | 9.45s           | 872K     |
-| gRPC Client           | 16           | 4.81s       | 5.99s             | 7.31s           | 736K     |
-| HTTP Client Pool      | 15           | 4.67s       | 6.04s             | 7.06s           | 728K     |
-| HTTP Server Framework | 37           | 8.17s       | 10.69s            | 11.56s          | 996K     |
-| Postgres Client       | 30           | 5.06s       | 6.10s             | 6.86s           | 652K     |
-| WebSocket Client      | 22           | 4.34s       | 4.92s             | 5.64s           | 560K     |
+| Technology            | Required Dependencies¹ | All Dependencies²      | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
+| --------------------- | ---------------------  | ---------------------- | ----------- | ----------------- | --------------- | -------- |
+| Client API Framework  | 0                      | 31                     | 6.22s       | 7.77s             | 9.45s           | 872K     |
+| gRPC Client           | 2                      | 16                     | 4.81s       | 5.99s             | 7.31s           | 736K     |
+| HTTP Client Pool      | 2                      | 15                     | 4.67s       | 6.04s             | 7.06s           | 728K     |
+| HTTP Server Framework | 2                      | 37                     | 8.17s       | 10.69s            | 11.56s          | 996K     |
+| Postgres Client       | 13                     | 30                     | 5.06s       | 6.10s             | 6.86s           | 652K     |
+| WebSocket Client      | 10                     | 22                     | 4.34s       | 4.92s             | 5.64s           | 560K     |
+
+<sup>***¹*** Internal dependencies required by the feature.</sup>
+
+<sup>***²*** The sum of optional and required dependencies used by the associated binaries.</sup>
 
 ## Transport Layer Security (TLS)
 
-When using a feature that requires network connection, it is often necessary to perform encrypted communication and since `wtx` is not hard-coded with a specific stream implementation, it is up to you to choose the best TLS provider.
+When using a feature that requires network connection, it is often necessary to perform encrypted communication and since `WTX` is not hard-coded with a specific stream implementation, it is up to you to choose the best TLS provider.
 
 Some utilities like `TokioRustlsConnector` or `TokioRustlsAcceptor` are available to make things more convenient but keep in mind that it is still necessary to activate a crate that provides certificates for client usage.
 

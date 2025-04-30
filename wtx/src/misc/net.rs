@@ -1,6 +1,6 @@
 mod partitioned_filled_buffer;
 
-use crate::misc::StreamReader;
+use crate::stream::StreamReader;
 pub(crate) use partitioned_filled_buffer::PartitionedFilledBuffer;
 
 #[inline]

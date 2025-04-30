@@ -1,4 +1,5 @@
 use crate::{
+  collection::ArrayString,
   http::{Header, KnownHeaderName, Method, ReqResBuffer},
   http2::{
     Http2Error, Http2Params,
@@ -11,7 +12,7 @@ use crate::{
     u31::U31,
     uri_buffer::UriBuffer,
   },
-  misc::{ArrayString, LeaseMut, Usize},
+  misc::{LeaseMut, Usize},
 };
 
 // Some fields of `hsreqh` are only meant to be used locally for writing purposes.

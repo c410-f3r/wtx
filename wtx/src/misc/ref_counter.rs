@@ -1,4 +1,4 @@
-use crate::misc::Arc;
+use crate::sync::Arc;
 use alloc::rc::Rc;
 use core::ops::Deref;
 

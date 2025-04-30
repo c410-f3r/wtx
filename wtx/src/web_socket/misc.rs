@@ -1,5 +1,4 @@
 use crate::web_socket::{CloseCode, MASK_MASK, MAX_HEADER_LEN_USIZE, OP_CODE_MASK, OpCode};
-use core::ops::Range;
 
 /// The first two bytes of `payload` are filled with `code`. Does nothing if `payload` is
 /// less than 2 bytes.
@@ -69,11 +68,4 @@ pub(crate) const fn has_masked_frame(second_header_byte: u8) -> bool {
 #[inline]
 pub(crate) fn op_code(first_header_byte: u8) -> crate::Result<OpCode> {
   OpCode::try_from(first_header_byte & OP_CODE_MASK)
-}
-
-#[inline]
-pub(crate) fn _truncated_slice<T>(slice: &[T], range: Range<usize>) -> &[T] {
-  let start = range.start;
-  let end = range.end.min(slice.len());
-  slice.get(start..end).unwrap_or_default()
 }

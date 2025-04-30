@@ -1,11 +1,11 @@
 use crate::{
+  collection::Vector,
   database::{
     Identifier,
     schema_manager::{
       Commands, DbMigration, MigrationStatus, SchemaManagement, integration_tests::AuxTestParams,
     },
   },
-  misc::Vector,
 };
 use alloc::string::String;
 

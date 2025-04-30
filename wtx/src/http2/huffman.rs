@@ -1,10 +1,11 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::{ArrayVector, Vector, from_utf8_basic, hints::_unreachable},
+  misc::{from_utf8_basic, hints::_unreachable},
 };
 
 #[inline]
@@ -139,9 +140,9 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
 #[cfg(kani)]
 mod kani {
   use crate::{
+    collection::Vector,
     http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
-    misc::Vector,
   };
 
   #[kani::proof]
@@ -159,9 +160,9 @@ mod kani {
 #[cfg(test)]
 mod test {
   use crate::{
+    collection::Vector,
     http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
-    misc::Vector,
   };
 
   #[test]

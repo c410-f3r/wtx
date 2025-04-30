@@ -1,9 +1,10 @@
 use crate::{
+  collection::Vector,
   data_transformation::{
     Id,
     dnsn::{De, DecodeWrapper, EncodeWrapper},
   },
-  misc::{Decode, DecodeSeq, Encode, Lease, Vector},
+  misc::{Decode, DecodeSeq, Encode, Lease},
 };
 use alloc::boxed::Box;
 use core::{

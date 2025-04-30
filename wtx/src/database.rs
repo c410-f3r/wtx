@@ -36,7 +36,7 @@ pub const DEFAULT_URI_VAR: &str = "DATABASE_URI";
 
 /// The maximum number of characters that a database identifier can have. For example, tables,
 /// procedures, triggers, etc.
-pub type Identifier = crate::misc::ArrayString<64>;
+pub type Identifier = crate::collection::ArrayString<64>;
 
 /// Database
 pub trait Database: crate::misc::DEController {

@@ -1,6 +1,7 @@
 use crate::{
+  collection::Vector,
   data_transformation::dnsn::{De, DecodeWrapper, EncodeWrapper},
-  misc::{Decode, DecodeSeq, Encode, Vector},
+  misc::{Decode, DecodeSeq, Encode},
 };
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]

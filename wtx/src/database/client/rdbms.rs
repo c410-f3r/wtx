@@ -7,9 +7,10 @@ pub(crate) mod statements;
 pub(crate) mod statements_misc;
 
 use crate::{
+  collection::Vector,
   database::{Database, ValueIdent, client::rdbms::common_record::CommonRecord},
   misc::{
-    DEController, Lease, UriRef, Vector, hints::unlikely_elem, net::PartitionedFilledBuffer,
+    DEController, Lease, UriRef, hints::unlikely_elem, net::PartitionedFilledBuffer,
     str_split_once1, str_split1,
   },
 };

@@ -1,7 +1,7 @@
-use crate::misc::ArrayString;
+use crate::collection::ArrayString;
 use core::ops::{DivAssign, Rem};
 
-pub(crate) type I16String = ArrayString<5>;
+pub(crate) type I16String = ArrayString<6>;
 pub(crate) type U16String = ArrayString<5>;
 pub(crate) type U32String = ArrayString<10>;
 pub(crate) type U64String = ArrayString<20>;
@@ -9,25 +9,25 @@ pub(crate) type U64String = ArrayString<20>;
 /// Transforms an `i16` into an [`ArrayString`].
 #[inline]
 pub fn i16_string(value: i16) -> I16String {
-  num_string::<5, 5, i16>(value)
+  num_string::<true, 6, 6, i16>(value, i16::abs)
 }
 
 /// Transforms an `u16` into an [`ArrayString`].
 #[inline]
 pub fn u16_string(value: u16) -> U16String {
-  num_string::<5, 5, u16>(value)
+  num_string::<false, 5, 5, u16>(value, |el| el)
 }
 
 /// Transforms an `u32` into an [`ArrayString`].
 #[inline]
 pub fn u32_string(value: u32) -> U32String {
-  num_string::<10, 10, u32>(value)
+  num_string::<false, 10, 10, u32>(value, |el| el)
 }
 
 /// Fills an `u64` into an [`ArrayString`].
 #[inline]
 pub fn u64_string(value: u64) -> U64String {
-  num_string::<20, 20, u64>(value)
+  num_string::<false, 20, 20, u64>(value, |el| el)
 }
 
 #[expect(
@@ -35,23 +35,41 @@ pub fn u64_string(value: u64) -> U64String {
   reason = "% and / will never overflow with 5, 10 and 20 integer literals"
 )]
 #[inline]
-fn num_string<const U8: u8, const USIZE: usize, T>(mut value: T) -> ArrayString<USIZE>
+fn num_string<const IS_SIGNED: bool, const U8: u8, const USIZE: usize, T>(
+  mut value: T,
+  mut abs: impl FnMut(T) -> T,
+) -> ArrayString<USIZE>
 where
-  T: Copy + DivAssign + From<u8> + PartialEq + Rem<Output = T>,
+  T: Copy + DivAssign + From<u8> + PartialEq + PartialOrd + Rem<Output = T>,
   u8: TryFrom<T>,
 {
-  let ten = T::from(10);
   let zero = T::from(0);
-  let mut idx: u8 = U8;
+  if value == zero {
+    // SAFETY: '0' is ASCII
+    return unsafe { ArrayString::from_parts_unchecked([b'0'; USIZE], 1) };
+  }
+  let ten = T::from(10);
+  let is_neg = value < zero;
+  if IS_SIGNED {
+    value = abs(value);
+  }
   let mut buffer = [0; USIZE];
+  let mut idx: u8 = U8;
   for local_idx in 1..=U8 {
     idx = U8.wrapping_sub(local_idx);
-    let Some(elem) = buffer.get_mut(usize::from(idx)) else {
+    let Some(num) = buffer.get_mut(usize::from(idx)) else {
       break;
     };
-    *elem = u8::try_from(value % ten).unwrap_or_default().wrapping_add(48);
+    let rem = value % ten;
+    *num = u8::try_from(rem).unwrap_or_default().wrapping_add(48);
     value /= ten;
     if value == zero {
+      if IS_SIGNED && is_neg {
+        idx = U8.wrapping_sub(local_idx.wrapping_add(1));
+        if let Some(sign) = buffer.get_mut(usize::from(idx)) {
+          *sign = b'-';
+        }
+      }
       break;
     }
   }
@@ -65,7 +83,7 @@ where
 
 #[cfg(test)]
 pub(crate) mod tests {
-  use crate::misc::u64_string;
+  use crate::misc::{i16_string, u64_string};
 
   #[test]
   fn num_array() {
@@ -73,5 +91,13 @@ pub(crate) mod tests {
     assert_eq!(u64_string(12).as_str(), "12");
     assert_eq!(u64_string(1844674407370955161).as_str(), "1844674407370955161");
     assert_eq!(u64_string(18446744073709551615).as_str(), "18446744073709551615");
+  }
+
+  #[test]
+  fn num_array_negative() {
+    assert_eq!(i16_string(-0).as_str(), "0");
+    assert_eq!(i16_string(-12).as_str(), "-12");
+    assert_eq!(i16_string(-3276).as_str(), "-3276");
+    assert_eq!(i16_string(-32767).as_str(), "-32767");
   }
 }

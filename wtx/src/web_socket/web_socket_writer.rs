@@ -1,7 +1,10 @@
 // Common functions that used be used by pure WebSocket structures or tunneling protocols.
 
 use crate::{
-  misc::{BufferMode, ConnectionState, Lease, LeaseMut, Rng, StreamWriter, Vector},
+  collection::{ExpansionTy, Vector},
+  misc::{ConnectionState, Lease, LeaseMut},
+  rng::Rng,
+  stream::StreamWriter,
   web_socket::{
     Frame, FrameMut, OpCode, compression::NegotiatedCompression, misc::has_masked_frame,
     unmask::unmask,
@@ -110,11 +113,11 @@ where
     frame.payload().lease(),
     writer_buffer,
     |local_writer_buffer| {
-      local_writer_buffer.expand(BufferMode::Additional(additional), 0)?;
+      local_writer_buffer.expand(ExpansionTy::Additional(additional), 0)?;
       Ok(local_writer_buffer)
     },
     |local_writer_buffer, written| {
-      local_writer_buffer.expand(BufferMode::Additional(additional), 0)?;
+      local_writer_buffer.expand(ExpansionTy::Additional(additional), 0)?;
       Ok(local_writer_buffer.get_mut(written..).unwrap_or_default())
     },
   )?;

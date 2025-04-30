@@ -1,21 +1,18 @@
-use crate::{
-  client_api_framework::misc::RequestLimit,
-  misc::{GenericTime, sleep},
-};
+use crate::{client_api_framework::misc::RequestLimit, misc::sleep, time::Instant};
 use core::time::Duration;
 
 /// Tracks how many requests were performed in a time interval
 #[derive(Clone, Copy, Debug)]
 pub struct RequestCounter {
   counter: u16,
-  instant: GenericTime,
+  instant: Instant,
 }
 
 impl RequestCounter {
   /// Instance with valid initial values
   #[inline]
   pub fn new() -> Self {
-    Self { counter: 0, instant: GenericTime::now() }
+    Self { counter: 0, instant: Instant::now() }
   }
 
   /// How many requests within the current time-slot are still available for usage.
@@ -28,7 +25,7 @@ impl RequestCounter {
   /// of [RequestCounter], then return `T`. Otherwise, awaits until [RequestCounter] is updated.
   #[inline]
   pub async fn update_params(&mut self, rl: &RequestLimit) -> crate::Result<()> {
-    let now = GenericTime::now();
+    let now = Instant::now();
     let duration = *rl.duration();
     let elapsed = now.duration_since(self.instant)?;
     if elapsed > duration {
@@ -59,7 +56,7 @@ impl RequestCounter {
     if let Some(diff) = duration.checked_sub(elapsed) {
       _debug!("Call needs to wait {}ms", diff.as_millis());
       sleep(diff).await?;
-      self.instant = GenericTime::now();
+      self.instant = Instant::now();
     }
     Ok(())
   }

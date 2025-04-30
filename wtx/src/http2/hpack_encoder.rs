@@ -9,14 +9,14 @@
 // bytes or runtime performance.
 
 use crate::{
+  collection::Vector,
   http::{Header, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
     huffman::huffman_encode, misc::protocol_err,
   },
-  misc::{
-    _random_state, Rng, Usize, Vector, bytes_transfer::shift_copyable_chunks, hints::_unreachable,
-  },
+  misc::{Usize, bytes_transfer::shift_copyable_chunks, hints::_unreachable, random_state},
+  rng::Rng,
 };
 use core::{
   hash::{BuildHasher, Hasher},
@@ -51,7 +51,7 @@ impl HpackEncoder {
       indcs: HashMap::new(),
       max_dyn_sub_bytes: None,
       max_dyn_super_bytes: 0,
-      rs: _random_state(rng),
+      rs: random_state(rng),
     }
   }
 
@@ -108,8 +108,8 @@ impl HpackEncoder {
   pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u32) -> crate::Result<()> {
     if max_dyn_sub_bytes > self.max_dyn_super_bytes {
       return Err(crate::Error::UnboundedNumber {
-        expected: 0..=self.max_dyn_super_bytes,
-        received: max_dyn_sub_bytes,
+        expected: 0..=self.max_dyn_super_bytes.try_into().unwrap_or(i32::MAX),
+        received: max_dyn_sub_bytes.try_into().unwrap_or(i32::MAX),
       });
     }
     match self.max_dyn_sub_bytes {

@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   database::{
     RecordValues, StmtCmd,
     client::mysql::{
@@ -13,7 +14,8 @@ use crate::{
       status::Status,
     },
   },
-  misc::{LeaseMut, Stream, Usize, Vector, net::PartitionedFilledBuffer},
+  misc::{LeaseMut, Usize, net::PartitionedFilledBuffer},
+  stream::Stream,
 };
 use core::ops::Range;
 

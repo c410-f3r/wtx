@@ -1,6 +1,9 @@
 #![allow(dead_code, reason = "feature selection")]
 
-use crate::misc::{LeaseMut, SuffixWriter, Vector};
+use crate::{
+  collection::Vector,
+  misc::{LeaseMut, SuffixWriter},
+};
 use core::marker::PhantomData;
 
 pub(crate) trait CounterWriter<E, V>

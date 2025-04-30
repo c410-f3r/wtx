@@ -1,11 +1,12 @@
 use crate::{
+  collection::Vector,
   database::{
     DatabaseTy,
     schema_manager::{
       Commands, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
     },
   },
-  misc::{DEController, Lease, Vector},
+  misc::{DEController, Lease},
 };
 use alloc::string::String;
 #[cfg(feature = "std")]

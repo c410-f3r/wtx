@@ -3,7 +3,10 @@ pub(crate) mod cookie_generic;
 pub(crate) mod cookie_str;
 mod same_site;
 
-use crate::misc::{ArrayVector, Rng, Vector};
+use crate::{
+  collection::{ArrayVector, Vector},
+  rng::Rng,
+};
 pub use cookie_error::CookieError;
 use core::str;
 pub use same_site::SameSite;
@@ -23,14 +26,14 @@ pub(crate) fn decrypt<'buffer>(
   secret: &[u8; 32],
   (name, value): (&[u8], &[u8]),
 ) -> crate::Result<&'buffer mut [u8]> {
-  use crate::misc::BufferMode;
+  use crate::collection::ExpansionTy;
   use aes_gcm::{Aes256Gcm, aead::AeadInPlace, aes::cipher::Array};
   use base64::{Engine, engine::general_purpose::STANDARD};
 
   #[rustfmt::skip]
   let (nonce, content, tag) = {
     let start = buffer.len();
-    buffer.expand(BufferMode::Additional(base64::decoded_len_estimate(value.len())), 0)?;
+    buffer.expand(ExpansionTy::Additional(base64::decoded_len_estimate(value.len())), 0)?;
     let buffer_slice = buffer.get_mut(start..).unwrap_or_default();
     let len = STANDARD.decode_slice(value, buffer_slice)?;
     let end = start.wrapping_add(len);
@@ -70,14 +73,14 @@ pub(crate) fn encrypt<RNG>(
 where
   RNG: Rng,
 {
-  use crate::misc::BufferMode;
+  use crate::collection::ExpansionTy;
   use aes_gcm::{Aes256Gcm, aead::AeadInPlace, aes::cipher::Array};
   use base64::{Engine, engine::general_purpose::STANDARD};
 
   let start = buffer.len();
   let content_len = NONCE_LEN.wrapping_add(value.len()).wrapping_add(TAG_LEN);
   let base64_len = base64::encoded_len(content_len, true).unwrap_or(usize::MAX);
-  buffer.expand(BufferMode::Additional(base64_len), 0)?;
+  buffer.expand(ExpansionTy::Additional(base64_len), 0)?;
   let _ = buffer.extend_from_copyable_slices([
     [0; NONCE_LEN].as_slice(),
     value,

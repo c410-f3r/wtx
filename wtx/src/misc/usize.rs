@@ -1,5 +1,4 @@
 #![expect(
-  clippy::as_conversions,
   clippy::cast_possible_truncation,
   reason = "some platforms were removed to allow infallible casts"
 )]
@@ -22,6 +21,11 @@ pub struct Usize(usize);
 
 impl Usize {
   const IS_32: bool = cfg!(target_pointer_width = "32");
+
+  #[inline]
+  pub(crate) const fn from_u16(from: u16) -> Self {
+    Self(from as usize)
+  }
 
   #[inline]
   pub(crate) const fn from_u32(from: u32) -> Self {

@@ -1,9 +1,9 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   http::{
     AutoStream, ManualStream, OperationMode, Response, StatusCode,
     server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
   },
-  misc::{ArrayVector, Vector},
 };
 use core::{marker::PhantomData, ops::ControlFlow};
 

@@ -1,9 +1,10 @@
 use crate::{
+  collection::Vector,
   data_transformation::{
     dnsn::{De, DecodeWrapper, EncodeWrapper},
     format::GraphQlResponseError,
   },
-  misc::{Decode, DecodeSeq, Encode, Vector},
+  misc::{Decode, DecodeSeq, Encode},
 };
 
 /// Replied from an issued [`crate::data_transformation::format::GraphQlRequest`].
@@ -43,8 +44,8 @@ impl<D, E> Encode<De<()>> for GraphQlResponse<D, E> {
 #[cfg(feature = "serde")]
 mod serde {
   use crate::{
+    collection::Vector,
     data_transformation::format::{GraphQlResponse, GraphQlResponseError},
-    misc::Vector,
   };
   use core::marker::PhantomData;
   use serde::{

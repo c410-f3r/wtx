@@ -1,10 +1,12 @@
 use crate::{
+  collection::{ArrayString, Vector},
   http::{
     SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},
     session::{SessionManagerInner, SessionSecret},
   },
-  misc::{ArrayString, CryptoRng, Lock, Vector, sleep},
+  misc::{Lock, sleep},
+  rng::CryptoRng,
 };
 use chrono::{DateTime, Utc};
 use core::{marker::PhantomData, time::Duration};

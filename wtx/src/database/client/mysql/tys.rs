@@ -25,7 +25,7 @@ macro_rules! test {
     #[cfg(test)]
     #[test]
     fn $name() {
-      let mut vec = crate::misc::Vector::new();
+      let mut vec = crate::collection::Vector::new();
       let mut ew = EncodeWrapper::new(&mut vec);
       let instance: $ty = $instance;
       Encode::<Mysql<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
@@ -44,11 +44,12 @@ mod chrono;
 
 mod collections {
   use crate::{
+    collection::ArrayString,
     database::{
       Typed,
       client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams, misc::encoded_len},
     },
-    misc::{ArrayString, Decode, Encode, Usize, from_utf8_basic},
+    misc::{Decode, Encode, Usize, from_utf8_basic},
   };
   use alloc::string::String;
 

@@ -181,7 +181,7 @@ impl<'attrs, 'module, 'others>
             #[inline]
             async fn after_sending(
               &mut self,
-              (_api, _bytes, _drsr): (&mut __API, &mut wtx::misc::Vector<u8>, &mut __DRSR),
+              (_api, _bytes, _drsr): (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
               (_trans, _trans_params): (&mut __TRANSPORT, &mut #tp),
             ) -> Result<(), __API::Error> {
               #( #fasiv_fn_name_ident_iter(#fasiv_fn_call_idents).await?; )*
@@ -191,7 +191,7 @@ impl<'attrs, 'module, 'others>
             #[inline]
             async fn before_sending(
               &mut self,
-              (_api, _bytes, _drsr): (&mut __API, &mut wtx::misc::Vector<u8>, &mut __DRSR),
+              (_api, _bytes, _drsr): (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
               (_trans, _trans_params): (&mut __TRANSPORT, &mut #tp),
             ) -> Result<(), __API::Error> {
               #before_sending_defaults

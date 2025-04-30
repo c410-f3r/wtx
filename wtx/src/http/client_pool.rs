@@ -15,8 +15,9 @@ mod integration_tests;
 use crate::{
   http::conn_params::ConnParams,
   http2::{Http2, Http2Buffer, Http2Data, Http2ErrorCode},
-  misc::{Lock, RefCounter, StreamWriter, UriRef},
+  misc::{Lock, RefCounter, UriRef},
   pool::{Pool, ResourceManager, SimplePool, SimplePoolGetElem, SimplePoolResource},
+  stream::StreamWriter,
 };
 pub use client_pool_builder::ClientPoolBuilder;
 pub use client_pool_resource::ClientPoolResource;

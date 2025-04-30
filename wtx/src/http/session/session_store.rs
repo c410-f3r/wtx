@@ -144,7 +144,8 @@ mod postgres {
       client::postgres::{ExecutorBuffer, Postgres, PostgresExecutor},
     },
     http::session::{SessionKey, SessionState, SessionStore},
-    misc::{Decode, Encode, LeaseMut, Stream},
+    misc::{Decode, Encode, LeaseMut},
+    stream::Stream,
   };
 
   /// Expects the following SQL table definition in your database. Column names can NOT be changed.

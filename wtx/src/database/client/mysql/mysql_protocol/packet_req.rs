@@ -5,7 +5,8 @@ use crate::{
     mysql_executor::MAX_PAYLOAD,
     mysql_protocol::{MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
-  misc::{Encode, Stream, Usize},
+  misc::{Encode, Usize},
+  stream::Stream,
 };
 
 pub(crate) struct PacketReq<E, T>(pub(crate) T, pub(crate) PhantomData<E>);

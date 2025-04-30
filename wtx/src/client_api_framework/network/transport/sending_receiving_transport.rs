@@ -4,8 +4,9 @@ use crate::{
     network::transport::{ReceivingTransport, SendingTransport},
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
   },
+  collection::Vector,
   data_transformation::dnsn::{De, DecodeWrapper},
-  misc::{Decode, DecodeSeq, Encode, Vector},
+  misc::{Decode, DecodeSeq, Encode},
 };
 
 /// Transport that sends and receives package data

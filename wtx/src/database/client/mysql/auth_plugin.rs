@@ -1,9 +1,11 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   database::client::mysql::{
     MysqlError,
     misc::{fetch_msg, write_packet},
   },
-  misc::{ArrayVector, Stream, Vector, from_utf8_basic, net::PartitionedFilledBuffer},
+  misc::{from_utf8_basic, net::PartitionedFilledBuffer},
+  stream::Stream,
 };
 use digest::{Digest, FixedOutputReset, Update, generic_array::GenericArray};
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};

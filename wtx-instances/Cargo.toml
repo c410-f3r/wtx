@@ -74,6 +74,10 @@ name = "pool"
 path = "generic-examples/pool.rs"
 required-features = ["pool"]
 
+[[example]]
+name = "time"
+path = "generic-examples/time.rs"
+
 # HTTP Server Framework Examples
 
 [[example]]

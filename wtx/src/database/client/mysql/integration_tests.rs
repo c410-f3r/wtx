@@ -3,7 +3,8 @@ use crate::{
     DatabaseError, Executor as _, Record, Records as _,
     client::mysql::{Config, ExecutorBuffer, MysqlExecutor},
   },
-  misc::{UriRef, Xorshift64, simple_seed},
+  misc::UriRef,
+  rng::{Xorshift64, simple_seed},
 };
 use alloc::string::String;
 use core::fmt::Debug;

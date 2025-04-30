@@ -1,12 +1,13 @@
 use crate::{
+  collection::ArrayVector,
   database::{
     Typed,
     client::postgres::{
       DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty,
-      tys::pg_numeric::{_PgNumeric, Sign},
+      tys::pg_numeric::{PgNumeric, Sign},
     },
   },
-  misc::{ArrayVector, Decode, Encode},
+  misc::{Decode, Encode},
 };
 use rust_decimal::{Decimal, MathematicalOps};
 
@@ -16,12 +17,12 @@ where
 {
   #[inline]
   fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-    let pg_numeric = _PgNumeric::decode(aux, dw)?;
+    let pg_numeric = PgNumeric::decode(aux, dw)?;
     let (digits, sign, mut weight, scale) = match pg_numeric {
-      _PgNumeric::NaN => {
+      PgNumeric::NaN => {
         return Err(E::from(PostgresError::DecimalCanNotBeConvertedFromNaN.into()));
       }
-      _PgNumeric::Number { digits, sign, weight, scale } => (digits, sign, weight, scale),
+      PgNumeric::Number { digits, sign, weight, scale } => (digits, sign, weight, scale),
     };
     if digits.is_empty() {
       return Ok(0u64.into());
@@ -53,12 +54,8 @@ where
   #[inline]
   fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     if self.is_zero() {
-      let rslt = _PgNumeric::Number {
-        digits: ArrayVector::new(),
-        scale: 0,
-        sign: Sign::Positive,
-        weight: 0,
-      };
+      let rslt =
+        PgNumeric::Number { digits: ArrayVector::new(), scale: 0, sign: Sign::Positive, weight: 0 };
       rslt.encode(aux, ew)?;
       return Ok(());
     }
@@ -87,7 +84,7 @@ where
       let _ = digits.pop();
     }
 
-    let rslt = _PgNumeric::Number {
+    let rslt = PgNumeric::Number {
       digits,
       scale,
       sign: match self.is_sign_negative() {

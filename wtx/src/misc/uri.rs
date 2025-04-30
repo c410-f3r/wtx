@@ -1,6 +1,8 @@
-use crate::misc::{
-  ArrayString, FromRadix10 as _, Lease, LeaseMut, QueryWriter, bytes_pos1, bytes_rpos1,
-  str_split_once1,
+use crate::{
+  collection::ArrayString,
+  misc::{
+    FromRadix10 as _, Lease, LeaseMut, QueryWriter, bytes_pos1, bytes_rpos1, str_split_once1,
+  },
 };
 use alloc::string::String;
 use core::fmt::{Arguments, Debug, Display, Formatter, Write as _};

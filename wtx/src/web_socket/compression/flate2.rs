@@ -48,17 +48,17 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
         for param in bytes_split1(permessage_deflate_option, b';').map(<[u8]>::trim_ascii) {
           if param == b"client_no_context_takeover" || param == b"server_no_context_takeover" {
           } else if param == b"permessage-deflate" {
-            _manage_header_uniqueness(&mut permessage_deflate_flag, || Ok(()))?
+            manage_header_uniqueness(&mut permessage_deflate_flag, || Ok(()))?
           } else if let Some(after_cmwb) = param.strip_prefix(b"client_max_window_bits") {
-            _manage_header_uniqueness(&mut client_max_window_bits_flag, || {
-              if let Some(value) = _byte_from_bytes(after_cmwb) {
+            manage_header_uniqueness(&mut client_max_window_bits_flag, || {
+              if let Some(value) = byte_from_bytes(after_cmwb) {
                 dc.client_max_window_bits = value.try_into()?;
               }
               Ok(())
             })?;
           } else if let Some(after_smwb) = param.strip_prefix(b"server_max_window_bits") {
-            _manage_header_uniqueness(&mut server_max_window_bits_flag, || {
-              if let Some(value) = _byte_from_bytes(after_smwb) {
+            manage_header_uniqueness(&mut server_max_window_bits_flag, || {
+              if let Some(value) = byte_from_bytes(after_smwb) {
                 dc.server_max_window_bits = value.try_into()?;
               }
               Ok(())
@@ -176,7 +176,7 @@ impl NegotiatedCompression for NegotiatedFlate2 {
 }
 
 #[inline]
-fn _byte_from_bytes(bytes: &[u8]) -> Option<u8> {
+fn byte_from_bytes(bytes: &[u8]) -> Option<u8> {
   let after_equals = bytes_split1(bytes, b'=').nth(1)?;
   u8::from_radix_10(after_equals).ok()
 }
@@ -227,7 +227,7 @@ fn compress_or_decompress<NC, O>(
 }
 
 #[inline]
-fn _manage_header_uniqueness(
+fn manage_header_uniqueness(
   flag: &mut bool,
   mut cb: impl FnMut() -> crate::Result<()>,
 ) -> crate::Result<()> {

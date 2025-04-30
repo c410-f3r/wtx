@@ -137,7 +137,7 @@ macro_rules! create_enum {
 #[macro_export]
 macro_rules! vector {
   ($($tt:tt)*) => {
-    $crate::misc::Vector::from_vec(alloc::vec![$($tt)*])
+    $crate::collection::Vector::from_vec(alloc::vec![$($tt)*])
   };
 }
 

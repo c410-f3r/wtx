@@ -1,9 +1,10 @@
 use crate::{
+  collection::{ArrayVector, Vector},
   http::{
     AutoStream, ManualStream, OperationMode, StatusCode, is_web_socket_handshake,
     server_framework::{Endpoint, EndpointNode, RouteMatch, ServerFrameworkError},
   },
-  misc::{ArrayVector, FnFut, Vector},
+  misc::FnFut,
 };
 
 /// Requires a WebSocket tunneling.

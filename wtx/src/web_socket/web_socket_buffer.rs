@@ -1,4 +1,7 @@
-use crate::misc::{Lease, LeaseMut, Vector, net::PartitionedFilledBuffer};
+use crate::{
+  collection::Vector,
+  misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
+};
 
 #[derive(Debug)]
 #[doc = _internal_buffer_doc!()]
@@ -36,7 +39,8 @@ impl WebSocketBuffer {
     })
   }
 
-  pub(crate) fn _clear(&mut self) {
+  #[cfg(feature = "web-socket-handshake")]
+  pub(crate) fn clear(&mut self) {
     let Self { network_buffer, reader_buffer_first, reader_buffer_second, writer_buffer } = self;
     network_buffer._clear();
     reader_buffer_first.clear();

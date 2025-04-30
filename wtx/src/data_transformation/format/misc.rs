@@ -3,7 +3,7 @@ pub(crate) use serde_json::collect_using_serde_json;
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::misc::Vector;
+  use crate::collection::Vector;
   use core::{any::type_name, fmt::Formatter};
   use serde::{
     Deserialize,
@@ -52,7 +52,7 @@ mod serde_json {
   #[cfg(test)]
   mod tests {
     use crate::{
-      data_transformation::format::misc::serde_json::collect_using_serde_json, misc::Vector,
+      collection::Vector, data_transformation::format::misc::serde_json::collect_using_serde_json,
     };
 
     #[derive(Debug, PartialEq, serde::Deserialize)]

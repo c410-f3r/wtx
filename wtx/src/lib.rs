@@ -18,6 +18,7 @@ mod macros;
 pub(crate) mod bench;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
+pub mod collection;
 #[cfg(feature = "data-transformation")]
 pub mod data_transformation;
 #[cfg(feature = "database")]
@@ -32,8 +33,12 @@ pub mod http2;
 pub mod misc;
 #[cfg(feature = "pool")]
 pub mod pool;
+pub mod rng;
+pub mod stream;
+pub mod sync;
 #[cfg(test)]
 mod tests;
+pub mod time;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 

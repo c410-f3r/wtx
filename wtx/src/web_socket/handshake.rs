@@ -19,7 +19,9 @@ macro_rules! check_headers {
 
 use crate::{
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{LeaseMut, Rng, Stream, SuffixWriterFbvm, UriRef, bytes_split1},
+  misc::{LeaseMut, SuffixWriterFbvm, UriRef, bytes_split1},
+  rng::Rng,
+  stream::Stream,
   web_socket::{
     Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer, WebSocketConnector, WebSocketError,
     compression::NegotiatedCompression,
@@ -53,7 +55,7 @@ where
   where
     S: Stream,
   {
-    self.wsb.lease_mut()._clear();
+    self.wsb.lease_mut().clear();
     let nb = &mut self.wsb.lease_mut().network_buffer;
     nb._reserve(MAX_READ_LEN)?;
     let mut read = 0;
@@ -126,7 +128,7 @@ where
   where
     S: Stream,
   {
-    self.wsb.lease_mut()._clear();
+    self.wsb.lease_mut().clear();
     let key_buffer = &mut [0; 26];
     let key = {
       let nb = &mut self.wsb.lease_mut().network_buffer;

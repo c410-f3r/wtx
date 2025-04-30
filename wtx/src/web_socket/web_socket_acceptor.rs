@@ -1,5 +1,5 @@
 use crate::{
-  misc::{Xorshift64, simple_seed},
+  rng::{Xorshift64, simple_seed},
   web_socket::WebSocketBuffer,
 };
 use httparse::Request;

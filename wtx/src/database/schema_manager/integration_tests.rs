@@ -4,6 +4,7 @@ mod generic;
 mod schema;
 
 use crate::{
+  collection::Vector,
   database::{
     Executor, Identifier,
     schema_manager::{
@@ -11,7 +12,7 @@ use crate::{
       doc_tests::{user_migration, user_migration_group},
     },
   },
-  misc::{DEController, Vector},
+  misc::DEController,
 };
 use alloc::string::String;
 use core::fmt::{Debug, Write};
@@ -47,7 +48,7 @@ macro_rules! create_integration_tests {
           let uri = crate::misc::UriRef::new(&uri_string);
           let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
-          let mut rng = crate::misc::Xorshift64::from(crate::misc::simple_seed());
+          let mut rng = crate::rng::Xorshift64::from(crate::rng::simple_seed());
           crate::database::client::mysql::MysqlExecutor::connect(
             &config,
             crate::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),

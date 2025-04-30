@@ -1,4 +1,4 @@
-use crate::misc::{Lease, Vector};
+use crate::{collection::Vector, misc::Lease};
 
 /// Struct used for encoding elements in MySQL.
 #[derive(Debug)]

@@ -1,10 +1,11 @@
 use crate::{
+  collection::Vector,
   http::{Header, StatusCode},
   http2::{
     MAX_HPACK_LEN, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
     hpack_header::HpackHeaderBasic,
   },
-  misc::{Vector, Xorshift64, simple_seed},
+  rng::{Xorshift64, simple_seed},
 };
 use alloc::string::String;
 use core::{fmt::Formatter, marker::PhantomData};

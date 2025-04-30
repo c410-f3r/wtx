@@ -1,10 +1,11 @@
 use crate::{
+  collection::ArrayString,
   database::client::mysql::{
     MysqlError,
     capability::Capability,
     mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
-  misc::{ArrayString, Decode, from_utf8_basic},
+  misc::{Decode, from_utf8_basic},
 };
 use alloc::string::String;
 

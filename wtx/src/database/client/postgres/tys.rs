@@ -54,11 +54,12 @@ mod uuid;
 
 mod array {
   use crate::{
+    collection::ArrayString,
     database::{
       Typed,
       client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
     },
-    misc::{ArrayString, Decode, Encode, from_utf8_basic},
+    misc::{Decode, Encode, from_utf8_basic},
   };
 
   impl<E, const N: usize> Decode<'_, Postgres<E>> for ArrayString<N>
@@ -374,13 +375,15 @@ mod ip {
   test!(ipv6, Ipv6Addr, Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8));
 }
 
+#[cfg(feature = "rust_decimal")]
 mod pg_numeric {
   use crate::{
+    collection::ArrayVector,
     database::{
       DatabaseError,
       client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError},
     },
-    misc::{ArrayVector, Decode, Encode, Usize},
+    misc::{Decode, Encode, Usize},
   };
 
   const _DIGITS_CAP: usize = 64;
@@ -388,12 +391,12 @@ mod pg_numeric {
   const SIGN_NEG: u16 = 0x4000;
   const SIGN_POS: u16 = 0x0000;
 
-  pub(crate) enum _PgNumeric {
+  pub(crate) enum PgNumeric {
     NaN,
     Number { digits: ArrayVector<i16, _DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
   }
 
-  impl<E> Decode<'_, Postgres<E>> for _PgNumeric
+  impl<E> Decode<'_, Postgres<E>> for PgNumeric
   where
     E: From<crate::Error>,
   {
@@ -415,7 +418,7 @@ mod pg_numeric {
       let scale = u16::from_be_bytes([*g, *h]);
       let mut curr_slice = rest;
       Ok(if sign == SIGN_NAN {
-        _PgNumeric::NaN
+        PgNumeric::NaN
       } else {
         if digits_usize > _DIGITS_CAP || digits_usize > 0x7FFF {
           return Err(E::from(PostgresError::VeryLargeDecimal.into()));
@@ -428,7 +431,7 @@ mod pg_numeric {
           *elem = i16::from_be_bytes([*i, *j]);
           curr_slice = local_rest;
         }
-        _PgNumeric::Number {
+        PgNumeric::Number {
           digits: ArrayVector::from_parts(array, Some(digits.into())),
           scale,
           sign: Sign::try_from(sign)?,
@@ -437,20 +440,20 @@ mod pg_numeric {
       })
     }
   }
-  impl<E> Encode<Postgres<E>> for _PgNumeric
+  impl<E> Encode<Postgres<E>> for PgNumeric
   where
     E: From<crate::Error>,
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
       match self {
-        _PgNumeric::NaN => {
+        PgNumeric::NaN => {
           ew.buffer().extend_from_slice(&0i16.to_be_bytes())?;
           ew.buffer().extend_from_slice(&0i16.to_be_bytes())?;
           ew.buffer().extend_from_slice(&SIGN_NAN.to_be_bytes())?;
           ew.buffer().extend_from_slice(&0u16.to_be_bytes())?;
         }
-        _PgNumeric::Number { digits, scale, sign, weight } => {
+        PgNumeric::Number { digits, scale, sign, weight } => {
           let len: i16 = digits.len().try_into().map_err(Into::into)?;
           ew.buffer().extend_from_slice(&len.to_be_bytes())?;
           ew.buffer().extend_from_slice(&weight.to_be_bytes())?;

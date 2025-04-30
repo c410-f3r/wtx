@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   database::{
     Executor, Identifier,
     schema_manager::{
@@ -6,7 +7,7 @@ use crate::{
       integration_tests::AuxTestParams,
     },
   },
-  misc::{DEController, Vector},
+  misc::DEController,
 };
 use alloc::string::String;
 use core::fmt::Debug;

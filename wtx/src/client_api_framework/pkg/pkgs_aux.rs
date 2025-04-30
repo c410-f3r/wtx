@@ -1,9 +1,9 @@
 use crate::{
+  collection::Vector,
   data_transformation::{
     Id,
     format::{JsonRpcRequest, VerbatimRequest},
   },
-  misc::Vector,
 };
 
 /// # Packages Auxiliary

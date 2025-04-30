@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   database::{
     Identifier,
     schema_manager::{
@@ -6,7 +7,6 @@ use crate::{
       integration_tests::{_migrate_doc_test, AuxTestParams},
     },
   },
-  misc::Vector,
 };
 use alloc::string::String;
 use chrono::{DateTime, Duration, FixedOffset, Utc};

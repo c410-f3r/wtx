@@ -1,10 +1,11 @@
 use crate::{
+  collection::Vector,
   data_transformation::{
     dnsn::{De, DecodeWrapper},
     format::{VerbatimRequest, VerbatimResponse},
   },
   grpc::{GrpcStatusCode, serialize},
-  misc::{Decode, Encode, Vector},
+  misc::{Decode, Encode},
 };
 
 /// Responsible for managing internal structures that interact with gRPC.
