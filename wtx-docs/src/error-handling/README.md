@@ -9,20 +9,21 @@ extern crate wtx;
 
 use wtx::misc::FromRadix10;
 
+#[derive(Debug)]
 pub enum Error {
     MyDogAteMyHomework,
     RanOutOfCoffee,
     Wtx(wtx::Error)
 }
 
-impl From<wtx::Error> for MyCustomErrors {
+impl From<wtx::Error> for Error {
     fn from(from: wtx::Error) -> Self {
         Self::Wtx(from)
     }
 }
 
 fn main() -> Result<(), Error> {
-    let _u16_from_bytes = u16::from_radix_10(&[1, 2][..])?;
+    let _u16_from_bytes = u16::from_radix_10(&[49][..])?;
     let _u16_from_i8 = u16::try_from(1i8).map_err(wtx::Error::from)?;
     Ok(())
 }
