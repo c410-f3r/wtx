@@ -26,7 +26,6 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  #[inline]
   pub(crate) async fn write_send_await_stmt_prot<'stmts, SC>(
     (capabilities, sequence_id): (&mut u64, &mut u8),
     encode_buffer: &mut Vector<u8>,
@@ -104,7 +103,6 @@ where
   }
 }
 
-#[inline]
 fn dummy() -> (Column, TyParams) {
   (
     Column { name: ArrayString::new(), ty_params: TyParams { flags: 0, ty: Ty::Bit } },

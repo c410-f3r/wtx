@@ -22,6 +22,7 @@ async fn custom_composite_type() {
   struct CustomCompositeType(u32, String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
+    #[inline]
     fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
       let mut sd = StructDecoder::<crate::Error>::new(dw);
       Ok(Self(sd.decode()?, sd.decode()?))
@@ -29,6 +30,7 @@ async fn custom_composite_type() {
   }
 
   impl Encode<Postgres<crate::Error>> for CustomCompositeType {
+    #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
       let _ev = StructEncoder::<crate::Error>::new(ew)?
         .encode(self.0)?
@@ -83,12 +85,14 @@ async fn custom_domain() {
   struct CustomDomain(String);
 
   impl Decode<'_, Postgres<crate::Error>> for CustomDomain {
+    #[inline]
     fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
       Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(aux, dw)?))
     }
   }
 
   impl Encode<Postgres<crate::Error>> for CustomDomain {
+    #[inline]
     fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
       <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, aux, ew)?;
       Ok(())
@@ -141,6 +145,7 @@ async fn custom_enum() {
   }
 
   impl Decode<'_, Postgres<crate::Error>> for Enum {
+    #[inline]
     fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
       let s = <&str as Decode<Postgres<crate::Error>>>::decode(aux, dw)?;
       Ok(match s {
@@ -153,6 +158,7 @@ async fn custom_enum() {
   }
 
   impl Encode<Postgres<crate::Error>> for Enum {
+    #[inline]
     fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
       let s = match self {
         Enum::Foo => "foo",
@@ -206,6 +212,7 @@ async fn custom_error() {
   }
 
   impl From<crate::Error> for CustomError {
+    #[inline]
     fn from(from: crate::Error) -> Self {
       Self::Wtx { _err: from }
     }

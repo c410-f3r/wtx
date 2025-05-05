@@ -14,7 +14,6 @@ pub(crate) struct CommonRecord<'exec, A, C, D, T> {
 }
 
 impl<'exec, A, C, D, T> CommonRecord<'exec, A, C, D, T> {
-  #[inline]
   pub(crate) fn new(
     record: &'exec [u8],
     stmt: Statement<'exec, A, C, T>,
@@ -28,8 +27,7 @@ impl<'exec, A, C, D, T> ValueIdent<CommonRecord<'exec, A, C, D, T>> for str
 where
   C: Lease<str>,
 {
-  #[inline]
   fn idx(&self, input: &CommonRecord<'exec, A, C, D, T>) -> Option<usize> {
-    input.stmt._columns().position(|column| column.lease() == self)
+    input.stmt.columns().position(|column| column.lease() == self)
   }
 }

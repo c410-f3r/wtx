@@ -11,7 +11,6 @@ use crate::{
   },
 };
 
-#[inline]
 pub(crate) fn manage_compression<NC, P, const IS_CLIENT: bool>(
   frame: &mut Frame<P, IS_CLIENT>,
   nc: &NC,
@@ -32,7 +31,6 @@ where
   should_compress
 }
 
-#[inline]
 pub(crate) fn manage_frame_compression<'cb, NC, P, R, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   nc: &mut NC,
@@ -54,7 +52,6 @@ where
   Ok(compressed_frame)
 }
 
-#[inline]
 pub(crate) fn manage_normal_frame<P, R, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
@@ -70,7 +67,6 @@ pub(crate) fn manage_normal_frame<P, R, const IS_CLIENT: bool>(
   mask_frame(frame, no_masking, rng);
 }
 
-#[inline]
 pub(crate) async fn write_frame<NC, P, R, SW, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   frame: &mut Frame<P, IS_CLIENT>,
@@ -97,7 +93,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn compress_frame<'cb, P, NC, const IS_CLIENT: bool>(
   frame: &mut Frame<P, IS_CLIENT>,
   nc: &mut NC,
@@ -132,7 +127,6 @@ where
   ))
 }
 
-#[inline]
 fn mask_frame<P, R, const IS_CLIENT: bool>(
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,

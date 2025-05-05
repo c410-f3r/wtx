@@ -76,7 +76,6 @@ where
   }
 }
 
-#[inline]
 fn server_version_array(bytes: &[u8]) -> [u16; 3] {
   let mut iter = bytes_split1(bytes, b'.');
   let major = iter.next().and_then(|el| FromRadix10::from_radix_10(el).ok()).unwrap_or_default();

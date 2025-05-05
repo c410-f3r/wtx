@@ -54,7 +54,6 @@ pub trait Stream: StreamReader + StreamWriter {}
 impl<T> Stream for T where T: StreamReader + StreamWriter {}
 
 #[cfg(feature = "std")]
-#[inline]
 fn convert_to_io_slices<'buffer, 'bytes>(
   buffer: &'buffer mut [::std::io::IoSlice<'bytes>; 8],
   elems: &[&'bytes [u8]],

@@ -19,7 +19,6 @@ pub struct SessionManagerBuilder {
 }
 
 impl SessionManagerBuilder {
-  #[inline]
   pub(crate) const fn new() -> Self {
     Self {
       cookie_def: CookieGeneric {

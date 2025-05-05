@@ -18,6 +18,7 @@ mod decode;
 mod either;
 mod encode;
 mod enum_var_strings;
+#[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
 mod filled_buffer;
 mod fn_fut;
 mod from_radix_10;
@@ -52,6 +53,12 @@ pub use decode::{Decode, DecodeSeq};
 pub use either::Either;
 pub use encode::Encode;
 pub use enum_var_strings::EnumVarStrings;
+#[cfg(any(
+  feature = "http2",
+  feature = "mysql",
+  feature = "postgres",
+  feature = "web-socket"
+))]
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::*;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
@@ -66,7 +73,7 @@ pub use query_writer::QueryWriter;
 pub use ref_counter::RefCounter;
 pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
-pub use suffix_writer::{SuffixWriter, SuffixWriterFbvm, SuffixWriterMut};
+pub use suffix_writer::*;
 pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
@@ -74,7 +81,6 @@ pub use wrapper::Wrapper;
 
 /// Hashes a password using the `argon2` algorithm.
 #[cfg(feature = "argon2")]
-#[inline]
 pub fn argon2_pwd<const N: usize>(
   blocks: &mut crate::collection::Vector<argon2::Block>,
   pwd: &[u8],
@@ -106,15 +112,14 @@ pub fn argon2_pwd<const N: usize>(
 
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [`core::result::Result`] context.
-#[inline]
 #[track_caller]
+#[inline]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
   opt.ok_or(crate::Error::NoInnerValue(type_name::<T>()))
 }
 
 /// Similar to `collect_seq` of `serde` but expects a `Result`.
 #[cfg(feature = "serde")]
-#[inline]
 pub fn serde_collect_seq_rslt<E, I, S, T>(ser: S, into_iter: I) -> Result<S::Ok, S::Error>
 where
   E: core::fmt::Display,
@@ -122,7 +127,6 @@ where
   S: serde::Serializer,
   T: serde::Serialize,
 {
-  #[inline]
   fn conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
     match size_hint {
       (lo, Some(hi)) if lo == hi => Some(lo),
@@ -163,7 +167,6 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
 
 /// A tracing register with optioned parameters.
 #[cfg(feature = "_tracing-tree")]
-#[inline]
 pub fn tracing_tree_init(
   fallback_opt: Option<&str>,
 ) -> Result<(), tracing_subscriber::util::TryInitError> {
@@ -191,9 +194,7 @@ pub fn tracing_tree_init(
 }
 
 #[expect(clippy::cast_possible_truncation, reason = "`match` correctly handles truncations")]
-#[inline]
 pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
-  #[inline]
   const fn shift(number: u32, len: u8) -> u8 {
     (number >> len) as u8
   }
@@ -236,7 +237,6 @@ pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
 }
 
 #[cfg(all(feature = "foldhash", any(feature = "http2", feature = "mysql", feature = "postgres")))]
-#[inline]
 pub(crate) fn random_state<RNG>(rng: &mut RNG) -> foldhash::fast::FixedState
 where
   RNG: crate::rng::Rng,
@@ -246,7 +246,6 @@ where
 }
 
 #[cfg(feature = "postgres")]
-#[inline]
 pub(crate) fn usize_range_from_u32_range(range: core::ops::Range<u32>) -> core::ops::Range<usize> {
   *Usize::from(range.start)..*Usize::from(range.end)
 }

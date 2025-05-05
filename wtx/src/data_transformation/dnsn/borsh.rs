@@ -26,8 +26,8 @@ mod tests {
     Borsh as Borsh,
     ([3, 0, 0, 0, 102, 111, 111][..].into(), [3, 0, 0, 0, 98, 97, 114][..].into()),
     (
-      VerbatimRequest { data: Foo { foo: "foo" } },
-      VerbatimResponse { data: Bar { bar: "bar".into() } }
+      VerbatimRequest { data: _Foo { foo: "foo" } },
+      VerbatimResponse { data: _Bar { bar: "bar".into() } }
     ),
   );
 }

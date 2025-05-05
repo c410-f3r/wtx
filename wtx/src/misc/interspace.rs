@@ -4,18 +4,17 @@ use core::iter::{Fuse, FusedIterator};
 
 /// An iterator adapter that places a separator between all elements.
 #[derive(Clone, Debug)]
-pub struct Intersperse<I>
+pub struct Intersperse<I, S>
 where
   I: Iterator,
-  I::Item: Clone,
 {
   started: bool,
-  separator: I::Item,
+  separator: S,
   next_item: Option<I::Item>,
   iter: Fuse<I>,
 }
 
-impl<I> Intersperse<I>
+impl<I, S> Intersperse<I, S>
 where
   I: Iterator,
   I::Item: Clone,
@@ -23,22 +22,22 @@ where
   /// Creates a new iterator which places a copy of separator between adjacent items of
   /// the original iterator.
   #[inline]
-  pub fn new(iter: I, separator: I::Item) -> Self {
-    Self { started: false, separator, next_item: None, iter: iter.fuse() }
+  pub fn new(iter: impl IntoIterator<IntoIter = I>, separator: S) -> Self {
+    Self { started: false, separator, next_item: None, iter: iter.into_iter().fuse() }
   }
 }
 
-impl<I> FusedIterator for Intersperse<I>
+impl<I, S> FusedIterator for Intersperse<I, S>
 where
   I: FusedIterator,
-  I::Item: Clone,
+  S: FnMut() -> I::Item,
 {
 }
 
-impl<I> Iterator for Intersperse<I>
+impl<I, S> Iterator for Intersperse<I, S>
 where
   I: Iterator,
-  I::Item: Clone,
+  S: FnMut() -> I::Item,
 {
   type Item = I::Item;
 
@@ -48,8 +47,7 @@ where
     Self: Sized,
     F: FnMut(B, Self::Item) -> B,
   {
-    let separator = self.separator;
-    intersperse_fold(self.iter, init, f, move || separator.clone(), self.started, self.next_item)
+    intersperse_fold(self.iter, init, f, self.separator, self.started, self.next_item)
   }
 
   #[inline]
@@ -61,7 +59,7 @@ where
         let next_item = self.iter.next();
         next_item.is_some().then(|| {
           self.next_item = next_item;
-          self.separator.clone()
+          (self.separator)()
         })
       }
     } else {
@@ -76,19 +74,18 @@ where
   }
 }
 
-#[inline]
-fn intersperse_fold<I, B, F, G>(
+fn intersperse_fold<I, B, F, S>(
   mut iter: I,
   init: B,
   mut f: F,
-  mut separator: G,
+  mut separator: S,
   started: bool,
   mut next_item: Option<I::Item>,
 ) -> B
 where
   I: Iterator,
   F: FnMut(B, I::Item) -> B,
-  G: FnMut() -> I::Item,
+  S: FnMut() -> I::Item,
 {
   let mut accum = init;
 
@@ -104,7 +101,6 @@ where
   })
 }
 
-#[inline]
 fn intersperse_size_hint<I>(iter: &I, started: bool, next_is_some: bool) -> (usize, Option<usize>)
 where
   I: Iterator,
@@ -116,4 +112,17 @@ where
       elem.saturating_sub((!started).into()).saturating_add(next_is_some.into()).checked_add(elem)
     }),
   )
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{collection::Vector, misc::Intersperse};
+
+  #[test]
+  fn interspace() {
+    assert_eq!(
+      Vector::from_iter(Intersperse::new(['0', '1', '2'], || ',')).unwrap().as_slice(),
+      &['0', ',', '1', ',', '2']
+    );
+  }
 }

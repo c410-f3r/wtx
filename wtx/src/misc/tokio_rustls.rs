@@ -77,12 +77,10 @@ impl TokioRustlsConnector {
     Ok(self)
   }
 
-  #[inline]
   fn server_name(hostname: &str) -> crate::Result<ServerName<'static>> {
     Ok(ServerName::try_from(String::from(hostname)).map_err(invalid_input_err)?)
   }
 
-  #[inline]
   fn tls_connector(
     self,
     cb: impl FnOnce(ConfigBuilder<ClientConfig, WantsClientCert>) -> ClientConfig,
@@ -143,7 +141,6 @@ impl TokioRustlsAcceptor {
   }
 }
 
-#[inline]
 fn invalid_input_err<E>(err: E) -> std::io::Error
 where
   E: Into<Box<dyn core::error::Error + Send + Sync>>,

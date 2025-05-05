@@ -69,13 +69,11 @@ pub struct DbError {
 
 impl DbError {
   /// The SQLSTATE code for the error
-  #[inline]
   pub fn code(&self) -> &SqlState {
     &self.code
   }
 
   /// If the error was associated with a specific table column, the name of the column.
-  #[inline]
   pub fn column(&self) -> Option<&str> {
     self
       .column
@@ -84,7 +82,6 @@ impl DbError {
   }
 
   /// If the error was associated with a specific constraint, the name of the constraint.
-  #[inline]
   pub fn constraint(&self) -> Option<&str> {
     self
       .constraint
@@ -93,7 +90,6 @@ impl DbError {
   }
 
   /// If the error was associated with a specific data type, the name of the data type.
-  #[inline]
   pub fn datatype(&self) -> Option<&str> {
     self
       .datatype
@@ -103,7 +99,6 @@ impl DbError {
 
   /// An optional secondary error message carrying more detail about the problem. Might run to
   /// multiple lines.
-  #[inline]
   pub fn detail(&self) -> Option<&str> {
     self
       .detail
@@ -112,38 +107,32 @@ impl DbError {
   }
 
   /// The file name of the source-code location where the error was reported.
-  #[inline]
   pub fn file(&self) -> Option<&str> {
     self.file.as_ref().and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// An optional suggestion what to do about the problem.
-  #[inline]
   pub fn hint(&self) -> Option<&str> {
     self.hint.as_ref().and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// The line number of the source-code location where the error was reported.
-  #[inline]
   pub fn line(&self) -> Option<u32> {
     self.line
   }
 
   /// The primary human-readable error message.
-  #[inline]
   pub fn message(&self) -> &str {
     self.buffer.get(usize_range_from_u32_range(self.message.clone())).unwrap_or_default()
   }
 
   /// The field value is a decimal ASCII integer, indicating an error cursor position as an index
   /// into the original query string.
-  #[inline]
   pub fn position(&self) -> Option<&ErrorPosition> {
     self.position.as_ref()
   }
 
   /// The name of the source-code routine reporting the error.
-  #[inline]
   pub fn routine(&self) -> Option<&str> {
     self
       .routine
@@ -153,7 +142,6 @@ impl DbError {
 
   /// If the error was associated with a specific database object, the name of the schema
   /// containing that object, if any.
-  #[inline]
   pub fn scheme(&self) -> Option<&str> {
     self
       .scheme
@@ -162,26 +150,22 @@ impl DbError {
   }
 
   /// Localized severity.
-  #[inline]
   pub fn severity_localized(&self) -> &str {
     self.buffer.get(usize_range_from_u32_range(self.severity_localized.clone())).unwrap_or_default()
   }
 
   /// Nonlocalized `severity`.
-  #[inline]
   pub fn severity_nonlocalized(&self) -> Option<Severity> {
     self.severity_nonlocalized
   }
 
   /// If the error was associated with a specific table, the name of the table.
-  #[inline]
   pub fn table(&self) -> Option<&str> {
     self.table.as_ref().and_then(|range| self.buffer.get(usize_range_from_u32_range(range.clone())))
   }
 
   /// An indication of the context in which the error occurred. Presently this includes a call
   /// stack traceback of active procedural language functions and internally-generated queries.
-  #[inline]
   pub fn r#where(&self) -> Option<&str> {
     self
       .r#where

@@ -96,6 +96,7 @@ impl DataFormat {
 impl<'attrs> TryFrom<&'attrs NestedMeta> for DataFormat {
   type Error = crate::Error;
 
+  #[inline]
   fn try_from(from: &'attrs NestedMeta) -> Result<Self, Self::Error> {
     macro_rules! first_path_seg_ident {
       ($path:expr) => {

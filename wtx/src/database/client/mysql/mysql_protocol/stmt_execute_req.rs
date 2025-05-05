@@ -44,7 +44,7 @@ where
         Ok(())
       })?;
       ew.encode_buffer.push(1)?;
-      for ty in self.stmt._tys() {
+      for ty in self.stmt.tys() {
         let unsigned = u16::from(Flag::Unsigned);
         let value = if ty.flags & unsigned == unsigned { 128 } else { 0 };
         ew.encode_buffer.extend_from_copyable_slice(&[u8::from(ty.ty), value])?;

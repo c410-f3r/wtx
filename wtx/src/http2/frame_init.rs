@@ -15,7 +15,6 @@ create_enum! {
 }
 
 impl FrameInitTy {
-  #[inline]
   pub(crate) const fn byte(self) -> u8 {
     match self {
       Self::Data => 0,
@@ -39,12 +38,10 @@ pub(crate) struct FrameInit {
 }
 
 impl FrameInit {
-  #[inline]
   pub(crate) const fn new(cf: CommonFlags, data_len: u32, stream_id: U31, ty: FrameInitTy) -> Self {
     Self { cf, data_len, stream_id, ty }
   }
 
-  #[inline]
   pub(crate) fn from_array(bytes: [u8; 9]) -> (Option<Self>, u32) {
     let [a, b, c, d, e, f, g, h, i] = bytes;
     let data_len = u32::from_be_bytes([0, a, b, c]);
@@ -59,7 +56,6 @@ impl FrameInit {
     )
   }
 
-  #[inline]
   pub(crate) const fn bytes(&self) -> [u8; 9] {
     let [_, a, b, c] = self.data_len.to_be_bytes();
     let [e, f, g, h] = self.stream_id.to_be_bytes();

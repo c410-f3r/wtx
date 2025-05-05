@@ -49,7 +49,6 @@ impl AsciiSet {
     Self { mask }
   }
 
-  #[inline]
   fn contains(self, byte: u8) -> bool {
     let byte_usize = usize::from(byte);
     let idx = byte_usize / BITS_PER_CHUNK;
@@ -58,7 +57,6 @@ impl AsciiSet {
     (chunk & mask) != 0
   }
 
-  #[inline]
   fn should_percent_encode(self, byte: u8) -> bool {
     !byte.is_ascii() || self.contains(byte)
   }
@@ -156,7 +154,6 @@ impl<'bytes> PercentDecode<'bytes> {
   }
 }
 
-#[inline]
 fn manage_percent_char(bytes: &mut &[u8]) -> Option<u8> {
   let [a, b, rest @ ..] = bytes else {
     return None;
@@ -167,7 +164,6 @@ fn manage_percent_char(bytes: &mut &[u8]) -> Option<u8> {
   Some(c.wrapping_mul(16).wrapping_add(d))
 }
 
-#[inline]
 fn percent_encode_str(byte: u8) -> &'static str {
   static TABLE: &[u8; 768] = b"\
     %00%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F\

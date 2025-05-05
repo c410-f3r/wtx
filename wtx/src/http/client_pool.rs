@@ -27,6 +27,7 @@ pub use tokio::ClientPoolTokio;
 #[cfg(feature = "tokio-rustls")]
 pub use tokio_rustls::ClientPoolTokioRustls;
 
+#[cfg(feature = "tokio")]
 type NoAuxFn = fn(&());
 
 /// An optioned pool of different HTTP connections lazily constructed from different URIs.
@@ -57,7 +58,7 @@ where
   pub async fn close_all(&self) {
     self
       .pool
-      ._into_for_each(|elem| async move {
+      .into_for_each(|elem| async move {
         elem.client.send_go_away(Http2ErrorCode::NoError).await;
       })
       .await;
@@ -97,7 +98,7 @@ mod tokio {
     /// Connection is established using the elements provided by the `tokio` project.
     #[inline]
     pub fn tokio(len: usize) -> Self {
-      Self::_no_fun(len)
+      Self::no_fun(len)
     }
   }
 
@@ -136,7 +137,7 @@ mod tokio {
     ) -> Result<(), Self::Error> {
       let uri = UriRef::new(ra);
       let mut buffer = Http2Buffer::default();
-      resource.client._swap_buffers(&mut buffer).await;
+      resource.client.swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         buffer,
         self._cp._to_hp(),
@@ -171,9 +172,8 @@ mod tokio_rustls {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio-rustls` project.
-    #[inline]
     pub fn tokio_rustls(len: usize) -> Self {
-      Self::_no_fun(len)
+      Self::no_fun(len)
     }
   }
 
@@ -220,7 +220,7 @@ mod tokio_rustls {
     ) -> Result<(), Self::Error> {
       let uri = UriRef::new(ra);
       let mut buffer = Http2Buffer::default();
-      resource.client._swap_buffers(&mut buffer).await;
+      resource.client.swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2Tokio::connect(
         Http2Buffer::default(),
         self._cp._to_hp(),

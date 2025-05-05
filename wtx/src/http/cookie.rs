@@ -20,7 +20,6 @@ static FMT3: &str = "%a %b %e %H:%M:%S %Y";
 static FMT4: &str = "%a, %d-%b-%Y %H:%M:%S GMT";
 
 #[cfg(feature = "http-cookie-secure")]
-#[inline]
 pub(crate) fn decrypt<'buffer>(
   buffer: &'buffer mut Vector<u8>,
   secret: &[u8; 32],
@@ -63,7 +62,6 @@ pub(crate) fn decrypt<'buffer>(
 }
 
 #[cfg(feature = "http-cookie-secure")]
-#[inline]
 pub(crate) fn encrypt<RNG>(
   buffer: &mut Vector<u8>,
   secret: &[u8; 32],
@@ -139,7 +137,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVector<u8, 12>, slice: &str) {
   buffer.clear();
   let sub_slice = slice.get(..slice.len().min(UPPER_BOUND)).unwrap_or_default();

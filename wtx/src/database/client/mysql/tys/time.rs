@@ -4,45 +4,11 @@ use crate::{
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, ty_params::TyParams},
   },
   misc::{Decode, Encode, Usize},
+  time::{Date, DateTime, Time},
 };
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike, Utc};
 use core::any::type_name;
 
-impl<E> Decode<'_, Mysql<E>> for DateTime<Utc>
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
-    let naive = <NaiveDateTime as Decode<Mysql<E>>>::decode(aux, dw)?;
-    Ok(Utc.from_utc_datetime(&naive))
-  }
-}
-impl<E> Encode<Mysql<E>> for DateTime<Utc>
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-    Encode::<Mysql<E>>::encode(&self.naive_utc(), aux, ew)
-  }
-}
-impl<E> Typed<Mysql<E>> for DateTime<Utc>
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn runtime_ty(&self) -> Option<TyParams> {
-    <Self as Typed<Mysql<E>>>::static_ty()
-  }
-
-  #[inline]
-  fn static_ty() -> Option<TyParams> {
-    Some(TyParams::binary(Ty::Timestamp))
-  }
-}
-
-impl<E> Decode<'_, Mysql<E>> for NaiveDate
+impl<E> Decode<'_, Mysql<E>> for Date
 where
   E: From<crate::Error>,
 {
@@ -51,7 +17,7 @@ where
     date_decode(dw).map(|el| el.1).map_err(E::from)
   }
 }
-impl<E> Encode<Mysql<E>> for NaiveDate
+impl<E> Encode<Mysql<E>> for Date
 where
   E: From<crate::Error>,
 {
@@ -60,7 +26,7 @@ where
     date_encode(self, ew, 4).map_err(E::from)
   }
 }
-impl<E> Typed<Mysql<E>> for NaiveDate
+impl<E> Typed<Mysql<E>> for Date
 where
   E: From<crate::Error>,
 {
@@ -75,7 +41,7 @@ where
   }
 }
 
-impl<E> Decode<'_, Mysql<E>> for NaiveDateTime
+impl<E> Decode<'_, Mysql<E>> for DateTime
 where
   E: From<crate::Error>,
 {
@@ -83,19 +49,19 @@ where
   fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
     let (len, date, bytes) = date_decode(dw).map_err(E::from)?;
     Ok(if len > 4 {
-      date.and_time(time_decode(bytes)?)
+      Self::new(date, time_decode(bytes)?)
     } else {
-      date.and_time(NaiveTime::default())
+      Self::new(date, Time::default())
     })
   }
 }
-impl<E> Encode<Mysql<E>> for NaiveDateTime
+impl<E> Encode<Mysql<E>> for DateTime
 where
   E: From<crate::Error>,
 {
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-    let len = date_len(self);
+    let len = date_len(&self.time());
     date_encode(&self.date(), ew, len)?;
     if len > 4 {
       time_encode(&self.time(), len > 7, ew)?;
@@ -103,7 +69,7 @@ where
     Ok(())
   }
 }
-impl<E> Typed<Mysql<E>> for NaiveDateTime
+impl<E> Typed<Mysql<E>> for DateTime
 where
   E: From<crate::Error>,
 {
@@ -118,7 +84,7 @@ where
   }
 }
 
-fn date_decode<'de>(dw: &mut DecodeWrapper<'de>) -> crate::Result<(u8, NaiveDate, &'de [u8])> {
+fn date_decode<'de>(dw: &mut DecodeWrapper<'de>) -> crate::Result<(u8, Date, &'de [u8])> {
   let [len, year_a, year_b, month, day, rest @ ..] = dw.bytes() else {
     return Err(
       DatabaseError::UnexpectedBufferSize {
@@ -129,37 +95,33 @@ fn date_decode<'de>(dw: &mut DecodeWrapper<'de>) -> crate::Result<(u8, NaiveDate
     );
   };
   let year = i16::from_le_bytes([*year_a, *year_b]);
-  let date =
-    NaiveDate::from_ymd_opt(year.into(), (*month).into(), (*day).into()).ok_or_else(|| {
-      DatabaseError::UnexpectedValueFromBytes { expected: type_name::<NaiveDate>() }
-    })?;
+  let date = Date::from_ymd(year.try_into()?, (*month).try_into()?, (*day).try_into()?)?;
   Ok((*len, date, rest))
 }
 
-fn date_encode(date: &NaiveDate, ew: &mut EncodeWrapper<'_>, len: u8) -> crate::Result<()> {
-  let year = u16::try_from(date.year()).map_err(|_err| {
-    DatabaseError::UnexpectedValueFromBytes { expected: type_name::<NaiveDate>() }
-  })?;
+fn date_encode(date: &Date, ew: &mut EncodeWrapper<'_>, len: u8) -> crate::Result<()> {
+  let year = u16::try_from(date.year().num())
+    .map_err(|_err| DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Date>() })?;
   let [year_a, year_b] = year.to_le_bytes();
   ew.buffer().extend_from_copyable_slice(&[
     len,
     year_a,
     year_b,
-    date.month().try_into().unwrap_or_default(),
-    date.day().try_into().unwrap_or_default(),
+    date.month().num(),
+    date.day().num(),
   ])?;
   Ok(())
 }
 
-fn date_len(time: &NaiveDateTime) -> u8 {
-  match (time.hour(), time.minute(), time.second(), time.and_utc().timestamp_subsec_nanos()) {
+fn date_len(time: &Time) -> u8 {
+  match (time.hour().num(), time.minute().num(), time.second().num(), time.nanosecond().num()) {
     (0, 0, 0, 0) => 4,
     (_, _, _, 0) => 7,
     (_, _, _, _) => 11,
   }
 }
 
-fn time_decode(bytes: &[u8]) -> crate::Result<NaiveTime> {
+fn time_decode(bytes: &[u8]) -> crate::Result<Time> {
   let (hours, minutes, seconds, micros) = if let [hours, minutes, seconds, a, b, c, d] = bytes {
     (*hours, *minutes, *seconds, u32::from_le_bytes([*a, *b, *c, *d]))
   } else if let [hours, minutes, seconds] = bytes {
@@ -173,21 +135,20 @@ fn time_decode(bytes: &[u8]) -> crate::Result<NaiveTime> {
       .into(),
     );
   };
-  NaiveTime::from_hms_micro_opt(hours.into(), minutes.into(), seconds.into(), micros).ok_or_else(
-    || DatabaseError::UnexpectedValueFromBytes { expected: type_name::<NaiveTime>() }.into(),
-  )
+  Ok(Time::from_hms_us(
+    hours.try_into()?,
+    minutes.try_into()?,
+    seconds.try_into()?,
+    micros.try_into()?,
+  ))
 }
 
-fn time_encode(
-  time: &NaiveTime,
-  include_micros: bool,
-  ew: &mut EncodeWrapper<'_>,
-) -> crate::Result<()> {
-  let hour = time.hour().try_into().unwrap_or_default();
-  let minute = time.minute().try_into().unwrap_or_default();
-  let second = time.second().try_into().unwrap_or_default();
+fn time_encode(time: &Time, include_micros: bool, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+  let hour = time.hour().num();
+  let minute = time.minute().num();
+  let second = time.second().num();
   if include_micros {
-    let [a, b, c, d] = (time.nanosecond() / 1000).to_le_bytes();
+    let [a, b, c, d] = (time.nanosecond().num() / 1000).to_le_bytes();
     ew.buffer().extend_from_copyable_slice(&[hour, minute, second, a, b, c, d])?;
   } else {
     ew.buffer().extend_from_copyable_slice(&[hour, minute, second])?;
@@ -195,4 +156,4 @@ fn time_encode(
   Ok(())
 }
 
-test!(datetime_utc, DateTime<Utc>, "2025-02-27T16:26:06.438497Z".parse().unwrap());
+test!(datetime_utc, DateTime, DateTime::EPOCH);

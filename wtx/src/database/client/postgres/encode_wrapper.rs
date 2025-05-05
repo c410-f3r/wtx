@@ -7,13 +7,11 @@ pub struct EncodeWrapper<'buffer, 'tmp> {
 }
 
 impl<'buffer, 'tmp> EncodeWrapper<'buffer, 'tmp> {
-  #[inline]
   pub(crate) fn new(buffer: &'tmp mut SuffixWriterFbvm<'buffer>) -> Self {
     Self { buffer }
   }
 
   /// Buffer used to encode messages that will be sent to PostgreSQL.
-  #[inline]
   pub fn buffer(&mut self) -> &mut SuffixWriterFbvm<'buffer> {
     self.buffer
   }
@@ -22,6 +20,6 @@ impl<'buffer, 'tmp> EncodeWrapper<'buffer, 'tmp> {
 impl Lease<[u8]> for EncodeWrapper<'_, '_> {
   #[inline]
   fn lease(&self) -> &[u8] {
-    self.buffer._curr_bytes()
+    self.buffer.curr_bytes()
   }
 }

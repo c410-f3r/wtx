@@ -53,7 +53,6 @@ use core::{
   task::{Poll, Waker},
 };
 
-#[inline]
 pub(crate) fn encode_headers<const IS_CLIENT: bool>(
   headers: &Headers,
   (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
@@ -88,7 +87,6 @@ pub(crate) fn encode_headers<const IS_CLIENT: bool>(
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn send_msg<HB, HD, SW, const IS_CLIENT: bool>(
   mut data_bytes: &[u8],
   hd: &HD,
@@ -147,7 +145,6 @@ where
 }
 
 /// Tries to send up two data frames in a single round trip. If exhausted, returns `true`.
-#[inline]
 pub(crate) async fn write_standalone_data<'bytes, B, SW, const IS_SCATTERED: bool>(
   available_send: u32,
   data: &mut SendDataMode<B, IS_SCATTERED>,
@@ -164,7 +161,6 @@ where
   B: SendDataModeBytes<'bytes, IS_SCATTERED>,
   SW: StreamWriter,
 {
-  #[inline]
   fn should_stop(
     data: &[u8],
     frame: &mut DataFrame,
@@ -251,7 +247,6 @@ where
 }
 
 // Tries to send all initial headers
-#[inline]
 pub(crate) async fn write_standalone_headers<SW, const IS_CLIENT: bool>(
   hpack_enc_buffer: &mut Vector<u8>,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
@@ -285,7 +280,6 @@ where
 }
 
 /// Tries to send all trailer headers
-#[inline]
 pub(crate) async fn write_standalone_trailers<SW>(
   headers: &Headers,
   (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
@@ -319,25 +313,21 @@ where
   Ok(())
 }
 
-#[inline]
 fn change_final_stream_state<const IS_CLIENT: bool>(stream_state: &mut StreamState) {
   *stream_state = if IS_CLIENT { StreamState::HalfClosedLocal } else { StreamState::Closed };
 }
 
-#[inline]
 fn change_initial_stream_state<const IS_CLIENT: bool>(stream_state: &mut StreamState) {
   if IS_CLIENT {
     *stream_state = StreamState::Open;
   }
 }
 
-#[inline]
 fn data_frame_len(bytes_len: usize) -> u32 {
   u32::try_from(bytes_len).unwrap_or_default()
 }
 
 // Tries to at least send initial headers when the windows size does not allow sending data frames
-#[inline]
 async fn do_send_msg<SW, const IS_CLIENT: bool>(
   data_bytes: &mut &[u8],
   (has_headers, has_data): (&mut bool, &mut bool),
@@ -442,7 +432,6 @@ where
   Ok(Some(true))
 }
 
-#[inline]
 fn encode_trailers(
   headers: &Headers,
   (hpack_enc, hpack_enc_buffer): (&mut HpackEncoder, &mut Vector<u8>),
@@ -462,7 +451,6 @@ fn encode_trailers(
 }
 
 // Tries to send everything in a single round trip. If not possible, will at least send headers.
-#[inline]
 async fn fast_path<SW, const IS_CLIENT: bool>(
   available_send: u32,
   data_bytes: &[u8],
@@ -478,7 +466,6 @@ async fn fast_path<SW, const IS_CLIENT: bool>(
 where
   SW: StreamWriter,
 {
-  #[inline]
   fn has_delimited_bytes(data_bytes: &[u8], len: u32) -> Option<U31> {
     if !data_bytes.is_empty() && data_bytes.len() <= *Usize::from(len) {
       return Some(U31::from_u32(u32::try_from(data_bytes.len()).ok()?));
@@ -563,13 +550,11 @@ where
   .await
 }
 
-#[inline]
 fn split_frame_bytes(bytes: &[u8], len: u32) -> (&[u8], &[u8]) {
   let n = *Usize::from(len);
   (bytes.get(..n).unwrap_or(bytes), bytes.get(n..).unwrap_or_default())
 }
 
-#[inline]
 async fn write_headers_or_trailers<SW>(
   frame0: &mut HeadersFrame<'_>,
   is_conn_open: &AtomicBool,

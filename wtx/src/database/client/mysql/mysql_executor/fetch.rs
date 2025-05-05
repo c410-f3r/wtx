@@ -25,7 +25,6 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  #[inline]
   pub(crate) async fn fetch_cmd<const IS_BIN: bool, const IS_SINGLE: bool>(
     capabilities: u64,
     net_buffer: &mut PartitionedFilledBuffer,
@@ -44,7 +43,7 @@ where
     loop {
       let total0 = fetch_msg(capabilities, net_buffer, sequence_id, stream).await?;
       end = end.wrapping_add(total0);
-      let mut local_rest = net_buffer._current();
+      let mut local_rest = net_buffer.current();
       let local_rest_first = local_rest.first().copied();
       if local_rest_first == Some(0) || local_rest_first == Some(255) {
         let res: OkRes = decode(&mut local_rest, ())?;
@@ -69,7 +68,7 @@ where
         let record_begin = end;
         let total2 = fetch_msg(capabilities, net_buffer, sequence_id, stream).await?;
         end = end.wrapping_add(total2);
-        let mut current = net_buffer._current();
+        let mut current = net_buffer.current();
         if current.first() == Some(&254) && current.len() < 9 {
           let res: OkRes = decode(&mut current, ())?;
           cb_end(0)?;
@@ -102,7 +101,6 @@ where
     }
   }
 
-  #[inline]
   pub(crate) async fn write_send_await_stmt<'stmts, RV, SC, const IS_SINGLE: bool>(
     (capabilities, sequence_id): (&mut u64, &mut u8),
     encode_buffer: &mut Vector<u8>,
@@ -150,7 +148,7 @@ where
       stream,
     )
     .await?;
-    let start = net_buffer._current_end_idx();
+    let start = net_buffer.current_end_idx();
     Self::fetch_cmd::<true, IS_SINGLE>(
       *capabilities,
       net_buffer,

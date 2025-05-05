@@ -15,27 +15,22 @@ pub(crate) struct DataFrame {
 }
 
 impl DataFrame {
-  #[inline]
   pub(crate) const fn new(data_len: U31, stream_id: U31) -> Self {
     Self { cf: CommonFlags::empty(), data_len, pad_len: None, stream_id }
   }
 
-  #[inline]
   pub(crate) const fn bytes(&self) -> [u8; 9] {
     FrameInit::new(self.cf, self.data_len.u32(), self.stream_id, FrameInitTy::Data).bytes()
   }
 
-  #[inline]
   pub(crate) const fn data_len(&self) -> U31 {
     self.data_len
   }
 
-  #[inline]
   pub(crate) const fn has_eos(&self) -> bool {
     self.cf.has_eos()
   }
 
-  #[inline]
   pub(crate) fn read(mut data: &[u8], mut fi: FrameInit) -> crate::Result<(Self, &[u8])> {
     if fi.stream_id.is_zero() {
       return Err(protocol_err(Http2Error::InvalidDataFrameZeroId));
@@ -48,7 +43,6 @@ impl DataFrame {
     Ok((Self { cf: fi.cf, data_len, pad_len, stream_id: fi.stream_id }, data))
   }
 
-  #[inline]
   pub(crate) fn set_eos(&mut self) {
     self.cf.set_eos();
   }

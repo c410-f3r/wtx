@@ -15,7 +15,6 @@ pub struct Config<'data> {
 
 impl<'data> Config<'data> {
   /// Unwraps the elements from an URI.
-  #[inline]
   pub fn from_uri(uri: &'data UriRef<'_>) -> crate::Result<Config<'data>> {
     let db = uri.path().get(1..).unwrap_or_default();
     let password = uri.password();
@@ -26,7 +25,6 @@ impl<'data> Config<'data> {
     Ok(this)
   }
 
-  #[inline]
   fn set_param(&mut self, key: &str, value: &'data str) -> crate::Result<()> {
     match key {
       "application_name" => {

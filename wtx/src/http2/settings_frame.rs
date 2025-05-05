@@ -22,12 +22,10 @@ pub(crate) struct SettingsFrame {
 }
 
 impl SettingsFrame {
-  #[inline]
   pub(crate) const fn ack() -> Self {
     SettingsFrame { cf: CommonFlags::ack(), ..SettingsFrame::empty() }
   }
 
-  #[inline]
   pub(crate) const fn empty() -> Self {
     Self {
       cf: CommonFlags::empty(),
@@ -41,7 +39,6 @@ impl SettingsFrame {
     }
   }
 
-  #[inline]
   pub(crate) fn bytes<'buffer>(&self, buffer: &'buffer mut [u8; 45]) -> &'buffer [u8] {
     macro_rules! copy_bytes {
       ($buffer:expr, $bytes:expr, $idx:expr) => {{
@@ -60,7 +57,7 @@ impl SettingsFrame {
       }};
     }
 
-    #[inline]
+    #[inline] // INLINE!
     const fn bytes(ty: u16, value: u32) -> [u8; 6] {
       let [a, b] = ty.to_be_bytes();
       let [c, d, e, f] = value.to_be_bytes();
@@ -101,7 +98,6 @@ impl SettingsFrame {
     buffer.get(..idx).unwrap_or_default()
   }
 
-  #[inline]
   pub(crate) fn enable_connect_protocol(&self) -> Option<bool> {
     self.enable_connect_protocol
   }
@@ -110,32 +106,26 @@ impl SettingsFrame {
     self.cf.has_ack()
   }
 
-  #[inline]
   pub(crate) fn header_table_size(&self) -> Option<u32> {
     self.header_table_size
   }
 
-  #[inline]
   pub(crate) fn initial_window_size(&self) -> Option<U31> {
     self.initial_window_size
   }
 
-  #[inline]
   pub(crate) fn max_concurrent_streams(&self) -> Option<u32> {
     self.max_concurrent_streams
   }
 
-  #[inline]
   pub(crate) fn max_frame_size(&self) -> Option<u32> {
     self.max_frame_size
   }
 
-  #[inline]
   pub(crate) fn max_header_list_size(&self) -> Option<u32> {
     self.max_header_list_size
   }
 
-  #[inline]
   pub(crate) fn read(bytes: &[u8], mut fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
       return Err(protocol_err(Http2Error::InvalidSettingsFrameNonZeroId));
@@ -258,7 +248,6 @@ impl SettingsFrame {
     self.max_header_list_size = elem;
   }
 
-  #[inline]
   fn update_len<T>(len: &mut u8, a: Option<T>, b: Option<T>) {
     match (a, b) {
       (None, Some(_)) => {
@@ -288,7 +277,6 @@ impl Setting {
     Setting::from_id((u16::from(a) << 8) | u16::from(b), u32::from_be_bytes([c, d, e, f]))
   }
 
-  #[inline]
   pub(crate) const fn from_id(id: u16, value: u32) -> crate::Result<Setting> {
     Ok(match id {
       1 => Self::HeaderTableSize(value),

@@ -24,7 +24,6 @@ where
   HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
-  #[inline]
   pub(crate) fn new(hb: HB, hp: Http2Params, stream_writer: SW) -> Self {
     let hps = Http2ParamsSend::default();
     let windows = Windows::initial(&hp, &hps);
@@ -40,7 +39,6 @@ where
     }
   }
 
-  #[inline]
   pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, SW, IS_CLIENT> {
     Http2DataPartsMut {
       frame_reader_error: &mut self.frame_reader_error,

@@ -17,7 +17,6 @@ pub(crate) struct CookieStr<'str> {
 
 impl<'str> CookieStr<'str> {
   /// Creates a new instance based on a sequence of bytes received from a request.
-  #[inline]
   pub(crate) fn parse<'local_str, 'vector>(
     str: &'local_str str,
     vector: &'vector mut Vector<u8>,

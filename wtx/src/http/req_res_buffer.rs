@@ -20,7 +20,7 @@ impl ReqResBuffer {
   /// Empty instance
   #[inline]
   pub const fn empty() -> Self {
-    Self::new(Vector::new(), Headers::new(), UriString::_empty(String::new()))
+    Self::new(Vector::new(), Headers::new(), UriString::empty(String::new()))
   }
 
   /// Constructor shortcut
@@ -156,7 +156,7 @@ impl Default for ReqResBuffer {
 impl From<Vector<u8>> for ReqResBuffer {
   #[inline]
   fn from(from: Vector<u8>) -> Self {
-    Self { body: from, headers: Headers::new(), uri: UriString::_empty(String::new()) }
+    Self { body: from, headers: Headers::new(), uri: UriString::empty(String::new()) }
   }
 }
 

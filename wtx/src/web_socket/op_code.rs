@@ -19,12 +19,10 @@ create_enum! {
 }
 
 impl OpCode {
-  #[inline]
   pub(crate) fn is_control(self) -> bool {
     matches!(self, OpCode::Close | OpCode::Ping | OpCode::Pong)
   }
 
-  #[inline]
   pub(crate) fn is_text(self) -> bool {
     matches!(self, OpCode::Text)
   }

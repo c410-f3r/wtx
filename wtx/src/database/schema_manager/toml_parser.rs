@@ -22,7 +22,6 @@ pub(crate) enum Expr {
   String(ExprStringTy),
 }
 
-#[inline]
 pub(crate) fn toml<R>(read: R) -> crate::Result<RootParamsTy>
 where
   R: Read,
@@ -91,7 +90,6 @@ where
   Ok(root_params)
 }
 
-#[inline]
 fn parse_and_push_toml_expr_array(
   s: &str,
   ident: IdentTy,
@@ -104,7 +102,6 @@ fn parse_and_push_toml_expr_array(
   Ok(())
 }
 
-#[inline]
 fn parse_and_push_toml_expr_string(
   s: &str,
   ident: IdentTy,
@@ -117,7 +114,6 @@ fn parse_and_push_toml_expr_string(
   Ok(())
 }
 
-#[inline]
 fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
   let mut array = ArrayVector::new();
   if s.is_empty() {
@@ -130,7 +126,6 @@ fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
   Ok(array)
 }
 
-#[inline]
 fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
   let mut iter = str_split1(s, b'"');
   let _ = iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;

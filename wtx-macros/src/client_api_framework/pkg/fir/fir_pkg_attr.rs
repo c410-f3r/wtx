@@ -12,6 +12,7 @@ pub(crate) struct FirPkgAttr<'attrs> {
 impl<'attrs> TryFrom<&'attrs [NestedMeta]> for FirPkgAttr<'attrs> {
   type Error = crate::Error;
 
+  #[inline]
   fn try_from(from: &'attrs [NestedMeta]) -> Result<Self, Self::Error> {
     let mut api = None;
     let mut data_formats = None;

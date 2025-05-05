@@ -90,7 +90,6 @@ where
 }
 
 /// Gets all information related to a migration from a reading source.
-#[inline]
 pub(crate) fn parse_migration_toml<R>(read: R) -> crate::Result<MigrationCfg>
 where
   R: Read,
@@ -120,7 +119,6 @@ where
   Ok(migration_toml)
 }
 
-#[inline]
 fn iterations<F, R>(
   overall_buffer: &mut String,
   br: &mut BufReader<R>,

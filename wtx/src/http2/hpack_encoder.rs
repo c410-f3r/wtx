@@ -40,7 +40,6 @@ pub(crate) struct HpackEncoder {
 }
 
 impl HpackEncoder {
-  #[inline]
   pub(crate) fn new<RNG>(rng: &mut RNG) -> Self
   where
     RNG: Rng,
@@ -55,7 +54,6 @@ impl HpackEncoder {
     }
   }
 
-  #[inline]
   pub(crate) fn clear(&mut self) {
     let Self { dyn_headers, idx, indcs, max_dyn_sub_bytes, max_dyn_super_bytes: _, rs: _ } = self;
     dyn_headers.clear();
@@ -64,7 +62,6 @@ impl HpackEncoder {
     *max_dyn_sub_bytes = None;
   }
 
-  #[inline]
   pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
     buffer: &mut Vector<u8>,
@@ -98,13 +95,11 @@ impl HpackEncoder {
     Ok(())
   }
 
-  #[inline]
   pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
     self.dyn_headers.reserve(headers, bytes)
   }
 
   // It is not possible to lower the initial set value
-  #[inline]
   pub(crate) fn set_max_dyn_sub_bytes(&mut self, max_dyn_sub_bytes: u32) -> crate::Result<()> {
     if max_dyn_sub_bytes > self.max_dyn_super_bytes {
       return Err(crate::Error::UnboundedNumber {
@@ -134,7 +129,6 @@ impl HpackEncoder {
     self.max_dyn_super_bytes = max_dyn_super_bytes;
   }
 
-  #[inline]
   fn adjust_indices(&mut self, len: usize) {
     let new_idx = u64::from(self.idx).checked_add(Usize::from(len).into());
     if new_idx < Some(u64::from(u32::MAX)) {
@@ -146,7 +140,6 @@ impl HpackEncoder {
     self.idx = 0;
   }
 
-  #[inline]
   fn dyn_idx(
     &mut self,
     header: (&str, &str, bool),
@@ -190,7 +183,6 @@ impl HpackEncoder {
     Ok(EncodeIdx::SavedNameSavedValue)
   }
 
-  #[inline]
   fn dyn_idx_with_static_name(
     &mut self,
     header: (&str, &str, bool),
@@ -204,7 +196,6 @@ impl HpackEncoder {
     self.store_header_with_ref_name::<true>((name, value, is_sensitive), name_idx, pair_hash)
   }
 
-  #[inline]
   fn encode_idx(
     &mut self,
     header: (&str, &str, bool),
@@ -229,9 +220,7 @@ impl HpackEncoder {
     }
   }
 
-  #[inline]
   fn encode_int(buffer: &mut Vector<u8>, first_byte: u8, mut n: u32) -> crate::Result<u8> {
-    #[inline]
     fn last_byte(n: u32) -> u8 {
       n.to_be_bytes()[3]
     }
@@ -261,7 +250,6 @@ impl HpackEncoder {
 
   // 1. 0 -> 0xxxx -> 4xxxx
   // 2,3,4. 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
-  #[inline]
   fn encode_str(buffer: &mut Vector<u8>, bytes: &str) -> crate::Result<()> {
     let before_byte = buffer.len();
     buffer.push(0)?;
@@ -331,7 +319,6 @@ impl HpackEncoder {
 
   // Regardless of the "sensitive" flag set by users, these headers may carry sensitive content
   // that shouldn't be indexed.
-  #[inline]
   fn header_is_naturally_sensitive(hhb: HpackHeaderBasic, name: &str) -> bool {
     match hhb {
       HpackHeaderBasic::Field => matches!(
@@ -354,17 +341,14 @@ impl HpackEncoder {
   }
 
   // Very large headers are not good candidates for indexing.
-  #[inline]
   fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &str, value: &str) -> bool {
     hhb.len(name, value) >= (self.dyn_headers.max_bytes() / 4).wrapping_mul(3)
   }
 
-  #[inline]
   fn idx_to_encode_idx(&self, idx: u32) -> u32 {
     self.idx.wrapping_sub(idx).wrapping_add(DYN_IDX_OFFSET)
   }
 
-  #[inline]
   fn manage_encode(
     buffer: &mut Vector<u8>,
     header: (&str, &str),
@@ -397,7 +381,6 @@ impl HpackEncoder {
     Ok(())
   }
 
-  #[inline]
   fn manage_size_update(&mut self, buffer: &mut Vector<u8>) -> crate::Result<()> {
     match self.max_dyn_sub_bytes.take() {
       Some((lower, None)) => {
@@ -422,12 +405,10 @@ impl HpackEncoder {
   }
 
   /// Must be called after insertion
-  #[inline]
   fn next_dyn_idx(&self) -> u32 {
     self.idx.wrapping_sub(1)
   }
 
-  #[inline]
   fn push_dyn_headers(
     &mut self,
     (name, value, is_sensitive): (&str, &str, bool),
@@ -446,7 +427,6 @@ impl HpackEncoder {
     Ok(())
   }
 
-  #[inline]
   fn shi_pseudo((hhb, value): (HpackHeaderBasic, &str)) -> Option<StaticHeader> {
     let (has_value, idx, name): (_, _, &str) = match hhb {
       HpackHeaderBasic::Authority => (false, 1, ":authority"),
@@ -496,7 +476,6 @@ impl HpackEncoder {
     Some(StaticHeader { has_value, idx, name })
   }
 
-  #[inline]
   fn shi_user((name, value): (&str, &str)) -> Option<StaticHeader> {
     let (has_value, idx, local_name) = match KnownHeaderName::try_from(name.as_bytes()) {
       Ok(KnownHeaderName::AcceptCharset) => (false, 15, KnownHeaderName::AcceptCharset.into()),
@@ -571,7 +550,6 @@ impl HpackEncoder {
     Some(StaticHeader { has_value, idx, name: local_name })
   }
 
-  #[inline]
   fn should_not_index(
     &self,
     (name, value, is_sensitive): (&str, &str, bool),
@@ -582,7 +560,6 @@ impl HpackEncoder {
       || self.header_is_very_large(hhb, name, value)
   }
 
-  #[inline]
   fn remove_outdated_indices(indcs: &mut HashMap<u64, u32>, metadata: Metadata) {
     if let Some(elem) = metadata.name_hash {
       let _ = indcs.remove(&elem);
@@ -590,7 +567,6 @@ impl HpackEncoder {
     let _ = indcs.remove(&metadata.pair_hash);
   }
 
-  #[inline]
   fn store_header_with_ref_name<const HAS_STATIC_NAME: bool>(
     &mut self,
     (name, value, is_sensitive): (&str, &str, bool),

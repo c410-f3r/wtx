@@ -4,14 +4,12 @@ use crate::{
   sync::{AtomicU32, Ordering},
 };
 
-#[inline]
 pub(crate) fn _uri() -> UriString {
   static PORT: AtomicU32 = AtomicU32::new(7000);
   let uri = alloc::format!("http://127.0.0.1:{}", PORT.fetch_add(1, Ordering::Relaxed));
   UriString::new(uri)
 }
 
-#[inline]
 pub(crate) fn _32_bytes_seed() -> [u8; 32] {
   let seed = simple_seed();
   let mut rng = Xorshift64::from(seed);

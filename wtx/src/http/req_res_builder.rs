@@ -28,15 +28,15 @@ impl<RRD> ReqResBuilder<RRD> {
 impl ReqResBuilder<ReqResBuffer> {
   /// Applies a header field in the form of `Authorization: Basic <credentials>` where
   /// `credentials` is the Base64 encoding of `id` and `pw` joined by a single colon `:`.
-  #[inline]
   #[cfg(feature = "base64")]
+  #[inline]
   pub fn auth_basic(&mut self, id: Arguments<'_>, pw: Arguments<'_>) -> crate::Result<&mut Self> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     use core::fmt::Write;
     let ReqResBuffer { body, headers, uri } = self.rrd.lease_mut();
     let body_idx = body.len();
     let mut fun = || {
-      uri._buffer(|buffer| {
+      uri.buffer(|buffer| {
         let uri_idx = buffer.len();
         buffer.write_fmt(format_args!("Basic {id}:{pw}"))?;
         let input = buffer.get(uri_idx..).unwrap_or_default();
@@ -74,8 +74,8 @@ where
   /// Uses `serde_json` to inject a raw structure as JSON into the internal buffer.
   ///
   /// A `content-type` header of type `application/json` is also applied.
-  #[inline]
   #[cfg(feature = "serde_json")]
+  #[inline]
   pub fn serde_json<T>(&mut self, data: &T) -> crate::Result<&mut Self>
   where
     T: serde::Serialize,
@@ -88,8 +88,8 @@ where
   /// buffer.
   ///
   /// A `content-type` header of type `application/x-www-form-urlencoded` is also applied.
-  #[inline]
   #[cfg(feature = "serde_urlencoded")]
+  #[inline]
   pub fn serde_urlencoded<T>(&mut self, data: &T) -> crate::Result<&mut Self>
   where
     T: serde::Serialize,

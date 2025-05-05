@@ -12,7 +12,6 @@ pub fn fill_with_close_code(code: CloseCode, payload: &mut [u8]) {
   *b = d;
 }
 
-#[inline]
 pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
   fin: bool,
   header: &mut [u8; MAX_HEADER_LEN_USIZE],
@@ -20,7 +19,6 @@ pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
   payload_len: usize,
   rsv1: u8,
 ) -> u8 {
-  #[inline]
   fn first_header_byte(fin: bool, op_code: OpCode, rsv1: u8) -> u8 {
     (u8::from(fin) << 7) | rsv1 | u8::from(op_code)
   }
@@ -60,12 +58,10 @@ pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
   }
 }
 
-#[inline]
 pub(crate) const fn has_masked_frame(second_header_byte: u8) -> bool {
   second_header_byte & MASK_MASK != 0
 }
 
-#[inline]
 pub(crate) fn op_code(first_header_byte: u8) -> crate::Result<OpCode> {
   OpCode::try_from(first_header_byte & OP_CODE_MASK)
 }

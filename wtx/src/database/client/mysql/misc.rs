@@ -17,7 +17,6 @@ use crate::{
 };
 use core::marker::PhantomData;
 
-#[inline]
 pub(crate) fn decode<'de, DO, E, T>(bytes: &mut &'de [u8], other: DO) -> Result<T, E>
 where
   E: From<crate::Error>,
@@ -26,7 +25,6 @@ where
   T::decode(&mut (), &mut DecodeWrapperProtocol { bytes, other })
 }
 
-#[inline]
 pub(crate) fn encoded_len(len: usize) -> crate::Result<ArrayVector<u8, 9>> {
   let [a, b, c, d, e, f, g, h] = len.to_le_bytes();
   let mut rslt = ArrayVector::new();
@@ -48,7 +46,6 @@ pub(crate) fn encoded_len(len: usize) -> crate::Result<ArrayVector<u8, 9>> {
   Ok(rslt)
 }
 
-#[inline]
 pub(crate) async fn fetch_msg<S>(
   capabilities: u64,
   pfb: &mut PartitionedFilledBuffer,
@@ -61,21 +58,20 @@ where
   let mut total: usize = 0;
   let (payload_len, local_sequence_id) = fetch_one_msg(pfb, stream).await?;
   total = total.wrapping_add(payload_len.wrapping_add(4));
-  let first_byte = pfb._current().first().copied();
+  let first_byte = pfb.current().first().copied();
   if payload_len == Usize::from(MAX_PAYLOAD).into_usize() {
     return Err(crate::Error::from(MysqlError::UnsupportedPayloadLen));
   }
   *sequence_id = local_sequence_id;
   if first_byte == Some(255) {
     return unlikely_elem({
-      let db_error: crate::Result<DbError> = decode(&mut pfb._current(), capabilities);
+      let db_error: crate::Result<DbError> = decode(&mut pfb.current(), capabilities);
       Err(db_error?.into())
     });
   }
   Ok(total)
 }
 
-#[inline]
 pub(crate) async fn fetch_protocol<'de, S, T>(
   capabilities: u64,
   pfb: &'de mut PartitionedFilledBuffer,
@@ -88,12 +84,11 @@ where
 {
   let total = fetch_msg(capabilities, pfb, sequence_id, stream).await?;
   Ok((
-    T::decode(&mut (), &mut DecodeWrapperProtocol { bytes: &mut pfb._current(), other: () })?,
+    T::decode(&mut (), &mut DecodeWrapperProtocol { bytes: &mut pfb.current(), other: () })?,
     total,
   ))
 }
 
-#[inline]
 pub(crate) async fn send_packet<E, S, T>(
   (capabilities, sequence_id): (&mut u64, &mut u8),
   encode_buffer: &mut Vector<u8>,
@@ -110,7 +105,6 @@ where
 }
 
 // Only used in the connection phase
-#[inline]
 pub(crate) async fn write_packet<E, S, T>(
   (capabilities, sequence_id): (&mut u64, &mut u8),
   encode_buffer: &mut Vector<u8>,
@@ -128,7 +122,6 @@ where
   Ok(())
 }
 
-#[inline]
 async fn fetch_one_msg<S>(
   pfb: &mut PartitionedFilledBuffer,
   stream: &mut S,
@@ -136,9 +129,9 @@ async fn fetch_one_msg<S>(
 where
   S: Stream,
 {
-  pfb._reserve(4)?;
-  let mut read = pfb._following_len();
-  let buffer = pfb._following_rest_mut();
+  pfb.reserve(4)?;
+  let mut read = pfb.following_len();
+  let buffer = pfb.following_rest_mut();
   let [a0, b0, c0, sequence_id] = read_header::<0, 4, S>(buffer, &mut read, stream).await?;
   let payload_len = Usize::from(u32::from_le_bytes([a0, b0, c0, 0])).into_usize();
   read_payload((4, payload_len), pfb, &mut read, stream).await?;

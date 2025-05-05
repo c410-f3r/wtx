@@ -42,6 +42,7 @@ impl FirAuxItemValues<'_> {
 impl<'module> TryFrom<ItemWithAttrSpan<(), &'module mut Item>> for FirAuxItemValues<'module> {
   type Error = crate::Error;
 
+  #[inline]
   fn try_from(from: ItemWithAttrSpan<(), &'module mut Item>) -> Result<Self, Self::Error> {
     let Item::Impl(item_impl) = from.item else { return Err(crate::Error::BadAux(from.span)) };
 

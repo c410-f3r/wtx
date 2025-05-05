@@ -5,7 +5,6 @@ pub(crate) mod web_socket;
 
 use crate::http::{Headers, HttpError, KnownHeaderName, Method, Mime};
 
-#[inline]
 fn check_method<E>(expected: Method, received: Method) -> Result<(), E>
 where
   E: From<crate::Error>,
@@ -16,7 +15,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn check_json<E>(headers: &Headers, method: Method) -> Result<(), E>
 where
   E: From<crate::Error>,

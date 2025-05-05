@@ -125,9 +125,9 @@ create_all_integration_tests!(
   // Database
 
   mysql:
-    db::mysql::_clean_drops_all_objs;
+    db::mysql::clean_drops_all_objs;
   postgres:
-    db::postgres::_clean_drops_all_objs;
+    db::postgres::clean_drops_all_objs;
 
   // Generic
 
@@ -161,16 +161,14 @@ pub(crate) async fn create_foo_table<E>(
   <<E as Executor>::Database as DEController>::Error: Debug,
 {
   buffer_cmd.write_fmt(format_args!("CREATE TABLE {schema_prefix}foo(id INT)")).unwrap();
-  c._executor_mut().execute(buffer_cmd.as_str(), |_| Ok(())).await.unwrap();
+  c.executor_mut().execute(buffer_cmd.as_str(), |_| Ok(())).await.unwrap();
   buffer_cmd.clear();
 }
 
-#[inline]
 pub(crate) fn _generic_schema() -> AuxTestParams {
   AuxTestParams { default_schema: "", wtx_schema: "", schema_regulator: 2 }
 }
 
-#[inline]
 pub(crate) async fn _migrate_doc_test<E>(
   (buffer_cmd, buffer_db_migrations, _): (
     &mut String,
@@ -187,7 +185,6 @@ where
   mg
 }
 
-#[inline]
 pub(crate) fn _pg_schema() -> AuxTestParams {
   AuxTestParams { default_schema: "public", wtx_schema: "_wtx", schema_regulator: 0 }
 }

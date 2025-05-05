@@ -23,20 +23,18 @@ use crate::{
 
 const DECOMPRESSION_SUFFIX: [u8; 4] = [0, 0, 255, 255];
 
-#[inline]
 pub(crate) fn copy_from_arbitrary_nb_to_rb1<const IS_CLIENT: bool>(
   network_buffer: &mut PartitionedFilledBuffer,
   no_masking: bool,
   reader_buffer_first: &mut Vector<u8>,
   rfi: &ReadFrameInfo,
 ) -> crate::Result<()> {
-  let current_mut = network_buffer._current_mut();
+  let current_mut = network_buffer.current_mut();
   unmask_nb::<IS_CLIENT>(current_mut, no_masking, rfi)?;
   reader_buffer_first.extend_from_copyable_slice(current_mut)?;
   Ok(())
 }
 
-#[inline]
 pub(crate) fn copy_from_compressed_nb_to_rb1<NC, const IS_CLIENT: bool>(
   nc: &mut NC,
   network_buffer: &mut PartitionedFilledBuffer,
@@ -47,12 +45,12 @@ pub(crate) fn copy_from_compressed_nb_to_rb1<NC, const IS_CLIENT: bool>(
 where
   NC: NegotiatedCompression,
 {
-  unmask_nb::<IS_CLIENT>(network_buffer._current_mut(), no_masking, rfi)?;
-  network_buffer._reserve(4)?;
-  let curr_end_idx = network_buffer._current().len();
+  unmask_nb::<IS_CLIENT>(network_buffer.current_mut(), no_masking, rfi)?;
+  network_buffer.reserve(4)?;
+  let curr_end_idx = network_buffer.current().len();
   let curr_end_idx_p4 = curr_end_idx.wrapping_add(4);
-  let has_following = network_buffer._has_following();
-  let input = network_buffer._current_rest_mut().get_mut(..curr_end_idx_p4).unwrap_or_default();
+  let has_following = network_buffer.has_following();
+  let input = network_buffer.current_rest_mut().get_mut(..curr_end_idx_p4).unwrap_or_default();
   let original = if let [.., a, b, c, d] = input {
     let original = [*a, *b, *c, *d];
     *a = DECOMPRESSION_SUFFIX[0];
@@ -84,7 +82,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) fn copy_from_compressed_rb1_to_rb2<NC>(
   first_rfi: &ReadFrameInfo,
   nc: &mut NC,
@@ -109,7 +106,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn fetch_frame_from_stream<SR, const IS_CLIENT: bool>(
   max_payload_len: usize,
   (nc_is_noop, nc_rsv1): (bool, u8),
@@ -120,9 +116,9 @@ pub(crate) async fn fetch_frame_from_stream<SR, const IS_CLIENT: bool>(
 where
   SR: StreamReader,
 {
-  network_buffer._clear_if_following_is_empty();
-  network_buffer._reserve(MAX_HEADER_LEN_USIZE)?;
-  let mut read = network_buffer._following_len();
+  network_buffer.clear_if_following_is_empty();
+  network_buffer.reserve(MAX_HEADER_LEN_USIZE)?;
+  let mut read = network_buffer.following_len();
   let rfi = ReadFrameInfo::from_stream::<_, IS_CLIENT>(
     max_payload_len,
     (nc_is_noop, nc_rsv1),
@@ -139,7 +135,6 @@ where
 
 /// If this method returns `false`, then a `ping` frame was received and the caller should fetch
 /// more external data in order to get the desired frame.
-#[inline]
 pub(crate) async fn manage_auto_reply<A, RNG, const IS_CLIENT: bool>(
   aux: &mut A,
   connection_state: &mut ConnectionState,
@@ -211,7 +206,6 @@ where
 }
 
 /// Returns `true` if `op_code` is a continuation frame and `fin` is also `true`.
-#[inline]
 pub(crate) fn manage_op_code_of_continuation_frames(
   fin: bool,
   first_op_code: OpCode,
@@ -236,7 +230,6 @@ pub(crate) fn manage_op_code_of_continuation_frames(
   Ok(false)
 }
 
-#[inline]
 pub(crate) fn manage_op_code_of_first_continuation_frame(
   op_code: OpCode,
   payload: &[u8],
@@ -251,7 +244,6 @@ pub(crate) fn manage_op_code_of_first_continuation_frame(
   }
 }
 
-#[inline]
 pub(crate) fn manage_op_code_of_first_final_frame(
   op_code: OpCode,
   payload: &[u8],
@@ -271,7 +263,6 @@ pub(crate) fn manage_op_code_of_first_final_frame(
   Ok(())
 }
 
-#[inline]
 pub(crate) fn manage_text_of_first_continuation_frame(
   payload: &[u8],
 ) -> crate::Result<Option<IncompleteUtf8Char>> {
@@ -284,7 +275,6 @@ pub(crate) fn manage_text_of_first_continuation_frame(
   })
 }
 
-#[inline]
 pub(crate) fn manage_text_of_recurrent_continuation_frames(
   curr_payload: &[u8],
   iuc: &mut Option<IncompleteUtf8Char>,
@@ -316,7 +306,6 @@ pub(crate) fn manage_text_of_recurrent_continuation_frames(
   Ok(())
 }
 
-#[inline]
 pub(crate) fn unmask_nb<const IS_CLIENT: bool>(
   network_buffer: &mut [u8],
   no_masking: bool,
@@ -328,7 +317,6 @@ pub(crate) fn unmask_nb<const IS_CLIENT: bool>(
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn write_control_frame_cb<SW>(
   stream: &mut SW,
   header: &[u8],
@@ -341,7 +329,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn expand_rb(
   additional: usize,
   reader_buffer_first: &mut Vector<u8>,
@@ -351,7 +338,6 @@ fn expand_rb(
   Ok(reader_buffer_first.get_mut(written..).unwrap_or_default())
 }
 
-#[inline]
 async fn write_control_frame<A, P, RNG, const IS_CLIENT: bool>(
   aux: &mut A,
   connection_state: &mut ConnectionState,

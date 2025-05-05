@@ -83,7 +83,6 @@ where
   }
 }
 
-#[inline]
 fn tls_server_end_point(
   certs: Option<&[CertificateDer<'static>]>,
 ) -> crate::Result<Option<Digest>> {

@@ -10,7 +10,6 @@ pub(crate) struct MsgField<'bytes> {
 }
 
 impl<'bytes> MsgField<'bytes> {
-  #[inline]
   pub(crate) fn parse(value: &'bytes [u8]) -> crate::Result<(usize, Self)> {
     bytes_pos1(value, b'\0')
       .and_then(|idx| {

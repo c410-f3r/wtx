@@ -10,18 +10,21 @@ pub(crate) struct ItemWithAttrSpan<C, I> {
 }
 
 impl<'module, C> From<(C, &'module Item, Span)> for ItemWithAttrSpan<C, &'module Item> {
+  #[inline]
   fn from((content, item, span): (C, &'module Item, Span)) -> Self {
     Self { _content: content, item, span }
   }
 }
 
 impl<'module, C> From<(C, &'module mut Item, Span)> for ItemWithAttrSpan<C, &'module mut Item> {
+  #[inline]
   fn from((content, item, span): (C, &'module mut Item, Span)) -> Self {
     Self { _content: content, item, span }
   }
 }
 
 impl<'module, C> From<(C, &'module mut Item, Span)> for ItemWithAttrSpan<C, Item> {
+  #[inline]
   fn from((content, item, span): (C, &'module mut Item, Span)) -> Self {
     let mut actual_item = Item::Verbatim(TokenStream::new());
     mem::swap(item, &mut actual_item);

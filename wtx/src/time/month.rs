@@ -1,4 +1,4 @@
-use crate::time::TimeError;
+use crate::time::{TimeError, Year};
 
 /// Month of the year.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -50,9 +50,20 @@ impl Month {
     })
   }
 
+  /// The number of days given an arbitrary year.
+  #[inline]
+  pub const fn days(self, year: Year) -> u8 {
+    if let Self::February = self {
+      if year.is_leap_year() { 29 } else { 28 }
+    } else {
+      let num = self.num();
+      30 | num ^ (num >> 3)
+    }
+  }
+
   /// Integer representation
   #[inline]
-  pub const fn num(&self) -> u8 {
+  pub const fn num(self) -> u8 {
     match self {
       Self::January => 1,
       Self::February => 2,
@@ -71,7 +82,7 @@ impl Month {
 
   /// String representation
   #[inline]
-  pub const fn num_str(&self) -> &'static str {
+  pub const fn num_str(self) -> &'static str {
     match self {
       Self::January => "01",
       Self::February => "02",
@@ -86,5 +97,14 @@ impl Month {
       Self::November => "11",
       Self::December => "12",
     }
+  }
+}
+
+impl TryFrom<u8> for Month {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: u8) -> Result<Self, Self::Error> {
+    Ok(Self::from_num(from)?)
   }
 }

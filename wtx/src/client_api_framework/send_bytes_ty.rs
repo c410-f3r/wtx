@@ -8,7 +8,6 @@ pub enum SendBytesSource<'bytes> {
 }
 
 impl<'bytes> SendBytesSource<'bytes> {
-  #[inline]
   pub(crate) fn bytes<'bb, 'rslt>(self, byte_buffer: &'bb [u8]) -> &'rslt [u8]
   where
     'bb: 'rslt,

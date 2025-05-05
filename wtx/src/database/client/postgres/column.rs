@@ -10,7 +10,6 @@ pub(crate) struct Column {
 }
 
 impl Column {
-  #[inline]
   pub(crate) fn new(name: Identifier, ty: Ty) -> Self {
     Self { name, ty }
   }

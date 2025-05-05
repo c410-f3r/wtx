@@ -68,7 +68,6 @@ impl ReadFrameInfo {
     Ok(ReadFrameInfo { fin, header_len, mask, op_code, payload_len, should_decompress })
   }
 
-  #[inline]
   pub(crate) async fn from_stream<SR, const IS_CLIENT: bool>(
     max_payload_len: usize,
     (nc_is_noop, nc_rsv1): (bool, u8),
@@ -80,7 +79,7 @@ impl ReadFrameInfo {
   where
     SR: StreamReader,
   {
-    let buffer = network_buffer._following_rest_mut();
+    let buffer = network_buffer.following_rest_mut();
     let first_two = read_header::<0, 2, SR>(buffer, read, stream).await?;
     let tuple = Self::manage_first_two_bytes(first_two, (nc_is_noop, nc_rsv1))?;
     let (fin, length_code, masked, op_code, should_decompress) = tuple;
@@ -117,7 +116,6 @@ impl ReadFrameInfo {
     Ok(ReadFrameInfo { fin, header_len, mask, op_code, payload_len, should_decompress })
   }
 
-  #[inline]
   fn manage_final_params(
     fin: bool,
     op_code: OpCode,
@@ -136,7 +134,6 @@ impl ReadFrameInfo {
     Ok(())
   }
 
-  #[inline]
   fn manage_first_two_bytes(
     [a, b]: [u8; 2],
     (nc_is_noop, nc_rsv1): (bool, u8),
@@ -164,7 +161,6 @@ impl ReadFrameInfo {
     Ok((fin, length_code, masked, op_code, should_decompress))
   }
 
-  #[inline]
   fn manage_mask<const IS_CLIENT: bool>(masked: bool, no_masking: bool) -> crate::Result<bool> {
     Ok(if IS_CLIENT {
       false

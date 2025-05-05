@@ -18,7 +18,6 @@ pub struct PostgresRecord<'exec, E> {
 }
 
 impl<'exec, E> PostgresRecord<'exec, E> {
-  #[inline]
   pub(crate) fn new(
     record: &'exec [u8],
     stmt: PostgresStatement<'exec>,
@@ -33,7 +32,6 @@ impl<'exec, E> PostgresRecord<'exec, E> {
     values_len: u16,
     values_params: &'exec mut Vector<(bool, Range<usize>)>,
   ) -> crate::Result<Self> {
-    #[inline]
     fn fun(
       [a, b, c, d]: [u8; 4],
       curr_value_offset: &mut usize,
@@ -87,12 +85,10 @@ where
 {
   type Database = Postgres<E>;
 
-  #[inline]
   fn len(&self) -> usize {
     self.common.values_params.len()
   }
 
-  #[inline]
   fn value<CI>(&self, ci: CI) -> Option<<Self::Database as DEController>::DecodeWrapper<'exec, '_>>
   where
     CI: ValueIdent<Self>,
@@ -102,7 +98,6 @@ where
 }
 
 impl<'exec, E> ValueIdent<PostgresRecord<'exec, E>> for str {
-  #[inline]
   fn idx(&self, input: &PostgresRecord<'exec, E>) -> Option<usize> {
     self.idx(&input.common)
   }

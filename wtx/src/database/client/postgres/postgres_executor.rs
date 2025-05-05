@@ -39,7 +39,6 @@ where
   S: Stream,
 {
   /// Connects with an unencrypted stream.
-  #[inline]
   pub async fn connect<RNG>(
     config: &Config<'_>,
     mut eb: EB,
@@ -55,7 +54,6 @@ where
 
   /// Initially connects with an unencrypted stream that should be later upgraded to an encrypted
   /// stream.
-  #[inline]
   pub async fn connect_encrypted<F, IS, RNG>(
     config: &Config<'_>,
     mut eb: EB,
@@ -71,9 +69,9 @@ where
   {
     eb.lease_mut().clear();
     {
-      let mut sw = eb.lease_mut().common.net_buffer._suffix_writer();
+      let mut sw = eb.lease_mut().common.net_buffer.suffix_writer();
       encrypted_conn(&mut sw)?;
-      stream.write_all(sw._curr_bytes()).await?;
+      stream.write_all(sw.curr_bytes()).await?;
     }
     let mut buf = [0];
     let _ = stream.read(&mut buf).await?;
@@ -87,12 +85,10 @@ where
   }
 
   /// Mutable buffer reference
-  #[inline]
   pub fn eb_mut(&mut self) -> &mut ExecutorBuffer {
     self.eb.lease_mut()
   }
 
-  #[inline]
   async fn do_connect<RNG>(
     config: &Config<'_>,
     eb: EB,
@@ -111,9 +107,9 @@ where
   }
 
   async fn send_initial_conn_msg(&mut self, config: &Config<'_>) -> crate::Result<()> {
-    let mut sw = self.eb.lease_mut().common.net_buffer._suffix_writer();
+    let mut sw = self.eb.lease_mut().common.net_buffer.suffix_writer();
     initial_conn_msg(config, &mut sw)?;
-    self.stream.write_all(sw._curr_bytes()).await?;
+    self.stream.write_all(sw.curr_bytes()).await?;
     Ok(())
   }
 }
@@ -126,12 +122,10 @@ where
 {
   type Database = Postgres<E>;
 
-  #[inline]
   fn connection_state(&self) -> ConnectionState {
     self.cs
   }
 
-  #[inline]
   async fn execute(
     &mut self,
     cmd: &str,
@@ -143,7 +137,6 @@ where
     Self::simple_query_execute(cmd, &mut self.cs, net_buffer, &mut self.stream, cb).await
   }
 
-  #[inline]
   async fn execute_with_stmt<SC, RV>(
     &mut self,
     sc: SC,
@@ -181,7 +174,6 @@ where
     Ok(rows)
   }
 
-  #[inline]
   async fn fetch_many_with_stmt<SC, RV>(
     &mut self,
     sc: SC,
@@ -207,17 +199,17 @@ where
       stmt_cmd_id_array.as_bytes(),
     )
     .await?;
-    let begin = net_buffer._current_end_idx();
-    let begin_data = net_buffer._current_end_idx().wrapping_add(7);
+    let begin = net_buffer.current_end_idx();
+    let begin_data = net_buffer.current_end_idx().wrapping_add(7);
     loop {
       let msg = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
         MessageTy::DataRow(values_len) => {
-          let net_buffer_range = begin_data..net_buffer._current_end_idx();
-          let mut bytes = net_buffer._all().get(net_buffer_range).unwrap_or_default();
-          let record_range_begin = net_buffer._antecedent_end_idx().wrapping_sub(begin);
-          let record_range_end = net_buffer._current_end_idx().wrapping_sub(begin_data);
+          let net_buffer_range = begin_data..net_buffer.current_end_idx();
+          let mut bytes = net_buffer.all().get(net_buffer_range).unwrap_or_default();
+          let record_range_begin = net_buffer.antecedent_end_idx().wrapping_sub(begin);
+          let record_range_end = net_buffer.current_end_idx().wrapping_sub(begin_data);
           bytes = bytes.get(record_range_begin..record_range_end).unwrap_or_default();
           let values_params_begin = values_params.len();
           cb(&PostgresRecord::parse(bytes, stmt.clone(), values_len, values_params)?)?;
@@ -237,14 +229,13 @@ where
       }
     }
     Ok(PostgresRecords::new(
-      net_buffer._all().get(begin_data..net_buffer._current_end_idx()).unwrap_or_default(),
+      net_buffer.all().get(begin_data..net_buffer.current_end_idx()).unwrap_or_default(),
       records_params,
       stmt,
       values_params,
     ))
   }
 
-  #[inline]
   async fn fetch_with_stmt<SC, RV>(
     &mut self,
     sc: SC,
@@ -272,7 +263,6 @@ where
     .await
   }
 
-  #[inline]
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
     let Self { cs, eb, phantom: _, stream } = self;
     let ExecutorBuffer { common, .. } = eb.lease_mut();

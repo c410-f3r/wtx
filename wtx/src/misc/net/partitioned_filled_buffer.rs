@@ -1,174 +1,109 @@
-use crate::misc::{FilledBuffer, Lease, LeaseMut, SuffixWriter, suffix_writer::SuffixWriterFbvm};
+use crate::misc::{FilledBuffer, Lease, LeaseMut};
 use core::ops::Range;
 
 // ```
-// [=========================All=========================]
+// [=================All=================]
 //
-// [=================Buffer=================|            ]
+// [===========Buffer===========|        ]
 //
-// [              |=============Current rest=============]
+// [          |=======Current rest=======]
 //
-// [                          |======Following rest======]
+// [                  |==Following rest==]
 //
-// [==Antecedent==|==Current==|==Following==|==Trailing==]
-//                |           |             |            |
-//                |           |             |            |--> _buffer.capacity()
-//                |           |             |
-//                |           |             |---------------> _following_end_idx (_buffer.len())
-//                |           |
-//                |           |-----------------------------> _current_end_idx
-//                |
-//                |-----------------------------------------> _antecedent_end_idx
+// [Antecedent|Current|Following|Trailing]
+//            |       |         |        |
+//            |       |         |        |-> buffer.capacity()
+//            |       |         |
+//            |       |         |----------> following_end_idx (buffer.len())
+//            |       |
+//            |       |--------------------> current_end_idx
+//            |
+//            |----------------------------> antecedent_end_idx
 // ```
 #[derive(Debug)]
 pub(crate) struct PartitionedFilledBuffer {
-  _antecedent_end_idx: usize,
-  _buffer: FilledBuffer,
-  _current_end_idx: usize,
+  antecedent_end_idx: usize,
+  buffer: FilledBuffer,
+  current_end_idx: usize,
 }
 
 impl PartitionedFilledBuffer {
-  #[inline]
-  pub(crate) const fn new() -> Self {
-    Self { _antecedent_end_idx: 0, _buffer: FilledBuffer::_new(), _current_end_idx: 0 }
+  pub(crate) fn new() -> Self {
+    Self { antecedent_end_idx: 0, buffer: FilledBuffer::default(), current_end_idx: 0 }
   }
 
-  #[inline]
-  pub(crate) fn _with_capacity(cap: usize) -> crate::Result<Self> {
-    Ok(Self {
-      _antecedent_end_idx: 0,
-      _buffer: FilledBuffer::_with_capacity(cap)?,
-      _current_end_idx: 0,
-    })
+  pub(crate) fn antecedent_end_idx(&self) -> usize {
+    self.antecedent_end_idx
   }
 
-  #[inline]
-  pub(crate) fn _antecedent_end_idx(&self) -> usize {
-    self._antecedent_end_idx
+  pub(crate) fn all(&self) -> &[u8] {
+    self.buffer.all()
   }
 
-  #[inline]
-  pub(crate) fn _all(&self) -> &[u8] {
-    self._buffer._all()
+  pub(crate) fn clear(&mut self) {
+    let Self { antecedent_end_idx, buffer, current_end_idx } = self;
+    *antecedent_end_idx = 0;
+    buffer.clear();
+    *current_end_idx = 0;
   }
 
-  #[inline]
-  pub(crate) fn _all_mut(&mut self) -> &mut [u8] {
-    self._buffer._all_mut()
-  }
-
-  #[inline]
-  pub(crate) fn _clear(&mut self) {
-    let Self { _antecedent_end_idx, _buffer, _current_end_idx } = self;
-    *_antecedent_end_idx = 0;
-    _buffer._clear();
-    *_current_end_idx = 0;
-  }
-
-  #[inline]
-  pub(crate) fn _clear_if_following_is_empty(&mut self) {
-    if !self._has_following() {
-      self._clear();
+  pub(crate) fn clear_if_following_is_empty(&mut self) {
+    if !self.has_following() {
+      self.clear();
     }
   }
 
-  #[inline]
-  pub(crate) fn _current(&self) -> &[u8] {
-    let range = self._current_range();
-    self._all().get(range).unwrap_or_default()
+  pub(crate) fn current(&self) -> &[u8] {
+    let range = self.current_range();
+    self.all().get(range).unwrap_or_default()
   }
 
-  #[inline]
-  pub(crate) fn _current_end_idx(&self) -> usize {
-    self._current_end_idx
+  pub(crate) fn current_end_idx(&self) -> usize {
+    self.current_end_idx
   }
 
-  #[inline]
-  pub(crate) fn _current_mut(&mut self) -> &mut [u8] {
-    let range = self._current_range();
-    self._buffer.get_mut(range).unwrap_or_default()
+  pub(crate) fn current_range(&self) -> Range<usize> {
+    self.antecedent_end_idx()..self.current_end_idx()
   }
 
-  #[inline]
-  pub(crate) fn _current_range(&self) -> Range<usize> {
-    self._antecedent_end_idx()..self._current_end_idx()
+  pub(crate) fn following_end_idx(&self) -> usize {
+    self.buffer.len()
   }
 
-  #[inline]
-  pub(crate) fn _current_rest_mut(&mut self) -> &mut [u8] {
-    let idx = self._antecedent_end_idx();
-    self._buffer._all_mut().get_mut(idx..).unwrap_or_default()
+  pub(crate) fn following_len(&self) -> usize {
+    self.following_end_idx().wrapping_sub(self.current_end_idx())
   }
 
-  #[inline]
-  pub(crate) fn _following(&self) -> &[u8] {
-    let idx = self._current_end_idx();
-    self._all().get(idx..).unwrap_or_default()
+  pub(crate) fn following_rest_mut(&mut self) -> &mut [u8] {
+    let idx = self.current_end_idx();
+    self.buffer.all_mut().get_mut(idx..).unwrap_or_default()
   }
 
-  #[inline]
-  pub(crate) fn _following_end_idx(&self) -> usize {
-    self._buffer.len()
+  pub(crate) fn has_following(&self) -> bool {
+    self.following_end_idx() > self.current_end_idx()
   }
 
-  #[inline]
-  pub(crate) fn _following_len(&self) -> usize {
-    self._following_end_idx().wrapping_sub(self._current_end_idx())
+  pub(crate) fn reserve(&mut self, additional: usize) -> crate::Result<()> {
+    self.buffer.reserve(additional)
   }
 
-  #[inline]
-  pub(crate) fn _following_mut(&mut self) -> &mut [u8] {
-    let idx = self._current_end_idx();
-    self._buffer.get_mut(idx..).unwrap_or_default()
-  }
-
-  #[inline]
-  pub(crate) fn _following_rest_mut(&mut self) -> &mut [u8] {
-    let idx = self._current_end_idx();
-    self._buffer._all_mut().get_mut(idx..).unwrap_or_default()
-  }
-
-  #[inline]
-  pub(crate) fn _has_following(&self) -> bool {
-    self._following_end_idx() > self._current_end_idx()
-  }
-
-  #[inline]
-  pub(crate) fn _reserve(&mut self, additional: usize) -> crate::Result<()> {
-    self._buffer._reserve(additional)
-  }
-
-  #[inline]
-  pub(crate) fn _set_current(&mut self, bytes: &[u8]) -> crate::Result<()> {
-    self._buffer._extend_from_slice(bytes)?;
-    self._set_indices(0, bytes.len(), 0)?;
-    Ok(())
-  }
-
-  #[inline]
-  pub(crate) fn _set_indices(
+  pub(crate) fn set_indices(
     &mut self,
     antecedent_len: usize,
     current_len: usize,
     following_len: usize,
   ) -> crate::Result<()> {
-    let [ant, cur, fol] = Self::_indcs_from_lengths(antecedent_len, current_len, following_len);
-    if fol > self._buffer._capacity() {
+    let [ant, cur, fol] = Self::indcs_from_lengths(antecedent_len, current_len, following_len);
+    if fol > self.buffer.capacity() {
       return Err(crate::Error::InvalidPartitionedBufferBounds);
     }
-    self._antecedent_end_idx = ant;
-    self._current_end_idx = cur;
-    self._buffer._set_len(fol);
+    self.antecedent_end_idx = ant;
+    self.current_end_idx = cur;
+    self.buffer.set_len(fol);
     Ok(())
   }
 
-  #[inline]
-  pub(crate) fn _suffix_writer(&mut self) -> SuffixWriterFbvm<'_> {
-    SuffixWriter::_new(self._following_end_idx(), self._buffer._vector_mut())
-  }
-
-  #[inline]
-  fn _indcs_from_lengths(
+  fn indcs_from_lengths(
     antecedent_len: usize,
     current_len: usize,
     following_len: usize,
@@ -176,6 +111,49 @@ impl PartitionedFilledBuffer {
     let current_end_idx = antecedent_len.saturating_add(current_len);
     let following_end_idx = current_end_idx.saturating_add(following_len);
     [antecedent_len, current_end_idx, following_end_idx]
+  }
+}
+
+#[cfg(any(feature = "mysql", feature = "postgres", feature = "web-socket"))]
+impl PartitionedFilledBuffer {
+  pub(crate) fn with_capacity(cap: usize) -> crate::Result<Self> {
+    Ok(Self {
+      antecedent_end_idx: 0,
+      buffer: FilledBuffer::with_capacity(cap)?,
+      current_end_idx: 0,
+    })
+  }
+}
+
+#[cfg(any(feature = "postgres", feature = "web-socket-handshake"))]
+impl PartitionedFilledBuffer {
+  pub(crate) fn suffix_writer(&mut self) -> crate::misc::SuffixWriterFbvm<'_> {
+    crate::misc::SuffixWriterFbvm::new(self.following_end_idx(), self.buffer.vector_mut())
+  }
+}
+
+#[cfg(feature = "web-socket")]
+impl PartitionedFilledBuffer {
+  pub(crate) fn current_mut(&mut self) -> &mut [u8] {
+    let range = self.current_range();
+    self.buffer.get_mut(range).unwrap_or_default()
+  }
+
+  pub(crate) fn current_rest_mut(&mut self) -> &mut [u8] {
+    let idx = self.antecedent_end_idx();
+    self.buffer.all_mut().get_mut(idx..).unwrap_or_default()
+  }
+}
+
+#[cfg(feature = "web-socket-handshake")]
+impl PartitionedFilledBuffer {
+  pub(crate) fn all_mut(&mut self) -> &mut [u8] {
+    self.buffer.all_mut()
+  }
+
+  pub(crate) fn following(&self) -> &[u8] {
+    let idx = self.current_end_idx();
+    self.all().get(idx..).unwrap_or_default()
   }
 }
 

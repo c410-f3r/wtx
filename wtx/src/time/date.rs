@@ -7,9 +7,9 @@ use crate::{
   collection::ArrayString,
   misc::{Usize, i16_string},
   time::{
-    CeDays, DAYS_PER_4_YEARS, DAYS_PER_400_YEARS_I32, DAYS_PER_NON_LEAP_YEAR_I16,
-    DAYS_PER_NON_LEAP_YEAR_U16, Day, DayOfYear, Month, Year,
-    misc::{boolu16, boolu32, i16i32, u8i16, u8u32, u16i32, u16u32},
+    CeDays, DAYS_OF_MONTHS, DAYS_PER_4_YEARS, DAYS_PER_400_YEARS_I32, DAYS_PER_NON_LEAP_YEAR_I16,
+    DAYS_PER_NON_LEAP_YEAR_U16, Day, DayOfYear, Month, TimeError, Year,
+    misc::{boolu16, boolu32, boolusize, i16i32, u8i16, u8u16, u8u32, u8usize, u16i32, u16u32},
   },
 };
 use core::{
@@ -40,7 +40,8 @@ const QUADRICENTURY_ADJUSTMENTS: &[u8; 401] = &[
 
 /// Proleptic Gregorian calendar.
 ///
-/// Can represent years from -32768 to +32768.
+/// Can represent years from -32767 to +32766.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Date {
   // | xxxxxx | x            | xxxxxxxxx       |
@@ -51,16 +52,27 @@ pub struct Date {
 
 impl Date {
   /// Instance that refers the UNIX epoch (1970-01-01).
-  pub const EPOCH: Self = Self::new(Year::EPOCH, DayOfYear::N1);
+  pub const EPOCH: Self = if let Ok(elem) = Self::new(Year::EPOCH, DayOfYear::MIN) {
+    elem
+  } else {
+    panic!();
+  };
   /// Instance with the maximum allowed value of `32768-12-31`
-  pub const MAX: Self = Self::new(Year::MAX, DayOfYear::N365);
+  pub const MAX: Self = if let Ok(elem) = Self::new(Year::MAX, DayOfYear::N365) {
+    elem
+  } else {
+    panic!();
+  };
   /// Instance with the minimum allowed value of `-32767-01-01`
-  pub const MIN: Self = Self::new(Year::MIN, DayOfYear::N1);
+  pub const MIN: Self = if let Ok(elem) = Self::new(Year::MIN, DayOfYear::MIN) {
+    elem
+  } else {
+    panic!();
+  };
 
-  /// Creates a new instance from the number of days with the starting of the common era
-  /// (0001-01-01).
+  /// Creates a new instance from the number of days since the common era (0001-01-01).
   #[inline]
-  pub const fn from_ce_days(cd: CeDays) -> crate::Result<Self> {
+  pub const fn from_ce_days(cd: CeDays) -> Result<Self, TimeError> {
     let Some(days_plus_year) = cd.num().checked_add(u16i32(DAYS_PER_NON_LEAP_YEAR_U16)) else {
       // SAFETY: `CeDays` has a upper bound way lower than the maximum capacity
       unsafe { hint::unreachable_unchecked() }
@@ -68,24 +80,42 @@ impl Date {
     let quadricenturies = days_plus_year.div_euclid(DAYS_PER_400_YEARS_I32) as i16;
     let remaining_days = days_plus_year.rem_euclid(DAYS_PER_400_YEARS_I32);
     let Some((mut year, day_of_year)) = years_from_quadricentury_days(remaining_days) else {
-      return Ok(Self::new(Year::MIN, DayOfYear::N1));
+      return Self::new(Year::MIN, DayOfYear::MIN);
     };
     year = quadricenturies.wrapping_mul(400).wrapping_add(year);
-    Ok(Self::new(
+    Self::new(
       match Year::from_num(year) {
         Ok(elem) => elem,
-        Err(err) => return Err(crate::Error::TimeError(err)),
+        Err(err) => return Err(err),
       },
       day_of_year,
-    ))
+    )
   }
 
   /// Constructs a new instance that automatically deals with leap years.
   #[inline]
-  pub const fn new(year: Year, day_of_year: DayOfYear) -> Self {
-    let mut params = boolu16(is_leap_year(year.num())) << 15;
+  pub const fn from_ymd(year: Year, month: Month, day: Day) -> Result<Self, TimeError> {
+    #[allow(clippy::indexing_slicing, reason = "zero or one are valid indices for a 2 len array")]
+    let months_year = &DAYS_OF_MONTHS[boolusize(year.is_leap_year())];
+    #[allow(clippy::indexing_slicing, reason = "month only goes up to 12")]
+    let month_days = months_year[u8usize(month.num()).wrapping_sub(1)];
+    let day_of_year = match DayOfYear::from_num(month_days.wrapping_add(u8u16(day.num()))) {
+      Ok(elem) => elem,
+      Err(err) => return Err(err),
+    };
+    Self::new(year, day_of_year)
+  }
+
+  /// Constructs a new instance that automatically deals with leap years.
+  #[inline]
+  pub const fn new(year: Year, day_of_year: DayOfYear) -> Result<Self, TimeError> {
+    let is_leap_year = year.is_leap_year();
+    if !is_leap_year && day_of_year.num() == DayOfYear::MAX.num() {
+      return Err(TimeError::InvalidDayOfTheYearInNonLeapYear);
+    }
+    let mut params = boolu16(is_leap_year) << 15;
     params |= day_of_year.num();
-    Self { params, year }
+    Ok(Self { params, year })
   }
 
   /// Number of days since the common era (0001-01-01)
@@ -131,12 +161,6 @@ impl Date {
     }
   }
 
-  /// If this instance has an additional day.
-  #[inline]
-  pub const fn is_leap_year(self) -> bool {
-    self.params & 0b10_0000_0000 == 0b10_0000_0000
-  }
-
   /// Month of the year
   #[inline]
   pub const fn month(self) -> Month {
@@ -168,9 +192,8 @@ impl Date {
   }
 
   // Credits to https://jhpratt.dev/blog/optimizing-with-novel-calendrical-algorithms.
-  #[inline]
   const fn month_params(self) -> (u32, u8, u8) {
-    let days_until_feb = 59u32.wrapping_add(boolu32(self.is_leap_year()));
+    let days_until_feb = 59u32.wrapping_add(boolu32(self.year().is_leap_year()));
     let mut day_of_year = u16u32(self.day_of_year().num());
     let mut month_surplus = 0;
     if let Some(elem @ 1..=u32::MAX) = day_of_year.checked_sub(days_until_feb) {
@@ -196,21 +219,14 @@ impl Display for Date {
   }
 }
 
-#[inline]
-const fn is_leap_year(year: i16) -> bool {
-  let value = if year % 100 == 0 { 0b1111 } else { 0b11 };
-  year & value == 0
-}
-
 #[allow(
   clippy::arithmetic_side_effects,
-  reason = "Divisions/modulos are using non-zero numbers but can't see past a literal constant"
+  reason = "Divisions/modulos are using non-zero numbers but it can't see past a literal constant"
 )]
 #[allow(
   clippy::indexing_slicing,
   reason = "days / DAYS_PER_NON_LEAP_YEAR_U16 will never be greater than 400"
 )]
-#[inline]
 const fn years_from_quadricentury_days(days: i32) -> Option<(i16, DayOfYear)> {
   if days > DAYS_PER_400_YEARS_I32 {
     return None;
@@ -247,7 +263,7 @@ mod tests {
   }
 
   fn _2025_04_20() -> Date {
-    Date::new(Year::from_num(2025).unwrap(), DayOfYear::N110)
+    Date::new(Year::from_num(2025).unwrap(), DayOfYear::from_num(110).unwrap()).unwrap()
   }
 
   #[test]
@@ -261,7 +277,7 @@ mod tests {
   #[test]
   fn constructors_converge() {
     assert_eq!(
-      Date::new(Year::from_num(500).unwrap(), DayOfYear::N104),
+      Date::new(Year::from_num(500).unwrap(), DayOfYear::from_num(104).unwrap()).unwrap(),
       Date::from_ce_days(CeDays::from_num(182360).unwrap()).unwrap()
     );
   }
@@ -280,14 +296,6 @@ mod tests {
     assert_eq!(Date::MAX.day_of_year().num(), 365);
     assert_eq!(_0401_03_02().day_of_year().num(), 61);
     assert_eq!(_2025_04_20().day_of_year().num(), 110);
-  }
-
-  #[test]
-  fn is_leap_year() {
-    assert_eq!(Date::MIN.is_leap_year(), false);
-    assert_eq!(Date::MAX.is_leap_year(), false);
-    assert_eq!(_0401_03_02().is_leap_year(), false);
-    assert_eq!(_2025_04_20().is_leap_year(), false);
   }
 
   #[test]

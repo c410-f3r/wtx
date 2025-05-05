@@ -18,7 +18,6 @@ pub(crate) enum AuthPlugin {
 }
 
 impl AuthPlugin {
-  #[inline]
   pub(crate) async fn manage_caching_sha2<E, S, const IS_TLS: bool>(
     self,
     auth_plugin_data: ([u8; 8], &[u8]),
@@ -47,7 +46,7 @@ impl AuthPlugin {
           write_packet((capabilities, sequence_id), encode_buffer, &[2][..], stream).await?;
 
           let _ = fetch_msg(*capabilities, net_buffer, sequence_id, stream).await?;
-          let rsa_pub_key = net_buffer._current().get(1..).unwrap_or_default();
+          let rsa_pub_key = net_buffer.current().get(1..).unwrap_or_default();
 
           Self::xor_slice((&auth_plugin_data.0, auth_plugin_data.1), &mut pw_array);
 
@@ -70,7 +69,6 @@ impl AuthPlugin {
     }
   }
 
-  #[inline]
   pub(crate) fn mask_pw(
     self,
     auth_plugin_data: (&[u8], &[u8]),
@@ -91,7 +89,6 @@ impl AuthPlugin {
     }
   }
 
-  #[inline]
   fn mask<T, const N: usize>(mut ctx: T, data: (&[u8], &[u8]), pw: &[u8]) -> [u8; N]
   where
     T: Digest + FixedOutputReset,
@@ -109,7 +106,6 @@ impl AuthPlugin {
     hash.into()
   }
 
-  #[inline]
   fn xor_slice((from0, from1): (&[u8], &[u8]), to: &mut [u8]) {
     let from_iter = from0.iter().chain(from1).cycle();
     for (to, from) in to.iter_mut().zip(from_iter) {

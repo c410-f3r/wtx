@@ -11,7 +11,6 @@ pub struct PostgresRecords<'exec, E> {
 }
 
 impl<'exec, E> PostgresRecords<'exec, E> {
-  #[inline]
   pub(crate) fn new(
     records: &'exec [u8],
     records_params: &'exec [(Range<usize>, Range<usize>)],
@@ -28,17 +27,14 @@ where
 {
   type Database = Postgres<E>;
 
-  #[inline]
   fn get(&self, idx: usize) -> Option<PostgresRecord<'exec, E>> {
     self.common.get(idx)
   }
 
-  #[inline]
   fn iter(&self) -> impl Iterator<Item = PostgresRecord<'exec, E>> {
     self.common.iter()
   }
 
-  #[inline]
   fn len(&self) -> usize {
     self.common.len()
   }

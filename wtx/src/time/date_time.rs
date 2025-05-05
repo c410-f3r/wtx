@@ -1,15 +1,15 @@
 use crate::{
   collection::ArrayString,
   time::{
-    CeDays, Date, Hour, MINUTES_PER_HOUR, Minute, SECONDS_PER_DAY, SECONDS_PER_HOUR,
+    CeDays, Date, Hour, MINUTES_PER_HOUR, Minute, Nanosecond, SECONDS_PER_DAY, SECONDS_PER_HOUR,
     SECONDS_PER_MINUTE, Second, Time, TimeError, UNIX_EPOCH_DAYS,
     misc::{i32i64, u32i64},
-    nanosecond::Nanosecond,
   },
 };
 use core::fmt::{Debug, Display, Formatter};
 
 /// ISO-8601 representation with a fixed UTC timezone.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DateTime {
   date: Date,
@@ -25,14 +25,21 @@ impl DateTime {
   pub const MIN: Self = Self::new(Date::MIN, Time::MIN);
 
   /// Creates a new instance from a UNIX timestamp expressed in seconds.
-  #[allow(
-    clippy::arithmetic_side_effects,
-    reason = "Divisions/modulos are using non-zero numbers but can't see past a literal constant"
-  )]
   #[inline]
   pub fn from_timestamp_secs(timestamp: i64) -> crate::Result<Self> {
-    if timestamp < Self::MIN.timestamp() || timestamp > Self::MAX.timestamp() {
-      return Err(TimeError::InvalidTimestamp { received: timestamp }.into());
+    Self::from_timestamp_secs_and_ns(timestamp, Nanosecond::ZERO)
+  }
+
+  /// Creates a new instance from a UNIX timestamp expressed in seconds along side the number of
+  /// nanoseconds
+  #[allow(
+    clippy::arithmetic_side_effects,
+    reason = "Divisions/modulos are using non-zero numbers but it can't see past a literal constant"
+  )]
+  #[inline]
+  pub fn from_timestamp_secs_and_ns(timestamp: i64, nanosecond: Nanosecond) -> crate::Result<Self> {
+    if timestamp < Self::MIN.timestamp().0 || timestamp > Self::MAX.timestamp().0 {
+      return Err(TimeError::InvalidTimestamp.into());
     }
     let days = timestamp.div_euclid(SECONDS_PER_DAY.into()).wrapping_add(UNIX_EPOCH_DAYS.into());
     let secs = timestamp.rem_euclid(SECONDS_PER_DAY.into());
@@ -45,7 +52,7 @@ impl DateTime {
         Hour::from_num(hour)?,
         Minute::from_num(minute)?,
         Second::from_num(second)?,
-        Nanosecond::MIN,
+        nanosecond,
       ),
     ))
   }
@@ -68,13 +75,13 @@ impl DateTime {
     self.time
   }
 
-  /// UNIX timestamp
+  /// UNIX timestamp in seconds as well as the number of nanoseconds.
   #[inline]
-  pub const fn timestamp(self) -> i64 {
+  pub const fn timestamp(self) -> (i64, Nanosecond) {
     let mut rslt = i32i64(self.date.ce_days());
     rslt = rslt.wrapping_sub(u32i64(UNIX_EPOCH_DAYS));
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
-    rslt.wrapping_add(u32i64(self.time.seconds_from_mn()))
+    (rslt.wrapping_add(u32i64(self.time.seconds_from_mn())), self.time.nanosecond())
   }
 
   /// String representation
@@ -116,13 +123,13 @@ mod tests {
 
   fn _2025_04_20_14_20_30_1234() -> DateTime {
     DateTime::new(
-      Date::new(Year::from_num(2025).unwrap(), DayOfYear::N110),
+      Date::new(Year::from_num(2025).unwrap(), DayOfYear::from_num(110).unwrap()).unwrap(),
       Time::from_hms_ns(Hour::N14, Minute::N20, Second::N30, Nanosecond::from_num(1234).unwrap()),
     )
   }
 
   #[test]
-  fn datetime_from_timestamp_secs() {
+  fn from_timestamp_secs() {
     let elements = [
       (1662921288, "2022-09-11T18:34:48Z"),
       (1662921287, "2022-09-11T18:34:47Z"),
@@ -136,15 +143,15 @@ mod tests {
     for (timestamp, str) in elements {
       let instance = DateTime::from_timestamp_secs(timestamp).unwrap();
       assert_eq!(instance.to_str().as_str(), str);
-      assert_eq!(instance.timestamp(), timestamp);
+      assert_eq!(instance.timestamp().0, timestamp);
     }
   }
 
   #[test]
   fn timestamp() {
-    assert_eq!(DateTime::MIN.timestamp(), -1096193779200);
-    assert_eq!(DateTime::MAX.timestamp(), 971859427199);
-    assert_eq!(_2025_04_20_14_20_30_1234().timestamp(), 1745158830);
+    assert_eq!(DateTime::MIN.timestamp().0, -1096193779200);
+    assert_eq!(DateTime::MAX.timestamp().0, 971859427199);
+    assert_eq!(_2025_04_20_14_20_30_1234().timestamp().0, 1745158830);
   }
 
   #[test]

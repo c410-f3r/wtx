@@ -12,7 +12,6 @@ pub use path_str::PathStr;
 #[cfg(feature = "serde_json")]
 pub use serde_json::SerdeJson;
 
-#[inline]
 fn manage_path<'uri>(
   path_defs: (u8, &[RouteMatch]),
   uri: &'uri UriString,

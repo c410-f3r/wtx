@@ -13,7 +13,8 @@ macro_rules! _create_set_of_request_throttling {
     }
 
     impl $name {
-            pub fn new(
+      #[inline]
+      pub fn new(
         $( $method: $crate::utils::RequestLimit, )+
       ) -> Self {
         Self {

@@ -157,7 +157,6 @@ where
   }
 }
 
-#[inline]
 async fn recv_data<HB, HD, SW>(
   buffer: &mut Vector<u8>,
   no_masking: bool,
@@ -187,7 +186,6 @@ where
   Ok((rfi, is_eos))
 }
 
-#[inline]
 async fn write_control_frame_cb<HB, HD, SW>(
   stream: &mut ServerStream<HD>,
   header: &[u8],

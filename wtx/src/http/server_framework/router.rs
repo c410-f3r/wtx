@@ -27,18 +27,17 @@ where
   /// Creates a new instance with generic paths and middlewares.
   #[inline]
   pub fn new(en: EN, middlewares: M) -> crate::Result<Self> {
-    let _matcher = Self::_matcher(&en)?;
-    Ok(Self { _matcher, middlewares, en, phantom: PhantomData })
+    let matcher = Self::matcher(&en)?;
+    Ok(Self { _matcher: matcher, middlewares, en, phantom: PhantomData })
   }
 
-  #[inline]
   #[cfg(feature = "matchit")]
-  fn _matcher(
+  fn matcher(
     en: &EN,
   ) -> crate::Result<matchit::Router<(ArrayVector<RouteMatch, 4>, OperationMode)>> {
     let mut vec = Vector::new();
     en.paths_indices(ArrayVector::new(), &mut vec)?;
-    let mut _matcher = matchit::Router::new();
+    let mut matcher = matchit::Router::new();
     for array in vec {
       let [initials @ .., last] = array.as_slice() else {
         continue;
@@ -49,14 +48,13 @@ where
       }
       key.push_str(last.path);
       let om = last.om;
-      _matcher.insert(key, (array, om))?;
+      matcher.insert(key, (array, om))?;
     }
-    Ok(_matcher)
+    Ok(matcher)
   }
 
-  #[inline]
   #[cfg(not(feature = "matchit"))]
-  fn _matcher(
+  fn matcher(
     paths: &EN,
   ) -> crate::Result<hashbrown::HashMap<alloc::string::String, OperationMode>> {
     let mut paths_indices = Vector::new();
@@ -80,8 +78,8 @@ where
   /// Creates a new instance with automatic paths and middlewares.
   #[inline]
   pub fn paths(en: EN) -> crate::Result<Self> {
-    let _matcher = Self::_matcher(&en)?;
-    Ok(Self { en, _matcher, middlewares: (), phantom: PhantomData })
+    let matcher = Self::matcher(&en)?;
+    Ok(Self { en, _matcher: matcher, middlewares: (), phantom: PhantomData })
   }
 }
 

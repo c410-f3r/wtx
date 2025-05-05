@@ -175,13 +175,11 @@ impl NegotiatedCompression for NegotiatedFlate2 {
   }
 }
 
-#[inline]
 fn byte_from_bytes(bytes: &[u8]) -> Option<u8> {
   let after_equals = bytes_split1(bytes, b'=').nth(1)?;
   u8::from_radix_10(after_equals).ok()
 }
 
-#[inline]
 fn compress_or_decompress<NC, O>(
   input: &[u8],
   nc: &mut NC,
@@ -226,7 +224,6 @@ fn compress_or_decompress<NC, O>(
   }
 }
 
-#[inline]
 fn manage_header_uniqueness(
   flag: &mut bool,
   mut cb: impl FnMut() -> crate::Result<()>,
@@ -240,9 +237,8 @@ fn manage_header_uniqueness(
   }
 }
 
-#[inline]
 fn write_headers(dc: &DeflateConfig, sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
-  sw._extend_from_slices_group_rn(&[
+  sw.extend_from_slices_group_rn(&[
     b"Sec-Websocket-Extensions: ",
     b"permessage-deflate; ",
     b"client_max_window_bits=",

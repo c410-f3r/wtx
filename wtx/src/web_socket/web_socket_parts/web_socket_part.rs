@@ -32,7 +32,6 @@ where
   PFB: LeaseMut<PartitionedFilledBuffer>,
   V: LeaseMut<Vector<u8>>,
 {
-  #[inline]
   pub(crate) async fn read_frame_from_stream<CS, NC, R, S>(
     &mut self,
     common: &mut WebSocketCommonPart<CS, NC, R, S, IS_CLIENT>,
@@ -73,7 +72,6 @@ where
     Ok(frame)
   }
 
-  #[inline]
   pub(crate) async fn read_frame_from_parts<C, NC, R, SR, SW>(
     &mut self,
     common: &mut C,
@@ -121,7 +119,6 @@ impl<V, const IS_CLIENT: bool> WebSocketWriterPart<V, IS_CLIENT>
 where
   V: LeaseMut<Vector<u8>>,
 {
-  #[inline]
   pub(crate) async fn write_frame<CS, NC, P, R, SW>(
     &mut self,
     common: &mut WebSocketCommonPart<CS, NC, R, SW, IS_CLIENT>,

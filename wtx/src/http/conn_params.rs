@@ -12,7 +12,6 @@ pub(crate) struct ConnParams {
 
 #[cfg(feature = "http2")]
 impl ConnParams {
-  #[inline]
   pub(crate) fn _to_hp(self) -> crate::http2::Http2Params {
     crate::http2::Http2Params::default()
       .set_enable_connect_protocol(self._enable_connect_protocol)

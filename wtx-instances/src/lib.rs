@@ -28,7 +28,6 @@ pub static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
 #[cfg(feature = "mysql")]
-#[inline]
 pub async fn executor_mysql(
   uri_str: &str,
 ) -> wtx::Result<
@@ -49,7 +48,6 @@ pub async fn executor_mysql(
 }
 
 #[cfg(feature = "postgres")]
-#[inline]
 pub async fn executor_postgres(
   uri_str: &str,
 ) -> wtx::Result<
@@ -73,13 +71,11 @@ pub async fn executor_postgres(
 }
 
 /// Host from arguments
-#[inline]
 pub fn host_from_args() -> String {
   std::env::args().nth(1).unwrap_or_else(|| "127.0.0.1:9000".to_owned())
 }
 
 /// Uri from arguments
-#[inline]
 pub fn uri_from_args() -> String {
   std::env::args().nth(1).unwrap_or_else(|| "http://127.0.0.1:9000".to_owned())
 }

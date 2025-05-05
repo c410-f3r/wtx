@@ -1,5 +1,3 @@
-#![allow(dead_code, reason = "feature selection")]
-
 use crate::{
   collection::Vector,
   misc::{LeaseMut, SuffixWriter},
@@ -28,7 +26,6 @@ where
   ) -> Result<(), E>;
 }
 
-#[inline]
 fn write<E, V, const N: usize>(
   sw: &mut SuffixWriter<V>,
   include_len: bool,
@@ -41,14 +38,13 @@ where
   V: LeaseMut<Vector<u8>>,
 {
   let after_prefix = write_init::<_, _, N>(sw, prefix)?;
-  let len_before = if include_len { after_prefix } else { sw._len() };
+  let len_before = if include_len { after_prefix } else { sw.len() };
   sw_cb(sw)?;
   let value = value_cb(sw, len_before)?;
   write_prefix(after_prefix, sw, value);
   Ok(())
 }
 
-#[inline]
 fn write_init<E, V, const N: usize>(
   sw: &mut SuffixWriter<V>,
   prefix: Option<u8>,
@@ -58,14 +54,13 @@ where
   V: LeaseMut<Vector<u8>>,
 {
   if let Some(elem) = prefix {
-    sw._extend_from_byte(elem)?;
+    sw.extend_from_byte(elem)?;
   }
-  let after_prefix = sw._len();
+  let after_prefix = sw.len();
   sw.extend_from_slice(&[0; N])?;
   Ok(after_prefix)
 }
 
-#[inline]
 fn write_iter<E, T, V, const N: usize>(
   sw: &mut SuffixWriter<V>,
   iter: impl IntoIterator<Item = T>,
@@ -88,13 +83,12 @@ where
   Ok(())
 }
 
-#[inline]
 fn write_prefix<V, const N: usize>(start: usize, sw: &mut SuffixWriter<V>, value: [u8; N])
 where
   V: LeaseMut<Vector<u8>>,
 {
   let end = start.wrapping_add(value.len());
-  if let Some(elem) = sw._curr_bytes_mut().get_mut(start..end) {
+  if let Some(elem) = sw.curr_bytes_mut().get_mut(start..end) {
     elem.copy_from_slice(&value);
   }
 }
@@ -112,7 +106,6 @@ macro_rules! impl_trait {
       E: From<crate::Error>,
       V: LeaseMut<Vector<u8>>,
     {
-      #[inline]
       fn write(
         &self,
         sw: &mut SuffixWriter<V>,
@@ -121,12 +114,11 @@ macro_rules! impl_trait {
         cb: impl FnOnce(&mut SuffixWriter<V>) -> Result<(), E>,
       ) -> Result<(), E> {
         write(sw, include_len, prefix, cb, |local_sw, len_before| {
-          let diff = local_sw._len().wrapping_sub(len_before);
+          let diff = local_sw.len().wrapping_sub(len_before);
           Ok($ty::try_from(diff).map_err(Into::into)?.to_be_bytes())
         })
       }
 
-      #[inline]
       fn write_iter<T>(
         &self,
         sw: &mut SuffixWriter<V>,
@@ -141,7 +133,6 @@ macro_rules! impl_trait {
     }
 
     impl<E, V> Default for $name<E, V> {
-      #[inline]
       fn default() -> Self {
         Self(PhantomData)
       }

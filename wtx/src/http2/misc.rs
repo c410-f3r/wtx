@@ -28,7 +28,6 @@ use core::{
   task::{Context, Poll, ready},
 };
 
-#[inline]
 pub(crate) fn check_content_length(sorp: &StreamOverallRecvParams) -> crate::Result<()> {
   let Some(content_length) = sorp.content_length else {
     return Ok(());
@@ -39,7 +38,6 @@ pub(crate) fn check_content_length(sorp: &StreamOverallRecvParams) -> crate::Res
   Ok(())
 }
 
-#[inline]
 pub(crate) fn frame_reader_rslt(err: &mut Option<crate::Error>) -> crate::Result<()> {
   match err.take() {
     Some(elem) => Err(elem),
@@ -47,7 +45,6 @@ pub(crate) fn frame_reader_rslt(err: &mut Option<crate::Error>) -> crate::Result
   }
 }
 
-#[inline]
 #[track_caller]
 pub(crate) fn scrp_mut(
   scrp: &mut Scrp,
@@ -56,7 +53,6 @@ pub(crate) fn scrp_mut(
   scrp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
 }
 
-#[inline]
 #[track_caller]
 pub(crate) fn sorp_mut(
   sorp: &mut Sorp,
@@ -65,7 +61,6 @@ pub(crate) fn sorp_mut(
   sorp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
 }
 
-#[inline]
 pub(crate) fn manage_initial_stream_receiving(
   is_conn_open: &AtomicBool,
   rrb: &mut ReqResBuffer,
@@ -77,7 +72,6 @@ pub(crate) fn manage_initial_stream_receiving(
   true
 }
 
-#[inline]
 pub(crate) fn manage_recurrent_stream_receiving<E, SW, const IS_CLIENT: bool>(
   cx: &mut Context<'_>,
   mut hdpm: Http2DataPartsMut<'_, SW, IS_CLIENT>,
@@ -141,12 +135,10 @@ pub(crate) fn manage_recurrent_stream_receiving<E, SW, const IS_CLIENT: bool>(
   Poll::Pending
 }
 
-#[inline]
 pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
   crate::Error::Http2ErrorGoAway(Http2ErrorCode::ProtocolError, Some(error))
 }
 
-#[inline]
 pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bool>(
   err: &crate::Error,
   hd: &HD,
@@ -178,7 +170,6 @@ pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bo
   }
 }
 
-#[inline]
 pub(crate) async fn read_frame<SR, const IS_HEADER_BLOCK: bool>(
   is_conn_open: &AtomicBool,
   max_frame_len: u32,
@@ -191,10 +182,10 @@ where
 {
   let mut fut = pin!(async move {
     for _ in 0.._max_frames_mismatches!() {
-      pfb._clear_if_following_is_empty();
-      pfb._reserve(9)?;
-      let mut read = pfb._following_len();
-      let buffer = pfb._following_rest_mut();
+      pfb.clear_if_following_is_empty();
+      pfb.reserve(9)?;
+      let mut read = pfb.following_len();
+      let buffer = pfb.following_rest_mut();
       let array = read_header::<0, 9, _>(buffer, &mut read, stream_reader).await?;
       let (fi_opt, data_len) = FrameInit::from_array(array);
       if data_len > max_frame_len {
@@ -214,11 +205,11 @@ where
         let frame_len = data_len_usize.wrapping_add(9);
         let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
           stream_reader.read_skip(to_read).await?;
-          (pfb._all().len(), 0)
+          (pfb.all().len(), 0)
         } else {
-          (pfb._current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
+          (pfb.current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
         };
-        pfb._set_indices(antecedent_len, 0, following_len)?;
+        pfb.set_indices(antecedent_len, 0, following_len)?;
         continue;
       };
       _trace!("Received frame: {fi:?}");
@@ -238,7 +229,6 @@ where
   .await
 }
 
-#[inline]
 pub(crate) async fn read_header_and_continuations<
   H,
   SR,
@@ -272,7 +262,7 @@ where
 
   if fi.cf.has_eoh() {
     let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
-      Some(pfb._current()),
+      Some(pfb.current()),
       fi,
       hp,
       hpack_dec,
@@ -289,7 +279,7 @@ where
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
-  rrb.body.extend_from_copyable_slice(pfb._current())?;
+  rrb.body.extend_from_copyable_slice(pfb.current())?;
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
@@ -309,7 +299,7 @@ where
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      rrb.body.extend_from_copyable_slice(pfb._current())?;
+      rrb.body.extend_from_copyable_slice(pfb.current())?;
       if frame_fi.cf.has_eoh() {
         break 'continuation_frames;
       }
@@ -339,7 +329,6 @@ where
   Ok((content_length, hf.has_eos(), headers_cb(&hf)?))
 }
 
-#[inline]
 pub(crate) async fn send_go_away<SW, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
   hdpm: &mut Http2DataPartsMut<'_, SW, IS_CLIENT>,
@@ -361,7 +350,6 @@ pub(crate) async fn send_go_away<SW, const IS_CLIENT: bool>(
   hdpm.hb.read_frame_waker.wake();
 }
 
-#[inline]
 pub(crate) async fn send_reset_stream<SW>(
   error_code: Http2ErrorCode,
   scrp: &mut Scrp,
@@ -389,12 +377,10 @@ where
   has_stored
 }
 
-#[inline]
 pub(crate) fn server_header_stream_state(has_eos: bool) -> StreamState {
   if has_eos { StreamState::HalfClosedRemote } else { StreamState::Open }
 }
 
-#[inline]
 pub(crate) fn status_recv<E, O>(
   is_conn_open: &AtomicBool,
   sorp: &mut StreamOverallRecvParams,
@@ -412,7 +398,6 @@ pub(crate) fn status_recv<E, O>(
   Ok(None)
 }
 
-#[inline]
 pub(crate) fn status_send<const IS_CLIENT: bool>(
   is_conn_open: &AtomicBool,
   sorp: &StreamOverallRecvParams,
@@ -429,7 +414,6 @@ pub(crate) fn status_send<const IS_CLIENT: bool>(
   None
 }
 
-#[inline]
 pub(crate) fn trim_frame_pad(cf: CommonFlags, data: &mut &[u8]) -> crate::Result<Option<u8>> {
   let mut pad_len = None;
   if cf.has_pad() {
@@ -446,7 +430,6 @@ pub(crate) fn trim_frame_pad(cf: CommonFlags, data: &mut &[u8]) -> crate::Result
   Ok(pad_len)
 }
 
-#[inline]
 pub(crate) async fn write_array<SW, const N: usize>(
   array: [&[u8]; N],
   is_conn_open: &AtomicBool,

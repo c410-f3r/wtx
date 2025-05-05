@@ -1,5 +1,4 @@
 #[doc = _internal_doc!()]
-#[inline]
 pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
   _simd_bytes!(
     (align_to_mut, bytes),
@@ -42,7 +41,6 @@ pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
   );
 }
 
-#[inline]
 fn _do_unmask<const N: usize>(mask: &[u8], slice: &mut [[u8; N]]) {
   for array in slice {
     for (array_elem, mask_elem) in array.iter_mut().zip(mask) {

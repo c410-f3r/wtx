@@ -11,7 +11,6 @@ pub struct MysqlRecords<'exec, E> {
 }
 
 impl<'exec, E> MysqlRecords<'exec, E> {
-  #[inline]
   pub(crate) fn new(
     records: &'exec [u8],
     records_params: &'exec [(Range<usize>, Range<usize>)],

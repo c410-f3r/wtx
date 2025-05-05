@@ -16,7 +16,6 @@ pub(crate) struct CommonExecutorBuffer<A, C, T> {
 
 impl<A, C, T> CommonExecutorBuffer<A, C, T> {
   /// With provided capacity.
-  #[inline]
   pub(crate) fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
   where
     RNG: Rng,
@@ -30,7 +29,6 @@ impl<A, C, T> CommonExecutorBuffer<A, C, T> {
   }
 
   /// With default capacity.
-  #[inline]
   pub(crate) fn with_capacity<RNG>(
     (columns_cap, network_buffer_cap, rows_cap, stmts_cap): (usize, usize, usize, usize),
     max_stmts: usize,
@@ -40,7 +38,7 @@ impl<A, C, T> CommonExecutorBuffer<A, C, T> {
     RNG: Rng,
   {
     Ok(Self {
-      net_buffer: PartitionedFilledBuffer::_with_capacity(network_buffer_cap)?,
+      net_buffer: PartitionedFilledBuffer::with_capacity(network_buffer_cap)?,
       records_params: Vector::with_capacity(rows_cap)?,
       stmts: Statements::with_capacity(columns_cap, max_stmts, rng, stmts_cap)?,
       values_params: Vector::with_capacity(rows_cap.saturating_mul(columns_cap))?,
@@ -48,10 +46,9 @@ impl<A, C, T> CommonExecutorBuffer<A, C, T> {
   }
 
   /// Should be used in a new instance.
-  #[inline]
   pub(crate) fn clear(&mut self) {
     let Self { net_buffer, records_params, stmts, values_params } = self;
-    net_buffer._clear();
+    net_buffer.clear();
     records_params.clear();
     stmts.clear();
     values_params.clear();

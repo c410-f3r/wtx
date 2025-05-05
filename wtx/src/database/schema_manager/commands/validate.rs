@@ -67,7 +67,6 @@ where
     self.do_validate_from_dir(buffer, path).await
   }
 
-  #[inline]
   pub(crate) fn do_validate<'migration, DBS, S, I>(
     db_migrations: &[DbMigration],
     migrations: I,
@@ -101,7 +100,6 @@ where
     Ok(())
   }
 
-  #[inline]
   #[cfg(feature = "std")]
   async fn do_validate_from_dir(
     &mut self,

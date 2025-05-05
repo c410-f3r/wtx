@@ -7,7 +7,6 @@ pub struct EncodeWrapper<'any> {
 }
 
 impl<'any> EncodeWrapper<'any> {
-  #[inline]
   pub(crate) fn new(buffer: &'any mut Vector<u8>) -> Self {
     Self { buffer }
   }

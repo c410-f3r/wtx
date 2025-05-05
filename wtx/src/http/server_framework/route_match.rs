@@ -9,7 +9,6 @@ pub struct RouteMatch {
 }
 
 impl RouteMatch {
-  #[inline]
   pub(crate) fn new(idx: u8, om: OperationMode, path: &'static str) -> Self {
     Self { idx, om, path }
   }

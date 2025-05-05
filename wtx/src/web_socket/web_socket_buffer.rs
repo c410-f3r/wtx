@@ -15,9 +15,9 @@ pub struct WebSocketBuffer {
 impl WebSocketBuffer {
   /// New empty instance
   #[inline]
-  pub const fn new() -> Self {
+  pub fn new() -> Self {
     Self {
-      network_buffer: PartitionedFilledBuffer::new(),
+      network_buffer: PartitionedFilledBuffer::default(),
       reader_buffer_first: Vector::new(),
       reader_buffer_second: Vector::new(),
       writer_buffer: Vector::new(),
@@ -32,7 +32,7 @@ impl WebSocketBuffer {
     writer_buffer_cap: usize,
   ) -> crate::Result<Self> {
     Ok(Self {
-      network_buffer: PartitionedFilledBuffer::_with_capacity(network_buffer_cap)?,
+      network_buffer: PartitionedFilledBuffer::with_capacity(network_buffer_cap)?,
       reader_buffer_first: Vector::with_capacity(reader_buffer_cap)?,
       reader_buffer_second: Vector::with_capacity(reader_buffer_cap)?,
       writer_buffer: Vector::with_capacity(writer_buffer_cap)?,
@@ -42,7 +42,7 @@ impl WebSocketBuffer {
   #[cfg(feature = "web-socket-handshake")]
   pub(crate) fn clear(&mut self) {
     let Self { network_buffer, reader_buffer_first, reader_buffer_second, writer_buffer } = self;
-    network_buffer._clear();
+    network_buffer.clear();
     reader_buffer_first.clear();
     reader_buffer_second.clear();
     writer_buffer.clear();

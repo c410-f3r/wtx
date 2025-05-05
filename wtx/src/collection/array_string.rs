@@ -161,14 +161,12 @@ impl<const N: usize> ArrayString<N> {
     self.len = len.min(self.capacity());
   }
 
-  #[inline]
   const fn instance_check() {
     const {
       assert!(N <= Usize::from_u32(u32::MAX).into_usize());
     }
   }
 
-  #[inline]
   const fn instance_u32() -> u32 {
     const {
       let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
@@ -176,7 +174,6 @@ impl<const N: usize> ArrayString<N> {
     }
   }
 
-  #[inline]
   fn push_bytes(&mut self, error: ArrayStringError, other: &[u8]) -> crate::Result<()> {
     let Some(len) = u32::try_from(other.len()).ok().filter(|el| self.remaining_capacity() >= *el)
     else {

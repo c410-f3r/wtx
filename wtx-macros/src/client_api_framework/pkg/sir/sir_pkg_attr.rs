@@ -14,6 +14,7 @@ pub(crate) struct SirPkaAttr<'attrs> {
 impl<'attrs> TryFrom<FirPkgAttr<'attrs>> for SirPkaAttr<'attrs> {
   type Error = crate::Error;
 
+  #[inline]
   fn try_from(fea: FirPkgAttr<'attrs>) -> Result<Self, Self::Error> {
     let data_formats = fea
       .data_formats

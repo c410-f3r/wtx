@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    client_pool::{ClientPool, ClientPoolRM, NoAuxFn},
+    client_pool::{ClientPool, ClientPoolRM},
     conn_params::ConnParams,
   },
   misc::Lock,
@@ -28,9 +28,9 @@ impl<A, AI, RL, S> ClientPoolBuilder<A, AI, RL, S> {
   _conn_params_methods!();
 }
 
-impl<RL, S> ClientPoolBuilder<NoAuxFn, (), RL, S> {
-  #[inline]
-  pub(crate) fn _no_fun(len: usize) -> Self {
+#[cfg(all(feature = "http-client-pool", feature = "tokio"))]
+impl<RL, S> ClientPoolBuilder<crate::http::client_pool::NoAuxFn, (), RL, S> {
+  pub(crate) fn no_fun(len: usize) -> Self {
     fn fun(_: &()) {}
     Self { cp: ConnParams::default(), aux: fun, aux_input: (), len, phantom: PhantomData }
   }

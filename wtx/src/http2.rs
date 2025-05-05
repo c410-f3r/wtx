@@ -1,4 +1,5 @@
-//! HTTP/2
+//! Low-level HTTP/2. You should probably look into higher abstractions like the HTTP server
+//! framework.
 //!
 //! 1. Does not support padded headers when writing.
 //! 2. Does not support push promises (Deprecated by major third-parties).
@@ -132,12 +133,11 @@ where
 
   send_go_away_method!();
 
-  #[inline]
-  pub(crate) async fn _swap_buffers(&mut self, hb: &mut HB) {
+  #[cfg(all(feature = "http-client-pool", feature = "tokio"))]
+  pub(crate) async fn swap_buffers(&mut self, hb: &mut HB) {
     mem::swap(hb.lease_mut(), self.hd.lock().await.parts_mut().hb);
   }
 
-  #[inline]
   async fn manage_initial_params<const HAS_PREFACE: bool>(
     hb: &mut Http2Buffer,
     hp: &Http2Params,
@@ -168,7 +168,7 @@ where
     hb.hpack_dec.reserve(4, 256)?;
     hb.hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
     hb.hpack_enc.reserve(4, 256)?;
-    hb.pfb._reserve(*Usize::from(hp.read_buffer_len()))?;
+    hb.pfb.reserve(*Usize::from(hp.read_buffer_len()))?;
     Ok((
       Arc::clone(&hb.is_conn_open),
       hp.max_frame_len(),

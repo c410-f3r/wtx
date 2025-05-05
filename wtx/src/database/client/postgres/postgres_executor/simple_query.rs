@@ -12,7 +12,6 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  #[inline]
   pub(crate) async fn simple_query_execute(
     cmd: &str,
     cs: &mut ConnectionState,
@@ -21,9 +20,9 @@ where
     mut cb: impl FnMut(u64) -> Result<(), E>,
   ) -> Result<(), E> {
     {
-      let mut sw = SuffixWriterFbvm::from(net_buffer._suffix_writer());
+      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
       query(cmd.as_bytes(), &mut sw)?;
-      stream.write_all(sw._curr_bytes()).await?;
+      stream.write_all(sw.curr_bytes()).await?;
     }
     loop {
       let msg = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;

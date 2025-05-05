@@ -26,7 +26,6 @@ pub(crate) struct HeadersFrame<'uri> {
 }
 
 impl<'uri> HeadersFrame<'uri> {
-  #[inline]
   pub(crate) const fn new(
     (hsreqh, hsresh): (HpackStaticRequestHeaders<'uri>, HpackStaticResponseHeaders),
     stream_id: U31,
@@ -34,33 +33,27 @@ impl<'uri> HeadersFrame<'uri> {
     Self { cf: CommonFlags::empty(), hsreqh, hsresh, is_over_size: false, stream_id }
   }
 
-  #[inline]
   pub(crate) const fn bytes(&self) -> [u8; 9] {
     FrameInit::new(self.cf, 0, self.stream_id, FrameInitTy::Headers).bytes()
   }
 
-  #[inline]
   pub(crate) const fn has_eos(&self) -> bool {
     self.cf.has_eos()
   }
 
-  #[inline]
   pub(crate) const fn hsreqh(&self) -> &HpackStaticRequestHeaders<'uri> {
     &self.hsreqh
   }
 
-  #[inline]
   pub(crate) const fn hsresh(&self) -> HpackStaticResponseHeaders {
     self.hsresh
   }
 
-  #[inline]
   pub(crate) const fn is_over_size(&self) -> bool {
     self.is_over_size
   }
 
   #[expect(clippy::too_many_lines, reason = "variables are highly coupled")]
-  #[inline]
   pub(crate) fn read<const IS_CLIENT: bool, const IS_TRAILER: bool>(
     data: Option<&[u8]>,
     mut fi: FrameInit,
@@ -258,23 +251,19 @@ impl<'uri> HeadersFrame<'uri> {
     ))
   }
 
-  #[inline]
   pub(crate) fn set_eoh(&mut self) {
     self.cf.set_eoh();
   }
 
-  #[inline]
   pub(crate) fn set_eos(&mut self) {
     self.cf.set_eos();
   }
 }
 
-#[inline]
 const fn decoded_header_size(name: usize, value: usize) -> usize {
   name.wrapping_add(value).wrapping_add(32)
 }
 
-#[inline]
 fn push_enum(
   expanded_headers_len: &mut usize,
   has_fields: &mut bool,
@@ -296,7 +285,6 @@ fn push_enum(
   }
 }
 
-#[inline]
 fn push_uri<const N: usize>(
   buffer: &mut ArrayString<N>,
   expanded_headers_len: &mut usize,
@@ -319,7 +307,6 @@ fn push_uri<const N: usize>(
   }
 }
 
-#[inline]
 pub(crate) fn trim_priority(cf: CommonFlags, data: &mut &[u8]) {
   if cf.has_pri() {
     let [_, _, _, _, _, rest @ ..] = data else {

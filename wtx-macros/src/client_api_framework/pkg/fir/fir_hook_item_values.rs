@@ -26,6 +26,7 @@ macro_rules! create_fir_hook_item_values {
     impl<'others> TryFrom<ItemWithAttrSpan<(), &'others Item>> for $struct<'others> {
       type Error = crate::Error;
 
+      #[inline]
       fn try_from(from: ItemWithAttrSpan<(), &'others Item>) -> Result<Self, Self::Error> {
         let fun = || {
           let Item::Fn(item_fn) = from.item else { return None };

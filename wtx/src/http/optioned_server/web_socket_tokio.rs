@@ -83,7 +83,6 @@ impl OptionedServer {
   }
 }
 
-#[inline]
 pub(crate) fn number_or_available_parallelism(n: Option<usize>) -> crate::Result<usize> {
   Ok(if let Some(elem) = n { elem } else { usize::from(std::thread::available_parallelism()?) })
 }

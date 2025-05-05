@@ -16,7 +16,6 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  #[inline]
   pub(crate) async fn simple_query_execute(
     (capabilities, sequence_id): (&mut u64, &mut u8),
     cmd: &str,

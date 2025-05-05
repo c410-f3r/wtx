@@ -23,10 +23,10 @@ macro_rules! create_and_impl {
     }
 
     impl<'slice, T, const N: usize> $name<'slice, T, N> {
-      #[expect(clippy::arithmetic_side_effects, reason = "`N` is not zero")]
-      #[inline]
       /// Returns an iterator over N elements of the slice at a time, starting at the beginning of
       /// the slice.
+      #[expect(clippy::arithmetic_side_effects, reason = "`N` is not zero")]
+      #[inline]
       pub fn new(slice: $slice) -> Self {
         const {
           assert!(N > 0 && size_of::<T>() > 0);

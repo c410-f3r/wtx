@@ -24,7 +24,6 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  #[inline]
   pub(crate) async fn connect0<'nb, IS>(
     config: &Config<'_>,
     net_buffer: &'nb mut PartitionedFilledBuffer,
@@ -50,13 +49,12 @@ where
       capabilities |= u64::from(Capability::ConnectWithDb);
     }
     let _ = fetch_msg(capabilities, net_buffer, sequence_id, stream).await?;
-    let mut bytes = net_buffer._current();
+    let mut bytes = net_buffer.current();
     let res: HandshakeRes<'_> = decode(&mut bytes, ())?;
     capabilities &= res.capabilities;
     Ok((capabilities, res))
   }
 
-  #[inline]
   pub(crate) async fn connect1(
     (capabilities, sequence_id): (&mut u64, &mut u8),
     config: &Config<'_>,
@@ -85,7 +83,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) async fn connect2<const IS_TLS: bool>(
     auth_plugin_data: ([u8; 8], ArrayVector<u8, 24>),
     (capabilities, sequence_id): (&mut u64, &mut u8),
@@ -97,7 +94,7 @@ where
   ) -> Result<(), E> {
     loop {
       let _ = fetch_msg(*capabilities, net_buffer, sequence_id, stream).await?;
-      let mut current = net_buffer._current();
+      let mut current = net_buffer.current();
       match current {
         [0, ..] => {
           let _: OkRes = decode(&mut current, ())?;
@@ -149,7 +146,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) async fn connect3(&mut self, config: &Config<'_>) -> Result<(), E> {
     let mut buffer = Vector::new();
     buffer.extend_from_copyable_slice("SET ".as_bytes())?;

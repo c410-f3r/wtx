@@ -7,9 +7,9 @@ use crate::{
       integration_tests::{_migrate_doc_test, AuxTestParams},
     },
   },
+  time::{DateTime, Instant},
 };
 use alloc::string::String;
-use chrono::{DateTime, Duration, FixedOffset, Utc};
 
 pub(crate) async fn _backend_has_migration_with_utc_time<E>(
   (buffer_cmd, buffer_db_migrations, buffer_idents): (
@@ -23,9 +23,13 @@ pub(crate) async fn _backend_has_migration_with_utc_time<E>(
   E: SchemaManagement,
 {
   let mg = _migrate_doc_test((buffer_cmd, buffer_db_migrations, buffer_idents), c).await;
-  c._executor_mut().migrations(buffer_cmd, &mg, buffer_db_migrations).await.unwrap();
-  let created_on = *buffer_db_migrations[0].created_on();
-  let range = created_on..=created_on + Duration::seconds(5);
-  let utc: DateTime<FixedOffset> = Utc::now().into();
-  assert!(range.contains(&utc));
+  c.executor_mut().migrations(buffer_cmd, &mg, buffer_db_migrations).await.unwrap();
+  let created_on = buffer_db_migrations[0].created_on().timestamp().0;
+  let range = created_on..=created_on + 5;
+  let now =
+    DateTime::from_timestamp_secs(Instant::now_timestamp().unwrap().as_secs().cast_signed())
+      .unwrap()
+      .timestamp()
+      .0;
+  assert!(range.contains(&now));
 }

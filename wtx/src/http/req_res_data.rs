@@ -4,7 +4,7 @@ use crate::{
 };
 use alloc::{boxed::Box, string::String};
 
-static EMPTY_URI_STRING: UriString = UriString::_empty(String::new());
+static EMPTY_URI_STRING: UriString = UriString::empty(String::new());
 
 /// Groups the elements of an HTTP request/response.
 pub trait ReqResData {
