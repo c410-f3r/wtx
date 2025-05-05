@@ -16,7 +16,6 @@ pub(crate) struct Http2ParamsSend {
 }
 
 impl Http2ParamsSend {
-  #[inline]
   pub(crate) fn update(
     &mut self,
     hpack_enc: &mut HpackEncoder,
@@ -75,6 +74,7 @@ impl Http2ParamsSend {
 /// purposes, the default values provided by the RFC must be used until a settings frame
 /// is received.
 impl Default for Http2ParamsSend {
+  #[inline]
   fn default() -> Self {
     Self {
       enable_connect_protocol: 0,

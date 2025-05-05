@@ -6,7 +6,6 @@ pub(crate) struct EncodeWrapperProtocol<'any> {
 }
 
 impl<'any> EncodeWrapperProtocol<'any> {
-  #[inline]
   pub(crate) fn new(capabilities: &'any mut u64, encode_buffer: &'any mut Vector<u8>) -> Self {
     Self { capabilities, encode_buffer }
   }

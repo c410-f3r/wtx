@@ -43,7 +43,6 @@ impl ExecutorBuffer {
   }
 
   /// Should be used in a new instance.
-  #[inline]
   pub(crate) fn clear(&mut self) {
     let Self { common, conn_params } = self;
     common.clear();

@@ -49,12 +49,12 @@ where
   }
 
   /// Allows the access of the internal executor
-  #[inline]
-  pub(crate) fn _executor_mut(&mut self) -> &mut E {
+  #[cfg(test)]
+  #[cfg(any(feature = "mysql", feature = "postgres"))]
+  pub(crate) fn executor_mut(&mut self) -> &mut E {
     &mut self.executor
   }
 
-  #[inline]
   fn filter_by_db<'migration, DBS, I, S>(
     migrations: I,
   ) -> impl Clone + Iterator<Item = &'migration UserMigration<DBS, S>>
@@ -74,7 +74,6 @@ where
   E: SchemaManagement,
 {
   /// Retrieves all inserted elements.
-  #[inline]
   pub async fn all_elements(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),

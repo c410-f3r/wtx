@@ -34,7 +34,6 @@ pub fn u64_string(value: u64) -> U64String {
   clippy::arithmetic_side_effects,
   reason = "% and / will never overflow with 5, 10 and 20 integer literals"
 )]
-#[inline]
 fn num_string<const IS_SIGNED: bool, const U8: u8, const USIZE: usize, T>(
   mut value: T,
   mut abs: impl FnMut(T) -> T,

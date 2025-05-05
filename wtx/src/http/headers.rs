@@ -275,7 +275,6 @@ impl Headers {
     self.trailers
   }
 
-  #[inline]
   fn header_len<'bytes>(header_name: &str, iter: impl Iterator<Item = &'bytes str>) -> usize {
     let mut header_len = header_name.len();
     for elem in iter {
@@ -284,7 +283,6 @@ impl Headers {
     header_len
   }
 
-  #[inline]
   fn manage_trailers(is_trailer: bool, prev_len: usize, trailers: &mut Trailers) {
     *trailers = if is_trailer {
       match trailers {
@@ -300,7 +298,6 @@ impl Headers {
     };
   }
 
-  #[inline]
   fn map(bytes: &[u8], header_parts: HeaderParts) -> Header<'_, &str> {
     let HeaderParts {
       header_begin,

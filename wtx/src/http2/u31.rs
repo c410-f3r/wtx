@@ -15,47 +15,38 @@ impl U31 {
   pub(crate) const TWO: Self = Self(2);
   pub(crate) const ZERO: Self = Self(0);
 
-  #[inline]
   pub(crate) const fn from_i32(value: i32) -> Self {
     Self(value.unsigned_abs())
   }
 
-  #[inline]
   pub(crate) const fn from_u32(value: u32) -> Self {
     Self(value & MASK)
   }
 
-  #[inline]
   pub(crate) const fn is_not_zero(self) -> bool {
     self.0 != 0
   }
 
-  #[inline]
   pub(crate) const fn is_zero(self) -> bool {
     self.0 == 0
   }
 
-  #[inline]
   pub(crate) const fn to_be_bytes(self) -> [u8; 4] {
     self.0.to_be_bytes()
   }
 
-  #[inline]
   pub(crate) const fn i32(self) -> i32 {
     i32::from_be_bytes(self.to_be_bytes())
   }
 
-  #[inline]
   pub(crate) const fn u32(self) -> u32 {
     self.0
   }
 
-  #[inline]
   pub(crate) const fn wrapping_add(self, other: Self) -> Self {
     Self(self.0.wrapping_add(other.0))
   }
 
-  #[inline]
   pub(crate) const fn wrapping_sub(self, other: Self) -> Self {
     Self(self.0.wrapping_sub(other.0))
   }
@@ -118,28 +109,24 @@ impl From<U31> for u32 {
 }
 
 impl PartialEq<U31> for u32 {
-  #[inline]
   fn eq(&self, other: &U31) -> bool {
     *self == other.0
   }
 }
 
 impl PartialEq<u32> for U31 {
-  #[inline]
   fn eq(&self, other: &u32) -> bool {
     self.0 == *other
   }
 }
 
 impl PartialOrd<U31> for u32 {
-  #[inline]
   fn partial_cmp(&self, other: &U31) -> Option<Ordering> {
     self.partial_cmp(&other.0)
   }
 }
 
 impl PartialOrd<u32> for U31 {
-  #[inline]
   fn partial_cmp(&self, other: &u32) -> Option<Ordering> {
     self.0.partial_cmp(other)
   }

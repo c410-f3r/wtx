@@ -21,7 +21,6 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  #[inline]
   pub(crate) async fn write_send_await_fetch_with_stmt_wo_prot<'any, RV>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
     net_buffer: &'any mut PartitionedFilledBuffer,
@@ -41,7 +40,7 @@ where
       match msg.ty {
         MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
         MessageTy::DataRow(len) => {
-          data_row_msg_range = Some((len, net_buffer._current_range()));
+          data_row_msg_range = Some((len, net_buffer.current_range()));
         }
         MessageTy::ReadyForQuery => break,
         _ => {
@@ -53,7 +52,7 @@ where
     }
     if let Some((record_bytes, values_len)) = data_row_msg_range.and_then(|(len, range)| {
       let record_range = range.start.wrapping_add(7)..range.end;
-      Some((net_buffer._all().get(record_range)?, len))
+      Some((net_buffer.all().get(record_range)?, len))
     }) {
       Ok(PostgresRecord::parse(record_bytes, stmt, values_len, values_params)?)
     } else {
@@ -61,35 +60,32 @@ where
     }
   }
 
-  #[inline]
   pub(crate) async fn fetch_msg_from_stream<'nb>(
     cs: &mut ConnectionState,
     net_buffer: &'nb mut PartitionedFilledBuffer,
     stream: &mut S,
   ) -> crate::Result<Message<'nb>> {
     let tag = Self::fetch_representative_msg_from_stream(net_buffer, stream).await?;
-    Ok(Message { tag, ty: MessageTy::try_from((cs, net_buffer._current()))? })
+    Ok(Message { tag, ty: MessageTy::try_from((cs, net_buffer.current()))? })
   }
 
   // | Ty | Len | Payload |
   // | 1  |  4  |    x    |
   //
   // The value of `Len` is payload length plus 4, therefore, the frame length is `Len` plus 1.
-  #[inline]
   async fn fetch_one_msg_from_stream(
     net_buffer: &mut PartitionedFilledBuffer,
     stream: &mut S,
   ) -> crate::Result<u8> {
-    net_buffer._reserve(5)?;
-    let mut read = net_buffer._following_len();
-    let buffer = net_buffer._following_rest_mut();
+    net_buffer.reserve(5)?;
+    let mut read = net_buffer.following_len();
+    let buffer = net_buffer.following_rest_mut();
     let [a, b, c, d, e] = read_header::<0, 5, S>(buffer, &mut read, stream).await?;
     let len = Usize::from(u32::from_be_bytes([b, c, d, e])).into_usize().wrapping_add(1);
     read_payload((0, len), net_buffer, &mut read, stream).await?;
     Ok(a)
   }
 
-  #[inline]
   async fn fetch_representative_msg_from_stream(
     net_buffer: &mut PartitionedFilledBuffer,
     stream: &mut S,

@@ -205,7 +205,6 @@ where
   Ok((migration_groups, seeds))
 }
 
-#[inline]
 pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, uid: Uid) -> u64 {
   #[expect(
     deprecated,
@@ -219,7 +218,6 @@ pub(crate) fn calc_checksum(name: &str, sql_up: &str, sql_down: &str, uid: Uid) 
   hasher.finish()
 }
 
-#[inline]
 pub(crate) fn is_migration_divergent<DBS, S>(
   db_migrations: &[DbMigration],
   migration: &UserMigration<DBS, S>,
@@ -251,7 +249,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn binary_search_migration_by_uid(migrations: &[DbMigration], uid: Uid) -> Option<&DbMigration> {
   match migrations.binary_search_by(|m| m.uid().cmp(&uid)) {
     Err(_) => None,
@@ -260,7 +257,6 @@ fn binary_search_migration_by_uid(migrations: &[DbMigration], uid: Uid) -> Optio
 }
 
 #[cfg(feature = "std")]
-#[inline]
 fn dir_name_parts(s: &str) -> crate::Result<(String, Uid)> {
   let f = || {
     if !s.is_ascii() {
@@ -275,7 +271,6 @@ fn dir_name_parts(s: &str) -> crate::Result<(String, Uid)> {
 }
 
 #[cfg(feature = "std")]
-#[inline]
 fn migration_file_name_parts(s: &str) -> crate::Result<(String, Uid)> {
   let f = || {
     if !s.is_ascii() {
@@ -290,7 +285,6 @@ fn migration_file_name_parts(s: &str) -> crate::Result<(String, Uid)> {
 }
 
 #[cfg(feature = "std")]
-#[inline]
 fn migrations_from_dir(path: &Path) -> crate::Result<(MigrationGroupParts, Vector<PathBuf>)> {
   let path_str = opt_to_inv_mig!(|| path.file_name()?.to_str())?;
   let (mg_name, mg_uid) = dir_name_parts(path_str)?;
@@ -302,7 +296,6 @@ fn migrations_from_dir(path: &Path) -> crate::Result<(MigrationGroupParts, Vecto
 }
 
 #[cfg(feature = "std")]
-#[inline]
 fn read_dir(dir: &Path) -> crate::Result<impl Iterator<Item = crate::Result<DirEntry>>> {
   Ok(std::fs::read_dir(dir)?.map(|entry_rslt| entry_rslt.map_err(Into::into)))
 }

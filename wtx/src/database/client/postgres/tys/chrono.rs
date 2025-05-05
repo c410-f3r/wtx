@@ -110,7 +110,7 @@ where
   fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
     let timestamp = Decode::<Postgres<E>>::decode(aux, dw)?;
     pg_epoch_ndt()
-      .and_then(|el| el.checked_add_signed(Duration::microseconds(timestamp)))
+      .and_then(|epoch| epoch.checked_add_signed(Duration::microseconds(timestamp)))
       .ok_or_else(|| {
         E::from(DatabaseError::UnexpectedValueFromBytes { expected: "timestamp" }.into())
       })

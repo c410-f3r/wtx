@@ -22,6 +22,7 @@ pub(crate) struct FirItemsValues<'module> {
 impl<'module> TryFrom<(&'module mut Vec<Item>, Span)> for FirItemsValues<'module> {
   type Error = crate::Error;
 
+  #[inline]
   fn try_from((items, mod_span): (&'module mut Vec<Item>, Span)) -> Result<Self, Self::Error> {
     let mut after_sending = None;
     let mut aux = None;

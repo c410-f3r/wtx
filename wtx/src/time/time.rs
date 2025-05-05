@@ -2,8 +2,8 @@ use crate::{
   collection::ArrayString,
   misc::u32_string,
   time::{
-    Hour, Minute, NANOSECONDS_PER_MILLISECOND, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Second,
-    misc::{u8u32, u8u64, u16u32, u32u64},
+    Hour, Microsecond, Minute, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Second,
+    misc::{u8u32, u16u32},
     nanosecond::Nanosecond,
   },
 };
@@ -13,26 +13,28 @@ use core::{
 };
 
 /// Clock time with nanosecond precision.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Time {
-  // | xxxxxxx | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxxxxxx   | xxxxxx  | xxxxxx  | xxxxx |
-  // | unused  | nanosecond                     | millisecond  | second  | minute  | hour  |
-  params: u64,
+  // | xxxxxx  | xxxxxx  | xxxxx |
+  // | second  | minute  | hour  |
+  params: u32,
+  nanosecond: Nanosecond,
 }
 
 impl Time {
   /// Instance with the maximum allowed value of `23:59:59.999_999_999`
   pub const MAX: Self = Self::from_hms_ns(Hour::N23, Minute::N59, Second::N59, Nanosecond::MAX);
   /// Instance with the minimum allowed value of `00:00:00.000_000_000`
-  pub const MIN: Self = Self::from_hms_ns(Hour::N0, Minute::N0, Second::N0, Nanosecond::MIN);
+  pub const MIN: Self = Self::from_hms_ns(Hour::N0, Minute::N0, Second::N0, Nanosecond::ZERO);
 
   /// New instance without nanoseconds precision.
   #[inline]
   pub const fn from_hms(hour: Hour, minute: Minute, second: Second) -> Self {
-    let mut params = u8u64(second.num()) << 11;
-    params |= u8u64(minute.num()) << 5;
-    params |= u8u64(hour.num());
-    Self { params }
+    let mut params = u8u32(second.num()) << 11;
+    params |= u8u32(minute.num()) << 5;
+    params |= u8u32(hour.num());
+    Self { params, nanosecond: Nanosecond::ZERO }
   }
 
   /// New instance with nanoseconds precision.
@@ -43,13 +45,20 @@ impl Time {
     second: Second,
     nanosecond: Nanosecond,
   ) -> Self {
-    let millisecond = nanosecond.num() / NANOSECONDS_PER_MILLISECOND;
-    let mut params = u32u64(nanosecond.num()) << 27;
-    params |= u32u64(millisecond) << 17;
-    params |= u8u64(second.num()) << 11;
-    params |= u8u64(minute.num()) << 5;
-    params |= u8u64(hour.num());
-    Self { params }
+    let mut this = Self::from_hms(hour, minute, second);
+    this.nanosecond = nanosecond;
+    this
+  }
+
+  /// New instance with microseconds precision.
+  #[inline]
+  pub const fn from_hms_us(
+    hour: Hour,
+    minute: Minute,
+    second: Second,
+    microsecond: Microsecond,
+  ) -> Self {
+    Self::from_hms_ns(hour, minute, second, microsecond.to_ns())
   }
 
   /// Hours of a day
@@ -61,12 +70,6 @@ impl Time {
       // corresponding bits will never be out of bounds.
       Err(_) => unsafe { hint::unreachable_unchecked() },
     }
-  }
-
-  /// Milliseconds of a second
-  #[inline]
-  pub const fn millisecond(self) -> u16 {
-    ((self.params >> 17) & 0b11_1111_1111) as u16
   }
 
   /// Minutes of a hour.
@@ -81,10 +84,9 @@ impl Time {
   }
 
   /// Nanosecond of a second
-  #[allow(clippy::cast_possible_truncation, reason = "The shift yields u32")]
   #[inline]
-  pub const fn nanosecond(self) -> u32 {
-    (self.params >> 27) as u32
+  pub const fn nanosecond(self) -> Nanosecond {
+    self.nanosecond
   }
 
   /// Seconds of a minute
@@ -116,9 +118,9 @@ impl Time {
     let _rslt3 = array.push(':');
     let _rslt4 = array.push_str(self.second().num_str());
     let nanosecond = self.nanosecond();
-    if nanosecond > 0 {
+    if nanosecond.num() > 0 {
       let _rslt5 = array.push('.');
-      let _rslt6 = array.push_str(&u32_string(nanosecond));
+      let _rslt6 = array.push_str(&u32_string(nanosecond.num()));
     }
     array
   }
@@ -128,6 +130,13 @@ impl Debug for Time {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     f.write_str(&self.to_str())
+  }
+}
+
+impl Default for Time {
+  #[inline]
+  fn default() -> Self {
+    Self::MIN
   }
 }
 
@@ -159,14 +168,6 @@ mod tests {
   }
 
   #[test]
-  fn millisecond() {
-    assert_eq!(Time::MIN.millisecond(), 0);
-    assert_eq!(Time::MAX.millisecond(), 999);
-    assert_eq!(_8_48_05_234_445_009().millisecond(), 234);
-    assert_eq!(_14_20_30().millisecond(), 0);
-  }
-
-  #[test]
   fn minute() {
     assert_eq!(Time::MIN.minute().num(), 0);
     assert_eq!(Time::MAX.minute().num(), 59);
@@ -176,10 +177,10 @@ mod tests {
 
   #[test]
   fn nanosecond() {
-    assert_eq!(Time::MIN.nanosecond(), 0);
-    assert_eq!(Time::MAX.nanosecond(), 999_999_999);
-    assert_eq!(_8_48_05_234_445_009().nanosecond(), 234_445_009);
-    assert_eq!(_14_20_30().nanosecond(), 0);
+    assert_eq!(Time::MIN.nanosecond().num(), 0);
+    assert_eq!(Time::MAX.nanosecond().num(), 999_999_999);
+    assert_eq!(_8_48_05_234_445_009().nanosecond().num(), 234_445_009);
+    assert_eq!(_14_20_30().nanosecond().num(), 0);
   }
 
   #[test]

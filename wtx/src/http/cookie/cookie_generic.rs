@@ -22,7 +22,6 @@ pub(crate) struct CookieGeneric<T, V> {
 }
 
 impl<T, V> CookieGeneric<T, V> {
-  #[inline]
   pub(crate) fn map_mut<'this, NT, NV>(
     &'this mut self,
     mut data: impl FnMut(&'this mut T) -> NT,

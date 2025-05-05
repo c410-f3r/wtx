@@ -41,6 +41,12 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
     self.fin
   }
 
+  /// Header and payload bytes
+  #[inline]
+  pub fn header_and_payload(&self) -> (&[u8], &P) {
+    (self.header(), &self.payload)
+  }
+
   /// See [`OpCode`].
   #[inline]
   pub fn op_code(&self) -> OpCode {
@@ -59,32 +65,22 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
     &mut self.payload
   }
 
-  #[inline]
   pub(crate) fn header(&self) -> &[u8] {
     // SAFETY: `header_len` is always less or equal to `MAX_HEADER_LEN_USIZE`
     unsafe { self.header.get(..self.header_len.into()).unwrap_unchecked() }
   }
 
-  /// Header and payload bytes
-  #[inline]
-  pub fn header_and_payload(&self) -> (&[u8], &P) {
-    (self.header(), &self.payload)
-  }
-
-  #[inline]
   pub(crate) fn header_and_payload_mut(&mut self) -> (&mut [u8], &mut P) {
     // SAFETY: `header_len` is always less or equal to `MAX_HEADER_LEN_USIZE`
     let header = unsafe { self.header.get_mut(..self.header_len.into()).unwrap_unchecked() };
     (header, &mut self.payload)
   }
 
-  #[inline]
   pub(crate) fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
     let [a, b, ..] = &mut self.header;
     [a, b]
   }
 
-  #[inline]
   pub(crate) fn set_mask(&mut self, mask: [u8; 4]) {
     if has_masked_frame(self.header[1]) {
       return;
@@ -125,7 +121,6 @@ where
     })
   }
 
-  #[inline]
   pub(crate) fn new(fin: bool, op_code: OpCode, payload: P, rsv1: u8) -> Self {
     let mut header = [0; MAX_HEADER_LEN_USIZE];
     let payload_len = if op_code.is_control() {

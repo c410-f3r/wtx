@@ -36,12 +36,14 @@ pub(crate) enum Error {
 }
 
 impl From<syn::Error> for Error {
+  #[inline]
   fn from(from: syn::Error) -> Self {
     Self::Syn(from)
   }
 }
 
 impl From<Error> for syn::Error {
+  #[inline]
   fn from(from: Error) -> Self {
     match from {
       Error::AbsentApi => {

@@ -26,7 +26,6 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  #[inline]
   pub(crate) async fn write_send_await_stmt_initial<RV>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
     net_buffer: &mut PartitionedFilledBuffer,
@@ -38,11 +37,11 @@ where
     RV: RecordValues<Postgres<E>>,
   {
     {
-      let mut sw = SuffixWriterFbvm::from(net_buffer._suffix_writer());
+      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
       bind(&mut sw, "", rv, stmt, stmt_cmd_id_array)?;
       execute(&mut sw, 0, "")?;
       sync(&mut sw)?;
-      fwsc.stream.write_all(sw._curr_bytes()).await?;
+      fwsc.stream.write_all(sw.curr_bytes()).await?;
     }
     let msg = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
     let MessageTy::BindComplete = msg.ty else {
@@ -51,7 +50,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) async fn write_send_await_stmt_prot<'stmts, SC>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
     net_buffer: &mut PartitionedFilledBuffer,
@@ -76,7 +74,7 @@ where
     let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
 
     {
-      let mut sw = SuffixWriterFbvm::from(net_buffer._suffix_writer());
+      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
       parse(
         stmt_cmd,
         &mut sw,
@@ -85,7 +83,7 @@ where
       )?;
       describe(stmt_cmd_id_array.as_bytes(), &mut sw, b'S')?;
       sync(&mut sw)?;
-      fwsc.stream.write_all(sw._curr_bytes()).await?;
+      fwsc.stream.write_all(sw.curr_bytes()).await?;
     }
 
     let msg0 = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
@@ -105,9 +103,9 @@ where
         where
           S: Stream,
         {
-          let mut sw = SuffixWriterFbvm::from(local_nb._suffix_writer());
-          sw._extend_from_slices([b"S", stmt._aux.as_bytes(), &[0]])?;
-          local_fwsc.stream.write_all(sw._curr_bytes()).await?;
+          let mut sw = SuffixWriterFbvm::from(local_nb.suffix_writer());
+          sw.extend_from_slices([b"S", stmt._aux.as_bytes(), &[0]])?;
+          local_fwsc.stream.write_all(sw.curr_bytes()).await?;
           Ok(())
         }
         fun
@@ -175,7 +173,6 @@ where
   }
 }
 
-#[inline]
 fn dummy() -> (Column, Ty) {
   (Column::new(ArrayString::new(), Ty::Any), Ty::Any)
 }

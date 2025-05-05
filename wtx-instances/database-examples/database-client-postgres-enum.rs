@@ -36,6 +36,7 @@ enum Enum {
 }
 
 impl Decode<'_, Postgres<wtx::Error>> for Enum {
+  #[inline]
   fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, wtx::Error> {
     let s = <&str as Decode<Postgres<wtx::Error>>>::decode(aux, dw)?;
     Ok(match s {
@@ -48,6 +49,7 @@ impl Decode<'_, Postgres<wtx::Error>> for Enum {
 }
 
 impl Encode<Postgres<wtx::Error>> for Enum {
+  #[inline]
   fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), wtx::Error> {
     let s = match self {
       Self::Foo => "foo",

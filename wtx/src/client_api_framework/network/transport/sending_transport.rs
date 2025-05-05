@@ -30,7 +30,6 @@ impl<T, TP> SendingTransport<TP> for &mut T
 where
   T: SendingTransport<TP>,
 {
-  #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
     bytes: SendBytesSource<'_>,
@@ -42,7 +41,6 @@ where
     (**self).send_bytes(bytes, pkgs_aux).await
   }
 
-  #[inline]
   async fn send_pkg<A, DRSR, P>(
     &mut self,
     pkg: &mut P,
@@ -69,7 +67,6 @@ mod tokio {
   where
     T: SendingTransport<TP>,
   {
-    #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
       bytes: SendBytesSource<'_>,
@@ -81,7 +78,6 @@ mod tokio {
       (**self).send_bytes(bytes, pkgs_aux).await
     }
 
-    #[inline]
     async fn send_pkg<A, DRSR, P>(
       &mut self,
       pkg: &mut P,

@@ -246,7 +246,7 @@ where
     )
     .await?;
     Ok(MysqlRecords::new(
-      net_buffer._all().get(start..).unwrap_or_default(),
+      net_buffer.all().get(start..).unwrap_or_default(),
       records_params,
       stmt,
       values_params,
@@ -282,7 +282,7 @@ where
     )
     .await?;
     let Some(record @ [_, ..]) =
-      net_buffer._all().get(start..).and_then(|el| el.get(records_params.first()?.0.clone()))
+      net_buffer.all().get(start..).and_then(|el| el.get(records_params.first()?.0.clone()))
     else {
       return Err(crate::Error::from(DatabaseError::MissingRecord).into());
     };

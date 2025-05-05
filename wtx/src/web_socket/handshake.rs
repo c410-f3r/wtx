@@ -57,10 +57,10 @@ where
   {
     self.wsb.lease_mut().clear();
     let nb = &mut self.wsb.lease_mut().network_buffer;
-    nb._reserve(MAX_READ_LEN)?;
+    nb.reserve(MAX_READ_LEN)?;
     let mut read = 0;
     loop {
-      let read_buffer = nb._all_mut().get_mut(read..).unwrap_or_default();
+      let read_buffer = nb.all_mut().get_mut(read..).unwrap_or_default();
       let local_read = stream.read(read_buffer).await?;
       if local_read == 0 {
         return Err(crate::Error::UnexpectedStreamReadEOF.into());
@@ -68,7 +68,7 @@ where
       read = read.wrapping_add(local_read);
       let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
       let mut req = Request::new(&mut req_buffer);
-      match req.parse(nb._following()).map_err(From::from)? {
+      match req.parse(nb.following()).map_err(From::from)? {
         Status::Complete(_) => {
           (self.req)(&req)?;
           if !req.method().trim_ascii().eq_ignore_ascii_case(b"get") {
@@ -96,11 +96,11 @@ where
           res.code = Some(101);
           res.version = Some(req.version().into());
           {
-            let mut sw = nb._suffix_writer();
+            let mut sw = nb.suffix_writer();
             build_res(&mut sw, res.headers, &nc, self.no_masking)?;
-            stream.write_all(sw._curr_bytes()).await?;
+            stream.write_all(sw.curr_bytes()).await?;
           }
-          nb._clear();
+          nb.clear();
           return Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb)?);
         }
         Status::Partial => {}
@@ -132,9 +132,9 @@ where
     let key_buffer = &mut [0; 26];
     let key = {
       let nb = &mut self.wsb.lease_mut().network_buffer;
-      nb._reserve(MAX_READ_LEN)?;
+      nb.reserve(MAX_READ_LEN)?;
       {
-        let mut sw = nb._suffix_writer();
+        let mut sw = nb.suffix_writer();
         let key = build_req(
           &self.compression,
           &mut sw,
@@ -144,21 +144,21 @@ where
           &mut self.rng,
           uri,
         )?;
-        stream.write_all(sw._curr_bytes()).await?;
+        stream.write_all(sw.curr_bytes()).await?;
         key
       }
     };
     let mut read = 0;
     let (nc, len) = loop {
       let nb = &mut self.wsb.lease_mut().network_buffer;
-      let local_read = stream.read(nb._all_mut().get_mut(read..).unwrap_or_default()).await?;
+      let local_read = stream.read(nb.all_mut().get_mut(read..).unwrap_or_default()).await?;
       if local_read == 0 {
         return Err(crate::Error::UnexpectedStreamReadEOF.into());
       }
       read = read.wrapping_add(local_read);
       let mut httparse_headers = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
       let mut res = Response::new(&mut httparse_headers);
-      let len = match res.parse(nb._all().get(..read).unwrap_or_default()).map_err(From::from)? {
+      let len = match res.parse(nb.all().get(..read).unwrap_or_default()).map_err(From::from)? {
         Status::Complete(len) => len,
         Status::Partial => continue,
       };
@@ -177,12 +177,11 @@ where
       self.no_masking &= check_header_value(d).is_ok_and(has_no_masking);
       break (self.compression.negotiate(res.headers.iter())?, len);
     };
-    self.wsb.lease_mut().network_buffer._set_indices(0, len, read.wrapping_sub(len))?;
+    self.wsb.lease_mut().network_buffer.set_indices(0, len, read.wrapping_sub(len))?;
     Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb)?)
   }
 }
 
-#[inline]
 fn base64_from_array<'output, const I: usize, const O: usize>(
   input: &[u8; I],
   output: &'output mut [u8; O],
@@ -196,7 +195,6 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
 }
 
 /// Client request
-#[inline]
 fn build_req<'headers, 'kb, C>(
   compression: &C,
   sw: &mut SuffixWriterFbvm<'_>,
@@ -210,34 +208,33 @@ where
   C: Compression<true>,
 {
   let key = gen_key(key_buffer, rng);
-  sw._extend_from_slices_group_rn(&[
+  sw.extend_from_slices_group_rn(&[
     b"GET ",
     uri.relative_reference_slash().as_bytes(),
     b" HTTP/1.1",
   ])?;
-  sw._extend_from_slice_rn(b"Connection: Upgrade")?;
+  sw.extend_from_slice_rn(b"Connection: Upgrade")?;
   match uri.port() {
     Some(80 | 443) => {
-      sw._extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()])?;
+      sw.extend_from_slices_group_rn(&[b"Host: ", uri.hostname().as_bytes()])?;
     }
-    _ => sw._extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()])?,
+    _ => sw.extend_from_slices_group_rn(&[b"Host: ", uri.host().as_bytes()])?,
   }
-  sw._extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key])?;
+  sw.extend_from_slices_group_rn(&[b"Sec-WebSocket-Key: ", key])?;
   if no_masking {
-    sw._extend_from_slice_rn(b"Sec-WebSocket-Extensions: no-masking")?;
+    sw.extend_from_slice_rn(b"Sec-WebSocket-Extensions: no-masking")?;
   }
-  sw._extend_from_slice_rn(b"Sec-WebSocket-Version: 13")?;
-  sw._extend_from_slice_rn(b"Upgrade: websocket")?;
+  sw.extend_from_slice_rn(b"Sec-WebSocket-Version: 13")?;
+  sw.extend_from_slice_rn(b"Upgrade: websocket")?;
   for (name, value) in headers {
-    sw._extend_from_slices_group_rn(&[name.as_bytes(), b": ", value.as_bytes()])?;
+    sw.extend_from_slices_group_rn(&[name.as_bytes(), b": ", value.as_bytes()])?;
   }
   compression.write_req_headers(sw)?;
-  sw._extend_from_slice_rn(b"")?;
+  sw.extend_from_slice_rn(b"")?;
   Ok(key)
 }
 
 /// Server response
-#[inline]
 fn build_res<NC>(
   sw: &mut SuffixWriterFbvm<'_>,
   headers: &[Header<'_>],
@@ -247,23 +244,22 @@ fn build_res<NC>(
 where
   NC: NegotiatedCompression,
 {
-  sw._extend_from_slice_rn(b"HTTP/1.1 101 Switching Protocols")?;
+  sw.extend_from_slice_rn(b"HTTP/1.1 101 Switching Protocols")?;
   for header in headers {
-    sw._extend_from_slices_group_rn(&[header.name(), b": ", header.value()])?;
+    sw.extend_from_slices_group_rn(&[header.name(), b": ", header.value()])?;
   }
   if no_masking {
-    sw._extend_from_slices_group_rn(&[
+    sw.extend_from_slices_group_rn(&[
       KnownHeaderName::SecWebsocketExtensions.into(),
       b": ",
       NO_MASKING.as_bytes(),
     ])?;
   }
   nc.write_res_headers(sw)?;
-  sw._extend_from_slice_rn(b"")?;
+  sw.extend_from_slice_rn(b"")?;
   Ok(())
 }
 
-#[inline]
 fn check_header_value((name, value): (KnownHeaderName, Option<&[u8]>)) -> crate::Result<&[u8]> {
   let Some(elem) = value else {
     return Err(crate::Error::from(HttpError::MissingHeader(name)));
@@ -271,7 +267,6 @@ fn check_header_value((name, value): (KnownHeaderName, Option<&[u8]>)) -> crate:
   Ok(elem)
 }
 
-#[inline]
 fn check_headers<'headers, const N: usize>(
   array: [(KnownHeaderName, Option<&[u8]>); N],
   headers: &'headers [Header<'_>],
@@ -302,7 +297,6 @@ fn check_headers<'headers, const N: usize>(
   Ok(rslt)
 }
 
-#[inline]
 fn derived_key<'buffer>(buffer: &'buffer mut [u8; 30], key: &[u8]) -> &'buffer [u8] {
   let mut sha1 = Sha1::new();
   sha1.update(key);
@@ -310,12 +304,10 @@ fn derived_key<'buffer>(buffer: &'buffer mut [u8; 30], key: &[u8]) -> &'buffer [
   base64_from_array(&sha1.finalize().into(), buffer)
 }
 
-#[inline]
 fn gen_key<'buffer>(buffer: &'buffer mut [u8; 26], rng: &mut impl Rng) -> &'buffer [u8] {
   base64_from_array(&rng.u8_16(), buffer)
 }
 
-#[inline]
 fn has_no_masking(el: &[u8]) -> bool {
   el.eq_ignore_ascii_case(NO_MASKING.as_bytes())
 }

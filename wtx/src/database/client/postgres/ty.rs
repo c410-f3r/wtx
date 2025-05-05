@@ -350,12 +350,10 @@ pub enum Ty {
 }
 
 impl Ty {
-  #[inline]
   pub(crate) fn from_arbitrary_u32(value: u32) -> Self {
     Self::from_known_u32(value).unwrap_or(Self::Custom(value))
   }
 
-  #[inline]
   pub(crate) fn from_known_u32(value: u32) -> Option<Self> {
     Some(match value {
       16 => Self::Bool,

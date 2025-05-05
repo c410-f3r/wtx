@@ -328,3 +328,12 @@ impl Minute {
     }
   }
 }
+
+impl TryFrom<u8> for Minute {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: u8) -> Result<Self, Self::Error> {
+    Ok(Self::from_num(from)?)
+  }
+}

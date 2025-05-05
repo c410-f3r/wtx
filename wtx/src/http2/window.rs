@@ -7,25 +7,22 @@ use crate::{
   sync::AtomicBool,
 };
 
-/// A "credit" system used to restrain the exchange of data.
+/// A "credit" system used to restrain the exchange of data in a single direction (receive or send).
 #[derive(Clone, Copy, Debug)]
 pub struct Window {
   available: i32,
 }
 
 impl Window {
-  #[inline]
   pub(crate) const fn new(available: i32) -> Self {
     Self { available }
   }
 
   /// The amount of data available to send or receive. Depends if you are a client or a server.
-  #[inline]
   pub(crate) const fn available(self) -> i32 {
     self.available
   }
 
-  #[inline]
   pub(crate) fn deposit(&mut self, stream_id: Option<U31>, value: i32) -> crate::Result<()> {
     'block: {
       let Some(added) = self.available.checked_add(value) else {
@@ -51,7 +48,6 @@ impl Window {
     }
   }
 
-  #[inline]
   pub(crate) fn withdrawn(&mut self, stream_id: Option<U31>, value: i32) -> crate::Result<()> {
     let Some(diff) = self.available.checked_sub(value) else {
       return if let Some(elem) = stream_id {
@@ -71,15 +67,12 @@ impl Window {
     Ok(())
   }
 
-  #[inline]
   const fn is_invalid(self) -> bool {
     self.available <= 0
   }
 }
 
-/// A "credit" system used to restrain the exchange of data.
-///
-/// Groups the sending the receiving  parameters.
+/// A "credit" system used to restrain the exchange of data for both receiving and sending parts.
 #[derive(Clone, Copy, Debug)]
 pub struct Windows {
   /// Parameters used to received data. It is defined locally.
@@ -91,7 +84,6 @@ pub struct Windows {
 
 impl Windows {
   /// Used in initial connections/streams.
-  #[inline]
   pub(crate) const fn initial(hp: &Http2Params, hps: &Http2ParamsSend) -> Self {
     Self {
       recv: Window::new(U31::from_u32(hp.initial_window_len()).i32()),
@@ -99,25 +91,21 @@ impl Windows {
     }
   }
 
-  #[inline]
   pub(crate) const fn new() -> Self {
     Self { recv: Window::new(0), send: Window::new(0) }
   }
 
   /// Parameters used to received data. It is defined locally.
-  #[inline]
   pub const fn recv(&self) -> Window {
     self.recv
   }
 
   /// Parameters used to send data. It is initially defined locally with default parameters
   /// and then defined by a remote peer.
-  #[inline]
   pub const fn send(&self) -> Window {
     self.send
   }
 
-  #[inline]
   pub(crate) fn send_mut(&mut self) -> &mut Window {
     &mut self.send
   }
@@ -135,7 +123,6 @@ impl<'any> WindowsPair<'any> {
   }
 
   /// Available - Send
-  #[inline]
   pub(crate) fn available_send(&self) -> i32 {
     self.stream.send.available()
   }
@@ -144,7 +131,6 @@ impl<'any> WindowsPair<'any> {
   ///
   /// Controls window sizes received from external sources. Invalid or negative values trigger a
   /// frame dispatch to return to the default window size.
-  #[inline]
   pub(crate) async fn withdrawn_recv<SW>(
     &mut self,
     hp: &Http2Params,
@@ -204,7 +190,6 @@ impl<'any> WindowsPair<'any> {
   /// Withdrawn - Send
   ///
   /// Used when sending data frames
-  #[inline]
   pub(crate) fn withdrawn_send(&mut self, stream_id: Option<U31>, value: U31) -> crate::Result<()> {
     self.conn.send.withdrawn(None, value.i32())?;
     self.stream.send.withdrawn(stream_id, value.i32())?;

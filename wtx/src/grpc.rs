@@ -21,7 +21,6 @@ pub use grpc_manager::GrpcManager;
 pub use grpc_middleware::GrpcMiddleware;
 pub use grpc_status_code::GrpcStatusCode;
 
-#[inline]
 fn serialize<DRSR, T>(bytes: &mut Vector<u8>, data: T, drsr: &mut DRSR) -> crate::Result<()>
 where
   T: Encode<De<DRSR>>,

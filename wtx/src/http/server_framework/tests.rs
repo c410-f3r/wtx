@@ -169,7 +169,7 @@ async fn nested_middlewares() {
         Ok(())
       })
       .unwrap();
-    let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::_route_params(
+    let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
       auto_stream.req.rrd.uri.path(),
       &sf._router,
     )
@@ -195,7 +195,7 @@ async fn nested_middlewares() {
         Ok(())
       })
       .unwrap();
-    let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::_route_params(
+    let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
       auto_stream.req.rrd.uri.path(),
       &sf._router,
     )

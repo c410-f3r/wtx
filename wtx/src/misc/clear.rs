@@ -7,11 +7,6 @@ pub trait Clear {
   fn clear(&mut self);
 }
 
-impl<T> Clear for &[T] {
-  #[inline]
-  fn clear(&mut self) {}
-}
-
 impl<T> Clear for &mut T
 where
   T: Clear,

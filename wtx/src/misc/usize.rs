@@ -22,17 +22,14 @@ pub struct Usize(usize);
 impl Usize {
   const IS_32: bool = cfg!(target_pointer_width = "32");
 
-  #[inline]
   pub(crate) const fn from_u16(from: u16) -> Self {
     Self(from as usize)
   }
 
-  #[inline]
   pub(crate) const fn from_u32(from: u32) -> Self {
     Self(from as usize)
   }
 
-  #[inline]
   pub(crate) const fn from_u64(from: u64) -> Option<Self> {
     if Self::IS_32 && from > u32_max!() {
       return None;
@@ -40,17 +37,14 @@ impl Usize {
     Some(Self(from as usize))
   }
 
-  #[inline]
   pub(crate) const fn from_usize(from: usize) -> Self {
     Self(from)
   }
 
-  #[inline]
   pub(crate) const fn into_usize(self) -> usize {
     self.0
   }
 
-  #[inline]
   pub(crate) const fn into_u32(self) -> Option<u32> {
     if !Self::IS_32 && self.0 > u32_max!() {
       return None;
@@ -58,7 +52,6 @@ impl Usize {
     Some(self.0 as u32)
   }
 
-  #[inline]
   pub(crate) const fn into_u64(self) -> u64 {
     self.0 as u64
   }

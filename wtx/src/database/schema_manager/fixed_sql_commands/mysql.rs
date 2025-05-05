@@ -15,7 +15,6 @@ pub(crate) const CREATE_MIGRATION_TABLES: &str = concat!(
 );
 
 // https://stackoverflow.com/questions/12403662/how-to-remove-all-mysql-tables-from-the-command-line-without-drop-database-permi/18625545#18625545
-#[inline]
 pub(crate) async fn clear<E>(executor: &mut E) -> crate::Result<()>
 where
   E: Executor<Database = Mysql<crate::Error>>,
@@ -40,7 +39,6 @@ where
 }
 
 // https://github.com/flyway/flyway/blob/master/flyway-core/src/main/java/org/flywaydb/core/internal/database/mysql/MySQLSchema.java
-#[inline]
 pub(crate) async fn table_names<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,

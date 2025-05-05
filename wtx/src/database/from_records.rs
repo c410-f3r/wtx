@@ -19,7 +19,6 @@ pub struct FromRecordsParams<R> {
 }
 
 impl<'exec, R> FromRecordsParams<R> {
-  #[inline]
   fn init<D>(records: &D::Records<'exec>) -> Option<Self>
   where
     D: Database<Record<'exec> = R>,

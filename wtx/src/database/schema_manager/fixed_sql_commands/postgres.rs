@@ -17,7 +17,6 @@ pub(crate) static CREATE_MIGRATION_TABLES: &str = concat!(
   ");"
 );
 
-#[inline]
 pub(crate) async fn all_elements<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
@@ -60,7 +59,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn clear<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
@@ -91,7 +89,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn domains<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
@@ -114,7 +111,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn functions<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
@@ -126,7 +122,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn procedures<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
@@ -138,7 +133,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn sequences<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
@@ -159,7 +153,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn schemas<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
@@ -182,7 +175,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn table_names<E>(
   buffer_cmd: &mut String,
   executor: &mut E,
@@ -226,7 +218,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn types<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
@@ -258,7 +249,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn views<E>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
@@ -281,7 +271,6 @@ where
   Ok(())
 }
 
-#[inline]
 async fn pg_proc<E>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
@@ -317,7 +306,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn push_drop(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   structure: &str,

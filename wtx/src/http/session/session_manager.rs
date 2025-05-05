@@ -137,7 +137,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) fn clear_cookie(
     cookie_def: &mut CookieGeneric<&'static str, Vector<u8>>,
     headers: &mut Headers,

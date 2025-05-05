@@ -78,7 +78,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn seek<'exec, D, T>(
   curr_params: &mut FromRecordsParams<D::Record<'exec>>,
   (parent_record_id, parent_record_id_field_idx): (&T::IdTy, usize),

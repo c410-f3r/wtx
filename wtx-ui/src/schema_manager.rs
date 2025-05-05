@@ -50,7 +50,6 @@ fn toml_file_path(sm: &SchemaManager) -> wtx::Result<Cow<'_, Path>> {
   })
 }
 
-#[inline]
 async fn handle_commands<E>(
   executor: E,
   sm: &SchemaManager,

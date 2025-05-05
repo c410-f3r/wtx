@@ -14,6 +14,7 @@ pub(crate) enum TransportGroup {
 impl<'attrs> TryFrom<&'attrs NestedMeta> for TransportGroup {
   type Error = crate::Error;
 
+  #[inline]
   fn try_from(from: &'attrs NestedMeta) -> Result<Self, Self::Error> {
     let err = |span| Err(crate::Error::UnknownTransport(span));
     match from {

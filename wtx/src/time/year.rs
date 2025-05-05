@@ -1,6 +1,7 @@
 use crate::time::TimeError;
 
 /// All possible years that can be represented by the system. Goes from -32767 to 32766.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Year(i16);
 
@@ -21,9 +22,25 @@ impl Year {
     Ok(Self(num))
   }
 
+  /// If this instance has an additional day.
+  #[inline]
+  pub const fn is_leap_year(&self) -> bool {
+    let value = if self.0 % 100 == 0 { 0b1111 } else { 0b11 };
+    self.0 & value == 0
+  }
+
   /// Integer representation
   #[inline]
   pub const fn num(&self) -> i16 {
     self.0
+  }
+}
+
+impl TryFrom<i16> for Year {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: i16) -> Result<Self, Self::Error> {
+    Ok(Self::from_num(from)?)
   }
 }

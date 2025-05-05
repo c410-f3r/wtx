@@ -8,12 +8,10 @@ impl<'bytes, B, const IS_SCATTERED: bool> SendDataMode<B, IS_SCATTERED>
 where
   B: SendDataModeBytes<'bytes, IS_SCATTERED>,
 {
-  #[inline]
   const fn new(bytes: B) -> Self {
     Self { bytes }
   }
 
-  #[inline]
   pub(crate) fn concat<'first, 'rslt, 'this>(&'this self, first: &'first [u8]) -> [&'rslt [u8]; 3]
   where
     'first: 'rslt,
@@ -22,12 +20,10 @@ where
     self.bytes.concat(first)
   }
 
-  #[inline]
   pub(crate) fn first_mut(&mut self) -> &mut &'bytes [u8] {
     self.bytes.first_mut()
   }
 
-  #[inline]
   pub(crate) fn len(&self) -> usize {
     self.bytes.len()
   }

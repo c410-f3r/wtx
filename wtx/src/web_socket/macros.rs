@@ -112,7 +112,7 @@ macro_rules! read_frame {
           )?;
           $reader_buffer_first.as_slice_mut()
         } else {
-          let current_mut = $network_buffer._current_mut();
+          let current_mut = $network_buffer.current_mut();
           web_socket_reader::unmask_nb::<IS_CLIENT>(current_mut, $no_masking, &rfi)?;
           current_mut
         };
@@ -132,7 +132,7 @@ macro_rules! read_frame {
           let borrow_checker = if rfi.should_decompress {
             $reader_buffer_first.as_slice_mut()
           } else {
-            $network_buffer._current_mut()
+            $network_buffer.current_mut()
           };
           break 'rffs_block Frame::new(true, rfi.op_code, borrow_checker, $nc_rsv1);
         }

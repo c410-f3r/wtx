@@ -2,12 +2,12 @@ use crate::{
   client_api_framework::{
     Api, SendBytesSource,
     misc::{
-      _log_res, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
       HttpParams, HttpReqParams, HttpResParams, TransportGroup,
-      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams},
+      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams, log_res},
     },
     pkg::{Package, PkgsAux},
   },
@@ -81,7 +81,6 @@ where
   type ReqId = ClientStream<HD>;
 }
 
-#[inline]
 fn manage_params<A, DRSR, TP>(pkgs_aux: &mut PkgsAux<A, DRSR, TP>) -> Result<(), A::Error>
 where
   A: Api,
@@ -97,7 +96,6 @@ where
   Ok(())
 }
 
-#[inline]
 async fn recv<A, DRSR, HD, SW, TP>(
   client: &mut Http2<HD, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -122,11 +120,10 @@ where
   mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut res.rrd.headers, headers);
   *status_code = res.status_code;
-  _log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::HTTP);
+  log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::HTTP);
   Ok(())
 }
 
-#[inline]
 async fn send_bytes<A, DRSR, HD, SW, TP>(
   bytes: SendBytesSource<'_>,
   client: &mut Http2<HD, true>,
@@ -149,7 +146,6 @@ where
   Ok(rslt)
 }
 
-#[inline]
 async fn send_pkg<A, DRSR, HD, P, SW, TP>(
   client: &mut Http2<HD, true>,
   pkg: &mut P,

@@ -13,12 +13,10 @@ pub(crate) struct GoAwayFrame {
 }
 
 impl GoAwayFrame {
-  #[inline]
   pub(crate) const fn new(error_code: Http2ErrorCode, last_stream_id: U31) -> Self {
     Self { error_code, last_stream_id }
   }
 
-  #[inline]
   pub(crate) fn bytes(&self) -> [u8; 17] {
     let [a, b, c, d, e, f, g, h, i] =
       FrameInit::new(CommonFlags::empty(), 8, U31::ZERO, FrameInitTy::GoAway).bytes();
@@ -27,12 +25,10 @@ impl GoAwayFrame {
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q]
   }
 
-  #[inline]
   pub(crate) const fn error_code(&self) -> Http2ErrorCode {
     self.error_code
   }
 
-  #[inline]
   pub(crate) fn read(data: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
       return Err(protocol_err(Http2Error::InvalidGoAwayFrameNonZeroId));

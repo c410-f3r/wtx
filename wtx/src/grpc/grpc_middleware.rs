@@ -37,7 +37,7 @@ where
         is_sensitive: false,
         is_trailer: true,
         name: "grpc-status",
-        value: [stream_aux.status_code_mut()._number_as_str()].into_iter(),
+        value: [stream_aux.status_code_mut().as_str()].into_iter(),
       },
     ])?;
     Ok(ControlFlow::Continue(()))

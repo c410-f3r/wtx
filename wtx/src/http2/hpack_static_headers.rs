@@ -17,7 +17,6 @@ impl HpackStaticRequestHeaders<'_> {
   pub(crate) const EMPTY: Self =
     Self { authority: "", method: None, path: "", protocol: None, scheme: "" };
 
-  #[inline]
   pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &str)> {
     let Self { authority, method, path, protocol, scheme } = *self;
     let enums = [

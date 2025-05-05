@@ -1,5 +1,3 @@
-#![allow(dead_code, reason = "Depends on selected features")]
-
 use crate::{
   client_api_framework::pkg::Package,
   data_transformation::dnsn::De,
@@ -46,14 +44,14 @@ where
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[derive(Debug, PartialEq)]
-pub(crate) struct Foo {
+pub(crate) struct _Foo {
   pub(crate) foo: &'static str,
 }
 
 #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[derive(Debug, PartialEq)]
-pub(crate) struct Bar {
+pub(crate) struct _Bar {
   pub(crate) bar: String,
 }
 
@@ -73,7 +71,7 @@ macro_rules! _create_dnsn_test {
         },
         data_transformation::{
           dnsn::{
-            tests::{Bar, Foo, FooBar},
+            tests::{_Bar, _Foo, FooBar},
             $drsr_ident,
           },
           format::{$req, $res},
@@ -87,7 +85,7 @@ macro_rules! _create_dnsn_test {
         trans.push_response($raw_der);
         assert_eq!(
           trans
-            .send_pkg_recv_decode_contained(&mut FooBar::<_, $res<Bar>>::_new($fmt_ser), pkgs_aux)
+            .send_pkg_recv_decode_contained(&mut FooBar::<_, $res<_Bar>>::_new($fmt_ser), pkgs_aux)
             .await
             .unwrap(),
           $fmt_der

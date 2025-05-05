@@ -41,6 +41,7 @@ macro_rules! test {
 
 #[cfg(feature = "chrono")]
 mod chrono;
+mod time;
 
 mod collections {
   use crate::{

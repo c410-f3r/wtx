@@ -8,12 +8,10 @@ use crate::{
   misc::{from_utf8_basic, hints::_unreachable},
 };
 
-#[inline]
 pub(crate) fn huffman_decode<'to, const N: usize>(
   from: &[u8],
   to: &'to mut ArrayVector<u8, N>,
 ) -> crate::Result<&'to str> {
-  #[inline]
   fn decode_4_bits(
     curr_state: &mut u8,
     input: u8,
@@ -78,11 +76,9 @@ pub(crate) fn huffman_decode<'to, const N: usize>(
   Ok(from_utf8_basic(to)?)
 }
 
-#[inline]
 pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<()> {
   const MASK: u64 = 0b1111_1111;
 
-  #[inline]
   fn push_within_iter(
     bits: &mut u64,
     bits_left: &mut u64,

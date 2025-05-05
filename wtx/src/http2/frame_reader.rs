@@ -84,7 +84,6 @@ pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
   }
 }
 
-#[inline]
 async fn finish<HB, HD, SW, const IS_CLIENT: bool>(
   err: Option<crate::Error>,
   hd: &HD,
@@ -104,7 +103,6 @@ async fn finish<HB, HD, SW, const IS_CLIENT: bool>(
   _trace!("Finishing the reading of frames");
 }
 
-#[inline]
 async fn manage_fi<HB, HD, SR, SW, const IS_CLIENT: bool>(
   fi: FrameInit,
   hd: &HD,
@@ -129,7 +127,7 @@ where
       prft!(fi, hdpm, pfb, stream_reader).data(&mut hdpm.hb.sorp).await?;
     }
     FrameInitTy::GoAway => {
-      let gaf = GoAwayFrame::read(pfb._current(), fi)?;
+      let gaf = GoAwayFrame::read(pfb.current(), fi)?;
       send_go_away(gaf.error_code(), &mut hd.lock().await.parts_mut()).await;
     }
     FrameInitTy::Headers => {
@@ -169,7 +167,7 @@ where
       }
     }
     FrameInitTy::Ping => {
-      let mut pf = PingFrame::read(pfb._current(), fi)?;
+      let mut pf = PingFrame::read(pfb.current(), fi)?;
       if !pf.has_ack() {
         pf.set_ack();
         write_array([&pf.bytes()], is_conn_open, hd.lock().await.parts_mut().stream_writer).await?;
@@ -182,7 +180,7 @@ where
       prft.reset(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp).await?;
     }
     FrameInitTy::Settings => {
-      let sf = SettingsFrame::read(pfb._current(), fi)?;
+      let sf = SettingsFrame::read(pfb.current(), fi)?;
       if !sf.has_ack() {
         let mut lock = hd.lock().await;
         let hdpm = lock.parts_mut();
@@ -198,7 +196,7 @@ where
     }
     FrameInitTy::WindowUpdate => {
       if fi.stream_id.is_zero() {
-        let wuf = WindowUpdateFrame::read(pfb._current(), fi)?;
+        let wuf = WindowUpdateFrame::read(pfb.current(), fi)?;
         hd.lock().await.parts_mut().windows.send_mut().deposit(None, wuf.size_increment().i32())?;
       } else {
         let mut lock = hd.lock().await;

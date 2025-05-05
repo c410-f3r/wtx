@@ -593,17 +593,14 @@ impl<T> Deque<T> {
     }
   }
 
-  #[inline]
   pub(crate) fn head(&self) -> usize {
     self.head
   }
 
-  #[inline]
   pub(crate) fn tail(&self) -> usize {
     self.tail
   }
 
-  #[inline]
   unsafe fn expand(&mut self, additional: usize, begin: usize, new_len: usize, value: T)
   where
     T: Clone,
@@ -620,21 +617,18 @@ impl<T> Deque<T> {
     }
   }
 
-  #[inline]
   fn prolong_back(&mut self, additional: usize) -> crate::Result<ReserveRslt> {
     let rr = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
     self.tail = rr.begin.wrapping_add(additional);
     Ok(rr)
   }
 
-  #[inline]
   fn prolong_front(&mut self, additional: usize) -> crate::Result<ReserveRslt> {
     let rr = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
     self.head = rr.begin;
     Ok(rr)
   }
 
-  #[inline]
   fn slices_len<'iter>(iter: impl Iterator<Item = &'iter [T]>) -> usize
   where
     T: 'iter,
@@ -755,13 +749,11 @@ struct ReserveRslt {
 }
 
 impl ReserveRslt {
-  #[inline]
   fn new(begin: usize, head_shift: usize) -> Self {
     Self { begin, head_shift }
   }
 }
 
-#[inline]
 unsafe fn drop_elements<T>(len: usize, offset: usize, ptr: *mut T) {
   // SAFETY: It is up to the caller to provide a valid pointer with a valid index
   let data = unsafe { ptr.add(offset) };
@@ -795,7 +787,6 @@ unsafe fn drop_elements<T>(len: usize, offset: usize, ptr: *mut T) {
 /// H(3) < T(6): . . . H * T . . (no wrapping)
 /// H(0) < T(8): H * * * * * * T (no wrapping)
 /// ```
-#[inline]
 fn is_wrapping(head: usize, len: usize, tail: usize) -> bool {
   if tail > head { false } else { len > 0 }
 }
@@ -890,17 +881,14 @@ fn reserve<D, const IS_BACK: bool>(
   }
 }
 
-#[inline]
 fn wrap_add_idx(capacity: usize, idx: usize, offset: usize) -> usize {
   wrap_idx(idx.wrapping_add(offset), capacity)
 }
 
-#[inline]
 fn wrap_idx(idx: usize, cap: usize) -> usize {
   idx.checked_sub(cap).unwrap_or(idx)
 }
 
-#[inline]
 fn wrap_sub_idx(capacity: usize, idx: usize, offset: usize) -> usize {
   wrap_idx(idx.wrapping_sub(offset).wrapping_add(capacity), capacity)
 }

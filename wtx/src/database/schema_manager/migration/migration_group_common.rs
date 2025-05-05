@@ -10,7 +10,6 @@ impl<S> MigrationGroupCommon<S>
 where
   S: Lease<str>,
 {
-  #[inline]
   pub(crate) const fn new(name: S, uid: Uid) -> Self {
     Self { name, uid }
   }

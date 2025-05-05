@@ -46,8 +46,8 @@ impl<S> Uri<S>
 where
   S: Lease<str>,
 {
-  #[inline]
-  pub(crate) const fn _empty(uri: S) -> Self {
+  #[cfg(feature = "http")]
+  pub(crate) const fn empty(uri: S) -> Self {
     Self { authority_start: 0, href_start: 0, initial_len: 0, port: None, query_start: 0, uri }
   }
 
@@ -276,7 +276,6 @@ where
     (initial_len, authority_start, href_start, query_start)
   }
 
-  #[inline]
   fn process_port(&mut self) {
     let uri = self.uri.lease().as_bytes();
     'explicit_port: {
@@ -355,8 +354,8 @@ impl UriString {
     self.query_start = self.query_start.min(self.initial_len);
   }
 
-  #[inline]
-  pub(crate) fn _buffer(
+  #[cfg(all(feature = "base64", feature = "http"))]
+  pub(crate) fn buffer(
     &mut self,
     cb: impl FnOnce(&mut String) -> crate::Result<()>,
   ) -> crate::Result<()> {

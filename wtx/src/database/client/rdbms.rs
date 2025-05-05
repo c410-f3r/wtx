@@ -17,18 +17,16 @@ use crate::{
 use core::ops::Range;
 
 /// Should be called before executing commands.
-#[inline]
 pub(crate) fn clear_cmd_buffers(
   net_buffer: &mut PartitionedFilledBuffer,
   records_params: &mut Vector<(Range<usize>, Range<usize>)>,
   values_params: &mut Vector<(bool, Range<usize>)>,
 ) {
-  net_buffer._clear_if_following_is_empty();
+  net_buffer.clear_if_following_is_empty();
   records_params.clear();
   values_params.clear();
 }
 
-#[inline]
 pub(crate) fn query_walker<'uri>(
   uri: &'uri UriRef<'_>,
   mut cb: impl FnMut(&'uri str, &'uri str) -> crate::Result<()>,
@@ -50,7 +48,6 @@ pub(crate) fn query_walker<'uri>(
 
 // FIXME(STABLE): CommonRecord should implement Record but in such a scenario GAT implies
 // static bounds.
-#[inline]
 pub(crate) fn value<'any, 'exec, A, C, CI, D, R, T>(
   ci: CI,
   record: &R,
@@ -72,7 +69,7 @@ where
   if *is_null {
     None
   } else {
-    let column = match record.lease().stmt._column(idx) {
+    let column = match record.lease().stmt.column(idx) {
       None => return unlikely_elem(None),
       Some(elem) => elem,
     };

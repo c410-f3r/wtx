@@ -11,37 +11,30 @@ impl<M> HpackHeaders<M>
 where
   M: Copy,
 {
-  #[inline]
   pub(crate) const fn new(max_bytes: usize) -> Self {
     Self { bq: BlocksDeque::new(), max_bytes }
   }
 
-  #[inline]
   pub(crate) fn bytes_len(&self) -> usize {
     self.bq.elements_len()
   }
 
-  #[inline]
   pub(crate) fn clear(&mut self) {
     self.bq.clear();
   }
 
-  #[inline]
   pub(crate) fn headers_len(&self) -> usize {
     self.bq.blocks_len()
   }
 
-  #[inline]
   pub(crate) fn get_by_idx(&self, idx: usize) -> Option<AbstractHeader<'_, M>> {
     self.bq.get(idx).as_ref().map(Self::map)
   }
 
-  #[inline]
   pub(crate) fn max_bytes(&self) -> usize {
     self.max_bytes
   }
 
-  #[inline]
   pub(crate) fn push_front<'bytes, I>(
     &mut self,
     misc: M,
@@ -77,13 +70,11 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) fn set_max_bytes(&mut self, max_bytes: usize, cb: impl FnMut(M)) {
     self.max_bytes = max_bytes;
     self.remove_until_max_bytes(0, cb);
   }
 
-  #[inline]
   fn map<'this>(block: &Block<&'this [u8], &'this Metadata<M>>) -> AbstractHeader<'this, M> {
     AbstractHeader {
       is_sensitive: block.misc.is_sensitive,
@@ -97,12 +88,10 @@ where
     }
   }
 
-  #[inline]
   fn pop_back(&mut self) -> Option<Metadata<M>> {
     self.bq.pop_back()
   }
 
-  #[inline]
   fn remove_until_max_bytes(&mut self, additional: usize, mut cb: impl FnMut(M)) {
     while self.bytes_len().wrapping_add(additional) > self.max_bytes {
       if let Some(elem) = self.pop_back() {

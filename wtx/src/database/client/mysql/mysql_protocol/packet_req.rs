@@ -16,7 +16,6 @@ where
   E: From<crate::Error>,
   T: Encode<MysqlProtocol<(), E>>,
 {
-  #[inline]
   pub(crate) async fn encode_and_write<S>(
     &self,
     ew: &mut EncodeWrapperProtocol<'_>,

@@ -31,7 +31,7 @@ In a way, `WTX` can be seen as an amalgamation that consolidates the functionali
 | [Database Client][database-client-doc]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          |
 | [Database Schema Manager][database-schema-manager-doc] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           |
 | [gRPC][grpc-doc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server |
-| [HTTP Client Pool][http-client-pool-doc]               | [reqwest][reqwest]                             | http-client-pool         |
+| [HTTP Client Pool][http-client-pool-doc]               | [reqwest][reqwest]                                                 | http-client-pool         |
 | [HTTP Server Framework][http-server-framework-doc]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
 | [HTTP/2][http2-doc]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
 | [Pool][pool-doc]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     |
@@ -69,14 +69,14 @@ Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks ov
 
 These numbers provide an estimate of the expected waiting times when developing with `WTX`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
 
-| Technology            | Required Dependencies¹ | All Dependencies²      | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
-| --------------------- | ---------------------  | ---------------------- | ----------- | ----------------- | --------------- | -------- |
-| Client API Framework  | 0                      | 31                     | 6.22s       | 7.77s             | 9.45s           | 872K     |
-| gRPC Client           | 2                      | 16                     | 4.81s       | 5.99s             | 7.31s           | 736K     |
-| HTTP Client Pool      | 2                      | 15                     | 4.67s       | 6.04s             | 7.06s           | 728K     |
-| HTTP Server Framework | 2                      | 37                     | 8.17s       | 10.69s            | 11.56s          | 996K     |
-| Postgres Client       | 13                     | 30                     | 5.06s       | 6.10s             | 6.86s           | 652K     |
-| WebSocket Client      | 10                     | 22                     | 4.34s       | 4.92s             | 5.64s           | 560K     |
+| Technology            | Required Deps¹ | All Deps²      | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
+| --------------------- | -------------- | -------------- | ----------- | ----------------- | --------------- | -------- |
+| Client API Framework  | 0              | 31             | 6.22s       | 7.77s             | 9.45s           | 872K     |
+| gRPC Client           | 2              | 16             | 4.81s       | 5.99s             | 7.31s           | 736K     |
+| HTTP Client Pool      | 2              | 15             | 4.67s       | 6.04s             | 7.06s           | 728K     |
+| HTTP Server Framework | 2              | 37             | 8.17s       | 10.69s            | 11.56s          | 996K     |
+| Postgres Client       | 13             | 30             | 5.06s       | 6.10s             | 6.86s           | 652K     |
+| WebSocket Client      | 10             | 22             | 4.34s       | 4.92s             | 5.64s           | 560K     |
 
 <sup>***¹*** Internal dependencies required by the feature.</sup>
 

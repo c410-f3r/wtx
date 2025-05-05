@@ -13,7 +13,6 @@ pub(crate) struct Column {
 }
 
 impl Column {
-  #[inline]
   pub(crate) fn from_column_res(column_res: &ColumnRes) -> Self {
     let name = if column_res.alias.is_empty() { column_res.name } else { column_res.alias };
     Self { name, ty_params: TyParams::from_column_res(column_res) }

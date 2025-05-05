@@ -49,7 +49,6 @@ impl Http2Buffer {
     }
   }
 
-  #[inline]
   pub(crate) fn clear(&mut self) {
     let Self {
       hpack_dec,
@@ -68,7 +67,7 @@ impl Http2Buffer {
     hpack_enc_buffer.clear();
     initial_server_headers.clear();
     is_conn_open.store(false, Ordering::Relaxed);
-    pfb._clear();
+    pfb.clear();
     let _waker = read_frame_waker.take();
     scrp.clear();
     sorp.clear();

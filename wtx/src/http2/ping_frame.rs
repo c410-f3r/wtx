@@ -12,12 +12,10 @@ pub(crate) struct PingFrame {
 }
 
 impl PingFrame {
-  #[inline]
   pub(crate) const fn new(cf: CommonFlags, payload: [u8; 8]) -> Self {
     Self { cf, payload }
   }
 
-  #[inline]
   pub(crate) fn read(bytes: &[u8], mut fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
       return Err(crate::Error::Http2ErrorGoAway(
@@ -35,7 +33,6 @@ impl PingFrame {
     Ok(Self::new(fi.cf, [*a, *b, *c, *d, *e, *f, *g, *h]))
   }
 
-  #[inline]
   pub(crate) const fn bytes(&self) -> [u8; 17] {
     let fi = FrameInit::new(self.cf, 8, U31::ZERO, FrameInitTy::Ping);
     let [a, b, c, d, e, f, g, h, i] = fi.bytes();
@@ -43,12 +40,10 @@ impl PingFrame {
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q]
   }
 
-  #[inline]
   pub(crate) fn has_ack(&self) -> bool {
     self.cf.has_ack()
   }
 
-  #[inline]
   pub(crate) fn set_ack(&mut self) {
     self.cf.set_ack();
   }

@@ -19,7 +19,6 @@ pub(crate) struct Statements<A, C, T> {
 }
 
 impl<A, C, T> Statements<A, C, T> {
-  #[inline]
   pub(crate) fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
   where
     RNG: Rng,
@@ -32,7 +31,6 @@ impl<A, C, T> Statements<A, C, T> {
     }
   }
 
-  #[inline]
   pub(crate) fn with_capacity<RNG>(
     columns: usize,
     max_stmts: usize,
@@ -50,7 +48,6 @@ impl<A, C, T> Statements<A, C, T> {
     })
   }
 
-  #[inline]
   pub(crate) async fn builder<AUX>(
     &mut self,
     mut aux: AUX,
@@ -74,14 +71,12 @@ impl<A, C, T> Statements<A, C, T> {
     Ok(StatementBuilder::new(&mut self.stmts, &mut self.stmts_indcs))
   }
 
-  #[inline]
   pub(crate) fn clear(&mut self) {
     let Self { max_stmts: _, rs: _, stmts, stmts_indcs } = self;
     stmts.clear();
     stmts_indcs.clear();
   }
 
-  #[inline]
   pub(crate) fn get_by_idx(&mut self, idx: usize) -> Option<StatementMut<'_, A, C, T>>
   where
     A: Clone,
@@ -95,7 +90,6 @@ impl<A, C, T> Statements<A, C, T> {
     ))
   }
 
-  #[inline]
   pub(crate) fn get_by_stmt_cmd_id(&mut self, stmt_cmd_id: u64) -> Option<StatementMut<'_, A, C, T>>
   where
     A: Clone,
@@ -103,7 +97,6 @@ impl<A, C, T> Statements<A, C, T> {
     self.get_by_idx(*self.stmts_indcs.get(&stmt_cmd_id)?)
   }
 
-  #[inline]
   pub(crate) fn hasher_mut(&mut self) -> &mut FixedState {
     &mut self.rs
   }
@@ -142,11 +135,11 @@ mod tests {
     let _ = builder.build(stmt_id0, StatementsMisc::new(10, 2, 1)).unwrap();
     {
       let stmt: Statement<'_, _, _, _> = stmts.get_by_stmt_cmd_id(stmt_id0).unwrap().into();
-      assert_eq!(stmt._columns().count(), 2);
-      assert_eq!(stmt._column(0).unwrap(), &_column0());
-      assert_eq!(stmt._column(1).unwrap(), &_column1());
-      assert_eq!(stmt._tys().count(), 1);
-      assert_eq!(stmt._ty(0).unwrap(), &100);
+      assert_eq!(stmt.columns().count(), 2);
+      assert_eq!(stmt.column(0).unwrap(), &_column0());
+      assert_eq!(stmt.column(1).unwrap(), &_column1());
+      assert_eq!(stmt.tys().count(), 1);
+      assert_eq!(stmt.ty(0).unwrap(), &100);
     }
 
     let stmt_id1 = 456;
@@ -156,18 +149,18 @@ mod tests {
     let _ = builder.build(stmt_id1, StatementsMisc::new(11, 1, 1)).unwrap();
     {
       let stmt: Statement<'_, _, _, _> = stmts.get_by_stmt_cmd_id(stmt_id0).unwrap().into();
-      assert_eq!(stmt._columns().count(), 2);
-      assert_eq!(stmt._column(0).unwrap(), &_column0());
-      assert_eq!(stmt._column(1).unwrap(), &_column1());
-      assert_eq!(stmt._tys().count(), 1);
-      assert_eq!(stmt._ty(0).unwrap(), &100);
+      assert_eq!(stmt.columns().count(), 2);
+      assert_eq!(stmt.column(0).unwrap(), &_column0());
+      assert_eq!(stmt.column(1).unwrap(), &_column1());
+      assert_eq!(stmt.tys().count(), 1);
+      assert_eq!(stmt.ty(0).unwrap(), &100);
     }
     {
       let stmt: Statement<'_, _, _, _> = stmts.get_by_stmt_cmd_id(stmt_id1).unwrap().into();
-      assert_eq!(stmt._columns().count(), 1);
-      assert_eq!(stmt._column(0).unwrap(), &_column2());
-      assert_eq!(stmt._tys().count(), 1);
-      assert_eq!(stmt._ty(0).unwrap(), &200);
+      assert_eq!(stmt.columns().count(), 1);
+      assert_eq!(stmt.column(0).unwrap(), &_column2());
+      assert_eq!(stmt.tys().count(), 1);
+      assert_eq!(stmt.ty(0).unwrap(), &200);
     }
 
     let stmt_id2 = 789;
@@ -178,16 +171,16 @@ mod tests {
     assert_eq!(stmts.get_by_stmt_cmd_id(stmt_id0), None);
     {
       let stmt: Statement<'_, _, _, _> = stmts.get_by_stmt_cmd_id(stmt_id1).unwrap().into();
-      assert_eq!(stmt._columns().count(), 1);
-      assert_eq!(stmt._column(0).unwrap(), &_column2());
-      assert_eq!(stmt._tys().count(), 1);
-      assert_eq!(stmt._ty(0).unwrap(), &200);
+      assert_eq!(stmt.columns().count(), 1);
+      assert_eq!(stmt.column(0).unwrap(), &_column2());
+      assert_eq!(stmt.tys().count(), 1);
+      assert_eq!(stmt.ty(0).unwrap(), &200);
     }
     {
       let stmt: Statement<'_, _, _, _> = stmts.get_by_stmt_cmd_id(stmt_id2).unwrap().into();
-      assert_eq!(stmt._columns().count(), 1);
-      assert_eq!(stmt._column(0).unwrap(), &_column3());
-      assert_eq!(stmt._tys().count(), 0);
+      assert_eq!(stmt.columns().count(), 1);
+      assert_eq!(stmt.column(0).unwrap(), &_column3());
+      assert_eq!(stmt.tys().count(), 0);
     }
 
     stmts.clear();

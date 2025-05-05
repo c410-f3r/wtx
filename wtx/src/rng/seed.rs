@@ -34,7 +34,6 @@ pub fn std_seed() -> u64 {
 }
 
 // Credits to the `foldhash` project.
-#[inline]
 fn folded_multiplication(x: u64, y: u64) -> u64 {
   let array = u128::from(x).wrapping_mul(u128::from(y)).to_le_bytes();
   let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = array;
@@ -44,7 +43,6 @@ fn folded_multiplication(x: u64, y: u64) -> u64 {
 }
 
 // Credits to the `foldhash` project.
-#[inline]
 fn mix(seed: u64, n: u64) -> u64 {
   const FIXED: u64 = 10_526_836_309_316_205_339;
   folded_multiplication(seed ^ n, FIXED)

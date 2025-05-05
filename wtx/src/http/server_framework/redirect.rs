@@ -11,7 +11,6 @@ pub struct Redirect {
 }
 
 impl Redirect {
-  #[inline]
   fn new(status_code: StatusCode, uri: &'static str) -> Self {
     Self { status_code, uri }
   }
@@ -55,7 +54,6 @@ impl Redirect {
     Ok(StatusCode::SeeOther)
   }
 
-  #[inline]
   fn push_headers(headers: &mut Headers, uri: &str) -> crate::Result<()> {
     headers.push_from_iter(Header::from_name_and_value(KnownHeaderName::Location.into(), [uri]))?;
     Ok(())

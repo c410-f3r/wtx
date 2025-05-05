@@ -115,7 +115,6 @@ where
     Ok(())
   }
 
-  #[inline]
   async fn do_migrate<'migration, DBS, I, S>(
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
@@ -158,7 +157,6 @@ where
   }
 
   #[cfg(feature = "std")]
-  #[inline]
   async fn do_migrate_from_dir(
     &mut self,
     (buffer_cmd, buffer_db_migrations, buffer_status): (

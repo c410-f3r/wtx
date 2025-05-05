@@ -10,7 +10,7 @@ use {
 };
 
 #[cfg(feature = "schema-manager-dev")]
-pub(crate) async fn _clean_drops_all_objs<'exec, E>(
+pub(crate) async fn clean_drops_all_objs<'exec, E>(
   (buffer_cmd, _, buffer_idents, _): (
     &mut String,
     &mut Vector<DbMigration>,
@@ -24,28 +24,28 @@ pub(crate) async fn _clean_drops_all_objs<'exec, E>(
   Identifier: FromRecords<'exec, Postgres<crate::Error>>,
 {
   integration_tests::create_foo_table(buffer_cmd, c, "public.").await;
-  c._executor_mut().execute("CREATE SCHEMA bar", |_| Ok(())).await.unwrap();
+  c.executor_mut().execute("CREATE SCHEMA bar", |_| Ok(())).await.unwrap();
   integration_tests::create_foo_table(buffer_cmd, c, "bar.").await;
-  c._executor_mut().execute("CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0)", |_| Ok(())).await.unwrap();
-  c._executor_mut().execute("CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE", |_| Ok(())).await.unwrap();
-  c._executor_mut()
+  c.executor_mut().execute("CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0)", |_| Ok(())).await.unwrap();
+  c.executor_mut().execute("CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE", |_| Ok(())).await.unwrap();
+  c.executor_mut()
     .execute("CREATE PROCEDURE something() LANGUAGE SQL AS $$ $$", |_| Ok(()))
     .await
     .unwrap();
-  c._executor_mut().execute("CREATE SEQUENCE serial START 101", |_| Ok(())).await.unwrap();
-  c._executor_mut().execute("CREATE TYPE a_type AS (field INTEGER[31])", |_| Ok(())).await.unwrap();
-  c._executor_mut()
+  c.executor_mut().execute("CREATE SEQUENCE serial START 101", |_| Ok(())).await.unwrap();
+  c.executor_mut().execute("CREATE TYPE a_type AS (field INTEGER[31])", |_| Ok(())).await.unwrap();
+  c.executor_mut()
     .execute("CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy')", |_| Ok(()))
     .await
     .unwrap();
-  c._executor_mut()
+  c.executor_mut()
     .execute("CREATE VIEW view AS SELECT * FROM foo WHERE id = 1", |_| Ok(()))
     .await
     .unwrap();
 
   postgres::all_elements(
     (buffer_cmd, buffer_idents),
-    &mut c._executor_mut(),
+    &mut c.executor_mut(),
     |buffer| {
       assert_eq!(buffer.1.len(), 1);
       buffer.1.clear();
@@ -94,7 +94,7 @@ pub(crate) async fn _clean_drops_all_objs<'exec, E>(
 
   postgres::all_elements(
     (buffer_cmd, buffer_idents),
-    c._executor_mut(),
+    c.executor_mut(),
     |buffer| {
       assert_eq!(buffer.1.len(), 0);
       buffer.1.clear();

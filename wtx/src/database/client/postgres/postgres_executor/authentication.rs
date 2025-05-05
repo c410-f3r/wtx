@@ -38,7 +38,6 @@ where
     self.eb.lease().conn_params.iter()
   }
 
-  #[inline]
   pub(crate) async fn manage_authentication<RNG>(
     &mut self,
     config: &Config<'_>,
@@ -119,7 +118,6 @@ where
     }
   }
 
-  #[inline]
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
     loop {
       let ExecutorBuffer { common, conn_params } = self.eb.lease_mut();
@@ -142,7 +140,6 @@ where
 
   // The 'null' case of `tls_server_end_point` is already handled by `method_header`, as such,
   // it is fine to use an empty slice.
-  #[inline]
   async fn sasl_authenticate<RNG>(
     config: &Config<'_>,
     cs: &mut ConnectionState,
@@ -158,9 +155,9 @@ where
     let tsep_data = tls_server_end_point.unwrap_or_default();
     let local_nonce = nonce(rng);
     {
-      let mut sw = SuffixWriterFbvm::from(net_buffer._suffix_writer());
+      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
       sasl_first(&mut sw, (method_bytes, method_header), &local_nonce)?;
-      stream.write_all(sw._curr_bytes()).await?;
+      stream.write_all(sw.curr_bytes()).await?;
     }
 
     let (mut auth_data, response_nonce, salted_password) = {
@@ -189,7 +186,7 @@ where
     };
 
     {
-      let mut sw = SuffixWriterFbvm::from(net_buffer._suffix_writer());
+      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
       sasl_second(
         &mut auth_data,
         &mut sw,
@@ -198,7 +195,7 @@ where
         &salted_password,
         tsep_data,
       )?;
-      stream.write_all(sw._curr_bytes()).await?;
+      stream.write_all(sw.curr_bytes()).await?;
     }
 
     {
@@ -222,7 +219,6 @@ where
   }
 }
 
-#[inline]
 fn nonce<RNG>(rng: &mut RNG) -> [u8; 24]
 where
   RNG: CryptoRng,
@@ -250,7 +246,6 @@ where
   rslt
 }
 
-#[inline]
 fn salted_password(len: u32, salt: &[u8], str: &str) -> crate::Result<[u8; 32]> {
   let mut array: [u8; 32] = {
     let mut hmac = Hmac::<Sha256>::new_from_slice(str.as_bytes())?;

@@ -7,12 +7,12 @@ use crate::{
   client_api_framework::{
     Api, ClientApiFrameworkError, SendBytesSource,
     misc::{
-      _log_res, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
       TransportGroup, WsParams, WsReqParamsTy,
-      transport::{Transport, TransportParams},
+      transport::{Transport, TransportParams, log_res},
     },
     pkg::{Package, PkgsAux},
   },
@@ -40,7 +40,7 @@ async fn recv<A, DRSR, TP>(
   }
   pkgs_aux.byte_buffer.clear();
   pkgs_aux.byte_buffer.extend_from_copyable_slice(frame.payload())?;
-  _log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::WebSocket);
+  log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::WebSocket);
   Ok(())
 }
 

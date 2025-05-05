@@ -59,8 +59,8 @@ where
     Ok(())
   }
 
-  #[inline]
-  pub(crate) async fn _into_for_each<FUN>(&self, mut cb: impl FnMut(R) -> FUN)
+  #[cfg(feature = "http-client-pool")]
+  pub(crate) async fn into_for_each<FUN>(&self, mut cb: impl FnMut(R) -> FUN)
   where
     FUN: Future<Output = ()>,
   {
@@ -176,13 +176,6 @@ pub struct SimplePoolGetElem<R> {
   idx: usize,
   resource: R,
   waker: Arc<Mutex<Vec<Waker>>>,
-}
-
-impl<R> SimplePoolGetElem<R> {
-  #[inline]
-  pub(crate) fn _idx(&self) -> usize {
-    self.idx
-  }
 }
 
 impl<R> Deref for SimplePoolGetElem<R> {

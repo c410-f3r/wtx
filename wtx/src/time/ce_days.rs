@@ -25,3 +25,12 @@ impl CeDays {
     self.0
   }
 }
+
+impl TryFrom<i32> for CeDays {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: i32) -> Result<Self, Self::Error> {
+    Ok(Self::from_num(from)?)
+  }
+}

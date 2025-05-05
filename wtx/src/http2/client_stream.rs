@@ -31,7 +31,6 @@ pub struct ClientStream<HD> {
 }
 
 impl<HD> ClientStream<HD> {
-  #[inline]
   pub(crate) const fn new(
     hd: HD,
     is_conn_open: Arc<AtomicBool>,

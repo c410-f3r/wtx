@@ -1,21 +1,17 @@
 use crate::{
   database::{
     DatabaseTy, Identifier,
-    schema_manager::{
-      DbMigrationGroup, Repeatability, SchemaManagerError, Uid,
-      migration::migration_common::MigrationCommon,
-    },
+    schema_manager::{DbMigrationGroup, Uid, migration::migration_common::MigrationCommon},
   },
-  misc::FromRadix10,
+  time::DateTime,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
 use core::fmt;
 
 /// Migration retrieved from a database.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DbMigration {
   common: MigrationCommon<Identifier>,
-  created_on: DateTime<Utc>,
+  created_on: DateTime,
   db_ty: DatabaseTy,
   group: DbMigrationGroup<Identifier>,
 }
@@ -29,7 +25,7 @@ impl DbMigration {
 
   /// When the migration was created.
   #[inline]
-  pub fn created_on(&self) -> &DateTime<Utc> {
+  pub fn created_on(&self) -> &DateTime {
     &self.created_on
   }
 
@@ -77,9 +73,9 @@ where
     use crate::database::Record as _;
     let rslt = Self {
       common: MigrationCommon {
-        checksum: _checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
+        checksum: checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
         name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
-        repeatability: _from_u32(curr_params.curr_record.decode_opt("repeatability")?),
+        repeatability: from_u32(curr_params.curr_record.decode_opt("repeatability")?),
         uid: curr_params.curr_record.decode("uid")?,
       },
       created_on: curr_params.curr_record.decode("created_on")?,
@@ -114,9 +110,9 @@ where
     use crate::database::Record as _;
     let rslt = Self {
       common: MigrationCommon {
-        checksum: _checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
+        checksum: checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
         name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
-        repeatability: _from_u32(curr_params.curr_record.decode_opt("repeatability")?),
+        repeatability: from_u32(curr_params.curr_record.decode_opt("repeatability")?),
         uid: curr_params.curr_record.decode("uid")?,
       },
       created_on: curr_params.curr_record.decode("created_on")?,
@@ -139,27 +135,19 @@ impl fmt::Display for DbMigration {
   }
 }
 
-#[inline]
-fn _checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
-  Ok(u64::from_radix_10(bytes).map_err(|_err| SchemaManagerError::ChecksumMustBeANumber)?)
+#[cfg(any(feature = "mysql", feature = "postgres"))]
+fn checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
+  use crate::misc::FromRadix10;
+  Ok(
+    u64::from_radix_10(bytes)
+      .map_err(|_err| crate::database::schema_manager::SchemaManagerError::ChecksumMustBeANumber)?,
+  )
 }
 
-#[inline]
-fn _fixed_from_naive_utc(naive: NaiveDateTime) -> DateTime<Utc> {
-  DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc)
-}
-
-#[inline]
-fn _from_u32(n: Option<u32>) -> Option<Repeatability> {
+#[cfg(any(feature = "mysql", feature = "postgres"))]
+fn from_u32(n: Option<u32>) -> Option<crate::database::schema_manager::Repeatability> {
   match n? {
-    0 => Some(Repeatability::Always),
-    _ => Some(Repeatability::OnChecksumChange),
+    0 => Some(crate::database::schema_manager::Repeatability::Always),
+    _ => Some(crate::database::schema_manager::Repeatability::OnChecksumChange),
   }
-}
-
-#[inline]
-fn _mssql_date_hack(s: &str) -> crate::Result<DateTime<Utc>> {
-  let naive_rslt = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S");
-  let naive = naive_rslt?;
-  Ok(_fixed_from_naive_utc(naive))
 }

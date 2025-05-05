@@ -72,6 +72,7 @@ impl<'attrs, 'module, 'others>
 {
   type Error = crate::Error;
 
+  #[inline]
   fn try_from(
     (camel_case_id, pkg_ident, faiv, fpiv, freqdiv, spa): (
       &'others mut String,

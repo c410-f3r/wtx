@@ -93,7 +93,6 @@ pub trait FromRadix10: Sized {
   fn from_radix_10(bytes: &[u8]) -> crate::Result<Self>;
 }
 
-#[inline]
 fn signed<T>(
   bytes: &[u8],
   (max_negative_digits, max_positive_digits): (u8, u8),
@@ -136,7 +135,6 @@ where
   }
 }
 
-#[inline]
 fn unsigned<T>(
   bytes: &[u8],
   max_positive_digits: u8,

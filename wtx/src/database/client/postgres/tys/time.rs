@@ -1,0 +1,103 @@
+use crate::{
+  database::{
+    DatabaseError, Typed,
+    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
+  },
+  misc::{Decode, Encode},
+  time::{Date, DateTime, Day, Month, Nanosecond, Time, Year},
+};
+
+const PG_EPOCH: DateTime = DateTime::new(
+  if let Ok(date) = Date::from_ymd(
+    if let Ok(year) = Year::from_num(2000) {
+      year
+    } else {
+      panic!();
+    },
+    Month::January,
+    Day::N1,
+  ) {
+    date
+  } else {
+    panic!();
+  },
+  Time::MIN,
+);
+const PG_MIN: DateTime = DateTime::new(
+  if let Ok(date) = Date::from_ymd(
+    if let Ok(year) = Year::from_num(-4713) {
+      year
+    } else {
+      panic!();
+    },
+    Month::January,
+    Day::N1,
+  ) {
+    date
+  } else {
+    panic!();
+  },
+  Time::MIN,
+);
+
+impl<E> Decode<'_, Postgres<E>> for DateTime
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+    let micros: i64 = Decode::<Postgres<E>>::decode(aux, dw)?;
+    let (epoch_ts, _) = PG_EPOCH.timestamp();
+    let this_ts = micros.div_euclid(1_000_000);
+    let this_ns = ((micros.rem_euclid(1_000_000)) as u32).wrapping_mul(1_000);
+    let ts_diff = epoch_ts.wrapping_add(this_ts);
+    Ok(DateTime::from_timestamp_secs_and_ns(
+      ts_diff,
+      Nanosecond::from_num(this_ns).map_err(crate::Error::from)?,
+    )?)
+  }
+}
+impl<E> Encode<Postgres<E>> for DateTime
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+    if self < &PG_MIN || self > &DateTime::MAX {
+      return Err(E::from(
+        DatabaseError::UnexpectedValueFromBytes { expected: "timestamp" }.into(),
+      ));
+    }
+    let (this_ts, this_ns) = self.timestamp();
+    if this_ns.num() % 1_000 > 0 {
+      return Err(E::from(
+        DatabaseError::UnexpectedValueFromBytes { expected: "timestamp" }.into(),
+      ));
+    }
+    let this_us = this_ns.num() / 1_000;
+    let (epoch_ts, _) = PG_EPOCH.timestamp();
+    let ts_diff = this_ts.wrapping_sub(epoch_ts).wrapping_mul(1_000_000);
+    let rslt = ts_diff.wrapping_add(this_us.into());
+    Encode::<Postgres<E>>::encode(&rslt, &mut (), ew)
+  }
+}
+impl<E> Typed<Postgres<E>> for DateTime
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Timestamptz)
+  }
+}
+
+test!(
+  datetime_utc,
+  DateTime,
+  DateTime::from_timestamp_secs_and_ns(123456789, Nanosecond::from_num(12000).unwrap()).unwrap()
+);

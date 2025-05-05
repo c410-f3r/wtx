@@ -8,7 +8,6 @@ pub enum ExpansionTy {
 }
 
 impl ExpansionTy {
-  #[inline]
   pub(crate) fn params(self, len: usize) -> Option<(usize, usize)> {
     Some(match self {
       Self::Additional(elem) => (elem, len.checked_add(elem)?),

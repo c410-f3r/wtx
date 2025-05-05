@@ -121,7 +121,6 @@ where
     self.0.lease()
   }
 
-  #[inline]
   fn check_header_name(content: &[u8]) -> crate::Result<&str> {
     if content.first().copied() == Some(b':') {
       return Ok(from_utf8_basic(content)?);

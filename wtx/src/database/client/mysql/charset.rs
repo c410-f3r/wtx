@@ -49,7 +49,6 @@ create_enum! {
 }
 
 impl Charset {
-  #[inline]
   pub(crate) fn default_collation(&self) -> Collation {
     match self {
       Self::armscii8 => Collation::armscii8_general_ci,

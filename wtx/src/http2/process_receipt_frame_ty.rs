@@ -47,7 +47,6 @@ where
   SR: StreamReader,
   SW: StreamWriter,
 {
-  #[inline]
   pub(crate) async fn data(self, sorp: &mut Sorp) -> crate::Result<()> {
     let Some(elem) = sorp.get_mut(&self.fi.stream_id) else {
       if self.fi.stream_id <= *self.last_stream_id {
@@ -72,7 +71,7 @@ where
       )));
     };
     elem.body_len = local_body_len;
-    let (df, body_bytes) = DataFrame::read(self.pfb._current(), self.fi)?;
+    let (df, body_bytes) = DataFrame::read(self.pfb.current(), self.fi)?;
     elem.rrb.body.extend_from_copyable_slice(body_bytes)?;
     elem.has_one_or_more_data_frames = true;
     WindowsPair::new(self.conn_windows, &mut elem.windows)
@@ -91,7 +90,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) async fn header_client(self, sorp: &mut Sorp) -> crate::Result<()> {
     let elem = sorp_mut(sorp, self.fi.stream_id)?;
     let has_eos = if elem.has_initial_header {
@@ -134,7 +132,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) async fn header_server_init(
     self,
     ish: &mut InitialServerHeader,
@@ -184,7 +181,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) async fn header_server_trailer(
     self,
     sorp: &mut StreamOverallRecvParams,
@@ -212,9 +208,8 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) async fn reset(self, scrp: &mut Scrp, sorp: &mut Sorp) -> crate::Result<()> {
-    let rsf = ResetStreamFrame::read(self.pfb._current(), self.fi)?;
+    let rsf = ResetStreamFrame::read(self.pfb.current(), self.fi)?;
     if !send_reset_stream(rsf.error_code(), scrp, sorp, self.stream_writer, self.fi.stream_id).await
     {
       return Err(protocol_err(Http2Error::UnknownResetStreamReceiver));
@@ -222,7 +217,6 @@ where
     Ok(())
   }
 
-  #[inline]
   pub(crate) fn window_update(self, scrp: &mut Scrp, sorp: &mut Sorp) -> crate::Result<()> {
     if let Some(elem) = scrp.get_mut(&self.fi.stream_id) {
       self.do_window_update(&mut elem.windows, &elem.waker)?;
@@ -235,9 +229,8 @@ where
     Err(protocol_err(Http2Error::UnknownWindowUpdateStreamReceiver))
   }
 
-  #[inline]
   fn do_window_update(self, windows: &mut Windows, waker: &Waker) -> crate::Result<()> {
-    let wuf = WindowUpdateFrame::read(self.pfb._current(), self.fi)?;
+    let wuf = WindowUpdateFrame::read(self.pfb.current(), self.fi)?;
     windows.send_mut().deposit(Some(self.fi.stream_id), wuf.size_increment().i32())?;
     waker.wake_by_ref();
     Ok(())

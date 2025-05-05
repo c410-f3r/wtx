@@ -11,7 +11,6 @@ use alloc::string::String;
 use core::fmt::Write;
 
 #[cfg(any(feature = "mysql", feature = "postgres"))]
-#[inline]
 pub(crate) async fn delete_migrations<E, S>(
   buffer_cmd: &mut String,
   executor: &mut E,
@@ -33,7 +32,6 @@ where
 }
 
 #[cfg(any(feature = "mysql", feature = "postgres"))]
-#[inline]
 pub(crate) async fn insert_migrations<'migration, DBS, E, I, S>(
   buffer_cmd: &mut String,
   executor: &mut E,
@@ -100,7 +98,6 @@ where
 }
 
 #[cfg(any(feature = "mysql", feature = "postgres"))]
-#[inline]
 pub(crate) async fn migrations_by_mg_uid_query<'exec, E, D>(
   buffer_cmd: &mut String,
   executor: &'exec mut E,

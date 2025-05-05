@@ -183,7 +183,6 @@ impl CorsMiddleware {
     self
   }
 
-  #[inline]
   fn allowed_origin<'this>(&'this self, origin: &str) -> Option<(&'this str, usize)> {
     self
       .allow_origins
@@ -193,7 +192,6 @@ impl CorsMiddleware {
       .find_map(|(idx, el)| (el == origin).then_some((el.as_str(), idx)))
   }
 
-  #[inline]
   fn apply_allow_credentials(allow_credentials: bool, headers: &mut Headers) -> crate::Result<()> {
     if allow_credentials {
       headers.push_from_iter(Header::from_name_and_value(
@@ -204,7 +202,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   fn apply_allow_headers(allow_headers: &str, headers: &mut Headers) -> crate::Result<()> {
     if !allow_headers.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
@@ -215,7 +212,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   fn apply_allow_methods(
     (is_wildcard, specifics): &AllowMethods,
     headers: &mut Headers,
@@ -233,7 +229,7 @@ impl CorsMiddleware {
             let [_, name] = el.strings().custom;
             name
           }),
-          ",",
+          || ",",
         ),
       ))?;
     } else {
@@ -241,7 +237,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   fn apply_allow_origin(origin: &str, headers: &mut Headers) -> crate::Result<()> {
     headers.push_from_iter(Header::from_name_and_value(
       KnownHeaderName::AccessControlAllowOrigin.into(),
@@ -250,7 +245,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   fn apply_expose_headers(
     (is_wildcard, specifics): &ExposeHeaders,
     headers: &mut Headers,
@@ -263,14 +257,13 @@ impl CorsMiddleware {
     } else if !specifics.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlExposeHeaders.into(),
-        Intersperse::new(specifics.iter().map(|el| el.as_str()), ","),
+        Intersperse::new(specifics.iter().map(|el| el.as_str()), || ","),
       ))?;
     } else {
     }
     Ok(())
   }
 
-  #[inline]
   fn apply_max_age(max_age: Option<u32>, headers: &mut Headers) -> crate::Result<()> {
     if let Some(elem) = max_age {
       headers.push_from_fmt(Header::from_name_and_value(
@@ -281,7 +274,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   async fn apply_normal_response(
     &self,
     origin_response: &OriginResponse,
@@ -312,7 +304,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   async fn apply_preflight_response(
     &self,
     evaluated_allow_headers: &str,
@@ -335,14 +326,12 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   fn extract_origin<'any>(
     opt: Option<Header<'any, &'any str>>,
   ) -> crate::Result<Header<'any, &'any str>> {
     Ok(opt.ok_or(HttpError::MissingHeader(KnownHeaderName::Origin))?)
   }
 
-  #[inline]
   fn manage_preflight_headers(
     &self,
     acrh: Header<'_, &str>,
@@ -375,7 +364,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   fn manage_preflight_methods(&self, acrm: Header<'_, &str>) -> crate::Result<()> {
     if self.allow_methods.0 {
       return Ok(());
@@ -390,7 +378,6 @@ impl CorsMiddleware {
     Ok(())
   }
 
-  #[inline]
   fn manage_preflight_origin(
     &self,
     body: &mut Vector<u8>,

@@ -17,7 +17,6 @@ pub struct MysqlRecord<'exec, E> {
 }
 
 impl<'exec, E> MysqlRecord<'exec, E> {
-  #[inline]
   pub(crate) fn new(
     record: &'exec [u8],
     stmt: MysqlStatement<'exec>,

@@ -233,7 +233,6 @@ impl<D, M> BlocksDeque<D, M> {
   }
 
   // Only used in front operations
-  #[inline]
   fn adjust_metadata(&mut self, head_shift: usize, skip: usize) {
     if head_shift > 0 {
       for metadata in self.metadata.iter_mut().skip(skip) {

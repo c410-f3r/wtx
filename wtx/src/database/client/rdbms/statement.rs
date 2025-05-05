@@ -12,7 +12,6 @@ pub(crate) struct Statement<'stmts, A, C, T> {
 }
 
 impl<'stmts, A, C, T> Statement<'stmts, A, C, T> {
-  #[inline]
   pub(crate) const fn new(
     aux: A,
     columns_len: usize,
@@ -22,26 +21,23 @@ impl<'stmts, A, C, T> Statement<'stmts, A, C, T> {
     Self { aux, columns_len, tys_len, values }
   }
 
-  #[inline]
-  pub(crate) fn _column(&self, idx: usize) -> Option<&C> {
+  pub(crate) fn column(&self, idx: usize) -> Option<&C> {
     let columns = self.values.get(..self.columns_len)?;
     Some(&columns.get(idx)?.0)
   }
 
-  #[inline]
-  pub(crate) fn _columns(&self) -> impl Iterator<Item = &C> {
+  pub(crate) fn columns(&self) -> impl Iterator<Item = &C> {
     let columns = self.values.get(..self.columns_len).unwrap_or_default();
     columns.iter().map(|el| &el.0)
   }
 
-  #[cfg(test)]
-  #[inline]
-  pub(crate) fn _ty(&self, idx: usize) -> Option<&T> {
+  #[cfg(all(feature = "_async-tests", test))]
+  pub(crate) fn ty(&self, idx: usize) -> Option<&T> {
     Some(&self.values.get(..self.tys_len)?.get(idx)?.1)
   }
 
-  #[inline]
-  pub(crate) fn _tys(&self) -> impl Iterator<Item = &T> {
+  #[cfg(feature = "mysql")]
+  pub(crate) fn tys(&self) -> impl Iterator<Item = &T> {
     self.values.get(..self.tys_len).unwrap_or_default().iter().map(|el| &el.1)
   }
 }
@@ -72,7 +68,6 @@ pub(crate) struct StatementMut<'stmts, A, C, T> {
 }
 
 impl<'stmts, A, C, T> StatementMut<'stmts, A, C, T> {
-  #[inline]
   pub(crate) const fn new(
     aux: A,
     columns_len: &'stmts mut usize,
@@ -80,10 +75,5 @@ impl<'stmts, A, C, T> StatementMut<'stmts, A, C, T> {
     values: &'stmts mut [(C, T)],
   ) -> Self {
     Self { aux, columns_len, tys_len, values }
-  }
-
-  #[inline]
-  pub(crate) fn _tys_mut(&mut self) -> impl Iterator<Item = &mut T> {
-    self.values.get_mut(..*self.tys_len).unwrap_or_default().iter_mut().map(|el| &mut el.1)
   }
 }

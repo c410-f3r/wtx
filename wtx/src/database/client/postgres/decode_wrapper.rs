@@ -13,13 +13,11 @@ impl<'de> DecodeWrapper<'de> {
   }
 
   /// Bytes
-  #[inline]
   pub fn bytes(&self) -> &'de [u8] {
     self.bytes
   }
 
   /// Type of a column.
-  #[inline]
   pub fn ty(&self) -> &Ty {
     &self.ty
   }

@@ -25,15 +25,15 @@ macro_rules! test {
     #[cfg(test)]
     #[test]
     fn $name() {
-      let vec = &mut crate::misc::FilledBuffer::_new();
-      let mut sw = crate::misc::SuffixWriter::_new(0, vec._vector_mut());
+      let vec = &mut crate::misc::FilledBuffer::default();
+      let mut sw = crate::misc::SuffixWriter::new(0, vec.vector_mut());
       let mut ew = EncodeWrapper::new(&mut sw);
       let instance: $ty = $instance;
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
       let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(
         &mut (),
         &mut DecodeWrapper::new(
-          ew.buffer()._curr_bytes(),
+          ew.buffer().curr_bytes(),
           crate::database::client::postgres::Ty::Any,
         ),
       )
@@ -49,6 +49,7 @@ mod chrono;
 mod rust_decimal;
 #[cfg(feature = "serde_json")]
 mod serde_json;
+mod time;
 #[cfg(feature = "uuid")]
 mod uuid;
 
@@ -316,7 +317,7 @@ mod ip {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.buffer()._extend_from_slices([&[2, 32, 0, 4][..], &self.octets()])?;
+      ew.buffer().extend_from_slices([&[2, 32, 0, 4][..], &self.octets()])?;
       Ok(())
     }
   }
@@ -354,7 +355,7 @@ mod ip {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.buffer()._extend_from_slices([&[3, 128, 0, 16][..], &self.octets()])?;
+      ew.buffer().extend_from_slices([&[3, 128, 0, 16][..], &self.octets()])?;
       Ok(())
     }
   }
@@ -534,7 +535,7 @@ mod primitives {
   {
     #[inline]
     fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-      ew.buffer()._extend_from_byte((*self).into())?;
+      ew.buffer().extend_from_byte((*self).into())?;
       Ok(())
     }
   }
@@ -609,8 +610,8 @@ mod primitives {
       where
         E: From<crate::Error>,
       {
-        #[inline]
-        fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+          #[inline]
+          fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
           if let &[$($elem,)+] = dw.bytes() {
             return Ok(<Self>::from_be_bytes([$($elem),+]));
           }

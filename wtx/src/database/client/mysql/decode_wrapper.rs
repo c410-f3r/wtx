@@ -11,7 +11,6 @@ pub struct DecodeWrapper<'de> {
 }
 
 impl<'de> DecodeWrapper<'de> {
-  #[inline]
   pub(crate) fn new(bytes: &'de [u8], ty: Ty) -> Self {
     Self { bytes, ty }
   }

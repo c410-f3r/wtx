@@ -46,6 +46,20 @@ where
   type ReqId = T::ReqId;
 }
 
+/// Used in [`crate::network::transport::Transport::send_recv_decode_contained`] and all implementations of
+/// [`crate::Requests::decode_responses`].
+///
+/// Not used in [`crate::network::transport::Transport::send_recv_decode_batch`] because
+/// [`crate::Requests::decode_responses`] takes precedence.
+#[cfg(any(feature = "http2", feature = "web-socket"))]
+pub(crate) fn log_res(_log_body: bool, _res: &[u8], _tg: TransportGroup) {
+  if _log_body {
+    _debug!(trans_ty = display(_tg), "Response: {:?}", crate::misc::from_utf8_basic(_res));
+  } else {
+    _debug!(trans_ty = display(_tg), "Response");
+  }
+}
+
 #[cfg(feature = "tokio")]
 mod tokio {
   use crate::client_api_framework::network::{TransportGroup, transport::Transport};
@@ -114,12 +128,14 @@ mod tests {
   pub(crate) struct _Pong(pub(crate) &'static str);
 
   impl<'de, DRSR> Decode<'de, De<DRSR>> for _Pong {
+    #[inline]
     fn decode(_: &mut DRSR, _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
       Ok(Self("pong"))
     }
   }
 
   impl<'de, DRSR> DecodeSeq<'de, De<DRSR>> for _Pong {
+    #[inline]
     fn decode_seq(
       _: &mut DRSR,
       _: &mut Vector<Self>,

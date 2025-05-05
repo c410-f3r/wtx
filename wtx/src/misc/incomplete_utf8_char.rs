@@ -1,5 +1,3 @@
-use crate::misc::from_utf8_std;
-
 /// Completion error
 #[derive(Debug)]
 pub enum CompletionErr {
@@ -12,8 +10,8 @@ pub enum CompletionErr {
 /// Bytes that can or can not represent an incomplete UTF-8 character.
 #[derive(Debug)]
 pub struct IncompleteUtf8Char {
-  buffer: [u8; 4],
-  len: usize,
+  _buffer: [u8; 4],
+  _len: usize,
 }
 
 impl IncompleteUtf8Char {
@@ -41,12 +39,14 @@ impl IncompleteUtf8Char {
       }
       _ => return None,
     }
-    Some(Self { buffer, len: bytes.len() })
+    Some(Self { _buffer: buffer, _len: bytes.len() })
   }
+}
 
+#[cfg(feature = "web-socket")]
+impl IncompleteUtf8Char {
   /// Tries to join the current set of bytes with the provided `bytes` to form a valid UTF-8 character.
-  #[inline]
-  pub fn complete<'bytes>(
+  pub(crate) fn complete<'bytes>(
     &mut self,
     bytes: &'bytes [u8],
   ) -> (Result<(), CompletionErr>, &'bytes [u8]) {
@@ -58,11 +58,10 @@ impl IncompleteUtf8Char {
     }
   }
 
-  #[inline]
   fn push_to_build_valid_char(&mut self, bytes: &[u8]) -> (usize, Option<CompletionErr>) {
-    let initial_len = self.len;
+    let initial_len = self._len;
     let to_write_len = {
-      let unwritten = self.buffer.get_mut(initial_len..).unwrap_or_default();
+      let unwritten = self._buffer.get_mut(initial_len..).unwrap_or_default();
       let to_write_len = unwritten.len().min(bytes.len());
       unwritten
         .get_mut(..to_write_len)
@@ -72,26 +71,26 @@ impl IncompleteUtf8Char {
     };
     let new_bytes = {
       let len = initial_len.wrapping_add(to_write_len);
-      self.buffer.get(..len).unwrap_or_default()
+      self._buffer.get(..len).unwrap_or_default()
     };
-    if let Err(err) = from_utf8_std(new_bytes) {
+    if let Err(err) = crate::misc::from_utf8_std(new_bytes) {
       if err.valid_up_to > 0 {
-        self.len = err.valid_up_to;
+        self._len = err.valid_up_to;
         (err.valid_up_to.wrapping_sub(initial_len), None)
       } else {
         match err.error_len {
           None => {
-            self.len = new_bytes.len();
+            self._len = new_bytes.len();
             (to_write_len, Some(CompletionErr::InsufficientInput))
           }
           Some(invalid_seq_len) => {
-            self.len = invalid_seq_len;
+            self._len = invalid_seq_len;
             (invalid_seq_len.wrapping_sub(initial_len), Some(CompletionErr::HasInvalidBytes))
           }
         }
       }
     } else {
-      self.len = new_bytes.len();
+      self._len = new_bytes.len();
       (to_write_len, None)
     }
   }

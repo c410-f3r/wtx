@@ -26,8 +26,8 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
   E: SchemaManagement,
   <<E as Executor>::Database as DEController>::Error: Debug,
 {
-  c._executor_mut().execute("CREATE TABLE IF NOT EXISTS foo(id INT)", |_| Ok(())).await.unwrap();
-  c._executor_mut().table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();
+  c.executor_mut().execute("CREATE TABLE IF NOT EXISTS foo(id INT)", |_| Ok(())).await.unwrap();
+  c.executor_mut().table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();
   assert_eq!(buffer_idents.len(), 1);
   buffer_idents.clear();
 }
@@ -51,17 +51,17 @@ pub(crate) async fn rollback_works<E>(
   let initial = UserMigrationGroup::new("initial", 1);
   let more_stuff = UserMigrationGroup::new("more_stuff", 2);
 
-  c._executor_mut().migrations(buffer_cmd, &initial, buffer_db_migrations).await.unwrap();
+  c.executor_mut().migrations(buffer_cmd, &initial, buffer_db_migrations).await.unwrap();
   assert_eq!(buffer_db_migrations.len(), 0);
 
-  c._executor_mut().migrations(buffer_cmd, &more_stuff, buffer_db_migrations).await.unwrap();
+  c.executor_mut().migrations(buffer_cmd, &more_stuff, buffer_db_migrations).await.unwrap();
   assert_eq!(buffer_db_migrations.len(), 0);
 
-  c._executor_mut().table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();
+  c.executor_mut().table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();
   assert_eq!(buffer_idents.len(), aux.schema_regulator);
   buffer_idents.clear();
 
-  c._executor_mut().table_names(buffer_cmd, buffer_idents, aux.wtx_schema).await.unwrap();
+  c.executor_mut().table_names(buffer_cmd, buffer_idents, aux.wtx_schema).await.unwrap();
   assert_eq!(buffer_idents.len(), 2);
   buffer_idents.clear();
 }

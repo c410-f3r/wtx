@@ -13,12 +13,10 @@ pub(crate) struct ResetStreamFrame {
 }
 
 impl ResetStreamFrame {
-  #[inline]
   pub(crate) const fn new(error_code: Http2ErrorCode, stream_id: U31) -> Self {
     Self { error_code, stream_id }
   }
 
-  #[inline]
   pub(crate) fn read(bytes: &[u8], fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_zero() {
       return Err(protocol_err(Http2Error::InvalidResetStreamFrameBytes));
@@ -37,7 +35,6 @@ impl ResetStreamFrame {
     })
   }
 
-  #[inline]
   pub(crate) fn bytes(&self) -> [u8; 13] {
     let [a, b, c, d, e, f, g, h, i] =
       FrameInit::new(CommonFlags::empty(), 4, self.stream_id, FrameInitTy::Reset).bytes();
@@ -45,7 +42,6 @@ impl ResetStreamFrame {
     [a, b, c, d, e, f, g, h, i, j, k, l, m]
   }
 
-  #[inline]
   pub(crate) const fn error_code(&self) -> Http2ErrorCode {
     self.error_code
   }

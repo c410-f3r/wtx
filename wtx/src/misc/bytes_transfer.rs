@@ -19,7 +19,6 @@ use core::{ops::Range, ptr};
 ///
 /// |02|03|06|07|10|11|
 /// ```
-#[inline]
 pub(crate) fn shift_copyable_chunks<T>(
   begin: usize,
   slice: &mut [T],
@@ -78,7 +77,7 @@ mod test {
   use crate::misc::bytes_transfer::shift_copyable_chunks;
 
   #[test]
-  fn _shift_bytes_has_correct_outputs() {
+  fn shift_bytes_has_correct_outputs() {
     let bytes = &mut [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     assert_eq!(shift_copyable_chunks(2, bytes, [4..6, 8..10]), &mut [0, 1, 4, 5, 8, 9]);
     assert_eq!(bytes, &mut [0, 1, 4, 5, 8, 9, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);

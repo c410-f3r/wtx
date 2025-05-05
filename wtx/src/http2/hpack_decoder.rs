@@ -25,7 +25,6 @@ pub(crate) struct HpackDecoder {
 }
 
 impl HpackDecoder {
-  #[inline]
   pub(crate) fn new() -> Self {
     Self {
       dyn_headers: HpackHeaders::new(0),
@@ -34,7 +33,6 @@ impl HpackDecoder {
     }
   }
 
-  #[inline]
   pub(crate) fn clear(&mut self) {
     let Self { dyn_headers, header_buffers, max_bytes } = self;
     dyn_headers.clear();
@@ -76,13 +74,11 @@ impl HpackDecoder {
     Ok(())
   }
 
-  #[inline]
   pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
     self.dyn_headers.reserve(headers, bytes)
   }
 
   // It is not possible to lower the initial set value
-  #[inline]
   pub(crate) fn set_max_bytes(&mut self, max_bytes: u32) {
     self.max_bytes.1 = Some(match self.max_bytes.1 {
       Some(elem) => elem.max(max_bytes),
@@ -90,7 +86,6 @@ impl HpackDecoder {
     });
   }
 
-  #[inline]
   fn decode_integer(data: &mut &[u8], mask: u8) -> crate::Result<(u8, u32)> {
     let mut rslt: (u8, u32) = if let [first, rest @ ..] = data {
       *data = rest;
@@ -128,7 +123,6 @@ impl HpackDecoder {
 
   /// The common index is static-unaware so static names are inserted into `header_buffers`.
   /// Otherwise [`DecodeIdx::Indexed`] would return an empty slice.
-  #[inline]
   fn decode_literal<const STORE: bool>(
     &mut self,
     data: &mut &[u8],
@@ -187,7 +181,6 @@ impl HpackDecoder {
     Ok(())
   }
 
-  #[inline]
   fn decode_string_init<'data>(
     data: &mut &'data [u8],
   ) -> crate::Result<(&'data [u8], &'data [u8], bool)> {
@@ -202,7 +195,6 @@ impl HpackDecoder {
     Ok((bytes_begin, bytes_end, is_encoded))
   }
 
-  #[inline]
   fn decode_string_name<'buffer, 'data, 'rslt>(
     buffer: &'buffer mut _HeaderNameBuffer,
     data: &mut &'data [u8],
@@ -223,7 +215,6 @@ impl HpackDecoder {
     Ok((hhn, HeaderName::from_bytes(bytes)?))
   }
 
-  #[inline]
   fn decode_string_value<'buffer, 'data, 'rslt>(
     buffer: &'buffer mut _HeaderValueBuffer,
     bytes: &mut &'data [u8],
@@ -239,7 +230,6 @@ impl HpackDecoder {
   }
 
   #[expect(clippy::too_many_lines, reason = "defined by the specification")]
-  #[inline]
   fn get(
     dyn_headers: &HpackHeaders<HpackHeaderBasic>,
     idx: usize,
@@ -348,7 +338,6 @@ impl HpackDecoder {
     Ok((hhb, (HeaderName::new_unchecked(name.0), HeaderName::new_unchecked(name.1)), value))
   }
 
-  #[inline]
   fn manage_decode(
     &mut self,
     byte: u8,

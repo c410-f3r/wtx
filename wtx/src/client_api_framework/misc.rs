@@ -9,7 +9,7 @@ mod request_throttling;
 use crate::{
   client_api_framework::{
     Api, SendBytesSource,
-    network::{TransportGroup, transport::Transport},
+    network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
   data_transformation::dnsn::EncodeWrapper,
@@ -21,21 +21,6 @@ pub use request_counter::RequestCounter;
 pub use request_limit::RequestLimit;
 pub use request_throttling::RequestThrottling;
 
-/// Used in [`crate::network::transport::Transport::send_recv_decode_contained`] and all implementations of
-/// [`crate::Requests::decode_responses`].
-///
-/// Not used in [`crate::network::transport::Transport::send_recv_decode_batch`] because
-/// [`crate::Requests::decode_responses`] takes precedence.
-#[inline]
-pub(crate) fn _log_res(_log_body: bool, _res: &[u8], _tg: TransportGroup) {
-  if _log_body {
-    _debug!(trans_ty = display(_tg), "Response: {:?}", crate::misc::from_utf8_basic(_res));
-  } else {
-    _debug!(trans_ty = display(_tg), "Response");
-  }
-}
-
-#[inline]
 pub(crate) async fn manage_after_sending_bytes<A, DRSR, TP>(
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> Result<(), A::Error>
@@ -46,7 +31,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn manage_after_sending_pkg<A, DRSR, P, T, TP>(
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -67,7 +51,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn manage_before_sending_bytes<A, DRSR, T, TP>(
   bytes: SendBytesSource<'_>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -82,7 +65,6 @@ where
   Ok(())
 }
 
-#[inline]
 pub(crate) async fn manage_before_sending_pkg<A, DRSR, P, T, TP>(
   pkg: &mut P,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -107,7 +89,6 @@ where
   Ok(())
 }
 
-#[inline]
 fn log_req<T, TP>(_bytes: &[u8], _log_body: bool, _trans: &mut T)
 where
   T: Transport<TP>,

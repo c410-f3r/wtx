@@ -6,7 +6,6 @@ pub(crate) struct StatementsMisc<A> {
 }
 
 impl<A> StatementsMisc<A> {
-  #[inline]
   pub(crate) fn new(aux: A, columns_len: usize, types_len: usize) -> Self {
     Self { _aux: aux, columns_len, types_len }
   }
