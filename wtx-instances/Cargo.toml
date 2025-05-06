@@ -137,7 +137,7 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand_chacha = { default-features = false, features = ["os_rng"], optional = true, version = "0.9" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
+tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.45" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
