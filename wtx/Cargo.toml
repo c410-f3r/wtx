@@ -45,7 +45,7 @@ tracing = { default-features = false, features = ["attributes"], optional = true
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
-webpki-roots = { default-features = false, optional = true, version = "0.26" }
+webpki-roots = { default-features = false, optional = true, version = "1.0" }
 x509-certificate = { default-features = false, optional = true, version = "0.24" }
 
 [features]
