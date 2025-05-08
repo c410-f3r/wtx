@@ -17,7 +17,7 @@ where
   #[inline]
   fn decode(aux: &mut (), dw: &mut DecodeWrapperProtocol<'de, '_, DO>) -> Result<Self, E> {
     let len = Lenenc::decode(aux, dw)?;
-    let Some((lhs, rhs)) = dw.bytes.split_at_checked(*Usize::try_from(len.0)?) else {
+    let Some((lhs, rhs)) = dw.bytes.split_at_checked(*Usize::from(len.0)) else {
       return Err(E::from(MysqlError::InvalidLenencContentBytes.into()));
     };
     *dw.bytes = rhs;

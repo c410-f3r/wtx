@@ -44,8 +44,12 @@ type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 /// Errors of [`BlocksDeque`].
 #[derive(Debug)]
 pub enum BlocksDequeError {
+  /// The provided index does not point to valid internal data
+  OutOfBoundsIndex,
   #[doc = doc_single_elem_cap_overflow!()]
-  PushOverflow,
+  PushBackOverflow,
+  #[doc = doc_single_elem_cap_overflow!()]
+  PushFrontDataOverflow,
   #[doc = doc_reserve_overflow!()]
   ReserveOverflow,
   #[doc = doc_reserve_overflow!()]
@@ -194,12 +198,12 @@ impl<D, M> BlocksDeque<D, M> {
     let total_data_len = self
       .data
       .extend_back_from_copyable_slices(data)
-      .map_err(|_err| BlocksDequeError::PushOverflow)?;
+      .map_err(|_err| BlocksDequeError::PushBackOverflow)?;
     let begin = self.data.tail().wrapping_sub(total_data_len);
     self
       .metadata
       .push_back(metadata::Metadata { begin, len: total_data_len, misc })
-      .map_err(|_err| BlocksDequeError::PushOverflow)?;
+      .map_err(|_err| BlocksDequeError::PushBackOverflow)?;
     Ok(())
   }
 
@@ -214,11 +218,11 @@ impl<D, M> BlocksDeque<D, M> {
     let (total_data_len, head_shift) = self
       .data
       .extend_front_from_copyable_slices(data)
-      .map_err(|_err| BlocksDequeError::PushOverflow)?;
+      .map_err(|_err| BlocksDequeError::PushFrontDataOverflow)?;
     self
       .metadata
       .push_front(metadata::Metadata { begin: self.data.head(), len: total_data_len, misc })
-      .map_err(|_err| BlocksDequeError::PushOverflow)?;
+      .map_err(|_err| BlocksDequeError::PushFrontDataOverflow)?;
     self.adjust_metadata(head_shift, 1);
     Ok(())
   }

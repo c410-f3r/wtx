@@ -230,7 +230,7 @@ mod primitives {
         return Err(E::from(
           DatabaseError::UnexpectedBufferSize {
             expected: 1,
-            received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX),
+            received: Usize::from(dw.bytes().len()).into_saturating_u32(),
           }
           .into(),
         ));
@@ -277,8 +277,8 @@ mod primitives {
               return Ok(<Self>::from_le_bytes([$($elem),+]));
             }
             Err(E::from(DatabaseError::UnexpectedBufferSize {
-              expected: Usize::from(size_of::<Self>()).into_u32().unwrap_or(u32::MAX),
-              received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX)
+              expected: Usize::from(size_of::<Self>()).into_saturating_u32(),
+              received: Usize::from(dw.bytes().len()).into_saturating_u32()
             }.into()))
           }
         }
@@ -323,8 +323,8 @@ mod primitives {
               return Ok(<Self>::from_le_bytes([$($elem),+]));
             }
             Err(E::from(DatabaseError::UnexpectedBufferSize {
-              expected: Usize::from(size_of::<Self>()).into_u32().unwrap_or(u32::MAX),
-              received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX)
+              expected: Usize::from(size_of::<Self>()).into_saturating_u32(),
+              received: Usize::from(dw.bytes().len()).into_saturating_u32()
             }.into()))
           }
         }

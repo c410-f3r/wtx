@@ -44,7 +44,7 @@ where
     cb: impl FnMut(M),
   ) -> crate::Result<()>
   where
-    I: IntoIterator<Item = &'bytes [u8]>,
+    I: IntoIterator<Item = &'bytes str>,
     I::IntoIter: Clone + ExactSizeIterator,
   {
     let iter = values.into_iter();
@@ -58,7 +58,7 @@ where
     }
     self.remove_until_max_bytes(local_len, cb);
     self.bq.push_front_from_copyable_data(
-      [name.as_bytes()].into_iter().chain(iter),
+      [name].into_iter().chain(iter).map(|el| el.as_bytes()),
       Metadata { is_sensitive, misc, name_len: name.len() },
     )?;
     Ok(())
@@ -84,7 +84,11 @@ where
         // SAFETY: Input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
-      value_bytes: block.data.get(block.misc.name_len..).unwrap_or_default(),
+      value_bytes: {
+        let str = block.data.get(block.misc.name_len..).unwrap_or_default();
+        // SAFETY: Input methods only accept UTF-8 data
+        unsafe { str::from_utf8_unchecked(str) }
+      },
     }
   }
 
@@ -106,7 +110,7 @@ pub(crate) struct AbstractHeader<'ah, M> {
   pub(crate) is_sensitive: bool,
   pub(crate) misc: &'ah M,
   pub(crate) name_bytes: &'ah str,
-  pub(crate) value_bytes: &'ah [u8],
+  pub(crate) value_bytes: &'ah str,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

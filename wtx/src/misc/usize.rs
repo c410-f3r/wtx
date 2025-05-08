@@ -4,7 +4,7 @@
 )]
 
 #[cfg(target_pointer_width = "16")]
-compile_error!("WTX does not support 16bit hardware");
+compile_error!("WTX does not support hardwares with pointer sizes less than 32 bits");
 
 macro_rules! u32_max {
   () => {
@@ -20,7 +20,7 @@ use core::ops::{Deref, DerefMut};
 pub struct Usize(usize);
 
 impl Usize {
-  const IS_32: bool = cfg!(target_pointer_width = "32");
+  pub(crate) const IS_64: bool = cfg!(target_pointer_width = "64");
 
   pub(crate) const fn from_u16(from: u16) -> Self {
     Self(from as usize)
@@ -30,11 +30,9 @@ impl Usize {
     Self(from as usize)
   }
 
-  pub(crate) const fn from_u64(from: u64) -> Option<Self> {
-    if Self::IS_32 && from > u32_max!() {
-      return None;
-    }
-    Some(Self(from as usize))
+  #[cfg(target_pointer_width = "64")]
+  pub(crate) const fn from_u64(from: u64) -> Self {
+    Self(from as usize)
   }
 
   pub(crate) const fn from_usize(from: usize) -> Self {
@@ -45,8 +43,16 @@ impl Usize {
     self.0
   }
 
+  #[cfg(feature = "mysql")]
+  pub(crate) const fn into_saturating_u32(self) -> u32 {
+    if self.0 > u32_max!() {
+      return u32_max!();
+    }
+    self.0 as u32
+  }
+
   pub(crate) const fn into_u32(self) -> Option<u32> {
-    if !Self::IS_32 && self.0 > u32_max!() {
+    if self.0 > u32_max!() {
       return None;
     }
     Some(self.0 as u32)
@@ -94,6 +100,14 @@ impl From<u32> for Usize {
   }
 }
 
+#[cfg(target_pointer_width = "64")]
+impl From<u64> for Usize {
+  #[inline]
+  fn from(from: u64) -> Self {
+    Self::from_u64(from)
+  }
+}
+
 impl From<usize> for Usize {
   #[inline]
   fn from(from: usize) -> Self {
@@ -112,23 +126,5 @@ impl From<Usize> for u128 {
   #[inline]
   fn from(from: Usize) -> Self {
     from.0 as u128
-  }
-}
-
-impl TryFrom<u64> for Usize {
-  type Error = crate::Error;
-
-  #[inline]
-  fn try_from(from: u64) -> Result<Self, Self::Error> {
-    Self::from_u64(from).ok_or(crate::Error::UsizeConversionOverflow)
-  }
-}
-
-impl TryFrom<Usize> for u32 {
-  type Error = crate::Error;
-
-  #[inline]
-  fn try_from(from: Usize) -> Result<Self, Self::Error> {
-    from.into_u32().ok_or(crate::Error::UsizeConversionOverflow)
   }
 }

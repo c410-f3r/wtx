@@ -56,7 +56,7 @@ where
       }
 
       let columns_lenenc: Lenenc = decode(&mut local_rest, ())?;
-      let columns = Usize::try_from(columns_lenenc.0)?.into_usize();
+      let columns = Usize::from(columns_lenenc.0).into_usize();
 
       for _ in 0..columns {
         let (res, total1) = fetch_protocol(capabilities, net_buffer, sequence_id, stream).await?;

@@ -29,9 +29,9 @@
 //
 // It is impossible to exist a wrapping non-contiguous queue like in the following examples.
 //
-// | B | C | D |   |   |   | A |   |   |
-//
 // |   | A | B |   | C |   |   |   |   |
+//
+// | B | C | D |   |   |   | A |   |   |
 
 macro_rules! as_slices {
   ($empty:expr, $ptr:ident, $slice:ident, $this:expr, $($ref:tt)*) => {{
@@ -66,6 +66,7 @@ use crate::collection::{ExpansionTy, Vector};
 use core::{
   fmt::{Debug, Formatter},
   mem::needs_drop,
+  ops::Range,
   ptr, slice,
 };
 
@@ -74,6 +75,8 @@ use core::{
 pub enum DequeueError {
   #[doc = doc_single_elem_cap_overflow!()]
   ExtendFromSliceOverflow,
+  /// The provided range does not point to valid internal data
+  OutOfBoundsRange,
   #[doc = doc_single_elem_cap_overflow!()]
   PushFrontOverflow,
   #[doc = doc_reserve_overflow!()]
@@ -186,7 +189,7 @@ impl<T> Deque<T> {
     *tail = 0;
   }
 
-  /// Appends elements to the back of the instance so that the current length is equal to `bp`.
+  /// Appends elements to the back of the instance so that the current length is equal to `et`.
   ///
   /// Does nothing if the calculated length is equal or less than the current length.
   ///
@@ -209,10 +212,11 @@ impl<T> Deque<T> {
     unsafe {
       self.expand(additional, rr.begin, new_len, value);
     }
+    self.tail = rr.begin.wrapping_add(additional);
     Ok(additional)
   }
 
-  /// Prepends elements to the front of the instance so that the current length is equal to `bp`.
+  /// Prepends elements to the front of the instance so that the current length is equal to `et`.
   ///
   /// Does nothing if the calculated length is equal or less than the current length.
   ///
@@ -235,6 +239,7 @@ impl<T> Deque<T> {
     unsafe {
       self.expand(additional, rr.begin, new_len, value);
     }
+    self.head = rr.begin;
     Ok((additional, rr.head_shift))
   }
 
@@ -344,6 +349,12 @@ impl<T> Deque<T> {
   pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
     let (front, back) = self.as_slices_mut();
     front.iter_mut().chain(back)
+  }
+
+  /// Indicates whether the internal data as organized as a contiguous slice of memory.
+  #[inline]
+  pub fn is_wrapping(&self) -> bool {
+    is_wrapping(self.head, self.data.len(), self.tail)
   }
 
   /// Returns the last element.
@@ -463,7 +474,7 @@ impl<T> Deque<T> {
   /// queue.
   #[inline(always)]
   pub fn reserve_back(&mut self, additional: usize) -> crate::Result<usize> {
-    let rr = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
+    let rr = self.prolong_back(additional)?;
     Ok(rr.head_shift)
   }
 
@@ -471,7 +482,7 @@ impl<T> Deque<T> {
   /// queue.
   #[inline(always)]
   pub fn reserve_front(&mut self, additional: usize) -> crate::Result<usize> {
-    let rr = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
+    let rr = self.prolong_front(additional)?;
     Ok(rr.head_shift)
   }
 
@@ -618,15 +629,11 @@ impl<T> Deque<T> {
   }
 
   fn prolong_back(&mut self, additional: usize) -> crate::Result<ReserveRslt> {
-    let rr = reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
-    self.tail = rr.begin.wrapping_add(additional);
-    Ok(rr)
+    reserve::<_, true>(additional, &mut self.data, &mut self.head, &mut self.tail)
   }
 
   fn prolong_front(&mut self, additional: usize) -> crate::Result<ReserveRslt> {
-    let rr = reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)?;
-    self.head = rr.begin;
-    Ok(rr)
+    reserve::<_, false>(additional, &mut self.data, &mut self.head, &mut self.tail)
   }
 
   fn slices_len<'iter>(iter: impl Iterator<Item = &'iter [T]>) -> usize
@@ -679,6 +686,7 @@ where
     unsafe {
       self.data.set_len(self.data.len().wrapping_add(others_len));
     }
+    self.tail = rr.begin.wrapping_add(others_len);
     Ok(others_len)
   }
 
@@ -707,7 +715,7 @@ where
     let rr = self.prolong_front(others_len)?;
     let mut shift = rr.begin;
     for other in iter {
-      // SAFETY: `self.head` points to valid memory
+      // SAFETY: `shift` points to newly allocated memory
       let dst = unsafe { self.data.as_ptr_mut().add(shift) };
       // SAFETY: `dst` points to valid memory
       unsafe {
@@ -719,7 +727,71 @@ where
     unsafe {
       self.data.set_len(self.data.len().wrapping_add(others_len));
     }
+    self.head = rr.begin;
     Ok((others_len, rr.head_shift))
+  }
+
+  /// Prepends a set of internal elements delimited by `range` into this instance.
+  ///
+  /// If `range` wraps, then this method will return an error.
+  #[inline]
+  pub fn extend_front_from_copyable_within(&mut self, range: Range<usize>) -> crate::Result<usize> {
+    let Some(len @ 1..usize::MAX) = range.end.checked_sub(range.start) else {
+      return Ok(0);
+    };
+    let start = wrap_add_idx(self.data.capacity(), self.head, range.start);
+    let end = start.wrapping_add(len);
+    let rr = if is_wrapping(self.head, self.data.len(), self.tail) {
+      let (src, rr) = if start >= self.head && end <= self.data.capacity() {
+        let rr = self.prolong_front(len)?;
+        (rr.begin.wrapping_add(len).wrapping_add(range.start), rr)
+      } else if start <= self.tail && end <= self.tail {
+        let rr = self.prolong_front(len)?;
+        (start, rr)
+      } else {
+        return Err(DequeueError::OutOfBoundsRange.into());
+      };
+      let dst = rr.begin;
+      // SAFETY: everything less than tail points to valid memory
+      let src_ptr = unsafe { self.data.as_ptr().add(src) };
+      // SAFETY: `rr.begin` points to newly allocated memory
+      let dst_ptr = unsafe { self.data.as_ptr_mut().add(dst) };
+      // SAFETY: both regions have `len` elements
+      unsafe {
+        ptr::copy_nonoverlapping(src_ptr, dst_ptr, len);
+      }
+      rr
+    } else {
+      if start < self.head || end > self.tail {
+        return Err(DequeueError::OutOfBoundsRange.into());
+      }
+      let rr = self.prolong_front(len)?;
+      // SAFETY: `rr.begin` points to newly allocated memory
+      let dst = unsafe { self.data.as_ptr_mut().add(rr.begin) };
+      // SAFETY: inner data is expected to point to valid memory
+      let src = unsafe { self.data.as_ptr().add(start) };
+      // SAFETY: `dst` points to valid memory
+      unsafe {
+        ptr::copy_nonoverlapping(src, dst, len);
+      }
+      rr
+    };
+    self.head = rr.begin;
+    // SAFETY: all previous invalid operations were aborted early
+    unsafe {
+      self.data.set_len(self.data.len().wrapping_add(len));
+    }
+    Ok(rr.head_shift)
+  }
+}
+
+impl<T> Clone for Deque<T>
+where
+  T: Clone,
+{
+  #[inline]
+  fn clone(&self) -> Self {
+    Self { data: self.data.clone(), head: self.head, tail: self.tail }
   }
 }
 
@@ -742,7 +814,7 @@ impl<T> Default for Deque<T> {
 }
 
 struct ReserveRslt {
-  /// Starting  indexwhere the `additional` number of elements can be inserted.
+  /// Starting  index where the `additional` number of elements can be inserted.
   begin: usize,
   /// The number os places the head must be shift.
   head_shift: usize,
@@ -765,27 +837,33 @@ unsafe fn drop_elements<T>(len: usize, offset: usize, ptr: *mut T) {
   }
 }
 
-/// All wrapping structures should have at least 1 element.
+/// All wrapping structures must have at least 1 element.
 ///
 /// ```txt
 /// H = Head (inclusive)
 /// T = Tail (exclusive)
 ///
-/// H(7) > T(0): . . . . . . . H (wrapping)
-/// H(7) > T(1): T . . . . . . H (wrapping)
-/// H(6) > T(4): * * * T . . H * (wrapping)
+/// ***** T(8) DOES NOT EXIST *****
+///
+/// # No wrapping
 ///
 /// H(0) = T(0): . . . . . . . . (no wrapping)
 /// H(1) = T(1): . . . . . . . . (no wrapping)
+///
+/// H(0) < T(1): H . . . . . . . (no wrapping)
+/// H(0) < T(2): H T . . . . . . (no wrapping)
+/// H(3) < T(6): . . . H * T . . (no wrapping)
+///
+/// # Wrapping
+///
 /// H(0) = T(0): H * * * * * * T (wrapping)
 /// H(2) = T(2): * T H * * * * * (wrapping)
 /// H(7) = T(7): * * * * * * T H (wrapping)
 ///
-/// H(0) < T(1): H . . . . . . . (no wrapping)
-/// H(7) < T(8): . . . . . . . H (no wrapping)
-/// H(0) < T(2): H T . . . . . . (no wrapping)
-/// H(3) < T(6): . . . H * T . . (no wrapping)
-/// H(0) < T(8): H * * * * * * T (no wrapping)
+/// H(6) > T(0): . . . . . . H * (wrapping)
+/// H(6) > T(4): * * * T . . H * (wrapping)
+/// H(7) > T(0): . . . . . . . H (wrapping)
+/// H(7) > T(1): T . . . . . . H (wrapping)
 /// ```
 fn is_wrapping(head: usize, len: usize, tail: usize) -> bool {
   if tail > head { false } else { len > 0 }
@@ -836,7 +914,7 @@ fn reserve<D, const IS_BACK: bool>(
     Ok(if IS_BACK {
       ReserveRslt::new(prev_tail, 0)
     } else {
-      ReserveRslt::new(curr_head.wrapping_sub(additional), curr_cap.wrapping_sub(prev_cap))
+      ReserveRslt::new(curr_head.saturating_sub(additional), curr_cap.wrapping_sub(prev_cap))
     })
   } else {
     let left_free = prev_head;

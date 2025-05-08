@@ -418,7 +418,7 @@ where
     Ok(this)
   }
 
-  /// Resizes the instance in-place so that the current length is equal to `bp`.
+  /// Resizes the instance in-place so that the current length is equal to `et`.
   ///
   /// Does nothing if the calculated length is equal or less than the current length.
   ///
