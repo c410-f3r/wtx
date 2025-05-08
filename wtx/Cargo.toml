@@ -31,7 +31,7 @@ rsa = { default-features = false, optional = true, version = "0.9" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls = { default-features = false, optional = true, version = "0.23" }
 rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
-rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
+rustls-pki-types = { default-features = false, optional = true, version = "1.12" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 serde_urlencoded = { default-features = false, optional = true, version = "0.7" }
