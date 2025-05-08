@@ -25,8 +25,10 @@ where
 {
   #[inline]
   fn from_rng(rng: &mut RNG) -> Self {
-    Usize::from_u64(u64::from_be_bytes(rng.u8_8()))
-      .unwrap_or_else(|| Usize::from_u32(u32::from_be_bytes(rng.u8_4())))
-      .into_usize()
+    if Usize::IS_64 {
+      Usize::from_u64(u64::from_be_bytes(rng.u8_8())).into_usize()
+    } else {
+      Usize::from_u32(u32::from_be_bytes(rng.u8_4())).into_usize()
+    }
   }
 }

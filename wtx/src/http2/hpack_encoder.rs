@@ -418,7 +418,7 @@ impl HpackEncoder {
     self.dyn_headers.push_front(
       Metadata { name_hash, pair_hash },
       name,
-      [value.as_bytes()].into_iter(),
+      [value],
       is_sensitive,
       |metadata| {
         Self::remove_outdated_indices(&mut self.indcs, metadata);

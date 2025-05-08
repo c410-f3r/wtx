@@ -34,7 +34,7 @@ where
       } else {
         let len = {
           let begin = dw.bytes.len();
-          let len = Usize::try_from(Lenenc::decode(aux, dw)?.0)?.into_usize();
+          let len = Usize::from(Lenenc::decode(aux, dw)?.0).into_usize();
           idx = idx.wrapping_add(dw.bytes.len().wrapping_sub(begin));
           len
         };

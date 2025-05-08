@@ -10,6 +10,7 @@
 - [HTTP Client Pool](http-client-pool/README.md)
 - [HTTP Server Framework](http-server-framework/README.md)
 - [HTTP/2](http2/README.md)
+- [Internal Development](internal-development/README.md)
 - [Pool](pool/README.md)
 - [Time](time/README.md)
 - [UI tools](ui-tools/README.md)

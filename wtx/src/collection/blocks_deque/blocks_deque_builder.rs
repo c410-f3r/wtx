@@ -28,10 +28,10 @@ impl<'db, D, M, const IS_BACK: bool> BlocksDequeBuilder<'db, D, M, IS_BACK> {
       let metadata = Metadata { begin: self.bd.data.head(), len: self.inserted, misc };
       self.bd.metadata.push_front(metadata)
     };
-    rslt.map_err(|_err| BlocksDequeError::PushOverflow)
+    rslt.map_err(|_err| BlocksDequeError::PushBackOverflow)
   }
 
-  /// Appends or prepends elements so that the current length is equal to `bp`.
+  /// Appends or prepends elements so that the current length is equal to `et`.
   #[inline]
   pub fn expand(&mut self, et: ExpansionTy, value: D) -> Result<&mut Self, BlocksDequeError>
   where
@@ -39,10 +39,10 @@ impl<'db, D, M, const IS_BACK: bool> BlocksDequeBuilder<'db, D, M, IS_BACK> {
   {
     let additional = if IS_BACK {
       let rslt = self.bd.data.expand_back(et, value);
-      rslt.map_err(|_err| BlocksDequeError::PushOverflow)?
+      rslt.map_err(|_err| BlocksDequeError::PushBackOverflow)?
     } else {
       let rslt = self.bd.data.expand_front(et, value);
-      let (additional, head_shift) = rslt.map_err(|_err| BlocksDequeError::PushOverflow)?;
+      let (additional, head_shift) = rslt.map_err(|_err| BlocksDequeError::PushBackOverflow)?;
       self.bd.adjust_metadata(head_shift, 1);
       additional
     };

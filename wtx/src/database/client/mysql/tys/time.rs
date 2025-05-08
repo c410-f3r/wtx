@@ -89,7 +89,7 @@ fn date_decode<'de>(dw: &mut DecodeWrapper<'de>) -> crate::Result<(u8, Date, &'d
     return Err(
       DatabaseError::UnexpectedBufferSize {
         expected: 5,
-        received: Usize::from(dw.bytes().len()).into_u32().unwrap_or(u32::MAX),
+        received: Usize::from(dw.bytes().len()).into_saturating_u32(),
       }
       .into(),
     );
@@ -130,7 +130,7 @@ fn time_decode(bytes: &[u8]) -> crate::Result<Time> {
     return Err(
       DatabaseError::UnexpectedBufferSize {
         expected: 3,
-        received: Usize::from(bytes.len()).into_u32().unwrap_or(u32::MAX),
+        received: Usize::from(bytes.len()).into_saturating_u32(),
       }
       .into(),
     );

@@ -68,7 +68,7 @@ where
         | Ty::VarChar
         | Ty::VarString => {
           let before = dw.bytes.len();
-          let rslt = Usize::try_from(Lenenc::decode(aux, dw)?.0)?.into_usize();
+          let rslt = Usize::from(Lenenc::decode(aux, dw)?.0).into_usize();
           let diff = before.wrapping_sub(dw.bytes.len());
           idx = idx.wrapping_add(diff);
           rslt

@@ -12,7 +12,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::str;
 
-const DYN_IDX_OFFSET: usize = 62;
+const DYN_IDX_OFFSET: u32 = 62;
 
 type RawHeaderName<'value> = (HeaderName<&'static str>, HeaderName<&'value str>);
 type RawHeaderValue<'value> = (&'static str, &'value str);
@@ -133,7 +133,7 @@ impl HpackDecoder {
     let has_indexed_name = idx != 0;
     if has_indexed_name {
       let value = Self::decode_string_value(&mut self.header_buffers.1, data)?;
-      let (hhb, (static_name, dyn_name), _) = Self::get(&self.dyn_headers, *Usize::from(idx))?;
+      let (hhb, (static_name, dyn_name), _) = Self::get(&self.dyn_headers, idx)?;
       let new_hhb = match hhb {
         HpackHeaderBasic::Authority => HpackHeaderBasic::Authority,
         HpackHeaderBasic::Field => HpackHeaderBasic::Field,
@@ -155,13 +155,7 @@ impl HpackDecoder {
         static_name.str()
       };
       if STORE {
-        self.dyn_headers.push_front(
-          new_hhb,
-          name,
-          [value.as_bytes()].into_iter(),
-          false,
-          |_| {},
-        )?;
+        self.dyn_headers.push_front(new_hhb, name, [value], false, |_| {})?;
       }
     } else {
       let (hhn, name) = Self::decode_string_name(&mut self.header_buffers.0, data)?;
@@ -169,13 +163,7 @@ impl HpackDecoder {
       let hhb = HpackHeaderBasic::try_from((hhn, value))?;
       elem_cb((hhb, name, value))?;
       if STORE {
-        self.dyn_headers.push_front(
-          hhb,
-          name.str(),
-          [value.as_bytes()].into_iter(),
-          false,
-          |_| {},
-        )?;
+        self.dyn_headers.push_front(hhb, name.str(), [value], false, |_| {})?;
       }
     }
     Ok(())
@@ -232,7 +220,7 @@ impl HpackDecoder {
   #[expect(clippy::too_many_lines, reason = "defined by the specification")]
   fn get(
     dyn_headers: &HpackHeaders<HpackHeaderBasic>,
-    idx: usize,
+    idx: u32,
   ) -> crate::Result<(HpackHeaderBasic, RawHeaderName<'_>, RawHeaderValue<'_>)> {
     let (hhb, name, value) = match idx {
       0 => {
@@ -318,13 +306,12 @@ impl HpackDecoder {
       61 => (HpackHeaderBasic::Field, (KnownHeaderName::WwwAuthenticate.into(), ""), ("", "")),
       dyn_idx_with_offset => {
         return dyn_headers
-          .get_by_idx(dyn_idx_with_offset.wrapping_sub(DYN_IDX_OFFSET))
+          .get_by_idx(*Usize::from(dyn_idx_with_offset.wrapping_sub(DYN_IDX_OFFSET)))
           .map(|el| {
             (
               *el.misc,
               (HeaderName::new_unchecked(""), HeaderName::new_unchecked(el.name_bytes)),
-              // SAFETY: Everything previously inserted in `dyn_headers` is UTF-8
-              ("", unsafe { str::from_utf8_unchecked(el.value_bytes) }),
+              ("", el.value_bytes),
             )
           })
           .ok_or_else(|| {
@@ -348,7 +335,7 @@ impl HpackDecoder {
     match DecodeIdx::try_from(byte)? {
       DecodeIdx::Indexed => {
         let idx = Self::decode_integer(data, 0b0111_1111)?.1;
-        elem_cb(Self::get(&self.dyn_headers, *Usize::from(idx)).map(|(hhb, name, value)| {
+        elem_cb(Self::get(&self.dyn_headers, idx).map(|(hhb, name, value)| {
           (
             hhb,
             if name.0.str().is_empty() { name.1 } else { name.0 },
