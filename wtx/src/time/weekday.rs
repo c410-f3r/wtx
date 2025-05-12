@@ -27,7 +27,7 @@ impl Weekday {
       Ok(elem) => elem,
       Err(err) => return Err(err),
     };
-    if rest.len() > 0 {
+    if !rest.is_empty() {
       return Err(TimeError::InvalidWeekday);
     }
     Ok(this)

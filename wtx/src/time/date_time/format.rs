@@ -1,6 +1,6 @@
 use crate::{
   collection::ArrayVector,
-  misc::{FromRadix10, i16_string},
+  misc::{FromRadix10 as _, i16_string},
   time::{Date, DateTime, Month, Time, TimeError, Weekday, date_time::DateTimeString},
 };
 
@@ -43,6 +43,7 @@ impl DateTime {
   /// | `GMT`   | Greenwich Mean Time |
   /// | `/`     | Slash               |
   /// | ` `     | Space               |
+  #[expect(clippy::too_many_lines, reason = "enum is exhaustive")]
   #[inline]
   pub fn parse(mut data: &[u8], fmt: &[u8]) -> crate::Result<Self> {
     let tokens: ArrayVector<Token, 16> = lexer(fmt)?;
@@ -59,9 +60,7 @@ impl DateTime {
           if month_opt.is_some() {
             return Err(TimeError::DuplicatedParsingFormatMonth.into());
           }
-          let Some((lhs, rhs)) = data.split_at_checked(3) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 3)?;
           month_opt = Some(Month::from_short_name(lhs)?);
           rhs
         }
@@ -69,22 +68,18 @@ impl DateTime {
           if weekday_opt.is_some() {
             return Err(TimeError::DuplicatedParsingFormatWeekday.into());
           }
-          let Some((lhs, rhs)) = data.split_at_checked(3) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 3)?;
           weekday_opt = Some(Weekday::from_short_name(lhs)?);
           rhs
         }
-        Token::Colon => parse_literal(b":", &mut data)?,
-        Token::Comma => parse_literal(b",", &mut data)?,
-        Token::Dash => parse_literal(b"-", &mut data)?,
+        Token::Colon => parse_literal(b":", data)?,
+        Token::Comma => parse_literal(b",", data)?,
+        Token::Dash => parse_literal(b"-", data)?,
         Token::FourDigitYear => {
           if year_opt.is_some() {
             return Err(TimeError::DuplicatedParsingFormatYear.into());
           }
-          let Some((lhs, rhs)) = data.split_at_checked(4) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 4)?;
           year_opt = Some(i16::from_radix_10(lhs)?);
           rhs
         }
@@ -96,30 +91,24 @@ impl DateTime {
           weekday_opt = Some(weekday);
           rhs
         }
-        Token::Gmt => parse_literal(b"GMT", &mut data)?,
-        Token::Slash => parse_literal(b"/", &mut data)?,
-        Token::Space => parse_literal(b" ", &mut data)?,
+        Token::Gmt => parse_literal(b"GMT", data)?,
+        Token::Slash => parse_literal(b"/", data)?,
+        Token::Space => parse_literal(b" ", data)?,
         Token::TwoDigitDay => {
           if day_opt.is_some() {
             return Err(TimeError::DuplicatedParsingFormatDay.into());
           }
-          let Some((lhs, rhs)) = data.split_at_checked(2) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 2)?;
           day_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
         Token::TwoDigitHour => {
-          let Some((lhs, rhs)) = data.split_at_checked(2) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 2)?;
           hour_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
         Token::TwoDigitMinute => {
-          let Some((lhs, rhs)) = data.split_at_checked(2) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 2)?;
           minute_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
@@ -127,16 +116,12 @@ impl DateTime {
           if month_opt.is_some() {
             return Err(TimeError::DuplicatedParsingFormatMonth.into());
           }
-          let Some((lhs, rhs)) = data.split_at_checked(2) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 2)?;
           month_opt = Some(Month::from_num(u8::from_radix_10(lhs)?)?);
           rhs
         }
         Token::TwoDigitSecond => {
-          let Some((lhs, rhs)) = data.split_at_checked(2) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 2)?;
           second_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
@@ -144,9 +129,7 @@ impl DateTime {
           if year_opt.is_some() {
             return Err(TimeError::DuplicatedParsingFormatYear.into());
           }
-          let Some((lhs, rhs)) = data.split_at_checked(2) else {
-            return Err(TimeError::InvalidParsingData.into());
-          };
+          let (lhs, rhs) = split_at(data, 2)?;
           let year = i16::from_radix_10(lhs)?;
           if !(0..=99).contains(&year) {
             return Err(TimeError::InvalidParsingData.into());
@@ -378,6 +361,14 @@ fn parse_literal<'value>(lit: &[u8], value: &'value [u8]) -> crate::Result<&'val
     return Err(TimeError::InvalidParsingLiteral.into());
   }
   Ok(rhs)
+}
+
+#[inline]
+fn split_at(data: &[u8], mid: usize) -> crate::Result<(&[u8], &[u8])> {
+  let Some(elem) = data.split_at_checked(mid) else {
+    return Err(TimeError::InvalidParsingData.into());
+  };
+  Ok(elem)
 }
 
 #[cfg(test)]
