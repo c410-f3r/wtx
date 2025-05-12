@@ -1,8 +1,8 @@
 use crate::{
   http::cookie::{FMT1, SameSite},
   misc::Lease,
+  time::DateTime,
 };
-use chrono::{DateTime, Utc};
 use core::{
   fmt::{Display, Formatter},
   time::Duration,
@@ -11,7 +11,7 @@ use core::{
 #[derive(Debug)]
 pub(crate) struct CookieGeneric<T, V> {
   pub(crate) domain: T,
-  pub(crate) expires: Option<DateTime<Utc>>,
+  pub(crate) expires: Option<DateTime>,
   pub(crate) http_only: bool,
   pub(crate) max_age: Option<Duration>,
   pub(crate) name: T,
@@ -53,7 +53,10 @@ where
       f.write_fmt(format_args!("; Domain={}", self.domain.lease()))?;
     }
     if let Some(elem) = self.expires {
-      f.write_fmt(format_args!("; Expires={}", elem.format(FMT1)))?;
+      f.write_fmt(format_args!(
+        "; Expires={}",
+        elem.format(FMT1).map_err(|_err| core::fmt::Error)?.as_str()
+      ))?;
     }
     if self.http_only {
       f.write_str("; HttpOnly")?;

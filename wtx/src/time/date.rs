@@ -8,7 +8,7 @@ use crate::{
   misc::{Usize, i16_string},
   time::{
     CeDays, DAYS_OF_MONTHS, DAYS_PER_4_YEARS, DAYS_PER_400_YEARS_I32, DAYS_PER_NON_LEAP_YEAR_I16,
-    DAYS_PER_NON_LEAP_YEAR_U16, Day, DayOfYear, Month, TimeError, Year,
+    DAYS_PER_NON_LEAP_YEAR_U16, Day, DayOfYear, Month, TimeError, Weekday, Year,
     misc::{boolu16, boolu32, boolusize, i16i32, u8i16, u8u16, u8u32, u8usize, u16i32, u16u32},
   },
 };
@@ -51,6 +51,12 @@ pub struct Date {
 }
 
 impl Date {
+  /// Instance that refers the common era (0001-01-01).
+  pub const CE: Self = if let Ok(elem) = Self::new(Year::CE, DayOfYear::MIN) {
+    elem
+  } else {
+    panic!();
+  };
   /// Instance that refers the UNIX epoch (1970-01-01).
   pub const EPOCH: Self = if let Ok(elem) = Self::new(Year::EPOCH, DayOfYear::MIN) {
     elem
@@ -185,6 +191,20 @@ impl Date {
     array
   }
 
+  /// Day of week.
+  #[inline]
+  pub const fn weekday(&self) -> Weekday {
+    match self.ce_days() % 7 {
+      -6 | 1 => Weekday::Monday,
+      -5 | 2 => Weekday::Tuesday,
+      -4 | 3 => Weekday::Wednesday,
+      -3 | 4 => Weekday::Thursday,
+      -2 | 5 => Weekday::Friday,
+      -1 | 6 => Weekday::Saturday,
+      _ => Weekday::Sunday,
+    }
+  }
+
   /// Year
   #[inline]
   pub const fn year(self) -> Year {
@@ -256,7 +276,7 @@ const fn years_from_quadricentury_days(days: i32) -> Option<(i16, DayOfYear)> {
 
 #[cfg(test)]
 mod tests {
-  use crate::time::{CeDays, DAYS_PER_400_YEARS_I32, Date, DayOfYear, Year};
+  use crate::time::{CeDays, DAYS_PER_400_YEARS_I32, Date, DayOfYear, Weekday, Year};
 
   fn _0401_03_02() -> Date {
     Date::from_ce_days(CeDays::from_num(DAYS_PER_400_YEARS_I32 + 59 + 2).unwrap()).unwrap()
@@ -268,6 +288,7 @@ mod tests {
 
   #[test]
   fn ce_days() {
+    assert_eq!(Date::CE.ce_days(), 1);
     assert_eq!(Date::MIN.ce_days(), -11968265);
     assert_eq!(Date::MAX.ce_days(), 11967535);
     assert_eq!(_0401_03_02().ce_days(), DAYS_PER_400_YEARS_I32 + 59 + 2);
@@ -312,6 +333,29 @@ mod tests {
     assert_eq!(Date::MAX.to_str().as_str(), "32766-12-31");
     assert_eq!(_0401_03_02().to_str().as_str(), "401-03-02");
     assert_eq!(_2025_04_20().to_str().as_str(), "2025-04-20");
+  }
+
+  #[test]
+  fn weekday() {
+    assert_eq!(Date::from_ce_days((-9).try_into().unwrap()).unwrap().weekday(), Weekday::Friday);
+    assert_eq!(Date::from_ce_days((-8).try_into().unwrap()).unwrap().weekday(), Weekday::Saturday);
+    assert_eq!(Date::from_ce_days((-7).try_into().unwrap()).unwrap().weekday(), Weekday::Sunday);
+    assert_eq!(Date::from_ce_days((-6).try_into().unwrap()).unwrap().weekday(), Weekday::Monday);
+    assert_eq!(Date::from_ce_days((-5).try_into().unwrap()).unwrap().weekday(), Weekday::Tuesday);
+    assert_eq!(Date::from_ce_days((-4).try_into().unwrap()).unwrap().weekday(), Weekday::Wednesday);
+    assert_eq!(Date::from_ce_days((-3).try_into().unwrap()).unwrap().weekday(), Weekday::Thursday);
+    assert_eq!(Date::from_ce_days((-2).try_into().unwrap()).unwrap().weekday(), Weekday::Friday);
+    assert_eq!(Date::from_ce_days((-1).try_into().unwrap()).unwrap().weekday(), Weekday::Saturday);
+    assert_eq!(Date::from_ce_days(0.try_into().unwrap()).unwrap().weekday(), Weekday::Sunday);
+    assert_eq!(Date::from_ce_days(1.try_into().unwrap()).unwrap().weekday(), Weekday::Monday);
+    assert_eq!(Date::from_ce_days(2.try_into().unwrap()).unwrap().weekday(), Weekday::Tuesday);
+    assert_eq!(Date::from_ce_days(3.try_into().unwrap()).unwrap().weekday(), Weekday::Wednesday);
+    assert_eq!(Date::from_ce_days(4.try_into().unwrap()).unwrap().weekday(), Weekday::Thursday);
+    assert_eq!(Date::from_ce_days(5.try_into().unwrap()).unwrap().weekday(), Weekday::Friday);
+    assert_eq!(Date::from_ce_days(6.try_into().unwrap()).unwrap().weekday(), Weekday::Saturday);
+    assert_eq!(Date::from_ce_days(7.try_into().unwrap()).unwrap().weekday(), Weekday::Sunday);
+    assert_eq!(Date::from_ce_days(8.try_into().unwrap()).unwrap().weekday(), Weekday::Monday);
+    assert_eq!(Date::from_ce_days(9.try_into().unwrap()).unwrap().weekday(), Weekday::Tuesday);
   }
 
   #[test]

@@ -1,5 +1,7 @@
-use crate::http::session::{SessionCsrf, SessionKey};
-use chrono::{DateTime, Utc};
+use crate::{
+  http::session::{SessionCsrf, SessionKey},
+  time::DateTime,
+};
 
 /// Data that is saved in the corresponding store.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -7,7 +9,7 @@ pub struct SessionState<CS> {
   /// Custom state
   pub custom_state: CS,
   /// Cookie expiration
-  pub expires_at: Option<DateTime<Utc>>,
+  pub expires_at: Option<DateTime>,
   /// CSRF token
   pub session_csrf: SessionCsrf,
   /// Identifier
@@ -19,7 +21,7 @@ impl<CS> SessionState<CS> {
   #[inline]
   pub const fn new(
     custom_state: CS,
-    expires_at: Option<DateTime<Utc>>,
+    expires_at: Option<DateTime>,
     session_csrf: SessionCsrf,
     session_key: SessionKey,
   ) -> Self {

@@ -814,7 +814,7 @@ impl<T> Default for Deque<T> {
 }
 
 struct ReserveRslt {
-  /// Starting  index where the `additional` number of elements can be inserted.
+  /// Starting index where the `additional` number of elements can be inserted.
   begin: usize,
   /// The number os places the head must be shift.
   head_shift: usize,

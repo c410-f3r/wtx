@@ -5,8 +5,8 @@ use crate::{
     cookie::{FMT1, FMT2, FMT3, FMT4, SameSite, cookie_generic::CookieGeneric, make_lowercase},
   },
   misc::{PercentDecode, str_split_once1, str_split1},
+  time::DateTime,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
 use core::{str, time::Duration};
 
 /// A cookie is a small piece of data a server sends to a user's web browser.
@@ -81,11 +81,10 @@ impl<'str> CookieStr<'str> {
           cookie.domain = value;
         }
         (b"expires", [_, ..]) => {
-          if let Ok(elem) = NaiveDateTime::parse_from_str(value, FMT1)
-            .or_else(|_| NaiveDateTime::parse_from_str(value, FMT2))
-            .or_else(|_| NaiveDateTime::parse_from_str(value, FMT3))
-            .or_else(|_| NaiveDateTime::parse_from_str(value, FMT4))
-            .map(|elem| DateTime::from_naive_utc_and_offset(elem, Utc))
+          if let Ok(elem) = DateTime::parse(value.as_bytes(), FMT1)
+            .or_else(|_| DateTime::parse(value.as_bytes(), FMT2))
+            .or_else(|_| DateTime::parse(value.as_bytes(), FMT3))
+            .or_else(|_| DateTime::parse(value.as_bytes(), FMT4))
           {
             cookie.expires = Some(elem)
           }

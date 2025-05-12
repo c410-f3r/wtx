@@ -8,10 +8,9 @@ use crate::{
   },
   misc::{Lease, LeaseMut, Lock},
   pool::{Pool, ResourceManager},
-  time::Instant,
+  time::{DateTime, Instant},
 };
 use alloc::string::String;
-use chrono::DateTime;
 use core::ops::ControlFlow;
 use serde::de::DeserializeOwned;
 
@@ -63,8 +62,8 @@ where
     let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
     if let Some(elem) = ca.lease() {
       if let Some(expires) = &elem.expires_at {
-        let millis = i64::try_from(Instant::now_timestamp()?.as_millis()).unwrap_or_default();
-        let date_time = DateTime::from_timestamp_millis(millis).unwrap_or_default();
+        let timestamp = Instant::now_timestamp()?.as_secs().cast_signed();
+        let date_time = DateTime::from_timestamp_secs(timestamp)?;
         if expires >= &date_time {
           let _rslt =
             self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.session_key).await;
@@ -101,8 +100,10 @@ where
         cookie_def.value.clear();
         json_rslt.map_err(Into::into)?
       };
-      let ss_db_opt =
-        self.session_store.get(&(), &()).await?.lease_mut().read(ss_des.session_key).await?;
+      let ss_db_opt = {
+        let mut lock = self.session_store.get(&(), &()).await?;
+        lock.lease_mut().read(ss_des.session_key).await?
+      };
       let Some(ss_db) = ss_db_opt else {
         return Err(crate::Error::from(SessionError::MissingStoredSession).into());
       };

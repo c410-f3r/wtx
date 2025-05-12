@@ -7,8 +7,8 @@ use crate::{
   },
   misc::{Lock, sleep},
   rng::CryptoRng,
+  time::DateTime,
 };
-use chrono::{DateTime, Utc};
 use core::{marker::PhantomData, time::Duration};
 
 /// Default and optional parameters for the construction of a [`SessionManager`].
@@ -111,7 +111,7 @@ impl SessionManagerBuilder {
   /// If [Self::max_age] is set, then this parameter is ignored when setting the cookie in the
   /// header.
   #[inline]
-  pub fn expires(mut self, elem: Option<DateTime<Utc>>) -> Self {
+  pub fn expires(mut self, elem: Option<DateTime>) -> Self {
     self.cookie_def.expires = elem;
     self
   }
