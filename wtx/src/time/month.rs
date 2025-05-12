@@ -46,7 +46,27 @@ impl Month {
       10 => Self::October,
       11 => Self::November,
       12 => Self::December,
-      _ => return Err(TimeError::InvalidMonth { received: num }),
+      _ => return Err(TimeError::InvalidMonth { received: Some(num) }),
+    })
+  }
+
+  /// Creates a new instance from a valid short `name` like `Jan` or `Jul`.
+  #[inline]
+  pub const fn from_short_name(name: &[u8]) -> Result<Self, TimeError> {
+    Ok(match name {
+      b"Jan" => Self::January,
+      b"Feb" => Self::February,
+      b"Mar" => Self::March,
+      b"Apr" => Self::April,
+      b"May" => Self::May,
+      b"Jun" => Self::June,
+      b"Jul" => Self::July,
+      b"Aug" => Self::August,
+      b"Sep" => Self::September,
+      b"Oct" => Self::October,
+      b"Nov" => Self::November,
+      b"Dec" => Self::December,
+      _ => return Err(TimeError::InvalidMonth { received: None }),
     })
   }
 
@@ -96,6 +116,25 @@ impl Month {
       Self::October => "10",
       Self::November => "11",
       Self::December => "12",
+    }
+  }
+
+  /// Short name like `Jan` or `Jul`.
+  #[inline]
+  pub const fn short_name(&self) -> &'static str {
+    match self {
+      Self::January => "Jan",
+      Self::February => "Feb",
+      Self::March => "Mar",
+      Self::April => "Apr",
+      Self::May => "May",
+      Self::June => "Jun",
+      Self::July => "Jul",
+      Self::August => "Aug",
+      Self::September => "Sep",
+      Self::October => "Oct",
+      Self::November => "Nov",
+      Self::December => "Dec",
     }
   }
 }

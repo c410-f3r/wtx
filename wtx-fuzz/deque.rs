@@ -1,6 +1,5 @@
 //! Deque
 
-#![expect(clippy::unwrap_used, reason = "does not matter")]
 #![no_main]
 
 use tokio::runtime::Builder;

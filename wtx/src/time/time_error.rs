@@ -1,6 +1,8 @@
 /// Time error
 #[derive(Debug)]
 pub enum TimeError {
+  // Generic
+  //
   /// Days from CE must be within the `-11967900` ~ `11967535` range
   InvalidCeDays {
     /// Invalid received number
@@ -43,7 +45,7 @@ pub enum TimeError {
   /// A hour can only have up to 60 hours
   InvalidMonth {
     /// Invalid received number
-    received: u8,
+    received: Option<u8>,
   },
   /// A second can only have up to `999_999_999` nanoseconds
   InvalidNanosecond {
@@ -61,9 +63,34 @@ pub enum TimeError {
   InvalidTimestamp,
   /// Underlying time structure couldn't hold the value generated during an arithmetic operation.
   InvalidTimeArithmetic,
+  /// A weekday must be, for example, "Mon" or "Monday"
+  InvalidWeekday,
   /// A year be must between `-32767` and `32766`.
   InvalidYear {
     /// Invalid received year
     received: i16,
   },
+
+  // Parsing
+  //
+  /// Format contains more than one day
+  DuplicatedParsingFormatDay,
+  /// Format contains more than one month
+  DuplicatedParsingFormatMonth,
+  /// Format contains more than one weekday
+  DuplicatedParsingFormatWeekday,
+  /// Format contains more than one year
+  DuplicatedParsingFormatYear,
+  /// Missing date or time parameters
+  IncompleteParsingParams,
+  /// Provided data does not match provided format
+  InvalidParsingData,
+  /// Provided format contains invalid syntax
+  InvalidParsingFormat,
+  /// A literal from the provided format does not match in the provided data
+  InvalidParsingLiteral,
+  /// The provided weekday is wrong.
+  InvalidParsingWeekday,
+  /// Provided format contains unknown characters
+  UnknownParsingFormat,
 }

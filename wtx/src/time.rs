@@ -17,6 +17,7 @@ mod second;
 #[allow(clippy::module_inception, reason = "there isn't a better name")]
 mod time;
 mod time_error;
+mod weekday;
 mod year;
 
 pub use ce_days::CeDays;
@@ -34,6 +35,7 @@ pub use nanosecond::Nanosecond;
 pub use second::Second;
 pub use time::Time;
 pub use time_error::TimeError;
+pub use weekday::Weekday;
 pub use year::Year;
 
 pub(crate) const DAYS_PER_4_YEARS: u16 = 1_461;

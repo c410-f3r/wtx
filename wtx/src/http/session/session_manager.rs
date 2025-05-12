@@ -8,9 +8,8 @@ use crate::{
   },
   misc::{Lease, LeaseMut, Lock},
   rng::Rng,
-  time::TimeError,
+  time::{DateTime, Instant},
 };
-use chrono::{DateTime, TimeDelta, Utc};
 use core::{
   fmt::{Debug, Formatter},
   marker::PhantomData,
@@ -93,12 +92,8 @@ where
         elem
       }
       (Some(_), Some(max_age)) | (None, Some(max_age)) => {
-        let Some(expires_at) = TimeDelta::from_std(max_age)
-          .ok()
-          .and_then(|element| Utc::now().checked_add_signed(element))
-        else {
-          return Err(crate::Error::from(TimeError::InstantNeedsBackend).into());
-        };
+        let timestamp = Instant::now().checked_add(max_age)?.timestamp()?.as_secs().cast_signed();
+        let expires_at = DateTime::from_timestamp_secs(timestamp)?;
         let elem = SessionState::new(custom_state, Some(expires_at), session_csrf, session_key);
         store.create(&elem).await?;
         elem
@@ -143,7 +138,7 @@ where
   ) -> crate::Result<()> {
     let prev_expires = cookie_def.expires;
     let prev_max_age = cookie_def.max_age;
-    cookie_def.expires = Some(DateTime::from_timestamp_nanos(0));
+    cookie_def.expires = Some(DateTime::EPOCH);
     cookie_def.max_age = None;
     cookie_def.value.clear();
     let rslt = headers.push_from_fmt(Header::from_name_and_value(

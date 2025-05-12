@@ -2,6 +2,7 @@ use crate::collection::ArrayString;
 use core::ops::{DivAssign, Rem};
 
 pub(crate) type I16String = ArrayString<6>;
+pub(crate) type U8String = ArrayString<3>;
 pub(crate) type U16String = ArrayString<5>;
 pub(crate) type U32String = ArrayString<10>;
 pub(crate) type U64String = ArrayString<20>;
@@ -10,6 +11,12 @@ pub(crate) type U64String = ArrayString<20>;
 #[inline]
 pub fn i16_string(value: i16) -> I16String {
   num_string::<true, 6, 6, i16>(value, i16::abs)
+}
+
+/// Transforms an `u8` into an [`ArrayString`].
+#[inline]
+pub fn u8_string(value: u8) -> U8String {
+  num_string::<false, 3, 3, u8>(value, |el| el)
 }
 
 /// Transforms an `u16` into an [`ArrayString`].

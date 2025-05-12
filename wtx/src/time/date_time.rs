@@ -1,3 +1,5 @@
+mod format;
+
 use crate::{
   collection::ArrayString,
   time::{
@@ -8,6 +10,8 @@ use crate::{
 };
 use core::fmt::{Debug, Display, Formatter};
 
+type DateTimeString = ArrayString<32>;
+
 /// ISO-8601 representation with a fixed UTC timezone.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -17,6 +21,8 @@ pub struct DateTime {
 }
 
 impl DateTime {
+  /// Instance that refers the common era (0001-01-01).
+  pub const CE: Self = Self::new(Date::CE, Time::MIN);
   /// Instance that refers the UNIX epoch (1970-01-01).
   pub const EPOCH: Self = Self::new(Date::EPOCH, Time::MIN);
   /// Instance with the maximum allowed value of `32768-12-31 24:59:59.999_999_999`
@@ -86,8 +92,8 @@ impl DateTime {
 
   /// String representation
   #[inline]
-  pub fn to_str(self) -> ArrayString<32> {
-    let mut rslt = ArrayString::new();
+  pub fn to_str(self) -> DateTimeString {
+    let mut rslt = DateTimeString::new();
     let _rslt0 = rslt.push_str(&self.date.to_str());
     let _rslt1 = rslt.push('T');
     let _rslt2 = rslt.push_str(&self.time.to_str());

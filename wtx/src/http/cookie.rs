@@ -14,10 +14,10 @@ pub use same_site::SameSite;
 const NONCE_LEN: usize = 12;
 const TAG_LEN: usize = 16;
 
-static FMT1: &str = "%a, %d %b %Y %H:%M:%S GMT";
-static FMT2: &str = "%A, %d-%b-%y %H:%M:%S GMT";
-static FMT3: &str = "%a %b %e %H:%M:%S %Y";
-static FMT4: &str = "%a, %d-%b-%Y %H:%M:%S GMT";
+static FMT1: &[u8] = b"%a, %d %b %Y %H:%M:%S GMT";
+static FMT2: &[u8] = b"%A, %d-%b-%y %H:%M:%S GMT";
+static FMT3: &[u8] = b"%a %b %e %H:%M:%S %Y";
+static FMT4: &[u8] = b"%a, %d-%b-%Y %H:%M:%S GMT";
 
 #[cfg(feature = "http-cookie-secure")]
 pub(crate) fn decrypt<'buffer>(

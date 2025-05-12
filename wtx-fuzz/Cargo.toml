@@ -1,4 +1,9 @@
 [[bin]]
+name = "date_time"
+path = "date_time.rs"
+required-features = ["libfuzzer-sys/link_libfuzzer"]
+
+[[bin]]
 name = "deque"
 path = "deque.rs"
 required-features = ["libfuzzer-sys/link_libfuzzer"]

@@ -6,6 +6,8 @@ use crate::time::TimeError;
 pub struct Year(i16);
 
 impl Year {
+  /// Instance that refers the common era (0001).
+  pub const CE: Self = Self(1);
   /// Instance that refers the UNIX epoch (1970).
   pub const EPOCH: Self = Self(1970);
   /// Instance with the maximum allowed value of `32766`
