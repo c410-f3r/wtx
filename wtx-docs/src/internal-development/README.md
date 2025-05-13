@@ -20,7 +20,7 @@ That is why `WTX` has an enforced `Error` enum size of 24 bytes that will hopefu
 
 ## Profiling
 
-Uses the `h2load` benchmarking tool (https://nghttp2.org/documentation/h2load-howto.html) and the `h2load` internal binary (https://github.com/c410-f3r/wtx/blob/main/wtx-instances/src/bin/h2load.rs) for illustration purposes.
+Uses the `h2load` benchmarking tool (<https://nghttp2.org/documentation/h2load-howto.htm>l) and the `h2load` internal binary (<https://github.com/c410-f3r/wtx/blob/main/wtx-instances/src/bin/h2load.rs>) for illustration purposes.
 
 ### Compilation time / Size
 
@@ -38,6 +38,8 @@ CARGO_PROFILE_RELEASE_LTO=fat cargo llvm-lines --bin h2load --features h2load --
 
 ### Performance
 
+Prepare the executables in different terminals.
+
 ```bash
 h2load -c100 --log-file=/tmp/h2load.txt -m10 -n10000 --no-tls-proto=h2c http://localhost:9000
 ```
@@ -53,7 +55,7 @@ cargo build --bin h2load --features h2load --profile profiling --target x86_64-u
 samply record ./target/x86_64-unknown-linux-gnu/profiling/h2load
 ```
 
-[`cachegrind`](https://valgrind.org/docs/manual/cg-manual.html): Gives global, per-function, and per-source-line instruction counts and simulated cache and branch prediction data.
+[`callgrind`](https://valgrind.org/docs/manual/cg-manual.html): Gives global, per-function, and per-source-line instruction counts and simulated cache and branch prediction data.
 
 ```bash
 valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes --simulate-cache=yes ./target/x86_64-unknown-linux-gnu/profiling/h2load

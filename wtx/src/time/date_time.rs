@@ -13,7 +13,6 @@ use core::fmt::{Debug, Display, Formatter};
 type DateTimeString = ArrayString<32>;
 
 /// ISO-8601 representation with a fixed UTC timezone.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DateTime {
   date: Date,
@@ -90,9 +89,9 @@ impl DateTime {
     (rslt.wrapping_add(u32i64(self.time.seconds_from_mn())), self.time.nanosecond())
   }
 
-  /// String representation
+  /// ISO-8601 string representation
   #[inline]
-  pub fn to_str(self) -> DateTimeString {
+  pub fn iso_8601(self) -> DateTimeString {
     let mut rslt = DateTimeString::new();
     let _rslt0 = rslt.push_str(&self.date.to_str());
     let _rslt1 = rslt.push('T');
@@ -105,7 +104,7 @@ impl DateTime {
 impl Debug for DateTime {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.to_str())
+    f.write_str(&self.iso_8601())
   }
 }
 
@@ -119,7 +118,54 @@ impl Default for DateTime {
 impl Display for DateTime {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.to_str())
+    f.write_str(&self.iso_8601())
+  }
+}
+
+#[cfg(feature = "serde")]
+mod serde {
+  use crate::time::DateTime;
+  use core::fmt;
+  use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{Error, Visitor},
+  };
+
+  impl<'de> Deserialize<'de> for DateTime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+      D: Deserializer<'de>,
+    {
+      struct LocalVisitor;
+
+      impl Visitor<'_> for LocalVisitor {
+        type Value = DateTime;
+
+        #[inline]
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+          formatter.write_str("a formatted date and time string")
+        }
+
+        #[inline]
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+          E: Error,
+        {
+          DateTime::parse(value.as_bytes(), b"%Y-%m-%dT%H:%M:%S%.f").map_err(E::custom)
+        }
+      }
+
+      deserializer.deserialize_str(LocalVisitor)
+    }
+  }
+
+  impl Serialize for DateTime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      serializer.serialize_str(&self.iso_8601())
+    }
   }
 }
 
@@ -148,7 +194,7 @@ mod tests {
     ];
     for (timestamp, str) in elements {
       let instance = DateTime::from_timestamp_secs(timestamp).unwrap();
-      assert_eq!(instance.to_str().as_str(), str);
+      assert_eq!(instance.iso_8601().as_str(), str);
       assert_eq!(instance.timestamp().0, timestamp);
     }
   }
@@ -162,8 +208,8 @@ mod tests {
 
   #[test]
   fn to_str() {
-    assert_eq!(DateTime::MIN.to_str().as_str(), "-32767-01-01T00:00:00Z");
-    assert_eq!(DateTime::MAX.to_str().as_str(), "32766-12-31T23:59:59.999999999Z");
-    assert_eq!(_2025_04_20_14_20_30_1234().to_str().as_str(), "2025-04-20T14:20:30.1234Z");
+    assert_eq!(DateTime::MIN.iso_8601().as_str(), "-32767-01-01T00:00:00Z");
+    assert_eq!(DateTime::MAX.iso_8601().as_str(), "32766-12-31T23:59:59.999999999Z");
+    assert_eq!(_2025_04_20_14_20_30_1234().iso_8601().as_str(), "2025-04-20T14:20:30.1234Z");
   }
 }

@@ -1,7 +1,7 @@
 use crate::{
   collection::ArrayVector,
-  misc::{FromRadix10 as _, i16_string},
-  time::{Date, DateTime, Month, Time, TimeError, Weekday, date_time::DateTimeString},
+  misc::{FromRadix10 as _, i16_string, u32_string},
+  time::{Date, DateTime, Month, Nanosecond, Time, TimeError, Weekday, date_time::DateTimeString},
 };
 
 impl DateTime {
@@ -32,6 +32,8 @@ impl DateTime {
   /// | `%M`    | `59`     | Minute with two zero-padded digits                                    |
   /// |         |          |                                                                       |
   /// | `%S`    | `59`     | Second with two zero-padded digits                                    |
+  /// |         |          |                                                                       |
+  /// | `%.f`   | `.12345` | Optional number of nanoseconds with a dot prefix                      |
   ///
   /// # Literal Formats
   ///
@@ -43,6 +45,8 @@ impl DateTime {
   /// | `GMT`   | Greenwich Mean Time |
   /// | `/`     | Slash               |
   /// | ` `     | Space               |
+  /// | `T`     | Date/Time separator |
+  /// | `Z`     | UTC                 |
   #[expect(clippy::too_many_lines, reason = "enum is exhaustive")]
   #[inline]
   pub fn parse(mut data: &[u8], fmt: &[u8]) -> crate::Result<Self> {
@@ -51,6 +55,7 @@ impl DateTime {
     let mut hour_opt = None;
     let mut minute_opt = None;
     let mut month_opt = None;
+    let mut nanos_opt = None;
     let mut second_opt = None;
     let mut weekday_opt = None;
     let mut year_opt = None;
@@ -75,6 +80,24 @@ impl DateTime {
         Token::Colon => parse_literal(b":", data)?,
         Token::Comma => parse_literal(b",", data)?,
         Token::Dash => parse_literal(b"-", data)?,
+        Token::DotNano => {
+          let Ok(rest) = parse_literal(b".", data) else {
+            continue;
+          };
+          let mut idx: usize = 0;
+          loop {
+            let Some(elem) = rest.get(idx) else {
+              break;
+            };
+            if !elem.is_ascii_digit() {
+              break;
+            }
+            idx = idx.wrapping_add(1);
+          }
+          let (num, rhs) = rest.split_at_checked(idx).unwrap_or_default();
+          nanos_opt = Some(u32::from_radix_10(num)?);
+          rhs
+        }
         Token::FourDigitYear => {
           if year_opt.is_some() {
             return Err(TimeError::DuplicatedParsingFormatYear.into());
@@ -92,6 +115,7 @@ impl DateTime {
           rhs
         }
         Token::Gmt => parse_literal(b"GMT", data)?,
+        Token::Separator => parse_literal(b"T", data)?,
         Token::Slash => parse_literal(b"/", data)?,
         Token::Space => parse_literal(b" ", data)?,
         Token::TwoDigitDay => {
@@ -151,6 +175,7 @@ impl DateTime {
           }
           rhs
         }
+        Token::Utc => parse_literal(b"Z", data)?,
       };
       data = rhs;
     }
@@ -159,8 +184,9 @@ impl DateTime {
     else {
       return Err(TimeError::IncompleteParsingParams.into());
     };
+    let nano = if let Some(elem) = nanos_opt { elem.try_into()? } else { Nanosecond::ZERO };
     let date = Date::from_ymd(year.try_into()?, month, day.try_into()?)?;
-    let time = Time::from_hms(hour.try_into()?, minute.try_into()?, second.try_into()?);
+    let time = Time::from_hms_ns(hour.try_into()?, minute.try_into()?, second.try_into()?, nano);
     if let Some(weekday) = weekday_opt {
       if weekday != date.weekday() {
         return Err(TimeError::InvalidParsingWeekday.into());
@@ -191,6 +217,10 @@ impl DateTime {
         Token::Dash => {
           string.push('-')?;
         }
+        Token::DotNano => {
+          string.push('.')?;
+          string.push_str(&u32_string(self.time.nanosecond().num()))?;
+        }
         Token::FourDigitYear => {
           let year = i16_string(self.date.year().num());
           let (num, zeros) = if year.len() <= 4 {
@@ -216,6 +246,9 @@ impl DateTime {
         Token::Gmt => {
           string.push_str("GMT")?;
         }
+        Token::Separator => {
+          string.push('T')?;
+        }
         Token::Slash => {
           string.push('/')?;
         }
@@ -238,8 +271,7 @@ impl DateTime {
           string.push_str(self.time.second().num_str())?;
         }
         Token::TwoDigitYear => {
-          let year = i16_string(self.date.year().num().rem_euclid(100));
-          string.push_str(year.as_str())?;
+          string.push_str(&i16_string(self.date.year().num().rem_euclid(100)))?;
         }
         Token::TwoSpaceDay => {
           let [a, b] = self.date.day().num_str().as_bytes() else {
@@ -251,6 +283,9 @@ impl DateTime {
             string.push((*a).into())?;
             string.push((*b).into())?;
           }
+        }
+        Token::Utc => {
+          string.push('Z')?;
         }
       }
     }
@@ -270,12 +305,16 @@ enum Token {
   Comma,
   /// Literal `-`
   Dash,
+  /// `%.f` `123_456_789`
+  DotNano,
   /// `%Y` (2001)
   FourDigitYear,
   /// `%A` (Sunday)
   FullWeekdayName,
   /// Literal `GMT`
   Gmt,
+  /// Literal `T`
+  Separator,
   /// Literal `/`
   Slash,
   /// Literal ` `
@@ -294,30 +333,35 @@ enum Token {
   TwoDigitYear,
   /// `%e` ( 1)
   TwoSpaceDay,
+  /// Literal `Z`
+  Utc,
 }
 
-impl TryFrom<u8> for Token {
+impl TryFrom<[u8; 2]> for Token {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(value: u8) -> Result<Self, Self::Error> {
+  fn try_from(value: [u8; 2]) -> Result<Self, Self::Error> {
     Ok(match value {
-      b'b' => Self::AbbreviatedMonthName,
-      b'a' => Self::AbbreviatedWeekdayName,
-      b':' => Self::Colon,
-      b',' => Self::Comma,
-      b'-' => Self::Dash,
-      b'Y' => Self::FourDigitYear,
-      b'A' => Self::FullWeekdayName,
-      b'/' => Self::Slash,
-      b' ' => Self::Space,
-      b'd' => Self::TwoDigitDay,
-      b'H' => Self::TwoDigitHour,
-      b'M' => Self::TwoDigitMinute,
-      b'm' => Self::TwoDigitMonth,
-      b'S' => Self::TwoDigitSecond,
-      b'y' => Self::TwoDigitYear,
-      b'e' => Self::TwoSpaceDay,
+      [0, b'b'] => Self::AbbreviatedMonthName,
+      [0, b'a'] => Self::AbbreviatedWeekdayName,
+      [0, b':'] => Self::Colon,
+      [0, b','] => Self::Comma,
+      [0, b'-'] => Self::Dash,
+      [b'.', b'f'] => Self::DotNano,
+      [0, b'Y'] => Self::FourDigitYear,
+      [0, b'A'] => Self::FullWeekdayName,
+      [0, b'T'] => Self::Separator,
+      [0, b'/'] => Self::Slash,
+      [0, b' '] => Self::Space,
+      [0, b'd'] => Self::TwoDigitDay,
+      [0, b'H'] => Self::TwoDigitHour,
+      [0, b'M'] => Self::TwoDigitMinute,
+      [0, b'm'] => Self::TwoDigitMonth,
+      [0, b'S'] => Self::TwoDigitSecond,
+      [0, b'y'] => Self::TwoDigitYear,
+      [0, b'e'] => Self::TwoSpaceDay,
+      [0, b'Z'] => Self::Utc,
       _ => return Err(TimeError::UnknownParsingFormat.into()),
     })
   }
@@ -326,7 +370,7 @@ impl TryFrom<u8> for Token {
 #[inline]
 fn lexer(fmt: &[u8]) -> crate::Result<ArrayVector<Token, 16>> {
   let mut tokens = ArrayVector::new();
-  let mut iter = fmt.iter().copied();
+  let mut iter = fmt.iter().copied().peekable();
   loop {
     let Some(first) = iter.next() else {
       break;
@@ -336,7 +380,14 @@ fn lexer(fmt: &[u8]) -> crate::Result<ArrayVector<Token, 16>> {
         let Some(second) = iter.next() else {
           return Err(TimeError::InvalidParsingFormat.into());
         };
-        tokens.push(second.try_into()?)?;
+        if second == b'.' {
+          let Some(third) = iter.next() else {
+            return Err(TimeError::InvalidParsingFormat.into());
+          };
+          tokens.push([second, third].try_into()?)?;
+        } else {
+          tokens.push([0, second].try_into()?)?;
+        }
       }
       b'G' => {
         let (Some(b'M'), Some(b'T')) = (iter.next(), iter.next()) else {
@@ -345,7 +396,7 @@ fn lexer(fmt: &[u8]) -> crate::Result<ArrayVector<Token, 16>> {
         tokens.push(Token::Gmt)?;
       }
       _ => {
-        tokens.push(first.try_into()?)?;
+        tokens.push([0, first].try_into()?)?;
       }
     }
   }
@@ -387,6 +438,9 @@ mod tests {
   static _3_DATA: &[u8] = b"Mon, 12-May-2025 14:30:00 GMT";
   static _3_FMT: &[u8] = b"%a, %d-%b-%Y %H:%M:%S GMT";
 
+  static _4_DATA: &[u8] = b"1999-02-03T23:40:20.1234Z";
+  static _4_FMT: &[u8] = b"%Y-%m-%dT%H:%M:%S%.fZ";
+
   #[test]
   fn parse_and_format() {
     assert_eq!(
@@ -404,6 +458,10 @@ mod tests {
     assert_eq!(
       DateTime::parse(_3_DATA, _3_FMT).unwrap().format(_3_FMT).unwrap().as_str().as_bytes(),
       _3_DATA
+    );
+    assert_eq!(
+      DateTime::parse(_4_DATA, _4_FMT).unwrap().format(_4_FMT).unwrap().as_str().as_bytes(),
+      _4_DATA
     );
   }
 }
