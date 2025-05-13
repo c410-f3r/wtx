@@ -55,7 +55,7 @@ where
     if let Some(elem) = self.expires {
       f.write_fmt(format_args!(
         "; Expires={}",
-        elem.format(FMT1).map_err(|_err| core::fmt::Error)?.as_str()
+        elem.to_string::<32>(FMT1.iter().copied()).map_err(|_err| core::fmt::Error)?.as_str()
       ))?;
     }
     if self.http_only {

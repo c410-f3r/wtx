@@ -1,10 +1,12 @@
 //! Simple UTC-only time utilities.
 
 mod ce_days;
+mod clock_time;
 mod date;
 mod date_time;
 mod day;
 mod day_of_year;
+mod format;
 mod hour;
 mod instant;
 mod microsecond;
@@ -14,17 +16,17 @@ mod misc;
 mod month;
 mod nanosecond;
 mod second;
-#[allow(clippy::module_inception, reason = "there isn't a better name")]
-mod time;
 mod time_error;
 mod weekday;
 mod year;
 
 pub use ce_days::CeDays;
+pub use clock_time::ClockTime;
 pub use date::Date;
 pub use date_time::DateTime;
 pub use day::Day;
 pub use day_of_year::DayOfYear;
+pub use format::{parse_bytes_into_tokens, time_token::TimeToken};
 pub use hour::Hour;
 pub use instant::Instant;
 pub use microsecond::Microsecond;
@@ -33,7 +35,6 @@ pub use minute::Minute;
 pub use month::Month;
 pub use nanosecond::Nanosecond;
 pub use second::Second;
-pub use time::Time;
 pub use time_error::TimeError;
 pub use weekday::Weekday;
 pub use year::Year;

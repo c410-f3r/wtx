@@ -2,7 +2,7 @@ use crate::{
   collection::{ArrayVector, Vector},
   http::{
     CookieError,
-    cookie::{FMT1, FMT2, FMT3, FMT4, SameSite, cookie_generic::CookieGeneric, make_lowercase},
+    cookie::{FMT1, SameSite, cookie_generic::CookieGeneric, make_lowercase},
   },
   misc::{PercentDecode, str_split_once1, str_split1},
   time::DateTime,
@@ -81,13 +81,7 @@ impl<'str> CookieStr<'str> {
           cookie.domain = value;
         }
         (b"expires", [_, ..]) => {
-          if let Ok(elem) = DateTime::parse(value.as_bytes(), FMT1)
-            .or_else(|_| DateTime::parse(value.as_bytes(), FMT2))
-            .or_else(|_| DateTime::parse(value.as_bytes(), FMT3))
-            .or_else(|_| DateTime::parse(value.as_bytes(), FMT4))
-          {
-            cookie.expires = Some(elem)
-          }
+          cookie.expires = Some(DateTime::parse(value.as_bytes(), FMT1.iter().copied())?);
         }
         (b"httponly", _) => cookie.http_only = true,
         (b"max-age", [first, rest @ ..]) => {

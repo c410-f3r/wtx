@@ -1,7 +1,8 @@
-use crate::sync::{AtomicUsize, Ordering};
+use crate::sync::AtomicUsize;
 use core::{
   cell::UnsafeCell,
   fmt::{self, Debug},
+  sync::atomic::Ordering,
   task::Waker,
 };
 
@@ -101,8 +102,8 @@ unsafe impl Sync for AtomicWaker {}
 
 #[cfg(all(feature = "_async-tests", test))]
 mod tests {
-  use crate::sync::{Arc, AtomicBool, AtomicWaker, Ordering};
-  use core::{future::poll_fn, task::Poll};
+  use crate::sync::{Arc, AtomicBool, AtomicWaker};
+  use core::{future::poll_fn, sync::atomic::Ordering, task::Poll};
   use std::thread;
   use tokio::runtime::Builder;
 

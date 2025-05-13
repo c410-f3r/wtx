@@ -1,8 +1,9 @@
 use crate::{
   misc::UriString,
   rng::{Rng, Xorshift64, simple_seed},
-  sync::{AtomicU32, Ordering},
+  sync::AtomicU32,
 };
+use core::sync::atomic::Ordering;
 
 pub(crate) fn _uri() -> UriString {
   static PORT: AtomicU32 = AtomicU32::new(7000);

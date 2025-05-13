@@ -393,7 +393,7 @@ mod serde {
 
         #[inline]
         fn expecting(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
-          write!(formatter, "a string no more than {} bytes long", N)
+          write!(formatter, "a string no more than {N} bytes long")
         }
 
         #[inline]

@@ -5,12 +5,12 @@ use crate::time::TimeError;
 pub struct DayOfYear(u16);
 
 impl DayOfYear {
-  /// Instance with the maximum allowed value of `366`
-  pub const MAX: Self = Self(366);
   /// Instance with the minimum allowed value of `1`
-  pub const MIN: Self = Self(1);
+  pub const ONE: Self = Self(1);
   /// Instance with the `365` value.
   pub const N365: Self = Self(365);
+  /// Instance with the maximum allowed value of `366`
+  pub const N366: Self = Self(366);
 
   /// Creates a new instance from a valid `num` number.
   #[inline]

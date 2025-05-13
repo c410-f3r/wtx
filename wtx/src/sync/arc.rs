@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_types, reason = "This is the only allowed place")]
+
 use core::ops::Deref;
 
 /// A thread-safe reference-counting pointer. ‘Arc’ stands for ‘Atomically Reference Counted’.

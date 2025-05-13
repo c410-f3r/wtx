@@ -15,7 +15,7 @@ jobs:
         with:
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/autobahn-fuzzingclient.sh ci
 
@@ -27,7 +27,7 @@ jobs:
         with:
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/autobahn-fuzzingserver.sh ci
 
@@ -39,7 +39,7 @@ jobs:
         with:
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-fuzz
@@ -54,7 +54,7 @@ jobs:
         with:
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/h2spec.sh high ci
 
@@ -66,7 +66,7 @@ jobs:
         with:
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/h2spec.sh low ci
 
@@ -84,7 +84,7 @@ jobs:
         with:
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install docker-compose -y
       - run: docker-compose -f .test-utils/docker-compose.yml up -d
@@ -104,7 +104,7 @@ jobs:
           components: clippy, rustfmt
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/internal-tests-0.sh
 
@@ -121,6 +121,6 @@ jobs:
           components: clippy, rustfmt
           override: true
           profile: minimal
-          toolchain: nightly-2025-04-11
+          toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/internal-tests-1.sh

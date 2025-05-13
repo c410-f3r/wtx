@@ -1,24 +1,28 @@
 #![allow(
   clippy::cast_possible_truncation,
-  reason = "shifted integers can and will be reduced to a lighter representation"
+  reason = "shifted integers are reduced to a smaller representation"
 )]
+
+mod format;
 
 use crate::{
   collection::ArrayString,
   misc::{Usize, i16_string},
   time::{
     CeDays, DAYS_OF_MONTHS, DAYS_PER_4_YEARS, DAYS_PER_400_YEARS_I32, DAYS_PER_NON_LEAP_YEAR_I16,
-    DAYS_PER_NON_LEAP_YEAR_U16, Day, DayOfYear, Month, TimeError, Weekday, Year,
+    DAYS_PER_NON_LEAP_YEAR_U16, Day, DayOfYear, Month, TimeError, TimeToken, Weekday, Year,
     misc::{boolu16, boolu32, boolusize, i16i32, u8i16, u8u16, u8u32, u8usize, u16i32, u16u32},
   },
 };
 use core::{
+  cmp::Ordering,
   fmt::{Debug, Display, Formatter},
+  hash::{Hash, Hasher},
   hint,
 };
 
 // 401 because of `146_097 / 400`.
-const QUADRICENTURY_ADJUSTMENTS: &[u8; 401] = &[
+static QUADRICENTURY_ADJUSTMENTS: &[u8; 401] = &[
   0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8,
   8, 9, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14,
   15, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 18, 19, 19, 19, 19, 20, 20, 20, 20,
@@ -41,24 +45,23 @@ const QUADRICENTURY_ADJUSTMENTS: &[u8; 401] = &[
 /// Proleptic Gregorian calendar.
 ///
 /// Can represent years from -32767 to +32766.
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy)]
 pub struct Date {
+  year: Year,
   // | xxxxxx | x            | xxxxxxxxx       |
   // | unused | is leap year | day of the year |
   params: u16,
-  year: Year,
 }
 
 impl Date {
   /// Instance that refers the common era (0001-01-01).
-  pub const CE: Self = if let Ok(elem) = Self::new(Year::CE, DayOfYear::MIN) {
+  pub const CE: Self = if let Ok(elem) = Self::new(Year::CE, DayOfYear::ONE) {
     elem
   } else {
     panic!();
   };
   /// Instance that refers the UNIX epoch (1970-01-01).
-  pub const EPOCH: Self = if let Ok(elem) = Self::new(Year::EPOCH, DayOfYear::MIN) {
+  pub const EPOCH: Self = if let Ok(elem) = Self::new(Year::EPOCH, DayOfYear::ONE) {
     elem
   } else {
     panic!();
@@ -70,7 +73,7 @@ impl Date {
     panic!();
   };
   /// Instance with the minimum allowed value of `-32767-01-01`
-  pub const MIN: Self = if let Ok(elem) = Self::new(Year::MIN, DayOfYear::MIN) {
+  pub const MIN: Self = if let Ok(elem) = Self::new(Year::MIN, DayOfYear::ONE) {
     elem
   } else {
     panic!();
@@ -86,7 +89,7 @@ impl Date {
     let quadricenturies = days_plus_year.div_euclid(DAYS_PER_400_YEARS_I32) as i16;
     let remaining_days = days_plus_year.rem_euclid(DAYS_PER_400_YEARS_I32);
     let Some((mut year, day_of_year)) = years_from_quadricentury_days(remaining_days) else {
-      return Self::new(Year::MIN, DayOfYear::MIN);
+      return Self::new(Year::MIN, DayOfYear::ONE);
     };
     year = quadricenturies.wrapping_mul(400).wrapping_add(year);
     Self::new(
@@ -96,6 +99,19 @@ impl Date {
       },
       day_of_year,
     )
+  }
+
+  /// Creates a new instance based on the string representation of the ISO-8601 specification.
+  #[inline]
+  pub fn from_iso_8601(bytes: &[u8]) -> crate::Result<Self> {
+    static TOKENS: &[TimeToken] = &[
+      TimeToken::FourDigitYear,
+      TimeToken::Dash,
+      TimeToken::TwoDigitMonth,
+      TimeToken::Dash,
+      TimeToken::TwoDigitDay,
+    ];
+    Self::parse(bytes, TOKENS.iter().copied())
   }
 
   /// Constructs a new instance that automatically deals with leap years.
@@ -116,12 +132,12 @@ impl Date {
   #[inline]
   pub const fn new(year: Year, day_of_year: DayOfYear) -> Result<Self, TimeError> {
     let is_leap_year = year.is_leap_year();
-    if !is_leap_year && day_of_year.num() == DayOfYear::MAX.num() {
+    if !is_leap_year && day_of_year.num() == DayOfYear::N366.num() {
       return Err(TimeError::InvalidDayOfTheYearInNonLeapYear);
     }
     let mut params = boolu16(is_leap_year) << 15;
     params |= day_of_year.num();
-    Ok(Self { params, year })
+    Ok(Self { year, params })
   }
 
   /// Number of days since the common era (0001-01-01)
@@ -167,6 +183,18 @@ impl Date {
     }
   }
 
+  /// String representation
+  #[inline]
+  pub fn iso_8601(self) -> ArrayString<12> {
+    let mut array = ArrayString::new();
+    let _rslt0 = array.push_str(&i16_string(self.year.num()));
+    let _rslt1 = array.push('-');
+    let _rslt2 = array.push_str(self.month().num_str());
+    let _rslt3 = array.push('-');
+    let _rslt4 = array.push_str(self.day().num_str());
+    array
+  }
+
   /// Month of the year
   #[inline]
   pub const fn month(self) -> Month {
@@ -177,18 +205,6 @@ impl Date {
       // SAFETY: `rslt` is always within the 1-12 range
       Err(_) => unsafe { hint::unreachable_unchecked() },
     }
-  }
-
-  /// String representation
-  #[inline]
-  pub fn to_str(self) -> ArrayString<12> {
-    let mut array = ArrayString::new();
-    let _rslt0 = array.push_str(&i16_string(self.year.num()));
-    let _rslt1 = array.push('-');
-    let _rslt2 = array.push_str(self.month().num_str());
-    let _rslt3 = array.push('-');
-    let _rslt4 = array.push_str(self.day().num_str());
-    array
   }
 
   /// Day of week.
@@ -211,6 +227,10 @@ impl Date {
     self.year
   }
 
+  const fn as_i32(self) -> i32 {
+    (i16i32(self.year.num()) << 16) | u16i32(self.params)
+  }
+
   // Credits to https://jhpratt.dev/blog/optimizing-with-novel-calendrical-algorithms.
   const fn month_params(self) -> (u32, u8, u8) {
     let days_until_feb = 59u32.wrapping_add(boolu32(self.year().is_leap_year()));
@@ -228,14 +248,47 @@ impl Date {
 impl Debug for Date {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.to_str())
+    f.write_str(&self.iso_8601())
   }
 }
 
 impl Display for Date {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.to_str())
+    f.write_str(&self.iso_8601())
+  }
+}
+
+impl Eq for Date {}
+
+impl Hash for Date {
+  #[inline]
+  fn hash<H>(&self, state: &mut H)
+  where
+    H: Hasher,
+  {
+    self.as_i32().hash(state);
+  }
+}
+
+impl Ord for Date {
+  #[inline]
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.as_i32().cmp(&other.as_i32())
+  }
+}
+
+impl PartialEq for Date {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    self.as_i32() == other.as_i32()
+  }
+}
+
+impl PartialOrd for Date {
+  #[inline]
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
   }
 }
 
@@ -272,6 +325,53 @@ const fn years_from_quadricentury_days(days: i32) -> Option<(i16, DayOfYear)> {
       Err(_) => unsafe { hint::unreachable_unchecked() },
     },
   ))
+}
+
+#[cfg(feature = "serde")]
+mod serde {
+  use crate::time::Date;
+  use core::fmt;
+  use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{Error, Visitor},
+  };
+
+  impl<'de> Deserialize<'de> for Date {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+      D: Deserializer<'de>,
+    {
+      struct LocalVisitor;
+
+      impl Visitor<'_> for LocalVisitor {
+        type Value = Date;
+
+        #[inline]
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+          formatter.write_str("a formatted date string")
+        }
+
+        #[inline]
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+          E: Error,
+        {
+          Date::from_iso_8601(value.as_bytes()).map_err(E::custom)
+        }
+      }
+
+      deserializer.deserialize_str(LocalVisitor)
+    }
+  }
+
+  impl Serialize for Date {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: Serializer,
+    {
+      serializer.serialize_str(&self.iso_8601())
+    }
+  }
 }
 
 #[cfg(test)]
@@ -329,10 +429,10 @@ mod tests {
 
   #[test]
   fn to_str() {
-    assert_eq!(Date::MIN.to_str().as_str(), "-32767-01-01");
-    assert_eq!(Date::MAX.to_str().as_str(), "32766-12-31");
-    assert_eq!(_0401_03_02().to_str().as_str(), "401-03-02");
-    assert_eq!(_2025_04_20().to_str().as_str(), "2025-04-20");
+    assert_eq!(Date::MIN.iso_8601().as_str(), "-32767-01-01");
+    assert_eq!(Date::MAX.iso_8601().as_str(), "32766-12-31");
+    assert_eq!(_0401_03_02().iso_8601().as_str(), "401-03-02");
+    assert_eq!(_2025_04_20().iso_8601().as_str(), "2025-04-20");
   }
 
   #[test]

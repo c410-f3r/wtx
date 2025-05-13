@@ -195,4 +195,5 @@ fn time_encode(
   Ok(())
 }
 
+test!(naivedate, NaiveDate, NaiveDate::from_ymd_opt(4, 2, 6).unwrap());
 test!(datetime_utc, DateTime<Utc>, "2025-02-27T16:26:06.438497Z".parse().unwrap());

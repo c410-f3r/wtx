@@ -4,7 +4,7 @@ use crate::{
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, ty_params::TyParams},
   },
   misc::{Decode, Encode, Usize},
-  time::{Date, DateTime, Time},
+  time::{ClockTime, Date, DateTime},
 };
 use core::any::type_name;
 
@@ -51,7 +51,7 @@ where
     Ok(if len > 4 {
       Self::new(date, time_decode(bytes)?)
     } else {
-      Self::new(date, Time::default())
+      Self::new(date, ClockTime::default())
     })
   }
 }
@@ -113,7 +113,7 @@ fn date_encode(date: &Date, ew: &mut EncodeWrapper<'_>, len: u8) -> crate::Resul
   Ok(())
 }
 
-fn date_len(time: &Time) -> u8 {
+fn date_len(time: &ClockTime) -> u8 {
   match (time.hour().num(), time.minute().num(), time.second().num(), time.nanosecond().num()) {
     (0, 0, 0, 0) => 4,
     (_, _, _, 0) => 7,
@@ -121,7 +121,7 @@ fn date_len(time: &Time) -> u8 {
   }
 }
 
-fn time_decode(bytes: &[u8]) -> crate::Result<Time> {
+fn time_decode(bytes: &[u8]) -> crate::Result<ClockTime> {
   let (hours, minutes, seconds, micros) = if let [hours, minutes, seconds, a, b, c, d] = bytes {
     (*hours, *minutes, *seconds, u32::from_le_bytes([*a, *b, *c, *d]))
   } else if let [hours, minutes, seconds] = bytes {
@@ -135,7 +135,7 @@ fn time_decode(bytes: &[u8]) -> crate::Result<Time> {
       .into(),
     );
   };
-  Ok(Time::from_hms_us(
+  Ok(ClockTime::from_hms_us(
     hours.try_into()?,
     minutes.try_into()?,
     seconds.try_into()?,
@@ -143,7 +143,11 @@ fn time_decode(bytes: &[u8]) -> crate::Result<Time> {
   ))
 }
 
-fn time_encode(time: &Time, include_micros: bool, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+fn time_encode(
+  time: &ClockTime,
+  include_micros: bool,
+  ew: &mut EncodeWrapper<'_>,
+) -> crate::Result<()> {
   let hour = time.hour().num();
   let minute = time.minute().num();
   let second = time.second().num();
@@ -156,4 +160,10 @@ fn time_encode(time: &Time, include_micros: bool, ew: &mut EncodeWrapper<'_>) ->
   Ok(())
 }
 
-test!(datetime_utc, DateTime, DateTime::EPOCH);
+test!(
+  date,
+  Date,
+  Date::from_ymd(2024.try_into().unwrap(), crate::time::Month::January, crate::time::Day::N6)
+    .unwrap()
+);
+test!(datetime, DateTime, DateTime::EPOCH);

@@ -18,7 +18,7 @@ impl Year {
   /// Creates a new instance from a valid `num` number.
   #[inline]
   pub const fn from_num(num: i16) -> Result<Self, TimeError> {
-    if num < -32767 || num > 32766 {
+    if num < Self::MIN.num() || num > Self::MAX.num() {
       return Err(TimeError::InvalidYear { received: num });
     }
     Ok(Self(num))

@@ -9,14 +9,14 @@ macro_rules! call_tests {
 
 use crate::{
   rng::Xorshift64,
-  sync::{AtomicBool, Ordering},
+  sync::AtomicBool,
   tests::_uri,
   web_socket::{
     Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
     compression::NegotiatedCompression,
   },
 };
-use core::time::Duration;
+use core::{sync::atomic::Ordering, time::Duration};
 use tokio::net::{TcpListener, TcpStream};
 
 static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);

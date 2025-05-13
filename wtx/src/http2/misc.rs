@@ -20,11 +20,12 @@ use crate::{
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },
   stream::{StreamReader, StreamWriter},
-  sync::{AtomicBool, AtomicWaker, Ordering},
+  sync::{AtomicBool, AtomicWaker},
 };
 use core::{
   future::poll_fn,
   pin::pin,
+  sync::atomic::Ordering,
   task::{Context, Poll, ready},
 };
 

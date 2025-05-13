@@ -63,7 +63,7 @@ use crate::{
     net::PartitionedFilledBuffer,
   },
   stream::{StreamReader, StreamWriter},
-  sync::{Arc, AtomicBool, AtomicWaker, Ordering},
+  sync::{Arc, AtomicBool, AtomicWaker},
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
@@ -71,6 +71,7 @@ use core::{
   future::poll_fn,
   mem,
   pin::pin,
+  sync::atomic::Ordering,
   task::{Poll, Waker},
 };
 use hashbrown::HashMap;

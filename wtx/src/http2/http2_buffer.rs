@@ -1,5 +1,3 @@
-use core::sync::atomic::Ordering;
-
 use crate::{
   collection::Vector,
   http2::{
@@ -11,6 +9,7 @@ use crate::{
   sync::{Arc, AtomicBool, AtomicWaker},
 };
 use alloc::boxed::Box;
+use core::sync::atomic::Ordering;
 use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.

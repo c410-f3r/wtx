@@ -71,12 +71,12 @@ These numbers provide an estimate of the expected waiting times when developing 
 
 | Technology            | Required Deps [^1] | All Deps [^2]      | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
 | --------------------- | ------------------ | ------------------ | ----------- | ----------------- | --------------- | -------- |
-| Client API Framework  | 0                  | 31                 | 6.22s       | 7.77s             | 9.45s           | 872K     |
-| gRPC Client           | 2                  | 16                 | 4.81s       | 5.99s             | 7.31s           | 736K     |
-| HTTP Client Pool      | 2                  | 15                 | 4.67s       | 6.04s             | 7.06s           | 728K     |
-| HTTP Server Framework | 2                  | 37                 | 8.17s       | 10.69s            | 11.56s          | 996K     |
-| Postgres Client       | 13                 | 30                 | 5.06s       | 6.10s             | 6.86s           | 652K     |
-| WebSocket Client      | 10                 | 22                 | 4.34s       | 4.92s             | 5.64s           | 560K     |
+| Client API Framework  | 0                  | 31                 | 6.42s       | 7.79s             | 8.45s           | 872K     |
+| gRPC Client           | 2                  | 16                 | 4.80s       | 6.04s             | 6.53s           | 736K     |
+| HTTP Client Pool      | 2                  | 15                 | 4.60s       | 5.84s             | 6.44s           | 728K     |
+| HTTP Server Framework | 2                  | 37                 | 7.87s       | 10.53s            | 10.60s          | 996K     |
+| Postgres Client       | 13                 | 30                 | 5.12s       | 6.19s             | 6.69s           | 652K     |
+| WebSocket Client      | 10                 | 22                 | 4.24s       | 5.04s             | 5.31s           | 560K     |
 
 ## Transport Layer Security (TLS)
 
