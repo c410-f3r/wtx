@@ -1,5 +1,5 @@
 
-# Client Connection
+# Database Client
 
 Provides a set of functions that establish connections, execute queries and manage data transactions with different databases.
 

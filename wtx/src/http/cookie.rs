@@ -6,6 +6,7 @@ mod same_site;
 use crate::{
   collection::{ArrayVector, Vector},
   rng::Rng,
+  time::TimeToken,
 };
 pub use cookie_error::CookieError;
 use core::str;
@@ -14,10 +15,24 @@ pub use same_site::SameSite;
 const NONCE_LEN: usize = 12;
 const TAG_LEN: usize = 16;
 
-static FMT1: &[u8] = b"%a, %d %b %Y %H:%M:%S GMT";
-static FMT2: &[u8] = b"%A, %d-%b-%y %H:%M:%S GMT";
-static FMT3: &[u8] = b"%a %b %e %H:%M:%S %Y";
-static FMT4: &[u8] = b"%a, %d-%b-%Y %H:%M:%S GMT";
+static FMT1: &[TimeToken] = &[
+  TimeToken::AbbreviatedWeekdayName,
+  TimeToken::Comma,
+  TimeToken::Space,
+  TimeToken::TwoDigitDay,
+  TimeToken::Space,
+  TimeToken::AbbreviatedMonthName,
+  TimeToken::Space,
+  TimeToken::FourDigitYear,
+  TimeToken::Space,
+  TimeToken::TwoDigitHour,
+  TimeToken::Colon,
+  TimeToken::TwoDigitMinute,
+  TimeToken::Colon,
+  TimeToken::TwoDigitSecond,
+  TimeToken::Space,
+  TimeToken::Gmt,
+];
 
 #[cfg(feature = "http-cookie-secure")]
 pub(crate) fn decrypt<'buffer>(

@@ -27,6 +27,7 @@ license = "MPL-2.0"
 name = "wtx-ui"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
+rust-version = "1.87"
 version = "0.1.0"
 
 [package.metadata.docs.rs]

@@ -317,7 +317,7 @@ impl HpackDecoder {
           .ok_or_else(|| {
             crate::Error::Http2ErrorGoAway(
               Http2ErrorCode::CompressionError,
-              Some(Http2Error::InvalidHpackIdx(dyn_idx_with_offset.try_into().ok())),
+              Some(Http2Error::InvalidHpackIdx(Some(dyn_idx_with_offset))),
             )
           });
       }

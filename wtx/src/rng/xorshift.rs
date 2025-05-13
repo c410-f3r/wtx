@@ -1,10 +1,9 @@
-use core::sync::atomic::Ordering;
-
 use crate::{
   misc::{Lease, LeaseMut},
   rng::{Rng, SeedableRng},
   sync::AtomicU64,
 };
+use core::sync::atomic::Ordering;
 
 /// Xorshift that deals with 64 bits numbers.
 #[derive(Clone, Copy, Debug)]

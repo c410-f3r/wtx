@@ -76,7 +76,7 @@ where
         }
         i32::try_from(self.signed_duration_since(epoch).num_days()).ok()
       }) {
-        Some(time) => time,
+        Some(days) => days,
         None => {
           return Err(E::from(DatabaseError::UnexpectedValueFromBytes { expected: "date" }.into()));
         }
@@ -168,4 +168,5 @@ fn pg_epoch_ndt() -> Option<NaiveDateTime> {
   pg_epoch_nd()?.and_hms_opt(0, 0, 0)
 }
 
+test!(naivedate, NaiveDate, NaiveDate::from_ymd_opt(4, 2, 6).unwrap());
 test!(datetime_utc, DateTime<Utc>, Utc.from_utc_datetime(&pg_epoch_ndt().unwrap()));

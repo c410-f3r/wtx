@@ -84,7 +84,13 @@ pub enum TimeError {
   /// Missing date or time parameters
   IncompleteParsingParams,
   /// Provided data does not match provided format
-  InvalidParsingData,
+  InvalidParsingBytes,
+  /// Provided data can not represent a single clock time
+  InvalidParsingClockTime,
+  /// Provided data can not represent a single date
+  InvalidParsingDate,
+  /// Provided data can not represent a single datetime
+  InvalidParsingDateTime,
   /// Provided format contains invalid syntax
   InvalidParsingFormat,
   /// A literal from the provided format does not match in the provided data

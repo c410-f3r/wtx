@@ -1,3 +1,5 @@
+#![allow(clippy::disallowed_types, reason = "This is the only allowed place")]
+
 macro_rules! create_atomic_primitive {
   ($name:ident, $ty:ty) => {
     /// An integer type which can be safely shared between threads.
@@ -66,3 +68,8 @@ macro_rules! create_atomic_primitive {
     }
   };
 }
+
+create_atomic_primitive!(AtomicBool, bool);
+create_atomic_primitive!(AtomicU32, u32);
+create_atomic_primitive!(AtomicU64, u64);
+create_atomic_primitive!(AtomicUsize, usize);
