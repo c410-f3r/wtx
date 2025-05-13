@@ -69,18 +69,14 @@ Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks ov
 
 These numbers provide an estimate of the expected waiting times when developing with `WTX`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
 
-| Technology            | Required Deps[^1] | All Deps[^2]      | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
-| --------------------- | ----------------- | ----------------- | ----------- | ----------------- | --------------- | -------- |
-| Client API Framework  | 0                 | 31                | 6.22s       | 7.77s             | 9.45s           | 872K     |
-| gRPC Client           | 2                 | 16                | 4.81s       | 5.99s             | 7.31s           | 736K     |
-| HTTP Client Pool      | 2                 | 15                | 4.67s       | 6.04s             | 7.06s           | 728K     |
-| HTTP Server Framework | 2                 | 37                | 8.17s       | 10.69s            | 11.56s          | 996K     |
-| Postgres Client       | 13                | 30                | 5.06s       | 6.10s             | 6.86s           | 652K     |
-| WebSocket Client      | 10                | 22                | 4.34s       | 4.92s             | 5.64s           | 560K     |
-
-[^1]: Internal dependencies required by the feature.
-
-[^2]: The sum of optional and required dependencies used by the associated binaries.
+| Technology            | Required Deps [^1] | All Deps [^2]      | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
+| --------------------- | ------------------ | ------------------ | ----------- | ----------------- | --------------- | -------- |
+| Client API Framework  | 0                  | 31                 | 6.22s       | 7.77s             | 9.45s           | 872K     |
+| gRPC Client           | 2                  | 16                 | 4.81s       | 5.99s             | 7.31s           | 736K     |
+| HTTP Client Pool      | 2                  | 15                 | 4.67s       | 6.04s             | 7.06s           | 728K     |
+| HTTP Server Framework | 2                  | 37                 | 8.17s       | 10.69s            | 11.56s          | 996K     |
+| Postgres Client       | 13                 | 30                 | 5.06s       | 6.10s             | 6.86s           | 652K     |
+| WebSocket Client      | 10                 | 22                 | 4.34s       | 4.92s             | 5.64s           | 560K     |
 
 ## Transport Layer Security (TLS)
 
@@ -97,6 +93,10 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 * Does not support systems with a pointer length of 16 bits.
 
 * Expects the infallible sum of the lengths of an arbitrary number of slices, otherwise the program will likely trigger an overflow that can possibly result in unexpected operations. For example, in a 32bit system such a scenario should be viable without swap memory or through specific limiters like `ulimit`.
+
+[^1]: Internal dependencies required by the feature.
+
+[^2]: The sum of optional and required dependencies used by the associated binaries.
 
 [client-api-framework-doc]: https://c410-f3r.github.io/wtx/client-api-framework/index.html
 [database-client-doc]: https://c410-f3r.github.io/wtx/database-client/index.html
