@@ -16,6 +16,7 @@ mod macros;
 
 #[cfg(all(feature = "_bench", test))]
 pub(crate) mod bench;
+pub mod calendar;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
 pub mod collection;
@@ -38,7 +39,6 @@ pub mod stream;
 pub mod sync;
 #[cfg(test)]
 mod tests;
-pub mod time;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 

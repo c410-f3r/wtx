@@ -1,6 +1,7 @@
 # Summary
 
 - [Introduction](README.md)
+- [Calendar](calendar/README.md)
 - [Client API Framework](client-api-framework/README.md)
 - [Database Client](database-client/README.md)
   - [Encrypted Connections](database-client/encrypted-connections.md)
@@ -12,7 +13,6 @@
 - [HTTP/2](http2/README.md)
 - [Internal Development](internal-development/README.md)
 - [Pool](pool/README.md)
-- [Time](time/README.md)
 - [UI tools](ui-tools/README.md)
 - [WebSocket](web-socket/README.md)
 - [WebSocket over HTTP/2](web-socket-over-http2/README.md)

@@ -153,7 +153,7 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
   }
   #[cfg(not(feature = "tokio"))]
   {
-    let now = crate::time::Instant::now();
+    let now = crate::calendar::Instant::now();
     core::future::poll_fn(|cx| {
       if now.elapsed()? >= duration {
         return core::task::Poll::Ready(Ok(()));

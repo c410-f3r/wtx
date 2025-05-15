@@ -1,4 +1,5 @@
 use crate::{
+  calendar::Instant,
   http::{
     AutoStream, ManualServerStreamTokio, OperationMode, Protocol, ReqResBuffer, Request, Response,
     optioned_server::OptionedServer,
@@ -6,7 +7,6 @@ use crate::{
   http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
   misc::{Either, FnFut},
   stream::{StreamReader, StreamWriter},
-  time::DateTime,
 };
 use core::{mem, net::IpAddr};
 use tokio::net::{TcpListener, TcpStream};
@@ -218,9 +218,6 @@ fn log_req(_peer: &IpAddr, _req: &Request<ReqResBuffer>) {
   let _method = _req.method.strings().custom[0];
   let _path = _req.rrd.uri.path();
   let _version = _req.version.strings().custom[0];
-  let _time = crate::time::Instant::now_timestamp()
-    .ok()
-    .and_then(|el| DateTime::from_timestamp_secs(el.as_secs().try_into().ok()?).ok())
-    .unwrap_or_default();
+  let _time = Instant::now_timestamp(0).unwrap_or_default().as_secs();
   _debug!(r#"{_peer} [{_time}] "{_method} {_path} {_version}""#,);
 }

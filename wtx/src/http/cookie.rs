@@ -4,9 +4,9 @@ pub(crate) mod cookie_str;
 mod same_site;
 
 use crate::{
+  calendar::TimeToken,
   collection::{ArrayVector, Vector},
   rng::Rng,
-  time::TimeToken,
 };
 pub use cookie_error::CookieError;
 use core::str;

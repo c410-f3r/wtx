@@ -1,6 +1,6 @@
 use crate::{
+  calendar::DateTime,
   http::session::{SessionCsrf, SessionKey},
-  time::DateTime,
 };
 
 /// Data that is saved in the corresponding store.

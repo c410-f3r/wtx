@@ -22,6 +22,7 @@ pub struct Usize(usize);
 impl Usize {
   pub(crate) const IS_64: bool = cfg!(target_pointer_width = "64");
 
+  #[cfg(feature = "calendar")]
   pub(crate) const fn from_u16(from: u16) -> Self {
     Self(from as usize)
   }
