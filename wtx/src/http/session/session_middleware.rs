@@ -1,4 +1,5 @@
 use crate::{
+  calendar::Instant,
   collection::Vector,
   http::{
     KnownHeaderName, Method, ReqResBuffer, Request, Response, SessionError, SessionManager,
@@ -8,7 +9,6 @@ use crate::{
   },
   misc::{Lease, LeaseMut, Lock},
   pool::{Pool, ResourceManager},
-  time::{DateTime, Instant},
 };
 use alloc::string::String;
 use core::ops::ControlFlow;
@@ -62,9 +62,7 @@ where
     let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
     if let Some(elem) = ca.lease() {
       if let Some(expires) = &elem.expires_at {
-        let timestamp = Instant::now_timestamp()?.as_secs().cast_signed();
-        let date_time = DateTime::from_timestamp_secs(timestamp)?;
-        if expires >= &date_time {
+        if expires >= &Instant::now_date_time(0)? {
           let _rslt =
             self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.session_key).await;
           return Err(crate::Error::from(SessionError::ExpiredSession).into());

@@ -1,4 +1,5 @@
 use crate::{
+  calendar::{DateTime, Instant},
   collection::{ArrayString, Vector},
   http::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
@@ -8,7 +9,6 @@ use crate::{
   },
   misc::{Lease, LeaseMut, Lock},
   rng::Rng,
-  time::{DateTime, Instant},
 };
 use core::{
   fmt::{Debug, Formatter},
@@ -92,8 +92,8 @@ where
         elem
       }
       (Some(_), Some(max_age)) | (None, Some(max_age)) => {
-        let timestamp = Instant::now().checked_add(max_age)?.timestamp()?.as_secs().cast_signed();
-        let expires_at = DateTime::from_timestamp_secs(timestamp)?;
+        let expires_at =
+          Instant::now_date_time(0)?.add(max_age.try_into()?).map_err(crate::Error::from)?;
         let elem = SessionState::new(custom_state, Some(expires_at), session_csrf, session_key);
         store.create(&elem).await?;
         elem

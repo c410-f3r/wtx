@@ -1,9 +1,9 @@
 use crate::{
+  calendar::CalendarError,
   collection::{
     ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
   },
   misc::FromRadix10Error,
-  time::TimeError,
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -200,6 +200,8 @@ pub enum Error {
   ArrayVectorError(ArrayVectorError),
   #[doc = associated_element_doc!()]
   BlocksQueueError(BlocksDequeError),
+  #[doc = associated_element_doc!()]
+  CalendarError(CalendarError),
   #[cfg(feature = "client-api-framework")]
   #[doc = associated_element_doc!()]
   ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
@@ -246,8 +248,6 @@ pub enum Error {
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
-  #[doc = associated_element_doc!()]
-  TimeError(TimeError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -614,6 +614,13 @@ impl From<BlocksDequeError> for Error {
   }
 }
 
+impl From<CalendarError> for Error {
+  #[inline]
+  fn from(from: CalendarError) -> Self {
+    Self::CalendarError(from)
+  }
+}
+
 #[cfg(feature = "http")]
 impl From<crate::http::HttpError> for Error {
   #[inline]
@@ -689,13 +696,6 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   #[inline]
   fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
-  }
-}
-
-impl From<TimeError> for Error {
-  #[inline]
-  fn from(from: TimeError) -> Self {
-    Self::TimeError(from)
   }
 }
 

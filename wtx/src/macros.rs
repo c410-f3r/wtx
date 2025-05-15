@@ -224,6 +224,14 @@ macro_rules! doc_bad_format {
   };
 }
 
+macro_rules! doc_epoch {
+  () => {
+    "`secs` is the amount of seconds passed since the UNIX epoch. This parameter is only relevant
+    for few `no_std` devices that can't natively provide time measurements, as such, regular users
+    should simply pass `zero`."
+  };
+}
+
 macro_rules! doc_many_elems_cap_overflow {
   () => {
     "There is no capacity left to insert a set of new elements."

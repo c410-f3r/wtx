@@ -15,6 +15,7 @@ $rt test-with-features wtx arbitrary
 $rt test-with-features wtx argon2
 $rt test-with-features wtx base64
 $rt test-with-features wtx borsh
+$rt test-with-features wtx calendar
 $rt test-with-features wtx chrono
 $rt test-with-features wtx cl-aux
 $rt test-with-features wtx client-api-framework

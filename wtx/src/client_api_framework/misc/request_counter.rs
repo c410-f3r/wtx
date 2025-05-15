@@ -1,18 +1,18 @@
-use crate::{client_api_framework::misc::RequestLimit, misc::sleep, time::Instant};
+use crate::{calendar::Instant, client_api_framework::misc::RequestLimit, misc::sleep};
 use core::time::Duration;
 
 /// Tracks how many requests were performed in a time interval
 #[derive(Clone, Copy, Debug)]
 pub struct RequestCounter {
   counter: u16,
-  instant: Instant,
+  time_provider: Instant,
 }
 
 impl RequestCounter {
   /// Instance with valid initial values
   #[inline]
   pub fn new() -> Self {
-    Self { counter: 0, instant: Instant::now() }
+    Self { counter: 0, time_provider: Instant::now() }
   }
 
   /// How many requests within the current time-slot are still available for usage.
@@ -27,11 +27,11 @@ impl RequestCounter {
   pub async fn update_params(&mut self, rl: &RequestLimit) -> crate::Result<()> {
     let now = Instant::now();
     let duration = *rl.duration();
-    let elapsed = now.duration_since(self.instant)?;
+    let elapsed = now.duration_since(self.time_provider)?;
     if elapsed > duration {
       _debug!("Elapsed is greater than duration. Re-initializing");
       self.counter = 1;
-      self.instant = now;
+      self.time_provider = now;
     } else if self.counter == 0 {
       _debug!("First instance call");
       self.counter = 2;
@@ -56,7 +56,7 @@ impl RequestCounter {
     if let Some(diff) = duration.checked_sub(elapsed) {
       _debug!("Call needs to wait {}ms", diff.as_millis());
       sleep(diff).await?;
-      self.instant = Instant::now();
+      self.time_provider = Instant::now();
     }
     Ok(())
   }

@@ -27,6 +27,7 @@ In a way, `WTX` can be seen as an amalgamation that consolidates the functionali
 
 | Technology                                             | Similar Projects                                                   | Feature (`wtx`)          |
 | ------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------ |
+| [Calendar][calendar-doc]                               | [chrono][chrono], [time][time]                                     | calendar                 |
 | [Client API Framework][client-api-framework-doc]       | N/A                                                                | client-api-framework     |
 | [Database Client][database-client-doc]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          |
 | [Database Schema Manager][database-schema-manager-doc] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           |
@@ -98,6 +99,7 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 
 [^2]: The sum of optional and required dependencies used by the associated binaries.
 
+[calendar-doc]: https://c410-f3r.github.io/wtx/calendar/index.html
 [client-api-framework-doc]: https://c410-f3r.github.io/wtx/client-api-framework/index.html
 [database-client-doc]: https://c410-f3r.github.io/wtx/database-client/index.html
 [database-schema-manager-doc]: https://c410-f3r.github.io/wtx/database-schema-manager/index.html
@@ -110,6 +112,7 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 
 [axum]: https://github.com/tokio-rs/axum
 [bb8]: https://github.com/djc/bb8
+[chrono]: https://github.com/chronotope/chrono
 [deadpool]: https://github.com/deadpool-rs/deadpool
 [diesel]: https://github.com/diesel-rs/diesel
 [fastapi]: https://github.com/fastapi/fastapi
@@ -125,6 +128,7 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 [reqwest]: https://github.com/seanmonstar/reqwest
 [spring-boot]: https://github.com/spring-projects/spring-boot
 [sqlx]: https://github.com/launchbadge/sqlx
+[time]: https://github.com/time-rs/time
 [tokio-tungstenite]: https://github.com/snapview/tokio-tungstenite
 [tonic]: https://github.com/hyperium/tonic
 [uWebSockets]: https://github.com/uNetworking/uWebSockets

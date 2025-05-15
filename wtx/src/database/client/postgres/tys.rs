@@ -43,13 +43,14 @@ macro_rules! test {
   };
 }
 
+#[cfg(feature = "calendar")]
+mod calendar;
 #[cfg(feature = "chrono")]
 mod chrono;
 #[cfg(feature = "rust_decimal")]
 mod rust_decimal;
 #[cfg(feature = "serde_json")]
 mod serde_json;
-mod time;
 #[cfg(feature = "uuid")]
 mod uuid;
 

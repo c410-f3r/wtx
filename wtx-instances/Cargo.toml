@@ -50,6 +50,11 @@ required-features = ["database-client-postgres-enum"]
 # Generic Examples
 
 [[example]]
+name = "calendar"
+path = "generic-examples/calendar.rs"
+required-features = ["calendar"]
+
+[[example]]
 name = "client-api-framework"
 path = "generic-examples/client-api-framework.rs"
 required-features = ["client-api-framework"]
@@ -73,10 +78,6 @@ required-features = ["http-client-pool"]
 name = "pool"
 path = "generic-examples/pool.rs"
 required-features = ["pool"]
-
-[[example]]
-name = "time"
-path = "generic-examples/time.rs"
 
 # HTTP Server Framework Examples
 
@@ -154,6 +155,7 @@ database-client-postgres = ["postgres"]
 database-client-postgres-composite-type = ["postgres"]
 database-client-postgres-enum = ["postgres"]
 
+calendar = ["wtx/calendar"]
 client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly"]
