@@ -145,6 +145,14 @@ impl DateTime {
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
     (rslt.wrapping_add(u32i64(self.time.seconds_since_mn())), self.time.nanosecond())
   }
+
+  /// Returns a new instance with the number of nanoseconds truncated to microseconds.
+  #[inline]
+  pub const fn trunc_us(self) -> Self {
+    let mut new = self;
+    new.time = new.time.trunc_ns();
+    new
+  }
 }
 
 impl Debug for DateTime {

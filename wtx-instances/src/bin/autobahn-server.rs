@@ -20,7 +20,7 @@ async fn main() -> wtx::Result<()> {
     Flate2::default,
     |error| eprintln!("{error}"),
     handle,
-    (|| Ok(()), |_| {}, |_, stream| async move { Ok(stream) }),
+    (|| Ok(()), |_, stream| async move { Ok(stream) }),
   )
   .await
 }

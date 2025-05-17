@@ -220,6 +220,14 @@ impl Time {
     Ok(this)
   }
 
+  /// Returns a new instance with the number of nanoseconds truncated to microseconds.
+  #[inline]
+  pub const fn trunc_ns(self) -> Self {
+    let mut new = self;
+    new.nanosecond = new.nanosecond.to_us().to_ns();
+    new
+  }
+
   pub(crate) const fn hms_from_seconds(seconds: i64) -> (i32, u8, u8, u8) {
     let day_seconds = seconds.rem_euclid(u32i64(SECONDS_PER_DAY)) as i32;
     let hour = (day_seconds / u16i32(SECONDS_PER_HOUR)) as u8;

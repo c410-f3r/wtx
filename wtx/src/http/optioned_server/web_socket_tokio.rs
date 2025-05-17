@@ -21,14 +21,13 @@ impl OptionedServer {
     compression_cb: impl Clone + Fn() -> C + Send + 'static,
     err_cb: impl Clone + Fn(E) + Send + 'static,
     handle_cb: H,
-    (acceptor_cb, conn_acceptor_cb, net_cb): (
+    (acceptor_cb, net_cb): (
       impl FnOnce() -> crate::Result<ACPT> + Send + 'static,
-      impl Clone + Fn(&ACPT) -> ACPT + Send + 'static,
       impl Clone + Fn(ACPT, TcpStream) -> N + Send + 'static,
     ),
   ) -> crate::Result<()>
   where
-    ACPT: Send + 'static,
+    ACPT: Clone + Send + 'static,
     C: Compression<false> + Send + 'static,
     C::NegotiatedCompression: Send,
     E: Debug + From<crate::Error> + Send + 'static,
@@ -49,7 +48,7 @@ impl OptionedServer {
     let listener = TcpListener::bind(addr).await?;
     let acceptor = acceptor_cb()?;
     loop {
-      let conn_acceptor = conn_acceptor_cb(&acceptor);
+      let conn_acceptor = acceptor.clone();
       let conn_compression_cb = compression_cb.clone();
       let conn_conn_err = err_cb.clone();
       let conn_handle_cb = handle_cb.clone();

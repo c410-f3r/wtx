@@ -92,8 +92,10 @@ where
         elem
       }
       (Some(_), Some(max_age)) | (None, Some(max_age)) => {
-        let expires_at =
-          Instant::now_date_time(0)?.add(max_age.try_into()?).map_err(crate::Error::from)?;
+        let expires_at = Instant::now_date_time(0)?
+          .add(max_age.try_into()?)
+          .map_err(crate::Error::from)?
+          .trunc_us();
         let elem = SessionState::new(custom_state, Some(expires_at), session_csrf, session_key);
         store.create(&elem).await?;
         elem
