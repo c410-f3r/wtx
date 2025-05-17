@@ -62,7 +62,7 @@ where
     let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
     if let Some(elem) = ca.lease() {
       if let Some(expires) = &elem.expires_at {
-        if expires >= &Instant::now_date_time(0)? {
+        if expires >= &Instant::now_date_time(0)?.trunc_us() {
           let _rslt =
             self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.session_key).await;
           return Err(crate::Error::from(SessionError::ExpiredSession).into());

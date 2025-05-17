@@ -27,7 +27,6 @@ async fn main() -> wtx::Result<()> {
         TokioRustlsAcceptor::without_client_auth()
           .build_with_cert_chain_and_priv_key(wtx_instances::CERT, wtx_instances::KEY)
       },
-      |acceptor| acceptor.clone(),
       |acceptor, stream| async move { Ok(acceptor.accept(stream).await?) },
     ),
   )

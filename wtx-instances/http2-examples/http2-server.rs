@@ -1,6 +1,6 @@
 //! HTTP/2 server that uses optioned parameters.
 //!
-//! Automatic stream are handled by the system while manual stream are handled by the user. In
+//! Automatic streams are handled by the system while manual stream are handled by the user. In
 //! this particular example all manual streams are considered to be WebSocket connections over
 //! HTTP/2.
 

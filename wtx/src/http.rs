@@ -32,7 +32,7 @@ mod session;
 mod status_code;
 mod version;
 
-#[cfg(feature = "http-session")]
+#[cfg(feature = "http-cookie")]
 pub use cookie::*;
 pub use generic_header::GenericHeader;
 pub use generic_request::GenericRequest;

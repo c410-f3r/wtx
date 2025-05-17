@@ -3,17 +3,17 @@ use crate::{
   http::{Headers, KnownHeaderName, Method, Protocol, ReqResBuffer, Request},
 };
 
-/// Verifies if the initial received headers represent a WebSocket connection.
+/// Verifies if the initial received HTTP/2 headers represent a WebSocket connection.
 #[inline]
 pub fn is_web_socket_handshake(
   headers: &Headers,
   method: Method,
   protocol: Option<Protocol>,
 ) -> bool {
-  let bytes = KnownHeaderName::SecWebsocketVersion.into();
+  let header = KnownHeaderName::SecWebsocketVersion.into();
   method == Method::Connect
     && protocol == Some(Protocol::WebSocket)
-    && headers.get_by_name(bytes).map(|el| el.value) == Some("13")
+    && headers.get_by_name(header).map(|el| el.value) == Some("13")
 }
 
 /// Used as an auxiliary tool for tests.

@@ -34,9 +34,6 @@ pub enum Error {
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
-  #[cfg(feature = "chrono")]
-  #[doc = associated_element_doc!()]
-  ChronoParseError(chrono::ParseError),
   #[cfg(feature = "cl-aux")]
   #[doc = associated_element_doc!()]
   ClAux(cl_aux::Error),
@@ -284,15 +281,6 @@ impl From<argon2::Error> for Error {
   #[track_caller]
   fn from(from: argon2::Error) -> Self {
     Self::Argon2(from)
-  }
-}
-
-#[cfg(feature = "chrono")]
-impl From<chrono::ParseError> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: chrono::ParseError) -> Self {
-    Self::ChronoParseError(from)
   }
 }
 

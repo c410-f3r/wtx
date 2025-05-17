@@ -1,10 +1,7 @@
 use crate::{
   calendar::DateTime,
   collection::{ArrayVector, Vector},
-  http::{
-    CookieError,
-    cookie::{FMT1, SameSite, cookie_generic::CookieGeneric, make_lowercase},
-  },
+  http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
   misc::{PercentDecode, str_split_once1, str_split1},
 };
 use core::{str, time::Duration};
@@ -118,4 +115,11 @@ impl<'str> CookieStr<'str> {
 
     Ok(Self { generic: cookie })
   }
+}
+
+fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVector<u8, 12>, slice: &str) {
+  buffer.clear();
+  let sub_slice = slice.get(..slice.len().min(UPPER_BOUND)).unwrap_or_default();
+  let _rslt = buffer.extend_from_copyable_slice(sub_slice.as_bytes());
+  buffer.make_ascii_lowercase();
 }

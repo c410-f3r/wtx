@@ -4,7 +4,6 @@ arbitrary = { default-features = false, features = ["derive_arbitrary"], optiona
 argon2 = { default-features = false, optional = true, version = "0.5" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
-chrono = { default-features = false, optional = true, version = "0.4" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crypto-common = { default-features = false, optional = true, version = "0.1" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.10" }
@@ -64,10 +63,10 @@ grpc-client = ["grpc", "http-client-pool"]
 grpc-server = ["grpc", "http-server-framework"]
 http = []
 http-client-pool = ["http2", "pool", "std"]
-http-cookie = ["chrono/alloc", "http"]
+http-cookie = ["calendar", "http"]
 http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
 http-server-framework = ["http2"]
-http-session = ["chrono/now", "chrono/serde", "http-cookie-secure", "serde_json"]
+http-session = ["http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 loom = ["dep:loom", "std"]
 mysql = ["database", "digest", "foldhash", "hashbrown", "rand_0_8", "rand-compat", "rsa/pem", "spki", "sha1", "sha2"]
@@ -89,7 +88,6 @@ std = [
   "argon2?/std",
   "base64?/std",
   "borsh?/std",
-  "chrono?/std",
   "cl-aux?/std",
   "crypto-common?/std",
   "digest?/std",
@@ -156,7 +154,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.87"
-version = "0.32.0"
+version = "0.33.0"
 
 [package.metadata.docs.rs]
 all-features = true

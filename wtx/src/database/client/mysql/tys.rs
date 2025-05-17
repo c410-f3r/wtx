@@ -41,8 +41,6 @@ macro_rules! test {
 
 #[cfg(feature = "calendar")]
 mod calendar;
-#[cfg(feature = "chrono")]
-mod chrono;
 
 mod collections {
   use crate::{

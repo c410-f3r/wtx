@@ -1,20 +1,21 @@
 mod cookie_error;
+#[cfg(feature = "http-session")]
 pub(crate) mod cookie_generic;
+#[cfg(all(feature = "http-server-framework", feature = "http-session"))]
 pub(crate) mod cookie_str;
 mod same_site;
 
-use crate::{
-  calendar::TimeToken,
-  collection::{ArrayVector, Vector},
-  rng::Rng,
-};
+#[cfg(feature = "http-session")]
+use crate::{calendar::TimeToken, collection::Vector, rng::Rng};
 pub use cookie_error::CookieError;
-use core::str;
 pub use same_site::SameSite;
 
+#[cfg(feature = "http-session")]
 const NONCE_LEN: usize = 12;
+#[cfg(feature = "http-session")]
 const TAG_LEN: usize = 16;
 
+#[cfg(feature = "http-session")]
 static FMT1: &[TimeToken] = &[
   TimeToken::AbbreviatedWeekdayName,
   TimeToken::Comma,
@@ -34,7 +35,7 @@ static FMT1: &[TimeToken] = &[
   TimeToken::Gmt,
 ];
 
-#[cfg(feature = "http-cookie-secure")]
+#[cfg(feature = "http-server-framework")]
 pub(crate) fn decrypt<'buffer>(
   buffer: &'buffer mut Vector<u8>,
   secret: &[u8; 32],
@@ -76,7 +77,7 @@ pub(crate) fn decrypt<'buffer>(
   Ok(content)
 }
 
-#[cfg(feature = "http-cookie-secure")]
+#[cfg(feature = "http-session")]
 pub(crate) fn encrypt<RNG>(
   buffer: &mut Vector<u8>,
   secret: &[u8; 32],
@@ -150,11 +151,4 @@ where
   let base64_idx = STANDARD.encode_slice(&mut *content, base64)?;
   buffer.truncate(start.wrapping_add(base64_idx));
   Ok(())
-}
-
-fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVector<u8, 12>, slice: &str) {
-  buffer.clear();
-  let sub_slice = slice.get(..slice.len().min(UPPER_BOUND)).unwrap_or_default();
-  let _rslt = buffer.extend_from_copyable_slice(sub_slice.as_bytes());
-  buffer.make_ascii_lowercase();
 }
