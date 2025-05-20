@@ -13,7 +13,7 @@ use crate::{
   misc::parts_from_generics,
 };
 use proc_macro2::{Ident, Span, TokenStream};
-use syn::{Fields, FnArg, ImplItemMethod, ReturnType, Type};
+use syn::{Fields, FnArg, ImplItemFn, ReturnType, Type};
 
 impl SirAuxItemValues {
   pub(super) fn create_automatic_fn_params<'any>(
@@ -122,16 +122,16 @@ impl SirAuxItemValues {
   }
 
   pub(super) fn create_manual_fn_params<'iim>(
-    iim: &'iim ImplItemMethod,
+    iif: &'iim ImplItemFn,
     fn_name: &str,
   ) -> crate::Result<(FnCommonValues<'iim>, TokenStream)> {
-    if iim.sig.ident != fn_name {
-      return Err(crate::Error::BadAuxData(iim.sig.ident.span(), fn_name.to_owned()));
+    if iif.sig.ident != fn_name {
+      return Err(crate::Error::BadAuxData(iif.sig.ident.span(), fn_name.to_owned()));
     }
 
-    let (fn_params, fn_where_predicates) = parts_from_generics(&iim.sig.generics);
+    let (fn_params, fn_where_predicates) = parts_from_generics(&iif.sig.generics);
     let fn_args_iter_fn = || {
-      iim.sig.inputs.iter().filter_map(|fn_arg| {
+      iif.sig.inputs.iter().filter_map(|fn_arg| {
         if let FnArg::Typed(pat_type) = fn_arg { Some(pat_type) } else { None }
       })
     };
@@ -142,7 +142,7 @@ impl SirAuxItemValues {
     let mut fn_ret_wrapper_segments = EMPTY_PATH_SEGS;
     let mut fn_ret_wrapper_variant_ident = None;
     let mut has_short_circuit = false;
-    if let ReturnType::Type(_, ret_ty) = &iim.sig.output {
+    if let ReturnType::Type(_, ret_ty) = &iif.sig.output {
       if let Some((tp, ps, abga)) = inner_angle_bracketed_values(ret_ty) {
         match ps.ident.to_string().as_str() {
           "Option" => {
@@ -165,7 +165,7 @@ impl SirAuxItemValues {
     let fn_args_iter = fn_args_iter_fn();
     let fn_args = quote::quote!(#(#fn_args_iter,)*);
     let fn_args_idents = fn_args_iter_fn().map(|el| &*el.pat);
-    let method_ident = &iim.sig.ident;
+    let method_ident = &iif.sig.ident;
     let fn_ret_constr = if has_short_circuit {
       quote::quote!(self.aux.#method_ident(#(#fn_args_idents,)*)?)
     } else {

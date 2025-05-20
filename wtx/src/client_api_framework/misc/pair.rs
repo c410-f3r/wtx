@@ -9,8 +9,8 @@ pub type PairMut<'any, PA, T> = Pair<&'any mut PA, &'any mut T>;
 ///
 /// # Types
 ///
-/// * `PA`: PkgsAux
-/// * `T`: Transport
+/// * `PA`: `PkgsAux`
+/// * `T`: `Transport`
 #[derive(Debug)]
 pub struct Pair<PA, T> {
   /// See [`crate::client_api_framework::pkg::PkgsAux`].

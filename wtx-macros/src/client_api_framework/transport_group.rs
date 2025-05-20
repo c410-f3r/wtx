@@ -1,7 +1,7 @@
 use crate::misc::single_elem;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens as _;
-use syn::{Meta, NestedMeta, Path, PathSegment, Token, punctuated::Punctuated};
+use syn::{Meta, Path, PathSegment, Token, punctuated::Punctuated, spanned::Spanned as _};
 
 #[derive(Debug)]
 pub(crate) enum TransportGroup {
@@ -11,14 +11,14 @@ pub(crate) enum TransportGroup {
   WebSocket,
 }
 
-impl<'attrs> TryFrom<&'attrs NestedMeta> for TransportGroup {
+impl<'attrs> TryFrom<&'attrs Meta> for TransportGroup {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: &'attrs NestedMeta) -> Result<Self, Self::Error> {
-    let err = |span| Err(crate::Error::UnknownTransport(span));
+  fn try_from(from: &'attrs Meta) -> Result<Self, Self::Error> {
+    let err = |span: Span| Err(crate::Error::UnknownTransport(span));
     match from {
-      NestedMeta::Meta(Meta::Path(path)) => {
+      Meta::Path(path) => {
         let ps = single_path_segment(path)?;
         Ok(match ps.ident.to_string().as_str() {
           "http" => Self::Http,
@@ -27,21 +27,22 @@ impl<'attrs> TryFrom<&'attrs NestedMeta> for TransportGroup {
           _ => return err(ps.ident.span()),
         })
       }
-      NestedMeta::Meta(Meta::List(meta_list)) => {
+      Meta::List(meta_list) => {
         let ps = single_path_segment(&meta_list.path)?;
-        if ps.ident.to_string().as_str() == "custom" {
-          if let NestedMeta::Meta(Meta::Path(path)) = single_nested(&meta_list.nested)? {
+        if ps.ident == "custom" {
+          let metas = meta_list.parse_args_with(Punctuated::parse_terminated)?;
+          if let Meta::Path(path) = single_nested(&metas)? {
             return Ok(Self::Custom(path.to_token_stream()));
           }
         }
         err(ps.ident.span())
       }
-      NestedMeta::Lit(_) | NestedMeta::Meta(_) => err(Span::mixed_site()),
+      Meta::NameValue(mnv) => err(mnv.span()),
     }
   }
 }
 
-fn single_nested(nested: &Punctuated<NestedMeta, Token![,]>) -> crate::Result<&NestedMeta> {
+fn single_nested(nested: &Punctuated<Meta, Token![,]>) -> crate::Result<&Meta> {
   single_elem(nested.iter()).ok_or_else(|| crate::Error::UnknownTransport(Span::mixed_site()))
 }
 

@@ -82,7 +82,7 @@ use crate::{
 };
 use core::str;
 
-const TABLE: &[u8; 256] = &[
+static TABLE: &[u8; 256] = &[
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, b'!', b'"', b'#', b'$', b'%', b'&', b'\'', 0, 0, b'*', b'+', 0, b'-', b'.', 0, b'0', b'1',
   b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -105,7 +105,7 @@ where
 {
   /// New generic instance that doesn't verify `content`.
   #[inline]
-  pub const fn new_unchecked(content: S) -> Self {
+  pub const fn new(content: S) -> Self {
     Self(content)
   }
 
@@ -140,9 +140,9 @@ where
 }
 
 impl<'this> HeaderName<&'this str> {
-  /// New instance from a set of bytes
+  /// New instance from a set of valid bytes
   #[inline]
-  pub fn from_bytes(content: &'this [u8]) -> crate::Result<Self> {
+  pub fn from_checked_bytes(content: &'this [u8]) -> crate::Result<Self> {
     Ok(HeaderName(Self::check_header_name(content)?))
   }
 }

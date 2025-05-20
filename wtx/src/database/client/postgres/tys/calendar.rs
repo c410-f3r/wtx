@@ -2,7 +2,7 @@ use crate::{
   calendar::{Date, DateTime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Year},
   database::{
     DatabaseError, Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
+    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
   },
   misc::{Decode, Encode},
 };
@@ -64,15 +64,11 @@ where
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     if self < &PG_MIN || self > &DateTime::MAX {
-      return Err(E::from(
-        DatabaseError::UnexpectedValueFromBytes { expected: "timestamp" }.into(),
-      ));
+      return Err(E::from(PostgresError::TimeStructureOverflow.into()));
     }
     let (this_ts, this_ns) = self.timestamp();
     if this_ns.num() % 1_000 > 0 {
-      return Err(E::from(
-        DatabaseError::UnexpectedValueFromBytes { expected: "timestamp" }.into(),
-      ));
+      return Err(E::from(PostgresError::TimeStructureWithGreaterPrecision.into()));
     }
     let this_us = this_ns.num() / 1_000;
     let (epoch_ts, _) = PG_EPOCH.timestamp();

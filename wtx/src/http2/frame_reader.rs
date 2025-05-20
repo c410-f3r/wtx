@@ -13,7 +13,6 @@ macro_rules! prft {
       recv_streams_num: &mut $hdpm.recv_streams_num,
       stream_reader: $stream_reader,
       stream_writer: &mut $hdpm.stream_writer,
-      uri_buffer: &mut $hdpm.hb.uri_buffer,
     }
   };
 }

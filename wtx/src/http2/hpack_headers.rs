@@ -35,16 +35,16 @@ where
     self.max_bytes
   }
 
-  pub(crate) fn push_front<'bytes, I>(
+  pub(crate) fn push_front<'str, I>(
     &mut self,
     misc: M,
-    name: &'bytes str,
+    name: &'str str,
     values: I,
     is_sensitive: bool,
     cb: impl FnMut(M),
   ) -> crate::Result<()>
   where
-    I: IntoIterator<Item = &'bytes str>,
+    I: IntoIterator<Item = &'str str>,
     I::IntoIter: Clone + ExactSizeIterator,
   {
     let iter = values.into_iter();
@@ -79,12 +79,12 @@ where
     AbstractHeader {
       is_sensitive: block.misc.is_sensitive,
       misc: &block.misc.misc,
-      name_bytes: {
+      name: {
         let str = block.data.get(..block.misc.name_len).unwrap_or_default();
         // SAFETY: Input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
-      value_bytes: {
+      value: {
         let str = block.data.get(block.misc.name_len..).unwrap_or_default();
         // SAFETY: Input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
@@ -109,8 +109,8 @@ where
 pub(crate) struct AbstractHeader<'ah, M> {
   pub(crate) is_sensitive: bool,
   pub(crate) misc: &'ah M,
-  pub(crate) name_bytes: &'ah str,
-  pub(crate) value_bytes: &'ah str,
+  pub(crate) name: &'ah str,
+  pub(crate) value: &'ah str,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

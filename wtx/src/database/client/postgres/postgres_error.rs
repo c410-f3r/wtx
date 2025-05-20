@@ -26,6 +26,10 @@ pub enum PostgresError {
   RequiredChannel,
   /// Server does not support encryption
   ServerDoesNotSupportEncryption,
+  /// The passed time structure contains a duration that is out of bounds
+  TimeStructureOverflow,
+  /// The passed time structure can not have a precision greater than microseconds
+  TimeStructureWithGreaterPrecision,
   /// Received an unexpected message type.
   UnexpectedDatabaseMessage {
     /// Received

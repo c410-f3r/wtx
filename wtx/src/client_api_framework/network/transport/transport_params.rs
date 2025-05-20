@@ -14,21 +14,25 @@ pub trait TransportParams {
   ) -> (&mut Self::ExternalRequestParams, &mut Self::ExternalResponseParams);
 
   /// External Request Parameters.
+  #[inline]
   fn ext_req_params(&self) -> &Self::ExternalRequestParams {
     self.ext_params().0
   }
 
   /// Mutable version of [`Self::ext_req_params`].
+  #[inline]
   fn ext_req_params_mut(&mut self) -> &mut Self::ExternalRequestParams {
     self.ext_params_mut().0
   }
 
   /// External Response Parameters.
+  #[inline]
   fn ext_res_params(&self) -> &Self::ExternalResponseParams {
     self.ext_params().1
   }
 
   /// Mutable version of [`Self::ext_res_params`].
+  #[inline]
   fn ext_res_params_mut(&mut self) -> &mut Self::ExternalResponseParams {
     self.ext_params_mut().1
   }
@@ -78,6 +82,6 @@ where
 
   #[inline]
   fn reset(&mut self) {
-    (**self).reset()
+    (**self).reset();
   }
 }

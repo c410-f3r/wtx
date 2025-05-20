@@ -3,9 +3,9 @@ use crate::client_api_framework::misc::{RequestCounter, RequestLimit};
 /// A wrapper around [RequestCounter] and [RequestLimit].
 #[derive(Clone, Copy, Debug)]
 pub struct RequestThrottling {
-  /// See [RequestCounter]
+  /// See [`RequestCounter`]
   pub rc: RequestCounter,
-  /// See [RequestLimit]
+  /// See [`RequestLimit`]
   pub rl: RequestLimit,
 }
 
