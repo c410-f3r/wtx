@@ -160,15 +160,7 @@ async fn nested_middlewares() {
   };
 
   {
-    auto_stream
-      .req
-      .rrd
-      .uri
-      .reset(|el| {
-        el.push_str("http://localhost/aaa/bbb/ccc");
-        Ok(())
-      })
-      .unwrap();
+    auto_stream.req.rrd.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
     let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
       auto_stream.req.rrd.uri.path(),
       &sf._router,
@@ -186,15 +178,7 @@ async fn nested_middlewares() {
   auto_stream.stream_aux = Counter(0);
 
   {
-    auto_stream
-      .req
-      .rrd
-      .uri
-      .reset(|el| {
-        el.push_str("http://localhost/fff");
-        Ok(())
-      })
-      .unwrap();
+    auto_stream.req.rrd.uri.reset().push_str("http://localhost/fff");
     let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
       auto_stream.req.rrd.uri.path(),
       &sf._router,

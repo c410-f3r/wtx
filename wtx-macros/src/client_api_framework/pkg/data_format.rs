@@ -2,7 +2,10 @@ use crate::client_api_framework::{
   pkg::data_format_elems::DataFormatElems, transport_group::TransportGroup,
 };
 use proc_macro2::{Ident, Span, TokenStream};
-use syn::{Lit, Meta, NestedMeta};
+use syn::{
+  LitStr, Meta,
+  parse::{Parse, ParseStream},
+};
 
 #[derive(Debug)]
 pub(crate) enum DataFormat {
@@ -93,11 +96,11 @@ impl DataFormat {
   }
 }
 
-impl<'attrs> TryFrom<&'attrs NestedMeta> for DataFormat {
+impl TryFrom<&Meta> for DataFormat {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: &'attrs NestedMeta) -> Result<Self, Self::Error> {
+  fn try_from(from: &Meta) -> Result<Self, Self::Error> {
     macro_rules! first_path_seg_ident {
       ($path:expr) => {
         if let Some(elem) = $path.segments.first() {
@@ -107,21 +110,17 @@ impl<'attrs> TryFrom<&'attrs NestedMeta> for DataFormat {
         }
       };
     }
-    let NestedMeta::Meta(meta) = from else {
-      return Err(crate::Error::UnknownDataFormat);
-    };
-    if let Meta::List(meta_list) = meta {
+    if let Meta::List(meta_list) = from {
       let first_path_seg_ident = first_path_seg_ident!(meta_list.path);
       if first_path_seg_ident == "json_rpc" {
-        if let Some(NestedMeta::Lit(Lit::Str(elem))) = meta_list.nested.first() {
-          Ok(Self::JsonRpc(elem.value()))
-        } else {
-          Err(crate::Error::IncorrectJsonRpcDataFormat)
-        }
+        let arg = syn::parse2::<JsonRpcArg>(meta_list.tokens.clone())
+          .map_err(|_err| crate::Error::IncorrectJsonRpcDataFormat)?
+          .0;
+        Ok(Self::JsonRpc(arg.token().to_string()))
       } else {
         Err(crate::Error::UnknownDataFormat)
       }
-    } else if let Meta::Path(elem) = meta {
+    } else if let Meta::Path(elem) = from {
       match first_path_seg_ident!(elem).to_string().as_str() {
         "borsh" => Ok(Self::Borsh),
         "json" => Ok(Self::Json),
@@ -133,5 +132,14 @@ impl<'attrs> TryFrom<&'attrs NestedMeta> for DataFormat {
     } else {
       Err(crate::Error::MandatoryOuterAttrsAreNotPresent)
     }
+  }
+}
+
+struct JsonRpcArg(LitStr);
+
+impl Parse for JsonRpcArg {
+  fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+    let elem: LitStr = input.parse()?;
+    Ok(Self(elem))
   }
 }

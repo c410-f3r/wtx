@@ -13,7 +13,6 @@ use crate::{
     stream_receiver::{StreamControlRecvParams, StreamOverallRecvParams},
     stream_state::StreamState,
     u31::U31,
-    uri_buffer::UriBuffer,
   },
   misc::{
     LeaseMut, Lock, RefCounter, Usize,
@@ -244,7 +243,6 @@ pub(crate) async fn read_header_and_continuations<
   read_frame_waker: &AtomicWaker,
   rrb: &mut ReqResBuffer,
   stream_reader: &mut SR,
-  uri_buffer: &mut UriBuffer,
   mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
 ) -> crate::Result<(Option<usize>, bool, H)>
 where
@@ -268,7 +266,6 @@ where
       hp,
       hpack_dec,
       (rrb, rrb_body_start),
-      uri_buffer,
     )?;
 
     if hf.is_over_size() {
@@ -308,14 +305,8 @@ where
     return Err(protocol_err(Http2Error::VeryLargeAmountOfContinuationFrames));
   }
 
-  let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
-    None,
-    fi,
-    hp,
-    hpack_dec,
-    (rrb, rrb_body_start),
-    uri_buffer,
-  )?;
+  let (content_length, hf) =
+    HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(None, fi, hp, hpack_dec, (rrb, rrb_body_start))?;
   if IS_TRAILER {
     rrb.body.truncate(rrb_body_start);
   } else {

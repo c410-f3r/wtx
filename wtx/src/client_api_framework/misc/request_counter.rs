@@ -21,7 +21,7 @@ impl RequestCounter {
     rl.limit().wrapping_sub(self.counter)
   }
 
-  /// If the values defined in [RequestLimit] are in agreement with the `current` values
+  /// If the values defined in [`RequestLimit`] are in agreement with the `current` values
   /// of [RequestCounter], then return `T`. Otherwise, awaits until [RequestCounter] is updated.
   #[inline]
   pub async fn update_params(&mut self, rl: &RequestLimit) -> crate::Result<()> {

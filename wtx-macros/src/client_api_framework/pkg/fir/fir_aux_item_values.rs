@@ -7,14 +7,14 @@ use crate::{
 };
 use proc_macro2::Span;
 use syn::{
-  GenericParam, ImplItem, ImplItemMethod, Item, Token, Type, Visibility, WherePredicate,
+  GenericParam, ImplItem, ImplItemFn, Item, Token, Type, Visibility, WherePredicate,
   punctuated::Punctuated,
 };
 
 #[derive(Debug)]
 pub(crate) struct FirAuxItemValues<'module> {
-  pub(crate) faiv_user_data_method: Option<&'module ImplItemMethod>,
-  pub(crate) faiv_user_params_method: Option<&'module ImplItemMethod>,
+  pub(crate) faiv_user_data_method: Option<&'module ImplItemFn>,
+  pub(crate) faiv_user_params_method: Option<&'module ImplItemFn>,
   pub(crate) faiv_params: &'module Punctuated<GenericParam, Token![,]>,
   pub(crate) faiv_ty: &'module Type,
   pub(crate) faiv_where_predicates: &'module Punctuated<WherePredicate, Token![,]>,
@@ -24,9 +24,9 @@ impl FirAuxItemValues<'_> {
   fn manage_impl_item(
     attr_span: Span,
     ii: &mut ImplItem,
-  ) -> crate::Result<(&ImplItemMethod, FirAuxFieldAttr)> {
+  ) -> crate::Result<(&ImplItemFn, FirAuxFieldAttr)> {
     let err = || Err(crate::Error::BadAux(attr_span));
-    let ImplItem::Method(ref mut iim) = *ii else {
+    let ImplItem::Fn(ref mut iim) = *ii else {
       return err();
     };
     let Some(fafa) = take_unique_pkg_attr::<FirAuxFieldAttr>(&mut iim.attrs)? else {
@@ -48,24 +48,25 @@ impl<'module> TryFrom<ItemWithAttrSpan<(), &'module mut Item>> for FirAuxItemVal
 
     let (faiv_params, faiv_where_predicates) = parts_from_generics(&item_impl.generics);
 
-    let faiv_ty = &item_impl.self_ty;
-    let items = &mut item_impl.items.iter_mut();
+    let len = item_impl.items.len();
+    let faiv_ty = &*item_impl.self_ty;
+    let items_iter = &mut item_impl.items.iter_mut();
     let mut faiv_user_data_method = None;
     let mut faiv_user_params_method = None;
 
-    if items.len() > 2 {
+    if len > 2 {
       return Err(crate::Error::BadAux(from.span));
     }
 
-    if let Some(elem) = items.next() {
-      let (iim, fafa) = Self::manage_impl_item(from.span, elem)?;
+    if let Some(elem) = items_iter.next() {
+      let (iim, fafa) = Self::manage_impl_item(from.span, elem)?; // iim is &ImplItemFn
       match fafa {
         FirAuxFieldAttr::AuxData => faiv_user_data_method = Some(iim),
         FirAuxFieldAttr::AuxParams => faiv_user_params_method = Some(iim),
       }
     }
 
-    if let Some(elem) = items.next() {
+    if let Some(elem) = items_iter.next() {
       let (iim, fafa) = Self::manage_impl_item(from.span, elem)?;
       match fafa {
         FirAuxFieldAttr::AuxData => match (faiv_user_data_method, faiv_user_params_method) {

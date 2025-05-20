@@ -427,6 +427,7 @@ impl HpackEncoder {
     Ok(())
   }
 
+  /// Static header index of pseudo header
   fn shi_pseudo((hhb, value): (HpackHeaderBasic, &str)) -> Option<StaticHeader> {
     let (has_value, idx, name): (_, _, &str) = match hhb {
       HpackHeaderBasic::Authority => (false, 1, ":authority"),

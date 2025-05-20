@@ -14,7 +14,7 @@ use crate::{
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{
-  GenericArgument, GenericParam, ImplItemMethod, PathSegment, Token, WherePredicate,
+  GenericArgument, GenericParam, ImplItemFn, PathSegment, Token, WherePredicate,
   punctuated::Punctuated,
 };
 
@@ -44,12 +44,12 @@ impl SirAuxItemValues {
   }
 
   fn fn_params<'any>(
-    faiv_user_method: Option<&'any ImplItemMethod>,
+    faiv_user_fn: Option<&'any ImplItemFn>,
     fcivr: FirCustomItemValuesRef<'_, 'any>,
     snake_case_id: &mut String,
     suffix: &str,
   ) -> crate::Result<(FnCommonValues<'any>, TokenStream, bool)> {
-    if let Some(elem) = faiv_user_method {
+    if let Some(elem) = faiv_user_fn {
       let idx = extend_with_tmp_suffix(snake_case_id, [suffix]);
       let tuple = Self::create_manual_fn_params(elem, snake_case_id)?;
       snake_case_id.truncate(idx);
@@ -60,14 +60,14 @@ impl SirAuxItemValues {
   }
 }
 
-impl<'attrs, 'module, 'others>
+impl<'module, 'others>
   TryFrom<(
     &'others mut String,
     &'others Ident,
     &'others FirAuxItemValues<'module>,
     &'others FirParamsItemValues<'module>,
     &'others FirReqItemValues<'module>,
-    &'others SirPkaAttr<'attrs>,
+    &'others SirPkaAttr,
   )> for SirAuxItemValues
 {
   type Error = crate::Error;
@@ -80,7 +80,7 @@ impl<'attrs, 'module, 'others>
       &'others FirAuxItemValues<'module>,
       &'others FirParamsItemValues<'module>,
       &'others FirReqItemValues<'module>,
-      &'others SirPkaAttr<'attrs>,
+      &'others SirPkaAttr,
     ),
   ) -> Result<Self, Self::Error> {
     let mut snake_case_id = from_camel_case_to_snake_case(camel_case_id);

@@ -5,7 +5,10 @@ use crate::{
   },
 };
 use alloc::string::String;
-use core::fmt::{Arguments, Debug, Display, Formatter, Write as _};
+use core::{
+  fmt::{Arguments, Debug, Display, Formatter, Write as _},
+  ops::{Deref, DerefMut},
+};
 
 /// [Uri] with an owned array.
 pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;
@@ -39,6 +42,7 @@ where
   initial_len: u16,
   port: Option<u16>,
   query_start: u16,
+  start: u8,
   uri: S,
 }
 
@@ -46,24 +50,30 @@ impl<S> Uri<S>
 where
   S: Lease<str>,
 {
-  #[cfg(feature = "http")]
   pub(crate) const fn empty(uri: S) -> Self {
-    Self { authority_start: 0, href_start: 0, initial_len: 0, port: None, query_start: 0, uri }
+    Self {
+      authority_start: 0,
+      href_start: 0,
+      initial_len: 0,
+      port: None,
+      query_start: 0,
+      start: 0,
+      uri,
+    }
   }
 
   /// Analyzes the provided `uri` to create a new instance.
   #[inline]
   pub fn new(uri: S) -> Self {
-    let (initial_len, authority_start, href_start, query_start) = Self::parts(uri.lease());
-    let mut this = Self { authority_start, href_start, initial_len, port: None, query_start, uri };
-    this.process_port();
+    let mut this = Self::empty(uri);
+    this.process();
     this
   }
 
   /// Full URI string
   #[inline]
   pub fn as_str(&self) -> &str {
-    self.uri.lease()
+    self.uri.lease().get(self.start.into()..).unwrap_or_default()
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2>
@@ -210,7 +220,7 @@ where
     self
       .authority_start
       .checked_sub(3)
-      .and_then(|index| self.uri.lease().get(..index.into()))
+      .and_then(|idx| self.uri.lease().get(self.start.into()..idx.into()))
       .unwrap_or_default()
   }
 
@@ -223,6 +233,7 @@ where
       initial_len: self.initial_len,
       port: self.port,
       query_start: self.query_start,
+      start: self.start,
       uri: self.uri.lease(),
     }
   }
@@ -236,6 +247,7 @@ where
       initial_len: self.initial_len,
       port: self.port,
       query_start: self.query_start,
+      start: self.start,
       uri: self.uri.lease().into(),
     }
   }
@@ -258,8 +270,41 @@ where
     if let Some(elem) = str_split_once1(self.authority(), b'@') { elem.0 } else { "" }
   }
 
-  fn parts(uri: &str) -> (u16, u8, u8, u16) {
+  fn process(&mut self) {
+    let Self {
+      authority_start: this_authority_start,
+      href_start: this_href_start,
+      initial_len: this_initial_len,
+      port: this_port,
+      query_start: this_query_start,
+      start: this_start,
+      uri: this_uri,
+    } = self;
+    let indices = Self::process_indices(this_uri.lease());
+    let (initial_len, start, authority_start, href_start, query_start) = indices;
+    *this_authority_start = authority_start;
+    *this_href_start = href_start;
+    *this_initial_len = initial_len;
+    *this_port = Self::process_port(this_uri.lease().get(start.into()..self.href_start.into()));
+    *this_query_start = query_start;
+    *this_start = start;
+  }
+
+  fn process_indices(uri: &str) -> (u16, u8, u8, u8, u16) {
     let initial_len = uri.len().try_into().unwrap_or(u16::MAX);
+    let mut iter = uri.as_bytes().iter().copied().take(255);
+    let init = if let Some(0) = iter.next() {
+      let mut local_init: u8 = 1;
+      for elem in iter {
+        if elem != 0 {
+          break;
+        }
+        local_init = local_init.wrapping_add(1);
+      }
+      local_init
+    } else {
+      0
+    };
     let valid_uri = uri.get(..initial_len.into()).unwrap_or_default();
     let authority_start: u8 = valid_uri
       .match_indices("://")
@@ -273,29 +318,24 @@ where
     let query_start = bytes_rpos1(valid_uri, b'?')
       .and_then(|element| element.try_into().ok())
       .unwrap_or(initial_len);
-    (initial_len, authority_start, href_start, query_start)
+    (initial_len, init, authority_start, href_start, query_start)
   }
 
-  fn process_port(&mut self) {
-    let uri = self.uri.lease().as_bytes();
-    'explicit_port: {
-      self.port = match uri.get(..self.href_start.into()) {
-        Some([.., b':', a, b]) => u16::from_radix_10(&[*a, *b]).ok(),
-        Some([.., b':', a, b, c]) => u16::from_radix_10(&[*a, *b, *c]).ok(),
-        Some([.., b':', a, b, c, d]) => u16::from_radix_10(&[*a, *b, *c, *d]).ok(),
-        Some([.., b':', a, b, c, d, e]) => u16::from_radix_10(&[*a, *b, *c, *d, *e]).ok(),
-        _ => break 'explicit_port,
-      };
-      return;
+  fn process_port(str: Option<&str>) -> Option<u16> {
+    match str.map(str::as_bytes) {
+      Some([.., b':', a, b]) => u16::from_radix_10(&[*a, *b]).ok(),
+      Some([.., b':', a, b, c]) => u16::from_radix_10(&[*a, *b, *c]).ok(),
+      Some([.., b':', a, b, c, d]) => u16::from_radix_10(&[*a, *b, *c, *d]).ok(),
+      Some([.., b':', a, b, c, d, e]) => u16::from_radix_10(&[*a, *b, *c, *d, *e]).ok(),
+      Some([b'h', b't', b't', b'p', b's', ..] | [b'w', b's', b's', ..]) => Some(443),
+      Some([b'h', b't', b't', b'p', ..] | [b'w', b's', ..]) => Some(80),
+      Some([b'm', b'y', b's', b'q', b'l', ..]) => Some(3306),
+      Some(
+        [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', b'q', b'l', ..]
+        | [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', ..],
+      ) => Some(5432),
+      _ => None,
     }
-    self.port = match uri {
-      [b'h', b't', b't', b'p', b's', ..] | [b'w', b's', b's', ..] => Some(443),
-      [b'h', b't', b't', b'p', ..] | [b'w', b's', ..] => Some(80),
-      [b'm', b'y', b's', b'q', b'l', ..] => Some(3306),
-      [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', b'q', b'l', ..]
-      | [b'p', b'o', b's', b't', b'g', b'r', b'e', b's', ..] => Some(5432),
-      _ => return,
-    };
   }
 }
 
@@ -303,12 +343,13 @@ impl UriString {
   /// Removes all content.
   #[inline]
   pub fn clear(&mut self) {
-    let Self { authority_start, href_start, initial_len, port, query_start, uri } = self;
+    let Self { authority_start, href_start, initial_len, port, query_start, start, uri } = self;
     *authority_start = 0;
     *href_start = 0;
     *initial_len = 0;
     *port = None;
     *query_start = 0;
+    *start = 0;
     uri.clear();
   }
 
@@ -336,15 +377,9 @@ impl UriString {
 
   /// Clears the internal storage and makes room for a new base URI.
   #[inline]
-  pub fn reset(&mut self, cb: impl FnOnce(&mut String) -> crate::Result<()>) -> crate::Result<()> {
+  pub fn reset(&mut self) -> UriReset<'_, String> {
     self.uri.clear();
-    cb(&mut self.uri)?;
-    let (initial_len, authority_start, href_start, query_start) = Self::parts(&self.uri);
-    self.authority_start = authority_start;
-    self.href_start = href_start;
-    self.initial_len = initial_len;
-    self.query_start = query_start;
-    Ok(())
+    UriReset(self)
   }
 
   /// Truncates the internal storage with the length of the base URI created in this instance.
@@ -383,21 +418,21 @@ impl<S> LeaseMut<Uri<S>> for Uri<S> {
 
 impl<S> Debug for Uri<S>
 where
-  S: Debug,
+  S: Lease<str>,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    self.uri.fmt(f)
+    f.write_str(self.as_str())
   }
 }
 
 impl<S> Display for Uri<S>
 where
-  S: Display,
+  S: Lease<str>,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    self.uri.fmt(f)
+    f.write_str(self.as_str())
   }
 }
 
@@ -411,22 +446,63 @@ where
   }
 }
 
+/// Returned by the [`Uri::reset`] method.
+#[derive(Debug)]
+pub struct UriReset<'uri, S>(&'uri mut Uri<S>)
+where
+  S: Lease<str>;
+
+impl<S> Deref for UriReset<'_, S>
+where
+  S: Lease<str>,
+{
+  type Target = S;
+
+  #[inline]
+  fn deref(&self) -> &Self::Target {
+    &self.0.uri
+  }
+}
+
+impl<S> DerefMut for UriReset<'_, S>
+where
+  S: Lease<str>,
+{
+  #[inline]
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.0.uri
+  }
+}
+
+impl<S> Drop for UriReset<'_, S>
+where
+  S: Lease<str>,
+{
+  #[inline]
+  fn drop(&mut self) {
+    self.0.process();
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use crate::misc::UriString;
 
   #[test]
   fn dynamic_methods_have_correct_behavior() {
-    let mut uri = UriString::new("http://dasdas.com/rewqd".into());
+    let mut uri = UriString::new("\0\0http://dasdas.com/rewqd".into());
     uri.push_path(format_args!("/tretre")).unwrap();
+    assert_eq!(uri.scheme(), "http");
     assert_eq!(uri.path(), "/rewqd/tretre");
     assert_eq!(uri.query_and_fragment(), "");
     assert_eq!(uri.as_str(), "http://dasdas.com/rewqd/tretre");
     uri.truncate_with_initial_len();
+    assert_eq!(uri.scheme(), "http");
     assert_eq!(uri.path(), "/rewqd");
     assert_eq!(uri.query_and_fragment(), "");
     assert_eq!(uri.as_str(), "http://dasdas.com/rewqd");
     uri.clear();
+    assert_eq!(uri.scheme(), "");
     assert_eq!(uri.path(), "");
     assert_eq!(uri.query_and_fragment(), "");
     assert_eq!(uri.as_str(), "");

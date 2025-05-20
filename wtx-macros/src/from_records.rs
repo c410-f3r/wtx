@@ -6,21 +6,20 @@ use crate::misc::parts_from_generics;
 use syn::{
   Data, DeriveInput, Fields, GenericParam, Ident, Path, Type,
   parse::{Parse, ParseStream},
-  parse_macro_input,
   spanned::Spanned as _,
 };
 
 pub(crate) fn from_records(
   item: proc_macro::TokenStream,
 ) -> crate::Result<proc_macro::TokenStream> {
-  let input = parse_macro_input::parse::<DeriveInput>(item)?;
+  let input = syn::parse::<DeriveInput>(item)?;
   let name = input.ident;
 
   let mut database_opt = None;
   for input_attr in &input.attrs {
-    if let Some(first) = input_attr.path.segments.first() {
+    if let Some(first) = input_attr.path().segments.first() {
       if first.ident == "from_records" {
-        database_opt = Some(syn::parse2::<ContainerAttrs>(input_attr.tokens.clone())?.database);
+        database_opt = Some(input_attr.parse_args::<ContainerAttrs>()?.database);
       }
     }
   }
@@ -50,9 +49,9 @@ pub(crate) fn from_records(
         for (idx, elem) in fields.named.iter().enumerate() {
           let mut ty_opt = None;
           for attr in &elem.attrs {
-            if let Some(first) = attr.path.segments.first() {
+            if let Some(first) = attr.path().segments.first() {
               if first.ident == "from_records" {
-                ty_opt = syn::parse2::<FieldAttrs>(attr.tokens.clone())?.ty;
+                ty_opt = attr.parse_args::<FieldAttrs>()?.ty;
                 break;
               }
             }

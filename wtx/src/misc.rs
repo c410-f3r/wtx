@@ -74,7 +74,7 @@ pub use ref_counter::RefCounter;
 pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
-pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriString};
+pub use uri::{Uri, UriArrayString, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use wrapper::Wrapper;

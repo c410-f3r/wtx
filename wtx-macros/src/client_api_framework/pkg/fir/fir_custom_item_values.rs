@@ -70,8 +70,8 @@ macro_rules! create_fir_custom_item_values {
     impl<'module> TryFrom<ItemWithAttrSpan<(), &'module mut Item>> for $struct<'module> {
       type Error = crate::Error;
 
-        #[inline]
-  fn try_from(from: ItemWithAttrSpan<(), &'module mut Item>) -> Result<Self, Self::Error> {
+      #[inline]
+      fn try_from(from: ItemWithAttrSpan<(), &'module mut Item>) -> Result<Self, Self::Error> {
         let local_generics;
         let local_ident;
         let local_item;

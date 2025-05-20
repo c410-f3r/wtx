@@ -15,7 +15,6 @@ use crate::{
     stream_receiver::StreamOverallRecvParams,
     stream_state::StreamState,
     u31::U31,
-    uri_buffer::UriBuffer,
     window::{Windows, WindowsPair},
     window_update_frame::WindowUpdateFrame,
   },
@@ -39,7 +38,6 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, SR, SW> {
   pub(crate) recv_streams_num: &'instance mut u32,
   pub(crate) stream_reader: &'instance mut SR,
   pub(crate) stream_writer: &'instance mut SW,
-  pub(crate) uri_buffer: &'instance mut UriBuffer,
 }
 
 impl<SR, SW> ProcessReceiptFrameTy<'_, SR, SW>
@@ -102,7 +100,6 @@ where
         self.read_frame_waker,
         &mut elem.rrb,
         self.stream_reader,
-        self.uri_buffer,
         |_| Ok(()),
       )
       .await?
@@ -117,7 +114,6 @@ where
         self.read_frame_waker,
         &mut elem.rrb,
         self.stream_reader,
-        self.uri_buffer,
         |hf| hf.hsresh().status_code.ok_or_else(|| HttpError::MissingResponseStatusCode.into()),
       )
       .await?;
@@ -154,7 +150,6 @@ where
       self.read_frame_waker,
       &mut ish.rrb,
       self.stream_reader,
-      self.uri_buffer,
       |hf| Ok((hf.hsreqh().method.ok_or(HttpError::MissingRequestMethod)?, hf.hsreqh().protocol)),
     )
     .await?;
@@ -197,7 +192,6 @@ where
       self.read_frame_waker,
       &mut sorp.rrb,
       self.stream_reader,
-      self.uri_buffer,
       |_| Ok(()),
     )
     .await?;

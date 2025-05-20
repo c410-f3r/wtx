@@ -14,7 +14,6 @@ impl ContainedAttrs for syn::Item {
       Self::ForeignMod(ref mut item) => item.attrs.as_mut(),
       Self::Impl(ref mut item) => item.attrs.as_mut(),
       Self::Macro(ref mut item) => item.attrs.as_mut(),
-      Self::Macro2(ref mut item) => item.attrs.as_mut(),
       Self::Mod(ref mut item) => item.attrs.as_mut(),
       Self::Static(ref mut item) => item.attrs.as_mut(),
       Self::Struct(ref mut item) => item.attrs.as_mut(),

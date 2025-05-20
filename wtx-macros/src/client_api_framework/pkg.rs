@@ -11,7 +11,7 @@ use crate::{
     item_with_attr_span::ItemWithAttrSpan,
     pkg::{fir::fir_after_sending_item_values::FirAfterSendingItemValues, misc::unit_type},
   },
-  misc::push_doc,
+  misc::{Args, push_doc},
 };
 use fir::{
   fir_aux_item_values::FirAuxItemValues,
@@ -23,7 +23,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens as _;
 use sir::{sir_final_values::SirFinalValues, sir_pkg_attr::SirPkaAttr};
 use syn::{
-  AttributeArgs, Generics, Item, ItemMod, ItemType, VisPublic, Visibility, parse_macro_input,
+  Generics, Item, ItemMod, ItemType, Visibility,
   punctuated::Punctuated,
   token::{Eq, Pub, Semi, Type},
 };
@@ -32,8 +32,8 @@ pub(crate) fn pkg(
   attrs: proc_macro::TokenStream,
   item: proc_macro::TokenStream,
 ) -> crate::Result<proc_macro::TokenStream> {
-  let attr_args = parse_macro_input::parse::<AttributeArgs>(attrs)?;
-  let mut item_mod: ItemMod = parse_macro_input::parse(item)?;
+  let attr_args: Args = syn::parse(attrs)?;
+  let mut item_mod: ItemMod = syn::parse(item)?;
   let items_stub = &mut Vec::new();
   let fiv = FirItemsValues::try_from((
     item_mod.content.as_mut().map_or(items_stub, |el| &mut el.1),
@@ -62,7 +62,7 @@ pub(crate) fn pkg(
   let fbsiv = fiv.before_sending.map(FirBeforeSendingItemValues::try_from).transpose()?;
   let faiv = fiv.aux.map(FirAuxItemValues::try_from).transpose()?;
   let fresdiv = FirResItemValues::try_from(fiv.res_data)?;
-  let spa = SirPkaAttr::try_from(FirPkgAttr::try_from(&*attr_args)?)?;
+  let spa = SirPkaAttr::try_from(FirPkgAttr::try_from(&attr_args.0)?)?;
   let SirFinalValues { auxs, package, package_impls } = SirFinalValues::try_from((
     &mut camel_case_id,
     fpiv,
@@ -95,7 +95,7 @@ fn params_item_unit_fn(camel_case_id: &mut String) -> Item {
       );
       attrs
     },
-    vis: Visibility::Public(VisPublic { pub_token: Pub(Span::mixed_site()) }),
+    vis: Visibility::Public(Pub { span: Span::mixed_site() }),
     type_token: Type(Span::mixed_site()),
     ident: {
       let idx = camel_case_id.len();

@@ -1,7 +1,7 @@
 
 # Database Client
 
-Provides a set of functions that establish connections, execute queries and manage data transactions with different databases.
+Provides a set of functions that establish connections, execute queries and manage data transactions in different databases.
 
 ![Benchmark](https://i.imgur.com/vf2tYxY.jpeg)
 

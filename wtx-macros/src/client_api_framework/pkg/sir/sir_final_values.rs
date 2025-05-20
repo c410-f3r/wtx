@@ -42,13 +42,13 @@ impl SirFinalValues {
   }
 }
 
-impl<'attrs, 'module, 'others>
+impl<'module, 'others>
   TryFrom<(
     &'others mut String,
     FirParamsItemValues<'module>,
     FirReqItemValues<'module>,
     FirResItemValues<'others>,
-    SirPkaAttr<'attrs>,
+    SirPkaAttr,
     Option<FirAfterSendingItemValues<'module>>,
     Option<FirAuxItemValues<'module>>,
     Option<FirBeforeSendingItemValues<'module>>,
@@ -63,7 +63,7 @@ impl<'attrs, 'module, 'others>
       FirParamsItemValues<'module>,
       FirReqItemValues<'module>,
       FirResItemValues<'others>,
-      SirPkaAttr<'attrs>,
+      SirPkaAttr,
       Option<FirAfterSendingItemValues<'module>>,
       Option<FirAuxItemValues<'module>>,
       Option<FirBeforeSendingItemValues<'module>>,

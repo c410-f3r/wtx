@@ -29,6 +29,8 @@ pub enum Http2Error {
   HpackDecodingBufferIsTooSmall,
   /// There are no bytes left to decode HPACK headers.
   InsufficientHpackBytes,
+  /// Received data that should be exclusive for servers
+  InvalidClientHeader,
   /// Content length has a value that is different than the actual payload length
   InvalidContentLength,
   /// Continuation frame found in invalid order
@@ -48,7 +50,7 @@ pub enum Http2Error {
   /// A container does not contain an element referred by the given idx
   InvalidHpackIdx(Option<u32>),
   /// Header frame has mal-formatted content
-  InvalidHeaderData,
+  InvalidHeaderFrame,
   #[doc = stream_id_must_not_be_zero!()]
   InvalidHeadersFrameZeroId,
   #[doc = invalid_frame_bytes!()]
@@ -63,6 +65,10 @@ pub enum Http2Error {
   InvalidResetStreamFrameZeroId,
   /// Stream is in a state that forbids sending more data
   InvalidSendStreamState,
+  /// Received insufficient data to fullfil a server's header
+  InvalidServerHeader,
+  /// URI is too large for servers
+  InvalidServerHeaderUriOverflow,
   /// Settings frames length must be divisible  by 6
   InvalidSettingsFrameLength,
   #[doc = stream_id_must_be_zero!()]

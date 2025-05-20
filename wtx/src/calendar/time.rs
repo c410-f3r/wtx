@@ -21,9 +21,9 @@ use core::{
 /// Clock time with nanosecond precision.
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Time {
-  // | xxxxxx  | xxxxxx  | xxxxx |
-  // | second  | minute  | hour  |
-  params: u32,
+  hour: Hour,
+  minute: Minute,
+  second: Second,
   nanosecond: Nanosecond,
 }
 
@@ -36,10 +36,7 @@ impl Time {
   /// New instance without nanosecond precision.
   #[inline]
   pub const fn from_hms(hour: Hour, minute: Minute, second: Second) -> Self {
-    let mut params = u8u32(second.num()) << 11;
-    params |= u8u32(minute.num()) << 5;
-    params |= u8u32(hour.num());
-    Self { params, nanosecond: Nanosecond::ZERO }
+    Self { hour, minute, second, nanosecond: Nanosecond::ZERO }
   }
 
   /// New instance with milliseconds precision.
@@ -61,9 +58,7 @@ impl Time {
     second: Second,
     nanosecond: Nanosecond,
   ) -> Self {
-    let mut this = Self::from_hms(hour, minute, second);
-    this.nanosecond = nanosecond;
-    this
+    Self { hour, minute, second, nanosecond }
   }
 
   /// New instance with microseconds precision.
@@ -104,12 +99,7 @@ impl Time {
   /// Hours of a day
   #[inline]
   pub const fn hour(self) -> Hour {
-    match Hour::from_num((self.params & 0b1_1111) as u8) {
-      Ok(el) => el,
-      // SAFETY: All methods that create an instance only accept `Hour`, as such, the
-      // corresponding bits will never be out of bounds.
-      Err(_) => unsafe { unreachable_unchecked() },
-    }
+    self.hour
   }
 
   /// ISO-8601 string representation
@@ -132,12 +122,7 @@ impl Time {
   /// Minutes of a hour.
   #[inline]
   pub const fn minute(self) -> Minute {
-    match Minute::from_num(((self.params >> 5) & 0b11_1111) as u8) {
-      Ok(el) => el,
-      // SAFETY: All methods that create an instance only accept `Minute`, as such, the
-      // corresponding bits will never be out of bounds.
-      Err(_) => unsafe { unreachable_unchecked() },
-    }
+    self.minute
   }
 
   /// Nanosecond of a second
@@ -194,12 +179,7 @@ impl Time {
   /// Seconds of a minute
   #[inline]
   pub const fn second(self) -> Second {
-    match Second::from_num(((self.params >> 11) & 0b11_1111) as u8) {
-      Ok(el) => el,
-      // SAFETY: All methods that create an instance only accept `Second`, as such, the
-      // corresponding bits will never be out of bounds.
-      Err(_) => unsafe { unreachable_unchecked() },
-    }
+    self.second
   }
 
   /// The total number of seconds since midnight (00:00:00).

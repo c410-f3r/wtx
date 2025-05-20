@@ -3,25 +3,23 @@ pub(crate) mod mode;
 
 use crate::{
   client_api_framework::{owned_or_ref::OwnedOrRef, transport_group::TransportGroup},
-  misc::{create_ident, parts_from_generics},
+  misc::{Args, create_ident, parts_from_generics},
 };
 use proc_macro2::{Ident, Span};
 use quote::{ToTokens as _, quote};
-use syn::{
-  AttributeArgs, Item, Path, PathArguments, PathSegment, parse_macro_input, punctuated::Punctuated,
-  spanned::Spanned as _,
-};
+use syn::{Item, Path, PathArguments, PathSegment, punctuated::Punctuated, spanned::Spanned as _};
 
 pub(crate) fn api(
   attrs: proc_macro::TokenStream,
   token_stream: proc_macro::TokenStream,
 ) -> crate::Result<proc_macro::TokenStream> {
-  let attr_args = parse_macro_input::parse::<AttributeArgs>(attrs)?;
-  let mut item: Item = parse_macro_input::parse(token_stream)?;
+  let attr_args: Args = syn::parse(attrs)?;
+  let mut item: Item = syn::parse(token_stream)?;
 
-  let attrs::Attrs { error, pkgs_aux, transports, mode: ty } = attrs::Attrs::try_from(&*attr_args)?;
+  let attrs::Attrs { error, pkgs_aux, transports, mode: ty } =
+    attrs::Attrs::try_from(&attr_args.0)?;
 
-  let pkgs_aux_path = pkgs_aux.map_or_else(
+  let pkgs_aux_path = pkgs_aux.as_ref().map_or_else(
     || {
       let mut segments = Punctuated::new();
       segments.push(PathSegment {

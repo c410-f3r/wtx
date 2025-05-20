@@ -11,10 +11,7 @@ mod pkg {
   use wtx::client_api_framework::network::transport::TransportParams;
 
   #[pkg::aux]
-  impl<A, DRSR, TP> super::PkgsAux<A, DRSR, TP>
-  where
-    TP: TransportParams
-  {}
+  impl<A, DRSR, TP> super::PkgsAux<A, DRSR, TP> where TP: TransportParams {}
 
   #[derive(Debug)]
   #[pkg::req_data]

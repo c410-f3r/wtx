@@ -14,7 +14,7 @@ use crate::{
   misc::EMPTY_WHERE_PREDS,
 };
 use proc_macro2::{Ident, Span, TokenStream};
-use syn::{GenericParam, Lifetime, LifetimeDef, punctuated::Punctuated};
+use syn::{GenericParam, Lifetime, LifetimeParam, punctuated::Punctuated};
 
 impl SirAuxItemValues {
   pub(super) fn push_builder_method_returning_builder(
@@ -116,7 +116,7 @@ impl SirAuxItemValues {
         fn_args: TokenStream::new(),
         fn_params: &{
           let mut generic_params = Punctuated::new();
-          generic_params.push(GenericParam::Lifetime(LifetimeDef {
+          generic_params.push(GenericParam::Lifetime(LifetimeParam {
             attrs: Vec::new(),
             lifetime: Lifetime {
               apostrophe: Span::mixed_site(),
