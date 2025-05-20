@@ -200,9 +200,17 @@ impl Time {
     Ok(this)
   }
 
+  /// Returns a new instance with the number of nanoseconds totally erased.
+  #[inline]
+  pub const fn trunc_to_sec(self) -> Self {
+    let mut new = self;
+    new.nanosecond = Nanosecond::ZERO;
+    new
+  }
+
   /// Returns a new instance with the number of nanoseconds truncated to microseconds.
   #[inline]
-  pub const fn trunc_ns(self) -> Self {
+  pub const fn trunc_to_us(self) -> Self {
     let mut new = self;
     new.nanosecond = new.nanosecond.to_us().to_ns();
     new

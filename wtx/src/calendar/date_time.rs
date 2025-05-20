@@ -146,11 +146,19 @@ impl DateTime {
     (rslt.wrapping_add(u32i64(self.time.seconds_since_mn())), self.time.nanosecond())
   }
 
+  /// Returns a new instance with the number of nanoseconds totally erased.
+  #[inline]
+  pub const fn trunc_to_sec(self) -> Self {
+    let mut new = self;
+    new.time = new.time.trunc_to_sec();
+    new
+  }
+
   /// Returns a new instance with the number of nanoseconds truncated to microseconds.
   #[inline]
-  pub const fn trunc_us(self) -> Self {
+  pub const fn trunc_to_us(self) -> Self {
     let mut new = self;
-    new.time = new.time.trunc_ns();
+    new.time = new.time.trunc_to_us();
     new
   }
 }
