@@ -114,7 +114,7 @@ pub(crate) fn from_records(
       fn from_records(
         _curr_params: &mut wtx::database::FromRecordsParams<<#database as wtx::database::Database>::Record<'exec>>,
         _records: &<#database as wtx::database::Database>::Records<'exec>,
-      ) -> Result<Self, crate::Error> {
+      ) -> Result<Self, <#database as wtx::misc::DEController>::Error> {
         use wtx::database::Record as _;
 
         #(
@@ -181,9 +181,7 @@ struct ContainerAttrs {
 
 impl Parse for ContainerAttrs {
   fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-    let content_paren;
-    syn::parenthesized!(content_paren in input);
-    let database = content_paren.parse::<Path>()?;
+    let database = input.parse::<Path>()?;
     Ok(Self { database })
   }
 }
@@ -195,9 +193,7 @@ struct FieldAttrs {
 
 impl Parse for FieldAttrs {
   fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-    let content_paren;
-    syn::parenthesized!(content_paren in input);
-    let path = content_paren.parse::<Path>()?;
+    let path = input.parse::<Path>()?;
     let Some(first) = path.segments.first() else {
       return Err(crate::Error::UnknownFieldTy(path.span()).into());
     };
