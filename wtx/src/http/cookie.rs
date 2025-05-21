@@ -6,7 +6,7 @@ pub(crate) mod cookie_str;
 mod same_site;
 
 #[cfg(feature = "http-session")]
-use crate::{calendar::TimeToken, collection::Vector, rng::Rng};
+use crate::{calendar::CalendarToken, collection::Vector, rng::Rng};
 pub use cookie_error::CookieError;
 pub use same_site::SameSite;
 
@@ -16,23 +16,23 @@ const NONCE_LEN: usize = 12;
 const TAG_LEN: usize = 16;
 
 #[cfg(feature = "http-session")]
-static FMT1: &[TimeToken] = &[
-  TimeToken::AbbreviatedWeekdayName,
-  TimeToken::Comma,
-  TimeToken::Space,
-  TimeToken::TwoDigitDay,
-  TimeToken::Space,
-  TimeToken::AbbreviatedMonthName,
-  TimeToken::Space,
-  TimeToken::FourDigitYear,
-  TimeToken::Space,
-  TimeToken::TwoDigitHour,
-  TimeToken::Colon,
-  TimeToken::TwoDigitMinute,
-  TimeToken::Colon,
-  TimeToken::TwoDigitSecond,
-  TimeToken::Space,
-  TimeToken::Gmt,
+static FMT1: &[CalendarToken] = &[
+  CalendarToken::AbbreviatedWeekdayName,
+  CalendarToken::Comma,
+  CalendarToken::Space,
+  CalendarToken::TwoDigitDay,
+  CalendarToken::Space,
+  CalendarToken::AbbreviatedMonthName,
+  CalendarToken::Space,
+  CalendarToken::FourDigitYear,
+  CalendarToken::Space,
+  CalendarToken::TwoDigitHour,
+  CalendarToken::Colon,
+  CalendarToken::TwoDigitMinute,
+  CalendarToken::Colon,
+  CalendarToken::TwoDigitSecond,
+  CalendarToken::Space,
+  CalendarToken::Gmt,
 ];
 
 #[cfg(feature = "http-server-framework")]

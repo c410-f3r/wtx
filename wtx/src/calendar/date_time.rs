@@ -4,8 +4,8 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, CeDays, Date, Duration, EPOCH_CE_DAYS, Hour, Minute, Nanosecond,
-    SECONDS_PER_DAY, Second, Time, TimeToken,
+    CalendarError, CalendarToken, CeDays, Date, Duration, EPOCH_CE_DAYS, Hour, Minute, Nanosecond,
+    SECONDS_PER_DAY, Second, Time,
     misc::{i32i64, u32i64},
   },
   collection::ArrayString,
@@ -32,19 +32,20 @@ impl DateTime {
   /// Creates a new instance based on the string representation of the ISO-8601 specification.
   #[inline]
   pub fn from_iso_8601(bytes: &[u8]) -> crate::Result<Self> {
-    static TOKENS: &[TimeToken] = &[
-      TimeToken::FourDigitYear,
-      TimeToken::Dash,
-      TimeToken::TwoDigitMonth,
-      TimeToken::Dash,
-      TimeToken::TwoDigitDay,
-      TimeToken::Separator,
-      TimeToken::TwoDigitHour,
-      TimeToken::Colon,
-      TimeToken::TwoDigitMinute,
-      TimeToken::Colon,
-      TimeToken::TwoDigitSecond,
-      TimeToken::DotNano,
+    static TOKENS: &[CalendarToken] = &[
+      CalendarToken::FourDigitYear,
+      CalendarToken::Dash,
+      CalendarToken::TwoDigitMonth,
+      CalendarToken::Dash,
+      CalendarToken::TwoDigitDay,
+      CalendarToken::Separator,
+      CalendarToken::TwoDigitHour,
+      CalendarToken::Colon,
+      CalendarToken::TwoDigitMinute,
+      CalendarToken::Colon,
+      CalendarToken::TwoDigitSecond,
+      CalendarToken::DotNano,
+      CalendarToken::Utc,
     ];
     Self::parse(bytes, TOKENS.iter().copied())
   }

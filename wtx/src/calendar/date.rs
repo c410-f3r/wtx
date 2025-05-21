@@ -9,8 +9,8 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, CeDays, DAYS_OF_MONTHS, DAYS_PER_4_YEARS, DAYS_PER_NON_LEAP_YEAR,
-    DAYS_PER_QUADCENTURY, Day, DayOfYear, Duration, Month, SECONDS_PER_DAY, TimeToken, Weekday,
+    CalendarError, CalendarToken, CeDays, DAYS_OF_MONTHS, DAYS_PER_4_YEARS, DAYS_PER_NON_LEAP_YEAR,
+    DAYS_PER_QUADCENTURY, Day, DayOfYear, Duration, Month, SECONDS_PER_DAY, Weekday,
     YEARS_PER_QUADCENTURY, Year,
     misc::{
       boolu16, boolu32, boolusize, i16i32, i32i64, u8i16, u8i32, u8u16, u8u32, u8usize, u16i32,
@@ -113,12 +113,12 @@ impl Date {
   /// Creates a new instance based on the string representation of the ISO-8601 specification.
   #[inline]
   pub fn from_iso_8601(bytes: &[u8]) -> crate::Result<Self> {
-    static TOKENS: &[TimeToken] = &[
-      TimeToken::FourDigitYear,
-      TimeToken::Dash,
-      TimeToken::TwoDigitMonth,
-      TimeToken::Dash,
-      TimeToken::TwoDigitDay,
+    static TOKENS: &[CalendarToken] = &[
+      CalendarToken::FourDigitYear,
+      CalendarToken::Dash,
+      CalendarToken::TwoDigitMonth,
+      CalendarToken::Dash,
+      CalendarToken::TwoDigitDay,
     ];
     Self::parse(bytes, TOKENS.iter().copied())
   }

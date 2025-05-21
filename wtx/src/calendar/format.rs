@@ -1,6 +1,6 @@
+pub(crate) mod calendar_token;
 pub(crate) mod parsed_data;
 pub(crate) mod push;
-pub(crate) mod time_token;
 
 use crate::{calendar::CalendarError, collection::ArrayVector};
 
@@ -8,7 +8,7 @@ use crate::{calendar::CalendarError, collection::ArrayVector};
 #[inline]
 pub fn parse_bytes_into_tokens(
   bytes: impl IntoIterator<Item = u8>,
-) -> crate::Result<ArrayVector<time_token::TimeToken, 16>> {
+) -> crate::Result<ArrayVector<calendar_token::CalendarToken, 16>> {
   let mut tokens = ArrayVector::new();
   let mut iter = bytes.into_iter().peekable();
   loop {
@@ -33,7 +33,7 @@ pub fn parse_bytes_into_tokens(
         let (Some(b'M'), Some(b'T')) = (iter.next(), iter.next()) else {
           return Err(CalendarError::InvalidParsingFormat.into());
         };
-        tokens.push(time_token::TimeToken::Gmt)?;
+        tokens.push(calendar_token::CalendarToken::Gmt)?;
       }
       _ => {
         tokens.push([0, first].try_into()?)?;

@@ -53,7 +53,7 @@ mod gated {
     day::Day,
     day_of_year::DayOfYear,
     duration::Duration,
-    format::{parse_bytes_into_tokens, time_token::TimeToken},
+    format::{calendar_token::CalendarToken, parse_bytes_into_tokens},
     hour::Hour,
     microsecond::Microsecond,
     millisecond::Millisecond,

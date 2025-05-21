@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{CalendarError, Time, TimeToken, format::parsed_data::ParsedData},
+  calendar::{CalendarError, CalendarToken, Time, format::parsed_data::ParsedData},
   collection::ArrayString,
   misc::u32_string,
 };
@@ -7,9 +7,12 @@ use crate::{
 impl Time {
   /// Parses a sequence of bytes according to the specified tokens.
   ///
-  /// See [`TimeToken`] for more information.
+  /// See [`CalendarToken`] for more information.
   #[inline]
-  pub fn parse(bytes: &[u8], tokens: impl IntoIterator<Item = TimeToken>) -> crate::Result<Self> {
+  pub fn parse(
+    bytes: &[u8],
+    tokens: impl IntoIterator<Item = CalendarToken>,
+  ) -> crate::Result<Self> {
     let ParsedData::Time(elem) = ParsedData::new(bytes, tokens)? else {
       return Err(CalendarError::InvalidParsingClockTime.into());
     };
@@ -20,29 +23,29 @@ impl Time {
   ///
   /// A string of 18 bytes is usually more than enough for most representations.
   ///
-  /// See [`TimeToken`] for more information.
+  /// See [`CalendarToken`] for more information.
   #[inline]
   pub fn to_string<const N: usize>(
     &self,
-    tokens: impl IntoIterator<Item = TimeToken>,
+    tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<ArrayString<N>> {
     let mut string = ArrayString::new();
     for token in tokens {
       match token {
-        TimeToken::Colon => {
+        CalendarToken::Colon => {
           string.push(':')?;
         }
-        TimeToken::DotNano => {
+        CalendarToken::DotNano => {
           string.push('.')?;
           string.push_str(&u32_string(self.nanosecond().num()))?;
         }
-        TimeToken::TwoDigitHour => {
+        CalendarToken::TwoDigitHour => {
           string.push_str(self.hour().num_str())?;
         }
-        TimeToken::TwoDigitMinute => {
+        CalendarToken::TwoDigitMinute => {
           string.push_str(self.minute().num_str())?;
         }
-        TimeToken::TwoDigitSecond => {
+        CalendarToken::TwoDigitSecond => {
           string.push_str(self.second().num_str())?;
         }
         _ => return Err(CalendarError::InvalidParsingClockTime.into()),

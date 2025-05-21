@@ -116,7 +116,7 @@ impl TryFrom<&Meta> for DataFormat {
         let arg = syn::parse2::<JsonRpcArg>(meta_list.tokens.clone())
           .map_err(|_err| crate::Error::IncorrectJsonRpcDataFormat)?
           .0;
-        Ok(Self::JsonRpc(arg.token().to_string()))
+        Ok(Self::JsonRpc(arg.value()))
       } else {
         Err(crate::Error::UnknownDataFormat)
       }
