@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{CalendarError, Date, DateTime, Month, Nanosecond, Time, TimeToken, Weekday},
+  calendar::{CalendarError, CalendarToken, Date, DateTime, Month, Nanosecond, Time, Weekday},
   misc::FromRadix10 as _,
 };
 
@@ -14,7 +14,7 @@ impl ParsedData {
   #[inline]
   pub(crate) fn new(
     mut bytes: &[u8],
-    tokens: impl IntoIterator<Item = TimeToken>,
+    tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<Self> {
     let mut day_opt = None;
     let mut hour_opt = None;
@@ -26,7 +26,7 @@ impl ParsedData {
     let mut year_opt = None;
     for token in tokens {
       let rhs = match token {
-        TimeToken::AbbreviatedMonthName => {
+        CalendarToken::AbbreviatedMonthName => {
           if month_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatMonth.into());
           }
@@ -34,7 +34,7 @@ impl ParsedData {
           month_opt = Some(Month::from_short_name(lhs)?);
           rhs
         }
-        TimeToken::AbbreviatedWeekdayName => {
+        CalendarToken::AbbreviatedWeekdayName => {
           if weekday_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatWeekday.into());
           }
@@ -42,10 +42,10 @@ impl ParsedData {
           weekday_opt = Some(Weekday::from_short_name(lhs)?);
           rhs
         }
-        TimeToken::Colon => parse_token_literal(b":", bytes)?,
-        TimeToken::Comma => parse_token_literal(b",", bytes)?,
-        TimeToken::Dash => parse_token_literal(b"-", bytes)?,
-        TimeToken::DotNano => {
+        CalendarToken::Colon => parse_token_literal(b":", bytes)?,
+        CalendarToken::Comma => parse_token_literal(b",", bytes)?,
+        CalendarToken::Dash => parse_token_literal(b"-", bytes)?,
+        CalendarToken::DotNano => {
           let Ok(rest) = parse_token_literal(b".", bytes) else {
             continue;
           };
@@ -63,7 +63,7 @@ impl ParsedData {
           nanos_opt = Some(u32::from_radix_10(num)?);
           rhs
         }
-        TimeToken::FourDigitYear => {
+        CalendarToken::FourDigitYear => {
           if year_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatYear.into());
           }
@@ -71,7 +71,7 @@ impl ParsedData {
           year_opt = Some(i16::from_radix_10(lhs)?);
           rhs
         }
-        TimeToken::FullWeekdayName => {
+        CalendarToken::FullWeekdayName => {
           if weekday_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatWeekday.into());
           }
@@ -79,11 +79,11 @@ impl ParsedData {
           weekday_opt = Some(weekday);
           rhs
         }
-        TimeToken::Gmt => parse_token_literal(b"GMT", bytes)?,
-        TimeToken::Separator => parse_token_literal(b"T", bytes)?,
-        TimeToken::Slash => parse_token_literal(b"/", bytes)?,
-        TimeToken::Space => parse_token_literal(b" ", bytes)?,
-        TimeToken::TwoDigitDay => {
+        CalendarToken::Gmt => parse_token_literal(b"GMT", bytes)?,
+        CalendarToken::Separator => parse_token_literal(b"T", bytes)?,
+        CalendarToken::Slash => parse_token_literal(b"/", bytes)?,
+        CalendarToken::Space => parse_token_literal(b" ", bytes)?,
+        CalendarToken::TwoDigitDay => {
           if day_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatDay.into());
           }
@@ -91,17 +91,17 @@ impl ParsedData {
           day_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
-        TimeToken::TwoDigitHour => {
+        CalendarToken::TwoDigitHour => {
           let (lhs, rhs) = split_at(bytes, 2)?;
           hour_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
-        TimeToken::TwoDigitMinute => {
+        CalendarToken::TwoDigitMinute => {
           let (lhs, rhs) = split_at(bytes, 2)?;
           minute_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
-        TimeToken::TwoDigitMonth => {
+        CalendarToken::TwoDigitMonth => {
           if month_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatMonth.into());
           }
@@ -109,12 +109,12 @@ impl ParsedData {
           month_opt = Some(Month::from_num(u8::from_radix_10(lhs)?)?);
           rhs
         }
-        TimeToken::TwoDigitSecond => {
+        CalendarToken::TwoDigitSecond => {
           let (lhs, rhs) = split_at(bytes, 2)?;
           second_opt = Some(u8::from_radix_10(lhs)?);
           rhs
         }
-        TimeToken::TwoDigitYear => {
+        CalendarToken::TwoDigitYear => {
           if year_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatYear.into());
           }
@@ -126,7 +126,7 @@ impl ParsedData {
           year_opt = Some(year.wrapping_add(2000));
           rhs
         }
-        TimeToken::TwoSpaceDay => {
+        CalendarToken::TwoSpaceDay => {
           if day_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatDay.into());
           }
@@ -140,7 +140,12 @@ impl ParsedData {
           }
           rhs
         }
-        TimeToken::Utc => parse_token_literal(b"Z", bytes)?,
+        CalendarToken::Utc => {
+          let Ok(rest) = parse_token_literal(b"Z", bytes) else {
+            continue;
+          };
+          rest
+        }
       };
       bytes = rhs;
     }

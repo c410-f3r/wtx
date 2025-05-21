@@ -1,6 +1,6 @@
 use crate::{
   calendar::{
-    CalendarError, DateTime, TimeToken,
+    CalendarError, CalendarToken, DateTime,
     format::{
       parsed_data::ParsedData,
       push::{push_four_digit_year, push_two_space_day},
@@ -13,9 +13,12 @@ use crate::{
 impl DateTime {
   /// Parses a sequence of bytes according to the specified tokens.
   ///
-  /// See [`TimeToken`] for more information.
+  /// See [`CalendarToken`] for more information.
   #[inline]
-  pub fn parse(bytes: &[u8], tokens: impl IntoIterator<Item = TimeToken>) -> crate::Result<Self> {
+  pub fn parse(
+    bytes: &[u8],
+    tokens: impl IntoIterator<Item = CalendarToken>,
+  ) -> crate::Result<Self> {
     let ParsedData::DateTime(elem) = ParsedData::new(bytes, tokens)? else {
       return Err(CalendarError::InvalidParsingDateTime.into());
     };
@@ -26,74 +29,74 @@ impl DateTime {
   ///
   /// A string of 32 bytes is usually more than enough for most representations.
   ///
-  /// See [`TimeToken`] for more information.
+  /// See [`CalendarToken`] for more information.
   #[inline]
   pub fn to_string<const N: usize>(
     &self,
-    tokens: impl IntoIterator<Item = TimeToken>,
+    tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<ArrayString<N>> {
     let mut string = ArrayString::new();
     for token in tokens {
       match token {
-        TimeToken::AbbreviatedMonthName => {
+        CalendarToken::AbbreviatedMonthName => {
           string.push_str(self.date.month().short_name())?;
         }
-        TimeToken::AbbreviatedWeekdayName => {
+        CalendarToken::AbbreviatedWeekdayName => {
           string.push_str(self.date.weekday().short_name())?;
         }
-        TimeToken::Colon => {
+        CalendarToken::Colon => {
           string.push(':')?;
         }
-        TimeToken::Comma => {
+        CalendarToken::Comma => {
           string.push(',')?;
         }
-        TimeToken::Dash => {
+        CalendarToken::Dash => {
           string.push('-')?;
         }
-        TimeToken::DotNano => {
+        CalendarToken::DotNano => {
           string.push('.')?;
           string.push_str(&u32_string(self.time.nanosecond().num()))?;
         }
-        TimeToken::FourDigitYear => {
+        CalendarToken::FourDigitYear => {
           push_four_digit_year(self.date, &mut string)?;
         }
-        TimeToken::FullWeekdayName => {
+        CalendarToken::FullWeekdayName => {
           string.push_str(self.date.weekday().name())?;
         }
-        TimeToken::Gmt => {
+        CalendarToken::Gmt => {
           string.push_str("GMT")?;
         }
-        TimeToken::Separator => {
+        CalendarToken::Separator => {
           string.push('T')?;
         }
-        TimeToken::Slash => {
+        CalendarToken::Slash => {
           string.push('/')?;
         }
-        TimeToken::Space => {
+        CalendarToken::Space => {
           string.push(' ')?;
         }
-        TimeToken::TwoDigitDay => {
+        CalendarToken::TwoDigitDay => {
           string.push_str(self.date.day().num_str())?;
         }
-        TimeToken::TwoDigitHour => {
+        CalendarToken::TwoDigitHour => {
           string.push_str(self.time.hour().num_str())?;
         }
-        TimeToken::TwoDigitMinute => {
+        CalendarToken::TwoDigitMinute => {
           string.push_str(self.time.minute().num_str())?;
         }
-        TimeToken::TwoDigitMonth => {
+        CalendarToken::TwoDigitMonth => {
           string.push_str(self.date.month().num_str())?;
         }
-        TimeToken::TwoDigitSecond => {
+        CalendarToken::TwoDigitSecond => {
           string.push_str(self.time.second().num_str())?;
         }
-        TimeToken::TwoDigitYear => {
+        CalendarToken::TwoDigitYear => {
           string.push_str(&i16_string(self.date.year().num().rem_euclid(100)))?;
         }
-        TimeToken::TwoSpaceDay => {
+        CalendarToken::TwoSpaceDay => {
           push_two_space_day(self.date, &mut string)?;
         }
-        TimeToken::Utc => {
+        CalendarToken::Utc => {
           string.push('Z')?;
         }
       }

@@ -4,9 +4,8 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, Duration, Hour, MINUTES_PER_HOUR, Microsecond, Millisecond, Minute,
-    NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Second,
-    TimeToken,
+    CalendarError, CalendarToken, Duration, Hour, MINUTES_PER_HOUR, Microsecond, Millisecond,
+    Minute, NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Second,
     misc::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
     nanosecond::Nanosecond,
   },
@@ -75,13 +74,13 @@ impl Time {
   /// Creates a new instance based on the string representation of the ISO-8601 specification.
   #[inline]
   pub fn from_iso_8601(bytes: &[u8]) -> crate::Result<Self> {
-    static TOKENS: &[TimeToken] = &[
-      TimeToken::TwoDigitHour,
-      TimeToken::Colon,
-      TimeToken::TwoDigitMinute,
-      TimeToken::Colon,
-      TimeToken::TwoDigitSecond,
-      TimeToken::DotNano,
+    static TOKENS: &[CalendarToken] = &[
+      CalendarToken::TwoDigitHour,
+      CalendarToken::Colon,
+      CalendarToken::TwoDigitMinute,
+      CalendarToken::Colon,
+      CalendarToken::TwoDigitSecond,
+      CalendarToken::DotNano,
     ];
     Self::parse(bytes, TOKENS.iter().copied())
   }

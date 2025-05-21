@@ -1,6 +1,6 @@
 use crate::{
   calendar::{
-    CalendarError, Date, TimeToken,
+    CalendarError, CalendarToken, Date,
     format::{
       parsed_data::ParsedData,
       push::{push_four_digit_year, push_two_space_day},
@@ -13,9 +13,12 @@ use crate::{
 impl Date {
   /// Parses a sequence of bytes according to the specified tokens.
   ///
-  /// See [`TimeToken`] for more information.
+  /// See [`CalendarToken`] for more information.
   #[inline]
-  pub fn parse(bytes: &[u8], tokens: impl IntoIterator<Item = TimeToken>) -> crate::Result<Self> {
+  pub fn parse(
+    bytes: &[u8],
+    tokens: impl IntoIterator<Item = CalendarToken>,
+  ) -> crate::Result<Self> {
     let ParsedData::Date(elem) = ParsedData::new(bytes, tokens)? else {
       return Err(CalendarError::InvalidParsingDate.into());
     };
@@ -26,49 +29,49 @@ impl Date {
   ///
   /// A string of 20 bytes is usually more than enough for most representations.
   ///
-  /// See [`TimeToken`] for more information.
+  /// See [`CalendarToken`] for more information.
   #[inline]
   pub fn to_string<const N: usize>(
     &self,
-    tokens: impl IntoIterator<Item = TimeToken>,
+    tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<ArrayString<N>> {
     let mut string = ArrayString::new();
     for token in tokens {
       match token {
-        TimeToken::AbbreviatedMonthName => {
+        CalendarToken::AbbreviatedMonthName => {
           string.push_str(self.month().short_name())?;
         }
-        TimeToken::AbbreviatedWeekdayName => {
+        CalendarToken::AbbreviatedWeekdayName => {
           string.push_str(self.weekday().short_name())?;
         }
-        TimeToken::Comma => {
+        CalendarToken::Comma => {
           string.push(',')?;
         }
-        TimeToken::Dash => {
+        CalendarToken::Dash => {
           string.push('-')?;
         }
-        TimeToken::FourDigitYear => {
+        CalendarToken::FourDigitYear => {
           push_four_digit_year(*self, &mut string)?;
         }
-        TimeToken::FullWeekdayName => {
+        CalendarToken::FullWeekdayName => {
           string.push_str(self.weekday().name())?;
         }
-        TimeToken::Slash => {
+        CalendarToken::Slash => {
           string.push('/')?;
         }
-        TimeToken::Space => {
+        CalendarToken::Space => {
           string.push(' ')?;
         }
-        TimeToken::TwoDigitDay => {
+        CalendarToken::TwoDigitDay => {
           string.push_str(self.day().num_str())?;
         }
-        TimeToken::TwoDigitMonth => {
+        CalendarToken::TwoDigitMonth => {
           string.push_str(self.month().num_str())?;
         }
-        TimeToken::TwoDigitYear => {
+        CalendarToken::TwoDigitYear => {
           string.push_str(&i16_string(self.year().num().rem_euclid(100)))?;
         }
-        TimeToken::TwoSpaceDay => {
+        CalendarToken::TwoSpaceDay => {
           push_two_space_day(*self, &mut string)?;
         }
         _ => return Err(CalendarError::InvalidParsingDate.into()),

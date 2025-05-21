@@ -51,6 +51,13 @@ fn add_and_sub() {
 }
 
 #[test]
+fn from_iso_8601() {
+  let _datetime = DateTime::from_iso_8601(b"2022-02-10T10:10:10").unwrap();
+  let _datetime = DateTime::from_iso_8601(b"2022-02-10T10:10:10.000").unwrap();
+  let _datetime = DateTime::from_iso_8601(b"2022-02-10T10:10:10.000Z").unwrap();
+}
+
+#[test]
 fn from_timestamp_secs() {
   let elements = [
     (1662921288, "2022-09-11T18:34:48"),

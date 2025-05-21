@@ -41,9 +41,9 @@ use crate::calendar::CalendarError;
 /// | `/`     | Slash               |
 /// | ` `     | Space               |
 /// | `T`     | Date/Time separator |
-/// | `Z`     | UTC                 |
+/// | `Z`     | Optional UTC        |
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum TimeToken {
+pub enum CalendarToken {
   /// `%b` (Jul)
   AbbreviatedMonthName,
   /// `%a` (Sun)
@@ -54,7 +54,7 @@ pub enum TimeToken {
   Comma,
   /// Literal `-`
   Dash,
-  /// `%.f` `123_456_789`
+  /// Optional `%.f` `123_456_789`
   DotNano,
   /// `%Y` (2001)
   FourDigitYear,
@@ -82,11 +82,11 @@ pub enum TimeToken {
   TwoDigitYear,
   /// `%e` ( 1)
   TwoSpaceDay,
-  /// Literal `Z`
+  /// Optional Literal `Z`
   Utc,
 }
 
-impl TryFrom<[u8; 2]> for TimeToken {
+impl TryFrom<[u8; 2]> for CalendarToken {
   type Error = crate::Error;
 
   #[inline]
