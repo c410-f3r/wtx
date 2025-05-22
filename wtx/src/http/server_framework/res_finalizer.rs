@@ -16,16 +16,6 @@ where
   }
 }
 
-impl<E> ResFinalizer<E> for StatusCode
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    Ok(self)
-  }
-}
-
 impl<E> ResFinalizer<E> for &'static str
 where
   E: From<crate::Error>,

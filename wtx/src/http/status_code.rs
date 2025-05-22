@@ -130,3 +130,18 @@ create_enum! {
       NetworkAuthenticationRequired = (511),
   }
 }
+
+#[cfg(feature = "http-server-framework")]
+mod http_server_framework {
+  use crate::http::{ReqResBuffer, Request, StatusCode, server_framework::ResFinalizer};
+
+  impl<E> ResFinalizer<E> for StatusCode
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+      Ok(self)
+    }
+  }
+}
