@@ -48,8 +48,8 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let elem =
-      serde_json::from_slice(&auto_stream.req.rrd.lease_mut().body).map_err(crate::Error::from)?;
+    let body = &auto_stream.req.rrd.lease_mut().body;
+    let elem = serde_json::from_slice(body).map_err(crate::Error::from)?;
     auto_stream.req.rrd.lease_mut().clear();
     self
       .0
