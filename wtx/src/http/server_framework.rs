@@ -12,7 +12,6 @@ pub(crate) mod endpoint_node;
 mod headers_clean;
 mod methods;
 mod middleware;
-mod params_clean;
 mod path_params;
 mod redirect;
 mod res_finalizer;
@@ -26,6 +25,7 @@ mod stream_aux;
 mod tests;
 #[cfg(all(feature = "nightly", feature = "tokio"))]
 mod tokio;
+mod verbatim_params;
 
 use crate::{http::conn_params::ConnParams, sync::Arc};
 pub use arguments::*;
@@ -45,7 +45,6 @@ pub use methods::{
   web_socket::{WebSocket, web_socket},
 };
 pub use middleware::Middleware;
-pub use params_clean::*;
 pub use path_params::PathParams;
 pub use redirect::Redirect;
 pub use res_finalizer::ResFinalizer;
@@ -55,6 +54,7 @@ pub use server_framework_builder::ServerFrameworkBuilder;
 pub use server_framework_error::ServerFrameworkError;
 pub use state::{State, StateClean, StateGeneric};
 pub use stream_aux::StreamAux;
+pub use verbatim_params::VerbatimParams;
 
 /// Server
 #[derive(Debug)]

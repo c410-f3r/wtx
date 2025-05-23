@@ -19,15 +19,4 @@ mod http_server_framework {
       Ok(StatusCode::Ok)
     }
   }
-
-  impl<E> ResFinalizer<E> for (BodyClean, StatusCode)
-  where
-    E: From<crate::Error>,
-  {
-    #[inline]
-    fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-      let _ = self.0.finalize_response(req)?;
-      Ok(self.1)
-    }
-  }
 }
