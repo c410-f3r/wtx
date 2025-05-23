@@ -2,9 +2,10 @@ use crate::{
   collection::ArrayString,
   misc::{
     FromRadix10 as _, Lease, LeaseMut, QueryWriter, bytes_pos1, bytes_rpos1, str_split_once1,
+    str_split1,
   },
 };
-use alloc::string::String;
+use alloc::{boxed::Box, string::String};
 use core::{
   fmt::{Arguments, Debug, Display, Formatter, Write as _},
   ops::{Deref, DerefMut},
@@ -13,10 +14,12 @@ use core::{
 /// [Uri] with an owned array.
 pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;
 /// [Uri] with an owned string.
+pub type UriBox = Uri<Box<str>>;
+/// [Uri] with an owned string.
 pub type UriCow<'uri> = Uri<alloc::borrow::Cow<'uri, str>>;
 /// [Uri] with a string reference.
 pub type UriRef<'uri> = Uri<&'uri str>;
-/// [Uri] with an owned string.
+/// [Uri] with a dynamic owned string.
 pub type UriString = Uri<String>;
 
 /// Elements that compose an URI.
@@ -25,19 +28,24 @@ pub type UriString = Uri<String>;
 /// foo://user:password@hostname:80/path?query=value#hash
 /// ```
 //
-// foo:// | user:password@hostname:80 | /path |?query=value#hash
-//        |                           |       |
-//        |                           |       |-> query_start
-//        |                           |
-//        |                           |---------> href_start
+// \0\0\0 | foo:// | user:password@hostname:80 | /path | ?query=value | #hash
+//        |        |                           |       |              |
+//        |        |                           |       |              |-> fragment_start
+//        |        |                           |       |
+//        |        |                           |       |----------------> query_start
+//        |        |                           |
+//        |        |                           |------------------------> href_start
+//        |        |
+//        |        |----------------------------------------------------> authority_start
 //        |
-//        |-------------------------------------> authority_start
+//        |-------------------------------------------------------------> start
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S>
 where
   S: ?Sized,
 {
   authority_start: u8,
+  fragment_start: u16,
   href_start: u8,
   initial_len: u16,
   port: Option<u16>,
@@ -53,6 +61,7 @@ where
   pub(crate) const fn empty(uri: S) -> Self {
     Self {
       authority_start: 0,
+      fragment_start: 0,
       href_start: 0,
       initial_len: 0,
       port: None,
@@ -85,6 +94,17 @@ where
   #[inline]
   pub fn authority(&self) -> &str {
     self.uri.lease().get(self.authority_start.into()..self.href_start.into()).unwrap_or_default()
+  }
+
+  /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.5>
+  ///
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// assert_eq!(uri.fragment(), "#hash");
+  /// ```
+  #[inline]
+  pub fn fragment(&self) -> &str {
+    self.uri.lease().get(self.fragment_start.into()..).unwrap_or_default()
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2>
@@ -172,6 +192,17 @@ where
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.4>
+  ///
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// assert_eq!(uri.query(), "?query=value");
+  /// ```
+  #[inline]
+  pub fn query(&self) -> &str {
+    self.uri.lease().get(self.query_start.into()..self.fragment_start.into()).unwrap_or_default()
+  }
+
+  /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.4>
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.5>
   ///
   /// ```rust
@@ -181,6 +212,20 @@ where
   #[inline]
   pub fn query_and_fragment(&self) -> &str {
     self.uri.lease().get(self.query_start.into()..).unwrap_or_default()
+  }
+
+  /// Iterator that returns the key/value pairs of a query, if any.
+  ///
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// let mut iter = uri.query_params();
+  /// assert_eq!(iter.next(), Some(("query", "value")));
+  /// assert_eq!(iter.next(), None);
+  /// ```
+  #[inline]
+  pub fn query_params(&self) -> impl Iterator<Item = (&str, &str)> {
+    let str = self.query().get(1..).unwrap_or_default();
+    str_split1(str, b'&').filter_map(|el| str_split_once1(el, b'='))
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-4.2>
@@ -229,6 +274,7 @@ where
   pub fn to_ref(&self) -> UriRef<'_> {
     UriRef {
       authority_start: self.authority_start,
+      fragment_start: self.fragment_start,
       href_start: self.href_start,
       initial_len: self.initial_len,
       port: self.port,
@@ -243,6 +289,7 @@ where
   pub fn to_string(&self) -> UriString {
     UriString {
       authority_start: self.authority_start,
+      fragment_start: self.fragment_start,
       href_start: self.href_start,
       initial_len: self.initial_len,
       port: self.port,
@@ -273,6 +320,7 @@ where
   fn process(&mut self) {
     let Self {
       authority_start: this_authority_start,
+      fragment_start: this_fragment_rstart,
       href_start: this_href_start,
       initial_len: this_initial_len,
       port: this_port,
@@ -281,8 +329,9 @@ where
       uri: this_uri,
     } = self;
     let indices = Self::process_indices(this_uri.lease());
-    let (initial_len, start, authority_start, href_start, query_start) = indices;
+    let (initial_len, start, authority_start, href_start, query_start, fragment_start) = indices;
     *this_authority_start = authority_start;
+    *this_fragment_rstart = fragment_start;
     *this_href_start = href_start;
     *this_initial_len = initial_len;
     *this_port = Self::process_port(this_uri.lease().get(start.into()..self.href_start.into()));
@@ -290,7 +339,7 @@ where
     *this_start = start;
   }
 
-  fn process_indices(uri: &str) -> (u16, u8, u8, u8, u16) {
+  fn process_indices(uri: &str) -> (u16, u8, u8, u8, u16, u16) {
     let initial_len = uri.len().try_into().unwrap_or(u16::MAX);
     let mut iter = uri.as_bytes().iter().copied().take(255);
     let init = if let Some(0) = iter.next() {
@@ -311,14 +360,25 @@ where
       .next()
       .and_then(|(element, _)| element.wrapping_add(3).try_into().ok())
       .unwrap_or(0);
-    let after_authority = valid_uri.as_bytes().get(authority_start.into()..).unwrap_or_default();
-    let href_start = bytes_pos1(after_authority, b'/')
-      .and_then(|idx| usize::from(authority_start).wrapping_add(idx).try_into().ok())
-      .unwrap_or_else(|| initial_len.try_into().unwrap_or_default());
-    let query_start = bytes_rpos1(valid_uri, b'?')
-      .and_then(|element| element.try_into().ok())
-      .unwrap_or(initial_len);
-    (initial_len, init, authority_start, href_start, query_start)
+    let href_start = {
+      let after_authority = valid_uri.get(authority_start.into()..).unwrap_or_default();
+      bytes_pos1(after_authority, b'/')
+        .and_then(|idx| usize::from(authority_start).wrapping_add(idx).try_into().ok())
+        .unwrap_or_else(|| initial_len.try_into().unwrap_or_default())
+    };
+    let query_start = {
+      let after_href = valid_uri.get(usize::from(href_start)..).unwrap_or_default();
+      bytes_rpos1(after_href, b'?')
+        .and_then(|idx| usize::from(href_start).wrapping_add(idx).try_into().ok())
+        .unwrap_or(initial_len)
+    };
+    let fragment_start = {
+      let after_path = uri.get(query_start.into()..).unwrap_or_default();
+      bytes_rpos1(after_path, b'#')
+        .and_then(|idx| usize::from(query_start).wrapping_add(idx).try_into().ok())
+        .unwrap_or(initial_len)
+    };
+    (initial_len, init, authority_start, href_start, query_start, fragment_start)
   }
 
   fn process_port(str: Option<&str>) -> Option<u16> {
@@ -343,8 +403,18 @@ impl UriString {
   /// Removes all content.
   #[inline]
   pub fn clear(&mut self) {
-    let Self { authority_start, href_start, initial_len, port, query_start, start, uri } = self;
+    let Self {
+      authority_start,
+      fragment_start,
+      href_start,
+      initial_len,
+      port,
+      query_start,
+      start,
+      uri,
+    } = self;
     *authority_start = 0;
+    *fragment_start = 0;
     *href_start = 0;
     *initial_len = 0;
     *port = None;
@@ -361,8 +431,9 @@ impl UriString {
     }
     let prev = self.uri.len();
     self.uri.write_fmt(args)?;
-    let diff = self.uri.len().wrapping_sub(prev);
-    self.query_start = self.query_start.wrapping_add(diff.try_into().unwrap_or(u16::MAX));
+    let diff = self.uri.len().wrapping_sub(prev).try_into().unwrap_or(u16::MAX);
+    self.query_start = self.query_start.wrapping_add(diff);
+    self.fragment_start = self.fragment_start.wrapping_add(diff);
     Ok(())
   }
 
@@ -494,16 +565,22 @@ mod tests {
     uri.push_path(format_args!("/tretre")).unwrap();
     assert_eq!(uri.scheme(), "http");
     assert_eq!(uri.path(), "/rewqd/tretre");
+    assert_eq!(uri.query(), "");
+    assert_eq!(uri.fragment(), "");
     assert_eq!(uri.query_and_fragment(), "");
     assert_eq!(uri.as_str(), "http://dasdas.com/rewqd/tretre");
     uri.truncate_with_initial_len();
     assert_eq!(uri.scheme(), "http");
     assert_eq!(uri.path(), "/rewqd");
+    assert_eq!(uri.query(), "");
+    assert_eq!(uri.fragment(), "");
     assert_eq!(uri.query_and_fragment(), "");
     assert_eq!(uri.as_str(), "http://dasdas.com/rewqd");
     uri.clear();
     assert_eq!(uri.scheme(), "");
     assert_eq!(uri.path(), "");
+    assert_eq!(uri.query(), "");
+    assert_eq!(uri.fragment(), "");
     assert_eq!(uri.query_and_fragment(), "");
     assert_eq!(uri.as_str(), "");
   }

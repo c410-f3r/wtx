@@ -9,10 +9,7 @@ pub(crate) mod statements_misc;
 use crate::{
   collection::Vector,
   database::{Database, ValueIdent, client::rdbms::common_record::CommonRecord},
-  misc::{
-    DEController, Lease, UriRef, hints::unlikely_elem, net::PartitionedFilledBuffer,
-    str_split_once1, str_split1,
-  },
+  misc::{DEController, Lease, hints::unlikely_elem, net::PartitionedFilledBuffer},
 };
 use core::ops::Range;
 
@@ -25,25 +22,6 @@ pub(crate) fn clear_cmd_buffers(
   net_buffer.clear_if_following_is_empty();
   records_params.clear();
   values_params.clear();
-}
-
-pub(crate) fn query_walker<'uri>(
-  uri: &'uri UriRef<'_>,
-  mut cb: impl FnMut(&'uri str, &'uri str) -> crate::Result<()>,
-) -> crate::Result<()> {
-  let mut pair_iter = str_split1(uri.query_and_fragment(), b'&');
-  if let Some(mut key_value) = pair_iter.next() {
-    key_value = key_value.get(1..).unwrap_or_default();
-    if let Some((key, value)) = str_split_once1(key_value, b'=') {
-      cb(key, value)?;
-    }
-  }
-  for key_value in pair_iter {
-    if let Some((key, value)) = str_split_once1(key_value, b'=') {
-      cb(key, value)?;
-    }
-  }
-  Ok(())
 }
 
 // FIXME(STABLE): CommonRecord should implement Record but in such a scenario GAT implies
