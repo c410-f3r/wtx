@@ -7,23 +7,23 @@ use crate::{
   misc::FnFut,
 };
 
-/// Requires a request of type `GET`.
+/// Requires a request of type `PATCH`.
 #[derive(Debug)]
-pub struct Get<T>(
+pub struct Patch<T>(
   /// Function
   pub T,
 );
 
-/// Creates a new [`Get`] instance.
+/// Creates a new [`Patch`] instance.
 #[inline]
-pub fn get<A, T>(ty: T) -> Get<T::Wrapper>
+pub fn patch<A, T>(ty: T) -> Patch<T::Wrapper>
 where
   T: FnFut<A>,
 {
-  Get(ty.into_wrapper())
+  Patch(ty.into_wrapper())
 }
 
-impl<CA, E, S, SA, T> Endpoint<CA, E, S, SA> for Get<T>
+impl<CA, E, S, SA, T> Endpoint<CA, E, S, SA> for Patch<T>
 where
   E: From<crate::Error>,
   T: Endpoint<CA, E, S, SA>,
@@ -36,7 +36,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    check_method(Method::Get, auto_stream.req.method)?;
+    check_method(Method::Patch, auto_stream.req.method)?;
     self.0.auto(auto_stream, path_defs).await
   }
 
@@ -46,12 +46,12 @@ where
     manual_stream: ManualStream<CA, S, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<(), E> {
-    check_method(Method::Get, manual_stream.req.method)?;
+    check_method(Method::Patch, manual_stream.req.method)?;
     self.0.manual(manual_stream, path_defs).await
   }
 }
 
-impl<CA, E, S, SA, T> EndpointNode<CA, E, S, SA> for Get<T>
+impl<CA, E, S, SA, T> EndpointNode<CA, E, S, SA> for Patch<T>
 where
   E: From<crate::Error>,
   T: Endpoint<CA, E, S, SA>,
