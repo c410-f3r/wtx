@@ -1,26 +1,29 @@
 use crate::{
   collection::{ArrayVector, Vector},
   http::{
-    AutoStream, ManualStream, OperationMode, StatusCode,
-    server_framework::{Endpoint, EndpointNode, RouteMatch, methods::check_json},
+    AutoStream, Headers, HttpError, KnownHeaderName, ManualStream, Method, Mime, OperationMode,
+    StatusCode,
+    server_framework::{Endpoint, EndpointNode, RouteMatch},
   },
   misc::FnFut,
 };
 
-/// Requires a request of type `POST` with json MIME.
+/// Requires a JSON request as well as an associated method.
 #[derive(Debug)]
 pub struct Json<T>(
-  /// Arbitrary type
+  /// Function
   pub T,
+  /// Required method
+  pub Method,
 );
 
 /// Creates a new [`Json`] instance.
 #[inline]
-pub fn json<A, T>(ty: T) -> Json<T::Wrapper>
+pub fn json<A, T>(method: Method, ty: T) -> Json<T::Wrapper>
 where
   T: FnFut<A>,
 {
-  Json(ty.into_wrapper())
+  Json(ty.into_wrapper(), method)
 }
 
 impl<CA, E, S, SA, T> Endpoint<CA, E, S, SA> for Json<T>
@@ -36,7 +39,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    check_json(&auto_stream.req.rrd.headers, auto_stream.req.method)?;
+    check_json(&auto_stream.req.rrd.headers, auto_stream.req.method, self.1)?;
     self.0.auto(auto_stream, path_defs).await
   }
 
@@ -46,7 +49,7 @@ where
     manual_stream: ManualStream<CA, S, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<(), E> {
-    check_json(&manual_stream.req.rrd.headers, manual_stream.req.method)?;
+    check_json(&manual_stream.req.rrd.headers, manual_stream.req.method, self.1)?;
     self.0.manual(manual_stream, path_defs).await
   }
 }
@@ -66,4 +69,22 @@ where
   ) -> crate::Result<()> {
     Ok(())
   }
+}
+
+fn check_json<E>(req_headers: &Headers, req_method: Method, user_method: Method) -> Result<(), E>
+where
+  E: From<crate::Error>,
+{
+  let header = req_headers
+    .get_by_name(KnownHeaderName::ContentType.into())
+    .ok_or(crate::Error::from(HttpError::MissingHeader(KnownHeaderName::ContentType)))?;
+  if !header.value.starts_with(Mime::ApplicationJson.as_str()) {
+    return Err(E::from(crate::Error::from(HttpError::UnexpectedContentType)));
+  }
+  if req_method != user_method {
+    return Err(E::from(crate::Error::from(HttpError::UnexpectedHttpMethod {
+      expected: user_method,
+    })));
+  }
+  Ok(())
 }

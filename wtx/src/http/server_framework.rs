@@ -36,9 +36,12 @@ pub use endpoint::Endpoint;
 pub use endpoint_node::EndpointNode;
 pub use headers_clean::*;
 pub use methods::{
+  delete::{Delete, delete},
   get::{Get, get},
   json::{Json, json},
+  patch::{Patch, patch},
   post::{Post, post},
+  put::{Put, put},
   web_socket::{WebSocket, web_socket},
 };
 pub use middleware::Middleware;

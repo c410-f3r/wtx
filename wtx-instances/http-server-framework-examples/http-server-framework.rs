@@ -15,9 +15,9 @@ use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
   database::{Executor, Record},
   http::{
-    ManualStream, ReqResBuffer, Request, Response, StatusCode,
+    ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
     server_framework::{
-      Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean, get, post,
+      Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean, get, json,
     },
   },
   http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
@@ -31,7 +31,7 @@ type Pool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, Tcp
 async fn main() -> wtx::Result<()> {
   let router = Router::paths(wtx::paths!(
     ("/db/{id}", get(db)),
-    ("/json", post(json)),
+    ("/json", json(Method::Post, deserialization_and_serialization)),
     (
       "/say",
       Router::new(wtx::paths!(("/hello", get(hello)), ("/world", get(world))), CustomMiddleware,)?,
@@ -54,15 +54,10 @@ async fn main() -> wtx::Result<()> {
     .await
 }
 
-#[derive(serde::Deserialize)]
-struct DeserializeExample {
-  _foo: i32,
-  _bar: u64,
-}
-
-#[derive(serde::Serialize)]
-struct SerializeExample {
-  _baz: [u8; 4],
+async fn deserialization_and_serialization(
+  _: SerdeJson<DeserializeExample>,
+) -> wtx::Result<SerdeJson<SerializeExample>> {
+  Ok(SerdeJson(SerializeExample { _baz: [1, 2, 3, 4] }))
 }
 
 async fn db(
@@ -78,10 +73,6 @@ async fn db(
 
 async fn hello() -> &'static str {
   "hello"
-}
-
-async fn json(_: SerdeJson<DeserializeExample>) -> wtx::Result<SerdeJson<SerializeExample>> {
-  Ok(SerdeJson(SerializeExample { _baz: [1, 2, 3, 4] }))
 }
 
 async fn stream(
@@ -127,4 +118,15 @@ impl Middleware<(), wtx::Error, Pool> for CustomMiddleware {
     println!("Inspecting response");
     Ok(ControlFlow::Continue(()))
   }
+}
+
+#[derive(serde::Deserialize)]
+struct DeserializeExample {
+  _foo: i32,
+  _bar: u64,
+}
+
+#[derive(serde::Serialize)]
+struct SerializeExample {
+  _baz: [u8; 4],
 }
