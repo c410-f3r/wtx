@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    AutoStream, Mime, ReqBuilder, ReqResBuffer, Request, StatusCode,
+    AutoStream, ReqBuilder, ReqResBuffer, Request, StatusCode,
     server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric},
   },
   misc::{FnFut, FnFutWrapper, LeaseMut},
@@ -73,8 +73,8 @@ where
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    let _ = ReqBuilder::from_req_mut(req).content_type(Mime::ApplicationJson)?;
-    serde_json::to_writer(&mut req.rrd.lease_mut().body, &self.0).map_err(crate::Error::from)?;
+    req.rrd.clear();
+    let _ = ReqBuilder::from_req_mut(req).serde_json(&self.0)?;
     Ok(StatusCode::Ok)
   }
 }

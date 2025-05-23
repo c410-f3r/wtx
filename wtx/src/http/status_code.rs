@@ -140,7 +140,8 @@ mod http_server_framework {
     E: From<crate::Error>,
   {
     #[inline]
-    fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+    fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+      req.rrd.clear();
       Ok(self)
     }
   }
