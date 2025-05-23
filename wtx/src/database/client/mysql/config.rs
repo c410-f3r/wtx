@@ -1,8 +1,5 @@
 use crate::{
-  database::client::{
-    mysql::{MysqlError, charset::Charset, collation::Collation},
-    rdbms::query_walker,
-  },
+  database::client::mysql::{MysqlError, charset::Charset, collation::Collation},
   misc::UriRef,
 };
 
@@ -40,7 +37,9 @@ impl<'data> Config<'data> {
       timezone: None,
       user,
     };
-    query_walker(uri, |key, value| this.set_param(key, value))?;
+    for (key, value) in uri.query_params() {
+      this.set_param(key, value)?;
+    }
     Ok(this)
   }
 

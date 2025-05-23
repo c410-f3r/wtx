@@ -1,7 +1,4 @@
-use crate::{
-  database::client::{postgres::PostgresError, rdbms::query_walker},
-  misc::UriRef,
-};
+use crate::{database::client::postgres::PostgresError, misc::UriRef};
 
 /// Configuration
 #[derive(Debug, PartialEq, Eq)]
@@ -21,7 +18,9 @@ impl<'data> Config<'data> {
     let user = uri.user();
     let mut this =
       Self { application_name: "", channel_binding: ChannelBinding::Prefer, db, password, user };
-    query_walker(uri, |key, value| this.set_param(key, value))?;
+    for (key, value) in uri.query_params() {
+      this.set_param(key, value)?;
+    }
     Ok(this)
   }
 
