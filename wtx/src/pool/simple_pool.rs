@@ -5,12 +5,16 @@ use crate::{
 };
 use alloc::vec::Vec;
 use core::{
+  cell::RefCell,
   future::poll_fn,
   ops::{Deref, DerefMut},
   task::{Poll, Waker},
 };
 use std::sync::Mutex;
 
+/// A [`SimplePool`] synchronized by [`RefCell`].
+pub type SimplePoolRefCell<RM> =
+  SimplePool<RefCell<SimplePoolResource<<RM as ResourceManager>::Resource>>, RM>;
 /// A [`SimplePool`] synchronized by [`tokio::sync::Mutex`].
 #[cfg(feature = "tokio")]
 pub type SimplePoolTokio<RM> =
