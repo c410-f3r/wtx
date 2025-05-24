@@ -10,14 +10,18 @@ use crate::{
   misc::{Lease, LeaseMut, Lock},
   rng::Rng,
 };
+use alloc::rc::Rc;
 use core::{
+  cell::RefCell,
   fmt::{Debug, Formatter},
   marker::PhantomData,
   str,
 };
 use serde::Serialize;
 
-/// [`SessionManager`] backed by `tokio`
+/// [`SessionManager`] synchronized by [`RefCell`].
+pub type SessionManagerRefCell<CS, E> = SessionManager<Rc<RefCell<SessionManagerInner<CS, E>>>>;
+/// [`SessionManager`] synchronized by [`tokio::sync::Mutex`].
 #[cfg(feature = "tokio")]
 pub type SessionManagerTokio<CS, E> =
   SessionManager<crate::sync::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>>;
