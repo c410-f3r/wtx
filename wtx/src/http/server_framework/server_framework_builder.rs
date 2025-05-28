@@ -38,17 +38,17 @@ where
   pub fn with_aux<CACB, SACB>(
     self,
     ca_cb: CACB,
-    ra_cb: SACB,
+    sa_cb: SACB,
   ) -> ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB>
   where
-    CACB: Fn(CBP) -> CA::Init,
-    SACB: Fn(&mut CA) -> SA::Init,
+    CACB: Fn(CBP) -> Result<CA::Init, E>,
+    SACB: Fn(&mut CA) -> Result<SA::Init, E>,
   {
     ServerFramework {
       _ca_cb: ca_cb,
       _cbp: self.cbp,
       _cp: self.cp,
-      _sa_cb: ra_cb,
+      _sa_cb: sa_cb,
       _router: self.router,
     }
   }
@@ -91,7 +91,17 @@ impl<CBP, E, EN, M, S> ServerFrameworkBuilder<(), CBP, E, EN, M, S, ()> {
   #[inline]
   pub fn without_aux(
     self,
-  ) -> ServerFramework<(), fn(CBP) -> (), CBP, E, EN, M, S, (), fn(&mut ()) -> ()> {
+  ) -> ServerFramework<
+    (),
+    fn(CBP) -> Result<(), E>,
+    CBP,
+    E,
+    EN,
+    M,
+    S,
+    (),
+    fn(&mut ()) -> Result<(), E>,
+  > {
     ServerFramework {
       _ca_cb: nothing_conn,
       _cbp: self.cbp,
@@ -111,9 +121,9 @@ where
   pub fn with_conn_aux<CACB>(
     self,
     ca_cb: CACB,
-  ) -> ServerFramework<CA, CACB, CBP, E, EN, M, S, (), fn(&mut CA) -> ()>
+  ) -> ServerFramework<CA, CACB, CBP, E, EN, M, S, (), fn(&mut CA) -> Result<(), E>>
   where
-    CACB: Fn(CBP) -> CA::Init,
+    CACB: Fn(CBP) -> Result<CA::Init, E>,
   {
     ServerFramework {
       _ca_cb: ca_cb,
@@ -134,9 +144,9 @@ where
   pub fn with_stream_aux<SACB>(
     self,
     ra_cb: SACB,
-  ) -> ServerFramework<(), fn(CBP) -> (), CBP, E, EN, M, S, SA, SACB>
+  ) -> ServerFramework<(), fn(CBP) -> Result<(), E>, CBP, E, EN, M, S, SA, SACB>
   where
-    SACB: Fn(&mut ()) -> SA::Init,
+    SACB: Fn(&mut ()) -> Result<SA::Init, E>,
   {
     ServerFramework {
       _ca_cb: nothing_conn,
@@ -148,5 +158,9 @@ where
   }
 }
 
-fn nothing_conn<CBP>(_: CBP) {}
-fn nothing_stream<CA>(_: &mut CA) {}
+fn nothing_conn<CBP, E>(_: CBP) -> Result<(), E> {
+  Ok(())
+}
+fn nothing_stream<CA, E>(_: &mut CA) -> Result<(), E> {
+  Ok(())
+}

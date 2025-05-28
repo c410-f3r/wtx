@@ -6,6 +6,7 @@ use core::{panic::Location, ptr};
 ///
 /// 1. The address of a heap allocation.
 /// 2. The line and column of the caller location.
+/// 3. The current duration, if any.
 #[inline]
 pub fn simple_seed() -> u64 {
   let heap = Box::new(1u8);

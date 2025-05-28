@@ -1,53 +1,6 @@
 //! Random Number Generators
 
-macro_rules! _implement_rand {
-  ($struct:ty) => {
-    impl crate::rng::CryptoRng for $struct {}
-
-    impl crate::rng::Rng for $struct {
-      #[inline]
-      fn u8(&mut self) -> u8 {
-        use rand_chacha::rand_core::RngCore;
-        let [a, ..] = self.next_u32().to_be_bytes();
-        a
-      }
-
-      #[inline]
-      fn u8_4(&mut self) -> [u8; 4] {
-        use rand_chacha::rand_core::RngCore;
-        self.next_u32().to_be_bytes()
-      }
-
-      #[inline]
-      fn u8_8(&mut self) -> [u8; 8] {
-        use rand_chacha::rand_core::RngCore;
-        let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
-        [a, b, c, d, e, f, g, h]
-      }
-
-      #[inline]
-      fn u8_16(&mut self) -> [u8; 16] {
-        use rand_chacha::rand_core::RngCore;
-        let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
-        let [i, j, k, l, m, n, o, p] = self.next_u64().to_be_bytes();
-        [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
-      }
-    }
-
-    impl crate::rng::SeedableRng for $struct {
-      #[inline]
-      fn from_rng<R>(rng: &mut R) -> Self
-      where
-        R: crate::rng::Rng,
-      {
-        let mut seed = <Self as rand_chacha::rand_core::SeedableRng>::Seed::default();
-        rng.fill_slice(&mut seed);
-        rand_chacha::rand_core::SeedableRng::from_seed(seed)
-      }
-    }
-  };
-}
-
+mod cha_cha20;
 mod crypto_rng;
 #[cfg(feature = "fastrand")]
 mod fastrand;
@@ -58,6 +11,8 @@ mod seed;
 mod seedable_rng;
 mod xorshift;
 
+use crate::sync::AtomicCell;
+pub use cha_cha20::ChaCha20;
 use core::{
   cell::Cell,
   iter,
@@ -148,7 +103,94 @@ where
   fn u8_16(&mut self) -> [u8; 16];
 }
 
+impl<T> Rng for AtomicCell<T>
+where
+  T: Copy + Rng,
+{
+  #[inline]
+  fn u8(&mut self) -> u8 {
+    (&*self).u8()
+  }
+
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    (&*self).u8_4()
+  }
+
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    (&*self).u8_8()
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    (&*self).u8_16()
+  }
+}
+
+impl<T> Rng for &AtomicCell<T>
+where
+  T: Copy + Rng,
+{
+  #[inline]
+  fn u8(&mut self) -> u8 {
+    let mut instance = self.load();
+    let rslt = instance.u8();
+    self.store(instance);
+    rslt
+  }
+
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    let mut instance = self.load();
+    let rslt = instance.u8_4();
+    self.store(instance);
+    rslt
+  }
+
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    let mut instance = self.load();
+    let rslt = instance.u8_8();
+    self.store(instance);
+    rslt
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    let mut instance = self.load();
+    let rslt = instance.u8_16();
+    self.store(instance);
+    rslt
+  }
+}
+
 impl<T> Rng for Cell<T>
+where
+  T: Copy + Rng,
+{
+  #[inline]
+  fn u8(&mut self) -> u8 {
+    (&*self).u8()
+  }
+
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    (&*self).u8_4()
+  }
+
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    (&*self).u8_8()
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    (&*self).u8_16()
+  }
+}
+
+impl<T> Rng for &Cell<T>
 where
   T: Copy + Rng,
 {
@@ -182,31 +224,6 @@ where
     let rslt = instance.u8_16();
     self.set(instance);
     rslt
-  }
-}
-
-impl<T> Rng for &Cell<T>
-where
-  T: Copy + Rng,
-{
-  #[inline]
-  fn u8(&mut self) -> u8 {
-    self.get().u8()
-  }
-
-  #[inline]
-  fn u8_4(&mut self) -> [u8; 4] {
-    self.get().u8_4()
-  }
-
-  #[inline]
-  fn u8_8(&mut self) -> [u8; 8] {
-    self.get().u8_8()
-  }
-
-  #[inline]
-  fn u8_16(&mut self) -> [u8; 16] {
-    self.get().u8_16()
   }
 }
 

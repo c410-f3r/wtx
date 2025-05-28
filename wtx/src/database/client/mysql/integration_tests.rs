@@ -201,11 +201,13 @@ async fn records() {
 #[cfg(feature = "tokio-rustls")]
 #[tokio::test]
 async fn tls() {
-  use crate::tests::_32_bytes_seed;
-  use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
+  use crate::{
+    rng::{ChaCha20, SeedableRng},
+    tests::_32_bytes_seed,
+  };
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
-  let mut rng = ChaCha20Rng::from_seed(_32_bytes_seed());
+  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   let _executor = MysqlExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),

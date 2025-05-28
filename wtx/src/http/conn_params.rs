@@ -12,6 +12,19 @@ pub(crate) struct ConnParams {
 
 #[cfg(feature = "http2")]
 impl ConnParams {
+  pub(crate) const fn new() -> Self {
+    Self {
+      _enable_connect_protocol: false,
+      _initial_window_len: u32::MAX,
+      _max_body_len: 4 * 1024 * 1024,
+      _max_concurrent_streams_num: u32::MAX,
+      _max_frame_len: 64 * 1024,
+      _max_headers_len: 8 * 1024,
+      _max_hpack_len: (128 * 1024, 128 * 1024),
+      _max_recv_streams_num: u32::MAX,
+    }
+  }
+
   pub(crate) fn _to_hp(self) -> crate::http2::Http2Params {
     crate::http2::Http2Params::default()
       .set_enable_connect_protocol(self._enable_connect_protocol)
@@ -28,15 +41,6 @@ impl ConnParams {
 impl Default for ConnParams {
   #[inline]
   fn default() -> Self {
-    Self {
-      _enable_connect_protocol: false,
-      _initial_window_len: u32::MAX,
-      _max_body_len: 4 * 1024 * 1024,
-      _max_concurrent_streams_num: u32::MAX,
-      _max_frame_len: 64 * 1024,
-      _max_headers_len: 8 * 1024,
-      _max_hpack_len: (128 * 1024, 128 * 1024),
-      _max_recv_streams_num: u32::MAX,
-    }
+    Self::new()
   }
 }

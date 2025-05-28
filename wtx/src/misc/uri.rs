@@ -22,23 +22,25 @@ pub type UriRef<'uri> = Uri<&'uri str>;
 /// [Uri] with a dynamic owned string.
 pub type UriString = Uri<String>;
 
-/// Elements that compose an URI.
+/// A Uniform Resource Identifier (URI) is a unique sequence of characters that identifies an
+/// abstract or physical resource. This specific structure is used for identification purposes.
 ///
 /// ```txt
 /// foo://user:password@hostname:80/path?query=value#hash
 /// ```
-//
-// \0\0\0 | foo:// | user:password@hostname:80 | /path | ?query=value | #hash
+// \0\0\0 | foo:// | user:password@hostname:80 | /path | ?query=value | #hash |
+//        |        |                           |       |              |       |
+//        |        |                           |       |              |       |-> initial_len
 //        |        |                           |       |              |
-//        |        |                           |       |              |-> fragment_start
+//        |        |                           |       |              |---------> fragment_start
 //        |        |                           |       |
-//        |        |                           |       |----------------> query_start
+//        |        |                           |       |------------------------> query_start
 //        |        |                           |
-//        |        |                           |------------------------> href_start
+//        |        |                           |--------------------------------> href_start
 //        |        |
-//        |        |----------------------------------------------------> authority_start
+//        |        |------------------------------------------------------------> authority_start
 //        |
-//        |-------------------------------------------------------------> start
+//        |---------------------------------------------------------------------> start
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S>
 where

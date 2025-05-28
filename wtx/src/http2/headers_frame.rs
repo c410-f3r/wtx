@@ -323,9 +323,9 @@ fn push_uri_buffer(scheme: &str, authority: &str, path: &str, uri_buffer: &mut S
       .wrapping_add(*Usize::from(authority.len()))
       .wrapping_add(*Usize::from(path.len())),
   );
-  uri_buffer.push_str(&scheme);
+  uri_buffer.push_str(scheme);
   uri_buffer.push_str("://");
-  uri_buffer.push_str(&authority);
+  uri_buffer.push_str(authority);
   uri_buffer.push_str(path);
 }
 
@@ -355,7 +355,7 @@ fn push_uri(
 fn push_uri_in_path_buffer(
   scheme: &str,
   authority: &str,
-  uri_buffer: &mut String,
+  uri_buffer: &mut str,
 ) -> crate::Result<()> {
   let sum = scheme.len().wrapping_add(3).wrapping_add(authority.len());
   if sum > 64 {

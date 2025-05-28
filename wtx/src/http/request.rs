@@ -1,4 +1,4 @@
-use crate::http::{Method, Response, StatusCode, Version};
+use crate::http::{Method, ReqResDataMut, Response, StatusCode, Version};
 
 /// An HTTP request received by a server or to be sent by a client.
 #[derive(Debug)]
@@ -28,5 +28,16 @@ impl<RRD> Request<RRD> {
   #[inline]
   pub fn into_response(self, status_code: StatusCode) -> Response<RRD> {
     Response { rrd: self.rrd, status_code, version: self.version }
+  }
+}
+
+impl<RRD> Request<RRD>
+where
+  RRD: ReqResDataMut,
+{
+  /// Clear body and header contents
+  #[inline]
+  pub fn clear(&mut self) {
+    self.rrd.clear();
   }
 }

@@ -9,7 +9,7 @@ use crate::{
     },
   },
   http2::{Http2Buffer, Http2DataTokio, ServerStream},
-  rng::SeedableRng,
+  rng::{Rng, SeedableRng},
   sync::Arc,
 };
 use tokio::net::tcp::OwnedWriteHalf;
@@ -59,14 +59,14 @@ where
 impl<CA, CACB, CBP, E, EN, M, SA, SACB> ServerFramework<CA, CACB, CBP, E, EN, M, Stream, SA, SACB>
 where
   CA: Clone + ConnAux + Send + 'static,
-  CACB: Clone + Fn(CBP) -> CA::Init + Send + 'static,
-  CBP: Clone + SeedableRng + Send + 'static,
+  CACB: Clone + Fn(CBP) -> Result<CA::Init, E> + Send + 'static,
+  CBP: Clone + Rng + SeedableRng + Send + 'static,
   E: From<crate::Error> + Send + 'static,
   EN: EndpointNode<CA, E, Stream, SA, auto(..): Send, manual(..): Send> + Send + 'static,
   M: Middleware<CA, E, SA, req(..): Send, res(..): Send> + Send + 'static,
   M::Aux: Send,
   SA: StreamAux + Send + 'static,
-  SACB: Clone + Fn(&mut CA) -> SA::Init + Send + 'static,
+  SACB: Clone + Fn(&mut CA) -> Result<SA::Init, E> + Send + 'static,
   Arc<Router<CA, E, EN, M, Stream, SA>>: Send,
   for<'any> &'any CA: Send,
   for<'any> &'any Router<CA, E, EN, M, Stream, SA>: Send,
@@ -80,20 +80,21 @@ where
     conn_error_cb: impl Clone + Fn(E) + Send + 'static,
     headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
-  ) -> crate::Result<()> {
+  ) -> Result<(), E> {
     let Self { _ca_cb, _cbp, _cp, _sa_cb, _router } = self;
     OptionedServer::http2_tokio(
       ((), host, _cbp, _router),
       |local_rng| {
-        *local_rng = CBP::from_rng(local_rng);
+        *local_rng = CBP::from_rng(local_rng)?;
+        Ok(())
       },
       |_, stream| async move { Ok(stream.into_split()) },
       conn_error_cb,
       move |mut local_rng| {
         let hb = Http2Buffer::new(&mut local_rng);
-        Ok((CA::conn_aux(_ca_cb(local_rng))?, hb, _cp._to_hp()))
+        Ok((CA::conn_aux(_ca_cb(local_rng)?)?, hb, _cp._to_hp()))
       },
-      move |ca| Ok((SA::stream_aux(_sa_cb(ca))?, ReqResBuffer::empty())),
+      move |ca| Ok((SA::stream_aux(_sa_cb(ca)?)?, ReqResBuffer::empty())),
       move |_, local_router, _, req, _| {
         let rslt = Self::route_params(req.rrd.uri.path(), local_router)?;
         headers_cb(req)?;
@@ -120,14 +121,14 @@ impl<CA, CACB, CBP, E, EN, M, SA, SACB>
   ServerFramework<CA, CACB, CBP, E, EN, M, StreamRustls, SA, SACB>
 where
   CA: Clone + ConnAux + Send + 'static,
-  CACB: Clone + Fn(CBP) -> CA::Init + Send + 'static,
-  CBP: Clone + SeedableRng + Send + 'static,
+  CACB: Clone + Fn(CBP) -> Result<CA::Init, E> + Send + 'static,
+  CBP: Clone + Rng + SeedableRng + Send + 'static,
   E: From<crate::Error> + Send + 'static,
   EN: EndpointNode<CA, E, StreamRustls, SA, auto(..): Send, manual(..): Send> + Send + 'static,
   M: Middleware<CA, E, SA, req(..): Send, res(..): Send> + Send + 'static,
   M::Aux: Send,
   SA: StreamAux + Send + 'static,
-  SACB: Clone + Fn(&mut CA) -> SA::Init + Send + 'static,
+  SACB: Clone + Fn(&mut CA) -> Result<SA::Init, E> + Send + 'static,
   Arc<Router<CA, E, EN, M, StreamRustls, SA>>: Send,
   for<'any> &'any CA: Send,
   for<'any> &'any Router<CA, E, EN, M, StreamRustls, SA>: Send,
@@ -142,7 +143,7 @@ where
     conn_error_cb: impl Clone + Fn(E) + Send + 'static,
     headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
-  ) -> crate::Result<()> {
+  ) -> Result<(), E> {
     let Self { _ca_cb, _cbp, _cp, _sa_cb, _router } = self;
     let tls_acceptor = crate::misc::TokioRustlsAcceptor::without_client_auth()
       .http2()
@@ -150,15 +151,18 @@ where
     OptionedServer::http2_tokio(
       (tls_acceptor, host, _cbp, _router),
       |local_rng| {
-        *local_rng = CBP::from_rng(local_rng);
+        *local_rng = CBP::from_rng(local_rng)?;
+        Ok(())
       },
-      |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
+      |acceptor, stream| async move {
+        Ok(tokio::io::split(acceptor.accept(stream).await.map_err(crate::Error::from)?))
+      },
       conn_error_cb,
       move |mut local_rng| {
         let hb = Http2Buffer::new(&mut local_rng);
-        Ok((CA::conn_aux(_ca_cb(local_rng))?, hb, _cp._to_hp()))
+        Ok((CA::conn_aux(_ca_cb(local_rng)?)?, hb, _cp._to_hp()))
       },
-      move |ca| Ok((SA::stream_aux(_sa_cb(ca))?, ReqResBuffer::empty())),
+      move |ca| Ok((SA::stream_aux(_sa_cb(ca)?)?, ReqResBuffer::empty())),
       move |_, local_router, _, req, _| {
         let rslt = Self::route_params(req.rrd.uri.path(), local_router)?;
         headers_cb(req)?;

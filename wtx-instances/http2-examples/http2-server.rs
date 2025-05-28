@@ -34,7 +34,7 @@ async fn main() -> wtx::Result<()> {
       (),
       (),
     ),
-    |_| {},
+    |_| Ok(()),
     |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
     |error| eprintln!("{error}"),
     |_| {
@@ -68,7 +68,7 @@ async fn auto(
   _: (),
   mut ha: AutoStream<(), Vector<u8>>,
 ) -> Result<Response<ReqResBuffer>, wtx::Error> {
-  ha.req.rrd.clear();
+  ha.req.clear();
   Ok(ha.req.into_response(StatusCode::Ok))
 }
 

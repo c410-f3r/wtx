@@ -141,7 +141,7 @@ mod http_server_framework {
   {
     #[inline]
     fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-      req.rrd.clear();
+      req.clear();
       Ok(self)
     }
   }

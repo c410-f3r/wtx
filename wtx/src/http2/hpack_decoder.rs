@@ -231,7 +231,6 @@ impl HpackDecoder {
     Some((*header.misc, HeaderName::new(header.name), header.value))
   }
 
-  #[expect(clippy::too_many_lines, reason = "defined by the specification")]
   fn get_static(idx: u32) -> Option<(HpackHeaderBasic, HeaderName<&'static str>, &'static str)> {
     let (hhb, name, value) = match idx {
       1 => (HpackHeaderBasic::Authority, ":authority", ""),

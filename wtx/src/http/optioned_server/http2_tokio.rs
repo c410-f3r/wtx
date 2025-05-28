@@ -50,15 +50,15 @@ impl OptionedServer {
     http2_stream_error_cb: HSEC,
     http2_stream_auto_cb: HSAC,
     http2_stream_manual_cb: HSMC,
-  ) -> crate::Result<()>
+  ) -> Result<(), ERR>
   where
     ACPT: Clone + Send + 'static,
-    TAC: Fn(&mut HCACP) + Send + 'static,
+    TAC: Fn(&mut HCACP) -> Result<(), ERR> + Send + 'static,
     TSC: Clone + Fn(ACPT, TcpStream) -> TSF + Send + 'static,
     HCEC: Clone + Fn(ERR) + Send + 'static,
-    HCAC: Clone + Fn(HCACP) -> crate::Result<(CA, Http2Buffer, Http2Params)> + Send + 'static,
+    HCAC: Clone + Fn(HCACP) -> Result<(CA, Http2Buffer, Http2Params), ERR> + Send + 'static,
     HCACP: Clone + Send + 'static,
-    HCSC: Clone + Fn(&mut CA) -> crate::Result<(SA, ReqResBuffer)> + Send + 'static,
+    HCSC: Clone + Fn(&mut CA) -> Result<(SA, ReqResBuffer), ERR> + Send + 'static,
     HCOC: Clone
       + Fn(
         &CA,
@@ -87,17 +87,17 @@ impl OptionedServer {
     HSMC::Future: Send,
     SR: Send + StreamReader<read(..): Send, read_skip(..): Send> + 'static,
     SW: Send + StreamWriter<write_all(..): Send, write_all_vectored(..): Send> + 'static,
-    TSF: Future<Output = crate::Result<(SR, SW)>> + Send,
+    TSF: Future<Output = Result<(SR, SW), ERR>> + Send,
     for<'any> &'any CA: Send,
     for<'any> &'any HCOC: Send,
     for<'any> &'any HSAC: Send,
     for<'any> &'any HSMC: Send,
     for<'any> &'any SA: Send,
   {
-    let listener = TcpListener::bind(addr).await?;
+    let listener = TcpListener::bind(addr).await.map_err(crate::Error::from)?;
     loop {
-      let accepted_stream = listener.accept().await?.0;
-      tcp_acceptance_cb(&mut hcacp);
+      let accepted_stream = listener.accept().await.map_err(crate::Error::from)?.0;
+      tcp_acceptance_cb(&mut hcacp)?;
 
       let conn_acpt = acpt.clone();
       let conn_hcacp = hcacp.clone();
@@ -109,7 +109,7 @@ impl OptionedServer {
       let conn_stream_error = http2_stream_error_cb.clone();
       let conn_stream_manual = http2_stream_manual_cb.clone();
       let conn_tcp_stream = tcp_stream.clone();
-      let peer = accepted_stream.peer_addr()?.ip();
+      let peer = accepted_stream.peer_addr().map_err(crate::Error::from)?.ip();
       let mut conn_hcocp = hcocp.clone();
 
       let _conn_jh = tokio::spawn(async move {

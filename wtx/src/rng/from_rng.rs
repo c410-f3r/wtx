@@ -25,10 +25,9 @@ where
 {
   #[inline]
   fn from_rng(rng: &mut RNG) -> Self {
-    if Usize::IS_64 {
-      Usize::from_u64(u64::from_be_bytes(rng.u8_8())).into_usize()
-    } else {
-      Usize::from_u32(u32::from_be_bytes(rng.u8_4())).into_usize()
-    }
+    #[cfg(target_pointer_width = "64")]
+    return Usize::from_u64(u64::from_be_bytes(rng.u8_8())).into_usize();
+    #[cfg(not(target_pointer_width = "64"))]
+    return Usize::from_u32(u32::from_be_bytes(rng.u8_4())).into_usize();
   }
 }

@@ -1,7 +1,7 @@
 use crate::{
   collection::Vector,
   http::{
-    AutoStream, Headers, Request, StatusCode,
+    AutoStream, Headers, ReqResDataMut, Request, StatusCode,
     server_framework::{
       Endpoint, ResFinalizer, StateGeneric,
       arguments::{RouteMatch, manage_path},
@@ -29,7 +29,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    auto_stream.req.rrd.clear();
+    auto_stream.req.rrd.clear_body_and_headers();
     let path = manage_path(path_defs, &auto_stream.req.rrd.uri)?;
     self.0.call((PathStr(path),)).await.finalize_response(&mut auto_stream.req)
   }

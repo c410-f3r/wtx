@@ -3,29 +3,29 @@
 //!
 //! Currently, only HTTP/2 is supported.
 
-extern crate rand_chacha;
 extern crate serde;
 extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
+use crate::wtx::rng::SeedableRng;
 use core::{fmt::Write, ops::ControlFlow};
-use rand_chacha::rand_core::SeedableRng;
 use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
   database::{Executor, Record},
   http::{
     ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
     server_framework::{
-      Middleware, PathOwned, Router, SerdeJson, ServerFrameworkBuilder, StateClean, get, json,
+      Middleware, PathOwned, Router, SerdeJsonOwned, ServerFrameworkBuilder, StateClean,
+      VerbatimParams, get, json,
     },
   },
   http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
   pool::{PostgresRM, SimplePoolTokio},
-  rng::{Xorshift64, simple_seed},
+  rng::{ChaCha20, Xorshift64, simple_seed},
 };
 
-type Pool = SimplePoolTokio<PostgresRM<wtx::Error, rand_chacha::ChaCha20Rng, TcpStream>>;
+type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -38,13 +38,11 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  let rm = PostgresRM::tokio(
-    rand_chacha::ChaCha20Rng::try_from_os_rng()?,
-    "postgres://USER:PASSWORD@localhost/DB_NAME".into(),
-  );
+  let rm =
+    PostgresRM::tokio(ChaCha20::from_os()?, "postgres://USER:PASSWORD@localhost/DB_NAME".into());
   let pool = Pool::new(4, rm);
   ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
-    .with_stream_aux(move |_| pool.clone())
+    .with_stream_aux(move |_| Ok(pool.clone()))
     .tokio(
       &wtx_instances::host_from_args(),
       |error| eprintln!("{error:?}"),
@@ -55,20 +53,20 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn deserialization_and_serialization(
-  _: SerdeJson<DeserializeExample>,
-) -> wtx::Result<SerdeJson<SerializeExample>> {
-  Ok(SerdeJson(SerializeExample { _baz: [1, 2, 3, 4] }))
+  _: SerdeJsonOwned<DeserializeExample>,
+) -> wtx::Result<SerdeJsonOwned<SerializeExample>> {
+  Ok(SerdeJsonOwned(SerializeExample { _baz: [1, 2, 3, 4] }))
 }
 
 async fn db(
   state: StateClean<'_, (), Pool, ReqResBuffer>,
   PathOwned(id): PathOwned<u32>,
-) -> wtx::Result<StatusCode> {
+) -> wtx::Result<VerbatimParams> {
   let mut lock = state.stream_aux.get().await?;
   let record = lock.fetch_with_stmt("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
   state.req.rrd.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
-  Ok(StatusCode::Ok)
+  Ok(VerbatimParams(StatusCode::Ok))
 }
 
 async fn hello() -> &'static str {

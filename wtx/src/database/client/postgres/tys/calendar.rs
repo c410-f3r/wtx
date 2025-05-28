@@ -101,7 +101,7 @@ where
     let days: i32 = Decode::<Postgres<E>>::decode(aux, dw)?;
     let days_in_secs = i64::from(SECONDS_PER_DAY).wrapping_mul(days.into());
     let timestamp = days_in_secs.wrapping_add(PG_EPOCH.timestamp().0);
-    Ok(DateTime::from_timestamp_secs(timestamp).map_err(crate::Error::from)?.date())
+    Ok(DateTime::from_timestamp_secs(timestamp)?.date())
   }
 }
 

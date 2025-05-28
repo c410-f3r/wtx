@@ -174,7 +174,7 @@ async fn nested_middlewares() {
   }
 
   auto_stream.conn_aux = Counter(0);
-  auto_stream.req.rrd.clear();
+  auto_stream.req.clear();
   auto_stream.stream_aux = Counter(0);
 
   {

@@ -71,7 +71,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    auto_stream.req.rrd.clear();
+    auto_stream.req.clear();
     self.0.call(()).await.finalize_response(&mut auto_stream.req)
   }
 }
