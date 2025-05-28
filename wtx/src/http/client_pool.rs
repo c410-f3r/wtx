@@ -97,7 +97,7 @@ mod tokio {
     ///
     /// Connection is established using the elements provided by the `tokio` project.
     #[inline]
-    pub fn tokio(len: usize) -> Self {
+    pub const fn tokio(len: usize) -> Self {
       Self::no_fun(len)
     }
   }
@@ -172,7 +172,7 @@ mod tokio_rustls {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio-rustls` project.
-    pub fn tokio_rustls(len: usize) -> Self {
+    pub const fn tokio_rustls(len: usize) -> Self {
       Self::no_fun(len)
     }
   }

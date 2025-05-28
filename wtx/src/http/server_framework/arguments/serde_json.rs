@@ -9,15 +9,15 @@ use serde::{Serialize, de::DeserializeOwned};
 
 /// Serializes and deserializes using `serde_json`
 #[derive(Debug)]
-pub struct SerdeJson<T>(
+pub struct SerdeJsonOwned<T>(
   /// Arbitrary type
   pub T,
 );
 
-impl<CA, E, F, RES, S, SA, T> Endpoint<CA, E, S, SA> for FnFutWrapper<(SerdeJson<T>,), F>
+impl<CA, E, F, RES, S, SA, T> Endpoint<CA, E, S, SA> for FnFutWrapper<(SerdeJsonOwned<T>,), F>
 where
   E: From<crate::Error>,
-  F: FnFut<(SerdeJson<T>,), Result = RES>,
+  F: FnFut<(SerdeJsonOwned<T>,), Result = RES>,
   RES: ResFinalizer<E>,
   T: DeserializeOwned,
 {
@@ -27,18 +27,21 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let elem =
-      serde_json::from_slice(&auto_stream.req.rrd.lease_mut().body).map_err(crate::Error::from)?;
+    let body = &auto_stream.req.rrd.lease_mut().body;
+    let elem = serde_json::from_slice(body).map_err(crate::Error::from)?;
     auto_stream.req.rrd.lease_mut().clear();
-    self.0.call((SerdeJson(elem),)).await.finalize_response(&mut auto_stream.req)
+    self.0.call((SerdeJsonOwned(elem),)).await.finalize_response(&mut auto_stream.req)
   }
 }
 
 impl<CA, E, F, RES, S, SA, T, const CLEAN: bool> Endpoint<CA, E, S, SA>
-  for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>, SerdeJson<T>), F>
+  for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>, SerdeJsonOwned<T>), F>
 where
   E: From<crate::Error>,
-  F: for<'any> FnFut<(StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>, SerdeJson<T>), Result = RES>,
+  F: for<'any> FnFut<
+      (StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>, SerdeJsonOwned<T>),
+      Result = RES,
+    >,
   RES: ResFinalizer<E>,
   T: DeserializeOwned,
 {
@@ -59,21 +62,21 @@ where
           &mut auto_stream.stream_aux,
           &mut auto_stream.req,
         ),
-        SerdeJson(elem),
+        SerdeJsonOwned(elem),
       ))
       .await
       .finalize_response(&mut auto_stream.req)
   }
 }
 
-impl<E, T> ResFinalizer<E> for SerdeJson<T>
+impl<E, T> ResFinalizer<E> for SerdeJsonOwned<T>
 where
   E: From<crate::Error>,
   T: Serialize,
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    req.rrd.clear();
+    req.clear();
     let _ = ReqBuilder::from_req_mut(req).serde_json(&self.0)?;
     Ok(StatusCode::Ok)
   }

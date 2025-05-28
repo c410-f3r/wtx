@@ -6,8 +6,8 @@
 [![rustc][rustc-badge]][rustc-url]
 [![Tests][actions-badge]][actions-url]
 
-[actions-badge]: https://github.com/c410-f3r/wtx/workflows/Tests/badge.svg
-[actions-url]: https://github.com/c410-f3r/wtx/actions?query=workflow%3ATests+branch%3Amain
+[actions-badge]: https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml/badge.svg
+[actions-url]: https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml
 [crates-badge]: https://img.shields.io/crates/v/wtx.svg?color=blue
 [crates-url]: https://crates.io/crates/wtx
 [docs-badge]: https://docs.rs/wtx/badge.svg
@@ -20,6 +20,8 @@
 A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 3 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [MySQL](https://dev.mysql.com/doc/dev/mysql-server/latest/), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
 Embedded devices with a working heap allocator can use this `no_std` crate.
+
+If you find this crate interesting, please consider giving it a star ⭐ on `GitHub`.
 
 ## Comparisons
 
@@ -75,8 +77,8 @@ These numbers provide an estimate of the expected waiting times when developing 
 | Client API Framework  | 0                  | 31                 | 6.42s       | 7.79s             | 8.45s           | 872K     |
 | gRPC Client           | 2                  | 16                 | 4.80s       | 6.04s             | 6.53s           | 736K     |
 | HTTP Client Pool      | 2                  | 15                 | 4.60s       | 5.84s             | 6.44s           | 728K     |
-| HTTP Server Framework | 2                  | 37                 | 7.87s       | 10.53s            | 10.60s          | 996K     |
-| Postgres Client       | 13                 | 30                 | 5.12s       | 6.19s             | 6.69s           | 652K     |
+| HTTP Server Framework | 2                  | 34                 | 7.87s       | 10.53s            | 10.60s          | 996K     |
+| Postgres Client       | 13                 | 26                 | 5.12s       | 6.19s             | 6.69s           | 652K     |
 | WebSocket Client      | 10                 | 22                 | 4.24s       | 5.04s             | 5.31s           | 560K     |
 
 ## Transport Layer Security (TLS)

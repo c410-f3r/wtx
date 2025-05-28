@@ -7,10 +7,10 @@ use crate::{
     },
   },
   misc::{Decode, Encode, UriRef},
+  rng::{ChaCha20, SeedableRng},
   tests::_32_bytes_seed,
 };
 use alloc::string::String;
-use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
 use std::{env, sync::LazyLock};
 use tokio::net::TcpStream;
 
@@ -459,7 +459,7 @@ async fn serde_json() {
 async fn tls() {
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
-  let mut rng = ChaCha20Rng::from_seed(_32_bytes_seed());
+  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -483,7 +483,7 @@ async fn tls() {
 async fn executor<E>() -> PostgresExecutor<E, ExecutorBuffer, TcpStream> {
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
-  let mut rng = ChaCha20Rng::from_seed(_32_bytes_seed());
+  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   PostgresExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),

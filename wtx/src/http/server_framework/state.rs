@@ -1,6 +1,7 @@
 use crate::{
+  collection::Vector,
   http::{
-    AutoStream, ReqResBuffer, ReqResDataMut, Request, StatusCode,
+    AutoStream, Headers, ReqResBuffer, ReqResDataMut, Request, StatusCode,
     server_framework::{Endpoint, ResFinalizer, RouteMatch},
   },
   misc::{FnFut, FnFutWrapper},
@@ -17,13 +18,16 @@ pub type StateClean<'any, CA, SA, RRD> = StateGeneric<'any, CA, SA, RRD, true>;
 ///
 /// When used in an endpoint's argument, request data is automatically cleaned. When used as the return type of an
 /// endpoint, response data is automatically cleaned.
+//
+// The use of generics without lifetimes make `Endpoint::auto` `!Send` when associated with an
+// hypothetical `State<&mut CA, &mut SA, &mut RRD>`, for whatever the reason.
 #[derive(Debug)]
 pub struct StateGeneric<'any, CA, SA, RRD, const CLEAN: bool> {
   /// Connection auxiliary
   pub conn_aux: &'any mut CA,
   /// Request/Response Data
   pub req: &'any mut Request<RRD>,
-  /// Request auxiliary
+  /// Stream auxiliary
   pub stream_aux: &'any mut SA,
 }
 
@@ -39,7 +43,7 @@ where
     req: &'any mut Request<RRD>,
   ) -> Self {
     if CLEAN {
-      req.rrd.clear();
+      req.clear();
     }
     Self { conn_aux, stream_aux, req }
   }
@@ -102,5 +106,52 @@ where
     (conn_aux, stream_aux, req): &'any mut (&'any mut CA, &'any mut SA, Request<RRD>),
   ) -> Self {
     Self::new(conn_aux, stream_aux, req)
+  }
+}
+
+/// Owned state used in testing environments.
+#[derive(Debug)]
+pub struct StateTest<CA, SA, RRD> {
+  /// Connection auxiliary
+  pub conn_aux: CA,
+  /// Request/Response Data
+  pub req: Request<RRD>,
+  /// Stream auxiliary
+  pub stream_aux: SA,
+}
+
+impl<CA, SA, RRD> StateTest<CA, SA, RRD> {
+  /// Mutable parts
+  #[inline]
+  pub fn parts_mut(&mut self) -> (&mut CA, &mut SA, &mut Request<RRD>) {
+    (&mut self.conn_aux, &mut self.stream_aux, &mut self.req)
+  }
+
+  /// Returns a new [`StateGeneric`].
+  #[inline]
+  pub fn state<const CLEAR: bool>(&mut self) -> StateGeneric<'_, CA, SA, RRD, CLEAR> {
+    StateGeneric {
+      conn_aux: &mut self.conn_aux,
+      req: &mut self.req,
+      stream_aux: &mut self.stream_aux,
+    }
+  }
+}
+
+impl<CA, SA> StateTest<CA, SA, ReqResBuffer> {
+  /// Mutable parts with a modified request that only contains data and headers.
+  #[inline]
+  pub fn parts_mut_with_body_and_headers(
+    &mut self,
+  ) -> (&mut CA, &mut SA, Request<(&mut Vector<u8>, &mut Headers)>) {
+    (
+      &mut self.conn_aux,
+      &mut self.stream_aux,
+      Request {
+        method: self.req.method,
+        rrd: (&mut self.req.rrd.body, &mut self.req.rrd.headers),
+        version: self.req.version,
+      },
+    )
   }
 }

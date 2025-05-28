@@ -10,7 +10,7 @@ use crate::{
 pub use path_owned::PathOwned;
 pub use path_str::PathStr;
 #[cfg(feature = "serde_json")]
-pub use serde_json::SerdeJson;
+pub use serde_json::SerdeJsonOwned;
 
 fn manage_path<'uri>(
   path_defs: (u8, &[RouteMatch]),

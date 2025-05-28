@@ -66,7 +66,7 @@ where
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    req.rrd.clear();
+    req.clear();
     Self::push_headers(req.rrd.headers_mut(), self.uri)?;
     Ok(self.status_code)
   }

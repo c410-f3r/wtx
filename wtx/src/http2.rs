@@ -46,7 +46,6 @@ mod stream_state;
 #[cfg(all(feature = "_async-tests", test))]
 mod tests;
 mod u31;
-mod uri_buffer;
 #[cfg(feature = "web-socket")]
 mod web_socket_over_stream;
 mod window;

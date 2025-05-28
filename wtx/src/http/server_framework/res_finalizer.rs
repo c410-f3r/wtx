@@ -12,7 +12,7 @@ where
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    req.rrd.clear();
+    req.clear();
     Ok(StatusCode::Ok)
   }
 }
@@ -23,7 +23,7 @@ where
 {
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    req.rrd.clear();
+    req.clear();
     req.rrd.body.extend_from_copyable_slice(self.as_bytes())?;
     Ok(StatusCode::Ok)
   }
@@ -37,17 +37,5 @@ where
   #[inline]
   fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
     self.and_then(|elem| elem.finalize_response(req))
-  }
-}
-
-impl<E, T> ResFinalizer<E> for (T, StatusCode)
-where
-  E: From<crate::Error>,
-  T: ResFinalizer<E>,
-{
-  #[inline]
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
-    let _ = self.0.finalize_response(req)?;
-    Ok(self.1)
   }
 }

@@ -2,13 +2,12 @@ use crate::{
   collection::Vector,
   http2::{
     Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, index_map::IndexMap,
-    initial_server_header::InitialServerHeader, uri_buffer::UriBuffer,
+    initial_server_header::InitialServerHeader,
   },
   misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
   rng::{Rng, Xorshift64, simple_seed},
   sync::{Arc, AtomicBool, AtomicWaker},
 };
-use alloc::boxed::Box;
 use core::sync::atomic::Ordering;
 use hashbrown::HashMap;
 
@@ -24,7 +23,6 @@ pub struct Http2Buffer {
   pub(crate) read_frame_waker: Arc<AtomicWaker>,
   pub(crate) scrp: Scrp,
   pub(crate) sorp: Sorp,
-  pub(crate) uri_buffer: Box<UriBuffer>,
 }
 
 impl Http2Buffer {
@@ -44,7 +42,6 @@ impl Http2Buffer {
       read_frame_waker: Arc::new(AtomicWaker::new()),
       scrp: HashMap::new(),
       sorp: HashMap::new(),
-      uri_buffer: Box::new(UriBuffer::new()),
     }
   }
 
@@ -59,7 +56,6 @@ impl Http2Buffer {
       read_frame_waker,
       scrp,
       sorp,
-      uri_buffer,
     } = self;
     hpack_dec.clear();
     hpack_enc.clear();
@@ -70,7 +66,6 @@ impl Http2Buffer {
     let _waker = read_frame_waker.take();
     scrp.clear();
     sorp.clear();
-    uri_buffer.clear();
   }
 }
 

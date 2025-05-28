@@ -112,6 +112,13 @@ impl ReqResDataMut for ReqResBuffer {
   fn clear(&mut self) {
     self.body.clear();
     self.headers.clear();
+    self.uri.clear();
+  }
+
+  #[inline]
+  fn clear_body_and_headers(&mut self) {
+    self.body.clear();
+    self.headers.clear();
   }
 
   #[inline]

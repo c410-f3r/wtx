@@ -241,6 +241,9 @@ pub trait ReqResDataMut: ReqResData {
   /// Removes all values.
   fn clear(&mut self);
 
+  /// Removes all but URI values.
+  fn clear_body_and_headers(&mut self);
+
   /// Mutable version of [`ReqResData::headers`].
   #[inline]
   fn headers_mut(&mut self) -> &mut Headers {
@@ -263,6 +266,11 @@ where
   #[inline]
   fn clear(&mut self) {
     (**self).clear();
+  }
+
+  #[inline]
+  fn clear_body_and_headers(&mut self) {
+    (**self).clear_body_and_headers();
   }
 
   #[inline]
@@ -291,6 +299,11 @@ where
   }
 
   #[inline]
+  fn clear_body_and_headers(&mut self) {
+    (**self).clear_body_and_headers();
+  }
+
+  #[inline]
   fn headers_mut(&mut self) -> &mut Headers {
     (**self).headers_mut()
   }
@@ -304,6 +317,11 @@ where
 impl ReqResDataMut for Headers {
   #[inline]
   fn clear(&mut self) {
+    self.headers_mut().clear();
+  }
+
+  #[inline]
+  fn clear_body_and_headers(&mut self) {
     self.headers_mut().clear();
   }
 
@@ -325,6 +343,12 @@ where
   }
 
   #[inline]
+  fn clear_body_and_headers(&mut self) {
+    self.body_mut().clear();
+    self.headers_mut().clear();
+  }
+
+  #[inline]
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
     (&mut self.0, self.1.lease_mut(), &EMPTY_URI_STRING)
   }
@@ -334,12 +358,19 @@ impl<B, H, U> ReqResDataMut for (B, H, U)
 where
   B: Clear,
   H: LeaseMut<Headers>,
-  U: Lease<UriString>,
+  U: LeaseMut<UriString>,
 {
   #[inline]
   fn clear(&mut self) {
-    self.body_mut().clear();
-    self.headers_mut().clear();
+    self.0.clear();
+    self.1.lease_mut().clear();
+    self.2.lease_mut().clear();
+  }
+
+  #[inline]
+  fn clear_body_and_headers(&mut self) {
+    self.0.clear();
+    self.1.lease_mut().clear();
   }
 
   #[inline]

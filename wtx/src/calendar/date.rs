@@ -150,7 +150,6 @@ impl Date {
   }
 
   /// Adds the number of whole days in the given `duration` to the current date.
-  #[must_use]
   pub const fn add(self, duration: Duration) -> Result<Self, CalendarError> {
     let days = duration.seconds() / u32i64(SECONDS_PER_DAY);
     if days < i32i64(i32::MIN) || days > i32i64(i32::MAX) {
@@ -227,7 +226,6 @@ impl Date {
   }
 
   /// Subtracts the number of whole days in the given `duration` to the current date.
-  #[must_use]
   pub const fn sub(self, duration: Duration) -> Result<Self, CalendarError> {
     let days = -duration.days();
     if days < i32i64(i32::MIN) || days > i32i64(i32::MAX) {

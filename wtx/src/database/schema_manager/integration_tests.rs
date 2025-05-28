@@ -63,12 +63,12 @@ macro_rules! create_integration_tests {
       #[cfg(feature = "postgres")]
       create_integration_test!(
         {
-          use rand_chacha::rand_core::SeedableRng;
+          use crate::rng::SeedableRng;
           let uri_string = std::env::var("DATABASE_URI_POSTGRES").unwrap();
           let uri = crate::misc::UriRef::new(&uri_string);
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
-          let mut rng = rand_chacha::ChaCha20Rng::from_seed(crate::tests::_32_bytes_seed());
+          let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
           crate::database::client::postgres::PostgresExecutor::connect(
             &config,
             crate::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),

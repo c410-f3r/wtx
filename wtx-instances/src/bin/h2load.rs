@@ -16,7 +16,7 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
     ((), "127.0.0.1:9000", Xorshift64::from(simple_seed()), ()),
-    |_| {},
+    |_| Ok(()),
     |_, stream| async move { Ok(stream.into_split()) },
     |error| eprintln!("{error}"),
     |mut rng| {
@@ -37,7 +37,7 @@ async fn main() -> wtx::Result<()> {
   .await
 }
 async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer>, wtx::Error> {
-  ha.req.rrd.clear();
+  ha.req.clear();
   Ok(ha.req.into_response(StatusCode::Ok))
 }
 

@@ -324,7 +324,7 @@ macro_rules! _max_frames_mismatches {
 
 macro_rules! _simd {
   (
-    fallback => $fallback:expr,
+    8 => $_8:expr,
     16 => $_16:expr,
     32 => $_32:expr,
     64 => $_64:expr $(,)?
@@ -335,7 +335,7 @@ macro_rules! _simd {
       target_feature = "neon",
       target_feature = "sse2"
     )))]
-    let rslt = $fallback;
+    let rslt = $_8;
 
     #[cfg(all(
       target_feature = "neon",
@@ -372,10 +372,13 @@ macro_rules! _simd_bytes {
     // SAFETY: Changing a sequence of `u8` should be fine
     let (_prefix, _chunks, _suffix) = unsafe { $bytes.$align() };
     _simd! {
-      fallback => {
-        let _: [u8] = *_chunks;
-        let _: [u8] = *$bytes;
-        let $bytes_ident = $bytes; $bytes_expr;
+      8 => {
+        let _: [[u8; 8]] = *_chunks;
+        let $bytes_ident = _prefix; $bytes_expr
+        let $before_align_ident = $bytes_ident; $before_align_expr;
+        let $_16_ident = _chunks; $_16_expr;
+        let $after_align_ident = _suffix; $after_align_expr;
+        let $bytes_ident = $after_align_ident; $bytes_expr
       },
       16 => {
         let _: [[u8; 16]] = *_chunks;
@@ -401,6 +404,17 @@ macro_rules! _simd_bytes {
         let $after_align_ident = _suffix; $after_align_expr;
         let $bytes_ident = $after_align_ident; $bytes_expr
       },
+    }
+  }};
+}
+
+macro_rules! _simd_lanes {
+  () => {{
+    _simd! {
+      8 => 8,
+      16 => 16,
+      32 => 32,
+      64 => 64,
     }
   }};
 }

@@ -24,7 +24,7 @@ async fn main() -> wtx::Result<()> {
     GrpcMiddleware,
   )?;
   ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
-    .with_stream_aux(|_| QuickProtobuf)
+    .with_stream_aux(|_| Ok(QuickProtobuf))
     .tokio_rustls(
       (wtx_instances::CERT, wtx_instances::KEY),
       &wtx_instances::host_from_args(),
@@ -40,7 +40,7 @@ async fn wtx_generic_service_generic_method(
 ) -> wtx::Result<StatusCode> {
   let _generic_request: GenericRequest =
     state.stream_aux.des_from_req_bytes(&mut state.req.rrd.body.as_ref())?;
-  state.req.rrd.clear();
+  state.req.clear();
   state.stream_aux.ser_to_res_bytes(
     &mut state.req.rrd.body,
     GenericResponse {
