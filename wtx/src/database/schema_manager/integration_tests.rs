@@ -44,14 +44,16 @@ macro_rules! create_integration_tests {
       #[cfg(feature = "mysql")]
       create_integration_test!(
         {
+                    use crate::rng::SeedableRng;
           let uri_string = std::env::var("DATABASE_URI_MYSQL").unwrap();
           let uri = crate::misc::UriRef::new(&uri_string);
           let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
-          let mut rng = crate::rng::Xorshift64::from(crate::rng::simple_seed());
+          let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
           crate::database::client::mysql::MysqlExecutor::connect(
             &config,
             crate::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
+            &mut rng,
             stream,
           ).await.unwrap()
         },

@@ -151,6 +151,9 @@ impl Date {
 
   /// Adds the number of whole days in the given `duration` to the current date.
   pub const fn add(self, duration: Duration) -> Result<Self, CalendarError> {
+    if duration.is_zero() {
+      return Ok(self);
+    }
     let days = duration.seconds() / u32i64(SECONDS_PER_DAY);
     if days < i32i64(i32::MIN) || days > i32i64(i32::MAX) {
       return Err(CalendarError::ArithmeticOverflow);
@@ -236,7 +239,7 @@ impl Date {
 
   /// Day of week.
   #[inline]
-  pub const fn weekday(&self) -> Weekday {
+  pub const fn weekday(self) -> Weekday {
     match self.ce_days() % 7 {
       -6 | 1 => Weekday::Monday,
       -5 | 2 => Weekday::Tuesday,

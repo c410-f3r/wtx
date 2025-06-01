@@ -1,5 +1,5 @@
 use crate::{
-  calendar::DateTime,
+  calendar::{DateTime, Utc},
   collection::{ArrayString, Vector},
   http::{
     SessionManager, SessionStore,
@@ -111,7 +111,7 @@ impl SessionManagerBuilder {
   /// If [Self::max_age] is set, then this parameter is ignored when setting the cookie in the
   /// header.
   #[inline]
-  pub fn expires(mut self, elem: Option<DateTime>) -> Self {
+  pub fn expires(mut self, elem: Option<DateTime<Utc>>) -> Self {
     self.cookie_def.expires = elem;
     self
   }

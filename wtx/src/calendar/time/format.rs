@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{CalendarError, CalendarToken, Time, format::parsed_data::ParsedData},
+  calendar::{CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData},
   collection::ArrayString,
   misc::u32_string,
 };
@@ -13,7 +13,7 @@ impl Time {
     bytes: &[u8],
     tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<Self> {
-    let ParsedData::Time(elem) = ParsedData::new(bytes, tokens)? else {
+    let ParsedData::<Utc>::Time(elem) = ParsedData::new(bytes, tokens)? else {
       return Err(CalendarError::InvalidParsingClockTime.into());
     };
     Ok(elem)
@@ -63,7 +63,7 @@ mod tests {
   static _0_FMT: &[u8] = b"%H:%M:%S";
 
   static _1_DATA: &[u8] = b"23:40:20.123456789";
-  static _1_FMT: &[u8] = b"%H:%M:%S%.f";
+  static _1_FMT: &[u8] = b"%H:%M:%S%f?";
 
   #[test]
   fn parse_and_format() {

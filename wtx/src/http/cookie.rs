@@ -42,7 +42,7 @@ pub(crate) fn decrypt<'buffer>(
   (name, value): (&[u8], &[u8]),
 ) -> crate::Result<&'buffer mut [u8]> {
   use crate::collection::ExpansionTy;
-  use aes_gcm::{Aes256Gcm, aead::AeadInPlace, aes::cipher::Array};
+  use aes_gcm::{Aes256Gcm, aead::AeadInOut, aes::cipher::Array};
   use base64::{Engine, engine::general_purpose::STANDARD};
 
   #[rustfmt::skip]
@@ -68,10 +68,10 @@ pub(crate) fn decrypt<'buffer>(
       ([0u8; NONCE_LEN], &mut [][..], [0u8; TAG_LEN])
     }
   };
-  <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*secret)).decrypt_in_place_detached(
+  <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*secret)).decrypt_inout_detached(
     &Array(nonce),
     name,
-    content,
+    content.into(),
     &Array(tag),
   )?;
   Ok(content)
@@ -88,7 +88,7 @@ where
   RNG: Rng,
 {
   use crate::collection::ExpansionTy;
-  use aes_gcm::{Aes256Gcm, aead::AeadInPlace, aes::cipher::Array};
+  use aes_gcm::{Aes256Gcm, aead::AeadInOut, aes::cipher::Array};
   use base64::{Engine, engine::general_purpose::STANDARD};
 
   let start = buffer.len();
@@ -125,7 +125,7 @@ where
     *a11 = c11;
     let aes = <Aes256Gcm as aes_gcm::aead::KeyInit>::new(&Array(*secret));
     let nonce = [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11];
-    let tag = aes.encrypt_in_place_detached(&Array(nonce), name, content)?;
+    let tag = aes.encrypt_inout_detached(&Array(nonce), name, content.into())?;
     let [d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15] = tag.into();
     *b0 = d0;
     *b1 = d1;

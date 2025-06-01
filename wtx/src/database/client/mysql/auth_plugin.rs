@@ -5,9 +5,10 @@ use crate::{
     misc::{fetch_msg, write_packet},
   },
   misc::{from_utf8_basic, net::PartitionedFilledBuffer},
+  rng::CryptoRng,
   stream::Stream,
 };
-use digest::{Digest, FixedOutputReset, Update, generic_array::GenericArray};
+use digest::{Digest, FixedOutputReset, Update, array::Array};
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};
 
 #[derive(Clone, Copy, Debug)]
@@ -18,7 +19,7 @@ pub(crate) enum AuthPlugin {
 }
 
 impl AuthPlugin {
-  pub(crate) async fn manage_caching_sha2<E, S, const IS_TLS: bool>(
+  pub(crate) async fn manage_caching_sha2<E, RNG, S, const IS_TLS: bool>(
     self,
     auth_plugin_data: ([u8; 8], &[u8]),
     [a, b]: [u8; 2],
@@ -26,10 +27,12 @@ impl AuthPlugin {
     encode_buffer: &mut Vector<u8>,
     net_buffer: &mut PartitionedFilledBuffer,
     password: &str,
+    rng: &mut RNG,
     stream: &mut S,
   ) -> Result<bool, E>
   where
     E: From<crate::Error>,
+    RNG: CryptoRng,
     S: Stream,
   {
     match self {
@@ -55,9 +58,7 @@ impl AuthPlugin {
           )
           .map_err(crate::Error::from)?;
           let padding = Oaep::new::<sha1::Sha1>();
-          let bytes = pkey
-            .encrypt(&mut rand_0_8::rngs::OsRng, padding, &pw_array)
-            .map_err(crate::Error::from)?;
+          let bytes = pkey.encrypt(rng, padding, &pw_array).map_err(crate::Error::from)?;
           let payload = bytes.as_slice();
           write_packet((capabilities, sequence_id), encode_buffer, payload, stream).await?;
 
@@ -92,7 +93,7 @@ impl AuthPlugin {
   fn mask<T, const N: usize>(mut ctx: T, data: (&[u8], &[u8]), pw: &[u8]) -> [u8; N]
   where
     T: Digest + FixedOutputReset,
-    [u8; N]: From<GenericArray<u8, <T as digest::OutputSizeUser>::OutputSize>>,
+    [u8; N]: From<Array<u8, <T as digest::OutputSizeUser>::OutputSize>>,
   {
     Update::update(&mut ctx, pw);
     let mut hash = ctx.finalize_reset();

@@ -15,6 +15,7 @@ use crate::{
     },
   },
   misc::{LeaseMut, from_utf8_basic, net::PartitionedFilledBuffer},
+  rng::CryptoRng,
   stream::Stream,
 };
 
@@ -83,15 +84,19 @@ where
     Ok(())
   }
 
-  pub(crate) async fn connect2<const IS_TLS: bool>(
+  pub(crate) async fn connect2<RNG, const IS_TLS: bool>(
     auth_plugin_data: ([u8; 8], ArrayVector<u8, 24>),
     (capabilities, sequence_id): (&mut u64, &mut u8),
     config: &Config<'_>,
     encode_buffer: &mut Vector<u8>,
     net_buffer: &mut PartitionedFilledBuffer,
     mut plugin: Option<AuthPlugin>,
+    rng: &mut RNG,
     stream: &mut S,
-  ) -> Result<(), E> {
+  ) -> Result<(), E>
+  where
+    RNG: CryptoRng,
+  {
     loop {
       let _ = fetch_msg(*capabilities, net_buffer, sequence_id, stream).await?;
       let mut current = net_buffer.current();
@@ -124,13 +129,14 @@ where
             return Err(E::from(MysqlError::InvalidConnectionBytes.into()));
           };
           let is_auth_ok = plugin
-            .manage_caching_sha2::<_, _, IS_TLS>(
+            .manage_caching_sha2::<_, _, _, IS_TLS>(
               (auth_plugin_data.0, &auth_plugin_data.1),
               [*a, *b],
               (capabilities, sequence_id),
               encode_buffer,
               net_buffer,
               password,
+              rng,
               stream,
             )
             .await?;

@@ -1,6 +1,6 @@
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, Date,
+    CalendarError, CalendarToken, Date, Utc,
     format::{
       parsed_data::ParsedData,
       push::{push_four_digit_year, push_two_space_day},
@@ -19,7 +19,7 @@ impl Date {
     bytes: &[u8],
     tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<Self> {
-    let ParsedData::Date(elem) = ParsedData::new(bytes, tokens)? else {
+    let ParsedData::<Utc>::Date(elem) = ParsedData::new(bytes, tokens)? else {
       return Err(CalendarError::InvalidParsingDate.into());
     };
     Ok(elem)

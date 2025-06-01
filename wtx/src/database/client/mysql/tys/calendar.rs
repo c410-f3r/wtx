@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{Date, DateTime, Time},
+  calendar::{Date, DateTime, Time, Utc},
   database::{
     DatabaseError, Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, ty_params::TyParams},
@@ -41,7 +41,7 @@ where
   }
 }
 
-impl<E> Decode<'_, Mysql<E>> for DateTime
+impl<E> Decode<'_, Mysql<E>> for DateTime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -49,13 +49,13 @@ where
   fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
     let (len, date, bytes) = date_decode(dw).map_err(E::from)?;
     Ok(if len > 4 {
-      Self::new(date, time_decode(bytes)?)
+      Self::new(date, time_decode(bytes)?, Utc)
     } else {
-      Self::new(date, Time::default())
+      Self::new(date, Time::default(), Utc)
     })
   }
 }
-impl<E> Encode<Mysql<E>> for DateTime
+impl<E> Encode<Mysql<E>> for DateTime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -69,7 +69,7 @@ where
     Ok(())
   }
 }
-impl<E> Typed<Mysql<E>> for DateTime
+impl<E> Typed<Mysql<E>> for DateTime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -166,4 +166,4 @@ test!(
   )
   .unwrap()
 );
-test!(datetime, DateTime, DateTime::EPOCH);
+test!(datetime, DateTime<Utc>, DateTime::EPOCH);

@@ -1,5 +1,5 @@
 use crate::{
-  calendar::DateTime,
+  calendar::{DateTime, Utc},
   http::session::{SessionCsrf, SessionKey},
 };
 
@@ -9,7 +9,7 @@ pub struct SessionState<CS> {
   /// Custom state
   pub custom_state: CS,
   /// Cookie expiration
-  pub expires_at: Option<DateTime>,
+  pub expires_at: Option<DateTime<Utc>>,
   /// CSRF token
   pub session_csrf: SessionCsrf,
   /// Identifier
@@ -21,7 +21,7 @@ impl<CS> SessionState<CS> {
   #[inline]
   pub const fn new(
     custom_state: CS,
-    expires_at: Option<DateTime>,
+    expires_at: Option<DateTime<Utc>>,
     session_csrf: SessionCsrf,
     session_key: SessionKey,
   ) -> Self {

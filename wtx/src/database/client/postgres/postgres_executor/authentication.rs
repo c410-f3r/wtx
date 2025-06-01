@@ -22,7 +22,7 @@ use crate::{
   stream::Stream,
 };
 use base64::prelude::{BASE64_STANDARD, Engine as _};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>

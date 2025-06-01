@@ -22,7 +22,7 @@ use wtx::{
   },
   http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
   pool::{PostgresRM, SimplePoolTokio},
-  rng::{ChaCha20, Xorshift64, simple_seed},
+  rng::ChaCha20,
 };
 
 type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
@@ -38,10 +38,11 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  let rm =
-    PostgresRM::tokio(ChaCha20::from_os()?, "postgres://USER:PASSWORD@localhost/DB_NAME".into());
-  let pool = Pool::new(4, rm);
-  ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
+  let pool = Pool::new(
+    4,
+    PostgresRM::tokio(ChaCha20::from_os()?, "postgres://USER:PASSWORD@localhost/DB_NAME".into()),
+  );
+  ServerFrameworkBuilder::new(ChaCha20::from_os()?, router)
     .with_stream_aux(move |_| Ok(pool.clone()))
     .tokio(
       &wtx_instances::host_from_args(),

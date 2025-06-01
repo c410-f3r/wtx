@@ -577,7 +577,7 @@ mod primitives {
       {
         #[inline]
         fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-          if *self >> const { $unsigned::BITS - 1 } == 1 {
+          if *self > const { $unsigned::MAX >> 1 } {
             return Err(E::from(PostgresError::InvalidPostgresUint.into()));
           }
           ew.buffer().extend_from_slice(&self.to_be_bytes())?;

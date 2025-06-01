@@ -109,6 +109,12 @@ impl Duration {
     self.seconds / u16i64(SECONDS_PER_HOUR)
   }
 
+  /// Returns `true` if the number of seconds and nanoseconds are zero
+  #[inline]
+  pub const fn is_zero(self) -> bool {
+    self.seconds == 0 && self.nanosecond == 0
+  }
+
   /// Returns the number of minutes contained in this instance.
   #[inline]
   pub const fn minutes(self) -> i64 {

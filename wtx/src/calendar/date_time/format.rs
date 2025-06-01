@@ -1,6 +1,6 @@
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, DateTime,
+    CalendarError, CalendarToken, DateTime, TimeZone,
     format::{
       parsed_data::ParsedData,
       push::{push_four_digit_year, push_two_space_day},
@@ -10,7 +10,10 @@ use crate::{
   misc::{i16_string, u32_string},
 };
 
-impl DateTime {
+impl<TZ> DateTime<TZ>
+where
+  TZ: TimeZone,
+{
   /// Parses a sequence of bytes according to the specified tokens.
   ///
   /// See [`CalendarToken`] for more information.
@@ -75,6 +78,9 @@ impl DateTime {
         CalendarToken::Space => {
           string.push(' ')?;
         }
+        CalendarToken::TimeZone => {
+          string.push_str(&self.tz.iso_8601())?;
+        }
         CalendarToken::TwoDigitDay => {
           string.push_str(self.date.day().num_str())?;
         }
@@ -96,9 +102,6 @@ impl DateTime {
         CalendarToken::TwoSpaceDay => {
           push_two_space_day(self.date, &mut string)?;
         }
-        CalendarToken::Utc => {
-          string.push('Z')?;
-        }
       }
     }
     Ok(string)
@@ -107,7 +110,7 @@ impl DateTime {
 
 #[cfg(test)]
 mod tests {
-  use crate::calendar::{DateTime, format::parse_bytes_into_tokens};
+  use crate::calendar::{DateTime, DynTz, Local, Utc, format::parse_bytes_into_tokens};
 
   static _0_DATA: &[u8] = b"Mon, 12 May 2025 14:30:00 GMT";
   static _0_FMT: &[u8] = b"%a, %d %b %Y %H:%M:%S GMT";
@@ -122,59 +125,182 @@ mod tests {
   static _3_FMT: &[u8] = b"%a, %d-%b-%Y %H:%M:%S GMT";
 
   static _4_DATA: &[u8] = b"1999-02-03T23:40:20.1234Z";
-  static _4_FMT: &[u8] = b"%Y-%m-%dT%H:%M:%S%.fZ";
+  static _4_FMT: &[u8] = b"%Y-%m-%dT%H:%M:%S%f?Z";
+
+  static _5_DATA0: &[u8] = b"2000-02-01T00:40:20.1234";
+  static _5_DATA1: &[u8] = b"2000-02-01T00:40:20.1234Z";
+  static _5_DATA2: &[u8] = b"2000-02-01T00:40:20.1234+03";
+  static _5_DATA3: &[u8] = b"2000-02-01T00:40:20.1234+0300";
+  static _5_DATA4: &[u8] = b"2000-02-01T00:40:20.1234+03:00";
+  static _5_DATA5: &[u8] = b"2000-02-01T00:40:20.1234+03:30";
+  static _5_DATA6: &[u8] = b"2000-02-01T00:40:20.1234-03";
+  static _5_DATA7: &[u8] = b"2000-02-01T00:40:20.1234-0300";
+  static _5_DATA8: &[u8] = b"2000-02-01T00:40:20.1234-03:00";
+  static _5_DATA9: &[u8] = b"2000-02-01T00:40:20.1234-03:30";
+  static _5_FMT: &[u8] = b"%Y-%m-%dT%H:%M:%S%f?%z?";
 
   #[test]
-  fn parse_and_format() {
+  fn _0() {
     let _0_tokens = parse_bytes_into_tokens(_0_FMT.iter().copied()).unwrap();
     assert_eq!(
-      DateTime::parse(_0_DATA, _0_tokens.clone())
+      DateTime::<Utc>::parse(_0_DATA, _0_tokens.clone())
         .unwrap()
-        .to_string::<32>(_0_tokens)
+        .to_string::<38>(_0_tokens)
         .unwrap()
         .as_str()
         .as_bytes(),
       _0_DATA
     );
+  }
+
+  #[test]
+  fn _1() {
     let _1_tokens = parse_bytes_into_tokens(_1_FMT.iter().copied()).unwrap();
     assert_eq!(
-      DateTime::parse(_1_DATA, _1_tokens.clone())
+      DateTime::<Utc>::parse(_1_DATA, _1_tokens.clone())
         .unwrap()
-        .to_string::<32>(_1_tokens)
+        .to_string::<38>(_1_tokens)
         .unwrap()
         .as_str()
         .as_bytes(),
       _1_DATA
     );
+  }
+
+  #[test]
+  fn _2() {
     let _2_tokens = parse_bytes_into_tokens(_2_FMT.iter().copied()).unwrap();
     assert_eq!(
-      DateTime::parse(_2_DATA, _2_tokens.clone())
+      DateTime::<Utc>::parse(_2_DATA, _2_tokens.clone())
         .unwrap()
-        .to_string::<32>(_2_tokens)
+        .to_string::<38>(_2_tokens)
         .unwrap()
         .as_str()
         .as_bytes(),
       _2_DATA
     );
+  }
+
+  #[test]
+  fn _3() {
     let _3_tokens = parse_bytes_into_tokens(_3_FMT.iter().copied()).unwrap();
     assert_eq!(
-      DateTime::parse(_3_DATA, _3_tokens.clone())
+      DateTime::<Utc>::parse(_3_DATA, _3_tokens.clone())
         .unwrap()
-        .to_string::<32>(_3_tokens)
+        .to_string::<38>(_3_tokens)
         .unwrap()
         .as_str()
         .as_bytes(),
       _3_DATA
     );
+  }
+
+  #[test]
+  fn _4() {
     let _4_tokens = parse_bytes_into_tokens(_4_FMT.iter().copied()).unwrap();
     assert_eq!(
-      DateTime::parse(_4_DATA, _4_tokens.clone())
+      DateTime::<Utc>::parse(_4_DATA, _4_tokens.clone())
         .unwrap()
-        .to_string::<32>(_4_tokens)
+        .to_string::<38>(_4_tokens)
         .unwrap()
         .as_str()
         .as_bytes(),
       _4_DATA
+    );
+  }
+
+  #[test]
+  fn _5() {
+    let _5_tokens = parse_bytes_into_tokens(_5_FMT.iter().copied()).unwrap();
+    assert_eq!(
+      DateTime::<Local>::parse(_5_DATA0, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA0
+    );
+    assert_eq!(
+      DateTime::<Utc>::parse(_5_DATA1, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA1
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA2, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA4
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA3, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA4
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA4, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA4
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA5, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA5
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA6, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA8
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA7, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA8
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA8, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens.clone())
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA8
+    );
+    assert_eq!(
+      DateTime::<DynTz>::parse(_5_DATA9, _5_tokens.clone())
+        .unwrap()
+        .to_string::<38>(_5_tokens)
+        .unwrap()
+        .as_str()
+        .as_bytes(),
+      _5_DATA9
     );
   }
 }
