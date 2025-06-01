@@ -1,5 +1,5 @@
 use crate::{
-  calendar::DateTime,
+  calendar::{DateTime, Utc},
   http::cookie::{FMT1, SameSite},
   misc::Lease,
 };
@@ -11,7 +11,7 @@ use core::{
 #[derive(Debug)]
 pub(crate) struct CookieGeneric<T, V> {
   pub(crate) domain: T,
-  pub(crate) expires: Option<DateTime>,
+  pub(crate) expires: Option<DateTime<Utc>>,
   pub(crate) http_only: bool,
   pub(crate) max_age: Option<Duration>,
   pub(crate) name: T,

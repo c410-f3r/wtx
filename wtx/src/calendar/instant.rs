@@ -45,7 +45,9 @@ impl Instant {
   #[cfg(feature = "calendar")]
   #[doc = doc_epoch!()]
   #[inline]
-  pub fn now_date_time(secs: u64) -> crate::Result<crate::calendar::DateTime> {
+  pub fn now_date_time(
+    secs: u64,
+  ) -> crate::Result<crate::calendar::DateTime<crate::calendar::Utc>> {
     let timestamp = Instant::now_timestamp(secs)?;
     crate::calendar::DateTime::from_timestamp_secs_and_ns(
       timestamp.as_secs().cast_signed(),

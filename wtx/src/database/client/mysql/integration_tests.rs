@@ -4,7 +4,8 @@ use crate::{
     client::mysql::{Config, ExecutorBuffer, MysqlExecutor},
   },
   misc::UriRef,
-  rng::{Xorshift64, simple_seed},
+  rng::{ChaCha20, SeedableRng},
+  tests::_32_bytes_seed,
 };
 use alloc::string::String;
 use core::fmt::Debug;
@@ -234,10 +235,11 @@ where
 {
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
-  let mut rng = Xorshift64::from(simple_seed());
+  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   MysqlExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
+    &mut rng,
     TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
   )
   .await

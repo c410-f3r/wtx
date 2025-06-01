@@ -63,6 +63,13 @@ pub enum CalendarError {
   },
   /// A timestamp in this project can only go up to `32768-12-31`.
   InvalidTimestamp,
+  /// Time zone couldn't be constructed with the given seconds
+  InvalidTimezoneSeconds {
+    /// Expected number of seconds
+    expected: Option<i16>,
+    /// Invalid received number
+    received: i16,
+  },
   /// A weekday must be, for example, "Mon" or "Monday"
   InvalidWeekday,
   /// A year be must between `-32767` and `32766`.
@@ -81,6 +88,8 @@ pub enum CalendarError {
   DuplicatedParsingFormatWeekday,
   /// Format contains more than one year
   DuplicatedParsingFormatYear,
+  /// Format contains more than one time zone
+  DuplicatedTimeZone,
   /// Missing date or time parameters
   IncompleteParsingParams,
   /// Provided data does not match provided format
@@ -95,6 +104,8 @@ pub enum CalendarError {
   InvalidParsingFormat,
   /// A literal from the provided format does not match in the provided data
   InvalidParsingLiteral,
+  /// Provided data can not represent a timezone
+  InvalidParsingTimezone,
   /// The provided weekday is wrong.
   InvalidParsingWeekday,
   /// Provided format contains unknown characters

@@ -4,31 +4,33 @@ use crate::calendar::CalendarError;
 ///
 /// # Date Formats
 ///
-/// | Format  | Example  | Description                                                           |
-/// | ------- | -------- | --------------------------------------------------------------------- |
-/// | `%Y`    | `2001`   | Year with four zero-padded digits                                     |
-/// | `%y`    | `01`     | Year with two zero-padded digits                                      |
-/// |         |          |                                                                       |
-/// | `%m`    | `07`     | Month with two zero-padded digits                                     |
-/// | `%b`    | `Jul`    | Abbreviated month name                                                |
-/// |         |          |                                                                       |
-/// | `%d`    | `08`     | Day of month with two zero-padded digits                              |
-/// | `%e`    | ` 8`     | Same as `%d` but space-padded                                         |
-/// |         |          |                                                                       |
-/// | `%a`    | `Sun`    | Abbreviated weekday name                                              |
-/// | `%A`    | `Sunday` | Full weekday name                                                     |
+/// | Format  | Example  | Description                                                                        |
+/// | ------- | -------- | ---------------------------------------------------------------------------------- |
+/// | `%Y`    | `2001`   | Year with four zero-padded digits                                                  |
+/// | `%y`    | `01`     | Year with two zero-padded digits                                                   |
+/// |         |          |                                                                                    |
+/// | `%m`    | `07`     | Month with two zero-padded digits                                                  |
+/// | `%b`    | `Jul`    | Abbreviated month name                                                             |
+/// |         |          |                                                                                    |
+/// | `%d`    | `08`     | Day of month with two zero-padded digits                                           |
+/// | `%e`    | ` 8`     | Same as `%d` but space-padded                                                      |
+/// |         |          |                                                                                    |
+/// | `%a`    | `Sun`    | Abbreviated weekday name                                                           |
+/// | `%A`    | `Sunday` | Full weekday name                                                                  |
+/// |         |          |                                                                                    |
+/// | `%z?`   | `±03`    | Optional offset from the local time to UTC with or wihtout `Z`, colon and minutes¹ |
 ///
 /// # Time Formats
 ///
-/// | Format  | Example  | Description                                                           |
-/// | ------- | -------- | --------------------------------------------------------------------- |
-/// | `%H`    | `00`     | Year with two zero-padded digits                                      |
-/// |         |          |                                                                       |
-/// | `%M`    | `59`     | Minute with two zero-padded digits                                    |
-/// |         |          |                                                                       |
-/// | `%S`    | `59`     | Second with two zero-padded digits                                    |
-/// |         |          |                                                                       |
-/// | `%.f`   | `.12345` | Optional number of nanosecond with a dot prefix                      |
+/// | Format  | Example  | Description                                     |
+/// | ------- | -------- | ----------------------------------------------- |
+/// | `%H`    | `00`     | Year with two zero-padded digits                |
+/// |         |          |                                                 |
+/// | `%M`    | `59`     | Minute with two zero-padded digits              |
+/// |         |          |                                                 |
+/// | `%S`    | `59`     | Second with two zero-padded digits              |
+/// |         |          |                                                 |
+/// | `%f?`   | `.12345` | Optional number of nanosecond with a dot prefix |
 ///
 /// # Literal Formats
 ///
@@ -41,7 +43,8 @@ use crate::calendar::CalendarError;
 /// | `/`     | Slash               |
 /// | ` `     | Space               |
 /// | `T`     | Date/Time separator |
-/// | `Z`     | Optional UTC        |
+///
+/// ¹: Decoding accept many optinal paramenters but encoding will always output ±00:00 or `Z`.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum CalendarToken {
   /// `%b` (Jul)
@@ -54,7 +57,7 @@ pub enum CalendarToken {
   Comma,
   /// Literal `-`
   Dash,
-  /// Optional `%.f` `123_456_789`
+  /// Optional `%f?` `123_456_789`
   DotNano,
   /// `%Y` (2001)
   FourDigitYear,
@@ -68,6 +71,8 @@ pub enum CalendarToken {
   Slash,
   /// Literal ` `
   Space,
+  /// Optional `%z?` (`Z`, +03, -0300, +03:30)
+  TimeZone,
   /// `%d` (01)
   TwoDigitDay,
   /// `%H` (00)
@@ -82,8 +87,6 @@ pub enum CalendarToken {
   TwoDigitYear,
   /// `%e` ( 1)
   TwoSpaceDay,
-  /// Optional Literal `Z`
-  Utc,
 }
 
 impl TryFrom<[u8; 2]> for CalendarToken {
@@ -97,12 +100,13 @@ impl TryFrom<[u8; 2]> for CalendarToken {
       [0, b':'] => Self::Colon,
       [0, b','] => Self::Comma,
       [0, b'-'] => Self::Dash,
-      [b'.', b'f'] => Self::DotNano,
+      [b'f', b'?'] => Self::DotNano,
       [0, b'Y'] => Self::FourDigitYear,
       [0, b'A'] => Self::FullWeekdayName,
       [0, b'T'] => Self::Separator,
       [0, b'/'] => Self::Slash,
       [0, b' '] => Self::Space,
+      [b'z', b'?'] => Self::TimeZone,
       [0, b'd'] => Self::TwoDigitDay,
       [0, b'H'] => Self::TwoDigitHour,
       [0, b'M'] => Self::TwoDigitMinute,
@@ -110,7 +114,7 @@ impl TryFrom<[u8; 2]> for CalendarToken {
       [0, b'S'] => Self::TwoDigitSecond,
       [0, b'y'] => Self::TwoDigitYear,
       [0, b'e'] => Self::TwoSpaceDay,
-      [0, b'Z'] => Self::Utc,
+      [0, b'Z'] => Self::TimeZone,
       _ => return Err(CalendarError::UnknownParsingFormat.into()),
     })
   }

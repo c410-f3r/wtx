@@ -10,7 +10,7 @@ use crate::{
   },
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
-use hmac::{Hmac, Mac, digest::FixedOutput};
+use hmac::{Hmac, KeyInit, Mac, digest::FixedOutput};
 use sha2::{Digest, Sha256};
 
 pub(crate) fn bind<E, RV>(

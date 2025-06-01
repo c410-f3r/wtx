@@ -40,6 +40,8 @@ mod second;
 #[cfg(feature = "calendar")]
 mod time;
 #[cfg(feature = "calendar")]
+mod time_zone;
+#[cfg(feature = "calendar")]
 mod weekday;
 #[cfg(feature = "calendar")]
 mod year;
@@ -62,6 +64,7 @@ mod gated {
     nanosecond::Nanosecond,
     second::Second,
     time::Time,
+    time_zone::*,
     weekday::Weekday,
     year::Year,
   };

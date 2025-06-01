@@ -174,7 +174,7 @@ web-socket-client-concurrent = ["tokio-rustls", "wtx/web-socket-handshake", "wtx
 web-socket-server = ["tokio-rustls", "wtx/pool", "wtx/web-socket-handshake"]
 
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
-mysql = ["wtx/mysql"]
+mysql = ["wtx/getrandom", "wtx/mysql"]
 postgres = ["wtx/getrandom", "wtx/postgres"]
 tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 

@@ -20,13 +20,16 @@ pub fn parse_bytes_into_tokens(
         let Some(second) = iter.next() else {
           return Err(CalendarError::InvalidParsingFormat.into());
         };
-        if second == b'.' {
-          let Some(third) = iter.next() else {
-            return Err(CalendarError::InvalidParsingFormat.into());
-          };
-          tokens.push([second, third].try_into()?)?;
-        } else {
-          tokens.push([0, second].try_into()?)?;
+        match second {
+          b'f' | b'z' => {
+            let Some(third) = iter.next() else {
+              return Err(CalendarError::InvalidParsingFormat.into());
+            };
+            tokens.push([second, third].try_into()?)?;
+          }
+          _ => {
+            tokens.push([0, second].try_into()?)?;
+          }
         }
       }
       b'G' => {

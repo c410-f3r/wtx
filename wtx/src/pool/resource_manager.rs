@@ -91,13 +91,13 @@ where
 
 #[cfg(feature = "postgres")]
 pub(crate) mod database {
-  use super::ResourceManager;
   use crate::{
     collection::Vector,
     database::{
       DEFAULT_MAX_STMTS, Executor,
       client::postgres::{ExecutorBuffer, PostgresExecutor},
     },
+    pool::ResourceManager,
     rng::{ChaCha20, SeedableRng},
     sync::AtomicCell,
   };

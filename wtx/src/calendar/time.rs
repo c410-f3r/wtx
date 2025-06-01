@@ -87,7 +87,7 @@ impl Time {
 
   /// Computes `self + duration`, returning an error if an overflow occurred.
   #[inline]
-  pub const fn add(&self, duration: Duration) -> Result<Self, CalendarError> {
+  pub const fn add(self, duration: Duration) -> Result<Self, CalendarError> {
     let (this, remaining) = self.overflowing_add(duration);
     if remaining > 0 {
       return Err(CalendarError::ArithmeticOverflow);
@@ -133,7 +133,10 @@ impl Time {
   /// Adds the given `duration` to the current time, returning the number of *seconds*
   /// in the integral number of days ignored from the addition.
   #[must_use]
-  pub const fn overflowing_add(&self, duration: Duration) -> (Self, i64) {
+  pub const fn overflowing_add(self, duration: Duration) -> (Self, i64) {
+    if duration.is_zero() {
+      return (self, 0);
+    }
     let mut seconds = u32i64(self.seconds_since_mn());
     let mut nanosecond = self.nanosecond.num().cast_signed();
     seconds = seconds.wrapping_add(duration.seconds());
@@ -170,7 +173,7 @@ impl Time {
   /// Subtracts the given `duration` from the current time, returning the number of *seconds*
   /// in the integral number of days ignored from the subtraction.
   #[must_use]
-  pub const fn overflowing_sub(&self, duration: Duration) -> (Self, i64) {
+  pub const fn overflowing_sub(self, duration: Duration) -> (Self, i64) {
     let (time, rhs) = self.overflowing_add(duration.neg());
     (time, -rhs)
   }
@@ -191,7 +194,7 @@ impl Time {
 
   /// Computes `self - duration`, returning an error if an underflow occurred.
   #[inline]
-  pub const fn sub(&self, duration: Duration) -> Result<Self, CalendarError> {
+  pub const fn sub(self, duration: Duration) -> Result<Self, CalendarError> {
     let (this, remaining) = self.overflowing_sub(duration);
     if remaining < 0 {
       return Err(CalendarError::ArithmeticOverflow);

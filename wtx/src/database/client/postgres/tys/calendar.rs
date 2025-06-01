@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{Date, DateTime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Year},
+  calendar::{Date, DateTime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Utc, Year},
   database::{
     DatabaseError, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
@@ -7,7 +7,7 @@ use crate::{
   misc::{Decode, Encode},
 };
 
-const PG_EPOCH: DateTime = DateTime::new(
+const PG_EPOCH: DateTime<Utc> = DateTime::new(
   if let Ok(date) = Date::from_ymd(
     if let Ok(year) = Year::from_num(2000) {
       year
@@ -22,8 +22,9 @@ const PG_EPOCH: DateTime = DateTime::new(
     panic!();
   },
   Time::ZERO,
+  Utc,
 );
-const PG_MIN: DateTime = DateTime::new(
+const PG_MIN: DateTime<Utc> = DateTime::new(
   if let Ok(date) = Date::from_ymd(
     if let Ok(year) = Year::from_num(-4713) {
       year
@@ -38,9 +39,10 @@ const PG_MIN: DateTime = DateTime::new(
     panic!();
   },
   Time::ZERO,
+  Utc,
 );
 
-impl<E> Decode<'_, Postgres<E>> for DateTime
+impl<E> Decode<'_, Postgres<E>> for DateTime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -57,7 +59,7 @@ where
     )?)
   }
 }
-impl<E> Encode<Postgres<E>> for DateTime
+impl<E> Encode<Postgres<E>> for DateTime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -77,7 +79,7 @@ where
     Encode::<Postgres<E>>::encode(&rslt, &mut (), ew)
   }
 }
-impl<E> Typed<Postgres<E>> for DateTime
+impl<E> Typed<Postgres<E>> for DateTime<Utc>
 where
   E: From<crate::Error>,
 {
@@ -114,7 +116,7 @@ where
     if self < &PG_MIN.date() || self > &Date::MAX {
       return Err(E::from(DatabaseError::UnexpectedValueFromBytes { expected: "date" }.into()));
     }
-    let this_timestamp = DateTime::new(*self, Time::ZERO).timestamp().0;
+    let this_timestamp = DateTime::new(*self, Time::ZERO, Utc).timestamp().0;
     let diff = this_timestamp.wrapping_sub(PG_EPOCH.timestamp().0);
     let days = i32::try_from(diff / i64::from(SECONDS_PER_DAY)).map_err(crate::Error::from)?;
     Encode::<Postgres<E>>::encode(&days, &mut (), ew)
@@ -138,6 +140,6 @@ where
 test!(date, Date, Date::from_ymd(4.try_into().unwrap(), Month::January, Day::N6).unwrap());
 test!(
   datetime,
-  DateTime,
+  DateTime<Utc>,
   DateTime::from_timestamp_secs_and_ns(123456789, Nanosecond::from_num(12000).unwrap()).unwrap()
 );

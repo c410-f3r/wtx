@@ -69,7 +69,6 @@ $rt test-with-features wtx uuid
 $rt test-with-features wtx web-socket
 $rt test-with-features wtx web-socket-handshake
 $rt test-with-features wtx webpki-roots
-$rt test-with-features wtx x509-certificate
 
 $rt test-with-features wtx _async-tests
 $rt test-with-features wtx _bench

@@ -37,11 +37,13 @@ pub async fn executor_mysql(
     TcpStream,
   >,
 > {
+  use wtx::rng::SeedableRng;
   let uri = Uri::new(uri_str);
-  let mut rng = wtx::rng::Xorshift64::from(wtx::rng::simple_seed());
+  let mut rng = wtx::rng::ChaCha20::from_os()?;
   wtx::database::client::mysql::MysqlExecutor::connect(
     &wtx::database::client::mysql::Config::from_uri(&uri)?,
     wtx::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
+    &mut rng,
     TcpStream::connect(uri.hostname_with_implied_port()).await?,
   )
   .await

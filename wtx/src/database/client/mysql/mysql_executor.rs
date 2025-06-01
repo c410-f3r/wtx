@@ -42,7 +42,15 @@ where
 {
   /// Connects with an unencrypted stream.
   #[inline]
-  pub async fn connect(config: &Config<'_>, mut eb: EB, mut stream: S) -> Result<Self, E> {
+  pub async fn connect<RNG>(
+    config: &Config<'_>,
+    mut eb: EB,
+    rng: &mut RNG,
+    mut stream: S,
+  ) -> Result<Self, E>
+  where
+    RNG: CryptoRng,
+  {
     eb.lease_mut().clear();
     let mut sequence_id = 0;
     let ExecutorBuffer { common, encode_buffer } = eb.lease_mut();
@@ -58,13 +66,14 @@ where
       &mut stream,
     )
     .await?;
-    Self::connect2::<false>(
+    Self::connect2::<_, false>(
       (handshake_res.auth_plugin_data.0, handshake_res.auth_plugin_data.1.try_into()?),
       (&mut capabilities, &mut sequence_id),
       config,
       encode_buffer,
       net_buffer,
       plugin,
+      rng,
       &mut stream,
     )
     .await?;
@@ -86,7 +95,7 @@ where
   pub async fn connect_encrypted<F, IS, RNG>(
     config: &Config<'_>,
     mut eb: EB,
-    _rng: &mut RNG,
+    rng: &mut RNG,
     mut stream: IS,
     cb: impl FnOnce(IS) -> F,
   ) -> Result<Self, E>
@@ -121,13 +130,14 @@ where
       &mut enc_stream,
     )
     .await?;
-    Self::connect2::<true>(
+    Self::connect2::<_, true>(
       (handshake_res.auth_plugin_data.0, handshake_res.auth_plugin_data.1.try_into()?),
       (&mut capabilities, &mut sequence_id),
       config,
       encode_buffer,
       net_buffer,
       plugin,
+      rng,
       &mut enc_stream,
     )
     .await?;

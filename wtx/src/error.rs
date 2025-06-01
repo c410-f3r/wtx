@@ -106,9 +106,6 @@ pub enum Error {
   #[cfg(feature = "uuid")]
   #[doc = associated_element_doc!()]
   UuidError(Box<uuid::Error>),
-  #[cfg(feature = "x509-certificate")]
-  #[doc = associated_element_doc!()]
-  X509CertificateError(Box<x509_certificate::X509CertificateError>),
 
   // External - Std
   //
@@ -568,14 +565,6 @@ impl From<uuid::Error> for Error {
   #[inline]
   fn from(value: uuid::Error) -> Self {
     Self::UuidError(value.into())
-  }
-}
-
-#[cfg(feature = "x509-certificate")]
-impl From<x509_certificate::X509CertificateError> for Error {
-  #[inline]
-  fn from(from: x509_certificate::X509CertificateError) -> Self {
-    Self::X509CertificateError(from.into())
   }
 }
 
