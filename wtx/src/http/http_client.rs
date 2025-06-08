@@ -1,5 +1,5 @@
 use crate::{
-  http::{Method, ReqResBuffer, ReqResData, Response},
+  http::{Method, ReqBuilder, ReqResBuffer, ReqResData, Response},
   misc::{Lease, UriRef},
 };
 
@@ -33,6 +33,16 @@ pub trait HttpClient {
       let req_id = self.send_req(method, rrd, uri).await?;
       self.recv_res(rrb, req_id).await
     }
+  }
+
+  /// Sends a request and receives a response using a [`ReqBuilder`].
+  #[inline]
+  fn send_recv_rb(
+    &mut self,
+    rb: ReqBuilder<ReqResBuffer>,
+    uri: &UriRef<'_>,
+  ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>> {
+    self.send_recv_single(rb.method, rb.rrb.rrd, uri)
   }
 
   /// Sends a request and receives a response using a single [`ReqResBuffer`].

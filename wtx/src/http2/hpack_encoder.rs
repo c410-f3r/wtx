@@ -351,10 +351,9 @@ impl HpackEncoder {
 
   fn manage_encode(
     buffer: &mut Vector<u8>,
-    header: (&str, &str),
+    (name, value): (&str, &str),
     idx: EncodeIdx,
   ) -> crate::Result<()> {
-    let (name, value) = header;
     match idx {
       EncodeIdx::RefNameRefValue(local_idx) => {
         let _ = Self::encode_int(buffer, 0b1000_0000, local_idx)?;
@@ -627,4 +626,29 @@ struct StaticHeader {
   has_value: bool,
   idx: u32,
   name: &'static str,
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    collection::Vector,
+    http::StatusCode,
+    http2::{hpack_encoder::HpackEncoder, hpack_static_headers::HpackStaticResponseHeaders},
+    rng::{Xorshift64, simple_seed},
+  };
+
+  // `HpackStaticResponseHeaders` wasn't issuing header values
+  #[test]
+  fn encodes_status_code() {
+    let mut buffer = Vector::new();
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
+    hpack_enc
+      .encode(
+        &mut buffer,
+        HpackStaticResponseHeaders { status_code: Some(StatusCode::Unauthorized) }.iter(),
+        [],
+      )
+      .unwrap();
+    assert_eq!(buffer.as_slice(), &[24, 130, 104, 1]);
+  }
 }

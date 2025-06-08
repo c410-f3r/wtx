@@ -40,11 +40,7 @@ pub(crate) fn api(
   let api_string = api_ident.to_string();
   let (api_params, _api_where_predicates) = parts_from_generics(api_generics);
 
-  let api_id_gat_ty = if api_params.is_empty() {
-    quote::quote!()
-  } else {
-    quote! { __ApiParams }
-  };
+  let api_id_gat_ty = if api_params.is_empty() { quote::quote!() } else { quote!(__ApiParams) };
 
   let mut buffer = String::new();
   buffer.push_str(&api_string);
@@ -143,11 +139,7 @@ pub(crate) fn api(
     ));
   }
 
-  let sts_ty = if api_params.is_empty() {
-    quote::quote! { () }
-  } else {
-    api_params.to_token_stream()
-  };
+  let sts_ty = if api_params.is_empty() { quote::quote!(()) } else { api_params.to_token_stream() };
 
   Ok(
     quote::quote!(

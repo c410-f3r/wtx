@@ -44,7 +44,7 @@ macro_rules! create_integration_tests {
       #[cfg(feature = "mysql")]
       create_integration_test!(
         {
-                    use crate::rng::SeedableRng;
+          use crate::rng::SeedableRng;
           let uri_string = std::env::var("DATABASE_URI_MYSQL").unwrap();
           let uri = crate::misc::UriRef::new(&uri_string);
           let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();

@@ -150,6 +150,17 @@ where
   }
 }
 
+impl<V> core::fmt::Write for SuffixWriter<V>
+where
+  V: LeaseMut<Vector<u8>>,
+{
+  #[inline]
+  fn write_str(&mut self, s: &str) -> core::fmt::Result {
+    self.extend_from_slice(s.as_bytes()).map_err(|_err| core::fmt::Error)?;
+    Ok(())
+  }
+}
+
 #[cfg(feature = "std")]
 impl<V> std::io::Write for SuffixWriter<V>
 where

@@ -1,19 +1,16 @@
 use crate::{
   http::{HttpClient, Method, ReqResBuffer, client_pool::ClientPoolBuilder},
-  misc::Uri,
+  misc::UriRef,
 };
 
 #[tokio::test]
 async fn popular_sites() {
-  let uri = Uri::new("https://github.com");
-  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
-  let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await.unwrap();
+  send_recv(&"https://github.com".into()).await;
+  send_recv(&"https://duckduckgo.com".into()).await;
+  send_recv(&"https://www.google.com".into()).await;
+}
 
-  let uri = Uri::new("https://duckduckgo.com");
+async fn send_recv(uri: &UriRef<'_>) {
   let mut client = ClientPoolBuilder::tokio_rustls(1).build();
-  let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await.unwrap();
-
-  let uri = Uri::new("https://www.google.com");
-  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
-  let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await.unwrap();
+  let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), uri).await.unwrap();
 }

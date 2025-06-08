@@ -5,6 +5,7 @@ argon2 = { default-features = false, optional = true, version = "0.6.0-rc.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
+crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
 crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.3" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.0" }
 embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.5" }
@@ -19,6 +20,7 @@ httparse = { default-features = false, optional = true, version = "1.0" }
 loom = { default-features = false, optional = true, version = "0.7" }
 matchit = { default-features = false, optional = true, version = "0.8" }
 memchr = { default-features = false, optional = true, version = "2.0" }
+parking_lot = { default-features = false, optional = true, version = "0.12" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
@@ -44,17 +46,22 @@ tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
+wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.4" }
+
+[dev-dependencies]
+wtx = { default-features = false, features = ["executor"], path = "." }
 
 [features]
 32-tuple-impls = []
 arbitrary = ["dep:arbitrary", "std"]
-borsh = ["dep:borsh", "std"]
+borsh = ["borsh/std", "std"]
 calendar = []
 client-api-framework = ["data-transformation"]
+crossbeam-channel = ["crossbeam-channel/std", "std"]
 data-transformation = []
 database = []
 default = []
-executor = []
+executor = ["std"]
 foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
 grpc = ["data-transformation"]
 grpc-client = ["grpc", "http-client-pool"]
@@ -67,47 +74,24 @@ http-server-framework = ["http2"]
 http-session = ["http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 loom = ["dep:loom", "std"]
+macros = ["dep:wtx-macros"]
 mysql = ["database", "digest", "foldhash", "hashbrown", "rand-compat", "rsa/pem", "spki", "sha1", "sha2"]
-nightly = [] # FIXME(stable): "hashbrown?/nightly"
+nightly = []
 optimization = ["memchr", "simdutf8"]
 pool = []
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
-quick-protobuf = ["dep:quick-protobuf", "std"]
+quick-protobuf = ["quick-protobuf/std", "std"]
 rand-compat = ["rand_core"]
 rustls = ["dep:rustls", "rustls-pki-types"]
 schema-manager = ["calendar", "database"]
 schema-manager-dev = ["schema-manager"]
 serde = ["cl-aux?/serde", "dep:serde"]
-serde_json = ["serde", "dep:serde_json", "std"]
+serde_json = ["serde", "serde_json/std", "std"]
 serde_urlencoded = ["serde", "dep:serde_urlencoded", "std"]
-std = [
-  "argon2?/std",
-  "base64?/std",
-  "borsh?/std",
-  "cl-aux?/std",
-  "embassy-time?/std",
-  "fastrand?/std",
-  "foldhash?/std",
-  "getrandom?/std",
-  "httparse?/std",
-  "memchr?/std",
-  "portable-atomic?/std",
-  "portable-atomic-util?/std",
-  "quick-protobuf?/std",
-  "rand_chacha?/std",
-  "ring?/std",
-  "rust_decimal?/std",
-  "rustls-pemfile?/std",
-  "rustls-pki-types?/std",
-  "serde?/std",
-  "serde_json?/std",
-  "simdutf8?/std",
-  "tracing?/std",
-  "tracing-subscriber?/std"
-]
+std = []
 tokio = ["std", "dep:tokio"]
-tokio-rustls = ["ring", "rustls", "dep:rustls-pemfile", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
+tokio-rustls = ["ring", "rustls", "rustls-pemfile/std", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
 web-socket = ["http"]
 web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 

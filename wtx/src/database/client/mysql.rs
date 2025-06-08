@@ -12,7 +12,7 @@ mod decode_wrapper;
 mod encode_wrapper;
 mod executor_buffer;
 mod flag;
-#[cfg(all(feature = "_async-tests", feature = "_integration-tests", test))]
+#[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod misc;
 mod mysql_error;

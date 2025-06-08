@@ -36,7 +36,7 @@ where
   }
 }
 
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests {
   use crate::{
     collection::{ArrayVector, Vector},
@@ -53,8 +53,8 @@ mod tests {
   //           |
   //           |
   //           /e
-  #[tokio::test]
-  async fn paths_indices() {
+  #[test]
+  fn paths_indices() {
     let paths = paths!(
       ("/a", get(auto)),
       ("/a", Router::paths(paths!(("/b", get(auto)))).unwrap()),

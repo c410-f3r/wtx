@@ -1,7 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
-#![cfg_attr(feature = "nightly", feature(return_type_notation))]
+#![cfg_attr(feature = "nightly", feature(mpmc_channel, return_type_notation))]
 #![doc = include_str!("../README.md")]
 #![no_std]
 
@@ -26,6 +26,8 @@ pub mod data_transformation;
 #[cfg(feature = "database")]
 pub mod database;
 mod error;
+#[cfg(feature = "executor")]
+pub mod executor;
 #[cfg(feature = "grpc")]
 pub mod grpc;
 #[cfg(feature = "http")]
@@ -43,9 +45,11 @@ mod tests;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 
-pub use error::Error;
 #[cfg(feature = "std")]
 pub use error::VarError;
+pub use error::{Error, RecvError, SendError};
+#[cfg(feature = "macros")]
+pub use wtx_macros::*;
 
 pub(crate) const _MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 

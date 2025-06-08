@@ -18,7 +18,7 @@ pub(crate) fn conn_aux(item: proc_macro::TokenStream) -> crate::Result<proc_macr
     },
     _ => return Err(crate::Error::UnsupportedStructure),
   }
-  let expanded = quote! {
+  let expanded = quote!(
     impl wtx::http::server_framework::ConnAux for #name {
       type Init = Self;
 
@@ -43,6 +43,6 @@ pub(crate) fn conn_aux(item: proc_macro::TokenStream) -> crate::Result<proc_macr
           }
         }
     )*
-  };
+  );
   Ok(proc_macro::TokenStream::from(expanded))
 }

@@ -10,7 +10,6 @@ use wtx::{
   data_transformation::dnsn::QuickProtobuf,
   grpc::GrpcClient,
   http::{ReqResBuffer, client_pool::ClientPoolBuilder},
-  misc::UriRef,
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -28,10 +27,10 @@ async fn main() -> wtx::Result<()> {
         generic_request_field1: 123,
       },
       rrb,
-      &UriRef::new("http://127.0.0.1:9000/wtx.GenericService/generic_method"),
+      &"http://127.0.0.1:9000/wtx.GenericService/generic_method".into(),
     )
     .await?;
   let generic_response: GenericResponse = client.des_from_res_bytes(&mut res.rrd.body.as_ref())?;
-  println!("{:?}", generic_response);
+  println!("{generic_response:?}");
   Ok(())
 }

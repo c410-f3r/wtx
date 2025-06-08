@@ -26,6 +26,7 @@ mod incomplete_utf8_char;
 mod interspace;
 mod lease;
 mod lock;
+mod mpmc;
 mod num_array;
 mod optimization;
 mod percent_encoding;
@@ -66,6 +67,7 @@ pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use lease::{Lease, LeaseMut};
 pub use lock::Lock;
+pub use mpmc::*;
 pub use num_array::*;
 pub use optimization::*;
 pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
@@ -146,13 +148,7 @@ where
 #[allow(clippy::unused_async, reason = "depends on the selected set of features")]
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
-  #[cfg(feature = "tokio")]
-  {
-    tokio::time::sleep(duration).await;
-    Ok(())
-  }
-  #[cfg(not(feature = "tokio"))]
-  {
+  async fn _naive(duration: Duration) -> crate::Result<()> {
     let now = crate::calendar::Instant::now();
     core::future::poll_fn(|cx| {
       if now.elapsed()? >= duration {
@@ -163,6 +159,16 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
     })
     .await
   }
+
+  #[cfg(feature = "executor")]
+  return _naive(duration).await;
+  #[cfg(all(feature = "tokio", not(any(feature = "executor"))))]
+  {
+    tokio::time::sleep(duration).await;
+    Ok(())
+  }
+  #[cfg(not(any(feature = "executor", feature = "tokio")))]
+  return _naive(duration).await;
 }
 
 /// A tracing register with optioned parameters.

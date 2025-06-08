@@ -29,7 +29,7 @@ pub(crate) fn from_records(
   let additional_where_predicates = params.iter().filter_map(|el| {
     if let GenericParam::Type(type_param) = el {
       let ident = &type_param.ident;
-      Some(quote::quote! { #ident: wtx::misc::Decode<'exec, #database>, })
+      Some(quote::quote!(#ident: wtx::misc::Decode<'exec, #database>,))
     } else {
       None
     }
@@ -100,7 +100,7 @@ pub(crate) fn from_records(
   let id_ident_iter0 = id_ident.iter();
   let id_ident_iter1 = id_ident.iter();
 
-  let expanded = quote::quote! {
+  let expanded = quote::quote!(
     impl<'exec, #params> wtx::database::FromRecords<'exec, #database> for #name<#params>
     where
       #(#additional_where_predicates)*
@@ -162,7 +162,7 @@ pub(crate) fn from_records(
         })
       }
     }
-  };
+  );
   Ok(proc_macro::TokenStream::from(expanded))
 }
 

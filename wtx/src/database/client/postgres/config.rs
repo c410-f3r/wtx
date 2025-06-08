@@ -53,14 +53,11 @@ pub(crate) enum ChannelBinding {
 
 #[cfg(test)]
 mod tests {
-  use crate::{
-    database::client::postgres::{Config, config::ChannelBinding},
-    misc::Uri,
-  };
+  use crate::database::client::postgres::{Config, config::ChannelBinding};
 
   #[test]
   fn from_uri() {
-    let uri = Uri::new("postgres://ab:cd@ef:5432/gh?application_name=ij&channel_binding=disable");
+    let uri = "postgres://ab:cd@ef:5432/gh?application_name=ij&channel_binding=disable".into();
     let config = Config::from_uri(&uri).unwrap();
     assert_eq!(config.application_name, "ij");
     assert_eq!(config.channel_binding, ChannelBinding::Disable);

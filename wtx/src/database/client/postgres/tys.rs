@@ -43,6 +43,7 @@ macro_rules! test {
   };
 }
 
+mod arguments;
 #[cfg(feature = "calendar")]
 mod calendar;
 #[cfg(feature = "rust_decimal")]

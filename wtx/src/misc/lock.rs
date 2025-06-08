@@ -92,6 +92,72 @@ impl<T> Lock for RefCell<T> {
   }
 }
 
+#[cfg(feature = "parking_lot")]
+mod parking_lot {
+  use crate::misc::Lock;
+  use core::{future::poll_fn, task::Poll};
+  use parking_lot::{Mutex, MutexGuard};
+
+  impl<T> Lock for Mutex<T> {
+    type Guard<'guard>
+      = MutexGuard<'guard, Self::Resource>
+    where
+      Self: 'guard;
+    type Resource = T;
+
+    #[inline]
+    fn new(resource: Self::Resource) -> Self {
+      Mutex::new(resource)
+    }
+
+    #[inline]
+    async fn lock(&self) -> Self::Guard<'_> {
+      poll_fn(|cx| {
+        if let Some(elem) = self.try_lock() {
+          Poll::Ready(elem)
+        } else {
+          cx.waker().wake_by_ref();
+          Poll::Pending
+        }
+      })
+      .await
+    }
+  }
+}
+
+#[cfg(feature = "std")]
+mod std {
+  use crate::misc::Lock;
+  use core::{future::poll_fn, task::Poll};
+  use std::sync::{Mutex, MutexGuard};
+
+  impl<T> Lock for Mutex<T> {
+    type Guard<'guard>
+      = MutexGuard<'guard, Self::Resource>
+    where
+      Self: 'guard;
+    type Resource = T;
+
+    #[inline]
+    fn new(resource: Self::Resource) -> Self {
+      Mutex::new(resource)
+    }
+
+    #[inline]
+    async fn lock(&self) -> Self::Guard<'_> {
+      poll_fn(|cx| {
+        if let Ok(elem) = self.try_lock() {
+          Poll::Ready(elem)
+        } else {
+          cx.waker().wake_by_ref();
+          Poll::Pending
+        }
+      })
+      .await
+    }
+  }
+}
+
 #[cfg(feature = "tokio")]
 mod tokio {
   use crate::misc::Lock;

@@ -119,6 +119,10 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   ParseIntError(core::num::ParseIntError),
   #[doc = associated_element_doc!()]
+  RecvError(RecvError),
+  #[doc = associated_element_doc!()]
+  SendError(SendError<()>),
+  #[doc = associated_element_doc!()]
   TryFromIntError(core::num::TryFromIntError),
   #[doc = associated_element_doc!()]
   TryFromSliceError(core::array::TryFromSliceError),
@@ -445,6 +449,20 @@ impl From<core::num::ParseIntError> for Error {
   }
 }
 
+impl From<RecvError> for Error {
+  #[inline]
+  fn from(from: RecvError) -> Self {
+    Self::RecvError(from)
+  }
+}
+
+impl From<SendError<()>> for Error {
+  #[inline]
+  fn from(from: SendError<()>) -> Self {
+    Self::SendError(from)
+  }
+}
+
 #[cfg(feature = "postgres")]
 impl From<crate::database::client::postgres::DbError> for Error {
   #[inline]
@@ -688,6 +706,35 @@ impl From<crate::web_socket::WebSocketError> for Error {
   #[inline]
   fn from(from: crate::web_socket::WebSocketError) -> Self {
     Self::WebSocketError(from)
+  }
+}
+
+/// An error returned by the receiving part of a channel
+#[derive(Debug)]
+pub enum RecvError {
+  /// A message could not be received because the channel is empty.
+  Empty,
+  /// The message could not be received because the channel is empty and disconnected.
+  Disconnected,
+}
+
+/// An error returned by the sending part of a channel
+#[derive(Debug)]
+pub enum SendError<T> {
+  /// The message could not be sent because the channel is full.
+  Full(T),
+  /// The message could not be sent because the channel is disconnected.
+  Disconnected(T),
+}
+
+impl<T> SendError<T> {
+  /// Removes the inner element
+  #[inline]
+  pub fn simplify(self) -> SendError<()> {
+    match self {
+      SendError::Full(_) => SendError::Full(()),
+      SendError::Disconnected(_) => SendError::Disconnected(()),
+    }
   }
 }
 

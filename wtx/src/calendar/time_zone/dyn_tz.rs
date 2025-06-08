@@ -41,9 +41,9 @@ impl TimeZone for DynTz {
     };
     let mut str = ArrayString::new();
     let _rslt = str.push(if self.0 < 0 { '-' } else { '+' });
-    let _rslt = str.push_str(&hour.num_str());
+    let _rslt = str.push_str(hour.num_str());
     let _rslt = str.push(':');
-    let _rslt = str.push_str(&minute.num_str());
+    let _rslt = str.push_str(minute.num_str());
     str
   }
 

@@ -31,12 +31,12 @@ impl<'stmts, A, C, T> Statement<'stmts, A, C, T> {
     columns.iter().map(|el| &el.0)
   }
 
-  #[cfg(all(feature = "_async-tests", test))]
+  #[cfg(test)]
   pub(crate) fn ty(&self, idx: usize) -> Option<&T> {
     Some(&self.values.get(..self.tys_len)?.get(idx)?.1)
   }
 
-  #[cfg(feature = "mysql")]
+  #[cfg(any(feature = "mysql", test))]
   pub(crate) fn tys(&self) -> impl Iterator<Item = &T> {
     self.values.get(..self.tys_len).unwrap_or_default().iter().map(|el| &el.1)
   }
