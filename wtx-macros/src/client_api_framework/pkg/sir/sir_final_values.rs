@@ -139,7 +139,7 @@ impl<'module, 'others>
         let fpiv_where_predicates_iter = fpiv_where_predicates.iter();
         let freqdiv_where_predicates_iter = freqdiv_where_predicates.iter();
         let (lts, tys) = Self::pkg_params(&freqdiv, &fpiv);
-        let is_mut_lf = is_mut.then(|| quote::quote! { '__is_mut }).into_iter();
+        let is_mut_lf = is_mut.then(|| quote::quote!('__is_mut)).into_iter();
         let tp = {
           let tt = Self::transport_params(transport_group);
           if is_mut { quote::quote!(&'__is_mut mut #tt) } else { tt }

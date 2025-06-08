@@ -8,11 +8,11 @@ use crate::collection::{
 
 #[test]
 fn extend_front_from_copyable_within() {
-  test(|| no_wrapping_00(), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]));
-  test(|| no_wrapping_11(), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]));
+  test(no_wrapping_00, (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]));
+  test(no_wrapping_11, (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]), (&[], &[]));
 
   test(
-    || no_wrapping_01(),
+    no_wrapping_01,
     (&[1], &[1]),
     (&[1], &[]),
     (&[1], &[]),
@@ -21,7 +21,7 @@ fn extend_front_from_copyable_within() {
     (&[1], &[]),
   );
   test(
-    || no_wrapping_02(),
+    no_wrapping_02,
     (&[1], &[1, 2]),
     (&[1, 2], &[1, 2]),
     (&[1, 2], &[]),
@@ -30,7 +30,7 @@ fn extend_front_from_copyable_within() {
     (&[1, 2], &[]),
   );
   test(
-    || no_wrapping_36(),
+    no_wrapping_36,
     (&[4, 4, 5, 6], &[]),
     (&[4, 5, 4, 5, 6], &[]),
     (&[4, 5, 6], &[]),
@@ -40,7 +40,7 @@ fn extend_front_from_copyable_within() {
   );
 
   test(
-    || wrapping_00(),
+    wrapping_00,
     (&[1, 1, 2, 3, 4, 5, 6, 7, 8], &[]),
     (&[1, 2, 1, 2, 3, 4, 5, 6, 7, 8], &[]),
     (&[1, 2, 3, 4, 5, 6, 7, 8], &[]),
@@ -49,7 +49,7 @@ fn extend_front_from_copyable_within() {
     (&[1, 2, 3, 4, 5, 6, 7, 8], &[]),
   );
   test(
-    || wrapping_22(),
+    wrapping_22,
     (&[1, 1, 2, 3, 4, 5, 6], &[7, 8]),
     (&[1, 2, 1, 2, 3, 4, 5, 6], &[7, 8]),
     (&[1, 2, 3, 4, 5, 6], &[7, 8]),
@@ -58,7 +58,7 @@ fn extend_front_from_copyable_within() {
     (&[1, 2, 3, 4, 5, 6], &[7, 8]),
   );
   test(
-    || wrapping_77(),
+    wrapping_77,
     (&[1, 1], &[2, 3, 4, 5, 6, 7, 8]),
     (&[1], &[2, 3, 4, 5, 6, 7, 8]),
     (&[1], &[2, 3, 4, 5, 6, 7, 8]),
@@ -68,7 +68,7 @@ fn extend_front_from_copyable_within() {
   );
 
   test(
-    || wrapping_60(),
+    wrapping_60,
     (&[7, 7, 8], &[]),
     (&[7, 8, 7, 8], &[]),
     (&[7, 8], &[]),
@@ -77,7 +77,7 @@ fn extend_front_from_copyable_within() {
     (&[7, 8], &[]),
   );
   test(
-    || wrapping_64(),
+    wrapping_64,
     (&[1, 1, 2], &[3, 4, 5, 6]),
     (&[1, 2, 1, 2], &[3, 4, 5, 6]),
     (&[1, 2], &[3, 4, 5, 6]),
@@ -86,7 +86,7 @@ fn extend_front_from_copyable_within() {
     (&[1, 2], &[3, 4, 5, 6]),
   );
   test(
-    || wrapping_70(),
+    wrapping_70,
     (&[1, 1], &[]),
     (&[1], &[]),
     (&[1], &[]),
@@ -95,7 +95,7 @@ fn extend_front_from_copyable_within() {
     (&[1], &[]),
   );
   test(
-    || wrapping_71(),
+    wrapping_71,
     (&[1, 1], &[2]),
     (&[1], &[2]),
     (&[1], &[2]),

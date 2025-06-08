@@ -91,7 +91,7 @@ jobs:
       - run: sleep 30
       - run: .scripts/${{ matrix.scripts }}.sh
 
-  internal-tests-0:
+  internal-tests0:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -106,9 +106,9 @@ jobs:
           profile: minimal
           toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests-0.sh
+      - run: .scripts/internal-tests0.sh
 
-  internal-tests-1:
+  internal-tests1:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -123,4 +123,21 @@ jobs:
           profile: minimal
           toolchain: nightly-2025-05-12
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests-1.sh
+      - run: .scripts/internal-tests1.sh
+
+  internal-tests2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: mdbook
+          use-tool-cache: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          override: true
+          profile: minimal
+          toolchain: nightly-2025-05-12
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/internal-tests2.sh

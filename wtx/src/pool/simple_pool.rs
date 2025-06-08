@@ -130,13 +130,13 @@ where
     ra: &RM::RecycleAux,
   ) -> Result<Self::GetElem<'this>, RM::Error> {
     let (idx, lock) = poll_fn(|ctx| {
-      if let Some((idx, lock)) = self.available_idxs.lock().ok().and_then(|mut el| {
+      if let Some((idx, lock)) = self.available_idxs.deref().lock().ok().and_then(|mut el| {
         let idx = el.pop()?;
         Some((idx, self.locks.get(idx)?))
       }) {
         Poll::Ready((idx, lock))
       } else {
-        self.waker.lock().unwrap().push(ctx.waker().clone());
+        self.waker.deref().lock().unwrap().push(ctx.waker().clone());
         Poll::Pending
       }
     })
@@ -202,8 +202,8 @@ impl<R> Drop for SimplePoolGetElem<R> {
   #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
   #[inline]
   fn drop(&mut self) {
-    self.available_idxs.lock().unwrap().push(self.idx);
-    for waker in self.waker.lock().unwrap().drain(..) {
+    self.available_idxs.deref().lock().unwrap().push(self.idx);
+    for waker in self.waker.deref().lock().unwrap().drain(..) {
       waker.wake();
     }
   }
@@ -263,28 +263,35 @@ mod _tokio {
   }
 }
 
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests {
-  use crate::pool::{SimpleRM, simple_pool::SimplePoolTokio};
+  use crate::{
+    executor::Runtime,
+    pool::{SimpleRM, simple_pool::SimplePoolRefCell},
+  };
 
-  #[tokio::test]
-  async fn held_lock_is_not_modified() {
-    let pool = pool();
-    let lhs_lock = pool.get().await.unwrap();
+  #[test]
+  fn held_lock_is_not_modified() {
+    Runtime::new()
+      .block_on(async {
+        let pool = pool();
+        let lhs_lock = pool.get().await.unwrap();
 
-    ***pool.get().await.unwrap() = 1;
-    assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 1]);
+        ***pool.get().await.unwrap() = 1;
+        assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 1]);
 
-    ***pool.get().await.unwrap() = 2;
-    assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 2]);
+        ***pool.get().await.unwrap() = 2;
+        assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 2]);
 
-    drop(lhs_lock);
+        drop(lhs_lock);
 
-    ***pool.get().await.unwrap() = 1;
-    assert_eq!([***pool.get().await.unwrap(), ***pool.get().await.unwrap()], [1, 2]);
+        ***pool.get().await.unwrap() = 1;
+        assert_eq!([***pool.get().await.unwrap(), ***pool.get().await.unwrap()], [1, 2]);
+      })
+      .unwrap();
   }
 
-  fn pool() -> SimplePoolTokio<SimpleRM<fn() -> crate::Result<i32>>> {
-    SimplePoolTokio::new(2, SimpleRM::new(|| Ok(0)))
+  fn pool() -> SimplePoolRefCell<SimpleRM<fn() -> crate::Result<i32>>> {
+    SimplePoolRefCell::new(2, SimpleRM::new(|| Ok(0)))
   }
 }

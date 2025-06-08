@@ -100,12 +100,14 @@ unsafe impl Send for AtomicWaker {}
 // SAFETY: Concurrent access is manually managed
 unsafe impl Sync for AtomicWaker {}
 
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests {
-  use crate::sync::{Arc, AtomicBool, AtomicWaker};
+  use crate::{
+    executor::Runtime,
+    sync::{Arc, AtomicBool, AtomicWaker},
+  };
   use core::{future::poll_fn, sync::atomic::Ordering, task::Poll};
   use std::thread;
-  use tokio::runtime::Builder;
 
   #[test]
   fn non_blocking_operation() {
@@ -120,17 +122,19 @@ mod tests {
 
     let jh = thread::spawn(move || {
       let mut pending = 0;
-      Builder::new_current_thread().build().unwrap().block_on(poll_fn(move |cx| {
-        if woken_clone.load(Ordering::Relaxed) {
-          Poll::Ready(())
-        } else {
-          assert_eq!(0, pending);
-          pending += 1;
-          atomic_waker_clone.register(cx.waker());
-          waiting_clone.store(true, Ordering::Relaxed);
-          Poll::Pending
-        }
-      }))
+      Runtime::new()
+        .block_on(poll_fn(move |cx| {
+          if woken_clone.load(Ordering::Relaxed) {
+            Poll::Ready(())
+          } else {
+            assert_eq!(0, pending);
+            pending += 1;
+            atomic_waker_clone.register(cx.waker());
+            waiting_clone.store(true, Ordering::Relaxed);
+            Poll::Pending
+          }
+        }))
+        .unwrap()
     });
 
     while !waiting.load(Ordering::Relaxed) {}

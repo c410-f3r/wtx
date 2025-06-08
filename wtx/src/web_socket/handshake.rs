@@ -1,4 +1,4 @@
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests;
 
 macro_rules! check_headers {

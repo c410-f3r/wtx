@@ -3,7 +3,6 @@ use core::time::Duration;
 
 /// Time provider suitable for operations involving intervals.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Instant {
   #[cfg(feature = "std")]
   _inner: std::time::SystemTime,

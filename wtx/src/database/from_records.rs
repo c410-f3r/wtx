@@ -114,3 +114,21 @@ where
     Ok(Box::new(T::from_records(curr_params, records)?))
   }
 }
+
+impl<'exec, D, T> FromRecords<'exec, D> for Option<T>
+where
+  D: Database,
+  T: FromRecords<'exec, D>,
+{
+  const ID_IDX: Option<usize> = T::ID_IDX;
+
+  type IdTy = T::IdTy;
+
+  #[inline]
+  fn from_records(
+    curr_params: &mut FromRecordsParams<D::Record<'exec>>,
+    records: &D::Records<'exec>,
+  ) -> Result<Self, D::Error> {
+    if records.len() == 0 { Ok(None) } else { Ok(Some(T::from_records(curr_params, records)?)) }
+  }
+}

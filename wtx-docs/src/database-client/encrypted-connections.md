@@ -78,7 +78,6 @@ podman run \
 Now it is just a matter of including the root CA certificate in the `wtx` client. With everything properly configured, a successful encrypted connection should be expected.
 
 ```text
-#[tokio::test]
 async fn tls() {
   let uri = UriRef::new("SOME_URI");
   let mut rng = ChaCha20::from_os().unwrap();

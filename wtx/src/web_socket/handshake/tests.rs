@@ -2,14 +2,16 @@ macro_rules! call_tests {
   (($method:ident, $ws:expr), $($struct:ident),+ $(,)?) => {
     $(
       $struct::$method($ws).await;
-      tokio::time::sleep(Duration::from_millis(200)).await;
+      sleep(Duration::from_millis(200)).await.unwrap();
     )+
   };
 }
 
 use crate::{
+  executor::Runtime,
+  misc::sleep,
   rng::Xorshift64,
-  sync::AtomicBool,
+  sync::{Arc, AtomicBool},
   tests::_uri,
   web_socket::{
     Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
@@ -17,40 +19,60 @@ use crate::{
   },
 };
 use core::{sync::atomic::Ordering, time::Duration};
-use tokio::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 
 static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(feature = "flate2")]
-#[tokio::test]
-async fn compressed() {
-  use crate::web_socket::compression::Flate2;
+#[test]
+fn compressed() {
   #[cfg(feature = "_tracing-tree")]
   let _rslt = crate::misc::tracing_tree_init(None);
-  do_test_client_and_server_frames(((), false), (Flate2::default(), false)).await;
-  tokio::time::sleep(Duration::from_millis(200)).await;
-  do_test_client_and_server_frames((Flate2::default(), false), ((), false)).await;
-  tokio::time::sleep(Duration::from_millis(200)).await;
-  do_test_client_and_server_frames((Flate2::default(), false), (Flate2::default(), false)).await;
+  let runtime = Arc::new(Runtime::new());
+  let runtime_fut0 = runtime.clone();
+  let runtime_fut1 = runtime.clone();
+  let runtime_fut2 = runtime.clone();
+  runtime
+    .block_on(async {
+      use crate::web_socket::compression::Flate2;
+      do_test_client_and_server_frames(((), false), (Flate2::default(), false), runtime_fut0).await;
+      sleep(Duration::from_millis(200)).await.unwrap();
+      do_test_client_and_server_frames((Flate2::default(), false), ((), false), runtime_fut1).await;
+      sleep(Duration::from_millis(200)).await.unwrap();
+      do_test_client_and_server_frames(
+        (Flate2::default(), false),
+        (Flate2::default(), false),
+        runtime_fut2,
+      )
+      .await;
+    })
+    .unwrap();
 }
 
-#[tokio::test]
-async fn uncompressed() {
+#[test]
+fn uncompressed() {
   #[cfg(feature = "_tracing-tree")]
   let _rslt = crate::misc::tracing_tree_init(None);
-  do_test_client_and_server_frames(((), false), ((), false)).await;
+  let runtime = Arc::new(Runtime::new());
+  let runtime_fut = runtime.clone();
+  runtime
+    .block_on(do_test_client_and_server_frames(((), false), ((), false), runtime_fut))
+    .unwrap();
 }
 
-#[tokio::test]
-async fn uncompressed_no_masking() {
+#[test]
+fn uncompressed_no_masking() {
   #[cfg(feature = "_tracing-tree")]
   let _rslt = crate::misc::tracing_tree_init(None);
-  do_test_client_and_server_frames(((), true), ((), true)).await;
+  let runtime = Arc::new(Runtime::new());
+  let runtime_fut = runtime.clone();
+  runtime.block_on(do_test_client_and_server_frames(((), true), ((), true), runtime_fut)).unwrap();
 }
 
 async fn do_test_client_and_server_frames<CC, SC>(
   (client_compression, client_no_masking): (CC, bool),
   (server_compression, server_no_masking): (SC, bool),
+  runtime: Arc<Runtime>,
 ) where
   CC: Compression<true> + Send,
   CC::NegotiatedCompression: Send,
@@ -60,33 +82,35 @@ async fn do_test_client_and_server_frames<CC, SC>(
 {
   let uri = _uri();
 
-  let listener = TcpListener::bind(uri.hostname_with_implied_port()).await.unwrap();
-  let _server_jh = tokio::spawn(async move {
-    let (stream, _) = listener.accept().await.unwrap();
-    let mut ws = WebSocketAcceptor::default()
-      .compression(server_compression)
-      .no_masking(server_no_masking)
-      .accept(stream)
-      .await
-      .unwrap();
-    call_tests!(
-      (server, &mut ws),
-      FragmentedText,
-      LargeFragmentedText,
-      PingAndText,
-      PingBetweenFragmentedText,
-      SeveralBytes,
-      TwoPings,
-      // Last,
-      HelloAndGoodbye,
-    );
-    HAS_SERVER_FINISHED.store(true, Ordering::Relaxed);
-  });
+  let listener = TcpListener::bind(uri.hostname_with_implied_port()).unwrap();
+  let _fut = runtime
+    .spawn_threaded(async move {
+      let (stream, _) = listener.accept().unwrap();
+      let mut ws = WebSocketAcceptor::default()
+        .compression(server_compression)
+        .no_masking(server_no_masking)
+        .accept(stream)
+        .await
+        .unwrap();
+      call_tests!(
+        (server, &mut ws),
+        FragmentedText,
+        LargeFragmentedText,
+        PingAndText,
+        PingBetweenFragmentedText,
+        SeveralBytes,
+        TwoPings,
+        // Last,
+        HelloAndGoodbye,
+      );
+      HAS_SERVER_FINISHED.store(true, Ordering::Relaxed);
+    })
+    .unwrap();
 
   let mut ws = WebSocketConnector::default()
     .compression(client_compression)
     .no_masking(client_no_masking)
-    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(), &uri.to_ref())
+    .connect(TcpStream::connect(uri.hostname_with_implied_port()).unwrap(), &uri.to_ref())
     .await
     .unwrap();
   call_tests!(
@@ -108,7 +132,7 @@ async fn do_test_client_and_server_frames<CC, SC>(
       has_server_finished = local_has_server_finished;
       break;
     }
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(200)).await.unwrap();
   }
   if !has_server_finished {
     panic!("Server didn't finish");

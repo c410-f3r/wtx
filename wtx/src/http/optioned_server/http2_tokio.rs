@@ -191,9 +191,7 @@ impl OptionedServer {
                   stream_aux,
                 };
                 let res = stream_auto_cb.call((headers_aux, auto_stream)).await?;
-                if stream.send_res(res).await?.is_closed() {
-                  return Ok(());
-                }
+                let _ = stream.send_res(res).await?;
                 Ok::<_, ERR>(())
               };
               let stream_fun_rslt = stream_fun.await;

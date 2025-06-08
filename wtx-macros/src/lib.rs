@@ -4,6 +4,7 @@
 
 mod client_api_framework;
 mod error;
+mod executor;
 mod from_records;
 mod http;
 mod misc;
@@ -34,6 +35,21 @@ pub fn conn_aux(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }
+}
+
+/// From records
+#[proc_macro_derive(FromRecords, attributes(from_records))]
+pub fn from_records(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  match from_records::from_records(item) {
+    Err(err) => syn::Error::from(err).to_compile_error().into(),
+    Ok(elem) => elem,
+  }
+}
+
+/// Allows the execution of asynchronous programs using the runtime provided by `WTX`.
+#[proc_macro_attribute]
+pub fn main(_: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  executor::main(item)
 }
 
 /// Package
@@ -68,11 +84,8 @@ pub fn pkg(
   }
 }
 
-/// From records
-#[proc_macro_derive(FromRecords, attributes(from_records))]
-pub fn from_records(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  match from_records::from_records(item) {
-    Err(err) => syn::Error::from(err).to_compile_error().into(),
-    Ok(elem) => elem,
-  }
+/// Allows the execution of asynchronous tests using the runtime provided by `WTX`.
+#[proc_macro_attribute]
+pub fn test(_: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  executor::test(item)
 }

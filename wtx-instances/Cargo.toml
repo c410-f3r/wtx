@@ -60,6 +60,11 @@ path = "generic-examples/client-api-framework.rs"
 required-features = ["client-api-framework"]
 
 [[example]]
+name = "executor"
+path = "generic-examples/executor.rs"
+required-features = ["executor"]
+
+[[example]]
 name = "grpc-client"
 path = "generic-examples/grpc-client.rs"
 required-features = ["grpc-client"]
@@ -156,6 +161,7 @@ database-client-postgres-enum = ["postgres"]
 
 calendar = ["wtx/calendar"]
 client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
+executor = ["wtx/executor", "wtx/macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly"]
 http-client-pool = ["wtx/http-client-pool"]

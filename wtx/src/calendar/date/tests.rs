@@ -50,7 +50,7 @@ fn add_and_sub() {
 fn day() {
   assert_eq!(Date::MIN.day().num(), 1);
   assert_eq!(Date::MAX.day().num(), 31);
-  assert_eq!(_0401_03_02().day().num(), 02);
+  assert_eq!(_0401_03_02().day().num(), 2);
   assert_eq!(_2025_04_20().day().num(), 20);
 }
 

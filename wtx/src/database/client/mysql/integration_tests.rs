@@ -9,10 +9,9 @@ use crate::{
 };
 use alloc::string::String;
 use core::fmt::Debug;
-use std::{env, sync::LazyLock};
-use tokio::net::TcpStream;
+use std::sync::LazyLock;
 
-static URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_MYSQL").unwrap());
+static URI: LazyLock<String> = LazyLock::new(|| std::env::var("DATABASE_URI_MYSQL").unwrap());
 
 #[tokio::test]
 async fn execute() {
@@ -206,14 +205,13 @@ async fn tls() {
     rng::{ChaCha20, SeedableRng},
     tests::_32_bytes_seed,
   };
-  let uri_string = &*URI;
-  let uri = UriRef::new(uri_string.as_str());
+  let uri = UriRef::new(URI.as_str());
   let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   let _executor = MysqlExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
-    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
+    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     |stream| async {
       Ok(
         crate::misc::TokioRustlsConnector::default()
@@ -229,18 +227,17 @@ async fn tls() {
   .unwrap();
 }
 
-async fn executor<E>() -> MysqlExecutor<E, ExecutorBuffer, TcpStream>
+async fn executor<E>() -> MysqlExecutor<E, ExecutorBuffer, std::net::TcpStream>
 where
   E: Debug + From<crate::Error>,
 {
-  let uri_string = &*URI;
-  let uri = UriRef::new(uri_string.as_str());
+  let uri = UriRef::new(URI.as_str());
   let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   MysqlExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
-    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
+    std::net::TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
   )
   .await
   .unwrap()

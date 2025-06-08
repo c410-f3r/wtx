@@ -26,7 +26,7 @@ impl<RRD> ReqBuilder<RRD> {
   /// Constructor shortcut that has a default `POST` method
   #[inline]
   pub const fn post(rrd: RRD) -> Self {
-    Self { method: Method::Get, rrb: ReqResBuilder::new(rrd), version: Version::Http2 }
+    Self { method: Method::Post, rrb: ReqResBuilder::new(rrd), version: Version::Http2 }
   }
 
   /// Shortcut that converts this instance into a [`Request`].
@@ -37,7 +37,7 @@ impl<RRD> ReqBuilder<RRD> {
 
   /// Changes the method
   #[inline]
-  pub fn method(&mut self, method: Method) -> &mut Self {
+  pub const fn method(&mut self, method: Method) -> &mut Self {
     self.method = method;
     self
   }
@@ -46,7 +46,7 @@ impl<RRD> ReqBuilder<RRD> {
 impl<'rrd, RRD> ReqBuilder<&'rrd mut RRD> {
   /// Constructor shortcut that has a default `GET` method
   #[inline]
-  pub fn from_req_mut(req: &'rrd mut Request<RRD>) -> Self {
+  pub const fn from_req_mut(req: &'rrd mut Request<RRD>) -> Self {
     Self { method: req.method, rrb: ReqResBuilder::new(&mut req.rrd), version: req.version }
   }
 }

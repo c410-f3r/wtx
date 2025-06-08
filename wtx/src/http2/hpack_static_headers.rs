@@ -47,6 +47,6 @@ impl HpackStaticResponseHeaders {
 
   pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &str)> {
     let Self { status_code } = *self;
-    status_code.map(|el| (HpackHeaderBasic::StatusCode(el), "")).into_iter()
+    status_code.map(|el| (HpackHeaderBasic::StatusCode(el), el.strings().number)).into_iter()
   }
 }

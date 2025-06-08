@@ -2,7 +2,7 @@ use crate::clap::HttpClient;
 use std::{fs::OpenOptions, io::Write};
 use wtx::{
   http::{Header, HttpClient as _, KnownHeaderName, ReqResBuffer, client_pool::ClientPoolBuilder},
-  misc::{Uri, from_utf8_basic, str_split_once1, tracing_tree_init},
+  misc::{from_utf8_basic, str_split_once1, tracing_tree_init},
 };
 
 pub(crate) async fn http_client(http_client: HttpClient) {
@@ -36,9 +36,8 @@ pub(crate) async fn http_client(http_client: HttpClient) {
   if let Some(elem) = data {
     rrb.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
   }
-  let uri = Uri::new(uri);
   let mut client = ClientPoolBuilder::tokio_rustls(1).build();
-  let res = client.send_recv_single(method, rrb, &uri.to_ref()).await.unwrap();
+  let res = client.send_recv_single(method, rrb, &uri.as_str().into()).await.unwrap();
   if let Some(elem) = output {
     OpenOptions::new()
       .create(true)
