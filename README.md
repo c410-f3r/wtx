@@ -40,7 +40,7 @@ In a way, `WTX` can be seen as an amalgamation that consolidates the functionali
 | [Pool][pool-doc]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     |
 | [WebSocket][web-socket-doc]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     |
 
-Please note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
+Note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
 
 ## Performance
 

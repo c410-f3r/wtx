@@ -60,6 +60,79 @@ impl ReqResBuilder<ReqResBuffer> {
 impl<RRD> ReqResBuilder<RRD>
 where
   RRD: ReqResDataMut,
+{
+  /// Which formats the request should receive.
+  #[inline]
+  pub fn accept(&mut self, value: Arguments<'_>) -> crate::Result<&mut Self> {
+    self
+      .rrd
+      .headers_mut()
+      .push_from_fmt(Header::from_name_and_value(KnownHeaderName::Accept.into(), value))?;
+    Ok(self)
+  }
+
+  /// Applies a header field in the form of `Authorization: Bearer <token>`.
+  #[inline]
+  pub fn auth_bearer(&mut self, token: Arguments<'_>) -> crate::Result<&mut Self> {
+    self.rrd.headers_mut().push_from_fmt(Header::from_name_and_value(
+      KnownHeaderName::Authorization.into(),
+      format_args!("Bearer {token}"),
+    ))?;
+    Ok(self)
+  }
+
+  /// Media type of the resource.
+  #[inline]
+  pub fn content_type(&mut self, mime: Mime) -> crate::Result<&mut Self> {
+    self.rrd.headers_mut().push_from_iter(Header::from_name_and_value(
+      KnownHeaderName::ContentType.into(),
+      [mime.as_str()],
+    ))?;
+    Ok(self)
+  }
+
+  /// Adds a header with a value composed by an iterator.
+  #[inline]
+  pub fn header_iter<'kv>(
+    &mut self,
+    name: &'kv str,
+    value: impl Iterator<Item = &'kv str> + Clone,
+  ) -> crate::Result<&mut Self> {
+    self.rrd.headers_mut().push_from_iter(Header::from_name_and_value(name, value))?;
+    Ok(self)
+  }
+
+  /// Adds a header with a value composed by [`Arguments`].
+  #[inline]
+  pub fn header_fmt(&mut self, name: &str, value: Arguments<'_>) -> crate::Result<&mut Self> {
+    self.rrd.headers_mut().push_from_fmt(Header::from_name_and_value(name, value))?;
+    Ok(self)
+  }
+
+  /// The host and port number of the server to which the request is being sent.
+  #[inline]
+  pub fn host(&mut self, value: Arguments<'_>) -> crate::Result<&mut Self> {
+    self
+      .rrd
+      .headers_mut()
+      .push_from_fmt(Header::from_name_and_value(KnownHeaderName::Host.into(), value))?;
+    Ok(self)
+  }
+
+  /// Characteristic string that lets servers and network peers identify the application.
+  #[inline]
+  pub fn user_agent(&mut self, value: &str) -> crate::Result<&mut Self> {
+    self
+      .rrd
+      .headers_mut()
+      .push_from_iter(Header::from_name_and_value(KnownHeaderName::UserAgent.into(), [value]))?;
+    Ok(self)
+  }
+}
+
+impl<RRD> ReqResBuilder<RRD>
+where
+  RRD: ReqResDataMut,
   RRD::Body: LeaseMut<Vector<u8>>,
 {
   /// Injects a sequence of bytes into the internal buffer.
@@ -109,60 +182,5 @@ where
   pub fn text(&mut self, data: &[u8]) -> crate::Result<&mut Self> {
     self.rrd.body_mut().lease_mut().extend_from_copyable_slice(data)?;
     self.content_type(Mime::TextPlain)
-  }
-}
-
-impl<RRD> ReqResBuilder<RRD>
-where
-  RRD: ReqResDataMut,
-{
-  /// Which formats the request should receive.
-  #[inline]
-  pub fn accept(&mut self, value: Arguments<'_>) -> crate::Result<&mut Self> {
-    self
-      .rrd
-      .headers_mut()
-      .push_from_fmt(Header::from_name_and_value(KnownHeaderName::Accept.into(), value))?;
-    Ok(self)
-  }
-
-  /// Applies a header field in the form of `Authorization: Bearer <token>`.
-  #[inline]
-  pub fn auth_bearer(&mut self, token: Arguments<'_>) -> crate::Result<&mut Self> {
-    self.rrd.headers_mut().push_from_fmt(Header::from_name_and_value(
-      KnownHeaderName::Authorization.into(),
-      format_args!("Bearer {token}"),
-    ))?;
-    Ok(self)
-  }
-
-  /// Media type of the resource.
-  #[inline]
-  pub fn content_type(&mut self, mime: Mime) -> crate::Result<&mut Self> {
-    self.rrd.headers_mut().push_from_iter(Header::from_name_and_value(
-      KnownHeaderName::ContentType.into(),
-      [mime.as_str()],
-    ))?;
-    Ok(self)
-  }
-
-  /// The host and port number of the server to which the request is being sent.
-  #[inline]
-  pub fn host(&mut self, value: Arguments<'_>) -> crate::Result<&mut Self> {
-    self
-      .rrd
-      .headers_mut()
-      .push_from_fmt(Header::from_name_and_value(KnownHeaderName::Host.into(), value))?;
-    Ok(self)
-  }
-
-  /// Characteristic string that lets servers and network peers identify the application.
-  #[inline]
-  pub fn user_agent(&mut self, value: &str) -> crate::Result<&mut Self> {
-    self
-      .rrd
-      .headers_mut()
-      .push_from_iter(Header::from_name_and_value(KnownHeaderName::UserAgent.into(), [value]))?;
-    Ok(self)
   }
 }
