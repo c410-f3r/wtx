@@ -194,9 +194,9 @@ impl Headers {
   /// assert_eq!(headers.get_by_idx(0).unwrap(), Header::from_name_and_value("name", "value0_value1"));
   /// ```
   #[inline(always)]
-  pub fn push_from_iter<'bytes, V>(&mut self, header: Header<'bytes, V>) -> crate::Result<()>
+  pub fn push_from_iter<'kv, V>(&mut self, header: Header<'kv, V>) -> crate::Result<()>
   where
-    V: IntoIterator<Item = &'bytes str>,
+    V: IntoIterator<Item = &'kv str>,
     V::IntoIter: Clone,
   {
     #[inline]
