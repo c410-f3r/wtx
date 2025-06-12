@@ -11,9 +11,10 @@ use crate::{
     pkg::{Package, PkgsAux},
   },
   collection::Vector,
-  misc::{LeaseMut, Lock},
+  misc::LeaseMut,
   rng::Rng,
   stream::StreamWriter,
+  sync::Lock,
   web_socket::{
     Frame, WebSocketCommonPartOwned, WebSocketWriterPartOwned, compression::NegotiatedCompression,
   },

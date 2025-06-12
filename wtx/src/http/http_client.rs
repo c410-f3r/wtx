@@ -106,8 +106,9 @@ mod http2 {
   use crate::{
     http::{HttpClient, Method, ReqResBuffer, ReqResData, Request, Response},
     http2::{ClientStream, Http2, Http2Buffer, Http2Data, Http2RecvStatus},
-    misc::{Lease, LeaseMut, Lock, RefCounter, UriRef},
+    misc::{Lease, LeaseMut, UriRef},
     stream::StreamWriter,
+    sync::{Lock, RefCounter},
   };
 
   impl<HB, HD, SW> HttpClient for Http2<HD, true>
@@ -162,9 +163,10 @@ mod http_client_pool {
       client_pool::{ClientPool, ClientPoolResource},
     },
     http2::{ClientStream, Http2, Http2Buffer, Http2Data, Http2RecvStatus},
-    misc::{Lease, Lock, RefCounter, UriRef},
+    misc::{Lease, UriRef},
     pool::{ResourceManager, SimplePoolResource},
     stream::StreamWriter,
+    sync::{Lock, RefCounter},
   };
 
   impl<AUX, HD, RL, RM, SW> HttpClient for ClientPool<RL, RM>

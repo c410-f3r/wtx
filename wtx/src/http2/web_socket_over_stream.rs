@@ -4,9 +4,10 @@ use crate::{
   collection::Vector,
   http::{Headers, StatusCode},
   http2::{Http2Buffer, Http2Data, Http2ErrorCode, Http2RecvStatus, SendDataMode, ServerStream},
-  misc::{ConnectionState, LeaseMut, Lock, RefCounter, SingleTypeStorage},
+  misc::{ConnectionState, LeaseMut, SingleTypeStorage},
   rng::Xorshift64,
   stream::StreamWriter,
+  sync::{Lock, RefCounter},
   web_socket::{
     Frame, FrameMut, OpCode, ReadFrameInfo,
     web_socket_reader::{

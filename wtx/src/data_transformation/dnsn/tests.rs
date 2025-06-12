@@ -7,15 +7,15 @@ use alloc::string::String;
 use core::marker::PhantomData;
 
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct FooBar<EREQC, ERESC>(EREQC, (), PhantomData<ERESC>);
+pub(crate) struct _FooBar<EREQC, ERESC>(EREQC, (), PhantomData<ERESC>);
 
-impl<EREQC, ERESC> FooBar<EREQC, ERESC> {
+impl<EREQC, ERESC> _FooBar<EREQC, ERESC> {
   pub(crate) fn _new(ereqc: EREQC) -> Self {
     Self(ereqc, (), PhantomData)
   }
 }
 
-impl<DRSR, EREQC, ERESC, T> Package<(), DRSR, T, ()> for FooBar<EREQC, ERESC>
+impl<DRSR, EREQC, ERESC, T> Package<(), DRSR, T, ()> for _FooBar<EREQC, ERESC>
 where
   EREQC: Encode<De<DRSR>>,
   ERESC: for<'de> DecodeSeq<'de, De<DRSR>>,
@@ -71,7 +71,7 @@ macro_rules! _create_dnsn_test {
         },
         data_transformation::{
           dnsn::{
-            tests::{_Bar, _Foo, FooBar},
+            tests::{_Bar, _Foo, _FooBar},
             $drsr_ident,
           },
           format::{$req, $res},
@@ -88,7 +88,7 @@ macro_rules! _create_dnsn_test {
             assert_eq!(
               trans
                 .send_pkg_recv_decode_contained(
-                  &mut FooBar::<_, $res<_Bar>>::_new($fmt_ser),
+                  &mut _FooBar::<_, $res<_Bar>>::_new($fmt_ser),
                   pkgs_aux
                 )
                 .await

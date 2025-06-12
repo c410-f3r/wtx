@@ -28,9 +28,9 @@ use crate::{
     settings_frame::SettingsFrame,
     window_update_frame::WindowUpdateFrame,
   },
-  misc::{LeaseMut, Lock, RefCounter, net::PartitionedFilledBuffer},
+  misc::{LeaseMut, net::PartitionedFilledBuffer},
   stream::{StreamReader, StreamWriter},
-  sync::{Arc, AtomicBool, AtomicWaker},
+  sync::{Arc, AtomicBool, AtomicWaker, Lock, RefCounter},
 };
 use core::{
   future::poll_fn,

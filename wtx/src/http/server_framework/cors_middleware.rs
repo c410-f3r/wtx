@@ -226,7 +226,7 @@ impl CorsMiddleware {
         KnownHeaderName::AccessControlAllowMethods.into(),
         Intersperse::new(
           specifics.iter().map(|el| {
-            let [_, name] = el.strings().custom;
+            let [name, _] = el.strings().custom;
             name
           }),
           || ",",

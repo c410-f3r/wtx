@@ -55,10 +55,8 @@ impl HpackDecoder {
         Ok(())
       })?;
     }
-    if did_update {
-      if let [first, ..] = data {
-        self.manage_decode(*first, &mut data, &mut cb, || Ok(()))?;
-      }
+    if did_update && let [first, ..] = data {
+      self.manage_decode(*first, &mut data, &mut cb, || Ok(()))?;
     }
     while let [first, ..] = data {
       self.manage_decode(*first, &mut data, &mut cb, || {

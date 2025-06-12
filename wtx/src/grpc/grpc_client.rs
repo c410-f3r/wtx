@@ -8,8 +8,9 @@ use crate::{
     Header, Headers, HttpClient, KnownHeaderName, Method, ReqResBuffer, Response, WTX_USER_AGENT,
   },
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{Decode, Encode, LeaseMut, Lock, RefCounter, SingleTypeStorage, UriRef},
+  misc::{Decode, Encode, LeaseMut, SingleTypeStorage, UriRef},
   stream::StreamWriter,
+  sync::{Lock, RefCounter},
 };
 
 /// Performs requests to gRPC servers.

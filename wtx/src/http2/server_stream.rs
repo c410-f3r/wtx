@@ -8,9 +8,9 @@ use crate::{
     stream_receiver::StreamControlRecvParams,
     u31::U31,
   },
-  misc::{Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, span::Span},
+  misc::{Lease, LeaseMut, SingleTypeStorage, span::Span},
   stream::StreamWriter,
-  sync::{Arc, AtomicBool},
+  sync::{Arc, AtomicBool, Lock, RefCounter},
 };
 use core::{future::poll_fn, pin::pin};
 

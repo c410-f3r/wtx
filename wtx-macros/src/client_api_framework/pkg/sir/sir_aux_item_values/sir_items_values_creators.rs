@@ -142,24 +142,24 @@ impl SirAuxItemValues {
     let mut fn_ret_wrapper_segments = EMPTY_PATH_SEGS;
     let mut fn_ret_wrapper_variant_ident = None;
     let mut has_short_circuit = false;
-    if let ReturnType::Type(_, ret_ty) = &iif.sig.output {
-      if let Some((tp, ps, abga)) = inner_angle_bracketed_values(ret_ty) {
-        match ps.ident.to_string().as_str() {
-          "Option" => {
-            has_short_circuit = true;
-            fn_ret_wrapper_variant_ident = Some(Ident::new("Some", Span::mixed_site()));
-          }
-          "Result" => {
-            has_short_circuit = true;
-            fn_ret_wrapper_variant_ident = Some(Ident::new("Ok", Span::mixed_site()));
-          }
-          _ => {}
+    if let ReturnType::Type(_, ret_ty) = &iif.sig.output
+      && let Some((tp, ps, abga)) = inner_angle_bracketed_values(ret_ty)
+    {
+      match ps.ident.to_string().as_str() {
+        "Option" => {
+          has_short_circuit = true;
+          fn_ret_wrapper_variant_ident = Some(Ident::new("Some", Span::mixed_site()));
         }
-        fn_ret_angle_bracket_left = Some(&abga.lt_token);
-        fn_ret_angle_bracket_right = Some(&abga.gt_token);
-        fn_ret_wrapper_last_segment_gen_args = &abga.args;
-        fn_ret_wrapper_segments = &tp.path.segments;
+        "Result" => {
+          has_short_circuit = true;
+          fn_ret_wrapper_variant_ident = Some(Ident::new("Ok", Span::mixed_site()));
+        }
+        _ => {}
       }
+      fn_ret_angle_bracket_left = Some(&abga.lt_token);
+      fn_ret_angle_bracket_right = Some(&abga.gt_token);
+      fn_ret_wrapper_last_segment_gen_args = &abga.args;
+      fn_ret_wrapper_segments = &tp.path.segments;
     }
 
     let fn_args_iter = fn_args_iter_fn();

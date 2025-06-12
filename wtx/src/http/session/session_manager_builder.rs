@@ -6,8 +6,9 @@ use crate::{
     cookie::{SameSite, cookie_generic::CookieGeneric},
     session::{SessionManagerInner, SessionSecret},
   },
-  misc::{Lock, sleep},
+  misc::sleep,
   rng::CryptoRng,
+  sync::Lock,
 };
 use core::{marker::PhantomData, time::Duration};
 

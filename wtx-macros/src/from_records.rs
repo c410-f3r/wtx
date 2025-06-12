@@ -17,10 +17,10 @@ pub(crate) fn from_records(
 
   let mut database_opt = None;
   for input_attr in &input.attrs {
-    if let Some(first) = input_attr.path().segments.first() {
-      if first.ident == "from_records" {
-        database_opt = Some(input_attr.parse_args::<ContainerAttrs>()?.database);
-      }
+    if let Some(first) = input_attr.path().segments.first()
+      && first.ident == "from_records"
+    {
+      database_opt = Some(input_attr.parse_args::<ContainerAttrs>()?.database);
     }
   }
 
@@ -49,11 +49,11 @@ pub(crate) fn from_records(
         for (idx, elem) in fields.named.iter().enumerate() {
           let mut ty_opt = None;
           for attr in &elem.attrs {
-            if let Some(first) = attr.path().segments.first() {
-              if first.ident == "from_records" {
-                ty_opt = attr.parse_args::<FieldAttrs>()?.ty;
-                break;
-              }
+            if let Some(first) = attr.path().segments.first()
+              && first.ident == "from_records"
+            {
+              ty_opt = attr.parse_args::<FieldAttrs>()?.ty;
+              break;
             }
           }
           let ty = ty_opt.unwrap_or(FieldTy::Decode);
@@ -209,12 +209,11 @@ impl Parse for FieldAttrs {
 }
 
 fn extract_decode_method(ty: &Type) -> Ident {
-  if let Type::Path(path) = ty {
-    if let Some(first) = path.path.segments.first() {
-      if first.ident == "Option" {
-        return Ident::new("decode_opt", ty.span());
-      }
-    }
+  if let Type::Path(path) = ty
+    && let Some(first) = path.path.segments.first()
+    && first.ident == "Option"
+  {
+    return Ident::new("decode_opt", ty.span());
   }
   Ident::new("decode", ty.span())
 }

@@ -15,11 +15,11 @@ use crate::{
     u31::U31,
   },
   misc::{
-    LeaseMut, Lock, RefCounter, Usize,
+    LeaseMut, Usize,
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },
   stream::{StreamReader, StreamWriter},
-  sync::{AtomicBool, AtomicWaker},
+  sync::{AtomicBool, AtomicWaker, Lock, RefCounter},
 };
 use core::{
   future::poll_fn,
@@ -448,10 +448,10 @@ where
     };
     let mut rslt = [None; N];
     let mut iter = rslt.iter_mut().zip(array.iter());
-    if let Some((elem, frame)) = iter.next() {
-      if frame != crate::http2::PREFACE {
-        process(elem, frame);
-      }
+    if let Some((elem, frame)) = iter.next()
+      && frame != crate::http2::PREFACE
+    {
+      process(elem, frame);
     }
     for (elem, frame) in iter {
       process(elem, frame);

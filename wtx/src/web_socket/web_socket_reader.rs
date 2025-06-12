@@ -69,13 +69,11 @@ where
     |local_rb| expand_rb(additional, local_rb, before),
     |local_rb, written| expand_rb(additional, local_rb, before.wrapping_add(written)),
   );
-  if has_following {
-    if let [.., a, b, c, d] = input {
-      *a = original[0];
-      *b = original[1];
-      *c = original[2];
-      *d = original[3];
-    }
+  if has_following && let [.., a, b, c, d] = input {
+    *a = original[0];
+    *b = original[1];
+    *c = original[2];
+    *d = original[3];
   }
   let payload_len = payload_len_rslt?;
   reader_buffer_first.truncate(before.wrapping_add(payload_len));

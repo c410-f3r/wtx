@@ -7,8 +7,9 @@ use crate::{
     cookie::{cookie_generic::CookieGeneric, encrypt},
     session::SessionSecret,
   },
-  misc::{Lease, LeaseMut, Lock},
+  misc::{Lease, LeaseMut},
   rng::Rng,
+  sync::Lock,
 };
 use alloc::rc::Rc;
 use core::{

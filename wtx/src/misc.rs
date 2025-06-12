@@ -10,7 +10,6 @@ pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
-mod array_chunks;
 mod clear;
 mod connection_state;
 mod de_controller;
@@ -25,14 +24,10 @@ mod from_radix_10;
 mod incomplete_utf8_char;
 mod interspace;
 mod lease;
-mod lock;
-mod mpmc;
 mod num_array;
 mod optimization;
 mod percent_encoding;
 mod query_writer;
-mod ref_counter;
-mod role;
 mod single_type_storage;
 mod suffix_writer;
 #[cfg(feature = "tokio-rustls")]
@@ -45,7 +40,6 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-pub use array_chunks::{ArrayChunks, ArrayChunksMut};
 pub use clear::Clear;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, time::Duration};
@@ -66,14 +60,10 @@ pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use lease::{Lease, LeaseMut};
-pub use lock::Lock;
-pub use mpmc::*;
 pub use num_array::*;
 pub use optimization::*;
 pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 pub use query_writer::QueryWriter;
-pub use ref_counter::RefCounter;
-pub use role::Role;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
 pub use uri::{Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};

@@ -23,7 +23,7 @@ license = "MPL-2.0"
 name = "wtx-macros"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-rust-version = "1.87"
+rust-version = "1.88"
 version = "0.4.0"
 
 [package.metadata.docs.rs]

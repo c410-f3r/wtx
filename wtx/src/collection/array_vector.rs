@@ -265,10 +265,10 @@ where
     let len = self.len;
     let other_len_usize = other.len();
     let other_len_u32 = 'block: {
-      if let Some(other_len_u32) = Usize::from_usize(other_len_usize).into_u32() {
-        if other_len_u32 <= self.remaining() {
-          break 'block other_len_u32;
-        }
+      if let Some(other_len_u32) = Usize::from_usize(other_len_usize).into_u32()
+        && other_len_u32 <= self.remaining()
+      {
+        break 'block other_len_u32;
       }
       return Err(crate::Error::ArrayVectorError(ArrayVectorError::ExtendFromSliceOverflow));
     };
