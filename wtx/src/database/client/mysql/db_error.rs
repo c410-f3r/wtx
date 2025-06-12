@@ -33,12 +33,12 @@ where
     let error_code = u16::from_le_bytes([*a, *b]);
     let mut sql_state = None;
     let protocol_41_n = u64::from(Capability::Protocol41);
-    if dw.other & protocol_41_n == protocol_41_n {
-      if let [b'#', c, d, e, f, g, rest1 @ ..] = rest0 {
-        let array = ArrayString::from_parts([*c, *d, *e, *f, *g], 5)?;
-        sql_state = Some(array);
-        bytes = rest1;
-      }
+    if dw.other & protocol_41_n == protocol_41_n
+      && let [b'#', c, d, e, f, g, rest1 @ ..] = rest0
+    {
+      let array = ArrayString::from_parts([*c, *d, *e, *f, *g], 5)?;
+      sql_state = Some(array);
+      bytes = rest1;
     }
     let mut error_message = String::new();
     error_message.push_str(from_utf8_basic(bytes).map_err(crate::Error::from)?);

@@ -25,9 +25,10 @@ pub(crate) mod web_socket_writer;
 
 use crate::{
   _MAX_PAYLOAD_LEN,
-  misc::{ConnectionState, LeaseMut, Lock},
+  misc::{ConnectionState, LeaseMut},
   rng::Rng,
   stream::Stream,
+  sync::Lock,
   web_socket::{
     compression::NegotiatedCompression,
     web_socket_parts::web_socket_part::{

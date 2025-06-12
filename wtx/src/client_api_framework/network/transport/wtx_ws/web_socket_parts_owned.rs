@@ -7,9 +7,10 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  misc::{LeaseMut, Lock},
+  misc::LeaseMut,
   rng::Rng,
   stream::{StreamReader, StreamWriter},
+  sync::Lock,
   web_socket::{
     WebSocketCommonPartOwned, WebSocketPartsOwned, WebSocketWriterPartOwned,
     compression::NegotiatedCompression,

@@ -196,10 +196,10 @@ fn change_sign(num: i16, is_neg: bool) -> i16 {
 }
 
 fn check_weekday(date: Date, weekday_opt: Option<Weekday>) -> crate::Result<()> {
-  if let Some(weekday) = weekday_opt {
-    if weekday != date.weekday() {
-      return Err(CalendarError::InvalidParsingWeekday.into());
-    }
+  if let Some(weekday) = weekday_opt
+    && weekday != date.weekday()
+  {
+    return Err(CalendarError::InvalidParsingWeekday.into());
   }
   Ok(())
 }

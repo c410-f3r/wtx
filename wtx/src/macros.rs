@@ -270,7 +270,8 @@ macro_rules! _internal_doc {
 
 macro_rules! _iter4 {
   ($slice:expr, $init:block, |$elem:ident| $block:block) => {{
-    let mut iter = crate::misc::ArrayChunks::new($slice);
+    let (chunks, rem) = $slice.as_chunks();
+    let mut iter = chunks.iter();
     for [a, b, c, d] in iter.by_ref() {
       $init
       let $elem = a;
@@ -282,7 +283,7 @@ macro_rules! _iter4 {
       let $elem = d;
       $block
     }
-    for elem in iter.into_remainder() {
+    for elem in rem {
       let $elem = elem;
       $block
     }

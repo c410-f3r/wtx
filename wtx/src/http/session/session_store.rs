@@ -91,8 +91,9 @@ mod pool {
   use crate::{
     database::client::postgres::Postgres,
     http::session::{SessionKey, SessionState, SessionStore},
-    misc::{Decode, Encode, Lock},
+    misc::{Decode, Encode},
     pool::{ResourceManager, SimplePool, SimplePoolResource},
+    sync::Lock,
   };
 
   impl<CS, E, R, RL, RM> SessionStore<CS, E> for SimplePool<RL, RM>

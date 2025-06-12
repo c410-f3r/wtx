@@ -13,8 +13,9 @@ use crate::{
   },
   http::{HttpClient, ReqResBuffer, ResBuilder, WTX_USER_AGENT},
   http2::{ClientStream, Http2, Http2Buffer, Http2Data},
-  misc::{LeaseMut, Lock, RefCounter},
+  misc::LeaseMut,
   stream::StreamWriter,
+  sync::{Lock, RefCounter},
 };
 use core::mem;
 
@@ -184,9 +185,10 @@ mod http_client_pool {
     },
     http::client_pool::{ClientPool, ClientPoolResource},
     http2::{ClientStream, Http2, Http2Buffer, Http2Data},
-    misc::{LeaseMut, Lock, RefCounter},
+    misc::LeaseMut,
     pool::{ResourceManager, SimplePoolResource},
     stream::StreamWriter,
+    sync::{Lock, RefCounter},
   };
 
   impl<AUX, HD, RL, RM, SW, TP> ReceivingTransport<TP> for ClientPool<RL, RM>

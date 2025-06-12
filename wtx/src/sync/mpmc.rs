@@ -30,7 +30,7 @@ pub trait Sender<T>: Clone {
 
 #[cfg(feature = "crossbeam-channel")]
 mod crossbeam {
-  use crate::{RecvError, SendError, misc::mpmc::Mpmc};
+  use crate::{RecvError, SendError, sync::Mpmc};
   use crossbeam_channel::{self, TryRecvError, TrySendError};
 
   /// Uses the channel provided by the `Crossbeam` project.
@@ -49,7 +49,7 @@ mod crossbeam {
     }
   }
 
-  impl<T> crate::misc::Receiver<T> for crossbeam_channel::Receiver<T> {
+  impl<T> crate::sync::Receiver<T> for crossbeam_channel::Receiver<T> {
     #[inline]
     fn recv(&self) -> crate::Result<T> {
       Ok(self.try_recv().map_err(|err| match err {
@@ -59,7 +59,7 @@ mod crossbeam {
     }
   }
 
-  impl<T> crate::misc::Sender<T> for crossbeam_channel::Sender<T> {
+  impl<T> crate::sync::Sender<T> for crossbeam_channel::Sender<T> {
     #[inline]
     fn send(&self, msg: T) -> Result<(), SendError<T>> {
       self.try_send(msg).map_err(|err| match err {
@@ -72,7 +72,7 @@ mod crossbeam {
 
 #[cfg(all(feature = "std", feature = "nightly"))]
 mod nightly {
-  use crate::{RecvError, SendError, misc::mpmc::Mpmc};
+  use crate::{RecvError, SendError, sync::Mpmc};
   use std::sync::mpmc::{self, TryRecvError, TrySendError};
 
   /// Uses the channel provided by the standard library.
@@ -91,7 +91,7 @@ mod nightly {
     }
   }
 
-  impl<T> crate::misc::Receiver<T> for mpmc::Receiver<T> {
+  impl<T> crate::sync::Receiver<T> for mpmc::Receiver<T> {
     #[inline]
     fn recv(&self) -> crate::Result<T> {
       Ok(self.try_recv().map_err(|err| match err {
@@ -101,7 +101,7 @@ mod nightly {
     }
   }
 
-  impl<T> crate::misc::Sender<T> for mpmc::Sender<T> {
+  impl<T> crate::sync::Sender<T> for mpmc::Sender<T> {
     #[inline]
     fn send(&self, msg: T) -> Result<(), SendError<T>> {
       self.try_send(msg).map_err(|err| match err {

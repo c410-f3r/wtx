@@ -94,7 +94,7 @@ impl<T> Lock for RefCell<T> {
 
 #[cfg(feature = "parking_lot")]
 mod parking_lot {
-  use crate::misc::Lock;
+  use crate::sync::Lock;
   use core::{future::poll_fn, task::Poll};
   use parking_lot::{Mutex, MutexGuard};
 
@@ -127,7 +127,7 @@ mod parking_lot {
 
 #[cfg(feature = "std")]
 mod std {
-  use crate::misc::Lock;
+  use crate::sync::Lock;
   use core::{future::poll_fn, task::Poll};
   use std::sync::{Mutex, MutexGuard};
 
@@ -160,7 +160,7 @@ mod std {
 
 #[cfg(feature = "tokio")]
 mod tokio {
-  use crate::misc::Lock;
+  use crate::sync::Lock;
   use tokio::sync::{Mutex, MutexGuard};
 
   impl<T> Lock for Mutex<T> {

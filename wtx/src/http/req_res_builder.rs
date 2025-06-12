@@ -93,11 +93,11 @@ where
 
   /// Adds a header with a value composed by an iterator.
   #[inline]
-  pub fn header_iter<'kv>(
-    &mut self,
-    name: &'kv str,
-    value: impl Iterator<Item = &'kv str> + Clone,
-  ) -> crate::Result<&mut Self> {
+  pub fn header_iter<'kv, I>(&mut self, name: &'kv str, value: I) -> crate::Result<&mut Self>
+  where
+    I: IntoIterator<Item = &'kv str>,
+    I::IntoIter: Clone,
+  {
     self.rrd.headers_mut().push_from_iter(Header::from_name_and_value(name, value))?;
     Ok(self)
   }

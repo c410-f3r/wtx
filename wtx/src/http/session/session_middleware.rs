@@ -7,8 +7,9 @@ use crate::{
     cookie::{cookie_str::CookieStr, decrypt},
     server_framework::Middleware,
   },
-  misc::{Lease, LeaseMut, Lock},
+  misc::{Lease, LeaseMut},
   pool::{Pool, ResourceManager},
+  sync::Lock,
 };
 use alloc::string::String;
 use core::ops::ControlFlow;
@@ -61,12 +62,12 @@ where
     let mut session_guard = self.session_manager.inner.lock().await;
     let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
     if let Some(elem) = ca.lease() {
-      if let Some(expires) = &elem.expires_at {
-        if expires >= &Instant::now_date_time(0)?.trunc_to_us() {
-          let _rslt =
-            self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.session_key).await;
-          return Err(crate::Error::from(SessionError::ExpiredSession).into());
-        }
+      if let Some(expires) = &elem.expires_at
+        && expires >= &Instant::now_date_time(0)?.trunc_to_us()
+      {
+        let _rslt =
+          self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.session_key).await;
+        return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
       return Ok(ControlFlow::Continue(()));
     }

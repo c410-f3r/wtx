@@ -58,11 +58,11 @@ use crate::{
     sorp_mut, write_array,
   },
   misc::{
-    ConnectionState, Either, Lease, LeaseMut, Lock, RefCounter, SingleTypeStorage, Usize,
+    ConnectionState, Either, Lease, LeaseMut, SingleTypeStorage, Usize,
     net::PartitionedFilledBuffer,
   },
   stream::{StreamReader, StreamWriter},
-  sync::{Arc, AtomicBool, AtomicWaker},
+  sync::{Arc, AtomicBool, AtomicWaker, Lock, RefCounter},
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;

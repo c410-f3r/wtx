@@ -12,9 +12,9 @@ use crate::{
     u31::U31,
     window::WindowsPair,
   },
-  misc::{LeaseMut, Lock, RefCounter, span::Span},
+  misc::{LeaseMut, span::Span},
   stream::StreamWriter,
-  sync::{Arc, AtomicBool},
+  sync::{Arc, AtomicBool, Lock, RefCounter},
 };
 use core::{
   future::poll_fn,

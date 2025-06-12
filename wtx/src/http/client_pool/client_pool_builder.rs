@@ -3,8 +3,8 @@ use crate::{
     client_pool::{ClientPool, ClientPoolRM},
     conn_params::ConnParams,
   },
-  misc::Lock,
   pool::{ResourceManager, SimplePool, SimplePoolResource},
+  sync::Lock,
 };
 use core::marker::PhantomData;
 

@@ -1,12 +1,9 @@
-use crate::{
-  http2::{
-    Http2Error, Http2ErrorCode, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND,
-    common_flags::CommonFlags,
-    frame_init::{FrameInit, FrameInitTy},
-    misc::protocol_err,
-    u31::U31,
-  },
-  misc::ArrayChunks,
+use crate::http2::{
+  Http2Error, Http2ErrorCode, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND,
+  common_flags::CommonFlags,
+  frame_init::{FrameInit, FrameInitTy},
+  misc::protocol_err,
+  u31::U31,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -162,7 +159,7 @@ impl SettingsFrame {
       max_header_list_size,
     } = &mut settings_frame;
 
-    for [a, b, c, d, e, f] in ArrayChunks::new(bytes) {
+    for [a, b, c, d, e, f] in bytes.as_chunks().0 {
       let Ok(setting) = Setting::new([*a, *b, *c, *d, *e, *f]) else {
         continue;
       };
