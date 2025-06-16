@@ -218,12 +218,6 @@ macro_rules! _debug {
   };
 }
 
-macro_rules! doc_bad_format {
-  () => {
-    "Couldn't create a new instance using `Arguments`."
-  };
-}
-
 macro_rules! doc_epoch {
   () => {
     "`secs` is the amount of seconds passed since the UNIX epoch. This parameter is only relevant

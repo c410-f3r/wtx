@@ -3,7 +3,7 @@ use crate::{
   collection::{
     ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
   },
-  misc::FromRadix10Error,
+  misc::{FromRadix10Error, HexError},
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -214,6 +214,8 @@ pub enum Error {
   DataTransformationError(crate::data_transformation::DataTransformationError),
   #[doc = associated_element_doc!()]
   FromRadix10Error(FromRadix10Error),
+  #[doc = associated_element_doc!()]
+  HexError(HexError),
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
   HttpError(crate::http::HttpError),
@@ -652,6 +654,13 @@ impl From<FromRadix10Error> for Error {
   #[inline]
   fn from(from: FromRadix10Error) -> Self {
     Self::FromRadix10Error(from)
+  }
+}
+
+impl From<HexError> for Error {
+  #[inline]
+  fn from(from: HexError) -> Self {
+    Self::HexError(from)
   }
 }
 
