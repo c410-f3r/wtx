@@ -3,7 +3,8 @@
 use crate::misc::{Lease, LeaseMut, Usize, Wrapper, char_slice};
 use core::{
   cmp::Ordering,
-  fmt::{self, Debug, Formatter},
+  fmt::{self, Arguments, Debug, Formatter},
+  iter::FusedIterator,
   mem::{self, MaybeUninit, needs_drop},
   ops::{Deref, DerefMut},
   ptr, slice,
@@ -351,12 +352,12 @@ impl<T, const N: usize> FromIterator<T> for Wrapper<crate::Result<ArrayVector<T,
 }
 
 impl<T, const N: usize> IntoIterator for ArrayVector<T, N> {
-  type IntoIter = IntoIter<T, N>;
+  type IntoIter = ArrayIntoIter<T, N>;
   type Item = T;
 
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
-    IntoIter { idx: 0, data: self }
+    ArrayIntoIter { idx: 0, data: self }
   }
 }
 
@@ -467,6 +468,17 @@ impl<T, const N: usize> From<[T; N]> for ArrayVector<T, N> {
   }
 }
 
+impl<'args, const N: usize> TryFrom<Arguments<'args>> for ArrayVector<u8, N> {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(from: Arguments<'args>) -> Result<Self, Self::Error> {
+    let mut rslt = Self::new();
+    fmt::Write::write_fmt(&mut rslt, from)?;
+    Ok(rslt)
+  }
+}
+
 impl<T, const N: usize> TryFrom<&[T]> for ArrayVector<T, N>
 where
   T: Clone,
@@ -510,16 +522,12 @@ impl<const N: usize> std::io::Write for ArrayVector<u8, N> {
 
 /// A by-value array iterator.
 #[derive(Debug)]
-pub struct IntoIter<T, const N: usize> {
+pub struct ArrayIntoIter<T, const N: usize> {
   idx: u32,
   data: ArrayVector<T, N>,
 }
 
-impl<T, const N: usize> IntoIter<T, N> {
-  const NEEDS_DROP: bool = needs_drop::<T>();
-}
-
-impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
+impl<T, const N: usize> DoubleEndedIterator for ArrayIntoIter<T, N> {
   #[inline]
   fn next_back(&mut self) -> Option<Self::Item> {
     let Some(diff @ 1..=u32::MAX) = self.data.len.checked_sub(1) else {
@@ -531,13 +539,13 @@ impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
   }
 }
 
-impl<T, const N: usize> Drop for IntoIter<T, N> {
+impl<T, const N: usize> Drop for ArrayIntoIter<T, N> {
   #[inline]
   fn drop(&mut self) {
     let idx = self.idx;
     let len = self.data.len;
     self.data.len = 0;
-    if Self::NEEDS_DROP {
+    if ArrayVector::<T, N>::NEEDS_DROP {
       let diff = len.wrapping_sub(idx);
       if diff > 0 {
         // SAFETY: Indices are within bounds
@@ -549,10 +557,17 @@ impl<T, const N: usize> Drop for IntoIter<T, N> {
   }
 }
 
-impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {}
+impl<T, const N: usize> ExactSizeIterator for ArrayIntoIter<T, N> {}
 
-impl<T, const N: usize> Iterator for IntoIter<T, N> {
+impl<T, const N: usize> FusedIterator for ArrayIntoIter<T, N> {}
+
+impl<T, const N: usize> Iterator for ArrayIntoIter<T, N> {
   type Item = T;
+
+  #[inline]
+  fn count(self) -> usize {
+    self.len()
+  }
 
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {

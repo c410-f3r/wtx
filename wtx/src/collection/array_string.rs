@@ -11,8 +11,6 @@ use core::{
 /// Errors of [`ArrayString`].
 #[derive(Debug)]
 pub enum ArrayStringError {
-  #[doc = doc_bad_format!()]
-  BadFormat,
   #[doc = doc_many_elems_cap_overflow!()]
   FromIterOverflow,
   /// Inner array is not fully
@@ -307,7 +305,7 @@ impl<'args, const N: usize> TryFrom<Arguments<'args>> for ArrayString<N> {
   #[inline]
   fn try_from(from: Arguments<'args>) -> Result<Self, Self::Error> {
     let mut v = Self::new();
-    v.write_fmt(from).map_err(|_err| ArrayStringError::BadFormat)?;
+    v.write_fmt(from)?;
     Ok(v)
   }
 }

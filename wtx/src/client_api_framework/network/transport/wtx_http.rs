@@ -141,8 +141,8 @@ where
   manage_params(pkgs_aux)?;
   let params = pkgs_aux.tp.lease_mut();
   let HttpReqParams { headers, method, uri, .. } = &mut params.ext_params_mut().0;
-  let rslt =
-    client.send_req(*method, (bytes.bytes(&pkgs_aux.byte_buffer), headers), &uri.to_ref()).await?;
+  let rrd = (bytes.bytes(&pkgs_aux.byte_buffer), headers);
+  let rslt = client.send_req(*method, rrd, &uri.to_ref()).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(rslt)
 }
