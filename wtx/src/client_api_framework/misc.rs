@@ -12,8 +12,7 @@ use crate::{
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
-  data_transformation::dnsn::EncodeWrapper,
-  misc::Encode,
+  de::{Encode, format::EncodeWrapper},
 };
 pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};

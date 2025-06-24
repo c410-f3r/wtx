@@ -9,7 +9,7 @@ use crate::{
       MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol, initial_req::InitialReq,
     },
   },
-  misc::Encode,
+  de::Encode,
 };
 
 pub(crate) struct HandshakeReq<'bytes> {

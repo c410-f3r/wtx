@@ -6,7 +6,8 @@ use crate::{
     mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
     status::Status,
   },
-  misc::{Decode, FromRadix10, bytes_split_once1, bytes_split1},
+  de::{Decode, FromRadix10},
+  misc::{bytes_split_once1, bytes_split1},
 };
 
 #[derive(Debug)]

@@ -6,7 +6,8 @@ use crate::{
       Commands, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
     },
   },
-  misc::{DEController, Lease},
+  de::DEController,
+  misc::Lease,
 };
 use alloc::string::String;
 #[cfg(feature = "std")]

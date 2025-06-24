@@ -1,6 +1,7 @@
 use crate::{
   database::{Database, Records},
-  misc::{Decode, into_rslt},
+  de::Decode,
+  misc::into_rslt,
 };
 use alloc::boxed::Box;
 use core::{fmt::Debug, iter};
@@ -16,6 +17,8 @@ pub struct FromRecordsParams<R> {
   pub curr_record: R,
   /// Current record or row index
   pub curr_record_idx: usize,
+  /// If the the current entity is being parsed has a 1:1 relationship.
+  pub is_in_one_relationship: bool,
 }
 
 impl<'exec, R> FromRecordsParams<R> {
@@ -28,6 +31,7 @@ impl<'exec, R> FromRecordsParams<R> {
       curr_field_idx: 0,
       curr_record: records.get(0)?,
       curr_record_idx: 0,
+      is_in_one_relationship: false,
     })
   }
 
@@ -52,6 +56,8 @@ pub trait FromRecords<'exec, D>: Sized
 where
   D: Database,
 {
+  /// The number of fields
+  const FIELDS: u16;
   /// Where the ID is located, if any.
   const ID_IDX: Option<usize>;
 
@@ -102,6 +108,7 @@ where
   D: Database,
   T: FromRecords<'exec, D>,
 {
+  const FIELDS: u16 = T::FIELDS;
   const ID_IDX: Option<usize> = T::ID_IDX;
 
   type IdTy = T::IdTy;
@@ -120,6 +127,7 @@ where
   D: Database,
   T: FromRecords<'exec, D>,
 {
+  const FIELDS: u16 = T::FIELDS;
   const ID_IDX: Option<usize> = T::ID_IDX;
 
   type IdTy = T::IdTy;

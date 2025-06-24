@@ -5,7 +5,8 @@ use crate::{
     mysql_executor::MAX_PAYLOAD,
     mysql_protocol::{MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
-  misc::{Encode, Usize},
+  de::Encode,
+  misc::Usize,
   stream::Stream,
 };
 

@@ -3,7 +3,7 @@ use crate::{
     Typed,
     client::postgres::{EncodeWrapper, Postgres, Ty},
   },
-  misc::Encode,
+  de::Encode,
 };
 use core::marker::PhantomData;
 

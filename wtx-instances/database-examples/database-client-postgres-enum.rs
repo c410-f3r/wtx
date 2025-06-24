@@ -12,7 +12,7 @@ use wtx::{
     Executor as _, Record, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
   },
-  misc::{Decode, Encode},
+  de::{Decode, Encode},
 };
 
 #[tokio::main]

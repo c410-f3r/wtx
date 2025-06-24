@@ -4,7 +4,8 @@ use crate::{
     auth_plugin::AuthPlugin,
     mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
-  misc::{Decode, bytes_split_once1},
+  de::Decode,
+  misc::bytes_split_once1,
 };
 
 pub(crate) struct AuthSwitchRes {

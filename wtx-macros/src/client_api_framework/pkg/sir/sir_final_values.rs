@@ -151,19 +151,19 @@ impl<'module, 'others>
             __API, __DRSR, __TRANSPORT, #tp
           > for #camel_case_pkg_ident<
             #(#fpiv_params_iter0,)*
-            wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
+            wtx::de::protocol::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
           >
           where
             #fasiv_fn_where_predicates
             #fbsiv_fn_where_predicates
             #(#fpiv_where_predicates_iter,)*
             #(#freqdiv_where_predicates_iter,)*
-            wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
+            wtx::de::protocol::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
-            >: wtx::misc::Encode<wtx::data_transformation::dnsn::De<__DRSR>>,
-            for<'__de> wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
+            >: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
+            for<'__de> wtx::de::protocol::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter0)*>
-            >: wtx::misc::DecodeSeq<'__de, wtx::data_transformation::dnsn::De<__DRSR>>,
+            >: wtx::de::DecodeSeq<'__de, wtx::de::format::De<__DRSR>>,
             __API: wtx::client_api_framework::Api<
                 Error = <<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as wtx::client_api_framework::Api>::Error,
                 Id = #id
@@ -171,10 +171,10 @@ impl<'module, 'others>
               + wtx::misc::LeaseMut<<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS>>
               + wtx::misc::SingleTypeStorage<Item = __API_PARAMS>
           {
-            type ExternalRequestContent = wtx::data_transformation::format::#dfe_ext_req_ctnt_wrapper<
+            type ExternalRequestContent = wtx::de::protocol::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
             >;
-            type ExternalResponseContent<'__de> = wtx::data_transformation::format::#dfe_ext_res_ctnt_wrapper<
+            type ExternalResponseContent<'__de> = wtx::de::protocol::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter1)*>
             >;
             type PackageParams = #fpiv_ident< #(#fpiv_params_iter1)* >;

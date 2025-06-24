@@ -7,7 +7,7 @@ use crate::{
       tys::pg_numeric::{PgNumeric, Sign},
     },
   },
-  misc::{Decode, Encode},
+  de::{Decode, Encode},
 };
 use rust_decimal::{Decimal, MathematicalOps};
 

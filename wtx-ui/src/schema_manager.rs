@@ -10,7 +10,8 @@ use wtx::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
   },
-  misc::{DEController, UriRef},
+  de::DEController,
+  misc::UriRef,
   rng::{ChaCha20, SeedableRng},
 };
 

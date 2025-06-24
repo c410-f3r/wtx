@@ -60,6 +60,7 @@ impl<'exec, E> crate::database::FromRecords<'exec, crate::database::client::mysq
 where
   E: From<crate::Error>,
 {
+  const FIELDS: u16 = 8;
   const ID_IDX: Option<usize> = None;
   type IdTy = ();
 
@@ -97,6 +98,7 @@ impl<'exec, E> crate::database::FromRecords<'exec, crate::database::client::post
 where
   E: From<crate::Error>,
 {
+  const FIELDS: u16 = 8;
   const ID_IDX: Option<usize> = None;
   type IdTy = ();
 
@@ -137,7 +139,7 @@ impl fmt::Display for DbMigration {
 
 #[cfg(any(feature = "mysql", feature = "postgres"))]
 fn checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
-  use crate::misc::FromRadix10;
+  use crate::de::FromRadix10;
   Ok(
     u64::from_radix_10(bytes)
       .map_err(|_err| crate::database::schema_manager::SchemaManagerError::ChecksumMustBeANumber)?,

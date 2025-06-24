@@ -7,7 +7,7 @@ Due to this characteristic downstream users are encouraged to create their own `
 ```rust,edition2024
 extern crate wtx;
 
-use wtx::misc::FromRadix10;
+use wtx::de::FromRadix10;
 
 #[derive(Debug)]
 pub enum Error {

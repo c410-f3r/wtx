@@ -5,7 +5,8 @@ use crate::{
     executor::Executor,
     schema_manager::{DbMigration, Uid, UserMigration, UserMigrationGroup, VERSION},
   },
-  misc::{DEController, Lease},
+  de::DEController,
+  misc::Lease,
 };
 use alloc::string::String;
 use core::fmt::Write;

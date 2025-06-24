@@ -4,7 +4,8 @@ use crate::{
     DatabaseError, Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, ty_params::TyParams},
   },
-  misc::{Decode, Encode, Usize},
+  de::{Decode, Encode},
+  misc::Usize,
 };
 use core::any::type_name;
 

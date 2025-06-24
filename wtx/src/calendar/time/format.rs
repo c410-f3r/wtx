@@ -1,7 +1,7 @@
 use crate::{
   calendar::{CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData},
   collection::ArrayString,
-  misc::u32_string,
+  de::u32_string,
 };
 
 impl Time {

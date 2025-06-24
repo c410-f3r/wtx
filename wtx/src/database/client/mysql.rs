@@ -36,7 +36,7 @@ use crate::{
       statements::Statements,
     },
   },
-  misc::DEController,
+  de::DEController,
 };
 pub use config::Config;
 use core::{
@@ -121,6 +121,7 @@ mod array {
   where
     E: From<crate::Error>,
   {
+    const FIELDS: u16 = 1;
     const ID_IDX: Option<usize> = None;
     type IdTy = ();
 

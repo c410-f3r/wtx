@@ -31,7 +31,7 @@ use crate::{
       common_records::CommonRecords, statement::Statement, statements::Statements,
     },
   },
-  misc::{DEController, U64String},
+  de::{DEController, U64String},
 };
 pub use config::Config;
 use core::{
@@ -116,8 +116,9 @@ mod array {
 
   impl<'exec, E, const N: usize> FromRecords<'exec, Postgres<E>> for ArrayString<N>
   where
-    E: From<crate::Error> + core::fmt::Debug,
+    E: From<crate::Error>,
   {
+    const FIELDS: u16 = 1;
     const ID_IDX: Option<usize> = None;
     type IdTy = ();
 

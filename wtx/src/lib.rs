@@ -21,10 +21,9 @@ pub mod calendar;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
 pub mod collection;
-#[cfg(feature = "data-transformation")]
-pub mod data_transformation;
 #[cfg(feature = "database")]
 pub mod database;
+pub mod de;
 mod error;
 #[cfg(feature = "executor")]
 pub mod executor;

@@ -1,7 +1,7 @@
 use crate::{
   client_api_framework::{Api, pkg::Package},
   collection::Vector,
-  data_transformation::{Id, format::JsonRpcRequest},
+  de::{Id, protocol::JsonRpcEncoder},
 };
 use core::{
   borrow::Borrow,
@@ -79,7 +79,7 @@ where
   }
 }
 
-impl<H, RP> Borrow<Id> for PkgWithHelper<H, JsonRpcRequest<RP>> {
+impl<H, RP> Borrow<Id> for PkgWithHelper<H, JsonRpcEncoder<RP>> {
   #[inline]
   fn borrow(&self) -> &Id {
     &self.pkg.id

@@ -7,7 +7,7 @@ use crate::{
     },
   },
   collection::ArrayString,
-  misc::{i16_string, u32_string},
+  de::{i16_string, u32_string},
 };
 
 impl<TZ> DateTime<TZ>

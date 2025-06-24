@@ -10,7 +10,7 @@ use crate::{
     nanosecond::Nanosecond,
   },
   collection::ArrayString,
-  misc::u32_string,
+  de::u32_string,
 };
 use core::{
   fmt::{Debug, Display, Formatter},

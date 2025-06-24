@@ -8,8 +8,9 @@ use crate::{
       encode_wrapper_protocol::EncodeWrapperProtocol, packet_req::PacketReq,
     },
   },
+  de::{Decode, Encode},
   misc::{
-    Decode, Encode, Usize,
+    Usize,
     hints::unlikely_elem,
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },

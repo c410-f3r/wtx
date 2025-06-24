@@ -1,6 +1,7 @@
 use crate::{
+  de::FromRadix10,
   http::{GenericHeader, KnownHeaderName},
-  misc::{FromRadix10, SuffixWriterFbvm, bytes_split1},
+  misc::{SuffixWriterFbvm, bytes_split1},
   web_socket::{Compression, DeflateConfig, WebSocketError, compression::NegotiatedCompression},
 };
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};

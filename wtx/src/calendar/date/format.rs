@@ -7,7 +7,7 @@ use crate::{
     },
   },
   collection::ArrayString,
-  misc::i16_string,
+  de::i16_string,
 };
 
 impl Date {

@@ -1,7 +1,4 @@
-use crate::{
-  database::Database,
-  misc::{Either, Encode},
-};
+use crate::{database::Database, de::Encode, misc::Either};
 
 /// Any element that has a corresponding database type.
 pub trait Typed<D>

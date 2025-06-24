@@ -10,25 +10,18 @@ pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
+mod auto_clear;
 mod clear;
 mod connection_state;
-mod de_controller;
-mod decode;
 mod either;
-mod encode;
 mod enum_var_strings;
 #[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
 mod filled_buffer;
 mod fn_fut;
-mod from_radix_10;
-mod hex;
 mod incomplete_utf8_char;
 mod interspace;
 mod lease;
-mod num_array;
 mod optimization;
-mod percent_encoding;
-mod query_writer;
 mod single_type_storage;
 mod suffix_writer;
 #[cfg(feature = "tokio-rustls")]
@@ -41,13 +34,11 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
+pub use auto_clear::AutoClear;
 pub use clear::Clear;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, time::Duration};
-pub use de_controller::DEController;
-pub use decode::{Decode, DecodeSeq};
 pub use either::Either;
-pub use encode::Encode;
 pub use enum_var_strings::EnumVarStrings;
 #[cfg(any(
   feature = "http2",
@@ -56,19 +47,14 @@ pub use enum_var_strings::EnumVarStrings;
   feature = "web-socket"
 ))]
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
-pub use fn_fut::*;
-pub use from_radix_10::{FromRadix10, FromRadix10Error};
-pub use hex::*;
+pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use lease::{Lease, LeaseMut};
-pub use num_array::*;
 pub use optimization::*;
-pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
-pub use query_writer::QueryWriter;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
-pub use uri::{Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
+pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use wrapper::Wrapper;
@@ -112,30 +98,6 @@ pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
   opt.ok_or(crate::Error::NoInnerValue(type_name::<T>()))
 }
 
-/// Similar to `collect_seq` of `serde` but expects a `Result`.
-#[cfg(feature = "serde")]
-pub fn serde_collect_seq_rslt<E, I, S, T>(ser: S, into_iter: I) -> Result<S::Ok, S::Error>
-where
-  E: core::fmt::Display,
-  I: IntoIterator<Item = Result<T, E>>,
-  S: serde::Serializer,
-  T: serde::Serialize,
-{
-  fn conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
-    match size_hint {
-      (lo, Some(hi)) if lo == hi => Some(lo),
-      _ => None,
-    }
-  }
-  use serde::ser::{Error, SerializeSeq};
-  let iter = into_iter.into_iter();
-  let mut sq = ser.serialize_seq(conservative_size_hint_len(iter.size_hint()))?;
-  for elem in iter {
-    sq.serialize_element(&elem.map_err(S::Error::custom)?)?;
-  }
-  sq.end()
-}
-
 /// Sleeps for the specified amount of time.
 #[allow(clippy::unused_async, reason = "depends on the selected set of features")]
 #[inline]
@@ -171,7 +133,7 @@ pub fn tracing_tree_init(
   use tracing_subscriber::{
     EnvFilter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
   };
-  let fallback = fallback_opt.unwrap_or("debug");
+  let fallback = fallback_opt.unwrap_or("");
   let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(fallback));
   let mut tracing_tree = tracing_tree::HierarchicalLayer::default();
   #[cfg(feature = "std")]

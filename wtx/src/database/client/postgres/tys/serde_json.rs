@@ -3,7 +3,7 @@ use crate::{
     Json, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
   },
-  misc::{Decode, Encode},
+  de::{Decode, Encode},
 };
 use serde::{Deserialize, Serialize};
 

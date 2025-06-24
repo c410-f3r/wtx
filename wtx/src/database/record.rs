@@ -1,6 +1,6 @@
 use crate::{
   database::{Database, DatabaseError, ValueIdent},
-  misc::{DEController, Decode},
+  de::{DEController, Decode},
 };
 use core::any::type_name;
 

@@ -22,7 +22,6 @@ $rt test-with-features wtx cl-aux
 $rt test-with-features wtx client-api-framework
 $rt test-with-features wtx crossbeam-channel
 $rt test-with-features wtx crypto-common
-$rt test-with-features wtx data-transformation
 $rt test-with-features wtx database
 $rt test-with-features wtx digest
 $rt test-with-features wtx embassy-time

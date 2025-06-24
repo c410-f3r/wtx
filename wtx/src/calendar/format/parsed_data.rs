@@ -3,7 +3,7 @@ use crate::{
     CalendarError, CalendarToken, Date, DateTime, Hour, Minute, Month, Nanosecond, Time, TimeZone,
     Weekday,
   },
-  misc::FromRadix10 as _,
+  de::FromRadix10 as _,
 };
 
 pub(crate) enum ParsedData<TZ> {
