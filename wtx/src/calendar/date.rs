@@ -18,7 +18,8 @@ use crate::{
     },
   },
   collection::ArrayString,
-  misc::{Usize, i16_string},
+  de::i16_string,
+  misc::Usize,
 };
 use core::{
   cmp::Ordering,

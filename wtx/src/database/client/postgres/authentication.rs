@@ -1,6 +1,7 @@
 use crate::{
   database::DatabaseError,
-  misc::{FromRadix10, bytes_split1, into_rslt},
+  de::FromRadix10,
+  misc::{bytes_split1, into_rslt},
 };
 use core::any::type_name;
 

@@ -6,7 +6,8 @@ use crate::{
       rdbms::value,
     },
   },
-  misc::{DEController, Lease},
+  de::DEController,
+  misc::Lease,
 };
 use core::ops::Range;
 

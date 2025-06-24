@@ -1,6 +1,7 @@
 use crate::{
   database::{Database, Typed},
-  misc::{Encode, Lease, Wrapper},
+  de::Encode,
+  misc::{Lease, Wrapper},
 };
 
 /// Values that can passed to a record as parameters. For example, in a query.

@@ -37,7 +37,7 @@ impl<T> LeaseMut<Wrapper<T>> for Wrapper<T> {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::misc::{Wrapper, serde_collect_seq_rslt};
+  use crate::{de::serde_collect_seq_rslt, misc::Wrapper};
   use core::fmt::Display;
   use serde::{Serialize, Serializer};
 

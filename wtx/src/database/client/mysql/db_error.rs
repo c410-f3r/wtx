@@ -5,7 +5,8 @@ use crate::{
     capability::Capability,
     mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
-  misc::{Decode, from_utf8_basic},
+  de::Decode,
+  misc::from_utf8_basic,
 };
 use alloc::string::String;
 

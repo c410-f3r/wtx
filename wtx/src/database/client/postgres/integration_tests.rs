@@ -6,7 +6,8 @@ use crate::{
       StructDecoder, StructEncoder, Ty,
     },
   },
-  misc::{Decode, Encode, UriRef},
+  de::{Decode, Encode},
+  misc::UriRef,
   rng::{ChaCha20, SeedableRng},
   tests::_32_bytes_seed,
 };

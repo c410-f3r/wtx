@@ -74,34 +74,6 @@ macro_rules! create_packages_aux_wrapper {
   };
 }
 
-macro_rules! _create_set_of_request_throttling {
-  (
-    $name:ident {
-      $( $method:ident ),+ $(,)?
-    }
-  ) => {
-    /// A set of [`$crate::utils::RequestThrottling`] for specified API usage
-    #[derive(Debug)]
-    pub struct $name {
-      $(
-        pub(crate) $method: $crate::utils::RequestThrottling,
-      )+
-    }
-
-    impl $name {
-            pub fn new(
-        $( $method: $crate::utils::RequestLimit, )+
-      ) -> Self {
-        Self {
-          $(
-            $method: $crate::utils::RequestThrottling::from_rl($method),
-          )+
-        }
-      }
-    }
-  };
-}
-
 macro_rules! generic_trans_params_doc {
   () => {
     "Grouping of request and response parameters"

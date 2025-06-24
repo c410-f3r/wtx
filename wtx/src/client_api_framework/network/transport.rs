@@ -80,8 +80,10 @@ mod tests {
   use crate::{
     client_api_framework::pkg::Package,
     collection::Vector,
-    data_transformation::dnsn::{De, DecodeWrapper, EncodeWrapper},
-    misc::{Decode, DecodeSeq, Encode},
+    de::{
+      Decode, DecodeSeq, Encode,
+      format::{De, DecodeWrapper, EncodeWrapper},
+    },
   };
 
   #[derive(Debug, Eq, PartialEq)]

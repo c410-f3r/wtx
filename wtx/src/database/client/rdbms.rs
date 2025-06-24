@@ -9,7 +9,8 @@ pub(crate) mod statements_misc;
 use crate::{
   collection::Vector,
   database::{Database, ValueIdent, client::rdbms::common_record::CommonRecord},
-  misc::{DEController, Lease, hints::unlikely_elem, net::PartitionedFilledBuffer},
+  de::DEController,
+  misc::{Lease, hints::unlikely_elem, net::PartitionedFilledBuffer},
 };
 use core::ops::Range;
 

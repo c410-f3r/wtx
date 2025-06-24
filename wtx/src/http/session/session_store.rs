@@ -90,8 +90,8 @@ where
 mod pool {
   use crate::{
     database::client::postgres::Postgres,
+    de::{Decode, Encode},
     http::session::{SessionKey, SessionState, SessionStore},
-    misc::{Decode, Encode},
     pool::{ResourceManager, SimplePool, SimplePoolResource},
     sync::Lock,
   };
@@ -144,8 +144,9 @@ mod postgres {
       Executor as _, Record, Typed,
       client::postgres::{ExecutorBuffer, Postgres, PostgresExecutor},
     },
+    de::{Decode, Encode},
     http::session::{SessionKey, SessionState, SessionStore},
-    misc::{Decode, Encode, LeaseMut},
+    misc::LeaseMut,
     stream::Stream,
   };
 

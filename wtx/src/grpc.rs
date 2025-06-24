@@ -10,8 +10,10 @@ mod grpc_status_code;
 
 use crate::{
   collection::Vector,
-  data_transformation::dnsn::{De, EncodeWrapper},
-  misc::Encode,
+  de::{
+    Encode,
+    format::{De, EncodeWrapper},
+  },
 };
 
 #[cfg(feature = "grpc-client")]

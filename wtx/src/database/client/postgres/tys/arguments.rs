@@ -5,7 +5,7 @@ use crate::{
     Typed,
     client::postgres::{EncodeWrapper, Postgres, Ty},
   },
-  misc::Encode,
+  de::Encode,
 };
 
 impl<E> Encode<Postgres<E>> for Arguments<'_>

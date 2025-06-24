@@ -4,8 +4,7 @@ use crate::{
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
-  data_transformation::dnsn::DecodeWrapper,
-  misc::Decode,
+  de::{Decode, format::DecodeWrapper},
 };
 
 /// Transport that receives package data.

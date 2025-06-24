@@ -29,7 +29,7 @@ pub(crate) fn from_records(
   let additional_where_predicates = params.iter().filter_map(|el| {
     if let GenericParam::Type(type_param) = el {
       let ident = &type_param.ident;
-      Some(quote::quote!(#ident: wtx::misc::Decode<'exec, #database>,))
+      Some(quote::quote!(#ident: wtx::de::Decode<'exec, #database>,))
     } else {
       None
     }
@@ -38,15 +38,19 @@ pub(crate) fn from_records(
   let mut decodes_after_id_method = Vec::new();
   let mut decodes_before_id = Vec::new();
   let mut decodes_before_id_method = Vec::new();
+  let mut fields_num: u16 = 0;
   let mut id_opt = None;
   let mut manys = Vec::new();
   let mut manys_ty = Vec::new();
   let mut ones = Vec::new();
+  let mut ones_opts = Vec::new();
+  let mut ones_opts_tys = Vec::new();
 
   match &input.data {
     Data::Struct(data) => match &data.fields {
       Fields::Named(fields) => {
         for (idx, elem) in fields.named.iter().enumerate() {
+          fields_num = fields_num.wrapping_add(1);
           let mut ty_opt = None;
           for attr in &elem.attrs {
             if let Some(first) = attr.path().segments.first()
@@ -79,7 +83,12 @@ pub(crate) fn from_records(
               manys_ty.push(&elem.ty);
             }
             FieldTy::One => {
-              ones.push(&elem.ident);
+              if is_opt(&elem.ty) {
+                ones_opts.push(&elem.ident);
+                ones_opts_tys.push(&elem.ty);
+              } else {
+                ones.push(&elem.ident);
+              }
             }
           }
         }
@@ -106,6 +115,7 @@ pub(crate) fn from_records(
       #(#additional_where_predicates)*
       #where_predicates
     {
+      const FIELDS: u16 = #fields_num;
       const ID_IDX: Option<usize> = #id_idx;
 
       type IdTy = #id_ty;
@@ -114,8 +124,10 @@ pub(crate) fn from_records(
       fn from_records(
         _curr_params: &mut wtx::database::FromRecordsParams<<#database as wtx::database::Database>::Record<'exec>>,
         _records: &<#database as wtx::database::Database>::Records<'exec>,
-      ) -> Result<Self, <#database as wtx::misc::DEController>::Error> {
+      ) -> Result<Self, <#database as wtx::de::DEController>::Error> {
         use wtx::database::Record as _;
+
+        let is_in_one_relationship = _curr_params.is_in_one_relationship;
 
         #(
           let #decodes_before_id = _curr_params.curr_record.#decodes_before_id_method(_curr_params.curr_field_idx)?;
@@ -135,7 +147,27 @@ pub(crate) fn from_records(
         )*
 
         #(
-          let #ones = <_>::from_records(_curr_params, _records)?;
+          let #ones = {
+            _curr_params.is_in_one_relationship = true;
+            let rslt = <_>::from_records(_curr_params, _records);
+            _curr_params.is_in_one_relationship = false;
+            rslt?
+          };
+        )*
+        #(
+          let #ones_opts = {
+            _curr_params.is_in_one_relationship = true;
+            let prev_curr_field_idx = _curr_params.curr_field_idx;
+            let rslt = <_>::from_records(_curr_params, _records);
+            _curr_params.is_in_one_relationship = false;
+            if rslt.is_err() {
+              let curr_field_idx = prev_curr_field_idx.wrapping_add(<#ones_opts_tys>::FIELDS.into());
+              _curr_params.curr_field_idx = curr_field_idx;
+              None
+            } else {
+              rslt?
+            }
+          };
         )*
 
         let prev_consumed_records = _curr_params.consumed_records;
@@ -148,8 +180,7 @@ pub(crate) fn from_records(
             |elem| Ok(#manys.push(elem).map_err(wtx::Error::from)?)
           )?;
         )*
-
-        if prev_consumed_records == _curr_params.consumed_records {
+        if prev_consumed_records == _curr_params.consumed_records && !is_in_one_relationship {
           _curr_params.inc_consumed_records(1);
         }
 
@@ -159,6 +190,7 @@ pub(crate) fn from_records(
           #(#decodes_after_id,)*
           #(#manys,)*
           #(#ones,)*
+          #(#ones_opts,)*
         })
       }
     }
@@ -209,11 +241,19 @@ impl Parse for FieldAttrs {
 }
 
 fn extract_decode_method(ty: &Type) -> Ident {
+  if is_opt(ty) {
+    return Ident::new("decode_opt", ty.span());
+  }
+  Ident::new("decode", ty.span())
+}
+
+fn is_opt(ty: &Type) -> bool {
   if let Type::Path(path) = ty
     && let Some(first) = path.path.segments.first()
     && first.ident == "Option"
   {
-    return Ident::new("decode_opt", ty.span());
+    true
+  } else {
+    false
   }
-  Ident::new("decode", ty.span())
 }

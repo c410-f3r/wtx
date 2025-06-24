@@ -1,8 +1,8 @@
 use crate::{
   collection::Vector,
-  data_transformation::{
+  de::{
     Id,
-    format::{JsonRpcRequest, VerbatimRequest},
+    protocol::{JsonRpcEncoder, VerbatimEncoder},
   },
 };
 
@@ -56,11 +56,11 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
     self.built_requests
   }
 
-  /// Constructs [JsonRpcRequest] and also increases the number of requests.
+  /// Constructs [JsonRpcEncoder] and also increases the number of requests.
   #[inline]
-  pub fn json_rpc_request<P>(&mut self, method: &'static str, params: P) -> JsonRpcRequest<P> {
+  pub fn json_rpc_request<P>(&mut self, method: &'static str, params: P) -> JsonRpcEncoder<P> {
     self.increase_requests_num();
-    JsonRpcRequest { id: self.built_requests, method, params }
+    JsonRpcEncoder { id: self.built_requests, method, params }
   }
 
   /// Logs sending or receiving bytes.
@@ -75,11 +75,11 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
     self.log_body.0 = elem;
   }
 
-  /// Constructs [VerbatimRequest] and also increases the number of requests.
+  /// Constructs [VerbatimEncoder] and also increases the number of requests.
   #[inline]
-  pub fn verbatim_request<D>(&mut self, data: D) -> VerbatimRequest<D> {
+  pub fn verbatim_request<D>(&mut self, data: D) -> VerbatimEncoder<D> {
     self.increase_requests_num();
-    VerbatimRequest { data }
+    VerbatimEncoder { data }
   }
 
   fn increase_requests_num(&mut self) {

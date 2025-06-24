@@ -4,7 +4,7 @@ use crate::{
     DatabaseError, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
   },
-  misc::{Decode, Encode},
+  de::{Decode, Encode},
 };
 
 const PG_EPOCH: DateTime<Utc> = DateTime::new(

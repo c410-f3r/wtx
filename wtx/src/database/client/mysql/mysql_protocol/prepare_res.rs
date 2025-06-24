@@ -3,7 +3,7 @@ use crate::{
     MysqlError,
     mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
-  misc::Decode,
+  de::Decode,
 };
 
 #[derive(Debug)]

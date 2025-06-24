@@ -3,7 +3,7 @@ use crate::{
     Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
   },
-  misc::{Decode, Encode},
+  de::{Decode, Encode},
 };
 use uuid::Uuid;
 

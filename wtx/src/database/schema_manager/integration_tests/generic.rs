@@ -7,7 +7,7 @@ use crate::{
       integration_tests::AuxTestParams,
     },
   },
-  misc::DEController,
+  de::DEController,
 };
 use alloc::string::String;
 use core::fmt::Debug;

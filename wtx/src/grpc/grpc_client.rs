@@ -1,14 +1,15 @@
 use crate::{
-  data_transformation::{
-    dnsn::{De, DecodeWrapper},
-    format::{VerbatimRequest, VerbatimResponse},
+  de::{
+    Decode, Encode,
+    format::{De, DecodeWrapper},
+    protocol::{VerbatimDecoder, VerbatimEncoder},
   },
   grpc::serialize,
   http::{
     Header, Headers, HttpClient, KnownHeaderName, Method, ReqResBuffer, Response, WTX_USER_AGENT,
   },
   http2::{Http2, Http2Buffer, Http2Data},
-  misc::{Decode, Encode, LeaseMut, SingleTypeStorage, UriRef},
+  misc::{LeaseMut, SingleTypeStorage, UriRef},
   stream::StreamWriter,
   sync::{Lock, RefCounter},
 };
@@ -37,10 +38,10 @@ where
   #[inline]
   pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimResponse<T>: Decode<'de, De<DRSR>>,
+    VerbatimDecoder<T>: Decode<'de, De<DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimResponse::decode(&mut self.drsr, &mut DecodeWrapper::new(elem))?.data)
+    Ok(VerbatimDecoder::decode(&mut self.drsr, &mut DecodeWrapper::new(elem))?.data)
   }
 
   /// Send Unary Request
@@ -56,10 +57,10 @@ where
     uri: &UriRef<'_>,
   ) -> crate::Result<Response<ReqResBuffer>>
   where
-    VerbatimRequest<T>: Encode<De<DRSR>>,
+    VerbatimEncoder<T>: Encode<De<DRSR>>,
   {
     rrb.clear();
-    serialize(&mut rrb.body, VerbatimRequest { data }, &mut self.drsr)?;
+    serialize(&mut rrb.body, VerbatimEncoder { data }, &mut self.drsr)?;
     Self::push_headers(&mut rrb.headers)?;
     let res = self.client.lease_mut().send_recv_single(Method::Post, rrb, uri).await?;
     Ok(Response::http2(res.rrd, res.status_code))

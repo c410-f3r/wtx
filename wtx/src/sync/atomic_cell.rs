@@ -2,7 +2,7 @@ use crate::sync::{CachePadded, SeqLock};
 use core::{
   cell::UnsafeCell,
   fmt::{Debug, Formatter},
-  mem,
+  mem::{self, ManuallyDrop},
   panic::{RefUnwindSafe, UnwindSafe},
   ptr,
 };
@@ -31,7 +31,11 @@ impl<T> AtomicCell<T> {
   /// ```
   #[inline]
   pub fn into_inner(self) -> T {
-    self.value.into_inner()
+    let this = ManuallyDrop::new(self);
+    // SAFETY:
+    // - ownership prevents concurrent access and ensures a valid pointer
+    // - `ManuallyDrop` prevents double free
+    unsafe { this.as_ptr().read() }
   }
 
   /// Loads a value from the atomic cell.
@@ -77,7 +81,6 @@ impl<T> AtomicCell<T> {
       drop(self.swap(value));
     } else {
       let dst = self.as_ptr();
-      // FIXME(STABLE): strict_provenance
       let _guard = lock(dst.addr()).write();
       // SAFETY: pointer doesn't have offsets and `value` has the same size and alignment of `self`
       unsafe {
@@ -97,7 +100,6 @@ impl<T> AtomicCell<T> {
   #[inline]
   pub fn swap(&self, value: T) -> T {
     let dst = self.value.get();
-    // FIXME(STABLE): strict_provenance
     let _guard = lock(dst.addr()).write();
     // SAFETY: pointer doesn't have offsets and `value` has the same size and alignment of `self`
     unsafe { ptr::replace(dst, value) }
@@ -125,6 +127,20 @@ where
   #[inline]
   fn default() -> AtomicCell<T> {
     AtomicCell::new(T::default())
+  }
+}
+
+impl<T> Drop for AtomicCell<T> {
+  #[inline]
+  fn drop(&mut self) {
+    if mem::needs_drop::<T>() {
+      // SAFETY:
+      // - mutable reference prevents concurrent access and ensures a valid pointer
+      // - `ManuallyDrop` prevents double free
+      unsafe {
+        self.as_ptr().drop_in_place();
+      }
+    }
   }
 }
 

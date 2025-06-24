@@ -2,7 +2,8 @@
 
 use crate::{
   database::{Database, RecordValues, StmtCmd},
-  misc::{ConnectionState, DEController},
+  de::DEController,
+  misc::ConnectionState,
 };
 
 /// A connection for executing database commands.

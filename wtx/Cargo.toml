@@ -56,14 +56,13 @@ wtx = { default-features = false, features = ["executor"], path = "." }
 arbitrary = ["dep:arbitrary", "std"]
 borsh = ["borsh/std", "std"]
 calendar = []
-client-api-framework = ["data-transformation"]
+client-api-framework = []
 crossbeam-channel = ["crossbeam-channel/std", "std"]
-data-transformation = []
 database = []
 default = []
 executor = ["std"]
 foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
-grpc = ["data-transformation"]
+grpc = []
 grpc-client = ["grpc", "http-client-pool"]
 grpc-server = ["grpc", "http-server-framework"]
 http = []
@@ -110,19 +109,6 @@ categories = ["asynchronous", "database", "network-programming", "no-std", "web-
 description = "A collection of different transport implementations and related tools focused primarily on web technologies."
 documentation = "https://docs.rs/wtx"
 edition = "2024"
-exclude = [
-  "tests",
-  "src/client_api_framework/tests.rs",
-  "src/data_transformation/dnsn/tests.rs",
-  "src/database/client/postgres/integration_tests.rs",
-  "src/database/schema_manager/integration_tests",
-  "src/database/schema_manager/integration_tests.rs",
-  "src/http2/tests.rs",
-  "src/misc/blocks_deque/tests.rs",
-  "src/misc/deque/tests.rs",
-  "src/tests.rs",
-  "src/web_socket/handshake/tests.rs",
-]
 homepage = "https://c410-f3r.github.io/wtx"
 keywords = ["api", "database", "http", "tls", "websocket"]
 license = "MPL-2.0"

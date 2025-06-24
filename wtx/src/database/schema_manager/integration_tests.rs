@@ -12,7 +12,7 @@ use crate::{
       doc_tests::{user_migration, user_migration_group},
     },
   },
-  misc::DEController,
+  de::DEController,
 };
 use alloc::string::String;
 use core::fmt::{Debug, Write};

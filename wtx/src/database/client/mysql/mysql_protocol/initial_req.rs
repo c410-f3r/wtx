@@ -4,7 +4,7 @@ use crate::{
     collation::Collation,
     mysql_protocol::{MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
-  misc::Encode,
+  de::Encode,
 };
 
 #[derive(Debug)]

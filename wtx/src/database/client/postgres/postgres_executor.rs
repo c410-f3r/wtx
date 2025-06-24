@@ -18,7 +18,8 @@ use crate::{
       rdbms::{clear_cmd_buffers, common_executor_buffer::CommonExecutorBuffer},
     },
   },
-  misc::{ConnectionState, DEController, Lease, LeaseMut},
+  de::DEController,
+  misc::{ConnectionState, Lease, LeaseMut},
   rng::CryptoRng,
   stream::{Stream, StreamWithTls},
 };

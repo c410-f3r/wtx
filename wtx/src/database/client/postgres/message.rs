@@ -3,7 +3,8 @@ use crate::{
     DatabaseError,
     client::postgres::{DbError, PostgresError, authentication::Authentication},
   },
-  misc::{ConnectionState, FromRadix10, bytes_rsplit1, bytes_split1, from_utf8_basic},
+  de::FromRadix10,
+  misc::{ConnectionState, bytes_rsplit1, bytes_split1, from_utf8_basic},
 };
 use core::any::type_name;
 

@@ -4,8 +4,7 @@ use crate::{
     pkg::{Package, PkgsAux},
   },
   collection::Vector,
-  data_transformation::dnsn::De,
-  misc::Encode,
+  de::{Encode, format::De},
 };
 use core::marker::PhantomData;
 
@@ -89,8 +88,10 @@ mod serde_json {
       network::transport::Transport,
       pkg::{BatchElems, Package},
     },
-    data_transformation::dnsn::{De, EncodeWrapper, SerdeJson},
-    misc::Encode,
+    de::{
+      Encode,
+      format::{De, EncodeWrapper, SerdeJson},
+    },
   };
   use serde::Serializer as _;
 

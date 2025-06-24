@@ -16,7 +16,8 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  misc::{LeaseMut, SuffixWriterFbvm, U64String, net::PartitionedFilledBuffer, u64_string},
+  de::{U64String, u64_string},
+  misc::{LeaseMut, SuffixWriterFbvm, net::PartitionedFilledBuffer},
   stream::Stream,
 };
 

@@ -1,6 +1,7 @@
 use crate::{
   database::client::postgres::{PostgresError, SqlState},
-  misc::{FromRadix10, Usize, into_rslt, str_split1, usize_range_from_u32_range},
+  de::FromRadix10,
+  misc::{Usize, into_rslt, str_split1, usize_range_from_u32_range},
 };
 use alloc::boxed::Box;
 use core::{

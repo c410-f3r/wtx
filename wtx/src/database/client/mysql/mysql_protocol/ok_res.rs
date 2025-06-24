@@ -5,7 +5,7 @@ use crate::{
       MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
     },
   },
-  misc::Decode,
+  de::Decode,
 };
 
 #[derive(Debug)]

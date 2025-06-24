@@ -3,7 +3,7 @@ use crate::{
   collection::{
     ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
   },
-  misc::{FromRadix10Error, HexError},
+  de::{FromRadix10Error, HexError},
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -209,9 +209,8 @@ pub enum Error {
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
   DatabaseError(crate::database::DatabaseError),
-  #[cfg(feature = "data-transformation")]
   #[doc = associated_element_doc!()]
-  DataTransformationError(crate::data_transformation::DataTransformationError),
+  DecError(crate::de::DecError),
   #[doc = associated_element_doc!()]
   FromRadix10Error(FromRadix10Error),
   #[doc = associated_element_doc!()]
@@ -642,11 +641,10 @@ impl From<crate::database::DatabaseError> for Error {
   }
 }
 
-#[cfg(feature = "data-transformation")]
-impl From<crate::data_transformation::DataTransformationError> for Error {
+impl From<crate::de::DecError> for Error {
   #[inline]
-  fn from(from: crate::data_transformation::DataTransformationError) -> Self {
-    Self::DataTransformationError(from)
+  fn from(from: crate::de::DecError) -> Self {
+    Self::DecError(from)
   }
 }
 

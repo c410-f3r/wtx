@@ -5,8 +5,10 @@ use crate::{
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
   },
   collection::Vector,
-  data_transformation::dnsn::{De, DecodeWrapper},
-  misc::{Decode, DecodeSeq, Encode},
+  de::{
+    Decode, DecodeSeq, Encode,
+    format::{De, DecodeWrapper},
+  },
 };
 
 /// Transport that sends and receives package data

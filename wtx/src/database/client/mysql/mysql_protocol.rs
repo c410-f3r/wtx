@@ -22,7 +22,7 @@ use crate::{
   database::client::mysql::mysql_protocol::{
     decode_wrapper_protocol::DecodeWrapperProtocol, encode_wrapper_protocol::EncodeWrapperProtocol,
   },
-  misc::{DEController, Encode},
+  de::{DEController, Encode},
 };
 use core::marker::PhantomData;
 

@@ -34,7 +34,15 @@ impl<const N: usize> ArrayString<N> {
   /// The maximum amount of allowed elements.
   pub const CAPACITY: u32 = Self::instance_u32();
 
-  /// Constructs a new, empty instance.
+  /// Constructs a new instance from a complete byte array.
+  #[inline]
+  pub fn from_array(data: [u8; N]) -> crate::Result<Self> {
+    Self::from_parts(data, Self::instance_u32())
+  }
+
+  /// Constructs a new instance from an iterator of bytes.
+  ///
+  /// Bytes are consumed from the iterator and stored up to its capacity.
   #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
   pub fn from_iter(into_iter: impl IntoIterator<Item = u8>) -> crate::Result<Self> {
@@ -51,7 +59,9 @@ impl<const N: usize> ArrayString<N> {
     Self::from_parts(data, len)
   }
 
-  /// Constructs a new, empty instance.
+  /// Constructs a new instance from a byte array and an explicit length.
+  ///
+  /// If `len` is greater than the capacity, then `len` will be truncated to `N`.
   #[inline]
   pub fn from_parts(data: [u8; N], len: u32) -> crate::Result<Self> {
     let n = Self::instance_u32();
@@ -63,9 +73,11 @@ impl<const N: usize> ArrayString<N> {
 
   /// Constructs a new, empty instance without verifying if the delimited bytes are valid UTF-8.
   ///
+  /// If `len` is greater than the capacity, then `len` will be truncated to `N`.
+  ///
   /// # Safety
   ///
-  /// It is up to the caller to pass valid UTF-8 bytes until `len`.
+  /// It is up to the caller to provide valid UTF-8 bytes until `len`.
   #[inline]
   pub const unsafe fn from_parts_unchecked(data: [u8; N], len: u32) -> Self {
     Self::instance_check();

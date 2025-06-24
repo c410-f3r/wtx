@@ -19,7 +19,7 @@ use wtx::{
     misc::{Pair, RequestLimit, RequestThrottling},
     network::{HttpParams, WsParams, transport::SendingReceivingTransport},
   },
-  data_transformation::dnsn::SerdeJson,
+  de::format::SerdeJson,
   http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
   misc::Uri,
   rng::Xorshift64,

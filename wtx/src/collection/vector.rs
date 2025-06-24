@@ -163,6 +163,12 @@ impl<T> Vector<T> {
     self.data.as_mut_slice()
   }
 
+  /// Mutable reference of the underlying std vector.
+  #[inline]
+  pub fn as_vec_mut(&mut self) -> &mut Vec<T> {
+    &mut self.data
+  }
+
   /// Returns the total number of elements the vector can hold without reallocating.
   ///
   /// ```rust

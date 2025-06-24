@@ -1,6 +1,7 @@
 use crate::{
   database::{executor::Executor, schema_manager::Commands},
-  misc::{DEController, Lease},
+  de::DEController,
+  misc::Lease,
 };
 use alloc::string::String;
 #[cfg(feature = "std")]

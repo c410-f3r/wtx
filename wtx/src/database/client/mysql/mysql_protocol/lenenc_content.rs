@@ -5,7 +5,8 @@ use crate::{
       MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
     },
   },
-  misc::{Decode, Usize},
+  de::Decode,
+  misc::Usize,
 };
 
 pub(crate) struct LenencContent<'bytes>(pub(crate) &'bytes [u8]);

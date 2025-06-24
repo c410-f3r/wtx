@@ -171,7 +171,7 @@ impl<T, const N: usize> ArrayVector<T, N> {
     Ok(())
   }
 
-  /// Shortens the vector, keeping the first `len` elements.
+  /// Shortens the vector, keeping the first `new_len` elements.
   #[inline]
   pub fn truncate(&mut self, new_len: u32) {
     let len = self.len;
