@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   database::{
     RecordValues,
     client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError, PostgresStatement},

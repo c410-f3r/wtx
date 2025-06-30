@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorage as _, IndexedStorageMut as _, Vector},
   misc::{Lease, LeaseMut},
 };
 use core::{
@@ -17,7 +17,7 @@ pub struct FilledBuffer {
 impl FilledBuffer {
   pub(crate) fn from_vector(mut vector: Vector<u8>) -> Self {
     let prev_init = vector.len();
-    // SAFETY: Elements up to `len` are always initialized
+    // SAFETY: elements up to `len` are always initialized
     unsafe {
       fill_remaining_capacity(&mut vector, prev_init);
     }
@@ -56,7 +56,7 @@ impl FilledBuffer {
   {
     let prev_init = self.data.capacity();
     let len = self.data.extend_from_copyable_slices(others)?;
-    // SAFETY: Inner elements up to `capacity` are always initialized
+    // SAFETY: inner elements up to `capacity` are always initialized
     unsafe {
       fill_remaining_capacity(&mut self.data, prev_init);
     }
@@ -67,7 +67,7 @@ impl FilledBuffer {
   pub(crate) fn reserve(&mut self, additional: usize) -> crate::Result<()> {
     let prev_init = self.data.capacity();
     self.data.reserve(additional)?;
-    // SAFETY: Inner elements up to `capacity` are always initialized
+    // SAFETY: inner elements up to `capacity` are always initialized
     unsafe {
       fill_remaining_capacity(&mut self.data, prev_init);
     }
@@ -167,7 +167,7 @@ impl LeaseMut<Vector<u8>> for FilledBufferVectorMut<'_> {
 impl Drop for FilledBufferVectorMut<'_> {
   #[inline]
   fn drop(&mut self) {
-    // SAFETY: Inner elements up to `capacity` are always initialized
+    // SAFETY: inner elements up to `capacity` are always initialized
     unsafe {
       fill_remaining_capacity(self.vector, self.prev_init);
     }

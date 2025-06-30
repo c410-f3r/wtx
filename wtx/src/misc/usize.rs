@@ -6,7 +6,7 @@
 #[cfg(target_pointer_width = "16")]
 compile_error!("WTX does not support hardwares with pointer sizes less than 32 bits");
 
-macro_rules! u32_max {
+macro_rules! _u32_max {
   () => {
     4_294_967_295
   };
@@ -14,13 +14,12 @@ macro_rules! u32_max {
 
 use core::ops::{Deref, DerefMut};
 
-/// An `usize` that can be infallible converted from an `u32`, which effectively drops the support
+/// An `usize` that can be infallible converted from an `u32`, which effectively drops support
 /// for 16bit hardware.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Usize(usize);
 
 impl Usize {
-  #[cfg(feature = "calendar")]
   pub(crate) const fn from_u16(from: u16) -> Self {
     Self(from as usize)
   }
@@ -44,17 +43,10 @@ impl Usize {
 
   #[cfg(feature = "mysql")]
   pub(crate) const fn into_saturating_u32(self) -> u32 {
-    if self.0 > u32_max!() {
-      return u32_max!();
+    if self.0 > _u32_max!() {
+      return _u32_max!();
     }
     self.0 as u32
-  }
-
-  pub(crate) const fn into_u32(self) -> Option<u32> {
-    if self.0 > u32_max!() {
-      return None;
-    }
-    Some(self.0 as u32)
   }
 
   pub(crate) const fn into_u64(self) -> u64 {

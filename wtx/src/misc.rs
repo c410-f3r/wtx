@@ -11,7 +11,6 @@ pub(crate) mod net;
 pub(crate) mod span;
 
 mod auto_clear;
-mod clear;
 mod connection_state;
 mod either;
 mod enum_var_strings;
@@ -35,7 +34,6 @@ mod wrapper;
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use auto_clear::AutoClear;
-pub use clear::Clear;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, time::Duration};
 pub use either::Either;
@@ -58,37 +56,6 @@ pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use wrapper::Wrapper;
-
-/// Hashes a password using the `argon2` algorithm.
-#[cfg(feature = "argon2")]
-pub fn argon2_pwd<const N: usize>(
-  blocks: &mut crate::collection::Vector<argon2::Block>,
-  pwd: &[u8],
-  salt: &[u8],
-) -> crate::Result<[u8; N]> {
-  use crate::collection::ExpansionTy;
-  use argon2::{Algorithm, Argon2, Params, Version};
-
-  let params = const {
-    let output_len = Some(N);
-    let Ok(elem) = Params::new(
-      Params::DEFAULT_M_COST,
-      Params::DEFAULT_T_COST,
-      Params::DEFAULT_P_COST,
-      output_len,
-    ) else {
-      panic!();
-    };
-    elem
-  };
-  blocks.expand(ExpansionTy::Len(params.block_count()), argon2::Block::new())?;
-  let mut out = [0; N];
-  let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-  let rslt = argon2.hash_password_into_with_memory(pwd, salt, &mut out, &mut *blocks);
-  blocks.clear();
-  rslt?;
-  Ok(out)
-}
 
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [`core::result::Result`] context.
@@ -153,47 +120,10 @@ pub fn tracing_tree_init(
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
 }
 
-#[expect(clippy::cast_possible_truncation, reason = "`match` correctly handles truncations")]
-pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &[u8] {
-  const fn shift(number: u32, len: u8) -> u8 {
-    (number >> len) as u8
-  }
-
-  const BYTES2: u8 = 0b1100_0000;
-  const BYTES3: u8 = 0b1110_0000;
-  const BYTES4: u8 = 0b1111_0000;
-  const CONTINUATION: u8 = 0b1000_0000;
-
-  const MASK3: u8 = 0b0000_0111;
-  const MASK4: u8 = 0b0000_1111;
-  const MASK5: u8 = 0b0001_1111;
-  const MASK6: u8 = 0b0011_1111;
-
-  let number = u32::from(ch);
-  match number {
-    0..=127 => {
-      buffer[0] = shift(number, 0);
-      &buffer[0..1]
-    }
-    128..=2047 => {
-      buffer[0] = shift(number, 6) & MASK5 | BYTES2;
-      buffer[1] = shift(number, 0) & MASK6 | CONTINUATION;
-      &buffer[0..2]
-    }
-    2048..=65535 => {
-      buffer[0] = shift(number, 12) & MASK4 | BYTES3;
-      buffer[1] = shift(number, 6) & MASK6 | CONTINUATION;
-      buffer[2] = shift(number, 0) & MASK6 | CONTINUATION;
-      &buffer[0..3]
-    }
-    _ => {
-      buffer[0] = shift(number, 18) & MASK3 | BYTES4;
-      buffer[1] = shift(number, 12) & MASK6 | CONTINUATION;
-      buffer[2] = shift(number, 6) & MASK6 | CONTINUATION;
-      buffer[3] = shift(number, 0) & MASK6 | CONTINUATION;
-      buffer
-    }
-  }
+// It is important to enforce the array length to avoid panics
+#[expect(clippy::disallowed_methods, reason = "that is the only allowed place")]
+pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &mut str {
+  ch.encode_utf8(buffer)
 }
 
 #[cfg(all(feature = "foldhash", any(feature = "http2", feature = "mysql", feature = "postgres")))]

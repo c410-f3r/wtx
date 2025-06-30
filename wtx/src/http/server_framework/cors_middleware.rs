@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   http::{
     Header, Headers, HttpError, KnownHeaderName, Method, ReqResBuffer, Request, Response,
     StatusCode,
@@ -430,9 +430,9 @@ where
         req.rrd.headers.clear();
         self
           .apply_preflight_response(
-            // SAFETY: Every single element of `req.rrd.body` was previously inserted with UTF-8
+            // SAFETY: every single element of `req.rrd.body` was previously inserted with UTF-8
             unsafe { str::from_utf8_unchecked(headers_bytes) },
-            // SAFETY: Every single element of `req.rrd.body` was previously inserted with UTF-8
+            // SAFETY: every single element of `req.rrd.body` was previously inserted with UTF-8
             unsafe { str::from_utf8_unchecked(origin_bytes) },
             &mut req.rrd.headers,
           )

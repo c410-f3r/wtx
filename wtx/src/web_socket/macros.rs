@@ -87,7 +87,7 @@ macro_rules! read_frame {
     ($stream_reader_expr:expr, $stream_writer_expr:expr)
   ) => {
     'rffs_block: {
-      use crate::web_socket::web_socket_reader;
+      use crate::{collection::IndexedStorageMut as _, web_socket::web_socket_reader};
       let first_rfi = loop {
         $reader_buffer_first.clear();
         let rfi = web_socket_reader::fetch_frame_from_stream::<_, IS_CLIENT>(

@@ -81,12 +81,12 @@ where
       misc: &block.misc.misc,
       name: {
         let str = block.data.get(..block.misc.name_len).unwrap_or_default();
-        // SAFETY: Input methods only accept UTF-8 data
+        // SAFETY: input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
       value: {
         let str = block.data.get(block.misc.name_len..).unwrap_or_default();
-        // SAFETY: Input methods only accept UTF-8 data
+        // SAFETY: input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
     }

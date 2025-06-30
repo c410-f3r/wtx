@@ -79,7 +79,7 @@ mod tokio {
 mod tests {
   use crate::{
     client_api_framework::pkg::Package,
-    collection::Vector,
+    collection::{IndexedStorageMut, Vector},
     de::{
       Decode, DecodeSeq, Encode,
       format::{De, DecodeWrapper, EncodeWrapper},

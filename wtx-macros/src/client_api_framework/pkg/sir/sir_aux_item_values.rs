@@ -94,7 +94,9 @@ impl<'module, 'others>
     let data_builder_ident = &create_ident(camel_case_id, ["DataBuilder"]);
     let data_format_builder_ident = &create_ident(camel_case_id, ["DataFormatBuilder"]);
     let fn_stmts = quote::quote!({
-      use wtx::client_api_framework::network::transport::TransportParams;
+      use wtx::{
+        client_api_framework::network::transport::TransportParams, collection::IndexedStorageMut,
+      };
       self.byte_buffer.clear();
       self.log_body = (false, self.log_body.0);
       self.tp.reset();

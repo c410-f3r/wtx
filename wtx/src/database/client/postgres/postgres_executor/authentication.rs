@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVectorU8, IndexedStorageMut as _, Vector},
   database::{
     Identifier,
     client::{
@@ -180,7 +180,7 @@ where
             vec.extend_from_copyable_slices([&b"n=,r="[..], &local_nonce, &b","[..], payload])?;
           vec
         },
-        ArrayVector::<u8, 68>::from_copyable_slice(nonce)?,
+        ArrayVectorU8::<u8, 68>::from_copyable_slice(nonce)?,
         salted_password(iterations, decoded_salt.get(..n).unwrap_or_default(), config.password)?,
       )
     };

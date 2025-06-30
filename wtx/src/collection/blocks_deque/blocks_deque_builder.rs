@@ -56,13 +56,13 @@ impl<'db, D, M, const IS_BACK: bool> BlocksDequeBuilder<'db, D, M, IS_BACK> {
     let ptr = self.bd.data.as_ptr_mut();
     let shifted_ptr = if IS_BACK {
       let begin = self.bd.data.tail().wrapping_sub(self.inserted);
-      // SAFETY: We are in a "back-only" environment so the tail index will never be less than
-      // the number of inserted elements
+      // SAFETY: we are in a "back-only" environment so the tail index will never be less than
+      //         the number of inserted elements
       unsafe { ptr.add(begin) }
     } else {
       let begin = self.bd.data.head();
-      // SAFETY: We are in a "front-only" environment so there will always be `inserted` elements
-      // after the starting head.
+      // SAFETY: we are in a "front-only" environment so there will always be `inserted` elements
+      //         after the starting head.
       unsafe { ptr.add(begin) }
     };
     // SAFETY: the above checks ensure valid memory

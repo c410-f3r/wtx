@@ -1,4 +1,4 @@
-use crate::collection::Vector;
+use crate::collection::{IndexedStorageMut as _, Vector};
 use core::str;
 
 const ASCII_RANGE_LEN: usize = 128;
@@ -185,14 +185,14 @@ fn percent_encode_str(byte: u8) -> &'static str {
   ";
   let idx = usize::from(byte).wrapping_mul(3);
   let slice = TABLE.get(idx..idx.wrapping_add(3)).unwrap_or_default();
-  // SAFETY: TABLE is ascii-only
+  // SAFETY: tABLE is ascii-only
   unsafe { str::from_utf8_unchecked(slice) }
 }
 
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::Vector,
+    collection::{IndexedStorage, IndexedStorageMut, Vector},
     de::{AsciiSet, PercentDecode, PercentEncode},
   };
 

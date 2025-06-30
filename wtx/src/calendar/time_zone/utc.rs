@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, TimeZone},
-  collection::ArrayString,
+  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
 };
 
 /// Universal Time Coordinated (UTC)
@@ -22,7 +22,7 @@ impl TimeZone for Utc {
   }
 
   #[inline]
-  fn iso_8601(self) -> ArrayString<6> {
+  fn iso_8601(self) -> ArrayStringU8<6> {
     let mut str = ArrayString::new();
     let _rslt = str.push('Z');
     str

@@ -2,7 +2,7 @@ mod dyn_tz;
 mod local;
 mod utc;
 
-use crate::collection::ArrayString;
+use crate::collection::ArrayStringU8;
 pub use dyn_tz::DynTz;
 pub use local::Local;
 pub use utc::Utc;
@@ -18,7 +18,7 @@ pub trait TimeZone: Copy {
   fn from_minutes(minutes: i16) -> crate::Result<Self>;
 
   /// ISO-8601 string representation
-  fn iso_8601(self) -> ArrayString<6>;
+  fn iso_8601(self) -> ArrayStringU8<6>;
 
   /// The number of minutes represented by this time zone
   fn minutes(&self) -> i16;

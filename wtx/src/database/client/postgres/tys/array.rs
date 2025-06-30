@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayString, ArrayVector},
+  collection::{ArrayString, ArrayVector, IndexedStorageLen},
   database::{
     Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
@@ -10,28 +10,31 @@ use crate::{
 
 // ArrayString
 
-impl<E, const N: usize> Decode<'_, Postgres<E>> for ArrayString<N>
+impl<E, L, const N: usize> Decode<'_, Postgres<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
     Ok(from_utf8_basic(dw.bytes()).map_err(Into::into)?.try_into()?)
   }
 }
-impl<E, const N: usize> Encode<Postgres<E>> for ArrayString<N>
+impl<E, L, const N: usize> Encode<Postgres<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self.as_str().as_bytes())?;
+    ew.buffer().extend_from_slice(self.as_bytes())?;
     Ok(())
   }
 }
-impl<E, const N: usize> Typed<Postgres<E>> for ArrayString<N>
+impl<E, L, const N: usize> Typed<Postgres<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
@@ -43,22 +46,24 @@ where
     Some(Ty::Text)
   }
 }
-test!(array_string, ArrayString<4>, ArrayString::try_from("123").unwrap());
+test!(array_string, crate::collection::ArrayStringU8<4>, ArrayString::try_from("123").unwrap());
 
 // ArrayVector
 
-impl<E, const N: usize> Decode<'_, Postgres<E>> for ArrayVector<u8, N>
+impl<E, L, const N: usize> Decode<'_, Postgres<E>> for ArrayVector<L, u8, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
     Ok(ArrayVector::try_from(dw.bytes())?)
   }
 }
-impl<E, const N: usize> Encode<Postgres<E>> for ArrayVector<u8, N>
+impl<E, L, const N: usize> Encode<Postgres<E>> for ArrayVector<L, u8, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
@@ -66,9 +71,10 @@ where
     Ok(())
   }
 }
-impl<E, const N: usize> Typed<Postgres<E>> for ArrayVector<u8, N>
+impl<E, L, const N: usize> Typed<Postgres<E>> for ArrayVector<L, u8, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
@@ -80,4 +86,4 @@ where
     Some(Ty::ByteaArray)
   }
 }
-test!(array_vector, ArrayVector<u8, 4>, ArrayVector::from_array([1, 2, 3, 4]));
+test!(array_vector, crate::collection::ArrayVectorU8<u8, 4>, ArrayVector::from_array([1, 2, 3, 4]));

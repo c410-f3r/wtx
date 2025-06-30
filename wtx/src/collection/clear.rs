@@ -1,9 +1,11 @@
-use crate::collection::{ArrayString, ArrayVector};
+use crate::collection::{
+  ArrayString, ArrayVector, IndexedStorageLen, IndexedStorageMut as _, Vector,
+};
 use alloc::{string::String, vec::Vec};
 
 /// See [`Clear::clear`] for more information.
 pub trait Clear {
-  /// "Clears" the internal buffer, "erasing" all elements.
+  /// Clears the instance, removing all values.
   fn clear(&mut self);
 }
 
@@ -22,17 +24,23 @@ impl Clear for () {
   fn clear(&mut self) {}
 }
 
-impl<const N: usize> Clear for ArrayString<N> {
+impl<L, const N: usize> Clear for ArrayString<L, N>
+where
+  L: IndexedStorageLen,
+{
   #[inline]
   fn clear(&mut self) {
-    self.clear();
+    self.truncate(L::ZERO);
   }
 }
 
-impl<T, const N: usize> Clear for ArrayVector<T, N> {
+impl<L, T, const N: usize> Clear for ArrayVector<L, T, N>
+where
+  L: IndexedStorageLen,
+{
   #[inline]
   fn clear(&mut self) {
-    self.clear();
+    self.truncate(L::ZERO);
   }
 }
 
@@ -54,5 +62,12 @@ impl<T> Clear for Vec<T> {
   #[inline]
   fn clear(&mut self) {
     self.clear();
+  }
+}
+
+impl<T> Clear for Vector<T> {
+  #[inline]
+  fn clear(&mut self) {
+    self.truncate(0);
   }
 }

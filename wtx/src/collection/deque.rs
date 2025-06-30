@@ -62,7 +62,7 @@ mod kani;
 #[cfg(test)]
 mod tests;
 
-use crate::collection::{ExpansionTy, Vector};
+use crate::collection::{ExpansionTy, IndexedStorage as _, IndexedStorageMut as _, Vector};
 use core::{
   fmt::{Debug, Formatter},
   mem::needs_drop,
@@ -208,7 +208,7 @@ impl<T> Deque<T> {
       return Ok(0);
     };
     let rr = self.prolong_back(additional)?;
-    // SAFETY: Elements were allocated
+    // SAFETY: elements were allocated
     unsafe {
       self.expand(additional, rr.begin, new_len, value);
     }
@@ -235,7 +235,7 @@ impl<T> Deque<T> {
       return Ok((0, 0));
     };
     let rr = self.prolong_front(additional)?;
-    // SAFETY: Elements were allocated
+    // SAFETY: elements were allocated
     unsafe {
       self.expand(additional, rr.begin, new_len, value);
     }
@@ -508,7 +508,7 @@ impl<T> Deque<T> {
     if is_wrapping(self.head, len, self.tail) {
       if let Some(back_begin) = self.tail.checked_sub(diff) {
         if Self::NEEDS_DROP {
-          // SAFETY: Indices are within bounds
+          // SAFETY: indices are within bounds
           unsafe {
             drop_elements(diff, back_begin, self.data.as_ptr_mut());
           }
@@ -518,11 +518,11 @@ impl<T> Deque<T> {
         let front_len = diff.wrapping_sub(self.tail);
         let front_begin = self.data.capacity().wrapping_sub(front_len);
         if Self::NEEDS_DROP {
-          // SAFETY: Indices are within bounds
+          // SAFETY: indices are within bounds
           unsafe {
             drop_elements(self.tail, 0, self.data.as_ptr_mut());
           }
-          // SAFETY: Indices are within bounds
+          // SAFETY: indices are within bounds
           unsafe {
             drop_elements(front_len, front_begin, self.data.as_ptr_mut());
           }
@@ -532,7 +532,7 @@ impl<T> Deque<T> {
     } else {
       let curr_tail = self.tail.wrapping_sub(diff);
       if Self::NEEDS_DROP {
-        // SAFETY: Indices are within bounds
+        // SAFETY: indices are within bounds
         unsafe {
           drop_elements(diff, curr_tail, self.data.as_ptr_mut());
         }
@@ -568,7 +568,7 @@ impl<T> Deque<T> {
       let front_slots = self.data.capacity().wrapping_sub(self.head);
       if front_slots >= diff {
         if Self::NEEDS_DROP {
-          // SAFETY: Indices are within bounds
+          // SAFETY: indices are within bounds
           unsafe {
             drop_elements(diff, self.head, self.data.as_ptr_mut());
           }
@@ -577,11 +577,11 @@ impl<T> Deque<T> {
       } else {
         let back_len = diff.wrapping_sub(front_slots);
         if Self::NEEDS_DROP {
-          // SAFETY: Indices are within bounds
+          // SAFETY: indices are within bounds
           unsafe {
             drop_elements(front_slots, self.head, self.data.as_ptr_mut());
           }
-          // SAFETY: Indices are within bounds
+          // SAFETY: indices are within bounds
           unsafe {
             drop_elements(back_len, 0, self.data.as_ptr_mut());
           }
@@ -591,7 +591,7 @@ impl<T> Deque<T> {
     } else {
       let prev_head = self.head;
       if Self::NEEDS_DROP {
-        // SAFETY: Indices are within bounds
+        // SAFETY: indices are within bounds
         unsafe {
           drop_elements(diff, prev_head, self.data.as_ptr_mut());
         }
@@ -827,11 +827,11 @@ impl ReserveRslt {
 }
 
 unsafe fn drop_elements<T>(len: usize, offset: usize, ptr: *mut T) {
-  // SAFETY: It is up to the caller to provide a valid pointer with a valid index
+  // SAFETY: it is up to the caller to provide a valid pointer with a valid index
   let data = unsafe { ptr.add(offset) };
-  // SAFETY: It is up to the caller to provide a valid length
+  // SAFETY: it is up to the caller to provide a valid length
   let elements = unsafe { slice::from_raw_parts_mut(data, len) };
-  // SAFETY: It is up to the caller to provide parameters that can lead to droppable elements
+  // SAFETY: it is up to the caller to provide parameters that can lead to droppable elements
   unsafe {
     ptr::drop_in_place(elements);
   }

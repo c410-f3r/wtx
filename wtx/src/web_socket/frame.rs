@@ -116,7 +116,7 @@ where
   #[inline]
   pub fn text_payload(&self) -> Option<&str> {
     self.op_code.is_text().then(|| {
-      // SAFETY: UTF-8 data is always verified when read from a stream.
+      // SAFETY: uTF-8 data is always verified when read from a stream.
       unsafe { str::from_utf8_unchecked(self.payload.lease()) }
     })
   }

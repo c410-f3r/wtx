@@ -8,7 +8,7 @@ use crate::{
     SECONDS_PER_DAY, Second, Time, TimeZone, Utc,
     misc::{i32i64, u32i64},
   },
-  collection::ArrayString,
+  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
 };
 use core::fmt::{Debug, Display, Formatter};
 
@@ -119,7 +119,7 @@ where
 
   /// ISO-8601 string representation
   #[inline]
-  pub fn iso_8601(self) -> ArrayString<38> {
+  pub fn iso_8601(self) -> ArrayStringU8<38> {
     let mut rslt = ArrayString::new();
     let _rslt0 = rslt.push_str(&self.date.iso_8601());
     let _rslt1 = rslt.push('T');
@@ -184,6 +184,7 @@ where
 
   /// Returns a new instance with the number of nanoseconds totally erased.
   #[inline]
+  #[must_use]
   pub const fn trunc_to_sec(self) -> Self {
     let mut new = self;
     new.time = new.time.trunc_to_sec();
@@ -192,6 +193,7 @@ where
 
   /// Returns a new instance with the number of nanoseconds truncated to microseconds.
   #[inline]
+  #[must_use]
   pub const fn trunc_to_us(self) -> Self {
     let mut new = self;
     new.time = new.time.trunc_to_us();

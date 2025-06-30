@@ -14,6 +14,6 @@ pub use session_middleware::SessionMiddleware;
 pub use session_state::SessionState;
 pub use session_store::SessionStore;
 
-type SessionCsrf = crate::collection::ArrayString<32>;
-type SessionKey = crate::collection::ArrayString<32>;
-type SessionSecret = crate::collection::ArrayString<32>;
+type SessionCsrf = crate::collection::ArrayStringU8<32>;
+type SessionKey = crate::collection::ArrayStringU8<32>;
+type SessionSecret = crate::collection::ArrayStringU8<32>;

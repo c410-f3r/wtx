@@ -232,12 +232,6 @@ macro_rules! doc_many_elems_cap_overflow {
   };
 }
 
-macro_rules! doc_out_of_bounds_params {
-  () => {
-    "Received parameters lead to outcomes that can't accurately represent the underlying data."
-  };
-}
-
 macro_rules! doc_reserve_overflow {
   () => {
     "It was not possible to reserve more memory"
@@ -364,7 +358,7 @@ macro_rules! _simd_bytes {
     |$_64_ident:ident| $_64_expr:expr,
     |$after_align_ident:ident| $after_align_expr:expr $(,)?
   ) => {{
-    // SAFETY: Changing a sequence of `u8` should be fine
+    // SAFETY: changing a sequence of `u8` should be fine
     let (_prefix, _chunks, _suffix) = unsafe { $bytes.$align() };
     _simd! {
       8 => {

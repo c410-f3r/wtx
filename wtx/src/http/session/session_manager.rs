@@ -1,6 +1,6 @@
 use crate::{
   calendar::{DateTime, Instant},
-  collection::{ArrayString, Vector},
+  collection::{ArrayString, IndexedStorage, IndexedStorageMut, Vector},
   http::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
     SessionState, SessionStore,
@@ -87,8 +87,8 @@ where
   {
     let inner = &mut *self.inner.lock().await;
     let SessionManagerInner { cookie_def, session_secret, .. } = inner;
-    let session_csrf = ArrayString::from_iter(rng.ascii_graphic_iter().take(32))?;
-    let session_key = ArrayString::from_iter(rng.ascii_graphic_iter().take(32))?;
+    let session_csrf = ArrayString::from_iter(rng.ascii_graphic_iter().take(32).map(Into::into))?;
+    let session_key = ArrayString::from_iter(rng.ascii_graphic_iter().take(32).map(Into::into))?;
     let local_state = match (cookie_def.expires, cookie_def.max_age) {
       (None, None) => SessionState { session_csrf, custom_state, expires_at: None, session_key },
       (Some(expires_at), None) => {
@@ -125,7 +125,7 @@ where
           move |el| el,
           |el| {
             // SAFETY: `encrypt` filled `cookie_def.value` with Base64, which is ASCII.
-            unsafe { str::from_utf8_unchecked(el.as_slice()) }
+            unsafe { str::from_utf8_unchecked(el) }
           }
         )
       ),

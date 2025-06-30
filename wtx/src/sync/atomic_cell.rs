@@ -153,10 +153,10 @@ impl<T> From<T> for AtomicCell<T> {
 
 impl<T> RefUnwindSafe for AtomicCell<T> {}
 
-// SAFETY: Concurrent access is manually managed
+// SAFETY: concurrent access is manually managed
 unsafe impl<T> Send for AtomicCell<T> where T: Send {}
 
-// SAFETY: Concurrent access is manually managed
+// SAFETY: concurrent access is manually managed
 unsafe impl<T: Send> Sync for AtomicCell<T> {}
 
 impl<T> UnwindSafe for AtomicCell<T> where T: Send {}

@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-/// Block
+/// A block that composes `BlocksDeque`.
 #[derive(Debug, PartialEq)]
 pub struct Block<D, M> {
   /// Opaque data

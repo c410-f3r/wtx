@@ -1,6 +1,6 @@
 use crate::{
   calendar::Instant,
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   http::{
     KnownHeaderName, Method, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,

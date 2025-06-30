@@ -9,7 +9,7 @@
 // bytes or runtime performance.
 
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorage, IndexedStorageMut, Vector},
   http::{Header, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
@@ -631,7 +631,7 @@ struct StaticHeader {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::Vector,
+    collection::{IndexedStorage, Vector},
     http::StatusCode,
     http2::{hpack_encoder::HpackEncoder, hpack_static_headers::HpackStaticResponseHeaders},
     rng::{Xorshift64, simple_seed},

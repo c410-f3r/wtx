@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayString,
+  collection::ArrayStringU16,
   de::FromRadix10 as _,
   misc::{Lease, LeaseMut, bytes_pos1, bytes_rpos1, str_split_once1, str_split1},
 };
@@ -10,7 +10,7 @@ use core::{
 };
 
 /// [Uri] with an owned array.
-pub type UriArrayString<const N: usize> = Uri<ArrayString<N>>;
+pub type UriArrayString<const N: usize> = Uri<ArrayStringU16<N>>;
 /// [Uri] with an owned string.
 pub type UriBox = Uri<Box<str>>;
 /// [Uri] with an owned string.

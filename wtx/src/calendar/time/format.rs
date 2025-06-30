@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData},
-  collection::ArrayString,
+  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
   de::u32_string,
 };
 
@@ -28,7 +28,7 @@ impl Time {
   pub fn to_string<const N: usize>(
     &self,
     tokens: impl IntoIterator<Item = CalendarToken>,
-  ) -> crate::Result<ArrayString<N>> {
+  ) -> crate::Result<ArrayStringU8<N>> {
     let mut string = ArrayString::new();
     for token in tokens {
       match token {

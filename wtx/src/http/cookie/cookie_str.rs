@@ -1,6 +1,6 @@
 use crate::{
   calendar::DateTime,
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVectorU8, IndexedStorageMut, Vector},
   de::PercentDecode,
   http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
   misc::{str_split_once1, str_split1},
@@ -45,7 +45,7 @@ impl<'str> CookieStr<'str> {
         http_only: false,
         max_age: None,
         name: if has_decoded_name {
-          // SAFETY: Everything after before_name_len is ASCII percent-encoding
+          // SAFETY: everything after before_name_len is ASCII percent-encoding
           unsafe {
             str::from_utf8_unchecked(
               vector.get(before_name_len..before_value_len).unwrap_or_default(),
@@ -58,7 +58,7 @@ impl<'str> CookieStr<'str> {
         same_site: None,
         secure: false,
         value: if has_decoded_value {
-          // SAFETY: Everything after before_value_len is ASCII percent-encoding
+          // SAFETY: everything after before_value_len is ASCII percent-encoding
           unsafe { str::from_utf8_unchecked(vector.get(before_value_len..).unwrap_or_default()) }
         } else {
           value
@@ -66,7 +66,7 @@ impl<'str> CookieStr<'str> {
       }
     };
 
-    let mut lower_case = ArrayVector::<u8, 12>::new();
+    let mut lower_case = ArrayVectorU8::<u8, 12>::new();
     for semicolon in semicolons {
       let (name, value) = if let Some(elem) = str_split_once1(semicolon, b'=') {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
@@ -118,7 +118,7 @@ impl<'str> CookieStr<'str> {
   }
 }
 
-fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVector<u8, 12>, slice: &str) {
+fn make_lowercase<const UPPER_BOUND: usize>(buffer: &mut ArrayVectorU8<u8, 12>, slice: &str) {
   buffer.clear();
   let sub_slice = slice.get(..slice.len().min(UPPER_BOUND)).unwrap_or_default();
   let _rslt = buffer.extend_from_copyable_slice(sub_slice.as_bytes());

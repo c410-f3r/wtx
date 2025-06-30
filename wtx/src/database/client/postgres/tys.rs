@@ -45,7 +45,6 @@ macro_rules! test {
 
 mod arguments;
 mod array;
-#[cfg(feature = "calendar")]
 mod calendar;
 mod collection;
 mod ip;

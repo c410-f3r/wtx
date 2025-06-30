@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayString,
+  collection::ArrayStringU8,
   http::{Header, KnownHeaderName, Method, ReqResBuffer},
   http2::{
     Http2Error, Http2Params,
@@ -91,9 +91,9 @@ impl<'uri> HeadersFrame<'uri> {
     let mut status = None;
 
     let mut already_created_path = false;
-    let mut authority = ArrayString::<60>::new();
+    let mut authority = ArrayStringU8::<60>::new();
     let mut path_len = 0;
-    let mut scheme = ArrayString::<12>::new();
+    let mut scheme = ArrayStringU8::<12>::new();
     let mut static_path = None;
     let mut uri_buffer = rrb_uri.reset();
 
@@ -286,7 +286,7 @@ impl<'uri> HeadersFrame<'uri> {
 
 fn create_path_buffer(uri_buffer: &mut String, path: &str) {
   uri_buffer.reserve(64usize.wrapping_add(path.len()));
-  // SAFETY: Zero is ASCII
+  // SAFETY: zero is ASCII
   uri_buffer.push_str(unsafe { str::from_utf8_unchecked(&[0; 64]) });
   uri_buffer.push_str(path);
 }

@@ -2,7 +2,7 @@ mod req_builder;
 mod res_builder;
 
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut as _, Vector},
   http::{Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut},
   misc::LeaseMut,
 };
@@ -31,6 +31,7 @@ impl ReqResBuilder<ReqResBuffer> {
   #[cfg(feature = "base64")]
   #[inline]
   pub fn auth_basic(&mut self, id: Arguments<'_>, pw: Arguments<'_>) -> crate::Result<&mut Self> {
+    use crate::collection::IndexedStorageMut;
     use base64::{Engine, engine::general_purpose::STANDARD};
     use core::fmt::Write;
     let ReqResBuffer { body, headers, uri } = self.rrd.lease_mut();
@@ -45,7 +46,7 @@ impl ReqResBuilder<ReqResBuffer> {
       })?;
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::Authorization.into(),
-        // SAFETY: Everything after `body_idx` is UTF-8
+        // SAFETY: everything after `body_idx` is UTF-8
         [unsafe { core::str::from_utf8_unchecked(body.get(body_idx..).unwrap_or_default()) }],
       ))
     };

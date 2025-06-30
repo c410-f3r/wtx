@@ -69,5 +69,5 @@ pub(crate) const _MAX_AUTHORITY_LEN: usize = 64;
 pub(crate) const _MAX_PATH_LEN: usize = 128;
 pub(crate) const _MAX_SCHEME_LEN: usize = 16;
 
-pub(crate) type _HeaderNameBuffer = crate::collection::ArrayVector<u8, MAX_HEADER_NAME_LEN>;
-pub(crate) type _HeaderValueBuffer = crate::collection::ArrayVector<u8, MAX_HEADER_VALUE_LEN>;
+pub(crate) type _HeaderNameBuffer = crate::collection::ArrayVectorU8<u8, MAX_HEADER_NAME_LEN>;
+pub(crate) type _HeaderValueBuffer = crate::collection::ArrayVectorU16<u8, MAX_HEADER_VALUE_LEN>;

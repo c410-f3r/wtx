@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   database::{FromRecords, Identifier, client::postgres::Postgres, executor::Executor},
 };
 use alloc::string::String;

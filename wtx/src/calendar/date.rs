@@ -17,7 +17,7 @@ use crate::{
       u16u32, u32i64,
     },
   },
-  collection::ArrayString,
+  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
   de::i16_string,
   misc::Usize,
 };
@@ -151,6 +151,8 @@ impl Date {
   }
 
   /// Adds the number of whole days in the given `duration` to the current date.
+  #[expect(clippy::arithmetic_side_effects, reason = "divisor is constant")]
+  #[inline]
   pub const fn add(self, duration: Duration) -> Result<Self, CalendarError> {
     if duration.is_zero() {
       return Ok(self);
@@ -199,15 +201,15 @@ impl Date {
   pub const fn day_of_year(self) -> DayOfYear {
     match DayOfYear::from_num(self.params & 0b1_1111_1111) {
       Ok(el) => el,
-      // SAFETY: All methods that create an instance only accept `DOY`, as such, the
-      // corresponding bits will never be out of bounds.
+      // SAFETY: all methods that create an instance only accept `DOY`, as such, the
+      //         corresponding bits will never be out of bounds.
       Err(_) => unsafe { unreachable_unchecked() },
     }
   }
 
   /// String representation
   #[inline]
-  pub fn iso_8601(self) -> ArrayString<12> {
+  pub fn iso_8601(self) -> ArrayStringU8<12> {
     let mut array = ArrayString::new();
     let _rslt0 = array.push_str(&i16_string(self.year.num()));
     let _rslt1 = array.push('-');
@@ -230,6 +232,11 @@ impl Date {
   }
 
   /// Subtracts the number of whole days in the given `duration` to the current date.
+  #[expect(
+    clippy::arithmetic_side_effects,
+    reason = "the number of days will never reach `i64::MAX`"
+  )]
+  #[inline]
   pub const fn sub(self, duration: Duration) -> Result<Self, CalendarError> {
     let days = -duration.days();
     if days < i32i64(i32::MIN) || days > i32i64(i32::MAX) {
@@ -289,7 +296,7 @@ impl Date {
     };
     Ok(match Self::new(year, day_of_year) {
       Ok(elem) => elem,
-      // SAFETY: Leap years were already handled
+      // SAFETY: leap years were already handled
       Err(_) => unsafe { unreachable_unchecked() },
     })
   }

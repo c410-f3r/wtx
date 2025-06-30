@@ -1,4 +1,4 @@
-use crate::misc::Clear;
+use crate::collection::Clear;
 use core::{
   borrow::{Borrow, BorrowMut},
   ops::{Deref, DerefMut},

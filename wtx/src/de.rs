@@ -33,6 +33,37 @@ pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 /// Identifier used to track the number of issued requests.
 pub type Id = usize;
 
+/// Hashes a password using the `argon2` algorithm.
+#[cfg(feature = "argon2")]
+pub fn argon2_pwd<const N: usize>(
+  blocks: &mut crate::collection::Vector<argon2::Block>,
+  pwd: &[u8],
+  salt: &[u8],
+) -> crate::Result<[u8; N]> {
+  use crate::collection::{ExpansionTy, IndexedStorageMut};
+  use argon2::{Algorithm, Argon2, Params, Version};
+
+  let params = const {
+    let output_len = Some(N);
+    let Ok(elem) = Params::new(
+      Params::DEFAULT_M_COST,
+      Params::DEFAULT_T_COST,
+      Params::DEFAULT_P_COST,
+      output_len,
+    ) else {
+      panic!();
+    };
+    elem
+  };
+  blocks.expand(ExpansionTy::Len(params.block_count()), argon2::Block::new())?;
+  let mut out = [0; N];
+  let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+  let rslt = argon2.hash_password_into_with_memory(pwd, salt, &mut out, &mut *blocks);
+  blocks.clear();
+  rslt?;
+  Ok(out)
+}
+
 /// Similar to `collect_seq` of `serde` but expects a `Result`.
 #[cfg(feature = "serde")]
 pub fn serde_collect_seq_rslt<E, I, S, T>(ser: S, into_iter: I) -> Result<S::Ok, S::Error>

@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   http::{Headers, StatusCode},
   http2::{
     Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus, SendDataMode,

@@ -6,7 +6,7 @@
 // |Continuation|(NB -> RB1)* (RB1 -> RB2)¹|(NB -> RB2)*           |
 
 use crate::{
-  collection::{ExpansionTy, Vector},
+  collection::{ExpansionTy, IndexedStorageMut as _, Vector},
   misc::{
     CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char, LeaseMut,
     from_utf8_basic, from_utf8_ext,

@@ -8,6 +8,7 @@ macro_rules! opt_to_inv_mig {
 }
 
 use crate::{
+  collection::IndexedStorageMut,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -21,7 +22,7 @@ use core::hash::{Hash, Hasher};
 #[cfg(feature = "std")]
 use {
   crate::{
-    collection::{ArrayVector, Vector},
+    collection::{ArrayVectorU8, Vector},
     database::schema_manager::{
       Repeatability, UserMigrationGroup, UserMigrationOwned,
       toml_parser::{Expr, toml},
@@ -40,7 +41,7 @@ use {
 type MigrationGroupParts = (String, Uid);
 #[cfg(feature = "std")]
 type MigrationParts = (
-  ArrayVector<DatabaseTy, { DatabaseTy::len() }>,
+  ArrayVectorU8<DatabaseTy, { DatabaseTy::len() }>,
   String,
   Option<Repeatability>,
   String,
@@ -73,7 +74,7 @@ where
   F: FnMut(&PathBuf, &PathBuf) -> Ordering,
 {
   use crate::{
-    collection::ArrayString,
+    collection::ArrayStringU8,
     database::schema_manager::{
       SchemaManagerError,
       migration_parser::{parse_migration_toml, parse_unified_migration},
@@ -92,7 +93,7 @@ where
     let migrations = migrations_vec.into_iter().map(move |local_path| {
       let name;
       let uid;
-      let mut dbs = ArrayVector::new();
+      let mut dbs = ArrayVectorU8::new();
       let mut repeatability = None;
       let mut sql_down = String::default();
       let mut sql_up = String::default();
@@ -103,13 +104,13 @@ where
         name = parts.0;
         uid = parts.1;
 
-        let mut cfg_file_name = ArrayString::<64>::new();
+        let mut cfg_file_name = ArrayStringU8::<64>::new();
         cfg_file_name.write_fmt(format_args!("{dir_name}.toml"))?;
 
-        let mut down_file_name = ArrayString::<64>::new();
+        let mut down_file_name = ArrayStringU8::<64>::new();
         down_file_name.write_fmt(format_args!("{dir_name}_down.sql"))?;
 
-        let mut up_file_name = ArrayString::<64>::new();
+        let mut up_file_name = ArrayStringU8::<64>::new();
         up_file_name.write_fmt(format_args!("{dir_name}_up.sql"))?;
 
         for file_rslt in files(local_path.as_path())? {

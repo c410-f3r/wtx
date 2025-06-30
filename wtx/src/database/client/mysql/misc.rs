@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVector, ArrayVectorU8, IndexedStorageMut, Vector},
   database::client::mysql::{
     DbError, MysqlError,
     mysql_executor::MAX_PAYLOAD,
@@ -26,7 +26,7 @@ where
   T::decode(&mut (), &mut DecodeWrapperProtocol { bytes, other })
 }
 
-pub(crate) fn encoded_len(len: usize) -> crate::Result<ArrayVector<u8, 9>> {
+pub(crate) fn encoded_len(len: usize) -> crate::Result<ArrayVectorU8<u8, 9>> {
   let [a, b, c, d, e, f, g, h] = len.to_le_bytes();
   let mut rslt = ArrayVector::new();
   match len {

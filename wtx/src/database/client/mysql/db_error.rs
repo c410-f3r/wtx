@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayString,
+  collection::ArrayStringU8,
   database::client::mysql::{
     MysqlError,
     capability::Capability,
@@ -18,7 +18,7 @@ pub struct DbError {
   /// Message
   pub error_message: String,
   /// State
-  pub sql_state: Option<ArrayString<5>>,
+  pub sql_state: Option<ArrayStringU8<5>>,
 }
 
 impl<E> Decode<'_, MysqlProtocol<u64, E>> for DbError
@@ -37,7 +37,7 @@ where
     if dw.other & protocol_41_n == protocol_41_n
       && let [b'#', c, d, e, f, g, rest1 @ ..] = rest0
     {
-      let array = ArrayString::from_parts([*c, *d, *e, *f, *g], 5)?;
+      let array = ArrayStringU8::from_parts([*c, *d, *e, *f, *g], 5)?;
       sql_state = Some(array);
       bytes = rest1;
     }

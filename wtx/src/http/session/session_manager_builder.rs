@@ -1,6 +1,6 @@
 use crate::{
   calendar::{DateTime, Utc},
-  collection::{ArrayString, Vector},
+  collection::{ArrayString, IndexedStorageMut, Vector},
   http::{
     SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},
@@ -62,7 +62,7 @@ impl SessionManagerBuilder {
   {
     Ok(Self::build_with_key(
       self,
-      ArrayString::from_iter(rng.ascii_graphic_iter().take(32))?,
+      ArrayString::from_iter(rng.ascii_graphic_iter().take(32).map(Into::into))?,
       session_store,
     ))
   }

@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVectorU8, IndexedStorageMut, Vector},
   database::client::mysql::{
     MysqlError,
     misc::{fetch_msg, write_packet},
@@ -39,7 +39,7 @@ impl AuthPlugin {
       AuthPlugin::CachingSha2 if a == 1 => match b {
         3 => Ok(true),
         4 => {
-          let mut pw_array: ArrayVector<u8, 32> = password.as_bytes().try_into()?;
+          let mut pw_array: ArrayVectorU8<u8, 32> = password.as_bytes().try_into()?;
           pw_array.push(b'\0')?;
           if IS_TLS {
             write_packet((capabilities, sequence_id), encode_buffer, &pw_array[..], stream).await?;
@@ -74,7 +74,7 @@ impl AuthPlugin {
     self,
     auth_plugin_data: (&[u8], &[u8]),
     pw: &[u8],
-  ) -> crate::Result<ArrayVector<u8, 32>> {
+  ) -> crate::Result<ArrayVectorU8<u8, 32>> {
     match self {
       AuthPlugin::CachingSha2 => {
         Ok(Self::mask(sha2::Sha256::new(), auth_plugin_data, pw).as_slice().try_into()?)
@@ -83,7 +83,7 @@ impl AuthPlugin {
         Ok(Self::mask(sha1::Sha1::new(), auth_plugin_data, pw).as_slice().try_into()?)
       }
       AuthPlugin::MysqlClear => {
-        let mut rslt: ArrayVector<u8, 32> = pw.try_into()?;
+        let mut rslt: ArrayVectorU8<u8, 32> = pw.try_into()?;
         rslt.push(0)?;
         Ok(rslt)
       }

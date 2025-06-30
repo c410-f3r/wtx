@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVector, IndexedStorageLen, IndexedStorageMut, Vector},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
@@ -8,10 +8,13 @@ use crate::{
   misc::{from_utf8_basic, hints::_unreachable},
 };
 
-pub(crate) fn huffman_decode<'to, const N: usize>(
+pub(crate) fn huffman_decode<'to, L, const N: usize>(
   from: &[u8],
-  to: &'to mut ArrayVector<u8, N>,
-) -> crate::Result<&'to str> {
+  to: &'to mut ArrayVector<L, u8, N>,
+) -> crate::Result<&'to str>
+where
+  L: IndexedStorageLen,
+{
   fn decode_4_bits(
     curr_state: &mut u8,
     input: u8,
@@ -156,7 +159,7 @@ mod kani {
 #[cfg(test)]
 mod test {
   use crate::{
-    collection::Vector,
+    collection::{IndexedStorageMut, Vector},
     http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
   };

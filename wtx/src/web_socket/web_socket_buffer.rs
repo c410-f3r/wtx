@@ -41,6 +41,7 @@ impl WebSocketBuffer {
 
   #[cfg(feature = "web-socket-handshake")]
   pub(crate) fn clear(&mut self) {
+    use crate::collection::IndexedStorageMut;
     let Self { network_buffer, reader_buffer_first, reader_buffer_second, writer_buffer } = self;
     network_buffer.clear();
     reader_buffer_first.clear();
