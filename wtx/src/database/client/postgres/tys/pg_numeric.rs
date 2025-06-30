@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayVector,
+  collection::ArrayVectorU16,
   database::{
     DatabaseError,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError},
@@ -15,7 +15,7 @@ const SIGN_POS: u16 = 0x0000;
 
 pub(crate) enum PgNumeric {
   NaN,
-  Number { digits: ArrayVector<i16, _DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
+  Number { digits: ArrayVectorU16<i16, _DIGITS_CAP>, scale: u16, sign: Sign, weight: i16 },
 }
 
 impl<E> Decode<'_, Postgres<E>> for PgNumeric
@@ -54,7 +54,7 @@ where
         curr_slice = local_rest;
       }
       PgNumeric::Number {
-        digits: ArrayVector::from_parts(array, Some(digits.into())),
+        digits: ArrayVectorU16::from_parts(array, Some(digits)),
         scale,
         sign: Sign::try_from(sign)?,
         weight,

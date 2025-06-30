@@ -15,9 +15,12 @@ pub enum DynParams {
 
 #[cfg(feature = "http-server-framework")]
 mod http_server_framework {
-  use crate::http::{
-    ReqResBuffer, Request, StatusCode,
-    server_framework::{DynParams, ResFinalizer},
+  use crate::{
+    collection::IndexedStorageMut,
+    http::{
+      ReqResBuffer, Request, StatusCode,
+      server_framework::{DynParams, ResFinalizer},
+    },
   };
 
   impl<E> ResFinalizer<E> for DynParams

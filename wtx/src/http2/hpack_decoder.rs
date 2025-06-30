@@ -1,4 +1,5 @@
 use crate::{
+  collection::IndexedStorageMut,
   http::{_HeaderNameBuffer, _HeaderValueBuffer, HeaderName, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, Http2ErrorCode,
@@ -151,7 +152,7 @@ impl HpackDecoder {
         self.header_buffers.0.clear();
         self.header_buffers.0.extend_from_copyable_slice(dyn_name.str().as_bytes())?;
         let bytes = self.header_buffers.0.get_mut(..dyn_name.str().len()).unwrap_or_default();
-        // SAFETY: Just a temporary copy of an already existing string
+        // SAFETY: just a temporary copy of an already existing string
         (new_hhb, HeaderName::new(unsafe { str::from_utf8_unchecked(bytes) }), value)
       } else {
         return Err(crate::Error::Http2ErrorGoAway(

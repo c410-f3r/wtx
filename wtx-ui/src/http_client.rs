@@ -1,6 +1,7 @@
 use crate::clap::HttpClient;
 use std::{fs::OpenOptions, io::Write};
 use wtx::{
+  collection::IndexedStorageMut,
   http::{Header, HttpClient as _, KnownHeaderName, ReqResBuffer, client_pool::ClientPoolBuilder},
   misc::{from_utf8_basic, str_split_once1, tracing_tree_init},
 };

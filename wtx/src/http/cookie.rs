@@ -6,7 +6,7 @@ pub(crate) mod cookie_str;
 mod same_site;
 
 #[cfg(feature = "http-session")]
-use crate::{calendar::CalendarToken, collection::Vector, rng::Rng};
+use crate::{calendar::CalendarToken, collection::IndexedStorageMut, collection::Vector, rng::Rng};
 pub use cookie_error::CookieError;
 pub use same_site::SameSite;
 

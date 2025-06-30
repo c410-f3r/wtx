@@ -1,17 +1,21 @@
-use crate::{calendar::Date, collection::ArrayString, de::i16_string};
+use crate::{
+  calendar::Date,
+  collection::{ArrayStringU8, IndexedStorage as _, IndexedStorageMut as _},
+  de::i16_string,
+};
 
 #[inline]
 pub(crate) fn push_four_digit_year<const N: usize>(
   date: Date,
-  string: &mut ArrayString<N>,
+  string: &mut ArrayStringU8<N>,
 ) -> crate::Result<()> {
   let year = i16_string(date.year().num());
   let (num, zeros) = if year.len() <= 4 {
     if let [b'-', rest @ ..] = year.as_bytes() {
       string.push('-')?;
-      (rest, 5u32.wrapping_sub(year.len()))
+      (rest, 5u8.wrapping_sub(year.len()))
     } else {
-      (year.as_bytes(), 4u32.wrapping_sub(year.len()))
+      (year.as_bytes(), 4u8.wrapping_sub(year.len()))
     }
   } else {
     (year.as_bytes(), 0)
@@ -28,7 +32,7 @@ pub(crate) fn push_four_digit_year<const N: usize>(
 #[inline]
 pub(crate) fn push_two_space_day<const N: usize>(
   date: Date,
-  string: &mut ArrayString<N>,
+  string: &mut ArrayStringU8<N>,
 ) -> crate::Result<()> {
   let [a, b] = date.day().num_str().as_bytes() else {
     return Ok(());

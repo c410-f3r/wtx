@@ -1,7 +1,7 @@
 //! Migration TOML parser
 
 use crate::{
-  collection::{ArrayString, ArrayVector},
+  collection::{ArrayStringU8, ArrayVectorU8, IndexedStorageMut},
   database::schema_manager::SchemaManagerError,
   misc::str_split1,
 };
@@ -10,10 +10,10 @@ use std::io::{BufRead, BufReader, Read};
 
 pub(crate) const EXPR_ARRAY_MAX_LEN: usize = 8;
 
-pub(crate) type ExprArrayTy = ArrayVector<ExprStringTy, EXPR_ARRAY_MAX_LEN>;
-pub(crate) type ExprStringTy = ArrayString<128>;
-pub(crate) type IdentTy = ArrayString<64>;
-pub(crate) type RootParamsTy = ArrayVector<(IdentTy, Expr), 2>;
+pub(crate) type ExprArrayTy = ArrayVectorU8<ExprStringTy, EXPR_ARRAY_MAX_LEN>;
+pub(crate) type ExprStringTy = ArrayStringU8<128>;
+pub(crate) type IdentTy = ArrayStringU8<64>;
+pub(crate) type RootParamsTy = ArrayVectorU8<(IdentTy, Expr), 2>;
 
 #[expect(clippy::large_enum_variant, reason = "work in progress")]
 #[derive(Debug, PartialEq)]
@@ -29,7 +29,7 @@ where
   let mut br = BufReader::new(read);
   let mut is_in_array_context = None;
   let mut buffer = String::new();
-  let mut root_params = ArrayVector::new();
+  let mut root_params = ArrayVectorU8::new();
 
   macro_rules! clear_and_continue {
     () => {
@@ -115,7 +115,7 @@ fn parse_and_push_toml_expr_string(
 }
 
 fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
-  let mut array = ArrayVector::new();
+  let mut array = ArrayVectorU8::new();
   if s.is_empty() {
     return Ok(array);
   }
@@ -141,7 +141,7 @@ fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::ArrayVector,
+    collection::{ArrayVectorU8, IndexedStorageMut},
     database::schema_manager::toml_parser::{Expr, ExprArrayTy, toml},
   };
 
@@ -160,7 +160,7 @@ mod tests {
       (
         "foo".try_into().unwrap(),
         Expr::Array({
-          let mut elems = ArrayVector::new();
+          let mut elems = ArrayVectorU8::new();
           elems.push("1".try_into().unwrap()).unwrap();
           elems.push("2".try_into().unwrap()).unwrap();
           elems
@@ -187,7 +187,7 @@ mod tests {
       (
         "foo".try_into().unwrap(),
         Expr::Array({
-          let mut elems = ArrayVector::new();
+          let mut elems = ArrayVectorU8::new();
           elems.push("1".try_into().unwrap()).unwrap();
           elems.push("2".try_into().unwrap()).unwrap();
           elems.push("3".try_into().unwrap()).unwrap();

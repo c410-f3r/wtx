@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVector, IndexedStorageLen, Vector},
   sync::Arc,
 };
 use alloc::rc::Rc;
@@ -64,7 +64,10 @@ impl<T> SingleTypeStorage for Vector<T> {
   type Item = T;
 }
 
-impl<T, const N: usize> SingleTypeStorage for ArrayVector<T, N> {
+impl<L, T, const N: usize> SingleTypeStorage for ArrayVector<L, T, N>
+where
+  L: IndexedStorageLen,
+{
   type Item = T;
 }
 

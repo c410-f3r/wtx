@@ -1,4 +1,7 @@
-use crate::{collection::Vector, misc::bytes_split1};
+use crate::{
+  collection::{IndexedStorageMut as _, Vector},
+  misc::bytes_split1,
+};
 #[cfg(feature = "std")]
 use std::io::BufRead;
 

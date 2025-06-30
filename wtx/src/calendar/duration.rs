@@ -41,6 +41,11 @@ impl Duration {
   }
 
   /// Creates a new instance from the specified number of milliseconds.
+  #[expect(clippy::arithmetic_side_effects, reason = "divisors ares constants")]
+  #[expect(
+    clippy::cast_possible_truncation,
+    reason = "resulting values of divisions and modules don't extrapolate associated types"
+  )]
   #[inline]
   pub const fn from_milliseconds(milliseconds: i64) -> Self {
     Self {
@@ -75,6 +80,7 @@ impl Duration {
   ///
   ///  If the number of nanosecond is greater than 1 billion (the number of nanosecond in a
   /// second), then it will carry over into the seconds provided.
+  #[expect(clippy::arithmetic_side_effects, reason = "divisor is constant")]
   #[inline]
   pub const fn new(mut seconds: i64, mut nanosecond: i32) -> Result<Duration, CalendarError> {
     match seconds.checked_add(i32i64(nanosecond) / u32i64(NANOSECONDS_PER_SECOND)) {
@@ -90,6 +96,7 @@ impl Duration {
     } else if seconds < 0 && nanosecond > 0 {
       seconds = seconds.wrapping_add(1);
       nanosecond = nanosecond.wrapping_sub(NANOSECONDS_PER_SECOND.cast_signed());
+    } else {
     }
     if seconds == i64::MIN {
       return Err(CalendarError::ArithmeticOverflow);
@@ -98,12 +105,14 @@ impl Duration {
   }
 
   /// Returns the number of days contained in this instance.
+  #[expect(clippy::arithmetic_side_effects, reason = "divisor is constant")]
   #[inline]
   pub const fn days(self) -> i64 {
     self.seconds() / u32i64(SECONDS_PER_DAY)
   }
 
   /// Returns the number of hours contained in this instance.
+  #[expect(clippy::arithmetic_side_effects, reason = "divisor is constant")]
   #[inline]
   pub const fn hours(self) -> i64 {
     self.seconds / u16i64(SECONDS_PER_HOUR)
@@ -116,13 +125,16 @@ impl Duration {
   }
 
   /// Returns the number of minutes contained in this instance.
+  #[expect(clippy::arithmetic_side_effects, reason = "divisor is constant")]
   #[inline]
   pub const fn minutes(self) -> i64 {
     self.seconds / u8i64(SECONDS_PER_MINUTE)
   }
 
   /// Computes `-self`.
+  #[expect(clippy::arithmetic_side_effects, reason = "constructors don't allow `i64::MAX` seconds")]
   #[inline]
+  #[must_use]
   pub const fn neg(self) -> Self {
     Self { seconds: -self.seconds, nanosecond: -self.nanosecond }
   }

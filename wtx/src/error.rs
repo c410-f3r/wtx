@@ -1,7 +1,7 @@
 use crate::{
   calendar::CalendarError,
   collection::{
-    ArrayString, ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
+    ArrayStringError, ArrayStringU8, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
   },
   de::{FromRadix10Error, HexError},
 };
@@ -34,9 +34,6 @@ pub enum Error {
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
-  #[cfg(feature = "cl-aux")]
-  #[doc = associated_element_doc!()]
-  ClAux(cl_aux::Error),
   #[cfg(feature = "crypto-common")]
   #[doc = associated_element_doc!()]
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
@@ -169,7 +166,7 @@ pub enum Error {
     /// Length of the unexpected bytes
     length: u16,
     /// Name of the associated entity
-    ty: ArrayString<8>,
+    ty: ArrayStringU8<9>,
   },
   /// Unexpected end of file when reading from a stream.
   UnexpectedStreamReadEOF,
@@ -283,14 +280,6 @@ impl From<argon2::Error> for Error {
   #[track_caller]
   fn from(from: argon2::Error) -> Self {
     Self::Argon2(from)
-  }
-}
-
-#[cfg(feature = "cl-aux")]
-impl From<cl_aux::Error> for Error {
-  #[inline]
-  fn from(from: cl_aux::Error) -> Self {
-    Self::ClAux(from)
   }
 }
 

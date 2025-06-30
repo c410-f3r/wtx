@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVectorU8, IndexedStorage, Vector},
   http::{
     AutoStream, ManualStream, OperationMode, Response, StatusCode,
     server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
@@ -12,7 +12,7 @@ use core::{marker::PhantomData, ops::ControlFlow};
 pub struct Router<CA, E, EN, M, S, SA> {
   pub(crate) en: EN,
   #[cfg(feature = "matchit")]
-  pub(crate) _matcher: matchit::Router<(ArrayVector<RouteMatch, 4>, OperationMode)>,
+  pub(crate) _matcher: matchit::Router<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>,
   #[cfg(not(feature = "matchit"))]
   pub(crate) _matcher: hashbrown::HashMap<alloc::string::String, OperationMode>,
   pub(crate) middlewares: M,
@@ -34,9 +34,9 @@ where
   #[cfg(feature = "matchit")]
   fn matcher(
     en: &EN,
-  ) -> crate::Result<matchit::Router<(ArrayVector<RouteMatch, 4>, OperationMode)>> {
+  ) -> crate::Result<matchit::Router<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>> {
     let mut vec = Vector::new();
-    en.paths_indices(ArrayVector::new(), &mut vec)?;
+    en.paths_indices(ArrayVectorU8::new(), &mut vec)?;
     let mut matcher = matchit::Router::new();
     for array in vec {
       let [initials @ .., last] = array.as_slice() else {
@@ -58,7 +58,7 @@ where
     paths: &EN,
   ) -> crate::Result<hashbrown::HashMap<alloc::string::String, OperationMode>> {
     let mut paths_indices = Vector::new();
-    paths.paths_indices(ArrayVector::new(), &mut paths_indices)?;
+    paths.paths_indices(ArrayVectorU8::new(), &mut paths_indices)?;
     let mut paths = hashbrown::HashMap::new();
     for array in paths_indices {
       let [first, ..] = array.as_slice() else {
@@ -156,8 +156,8 @@ where
   #[inline]
   fn paths_indices(
     &self,
-    prev: ArrayVector<RouteMatch, 4>,
-    vec: &mut Vector<ArrayVector<RouteMatch, 4>>,
+    prev: ArrayVectorU8<RouteMatch, 4>,
+    vec: &mut Vector<ArrayVectorU8<RouteMatch, 4>>,
   ) -> crate::Result<()> {
     self.en.paths_indices(prev, vec)
   }

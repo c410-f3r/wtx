@@ -106,7 +106,6 @@ impl TryFrom<[u8; 2]> for CalendarToken {
       [0, b'T'] => Self::Separator,
       [0, b'/'] => Self::Slash,
       [0, b' '] => Self::Space,
-      [b'z', b'?'] => Self::TimeZone,
       [0, b'd'] => Self::TwoDigitDay,
       [0, b'H'] => Self::TwoDigitHour,
       [0, b'M'] => Self::TwoDigitMinute,
@@ -114,7 +113,7 @@ impl TryFrom<[u8; 2]> for CalendarToken {
       [0, b'S'] => Self::TwoDigitSecond,
       [0, b'y'] => Self::TwoDigitYear,
       [0, b'e'] => Self::TwoSpaceDay,
-      [0, b'Z'] => Self::TimeZone,
+      [0, b'Z'] | [b'z', b'?'] => Self::TimeZone,
       _ => return Err(CalendarError::UnknownParsingFormat.into()),
     })
   }

@@ -53,7 +53,7 @@ macro_rules! impl_tuples {
     #[cfg(feature = "http-server-framework")]
     mod http_server_framework {
       use crate::{
-        collection::{ArrayVector, Vector},
+        collection::{ArrayVectorU8, Vector},
         http::{
           OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
           ReqResBuffer, Response,
@@ -225,10 +225,11 @@ macro_rules! impl_tuples {
           #[inline]
           fn paths_indices(
             &self,
-            _prev: ArrayVector<RouteMatch, 4>,
-            _vec: &mut Vector<ArrayVector<RouteMatch, 4>>
+            _prev: ArrayVectorU8<RouteMatch, 4>,
+            _vec: &mut Vector<ArrayVectorU8<RouteMatch, 4>>
           ) -> crate::Result<()> {
             $({
+              use crate::collection::IndexedStorageMut;
               let mut local_prev = _prev.clone();
               local_prev.push(RouteMatch::new($N, $T::OM, self.$N.full_path))?;
               if $T::IS_ROUTER {

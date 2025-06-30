@@ -9,6 +9,7 @@ macro_rules! manage_out_of_bounds {
     } else if $elem < $min {
       $elem = $elem.wrapping_add($max.wrapping_sub($min));
       $lesser
+    } else {
     }
   };
 }

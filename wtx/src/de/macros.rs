@@ -130,8 +130,9 @@ macro_rules! _impl_se_collections {
     )?
 
     $(
-      impl<T, const N: usize> crate::de::Encode<crate::de::format::De<$drsr>> for crate::collection::ArrayVector<T, N>
+      impl<L, T, const N: usize> crate::de::Encode<crate::de::format::De<$drsr>> for crate::collection::ArrayVector<L, T, N>
       where
+        L: crate::collection::IndexedStorageLen,
         T: $bound,
       {
         #[inline]

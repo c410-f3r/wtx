@@ -77,7 +77,10 @@ mod kani {
 
 #[cfg(test)]
 mod tests {
-  use crate::{collection::Vector, web_socket::unmask::unmask};
+  use crate::{
+    collection::{IndexedStorageMut, Vector},
+    web_socket::unmask::unmask,
+  };
 
   #[test]
   fn length_variation_unmask() {

@@ -5,6 +5,7 @@ mod prepare;
 mod simple_query;
 
 use crate::{
+  collection::IndexedStorageMut,
   database::{
     Database, Executor, RecordValues, StmtCmd,
     client::{

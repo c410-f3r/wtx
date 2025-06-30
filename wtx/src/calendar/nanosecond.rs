@@ -36,8 +36,8 @@ impl Nanosecond {
     match Millisecond::from_num((self.0 / NANOSECONDS_PER_MILLISECOND) as u16) {
       Ok(elem) => elem,
       Err(_err) => {
-        // SAFETY: The maximum value of this instance divided by `NANOSECONDS_PER_MICROSECONDS`
-        // will never overflow the maximum allowed value.
+        // SAFETY: the maximum value of this instance divided by `NANOSECONDS_PER_MICROSECONDS`
+        //         will never overflow the maximum allowed value.
         unsafe { hint::unreachable_unchecked() }
       }
     }
@@ -49,8 +49,8 @@ impl Nanosecond {
     match Microsecond::from_num(self.0 / NANOSECONDS_PER_MICROSECONDS) {
       Ok(elem) => elem,
       Err(_err) => {
-        // SAFETY: The maximum value of this instance divided by `NANOSECONDS_PER_MICROSECONDS`
-        // will never overflow the maximum allowed value.
+        // SAFETY: the maximum value of this instance divided by `NANOSECONDS_PER_MICROSECONDS`
+        //         will never overflow the maximum allowed value.
         unsafe { hint::unreachable_unchecked() }
       }
     }

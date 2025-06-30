@@ -1,4 +1,5 @@
 use crate::{
+  collection::IndexedStorageMut,
   database::{
     DatabaseError, Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams},

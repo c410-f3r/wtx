@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVectorU8, IndexedStorageMut, Vector},
   database::{
     Executor,
     client::mysql::{
@@ -85,7 +85,7 @@ where
   }
 
   pub(crate) async fn connect2<RNG, const IS_TLS: bool>(
-    auth_plugin_data: ([u8; 8], ArrayVector<u8, 24>),
+    auth_plugin_data: ([u8; 8], ArrayVectorU8<u8, 24>),
     (capabilities, sequence_id): (&mut u64, &mut u8),
     config: &Config<'_>,
     encode_buffer: &mut Vector<u8>,

@@ -137,7 +137,10 @@ mod serde_json {
 
 #[cfg(feature = "serde_urlencoded")]
 mod urlencoded {
-  use crate::de::{DecError, format::Urlencoded, protocol::VerbatimDecoder};
+  use crate::{
+    collection::IndexedStorageMut,
+    de::{DecError, format::Urlencoded, protocol::VerbatimDecoder},
+  };
   use serde::{Deserialize, Serialize};
 
   _impl_dec! {

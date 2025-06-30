@@ -26,7 +26,7 @@ macro_rules! init {
 }
 
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   http::{Headers, Trailers},
   http2::{
     Http2Buffer, Http2Data, Http2Error, Http2SendStatus, SendDataMode,

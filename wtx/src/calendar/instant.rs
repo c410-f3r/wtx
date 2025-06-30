@@ -41,7 +41,6 @@ impl Instant {
   /// Returns a new `DateTime` instance with the current date and time in UTC based on the
   /// UNIX epoch.
   ///
-  #[cfg(feature = "calendar")]
   #[doc = doc_epoch!()]
   #[inline]
   pub fn now_date_time(

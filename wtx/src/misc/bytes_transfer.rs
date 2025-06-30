@@ -53,7 +53,7 @@ where
     }
     new_len = local_new_len;
   }
-  // SAFETY: Top-level check enforces bounds
+  // SAFETY: top-level check enforces bounds
   unsafe { slice.get_unchecked_mut(..new_len) }
 }
 

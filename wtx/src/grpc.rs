@@ -9,7 +9,7 @@ mod grpc_middleware;
 mod grpc_status_code;
 
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   de::{
     Encode,
     format::{De, EncodeWrapper},

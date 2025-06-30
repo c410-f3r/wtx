@@ -1,4 +1,7 @@
-use crate::http::{ReqResBuffer, Request, StatusCode};
+use crate::{
+  collection::IndexedStorageMut,
+  http::{ReqResBuffer, Request, StatusCode},
+};
 
 /// Modifies responses
 pub trait ResFinalizer<E> {

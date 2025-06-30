@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, Vector},
+  collection::{ArrayVectorU8, Vector},
   http::{
     AutoStream, ManualStream, OperationMode, StatusCode, is_web_socket_handshake,
     server_framework::{Endpoint, EndpointNode, RouteMatch, ServerFrameworkError},
@@ -73,8 +73,8 @@ where
   #[inline]
   fn paths_indices(
     &self,
-    _: ArrayVector<RouteMatch, 4>,
-    _: &mut Vector<ArrayVector<RouteMatch, 4>>,
+    _: ArrayVectorU8<RouteMatch, 4>,
+    _: &mut Vector<ArrayVectorU8<RouteMatch, 4>>,
   ) -> crate::Result<()> {
     Ok(())
   }

@@ -4,7 +4,6 @@ arbitrary = { default-features = false, features = ["derive_arbitrary"], optiona
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
-cl-aux = { default-features = false, optional = true, features = ["alloc"], version = "5.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
 crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.3" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.0" }
@@ -55,7 +54,6 @@ wtx = { default-features = false, features = ["executor"], path = "." }
 32-tuple-impls = []
 arbitrary = ["dep:arbitrary", "std"]
 borsh = ["borsh/std", "std"]
-calendar = []
 client-api-framework = []
 crossbeam-channel = ["crossbeam-channel/std", "std"]
 database = []
@@ -67,7 +65,7 @@ grpc-client = ["grpc", "http-client-pool"]
 grpc-server = ["grpc", "http-server-framework"]
 http = []
 http-client-pool = ["http2", "pool", "std"]
-http-cookie = ["calendar", "http"]
+http-cookie = ["http"]
 http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
 http-server-framework = ["http2"]
 http-session = ["http-cookie-secure", "serde_json"]
@@ -83,9 +81,8 @@ postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbr
 quick-protobuf = ["quick-protobuf/std", "std"]
 rand-compat = ["rand_core"]
 rustls = ["dep:rustls", "rustls-pki-types"]
-schema-manager = ["calendar", "database"]
+schema-manager = ["database"]
 schema-manager-dev = ["schema-manager"]
-serde = ["cl-aux?/serde", "dep:serde"]
 serde_json = ["serde", "serde_json/std", "std"]
 serde_urlencoded = ["serde", "dep:serde_urlencoded", "std"]
 std = []

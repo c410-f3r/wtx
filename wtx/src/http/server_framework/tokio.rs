@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayVector,
+  collection::ArrayVectorU8,
   http::{
     AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Request,
     Response,
@@ -32,7 +32,7 @@ where
   SA: StreamAux,
 {
   async fn auto(
-    headers_aux: (ArrayVector<RouteMatch, 4>, Arc<Router<CA, E, EN, M, S, SA>>),
+    headers_aux: (ArrayVectorU8<RouteMatch, 4>, Arc<Router<CA, E, EN, M, S, SA>>),
     mut auto_stream: AutoStream<CA, SA>,
   ) -> Result<Response<ReqResBuffer>, E> {
     let status_code = headers_aux.1.auto(&mut auto_stream, (0, &headers_aux.0)).await?;
@@ -42,12 +42,12 @@ where
   pub(crate) fn route_params(
     path: &str,
     router: &Arc<Router<CA, E, EN, M, S, SA>>,
-  ) -> Result<(ArrayVector<RouteMatch, 4>, OperationMode), E> {
+  ) -> Result<(ArrayVectorU8<RouteMatch, 4>, OperationMode), E> {
     #[cfg(feature = "matchit")]
     return Ok(router._matcher.at(path).map_err(From::from)?.value.clone());
     #[cfg(not(feature = "matchit"))]
     return Ok((
-      ArrayVector::new(),
+      ArrayVectorU8::new(),
       *router
         ._matcher
         .get(path)
@@ -108,7 +108,7 @@ where
   }
 
   async fn tokio_manual(
-    headers_aux: (ArrayVector<RouteMatch, 4>, Arc<Router<CA, E, EN, M, Stream, SA>>),
+    headers_aux: (ArrayVectorU8<RouteMatch, 4>, Arc<Router<CA, E, EN, M, Stream, SA>>),
     manual_stream: ManualServerStreamTokio<CA, Http2Buffer, SA, OwnedWriteHalf>,
   ) -> Result<(), E> {
     headers_aux.1.en.manual(manual_stream, (0, &headers_aux.0)).await?;
@@ -176,7 +176,7 @@ where
   }
 
   async fn tokio_rustls_manual(
-    headers_aux: (ArrayVector<RouteMatch, 4>, Arc<Router<CA, E, EN, M, StreamRustls, SA>>),
+    headers_aux: (ArrayVectorU8<RouteMatch, 4>, Arc<Router<CA, E, EN, M, StreamRustls, SA>>),
     manual_stream: ManualServerStreamTokio<
       CA,
       Http2Buffer,

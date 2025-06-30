@@ -39,7 +39,6 @@ macro_rules! test {
   };
 }
 
-#[cfg(feature = "calendar")]
 mod calendar;
 mod collection;
 mod primitives;

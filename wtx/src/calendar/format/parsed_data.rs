@@ -94,6 +94,11 @@ where
           bytes,
           &mut time_zone_opt,
           |local_time_zone_opt, is_neg, hour, after_hour| {
+            fn change_sign(num: i16, is_neg: bool) -> i16 {
+              #[expect(clippy::arithmetic_side_effects, reason = "callers never pass `i16::MAX`")]
+              if is_neg { -num } else { num }
+            }
+
             if let Some((minute, after_minute)) = minute(after_hour) {
               *local_time_zone_opt = Some(change_sign(hour.wrapping_add(minute), is_neg));
               Ok(after_minute)
@@ -189,10 +194,6 @@ where
       _ => Err(CalendarError::IncompleteParsingParams.into()),
     }
   }
-}
-
-fn change_sign(num: i16, is_neg: bool) -> i16 {
-  if is_neg { -num } else { num }
 }
 
 fn check_weekday(date: Date, weekday_opt: Option<Weekday>) -> crate::Result<()> {

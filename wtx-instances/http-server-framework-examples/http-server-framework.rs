@@ -8,7 +8,6 @@ extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
-use crate::wtx::rng::SeedableRng;
 use core::{fmt::Write, ops::ControlFlow};
 use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
@@ -22,7 +21,7 @@ use wtx::{
   },
   http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
   pool::{PostgresRM, SimplePoolTokio},
-  rng::ChaCha20,
+  rng::{ChaCha20, SeedableRng},
 };
 
 type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;

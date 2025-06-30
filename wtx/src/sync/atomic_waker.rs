@@ -62,7 +62,7 @@ impl AtomicWaker {
   pub fn take(&self) -> Option<Waker> {
     match self.state.fetch_or(WAKING, Ordering::AcqRel) {
       WAITING => {
-        // SAFETY: Lock was acquire through `fetch_or` so the last waker can be retrieved.
+        // SAFETY: lock was acquire through `fetch_or` so the last waker can be retrieved.
         let waker = unsafe { (*self.waker.get()).take() };
         let _ = self.state.fetch_and(!WAKING, Ordering::Release);
         waker
@@ -94,10 +94,10 @@ impl Default for AtomicWaker {
   }
 }
 
-// SAFETY: Concurrent access is manually managed
+// SAFETY: concurrent access is manually managed
 unsafe impl Send for AtomicWaker {}
 
-// SAFETY: Concurrent access is manually managed
+// SAFETY: concurrent access is manually managed
 unsafe impl Sync for AtomicWaker {}
 
 #[cfg(test)]

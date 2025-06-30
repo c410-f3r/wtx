@@ -52,7 +52,6 @@ required-features = ["database-client-postgres-enum"]
 [[example]]
 name = "calendar"
 path = "generic-examples/calendar.rs"
-required-features = ["calendar"]
 
 [[example]]
 name = "client-api-framework"
@@ -159,7 +158,6 @@ database-client-postgres = ["postgres"]
 database-client-postgres-composite-type = ["postgres"]
 database-client-postgres-enum = ["postgres"]
 
-calendar = ["wtx/calendar"]
 client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
 executor = ["wtx/executor", "wtx/macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]

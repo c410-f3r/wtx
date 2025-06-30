@@ -9,7 +9,7 @@ use crate::{
     misc::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
     nanosecond::Nanosecond,
   },
-  collection::ArrayString,
+  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
   de::u32_string,
 };
 use core::{
@@ -103,7 +103,7 @@ impl Time {
 
   /// ISO-8601 string representation
   #[inline]
-  pub fn iso_8601(self) -> ArrayString<18> {
+  pub fn iso_8601(self) -> ArrayStringU8<18> {
     let mut array = ArrayString::new();
     let _rslt0 = array.push_str(self.hour().num_str());
     let _rslt1 = array.push(':');
@@ -132,6 +132,7 @@ impl Time {
 
   /// Adds the given `duration` to the current time, returning the number of *seconds*
   /// in the integral number of days ignored from the addition.
+  #[inline]
   #[must_use]
   pub const fn overflowing_add(self, duration: Duration) -> (Self, i64) {
     if duration.is_zero() {
@@ -172,9 +173,10 @@ impl Time {
 
   /// Subtracts the given `duration` from the current time, returning the number of *seconds*
   /// in the integral number of days ignored from the subtraction.
-  #[must_use]
+  #[inline]
   pub const fn overflowing_sub(self, duration: Duration) -> (Self, i64) {
     let (time, rhs) = self.overflowing_add(duration.neg());
+    #[expect(clippy::arithmetic_side_effects, reason = "`rhs` will never reach `i64::MAX`")]
     (time, -rhs)
   }
 
@@ -204,6 +206,7 @@ impl Time {
 
   /// Returns a new instance with the number of nanoseconds totally erased.
   #[inline]
+  #[must_use]
   pub const fn trunc_to_sec(self) -> Self {
     let mut new = self;
     new.nanosecond = Nanosecond::ZERO;
@@ -212,12 +215,22 @@ impl Time {
 
   /// Returns a new instance with the number of nanoseconds truncated to microseconds.
   #[inline]
+  #[must_use]
   pub const fn trunc_to_us(self) -> Self {
     let mut new = self;
     new.nanosecond = new.nanosecond.to_us().to_ns();
     new
   }
 
+  #[expect(clippy::arithmetic_side_effects, reason = "divisors are constants")]
+  #[expect(
+    clippy::cast_possible_truncation,
+    reason = "resulting values of divisions and modules don't extrapolate associated types"
+  )]
+  #[expect(
+    clippy::cast_sign_loss,
+    reason = "resulting values of divisions and modules don't extrapolate associated types"
+  )]
   pub(crate) const fn hms_from_seconds(seconds: i64) -> (i32, u8, u8, u8) {
     let day_seconds = seconds.rem_euclid(u32i64(SECONDS_PER_DAY)) as i32;
     let hour = (day_seconds / u16i32(SECONDS_PER_HOUR)) as u8;

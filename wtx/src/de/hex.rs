@@ -1,4 +1,4 @@
-use crate::collection::{ArrayString, ArrayVector};
+use crate::collection::{ArrayString, ArrayVector, IndexedStorageLen};
 use core::fmt::{Display, Formatter};
 
 /// Errors of hexadecimal operations
@@ -29,8 +29,10 @@ impl<const HAS_PREFIX: bool> Display for HexDisplay<'_, HAS_PREFIX> {
   }
 }
 
-impl<'bytes, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
-  for ArrayString<N>
+impl<'bytes, L, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
+  for ArrayString<L, N>
+where
+  L: IndexedStorageLen,
 {
   type Error = crate::Error;
 
@@ -40,8 +42,10 @@ impl<'bytes, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, 
   }
 }
 
-impl<'bytes, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
-  for ArrayVector<u8, N>
+impl<'bytes, L, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
+  for ArrayVector<L, u8, N>
+where
+  L: IndexedStorageLen,
 {
   type Error = crate::Error;
 
@@ -87,19 +91,19 @@ fn hex_byte(lhs: u8, rhs: u8) -> crate::Result<u8> {
 #[cfg(test)]
 mod test {
   use crate::{
-    collection::ArrayVector,
+    collection::{ArrayVectorU8, IndexedStorage},
     de::{HexDisplay, decode_hex_to_slice},
   };
 
   #[test]
   fn decode_hex_to_slice_has_correct_output() {
     {
-      let mut bufer = ArrayVector::from_array([0; 8]);
+      let mut bufer = ArrayVectorU8::from_array([0; 8]);
       let _ = decode_hex_to_slice::<false>(b"61626364", &mut bufer).unwrap();
       assert_eq!(bufer.as_slice(), b"abcd\0\0\0\0");
     }
     {
-      let mut bufer = ArrayVector::from_array([0; 8]);
+      let mut bufer = ArrayVectorU8::from_array([0; 8]);
       let _ = decode_hex_to_slice::<true>(b"0x6162636465", &mut bufer).unwrap();
       assert_eq!(bufer.as_slice(), b"abcde\0\0\0");
     }
@@ -111,11 +115,11 @@ mod test {
   #[test]
   fn hex_display() {
     assert_eq!(
-      &ArrayVector::<u8, 16>::try_from(format_args!("{}", HexDisplay::<false>(b"abcd"))).unwrap(),
+      &ArrayVectorU8::<u8, 16>::try_from(format_args!("{}", HexDisplay::<false>(b"abcd"))).unwrap(),
       "61626364".as_bytes()
     );
     assert_eq!(
-      &ArrayVector::<u8, 16>::try_from(format_args!("{}", HexDisplay::<true>(b"abcd"))).unwrap(),
+      &ArrayVectorU8::<u8, 16>::try_from(format_args!("{}", HexDisplay::<true>(b"abcd"))).unwrap(),
       "0x61626364".as_bytes()
     );
   }

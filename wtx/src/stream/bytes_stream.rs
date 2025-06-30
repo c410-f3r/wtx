@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut as _, Vector},
   stream::{StreamReader, StreamWriter},
 };
 use core::cmp::Ordering;

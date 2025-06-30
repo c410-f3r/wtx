@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   database::{
     Database, DatabaseTy, FromRecords,
     executor::Executor,

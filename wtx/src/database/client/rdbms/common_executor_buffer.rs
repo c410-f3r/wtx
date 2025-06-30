@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   database::client::rdbms::statements::Statements,
   misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
   rng::Rng,

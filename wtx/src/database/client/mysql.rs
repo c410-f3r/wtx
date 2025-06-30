@@ -109,7 +109,7 @@ impl<E> Default for Mysql<E> {
 
 mod array {
   use crate::{
-    collection::ArrayString,
+    collection::{ArrayString, IndexedStorageLen},
     database::{
       FromRecords, FromRecordsParams, Record,
       client::mysql::{Mysql, MysqlRecord, MysqlRecords},
@@ -117,9 +117,10 @@ mod array {
     misc::{from_utf8_basic, into_rslt},
   };
 
-  impl<'exec, E, const N: usize> FromRecords<'exec, Mysql<E>> for ArrayString<N>
+  impl<'exec, E, L, const N: usize> FromRecords<'exec, Mysql<E>> for ArrayString<L, N>
   where
     E: From<crate::Error>,
+    L: IndexedStorageLen,
   {
     const FIELDS: u16 = 1;
     const ID_IDX: Option<usize> = None;

@@ -217,9 +217,6 @@ fn log_req(_peer: &IpAddr, _req: &Request<ReqResBuffer>) {
   let _path = _req.rrd.uri.path();
   let _version = _req.version.strings().custom[0];
   let _time = Instant::now_timestamp(0).unwrap_or_default().as_secs().cast_signed();
-  #[cfg(feature = "calendar")]
   let _time_display = crate::calendar::DateTime::from_timestamp_secs(_time).unwrap_or_default();
-  #[cfg(not(feature = "calendar"))]
-  let _time_display = _time;
   _debug!(r#"{_peer} [{_time_display}] "{_method} {_path} {_version}""#,);
 }

@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, TimeZone},
-  collection::ArrayString,
+  collection::{ArrayString, ArrayStringU8},
 };
 
 /// Local time.
@@ -17,12 +17,12 @@ impl TimeZone for Local {
       return Err(
         CalendarError::InvalidTimezoneSeconds { expected: None, received: minutes }.into(),
       );
-    };
+    }
     Ok(Self)
   }
 
   #[inline]
-  fn iso_8601(self) -> ArrayString<6> {
+  fn iso_8601(self) -> ArrayStringU8<6> {
     ArrayString::new()
   }
 

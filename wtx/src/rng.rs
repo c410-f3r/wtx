@@ -255,7 +255,7 @@ where
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::Vector,
+    collection::{IndexedStorageMut, Vector},
     rng::{Rng, Xorshift64},
   };
 

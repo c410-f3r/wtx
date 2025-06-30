@@ -8,6 +8,7 @@ macro_rules! call_tests {
 }
 
 use crate::{
+  collection::IndexedStorage,
   executor::Runtime,
   misc::sleep,
   rng::Xorshift64,

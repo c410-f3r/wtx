@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayString,
+  collection::{ArrayString, IndexedStorage, IndexedStorageLen, IndexedStorageMut},
   database::{
     Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams, misc::encoded_len},
@@ -48,27 +48,30 @@ where
 
 // ArrayString
 
-impl<E, const N: usize> Decode<'_, Mysql<E>> for ArrayString<N>
+impl<E, L, const N: usize> Decode<'_, Mysql<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
     Ok(<&str as Decode<Mysql<E>>>::decode(aux, dw)?.try_into()?)
   }
 }
-impl<E, const N: usize> Encode<Mysql<E>> for ArrayString<N>
+impl<E, L, const N: usize> Encode<Mysql<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
     <&str as Encode<Mysql<E>>>::encode(&self.as_str(), aux, ew)
   }
 }
-impl<E, const N: usize> Typed<Mysql<E>> for ArrayString<N>
+impl<E, L, const N: usize> Typed<Mysql<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
+  L: IndexedStorageLen,
 {
   #[inline]
   fn runtime_ty(&self) -> Option<TyParams> {

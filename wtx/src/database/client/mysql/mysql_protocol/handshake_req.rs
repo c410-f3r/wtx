@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayVector,
+  collection::{ArrayVectorU8, IndexedStorageMut},
   database::client::mysql::{
     auth_plugin::AuthPlugin,
     capability::Capability,
@@ -14,7 +14,7 @@ use crate::{
 
 pub(crate) struct HandshakeReq<'bytes> {
   pub(crate) auth_plugin: Option<AuthPlugin>,
-  pub(crate) auth_response: Option<ArrayVector<u8, 32>>,
+  pub(crate) auth_response: Option<ArrayVectorU8<u8, 32>>,
   pub(crate) collation: Collation,
   pub(crate) database: Option<&'bytes str>,
   pub(crate) max_packet_size: u32,

@@ -1,4 +1,5 @@
 use crate::{
+  collection::IndexedStorageMut,
   http::ReqResBuffer,
   http2::{
     Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params, Http2RecvStatus,

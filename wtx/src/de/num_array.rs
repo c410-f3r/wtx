@@ -1,42 +1,42 @@
-use crate::collection::ArrayString;
+use crate::collection::ArrayStringU8;
 use core::ops::{DivAssign, Rem};
 
 /// Array string that can store an `i16` number.
-pub type I16String = ArrayString<6>;
+pub type I16String = ArrayStringU8<6>;
 /// Array string that can store an `u8` number.
-pub type U8String = ArrayString<3>;
+pub type U8String = ArrayStringU8<3>;
 /// Array string that can store an `u16` number.
-pub type U16String = ArrayString<5>;
+pub type U16String = ArrayStringU8<5>;
 /// Array string that can store an `u32` number.
-pub type U32String = ArrayString<10>;
+pub type U32String = ArrayStringU8<10>;
 /// Array string that can store an `u64` number.
-pub type U64String = ArrayString<20>;
+pub type U64String = ArrayStringU8<20>;
 
-/// Transforms an `i16` into an [`ArrayString`].
+/// Transforms an `i16` into an [`ArrayStringU8`].
 #[inline]
 pub fn i16_string(value: i16) -> I16String {
   num_string::<true, 6, 6, i16>(value, i16::abs)
 }
 
-/// Transforms an `u8` into an [`ArrayString`].
+/// Transforms an `u8` into an [`ArrayStringU8`].
 #[inline]
 pub fn u8_string(value: u8) -> U8String {
   num_string::<false, 3, 3, u8>(value, |el| el)
 }
 
-/// Transforms an `u16` into an [`ArrayString`].
+/// Transforms an `u16` into an [`ArrayStringU8`].
 #[inline]
 pub fn u16_string(value: u16) -> U16String {
   num_string::<false, 5, 5, u16>(value, |el| el)
 }
 
-/// Transforms an `u32` into an [`ArrayString`].
+/// Transforms an `u32` into an [`ArrayStringU8`].
 #[inline]
 pub fn u32_string(value: u32) -> U32String {
   num_string::<false, 10, 10, u32>(value, |el| el)
 }
 
-/// Fills an `u64` into an [`ArrayString`].
+/// Fills an `u64` into an [`ArrayStringU8`].
 #[inline]
 pub fn u64_string(value: u64) -> U64String {
   num_string::<false, 20, 20, u64>(value, |el| el)
@@ -49,7 +49,7 @@ pub fn u64_string(value: u64) -> U64String {
 fn num_string<const IS_SIGNED: bool, const U8: u8, const USIZE: usize, T>(
   mut value: T,
   mut abs: impl FnMut(T) -> T,
-) -> ArrayString<USIZE>
+) -> ArrayStringU8<USIZE>
 where
   T: Copy + DivAssign + From<u8> + PartialEq + PartialOrd + Rem<Output = T>,
   u8: TryFrom<T>,
@@ -57,7 +57,7 @@ where
   let zero = T::from(0);
   if value == zero {
     // SAFETY: '0' is ASCII
-    return unsafe { ArrayString::from_parts_unchecked([b'0'; USIZE], 1) };
+    return unsafe { ArrayStringU8::from_parts_unchecked([b'0'; USIZE], 1) };
   }
   let ten = T::from(10);
   let is_neg = value < zero;
@@ -88,8 +88,8 @@ where
   let len = U8.wrapping_sub(idx);
   let slice = data.get_mut(..usize::from(len)).unwrap_or_default();
   slice.copy_from_slice(buffer.get(usize::from(idx)..).unwrap_or_default());
-  // SAFETY: Numbers are ASCII
-  unsafe { ArrayString::from_parts_unchecked(data, len.into()) }
+  // SAFETY: numbers are ASCII
+  unsafe { ArrayStringU8::from_parts_unchecked(data, len) }
 }
 
 #[cfg(test)]

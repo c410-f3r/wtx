@@ -2,7 +2,7 @@ pub(crate) mod with_schema;
 pub(crate) mod without_schema;
 
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   database::schema_manager::{
     Commands, SchemaManagement, UserMigrationGroup, integration_tests::AuxTestParams,
   },

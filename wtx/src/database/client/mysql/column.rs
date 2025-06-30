@@ -22,7 +22,7 @@ impl Column {
 impl Lease<str> for Column {
   #[inline]
   fn lease(&self) -> &str {
-    self.name.as_str()
+    &self.name
   }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{IndexedStorageMut as _, Vector},
   misc::{Lease, LeaseMut},
 };
 use core::{
@@ -312,12 +312,12 @@ impl Headers {
       is_trailer,
       name: {
         let str = bytes.get(header_begin..header_name_end).unwrap_or_default();
-        // SAFETY: Input methods only accept UTF-8 data
+        // SAFETY: input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
       value: {
         let str = bytes.get(header_name_end..header_end).unwrap_or_default();
-        // SAFETY: Input methods only accept UTF-8 data
+        // SAFETY: input methods only accept UTF-8 data
         unsafe { str::from_utf8_unchecked(str) }
       },
     }
