@@ -38,13 +38,14 @@ impl<L, const N: usize> ArrayString<L, N>
 where
   L: IndexedStorageLen,
 {
-  const _INSTANCE_CHECK: () = {
+  const INSTANCE_CHECK: () = {
     assert!(N <= L::UPPER_BOUND_USIZE);
   };
 
   /// Constructs a new instance from a complete byte array.
   #[inline]
   pub fn from_array(data: [u8; N]) -> crate::Result<Self> {
+    const { Self::INSTANCE_CHECK };
     Self::from_parts(data, L::UPPER_BOUND)
   }
 
@@ -53,6 +54,7 @@ where
   /// If `len` is greater than the capacity, then `len` will be truncated to `N`.
   #[inline]
   pub fn from_parts(data: [u8; N], len: L) -> crate::Result<Self> {
+    const { Self::INSTANCE_CHECK };
     let instance_len = if len > L::UPPER_BOUND { L::UPPER_BOUND } else { len };
     let _ = from_utf8_basic(data.get(..instance_len.usize()).unwrap_or_default())?;
     // SAFETY: delimited data is UTF-8
@@ -68,25 +70,28 @@ where
   /// It is up to the caller to provide valid UTF-8 bytes until `len`.
   #[inline]
   pub unsafe fn from_parts_unchecked(data: [u8; N], len: L) -> Self {
+    const { Self::INSTANCE_CHECK };
     Self { len: if len > L::UPPER_BOUND { L::UPPER_BOUND } else { len }, data }
   }
 
   /// Constructs a new, empty instance.
   #[inline]
   pub const fn new() -> Self {
+    const { Self::INSTANCE_CHECK };
     Self { len: L::ZERO, data: [0; N] }
   }
 
   /// Constructs a new instance full of `NULL` characters.
   #[inline]
   pub const fn zeroed() -> Self {
+    const { Self::INSTANCE_CHECK };
     Self { len: L::UPPER_BOUND, data: [0; N] }
   }
 
   /// The filled elements that composed a string.
   #[inline]
   pub fn array(&self) -> crate::Result<&[u8; N]> {
-    if self.len == L::UPPER_BOUND {
+    if self.len.usize() == N {
       return Ok(&self.data);
     }
     Err(ArrayStringError::IncompleteArray.into())
