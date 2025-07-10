@@ -42,13 +42,14 @@ impl<L, T, const N: usize> ArrayVector<L, T, N>
 where
   L: IndexedStorageLen,
 {
-  const _INSTANCE_CHECK: () = {
+  const INSTANCE_CHECK: () = {
     assert!(N <= L::UPPER_BOUND_USIZE);
   };
 
   /// Constructs a new instance from a fully initialized array.
   #[inline]
   pub fn from_array(array: [T; N]) -> Self {
+    const { Self::INSTANCE_CHECK };
     let mut this = Self::new();
     // `_INSTANCE_CHECK` makes this conversion infallible
     this.len = L::from_usize(N).unwrap_or_default();
@@ -70,6 +71,7 @@ where
       assert!(M <= L::UPPER_BOUND_USIZE);
       assert!(M <= N);
     }
+    const { Self::INSTANCE_CHECK };
     // The initial check makes this conversion infallible.
     let data_len = L::from_usize(M).unwrap_or_default();
     let mut instance_len = data_len;
@@ -99,6 +101,7 @@ where
   /// Constructs a new empty instance.
   #[inline]
   pub const fn new() -> Self {
+    const { Self::INSTANCE_CHECK };
     Self { len: L::ZERO, data: [const { MaybeUninit::uninit() }; N] }
   }
 
@@ -610,7 +613,6 @@ mod serde {
   use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{self, SeqAccess, Visitor},
-    ser::SerializeTuple,
   };
 
   impl<'de, L, T, const N: usize> Deserialize<'de> for ArrayVector<L, T, N>
@@ -623,9 +625,9 @@ mod serde {
     where
       DE: Deserializer<'de>,
     {
-      struct ArrayVisitor<L, T, const N: usize>(PhantomData<(L, T)>);
+      struct LocalVisitor<L, T, const N: usize>(PhantomData<(L, T)>);
 
-      impl<'de, L, T, const N: usize> Visitor<'de> for ArrayVisitor<L, T, N>
+      impl<'de, L, T, const N: usize> Visitor<'de> for LocalVisitor<L, T, N>
       where
         L: IndexedStorageLen,
         T: Deserialize<'de>,
@@ -652,7 +654,7 @@ mod serde {
         }
       }
 
-      deserializer.deserialize_seq(ArrayVisitor::<L, T, N>(PhantomData))
+      deserializer.deserialize_seq(LocalVisitor::<L, T, N>(PhantomData))
     }
   }
 
@@ -666,11 +668,7 @@ mod serde {
     where
       S: Serializer,
     {
-      let mut seq = serializer.serialize_tuple(N)?;
-      for elem in self.iter() {
-        seq.serialize_element(elem)?;
-      }
-      seq.end()
+      serializer.collect_seq(self)
     }
   }
 }

@@ -8,6 +8,25 @@ use crate::{
 pub struct DynTz(i16);
 
 impl DynTz {
+  /// Brasília Time
+  pub const BRT: DynTz = DynTz(-180);
+  /// Central European Time
+  pub const CET: DynTz = DynTz(60);
+  /// Central Standard Time
+  pub const CST: DynTz = DynTz(-360);
+  /// Eastern Standard Time
+  pub const EST: DynTz = DynTz(-300);
+  /// Greenwich Mean Time
+  pub const GMT: DynTz = DynTz(0);
+  /// Indian Standard Time
+  pub const IST: DynTz = DynTz(-330);
+  /// Japan Standard Time
+  pub const JST: DynTz = DynTz(540);
+  /// Pacific Standard Time
+  pub const PST: DynTz = DynTz(-480);
+  /// Coordinated Universal Time
+  pub const UTC: DynTz = DynTz(0);
+
   /// Constant version of [`TimeZone::from_minutes`].
   #[inline]
   pub const fn new(minutes: i16) -> Result<Self, CalendarError> {

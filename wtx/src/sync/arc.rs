@@ -30,6 +30,24 @@ impl<T> Arc<T> {
     #[cfg(not(feature = "portable-atomic-util"))]
     return alloc::sync::Arc::get_mut(&mut this.0);
   }
+
+  /// Returns the inner value, if the Arc has exactly one strong reference.
+  #[inline]
+  pub fn into_inner(this: Self) -> Option<T> {
+    #[cfg(feature = "portable-atomic-util")]
+    return portable_atomic_util::Arc::into_inner(this.0);
+    #[cfg(not(feature = "portable-atomic-util"))]
+    return alloc::sync::Arc::into_inner(this.0);
+  }
+
+  /// Gets the number of strong pointers to this allocation.
+  #[inline]
+  pub fn strong_count(this: &Self) -> usize {
+    #[cfg(feature = "portable-atomic-util")]
+    return portable_atomic_util::Arc::strong_count(&this.0);
+    #[cfg(not(feature = "portable-atomic-util"))]
+    return alloc::sync::Arc::strong_count(&this.0);
+  }
 }
 
 impl<T> Clone for Arc<T> {
