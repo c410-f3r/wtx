@@ -2,6 +2,7 @@
 
 mod array_string;
 mod array_vector;
+mod array_wrapper;
 mod blocks_deque;
 mod clear;
 mod deque;
@@ -15,6 +16,7 @@ pub use array_string::{
 pub use array_vector::{
   ArrayIntoIter, ArrayVector, ArrayVectorError, ArrayVectorU8, ArrayVectorU16, ArrayVectorU32,
 };
+pub use array_wrapper::ArrayWrapper;
 pub use blocks_deque::{Block, BlocksDeque, BlocksDequeBuilder, BlocksDequeError};
 pub use clear::Clear;
 pub use deque::{Deque, DequeueError};

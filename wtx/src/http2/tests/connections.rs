@@ -11,8 +11,6 @@ use tokio::net::{TcpListener, TcpStream, tcp::OwnedWriteHalf};
 
 #[tokio::test]
 async fn connections() {
-  #[cfg(feature = "_tracing-tree")]
-  let _rslt = crate::misc::tracing_tree_init(None);
   let uri = _uri();
   server(&uri).await;
   client(&uri).await;

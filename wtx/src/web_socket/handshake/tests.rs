@@ -27,8 +27,6 @@ static HAS_SERVER_FINISHED: AtomicBool = AtomicBool::new(false);
 #[cfg(feature = "flate2")]
 #[test]
 fn compressed() {
-  #[cfg(feature = "_tracing-tree")]
-  let _rslt = crate::misc::tracing_tree_init(None);
   let runtime = Arc::new(Runtime::new());
   let runtime_fut0 = runtime.clone();
   let runtime_fut1 = runtime.clone();
@@ -52,8 +50,6 @@ fn compressed() {
 
 #[test]
 fn uncompressed() {
-  #[cfg(feature = "_tracing-tree")]
-  let _rslt = crate::misc::tracing_tree_init(None);
   let runtime = Arc::new(Runtime::new());
   let runtime_fut = runtime.clone();
   runtime
@@ -63,8 +59,6 @@ fn uncompressed() {
 
 #[test]
 fn uncompressed_no_masking() {
-  #[cfg(feature = "_tracing-tree")]
-  let _rslt = crate::misc::tracing_tree_init(None);
   let runtime = Arc::new(Runtime::new());
   let runtime_fut = runtime.clone();
   runtime.block_on(do_test_client_and_server_frames(((), true), ((), true), runtime_fut)).unwrap();

@@ -2,7 +2,7 @@ use crate::{
   collection::{ArrayVector, IndexedStorageLen, Vector},
   sync::Arc,
 };
-use alloc::rc::Rc;
+use alloc::{rc::Rc, vec::Vec};
 use core::cell::RefCell;
 
 /// Internal trait not intended for public usage
@@ -57,6 +57,10 @@ impl<T> SingleTypeStorage for RefCell<T> {
 }
 
 impl<T> SingleTypeStorage for Rc<T> {
+  type Item = T;
+}
+
+impl<T> SingleTypeStorage for Vec<T> {
   type Item = T;
 }
 

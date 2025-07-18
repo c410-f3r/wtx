@@ -23,6 +23,8 @@ mod nanosecond;
 mod second;
 mod time;
 mod time_zone;
+#[cfg(feature = "tracing-tree")]
+mod tracing_tree_timer;
 mod weekday;
 mod year;
 
@@ -44,6 +46,8 @@ pub use nanosecond::Nanosecond;
 pub use second::Second;
 pub use time::Time;
 pub use time_zone::*;
+#[cfg(feature = "tracing-tree")]
+pub use tracing_tree_timer::TracingTreeTimer;
 pub use weekday::Weekday;
 pub use year::Year;
 
