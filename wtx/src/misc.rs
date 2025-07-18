@@ -102,12 +102,7 @@ pub fn tracing_tree_init(
   };
   let fallback = fallback_opt.unwrap_or("");
   let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(fallback));
-  let mut tracing_tree = tracing_tree::HierarchicalLayer::default();
-  #[cfg(feature = "std")]
-  {
-    tracing_tree = tracing_tree.with_writer(std::io::stderr);
-  }
-  tracing_tree = tracing_tree
+  let tracing_tree = tracing_tree::HierarchicalLayer::default()
     .with_deferred_spans(true)
     .with_indent_amount(2)
     .with_indent_lines(true)
@@ -115,8 +110,10 @@ pub fn tracing_tree_init(
     .with_targets(true)
     .with_thread_ids(true)
     .with_thread_names(true)
+    .with_timer(crate::calendar::TracingTreeTimer)
     .with_verbose_entry(false)
-    .with_verbose_exit(false);
+    .with_verbose_exit(false)
+    .with_writer(std::io::stderr);
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
 }
 

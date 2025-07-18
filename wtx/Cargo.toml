@@ -88,6 +88,7 @@ serde_urlencoded = ["serde", "dep:serde_urlencoded", "std"]
 std = []
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls", "rustls-pemfile/std", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
+tracing-tree = ["std", "dep:tracing-tree"]
 web-socket = ["http"]
 web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 
@@ -95,7 +96,7 @@ _async-tests = ["tokio/macros", "tokio/net", "tokio/rt-multi-thread", "tokio/tim
 _bench = []
 _hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Crate must not decide for downstream users
 _integration-tests = ["serde_json?/raw_value"]
-_tracing-tree = ["tracing", "tracing-subscriber", "dep:tracing-tree"]
+_tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
