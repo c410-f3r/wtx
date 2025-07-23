@@ -8,8 +8,8 @@
 use crate::{
   collection::{ExpansionTy, IndexedStorageMut as _, Vector},
   misc::{
-    CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char, LeaseMut,
-    from_utf8_basic, from_utf8_ext,
+    CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char, from_utf8_basic,
+    from_utf8_ext,
     net::{PartitionedFilledBuffer, read_payload},
   },
   rng::Rng,
@@ -154,45 +154,42 @@ where
         return Err(crate::Error::ClosedConnection);
       }
       *connection_state = ConnectionState::Closed;
-      match payload {
-        [] => {}
+      let (actual_payload, rslt) = match payload {
+        [] => (payload, Ok(true)),
         [_] => return Err(WebSocketError::InvalidCloseFrame.into()),
         [a, b, rest @ ..] => {
           let _ = from_utf8_basic(rest)?;
           let close_code = CloseCode::try_from(u16::from_be_bytes([*a, *b]))?;
           if !close_code.is_allowed() || rest.len() > MAX_CONTROL_PAYLOAD_LEN - 2 {
             fill_with_close_code(CloseCode::Protocol, payload);
-            let payload_ret = payload.get_mut(..MAX_CONTROL_PAYLOAD_LEN).unwrap_or_default();
-            write_control_frame::<_, _, _, IS_CLIENT>(
-              aux,
-              connection_state,
-              &mut Frame::new_fin(OpCode::Close, payload_ret),
-              no_masking,
-              rng,
-              write_control_frame_cb,
+            (
+              payload.get_mut(..MAX_CONTROL_PAYLOAD_LEN).unwrap_or_default(),
+              Err(WebSocketError::InvalidCloseFrame.into()),
             )
-            .await?;
-            return Err(WebSocketError::InvalidCloseFrame.into());
+          } else {
+            (payload, Ok(true))
           }
         }
-      }
-      write_control_frame::<_, _, _, IS_CLIENT>(
+      };
+      write_control_frame::<_, _, IS_CLIENT>(
         aux,
         connection_state,
-        &mut Frame::new_fin(OpCode::Close, payload),
         no_masking,
+        OpCode::Close,
+        actual_payload,
         rng,
         write_control_frame_cb,
       )
       .await?;
-      Ok(true)
+      rslt
     }
     OpCode::Ping => {
-      write_control_frame::<_, _, _, IS_CLIENT>(
+      write_control_frame::<_, _, IS_CLIENT>(
         aux,
         connection_state,
-        &mut Frame::new_fin(OpCode::Pong, payload),
         no_masking,
+        OpCode::Pong,
+        payload,
         rng,
         write_control_frame_cb,
       )
@@ -247,16 +244,13 @@ pub(crate) fn manage_op_code_of_first_final_frame(
   payload: &[u8],
 ) -> crate::Result<()> {
   match op_code {
-    OpCode::Close => {
-      return Ok(());
-    }
     OpCode::Continuation => {
       return Err(WebSocketError::UnexpectedFrame.into());
     }
     OpCode::Text => {
       let _str_validation = from_utf8_basic(payload)?;
     }
-    OpCode::Binary | OpCode::Ping | OpCode::Pong => {}
+    OpCode::Close | OpCode::Binary | OpCode::Ping | OpCode::Pong => {}
   }
   Ok(())
 }
@@ -336,11 +330,12 @@ fn expand_rb(
   Ok(reader_buffer_first.get_mut(written..).unwrap_or_default())
 }
 
-async fn write_control_frame<A, P, RNG, const IS_CLIENT: bool>(
+async fn write_control_frame<A, RNG, const IS_CLIENT: bool>(
   aux: &mut A,
   connection_state: &mut ConnectionState,
-  frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
+  op_code: OpCode,
+  payload: &[u8],
   rng: &mut RNG,
   wsc_cb: &mut impl for<'any> FnMutFut<
     (&'any mut A, &'any [u8], &'any [u8]),
@@ -348,10 +343,14 @@ async fn write_control_frame<A, P, RNG, const IS_CLIENT: bool>(
   >,
 ) -> crate::Result<()>
 where
-  P: LeaseMut<[u8]>,
   RNG: Rng,
 {
-  manage_normal_frame(connection_state, frame, no_masking, rng);
-  wsc_cb.call((aux, frame.header(), frame.payload().lease())).await?;
+  let len = payload.len().min(MAX_CONTROL_PAYLOAD_LEN);
+  let mut array = [0; MAX_CONTROL_PAYLOAD_LEN];
+  let slice = array.get_mut(..len).unwrap_or_default();
+  slice.copy_from_slice(payload.get(..len).unwrap_or_default());
+  let mut frame = Frame::<_, IS_CLIENT>::new_fin(op_code, slice);
+  manage_normal_frame(connection_state, &mut frame, no_masking, rng);
+  wsc_cb.call((aux, frame.header(), frame.payload())).await?;
   Ok(())
 }

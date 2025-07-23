@@ -15,8 +15,8 @@ use crate::{
   sync::{Arc, AtomicBool},
   tests::_uri,
   web_socket::{
-    Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
-    compression::NegotiatedCompression,
+    CloseCode, Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
+    compression::NegotiatedCompression, fill_with_close_code,
   },
 };
 use core::{sync::atomic::Ordering, time::Duration};
@@ -167,13 +167,15 @@ where
     assert_eq!(OpCode::Text, hello.op_code());
     assert_eq!(b"Hello!", hello.payload());
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Goodbye!")).await.unwrap();
-    assert_eq!(OpCode::Close, ws.read_frame().await.unwrap().op_code());
+    assert_eq!(ws.read_frame().await.unwrap().payload().get(2..), Some(&b"PS: s2"[..]));
   }
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Hello!")).await.unwrap();
     assert_eq!(ws.read_frame().await.unwrap().payload(), b"Goodbye!");
-    ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await.unwrap();
+    let mut ps = *b"__PS: s2";
+    fill_with_close_code(CloseCode::Normal, &mut ps);
+    ws.write_frame(&mut Frame::new_fin(OpCode::Close, ps)).await.unwrap();
   }
 }
 
@@ -209,7 +211,7 @@ where
   NC: NegotiatedCompression,
 {
   async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
-    ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [1, 2, 3])).await.unwrap();
+    ws.write_frame(&mut Frame::new_fin(OpCode::Ping, *b"123")).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"ipat")).await.unwrap();
     assert_eq!(OpCode::Pong, ws.read_frame().await.unwrap().op_code());
   }
