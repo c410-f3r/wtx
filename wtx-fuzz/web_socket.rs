@@ -4,6 +4,7 @@
 #![no_main]
 
 use wtx::{
+  collection::Vector,
   executor::Runtime,
   rng::{Xorshift64, simple_seed},
   stream::BytesStream,
@@ -27,7 +28,7 @@ libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
       if ws.write_frame(&mut frame).await.is_err() {
         return;
       };
-      let _rslt = ws.read_frame().await;
+      let _rslt = ws.read_frame(&mut Vector::new()).await;
     })
     .unwrap();
 });

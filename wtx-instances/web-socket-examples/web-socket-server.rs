@@ -8,6 +8,7 @@ extern crate wtx_instances;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
+  collection::Vector,
   http::OptionedServer,
   misc::TokioRustlsAcceptor,
   rng::Xorshift64,
@@ -37,8 +38,9 @@ async fn handle(
   mut ws: WebSocket<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.parts_mut();
+  let mut buffer = Vector::new();
   loop {
-    let mut frame = reader.read_frame(&mut common).await?;
+    let mut frame = reader.read_frame(&mut buffer, &mut common).await?.0;
     match frame.op_code() {
       OpCode::Binary | OpCode::Text => {
         writer.write_frame(&mut common, &mut frame).await?;

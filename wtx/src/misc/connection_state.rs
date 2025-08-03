@@ -1,5 +1,3 @@
-use crate::misc::{Lease, LeaseMut};
-
 /// The state of a connection between two parties.
 #[derive(Clone, Copy, Debug)]
 pub enum ConnectionState {
@@ -20,20 +18,6 @@ impl ConnectionState {
   #[inline]
   pub fn is_open(self) -> bool {
     matches!(self, Self::Open)
-  }
-}
-
-impl Lease<ConnectionState> for ConnectionState {
-  #[inline]
-  fn lease(&self) -> &ConnectionState {
-    self
-  }
-}
-
-impl LeaseMut<ConnectionState> for ConnectionState {
-  #[inline]
-  fn lease_mut(&mut self) -> &mut ConnectionState {
-    self
   }
 }
 

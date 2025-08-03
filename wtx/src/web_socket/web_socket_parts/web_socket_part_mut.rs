@@ -4,11 +4,10 @@ use crate::{
   rng::Rng,
   stream::Stream,
   web_socket::{
-    Frame, FrameMut,
+    Frame, FrameMut, WebSocketReadFrameTy,
     compression::NegotiatedCompression,
-    web_socket_parts::web_socket_part::{
-      WebSocketCommonPart, WebSocketReaderPart, WebSocketWriterPart,
-    },
+    is_in_continuation_frame::IsInContinuationFrame,
+    web_socket_parts::web_socket_part::{WebSocketReaderPart, WebSocketWriterPart},
   },
 };
 use core::marker::PhantomData;
@@ -16,19 +15,17 @@ use core::marker::PhantomData;
 /// Auxiliary structure used by [`WebSocketReaderPartMut`] and [`WebSocketWriterPartMut`]
 #[derive(Debug)]
 pub struct WebSocketCommonPartMut<'instance, NC, R, S, const IS_CLIENT: bool> {
-  pub(crate) wsc: WebSocketCommonPart<
-    &'instance mut ConnectionState,
-    &'instance mut NC,
-    &'instance mut R,
-    &'instance mut S,
-    IS_CLIENT,
-  >,
+  pub(crate) connection_state: &'instance mut ConnectionState,
+  pub(crate) nc: &'instance mut NC,
+  pub(crate) rng: &'instance mut R,
+  pub(crate) stream: &'instance mut S,
 }
 
 /// Auxiliary structure that can be used when it is necessary to write a received frame that belongs
 /// to the same instance.
 #[derive(Debug)]
 pub struct WebSocketReaderPartMut<'instance, NC, R, S, const IS_CLIENT: bool> {
+  pub(crate) is_in_continuation_frame: &'instance mut Option<IsInContinuationFrame>,
   pub(crate) phantom: PhantomData<(NC, R, S)>,
   pub(crate) wsrp: WebSocketReaderPart<
     &'instance mut PartitionedFilledBuffer,
@@ -49,11 +46,26 @@ where
   /// If a frame is made up of other sub-frames or continuations, then everything is collected
   /// until all fragments are received.
   #[inline]
-  pub async fn read_frame(
-    &mut self,
+  pub async fn read_frame<'buffer, 'frame, 'this>(
+    &'this mut self,
+    buffer: &'buffer mut Vector<u8>,
     common: &mut WebSocketCommonPartMut<'instance, NC, R, S, IS_CLIENT>,
-  ) -> crate::Result<FrameMut<'_, IS_CLIENT>> {
-    self.wsrp.read_frame_from_stream(&mut common.wsc).await
+  ) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+  where
+    'buffer: 'frame,
+    'this: 'frame,
+  {
+    self
+      .wsrp
+      .read_frame_from_stream(
+        common.connection_state,
+        self.is_in_continuation_frame,
+        common.nc,
+        common.rng,
+        common.stream,
+        buffer,
+      )
+      .await
   }
 }
 
@@ -82,6 +94,9 @@ where
   where
     P: LeaseMut<[u8]>,
   {
-    self.wswp.write_frame(&mut common.wsc, frame).await
+    self
+      .wswp
+      .write_frame(common.connection_state, frame, common.nc, common.rng, common.stream)
+      .await
   }
 }

@@ -4,6 +4,7 @@
 
 use tokio::net::TcpStream;
 use wtx::{
+  collection::Vector,
   http::OptionedServer,
   rng::Xorshift64,
   web_socket::{
@@ -29,8 +30,9 @@ async fn handle(
   mut ws: WebSocket<Option<NegotiatedFlate2>, Xorshift64, TcpStream, &mut WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.parts_mut();
+  let mut buffer = Vector::new();
   loop {
-    let mut frame = reader.read_frame(&mut common).await?;
+    let mut frame = reader.read_frame(&mut buffer, &mut common).await?.0;
     match frame.op_code() {
       OpCode::Binary | OpCode::Text => {
         writer.write_frame(&mut common, &mut frame).await?;

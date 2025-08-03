@@ -5,14 +5,14 @@ mod web_socket_writer_part_owned;
 
 use crate::{
   client_api_framework::{
-    Api, ClientApiFrameworkError, SendBytesSource,
+    Api, SendBytesSource,
     misc::{
       manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
-      TransportGroup, WsParams, WsReqParamsTy,
-      transport::{Transport, TransportParams, log_res},
+      WsParams, WsReqParamsTy,
+      transport::{Transport, TransportParams},
     },
     pkg::{Package, PkgsAux},
   },
@@ -29,19 +29,6 @@ where
     WsReqParamsTy::Bytes => OpCode::Binary,
     WsReqParamsTy::String => OpCode::Text,
   }
-}
-
-async fn recv<A, DRSR, TP>(
-  frame: Frame<&mut [u8], true>,
-  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-) -> crate::Result<()> {
-  if let OpCode::Close = frame.op_code() {
-    return Err(ClientApiFrameworkError::ClosedWsConnection.into());
-  }
-  pkgs_aux.byte_buffer.clear();
-  pkgs_aux.byte_buffer.extend_from_copyable_slice(frame.payload())?;
-  log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::WebSocket);
-  Ok(())
 }
 
 async fn send_bytes<A, DRSR, T, TP>(

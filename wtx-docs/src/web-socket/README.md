@@ -25,13 +25,15 @@ Although not officially endorsed, the `no-masking` parameter described at <https
 
 To make everything work as intended both parties, client and server, need to implement this feature. For example, web browser won't stop masking frames.
 
-## Client Example
+## Ping and Close frames
+
+A received `Ping` frame automatically triggers an internal `Pong` response. Similarly, when a `Close` frame is received an automatic `Close` frame response is also sent.
 
 ```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-client.rs}}
 ```
 
-## Concurrent Client Example
+The same automatic behavior **does not** happen with concurrent instances because there are multiple ways to synchronize resources. In other words, you are responsible for managing replies.
 
 ```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-client-concurrent.rs}}

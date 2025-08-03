@@ -2,7 +2,10 @@ use crate::{
   de::FromRadix10,
   http::{GenericHeader, KnownHeaderName},
   misc::{SuffixWriterFbvm, bytes_split1},
-  web_socket::{Compression, DeflateConfig, WebSocketError, compression::NegotiatedCompression},
+  web_socket::{
+    Compression, DeflateConfig, WebSocketError,
+    compression::{NegotiatedCompression, WindowBits},
+  },
 };
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
 
@@ -83,13 +86,14 @@ impl<const IS_CLIENT: bool> Compression<IS_CLIENT> for Flate2 {
     let encoder_wb = if IS_CLIENT { dc.client_max_window_bits } else { dc.server_max_window_bits };
 
     Ok(Some(NegotiatedFlate2 {
+      dc,
       decompress: Decompress::new_with_window_bits(false, decoder_wb.into()),
       compress: Compress::new_with_window_bits(
         dc.compression_level.into(),
         false,
         encoder_wb.into(),
       ),
-      dc,
+      window_bits: (decoder_wb, encoder_wb),
     }))
   }
 
@@ -110,8 +114,9 @@ impl Default for Flate2 {
 #[derive(Debug)]
 pub struct NegotiatedFlate2 {
   compress: Compress,
-  dc: DeflateConfig,
   decompress: Decompress,
+  dc: DeflateConfig,
+  window_bits: (WindowBits, WindowBits),
 }
 
 impl NegotiatedCompression for NegotiatedFlate2 {
@@ -173,6 +178,21 @@ impl NegotiatedCompression for NegotiatedFlate2 {
   #[inline]
   fn write_res_headers(&self, sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
     write_headers(&self.dc, sw)
+  }
+}
+
+impl Clone for NegotiatedFlate2 {
+  fn clone(&self) -> Self {
+    NegotiatedFlate2 {
+      dc: self.dc,
+      decompress: Decompress::new_with_window_bits(false, self.window_bits.0.into()),
+      compress: Compress::new_with_window_bits(
+        self.dc.compression_level.into(),
+        false,
+        self.window_bits.1.into(),
+      ),
+      window_bits: self.window_bits,
+    }
   }
 }
 

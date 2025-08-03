@@ -4,7 +4,7 @@ use crate::{
   http::{
     KnownHeaderName, Method, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,
-    cookie::{cookie_str::CookieStr, decrypt},
+    cookie::{cookie_str::CookieStr, decrypt_cookie},
     server_framework::Middleware,
   },
   misc::{Lease, LeaseMut},
@@ -88,7 +88,7 @@ where
           continue;
         }
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-        let decrypt_rslt = decrypt(
+        let decrypt_rslt = decrypt_cookie(
           &mut cookie_def.value,
           session_secret.array()?,
           (name.as_bytes(), value.as_bytes()),

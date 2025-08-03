@@ -4,7 +4,7 @@ use crate::{
   http::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
     SessionState, SessionStore,
-    cookie::{cookie_generic::CookieGeneric, encrypt},
+    cookie::{cookie_generic::CookieGeneric, encrypt_cookie},
     session::SessionSecret,
   },
   misc::{Lease, LeaseMut},
@@ -109,14 +109,14 @@ where
     let idx = rrd.lease().body.len();
     serde_json::to_writer(&mut rrd.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
-    let enc_rslt = encrypt(
+    let enc_rslt = encrypt_cookie(
       &mut cookie_def.value,
       session_secret.array()?,
       (cookie_def.name.as_bytes(), rrd.lease().body.get(idx..).unwrap_or_default()),
       rng,
     );
     rrd.lease_mut().body.truncate(idx);
-    enc_rslt?;
+    let _ = enc_rslt?;
     let headers_rslt = rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
       format_args!(

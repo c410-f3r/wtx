@@ -3,19 +3,18 @@
 use crate::{
   collection::{IndexedStorage, IndexedStorageMut, Vector},
   http::{Headers, StatusCode},
-  http2::{Http2Buffer, Http2Data, Http2ErrorCode, Http2RecvStatus, SendDataMode, ServerStream},
+  http2::{
+    Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2RecvStatus, SendDataMode,
+    ServerStream, misc::protocol_err,
+  },
   misc::{ConnectionState, LeaseMut, SingleTypeStorage},
   rng::Xorshift64,
   stream::StreamWriter,
   sync::{Lock, RefCounter},
   web_socket::{
-    Frame, FrameMut, OpCode, ReadFrameInfo,
-    web_socket_reader::{
-      manage_auto_reply, manage_op_code_of_continuation_frames,
-      manage_op_code_of_first_continuation_frame, manage_op_code_of_first_final_frame,
-      manage_text_of_first_continuation_frame, manage_text_of_recurrent_continuation_frames,
-      unmask_nb,
-    },
+    Frame, FrameMut, OpCode,
+    read_frame_info::ReadFrameInfo,
+    web_socket_reader::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
     web_socket_writer::manage_normal_frame,
   },
 };
@@ -70,66 +69,25 @@ where
     buffer: &'buffer mut Vector<u8>,
   ) -> crate::Result<FrameMut<'buffer, false>> {
     buffer.clear();
-    let first_rfi = loop {
-      let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
-      if !rfi.fin {
-        if is_eos {
-          return Err(crate::Error::ClosedConnection);
-        }
-        break rfi;
-      }
-      if manage_auto_reply::<_, _, false>(
+    let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
+    if rfi.fin {
+      let _is_control_frame = manage_auto_reply::<_, _, false>(
         self.stream.lease_mut(),
         &mut self.connection_state,
         self.no_masking,
         rfi.op_code,
         buffer,
         &mut self.rng,
-        &mut write_control_frame_cb,
+        write_control_frame_cb,
       )
-      .await?
-      {
-        manage_op_code_of_first_final_frame(rfi.op_code, buffer)?;
-        return Ok(FrameMut::new_fin(rfi.op_code, buffer));
-      }
-    };
-    loop {
-      let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
-      if !rfi.fin && is_eos {
-        return Err(crate::Error::ClosedConnection);
-      }
-      let begin = buffer.len();
-      let mut iuc = manage_op_code_of_first_continuation_frame(
-        first_rfi.op_code,
-        buffer,
-        manage_text_of_first_continuation_frame,
-      )?;
-      let payload = buffer.get_mut(begin..).unwrap_or_default();
-      if !manage_auto_reply::<_, _, false>(
-        self.stream.lease_mut(),
-        &mut self.connection_state,
-        self.no_masking,
-        rfi.op_code,
-        payload,
-        &mut self.rng,
-        &mut write_control_frame_cb,
-      )
-      .await?
-      {
-        buffer.truncate(begin);
-        continue;
-      }
-      if manage_op_code_of_continuation_frames(
-        rfi.fin,
-        first_rfi.op_code,
-        &mut iuc,
-        rfi.op_code,
-        payload,
-        manage_text_of_recurrent_continuation_frames,
-      )? {
-        return Ok(FrameMut::new_fin(first_rfi.op_code, buffer));
-      }
+      .await?;
+      manage_op_code_of_first_final_frame(rfi.op_code, buffer)?;
+      return Ok(FrameMut::new_fin(rfi.op_code, buffer));
     }
+    if is_eos {
+      return Err(crate::Error::ClosedConnection);
+    }
+    Err(protocol_err(Http2Error::WebSocketContinuationFrame))
   }
 
   /// Writes a frame to the stream.
@@ -183,7 +141,7 @@ where
   let rfi = ReadFrameInfo::from_bytes::<false>(&mut slice, usize::MAX, (true, 0), no_masking)?;
   let before = buffer.len();
   buffer.extend_from_copyable_slice(slice)?;
-  unmask_nb::<false>(buffer.get_mut(before..).unwrap_or_default(), no_masking, &rfi)?;
+  unmask_nb::<false>(rfi.mask, buffer.get_mut(before..).unwrap_or_default(), no_masking)?;
   Ok((rfi, is_eos))
 }
 

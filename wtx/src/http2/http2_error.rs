@@ -148,4 +148,6 @@ pub enum Http2Error {
   VeryLargeHeaderInteger,
   /// Received headers is too large to sent
   VeryLargeHeadersLen,
+  /// Continuation frames are not supported in HTTP/2
+  WebSocketContinuationFrame,
 }

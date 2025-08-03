@@ -1,7 +1,7 @@
 use crate::web_socket::compression::{CompressionLevel, WindowBits};
 
 /// Configurations for the `permessage-deflate` extension from the IETF RFC 7692
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct DeflateConfig {
   /// LZ77 sliding window size for the client.
   pub client_max_window_bits: WindowBits,

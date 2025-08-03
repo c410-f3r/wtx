@@ -6,13 +6,15 @@ pub(crate) mod cookie_str;
 mod same_site;
 
 #[cfg(feature = "http-session")]
-use crate::{calendar::CalendarToken, collection::IndexedStorageMut, collection::Vector, rng::Rng};
+use crate::calendar::CalendarToken;
+#[cfg(feature = "http-cookie-secure")]
+use crate::{collection::IndexedStorageMut, collection::Vector, rng::Rng};
 pub use cookie_error::CookieError;
 pub use same_site::SameSite;
 
-#[cfg(feature = "http-session")]
+#[cfg(feature = "http-cookie-secure")]
 const NONCE_LEN: usize = 12;
-#[cfg(feature = "http-session")]
+#[cfg(feature = "http-cookie-secure")]
 const TAG_LEN: usize = 16;
 
 #[cfg(feature = "http-session")]
@@ -35,8 +37,9 @@ static FMT1: &[CalendarToken] = &[
   CalendarToken::Gmt,
 ];
 
-#[cfg(feature = "http-server-framework")]
-pub(crate) fn decrypt<'buffer>(
+/// Decrypts the contents of an encrypted cookie that is usually received from a remote peer.
+#[cfg(feature = "http-cookie-secure")]
+pub fn decrypt_cookie<'buffer>(
   buffer: &'buffer mut Vector<u8>,
   secret: &[u8; 32],
   (name, value): (&[u8], &[u8]),
@@ -77,13 +80,14 @@ pub(crate) fn decrypt<'buffer>(
   Ok(content)
 }
 
-#[cfg(feature = "http-session")]
-pub(crate) fn encrypt<RNG>(
-  buffer: &mut Vector<u8>,
+/// Encrypts the content of a cookie, which makes it suitable to transmit to remote peers.
+#[cfg(feature = "http-cookie-secure")]
+pub fn encrypt_cookie<'buffer, RNG>(
+  buffer: &'buffer mut Vector<u8>,
   secret: &[u8; 32],
   (name, value): (&[u8], &[u8]),
   mut rng: RNG,
-) -> crate::Result<()>
+) -> crate::Result<&'buffer mut [u8]>
 where
   RNG: Rng,
 {
@@ -108,7 +112,7 @@ where
       b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
     ]) = buffer.get_mut(start.wrapping_add(base64_len)..)
     else {
-      return Ok(());
+      return Ok(&mut []);
     };
     let [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, _, _, _, _] = rng.u8_16();
     *a0 = c0;
@@ -146,9 +150,9 @@ where
   };
   let slice_mut = buffer.get_mut(start..).and_then(|el| el.split_at_mut_checked(base64_len));
   let Some((base64, content)) = slice_mut else {
-    return Ok(());
+    return Ok(&mut []);
   };
   let base64_idx = STANDARD.encode_slice(&mut *content, base64)?;
   buffer.truncate(start.wrapping_add(base64_idx));
-  Ok(())
+  Ok(buffer.get_mut(start..).unwrap_or_default())
 }

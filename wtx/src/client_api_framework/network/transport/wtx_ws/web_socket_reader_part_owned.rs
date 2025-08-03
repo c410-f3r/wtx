@@ -3,26 +3,22 @@ use crate::{
     Api,
     network::{
       TransportGroup, WsParams,
-      transport::{ReceivingTransport, Transport, wtx_ws::recv},
+      transport::{ReceivingTransport, Transport, log_res},
     },
     pkg::PkgsAux,
   },
+  collection::IndexedStorageMut,
   misc::LeaseMut,
   rng::Rng,
-  stream::{StreamReader, StreamWriter},
-  sync::Lock,
-  web_socket::{
-    WebSocketCommonPartOwned, WebSocketReaderPartOwned, compression::NegotiatedCompression,
-  },
+  stream::StreamReader,
+  web_socket::{WebSocketReaderPartOwned, compression::NegotiatedCompression},
 };
 
-impl<C, NC, R, SR, SW, TP> ReceivingTransport<TP> for WebSocketReaderPartOwned<C, NC, R, SR, true>
+impl<NC, R, SR, TP> ReceivingTransport<TP> for WebSocketReaderPartOwned<NC, R, SR, true>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, true>>,
   NC: NegotiatedCompression,
   R: Rng,
   SR: StreamReader,
-  SW: StreamWriter,
   TP: LeaseMut<WsParams>,
 {
   #[inline]
@@ -34,17 +30,17 @@ where
   where
     A: Api,
   {
-    recv(self.read_frame().await?, pkgs_aux).await?;
+    pkgs_aux.byte_buffer.clear();
+    let frame = self.read_frame(&mut pkgs_aux.byte_buffer).await?;
+    log_res(pkgs_aux.log_body.1, frame.0.payload(), TransportGroup::WebSocket);
     Ok(())
   }
 }
 
-impl<C, NC, R, SR, SW, TP> Transport<TP> for WebSocketReaderPartOwned<C, NC, R, SR, true>
+impl<NC, R, SR, TP> Transport<TP> for WebSocketReaderPartOwned<NC, R, SR, true>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, true>>,
   NC: NegotiatedCompression,
   SR: StreamReader,
-  SW: StreamWriter,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
   type Inner = Self;

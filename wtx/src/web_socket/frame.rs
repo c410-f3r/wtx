@@ -2,7 +2,7 @@ use crate::{
   collection::Vector,
   misc::Lease,
   web_socket::{
-    MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN_USIZE, OpCode,
+    MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OpCode,
     misc::{fill_header_from_params, has_masked_frame},
   },
 };
@@ -28,7 +28,7 @@ pub type FrameVectorRef<'bytes, const IS_CLIENT: bool> = Frame<&'bytes Vector<u8
 #[derive(Debug)]
 pub struct Frame<P, const IS_CLIENT: bool> {
   fin: bool,
-  header: [u8; MAX_HEADER_LEN_USIZE],
+  header: [u8; MAX_HEADER_LEN],
   header_len: u8,
   op_code: OpCode,
   payload: P,
@@ -66,14 +66,11 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
   }
 
   pub(crate) fn header(&self) -> &[u8] {
-    // SAFETY: `header_len` is always less or equal to `MAX_HEADER_LEN_USIZE`
-    unsafe { self.header.get(..self.header_len.into()).unwrap_unchecked() }
+    self.header.get(..self.header_len.into()).unwrap_or_default()
   }
 
   pub(crate) fn header_and_payload_mut(&mut self) -> (&mut [u8], &mut P) {
-    // SAFETY: `header_len` is always less or equal to `MAX_HEADER_LEN_USIZE`
-    let header = unsafe { self.header.get_mut(..self.header_len.into()).unwrap_unchecked() };
-    (header, &mut self.payload)
+    (self.header.get_mut(..self.header_len.into()).unwrap_or_default(), &mut self.payload)
   }
 
   pub(crate) fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
@@ -115,14 +112,19 @@ where
   /// If the frame is of type [`OpCode::Text`], returns its payload interpreted as a string.
   #[inline]
   pub fn text_payload(&self) -> Option<&str> {
-    self.op_code.is_text().then(|| {
-      // SAFETY: uTF-8 data is always verified when read from a stream.
+    matches!(self.op_code, OpCode::Text | OpCode::Close).then(|| {
+      // SAFETY:
+      // * Single `FIN` frame (No decompression): Whole payload is verified.
+      // * Continuation frames (No decompression): Whole payload is verified when concatenated.
+      // * Single `FIN` frame (With decompression): Whole payload is verified.
+      // * Continuation frames (With decompression): Whole payload is verified when concatenated.
+      // * Control frames: Only close frames are verified.
       unsafe { str::from_utf8_unchecked(self.payload.lease()) }
     })
   }
 
   pub(crate) fn new(fin: bool, op_code: OpCode, payload: P, rsv1: u8) -> Self {
-    let mut header = [0; MAX_HEADER_LEN_USIZE];
+    let mut header = [0; MAX_HEADER_LEN];
     let payload_len = if op_code.is_control() {
       payload.lease().len().min(MAX_CONTROL_PAYLOAD_LEN)
     } else {
