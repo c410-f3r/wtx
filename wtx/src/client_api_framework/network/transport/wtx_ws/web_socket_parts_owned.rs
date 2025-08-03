@@ -10,16 +10,11 @@ use crate::{
   misc::LeaseMut,
   rng::Rng,
   stream::{StreamReader, StreamWriter},
-  sync::Lock,
-  web_socket::{
-    WebSocketCommonPartOwned, WebSocketPartsOwned, WebSocketWriterPartOwned,
-    compression::NegotiatedCompression,
-  },
+  web_socket::{WebSocketPartsOwned, WebSocketWriterPartOwned, compression::NegotiatedCompression},
 };
 
-impl<C, NC, R, SR, SW, TP> ReceivingTransport<TP> for WebSocketPartsOwned<C, NC, R, SR, SW, true>
+impl<NC, R, SR, SW, TP> ReceivingTransport<TP> for WebSocketPartsOwned<NC, R, SR, SW, true>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, true>>,
   NC: NegotiatedCompression,
   R: Rng,
   SR: StreamReader,
@@ -39,9 +34,8 @@ where
   }
 }
 
-impl<C, NC, R, SR, SW, TP> SendingTransport<TP> for WebSocketPartsOwned<C, NC, R, SR, SW, true>
+impl<NC, R, SR, SW, TP> SendingTransport<TP> for WebSocketPartsOwned<NC, R, SR, SW, true>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, true>>,
   NC: NegotiatedCompression,
   R: Rng,
   SR: StreamReader,
@@ -74,14 +68,13 @@ where
   }
 }
 
-impl<C, NC, R, SR, SW, TP> Transport<TP> for WebSocketPartsOwned<C, NC, R, SR, SW, true>
+impl<NC, R, SR, SW, TP> Transport<TP> for WebSocketPartsOwned<NC, R, SR, SW, true>
 where
-  C: Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, true>>,
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
-  type Inner = WebSocketWriterPartOwned<C, NC, R, SW, true>;
+  type Inner = WebSocketWriterPartOwned<NC, R, SW, true>;
   type ReqId = ();
 }

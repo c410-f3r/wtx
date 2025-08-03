@@ -10,7 +10,7 @@ use crate::{
 
 /// Parameters of an WebSocket frame.
 #[derive(Debug)]
-pub struct ReadFrameInfo {
+pub(crate) struct ReadFrameInfo {
   pub(crate) fin: bool,
   pub(crate) header_len: u8,
   pub(crate) mask: Option<[u8; 4]>,
@@ -21,8 +21,9 @@ pub struct ReadFrameInfo {
 
 impl ReadFrameInfo {
   /// Creates a new instance based on a sequence of bytes.
+  #[cfg(feature = "http2")]
   #[inline]
-  pub fn from_bytes<const IS_CLIENT: bool>(
+  pub(crate) fn from_bytes<const IS_CLIENT: bool>(
     bytes: &mut &[u8],
     max_payload_len: usize,
     (nc_is_noop, nc_rsv1): (bool, u8),

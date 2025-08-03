@@ -1,17 +1,15 @@
 //! A computer communications protocol, providing full-duplex communication channels over a single
 //! TCP connection.
 
-#[macro_use]
-mod macros;
-
 mod close_code;
 pub mod compression;
 mod frame;
 #[cfg(feature = "web-socket-handshake")]
 mod handshake;
+mod is_in_continuation_frame;
 mod misc;
 mod op_code;
-mod read_frame_info;
+pub(crate) mod read_frame_info;
 mod unmask;
 #[cfg(feature = "web-socket-handshake")]
 mod web_socket_acceptor;
@@ -20,21 +18,17 @@ mod web_socket_buffer;
 mod web_socket_connector;
 mod web_socket_error;
 mod web_socket_parts;
+mod web_socket_read_frame_ty;
 pub(crate) mod web_socket_reader;
 pub(crate) mod web_socket_writer;
 
 use crate::{
   _MAX_PAYLOAD_LEN,
+  collection::Vector,
   misc::{ConnectionState, LeaseMut},
-  rng::Rng,
+  rng::{Rng, SeedableRng},
   stream::Stream,
-  sync::Lock,
-  web_socket::{
-    compression::NegotiatedCompression,
-    web_socket_parts::web_socket_part::{
-      WebSocketCommonPart, WebSocketReaderPart, WebSocketWriterPart,
-    },
-  },
+  sync::{Arc, AtomicBool},
 };
 pub use close_code::CloseCode;
 pub use compression::{Compression, CompressionLevel, DeflateConfig};
@@ -45,7 +39,6 @@ pub use frame::{
 };
 pub use misc::fill_with_close_code;
 pub use op_code::OpCode;
-pub use read_frame_info::ReadFrameInfo;
 #[cfg(feature = "web-socket-handshake")]
 pub use web_socket_acceptor::WebSocketAcceptor;
 pub use web_socket_buffer::WebSocketBuffer;
@@ -55,15 +48,15 @@ pub use web_socket_error::WebSocketError;
 pub use web_socket_parts::{
   web_socket_part_mut::{WebSocketCommonPartMut, WebSocketReaderPartMut, WebSocketWriterPartMut},
   web_socket_part_owned::{
-    WebSocketCommonPartOwned, WebSocketPartsOwned, WebSocketReaderPartOwned,
-    WebSocketWriterPartOwned,
+    WebSocketPartsOwned, WebSocketReaderPartOwned, WebSocketWriterPartOwned,
   },
 };
+pub use web_socket_read_frame_ty::WebSocketReadFrameTy;
 
 const FIN_MASK: u8 = 0b1000_0000;
 const MASK_MASK: u8 = 0b1000_0000;
 const MAX_CONTROL_PAYLOAD_LEN: usize = 125;
-const MAX_HEADER_LEN_USIZE: usize = 14;
+const MAX_HEADER_LEN: usize = 14;
 const OP_CODE_MASK: u8 = 0b0000_1111;
 const PAYLOAD_MASK: u8 = 0b0111_1111;
 const RSV1_MASK: u8 = 0b0100_0000;
@@ -83,6 +76,7 @@ pub type WebSocketOwned<NC, R, S, const IS_CLIENT: bool> =
 #[derive(Debug)]
 pub struct WebSocket<NC, R, S, WSB, const IS_CLIENT: bool> {
   connection_state: ConnectionState,
+  is_in_continuation_frame: Option<is_in_continuation_frame::IsInContinuationFrame>,
   max_payload_len: usize,
   nc: NC,
   no_masking: bool,
@@ -102,7 +96,7 @@ impl<NC, R, S, WSB, const IS_CLIENT: bool> WebSocket<NC, R, S, WSB, IS_CLIENT> {
 
 impl<NC, R, S, WSB, const IS_CLIENT: bool> WebSocket<NC, R, S, WSB, IS_CLIENT>
 where
-  NC: NegotiatedCompression,
+  NC: compression::NegotiatedCompression,
   R: Rng,
   S: Stream,
   WSB: LeaseMut<WebSocketBuffer>,
@@ -112,6 +106,7 @@ where
   pub const fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WSB) -> crate::Result<Self> {
     Ok(Self {
       connection_state: ConnectionState::Open,
+      is_in_continuation_frame: None,
       max_payload_len: _MAX_PAYLOAD_LEN,
       nc,
       no_masking,
@@ -130,30 +125,36 @@ where
     WebSocketReaderPartMut<'_, NC, R, S, IS_CLIENT>,
     WebSocketWriterPartMut<'_, NC, R, S, IS_CLIENT>,
   ) {
-    let WebSocket { connection_state, nc, no_masking, rng, stream, wsb, max_payload_len } = self;
-    let WebSocketBuffer {
-      writer_buffer,
-      network_buffer,
-      reader_buffer_first,
-      reader_buffer_second,
-    } = wsb.lease_mut();
-    let nc_rsv1 = nc.rsv1();
+    let WebSocket {
+      connection_state,
+      is_in_continuation_frame,
+      nc,
+      no_masking,
+      rng,
+      stream,
+      wsb,
+      max_payload_len,
+    } = self;
+    let WebSocketBuffer { writer_buffer, network_buffer, reader_compression_buffer } =
+      wsb.lease_mut();
     (
-      WebSocketCommonPartMut { wsc: WebSocketCommonPart { connection_state, nc, rng, stream } },
+      WebSocketCommonPartMut { connection_state, nc, rng, stream },
       WebSocketReaderPartMut {
+        is_in_continuation_frame,
         phantom: PhantomData,
-        wsrp: WebSocketReaderPart {
+        wsrp: web_socket_parts::web_socket_part::WebSocketReaderPart {
           max_payload_len: *max_payload_len,
-          nc_rsv1,
           network_buffer,
           no_masking: *no_masking,
-          reader_buffer_first,
-          reader_buffer_second,
+          reader_compression_buffer,
         },
       },
       WebSocketWriterPartMut {
         phantom: PhantomData,
-        wswp: WebSocketWriterPart { no_masking: *no_masking, writer_buffer },
+        wswp: web_socket_parts::web_socket_part::WebSocketWriterPart {
+          no_masking: *no_masking,
+          writer_buffer,
+        },
       },
     )
   }
@@ -163,34 +164,41 @@ where
   /// If a frame is made up of other sub-frames or continuations, then everything is collected
   /// until all fragments are received.
   #[inline]
-  pub async fn read_frame(&mut self) -> crate::Result<FrameMut<'_, IS_CLIENT>> {
-    let WebSocket { connection_state, max_payload_len, nc, no_masking, rng, stream, wsb } = self;
-    let WebSocketBuffer {
-      network_buffer,
-      reader_buffer_first,
-      reader_buffer_second,
-      writer_buffer: _,
-    } = wsb.lease_mut();
-    let nc_rsv1 = nc.rsv1();
-    let frame = read_frame!(
+  pub async fn read_frame<'buffer, 'frame, 'this>(
+    &'this mut self,
+    buffer: &'buffer mut Vector<u8>,
+  ) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+  where
+    'buffer: 'frame,
+    'this: 'frame,
+  {
+    let WebSocket {
+      connection_state,
+      is_in_continuation_frame,
+      max_payload_len,
+      nc,
+      no_masking,
+      rng,
+      stream,
+      wsb,
+    } = self;
+    let WebSocketBuffer { network_buffer, reader_compression_buffer, writer_buffer: _ } =
+      wsb.lease_mut();
+    web_socket_reader::read_frame::<_, _, _, _, _, true, IS_CLIENT>(
+      connection_state,
+      is_in_continuation_frame,
       *max_payload_len,
-      (NC::IS_NOOP, nc_rsv1),
+      nc,
       network_buffer,
       *no_masking,
-      &mut *reader_buffer_first,
-      reader_buffer_second,
+      reader_compression_buffer,
+      rng,
       stream,
-      (
-        stream,
-        WebSocketCommonPart::<_, _, _, _, IS_CLIENT> {
-          connection_state: &mut *connection_state,
-          nc: &mut *nc,
-          rng: &mut *rng,
-          stream: &mut *stream
-        }
-      )
-    );
-    Ok(frame)
+      buffer,
+      |local_stream| local_stream,
+      |local_stream| local_stream,
+    )
+    .await
   }
 
   /// Writes a frame to the stream.
@@ -217,49 +225,50 @@ where
 
 impl<NC, R, S, const IS_CLIENT: bool> WebSocket<NC, R, S, WebSocketBuffer, IS_CLIENT>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: Clone + compression::NegotiatedCompression,
+  R: Rng + SeedableRng,
 {
   /// Splits the instance into owned parts that can be used in concurrent scenarios.
   #[inline]
-  pub fn into_parts<C, SR, SW>(
+  pub fn into_parts<SR, SW>(
     self,
     split: impl FnOnce(S) -> (SR, SW),
-  ) -> WebSocketPartsOwned<C, NC, R, SR, SW, IS_CLIENT>
-  where
-    C: Clone + Lock<Resource = WebSocketCommonPartOwned<NC, R, SW, IS_CLIENT>>,
-  {
-    let WebSocket { connection_state, nc, no_masking, rng, stream, wsb, max_payload_len } = self;
-    let WebSocketBuffer {
-      writer_buffer,
-      network_buffer,
-      reader_buffer_first,
-      reader_buffer_second,
-    } = wsb;
+  ) -> crate::Result<WebSocketPartsOwned<NC, R, SR, SW, IS_CLIENT>> {
+    let WebSocket {
+      connection_state,
+      is_in_continuation_frame,
+      nc,
+      no_masking,
+      mut rng,
+      stream,
+      wsb,
+      max_payload_len,
+    } = self;
+    let WebSocketBuffer { network_buffer, reader_compression_buffer, writer_buffer } = wsb;
     let (stream_reader, stream_writer) = split(stream);
-    let nc_rsv1 = nc.rsv1();
-    let common = C::new(WebSocketCommonPartOwned {
-      wsc: WebSocketCommonPart { connection_state, nc, rng, stream: stream_writer },
-    });
-    WebSocketPartsOwned {
+    let local_connection_state = Arc::new(AtomicBool::new(connection_state.into()));
+    Ok(WebSocketPartsOwned {
       reader: WebSocketReaderPartOwned {
-        common: common.clone(),
+        connection_state: local_connection_state.clone(),
+        is_in_continuation_frame,
         phantom: PhantomData,
+        nc: nc.clone(),
+        rng: R::from_rng(&mut rng)?,
         stream_reader,
-        wsrp: WebSocketReaderPart {
+        wsrp: web_socket_parts::web_socket_part::WebSocketReaderPart {
           max_payload_len,
-          nc_rsv1,
           network_buffer,
           no_masking,
-          reader_buffer_first,
-          reader_buffer_second,
+          reader_compression_buffer,
         },
       },
       writer: WebSocketWriterPartOwned {
-        common,
-        phantom: PhantomData,
-        wswp: WebSocketWriterPart { no_masking, writer_buffer },
+        connection_state: local_connection_state,
+        nc,
+        rng,
+        stream_writer,
+        wswp: web_socket_parts::web_socket_part::WebSocketWriterPart { no_masking, writer_buffer },
       },
-    }
+    })
   }
 }

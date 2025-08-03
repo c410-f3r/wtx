@@ -3,6 +3,7 @@ use tokio::{
   net::{TcpListener, TcpStream},
 };
 use wtx::{
+  collection::Vector,
   misc::UriRef,
   web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector},
 };
@@ -12,21 +13,22 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let mut ws = WebSocketConnector::default()
     .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri)
     .await?;
-  let mut buffer = Vec::new();
-  let mut reader = BufReader::new(tokio::io::stdin());
+  let mut read_frame_buffer = Vector::new();
+  let mut stdin_buffer = Vec::new();
+  let mut buf_reader = BufReader::new(tokio::io::stdin());
   loop {
     tokio::select! {
-      frame_rslt = ws.read_frame() => {
-        let frame = frame_rslt?;
+      frame_rslt = ws.read_frame(&mut read_frame_buffer) => {
+        let frame = frame_rslt?.0;
         match (frame.op_code(), frame.text_payload()) {
           (_, Some(elem)) => cb(elem),
           (OpCode::Close, _) => break,
           _ => {}
         }
       }
-      read_rslt = reader.read_until(b'\n', &mut buffer) => {
+      read_rslt = buf_reader.read_until(b'\n', &mut stdin_buffer) => {
         let _ = read_rslt?;
-        ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut buffer)).await?;
+        ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut stdin_buffer)).await?;
       }
     }
   }
@@ -45,9 +47,10 @@ pub(crate) async fn serve(
     let (stream, _) = listener.accept().await?;
     let _jh = tokio::spawn(async move {
       let fun = async move {
+        let mut buffer = Vector::new();
         let mut ws = WebSocketAcceptor::default().accept(stream).await?;
         loop {
-          let frame = ws.read_frame().await?;
+          let frame = ws.read_frame(&mut buffer).await?.0;
           match (frame.op_code(), frame.text_payload()) {
             (_, Some(elem)) => str(elem),
             (OpCode::Binary, _) => binary(frame.payload()),

@@ -5,13 +5,11 @@ extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
-use tokio::{
-  io::{AsyncBufReadExt, BufReader},
-  net::TcpStream,
-};
+use tokio::net::TcpStream;
 use wtx::{
+  collection::Vector,
   misc::Uri,
-  web_socket::{Frame, OpCode, WebSocketConnector},
+  web_socket::{OpCode, WebSocketConnector},
 };
 
 #[tokio::main]
@@ -21,21 +19,22 @@ async fn main() -> wtx::Result<()> {
     .headers([("custom-key", "CUSTOM_VALUE")]) // Headers are optional. This method can be omitted.
     .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri.to_ref())
     .await?;
-  let mut buffer = Vec::new();
-  let mut reader = BufReader::new(tokio::io::stdin());
+  let mut buffer = Vector::new();
   loop {
-    tokio::select! {
-      frame_rslt = ws.read_frame() => {
-        let frame = frame_rslt?;
-        match (frame.op_code(), frame.text_payload()) {
-          (_, Some(elem)) => println!("{elem}"),
-          (OpCode::Close, _) => break,
-          _ => {}
-        }
+    let frame = ws.read_frame(&mut buffer).await?.0;
+    match (frame.op_code(), frame.text_payload()) {
+      // `read_frame` internally already sent a Close response
+      (OpCode::Close, Some(text)) => {
+        println!("Received close frame: {text}");
+        break;
       }
-      read_rslt = reader.read_until(b'\n', &mut buffer) => {
-        let _ = read_rslt?;
-        ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut buffer)).await?;
+      // `read_frame` internally already sent a Pong response
+      (OpCode::Ping, _) => {}
+      // For any other type, `read_frame` doesn't automatically send frames
+      (_, text) => {
+        if let Some(elem) = text {
+          println!("Received text frame: {elem}")
+        }
       }
     }
   }

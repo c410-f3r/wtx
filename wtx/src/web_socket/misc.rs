@@ -1,4 +1,4 @@
-use crate::web_socket::{CloseCode, MASK_MASK, MAX_HEADER_LEN_USIZE, OP_CODE_MASK, OpCode};
+use crate::web_socket::{CloseCode, MASK_MASK, MAX_HEADER_LEN, OP_CODE_MASK, OpCode};
 
 /// The first two bytes of `payload` are filled with `code`. Does nothing if `payload` is
 /// less than 2 bytes.
@@ -14,7 +14,7 @@ pub fn fill_with_close_code(code: CloseCode, payload: &mut [u8]) {
 
 pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
   fin: bool,
-  header: &mut [u8; MAX_HEADER_LEN_USIZE],
+  header: &mut [u8; MAX_HEADER_LEN],
   op_code: OpCode,
   payload_len: usize,
   rsv1: u8,

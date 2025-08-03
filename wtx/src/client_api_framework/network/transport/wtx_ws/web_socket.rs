@@ -4,13 +4,13 @@ use crate::{
     network::{
       TransportGroup, WsParams,
       transport::{
-        ReceivingTransport, SendingTransport, Transport,
-        wtx_ws::{recv, send_bytes, send_pkg},
+        ReceivingTransport, SendingTransport, Transport, log_res,
+        wtx_ws::{send_bytes, send_pkg},
       },
     },
     pkg::{Package, PkgsAux},
   },
-  collection::Vector,
+  collection::{IndexedStorageMut, Vector},
   misc::LeaseMut,
   rng::Rng,
   stream::Stream,
@@ -33,7 +33,9 @@ where
   where
     A: Api,
   {
-    recv(self.read_frame().await?, pkgs_aux).await?;
+    pkgs_aux.byte_buffer.clear();
+    let frame = self.read_frame(&mut pkgs_aux.byte_buffer).await?;
+    log_res(pkgs_aux.log_body.1, frame.0.payload(), TransportGroup::WebSocket);
     Ok(())
   }
 }

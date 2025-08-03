@@ -8,8 +8,7 @@ use crate::{
 pub struct WebSocketBuffer {
   pub(crate) network_buffer: PartitionedFilledBuffer,
   pub(crate) writer_buffer: Vector<u8>,
-  pub(crate) reader_buffer_first: Vector<u8>,
-  pub(crate) reader_buffer_second: Vector<u8>,
+  pub(crate) reader_compression_buffer: Vector<u8>,
 }
 
 impl WebSocketBuffer {
@@ -18,8 +17,7 @@ impl WebSocketBuffer {
   pub fn new() -> Self {
     Self {
       network_buffer: PartitionedFilledBuffer::default(),
-      reader_buffer_first: Vector::new(),
-      reader_buffer_second: Vector::new(),
+      reader_compression_buffer: Vector::new(),
       writer_buffer: Vector::new(),
     }
   }
@@ -33,8 +31,7 @@ impl WebSocketBuffer {
   ) -> crate::Result<Self> {
     Ok(Self {
       network_buffer: PartitionedFilledBuffer::with_capacity(network_buffer_cap)?,
-      reader_buffer_first: Vector::with_capacity(reader_buffer_cap)?,
-      reader_buffer_second: Vector::with_capacity(reader_buffer_cap)?,
+      reader_compression_buffer: Vector::with_capacity(reader_buffer_cap)?,
       writer_buffer: Vector::with_capacity(writer_buffer_cap)?,
     })
   }
@@ -42,10 +39,9 @@ impl WebSocketBuffer {
   #[cfg(feature = "web-socket-handshake")]
   pub(crate) fn clear(&mut self) {
     use crate::collection::IndexedStorageMut;
-    let Self { network_buffer, reader_buffer_first, reader_buffer_second, writer_buffer } = self;
+    let Self { network_buffer, reader_compression_buffer, writer_buffer } = self;
     network_buffer.clear();
-    reader_buffer_first.clear();
-    reader_buffer_second.clear();
+    reader_compression_buffer.clear();
     writer_buffer.clear();
   }
 }

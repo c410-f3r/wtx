@@ -73,7 +73,7 @@ pub(crate) async fn write_frame<NC, P, R, SW, const IS_CLIENT: bool>(
   no_masking: bool,
   nc: &mut NC,
   rng: &mut R,
-  stream: &mut SW,
+  stream_writer: &mut SW,
   writer_buffer: &mut Vector<u8>,
 ) -> crate::Result<()>
 where
@@ -84,11 +84,11 @@ where
 {
   if manage_compression(frame, nc) {
     let fr = manage_frame_compression(connection_state, nc, frame, no_masking, rng, writer_buffer)?;
-    stream.write_all_vectored(&[fr.header(), fr.payload()]).await?;
+    stream_writer.write_all_vectored(&[fr.header(), fr.payload()]).await?;
   } else {
     manage_normal_frame::<_, _, IS_CLIENT>(connection_state, frame, no_masking, rng);
     let (header, payload) = frame.header_and_payload_mut();
-    stream.write_all_vectored(&[header, payload.lease()]).await?;
+    stream_writer.write_all_vectored(&[header, payload.lease()]).await?;
   }
   Ok(())
 }
