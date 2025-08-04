@@ -13,7 +13,7 @@ use crate::{
 
 pub(crate) fn manage_compression<NC, P, const IS_CLIENT: bool>(
   frame: &mut Frame<P, IS_CLIENT>,
-  nc: &NC,
+  nc_rsv1: u8,
 ) -> bool
 where
   NC: NegotiatedCompression,
@@ -25,8 +25,8 @@ where
   let mut should_compress = false;
   if !frame.op_code().is_control() {
     let [first, _] = frame.header_first_two_mut();
-    should_compress = nc.rsv1() != 0;
-    *first |= nc.rsv1();
+    should_compress = nc_rsv1 != 0;
+    *first |= nc_rsv1;
   }
   should_compress
 }
@@ -34,6 +34,7 @@ where
 pub(crate) fn manage_frame_compression<'cb, NC, P, R, const IS_CLIENT: bool>(
   connection_state: &mut ConnectionState,
   nc: &mut NC,
+  nc_rsv1: u8,
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
   rng: &mut R,
@@ -47,7 +48,7 @@ where
   if frame.op_code() == OpCode::Close {
     *connection_state = ConnectionState::Closed;
   }
-  let mut compressed_frame = compress_frame(frame, nc, writer_buffer)?;
+  let mut compressed_frame = compress_frame(frame, nc, nc_rsv1, writer_buffer)?;
   mask_frame(&mut compressed_frame, no_masking, rng);
   Ok(compressed_frame)
 }
@@ -72,6 +73,7 @@ pub(crate) async fn write_frame<NC, P, R, SW, const IS_CLIENT: bool>(
   frame: &mut Frame<P, IS_CLIENT>,
   no_masking: bool,
   nc: &mut NC,
+  nc_rsv1: u8,
   rng: &mut R,
   stream_writer: &mut SW,
   writer_buffer: &mut Vector<u8>,
@@ -82,8 +84,16 @@ where
   R: Rng,
   SW: StreamWriter,
 {
-  if manage_compression(frame, nc) {
-    let fr = manage_frame_compression(connection_state, nc, frame, no_masking, rng, writer_buffer)?;
+  if manage_compression::<NC, _, IS_CLIENT>(frame, nc_rsv1) {
+    let fr = manage_frame_compression(
+      connection_state,
+      nc,
+      nc_rsv1,
+      frame,
+      no_masking,
+      rng,
+      writer_buffer,
+    )?;
     stream_writer.write_all_vectored(&[fr.header(), fr.payload()]).await?;
   } else {
     manage_normal_frame::<_, _, IS_CLIENT>(connection_state, frame, no_masking, rng);
@@ -96,6 +106,7 @@ where
 fn compress_frame<'cb, P, NC, const IS_CLIENT: bool>(
   frame: &mut Frame<P, IS_CLIENT>,
   nc: &mut NC,
+  nc_rsv1: u8,
   writer_buffer: &'cb mut Vector<u8>,
 ) -> crate::Result<FrameMut<'cb, IS_CLIENT>>
 where
@@ -123,7 +134,7 @@ where
     frame.fin(),
     frame.op_code(),
     writer_buffer.get_mut(..payload_len).unwrap_or_default(),
-    nc.rsv1(),
+    nc_rsv1,
   ))
 }
 

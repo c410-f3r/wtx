@@ -1,17 +1,20 @@
 error: The `#[pkg]` module must have an inner `#[pkg::req_data]` element and an inner `#[pkg::res_data]` element.
- --> tests/ui/error_enum/absent_req_or_res.rs:2:5
+ --> tests/fail/absent_req_or_res.rs:2:5
   |
 2 | mod a {
   |     ^
 
 error: The `#[pkg]` module must have an inner `#[pkg::req_data]` element and an inner `#[pkg::res_data]` element.
- --> tests/ui/error_enum/absent_req_or_res.rs:6:5
+ --> tests/fail/absent_req_or_res.rs:6:5
   |
 6 | mod b {
   |     ^
 
 error: The `#[pkg]` module must have an inner `#[pkg::req_data]` element and an inner `#[pkg::res_data]` element.
-  --> tests/ui/error_enum/absent_req_or_res.rs:14:5
+  --> tests/fail/absent_req_or_res.rs:14:5
    |
 14 | mod c {
    |     ^
+
+error: aborting due to 3 previous errors
+

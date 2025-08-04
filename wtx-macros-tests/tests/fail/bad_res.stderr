@@ -1,5 +1,8 @@
 error: Response data must end with the `Res` suffix.
- --> tests/ui/error_enum/bad_res.rs:8:10
+ --> tests/fail/bad_res.rs:8:10
   |
 8 |   struct ResDSA;
   |          ^^^^^^
+
+error: aborting due to 1 previous error
+

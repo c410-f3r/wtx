@@ -31,21 +31,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/autobahn-fuzzingserver.sh ci
 
-  fuzz:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-06-11
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-fuzz
-          use-tool-cache: true
-      - run: .scripts/fuzz.sh
-
   h2spec-high:
     runs-on: ubuntu-latest
     steps:
@@ -95,10 +80,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: mdbook
-          use-tool-cache: true
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -112,10 +93,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: mdbook
-          use-tool-cache: true
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -141,3 +118,33 @@ jobs:
           toolchain: nightly-2025-06-11
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/internal-tests2.sh
+
+  internal-tests3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-fuzz
+          use-tool-cache: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          override: true
+          profile: minimal
+          toolchain: nightly-2025-06-11
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/internal-tests3.sh
+
+  internal-tests4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          override: true
+          profile: minimal
+          toolchain: nightly-2025-06-11
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/internal-tests4.sh

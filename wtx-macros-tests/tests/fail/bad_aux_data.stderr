@@ -1,5 +1,8 @@
 error: This method must be named `foo_data`
- --> tests/ui/error_enum/bad_aux_data.rs:6:8
+ --> tests/fail/bad_aux_data.rs:6:8
   |
 6 |     fn fdsfqw() {}
   |        ^^^^^^
+
+error: aborting due to 1 previous error
+

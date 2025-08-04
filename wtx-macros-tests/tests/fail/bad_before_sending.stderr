@@ -1,5 +1,8 @@
 error: `#[pkg::before_sending]` must be an async function named `before_sending` containing any combination of `api: &mut SomeApi`, `params: &mut SomePackageParams` or `res_params: &mut SomeResponseParams`.
- --> tests/ui/error_enum/bad_before_sending.rs:3:10
+ --> tests/fail/bad_before_sending.rs:3:10
   |
 3 |   #[pkg::before_sending]
   |          ^^^^^^^^^^^^^^
+
+error: aborting due to 1 previous error
+

@@ -1,5 +1,8 @@
 error: It is not possible to have more than one declaration of this `pkg` attribute in the same package.
- --> tests/ui/error_enum/duplicated_global_pkg_attr.rs:7:10
+ --> tests/fail/duplicated_global_pkg_attr.rs:7:10
   |
 7 |   #[pkg::req_data]
   |          ^^^^^^^^
+
+error: aborting due to 1 previous error
+

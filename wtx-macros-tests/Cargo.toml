@@ -1,0 +1,13 @@
+[dependencies]
+ui_test = { default-features = false, features = ["rustc"], version = "0.30" }
+wtx = { default-features = false, features = ["client-api-framework", "http", "postgres"], path = "../wtx" }
+wtx-macros = { default-features = false, path = "../wtx-macros" }
+
+[package]
+edition = "2024"
+name = "wtx-macros-tests"
+publish = false
+rust-version = "1.88"
+version = "0.0.0"
+
+[workspace]

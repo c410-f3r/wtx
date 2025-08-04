@@ -79,6 +79,7 @@ pub struct WebSocket<NC, R, S, WSB, const IS_CLIENT: bool> {
   is_in_continuation_frame: Option<is_in_continuation_frame::IsInContinuationFrame>,
   max_payload_len: usize,
   nc: NC,
+  nc_rsv1: u8,
   no_masking: bool,
   rng: R,
   stream: S,
@@ -103,12 +104,14 @@ where
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
-  pub const fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WSB) -> crate::Result<Self> {
+  pub fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WSB) -> crate::Result<Self> {
+    let nc_rsv1 = nc.rsv1();
     Ok(Self {
       connection_state: ConnectionState::Open,
       is_in_continuation_frame: None,
       max_payload_len: _MAX_PAYLOAD_LEN,
       nc,
+      nc_rsv1,
       no_masking,
       rng,
       stream,
@@ -129,6 +132,7 @@ where
       connection_state,
       is_in_continuation_frame,
       nc,
+      nc_rsv1,
       no_masking,
       rng,
       stream,
@@ -138,7 +142,7 @@ where
     let WebSocketBuffer { writer_buffer, network_buffer, reader_compression_buffer } =
       wsb.lease_mut();
     (
-      WebSocketCommonPartMut { connection_state, nc, rng, stream },
+      WebSocketCommonPartMut { connection_state, nc, nc_rsv1: *nc_rsv1, rng, stream },
       WebSocketReaderPartMut {
         is_in_continuation_frame,
         phantom: PhantomData,
@@ -177,6 +181,7 @@ where
       is_in_continuation_frame,
       max_payload_len,
       nc,
+      nc_rsv1,
       no_masking,
       rng,
       stream,
@@ -189,6 +194,7 @@ where
       is_in_continuation_frame,
       *max_payload_len,
       nc,
+      *nc_rsv1,
       network_buffer,
       *no_masking,
       reader_compression_buffer,
@@ -207,13 +213,14 @@ where
   where
     P: LeaseMut<[u8]>,
   {
-    let WebSocket { connection_state, nc, no_masking, rng, stream, wsb, .. } = self;
+    let WebSocket { connection_state, nc, nc_rsv1, no_masking, rng, stream, wsb, .. } = self;
     let WebSocketBuffer { writer_buffer, .. } = wsb.lease_mut();
     web_socket_writer::write_frame(
       connection_state,
       frame,
       *no_masking,
       nc,
+      *nc_rsv1,
       rng,
       stream,
       writer_buffer,
@@ -238,6 +245,7 @@ where
       connection_state,
       is_in_continuation_frame,
       nc,
+      nc_rsv1,
       no_masking,
       mut rng,
       stream,
@@ -253,6 +261,7 @@ where
         is_in_continuation_frame,
         phantom: PhantomData,
         nc: nc.clone(),
+        nc_rsv1,
         rng: R::from_rng(&mut rng)?,
         stream_reader,
         wsrp: web_socket_parts::web_socket_part::WebSocketReaderPart {
@@ -265,6 +274,7 @@ where
       writer: WebSocketWriterPartOwned {
         connection_state: local_connection_state,
         nc,
+        nc_rsv1,
         rng,
         stream_writer,
         wswp: web_socket_parts::web_socket_part::WebSocketWriterPart { no_masking, writer_buffer },

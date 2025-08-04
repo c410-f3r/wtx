@@ -1,0 +1,215 @@
+#![feature(prelude_import)]
+//! Custom transport through `transport(Custom)`.
+#[prelude_import]
+use std::prelude::rust_2021::*;
+#[macro_use]
+extern crate std;
+
+use wtx::client_api_framework::{
+    network::{
+        transport::{
+            ReceivingTransport, SendingTransport, Transport, TransportParams,
+        },
+        TransportGroup,
+    },
+    pkg::{Package, PkgsAux},
+    Api, SendBytesSource,
+};
+
+struct CustomTransport;
+
+impl ReceivingTransport<CustomTransportParams> for CustomTransport {
+    #[inline]
+    async fn recv<A,
+        DRSR>(&mut self, _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
+        _: Self::ReqId) -> Result<(), A::Error> where A: Api {
+        Ok(())
+    }
+}
+
+impl SendingTransport<CustomTransportParams> for CustomTransport {
+    async fn send_bytes<A,
+        DRSR>(&mut self, _: SendBytesSource<'_>,
+        _: &mut PkgsAux<A, DRSR, CustomTransportParams>)
+        -> Result<(), A::Error> where A: Api {
+        Ok(())
+    }
+
+    async fn send_pkg<A, DRSR,
+        P>(&mut self, _: &mut P,
+        _: &mut PkgsAux<A, DRSR, CustomTransportParams>)
+        -> Result<(), A::Error> where A: Api,
+        P: Package<A, DRSR, Self, CustomTransportParams> {
+        Ok(())
+    }
+}
+
+impl Transport<CustomTransportParams> for CustomTransport {
+    const GROUP: TransportGroup = TransportGroup::Custom("Custom");
+    type Inner = Self;
+    type ReqId = ();
+}
+
+struct CustomTransportParams((), ());
+
+impl TransportParams for CustomTransportParams {
+    type ExternalRequestParams = ();
+    type ExternalResponseParams = ();
+
+    fn ext_params(&self)
+        -> (&Self::ExternalRequestParams, &Self::ExternalResponseParams) {
+        (&self.0, &self.1)
+    }
+
+    fn ext_params_mut(&mut self)
+        ->
+            (&mut Self::ExternalRequestParams,
+            &mut Self::ExternalResponseParams) {
+        (&mut self.0, &mut self.1)
+    }
+
+    fn reset(&mut self) {}
+}
+
+type Nothing = ();
+
+mod pkg {
+    #[doc = "Expected data request that will be sent to the server."]
+    struct Req;
+
+    #[doc = "Expected data response returned by the server."]
+    struct Res;
+    #[doc =
+    "Corresponding package does not expect any additional custom parameter."]
+    pub type Params = ();
+    #[doc =
+    r" Package containing all the expected parameters and data necessary to manage and issue"]
+    #[doc = r" a request."]
+    #[doc = r""]
+    #[doc =
+    r" For more information, please see the official API's documentation."]
+    pub struct Pkg<C> where  {
+        #[doc = r" Content. Data format containing request data."]
+        pub content: C,
+        #[doc = r" Parameters. Used across the package lifetime."]
+        pub params: Params<>,
+    }
+    #[automatically_derived]
+    impl<C: ::core::fmt::Debug> ::core::fmt::Debug for Pkg<C> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field2_finish(f, "Pkg",
+                "content", &self.content, "params", &&self.params)
+        }
+    }
+    impl<__API, __API_PARAMS, __DRSR, __TRANSPORT>
+        wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
+        crate::CustomTransportParams> for
+        Pkg<wtx::de::protocol::VerbatimEncoder<Req<>>> where
+        wtx::de::protocol::VerbatimEncoder<Req<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
+        for<'__de> wtx::de::protocol::VerbatimDecoder<Res<>>: wtx::de::DecodeSeq<'__de,
+        wtx::de::format::De<__DRSR>>,
+        __API: wtx::client_api_framework::Api<Error =
+        <<super::Nothing as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::Api>::Error, Id = super::Nothing> +
+        wtx::misc::LeaseMut<<super::Nothing as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
+        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        type ExternalRequestContent =
+            wtx::de::protocol::VerbatimEncoder<Req<>>;
+        type ExternalResponseContent<'__de> =
+            wtx::de::protocol::VerbatimDecoder<Res<>>;
+        type PackageParams = Params<>;
+        #[inline]
+        async fn after_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT, &mut crate::CustomTransportParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        async fn before_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT, &mut crate::CustomTransportParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        fn ext_req_content(&self) -> &Self::ExternalRequestContent {
+            &self.content
+        }
+        #[inline]
+        fn ext_req_content_mut(&mut self)
+            -> &mut Self::ExternalRequestContent {
+            &mut self.content
+        }
+        #[inline]
+        fn pkg_params(&self) -> &Self::PackageParams { &self.params }
+        #[inline]
+        fn pkg_params_mut(&mut self) -> &mut Self::PackageParams {
+            &mut self.params
+        }
+    }
+    impl<'__is_mut, __API, __API_PARAMS, __DRSR, __TRANSPORT>
+        wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
+        &'__is_mut mut crate::CustomTransportParams> for
+        Pkg<wtx::de::protocol::VerbatimEncoder<Req<>>> where
+        wtx::de::protocol::VerbatimEncoder<Req<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
+        for<'__de> wtx::de::protocol::VerbatimDecoder<Res<>>: wtx::de::DecodeSeq<'__de,
+        wtx::de::format::De<__DRSR>>,
+        __API: wtx::client_api_framework::Api<Error =
+        <<super::Nothing as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::Api>::Error, Id = super::Nothing> +
+        wtx::misc::LeaseMut<<super::Nothing as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
+        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        type ExternalRequestContent =
+            wtx::de::protocol::VerbatimEncoder<Req<>>;
+        type ExternalResponseContent<'__de> =
+            wtx::de::protocol::VerbatimDecoder<Res<>>;
+        type PackageParams = Params<>;
+        #[inline]
+        async fn after_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut &'__is_mut mut crate::CustomTransportParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        async fn before_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut &'__is_mut mut crate::CustomTransportParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        fn ext_req_content(&self) -> &Self::ExternalRequestContent {
+            &self.content
+        }
+        #[inline]
+        fn ext_req_content_mut(&mut self)
+            -> &mut Self::ExternalRequestContent {
+            &mut self.content
+        }
+        #[inline]
+        fn pkg_params(&self) -> &Self::PackageParams { &self.params }
+        #[inline]
+        fn pkg_params_mut(&mut self) -> &mut Self::PackageParams {
+            &mut self.params
+        }
+    }
+}
+
+fn main() {}

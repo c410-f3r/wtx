@@ -3,13 +3,6 @@ proc-macro2 = { default-features = false, version = "1.0" }
 quote = { default-features = false, features = ["proc-macro"], version = "1.0" }
 syn = { default-features = false, features = ["derive", "extra-traits", "full", "parsing", "printing", "proc-macro"], version = "2.0" }
 
-[dev-dependencies]
-trybuild = { default-features = false, version = "1.0" }
-wtx = { default-features = false, features = ["client-api-framework", "http", "postgres"], path = "../wtx" }
-
-[features]
-default = []
-
 [lib]
 proc-macro = true
 

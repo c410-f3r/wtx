@@ -1,11 +1,14 @@
 error: Field attributes must be annotated as `#[pkg::field(name = "SomeName")]`
- --> tests/ui/error_enum/bad_field.rs:5:20
+ --> tests/fail/bad_field.rs:5:20
   |
 5 |   pub struct Req(#[pkg::bar] i32);
   |                    ^^^
 
 error: expected `name`
-  --> tests/ui/error_enum/bad_field.rs:15:31
+  --> tests/fail/bad_field.rs:15:31
    |
 15 |   pub struct Req(#[pkg::field(foo = "1111")] i32);
    |                               ^^^
+
+error: aborting due to 2 previous errors
+

@@ -1,7 +1,10 @@
 error: Unknown data format.
- --> tests/ui/error_enum/unknown_data_format.rs:1:1
+ --> tests/fail/unknown_data_format.rs:1:1
   |
 1 | #[wtx_macros::pkg(data_format(fdsdfs), id(Foo))]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this error originates in the attribute macro `wtx_macros::pkg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 1 previous error
+

@@ -1,5 +1,8 @@
 error: `#[pkg::after_sending]` must be an async function named `after_sending` containing any combination of `api: &mut SomeApi`, `params: &mut SomePackageParams`, `bytes: &[u8]`, and `req_params: &mut SomeRequestParams`.
- --> tests/ui/error_enum/bad_after_sending.rs:3:10
+ --> tests/fail/bad_after_sending.rs:3:10
   |
 3 |   #[pkg::after_sending]
   |          ^^^^^^^^^^^^^
+
+error: aborting due to 1 previous error
+

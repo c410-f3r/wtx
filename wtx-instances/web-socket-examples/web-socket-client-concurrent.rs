@@ -56,12 +56,12 @@ async fn reader(
     let frame = reader.read_frame(&mut buffer).await?.0;
     match (frame.op_code(), frame.text_payload()) {
       (OpCode::Close, Some(text)) => {
+        writer.lock().await.write_close_reply(text.as_bytes()).await?;
         println!("Received close frame: {text}");
-        writer.lock().await.write_frame(&mut Frame::new_fin(OpCode::Close, [])).await?;
         break;
       }
       (OpCode::Ping, _) => {
-        writer.lock().await.write_frame(&mut Frame::new_fin(OpCode::Pong, [])).await?;
+        writer.lock().await.write_ping_reply(frame.payload()).await?;
       }
       (_, text) => {
         if let Some(elem) = text {
