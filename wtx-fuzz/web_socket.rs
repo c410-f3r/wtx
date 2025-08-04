@@ -8,7 +8,7 @@ use wtx::{
   executor::Runtime,
   rng::{Xorshift64, simple_seed},
   stream::BytesStream,
-  web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer},
+  web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer, WebSocketReadMode},
 };
 
 libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
@@ -28,7 +28,7 @@ libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
       if ws.write_frame(&mut frame).await.is_err() {
         return;
       };
-      let _rslt = ws.read_frame(&mut Vector::new()).await;
+      let _rslt = ws.read_frame(&mut Vector::new(), WebSocketReadMode::Adaptive).await;
     })
     .unwrap();
 });

@@ -8,7 +8,7 @@ use wtx::{
   http::OptionedServer,
   rng::Xorshift64,
   web_socket::{
-    OpCode, WebSocket, WebSocketBuffer,
+    OpCode, WebSocket, WebSocketBuffer, WebSocketReadMode,
     compression::{Flate2, NegotiatedFlate2},
   },
 };
@@ -32,7 +32,8 @@ async fn handle(
   let (mut common, mut reader, mut writer) = ws.parts_mut();
   let mut buffer = Vector::new();
   loop {
-    let mut frame = reader.read_frame(&mut buffer, &mut common).await?.0;
+    let mut frame =
+      reader.read_frame(&mut buffer, &mut common, WebSocketReadMode::Adaptive).await?;
     match frame.op_code() {
       OpCode::Binary | OpCode::Text => {
         writer.write_frame(&mut common, &mut frame).await?;

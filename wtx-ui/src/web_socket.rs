@@ -5,7 +5,7 @@ use tokio::{
 use wtx::{
   collection::Vector,
   misc::UriRef,
-  web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector},
+  web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketReadMode},
 };
 
 pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
@@ -18,8 +18,8 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let mut buf_reader = BufReader::new(tokio::io::stdin());
   loop {
     tokio::select! {
-      frame_rslt = ws.read_frame(&mut read_frame_buffer) => {
-        let frame = frame_rslt?.0;
+      frame_rslt = ws.read_frame(&mut read_frame_buffer, WebSocketReadMode::Adaptive) => {
+        let frame = frame_rslt?;
         match (frame.op_code(), frame.text_payload()) {
           (_, Some(elem)) => cb(elem),
           (OpCode::Close, _) => break,
@@ -50,7 +50,7 @@ pub(crate) async fn serve(
         let mut buffer = Vector::new();
         let mut ws = WebSocketAcceptor::default().accept(stream).await?;
         loop {
-          let frame = ws.read_frame(&mut buffer).await?.0;
+          let frame = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await?;
           match (frame.op_code(), frame.text_payload()) {
             (_, Some(elem)) => str(elem),
             (OpCode::Binary, _) => binary(frame.payload()),

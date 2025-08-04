@@ -4,7 +4,7 @@ use crate::{
   rng::Rng,
   stream::Stream,
   web_socket::{
-    Frame, FrameMut, WebSocketReadFrameTy,
+    Frame, FrameMut, WebSocketReadMode,
     compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame,
     web_socket_parts::web_socket_part::{WebSocketReaderPart, WebSocketWriterPart},
@@ -51,7 +51,8 @@ where
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
     common: &mut WebSocketCommonPartMut<'instance, NC, R, S, IS_CLIENT>,
-  ) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+    wsrm: WebSocketReadMode,
+  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'buffer: 'frame,
     'this: 'frame,
@@ -66,6 +67,7 @@ where
         common.rng,
         common.stream,
         buffer,
+        wsrm,
       )
       .await
   }

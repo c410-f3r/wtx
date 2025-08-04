@@ -9,7 +9,7 @@ use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
   misc::Uri,
-  web_socket::{OpCode, WebSocketConnector},
+  web_socket::{OpCode, WebSocketConnector, WebSocketReadMode},
 };
 
 #[tokio::main]
@@ -21,7 +21,7 @@ async fn main() -> wtx::Result<()> {
     .await?;
   let mut buffer = Vector::new();
   loop {
-    let frame = ws.read_frame(&mut buffer).await?.0;
+    let frame = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await?;
     match (frame.op_code(), frame.text_payload()) {
       // `read_frame` internally already sent a Close response
       (OpCode::Close, Some(text)) => {

@@ -18,7 +18,7 @@ mod web_socket_buffer;
 mod web_socket_connector;
 mod web_socket_error;
 mod web_socket_parts;
-mod web_socket_read_frame_ty;
+mod web_socket_read_mode;
 pub(crate) mod web_socket_reader;
 pub(crate) mod web_socket_writer;
 
@@ -51,7 +51,7 @@ pub use web_socket_parts::{
     WebSocketPartsOwned, WebSocketReaderPartOwned, WebSocketWriterPartOwned,
   },
 };
-pub use web_socket_read_frame_ty::WebSocketReadFrameTy;
+pub use web_socket_read_mode::WebSocketReadMode;
 
 const FIN_MASK: u8 = 0b1000_0000;
 const MASK_MASK: u8 = 0b1000_0000;
@@ -139,8 +139,7 @@ where
       wsb,
       max_payload_len,
     } = self;
-    let WebSocketBuffer { writer_buffer, network_buffer, reader_compression_buffer } =
-      wsb.lease_mut();
+    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb.lease_mut();
     (
       WebSocketCommonPartMut { connection_state, nc, nc_rsv1: *nc_rsv1, rng, stream },
       WebSocketReaderPartMut {
@@ -150,7 +149,7 @@ where
           max_payload_len: *max_payload_len,
           network_buffer,
           no_masking: *no_masking,
-          reader_compression_buffer,
+          reader_buffer,
         },
       },
       WebSocketWriterPartMut {
@@ -171,7 +170,8 @@ where
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
-  ) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+    wsrm: WebSocketReadMode,
+  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'buffer: 'frame,
     'this: 'frame,
@@ -187,8 +187,7 @@ where
       stream,
       wsb,
     } = self;
-    let WebSocketBuffer { network_buffer, reader_compression_buffer, writer_buffer: _ } =
-      wsb.lease_mut();
+    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer: _ } = wsb.lease_mut();
     web_socket_reader::read_frame::<_, _, _, _, _, true, IS_CLIENT>(
       connection_state,
       is_in_continuation_frame,
@@ -197,10 +196,11 @@ where
       *nc_rsv1,
       network_buffer,
       *no_masking,
-      reader_compression_buffer,
+      reader_buffer,
       rng,
       stream,
       buffer,
+      wsrm,
       |local_stream| local_stream,
       |local_stream| local_stream,
     )
@@ -252,7 +252,7 @@ where
       wsb,
       max_payload_len,
     } = self;
-    let WebSocketBuffer { network_buffer, reader_compression_buffer, writer_buffer } = wsb;
+    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
     let (stream_reader, stream_writer) = split(stream);
     let local_connection_state = Arc::new(AtomicBool::new(connection_state.into()));
     Ok(WebSocketPartsOwned {
@@ -268,7 +268,7 @@ where
           max_payload_len,
           network_buffer,
           no_masking,
-          reader_compression_buffer,
+          reader_buffer,
         },
       },
       writer: WebSocketWriterPartOwned {

@@ -21,7 +21,8 @@ use wtx::{
   rng::Xorshift64,
   sync::Arc,
   web_socket::{
-    Frame, OpCode, WebSocketConnector, WebSocketReaderPartOwned, WebSocketWriterPartOwned,
+    Frame, OpCode, WebSocketConnector, WebSocketReadMode, WebSocketReaderPartOwned,
+    WebSocketWriterPartOwned,
   },
 };
 
@@ -53,7 +54,7 @@ async fn reader(
 ) -> wtx::Result<()> {
   let mut buffer = Vector::new();
   loop {
-    let frame = reader.read_frame(&mut buffer).await?.0;
+    let frame = reader.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await?;
     match (frame.op_code(), frame.text_payload()) {
       (OpCode::Close, Some(text)) => {
         writer.lock().await.write_close_reply(text.as_bytes()).await?;
