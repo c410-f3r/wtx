@@ -1,5 +1,8 @@
 error: #[pkg::aux] must be an item implementation with none, one `#[pkg::aux_data]`, one `#[pkg::aux_params]` or both `#[pkg::aux_data]` and `#[pkg::aux_params]`
- --> tests/ui/error_enum/bad_aux.rs:3:10
+ --> tests/fail/bad_aux.rs:3:10
   |
 3 |   #[pkg::aux]
   |          ^^^
+
+error: aborting due to 1 previous error
+

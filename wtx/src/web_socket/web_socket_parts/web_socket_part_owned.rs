@@ -5,9 +5,10 @@ use crate::{
   stream::{StreamReader, StreamWriter},
   sync::{Arc, AtomicBool},
   web_socket::{
-    Frame, FrameMut, WebSocketReadFrameTy,
+    Frame, FrameMut, OpCode, WebSocketReadFrameTy,
     compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame,
+    misc::{write_close_reply, write_control_frame, write_control_frame_cb},
     web_socket_parts::web_socket_part::{WebSocketReaderPart, WebSocketWriterPart},
   },
 };
@@ -28,6 +29,7 @@ pub struct WebSocketReaderPartOwned<NC, R, SR, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
   pub(crate) is_in_continuation_frame: Option<IsInContinuationFrame>,
   pub(crate) nc: NC,
+  pub(crate) nc_rsv1: u8,
   pub(crate) phantom: PhantomData<SR>,
   pub(crate) rng: R,
   pub(crate) stream_reader: SR,
@@ -60,6 +62,7 @@ where
         &mut connection_state,
         &mut self.is_in_continuation_frame,
         &mut self.nc,
+        self.nc_rsv1,
         &mut self.rng,
         &mut self.stream_reader,
         buffer,
@@ -75,6 +78,7 @@ where
 pub struct WebSocketWriterPartOwned<NC, R, SW, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
   pub(crate) nc: NC,
+  pub(crate) nc_rsv1: u8,
   pub(crate) rng: R,
   pub(crate) stream_writer: SW,
   pub(crate) wswp: WebSocketWriterPart<Vector<u8>, IS_CLIENT>,
@@ -86,6 +90,24 @@ where
   R: Rng,
   SW: StreamWriter,
 {
+  /// Should be called when a close frame is received. This method manages state to comply
+  /// with the rules stated by the RFC.
+  #[inline]
+  pub async fn write_close_reply(&mut self, payload: &[u8]) -> crate::Result<()> {
+    let mut connection_state = self.connection_state.load(Ordering::Relaxed).into();
+    let _ = write_close_reply::<_, _, IS_CLIENT>(
+      &mut self.stream_writer,
+      &mut connection_state,
+      self.wswp.no_masking,
+      payload,
+      &mut self.rng,
+      write_control_frame_cb,
+    )
+    .await?;
+    self.connection_state.store(connection_state.into(), Ordering::Relaxed);
+    Ok(())
+  }
+
   /// Writes a frame to the stream.
   #[inline]
   pub async fn write_frame<P>(&mut self, frame: &mut Frame<P, IS_CLIENT>) -> crate::Result<()>
@@ -99,10 +121,31 @@ where
         &mut connection_state,
         frame,
         &mut self.nc,
+        self.nc_rsv1,
         &mut self.rng,
         &mut self.stream_writer,
       )
       .await?;
+    self.connection_state.store(connection_state.into(), Ordering::Relaxed);
+    Ok(())
+  }
+
+  /// Should be called when a ping frame is received. This method manages state to comply
+  /// with the rules stated by the RFC.
+  #[inline]
+  pub async fn write_ping_reply(&mut self, payload: &[u8]) -> crate::Result<()> {
+    let mut connection_state = self.connection_state.load(Ordering::Relaxed).into();
+    write_control_frame::<_, _, IS_CLIENT>(
+      &mut self.stream_writer,
+      &mut connection_state,
+      self.wswp.no_masking,
+      OpCode::Pong,
+      payload,
+      &mut self.rng,
+      |_| {},
+      write_control_frame_cb,
+    )
+    .await?;
     self.connection_state.store(connection_state.into(), Ordering::Relaxed);
     Ok(())
   }

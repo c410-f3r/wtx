@@ -17,6 +17,7 @@ use core::marker::PhantomData;
 pub struct WebSocketCommonPartMut<'instance, NC, R, S, const IS_CLIENT: bool> {
   pub(crate) connection_state: &'instance mut ConnectionState,
   pub(crate) nc: &'instance mut NC,
+  pub(crate) nc_rsv1: u8,
   pub(crate) rng: &'instance mut R,
   pub(crate) stream: &'instance mut S,
 }
@@ -61,6 +62,7 @@ where
         common.connection_state,
         self.is_in_continuation_frame,
         common.nc,
+        common.nc_rsv1,
         common.rng,
         common.stream,
         buffer,
@@ -96,7 +98,14 @@ where
   {
     self
       .wswp
-      .write_frame(common.connection_state, frame, common.nc, common.rng, common.stream)
+      .write_frame(
+        common.connection_state,
+        frame,
+        common.nc,
+        common.nc_rsv1,
+        common.rng,
+        common.stream,
+      )
       .await
   }
 }

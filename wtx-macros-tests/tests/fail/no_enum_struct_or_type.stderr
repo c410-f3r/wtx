@@ -1,17 +1,20 @@
 error: Invalid item. Expected enum, struct or type.
- --> tests/ui/error_enum/no_enum_struct_or_type.rs:3:10
+ --> tests/fail/no_enum_struct_or_type.rs:3:10
   |
 3 |   #[pkg::req_data]
   |          ^^^^^^^^
 
 error: Invalid item. Expected enum, struct or type.
-  --> tests/ui/error_enum/no_enum_struct_or_type.rs:15:10
+  --> tests/fail/no_enum_struct_or_type.rs:15:10
    |
 15 |   #[pkg::res_data]
    |          ^^^^^^^^
 
 error: Invalid item. Expected enum, struct or type.
-  --> tests/ui/error_enum/no_enum_struct_or_type.rs:21:10
+  --> tests/fail/no_enum_struct_or_type.rs:21:10
    |
 21 |   #[pkg::params]
    |          ^^^^^^
+
+error: aborting due to 3 previous errors
+

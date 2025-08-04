@@ -4,6 +4,7 @@ use crate::{
   web_socket::{
     FIN_MASK, MAX_CONTROL_PAYLOAD_LEN, OpCode, PAYLOAD_MASK, RSV1_MASK, RSV2_MASK, RSV3_MASK,
     WebSocketError,
+    compression::NegotiatedCompression,
     misc::{has_masked_frame, op_code},
   },
 };
@@ -23,12 +24,15 @@ impl ReadFrameInfo {
   /// Creates a new instance based on a sequence of bytes.
   #[cfg(feature = "http2")]
   #[inline]
-  pub(crate) fn from_bytes<const IS_CLIENT: bool>(
+  pub(crate) fn from_bytes<NC, const IS_CLIENT: bool>(
     bytes: &mut &[u8],
     max_payload_len: usize,
-    (nc_is_noop, nc_rsv1): (bool, u8),
+    nc_rsv1: u8,
     no_masking: bool,
-  ) -> crate::Result<Self> {
+  ) -> crate::Result<Self>
+  where
+    NC: NegotiatedCompression,
+  {
     let first_two = {
       let [a, b, rest @ ..] = bytes else {
         return Err(crate::Error::UnexpectedBufferState);
@@ -36,7 +40,7 @@ impl ReadFrameInfo {
       *bytes = rest;
       [*a, *b]
     };
-    let tuple = Self::manage_first_two_bytes(first_two, (nc_is_noop, nc_rsv1))?;
+    let tuple = Self::manage_first_two_bytes::<NC>(first_two, nc_rsv1)?;
     let (fin, length_code, masked, op_code, should_decompress) = tuple;
     let (mut header_len, payload_len) = match length_code {
       126 => {
@@ -69,20 +73,21 @@ impl ReadFrameInfo {
     Ok(ReadFrameInfo { fin, header_len, mask, op_code, payload_len, should_decompress })
   }
 
-  pub(crate) async fn from_stream<SR, const IS_CLIENT: bool>(
+  pub(crate) async fn from_stream<NC, SR, const IS_CLIENT: bool>(
     max_payload_len: usize,
-    (nc_is_noop, nc_rsv1): (bool, u8),
+    nc_rsv1: u8,
     network_buffer: &mut PartitionedFilledBuffer,
     no_masking: bool,
     read: &mut usize,
     stream: &mut SR,
   ) -> crate::Result<Self>
   where
+    NC: NegotiatedCompression,
     SR: StreamReader,
   {
     let buffer = network_buffer.following_rest_mut();
     let first_two = read_header::<0, 2, SR>(buffer, read, stream).await?;
-    let tuple = Self::manage_first_two_bytes(first_two, (nc_is_noop, nc_rsv1))?;
+    let tuple = Self::manage_first_two_bytes::<NC>(first_two, nc_rsv1)?;
     let (fin, length_code, masked, op_code, should_decompress) = tuple;
     let mut mask = None;
     let (header_len, payload_len) = match length_code {
@@ -135,17 +140,20 @@ impl ReadFrameInfo {
     Ok(())
   }
 
-  fn manage_first_two_bytes(
+  fn manage_first_two_bytes<NC>(
     [a, b]: [u8; 2],
-    (nc_is_noop, nc_rsv1): (bool, u8),
-  ) -> crate::Result<(bool, u8, bool, OpCode, bool)> {
+    nc_rsv1: u8,
+  ) -> crate::Result<(bool, u8, bool, OpCode, bool)>
+  where
+    NC: NegotiatedCompression,
+  {
     let rsv1 = a & RSV1_MASK;
     let rsv2 = a & RSV2_MASK;
     let rsv3 = a & RSV3_MASK;
     if rsv2 != 0 || rsv3 != 0 {
       return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
     }
-    let should_decompress = if nc_is_noop {
+    let should_decompress = if NC::IS_NOOP {
       false
     } else if nc_rsv1 == 0 {
       if rsv1 != 0 {
