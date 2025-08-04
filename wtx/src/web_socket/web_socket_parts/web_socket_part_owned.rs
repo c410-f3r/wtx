@@ -5,7 +5,7 @@ use crate::{
   stream::{StreamReader, StreamWriter},
   sync::{Arc, AtomicBool},
   web_socket::{
-    Frame, FrameMut, OpCode, WebSocketReadFrameTy,
+    Frame, FrameMut, OpCode, WebSocketReadMode,
     compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame,
     misc::{write_close_reply, write_control_frame, write_control_frame_cb},
@@ -50,7 +50,8 @@ where
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
-  ) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+    wsrm: WebSocketReadMode,
+  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'buffer: 'frame,
     'this: 'frame,
@@ -66,6 +67,7 @@ where
         &mut self.rng,
         &mut self.stream_reader,
         buffer,
+        wsrm,
       )
       .await?;
     self.connection_state.store(connection_state.into(), Ordering::Relaxed);

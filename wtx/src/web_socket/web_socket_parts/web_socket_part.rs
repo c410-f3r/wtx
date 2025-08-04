@@ -4,7 +4,7 @@ use crate::{
   rng::Rng,
   stream::{Stream, StreamReader, StreamWriter},
   web_socket::{
-    Frame, FrameMut, WebSocketReadFrameTy, compression::NegotiatedCompression,
+    Frame, FrameMut, WebSocketReadMode, compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame, web_socket_reader::read_frame,
     web_socket_writer,
   },
@@ -15,7 +15,7 @@ pub(crate) struct WebSocketReaderPart<PFB, V, const IS_CLIENT: bool> {
   pub(crate) max_payload_len: usize,
   pub(crate) network_buffer: PFB,
   pub(crate) no_masking: bool,
-  pub(crate) reader_compression_buffer: V,
+  pub(crate) reader_buffer: V,
 }
 
 impl<PFB, V, const IS_CLIENT: bool> WebSocketReaderPart<PFB, V, IS_CLIENT>
@@ -32,7 +32,8 @@ where
     rng: &mut R,
     stream: &mut S,
     user_buffer: &'ub mut Vector<u8>,
-  ) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+    wsrm: WebSocketReadMode,
+  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'this: 'frame,
     'ub: 'frame,
@@ -40,7 +41,7 @@ where
     R: Rng,
     S: Stream,
   {
-    let Self { max_payload_len, network_buffer, no_masking, reader_compression_buffer } = self;
+    let Self { max_payload_len, network_buffer, no_masking, reader_buffer } = self;
     read_frame::<_, _, _, _, _, true, IS_CLIENT>(
       connection_state,
       is_in_continuation_frame,
@@ -49,10 +50,11 @@ where
       nc_rsv1,
       network_buffer.lease_mut(),
       *no_masking,
-      reader_compression_buffer.lease_mut(),
+      reader_buffer.lease_mut(),
       rng,
       stream,
       user_buffer,
+      wsrm,
       |local_stream| local_stream,
       |local_stream| local_stream,
     )
@@ -68,7 +70,8 @@ where
     rng: &mut R,
     stream_reader: &mut SR,
     user_buffer: &'ub mut Vector<u8>,
-  ) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+    wsrm: WebSocketReadMode,
+  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'this: 'frame,
     'ub: 'frame,
@@ -76,7 +79,7 @@ where
     R: Rng,
     SR: StreamReader,
   {
-    let Self { max_payload_len, network_buffer, no_masking, reader_compression_buffer } = self;
+    let Self { max_payload_len, network_buffer, no_masking, reader_buffer } = self;
     read_frame::<_, _, _, _, _, false, IS_CLIENT>(
       connection_state,
       is_in_continuation_frame,
@@ -85,10 +88,11 @@ where
       nc_rsv1,
       network_buffer.lease_mut(),
       *no_masking,
-      reader_compression_buffer.lease_mut(),
+      reader_buffer.lease_mut(),
       rng,
       &mut (stream_reader, &mut ()),
       user_buffer,
+      wsrm,
       |local_stream| local_stream.0,
       |local_stream| local_stream.1,
     )

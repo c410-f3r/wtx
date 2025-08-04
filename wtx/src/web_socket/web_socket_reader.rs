@@ -22,7 +22,7 @@ use crate::{
   rng::Rng,
   stream::{StreamReader, StreamWriter},
   web_socket::{
-    Frame, FrameMut, MAX_HEADER_LEN, OpCode, WebSocketError, WebSocketReadFrameTy,
+    Frame, FrameMut, MAX_HEADER_LEN, OpCode, WebSocketError, WebSocketReadMode,
     compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame,
     misc::{write_close_reply, write_control_frame, write_control_frame_cb},
@@ -198,13 +198,14 @@ pub(crate) async fn read_frame<
   nc_rsv1: u8,
   network_buffer: &'nb mut PartitionedFilledBuffer,
   no_masking: bool,
-  reader_compression_buffer: &mut Vector<u8>,
+  reader_buffer: &mut Vector<u8>,
   rng: &mut R,
   stream: &mut S,
   user_buffer: &'ub mut Vector<u8>,
+  wsrm: WebSocketReadMode,
   mut stream_reader: impl FnMut(&mut S) -> &mut SR,
   mut stream_writer: impl FnMut(&mut S) -> &mut SW,
-) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
 where
   'nb: 'frame,
   'ub: 'frame,
@@ -236,12 +237,13 @@ where
         rng,
         stream_writer(&mut *stream),
         user_buffer,
+        wsrm,
       )
       .await;
     }
     let buffer = if !NC::IS_NOOP && first_rfi.should_decompress {
-      reader_compression_buffer.clear();
-      &mut *reader_compression_buffer
+      reader_buffer.clear();
+      &mut *reader_buffer
     } else {
       &mut *user_buffer
     };
@@ -256,7 +258,7 @@ where
   let control_frame = if !NC::IS_NOOP && is_in_continuation_frame.should_decompress {
     read_continuation_frames::<_, _, _, _, _, HAS_AUTO_REPLY, IS_CLIENT>(
       connection_state,
-      &mut *reader_compression_buffer,
+      &mut *reader_buffer,
       &mut *user_buffer,
       is_in_continuation_frame,
       max_payload_len,
@@ -292,15 +294,15 @@ where
     )
     .await?
   };
-  let (op_code, payload, wsrft) = if let Some(op_code) = control_frame {
-    (op_code, network_buffer.current_mut(), WebSocketReadFrameTy::Internal)
+  let (op_code, payload) = if let Some(op_code) = control_frame {
+    (op_code, wsrm.manage_payload(network_buffer.current_mut(), user_buffer)?)
   } else {
-    reader_compression_buffer.clear();
+    reader_buffer.clear();
     let op_code = is_in_continuation_frame.op_code;
     *is_in_continuation_frame_opt = None;
-    (op_code, user_buffer.as_slice_mut(), WebSocketReadFrameTy::Provided)
+    (op_code, user_buffer.as_slice_mut())
   };
-  Ok((Frame::new(true, op_code, payload, nc_rsv1), wsrft))
+  Ok(Frame::new(true, op_code, payload, nc_rsv1))
 }
 
 pub(crate) fn unmask_nb<const IS_CLIENT: bool>(
@@ -451,7 +453,8 @@ async fn manage_first_finished_frame<
   rng: &mut R,
   stream_writer: &mut SW,
   user_buffer: &'rbf mut Vector<u8>,
-) -> crate::Result<(FrameMut<'frame, IS_CLIENT>, WebSocketReadFrameTy)>
+  wsrm: WebSocketReadMode,
+) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
 where
   'nb: 'frame,
   'rbf: 'frame,
@@ -459,7 +462,7 @@ where
   R: Rng,
   SW: StreamWriter,
 {
-  let (payload, wsrft) = if !NC::IS_NOOP && rfi.should_decompress {
+  let payload = if !NC::IS_NOOP && rfi.should_decompress {
     copy_from_compressed_nb_to_rb1::<NC, IS_CLIENT>(
       nc,
       network_buffer,
@@ -467,11 +470,11 @@ where
       user_buffer,
       rfi,
     )?;
-    (user_buffer.as_slice_mut(), WebSocketReadFrameTy::Provided)
+    user_buffer.as_slice_mut()
   } else {
     let current_mut = network_buffer.current_mut();
     unmask_nb::<IS_CLIENT>(rfi.mask, current_mut, no_masking)?;
-    (current_mut, WebSocketReadFrameTy::Internal)
+    wsrm.manage_payload(current_mut, user_buffer)?
   };
   if HAS_AUTO_REPLY {
     let _is_control_frame = manage_auto_reply::<_, _, IS_CLIENT>(
@@ -486,7 +489,7 @@ where
     .await?;
   }
   manage_op_code_of_first_final_frame(rfi.op_code, payload)?;
-  Ok((Frame::new(true, rfi.op_code, payload, nc_rsv1), wsrft))
+  Ok(Frame::new(true, rfi.op_code, payload, nc_rsv1))
 }
 
 fn manage_first_unfinished_frame<'iicf, NC, const IS_CLIENT: bool>(

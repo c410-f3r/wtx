@@ -3,7 +3,7 @@
 use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
-  web_socket::{Frame, OpCode, WebSocketConnector, compression::Flate2},
+  web_socket::{Frame, OpCode, WebSocketConnector, WebSocketReadMode, compression::Flate2},
 };
 
 #[tokio::main]
@@ -21,13 +21,14 @@ async fn main() -> wtx::Result<()> {
       .await?;
     let (mut common, mut reader, mut writer) = ws.parts_mut();
     loop {
-      let mut frame = match reader.read_frame(&mut buffer, &mut common).await {
-        Err(_err) => {
-          ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
-          break;
-        }
-        Ok(elem) => elem.0,
-      };
+      let mut frame =
+        match reader.read_frame(&mut buffer, &mut common, WebSocketReadMode::Adaptive).await {
+          Err(_err) => {
+            ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
+            break;
+          }
+          Ok(elem) => elem,
+        };
       match frame.op_code() {
         OpCode::Binary | OpCode::Text => writer.write_frame(&mut common, &mut frame).await?,
         OpCode::Close => break,
@@ -52,7 +53,12 @@ async fn get_case_count(buffer: &mut Vector<u8>, host: &str) -> wtx::Result<u32>
       &format!("http://{host}/getCaseCount").as_str().into(),
     )
     .await?;
-  let rslt = ws.read_frame(buffer).await?.0.text_payload().unwrap_or_default().parse()?;
+  let rslt = ws
+    .read_frame(buffer, WebSocketReadMode::Adaptive)
+    .await?
+    .text_payload()
+    .unwrap_or_default()
+    .parse()?;
   ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
   Ok(rslt)
 }

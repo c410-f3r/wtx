@@ -16,7 +16,7 @@ use crate::{
   tests::_uri,
   web_socket::{
     CloseCode, Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
-    compression::NegotiatedCompression, fill_with_close_code,
+    WebSocketReadMode, compression::NegotiatedCompression, fill_with_close_code,
   },
 };
 use core::{sync::atomic::Ordering, time::Duration};
@@ -152,7 +152,7 @@ where
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let mut buffer = Vector::new();
-    let text = ws.read_frame(&mut buffer).await.unwrap().0;
+    let text = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "123".as_bytes()), (text.op_code(), &**text.payload()));
   }
 }
@@ -164,11 +164,11 @@ where
 {
   async fn client(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, true>) {
     let mut buffer = Vector::new();
-    let hello = ws.read_frame(&mut buffer).await.unwrap().0;
+    let hello = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "Hello!".as_bytes()), (hello.op_code(), &**hello.payload()));
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Goodbye!")).await.unwrap();
     assert_eq!(
-      ws.read_frame(&mut buffer).await.unwrap().0.payload().get(2..),
+      ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap().payload().get(2..),
       Some(&b"PS: s2"[..])
     );
   }
@@ -176,7 +176,10 @@ where
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let mut buffer = Vector::new();
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"Hello!")).await.unwrap();
-    assert_eq!(ws.read_frame(&mut buffer).await.unwrap().0.payload(), b"Goodbye!");
+    assert_eq!(
+      ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap().payload(),
+      b"Goodbye!"
+    );
     let mut ps = *b"__PS: s2";
     fill_with_close_code(CloseCode::Normal, &mut ps);
     ws.write_frame(&mut Frame::new_fin(OpCode::Close, ps)).await.unwrap();
@@ -204,7 +207,7 @@ where
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let mut buffer = Vector::new();
-    let text = ws.read_frame(&mut buffer).await.unwrap().0;
+    let text = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!(
       (OpCode::Text, vector![b'1'; 10 * 256 * 1024].as_slice()),
       (text.op_code(), &**text.payload())
@@ -221,14 +224,17 @@ where
     let mut buffer = Vector::new();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, *b"123")).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"ipat")).await.unwrap();
-    assert_eq!(OpCode::Pong, ws.read_frame(&mut buffer).await.unwrap().0.op_code());
+    assert_eq!(
+      OpCode::Pong,
+      ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap().op_code()
+    );
   }
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let mut buffer = Vector::new();
-    let frame = ws.read_frame(&mut buffer).await.unwrap().0;
+    let frame = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Ping, "123".as_bytes()), (frame.op_code(), &**frame.payload()));
-    let frame = ws.read_frame(&mut buffer).await.unwrap().0;
+    let frame = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "ipat".as_bytes()), (frame.op_code(), &**frame.payload()));
   }
 }
@@ -243,14 +249,17 @@ where
     ws.write_frame(&mut Frame::new_unfin(OpCode::Text, &mut [b'1'])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, &mut [b'9'])).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Continuation, &mut [b'2', b'3'])).await.unwrap();
-    assert_eq!(OpCode::Pong, ws.read_frame(&mut buffer).await.unwrap().0.op_code());
+    assert_eq!(
+      OpCode::Pong,
+      ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap().op_code()
+    );
   }
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let mut buffer = Vector::new();
-    let frame = ws.read_frame(&mut buffer).await.unwrap().0;
+    let frame = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Ping, "9".as_bytes()), (frame.op_code(), &**frame.payload()));
-    let frame = ws.read_frame(&mut buffer).await.unwrap().0;
+    let frame = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "123".as_bytes()), (frame.op_code(), &**frame.payload()));
   }
 }
@@ -277,7 +286,7 @@ where
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let mut buffer = Vector::new();
-    let text = ws.read_frame(&mut buffer).await.unwrap().0;
+    let text = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "κόσμε".as_bytes()), (text.op_code(), &**text.payload()));
   }
 }
@@ -291,20 +300,20 @@ where
     let mut buffer = Vector::new();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, *b"0")).await.unwrap();
     ws.write_frame(&mut Frame::new_fin(OpCode::Ping, *b"1")).await.unwrap();
-    let zero = ws.read_frame(&mut buffer).await.unwrap().0;
+    let zero = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Pong, "0".as_bytes()), (zero.op_code(), &**zero.payload()));
-    let one = ws.read_frame(&mut buffer).await.unwrap().0;
+    let one = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Pong, "1".as_bytes()), (one.op_code(), &**one.payload()));
     ws.write_frame(&mut Frame::new_fin(OpCode::Text, *b"2")).await.unwrap();
   }
 
   async fn server(ws: &mut WebSocketOwned<NC, Xorshift64, TcpStream, false>) {
     let mut buffer = Vector::new();
-    let zero = ws.read_frame(&mut buffer).await.unwrap().0;
+    let zero = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Ping, "0".as_bytes()), (zero.op_code(), &**zero.payload()));
-    let one = ws.read_frame(&mut buffer).await.unwrap().0;
+    let one = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Ping, "1".as_bytes()), (one.op_code(), &**one.payload()));
-    let two = ws.read_frame(&mut buffer).await.unwrap().0;
+    let two = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await.unwrap();
     assert_eq!((OpCode::Text, "2".as_bytes()), (two.op_code(), &**two.payload()));
   }
 }
