@@ -20,7 +20,7 @@ mod web_socket_error;
 mod web_socket_parts;
 mod web_socket_read_mode;
 pub(crate) mod web_socket_reader;
-mod web_socket_reploy_manager;
+mod web_socket_reply_manager;
 pub(crate) mod web_socket_writer;
 
 use crate::{
@@ -52,7 +52,7 @@ pub use web_socket_parts::{
   },
 };
 pub use web_socket_read_mode::WebSocketReadMode;
-pub use web_socket_reploy_manager::WebSocketReplyManager;
+pub use web_socket_reply_manager::WebSocketReplyManager;
 
 const FIN_MASK: u8 = 0b1000_0000;
 const MASK_MASK: u8 = 0b1000_0000;

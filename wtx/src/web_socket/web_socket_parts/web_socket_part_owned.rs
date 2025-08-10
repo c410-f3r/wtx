@@ -9,7 +9,7 @@ use crate::{
     compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame,
     web_socket_parts::web_socket_part::{WebSocketReaderPart, WebSocketWriterPart},
-    web_socket_reploy_manager::WebSocketReplyManager,
+    web_socket_reply_manager::WebSocketReplyManager,
   },
 };
 use core::{marker::PhantomData, sync::atomic::Ordering};

@@ -31,7 +31,7 @@ use crate::{
     },
     read_frame_info::ReadFrameInfo,
     unmask::unmask,
-    web_socket_reploy_manager::WebSocketReplyManager,
+    web_socket_reply_manager::WebSocketReplyManager,
   },
 };
 

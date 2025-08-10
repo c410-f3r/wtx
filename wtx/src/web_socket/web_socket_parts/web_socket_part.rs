@@ -6,7 +6,7 @@ use crate::{
   web_socket::{
     Frame, FrameMut, WebSocketReadMode, compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame, web_socket_reader::read_frame,
-    web_socket_reploy_manager::WebSocketReplyManager, web_socket_writer,
+    web_socket_reply_manager::WebSocketReplyManager, web_socket_writer,
   },
 };
 
