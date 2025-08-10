@@ -19,6 +19,12 @@ create_enum! {
 }
 
 impl OpCode {
+  /// If this instance is of type [`OpCode::Close`].
+  #[inline]
+  pub fn is_close(self) -> bool {
+    matches!(self, OpCode::Close)
+  }
+
   pub(crate) fn is_control(self) -> bool {
     matches!(self, OpCode::Close | OpCode::Ping | OpCode::Pong)
   }

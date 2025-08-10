@@ -6,7 +6,7 @@ use crate::{
   web_socket::{
     Frame, FrameMut, WebSocketReadMode, compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame, web_socket_reader::read_frame,
-    web_socket_writer,
+    web_socket_reploy_manager::WebSocketReplyManager, web_socket_writer,
   },
 };
 
@@ -23,16 +23,16 @@ where
   PFB: LeaseMut<PartitionedFilledBuffer>,
   V: LeaseMut<Vector<u8>>,
 {
-  pub(crate) async fn read_frame_from_stream<'frame, 'this, 'ub, NC, R, S>(
+  pub(crate) async fn read_frame_from_borrowed_parts<'frame, 'this, 'ub, NC, R, S>(
     &'this mut self,
     connection_state: &mut ConnectionState,
     is_in_continuation_frame: &mut Option<IsInContinuationFrame>,
     nc: &mut NC,
     nc_rsv1: u8,
+    read_mode: WebSocketReadMode,
     rng: &mut R,
     stream: &mut S,
     user_buffer: &'ub mut Vector<u8>,
-    wsrm: WebSocketReadMode,
   ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'this: 'frame,
@@ -50,27 +50,29 @@ where
       nc_rsv1,
       network_buffer.lease_mut(),
       *no_masking,
+      read_mode,
       reader_buffer.lease_mut(),
+      &WebSocketReplyManager::new(),
       rng,
       stream,
       user_buffer,
-      wsrm,
       |local_stream| local_stream,
       |local_stream| local_stream,
     )
     .await
   }
 
-  pub(crate) async fn read_frame_from_parts<'frame, 'this, 'ub, NC, R, SR>(
+  pub(crate) async fn read_frame_from_owned_parts<'frame, 'this, 'ub, NC, R, SR>(
     &'this mut self,
     connection_state: &mut ConnectionState,
     is_in_continuation_frame: &mut Option<IsInContinuationFrame>,
     nc: &mut NC,
     nc_rsv1: u8,
+    read_mode: WebSocketReadMode,
+    reply_manager: &WebSocketReplyManager<IS_CLIENT>,
     rng: &mut R,
     stream_reader: &mut SR,
     user_buffer: &'ub mut Vector<u8>,
-    wsrm: WebSocketReadMode,
   ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'this: 'frame,
@@ -88,11 +90,12 @@ where
       nc_rsv1,
       network_buffer.lease_mut(),
       *no_masking,
+      read_mode,
       reader_buffer.lease_mut(),
+      reply_manager,
       rng,
       &mut (stream_reader, &mut ()),
       user_buffer,
-      wsrm,
       |local_stream| local_stream.0,
       |local_stream| local_stream.1,
     )

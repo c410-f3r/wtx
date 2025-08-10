@@ -24,8 +24,7 @@ async fn main() -> wtx::Result<()> {
     let frame = ws.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await?;
     match (frame.op_code(), frame.text_payload()) {
       // `read_frame` internally already sent a Close response
-      (OpCode::Close, Some(text)) => {
-        println!("Received close frame: {text}");
+      (OpCode::Close, _) => {
         break;
       }
       // `read_frame` internally already sent a Pong response

@@ -6,7 +6,7 @@ use crate::{
 /// Xorshift that deals with 64 bits numbers.
 ///
 /// This structure is `Copy` to allow usage with `AtomicCell` in concurrent scenarios.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Xorshift64 {
   value: u64,
 }

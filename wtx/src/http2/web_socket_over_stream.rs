@@ -12,7 +12,7 @@ use crate::{
   stream::StreamWriter,
   sync::{Lock, RefCounter},
   web_socket::{
-    Frame, FrameMut, OpCode,
+    Frame, FrameMut, OpCode, WebSocketReplyManager,
     read_frame_info::ReadFrameInfo,
     web_socket_reader::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
     web_socket_writer::manage_normal_frame,
@@ -71,12 +71,13 @@ where
     buffer.clear();
     let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
     if rfi.fin {
-      let _is_control_frame = manage_auto_reply::<_, _, false>(
+      let _is_control_frame = manage_auto_reply::<_, _, true, false>(
         self.stream.lease_mut(),
         &mut self.connection_state,
         self.no_masking,
         rfi.op_code,
         buffer,
+        &WebSocketReplyManager::new(),
         &mut self.rng,
         write_control_frame_cb,
       )

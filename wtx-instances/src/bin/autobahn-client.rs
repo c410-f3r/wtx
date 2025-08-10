@@ -1,24 +1,17 @@
 //! WebSocket autobahn client.
 
-use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
-  web_socket::{Frame, OpCode, WebSocketConnector, WebSocketReadMode, compression::Flate2},
+  web_socket::{Frame, OpCode, WebSocketReadMode},
 };
+use wtx_instances::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let host = "127.0.0.1:9080";
   let mut buffer = Vector::new();
-  for case in 1..=get_case_count(&mut buffer, host).await? {
-    let mut ws = WebSocketConnector::default()
-      .compression(Flate2::default())
-      .no_masking(false)
-      .connect(
-        TcpStream::connect(host).await?,
-        &format!("http://{host}/runCase?case={case}&agent=wtx").as_str().into(),
-      )
-      .await?;
+  for case in 1..=autobahn_get_case_count(&mut buffer, host).await? {
+    let mut ws = autobahn_case_conn(case, host).await?;
     let (mut common, mut reader, mut writer) = ws.parts_mut();
     loop {
       let mut frame =
@@ -36,29 +29,5 @@ async fn main() -> wtx::Result<()> {
       }
     }
   }
-  WebSocketConnector::default()
-    .connect(
-      TcpStream::connect(host).await?,
-      &format!("http://{host}/updateReports?agent=wtx").as_str().into(),
-    )
-    .await?
-    .write_frame(&mut Frame::new_fin(OpCode::Close, &mut []))
-    .await
-}
-
-async fn get_case_count(buffer: &mut Vector<u8>, host: &str) -> wtx::Result<u32> {
-  let mut ws = WebSocketConnector::default()
-    .connect(
-      TcpStream::connect(host).await?,
-      &format!("http://{host}/getCaseCount").as_str().into(),
-    )
-    .await?;
-  let rslt = ws
-    .read_frame(buffer, WebSocketReadMode::Adaptive)
-    .await?
-    .text_payload()
-    .unwrap_or_default()
-    .parse()?;
-  ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
-  Ok(rslt)
+  autobahn_close(host).await
 }

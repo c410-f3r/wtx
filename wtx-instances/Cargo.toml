@@ -6,6 +6,11 @@ path = "src/bin/autobahn-client.rs"
 required-features = ["autobahn-client"]
 
 [[bin]]
+name = "autobahn-client-concurrent"
+path = "src/bin/autobahn-client-concurrent.rs"
+required-features = ["autobahn-client-concurrent"]
+
+[[bin]]
 name = "autobahn-server"
 path = "src/bin/autobahn-server.rs"
 required-features = ["autobahn-server"]
@@ -130,6 +135,16 @@ path = "web-socket-examples/web-socket-client-concurrent.rs"
 required-features = ["web-socket-client-concurrent"]
 
 [[example]]
+name = "web-socket-client-concurrent-channel"
+path = "web-socket-examples/web-socket-client-concurrent-channel.rs"
+required-features = ["web-socket-client-concurrent-channel"]
+
+[[example]]
+name = "web-socket-client-concurrent-mutex"
+path = "web-socket-examples/web-socket-client-concurrent-mutex.rs"
+required-features = ["web-socket-client-concurrent-mutex"]
+
+[[example]]
 name = "web-socket-server"
 path = "web-socket-examples/web-socket-server.rs"
 required-features = ["web-socket-server"]
@@ -148,6 +163,7 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 
 [features]
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
+autobahn-client-concurrent = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/pool", "wtx/web-socket-handshake"]
 h2load = ["wtx/http2", "wtx/nightly"]
 h2spec-high-server = ["wtx/http2", "wtx/nightly"]
@@ -175,6 +191,8 @@ http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]
 
 web-socket-client = ["wtx/web-socket-handshake"]
 web-socket-client-concurrent = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-client-concurrent-channel = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-client-concurrent-mutex = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
 web-socket-server = ["tokio-rustls", "wtx/pool", "wtx/web-socket-handshake"]
 
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]

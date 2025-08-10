@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{ArrayVectorU8, IndexedStorageMut as _, Vector},
   misc::Lease,
   web_socket::{
     MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OpCode,
@@ -9,10 +9,8 @@ use crate::{
 use core::str;
 
 /// Composed by an array with the maximum allowed size of a frame control.
-pub type FrameControlArray<const IS_CLIENT: bool> = Frame<[u8; MAX_CONTROL_PAYLOAD_LEN], IS_CLIENT>;
-/// Composed by an mutable array reference with the maximum allowed size of a frame control.
-pub type FrameControlArrayMut<'bytes, const IS_CLIENT: bool> =
-  Frame<&'bytes mut [u8; MAX_CONTROL_PAYLOAD_LEN], IS_CLIENT>;
+pub type FrameControlArray<const IS_CLIENT: bool> =
+  Frame<ArrayVectorU8<u8, MAX_CONTROL_PAYLOAD_LEN>, IS_CLIENT>;
 /// Composed by a sequence of mutable bytes.
 pub type FrameMut<'bytes, const IS_CLIENT: bool> = Frame<&'bytes mut [u8], IS_CLIENT>;
 /// Composed by a sequence of immutable bytes.
@@ -120,6 +118,18 @@ where
       // * Continuation frames (With decompression): Whole payload is verified when concatenated.
       // * Control frames: Only close frames are verified.
       unsafe { str::from_utf8_unchecked(self.payload.lease()) }
+    })
+  }
+
+  /// Performs a heap allocation to create a [`FrameVector`] instance.
+  #[inline]
+  pub fn to_vector(&self) -> crate::Result<FrameVector<IS_CLIENT>> {
+    Ok(FrameVector {
+      fin: self.fin,
+      header: self.header,
+      header_len: self.header_len,
+      op_code: self.op_code,
+      payload: Vector::from_copyable_slice(self.payload.lease())?,
     })
   }
 

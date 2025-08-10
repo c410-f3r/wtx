@@ -1,18 +1,19 @@
 //! Encrypted WebSocket client that reads and writes frames in different tasks.
 //!
 //! Replies aren't automatically handled by the system in concurrent scenarios because there are
-//! multiple ways to synchronize resources. In this example, reply frames are managed in the same
-//! task but you can also utilize any other method.
+//! multiple ways to synchronize resources. In this example, reply frames are managed using a
+//! mutex but you can also utilize any other method.
 
 extern crate tokio;
 extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, sync::Mutex};
 use wtx::{
   collection::Vector,
   misc::{TokioRustlsConnector, Uri},
+  sync::Arc,
   web_socket::{Frame, OpCode, WebSocketConnector, WebSocketPartsOwned, WebSocketReadMode},
 };
 
@@ -27,8 +28,10 @@ async fn main() -> wtx::Result<()> {
       &uri.to_ref(),
     )
     .await?;
-  let WebSocketPartsOwned { mut reader, reply_manager, mut writer } =
+  let WebSocketPartsOwned { mut reader, reply_manager, writer } =
     ws.into_parts(tokio::io::split)?;
+  let writer_reply_manager = Arc::new(Mutex::new(writer));
+  let writer_writer = writer_reply_manager.clone();
 
   let reader_fut = async {
     let mut buffer = Vector::new();
@@ -49,19 +52,25 @@ async fn main() -> wtx::Result<()> {
     wtx::Result::Ok(())
   };
 
-  let writer_fut = async {
-    writer.write_frame(&mut Frame::new_fin(OpCode::Close, *b"Bye")).await?;
+  let reply_manager_fut = async {
     loop {
       let mut control_frame = reply_manager.reply_frame().await;
-      if writer.write_reply_frame(&mut control_frame).await? {
+      if writer_reply_manager.lock().await.write_reply_frame(&mut control_frame).await? {
         break;
       }
     }
     wtx::Result::Ok(())
   };
 
-  let (reader_rslt, writer_rslt) = tokio::join!(reader_fut, writer_fut);
+  let writer_fut = async {
+    writer_writer.lock().await.write_frame(&mut Frame::new_fin(OpCode::Close, *b"Bye")).await?;
+    wtx::Result::Ok(())
+  };
+
+  let (reader_rslt, reply_manager_rslt, writer_rslt) =
+    tokio::join!(reader_fut, reply_manager_fut, writer_fut);
   reader_rslt?;
+  reply_manager_rslt?;
   writer_rslt?;
   Ok(())
 }

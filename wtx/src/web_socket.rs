@@ -20,6 +20,7 @@ mod web_socket_error;
 mod web_socket_parts;
 mod web_socket_read_mode;
 pub(crate) mod web_socket_reader;
+mod web_socket_reploy_manager;
 pub(crate) mod web_socket_writer;
 
 use crate::{
@@ -34,8 +35,7 @@ pub use close_code::CloseCode;
 pub use compression::{Compression, CompressionLevel, DeflateConfig};
 use core::marker::PhantomData;
 pub use frame::{
-  Frame, FrameControlArray, FrameControlArrayMut, FrameMut, FrameRef, FrameVector, FrameVectorMut,
-  FrameVectorRef,
+  Frame, FrameControlArray, FrameMut, FrameRef, FrameVector, FrameVectorMut, FrameVectorRef,
 };
 pub use misc::fill_with_close_code;
 pub use op_code::OpCode;
@@ -52,6 +52,7 @@ pub use web_socket_parts::{
   },
 };
 pub use web_socket_read_mode::WebSocketReadMode;
+pub use web_socket_reploy_manager::WebSocketReplyManager;
 
 const FIN_MASK: u8 = 0b1000_0000;
 const MASK_MASK: u8 = 0b1000_0000;
@@ -170,7 +171,7 @@ where
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
-    wsrm: WebSocketReadMode,
+    read_mode: WebSocketReadMode,
   ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'buffer: 'frame,
@@ -196,11 +197,12 @@ where
       *nc_rsv1,
       network_buffer,
       *no_masking,
+      read_mode,
       reader_buffer,
+      &WebSocketReplyManager::new(),
       rng,
       stream,
       buffer,
-      wsrm,
       |local_stream| local_stream,
       |local_stream| local_stream,
     )
@@ -255,6 +257,7 @@ where
     let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
     let (stream_reader, stream_writer) = split(stream);
     let local_connection_state = Arc::new(AtomicBool::new(connection_state.into()));
+    let reply_manager = Arc::new(WebSocketReplyManager::new());
     Ok(WebSocketPartsOwned {
       reader: WebSocketReaderPartOwned {
         connection_state: local_connection_state.clone(),
@@ -262,14 +265,15 @@ where
         phantom: PhantomData,
         nc: nc.clone(),
         nc_rsv1,
-        rng: R::from_rng(&mut rng)?,
-        stream_reader,
-        wsrp: web_socket_parts::web_socket_part::WebSocketReaderPart {
+        reader_part: web_socket_parts::web_socket_part::WebSocketReaderPart {
           max_payload_len,
           network_buffer,
           no_masking,
           reader_buffer,
         },
+        reply_manager: reply_manager.clone(),
+        rng: R::from_rng(&mut rng)?,
+        stream_reader,
       },
       writer: WebSocketWriterPartOwned {
         connection_state: local_connection_state,
@@ -277,8 +281,12 @@ where
         nc_rsv1,
         rng,
         stream_writer,
-        wswp: web_socket_parts::web_socket_part::WebSocketWriterPart { no_masking, writer_buffer },
+        writer_part: web_socket_parts::web_socket_part::WebSocketWriterPart {
+          no_masking,
+          writer_buffer,
+        },
       },
+      reply_manager,
     })
   }
 }

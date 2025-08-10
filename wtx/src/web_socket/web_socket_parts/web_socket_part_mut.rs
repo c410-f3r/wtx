@@ -51,7 +51,7 @@ where
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
     common: &mut WebSocketCommonPartMut<'instance, NC, R, S, IS_CLIENT>,
-    wsrm: WebSocketReadMode,
+    read_mode: WebSocketReadMode,
   ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'buffer: 'frame,
@@ -59,15 +59,15 @@ where
   {
     self
       .wsrp
-      .read_frame_from_stream(
+      .read_frame_from_borrowed_parts(
         common.connection_state,
         self.is_in_continuation_frame,
         common.nc,
         common.nc_rsv1,
+        read_mode,
         common.rng,
         common.stream,
         buffer,
-        wsrm,
       )
       .await
   }
