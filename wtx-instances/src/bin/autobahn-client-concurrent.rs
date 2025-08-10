@@ -14,9 +14,9 @@ async fn main() -> wtx::Result<()> {
   let mut buffer = Vector::new();
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await? {
     let ws = autobahn_case_conn(case, host).await?;
-    let WebSocketPartsOwned { mut reader, reply_manager, mut writer } =
+    let WebSocketPartsOwned { mut reader, replier, mut writer } =
       ws.into_parts(tokio::io::split)?;
-    let mut reply_frame = pin!(reply_manager.reply_frame());
+    let mut reply_frame = pin!(replier.reply_frame());
     loop {
       let mut frame = match reader.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await {
         Err(_err) => {
@@ -30,7 +30,7 @@ async fn main() -> wtx::Result<()> {
           if writer.write_reply_frame(&mut elem).await? {
             break;
           }
-          reply_frame.set(reply_manager.reply_frame());
+          reply_frame.set(replier.reply_frame());
         }
         None => {}
       }

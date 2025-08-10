@@ -12,7 +12,7 @@ use crate::{
   stream::StreamWriter,
   sync::{Lock, RefCounter},
   web_socket::{
-    Frame, FrameMut, OpCode, WebSocketReplyManager,
+    Frame, FrameMut, OpCode, WebSocketReplier,
     read_frame_info::ReadFrameInfo,
     web_socket_reader::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
     web_socket_writer::manage_normal_frame,
@@ -77,7 +77,7 @@ where
         self.no_masking,
         rfi.op_code,
         buffer,
-        &WebSocketReplyManager::new(),
+        &WebSocketReplier::new(),
         &mut self.rng,
         write_control_frame_cb,
       )

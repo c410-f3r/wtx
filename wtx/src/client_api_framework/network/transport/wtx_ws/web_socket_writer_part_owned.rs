@@ -14,10 +14,10 @@ use crate::{
   misc::LeaseMut,
   rng::Rng,
   stream::StreamWriter,
-  web_socket::{Frame, WebSocketWriterPartOwned, compression::NegotiatedCompression},
+  web_socket::{Frame, WebSocketWriterOwned, compression::NegotiatedCompression},
 };
 
-impl<NC, R, SW, TP> SendingTransport<TP> for WebSocketWriterPartOwned<NC, R, SW, true>
+impl<NC, R, SW, TP> SendingTransport<TP> for WebSocketWriterOwned<NC, R, SW, true>
 where
   NC: NegotiatedCompression,
   R: Rng,
@@ -50,7 +50,7 @@ where
   }
 }
 
-impl<NC, R, SW, TP> Transport<TP> for WebSocketWriterPartOwned<NC, R, SW, true>
+impl<NC, R, SW, TP> Transport<TP> for WebSocketWriterOwned<NC, R, SW, true>
 where
   NC: NegotiatedCompression,
   SW: StreamWriter,
@@ -62,7 +62,7 @@ where
 
 async fn cb<NC, R, SW>(
   mut frame: Frame<&mut Vector<u8>, true>,
-  trans: &mut WebSocketWriterPartOwned<NC, R, SW, true>,
+  trans: &mut WebSocketWriterOwned<NC, R, SW, true>,
 ) -> crate::Result<()>
 where
   NC: NegotiatedCompression,
