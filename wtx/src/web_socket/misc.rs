@@ -20,6 +20,39 @@ pub fn fill_with_close_code(code: CloseCode, payload: &mut [u8]) {
   *b = d;
 }
 
+/// Returns `true` if `payload` is greater than the maximum allowed length.
+#[inline]
+pub(crate) async fn check_read_close_frame(
+  connection_state: &mut ConnectionState,
+  payload: &[u8],
+) -> crate::Result<bool> {
+  if connection_state.is_closed() {
+    return Err(crate::Error::ClosedConnection);
+  }
+  *connection_state = ConnectionState::Closed;
+  match payload {
+    [] => Ok(true),
+    [_] => Err(WebSocketError::InvalidCloseFrame.into()),
+    [a, b, rest @ ..] => {
+      let _str_validation = from_utf8_basic(rest)?;
+      let close_code = CloseCode::try_from(u16::from_be_bytes([*a, *b]))?;
+      if !close_code.is_allowed() || rest.len() > MAX_CONTROL_PAYLOAD_LEN - 2 {
+        Ok(true)
+      } else {
+        Ok(false)
+      }
+    }
+  }
+}
+
+pub(crate) fn control_frame_payload(data: &[u8]) -> ([u8; MAX_CONTROL_PAYLOAD_LEN], u8) {
+  let len = data.len().min(MAX_CONTROL_PAYLOAD_LEN);
+  let mut array = [0; MAX_CONTROL_PAYLOAD_LEN];
+  let slice = array.get_mut(..len).unwrap_or_default();
+  slice.copy_from_slice(data.get(..len).unwrap_or_default());
+  (array, len.try_into().unwrap_or_default())
+}
+
 pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
   fin: bool,
   header: &mut [u8; MAX_HEADER_LEN],
@@ -74,82 +107,19 @@ pub(crate) fn op_code(first_header_byte: u8) -> crate::Result<OpCode> {
   OpCode::try_from(first_header_byte & OP_CODE_MASK)
 }
 
-#[inline]
-pub(crate) async fn write_close_reply<'payload, A, RNG, const IS_CLIENT: bool>(
-  aux: A,
-  connection_state: &mut ConnectionState,
-  no_masking: bool,
-  payload: &'payload [u8],
-  rng: &mut RNG,
-  write_control_frame_cb: impl for<'any> FnMutFut<
-    (A, &'any [u8], &'any [u8]),
-    Result = crate::Result<()>,
-  >,
-) -> crate::Result<bool>
-where
-  RNG: Rng,
-{
-  fn modify_nothing_fn(_: &mut [u8]) {}
-  fn modify_payload_fn(slice: &mut [u8]) {
-    fill_with_close_code(CloseCode::Protocol, slice);
-  }
-
-  if connection_state.is_closed() {
-    return Err(crate::Error::ClosedConnection);
-  }
-  *connection_state = ConnectionState::Closed;
-  let modify_nothing: fn(_: &mut [u8]) = modify_nothing_fn;
-  let modify_payload: fn(_: &mut [u8]) = modify_payload_fn;
-  let (actual_payload, modify_payload_cb, rslt) = match payload {
-    [] => (payload, modify_nothing, Ok(true)),
-    [_] => return Err(WebSocketError::InvalidCloseFrame.into()),
-    [a, b, rest @ ..] => {
-      let _str_validation = from_utf8_basic(rest)?;
-      let close_code = CloseCode::try_from(u16::from_be_bytes([*a, *b]))?;
-      if !close_code.is_allowed() || rest.len() > MAX_CONTROL_PAYLOAD_LEN - 2 {
-        (
-          payload.get(..MAX_CONTROL_PAYLOAD_LEN).unwrap_or_default(),
-          modify_payload,
-          Err(WebSocketError::InvalidCloseFrame.into()),
-        )
-      } else {
-        (payload, modify_nothing, Ok(true))
-      }
-    }
-  };
-  write_control_frame::<_, _, IS_CLIENT>(
-    aux,
-    connection_state,
-    no_masking,
-    OpCode::Close,
-    actual_payload,
-    rng,
-    modify_payload_cb,
-    write_control_frame_cb,
-  )
-  .await?;
-  rslt
-}
-
 pub(crate) async fn write_control_frame<A, RNG, const IS_CLIENT: bool>(
   aux: A,
   connection_state: &mut ConnectionState,
   no_masking: bool,
   op_code: OpCode,
-  payload: &[u8],
+  payload: &mut [u8],
   rng: &mut RNG,
-  modify_payload_cb: fn(&mut [u8]),
   mut wsc_cb: impl for<'any> FnMutFut<(A, &'any [u8], &'any [u8]), Result = crate::Result<()>>,
 ) -> crate::Result<()>
 where
   RNG: Rng,
 {
-  let len = payload.len().min(MAX_CONTROL_PAYLOAD_LEN);
-  let mut array = [0; MAX_CONTROL_PAYLOAD_LEN];
-  let slice = array.get_mut(..len).unwrap_or_default();
-  slice.copy_from_slice(payload.get(..len).unwrap_or_default());
-  modify_payload_cb(slice);
-  let mut frame = Frame::<_, IS_CLIENT>::new_fin(op_code, slice);
+  let mut frame = Frame::<_, IS_CLIENT>::new_fin(op_code, payload);
   manage_normal_frame(connection_state, &mut frame, no_masking, rng);
   wsc_cb.call((aux, frame.header(), frame.payload())).await?;
   Ok(())

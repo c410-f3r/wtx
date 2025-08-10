@@ -31,6 +31,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/autobahn-fuzzingserver.sh ci
 
+  autobahn-fuzzingserver-concurrent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly-2025-06-11
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/autobahn-fuzzingserver-concurrent.sh ci
+
   h2spec-high:
     runs-on: ubuntu-latest
     steps:

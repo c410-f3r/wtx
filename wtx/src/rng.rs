@@ -105,7 +105,7 @@ where
 
 impl<T> Rng for AtomicCell<T>
 where
-  T: Copy + Rng,
+  T: Copy + Eq + Rng,
 {
   #[inline]
   fn u8(&mut self) -> u8 {
@@ -130,38 +130,46 @@ where
 
 impl<T> Rng for &AtomicCell<T>
 where
-  T: Copy + Rng,
+  T: Copy + Eq + Rng,
 {
   #[inline]
   fn u8(&mut self) -> u8 {
-    let mut instance = self.load();
-    let rslt = instance.u8();
-    self.store(instance);
-    rslt
+    let mut ret = 0;
+    let _rslt = self.fetch_update(|mut el| {
+      ret = el.u8();
+      Some(el)
+    });
+    ret
   }
 
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
-    let mut instance = self.load();
-    let rslt = instance.u8_4();
-    self.store(instance);
-    rslt
+    let mut ret = [0; 4];
+    let _rslt = self.fetch_update(|mut el| {
+      ret = el.u8_4();
+      Some(el)
+    });
+    ret
   }
 
   #[inline]
   fn u8_8(&mut self) -> [u8; 8] {
-    let mut instance = self.load();
-    let rslt = instance.u8_8();
-    self.store(instance);
-    rslt
+    let mut ret = [0; 8];
+    let _rslt = self.fetch_update(|mut el| {
+      ret = el.u8_8();
+      Some(el)
+    });
+    ret
   }
 
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
-    let mut instance = self.load();
-    let rslt = instance.u8_16();
-    self.store(instance);
-    rslt
+    let mut ret = [0; 16];
+    let _rslt = self.fetch_update(|mut el| {
+      ret = el.u8_16();
+      Some(el)
+    });
+    ret
   }
 }
 
@@ -197,33 +205,33 @@ where
   #[inline]
   fn u8(&mut self) -> u8 {
     let mut instance = self.get();
-    let rslt = instance.u8();
+    let ret = instance.u8();
     self.set(instance);
-    rslt
+    ret
   }
 
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     let mut instance = self.get();
-    let rslt = instance.u8_4();
+    let ret = instance.u8_4();
     self.set(instance);
-    rslt
+    ret
   }
 
   #[inline]
   fn u8_8(&mut self) -> [u8; 8] {
     let mut instance = self.get();
-    let rslt = instance.u8_8();
+    let ret = instance.u8_8();
     self.set(instance);
-    rslt
+    ret
   }
 
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     let mut instance = self.get();
-    let rslt = instance.u8_16();
+    let ret = instance.u8_16();
     self.set(instance);
-    rslt
+    ret
   }
 }
 

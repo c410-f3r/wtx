@@ -1,19 +1,21 @@
 //! Encrypted WebSocket client that reads and writes frames in different tasks.
 //!
 //! Replies aren't automatically handled by the system in concurrent scenarios because there are
-//! multiple ways to synchronize resources. In this example, reply frames are managed in the same
-//! task but you can also utilize any other method.
+//! multiple ways to synchronize resources. In this example, reply frames are managed using a
+//! channel but you can also utilize any other method.
 
 extern crate tokio;
 extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, sync::mpsc::unbounded_channel};
 use wtx::{
   collection::Vector,
-  misc::{TokioRustlsConnector, Uri},
-  web_socket::{Frame, OpCode, WebSocketConnector, WebSocketPartsOwned, WebSocketReadMode},
+  misc::{TokioRustlsConnector, Uri, into_rslt},
+  web_socket::{
+    Frame, FrameVector, OpCode, WebSocketConnector, WebSocketPartsOwned, WebSocketReadMode,
+  },
 };
 
 #[tokio::main]
@@ -29,6 +31,7 @@ async fn main() -> wtx::Result<()> {
     .await?;
   let WebSocketPartsOwned { mut reader, reply_manager, mut writer } =
     ws.into_parts(tokio::io::split)?;
+  let (sender, mut receiver) = unbounded_channel::<FrameVector<true>>();
 
   let reader_fut = async {
     let mut buffer = Vector::new();
@@ -49,19 +52,38 @@ async fn main() -> wtx::Result<()> {
     wtx::Result::Ok(())
   };
 
+  let sender_fut = async {
+    let frame = Frame::new_fin(OpCode::Close, *b"Bye");
+    into_rslt(sender.send(frame.to_vector()?).ok())?;
+    wtx::Result::Ok(())
+  };
+
   let writer_fut = async {
-    writer.write_frame(&mut Frame::new_fin(OpCode::Close, *b"Bye")).await?;
     loop {
-      let mut control_frame = reply_manager.reply_frame().await;
-      if writer.write_reply_frame(&mut control_frame).await? {
-        break;
+      tokio::select! {
+        mut reply_frame_rslt = reply_manager.reply_frame() => {
+          if writer.write_reply_frame(&mut reply_frame_rslt).await? {
+            break;
+          }
+        }
+        recv_rslt = receiver.recv() => {
+          match recv_rslt {
+            Some(mut frame) => {
+              writer.write_frame(&mut frame).await?;
+            },
+            None => {
+              break;
+            },
+          }
+        }
       }
     }
     wtx::Result::Ok(())
   };
 
-  let (reader_rslt, writer_rslt) = tokio::join!(reader_fut, writer_fut);
+  let (reader_rslt, sender_rslt, writer_rslt) = tokio::join!(reader_fut, sender_fut, writer_fut);
   reader_rslt?;
+  sender_rslt?;
   writer_rslt?;
   Ok(())
 }

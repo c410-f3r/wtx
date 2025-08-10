@@ -21,6 +21,7 @@ mod incomplete_utf8_char;
 mod interspace;
 mod lease;
 mod optimization;
+mod poll_once;
 mod single_type_storage;
 mod suffix_writer;
 #[cfg(feature = "tokio-rustls")]
@@ -50,6 +51,7 @@ pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use lease::{Lease, LeaseMut};
 pub use optimization::*;
+pub use poll_once::PollOnce;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
 pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};

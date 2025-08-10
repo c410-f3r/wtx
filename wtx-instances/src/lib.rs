@@ -17,15 +17,79 @@
 #[cfg(feature = "grpc")]
 pub mod grpc_bindings;
 
-#[cfg(any(feature = "mysql", feature = "postgres"))]
-use {tokio::net::TcpStream, wtx::misc::Uri};
-
 /// Certificate
 pub static CERT: &[u8] = include_bytes!("../../.certs/cert.pem");
 /// Private key
 pub static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
+
+#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
+pub async fn autobahn_case_conn(
+  case: u32,
+  host: &str,
+) -> wtx::Result<
+  wtx::web_socket::WebSocket<
+    Option<wtx::web_socket::compression::NegotiatedFlate2>,
+    wtx::rng::Xorshift64,
+    tokio::net::TcpStream,
+    wtx::web_socket::WebSocketBuffer,
+    true,
+  >,
+> {
+  wtx::web_socket::WebSocketConnector::default()
+    .compression(wtx::web_socket::compression::Flate2::default())
+    .no_masking(false)
+    .connect(
+      tokio::net::TcpStream::connect(host).await?,
+      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
+        "http://{host}/runCase?case={case}&agent=wtx"
+      ))?
+      .as_str()
+      .into(),
+    )
+    .await
+}
+
+#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
+pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
+  wtx::web_socket::WebSocketConnector::default()
+    .connect(
+      tokio::net::TcpStream::connect(host).await?,
+      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
+        "http://{host}/updateReports?agent=wtx"
+      ))?
+      .as_str()
+      .into(),
+    )
+    .await?
+    .write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut []))
+    .await
+}
+
+#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
+pub async fn autobahn_get_case_count(
+  buffer: &mut wtx::collection::Vector<u8>,
+  host: &str,
+) -> wtx::Result<u32> {
+  let mut ws = wtx::web_socket::WebSocketConnector::default()
+    .connect(
+      tokio::net::TcpStream::connect(host).await?,
+      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!("http://{host}/getCaseCount"))?
+        .as_str()
+        .into(),
+    )
+    .await?;
+  let rslt = ws
+    .read_frame(buffer, wtx::web_socket::WebSocketReadMode::Adaptive)
+    .await?
+    .text_payload()
+    .unwrap_or_default()
+    .parse()?;
+  ws.write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut []))
+    .await?;
+  Ok(rslt)
+}
 
 #[cfg(feature = "mysql")]
 pub async fn executor_mysql(
@@ -34,17 +98,17 @@ pub async fn executor_mysql(
   wtx::database::client::mysql::MysqlExecutor<
     wtx::Error,
     wtx::database::client::mysql::ExecutorBuffer,
-    TcpStream,
+    tokio::net::TcpStream,
   >,
 > {
   use wtx::rng::SeedableRng;
-  let uri = Uri::new(uri_str);
+  let uri = wtx::misc::Uri::new(uri_str);
   let mut rng = wtx::rng::ChaCha20::from_os()?;
   wtx::database::client::mysql::MysqlExecutor::connect(
     &wtx::database::client::mysql::Config::from_uri(&uri)?,
     wtx::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
-    TcpStream::connect(uri.hostname_with_implied_port()).await?,
+    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await?,
   )
   .await
 }
@@ -56,17 +120,17 @@ pub async fn executor_postgres(
   wtx::database::client::postgres::PostgresExecutor<
     wtx::Error,
     wtx::database::client::postgres::ExecutorBuffer,
-    TcpStream,
+    tokio::net::TcpStream,
   >,
 > {
   use wtx::rng::SeedableRng;
-  let uri = Uri::new(uri_str);
+  let uri = wtx::misc::Uri::new(uri_str);
   let mut rng = wtx::rng::ChaCha20::from_os()?;
   wtx::database::client::postgres::PostgresExecutor::connect(
     &wtx::database::client::postgres::Config::from_uri(&uri)?,
     wtx::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
-    TcpStream::connect(uri.hostname_with_implied_port()).await?,
+    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await?,
   )
   .await
 }

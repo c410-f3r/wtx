@@ -38,35 +38,6 @@ impl<T> AtomicCell<T> {
     unsafe { this.as_ptr().read() }
   }
 
-  /// Loads a value from the atomic cell.
-  ///
-  /// ```rust
-  /// let ac = wtx::sync::AtomicCell::new(7);
-  /// assert_eq!(ac.load(), 7);
-  /// ```
-  #[inline]
-  pub fn load(&self) -> T
-  where
-    T: Copy,
-  {
-    let src = self.as_ptr();
-    let lock = lock(src.addr());
-
-    if let Some(stamp) = lock.optimistic_read() {
-      // SAFETY: pointer doesn't have offsets
-      let value = unsafe { ptr::read_volatile(src) };
-      if lock.validate_read(stamp) {
-        return value;
-      }
-    }
-
-    let guard = lock.write();
-    // SAFETY: pointer doesn't have offsets
-    let value = unsafe { ptr::read(src) };
-    guard.abort();
-    value
-  }
-
   /// Stores `value` into the atomic cell.
   ///
   /// ```
@@ -107,6 +78,93 @@ impl<T> AtomicCell<T> {
 
   fn as_ptr(&self) -> *mut T {
     self.value.get()
+  }
+}
+
+impl<T> AtomicCell<T>
+where
+  T: Copy,
+{
+  /// Loads a value from the atomic cell.
+  ///
+  /// ```rust
+  /// let ac = wtx::sync::AtomicCell::new(7);
+  /// assert_eq!(ac.load(), 7);
+  /// ```
+  #[inline]
+  pub fn load(&self) -> T {
+    let src = self.as_ptr();
+    let lock = lock(src.addr());
+
+    if let Some(stamp) = lock.optimistic_read() {
+      // SAFETY: pointer doesn't have offsets
+      let value = unsafe { ptr::read_volatile(src) };
+      if lock.validate_read(stamp) {
+        return value;
+      }
+    }
+
+    let guard = lock.write();
+    // SAFETY: pointer comes from inner data and doesn't contains offsets
+    let value = unsafe { ptr::read(src) };
+    guard.abort();
+    value
+  }
+}
+
+impl<T> AtomicCell<T>
+where
+  T: Copy + Eq,
+{
+  /// If the current value equals `curr`, stores `new` into the atomic cell.
+  ///
+  /// The return value is a result indicating whether the new value was written and containing
+  /// the previous value. On success this value is guaranteed to be equal to `curr`.
+  ///
+  /// ```
+  /// let num = wtx::sync::AtomicCell::new(1);
+  /// assert_eq!(num.compare_exchange(2, 3), Err(1));
+  /// assert_eq!(num.load(), 1);
+  /// assert_eq!(num.compare_exchange(1, 2), Ok(1));
+  /// assert_eq!(num.load(), 2);
+  /// ```
+  #[inline]
+  pub fn compare_exchange(&self, curr: T, new: T) -> Result<T, T> {
+    let dest = self.as_ptr();
+    let guard = lock(dest.addr()).write();
+    // SAFETY: pointer comes from inner data and doesn't contains offsets
+    if T::eq(unsafe { &*dest }, &curr) {
+      // SAFETY: pointer comes from inner data and doesn't contains offsets
+      Ok(unsafe { ptr::replace(dest, new) })
+    } else {
+      // SAFETY: pointer comes from inner data and doesn't contains offsets
+      let elem = unsafe { ptr::read(dest) };
+      guard.abort();
+      Err(elem)
+    }
+  }
+
+  /// Fetches the value, and applies a function to it that returns an optional
+  /// new value. Returns a `Result` of `Ok(previous_value)` if the function returned `Some(_)`, else
+  /// `Err(previous_value)`.
+  ///
+  /// ```rust
+  /// let num = wtx::sync::AtomicCell::new(7);
+  /// assert_eq!(num.fetch_update(|_| None), Err(7));
+  /// assert_eq!(num.fetch_update(|local_num| Some(local_num + 1)), Ok(7));
+  /// assert_eq!(num.fetch_update(|local_num| Some(local_num + 1)), Ok(8));
+  /// assert_eq!(num.load(), 9);
+  /// ```
+  #[inline]
+  pub fn fetch_update(&self, mut cb: impl FnMut(T) -> Option<T>) -> Result<T, T> {
+    let mut prev = self.load();
+    while let Some(next) = cb(prev) {
+      match self.compare_exchange(prev, next) {
+        elem @ Ok(_) => return elem,
+        Err(next_prev) => prev = next_prev,
+      }
+    }
+    Err(prev)
   }
 }
 
