@@ -6,24 +6,24 @@ use crate::{
   web_socket::{
     Frame, FrameMut, WebSocketReadMode, compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame, web_socket_reader::read_frame,
-    web_socket_reply_manager::WebSocketReplyManager, web_socket_writer,
+    web_socket_replier::WebSocketReplier, web_socket_writer,
   },
 };
 
 #[derive(Debug)]
-pub(crate) struct WebSocketReaderPart<PFB, V, const IS_CLIENT: bool> {
+pub(crate) struct WebSocketReaderGeneric<PFB, V, const IS_CLIENT: bool> {
   pub(crate) max_payload_len: usize,
   pub(crate) network_buffer: PFB,
   pub(crate) no_masking: bool,
   pub(crate) reader_buffer: V,
 }
 
-impl<PFB, V, const IS_CLIENT: bool> WebSocketReaderPart<PFB, V, IS_CLIENT>
+impl<PFB, V, const IS_CLIENT: bool> WebSocketReaderGeneric<PFB, V, IS_CLIENT>
 where
   PFB: LeaseMut<PartitionedFilledBuffer>,
   V: LeaseMut<Vector<u8>>,
 {
-  pub(crate) async fn read_frame_from_borrowed_parts<'frame, 'this, 'ub, NC, R, S>(
+  pub(crate) async fn read_frame_mut<'frame, 'this, 'ub, NC, R, S>(
     &'this mut self,
     connection_state: &mut ConnectionState,
     is_in_continuation_frame: &mut Option<IsInContinuationFrame>,
@@ -52,7 +52,7 @@ where
       *no_masking,
       read_mode,
       reader_buffer.lease_mut(),
-      &WebSocketReplyManager::new(),
+      &WebSocketReplier::new(),
       rng,
       stream,
       user_buffer,
@@ -62,14 +62,14 @@ where
     .await
   }
 
-  pub(crate) async fn read_frame_from_owned_parts<'frame, 'this, 'ub, NC, R, SR>(
+  pub(crate) async fn read_frame_owned<'frame, 'this, 'ub, NC, R, SR>(
     &'this mut self,
     connection_state: &mut ConnectionState,
     is_in_continuation_frame: &mut Option<IsInContinuationFrame>,
     nc: &mut NC,
     nc_rsv1: u8,
     read_mode: WebSocketReadMode,
-    reply_manager: &WebSocketReplyManager<IS_CLIENT>,
+    replier: &WebSocketReplier<IS_CLIENT>,
     rng: &mut R,
     stream_reader: &mut SR,
     user_buffer: &'ub mut Vector<u8>,
@@ -92,7 +92,7 @@ where
       *no_masking,
       read_mode,
       reader_buffer.lease_mut(),
-      reply_manager,
+      replier,
       rng,
       &mut (stream_reader, &mut ()),
       user_buffer,
@@ -106,12 +106,12 @@ where
 /// Auxiliary structure that can be used when it is necessary to write a received frame that belongs
 /// to the same instance.
 #[derive(Debug)]
-pub(crate) struct WebSocketWriterPart<V, const IS_CLIENT: bool> {
+pub(crate) struct WebSocketWriterGeneric<V, const IS_CLIENT: bool> {
   pub(crate) no_masking: bool,
   pub(crate) writer_buffer: V,
 }
 
-impl<V, const IS_CLIENT: bool> WebSocketWriterPart<V, IS_CLIENT>
+impl<V, const IS_CLIENT: bool> WebSocketWriterGeneric<V, IS_CLIENT>
 where
   V: LeaseMut<Vector<u8>>,
 {

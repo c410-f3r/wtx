@@ -28,8 +28,7 @@ async fn main() -> wtx::Result<()> {
       &uri.to_ref(),
     )
     .await?;
-  let WebSocketPartsOwned { mut reader, reply_manager, writer } =
-    ws.into_parts(tokio::io::split)?;
+  let WebSocketPartsOwned { mut reader, replier, writer } = ws.into_parts(tokio::io::split)?;
   let writer_reply_manager = Arc::new(Mutex::new(writer));
   let writer_writer = writer_reply_manager.clone();
 
@@ -38,9 +37,9 @@ async fn main() -> wtx::Result<()> {
     loop {
       let frame = reader.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await?;
       match (frame.op_code(), frame.text_payload()) {
-        // A special version of this frame has already been sent to the reply manager
+        // A special version of this frame has already been sent to the replier
         (OpCode::Close, _) => break,
-        // A `Pong` frame with the same content has already been sent to the reply manager
+        // A `Pong` frame with the same content has already been sent to the replier
         (OpCode::Ping, _) => {}
         (_, text) => {
           if let Some(elem) = text {
@@ -54,7 +53,7 @@ async fn main() -> wtx::Result<()> {
 
   let reply_manager_fut = async {
     loop {
-      let mut control_frame = reply_manager.reply_frame().await;
+      let mut control_frame = replier.reply_frame().await;
       if writer_reply_manager.lock().await.write_reply_frame(&mut control_frame).await? {
         break;
       }

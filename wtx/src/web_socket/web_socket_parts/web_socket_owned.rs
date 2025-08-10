@@ -8,8 +8,8 @@ use crate::{
     Frame, FrameControlArray, FrameMut, WebSocketReadMode,
     compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame,
-    web_socket_parts::web_socket_part::{WebSocketReaderPart, WebSocketWriterPart},
-    web_socket_reply_manager::WebSocketReplyManager,
+    web_socket_parts::web_socket_generic::{WebSocketReaderGeneric, WebSocketWriterGeneric},
+    web_socket_replier::WebSocketReplier,
   },
 };
 use core::{marker::PhantomData, sync::atomic::Ordering};
@@ -17,29 +17,29 @@ use core::{marker::PhantomData, sync::atomic::Ordering};
 /// Owned reader and writer pair
 #[derive(Debug)]
 pub struct WebSocketPartsOwned<NC, R, SR, SW, const IS_CLIENT: bool> {
-  /// See [`WebSocketReaderPartOwned`];
-  pub reader: WebSocketReaderPartOwned<NC, R, SR, IS_CLIENT>,
-  /// See [`WebSocketReplyManager`];
-  pub reply_manager: Arc<WebSocketReplyManager<IS_CLIENT>>,
-  /// See [`WebSocketWriterPartOwned`];
-  pub writer: WebSocketWriterPartOwned<NC, R, SW, IS_CLIENT>,
+  /// See [`WebSocketReaderOwned`];
+  pub reader: WebSocketReaderOwned<NC, R, SR, IS_CLIENT>,
+  /// See [`WebSocketReplier`];
+  pub replier: Arc<WebSocketReplier<IS_CLIENT>>,
+  /// See [`WebSocketWriterOwned`];
+  pub writer: WebSocketWriterOwned<NC, R, SW, IS_CLIENT>,
 }
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketReaderPartOwned<NC, R, SR, const IS_CLIENT: bool> {
+pub struct WebSocketReaderOwned<NC, R, SR, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
   pub(crate) is_in_continuation_frame: Option<IsInContinuationFrame>,
   pub(crate) nc: NC,
   pub(crate) nc_rsv1: u8,
   pub(crate) phantom: PhantomData<SR>,
-  pub(crate) reader_part: WebSocketReaderPart<PartitionedFilledBuffer, Vector<u8>, IS_CLIENT>,
-  pub(crate) reply_manager: Arc<WebSocketReplyManager<IS_CLIENT>>,
+  pub(crate) reader_part: WebSocketReaderGeneric<PartitionedFilledBuffer, Vector<u8>, IS_CLIENT>,
+  pub(crate) replier: Arc<WebSocketReplier<IS_CLIENT>>,
   pub(crate) rng: R,
   pub(crate) stream_reader: SR,
 }
 
-impl<NC, R, SR, const IS_CLIENT: bool> WebSocketReaderPartOwned<NC, R, SR, IS_CLIENT>
+impl<NC, R, SR, const IS_CLIENT: bool> WebSocketReaderOwned<NC, R, SR, IS_CLIENT>
 where
   NC: NegotiatedCompression,
   R: Rng,
@@ -62,13 +62,13 @@ where
     let mut connection_state = self.connection_state.load(Ordering::Relaxed).into();
     let rslt = self
       .reader_part
-      .read_frame_from_owned_parts(
+      .read_frame_owned(
         &mut connection_state,
         &mut self.is_in_continuation_frame,
         &mut self.nc,
         self.nc_rsv1,
         read_mode,
-        &self.reply_manager,
+        &self.replier,
         &mut self.rng,
         &mut self.stream_reader,
         buffer,
@@ -79,26 +79,26 @@ where
   }
 }
 
-impl<NC, R, SR, const IS_CLIENT: bool> Drop for WebSocketReaderPartOwned<NC, R, SR, IS_CLIENT> {
+impl<NC, R, SR, const IS_CLIENT: bool> Drop for WebSocketReaderOwned<NC, R, SR, IS_CLIENT> {
   #[inline]
   fn drop(&mut self) {
-    let _rslt = self.reply_manager.data().fetch_update(|elem| Some((true, elem.1)));
-    self.reply_manager.waker().wake();
+    let _rslt = self.replier.data().fetch_update(|elem| Some((true, elem.1)));
+    self.replier.waker().wake();
   }
 }
 
 /// Writer that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketWriterPartOwned<NC, R, SW, const IS_CLIENT: bool> {
+pub struct WebSocketWriterOwned<NC, R, SW, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
   pub(crate) nc: NC,
   pub(crate) nc_rsv1: u8,
   pub(crate) rng: R,
   pub(crate) stream_writer: SW,
-  pub(crate) writer_part: WebSocketWriterPart<Vector<u8>, IS_CLIENT>,
+  pub(crate) writer_part: WebSocketWriterGeneric<Vector<u8>, IS_CLIENT>,
 }
 
-impl<NC, R, SW, const IS_CLIENT: bool> WebSocketWriterPartOwned<NC, R, SW, IS_CLIENT>
+impl<NC, R, SW, const IS_CLIENT: bool> WebSocketWriterOwned<NC, R, SW, IS_CLIENT>
 where
   NC: NegotiatedCompression,
   R: Rng,
@@ -126,7 +126,7 @@ where
     Ok(())
   }
 
-  /// Awaits until a control frame is returned by [`WebSocketReplyManager::reply_frame`] and then
+  /// Awaits until a control frame is returned by [`WebSocketReplier::reply_frame`] and then
   /// writes it back to the stream. Returns `true` if the connection has been closed.
   #[inline]
   pub async fn write_reply_frame(

@@ -8,12 +8,12 @@ use core::{future::poll_fn, task::Poll};
 /// This structure is necessary to comply with the rules stated by the RFC. See
 /// [`Self::reply_frame`].
 #[derive(Debug)]
-pub struct WebSocketReplyManager<const IS_CLIENT: bool> {
+pub struct WebSocketReplier<const IS_CLIENT: bool> {
   data: AtomicCell<(bool, Option<(OpCode, [u8; MAX_CONTROL_PAYLOAD_LEN], u8)>)>,
   waker: AtomicWaker,
 }
 
-impl<const IS_CLIENT: bool> WebSocketReplyManager<IS_CLIENT> {
+impl<const IS_CLIENT: bool> WebSocketReplier<IS_CLIENT> {
   pub(crate) const fn new() -> Self {
     Self { data: AtomicCell::new((false, None)), waker: AtomicWaker::new() }
   }

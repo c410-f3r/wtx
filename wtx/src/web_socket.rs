@@ -20,7 +20,7 @@ mod web_socket_error;
 mod web_socket_parts;
 mod web_socket_read_mode;
 pub(crate) mod web_socket_reader;
-mod web_socket_reply_manager;
+mod web_socket_replier;
 pub(crate) mod web_socket_writer;
 
 use crate::{
@@ -46,13 +46,11 @@ pub use web_socket_buffer::WebSocketBuffer;
 pub use web_socket_connector::WebSocketConnector;
 pub use web_socket_error::WebSocketError;
 pub use web_socket_parts::{
-  web_socket_part_mut::{WebSocketCommonPartMut, WebSocketReaderPartMut, WebSocketWriterPartMut},
-  web_socket_part_owned::{
-    WebSocketPartsOwned, WebSocketReaderPartOwned, WebSocketWriterPartOwned,
-  },
+  web_socket_mut::{WebSocketCommonMut, WebSocketReaderMut, WebSocketWriterMut},
+  web_socket_owned::{WebSocketPartsOwned, WebSocketReaderOwned, WebSocketWriterOwned},
 };
 pub use web_socket_read_mode::WebSocketReadMode;
-pub use web_socket_reply_manager::WebSocketReplyManager;
+pub use web_socket_replier::WebSocketReplier;
 
 const FIN_MASK: u8 = 0b1000_0000;
 const MASK_MASK: u8 = 0b1000_0000;
@@ -125,9 +123,9 @@ where
   pub fn parts_mut(
     &mut self,
   ) -> (
-    WebSocketCommonPartMut<'_, NC, R, S, IS_CLIENT>,
-    WebSocketReaderPartMut<'_, NC, R, S, IS_CLIENT>,
-    WebSocketWriterPartMut<'_, NC, R, S, IS_CLIENT>,
+    WebSocketCommonMut<'_, NC, R, S, IS_CLIENT>,
+    WebSocketReaderMut<'_, NC, R, S, IS_CLIENT>,
+    WebSocketWriterMut<'_, NC, R, S, IS_CLIENT>,
   ) {
     let WebSocket {
       connection_state,
@@ -142,20 +140,20 @@ where
     } = self;
     let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb.lease_mut();
     (
-      WebSocketCommonPartMut { connection_state, nc, nc_rsv1: *nc_rsv1, rng, stream },
-      WebSocketReaderPartMut {
+      WebSocketCommonMut { connection_state, nc, nc_rsv1: *nc_rsv1, rng, stream },
+      WebSocketReaderMut {
         is_in_continuation_frame,
         phantom: PhantomData,
-        wsrp: web_socket_parts::web_socket_part::WebSocketReaderPart {
+        wsrp: web_socket_parts::web_socket_generic::WebSocketReaderGeneric {
           max_payload_len: *max_payload_len,
           network_buffer,
           no_masking: *no_masking,
           reader_buffer,
         },
       },
-      WebSocketWriterPartMut {
+      WebSocketWriterMut {
         phantom: PhantomData,
-        wswp: web_socket_parts::web_socket_part::WebSocketWriterPart {
+        wswp: web_socket_parts::web_socket_generic::WebSocketWriterGeneric {
           no_masking: *no_masking,
           writer_buffer,
         },
@@ -199,7 +197,7 @@ where
       *no_masking,
       read_mode,
       reader_buffer,
-      &WebSocketReplyManager::new(),
+      &WebSocketReplier::new(),
       rng,
       stream,
       buffer,
@@ -257,36 +255,36 @@ where
     let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
     let (stream_reader, stream_writer) = split(stream);
     let local_connection_state = Arc::new(AtomicBool::new(connection_state.into()));
-    let reply_manager = Arc::new(WebSocketReplyManager::new());
+    let replier = Arc::new(WebSocketReplier::new());
     Ok(WebSocketPartsOwned {
-      reader: WebSocketReaderPartOwned {
+      reader: WebSocketReaderOwned {
         connection_state: local_connection_state.clone(),
         is_in_continuation_frame,
         phantom: PhantomData,
         nc: nc.clone(),
         nc_rsv1,
-        reader_part: web_socket_parts::web_socket_part::WebSocketReaderPart {
+        reader_part: web_socket_parts::web_socket_generic::WebSocketReaderGeneric {
           max_payload_len,
           network_buffer,
           no_masking,
           reader_buffer,
         },
-        reply_manager: reply_manager.clone(),
+        replier: replier.clone(),
         rng: R::from_rng(&mut rng)?,
         stream_reader,
       },
-      writer: WebSocketWriterPartOwned {
+      writer: WebSocketWriterOwned {
         connection_state: local_connection_state,
         nc,
         nc_rsv1,
         rng,
         stream_writer,
-        writer_part: web_socket_parts::web_socket_part::WebSocketWriterPart {
+        writer_part: web_socket_parts::web_socket_generic::WebSocketWriterGeneric {
           no_masking,
           writer_buffer,
         },
       },
-      reply_manager,
+      replier,
     })
   }
 }

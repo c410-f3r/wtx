@@ -31,7 +31,7 @@ use crate::{
     },
     read_frame_info::ReadFrameInfo,
     unmask::unmask,
-    web_socket_reply_manager::WebSocketReplyManager,
+    web_socket_replier::WebSocketReplier,
   },
 };
 
@@ -44,7 +44,7 @@ pub(crate) async fn manage_auto_reply<A, RNG, const HAS_AUTO_REPLY: bool, const 
   no_masking: bool,
   op_code: OpCode,
   payload: &mut [u8],
-  reply_manager: &WebSocketReplyManager<IS_CLIENT>,
+  replier: &WebSocketReplier<IS_CLIENT>,
   rng: &mut RNG,
   write_control_frame_cb: impl for<'any> FnMutFut<
     (A, &'any [u8], &'any [u8]),
@@ -77,10 +77,10 @@ where
         .await?;
         rslt?;
       } else {
-        let _rslt = reply_manager
+        let _rslt = replier
           .data()
-          .fetch_update(|el| Some((el.0, Some((OpCode::Close, params.0, params.1)))));
-        reply_manager.waker().wake();
+          .fetch_update(|elem| Some((elem.0, Some((OpCode::Close, params.0, params.1)))));
+        replier.waker().wake();
       }
       Ok(true)
     }
@@ -98,10 +98,10 @@ where
         )
         .await?;
       } else {
-        let _rslt = reply_manager
+        let _rslt = replier
           .data()
-          .fetch_update(|el| Some((el.0, Some((OpCode::Pong, params.0, params.1)))));
-        reply_manager.waker().wake();
+          .fetch_update(|elem| Some((elem.0, Some((OpCode::Pong, params.0, params.1)))));
+        replier.waker().wake();
       }
       Ok(true)
     }
@@ -230,7 +230,7 @@ pub(crate) async fn read_frame<
   no_masking: bool,
   read_mode: WebSocketReadMode,
   reader_buffer: &mut Vector<u8>,
-  reply_manager: &WebSocketReplyManager<IS_CLIENT>,
+  replier: &WebSocketReplier<IS_CLIENT>,
   rng: &mut R,
   stream: &mut S,
   user_buffer: &'ub mut Vector<u8>,
@@ -264,7 +264,7 @@ where
         nc_rsv1,
         network_buffer,
         no_masking,
-        reply_manager,
+        replier,
         &first_rfi,
         rng,
         stream_writer(&mut *stream),
@@ -298,7 +298,7 @@ where
       nc_rsv1,
       network_buffer,
       no_masking,
-      reply_manager,
+      replier,
       rng,
       stream,
       &mut copy_from_compressed_rb1_to_rb2,
@@ -318,7 +318,7 @@ where
       nc_rsv1,
       network_buffer,
       no_masking,
-      reply_manager,
+      replier,
       rng,
       stream,
       &mut |_, _, _, _| Ok(()),
@@ -483,7 +483,7 @@ async fn manage_first_finished_frame<
   nc_rsv1: u8,
   network_buffer: &'nb mut PartitionedFilledBuffer,
   no_masking: bool,
-  reply_manager: &WebSocketReplyManager<IS_CLIENT>,
+  replier: &WebSocketReplier<IS_CLIENT>,
   rfi: &ReadFrameInfo,
   rng: &mut R,
   stream_writer: &mut SW,
@@ -517,7 +517,7 @@ where
     no_masking,
     rfi.op_code,
     payload,
-    reply_manager,
+    replier,
     rng,
     write_control_frame_cb,
   )
@@ -571,7 +571,7 @@ async fn read_continuation_frames<
   nc_rsv1: u8,
   network_buffer: &mut PartitionedFilledBuffer,
   no_masking: bool,
-  reply_manager: &WebSocketReplyManager<IS_CLIENT>,
+  replier: &WebSocketReplier<IS_CLIENT>,
   rng: &mut R,
   stream: &mut S,
   reader_buffer_first_cb: &mut impl FnMut(
@@ -608,7 +608,7 @@ where
       no_masking,
       rfi.op_code,
       payload,
-      reply_manager,
+      replier,
       rng,
       write_control_frame_cb,
     )

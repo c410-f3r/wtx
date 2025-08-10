@@ -11,10 +11,10 @@ use crate::{
   misc::LeaseMut,
   rng::Rng,
   stream::StreamReader,
-  web_socket::{WebSocketReadMode, WebSocketReaderPartOwned, compression::NegotiatedCompression},
+  web_socket::{WebSocketReadMode, WebSocketReaderOwned, compression::NegotiatedCompression},
 };
 
-impl<NC, R, SR, TP> ReceivingTransport<TP> for WebSocketReaderPartOwned<NC, R, SR, true>
+impl<NC, R, SR, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, R, SR, true>
 where
   NC: NegotiatedCompression,
   R: Rng,
@@ -37,7 +37,7 @@ where
   }
 }
 
-impl<NC, R, SR, TP> Transport<TP> for WebSocketReaderPartOwned<NC, R, SR, true>
+impl<NC, R, SR, TP> Transport<TP> for WebSocketReaderOwned<NC, R, SR, true>
 where
   NC: NegotiatedCompression,
   SR: StreamReader,

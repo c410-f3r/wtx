@@ -10,7 +10,7 @@ use crate::{
   misc::LeaseMut,
   rng::Rng,
   stream::{StreamReader, StreamWriter},
-  web_socket::{WebSocketPartsOwned, WebSocketWriterPartOwned, compression::NegotiatedCompression},
+  web_socket::{WebSocketPartsOwned, WebSocketWriterOwned, compression::NegotiatedCompression},
 };
 
 impl<NC, R, SR, SW, TP> ReceivingTransport<TP> for WebSocketPartsOwned<NC, R, SR, SW, true>
@@ -75,6 +75,6 @@ where
   SW: StreamWriter,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
-  type Inner = WebSocketWriterPartOwned<NC, R, SW, true>;
+  type Inner = WebSocketWriterOwned<NC, R, SW, true>;
   type ReqId = ();
 }
