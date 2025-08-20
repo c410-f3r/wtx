@@ -141,7 +141,7 @@ impl SettingsFrame {
       return Ok(settings_frame);
     }
 
-    if bytes.len() % 6 != 0 {
+    if !bytes.len().is_multiple_of(6) {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
         Http2Error::InvalidSettingsFrameLength,

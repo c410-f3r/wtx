@@ -130,7 +130,7 @@ where
     ish: &mut InitialServerHeader,
     sorp: &mut Sorp,
   ) -> crate::Result<()> {
-    if self.fi.stream_id <= *self.last_stream_id || self.fi.stream_id.u32() % 2 == 0 {
+    if self.fi.stream_id <= *self.last_stream_id || self.fi.stream_id.u32().is_multiple_of(2) {
       return Err(protocol_err(Http2Error::UnexpectedStreamId));
     }
     if *self.recv_streams_num >= self.hp.max_recv_streams_num() {

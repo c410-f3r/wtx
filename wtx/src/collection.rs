@@ -12,6 +12,7 @@ mod deque;
 mod expansion_ty;
 mod linear_storage;
 mod misc;
+mod try_extend;
 mod vector;
 
 pub use array_string::{
@@ -28,4 +29,5 @@ pub use deque::{Deque, DequeueError};
 pub use expansion_ty::ExpansionTy;
 pub use linear_storage::linear_storage_len::LinearStorageLen;
 pub use misc::backward_deque_idx;
+pub use try_extend::TryExtend;
 pub use vector::{Vector, VectorError};

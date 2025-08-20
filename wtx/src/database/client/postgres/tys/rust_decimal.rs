@@ -82,7 +82,7 @@ where
     digits.reverse();
 
     let after_decimal = scale.wrapping_add(3) / 4;
-    let weight = digits.len().wrapping_sub(after_decimal.into()).wrapping_sub(1) as i16;
+    let weight = digits.len().wrapping_sub(after_decimal).wrapping_sub(1) as i16;
 
     while let Some(&0) = digits.last() {
       let _ = digits.pop();
