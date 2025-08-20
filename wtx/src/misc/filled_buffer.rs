@@ -1,5 +1,5 @@
 use crate::{
-  collection::{IndexedStorage as _, IndexedStorageMut as _, Vector},
+  collection::Vector,
   misc::{Lease, LeaseMut},
 };
 use core::{
@@ -83,8 +83,8 @@ impl FilledBuffer {
 
 #[cfg(any(feature = "mysql", feature = "postgres", feature = "web-socket"))]
 impl FilledBuffer {
-  pub(crate) fn with_capacity(cap: usize) -> crate::Result<Self> {
-    let mut data = Vector::with_capacity(cap)?;
+  pub(crate) fn with_capacity(capacity: usize) -> crate::Result<Self> {
+    let mut data = Vector::with_capacity(capacity)?;
     // SAFETY: memory have been allocated
     unsafe {
       slice::from_raw_parts_mut(data.as_ptr_mut(), data.capacity()).fill(0);

@@ -116,10 +116,7 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::{
-    collection::{IndexedStorage, IndexedStorageMut, Vector},
-    misc::Intersperse,
-  };
+  use crate::{collection::Vector, misc::Intersperse};
 
   #[test]
   fn interspace() {

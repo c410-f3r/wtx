@@ -81,7 +81,7 @@ pub async fn autobahn_get_case_count(
     )
     .await?;
   let rslt = ws
-    .read_frame(buffer, wtx::web_socket::WebSocketReadMode::Adaptive)
+    .read_frame(buffer, wtx::web_socket::WebSocketPayloadOrigin::Adaptive)
     .await?
     .text_payload()
     .unwrap_or_default()

@@ -1,7 +1,7 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  collection::{IndexedStorage, IndexedStorageMut, Vector},
+  collection::Vector,
   http::{Headers, StatusCode},
   http2::{
     Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2RecvStatus, SendDataMode,

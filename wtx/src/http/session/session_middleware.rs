@@ -1,6 +1,6 @@
 use crate::{
   calendar::Instant,
-  collection::{IndexedStorageMut, Vector},
+  collection::Vector,
   http::{
     KnownHeaderName, Method, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,
@@ -90,7 +90,7 @@ where
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
         let decrypt_rslt = decrypt_cookie(
           &mut cookie_def.value,
-          session_secret.array()?,
+          session_secret.data()?,
           (name.as_bytes(), value.as_bytes()),
         );
         req.rrd.body.truncate(idx);

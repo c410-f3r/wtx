@@ -1,7 +1,7 @@
 //! Migration TOML parser
 
 use crate::{
-  collection::{ArrayStringU8, ArrayVectorU8, IndexedStorageMut},
+  collection::{ArrayStringU8, ArrayVectorU8},
   database::schema_manager::SchemaManagerError,
   misc::str_split1,
 };
@@ -141,7 +141,7 @@ fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::{ArrayVectorU8, IndexedStorageMut},
+    collection::ArrayVectorU8,
     database::schema_manager::toml_parser::{Expr, ExprArrayTy, toml},
   };
 

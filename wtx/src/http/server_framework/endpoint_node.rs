@@ -39,7 +39,7 @@ where
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::{ArrayVectorU8, IndexedStorage, IndexedStorageMut, Vector},
+    collection::{ArrayVectorU8, Vector},
     http::{
       ManualStream, OperationMode, ReqResBuffer, StatusCode,
       server_framework::{EndpointNode, RouteMatch, Router, StateClean, get},

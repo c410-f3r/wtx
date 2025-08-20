@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, IndexedStorageMut},
+  collection::ArrayVectorU16,
   database::{
     Typed,
     client::postgres::{
@@ -54,8 +54,12 @@ where
   #[inline]
   fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     if self.is_zero() {
-      let rslt =
-        PgNumeric::Number { digits: ArrayVector::new(), scale: 0, sign: Sign::Positive, weight: 0 };
+      let rslt = PgNumeric::Number {
+        digits: ArrayVectorU16::new(),
+        scale: 0,
+        sign: Sign::Positive,
+        weight: 0,
+      };
       rslt.encode(aux, ew)?;
       return Ok(());
     }
@@ -70,7 +74,7 @@ where
       mantissa = mantissa.wrapping_mul(u128::from(10u32.pow(remainder)));
     }
 
-    let mut digits = ArrayVector::new();
+    let mut digits = ArrayVectorU16::new();
     while mantissa != 0 {
       digits.push((mantissa % 10_000) as i16)?;
       mantissa /= 10_000;

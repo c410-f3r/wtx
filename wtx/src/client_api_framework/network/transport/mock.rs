@@ -13,7 +13,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collection::{Deque, IndexedStorageMut, Vector},
+  collection::{Deque, Vector},
   misc::Lease,
 };
 use alloc::borrow::{Cow, ToOwned};

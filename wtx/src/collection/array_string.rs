@@ -1,5 +1,10 @@
 use crate::{
-  collection::{IndexedStorage, IndexedStorageLen, IndexedStorageMut},
+  collection::{
+    LinearStorageLen,
+    linear_storage::{
+      LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
+    },
+  },
   misc::{Lease, from_utf8_basic},
 };
 use core::{
@@ -8,7 +13,7 @@ use core::{
   fmt::{self, Arguments, Debug, Display, Formatter, Write},
   hash::{Hash, Hasher},
   ops::Deref,
-  ptr, slice, str,
+  str,
 };
 
 /// [`ArrayString`] with a capacity limited by `u8`.
@@ -17,6 +22,8 @@ pub type ArrayStringU8<const N: usize> = ArrayString<u8, N>;
 pub type ArrayStringU16<const N: usize> = ArrayString<u16, N>;
 /// [`ArrayString`] with a capacity limited by `u32`.
 pub type ArrayStringU32<const N: usize> = ArrayString<u32, N>;
+/// [`ArrayString`] with a capacity limited by `usize`.
+pub type ArrayStringUsize<const N: usize> = ArrayString<usize, N>;
 
 /// Errors of [`ArrayString`].
 #[derive(Debug)]
@@ -29,14 +36,11 @@ pub enum ArrayStringError {
 
 /// A wrapper around the std's vector with some additional methods to manipulate copyable data.
 #[derive(Clone, Copy)]
-pub struct ArrayString<L, const N: usize> {
-  len: L,
-  data: [u8; N],
-}
+pub struct ArrayString<L, const N: usize>(Inner<L, N>);
 
 impl<L, const N: usize> ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   const INSTANCE_CHECK: () = {
     assert!(N <= L::UPPER_BOUND_USIZE);
@@ -71,30 +75,21 @@ where
   #[inline]
   pub unsafe fn from_parts_unchecked(data: [u8; N], len: L) -> Self {
     const { Self::INSTANCE_CHECK };
-    Self { len: if len > L::UPPER_BOUND { L::UPPER_BOUND } else { len }, data }
+    Self(Inner { len: if len > L::UPPER_BOUND { L::UPPER_BOUND } else { len }, data })
   }
 
   /// Constructs a new, empty instance.
   #[inline]
   pub const fn new() -> Self {
     const { Self::INSTANCE_CHECK };
-    Self { len: L::ZERO, data: [0; N] }
+    Self(Inner { len: L::ZERO, data: [0; N] })
   }
 
   /// Constructs a new instance full of `NULL` characters.
   #[inline]
   pub const fn zeroed() -> Self {
     const { Self::INSTANCE_CHECK };
-    Self { len: L::UPPER_BOUND, data: [0; N] }
-  }
-
-  /// The filled elements that composed a string.
-  #[inline]
-  pub fn array(&self) -> crate::Result<&[u8; N]> {
-    if self.len.usize() == N {
-      return Ok(&self.data);
-    }
-    Err(ArrayStringError::IncompleteArray.into())
+    Self(Inner { len: L::UPPER_BOUND, data: [0; N] })
   }
 
   /// The filled elements that composed a string.
@@ -103,99 +98,120 @@ where
     self
   }
 
-  /// Alias of [`IndexedStorageMut::extend_from_copyable_slice`].
+  /// The filled elements that composed a string.
   #[inline]
-  pub fn push_str(&mut self, str: &str) -> crate::Result<()> {
-    self.extend_from_copyable_slice(str)
-  }
-
-  unsafe fn drop_elements(len: L, offset: L, ptr: *mut u8) {
-    // SAFETY: it is up to the caller to provide a valid pointer with a valid index
-    let data = unsafe { ptr.add(offset.usize()) };
-    // SAFETY: it is up to the caller to provide a valid length
-    let elements = unsafe { slice::from_raw_parts_mut(data, len.usize()) };
-    // SAFETY: it is up to the caller to provide parameters that can lead to droppable elements
-    unsafe {
-      ptr::drop_in_place(elements);
+  pub fn data(&self) -> crate::Result<&[u8; N]> {
+    if self.0.len.usize() != N {
+      return Err(ArrayStringError::IncompleteArray.into());
     }
+    Ok(&self.0.data)
   }
 }
 
-impl<L, const N: usize> IndexedStorage<u8> for ArrayString<L, N>
+impl<L, const N: usize> ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
-  type Len = L;
-  type Slice = str;
-
+  #[doc = from_iter_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]
+  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  fn as_ptr(&self) -> *const u8 {
-    self.data.as_ptr().cast()
+  pub fn from_iter(iter: impl IntoIterator<Item = char>) -> crate::Result<Self> {
+    Ok(Self(Inner::from_iter(iter)?))
   }
 
+  #[doc = as_slice_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]
   #[inline]
-  fn capacity(&self) -> Self::Len {
-    L::from_usize(N).unwrap_or_default()
+  pub fn as_slice(&self) -> &str {
+    self.0.as_slice()
   }
 
+  #[doc = as_slice_mut_doc!()]
   #[inline]
-  fn len(&self) -> Self::Len {
-    self.len
-  }
-}
-
-impl<L, const N: usize> IndexedStorageMut<u8> for ArrayString<L, N>
-where
-  L: IndexedStorageLen,
-{
-  #[inline]
-  fn as_ptr_mut(&mut self) -> *mut u8 {
-    self.data.as_mut_ptr().cast()
+  pub fn as_slice_mut(&mut self) -> &mut str {
+    self.0.as_slice_mut()
   }
 
+  #[doc = capacity_doc!("ArrayStringUsize::<16>", "\"123\".chars()")]
   #[inline]
-  fn pop(&mut self) -> Option<char> {
-    let ch = self.as_slice().chars().next_back()?;
-    self.len = self.len.wrapping_sub(Self::Len::from_usize(ch.len_utf8()).ok()?);
-    Some(ch)
+  pub fn capacity(&self) -> L {
+    self.0.capacity()
   }
 
+  #[doc = clear_doc!("ArrayStringUsize::<16>", "\"123\".chars()")]
   #[inline]
-  fn reserve(&mut self, additional: Self::Len) -> crate::Result<()> {
-    if additional > self.remaining() {
-      return Err(ArrayStringError::ReserveOverflow.into());
-    }
-    Ok(())
+  pub fn clear(&mut self) {
+    self.0.clear();
   }
 
+  #[doc = extend_from_iter_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]
   #[inline]
-  unsafe fn set_len(&mut self, new_len: Self::Len) {
-    self.len = new_len;
+  pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = char>) -> crate::Result<()> {
+    self.0.extend_from_iter(iter)
   }
 
+  #[doc = len_doc!()]
   #[inline]
-  fn truncate(&mut self, new_len: Self::Len) {
-    let len = self.len;
-    let diff = if let Some(diff) = len.checked_sub(new_len)
-      && diff > L::ZERO
-    {
-      diff
-    } else {
-      return;
-    };
-    self.len = new_len;
-    if Self::NEEDS_DROP {
-      // SAFETY: indices are within bounds
-      unsafe {
-        Self::drop_elements(diff, new_len, self.as_ptr_mut());
-      }
-    }
+  pub fn len(&self) -> L {
+    self.0.len()
+  }
+
+  #[doc = pop_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"12\"")]
+  #[inline]
+  pub fn pop(&mut self) -> Option<char> {
+    <str as LinearStorageSlice>::pop(&mut self.0)
+  }
+
+  #[doc = push_doc!("ArrayStringUsize::<16>", "'1'", "\"1\"")]
+  #[inline]
+  pub fn push(&mut self, elem: char) -> crate::Result<()> {
+    self.0.push(elem)
+  }
+
+  /// Appends a given string slice onto the end of this instance.
+  #[inline]
+  pub fn push_str(&mut self, other: &str) -> crate::Result<()> {
+    self.0.extend_from_copyable_slice(other)
+  }
+
+  /// Appends a set of string slices onto the end of this instance.
+  #[inline]
+  pub fn push_strs<'iter, E, I>(&mut self, others: I) -> crate::Result<L>
+  where
+    E: Lease<str> + ?Sized + 'iter,
+    I: IntoIterator<Item = &'iter E>,
+    I::IntoIter: Clone,
+  {
+    self.0.extend_from_copyable_slices(others)
+  }
+
+  #[doc = remaining_doc!("ArrayStringUsize::<16>", "'1'")]
+  #[inline]
+  pub fn remaining(&self) -> L {
+    self.0.remaining()
+  }
+
+  #[doc = remove_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"13\"")]
+  #[inline]
+  pub fn remove(&mut self, index: L) -> Option<char> {
+    <str as LinearStorageSlice>::remove(&mut self.0, index)
+  }
+
+  #[doc = set_len_doc!()]
+  #[inline]
+  pub unsafe fn set_len(&mut self, new_len: L) {
+    self.0.len = new_len;
+  }
+
+  #[doc = truncate_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"1\"")]
+  #[inline]
+  pub fn truncate(&mut self, new_len: L) {
+    let _rslt = <str as LinearStorageSlice>::truncate(&mut self.0, new_len);
   }
 }
 
 impl<L, const N: usize> Borrow<str> for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn borrow(&self) -> &str {
@@ -205,7 +221,7 @@ where
 
 impl<L, const N: usize> Debug for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -215,7 +231,7 @@ where
 
 impl<L, const N: usize> Default for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn default() -> Self {
@@ -225,7 +241,7 @@ where
 
 impl<L, const N: usize> Display for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -235,19 +251,19 @@ where
 
 impl<L, const N: usize> Deref for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   type Target = str;
 
   #[inline]
   fn deref(&self) -> &Self::Target {
-    self.as_slice()
+    self.0.as_slice()
   }
 }
 
 impl<L, const N: usize> Lease<str> for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn lease(&self) -> &str {
@@ -255,11 +271,11 @@ where
   }
 }
 
-impl<L, const N: usize> Eq for ArrayString<L, N> where L: IndexedStorageLen {}
+impl<L, const N: usize> Eq for ArrayString<L, N> where L: LinearStorageLen {}
 
 impl<L, const N: usize> Hash for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn hash<H>(&self, state: &mut H)
@@ -272,7 +288,7 @@ where
 
 impl<L, const N: usize> PartialEq for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
@@ -282,7 +298,7 @@ where
 
 impl<L, const N: usize> PartialEq<[u8]> for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn eq(&self, other: &[u8]) -> bool {
@@ -292,7 +308,7 @@ where
 
 impl<L, const N: usize> PartialEq<str> for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn eq(&self, other: &str) -> bool {
@@ -302,7 +318,7 @@ where
 
 impl<L, const N: usize> PartialOrd for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn ge(&self, other: &Self) -> bool {
@@ -327,7 +343,7 @@ where
   #[inline]
   fn partial_cmp(&self, other: &Self) -> Option<Ordering>
   where
-    L: IndexedStorageLen,
+    L: LinearStorageLen,
   {
     Some(self.cmp(other))
   }
@@ -335,7 +351,7 @@ where
 
 impl<L, const N: usize> Ord for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn cmp(&self, other: &Self) -> Ordering {
@@ -345,7 +361,7 @@ where
 
 impl<'args, L, const N: usize> TryFrom<Arguments<'args>> for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   type Error = crate::Error;
 
@@ -359,7 +375,7 @@ where
 
 impl<L, const N: usize> TryFrom<&[u8]> for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   type Error = crate::Error;
 
@@ -373,7 +389,7 @@ where
 
 impl<L, const N: usize> TryFrom<&str> for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   type Error = crate::Error;
 
@@ -387,7 +403,7 @@ where
 
 impl<L, const N: usize> Write for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn write_char(&mut self, c: char) -> fmt::Result {
@@ -400,14 +416,92 @@ where
   }
 }
 
+#[derive(Clone, Copy)]
+struct Inner<L, const N: usize> {
+  len: L,
+  data: [u8; N],
+}
+
+impl<L, const N: usize> Inner<L, N>
+where
+  L: LinearStorageLen,
+{
+  const INSTANCE_CHECK: () = {
+    assert!(N <= L::UPPER_BOUND_USIZE);
+  };
+}
+
+impl<L, const N: usize> LinearStorage<u8> for Inner<L, N>
+where
+  L: LinearStorageLen,
+{
+  type Len = L;
+  type Slice = str;
+
+  #[inline]
+  fn as_ptr(&self) -> *const u8 {
+    self.data.as_ptr().cast()
+  }
+
+  #[inline]
+  fn capacity(&self) -> Self::Len {
+    L::from_usize(N).unwrap_or_default()
+  }
+
+  #[inline]
+  fn len(&self) -> Self::Len {
+    self.len
+  }
+}
+
+impl<L, const N: usize> LinearStorageMut<u8> for Inner<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn as_ptr_mut(&mut self) -> *mut u8 {
+    self.data.as_mut_ptr().cast()
+  }
+
+  #[inline]
+  fn reserve(&mut self, additional: Self::Len) -> crate::Result<()> {
+    if additional > self.remaining() {
+      return Err(ArrayStringError::ReserveOverflow.into());
+    }
+    Ok(())
+  }
+
+  fn reserve_exact(&mut self, additional: Self::Len) -> crate::Result<()> {
+    if additional > self.remaining() {
+      return Err(ArrayStringError::ReserveOverflow.into());
+    }
+    Ok(())
+  }
+
+  #[inline]
+  unsafe fn set_len(&mut self, new_len: Self::Len) {
+    self.len = new_len;
+  }
+}
+
+impl<L, const N: usize> Default for Inner<L, N>
+where
+  L: LinearStorageLen,
+{
+  fn default() -> Self {
+    const { Self::INSTANCE_CHECK };
+    Self { len: L::ZERO, data: [0; N] }
+  }
+}
+
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
-  use crate::collection::{ArrayString, IndexedStorageLen};
+  use crate::collection::{ArrayString, LinearStorageLen, array_string::Inner};
   use arbitrary::{Arbitrary, Unstructured};
 
   impl<'any, L, const N: usize> Arbitrary<'any> for ArrayString<L, N>
   where
-    L: IndexedStorageLen,
+    L: LinearStorageLen,
   {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'any>) -> arbitrary::Result<Self> {
@@ -427,7 +521,7 @@ mod arbitrary {
           }
         }
       }
-      Ok(Self { len, data })
+      Ok(Self(Inner { len, data }))
     }
   }
 }
@@ -435,7 +529,7 @@ mod arbitrary {
 #[cfg(feature = "serde")]
 mod serde {
   use crate::{
-    collection::{ArrayString, IndexedStorageLen},
+    collection::{ArrayString, LinearStorageLen},
     misc::from_utf8_basic,
   };
   use core::{fmt::Formatter, marker::PhantomData};
@@ -446,7 +540,7 @@ mod serde {
 
   impl<'de, L, const N: usize> Deserialize<'de> for ArrayString<L, N>
   where
-    L: IndexedStorageLen,
+    L: LinearStorageLen,
   {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -457,7 +551,7 @@ mod serde {
 
       impl<L, const N: usize> Visitor<'_> for ArrayStringVisitor<L, N>
       where
-        L: IndexedStorageLen,
+        L: LinearStorageLen,
       {
         type Value = ArrayString<L, N>;
 
@@ -491,7 +585,7 @@ mod serde {
 
   impl<L, const N: usize> Serialize for ArrayString<L, N>
   where
-    L: IndexedStorageLen,
+    L: LinearStorageLen,
   {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

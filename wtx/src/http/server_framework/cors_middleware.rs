@@ -1,5 +1,5 @@
 use crate::{
-  collection::{IndexedStorageMut, Vector},
+  collection::Vector,
   http::{
     Header, Headers, HttpError, KnownHeaderName, Method, ReqResBuffer, Request, Response,
     StatusCode,

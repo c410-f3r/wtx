@@ -1,5 +1,4 @@
 use crate::{
-  collection::IndexedStorageMut,
   http::{HttpError, StatusCode},
   http2::{
     Http2Error, Http2ErrorCode, Http2Params, Scrp, Sorp,
@@ -51,7 +50,7 @@ where
       if self.fi.stream_id <= *self.last_stream_id {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::StreamClosed,
-          Some(Http2Error::UnknownDataStreamReceiver),
+          Http2Error::UnknownDataStreamReceiver,
         ));
       }
       return Err(protocol_err(Http2Error::UnknownDataStreamReceiver));
@@ -59,15 +58,12 @@ where
     if elem.stream_state.recv_eos() {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::StreamClosed,
-        Some(Http2Error::InvalidReceivedFrameAfterEos),
+        Http2Error::InvalidReceivedFrameAfterEos,
       ));
     }
     let local_body_len_opt = elem.body_len.checked_add(self.fi.data_len);
     let Some(local_body_len) = local_body_len_opt.filter(|el| *el <= self.hp.max_body_len()) else {
-      return Err(protocol_err(Http2Error::LargeBodyLen(
-        local_body_len_opt,
-        self.hp.max_body_len(),
-      )));
+      return Err(protocol_err(Http2Error::LargeBodyLen(local_body_len_opt)));
     };
     elem.body_len = local_body_len;
     let (df, body_bytes) = DataFrame::read(self.pfb.current(), self.fi)?;

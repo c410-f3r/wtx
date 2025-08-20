@@ -9,7 +9,7 @@ use crate::{
     misc::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
     nanosecond::Nanosecond,
   },
-  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
+  collection::{ArrayString, ArrayStringU8},
   de::u32_string,
 };
 use core::{

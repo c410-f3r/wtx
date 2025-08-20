@@ -1,6 +1,6 @@
 #[cfg(feature = "schema-manager-dev")]
 use {
-  crate::collection::{IndexedStorageMut, Vector},
+  crate::collection::Vector,
   crate::database::{
     FromRecords, Identifier, client::mysql::Mysql, schema_manager::Commands,
     schema_manager::DbMigration, schema_manager::MigrationStatus, schema_manager::SchemaManagement,

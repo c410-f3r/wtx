@@ -10,12 +10,12 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collection::{IndexedStorageMut, Vector},
+  collection::Vector,
   misc::LeaseMut,
   rng::Rng,
   stream::Stream,
   web_socket::{
-    Frame, WebSocket, WebSocketBuffer, WebSocketReadMode, compression::NegotiatedCompression,
+    Frame, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin, compression::NegotiatedCompression,
   },
 };
 
@@ -36,7 +36,8 @@ where
     A: Api,
   {
     pkgs_aux.byte_buffer.clear();
-    let _frame = self.read_frame(&mut pkgs_aux.byte_buffer, WebSocketReadMode::Consistent).await?;
+    let _frame =
+      self.read_frame(&mut pkgs_aux.byte_buffer, WebSocketPayloadOrigin::Consistent).await?;
     log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::WebSocket);
     Ok(())
   }

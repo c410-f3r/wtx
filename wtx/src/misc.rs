@@ -64,7 +64,7 @@ pub use wrapper::Wrapper;
 #[track_caller]
 #[inline]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
-  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>()))
+  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>().into()))
 }
 
 /// Sleeps for the specified amount of time.

@@ -135,7 +135,7 @@ impl SettingsFrame {
       if !bytes.is_empty() {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::FrameSizeError,
-          Some(Http2Error::InvalidSettingsFrameNonEmptyAck),
+          Http2Error::InvalidSettingsFrameNonEmptyAck,
         ));
       }
       return Ok(settings_frame);
@@ -144,7 +144,7 @@ impl SettingsFrame {
     if bytes.len() % 6 != 0 {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::InvalidSettingsFrameLength),
+        Http2Error::InvalidSettingsFrameLength,
       ));
     }
 

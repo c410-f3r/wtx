@@ -8,7 +8,7 @@ use crate::{
     SECONDS_PER_DAY, Second, Time, TimeZone, Utc,
     misc::{i32i64, u32i64},
   },
-  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
+  collection::{ArrayString, ArrayStringU8},
 };
 use core::fmt::{Debug, Display, Formatter};
 

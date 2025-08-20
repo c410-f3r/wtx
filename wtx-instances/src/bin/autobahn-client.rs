@@ -2,7 +2,7 @@
 
 use wtx::{
   collection::Vector,
-  web_socket::{Frame, OpCode, WebSocketReadMode},
+  web_socket::{Frame, OpCode, WebSocketPayloadOrigin},
 };
 use wtx_instances::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 
@@ -15,7 +15,7 @@ async fn main() -> wtx::Result<()> {
     let (mut common, mut reader, mut writer) = ws.parts_mut();
     loop {
       let mut frame =
-        match reader.read_frame(&mut buffer, &mut common, WebSocketReadMode::Adaptive).await {
+        match reader.read_frame(&mut buffer, &mut common, WebSocketPayloadOrigin::Adaptive).await {
           Err(_err) => {
             ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
             break;

@@ -4,7 +4,6 @@
 
 use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
-  collection::IndexedStorageMut,
   http::{
     AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Response,
     StatusCode,

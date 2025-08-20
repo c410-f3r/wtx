@@ -13,10 +13,11 @@ use crate::{
     },
   },
   de::DEController,
+  executor::Runtime,
 };
 use alloc::string::String;
 use core::fmt::{Debug, Write};
-use tokio::net::TcpStream;
+use std::net::TcpStream;
 
 macro_rules! create_integration_test {
   ($executor:expr, $buffer:expr, $aux:expr, $($fun:path),*) => {{
@@ -48,7 +49,7 @@ macro_rules! create_integration_tests {
           let uri_string = std::env::var("DATABASE_URI_MYSQL").unwrap();
           let uri = crate::misc::UriRef::new(&uri_string);
           let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
-          let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
+          let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
           let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
           crate::database::client::mysql::MysqlExecutor::connect(
             &config,
@@ -69,7 +70,7 @@ macro_rules! create_integration_tests {
           let uri_string = std::env::var("DATABASE_URI_POSTGRES").unwrap();
           let uri = crate::misc::UriRef::new(&uri_string);
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
-          let stream = TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap();
+          let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
           let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
           crate::database::client::postgres::PostgresExecutor::connect(
             &config,
@@ -114,11 +115,15 @@ macro_rules! create_all_integration_tests {
       postgres: $($with_schema),*;
     );
 
-    #[tokio::test]
-    async fn integration_tests() {
-      integration_tests_db().await;
-      integration_tests_generic().await;
-      integration_tests_schema().await;
+    #[test]
+    fn integration_tests() {
+      Runtime::new()
+        .block_on(async {
+          integration_tests_db().await;
+          integration_tests_generic().await;
+          integration_tests_schema().await;
+        })
+        .unwrap();
     }
   };
 }

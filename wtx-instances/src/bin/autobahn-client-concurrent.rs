@@ -4,7 +4,7 @@ use core::pin::pin;
 use wtx::{
   collection::Vector,
   misc::PollOnce,
-  web_socket::{Frame, OpCode, WebSocketPartsOwned, WebSocketReadMode},
+  web_socket::{Frame, OpCode, WebSocketPartsOwned, WebSocketPayloadOrigin},
 };
 use wtx_instances::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 
@@ -18,21 +18,18 @@ async fn main() -> wtx::Result<()> {
       ws.into_parts(tokio::io::split)?;
     let mut reply_frame = pin!(replier.reply_frame());
     loop {
-      let mut frame = match reader.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await {
+      let mut frame = match reader.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await {
         Err(_err) => {
           writer.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
           break;
         }
         Ok(elem) => elem,
       };
-      match PollOnce::new(&mut reply_frame).await {
-        Some(mut elem) => {
-          if writer.write_reply_frame(&mut elem).await? {
-            break;
-          }
-          reply_frame.set(replier.reply_frame());
+      if let Some(mut elem) = PollOnce::new(&mut reply_frame).await {
+        if writer.write_reply_frame(&mut elem).await? {
+          break;
         }
-        None => {}
+        reply_frame.set(replier.reply_frame());
       }
       match frame.op_code() {
         OpCode::Binary | OpCode::Text => writer.write_frame(&mut frame).await?,

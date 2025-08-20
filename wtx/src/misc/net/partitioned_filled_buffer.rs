@@ -116,10 +116,10 @@ impl PartitionedFilledBuffer {
 
 #[cfg(any(feature = "mysql", feature = "postgres", feature = "web-socket"))]
 impl PartitionedFilledBuffer {
-  pub(crate) fn with_capacity(cap: usize) -> crate::Result<Self> {
+  pub(crate) fn with_capacity(capacity: usize) -> crate::Result<Self> {
     Ok(Self {
       antecedent_end_idx: 0,
-      buffer: FilledBuffer::with_capacity(cap)?,
+      buffer: FilledBuffer::with_capacity(capacity)?,
       current_end_idx: 0,
     })
   }

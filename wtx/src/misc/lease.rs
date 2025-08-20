@@ -56,6 +56,30 @@ impl Lease<[u8]> for () {
   }
 }
 
+#[cfg(feature = "std")]
+impl Lease<[u8]> for std::io::IoSlice<'_> {
+  #[inline]
+  fn lease(&self) -> &[u8] {
+    self
+  }
+}
+
+#[cfg(feature = "std")]
+impl Lease<[u8]> for std::io::IoSliceMut<'_> {
+  #[inline]
+  fn lease(&self) -> &[u8] {
+    self
+  }
+}
+
+#[cfg(feature = "std")]
+impl LeaseMut<[u8]> for std::io::IoSliceMut<'_> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut [u8] {
+    self
+  }
+}
+
 impl LeaseMut<[u8]> for () {
   #[inline]
   fn lease_mut(&mut self) -> &mut [u8] {

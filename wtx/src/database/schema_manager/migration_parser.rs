@@ -1,7 +1,7 @@
 //! Migration file parser
 
 use crate::{
-  collection::{ArrayVectorU8, IndexedStorageMut},
+  collection::ArrayVectorU8,
   database::{
     DatabaseTy,
     schema_manager::{

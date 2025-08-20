@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVectorU8, IndexedStorageMut as _, Vector},
+  collection::{ArrayVectorU8, Vector},
   database::{
     Identifier,
     client::{

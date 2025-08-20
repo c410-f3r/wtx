@@ -229,7 +229,6 @@ macro_rules! impl_tuples {
             _vec: &mut Vector<ArrayVectorU8<RouteMatch, 4>>
           ) -> crate::Result<()> {
             $({
-              use crate::collection::IndexedStorageMut;
               let mut local_prev = _prev.clone();
               local_prev.push(RouteMatch::new($N, $T::OM, self.$N.full_path))?;
               if $T::IS_ROUTER {

@@ -264,7 +264,7 @@ pub(crate) mod database {
   #[cfg(feature = "tokio-rustls")]
   mod tokio_rustls {
     use crate::{
-      collection::{IndexedStorage, Vector},
+      collection::Vector,
       database::{
         DEFAULT_MAX_STMTS, Executor as _,
         client::postgres::{ExecutorBuffer, PostgresExecutor},

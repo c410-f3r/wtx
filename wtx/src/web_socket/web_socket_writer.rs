@@ -1,7 +1,7 @@
 // Common functions that used be used by pure WebSocket structures or tunneling protocols.
 
 use crate::{
-  collection::{ExpansionTy, IndexedStorageMut as _, Vector},
+  collection::{ExpansionTy, Vector},
   misc::{ConnectionState, Lease, LeaseMut},
   rng::Rng,
   stream::StreamWriter,

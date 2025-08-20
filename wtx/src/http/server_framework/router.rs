@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVectorU8, IndexedStorage, Vector},
+  collection::{ArrayVectorU8, Vector},
   http::{
     AutoStream, ManualStream, OperationMode, Response, StatusCode,
     server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},

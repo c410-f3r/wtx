@@ -14,7 +14,7 @@ use wtx::{
   collection::Vector,
   misc::{TokioRustlsConnector, Uri, into_rslt},
   web_socket::{
-    Frame, FrameVector, OpCode, WebSocketConnector, WebSocketPartsOwned, WebSocketReadMode,
+    Frame, FrameVector, OpCode, WebSocketConnector, WebSocketPartsOwned, WebSocketPayloadOrigin,
   },
 };
 
@@ -35,7 +35,7 @@ async fn main() -> wtx::Result<()> {
   let reader_fut = async {
     let mut buffer = Vector::new();
     loop {
-      let frame = reader.read_frame(&mut buffer, WebSocketReadMode::Adaptive).await?;
+      let frame = reader.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await?;
       match (frame.op_code(), frame.text_payload()) {
         // A special version of this frame has already been sent to the replier
         (OpCode::Close, _) => break,

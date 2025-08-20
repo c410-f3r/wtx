@@ -1,5 +1,5 @@
 use crate::{
-  collection::{IndexedStorageMut, Vector},
+  collection::Vector,
   database::client::mysql::{
     MysqlError,
     mysql_protocol::{

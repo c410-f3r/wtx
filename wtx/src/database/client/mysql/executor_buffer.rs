@@ -1,5 +1,5 @@
 use crate::{
-  collection::{Clear, Vector},
+  collection::Vector,
   database::client::mysql::MysqlCommonExecutorBuffer,
   misc::{Lease, LeaseMut},
   rng::Rng,

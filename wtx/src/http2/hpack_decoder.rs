@@ -1,5 +1,4 @@
 use crate::{
-  collection::IndexedStorageMut,
   http::{_HeaderNameBuffer, _HeaderValueBuffer, HeaderName, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, Http2ErrorCode,
@@ -63,7 +62,7 @@ impl HpackDecoder {
       self.manage_decode(*first, &mut data, &mut cb, || {
         Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::CompressionError,
-          Some(Http2Error::InvalidDynTableSizeUpdate),
+          Http2Error::InvalidDynTableSizeUpdate,
         ))
       })?;
     }
@@ -78,7 +77,7 @@ impl HpackDecoder {
     } else {
       Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::CompressionError,
-        Some(Http2Error::InvalidHpackIdx(Some(idx))),
+        Http2Error::InvalidHpackIdx(idx),
       ))
     }
   }
@@ -107,7 +106,7 @@ impl HpackDecoder {
     } else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::CompressionError,
-        Some(Http2Error::InsufficientHpackBytes),
+        Http2Error::InsufficientHpackBytes,
       ));
     };
     let mut shift: u32 = 0;
@@ -115,7 +114,7 @@ impl HpackDecoder {
       let [first, rest @ ..] = data else {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::CompressionError,
-          Some(Http2Error::InsufficientHpackBytes),
+          Http2Error::InsufficientHpackBytes,
         ));
       };
       *data = rest;
@@ -157,7 +156,7 @@ impl HpackDecoder {
       } else {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::CompressionError,
-          Some(Http2Error::InvalidHpackIdx(Some(idx))),
+          Http2Error::InvalidHpackIdx(idx),
         ));
       }
     } else {
@@ -180,7 +179,7 @@ impl HpackDecoder {
     let Some((bytes_begin, bytes_end)) = data.split_at_checked(*Usize::from(len)) else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::CompressionError,
-        Some(Http2Error::InsufficientHpackBytes),
+        Http2Error::InsufficientHpackBytes,
       ));
     };
     let is_encoded = first & 0b1000_0000 == 0b1000_0000;
@@ -323,7 +322,7 @@ impl HpackDecoder {
         if local_max_bytes > self.max_bytes.0 {
           return Err(crate::Error::Http2ErrorGoAway(
             Http2ErrorCode::CompressionError,
-            Some(Http2Error::OutOfBoundsIndex),
+            Http2Error::OutOfBoundsIndex,
           ));
         }
         self.dyn_headers.set_max_bytes(*Usize::from(local_max_bytes), |_| {});

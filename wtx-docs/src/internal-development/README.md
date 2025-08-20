@@ -16,7 +16,7 @@ Some real-world use-cases and associated benchmarks.
 * <https://github.com/rust-lang/rust/pull/100441>
 * <https://github.com/rust-lang/rust/pull/95715>
 
-That is why `WTX` has an enforced `Error` enum size of 24 bytes that will hopefully get smaller in future and that is also the reason why `WTX` has so many bare variants.
+That is why `WTX` has an enforced `Error` enum size of 16 bytes and that is also the reason why `WTX` has so many bare variants.
 
 ## Profiling
 

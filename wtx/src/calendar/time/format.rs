@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData},
-  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
+  collection::{ArrayString, ArrayStringU8},
   de::u32_string,
 };
 

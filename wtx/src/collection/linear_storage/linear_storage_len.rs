@@ -16,7 +16,7 @@ macro_rules! u32_cap {
     4_294_967_295
   };
 }
-macro_rules! _u64_cap {
+macro_rules! u64_cap {
   () => {
     9_223_372_036_854_775_807
   };
@@ -43,13 +43,15 @@ macro_rules! usize_cap {
 
 use crate::misc::Usize;
 
-/// Determines how many elements can be stored in a collection.
-pub trait IndexedStorageLen:
+/// Determines how many elements can be stored in a linear collection.
+pub trait LinearStorageLen:
   Copy + Default + Eq + From<u8> + Ord + PartialEq + PartialOrd + Sized
 {
-  /// The maximum number of elements.
+  /// If the maximum number of allowed elements is backed by an `u64` primitive.
+  const IS_UPPER_BOUND_U64: bool = Self::UPPER_BOUND_USIZE == u64_cap!();
+  /// The maximum number of allowed elements.
   const UPPER_BOUND: Self;
-  /// The maximum number of elements as `usize`.
+  /// The maximum number of allowed elements as `usize`.
   const UPPER_BOUND_USIZE: usize;
   /// Instance that represents the number one.
   const ONE: Self;
@@ -58,6 +60,9 @@ pub trait IndexedStorageLen:
 
   /// Tries to create a new instance from a `usize` primitive.
   fn from_usize(num: usize) -> crate::Result<Self>;
+
+  /// Checked integer addition.
+  fn checked_add(self, rhs: Self) -> Option<Self>;
 
   /// Checked integer subtraction.
   fn checked_sub(self, rhs: Self) -> Option<Self>;
@@ -74,7 +79,7 @@ pub trait IndexedStorageLen:
   fn wrapping_sub(self, rhs: Self) -> Self;
 }
 
-impl IndexedStorageLen for u8 {
+impl LinearStorageLen for u8 {
   const UPPER_BOUND: Self = u8_cap!();
   const UPPER_BOUND_USIZE: usize = u8_cap!();
   const ONE: Self = 1;
@@ -86,6 +91,11 @@ impl IndexedStorageLen for u8 {
   }
 
   #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
+  }
+
+  #[inline]
   fn checked_sub(self, rhs: Self) -> Option<Self> {
     self.checked_sub(rhs)
   }
@@ -106,7 +116,7 @@ impl IndexedStorageLen for u8 {
   }
 }
 
-impl IndexedStorageLen for u16 {
+impl LinearStorageLen for u16 {
   const UPPER_BOUND: Self = u16_cap!();
   const UPPER_BOUND_USIZE: usize = u16_cap!();
   const ONE: Self = 1;
@@ -118,6 +128,11 @@ impl IndexedStorageLen for u16 {
   }
 
   #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
+  }
+
+  #[inline]
   fn checked_sub(self, rhs: Self) -> Option<Self> {
     self.checked_sub(rhs)
   }
@@ -138,7 +153,7 @@ impl IndexedStorageLen for u16 {
   }
 }
 
-impl IndexedStorageLen for u32 {
+impl LinearStorageLen for u32 {
   const UPPER_BOUND: Self = u32_cap!();
   const UPPER_BOUND_USIZE: usize = u32_cap!();
   const ONE: Self = 1;
@@ -147,6 +162,11 @@ impl IndexedStorageLen for u32 {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num.try_into()?)
+  }
+
+  #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
   }
 
   #[inline]
@@ -171,15 +191,20 @@ impl IndexedStorageLen for u32 {
 }
 
 #[cfg(target_pointer_width = "64")]
-impl IndexedStorageLen for u64 {
-  const UPPER_BOUND: Self = _u64_cap!();
-  const UPPER_BOUND_USIZE: usize = _u64_cap!();
+impl LinearStorageLen for u64 {
+  const UPPER_BOUND: Self = u64_cap!();
+  const UPPER_BOUND_USIZE: usize = u64_cap!();
   const ONE: Self = 1;
   const ZERO: Self = 0;
 
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num.try_into()?)
+  }
+
+  #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
   }
 
   #[inline]
@@ -203,7 +228,7 @@ impl IndexedStorageLen for u64 {
   }
 }
 
-impl IndexedStorageLen for usize {
+impl LinearStorageLen for usize {
   const UPPER_BOUND: Self = usize_cap!();
   const UPPER_BOUND_USIZE: usize = usize_cap!();
   const ONE: Self = 1;
@@ -212,6 +237,11 @@ impl IndexedStorageLen for usize {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num)
+  }
+
+  #[inline]
+  fn checked_add(self, rhs: Self) -> Option<Self> {
+    self.checked_add(rhs)
   }
 
   #[inline]

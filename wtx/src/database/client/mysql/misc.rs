@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, ArrayVectorU8, IndexedStorageMut, Vector},
+  collection::{ArrayVector, ArrayVectorU8, Vector},
   database::client::mysql::{
     DbError, MysqlError,
     mysql_executor::MAX_PAYLOAD,
@@ -11,7 +11,7 @@ use crate::{
   de::{Decode, Encode},
   misc::{
     Usize,
-    hints::unlikely_elem,
+    hints::_unlikely_elem,
     net::{PartitionedFilledBuffer, read_header, read_payload},
   },
   stream::Stream,
@@ -65,7 +65,7 @@ where
   }
   *sequence_id = local_sequence_id;
   if first_byte == Some(255) {
-    return unlikely_elem({
+    return _unlikely_elem({
       let db_error: crate::Result<DbError> = decode(&mut pfb.current(), capabilities);
       Err(db_error?.into())
     });

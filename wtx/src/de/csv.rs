@@ -1,7 +1,4 @@
-use crate::{
-  collection::{IndexedStorageMut as _, Vector},
-  misc::bytes_split1,
-};
+use crate::{collection::Vector, misc::bytes_split1};
 #[cfg(feature = "std")]
 use std::io::BufRead;
 
@@ -51,7 +48,7 @@ where
     where
       S: BufRead,
     {
-      Ok(source.read_until(b'\n', buffer.as_vec_mut())?)
+      Ok(source.read_until(b'\n', buffer.vec_mut())?)
     }
     Self { delimiter, reader, source }
   }

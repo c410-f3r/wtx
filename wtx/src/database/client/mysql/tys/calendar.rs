@@ -1,6 +1,5 @@
 use crate::{
   calendar::{Date, DateTime, Time, Utc},
-  collection::IndexedStorageMut,
   database::{
     DatabaseError, Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, ty_params::TyParams},

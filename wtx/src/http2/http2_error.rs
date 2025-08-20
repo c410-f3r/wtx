@@ -41,6 +41,8 @@ pub enum Http2Error {
   InvalidDataFrameZeroId,
   /// Size updates of dynamic table can't be placed after the first header
   InvalidDynTableSizeUpdate,
+  /// Provided number does not match any HTTP/2 error code
+  InvalidErrorCode,
   /// Frame pad was invalid bytes
   InvalidFramePad,
   #[doc = invalid_frame_bytes!()]
@@ -48,7 +50,7 @@ pub enum Http2Error {
   #[doc = stream_id_must_be_zero!()]
   InvalidGoAwayFrameNonZeroId,
   /// A container does not contain an element referred by the given idx
-  InvalidHpackIdx(Option<u32>),
+  InvalidHpackIdx(u32),
   /// Header frame has mal-formatted content
   InvalidHeaderFrame,
   #[doc = stream_id_must_not_be_zero!()]
@@ -85,11 +87,9 @@ pub enum Http2Error {
   LargeArbitraryFrameLen {
     /// Received length from a response
     received: u32,
-    /// Maximum configured length
-    max: u32,
   },
   /// Set of received data frames extrapolate delimited maximum length
-  LargeBodyLen(Option<u32>, u32),
+  LargeBodyLen(Option<u32>),
   /// Ignorable frames extrapolates delimited maximum length
   LargeIgnorableFrameLen,
   /// All trailer frames must include the EOS flag

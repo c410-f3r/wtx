@@ -1,5 +1,4 @@
 use crate::{
-  collection::IndexedStorageMut,
   database::client::mysql::mysql_protocol::{
     MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol,
   },
