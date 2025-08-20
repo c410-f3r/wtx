@@ -1897,7 +1897,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.35.0"
+version = "0.36.0"
 dependencies = [
  "aes-gcm",
  "arbitrary",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1982,7 +1982,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-ui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "dotenvy",

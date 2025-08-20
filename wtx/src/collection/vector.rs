@@ -1,6 +1,6 @@
 use crate::{
   collection::{
-    ExpansionTy, LinearStorageLen as _,
+    ExpansionTy,
     linear_storage::{
       LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
     },
@@ -558,7 +558,7 @@ impl std::io::Write for Vector<u8> {
   fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
     let mut fun = || {
       let len: usize = bufs.iter().map(|b| b.len()).sum();
-      self.reserve(usize::from_usize(len)?)?;
+      self.reserve(len)?;
       self.extend_from_copyable_slices(bufs)
     };
     fun().map_err(|err| std::io::Error::new(std::io::ErrorKind::StorageFull, err))
