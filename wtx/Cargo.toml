@@ -45,7 +45,7 @@ tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
-wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.4" }
+wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.5" }
 
 [dev-dependencies]
 tokio = { default-features = false, features = ["rt-multi-thread"], version = "1.0" }
@@ -115,7 +115,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.89"
-version = "0.35.0"
+version = "0.36.0"
 
 [package.metadata.docs.rs]
 all-features = true
