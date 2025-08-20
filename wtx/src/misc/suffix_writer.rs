@@ -1,5 +1,5 @@
 use crate::{
-  collection::{IndexedStorageMut as _, Vector},
+  collection::Vector,
   misc::{Lease, LeaseMut},
 };
 

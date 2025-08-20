@@ -125,7 +125,6 @@ pub(crate) fn from_records(
         _curr_params: &mut wtx::database::FromRecordsParams<<#database as wtx::database::Database>::Record<'exec>>,
         _records: &<#database as wtx::database::Database>::Records<'exec>,
       ) -> Result<Self, <#database as wtx::de::DEController>::Error> {
-        use wtx::collection::IndexedStorageMut;
         use wtx::database::Record as _;
 
         let is_in_one_relationship = _curr_params.is_in_one_relationship;

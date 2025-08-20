@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, TimeZone},
-  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
+  collection::{ArrayString, ArrayStringU8},
 };
 
 /// Universal Time Coordinated (UTC)

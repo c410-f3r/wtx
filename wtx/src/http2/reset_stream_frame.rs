@@ -24,7 +24,7 @@ impl ResetStreamFrame {
     let [a, b, c, d] = bytes else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::InvalidResetStreamFrameZeroId),
+        Http2Error::InvalidResetStreamFrameZeroId,
       ));
     };
     Ok(Self {

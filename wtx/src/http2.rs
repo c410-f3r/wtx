@@ -43,7 +43,7 @@ mod server_stream;
 mod settings_frame;
 mod stream_receiver;
 mod stream_state;
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests;
 mod u31;
 #[cfg(feature = "web-socket")]
@@ -97,6 +97,13 @@ pub(crate) const MAX_RECV_STREAMS_NUM: u32 = max_recv_streams_num!();
 pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
 
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+
+/// [`Http2`] instance using the mutex of this crate that is based on the standard library.
+pub type Http2Std<HB, SW, const IS_CLIENT: bool> =
+  Http2<Http2DataStd<HB, SW, IS_CLIENT>, IS_CLIENT>;
+/// [`Http2Data`] instance using the mutex of this crate that is based on the standard library.
+pub type Http2DataStd<HB, SW, const IS_CLIENT: bool> =
+  Arc<crate::sync::Mutex<Http2Data<HB, SW, IS_CLIENT>>>;
 
 /// [`Http2`] instance using the mutex from tokio.
 #[cfg(feature = "tokio")]

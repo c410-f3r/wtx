@@ -12,6 +12,8 @@ mod cache_padded;
 mod fence;
 mod lock;
 mod mpmc;
+#[cfg(feature = "std")]
+mod mutex;
 mod primitives;
 mod ref_counter;
 mod seq_lock;
@@ -24,6 +26,8 @@ pub use cache_padded::CachePadded;
 pub use fence::fence;
 pub use lock::Lock;
 pub use mpmc::*;
+#[cfg(feature = "std")]
+pub use mutex::{Mutex, MutexGuard, MutexLockFuture};
 pub use primitives::*;
 pub use ref_counter::RefCounter;
 pub use seq_lock::SeqLock;

@@ -1,6 +1,6 @@
 use crate::{
   calendar::{DateTime, Utc},
-  collection::{ArrayString, IndexedStorageMut, Vector},
+  collection::{ArrayString, Vector},
   http::{
     SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},

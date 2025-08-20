@@ -1,4 +1,4 @@
-use crate::collection::{IndexedStorageMut as _, Vector};
+use crate::collection::Vector;
 use core::str;
 
 const ASCII_RANGE_LEN: usize = 128;
@@ -192,7 +192,7 @@ fn percent_encode_str(byte: u8) -> &'static str {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::{IndexedStorage, IndexedStorageMut, Vector},
+    collection::Vector,
     de::{AsciiSet, PercentDecode, PercentEncode},
   };
 

@@ -8,7 +8,7 @@ mod same_site;
 #[cfg(feature = "http-session")]
 use crate::calendar::CalendarToken;
 #[cfg(feature = "http-cookie-secure")]
-use crate::{collection::IndexedStorageMut, collection::Vector, rng::Rng};
+use crate::{collection::Vector, rng::Rng};
 pub use cookie_error::CookieError;
 pub use same_site::SameSite;
 

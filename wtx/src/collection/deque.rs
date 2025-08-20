@@ -62,7 +62,7 @@ mod kani;
 #[cfg(test)]
 mod tests;
 
-use crate::collection::{ExpansionTy, IndexedStorage as _, IndexedStorageMut as _, Vector};
+use crate::collection::{ExpansionTy, misc::drop_elements, vector::Vector};
 use core::{
   fmt::{Debug, Formatter},
   mem::needs_drop,
@@ -114,9 +114,9 @@ impl<T> Deque<T> {
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_capacity(cap: usize) -> crate::Result<Self> {
+  pub fn with_capacity(capacity: usize) -> crate::Result<Self> {
     Ok(Self {
-      data: Vector::with_capacity(cap).map_err(|_err| DequeueError::WithCapacityOverflow)?,
+      data: Vector::with_capacity(capacity).map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
       tail: 0,
     })
@@ -124,9 +124,9 @@ impl<T> Deque<T> {
 
   /// Constructs a new, empty instance with at least the specified capacity.
   #[inline]
-  pub fn with_exact_capacity(cap: usize) -> crate::Result<Self> {
+  pub fn with_exact_capacity(capacity: usize) -> crate::Result<Self> {
     Ok(Self {
-      data: Vector::with_capacity(cap).map_err(|_err| DequeueError::WithCapacityOverflow)?,
+      data: Vector::with_capacity(capacity).map_err(|_err| DequeueError::WithCapacityOverflow)?,
       head: 0,
       tail: 0,
     })
@@ -363,6 +363,12 @@ impl<T> Deque<T> {
     self.get(self.len().checked_sub(1)?)
   }
 
+  /// Returns the last mutable element.
+  #[inline]
+  pub fn last_mut(&mut self) -> Option<&mut T> {
+    self.get_mut(self.len().checked_sub(1)?)
+  }
+
   /// Returns the number of elements.
   #[inline]
   pub fn len(&self) -> usize {
@@ -431,7 +437,7 @@ impl<T> Deque<T> {
     let len = self.data.len();
     let tail = self.tail;
     self.tail = wrap_add_idx(self.data.capacity(), tail, 1);
-    // SAFETY: `idx` is within bounds
+    // SAFETY: `tail` is within bounds
     let dst = unsafe { self.data.as_ptr_mut().add(tail) };
     // SAFETY: `dst` points to valid memory
     unsafe {
@@ -826,17 +832,6 @@ impl ReserveRslt {
   }
 }
 
-unsafe fn drop_elements<T>(len: usize, offset: usize, ptr: *mut T) {
-  // SAFETY: it is up to the caller to provide a valid pointer with a valid index
-  let data = unsafe { ptr.add(offset) };
-  // SAFETY: it is up to the caller to provide a valid length
-  let elements = unsafe { slice::from_raw_parts_mut(data, len) };
-  // SAFETY: it is up to the caller to provide parameters that can lead to droppable elements
-  unsafe {
-    ptr::drop_in_place(elements);
-  }
-}
-
 /// All wrapping structures must have at least 1 element.
 ///
 /// ```txt
@@ -959,14 +954,14 @@ fn reserve<D, const IS_BACK: bool>(
   }
 }
 
-fn wrap_add_idx(capacity: usize, idx: usize, offset: usize) -> usize {
-  wrap_idx(idx.wrapping_add(offset), capacity)
+fn wrap_add_idx(bound: usize, idx: usize, offset: usize) -> usize {
+  wrap_idx(bound, idx.wrapping_add(offset))
 }
 
-fn wrap_idx(idx: usize, cap: usize) -> usize {
-  idx.checked_sub(cap).unwrap_or(idx)
+fn wrap_idx(bound: usize, idx: usize) -> usize {
+  idx.checked_sub(bound).unwrap_or(idx)
 }
 
-fn wrap_sub_idx(capacity: usize, idx: usize, offset: usize) -> usize {
-  wrap_idx(idx.wrapping_sub(offset).wrapping_add(capacity), capacity)
+fn wrap_sub_idx(bound: usize, idx: usize, offset: usize) -> usize {
+  wrap_idx(bound, idx.wrapping_sub(offset).wrapping_add(bound))
 }

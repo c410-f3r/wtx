@@ -1,21 +1,27 @@
 use crate::{
-  collection::{IndexedStorage, IndexedStorageMut},
-  misc::{Lease, LeaseMut, Wrapper, hints::unlikely_elem},
+  collection::{
+    ExpansionTy, LinearStorageLen as _,
+    linear_storage::{
+      LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
+    },
+  },
+  misc::{Lease, LeaseMut, Wrapper, hints::_unreachable},
 };
-use alloc::vec::{Drain, IntoIter, Vec};
+use alloc::vec::{IntoIter, Vec};
 use core::{
   borrow::{Borrow, BorrowMut},
   cmp::Ordering,
   fmt::{Debug, Display, Formatter},
-  hint::assert_unchecked,
-  ops::{Deref, DerefMut, RangeBounds},
-  ptr,
+  mem::ManuallyDrop,
+  ops::{Deref, DerefMut},
   slice::{Iter, IterMut},
 };
 
 /// Errors of [Vector].
 #[derive(Clone, Copy, Debug)]
 pub enum VectorError {
+  #[doc = doc_reserve_overflow!()]
+  CapacityOverflow,
   #[doc = doc_many_elems_cap_overflow!()]
   ExtendFromSliceOverflow,
   #[doc = doc_many_elems_cap_overflow!()]
@@ -26,6 +32,8 @@ pub enum VectorError {
   PushOverflow,
   #[doc = doc_reserve_overflow!()]
   ReserveOverflow,
+  /// A temporary `Vec` expanded the capacity beyond the current length type
+  VecOverflow,
 }
 
 impl Display for VectorError {
@@ -39,11 +47,13 @@ impl From<VectorError> for u8 {
   #[inline]
   fn from(from: VectorError) -> Self {
     match from {
-      VectorError::ExtendFromSliceOverflow => 0,
-      VectorError::ExtendFromSlicesOverflow => 1,
-      VectorError::OutOfBoundsInsertIdx => 2,
-      VectorError::PushOverflow => 3,
-      VectorError::ReserveOverflow => 4,
+      VectorError::CapacityOverflow => 0,
+      VectorError::ExtendFromSliceOverflow => 1,
+      VectorError::ExtendFromSlicesOverflow => 2,
+      VectorError::OutOfBoundsInsertIdx => 3,
+      VectorError::PushOverflow => 4,
+      VectorError::ReserveOverflow => 5,
+      VectorError::VecOverflow => 6,
     }
   }
 }
@@ -51,12 +61,7 @@ impl From<VectorError> for u8 {
 impl core::error::Error for VectorError {}
 
 /// A wrapper around the std's vector.
-//#[cfg_attr(kani, derive(kani::Arbitrary))]
-#[derive(Clone)]
-#[repr(transparent)]
-pub struct Vector<T> {
-  data: Vec<T>,
-}
+pub struct Vector<T>(Inner<T>);
 
 impl<T> Vector<T> {
   /// Constructs a new instance based on an arbitrary [Vec].
@@ -66,8 +71,8 @@ impl<T> Vector<T> {
   /// assert_eq!(vec.len(), 0);
   /// ```
   #[inline]
-  pub const fn from_vec(data: Vec<T>) -> Self {
-    Self { data }
+  pub fn from_vec(vec: Vec<T>) -> Self {
+    Self(Inner(vec))
   }
 
   /// Constructs a new, empty instance.
@@ -78,221 +83,234 @@ impl<T> Vector<T> {
   /// ```
   #[inline]
   pub const fn new() -> Self {
-    Self::from_vec(Vec::new())
+    Self(Inner(Vec::new()))
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
   /// Constructs a new instance based on an arbitrary [Vec].
   ///
   /// ```rust
-  /// use wtx::collection::{IndexedStorage, IndexedStorageMut};
   /// let mut vec = wtx::collection::Vector::<u8>::with_capacity(2).unwrap();
   /// assert!(vec.capacity() >= 2);
   /// ```
   #[inline(always)]
-  pub fn with_capacity(cap: usize) -> crate::Result<Self> {
-    let this = Self { data: Vec::with_capacity(cap) };
-    // SAFETY: `len` will never be greater than the current capacity
-    unsafe {
-      assert_unchecked(this.data.capacity() >= this.data.len());
-    }
-    Ok(this)
+  pub fn with_capacity(capacity: usize) -> crate::Result<Self> {
+    Ok(Self(Inner(Vec::with_capacity(capacity))))
   }
 
   /// Constructs a new, empty instance with the exact specified capacity.
   ///
   /// ```rust
-  /// use wtx::collection::IndexedStorage;
   /// let mut vec = wtx::collection::Vector::<u8>::with_exact_capacity(2).unwrap();
   /// assert_eq!(vec.capacity(), 2);
   /// ```
   #[inline(always)]
-  pub fn with_exact_capacity(cap: usize) -> crate::Result<Self> {
-    let mut this = Self { data: Vec::new() };
-    this.reserve_exact(cap)?;
+  pub fn with_exact_capacity(capacity: usize) -> crate::Result<Self> {
+    let mut this = Self::new();
+    this.reserve_exact(capacity)?;
     Ok(this)
   }
 
-  /// Mutable reference of the underlying std vector.
+  /// Transfers memory ownership to the vector of the standard library.
+  ///
+  /// ```rust
+  /// let vec = wtx::collection::Vector::<u8>::new();
+  /// assert_eq!(vec.into_vec(), Vec::<u8>::new());
+  /// ```
   #[inline]
-  pub fn as_vec_mut(&mut self) -> &mut Vec<T> {
-    &mut self.data
+  pub fn into_vec(self) -> Vec<T> {
+    let mut wrapper = ManuallyDrop::new(self);
+    let capacity = wrapper.capacity();
+    let len = wrapper.len();
+    // SAFETY: `self` has valid parameters that point to valid memory
+    unsafe { Vec::from_raw_parts(wrapper.as_mut_ptr(), len, capacity) }
   }
 
-  /// Removes all but the first of consecutive elements in the vector satisfying a given equality
-  /// relation.
+  /// Vector of the standard library.
   #[inline]
-  pub fn dedup_by<F>(&mut self, same_bucket: F)
+  pub fn vec_mut(&mut self) -> &mut Vec<T> {
+    &mut self.0.0
+  }
+}
+
+impl<T> Vector<T> {
+  #[doc = from_cloneable_elem_doc!("Vector")]
+  #[inline]
+  pub fn from_cloneable_elem(len: usize, value: T) -> crate::Result<Self>
   where
-    F: FnMut(&mut T, &mut T) -> bool,
+    T: Clone,
   {
-    self.data.dedup_by(same_bucket);
+    Ok(Self(Inner::from_cloneable_elem(len, value)?))
   }
 
-  /// Clears the vector, removing all values.
+  #[doc = from_cloneable_slice_doc!("Vector")]
   #[inline]
-  pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
+  pub fn from_cloneable_slice(slice: &[T]) -> crate::Result<Self>
   where
-    R: RangeBounds<usize>,
+    T: Clone,
   {
-    self.data.drain(range)
+    Ok(Self(Inner::from_cloneable_slice(slice)?))
   }
 
-  /// Inserts an element at position index within the instance, shifting all elements after it to
-  /// the right.
-  ///
-  /// ```rust
-  /// use wtx::collection::{IndexedStorage, IndexedStorageMut};
-  /// let mut vec = wtx::collection::Vector::from_iter(1u8..4).unwrap();
-  /// vec.insert(1, 4);
-  /// assert_eq!(vec.as_slice(), [1, 4, 2, 3]);
-  /// vec.insert(4, 5);
-  /// assert_eq!(vec.as_slice(), [1, 4, 2, 3, 5]);
-  /// ```
+  #[doc = from_copyable_slice_doc!("Vector")]
   #[inline]
-  pub fn insert(&mut self, idx: usize, elem: T) -> crate::Result<()> {
-    let len = self.len();
-    if idx > len {
-      return unlikely_elem(Err(VectorError::OutOfBoundsInsertIdx.into()));
-    }
-    self.reserve(1)?;
-    // SAFETY: top-level check ensures bounds
-    let ptr = unsafe { self.as_ptr_mut().add(idx) };
-    if idx < len {
-      // SAFETY: top-level check ensures bounds
-      let diff = unsafe { len.unchecked_sub(idx) };
-      // SAFETY: `reserve` allocated one more element
-      let dst = unsafe { ptr.add(1) };
-      // SAFETY: up to the other elements
-      unsafe {
-        ptr::copy(ptr, dst, diff);
-      }
-    }
-    // SAFETY: write it in, overwriting the first copy of the `index`th element
-    unsafe {
-      ptr::write(ptr, elem);
-    }
-    // SAFETY: top-level check ensures bounds
-    let new_len = unsafe { len.unchecked_add(1) };
-    // SAFETY: `reserve` already handled memory capacity
-    unsafe {
-      self.set_len(new_len);
-    }
-    Ok(())
+  pub fn from_copyable_slice(slice: &[T]) -> crate::Result<Self>
+  where
+    T: Copy,
+  {
+    Ok(Self(Inner::from_copyable_slice(slice)?))
   }
 
-  /// Shortens the vector, keeping the first len elements and dropping the rest.
-  ///
-  /// ```rust
-  /// use wtx::collection::{IndexedStorage, IndexedStorageMut};
-  /// let mut vec = wtx::collection::Vector::from_iter(1u8..4).unwrap();
-  /// assert_eq!(vec.remove(1), Some(2));
-  /// assert_eq!(vec.as_slice(), [1, 3]);
-  /// ```
+  #[doc = from_iter_doc!("Vector", "[1, 2, 3]", "&[1, 2, 3]")]
+  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  pub fn remove(&mut self, idx: usize) -> Option<T> {
-    if idx >= self.data.len() {
-      return None;
-    }
-    Some(self.data.remove(idx))
+  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
+    Ok(Self(Inner::from_iter(iter)?))
   }
 
-  /// Tries to reserve the minimum capacity for at least `additional`
-  /// elements to be inserted in the given instance. Unlike [`Self::reserve`],
-  /// this will not deliberately over-allocate to speculatively avoid frequent
-  /// allocations.
-  ///
-  /// ```rust
-  /// use wtx::collection::{IndexedStorage, IndexedStorageMut};
-  /// let mut vec = wtx::collection::Vector::<u8>::new();
-  /// vec.reserve(10);
-  /// assert!(vec.capacity() >= 10);
-  /// ```
-  #[inline(always)]
+  #[doc = as_ptr_doc!("Vector", "[1, 2, 3]")]
+  #[inline]
+  pub fn as_ptr(&self) -> *const T {
+    self.0.as_ptr()
+  }
+
+  #[doc = as_ptr_mut_doc!()]
+  #[inline]
+  pub fn as_ptr_mut(&mut self) -> *mut T {
+    self.0.as_ptr_mut()
+  }
+
+  #[doc = as_slice_doc!("Vector", "[1, 2, 3]", "[1, 2, 3]")]
+  #[inline]
+  pub fn as_slice(&self) -> &[T] {
+    self.0.as_slice()
+  }
+
+  #[doc = as_slice_mut_doc!()]
+  #[inline]
+  pub fn as_slice_mut(&mut self) -> &mut [T] {
+    self.0.as_slice_mut()
+  }
+
+  #[doc = capacity_doc!("Vector", "[1, 2, 3]")]
+  #[inline]
+  pub fn capacity(&self) -> usize {
+    self.0.capacity()
+  }
+
+  #[doc = clear_doc!("Vector", "[1, 2, 3]")]
+  #[inline]
+  pub fn clear(&mut self) {
+    self.0.clear();
+  }
+
+  #[doc = expand_doc!("Vector")]
+  #[inline]
+  pub fn expand(&mut self, et: ExpansionTy, value: T) -> crate::Result<()>
+  where
+    T: Clone,
+  {
+    self.0.expand(et, value)
+  }
+
+  #[doc = extend_from_cloneable_slice_doc!("Vector")]
+  #[inline]
+  pub fn extend_from_cloneable_slice(&mut self, other: &[T]) -> crate::Result<()>
+  where
+    T: Clone,
+  {
+    self.0.extend_from_cloneable_slice(other)
+  }
+
+  #[doc = extend_from_copyable_slice_doc!("Vector")]
+  #[inline]
+  pub fn extend_from_copyable_slice(&mut self, other: &[T]) -> crate::Result<()>
+  where
+    T: Copy,
+  {
+    self.0.extend_from_copyable_slice(other)
+  }
+
+  #[doc = extend_from_copyable_slice_doc!("Vector")]
+  #[inline]
+  pub fn extend_from_copyable_slices<'iter, E, I>(&mut self, others: I) -> crate::Result<usize>
+  where
+    E: Lease<[T]> + ?Sized + 'iter,
+    I: IntoIterator<Item = &'iter E>,
+    I::IntoIter: Clone,
+    T: Copy + 'iter,
+  {
+    self.0.extend_from_copyable_slices(others)
+  }
+
+  #[doc = extend_from_iter_doc!("Vector", "[1, 2, 3]", "&[1, 2, 3]")]
+  #[inline]
+  pub fn extend_from_iter(&mut self, iter: impl IntoIterator<Item = T>) -> crate::Result<()> {
+    self.0.extend_from_iter(iter)
+  }
+
+  #[doc = len_doc!()]
+  #[inline]
+  pub fn len(&self) -> usize {
+    self.0.len()
+  }
+
+  #[doc = pop_doc!("Vector", "[1, 2, 3]", "[1, 2]")]
+  #[inline]
+  pub fn pop(&mut self) -> Option<T> {
+    <[T] as LinearStorageSlice>::pop(&mut self.0)
+  }
+
+  #[doc = push_doc!("Vector", "1", "&[1]")]
+  #[inline]
+  pub fn push(&mut self, elem: T) -> crate::Result<()> {
+    self.0.push(elem)
+  }
+
+  #[doc = remaining_doc!("Vector", "1")]
+  #[inline]
+  pub fn remaining(&self) -> usize {
+    self.0.remaining()
+  }
+
+  #[doc = remove_doc!("Vector", "[1, 2, 3]", "[1, 3]")]
+  #[inline]
+  pub fn remove(&mut self, index: usize) -> Option<T> {
+    <[T] as LinearStorageSlice>::remove(&mut self.0, index)
+  }
+
+  #[doc = reserve_doc!("Vector::<u8>")]
+  #[inline]
+  pub fn reserve(&mut self, additional: usize) -> crate::Result<()> {
+    self.0.reserve(additional)
+  }
+
+  #[doc = reserve_exact_doc!("Vector::<u8>")]
+  #[inline]
   pub fn reserve_exact(&mut self, additional: usize) -> crate::Result<()> {
-    self.data.try_reserve_exact(additional).map_err(|_err| VectorError::ReserveOverflow)?;
-    // SAFETY: `len` will never be greater than the current capacity
+    self.0.reserve_exact(additional)
+  }
+
+  #[doc = set_len_doc!()]
+  #[inline]
+  pub unsafe fn set_len(&mut self, new_len: usize) {
+    // SAFETY: Up to the caller
     unsafe {
-      assert_unchecked(self.data.capacity() >= self.data.len());
-    }
-    Ok(())
-  }
-
-  /// Retains only the elements specified by the predicate.
-  ///
-  /// In other words, remove all elements `e` for which `f(&e)` returns `false`.
-  /// This method operates in place, visiting each element exactly once in the
-  /// original order, and preserves the order of the retained elements.
-  ///
-  /// # Examples
-  ///
-  /// ```
-  /// use wtx::collection::{IndexedStorage, IndexedStorageMut};
-  /// let mut vec = wtx::collection::Vector::from_iter(1u8..5).unwrap();
-  /// vec.retain(|&x| x % 2 == 0);
-  /// assert_eq!(vec.as_slice(), [2, 4]);
-  /// ```
-  #[inline(always)]
-  pub fn retain(&mut self, f: impl FnMut(&T) -> bool) {
-    self.data.retain(f);
-  }
-}
-
-impl<T> IndexedStorage<T> for Vector<T> {
-  type Len = usize;
-  type Slice = [T];
-
-  #[inline]
-  fn as_ptr(&self) -> *const T {
-    self.data.as_ptr().cast()
-  }
-
-  #[inline]
-  fn capacity(&self) -> Self::Len {
-    self.data.capacity()
-  }
-
-  #[inline]
-  fn len(&self) -> Self::Len {
-    self.data.len()
-  }
-}
-
-impl<T> IndexedStorageMut<T> for Vector<T> {
-  #[inline]
-  fn as_ptr_mut(&mut self) -> *mut T {
-    self.data.as_mut_ptr().cast()
-  }
-
-  #[inline]
-  fn pop(&mut self) -> Option<T> {
-    self.data.pop()
-  }
-
-  #[inline]
-  fn reserve(&mut self, additional: Self::Len) -> crate::Result<()> {
-    self.data.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
-    Ok(())
-  }
-
-  #[inline]
-  unsafe fn set_len(&mut self, new_len: Self::Len) {
-    // SAFETY: delegated to `data`
-    unsafe {
-      self.data.set_len(new_len);
+      self.0.set_len(new_len);
     }
   }
 
+  #[doc = truncate_doc!("Vector", "[1, 2, 3]", "[1]")]
   #[inline]
-  fn truncate(&mut self, new_len: Self::Len) {
-    self.data.truncate(new_len);
+  pub fn truncate(&mut self, new_len: usize) {
+    let _rslt = <[T] as LinearStorageSlice>::truncate(&mut self.0, new_len);
   }
 }
 
 impl<T> Lease<[T]> for Vector<T> {
   #[inline]
   fn lease(&self) -> &[T] {
-    self.data.as_slice()
+    self
   }
 }
 
@@ -327,7 +345,7 @@ impl<T> AsMut<[T]> for Vector<T> {
 impl<T> AsRef<[T]> for Vector<T> {
   #[inline]
   fn as_ref(&self) -> &[T] {
-    self.as_slice()
+    self
   }
 }
 
@@ -345,13 +363,38 @@ impl<T> BorrowMut<[T]> for Vector<T> {
   }
 }
 
+impl<T> Clone for Vector<T>
+where
+  T: Clone,
+{
+  #[inline]
+  #[track_caller]
+  fn clone(&self) -> Self {
+    let Ok(mut vector) = Self::with_capacity(self.len()) else {
+      _unreachable();
+    };
+    let _rslt = vector.extend_from_cloneable_slice(self);
+    vector
+  }
+
+  #[inline]
+  fn clone_from(&mut self, source: &Self) {
+    self.truncate(source.len());
+    let (init, tail) = source.split_at(self.len());
+    self.clone_from_slice(init);
+    if self.extend_from_cloneable_slice(tail).is_err() {
+      _unreachable();
+    }
+  }
+}
+
 impl<T> Debug for Vector<T>
 where
   T: Debug,
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
-    self.data.fmt(f)
+    self.0.as_slice().fmt(f)
   }
 }
 
@@ -367,14 +410,14 @@ impl<T> Deref for Vector<T> {
 
   #[inline]
   fn deref(&self) -> &Self::Target {
-    self.data.as_slice()
+    self.0.as_slice()
   }
 }
 
 impl<T> DerefMut for Vector<T> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
-    self.data.as_mut_slice()
+    self.0.as_slice_mut()
   }
 }
 
@@ -388,7 +431,7 @@ impl<T> From<Vec<T>> for Vector<T> {
 impl<T> From<Vector<T>> for Vec<T> {
   #[inline]
   fn from(from: Vector<T>) -> Self {
-    from.data
+    from.into_vec()
   }
 }
 
@@ -410,7 +453,7 @@ impl<T> IntoIterator for Vector<T> {
 
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
-    self.data.into_iter()
+    self.into_vec().into_iter()
   }
 }
 
@@ -420,7 +463,7 @@ impl<'any, T> IntoIterator for &'any Vector<T> {
 
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
-    self.data.iter()
+    self.iter()
   }
 }
 
@@ -430,7 +473,17 @@ impl<'any, T> IntoIterator for &'any mut Vector<T> {
 
   #[inline]
   fn into_iter(self) -> Self::IntoIter {
-    self.data.iter_mut()
+    self.iter_mut()
+  }
+}
+
+impl<T> Ord for Vector<T>
+where
+  T: Ord,
+{
+  #[inline]
+  fn cmp(&self, other: &Self) -> Ordering {
+    (**self).cmp(other)
   }
 }
 
@@ -484,16 +537,6 @@ where
   }
 }
 
-impl<T> Ord for Vector<T>
-where
-  T: Ord,
-{
-  #[inline]
-  fn cmp(&self, other: &Self) -> Ordering {
-    (**self).cmp(other)
-  }
-}
-
 impl core::fmt::Write for Vector<u8> {
   #[inline]
   fn write_str(&mut self, s: &str) -> core::fmt::Result {
@@ -505,12 +548,86 @@ impl core::fmt::Write for Vector<u8> {
 impl std::io::Write for Vector<u8> {
   #[inline]
   fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-    self.data.write(buf)
+    self
+      .extend_from_copyable_slice(buf)
+      .map_err(|err| std::io::Error::new(std::io::ErrorKind::StorageFull, err))?;
+    Ok(buf.len())
+  }
+
+  #[inline]
+  fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
+    let mut fun = || {
+      let len: usize = bufs.iter().map(|b| b.len()).sum();
+      self.reserve(usize::from_usize(len)?)?;
+      self.extend_from_copyable_slices(bufs)
+    };
+    fun().map_err(|err| std::io::Error::new(std::io::ErrorKind::StorageFull, err))
+  }
+
+  #[inline]
+  fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+    self
+      .extend_from_copyable_slice(buf)
+      .map_err(|err| std::io::Error::new(std::io::ErrorKind::StorageFull, err))?;
+    Ok(())
   }
 
   #[inline]
   fn flush(&mut self) -> std::io::Result<()> {
-    self.data.flush()
+    Ok(())
+  }
+}
+
+struct Inner<T>(Vec<T>);
+
+impl<T> LinearStorage<T> for Inner<T> {
+  type Len = usize;
+  type Slice = [T];
+
+  #[inline]
+  fn as_ptr(&self) -> *const T {
+    self.0.as_ptr()
+  }
+
+  #[inline]
+  fn capacity(&self) -> Self::Len {
+    self.0.capacity()
+  }
+
+  #[inline]
+  fn len(&self) -> Self::Len {
+    self.0.len()
+  }
+}
+
+impl<T> LinearStorageMut<T> for Inner<T> {
+  #[inline]
+  fn as_ptr_mut(&mut self) -> *mut T {
+    self.0.as_mut_ptr()
+  }
+
+  #[inline]
+  fn reserve(&mut self, additional: Self::Len) -> crate::Result<()> {
+    self.0.try_reserve(additional).map_err(|_err| VectorError::ReserveOverflow)?;
+    Ok(())
+  }
+
+  #[inline]
+  fn reserve_exact(&mut self, additional: Self::Len) -> crate::Result<()> {
+    self.0.try_reserve_exact(additional).map_err(|_err| VectorError::ReserveOverflow)?;
+    Ok(())
+  }
+
+  #[inline]
+  unsafe fn set_len(&mut self, new_len: Self::Len) {
+    // SAFETY: Up to the caller
+    unsafe { self.0.set_len(new_len) }
+  }
+}
+
+impl<T> Default for Inner<T> {
+  fn default() -> Self {
+    Self(Vec::new())
   }
 }
 
@@ -552,9 +669,12 @@ mod kani {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::collection::Vector;
-  use alloc::vec::Vec;
-  use serde::{Deserialize, Deserializer, Serialize, Serializer};
+  use crate::collection::{LinearStorageLen, Vector};
+  use core::{fmt::Formatter, marker::PhantomData};
+  use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, SeqAccess, Visitor},
+  };
 
   impl<'de, T> Deserialize<'de> for Vector<T>
   where
@@ -565,12 +685,41 @@ mod serde {
     where
       D: Deserializer<'de>,
     {
-      Ok(Self::from_vec(Vec::deserialize(deserializer)?))
+      struct LocalVisitor<T>(PhantomData<T>);
+
+      impl<'de, T> Visitor<'de> for LocalVisitor<T>
+      where
+        T: Deserialize<'de>,
+      {
+        type Value = Vector<T>;
+
+        #[inline]
+        fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), core::fmt::Error> {
+          formatter.write_fmt(format_args!("a vector of variable length"))
+        }
+
+        #[inline]
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+          A: SeqAccess<'de>,
+        {
+          let mut this = Vector::<T>::new();
+          while let Some(elem) = seq.next_element()? {
+            this.push(elem).map_err(|_err| {
+              de::Error::invalid_length(this.len(), &"vector need more data to be constructed")
+            })?;
+          }
+          Ok(this)
+        }
+      }
+
+      deserializer.deserialize_seq(LocalVisitor::<T>(PhantomData))
     }
   }
 
   impl<T> Serialize for Vector<T>
   where
+    usize: LinearStorageLen,
     T: Serialize,
   {
     #[inline]
@@ -578,7 +727,7 @@ mod serde {
     where
       S: Serializer,
     {
-      self.data.serialize(serializer)
+      serializer.collect_seq(self)
     }
   }
 }

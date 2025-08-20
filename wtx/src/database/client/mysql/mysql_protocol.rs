@@ -19,7 +19,6 @@ pub(crate) mod stmt_execute_req;
 pub(crate) mod text_row_res;
 
 use crate::{
-  collection::IndexedStorageMut,
   database::client::mysql::mysql_protocol::{
     decode_wrapper_protocol::DecodeWrapperProtocol, encode_wrapper_protocol::EncodeWrapperProtocol,
   },

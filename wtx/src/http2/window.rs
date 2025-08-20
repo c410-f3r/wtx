@@ -35,15 +35,11 @@ impl Window {
       return Ok(());
     };
     if let Some(elem) = stream_id {
-      Err(crate::Error::Http2ErrorReset(
-        Http2ErrorCode::FlowControlError,
-        Some(Http2Error::InvalidWindowUpdateSize),
-        elem.u32(),
-      ))
+      Err(crate::Error::Http2FlowControlError(Http2Error::InvalidWindowUpdateSize, elem.u32()))
     } else {
       Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FlowControlError,
-        Some(Http2Error::InvalidWindowUpdateSize),
+        Http2Error::InvalidWindowUpdateSize,
       ))
     }
   }
@@ -51,15 +47,11 @@ impl Window {
   pub(crate) fn withdrawn(&mut self, stream_id: Option<U31>, value: i32) -> crate::Result<()> {
     let Some(diff) = self.available.checked_sub(value) else {
       return if let Some(elem) = stream_id {
-        Err(crate::Error::Http2ErrorReset(
-          Http2ErrorCode::FlowControlError,
-          Some(Http2Error::InvalidWindowUpdateSize),
-          elem.u32(),
-        ))
+        Err(crate::Error::Http2FlowControlError(Http2Error::InvalidWindowUpdateSize, elem.u32()))
       } else {
         Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::FlowControlError,
-          Some(Http2Error::InvalidWindowUpdateSize),
+          Http2Error::InvalidWindowUpdateSize,
         ))
       };
     };

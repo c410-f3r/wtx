@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayString, ArrayVector, IndexedStorageLen},
+  collection::{ArrayString, ArrayVector, LinearStorageLen},
   database::{
     Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
@@ -13,7 +13,7 @@ use crate::{
 impl<E, L, const N: usize> Decode<'_, Postgres<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
@@ -23,7 +23,7 @@ where
 impl<E, L, const N: usize> Encode<Postgres<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
@@ -34,7 +34,7 @@ where
 impl<E, L, const N: usize> Typed<Postgres<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
@@ -53,7 +53,7 @@ test!(array_string, crate::collection::ArrayStringU8<4>, ArrayString::try_from("
 impl<E, L, const N: usize> Decode<'_, Postgres<E>> for ArrayVector<L, u8, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
@@ -63,7 +63,7 @@ where
 impl<E, L, const N: usize> Encode<Postgres<E>> for ArrayVector<L, u8, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
@@ -74,7 +74,7 @@ where
 impl<E, L, const N: usize> Typed<Postgres<E>> for ArrayVector<L, u8, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {

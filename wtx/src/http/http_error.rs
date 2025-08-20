@@ -28,7 +28,7 @@ pub enum HttpError {
   /// Unknown header name.
   UnknownHeaderNameFromBytes {
     /// Received length
-    length: usize,
+    length: u32,
   },
   /// URI mismatch
   UriMismatch,

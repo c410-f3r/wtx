@@ -6,7 +6,7 @@ use crate::{
       push::{push_four_digit_year, push_two_space_day},
     },
   },
-  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
+  collection::{ArrayString, ArrayStringU8},
   de::i16_string,
 };
 

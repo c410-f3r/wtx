@@ -24,14 +24,14 @@ impl WindowUpdateFrame {
     let [a, b, c, d] = bytes else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::InvalidWindowUpdateFrameBytes),
+        Http2Error::InvalidWindowUpdateFrameBytes,
       ));
     };
     let size_increment = U31::from_u32(u32::from_be_bytes([*a, *b, *c, *d]));
     if size_increment > U31::MAX {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::InvalidWindowUpdateSize),
+        Http2Error::InvalidWindowUpdateSize,
       ));
     }
     Self::new(size_increment, fi.stream_id)

@@ -129,18 +129,17 @@ mod parking_lot {
 mod std {
   use crate::sync::Lock;
   use core::{future::poll_fn, task::Poll};
-  use std::sync::{Mutex, MutexGuard};
 
-  impl<T> Lock for Mutex<T> {
+  impl<T> Lock for std::sync::Mutex<T> {
     type Guard<'guard>
-      = MutexGuard<'guard, Self::Resource>
+      = std::sync::MutexGuard<'guard, Self::Resource>
     where
       Self: 'guard;
     type Resource = T;
 
     #[inline]
     fn new(resource: Self::Resource) -> Self {
-      Mutex::new(resource)
+      std::sync::Mutex::new(resource)
     }
 
     #[inline]
@@ -154,6 +153,26 @@ mod std {
         }
       })
       .await
+    }
+  }
+
+  impl<T> Lock for crate::sync::Mutex<T> {
+    type Guard<'guard>
+      = crate::sync::MutexGuard<'guard, Self::Resource>
+    where
+      Self: 'guard;
+    type Resource = T;
+
+    #[inline]
+    fn new(resource: Self::Resource) -> Self {
+      crate::sync::Mutex::new(resource)
+    }
+
+    #[inline]
+    async fn lock(&self) -> Self::Guard<'_> {
+      let rslt = (*self).lock().await;
+      // SAFETY: Future is not polled again after finalization
+      unsafe { rslt.unwrap_unchecked() }
     }
   }
 }

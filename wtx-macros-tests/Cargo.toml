@@ -7,7 +7,7 @@ wtx-macros = { default-features = false, path = "../wtx-macros" }
 edition = "2024"
 name = "wtx-macros-tests"
 publish = false
-rust-version = "1.88"
+rust-version = "1.89"
 version = "0.0.0"
 
 [workspace]

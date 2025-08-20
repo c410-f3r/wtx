@@ -1,4 +1,4 @@
-use crate::collection::{IndexedStorageMut, Vector};
+use crate::collection::Vector;
 
 pub(crate) fn _data(len: usize) -> Vector<u8> {
   Vector::from_iter((0..len).map(|el| {

@@ -1,6 +1,6 @@
 use crate::{
   calendar::{DateTime, Instant},
-  collection::{ArrayString, IndexedStorage, IndexedStorageMut, Vector},
+  collection::{ArrayString, Vector},
   http::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
     SessionState, SessionStore,
@@ -111,7 +111,7 @@ where
     cookie_def.value.clear();
     let enc_rslt = encrypt_cookie(
       &mut cookie_def.value,
-      session_secret.array()?,
+      session_secret.data()?,
       (cookie_def.name.as_bytes(), rrd.lease().body.get(idx..).unwrap_or_default()),
       rng,
     );

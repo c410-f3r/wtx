@@ -177,7 +177,7 @@ database-client-postgres-enum = ["postgres"]
 client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
 executor = ["wtx/executor", "wtx/macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]
-grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly"]
+grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
 http-client-pool = ["wtx/http-client-pool"]
 pool = ["wtx/pool"]
 
@@ -204,5 +204,5 @@ tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 edition = "2024"
 name = "wtx-instances"
 publish = false
-rust-version = "1.88"
+rust-version = "1.89"
 version = "0.0.0"

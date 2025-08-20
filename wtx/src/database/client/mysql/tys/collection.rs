@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayString, IndexedStorage, IndexedStorageLen, IndexedStorageMut},
+  collection::{ArrayString, LinearStorageLen},
   database::{
     Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams, misc::encoded_len},
@@ -51,7 +51,7 @@ where
 impl<E, L, const N: usize> Decode<'_, Mysql<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
@@ -61,7 +61,7 @@ where
 impl<E, L, const N: usize> Encode<Mysql<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
@@ -71,7 +71,7 @@ where
 impl<E, L, const N: usize> Typed<Mysql<E>> for ArrayString<L, N>
 where
   E: From<crate::Error>,
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn runtime_ty(&self) -> Option<TyParams> {

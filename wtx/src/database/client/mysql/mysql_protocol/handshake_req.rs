@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVectorU8, IndexedStorageMut},
+  collection::ArrayVectorU8,
   database::client::mysql::{
     auth_plugin::AuthPlugin,
     capability::Capability,

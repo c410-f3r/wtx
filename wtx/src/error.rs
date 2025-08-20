@@ -7,14 +7,16 @@ use crate::{
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
+use alloc::string::String;
 use core::{
+  alloc::Layout,
   fmt::{Debug, Display, Formatter},
   ops::RangeInclusive,
 };
 
 #[cfg(target_pointer_width = "64")]
 const _: () = {
-  assert!(size_of::<Error>() == 24);
+  assert!(size_of::<Error>() == 16);
 };
 
 macro_rules! associated_element_doc {
@@ -39,10 +41,10 @@ pub enum Error {
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "base64")]
   #[doc = associated_element_doc!()]
-  DecodeError(base64::DecodeError),
+  DecodeError(Box<base64::DecodeError>),
   #[cfg(feature = "base64")]
   #[doc = associated_element_doc!()]
-  DecodeSliceError(base64::DecodeSliceError),
+  DecodeSliceError(Box<base64::DecodeSliceError>),
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNet(embassy_net::tcp::Error),
@@ -51,7 +53,7 @@ pub enum Error {
   EncodeSliceError(base64::EncodeSliceError),
   #[cfg(feature = "flate2")]
   #[doc = associated_element_doc!()]
-  Flate2CompressError(flate2::CompressError),
+  Flate2CompressError(Box<flate2::CompressError>),
   #[cfg(feature = "flate2")]
   #[doc = associated_element_doc!()]
   Flate2DecompressError(Box<flate2::DecompressError>),
@@ -63,7 +65,7 @@ pub enum Error {
   HttpParse(httparse::Error),
   #[cfg(feature = "matchit")]
   #[doc = associated_element_doc!()]
-  Matchit(matchit::MatchError),
+  MatchitError(matchit::MatchError),
   #[cfg(feature = "matchit")]
   #[doc = associated_element_doc!()]
   MatchitInsertError(Box<matchit::InsertError>),
@@ -81,7 +83,7 @@ pub enum Error {
   RustlsError(Box<rustls::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
-  SerdeDeValue(::serde::de::value::Error),
+  SerdeDeValue(Box<::serde::de::value::Error>),
   #[cfg(feature = "serde_json")]
   #[doc = associated_element_doc!()]
   SerdeJson(serde_json::Error),
@@ -96,7 +98,7 @@ pub enum Error {
   TokioJoinError(Box<tokio::task::JoinError>),
   #[cfg(feature = "tracing-subscriber")]
   #[doc = associated_element_doc!()]
-  TryInitError(tracing_subscriber::util::TryInitError),
+  TryInitError(Box<tracing_subscriber::util::TryInitError>),
   #[cfg(feature = "std")]
   #[doc = associated_element_doc!()]
   TryLockError(std::sync::TryLockError<()>),
@@ -127,26 +129,30 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   VarError(VarError),
   #[doc = associated_element_doc!()]
-  Utf8Error(core::str::Utf8Error),
+  Utf8Error(Box<core::str::Utf8Error>),
 
   // Generic
   //
+  /// Allocation error
+  AllocError(Box<Layout>),
   /// A connection was unexpectedly closed by an external actor or because of a local error.
   ClosedConnection,
+  /// Future must not be polled again after finalization
+  FuturePolledAfterFinalization,
   /// Generic error
-  Generic(&'static str),
-  /// Generic error
-  GenericOwned(Box<str>),
+  Generic(Box<String>),
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
   /// Invalid UTF-8.
   InvalidUTF8,
+  /// An index that cuts an UTF-8 string makes the sequence invalid.
+  InvalidUTF8Bound,
   /// Invalid URI
   InvalidUri,
   /// There is no CA provider.
   MissingCaProviders,
   /// Usually used to transform `Option`s into `Result`s
-  NoInnerValue(&'static str),
+  NoInnerValue(Box<&'static str>),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
   OutOfBoundsArithmetic,
   /// An error that shouldn't exist. If this variant is raised, then it is very likely that the
@@ -205,7 +211,7 @@ pub enum Error {
   Cookie(crate::http::CookieError),
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
-  DatabaseError(crate::database::DatabaseError),
+  DatabaseError(Box<crate::database::DatabaseError>),
   #[doc = associated_element_doc!()]
   DecError(crate::de::DecError),
   #[doc = associated_element_doc!()]
@@ -217,10 +223,10 @@ pub enum Error {
   HttpError(crate::http::HttpError),
   #[cfg(feature = "http2")]
   #[doc = associated_element_doc!()]
-  Http2ErrorGoAway(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>),
+  Http2ErrorGoAway(crate::http2::Http2ErrorCode, crate::http2::Http2Error),
   #[cfg(feature = "http2")]
   #[doc = associated_element_doc!()]
-  Http2ErrorReset(crate::http2::Http2ErrorCode, Option<crate::http2::Http2Error>, u32),
+  Http2FlowControlError(crate::http2::Http2Error, u32),
   #[cfg(feature = "mysql")]
   #[doc = associated_element_doc!()]
   MysqlDbError(Box<crate::database::client::mysql::DbError>),
@@ -306,7 +312,7 @@ impl From<base64::DecodeError> for Error {
   #[inline]
   #[track_caller]
   fn from(from: base64::DecodeError) -> Self {
-    Self::DecodeError(from)
+    Self::DecodeError(from.into())
   }
 }
 
@@ -315,7 +321,7 @@ impl From<base64::DecodeSliceError> for Error {
   #[inline]
   #[track_caller]
   fn from(from: base64::DecodeSliceError) -> Self {
-    Self::DecodeSliceError(from)
+    Self::DecodeSliceError(from.into())
   }
 }
 
@@ -339,7 +345,7 @@ impl From<base64::EncodeSliceError> for Error {
 impl From<flate2::CompressError> for Error {
   #[inline]
   fn from(from: flate2::CompressError) -> Self {
-    Self::Flate2CompressError(from)
+    Self::Flate2CompressError(from.into())
   }
 }
 
@@ -385,7 +391,7 @@ impl From<httparse::Error> for Error {
 impl From<matchit::MatchError> for Error {
   #[inline]
   fn from(from: matchit::MatchError) -> Self {
-    Self::Matchit(from)
+    Self::MatchitError(from)
   }
 }
 
@@ -489,7 +495,7 @@ impl From<rustls::Error> for Error {
 impl From<::serde::de::value::Error> for Error {
   #[inline]
   fn from(from: ::serde::de::value::Error) -> Self {
-    Self::SerdeDeValue(from)
+    Self::SerdeDeValue(from.into())
   }
 }
 
@@ -537,7 +543,7 @@ impl From<tokio::task::JoinError> for Error {
 impl From<tracing_subscriber::util::TryInitError> for Error {
   #[inline]
   fn from(from: tracing_subscriber::util::TryInitError) -> Self {
-    Self::TryInitError(from)
+    Self::TryInitError(from.into())
   }
 }
 
@@ -626,7 +632,7 @@ impl From<crate::client_api_framework::ClientApiFrameworkError> for Error {
 impl From<crate::database::DatabaseError> for Error {
   #[inline]
   fn from(from: crate::database::DatabaseError) -> Self {
-    Self::DatabaseError(from)
+    Self::DatabaseError(from.into())
   }
 }
 
@@ -759,7 +765,7 @@ mod serde {
     where
       T: Display,
     {
-      Self::GenericOwned(msg.to_string().into())
+      Self::Generic(msg.to_string().into())
     }
   }
 }

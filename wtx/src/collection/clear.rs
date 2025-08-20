@@ -1,6 +1,4 @@
-use crate::collection::{
-  ArrayString, ArrayVector, IndexedStorageLen, IndexedStorageMut as _, Vector,
-};
+use crate::collection::{ArrayString, ArrayVector, LinearStorageLen, Vector};
 use alloc::{string::String, vec::Vec};
 
 /// See [`Clear::clear`] for more information.
@@ -26,7 +24,7 @@ impl Clear for () {
 
 impl<L, const N: usize> Clear for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn clear(&mut self) {
@@ -36,7 +34,7 @@ where
 
 impl<L, T, const N: usize> Clear for ArrayVector<L, T, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   #[inline]
   fn clear(&mut self) {

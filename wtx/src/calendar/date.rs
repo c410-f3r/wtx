@@ -17,7 +17,7 @@ use crate::{
       u16u32, u32i64,
     },
   },
-  collection::{ArrayString, ArrayStringU8, IndexedStorageMut as _},
+  collection::{ArrayString, ArrayStringU8},
   de::i16_string,
   misc::Usize,
 };

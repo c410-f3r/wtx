@@ -3,7 +3,7 @@ pub(crate) use serde_json::collect_using_serde_json;
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::collection::{IndexedStorageMut, Vector};
+  use crate::collection::Vector;
   use core::{any::type_name, fmt::Formatter};
   use serde::{
     Deserialize,
@@ -51,10 +51,7 @@ mod serde_json {
 
   #[cfg(test)]
   mod tests {
-    use crate::{
-      collection::{IndexedStorage, Vector},
-      de::protocol::misc::serde_json::collect_using_serde_json,
-    };
+    use crate::{collection::Vector, de::protocol::misc::serde_json::collect_using_serde_json};
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Foo {

@@ -40,7 +40,7 @@ pub fn argon2_pwd<const N: usize>(
   pwd: &[u8],
   salt: &[u8],
 ) -> crate::Result<[u8; N]> {
-  use crate::collection::{ExpansionTy, IndexedStorageMut};
+  use crate::collection::ExpansionTy;
   use argon2::{Algorithm, Argon2, Params, Version};
 
   let params = const {

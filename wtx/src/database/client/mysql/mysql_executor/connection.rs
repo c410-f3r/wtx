@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVectorU8, IndexedStorageMut, Vector},
+  collection::{ArrayVectorU8, Vector},
   database::{
     Executor,
     client::mysql::{

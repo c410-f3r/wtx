@@ -4,7 +4,7 @@ pub(crate) mod push;
 
 use crate::{
   calendar::CalendarError,
-  collection::{ArrayVector, ArrayVectorU8, IndexedStorageMut as _},
+  collection::{ArrayVector, ArrayVectorU8},
 };
 
 /// Parses a sequence of bytes into the corresponding tokens.

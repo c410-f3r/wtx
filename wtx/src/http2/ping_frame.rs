@@ -20,14 +20,14 @@ impl PingFrame {
     if fi.stream_id.is_not_zero() {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::InvalidPingFrameNonZeroId),
+        Http2Error::InvalidPingFrameNonZeroId,
       ));
     }
     fi.cf.only_ack();
     let [a, b, c, d, e, f, g, h] = bytes else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::InvalidPingFrameBytes),
+        Http2Error::InvalidPingFrameBytes,
       ));
     };
     Ok(Self::new(fi.cf, [*a, *b, *c, *d, *e, *f, *g, *h]))

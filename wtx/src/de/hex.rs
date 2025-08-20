@@ -1,4 +1,4 @@
-use crate::collection::{ArrayString, ArrayVector, IndexedStorageLen};
+use crate::collection::{ArrayString, ArrayVector, LinearStorageLen};
 use core::fmt::{Display, Formatter};
 
 /// Errors of hexadecimal operations
@@ -32,7 +32,7 @@ impl<const HAS_PREFIX: bool> Display for HexDisplay<'_, HAS_PREFIX> {
 impl<'bytes, L, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
   for ArrayString<L, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   type Error = crate::Error;
 
@@ -45,7 +45,7 @@ where
 impl<'bytes, L, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
   for ArrayVector<L, u8, N>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   type Error = crate::Error;
 
@@ -91,7 +91,7 @@ fn hex_byte(lhs: u8, rhs: u8) -> crate::Result<u8> {
 #[cfg(test)]
 mod test {
   use crate::{
-    collection::{ArrayVectorU8, IndexedStorage},
+    collection::ArrayVectorU8,
     de::{HexDisplay, decode_hex_to_slice},
   };
 

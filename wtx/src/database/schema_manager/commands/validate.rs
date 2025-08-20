@@ -1,5 +1,5 @@
 use crate::{
-  collection::{IndexedStorageMut, Vector},
+  collection::Vector,
   database::{
     DatabaseTy,
     schema_manager::{

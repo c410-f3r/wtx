@@ -73,8 +73,8 @@ where
       let mut iter = _buffer_idents.iter();
       let (Some("_wtx"), None) = (iter.next().map(|el| el.as_str()), iter.next()) else {
         eprintln!("{_buffer_idents:?}");
-        let msg = "The rollback operation didn't leave the database in a clean state";
-        return Err(wtx::Error::Generic(msg).into());
+        let msg = String::from("The rollback operation didn't leave the database in a clean state");
+        return Err(wtx::Error::Generic(msg.into()).into());
       };
     }
     #[cfg(feature = "schema-manager-dev")]

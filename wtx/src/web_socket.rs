@@ -18,7 +18,7 @@ mod web_socket_buffer;
 mod web_socket_connector;
 mod web_socket_error;
 mod web_socket_parts;
-mod web_socket_read_mode;
+mod web_socket_payload_origin;
 pub(crate) mod web_socket_reader;
 mod web_socket_replier;
 pub(crate) mod web_socket_writer;
@@ -49,7 +49,7 @@ pub use web_socket_parts::{
   web_socket_mut::{WebSocketCommonMut, WebSocketReaderMut, WebSocketWriterMut},
   web_socket_owned::{WebSocketPartsOwned, WebSocketReaderOwned, WebSocketWriterOwned},
 };
-pub use web_socket_read_mode::WebSocketReadMode;
+pub use web_socket_payload_origin::WebSocketPayloadOrigin;
 pub use web_socket_replier::WebSocketReplier;
 
 const FIN_MASK: u8 = 0b1000_0000;
@@ -169,7 +169,7 @@ where
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
-    read_mode: WebSocketReadMode,
+    payload_origin: WebSocketPayloadOrigin,
   ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
   where
     'buffer: 'frame,
@@ -195,7 +195,7 @@ where
       *nc_rsv1,
       network_buffer,
       *no_masking,
-      read_mode,
+      payload_origin,
       reader_buffer,
       &WebSocketReplier::new(),
       rng,

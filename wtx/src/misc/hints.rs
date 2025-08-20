@@ -1,7 +1,7 @@
 #[cold]
 #[inline(never)]
 #[track_caller]
-pub(crate) const fn unlikely_elem<T>(elem: T) -> T {
+pub(crate) const fn _unlikely_elem<T>(elem: T) -> T {
   elem
 }
 

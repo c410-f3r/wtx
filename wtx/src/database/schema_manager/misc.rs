@@ -8,7 +8,6 @@ macro_rules! opt_to_inv_mig {
 }
 
 use crate::{
-  collection::IndexedStorageMut,
   database::{
     DatabaseTy,
     schema_manager::{

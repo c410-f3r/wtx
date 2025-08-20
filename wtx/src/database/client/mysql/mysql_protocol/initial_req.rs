@@ -1,5 +1,4 @@
 use crate::{
-  collection::IndexedStorageMut,
   database::client::mysql::{
     capability::Capability,
     collation::Collation,

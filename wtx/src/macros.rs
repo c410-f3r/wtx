@@ -133,14 +133,6 @@ macro_rules! create_enum {
   }
 }
 
-/// Creates a vector containing the arguments.
-#[macro_export]
-macro_rules! vector {
-  ($($tt:tt)*) => {
-    $crate::collection::Vector::from_vec(alloc::vec![$($tt)*])
-  };
-}
-
 macro_rules! _conn_params_methods {
   () => {
     /// The initial amount of "credit" a counterpart can have for sending data.

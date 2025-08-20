@@ -56,7 +56,7 @@ macro_rules! create_statics {
         Ok(match from {
           $( $name => Self::$name, )*
           _ => return Err(HttpError::UnknownHeaderNameFromBytes {
-            length: from.len()
+            length: from.len().try_into().unwrap_or(u32::MAX)
           })
         })
       }

@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVectorU8, IndexedStorageMut as _, Vector},
+  collection::{ArrayVectorU8, Vector},
   misc::Lease,
   web_socket::{
     MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OpCode,

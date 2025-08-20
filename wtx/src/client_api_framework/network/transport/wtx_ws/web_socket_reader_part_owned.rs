@@ -7,11 +7,10 @@ use crate::{
     },
     pkg::PkgsAux,
   },
-  collection::IndexedStorageMut,
   misc::LeaseMut,
   rng::Rng,
   stream::StreamReader,
-  web_socket::{WebSocketReadMode, WebSocketReaderOwned, compression::NegotiatedCompression},
+  web_socket::{WebSocketPayloadOrigin, WebSocketReaderOwned, compression::NegotiatedCompression},
 };
 
 impl<NC, R, SR, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, R, SR, true>
@@ -31,7 +30,8 @@ where
     A: Api,
   {
     pkgs_aux.byte_buffer.clear();
-    let _frame = self.read_frame(&mut pkgs_aux.byte_buffer, WebSocketReadMode::Consistent).await?;
+    let _frame =
+      self.read_frame(&mut pkgs_aux.byte_buffer, WebSocketPayloadOrigin::Consistent).await?;
     log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::WebSocket);
     Ok(())
   }

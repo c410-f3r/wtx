@@ -1,5 +1,4 @@
 use crate::{
-  collection::IndexedStorageMut,
   http::ReqResBuffer,
   http2::{
     Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params, Http2RecvStatus,
@@ -137,7 +136,7 @@ pub(crate) fn manage_recurrent_stream_receiving<E, SW, const IS_CLIENT: bool>(
 }
 
 pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
-  crate::Error::Http2ErrorGoAway(Http2ErrorCode::ProtocolError, Some(error))
+  crate::Error::Http2ErrorGoAway(Http2ErrorCode::ProtocolError, error)
 }
 
 pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bool>(
@@ -155,9 +154,9 @@ pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bo
     crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
       send_go_away(*http2_error_code, &mut hdpm).await;
     }
-    crate::Error::Http2ErrorReset(http2_error_code, _, stream_id) => {
+    crate::Error::Http2FlowControlError(_, stream_id) => {
       let _ = send_reset_stream(
-        *http2_error_code,
+        Http2ErrorCode::FlowControlError,
         &mut hdpm.hb.scrp,
         &mut hdpm.hb.sorp,
         hdpm.stream_writer,
@@ -192,7 +191,7 @@ where
       if data_len > max_frame_len {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::FrameSizeError,
-          Some(Http2Error::LargeArbitraryFrameLen { received: data_len, max: max_frame_len }),
+          Http2Error::LargeArbitraryFrameLen { received: data_len },
         ));
       }
       let data_len_usize = *Usize::from_u32(data_len);
@@ -272,7 +271,7 @@ where
     if hf.is_over_size() {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
-        Some(Http2Error::VeryLargeHeadersLen),
+        Http2Error::VeryLargeHeadersLen,
       ));
     }
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
@@ -316,7 +315,7 @@ where
   if hf.is_over_size() {
     return Err(crate::Error::Http2ErrorGoAway(
       Http2ErrorCode::FrameSizeError,
-      Some(Http2Error::VeryLargeHeadersLen),
+      Http2Error::VeryLargeHeadersLen,
     ));
   }
   Ok((content_length, hf.has_eos(), headers_cb(&hf)?))

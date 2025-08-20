@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, IndexedStorageLen, IndexedStorageMut, Vector},
+  collection::{ArrayVector, LinearStorageLen, Vector},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
@@ -13,7 +13,7 @@ pub(crate) fn huffman_decode<'to, L, const N: usize>(
   to: &'to mut ArrayVector<L, u8, N>,
 ) -> crate::Result<&'to str>
 where
-  L: IndexedStorageLen,
+  L: LinearStorageLen,
 {
   fn decode_4_bits(
     curr_state: &mut u8,
@@ -30,7 +30,7 @@ where
     if flags & ERROR == ERROR {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::CompressionError,
-        Some(Http2Error::UnexpectedEndingHuffman),
+        Http2Error::UnexpectedEndingHuffman,
       ));
     }
     let rslt = (flags & DECODED == DECODED).then_some(byte);
@@ -72,7 +72,7 @@ where
   if !is_final {
     return Err(crate::Error::Http2ErrorGoAway(
       Http2ErrorCode::CompressionError,
-      Some(Http2Error::UnexpectedEndingHuffman),
+      Http2Error::UnexpectedEndingHuffman,
     ));
   }
 
@@ -159,7 +159,7 @@ mod kani {
 #[cfg(test)]
 mod test {
   use crate::{
-    collection::{IndexedStorageMut, Vector},
+    collection::Vector,
     http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
   };

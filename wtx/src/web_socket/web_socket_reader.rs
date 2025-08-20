@@ -13,7 +13,7 @@
 // * Control frame payloads between continuation frames are located in NB
 
 use crate::{
-  collection::{ExpansionTy, IndexedStorageMut as _, Vector},
+  collection::{ExpansionTy, Vector},
   misc::{
     CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char, from_utf8_basic,
     from_utf8_ext,
@@ -22,7 +22,7 @@ use crate::{
   rng::Rng,
   stream::{StreamReader, StreamWriter},
   web_socket::{
-    CloseCode, Frame, FrameMut, MAX_HEADER_LEN, OpCode, WebSocketError, WebSocketReadMode,
+    CloseCode, Frame, FrameMut, MAX_HEADER_LEN, OpCode, WebSocketError, WebSocketPayloadOrigin,
     compression::NegotiatedCompression,
     fill_with_close_code,
     is_in_continuation_frame::IsInContinuationFrame,
@@ -228,7 +228,7 @@ pub(crate) async fn read_frame<
   nc_rsv1: u8,
   network_buffer: &'nb mut PartitionedFilledBuffer,
   no_masking: bool,
-  read_mode: WebSocketReadMode,
+  payload_origin: WebSocketPayloadOrigin,
   reader_buffer: &mut Vector<u8>,
   replier: &WebSocketReplier<IS_CLIENT>,
   rng: &mut R,
@@ -264,12 +264,12 @@ where
         nc_rsv1,
         network_buffer,
         no_masking,
+        payload_origin,
         replier,
         &first_rfi,
         rng,
         stream_writer(&mut *stream),
         user_buffer,
-        read_mode,
       )
       .await;
     }
@@ -329,7 +329,7 @@ where
     .await?
   };
   let (op_code, payload) = if let Some(op_code) = control_frame {
-    (op_code, read_mode.manage_payload(network_buffer.current_mut(), user_buffer)?)
+    (op_code, payload_origin.manage_payload(network_buffer.current_mut(), user_buffer)?)
   } else {
     reader_buffer.clear();
     let op_code = is_in_continuation_frame.op_code;
@@ -483,12 +483,12 @@ async fn manage_first_finished_frame<
   nc_rsv1: u8,
   network_buffer: &'nb mut PartitionedFilledBuffer,
   no_masking: bool,
+  payload_origin: WebSocketPayloadOrigin,
   replier: &WebSocketReplier<IS_CLIENT>,
   rfi: &ReadFrameInfo,
   rng: &mut R,
   stream_writer: &mut SW,
   user_buffer: &'rbf mut Vector<u8>,
-  wsrm: WebSocketReadMode,
 ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
 where
   'nb: 'frame,
@@ -509,7 +509,7 @@ where
   } else {
     let current_mut = network_buffer.current_mut();
     unmask_nb::<IS_CLIENT>(rfi.mask, current_mut, no_masking)?;
-    wsrm.manage_payload(current_mut, user_buffer)?
+    payload_origin.manage_payload(current_mut, user_buffer)?
   };
   let _is_control_frame = manage_auto_reply::<_, _, HAS_AUTO_REPLY, IS_CLIENT>(
     stream_writer,

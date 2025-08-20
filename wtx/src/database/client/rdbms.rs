@@ -7,10 +7,10 @@ pub(crate) mod statements;
 pub(crate) mod statements_misc;
 
 use crate::{
-  collection::{Clear, Vector},
+  collection::Vector,
   database::{Database, ValueIdent, client::rdbms::common_record::CommonRecord},
   de::DEController,
-  misc::{Lease, hints::unlikely_elem, net::PartitionedFilledBuffer},
+  misc::{Lease, hints::_unlikely_elem, net::PartitionedFilledBuffer},
 };
 use core::ops::Range;
 
@@ -42,18 +42,18 @@ where
 {
   let idx = ci.idx(record)?;
   let (is_null, range) = match record.lease().values_params.get(idx) {
-    None => return unlikely_elem(None),
+    None => return _unlikely_elem(None),
     Some(elem) => elem,
   };
   if *is_null {
     None
   } else {
     let column = match record.lease().stmt.column(idx) {
-      None => return unlikely_elem(None),
+      None => return _unlikely_elem(None),
       Some(elem) => elem,
     };
     let bytes = match record.lease().record.get(range.clone()) {
-      None => return unlikely_elem(None),
+      None => return _unlikely_elem(None),
       Some(elem) => elem,
     };
     Some(From::from((bytes, column.lease().clone())))

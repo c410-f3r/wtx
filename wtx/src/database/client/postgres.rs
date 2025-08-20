@@ -106,7 +106,7 @@ impl<E> Default for Postgres<E> {
 
 mod array {
   use crate::{
-    collection::{ArrayString, IndexedStorageLen},
+    collection::{ArrayString, LinearStorageLen},
     database::{
       FromRecords, FromRecordsParams, Record,
       client::postgres::{Postgres, PostgresRecord, PostgresRecords},
@@ -117,7 +117,7 @@ mod array {
   impl<'exec, E, L, const N: usize> FromRecords<'exec, Postgres<E>> for ArrayString<L, N>
   where
     E: From<crate::Error>,
-    L: IndexedStorageLen,
+    L: LinearStorageLen,
   {
     const FIELDS: u16 = 1;
     const ID_IDX: Option<usize> = None;
