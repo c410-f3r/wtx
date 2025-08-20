@@ -69,7 +69,7 @@ where
       return Err(E::from(PostgresError::TimeStructureOverflow.into()));
     }
     let (this_ts, this_ns) = self.timestamp();
-    if this_ns.num() % 1_000 > 0 {
+    if !this_ns.num().is_multiple_of(1_000) {
       return Err(E::from(PostgresError::TimeStructureWithGreaterPrecision.into()));
     }
     let this_us = this_ns.num() / 1_000;
