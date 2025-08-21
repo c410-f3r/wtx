@@ -31,7 +31,7 @@ pub(crate) async fn check_read_close_frame(
   }
   *connection_state = ConnectionState::Closed;
   match payload {
-    [] => Ok(true),
+    [] => Ok(false),
     [_] => Err(WebSocketError::InvalidCloseFrame.into()),
     [a, b, rest @ ..] => {
       let _str_validation = from_utf8_basic(rest)?;
