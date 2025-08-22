@@ -8,16 +8,32 @@ use crate::{
   },
 };
 
-/// The first two bytes of `payload` are filled with `code`. Does nothing if `payload` is
+/// Copies `frame_code` and `frame_payload` into `buffer`.
+#[inline]
+pub fn fill_buffer_with_close_frame(
+  buffer: &mut [u8],
+  frame_code: CloseCode,
+  frame_payload: &[u8],
+) -> crate::Result<()> {
+  let rest = fill_buffer_with_close_code(buffer, frame_code);
+  let Some(slice) = rest.and_then(|el| el.get_mut(..frame_payload.len())) else {
+    return Err(WebSocketError::InvalidCloseFrameParams.into());
+  };
+  slice.copy_from_slice(frame_payload);
+  Ok(())
+}
+
+/// The first two bytes of `buffer` are filled with `code`. Does nothing if `buffer` is
 /// less than 2 bytes.
 #[inline]
-pub fn fill_with_close_code(code: CloseCode, payload: &mut [u8]) {
-  let [a, b, ..] = payload else {
-    return;
+pub fn fill_buffer_with_close_code(buffer: &mut [u8], code: CloseCode) -> Option<&mut [u8]> {
+  let [a, b, rest @ ..] = buffer else {
+    return None;
   };
   let [c, d] = u16::from(code).to_be_bytes();
   *a = c;
   *b = d;
+  Some(rest)
 }
 
 /// Returns `true` if `payload` is greater than the maximum allowed length.

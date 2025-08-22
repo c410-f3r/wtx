@@ -16,7 +16,7 @@ use crate::{
   tests::_uri,
   web_socket::{
     CloseCode, Compression, Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketOwned,
-    WebSocketPayloadOrigin, compression::NegotiatedCompression, fill_with_close_code,
+    WebSocketPayloadOrigin, compression::NegotiatedCompression, fill_buffer_with_close_code,
   },
 };
 use core::{sync::atomic::Ordering, time::Duration};
@@ -185,7 +185,7 @@ where
       b"Goodbye!"
     );
     let mut ps = *b"__PS: s2";
-    fill_with_close_code(CloseCode::Normal, &mut ps);
+    fill_buffer_with_close_code(&mut ps, CloseCode::Normal);
     ws.write_frame(&mut Frame::new_fin(OpCode::Close, ps)).await.unwrap();
   }
 }
