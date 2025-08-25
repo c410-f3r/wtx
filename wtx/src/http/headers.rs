@@ -90,7 +90,7 @@ impl Headers {
     self.iter().find(|el| el.name.as_bytes() == name)
   }
 
-  /// Returns all first optional headers that are referenced by `names`.
+  /// Returns all last optional headers that are referenced by `names`.
   ///
   /// ```rust
   /// use wtx::http::{Header, Headers};
@@ -102,11 +102,16 @@ impl Headers {
   /// ```
   #[inline]
   pub fn get_by_names<const N: usize>(&self, names: [&[u8]; N]) -> [Option<Header<'_, &str>>; N] {
+    let mut counter: usize = 0;
     let mut rslt = [None; N];
-    for header in self.iter() {
+    for header in self.iter().rev() {
+      if counter == N {
+        break;
+      }
       for (name, opt) in names.into_iter().zip(&mut rslt) {
-        if name == header.name.as_bytes() {
+        if opt.is_none() && name == header.name.as_bytes() {
           *opt = Some(header);
+          counter = counter.wrapping_add(1);
           break;
         }
       }
@@ -122,7 +127,7 @@ impl Headers {
 
   /// Retrieves all stored pairs.
   #[inline]
-  pub fn iter(&self) -> impl Iterator<Item = Header<'_, &str>> {
+  pub fn iter(&self) -> impl DoubleEndedIterator<Item = Header<'_, &str>> {
     self.headers_parts.iter().copied().map(|header_parts| Self::map(&self.bytes, header_parts))
   }
 

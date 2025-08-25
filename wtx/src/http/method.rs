@@ -38,6 +38,12 @@ impl Method {
   ];
   /// The number of variants
   pub const VARIANTS: u8 = 9;
+
+  /// If the method is intended to modify something. For example, `POST`.
+  #[inline]
+  pub const fn is_mutable(self) -> bool {
+    matches!(self, Self::Delete | Self::Patch | Self::Post | Self::Put)
+  }
 }
 
 #[cfg(feature = "serde")]

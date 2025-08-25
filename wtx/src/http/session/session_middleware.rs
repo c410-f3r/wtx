@@ -51,6 +51,10 @@ where
   #[inline]
   fn aux(&self) -> Self::Aux {}
 
+  /// Iterates over all headers.
+  ///
+  /// 1. A request can contain several cookies with different names.
+  /// 2. `XCsrfToken` might be located after the desired cookie.
   #[inline]
   async fn req(
     &self,
@@ -71,15 +75,18 @@ where
       }
       return Ok(ControlFlow::Continue(()));
     }
-    let mut session_exists = false;
     let mut x_csrf_token_value = None;
-    // Iterates over all headers because a request can contain multiple cookies.
     for header in req.rrd.headers.iter() {
-      if header.name == <&str>::from(KnownHeaderName::XCsrfToken) {
-        x_csrf_token_value = Some(header.value);
+      if ca.lease_mut().is_some() && x_csrf_token_value.is_some() {
+        break;
       }
-      if session_exists || header.name != <&str>::from(KnownHeaderName::Cookie) {
-        continue;
+      match header.name {
+        el if el == <&str>::from(KnownHeaderName::XCsrfToken) => {
+          x_csrf_token_value = Some(header.value);
+          continue;
+        }
+        el if el == <&str>::from(KnownHeaderName::Cookie) => {}
+        _ => continue,
       }
       let ss_des: SessionState<CS> = {
         let idx = req.rrd.body.len();
@@ -121,10 +128,15 @@ where
         return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
       }
       *ca.lease_mut() = Some(ss_des);
-      session_exists = true;
-      break;
     }
-    if !session_exists {
+    if let Some(local) = ca.lease_mut() {
+      let is_same = Some(local.session_csrf.as_ref()) != x_csrf_token_value.map(|el| el.as_bytes());
+      if req.method.is_mutable() && is_same {
+        let session_key = &local.session_key;
+        let _rslt = self.session_store.get(&(), &()).await?.lease_mut().delete(session_key).await;
+        return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
+      }
+    } else {
       let path = req.rrd.uri.path();
       if self.allowed_paths.iter().all(|el| el != path) {
         return Err(crate::Error::from(SessionError::RequiredSession).into());
