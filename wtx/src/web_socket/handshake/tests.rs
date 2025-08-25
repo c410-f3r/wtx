@@ -185,7 +185,7 @@ where
       b"Goodbye!"
     );
     let mut ps = *b"__PS: s2";
-    fill_buffer_with_close_code(&mut ps, CloseCode::Normal);
+    let _ = fill_buffer_with_close_code(&mut ps, CloseCode::Normal);
     ws.write_frame(&mut Frame::new_fin(OpCode::Close, ps)).await.unwrap();
   }
 }

@@ -59,7 +59,7 @@ where
       let is_invalid = check_read_close_frame(connection_state, payload).await?;
       let mut params = control_frame_payload(payload);
       let rslt = if is_invalid {
-        fill_buffer_with_close_code(&mut params.0, CloseCode::Protocol);
+        let _ = fill_buffer_with_close_code(&mut params.0, CloseCode::Protocol);
         crate::Result::Err(WebSocketError::InvalidCloseFrame.into())
       } else {
         Ok(())

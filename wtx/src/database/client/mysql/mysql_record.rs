@@ -54,7 +54,7 @@ where
   }
 }
 
-impl<'exec, E> ValueIdent<MysqlRecord<'exec, E>> for str {
+impl<'exec, E> ValueIdent<MysqlRecord<'exec, E>> for &str {
   #[inline]
   fn idx(&self, input: &MysqlRecord<'exec, E>) -> Option<usize> {
     self.idx(&input.common)

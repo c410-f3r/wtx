@@ -1,10 +1,10 @@
 /// Value Identifier
-pub trait ValueIdent<I> {
+pub trait ValueIdent<I>: Copy {
   /// Underlying index that represents this instance.
   fn idx(&self, input: &I) -> Option<usize>;
 }
 
-impl ValueIdent<()> for str {
+impl ValueIdent<()> for &str {
   #[inline]
   fn idx(&self, _: &()) -> Option<usize> {
     None
