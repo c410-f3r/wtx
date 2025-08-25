@@ -24,7 +24,7 @@ use crate::{
   web_socket::{
     CloseCode, Frame, FrameMut, MAX_HEADER_LEN, OpCode, WebSocketError, WebSocketPayloadOrigin,
     compression::NegotiatedCompression,
-    fill_with_close_code,
+    fill_buffer_with_close_code,
     is_in_continuation_frame::IsInContinuationFrame,
     misc::{
       check_read_close_frame, control_frame_payload, write_control_frame, write_control_frame_cb,
@@ -59,7 +59,7 @@ where
       let is_invalid = check_read_close_frame(connection_state, payload).await?;
       let mut params = control_frame_payload(payload);
       let rslt = if is_invalid {
-        fill_with_close_code(CloseCode::Protocol, &mut params.0);
+        let _ = fill_buffer_with_close_code(&mut params.0, CloseCode::Protocol);
         crate::Result::Err(WebSocketError::InvalidCloseFrame.into())
       } else {
         Ok(())

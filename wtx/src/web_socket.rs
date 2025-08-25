@@ -37,7 +37,7 @@ use core::marker::PhantomData;
 pub use frame::{
   Frame, FrameControlArray, FrameMut, FrameRef, FrameVector, FrameVectorMut, FrameVectorRef,
 };
-pub use misc::fill_with_close_code;
+pub use misc::{fill_buffer_with_close_code, fill_buffer_with_close_frame};
 pub use op_code::OpCode;
 #[cfg(feature = "web-socket-handshake")]
 pub use web_socket_acceptor::WebSocketAcceptor;

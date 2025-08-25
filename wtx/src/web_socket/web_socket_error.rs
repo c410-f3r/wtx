@@ -5,6 +5,8 @@ pub enum WebSocketError {
   DuplicatedHeader,
   /// Received close frame has invalid parameters.
   InvalidCloseFrame,
+  /// It was not possible to create a close frame with the given parameters.
+  InvalidCloseFrameParams,
   /// Received an invalid header compression parameter.
   InvalidCompressionHeaderParameter,
   /// The client sent an invalid mask bit.

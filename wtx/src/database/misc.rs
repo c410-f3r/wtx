@@ -22,7 +22,10 @@ where
       break 'block;
     };
     let initial_local_id_opt = if let Some(idx) = local_id_field_idx {
-      Some(curr_record.decode::<_, T::IdTy>(idx)?)
+      let Some(elem) = curr_record.decode_opt::<_, T::IdTy>(idx)? else {
+        break 'block;
+      };
+      Some(elem)
     } else {
       None
     };

@@ -16,9 +16,12 @@ pub trait Record<'exec>: Sized {
     CI: ValueIdent<Self>,
     D: Decode<'exec, Self::Database>,
   {
-    let mut dw = self
-      .value(ci)
-      .ok_or_else(|| DatabaseError::MissingFieldDataInDecoding(type_name::<D>()).into())?;
+    let mut dw = self.value(ci).ok_or_else(|| {
+      DatabaseError::MissingFieldDataInDecoding(
+        alloc::format!("{:?} - {}", ci.idx(self), type_name::<D>()).into(),
+      )
+      .into()
+    })?;
     D::decode(&mut (), &mut dw)
   }
 

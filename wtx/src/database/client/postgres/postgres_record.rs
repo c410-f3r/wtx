@@ -98,7 +98,7 @@ where
   }
 }
 
-impl<'exec, E> ValueIdent<PostgresRecord<'exec, E>> for str {
+impl<'exec, E> ValueIdent<PostgresRecord<'exec, E>> for &str {
   fn idx(&self, input: &PostgresRecord<'exec, E>) -> Option<usize> {
     self.idx(&input.common)
   }
