@@ -2,7 +2,7 @@ use crate::{
   calendar::Instant,
   collection::Vector,
   http::{
-    KnownHeaderName, Method, ReqResBuffer, Request, Response, SessionError, SessionManager,
+    KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode,
     cookie::{cookie_str::CookieStr, decrypt_cookie},
     server_framework::Middleware,
@@ -116,16 +116,6 @@ where
       if ss_db.custom_state != ss_des.custom_state {
         self.session_store.get(&(), &()).await?.lease_mut().delete(&ss_des.session_key).await?;
         return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
-      }
-      let is_mutable = req.method == Method::Delete
-        || req.method == Method::Patch
-        || req.method == Method::Post
-        || req.method == Method::Put;
-      let session_csrf_opt = Some(ss_des.session_csrf.as_ref());
-      if is_mutable && session_csrf_opt != x_csrf_token_value.map(|el| el.as_bytes()) {
-        let session_key = &ss_des.session_key;
-        let _rslt = self.session_store.get(&(), &()).await?.lease_mut().delete(session_key).await;
-        return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
       }
       *ca.lease_mut() = Some(ss_des);
     }
