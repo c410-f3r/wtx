@@ -24,16 +24,12 @@ mod optimization;
 mod poll_once;
 mod single_type_storage;
 mod suffix_writer;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
 mod tuple_impls;
 mod uri;
 mod usize;
 mod utf8_errors;
 mod wrapper;
 
-#[cfg(feature = "tokio-rustls")]
-pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use auto_clear::AutoClear;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, time::Duration};

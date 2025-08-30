@@ -43,6 +43,18 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/autobahn-fuzzingserver-concurrent.sh ci
 
+  boringssl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly-2025-02-23
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/boringssl.sh
+
   h2spec-high:
     runs-on: ubuntu-latest
     steps:
