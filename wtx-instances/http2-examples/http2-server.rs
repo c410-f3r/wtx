@@ -7,7 +7,6 @@
 //! Please note that it is much easier to just use the HTTP server framework.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 
