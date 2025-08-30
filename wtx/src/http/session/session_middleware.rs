@@ -120,8 +120,7 @@ where
       *ca.lease_mut() = Some(ss_des);
     }
     if let Some(local) = ca.lease_mut() {
-      let is_same = Some(local.session_csrf.as_ref()) != x_csrf_token_value.map(|el| el.as_bytes());
-      if req.method.is_mutable() && is_same {
+      if req.method.is_mutable() && Some(local.session_csrf.as_str()) != x_csrf_token_value {
         let session_key = &local.session_key;
         let _rslt = self.session_store.get(&(), &()).await?.lease_mut().delete(session_key).await;
         return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
