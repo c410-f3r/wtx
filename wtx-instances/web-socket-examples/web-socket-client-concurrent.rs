@@ -19,7 +19,8 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_TLS_URI");
-  let tls_connector = TokioRustlsConnector::from_auto()?.push_certs(wtx_instances::ROOT_CA)?;
+  let tls_config = TlsConfig::default();
+  //tls_config.push(wtx_instances::ROOT_CA);
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
   let ws = WebSocketConnector::default()
     .connect(
