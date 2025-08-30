@@ -1,12 +1,8 @@
 [dependencies]
-aes-gcm = { default-features = false, optional = true, version = "0.11.0-rc.0" }
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
-argon2 = { default-features = false, optional = true, version = "0.6.0-rc.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
-crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.3" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.0" }
 embassy-net = { default-features = false, features = ["tcp"], optional = true, version = "0.5" }
 embassy-time = { default-features = false, optional = true, version = "0.3" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
@@ -14,7 +10,6 @@ flate2 = { default-features = false, features = ["zlib-rs"], optional = true, ve
 foldhash = { default-features = false, optional = true, version = "0.1" }
 getrandom = { default-features = false, optional = true, version = "0.3" }
 hashbrown = { default-features = false, features = ["default-hasher", "inline-more"], optional = true, version = "0.15" }
-hmac = { default-features = false, optional = true, version = "0.13.0-rc.0" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 loom = { default-features = false, optional = true, version = "0.7" }
 matchit = { default-features = false, optional = true, version = "0.8" }
@@ -26,7 +21,6 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand_chacha = { default-features = false, optional = true, version = "0.9" }
 rand_core = { default-features = false, optional = true, version = "0.9" }
 ring = { default-features = false, optional = true, version = "0.17" }
-rsa = { default-features = false, optional = true, version = "0.10.0-rc.0" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls = { default-features = false, optional = true, version = "0.23" }
 rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
@@ -34,10 +28,7 @@ rustls-pki-types = { default-features = false, optional = true, version = "1.0" 
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 serde_urlencoded = { default-features = false, optional = true, version = "0.7" }
-sha1 = { default-features = false, optional = true, version = "0.11.0-rc.0" }
-sha2 = { default-features = false, optional = true, version = "0.11.0-rc.0" }
 simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
-spki = { default-features = false, optional = true, version = "0.8.0-rc.2" }
 tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, features = ["ring", "tls12"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
@@ -46,6 +37,16 @@ tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.5" }
+
+aes-gcm = { default-features = false, optional = true, version = "0.11.0-rc.0" }
+argon2 = { default-features = false, optional = true, version = "0.6.0-rc.0" }
+crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.3" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.0" }
+hmac = { default-features = false, optional = true, version = "0.13.0-rc.0" }
+rsa = { default-features = false, optional = true, version = "0.10.0-rc.5" }
+sha1 = { default-features = false, optional = true, version = "0.11.0-rc.0" }
+sha2 = { default-features = false, optional = true, version = "0.11.0-rc.0" }
+spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 
 [dev-dependencies]
 tokio = { default-features = false, features = ["rt-multi-thread"], version = "1.0" }
@@ -73,7 +74,7 @@ http-session = ["http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 loom = ["dep:loom", "std"]
 macros = ["dep:wtx-macros"]
-mysql = ["database", "digest", "foldhash", "hashbrown", "rand-compat", "rsa/pem", "spki", "sha1", "sha2"]
+mysql = ["database", "digest", "foldhash", "hashbrown", "rand-compat", "rsa/encoding", "spki", "sha1", "sha2"]
 nightly = []
 optimization = ["memchr", "simdutf8"]
 pool = []

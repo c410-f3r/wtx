@@ -84,8 +84,7 @@ jobs:
           toolchain: nightly-2025-07-17
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install docker-compose -y
-      - run: docker-compose -f .test-utils/docker-compose.yml up -d
-      - run: sleep 30
+      - run: docker compose -f .test-utils/docker-compose.yml up -d --wait
       - run: .scripts/${{ matrix.scripts }}.sh
 
   internal-tests0:
