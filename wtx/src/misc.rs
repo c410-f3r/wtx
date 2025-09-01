@@ -12,6 +12,8 @@ pub(crate) mod span;
 
 mod auto_clear;
 mod connection_state;
+#[cfg(feature = "aes-gcm")]
+mod crypto;
 mod either;
 mod enum_var_strings;
 #[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
@@ -20,8 +22,11 @@ mod fn_fut;
 mod incomplete_utf8_char;
 mod interspace;
 mod lease;
+mod mem;
 mod optimization;
 mod poll_once;
+#[cfg(feature = "secret")]
+mod secret;
 mod single_type_storage;
 mod suffix_writer;
 #[cfg(feature = "tokio-rustls")]
@@ -30,6 +35,7 @@ mod tuple_impls;
 mod uri;
 mod usize;
 mod utf8_errors;
+mod volatile;
 mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
@@ -37,6 +43,8 @@ pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use auto_clear::AutoClear;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, time::Duration};
+#[cfg(feature = "aes-gcm")]
+pub use crypto::*;
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 #[cfg(any(
@@ -50,13 +58,17 @@ pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use lease::{Lease, LeaseMut};
+pub use mem::*;
 pub use optimization::*;
 pub use poll_once::PollOnce;
+#[cfg(feature = "secret")]
+pub use secret::Secret;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
 pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
+pub use volatile::*;
 pub use wrapper::Wrapper;
 
 /// Useful when a request returns an optional field but the actual usage is within a

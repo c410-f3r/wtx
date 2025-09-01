@@ -11,6 +11,7 @@ foldhash = { default-features = false, optional = true, version = "0.1" }
 getrandom = { default-features = false, optional = true, version = "0.3" }
 hashbrown = { default-features = false, features = ["default-hasher", "inline-more"], optional = true, version = "0.15" }
 httparse = { default-features = false, optional = true, version = "1.0" }
+libc = { default-features = false, optional = true, version = "0.2" }
 loom = { default-features = false, optional = true, version = "0.7" }
 matchit = { default-features = false, optional = true, version = "0.8" }
 memchr = { default-features = false, optional = true, version = "2.0" }
@@ -38,7 +39,7 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.5" }
 
-aes-gcm = { default-features = false, optional = true, version = "0.11.0-rc.0" }
+aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.0" }
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.0" }
 crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.3" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.0" }
@@ -68,7 +69,7 @@ grpc-server = ["grpc", "http-server-framework"]
 http = []
 http-client-pool = ["http2", "pool", "std"]
 http-cookie = ["http"]
-http-cookie-secure = ["aes-gcm/aes", "aes-gcm/alloc", "base64", "digest", "http-cookie"]
+http-cookie-secure = ["aes-gcm", "base64", "digest", "http-cookie"]
 http-server-framework = ["http2"]
 http-session = ["http-cookie-secure", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
@@ -85,6 +86,7 @@ rand-compat = ["rand_core"]
 rustls = ["dep:rustls", "rustls-pki-types"]
 schema-manager = ["database"]
 schema-manager-dev = ["schema-manager"]
+secret = ["aes-gcm", "libc", "sha2", "std"]
 serde_json = ["serde", "serde_json/std", "std"]
 serde_urlencoded = ["serde", "dep:serde_urlencoded", "std"]
 std = []

@@ -141,6 +141,8 @@ pub enum Error {
   FuturePolledAfterFinalization,
   /// Generic error
   Generic(Box<String>),
+  /// Data must have a nonce and a tag.
+  InvalidAes256GcmData,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
   /// Invalid UTF-8.
@@ -151,6 +153,8 @@ pub enum Error {
   InvalidUri,
   /// There is no CA provider.
   MissingCaProviders,
+  /// Something prevented a `mlock`/`munlock` operation
+  MlockError,
   /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(Box<&'static str>),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
@@ -188,6 +192,8 @@ pub enum Error {
     /// Number value
     received: u64,
   },
+  /// The operation `mlock` is not supported in your platform
+  UnsupportedMlockPlatform,
   /// Only appending is possible but overwritten is still viable through resetting.
   UriCanNotBeOverwritten,
   /// In the current platform a number is larger than `usize`.

@@ -1866,6 +1866,7 @@ dependencies = [
  "hashbrown",
  "hmac",
  "httparse",
+ "libc",
  "loom",
  "matchit",
  "memchr",

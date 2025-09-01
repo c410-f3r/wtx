@@ -3,11 +3,10 @@ use crate::{
   collection::Vector,
   http::{
     KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
-    SessionManagerInner, SessionState, SessionStore, StatusCode,
-    cookie::{cookie_str::CookieStr, decrypt_cookie},
+    SessionManagerInner, SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
     server_framework::Middleware,
   },
-  misc::{Lease, LeaseMut},
+  misc::{Lease, LeaseMut, decrypt_aes256gcm_base64},
   pool::{Pool, ResourceManager},
   sync::Lock,
 };
@@ -95,10 +94,11 @@ where
           continue;
         }
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-        let decrypt_rslt = decrypt_cookie(
+        let decrypt_rslt = decrypt_aes256gcm_base64(
+          name.as_bytes(),
           &mut cookie_def.value,
+          value.as_bytes(),
           session_secret.data()?,
-          (name.as_bytes(), value.as_bytes()),
         );
         req.rrd.body.truncate(idx);
         let value_json = decrypt_rslt?;

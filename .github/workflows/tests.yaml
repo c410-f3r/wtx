@@ -117,10 +117,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: mdbook
-          use-tool-cache: true
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -136,7 +132,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions-rs/install@v0.1
         with:
-          crate: cargo-fuzz
+          crate: mdbook
           use-tool-cache: true
       - uses: actions-rs/toolchain@v1
         with:
@@ -151,6 +147,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-fuzz
+          use-tool-cache: true
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -159,3 +159,16 @@ jobs:
           toolchain: nightly-2025-07-17
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/internal-tests4.sh
+
+  internal-tests5:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          override: true
+          profile: minimal
+          toolchain: nightly-2025-07-17
+      - uses: Swatinem/rust-cache@v2
+      - run: .scripts/internal-tests5.sh
