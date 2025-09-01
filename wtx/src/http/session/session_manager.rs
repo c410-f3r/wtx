@@ -3,12 +3,10 @@ use crate::{
   collection::{ArrayString, Vector},
   http::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
-    SessionState, SessionStore,
-    cookie::{cookie_generic::CookieGeneric, encrypt_cookie},
-    session::SessionSecret,
+    SessionState, SessionStore, cookie::cookie_generic::CookieGeneric, session::SessionSecret,
   },
-  misc::{Lease, LeaseMut},
-  rng::Rng,
+  misc::{Lease, LeaseMut, encrypt_aes256gcm_base64},
+  rng::CryptoRng,
   sync::Lock,
 };
 use alloc::rc::Rc;
@@ -75,13 +73,13 @@ where
   pub async fn set_session_cookie<RNG, RRD, S>(
     &mut self,
     custom_state: CS,
-    mut rng: RNG,
+    rng: &mut RNG,
     rrd: &mut RRD,
     store: &mut S,
   ) -> Result<(), E>
   where
     CS: Serialize,
-    RNG: Rng,
+    RNG: CryptoRng,
     RRD: LeaseMut<ReqResBuffer>,
     S: SessionStore<CS, E>,
   {
@@ -109,10 +107,11 @@ where
     let idx = rrd.lease().body.len();
     serde_json::to_writer(&mut rrd.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
-    let enc_rslt = encrypt_cookie(
+    let enc_rslt = encrypt_aes256gcm_base64(
+      cookie_def.name.as_bytes(),
       &mut cookie_def.value,
+      rrd.lease().body.get(idx..).unwrap_or_default(),
       session_secret.data()?,
-      (cookie_def.name.as_bytes(), rrd.lease().body.get(idx..).unwrap_or_default()),
       rng,
     );
     rrd.lease_mut().body.truncate(idx);

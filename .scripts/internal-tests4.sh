@@ -2,5 +2,4 @@
 
 set -euxo pipefail
 
-pushd wtx-macros-tests
-cargo run
+cargo fuzz run --features libfuzzer-sys/link_libfuzzer --fuzz-dir wtx-fuzz web-socket -- -max_total_time=120

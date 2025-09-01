@@ -2,4 +2,15 @@
 
 set -euxo pipefail
 
-cargo fuzz run --features libfuzzer-sys/link_libfuzzer --fuzz-dir wtx-fuzz web-socket -- -max_total_time=120
+# WTX
+
+cargo check --all-features --all-targets
+
+# WTX Docs
+
+rustup default nightly-2025-07-17
+cargo clean --target-dir mdbook-target
+cargo build --all-features --target-dir mdbook-target
+mdbook test -L mdbook-target/debug/deps wtx-docs
+
+RUSTDOCFLAGS="-Dwarnings" cargo doc --all-features
