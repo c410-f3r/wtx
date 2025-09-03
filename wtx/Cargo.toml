@@ -39,14 +39,14 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.5" }
 
-aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.0" }
-argon2 = { default-features = false, optional = true, version = "0.6.0-rc.0" }
-crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.3" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.0" }
-hmac = { default-features = false, optional = true, version = "0.13.0-rc.0" }
-rsa = { default-features = false, optional = true, version = "0.10.0-rc.5" }
-sha1 = { default-features = false, optional = true, version = "0.11.0-rc.0" }
-sha2 = { default-features = false, optional = true, version = "0.11.0-rc.0" }
+aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.1" }
+argon2 = { default-features = false, optional = true, version = "0.6.0-rc.1" }
+crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.4" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.1" }
+hmac = { default-features = false, optional = true, version = "0.13.0-rc.1" }
+rsa = { default-features = false, optional = true, version = "0.10.0-rc.6" }
+sha1 = { default-features = false, optional = true, version = "0.11.0-rc.2" }
+sha2 = { default-features = false, optional = true, version = "0.11.0-rc.2" }
 spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 
 [dev-dependencies]
