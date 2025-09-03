@@ -5,7 +5,7 @@
 /// - `addr` must point to `len` bytes of valid memory
 #[inline]
 pub unsafe fn mlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
-  #[cfg(all(feature = "libc", target_os = "linux"))]
+  #[cfg(feature = "libc")]
   {
     // SAFETY: up to the caller
     let mlock = unsafe { libc::mlock(_addr.cast(), _len) };
@@ -14,7 +14,7 @@ pub unsafe fn mlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
     }
     Ok(())
   }
-  #[cfg(not(all(feature = "libc", target_os = "linux")))]
+  #[cfg(not(feature = "libc"))]
   return Err(crate::Error::UnsupportedMlockPlatform);
 }
 
@@ -25,7 +25,7 @@ pub unsafe fn mlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
 /// - `addr` must point to `len` bytes of valid memory
 #[inline]
 pub unsafe fn munlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
-  #[cfg(all(feature = "libc", target_os = "linux"))]
+  #[cfg(feature = "libc")]
   {
     // SAFETY: up to the caller
     let munlock = unsafe { libc::munlock(_addr.cast(), _len) };
@@ -34,11 +34,11 @@ pub unsafe fn munlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
     }
     Ok(())
   }
-  #[cfg(not(all(feature = "libc", target_os = "linux")))]
+  #[cfg(not(feature = "libc"))]
   return Err(crate::Error::UnsupportedMlockPlatform);
 }
 
-#[cfg(all(feature = "libc", target_os = "linux", test))]
+#[cfg(all(feature = "libc", test))]
 mod tests {
   use crate::{
     collection::Vector,

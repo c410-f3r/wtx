@@ -81,6 +81,7 @@ unsafe impl<T: Send + Sync> Sync for Mutex<T> {}
 
 /// An RAII guard returned by the `lock` and `try_lock` methods. When this structure is dropped
 /// (falls out of scope), the lock will be unlocked.
+#[clippy::has_significant_drop]
 pub struct MutexGuard<'any, T> {
   mutex: &'any Mutex<T>,
 }

@@ -53,6 +53,26 @@ where
   }
 }
 
+impl<DEC, T> Encode<DEC> for &mut T
+where
+  DEC: DEController,
+  T: Encode<DEC>,
+{
+  #[inline]
+  fn encode(
+    &self,
+    aux: &mut DEC::Aux,
+    ew: &mut DEC::EncodeWrapper<'_, '_>,
+  ) -> Result<(), DEC::Error> {
+    (**self).encode(aux, ew)
+  }
+
+  #[inline]
+  fn is_null(&self) -> bool {
+    (**self).is_null()
+  }
+}
+
 impl<DEC, L, R> Encode<DEC> for Either<L, R>
 where
   DEC: DEController,
