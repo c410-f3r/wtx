@@ -30,6 +30,22 @@ where
   }
 }
 
+impl<D, T> Typed<D> for &mut T
+where
+  D: Database,
+  T: Typed<D>,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<D::Ty> {
+    (**self).runtime_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<D::Ty> {
+    T::static_ty()
+  }
+}
+
 impl<D> Typed<D> for &dyn Typed<D>
 where
   D: Database,
