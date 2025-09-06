@@ -10,7 +10,7 @@ pub struct TracingTreeTimer;
 impl FormatTime for TracingTreeTimer {
   #[inline]
   fn format_time(&self, w: &mut impl Write) -> core::fmt::Result {
-    w.write_str(Instant::now_date_time(0).unwrap_or_default().iso_8601().as_str())?;
+    w.write_str(Instant::now_date_time(0).unwrap_or_default().trunc_to_sec().iso_8601().as_str())?;
     Ok(())
   }
 

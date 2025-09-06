@@ -17,6 +17,8 @@ To use this functionality, it is necessary to activate the `web-socket` feature.
 
 The "permessage-deflate" extension is the only supported compression format and is backed by the `zlib-rs` project that performs as well as `zlib-ng`.
 
+At the current time `WTX` is the only crate that allows lock-free reader and writer parts with compression support.
+
 To get the most performance possible, try compiling your program with `RUSTFLAGS='-C target-cpu=native'` to allow `zlib-rs` to use more efficient SIMD instructions.
 
 ## No masking
@@ -38,6 +40,8 @@ The same automatic behavior **does not** happen with concurrent instances becaus
 ```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-client-concurrent.rs}}
 ```
+
+Alternative replying methods can be found at `web-socket-examples` in the `wtx-instances` crate.
 
 ## Server Example
 

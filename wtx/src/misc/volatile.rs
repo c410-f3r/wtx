@@ -27,7 +27,7 @@ where
 ///
 /// Volatile operations are intended to act on I/O memory, and are guaranteed to not be elided or
 /// reordered by the compiler across other volatile operations.
-#[inline(never)]
+#[inline]
 pub fn memset_slice_volatile<T>(slice: &mut [T], src: T)
 where
   T: Copy + Sized,

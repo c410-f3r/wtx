@@ -13,7 +13,7 @@ const WORDS: usize = 16;
 /// <https://datatracker.ietf.org/doc/html/rfc7539>.
 ///
 /// This structure is `Copy` to allow usage with `AtomicCell` in concurrent scenarios. You should
-/// probably use other implementations if performance is a concern.
+/// probably use other implementations if performance or auditability is a concern.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ChaCha20 {
   block: Block,
@@ -22,7 +22,7 @@ pub struct ChaCha20 {
 }
 
 impl ChaCha20 {
-  /// Creates a new instance where you are responsable for providing parameters. Ideally, `key`
+  /// Creates a new instance where you are responsible for providing parameters. Ideally, `key`
   /// should have a high entropy.
   #[inline]
   pub const fn new(key: [u8; 32]) -> ChaCha20 {
@@ -327,7 +327,7 @@ mod rand_core {
 mod tests {
   use crate::rng::{
     Rng, SeedableRng,
-    cha_cha20::{Block, ChaCha20, block_function},
+    cha_cha20::{Block, ChaCha20, WORDS, block_function},
   };
 
   #[test]
@@ -347,10 +347,10 @@ mod tests {
       1,
     ])
     .unwrap();
-    for _ in 0..16 {
+    for _ in 0..WORDS {
       let _ = this.u8_4();
     }
-    let mut results = [0u32; 16];
+    let mut results = [0u32; WORDS];
     for elem in results.iter_mut() {
       *elem = u32::from_le_bytes(this.u8_4());
     }
@@ -363,11 +363,11 @@ mod tests {
   }
 
   #[test]
-  fn from_zeroed_seeds() {
+  fn from_zero_seeds() {
     let mut this = ChaCha20::from_seed([0u8; 32]).unwrap();
     assert_eq!(
       {
-        let mut array = [0; 16];
+        let mut array = [0; WORDS];
         for elem in &mut array {
           *elem = u32::from_le_bytes(this.u8_4());
         }
@@ -381,7 +381,7 @@ mod tests {
     );
     assert_eq!(
       {
-        let mut array = [0; 16];
+        let mut array = [0; WORDS];
         for elem in &mut array {
           *elem = u32::from_le_bytes(this.u8_4());
         }
