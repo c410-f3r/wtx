@@ -22,13 +22,13 @@ fn custom_composite_type() {
   Runtime::new()
     .block_on(async {
       #[derive(Debug, PartialEq)]
-      struct CustomCompositeType(u32, String);
+      struct CustomCompositeType(u32, Option<String>, u64);
 
       impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
         #[inline]
         fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
           let mut sd = StructDecoder::<crate::Error>::new(dw);
-          Ok(Self(sd.decode()?, sd.decode()?))
+          Ok(Self(sd.decode()?, sd.decode_opt()?, sd.decode()?))
         }
       }
 
@@ -37,7 +37,8 @@ fn custom_composite_type() {
         fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
           let _ev = StructEncoder::<crate::Error>::new(ew)?
             .encode(self.0)?
-            .encode_with_ty(&self.1, Ty::Varchar)?;
+            .encode_with_ty(&self.1, Ty::Varchar)?
+            .encode(&self.2)?;
           Ok(())
         }
       }
@@ -60,7 +61,7 @@ fn custom_composite_type() {
           "
             DROP TYPE IF EXISTS custom_composite_type CASCADE;
             DROP TABLE IF EXISTS custom_composite_table;
-            CREATE TYPE custom_composite_type AS (int_value INT, varchar_value VARCHAR);
+            CREATE TYPE custom_composite_type AS (int_value INT, varchar_value VARCHAR, bigint_value BIGINT);
             CREATE TABLE custom_composite_table (id INT, type custom_composite_type);
           ",
           |_| Ok(()),
@@ -70,7 +71,7 @@ fn custom_composite_type() {
       let _ = exec
         .execute_with_stmt(
           "INSERT INTO custom_composite_table VALUES ($1, $2::custom_composite_type)",
-          (1, CustomCompositeType(2, String::from("34"))),
+          (1, CustomCompositeType(2, None, 4)),
         )
         .await
         .unwrap();
@@ -78,7 +79,7 @@ fn custom_composite_type() {
       assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
       assert_eq!(
         record.decode::<_, CustomCompositeType>(1).unwrap(),
-        CustomCompositeType(2, String::from("34"))
+        CustomCompositeType(2, None, 4)
       );
     })
     .unwrap();
