@@ -43,9 +43,11 @@ where
     };
     let ty = Ty::from_arbitrary_u32(u32::from_be_bytes([*a, *b, *c, *d]));
     let Ok(length) = u32::try_from(i32::from_be_bytes([*e, *f, *g, *h])) else {
+      self.bytes = rest;
       return Ok(None);
     };
     let Some((before, after)) = rest.split_at_checked(*Usize::from(length)) else {
+      self.bytes = rest;
       return Ok(None);
     };
     self.bytes = after;
