@@ -1,16 +1,11 @@
-// Common functions that used be used by pure WebSocket structures or tunneling protocols.
-//
 // * NB = Network Buffer
-// * RCB = Compression Buffer
+// * CB = Compression Buffer
 // * UB = User Buffer
 //
-//
-// |    Frame    |   With Decompression     | Without Decompression |
-// |-------------|--------------------------|-----------------------|
-// |Single       |(NB -> UB)¹               |(NB)¹                  |
-// |Continuation*|(NB -> RCB)¹⁺ (RCB -> UB)¹|(NB -> UB)¹⁺           |
-//
-// * Control frame payloads between continuation frames are located in NB
+// |    Frame   |   With Decompression   | Without Decompression |
+// |------------|------------------------|-----------------------|
+// |Single      |(NB -> UB)¹             |(NB)¹                  |
+// |Continuation|(NB -> CB)¹⁺ (CB -> UB)¹|(NB -> UB)¹⁺           |
 
 use crate::{
   collection::{ExpansionTy, Vector},
@@ -56,7 +51,7 @@ where
 {
   match op_code {
     OpCode::Close => {
-      let is_invalid = check_read_close_frame(connection_state, payload).await?;
+      let is_invalid = check_read_close_frame(connection_state, payload)?;
       let mut params = control_frame_payload(payload);
       let rslt = if is_invalid {
         let _ = fill_buffer_with_close_code(&mut params.0, CloseCode::Protocol);

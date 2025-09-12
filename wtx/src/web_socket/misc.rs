@@ -38,7 +38,7 @@ pub fn fill_buffer_with_close_code(buffer: &mut [u8], code: CloseCode) -> Option
 
 /// Returns `true` if `payload` is greater than the maximum allowed length.
 #[inline]
-pub(crate) async fn check_read_close_frame(
+pub(crate) fn check_read_close_frame(
   connection_state: &mut ConnectionState,
   payload: &[u8],
 ) -> crate::Result<bool> {

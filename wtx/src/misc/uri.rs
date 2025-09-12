@@ -437,13 +437,38 @@ impl UriString {
     Ok(())
   }
 
-  /// See [`QueryWriter<S>`].
+  /// Starts the query writer with an initial `?param=value`.
   #[inline]
-  pub fn query_writer(&mut self) -> crate::Result<QueryWriter<'_, String>> {
+  pub fn query_writer<ELEM>(
+    &mut self,
+    param: &str,
+    value: ELEM,
+  ) -> crate::Result<QueryWriter<'_, String>>
+  where
+    ELEM: Display,
+  {
     if !self.query_and_fragment().is_empty() {
       return Err(crate::Error::UriCanNotBeOverwritten);
     }
-    Ok(QueryWriter::new(&mut self.uri))
+    QueryWriter { s: &mut self.uri }.do_write::<_, true>(param, value)
+  }
+
+  /// Starts the query writer with an initial `?param=value0(sep)value1(sep)value2...`.
+  #[inline]
+  pub fn query_writer_many<ELEM, SEP>(
+    &mut self,
+    param: &str,
+    value: impl IntoIterator<Item = ELEM>,
+    sep: SEP,
+  ) -> crate::Result<QueryWriter<'_, String>>
+  where
+    ELEM: Display,
+    SEP: Display,
+  {
+    if !self.query_and_fragment().is_empty() {
+      return Err(crate::Error::UriCanNotBeOverwritten);
+    }
+    QueryWriter { s: &mut self.uri }.do_write_many::<_, _, true>(param, value, sep)
   }
 
   /// Clears the internal storage and makes room for a new base URI.
@@ -555,28 +580,47 @@ where
   }
 }
 
-/// Query parameters need special handling because of the initial `?`.
+/// URL query writer.
 #[derive(Debug)]
 pub struct QueryWriter<'str, S> {
-  initial_len: usize,
   s: &'str mut S,
 }
 
-impl<'str, S> QueryWriter<'str, S>
+impl<S> QueryWriter<'_, S>
 where
   S: Lease<str> + Write,
 {
-  pub(crate) fn new(s: &'str mut S) -> Self {
-    Self { initial_len: s.lease().len(), s }
-  }
-
   /// Writes `?param=value` or `&param=value`.
   #[inline]
   pub fn write<T>(self, param: &str, value: T) -> crate::Result<Self>
   where
     T: Display,
   {
-    if self.s.lease().len() == self.initial_len {
+    self.do_write::<_, false>(param, value)
+  }
+
+  /// Writes `?param=value0(sep)value1(sep)value2...` or `&param=value0(sep)value1(sep)value2...`.
+  ///
+  /// The separator (`sep`) will only be used if `value` is greater than one.
+  #[inline]
+  pub fn write_many<ELEM, SEP>(
+    self,
+    param: &str,
+    value: impl IntoIterator<Item = ELEM>,
+    sep: SEP,
+  ) -> crate::Result<Self>
+  where
+    ELEM: Display,
+    SEP: Display,
+  {
+    self.do_write_many::<_, _, false>(param, value, sep)
+  }
+
+  fn do_write<T, const IS_INITIAL: bool>(self, param: &str, value: T) -> crate::Result<Self>
+  where
+    T: Display,
+  {
+    if IS_INITIAL {
       self.s.write_fmt(format_args!("?{param}={value}"))?;
     } else {
       self.s.write_fmt(format_args!("&{param}={value}"))?;
@@ -584,14 +628,29 @@ where
     Ok(self)
   }
 
-  /// Same as [write] but for optional fields.
-  #[inline]
-  pub fn write_opt<T, U>(self, param: &str, opt: U) -> crate::Result<Self>
+  fn do_write_many<ELEM, SEP, const IS_INITIAL: bool>(
+    self,
+    param: &str,
+    value: impl IntoIterator<Item = ELEM>,
+    sep: SEP,
+  ) -> crate::Result<Self>
   where
-    T: Display,
-    U: Lease<Option<T>>,
+    ELEM: Display,
+    SEP: Display,
   {
-    if let Some(value) = opt.lease() { self.write(param, value) } else { Ok(self) }
+    let mut iter = value.into_iter();
+    let Some(first) = iter.next() else {
+      return Ok(self);
+    };
+    if IS_INITIAL {
+      self.s.write_fmt(format_args!("?{param}={first}"))?;
+    } else {
+      self.s.write_fmt(format_args!("&{param}={first}"))?;
+    }
+    for elem in iter {
+      self.s.write_fmt(format_args!("{sep}{elem}"))?;
+    }
+    Ok(self)
   }
 }
 

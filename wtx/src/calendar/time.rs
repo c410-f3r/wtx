@@ -286,6 +286,14 @@ mod serde {
         }
 
         #[inline]
+        fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+        where
+          E: Error,
+        {
+          Time::from_iso_8601(v).map_err(E::custom)
+        }
+
+        #[inline]
         fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
         where
           E: Error,
