@@ -108,7 +108,7 @@ fn from_timestamp_secs() {
   for (timestamp, str) in elements {
     let instance = DateTime::from_timestamp_secs(timestamp).unwrap();
     assert_eq!(instance.iso_8601().as_str(), str);
-    assert_eq!(instance.timestamp().0, timestamp);
+    assert_eq!(instance.timestamp_secs_and_ns().0, timestamp);
   }
 }
 
@@ -155,16 +155,16 @@ fn iso_8601() {
 
 #[test]
 fn timestamp() {
-  assert_eq!(DateTime::MIN.timestamp().0, -1096193779200);
-  assert_eq!(DateTime::MAX.timestamp().0, 971859427199);
-  assert_eq!(_2025_04_20_14_20_30_1234().timestamp().0, 1745158830);
+  assert_eq!(DateTime::MIN.timestamp_secs_and_ns().0, -1096193779200);
+  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971859427199);
+  assert_eq!(_2025_04_20_14_20_30_1234().timestamp_secs_and_ns().0, 1745158830);
 }
 
 #[test]
 fn times_zones() {
-  assert_eq!(DateTime::MIN.timestamp().0, -1096193779200);
-  assert_eq!(DateTime::MAX.timestamp().0, 971859427199);
-  assert_eq!(_2025_04_20_14_20_30_1234().timestamp().0, 1745158830);
+  assert_eq!(DateTime::MIN.timestamp_secs_and_ns().0, -1096193779200);
+  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971859427199);
+  assert_eq!(_2025_04_20_14_20_30_1234().timestamp_secs_and_ns().0, 1745158830);
 }
 
 #[test]
