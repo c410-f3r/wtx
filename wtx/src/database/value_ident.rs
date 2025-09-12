@@ -13,7 +13,7 @@ impl ValueIdent<()> for &str {
 
 impl<I, T> ValueIdent<I> for &T
 where
-  T: ValueIdent<I> + ?Sized,
+  T: ValueIdent<I>,
 {
   #[inline]
   fn idx(&self, input: &I) -> Option<usize> {

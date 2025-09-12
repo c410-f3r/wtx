@@ -71,6 +71,56 @@ pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use volatile::*;
 pub use wrapper::Wrapper;
 
+/// Deserializes a sequence of elements info `buffer`. Works with any deserializer of any format.
+#[cfg(feature = "serde")]
+pub fn collect_seq_with_serde<'de, D, T>(
+  deserializer: D,
+  buffer: &mut crate::collection::Vector<T>,
+) -> crate::Result<()>
+where
+  D: serde::de::Deserializer<'de>,
+  T: serde::Deserialize<'de>,
+  crate::Error: From<D::Error>,
+{
+  use crate::collection::Vector;
+  use core::{any::type_name, fmt::Formatter};
+  use serde::{
+    Deserialize,
+    de::{Error, SeqAccess, Visitor},
+  };
+
+  struct LocalVisitor<'any, T>(&'any mut Vector<T>);
+
+  impl<'de, T> Visitor<'de> for LocalVisitor<'_, T>
+  where
+    T: Deserialize<'de>,
+  {
+    type Value = ();
+
+    #[inline]
+    fn expecting(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
+      formatter.write_fmt(format_args!("a sequence of `{}`", type_name::<T>()))
+    }
+
+    #[inline]
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+      A: SeqAccess<'de>,
+    {
+      if let Some(elem) = seq.size_hint() {
+        self.0.reserve(elem).map_err(A::Error::custom)?;
+      }
+      while let Some(elem) = seq.next_element()? {
+        self.0.push(elem).map_err(A::Error::custom)?;
+      }
+      Ok(())
+    }
+  }
+
+  deserializer.deserialize_seq(LocalVisitor(buffer))?;
+  Ok(())
+}
+
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [`core::result::Result`] context.
 #[track_caller]
