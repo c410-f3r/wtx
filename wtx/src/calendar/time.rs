@@ -204,6 +204,15 @@ impl Time {
     Ok(this)
   }
 
+  /// Returns a new instance with the number of nanoseconds truncated to milliseconds.
+  #[inline]
+  #[must_use]
+  pub const fn trunc_to_ms(self) -> Self {
+    let mut new = self;
+    new.nanosecond = new.nanosecond.to_ms().to_ns();
+    new
+  }
+
   /// Returns a new instance with the number of nanoseconds totally erased.
   #[inline]
   #[must_use]

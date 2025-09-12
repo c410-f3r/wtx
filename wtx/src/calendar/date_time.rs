@@ -44,7 +44,9 @@ impl DateTime<Utc> {
   )]
   #[inline]
   pub fn from_timestamp_secs_and_ns(seconds: i64, nanoseconds: Nanosecond) -> crate::Result<Self> {
-    if seconds < Self::MIN.timestamp().0 || seconds > Self::MAX.timestamp().0 {
+    if seconds < Self::MIN.timestamp_secs_and_ns().0
+      || seconds > Self::MAX.timestamp_secs_and_ns().0
+    {
       return Err(CalendarError::InvalidTimestamp.into());
     }
     let days = seconds.div_euclid(SECONDS_PER_DAY.into()).wrapping_add(EPOCH_CE_DAYS.into());
@@ -150,8 +152,10 @@ where
   }
 
   /// UNIX timestamp in seconds as well as the number of nanoseconds.
+  ///
+  /// It is worth noting that it is much cheaper to get the timestamp using `Instant`.
   #[inline]
-  pub const fn timestamp(self) -> (i64, Nanosecond) {
+  pub const fn timestamp_secs_and_ns(self) -> (i64, Nanosecond) {
     let mut rslt = i32i64(self.date.ce_days());
     rslt = rslt.wrapping_sub(u32i64(EPOCH_CE_DAYS));
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
@@ -180,6 +184,15 @@ where
       let date_time = self.sub(Duration::from_minutes(i64::from(self.tz.minutes()))?)?;
       Ok(DateTime::new(date_time.date, date_time.time, Utc))
     }
+  }
+
+  /// Returns a new instance with the number of nanoseconds truncated to milliseconds.
+  #[inline]
+  #[must_use]
+  pub const fn trunc_to_ms(self) -> Self {
+    let mut new = self;
+    new.time = new.time.trunc_to_ms();
+    new
   }
 
   /// Returns a new instance with the number of nanoseconds totally erased.
