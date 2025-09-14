@@ -138,12 +138,7 @@ impl<'uri> HeadersFrame<'uri> {
               {
                 content_length = Some(value.parse()?);
               }
-              rrb_headers.push_from_iter(Header {
-                is_sensitive: false,
-                is_trailer: IS_TRAILER,
-                name: name.str(),
-                value: [value],
-              })?;
+              rrb_headers.push_from_iter(Header::new(false, IS_TRAILER, name.str(), [value]))?;
             }
           }
         },

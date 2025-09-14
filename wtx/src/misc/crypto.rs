@@ -100,7 +100,7 @@ pub fn encrypt_aes256gcm_base64<'buffer, RNG>(
 where
   RNG: CryptoRng,
 {
-  use crate::collection::ExpansionTy;
+  use crate::{collection::ExpansionTy, misc::SensitiveBytes};
   use base64::{Engine, engine::general_purpose::STANDARD};
 
   let start = buffer.len();
@@ -118,7 +118,7 @@ where
     return Ok("");
   };
   let base64_idx = STANDARD.encode_slice(&mut *content, base64)?;
-  crate::misc::memset_slice_volatile(content, 0);
+  drop(SensitiveBytes(content));
   buffer.truncate(start.wrapping_add(base64_idx));
   let bytes = buffer.get_mut(start..).unwrap_or_default();
   // SAFETY: Base64 is ASCII.
