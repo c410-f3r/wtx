@@ -1,13 +1,13 @@
 use crate::{
   collection::Vector,
-  misc::{Lease, LeaseMut},
+  misc::{Lease, LeaseMut, SensitiveBytes},
 };
 use core::{
   fmt::{Arguments, Debug, Formatter},
   ptr, str,
 };
 
-/// Determines how trailers are placed in the headers
+/// Tells how trailers are placed in the headers
 #[derive(Clone, Copy, Debug)]
 pub enum Trailers {
   /// Does not have trailers
@@ -27,9 +27,13 @@ impl Trailers {
 }
 
 /// List of pairs sent and received on every request/response.
+///
+/// Internal operations are usually faster without sensitive content or trailers. If trailers
+/// are necessary, then they should be preferably placed at the end.
 pub struct Headers {
   bytes: Vector<u8>,
   headers_parts: Vector<HeaderParts>,
+  sensitive_headers: usize,
   trailers: Trailers,
 }
 
@@ -37,7 +41,12 @@ impl Headers {
   /// Empty instance
   #[inline]
   pub const fn new() -> Self {
-    Self { bytes: Vector::new(), headers_parts: Vector::new(), trailers: Trailers::None }
+    Self {
+      bytes: Vector::new(),
+      headers_parts: Vector::new(),
+      sensitive_headers: 0,
+      trailers: Trailers::None,
+    }
   }
 
   /// Pre-allocates bytes according to the number of passed elements.
@@ -48,6 +57,7 @@ impl Headers {
     Ok(Self {
       bytes: Vector::with_capacity(bytes)?,
       headers_parts: Vector::with_capacity(headers)?,
+      sensitive_headers: 0,
       trailers: Trailers::None,
     })
   }
@@ -72,9 +82,11 @@ impl Headers {
   /// ```
   #[inline]
   pub fn clear(&mut self) {
-    let Self { bytes, headers_parts, trailers } = self;
+    self.manage_erasing();
+    let Self { bytes, headers_parts, sensitive_headers, trailers } = self;
     bytes.clear();
     headers_parts.clear();
+    *sensitive_headers = 0;
     *trailers = Trailers::None;
   }
 
@@ -148,6 +160,7 @@ impl Headers {
     let Some(header_parts) = self.headers_parts.pop() else {
       return false;
     };
+    self.manage_sensitive_content_deletion(&header_parts);
     let new_bytes_len = self.bytes.len().wrapping_sub(header_parts.header_len);
     // SAFETY: `headers` is expected to contain valid data
     unsafe {
@@ -186,7 +199,8 @@ impl Headers {
       is_sensitive: header.is_sensitive,
       is_trailer: header.is_trailer,
     })?;
-    Self::manage_trailers(header.is_trailer, prev_len, &mut self.trailers);
+    self.manage_sensitive_content_inclusion(header.is_sensitive);
+    self.manage_trailers_inclusion(header.is_trailer, prev_len);
     Ok(())
   }
 
@@ -239,7 +253,8 @@ impl Headers {
       is_sensitive: header.is_sensitive,
       is_trailer: header.is_trailer,
     })?;
-    Self::manage_trailers(header.is_trailer, prev_len, &mut self.trailers);
+    self.manage_sensitive_content_inclusion(header.is_sensitive);
+    self.manage_trailers_inclusion(header.is_trailer, prev_len);
     Ok(())
   }
 
@@ -288,15 +303,45 @@ impl Headers {
     header_len
   }
 
-  fn manage_trailers(is_trailer: bool, prev_len: usize, trailers: &mut Trailers) {
-    *trailers = if is_trailer {
-      match trailers {
+  fn manage_erasing(&mut self) {
+    if self.sensitive_headers == 0 {
+      return;
+    }
+    for header_parts in &self.headers_parts {
+      if header_parts.is_sensitive {
+        let value = self
+          .bytes
+          .get_mut(header_parts.header_name_end..header_parts.header_end)
+          .unwrap_or_default();
+        drop(SensitiveBytes(value));
+      }
+    }
+  }
+
+  fn manage_sensitive_content_deletion(&mut self, header_parts: &HeaderParts) {
+    if header_parts.is_sensitive {
+      self.sensitive_headers = self.sensitive_headers.wrapping_sub(1);
+      let value = self
+        .bytes
+        .get_mut(header_parts.header_name_end..header_parts.header_end)
+        .unwrap_or_default();
+      drop(SensitiveBytes(value));
+    }
+  }
+
+  fn manage_sensitive_content_inclusion(&mut self, is_sensitive: bool) {
+    self.sensitive_headers = self.sensitive_headers.wrapping_add(is_sensitive.into());
+  }
+
+  fn manage_trailers_inclusion(&mut self, is_trailer: bool, prev_len: usize) {
+    self.trailers = if is_trailer {
+      match self.trailers {
         Trailers::Mixed => Trailers::Mixed,
         Trailers::None => Trailers::Tail(prev_len),
-        Trailers::Tail(idx) => Trailers::Tail(*idx),
+        Trailers::Tail(idx) => Trailers::Tail(idx),
       }
     } else {
-      match trailers {
+      match self.trailers {
         Trailers::Mixed | Trailers::Tail(_) => Trailers::Mixed,
         Trailers::None => Trailers::None,
       }
@@ -357,6 +402,13 @@ impl Default for Headers {
   }
 }
 
+impl Drop for Headers {
+  #[inline]
+  fn drop(&mut self) {
+    self.manage_erasing();
+  }
+}
+
 /// A field of an HTTP request or response.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Header<'any, V> {
@@ -375,6 +427,12 @@ pub struct Header<'any, V> {
 }
 
 impl<'any, V> Header<'any, V> {
+  /// Constructor shortcut
+  #[inline]
+  pub fn new(is_sensitive: bool, is_trailer: bool, name: &'any str, value: V) -> Self {
+    Self { is_sensitive, is_trailer, name, value }
+  }
+
   /// Sets `is_sensitive` and `is_trailer` to `false`.
   #[inline]
   pub fn from_name_and_value(name: &'any str, value: V) -> Self {

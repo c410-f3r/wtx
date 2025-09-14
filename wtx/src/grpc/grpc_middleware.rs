@@ -33,12 +33,7 @@ where
         KnownHeaderName::ContentType.into(),
         [Mime::ApplicationGrpc.as_str()].into_iter(),
       ),
-      Header {
-        is_sensitive: false,
-        is_trailer: true,
-        name: "grpc-status",
-        value: [stream_aux.status_code_mut().as_str()].into_iter(),
-      },
+      Header::new(false, true, "grpc-status", [stream_aux.status_code_mut().as_str()].into_iter()),
     ])?;
     Ok(ControlFlow::Continue(()))
   }

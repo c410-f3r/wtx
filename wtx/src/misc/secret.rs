@@ -96,7 +96,7 @@ mod static_keys {
   use crate::{
     collection::{ExpansionTy, Vector},
     misc::{
-      Secret, decrypt_aes256gcm, encrypt_aes256gcm_vectored, memset_slice_volatile,
+      Secret, SensitiveBytes, decrypt_aes256gcm, encrypt_aes256gcm_vectored,
       secret::{Protected, copy_iter},
     },
     rng::CryptoRng,
@@ -113,9 +113,7 @@ mod static_keys {
   impl Secret {
     /// `data` will be internally zeroed regardless if an error occurred.
     pub fn new<RNG: CryptoRng>(data: &mut [u8], rng: &mut RNG) -> crate::Result<Self> {
-      let rslt = Self::do_new(data, rng);
-      memset_slice_volatile(data, 0);
-      rslt
+      Self::do_new(SensitiveBytes(data).0, rng)
     }
 
     /// Decrypts secret  

@@ -27,6 +27,7 @@ mod optimization;
 mod poll_once;
 #[cfg(feature = "secret")]
 mod secret;
+mod sensitive_bytes;
 mod single_type_storage;
 mod suffix_writer;
 #[cfg(feature = "tokio-rustls")]
@@ -35,7 +36,6 @@ mod tuple_impls;
 mod uri;
 mod usize;
 mod utf8_errors;
-mod volatile;
 mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
@@ -63,12 +63,12 @@ pub use optimization::*;
 pub use poll_once::PollOnce;
 #[cfg(feature = "secret")]
 pub use secret::Secret;
+pub use sensitive_bytes::SensitiveBytes;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
 pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
-pub use volatile::*;
 pub use wrapper::Wrapper;
 
 /// Deserializes a sequence of elements info `buffer`. Works with any deserializer of any format.
