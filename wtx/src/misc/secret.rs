@@ -8,8 +8,8 @@ use core::{
 /// Long-lived sensitive data.
 ///
 /// Holds encrypted heap-allocated memory that is decrypted on demand. ***Tries*** to provide a
-/// layer of protection against Spectre, Meltdown, Rowhammer, RAMbleed and coldboot attacks. Moreover, data
-/// swapped out to the swap area ***probably*** should not be a problem.
+/// layer of protection against Spectre, Meltdown, Rowhammer, RAMbleed, etc. Moreover, data swapped
+/// out to the swap area should ***probably*** not be a problem.
 pub struct Secret {
   protected: Protected,
   salt: [u8; 32],
@@ -88,12 +88,13 @@ mod static_keys {
   use crate::{
     collection::{ExpansionTy, Vector},
     misc::{
-      Secret, SensitiveBytes, decrypt_aes256gcm, encrypt_aes256gcm_vectored,
+      Secret, SensitiveBytes, decrypt_aes256gcm, encrypt_aes256gcm_vectored, mlock_slice,
       secret::{Protected, copy_iter},
     },
     rng::CryptoRng,
   };
   use alloc::boxed::Box;
+  use core::slice;
   use sha2::{Digest, Sha256};
   use std::sync::OnceLock;
 
@@ -139,12 +140,9 @@ mod static_keys {
         let mut pages = Vector::new();
         for _ in 0..STATIC_KEYS_NUM {
           let mut page = Vector::with_capacity(STATIC_KEYS_SIZE)?;
-          // SAFETY: pointer comes from allocated memory
-          #[cfg(not(miri))]
-          unsafe {
-            let capacity = page.capacity();
-            crate::misc::mlock(page.as_ptr_mut(), capacity)?;
-          }
+          let capacity = page.capacity();
+          // SAFETY: slice comes from newly allocated memory
+          mlock_slice(unsafe { slice::from_raw_parts_mut(page.as_mut_ptr(), capacity) })?;
           page.expand(ExpansionTy::Len(STATIC_KEYS_SIZE), 0)?;
           rng.fill_slice(&mut page);
           pages.push(page.into_vec().into())?;

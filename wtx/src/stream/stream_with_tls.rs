@@ -11,6 +11,15 @@ pub trait StreamWithTls {
   fn tls_server_end_point(&self) -> crate::Result<Option<Self::TlsServerEndPoint>>;
 }
 
+impl StreamWithTls for () {
+  type TlsServerEndPoint = [u8; 0];
+
+  #[inline]
+  fn tls_server_end_point(&self) -> crate::Result<Option<Self::TlsServerEndPoint>> {
+    Ok(None)
+  }
+}
+
 impl<T> StreamWithTls for &T
 where
   T: StreamWithTls,

@@ -11,6 +11,13 @@ pub struct Xorshift64 {
   value: u64,
 }
 
+impl Xorshift64 {
+  /// Constructor
+  pub const fn new(value: u64) -> Self {
+    Self { value }
+  }
+}
+
 impl Rng for Xorshift64 {
   #[inline]
   fn u8(&mut self) -> u8 {

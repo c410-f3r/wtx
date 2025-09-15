@@ -3,29 +3,29 @@ use core::{mem, sync::atomic::Ordering};
 
 /// Sequential lock
 #[derive(Debug)]
-pub struct SeqLock {
+pub(crate) struct SeqLock {
   state: AtomicUsize,
 }
 
 impl SeqLock {
+  #[inline]
   pub(crate) const fn new() -> Self {
     Self { state: AtomicUsize::new(0) }
   }
 
+  #[inline]
   pub(crate) fn optimistic_read(&self) -> Option<usize> {
     let state = self.state.load(Ordering::Acquire);
     if state == 1 { None } else { Some(state) }
   }
 
-  /// Returns `true` if the current stamp is equal to `stamp`.
-  ///
-  /// This method should be called after optimistic reads to check whether they are valid. The
-  /// argument `stamp` should correspond to the one returned by method `optimistic_read`.
+  #[inline]
   pub(crate) fn validate_read(&self, stamp: usize) -> bool {
     fence(Ordering::Acquire);
     self.state.load(Ordering::Relaxed) == stamp
   }
 
+  #[inline]
   pub(crate) fn write(&'static self) -> SeqLockWriteGuard {
     let backoff = Backoff::new();
     loop {
