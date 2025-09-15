@@ -30,4 +30,4 @@ pub use mpmc::*;
 pub use mutex::{Mutex, MutexGuard, MutexLockFuture};
 pub use primitives::*;
 pub use ref_counter::RefCounter;
-pub use seq_lock::SeqLock;
+pub(crate) use seq_lock::SeqLock;

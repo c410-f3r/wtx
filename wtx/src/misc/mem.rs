@@ -63,7 +63,7 @@ pub unsafe fn mlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
 /// Locks a chunk of bytes into RAM, preventing it from being paged to the swap area.
 #[inline]
 pub fn mlock_slice(_bytes: &mut [u8]) -> crate::Result<()> {
-  // SAFETY: pointer comes from allocated memory
+  // SAFETY: parameters come from a valid slice
   #[cfg(not(miri))]
   unsafe {
     let len = _bytes.len();

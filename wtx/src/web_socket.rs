@@ -103,9 +103,9 @@ where
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
-  pub fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WSB) -> crate::Result<Self> {
+  pub fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WSB) -> Self {
     let nc_rsv1 = nc.rsv1();
-    Ok(Self {
+    Self {
       connection_state: ConnectionState::Open,
       is_in_continuation_frame: None,
       max_payload_len: _MAX_PAYLOAD_LEN,
@@ -115,7 +115,7 @@ where
       rng,
       stream,
       wsb,
-    })
+    }
   }
 
   /// Different mutable parts that allow sending received frames using common elements.

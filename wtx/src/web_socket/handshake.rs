@@ -101,7 +101,7 @@ where
             stream.write_all(sw.curr_bytes()).await?;
           }
           nb.clear();
-          return Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb)?);
+          return Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb));
         }
         Status::Partial => {}
       }
@@ -178,7 +178,7 @@ where
       break (self.compression.negotiate(res.headers.iter())?, len);
     };
     self.wsb.lease_mut().network_buffer.set_indices(0, len, read.wrapping_sub(len))?;
-    Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb)?)
+    Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb))
   }
 }
 
