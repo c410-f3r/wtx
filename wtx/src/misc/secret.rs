@@ -1,4 +1,4 @@
-use crate::{collection::Vector, misc::memset_slice_volatile};
+use crate::misc::memset_slice_volatile;
 use alloc::boxed::Box;
 use core::{
   fmt::{Debug, Formatter},
@@ -27,15 +27,7 @@ struct Protected(*mut [u8]);
 
 impl Protected {
   fn zeroed(size: usize) -> Protected {
-    Vector::from_vec(alloc::vec![0; size]).into_vec().into_boxed_slice().into()
-  }
-}
-
-impl Clone for Protected {
-  fn clone(&self) -> Self {
-    let mut vec = alloc::vec::Vec::with_capacity(self.len());
-    vec.extend_from_slice(self);
-    vec.into_boxed_slice().into()
+    alloc::vec![0; size].into_boxed_slice().into()
   }
 }
 
@@ -116,11 +108,24 @@ mod static_keys {
       Self::do_new(SensitiveBytes(data).0, rng)
     }
 
-    /// Decrypts secret  
-    pub fn peek<T>(&self, mut fun: impl FnMut(&[u8]) -> T) -> crate::Result<T> {
+    /// Decrypts secret temporally.
+    ///
+    /// The bytes of the closure shouldn't be cloned into another location. Failing to do so
+    /// will likely make the usage of this structure expensive and irrelevant.
+    ///
+    /// `buffer` is utilized for internal operations and can be freely reused for any other action
+    /// afterwards.
+    pub fn peek<T>(
+      &self,
+      buffer: &mut Vector<u8>,
+      mut fun: impl FnMut(&[u8]) -> T,
+    ) -> crate::Result<T> {
+      buffer.clear();
+      buffer.extend_from_copyable_slice(&self.protected)?;
+      let mut encrypted = SensitiveBytes(buffer);
       Ok(fun(decrypt_aes256gcm(
         &[],
-        &mut self.protected.clone(),
+        &mut encrypted.0,
         &secret_key(&self.salt)?.as_ref().try_into()?,
       )?))
     }
@@ -179,21 +184,25 @@ mod static_keys {
 
 #[cfg(test)]
 mod tests {
-  use crate::{misc::Secret, rng::ChaCha20, tests::_32_bytes_seed};
+  use crate::{collection::Vector, misc::Secret, rng::ChaCha20, tests::_32_bytes_seed};
 
   const DATA: [u8; 4] = [1, 2, 3, 4];
 
   #[test]
   fn peek() {
+    let mut buffer = Vector::new();
     let mut data = DATA;
     let secret = Secret::new(&mut data, &mut ChaCha20::new(_32_bytes_seed())).unwrap();
     assert_eq!(data, [0, 0, 0, 0]);
     let mut option = None;
     secret
-      .peek(|bytes| {
+      .peek(&mut buffer, |bytes| {
         option = Some(bytes.try_into().unwrap());
       })
       .unwrap();
     assert_eq!(option, Some(DATA));
+    for elem in buffer {
+      assert_eq!(elem, 0);
+    }
   }
 }
