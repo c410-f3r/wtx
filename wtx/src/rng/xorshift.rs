@@ -13,6 +13,7 @@ pub struct Xorshift64 {
 
 impl Xorshift64 {
   /// Constructor
+  #[inline]
   pub const fn new(value: u64) -> Self {
     Self { value }
   }

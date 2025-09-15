@@ -14,15 +14,13 @@ use wtx::{
 libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
   Runtime::new()
     .block_on(async move {
-      let Ok(mut ws) = WebSocket::<_, _, _, _, false>::new(
+      let mut ws = WebSocket::<_, _, _, _, false>::new(
         (),
         false,
         Xorshift64::from(simple_seed()),
         BytesStream::default(),
         WebSocketBuffer::default(),
-      ) else {
-        return;
-      };
+      );
       ws.set_max_payload_len(u16::MAX.into());
       let mut frame = Frame::new_fin(data.0, data.1);
       if ws.write_frame(&mut frame).await.is_err() {
