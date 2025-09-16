@@ -26,11 +26,11 @@ use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
   database::{Executor, Record},
-  de::argon2_pwd,
   http::{
     ReqResBuffer, ReqResData, SessionManagerTokio, SessionMiddleware, SessionState, StatusCode,
     server_framework::{DynParams, Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
+  misc::argon2_pwd,
   pool::{PostgresRM, SimplePoolTokio},
   rng::{ChaCha20, SeedableRng},
 };

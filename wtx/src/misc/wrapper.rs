@@ -37,7 +37,7 @@ impl<T> LeaseMut<Wrapper<T>> for Wrapper<T> {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use crate::{de::serde_collect_seq_rslt, misc::Wrapper};
+  use crate::misc::{Wrapper, serialize_seq_with_serde};
   use core::fmt::Display;
   use serde::{Serialize, Serializer};
 
@@ -52,7 +52,7 @@ mod serde {
     where
       S: Serializer,
     {
-      serde_collect_seq_rslt(serializer, self.0.clone())
+      serialize_seq_with_serde(serializer, self.0.clone())
     }
   }
 }
