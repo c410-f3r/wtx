@@ -71,9 +71,40 @@ pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};
 pub use wrapper::Wrapper;
 
+/// Hashes a password using the `argon2` algorithm.
+#[cfg(feature = "argon2")]
+pub fn argon2_pwd<const N: usize>(
+  blocks: &mut crate::collection::Vector<argon2::Block>,
+  pwd: &[u8],
+  salt: &[u8],
+) -> crate::Result<[u8; N]> {
+  use crate::collection::ExpansionTy;
+  use argon2::{Algorithm, Argon2, Params, Version};
+
+  let params = const {
+    let output_len = Some(N);
+    let Ok(elem) = Params::new(
+      Params::DEFAULT_M_COST,
+      Params::DEFAULT_T_COST,
+      Params::DEFAULT_P_COST,
+      output_len,
+    ) else {
+      panic!();
+    };
+    elem
+  };
+  blocks.expand(ExpansionTy::Len(params.block_count()), argon2::Block::new())?;
+  let mut out = [0; N];
+  let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+  let rslt = argon2.hash_password_into_with_memory(pwd, salt, &mut out, &mut *blocks);
+  blocks.clear();
+  rslt?;
+  Ok(out)
+}
+
 /// Deserializes a sequence of elements info `buffer`. Works with any deserializer of any format.
 #[cfg(feature = "serde")]
-pub fn collect_seq_with_serde<'de, D, T>(
+pub fn deserialize_seq_into_buffer_with_serde<'de, D, T>(
   deserializer: D,
   buffer: &mut crate::collection::Vector<T>,
 ) -> crate::Result<()>
@@ -127,6 +158,78 @@ where
 #[inline]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
   opt.ok_or(crate::Error::NoInnerValue(type_name::<T>().into()))
+}
+
+/// Deserializes a sequence passing each element to `cb`. Works with any deserializer of any format.
+#[cfg(feature = "serde")]
+pub fn deserialize_seq_into_cb_with_serde<'de, D, E, T>(
+  deserializer: D,
+  cb: impl FnMut(T) -> Result<(), E>,
+) -> Result<(), E>
+where
+  D: serde::de::Deserializer<'de>,
+  E: core::fmt::Display + From<D::Error>,
+  T: serde::Deserialize<'de>,
+{
+  use core::{any::type_name, fmt::Formatter, marker::PhantomData};
+  use serde::{
+    Deserialize,
+    de::{SeqAccess, Visitor},
+  };
+
+  struct LocalVisitor<E, F, T>(PhantomData<E>, F, PhantomData<T>);
+
+  impl<'de, E, F, T> Visitor<'de> for LocalVisitor<E, F, T>
+  where
+    E: core::fmt::Display,
+    F: FnMut(T) -> Result<(), E>,
+    T: Deserialize<'de>,
+  {
+    type Value = ();
+
+    #[inline]
+    fn expecting(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
+      formatter.write_fmt(format_args!("a sequence of `{}`", type_name::<T>()))
+    }
+
+    #[inline]
+    fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+      A: SeqAccess<'de>,
+    {
+      while let Some(elem) = seq.next_element()? {
+        (self.1)(elem).map_err(serde::de::Error::custom)?;
+      }
+      Ok(())
+    }
+  }
+
+  deserializer.deserialize_seq(LocalVisitor(PhantomData, cb, PhantomData))?;
+  Ok(())
+}
+
+/// Similar to `collect_seq` of `serde` but expects a `Result`.
+#[cfg(feature = "serde")]
+pub fn serialize_seq_with_serde<E, I, S, T>(ser: S, into_iter: I) -> Result<S::Ok, S::Error>
+where
+  E: core::fmt::Display,
+  I: IntoIterator<Item = Result<T, E>>,
+  S: serde::Serializer,
+  T: serde::Serialize,
+{
+  fn conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
+    match size_hint {
+      (lo, Some(hi)) if lo == hi => Some(lo),
+      _ => None,
+    }
+  }
+  use serde::ser::{Error, SerializeSeq};
+  let iter = into_iter.into_iter();
+  let mut sq = ser.serialize_seq(conservative_size_hint_len(iter.size_hint()))?;
+  for elem in iter {
+    sq.serialize_element(&elem.map_err(S::Error::custom)?)?;
+  }
+  sq.end()
 }
 
 /// Sleeps for the specified amount of time.
