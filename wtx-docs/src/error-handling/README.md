@@ -2,7 +2,7 @@
 
 The majority of operations performed by `WTX` is fallible, in other words, most functions or methods return a `Result` enum instead of panicking under the hood. A considerable effort is put to hint the compiler that a branch is unreachable to optimize code generation but that is another topic.
 
-Due to this characteristic downstream users are encouraged to create their own `Error` enum with a `WTX` variant along side a `From` trait implementation. Not to mention the unlocking of the useful `?` operator that performs the automatically conversion of any supported error element.
+Due to this characteristic downstream users are encouraged to create their own `Error` enum with a `WTX` variant along side a `From` trait implementation. Not to mention the unlocking of the useful `?` operator that performs the automatic conversion of any supported error element.
 
 ```rust,edition2024
 extern crate wtx;

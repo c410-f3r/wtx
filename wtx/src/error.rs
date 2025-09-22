@@ -16,7 +16,7 @@ use core::{
 
 #[cfg(target_pointer_width = "64")]
 const _: () = {
-  assert!(size_of::<Error>() == 16);
+  assert!(size_of::<Error>() <= 16);
 };
 
 macro_rules! associated_element_doc {

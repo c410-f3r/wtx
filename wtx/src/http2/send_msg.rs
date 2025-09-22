@@ -326,8 +326,9 @@ fn change_initial_stream_state<const IS_CLIENT: bool>(stream_state: &mut StreamS
 fn data_frame_len(bytes_len: usize) -> u32 {
   u32::try_from(bytes_len).unwrap_or_default()
 }
-
-// Tries to at least send initial headers when the windows size does not allow sending data frames
+/// Returns `true` if the message was fully sent.
+///
+/// Tries to at least send initial headers when the windows size does not allow sending data frames.
 async fn do_send_msg<SW, const IS_CLIENT: bool>(
   data_bytes: &mut &[u8],
   (has_headers, has_data): (&mut bool, &mut bool),
@@ -466,13 +467,6 @@ async fn fast_path<SW, const IS_CLIENT: bool>(
 where
   SW: StreamWriter,
 {
-  fn has_delimited_bytes(data_bytes: &[u8], len: u32) -> Option<U31> {
-    if !data_bytes.is_empty() && data_bytes.len() <= *Usize::from(len) {
-      return Some(U31::from_u32(u32::try_from(data_bytes.len()).ok()?));
-    }
-    None
-  }
-
   encode_headers::<IS_CLIENT>(headers, (hpack_enc, hpack_enc_buffer), (hsreqh, hsresh))?;
 
   'headers_with_others: {
@@ -548,6 +542,13 @@ where
     stream_id,
   )
   .await
+}
+
+fn has_delimited_bytes(data_bytes: &[u8], len: u32) -> Option<U31> {
+  if !data_bytes.is_empty() && data_bytes.len() <= *Usize::from(len) {
+    return Some(U31::from_u32(u32::try_from(data_bytes.len()).ok()?));
+  }
+  None
 }
 
 fn split_frame_bytes(bytes: &[u8], len: u32) -> (&[u8], &[u8]) {
