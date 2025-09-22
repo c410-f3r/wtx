@@ -7,9 +7,9 @@ embassy-net = { default-features = false, features = ["tcp"], optional = true, v
 embassy-time = { default-features = false, optional = true, version = "0.3" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
-foldhash = { default-features = false, optional = true, version = "0.1" }
+foldhash = { default-features = false, optional = true, version = "0.2" }
 getrandom = { default-features = false, optional = true, version = "0.3" }
-hashbrown = { default-features = false, features = ["default-hasher", "inline-more"], optional = true, version = "0.15" }
+hashbrown = { default-features = false, features = ["default-hasher", "inline-more"], optional = true, version = "0.16" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 libc = { default-features = false, optional = true, version = "0.2" }
 loom = { default-features = false, optional = true, version = "0.7" }

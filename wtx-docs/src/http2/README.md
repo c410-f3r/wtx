@@ -6,6 +6,22 @@ Passes the `hpack-test-case` and the `h2spec` test suites. Due to official and u
 
 To use this functionality, it is necessary to activate the `http2` feature.
 
+## HTTP/1.1 Upgrade
+
+Does not support upgrading from HTTP/1.1 because browsers also don't support such a feature. Connections must be established directly using HTTP/2 or via ALPN (Application-Layer Protocol Negotiation) during the TLS handshake.
+
+## Operating Modes
+
+There are two distinct operating modes for handling data transmission.
+
+### Automatic Mode
+
+The system takes full responsibility. When you provide a buffer of data to be sent, the implementation automatically fragments it into appropriate `DATA` frames based on the maximum frame size and the current flow control window.
+
+### Manual Mode
+
+Allows more control but you should know HTTP/2 concepts and their interactions like flow control. In this mode the user is responsible for constructing and sending individual `HEADERS`, `DATA` and `TRAILERS` frames.
+
 ## Client Example
 
 ```rust,edition2024,no_run

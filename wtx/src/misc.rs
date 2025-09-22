@@ -165,11 +165,12 @@ pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
 pub fn deserialize_seq_into_cb_with_serde<'de, D, E, T>(
   deserializer: D,
   cb: impl FnMut(T) -> Result<(), E>,
-) -> Result<(), E>
+) -> crate::Result<()>
 where
   D: serde::de::Deserializer<'de>,
-  E: core::fmt::Display + From<D::Error>,
+  E: core::fmt::Display,
   T: serde::Deserialize<'de>,
+  crate::Error: From<D::Error>,
 {
   use core::{any::type_name, fmt::Formatter, marker::PhantomData};
   use serde::{
