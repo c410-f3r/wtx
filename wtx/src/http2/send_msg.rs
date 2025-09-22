@@ -327,7 +327,7 @@ fn data_frame_len(bytes_len: usize) -> u32 {
   u32::try_from(bytes_len).unwrap_or_default()
 }
 /// Returns `true` if the message was fully sent.
-/// 
+///
 /// Tries to at least send initial headers when the windows size does not allow sending data frames.
 async fn do_send_msg<SW, const IS_CLIENT: bool>(
   data_bytes: &mut &[u8],
