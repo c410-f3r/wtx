@@ -75,6 +75,6 @@ async fn echo(_: State<'_, (), (), ReqResBuffer>) -> wtx::Result<VerbatimParams>
 
 ## Example
 
-```txt
+```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-instances/http-server-framework-examples/http-server-framework.rs}}
 ```

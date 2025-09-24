@@ -10,7 +10,6 @@ pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
-mod auto_clear;
 mod connection_state;
 #[cfg(feature = "aes-gcm")]
 mod crypto;
@@ -40,7 +39,6 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-pub use auto_clear::AutoClear;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, time::Duration};
 #[cfg(feature = "aes-gcm")]

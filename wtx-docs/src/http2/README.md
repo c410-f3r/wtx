@@ -4,6 +4,8 @@ Implementation of [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541) and [
 
 Passes the `hpack-test-case` and the `h2spec` test suites. Due to official and unofficial deprecations, prioritization and server-push are not supported.
 
+There are a bunch of low-level details that most individuals don't care about when they are building applications. If that is your case, high level interfaces are available in `http-client-pool` or `http-server-framework`.
+
 To use this functionality, it is necessary to activate the `http2` feature.
 
 ## HTTP/1.1 Upgrade
@@ -20,7 +22,7 @@ The system takes full responsibility. When you provide a buffer of data to be se
 
 ### Manual Mode
 
-Allows more control but you should know HTTP/2 concepts and their interactions like flow control. In this mode the user is responsible for constructing and sending individual `HEADERS`, `DATA` and `TRAILERS` frames.
+Allows more control but you should know HTTP/2 concepts and their interactions. In this mode the user is responsible for constructing and sending individual `HEADERS`, `DATA` and `TRAILERS` frames.
 
 ## Client Example
 

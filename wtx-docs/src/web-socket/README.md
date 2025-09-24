@@ -25,7 +25,7 @@ To get the most performance possible, try compiling your program with `RUSTFLAGS
 
 Although not officially endorsed, the `no-masking` parameter described at <https://datatracker.ietf.org/doc/html/draft-damjanovic-websockets-nomasking-02> is supported to increase performance. If such a thing is not desirable, please make sure to check the handshake parameters to avoid accidental scenarios.
 
-To make everything work as intended both parties, client and server, need to implement this feature. For example, web browser won't stop masking frames.
+To make everything work as intended both parties, client and server, need to implement this feature. For example, web browsers won't stop masking frames.
 
 ## Ping and Close frames
 
