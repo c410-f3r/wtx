@@ -6,6 +6,7 @@ mod macros;
 mod array_string;
 mod array_vector;
 mod array_wrapper;
+mod auto_clear;
 mod blocks_deque;
 mod clear;
 mod deque;
@@ -23,6 +24,7 @@ pub use array_vector::{
   ArrayVectorUsize,
 };
 pub use array_wrapper::ArrayWrapper;
+pub use auto_clear::AutoClear;
 pub use blocks_deque::{Block, BlocksDeque, BlocksDequeBuilder, BlocksDequeError};
 pub use clear::Clear;
 pub use deque::{Deque, DequeueError};

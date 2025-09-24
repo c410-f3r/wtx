@@ -1,6 +1,5 @@
-use core::fmt::Debug;
-
 use crate::misc::memset_slice_volatile;
+use core::fmt::Debug;
 
 /// Bytes that are zeroed when dropped. See `Secret` for a more confidential container.
 pub struct SensitiveBytes<B>(

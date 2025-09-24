@@ -86,9 +86,9 @@ fn copy_iter(from: &[u8], to: &mut [u8]) {
 
 mod static_keys {
   use crate::{
-    collection::{ExpansionTy, Vector},
+    collection::{Clear, ExpansionTy, TryExtend, Vector},
     misc::{
-      Secret, SensitiveBytes, decrypt_aes256gcm, encrypt_aes256gcm_vectored, mlock_slice,
+      LeaseMut, Secret, SensitiveBytes, decrypt_aes256gcm, encrypt_aes256gcm_vectored, mlock_slice,
       secret::{Protected, copy_iter},
     },
     rng::CryptoRng,
@@ -116,18 +116,17 @@ mod static_keys {
     ///
     /// `buffer` is utilized for internal operations and can be freely reused for any other action
     /// afterwards.
-    pub fn peek<T>(
-      &self,
-      buffer: &mut Vector<u8>,
-      mut fun: impl FnMut(&[u8]) -> T,
-    ) -> crate::Result<T> {
+    pub fn peek<B, E, T>(&self, buffer: &mut B, mut fun: impl FnMut(&[u8]) -> T) -> Result<T, E>
+    where
+      for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8], Error = E>,
+      E: From<crate::Error>,
+    {
       buffer.clear();
-      buffer.extend_from_copyable_slice(&self.protected)?;
-      let mut encrypted = SensitiveBytes(buffer);
+      buffer.try_extend(&self.protected)?;
       Ok(fun(decrypt_aes256gcm(
         &[],
-        &mut encrypted.0,
-        &secret_key(&self.salt)?.as_ref().try_into()?,
+        &mut SensitiveBytes(buffer.lease_mut()).0,
+        &secret_key(&self.salt).as_ref().try_into().map_err(crate::Error::from)?,
       )?))
     }
 
@@ -151,7 +150,7 @@ mod static_keys {
       });
       let mut salt = [0; 32];
       rng.fill_slice(&mut salt);
-      let secret_key = secret_key(&salt)?.as_ref().try_into()?;
+      let secret_key = secret_key(&salt).as_ref().try_into()?;
       let (nonce, tag) = encrypt_aes256gcm_vectored(&[], data, &secret_key, rng)?;
       let all_len = nonce.len().wrapping_add(data.len()).wrapping_add(tag.len());
       let mut protected = Protected::zeroed(all_len);
@@ -172,11 +171,11 @@ mod static_keys {
     from.iter().zip(to.iter_mut()).for_each(|(lhs, rhs)| **rhs = *lhs);
   }
 
-  fn secret_key(salt: &[u8; 32]) -> crate::Result<Protected> {
+  fn secret_key(salt: &[u8; 32]) -> Protected {
     let mut ctx = Sha256::new();
     ctx.update(salt);
     STATIC_KEYS.wait().iter().for_each(|static_key| ctx.update(static_key));
-    Ok(Protected::from(<[u8; 32]>::from(ctx.finalize()).as_ref()))
+    Protected::from(<[u8; 32]>::from(ctx.finalize()).as_ref())
   }
 }
 
