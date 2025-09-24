@@ -64,7 +64,7 @@ where
   }
 }
 
-impl<'slice, I, L, const N: usize> TryExtend<Wrapper<I>> for ArrayString<L, N>
+impl<I, L, const N: usize> TryExtend<Wrapper<I>> for ArrayString<L, N>
 where
   I: IntoIterator<Item = char>,
   L: LinearStorageLen,
