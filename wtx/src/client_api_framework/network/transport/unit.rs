@@ -1,7 +1,7 @@
 use crate::client_api_framework::{
   Api, SendBytesSource,
   misc::{
-    manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+    log_req, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
     manage_before_sending_pkg,
   },
   network::{
@@ -35,7 +35,8 @@ impl<TP> SendingTransport<TP> for () {
   where
     A: Api,
   {
-    manage_before_sending_bytes(bytes, pkgs_aux, self).await?;
+    log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, &mut *self, None);
+    manage_before_sending_bytes(pkgs_aux).await?;
     manage_after_sending_bytes(pkgs_aux).await?;
     Ok(())
   }
@@ -50,6 +51,7 @@ impl<TP> SendingTransport<TP> for () {
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
+    log_req::<_, TP>(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, self, None);
     manage_before_sending_pkg(pkg, pkgs_aux, self).await?;
     manage_after_sending_pkg(pkg, pkgs_aux, self).await?;
     Ok(())

@@ -4,8 +4,8 @@ use crate::{
   client_api_framework::{
     Api, ClientApiFrameworkError, SendBytesSource,
     misc::{
-      FromBytes, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
-      manage_before_sending_pkg,
+      FromBytes, log_req, manage_after_sending_bytes, manage_after_sending_pkg,
+      manage_before_sending_bytes, manage_before_sending_pkg,
     },
     network::{
       TransportGroup,
@@ -127,7 +127,8 @@ where
   where
     A: Api,
   {
-    manage_before_sending_bytes(bytes, pkgs_aux, &mut *self).await?;
+    log_req(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, &mut *self, None);
+    manage_before_sending_bytes(pkgs_aux).await?;
     self.requests.push(Cow::Owned(FromBytes::from_bytes(bytes.bytes(&pkgs_aux.byte_buffer))?))?;
     pkgs_aux.byte_buffer.clear();
     manage_after_sending_bytes(pkgs_aux).await?;
@@ -144,6 +145,7 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
+    log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, &mut *self, None);
     manage_before_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
     pkgs_aux.byte_buffer.clear();

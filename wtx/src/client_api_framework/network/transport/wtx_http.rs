@@ -2,7 +2,7 @@ use crate::{
   client_api_framework::{
     Api, SendBytesSource,
     misc::{
-      manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      log_req, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
@@ -111,7 +111,7 @@ where
 {
   let tp = pkgs_aux.tp.lease_mut();
   let (req_params, res_params) = tp.ext_params_mut();
-  let HttpReqParams { headers, .. } = req_params;
+  let HttpReqParams { headers, uri, .. } = req_params;
   let HttpResParams { status_code } = res_params;
   let mut rrb = ReqResBuffer::empty();
   mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
@@ -121,7 +121,7 @@ where
   mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut res.rrd.headers, headers);
   *status_code = res.status_code;
-  log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::HTTP);
+  log_res(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, TransportGroup::HTTP, Some(uri));
   Ok(())
 }
 
@@ -137,7 +137,13 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
-  manage_before_sending_bytes(bytes, pkgs_aux, client).await?;
+  log_req::<_, TP>(
+    bytes.bytes(&pkgs_aux.byte_buffer),
+    pkgs_aux.log_body.1,
+    client,
+    Some(&pkgs_aux.tp.lease().ext_req_params().uri),
+  );
+  manage_before_sending_bytes(pkgs_aux).await?;
   manage_params(pkgs_aux)?;
   let params = pkgs_aux.tp.lease_mut();
   let HttpReqParams { headers, method, uri, .. } = &mut params.ext_params_mut().0;
@@ -160,6 +166,12 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
+  log_req::<_, TP>(
+    &pkgs_aux.byte_buffer,
+    pkgs_aux.log_body.1,
+    client,
+    Some(&pkgs_aux.tp.lease().ext_req_params().uri),
+  );
   manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
   manage_params(pkgs_aux)?;
   let params = pkgs_aux.tp.lease_mut();

@@ -7,7 +7,7 @@ use crate::{
   client_api_framework::{
     Api, SendBytesSource,
     misc::{
-      manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
+      log_req, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
     },
     network::{
@@ -45,7 +45,8 @@ where
   T: Transport<TP>,
   TP: LeaseMut<WsParams>,
 {
-  manage_before_sending_bytes(bytes, pkgs_aux, trans).await?;
+  log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, trans, None);
+  manage_before_sending_bytes(pkgs_aux).await?;
   if let SendBytesSource::Param(elem) = bytes {
     pkgs_aux.byte_buffer.extend_from_copyable_slice(elem)?;
   }
@@ -69,6 +70,7 @@ where
   T: Transport<TP>,
   TP: LeaseMut<WsParams>,
 {
+  log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, trans, None);
   manage_before_sending_pkg(pkg, pkgs_aux, trans).await?;
   cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.byte_buffer), trans)).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, trans).await
