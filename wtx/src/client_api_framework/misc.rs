@@ -8,11 +8,12 @@ mod request_throttling;
 
 use crate::{
   client_api_framework::{
-    Api, SendBytesSource,
+    Api,
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
   de::{Encode, format::EncodeWrapper},
+  misc::{UriString, from_utf8_basic},
 };
 pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};
@@ -50,16 +51,12 @@ where
   Ok(())
 }
 
-pub(crate) async fn manage_before_sending_bytes<A, DRSR, T, TP>(
-  bytes: SendBytesSource<'_>,
+pub(crate) async fn manage_before_sending_bytes<A, DRSR, TP>(
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-  trans: &mut T,
 ) -> Result<(), A::Error>
 where
   A: Api,
-  T: Transport<TP>,
 {
-  log_req(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, trans);
   pkgs_aux.api.before_sending().await?;
   Ok(())
 }
@@ -84,17 +81,17 @@ where
   pkg
     .ext_req_content_mut()
     .encode(&mut pkgs_aux.drsr, &mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
-  log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, trans);
   Ok(())
 }
 
-fn log_req<T, TP>(_bytes: &[u8], _log_body: bool, _trans: &mut T)
-where
+pub(crate) fn log_req<T, TP>(
+  _bytes: &[u8],
+  _log_body: bool,
+  _trans: &mut T,
+  _uri: Option<&UriString>,
+) where
   T: Transport<TP>,
 {
-  if _log_body {
-    _debug!(trans_ty = display(_trans.ty()), "Request: {:?}", crate::misc::from_utf8_basic(_bytes));
-  } else {
-    _debug!(trans_ty = display(_trans.ty()), "Request");
-  }
+  let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
+  _debug!(trans_ty = display(_trans.ty()), r#"Request ({_uri:?}) "{_body:?}"#);
 }

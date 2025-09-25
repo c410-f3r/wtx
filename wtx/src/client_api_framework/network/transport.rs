@@ -52,12 +52,14 @@ where
 /// Not used in [`crate::network::transport::Transport::send_recv_decode_batch`] because
 /// [`crate::Requests::decode_responses`] takes precedence.
 #[cfg(any(feature = "http2", feature = "web-socket"))]
-pub(crate) fn log_res(_log_body: bool, _res: &[u8], _tg: TransportGroup) {
-  if _log_body {
-    _debug!(trans_ty = display(_tg), "Response: {:?}", crate::misc::from_utf8_basic(_res));
-  } else {
-    _debug!(trans_ty = display(_tg), "Response");
-  }
+pub(crate) fn log_res(
+  _bytes: &[u8],
+  _log_body: bool,
+  _tg: TransportGroup,
+  _uri: Option<&crate::misc::UriString>,
+) {
+  let _body = if _log_body { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
+  _debug!(trans_ty = display(_tg), r#"Response ({_uri:?}) "{_body:?}"#);
 }
 
 #[cfg(feature = "tokio")]

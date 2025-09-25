@@ -32,7 +32,7 @@ where
     pkgs_aux.byte_buffer.clear();
     let _frame =
       self.read_frame(&mut pkgs_aux.byte_buffer, WebSocketPayloadOrigin::Consistent).await?;
-    log_res(pkgs_aux.log_body.1, &pkgs_aux.byte_buffer, TransportGroup::WebSocket);
+    log_res(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, TransportGroup::WebSocket, None);
     Ok(())
   }
 }

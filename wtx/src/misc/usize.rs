@@ -37,8 +37,17 @@ impl Usize {
     Self(from)
   }
 
-  pub(crate) const fn into_usize(self) -> usize {
-    self.0
+  // * 64 bits
+  //
+  // u64::MAX        = 18446744073709551615
+  // u64::MAX as f64 = 18446744073709552000
+  //
+  // * 32 bits
+  //
+  // Infallible operation
+  #[expect(clippy::cast_precision_loss, reason = "see comments")]
+  pub(crate) const fn into_f64(self) -> f64 {
+    self.0 as f64
   }
 
   #[cfg(feature = "mysql")]
@@ -51,6 +60,10 @@ impl Usize {
 
   pub(crate) const fn into_u64(self) -> u64 {
     self.0 as u64
+  }
+
+  pub(crate) const fn into_usize(self) -> usize {
+    self.0
   }
 }
 
@@ -103,6 +116,13 @@ impl From<usize> for Usize {
   #[inline]
   fn from(from: usize) -> Self {
     Self::from_usize(from)
+  }
+}
+
+impl From<Usize> for f64 {
+  #[inline]
+  fn from(from: Usize) -> Self {
+    from.into_f64()
   }
 }
 
