@@ -152,8 +152,8 @@ where
 
 /// Useful when a request returns an optional field but the actual usage is within a
 /// [`core::result::Result`] context.
-#[track_caller]
 #[inline]
+#[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
   opt.ok_or(crate::Error::NoInnerValue(type_name::<T>().into()))
 }

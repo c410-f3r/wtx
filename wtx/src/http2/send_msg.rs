@@ -104,40 +104,42 @@ where
 {
   let (mut has_headers, mut has_data) = (false, false);
 
-  let mut lock_pin = pin!(hd.lock());
-  let rslt = poll_fn(move |cx| {
-    if !is_conn_open.load(Ordering::Relaxed) {
-      return Poll::Ready(Ok(Http2SendStatus::ClosedConnection));
-    }
-    let mut lock = lock_pin!(cx, hd, lock_pin);
-    let hdpm = lock.parts_mut();
-    let fut = do_send_msg::<_, IS_CLIENT>(
-      &mut data_bytes,
-      (&mut has_headers, &mut has_data),
-      headers,
-      hdpm,
-      (hsreqh, hsresh),
-      stream_id,
-      cx.waker(),
-      &mut cb,
-    );
-    if let Poll::Ready(rslt) = pin!(fut).poll(cx) {
-      if let Some(is_fully_sent) = rslt? {
-        if is_fully_sent {
-          if IS_CLIENT {
-            _trace!("Request has been sent");
-          } else {
-            _trace!("Response has been sent");
-          };
-          return Poll::Ready(Ok(Http2SendStatus::Ok));
-        }
-      } else {
-        return Poll::Ready(Ok(Http2SendStatus::ClosedStream));
+  let rslt = {
+    let mut lock_pin = pin!(hd.lock());
+    poll_fn(move |cx| {
+      if !is_conn_open.load(Ordering::Relaxed) {
+        return Poll::Ready(Ok(Http2SendStatus::ClosedConnection));
       }
-    }
-    Poll::Pending
-  })
-  .await;
+      let mut lock = lock_pin!(cx, hd, lock_pin);
+      let hdpm = lock.parts_mut();
+      let fut = do_send_msg::<_, IS_CLIENT>(
+        &mut data_bytes,
+        (&mut has_headers, &mut has_data),
+        headers,
+        hdpm,
+        (hsreqh, hsresh),
+        stream_id,
+        cx.waker(),
+        &mut cb,
+      );
+      if let Poll::Ready(rslt) = pin!(fut).poll(cx) {
+        if let Some(is_fully_sent) = rslt? {
+          if is_fully_sent {
+            if IS_CLIENT {
+              _trace!("Request has been sent");
+            } else {
+              _trace!("Response has been sent");
+            };
+            return Poll::Ready(Ok(Http2SendStatus::Ok));
+          }
+        } else {
+          return Poll::Ready(Ok(Http2SendStatus::ClosedStream));
+        }
+      }
+      Poll::Pending
+    })
+    .await
+  };
   if let Err(err) = &rslt {
     process_higher_operation_err(err, hd).await;
   }

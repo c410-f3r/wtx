@@ -43,7 +43,7 @@ pub(crate) fn check_read_close_frame(
   payload: &[u8],
 ) -> crate::Result<bool> {
   if connection_state.is_closed() {
-    return Err(crate::Error::ClosedConnection);
+    return Err(crate::Error::ClosedWebSocketConnection);
   }
   *connection_state = ConnectionState::Closed;
   match payload {

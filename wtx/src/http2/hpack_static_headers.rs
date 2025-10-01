@@ -20,7 +20,7 @@ impl HpackStaticRequestHeaders<'_> {
   pub(crate) fn iter(&self) -> impl Iterator<Item = (HpackHeaderBasic, &str)> {
     let Self { authority, method, path, protocol, scheme } = *self;
     let enums = [
-      method.map(|el| (HpackHeaderBasic::Method(el), "")),
+      method.map(|el| (HpackHeaderBasic::Method(el), el.strings().custom[0])),
       protocol.map(|el| (HpackHeaderBasic::Protocol(el), "")),
     ]
     .into_iter()

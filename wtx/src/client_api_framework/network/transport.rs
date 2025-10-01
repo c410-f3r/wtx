@@ -46,20 +46,27 @@ where
   type ReqId = T::ReqId;
 }
 
-/// Used in [`crate::network::transport::Transport::send_recv_decode_contained`] and all implementations of
-/// [`crate::Requests::decode_responses`].
-///
-/// Not used in [`crate::network::transport::Transport::send_recv_decode_batch`] because
-/// [`crate::Requests::decode_responses`] takes precedence.
-#[cfg(any(feature = "http2", feature = "web-socket"))]
-pub(crate) fn log_res(
+#[cfg(feature = "web-socket")]
+pub(crate) fn log_generic_res(_bytes: &[u8], _log_body: bool, _tg: TransportGroup) {
+  let _body = if _log_body { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
+  _debug!(body = display(_body.unwrap_or_default()), trans_ty = display(_tg), "Response");
+}
+#[cfg(feature = "http2")]
+pub(crate) fn log_http_res(
   _bytes: &[u8],
   _log_body: bool,
+  _status_code: crate::http::StatusCode,
   _tg: TransportGroup,
-  _uri: Option<&crate::misc::UriString>,
+  _uri: &crate::misc::UriString,
 ) {
   let _body = if _log_body { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
-  _debug!(trans_ty = display(_tg), r#"Response ({_uri:?}) "{_body:?}"#);
+  _debug!(
+    body = display(_body.unwrap_or_default()),
+    status_code = display(_status_code),
+    trans_ty = display(_tg),
+    uri = display(_uri.as_str()),
+    "Response"
+  );
 }
 
 #[cfg(feature = "tokio")]

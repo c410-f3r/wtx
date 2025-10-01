@@ -156,8 +156,7 @@ where
             return Poll::Pending;
           };
           let prft = prft!(fi, local_hdpm, pfb, stream_reader);
-          let poll = pin!(prft.header_server_init(ish, &mut local_hdpm.hb.sorp)).poll(cx);
-          let rslt = ready!(poll);
+          let rslt = ready!(pin!(prft.header_server_init(ish, &mut local_hdpm.hb.sorp)).poll(cx));
           ish.waker.wake_by_ref();
           local_hdpm.hb.initial_server_headers.increase_cursor();
           Poll::Ready(rslt)

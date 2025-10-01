@@ -18,9 +18,12 @@ impl HttpParams {
     Self(
       HttpReqParams {
         headers: Headers::new(),
+        host: true,
         method: Method::Get,
         mime: None,
         uri: UriString::new(uri),
+        user_agent_custom: None,
+        user_agent_default: true,
       },
       HttpResParams { status_code: StatusCode::Forbidden },
     )
@@ -67,24 +70,40 @@ impl TransportParams for HttpParams {
 #[derive(Debug)]
 #[doc = generic_trans_req_params_doc!("HTTP")]
 pub struct HttpReqParams {
-  /// Http headers.
+  /// Http headers
   pub headers: Headers,
-  /// Http method.
+  /// If the host should be included in the headers.
+  ///
+  /// Defaults to `true`.
+  pub host: bool,
+  /// Http method
   pub method: Method,
-  /// MIME type.
+  /// MIME type
   pub mime: Option<Mime>,
-  /// URI.
+  /// URI
   pub uri: UriString,
+  /// Custom user agent that will be included in the headers
+  ///
+  /// If `user_agent_default` is `true`, then this field becomes a NO-OP.
+  pub user_agent_custom: Option<&'static str>,
+  /// System's user agent that will be included in the headers. For example, "wtx/0.0.1".
+  ///
+  /// Defaults to `true`.
+  pub user_agent_default: bool,
 }
 
 impl HttpReqParams {
   /// Sets the inner parameters with their default values.
   #[inline]
   pub fn reset(&mut self) {
-    self.headers.clear();
-    self.method = Method::Get;
-    self.mime = None;
-    self.uri.truncate_with_initial_len();
+    let Self { headers, host, method, mime, uri, user_agent_custom, user_agent_default } = self;
+    headers.clear();
+    *host = true;
+    *method = Method::Get;
+    *mime = None;
+    uri.truncate_with_initial_len();
+    *user_agent_custom = None;
+    *user_agent_default = true;
   }
 }
 

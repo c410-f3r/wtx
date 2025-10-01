@@ -129,7 +129,7 @@ mod http2 {
       let (hrs, res_rrb) = req_id.recv_res(rrb).await?;
       let status_code = match hrs {
         Http2RecvStatus::Eos(elem) => elem,
-        _ => return Err(crate::Error::ClosedConnection),
+        _ => return Err(crate::Error::ClosedHttpConnection),
       };
       req_id.common().clear(false).await?;
       Ok(Response::http2(res_rrb, status_code))
@@ -148,7 +148,7 @@ mod http2 {
     {
       let mut req_id = self.stream().await?;
       if req_id.send_req(Request::http2(method, rrd), uri).await?.is_closed() {
-        return Err(crate::Error::ClosedConnection);
+        return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)
     }
@@ -236,7 +236,7 @@ mod http_client_pool {
       let (hrs, res_rrb) = req_id.recv_res(rrb).await?;
       let status_code = match hrs {
         Http2RecvStatus::Eos(elem) => elem,
-        _ => return Err(crate::Error::ClosedConnection),
+        _ => return Err(crate::Error::ClosedHttpConnection),
       };
       req_id.common().clear(false).await?;
       Ok(Response::http2(res_rrb, status_code))
@@ -255,7 +255,7 @@ mod http_client_pool {
     {
       let mut req_id = self.lock(uri).await?.client.stream().await?;
       if req_id.send_req(Request::http2(method, rrd), uri).await?.is_closed() {
-        return Err(crate::Error::ClosedConnection);
+        return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)
     }

@@ -4,7 +4,7 @@ use crate::{
     network::{
       TransportGroup, WsParams,
       transport::{
-        ReceivingTransport, SendingTransport, Transport, log_res,
+        ReceivingTransport, SendingTransport, Transport, log_generic_res,
         wtx_ws::{send_bytes, send_pkg},
       },
     },
@@ -38,7 +38,7 @@ where
     pkgs_aux.byte_buffer.clear();
     let _frame =
       self.read_frame(&mut pkgs_aux.byte_buffer, WebSocketPayloadOrigin::Consistent).await?;
-    log_res(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, TransportGroup::WebSocket, None);
+    log_generic_res(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, TransportGroup::WebSocket);
     Ok(())
   }
 }
