@@ -81,28 +81,30 @@ where
     let Self { hd, is_conn_open, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Receiving request");
-    let mut lock_pin = pin!(hd.lock());
-    let rslt = poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, hd, lock_pin);
-      manage_recurrent_stream_receiving(
-        cx,
-        lock.parts_mut(),
-        is_conn_open,
-        *stream_id,
-        |local_cx, hdpm, sorp| {
-          drop(hdpm.hb.scrp.insert(
-            *stream_id,
-            StreamControlRecvParams {
-              is_stream_open: true,
-              stream_state: sorp.stream_state,
-              waker: local_cx.waker().clone(),
-              windows: sorp.windows,
-            },
-          ));
-        },
-      )
-    })
-    .await;
+    let rslt = {
+      let mut lock_pin = pin!(hd.lock());
+      poll_fn(|cx| {
+        let mut lock = lock_pin!(cx, hd, lock_pin);
+        manage_recurrent_stream_receiving(
+          cx,
+          lock.parts_mut(),
+          is_conn_open,
+          *stream_id,
+          |local_cx, hdpm, sorp| {
+            drop(hdpm.hb.scrp.insert(
+              *stream_id,
+              StreamControlRecvParams {
+                is_stream_open: true,
+                stream_state: sorp.stream_state,
+                waker: local_cx.waker().clone(),
+                windows: sorp.windows,
+              },
+            ));
+          },
+        )
+      })
+      .await
+    };
     if let Err(err) = &rslt {
       process_higher_operation_err(err, hd).await;
     }

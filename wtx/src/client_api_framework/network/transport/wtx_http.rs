@@ -2,12 +2,12 @@ use crate::{
   client_api_framework::{
     Api, SendBytesSource,
     misc::{
-      log_req, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
-      manage_before_sending_pkg,
+      log_http_req, manage_after_sending_bytes, manage_after_sending_pkg,
+      manage_before_sending_bytes, manage_before_sending_pkg,
     },
     network::{
       HttpParams, HttpReqParams, HttpResParams, TransportGroup,
-      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams, log_res},
+      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams, log_http_res},
     },
     pkg::{Package, PkgsAux},
   },
@@ -82,16 +82,32 @@ where
   type ReqId = ClientStream<HD>;
 }
 
-fn manage_params<A, DRSR, TP>(pkgs_aux: &mut PkgsAux<A, DRSR, TP>) -> Result<(), A::Error>
+fn manage_params<A, DRSR, TP>(
+  bytes_len: usize,
+  pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+) -> Result<(), A::Error>
 where
   A: Api,
   TP: LeaseMut<HttpParams>,
 {
-  let params = pkgs_aux.tp.lease_mut();
-  let HttpReqParams { headers, mime, .. } = &mut params.ext_params_mut().0;
+  let tp = pkgs_aux.tp.lease_mut();
+  let params = &mut tp.ext_params_mut().0;
+  let HttpReqParams { headers, host, method: _, mime, uri, user_agent_custom, user_agent_default } =
+    params;
   let mut rb = ResBuilder::ok(headers);
-  let _ = rb.user_agent(WTX_USER_AGENT)?;
-  if let Some(elem) = mime {
+  if *host {
+    let _ = rb.host(format_args!("{}", uri.host()))?;
+  }
+  if *user_agent_default {
+    let _ = rb.user_agent(WTX_USER_AGENT)?;
+  } else if let Some(elem) = user_agent_custom
+    && !elem.is_empty()
+  {
+    let _ = rb.user_agent(elem)?;
+  }
+  if let Some(elem) = mime
+    && bytes_len > 0
+  {
     let _ = rb.content_type(*elem)?;
   }
   Ok(())
@@ -111,7 +127,15 @@ where
 {
   let tp = pkgs_aux.tp.lease_mut();
   let (req_params, res_params) = tp.ext_params_mut();
-  let HttpReqParams { headers, uri, .. } = req_params;
+  let HttpReqParams {
+    headers,
+    host: _,
+    method: _,
+    mime: _,
+    uri,
+    user_agent_custom: _,
+    user_agent_default: _,
+  } = req_params;
   let HttpResParams { status_code } = res_params;
   let mut rrb = ReqResBuffer::empty();
   mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
@@ -121,7 +145,13 @@ where
   mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
   mem::swap(&mut res.rrd.headers, headers);
   *status_code = res.status_code;
-  log_res(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, TransportGroup::HTTP, Some(uri));
+  log_http_res(
+    &pkgs_aux.byte_buffer,
+    pkgs_aux.log_body.1,
+    res.status_code,
+    TransportGroup::HTTP,
+    uri,
+  );
   Ok(())
 }
 
@@ -137,16 +167,25 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
-  log_req::<_, TP>(
+  manage_before_sending_bytes(pkgs_aux).await?;
+  log_http_req::<_, TP>(
     bytes.bytes(&pkgs_aux.byte_buffer),
     pkgs_aux.log_body.1,
+    pkgs_aux.tp.lease().ext_req_params().method,
     client,
-    Some(&pkgs_aux.tp.lease().ext_req_params().uri),
+    &pkgs_aux.tp.lease().ext_req_params().uri,
   );
-  manage_before_sending_bytes(pkgs_aux).await?;
-  manage_params(pkgs_aux)?;
+  manage_params(bytes.bytes(&pkgs_aux.byte_buffer).len(), pkgs_aux)?;
   let params = pkgs_aux.tp.lease_mut();
-  let HttpReqParams { headers, method, uri, .. } = &mut params.ext_params_mut().0;
+  let HttpReqParams {
+    headers,
+    host: _,
+    method,
+    mime: _,
+    uri,
+    user_agent_custom: _,
+    user_agent_default: _,
+  } = &mut params.ext_params_mut().0;
   let rrd = (bytes.bytes(&pkgs_aux.byte_buffer), headers);
   let rslt = client.send_req(*method, rrd, &uri.to_ref()).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
@@ -166,16 +205,25 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
-  log_req::<_, TP>(
+  manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
+  log_http_req::<_, TP>(
     &pkgs_aux.byte_buffer,
     pkgs_aux.log_body.1,
+    pkgs_aux.tp.lease().ext_req_params().method,
     client,
-    Some(&pkgs_aux.tp.lease().ext_req_params().uri),
+    &pkgs_aux.tp.lease().ext_req_params().uri,
   );
-  manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
-  manage_params(pkgs_aux)?;
+  manage_params(pkgs_aux.byte_buffer.len(), pkgs_aux)?;
   let params = pkgs_aux.tp.lease_mut();
-  let HttpReqParams { headers, method, uri, .. } = &mut params.ext_params_mut().0;
+  let HttpReqParams {
+    headers,
+    host: _,
+    method,
+    mime: _,
+    uri,
+    user_agent_custom: _,
+    user_agent_default: _,
+  } = &mut params.ext_params_mut().0;
   let rslt = client.send_req(*method, (&pkgs_aux.byte_buffer, headers), &uri.to_ref()).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, client).await?;
   Ok(rslt)

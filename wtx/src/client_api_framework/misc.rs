@@ -13,7 +13,7 @@ use crate::{
     pkg::{Package, PkgsAux},
   },
   de::{Encode, format::EncodeWrapper},
-  misc::{UriString, from_utf8_basic},
+  misc::from_utf8_basic,
 };
 pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};
@@ -84,14 +84,30 @@ where
   Ok(())
 }
 
-pub(crate) fn log_req<T, TP>(
+#[cfg(feature = "http")]
+pub(crate) fn log_http_req<T, TP>(
   _bytes: &[u8],
   _log_body: bool,
-  _trans: &mut T,
-  _uri: Option<&UriString>,
+  method: crate::http::Method,
+  _trans: &T,
+  _uri: &crate::misc::UriString,
 ) where
   T: Transport<TP>,
 {
   let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
-  _debug!(trans_ty = display(_trans.ty()), r#"Request ({_uri:?}) "{_body:?}"#);
+  _debug!(
+    body = display(_body.unwrap_or_default()),
+    method = %method,
+    trans_ty = display(_trans.ty()),
+    uri = display(_uri.as_str()),
+    "Request"
+  );
+}
+
+pub(crate) fn log_req<T, TP>(_bytes: &[u8], _log_body: bool, _trans: &T)
+where
+  T: Transport<TP>,
+{
+  let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
+  _debug!(body = display(_body.unwrap_or_default()), trans_ty = display(_trans.ty()), "Request");
 }

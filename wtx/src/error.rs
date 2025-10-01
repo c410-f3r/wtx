@@ -137,6 +137,10 @@ pub enum Error {
   AllocError(Box<Layout>),
   /// A connection was unexpectedly closed by an external actor or because of a local error.
   ClosedConnection,
+  /// A HTTP connection was unexpectedly closed by an external actor or because of a local error.
+  ClosedHttpConnection,
+  /// A WebSocket connection was unexpectedly closed by an external actor or because of a local error.
+  ClosedWebSocketConnection,
   /// Future must not be polled again after finalization
   FuturePolledAfterFinalization,
   /// Generic error

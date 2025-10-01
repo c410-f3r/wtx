@@ -35,8 +35,8 @@ impl<TP> SendingTransport<TP> for () {
   where
     A: Api,
   {
-    log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, &mut *self, None);
     manage_before_sending_bytes(pkgs_aux).await?;
+    log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, &mut *self);
     manage_after_sending_bytes(pkgs_aux).await?;
     Ok(())
   }
@@ -51,8 +51,8 @@ impl<TP> SendingTransport<TP> for () {
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
-    log_req::<_, TP>(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, self, None);
     manage_before_sending_pkg(pkg, pkgs_aux, self).await?;
+    log_req::<_, TP>(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, self);
     manage_after_sending_pkg(pkg, pkgs_aux, self).await?;
     Ok(())
   }

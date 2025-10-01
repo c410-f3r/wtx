@@ -55,9 +55,11 @@ impl Runtime {
     let atomic_waker = Arc::new(AtomicWaker::new());
     let atomic_waker_thread = Arc::clone(&atomic_waker);
     let _jh = thread::Builder::new().spawn(move || {
-      let pinned_future = pin!(future);
-      let local_waker = CurrThreadWaker::waker();
-      let output = work(Context::from_waker(&local_waker), pinned_future);
+      let output = {
+        let pinned_future = pin!(future);
+        let local_waker = CurrThreadWaker::waker();
+        work(Context::from_waker(&local_waker), pinned_future)
+      };
       let _rslt = sender.send(output);
       atomic_waker_thread.wake();
     })?;

@@ -342,7 +342,9 @@ impl HpackEncoder {
 
   // Very large headers are not good candidates for indexing.
   fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &str, value: &str) -> bool {
-    hhb.len(name, value) >= (self.dyn_headers.max_bytes() / 4).wrapping_mul(3)
+    let lhs = hhb.len(name, value);
+    let rhs = (self.dyn_headers.max_bytes() / 4).wrapping_mul(3);
+    lhs >= rhs
   }
 
   fn idx_to_encode_idx(&self, idx: u32) -> u32 {
@@ -632,12 +634,29 @@ struct StaticHeader {
 mod tests {
   use crate::{
     collection::Vector,
-    http::StatusCode,
-    http2::{hpack_encoder::HpackEncoder, hpack_static_headers::HpackStaticResponseHeaders},
+    http::{Method, StatusCode},
+    http2::{
+      hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
+      hpack_static_headers::HpackStaticResponseHeaders,
+    },
     rng::{Xorshift64, simple_seed},
   };
 
-  // `HpackStaticResponseHeaders` wasn't issuing header values
+  #[test]
+  fn duplicated_is_indexed() {
+    let headers = [(HpackHeaderBasic::Method(Method::Patch), Method::Patch.strings().custom[0])];
+    let mut buffer = Vector::new();
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
+    hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
+    hpack_enc.encode(&mut buffer, headers, []).unwrap();
+    assert_eq!(buffer[0], 66);
+    assert_eq!(buffer[1], 133);
+    buffer.clear();
+    hpack_enc.encode(&mut buffer, headers, []).unwrap();
+    assert_eq!(buffer[0], 190);
+    assert_eq!(buffer.len(), 1);
+  }
+
   #[test]
   fn encodes_status_code() {
     let mut buffer = Vector::new();
@@ -650,5 +669,20 @@ mod tests {
       )
       .unwrap();
     assert_eq!(buffer.as_slice(), &[24, 130, 104, 1]);
+  }
+
+  #[test]
+  fn encodes_methods_that_are_not_get_or_post() {
+    let mut buffer = Vector::new();
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
+    hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
+    hpack_enc
+      .encode(
+        &mut buffer,
+        [(HpackHeaderBasic::Method(Method::Delete), Method::Delete.strings().custom[0])],
+        [],
+      )
+      .unwrap();
+    assert_eq!(&buffer, &[66, 134, 191, 131, 62, 13, 248, 63][..])
   }
 }

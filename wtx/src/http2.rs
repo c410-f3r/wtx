@@ -244,48 +244,50 @@ where
     let curr_ish_id = *ish_id;
     *ish_id = ish_id.wrapping_add(1);
     let rrb_opt = &mut Some(rrb);
-    let mut lock_pin = pin!(hd.lock());
-    let rslt = poll_fn(|cx| {
-      let mut guard = lock_pin!(cx, hd, lock_pin);
-      let hdpm = guard.parts_mut();
-      if let Some(mut this_rrb) = rrb_opt.take() {
-        if !manage_initial_stream_receiving(is_conn_open, &mut this_rrb) {
-          return Poll::Ready(Ok(Either::Left((
-            this_rrb,
-            frame_reader_rslt(hdpm.frame_reader_error),
-          ))));
-        }
-        drop(hdpm.hb.initial_server_headers.push_back(
-          curr_ish_id,
-          initial_server_header::InitialServerHeader {
-            method: Method::Get,
-            protocol: None,
-            rrb: this_rrb,
-            stream_id: u31::U31::ZERO,
-            waker: cx.waker().clone(),
-          },
-        ));
-        Poll::Pending
-      } else {
-        let Some(ish) = hdpm.hb.initial_server_headers.remove(&curr_ish_id) else {
-          return Poll::Ready(Err(protocol_err(Http2Error::UnknownInitialServerHeaderId)));
-        };
-        hdpm.hb.initial_server_headers.decrease_cursor();
-        if !is_conn_open.load(Ordering::Relaxed) {
-          let this_rrb = if ish.stream_id.is_zero() {
-            ish.rrb
-          } else {
-            mem::take(&mut sorp_mut(&mut hdpm.hb.sorp, ish.stream_id)?.rrb)
+    let rslt = {
+      let mut lock_pin = pin!(hd.lock());
+      poll_fn(|cx| {
+        let mut guard = lock_pin!(cx, hd, lock_pin);
+        let hdpm = guard.parts_mut();
+        if let Some(mut this_rrb) = rrb_opt.take() {
+          if !manage_initial_stream_receiving(is_conn_open, &mut this_rrb) {
+            return Poll::Ready(Ok(Either::Left((
+              this_rrb,
+              frame_reader_rslt(hdpm.frame_reader_error),
+            ))));
+          }
+          drop(hdpm.hb.initial_server_headers.push_back(
+            curr_ish_id,
+            initial_server_header::InitialServerHeader {
+              method: Method::Get,
+              protocol: None,
+              rrb: this_rrb,
+              stream_id: u31::U31::ZERO,
+              waker: cx.waker().clone(),
+            },
+          ));
+          Poll::Pending
+        } else {
+          let Some(ish) = hdpm.hb.initial_server_headers.remove(&curr_ish_id) else {
+            return Poll::Ready(Err(protocol_err(Http2Error::UnknownInitialServerHeaderId)));
           };
-          return Poll::Ready(Ok(Either::Left((
-            this_rrb,
-            frame_reader_rslt(hdpm.frame_reader_error),
-          ))));
+          hdpm.hb.initial_server_headers.decrease_cursor();
+          if !is_conn_open.load(Ordering::Relaxed) {
+            let this_rrb = if ish.stream_id.is_zero() {
+              ish.rrb
+            } else {
+              mem::take(&mut sorp_mut(&mut hdpm.hb.sorp, ish.stream_id)?.rrb)
+            };
+            return Poll::Ready(Ok(Either::Left((
+              this_rrb,
+              frame_reader_rslt(hdpm.frame_reader_error),
+            ))));
+          }
+          Poll::Ready(Ok(Either::Right((ish.method, ish.protocol, ish.stream_id, guard))))
         }
-        Poll::Ready(Ok(Either::Right((ish.method, ish.protocol, ish.stream_id, guard))))
-      }
-    })
-    .await;
+      })
+      .await
+    };
     match rslt? {
       Either::Left(elem) => {
         elem.1?;

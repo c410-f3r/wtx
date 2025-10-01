@@ -46,7 +46,7 @@ where
   ) -> crate::Result<Self> {
     let hss = stream.lease_mut().common().send_headers(headers, false, StatusCode::Ok).await?;
     if hss.is_closed() {
-      return Err(crate::Error::ClosedConnection);
+      return Err(crate::Error::ClosedHttpConnection);
     }
     Ok(Self { connection_state: ConnectionState::Open, no_masking, rng, stream })
   }
@@ -86,7 +86,7 @@ where
       return Ok(FrameMut::new_fin(rfi.op_code, buffer));
     }
     if is_eos {
-      return Err(crate::Error::ClosedConnection);
+      return Err(crate::Error::ClosedHttpConnection);
     }
     Err(protocol_err(Http2Error::WebSocketContinuationFrame))
   }
@@ -111,7 +111,7 @@ where
       .send_data(SendDataMode::single_data_frame([header, payload.lease()]), false)
       .await?;
     if hss.is_closed() {
-      return Err(crate::Error::ClosedConnection);
+      return Err(crate::Error::ClosedHttpConnection);
     }
     Ok(())
   }
@@ -130,10 +130,10 @@ where
 {
   let (data, is_eos) = match stream.common().recv_data().await? {
     Http2RecvStatus::ClosedConnection => {
-      return Err(crate::Error::ClosedConnection);
+      return Err(crate::Error::ClosedHttpConnection);
     }
     Http2RecvStatus::ClosedStream => {
-      return Err(crate::Error::ClosedConnection);
+      return Err(crate::Error::ClosedHttpConnection);
     }
     Http2RecvStatus::Eos(data) => (data, true),
     Http2RecvStatus::Ongoing(data) => (data, false),
