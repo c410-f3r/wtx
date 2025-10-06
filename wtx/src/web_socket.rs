@@ -89,7 +89,7 @@ impl<NC, R, S, WSB, const IS_CLIENT: bool> WebSocket<NC, R, S, WSB, IS_CLIENT> {
   /// Sets whether to automatically close the connection when a received frame payload length
   /// exceeds `max_payload_len`. Defaults to `64 * 1024 * 1024` bytes (64 MiB).
   #[inline]
-  pub fn set_max_payload_len(&mut self, max_payload_len: usize) {
+  pub const fn set_max_payload_len(&mut self, max_payload_len: usize) {
     self.max_payload_len = max_payload_len;
   }
 }

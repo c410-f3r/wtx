@@ -16,7 +16,7 @@ impl PingFrame {
     Self { cf, payload }
   }
 
-  pub(crate) fn read(bytes: &[u8], mut fi: FrameInit) -> crate::Result<Self> {
+  pub(crate) const fn read(bytes: &[u8], mut fi: FrameInit) -> crate::Result<Self> {
     if fi.stream_id.is_not_zero() {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
@@ -40,11 +40,11 @@ impl PingFrame {
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q]
   }
 
-  pub(crate) fn has_ack(&self) -> bool {
+  pub(crate) const fn has_ack(&self) -> bool {
     self.cf.has_ack()
   }
 
-  pub(crate) fn set_ack(&mut self) {
+  pub(crate) const fn set_ack(&mut self) {
     self.cf.set_ack();
   }
 }

@@ -10,13 +10,13 @@ pub enum ConnectionState {
 impl ConnectionState {
   /// Shortcut for [`ConnectionState::Closed`].
   #[inline]
-  pub fn is_closed(self) -> bool {
+  pub const fn is_closed(self) -> bool {
     matches!(self, Self::Closed)
   }
 
   /// Shortcut for [`ConnectionState::Open`].
   #[inline]
-  pub fn is_open(self) -> bool {
+  pub const fn is_open(self) -> bool {
     matches!(self, Self::Open)
   }
 }

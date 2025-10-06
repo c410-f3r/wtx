@@ -7,12 +7,12 @@ pub struct EncodeWrapper<'buffer, 'tmp> {
 }
 
 impl<'buffer, 'tmp> EncodeWrapper<'buffer, 'tmp> {
-  pub(crate) fn new(buffer: &'tmp mut SuffixWriterFbvm<'buffer>) -> Self {
+  pub(crate) const fn new(buffer: &'tmp mut SuffixWriterFbvm<'buffer>) -> Self {
     Self { buffer }
   }
 
   /// Buffer used to encode messages that will be sent to PostgreSQL.
-  pub fn buffer(&mut self) -> &mut SuffixWriterFbvm<'buffer> {
+  pub const fn buffer(&mut self) -> &mut SuffixWriterFbvm<'buffer> {
     self.buffer
   }
 }

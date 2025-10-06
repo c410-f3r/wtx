@@ -31,7 +31,7 @@ impl<A, AI, RL, S> ClientPoolBuilder<A, AI, RL, S> {
 #[cfg(all(feature = "http-client-pool", feature = "tokio"))]
 impl<RL, S> ClientPoolBuilder<crate::http::client_pool::NoAuxFn, (), RL, S> {
   pub(crate) const fn no_fun(len: usize) -> Self {
-    fn fun(_: &()) {}
+    const fn fun(_: &()) {}
     Self { cp: ConnParams::new(), aux: fun, aux_input: (), len, phantom: PhantomData }
   }
 }

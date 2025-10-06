@@ -43,7 +43,7 @@ impl DataFrame {
     Ok((Self { cf: fi.cf, data_len, pad_len, stream_id: fi.stream_id }, data))
   }
 
-  pub(crate) fn set_eos(&mut self) {
+  pub(crate) const fn set_eos(&mut self) {
     self.cf.set_eos();
   }
 }

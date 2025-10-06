@@ -119,7 +119,7 @@ impl OptionedServer {
           let (frame_reader, http2) = Http2Tokio::accept(hb, hp, parts).await?;
           Ok::<_, ERR>((ca, frame_reader, http2))
         };
-        let (mut conn_ca, frame_reader, mut http2) = match initial_fut.await {
+        let (mut conn_ca, frame_reader, http2) = match initial_fut.await {
           Err(err) => {
             conn_http2_error(err);
             return;

@@ -32,7 +32,7 @@ impl PartitionedFilledBuffer {
     Self { antecedent_end_idx: 0, buffer: FilledBuffer::default(), current_end_idx: 0 }
   }
 
-  pub(crate) fn antecedent_end_idx(&self) -> usize {
+  pub(crate) const fn antecedent_end_idx(&self) -> usize {
     self.antecedent_end_idx
   }
 
@@ -58,11 +58,11 @@ impl PartitionedFilledBuffer {
     self.all().get(range).unwrap_or_default()
   }
 
-  pub(crate) fn current_end_idx(&self) -> usize {
+  pub(crate) const fn current_end_idx(&self) -> usize {
     self.current_end_idx
   }
 
-  pub(crate) fn current_range(&self) -> Range<usize> {
+  pub(crate) const fn current_range(&self) -> Range<usize> {
     self.antecedent_end_idx()..self.current_end_idx()
   }
 
@@ -103,7 +103,7 @@ impl PartitionedFilledBuffer {
     Ok(())
   }
 
-  fn indcs_from_lengths(
+  const fn indcs_from_lengths(
     antecedent_len: usize,
     current_len: usize,
     following_len: usize,

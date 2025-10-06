@@ -36,6 +36,6 @@ pub fn user_migration() -> UserMigrationRef<'static, 'static> {
 /// let _ = wtx::database::schema_manager::UserMigrationGroup::new("initial", 1);
 /// ```
 #[inline]
-pub fn user_migration_group() -> UserMigrationGroup<&'static str> {
+pub const fn user_migration_group() -> UserMigrationGroup<&'static str> {
   UserMigrationGroup::new("initial", 1)
 }

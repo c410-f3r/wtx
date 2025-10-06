@@ -48,7 +48,7 @@ impl<T> Mutex<T> {
 
   /// Acquire the lock asynchronously.
   #[inline]
-  pub fn lock(&self) -> MutexLockFuture<'_, T> {
+  pub const fn lock(&self) -> MutexLockFuture<'_, T> {
     MutexLockFuture { idx_opt: None, mutex_opt: Some(self) }
   }
 
@@ -231,12 +231,12 @@ struct Waiters {
 }
 
 #[inline]
-fn is_locked(state: usize) -> bool {
+const fn is_locked(state: usize) -> bool {
   (state & IS_LOCKED) != 0
 }
 
 #[inline]
-fn has_waiters(state: usize) -> bool {
+const fn has_waiters(state: usize) -> bool {
   (state & HAS_WAITERS) != 0
 }
 

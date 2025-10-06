@@ -35,7 +35,7 @@ pub struct Frame<P, const IS_CLIENT: bool> {
 impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
   /// Indicates if this is the final frame in a message.
   #[inline]
-  pub fn fin(&self) -> bool {
+  pub const fn fin(&self) -> bool {
     self.fin
   }
 
@@ -47,19 +47,19 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
 
   /// See [`OpCode`].
   #[inline]
-  pub fn op_code(&self) -> OpCode {
+  pub const fn op_code(&self) -> OpCode {
     self.op_code
   }
 
   /// Frame's content.
   #[inline]
-  pub fn payload(&self) -> &P {
+  pub const fn payload(&self) -> &P {
     &self.payload
   }
 
   /// Mutable version of [`Self::payload`].
   #[inline]
-  pub fn payload_mut(&mut self) -> &mut P {
+  pub const fn payload_mut(&mut self) -> &mut P {
     &mut self.payload
   }
 
@@ -71,7 +71,7 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
     (self.header.get_mut(..self.header_len.into()).unwrap_or_default(), &mut self.payload)
   }
 
-  pub(crate) fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
+  pub(crate) const fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
     let [a, b, ..] = &mut self.header;
     [a, b]
   }

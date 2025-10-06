@@ -163,7 +163,7 @@ where
   B: SendDataModeBytes<'bytes, IS_SCATTERED>,
   SW: StreamWriter,
 {
-  fn should_stop(
+  const fn should_stop(
     data: &[u8],
     frame: &mut DataFrame,
     has_data: &mut bool,

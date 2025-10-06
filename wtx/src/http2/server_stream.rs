@@ -47,7 +47,7 @@ where
 {
   /// See [`CommonStream`].
   #[inline]
-  pub fn common(&mut self) -> CommonStream<'_, HD, false> {
+  pub const fn common(&mut self) -> CommonStream<'_, HD, false> {
     CommonStream {
       hd: &mut self.hd,
       is_conn_open: &self.is_conn_open,
@@ -58,13 +58,13 @@ where
 
   /// See [`Method`].
   #[inline]
-  pub fn method(&self) -> Method {
+  pub const fn method(&self) -> Method {
     self.method
   }
 
   /// See [`Protocol`].
   #[inline]
-  pub fn protocol(&self) -> Option<Protocol> {
+  pub const fn protocol(&self) -> Option<Protocol> {
     self.protocol
   }
 

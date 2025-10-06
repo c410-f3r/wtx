@@ -47,7 +47,7 @@ impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  pub fn no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R, RNG, WSB> {
+  pub const fn no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R, RNG, WSB> {
     self.no_masking = elem;
     self
   }
@@ -98,7 +98,7 @@ impl Default
   #[inline]
   fn default() -> Self {
     #[inline]
-    fn res(_: &Response<'_, '_>) -> Result<(), crate::Error> {
+    const fn res(_: &Response<'_, '_>) -> Result<(), crate::Error> {
       Ok(())
     }
     Self {

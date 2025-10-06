@@ -11,7 +11,7 @@ pub struct PostgresRecords<'exec, E> {
 }
 
 impl<'exec, E> PostgresRecords<'exec, E> {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     records: &'exec [u8],
     records_params: &'exec [(Range<usize>, Range<usize>)],
     stmt: PostgresStatement<'exec>,

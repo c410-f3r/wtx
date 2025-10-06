@@ -112,14 +112,14 @@ impl SessionManagerBuilder {
   /// If [Self::max_age] is set, then this parameter is ignored when setting the cookie in the
   /// header.
   #[inline]
-  pub fn expires(mut self, elem: Option<DateTime<Utc>>) -> Self {
+  pub const fn expires(mut self, elem: Option<DateTime<Utc>>) -> Self {
     self.cookie_def.expires = elem;
     self
   }
 
   /// Forbids JavaScript from accessing the cookie.
   #[inline]
-  pub fn http_only(mut self, elem: bool) -> Self {
+  pub const fn http_only(mut self, elem: bool) -> Self {
     self.cookie_def.http_only = elem;
     self
   }
@@ -127,21 +127,21 @@ impl SessionManagerBuilder {
   /// The amount of time the future returned by the building methods will wait before
   /// deleting expired sessions.
   #[inline]
-  pub fn inspection_interval(mut self, elem: Duration) -> Self {
+  pub const fn inspection_interval(mut self, elem: Duration) -> Self {
     self.inspection_interval = elem;
     self
   }
 
   /// Cookie name.
   #[inline]
-  pub fn name(mut self, elem: &'static str) -> Self {
+  pub const fn name(mut self, elem: &'static str) -> Self {
     self.cookie_def.name = elem;
     self
   }
 
   /// Indicates the number of seconds until the cookie expires.
   #[inline]
-  pub fn max_age(mut self, elem: Option<Duration>) -> Self {
+  pub const fn max_age(mut self, elem: Option<Duration>) -> Self {
     self.cookie_def.max_age = elem;
     self
   }
@@ -149,14 +149,14 @@ impl SessionManagerBuilder {
   /// Indicates the path that must exist in the requested URL for the browser to send the Cookie
   /// header.
   #[inline]
-  pub fn path(mut self, elem: &'static str) -> Self {
+  pub const fn path(mut self, elem: &'static str) -> Self {
     self.cookie_def.path = elem;
     self
   }
 
   /// Controls whether or not a cookie is sent with cross-site requests.
   #[inline]
-  pub fn same_site(mut self, elem: Option<SameSite>) -> Self {
+  pub const fn same_site(mut self, elem: Option<SameSite>) -> Self {
     self.cookie_def.same_site = elem;
     self
   }
@@ -164,7 +164,7 @@ impl SessionManagerBuilder {
   /// Indicates that the cookie is sent to the server only when a request is made with the `https`
   /// scheme.
   #[inline]
-  pub fn secure(mut self, elem: bool) -> Self {
+  pub const fn secure(mut self, elem: bool) -> Self {
     self.cookie_def.secure = elem;
     self
   }

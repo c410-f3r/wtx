@@ -18,7 +18,7 @@ pub(crate) struct CommonRecords<'exec, A, C, D, T> {
 }
 
 impl<'exec, A, C, D, T> CommonRecords<'exec, A, C, D, T> {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     records: &'exec [u8],
     records_params: &'exec [(Range<usize>, Range<usize>)],
     stmt: Statement<'exec, A, C, T>,

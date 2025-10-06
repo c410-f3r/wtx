@@ -94,7 +94,7 @@ where
           bytes,
           &mut time_zone_opt,
           |local_time_zone_opt, is_neg, hour, after_hour| {
-            fn change_sign(num: i16, is_neg: bool) -> i16 {
+            const fn change_sign(num: i16, is_neg: bool) -> i16 {
               #[expect(clippy::arithmetic_side_effects, reason = "callers never pass `i16::MAX`")]
               if is_neg { -num } else { num }
             }

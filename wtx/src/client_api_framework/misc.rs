@@ -88,7 +88,7 @@ where
 pub(crate) fn log_http_req<T, TP>(
   _bytes: &[u8],
   _log_body: bool,
-  method: crate::http::Method,
+  _method: crate::http::Method,
   _trans: &T,
   _uri: &crate::misc::UriString,
 ) where
@@ -97,7 +97,7 @@ pub(crate) fn log_http_req<T, TP>(
   let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
   _debug!(
     body = display(_body.unwrap_or_default()),
-    method = %method,
+    method = %_method,
     trans_ty = display(_trans.ty()),
     uri = display(_uri.as_str()),
     "Request"

@@ -69,7 +69,7 @@ pub(crate) fn is_unit_type(ty_tuple: &TypeTuple) -> bool {
   ty_tuple.elems.is_empty()
 }
 
-pub(crate) fn manage_unique_attribute<T>(opt: Option<&T>, span: Span) -> crate::Result<()> {
+pub(crate) const fn manage_unique_attribute<T>(opt: Option<&T>, span: Span) -> crate::Result<()> {
   if opt.is_some() { Err(crate::Error::DuplicatedGlobalPkgAttr(span)) } else { Ok(()) }
 }
 

@@ -216,7 +216,7 @@ where
   S: serde::Serializer,
   T: serde::Serialize,
 {
-  fn conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
+  const fn conservative_size_hint_len(size_hint: (usize, Option<usize>)) -> Option<usize> {
     match size_hint {
       (lo, Some(hi)) if lo == hi => Some(lo),
       _ => None,
@@ -285,7 +285,7 @@ pub fn tracing_tree_init(
 
 // It is important to enforce the array length to avoid panics
 #[expect(clippy::disallowed_methods, reason = "that is the only allowed place")]
-pub(crate) fn char_slice(buffer: &mut [u8; 4], ch: char) -> &mut str {
+pub(crate) const fn char_slice(buffer: &mut [u8; 4], ch: char) -> &mut str {
   ch.encode_utf8(buffer)
 }
 

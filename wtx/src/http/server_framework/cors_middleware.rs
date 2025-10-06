@@ -86,7 +86,7 @@ impl CorsMiddleware {
   /// <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials>
   #[inline]
   #[must_use]
-  pub fn allow_credentials(mut self) -> Self {
+  pub const fn allow_credentials(mut self) -> Self {
     self.allow_credentials = true;
     self
   }
@@ -178,7 +178,7 @@ impl CorsMiddleware {
   /// <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Max-Age>
   #[inline]
   #[must_use]
-  pub fn max_age(mut self, elem: u32) -> Self {
+  pub const fn max_age(mut self, elem: u32) -> Self {
     self.max_age = Some(elem);
     self
   }
@@ -221,7 +221,9 @@ impl CorsMiddleware {
         KnownHeaderName::AccessControlAllowMethods.into(),
         ["*"],
       ))?;
-    } else if !specifics.is_empty() {
+      return Ok(());
+    }
+    if !specifics.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlAllowMethods.into(),
         Intersperse::new(
@@ -232,7 +234,7 @@ impl CorsMiddleware {
           || ",",
         ),
       ))?;
-    } else {
+      return Ok(());
     }
     Ok(())
   }
@@ -254,12 +256,14 @@ impl CorsMiddleware {
         KnownHeaderName::AccessControlExposeHeaders.into(),
         ["*"],
       ))?;
-    } else if !specifics.is_empty() {
+      return Ok(());
+    }
+    if !specifics.is_empty() {
       headers.push_from_iter(Header::from_name_and_value(
         KnownHeaderName::AccessControlExposeHeaders.into(),
         Intersperse::new(specifics.iter().map(|el| el.as_str()), || ","),
       ))?;
-    } else {
+      return Ok(());
     }
     Ok(())
   }

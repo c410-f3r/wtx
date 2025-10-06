@@ -58,7 +58,7 @@ pub struct SimpleRM<F> {
 impl<F> SimpleRM<F> {
   /// Shortcut constructor
   #[inline]
-  pub fn new(cb: F) -> Self {
+  pub const fn new(cb: F) -> Self {
     Self { cb }
   }
 }

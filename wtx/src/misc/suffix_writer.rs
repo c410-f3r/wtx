@@ -81,7 +81,7 @@ where
     self.vec.lease_mut().get_mut(self.initial_idx..self.curr_idx).unwrap_or_default()
   }
 
-  pub(crate) fn len(&self) -> usize {
+  pub(crate) const fn len(&self) -> usize {
     self.curr_idx.wrapping_sub(self.initial_idx)
   }
 
@@ -105,7 +105,7 @@ impl<V> SuffixWriter<V>
 where
   V: LeaseMut<Vector<u8>>,
 {
-  pub(crate) fn new(start: usize, vec: V) -> Self {
+  pub(crate) const fn new(start: usize, vec: V) -> Self {
     Self { curr_idx: start, initial_idx: start, vec }
   }
 }

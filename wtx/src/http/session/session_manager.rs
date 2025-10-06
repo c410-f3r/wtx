@@ -39,7 +39,7 @@ where
 {
   /// Allows the specification of custom parameters.
   #[inline]
-  pub fn builder() -> SessionManagerBuilder {
+  pub const fn builder() -> SessionManagerBuilder {
     SessionManagerBuilder::new()
   }
 

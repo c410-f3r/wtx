@@ -71,7 +71,7 @@ impl<T> Vector<T> {
   /// assert_eq!(vec.len(), 0);
   /// ```
   #[inline]
-  pub fn from_vec(vec: Vec<T>) -> Self {
+  pub const fn from_vec(vec: Vec<T>) -> Self {
     Self(Inner(vec))
   }
 
@@ -128,7 +128,7 @@ impl<T> Vector<T> {
 
   /// Vector of the standard library.
   #[inline]
-  pub fn vec_mut(&mut self) -> &mut Vec<T> {
+  pub const fn vec_mut(&mut self) -> &mut Vec<T> {
     &mut self.0.0
   }
 }

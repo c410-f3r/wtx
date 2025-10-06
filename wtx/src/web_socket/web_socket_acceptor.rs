@@ -31,7 +31,7 @@ impl<C, R, RNG, WSB> WebSocketAcceptor<C, R, RNG, WSB> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  pub fn no_masking(mut self, elem: bool) -> WebSocketAcceptor<C, R, RNG, WSB> {
+  pub const fn no_masking(mut self, elem: bool) -> WebSocketAcceptor<C, R, RNG, WSB> {
     self.no_masking = elem;
     self
   }
@@ -79,7 +79,7 @@ impl Default
   #[inline]
   fn default() -> Self {
     #[inline]
-    fn req(_: &Request<'_, '_>) -> Result<(), crate::Error> {
+    const fn req(_: &Request<'_, '_>) -> Result<(), crate::Error> {
       Ok(())
     }
     Self {

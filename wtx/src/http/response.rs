@@ -20,7 +20,7 @@ impl<RRD> Response<RRD> {
 
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
-  pub fn http2(data: RRD, status_code: StatusCode) -> Self {
+  pub const fn http2(data: RRD, status_code: StatusCode) -> Self {
     Self { rrd: data, status_code, version: Version::Http2 }
   }
 }

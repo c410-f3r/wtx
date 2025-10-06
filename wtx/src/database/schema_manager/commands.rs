@@ -30,7 +30,7 @@ where
 {
   /// Creates a new instance from a given Backend and batch size.
   #[inline]
-  pub fn new(batch_size: usize, executor: E) -> Self {
+  pub const fn new(batch_size: usize, executor: E) -> Self {
     Self { batch_size, executor }
   }
 
@@ -38,13 +38,13 @@ where
   ///
   /// Batch size will default to 128.
   #[inline]
-  pub fn with_executor(database: E) -> Self {
+  pub const fn with_executor(database: E) -> Self {
     Self { batch_size: DEFAULT_BATCH_SIZE, executor: database }
   }
 
   /// Batch size
   #[inline]
-  pub fn batch_size(&self) -> usize {
+  pub const fn batch_size(&self) -> usize {
     self.batch_size
   }
 

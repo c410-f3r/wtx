@@ -610,11 +610,11 @@ impl<T> Deque<T> {
     }
   }
 
-  pub(crate) fn head(&self) -> usize {
+  pub(crate) const fn head(&self) -> usize {
     self.head
   }
 
-  pub(crate) fn tail(&self) -> usize {
+  pub(crate) const fn tail(&self) -> usize {
     self.tail
   }
 
@@ -827,7 +827,7 @@ struct ReserveRslt {
 }
 
 impl ReserveRslt {
-  fn new(begin: usize, head_shift: usize) -> Self {
+  const fn new(begin: usize, head_shift: usize) -> Self {
     Self { begin, head_shift }
   }
 }
@@ -860,7 +860,7 @@ impl ReserveRslt {
 /// H(7) > T(0): . . . . . . . H (wrapping)
 /// H(7) > T(1): T . . . . . . H (wrapping)
 /// ```
-fn is_wrapping(head: usize, len: usize, tail: usize) -> bool {
+const fn is_wrapping(head: usize, len: usize, tail: usize) -> bool {
   if tail > head { false } else { len > 0 }
 }
 

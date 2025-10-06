@@ -23,7 +23,7 @@ where
     self.keys.clear();
   }
 
-  pub(crate) fn decrease_cursor(&mut self) {
+  pub(crate) const fn decrease_cursor(&mut self) {
     self.cursor = self.cursor.saturating_sub(1);
   }
 
@@ -36,7 +36,7 @@ where
     Some(value)
   }
 
-  pub(crate) fn increase_cursor(&mut self) {
+  pub(crate) const fn increase_cursor(&mut self) {
     self.cursor = self.cursor.saturating_add(1);
   }
 

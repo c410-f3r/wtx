@@ -17,7 +17,7 @@ impl RequestLimit {
 
   /// Useful for tests.
   #[inline]
-  pub fn unlimited() -> Self {
+  pub const fn unlimited() -> Self {
     Self { duration: Duration::from_secs(0), limit: u16::MAX }
   }
 
@@ -29,7 +29,7 @@ impl RequestLimit {
 
   /// Upper bound or maximum possible number of requests
   #[inline]
-  pub fn limit(&self) -> u16 {
+  pub const fn limit(&self) -> u16 {
     self.limit
   }
 }

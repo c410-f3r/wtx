@@ -44,27 +44,27 @@ impl CommonFlags {
     self.0 & PRI == PRI
   }
 
-  pub(crate) fn only_ack(&mut self) {
+  pub(crate) const fn only_ack(&mut self) {
     self.0 &= ACK;
   }
 
-  pub(crate) fn only_eoh_eos_pad_pri(&mut self) {
+  pub(crate) const fn only_eoh_eos_pad_pri(&mut self) {
     self.0 &= EOH | EOS | PAD | PRI;
   }
 
-  pub(crate) fn only_eos_pad(&mut self) {
+  pub(crate) const fn only_eos_pad(&mut self) {
     self.0 &= EOS | PAD;
   }
 
-  pub(crate) fn set_ack(&mut self) {
+  pub(crate) const fn set_ack(&mut self) {
     self.0 |= ACK;
   }
 
-  pub(crate) fn set_eoh(&mut self) {
+  pub(crate) const fn set_eoh(&mut self) {
     self.0 |= EOH;
   }
 
-  pub(crate) fn set_eos(&mut self) {
+  pub(crate) const fn set_eos(&mut self) {
     self.0 |= EOS;
   }
 }

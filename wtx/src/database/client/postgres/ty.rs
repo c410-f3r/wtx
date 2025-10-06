@@ -354,7 +354,7 @@ impl Ty {
     Self::from_known_u32(value).unwrap_or(Self::Custom(value))
   }
 
-  pub(crate) fn from_known_u32(value: u32) -> Option<Self> {
+  pub(crate) const fn from_known_u32(value: u32) -> Option<Self> {
     Some(match value {
       16 => Self::Bool,
       17 => Self::Bytea,

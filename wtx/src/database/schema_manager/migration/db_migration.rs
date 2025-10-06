@@ -19,25 +19,25 @@ pub struct DbMigration {
 impl DbMigration {
   /// Data integrity
   #[inline]
-  pub fn checksum(&self) -> u64 {
+  pub const fn checksum(&self) -> u64 {
     self.common.checksum
   }
 
   /// When the migration was created.
   #[inline]
-  pub fn created_on(&self) -> &DateTime<Utc> {
+  pub const fn created_on(&self) -> &DateTime<Utc> {
     &self.created_on
   }
 
   /// See [DatabaseTy].
   #[inline]
-  pub fn db_ty(&self) -> DatabaseTy {
+  pub const fn db_ty(&self) -> DatabaseTy {
     self.db_ty
   }
 
   /// Group
   #[inline]
-  pub fn group(&self) -> &DbMigrationGroup<Identifier> {
+  pub const fn group(&self) -> &DbMigrationGroup<Identifier> {
     &self.group
   }
 
@@ -49,7 +49,7 @@ impl DbMigration {
 
   /// User ID
   #[inline]
-  pub fn uid(&self) -> Uid {
+  pub const fn uid(&self) -> Uid {
     self.common.uid
   }
 }

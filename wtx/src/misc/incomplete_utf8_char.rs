@@ -15,7 +15,7 @@ pub struct IncompleteUtf8Char {
 }
 
 impl IncompleteUtf8Char {
-  pub(crate) fn new(bytes: &[u8]) -> Option<Self> {
+  pub(crate) const fn new(bytes: &[u8]) -> Option<Self> {
     let mut buffer = [0, 0, 0, 0];
     match bytes {
       [] => {}

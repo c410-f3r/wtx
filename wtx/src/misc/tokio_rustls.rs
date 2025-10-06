@@ -135,7 +135,7 @@ impl TokioRustlsAcceptor {
   /// Erases the set of ALPN protocols when building and then pushes the expected ALPN value for an
   /// HTTP2 connection.
   #[inline]
-  pub fn http2(mut self) -> Self {
+  pub const fn http2(mut self) -> Self {
     self.is_http2 = true;
     self
   }

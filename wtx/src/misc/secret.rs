@@ -125,7 +125,7 @@ mod static_keys {
       buffer.try_extend(&self.protected)?;
       Ok(fun(decrypt_aes256gcm(
         &[],
-        &mut SensitiveBytes(buffer.lease_mut()).0,
+        SensitiveBytes(buffer.lease_mut()).0,
         &secret_key(&self.salt).as_ref().try_into().map_err(crate::Error::from)?,
       )?))
     }

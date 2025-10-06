@@ -31,7 +31,7 @@ where
     self.bq.get(idx).as_ref().map(Self::map)
   }
 
-  pub(crate) fn max_bytes(&self) -> usize {
+  pub(crate) const fn max_bytes(&self) -> usize {
     self.max_bytes
   }
 

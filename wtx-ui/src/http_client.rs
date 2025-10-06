@@ -36,7 +36,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
   if let Some(elem) = data {
     rrb.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
   }
-  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
+  let client = ClientPoolBuilder::tokio_rustls(1).build();
   let res = client.send_recv_single(method, rrb, &uri.as_str().into()).await.unwrap();
   if let Some(elem) = output {
     OpenOptions::new()

@@ -26,7 +26,7 @@ pub enum Mime {
 impl Mime {
   /// Common string representation.
   #[inline]
-  pub fn as_str(&self) -> &'static str {
+  pub const fn as_str(&self) -> &'static str {
     match self {
       Self::ApplicationGrpc => "application/grpc",
       Self::ApplicationJson => "application/json",

@@ -28,7 +28,7 @@ impl<PA, T> Pair<PA, T> {
 
   /// Gives an instance with mutable references.
   #[inline]
-  pub fn as_mut(&mut self) -> PairMut<'_, PA, T> {
+  pub const fn as_mut(&mut self) -> PairMut<'_, PA, T> {
     PairMut { pkgs_aux: &mut self.pkgs_aux, trans: &mut self.trans }
   }
 
@@ -40,7 +40,7 @@ impl<PA, T> Pair<PA, T> {
 
   /// Another shortcut to easy development.
   #[inline]
-  pub fn parts_mut(&mut self) -> (&mut PA, &mut T) {
+  pub const fn parts_mut(&mut self) -> (&mut PA, &mut T) {
     (&mut self.pkgs_aux, &mut self.trans)
   }
 }

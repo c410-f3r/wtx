@@ -70,7 +70,7 @@ pub struct DbError {
 
 impl DbError {
   /// The SQLSTATE code for the error
-  pub fn code(&self) -> &SqlState {
+  pub const fn code(&self) -> &SqlState {
     &self.code
   }
 
@@ -118,7 +118,7 @@ impl DbError {
   }
 
   /// The line number of the source-code location where the error was reported.
-  pub fn line(&self) -> Option<u32> {
+  pub const fn line(&self) -> Option<u32> {
     self.line
   }
 
@@ -129,7 +129,7 @@ impl DbError {
 
   /// The field value is a decimal ASCII integer, indicating an error cursor position as an index
   /// into the original query string.
-  pub fn position(&self) -> Option<&ErrorPosition> {
+  pub const fn position(&self) -> Option<&ErrorPosition> {
     self.position.as_ref()
   }
 
@@ -156,7 +156,7 @@ impl DbError {
   }
 
   /// Nonlocalized `severity`.
-  pub fn severity_nonlocalized(&self) -> Option<Severity> {
+  pub const fn severity_nonlocalized(&self) -> Option<Severity> {
     self.severity_nonlocalized
   }
 

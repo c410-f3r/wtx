@@ -23,7 +23,7 @@ impl Window {
     self.available
   }
 
-  pub(crate) fn deposit(&mut self, stream_id: Option<U31>, value: i32) -> crate::Result<()> {
+  pub(crate) const fn deposit(&mut self, stream_id: Option<U31>, value: i32) -> crate::Result<()> {
     'block: {
       let Some(added) = self.available.checked_add(value) else {
         break 'block;
@@ -44,7 +44,11 @@ impl Window {
     }
   }
 
-  pub(crate) fn withdrawn(&mut self, stream_id: Option<U31>, value: i32) -> crate::Result<()> {
+  pub(crate) const fn withdrawn(
+    &mut self,
+    stream_id: Option<U31>,
+    value: i32,
+  ) -> crate::Result<()> {
     let Some(diff) = self.available.checked_sub(value) else {
       return if let Some(elem) = stream_id {
         Err(crate::Error::Http2FlowControlError(Http2Error::InvalidWindowUpdateSize, elem.u32()))
@@ -98,7 +102,7 @@ impl Windows {
     self.send
   }
 
-  pub(crate) fn send_mut(&mut self) -> &mut Window {
+  pub(crate) const fn send_mut(&mut self) -> &mut Window {
     &mut self.send
   }
 }
@@ -110,12 +114,12 @@ pub(crate) struct WindowsPair<'any> {
 }
 
 impl<'any> WindowsPair<'any> {
-  pub(crate) fn new(conn: &'any mut Windows, stream: &'any mut Windows) -> Self {
+  pub(crate) const fn new(conn: &'any mut Windows, stream: &'any mut Windows) -> Self {
     Self { conn, stream }
   }
 
   /// Available - Send
-  pub(crate) fn available_send(&self) -> i32 {
+  pub(crate) const fn available_send(&self) -> i32 {
     self.stream.send.available()
   }
 

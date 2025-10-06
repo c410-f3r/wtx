@@ -30,7 +30,7 @@ where
 {
   /// Constructor
   #[inline]
-  pub fn new(client: C, drsr: DRSR) -> Self {
+  pub const fn new(client: C, drsr: DRSR) -> Self {
     Self { client, drsr }
   }
 

@@ -49,7 +49,7 @@ create_enum! {
 }
 
 impl Charset {
-  pub(crate) fn default_collation(&self) -> Collation {
+  pub(crate) const fn default_collation(&self) -> Collation {
     match self {
       Self::armscii8 => Collation::armscii8_general_ci,
       Self::ascii => Collation::ascii_general_ci,

@@ -12,7 +12,7 @@ pub struct BlocksDequeBuilder<'db, D, M, const IS_BACK: bool> {
 }
 
 impl<'db, D, M, const IS_BACK: bool> BlocksDequeBuilder<'db, D, M, IS_BACK> {
-  pub(crate) fn new(bd: &'db mut BlocksDeque<D, M>) -> Self {
+  pub(crate) const fn new(bd: &'db mut BlocksDeque<D, M>) -> Self {
     Self { bd, inserted: 0, was_built: false }
   }
 

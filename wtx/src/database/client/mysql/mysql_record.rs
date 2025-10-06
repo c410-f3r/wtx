@@ -18,7 +18,7 @@ pub struct MysqlRecord<'exec, E> {
 }
 
 impl<'exec, E> MysqlRecord<'exec, E> {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     record: &'exec [u8],
     stmt: MysqlStatement<'exec>,
     values_params: &'exec [(bool, Range<usize>)],
