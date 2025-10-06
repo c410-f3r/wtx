@@ -124,7 +124,7 @@ impl HpackEncoder {
     Ok(())
   }
 
-  pub(crate) fn set_max_dyn_super_bytes(&mut self, max_dyn_super_bytes: u32) {
+  pub(crate) const fn set_max_dyn_super_bytes(&mut self, max_dyn_super_bytes: u32) {
     self.max_dyn_sub_bytes = None;
     self.max_dyn_super_bytes = max_dyn_super_bytes;
   }
@@ -221,7 +221,7 @@ impl HpackEncoder {
   }
 
   fn encode_int(buffer: &mut Vector<u8>, first_byte: u8, mut n: u32) -> crate::Result<u8> {
-    fn last_byte(n: u32) -> u8 {
+    const fn last_byte(n: u32) -> u8 {
       n.to_be_bytes()[3]
     }
 
@@ -341,13 +341,13 @@ impl HpackEncoder {
   }
 
   // Very large headers are not good candidates for indexing.
-  fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &str, value: &str) -> bool {
+  const fn header_is_very_large(&self, hhb: HpackHeaderBasic, name: &str, value: &str) -> bool {
     let lhs = hhb.len(name, value);
     let rhs = (self.dyn_headers.max_bytes() / 4).wrapping_mul(3);
     lhs >= rhs
   }
 
-  fn idx_to_encode_idx(&self, idx: u32) -> u32 {
+  const fn idx_to_encode_idx(&self, idx: u32) -> u32 {
     self.idx.wrapping_sub(idx).wrapping_add(DYN_IDX_OFFSET)
   }
 
@@ -406,7 +406,7 @@ impl HpackEncoder {
   }
 
   /// Must be called after insertion
-  fn next_dyn_idx(&self) -> u32 {
+  const fn next_dyn_idx(&self) -> u32 {
     self.idx.wrapping_sub(1)
   }
 

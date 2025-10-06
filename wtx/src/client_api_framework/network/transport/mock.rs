@@ -128,7 +128,7 @@ where
     A: Api,
   {
     manage_before_sending_bytes(pkgs_aux).await?;
-    log_req(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, &mut *self);
+    log_req(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, self);
     self.requests.push(Cow::Owned(FromBytes::from_bytes(bytes.bytes(&pkgs_aux.byte_buffer))?))?;
     pkgs_aux.byte_buffer.clear();
     manage_after_sending_bytes(pkgs_aux).await?;
@@ -146,7 +146,7 @@ where
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     manage_before_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
-    log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, &mut *self);
+    log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, self);
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
     pkgs_aux.byte_buffer.clear();
     manage_after_sending_pkg(pkg, pkgs_aux, &mut *self).await?;

@@ -28,13 +28,13 @@ where
 
   /// User ID
   #[inline]
-  pub fn uid(&self) -> Uid {
+  pub const fn uid(&self) -> Uid {
     self.common.uid
   }
 
   /// Used to track API changes.
   #[inline]
-  pub fn version(&self) -> u32 {
+  pub const fn version(&self) -> u32 {
     self.version
   }
 }

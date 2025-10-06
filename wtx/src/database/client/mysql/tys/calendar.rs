@@ -114,7 +114,7 @@ fn date_encode(date: &Date, ew: &mut EncodeWrapper<'_>, len: u8) -> crate::Resul
   Ok(())
 }
 
-fn date_len(time: &Time) -> u8 {
+const fn date_len(time: &Time) -> u8 {
   match (time.hour().num(), time.minute().num(), time.second().num(), time.nanosecond().num()) {
     (0, 0, 0, 0) => 4,
     (_, _, _, 0) => 7,

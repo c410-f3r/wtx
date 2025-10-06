@@ -20,7 +20,7 @@ impl TyParams {
     Self { flags: Flag::Binary as u16 | Flag::Unsigned as u16, ty }
   }
 
-  pub(crate) fn from_column_res(column_res: &ColumnRes) -> Self {
+  pub(crate) const fn from_column_res(column_res: &ColumnRes) -> Self {
     Self { flags: column_res.flags, ty: column_res.ty }
   }
 }

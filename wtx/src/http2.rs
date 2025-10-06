@@ -62,7 +62,7 @@ use crate::{
     net::PartitionedFilledBuffer,
   },
   stream::{StreamReader, StreamWriter},
-  sync::{Arc, AtomicBool, AtomicWaker, Lock, RefCounter},
+  sync::{Arc, AtomicBool, AtomicU32, AtomicWaker, Lock, RefCounter},
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
@@ -86,16 +86,15 @@ pub use server_stream::ServerStream;
 pub use web_socket_over_stream::WebSocketOverStream;
 pub use window::{Window, Windows};
 
-pub(crate) const MAX_BODY_LEN: u32 = max_body_len!();
-pub(crate) const MAX_HPACK_LEN: u32 = max_hpack_len!();
-pub(crate) const MAX_CONCURRENT_STREAMS_NUM: u32 = max_concurrent_streams_num!();
-pub(crate) const MAX_HEADERS_LEN: u32 = max_headers_len!();
-pub(crate) const MAX_FRAME_LEN: u32 = max_frame_len!();
-pub(crate) const MAX_FRAME_LEN_LOWER_BOUND: u32 = max_frame_len_lower_bound!();
-pub(crate) const MAX_FRAME_LEN_UPPER_BOUND: u32 = max_frame_len_upper_bound!();
-pub(crate) const MAX_RECV_STREAMS_NUM: u32 = max_recv_streams_num!();
-pub(crate) const READ_BUFFER_LEN: u32 = read_buffer_len!();
-
+const MAX_BODY_LEN: u32 = max_body_len!();
+const MAX_CONCURRENT_STREAMS_NUM: u32 = max_concurrent_streams_num!();
+const MAX_FRAME_LEN: u32 = max_frame_len!();
+const MAX_FRAME_LEN_LOWER_BOUND: u32 = max_frame_len_lower_bound!();
+const MAX_FRAME_LEN_UPPER_BOUND: u32 = max_frame_len_upper_bound!();
+const MAX_HEADERS_LEN: u32 = max_headers_len!();
+const MAX_HPACK_LEN: u32 = max_hpack_len!();
+const MAX_RECV_STREAMS_NUM: u32 = max_recv_streams_num!();
+const READ_BUFFER_LEN: u32 = read_buffer_len!();
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
 /// [`Http2`] instance using the mutex of this crate that is based on the standard library.
@@ -122,7 +121,8 @@ pub(crate) type Sorp = HashMap<u31::U31, stream_receiver::StreamOverallRecvParam
 pub struct Http2<HD, const IS_CLIENT: bool> {
   hd: HD,
   is_conn_open: Arc<AtomicBool>,
-  ish_id: u32,
+  // Initial Server Header
+  ish_id: Arc<AtomicU32>,
 }
 
 impl<HB, HD, SW, const IS_CLIENT: bool> Http2<HD, IS_CLIENT>
@@ -216,7 +216,11 @@ where
     let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<false>(hb.lease_mut(), &hp, &mut stream_writer).await?;
     let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
-    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open), ish_id: 0 };
+    let this = Self {
+      hd: hd.clone(),
+      is_conn_open: Arc::clone(&is_conn_open),
+      ish_id: Arc::new(AtomicU32::new(0)),
+    };
     Ok((
       frame_reader::frame_reader(
         hd,
@@ -236,13 +240,12 @@ where
   /// or externally.
   #[inline]
   pub async fn stream<T>(
-    &mut self,
+    &self,
     rrb: ReqResBuffer,
     cb: impl FnOnce(Request<&mut ReqResBuffer>, Option<Protocol>) -> T,
   ) -> crate::Result<Either<ReqResBuffer, (ServerStream<HD>, T)>> {
     let Self { hd, is_conn_open, ish_id } = self;
-    let curr_ish_id = *ish_id;
-    *ish_id = ish_id.wrapping_add(1);
+    let curr_ish_id = ish_id.fetch_add(1, Ordering::Relaxed);
     let rrb_opt = &mut Some(rrb);
     let rslt = {
       let mut lock_pin = pin!(hd.lock());
@@ -335,7 +338,11 @@ where
     let (is_conn_open, max_frame_len, pfb, read_frame_waker) =
       Self::manage_initial_params::<true>(hb.lease_mut(), &hp, &mut stream_writer).await?;
     let hd = HD::new(HD::Item::new(Http2Data::new(hb, hp, stream_writer)));
-    let this = Self { hd: hd.clone(), is_conn_open: Arc::clone(&is_conn_open), ish_id: 0 };
+    let this = Self {
+      hd: hd.clone(),
+      is_conn_open: Arc::clone(&is_conn_open),
+      ish_id: Arc::new(AtomicU32::new(0)),
+    };
     Ok((
       frame_reader::frame_reader(
         hd,
@@ -351,7 +358,7 @@ where
 
   /// Opens a local stream.
   #[inline]
-  pub async fn stream(&mut self) -> crate::Result<ClientStream<HD>> {
+  pub async fn stream(&self) -> crate::Result<ClientStream<HD>> {
     let mut guard = self.hd.lock().await;
     let hdpm = guard.parts_mut();
     if hdpm.hb.sorp.len() >= *Usize::from(hdpm.hp.max_concurrent_streams_num()) {
@@ -401,6 +408,10 @@ where
 {
   #[inline]
   fn clone(&self) -> Self {
-    Self { hd: self.hd.clone(), is_conn_open: Arc::clone(&self.is_conn_open), ish_id: self.ish_id }
+    Self {
+      hd: self.hd.clone(),
+      is_conn_open: Arc::clone(&self.is_conn_open),
+      ish_id: Arc::clone(&self.ish_id),
+    }
   }
 }

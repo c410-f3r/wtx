@@ -187,7 +187,7 @@ where
   /// assert_eq!(uri.port(), Some(80));
   /// ```
   #[inline]
-  pub fn port(&self) -> Option<u16> {
+  pub const fn port(&self) -> Option<u16> {
     self.port
   }
 

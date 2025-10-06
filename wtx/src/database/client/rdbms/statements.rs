@@ -97,7 +97,7 @@ impl<A, C, T> Statements<A, C, T> {
     self.get_by_idx(*self.stmts_indcs.get(&stmt_cmd_id)?)
   }
 
-  pub(crate) fn hasher_mut(&mut self) -> &mut FixedState {
+  pub(crate) const fn hasher_mut(&mut self) -> &mut FixedState {
     &mut self.rs
   }
 }

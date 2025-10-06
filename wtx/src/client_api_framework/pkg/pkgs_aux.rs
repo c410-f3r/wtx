@@ -38,13 +38,13 @@ pub struct PkgsAux<A, DRSR, TP> {
 impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   /// Creates an instance with the minimum amount of mandatory parameters.
   #[inline]
-  pub fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
+  pub const fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
     Self { api, byte_buffer: Vector::new(), drsr, log_body: (false, false), tp, built_requests: 0 }
   }
 
   /// New instance
   #[inline]
-  pub fn new(api: A, byte_buffer: Vector<u8>, drsr: DRSR, log_body: bool, tp: TP) -> Self {
+  pub const fn new(api: A, byte_buffer: Vector<u8>, drsr: DRSR, log_body: bool, tp: TP) -> Self {
     Self { api, byte_buffer, drsr, log_body: (log_body, false), tp, built_requests: 0 }
   }
 
@@ -52,37 +52,41 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   ///
   /// Wraps when a hard-to-happen overflow occurs
   #[inline]
-  pub fn built_requests(&self) -> Id {
+  pub const fn built_requests(&self) -> Id {
     self.built_requests
   }
 
   /// Constructs [JsonRpcEncoder] and also increases the number of requests.
   #[inline]
-  pub fn json_rpc_request<P>(&mut self, method: &'static str, params: P) -> JsonRpcEncoder<P> {
+  pub const fn json_rpc_request<P>(
+    &mut self,
+    method: &'static str,
+    params: P,
+  ) -> JsonRpcEncoder<P> {
     self.increase_requests_num();
     JsonRpcEncoder { id: self.built_requests, method, params }
   }
 
   /// Logs sending or receiving bytes.
   #[inline]
-  pub fn log_body(&mut self) {
+  pub const fn log_body(&mut self) {
     self.log_body.0 = true;
   }
 
   /// Whether to show the contents of a request/response.
   #[inline]
-  pub fn set_log_body(&mut self, elem: bool) {
+  pub const fn set_log_body(&mut self, elem: bool) {
     self.log_body.0 = elem;
   }
 
   /// Constructs [VerbatimEncoder] and also increases the number of requests.
   #[inline]
-  pub fn verbatim_request<D>(&mut self, data: D) -> VerbatimEncoder<D> {
+  pub const fn verbatim_request<D>(&mut self, data: D) -> VerbatimEncoder<D> {
     self.increase_requests_num();
     VerbatimEncoder { data }
   }
 
-  fn increase_requests_num(&mut self) {
+  const fn increase_requests_num(&mut self) {
     self.built_requests = self.built_requests.wrapping_add(1);
   }
 }

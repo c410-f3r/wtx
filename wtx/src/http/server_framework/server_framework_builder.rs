@@ -28,7 +28,7 @@ where
   /// Maximum number of active concurrent streams
   #[inline]
   #[must_use]
-  pub fn enable_connect_protocol(mut self, elem: bool) -> Self {
+  pub const fn enable_connect_protocol(mut self, elem: bool) -> Self {
     self.cp._enable_connect_protocol = elem;
     self
   }
@@ -161,6 +161,6 @@ where
 fn nothing_conn<CBP, E>(_: CBP) -> Result<(), E> {
   Ok(())
 }
-fn nothing_stream<CA, E>(_: &mut CA) -> Result<(), E> {
+const fn nothing_stream<CA, E>(_: &mut CA) -> Result<(), E> {
   Ok(())
 }

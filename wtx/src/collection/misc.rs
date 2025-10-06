@@ -27,7 +27,7 @@ use core::{ptr, slice};
 /// assert_eq!(deque.get(backward_deque_idx(idx_of_third_elem, idx_of_third_elem)), Some(&3));
 /// ```
 #[inline]
-pub fn backward_deque_idx(elem_idx: usize, elem_idx_last: usize) -> usize {
+pub const fn backward_deque_idx(elem_idx: usize, elem_idx_last: usize) -> usize {
   elem_idx_last.wrapping_sub(elem_idx) % 9_223_372_036_854_775_807
 }
 

@@ -21,7 +21,7 @@ async fn main() -> wtx::Result<()> {
         let http2_params = Http2Params::default();
         let http2_buffer = Http2Buffer::new(&mut Xorshift64::from(simple_seed()));
         let tuple = Http2Tokio::accept(http2_buffer, http2_params, tcp_stream.into_split()).await?;
-        let (frame_reader, mut http2) = tuple;
+        let (frame_reader, http2) = tuple;
         let _jh = tokio::spawn(frame_reader);
         loop {
           let (mut http2_stream, headers) = match http2

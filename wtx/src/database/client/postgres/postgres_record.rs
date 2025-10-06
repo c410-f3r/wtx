@@ -19,7 +19,7 @@ pub struct PostgresRecord<'exec, E> {
 }
 
 impl<'exec, E> PostgresRecord<'exec, E> {
-  pub(crate) fn new(
+  pub(crate) const fn new(
     record: &'exec [u8],
     stmt: PostgresStatement<'exec>,
     values_params: &'exec [(bool, Range<usize>)],

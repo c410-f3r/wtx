@@ -112,13 +112,13 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// See [`BlocksDequeBuilder`].
   #[inline]
-  pub fn builder_back(&mut self) -> BlocksDequeBuilder<'_, D, M, true> {
+  pub const fn builder_back(&mut self) -> BlocksDequeBuilder<'_, D, M, true> {
     BlocksDequeBuilder::new(self)
   }
 
   /// See [`BlocksDequeBuilder`].
   #[inline]
-  pub fn builder_front(&mut self) -> BlocksDequeBuilder<'_, D, M, false> {
+  pub const fn builder_front(&mut self) -> BlocksDequeBuilder<'_, D, M, false> {
     BlocksDequeBuilder::new(self)
   }
 

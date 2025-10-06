@@ -62,13 +62,13 @@ impl<const IS_CLIENT: bool> WebSocketReplier<IS_CLIENT> {
     .await
   }
 
-  pub(crate) fn data(
+  pub(crate) const fn data(
     &self,
   ) -> &AtomicCell<(bool, Option<(OpCode, [u8; MAX_CONTROL_PAYLOAD_LEN], u8)>)> {
     &self.data
   }
 
-  pub(crate) fn waker(&self) -> &AtomicWaker {
+  pub(crate) const fn waker(&self) -> &AtomicWaker {
     &self.waker
   }
 }

@@ -11,6 +11,6 @@ async fn popular_sites() {
 }
 
 async fn send_recv(uri: &UriRef<'_>) {
-  let mut client = ClientPoolBuilder::tokio_rustls(1).build();
+  let client = ClientPoolBuilder::tokio_rustls(1).build();
   let _res = client.send_recv_single(Method::Get, ReqResBuffer::empty(), uri).await.unwrap();
 }

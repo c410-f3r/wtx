@@ -15,7 +15,7 @@ pub struct BatchPkg<'slice, A, DRSR, P, T, TP>(BatchElems<'slice, A, DRSR, P, T,
 impl<'slice, A, DRSR, P, T, TP> BatchPkg<'slice, A, DRSR, P, T, TP> {
   /// Currently, only slices of packages are allowed to perform batch requests.
   #[inline]
-  pub fn new(pkgs: &'slice mut [P], pkgs_aux: &mut PkgsAux<A, DRSR, TP>) -> Self {
+  pub const fn new(pkgs: &'slice mut [P], pkgs_aux: &mut PkgsAux<A, DRSR, TP>) -> Self {
     pkgs_aux.log_body = (false, pkgs_aux.log_body.0);
     Self(BatchElems(pkgs, PhantomData), ())
   }

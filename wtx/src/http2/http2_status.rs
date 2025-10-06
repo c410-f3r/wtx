@@ -14,7 +14,7 @@ pub enum Http2RecvStatus<E, O> {
 impl<E, O> Http2RecvStatus<E, O> {
   /// Is closed connection or stream
   #[inline]
-  pub fn is_closed(&self) -> bool {
+  pub const fn is_closed(&self) -> bool {
     matches!(self, Self::ClosedConnection | Self::ClosedStream)
   }
 }
@@ -35,7 +35,7 @@ pub enum Http2SendStatus {
 impl Http2SendStatus {
   /// Is closed connection or stream
   #[inline]
-  pub fn is_closed(&self) -> bool {
+  pub const fn is_closed(&self) -> bool {
     matches!(self, Self::ClosedConnection | Self::ClosedStream)
   }
 }

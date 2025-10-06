@@ -11,13 +11,13 @@ pub struct Redirect {
 }
 
 impl Redirect {
-  fn new(status_code: StatusCode, uri: &'static str) -> Self {
+  const fn new(status_code: StatusCode, uri: &'static str) -> Self {
     Self { status_code, uri }
   }
 
   /// <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/308>
   #[inline]
-  pub fn permanent(uri: &'static str) -> Self {
+  pub const fn permanent(uri: &'static str) -> Self {
     Self::new(StatusCode::PermanentRedirect, uri)
   }
 
@@ -30,7 +30,7 @@ impl Redirect {
 
   /// <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307>
   #[inline]
-  pub fn temporary(uri: &'static str) -> Self {
+  pub const fn temporary(uri: &'static str) -> Self {
     Self::new(StatusCode::TemporaryRedirect, uri)
   }
 
@@ -43,7 +43,7 @@ impl Redirect {
 
   /// <https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/303>
   #[inline]
-  pub fn to(uri: &'static str) -> Self {
+  pub const fn to(uri: &'static str) -> Self {
     Self::new(StatusCode::SeeOther, uri)
   }
 

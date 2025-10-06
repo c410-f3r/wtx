@@ -36,7 +36,7 @@ impl<TP> SendingTransport<TP> for () {
     A: Api,
   {
     manage_before_sending_bytes(pkgs_aux).await?;
-    log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, &mut *self);
+    log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, self);
     manage_after_sending_bytes(pkgs_aux).await?;
     Ok(())
   }

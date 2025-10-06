@@ -123,13 +123,13 @@ pub struct StateTest<CA, SA, RRD> {
 impl<CA, SA, RRD> StateTest<CA, SA, RRD> {
   /// Mutable parts
   #[inline]
-  pub fn parts_mut(&mut self) -> (&mut CA, &mut SA, &mut Request<RRD>) {
+  pub const fn parts_mut(&mut self) -> (&mut CA, &mut SA, &mut Request<RRD>) {
     (&mut self.conn_aux, &mut self.stream_aux, &mut self.req)
   }
 
   /// Returns a new [`StateGeneric`].
   #[inline]
-  pub fn state<const CLEAR: bool>(&mut self) -> StateGeneric<'_, CA, SA, RRD, CLEAR> {
+  pub const fn state<const CLEAR: bool>(&mut self) -> StateGeneric<'_, CA, SA, RRD, CLEAR> {
     StateGeneric {
       conn_aux: &mut self.conn_aux,
       req: &mut self.req,
@@ -141,7 +141,7 @@ impl<CA, SA, RRD> StateTest<CA, SA, RRD> {
 impl<CA, SA> StateTest<CA, SA, ReqResBuffer> {
   /// Mutable parts with a modified request that only contains data and headers.
   #[inline]
-  pub fn parts_mut_with_body_and_headers(
+  pub const fn parts_mut_with_body_and_headers(
     &mut self,
   ) -> (&mut CA, &mut SA, Request<(&mut Vector<u8>, &mut Headers)>) {
     (

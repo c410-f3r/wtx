@@ -26,7 +26,7 @@ pub struct PkgWithHelper<H, P> {
 impl<H, P> PkgWithHelper<H, P> {
   /// Constructor shortcut
   #[inline]
-  pub fn new(helper: H, pkg: P) -> Self {
+  pub const fn new(helper: H, pkg: P) -> Self {
     Self { helper, pkg }
   }
 }

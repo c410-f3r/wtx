@@ -31,7 +31,7 @@ impl<RRD> ResBuilder<RRD> {
 
   /// Changes the status code
   #[inline]
-  pub fn status_code(&mut self, status_code: StatusCode) -> &mut Self {
+  pub const fn status_code(&mut self, status_code: StatusCode) -> &mut Self {
     self.status_code = status_code;
     self
   }

@@ -112,7 +112,7 @@ struct Block {
 }
 
 impl Block {
-  fn from_rows(a: Row, b: Row, c: Row, d: Row) -> Self {
+  const fn from_rows(a: Row, b: Row, c: Row, d: Row) -> Self {
     let Row(a0, a1, a2, a3) = a;
     let Row(b0, b1, b2, b3) = b;
     let Row(c0, c1, c2, c3) = c;
@@ -164,19 +164,19 @@ impl Block {
     }
   }
 
-  fn first_nonce_mut(&mut self) -> &mut u32 {
+  const fn first_nonce_mut(&mut self) -> &mut u32 {
     &mut self.nonces[0]
   }
 
-  fn second_nonce_mut(&mut self) -> &mut u32 {
+  const fn second_nonce_mut(&mut self) -> &mut u32 {
     &mut self.nonces[1]
   }
 
-  fn third_nonce_mut(&mut self) -> &mut u32 {
+  const fn third_nonce_mut(&mut self) -> &mut u32 {
     &mut self.nonces[2]
   }
 
-  fn to_rows(&self) -> (Row, Row, Row, Row) {
+  const fn to_rows(&self) -> (Row, Row, Row, Row) {
     let [c0, c1, c2, c3] = self.constants;
     let [k0, k1, k2, k3, k4, k5, k6, k7] = self.keys;
     let [n0, n1, n2] = self.nonces;
@@ -188,7 +188,7 @@ impl Block {
     )
   }
 
-  fn to_words(&self) -> [u32; WORDS] {
+  const fn to_words(&self) -> [u32; WORDS] {
     let [c0, c1, c2, c3] = self.constants;
     let [k0, k1, k2, k3, k4, k5, k6, k7] = self.keys;
     let [n0, n1, n2] = self.nonces;
@@ -201,33 +201,33 @@ impl Block {
 struct Row(u32, u32, u32, u32);
 
 impl Row {
-  fn or(self, x: &Row) -> Row {
+  const fn or(self, x: &Row) -> Row {
     Row(self.0 | x.0, self.1 | x.1, self.2 | x.2, self.3 | x.3)
   }
 
-  fn roll_left<const N: u8>(self) -> Row {
+  const fn roll_left<const N: u8>(self) -> Row {
     let lefted = self.shift_left::<N>();
     let righted = self.shift_right(32u8.wrapping_sub(N));
     lefted.or(&righted)
   }
 
-  fn shift_left<const N: u8>(self) -> Row {
+  const fn shift_left<const N: u8>(self) -> Row {
     Row(self.0 << N, self.1 << N, self.2 << N, self.3 << N)
   }
 
-  fn shuffle_left1(self) -> Row {
+  const fn shuffle_left1(self) -> Row {
     Row(self.1, self.2, self.3, self.0)
   }
 
-  fn shuffle_left2(self) -> Row {
+  const fn shuffle_left2(self) -> Row {
     Row(self.2, self.3, self.0, self.1)
   }
 
-  fn shuffle_left3(self) -> Row {
+  const fn shuffle_left3(self) -> Row {
     Row(self.3, self.0, self.1, self.2)
   }
 
-  fn shift_right(self, bit_distance: u8) -> Row {
+  const fn shift_right(self, bit_distance: u8) -> Row {
     Row(
       self.0 >> bit_distance,
       self.1 >> bit_distance,
@@ -236,7 +236,7 @@ impl Row {
     )
   }
 
-  fn wrapping_add(self, x: &Row) -> Row {
+  const fn wrapping_add(self, x: &Row) -> Row {
     Row(
       self.0.wrapping_add(x.0),
       self.1.wrapping_add(x.1),
@@ -245,7 +245,7 @@ impl Row {
     )
   }
 
-  fn xor(self, x: &Row) -> Row {
+  const fn xor(self, x: &Row) -> Row {
     Row(self.0 ^ x.0, self.1 ^ x.1, self.2 ^ x.2, self.3 ^ x.3)
   }
 }
@@ -272,19 +272,19 @@ fn block_function<const ADD: bool>(block: &Block) -> Block {
   Block::from_rows(a, b, c, d)
 }
 
-fn diagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
+const fn diagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
   *b = b.shuffle_left3();
   *c = c.shuffle_left2();
   *d = d.shuffle_left1();
 }
 
-fn undiagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
+const fn undiagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
   *b = b.shuffle_left1();
   *c = c.shuffle_left2();
   *d = d.shuffle_left3();
 }
 
-fn round(a: &mut Row, b: &mut Row, c: &mut Row, d: &mut Row) {
+const fn round(a: &mut Row, b: &mut Row, c: &mut Row, d: &mut Row) {
   *a = a.wrapping_add(b);
   *d = a.xor(d);
   *d = d.roll_left::<16>();

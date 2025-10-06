@@ -308,6 +308,6 @@ fn gen_key<'buffer>(buffer: &'buffer mut [u8; 26], rng: &mut impl Rng) -> &'buff
   base64_from_array(&rng.u8_16(), buffer)
 }
 
-fn has_no_masking(el: &[u8]) -> bool {
+const fn has_no_masking(el: &[u8]) -> bool {
   el.eq_ignore_ascii_case(NO_MASKING.as_bytes())
 }

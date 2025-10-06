@@ -22,7 +22,7 @@ pub(crate) struct FirItemAttr {
 }
 
 impl FirItemAttr {
-  pub(crate) fn new(span: Span, ty: FirItemAttrTy) -> Self {
+  pub(crate) const fn new(span: Span, ty: FirItemAttrTy) -> Self {
     Self { span, ty }
   }
 }

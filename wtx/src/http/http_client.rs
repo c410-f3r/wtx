@@ -11,7 +11,7 @@ pub trait HttpClient {
 
   /// Receives a response
   fn recv_res(
-    &mut self,
+    &self,
     rrb: ReqResBuffer,
     req_id: Self::ReqId,
   ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>>;
@@ -19,7 +19,7 @@ pub trait HttpClient {
   /// Sends a request a [`ReqResData`] and receives a response using [`ReqResBuffer`].
   #[inline]
   fn send_recv_dual<RRD>(
-    &mut self,
+    &self,
     method: Method,
     rrb: ReqResBuffer,
     rrd: RRD,
@@ -38,7 +38,7 @@ pub trait HttpClient {
   /// Sends a request and receives a response using a [`ReqBuilder`].
   #[inline]
   fn send_recv_rb(
-    &mut self,
+    &self,
     rb: ReqBuilder<ReqResBuffer>,
     uri: &UriRef<'_>,
   ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>> {
@@ -48,7 +48,7 @@ pub trait HttpClient {
   /// Sends a request and receives a response using a single [`ReqResBuffer`].
   #[inline]
   fn send_recv_single(
-    &mut self,
+    &self,
     method: Method,
     rrb: ReqResBuffer,
     uri: &UriRef<'_>,
@@ -61,7 +61,7 @@ pub trait HttpClient {
 
   /// Sends a request
   fn send_req<RRD>(
-    &mut self,
+    &self,
     method: Method,
     rrd: RRD,
     uri: &UriRef<'_>,
@@ -79,7 +79,7 @@ where
 
   #[inline]
   async fn recv_res(
-    &mut self,
+    &self,
     rrb: ReqResBuffer,
     req_id: Self::ReqId,
   ) -> crate::Result<Response<ReqResBuffer>> {
@@ -88,7 +88,7 @@ where
 
   #[inline]
   async fn send_req<RRD>(
-    &mut self,
+    &self,
     method: Method,
     rrd: RRD,
     uri: &UriRef<'_>,
@@ -122,7 +122,7 @@ mod http2 {
 
     #[inline]
     async fn recv_res(
-      &mut self,
+      &self,
       rrb: ReqResBuffer,
       mut req_id: Self::ReqId,
     ) -> crate::Result<Response<ReqResBuffer>> {
@@ -137,7 +137,7 @@ mod http2 {
 
     #[inline]
     async fn send_req<RRD>(
-      &mut self,
+      &self,
       method: Method,
       rrd: RRD,
       uri: &UriRef<'_>,
@@ -188,16 +188,16 @@ mod http_client_pool {
 
     #[inline]
     async fn recv_res(
-      &mut self,
+      &self,
       rrb: ReqResBuffer,
       req_id: Self::ReqId,
     ) -> crate::Result<Response<ReqResBuffer>> {
-      (&*self).recv_res(rrb, req_id).await
+      (&self).recv_res(rrb, req_id).await
     }
 
     #[inline]
     async fn send_req<RRD>(
-      &mut self,
+      &self,
       method: Method,
       rrd: RRD,
       uri: &UriRef<'_>,
@@ -206,7 +206,7 @@ mod http_client_pool {
       RRD: ReqResData,
       RRD::Body: Lease<[u8]>,
     {
-      (&*self).send_req(method, rrd, uri).await
+      (&self).send_req(method, rrd, uri).await
     }
   }
 
@@ -229,7 +229,7 @@ mod http_client_pool {
 
     #[inline]
     async fn recv_res(
-      &mut self,
+      &self,
       rrb: ReqResBuffer,
       mut req_id: Self::ReqId,
     ) -> crate::Result<Response<ReqResBuffer>> {
@@ -244,7 +244,7 @@ mod http_client_pool {
 
     #[inline]
     async fn send_req<RRD>(
-      &mut self,
+      &self,
       method: Method,
       rrd: RRD,
       uri: &UriRef<'_>,

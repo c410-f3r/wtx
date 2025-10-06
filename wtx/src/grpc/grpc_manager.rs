@@ -20,7 +20,7 @@ impl<DRSR> GrpcManager<DRSR> {
   ///
   /// Instance has an initial [`GrpcStatusCode::Ok`] that can be modified in endpoints.
   #[inline]
-  pub fn from_drsr(drsr: DRSR) -> Self {
+  pub const fn from_drsr(drsr: DRSR) -> Self {
     Self { drsr, status_code: GrpcStatusCode::Ok }
   }
 
@@ -45,7 +45,7 @@ impl<DRSR> GrpcManager<DRSR> {
 
   /// Allows the modification of a gRPC response status.
   #[inline]
-  pub fn status_code_mut(&mut self) -> &mut GrpcStatusCode {
+  pub const fn status_code_mut(&mut self) -> &mut GrpcStatusCode {
     &mut self.status_code
   }
 }

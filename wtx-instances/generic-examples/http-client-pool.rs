@@ -14,7 +14,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
-  let mut pool = ClientPoolBuilder::tokio(1).build();
+  let pool = ClientPoolBuilder::tokio(1).build();
   let res = pool.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await?;
   println!("{}", from_utf8_basic(&res.rrd.body)?);
   Ok(())

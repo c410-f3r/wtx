@@ -25,7 +25,7 @@ pub struct SessionMiddleware<SMI, SS> {
 impl<SMI, SS> SessionMiddleware<SMI, SS> {
   /// New instance
   #[inline]
-  pub fn new(
+  pub const fn new(
     allowed_paths: Vector<String>,
     session_manager: SessionManager<SMI>,
     session_store: SS,

@@ -42,7 +42,7 @@ pub enum CloseCode {
 impl CloseCode {
   /// Checks if this instances is allowed.
   #[inline]
-  pub fn is_allowed(self) -> bool {
+  pub const fn is_allowed(self) -> bool {
     !matches!(self, Self::Reserved(_) | Self::Status | Self::Abnormal | Self::Tls)
   }
 }

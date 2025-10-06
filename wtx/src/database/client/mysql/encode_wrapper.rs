@@ -7,13 +7,13 @@ pub struct EncodeWrapper<'any> {
 }
 
 impl<'any> EncodeWrapper<'any> {
-  pub(crate) fn new(buffer: &'any mut Vector<u8>) -> Self {
+  pub(crate) const fn new(buffer: &'any mut Vector<u8>) -> Self {
     Self { buffer }
   }
 
   /// Buffer used to encode messages that will be sent to MySQL.
   #[inline]
-  pub fn buffer(&mut self) -> &mut Vector<u8> {
+  pub const fn buffer(&mut self) -> &mut Vector<u8> {
     self.buffer
   }
 }

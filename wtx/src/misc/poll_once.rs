@@ -13,7 +13,7 @@ pub struct PollOnce<F> {
 impl<F> PollOnce<F> {
   /// New instance
   #[inline]
-  pub fn new(fut: F) -> Self {
+  pub const fn new(fut: F) -> Self {
     Self { fut }
   }
 }

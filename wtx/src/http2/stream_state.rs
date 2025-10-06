@@ -16,7 +16,7 @@ pub(crate) enum StreamState {
 
 impl StreamState {
   /// If the system can send to a peer regardless of the frame type.
-  pub(crate) fn can_send<const IS_CLIENT: bool>(self) -> bool {
+  pub(crate) const fn can_send<const IS_CLIENT: bool>(self) -> bool {
     if IS_CLIENT {
       matches!(self, Self::Idle | Self::Open)
     } else {
@@ -27,7 +27,7 @@ impl StreamState {
   /// Received End Of Stream
   ///
   /// If the receiving part received an EOS from a peer.
-  pub(crate) fn recv_eos(self) -> bool {
+  pub(crate) const fn recv_eos(self) -> bool {
     matches!(self, Self::HalfClosedRemote | Self::Closed)
   }
 }

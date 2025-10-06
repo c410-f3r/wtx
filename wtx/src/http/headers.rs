@@ -21,7 +21,7 @@ pub enum Trailers {
 impl Trailers {
   /// If there is at least one trailer header, of any type.
   #[inline]
-  pub fn has_any(self) -> bool {
+  pub const fn has_any(self) -> bool {
     matches!(self, Trailers::Mixed | Trailers::Tail(_))
   }
 }
@@ -219,7 +219,7 @@ impl Headers {
     V::IntoIter: Clone,
   {
     #[inline]
-    fn copy(header_end: &mut usize, ptr: *mut u8, value: &str) {
+    const fn copy(header_end: &mut usize, ptr: *mut u8, value: &str) {
       // SAFETY: `header_end is within bounds`
       let dst = unsafe { ptr.add(*header_end) };
       // SAFETY: `reserve` allocated memory
@@ -291,7 +291,7 @@ impl Headers {
 
   /// If this instance has one or more trailer headers.
   #[inline]
-  pub fn trailers(&self) -> Trailers {
+  pub const fn trailers(&self) -> Trailers {
     self.trailers
   }
 
@@ -333,7 +333,7 @@ impl Headers {
     self.sensitive_headers = self.sensitive_headers.wrapping_add(is_sensitive.into());
   }
 
-  fn manage_trailers_inclusion(&mut self, is_trailer: bool, prev_len: usize) {
+  const fn manage_trailers_inclusion(&mut self, is_trailer: bool, prev_len: usize) {
     self.trailers = if is_trailer {
       match self.trailers {
         Trailers::Mixed => Trailers::Mixed,
@@ -429,13 +429,13 @@ pub struct Header<'any, V> {
 impl<'any, V> Header<'any, V> {
   /// Constructor shortcut
   #[inline]
-  pub fn new(is_sensitive: bool, is_trailer: bool, name: &'any str, value: V) -> Self {
+  pub const fn new(is_sensitive: bool, is_trailer: bool, name: &'any str, value: V) -> Self {
     Self { is_sensitive, is_trailer, name, value }
   }
 
   /// Sets `is_sensitive` and `is_trailer` to `false`.
   #[inline]
-  pub fn from_name_and_value(name: &'any str, value: V) -> Self {
+  pub const fn from_name_and_value(name: &'any str, value: V) -> Self {
     Self { is_sensitive: false, is_trailer: false, name, value }
   }
 }

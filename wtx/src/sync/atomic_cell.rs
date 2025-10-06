@@ -76,7 +76,7 @@ impl<T> AtomicCell<T> {
     unsafe { ptr::replace(dst, value) }
   }
 
-  fn as_ptr(&self) -> *mut T {
+  const fn as_ptr(&self) -> *mut T {
     self.value.get()
   }
 }

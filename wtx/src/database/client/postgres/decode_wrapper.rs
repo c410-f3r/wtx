@@ -8,17 +8,17 @@ pub struct DecodeWrapper<'de> {
 }
 
 impl<'de> DecodeWrapper<'de> {
-  pub(crate) fn new(bytes: &'de [u8], ty: Ty) -> Self {
+  pub(crate) const fn new(bytes: &'de [u8], ty: Ty) -> Self {
     Self { bytes, ty }
   }
 
   /// Bytes
-  pub fn bytes(&self) -> &'de [u8] {
+  pub const fn bytes(&self) -> &'de [u8] {
     self.bytes
   }
 
   /// Type of a column.
-  pub fn ty(&self) -> &Ty {
+  pub const fn ty(&self) -> &Ty {
     &self.ty
   }
 }

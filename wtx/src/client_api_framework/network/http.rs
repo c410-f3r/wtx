@@ -117,7 +117,7 @@ pub struct HttpResParams {
 impl HttpResParams {
   /// Sets the inner parameters with their default values.
   #[inline]
-  pub fn reset(&mut self) {
+  pub const fn reset(&mut self) {
     self.status_code = StatusCode::InternalServerError;
   }
 }

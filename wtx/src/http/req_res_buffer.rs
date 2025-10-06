@@ -31,25 +31,25 @@ impl ReqResBuffer {
 
   /// Shortcut to create a HTTP/2 [Request].
   #[inline]
-  pub fn as_http2_request(&self, method: Method) -> Request<&Self> {
+  pub const fn as_http2_request(&self, method: Method) -> Request<&Self> {
     Request { method, rrd: self, version: Version::Http2 }
   }
 
   /// Mutable version of [`Self::as_http2_request`].
   #[inline]
-  pub fn as_http2_request_mut(&mut self, method: Method) -> Request<&mut Self> {
+  pub const fn as_http2_request_mut(&mut self, method: Method) -> Request<&mut Self> {
     Request { method, rrd: self, version: Version::Http2 }
   }
 
   /// Shortcut to create a HTTP/2 [Response].
   #[inline]
-  pub fn as_http2_response(&self, status_code: StatusCode) -> Response<&Self> {
+  pub const fn as_http2_response(&self, status_code: StatusCode) -> Response<&Self> {
     Response { rrd: self, status_code, version: Version::Http2 }
   }
 
   /// Mutable version of [`Self::as_http2_response`].
   #[inline]
-  pub fn as_http2_response_mut(&mut self, status_code: StatusCode) -> Response<&mut Self> {
+  pub const fn as_http2_response_mut(&mut self, status_code: StatusCode) -> Response<&mut Self> {
     Response { rrd: self, status_code, version: Version::Http2 }
   }
 
@@ -66,19 +66,19 @@ impl ReqResBuffer {
 
   /// Owned version of [`Self::as_http2_request`].
   #[inline]
-  pub fn into_http2_request(self, method: Method) -> Request<Self> {
+  pub const fn into_http2_request(self, method: Method) -> Request<Self> {
     Request { method, rrd: self, version: Version::Http2 }
   }
 
   /// Owned version of [`Self::as_http2_response`].
   #[inline]
-  pub fn into_http2_response(self, status_code: StatusCode) -> Response<Self> {
+  pub const fn into_http2_response(self, status_code: StatusCode) -> Response<Self> {
     Response { rrd: self, status_code, version: Version::Http2 }
   }
 
   /// Mutable parts
   #[inline]
-  pub fn parts_mut(&mut self) -> (&mut Vector<u8>, &mut Headers, &mut UriString) {
+  pub const fn parts_mut(&mut self) -> (&mut Vector<u8>, &mut Headers, &mut UriString) {
     (&mut self.body, &mut self.headers, &mut self.uri)
   }
 }

@@ -369,7 +369,7 @@ where
   has_stored
 }
 
-pub(crate) fn server_header_stream_state(has_eos: bool) -> StreamState {
+pub(crate) const fn server_header_stream_state(has_eos: bool) -> StreamState {
   if has_eos { StreamState::HalfClosedRemote } else { StreamState::Open }
 }
 

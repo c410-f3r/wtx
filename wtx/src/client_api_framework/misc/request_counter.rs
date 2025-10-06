@@ -17,7 +17,7 @@ impl RequestCounter {
 
   /// How many requests within the current time-slot are still available for usage.
   #[inline]
-  pub fn remaining_requests(&self, rl: &RequestLimit) -> u16 {
+  pub const fn remaining_requests(&self, rl: &RequestLimit) -> u16 {
     rl.limit().wrapping_sub(self.counter)
   }
 

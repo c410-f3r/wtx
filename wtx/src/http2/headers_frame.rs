@@ -270,11 +270,11 @@ impl<'uri> HeadersFrame<'uri> {
     ))
   }
 
-  pub(crate) fn set_eoh(&mut self) {
+  pub(crate) const fn set_eoh(&mut self) {
     self.cf.set_eoh();
   }
 
-  pub(crate) fn set_eos(&mut self) {
+  pub(crate) const fn set_eos(&mut self) {
     self.cf.set_eos();
   }
 }
@@ -290,7 +290,7 @@ const fn decoded_header_size(name: usize, value: usize) -> usize {
   name.wrapping_add(value).wrapping_add(32)
 }
 
-fn push_enum(
+const fn push_enum(
   expanded_headers_len: &mut usize,
   has_fields: &mut bool,
   is_malformed: &mut bool,
@@ -387,7 +387,7 @@ fn push_uri_in_path_buffer(
   Ok(())
 }
 
-fn trim_priority(cf: CommonFlags, data: &mut &[u8]) {
+const fn trim_priority(cf: CommonFlags, data: &mut &[u8]) {
   if cf.has_pri() {
     let [_, _, _, _, _, rest @ ..] = data else {
       return;

@@ -8,7 +8,7 @@ pub struct PathParams<T> {
 impl<T> PathParams<T> {
   /// Creates a new instance
   #[inline]
-  pub fn new(full_path: &'static str, value: T) -> Self {
+  pub const fn new(full_path: &'static str, value: T) -> Self {
     Self { full_path, value }
   }
 }

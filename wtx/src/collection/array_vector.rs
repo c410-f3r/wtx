@@ -280,7 +280,7 @@ where
 
   #[doc = set_len_doc!()]
   #[inline]
-  pub unsafe fn set_len(&mut self, new_len: L) {
+  pub const unsafe fn set_len(&mut self, new_len: L) {
     self.0.len = new_len;
   }
 

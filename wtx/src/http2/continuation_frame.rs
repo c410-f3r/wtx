@@ -19,7 +19,7 @@ impl ContinuationFrame {
     FrameInit::new(self.cf, 0, self.stream_id, FrameInitTy::Continuation).bytes()
   }
 
-  pub(crate) fn set_eoh(&mut self) {
+  pub(crate) const fn set_eoh(&mut self) {
     self.cf.set_eoh();
   }
 }

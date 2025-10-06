@@ -95,31 +95,31 @@ impl SettingsFrame {
     buffer.get(..idx).unwrap_or_default()
   }
 
-  pub(crate) fn enable_connect_protocol(&self) -> Option<bool> {
+  pub(crate) const fn enable_connect_protocol(&self) -> Option<bool> {
     self.enable_connect_protocol
   }
 
-  pub(crate) fn has_ack(&self) -> bool {
+  pub(crate) const fn has_ack(&self) -> bool {
     self.cf.has_ack()
   }
 
-  pub(crate) fn header_table_size(&self) -> Option<u32> {
+  pub(crate) const fn header_table_size(&self) -> Option<u32> {
     self.header_table_size
   }
 
-  pub(crate) fn initial_window_size(&self) -> Option<U31> {
+  pub(crate) const fn initial_window_size(&self) -> Option<U31> {
     self.initial_window_size
   }
 
-  pub(crate) fn max_concurrent_streams(&self) -> Option<u32> {
+  pub(crate) const fn max_concurrent_streams(&self) -> Option<u32> {
     self.max_concurrent_streams
   }
 
-  pub(crate) fn max_frame_size(&self) -> Option<u32> {
+  pub(crate) const fn max_frame_size(&self) -> Option<u32> {
     self.max_frame_size
   }
 
-  pub(crate) fn max_header_list_size(&self) -> Option<u32> {
+  pub(crate) const fn max_header_list_size(&self) -> Option<u32> {
     self.max_header_list_size
   }
 

@@ -57,7 +57,7 @@ pub(crate) enum HpackHeaderName {
 }
 
 impl HpackHeaderName {
-  pub(crate) fn new(name: &[u8]) -> crate::Result<Self> {
+  pub(crate) const fn new(name: &[u8]) -> crate::Result<Self> {
     Ok(match name {
       b":authority" => Self::Authority,
       b":method" => Self::Method,
@@ -70,7 +70,7 @@ impl HpackHeaderName {
     })
   }
 
-  pub(crate) fn is_field(self) -> bool {
+  pub(crate) const fn is_field(self) -> bool {
     matches!(self, HpackHeaderName::Field)
   }
 }

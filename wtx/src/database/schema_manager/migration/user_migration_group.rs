@@ -41,7 +41,7 @@ where
   /// assert_eq!(user_migration_group().uid(), 1);
   /// ```
   #[inline]
-  pub fn uid(&self) -> Uid {
+  pub const fn uid(&self) -> Uid {
     self.common.uid
   }
 }

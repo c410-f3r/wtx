@@ -21,6 +21,29 @@ pub struct Http2Params {
 }
 
 impl Http2Params {
+  /// New instance with the default parameters declared in the RFC.
+  #[inline]
+  pub const fn with_default_params() -> Self {
+    Self {
+      enable_connect_protocol: false,
+      initial_window_len: U31::from_u32(initial_window_len!()),
+      max_body_len: MAX_BODY_LEN,
+      max_concurrent_streams_num: MAX_CONCURRENT_STREAMS_NUM,
+      max_frame_len: MAX_FRAME_LEN,
+      max_headers_len: MAX_HEADERS_LEN,
+      max_hpack_len: (MAX_HPACK_LEN, MAX_HPACK_LEN),
+      max_recv_streams_num: MAX_RECV_STREAMS_NUM,
+      read_buffer_len: READ_BUFFER_LEN,
+    }
+  }
+
+  /// New instance with optioned default parameters that allows the interaction with most
+  /// modern websites.
+  #[inline]
+  pub const fn from_optioned_params() -> Self {
+    crate::http::conn_params::ConnParams::new()._to_hp()
+  }
+
   /// Enable connect protocol
   ///
   /// Servers only. Allows the execution of other protocols like WebSockets within HTTP/2
@@ -141,7 +164,7 @@ impl Http2Params {
   /// Mutable version of [`Self::enable_connect_protocol`].
   #[inline]
   #[must_use]
-  pub fn set_enable_connect_protocol(mut self, value: bool) -> Self {
+  pub const fn set_enable_connect_protocol(mut self, value: bool) -> Self {
     self.enable_connect_protocol = value;
     self
   }
@@ -149,7 +172,7 @@ impl Http2Params {
   /// Mutable version of [`Self::initial_window_len`].
   #[inline]
   #[must_use]
-  pub fn set_initial_window_len(mut self, value: u32) -> Self {
+  pub const fn set_initial_window_len(mut self, value: u32) -> Self {
     self.initial_window_len = U31::from_u32(value);
     self
   }
@@ -157,7 +180,7 @@ impl Http2Params {
   /// Mutable version of [`Self::max_body_len`].
   #[inline]
   #[must_use]
-  pub fn set_max_body_len(mut self, value: u32) -> Self {
+  pub const fn set_max_body_len(mut self, value: u32) -> Self {
     self.max_body_len = value;
     self
   }
@@ -165,7 +188,7 @@ impl Http2Params {
   /// Mutable version of [`Self::max_concurrent_streams_num`].
   #[inline]
   #[must_use]
-  pub fn set_max_concurrent_streams_num(mut self, value: u32) -> Self {
+  pub const fn set_max_concurrent_streams_num(mut self, value: u32) -> Self {
     self.max_concurrent_streams_num = value;
     self
   }
@@ -173,7 +196,7 @@ impl Http2Params {
   /// Mutable version of [`Self::max_headers_len`].
   #[inline]
   #[must_use]
-  pub fn set_max_headers_len(mut self, value: u32) -> Self {
+  pub const fn set_max_headers_len(mut self, value: u32) -> Self {
     self.max_headers_len = value;
     self
   }
@@ -181,7 +204,7 @@ impl Http2Params {
   /// Mutable version of [`Self::max_hpack_len`].
   #[inline]
   #[must_use]
-  pub fn set_max_hpack_len(mut self, value: (u32, u32)) -> Self {
+  pub const fn set_max_hpack_len(mut self, value: (u32, u32)) -> Self {
     self.max_hpack_len = value;
     self
   }
@@ -189,15 +212,22 @@ impl Http2Params {
   /// Mutable version of [`Self::max_frame_len`].
   #[inline]
   #[must_use]
-  pub fn set_max_frame_len(mut self, value: u32) -> Self {
-    self.max_frame_len = value.clamp(MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND);
+  pub const fn set_max_frame_len(mut self, value: u32) -> Self {
+    // FIXME(stable): Use constant `clamp`
+    self.max_frame_len = if value < MAX_FRAME_LEN_LOWER_BOUND {
+      MAX_FRAME_LEN_LOWER_BOUND
+    } else if value > MAX_FRAME_LEN_UPPER_BOUND {
+      MAX_FRAME_LEN_UPPER_BOUND
+    } else {
+      value
+    };
     self
   }
 
   /// Mutable version of [`Self::max_recv_streams_num`].
   #[inline]
   #[must_use]
-  pub fn set_max_recv_streams_num(mut self, value: u32) -> Self {
+  pub const fn set_max_recv_streams_num(mut self, value: u32) -> Self {
     self.max_recv_streams_num = value;
     self
   }
@@ -205,7 +235,7 @@ impl Http2Params {
   /// Mutable version of [`Self::read_buffer_len`].
   #[inline]
   #[must_use]
-  pub fn set_read_buffer_len(mut self, value: u32) -> Self {
+  pub const fn set_read_buffer_len(mut self, value: u32) -> Self {
     self.read_buffer_len = value;
     self
   }
@@ -226,16 +256,6 @@ impl Http2Params {
 impl Default for Http2Params {
   #[inline]
   fn default() -> Self {
-    Self {
-      enable_connect_protocol: false,
-      initial_window_len: U31::from_u32(initial_window_len!()),
-      max_body_len: MAX_BODY_LEN,
-      max_concurrent_streams_num: MAX_CONCURRENT_STREAMS_NUM,
-      max_frame_len: MAX_FRAME_LEN,
-      max_headers_len: MAX_HEADERS_LEN,
-      max_hpack_len: (MAX_HPACK_LEN, MAX_HPACK_LEN),
-      max_recv_streams_num: MAX_RECV_STREAMS_NUM,
-      read_buffer_len: READ_BUFFER_LEN,
-    }
+    Self::with_default_params()
   }
 }

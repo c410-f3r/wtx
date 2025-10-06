@@ -104,7 +104,7 @@ where
   }
 }
 
-fn dummy() -> (Column, TyParams) {
+const fn dummy() -> (Column, TyParams) {
   (
     Column { name: ArrayString::new(), ty_params: TyParams { flags: 0, ty: Ty::Bit } },
     TyParams { flags: 0, ty: Ty::Bit },

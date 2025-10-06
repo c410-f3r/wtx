@@ -70,46 +70,46 @@ impl From<u64> for Xorshift64 {
   }
 }
 
-fn u8(n: u64) -> u8 {
+const fn u8(n: u64) -> u8 {
   let [a, ..] = n.to_be_bytes();
   a
 }
 
-fn u8_4(n: u64) -> [u8; 4] {
+const fn u8_4(n: u64) -> [u8; 4] {
   let [a, b, c, d, ..] = n.to_be_bytes();
   [a, b, c, d]
 }
 
-fn u8_8(n: u64) -> [u8; 8] {
+const fn u8_8(n: u64) -> [u8; 8] {
   n.to_be_bytes()
 }
 
-fn u8_16(first: u64, second: u64) -> [u8; 16] {
+const fn u8_16(first: u64, second: u64) -> [u8; 16] {
   let [a, b, c, d, e, f, g, h] = first.to_be_bytes();
   let [i, j, k, l, m, n, o, p] = second.to_be_bytes();
   [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
 }
 
-fn xor_numbers(seed: &mut u64) -> u64 {
+const fn xor_numbers(seed: &mut u64) -> u64 {
   *seed ^= *seed << 13;
   *seed ^= *seed >> 17;
   *seed ^= *seed << 5;
   *seed
 }
 
-fn xor_u8(seed: &mut u64) -> u8 {
+const fn xor_u8(seed: &mut u64) -> u8 {
   u8(xor_numbers(seed))
 }
 
-fn xor_u8_4(seed: &mut u64) -> [u8; 4] {
+const fn xor_u8_4(seed: &mut u64) -> [u8; 4] {
   u8_4(xor_numbers(seed))
 }
 
-fn xor_u8_8(seed: &mut u64) -> [u8; 8] {
+const fn xor_u8_8(seed: &mut u64) -> [u8; 8] {
   u8_8(xor_numbers(seed))
 }
 
-fn xor_u8_16(seed: &mut u64) -> [u8; 16] {
+const fn xor_u8_16(seed: &mut u64) -> [u8; 16] {
   u8_16(xor_numbers(seed), xor_numbers(seed))
 }
 

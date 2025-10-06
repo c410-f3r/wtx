@@ -20,7 +20,7 @@ impl<RRD> Request<RRD> {
 
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
-  pub fn http2(method: Method, rrd: RRD) -> Self {
+  pub const fn http2(method: Method, rrd: RRD) -> Self {
     Self { method, rrd, version: Version::Http2 }
   }
 

@@ -79,7 +79,7 @@ where
   /// assert_eq!(user_migration().checksum(), 9297329847391907999)
   /// ```
   #[inline]
-  pub fn checksum(&self) -> u64 {
+  pub const fn checksum(&self) -> u64 {
     self.common.checksum
   }
 
@@ -120,7 +120,7 @@ where
   /// assert_eq!(user_migration().repeatability(), None)
   /// ```
   #[inline]
-  pub fn repeatability(&self) -> Option<Repeatability> {
+  pub const fn repeatability(&self) -> Option<Repeatability> {
     self.common.repeatability
   }
 
@@ -161,7 +161,7 @@ where
   /// assert_eq!(user_migration().uid(), 1)
   /// ```
   #[inline]
-  pub fn uid(&self) -> Uid {
+  pub const fn uid(&self) -> Uid {
     self.common.uid
   }
 }

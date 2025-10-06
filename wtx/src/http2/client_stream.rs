@@ -50,7 +50,7 @@ where
 {
   /// See [`CommonStream`].
   #[inline]
-  pub fn common(&mut self) -> CommonStream<'_, HD, true> {
+  pub const fn common(&mut self) -> CommonStream<'_, HD, true> {
     CommonStream {
       hd: &mut self.hd,
       is_conn_open: &self.is_conn_open,

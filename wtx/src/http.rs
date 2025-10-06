@@ -2,8 +2,8 @@
 
 #[cfg(feature = "http-client-pool")]
 pub mod client_pool;
-#[cfg(any(feature = "http-client-pool", feature = "http-server-framework"))]
-mod conn_params;
+#[cfg(any(feature = "http2", feature = "http-client-pool", feature = "http-server-framework"))]
+pub(crate) mod conn_params;
 #[cfg(feature = "http-cookie")]
 mod cookie;
 mod generic_header;

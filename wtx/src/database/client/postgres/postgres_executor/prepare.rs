@@ -174,6 +174,6 @@ where
   }
 }
 
-fn dummy() -> (Column, Ty) {
+const fn dummy() -> (Column, Ty) {
   (Column::new(ArrayString::new(), Ty::Any), Ty::Any)
 }

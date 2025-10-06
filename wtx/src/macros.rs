@@ -138,7 +138,7 @@ macro_rules! _conn_params_methods {
     /// The initial amount of "credit" a counterpart can have for sending data.
     #[inline]
     #[must_use]
-    pub fn initial_window_len(mut self, elem: u32) -> Self {
+    pub const fn initial_window_len(mut self, elem: u32) -> Self {
       self.cp._initial_window_len = elem;
       self
     }
@@ -146,7 +146,7 @@ macro_rules! _conn_params_methods {
     /// The maximum number of data bytes or the sum of all frames that composed the body data.
     #[inline]
     #[must_use]
-    pub fn max_body_len(mut self, elem: u32) -> Self {
+    pub const fn max_body_len(mut self, elem: u32) -> Self {
       self.cp._max_body_len = elem;
       self
     }
@@ -154,7 +154,7 @@ macro_rules! _conn_params_methods {
     /// Maximum number of active concurrent streams
     #[inline]
     #[must_use]
-    pub fn max_concurrent_streams_num(mut self, elem: u32) -> Self {
+    pub const fn max_concurrent_streams_num(mut self, elem: u32) -> Self {
       self.cp._max_concurrent_streams_num = elem;
       self
     }
@@ -162,7 +162,7 @@ macro_rules! _conn_params_methods {
     /// Maximum frame ***payload*** length
     #[inline]
     #[must_use]
-    pub fn max_frame_len(mut self, elem: u32) -> Self {
+    pub const fn max_frame_len(mut self, elem: u32) -> Self {
       self.cp._max_frame_len = elem;
       self
     }
@@ -178,7 +178,7 @@ macro_rules! _conn_params_methods {
     ///   it doesn't allow external actors to dictate very large lengths.
     #[inline]
     #[must_use]
-    pub fn max_hpack_len(mut self, elem: (u32, u32)) -> Self {
+    pub const fn max_hpack_len(mut self, elem: (u32, u32)) -> Self {
       self.cp._max_hpack_len = elem;
       self
     }
@@ -186,7 +186,7 @@ macro_rules! _conn_params_methods {
     /// The maximum number of bytes of the entire set of headers in a request/response.
     #[inline]
     #[must_use]
-    pub fn max_headers_len(mut self, elem: u32) -> Self {
+    pub const fn max_headers_len(mut self, elem: u32) -> Self {
       self.cp._max_headers_len = elem;
       self
     }
@@ -196,7 +196,7 @@ macro_rules! _conn_params_methods {
     /// Servers only. Prevents clients from opening more than the specified number of streams.
     #[inline]
     #[must_use]
-    pub fn max_recv_streams_num(mut self, elem: u32) -> Self {
+    pub const fn max_recv_streams_num(mut self, elem: u32) -> Self {
       self.cp._max_recv_streams_num = elem;
       self
     }
