@@ -42,16 +42,16 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.1" }
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.1" }
 crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.4" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.1" }
-hmac = { default-features = false, optional = true, version = "0.13.0-rc.1" }
-rsa = { default-features = false, optional = true, version = "0.10.0-rc.6" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.3" }
+hmac = { default-features = false, optional = true, version = "0.13.0-rc.2" }
+rsa = { default-features = false, optional = true, version = "0.10.0-rc.9" }
 sha1 = { default-features = false, optional = true, version = "0.11.0-rc.2" }
 sha2 = { default-features = false, optional = true, version = "0.11.0-rc.2" }
 spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 
 [dev-dependencies]
 tokio = { default-features = false, features = ["rt-multi-thread"], version = "1.0" }
-wtx = { default-features = false, features = ["executor"], path = "." }
+wtx = { default-features = false, features = ["executor", "macros"], path = "." }
 
 [features]
 32-tuple-impls = []
@@ -118,7 +118,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.89"
-version = "0.36.1"
+version = "0.37.0"
 
 [package.metadata.docs.rs]
 all-features = true
