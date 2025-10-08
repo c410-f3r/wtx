@@ -10,7 +10,7 @@ extern crate wtx_instances;
 use wtx::{
   database::{
     Executor as _, Record, Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
   },
   de::{Decode, Encode},
 };
@@ -37,7 +37,7 @@ enum Enum {
 
 impl Decode<'_, Postgres<wtx::Error>> for Enum {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, wtx::Error> {
+  fn decode(aux: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, wtx::Error> {
     let s = <&str as Decode<Postgres<wtx::Error>>>::decode(aux, dw)?;
     Ok(match s {
       "foo" => Self::Foo,
@@ -50,7 +50,7 @@ impl Decode<'_, Postgres<wtx::Error>> for Enum {
 
 impl Encode<Postgres<wtx::Error>> for Enum {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), wtx::Error> {
+  fn encode(&self, aux: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), wtx::Error> {
     let s = match self {
       Self::Foo => "foo",
       Self::Bar => "bar",

@@ -2,8 +2,8 @@ use crate::{
   database::{
     DatabaseError, Executor as _, Record, Records as _, Typed,
     client::postgres::{
-      Config, DecodeWrapper, EncodeWrapper, ExecutorBuffer, Postgres, PostgresExecutor,
-      StructDecoder, StructEncoder, Ty,
+      Config, ExecutorBuffer, Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper,
+      PostgresExecutor, StructDecoder, StructEncoder, Ty,
     },
   },
   de::{Decode, Encode},
@@ -26,7 +26,7 @@ fn custom_composite_type() {
 
       impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
         #[inline]
-        fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
+        fn decode(_: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, crate::Error> {
           let mut sd = StructDecoder::<crate::Error>::new(dw);
           Ok(Self(sd.decode()?, sd.decode_opt()?, sd.decode()?))
         }
@@ -34,7 +34,7 @@ fn custom_composite_type() {
 
       impl Encode<Postgres<crate::Error>> for CustomCompositeType {
         #[inline]
-        fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+        fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
           let _ev = StructEncoder::<crate::Error>::new(ew)?
             .encode(self.0)?
             .encode_with_ty(&self.1, Ty::Varchar)?
@@ -94,14 +94,21 @@ fn custom_domain() {
 
       impl Decode<'_, Postgres<crate::Error>> for CustomDomain {
         #[inline]
-        fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
+        fn decode(
+          aux: &mut (),
+          dw: &mut PostgresDecodeWrapper<'_, '_>,
+        ) -> Result<Self, crate::Error> {
           Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(aux, dw)?))
         }
       }
 
       impl Encode<Postgres<crate::Error>> for CustomDomain {
         #[inline]
-        fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+        fn encode(
+          &self,
+          aux: &mut (),
+          ew: &mut PostgresEncodeWrapper<'_, '_>,
+        ) -> Result<(), crate::Error> {
           <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, aux, ew)?;
           Ok(())
         }
@@ -158,7 +165,10 @@ fn custom_enum() {
 
       impl Decode<'_, Postgres<crate::Error>> for Enum {
         #[inline]
-        fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, crate::Error> {
+        fn decode(
+          aux: &mut (),
+          dw: &mut PostgresDecodeWrapper<'_, '_>,
+        ) -> Result<Self, crate::Error> {
           let s = <&str as Decode<Postgres<crate::Error>>>::decode(aux, dw)?;
           Ok(match s {
             "foo" => Self::Foo,
@@ -171,7 +181,11 @@ fn custom_enum() {
 
       impl Encode<Postgres<crate::Error>> for Enum {
         #[inline]
-        fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+        fn encode(
+          &self,
+          aux: &mut (),
+          ew: &mut PostgresEncodeWrapper<'_, '_>,
+        ) -> Result<(), crate::Error> {
           let s = match self {
             Enum::Foo => "foo",
             Enum::Bar => "bar",

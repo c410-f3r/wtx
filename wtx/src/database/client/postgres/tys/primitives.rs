@@ -1,7 +1,7 @@
 use crate::{
   database::{
     DatabaseError, Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty},
   },
   de::{Decode, Encode},
   misc::Usize,
@@ -14,7 +14,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+  fn decode(_: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
     let &[byte] = dw.bytes() else {
       return Err(E::from(
         DatabaseError::UnexpectedBufferSize {
@@ -32,7 +32,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_byte((*self).into())?;
     Ok(())
   }
@@ -64,7 +64,7 @@ macro_rules! impl_integer_from_array {
         E: From<crate::Error>,
       {
         #[inline]
-        fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+        fn decode(aux: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
           <$signed as Decode::<Postgres<E>>>::decode(aux, dw)?
             .try_into()
             .map_err(|_err| E::from(PostgresError::InvalidPostgresUint.into()))
@@ -75,7 +75,7 @@ macro_rules! impl_integer_from_array {
         E: From<crate::Error>,
       {
         #[inline]
-        fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+        fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
           if *self > const { $unsigned::MAX >> 1 } {
             return Err(E::from(PostgresError::InvalidPostgresUint.into()));
           }
@@ -109,7 +109,7 @@ macro_rules! impl_primitive_from_array {
         E: From<crate::Error>,
       {
           #[inline]
-          fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+          fn decode(_: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
           if let &[$($elem,)+] = dw.bytes() {
             return Ok(<Self>::from_be_bytes([$($elem),+]));
           }
@@ -125,7 +125,7 @@ macro_rules! impl_primitive_from_array {
         E: From<crate::Error>,
       {
         #[inline]
-        fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+        fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
           ew.buffer().extend_from_slice(&self.to_be_bytes())?;
           Ok(())
         }

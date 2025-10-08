@@ -5,25 +5,25 @@ pub trait DEController {
   /// Auxiliary structure
   type Aux;
   /// Decode wrapper
-  type DecodeWrapper<'inner, 'outer>: Lease<[u8]>
+  type DecodeWrapper<'inner, 'outer, 'rem>: Lease<[u8]>
   where
     'inner: 'outer;
   /// Error
   type Error: From<crate::Error>;
   /// Encode wrapper
-  type EncodeWrapper<'inner, 'outer>: Lease<[u8]>
+  type EncodeWrapper<'inner, 'outer, 'rem>: Lease<[u8]>
   where
     'inner: 'outer;
 }
 
 impl DEController for () {
   type Aux = ();
-  type DecodeWrapper<'inner, 'outer>
+  type DecodeWrapper<'inner, 'outer, 'rem>
     = ()
   where
     'inner: 'outer;
   type Error = crate::Error;
-  type EncodeWrapper<'inner, 'outer>
+  type EncodeWrapper<'inner, 'outer, 'rem>
     = ()
   where
     'inner: 'outer;
@@ -34,13 +34,13 @@ where
   T: DEController,
 {
   type Aux = T::Aux;
-  type DecodeWrapper<'inner, 'outer>
-    = T::DecodeWrapper<'inner, 'outer>
+  type DecodeWrapper<'inner, 'outer, 'rem>
+    = T::DecodeWrapper<'inner, 'outer, 'rem>
   where
     'inner: 'outer;
   type Error = T::Error;
-  type EncodeWrapper<'inner, 'outer>
-    = T::EncodeWrapper<'inner, 'outer>
+  type EncodeWrapper<'inner, 'outer, 'rem>
+    = T::EncodeWrapper<'inner, 'outer, 'rem>
   where
     'inner: 'outer;
 }
@@ -50,13 +50,13 @@ where
   T: DEController,
 {
   type Aux = T::Aux;
-  type DecodeWrapper<'inner, 'outer>
-    = T::DecodeWrapper<'inner, 'outer>
+  type DecodeWrapper<'inner, 'outer, 'rem>
+    = T::DecodeWrapper<'inner, 'outer, 'rem>
   where
     'inner: 'outer;
   type Error = T::Error;
-  type EncodeWrapper<'inner, 'outer>
-    = T::EncodeWrapper<'inner, 'outer>
+  type EncodeWrapper<'inner, 'outer, 'rem>
+    = T::EncodeWrapper<'inner, 'outer, 'rem>
   where
     'inner: 'outer;
 }

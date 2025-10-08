@@ -9,7 +9,7 @@ where
   fn encode(
     &self,
     aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_>,
+    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
   ) -> Result<(), DEC::Error>;
 
   /// If this instance can be desired nullable.
@@ -42,7 +42,7 @@ where
   fn encode(
     &self,
     aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_>,
+    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
   ) -> Result<(), DEC::Error> {
     (**self).encode(aux, ew)
   }
@@ -62,7 +62,7 @@ where
   fn encode(
     &self,
     aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_>,
+    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
   ) -> Result<(), DEC::Error> {
     (**self).encode(aux, ew)
   }
@@ -83,7 +83,7 @@ where
   fn encode(
     &self,
     aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_>,
+    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
   ) -> Result<(), DEC::Error> {
     match self {
       Self::Left(left) => left.encode(aux, ew),
@@ -108,7 +108,7 @@ where
   fn encode(
     &self,
     aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_>,
+    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
   ) -> Result<(), DEC::Error> {
     (**self).encode(aux, ew)
   }
@@ -128,7 +128,7 @@ where
   fn encode(
     &self,
     aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_>,
+    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
   ) -> Result<(), DEC::Error> {
     match self {
       None => Ok(()),

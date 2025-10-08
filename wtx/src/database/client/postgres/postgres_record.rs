@@ -90,7 +90,10 @@ where
     self.common.values_params.len()
   }
 
-  fn value<CI>(&self, ci: CI) -> Option<<Self::Database as DEController>::DecodeWrapper<'exec, '_>>
+  fn value<CI>(
+    &self,
+    ci: CI,
+  ) -> Option<<Self::Database as DEController>::DecodeWrapper<'exec, '_, '_>>
   where
     CI: ValueIdent<Self>,
   {

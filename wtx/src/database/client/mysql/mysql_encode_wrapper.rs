@@ -2,11 +2,11 @@ use crate::{collection::Vector, misc::Lease};
 
 /// Struct used for encoding elements in MySQL.
 #[derive(Debug)]
-pub struct EncodeWrapper<'any> {
+pub struct MysqlEncodeWrapper<'any> {
   buffer: &'any mut Vector<u8>,
 }
 
-impl<'any> EncodeWrapper<'any> {
+impl<'any> MysqlEncodeWrapper<'any> {
   pub(crate) const fn new(buffer: &'any mut Vector<u8>) -> Self {
     Self { buffer }
   }
@@ -18,7 +18,7 @@ impl<'any> EncodeWrapper<'any> {
   }
 }
 
-impl Lease<[u8]> for EncodeWrapper<'_> {
+impl Lease<[u8]> for MysqlEncodeWrapper<'_> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.buffer

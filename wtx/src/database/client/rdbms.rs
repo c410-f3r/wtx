@@ -1,3 +1,4 @@
+pub(crate) mod column_info;
 pub(crate) mod common_executor_buffer;
 pub(crate) mod common_record;
 pub(crate) mod common_records;
@@ -8,7 +9,10 @@ pub(crate) mod statements_misc;
 
 use crate::{
   collection::Vector,
-  database::{Database, ValueIdent, client::rdbms::common_record::CommonRecord},
+  database::{
+    Database, ValueIdent,
+    client::rdbms::{column_info::ColumnInfo, common_record::CommonRecord},
+  },
   de::DEController,
   misc::{Lease, hints::_unlikely_elem, net::PartitionedFilledBuffer},
 };
@@ -27,18 +31,20 @@ pub(crate) fn clear_cmd_buffers(
 
 // FIXME(STABLE): CommonRecord should implement Record but in such a scenario GAT implies
 // static bounds.
-pub(crate) fn value<'any, 'exec, A, C, CI, D, R, T>(
+pub(crate) fn value<'inner, 'outer, 'rem, A, C, CI, D, R, T>(
   ci: CI,
-  record: &R,
-) -> Option<<D as DEController>::DecodeWrapper<'exec, 'any>>
+  record: &'rem R,
+) -> Option<<D as DEController>::DecodeWrapper<'inner, 'outer, 'rem>>
 where
-  C: Lease<D::Ty> + 'exec,
+  A: 'rem,
+  C: ColumnInfo<Ty = D::Ty> + 'inner + 'rem,
   CI: ValueIdent<R>,
-  D: Database,
+  D: Database + 'rem,
   D::Ty: Clone,
-  R: Lease<CommonRecord<'exec, A, C, D, T>>,
-  T: 'exec,
-  <D as DEController>::DecodeWrapper<'exec, 'any>: From<(&'exec [u8], D::Ty)>,
+  R: Lease<CommonRecord<'inner, A, C, D, T>>,
+  T: 'inner,
+  <D as DEController>::DecodeWrapper<'inner, 'outer, 'rem>: From<(&'inner [u8], &'rem C)>,
+  'inner: 'rem,
 {
   let idx = ci.idx(record)?;
   let (is_null, range) = match record.lease().values_params.get(idx) {
@@ -56,7 +62,7 @@ where
       None => return _unlikely_elem(None),
       Some(elem) => elem,
     };
-    Some(From::from((bytes, column.lease().clone())))
+    Some(From::from((bytes, column)))
   }
 }
 

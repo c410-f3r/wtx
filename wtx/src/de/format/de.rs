@@ -9,12 +9,12 @@ pub struct De<DRSR>(core::marker::PhantomData<DRSR>);
 
 impl<DRSR> crate::de::DEController for De<DRSR> {
   type Aux = DRSR;
-  type DecodeWrapper<'inner, 'outer>
+  type DecodeWrapper<'inner, 'outer, 'rem>
     = DecodeWrapper<'inner>
   where
     'inner: 'outer;
   type Error = crate::Error;
-  type EncodeWrapper<'inner, 'outer>
+  type EncodeWrapper<'inner, 'outer, 'rem>
     = EncodeWrapper<'inner>
   where
     'inner: 'outer;

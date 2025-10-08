@@ -3,7 +3,7 @@ use crate::{
   database::{
     Typed,
     client::postgres::{
-      DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty,
+      Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty,
       tys::pg_numeric::{PgNumeric, Sign},
     },
   },
@@ -16,7 +16,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+  fn decode(aux: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
     let pg_numeric = PgNumeric::decode(aux, dw)?;
     let (digits, sign, mut weight, scale) = match pg_numeric {
       PgNumeric::NaN => {
@@ -52,7 +52,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, aux: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     if self.is_zero() {
       let rslt = PgNumeric::Number {
         digits: ArrayVectorU16::new(),

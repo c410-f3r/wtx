@@ -33,12 +33,12 @@ where
   E: From<crate::Error>,
 {
   type Aux = ();
-  type DecodeWrapper<'inner, 'outer>
+  type DecodeWrapper<'inner, 'outer, 'rem>
     = DecodeWrapperProtocol<'inner, 'outer, DO>
   where
     'inner: 'outer;
   type Error = E;
-  type EncodeWrapper<'inner, 'outer>
+  type EncodeWrapper<'inner, 'outer, 'rem>
     = EncodeWrapperProtocol<'inner>
   where
     'inner: 'outer;

@@ -5,8 +5,8 @@ use crate::{
     client::{
       mysql::{
         ExecutorBuffer, MysqlExecutor, MysqlStatement, MysqlStatementMut, MysqlStatements, Ty,
-        column::Column,
         misc::{fetch_protocol, send_packet},
+        mysql_column_info::MysqlColumnInfo,
         mysql_protocol::{
           column_res::ColumnRes, prepare_req::PrepareReq, prepare_res::PrepareRes,
           stmt_close_req::StmtCloseReq,
@@ -92,7 +92,7 @@ where
       let Some(elem) = elements.get_mut(usize::from(idx)) else {
         break;
       };
-      elem.0 = Column::from_column_res(&cres);
+      elem.0 = MysqlColumnInfo::from_column_res(&cres);
     }
     let sm = StatementsMisc::new(pres.statement_id, pres.columns.into(), 0);
     let idx = builder.build(stmt_cmd_id, sm)?;
@@ -104,9 +104,9 @@ where
   }
 }
 
-const fn dummy() -> (Column, TyParams) {
+const fn dummy() -> (MysqlColumnInfo, TyParams) {
   (
-    Column { name: ArrayString::new(), ty_params: TyParams { flags: 0, ty: Ty::Bit } },
-    TyParams { flags: 0, ty: Ty::Bit },
+    MysqlColumnInfo { name: ArrayString::new(), ty_params: TyParams::empty(Ty::Bit) },
+    TyParams::empty(Ty::Bit),
   )
 }

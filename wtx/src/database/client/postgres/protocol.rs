@@ -2,7 +2,9 @@ use crate::{
   collection::Vector,
   database::{
     RecordValues,
-    client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError, PostgresStatement},
+    client::postgres::{
+      Config, Oid, Postgres, PostgresEncodeWrapper, PostgresError, PostgresStatement,
+    },
   },
   misc::{
     SuffixWriterFbvm,
@@ -43,7 +45,7 @@ where
       let mut aux = (0usize, 0);
       let _ = rv.encode_values(
         &mut aux,
-        &mut EncodeWrapper::new(local_sw),
+        &mut PostgresEncodeWrapper::new(local_sw),
         |(counter, start), local_ev| {
           *counter = counter.wrapping_add(1);
           *start = local_ev.buffer().len();

@@ -6,7 +6,10 @@ where
   DEC: DEController,
 {
   /// Performs the conversion.
-  fn decode(aux: &mut DEC::Aux, dw: &mut DEC::DecodeWrapper<'de, '_>) -> Result<Self, DEC::Error>;
+  fn decode(
+    aux: &mut DEC::Aux,
+    dw: &mut DEC::DecodeWrapper<'de, '_, '_>,
+  ) -> Result<Self, DEC::Error>;
 }
 
 impl Decode<'_, ()> for &str {
@@ -39,7 +42,7 @@ where
   fn decode_seq(
     aux: &mut DEC::Aux,
     buffer: &mut Vector<Self>,
-    dw: &mut DEC::DecodeWrapper<'de, '_>,
+    dw: &mut DEC::DecodeWrapper<'de, '_, '_>,
   ) -> Result<(), DEC::Error>;
 }
 

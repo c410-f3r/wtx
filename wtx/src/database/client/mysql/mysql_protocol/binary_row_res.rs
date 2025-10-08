@@ -46,7 +46,7 @@ where
         dw.other.1.push((true, idx..idx))?;
         continue;
       }
-      let len = match column.ty_params.ty {
+      let len = match column.ty_params.ty() {
         Ty::Double => 8,
         Ty::Float => 4,
         Ty::Long | Ty::Int24 => 4,

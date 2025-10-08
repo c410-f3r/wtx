@@ -4,7 +4,10 @@ extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
 
-use wtx::database::{Executor as _, Record, Records};
+use wtx::{
+  database::{Executor as _, Record, Records},
+  misc::into_rslt,
+};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -22,7 +25,9 @@ async fn main() -> wtx::Result<()> {
   let records = executor
     .fetch_many_with_stmt("SELECT id, name FROM example", (), |_| Ok::<_, wtx::Error>(()))
     .await?;
-  assert_eq!(records.get(0).as_ref().and_then(|record| record.decode("id").ok()), Some(1));
-  assert_eq!(records.get(1).as_ref().and_then(|record| record.decode("name").ok()), Some("two"));
+  let record0 = into_rslt(records.get(0))?;
+  let record1 = into_rslt(records.get(1))?;
+  assert_eq!((record0.decode::<_, u32>(0)?, record0.decode::<_, &str>("name")?), (1, "one"));
+  assert_eq!((record1.decode::<_, u32>("id")?, record1.decode::<_, &str>(1)?), (2, "two"));
   Ok(())
 }

@@ -14,12 +14,12 @@ macro_rules! impl_tuples {
           $($T: Encode<DB> + Typed<DB>,)*
         {
           #[inline]
-          fn encode_values<'buffer, 'tmp, AUX>(
+          fn encode_values<'inner, 'outer, 'rem, AUX>(
             &self,
             _aux: &mut AUX,
-            _ew: &mut DB::EncodeWrapper<'buffer, 'tmp>,
-            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'buffer, 'tmp>) -> usize,
-            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'buffer, 'tmp>, bool, usize) -> usize,
+            _ew: &mut DB::EncodeWrapper<'inner, 'outer, 'rem>,
+            mut _prefix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
+            mut _suffix_cb: impl FnMut(&mut AUX, &mut DB::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
           ) -> Result<usize, DB::Error> {
             let mut _n: usize = 0;
             $(
@@ -267,7 +267,7 @@ macro_rules! impl_tuples {
     mod postgres {
       use crate::{
         database::{
-          Typed, client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder},
+          Typed, client::postgres::{PostgresDecodeWrapper, PostgresEncodeWrapper, Postgres, StructDecoder, StructEncoder},
         },
         de::{Decode, Encode}
       };
@@ -279,7 +279,7 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn decode(_: &mut (), dw: &mut DecodeWrapper<'de>) -> Result<Self, ERR> {
+          fn decode(_: &mut (), dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, ERR> {
             let mut _sd = StructDecoder::<ERR>::new(dw);
             Ok((
               $( _sd.decode::<$T>()?, )*
@@ -293,7 +293,7 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _: &mut (), _ew: &mut EncodeWrapper<'_, '_>) -> Result<(), ERR> {
+          fn encode(&self, _: &mut (), _ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), ERR> {
             let mut _ev = StructEncoder::<ERR>::new(_ew)?;
             $(
               _ev = _ev.encode(&self.$N)?;

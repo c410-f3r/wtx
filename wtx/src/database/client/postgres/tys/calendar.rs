@@ -2,7 +2,7 @@ use crate::{
   calendar::{Date, DateTime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Utc, Year},
   database::{
     DatabaseError, Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty},
   },
   de::{Decode, Encode},
 };
@@ -47,7 +47,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+  fn decode(aux: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
     let micros: i64 = Decode::<Postgres<E>>::decode(aux, dw)?;
     let (epoch_ts, _) = PG_EPOCH.timestamp_secs_and_ns();
     let this_ts = micros.div_euclid(1_000_000);
@@ -64,7 +64,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     if self < &PG_MIN || self > &DateTime::MAX {
       return Err(E::from(PostgresError::TimeStructureOverflow.into()));
     }
@@ -99,7 +99,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+  fn decode(aux: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
     let days: i32 = Decode::<Postgres<E>>::decode(aux, dw)?;
     let days_in_secs = i64::from(SECONDS_PER_DAY).wrapping_mul(days.into());
     let timestamp = days_in_secs.wrapping_add(PG_EPOCH.timestamp_secs_and_ns().0);
@@ -112,7 +112,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     if self < &PG_MIN.date() || self > &Date::MAX {
       return Err(E::from(DatabaseError::UnexpectedValueFromBytes { expected: "date" }.into()));
     }
