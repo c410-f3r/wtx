@@ -5,16 +5,16 @@ mod auth_plugin;
 mod capability;
 pub(crate) mod charset;
 pub(crate) mod collation;
-mod column;
 mod config;
 mod db_error;
-mod decode_wrapper;
-mod encode_wrapper;
 mod executor_buffer;
 mod flag;
 #[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod misc;
+mod mysql_column_info;
+mod mysql_decode_wrapper;
+mod mysql_encode_wrapper;
 mod mysql_error;
 mod mysql_executor;
 mod mysql_protocol;
@@ -44,9 +44,9 @@ use core::{
   marker::PhantomData,
 };
 pub use db_error::DbError;
-pub use decode_wrapper::DecodeWrapper;
-pub use encode_wrapper::EncodeWrapper;
 pub use executor_buffer::ExecutorBuffer;
+pub use mysql_decode_wrapper::MysqlDecodeWrapper;
+pub use mysql_encode_wrapper::MysqlEncodeWrapper;
 pub use mysql_error::MysqlError;
 pub use mysql_executor::MysqlExecutor;
 pub use mysql_record::MysqlRecord;
@@ -55,13 +55,16 @@ pub use ty::Ty;
 pub use ty_params::TyParams;
 
 pub(crate) type MysqlCommonRecord<'exec, E> =
-  CommonRecord<'exec, u32, column::Column, Mysql<E>, TyParams>;
+  CommonRecord<'exec, u32, mysql_column_info::MysqlColumnInfo, Mysql<E>, TyParams>;
 pub(crate) type MysqlCommonRecords<'exec, E> =
-  CommonRecords<'exec, u32, column::Column, Mysql<E>, TyParams>;
-pub(crate) type MysqlCommonExecutorBuffer = CommonExecutorBuffer<u32, column::Column, TyParams>;
-pub(crate) type MysqlStatements = Statements<u32, column::Column, TyParams>;
-pub(crate) type MysqlStatement<'stmts> = Statement<'stmts, u32, column::Column, TyParams>;
-pub(crate) type MysqlStatementMut<'stmts> = StatementMut<'stmts, u32, column::Column, TyParams>;
+  CommonRecords<'exec, u32, mysql_column_info::MysqlColumnInfo, Mysql<E>, TyParams>;
+pub(crate) type MysqlCommonExecutorBuffer =
+  CommonExecutorBuffer<u32, mysql_column_info::MysqlColumnInfo, TyParams>;
+pub(crate) type MysqlStatements = Statements<u32, mysql_column_info::MysqlColumnInfo, TyParams>;
+pub(crate) type MysqlStatement<'stmts> =
+  Statement<'stmts, u32, mysql_column_info::MysqlColumnInfo, TyParams>;
+pub(crate) type MysqlStatementMut<'stmts> =
+  StatementMut<'stmts, u32, mysql_column_info::MysqlColumnInfo, TyParams>;
 
 /// MySQL
 pub struct Mysql<E>(PhantomData<fn() -> E>);
@@ -82,13 +85,13 @@ where
   E: From<crate::Error>,
 {
   type Aux = ();
-  type DecodeWrapper<'inner, 'outer>
-    = DecodeWrapper<'inner>
+  type DecodeWrapper<'inner, 'outer, 'rem>
+    = MysqlDecodeWrapper<'inner, 'rem>
   where
     'inner: 'outer;
   type Error = E;
-  type EncodeWrapper<'inner, 'outer>
-    = EncodeWrapper<'inner>
+  type EncodeWrapper<'inner, 'outer, 'rem>
+    = MysqlEncodeWrapper<'inner>
   where
     'inner: 'outer;
 }

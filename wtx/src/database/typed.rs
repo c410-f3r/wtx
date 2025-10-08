@@ -109,7 +109,11 @@ where
   D: Database,
 {
   #[inline]
-  fn encode(&self, aux: &mut D::Aux, ew: &mut D::EncodeWrapper<'_, '_>) -> Result<(), D::Error> {
+  fn encode(
+    &self,
+    aux: &mut D::Aux,
+    ew: &mut D::EncodeWrapper<'_, '_, '_>,
+  ) -> Result<(), D::Error> {
     (**self).encode(aux, ew)
   }
 

@@ -1,7 +1,7 @@
 use crate::{
   database::{
     DatabaseError, Typed,
-    client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams},
+    client::mysql::{Mysql, MysqlDecodeWrapper, MysqlEncodeWrapper, Ty, TyParams},
   },
   de::{Decode, Encode},
   misc::Usize,
@@ -12,7 +12,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), _: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+  fn decode(_: &mut (), _: &mut MysqlDecodeWrapper<'_, '_>) -> Result<Self, E> {
     Ok(())
   }
 }
@@ -24,7 +24,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+  fn decode(_: &mut (), dw: &mut MysqlDecodeWrapper<'_, '_>) -> Result<Self, E> {
     let &[byte] = dw.bytes() else {
       return Err(E::from(
         DatabaseError::UnexpectedBufferSize {
@@ -42,7 +42,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut MysqlEncodeWrapper<'_>) -> Result<(), E> {
     ew.buffer().push((*self).into())?;
     Ok(())
   }
@@ -71,7 +71,7 @@ macro_rules! impl_integer_from_array {
           E: From<crate::Error>,
         {
           #[inline]
-          fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+          fn decode(_: &mut (), dw: &mut MysqlDecodeWrapper<'_, '_>) -> Result<Self, E> {
             if let &[$($elem,)+] = dw.bytes() {
               return Ok(<Self>::from_le_bytes([$($elem),+]));
             }
@@ -86,7 +86,7 @@ macro_rules! impl_integer_from_array {
           E: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+          fn encode(&self, _: &mut (), ew: &mut MysqlEncodeWrapper<'_>) -> Result<(), E> {
             ew.buffer().extend_from_copyable_slice(&self.to_le_bytes()).map_err(Into::into)?;
             Ok(())
           }
@@ -117,7 +117,7 @@ macro_rules! impl_primitive_from_array {
           E: From<crate::Error>,
         {
           #[inline]
-          fn decode(_: &mut (), dw: &mut DecodeWrapper<'_>) -> Result<Self, E> {
+          fn decode(_: &mut (), dw: &mut MysqlDecodeWrapper<'_, '_>) -> Result<Self, E> {
             if let &[$($elem,)+] = dw.bytes() {
               return Ok(<Self>::from_le_bytes([$($elem),+]));
             }
@@ -133,7 +133,7 @@ macro_rules! impl_primitive_from_array {
           E: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+          fn encode(&self, _: &mut (), ew: &mut MysqlEncodeWrapper<'_>) -> Result<(), E> {
             ew.buffer().extend_from_copyable_slice(&self.to_le_bytes()).map_err(Into::into)?;
             Ok(())
           }

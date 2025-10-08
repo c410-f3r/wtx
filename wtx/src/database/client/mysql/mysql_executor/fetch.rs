@@ -5,8 +5,8 @@ use crate::{
     client::mysql::{
       ExecutorBuffer, Mysql, MysqlError, MysqlExecutor, MysqlRecord, MysqlStatement,
       MysqlStatements,
-      column::Column,
       misc::{decode, fetch_msg, fetch_protocol, send_packet},
+      mysql_column_info::MysqlColumnInfo,
       mysql_protocol::{
         binary_row_res::BinaryRowRes, lenenc::Lenenc, ok_res::OkRes,
         stmt_execute_req::StmtExecuteReq, text_row_res::TextRowRes,
@@ -61,7 +61,7 @@ where
       for _ in 0..columns {
         let (res, total1) = fetch_protocol(capabilities, net_buffer, sequence_id, stream).await?;
         end = end.wrapping_add(total1);
-        let _column = Column::from_column_res(&res);
+        let _column = MysqlColumnInfo::from_column_res(&res);
       }
 
       loop {

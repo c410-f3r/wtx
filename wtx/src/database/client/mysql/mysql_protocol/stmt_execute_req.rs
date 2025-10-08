@@ -2,7 +2,7 @@ use crate::{
   database::{
     RecordValues,
     client::mysql::{
-      EncodeWrapper, Mysql, MysqlStatement,
+      Mysql, MysqlEncodeWrapper, MysqlStatement,
       flag::Flag,
       mysql_protocol::{MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol},
     },
@@ -46,12 +46,12 @@ where
       ew.encode_buffer.push(1)?;
       for ty in self.stmt.tys() {
         let unsigned = u16::from(Flag::Unsigned);
-        let value = if ty.flags & unsigned == unsigned { 128 } else { 0 };
-        ew.encode_buffer.extend_from_copyable_slice(&[u8::from(ty.ty), value])?;
+        let value = if ty.flags() & unsigned == unsigned { 128 } else { 0 };
+        ew.encode_buffer.extend_from_copyable_slice(&[u8::from(ty.ty()), value])?;
       }
       let _ = self.rv.encode_values(
         &mut (),
-        &mut EncodeWrapper::new(ew.encode_buffer),
+        &mut MysqlEncodeWrapper::new(ew.encode_buffer),
         |_, _| 0,
         |_, _, _, _| 0,
       )?;

@@ -5,10 +5,10 @@ use crate::{
     client::{
       postgres::{
         Postgres, PostgresError, PostgresExecutor, PostgresStatement, PostgresStatements,
-        column::Column,
         executor_buffer::ExecutorBuffer,
         message::MessageTy,
         msg_field::MsgField,
+        postgres_column_info::PostgresColumnInfo,
         postgres_executor::commons::FetchWithStmtCommons,
         protocol::{bind, describe, execute, parse, sync},
         ty::Ty,
@@ -144,7 +144,7 @@ where
           let Some(element) = elements.get_mut(usize::from(idx)) else {
             break;
           };
-          element.0 = Column::new(msg_field.name.try_into()?, ty);
+          element.0 = PostgresColumnInfo::new(msg_field.name.try_into()?, ty);
           if let Some(elem @ [_not_empty, ..]) = rd.get(read..) {
             rd = elem;
           } else {
@@ -174,6 +174,6 @@ where
   }
 }
 
-const fn dummy() -> (Column, Ty) {
-  (Column::new(ArrayString::new(), Ty::Any), Ty::Any)
+const fn dummy() -> (PostgresColumnInfo, Ty) {
+  (PostgresColumnInfo::new(ArrayString::new(), Ty::Any), Ty::Any)
 }

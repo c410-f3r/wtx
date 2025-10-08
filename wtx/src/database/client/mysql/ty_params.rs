@@ -1,13 +1,18 @@
 use crate::database::client::mysql::{Ty, flag::Flag, mysql_protocol::column_res::ColumnRes};
 
-/// [Ty] with metadata.
-#[derive(Clone, Debug)]
+/// [`Ty`] with metadata.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TyParams {
-  pub(crate) flags: u16,
-  pub(crate) ty: Ty,
+  flags: u16,
+  ty: Ty,
 }
 
 impl TyParams {
+  /// Constructor
+  pub const fn new(flags: u16, ty: Ty) -> Self {
+    Self { flags, ty }
+  }
+
   pub(crate) const fn binary(ty: Ty) -> Self {
     Self { flags: Flag::Binary as u16, ty }
   }
@@ -22,5 +27,15 @@ impl TyParams {
 
   pub(crate) const fn from_column_res(column_res: &ColumnRes) -> Self {
     Self { flags: column_res.flags, ty: column_res.ty }
+  }
+
+  /// Bitflag combination that compose a metadata.
+  pub const fn flags(&self) -> u16 {
+    self.flags
+  }
+
+  /// See [`Ty`].
+  pub const fn ty(&self) -> Ty {
+    self.ty
   }
 }
