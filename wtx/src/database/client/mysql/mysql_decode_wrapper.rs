@@ -26,6 +26,7 @@ impl<'de, 'rem> MysqlDecodeWrapper<'de, 'rem> {
   }
 
   /// Column's name
+  #[inline]
   pub const fn name(&self) -> &'rem str {
     self.name
   }

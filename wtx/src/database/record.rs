@@ -48,6 +48,17 @@ pub trait Record<'exec>: Sized {
   ) -> Option<<Self::Database as DEController>::DecodeWrapper<'exec, '_, '_>>
   where
     CI: ValueIdent<Self>;
+
+  /// Iterates over all values
+  #[inline]
+  fn values<'this>(
+    &'this self,
+  ) -> impl Iterator<Item = Option<<Self::Database as DEController>::DecodeWrapper<'exec, 'this, 'this>>>
+  where
+    'exec: 'this,
+  {
+    (0..self.len()).map(|idx| self.value(idx))
+  }
 }
 
 impl Record<'_> for () {

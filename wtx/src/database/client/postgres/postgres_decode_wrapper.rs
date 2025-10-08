@@ -17,16 +17,19 @@ impl<'de, 'rem> PostgresDecodeWrapper<'de, 'rem> {
   }
 
   /// Bytes of the column
+  #[inline]
   pub const fn bytes(&self) -> &'de [u8] {
     self.bytes
   }
 
   /// Column's name
+  #[inline]
   pub const fn name(&self) -> &'rem str {
     self.name
   }
 
   /// Type of the column.
+  #[inline]
   pub const fn ty(&self) -> &Ty {
     &self.ty
   }

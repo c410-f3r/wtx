@@ -14,8 +14,8 @@ create_enum! {
     Protocol41 = (512),
     Interactive = (1024),
     Ssl = (2048),
-    Transactions = (16384),
-    SecureConnection = (32768),
+    Transactions = (16384), // 1 << 14
+    SecureConnection = (32768), // 1 << 15
     MultiStatements = (65536), // 1 << 16
     MultiResults = (131072), // 1 << 17
     PsMultiResults = (262144), // 1 << 18
