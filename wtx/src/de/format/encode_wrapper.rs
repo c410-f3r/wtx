@@ -1,6 +1,6 @@
 use crate::{collection::Vector, misc::Lease};
 
-/// Struct used for encoding elements in `MySQL`.
+/// Struct used for encoding different formats.
 #[derive(Debug)]
 pub struct EncodeWrapper<'any> {
   pub(crate) vector: &'any mut Vector<u8>,

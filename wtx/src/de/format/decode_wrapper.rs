@@ -1,6 +1,6 @@
 use crate::misc::Lease;
 
-/// Struct used for decoding elements in `MySQL`.
+/// Struct used for decoding different formats.
 #[derive(Debug, PartialEq)]
 pub struct DecodeWrapper<'de> {
   pub(crate) bytes: &'de [u8],
