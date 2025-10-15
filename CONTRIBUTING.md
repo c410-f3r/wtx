@@ -1,6 +1,6 @@
 # Contributing
 
-Contributors should understand their code so they can explain why their changes improve the project.
+Contributors should understand their code so they can provide an explanation if requested.
 
 Before submitting a PR, you should probably run `./scripts/internal-tests.sh` and/or `./scripts/intergration-tests.sh` to make sure everything is fine.
 

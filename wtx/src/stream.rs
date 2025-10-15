@@ -30,6 +30,8 @@ macro_rules! _local_write_all_vectored {
   };
 }
 
+#[cfg(feature = "async-net")]
+mod async_net;
 mod bytes_stream;
 #[cfg(feature = "embassy-net")]
 mod embassy_net;

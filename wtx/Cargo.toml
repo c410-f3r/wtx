@@ -1,5 +1,6 @@
 [dependencies]
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
+async-net = { default-features = false, optional = true, version = "2.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
@@ -8,6 +9,7 @@ embassy-time = { default-features = false, optional = true, version = "0.3" }
 fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.2" }
+futures-lite = { default-features = false, optional = true, version = "2.0" }
 getrandom = { default-features = false, optional = true, version = "0.3" }
 hashbrown = { default-features = false, features = ["default-hasher", "inline-more"], optional = true, version = "0.16" }
 httparse = { default-features = false, optional = true, version = "1.0" }
@@ -56,6 +58,7 @@ wtx = { default-features = false, features = ["executor", "macros"], path = "." 
 [features]
 32-tuple-impls = []
 arbitrary = ["dep:arbitrary", "std"]
+async-net = ["dep:async-net", "futures-lite"]
 borsh = ["borsh/std", "std"]
 client-api-framework = []
 crossbeam-channel = ["crossbeam-channel/std", "std"]

@@ -10,6 +10,7 @@ $rt test-with-features wtx executor
 $rt test-with-features wtx fastrand
 $rt test-with-features wtx flate2
 $rt test-with-features wtx foldhash
+$rt test-with-features wtx futures-lite
 $rt test-with-features wtx grpc
 $rt test-with-features wtx grpc-client
 $rt test-with-features wtx grpc-server
