@@ -116,7 +116,7 @@ mod static_keys {
     ///
     /// `buffer` is utilized for internal operations and can be freely reused for any other action
     /// afterwards.
-    pub fn peek<B, E, T>(&self, buffer: &mut B, mut fun: impl FnMut(&[u8]) -> T) -> Result<T, E>
+    pub fn peek<B, E, T>(&self, buffer: &mut B, fun: impl FnOnce(&[u8]) -> T) -> Result<T, E>
     where
       for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8], Error = E>,
       E: From<crate::Error>,
