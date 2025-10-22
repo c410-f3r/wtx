@@ -340,63 +340,48 @@ macro_rules! _simd {
   }};
 }
 
-macro_rules! _simd_bytes {
+macro_rules! _simd_slice {
   (
-    ($align:ident, $bytes:expr),
-    |$bytes_ident:ident| $bytes_expr:expr,
-    |$before_align_ident:ident| $before_align_expr:expr,
-    |$_16_ident:ident| $_16_expr:expr,
-    |$_32_ident:ident| $_32_expr:expr,
-    |$_64_ident:ident| $_64_expr:expr,
-    |$after_align_ident:ident| $after_align_expr:expr $(,)?
+    ($($immutables:ident),* $(,)?),
+    ($($mutables:ident),* $(,)?),
+    $_8_pat:pat => $_8_expr:expr,
+    $_16_pat:pat => $_16_expr:expr,
+    $_32_pat:pat => $_32_expr:expr,
+    $_64_pat:pat => $_64_expr:expr,
+    $rest_pat:pat => $rest_expr:expr $(,)?
   ) => {{
-    // SAFETY: changing a sequence of `u8` should be fine
-    let (_prefix, _chunks, _suffix) = unsafe { $bytes.$align() };
-    _simd! {
+    let rest = _simd! {
       8 => {
-        let _: [[u8; 8]] = *_chunks;
-        let $bytes_ident = _prefix; $bytes_expr
-        let $before_align_ident = $bytes_ident; $before_align_expr;
-        let $_16_ident = _chunks; $_16_expr;
-        let $after_align_ident = _suffix; $after_align_expr;
-        let $bytes_ident = $after_align_ident; $bytes_expr
+        let ($($immutables,)*) = ($($immutables.as_chunks::<8>(),)*);
+        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<8>(),)*);
+        let $_8_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
+        $_8_expr;
+        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
       },
       16 => {
-        let _: [[u8; 16]] = *_chunks;
-        let $bytes_ident = _prefix; $bytes_expr
-        let $before_align_ident = $bytes_ident; $before_align_expr;
-        let $_16_ident = _chunks; $_16_expr;
-        let $after_align_ident = _suffix; $after_align_expr;
-        let $bytes_ident = $after_align_ident; $bytes_expr
+        let ($($immutables,)*) = ($($immutables.as_chunks::<16>(),)*);
+        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<16>(),)*);
+        let $_16_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
+        $_16_expr;
+        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
       },
       32 => {
-        let _: [[u8; 32]] = *_chunks;
-        let $bytes_ident = _prefix; $bytes_expr
-        let $before_align_ident = $bytes_ident; $before_align_expr;
-        let $_32_ident = _chunks; $_32_expr;
-        let $after_align_ident = _suffix; $after_align_expr;
-        let $bytes_ident = $after_align_ident; $bytes_expr
+        let ($($immutables,)*) = ($($immutables.as_chunks::<32>(),)*);
+        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<32>(),)*);
+        let $_32_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
+        $_32_expr;
+        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
       },
       64 => {
-        let _: [[u8; 64]] = *_chunks;
-        let $bytes_ident = _prefix; $bytes_expr
-        let $before_align_ident = $bytes_ident; $before_align_expr;
-        let $_64_ident = _chunks; $_64_expr;
-        let $after_align_ident = _suffix; $after_align_expr;
-        let $bytes_ident = $after_align_ident; $bytes_expr
-      },
-    }
-  }};
-}
-
-macro_rules! _simd_lanes {
-  () => {{
-    _simd! {
-      8 => 8,
-      16 => 16,
-      32 => 32,
-      64 => 64,
-    }
+        let ($($immutables,)*) = ($($immutables.as_chunks::<64>(),)*);
+        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<64>(),)*);
+        let $_64_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
+        $_64_expr;
+        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
+      }
+    };
+    let $rest_pat = rest;
+    $rest_expr
   }};
 }
 
