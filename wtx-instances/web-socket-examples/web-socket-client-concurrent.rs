@@ -5,28 +5,26 @@
 //! task but you can also utilize any other method.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 
 use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
-  misc::{TokioRustlsConnector, Uri},
+  misc::Uri,
+  tls::{TlsConfig, TlsConnector},
   web_socket::{Frame, OpCode, WebSocketConnector, WebSocketPartsOwned, WebSocketPayloadOrigin},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_TLS_URI");
-  let tls_connector = TokioRustlsConnector::from_auto()?.push_certs(wtx_instances::ROOT_CA)?;
-  let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
-  let ws = WebSocketConnector::default()
-    .connect(
-      tls_connector.connect_without_client_auth(uri.hostname(), stream).await?,
-      &uri.to_ref(),
-    )
+  let stream = TlsConnector::default()
+    .plain_text()
+    .push_cert(wtx_instances::ROOT_CA)
+    .connect(&TlsConfig::default(), TcpStream::connect(uri.hostname_with_implied_port()).await?)
     .await?;
+  let ws = WebSocketConnector::default().connect(stream, &uri.to_ref()).await?;
   let WebSocketPartsOwned { mut reader, replier, mut writer } = ws.into_parts(tokio::io::split)?;
 
   let reader_fut = async {

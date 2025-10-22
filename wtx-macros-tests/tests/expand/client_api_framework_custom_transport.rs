@@ -16,8 +16,7 @@ impl ReceivingTransport<CustomTransportParams> for CustomTransport {
   async fn recv<A, DRSR>(
     &mut self,
     _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
-    _: Self::ReqId,
-  ) -> Result<(), A::Error>
+  ) -> Result<Range<usize>, A::Error>
   where
     A: Api,
   {

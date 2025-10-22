@@ -6,7 +6,7 @@ wtx = { default-features = false, features = ["tokio"], path = "../wtx", version
 [features]
 default = []
 embed-migrations = ["clap", "tokio/fs", "wtx/schema-manager", "wtx/std"]
-http-client = ["clap", "wtx/http-client-pool", "wtx/tokio-rustls", "wtx/_tracing-tree", "wtx/webpki-roots"]
+http-client = ["clap", "wtx/http-client-pool", "wtx/_tracing-tree", "wtx/webpki-roots"]
 schema-manager = ["clap", "wtx/getrandom", "wtx/postgres", "wtx/schema-manager", "wtx/std"]
 schema-manager-dev = ["schema-manager", "wtx/_tracing-tree", "wtx/schema-manager-dev"]
 unified = []

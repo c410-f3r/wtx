@@ -16,5 +16,6 @@
 - [Internal Development](internal-development/README.md)
 - [Secrets](secrets/README.md)
 - [UI Tools](ui-tools/README.md)
+- [TLS](tls/README.md)
 - [WebSocket](web-socket/README.md)
 - [WebSocket over HTTP/2](web-socket-over-http2/README.md)

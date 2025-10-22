@@ -33,5 +33,7 @@ $rt test-with-features wtx postgres
 $rt test-with-features wtx quick-protobuf
 $rt test-with-features wtx ring
 $rt test-with-features wtx rust_decimal
+$rt test-with-features wtx rust-crypto
 $rt test-with-features wtx rustls
+$rt test-with-features wtx rustls-webpki
 $rt test-with-features wtx schema-manager

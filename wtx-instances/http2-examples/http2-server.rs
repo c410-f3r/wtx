@@ -7,12 +7,10 @@
 //! Please note that it is much easier to just use the HTTP server framework.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 
 use tokio::{io::WriteHalf, net::TcpStream};
-use tokio_rustls::server::TlsStream;
 use wtx::{
   collection::Vector,
   http::{

@@ -46,8 +46,6 @@ mod stream_with_tls;
 mod stream_writer;
 #[cfg(feature = "tokio")]
 mod tokio;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
 
 pub use bytes_stream::BytesStream;
 pub use stream_reader::StreamReader;

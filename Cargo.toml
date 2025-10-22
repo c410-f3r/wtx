@@ -18,9 +18,9 @@ debug = true
 [workspace]
 members = [
     "wtx",
-    "wtx-fuzz",
-    "wtx-instances",
-    "wtx-macros",
-    "wtx-ui"
+    #"wtx-fuzz",
+    #"wtx-instances",
+    #"wtx-macros",
+    #"wtx-ui"
 ]
 resolver = "3"

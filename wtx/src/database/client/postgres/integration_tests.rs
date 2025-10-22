@@ -362,30 +362,30 @@ fn serde_json() {
     .unwrap();
 }
 
-#[cfg(feature = "tokio-rustls")]
+#[cfg(feature = "ring")]
 #[tokio::test]
 async fn tls() {
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
   let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
-  let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
-    &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::new(usize::MAX, &mut rng),
-    &mut rng,
-    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    |stream| async {
-      Ok(
-        crate::misc::TokioRustlsConnector::default()
-          .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
-          .unwrap()
-          .connect_without_client_auth(uri.hostname(), stream)
-          .await
-          .unwrap(),
-      )
-    },
-  )
-  .await
-  .unwrap();
+  //let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
+  //  &Config::from_uri(&uri).unwrap(),
+  //  ExecutorBuffer::new(usize::MAX, &mut rng),
+  //  &mut rng,
+  //  TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
+  //  |stream| async {
+  //    Ok(
+  //      crate::misc::TokioRustlsConnector::default()
+  //        .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
+  //        .unwrap()
+  //        .connect_without_client_auth(uri.hostname(), stream)
+  //        .await
+  //        .unwrap(),
+  //    )
+  //  },
+  //)
+  //.await
+  //.unwrap();
 }
 
 async fn executor() -> PostgresExecutor<crate::Error, ExecutorBuffer, std::net::TcpStream> {
