@@ -15,7 +15,7 @@ use core::{
 ///
 /// * `H`: Helper
 /// * `P`: Package
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PkgWithHelper<H, P> {
   /// Helper
   pub helper: H,

@@ -1,43 +1,39 @@
 #[doc = _internal_doc!()]
 pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
-  _simd_bytes!(
-    (align_to_mut, bytes),
-    |bytes| {
-      #[allow(clippy::indexing_slicing, reason = "index will never be out-of-bounds")]
-      for (idx, elem) in bytes.iter_mut().enumerate() {
-        *elem ^= mask[idx & 3];
-      }
+  let [a, b, c, d] = mask;
+  _simd_slice!(
+    (),
+    (bytes,),
+    (_, (local_bytes,)) => {
+      _do_unmask(&[a, b, c, d, a, b, c, d], local_bytes);
     },
-    |prefix| {
-      let mut local_mask = mask;
-      local_mask.rotate_left(prefix.len() % 4);
+    (_, (local_bytes,)) => {
+      _do_unmask(&[a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d], local_bytes);
     },
-    |_16| {
-      let [a, b, c, d] = mask;
-      _do_unmask(&[a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d], _16);
-    },
-    |_32| {
-      let [a, b, c, d] = mask;
+    (_, (local_bytes,)) => {
       _do_unmask(
         &[
           a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
           c, d,
         ],
-        _32,
+        local_bytes,
       );
     },
-    |_64| {
-      let [a, b, c, d] = mask;
+    (_, (local_bytes,)) => {
       _do_unmask(
         &[
           a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
           c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
           a, b, c, d,
         ],
-        _64,
+        local_bytes,
       );
     },
-    |_suffix| {}
+    (_, (rest,)) => {
+      for (elem, mask_elem) in rest.iter_mut().zip(mask.into_iter().cycle()) {
+        *elem ^= mask_elem;
+      }
+    },
   );
 }
 

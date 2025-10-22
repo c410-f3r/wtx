@@ -14,7 +14,7 @@ podman run \
 	-v .scripts/autobahn:/autobahn \
 	--name fuzzingserver \
 	--net=host \
-	docker.io/crossbario/autobahn-testsuite:0.8.2 wstest -m fuzzingserver -s fuzzingserver.json
+	crossbario/autobahn-testsuite:25.10.1 wstest -m fuzzingserver -s fuzzingserver.json
 sleep 5
 cargo run --bin autobahn-client --features autobahn-client --release
 podman rm --force --ignore fuzzingserver
