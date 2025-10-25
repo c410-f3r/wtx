@@ -9,15 +9,20 @@ use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
   misc::Uri,
+  tls::{TlsConfig, TlsConnector},
   web_socket::{OpCode, WebSocketConnector, WebSocketPayloadOrigin},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
+  let stream = TlsConnector::default()
+    .plain_text()
+    .connect(&TlsConfig::default(), TcpStream::connect(uri.hostname_with_implied_port()).await?)
+    .await?;
   let mut ws = WebSocketConnector::default()
     .headers([("custom-key", "CUSTOM_VALUE")]) // Headers are optional. This method can be omitted.
-    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri.to_ref())
+    .connect(stream, &uri.to_ref())
     .await?;
   let mut buffer = Vector::new();
   loop {

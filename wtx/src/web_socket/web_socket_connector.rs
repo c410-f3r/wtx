@@ -17,6 +17,19 @@ pub struct WebSocketConnector<C, H, R, RNG, WSB> {
 }
 
 impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
+  /// WebSocket Buffer
+  #[inline]
+  pub fn buffer<NWSB>(self, elem: NWSB) -> WebSocketConnector<C, H, R, RNG, NWSB> {
+    WebSocketConnector {
+      compression: self.compression,
+      headers: self.headers,
+      no_masking: self.no_masking,
+      res: self.res,
+      rng: self.rng,
+      wsb: elem,
+    }
+  }
+
   /// Defaults to no compression.
   #[inline]
   pub fn compression<NC>(self, elem: NC) -> WebSocketConnector<NC, H, R, RNG, WSB> {
@@ -70,19 +83,6 @@ impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
   pub fn rng(mut self, elem: RNG) -> WebSocketConnector<C, H, R, RNG, WSB> {
     self.rng = elem;
     self
-  }
-
-  /// WebSocket Buffer
-  #[inline]
-  pub fn wsb<NWSB>(self, elem: NWSB) -> WebSocketConnector<C, H, R, RNG, NWSB> {
-    WebSocketConnector {
-      compression: self.compression,
-      headers: self.headers,
-      no_masking: self.no_masking,
-      res: self.res,
-      rng: self.rng,
-      wsb: elem,
-    }
   }
 }
 
