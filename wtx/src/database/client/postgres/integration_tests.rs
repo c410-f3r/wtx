@@ -2,7 +2,7 @@ use crate::{
   database::{
     DatabaseError, Executor as _, Record, Records as _, Typed,
     client::postgres::{
-      Config, DecodeWrapper, EncodeWrapper, Postgres, PostgresExecutor, PostgresExecutorBuffer,
+      Config, DecodeWrapper, EncodeWrapper, ExecutorBuffer, Postgres, PostgresExecutor,
       StructDecoder, StructEncoder, Ty,
     },
   },
@@ -523,7 +523,7 @@ async fn tls() {
   let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
-    PostgresExecutorBuffer::new(usize::MAX, &mut rng),
+    ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
     |stream| async {
@@ -541,13 +541,13 @@ async fn tls() {
   .unwrap();
 }
 
-async fn executor<E>() -> PostgresExecutor<E, PostgresExecutorBuffer, std::net::TcpStream> {
+async fn executor<E>() -> PostgresExecutor<E, ExecutorBuffer, std::net::TcpStream> {
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
   let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
   PostgresExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
-    PostgresExecutorBuffer::new(usize::MAX, &mut rng),
+    ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     std::net::TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
   )

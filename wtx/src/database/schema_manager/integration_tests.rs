@@ -74,7 +74,7 @@ macro_rules! create_integration_tests {
           let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
           crate::database::client::postgres::PostgresExecutor::connect(
             &config,
-            crate::database::client::postgres::PostgresExecutorBuffer::new(usize::MAX, &mut rng),
+            crate::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
             &mut rng,
             stream,
           ).await.unwrap()

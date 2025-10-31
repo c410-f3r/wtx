@@ -3,8 +3,7 @@ use crate::{
   database::{
     DatabaseError, RecordValues,
     client::postgres::{
-      Postgres, PostgresError, PostgresExecutor, PostgresExecutorBuffer, PostgresRecord,
-      PostgresStatement,
+      ExecutorBuffer, Postgres, PostgresError, PostgresExecutor, PostgresRecord, PostgresStatement,
       message::{Message, MessageTy},
       postgres_executor::commons::FetchWithStmtCommons,
     },
@@ -19,7 +18,7 @@ use core::ops::Range;
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
-  EB: LeaseMut<PostgresExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   pub(crate) async fn write_send_await_fetch_with_stmt_wo_prot<'any, RV>(
