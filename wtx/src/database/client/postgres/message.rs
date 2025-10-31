@@ -1,7 +1,7 @@
 use crate::{
   database::{
     DatabaseError,
-    client::postgres::{DbError, PostgresError, authentication::Authentication},
+    client::postgres::{PostgresDbError, PostgresError, authentication::Authentication},
   },
   de::FromRadix10,
   misc::{ConnectionState, bytes_rsplit1, bytes_split1, from_utf8_basic},
@@ -85,7 +85,7 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
       [b'D', _, _, _, _, a, b, ..] => Self::DataRow(u16::from_be_bytes([*a, *b])),
       [b'E', _, _, _, _, rest @ ..] => {
         *from.0 = ConnectionState::Closed;
-        return Err(DbError::try_from(from_utf8_basic(rest)?)?.into());
+        return Err(PostgresDbError::try_from(from_utf8_basic(rest)?)?.into());
       }
       [b'G', ..] => Self::CopyInResponse,
       [b'H', ..] => Self::CopyOutResponse,

@@ -38,10 +38,6 @@ impl DateTime<Utc> {
 
   /// Creates a new instance from a UNIX timestamp expressed in seconds along side the number of
   /// nanoseconds.
-  #[allow(
-    clippy::arithmetic_side_effects,
-    reason = "Divisions/modulos are using non-zero numbers but it can't see past a literal constant"
-  )]
   #[inline]
   pub fn from_timestamp_secs_and_ns(seconds: i64, nanoseconds: Nanosecond) -> crate::Result<Self> {
     if seconds < Self::MIN.timestamp_secs_and_ns().0

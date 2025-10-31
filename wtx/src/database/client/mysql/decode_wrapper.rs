@@ -8,13 +8,13 @@ use crate::{
 
 /// Struct used to represent decoded columns in MySQL.
 #[derive(Debug, PartialEq)]
-pub struct MysqlDecodeWrapper<'de, 'rem> {
+pub struct DecodeWrapper<'de, 'rem> {
   bytes: &'de [u8],
   name: &'rem str,
   ty: TyParams,
 }
 
-impl<'de, 'rem> MysqlDecodeWrapper<'de, 'rem> {
+impl<'de, 'rem> DecodeWrapper<'de, 'rem> {
   pub(crate) const fn new(bytes: &'de [u8], name: &'rem str, ty: TyParams) -> Self {
     Self { bytes, name, ty }
   }
@@ -38,21 +38,21 @@ impl<'de, 'rem> MysqlDecodeWrapper<'de, 'rem> {
   }
 }
 
-impl Default for MysqlDecodeWrapper<'_, '_> {
+impl Default for DecodeWrapper<'_, '_> {
   #[inline]
   fn default() -> Self {
     Self { bytes: &[], name: "", ty: TyParams::empty(Ty::Null) }
   }
 }
 
-impl Lease<[u8]> for MysqlDecodeWrapper<'_, '_> {
+impl Lease<[u8]> for DecodeWrapper<'_, '_> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.bytes
   }
 }
 
-impl<'de, 'rem, C> From<(&'de [u8], &'rem C)> for MysqlDecodeWrapper<'de, 'rem>
+impl<'de, 'rem, C> From<(&'de [u8], &'rem C)> for DecodeWrapper<'de, 'rem>
 where
   C: ColumnInfo<Ty = TyParams>,
 {

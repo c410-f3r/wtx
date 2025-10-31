@@ -2,9 +2,7 @@ use crate::{
   collection::Vector,
   database::client::mysql::{
     MysqlError,
-    mysql_protocol::{
-      MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
-    },
+    protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc},
   },
   de::Decode,
   misc::Usize,
@@ -16,7 +14,7 @@ type Params<'any> = (usize, &'any mut Vector<(bool, Range<usize>)>);
 #[derive(Debug)]
 pub(crate) struct TextRowRes;
 
-impl<'de, E> Decode<'de, MysqlProtocol<Params<'_>, E>> for TextRowRes
+impl<'de, E> Decode<'de, Protocol<Params<'_>, E>> for TextRowRes
 where
   E: From<crate::Error>,
 {

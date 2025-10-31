@@ -38,7 +38,7 @@ where
     // SAFETY: No fields are moved
     let JoinArray { futures, outputs } = unsafe { self.get_unchecked_mut() };
     let Some(outputs_mut) = outputs else {
-      #[allow(
+      #[expect(
         clippy::panic,
         reason = "Compiler will probably remove this branch as long as the user don't mess up"
       )]
@@ -60,7 +60,7 @@ where
       }
     }
     if is_finished && let Some(array) = outputs.take() {
-      #[allow(clippy::unwrap_used, reason = "Compiler removes this branch")]
+      #[expect(clippy::unwrap_used, reason = "Compiler removes this branch")]
       return Poll::Ready(array.map(|el| el.unwrap()));
     }
     Poll::Pending

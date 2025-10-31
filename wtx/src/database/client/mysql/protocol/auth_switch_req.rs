@@ -1,13 +1,11 @@
 use crate::{
-  database::client::mysql::mysql_protocol::{
-    MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol,
-  },
+  database::client::mysql::protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   de::Encode,
 };
 
 pub(crate) struct AuthSwitchReq<'bytes>(pub(crate) &'bytes [u8]);
 
-impl<E> Encode<MysqlProtocol<(), E>> for AuthSwitchReq<'_>
+impl<E> Encode<Protocol<(), E>> for AuthSwitchReq<'_>
 where
   E: From<crate::Error>,
 {

@@ -3,7 +3,7 @@ use crate::{
   database::client::mysql::{
     MysqlError,
     capability::Capability,
-    mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
+    protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
   de::Decode,
   misc::from_utf8_basic,
@@ -21,7 +21,7 @@ pub struct DbError {
   pub sql_state: Option<ArrayStringU8<5>>,
 }
 
-impl<E> Decode<'_, MysqlProtocol<u64, E>> for DbError
+impl<E> Decode<'_, Protocol<u64, E>> for DbError
 where
   E: From<crate::Error>,
 {

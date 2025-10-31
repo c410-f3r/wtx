@@ -2,7 +2,7 @@ use crate::{
   calendar::{Date, DateTime, Time, Utc},
   database::{
     DatabaseError, Typed,
-    client::mysql::{Mysql, MysqlDecodeWrapper, MysqlEncodeWrapper, Ty, ty_params::TyParams},
+    client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, ty_params::TyParams},
   },
   de::{Decode, Encode},
   misc::Usize,
@@ -14,7 +14,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut MysqlDecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     date_decode(dw).map(|el| el.1).map_err(E::from)
   }
 }
@@ -23,7 +23,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut MysqlEncodeWrapper<'_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
     date_encode(self, ew, 4).map_err(E::from)
   }
 }
@@ -47,7 +47,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut MysqlDecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     let (len, date, bytes) = date_decode(dw).map_err(E::from)?;
     Ok(if len > 4 {
       Self::new(date, time_decode(bytes)?, Utc)
@@ -61,7 +61,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut MysqlEncodeWrapper<'_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
     let len = date_len(&self.time());
     date_encode(&self.date(), ew, len)?;
     if len > 4 {
@@ -85,7 +85,7 @@ where
   }
 }
 
-fn date_decode<'de>(dw: &mut MysqlDecodeWrapper<'de, '_>) -> crate::Result<(u8, Date, &'de [u8])> {
+fn date_decode<'de>(dw: &mut DecodeWrapper<'de, '_>) -> crate::Result<(u8, Date, &'de [u8])> {
   let [len, year_a, year_b, month, day, rest @ ..] = dw.bytes() else {
     return Err(
       DatabaseError::UnexpectedBufferSize {
@@ -100,7 +100,7 @@ fn date_decode<'de>(dw: &mut MysqlDecodeWrapper<'de, '_>) -> crate::Result<(u8, 
   Ok((*len, date, rest))
 }
 
-fn date_encode(date: &Date, ew: &mut MysqlEncodeWrapper<'_>, len: u8) -> crate::Result<()> {
+fn date_encode(date: &Date, ew: &mut EncodeWrapper<'_>, len: u8) -> crate::Result<()> {
   let year = u16::try_from(date.year().num())
     .map_err(|_err| DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Date>() })?;
   let [year_a, year_b] = year.to_le_bytes();
@@ -144,11 +144,7 @@ fn time_decode(bytes: &[u8]) -> crate::Result<Time> {
   ))
 }
 
-fn time_encode(
-  time: &Time,
-  include_micros: bool,
-  ew: &mut MysqlEncodeWrapper<'_>,
-) -> crate::Result<()> {
+fn time_encode(time: &Time, include_micros: bool, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
   let hour = time.hour().num();
   let minute = time.minute().num();
   let second = time.second().num();

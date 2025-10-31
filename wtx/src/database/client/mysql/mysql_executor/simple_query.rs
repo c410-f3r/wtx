@@ -3,8 +3,7 @@ use core::ops::Range;
 use crate::{
   collection::Vector,
   database::client::mysql::{
-    ExecutorBuffer, MysqlExecutor, MysqlStatement, misc::send_packet,
-    mysql_protocol::query_req::QueryReq,
+    ExecutorBuffer, MysqlExecutor, MysqlStatement, misc::send_packet, protocol::query_req::QueryReq,
   },
   misc::{LeaseMut, net::PartitionedFilledBuffer},
   stream::Stream,

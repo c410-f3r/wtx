@@ -7,9 +7,10 @@ use core::{
 
 /// Long-lived sensitive data.
 ///
-/// Holds encrypted heap-allocated memory that is decrypted on demand. ***Tries*** to provide a
-/// layer of protection against Spectre, Meltdown, Rowhammer, RAMbleed, etc. Moreover, data swapped
-/// out to the swap area should ***probably*** not be a problem.
+/// Holds encrypted heap-allocated memory that is decrypted on demand.
+///
+/// ***Tries*** to provide a layer of protection against Spectre, Meltdown, RowHammer,
+/// RAMbleed, etc. Moreover, secrets probably won't be swapped out to the swap area.
 pub struct Secret {
   protected: Protected,
   salt: [u8; 32],
@@ -105,8 +106,11 @@ mod static_keys {
 
   impl Secret {
     /// `data` will be internally zeroed regardless if an error occurred.
-    pub fn new<RNG: CryptoRng>(data: &mut [u8], rng: &mut RNG) -> crate::Result<Self> {
-      Self::do_new(SensitiveBytes(data).0, rng)
+    pub fn new<RNG: CryptoRng>(
+      mut data: SensitiveBytes<&mut [u8]>,
+      rng: &mut RNG,
+    ) -> crate::Result<Self> {
+      Self::do_new(data.bytes_mut(), rng)
     }
 
     /// Decrypts secret temporally.
@@ -125,7 +129,7 @@ mod static_keys {
       buffer.try_extend(&self.protected)?;
       Ok(fun(decrypt_aes256gcm(
         &[],
-        SensitiveBytes(buffer.lease_mut()).0,
+        SensitiveBytes::new_locked(buffer.lease_mut())?.bytes_mut(),
         &secret_key(&self.salt).as_ref().try_into().map_err(crate::Error::from)?,
       )?))
     }
@@ -181,7 +185,12 @@ mod static_keys {
 
 #[cfg(test)]
 mod tests {
-  use crate::{collection::Vector, misc::Secret, rng::ChaCha20, tests::_32_bytes_seed};
+  use crate::{
+    collection::Vector,
+    misc::{Secret, SensitiveBytes},
+    rng::ChaCha20,
+    tests::_32_bytes_seed,
+  };
 
   const DATA: [u8; 4] = [1, 2, 3, 4];
 
@@ -189,7 +198,9 @@ mod tests {
   fn peek() {
     let mut buffer = Vector::new();
     let mut data = DATA;
-    let secret = Secret::new(&mut data, &mut ChaCha20::new(_32_bytes_seed())).unwrap();
+    let secret =
+      Secret::new(SensitiveBytes::new_unlocked(&mut data), &mut ChaCha20::new(_32_bytes_seed()))
+        .unwrap();
     assert_eq!(data, [0, 0, 0, 0]);
     let mut option = None;
     secret

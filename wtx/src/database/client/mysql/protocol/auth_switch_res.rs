@@ -2,7 +2,7 @@ use crate::{
   database::client::mysql::{
     MysqlError,
     auth_plugin::AuthPlugin,
-    mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
+    protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
   de::Decode,
   misc::bytes_split_once1,
@@ -13,7 +13,7 @@ pub(crate) struct AuthSwitchRes {
   pub(crate) data: Option<([u8; 8], [u8; 12])>,
 }
 
-impl<E> Decode<'_, MysqlProtocol<bool, E>> for AuthSwitchRes
+impl<E> Decode<'_, Protocol<bool, E>> for AuthSwitchRes
 where
   E: From<crate::Error>,
 {

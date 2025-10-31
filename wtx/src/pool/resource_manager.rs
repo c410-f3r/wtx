@@ -95,7 +95,7 @@ pub(crate) mod database {
     collection::Vector,
     database::{
       DEFAULT_MAX_STMTS, Executor,
-      client::postgres::{ExecutorBuffer, PostgresExecutor},
+      client::postgres::{PostgresExecutor, PostgresExecutorBuffer},
     },
     pool::ResourceManager,
     rng::{ChaCha20, SeedableRng},
@@ -146,7 +146,7 @@ pub(crate) mod database {
     type CreateAux = ();
     type Error = E;
     type RecycleAux = ();
-    type Resource = PostgresExecutor<E, ExecutorBuffer, ()>;
+    type Resource = PostgresExecutor<E, PostgresExecutorBuffer, ()>;
 
     #[inline]
     async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -154,7 +154,7 @@ pub(crate) mod database {
       _executor!(&self._uri, |config, uri| {
         PostgresExecutor::connect(
           &config,
-          ExecutorBuffer::new(self._max_stmts, &mut rng),
+          PostgresExecutorBuffer::new(self._max_stmts, &mut rng),
           &mut rng,
           (),
         )
@@ -173,7 +173,7 @@ pub(crate) mod database {
       resource: &mut Self::Resource,
     ) -> Result<(), Self::Error> {
       let mut rng = ChaCha20::from_rng(&mut &self._rng)?;
-      let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
+      let mut buffer = PostgresExecutorBuffer::new(self._max_stmts, &mut rng);
       mem::swap(&mut buffer, &mut resource.eb);
       *resource = _executor!(&self._uri, |config, uri| {
         PostgresExecutor::connect(&config, buffer, &mut rng, ())
@@ -187,7 +187,7 @@ pub(crate) mod database {
     use crate::{
       database::{
         DEFAULT_MAX_STMTS, Executor as _,
-        client::postgres::{ExecutorBuffer, PostgresExecutor},
+        client::postgres::{PostgresExecutor, PostgresExecutorBuffer},
       },
       pool::{PostgresRM, ResourceManager},
       rng::{ChaCha20, SeedableRng},
@@ -219,7 +219,7 @@ pub(crate) mod database {
       type CreateAux = ();
       type Error = E;
       type RecycleAux = ();
-      type Resource = PostgresExecutor<E, ExecutorBuffer, TcpStream>;
+      type Resource = PostgresExecutor<E, PostgresExecutorBuffer, TcpStream>;
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -227,7 +227,7 @@ pub(crate) mod database {
         _executor!(&self._uri, |config, uri| {
           PostgresExecutor::connect(
             &config,
-            ExecutorBuffer::new(self._max_stmts, &mut rng),
+            PostgresExecutorBuffer::new(self._max_stmts, &mut rng),
             &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
           )
@@ -246,7 +246,7 @@ pub(crate) mod database {
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
         let mut rng = ChaCha20::from_rng(&mut &self._rng)?;
-        let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
+        let mut buffer = PostgresExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = _executor!(&self._uri, |config, uri| {
           PostgresExecutor::connect(
@@ -267,7 +267,7 @@ pub(crate) mod database {
       collection::Vector,
       database::{
         DEFAULT_MAX_STMTS, Executor as _,
-        client::postgres::{ExecutorBuffer, PostgresExecutor},
+        client::postgres::{PostgresExecutor, PostgresExecutorBuffer},
       },
       misc::TokioRustlsConnector,
       pool::{PostgresRM, ResourceManager},
@@ -301,7 +301,7 @@ pub(crate) mod database {
       type CreateAux = ();
       type Error = E;
       type RecycleAux = ();
-      type Resource = PostgresExecutor<E, ExecutorBuffer, TlsStream<TcpStream>>;
+      type Resource = PostgresExecutor<E, PostgresExecutorBuffer, TlsStream<TcpStream>>;
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
@@ -309,7 +309,7 @@ pub(crate) mod database {
         _executor!(&self._uri, |config, uri| {
           PostgresExecutor::connect_encrypted(
             &config,
-            ExecutorBuffer::new(self._max_stmts, &mut rng),
+            PostgresExecutorBuffer::new(self._max_stmts, &mut rng),
             &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port()).await.map_err(Into::into)?,
             |stream| async {
@@ -335,7 +335,7 @@ pub(crate) mod database {
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
         let mut rng = ChaCha20::from_rng(&mut &self._rng)?;
-        let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
+        let mut buffer = PostgresExecutorBuffer::new(self._max_stmts, &mut rng);
         mem::swap(&mut buffer, &mut resource.eb);
         *resource = _executor!(&self._uri, |config, uri| {
           PostgresExecutor::connect_encrypted(

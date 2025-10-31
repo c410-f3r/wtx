@@ -5,13 +5,13 @@ use crate::{
 
 /// Struct used for decoding elements in PostgreSQL.
 #[derive(Debug, PartialEq)]
-pub struct PostgresDecodeWrapper<'de, 'rem> {
+pub struct DecodeWrapper<'de, 'rem> {
   bytes: &'de [u8],
   name: &'rem str,
   ty: Ty,
 }
 
-impl<'de, 'rem> PostgresDecodeWrapper<'de, 'rem> {
+impl<'de, 'rem> DecodeWrapper<'de, 'rem> {
   pub(crate) const fn new(bytes: &'de [u8], name: &'rem str, ty: Ty) -> Self {
     Self { bytes, name, ty }
   }
@@ -35,21 +35,21 @@ impl<'de, 'rem> PostgresDecodeWrapper<'de, 'rem> {
   }
 }
 
-impl Default for PostgresDecodeWrapper<'_, '_> {
+impl Default for DecodeWrapper<'_, '_> {
   #[inline]
   fn default() -> Self {
     Self { bytes: &[], name: "", ty: Ty::Any }
   }
 }
 
-impl Lease<[u8]> for PostgresDecodeWrapper<'_, '_> {
+impl Lease<[u8]> for DecodeWrapper<'_, '_> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.bytes
   }
 }
 
-impl<'de, 'rem, C> From<(&'de [u8], &'rem C)> for PostgresDecodeWrapper<'de, 'rem>
+impl<'de, 'rem, C> From<(&'de [u8], &'rem C)> for DecodeWrapper<'de, 'rem>
 where
   C: ColumnInfo<Ty = Ty>,
 {

@@ -2,9 +2,9 @@ use crate::{
   database::{
     RecordValues,
     client::mysql::{
-      Mysql, MysqlEncodeWrapper, MysqlStatement,
+      EncodeWrapper, Mysql, MysqlStatement,
       flag::Flag,
-      mysql_protocol::{MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol},
+      protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
     },
   },
   de::Encode,
@@ -16,7 +16,7 @@ pub(crate) struct StmtExecuteReq<'any, 'stmts, RV> {
   pub(crate) stmt: &'any MysqlStatement<'stmts>,
 }
 
-impl<DO, E, RV> Encode<MysqlProtocol<DO, E>> for StmtExecuteReq<'_, '_, RV>
+impl<DO, E, RV> Encode<Protocol<DO, E>> for StmtExecuteReq<'_, '_, RV>
 where
   E: From<crate::Error>,
   RV: RecordValues<Mysql<E>>,
@@ -51,7 +51,7 @@ where
       }
       let _ = self.rv.encode_values(
         &mut (),
-        &mut MysqlEncodeWrapper::new(ew.encode_buffer),
+        &mut EncodeWrapper::new(ew.encode_buffer),
         |_, _| 0,
         |_, _, _, _| 0,
       )?;

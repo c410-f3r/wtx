@@ -8,7 +8,7 @@ use crate::{
       capability::Capability,
       misc::{decode, fetch_msg, write_packet},
       mysql_executor::DFLT_PACKET_SIZE,
-      mysql_protocol::{
+      protocol::{
         auth_switch_req::AuthSwitchReq, auth_switch_res::AuthSwitchRes,
         handshake_req::HandshakeReq, handshake_res::HandshakeRes, ok_res::OkRes,
       },

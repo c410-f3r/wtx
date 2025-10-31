@@ -60,14 +60,14 @@ pub unsafe fn mlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
   return Err(crate::Error::UnsupportedMlockPlatform);
 }
 
-/// Locks a chunk of bytes into RAM, preventing it from being paged to the swap area.
+/// Safer [`mlock`] version.
 #[inline]
-pub fn mlock_slice(_bytes: &mut [u8]) -> crate::Result<()> {
+pub fn mlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
   // SAFETY: parameters come from a valid slice
   #[cfg(not(miri))]
   unsafe {
-    let len = _bytes.len();
-    mlock(_bytes.as_mut_ptr(), len)?;
+    let len = _slice.len();
+    mlock(_slice.as_mut_ptr(), len)?;
   }
   Ok(())
 }
@@ -84,7 +84,7 @@ pub unsafe fn munlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
     // SAFETY: up to the caller
     let munlock = unsafe { libc::munlock(_addr.cast(), _len) };
     if munlock != 0 {
-      return Err(crate::Error::MlockError);
+      return Err(crate::Error::MunlockError);
     }
     Ok(())
   }
@@ -92,11 +92,23 @@ pub unsafe fn munlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
   return Err(crate::Error::UnsupportedMlockPlatform);
 }
 
+/// Safer [`munlock`] version.
+#[inline]
+pub fn munlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
+  // SAFETY: parameters come from a valid slice
+  #[cfg(not(miri))]
+  unsafe {
+    let len = _slice.len();
+    munlock(_slice.as_mut_ptr(), len)?;
+  }
+  Ok(())
+}
+
 #[cfg(all(feature = "libc", test))]
 mod tests {
   use crate::{
     collection::Vector,
-    misc::{mlock, munlock},
+    misc::{mlock, mlock_slice, munlock, munlock_slice},
   };
 
   #[test]
@@ -108,5 +120,12 @@ mod tests {
     unsafe {
       munlock(data.as_mut_ptr(), data.capacity()).unwrap();
     }
+  }
+
+  #[test]
+  fn mlock_slice_and_munlock_slice() {
+    let mut data = Vector::with_capacity(1024).unwrap();
+    mlock_slice(&mut data).unwrap();
+    munlock_slice(&mut data).unwrap();
   }
 }

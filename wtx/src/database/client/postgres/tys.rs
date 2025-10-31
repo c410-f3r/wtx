@@ -27,12 +27,12 @@ macro_rules! test {
     fn $name() {
       let vec = &mut crate::misc::FilledBuffer::default();
       let mut sw = crate::misc::SuffixWriter::new(0, vec.vector_mut());
-      let mut ew = PostgresEncodeWrapper::new(&mut sw);
+      let mut ew = EncodeWrapper::new(&mut sw);
       let instance: $ty = $instance;
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
       let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(
         &mut (),
-        &mut PostgresDecodeWrapper::new(
+        &mut DecodeWrapper::new(
           ew.buffer().curr_bytes(),
           "",
           crate::database::client::postgres::Ty::Any,

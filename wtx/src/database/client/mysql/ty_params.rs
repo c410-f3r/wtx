@@ -1,4 +1,4 @@
-use crate::database::client::mysql::{Ty, flag::Flag, mysql_protocol::column_res::ColumnRes};
+use crate::database::client::mysql::{Ty, flag::Flag, protocol::column_res::ColumnRes};
 
 /// [`Ty`] with metadata.
 #[derive(Clone, Copy, Debug, PartialEq)]

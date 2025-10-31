@@ -2,7 +2,7 @@ use crate::{
   database::{
     Identifier,
     client::{
-      mysql::{mysql_protocol::column_res::ColumnRes, ty_params::TyParams},
+      mysql::{protocol::column_res::ColumnRes, ty_params::TyParams},
       rdbms::column_info::ColumnInfo,
     },
   },

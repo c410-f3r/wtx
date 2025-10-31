@@ -118,7 +118,7 @@ where
     return Ok("");
   };
   let base64_idx = STANDARD.encode_slice(&mut *content, base64)?;
-  drop(SensitiveBytes(content));
+  drop(SensitiveBytes::new_unlocked(content));
   buffer.truncate(start.wrapping_add(base64_idx));
   let bytes = buffer.get_mut(start..).unwrap_or_default();
   // SAFETY: Base64 is ASCII.

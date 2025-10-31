@@ -7,7 +7,7 @@ use crate::{
       MysqlStatements,
       misc::{decode, fetch_msg, fetch_protocol, send_packet},
       mysql_column_info::MysqlColumnInfo,
-      mysql_protocol::{
+      protocol::{
         binary_row_res::BinaryRowRes, lenenc::Lenenc, ok_res::OkRes,
         stmt_execute_req::StmtExecuteReq, text_row_res::TextRowRes,
       },

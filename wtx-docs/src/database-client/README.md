@@ -5,7 +5,7 @@ Provides a set of functions that establish connections, execute queries and mana
 
 ![Benchmark](https://i.imgur.com/vf2tYxY.jpeg)
 
-Independent benchmarks are available at <https://github.com/diesel-rs/metrics>. Please note that in these specific benchmarks most implementations use `TCP_NODELAY` while `wtx` does not.
+Independent benchmarks are available at <https://github.com/diesel-rs/metrics>.
 
 ## PostgreSQL
 

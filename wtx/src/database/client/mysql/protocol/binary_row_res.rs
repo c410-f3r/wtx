@@ -2,9 +2,7 @@ use crate::{
   collection::Vector,
   database::client::mysql::{
     MysqlError, MysqlStatement, Ty,
-    mysql_protocol::{
-      MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
-    },
+    protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc},
   },
   de::Decode,
   misc::Usize,
@@ -16,7 +14,7 @@ type Params<'any> = (&'any MysqlStatement<'any>, &'any mut Vector<(bool, Range<u
 #[derive(Debug)]
 pub(crate) struct BinaryRowRes<'de>(pub(crate) &'de [u8]);
 
-impl<'de, E> Decode<'de, MysqlProtocol<Params<'_>, E>> for BinaryRowRes<'de>
+impl<'de, E> Decode<'de, Protocol<Params<'_>, E>> for BinaryRowRes<'de>
 where
   E: From<crate::Error>,
 {

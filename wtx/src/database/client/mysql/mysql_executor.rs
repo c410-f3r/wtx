@@ -9,7 +9,7 @@ use crate::{
     client::{
       mysql::{
         Config, ExecutorBuffer, Mysql, MysqlError, MysqlRecord, MysqlRecords,
-        capability::Capability, misc::write_packet, mysql_protocol::initial_req::InitialReq,
+        capability::Capability, misc::write_packet, protocol::initial_req::InitialReq,
       },
       rdbms::{clear_cmd_buffers, common_executor_buffer::CommonExecutorBuffer},
     },

@@ -1,7 +1,5 @@
 use crate::{
-  database::client::mysql::mysql_protocol::{
-    MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol,
-  },
+  database::client::mysql::protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   de::Encode,
 };
 
@@ -9,7 +7,7 @@ pub(crate) struct PrepareReq<'any> {
   pub(crate) query: &'any [u8],
 }
 
-impl<E> Encode<MysqlProtocol<(), E>> for PrepareReq<'_>
+impl<E> Encode<Protocol<(), E>> for PrepareReq<'_>
 where
   E: From<crate::Error>,
 {

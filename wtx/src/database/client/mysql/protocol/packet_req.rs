@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 use crate::{
   database::client::mysql::{
     mysql_executor::MAX_PAYLOAD,
-    mysql_protocol::{MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol},
+    protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
   de::Encode,
   misc::Usize,
@@ -15,7 +15,7 @@ pub(crate) struct PacketReq<E, T>(pub(crate) T, pub(crate) PhantomData<E>);
 impl<E, T> PacketReq<E, T>
 where
   E: From<crate::Error>,
-  T: Encode<MysqlProtocol<(), E>>,
+  T: Encode<Protocol<(), E>>,
 {
   pub(crate) async fn encode_and_write<S>(
     &self,

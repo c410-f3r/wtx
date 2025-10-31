@@ -1,14 +1,14 @@
 use crate::{
   database::client::mysql::{
     MysqlError,
-    mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
+    protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
   de::Decode,
 };
 
 pub(crate) struct Lenenc(pub(crate) u64);
 
-impl<DO, E> Decode<'_, MysqlProtocol<DO, E>> for Lenenc
+impl<DO, E> Decode<'_, Protocol<DO, E>> for Lenenc
 where
   E: From<crate::Error>,
 {

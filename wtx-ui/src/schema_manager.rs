@@ -5,7 +5,7 @@ use wtx::{
   collection::Vector,
   database::{
     DEFAULT_URI_VAR, Identifier,
-    client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
+    client::postgres::{Config, PostgresExecutor, PostgresExecutorBuffer},
     schema_manager::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
@@ -29,7 +29,7 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
       let mut rng = ChaCha20::from_os()?;
       let executor = PostgresExecutor::connect(
         &Config::from_uri(&uri)?,
-        ExecutorBuffer::new(usize::MAX, &mut rng),
+        PostgresExecutorBuffer::new(usize::MAX, &mut rng),
         &mut rng,
         TcpStream::connect(uri.hostname_with_implied_port()).await?,
       )

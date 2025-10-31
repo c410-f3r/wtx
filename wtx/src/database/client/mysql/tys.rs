@@ -26,12 +26,12 @@ macro_rules! test {
     #[test]
     fn $name() {
       let mut vec = crate::collection::Vector::new();
-      let mut ew = MysqlEncodeWrapper::new(&mut vec);
+      let mut ew = EncodeWrapper::new(&mut vec);
       let instance: $ty = $instance;
       Encode::<Mysql<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
       let decoded: $ty = Decode::<Mysql<crate::Error>>::decode(
         &mut (),
-        &mut MysqlDecodeWrapper::new(
+        &mut DecodeWrapper::new(
           ew.buffer(),
           "",
           crate::database::client::mysql::TyParams::empty(crate::database::client::mysql::Ty::Tiny),
