@@ -7,12 +7,12 @@ use hashbrown::HashMap;
 
 #[derive(Debug)]
 #[doc = _internal_buffer_doc!()]
-pub struct PostgresExecutorBuffer {
+pub struct ExecutorBuffer {
   pub(crate) common: PostgresCommonExecutorBuffer,
   pub(crate) conn_params: HashMap<Identifier, Identifier>,
 }
 
-impl PostgresExecutorBuffer {
+impl ExecutorBuffer {
   /// New instance
   #[inline]
   pub fn new<RNG>(max_stmts: usize, rng: &mut RNG) -> Self
@@ -50,16 +50,16 @@ impl PostgresExecutorBuffer {
   }
 }
 
-impl Lease<PostgresExecutorBuffer> for PostgresExecutorBuffer {
+impl Lease<ExecutorBuffer> for ExecutorBuffer {
   #[inline]
-  fn lease(&self) -> &PostgresExecutorBuffer {
+  fn lease(&self) -> &ExecutorBuffer {
     self
   }
 }
 
-impl LeaseMut<PostgresExecutorBuffer> for PostgresExecutorBuffer {
+impl LeaseMut<ExecutorBuffer> for ExecutorBuffer {
   #[inline]
-  fn lease_mut(&mut self) -> &mut PostgresExecutorBuffer {
+  fn lease_mut(&mut self) -> &mut ExecutorBuffer {
     self
   }
 }

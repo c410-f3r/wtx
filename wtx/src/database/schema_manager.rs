@@ -283,7 +283,7 @@ mod postgres {
     collection::Vector,
     database::{
       DatabaseTy, Executor as _, Identifier,
-      client::postgres::{PostgresExecutor, PostgresExecutorBuffer},
+      client::postgres::{ExecutorBuffer, PostgresExecutor},
       schema_manager::{
         _WTX_SCHEMA, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
         fixed_sql_commands::{
@@ -299,7 +299,7 @@ mod postgres {
 
   impl<EB, STREAM> SchemaManagement for PostgresExecutor<crate::Error, EB, STREAM>
   where
-    EB: LeaseMut<PostgresExecutorBuffer>,
+    EB: LeaseMut<ExecutorBuffer>,
     STREAM: Stream,
   {
     #[inline]

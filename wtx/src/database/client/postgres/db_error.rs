@@ -48,7 +48,7 @@ create_enum! {
 
 /// A Postgres error or notice.
 #[derive(Eq, PartialEq)]
-pub struct PostgresDbError {
+pub struct DbError {
   buffer: Box<str>,
   code: SqlState,
   column: Option<Range<u32>>,
@@ -68,7 +68,7 @@ pub struct PostgresDbError {
   r#where: Option<Range<u32>>,
 }
 
-impl PostgresDbError {
+impl DbError {
   /// The SQLSTATE code for the error
   pub const fn code(&self) -> &SqlState {
     &self.code
@@ -175,7 +175,7 @@ impl PostgresDbError {
   }
 }
 
-impl Debug for PostgresDbError {
+impl Debug for DbError {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     f.debug_struct("DbError")
@@ -199,7 +199,7 @@ impl Debug for PostgresDbError {
   }
 }
 
-impl TryFrom<&str> for PostgresDbError {
+impl TryFrom<&str> for DbError {
   type Error = crate::Error;
 
   #[inline]

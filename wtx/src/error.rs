@@ -247,7 +247,7 @@ pub enum Error {
   MysqlError(crate::database::client::mysql::MysqlError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
-  PostgresDbError(Box<crate::database::client::postgres::PostgresDbError>),
+  PostgresDbError(Box<crate::database::client::postgres::DbError>),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresError(crate::database::client::postgres::PostgresError),
@@ -472,9 +472,9 @@ impl From<SendError<()>> for Error {
 }
 
 #[cfg(feature = "postgres")]
-impl From<crate::database::client::postgres::PostgresDbError> for Error {
+impl From<crate::database::client::postgres::DbError> for Error {
   #[inline]
-  fn from(from: crate::database::client::postgres::PostgresDbError) -> Self {
+  fn from(from: crate::database::client::postgres::DbError) -> Self {
     Self::PostgresDbError(from.into())
   }
 }

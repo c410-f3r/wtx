@@ -5,7 +5,7 @@ use crate::{
     client::{
       postgres::{
         Postgres, PostgresError, PostgresExecutor, PostgresStatement, PostgresStatements,
-        executor_buffer::PostgresExecutorBuffer,
+        executor_buffer::ExecutorBuffer,
         message::MessageTy,
         msg_field::MsgField,
         postgres_column_info::PostgresColumnInfo,
@@ -24,7 +24,7 @@ use crate::{
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
   E: From<crate::Error>,
-  EB: LeaseMut<PostgresExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   pub(crate) async fn write_send_await_stmt_initial<RV>(

@@ -38,10 +38,10 @@ use core::{
   fmt::{Debug, Formatter},
   marker::PhantomData,
 };
-pub use db_error::{ErrorPosition, PostgresDbError, Severity};
+pub use db_error::{DbError, ErrorPosition, Severity};
 pub use decode_wrapper::DecodeWrapper;
 pub use encode_wrapper::EncodeWrapper;
-pub use executor_buffer::PostgresExecutorBuffer;
+pub use executor_buffer::ExecutorBuffer;
 pub use postgres_error::PostgresError;
 pub use postgres_executor::PostgresExecutor;
 pub use postgres_record::PostgresRecord;

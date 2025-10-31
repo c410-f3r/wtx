@@ -142,7 +142,7 @@ mod postgres {
   use crate::{
     database::{
       Executor as _, Record, Typed,
-      client::postgres::{Postgres, PostgresExecutor, PostgresExecutorBuffer},
+      client::postgres::{ExecutorBuffer, Postgres, PostgresExecutor},
     },
     de::{Decode, Encode},
     http::session::{SessionKey, SessionState, SessionStore},
@@ -167,7 +167,7 @@ mod postgres {
   where
     CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>> + Typed<Postgres<E>>,
     E: From<crate::Error>,
-    EB: LeaseMut<PostgresExecutorBuffer>,
+    EB: LeaseMut<ExecutorBuffer>,
     S: Stream,
   {
     #[inline]

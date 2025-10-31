@@ -10,7 +10,7 @@ use crate::{
     client::{
       postgres::{
         Config, Postgres, PostgresError, PostgresRecord, PostgresRecords,
-        executor_buffer::PostgresExecutorBuffer,
+        executor_buffer::ExecutorBuffer,
         message::MessageTy,
         postgres_executor::commons::FetchWithStmtCommons,
         protocol::{encrypted_conn, initial_conn_msg},
@@ -36,7 +36,7 @@ pub struct PostgresExecutor<E, EB, S> {
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
-  EB: LeaseMut<PostgresExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   /// Connects with an unencrypted stream.
@@ -86,7 +86,7 @@ where
   }
 
   /// Mutable buffer reference
-  pub fn eb_mut(&mut self) -> &mut PostgresExecutorBuffer {
+  pub fn eb_mut(&mut self) -> &mut ExecutorBuffer {
     self.eb.lease_mut()
   }
 
@@ -118,7 +118,7 @@ where
 impl<E, EB, S> Executor for PostgresExecutor<E, EB, S>
 where
   E: From<crate::Error>,
-  EB: LeaseMut<PostgresExecutorBuffer>,
+  EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
   type Database = Postgres<E>;
@@ -132,7 +132,7 @@ where
     cmd: &str,
     cb: impl FnMut(u64) -> Result<(), <Self::Database as DEController>::Error>,
   ) -> Result<(), <Self::Database as DEController>::Error> {
-    let PostgresExecutorBuffer { common, .. } = self.eb.lease_mut();
+    let ExecutorBuffer { common, .. } = self.eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, values_params, .. } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     Self::simple_query_execute(cmd, &mut self.cs, net_buffer, &mut self.stream, cb).await
@@ -148,7 +148,7 @@ where
     SC: StmtCmd,
   {
     let Self { cs, eb, phantom: _, stream } = self;
-    let PostgresExecutorBuffer { common, .. } = eb.lease_mut();
+    let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     let mut rows = 0;
@@ -186,7 +186,7 @@ where
     SC: StmtCmd,
   {
     let Self { cs, eb, phantom: _, stream } = self;
-    let PostgresExecutorBuffer { common, .. } = eb.lease_mut();
+    let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
@@ -247,7 +247,7 @@ where
     SC: StmtCmd,
   {
     let Self { cs, eb, phantom: _, stream } = self;
-    let PostgresExecutorBuffer { common, .. } = eb.lease_mut();
+    let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params, .. } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
@@ -266,7 +266,7 @@ where
 
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
     let Self { cs, eb, phantom: _, stream } = self;
-    let PostgresExecutorBuffer { common, .. } = eb.lease_mut();
+    let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };

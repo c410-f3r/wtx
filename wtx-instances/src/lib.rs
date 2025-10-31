@@ -119,7 +119,7 @@ pub async fn executor_postgres(
 ) -> wtx::Result<
   wtx::database::client::postgres::PostgresExecutor<
     wtx::Error,
-    wtx::database::client::postgres::PostgresExecutorBuffer,
+    wtx::database::client::postgres::ExecutorBuffer,
     tokio::net::TcpStream,
   >,
 > {
@@ -128,7 +128,7 @@ pub async fn executor_postgres(
   let mut rng = wtx::rng::ChaCha20::from_os()?;
   wtx::database::client::postgres::PostgresExecutor::connect(
     &wtx::database::client::postgres::Config::from_uri(&uri)?,
-    wtx::database::client::postgres::PostgresExecutorBuffer::new(usize::MAX, &mut rng),
+    wtx::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await?,
   )
