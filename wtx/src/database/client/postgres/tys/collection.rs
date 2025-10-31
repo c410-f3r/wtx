@@ -1,7 +1,7 @@
 use crate::{
   database::{
     Typed,
-    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
+    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
   },
   de::{Decode, Encode},
   misc::from_utf8_basic,
@@ -15,7 +15,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut PostgresDecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
     Ok(dw.bytes())
   }
 }
@@ -24,7 +24,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slice(self)?;
     Ok(())
   }
@@ -52,7 +52,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slice(self.as_bytes())?;
     Ok(())
   }
@@ -74,7 +74,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut PostgresDecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
     Ok(from_utf8_basic(dw.bytes()).map_err(crate::Error::from)?)
   }
 }
@@ -83,7 +83,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slice(self.as_bytes())?;
     Ok(())
   }
@@ -111,7 +111,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     match from_utf8_basic(dw.bytes()).map_err(crate::Error::from) {
       Ok(elem) => Ok(elem.into()),
       Err(err) => Err(err.into()),
@@ -123,7 +123,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slice(self.as_bytes())?;
     Ok(())
   }

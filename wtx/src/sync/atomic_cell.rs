@@ -220,7 +220,7 @@ unsafe impl<T: Send> Sync for AtomicCell<T> {}
 impl<T> UnwindSafe for AtomicCell<T> where T: Send {}
 
 fn lock(addr: usize) -> &'static SeqLock {
-  #[allow(clippy::indexing_slicing, reason = "modulo result will always be in-bounds")]
+  #[expect(clippy::indexing_slicing, reason = "modulo result will always be in-bounds")]
   &LOCKS[addr % LEN].0
 }
 

@@ -3,7 +3,7 @@ use core::fmt::{Arguments, Write};
 use crate::{
   database::{
     Typed,
-    client::postgres::{Postgres, PostgresEncodeWrapper, Ty},
+    client::postgres::{EncodeWrapper, Postgres, Ty},
   },
   de::Encode,
 };
@@ -13,7 +13,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().write_fmt(*self).map_err(crate::Error::from)?;
     Ok(())
   }

@@ -157,8 +157,10 @@ pub enum Error {
   InvalidUri,
   /// There is no CA provider.
   MissingCaProviders,
-  /// Something prevented a `mlock`/`munlock` operation
+  /// Something prevented a `mlock` operation
   MlockError,
+  /// Something prevented a `munlock` operation
+  MunlockError,
   /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(Box<&'static str>),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
@@ -245,7 +247,7 @@ pub enum Error {
   MysqlError(crate::database::client::mysql::MysqlError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
-  PostgresDbError(Box<crate::database::client::postgres::DbError>),
+  PostgresDbError(Box<crate::database::client::postgres::PostgresDbError>),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresError(crate::database::client::postgres::PostgresError),
@@ -470,9 +472,9 @@ impl From<SendError<()>> for Error {
 }
 
 #[cfg(feature = "postgres")]
-impl From<crate::database::client::postgres::DbError> for Error {
+impl From<crate::database::client::postgres::PostgresDbError> for Error {
   #[inline]
-  fn from(from: crate::database::client::postgres::DbError) -> Self {
+  fn from(from: crate::database::client::postgres::PostgresDbError) -> Self {
     Self::PostgresDbError(from.into())
   }
 }

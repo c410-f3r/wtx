@@ -1,3 +1,4 @@
+cognitive-complexity-threshold = 50
 disallowed-methods = [
   "char::encode_utf8",
   "core::str::from_utf8",

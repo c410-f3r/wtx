@@ -7,7 +7,7 @@ use crate::{
         ExecutorBuffer, MysqlExecutor, MysqlStatement, MysqlStatementMut, MysqlStatements, Ty,
         misc::{fetch_protocol, send_packet},
         mysql_column_info::MysqlColumnInfo,
-        mysql_protocol::{
+        protocol::{
           column_res::ColumnRes, prepare_req::PrepareReq, prepare_res::PrepareRes,
           stmt_close_req::StmtCloseReq,
         },

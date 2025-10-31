@@ -5,9 +5,7 @@ use crate::{
     capability::Capability,
     collation::Collation,
     misc::encoded_len,
-    mysql_protocol::{
-      MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol, initial_req::InitialReq,
-    },
+    protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol, initial_req::InitialReq},
   },
   de::Encode,
 };
@@ -21,7 +19,7 @@ pub(crate) struct HandshakeReq<'bytes> {
   pub(crate) username: &'bytes str,
 }
 
-impl<E> Encode<MysqlProtocol<(), E>> for HandshakeReq<'_>
+impl<E> Encode<Protocol<(), E>> for HandshakeReq<'_>
 where
   E: From<crate::Error>,
 {

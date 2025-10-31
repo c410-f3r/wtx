@@ -1,7 +1,7 @@
 use crate::database::client::mysql::collation::Collation;
 
 create_enum! {
-  #[allow(non_camel_case_types, reason = "mysql format")]
+  #[expect(non_camel_case_types, reason = "mysql format")]
   #[derive(Copy, Clone, Debug)]
   pub(crate) enum Charset<u8> {
     armscii8 = (1),

@@ -3,8 +3,8 @@ use crate::{
   database::client::mysql::{
     DbError, MysqlError,
     mysql_executor::MAX_PAYLOAD,
-    mysql_protocol::{
-      MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol,
+    protocol::{
+      Protocol, decode_wrapper_protocol::DecodeWrapperProtocol,
       encode_wrapper_protocol::EncodeWrapperProtocol, packet_req::PacketReq,
     },
   },
@@ -21,7 +21,7 @@ use core::marker::PhantomData;
 pub(crate) fn decode<'de, DO, E, T>(bytes: &mut &'de [u8], other: DO) -> Result<T, E>
 where
   E: From<crate::Error>,
-  T: Decode<'de, MysqlProtocol<DO, E>>,
+  T: Decode<'de, Protocol<DO, E>>,
 {
   T::decode(&mut (), &mut DecodeWrapperProtocol { bytes, other })
 }
@@ -81,7 +81,7 @@ pub(crate) async fn fetch_protocol<'de, S, T>(
 ) -> crate::Result<(T, usize)>
 where
   S: Stream,
-  T: for<'any> Decode<'de, MysqlProtocol<(), crate::Error>>,
+  T: for<'any> Decode<'de, Protocol<(), crate::Error>>,
 {
   let total = fetch_msg(capabilities, pfb, sequence_id, stream).await?;
   Ok((
@@ -99,7 +99,7 @@ pub(crate) async fn send_packet<E, S, T>(
 where
   E: From<crate::Error>,
   S: Stream,
-  T: Encode<MysqlProtocol<(), E>>,
+  T: Encode<Protocol<(), E>>,
 {
   *sequence_id = 0;
   write_packet((capabilities, sequence_id), encode_buffer, payload, stream).await
@@ -115,7 +115,7 @@ pub(crate) async fn write_packet<E, S, T>(
 where
   E: From<crate::Error>,
   S: Stream,
-  T: Encode<MysqlProtocol<(), E>>,
+  T: Encode<Protocol<(), E>>,
 {
   encode_buffer.clear();
   let mut ew = EncodeWrapperProtocol::new(capabilities, encode_buffer);

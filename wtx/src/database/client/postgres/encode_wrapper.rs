@@ -2,11 +2,11 @@ use crate::misc::{Lease, SuffixWriterFbvm};
 
 /// Struct used for encoding elements in PostgreSQL.
 #[derive(Debug)]
-pub struct PostgresEncodeWrapper<'inner, 'outer> {
+pub struct EncodeWrapper<'inner, 'outer> {
   buffer: &'outer mut SuffixWriterFbvm<'inner>,
 }
 
-impl<'inner, 'outer> PostgresEncodeWrapper<'inner, 'outer> {
+impl<'inner, 'outer> EncodeWrapper<'inner, 'outer> {
   pub(crate) const fn new(buffer: &'outer mut SuffixWriterFbvm<'inner>) -> Self {
     Self { buffer }
   }
@@ -17,7 +17,7 @@ impl<'inner, 'outer> PostgresEncodeWrapper<'inner, 'outer> {
   }
 }
 
-impl Lease<[u8]> for PostgresEncodeWrapper<'_, '_> {
+impl Lease<[u8]> for EncodeWrapper<'_, '_> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.buffer.curr_bytes()

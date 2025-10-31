@@ -4,14 +4,14 @@
 mod authentication;
 mod config;
 mod db_error;
+mod decode_wrapper;
+mod encode_wrapper;
 mod executor_buffer;
 #[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod message;
 mod msg_field;
 mod postgres_column_info;
-mod postgres_decode_wrapper;
-mod postgres_encode_wrapper;
 mod postgres_error;
 mod postgres_executor;
 mod postgres_record;
@@ -38,10 +38,10 @@ use core::{
   fmt::{Debug, Formatter},
   marker::PhantomData,
 };
-pub use db_error::{DbError, ErrorPosition, Severity};
-pub use executor_buffer::ExecutorBuffer;
-pub use postgres_decode_wrapper::PostgresDecodeWrapper;
-pub use postgres_encode_wrapper::PostgresEncodeWrapper;
+pub use db_error::{ErrorPosition, PostgresDbError, Severity};
+pub use decode_wrapper::DecodeWrapper;
+pub use encode_wrapper::EncodeWrapper;
+pub use executor_buffer::PostgresExecutorBuffer;
 pub use postgres_error::PostgresError;
 pub use postgres_executor::PostgresExecutor;
 pub use postgres_record::PostgresRecord;
@@ -83,12 +83,12 @@ where
 {
   type Aux = ();
   type DecodeWrapper<'inner, 'outer, 'rem>
-    = PostgresDecodeWrapper<'inner, 'rem>
+    = DecodeWrapper<'inner, 'rem>
   where
     'inner: 'outer;
   type Error = E;
   type EncodeWrapper<'inner, 'outer, 'rem>
-    = PostgresEncodeWrapper<'inner, 'outer>
+    = EncodeWrapper<'inner, 'outer>
   where
     'inner: 'outer;
 }

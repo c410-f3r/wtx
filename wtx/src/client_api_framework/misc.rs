@@ -84,7 +84,7 @@ where
   Ok(())
 }
 
-#[cfg(feature = "http")]
+#[cfg(feature = "http2")]
 pub(crate) fn log_http_req<T, TP>(
   _bytes: &[u8],
   _log_body: bool,

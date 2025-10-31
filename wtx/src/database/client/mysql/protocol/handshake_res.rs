@@ -3,7 +3,7 @@ use crate::{
     MysqlError,
     auth_plugin::AuthPlugin,
     capability::Capability,
-    mysql_protocol::{MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol},
+    protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol},
     status::Status,
   },
   de::{Decode, FromRadix10},
@@ -17,7 +17,7 @@ pub(crate) struct HandshakeRes<'bytes> {
   pub(crate) capabilities: u64,
 }
 
-impl<'de, DO, E> Decode<'de, MysqlProtocol<DO, E>> for HandshakeRes<'de>
+impl<'de, DO, E> Decode<'de, Protocol<DO, E>> for HandshakeRes<'de>
 where
   E: From<crate::Error>,
 {

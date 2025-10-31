@@ -1,7 +1,5 @@
 use crate::{
-  database::client::mysql::mysql_protocol::{
-    MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol,
-  },
+  database::client::mysql::protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   de::Encode,
 };
 
@@ -10,7 +8,7 @@ pub(crate) struct StmtCloseReq {
   pub(crate) statement: u32,
 }
 
-impl<E> Encode<MysqlProtocol<(), E>> for StmtCloseReq
+impl<E> Encode<Protocol<(), E>> for StmtCloseReq
 where
   E: From<crate::Error>,
 {

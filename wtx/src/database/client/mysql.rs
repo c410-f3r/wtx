@@ -7,19 +7,19 @@ pub(crate) mod charset;
 pub(crate) mod collation;
 mod config;
 mod db_error;
+mod decode_wrapper;
+mod encode_wrapper;
 mod executor_buffer;
 mod flag;
 #[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod misc;
 mod mysql_column_info;
-mod mysql_decode_wrapper;
-mod mysql_encode_wrapper;
 mod mysql_error;
 mod mysql_executor;
-mod mysql_protocol;
 mod mysql_record;
 mod mysql_records;
+mod protocol;
 mod status;
 mod ty;
 mod ty_params;
@@ -44,9 +44,9 @@ use core::{
   marker::PhantomData,
 };
 pub use db_error::DbError;
+pub use decode_wrapper::DecodeWrapper;
+pub use encode_wrapper::EncodeWrapper;
 pub use executor_buffer::ExecutorBuffer;
-pub use mysql_decode_wrapper::MysqlDecodeWrapper;
-pub use mysql_encode_wrapper::MysqlEncodeWrapper;
 pub use mysql_error::MysqlError;
 pub use mysql_executor::MysqlExecutor;
 pub use mysql_record::MysqlRecord;
@@ -86,12 +86,12 @@ where
 {
   type Aux = ();
   type DecodeWrapper<'inner, 'outer, 'rem>
-    = MysqlDecodeWrapper<'inner, 'rem>
+    = DecodeWrapper<'inner, 'rem>
   where
     'inner: 'outer;
   type Error = E;
   type EncodeWrapper<'inner, 'outer, 'rem>
-    = MysqlEncodeWrapper<'inner>
+    = EncodeWrapper<'inner>
   where
     'inner: 'outer;
 }

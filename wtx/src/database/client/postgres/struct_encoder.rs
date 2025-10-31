@@ -1,7 +1,7 @@
 use crate::{
   database::{
     Typed,
-    client::postgres::{Postgres, PostgresEncodeWrapper, Ty},
+    client::postgres::{EncodeWrapper, Postgres, Ty},
   },
   de::Encode,
 };
@@ -10,7 +10,7 @@ use core::marker::PhantomData;
 /// Encodes a Rust struct into a custom PostgreSQL type that represents a table.
 #[derive(Debug)]
 pub struct StructEncoder<'inner, 'ew, 'outer, E> {
-  ew: &'ew mut PostgresEncodeWrapper<'inner, 'outer>,
+  ew: &'ew mut EncodeWrapper<'inner, 'outer>,
   len: u32,
   phantom: PhantomData<fn() -> E>,
   start: usize,
@@ -22,7 +22,7 @@ where
 {
   /// Pushes initial encoding data.
   #[inline]
-  pub fn new(ew: &'ew mut PostgresEncodeWrapper<'inner, 'outer>) -> Result<Self, E> {
+  pub fn new(ew: &'ew mut EncodeWrapper<'inner, 'outer>) -> Result<Self, E> {
     let start = ew.buffer().len();
     ew.buffer().extend_from_slice(&[0; 4])?;
     Ok(Self { ew, len: 0, phantom: PhantomData, start })
@@ -64,7 +64,7 @@ impl<E> Drop for StructEncoder<'_, '_, '_, E> {
   }
 }
 
-fn write_len(ew: &mut PostgresEncodeWrapper<'_, '_>, start: usize, len: u32) {
+fn write_len(ew: &mut EncodeWrapper<'_, '_>, start: usize, len: u32) {
   let Some([a, b, c, d, ..]) = ew.buffer().curr_bytes_mut().get_mut(start..) else {
     return;
   };

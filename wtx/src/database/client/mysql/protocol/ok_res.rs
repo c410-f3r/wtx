@@ -1,9 +1,7 @@
 use crate::{
   database::client::mysql::{
     MysqlError,
-    mysql_protocol::{
-      MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
-    },
+    protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc},
   },
   de::Decode,
 };
@@ -14,7 +12,7 @@ pub(crate) struct OkRes {
   pub(crate) statuses: u16,
 }
 
-impl<DO, E> Decode<'_, MysqlProtocol<DO, E>> for OkRes
+impl<DO, E> Decode<'_, Protocol<DO, E>> for OkRes
 where
   E: From<crate::Error>,
 {

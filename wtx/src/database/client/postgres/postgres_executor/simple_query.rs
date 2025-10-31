@@ -1,6 +1,6 @@
 use crate::{
   database::client::postgres::{
-    ExecutorBuffer, PostgresError, PostgresExecutor, message::MessageTy, protocol::query,
+    PostgresError, PostgresExecutor, PostgresExecutorBuffer, message::MessageTy, protocol::query,
   },
   misc::{ConnectionState, LeaseMut, SuffixWriterFbvm, net::PartitionedFilledBuffer},
   stream::Stream,
@@ -9,7 +9,7 @@ use crate::{
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
   E: From<crate::Error>,
-  EB: LeaseMut<ExecutorBuffer>,
+  EB: LeaseMut<PostgresExecutorBuffer>,
   S: Stream,
 {
   pub(crate) async fn simple_query_execute(

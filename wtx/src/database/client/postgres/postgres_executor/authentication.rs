@@ -7,7 +7,7 @@ use crate::{
         Config, PostgresError, PostgresExecutor,
         authentication::Authentication,
         config::ChannelBinding,
-        executor_buffer::ExecutorBuffer,
+        executor_buffer::PostgresExecutorBuffer,
         message::MessageTy,
         protocol::{sasl_first, sasl_second},
       },
@@ -27,7 +27,7 @@ use sha2::Sha256;
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
-  EB: LeaseMut<ExecutorBuffer>,
+  EB: LeaseMut<PostgresExecutorBuffer>,
   S: Stream,
 {
   /// Connection parameters
@@ -47,7 +47,7 @@ where
   where
     RNG: CryptoRng,
   {
-    let ExecutorBuffer { common, .. } = self.eb.lease_mut();
+    let PostgresExecutorBuffer { common, .. } = self.eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, .. } = common;
     let msg0 = Self::fetch_msg_from_stream(&mut self.cs, net_buffer, &mut self.stream).await?;
     match msg0.ty {
@@ -120,7 +120,7 @@ where
 
   pub(crate) async fn read_after_authentication_data(&mut self) -> crate::Result<()> {
     loop {
-      let ExecutorBuffer { common, conn_params } = self.eb.lease_mut();
+      let PostgresExecutorBuffer { common, conn_params } = self.eb.lease_mut();
       let CommonExecutorBuffer { net_buffer, .. } = common;
       let msg = Self::fetch_msg_from_stream(&mut self.cs, net_buffer, &mut self.stream).await?;
       match msg.ty {

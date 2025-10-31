@@ -2,7 +2,7 @@ use crate::{
   database::client::mysql::{
     capability::Capability,
     collation::Collation,
-    mysql_protocol::{MysqlProtocol, encode_wrapper_protocol::EncodeWrapperProtocol},
+    protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
   de::Encode,
 };
@@ -13,7 +13,7 @@ pub(crate) struct InitialReq {
   pub(crate) max_packet_size: u32,
 }
 
-impl<E> Encode<MysqlProtocol<(), E>> for InitialReq
+impl<E> Encode<Protocol<(), E>> for InitialReq
 where
   E: From<crate::Error>,
 {

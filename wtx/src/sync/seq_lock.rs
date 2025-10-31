@@ -47,7 +47,7 @@ pub(crate) struct SeqLockWriteGuard {
 impl SeqLockWriteGuard {
   pub(crate) fn abort(self) {
     self.lock.state.store(self.state, Ordering::Release);
-    #[allow(clippy::mem_forget, reason = "avoids incrementing the stamp")]
+    #[expect(clippy::mem_forget, reason = "avoids incrementing the stamp")]
     mem::forget(self);
   }
 }

@@ -11,6 +11,7 @@ mod schema_manager;
 #[cfg(feature = "web-socket")]
 mod web_socket;
 
+#[allow(clippy::unwrap_in_result, reason = "false-position")]
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   #[cfg(feature = "clap")]

@@ -3,8 +3,8 @@ use crate::{
     Identifier,
     client::mysql::{
       MysqlError,
-      mysql_protocol::{
-        MysqlProtocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
+      protocol::{
+        Protocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc,
         lenenc_content::LenencContent,
       },
       ty::Ty,
@@ -21,7 +21,7 @@ pub(crate) struct ColumnRes {
   pub(crate) ty: Ty,
 }
 
-impl<DO, E> Decode<'_, MysqlProtocol<DO, E>> for ColumnRes
+impl<DO, E> Decode<'_, Protocol<DO, E>> for ColumnRes
 where
   E: From<crate::Error>,
 {
