@@ -1,4 +1,3 @@
-use core::ops::Range;
 use crate::{
   collection::Vector,
   database::client::mysql::{
@@ -7,6 +6,7 @@ use crate::{
   misc::{LeaseMut, net::PartitionedFilledBuffer},
   stream::Stream,
 };
+use core::ops::Range;
 
 impl<E, EB, S> MysqlExecutor<E, EB, S>
 where
