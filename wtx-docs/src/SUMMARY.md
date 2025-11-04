@@ -14,6 +14,7 @@
 - [HTTP/2](http2/README.md)
 - [Internal Development](internal-development/README.md)
 - [Pool](pool/README.md)
+- [Secrets](secrets/README.md)
 - [UI Tools](ui-tools/README.md)
 - [WebSocket](web-socket/README.md)
 - [WebSocket over HTTP/2](web-socket-over-http2/README.md)
