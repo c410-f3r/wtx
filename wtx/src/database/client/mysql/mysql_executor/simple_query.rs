@@ -1,5 +1,4 @@
 use core::ops::Range;
-
 use crate::{
   collection::Vector,
   database::client::mysql::{

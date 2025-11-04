@@ -120,6 +120,9 @@ mod static_keys {
     ///
     /// `buffer` is utilized for internal operations and can be freely reused for any other action
     /// afterwards.
+    ///
+    /// When the closure is executing, the plaintext secret will exist transiently in CPU registers
+    /// and caches, which is unavoidable.
     pub fn peek<B, E, T>(&self, buffer: &mut B, fun: impl FnOnce(&[u8]) -> T) -> Result<T, E>
     where
       for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8], Error = E>,
@@ -198,10 +201,8 @@ mod tests {
   fn peek() {
     let mut buffer = Vector::new();
     let mut data = DATA;
-    let secret =
-      Secret::new(SensitiveBytes::new_unlocked(&mut data), &mut ChaCha20::new(_32_bytes_seed()))
-        .unwrap();
-    assert_eq!(data, [0, 0, 0, 0]);
+    let mut rng = ChaCha20::new(_32_bytes_seed());
+    let secret = Secret::new(SensitiveBytes::new_unlocked(&mut data), &mut rng).unwrap();
     let mut option = None;
     secret
       .peek(&mut buffer, |bytes| {

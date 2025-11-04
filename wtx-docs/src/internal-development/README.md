@@ -60,3 +60,28 @@ samply record ./target/x86_64-unknown-linux-gnu/profiling/h2load
 ```bash
 valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes --simulate-cache=yes ./target/x86_64-unknown-linux-gnu/profiling/h2load
 ```
+
+## Compiler flags
+
+Some non-standard options that may will influence the final binary.
+
+### Size
+
+* -Cforce-frame-pointers=no
+* -Cforce-unwind-tables=no
+
+More size-related parameters can be found at <https://github.com/johnthagen/min-sized-rust>.
+
+### Runtime
+
+* -Cllvm-args=--inline-threshold=1000
+* -Cllvm-args=-vectorize-loops
+* -Cllvm-args=-vectorize-slp
+* -Ctarget-cpu=x86-64-v3
+
+### Security
+
+* -Ccontrol-flow-guard=yes
+* -Crelocation-model=pie
+* -Crelro-level=full
+* -Zstack-protector=strong

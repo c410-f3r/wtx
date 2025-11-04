@@ -10,7 +10,8 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use core::{
   alloc::Layout,
-  fmt::{Debug, Display, Formatter},
+  any::Any,
+  fmt::{Debug, Display, Formatter, Write as _},
   ops::RangeInclusive,
 };
 
@@ -720,6 +721,15 @@ impl From<crate::web_socket::WebSocketError> for Error {
   #[inline]
   fn from(from: crate::web_socket::WebSocketError) -> Self {
     Self::WebSocketError(from)
+  }
+}
+
+impl From<Box<dyn Any + Send + 'static>> for Error {
+  #[inline]
+  fn from(from: Box<dyn Any + Send + 'static>) -> Self {
+    let mut string = String::new();
+    let _rslt = string.write_fmt(format_args!("{from:?}"));
+    Self::Generic(Box::new(string))
   }
 }
 

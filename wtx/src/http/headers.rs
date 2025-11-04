@@ -8,7 +8,7 @@ use core::{
 };
 
 /// Tells how trailers are placed in the headers
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Trailers {
   /// Does not have trailers
   None,
@@ -160,6 +160,7 @@ impl Headers {
     let Some(header_parts) = self.headers_parts.pop() else {
       return false;
     };
+    self.manage_trailers_deletion(self.headers_parts.len());
     self.manage_sensitive_content_deletion(&header_parts);
     let new_bytes_len = self.bytes.len().wrapping_sub(header_parts.header_len);
     // SAFETY: `headers` is expected to contain valid data
@@ -293,6 +294,15 @@ impl Headers {
   #[inline]
   pub const fn trailers(&self) -> Trailers {
     self.trailers
+  }
+
+  const fn manage_trailers_deletion(&mut self, popped_idx: usize) {
+    match self.trailers {
+      Trailers::Tail(idx) if idx == popped_idx => {
+        self.trailers = Trailers::None;
+      }
+      _ => {}
+    }
   }
 
   fn header_len<'bytes>(header_name: &str, iter: impl Iterator<Item = &'bytes str>) -> usize {
@@ -448,4 +458,34 @@ struct HeaderParts {
   header_name_end: usize,
   is_sensitive: bool,
   is_trailer: bool,
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::http::{Header, Headers, Trailers};
+
+  #[test]
+  fn pop_resets_trailer_tail_state_correctly() {
+    let mut headers = Headers::new();
+
+    headers.push_from_iter(Header::from_name_and_value("Content-Type", ["text/plain"])).unwrap();
+    assert_eq!(headers.bytes_len(), 22);
+    assert_eq!(headers.headers_len(), 1);
+    assert_eq!(headers.trailers(), Trailers::None);
+
+    headers.push_from_iter(Header::new(false, true, "x-trailer-a", ["value"])).unwrap();
+    assert_eq!(headers.bytes_len(), 22 + 16);
+    assert_eq!(headers.headers_len(), 2);
+    assert_eq!(headers.trailers(), Trailers::Tail(1));
+
+    assert!(headers.pop());
+
+    assert_eq!(headers.bytes_len(), 22);
+    assert_eq!(headers.headers_len(), 1);
+    assert_eq!(headers.trailers(), Trailers::None);
+
+    let first = headers.get_by_idx(0).unwrap();
+    assert_eq!(first.name, "Content-Type");
+    assert!(!first.is_trailer);
+  }
 }

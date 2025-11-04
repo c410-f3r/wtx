@@ -71,12 +71,12 @@ mod serde {
         Errors,
       }
 
-      struct CustomVisitor<'de, D, E>(PhantomData<(D, E)>, PhantomData<&'de ()>)
+      struct LocalVisitor<'de, D, E>(PhantomData<(D, E)>, PhantomData<&'de ()>)
       where
         D: Deserialize<'de>,
         E: Deserialize<'de>;
 
-      impl<'de, D, E> Visitor<'de> for CustomVisitor<'de, D, E>
+      impl<'de, D, E> Visitor<'de> for LocalVisitor<'de, D, E>
       where
         D: Deserialize<'de>,
         E: Deserialize<'de>,
@@ -122,11 +122,10 @@ mod serde {
         }
       }
 
-      const FIELDS: &[&str] = &["data", "errors"];
       deserializer.deserialize_struct(
         "GraphQlDecoder",
-        FIELDS,
-        CustomVisitor(PhantomData, PhantomData),
+        &["data", "errors"],
+        LocalVisitor(PhantomData, PhantomData),
       )
     }
   }
