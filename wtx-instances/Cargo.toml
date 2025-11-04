@@ -88,6 +88,11 @@ name = "pool"
 path = "generic-examples/pool.rs"
 required-features = ["pool"]
 
+[[bin]]
+name = "secrets"
+path = "generic-examples/secrets.rs"
+required-features = ["secret"]
+
 # HTTP Server Framework Examples
 
 [[example]]
@@ -180,6 +185,7 @@ grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
 http-client-pool = ["wtx/http-client-pool"]
 pool = ["wtx/pool"]
+secret = ["wtx/secret"]
 
 http-server-framework = ["serde", "wtx/getrandom", "wtx/http-server-framework", "wtx/nightly", "wtx/pool", "wtx/postgres", "wtx/serde_json"]
 http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
