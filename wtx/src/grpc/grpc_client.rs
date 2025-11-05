@@ -41,7 +41,7 @@ where
     VerbatimDecoder<T>: Decode<'de, De<DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimDecoder::decode(&mut self.drsr, &mut DecodeWrapper::new(elem))?.data)
+    Ok(VerbatimDecoder::decode(&mut DecodeWrapper::new(elem))?.data)
   }
 
   /// Send Unary Request

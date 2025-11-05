@@ -26,7 +26,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapperProtocol<'_, '_, u64>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapperProtocol<'_, '_, u64>) -> Result<Self, E> {
     let [255, a, b, rest0 @ ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidErrPacketResBytes.into()));
     };

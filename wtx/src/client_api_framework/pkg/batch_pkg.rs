@@ -103,7 +103,7 @@ mod serde_json {
     T: Transport<TP>,
   {
     #[inline]
-    fn encode(&self, _: &mut SerdeJson, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
       serde_json::Serializer::new(&mut *ew.vector)
         .collect_seq(self.0.iter().map(Package::ext_req_content))?;
       Ok(())

@@ -47,8 +47,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
-    let micros: i64 = Decode::<Postgres<E>>::decode(aux, dw)?;
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+    let micros: i64 = Decode::<Postgres<E>>::decode(dw)?;
     let (epoch_ts, _) = PG_EPOCH.timestamp_secs_and_ns();
     let this_ts = micros.div_euclid(1_000_000);
     let this_ns = ((micros.rem_euclid(1_000_000)) as u32).wrapping_mul(1_000);
@@ -64,7 +64,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     if self < &PG_MIN || self > &DateTime::MAX {
       return Err(E::from(PostgresError::TimeStructureOverflow.into()));
     }
@@ -76,7 +76,7 @@ where
     let (epoch_ts, _) = PG_EPOCH.timestamp_secs_and_ns();
     let ts_diff = this_ts.wrapping_sub(epoch_ts).wrapping_mul(1_000_000);
     let rslt = ts_diff.wrapping_add(this_us.into());
-    Encode::<Postgres<E>>::encode(&rslt, &mut (), ew)
+    Encode::<Postgres<E>>::encode(&rslt, ew)
   }
 }
 impl<E> Typed<Postgres<E>> for DateTime<Utc>
@@ -99,8 +99,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
-    let days: i32 = Decode::<Postgres<E>>::decode(aux, dw)?;
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+    let days: i32 = Decode::<Postgres<E>>::decode(dw)?;
     let days_in_secs = i64::from(SECONDS_PER_DAY).wrapping_mul(days.into());
     let timestamp = days_in_secs.wrapping_add(PG_EPOCH.timestamp_secs_and_ns().0);
     Ok(DateTime::from_timestamp_secs(timestamp)?.date())
@@ -112,14 +112,14 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     if self < &PG_MIN.date() || self > &Date::MAX {
       return Err(E::from(DatabaseError::UnexpectedValueFromBytes { expected: "date" }.into()));
     }
     let this_timestamp = DateTime::new(*self, Time::ZERO, Utc).timestamp_secs_and_ns().0;
     let diff = this_timestamp.wrapping_sub(PG_EPOCH.timestamp_secs_and_ns().0);
     let days = i32::try_from(diff / i64::from(SECONDS_PER_DAY)).map_err(crate::Error::from)?;
-    Encode::<Postgres<E>>::encode(&days, &mut (), ew)
+    Encode::<Postgres<E>>::encode(&days, ew)
   }
 }
 impl<E> Typed<Postgres<E>> for Date

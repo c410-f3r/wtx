@@ -22,7 +22,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapperProtocol<'de, '_, DO>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapperProtocol<'de, '_, DO>) -> Result<Self, E> {
     let [_protocol_version, rest0 @ ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidHandshakeBytes.into()));
     };

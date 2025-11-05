@@ -22,7 +22,7 @@ where
   RV: RecordValues<Mysql<E>>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
     let _ = ew.encode_buffer.extend_from_copyable_slices([
       &[23][..],
       &self.stmt.aux.to_le_bytes(),

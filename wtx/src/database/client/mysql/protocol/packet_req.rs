@@ -32,7 +32,7 @@ where
       *local_sequence_id = local_sequence_id.wrapping_add(1);
       len_u32
     };
-    self.0.encode(&mut (), ew)?;
+    self.0.encode(ew)?;
     let mut chunks = ew.encode_buffer.chunks_exact(*Usize::from(MAX_PAYLOAD));
     for chunk in chunks.by_ref() {
       let len = copy_into_header(chunk.len(), sequence_id);

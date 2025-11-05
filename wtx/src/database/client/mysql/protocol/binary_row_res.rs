@@ -19,7 +19,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapperProtocol<'de, '_, Params<'_>>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapperProtocol<'de, '_, Params<'_>>) -> Result<Self, E> {
     let initial = *dw.bytes;
     let [a, rest0 @ ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidBinaryRowBytes.into()));
@@ -67,7 +67,7 @@ where
         | Ty::VarChar
         | Ty::VarString => {
           let before = dw.bytes.len();
-          let rslt = Usize::from(Lenenc::decode(aux, dw)?.0).into_usize();
+          let rslt = Usize::from(Lenenc::decode(dw)?.0).into_usize();
           let diff = before.wrapping_sub(dw.bytes.len());
           idx = idx.wrapping_add(diff);
           rslt

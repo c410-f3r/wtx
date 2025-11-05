@@ -63,7 +63,7 @@ valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes --simulate-cache=
 
 ## Compiler flags
 
-Some non-standard options that may will influence the final binary.
+Some non-standard options that will influence the final binary. Only use them if you know what you are doing.
 
 ### Size
 

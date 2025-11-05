@@ -24,13 +24,13 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
     if self.auth_plugin.is_none() {
       *ew.capabilities &= !u64::from(Capability::PluginAuth);
     }
 
     let req = InitialReq { collation: self.collation, max_packet_size: self.max_packet_size };
-    req.encode(aux, ew)?;
+    req.encode(ew)?;
     let _ = ew.encode_buffer.extend_from_copyable_slices([self.username.as_bytes(), b"\0"])?;
 
     let connect_n = u64::from(Capability::ConnectWithDb);

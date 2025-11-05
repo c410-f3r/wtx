@@ -30,7 +30,7 @@ where
   P: Default,
 {
   #[inline]
-  fn decode(_: &mut (), _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+  fn decode(_: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self { id: 0, method: "", params: P::default() })
   }
 }
@@ -40,7 +40,7 @@ where
   P: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut (), _: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -54,7 +54,7 @@ impl<P> Borrow<Id> for JsonRpcEncoder<P> {
 
 impl<P> Encode<De<()>> for JsonRpcEncoder<P> {
   #[inline]
-  fn encode(&self, _: &mut (), _: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+  fn encode(&self, _: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     Ok(())
   }
 }

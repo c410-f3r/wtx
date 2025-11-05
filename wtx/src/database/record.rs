@@ -7,7 +7,7 @@ use core::any::type_name;
 /// A collection of values.
 pub trait Record<'exec>: Sized {
   /// See [Database].
-  type Database: Database<Aux = ()>;
+  type Database: Database;
 
   /// Tries to retrieve and decode a value.
   #[inline]
@@ -22,7 +22,7 @@ pub trait Record<'exec>: Sized {
       )
       .into()
     })?;
-    D::decode(&mut (), &mut dw)
+    D::decode(&mut dw)
   }
 
   /// Tries to retrieve and decode an optional value.
@@ -33,7 +33,7 @@ pub trait Record<'exec>: Sized {
     D: Decode<'exec, Self::Database>,
   {
     match self.value(ci) {
-      Some(mut elem) => Ok(Some(D::decode(&mut (), &mut elem)?)),
+      Some(mut elem) => Ok(Some(D::decode(&mut elem)?)),
       None => Ok(None),
     }
   }

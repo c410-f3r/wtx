@@ -14,7 +14,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     date_decode(dw).map(|el| el.1).map_err(E::from)
   }
 }
@@ -23,7 +23,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
     date_encode(self, ew, 4).map_err(E::from)
   }
 }
@@ -47,7 +47,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     let (len, date, bytes) = date_decode(dw).map_err(E::from)?;
     Ok(if len > 4 {
       Self::new(date, time_decode(bytes)?, Utc)
@@ -61,7 +61,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
     let len = date_len(&self.time());
     date_encode(&self.date(), ew, len)?;
     if len > 4 {

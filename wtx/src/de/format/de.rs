@@ -8,7 +8,6 @@ use crate::de::{
 pub struct De<DRSR>(core::marker::PhantomData<DRSR>);
 
 impl<DRSR> crate::de::DEController for De<DRSR> {
-  type Aux = DRSR;
   type DecodeWrapper<'inner, 'outer, 'rem>
     = DecodeWrapper<'inner>
   where
@@ -22,7 +21,7 @@ impl<DRSR> crate::de::DEController for De<DRSR> {
 
 impl<DRSR> Decode<'_, De<DRSR>> for () {
   #[inline]
-  fn decode(_: &mut DRSR, _: &mut DecodeWrapper<'_>) -> crate::Result<Self> {
+  fn decode(_: &mut DecodeWrapper<'_>) -> crate::Result<Self> {
     Ok(())
   }
 }
@@ -30,7 +29,6 @@ impl<DRSR> Decode<'_, De<DRSR>> for () {
 impl<DRSR> DecodeSeq<'_, De<DRSR>> for () {
   #[inline]
   fn decode_seq(
-    _: &mut DRSR,
     _: &mut crate::collection::Vector<Self>,
     _: &mut DecodeWrapper<'_>,
   ) -> crate::Result<()> {
@@ -40,7 +38,7 @@ impl<DRSR> DecodeSeq<'_, De<DRSR>> for () {
 
 impl<DRSR> Encode<De<DRSR>> for () {
   #[inline]
-  fn encode(&self, _: &mut DRSR, _: &mut EncodeWrapper<'_>) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut EncodeWrapper<'_>) -> Result<(), crate::Error> {
     Ok(())
   }
 }

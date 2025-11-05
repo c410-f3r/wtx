@@ -51,6 +51,6 @@ where
       return Ok(None);
     };
     self.bytes = after;
-    Ok(Some(T::decode(&mut (), &mut DecodeWrapper::new(before, "", ty))?))
+    Ok(Some(T::decode(&mut DecodeWrapper::new(before, "", ty))?))
   }
 }

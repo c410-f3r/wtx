@@ -31,7 +31,7 @@ impl<DRSR> GrpcManager<DRSR> {
     VerbatimEncoder<T>: Decode<'de, De<DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimEncoder::decode(&mut self.drsr, &mut DecodeWrapper::new(elem))?.data)
+    Ok(VerbatimEncoder::decode(&mut DecodeWrapper::new(elem))?.data)
   }
 
   /// Serialize to Response Bytes

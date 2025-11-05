@@ -73,7 +73,6 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
     async {
       self.send_pkg_recv(&mut BatchPkg::new(pkgs, pkgs_aux), pkgs_aux).await?;
       P::ExternalResponseContent::decode_seq(
-        &mut pkgs_aux.drsr,
         buffer,
         &mut DecodeWrapper::new(&pkgs_aux.byte_buffer),
       )?;
@@ -95,10 +94,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   {
     async {
       self.send_pkg_recv(pkg, pkgs_aux).await?;
-      Ok(P::ExternalResponseContent::decode(
-        &mut pkgs_aux.drsr,
-        &mut DecodeWrapper::new(&pkgs_aux.byte_buffer),
-      )?)
+      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(&pkgs_aux.byte_buffer))?)
     }
   }
 }

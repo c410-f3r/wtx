@@ -129,7 +129,7 @@ mod tests {
 
   impl<DRSR> Encode<De<DRSR>> for _Ping {
     #[inline]
-    fn encode(&self, _: &mut DRSR, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
       ew.vector.extend_from_copyable_slice(b"ping")?;
       Ok(())
     }
@@ -140,18 +140,14 @@ mod tests {
 
   impl<'de, DRSR> Decode<'de, De<DRSR>> for _Pong {
     #[inline]
-    fn decode(_: &mut DRSR, _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+    fn decode(_: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
       Ok(Self("pong"))
     }
   }
 
   impl<'de, DRSR> DecodeSeq<'de, De<DRSR>> for _Pong {
     #[inline]
-    fn decode_seq(
-      _: &mut DRSR,
-      _: &mut Vector<Self>,
-      _: &mut DecodeWrapper<'de>,
-    ) -> crate::Result<()> {
+    fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
       Ok(())
     }
   }

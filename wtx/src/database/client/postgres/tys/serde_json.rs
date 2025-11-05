@@ -13,7 +13,7 @@ where
   T: Deserialize<'de>,
 {
   #[inline]
-  fn decode(_: &mut (), input: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+  fn decode(input: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
     let [1, rest @ ..] = input.bytes() else {
       return Err(E::from(PostgresError::InvalidJsonFormat.into()));
     };
@@ -27,7 +27,7 @@ where
   T: Serialize,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_byte(1)?;
     serde_json::to_writer(ew.buffer(), &self.0).map_err(Into::into)?;
     Ok(())

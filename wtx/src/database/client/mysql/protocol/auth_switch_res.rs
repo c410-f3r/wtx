@@ -18,7 +18,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapperProtocol<'_, '_, bool>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapperProtocol<'_, '_, bool>) -> Result<Self, E> {
     let [a, rest0 @ ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidAuthSwitchBytes.into()));
     };

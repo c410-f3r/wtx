@@ -107,7 +107,7 @@ pub(crate) async fn migrations_by_mg_uid_query<'exec, E, D>(
   schema_prefix: &str,
 ) -> crate::Result<()>
 where
-  D: Database<Aux = (), Error = crate::Error>,
+  D: Database<Error = crate::Error>,
   E: Executor<Database = D>,
   DbMigration: FromRecords<'exec, E::Database>,
 {

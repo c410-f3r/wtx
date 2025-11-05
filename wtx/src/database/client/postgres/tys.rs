@@ -29,15 +29,12 @@ macro_rules! test {
       let mut sw = crate::misc::SuffixWriter::new(0, vec.vector_mut());
       let mut ew = EncodeWrapper::new(&mut sw);
       let instance: $ty = $instance;
-      Encode::<Postgres<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
-      let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(
-        &mut (),
-        &mut DecodeWrapper::new(
-          ew.buffer().curr_bytes(),
-          "",
-          crate::database::client::postgres::Ty::Any,
-        ),
-      )
+      Encode::<Postgres<crate::Error>>::encode(&instance, &mut ew).unwrap();
+      let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&mut DecodeWrapper::new(
+        ew.buffer().curr_bytes(),
+        "",
+        crate::database::client::postgres::Ty::Any,
+      ))
       .unwrap();
       assert_eq!(instance, decoded);
     }

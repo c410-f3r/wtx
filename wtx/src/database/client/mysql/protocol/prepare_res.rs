@@ -18,7 +18,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapperProtocol<'de, '_, DO>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapperProtocol<'de, '_, DO>) -> Result<Self, E> {
     let [a, b, c, d, e, f, g, h, i, _, k, l, ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidPrepareBytes.into()));
     };

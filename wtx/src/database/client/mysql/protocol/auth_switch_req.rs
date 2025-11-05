@@ -10,7 +10,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
     ew.encode_buffer.extend_from_copyable_slice(self.0)?;
     Ok(())
   }

@@ -18,7 +18,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
     let capability_lhs = (*ew.capabilities >> 32) as u32;
     let capability_rhs = *ew.capabilities as u32;
     let _ = ew.encode_buffer.extend_from_copyable_slices([

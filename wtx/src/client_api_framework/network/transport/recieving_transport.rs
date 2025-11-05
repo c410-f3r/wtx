@@ -33,10 +33,7 @@ pub trait ReceivingTransport<TP>: Sized + Transport<TP> {
   {
     async {
       self.recv(pkgs_aux, req_id).await?;
-      Ok(P::ExternalResponseContent::decode(
-        &mut pkgs_aux.drsr,
-        &mut DecodeWrapper::new(&pkgs_aux.byte_buffer),
-      )?)
+      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(&pkgs_aux.byte_buffer))?)
     }
   }
 }

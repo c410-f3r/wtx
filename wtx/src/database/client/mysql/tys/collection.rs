@@ -16,7 +16,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
     Ok(dw.bytes())
   }
 }
@@ -25,7 +25,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
     let len = encoded_len(*Usize::from(self.len()))?;
     let _ = ew.buffer().extend_from_copyable_slices([len.as_slice(), self])?;
     Ok(())
@@ -54,8 +54,8 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
-    Ok(<&str as Decode<Mysql<E>>>::decode(aux, dw)?.try_into()?)
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+    Ok(<&str as Decode<Mysql<E>>>::decode(dw)?.try_into()?)
   }
 }
 impl<E, L, const N: usize> Encode<Mysql<E>> for ArrayString<L, N>
@@ -64,8 +64,8 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-    <&str as Encode<Mysql<E>>>::encode(&self.as_str(), aux, ew)
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+    <&str as Encode<Mysql<E>>>::encode(&self.as_str(), ew)
   }
 }
 impl<E, L, const N: usize> Typed<Mysql<E>> for ArrayString<L, N>
@@ -91,8 +91,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
-    Ok(from_utf8_basic(<&[u8] as Decode<Mysql<E>>>::decode(aux, dw)?).map_err(crate::Error::from)?)
+  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+    Ok(from_utf8_basic(<&[u8] as Decode<Mysql<E>>>::decode(dw)?).map_err(crate::Error::from)?)
   }
 }
 impl<E> Encode<Mysql<E>> for &str
@@ -100,8 +100,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-    <&[u8] as Encode<Mysql<E>>>::encode(&self.as_bytes(), aux, ew)
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+    <&[u8] as Encode<Mysql<E>>>::encode(&self.as_bytes(), ew)
   }
 }
 impl<E> Typed<Mysql<E>> for &str
@@ -126,8 +126,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
-    <&str as Decode<Mysql<E>>>::decode(aux, dw).map(String::from)
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+    <&str as Decode<Mysql<E>>>::decode(dw).map(String::from)
   }
 }
 impl<E> Encode<Mysql<E>> for String
@@ -135,8 +135,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
-    <&str as Encode<Mysql<E>>>::encode(&self.as_str(), aux, ew)
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+    <&str as Encode<Mysql<E>>>::encode(&self.as_str(), ew)
   }
 }
 impl<E> Typed<Mysql<E>> for String

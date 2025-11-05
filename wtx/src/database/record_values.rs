@@ -62,7 +62,7 @@ where
 
 impl<D, T> RecordValues<D> for &[T]
 where
-  D: Database<Aux = ()>,
+  D: Database,
   T: Encode<D> + Typed<D>,
 {
   #[inline]
@@ -99,7 +99,7 @@ where
 
 impl<D, I, T> RecordValues<D> for Wrapper<I>
 where
-  D: Database<Aux = ()>,
+  D: Database,
   I: Clone + Iterator<Item = T>,
   T: Encode<D> + Typed<D>,
 {
@@ -145,12 +145,12 @@ pub(crate) fn encode<'inner, 'outer, 'rem, A, D, T>(
   suffix_cb: &mut impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
 ) -> Result<(), D::Error>
 where
-  D: Database<Aux = ()>,
+  D: Database,
   T: Encode<D>,
 {
   *n = n.wrapping_add(prefix_cb(aux, ew));
   let elem_before = ew.lease().len();
-  elem.encode(&mut (), ew)?;
+  elem.encode(ew)?;
   let elem_len = ew.lease().len().wrapping_sub(elem_before);
   *n = n.wrapping_add(elem_len);
   *n = n.wrapping_add(suffix_cb(aux, ew, elem.is_null(), elem_len));
