@@ -33,7 +33,7 @@ where
   A: Clone + Default,
   C: Clone,
   T: Clone,
-  D: Database<Aux = ()>,
+  D: Database,
   D::Record<'exec>: From<CommonRecord<'exec, A, C, D, T>>,
 {
   type Database = D;

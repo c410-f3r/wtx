@@ -49,7 +49,7 @@ where
       let len_start = self.ew.buffer().len();
       self.ew.buffer().extend_from_slice(&[0; 4])?;
       let elem_start = self.ew.buffer().len();
-      value.encode(&mut (), self.ew)?;
+      value.encode(self.ew)?;
       let len = self.ew.buffer().len().wrapping_sub(elem_start).try_into().unwrap_or_default();
       write_len(self.ew, len_start, len);
     }

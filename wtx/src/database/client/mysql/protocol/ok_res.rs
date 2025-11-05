@@ -17,7 +17,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapperProtocol<'_, '_, DO>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapperProtocol<'_, '_, DO>) -> Result<Self, E> {
     let [first, rest0 @ ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidOkBytes.into()));
     };
@@ -25,8 +25,8 @@ where
       return Err(E::from(MysqlError::InvalidOkBytes.into()));
     }
     *dw.bytes = rest0;
-    let affected_rows = Lenenc::decode(&mut (), dw)?.0;
-    let _last_insert_id = Lenenc::decode(&mut (), dw)?.0;
+    let affected_rows = Lenenc::decode(dw)?.0;
+    let _last_insert_id = Lenenc::decode(dw)?.0;
     let [a, b, c, d, rest1 @ ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidOkBytes.into()));
     };

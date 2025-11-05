@@ -84,7 +84,6 @@ impl<E> DEController for Mysql<E>
 where
   E: From<crate::Error>,
 {
-  type Aux = ();
   type DecodeWrapper<'inner, 'outer, 'rem>
     = DecodeWrapper<'inner, 'rem>
   where

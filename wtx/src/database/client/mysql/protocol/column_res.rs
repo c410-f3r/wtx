@@ -26,14 +26,14 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapperProtocol<'_, '_, DO>) -> Result<Self, E> {
-    let _catalog = LenencContent::decode(aux, dw)?.0;
-    let _schema = LenencContent::decode(aux, dw)?.0;
-    let _table_alias = LenencContent::decode(aux, dw)?.0;
-    let _table = LenencContent::decode(aux, dw)?.0;
-    let column_alias = LenencContent::decode(aux, dw)?.0;
-    let column_name = LenencContent::decode(aux, dw)?.0;
-    let _next_len = Lenenc::decode(aux, dw)?;
+  fn decode(dw: &mut DecodeWrapperProtocol<'_, '_, DO>) -> Result<Self, E> {
+    let _catalog = LenencContent::decode(dw)?.0;
+    let _schema = LenencContent::decode(dw)?.0;
+    let _table_alias = LenencContent::decode(dw)?.0;
+    let _table = LenencContent::decode(dw)?.0;
+    let column_alias = LenencContent::decode(dw)?.0;
+    let column_name = LenencContent::decode(dw)?.0;
+    let _next_len = Lenenc::decode(dw)?;
     let [a, b, c, d, e, f, g, h, i, j, ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidColumnBytes.into()));
     };

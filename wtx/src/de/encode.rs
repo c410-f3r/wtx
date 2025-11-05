@@ -6,11 +6,7 @@ where
   DEC: DEController,
 {
   /// Performs the conversion.
-  fn encode(
-    &self,
-    aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
-  ) -> Result<(), DEC::Error>;
+  fn encode(&self, ew: &mut DEC::EncodeWrapper<'_, '_, '_>) -> Result<(), DEC::Error>;
 
   /// If this instance can be desired nullable.
   #[inline]
@@ -21,14 +17,14 @@ where
 
 impl Encode<()> for u32 {
   #[inline]
-  fn encode(&self, _: &mut (), _: &mut ()) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut ()) -> Result<(), crate::Error> {
     Ok(())
   }
 }
 
 impl Encode<()> for &str {
   #[inline]
-  fn encode(&self, _: &mut (), _: &mut ()) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut ()) -> Result<(), crate::Error> {
     Ok(())
   }
 }
@@ -39,12 +35,8 @@ where
   T: Encode<DEC>,
 {
   #[inline]
-  fn encode(
-    &self,
-    aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
-  ) -> Result<(), DEC::Error> {
-    (**self).encode(aux, ew)
+  fn encode(&self, ew: &mut DEC::EncodeWrapper<'_, '_, '_>) -> Result<(), DEC::Error> {
+    (**self).encode(ew)
   }
 
   #[inline]
@@ -59,12 +51,8 @@ where
   T: Encode<DEC>,
 {
   #[inline]
-  fn encode(
-    &self,
-    aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
-  ) -> Result<(), DEC::Error> {
-    (**self).encode(aux, ew)
+  fn encode(&self, ew: &mut DEC::EncodeWrapper<'_, '_, '_>) -> Result<(), DEC::Error> {
+    (**self).encode(ew)
   }
 
   #[inline]
@@ -80,14 +68,10 @@ where
   R: Encode<DEC>,
 {
   #[inline]
-  fn encode(
-    &self,
-    aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
-  ) -> Result<(), DEC::Error> {
+  fn encode(&self, ew: &mut DEC::EncodeWrapper<'_, '_, '_>) -> Result<(), DEC::Error> {
     match self {
-      Self::Left(left) => left.encode(aux, ew),
-      Self::Right(right) => right.encode(aux, ew),
+      Self::Left(left) => left.encode(ew),
+      Self::Right(right) => right.encode(ew),
     }
   }
 
@@ -105,12 +89,8 @@ where
   DEC: DEController,
 {
   #[inline]
-  fn encode(
-    &self,
-    aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
-  ) -> Result<(), DEC::Error> {
-    (**self).encode(aux, ew)
+  fn encode(&self, ew: &mut DEC::EncodeWrapper<'_, '_, '_>) -> Result<(), DEC::Error> {
+    (**self).encode(ew)
   }
 
   #[inline]
@@ -125,14 +105,10 @@ where
   T: Encode<DEC>,
 {
   #[inline]
-  fn encode(
-    &self,
-    aux: &mut DEC::Aux,
-    ew: &mut DEC::EncodeWrapper<'_, '_, '_>,
-  ) -> Result<(), DEC::Error> {
+  fn encode(&self, ew: &mut DEC::EncodeWrapper<'_, '_, '_>) -> Result<(), DEC::Error> {
     match self {
       None => Ok(()),
-      Some(elem) => elem.encode(aux, ew),
+      Some(elem) => elem.encode(ew),
     }
   }
 

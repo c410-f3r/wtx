@@ -19,7 +19,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapperProtocol<'de, '_, Params<'_>>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapperProtocol<'de, '_, Params<'_>>) -> Result<Self, E> {
     dw.other.1.reserve(dw.other.0)?;
     let mut idx = 0;
     for _ in 0..dw.other.0 {
@@ -33,7 +33,7 @@ where
       } else {
         let len = {
           let begin = dw.bytes.len();
-          let len = Usize::from(Lenenc::decode(aux, dw)?.0).into_usize();
+          let len = Usize::from(Lenenc::decode(dw)?.0).into_usize();
           idx = idx.wrapping_add(dw.bytes.len().wrapping_sub(begin));
           len
         };

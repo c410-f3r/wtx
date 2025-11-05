@@ -23,7 +23,7 @@ where
   E: From<crate::Error>,
   T: Decode<'de, Protocol<DO, E>>,
 {
-  T::decode(&mut (), &mut DecodeWrapperProtocol { bytes, other })
+  T::decode(&mut DecodeWrapperProtocol { bytes, other })
 }
 
 pub(crate) fn encoded_len(len: usize) -> crate::Result<ArrayVectorU8<u8, 9>> {
@@ -84,10 +84,7 @@ where
   T: for<'any> Decode<'de, Protocol<(), crate::Error>>,
 {
   let total = fetch_msg(capabilities, pfb, sequence_id, stream).await?;
-  Ok((
-    T::decode(&mut (), &mut DecodeWrapperProtocol { bytes: &mut pfb.current(), other: () })?,
-    total,
-  ))
+  Ok((T::decode(&mut DecodeWrapperProtocol { bytes: &mut pfb.current(), other: () })?, total))
 }
 
 pub(crate) async fn send_packet<E, S, T>(

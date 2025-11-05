@@ -78,9 +78,7 @@ where
       (trans, &mut pkgs_aux.tp),
     )
     .await?;
-  pkg
-    .ext_req_content_mut()
-    .encode(&mut pkgs_aux.drsr, &mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
+  pkg.ext_req_content_mut().encode(&mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
   Ok(())
 }
 

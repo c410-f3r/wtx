@@ -28,15 +28,12 @@ macro_rules! test {
       let mut vec = crate::collection::Vector::new();
       let mut ew = EncodeWrapper::new(&mut vec);
       let instance: $ty = $instance;
-      Encode::<Mysql<crate::Error>>::encode(&instance, &mut (), &mut ew).unwrap();
-      let decoded: $ty = Decode::<Mysql<crate::Error>>::decode(
-        &mut (),
-        &mut DecodeWrapper::new(
-          ew.buffer(),
-          "",
-          crate::database::client::mysql::TyParams::empty(crate::database::client::mysql::Ty::Tiny),
-        ),
-      )
+      Encode::<Mysql<crate::Error>>::encode(&instance, &mut ew).unwrap();
+      let decoded: $ty = Decode::<Mysql<crate::Error>>::decode(&mut DecodeWrapper::new(
+        ew.buffer(),
+        "",
+        crate::database::client::mysql::TyParams::empty(crate::database::client::mysql::Ty::Tiny),
+      ))
       .unwrap();
       assert_eq!(instance, decoded);
     }

@@ -32,7 +32,6 @@ impl<DO, E> DEController for Protocol<DO, E>
 where
   E: From<crate::Error>,
 {
-  type Aux = ();
   type DecodeWrapper<'inner, 'outer, 'rem>
     = DecodeWrapperProtocol<'inner, 'outer, DO>
   where
@@ -49,7 +48,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
     ew.encode_buffer.extend_from_copyable_slice(self)?;
     Ok(())
   }

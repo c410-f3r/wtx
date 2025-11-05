@@ -12,10 +12,10 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
     Ok(match dw.bytes() {
-      [2, ..] => IpAddr::V4(Ipv4Addr::decode(aux, dw)?),
-      [3, ..] => IpAddr::V6(Ipv6Addr::decode(aux, dw)?),
+      [2, ..] => IpAddr::V4(Ipv4Addr::decode(dw)?),
+      [3, ..] => IpAddr::V6(Ipv6Addr::decode(dw)?),
       _ => return Err(E::from(PostgresError::InvalidIpFormat.into())),
     })
   }
@@ -25,10 +25,10 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     match self {
-      IpAddr::V4(ipv4_addr) => ipv4_addr.encode(aux, ew),
-      IpAddr::V6(ipv6_addr) => ipv6_addr.encode(aux, ew),
+      IpAddr::V4(ipv4_addr) => ipv4_addr.encode(ew),
+      IpAddr::V6(ipv6_addr) => ipv6_addr.encode(ew),
     }
   }
 }
@@ -54,7 +54,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
     let [2, 32, 0, 4, e, f, g, h] = dw.bytes() else {
       return Err(E::from(PostgresError::InvalidIpFormat.into()));
     };
@@ -66,7 +66,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slices([&[2, 32, 0, 4][..], &self.octets()])?;
     Ok(())
   }
@@ -92,7 +92,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
     let [3, 128, 0, 16, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t] = dw.bytes() else {
       return Err(E::from(PostgresError::InvalidIpFormat.into()));
     };
@@ -104,7 +104,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slices([&[3, 128, 0, 16][..], &self.octets()])?;
     Ok(())
   }

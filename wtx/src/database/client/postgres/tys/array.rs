@@ -16,7 +16,7 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     Ok(from_utf8_basic(dw.bytes()).map_err(Into::into)?.try_into()?)
   }
 }
@@ -26,7 +26,7 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slice(self.as_bytes())?;
     Ok(())
   }
@@ -56,7 +56,7 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     Ok(ArrayVector::try_from(dw.bytes())?)
   }
 }
@@ -66,7 +66,7 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().extend_from_slice(self)?;
     Ok(())
   }

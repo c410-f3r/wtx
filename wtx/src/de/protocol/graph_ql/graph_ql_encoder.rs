@@ -25,7 +25,7 @@ where
   Q: Default,
 {
   #[inline]
-  fn decode(_: &mut (), _: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+  fn decode(_: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self { operation_name: None, query: Q::default(), variables: None })
   }
 }
@@ -35,14 +35,14 @@ where
   Q: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut (), _: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de>) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl<ON, Q, V> Encode<De<()>> for GraphQlEncoder<ON, Q, V> {
   #[inline]
-  fn encode(&self, _: &mut (), _: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+  fn encode(&self, _: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     Ok(())
   }
 }

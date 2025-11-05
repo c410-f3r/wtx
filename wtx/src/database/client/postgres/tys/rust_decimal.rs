@@ -16,8 +16,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(aux: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
-    let pg_numeric = PgNumeric::decode(aux, dw)?;
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+    let pg_numeric = PgNumeric::decode(dw)?;
     let (digits, sign, mut weight, scale) = match pg_numeric {
       PgNumeric::NaN => {
         return Err(E::from(PostgresError::DecimalCanNotBeConvertedFromNaN.into()));
@@ -52,7 +52,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, aux: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     if self.is_zero() {
       let rslt = PgNumeric::Number {
         digits: ArrayVectorU16::new(),
@@ -60,7 +60,7 @@ where
         sign: Sign::Positive,
         weight: 0,
       };
-      rslt.encode(aux, ew)?;
+      rslt.encode(ew)?;
       return Ok(());
     }
 
@@ -97,7 +97,7 @@ where
       },
       weight,
     };
-    rslt.encode(aux, ew)?;
+    rslt.encode(ew)?;
     Ok(())
   }
 }

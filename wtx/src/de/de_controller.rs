@@ -2,8 +2,6 @@ use crate::misc::Lease;
 
 /// Decode/Encode Controller
 pub trait DEController {
-  /// Auxiliary structure
-  type Aux;
   /// Decode wrapper
   type DecodeWrapper<'inner, 'outer, 'rem>: Lease<[u8]>
   where
@@ -17,7 +15,6 @@ pub trait DEController {
 }
 
 impl DEController for () {
-  type Aux = ();
   type DecodeWrapper<'inner, 'outer, 'rem>
     = ()
   where
@@ -33,7 +30,6 @@ impl<T> DEController for &T
 where
   T: DEController,
 {
-  type Aux = T::Aux;
   type DecodeWrapper<'inner, 'outer, 'rem>
     = T::DecodeWrapper<'inner, 'outer, 'rem>
   where
@@ -49,7 +45,6 @@ impl<T> DEController for &mut T
 where
   T: DEController,
 {
-  type Aux = T::Aux;
   type DecodeWrapper<'inner, 'outer, 'rem>
     = T::DecodeWrapper<'inner, 'outer, 'rem>
   where

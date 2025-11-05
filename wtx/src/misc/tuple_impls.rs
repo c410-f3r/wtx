@@ -10,7 +10,7 @@ macro_rules! impl_tuples {
       $(
         impl<DB, $($T,)*> RecordValues<DB> for ($( $T, )*)
         where
-          DB: Database<Aux = ()>,
+          DB: Database,
           $($T: Encode<DB> + Typed<DB>,)*
         {
           #[inline]
@@ -279,7 +279,7 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn decode(_: &mut (), dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, ERR> {
+          fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, ERR> {
             let mut _sd = StructDecoder::<ERR>::new(dw);
             Ok((
               $( _sd.decode::<$T>()?, )*
@@ -293,7 +293,7 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _: &mut (), _ew: &mut EncodeWrapper<'_, '_>) -> Result<(), ERR> {
+          fn encode(&self, _ew: &mut EncodeWrapper<'_, '_>) -> Result<(), ERR> {
             let mut _ev = StructEncoder::<ERR>::new(_ew)?;
             $(
               _ev = _ev.encode(&self.$N)?;

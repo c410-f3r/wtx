@@ -12,10 +12,7 @@ macro_rules! _impl_dec {
   ) => {
     impl<'de, $($($ty)* $(: $bound)?,)*> crate::de::Decode<'de, crate::de::format::De<$drsr>> for $struct<$($($ty)*,)*> {
       #[inline]
-      fn decode(
-        $aux: &mut $drsr,
-        $dw: &mut crate::de::format::DecodeWrapper<'de>
-      ) -> crate::Result<Self> {
+      fn decode($dw: &mut crate::de::format::DecodeWrapper<'de>) -> crate::Result<Self> {
         $impl
       }
     }
@@ -25,11 +22,8 @@ macro_rules! _impl_dec {
       $struct<$($($ty)*,)*>: crate::de::Decode<'de, crate::de::format::De<$drsr>>,
     {
       #[inline]
-      fn decode(
-        aux: &mut &mut $drsr,
-        dw: &mut crate::de::format::DecodeWrapper<'de>
-      ) -> crate::Result<Self> {
-        <$struct<$($($ty)*,)*>>::decode(*aux, dw)
+      fn decode(dw: &mut crate::de::format::DecodeWrapper<'de>) -> crate::Result<Self> {
+        <$struct<$($($ty)*,)*>>::decode(dw)
       }
     }
   }
@@ -44,7 +38,6 @@ macro_rules! _impl_dec_seq {
     impl<'de, $($ty: $($bound)?,)*> crate::de::DecodeSeq<'de, crate::de::format::De<$drsr>> for $struct<$($ty,)*> {
       #[inline]
       fn decode_seq(
-        $aux: &mut $drsr,
         $buffer: &mut crate::collection::Vector<Self>,
         $dw: &mut crate::de::format::DecodeWrapper<'de>,
       ) -> crate::Result<()> {
@@ -58,11 +51,10 @@ macro_rules! _impl_dec_seq {
     {
       #[inline]
       fn decode_seq(
-        aux: &mut &mut $drsr,
         buffer: &mut crate::collection::Vector<Self>,
         dw: &mut crate::de::format::DecodeWrapper<'de>,
       ) -> crate::Result<()> {
-        <$struct<$($ty,)*>>::decode_seq(*aux, buffer, dw)
+        <$struct<$($ty,)*>>::decode_seq(buffer, dw)
       }
     }
   }
@@ -78,7 +70,6 @@ macro_rules! _impl_enc {
       #[inline]
       fn encode(
         &self,
-        $aux: &mut $drsr,
         $ew: &mut crate::de::format::EncodeWrapper<'_>
       ) -> crate::Result<()> {
         if size_of::<Self>() == 0 {
@@ -97,10 +88,9 @@ macro_rules! _impl_enc {
       #[inline]
       fn encode(
         &self,
-        aux: &mut &mut $drsr,
         ew: &mut crate::de::format::EncodeWrapper<'_>
       ) -> crate::Result<()> {
-        <$struct<$($ty,)*>>::encode(self, *aux, ew)
+        <$struct<$($ty,)*>>::encode(self, ew)
       }
     }
   }
@@ -120,7 +110,7 @@ macro_rules! _impl_se_collections {
         T: $bound,
       {
         #[inline]
-        fn encode(&self, $array_drsr: &mut SerdeJson, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
+        fn encode(&self, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
           let $array_self = self;
           let $array_bytes = &mut *ew.vector;
           $array_block;
@@ -136,7 +126,7 @@ macro_rules! _impl_se_collections {
         T: $bound,
       {
         #[inline]
-        fn encode(&self, $arrayvector_drsr: &mut SerdeJson, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
+        fn encode(&self, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
           let $arrayvector_self = self;
           let $arrayvector_bytes = &mut *ew.vector;
           $arrayvector_block;
@@ -150,7 +140,7 @@ macro_rules! _impl_se_collections {
       T: $bound,
     {
       #[inline]
-      fn encode(&self, $slice_ref_drsr: &mut SerdeJson, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
+      fn encode(&self, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
         let $slice_ref_self = self;
         let $slice_ref_bytes = &mut *ew.vector;
         $slice_ref_block;
@@ -163,7 +153,7 @@ macro_rules! _impl_se_collections {
       T: $bound,
     {
       #[inline]
-      fn encode(&self, $vec_drsr: &mut SerdeJson, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
+      fn encode(&self, ew: &mut crate::de::format::EncodeWrapper<'_>) -> crate::Result<()> {
         let $vec_self = self;
         let $vec_bytes = &mut *ew.vector;
         $vec_block;

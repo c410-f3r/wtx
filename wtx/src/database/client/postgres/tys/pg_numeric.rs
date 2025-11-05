@@ -23,7 +23,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(_: &mut (), dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
     let [a, b, c, d, e, f, g, h, rest @ ..] = dw.bytes() else {
       return Err(E::from(
         DatabaseError::UnexpectedBufferSize {
@@ -67,7 +67,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, _: &mut (), ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     match self {
       PgNumeric::NaN => {
         ew.buffer().extend_from_slice(&0i16.to_be_bytes())?;
