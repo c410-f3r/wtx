@@ -16,7 +16,7 @@ use tokio::net::TcpStream;
 use wtx::{
   client_api_framework::{
     Api,
-    misc::{Pair, RequestLimit, RequestThrottling},
+    misc::{Pair, RequestCounter, RequestLimit},
     network::{HttpParams, WsParams, transport::SendingReceivingTransport},
   },
   de::format::SerdeJson,
@@ -31,7 +31,7 @@ wtx::create_packages_aux_wrapper!();
 #[derive(Debug)]
 #[wtx_macros::api(error(wtx::Error), pkgs_aux(PkgsAux), transport(http, ws))]
 pub struct GenericThrottlingApi {
-  pub rt: RequestThrottling,
+  pub rc: RequestCounter,
 }
 
 impl Api for GenericThrottlingApi {
@@ -39,7 +39,7 @@ impl Api for GenericThrottlingApi {
   type Id = GenericThrottlingApiId;
 
   async fn before_sending(&mut self) -> Result<(), Self::Error> {
-    self.rt.rc.update_params(&self.rt.rl).await?;
+    self.rc.update_params().await?;
     Ok(())
   }
 }
@@ -87,7 +87,7 @@ async fn http_pair()
   Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
-        rt: RequestThrottling::from_rl(RequestLimit::new(5, Duration::from_secs(1))),
+        rc: RequestCounter::new(RequestLimit::new(5, Duration::from_secs(1))),
       },
       SerdeJson,
       HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
@@ -109,7 +109,7 @@ async fn web_socket_pair() -> wtx::Result<
   Ok(Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
-        rt: RequestThrottling::from_rl(RequestLimit::new(40, Duration::from_secs(2))),
+        rc: RequestCounter::new(RequestLimit::new(40, Duration::from_secs(2))),
       },
       SerdeJson,
       WsParams::default(),

@@ -1,5 +1,5 @@
 use crate::client_api_framework::{
-  Api, SendBytesSource,
+  Api,
   network::transport::Transport,
   pkg::{Package, PkgsAux},
 };
@@ -9,7 +9,7 @@ pub trait SendingTransport<TP>: Transport<TP> {
   /// Sends a sequence of bytes without trying to retrieve any counterpart data.
   fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: SendBytesSource<'_>,
+    bytes: &[u8],
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<Self::ReqId, A::Error>>
   where
@@ -33,7 +33,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: SendBytesSource<'_>,
+    bytes: &[u8],
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<Self::ReqId, A::Error>
   where
@@ -59,7 +59,7 @@ where
 #[cfg(feature = "tokio")]
 mod tokio {
   use crate::client_api_framework::{
-    Api, SendBytesSource,
+    Api,
     network::transport::SendingTransport,
     pkg::{Package, PkgsAux},
   };
@@ -72,7 +72,7 @@ mod tokio {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: SendBytesSource<'_>,
+      bytes: &[u8],
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<Self::ReqId, A::Error>
     where

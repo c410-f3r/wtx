@@ -22,6 +22,7 @@ $rt test-with-features wtx argon2
 $rt test-with-features wtx async-net
 $rt test-with-features wtx base64
 $rt test-with-features wtx borsh
+$rt test-with-features wtx chacha20
 $rt test-with-features wtx client-api-framework
 $rt test-with-features wtx crossbeam-channel
 $rt test-with-features wtx crypto-common

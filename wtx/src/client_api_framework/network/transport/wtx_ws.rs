@@ -5,7 +5,7 @@ mod web_socket_writer_part_owned;
 
 use crate::{
   client_api_framework::{
-    Api, SendBytesSource,
+    Api,
     misc::{
       log_req, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
       manage_before_sending_pkg,
@@ -32,7 +32,7 @@ where
 }
 
 async fn send_bytes<A, DRSR, T, TP>(
-  bytes: SendBytesSource<'_>,
+  bytes: &[u8],
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
   mut cb: impl for<'any> FnMutFut<
@@ -46,11 +46,11 @@ where
   TP: LeaseMut<WsParams>,
 {
   manage_before_sending_bytes(pkgs_aux).await?;
-  log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, trans);
-  if let SendBytesSource::Param(elem) = bytes {
-    pkgs_aux.byte_buffer.extend_from_copyable_slice(elem)?;
+  if !pkgs_aux.send_bytes_buffer {
+    pkgs_aux.bytes_buffer.extend_from_copyable_slice(bytes)?;
   }
-  cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.byte_buffer), trans)).await?;
+  log_req::<_, TP>(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, trans);
+  cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(())
 }
@@ -71,7 +71,7 @@ where
   TP: LeaseMut<WsParams>,
 {
   manage_before_sending_pkg(pkg, pkgs_aux, trans).await?;
-  log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, trans);
-  cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.byte_buffer), trans)).await?;
+  log_req(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, trans);
+  cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, trans).await
 }

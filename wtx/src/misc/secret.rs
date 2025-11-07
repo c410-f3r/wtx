@@ -201,7 +201,7 @@ mod tests {
   fn peek() {
     let mut buffer = Vector::new();
     let mut data = DATA;
-    let mut rng = ChaCha20::new(_32_bytes_seed());
+    let mut rng = ChaCha20::from_key(_32_bytes_seed());
     let secret = Secret::new(SensitiveBytes::new_unlocked(&mut data), &mut rng).unwrap();
     let mut option = None;
     secret

@@ -1,6 +1,6 @@
 use crate::{
   client_api_framework::{
-    Api, SendBytesSource,
+    Api,
     network::transport::{ReceivingTransport, SendingTransport},
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
   },
@@ -23,7 +23,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   #[inline]
   fn send_bytes_recv<A, DRSR>(
     &mut self,
-    bytes: SendBytesSource<'_>,
+    bytes: &[u8],
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<(), A::Error>>
   where
@@ -74,7 +74,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
       self.send_pkg_recv(&mut BatchPkg::new(pkgs, pkgs_aux), pkgs_aux).await?;
       P::ExternalResponseContent::decode_seq(
         buffer,
-        &mut DecodeWrapper::new(&pkgs_aux.byte_buffer),
+        &mut DecodeWrapper::new(&pkgs_aux.bytes_buffer),
       )?;
       Ok(())
     }
@@ -94,7 +94,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   {
     async {
       self.send_pkg_recv(pkg, pkgs_aux).await?;
-      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(&pkgs_aux.byte_buffer))?)
+      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(&pkgs_aux.bytes_buffer))?)
     }
   }
 }

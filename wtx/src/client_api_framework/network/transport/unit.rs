@@ -1,12 +1,12 @@
 use crate::client_api_framework::{
-  Api, SendBytesSource,
+  Api,
   misc::{
     log_req, manage_after_sending_bytes, manage_after_sending_pkg, manage_before_sending_bytes,
     manage_before_sending_pkg,
   },
   network::{
     TransportGroup,
-    transport::{ReceivingTransport, SendingTransport, Transport},
+    transport::{ReceivingTransport, SendingTransport, Transport, local_send_bytes},
   },
   pkg::{Package, PkgsAux},
 };
@@ -29,14 +29,15 @@ impl<TP> SendingTransport<TP> for () {
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: SendBytesSource<'_>,
+    bytes: &[u8],
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
   {
     manage_before_sending_bytes(pkgs_aux).await?;
-    log_req::<_, TP>(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, self);
+    let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
+    log_req::<_, TP>(local_bytes, pkgs_aux.log_body.1, self);
     manage_after_sending_bytes(pkgs_aux).await?;
     Ok(())
   }
@@ -52,7 +53,7 @@ impl<TP> SendingTransport<TP> for () {
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     manage_before_sending_pkg(pkg, pkgs_aux, self).await?;
-    log_req::<_, TP>(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, self);
+    log_req::<_, TP>(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, self);
     manage_after_sending_pkg(pkg, pkgs_aux, self).await?;
     Ok(())
   }

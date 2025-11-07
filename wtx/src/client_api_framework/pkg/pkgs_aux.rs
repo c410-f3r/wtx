@@ -22,7 +22,7 @@ pub struct PkgsAux<A, DRSR, TP> {
   /// Used by practically all transports to serialize or receive data in any desired operation.
   ///
   /// Some transports require a pre-filled buffer so it is important to not modify indiscriminately.
-  pub byte_buffer: Vector<u8>,
+  pub bytes_buffer: Vector<u8>,
   /// Deserializer/Serializer instance
   pub drsr: DRSR,
   /// The second element is a back-up of the first element. Such a structure is used
@@ -30,22 +30,47 @@ pub struct PkgsAux<A, DRSR, TP> {
   ///
   /// See [Self::log_body]
   pub log_body: (bool, bool),
+  /// In cases where the data is already available in the `bytes_buffer` field.
+  pub send_bytes_buffer: bool,
   /// External request and response parameters.
   pub tp: TP,
   pub(crate) built_requests: Id,
 }
 
 impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
-  /// Creates an instance with the minimum amount of mandatory parameters.
+  /// Creates an instance with the minimum amount of relevant parameters.
   #[inline]
   pub const fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
-    Self { api, byte_buffer: Vector::new(), drsr, log_body: (false, false), tp, built_requests: 0 }
+    Self {
+      api,
+      bytes_buffer: Vector::new(),
+      drsr,
+      log_body: (false, false),
+      send_bytes_buffer: false,
+      tp,
+      built_requests: 0,
+    }
   }
 
   /// New instance
   #[inline]
-  pub const fn new(api: A, byte_buffer: Vector<u8>, drsr: DRSR, log_body: bool, tp: TP) -> Self {
-    Self { api, byte_buffer, drsr, log_body: (log_body, false), tp, built_requests: 0 }
+  pub const fn new(
+    api: A,
+    bytes_buffer: Vector<u8>,
+    drsr: DRSR,
+    log_body: bool,
+    send_bytes_buffer: bool,
+    tp: TP,
+  ) -> Self {
+    Self {
+      api,
+      bytes_buffer,
+      drsr,
+      log_body: (log_body, false),
+      send_bytes_buffer,
+      tp,
+      built_requests: 0,
+    }
   }
 
   /// The number of constructed requests that is not necessarily equal the number of sent requests.

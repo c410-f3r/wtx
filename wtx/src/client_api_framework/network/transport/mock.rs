@@ -2,14 +2,16 @@
 
 use crate::{
   client_api_framework::{
-    Api, ClientApiFrameworkError, SendBytesSource,
+    Api, ClientApiFrameworkError,
     misc::{
       FromBytes, log_req, manage_after_sending_bytes, manage_after_sending_pkg,
       manage_before_sending_bytes, manage_before_sending_pkg,
     },
     network::{
       TransportGroup,
-      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams},
+      transport::{
+        ReceivingTransport, SendingTransport, Transport, TransportParams, local_send_bytes,
+      },
     },
     pkg::{Package, PkgsAux},
   },
@@ -106,8 +108,8 @@ where
     A: Api,
   {
     let response = self.pop_response()?;
-    pkgs_aux.byte_buffer.clear();
-    pkgs_aux.byte_buffer.extend_from_copyable_slice(response.as_ref().lease())?;
+    pkgs_aux.bytes_buffer.clear();
+    pkgs_aux.bytes_buffer.extend_from_copyable_slice(response.as_ref().lease())?;
     Ok(())
   }
 }
@@ -121,16 +123,17 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: SendBytesSource<'_>,
+    bytes: &[u8],
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
   {
     manage_before_sending_bytes(pkgs_aux).await?;
-    log_req(bytes.bytes(&pkgs_aux.byte_buffer), pkgs_aux.log_body.1, self);
-    self.requests.push(Cow::Owned(FromBytes::from_bytes(bytes.bytes(&pkgs_aux.byte_buffer))?))?;
-    pkgs_aux.byte_buffer.clear();
+    let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
+    log_req(local_bytes, pkgs_aux.log_body.1, self);
+    self.requests.push(Cow::Owned(FromBytes::from_bytes(local_bytes)?))?;
+    pkgs_aux.bytes_buffer.clear();
     manage_after_sending_bytes(pkgs_aux).await?;
     Ok(())
   }
@@ -146,9 +149,9 @@ where
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     manage_before_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
-    log_req(&pkgs_aux.byte_buffer, pkgs_aux.log_body.1, self);
-    self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.byte_buffer)?))?;
-    pkgs_aux.byte_buffer.clear();
+    log_req(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, self);
+    self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.bytes_buffer)?))?;
+    pkgs_aux.bytes_buffer.clear();
     manage_after_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
     Ok(())
   }

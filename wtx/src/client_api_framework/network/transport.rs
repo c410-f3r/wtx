@@ -152,3 +152,15 @@ mod tests {
     }
   }
 }
+
+fn local_send_bytes<'bytes, 'bytes_buffer, 'rslt>(
+  bytes: &'bytes [u8],
+  bytes_buffer: &'bytes_buffer [u8],
+  send_bytes_buffer: bool,
+) -> &'rslt [u8]
+where
+  'bytes: 'rslt,
+  'bytes_buffer: 'rslt,
+{
+  if send_bytes_buffer { bytes_buffer } else { bytes }
+}

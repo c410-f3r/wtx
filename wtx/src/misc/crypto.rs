@@ -245,7 +245,7 @@ mod tests {
       &mut encrypt_buffer,
       &DATA,
       &secret,
-      &mut ChaCha20::new(_32_bytes_seed()),
+      &mut ChaCha20::from_key(_32_bytes_seed()),
     )
     .unwrap();
     assert_eq!(
