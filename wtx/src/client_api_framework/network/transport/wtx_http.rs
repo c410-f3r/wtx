@@ -1,13 +1,16 @@
 use crate::{
   client_api_framework::{
-    Api, SendBytesSource,
+    Api,
     misc::{
       log_http_req, manage_after_sending_bytes, manage_after_sending_pkg,
       manage_before_sending_bytes, manage_before_sending_pkg,
     },
     network::{
       HttpParams, HttpReqParams, HttpResParams, TransportGroup,
-      transport::{ReceivingTransport, SendingTransport, Transport, TransportParams, log_http_res},
+      transport::{
+        ReceivingTransport, SendingTransport, Transport, TransportParams, local_send_bytes,
+        log_http_res,
+      },
     },
     pkg::{Package, PkgsAux},
   },
@@ -49,7 +52,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: SendBytesSource<'_>,
+    bytes: &[u8],
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<Self::ReqId, A::Error>
   where
@@ -138,15 +141,15 @@ where
   } = req_params;
   let HttpResParams { status_code } = res_params;
   let mut rrb = ReqResBuffer::empty();
-  mem::swap(&mut rrb.body, &mut pkgs_aux.byte_buffer);
+  mem::swap(&mut rrb.body, &mut pkgs_aux.bytes_buffer);
   mem::swap(&mut rrb.headers, headers);
   rrb.clear();
   let mut res = client.recv_res(rrb, req_id).await?;
-  mem::swap(&mut res.rrd.body, &mut pkgs_aux.byte_buffer);
+  mem::swap(&mut res.rrd.body, &mut pkgs_aux.bytes_buffer);
   mem::swap(&mut res.rrd.headers, headers);
   *status_code = res.status_code;
   log_http_res(
-    &pkgs_aux.byte_buffer,
+    &pkgs_aux.bytes_buffer,
     pkgs_aux.log_body.1,
     res.status_code,
     TransportGroup::HTTP,
@@ -156,7 +159,7 @@ where
 }
 
 async fn send_bytes<A, DRSR, HD, SW, TP>(
-  bytes: SendBytesSource<'_>,
+  bytes: &[u8],
   client: &mut Http2<HD, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> Result<ClientStream<HD>, A::Error>
@@ -168,14 +171,15 @@ where
   TP: LeaseMut<HttpParams>,
 {
   manage_before_sending_bytes(pkgs_aux).await?;
+  let local_bytes0 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
   log_http_req::<_, TP>(
-    bytes.bytes(&pkgs_aux.byte_buffer),
+    local_bytes0,
     pkgs_aux.log_body.1,
     pkgs_aux.tp.lease().ext_req_params().method,
     client,
     &pkgs_aux.tp.lease().ext_req_params().uri,
   );
-  manage_params(bytes.bytes(&pkgs_aux.byte_buffer).len(), pkgs_aux)?;
+  manage_params(local_bytes0.len(), pkgs_aux)?;
   let params = pkgs_aux.tp.lease_mut();
   let HttpReqParams {
     headers,
@@ -186,8 +190,8 @@ where
     user_agent_custom: _,
     user_agent_default: _,
   } = &mut params.ext_params_mut().0;
-  let rrd = (bytes.bytes(&pkgs_aux.byte_buffer), headers);
-  let rslt = client.send_req(*method, rrd, &uri.to_ref()).await?;
+  let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
+  let rslt = client.send_req(*method, (local_bytes1, headers), &uri.to_ref()).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(rslt)
 }
@@ -207,13 +211,13 @@ where
 {
   manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
   log_http_req::<_, TP>(
-    &pkgs_aux.byte_buffer,
+    &pkgs_aux.bytes_buffer,
     pkgs_aux.log_body.1,
     pkgs_aux.tp.lease().ext_req_params().method,
     client,
     &pkgs_aux.tp.lease().ext_req_params().uri,
   );
-  manage_params(pkgs_aux.byte_buffer.len(), pkgs_aux)?;
+  manage_params(pkgs_aux.bytes_buffer.len(), pkgs_aux)?;
   let params = pkgs_aux.tp.lease_mut();
   let HttpReqParams {
     headers,
@@ -224,7 +228,7 @@ where
     user_agent_custom: _,
     user_agent_default: _,
   } = &mut params.ext_params_mut().0;
-  let rslt = client.send_req(*method, (&pkgs_aux.byte_buffer, headers), &uri.to_ref()).await?;
+  let rslt = client.send_req(*method, (&pkgs_aux.bytes_buffer, headers), &uri.to_ref()).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, client).await?;
   Ok(rslt)
 }
@@ -233,7 +237,7 @@ where
 mod http_client_pool {
   use crate::{
     client_api_framework::{
-      Api, SendBytesSource,
+      Api,
       network::{
         HttpParams, TransportGroup,
         transport::{
@@ -304,7 +308,7 @@ mod http_client_pool {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: SendBytesSource<'_>,
+      bytes: &[u8],
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<Self::ReqId, A::Error>
     where
@@ -407,7 +411,7 @@ mod http_client_pool {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: SendBytesSource<'_>,
+      bytes: &[u8],
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<Self::ReqId, A::Error>
     where

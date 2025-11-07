@@ -95,8 +95,9 @@ impl<'module, 'others>
     let data_format_builder_ident = &create_ident(camel_case_id, ["DataFormatBuilder"]);
     let fn_stmts = quote::quote!({
       use wtx::client_api_framework::network::transport::TransportParams;
-      self.byte_buffer.clear();
+      self.bytes_buffer.clear();
       self.log_body = (false, self.log_body.0);
+      self.send_bytes_buffer = false;
       self.tp.reset();
     });
     let params_builder_fn_name_ident = &Ident::new("params", Span::mixed_site());

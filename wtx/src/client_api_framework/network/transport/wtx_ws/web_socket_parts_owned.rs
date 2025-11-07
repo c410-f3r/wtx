@@ -1,6 +1,6 @@
 use crate::{
   client_api_framework::{
-    Api, SendBytesSource,
+    Api,
     network::{
       TransportGroup, WsParams,
       transport::{ReceivingTransport, SendingTransport, Transport},
@@ -45,7 +45,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: SendBytesSource<'_>,
+    bytes: &[u8],
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where

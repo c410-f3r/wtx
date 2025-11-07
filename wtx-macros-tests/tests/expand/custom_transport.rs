@@ -6,7 +6,7 @@ use wtx::client_api_framework::{
     TransportGroup,
   },
   pkg::{Package, PkgsAux},
-  Api, SendBytesSource
+  Api
 };
 
 struct CustomTransport;
@@ -28,7 +28,7 @@ impl ReceivingTransport<CustomTransportParams> for CustomTransport {
 impl SendingTransport<CustomTransportParams> for CustomTransport {
   async fn send_bytes<A, DRSR>(
     &mut self,
-    _: SendBytesSource<'_>,
+    _: &[u8],
     _: &mut PkgsAux<A, DRSR, CustomTransportParams>,
   ) -> Result<(), A::Error>
   where

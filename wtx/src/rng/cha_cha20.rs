@@ -22,19 +22,26 @@ pub struct ChaCha20 {
 }
 
 impl ChaCha20 {
-  /// Creates a new instance where you are responsible for providing parameters. Ideally, `key`
-  /// should have a high entropy.
+  /// Calls [`ChaCha20::from_key`] with a `[0; 12]` nonce.
   #[inline]
-  pub const fn new(key: [u8; 32]) -> ChaCha20 {
+  pub const fn from_key(key: [u8; 32]) -> ChaCha20 {
     ChaCha20 { block: Block::new(key, [0; 12]), idx: 16, output: [0; WORDS] }
   }
 
-  fn increment_counter(&mut self) {
-    let fun = |num: &mut u32| {
+  /// Creates a new instance where you are responsible for providing parameters.
+  ///
+  /// Ideally, `key` should have a high entropy.
+  #[inline]
+  pub const fn new(key: [u8; 32], nonce: [u8; 12]) -> ChaCha20 {
+    ChaCha20 { block: Block::new(key, nonce), idx: 16, output: [0; WORDS] }
+  }
+
+  const fn increment_counter(&mut self) {
+    const fn fun(num: &mut u32) -> bool {
       let (rslt, overflow) = num.overflowing_add(1);
       *num = rslt;
       !overflow
-    };
+    }
     if fun(&mut self.block.block_counter) {
       return;
     }
@@ -98,7 +105,7 @@ impl SeedableRng for ChaCha20 {
 
   #[inline]
   fn from_seed(seed: Self::Seed) -> crate::Result<Self> {
-    Ok(Self::new(seed))
+    Ok(Self::from_key(seed))
   }
 }
 
@@ -126,7 +133,7 @@ impl Block {
   }
 
   #[cfg(test)]
-  fn from_words(words: [u32; WORDS]) -> Self {
+  const fn from_words(words: [u32; WORDS]) -> Self {
     let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = words;
     Self {
       constants: [a, b, c, d],
@@ -251,14 +258,19 @@ impl Row {
 }
 
 // https://datatracker.ietf.org/doc/html/rfc7539#section-2.3
-fn block_function<const ADD: bool>(block: &Block) -> Block {
+const fn block_function<const ADD: bool>(block: &Block) -> Block {
   let (mut a, mut b, mut c, mut d) = block.to_rows();
 
-  for _ in 0..ITERATIONS {
+  let mut idx = 0;
+  loop {
+    if idx >= ITERATIONS {
+      break;
+    }
     round(&mut a, &mut b, &mut c, &mut d);
     undiagonalize(&mut b, &mut c, &mut d);
     round(&mut a, &mut b, &mut c, &mut d);
     diagonalize(&mut b, &mut c, &mut d);
+    idx = idx.wrapping_add(1);
   }
 
   if ADD {

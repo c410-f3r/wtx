@@ -1,12 +1,12 @@
 //! Random Number Generators
 
 mod cha_cha20;
+#[cfg(feature = "chacha20")]
+mod chacha20;
 mod crypto_rng;
 #[cfg(feature = "fastrand")]
 mod fastrand;
 mod from_rng;
-#[cfg(feature = "rand_chacha")]
-mod rand_chacha;
 mod seed;
 mod seedable_rng;
 mod xorshift;

@@ -4,7 +4,6 @@ mod from_bytes;
 mod pair;
 mod request_counter;
 mod request_limit;
-mod request_throttling;
 
 use crate::{
   client_api_framework::{
@@ -19,7 +18,6 @@ pub use from_bytes::FromBytes;
 pub use pair::{Pair, PairMut};
 pub use request_counter::RequestCounter;
 pub use request_limit::RequestLimit;
-pub use request_throttling::RequestThrottling;
 
 pub(crate) async fn manage_after_sending_bytes<A, DRSR, TP>(
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
@@ -44,7 +42,7 @@ where
   pkgs_aux.api.after_sending().await?;
   pkg
     .after_sending(
-      (&mut pkgs_aux.api, &mut pkgs_aux.byte_buffer, &mut pkgs_aux.drsr),
+      (&mut pkgs_aux.api, &mut pkgs_aux.bytes_buffer, &mut pkgs_aux.drsr),
       (trans, &mut pkgs_aux.tp),
     )
     .await?;
@@ -74,11 +72,13 @@ where
   pkgs_aux.api.before_sending().await?;
   pkg
     .before_sending(
-      (&mut pkgs_aux.api, &mut pkgs_aux.byte_buffer, &mut pkgs_aux.drsr),
+      (&mut pkgs_aux.api, &mut pkgs_aux.bytes_buffer, &mut pkgs_aux.drsr),
       (trans, &mut pkgs_aux.tp),
     )
     .await?;
-  pkg.ext_req_content_mut().encode(&mut EncodeWrapper::new(&mut pkgs_aux.byte_buffer))?;
+  if !pkgs_aux.send_bytes_buffer {
+    pkg.ext_req_content_mut().encode(&mut EncodeWrapper::new(&mut pkgs_aux.bytes_buffer))?;
+  }
   Ok(())
 }
 
