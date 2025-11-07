@@ -21,7 +21,7 @@ parking_lot = { default-features = false, optional = true, version = "0.12" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
-rand_core = { default-features = false, optional = true, version = "0.10.0-rc-2" }
+rand_core = { default-features = false, optional = true, version = "0.9" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls = { default-features = false, optional = true, version = "0.23" }
@@ -40,16 +40,16 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.5" }
 
-aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.2" }
-argon2 = { default-features = false, optional = true, version = "0.6.0-rc.2" }
-chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "0.10.0-rc.5" }
-crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.5" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.4" }
-hmac = { default-features = false, optional = true, version = "0.13.0-rc.3" }
-rsa = { default-features = false, optional = true, version = "0.10.0-rc.10" }
-sha1 = { default-features = false, optional = true, version = "0.11.0-rc.3" }
-sha2 = { default-features = false, optional = true, version = "0.11.0-rc.3" }
-spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
+aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "=0.11.0-rc.1" }
+argon2 = { default-features = false, optional = true, version = "=0.6.0-rc.1" }
+chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "=0.10.0-rc.2" }
+crypto-common = { default-features = false, optional = true, version = "=0.2.0-rc.4" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "=0.11.0-rc.3" }
+hmac = { default-features = false, optional = true, version = "=0.13.0-rc.2" }
+rsa = { default-features = false, optional = true, version = "=0.10.0-rc.9" }
+sha1 = { default-features = false, optional = true, version = "=0.11.0-rc.2" }
+sha2 = { default-features = false, optional = true, version = "=0.11.0-rc.2" }
+spki = { default-features = false, optional = true, version = "=0.8.0-rc.4" }
 
 [dev-dependencies]
 tokio = { default-features = false, features = ["rt-multi-thread"], version = "1.0" }
