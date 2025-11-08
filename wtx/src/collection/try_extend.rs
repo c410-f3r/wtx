@@ -25,6 +25,8 @@ where
   }
 }
 
+// ArrayString
+
 impl<'slice, L, const N: usize> TryExtend<&'slice str> for ArrayString<L, N>
 where
   L: LinearStorageLen,
@@ -78,6 +80,8 @@ where
   }
 }
 
+// ArrayVector
+
 impl<'slice, L, T, const N: usize> TryExtend<&'slice [T]> for ArrayVector<L, T, N>
 where
   L: LinearStorageLen,
@@ -119,6 +123,8 @@ where
   }
 }
 
+// Vec
+
 impl<'slice, T> TryExtend<&'slice [T]> for Vec<T>
 where
   T: Copy,
@@ -154,6 +160,8 @@ where
     Ok(())
   }
 }
+
+// Vector
 
 impl<'slice, T> TryExtend<&'slice [T]> for Vector<T>
 where

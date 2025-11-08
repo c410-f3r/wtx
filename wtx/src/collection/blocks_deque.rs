@@ -31,7 +31,7 @@ mod metadata;
 #[cfg(test)]
 mod tests;
 
-use crate::collection::Deque;
+use crate::collection::{Deque, TryExtend};
 pub use block::Block;
 pub use blocks_deque_builder::BlocksDequeBuilder;
 use core::ptr;
@@ -179,12 +179,40 @@ impl<D, M> BlocksDeque<D, M> {
     Some(metadata.misc)
   }
 
+  /// See [`Self::pop_back`]. Transfers elements to `buffer` instead of dropping them.
+  #[inline]
+  pub fn pop_back_to_buffer<B>(&mut self, buffer: &mut B) -> Option<crate::Result<M>>
+  where
+    B: TryExtend<[D; 1], Error = crate::Error>,
+  {
+    let metadata = self.metadata.pop_back()?;
+    let new_len = self.elements_len().wrapping_sub(metadata.len);
+    if let Err(err) = self.data.truncate_back_to_buffer(buffer, new_len) {
+      return Some(Err(err));
+    }
+    Some(Ok(metadata.misc))
+  }
+
   /// Removes the first element and returns it, or [`Option::None`] if the queue is empty.
   #[inline]
   pub fn pop_front(&mut self) -> Option<M> {
     let metadata = self.metadata.pop_front()?;
     self.data.truncate_front(self.elements_len().wrapping_sub(metadata.len));
     Some(metadata.misc)
+  }
+
+  /// See [`Self::pop_front`]. Transfers elements to `buffer` instead of dropping them.
+  #[inline]
+  pub fn pop_front_to_buffer<B>(&mut self, buffer: &mut B) -> Option<crate::Result<M>>
+  where
+    B: TryExtend<[D; 1], Error = crate::Error>,
+  {
+    let metadata = self.metadata.pop_front()?;
+    let new_len = self.elements_len().wrapping_sub(metadata.len);
+    if let Err(err) = self.data.truncate_front_to_buffer(buffer, new_len) {
+      return Some(Err(err));
+    }
+    Some(Ok(metadata.misc))
   }
 
   /// Appends a block to the end of the queue.
