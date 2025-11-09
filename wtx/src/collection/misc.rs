@@ -1,5 +1,5 @@
-use crate::collection::LinearStorageLen;
-use core::{ptr, slice};
+use crate::collection::{LinearStorageLen, TryExtend};
+use core::{mem, ptr, slice};
 
 /// Calculates the current index of a previous `push_front` element.
 ///
@@ -31,20 +31,6 @@ pub const fn backward_deque_idx(elem_idx: usize, elem_idx_last: usize) -> usize 
   elem_idx_last.wrapping_sub(elem_idx) % 9_223_372_036_854_775_807
 }
 
-pub(crate) unsafe fn drop_elements<L, T>(len: L, offset: L, ptr: *mut T)
-where
-  L: LinearStorageLen,
-{
-  // SAFETY: it is up to the caller to provide a valid pointer with a valid index
-  let data = unsafe { ptr.add(offset.usize()) };
-  // SAFETY: it is up to the caller to provide a valid length
-  let elements = unsafe { slice::from_raw_parts_mut(data, len.usize()) };
-  // SAFETY: it is up to the caller to provide parameters that can lead to droppable elements
-  unsafe {
-    ptr::drop_in_place(elements);
-  }
-}
-
 pub(crate) fn is_char_boundary(idx: usize, slice: &[u8]) -> bool {
   if idx == 0 {
     return true;
@@ -57,21 +43,138 @@ pub(crate) fn is_char_boundary(idx: usize, slice: &[u8]) -> bool {
   }
 }
 
-//A deque can only store up to 4 elements represented by an integer of 2 bits. The head index is also represented by an integer of 2 bits.
-//
-//Everytime the `push_front` method is called, an auxiliar `added_index` integer variable of 2 bits is used to keep track of mutable indices of
-//previous elements.
-//
-//In a scenario of 3 `push_front`. How to calculate the `mutable_index` of all existing elements?
-//added_index    = x 2 1 0
-//mutable_index  = x 0 1 2
-//
-//In a scenario of 4 `push_front` and 1 `pop_back`. How to calculate the `mutable_index` of all existing elements?
-//added_index    = 3 2 1 x
-//mutable_index  = 0 1 2 x
-//
-//In a scenario of 5 `push_front` and 3 `pop_back`. How to calculate the `mutable_index` of all existing elements?
-//added_index    = 3 - - 0
-//mutable_index  = 1 - - 0
-//
-//How to calculate the `mutable_index` of all existing elements regardless of the scenario?
+pub(crate) unsafe fn drop_elements<B, L, T>(
+  buffer: Option<&mut B>,
+  len: L,
+  offset: L,
+  ptr: *mut T,
+) -> crate::Result<()>
+where
+  B: TryExtend<[T; 1], Error = crate::Error>,
+  L: LinearStorageLen,
+{
+  // SAFETY: caller ensures `ptr` is valid and `offset` is in-bounds.
+  let data = unsafe { ptr.add(offset.usize()) };
+  if let Some(elem) = buffer {
+    let mut guard = SliceDropGuard { data, begin: 0, len: len.usize() };
+    while guard.begin < guard.len {
+      // SAFETY: caller ensures `len` is valid, so `data + begin` is in-bounds.
+      let src = unsafe { guard.data.add(guard.begin) };
+      guard.begin = guard.begin.wrapping_add(1);
+      // SAFETY: `src` points to an initialized element per the function's contract.
+      let value = unsafe { ptr::read(src) };
+      elem.try_extend([value])?;
+    }
+    #[expect(
+      clippy::mem_forget,
+      reason = "there is nothing else to drop but it is possible to avoid one arithmetic operation"
+    )]
+    mem::forget(guard);
+  } else {
+    // SAFETY: caller ensures that `len` describes a valid, initialized slice region.
+    let elements = unsafe { slice::from_raw_parts_mut(data, len.usize()) };
+    // SAFETY: per contract, slice points to initialized data.
+    unsafe {
+      ptr::drop_in_place(elements);
+    }
+  }
+  Ok(())
+}
+
+struct SliceDropGuard<T> {
+  data: *mut T,
+  begin: usize,
+  len: usize,
+}
+
+impl<T> Drop for SliceDropGuard<T> {
+  fn drop(&mut self) {
+    let remaining_len = self.len.wrapping_sub(self.begin);
+    if remaining_len > 0 {
+      // SAFETY: it is up to the caller to provide a valid slice
+      let data = unsafe { self.data.add(self.begin) };
+      // SAFETY: it is up to the caller to provide a valid slice
+      let slice_to_drop = unsafe { slice::from_raw_parts_mut(data, remaining_len) };
+      // SAFETY: it is up to the caller to provide a valid slice
+      unsafe {
+        ptr::drop_in_place(slice_to_drop);
+      }
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    collection::{ArrayVectorU8, Vector, misc::drop_elements},
+    sync::{Arc, AtomicUsize},
+  };
+  use core::sync::atomic::Ordering;
+
+  #[derive(Debug)]
+  struct DropSpyManager {
+    counter: Arc<AtomicUsize>,
+  }
+
+  impl DropSpyManager {
+    fn new() -> Self {
+      Self { counter: Arc::new(AtomicUsize::new(0)) }
+    }
+
+    fn counter(&self) -> usize {
+      self.counter.load(Ordering::SeqCst)
+    }
+
+    fn spawn(&self) -> DropSpySpawn {
+      DropSpySpawn { counter: self.counter.clone() }
+    }
+  }
+
+  #[derive(Debug)]
+  struct DropSpySpawn {
+    counter: Arc<AtomicUsize>,
+  }
+
+  impl Drop for DropSpySpawn {
+    fn drop(&mut self) {
+      let _ = self.counter.fetch_add(1, Ordering::SeqCst);
+    }
+  }
+
+  #[test]
+  fn drops_all_elements_with_buffer() {
+    let dpm = DropSpyManager::new();
+    let mut buffer = ArrayVectorU8::<_, 5>::new();
+    let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
+    unsafe {
+      let _rslt = drop_elements(Some(&mut buffer), 5u32, 0, vec.as_mut_ptr());
+      vec.set_len(0);
+    }
+    assert_eq!(buffer.len(), 5);
+    assert_eq!(dpm.counter(), 0);
+  }
+
+  #[test]
+  fn drops_all_elements_without_buffer() {
+    let dpm = DropSpyManager::new();
+    let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
+    unsafe {
+      drop_elements::<Vector<DropSpySpawn>, _, _>(None, 5u32, 0, vec.as_mut_ptr()).unwrap();
+      vec.set_len(0);
+    }
+    assert_eq!(dpm.counter(), 5);
+  }
+
+  #[test]
+  fn drops_some_elements() {
+    let dpm = DropSpyManager::new();
+    let mut buffer = ArrayVectorU8::<_, 2>::new();
+    let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
+    unsafe {
+      let _rslt = drop_elements(Some(&mut buffer), 5u32, 0, vec.as_mut_ptr());
+      vec.set_len(0);
+    }
+    assert_eq!(buffer.len(), 2);
+    assert_eq!(dpm.counter(), 3);
+  }
+}

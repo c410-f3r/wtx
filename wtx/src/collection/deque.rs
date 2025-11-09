@@ -62,7 +62,7 @@ mod kani;
 #[cfg(test)]
 mod tests;
 
-use crate::collection::{ExpansionTy, misc::drop_elements, vector::Vector};
+use crate::collection::{ExpansionTy, TryExtend, misc::drop_elements, vector::Vector};
 use core::{
   fmt::{Debug, Formatter},
   mem::needs_drop,
@@ -96,7 +96,7 @@ pub enum DequeueError {
 //         |
 //         |----------------------------------> head
 //
-// The vector length is a shorcut for the sum of head of tail elements.
+// The vector length is a shortcut for the sum of head of tail elements.
 pub struct Deque<T> {
   data: Vector<T>,
   head: usize,
@@ -507,48 +507,16 @@ impl<T> Deque<T> {
   /// ```
   #[inline]
   pub fn truncate_back(&mut self, new_len: usize) {
-    let len = self.data.len();
-    let Some(diff @ 1..=usize::MAX) = len.checked_sub(new_len) else {
-      return;
-    };
-    if is_wrapping(self.head, len, self.tail) {
-      if let Some(back_begin) = self.tail.checked_sub(diff) {
-        if Self::NEEDS_DROP {
-          // SAFETY: indices are within bounds
-          unsafe {
-            drop_elements(diff, back_begin, self.data.as_ptr_mut());
-          }
-        }
-        self.tail = if self.tail == diff { self.data.capacity() } else { back_begin }
-      } else {
-        let front_len = diff.wrapping_sub(self.tail);
-        let front_begin = self.data.capacity().wrapping_sub(front_len);
-        if Self::NEEDS_DROP {
-          // SAFETY: indices are within bounds
-          unsafe {
-            drop_elements(self.tail, 0, self.data.as_ptr_mut());
-          }
-          // SAFETY: indices are within bounds
-          unsafe {
-            drop_elements(front_len, front_begin, self.data.as_ptr_mut());
-          }
-        }
-        self.tail = front_begin;
-      }
-    } else {
-      let curr_tail = self.tail.wrapping_sub(diff);
-      if Self::NEEDS_DROP {
-        // SAFETY: indices are within bounds
-        unsafe {
-          drop_elements(diff, curr_tail, self.data.as_ptr_mut());
-        }
-      }
-      self.tail = curr_tail;
-    }
-    // SAFETY: is within bounds
-    unsafe {
-      self.data.set_len(new_len);
-    }
+    let _rslt = self.do_truncate_back::<Vector<_>>(None, new_len);
+  }
+
+  /// See [`Self::truncate_back`]. Transfers elements to `buffer` instead of dropping them.
+  #[inline]
+  pub fn truncate_back_to_buffer<B>(&mut self, buffer: &mut B, new_len: usize) -> crate::Result<()>
+  where
+    B: TryExtend<[T; 1], Error = crate::Error>,
+  {
+    self.do_truncate_back(Some(buffer), new_len)
   }
 
   /// Shortens the queue, keeping the last `new_len` elements.
@@ -566,9 +534,87 @@ impl<T> Deque<T> {
   /// ```
   #[inline]
   pub fn truncate_front(&mut self, new_len: usize) {
+    let _rslt = self.do_truncate_front::<Vector<_>>(None, new_len);
+  }
+
+  /// See [`Self::truncate_front`]. Transfers elements to `buffer` instead of dropping them.
+  #[inline]
+  pub fn truncate_front_to_buffer<B>(&mut self, buffer: &mut B, new_len: usize) -> crate::Result<()>
+  where
+    B: TryExtend<[T; 1], Error = crate::Error>,
+  {
+    self.do_truncate_front(Some(buffer), new_len)
+  }
+
+  pub(crate) const fn head(&self) -> usize {
+    self.head
+  }
+
+  pub(crate) const fn tail(&self) -> usize {
+    self.tail
+  }
+
+  #[inline]
+  fn do_truncate_back<B>(&mut self, mut buffer: Option<&mut B>, new_len: usize) -> crate::Result<()>
+  where
+    B: TryExtend<[T; 1], Error = crate::Error>,
+  {
     let len = self.data.len();
     let Some(diff @ 1..=usize::MAX) = len.checked_sub(new_len) else {
-      return;
+      return Ok(());
+    };
+    if is_wrapping(self.head, len, self.tail) {
+      if let Some(back_begin) = self.tail.checked_sub(diff) {
+        if Self::NEEDS_DROP {
+          // SAFETY: indices are within bounds
+          unsafe {
+            drop_elements(buffer, diff, back_begin, self.data.as_ptr_mut())?;
+          }
+        }
+        self.tail = if self.tail == diff { self.data.capacity() } else { back_begin }
+      } else {
+        let front_len = diff.wrapping_sub(self.tail);
+        let front_begin = self.data.capacity().wrapping_sub(front_len);
+        if Self::NEEDS_DROP {
+          // SAFETY: indices are within bounds
+          unsafe {
+            drop_elements(buffer.as_mut(), self.tail, 0, self.data.as_ptr_mut())?;
+          }
+          // SAFETY: indices are within bounds
+          unsafe {
+            drop_elements(buffer, front_len, front_begin, self.data.as_ptr_mut())?;
+          }
+        }
+        self.tail = front_begin;
+      }
+    } else {
+      let curr_tail = self.tail.wrapping_sub(diff);
+      if Self::NEEDS_DROP {
+        // SAFETY: indices are within bounds
+        unsafe {
+          drop_elements(buffer, diff, curr_tail, self.data.as_ptr_mut())?;
+        }
+      }
+      self.tail = curr_tail;
+    }
+    // SAFETY: is within bounds
+    unsafe {
+      self.data.set_len(new_len);
+    }
+    Ok(())
+  }
+
+  fn do_truncate_front<B>(
+    &mut self,
+    mut buffer: Option<&mut B>,
+    new_len: usize,
+  ) -> crate::Result<()>
+  where
+    B: TryExtend<[T; 1], Error = crate::Error>,
+  {
+    let len = self.data.len();
+    let Some(diff @ 1..=usize::MAX) = len.checked_sub(new_len) else {
+      return Ok(());
     };
     if is_wrapping(self.head, len, self.tail) {
       let front_slots = self.data.capacity().wrapping_sub(self.head);
@@ -576,7 +622,7 @@ impl<T> Deque<T> {
         if Self::NEEDS_DROP {
           // SAFETY: indices are within bounds
           unsafe {
-            drop_elements(diff, self.head, self.data.as_ptr_mut());
+            drop_elements(buffer, diff, self.head, self.data.as_ptr_mut())?;
           }
         }
         self.head = if front_slots == diff { 0 } else { self.head.wrapping_add(diff) }
@@ -585,11 +631,11 @@ impl<T> Deque<T> {
         if Self::NEEDS_DROP {
           // SAFETY: indices are within bounds
           unsafe {
-            drop_elements(front_slots, self.head, self.data.as_ptr_mut());
+            drop_elements(buffer.as_mut(), front_slots, self.head, self.data.as_ptr_mut())?;
           }
           // SAFETY: indices are within bounds
           unsafe {
-            drop_elements(back_len, 0, self.data.as_ptr_mut());
+            drop_elements(buffer, back_len, 0, self.data.as_ptr_mut())?;
           }
         }
         self.head = back_len;
@@ -599,7 +645,7 @@ impl<T> Deque<T> {
       if Self::NEEDS_DROP {
         // SAFETY: indices are within bounds
         unsafe {
-          drop_elements(diff, prev_head, self.data.as_ptr_mut());
+          drop_elements(buffer, diff, prev_head, self.data.as_ptr_mut())?;
         }
       }
       self.head = prev_head.wrapping_add(diff);
@@ -608,14 +654,7 @@ impl<T> Deque<T> {
     unsafe {
       self.data.set_len(new_len);
     }
-  }
-
-  pub(crate) const fn head(&self) -> usize {
-    self.head
-  }
-
-  pub(crate) const fn tail(&self) -> usize {
-    self.tail
+    Ok(())
   }
 
   unsafe fn expand(&mut self, additional: usize, begin: usize, new_len: usize, value: T)
