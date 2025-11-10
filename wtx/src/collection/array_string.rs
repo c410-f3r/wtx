@@ -175,10 +175,10 @@ where
 
   /// Appends a set of string slices onto the end of this instance.
   #[inline]
-  pub fn push_strs<'iter, E, I>(&mut self, others: I) -> crate::Result<L>
+  pub fn push_strs<E, I>(&mut self, others: I) -> crate::Result<L>
   where
-    E: Lease<str> + ?Sized + 'iter,
-    I: IntoIterator<Item = &'iter E>,
+    E: Lease<str>,
+    I: IntoIterator<Item = E>,
     I::IntoIter: Clone,
   {
     self.0.extend_from_copyable_slices(others)

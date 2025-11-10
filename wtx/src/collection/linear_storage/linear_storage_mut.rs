@@ -130,12 +130,12 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
   }
 
   #[inline]
-  fn extend_from_copyable_slices<'iter, E, I>(&mut self, others: I) -> crate::Result<Self::Len>
+  fn extend_from_copyable_slices<E, I>(&mut self, others: I) -> crate::Result<Self::Len>
   where
-    E: Lease<Self::Slice> + ?Sized + 'iter,
-    I: IntoIterator<Item = &'iter E>,
+    E: Lease<Self::Slice>,
+    I: IntoIterator<Item = E>,
     I::IntoIter: Clone,
-    T: Copy + 'iter,
+    T: Copy,
   {
     let mut others_len_usize: usize = 0;
     let iter = others.into_iter();

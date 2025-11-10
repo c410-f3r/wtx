@@ -122,6 +122,13 @@ mod collections {
     }
   }
 
+  impl<T, const N: usize> Lease<[T; N]> for [T; N] {
+    #[inline]
+    fn lease(&self) -> &[T; N] {
+      self
+    }
+  }
+
   impl<T, const N: usize> Lease<[T]> for [T; N] {
     #[inline]
     fn lease(&self) -> &[T] {
@@ -150,6 +157,13 @@ mod collections {
     }
   }
 
+  impl<T, const N: usize> LeaseMut<[T; N]> for [T; N] {
+    #[inline]
+    fn lease_mut(&mut self) -> &mut [T; N] {
+      self
+    }
+  }
+
   impl<T, const N: usize> LeaseMut<[T]> for [T; N] {
     #[inline]
     fn lease_mut(&mut self) -> &mut [T] {
@@ -170,6 +184,32 @@ mod collections {
       self
     }
   }
+}
+
+mod primitives {
+  use crate::misc::{Lease, LeaseMut};
+
+  macro_rules! implement {
+    ($($ty:ty)*) => {
+      $(
+        impl Lease<$ty> for $ty {
+          #[inline]
+          fn lease(&self) -> &$ty {
+            self
+          }
+        }
+
+        impl LeaseMut<$ty> for $ty {
+          #[inline]
+          fn lease_mut(&mut self) -> &mut $ty {
+            self
+          }
+        }
+      )*
+    };
+  }
+
+  implement!(f32 f64 i8 i16 i32 i64 i128 u8 u16 u32 u64 u128);
 }
 
 #[cfg(feature = "ring")]

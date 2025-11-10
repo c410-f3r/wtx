@@ -233,12 +233,12 @@ where
 
   #[doc = extend_from_copyable_slice_doc!("ArrayVectorUsize::<_, 16>")]
   #[inline]
-  pub fn extend_from_copyable_slices<'iter, E, I>(&mut self, others: I) -> crate::Result<L>
+  pub fn extend_from_copyable_slices<E, I>(&mut self, others: I) -> crate::Result<L>
   where
-    E: Lease<[T]> + ?Sized + 'iter,
-    I: IntoIterator<Item = &'iter E>,
+    E: Lease<[T]>,
+    I: IntoIterator<Item = E>,
     I::IntoIter: Clone,
-    T: Copy + 'iter,
+    T: Copy,
   {
     self.0.extend_from_copyable_slices(others)
   }
