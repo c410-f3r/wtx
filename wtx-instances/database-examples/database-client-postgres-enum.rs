@@ -19,10 +19,10 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
   let mut executor = wtx_instances::executor_postgres(uri).await?;
-  let _ = executor
+  executor
     .execute_with_stmt("INSERT INTO custom_enum_table VALUES ($1, $2)", (1, Enum::Bar))
     .await?;
-  let record = executor.fetch_with_stmt("SELECT * FROM custom_enum_table;", ()).await?;
+  let record = executor.execute_with_stmt_one("SELECT * FROM custom_enum_table;", ()).await?;
   assert_eq!(record.decode::<_, i32>(0)?, 1);
   assert_eq!(record.decode::<_, Enum>(1)?, Enum::Bar);
   Ok(())

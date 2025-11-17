@@ -9,8 +9,13 @@ use core::ops::Range;
 #[derive(Debug)]
 pub(crate) struct CommonExecutorBuffer<A, C, T> {
   pub(crate) net_buffer: PartitionedFilledBuffer,
+  /// Each element represents a ***whole*** record. The first element is the number of affected
+  /// values, the second element is the range delimitates bytes and the third element if the range
+  /// that delimitates `values_params`.
   pub(crate) records_params: Vector<(Range<usize>, Range<usize>)>,
   pub(crate) stmts: Statements<A, C, T>,
+  /// Each element represents the ***data*** of a record that is delimited by the first range of
+  /// `records_params`.
   pub(crate) values_params: Vector<(bool, Range<usize>)>,
 }
 

@@ -5,6 +5,7 @@ mod prepare;
 mod simple_query;
 
 use crate::{
+  collection::TryExtend,
   database::{
     Database, Executor, RecordValues, StmtCmd,
     client::{
@@ -18,7 +19,6 @@ use crate::{
       rdbms::{clear_cmd_buffers, common_executor_buffer::CommonExecutorBuffer},
     },
   },
-  de::DEController,
   misc::{ConnectionState, Lease, LeaseMut},
   rng::CryptoRng,
   stream::{Stream, StreamWithTls},
@@ -127,59 +127,37 @@ where
     self.cs
   }
 
-  async fn execute(
-    &mut self,
+  async fn execute_many<'this, B>(
+    &'this mut self,
+    buffer: &mut B,
     cmd: &str,
-    cb: impl FnMut(u64) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> Result<(), <Self::Database as DEController>::Error> {
-    let ExecutorBuffer { common, .. } = self.eb.lease_mut();
-    let CommonExecutorBuffer { net_buffer, records_params, values_params, .. } = common;
-    clear_cmd_buffers(net_buffer, records_params, values_params);
-    Self::simple_query_execute(cmd, &mut self.cs, net_buffer, &mut self.stream, cb).await
-  }
-
-  async fn execute_with_stmt<SC, RV>(
-    &mut self,
-    sc: SC,
-    rv: RV,
-  ) -> Result<u64, <Self::Database as DEController>::Error>
+    cb: impl FnMut(<Self::Database as Database>::Record<'_>) -> Result<(), E>,
+  ) -> Result<(), E>
   where
-    RV: RecordValues<Self::Database>,
-    SC: StmtCmd,
+    B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>,
   {
-    let Self { cs, eb, phantom: _, stream } = self;
-    let ExecutorBuffer { common, .. } = eb.lease_mut();
-    let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
+    let ExecutorBuffer { common, .. } = self.eb.lease_mut();
+    let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params, .. } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    let mut rows = 0;
-    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
-    let (_, stmt_cmd_id, stmt) =
-      Self::write_send_await_stmt_prot(&mut fwsc, net_buffer, sc, stmts).await?;
-    Self::write_send_await_stmt_initial(&mut fwsc, net_buffer, rv, &stmt, stmt_cmd_id.as_bytes())
-      .await?;
-    loop {
-      let msg = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
-      match msg.ty {
-        MessageTy::CommandComplete(local_rows) => {
-          rows = local_rows;
-        }
-        MessageTy::ReadyForQuery => break,
-        MessageTy::DataRow(_) | MessageTy::EmptyQueryResponse => {}
-        _ => {
-          return Err(<_>::from(
-            PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into(),
-          ));
-        }
-      }
-    }
-    Ok(rows)
+    Self::simple_query_execute(
+      buffer,
+      cmd,
+      &mut self.cs,
+      net_buffer,
+      records_params,
+      stmts,
+      &mut self.stream,
+      values_params,
+      cb,
+    )
+    .await
   }
 
-  async fn fetch_many_with_stmt<SC, RV>(
+  async fn execute_with_stmt_many<SC, RV>(
     &mut self,
     sc: SC,
     rv: RV,
-    mut cb: impl FnMut(&<Self::Database as Database>::Record<'_>) -> Result<(), E>,
+    mut cb: impl FnMut(<Self::Database as Database>::Record<'_>) -> Result<(), E>,
   ) -> Result<<Self::Database as Database>::Records<'_>, E>
   where
     RV: RecordValues<Self::Database>,
@@ -190,16 +168,9 @@ where
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
-    let (_, stmt_cmd_id_array, stmt) =
-      Self::write_send_await_stmt_prot(&mut fwsc, net_buffer, sc, stmts).await?;
-    Self::write_send_await_stmt_initial(
-      &mut fwsc,
-      net_buffer,
-      rv,
-      &stmt,
-      stmt_cmd_id_array.as_bytes(),
-    )
-    .await?;
+    let tuple = Self::write_send_await_stmt_parse(&mut fwsc, net_buffer, sc, stmts).await?;
+    let (_, stmt_cmd_id_array, stmt) = tuple;
+    Self::write_send_await_stmt_rest(&mut fwsc, net_buffer, rv, &stmt_cmd_id_array).await?;
     let begin = net_buffer.current_end_idx();
     let begin_data = net_buffer.current_end_idx().wrapping_add(7);
     loop {
@@ -213,7 +184,7 @@ where
           let record_range_end = net_buffer.current_end_idx().wrapping_sub(begin_data);
           bytes = bytes.get(record_range_begin..record_range_end).unwrap_or_default();
           let values_params_begin = values_params.len();
-          cb(&PostgresRecord::parse(bytes, stmt.clone(), values_len, values_params)?)?;
+          cb(PostgresRecord::parse(bytes, stmt.clone(), values_len, values_params)?)?;
           records_params.push((
             record_range_begin..record_range_end,
             values_params_begin..values_params.len(),
@@ -237,31 +208,10 @@ where
     ))
   }
 
-  async fn fetch_with_stmt<SC, RV>(
-    &mut self,
-    sc: SC,
-    rv: RV,
-  ) -> Result<<Self::Database as Database>::Record<'_>, E>
-  where
-    RV: RecordValues<Self::Database>,
-    SC: StmtCmd,
-  {
-    let Self { cs, eb, phantom: _, stream } = self;
-    let ExecutorBuffer { common, .. } = eb.lease_mut();
-    let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params, .. } = common;
-    clear_cmd_buffers(net_buffer, records_params, values_params);
-    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
-    let (_, stmt_cmd_id, stmt) =
-      Self::write_send_await_stmt_prot(&mut fwsc, net_buffer, sc, stmts).await?;
-    Self::write_send_await_fetch_with_stmt_wo_prot(
-      &mut fwsc,
-      net_buffer,
-      rv,
-      stmt,
-      stmt_cmd_id.as_bytes(),
-      values_params,
-    )
-    .await
+  #[inline]
+  async fn ping(&mut self) -> Result<(), E> {
+    self.execute_many(&mut (), "SELECT 1", |_| Ok(())).await?;
+    Ok(())
   }
 
   async fn prepare(&mut self, cmd: &str) -> Result<u64, E> {
@@ -270,6 +220,6 @@ where
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
-    Ok(Self::write_send_await_stmt_prot(&mut fwsc, net_buffer, cmd, stmts).await?.0)
+    Ok(Self::write_send_await_stmt_parse(&mut fwsc, net_buffer, cmd, stmts).await?.0)
   }
 }

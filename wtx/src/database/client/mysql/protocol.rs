@@ -11,6 +11,7 @@ pub(crate) mod lenenc;
 pub(crate) mod lenenc_content;
 pub(crate) mod ok_res;
 pub(crate) mod packet_req;
+pub(crate) mod ping_req;
 pub(crate) mod prepare_req;
 pub(crate) mod prepare_res;
 pub(crate) mod query_req;

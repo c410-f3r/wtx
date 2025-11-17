@@ -6,7 +6,7 @@ pub enum DatabaseError {
   /// A "null" field received from the database was decoded as a non-nullable type or value.
   MissingFieldDataInDecoding(Box<str>),
   /// Expected one record but got none.
-  MissingRecord,
+  MissingSingleRecord,
   /// Received size differs from expected size.
   UnexpectedBufferSize {
     /// Expected
@@ -14,6 +14,8 @@ pub enum DatabaseError {
     /// Received
     received: u32,
   },
+  /// Expected no records but got at least one.
+  UnexpectedRecords,
   /// Bytes don't represent expected type
   UnexpectedValueFromBytes {
     /// Expected

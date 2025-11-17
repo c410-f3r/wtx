@@ -6,19 +6,15 @@ use crate::{
   de::Encode,
 };
 
-pub(crate) struct PrepareReq<'any> {
-  pub(crate) query: &'any [u8],
-}
+pub(crate) struct PingReq;
 
-impl<E> Encode<Protocol<(), E>> for PrepareReq<'_>
+impl<E> Encode<Protocol<(), E>> for PingReq
 where
   E: From<crate::Error>,
 {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
-    let _ = ew
-      .encode_buffer
-      .extend_from_copyable_slices([&[Command::ComStmtPrepare.into()], self.query])?;
+    ew.encode_buffer.push(Command::ComPing.into())?;
     Ok(())
   }
 }

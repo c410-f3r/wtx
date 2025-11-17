@@ -4,17 +4,19 @@ mod prepare;
 mod simple_query;
 
 use crate::{
+  collection::TryExtend,
   database::{
-    Database, DatabaseError, Executor, RecordValues, StmtCmd,
+    Database, Executor, RecordValues, StmtCmd,
     client::{
       mysql::{
-        Config, ExecutorBuffer, Mysql, MysqlError, MysqlRecord, MysqlRecords,
-        capability::Capability, misc::write_packet, protocol::initial_req::InitialReq,
+        Config, ExecutorBuffer, Mysql, MysqlError, MysqlRecords,
+        capability::Capability,
+        misc::{fetch_msg, send_packet, write_and_send_packet},
+        protocol::{initial_req::InitialReq, ping_req::PingReq, stmt_execute_req::StmtExecuteReq},
       },
       rdbms::{clear_cmd_buffers, common_executor_buffer::CommonExecutorBuffer},
     },
   },
-  de::DEController,
   misc::{ConnectionState, LeaseMut},
   rng::CryptoRng,
   stream::{Stream, StreamWithTls},
@@ -119,7 +121,8 @@ where
       }
       capabilities |= ssl_n;
       let req = InitialReq { collation: config.collation, max_packet_size: DFLT_PACKET_SIZE };
-      write_packet((&mut capabilities, &mut sequence_id), encode_buffer, req, &mut stream).await?;
+      write_and_send_packet((&mut capabilities, &mut sequence_id), encode_buffer, req, &mut stream)
+        .await?;
     }
     let mut enc_stream = cb(stream).await?;
     let plugin = handshake_res.auth_plugin;
@@ -169,70 +172,40 @@ where
   }
 
   #[inline]
-  async fn execute(
-    &mut self,
+  async fn execute_many<'this, B>(
+    &'this mut self,
+    buffer: &mut B,
     cmd: &str,
-    cb: impl FnMut(u64) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> Result<(), <Self::Database as DEController>::Error> {
-    let Self { capabilities, cs: _, eb, phantom: _, sequence_id, stream } = self;
-    let ExecutorBuffer { common, encode_buffer } = eb.lease_mut();
-    let CommonExecutorBuffer { net_buffer, records_params, values_params, .. } = common;
-    clear_cmd_buffers(net_buffer, records_params, values_params);
-    Self::simple_query_execute(
-      (capabilities, sequence_id),
-      cmd,
-      encode_buffer,
-      net_buffer,
-      records_params,
-      stream,
-      values_params,
-      cb,
-    )
-    .await?;
-    Ok(())
-  }
-
-  #[inline]
-  async fn execute_with_stmt<SC, RV>(
-    &mut self,
-    sc: SC,
-    rv: RV,
-  ) -> Result<u64, <Self::Database as DEController>::Error>
+    cb: impl FnMut(<Self::Database as Database>::Record<'_>) -> Result<(), E>,
+  ) -> Result<(), E>
   where
-    RV: RecordValues<Self::Database>,
-    SC: StmtCmd,
+    B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>,
   {
     let Self { capabilities, cs: _, eb, phantom: _, sequence_id, stream } = self;
     let ExecutorBuffer { common, encode_buffer } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    let mut rows: u64 = 0;
-    let _ = Self::write_send_await_stmt::<_, _, false>(
+    Self::simple_query_execute(
+      buffer,
       (capabilities, sequence_id),
+      cmd,
       encode_buffer,
       net_buffer,
       records_params,
-      rv,
-      sc,
       stmts,
       stream,
       values_params,
-      |local_rows| {
-        rows = rows.wrapping_add(local_rows);
-        Ok(())
-      },
-      |_| Ok(()),
+      cb,
     )
-    .await?;
-    Ok(rows)
+    .await
   }
 
   #[inline]
-  async fn fetch_many_with_stmt<SC, RV>(
+  async fn execute_with_stmt_many<SC, RV>(
     &mut self,
     sc: SC,
     rv: RV,
-    mut cb: impl FnMut(&<Self::Database as Database>::Record<'_>) -> Result<(), E>,
+    cb: impl FnMut(<Self::Database as Database>::Record<'_>) -> Result<(), E>,
   ) -> Result<<Self::Database as Database>::Records<'_>, E>
   where
     RV: RecordValues<Self::Database>,
@@ -242,62 +215,59 @@ where
     let ExecutorBuffer { common, encode_buffer } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    let (start, stmt) = Self::write_send_await_stmt::<_, _, false>(
+    let (_, _, mut stmt_mut) = Self::write_send_await_stmt(
       (capabilities, sequence_id),
       encode_buffer,
       net_buffer,
-      records_params,
-      rv,
       sc,
       stmts,
       stream,
+      rv.len(),
+    )
+    .await?;
+    let mut tys = stmt_mut.tys_mut().iter_mut();
+    rv.walk(|_, ty_opt| {
+      if let (Some(ty), Some(value)) = (ty_opt, tys.next()) {
+        value.1 = ty;
+      }
+      Ok(())
+    })?;
+    send_packet(
+      (capabilities, sequence_id),
+      encode_buffer,
+      StmtExecuteReq { rv, stmt_id: stmt_mut.aux, tys: stmt_mut.tys() },
+      stream,
+    )
+    .await?;
+    let start = net_buffer.current_end_idx();
+    Self::fetch_bin_cmd(
+      *capabilities,
+      net_buffer,
+      records_params,
+      sequence_id,
+      &mut stmt_mut,
+      stream,
       values_params,
-      |_| Ok(()),
-      |record| cb(&record),
+      cb,
     )
     .await?;
     Ok(MysqlRecords::new(
       net_buffer.all().get(start..).unwrap_or_default(),
       records_params,
-      stmt,
+      stmt_mut.into_stmt(),
       values_params,
     ))
   }
 
   #[inline]
-  async fn fetch_with_stmt<SC, RV>(
-    &mut self,
-    sc: SC,
-    rv: RV,
-  ) -> Result<<Self::Database as Database>::Record<'_>, E>
-  where
-    RV: RecordValues<Self::Database>,
-    SC: StmtCmd,
-  {
-    let Self { capabilities, cs: _, eb, sequence_id, stream, .. } = self;
+  async fn ping(&mut self) -> Result<(), E> {
+    let Self { capabilities, cs: _, eb, phantom: _, sequence_id, stream } = self;
     let ExecutorBuffer { common, encode_buffer } = eb.lease_mut();
-    let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
+    let CommonExecutorBuffer { net_buffer, records_params, values_params, .. } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    let (start, stmt) = Self::write_send_await_stmt::<_, _, true>(
-      (capabilities, sequence_id),
-      encode_buffer,
-      net_buffer,
-      records_params,
-      rv,
-      sc,
-      stmts,
-      stream,
-      values_params,
-      |_| Ok(()),
-      |_| Ok(()),
-    )
-    .await?;
-    let Some(record @ [_, ..]) =
-      net_buffer.all().get(start..).and_then(|el| el.get(records_params.first()?.0.clone()))
-    else {
-      return Err(crate::Error::from(DatabaseError::MissingRecord).into());
-    };
-    Ok(MysqlRecord::new(record, stmt, values_params))
+    send_packet::<E, _, _>((capabilities, sequence_id), encode_buffer, PingReq, stream).await?;
+    let _ = fetch_msg(*capabilities, net_buffer, sequence_id, stream).await?;
+    Ok(())
   }
 
   #[inline]
@@ -307,14 +277,14 @@ where
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
     Ok(
-      Self::write_send_await_stmt_prot(
+      Self::write_send_await_stmt(
         (capabilities, sequence_id),
         encode_buffer,
         net_buffer,
         cmd,
         stmts,
         stream,
-        |_| Ok(()),
+        0,
       )
       .await?
       .0,

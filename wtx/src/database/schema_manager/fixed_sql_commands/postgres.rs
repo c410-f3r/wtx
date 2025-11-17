@@ -81,7 +81,7 @@ where
   .await?;
   executor
     .transaction(|this| async {
-      this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
+      this.execute_many(&mut (), buffer_cmd.as_str(), |_| Ok(())).await?;
       Ok(((), this))
     })
     .await?;
@@ -104,7 +104,7 @@ where
     WHERE t.typtype = 'd'
       AND n.nspname = 'public'
       AND dep.objid IS NULL";
-  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  let records = executor.execute_with_stmt_many(cmd, (), |_| Ok(())).await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     results.push(elem?)?;
   }
@@ -146,7 +146,7 @@ where
       information_schema.sequences
     WHERE
       sequence_schema = 'public'";
-  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  let records = executor.execute_with_stmt_many(cmd, (), |_| Ok(())).await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     results.push(elem?)?;
   }
@@ -168,7 +168,7 @@ where
     nspname NOT IN ('information_schema', 'pg_catalog', 'public')
     AND nspname NOT LIKE 'pg_toast%'
     AND nspname NOT LIKE 'pg_temp_%'";
-  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  let records = executor.execute_with_stmt_many(cmd, (), |_| Ok(())).await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     results.push(elem?)?;
   }
@@ -206,7 +206,7 @@ where
       )",
   ))?;
   let records = executor
-    .fetch_many_with_stmt(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
+    .execute_with_stmt_many(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
     .await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     if let Err(elem) = results.push(elem?) {
@@ -242,7 +242,7 @@ where
       )
       AND dep.objid is null
       AND t.typtype != 'd'";
-  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  let records = executor.execute_with_stmt_many(cmd, (), |_| Ok(())).await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     results.push(elem?)?;
   }
@@ -264,7 +264,7 @@ where
     WHERE c.relkind = 'v'
       AND  n.nspname = 'public'
       AND dep.objid IS NULL";
-  let records = executor.fetch_many_with_stmt(cmd, (), |_| Ok(())).await?;
+  let records = executor.execute_with_stmt_many(cmd, (), |_| Ok(())).await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     results.push(elem?)?;
   }
@@ -294,7 +294,7 @@ where
       AND pg_proc.prokind = '{prokind}'",
   ))?;
   let records = executor
-    .fetch_many_with_stmt(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
+    .execute_with_stmt_many(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
     .await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     if let Err(elem) = buffer_idents.push(elem?) {

@@ -5,6 +5,7 @@ mod auth_plugin;
 mod capability;
 pub(crate) mod charset;
 pub(crate) mod collation;
+mod command;
 mod config;
 mod db_error;
 mod decode_wrapper;

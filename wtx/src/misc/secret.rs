@@ -123,10 +123,9 @@ mod static_keys {
     ///
     /// When the closure is executing, the plaintext secret will exist transiently in CPU registers
     /// and caches, which is unavoidable.
-    pub fn peek<B, E, T>(&self, buffer: &mut B, fun: impl FnOnce(&[u8]) -> T) -> Result<T, E>
+    pub fn peek<B, T>(&self, buffer: &mut B, fun: impl FnOnce(&[u8]) -> T) -> crate::Result<T>
     where
-      for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8], Error = E>,
-      E: From<crate::Error>,
+      for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8]>,
     {
       buffer.clear();
       buffer.try_extend(&self.protected)?;

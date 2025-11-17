@@ -1,5 +1,4 @@
 use crate::{
-  collection::ArrayString,
   database::{
     DatabaseError, RecordValues, StmtCmd,
     client::{
@@ -7,6 +6,7 @@ use crate::{
         Postgres, PostgresError, PostgresExecutor, PostgresStatement, PostgresStatements,
         executor_buffer::ExecutorBuffer,
         message::MessageTy,
+        misc::dummy_stmt_value,
         msg_field::MsgField,
         postgres_column_info::PostgresColumnInfo,
         postgres_executor::commons::FetchWithStmtCommons,
@@ -17,7 +17,9 @@ use crate::{
     },
   },
   de::{U64String, u64_string},
-  misc::{LeaseMut, SuffixWriterFbvm, net::PartitionedFilledBuffer},
+  misc::{
+    FilledBufferVectorMut, LeaseMut, SuffixWriter, SuffixWriterFbvm, net::PartitionedFilledBuffer,
+  },
   stream::Stream,
 };
 
@@ -27,31 +29,7 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn write_send_await_stmt_initial<RV>(
-    fwsc: &mut FetchWithStmtCommons<'_, S>,
-    net_buffer: &mut PartitionedFilledBuffer,
-    rv: RV,
-    stmt: &PostgresStatement<'_>,
-    stmt_cmd_id_array: &[u8],
-  ) -> Result<(), E>
-  where
-    RV: RecordValues<Postgres<E>>,
-  {
-    {
-      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
-      bind(&mut sw, "", rv, stmt, stmt_cmd_id_array)?;
-      execute(&mut sw, 0, "")?;
-      sync(&mut sw)?;
-      fwsc.stream.write_all(sw.curr_bytes()).await?;
-    }
-    let msg = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
-    let MessageTy::BindComplete = msg.ty else {
-      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
-    };
-    Ok(())
-  }
-
-  pub(crate) async fn write_send_await_stmt_prot<'stmts, SC>(
+  pub(crate) async fn write_send_await_stmt_parse<'stmts, SC>(
     fwsc: &mut FetchWithStmtCommons<'_, S>,
     net_buffer: &mut PartitionedFilledBuffer,
     sc: SC,
@@ -63,12 +41,12 @@ where
   {
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());
     let stmt_cmd_id_array = u64_string(stmt_cmd_id);
-    if stmts.get_by_stmt_cmd_id(stmt_cmd_id).is_some() {
+    if stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some() {
       // FIXME(stable): Use `if let Some ...` with polonius
       return Ok((
         stmt_cmd_id,
         stmt_cmd_id_array,
-        stmts.get_by_stmt_cmd_id(stmt_cmd_id).unwrap().into(),
+        stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).unwrap().into_stmt(),
       ));
     }
 
@@ -76,14 +54,7 @@ where
 
     {
       let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
-      parse(
-        stmt_cmd,
-        &mut sw,
-        fwsc.tys.iter().copied().map(Into::into),
-        stmt_cmd_id_array.as_bytes(),
-      )?;
-      describe(stmt_cmd_id_array.as_bytes(), &mut sw, b'S')?;
-      sync(&mut sw)?;
+      Self::write_stmt_parse::<true>(fwsc, stmt_cmd, &stmt_cmd_id_array, &mut sw)?;
       fwsc.stream.write_all(sw.curr_bytes()).await?;
     }
 
@@ -118,7 +89,7 @@ where
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into()));
     };
 
-    let _ = builder.expand(types_len.into(), dummy())?;
+    let _ = builder.expand(types_len.into(), dummy_stmt_value())?;
 
     {
       let elements = builder.inserted_elements();
@@ -135,7 +106,7 @@ where
       MessageTy::NoData => 0,
       MessageTy::RowDescription(columns_len, mut rd) => {
         if let Some(diff @ 1..=u16::MAX) = columns_len.checked_sub(types_len) {
-          let _ = builder.expand(diff.into(), dummy())?;
+          let _ = builder.expand(diff.into(), dummy_stmt_value())?;
         }
         let elements = builder.inserted_elements();
         for idx in 0..columns_len {
@@ -165,15 +136,65 @@ where
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg3.tag }.into()));
     };
 
-    let sm = StatementsMisc::new(stmt_cmd_id_array, columns_len.into(), types_len.into());
+    let sm = StatementsMisc::new(stmt_cmd_id_array, columns_len.into(), 0, types_len.into());
     let idx = builder.build(stmt_cmd_id, sm)?;
-    let Some(stmt) = stmts.get_by_idx(idx) else {
+    let Some(stmt_mut) = stmts.get_by_idx_mut(idx) else {
       return Err(crate::Error::ProgrammingError.into());
     };
-    Ok((stmt_cmd_id, stmt_cmd_id_array, stmt.into()))
+    Ok((stmt_cmd_id, stmt_cmd_id_array, stmt_mut.into_stmt()))
   }
-}
 
-const fn dummy() -> (PostgresColumnInfo, Ty) {
-  (PostgresColumnInfo::new(ArrayString::new(), Ty::Any), Ty::Any)
+  pub(crate) async fn write_send_await_stmt_rest<RV>(
+    fwsc: &mut FetchWithStmtCommons<'_, S>,
+    net_buffer: &mut PartitionedFilledBuffer,
+    rv: RV,
+    stmt_cmd_id_array: &U64String,
+  ) -> Result<(), E>
+  where
+    RV: RecordValues<Postgres<E>>,
+  {
+    {
+      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
+      Self::write_stmt_rest::<_, true>(rv, stmt_cmd_id_array, &mut sw)?;
+      fwsc.stream.write_all(sw.curr_bytes()).await?;
+    }
+    let msg = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
+    let MessageTy::BindComplete = msg.ty else {
+      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
+    };
+    Ok(())
+  }
+
+  pub(crate) fn write_stmt_parse<const SYNC: bool>(
+    fwsc: &mut FetchWithStmtCommons<'_, S>,
+    stmt_cmd: &str,
+    stmt_cmd_id_array: &U64String,
+    sw: &mut SuffixWriter<FilledBufferVectorMut<'_>>,
+  ) -> Result<(), E>
+  where
+    S: Stream,
+  {
+    parse(stmt_cmd, sw, fwsc.tys.iter().copied().map(Into::into), stmt_cmd_id_array)?;
+    describe(stmt_cmd_id_array.as_bytes(), sw, b'S')?;
+    if SYNC {
+      sync(sw)?;
+    }
+    Ok(())
+  }
+
+  pub(crate) fn write_stmt_rest<RV, const SYNC: bool>(
+    rv: RV,
+    stmt_cmd_id_array: &U64String,
+    sw: &mut SuffixWriter<FilledBufferVectorMut<'_>>,
+  ) -> Result<(), E>
+  where
+    RV: RecordValues<Postgres<E>>,
+  {
+    bind(sw, "", rv, stmt_cmd_id_array)?;
+    execute(sw, 0, "")?;
+    if SYNC {
+      sync(sw)?;
+    }
+    Ok(())
+  }
 }

@@ -1,7 +1,6 @@
-use core::marker::PhantomData;
-
 use crate::{
   database::client::mysql::{
+    misc::packet_header,
     mysql_executor::MAX_PAYLOAD,
     protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
@@ -9,6 +8,7 @@ use crate::{
   misc::Usize,
   stream::Stream,
 };
+use core::marker::PhantomData;
 
 pub(crate) struct PacketReq<E, T>(pub(crate) T, pub(crate) PhantomData<E>);
 
@@ -17,7 +17,7 @@ where
   E: From<crate::Error>,
   T: Encode<Protocol<(), E>>,
 {
-  pub(crate) async fn encode_and_write<S>(
+  pub(crate) async fn send<S>(
     &self,
     ew: &mut EncodeWrapperProtocol<'_>,
     sequence_id: &mut u8,
@@ -26,21 +26,14 @@ where
   where
     S: Stream,
   {
-    let copy_into_header = |len: usize, local_sequence_id: &mut u8| {
-      let mut len_u32 = u32::try_from(len).unwrap_or_default().to_le_bytes();
-      len_u32[3] = *local_sequence_id;
-      *local_sequence_id = local_sequence_id.wrapping_add(1);
-      len_u32
-    };
-    self.0.encode(ew)?;
     let mut chunks = ew.encode_buffer.chunks_exact(*Usize::from(MAX_PAYLOAD));
     for chunk in chunks.by_ref() {
-      let len = copy_into_header(chunk.len(), sequence_id);
-      stream.write_all_vectored(&[len.as_slice(), chunk]).await?;
+      let header = packet_header(chunk.len(), sequence_id);
+      stream.write_all_vectored(&[header.as_slice(), chunk]).await?;
     }
-    let remainder = chunks.remainder();
-    let len = copy_into_header(remainder.len(), sequence_id);
-    stream.write_all_vectored(&[len.as_slice(), remainder]).await?;
+    let chunk = chunks.remainder();
+    let header = packet_header(chunk.len(), sequence_id);
+    stream.write_all_vectored(&[header.as_slice(), chunk]).await?;
     Ok(())
   }
 }

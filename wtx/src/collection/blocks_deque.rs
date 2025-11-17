@@ -183,7 +183,7 @@ impl<D, M> BlocksDeque<D, M> {
   #[inline]
   pub fn pop_back_to_buffer<B>(&mut self, buffer: &mut B) -> Option<crate::Result<M>>
   where
-    B: TryExtend<[D; 1], Error = crate::Error>,
+    B: TryExtend<[D; 1]>,
   {
     let metadata = self.metadata.pop_back()?;
     let new_len = self.elements_len().wrapping_sub(metadata.len);
@@ -205,7 +205,7 @@ impl<D, M> BlocksDeque<D, M> {
   #[inline]
   pub fn pop_front_to_buffer<B>(&mut self, buffer: &mut B) -> Option<crate::Result<M>>
   where
-    B: TryExtend<[D; 1], Error = crate::Error>,
+    B: TryExtend<[D; 1]>,
   {
     let metadata = self.metadata.pop_front()?;
     let new_len = self.elements_len().wrapping_sub(metadata.len);

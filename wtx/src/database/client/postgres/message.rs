@@ -26,7 +26,7 @@ pub(crate) enum MessageTy<'bytes> {
   /// Close request was successful.
   CloseComplete,
   /// Command request was successful.
-  CommandComplete(u64),
+  CommandComplete(u32),
   /// Data being copied using COPY.
   CopyData,
   /// COPY command finished.
@@ -74,7 +74,7 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
           .next()
           .and_then(|el| {
             if let [all_but_last @ .., _] = el {
-              u64::from_radix_10(all_but_last).ok()
+              u32::from_radix_10(all_but_last).ok()
             } else {
               None
             }

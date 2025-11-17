@@ -68,6 +68,21 @@ impl<'db, D, M, const IS_BACK: bool> BlocksDequeBuilder<'db, D, M, IS_BACK> {
     // SAFETY: the above checks ensure valid memory
     unsafe { slice::from_raw_parts_mut(shifted_ptr, self.inserted) }
   }
+
+  /// Appends or prepends one element.
+  #[inline]
+  pub fn push(&mut self, value: D) -> Result<&mut Self, BlocksDequeError>
+  where
+    D: Clone,
+  {
+    if IS_BACK {
+      self.bd.data.push_back(value).map_err(|_err| BlocksDequeError::PushBackOverflow)?;
+    } else {
+      self.bd.data.push_front(value).map_err(|_err| BlocksDequeError::PushBackOverflow)?;
+    }
+    self.inserted = self.inserted.wrapping_add(1);
+    Ok(self)
+  }
 }
 
 // The `was_built` parameter is used to enforce a valid instance in case of an external error.

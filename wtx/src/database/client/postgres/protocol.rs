@@ -2,8 +2,9 @@ use crate::{
   collection::Vector,
   database::{
     RecordValues,
-    client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError, PostgresStatement},
+    client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError},
   },
+  de::U64String,
   misc::{
     SuffixWriterFbvm,
     counter_writer::{CounterWriter, I16Counter, I32Counter},
@@ -17,15 +18,14 @@ pub(crate) fn bind<E, RV>(
   sw: &mut SuffixWriterFbvm<'_>,
   portal: &str,
   rv: RV,
-  _: &PostgresStatement<'_>,
-  stmt_cmd_id_array: &[u8],
+  stmt_cmd_id_array: &U64String,
 ) -> Result<(), E>
 where
   E: From<crate::Error>,
   RV: RecordValues<Postgres<E>>,
 {
   I32Counter::default().write(sw, true, Some(b'B'), |local_sw| {
-    local_sw.extend_from_slices_each_c(&[portal.as_bytes(), stmt_cmd_id_array])?;
+    local_sw.extend_from_slices_each_c(&[portal.as_bytes(), stmt_cmd_id_array.as_bytes()])?;
     let rv_len = rv.len();
 
     I16Counter::default().write_iter(
@@ -137,10 +137,10 @@ pub(crate) fn parse(
   cmd: &str,
   sw: &mut SuffixWriterFbvm<'_>,
   iter: impl IntoIterator<Item = Oid>,
-  name: &[u8],
+  name: &U64String,
 ) -> crate::Result<()> {
   I32Counter::default().write(sw, true, Some(b'P'), |local_sw| {
-    local_sw.extend_from_slices_each_c(&[name, cmd.as_bytes()])?;
+    local_sw.extend_from_slices_each_c(&[name.as_bytes(), cmd.as_bytes()])?;
     I16Counter::default().write_iter(local_sw, iter, None, |ty, local_local_sw| {
       local_local_sw.extend_from_slice(&ty.to_be_bytes())?;
       Ok(())
