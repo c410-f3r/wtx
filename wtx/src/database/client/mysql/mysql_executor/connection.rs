@@ -184,9 +184,7 @@ where
     }
     if buffer.len() > 4 {
       let _ = buffer.pop();
-      self
-        .execute_many(&mut (), from_utf8_basic(&buffer).map_err(crate::Error::from)?, |_| Ok(()))
-        .await?;
+      self.execute_ignored(from_utf8_basic(&buffer).map_err(crate::Error::from)?).await?;
     }
     buffer.clear();
     Ok(())

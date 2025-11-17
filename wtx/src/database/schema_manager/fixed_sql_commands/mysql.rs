@@ -34,7 +34,7 @@ where
     DEALLOCATE PREPARE stmt;
     SET FOREIGN_KEY_CHECKS = 1;
   ";
-  executor.execute_many(&mut (), cmd, |_| Ok(())).await?;
+  executor.execute_ignored(cmd).await?;
   Ok(())
 }
 
@@ -52,7 +52,7 @@ where
       information_schema.tables AS all_tables
     WHERE
       all_tables.table_schema NOT IN ('performance_schema') AND all_tables.table_type IN ('BASE TABLE', 'SYSTEM VERSIONED')";
-  let records = executor.execute_with_stmt_many(cmd, (), |_| Ok(())).await?;
+  let records = executor.execute_stmt_many(cmd, (), |_| Ok(())).await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     results.push(elem?)?;
   }

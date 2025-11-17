@@ -47,7 +47,7 @@ where
     self
       .executor
       .transaction(|this| async {
-        this.execute_many(&mut (), buffer_cmd.as_str(), |_| Ok(())).await?;
+        this.execute_ignored(buffer_cmd.as_str()).await?;
         Ok(((), this))
       })
       .await?;
