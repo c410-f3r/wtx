@@ -16,13 +16,18 @@ fn execute() {
 }
 
 #[test]
-fn execute_with_stmt_inserts() {
-  crate::database::client::integration_tests::execute_with_stmt_inserts(executor::<crate::Error>());
+fn execute_interleaved() {
+  crate::database::client::integration_tests::execute_interleaved(executor::<crate::Error>());
 }
 
 #[test]
-fn execute_with_stmt_selects() {
-  crate::database::client::integration_tests::execute_with_stmt_selects(
+fn execute_stmt_inserts() {
+  crate::database::client::integration_tests::execute_stmt_inserts(executor::<crate::Error>());
+}
+
+#[test]
+fn execute_stmt_selects() {
+  crate::database::client::integration_tests::execute_stmt_selects(
     executor::<crate::Error>(),
     "?",
     "?",

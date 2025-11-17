@@ -201,7 +201,7 @@ where
   }
 
   #[inline]
-  async fn execute_with_stmt_many<SC, RV>(
+  async fn execute_stmt_many<SC, RV>(
     &mut self,
     sc: SC,
     rv: RV,

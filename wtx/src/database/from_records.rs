@@ -98,7 +98,7 @@ where
   /// Used by consumers of this trait. Expects that one or more records can represent a single
   /// entity.
   #[inline]
-  fn one(records: &D::Records<'exec>) -> Result<Self, D::Error> {
+  fn single(records: &D::Records<'exec>) -> Result<Self, D::Error> {
     Self::from_records(&mut into_rslt(FromRecordsParams::init::<D>(records))?, records)
   }
 }

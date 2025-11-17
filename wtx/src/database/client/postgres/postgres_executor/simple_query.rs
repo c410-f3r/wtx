@@ -48,23 +48,23 @@ where
     let begin = net_buffer.current_end_idx();
     let begin_data = net_buffer.current_end_idx().wrapping_add(7);
     let stmts_begin = stmts.len();
-    let mut curr_stmt_idx = 0;
+    let mut stmt_idx = None;
     let mut values_params_offset = 0;
     loop {
       let msg = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
       match msg.ty {
         MessageTy::CommandComplete(rows_len) => {
           if !B::IS_UNIT {
-            let Some(stmt) = stmts.get_by_idx_mut(curr_stmt_idx) else {
-              return Err(crate::Error::ProgrammingError.into());
+            if let Some(stmt) = stmt_idx.and_then(|idx| stmts.get_by_idx_mut(idx)) {
+              *stmt.rows_len = *Usize::from(rows_len);
             };
-            *stmt.rows_len = *Usize::from(rows_len);
             values_params_offset = values_params.len();
           }
+          stmt_idx = None;
         }
         MessageTy::DataRow(values_len) => {
           if !B::IS_UNIT {
-            let Some(stmt_mut) = stmts.get_by_idx_mut(curr_stmt_idx) else {
+            let Some(stmt_mut) = stmt_idx.and_then(|idx| stmts.get_by_idx_mut(idx)) else {
               return Err(crate::Error::ProgrammingError.into());
             };
             let net_buffer_range = begin_data..net_buffer.current_end_idx();
@@ -95,22 +95,20 @@ where
               })
               .await?;
             let _ = builder.expand(columns_len.into(), dummy_stmt_value())?;
-            let elements = builder.inserted_elements();
-            for idx in 0..columns_len {
+            stmt_idx = Some(builder.build(
+              stmt_cmd_id,
+              StatementsMisc::new(timestamp_nanos_str, columns_len.into(), 0, 0),
+            )?);
+            for _ in 0..columns_len {
               let (read, msg_field) = MsgField::parse(rd)?;
               let ty = Ty::Custom(msg_field.type_oid);
-              let Some(element) = elements.get_mut(usize::from(idx)) else {
-                break;
-              };
-              element.0 = PostgresColumnInfo::new(msg_field.name.try_into()?, ty);
+              let _info = PostgresColumnInfo::new(msg_field.name.try_into()?, ty);
               if let Some(elem @ [_not_empty, ..]) = rd.get(read..) {
                 rd = elem;
               } else {
                 break;
               }
             }
-            let sm = StatementsMisc::new(timestamp_nanos_str, columns_len.into(), 0, 0);
-            curr_stmt_idx = builder.build(stmt_cmd_id, sm)?;
           }
         }
         _ => {

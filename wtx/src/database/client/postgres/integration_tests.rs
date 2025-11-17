@@ -57,26 +57,24 @@ fn custom_composite_type() {
 
       let mut executor = executor::<crate::Error>().await;
       executor
-        .execute_many(
-          &mut (),
+        .execute_ignored(
           "
             DROP TYPE IF EXISTS custom_composite_type CASCADE;
             DROP TABLE IF EXISTS custom_composite_table;
             CREATE TYPE custom_composite_type AS (int_value INT, varchar_value VARCHAR, bigint_value BIGINT);
             CREATE TABLE custom_composite_table (id INT, type custom_composite_type);
           ",
-          |_| Ok(()),
         )
         .await
         .unwrap();
       executor
-        .execute_with_stmt(
+        .execute_stmt_none(
           "INSERT INTO custom_composite_table VALUES ($1, $2::custom_composite_type)",
           (1, CustomCompositeType(2, None, 4)),
         )
         .await
         .unwrap();
-      let record = executor.execute_with_stmt_one("SELECT * FROM custom_composite_table", ()).await.unwrap();
+      let record = executor.execute_stmt_single("SELECT * FROM custom_composite_table", ()).await.unwrap();
       assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
       assert_eq!(
         record.decode::<_, CustomCompositeType>(1).unwrap(),
@@ -122,27 +120,25 @@ fn custom_domain() {
 
       let mut executor = executor::<crate::Error>().await;
       executor
-        .execute_many(
-          &mut (),
+        .execute_ignored(
           "
             DROP TYPE IF EXISTS custom_domain CASCADE;
             DROP TABLE IF EXISTS custom_domain_table;
             CREATE DOMAIN custom_domain AS VARCHAR(64);
             CREATE TABLE custom_domain_table (id INT, domain custom_domain);
           ",
-          |_| Ok(()),
         )
         .await
         .unwrap();
       executor
-        .execute_with_stmt(
+        .execute_stmt_none(
           "INSERT INTO custom_domain_table VALUES ($1, $2)",
           (1, CustomDomain(String::from("23"))),
         )
         .await
         .unwrap();
       let record =
-        executor.execute_with_stmt_one("SELECT * FROM custom_domain_table;", ()).await.unwrap();
+        executor.execute_stmt_single("SELECT * FROM custom_domain_table;", ()).await.unwrap();
       assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
       assert_eq!(record.decode::<_, CustomDomain>(1).unwrap(), CustomDomain(String::from("23")));
     })
@@ -199,24 +195,22 @@ fn custom_enum() {
 
       let mut executor = executor::<crate::Error>().await;
       executor
-        .execute_many(
-          &mut (),
+        .execute_ignored(
           "
           DROP TYPE IF EXISTS custom_enum CASCADE;
           DROP TABLE IF EXISTS custom_enum_table;
           CREATE TYPE custom_enum AS ENUM ('foo', 'bar', 'baz');
           CREATE TABLE custom_enum_table (id INT, domain custom_enum);
         ",
-          |_| Ok(()),
         )
         .await
         .unwrap();
       executor
-        .execute_with_stmt("INSERT INTO custom_enum_table VALUES ($1, $2)", (1, Enum::Bar))
+        .execute_stmt_none("INSERT INTO custom_enum_table VALUES ($1, $2)", (1, Enum::Bar))
         .await
         .unwrap();
       let record =
-        executor.execute_with_stmt_one("SELECT * FROM custom_enum_table;", ()).await.unwrap();
+        executor.execute_stmt_single("SELECT * FROM custom_enum_table;", ()).await.unwrap();
       assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
       assert!(matches!(record.decode(1).unwrap(), Enum::Bar));
     })
@@ -229,13 +223,18 @@ fn execute() {
 }
 
 #[test]
-fn execute_with_stmt_inserts() {
-  crate::database::client::integration_tests::execute_with_stmt_inserts(executor::<crate::Error>());
+fn execute_interleaved() {
+  crate::database::client::integration_tests::execute_interleaved(executor::<crate::Error>());
 }
 
 #[test]
-fn execute_with_stmt_selects() {
-  crate::database::client::integration_tests::execute_with_stmt_selects(
+fn execute_stmt_inserts() {
+  crate::database::client::integration_tests::execute_stmt_inserts(executor::<crate::Error>());
+}
+
+#[test]
+fn execute_stmt_selects() {
+  crate::database::client::integration_tests::execute_stmt_selects(
     executor::<crate::Error>(),
     "$1",
     "$2",
@@ -248,13 +247,13 @@ fn multiple_notifications() {
     .block_on(async {
       let mut executor = executor::<crate::Error>().await;
       executor
-        .execute_with_stmt(
+        .execute_stmt_none(
           "CREATE TABLE IF NOT EXISTS multiple_notifications_test (id SERIAL PRIMARY KEY, body TEXT)",
           (),
         )
         .await
         .unwrap();
-      executor.execute_with_stmt("TRUNCATE TABLE multiple_notifications_test CASCADE", ()).await.unwrap();
+      executor.execute_stmt_none("TRUNCATE TABLE multiple_notifications_test CASCADE", ()).await.unwrap();
     })
     .unwrap();
 }
@@ -292,10 +291,10 @@ fn serde_json() {
         .unwrap();
       let col = (1u32, 2i64);
       executor
-        .execute_with_stmt("INSERT INTO serde_json VALUES ($1::jsonb)", (Json(&col),))
+        .execute_stmt_none("INSERT INTO serde_json VALUES ($1::jsonb)", (Json(&col),))
         .await
         .unwrap();
-      let record = executor.execute_with_stmt_one("SELECT * FROM serde_json", ()).await.unwrap();
+      let record = executor.execute_stmt_single("SELECT * FROM serde_json", ()).await.unwrap();
       assert_eq!(record.decode::<_, Json<(u32, i64)>>(0).unwrap(), Json(col));
     })
     .unwrap();

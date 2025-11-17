@@ -20,12 +20,12 @@ async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DATABASE";
   let mut executor = wtx_instances::executor_postgres(uri).await?;
   executor
-    .execute_with_stmt(
+    .execute_stmt_none(
       "INSERT INTO custom_composite_table VALUES ($1, $2::custom_composite_type)",
       (1, CustomCompositeType(2, 9)),
     )
     .await?;
-  let record = executor.execute_with_stmt_one("SELECT * FROM custom_composite_table", ()).await?;
+  let record = executor.execute_stmt_single("SELECT * FROM custom_composite_table", ()).await?;
   assert_eq!(record.decode::<_, i32>(0)?, 1);
   assert_eq!(record.decode::<_, CustomCompositeType>(1)?, CustomCompositeType(2, 9));
   Ok(())

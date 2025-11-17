@@ -106,14 +106,14 @@ where
     let mut values_params_offset = 0;
 
     loop {
-      let columns_len =
-        match Self::fetch_init(capabilities, &mut end, net_buffer, sequence_id, stream).await? {
-          ControlFlow::Continue(None) => continue,
-          ControlFlow::Continue(Some(el)) => el,
-          ControlFlow::Break(()) => {
-            break;
-          }
-        };
+      let cf = Self::fetch_init(capabilities, &mut end, net_buffer, sequence_id, stream).await?;
+      let columns_len = match cf {
+        ControlFlow::Continue(None) => continue,
+        ControlFlow::Continue(Some(el)) => el,
+        ControlFlow::Break(()) => {
+          break;
+        }
+      };
       let timestamp_nanos_str = timestamp_nanos_str()?;
       let stmt_cmd_id = timestamp_nanos_str.as_str().hash(stmts.hasher_mut());
       let mut builder = stmts
@@ -147,9 +147,8 @@ where
       let stmt_mut = if B::IS_UNIT {
         StatementMut::new(0, stmt_columns_len, stmt_rows_len, stmt_tys_len, &mut [])
       } else {
-        let sm = StatementsMisc::new(0, columns_len.into(), 0, 0);
-        let stmt_idx = builder.build(stmt_cmd_id, sm)?;
-        let Some(stmt_mut) = stmts.get_by_idx_mut(stmt_idx) else {
+        let idx = builder.build(stmt_cmd_id, StatementsMisc::new(0, columns_len.into(), 0, 0))?;
+        let Some(stmt_mut) = stmts.get_by_idx_mut(idx) else {
           return Err(crate::Error::ProgrammingError.into());
         };
         stmt_mut

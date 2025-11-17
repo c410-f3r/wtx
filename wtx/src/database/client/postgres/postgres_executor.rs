@@ -153,7 +153,7 @@ where
     .await
   }
 
-  async fn execute_with_stmt_many<SC, RV>(
+  async fn execute_stmt_many<SC, RV>(
     &mut self,
     sc: SC,
     rv: RV,
@@ -210,7 +210,7 @@ where
 
   #[inline]
   async fn ping(&mut self) -> Result<(), E> {
-    self.execute_many(&mut (), "SELECT 1", |_| Ok(())).await?;
+    self.execute_ignored("SELECT 1").await?;
     Ok(())
   }
 

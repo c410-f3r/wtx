@@ -220,7 +220,7 @@ mod mysql {
 
     #[inline]
     async fn create_wtx_tables(&mut self) -> crate::Result<()> {
-      self.execute_many(&mut (), CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
+      self.execute_ignored(CREATE_MIGRATION_TABLES).await?;
       Ok(())
     }
 
@@ -330,7 +330,7 @@ mod postgres {
 
     #[inline]
     async fn create_wtx_tables(&mut self) -> crate::Result<()> {
-      self.execute_many(&mut (), CREATE_MIGRATION_TABLES, |_| Ok(())).await?;
+      self.execute_ignored(CREATE_MIGRATION_TABLES).await?;
       Ok(())
     }
 

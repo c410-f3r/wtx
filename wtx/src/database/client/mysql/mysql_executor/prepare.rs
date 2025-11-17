@@ -92,8 +92,10 @@ where
       };
       elem.0 = MysqlColumnInfo::from_column_res(&cres);
     }
-    let sm = StatementsMisc::new(pres.statement_id, pres.columns.into(), 0, tys_len);
-    let idx = builder.build(stmt_cmd_id, sm)?;
+    let idx = builder.build(
+      stmt_cmd_id,
+      StatementsMisc::new(pres.statement_id, pres.columns.into(), 0, tys_len),
+    )?;
     let Some(stmt_mut) = stmts.get_by_idx_mut(idx) else {
       return Err(crate::Error::ProgrammingError.into());
     };

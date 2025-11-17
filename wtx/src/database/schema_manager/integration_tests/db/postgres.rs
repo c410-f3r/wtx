@@ -24,28 +24,22 @@ pub(crate) async fn clean_drops_all_objs<'exec, E>(
   Identifier: FromRecords<'exec, Postgres<crate::Error>>,
 {
   integration_tests::create_foo_table(buffer_cmd, c, "public.").await;
-  c.executor_mut().execute_many(&mut (), "CREATE SCHEMA bar", |_| Ok(())).await.unwrap();
+  c.executor_mut().execute_ignored("CREATE SCHEMA bar").await.unwrap();
   integration_tests::create_foo_table(buffer_cmd, c, "bar.").await;
-  c.executor_mut().execute_many(&mut (), "CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0)", |_| Ok(())).await.unwrap();
-  c.executor_mut().execute_many(&mut (), "CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE", |_| Ok(())).await.unwrap();
+  c.executor_mut().execute_ignored("CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0)").await.unwrap();
+  c.executor_mut().execute_ignored("CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE").await.unwrap();
   c.executor_mut()
-    .execute_many(&mut (), "CREATE PROCEDURE something() LANGUAGE SQL AS $$ $$", |_| Ok(()))
+    .execute_ignored("CREATE PROCEDURE something() LANGUAGE SQL AS $$ $$")
+    .await
+    .unwrap();
+  c.executor_mut().execute_ignored("CREATE SEQUENCE serial START 101").await.unwrap();
+  c.executor_mut().execute_ignored("CREATE TYPE a_type AS (field INTEGER[31])").await.unwrap();
+  c.executor_mut()
+    .execute_ignored("CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy')")
     .await
     .unwrap();
   c.executor_mut()
-    .execute_many(&mut (), "CREATE SEQUENCE serial START 101", |_| Ok(()))
-    .await
-    .unwrap();
-  c.executor_mut()
-    .execute_many(&mut (), "CREATE TYPE a_type AS (field INTEGER[31])", |_| Ok(()))
-    .await
-    .unwrap();
-  c.executor_mut()
-    .execute_many(&mut (), "CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy')", |_| Ok(()))
-    .await
-    .unwrap();
-  c.executor_mut()
-    .execute_many(&mut (), "CREATE VIEW view AS SELECT * FROM foo WHERE id = 1", |_| Ok(()))
+    .execute_ignored("CREATE VIEW view AS SELECT * FROM foo WHERE id = 1")
     .await
     .unwrap();
 

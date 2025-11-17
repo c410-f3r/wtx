@@ -26,10 +26,7 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
   E: SchemaManagement,
   <<E as Executor>::Database as DEController>::Error: Debug,
 {
-  c.executor_mut()
-    .execute_many(&mut (), "CREATE TABLE IF NOT EXISTS foo(id INT)", |_| Ok(()))
-    .await
-    .unwrap();
+  c.executor_mut().execute_ignored("CREATE TABLE IF NOT EXISTS foo(id INT)").await.unwrap();
   c.executor_mut().table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();
   assert_eq!(buffer_idents.len(), 1);
   buffer_idents.clear();
