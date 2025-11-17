@@ -507,57 +507,14 @@ impl<T> Deque<T> {
   /// ```
   #[inline]
   pub fn truncate_back(&mut self, new_len: usize) {
-    let _rslt = self.do_truncate_back::<Vector<_>>(None, new_len);
+    let _rslt = self.truncate_back_to_buffer(&mut (), new_len);
   }
 
   /// See [`Self::truncate_back`]. Transfers elements to `buffer` instead of dropping them.
   #[inline]
   pub fn truncate_back_to_buffer<B>(&mut self, buffer: &mut B, new_len: usize) -> crate::Result<()>
   where
-    B: TryExtend<[T; 1], Error = crate::Error>,
-  {
-    self.do_truncate_back(Some(buffer), new_len)
-  }
-
-  /// Shortens the queue, keeping the last `new_len` elements.
-  ///
-  /// ```rust
-  /// let mut queue = wtx::collection::Deque::new();
-  /// queue.push_front(1);
-  /// queue.push_front(3);
-  /// queue.push_back(5);
-  /// queue.push_back(7);
-  /// queue.truncate_front(2);
-  /// assert_eq!(queue.as_slices(), (&[5, 7][..], &[][..]));
-  /// queue.truncate_front(0);
-  /// assert_eq!(queue.as_slices(), (&[][..], &[][..]));
-  /// ```
-  #[inline]
-  pub fn truncate_front(&mut self, new_len: usize) {
-    let _rslt = self.do_truncate_front::<Vector<_>>(None, new_len);
-  }
-
-  /// See [`Self::truncate_front`]. Transfers elements to `buffer` instead of dropping them.
-  #[inline]
-  pub fn truncate_front_to_buffer<B>(&mut self, buffer: &mut B, new_len: usize) -> crate::Result<()>
-  where
-    B: TryExtend<[T; 1], Error = crate::Error>,
-  {
-    self.do_truncate_front(Some(buffer), new_len)
-  }
-
-  pub(crate) const fn head(&self) -> usize {
-    self.head
-  }
-
-  pub(crate) const fn tail(&self) -> usize {
-    self.tail
-  }
-
-  #[inline]
-  fn do_truncate_back<B>(&mut self, mut buffer: Option<&mut B>, new_len: usize) -> crate::Result<()>
-  where
-    B: TryExtend<[T; 1], Error = crate::Error>,
+    B: TryExtend<[T; 1]>,
   {
     let len = self.data.len();
     let Some(diff @ 1..=usize::MAX) = len.checked_sub(new_len) else {
@@ -578,7 +535,7 @@ impl<T> Deque<T> {
         if Self::NEEDS_DROP {
           // SAFETY: indices are within bounds
           unsafe {
-            drop_elements(buffer.as_mut(), self.tail, 0, self.data.as_ptr_mut())?;
+            drop_elements(buffer, self.tail, 0, self.data.as_ptr_mut())?;
           }
           // SAFETY: indices are within bounds
           unsafe {
@@ -604,13 +561,29 @@ impl<T> Deque<T> {
     Ok(())
   }
 
-  fn do_truncate_front<B>(
-    &mut self,
-    mut buffer: Option<&mut B>,
-    new_len: usize,
-  ) -> crate::Result<()>
+  /// Shortens the queue, keeping the last `new_len` elements.
+  ///
+  /// ```rust
+  /// let mut queue = wtx::collection::Deque::new();
+  /// queue.push_front(1);
+  /// queue.push_front(3);
+  /// queue.push_back(5);
+  /// queue.push_back(7);
+  /// queue.truncate_front(2);
+  /// assert_eq!(queue.as_slices(), (&[5, 7][..], &[][..]));
+  /// queue.truncate_front(0);
+  /// assert_eq!(queue.as_slices(), (&[][..], &[][..]));
+  /// ```
+  #[inline]
+  pub fn truncate_front(&mut self, new_len: usize) {
+    let _rslt = self.truncate_front_to_buffer(&mut (), new_len);
+  }
+
+  /// See [`Self::truncate_front`]. Transfers elements to `buffer` instead of dropping them.
+  #[inline]
+  pub fn truncate_front_to_buffer<B>(&mut self, buffer: &mut B, new_len: usize) -> crate::Result<()>
   where
-    B: TryExtend<[T; 1], Error = crate::Error>,
+    B: TryExtend<[T; 1]>,
   {
     let len = self.data.len();
     let Some(diff @ 1..=usize::MAX) = len.checked_sub(new_len) else {
@@ -631,7 +604,7 @@ impl<T> Deque<T> {
         if Self::NEEDS_DROP {
           // SAFETY: indices are within bounds
           unsafe {
-            drop_elements(buffer.as_mut(), front_slots, self.head, self.data.as_ptr_mut())?;
+            drop_elements(buffer, front_slots, self.head, self.data.as_ptr_mut())?;
           }
           // SAFETY: indices are within bounds
           unsafe {
@@ -655,6 +628,14 @@ impl<T> Deque<T> {
       self.data.set_len(new_len);
     }
     Ok(())
+  }
+
+  pub(crate) const fn head(&self) -> usize {
+    self.head
+  }
+
+  pub(crate) const fn tail(&self) -> usize {
+    self.tail
   }
 
   unsafe fn expand(&mut self, additional: usize, begin: usize, new_len: usize, value: T)

@@ -35,7 +35,7 @@ where
     *dw.bytes = rest1;
     dw.other.1.reserve(dw.other.0.columns_len)?;
     let mut idx: usize = bitmap_len.wrapping_add(1);
-    for (column_idx, column) in dw.other.0.columns().enumerate() {
+    for (column_idx, (column, _)) in dw.other.0.columns().iter().enumerate() {
       let column_null_idx = column_idx.wrapping_add(2);
       let byte_idx = column_null_idx / 8;
       let bit_idx = column_null_idx % 8;

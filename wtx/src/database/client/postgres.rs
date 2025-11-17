@@ -10,6 +10,7 @@ mod executor_buffer;
 #[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod message;
+mod misc;
 mod msg_field;
 mod postgres_column_info;
 mod postgres_error;

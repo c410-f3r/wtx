@@ -9,11 +9,13 @@ use core::{marker::PhantomData, ops::Range};
 pub(crate) struct CommonRecords<'exec, A, C, D, T> {
   pub(crate) phantom: PhantomData<D>,
   pub(crate) records: &'exec [u8],
-  /// Each element represents a record. The first range delimitates `records` and the
-  /// second range delimitates `values_ranges`.
+  /// Each element represents a ***whole*** record. The first element is the number of affected
+  /// values, the second element is the range delimitates bytes and the third element if the range
+  /// that delimitates `values_params`.
   pub(crate) records_params: &'exec [(Range<usize>, Range<usize>)],
   pub(crate) stmt: Statement<'exec, A, C, T>,
-  /// Each element represents a value of a record. Ranges are delimitated by `records_params`.
+  /// Each element represents the ***data*** of a record that is delimited by the first range of
+  /// `records_params`.
   pub(crate) values_params: &'exec [(bool, Range<usize>)],
 }
 

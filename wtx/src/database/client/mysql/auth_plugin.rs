@@ -2,7 +2,7 @@ use crate::{
   collection::{ArrayVectorU8, Vector},
   database::client::mysql::{
     MysqlError,
-    misc::{fetch_msg, write_packet},
+    misc::{fetch_msg, write_and_send_packet},
   },
   misc::{from_utf8_basic, net::PartitionedFilledBuffer},
   rng::CryptoRng,
@@ -42,11 +42,18 @@ impl AuthPlugin {
           let mut pw_array: ArrayVectorU8<u8, 32> = password.as_bytes().try_into()?;
           pw_array.push(b'\0')?;
           if IS_TLS {
-            write_packet((capabilities, sequence_id), encode_buffer, &pw_array[..], stream).await?;
+            write_and_send_packet(
+              (capabilities, sequence_id),
+              encode_buffer,
+              &pw_array[..],
+              stream,
+            )
+            .await?;
             return Ok(false);
           }
 
-          write_packet((capabilities, sequence_id), encode_buffer, &[2][..], stream).await?;
+          write_and_send_packet((capabilities, sequence_id), encode_buffer, &[2][..], stream)
+            .await?;
 
           let _ = fetch_msg(*capabilities, net_buffer, sequence_id, stream).await?;
           let rsa_pub_key = net_buffer.current().get(1..).unwrap_or_default();
@@ -60,7 +67,8 @@ impl AuthPlugin {
           let padding = Oaep::new::<sha1::Sha1>();
           let bytes = pkey.encrypt(rng, padding, &pw_array).map_err(crate::Error::from)?;
           let payload = bytes.as_slice();
-          write_packet((capabilities, sequence_id), encode_buffer, payload, stream).await?;
+          write_and_send_packet((capabilities, sequence_id), encode_buffer, payload, stream)
+            .await?;
 
           Ok(false)
         }

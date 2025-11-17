@@ -1,5 +1,8 @@
 use crate::{
-  database::client::mysql::protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
+  database::client::mysql::{
+    command::Command,
+    protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
+  },
   de::Encode,
 };
 
@@ -14,7 +17,7 @@ where
 {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
-    let array = [&[25][..], &self.statement.to_le_bytes()];
+    let array = [&[Command::ComStmtClose.into()][..], &self.statement.to_le_bytes()];
     let _ = ew.encode_buffer.extend_from_copyable_slices(array)?;
     Ok(())
   }

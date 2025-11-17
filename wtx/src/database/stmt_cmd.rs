@@ -1,3 +1,4 @@
+use alloc::string::String;
 use core::hash::BuildHasher;
 
 /// Statement command can be a string or the hashed contents of a string.
@@ -10,6 +11,21 @@ pub trait StmtCmd {
 }
 
 impl<T> StmtCmd for &T
+where
+  T: StmtCmd,
+{
+  #[inline]
+  fn cmd(&self) -> Option<&str> {
+    (**self).cmd()
+  }
+
+  #[inline]
+  fn hash(&self, hasher: &mut impl BuildHasher) -> u64 {
+    (**self).hash(hasher)
+  }
+}
+
+impl<T> StmtCmd for &mut T
 where
   T: StmtCmd,
 {
@@ -37,6 +53,18 @@ impl StmtCmd for u64 {
 }
 
 impl StmtCmd for &str {
+  #[inline]
+  fn cmd(&self) -> Option<&str> {
+    Some(self)
+  }
+
+  #[inline]
+  fn hash(&self, hasher: &mut impl BuildHasher) -> u64 {
+    hasher.hash_one(self)
+  }
+}
+
+impl StmtCmd for String {
   #[inline]
   fn cmd(&self) -> Option<&str> {
     Some(self)

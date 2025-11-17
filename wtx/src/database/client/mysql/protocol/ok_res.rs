@@ -8,7 +8,6 @@ use crate::{
 
 #[derive(Debug)]
 pub(crate) struct OkRes {
-  pub(crate) affected_rows: u64,
   pub(crate) statuses: u16,
 }
 
@@ -25,7 +24,7 @@ where
       return Err(E::from(MysqlError::InvalidOkBytes.into()));
     }
     *dw.bytes = rest0;
-    let affected_rows = Lenenc::decode(dw)?.0;
+    let _affected_rows = Lenenc::decode(dw)?.0;
     let _last_insert_id = Lenenc::decode(dw)?.0;
     let [a, b, c, d, rest1 @ ..] = dw.bytes else {
       return Err(E::from(MysqlError::InvalidOkBytes.into()));
@@ -33,6 +32,6 @@ where
     let statuses = u16::from_le_bytes([*a, *b]);
     let _warnings = u16::from_le_bytes([*c, *d]);
     *dw.bytes = rest1;
-    Ok(Self { affected_rows, statuses })
+    Ok(Self { statuses })
   }
 }

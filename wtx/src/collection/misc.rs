@@ -43,19 +43,27 @@ pub(crate) fn is_char_boundary(idx: usize, slice: &[u8]) -> bool {
   }
 }
 
+/// This methods becomes infallible if `buffer` is `&mut ()`.
 pub(crate) unsafe fn drop_elements<B, L, T>(
-  buffer: Option<&mut B>,
+  buffer: &mut B,
   len: L,
   offset: L,
   ptr: *mut T,
 ) -> crate::Result<()>
 where
-  B: TryExtend<[T; 1], Error = crate::Error>,
+  B: TryExtend<[T; 1]>,
   L: LinearStorageLen,
 {
   // SAFETY: caller ensures `ptr` is valid and `offset` is in-bounds.
   let data = unsafe { ptr.add(offset.usize()) };
-  if let Some(elem) = buffer {
+  if B::IS_UNIT {
+    // SAFETY: caller ensures that `len` describes a valid, initialized slice region.
+    let elements = unsafe { slice::from_raw_parts_mut(data, len.usize()) };
+    // SAFETY: per contract, slice points to initialized data.
+    unsafe {
+      ptr::drop_in_place(elements);
+    }
+  } else {
     let mut guard = SliceDropGuard { data, begin: 0, len: len.usize() };
     while guard.begin < guard.len {
       // SAFETY: caller ensures `len` is valid, so `data + begin` is in-bounds.
@@ -63,20 +71,13 @@ where
       guard.begin = guard.begin.wrapping_add(1);
       // SAFETY: `src` points to an initialized element per the function's contract.
       let value = unsafe { ptr::read(src) };
-      elem.try_extend([value])?;
+      buffer.try_extend([value])?;
     }
     #[expect(
       clippy::mem_forget,
       reason = "there is nothing else to drop but it is possible to avoid one arithmetic operation"
     )]
     mem::forget(guard);
-  } else {
-    // SAFETY: caller ensures that `len` describes a valid, initialized slice region.
-    let elements = unsafe { slice::from_raw_parts_mut(data, len.usize()) };
-    // SAFETY: per contract, slice points to initialized data.
-    unsafe {
-      ptr::drop_in_place(elements);
-    }
   }
   Ok(())
 }
@@ -147,7 +148,7 @@ mod tests {
     let mut buffer = ArrayVectorU8::<_, 5>::new();
     let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
     unsafe {
-      let _rslt = drop_elements(Some(&mut buffer), 5u32, 0, vec.as_mut_ptr());
+      drop_elements(&mut buffer, 5u32, 0, vec.as_mut_ptr()).unwrap();
       vec.set_len(0);
     }
     assert_eq!(buffer.len(), 5);
@@ -159,7 +160,7 @@ mod tests {
     let dpm = DropSpyManager::new();
     let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
     unsafe {
-      drop_elements::<Vector<DropSpySpawn>, _, _>(None, 5u32, 0, vec.as_mut_ptr()).unwrap();
+      drop_elements(&mut (), 5u32, 0, vec.as_mut_ptr()).unwrap();
       vec.set_len(0);
     }
     assert_eq!(dpm.counter(), 5);
@@ -171,7 +172,7 @@ mod tests {
     let mut buffer = ArrayVectorU8::<_, 2>::new();
     let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
     unsafe {
-      let _rslt = drop_elements(Some(&mut buffer), 5u32, 0, vec.as_mut_ptr());
+      let _rslt = drop_elements(&mut buffer, 5u32, 0, vec.as_mut_ptr());
       vec.set_len(0);
     }
     assert_eq!(buffer.len(), 2);

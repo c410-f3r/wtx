@@ -79,7 +79,10 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<DynPa
   let user: UserLoginReq<'_> = serde_json::from_slice(state.req.rrd.body())?;
   let mut pool_guard = pool.get().await?;
   let record = pool_guard
-    .fetch_with_stmt("SELECT id,first_name,password,salt FROM user WHERE email = $1", (user.email,))
+    .execute_with_stmt_one(
+      "SELECT id,first_name,password,salt FROM user WHERE email = $1",
+      (user.email,),
+    )
     .await?;
   let id = record.decode::<_, u32>(0)?;
   let first_name = record.decode::<_, &str>(1)?;

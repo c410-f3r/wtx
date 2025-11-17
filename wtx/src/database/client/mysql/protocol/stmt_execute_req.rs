@@ -2,8 +2,10 @@ use crate::{
   database::{
     RecordValues,
     client::mysql::{
-      EncodeWrapper, Mysql, MysqlStatement,
+      EncodeWrapper, Mysql, TyParams,
+      command::Command,
       flag::Flag,
+      mysql_column_info::MysqlColumnInfo,
       protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
     },
   },
@@ -11,12 +13,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct StmtExecuteReq<'any, 'stmts, RV> {
+pub(crate) struct StmtExecuteReq<'any, RV> {
   pub(crate) rv: RV,
-  pub(crate) stmt: &'any MysqlStatement<'stmts>,
+  pub(crate) stmt_id: u32,
+  pub(crate) tys: &'any [(MysqlColumnInfo, TyParams)],
 }
 
-impl<DO, E, RV> Encode<Protocol<DO, E>> for StmtExecuteReq<'_, '_, RV>
+impl<'any, E, RV> Encode<Protocol<(), E>> for StmtExecuteReq<'any, RV>
 where
   E: From<crate::Error>,
   RV: RecordValues<Mysql<E>>,
@@ -24,11 +27,11 @@ where
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapperProtocol<'_>) -> Result<(), E> {
     let _ = ew.encode_buffer.extend_from_copyable_slices([
-      &[23][..],
-      &self.stmt.aux.to_le_bytes(),
+      &[Command::ComStmtExecute.into()][..],
+      &self.stmt_id.to_le_bytes(),
       &[0, 1, 0, 0, 0],
     ])?;
-    if self.stmt.tys_len > 0 {
+    if !self.tys.is_empty() {
       let prev_len = ew.encode_buffer.len();
       let mut idx: usize = 0;
       self.rv.walk(|is_null, _| {
@@ -44,7 +47,7 @@ where
         Ok(())
       })?;
       ew.encode_buffer.push(1)?;
-      for ty in self.stmt.tys() {
+      for (_, ty) in self.tys {
         let unsigned = u16::from(Flag::Unsigned);
         let value = if ty.flags() & unsigned == unsigned { 128 } else { 0 };
         ew.encode_buffer.extend_from_copyable_slice(&[u8::from(ty.ty()), value])?;

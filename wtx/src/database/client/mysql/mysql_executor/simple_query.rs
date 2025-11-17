@@ -1,7 +1,8 @@
 use crate::{
-  collection::Vector,
+  collection::{TryExtend, Vector},
   database::client::mysql::{
-    ExecutorBuffer, MysqlExecutor, MysqlStatement, misc::send_packet, protocol::query_req::QueryReq,
+    ExecutorBuffer, MysqlExecutor, MysqlRecord, MysqlRecords, MysqlStatements, misc::send_packet,
+    protocol::query_req::QueryReq,
   },
   misc::{LeaseMut, net::PartitionedFilledBuffer},
   stream::Stream,
@@ -14,16 +15,21 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn simple_query_execute(
+  pub(crate) async fn simple_query_execute<'exec, B>(
+    buffer: &mut B,
     (capabilities, sequence_id): (&mut u64, &mut u8),
     cmd: &str,
     encode_buffer: &mut Vector<u8>,
-    net_buffer: &mut PartitionedFilledBuffer,
-    records_params: &mut Vector<(Range<usize>, Range<usize>)>,
+    net_buffer: &'exec mut PartitionedFilledBuffer,
+    records_params: &'exec mut Vector<(Range<usize>, Range<usize>)>,
+    stmts: &'exec mut MysqlStatements,
     stream: &mut S,
-    values_params: &mut Vector<(bool, Range<usize>)>,
-    mut cb: impl FnMut(u64) -> Result<(), E>,
-  ) -> Result<(), E> {
+    values_params: &'exec mut Vector<(bool, Range<usize>)>,
+    cb: impl FnMut(MysqlRecord<'_, E>) -> Result<(), E>,
+  ) -> Result<(), E>
+  where
+    B: TryExtend<[MysqlRecords<'exec, E>; 1]>,
+  {
     send_packet(
       (capabilities, sequence_id),
       encode_buffer,
@@ -31,19 +37,16 @@ where
       stream,
     )
     .await?;
-    Self::fetch_cmd::<false, false>(
+    Self::fetch_text_cmd(
+      buffer,
       *capabilities,
       net_buffer,
       records_params,
       sequence_id,
-      &MysqlStatement::default(),
+      stmts,
       stream,
       values_params,
-      |num| {
-        cb(num)?;
-        Ok(())
-      },
-      |_| Ok(()),
+      cb,
     )
     .await?;
     Ok(())

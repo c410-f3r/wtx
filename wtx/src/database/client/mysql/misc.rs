@@ -1,7 +1,8 @@
 use crate::{
-  collection::{ArrayVector, ArrayVectorU8, Vector},
+  collection::{ArrayString, ArrayVector, ArrayVectorU8, Vector},
   database::client::mysql::{
-    DbError, MysqlError,
+    DbError, MysqlError, Ty, TyParams,
+    mysql_column_info::MysqlColumnInfo,
     mysql_executor::MAX_PAYLOAD,
     protocol::{
       Protocol, decode_wrapper_protocol::DecodeWrapperProtocol,
@@ -24,6 +25,13 @@ where
   T: Decode<'de, Protocol<DO, E>>,
 {
   T::decode(&mut DecodeWrapperProtocol { bytes, other })
+}
+
+pub(crate) const fn dummy_stmt_value() -> (MysqlColumnInfo, TyParams) {
+  (
+    MysqlColumnInfo { name: ArrayString::new(), ty_params: TyParams::empty(Ty::Bit) },
+    TyParams::empty(Ty::Bit),
+  )
 }
 
 pub(crate) fn encoded_len(len: usize) -> crate::Result<ArrayVectorU8<u8, 9>> {
@@ -87,6 +95,13 @@ where
   Ok((T::decode(&mut DecodeWrapperProtocol { bytes: &mut pfb.current(), other: () })?, total))
 }
 
+pub(crate) fn packet_header(len: usize, local_sequence_id: &mut u8) -> [u8; 4] {
+  let mut len_u32 = u32::try_from(len).unwrap_or_default().to_le_bytes();
+  len_u32[3] = *local_sequence_id;
+  *local_sequence_id = local_sequence_id.wrapping_add(1);
+  len_u32
+}
+
 pub(crate) async fn send_packet<E, S, T>(
   (capabilities, sequence_id): (&mut u64, &mut u8),
   encode_buffer: &mut Vector<u8>,
@@ -99,11 +114,11 @@ where
   T: Encode<Protocol<(), E>>,
 {
   *sequence_id = 0;
-  write_packet((capabilities, sequence_id), encode_buffer, payload, stream).await
+  write_and_send_packet((capabilities, sequence_id), encode_buffer, payload, stream).await
 }
 
 // Only used in the connection phase
-pub(crate) async fn write_packet<E, S, T>(
+pub(crate) async fn write_and_send_packet<E, S, T>(
   (capabilities, sequence_id): (&mut u64, &mut u8),
   encode_buffer: &mut Vector<u8>,
   payload: T,
@@ -116,7 +131,8 @@ where
 {
   encode_buffer.clear();
   let mut ew = EncodeWrapperProtocol::new(capabilities, encode_buffer);
-  PacketReq(payload, PhantomData).encode_and_write(&mut ew, sequence_id, stream).await?;
+  payload.encode(&mut ew)?;
+  PacketReq(payload, PhantomData).send(&mut ew, sequence_id, stream).await?;
   Ok(())
 }
 

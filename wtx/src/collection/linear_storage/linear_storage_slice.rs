@@ -236,8 +236,7 @@ impl<T> LinearStorageSlice for [T] {
     if LSM::NEEDS_DROP {
       // SAFETY: indices are within bounds
       unsafe {
-        let _rslt =
-          drop_elements::<alloc::vec::Vec<_>, _, _>(None, diff, new_len, lsm.as_ptr_mut());
+        let _rslt = drop_elements(&mut (), diff, new_len, lsm.as_ptr_mut());
       }
     }
     Ok(())

@@ -40,6 +40,10 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
+use crate::{
+  calendar::Instant,
+  de::{U64String, u64_string},
+};
 pub use connection_state::ConnectionState;
 use core::{any::type_name, time::Duration};
 #[cfg(feature = "aes-gcm")]
@@ -238,7 +242,7 @@ where
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
   async fn _naive(duration: Duration) -> crate::Result<()> {
-    let now = crate::calendar::Instant::now();
+    let now = Instant::now();
     core::future::poll_fn(|cx| {
       if now.elapsed()? >= duration {
         return core::task::Poll::Ready(Ok(()));
@@ -260,8 +264,15 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
   return _naive(duration).await;
 }
 
+/// The current time in nanoseconds as a string.
+#[inline]
+pub fn timestamp_nanos_str() -> crate::Result<U64String> {
+  Ok(u64_string(Instant::now_timestamp(0).map(|el| el.as_nanos())?.try_into()?))
+}
+
 /// A tracing register with optioned parameters.
 #[cfg(feature = "_tracing-tree")]
+#[inline]
 pub fn tracing_tree_init(
   fallback_opt: Option<&str>,
 ) -> Result<(), tracing_subscriber::util::TryInitError> {

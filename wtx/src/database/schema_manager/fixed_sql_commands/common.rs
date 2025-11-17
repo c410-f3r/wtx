@@ -27,7 +27,7 @@ where
       "DELETE FROM {schema_prefix}_wtx_migration WHERE _wtx_migration_mg_uid = {mg_uid} AND uid > {uid}",
       mg_uid = mg.uid(),
     )).map_err(crate::Error::from)?;
-  executor.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
+  executor.execute_many(&mut (), buffer_cmd.as_str(), |_| Ok(())).await?;
   buffer_cmd.clear();
   Ok(())
 }
@@ -57,7 +57,7 @@ where
       mg_uid = mg.uid(),
     ))
     .map_err(Into::into)?;
-  executor.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
+  executor.execute_many(&mut (), buffer_cmd.as_str(), |_| Ok(())).await?;
   buffer_cmd.clear();
 
   for migration in migrations.clone() {
@@ -65,7 +65,7 @@ where
   }
   executor
     .transaction(|this| async {
-      this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
+      this.execute_many(&mut (), buffer_cmd.as_str(), |_| Ok(())).await?;
       Ok(((), this))
     })
     .await?;
@@ -89,7 +89,7 @@ where
   }
   executor
     .transaction(|this| async {
-      this.execute(buffer_cmd.as_str(), |_| Ok(())).await?;
+      this.execute_many(&mut (), buffer_cmd.as_str(), |_| Ok(())).await?;
       Ok(((), this))
     })
     .await?;
@@ -131,7 +131,7 @@ where
         _wtx_migration.uid ASC;",
     ))?;
   for elem in DbMigration::many(
-    &executor.fetch_many_with_stmt(buffer_cmd.as_str(), (), |_elem| Ok(())).await?,
+    &executor.execute_with_stmt_many(buffer_cmd.as_str(), (), |_elem| Ok(())).await?,
   ) {
     if let Err(elem) = results.push(elem?) {
       buffer_cmd.clear();

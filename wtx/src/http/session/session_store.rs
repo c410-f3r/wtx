@@ -173,7 +173,7 @@ mod postgres {
     #[inline]
     async fn create(&mut self, state: &SessionState<CS>) -> Result<(), E> {
       let SessionState { custom_state, expires_at, session_csrf, session_key } = state;
-      let _ = self
+      self
         .execute_with_stmt(
           "INSERT INTO session (key, csrf, custom_state, expires_at) VALUES ($1, $2, $3, $4)",
           (session_key, session_csrf, custom_state, expires_at),
@@ -184,20 +184,22 @@ mod postgres {
 
     #[inline]
     async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
-      let _ = self.execute_with_stmt("DELETE FROM session WHERE key=$1", (session_key,)).await?;
+      self.execute_with_stmt("DELETE FROM session WHERE key=$1", (session_key,)).await?;
       Ok(())
     }
 
     #[inline]
     async fn delete_expired(&mut self) -> Result<(), E> {
-      self.execute("DELETE FROM session WHERE expires_at <= NOW()", |_| Ok(())).await?;
+      self
+        .execute_many(&mut (), "DELETE FROM session WHERE expires_at <= NOW()", |_| Ok(()))
+        .await?;
       Ok(())
     }
 
     #[inline]
     async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
       let rec = self
-        .fetch_with_stmt(
+        .execute_with_stmt_one(
           "SELECT csrf, custom_state, expires_at FROM session WHERE key=$1",
           (&session_key,),
         )
@@ -218,7 +220,7 @@ mod postgres {
     ) -> Result<(), E> {
       let SessionState { session_csrf, custom_state, expires_at, session_key: state_session_key } =
         state;
-      let _ = self
+      self
         .execute_with_stmt(
           "UPDATE session SET key=$1,csrf=$2,custom_state=$3,expires_at=$4 WHERE key=$5",
           (state_session_key, session_csrf, custom_state, expires_at, session_key),

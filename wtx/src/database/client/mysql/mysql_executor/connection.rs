@@ -6,7 +6,7 @@ use crate::{
       Config, ExecutorBuffer, MysqlError, MysqlExecutor,
       auth_plugin::AuthPlugin,
       capability::Capability,
-      misc::{decode, fetch_msg, write_packet},
+      misc::{decode, fetch_msg, write_and_send_packet},
       mysql_executor::DFLT_PACKET_SIZE,
       protocol::{
         auth_switch_req::AuthSwitchReq, auth_switch_res::AuthSwitchRes,
@@ -80,7 +80,8 @@ where
       max_packet_size: DFLT_PACKET_SIZE,
       username: config.user,
     };
-    write_packet((capabilities, sequence_id), encode_buffer, handshake_req, stream).await?;
+    write_and_send_packet((capabilities, sequence_id), encode_buffer, handshake_req, stream)
+      .await?;
     Ok(())
   }
 
@@ -119,7 +120,8 @@ where
             config.password.unwrap_or_default().as_bytes(),
           )?;
           let payload = AuthSwitchReq(&bytes);
-          write_packet((capabilities, sequence_id), encode_buffer, payload, stream).await?;
+          write_and_send_packet((capabilities, sequence_id), encode_buffer, payload, stream)
+            .await?;
         }
         [a, rest @ ..] => {
           let (Some(plugin), Some(password)) = (plugin, &config.password) else {
@@ -182,7 +184,9 @@ where
     }
     if buffer.len() > 4 {
       let _ = buffer.pop();
-      self.execute(from_utf8_basic(&buffer).map_err(crate::Error::from)?, |_| Ok(())).await?;
+      self
+        .execute_many(&mut (), from_utf8_basic(&buffer).map_err(crate::Error::from)?, |_| Ok(()))
+        .await?;
     }
     buffer.clear();
     Ok(())

@@ -95,8 +95,7 @@ where
     {
       // SAFETY: indices are within bounds
       unsafe {
-        let _rslt =
-          drop_elements::<ArrayVectorU8<_, 0>, _, _>(None, diff, instance_len, data.as_mut_ptr());
+        let _rslt = drop_elements(&mut (), diff, instance_len, data.as_mut_ptr());
       }
     }
     mem::forget(data);
@@ -621,8 +620,7 @@ where
       if diff > L::ZERO {
         // SAFETY: indices are within bounds
         unsafe {
-          let _rslt =
-            drop_elements::<ArrayVectorU8<_, 0>, _, _>(None, diff, idx, self.data.as_ptr_mut());
+          let _rslt = drop_elements(&mut (), diff, idx, self.data.as_ptr_mut());
         }
       }
     }

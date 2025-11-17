@@ -28,6 +28,6 @@ where
   C: Lease<str>,
 {
   fn idx(&self, input: &CommonRecord<'exec, A, C, D, T>) -> Option<usize> {
-    input.stmt.columns().position(|column| column.lease() == *self)
+    input.stmt.columns().iter().position(|(column, _)| column.lease() == *self)
   }
 }

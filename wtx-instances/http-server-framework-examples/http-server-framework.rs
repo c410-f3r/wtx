@@ -63,7 +63,7 @@ async fn db(
   PathOwned(id): PathOwned<u32>,
 ) -> wtx::Result<VerbatimParams> {
   let mut lock = state.stream_aux.get().await?;
-  let record = lock.fetch_with_stmt("SELECT name FROM persons WHERE id = $1", (id,)).await?;
+  let record = lock.execute_with_stmt_one("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
   state.req.rrd.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
   Ok(VerbatimParams(StatusCode::Ok))
