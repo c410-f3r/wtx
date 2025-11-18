@@ -49,7 +49,7 @@ where
 #[cfg(feature = "web-socket")]
 pub(crate) fn log_generic_res(_bytes: &[u8], _log_body: bool, _tg: TransportGroup) {
   let _body = if _log_body { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
-  _debug!(body = display(_body.unwrap_or_default()), trans_ty = display(_tg), "Response");
+  _debug!(body = debug(_body), trans_ty = display(_tg), "Response");
 }
 #[cfg(feature = "http2")]
 pub(crate) fn log_http_res(
@@ -61,7 +61,7 @@ pub(crate) fn log_http_res(
 ) {
   let _body = if _log_body { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
   _debug!(
-    body = display(_body.unwrap_or_default()),
+    body = debug(_body),
     status_code = display(_status_code),
     trans_ty = display(_tg),
     uri = display(_uri.as_str()),

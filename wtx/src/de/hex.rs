@@ -1,5 +1,31 @@
-use crate::collection::{ArrayString, ArrayVector, LinearStorageLen};
 use core::fmt::{Display, Formatter};
+
+const LOWER_HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
+const UPPER_HEX_CHARS: &[u8; 16] = b"0123456789ABCDEF";
+
+/// Hex Decode Mode
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum HexDecMode {
+  /// The presence of the prefix is internally detected
+  Automatic,
+  /// With `0x` prefix
+  WithPrefix,
+  /// Without `0x` prefix
+  WithoutPrefix,
+}
+
+/// Hex Encode Mode
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum HexEncMode {
+  /// Lower case characters with a `0x` prefix
+  WithPrefixLower,
+  /// Upper case characters with a `0x` prefix
+  WithPrefixUpper,
+  /// Lower case characters without a `0x` prefix
+  WithoutPrefixLower,
+  /// Upper case characters without a `0x` prefix
+  WithoutPrefixUpper,
+}
 
 /// Errors of hexadecimal operations
 #[derive(Debug)]
@@ -14,69 +40,102 @@ pub enum HexError {
 
 /// Auxiliary structure that will always output hexadecimal characters when displayed.
 #[derive(Debug)]
-pub struct HexDisplay<'bytes, const HAS_PREFIX: bool>(pub &'bytes [u8]);
+pub struct HexDisplay<'bytes>(
+  /// Bytes.
+  pub &'bytes [u8],
+  /// See [`HexEncMode`].
+  pub HexEncMode,
+);
 
-impl<const HAS_PREFIX: bool> Display for HexDisplay<'_, HAS_PREFIX> {
+impl Display for HexDisplay<'_> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    if HAS_PREFIX {
+    if matches!(self.1, HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper) {
       write!(f, "0x")?;
     }
+    let table = match self.1 {
+      HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
+      HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
+    };
     for byte in self.0 {
-      write!(f, "{byte:02x}")?;
+      let (lhs, rhs) = byte_to_hex(*byte, table);
+      write!(f, "{}{}", char::from(lhs), char::from(rhs))?;
     }
     Ok(())
   }
 }
 
-impl<'bytes, L, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
-  for ArrayString<L, N>
-where
-  L: LinearStorageLen,
-{
-  type Error = crate::Error;
-
-  #[inline]
-  fn try_from(from: HexDisplay<'bytes, HAS_PREFIX>) -> Result<Self, Self::Error> {
-    ArrayString::try_from(format_args!("{from}"))
+/// Decodes `data` into `out` returning the affected part.
+#[inline]
+pub fn decode_hex_to_slice<'out>(
+  mut data: &[u8],
+  mode: HexDecMode,
+  out: &'out mut [u8],
+) -> crate::Result<&'out mut [u8]> {
+  data = match mode {
+    HexDecMode::Automatic => {
+      if let [b'0', b'x', rest @ ..] = data {
+        rest
+      } else {
+        data
+      }
+    }
+    HexDecMode::WithPrefix => data.get(2..).unwrap_or_default(),
+    HexDecMode::WithoutPrefix => data,
+  };
+  let bytes_len = data.len() / 2;
+  let Some((actual_out, _)) = out.split_at_mut_checked(bytes_len) else {
+    return Err(HexError::InsufficientBuffer.into());
+  };
+  let (arrays, rem) = data.as_chunks::<2>();
+  if !rem.is_empty() {
+    return Err(HexError::OddLen.into());
   }
-}
-
-impl<'bytes, L, const HAS_PREFIX: bool, const N: usize> TryFrom<HexDisplay<'bytes, HAS_PREFIX>>
-  for ArrayVector<L, u8, N>
-where
-  L: LinearStorageLen,
-{
-  type Error = crate::Error;
-
-  #[inline]
-  fn try_from(from: HexDisplay<'bytes, HAS_PREFIX>) -> Result<Self, Self::Error> {
-    ArrayVector::try_from(format_args!("{from}"))
+  for ([a, b], byte) in arrays.iter().zip(&mut *actual_out) {
+    *byte = hex_to_bytes(*a, *b)?;
   }
+  Ok(actual_out)
 }
 
 /// Decodes `data` into `out` returning the affected part.
 #[inline]
-pub fn decode_hex_to_slice<'out, const HAS_PREFIX: bool>(
-  mut data: &[u8],
+pub fn encode_hex_to_slice<'out>(
+  data: &[u8],
+  mode: HexEncMode,
   out: &'out mut [u8],
 ) -> crate::Result<&'out mut [u8]> {
-  data = if HAS_PREFIX { data.get(2..).unwrap_or_default() } else { data };
-  let (slice, rem) = data.as_chunks::<2>();
-  if !rem.is_empty() {
-    return Err(HexError::OddLen.into());
+  let mut hex_len = data.len().wrapping_mul(2);
+  let actual_out = match mode {
+    HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper => {
+      hex_len = hex_len.wrapping_add(2);
+      let Some(([a, b, actual_out @ ..], _)) = out.split_at_mut_checked(hex_len) else {
+        return Err(HexError::InsufficientBuffer.into());
+      };
+      *a = b'0';
+      *b = b'x';
+      actual_out
+    }
+    HexEncMode::WithoutPrefixLower | HexEncMode::WithoutPrefixUpper => {
+      let Some((actual_out, _)) = out.split_at_mut_checked(hex_len) else {
+        return Err(HexError::InsufficientBuffer.into());
+      };
+      actual_out
+    }
+  };
+  let (arrays, _) = actual_out.as_chunks_mut::<2>();
+  let table = match mode {
+    HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
+    HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
+  };
+  for (byte, [a, b]) in data.iter().zip(arrays) {
+    let (lhs, rhs) = byte_to_hex(*byte, table);
+    *a = lhs;
+    *b = rhs;
   }
-  let idx = data.len() / 2;
-  if idx > out.len() {
-    return Err(HexError::InsufficientBuffer.into());
-  }
-  for ([a, b], byte) in slice.iter().zip(&mut *out) {
-    *byte = hex_byte(*a, *b)?;
-  }
-  Ok(out.get_mut(..idx).unwrap_or_default())
+  Ok(out.get_mut(..hex_len).unwrap_or_default())
 }
 
-fn hex_byte(lhs: u8, rhs: u8) -> crate::Result<u8> {
+fn hex_to_bytes(lhs: u8, rhs: u8) -> crate::Result<u8> {
   fn half(byte: u8) -> crate::Result<u8> {
     match byte {
       b'A'..=b'F' => Ok(byte.wrapping_sub(b'A').wrapping_add(10)),
@@ -88,38 +147,62 @@ fn hex_byte(lhs: u8, rhs: u8) -> crate::Result<u8> {
   Ok((half(lhs)? << 4) | half(rhs)?)
 }
 
+#[expect(clippy::indexing_slicing, reason = "all bytes are limited to the array's length")]
+fn byte_to_hex(byte: u8, table: &[u8; 16]) -> (u8, u8) {
+  let lhs_idx: usize = (byte >> 4).into();
+  let rhs_idx: usize = (byte & 0b0000_1111).into();
+  (table[lhs_idx], table[rhs_idx])
+}
+
 #[cfg(test)]
 mod test {
   use crate::{
     collection::ArrayVectorU8,
-    de::{HexDisplay, decode_hex_to_slice},
+    de::{HexDecMode, HexDisplay, HexEncMode, decode_hex_to_slice, encode_hex_to_slice},
   };
 
   #[test]
   fn decode_hex_to_slice_has_correct_output() {
     {
       let mut bufer = ArrayVectorU8::from_array([0; 8]);
-      let _ = decode_hex_to_slice::<false>(b"61626364", &mut bufer).unwrap();
+      let _ = decode_hex_to_slice(b"61626364", HexDecMode::Automatic, &mut bufer).unwrap();
       assert_eq!(bufer.as_slice(), b"abcd\0\0\0\0");
     }
     {
       let mut bufer = ArrayVectorU8::from_array([0; 8]);
-      let _ = decode_hex_to_slice::<true>(b"0x6162636465", &mut bufer).unwrap();
+      let _ = decode_hex_to_slice(b"0x6162636465", HexDecMode::Automatic, &mut bufer).unwrap();
       assert_eq!(bufer.as_slice(), b"abcde\0\0\0");
     }
     {
-      assert!(decode_hex_to_slice::<false>(b"6", &mut [0, 0, 0, 0]).is_err());
+      assert!(decode_hex_to_slice(b"6", HexDecMode::Automatic, &mut [0, 0, 0, 0]).is_err());
     }
+  }
+
+  #[test]
+  fn encode_does_not_hex_prefix() {
+    let mut buffer = [0u8; 32];
+    let result = encode_hex_to_slice(&[], HexEncMode::WithPrefixLower, &mut buffer).unwrap();
+    assert_eq!(result, b"0x");
+    let result = encode_hex_to_slice(b"A", HexEncMode::WithPrefixUpper, &mut buffer).unwrap();
+    assert_eq!(result, b"0x41");
   }
 
   #[test]
   fn hex_display() {
     assert_eq!(
-      &ArrayVectorU8::<u8, 16>::try_from(format_args!("{}", HexDisplay::<false>(b"abcd"))).unwrap(),
+      &ArrayVectorU8::<u8, 16>::try_from(format_args!(
+        "{}",
+        HexDisplay(b"abcd", HexEncMode::WithoutPrefixLower)
+      ))
+      .unwrap(),
       "61626364".as_bytes()
     );
     assert_eq!(
-      &ArrayVectorU8::<u8, 16>::try_from(format_args!("{}", HexDisplay::<true>(b"abcd"))).unwrap(),
+      &ArrayVectorU8::<u8, 16>::try_from(format_args!(
+        "{}",
+        HexDisplay(b"abcd", HexEncMode::WithPrefixLower)
+      ))
+      .unwrap(),
       "0x61626364".as_bytes()
     );
   }

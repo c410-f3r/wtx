@@ -19,6 +19,8 @@ use crate::{
 pub struct PkgsAux<A, DRSR, TP> {
   /// API instance.
   pub api: A,
+  /// The number of build requests
+  pub built_requests: Id,
   /// Used by practically all transports to serialize or receive data in any desired operation.
   ///
   /// Some transports require a pre-filled buffer so it is important to not modify indiscriminately.
@@ -34,7 +36,6 @@ pub struct PkgsAux<A, DRSR, TP> {
   pub send_bytes_buffer: bool,
   /// External request and response parameters.
   pub tp: TP,
-  pub(crate) built_requests: Id,
 }
 
 impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
@@ -73,12 +74,9 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
     }
   }
 
-  /// The number of constructed requests that is not necessarily equal the number of sent requests.
-  ///
-  /// Wraps when a hard-to-happen overflow occurs
-  #[inline]
-  pub const fn built_requests(&self) -> Id {
-    self.built_requests
+  /// Should be used after a new request construction
+  pub const fn increase_requests_num(&mut self) {
+    self.built_requests = self.built_requests.wrapping_add(1);
   }
 
   /// Constructs [JsonRpcEncoder] and also increases the number of requests.
@@ -92,16 +90,16 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
     JsonRpcEncoder { id: self.built_requests, method, params }
   }
 
-  /// Logs sending or receiving bytes.
+  /// Temporally logs sending or receiving bytes.
   #[inline]
   pub const fn log_body(&mut self) {
     self.log_body.0 = true;
   }
 
-  /// Whether to show the contents of a request/response.
+  /// If the current request/response should be logged
   #[inline]
-  pub const fn set_log_body(&mut self, elem: bool) {
-    self.log_body.0 = elem;
+  pub const fn should_log_body(&self) -> bool {
+    self.log_body.0
   }
 
   /// Constructs [VerbatimEncoder] and also increases the number of requests.
@@ -109,9 +107,5 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   pub const fn verbatim_request<D>(&mut self, data: D) -> VerbatimEncoder<D> {
     self.increase_requests_num();
     VerbatimEncoder { data }
-  }
-
-  const fn increase_requests_num(&mut self) {
-    self.built_requests = self.built_requests.wrapping_add(1);
   }
 }

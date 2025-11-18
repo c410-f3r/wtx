@@ -49,7 +49,7 @@ where
   if !pkgs_aux.send_bytes_buffer {
     pkgs_aux.bytes_buffer.extend_from_copyable_slice(bytes)?;
   }
-  log_req::<_, TP>(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, trans);
+  log_req::<_, TP>(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), trans);
   cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(())
@@ -71,7 +71,7 @@ where
   TP: LeaseMut<WsParams>,
 {
   manage_before_sending_pkg(pkg, pkgs_aux, trans).await?;
-  log_req(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, trans);
+  log_req(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), trans);
   cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, trans).await
 }

@@ -94,7 +94,7 @@ pub(crate) fn log_http_req<T, TP>(
 {
   let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
   _debug!(
-    body = display(_body.unwrap_or_default()),
+    body = debug(_body),
     method = %_method,
     trans_ty = display(_trans.ty()),
     uri = display(_uri.as_str()),
@@ -107,5 +107,5 @@ where
   T: Transport<TP>,
 {
   let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
-  _debug!(body = display(_body.unwrap_or_default()), trans_ty = display(_trans.ty()), "Request");
+  _debug!(body = debug(_body), trans_ty = display(_trans.ty()), "Request");
 }
