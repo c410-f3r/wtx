@@ -128,6 +128,7 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
+  let should_log_body = pkgs_aux.should_log_body();
   let tp = pkgs_aux.tp.lease_mut();
   let (req_params, res_params) = tp.ext_params_mut();
   let HttpReqParams {
@@ -148,13 +149,7 @@ where
   mem::swap(&mut res.rrd.body, &mut pkgs_aux.bytes_buffer);
   mem::swap(&mut res.rrd.headers, headers);
   *status_code = res.status_code;
-  log_http_res(
-    &pkgs_aux.bytes_buffer,
-    pkgs_aux.log_body.1,
-    res.status_code,
-    TransportGroup::HTTP,
-    uri,
-  );
+  log_http_res(&pkgs_aux.bytes_buffer, should_log_body, res.status_code, TransportGroup::HTTP, uri);
   Ok(())
 }
 
@@ -174,7 +169,7 @@ where
   let local_bytes0 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
   log_http_req::<_, TP>(
     local_bytes0,
-    pkgs_aux.log_body.1,
+    pkgs_aux.should_log_body(),
     pkgs_aux.tp.lease().ext_req_params().method,
     client,
     &pkgs_aux.tp.lease().ext_req_params().uri,
@@ -212,7 +207,7 @@ where
   manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
   log_http_req::<_, TP>(
     &pkgs_aux.bytes_buffer,
-    pkgs_aux.log_body.1,
+    pkgs_aux.should_log_body(),
     pkgs_aux.tp.lease().ext_req_params().method,
     client,
     &pkgs_aux.tp.lease().ext_req_params().uri,

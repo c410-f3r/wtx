@@ -131,7 +131,7 @@ where
   {
     manage_before_sending_bytes(pkgs_aux).await?;
     let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
-    log_req(local_bytes, pkgs_aux.log_body.1, self);
+    log_req(local_bytes, pkgs_aux.should_log_body(), self);
     self.requests.push(Cow::Owned(FromBytes::from_bytes(local_bytes)?))?;
     pkgs_aux.bytes_buffer.clear();
     manage_after_sending_bytes(pkgs_aux).await?;
@@ -149,7 +149,7 @@ where
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     manage_before_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
-    log_req(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, self);
+    log_req(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), self);
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.bytes_buffer)?))?;
     pkgs_aux.bytes_buffer.clear();
     manage_after_sending_pkg(pkg, pkgs_aux, &mut *self).await?;

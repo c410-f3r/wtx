@@ -36,9 +36,9 @@ where
     A: Api,
   {
     pkgs_aux.bytes_buffer.clear();
-    let _frame =
-      self.read_frame(&mut pkgs_aux.bytes_buffer, WebSocketPayloadOrigin::Consistent).await?;
-    log_generic_res(&pkgs_aux.bytes_buffer, pkgs_aux.log_body.1, TransportGroup::WebSocket);
+    let wpo = WebSocketPayloadOrigin::Consistent;
+    let _frame = self.read_frame(&mut pkgs_aux.bytes_buffer, wpo).await?;
+    log_generic_res(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), TransportGroup::WebSocket);
     Ok(())
   }
 }
