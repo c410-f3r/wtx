@@ -134,3 +134,15 @@ podman run \
   -v SOME_DIRECTORY/setup.sh:/docker-entrypoint-initdb.d/setup.sh \
   docker.io/library/postgres:17
 ```
+
+## Batch
+
+Only PostgreSQL supports the sending of multiple statements in a single round-trip.
+
+* MariaDB has `MARIADB_CLIENT_STMT_BULK_OPERATIONS` but it only prevents one round trip of a single statement.
+* The X protocol (MySQL) is not implemented at the current time and is also not supported by MariaDB or PerconaDB.
+* `MULTI_STATEMENT`, from the Client/Server protocol, does not allow multiple prepared statements.
+
+```rust,edition2024,no_run
+{{#rustdoc_include ../../../wtx-instances/database-examples/database-client-postgres-batch.rs}}
+```

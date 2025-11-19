@@ -38,6 +38,11 @@ path = "database-examples/database-client-mysql.rs"
 required-features = ["database-client-mysql"]
 
 [[example]]
+name = "database-client-postgres-batch"
+path = "database-examples/database-client-postgres-batch.rs"
+required-features = ["database-client-postgres-batch"]
+
+[[example]]
 name = "database-client-postgres"
 path = "database-examples/database-client-postgres.rs"
 required-features = ["database-client-postgres"]
@@ -176,6 +181,7 @@ h2spec-low-server = ["wtx/http2"]
 
 database-client-mysql = ["mysql"]
 database-client-postgres = ["postgres"]
+database-client-postgres-batch = ["postgres"]
 database-client-postgres-composite-type = ["postgres"]
 database-client-postgres-enum = ["postgres"]
 

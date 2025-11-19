@@ -24,6 +24,11 @@ impl<V> SuffixWriter<V>
 where
   V: LeaseMut<Vector<u8>>,
 {
+  #[cfg(feature = "postgres")]
+  pub(crate) fn all_bytes(&self) -> &[u8] {
+    self.vec.lease().get(..self.curr_idx).unwrap_or_default()
+  }
+
   /// Iterates over the slice `other`, copies each element, and then appends
   /// it to this vector. The `other` slice is traversed in-order.
   #[inline]

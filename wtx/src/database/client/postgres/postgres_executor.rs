@@ -1,8 +1,7 @@
 mod authentication;
-mod commons;
 mod fetch;
-mod prepare;
 mod simple_query;
+mod stmt;
 
 use crate::{
   collection::TryExtend,
@@ -10,10 +9,9 @@ use crate::{
     Database, Executor, RecordValues, StmtCmd,
     client::{
       postgres::{
-        Config, Postgres, PostgresError, PostgresRecord, PostgresRecords,
+        Batch, Config, Postgres, PostgresError, PostgresRecord, PostgresRecords,
         executor_buffer::ExecutorBuffer,
         message::MessageTy,
-        postgres_executor::commons::FetchWithStmtCommons,
         protocol::{encrypted_conn, initial_conn_msg},
       },
       rdbms::{clear_cmd_buffers, common_executor_buffer::CommonExecutorBuffer},
@@ -36,6 +34,7 @@ pub struct PostgresExecutor<E, EB, S> {
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
+  E: From<crate::Error>,
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
@@ -85,7 +84,14 @@ where
       .await
   }
 
+  /// See [`Batch`].
+  #[inline]
+  pub fn batch(&mut self) -> Batch<'_, E, EB, S> {
+    Batch::new(self)
+  }
+
   /// Mutable buffer reference
+  #[inline]
   pub fn eb_mut(&mut self) -> &mut ExecutorBuffer {
     self.eb.lease_mut()
   }
@@ -167,10 +173,9 @@ where
     let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
-    let tuple = Self::write_send_await_stmt_parse(&mut fwsc, net_buffer, sc, stmts).await?;
-    let (_, stmt_cmd_id_array, stmt) = tuple;
-    Self::write_send_await_stmt_rest(&mut fwsc, net_buffer, rv, &stmt_cmd_id_array).await?;
+    let tuple = Self::write_send_await_stmt_prepare(cs, net_buffer, sc, stmts, stream, &[]).await?;
+    let (_, stmt_cmd_id_array, stmt_mut) = tuple;
+    Self::write_send_await_stmt_bind(cs, net_buffer, rv, &stmt_cmd_id_array, stream).await?;
     let begin = net_buffer.current_end_idx();
     let begin_data = net_buffer.current_end_idx().wrapping_add(7);
     loop {
@@ -184,7 +189,7 @@ where
           let record_range_end = net_buffer.current_end_idx().wrapping_sub(begin_data);
           bytes = bytes.get(record_range_begin..record_range_end).unwrap_or_default();
           let values_params_begin = values_params.len();
-          cb(PostgresRecord::parse(bytes, stmt.clone(), values_len, values_params)?)?;
+          cb(PostgresRecord::parse(bytes, stmt_mut.stmt(), values_len, values_params)?)?;
           records_params.push((
             record_range_begin..record_range_end,
             values_params_begin..values_params.len(),
@@ -203,7 +208,7 @@ where
     Ok(PostgresRecords::new(
       net_buffer.all().get(begin_data..net_buffer.current_end_idx()).unwrap_or_default(),
       records_params,
-      stmt,
+      stmt_mut.into_stmt(),
       values_params,
     ))
   }
@@ -219,7 +224,6 @@ where
     let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    let mut fwsc = FetchWithStmtCommons { cs, stream, tys: &[] };
-    Ok(Self::write_send_await_stmt_parse(&mut fwsc, net_buffer, cmd, stmts).await?.0)
+    Ok(Self::write_send_await_stmt_prepare(cs, net_buffer, cmd, stmts, stream, &[]).await?.0)
   }
 }

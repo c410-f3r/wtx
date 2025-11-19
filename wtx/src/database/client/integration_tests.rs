@@ -16,8 +16,8 @@ where
   Runtime::new()
     .block_on(async {
       let mut executor = fut.await;
-      let mut records = Vector::new();
       let mut idx: u16 = 0;
+      let mut records = Vector::new();
       executor
         .execute_many(
           &mut records,
