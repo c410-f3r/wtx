@@ -23,9 +23,7 @@ pub use dec_error::DecError;
 pub use decode::{Decode, DecodeSeq};
 pub use encode::Encode;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
-pub use hex::{
-  HexDecMode, HexDisplay, HexEncMode, HexError, decode_hex_to_slice, encode_hex_to_slice,
-};
+pub use hex::{HexDisplay, HexEncMode, HexError, decode_hex, encode_hex};
 pub use num_array::{
   I16String, U8String, U16String, U32String, U64String, i16_string, u8_string, u16_string,
   u32_string, u64_string,
