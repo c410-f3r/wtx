@@ -3,13 +3,12 @@ use crate::{
     DatabaseError, RecordValues, StmtCmd,
     client::{
       postgres::{
-        Postgres, PostgresError, PostgresExecutor, PostgresStatement, PostgresStatements,
+        Postgres, PostgresError, PostgresExecutor, PostgresStatementMut, PostgresStatements,
         executor_buffer::ExecutorBuffer,
         message::MessageTy,
         misc::dummy_stmt_value,
         msg_field::MsgField,
         postgres_column_info::PostgresColumnInfo,
-        postgres_executor::commons::FetchWithStmtCommons,
         protocol::{bind, describe, execute, parse, sync},
         ty::Ty,
       },
@@ -18,7 +17,8 @@ use crate::{
   },
   de::{U64String, u64_string},
   misc::{
-    FilledBufferVectorMut, LeaseMut, SuffixWriter, SuffixWriterFbvm, net::PartitionedFilledBuffer,
+    ConnectionState, FilledBufferVectorMut, LeaseMut, SuffixWriter, SuffixWriterFbvm,
+    net::PartitionedFilledBuffer,
   },
   stream::Stream,
 };
@@ -29,47 +29,41 @@ where
   EB: LeaseMut<ExecutorBuffer>,
   S: Stream,
 {
-  pub(crate) async fn write_send_await_stmt_parse<'stmts, SC>(
-    fwsc: &mut FetchWithStmtCommons<'_, S>,
+  pub(crate) async fn await_stmt_bind(
+    cs: &mut ConnectionState,
     net_buffer: &mut PartitionedFilledBuffer,
-    sc: SC,
-    stmts: &'stmts mut PostgresStatements,
-  ) -> Result<(u64, U64String, PostgresStatement<'stmts>), E>
+    stream: &mut S,
+  ) -> Result<(), E>
   where
     S: Stream,
-    SC: StmtCmd,
   {
-    let stmt_cmd_id = sc.hash(stmts.hasher_mut());
-    let stmt_cmd_id_array = u64_string(stmt_cmd_id);
-    if stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some() {
-      // FIXME(stable): Use `if let Some ...` with polonius
-      return Ok((
-        stmt_cmd_id,
-        stmt_cmd_id_array,
-        stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).unwrap().into_stmt(),
-      ));
-    }
+    let msg = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
+    let MessageTy::BindComplete = msg.ty else {
+      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
+    };
+    Ok(())
+  }
 
-    let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
-
-    {
-      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
-      Self::write_stmt_parse::<true>(fwsc, stmt_cmd, &stmt_cmd_id_array, &mut sw)?;
-      fwsc.stream.write_all(sw.curr_bytes()).await?;
-    }
-
-    let msg0 = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
+  pub(crate) async fn await_stmt_prepare<'stmts, const HAS_SYNC: bool>(
+    cs: &mut ConnectionState,
+    net_buffer: &mut PartitionedFilledBuffer,
+    stmt_cmd_id: u64,
+    stmt_cmd_id_array: U64String,
+    stmts: &'stmts mut PostgresStatements,
+    stream: &mut S,
+  ) -> Result<PostgresStatementMut<'stmts>, E>
+  where
+    S: Stream,
+  {
+    let msg0 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
     let MessageTy::ParseComplete = msg0.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg0.tag }.into()));
     };
 
     let mut builder = stmts
-      .builder((&mut *fwsc, &mut *net_buffer), {
+      .builder((&mut *net_buffer, &mut *stream), {
         async fn fun<S>(
-          (local_fwsc, local_nb): &mut (
-            &mut FetchWithStmtCommons<'_, S>,
-            &mut PartitionedFilledBuffer,
-          ),
+          (local_nb, local_stream): &mut (&mut PartitionedFilledBuffer, &mut S),
           stmt: StatementsMisc<U64String>,
         ) -> crate::Result<()>
         where
@@ -77,14 +71,14 @@ where
         {
           let mut sw = SuffixWriterFbvm::from(local_nb.suffix_writer());
           sw.extend_from_slices([b"S", stmt._aux.as_bytes(), &[0]])?;
-          local_fwsc.stream.write_all(sw.curr_bytes()).await?;
+          local_stream.write_all(sw.curr_bytes()).await?;
           Ok(())
         }
         fun
       })
       .await?;
 
-    let msg1 = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
+    let msg1 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
     let MessageTy::ParameterDescription(types_len, mut pd) = msg1.ty else {
       return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into()));
     };
@@ -101,7 +95,7 @@ where
       }
     }
 
-    let msg2 = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
+    let msg2 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
     let columns_len = match msg2.ty {
       MessageTy::NoData => 0,
       MessageTy::RowDescription(columns_len, mut rd) => {
@@ -131,58 +125,82 @@ where
       }
     };
 
-    let msg3 = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
-    let MessageTy::ReadyForQuery = msg3.ty else {
-      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg3.tag }.into()));
-    };
+    if HAS_SYNC {
+      let msg3 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
+      let MessageTy::ReadyForQuery = msg3.ty else {
+        return Err(E::from(
+          PostgresError::UnexpectedDatabaseMessage { received: msg3.tag }.into(),
+        ));
+      };
+    }
 
     let sm = StatementsMisc::new(stmt_cmd_id_array, columns_len.into(), 0, types_len.into());
     let idx = builder.build(stmt_cmd_id, sm)?;
     let Some(stmt_mut) = stmts.get_by_idx_mut(idx) else {
       return Err(crate::Error::ProgrammingError.into());
     };
-    Ok((stmt_cmd_id, stmt_cmd_id_array, stmt_mut.into_stmt()))
+    Ok(stmt_mut)
   }
 
-  pub(crate) async fn write_send_await_stmt_rest<RV>(
-    fwsc: &mut FetchWithStmtCommons<'_, S>,
+  pub(crate) async fn write_send_await_stmt_bind<RV>(
+    cs: &mut ConnectionState,
     net_buffer: &mut PartitionedFilledBuffer,
     rv: RV,
     stmt_cmd_id_array: &U64String,
+    stream: &mut S,
   ) -> Result<(), E>
   where
     RV: RecordValues<Postgres<E>>,
   {
     {
       let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
-      Self::write_stmt_rest::<_, true>(rv, stmt_cmd_id_array, &mut sw)?;
-      fwsc.stream.write_all(sw.curr_bytes()).await?;
+      Self::write_stmt_bind::<_, true>(rv, stmt_cmd_id_array, &mut sw)?;
+      stream.write_all(sw.curr_bytes()).await?;
     }
-    let msg = Self::fetch_msg_from_stream(fwsc.cs, net_buffer, fwsc.stream).await?;
-    let MessageTy::BindComplete = msg.ty else {
-      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into()));
-    };
-    Ok(())
+    Self::await_stmt_bind(cs, net_buffer, stream).await
   }
 
-  pub(crate) fn write_stmt_parse<const SYNC: bool>(
-    fwsc: &mut FetchWithStmtCommons<'_, S>,
-    stmt_cmd: &str,
-    stmt_cmd_id_array: &U64String,
-    sw: &mut SuffixWriter<FilledBufferVectorMut<'_>>,
-  ) -> Result<(), E>
+  pub(crate) async fn write_send_await_stmt_prepare<'stmts, SC>(
+    cs: &mut ConnectionState,
+    net_buffer: &mut PartitionedFilledBuffer,
+    sc: SC,
+    stmts: &'stmts mut PostgresStatements,
+    stream: &mut S,
+    tys: &[Ty],
+  ) -> Result<(u64, U64String, PostgresStatementMut<'stmts>), E>
   where
     S: Stream,
+    SC: StmtCmd,
   {
-    parse(stmt_cmd, sw, fwsc.tys.iter().copied().map(Into::into), stmt_cmd_id_array)?;
-    describe(stmt_cmd_id_array.as_bytes(), sw, b'S')?;
-    if SYNC {
-      sync(sw)?;
+    let stmt_cmd_id = sc.hash(stmts.hasher_mut());
+    let stmt_cmd_id_array = u64_string(stmt_cmd_id);
+    if stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some() {
+      // FIXME(stable): Use `if let Some ...` with polonius
+      return Ok((
+        stmt_cmd_id,
+        stmt_cmd_id_array,
+        stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).unwrap(),
+      ));
     }
-    Ok(())
+    let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
+    {
+      let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
+      Self::write_stmt_prepare::<true>(stmt_cmd, &stmt_cmd_id_array, &mut sw, tys)?;
+      stream.write_all(sw.curr_bytes()).await?;
+    }
+    let stmt_mut = Self::await_stmt_prepare::<true>(
+      cs,
+      net_buffer,
+      stmt_cmd_id,
+      stmt_cmd_id_array,
+      stmts,
+      stream,
+    )
+    .await?;
+    Ok((stmt_cmd_id, stmt_cmd_id_array, stmt_mut))
   }
 
-  pub(crate) fn write_stmt_rest<RV, const SYNC: bool>(
+  pub(crate) fn write_stmt_bind<RV, const SYNC: bool>(
     rv: RV,
     stmt_cmd_id_array: &U64String,
     sw: &mut SuffixWriter<FilledBufferVectorMut<'_>>,
@@ -192,6 +210,23 @@ where
   {
     bind(sw, "", rv, stmt_cmd_id_array)?;
     execute(sw, 0, "")?;
+    if SYNC {
+      sync(sw)?;
+    }
+    Ok(())
+  }
+
+  pub(crate) fn write_stmt_prepare<const SYNC: bool>(
+    stmt_cmd: &str,
+    stmt_cmd_id_array: &U64String,
+    sw: &mut SuffixWriter<FilledBufferVectorMut<'_>>,
+    tys: &[Ty],
+  ) -> Result<(), E>
+  where
+    S: Stream,
+  {
+    parse(stmt_cmd, sw, tys.iter().copied().map(Into::into), stmt_cmd_id_array)?;
+    describe(stmt_cmd_id_array.as_bytes(), sw, b'S')?;
     if SYNC {
       sync(sw)?;
     }

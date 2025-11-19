@@ -2,6 +2,7 @@
 //! extensibility and SQL compliance.
 
 mod authentication;
+mod batch;
 mod config;
 mod db_error;
 mod decode_wrapper;
@@ -28,12 +29,16 @@ use crate::{
   database::{
     Database, DatabaseTy,
     client::rdbms::{
-      common_executor_buffer::CommonExecutorBuffer, common_record::CommonRecord,
-      common_records::CommonRecords, statement::Statement, statements::Statements,
+      common_executor_buffer::CommonExecutorBuffer,
+      common_record::CommonRecord,
+      common_records::CommonRecords,
+      statement::{Statement, StatementMut},
+      statements::Statements,
     },
   },
   de::{DEController, U64String},
 };
+pub use batch::Batch;
 pub use config::Config;
 use core::{
   fmt::{Debug, Formatter},
@@ -61,6 +66,8 @@ pub(crate) type PostgresStatements =
   Statements<U64String, postgres_column_info::PostgresColumnInfo, Ty>;
 pub(crate) type PostgresStatement<'stmts> =
   Statement<'stmts, U64String, postgres_column_info::PostgresColumnInfo, Ty>;
+pub(crate) type PostgresStatementMut<'stmts> =
+  StatementMut<'stmts, U64String, postgres_column_info::PostgresColumnInfo, Ty>;
 pub(crate) type PostgresCommonExecutorBuffer =
   CommonExecutorBuffer<U64String, postgres_column_info::PostgresColumnInfo, Ty>;
 

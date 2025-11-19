@@ -1,10 +1,12 @@
 use crate::{
+  collection::Vector,
   database::{
     Executor as _, Record, Typed,
     client::postgres::{
       Config, DecodeWrapper, EncodeWrapper, ExecutorBuffer, Postgres, PostgresExecutor,
       StructDecoder, StructEncoder, Ty,
     },
+    records::Records,
   },
   de::{Decode, Encode},
   executor::Runtime,
@@ -16,6 +18,73 @@ use alloc::string::String;
 use std::{env, sync::LazyLock};
 
 static URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_POSTGRES").unwrap());
+
+#[test]
+fn batch() {
+  Runtime::new()
+    .block_on(async {
+      let mut executor = executor().await;
+      let mut idx: u32 = 0;
+      let mut records = Vector::new();
+      let mut batch = executor.batch();
+      batch.stmt("SELECT 0,1,2 UNION SELECT 3,4,$1", (5,)).unwrap();
+      batch.stmt("SELECT 6,7,8 UNION SELECT 9,10,$1", (11,)).unwrap();
+      batch.stmt("SELECT 12,13,14 UNION SELECT 15,16,$1", (17,)).unwrap();
+      batch
+        .flush(&mut records, |record| {
+          assert_eq!(record.decode::<_, u32>(0).unwrap(), idx);
+          idx = idx.wrapping_add(1);
+          assert_eq!(record.decode::<_, u32>(1).unwrap(), idx);
+          idx = idx.wrapping_add(1);
+          assert_eq!(record.decode::<_, u32>(2).unwrap(), idx);
+          idx = idx.wrapping_add(1);
+          Ok(())
+        })
+        .await
+        .unwrap();
+      assert_eq!(records.len(), 3);
+
+      let records0 = records.get(0).unwrap();
+      let records00 = records0.get(0).unwrap();
+      let records01 = records0.get(1).unwrap();
+      assert_eq!(records0.len(), 2);
+      assert_eq!(records00.len(), 3);
+      assert_eq!(records00.decode::<_, u32>(0).unwrap(), 0);
+      assert_eq!(records00.decode::<_, u32>(1).unwrap(), 1);
+      assert_eq!(records00.decode::<_, u32>(2).unwrap(), 2);
+      assert_eq!(records01.len(), 3);
+      assert_eq!(records01.decode::<_, u32>(0).unwrap(), 3);
+      assert_eq!(records01.decode::<_, u32>(1).unwrap(), 4);
+      assert_eq!(records01.decode::<_, u32>(2).unwrap(), 5);
+
+      let records1 = records.get(1).unwrap();
+      let records10 = records1.get(0).unwrap();
+      let records11 = records1.get(1).unwrap();
+      assert_eq!(records1.len(), 2);
+      assert_eq!(records10.len(), 3);
+      assert_eq!(records10.decode::<_, u32>(0).unwrap(), 6);
+      assert_eq!(records10.decode::<_, u32>(1).unwrap(), 7);
+      assert_eq!(records10.decode::<_, u32>(2).unwrap(), 8);
+      assert_eq!(records11.len(), 3);
+      assert_eq!(records11.decode::<_, u32>(0).unwrap(), 9);
+      assert_eq!(records11.decode::<_, u32>(1).unwrap(), 10);
+      assert_eq!(records11.decode::<_, u32>(2).unwrap(), 11);
+
+      let records2 = records.get(2).unwrap();
+      let records20 = records2.get(0).unwrap();
+      let records21 = records2.get(1).unwrap();
+      assert_eq!(records2.len(), 2);
+      assert_eq!(records20.len(), 3);
+      assert_eq!(records20.decode::<_, u32>(0).unwrap(), 12);
+      assert_eq!(records20.decode::<_, u32>(1).unwrap(), 13);
+      assert_eq!(records20.decode::<_, u32>(2).unwrap(), 14);
+      assert_eq!(records21.len(), 3);
+      assert_eq!(records21.decode::<_, u32>(0).unwrap(), 15);
+      assert_eq!(records21.decode::<_, u32>(1).unwrap(), 16);
+      assert_eq!(records21.decode::<_, u32>(2).unwrap(), 17);
+    })
+    .unwrap();
+}
 
 #[test]
 fn custom_composite_type() {
@@ -55,7 +124,7 @@ fn custom_composite_type() {
         }
       }
 
-      let mut executor = executor::<crate::Error>().await;
+      let mut executor = executor().await;
       executor
         .execute_ignored(
           "
@@ -118,7 +187,7 @@ fn custom_domain() {
         }
       }
 
-      let mut executor = executor::<crate::Error>().await;
+      let mut executor = executor().await;
       executor
         .execute_ignored(
           "
@@ -193,7 +262,7 @@ fn custom_enum() {
         }
       }
 
-      let mut executor = executor::<crate::Error>().await;
+      let mut executor = executor().await;
       executor
         .execute_ignored(
           "
@@ -219,33 +288,29 @@ fn custom_enum() {
 
 #[test]
 fn execute() {
-  crate::database::client::integration_tests::execute(executor::<crate::Error>());
+  crate::database::client::integration_tests::execute(executor());
 }
 
 #[test]
 fn execute_interleaved() {
-  crate::database::client::integration_tests::execute_interleaved(executor::<crate::Error>());
+  crate::database::client::integration_tests::execute_interleaved(executor());
 }
 
 #[test]
 fn execute_stmt_inserts() {
-  crate::database::client::integration_tests::execute_stmt_inserts(executor::<crate::Error>());
+  crate::database::client::integration_tests::execute_stmt_inserts(executor());
 }
 
 #[test]
 fn execute_stmt_selects() {
-  crate::database::client::integration_tests::execute_stmt_selects(
-    executor::<crate::Error>(),
-    "$1",
-    "$2",
-  );
+  crate::database::client::integration_tests::execute_stmt_selects(executor(), "$1", "$2");
 }
 
 #[test]
 fn multiple_notifications() {
   Runtime::new()
     .block_on(async {
-      let mut executor = executor::<crate::Error>().await;
+      let mut executor = executor().await;
       executor
         .execute_stmt_none(
           "CREATE TABLE IF NOT EXISTS multiple_notifications_test (id SERIAL PRIMARY KEY, body TEXT)",
@@ -260,20 +325,17 @@ fn multiple_notifications() {
 
 #[test]
 fn ping() {
-  crate::database::client::integration_tests::ping(executor::<crate::Error>());
+  crate::database::client::integration_tests::ping(executor());
 }
 
 #[test]
 fn records_after_prepare() {
-  crate::database::client::integration_tests::records_after_prepare(executor::<crate::Error>());
+  crate::database::client::integration_tests::records_after_prepare(executor());
 }
 
 #[test]
 fn reuses_cached_statement() {
-  crate::database::client::integration_tests::reuses_cached_statement(
-    executor::<crate::Error>(),
-    "$1",
-  );
+  crate::database::client::integration_tests::reuses_cached_statement(executor(), "$1");
 }
 
 #[cfg(feature = "serde_json")]
@@ -282,7 +344,7 @@ fn serde_json() {
   Runtime::new()
     .block_on(async {
       use crate::database::Json;
-      let mut executor = executor::<crate::Error>().await;
+      let mut executor = executor().await;
       executor
         .execute_many(&mut (), "CREATE TABLE IF NOT EXISTS serde_json (col JSONB NOT NULL)", |_| {
           Ok(())
@@ -326,7 +388,7 @@ async fn tls() {
   .unwrap();
 }
 
-async fn executor<E>() -> PostgresExecutor<E, ExecutorBuffer, std::net::TcpStream> {
+async fn executor() -> PostgresExecutor<crate::Error, ExecutorBuffer, std::net::TcpStream> {
   let uri_string = &*URI;
   let uri = UriRef::new(uri_string.as_str());
   let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
