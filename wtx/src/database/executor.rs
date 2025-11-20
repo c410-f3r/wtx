@@ -23,10 +23,15 @@ pub trait Executor {
     &mut self,
     cmd: &str,
   ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>> {
-    async {
-      self.execute_many(&mut (), cmd, |_| Ok(())).await?;
-      Ok(())
+    // FIXME(stable): For some reason this method makes `http-server-framework-session` !Send.
+    const fn nothing() -> &'static mut () {
+      static mut NOTHING: &mut () = &mut ();
+      // SAFETY: Does nothing, pointer means nothing and is not actually used or referenced. See
+      // `TryExtend::IS_UNIT`
+      unsafe { NOTHING }
     }
+
+    self.execute_many(nothing(), cmd, |_| Ok(()))
   }
 
   /// Execute - Many
