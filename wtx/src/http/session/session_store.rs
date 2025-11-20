@@ -190,10 +190,7 @@ mod postgres {
 
     #[inline]
     async fn delete_expired(&mut self) -> Result<(), E> {
-      // FIXME(stable): the use of `execute_ignored` makes `http-server-framework-session` !Send.
-      self
-        .execute_many(&mut (), "DELETE FROM session WHERE expires_at <= NOW()", |_| Ok(()))
-        .await?;
+      self.execute_ignored("DELETE FROM session WHERE expires_at <= NOW()").await?;
       Ok(())
     }
 
