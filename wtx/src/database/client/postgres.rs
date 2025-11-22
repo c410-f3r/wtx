@@ -1,6 +1,9 @@
 //! Postgres, is a free and open-source relational database management system (RDBMS) emphasizing
 //! extensibility and SQL compliance.
 
+#[macro_use]
+mod macros;
+
 mod authentication;
 mod batch;
 mod config;

@@ -6,9 +6,7 @@ use crate::{
         Postgres, PostgresError, PostgresExecutor, PostgresStatementMut, PostgresStatements,
         executor_buffer::ExecutorBuffer,
         message::MessageTy,
-        misc::dummy_stmt_value,
-        msg_field::MsgField,
-        postgres_column_info::PostgresColumnInfo,
+        misc::{dummy_stmt_value, row_description},
         protocol::{bind, describe, execute, parse, sync},
         ty::Ty,
       },
@@ -103,19 +101,12 @@ where
           let _ = builder.expand(diff.into(), dummy_stmt_value())?;
         }
         let elements = builder.inserted_elements();
-        for idx in 0..columns_len {
-          let (read, msg_field) = MsgField::parse(rd)?;
-          let ty = Ty::Custom(msg_field.type_oid);
-          let Some(element) = elements.get_mut(usize::from(idx)) else {
-            break;
-          };
-          element.0 = PostgresColumnInfo::new(msg_field.name.try_into()?, ty);
-          if let Some(elem @ [_not_empty, ..]) = rd.get(read..) {
-            rd = elem;
-          } else {
-            break;
+        row_description(columns_len, &mut rd, |idx, pci| {
+          if let Some(element) = elements.get_mut(usize::from(idx)) {
+            element.0 = pci;
           }
-        }
+          Ok(())
+        })?;
         columns_len
       }
       _ => {

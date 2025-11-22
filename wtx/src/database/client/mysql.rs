@@ -1,6 +1,9 @@
 //! MySQL is an open source relational database management system (RDBMS) that's used to store
 //! and manage data.
 
+#[macro_use]
+mod macros;
+
 mod auth_plugin;
 mod capability;
 pub(crate) mod charset;
