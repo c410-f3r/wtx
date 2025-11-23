@@ -74,7 +74,7 @@ where
     use crate::database::Record as _;
     let rslt = Self {
       common: MigrationCommon {
-        checksum: checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
+        checksum: checksum_from_bytes(curr_params.curr_record.decode("checksum")?)?.into(),
         name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
         repeatability: from_u32(curr_params.curr_record.decode_opt("repeatability")?),
         uid: curr_params.curr_record.decode("uid")?,
@@ -112,7 +112,7 @@ where
     use crate::database::Record as _;
     let rslt = Self {
       common: MigrationCommon {
-        checksum: checksum_from_str(curr_params.curr_record.decode("checksum")?)?,
+        checksum: checksum_from_bytes(curr_params.curr_record.decode("checksum")?)?,
         name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
         repeatability: from_u32(curr_params.curr_record.decode_opt("repeatability")?),
         uid: curr_params.curr_record.decode("uid")?,
@@ -138,7 +138,7 @@ impl fmt::Display for DbMigration {
 }
 
 #[cfg(any(feature = "mysql", feature = "postgres"))]
-fn checksum_from_str(bytes: &[u8]) -> crate::Result<u64> {
+fn checksum_from_bytes(bytes: &[u8]) -> crate::Result<u64> {
   use crate::de::FromRadix10;
   Ok(
     u64::from_radix_10(bytes)

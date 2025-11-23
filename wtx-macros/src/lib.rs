@@ -8,6 +8,7 @@ mod executor;
 mod from_records;
 mod http;
 mod misc;
+mod table;
 
 use error::Error;
 
@@ -79,6 +80,15 @@ pub fn pkg(
   item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
   match client_api_framework::pkg::pkg(attr, item) {
+    Err(err) => syn::Error::from(err).to_compile_error().into(),
+    Ok(elem) => elem,
+  }
+}
+
+/// Generates table fields separated by commas
+#[proc_macro_derive(Table)]
+pub fn table(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  match table::table(item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }

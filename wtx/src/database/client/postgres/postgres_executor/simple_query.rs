@@ -5,8 +5,10 @@ use crate::{
     client::{
       postgres::{
         ExecutorBuffer, PostgresError, PostgresExecutor, PostgresRecord, PostgresRecords,
-        PostgresStatements, Ty, message::MessageTy, misc::dummy_stmt_value, msg_field::MsgField,
-        postgres_column_info::PostgresColumnInfo, protocol::query,
+        PostgresStatements,
+        message::MessageTy,
+        misc::{data_row, dummy_stmt_value, extend_records, row_description},
+        protocol::query,
       },
       rdbms::statements_misc::StatementsMisc,
     },
@@ -67,17 +69,17 @@ where
             let Some(stmt_mut) = stmt_idx.and_then(|idx| stmts.get_by_idx_mut(idx)) else {
               return Err(crate::Error::ProgrammingError.into());
             };
-            let net_buffer_range = begin_data..net_buffer.current_end_idx();
-            let mut bytes = net_buffer.all().get(net_buffer_range).unwrap_or_default();
-            let record_range_begin = net_buffer.antecedent_end_idx().wrapping_sub(begin);
-            let record_range_end = net_buffer.current_end_idx().wrapping_sub(begin_data);
-            bytes = bytes.get(record_range_begin..record_range_end).unwrap_or_default();
-            let values_params_begin = values_params.len().wrapping_sub(values_params_offset);
-            cb(PostgresRecord::parse(bytes, stmt_mut.stmt(), values_len, values_params)?)?;
-            records_params.push((
-              record_range_begin..record_range_end,
-              values_params_begin..values_params.len().wrapping_sub(values_params_offset),
-            ))?;
+            data_row(
+              begin,
+              begin_data,
+              net_buffer,
+              records_params,
+              stmt_mut.stmt(),
+              values_len,
+              values_params,
+              values_params_offset,
+              &mut cb,
+            )?;
           }
         }
         MessageTy::EmptyQueryResponse => {}
@@ -99,16 +101,7 @@ where
               stmt_cmd_id,
               StatementsMisc::new(timestamp_nanos_str, columns_len.into(), 0, 0),
             )?);
-            for _ in 0..columns_len {
-              let (read, msg_field) = MsgField::parse(rd)?;
-              let ty = Ty::Custom(msg_field.type_oid);
-              let _info = PostgresColumnInfo::new(msg_field.name.try_into()?, ty);
-              if let Some(elem @ [_not_empty, ..]) = rd.get(read..) {
-                rd = elem;
-              } else {
-                break;
-              }
-            }
+            row_description(columns_len, &mut rd, |_, _| Ok(()))?;
           }
         }
         _ => {
@@ -119,27 +112,15 @@ where
         }
       }
     }
-    if !B::IS_UNIT {
-      let mut rows_idx: usize = 0;
-      let mut values_idx: usize = 0;
-      for idx in stmts_begin..stmts.len() {
-        let Some(stmt) = stmts.get_by_idx(idx) else {
-          return Err(crate::Error::ProgrammingError.into());
-        };
-        let local_rows_idx = rows_idx.wrapping_add(stmt.rows_len);
-        let local_values_idx = stmt.columns_len.wrapping_mul(local_rows_idx);
-        let local_rp = records_params.get(rows_idx..local_rows_idx).unwrap_or_default();
-        let local_vp = values_params.get(values_idx..local_values_idx).unwrap_or_default();
-        rows_idx = local_rows_idx;
-        values_idx = local_values_idx;
-        buffer.try_extend([PostgresRecords::new(
-          net_buffer.all().get(begin_data..net_buffer.current_end_idx()).unwrap_or_default(),
-          local_rp,
-          stmt,
-          local_vp,
-        )])?;
-      }
-    }
+    extend_records(
+      begin_data,
+      buffer,
+      net_buffer,
+      records_params,
+      stmts,
+      stmts_begin,
+      values_params,
+    )?;
     Ok(())
   }
 }

@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayVectorU16,
+  collection::ArrayVectorU8,
   database::{
     Typed,
     client::postgres::{
@@ -17,10 +17,92 @@ where
 {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
-    let pg_numeric = PgNumeric::decode(dw)?;
-    let (digits, sign, mut weight, scale) = match pg_numeric {
+    Ok(PgNumeric::decode(dw)?.try_into()?)
+  }
+}
+
+impl<E> Encode<Postgres<E>> for Decimal
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+    PgNumeric::try_from(*self)?.encode(ew)
+  }
+}
+
+impl<E> Typed<Postgres<E>> for Decimal
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    <Self as Typed<Postgres<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::Numeric)
+  }
+}
+
+impl TryFrom<Decimal> for PgNumeric {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: Decimal) -> Result<Self, Self::Error> {
+    if value.is_zero() {
+      return Ok(PgNumeric::Number {
+        digits: ArrayVectorU8::new(),
+        scale: 0,
+        sign: Sign::Positive,
+        weight: 0,
+      });
+    }
+
+    let scale = value.scale() as u16;
+
+    let mut mantissa = value.mantissa().unsigned_abs();
+    let diff = scale % 4;
+    if diff > 0 {
+      let remainder = 4u32.wrapping_sub(u32::from(diff));
+      mantissa = mantissa.wrapping_mul(u128::from(10u32.pow(remainder)));
+    }
+
+    let mut digits = ArrayVectorU8::new();
+    while mantissa != 0 {
+      digits.push((mantissa % 10_000) as i16)?;
+      mantissa /= 10_000;
+    }
+    digits.reverse();
+
+    let after_decimal = scale.wrapping_add(3) / 4;
+    let weight = u16::from(digits.len()).wrapping_sub(after_decimal).wrapping_sub(1) as i16;
+
+    while let Some(&0) = digits.last() {
+      let _ = digits.pop();
+    }
+
+    Ok(PgNumeric::Number {
+      digits,
+      scale,
+      sign: match value.is_sign_negative() {
+        false => Sign::Positive,
+        true => Sign::Negative,
+      },
+      weight,
+    })
+  }
+}
+
+impl TryFrom<PgNumeric> for Decimal {
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: PgNumeric) -> Result<Self, Self::Error> {
+    let (digits, sign, mut weight, scale) = match value {
       PgNumeric::NaN => {
-        return Err(E::from(PostgresError::DecimalCanNotBeConvertedFromNaN.into()));
+        return Err(PostgresError::DecimalCanNotBeConvertedFromNaN.into());
       }
       PgNumeric::Number { digits, sign, weight, scale } => (digits, sign, weight, scale),
     };
@@ -47,74 +129,27 @@ where
   }
 }
 
-impl<E> Encode<Postgres<E>> for Decimal
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    if self.is_zero() {
-      let rslt = PgNumeric::Number {
-        digits: ArrayVectorU16::new(),
-        scale: 0,
-        sign: Sign::Positive,
-        weight: 0,
-      };
-      rslt.encode(ew)?;
-      return Ok(());
-    }
-
-    let scale = self.scale() as u16;
-
-    let mut mantissa = u128::from_le_bytes(self.serialize());
-    mantissa >>= 32;
-    let diff = scale % 4;
-    if diff > 0 {
-      let remainder = 4u32.wrapping_sub(u32::from(diff));
-      mantissa = mantissa.wrapping_mul(u128::from(10u32.pow(remainder)));
-    }
-
-    let mut digits = ArrayVectorU16::new();
-    while mantissa != 0 {
-      digits.push((mantissa % 10_000) as i16)?;
-      mantissa /= 10_000;
-    }
-    digits.reverse();
-
-    let after_decimal = scale.wrapping_add(3) / 4;
-    let weight = digits.len().wrapping_sub(after_decimal).wrapping_sub(1) as i16;
-
-    while let Some(&0) = digits.last() {
-      let _ = digits.pop();
-    }
-
-    let rslt = PgNumeric::Number {
-      digits,
-      scale,
-      sign: match self.is_sign_negative() {
-        false => Sign::Positive,
-        true => Sign::Negative,
-      },
-      weight,
-    };
-    rslt.encode(ew)?;
-    Ok(())
-  }
-}
-
-impl<E> Typed<Postgres<E>> for Decimal
-where
-  E: From<crate::Error>,
-{
-  #[inline]
-  fn runtime_ty(&self) -> Option<Ty> {
-    <Self as Typed<Postgres<E>>>::static_ty()
-  }
-
-  #[inline]
-  fn static_ty() -> Option<Ty> {
-    Some(Ty::Numeric)
-  }
-}
-
 kani!(rust_decimal, Decimal);
+
+#[cfg(test)]
+mod tests {
+  use crate::database::client::postgres::tys::pg_numeric::{PgNumeric, Sign};
+  use rust_decimal::Decimal;
+
+  #[test]
+  fn encodes_and_decodes() {
+    let original: Decimal = "12345.67890".try_into().unwrap();
+    let encoded = PgNumeric::try_from(original).unwrap();
+    assert_eq!(
+      encoded,
+      PgNumeric::Number {
+        sign: Sign::Positive,
+        scale: 5,
+        weight: 1,
+        digits: [1, 2345, 6789].as_ref().try_into().unwrap(),
+      }
+    );
+    let decoded = Decimal::try_from(encoded).unwrap();
+    assert_eq!(decoded, original);
+  }
+}

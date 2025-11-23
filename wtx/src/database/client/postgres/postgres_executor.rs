@@ -9,9 +9,10 @@ use crate::{
     Database, Executor, RecordValues, StmtCmd,
     client::{
       postgres::{
-        Batch, Config, Postgres, PostgresError, PostgresRecord, PostgresRecords,
+        Batch, Config, Postgres, PostgresError, PostgresRecords,
         executor_buffer::ExecutorBuffer,
         message::MessageTy,
+        misc::data_row,
         protocol::{encrypted_conn, initial_conn_msg},
       },
       rdbms::{clear_cmd_buffers, common_executor_buffer::CommonExecutorBuffer},
@@ -183,17 +184,17 @@ where
       match msg.ty {
         MessageTy::CommandComplete(_) | MessageTy::EmptyQueryResponse => {}
         MessageTy::DataRow(values_len) => {
-          let net_buffer_range = begin_data..net_buffer.current_end_idx();
-          let mut bytes = net_buffer.all().get(net_buffer_range).unwrap_or_default();
-          let record_range_begin = net_buffer.antecedent_end_idx().wrapping_sub(begin);
-          let record_range_end = net_buffer.current_end_idx().wrapping_sub(begin_data);
-          bytes = bytes.get(record_range_begin..record_range_end).unwrap_or_default();
-          let values_params_begin = values_params.len();
-          cb(PostgresRecord::parse(bytes, stmt_mut.stmt(), values_len, values_params)?)?;
-          records_params.push((
-            record_range_begin..record_range_end,
-            values_params_begin..values_params.len(),
-          ))?;
+          data_row(
+            begin,
+            begin_data,
+            net_buffer,
+            records_params,
+            stmt_mut.stmt(),
+            values_len,
+            values_params,
+            0,
+            &mut cb,
+          )?;
         }
         MessageTy::ReadyForQuery => {
           break;

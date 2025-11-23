@@ -33,6 +33,9 @@ pub(crate) enum Error {
   UnknownDataFormat,
   UnknownTransport(Span),
   UnsupportedStructure,
+
+  // Table
+  InvalidStruct,
 }
 
 impl From<syn::Error> for Error {
@@ -115,6 +118,9 @@ impl From<Error> for syn::Error {
         "JSON-RPC expects the name of its method. For example, \
           `#[pkg(data_format(json_rpc(\"method\")))]`",
       ),
+      Error::InvalidStruct => {
+        syn::Error::new(Span::call_site(), "Only structs with named fields are supported")
+      }
       Error::MandatoryOuterAttrsAreNotPresent => syn::Error::new(
         Span::call_site(),
         "All packages must have a `data_format` and an `id` attribute. For example, \

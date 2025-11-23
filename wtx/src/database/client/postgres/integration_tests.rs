@@ -91,7 +91,7 @@ fn custom_composite_type() {
   Runtime::new()
     .block_on(async {
       #[derive(Debug, PartialEq)]
-      struct CustomCompositeType(u32, Option<String>, u64);
+      struct CustomCompositeType(i32, Option<String>, i64);
 
       impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
         #[inline]

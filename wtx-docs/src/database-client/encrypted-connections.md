@@ -132,5 +132,5 @@ podman run \
   -e POSTGRES_PASSWORD=SOME_PASSWORD \
   -p 5432:5432 \
   -v SOME_DIRECTORY/setup.sh:/docker-entrypoint-initdb.d/setup.sh \
-  docker.io/library/postgres:17
+  docker.io/library/postgres:18
 ```
