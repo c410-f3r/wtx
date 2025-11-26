@@ -5,7 +5,7 @@ use crate::{
 use core::task::Waker;
 
 #[derive(Debug)]
-pub(crate) struct InitialServerHeader {
+pub(crate) struct LocalServerStream {
   pub(crate) method: Method,
   pub(crate) protocol: Option<Protocol>,
   pub(crate) rrb: ReqResBuffer,

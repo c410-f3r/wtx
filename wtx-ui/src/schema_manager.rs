@@ -11,18 +11,19 @@ use wtx::{
     },
   },
   de::DEController,
-  misc::UriRef,
+  misc::{EnvVars, FromVars, UriRef},
   rng::{ChaCha20, SeedableRng},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
-  {
-    let _rslt = dotenvy::dotenv();
+  let var = {
     wtx::misc::tracing_tree_init(None)?;
-  }
+    EnvVars::<DefaultUriVar>::from_available()?.finish().0
+  };
+  #[cfg(not(feature = "schema-manager-dev"))]
+  let var = EnvVars::<DefaultUriVar>::from_process()?.finish().0;
 
-  let var = std::env::var(DEFAULT_URI_VAR)?;
   let uri = UriRef::new(&var);
   match uri.scheme() {
     "postgres" | "postgresql" => {
@@ -39,6 +40,20 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
     _ => return Err(wtx::Error::InvalidUri),
   }
   Ok(())
+}
+
+struct DefaultUriVar(String);
+
+impl FromVars for DefaultUriVar {
+  fn from_vars(vars: impl IntoIterator<Item = (String, String)>) -> wtx::Result<Self> {
+    let mut rslt = None;
+    for (key, value) in vars {
+      if key == DEFAULT_URI_VAR {
+        rslt = Some(value)
+      }
+    }
+    Ok(Self(rslt.ok_or_else(|| wtx::Error::MissingVar(DEFAULT_URI_VAR.into()))?))
+  }
 }
 
 fn toml_file_path(sm: &SchemaManager) -> wtx::Result<Cow<'_, Path>> {

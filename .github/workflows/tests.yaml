@@ -10,7 +10,7 @@ jobs:
   autobahn-fuzzingclient:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -22,7 +22,7 @@ jobs:
   autobahn-fuzzingserver:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -34,7 +34,7 @@ jobs:
   autobahn-fuzzingserver-concurrent:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -46,7 +46,7 @@ jobs:
   h2spec-high:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -58,7 +58,7 @@ jobs:
   h2spec-low:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -76,7 +76,7 @@ jobs:
           "integration-tests-mysql",
         ]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -90,7 +90,7 @@ jobs:
   internal-tests0:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -103,7 +103,7 @@ jobs:
   internal-tests1:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -116,7 +116,7 @@ jobs:
   internal-tests2:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
@@ -129,7 +129,7 @@ jobs:
   internal-tests3:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/install@v0.1
         with:
           crate: mdbook
@@ -146,7 +146,7 @@ jobs:
   internal-tests4:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-fuzz
@@ -163,7 +163,7 @@ jobs:
   internal-tests5:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt

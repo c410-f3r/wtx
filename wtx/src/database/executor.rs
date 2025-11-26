@@ -23,7 +23,7 @@ pub trait Executor {
     &mut self,
     cmd: &str,
   ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>> {
-    // FIXME(stable): For some reason this method makes `http-server-framework-session` !Send.
+    // FIXME(STABLE): For some reason this method makes `http-server-framework-session` !Send.
     const fn nothing() -> &'static mut () {
       static mut NOTHING: &mut () = &mut ();
       // SAFETY: Does nothing, pointer means nothing and is not actually used or referenced. See

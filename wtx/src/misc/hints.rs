@@ -9,6 +9,6 @@ pub(crate) const fn _unlikely_elem<T>(elem: T) -> T {
 #[cold]
 #[inline(never)]
 #[track_caller]
-pub(crate) const fn _unreachable() -> ! {
+pub(crate) const fn _unlikely_unreachable() -> ! {
   panic!("Entered in a branch that should be impossible, which is likely a programming error");
 }

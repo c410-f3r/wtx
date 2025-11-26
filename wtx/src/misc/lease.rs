@@ -285,6 +285,13 @@ mod str {
       self
     }
   }
+
+  impl Lease<String> for String {
+    #[inline]
+    fn lease(&self) -> &String {
+      self
+    }
+  }
 }
 
 #[cfg(feature = "tokio")]

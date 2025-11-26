@@ -119,7 +119,7 @@ pub enum Http2Error {
   /// A stream ID is not locally stored to allow the processing of data frames.
   UnknownDataStreamReceiver,
   /// A programming error that shouldn't never happen
-  UnknownInitialServerHeaderId,
+  UnknownInitialServerHeaderId(u32),
   /// A stream ID is not locally stored to allow the processing of reset frames.
   UnknownResetStreamReceiver,
   /// Type is out of range or unsupported.

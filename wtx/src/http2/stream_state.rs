@@ -10,7 +10,7 @@ pub(crate) enum StreamState {
   HalfClosedRemote,
   /// Initial state. Awaiting initial headers.
   Idle,
-  /// The system is receiving data after [`StreamState::Open`].
+  /// The system is receiving data after [`StreamState::Idle`].
   Open,
 }
 

@@ -45,7 +45,7 @@ where
 
     let buffer_ref = buffer.trim();
 
-    if buffer_ref.starts_with('#') {
+    if buffer_ref.is_empty() || buffer_ref.starts_with('#') {
       clear_and_continue!();
     }
 

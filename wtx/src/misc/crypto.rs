@@ -88,7 +88,7 @@ where
 /// Encrypts `plaintext_data`, appending the base64 encoded result to the buffer.
 //
 // Buffer allocates two areas: one for the resulting base64 and another for intermediary work.
-// FIXME(upstream): Only one page would be needed if `base64` had support for vectored reads.
+// FIXME(UPSTREAM): Only one page would be needed if `base64` had support for vectored reads.
 #[cfg(feature = "base64")]
 pub fn encrypt_aes256gcm_base64<'buffer, RNG>(
   associated_data: &[u8],

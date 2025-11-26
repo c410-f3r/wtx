@@ -37,13 +37,14 @@ macro_rules! create_packages_aux_wrapper {
       #[inline]
       pub fn new(
         api: $api_ty,
+        built_requests: u64,
         bytes_buffer: $crate::collection::Vector<u8>,
         drsr: DRSR,
         log_body: bool,
         send_bytes_buffer: bool,
         tp: TP
       ) -> Self {
-        Self($crate::client_api_framework::pkg::PkgsAux::new(api, bytes_buffer, drsr, log_body, send_bytes_buffer, tp))
+        Self($crate::client_api_framework::pkg::PkgsAux::new(api, built_requests, bytes_buffer, drsr, log_body, send_bytes_buffer, tp))
       }
     }
 

@@ -1,0 +1,31 @@
+#![feature(prelude_import)]
+#[macro_use]
+extern crate std;
+#[prelude_import]
+use std::prelude::rust_2021::*;
+pub struct Foo {
+    bar: String,
+    baz: String,
+}
+impl wtx::misc::FromVars for Foo {
+    fn from_vars(vars: impl IntoIterator<Item = (String, String)>)
+        -> wtx::Result<Self> {
+        let mut __bar = None;
+        let mut __baz = None;
+        for (key, value) in vars {
+            match key.as_str() {
+                "BAR" => __bar = Some(value),
+                "BAZ" => __baz = Some(value),
+                _ => {}
+            }
+        }
+        Ok(Self {
+                bar: __bar.ok_or_else(||
+                            wtx::Error::MissingVar("bar".into()))?,
+                baz: __baz.ok_or_else(||
+                            wtx::Error::MissingVar("baz".into()))?,
+            })
+    }
+}
+
+fn main() {}

@@ -5,7 +5,7 @@ use crate::{
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::{from_utf8_basic, hints::_unreachable},
+  misc::{from_utf8_basic, hints::_unlikely_unreachable},
 };
 
 pub(crate) fn huffman_decode<'to, L, const N: usize>(
@@ -25,7 +25,7 @@ where
       .and_then(|slice_4bits| slice_4bits.get(usize::from(input)))
       .copied()
     else {
-      _unreachable();
+      _unlikely_unreachable();
     };
     if flags & ERROR == ERROR {
       return Err(crate::Error::Http2ErrorGoAway(
@@ -88,7 +88,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
     wb: &mut Vector<u8>,
   ) -> crate::Result<()> {
     let Ok(n) = u8::try_from((*bits >> 32) & MASK) else {
-      _unreachable();
+      _unlikely_unreachable();
     };
     wb.push(n)?;
     *bits <<= 8;
@@ -103,7 +103,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
 
   _iter4!(from, {}, |elem| {
     let Some((nbits, code)) = ENCODE_TABLE.get(usize::from(*elem)).copied() else {
-      _unreachable();
+      _unlikely_unreachable();
     };
     let bits_offset = bits_left.wrapping_sub(<_>::from(nbits));
     bits |= code << bits_offset;
@@ -121,7 +121,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
       push_within_iter(&mut bits, &mut bits_left, wb)?;
     }
     if bits_left <= 32 {
-      _unreachable()
+      _unlikely_unreachable()
     }
     wb.reserve(5)?;
   });
@@ -129,7 +129,7 @@ pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<
   if bits_left != 40 {
     bits |= (1u64 << bits_left).wrapping_sub(1);
     let Ok(n) = u8::try_from((bits >> 32) & MASK) else {
-      _unreachable();
+      _unlikely_unreachable();
     };
     wb.push(n)?;
   }

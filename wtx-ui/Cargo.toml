@@ -1,6 +1,5 @@
 [dependencies]
 clap = { default-features = false, features = ["derive", "help", "std", "usage"], optional = true, version = "4.0" }
-dotenvy = { default-features = false, optional = true, version = "0.15" }
 tokio = { default-features = false, features = ["io-std", "io-util", "macros", "net", "rt-multi-thread"], version = "1.0" }
 wtx = { default-features = false, features = ["tokio"], path = "../wtx", version = "0.39.0" }
 
@@ -9,7 +8,7 @@ default = []
 embed-migrations = ["clap", "tokio/fs", "wtx/schema-manager", "wtx/std"]
 http-client = ["clap", "wtx/http-client-pool", "wtx/tokio-rustls", "wtx/_tracing-tree", "wtx/webpki-roots"]
 schema-manager = ["clap", "wtx/getrandom", "wtx/postgres", "wtx/schema-manager", "wtx/std"]
-schema-manager-dev = ["dotenvy", "schema-manager", "wtx/_tracing-tree", "wtx/schema-manager-dev"]
+schema-manager-dev = ["schema-manager", "wtx/_tracing-tree", "wtx/schema-manager-dev"]
 unified = []
 web-socket = ["clap", "wtx/web-socket-handshake"]
 

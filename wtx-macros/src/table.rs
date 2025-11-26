@@ -4,6 +4,7 @@ use syn::{Data, DeriveInput, Fields};
 pub(crate) fn table(item: proc_macro::TokenStream) -> crate::Result<proc_macro::TokenStream> {
   let input = syn::parse::<DeriveInput>(item)?;
   let struct_name = &input.ident;
+  let struct_name_string = &input.ident.to_string().to_lowercase();
 
   let fields = match input.data {
     Data::Struct(data) => match data.fields {
@@ -12,11 +13,11 @@ pub(crate) fn table(item: proc_macro::TokenStream) -> crate::Result<proc_macro::
         let mut iter = fields.named.iter();
         if let Some(elem) = iter.next() {
           let field_name = elem.ident.as_ref().ok_or(crate::Error::InvalidStruct)?;
-          let _rslt = write!(string, r#","{struct_name}".{field_name}"#);
+          let _rslt = write!(string, r#""{struct_name_string}".{field_name}"#);
         }
         for elem in iter {
           let field_name = elem.ident.as_ref().ok_or(crate::Error::InvalidStruct)?;
-          let _rslt = write!(string, r#","{struct_name}".{field_name}"#);
+          let _rslt = write!(string, r#","{struct_name_string}".{field_name}"#);
         }
         string
       }

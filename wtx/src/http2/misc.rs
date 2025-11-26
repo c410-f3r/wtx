@@ -61,17 +61,6 @@ pub(crate) fn sorp_mut(
   sorp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
 }
 
-pub(crate) fn manage_initial_stream_receiving(
-  is_conn_open: &AtomicBool,
-  rrb: &mut ReqResBuffer,
-) -> bool {
-  if !is_conn_open.load(Ordering::Relaxed) {
-    return false;
-  }
-  rrb.clear();
-  true
-}
-
 pub(crate) fn manage_recurrent_stream_receiving<E, SW, const IS_CLIENT: bool>(
   cx: &mut Context<'_>,
   mut hdpm: Http2DataPartsMut<'_, SW, IS_CLIENT>,
@@ -90,16 +79,16 @@ pub(crate) fn manage_recurrent_stream_receiving<E, SW, const IS_CLIENT: bool>(
         if let Some(elem) = hdpm.hb.scrp.remove(&stream_id) {
           elem.waker.wake();
         }
-        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|el| {
-          el.waker.wake();
-          el.rrb
+        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|elem| {
+          elem.waker.wake();
+          elem.rrb
         });
         (Http2RecvStatus::ClosedConnection, rrb_opt)
       }
       (false, true) => {
-        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|el| {
-          el.waker.wake();
-          el.rrb
+        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|elem| {
+          elem.waker.wake();
+          elem.rrb
         });
         (Http2RecvStatus::ClosedConnection, rrb_opt)
       }
@@ -107,9 +96,9 @@ pub(crate) fn manage_recurrent_stream_receiving<E, SW, const IS_CLIENT: bool>(
         if let Some(elem) = hdpm.hb.scrp.remove(&stream_id) {
           elem.waker.wake();
         }
-        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|el| {
-          el.waker.wake();
-          el.rrb
+        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|elem| {
+          elem.waker.wake();
+          elem.rrb
         });
         (Http2RecvStatus::ClosedStream, rrb_opt)
       }
@@ -330,14 +319,14 @@ pub(crate) async fn send_go_away<SW, const IS_CLIENT: bool>(
   hdpm.hb.is_conn_open.store(false, Ordering::Relaxed);
   let gaf = GoAwayFrame::new(error_code, *hdpm.last_stream_id);
   let _rslt = hdpm.stream_writer.write_all(&gaf.bytes()).await;
-  for (_, value) in hdpm.hb.initial_server_headers.iter() {
-    value.waker.wake_by_ref();
+  for elem in hdpm.hb.local_server_streams.iter() {
+    elem.waker.wake_by_ref();
   }
-  for scrp in hdpm.hb.scrp.values() {
-    scrp.waker.wake_by_ref();
+  for elem in hdpm.hb.scrp.values() {
+    elem.waker.wake_by_ref();
   }
-  for sorp in hdpm.hb.sorp.values() {
-    sorp.waker.wake_by_ref();
+  for elem in hdpm.hb.sorp.values() {
+    elem.waker.wake_by_ref();
   }
   hdpm.hb.read_frame_waker.wake();
 }

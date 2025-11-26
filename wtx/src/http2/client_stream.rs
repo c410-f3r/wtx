@@ -3,10 +3,7 @@ use crate::{
   http2::{
     CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
-    misc::{
-      frame_reader_rslt, manage_initial_stream_receiving, manage_recurrent_stream_receiving,
-      process_higher_operation_err,
-    },
+    misc::{frame_reader_rslt, manage_recurrent_stream_receiving, process_higher_operation_err},
     send_msg::send_msg,
     stream_receiver::StreamOverallRecvParams,
     stream_state::StreamState,
@@ -17,7 +14,7 @@ use crate::{
   stream::StreamWriter,
   sync::{Arc, AtomicBool, Lock, RefCounter},
 };
-use core::{future::poll_fn, pin::pin, task::Poll};
+use core::{future::poll_fn, pin::pin, sync::atomic::Ordering, task::Poll};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
@@ -83,8 +80,8 @@ where
     let rslt = poll_fn(|cx| {
       let mut lock = lock_pin!(cx, hd, lock_pin);
       let hdpm = lock.parts_mut();
-      if let Some(mut elem) = rrb_opt.take() {
-        if !manage_initial_stream_receiving(is_conn_open, &mut elem) {
+      if let Some(elem) = rrb_opt.take() {
+        if !is_conn_open.load(Ordering::Relaxed) {
           frame_reader_rslt(hdpm.frame_reader_error)?;
           return Poll::Ready(Ok((Http2RecvStatus::ClosedConnection, elem)));
         }

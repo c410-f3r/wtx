@@ -1,4 +1,4 @@
-// FIXME(stable): Constant traits
+// FIXME(STABLE): Constant traits
 
 pub(crate) const fn boolu16(val: bool) -> u16 {
   val as u16
