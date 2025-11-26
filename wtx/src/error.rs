@@ -164,6 +164,8 @@ pub enum Error {
   MissingCaProviders,
   /// A instance could not be constructed because of a missing required variable.
   MissingVar(Box<&'static str>),
+  /// A variable does not have an ending quote
+  MissingVarQuote(Box<String>),
   /// Something prevented a `mlock` operation
   MlockError,
   /// Something prevented a `munlock` operation

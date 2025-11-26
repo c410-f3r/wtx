@@ -93,7 +93,7 @@ name = "pool"
 path = "generic-examples/pool.rs"
 required-features = ["pool"]
 
-[[bin]]
+[[example]]
 name = "secrets"
 path = "generic-examples/secrets.rs"
 required-features = ["secret"]

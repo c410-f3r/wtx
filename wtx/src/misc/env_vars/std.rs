@@ -1,6 +1,6 @@
 use crate::{
   collection::Vector,
-  misc::{EnvVars, FromVars, str_split_once1},
+  misc::{EnvVars, FromVars, str_rsplit_once1, str_split_once1},
 };
 use alloc::string::String;
 use core::str;
@@ -67,15 +67,16 @@ where
   }
 }
 
+#[expect(clippy::ref_patterns, reason = "false-positive")]
 fn env<R>(read: R) -> crate::Result<Vector<(String, String)>>
 where
   R: Read,
 {
-  let mut buf_reader = BufReader::new(read);
-  let mut buffer = String::new();
+  let buffer = &mut String::new();
+  let reader = &mut BufReader::new(read);
   let mut vars = Vector::new();
   loop {
-    if buf_reader.read_line(&mut buffer)? == 0 {
+    if reader.read_line(buffer)? == 0 {
       break;
     }
     let buffer_ref = buffer.trim();
@@ -87,7 +88,25 @@ where
       buffer.clear();
       continue;
     };
-    vars.push((into_string(key), into_string(value)))?;
+    let key_trimmed = key.trim_end().into();
+    let value_trimmed = value.trim_start();
+    if let &[delimiter @ (b'\'' | b'"'), ref value_after_del @ ..] = value_trimmed.as_bytes() {
+      let diff = value.len().wrapping_sub(value_trimmed.len());
+      let value_begin = key.len().wrapping_add(1).wrapping_add(diff).wrapping_add(1);
+      if let &[ref value_surrounded @ .., last] = value_after_del {
+        if delimiter == last {
+          // SAFETY: The cut of surrounding quotes don't invalidate UTF-8
+          vars.push((key_trimmed, unsafe { str::from_utf8_unchecked(value_surrounded).into() }))?;
+        } else {
+          process_multiline(buffer, reader, delimiter, key_trimmed, value_begin, &mut vars)?;
+        }
+      } else {
+        process_multiline(buffer, reader, delimiter, key_trimmed, value_begin, &mut vars)?;
+      }
+    } else {
+      vars.push((key_trimmed, strip_ending_comment(value_trimmed).into()))?;
+    }
+
     buffer.clear();
   }
   Ok(vars)
@@ -115,13 +134,42 @@ fn find_file(buffer: &mut PathBuf, path: &Path) -> io::Result<()> {
   }
 }
 
-fn into_string(str: &str) -> String {
-  let mut bytes = str.trim().as_bytes();
-  if let [b'\'', rest @ .., b'\''] | [b'"', rest @ .., b'"'] = bytes {
-    bytes = rest;
+fn process_multiline<R>(
+  buffer: &mut String,
+  buf_reader: &mut BufReader<R>,
+  delimiter: u8,
+  key_trimmed: String,
+  value_begin: usize,
+  vars: &mut Vector<(String, String)>,
+) -> crate::Result<()>
+where
+  R: Read,
+{
+  let mut ends_with_delimiter = false;
+  let actual_buffer_data = loop {
+    if buf_reader.read_line(buffer)? == 0 {
+      break buffer.as_str();
+    }
+    let trimmed = buffer.trim_end();
+    if trimmed.ends_with(char::from(delimiter)) {
+      ends_with_delimiter = true;
+      break trimmed;
+    }
+  };
+  let mut value_all = actual_buffer_data.get(value_begin..).unwrap_or_default();
+  if !ends_with_delimiter {
+    value_all = strip_ending_comment(value_all);
   }
-  // SAFETY: The cut of surrounding quotes don't invalidate UTF-8
-  String::from(unsafe { str::from_utf8_unchecked(bytes) })
+  let mut value_final: String = value_all.into();
+  if Some(char::from(delimiter)) != value_final.pop() {
+    return Err(crate::Error::MissingVarQuote(key_trimmed.into()));
+  }
+  vars.push((key_trimmed, value_final))?;
+  Ok(())
+}
+
+fn strip_ending_comment(value: &str) -> &str {
+  if let Some((lhs, _)) = str_rsplit_once1(value, b'#') { lhs.trim_end() } else { value }
 }
 
 #[cfg(test)]
@@ -129,12 +177,84 @@ mod tests {
   use crate::misc::env_vars::std::env;
 
   #[test]
-  fn basic_env() {
+  fn basic() {
     let data = "HOST='localhost'\nPORT=8080\n Comment\nNAME=\"foo\"";
     let result = env(data.as_bytes()).unwrap();
     assert_eq!(result.len(), 3);
     assert_eq!(result[0], ("HOST".into(), "localhost".into()));
     assert_eq!(result[1], ("PORT".into(), "8080".into()));
     assert_eq!(result[2], ("NAME".into(), "foo".into()));
+  }
+
+  #[test]
+  fn comments() {
+    {
+      let data = "PORT=8080 # The server port";
+      let result = env(data.as_bytes()).unwrap();
+      assert_eq!(result.len(), 1);
+      assert_eq!(result[0], ("PORT".into(), "8080".into()));
+    }
+    {
+      let data = "PORT='8080' # The server port";
+      let result = env(data.as_bytes()).unwrap();
+      assert_eq!(result.len(), 1);
+      assert_eq!(result[0], ("PORT".into(), "8080".into()));
+    }
+    {
+      let data = "PORT='\n80\n80\n' # The server port";
+      let result = env(data.as_bytes()).unwrap();
+      assert_eq!(result.len(), 1);
+      assert_eq!(result[0], ("PORT".into(), "\n80\n80\n".into()));
+    }
+  }
+
+  #[test]
+  fn escaped_quotes() {
+    let data = r#"JSON="{\"a\":1}""#;
+    let result = env(data.as_bytes()).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], ("JSON".into(), r#"{\"a\":1}"#.into()));
+  }
+
+  #[test]
+  fn multiline_with_trailing_newline() {
+    let data = "FOO=\"Line 1\nLine 2\"\nNEXT=bar";
+    let result = env(data.as_bytes()).unwrap();
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0], ("FOO".into(), "Line 1\nLine 2".into()));
+    assert_eq!(result[1], ("NEXT".into(), "bar".into()));
+  }
+
+  #[test]
+  fn new_lines() {
+    {
+      let data = "FOO='bar\nbaz'";
+      let result = env(data.as_bytes()).unwrap();
+      assert_eq!(result.len(), 1);
+      assert_eq!(result[0], ("FOO".into(), "bar\nbaz".into()));
+    }
+    {
+      let data = "FOO='
+        bar
+        baz
+      '";
+      let result = env(data.as_bytes()).unwrap();
+      assert_eq!(result.len(), 1);
+      assert_eq!(result[0], ("FOO".into(), "\n        bar\n        baz\n      ".into()));
+    }
+  }
+
+  #[test]
+  fn unclosed_variable() {
+    let data = "FOO='bar";
+    assert!(env(data.as_bytes()).is_err());
+  }
+
+  #[test]
+  fn with_value_spaces() {
+    let data = "FOO=\"  bar\"";
+    let result = env(data.as_bytes()).unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], ("FOO".into(), "  bar".into()));
   }
 }
