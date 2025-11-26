@@ -139,29 +139,19 @@ where
         prft!(fi, hdpm, pfb, stream_reader).header_client(&mut hdpm.hb.sorp).await?;
       } else if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
         prft!(fi, hdpm, pfb, stream_reader).header_server_trailer(elem).await?;
-      } else if let Some(ish) = hdpm.hb.initial_server_headers.front_mut() {
-        let prft = prft!(fi, hdpm, pfb, stream_reader);
-        let rslt = prft.header_server_init(ish, &mut hdpm.hb.sorp).await;
-        ish.waker.wake_by_ref();
-        hdpm.hb.initial_server_headers.increase_cursor();
-        rslt?;
+      } else if let Some(elem) = hdpm.hb.local_server_streams.get_mut(0) {
+        if hdpm.hb.sorp.contains_key(&elem.stream_id) {
+          drop(lock);
+          wait_for_local_stream(fi, hd, pfb, stream_reader).await?;
+        } else {
+          let prft = prft!(fi, hdpm, pfb, stream_reader);
+          let rslt = prft.header_server_init(elem, &mut hdpm.hb.sorp).await;
+          elem.waker.wake_by_ref();
+          rslt?;
+        }
       } else {
         drop(lock);
-        let mut lock_pin = pin!(hd.lock());
-        poll_fn(|cx| {
-          let mut local_lock = lock_pin!(cx, hd, lock_pin);
-          let mut local_hdpm = local_lock.parts_mut();
-          let Some(ish) = local_hdpm.hb.initial_server_headers.front_mut() else {
-            cx.waker().wake_by_ref();
-            return Poll::Pending;
-          };
-          let prft = prft!(fi, local_hdpm, pfb, stream_reader);
-          let rslt = ready!(pin!(prft.header_server_init(ish, &mut local_hdpm.hb.sorp)).poll(cx));
-          ish.waker.wake_by_ref();
-          local_hdpm.hb.initial_server_headers.increase_cursor();
-          Poll::Ready(rslt)
-        })
-        .await?;
+        wait_for_local_stream(fi, hd, pfb, stream_reader).await?;
       }
     }
     FrameInitTy::Ping => {
@@ -193,16 +183,50 @@ where
       }
     }
     FrameInitTy::WindowUpdate => {
+      let mut lock = hd.lock().await;
+      let mut hdpm = lock.parts_mut();
       if fi.stream_id.is_zero() {
         let wuf = WindowUpdateFrame::read(pfb.current(), fi)?;
-        hd.lock().await.parts_mut().windows.send_mut().deposit(None, wuf.size_increment().i32())?;
+        hdpm.windows.send_mut().deposit(None, wuf.size_increment().i32())?;
       } else {
-        let mut lock = hd.lock().await;
-        let mut hdpm = lock.parts_mut();
         let prft = prft!(fi, hdpm, pfb, stream_reader);
         prft.window_update(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp)?;
       }
     }
   }
+  Ok(())
+}
+
+async fn wait_for_local_stream<HB, HD, SR, SW, const IS_CLIENT: bool>(
+  fi: FrameInit,
+  hd: &HD,
+  pfb: &mut PartitionedFilledBuffer,
+  stream_reader: &mut SR,
+) -> crate::Result<()>
+where
+  HB: LeaseMut<Http2Buffer>,
+  HD: RefCounter,
+  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  SR: StreamReader,
+  SW: StreamWriter,
+{
+  let mut lock_pin = pin!(hd.lock());
+  poll_fn(|cx| {
+    let mut local_lock = lock_pin!(cx, hd, lock_pin);
+    let mut local_hdpm = local_lock.parts_mut();
+    let Some(elem) = local_hdpm.hb.local_server_streams.get_mut(0) else {
+      cx.waker().wake_by_ref();
+      return Poll::Pending;
+    };
+    if local_hdpm.hb.sorp.contains_key(&elem.stream_id) {
+      cx.waker().wake_by_ref();
+      return Poll::Pending;
+    }
+    let prft = prft!(fi, local_hdpm, pfb, stream_reader);
+    let rslt = ready!(pin!(prft.header_server_init(elem, &mut local_hdpm.hb.sorp)).poll(cx));
+    elem.waker.wake_by_ref();
+    Poll::Ready(rslt)
+  })
+  .await?;
   Ok(())
 }

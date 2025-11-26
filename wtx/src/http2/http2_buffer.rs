@@ -1,8 +1,8 @@
 use crate::{
-  collection::Vector,
+  collection::{Deque, Vector},
   http2::{
-    Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, index_map::IndexMap,
-    initial_server_header::InitialServerHeader,
+    Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
+    local_server_stream::LocalServerStream,
   },
   misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
   rng::{Rng, Xorshift64, simple_seed},
@@ -17,8 +17,8 @@ pub struct Http2Buffer {
   pub(crate) hpack_dec: HpackDecoder,
   pub(crate) hpack_enc: HpackEncoder,
   pub(crate) hpack_enc_buffer: Vector<u8>,
-  pub(crate) initial_server_headers: IndexMap<u32, InitialServerHeader>,
   pub(crate) is_conn_open: Arc<AtomicBool>,
+  pub(crate) local_server_streams: Deque<LocalServerStream>,
   pub(crate) pfb: PartitionedFilledBuffer,
   pub(crate) read_frame_waker: Arc<AtomicWaker>,
   pub(crate) scrp: Scrp,
@@ -36,8 +36,8 @@ impl Http2Buffer {
       hpack_dec: HpackDecoder::new(),
       hpack_enc: HpackEncoder::new(rng),
       hpack_enc_buffer: Vector::new(),
-      initial_server_headers: IndexMap::new(),
       is_conn_open: Arc::new(AtomicBool::new(false)),
+      local_server_streams: Deque::new(),
       pfb: PartitionedFilledBuffer::new(),
       read_frame_waker: Arc::new(AtomicWaker::new()),
       scrp: HashMap::new(),
@@ -50,8 +50,8 @@ impl Http2Buffer {
       hpack_dec,
       hpack_enc,
       hpack_enc_buffer,
-      initial_server_headers,
       is_conn_open,
+      local_server_streams,
       pfb,
       read_frame_waker,
       scrp,
@@ -60,10 +60,10 @@ impl Http2Buffer {
     hpack_dec.clear();
     hpack_enc.clear();
     hpack_enc_buffer.clear();
-    initial_server_headers.clear();
     is_conn_open.store(false, Ordering::Relaxed);
+    local_server_streams.clear();
     pfb.clear();
-    let _waker = read_frame_waker.take();
+    let _read_frame_waker = read_frame_waker.take();
     scrp.clear();
     sorp.clear();
   }

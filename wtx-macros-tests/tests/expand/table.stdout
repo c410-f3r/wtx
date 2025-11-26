@@ -1,0 +1,15 @@
+#![feature(prelude_import)]
+#[macro_use]
+extern crate std;
+#[prelude_import]
+use std::prelude::rust_2021::*;
+pub struct Foo {
+    bar: String,
+    baz: String,
+}
+impl Foo {
+    #[doc = r" Fields separated by commas"]
+    pub(crate) fn fields() -> &'static str { "\"foo\".bar,\"foo\".baz" }
+}
+
+fn main() {}

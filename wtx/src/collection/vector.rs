@@ -5,7 +5,7 @@ use crate::{
       LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
     },
   },
-  misc::{Lease, LeaseMut, Wrapper, hints::_unreachable},
+  misc::{Lease, LeaseMut, Wrapper, hints::_unlikely_unreachable},
 };
 use alloc::vec::{IntoIter, Vec};
 use core::{
@@ -371,7 +371,7 @@ where
   #[track_caller]
   fn clone(&self) -> Self {
     let Ok(mut vector) = Self::with_capacity(self.len()) else {
-      _unreachable();
+      _unlikely_unreachable();
     };
     let _rslt = vector.extend_from_cloneable_slice(self);
     vector
@@ -383,7 +383,7 @@ where
     let (init, tail) = source.split_at(self.len());
     self.clone_from_slice(init);
     if self.extend_from_cloneable_slice(tail).is_err() {
-      _unreachable();
+      _unlikely_unreachable();
     }
   }
 }

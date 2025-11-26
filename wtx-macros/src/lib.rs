@@ -6,6 +6,7 @@ mod client_api_framework;
 mod error;
 mod executor;
 mod from_records;
+mod from_vars;
 mod http;
 mod misc;
 mod table;
@@ -42,6 +43,15 @@ pub fn conn_aux(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro_derive(FromRecords, attributes(from_records))]
 pub fn from_records(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
   match from_records::from_records(item) {
+    Err(err) => syn::Error::from(err).to_compile_error().into(),
+    Ok(elem) => elem,
+  }
+}
+
+/// Implements the `FromVars` trait.
+#[proc_macro_derive(FromVars)]
+pub fn from_vars(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  match from_vars::from_vars(item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }

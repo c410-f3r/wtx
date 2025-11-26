@@ -41,7 +41,7 @@ where
     let stmt_cmd_id = sc.hash(stmts.hasher_mut());
     let stmt_cmd_id_array = u64_string(stmt_cmd_id);
     if stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).is_some() {
-      // FIXME(stable): Use `if let Some ...` with polonius
+      // FIXME(STABLE): Use `if let Some ...` with polonius
       let stmt_mut = stmts.get_by_stmt_cmd_id_mut(stmt_cmd_id).unwrap();
       return Ok((stmt_cmd_id, stmt_cmd_id_array, stmt_mut));
     }

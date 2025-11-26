@@ -6,7 +6,7 @@ use crate::{
     frame_init::FrameInit,
     hpack_decoder::HpackDecoder,
     http2_params_send::Http2ParamsSend,
-    initial_server_header::InitialServerHeader,
+    local_server_stream::LocalServerStream,
     misc::{
       protocol_err, read_header_and_continuations, send_reset_stream, server_header_stream_state,
       sorp_mut,
@@ -127,7 +127,7 @@ where
 
   pub(crate) async fn header_server_init(
     self,
-    ish: &mut InitialServerHeader,
+    lss: &mut LocalServerStream,
     sorp: &mut Sorp,
   ) -> crate::Result<()> {
     if self.fi.stream_id <= *self.last_stream_id || self.fi.stream_id.u32().is_multiple_of(2) {
@@ -145,15 +145,15 @@ where
       self.hpack_dec,
       self.pfb,
       self.read_frame_waker,
-      &mut ish.rrb,
+      &mut lss.rrb,
       self.stream_reader,
       |hf| Ok((hf.hsreqh().method.ok_or(HttpError::MissingRequestMethod)?, hf.hsreqh().protocol)),
     )
     .await?;
     let (content_length, has_eos, (method, protocol)) = tuple;
-    ish.method = method;
-    ish.protocol = protocol;
-    ish.stream_id = self.fi.stream_id;
+    lss.method = method;
+    lss.protocol = protocol;
+    lss.stream_id = self.fi.stream_id;
     let stream_state = server_header_stream_state(has_eos);
     drop(sorp.insert(
       self.fi.stream_id,
@@ -163,7 +163,7 @@ where
         has_initial_header: true,
         has_one_or_more_data_frames: false,
         is_stream_open: true,
-        rrb: mem::take(&mut ish.rrb),
+        rrb: mem::take(&mut lss.rrb),
         status_code: StatusCode::Ok,
         stream_state,
         waker: Waker::noop().clone(),

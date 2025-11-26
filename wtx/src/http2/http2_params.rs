@@ -213,7 +213,7 @@ impl Http2Params {
   #[inline]
   #[must_use]
   pub const fn set_max_frame_len(mut self, value: u32) -> Self {
-    // FIXME(stable): Use constant `clamp`
+    // FIXME(STABLE): Use constant `clamp`
     self.max_frame_len = if value < MAX_FRAME_LEN_LOWER_BOUND {
       MAX_FRAME_LEN_LOWER_BOUND
     } else if value > MAX_FRAME_LEN_UPPER_BOUND {

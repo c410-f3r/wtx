@@ -142,6 +142,8 @@ pub enum Error {
   ClosedHttpConnection,
   /// A WebSocket connection was unexpectedly closed by an external actor or because of a local error.
   ClosedWebSocketConnection,
+  /// Future should complete before a certain duration but didn't
+  ExpiredFuture,
   /// Future must not be polled again after finalization
   FuturePolledAfterFinalization,
   /// Generic error
@@ -160,6 +162,8 @@ pub enum Error {
   InvalidUri,
   /// There is no CA provider.
   MissingCaProviders,
+  /// A instance could not be constructed because of a missing required variable.
+  MissingVar(Box<&'static str>),
   /// Something prevented a `mlock` operation
   MlockError,
   /// Something prevented a `munlock` operation

@@ -57,6 +57,7 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   #[inline]
   pub const fn new(
     api: A,
+    built_requests: u64,
     bytes_buffer: Vector<u8>,
     drsr: DRSR,
     log_body: bool,
@@ -65,12 +66,12 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   ) -> Self {
     Self {
       api,
+      built_requests,
       bytes_buffer,
       drsr,
       log_body: (log_body, false),
       send_bytes_buffer,
       tp,
-      built_requests: 0,
     }
   }
 

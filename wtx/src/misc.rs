@@ -15,6 +15,7 @@ mod connection_state;
 mod crypto;
 mod either;
 mod enum_var_strings;
+mod env_vars;
 #[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
 mod filled_buffer;
 mod fn_fut;
@@ -45,11 +46,12 @@ use crate::{
   de::{U64String, u64_string},
 };
 pub use connection_state::ConnectionState;
-use core::{any::type_name, time::Duration};
+use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
 #[cfg(feature = "aes-gcm")]
 pub use crypto::*;
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
+pub use env_vars::{EnvVars, FromVars};
 #[cfg(any(
   feature = "http2",
   feature = "mysql",
@@ -243,12 +245,12 @@ where
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
   async fn _naive(duration: Duration) -> crate::Result<()> {
     let now = Instant::now();
-    core::future::poll_fn(|cx| {
+    poll_fn(|cx| {
       if now.elapsed()? >= duration {
-        return core::task::Poll::Ready(Ok(()));
+        return Poll::Ready(Ok(()));
       }
       cx.waker().wake_by_ref();
-      core::task::Poll::Pending
+      Poll::Pending
     })
     .await
   }
@@ -262,6 +264,29 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
   }
   #[cfg(not(any(feature = "executor", feature = "tokio")))]
   return _naive(duration).await;
+}
+
+/// Requires a `Future` to complete within the specified `duration`.
+#[inline]
+pub async fn timeout<F>(fut: F, duration: Duration) -> crate::Result<F::Output>
+where
+  F: Future,
+{
+  let mut fut_pin = pin!(fut);
+  let mut timeout_pin = pin!(sleep(duration));
+  poll_fn(|cx| {
+    let fut_poll = fut_pin.as_mut().poll(cx);
+    let timeout_poll = timeout_pin.as_mut().poll(cx);
+    match (fut_poll, timeout_poll) {
+      (Poll::Ready(el), Poll::Pending | Poll::Ready(_)) => Poll::Ready(Ok(el)),
+      (Poll::Pending, Poll::Ready(_)) => Poll::Ready(Err(crate::Error::ExpiredFuture)),
+      (Poll::Pending, Poll::Pending) => {
+        cx.waker().wake_by_ref();
+        Poll::Pending
+      }
+    }
+  })
+  .await
 }
 
 /// The current time in nanoseconds as a string.
@@ -314,4 +339,30 @@ where
 #[cfg(feature = "postgres")]
 pub(crate) fn usize_range_from_u32_range(range: core::ops::Range<u32>) -> core::ops::Range<usize> {
   *Usize::from(range.start)..*Usize::from(range.end)
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::{executor::Runtime, misc::sleep};
+  use core::time::Duration;
+
+  #[test]
+  fn timeout() {
+    Runtime::new()
+      .block_on(async {
+        assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
+        assert!(
+          crate::misc::timeout(
+            async {
+              sleep(Duration::from_millis(20)).await.unwrap();
+              async { 1 }
+            },
+            Duration::from_millis(10)
+          )
+          .await
+          .is_err()
+        )
+      })
+      .unwrap();
+  }
 }

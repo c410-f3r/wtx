@@ -1,4 +1,4 @@
-// FIXME(stable): iter_intersperse
+// FIXME(STABLE): iter_intersperse
 
 use core::iter::{Fuse, FusedIterator};
 

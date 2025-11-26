@@ -290,6 +290,19 @@ fn no_wrapping_36() -> Deque<i32> {
   deque
 }
 
+#[test]
+fn truncate_back() {
+  let mut deque = Deque::with_exact_capacity(4).unwrap();
+  deque.push_front(1).unwrap();
+  deque.push_back(2).unwrap();
+  deque.push_back(3).unwrap();
+  deque.truncate_back(1);
+  deque.push_back(99).unwrap();
+  let (front, back) = deque.as_slices();
+  assert_eq!(front, &[1]);
+  assert_eq!(back, &[99]);
+}
+
 /// H(0) = T(0): H * * * * * * T (wrapping)
 fn wrapping_00() -> Deque<i32> {
   let mut deque = Deque::with_capacity(8).unwrap();

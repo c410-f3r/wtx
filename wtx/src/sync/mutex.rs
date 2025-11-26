@@ -1,6 +1,7 @@
 use crate::{
   collection::{Deque, backward_deque_idx},
-  sync::AtomicUsize,
+  misc::hints::_unlikely_unreachable,
+  sync::{AtomicUsize, Lock},
 };
 use core::{
   cell::UnsafeCell,
@@ -15,10 +16,23 @@ use core::{
 const HAS_WAITERS: usize = 0b10;
 const IS_LOCKED: usize = 0b1;
 
+#[cfg(feature = "parking_lot")]
+type LocalMutex = parking_lot::Mutex<Waiters>;
+#[cfg(not(feature = "parking_lot"))]
+type LocalMutex = std::sync::Mutex<Waiters>;
+
+#[cfg(feature = "parking_lot")]
+type LocalMutexGuard<'any> = parking_lot::MutexGuard<'any, Waiters>;
+#[cfg(not(feature = "parking_lot"))]
+type LocalMutexGuard<'any> = std::sync::MutexGuard<'any, Waiters>;
+
 /// An asynchronous `Mutex`-like type.
+///
+/// Uses the Mutex from `parking_lot` if the feature is enabled, otherwise uses the
+/// Mutex provided by the standard library.
 pub struct Mutex<T> {
   state: AtomicUsize,
-  waiters: std::sync::Mutex<Waiters>,
+  waiters: LocalMutex,
   value: UnsafeCell<T>,
 }
 
@@ -28,7 +42,7 @@ impl<T> Mutex<T> {
   pub const fn new(t: T) -> Self {
     Self {
       state: AtomicUsize::new(0),
-      waiters: std::sync::Mutex::new(Waiters { added: 0, deque: Deque::new(), last_added: 0 }),
+      waiters: LocalMutex::new(Waiters { added: 0, deque: Deque::new(), last_added: 0 }),
       value: UnsafeCell::new(t),
     }
   }
@@ -62,6 +76,24 @@ impl<T> Mutex<T> {
   }
 }
 
+impl<T> Lock for Mutex<T> {
+  type Guard<'guard>
+    = MutexGuard<'guard, Self::Resource>
+  where
+    Self: 'guard;
+  type Resource = T;
+
+  #[inline]
+  fn new(resource: Self::Resource) -> Self {
+    Mutex::new(resource)
+  }
+
+  #[inline]
+  async fn lock(&self) -> Self::Guard<'_> {
+    (*self).lock().await
+  }
+}
+
 #[expect(clippy::missing_fields_in_debug, reason = "best effort")]
 impl<T> Debug for Mutex<T> {
   #[inline]
@@ -77,7 +109,7 @@ impl<T> Debug for Mutex<T> {
 // SAFETY: Access is exclusive regardless of the number of threads
 unsafe impl<T: Send> Send for Mutex<T> {}
 // SAFETY: Access is exclusive regardless of the number of threads
-unsafe impl<T: Send + Sync> Sync for Mutex<T> {}
+unsafe impl<T: Send> Sync for Mutex<T> {}
 
 /// An RAII guard returned by the `lock` and `try_lock` methods. When this structure is dropped
 /// (falls out of scope), the lock will be unlocked.
@@ -115,12 +147,11 @@ impl<T> DerefMut for MutexGuard<'_, T> {
 }
 
 impl<T> Drop for MutexGuard<'_, T> {
-  #[expect(clippy::unwrap_used, reason = "blame the std")]
   #[inline]
   fn drop(&mut self) {
     let prev = self.mutex.state.fetch_and(!IS_LOCKED, Ordering::AcqRel);
     if has_waiters(prev) {
-      wake(&self.mutex.state, &mut self.mutex.waiters.lock().unwrap());
+      wake(&self.mutex.state, &mut lock_mutex(&self.mutex.waiters));
     }
   }
 }
@@ -128,7 +159,7 @@ impl<T> Drop for MutexGuard<'_, T> {
 // SAFETY: Access is exclusive regardless of the number of threads
 unsafe impl<T: Send> Send for MutexGuard<'_, T> {}
 // SAFETY: Access is exclusive regardless of the number of threads
-unsafe impl<T: Send + Sync> Sync for MutexGuard<'_, T> {}
+unsafe impl<T: Sync> Sync for MutexGuard<'_, T> {}
 
 /// A future which resolves when the target mutex has been successfully acquired.
 #[derive(Debug)]
@@ -139,13 +170,12 @@ pub struct MutexLockFuture<'mutex, T> {
 }
 
 impl<T> Drop for MutexLockFuture<'_, T> {
-  #[expect(clippy::unwrap_used, reason = "blame the std")]
   #[inline]
   fn drop(&mut self) {
     let (Some(idx), Some(mutex)) = (self.idx_opt, self.mutex_opt) else {
       return;
     };
-    let mut guard = mutex.waiters.lock().unwrap();
+    let mut guard = lock_mutex(&mutex.waiters);
     if matches!(remove_waker(idx, &mut guard), Some(Waiter::Woken)) {
       // Someone else awaked this instance while it is being dropped, which means that the `Drop`
       // implementation of `MutexGuard` will never call `wake`.
@@ -155,24 +185,23 @@ impl<T> Drop for MutexLockFuture<'_, T> {
 }
 
 impl<'any, T> Future for MutexLockFuture<'any, T> {
-  type Output = crate::Result<MutexGuard<'any, T>>;
+  type Output = MutexGuard<'any, T>;
 
-  #[expect(clippy::unwrap_used, reason = "blame the std")]
   #[inline]
   fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-    let mutex = self.mutex_opt.ok_or(crate::Error::FuturePolledAfterFinalization)?;
+    let Some(mutex) = self.mutex_opt else { _unlikely_unreachable() };
 
     if let Some(guard) = mutex.try_lock() {
       if let Some(idx) = self.idx_opt {
-        let _waiter = remove_waker(idx, &mut guard.mutex.waiters.lock().unwrap());
+        let _waiter = remove_waker(idx, &mut lock_mutex(&guard.mutex.waiters));
       }
       self.mutex_opt = None;
-      return Poll::Ready(Ok(guard));
+      return Poll::Ready(guard);
     }
 
     {
       let Mutex { state, waiters, value: _ } = mutex;
-      let mut guard = waiters.lock().unwrap();
+      let mut guard = lock_mutex(waiters);
       if let Some(idx) = self.idx_opt {
         let actual_idx = backward_deque_idx(idx, guard.last_added);
         if let Some(elem) = guard.deque.get_mut(actual_idx) {
@@ -191,10 +220,10 @@ impl<'any, T> Future for MutexLockFuture<'any, T> {
 
     if let Some(guard) = mutex.try_lock() {
       if let Some(idx) = self.idx_opt {
-        let _waiter = remove_waker(idx, &mut guard.mutex.waiters.lock().unwrap());
+        let _waiter = remove_waker(idx, &mut lock_mutex(&guard.mutex.waiters));
       }
       self.mutex_opt = None;
-      return Poll::Ready(Ok(guard));
+      return Poll::Ready(guard);
     }
 
     Poll::Pending
@@ -204,7 +233,7 @@ impl<'any, T> Future for MutexLockFuture<'any, T> {
 // SAFETY: Access is exclusive regardless of the number of threads
 unsafe impl<T: Send> Send for MutexLockFuture<'_, T> {}
 // SAFETY: Access is exclusive regardless of the number of threads
-unsafe impl<T> Sync for MutexLockFuture<'_, T> {}
+unsafe impl<T: Send> Sync for MutexLockFuture<'_, T> {}
 
 #[derive(Debug)]
 enum Waiter {
@@ -238,6 +267,14 @@ const fn is_locked(state: usize) -> bool {
 #[inline]
 const fn has_waiters(state: usize) -> bool {
   (state & HAS_WAITERS) != 0
+}
+
+#[allow(clippy::unwrap_used, reason = "blame the std")]
+fn lock_mutex(mutex: &LocalMutex) -> LocalMutexGuard<'_> {
+  #[cfg(feature = "parking_lot")]
+  return mutex.lock();
+  #[cfg(not(feature = "parking_lot"))]
+  return mutex.lock().unwrap();
 }
 
 #[inline]
@@ -275,7 +312,7 @@ mod tests {
     misc::PollOnce,
     sync::{
       Arc, Mutex,
-      mutex::{has_waiters, is_locked},
+      mutex::{has_waiters, is_locked, lock_mutex},
     },
   };
   use core::sync::atomic::Ordering;
@@ -293,7 +330,7 @@ mod tests {
       let mutex = mutex.clone();
       let _fut = runtime
         .spawn_threaded(async move {
-          let mut guard = mutex.lock().await.unwrap();
+          let mut guard = mutex.lock().await;
           *guard += 1;
           tx.send(()).unwrap();
         })
@@ -305,7 +342,7 @@ mod tests {
         for _ in 0..num_threads {
           rx.recv().unwrap();
         }
-        assert_eq!(num_threads, *mutex.lock().await.unwrap());
+        assert_eq!(num_threads, *mutex.lock().await);
       })
       .unwrap();
 
@@ -321,7 +358,7 @@ mod tests {
       .block_on(async {
         let mutex = Mutex::new(());
         for _ in 0..10 {
-          let _guard = mutex.lock().await.unwrap();
+          let _guard = mutex.lock().await;
         }
         check_mutex(&mutex);
       })
@@ -334,7 +371,7 @@ mod tests {
       .block_on(async {
         let mutex = Mutex::new(());
         {
-          let lock0 = mutex.lock().await.unwrap();
+          let lock0 = mutex.lock().await;
           let mut lock1_fut = mutex.lock();
           assert!(PollOnce::new(&mut lock1_fut).await.is_none());
           drop(lock0);
@@ -347,7 +384,7 @@ mod tests {
 
   fn check_mutex<T>(mutex: &Mutex<T>) {
     let state = mutex.state.load(Ordering::Relaxed);
-    let waiters = mutex.waiters.lock().unwrap();
+    let waiters = lock_mutex(&mutex.waiters);
     assert_eq!(has_waiters(state), false);
     assert_eq!(is_locked(state), false);
     assert_eq!(waiters.deque.len(), 0);

@@ -528,7 +528,7 @@ impl<T> Deque<T> {
             drop_elements(buffer, diff, back_begin, self.data.as_ptr_mut())?;
           }
         }
-        self.tail = if self.tail == diff { self.data.capacity() } else { back_begin }
+        self.tail = if self.tail == diff { 0 } else { back_begin }
       } else {
         let front_len = diff.wrapping_sub(self.tail);
         let front_begin = self.data.capacity().wrapping_sub(front_len);
