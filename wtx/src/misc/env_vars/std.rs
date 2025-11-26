@@ -112,9 +112,9 @@ where
   Ok(vars)
 }
 
-fn find_file(buffer: &mut PathBuf, path: &Path) -> io::Result<()> {
-  buffer.push(path);
-  match fs::metadata(&buffer) {
+fn find_file(dir: &mut PathBuf, file: &Path) -> io::Result<()> {
+  dir.push(file);
+  match fs::metadata(&dir) {
     Ok(elem) => {
       if elem.is_file() {
         return Ok(());
@@ -126,9 +126,9 @@ fn find_file(buffer: &mut PathBuf, path: &Path) -> io::Result<()> {
       }
     }
   }
-  let _ = buffer.pop();
-  if buffer.pop() {
-    find_file(buffer, path)
+  let _ = dir.pop();
+  if dir.pop() {
+    find_file(dir, file)
   } else {
     Err(io::Error::new(io::ErrorKind::NotFound, "`.env` file not found"))
   }

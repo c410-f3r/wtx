@@ -68,6 +68,12 @@ name = "client-api-framework"
 path = "generic-examples/client-api-framework.rs"
 required-features = ["client-api-framework"]
 
+
+[[example]]
+name = "environment-variables"
+path = "generic-examples/environment-variables.rs"
+required-features = ["environment-variables"]
+
 [[example]]
 name = "executor"
 path = "generic-examples/executor.rs"
@@ -186,6 +192,7 @@ database-client-postgres-composite-type = ["postgres"]
 database-client-postgres-enum = ["postgres"]
 
 client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
+environment-variables = ["wtx/std", "wtx-macros"]
 executor = ["wtx/executor", "wtx/macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]

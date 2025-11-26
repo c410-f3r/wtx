@@ -7,168 +7,67 @@ on:
       - main
 
 jobs:
-  autobahn-fuzzingclient:
+  internal-tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - script: internal-tests0.sh
+          - script: internal-tests1.sh
+          - script: internal-tests2.sh
+          - script: internal-tests3.sh
+            install-crate: mdbook
+          - script: internal-tests4.sh
+            install-crate: cargo-fuzz
+          - script: internal-tests5.sh
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
+      - if: matrix.install-crate
+        uses: taiki-e/cache-cargo-install-action@v2
         with:
-          override: true
-          profile: minimal
+          tool: ${{ matrix.install-crate }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
           toolchain: nightly-2025-10-31
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/autobahn-fuzzingclient.sh ci
-
-  autobahn-fuzzingserver:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/autobahn-fuzzingserver.sh ci
-
-  autobahn-fuzzingserver-concurrent:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/autobahn-fuzzingserver-concurrent.sh ci
-
-  h2spec-high:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/h2spec.sh high ci
-
-  h2spec-low:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/h2spec.sh low ci
+      - run: .scripts/${{ matrix.script }}
 
   integration-tests:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        scripts: [
-          "integration-tests",
-          "integration-tests-mysql",
-        ]
+        scripts: [integration-tests, integration-tests-mysql]
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          override: true
-          profile: minimal
           toolchain: nightly-2025-10-31
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install docker-compose -y
       - run: docker compose -f .test-utils/docker-compose.yml up -d --wait
       - run: .scripts/${{ matrix.scripts }}.sh
 
-  internal-tests0:
+  other-tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        scripts: [
+          '.scripts/autobahn-fuzzingclient.sh ci',
+          '.scripts/autobahn-fuzzingserver.sh ci',
+          '.scripts/autobahn-fuzzingserver-concurrent.sh ci',
+          '.scripts/h2load.sh ci',
+          '.scripts/h2spec.sh high ci',
+          '.scripts/h2spec.sh low ci'
+        ]
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy, rustfmt
-          override: true
-          profile: minimal
           toolchain: nightly-2025-10-31
       - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests0.sh
-
-  internal-tests1:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          components: clippy, rustfmt
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests1.sh
-
-  internal-tests2:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          components: clippy, rustfmt
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests2.sh
-
-  internal-tests3:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: mdbook
-          use-tool-cache: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          components: clippy, rustfmt
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests3.sh
-
-  internal-tests4:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-fuzz
-          use-tool-cache: true
-      - uses: actions-rs/toolchain@v1
-        with:
-          components: clippy, rustfmt
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests4.sh
-
-  internal-tests5:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rs/toolchain@v1
-        with:
-          components: clippy, rustfmt
-          override: true
-          profile: minimal
-          toolchain: nightly-2025-10-31
-      - uses: Swatinem/rust-cache@v2
-      - run: .scripts/internal-tests5.sh
+      - run: sudo apt install nghttp2-client -y
+      - run: ${{ matrix.scripts }}
