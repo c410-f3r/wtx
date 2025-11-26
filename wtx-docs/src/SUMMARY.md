@@ -6,6 +6,7 @@
 - [Database Client](database-client/README.md)
   - [Encrypted Connections](database-client/encrypted-connections.md)
 - [Database Schema Manager](database-schema-manager/README.md)
+- [Environment Variables](environment-variables/README.md)
 - [Error Handling](error-handling/README.md)
 - [Executor](executor/README.md)
 - [gRPC](grpc/README.md)
