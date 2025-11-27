@@ -96,7 +96,8 @@ where
       if let &[ref value_surrounded @ .., last] = value_after_del {
         if delimiter == last {
           // SAFETY: The cut of surrounding quotes don't invalidate UTF-8
-          vars.push((key_trimmed, unsafe { str::from_utf8_unchecked(value_surrounded).into() }))?;
+          let value_final = unsafe { str::from_utf8_unchecked(value_surrounded) };
+          vars.push((key_trimmed, unescape(value_final)))?;
         } else {
           process_multiline(buffer, reader, delimiter, key_trimmed, value_begin, &mut vars)?;
         }
@@ -104,7 +105,7 @@ where
         process_multiline(buffer, reader, delimiter, key_trimmed, value_begin, &mut vars)?;
       }
     } else {
-      vars.push((key_trimmed, strip_ending_comment(value_trimmed).into()))?;
+      vars.push((key_trimmed, unescape(strip_ending_comment(value_trimmed))))?;
     }
 
     buffer.clear();
@@ -160,7 +161,7 @@ where
   if !ends_with_delimiter {
     value_all = strip_ending_comment(value_all);
   }
-  let mut value_final: String = value_all.into();
+  let mut value_final = unescape(value_all);
   if Some(char::from(delimiter)) != value_final.pop() {
     return Err(crate::Error::MissingVarQuote(key_trimmed.into()));
   }
@@ -170,6 +171,30 @@ where
 
 fn strip_ending_comment(value: &str) -> &str {
   if let Some((lhs, _)) = str_rsplit_once1(value, b'#') { lhs.trim_end() } else { value }
+}
+
+fn unescape(str: &str) -> String {
+  let mut rslt = String::with_capacity(str.len());
+  let mut chars = str.chars();
+  while let Some(ch) = chars.next() {
+    if ch == '\\' {
+      match chars.next() {
+        Some('"') => rslt.push('"'),
+        Some('\'') => rslt.push('\''),
+        Some('\\') | None => rslt.push('\\'),
+        Some('n') => rslt.push('\n'),
+        Some('r') => rslt.push('\r'),
+        Some('t') => rslt.push('\t'),
+        Some(other) => {
+          rslt.push('\\');
+          rslt.push(other);
+        }
+      }
+    } else {
+      rslt.push(ch);
+    }
+  }
+  rslt
 }
 
 #[cfg(test)]
@@ -213,7 +238,7 @@ mod tests {
     let data = r#"JSON="{\"a\":1}""#;
     let result = env(data.as_bytes()).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], ("JSON".into(), r#"{\"a\":1}"#.into()));
+    assert_eq!(result[0], ("JSON".into(), r#"{"a":1}"#.into()));
   }
 
   #[test]
