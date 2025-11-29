@@ -11,7 +11,7 @@ use crate::{
 use alloc::string::String;
 
 pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<E>(
-  (buffer_cmd, buffer_db_migrations, buffer_idents, _): (
+  (buffer_cmd, _, buffer_idents, _): (
     &mut String,
     &mut Vector<DbMigration>,
     &mut Vector<Identifier>,
@@ -24,7 +24,7 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<E>(
 {
   c.executor_mut().table_names(buffer_cmd, buffer_idents, "_wtx").await.unwrap();
   assert_eq!(buffer_idents.len(), 0);
-  let _ = _migrate_doc_test((buffer_cmd, buffer_db_migrations, buffer_idents), c).await;
+  let _ = _migrate_doc_test(c).await;
 
   c.executor_mut().table_names(buffer_cmd, buffer_idents, "_wtx").await.unwrap();
   assert_eq!(buffer_idents.len(), 2);

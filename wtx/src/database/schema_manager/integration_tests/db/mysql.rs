@@ -29,7 +29,7 @@ pub(crate) async fn clean_drops_all_objs<'exec, E>(
   assert_eq!(buffer_idents.len(), 1);
   buffer_idents.clear();
 
-  c.clear((buffer_cmd, buffer_idents)).await.unwrap();
+  c.clear().await.unwrap();
 
   c.executor_mut().table_names(buffer_cmd, buffer_idents, "").await.unwrap();
   assert_eq!(buffer_idents.len(), 0);

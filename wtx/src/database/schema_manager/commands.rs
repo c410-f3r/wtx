@@ -1,6 +1,8 @@
 #[cfg(feature = "schema-manager-dev")]
 mod clear;
 mod migrate;
+#[cfg(feature = "schema-manager-dev")]
+mod multi;
 mod rollback;
 #[cfg(feature = "schema-manager-dev")]
 mod seed;
@@ -74,10 +76,9 @@ where
   E: SchemaManagement,
 {
   /// Retrieves all inserted elements.
-  pub async fn all_elements(
-    &mut self,
-    buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> crate::Result<()> {
-    self.executor.all_elements(buffer).await
+  pub async fn all_elements(&mut self) -> crate::Result<Vector<Identifier>> {
+    let mut buffer = Vector::new();
+    self.executor.all_elements((&mut String::new(), &mut buffer)).await?;
+    Ok(buffer)
   }
 }

@@ -25,7 +25,7 @@ impl GenericResponse for () {
 mod httparse {
   use crate::{
     http::{GenericResponse, Version},
-    misc::hints::_unlikely_unreachable,
+    misc::_unlikely_unreachable,
   };
 
   impl GenericResponse for httparse::Response<'_, '_> {

@@ -1,9 +1,6 @@
 use crate::{
   collection::Vector,
-  database::{
-    Identifier,
-    schema_manager::{Commands, SchemaManagement},
-  },
+  database::schema_manager::{Commands, SchemaManagement},
 };
 use alloc::string::String;
 
@@ -13,10 +10,7 @@ where
 {
   /// Tries to clear all objects of a database, including separated namespaces/schemas.
   #[inline]
-  pub async fn clear(
-    &mut self,
-    buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> crate::Result<()> {
-    self.executor.clear(buffer).await
+  pub async fn clear(&mut self) -> crate::Result<()> {
+    self.executor.clear((&mut String::new(), &mut Vector::new())).await
   }
 }

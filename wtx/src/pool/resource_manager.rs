@@ -16,7 +16,7 @@ pub trait ResourceManager {
   ) -> impl Future<Output = Result<Self::Resource, Self::Error>>;
 
   /// If a resource is in an invalid state.
-  fn is_invalid(&self, resource: &Self::Resource) -> impl Future<Output = bool>;
+  fn is_invalid(&self, resource: &Self::Resource) -> bool;
 
   /// Re-creates a new valid instance. Should be called if `resource` is invalid.
   fn recycle(
@@ -38,7 +38,7 @@ impl ResourceManager for () {
   }
 
   #[inline]
-  async fn is_invalid(&self, _: &Self::Resource) -> bool {
+  fn is_invalid(&self, _: &Self::Resource) -> bool {
     false
   }
 
@@ -79,7 +79,7 @@ where
   }
 
   #[inline]
-  async fn is_invalid(&self, _: &Self::Resource) -> bool {
+  fn is_invalid(&self, _: &Self::Resource) -> bool {
     false
   }
 
@@ -162,7 +162,7 @@ pub(crate) mod database {
     }
 
     #[inline]
-    async fn is_invalid(&self, resource: &Self::Resource) -> bool {
+    fn is_invalid(&self, resource: &Self::Resource) -> bool {
       resource.connection_state().is_closed()
     }
 
@@ -235,7 +235,7 @@ pub(crate) mod database {
       }
 
       #[inline]
-      async fn is_invalid(&self, resource: &Self::Resource) -> bool {
+      fn is_invalid(&self, resource: &Self::Resource) -> bool {
         resource.connection_state().is_closed()
       }
 
@@ -324,7 +324,7 @@ pub(crate) mod database {
       }
 
       #[inline]
-      async fn is_invalid(&self, resource: &Self::Resource) -> bool {
+      fn is_invalid(&self, resource: &Self::Resource) -> bool {
         resource.connection_state().is_closed()
       }
 

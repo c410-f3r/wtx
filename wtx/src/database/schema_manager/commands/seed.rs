@@ -15,15 +15,14 @@ where
   ///
   /// It is up to be caller to actually seed the database with data.
   #[inline]
-  pub async fn seed<I, S>(
+  pub async fn seed<S>(
     &mut self,
-    buffer_cmd: &mut String,
-    seeds: I,
+    seeds: impl IntoIterator<Item = S>,
   ) -> Result<(), <E::Database as DEController>::Error>
   where
-    I: Iterator<Item = S>,
     S: Lease<str>,
   {
+    let mut buffer_cmd = String::new();
     for elem in seeds {
       buffer_cmd.push_str(elem.lease());
     }
@@ -34,7 +33,6 @@ where
         Ok(((), this))
       })
       .await?;
-    buffer_cmd.clear();
     Ok(())
   }
 
@@ -43,13 +41,12 @@ where
   #[inline]
   pub async fn seed_from_dir(
     &mut self,
-    buffer_cmd: &mut String,
     dir: &Path,
   ) -> Result<(), <E::Database as DEController>::Error> {
     let iter = crate::database::schema_manager::misc::files(dir)?.filter_map(|el_rslt| {
       let el = el_rslt.ok()?;
       read_to_string(el.path()).ok()
     });
-    self.seed(buffer_cmd, iter).await
+    self.seed(iter).await
   }
 }

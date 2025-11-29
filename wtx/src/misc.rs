@@ -4,7 +4,7 @@
 pub(crate) mod bytes_transfer;
 #[cfg(feature = "postgres")]
 pub(crate) mod counter_writer;
-pub(crate) mod hints;
+mod hints;
 #[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
 pub(crate) mod net;
 #[cfg(feature = "http2")]
@@ -60,6 +60,7 @@ pub use env_vars::{EnvVars, FromVars};
 ))]
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
+pub use hints::*;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
 pub use join_array::JoinArray;

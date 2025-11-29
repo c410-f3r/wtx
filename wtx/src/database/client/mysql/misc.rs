@@ -12,8 +12,8 @@ use crate::{
   de::{Decode, Encode},
   misc::{
     Usize,
-    hints::_unlikely_elem,
     net::{PartitionedFilledBuffer, read_header, read_payload},
+    unlikely_cb,
   },
   stream::Stream,
 };
@@ -73,7 +73,7 @@ where
   }
   *sequence_id = local_sequence_id;
   if first_byte == Some(255) {
-    return _unlikely_elem({
+    return unlikely_cb(|| {
       let db_error: crate::Result<DbError> = decode(&mut pfb.current(), capabilities);
       Err(db_error?.into())
     });

@@ -20,8 +20,7 @@ pub(crate) async fn migrate_works<E>(
 {
   let path = Path::new("../.test-utils/migrations.toml");
   let mut db_migrations = Vector::new();
-  let mut status = Vector::new();
-  c.migrate_from_toml_path((buffer_cmd, &mut db_migrations, &mut status), path).await.unwrap();
+  c.migrate_from_toml_path(path).await.unwrap();
   let initial = UserMigrationGroup::new("initial", 1);
   c.executor_mut().migrations(buffer_cmd, &initial, &mut db_migrations).await.unwrap();
   assert_eq!(db_migrations[0].checksum(), 7573493478190316387);

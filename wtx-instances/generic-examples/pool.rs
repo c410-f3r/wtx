@@ -17,7 +17,7 @@ impl ResourceManager for CustomManager {
     Ok(123)
   }
 
-  async fn is_invalid(&self, _: &Self::Resource) -> bool {
+  fn is_invalid(&self, _: &Self::Resource) -> bool {
     false
   }
 

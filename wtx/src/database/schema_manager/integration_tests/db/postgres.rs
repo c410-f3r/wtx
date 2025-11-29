@@ -90,7 +90,7 @@ pub(crate) async fn clean_drops_all_objs<'exec, E>(
   .await
   .unwrap();
 
-  c.clear((buffer_cmd, buffer_idents)).await.unwrap();
+  c.clear().await.unwrap();
 
   postgres::all_elements(
     (buffer_cmd, buffer_idents),

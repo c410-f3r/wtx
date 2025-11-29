@@ -81,12 +81,9 @@ where
   let mut commands = Commands::new(sm.files_num, executor);
   match &sm.commands {
     SchemaManagerCommands::CheckFullRollback {} => {
-      commands
-        .rollback_from_toml((_buffer_cmd, _buffer_db_migrations), &toml_file_path(sm)?, None)
-        .await?;
-      commands.all_elements((_buffer_cmd, _buffer_idents)).await?;
-      let mut iter = _buffer_idents.iter();
-      let (Some("_wtx"), None) = (iter.next().map(|el| el.as_str()), iter.next()) else {
+      commands.rollback_from_toml(&toml_file_path(sm)?, None).await?;
+      let mut iter = commands.all_elements().await?.into_iter();
+      let (Some("_wtx"), None) = (iter.next().as_deref(), iter.next()) else {
         eprintln!("{_buffer_idents:?}");
         let msg = String::from("The rollback operation didn't leave the database in a clean state");
         return Err(wtx::Error::Generic(msg.into()).into());
@@ -94,46 +91,29 @@ where
     }
     #[cfg(feature = "schema-manager-dev")]
     SchemaManagerCommands::Clean {} => {
-      commands.clear((_buffer_cmd, _buffer_idents)).await?;
+      commands.clear().await?;
     }
     SchemaManagerCommands::Migrate {} => {
-      commands
-        .migrate_from_toml_path(
-          (_buffer_cmd, _buffer_db_migrations, _buffer_status),
-          &toml_file_path(sm)?,
-        )
-        .await?;
+      commands.migrate_from_toml_path(&toml_file_path(sm)?).await?;
     }
     #[cfg(feature = "schema-manager-dev")]
     SchemaManagerCommands::MigrateAndSeed {} => {
-      let (migration_groups, seeds) =
-        wtx::database::schema_manager::misc::parse_root_toml(&toml_file_path(sm)?)?;
-      commands
-        .migrate_from_groups_paths(
-          (_buffer_cmd, _buffer_db_migrations, _buffer_status),
-          &migration_groups,
-        )
-        .await?;
-      commands.seed_from_dir(_buffer_cmd, seeds_file_path(sm, seeds.as_deref())?).await?;
+      use wtx::database::schema_manager::misc::parse_root_toml;
+      let (migration_groups, seeds) = parse_root_toml(&toml_file_path(sm)?)?;
+      commands.migrate_from_groups_paths(&migration_groups).await?;
+      commands.seed_from_dir(seeds_file_path(sm, seeds.as_deref())?).await?;
     }
     SchemaManagerCommands::Rollback { versions: _versions } => {
-      commands
-        .rollback_from_toml(
-          (_buffer_cmd, _buffer_db_migrations),
-          &toml_file_path(sm)?,
-          Some(_versions),
-        )
-        .await?;
+      commands.rollback_from_toml(&toml_file_path(sm)?, Some(_versions)).await?;
     }
     #[cfg(feature = "schema-manager-dev")]
     SchemaManagerCommands::Seed {} => {
-      let (_, seeds) = wtx::database::schema_manager::misc::parse_root_toml(&toml_file_path(sm)?)?;
-      commands.seed_from_dir(_buffer_cmd, seeds_file_path(sm, seeds.as_deref())?).await?;
+      use wtx::database::schema_manager::misc::parse_root_toml;
+      let (_, seeds) = parse_root_toml(&toml_file_path(sm)?)?;
+      commands.seed_from_dir(seeds_file_path(sm, seeds.as_deref())?).await?;
     }
     SchemaManagerCommands::Validate {} => {
-      commands
-        .validate_from_toml((_buffer_cmd, _buffer_db_migrations), &toml_file_path(sm)?)
-        .await?;
+      commands.validate_from_toml(&toml_file_path(sm)?).await?;
     }
   }
   Ok(())

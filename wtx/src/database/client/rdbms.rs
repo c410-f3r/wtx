@@ -14,7 +14,7 @@ use crate::{
     client::rdbms::{column_info::ColumnInfo, common_record::CommonRecord},
   },
   de::DEController,
-  misc::{Lease, hints::_unlikely_elem, net::PartitionedFilledBuffer},
+  misc::{Lease, net::PartitionedFilledBuffer},
 };
 use core::ops::Range;
 
@@ -47,21 +47,12 @@ where
   'inner: 'rem,
 {
   let idx = ci.idx(record)?;
-  let (is_null, range) = match record.lease().values_params.get(idx) {
-    None => return _unlikely_elem(None),
-    Some(elem) => elem,
-  };
+  let (is_null, range) = record.lease().values_params.get(idx)?;
   if *is_null {
     None
   } else {
-    let column = match record.lease().stmt.column(idx) {
-      None => return _unlikely_elem(None),
-      Some(elem) => elem,
-    };
-    let bytes = match record.lease().record.get(range.clone()) {
-      None => return _unlikely_elem(None),
-      Some(elem) => elem,
-    };
+    let column = record.lease().stmt.column(idx)?;
+    let bytes = record.lease().record.get(range.clone())?;
     Some(From::from((bytes, column)))
   }
 }

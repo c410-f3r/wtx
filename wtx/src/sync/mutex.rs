@@ -1,6 +1,6 @@
 use crate::{
   collection::{Deque, backward_deque_idx},
-  misc::hints::_unlikely_unreachable,
+  misc::_unlikely_unreachable,
   sync::{AtomicUsize, Lock},
 };
 use core::{
