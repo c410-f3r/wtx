@@ -111,6 +111,80 @@ pub trait SchemaManagement: Executor {
   ) -> impl Future<Output = crate::Result<()>>;
 }
 
+impl<T> SchemaManagement for &mut T
+where
+  T: SchemaManagement,
+{
+  #[inline]
+  async fn all_elements(
+    &mut self,
+    buffer: (&mut String, &mut Vector<Identifier>),
+  ) -> crate::Result<()> {
+    (**self).all_elements(buffer).await
+  }
+
+  #[inline]
+  async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+    (**self).clear(buffer).await
+  }
+
+  #[inline]
+  async fn create_wtx_tables(&mut self) -> crate::Result<()> {
+    (**self).create_wtx_tables().await
+  }
+
+  #[inline]
+  async fn delete_migrations<S>(
+    &mut self,
+    buffer_cmd: &mut String,
+    mg: &UserMigrationGroup<S>,
+    uid: Uid,
+  ) -> crate::Result<()>
+  where
+    S: Lease<str>,
+  {
+    (**self).delete_migrations(buffer_cmd, mg, uid).await
+  }
+
+  #[inline]
+  async fn insert_migrations<'migration, DBS, I, S>(
+    &mut self,
+    buffer_cmd: &mut String,
+    mg: &UserMigrationGroup<S>,
+    migrations: I,
+  ) -> crate::Result<()>
+  where
+    DBS: Lease<[DatabaseTy]> + 'migration,
+    I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
+    S: Lease<str> + 'migration,
+  {
+    (**self).insert_migrations(buffer_cmd, mg, migrations).await
+  }
+
+  #[inline]
+  async fn migrations<S>(
+    &mut self,
+    buffer_cmd: &mut String,
+    mg: &UserMigrationGroup<S>,
+    results: &mut Vector<DbMigration>,
+  ) -> crate::Result<()>
+  where
+    S: Lease<str>,
+  {
+    (**self).migrations(buffer_cmd, mg, results).await
+  }
+
+  #[inline]
+  async fn table_names(
+    &mut self,
+    buffer_cmd: &mut String,
+    results: &mut Vector<Identifier>,
+    schema: &str,
+  ) -> crate::Result<()> {
+    (**self).table_names(buffer_cmd, results, schema).await
+  }
+}
+
 impl SchemaManagement for () {
   #[inline]
   async fn all_elements(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {

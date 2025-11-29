@@ -1,7 +1,7 @@
 #[cfg(feature = "schema-manager-dev")]
 mod clear;
 mod migrate;
-#[cfg(feature = "schema-manager-dev")]
+#[cfg(all(feature = "schema-manager-dev", feature = "std"))]
 mod multi;
 mod rollback;
 #[cfg(feature = "schema-manager-dev")]
