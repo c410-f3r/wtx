@@ -1,13 +1,13 @@
 use crate::{
   collection::Vector,
-  misc::{EnvVars, FromVars, str_rsplit_once1, str_split_once1},
+  misc::{EnvVars, FromVars, find_file, str_rsplit_once1, str_split_once1},
 };
 use alloc::string::String;
 use core::str;
 use std::{
   env, fs,
-  io::{self, BufRead as _, BufReader, Read},
-  path::{Path, PathBuf},
+  io::{BufRead as _, BufReader, Read},
+  path::Path,
 };
 
 impl<T> EnvVars<T>
@@ -111,28 +111,6 @@ where
     buffer.clear();
   }
   Ok(vars)
-}
-
-fn find_file(dir: &mut PathBuf, file: &Path) -> io::Result<()> {
-  dir.push(file);
-  match fs::metadata(&dir) {
-    Ok(elem) => {
-      if elem.is_file() {
-        return Ok(());
-      }
-    }
-    Err(err) => {
-      if err.kind() != io::ErrorKind::NotFound {
-        return Err(err);
-      }
-    }
-  }
-  let _ = dir.pop();
-  if dir.pop() {
-    find_file(dir, file)
-  } else {
-    Err(io::Error::new(io::ErrorKind::NotFound, "`.env` file not found"))
-  }
 }
 
 fn process_multiline<R>(

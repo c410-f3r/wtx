@@ -216,6 +216,34 @@ where
   Ok(())
 }
 
+/// Recursively searches `file` starting at `dir`.
+#[cfg(feature = "std")]
+#[inline]
+pub fn find_file(dir: &mut std::path::PathBuf, file: &std::path::Path) -> std::io::Result<()> {
+  dir.push(file);
+  match std::fs::metadata(&dir) {
+    Ok(elem) => {
+      if elem.is_file() {
+        return Ok(());
+      }
+    }
+    Err(err) => {
+      if err.kind() != std::io::ErrorKind::NotFound {
+        return Err(err);
+      }
+    }
+  }
+  let _ = dir.pop();
+  if dir.pop() {
+    find_file(dir, file)
+  } else {
+    Err(std::io::Error::new(
+      std::io::ErrorKind::NotFound,
+      alloc::format!("`{}` not found", file.display()),
+    ))
+  }
+}
+
 /// Similar to `collect_seq` of `serde` but expects a `Result`.
 #[cfg(feature = "serde")]
 pub fn serialize_seq_with_serde<E, I, S, T>(ser: S, into_iter: I) -> Result<S::Ok, S::Error>
