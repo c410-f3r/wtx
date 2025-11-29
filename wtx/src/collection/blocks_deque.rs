@@ -1,40 +1,53 @@
+#![expect(clippy::ref_patterns, reason = "false-positive")]
+
 macro_rules! do_get {
-  ($block:ident, $metadata:expr, $ptr:expr, $slice:ident, $($ref:tt)*) => {
+  ($block:ident, $data:expr, $metadata:expr, $logical_begin:expr, $ptr:ident, $slice:ident, $($ref:tt)*) => {{
+    let metadata = $metadata;
+    let data = $($ref)* *$data;
+    let len = metadata.len;
+    let relative_offset = metadata.offset.wrapping_sub($logical_begin);
+
+    let head = data.head();
+    let capacity = data.capacity();
+    let physical_begin = head.wrapping_add(relative_offset).checked_rem(capacity);
+
     $block {
-      data: {
+      data: if let Some(elem) = physical_begin {
         // SAFETY: `metadata` is always constructed with valid indices
-        let pointer = unsafe { $ptr.add($metadata.begin) };
+        let pointer = unsafe { data.$ptr().add(elem) };
         // SAFETY: same as above
-        unsafe { $($ref)* *ptr::$slice(pointer, $metadata.len) }
+        unsafe { slice::$slice(pointer, len) }
+      } else {
+        $($ref)* []
       },
-      misc: $($ref)* $metadata.misc,
-      range: $metadata.begin..$metadata.begin.wrapping_add($metadata.len)
+      misc: $($ref)* metadata.misc,
+      range: {
+        relative_offset..relative_offset.wrapping_add(len)
+      }
     }
-  }
+  }}
 }
 
 macro_rules! get {
-  ($metadata:expr, $ptr:expr) => {
-    do_get!(BlockRef, $metadata, $ptr, slice_from_raw_parts, &)
+  ($data:expr, $logical_begin:expr, $metadata:expr) => {
+    do_get!(BlockRef, $data, $metadata, $logical_begin, as_ptr, from_raw_parts, &)
   }
 }
 
 macro_rules! get_mut {
-  ($metadata:expr, $ptr:expr) => {
-    do_get!(BlockMut, $metadata, $ptr, slice_from_raw_parts_mut, &mut)
+  ($data:expr, $logical_begin:expr, $metadata:expr) => {
+    do_get!(BlockMut, $data, $metadata, $logical_begin, as_ptr_mut, from_raw_parts_mut, &mut)
   }
 }
 
 mod block;
-mod blocks_deque_builder;
 mod metadata;
 #[cfg(test)]
 mod tests;
 
-use crate::collection::{Deque, TryExtend};
+use crate::collection::{Deque, ExpansionTy, TryExtend};
 pub use block::Block;
-pub use blocks_deque_builder::BlocksDequeBuilder;
-use core::ptr;
+use core::slice;
 
 /// [`Block`] composed by references.
 type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
@@ -60,6 +73,7 @@ pub enum BlocksDequeError {
 #[derive(Debug)]
 pub struct BlocksDeque<D, M> {
   data: Deque<D>,
+  logical_begin: usize,
   metadata: Deque<metadata::Metadata<M>>,
 }
 
@@ -67,7 +81,7 @@ impl<D, M> BlocksDeque<D, M> {
   /// Creates a new empty instance.
   #[inline]
   pub const fn new() -> Self {
-    Self { data: Deque::new(), metadata: Deque::new() }
+    Self { data: Deque::new(), logical_begin: 0, metadata: Deque::new() }
   }
 
   /// Constructs a new, empty instance with at least the specified capacity.
@@ -76,6 +90,7 @@ impl<D, M> BlocksDeque<D, M> {
     Ok(Self {
       data: Deque::with_capacity(elements)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
+      logical_begin: 0,
       metadata: Deque::with_capacity(blocks)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
     })
@@ -87,6 +102,7 @@ impl<D, M> BlocksDeque<D, M> {
     Ok(Self {
       data: Deque::with_exact_capacity(elements)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
+      logical_begin: 0,
       metadata: Deque::with_exact_capacity(blocks)
         .map_err(|_err| BlocksDequeError::WithCapacityOverflow)?,
     })
@@ -110,23 +126,12 @@ impl<D, M> BlocksDeque<D, M> {
     self.metadata.len()
   }
 
-  /// See [`BlocksDequeBuilder`].
-  #[inline]
-  pub const fn builder_back(&mut self) -> BlocksDequeBuilder<'_, D, M, true> {
-    BlocksDequeBuilder::new(self)
-  }
-
-  /// See [`BlocksDequeBuilder`].
-  #[inline]
-  pub const fn builder_front(&mut self) -> BlocksDequeBuilder<'_, D, M, false> {
-    BlocksDequeBuilder::new(self)
-  }
-
   /// Clears the queue, removing all values.
   #[inline]
   pub fn clear(&mut self) {
-    let Self { data, metadata } = self;
+    let Self { data, logical_begin, metadata } = self;
     data.clear();
+    *logical_begin = 0;
     metadata.clear();
   }
 
@@ -142,41 +147,83 @@ impl<D, M> BlocksDeque<D, M> {
     self.data.len()
   }
 
+  /// Appends elements to the back of the instance so that the current length is equal to `et`.
+  #[inline]
+  pub fn expand_back(&mut self, et: ExpansionTy, misc: M, value: D) -> crate::Result<usize>
+  where
+    D: Clone,
+  {
+    let Self { data, logical_begin, metadata } = self;
+    let old_len = data.len();
+    let total_data_len =
+      data.expand_back(et, value).map_err(|_err| BlocksDequeError::PushBackOverflow)?;
+    let new_offset = logical_begin.wrapping_add(old_len);
+    metadata
+      .push_back(metadata::Metadata { offset: new_offset, len: total_data_len, misc })
+      .map_err(|_err| BlocksDequeError::PushBackOverflow)?;
+    Ok(total_data_len)
+  }
+
   /// Provides a reference to a block at the given index.
   #[inline]
   pub fn get(&self, idx: usize) -> Option<BlockRef<'_, D, M>> {
-    let metadata = self.metadata.get(idx)?;
-    Some(get!(metadata, self.data.as_ptr()))
+    let Self { ref data, logical_begin, ref metadata } = *self;
+    let local_metadata = metadata.get(idx)?;
+    Some(get!(data, logical_begin, local_metadata))
   }
 
   /// Mutable version of [`Self::get`].
   #[inline]
   pub fn get_mut(&mut self, idx: usize) -> Option<BlockMut<'_, D, M>> {
-    let metadata = self.metadata.get_mut(idx)?;
-    Some(get_mut!(metadata, self.data.as_ptr_mut()))
+    let Self { ref mut data, logical_begin, ref mut metadata } = *self;
+    let local_metadata = metadata.get_mut(idx)?;
+    Some(get_mut!(data, logical_begin, local_metadata))
   }
 
   /// Returns a front-to-back iterator.
   #[inline]
   pub fn iter(&self) -> impl Iterator<Item = BlockRef<'_, D, M>> {
-    self.metadata.iter().map(|metadata| get!(metadata, self.data.as_ptr()))
+    let Self { ref data, logical_begin, ref metadata } = *self;
+    metadata.iter().map(move |elem| get!(data, logical_begin, elem))
   }
 
   /// Mutable version of [`Self::iter`].
   #[inline]
   pub fn iter_mut(&mut self) -> impl Iterator<Item = BlockMut<'_, D, M>> {
-    let Self { data, metadata } = self;
-    metadata
-      .iter_mut()
-      .map(move |elem| do_get!(BlockMut, elem, data.as_ptr_mut(), slice_from_raw_parts_mut, &mut))
+    let Self { ref mut data, logical_begin, ref mut metadata } = *self;
+    metadata.iter_mut().map(move |elem| get_mut!(data, logical_begin, elem))
   }
 
   /// Removes the last element from the queue and returns it, or `None` if it is empty.
   #[inline]
   pub fn pop_back(&mut self) -> Option<M> {
-    let metadata = self.metadata.pop_back()?;
-    self.data.truncate_back(self.elements_len().wrapping_sub(metadata.len));
-    Some(metadata.misc)
+    let Self { data, logical_begin: _, metadata } = self;
+    let local_metadata = metadata.pop_back()?;
+    data.truncate_back(data.len().wrapping_sub(local_metadata.len));
+    Some(local_metadata.misc)
+  }
+
+  /// Appends a block to the end of the queue.
+  #[inline]
+  pub fn push_back_from_copyable_data<'data, I>(
+    &mut self,
+    local_data: I,
+    misc: M,
+  ) -> crate::Result<()>
+  where
+    D: Copy + 'data,
+    I: IntoIterator<Item = &'data [D]>,
+    I::IntoIter: Clone,
+  {
+    let Self { data, logical_begin, metadata } = self;
+    let offset = logical_begin.wrapping_add(data.len());
+    let total_data_len = data
+      .extend_back_from_copyable_slices(local_data)
+      .map_err(|_err| BlocksDequeError::PushBackOverflow)?;
+    metadata
+      .push_back(metadata::Metadata { len: total_data_len, misc, offset })
+      .map_err(|_err| BlocksDequeError::PushBackOverflow)?;
+    Ok(())
   }
 
   /// See [`Self::pop_back`]. Transfers elements to `buffer` instead of dropping them.
@@ -185,20 +232,46 @@ impl<D, M> BlocksDeque<D, M> {
   where
     B: TryExtend<[D; 1]>,
   {
-    let metadata = self.metadata.pop_back()?;
-    let new_len = self.elements_len().wrapping_sub(metadata.len);
-    if let Err(err) = self.data.truncate_back_to_buffer(buffer, new_len) {
+    let Self { ref mut data, logical_begin: _, ref mut metadata } = *self;
+    let local_metadata = metadata.pop_back()?;
+    let new_len = data.len().wrapping_sub(local_metadata.len);
+    if let Err(err) = data.truncate_back_to_buffer(buffer, new_len) {
       return Some(Err(err));
     }
-    Some(Ok(metadata.misc))
+    Some(Ok(local_metadata.misc))
   }
 
   /// Removes the first element and returns it, or [`Option::None`] if the queue is empty.
   #[inline]
   pub fn pop_front(&mut self) -> Option<M> {
-    let metadata = self.metadata.pop_front()?;
-    self.data.truncate_front(self.elements_len().wrapping_sub(metadata.len));
-    Some(metadata.misc)
+    let Self { data, logical_begin, metadata } = self;
+    let local_metadata = metadata.pop_front()?;
+    data.truncate_front(data.len().wrapping_sub(local_metadata.len));
+    *logical_begin = logical_begin.wrapping_add(local_metadata.len);
+    Some(local_metadata.misc)
+  }
+
+  /// Prepends a block to the queue.
+  #[inline]
+  pub fn push_front_from_copyable_data<'data, I>(
+    &mut self,
+    local_data: I,
+    misc: M,
+  ) -> crate::Result<()>
+  where
+    D: Copy + 'data,
+    I: IntoIterator<Item = &'data [D]>,
+    I::IntoIter: Clone,
+  {
+    let Self { data, logical_begin, metadata } = self;
+    let total_data_len = data
+      .extend_front_from_copyable_slices(local_data)
+      .map_err(|_err| BlocksDequeError::PushFrontDataOverflow)?;
+    *logical_begin = logical_begin.wrapping_sub(total_data_len);
+    metadata
+      .push_front(metadata::Metadata { offset: *logical_begin, len: total_data_len, misc })
+      .map_err(|_err| BlocksDequeError::PushFrontDataOverflow)?;
+    Ok(())
   }
 
   /// See [`Self::pop_front`]. Transfers elements to `buffer` instead of dropping them.
@@ -207,70 +280,23 @@ impl<D, M> BlocksDeque<D, M> {
   where
     B: TryExtend<[D; 1]>,
   {
-    let metadata = self.metadata.pop_front()?;
-    let new_len = self.elements_len().wrapping_sub(metadata.len);
-    if let Err(err) = self.data.truncate_front_to_buffer(buffer, new_len) {
+    let Self { data, logical_begin, metadata } = self;
+    let local_metadata = metadata.pop_front()?;
+    let new_len = data.len().wrapping_sub(local_metadata.len);
+    if let Err(err) = data.truncate_front_to_buffer(buffer, new_len) {
       return Some(Err(err));
     }
-    Some(Ok(metadata.misc))
-  }
-
-  /// Appends a block to the end of the queue.
-  #[inline]
-  pub fn push_back_from_copyable_data<'data, I>(&mut self, data: I, misc: M) -> crate::Result<()>
-  where
-    D: Copy + 'data,
-    I: IntoIterator<Item = &'data [D]>,
-    I::IntoIter: Clone,
-  {
-    let total_data_len = self
-      .data
-      .extend_back_from_copyable_slices(data)
-      .map_err(|_err| BlocksDequeError::PushBackOverflow)?;
-    let begin = self.data.tail().wrapping_sub(total_data_len);
-    self
-      .metadata
-      .push_back(metadata::Metadata { begin, len: total_data_len, misc })
-      .map_err(|_err| BlocksDequeError::PushBackOverflow)?;
-    Ok(())
-  }
-
-  /// Prepends a block to the queue.
-  #[inline]
-  pub fn push_front_from_copyable_data<'data, I>(&mut self, data: I, misc: M) -> crate::Result<()>
-  where
-    D: Copy + 'data,
-    I: IntoIterator<Item = &'data [D]>,
-    I::IntoIter: Clone,
-  {
-    let (total_data_len, head_shift) = self
-      .data
-      .extend_front_from_copyable_slices(data)
-      .map_err(|_err| BlocksDequeError::PushFrontDataOverflow)?;
-    self
-      .metadata
-      .push_front(metadata::Metadata { begin: self.data.head(), len: total_data_len, misc })
-      .map_err(|_err| BlocksDequeError::PushFrontDataOverflow)?;
-    self.adjust_metadata(head_shift, 1);
-    Ok(())
+    *logical_begin = logical_begin.wrapping_add(local_metadata.len);
+    Some(Ok(local_metadata.misc))
   }
 
   /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
   pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> crate::Result<()> {
-    let _ = self.metadata.reserve_front(blocks).map_err(|_er| BlocksDequeError::ReserveOverflow)?;
-    let n = self.data.reserve_front(elements).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
-    self.adjust_metadata(n, 0);
+    let Self { data, logical_begin: _, metadata } = self;
+    let _ = metadata.reserve_front(blocks).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
+    let _ = data.reserve_front(elements).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     Ok(())
-  }
-
-  // Only used in front operations
-  fn adjust_metadata(&mut self, head_shift: usize, skip: usize) {
-    if head_shift > 0 {
-      for metadata in self.metadata.iter_mut().skip(skip) {
-        metadata.begin = metadata.begin.wrapping_add(head_shift);
-      }
-    }
   }
 }
 

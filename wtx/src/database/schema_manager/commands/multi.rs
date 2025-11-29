@@ -1,6 +1,6 @@
 use crate::{
   database::schema_manager::{
-    Commands, DEFAULT_CFG_FILE_NAME, SchemaManagement, SchemaManagerError, misc::parse_root_toml,
+    Commands, DEFAULT_CFG_FILE_NAME, SchemaManagement, misc::parse_root_toml,
   },
   de::DEController,
   misc::find_file,
@@ -21,9 +21,9 @@ where
     let (migration_groups, seeds) = parse_root_toml(&buffer)?;
     self.clear().await?;
     self.migrate_from_groups_paths(&migration_groups).await?;
-    self
-      .seed_from_dir(seeds.as_deref().ok_or_else(|| SchemaManagerError::NoSeedDir.into())?)
-      .await?;
+    if let Some(elem) = seeds {
+      self.seed_from_dir(&elem).await?;
+    }
     Ok(())
   }
 }

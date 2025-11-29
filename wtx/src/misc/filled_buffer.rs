@@ -85,7 +85,7 @@ impl FilledBuffer {
 impl FilledBuffer {
   pub(crate) fn with_capacity(capacity: usize) -> crate::Result<Self> {
     let mut data = Vector::with_capacity(capacity)?;
-    // SAFETY: memory have been allocated
+    // SAFETY: memory was allocated
     unsafe {
       slice::from_raw_parts_mut(data.as_ptr_mut(), data.capacity()).fill(0);
     }

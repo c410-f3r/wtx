@@ -5,7 +5,23 @@
 // RO = Right Occupied
 // T = Tail (Exclusive)
 
-use crate::collection::{BlocksDeque, blocks_deque::BlockRef};
+use crate::collection::{
+  Block, BlocksDeque, ExpansionTy::Additional, Vector, blocks_deque::BlockRef,
+};
+
+#[test]
+fn expand_back() {
+  let mut bq = BlocksDeque::with_exact_capacity(2, 8).unwrap();
+  let _ = bq.expand_back(Additional(4), (), 1).unwrap();
+  assert_eq!(bq.as_slices(), (&[1, 1, 1, 1][..], &[][..]));
+}
+
+#[test]
+fn get_empty_considers_zeroed_capacity() {
+  let mut bq = BlocksDeque::<i32, ()>::new();
+  bq.push_back_from_copyable_data([], ()).unwrap();
+  assert_eq!(bq.get(0), Some(Block { data: &[][..], misc: &(), range: 0..0 }));
+}
 
 // [. . . . . . . .]: Empty - (LF=8, LO=0,RF=0, RO=0) - (H=0, T=0)
 // [. . . . . . . H]: Push front - (LF=7, LO=0, RF=0, RO=1) - (H=7, T=8)
@@ -108,6 +124,19 @@ fn pop_front() {
   check_state(&bq, 0, 0, &[], &[]);
 }
 
+#[test]
+fn pop_front_to_buffer_updates_logical_begin() {
+  let mut bq = BlocksDeque::with_exact_capacity(2, 4).unwrap();
+  bq.push_back_from_copyable_data([&[1, 2][..]], ()).unwrap();
+  bq.push_back_from_copyable_data([&[3, 4][..]], ()).unwrap();
+  assert_eq!(bq.get(0).unwrap().data, &[1, 2]);
+  assert_eq!(bq.get(1).unwrap().data, &[3, 4]);
+  let mut buffer = Vector::new();
+  drop(bq.pop_front_to_buffer(&mut buffer));
+  assert_eq!(bq.blocks_len(), 1);
+  assert_eq!(bq.get(0).unwrap().data, &[3, 4]);
+}
+
 // []: Empty - (LF=0, LO=0,RF=0, RO=0) - (H=0, T=0)
 // [H * * *]: Push front - (LF=0, LO=0, RF=0, RO=4) - (H=0, T=4)
 #[test]
@@ -124,6 +153,20 @@ fn push_reserve_and_push() {
   assert_eq!(bq.get(0), Some(BlockRef { data: &[4, 5, 6, 7, 8, 9], misc: &(), range: 0..6 }));
   assert_eq!(bq.get(1), Some(BlockRef { data: &[0, 1, 2, 3], misc: &(), range: 6..10 }));
   assert_eq!(bq.get(2), None);
+}
+
+#[test]
+fn reserve_does_not_corrupt_wrapped_data() {
+  let mut bq = BlocksDeque::with_exact_capacity(2, 4).expect("failed to create deque");
+  bq.push_back_from_copyable_data([&[10, 20][..]], ()).unwrap();
+  bq.push_front_from_copyable_data([&[30][..]], ()).unwrap();
+  assert_eq!(bq.get(0).unwrap().data, &[30]);
+  assert_eq!(bq.get(1).unwrap().data, &[10, 20]);
+  bq.reserve_front(0, 10).unwrap();
+  let block_front = bq.get(0).unwrap();
+  let block_back = bq.get(1).unwrap();
+  assert_eq!(block_front.data, &[30]);
+  assert_eq!(block_back.data, &[10, 20]);
 }
 
 // [. . . H * * . . ]: Pop back - (LF=5, LO=0, RF=0, RO=3) - (H=5, T=8)

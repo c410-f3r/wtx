@@ -54,7 +54,10 @@ impl<A, C, T> Statements<A, C, T> {
     &mut self,
     mut aux: AUX,
     mut stmt_cb: impl for<'any> FnMutFut<(&'any mut AUX, StatementsMisc<A>), Result = crate::Result<()>>,
-  ) -> crate::Result<StatementBuilder<'_, A, C, T>> {
+  ) -> crate::Result<StatementBuilder<'_, A, C, T>>
+  where
+    A: Default,
+  {
     if self.stmts.blocks_len() >= self.max_stmts {
       let to_remove = (self.max_stmts / 2).max(1);
       for _ in 0..to_remove {
@@ -70,7 +73,7 @@ impl<A, C, T> Statements<A, C, T> {
         true
       })
     }
-    Ok(StatementBuilder::new(&mut self.stmts, &mut self.stmts_indcs))
+    Ok(StatementBuilder::new(&mut self.stmts_indcs, &mut self.stmts))
   }
 
   pub(crate) fn clear(&mut self) {
@@ -155,11 +158,11 @@ mod tests {
 
         let stmt_id0 = 123;
         let mut builder = stmts.builder((), builder_fn).await.unwrap();
-        let _ = builder.expand(2, ("", 0)).unwrap();
-        builder.inserted_elements()[0] = (_column0(), 100);
-        builder.inserted_elements()[1] = (_column1(), 100);
-        let _ = builder.build(stmt_id0, StatementsMisc::new(10, 2, 0, 1)).unwrap();
         {
+          let data = builder.expand(2, ("", 0)).unwrap();
+          data[0] = (_column0(), 100);
+          data[1] = (_column1(), 100);
+          let _ = builder.build(stmt_id0, StatementsMisc::new(10, 2, 0, 1)).unwrap();
           let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id0).unwrap().into_stmt();
           assert_eq!(stmt.columns().len(), 2);
           assert_eq!(stmt.column(0).unwrap(), &_column0());
@@ -170,10 +173,10 @@ mod tests {
 
         let stmt_id1 = 456;
         let mut builder = stmts.builder((), builder_fn).await.unwrap();
-        let _ = builder.expand(1, ("", 0)).unwrap();
-        builder.inserted_elements()[0] = (_column2(), 200);
-        let _ = builder.build(stmt_id1, StatementsMisc::new(11, 1, 0, 1)).unwrap();
         {
+          let data = builder.expand(1, ("", 0)).unwrap();
+          data[0] = (_column2(), 200);
+          let _ = builder.build(stmt_id1, StatementsMisc::new(11, 1, 0, 1)).unwrap();
           let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id0).unwrap().into_stmt();
           assert_eq!(stmt.columns().len(), 2);
           assert_eq!(stmt.column(0).unwrap(), &_column0());
@@ -191,11 +194,11 @@ mod tests {
 
         let stmt_id2 = 789;
         let mut builder = stmts.builder((), builder_fn).await.unwrap();
-        let _ = builder.expand(1, ("", 0)).unwrap();
-        builder.inserted_elements()[0].0 = _column3();
-        let _ = builder.build(stmt_id2, StatementsMisc::new(12, 1, 0, 0)).unwrap();
-        assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id0), None);
         {
+          let data = builder.expand(1, ("", 0)).unwrap();
+          data[0].0 = _column3();
+          let _ = builder.build(stmt_id2, StatementsMisc::new(12, 1, 0, 0)).unwrap();
+          assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id0), None);
           let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id1).unwrap().into_stmt();
           assert_eq!(stmt.columns().len(), 1);
           assert_eq!(stmt.column(0).unwrap(), &_column2());
