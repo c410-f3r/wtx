@@ -1,6 +1,7 @@
 use crate::{
   collection::Vector,
   database::{FromRecords, Identifier, client::postgres::Postgres, executor::Executor},
+  de::DEController,
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -17,7 +18,7 @@ pub(crate) static CREATE_MIGRATION_TABLES: &str = concat!(
   ");"
 );
 
-pub(crate) async fn all_elements<E>(
+pub(crate) async fn all_elements<E, ERR>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
   schemas_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
@@ -28,9 +29,10 @@ pub(crate) async fn all_elements<E>(
   table_names_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
   procedures_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
   types_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-) -> crate::Result<()>
+) -> Result<(), <E::Database as DEController>::Error>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   schemas(executor, buffer_idents).await?;
   schemas_cb((buffer_cmd, buffer_idents))?;
@@ -59,12 +61,13 @@ where
   Ok(())
 }
 
-pub(crate) async fn clear<E>(
+pub(crate) async fn clear<E, ERR>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   all_elements(
     (buffer_cmd, buffer_idents),
@@ -89,12 +92,13 @@ where
   Ok(())
 }
 
-pub(crate) async fn domains<E>(
+pub(crate) async fn domains<E, ERR>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   let cmd = "SELECT
       t.typname AS generic_column
@@ -111,34 +115,37 @@ where
   Ok(())
 }
 
-pub(crate) async fn functions<E>(
+pub(crate) async fn functions<E, ERR>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   pg_proc((buffer_cmd, buffer_idents), executor, 'f').await?;
   Ok(())
 }
 
-pub(crate) async fn procedures<E>(
+pub(crate) async fn procedures<E, ERR>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   pg_proc((buffer_cmd, buffer_idents), executor, 'p').await?;
   Ok(())
 }
 
-pub(crate) async fn sequences<E>(
+pub(crate) async fn sequences<E, ERR>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   let cmd = "SELECT
       sequence_name AS generic_column
@@ -153,12 +160,13 @@ where
   Ok(())
 }
 
-pub(crate) async fn schemas<E>(
+pub(crate) async fn schemas<E, ERR>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   let cmd = "SELECT
     pc_ns.nspname AS generic_column
@@ -175,14 +183,15 @@ where
   Ok(())
 }
 
-pub(crate) async fn table_names<E>(
+pub(crate) async fn table_names<E, ERR>(
   buffer_cmd: &mut String,
   executor: &mut E,
   results: &mut Vector<Identifier>,
   schema: &str,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   let before = buffer_cmd.len();
   buffer_cmd.write_fmt(format_args!(
@@ -204,26 +213,27 @@ where
         SELECT EXISTS (SELECT inhrelid FROM pg_catalog.pg_inherits
         WHERE inhrelid = (quote_ident(tables.table_schema)||'.'||quote_ident(tables.table_name))::regclass::oid)
       )",
-  ))?;
+  )).map_err(crate::Error::from)?;
   let records = executor
     .execute_stmt_many(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
     .await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     if let Err(elem) = results.push(elem?) {
       buffer_cmd.truncate(before);
-      return Err(elem);
+      return Err(elem.into());
     }
   }
   buffer_cmd.truncate(before);
   Ok(())
 }
 
-pub(crate) async fn types<E>(
+pub(crate) async fn types<E, ERR>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   let cmd = "SELECT
       typname AS generic_column
@@ -249,12 +259,13 @@ where
   Ok(())
 }
 
-pub(crate) async fn views<E>(
+pub(crate) async fn views<E, ERR>(
   executor: &mut E,
   results: &mut Vector<Identifier>,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   let cmd = "SELECT
       relname AS generic_column
@@ -271,17 +282,19 @@ where
   Ok(())
 }
 
-async fn pg_proc<E>(
+async fn pg_proc<E, ERR>(
   (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
   executor: &mut E,
   prokind: char,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<crate::Error>>,
+  E: Executor<Database = Postgres<ERR>>,
+  ERR: From<crate::Error>,
 {
   let before = buffer_cmd.len();
-  buffer_cmd.write_fmt(format_args!(
-    "SELECT
+  buffer_cmd
+    .write_fmt(format_args!(
+      "SELECT
       proname AS generic_column
     FROM
       pg_proc
@@ -292,14 +305,15 @@ where
       ns.nspname = 'public'
       AND dep.objid IS NULL
       AND pg_proc.prokind = '{prokind}'",
-  ))?;
+    ))
+    .map_err(crate::Error::from)?;
   let records = executor
     .execute_stmt_many(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
     .await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
     if let Err(elem) = buffer_idents.push(elem?) {
       buffer_cmd.truncate(before);
-      return Err(elem);
+      return Err(elem.into());
     }
   }
   buffer_cmd.truncate(before);

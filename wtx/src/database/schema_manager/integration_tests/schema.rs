@@ -3,20 +3,24 @@ pub(crate) mod without_schema;
 
 use crate::{
   collection::Vector,
-  database::schema_manager::{
-    Commands, SchemaManagement, UserMigrationGroup, integration_tests::AuxTestParams,
+  database::{
+    Database,
+    schema_manager::{
+      Commands, SchemaManagement, UserMigrationGroup, integration_tests::AuxTestParams,
+    },
   },
 };
 use alloc::string::String;
 use std::path::Path;
 
-pub(crate) async fn migrate_works<E>(
+pub(crate) async fn migrate_works<DB, E>(
   buffer_cmd: &mut String,
   c: &mut Commands<E>,
   aux: AuxTestParams,
   wtx_schema_tables: usize,
 ) where
-  E: SchemaManagement,
+  DB: Database<Error = crate::Error>,
+  E: SchemaManagement<Database = DB>,
 {
   let path = Path::new("../.test-utils/migrations.toml");
   let mut db_migrations = Vector::new();

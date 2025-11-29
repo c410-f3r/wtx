@@ -7,6 +7,7 @@ use crate::{
       UserMigrationGroup, VERSION,
     },
   },
+  de::DEController,
   misc::{Lease, Usize},
 };
 use alloc::string::String;
@@ -30,7 +31,7 @@ where
     &mut self,
     mg: &UserMigrationGroup<S>,
     user_migrations: I,
-  ) -> crate::Result<MigrationStatus>
+  ) -> Result<MigrationStatus, <E::Database as DEController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: IntoIterator<Item = &'migration UserMigration<DBS, S>>,
@@ -49,7 +50,10 @@ where
   /// Applies `migrate` to a set of migrations according to a given directory
   #[cfg(feature = "std")]
   #[inline]
-  pub async fn migrate_from_dir(&mut self, path: &Path) -> crate::Result<()> {
+  pub async fn migrate_from_dir(
+    &mut self,
+    path: &Path,
+  ) -> Result<(), <E::Database as DEController>::Error> {
     self
       .do_migrate_from_dir((&mut String::new(), &mut Vector::new(), &mut Vector::new()), path)
       .await
@@ -58,7 +62,10 @@ where
   /// Applies `migrate` to a set of migration groups according to the configuration file.
   #[cfg(feature = "std")]
   #[inline]
-  pub async fn migrate_from_toml_path(&mut self, path: &Path) -> crate::Result<()> {
+  pub async fn migrate_from_toml_path(
+    &mut self,
+    path: &Path,
+  ) -> Result<(), <E::Database as DEController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     migration_groups.sort_unstable();
     self.migrate_from_groups_paths(&migration_groups).await?;
@@ -70,7 +77,7 @@ where
   pub async fn migrate_from_groups<DBS, S>(
     &mut self,
     groups: MigrationFromGroups<'_, '_, '_, DBS, S>,
-  ) -> crate::Result<()>
+  ) -> Result<(), <E::Database as DEController>::Error>
   where
     DBS: Lease<[DatabaseTy]>,
     S: Lease<str>,
@@ -94,7 +101,7 @@ where
   pub async fn migrate_from_groups_paths(
     &mut self,
     migration_groups: &[PathBuf],
-  ) -> crate::Result<()> {
+  ) -> Result<(), <E::Database as DEController>::Error> {
     self.executor.create_wtx_tables().await?;
     crate::database::schema_manager::misc::is_sorted_and_unique(migration_groups)?;
     for mg in migration_groups {
@@ -110,7 +117,7 @@ where
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &UserMigrationGroup<S>,
     user_migrations: I,
-  ) -> crate::Result<MigrationStatus>
+  ) -> Result<MigrationStatus, <E::Database as DEController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -125,7 +132,11 @@ where
     if let Some(last_db_mig) = buffer_db_migrations.last() {
       if last_db_mig.group().version() != VERSION {
         return Err(
-          SchemaManagerError::DivergentGroupVersions(last_db_mig.group().version(), VERSION).into(),
+          crate::Error::from(SchemaManagerError::DivergentGroupVersions(
+            last_db_mig.group().version(),
+            VERSION,
+          ))
+          .into(),
         );
       }
       let to_apply = filtered_by_db.filter(move |e| e.uid() > last_db_mig.uid());
@@ -155,7 +166,7 @@ where
       &mut Vector<MigrationStatus>,
     ),
     path: &Path,
-  ) -> crate::Result<()> {
+  ) -> Result<(), <E::Database as DEController>::Error> {
     let (mg, mut migrations) = group_and_migrations_from_path(path, Ord::cmp)?;
     self.executor.migrations(buffer_cmd, &mg, buffer_db_migrations).await?;
     let mut tmp_migrations = Vector::new();

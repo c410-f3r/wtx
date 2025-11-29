@@ -15,6 +15,7 @@ use crate::{
     executor::Executor,
     schema_manager::{DEFAULT_BATCH_SIZE, SchemaManagement, UserMigration},
   },
+  de::DEController,
   misc::Lease,
 };
 use alloc::string::String;
@@ -76,7 +77,9 @@ where
   E: SchemaManagement,
 {
   /// Retrieves all inserted elements.
-  pub async fn all_elements(&mut self) -> crate::Result<Vector<Identifier>> {
+  pub async fn all_elements(
+    &mut self,
+  ) -> Result<Vector<Identifier>, <E::Database as DEController>::Error> {
     let mut buffer = Vector::new();
     self.executor.all_elements((&mut String::new(), &mut buffer)).await?;
     Ok(buffer)
