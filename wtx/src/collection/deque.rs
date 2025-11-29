@@ -66,7 +66,6 @@ use crate::collection::{ExpansionTy, TryExtend, misc::drop_elements, vector::Vec
 use core::{
   fmt::{Debug, Formatter},
   mem::needs_drop,
-  ops::Range,
   ptr, slice,
 };
 
@@ -435,8 +434,8 @@ impl<T> Deque<T> {
   pub fn push_back(&mut self, value: T) -> crate::Result<()> {
     let _ = self.reserve_back(1).map_err(|_err| DequeueError::PushFrontOverflow)?;
     let len = self.data.len();
-    let tail = self.tail;
-    self.tail = wrap_add_idx(self.data.capacity(), tail, 1);
+    let tail = wrap_idx(self.data.capacity(), self.tail);
+    self.tail = wrap_add_idx(self.data.capacity(), self.tail, 1);
     // SAFETY: `tail` is within bounds
     let dst = unsafe { self.data.as_ptr_mut().add(tail) };
     // SAFETY: `dst` points to valid memory
@@ -756,59 +755,6 @@ where
     self.head = rr.begin;
     Ok((others_len, rr.head_shift))
   }
-
-  /// Prepends a set of internal elements delimited by `range` into this instance.
-  ///
-  /// If `range` wraps, then this method will return an error.
-  #[inline]
-  pub fn extend_front_from_copyable_within(&mut self, range: Range<usize>) -> crate::Result<usize> {
-    let Some(len @ 1..usize::MAX) = range.end.checked_sub(range.start) else {
-      return Ok(0);
-    };
-    let start = wrap_add_idx(self.data.capacity(), self.head, range.start);
-    let end = start.wrapping_add(len);
-    let rr = if is_wrapping(self.head, self.data.len(), self.tail) {
-      let (src, rr) = if start >= self.head && end <= self.data.capacity() {
-        let rr = self.prolong_front(len)?;
-        (rr.begin.wrapping_add(len).wrapping_add(range.start), rr)
-      } else if start <= self.tail && end <= self.tail {
-        let rr = self.prolong_front(len)?;
-        (start, rr)
-      } else {
-        return Err(DequeueError::OutOfBoundsRange.into());
-      };
-      let dst = rr.begin;
-      // SAFETY: everything less than tail points to valid memory
-      let src_ptr = unsafe { self.data.as_ptr().add(src) };
-      // SAFETY: `rr.begin` points to newly allocated memory
-      let dst_ptr = unsafe { self.data.as_ptr_mut().add(dst) };
-      // SAFETY: both regions have `len` elements
-      unsafe {
-        ptr::copy_nonoverlapping(src_ptr, dst_ptr, len);
-      }
-      rr
-    } else {
-      if start < self.head || end > self.tail {
-        return Err(DequeueError::OutOfBoundsRange.into());
-      }
-      let rr = self.prolong_front(len)?;
-      // SAFETY: `rr.begin` points to newly allocated memory
-      let dst = unsafe { self.data.as_ptr_mut().add(rr.begin) };
-      // SAFETY: inner data is expected to point to valid memory
-      let src = unsafe { self.data.as_ptr().add(start) };
-      // SAFETY: `dst` points to valid memory
-      unsafe {
-        ptr::copy_nonoverlapping(src, dst, len);
-      }
-      rr
-    };
-    self.head = rr.begin;
-    // SAFETY: all previous invalid operations were aborted early
-    unsafe {
-      self.data.set_len(self.data.len().wrapping_add(len));
-    }
-    Ok(rr.head_shift)
-  }
 }
 
 impl<T> Clone for Deque<T>
@@ -817,7 +763,9 @@ where
 {
   #[inline]
   fn clone(&self) -> Self {
-    Self { data: self.data.clone(), head: self.head, tail: self.tail }
+    let mut instance = Deque::new();
+    let _rslt = instance.extend_back_from_iter(self.iter().cloned());
+    instance
   }
 }
 
@@ -836,6 +784,25 @@ impl<T> Default for Deque<T> {
   #[inline]
   fn default() -> Self {
     Self::new()
+  }
+}
+
+impl<T> Drop for Deque<T> {
+  #[inline]
+  fn drop(&mut self) {
+    struct Guard<'any, T>(&'any mut [T]);
+    impl<T> Drop for Guard<'_, T> {
+      fn drop(&mut self) {
+        // SAFETY: `as_slices_mut` returns initialized elements
+        unsafe {
+          ptr::drop_in_place(self.0);
+        }
+      }
+    }
+
+    let (front, back) = self.as_slices_mut();
+    let _back_dropper = Guard(back);
+    let _front_dropper = Guard(front);
   }
 }
 
@@ -900,6 +867,8 @@ fn reserve<D, const IS_BACK: bool>(
   let prev_head = prev_cap.min(*head);
   let prev_tail = prev_cap.min(*tail);
   if len == 0 {
+    *head = 0;
+    *tail = 0;
     return Ok(if IS_BACK {
       ReserveRslt::new(0, 0)
     } else {

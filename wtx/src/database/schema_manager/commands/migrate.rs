@@ -28,7 +28,6 @@ where
   #[inline]
   pub async fn migrate<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &UserMigrationGroup<S>,
     user_migrations: I,
   ) -> crate::Result<MigrationStatus>
@@ -38,35 +37,31 @@ where
     I::IntoIter: Clone,
     S: Lease<str> + 'migration,
   {
-    buffer_db_migrations.clear();
+    let mut buffer_cmd = String::new();
+    let mut buffer_db_migrations = Vector::new();
     self.executor.create_wtx_tables().await?;
-    self.executor.migrations(buffer_cmd, mg, buffer_db_migrations).await?;
-    self.do_migrate((buffer_cmd, buffer_db_migrations), mg, user_migrations.into_iter()).await
+    self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
+    self
+      .do_migrate((&mut buffer_cmd, &mut buffer_db_migrations), mg, user_migrations.into_iter())
+      .await
   }
 
   /// Applies `migrate` to a set of migrations according to a given directory
   #[cfg(feature = "std")]
   #[inline]
-  pub async fn migrate_from_dir(
-    &mut self,
-    buffers: (&mut String, &mut Vector<DbMigration>, &mut Vector<MigrationStatus>),
-    path: &Path,
-  ) -> crate::Result<()> {
-    self.executor.create_wtx_tables().await?;
-    self.do_migrate_from_dir(buffers, path).await
+  pub async fn migrate_from_dir(&mut self, path: &Path) -> crate::Result<()> {
+    self
+      .do_migrate_from_dir((&mut String::new(), &mut Vector::new(), &mut Vector::new()), path)
+      .await
   }
 
   /// Applies `migrate` to a set of migration groups according to the configuration file.
   #[cfg(feature = "std")]
   #[inline]
-  pub async fn migrate_from_toml_path(
-    &mut self,
-    buffer: (&mut String, &mut Vector<DbMigration>, &mut Vector<MigrationStatus>),
-    path: &Path,
-  ) -> crate::Result<()> {
+  pub async fn migrate_from_toml_path(&mut self, path: &Path) -> crate::Result<()> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     migration_groups.sort_unstable();
-    self.migrate_from_groups_paths(buffer, &migration_groups).await?;
+    self.migrate_from_groups_paths(&migration_groups).await?;
     Ok(())
   }
 
@@ -74,23 +69,21 @@ where
   #[inline]
   pub async fn migrate_from_groups<DBS, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations, buffer_status): (
-      &mut String,
-      &mut Vector<DbMigration>,
-      &mut Vector<MigrationStatus>,
-    ),
     groups: MigrationFromGroups<'_, '_, '_, DBS, S>,
   ) -> crate::Result<()>
   where
     DBS: Lease<[DatabaseTy]>,
     S: Lease<str>,
   {
+    let mut buffer_cmd = String::new();
+    let mut buffer_db_migrations = Vector::new();
+    let mut buffer_status = Vector::new();
     self.executor.create_wtx_tables().await?;
     buffer_status.clear();
     for (mg, m) in groups {
-      self.executor.migrations(buffer_cmd, mg, buffer_db_migrations).await?;
+      self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
       buffer_status
-        .push(self.do_migrate((buffer_cmd, buffer_db_migrations), mg, m.iter()).await?)?;
+        .push(self.do_migrate((&mut buffer_cmd, &mut buffer_db_migrations), mg, m.iter()).await?)?;
     }
     Ok(())
   }
@@ -100,17 +93,14 @@ where
   #[inline]
   pub async fn migrate_from_groups_paths(
     &mut self,
-    (buffer_cmd, buffer_db_migrations, buffer_status): (
-      &mut String,
-      &mut Vector<DbMigration>,
-      &mut Vector<MigrationStatus>,
-    ),
     migration_groups: &[PathBuf],
   ) -> crate::Result<()> {
     self.executor.create_wtx_tables().await?;
     crate::database::schema_manager::misc::is_sorted_and_unique(migration_groups)?;
     for mg in migration_groups {
-      self.do_migrate_from_dir((buffer_cmd, buffer_db_migrations, buffer_status), mg).await?;
+      self
+        .do_migrate_from_dir((&mut String::new(), &mut Vector::new(), &mut Vector::new()), mg)
+        .await?;
     }
     Ok(())
   }

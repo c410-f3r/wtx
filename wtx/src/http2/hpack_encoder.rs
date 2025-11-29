@@ -15,9 +15,7 @@ use crate::{
     Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
     huffman::huffman_encode, misc::protocol_err,
   },
-  misc::{
-    Usize, bytes_transfer::shift_copyable_chunks, hints::_unlikely_unreachable, random_state,
-  },
+  misc::{_unlikely_unreachable, Usize, bytes_transfer::shift_copyable_chunks, random_state},
   rng::Rng,
 };
 use core::{

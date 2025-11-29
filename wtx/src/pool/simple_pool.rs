@@ -22,10 +22,8 @@ pub type SimplePoolTokio<RM> =
 /// Pool with a fixed number of elements.
 #[derive(Debug)]
 pub struct SimplePool<RL, RM> {
-  available_idxs: Arc<Mutex<Vec<usize>>>,
-  locks: Arc<Vec<RL>>,
-  rm: Arc<RM>,
-  waker: Arc<Mutex<Vec<Waker>>>,
+  resources: Arc<PoolResources<RL, RM>>,
+  state: Arc<Mutex<PoolState>>,
 }
 
 impl<R, RL, RM> SimplePool<RL, RM>
@@ -41,22 +39,21 @@ where
   #[inline]
   pub fn new(mut len: usize, rm: RM) -> Self {
     len = len.max(1);
+    let mut locks = Vec::with_capacity(len);
+    locks.extend((0..len).map(|_| RL::new(SimplePoolResource(None))));
     Self {
-      available_idxs: Arc::new(Mutex::new((0..len).collect())),
-      locks: {
-        let mut rslt = Vec::with_capacity(len);
-        rslt.extend((0..len).map(|_| RL::new(SimplePoolResource(None))));
-        Arc::new(rslt)
-      },
-      rm: Arc::new(rm),
-      waker: Arc::new(Mutex::new(Vec::new())),
+      resources: Arc::new(PoolResources { locks, rm }),
+      state: Arc::new(Mutex::new(PoolState {
+        available: (0..len).collect(),
+        wakers: Vec::with_capacity(len),
+      })),
     }
   }
 
   /// Sometimes it is desirable to eagerly initialize all instances.
   #[inline]
   pub async fn init_all(&self, ca: &RM::CreateAux, ra: &RM::RecycleAux) -> Result<(), RM::Error> {
-    for _ in 0..self.locks.len() {
+    for _ in 0..self.resources.locks.len() {
       let _guard = self.get(ca, ra).await?;
     }
     Ok(())
@@ -67,8 +64,8 @@ where
   where
     FUN: Future<Output = ()>,
   {
-    for idx in 0..self.locks.len() {
-      if let Some(lock) = self.locks.get(idx) {
+    for idx in 0..self.resources.locks.len() {
+      if let Some(lock) = self.resources.locks.get(idx) {
         let mut resource = lock.lock().await;
         if let Some(elem) = resource.0.take() {
           cb(elem).await;
@@ -128,57 +125,53 @@ where
     ca: &RM::CreateAux,
     ra: &RM::RecycleAux,
   ) -> Result<Self::GetElem<'this>, RM::Error> {
-    let (idx, lock) = poll_fn(|ctx| {
-      if let Some((idx, lock)) = self.available_idxs.deref().lock().ok().and_then(|mut el| {
-        let idx = el.pop()?;
-        Some((idx, self.locks.get(idx)?))
-      }) {
-        Poll::Ready((idx, lock))
-      } else {
-        self.waker.deref().lock().unwrap().push(ctx.waker().clone());
+    let idx = poll_fn(|cx| match self.state.try_lock() {
+      Ok(mut elem) => {
+        if let Some(idx) = elem.available.pop() {
+          Poll::Ready(idx)
+        } else {
+          elem.wakers.push(cx.waker().clone());
+          Poll::Pending
+        }
+      }
+      Err(_) => {
+        cx.waker().wake_by_ref();
         Poll::Pending
       }
     })
     .await;
-    let mut resource = lock.lock().await;
-    match &mut resource.0 {
+    let mut drop_guard = SimplePoolGetDropGuard { state: &self.state, idx: Some(idx) };
+    // SAFETY: `idx` is guaranteed to be within bounds as defined in the constructor
+    let lock = unsafe { self.resources.locks.get(idx).unwrap_unchecked() };
+    let mut lock_guard = lock.lock().await;
+    match lock_guard.0.as_mut() {
       None => {
-        resource.0 = Some(self.rm.create(ca).await?);
+        lock_guard.0 = Some(self.resources.rm.create(ca).await?);
       }
       Some(elem) => {
-        if self.rm.is_invalid(elem).await {
-          self.rm.recycle(ra, elem).await?;
+        if self.resources.rm.is_invalid(elem) {
+          self.resources.rm.recycle(ra, elem).await?;
         }
       }
     }
-    Ok(SimplePoolGetElem {
-      available_idxs: Arc::clone(&self.available_idxs),
-      idx,
-      resource,
-      waker: Arc::clone(&self.waker),
-    })
+    let _ = drop_guard.idx.take();
+    Ok(SimplePoolGetElem { state: Arc::clone(&self.state), idx, resource: lock_guard })
   }
 }
 
 impl<RL, RM> Clone for SimplePool<RL, RM> {
   #[inline]
   fn clone(&self) -> Self {
-    Self {
-      available_idxs: Arc::clone(&self.available_idxs),
-      locks: Arc::clone(&self.locks),
-      rm: Arc::clone(&self.rm),
-      waker: Arc::clone(&self.waker),
-    }
+    Self { resources: Arc::clone(&self.resources), state: Arc::clone(&self.state) }
   }
 }
 
 /// Controls the guard locks related to [`SimplePool`].
 #[derive(Debug)]
 pub struct SimplePoolGetElem<R> {
-  available_idxs: Arc<Mutex<Vec<usize>>>,
   idx: usize,
   resource: R,
-  waker: Arc<Mutex<Vec<Waker>>>,
+  state: Arc<Mutex<PoolState>>,
 }
 
 impl<R> Deref for SimplePoolGetElem<R> {
@@ -201,10 +194,7 @@ impl<R> Drop for SimplePoolGetElem<R> {
   #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
   #[inline]
   fn drop(&mut self) {
-    self.available_idxs.deref().lock().unwrap().push(self.idx);
-    for waker in self.waker.deref().lock().unwrap().drain(..) {
-      waker.wake();
-    }
+    push_available(self.idx, &self.state);
   }
 }
 
@@ -236,6 +226,44 @@ impl<R> DerefMut for SimplePoolResource<R> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.0.as_mut().unwrap()
+  }
+}
+
+#[derive(Debug)]
+struct PoolState {
+  available: Vec<usize>,
+  wakers: Vec<Waker>,
+}
+
+#[derive(Debug)]
+struct PoolResources<RL, RM> {
+  locks: Vec<RL>,
+  rm: RM,
+}
+
+#[derive(Debug)]
+struct SimplePoolGetDropGuard<'any> {
+  state: &'any Mutex<PoolState>,
+  idx: Option<usize>,
+}
+
+impl<'a> Drop for SimplePoolGetDropGuard<'a> {
+  fn drop(&mut self) {
+    if let Some(idx) = self.idx {
+      let mut state = self.state.lock().unwrap();
+      state.available.push(idx);
+      if let Some(waker) = state.wakers.pop() {
+        waker.wake();
+      }
+    }
+  }
+}
+
+fn push_available(idx: usize, state: &Mutex<PoolState>) {
+  let mut state_guard = state.lock().unwrap();
+  state_guard.available.push(idx);
+  if let Some(waker) = state_guard.wakers.pop() {
+    waker.wake();
   }
 }
 

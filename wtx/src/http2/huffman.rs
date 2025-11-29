@@ -5,7 +5,7 @@ use crate::{
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::{from_utf8_basic, hints::_unlikely_unreachable},
+  misc::{_unlikely_unreachable, from_utf8_basic},
 };
 
 pub(crate) fn huffman_decode<'to, L, const N: usize>(

@@ -22,9 +22,8 @@ use std::net::TcpStream;
 macro_rules! create_integration_test {
   ($executor:expr, $buffer:expr, $aux:expr, $($fun:path),*) => {{
     $({
-      let (_buffer_cmd, _, _buffer_idents, _) = $buffer;
       let mut commands = crate::database::schema_manager::Commands::with_executor($executor);
-      commands.clear((_buffer_cmd, _buffer_idents)).await.unwrap();
+      commands.clear().await.unwrap();
       $fun($buffer, &mut commands, $aux).await;
     })*
   }};
@@ -176,19 +175,12 @@ pub(crate) fn _generic_schema() -> AuxTestParams {
   AuxTestParams { default_schema: "", wtx_schema: "", schema_regulator: 2 }
 }
 
-pub(crate) async fn _migrate_doc_test<E>(
-  (buffer_cmd, buffer_db_migrations, _): (
-    &mut String,
-    &mut Vector<DbMigration>,
-    &mut Vector<Identifier>,
-  ),
-  c: &mut Commands<E>,
-) -> UserMigrationGroup<&'static str>
+pub(crate) async fn _migrate_doc_test<E>(c: &mut Commands<E>) -> UserMigrationGroup<&'static str>
 where
   E: SchemaManagement,
 {
   let mg = user_migration_group();
-  let _s = c.migrate((buffer_cmd, buffer_db_migrations), &mg, [&user_migration()]).await.unwrap();
+  let _s = c.migrate(&mg, [&user_migration()]).await.unwrap();
   mg
 }
 

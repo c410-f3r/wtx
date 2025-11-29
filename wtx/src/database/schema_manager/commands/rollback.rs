@@ -2,9 +2,7 @@ use crate::{
   collection::Vector,
   database::{
     DatabaseTy,
-    schema_manager::{
-      Commands, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
-    },
+    schema_manager::{Commands, SchemaManagement, Uid, UserMigration, UserMigrationGroup},
   },
   de::DEController,
   misc::Lease,
@@ -28,7 +26,6 @@ where
   #[inline]
   pub async fn rollback<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &UserMigrationGroup<S>,
     migrations: I,
     uid: Uid,
@@ -38,9 +35,11 @@ where
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
     S: Lease<str> + 'migration,
   {
-    self.executor.migrations(buffer_cmd, mg, buffer_db_migrations).await?;
+    let mut buffer_cmd = String::new();
+    let mut buffer_db_migrations = Vector::new();
+    self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
     let filtered_by_db = Self::filter_by_db(migrations);
-    Self::do_validate(buffer_db_migrations, filtered_by_db.clone())?;
+    Self::do_validate(&mut buffer_db_migrations, filtered_by_db.clone())?;
     for elem in filtered_by_db.map(UserMigration::sql_down) {
       buffer_cmd.push_str(elem);
     }
@@ -52,7 +51,7 @@ where
       })
       .await?;
     buffer_cmd.clear();
-    self.executor.delete_migrations(buffer_cmd, mg, uid).await?;
+    self.executor.delete_migrations(&mut buffer_cmd, mg, uid).await?;
     buffer_db_migrations.clear();
     Ok(())
   }
@@ -65,7 +64,6 @@ where
   #[cfg(feature = "std")]
   pub async fn rollback_from_toml(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     uids: Option<&[Uid]>,
   ) -> Result<(), <E::Database as DEController>::Error> {
@@ -76,12 +74,12 @@ where
         return Err(crate::Error::from(SchemaManagerError::DifferentRollbackUids).into());
       }
       for (mg, &uid) in migration_groups.into_iter().zip(elem) {
-        self.rollback_from_dir((buffer_cmd, buffer_db_migrations), &mg, uid).await?;
+        self.rollback_from_dir(&mg, uid).await?;
       }
     } else {
       let iter = (0..migration_groups.len()).map(|_| 0);
       for (mg, uid) in migration_groups.into_iter().zip(iter) {
-        self.rollback_from_dir((buffer_cmd, buffer_db_migrations), &mg, uid).await?;
+        self.rollback_from_dir(&mg, uid).await?;
       }
     };
     Ok(())
@@ -92,7 +90,6 @@ where
   #[cfg(feature = "std")]
   pub async fn rollback_from_dir(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
     uid: Uid,
   ) -> Result<(), <E::Database as DEController>::Error> {
@@ -104,7 +101,7 @@ where
       tmp_migrations,
       migrations,
       self.batch_size(),
-      self.rollback((buffer_cmd, buffer_db_migrations), &mg, tmp_migrations.iter(), uid).await?
+      self.rollback(&mg, tmp_migrations.iter(), uid).await?
     );
     Ok(())
   }

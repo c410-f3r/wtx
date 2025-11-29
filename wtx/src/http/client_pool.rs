@@ -126,7 +126,7 @@ mod tokio {
     }
 
     #[inline]
-    async fn is_invalid(&self, resource: &Self::Resource) -> bool {
+    fn is_invalid(&self, resource: &Self::Resource) -> bool {
       resource.client.connection_state().is_closed()
     }
 
@@ -209,7 +209,7 @@ mod tokio_rustls {
     }
 
     #[inline]
-    async fn is_invalid(&self, resource: &Self::Resource) -> bool {
+    fn is_invalid(&self, resource: &Self::Resource) -> bool {
       resource.client.connection_state().is_closed()
     }
 

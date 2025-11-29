@@ -33,7 +33,7 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
 }
 
 pub(crate) async fn rollback_works<E>(
-  (buffer_cmd, buffer_db_migrations, buffer_idents, buffer_status): (
+  (buffer_cmd, buffer_db_migrations, buffer_idents, _): (
     &mut String,
     &mut Vector<DbMigration>,
     &mut Vector<Identifier>,
@@ -46,8 +46,8 @@ pub(crate) async fn rollback_works<E>(
   <E::Database as DEController>::Error: Debug,
 {
   let path = Path::new("../.test-utils/migrations.toml");
-  c.migrate_from_toml_path((buffer_cmd, buffer_db_migrations, buffer_status), path).await.unwrap();
-  c.rollback_from_toml((buffer_cmd, buffer_db_migrations), path, None).await.unwrap();
+  c.migrate_from_toml_path(path).await.unwrap();
+  c.rollback_from_toml(path, None).await.unwrap();
   let initial = UserMigrationGroup::new("initial", 1);
   let more_stuff = UserMigrationGroup::new("more_stuff", 2);
 

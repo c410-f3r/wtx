@@ -22,6 +22,8 @@ pub enum SchemaManagerError {
   },
   /// Migration file has invalid syntax,
   InvalidMigration,
+  /// No seed directory was specified in the configuration file
+  NoSeedDir,
   /// TOML parser only supports a subset of the official TOML specification
   TomlParserOnlySupportsStringsAndArraysOfStrings,
   /// TOML parser only supports a subset of the official TOML specification

@@ -5,7 +5,7 @@ use crate::{
       LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
     },
   },
-  misc::{Lease, LeaseMut, Wrapper, hints::_unlikely_unreachable},
+  misc::{_unlikely_unreachable, Lease, LeaseMut, Wrapper},
 };
 use alloc::vec::{IntoIter, Vec};
 use core::{

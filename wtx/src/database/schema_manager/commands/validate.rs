@@ -25,7 +25,6 @@ where
   #[inline]
   pub async fn validate<'migration, DBS, I, S>(
     &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     mg: &UserMigrationGroup<S>,
     migrations: I,
   ) -> crate::Result<()>
@@ -34,24 +33,21 @@ where
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
     S: Lease<str> + 'migration,
   {
-    self.executor.migrations(buffer_cmd, mg, buffer_db_migrations).await?;
-    Self::do_validate(buffer_db_migrations, Self::filter_by_db(migrations))?;
-    buffer_db_migrations.clear();
+    let mut buffer_cmd = String::new();
+    let mut buffer_db_migrations = Vector::new();
+    self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
+    Self::do_validate(&mut buffer_db_migrations, Self::filter_by_db(migrations))?;
     Ok(())
   }
 
   /// Applies `validate` to a set of groups according to the configuration file
   #[inline]
   #[cfg(feature = "std")]
-  pub async fn validate_from_toml(
-    &mut self,
-    (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
-    path: &Path,
-  ) -> crate::Result<()> {
+  pub async fn validate_from_toml(&mut self, path: &Path) -> crate::Result<()> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     migration_groups.sort_unstable();
     for mg in migration_groups.into_iter() {
-      self.do_validate_from_dir((buffer_cmd, buffer_db_migrations), &mg).await?;
+      self.do_validate_from_dir((&mut String::new(), &mut Vector::new()), &mg).await?;
     }
     Ok(())
   }
@@ -59,12 +55,8 @@ where
   /// Applies `validate` to a set of migrations according to a given directory
   #[inline]
   #[cfg(feature = "std")]
-  pub async fn validate_from_dir(
-    &mut self,
-    buffer: (&mut String, &mut Vector<DbMigration>),
-    path: &Path,
-  ) -> crate::Result<()> {
-    self.do_validate_from_dir(buffer, path).await
+  pub async fn validate_from_dir(&mut self, path: &Path) -> crate::Result<()> {
+    self.do_validate_from_dir((&mut String::new(), &mut Vector::new()), path).await
   }
 
   pub(crate) fn do_validate<'migration, DBS, S, I>(

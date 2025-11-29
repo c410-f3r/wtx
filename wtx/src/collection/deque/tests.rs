@@ -1,5 +1,3 @@
-mod extend_front_from_copyable_within;
-
 use crate::collection::{Deque, deque::is_wrapping};
 
 #[test]
@@ -29,6 +27,17 @@ fn clear() {
   assert_eq!(deque.len(), 1);
   deque.clear();
   assert_eq!(deque.len(), 0);
+}
+
+#[test]
+fn equal_head_and_tail_and_then_extend() {
+  let mut queue: Deque<i32> = Deque::with_exact_capacity(8).unwrap();
+  queue.push_back(1).unwrap();
+  queue.push_back(2).unwrap();
+  let _ = queue.pop_front();
+  let _ = queue.pop_front();
+  let _ = queue.extend_back_from_copyable_slices([&[10, 20, 30][..]]).unwrap();
+  assert_eq!(queue.as_slices(), (&[10, 20, 30][..], &[][..]));
 }
 
 #[test]
@@ -133,6 +142,19 @@ fn pop_front() {
       (0, 4, &[2, 3, 4, 5], &[])
     },
   );
+}
+
+#[test]
+fn push_back_with_reserve() {
+  let mut deque: Deque<i32> = Deque::with_exact_capacity(5).unwrap();
+  deque.push_back(0).unwrap();
+  let _ = deque.pop_front();
+  deque.push_back(1).unwrap();
+  deque.push_back(2).unwrap();
+  let _ = deque.reserve_front(2).unwrap();
+  assert_eq!(deque.capacity(), 5);
+  deque.push_back(3).unwrap();
+  assert_eq!(deque.as_slices(), (&[1, 2, 3][..], &[][..]));
 }
 
 #[test]

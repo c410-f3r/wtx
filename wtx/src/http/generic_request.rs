@@ -33,7 +33,7 @@ impl GenericRequest for () {
 mod httparse {
   use crate::{
     http::{GenericRequest, Version},
-    misc::hints::_unlikely_unreachable,
+    misc::_unlikely_unreachable,
   };
 
   impl GenericRequest for httparse::Request<'_, '_> {
