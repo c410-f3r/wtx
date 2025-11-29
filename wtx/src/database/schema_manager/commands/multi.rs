@@ -1,10 +1,11 @@
 use crate::{
   database::schema_manager::{
-    Commands, SchemaManagement, SchemaManagerError, misc::parse_root_toml,
+    Commands, DEFAULT_CFG_FILE_NAME, SchemaManagement, SchemaManagerError, misc::parse_root_toml,
   },
   de::DEController,
+  misc::find_file,
 };
-use std::env::current_dir;
+use std::{env::current_dir, path::Path};
 
 impl<E> Commands<E>
 where
@@ -15,7 +16,9 @@ where
   pub async fn clear_migrate_and_seed(
     &mut self,
   ) -> Result<(), <E::Database as DEController>::Error> {
-    let (migration_groups, seeds) = parse_root_toml(&current_dir().map_err(crate::Error::from)?)?;
+    let mut buffer = current_dir().map_err(crate::Error::from)?;
+    find_file(&mut buffer, Path::new(DEFAULT_CFG_FILE_NAME)).map_err(crate::Error::from)?;
+    let (migration_groups, seeds) = parse_root_toml(&buffer)?;
     self.clear().await?;
     self.migrate_from_groups_paths(&migration_groups).await?;
     self

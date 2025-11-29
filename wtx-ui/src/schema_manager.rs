@@ -11,7 +11,7 @@ use wtx::{
     },
   },
   de::DEController,
-  misc::{EnvVars, FromVars, UriRef},
+  misc::{EnvVars, FromVars, UriRef, find_file},
   rng::{ChaCha20, SeedableRng},
 };
 
@@ -60,9 +60,9 @@ fn toml_file_path(sm: &SchemaManager) -> wtx::Result<Cow<'_, Path>> {
   Ok(if let Some(el) = sm.toml.as_deref() {
     Cow::Borrowed(el)
   } else {
-    let mut path_buf = current_dir()?;
-    path_buf.push(DEFAULT_CFG_FILE_NAME);
-    Cow::Owned(path_buf)
+    let mut buffer = current_dir()?;
+    find_file(&mut buffer, Path::new(DEFAULT_CFG_FILE_NAME))?;
+    Cow::Owned(buffer)
   })
 }
 
