@@ -21,6 +21,7 @@ pub mod toml_parser;
 use crate::{
   collection::Vector,
   database::{DatabaseTy, Identifier, executor::Executor},
+  de::DEController,
   misc::Lease,
 };
 use alloc::string::String;
@@ -58,16 +59,18 @@ pub trait SchemaManagement: Executor {
   fn all_elements(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> impl Future<Output = crate::Result<()>>;
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
 
   /// Cleans all database resources.
   fn clear(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> impl Future<Output = crate::Result<()>>;
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
 
   /// Initial tables meant for initialization.
-  fn create_wtx_tables(&mut self) -> impl Future<Output = crate::Result<()>>;
+  fn create_wtx_tables(
+    &mut self,
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
 
   /// Removes every migration of a given group `mg`` that is greater than `uid`.
   fn delete_migrations<S>(
@@ -75,7 +78,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     uid: Uid,
-  ) -> impl Future<Output = crate::Result<()>>
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
   where
     S: Lease<str>;
 
@@ -85,7 +88,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     migrations: I,
-  ) -> impl Future<Output = crate::Result<()>>
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -97,7 +100,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     results: &mut Vector<DbMigration>,
-  ) -> impl Future<Output = crate::Result<()>>
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
   where
     S: Lease<str>;
 
@@ -108,7 +111,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     results: &mut Vector<Identifier>,
     schema: &str,
-  ) -> impl Future<Output = crate::Result<()>>;
+  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
 }
 
 impl<T> SchemaManagement for &mut T
@@ -119,17 +122,20 @@ where
   async fn all_elements(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> crate::Result<()> {
+  ) -> Result<(), <Self::Database as DEController>::Error> {
     (**self).all_elements(buffer).await
   }
 
   #[inline]
-  async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+  async fn clear(
+    &mut self,
+    buffer: (&mut String, &mut Vector<Identifier>),
+  ) -> Result<(), <Self::Database as DEController>::Error> {
     (**self).clear(buffer).await
   }
 
   #[inline]
-  async fn create_wtx_tables(&mut self) -> crate::Result<()> {
+  async fn create_wtx_tables(&mut self) -> Result<(), <Self::Database as DEController>::Error> {
     (**self).create_wtx_tables().await
   }
 
@@ -139,7 +145,7 @@ where
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     uid: Uid,
-  ) -> crate::Result<()>
+  ) -> Result<(), <Self::Database as DEController>::Error>
   where
     S: Lease<str>,
   {
@@ -152,7 +158,7 @@ where
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     migrations: I,
-  ) -> crate::Result<()>
+  ) -> Result<(), <Self::Database as DEController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -167,7 +173,7 @@ where
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     results: &mut Vector<DbMigration>,
-  ) -> crate::Result<()>
+  ) -> Result<(), <Self::Database as DEController>::Error>
   where
     S: Lease<str>,
   {
@@ -180,7 +186,7 @@ where
     buffer_cmd: &mut String,
     results: &mut Vector<Identifier>,
     schema: &str,
-  ) -> crate::Result<()> {
+  ) -> Result<(), <Self::Database as DEController>::Error> {
     (**self).table_names(buffer_cmd, results, schema).await
   }
 }
@@ -273,8 +279,9 @@ mod mysql {
   };
   use alloc::string::String;
 
-  impl<EB, STREAM> SchemaManagement for MysqlExecutor<crate::Error, EB, STREAM>
+  impl<E, EB, STREAM> SchemaManagement for MysqlExecutor<E, EB, STREAM>
   where
+    E: From<crate::Error>,
     EB: LeaseMut<ExecutorBuffer>,
     STREAM: Stream,
   {
@@ -282,18 +289,18 @@ mod mysql {
     async fn all_elements(
       &mut self,
       buffer: (&mut String, &mut Vector<Identifier>),
-    ) -> crate::Result<()> {
+    ) -> Result<(), E> {
       self.table_names(buffer.0, buffer.1, "").await?;
       Ok(())
     }
 
     #[inline]
-    async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+    async fn clear(&mut self, _: (&mut String, &mut Vector<Identifier>)) -> Result<(), E> {
       clear(self).await
     }
 
     #[inline]
-    async fn create_wtx_tables(&mut self) -> crate::Result<()> {
+    async fn create_wtx_tables(&mut self) -> Result<(), E> {
       self.execute_ignored(CREATE_MIGRATION_TABLES).await?;
       Ok(())
     }
@@ -304,7 +311,7 @@ mod mysql {
       buffer_cmd: &mut String,
       mg: &UserMigrationGroup<S>,
       uid: Uid,
-    ) -> crate::Result<()>
+    ) -> Result<(), E>
     where
       S: Lease<str>,
     {
@@ -317,7 +324,7 @@ mod mysql {
       buffer_cmd: &mut String,
       mg: &UserMigrationGroup<S>,
       migrations: I,
-    ) -> crate::Result<()>
+    ) -> Result<(), E>
     where
       DBS: Lease<[DatabaseTy]> + 'migration,
       I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -332,7 +339,7 @@ mod mysql {
       buffer_cmd: &mut String,
       mg: &UserMigrationGroup<S>,
       results: &mut Vector<DbMigration>,
-    ) -> crate::Result<()>
+    ) -> Result<(), E>
     where
       S: Lease<str>,
     {
@@ -345,7 +352,7 @@ mod mysql {
       _: &mut String,
       results: &mut Vector<Identifier>,
       _: &str,
-    ) -> crate::Result<()> {
+    ) -> Result<(), E> {
       table_names(self, results).await
     }
   }
@@ -371,8 +378,9 @@ mod postgres {
   };
   use alloc::string::String;
 
-  impl<EB, STREAM> SchemaManagement for PostgresExecutor<crate::Error, EB, STREAM>
+  impl<E, EB, STREAM> SchemaManagement for PostgresExecutor<E, EB, STREAM>
   where
+    E: From<crate::Error>,
     EB: LeaseMut<ExecutorBuffer>,
     STREAM: Stream,
   {
@@ -380,7 +388,7 @@ mod postgres {
     async fn all_elements(
       &mut self,
       (buffer_cmd, buffer_idents): (&mut String, &mut Vector<Identifier>),
-    ) -> crate::Result<()> {
+    ) -> Result<(), E> {
       all_elements(
         (buffer_cmd, buffer_idents),
         self,
@@ -398,12 +406,12 @@ mod postgres {
     }
 
     #[inline]
-    async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> crate::Result<()> {
+    async fn clear(&mut self, buffer: (&mut String, &mut Vector<Identifier>)) -> Result<(), E> {
       clear(buffer, self).await
     }
 
     #[inline]
-    async fn create_wtx_tables(&mut self) -> crate::Result<()> {
+    async fn create_wtx_tables(&mut self) -> Result<(), E> {
       self.execute_ignored(CREATE_MIGRATION_TABLES).await?;
       Ok(())
     }
@@ -414,7 +422,7 @@ mod postgres {
       buffer_cmd: &mut String,
       mg: &UserMigrationGroup<S>,
       uid: Uid,
-    ) -> crate::Result<()>
+    ) -> Result<(), E>
     where
       S: Lease<str>,
     {
@@ -427,7 +435,7 @@ mod postgres {
       buffer_cmd: &mut String,
       mg: &UserMigrationGroup<S>,
       migrations: I,
-    ) -> crate::Result<()>
+    ) -> Result<(), E>
     where
       DBS: Lease<[DatabaseTy]> + 'migration,
       I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -442,7 +450,7 @@ mod postgres {
       buffer_cmd: &mut String,
       mg: &UserMigrationGroup<S>,
       results: &mut Vector<DbMigration>,
-    ) -> crate::Result<()>
+    ) -> Result<(), E>
     where
       S: Lease<str>,
     {
@@ -455,7 +463,7 @@ mod postgres {
       buffer_cmd: &mut String,
       results: &mut Vector<Identifier>,
       schema: &str,
-    ) -> crate::Result<()> {
+    ) -> Result<(), E> {
       table_names(buffer_cmd, self, results, schema).await
     }
   }

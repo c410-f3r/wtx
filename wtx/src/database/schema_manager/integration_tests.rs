@@ -6,7 +6,7 @@ mod schema;
 use crate::{
   collection::Vector,
   database::{
-    Executor, Identifier,
+    Database, Executor, Identifier,
     schema_manager::{
       Commands, DbMigration, MigrationStatus, SchemaManagement, UserMigrationGroup,
       doc_tests::{user_migration, user_migration_group},
@@ -50,7 +50,7 @@ macro_rules! create_integration_tests {
           let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
           let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
-          crate::database::client::mysql::MysqlExecutor::connect(
+          crate::database::client::mysql::MysqlExecutor::<crate::Error, _, _>::connect(
             &config,
             crate::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
             &mut rng,
@@ -71,12 +71,14 @@ macro_rules! create_integration_tests {
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
           let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
-          crate::database::client::postgres::PostgresExecutor::connect(
+          crate::database::client::postgres::PostgresExecutor::<crate::Error, _, _>::connect(
             &config,
             crate::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
             &mut rng,
             stream,
-          ).await.unwrap()
+          )
+          .await
+          .unwrap()
         },
         (&mut _buffer_cmd, &mut _buffer_db_migrations, &mut _buffer_idents, &mut _buffer_status),
         _pg_schema(),
@@ -175,9 +177,12 @@ pub(crate) fn _generic_schema() -> AuxTestParams {
   AuxTestParams { default_schema: "", wtx_schema: "", schema_regulator: 2 }
 }
 
-pub(crate) async fn _migrate_doc_test<E>(c: &mut Commands<E>) -> UserMigrationGroup<&'static str>
+pub(crate) async fn _migrate_doc_test<DB, E>(
+  c: &mut Commands<E>,
+) -> UserMigrationGroup<&'static str>
 where
-  E: SchemaManagement,
+  DB: Database<Error = crate::Error>,
+  E: SchemaManagement<Database = DB>,
 {
   let mg = user_migration_group();
   let _s = c.migrate(&mg, [&user_migration()]).await.unwrap();

@@ -99,16 +99,17 @@ where
 }
 
 #[cfg(any(feature = "mysql", feature = "postgres"))]
-pub(crate) async fn migrations_by_mg_uid_query<'exec, E, D>(
+pub(crate) async fn migrations_by_mg_uid_query<'exec, E, ERR, D>(
   buffer_cmd: &mut String,
   executor: &'exec mut E,
   mg_uid: Uid,
   results: &mut Vector<DbMigration>,
   schema_prefix: &str,
-) -> crate::Result<()>
+) -> Result<(), ERR>
 where
-  D: Database<Error = crate::Error>,
+  D: Database<Error = ERR>,
   E: Executor<Database = D>,
+  ERR: From<crate::Error>,
   DbMigration: FromRecords<'exec, E::Database>,
 {
   buffer_cmd.write_fmt(format_args!(
@@ -129,13 +130,13 @@ where
         _wtx_migration_group.uid = {mg_uid} \
       ORDER BY \
         _wtx_migration.uid ASC;",
-    ))?;
+    )).map_err(crate::Error::from)?;
   for elem in
     DbMigration::many(&executor.execute_stmt_many(buffer_cmd.as_str(), (), |_elem| Ok(())).await?)
   {
     if let Err(elem) = results.push(elem?) {
       buffer_cmd.clear();
-      return Err(elem);
+      return Err(elem.into());
     }
   }
   buffer_cmd.clear();

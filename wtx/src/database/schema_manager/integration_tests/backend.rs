@@ -2,7 +2,7 @@ use crate::{
   calendar::{Duration, Instant},
   collection::Vector,
   database::{
-    Identifier,
+    Database, Identifier,
     schema_manager::{
       Commands, DbMigration, SchemaManagement,
       integration_tests::{_migrate_doc_test, AuxTestParams},
@@ -11,7 +11,7 @@ use crate::{
 };
 use alloc::string::String;
 
-pub(crate) async fn _backend_has_migration_with_utc_time<E>(
+pub(crate) async fn _backend_has_migration_with_utc_time<DB, E>(
   (buffer_cmd, buffer_db_migrations, _): (
     &mut String,
     &mut Vector<DbMigration>,
@@ -20,7 +20,8 @@ pub(crate) async fn _backend_has_migration_with_utc_time<E>(
   c: &mut Commands<E>,
   _: AuxTestParams,
 ) where
-  E: SchemaManagement,
+  DB: Database<Error = crate::Error>,
+  E: SchemaManagement<Database = DB>,
 {
   let mg = _migrate_doc_test(c).await;
   c.executor_mut().migrations(buffer_cmd, &mg, buffer_db_migrations).await.unwrap();

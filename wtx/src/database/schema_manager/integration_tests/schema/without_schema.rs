@@ -1,7 +1,7 @@
 use crate::{
   collection::Vector,
   database::{
-    Identifier,
+    Database, Identifier,
     schema_manager::{
       Commands, DbMigration, MigrationStatus, SchemaManagement, integration_tests::AuxTestParams,
     },
@@ -9,7 +9,7 @@ use crate::{
 };
 use alloc::string::String;
 
-pub(crate) async fn _migrate_works<E>(
+pub(crate) async fn _migrate_works<DB, E>(
   (buffer_cmd, _, _, _): (
     &mut String,
     &mut Vector<DbMigration>,
@@ -19,7 +19,8 @@ pub(crate) async fn _migrate_works<E>(
   c: &mut Commands<E>,
   aux: AuxTestParams,
 ) where
-  E: SchemaManagement,
+  DB: Database<Error = crate::Error>,
+  E: SchemaManagement<Database = DB>,
 {
   crate::database::schema_manager::integration_tests::schema::migrate_works(buffer_cmd, c, aux, 6)
     .await
