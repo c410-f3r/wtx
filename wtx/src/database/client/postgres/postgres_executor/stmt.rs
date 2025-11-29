@@ -7,6 +7,7 @@ use crate::{
         executor_buffer::ExecutorBuffer,
         message::MessageTy,
         misc::{dummy_stmt_value, row_description},
+        postgres_column_info::PostgresColumnInfo,
         protocol::{bind, describe, execute, parse, sync},
         ty::Ty,
       },
@@ -16,7 +17,7 @@ use crate::{
   de::{U64String, u64_string},
   misc::{
     ConnectionState, FilledBufferVectorMut, LeaseMut, SuffixWriter, SuffixWriterFbvm,
-    net::PartitionedFilledBuffer,
+    net::PartitionedFilledBuffer, unlikely_elem,
   },
   stream::Stream,
 };
@@ -61,53 +62,42 @@ where
     let mut builder = stmts
       .builder((&mut *net_buffer, &mut *stream), {
         async fn fun<S>(
-          (local_nb, local_stream): &mut (&mut PartitionedFilledBuffer, &mut S),
-          stmt: StatementsMisc<U64String>,
+          _: &mut (&mut PartitionedFilledBuffer, &mut S),
+          _: StatementsMisc<U64String>,
         ) -> crate::Result<()>
         where
           S: Stream,
         {
-          let mut sw = SuffixWriterFbvm::from(local_nb.suffix_writer());
-          sw.extend_from_slices([b"S", stmt._aux.as_bytes(), &[0]])?;
-          local_stream.write_all(sw.curr_bytes()).await?;
           Ok(())
         }
         fun
       })
       .await?;
 
-    let msg1 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
-    let MessageTy::ParameterDescription(types_len, mut pd) = msg1.ty else {
-      return Err(E::from(PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into()));
+    let pd_begin = net_buffer.current_end_idx().wrapping_add(6);
+    let types_len = {
+      let msg1 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
+      let MessageTy::ParameterDescription(types_len) = msg1.ty else {
+        return Err(E::from(
+          PostgresError::UnexpectedDatabaseMessage { received: msg1.tag }.into(),
+        ));
+      };
+      types_len
     };
-
-    let _ = builder.expand(types_len.into(), dummy_stmt_value())?;
-
-    {
-      let elements = builder.inserted_elements();
-      for idx in 0..types_len {
-        let element_opt = elements.get_mut(usize::from(idx));
-        let ([a, b, c, d, sub_data @ ..], Some(element)) = (pd, element_opt) else { break };
-        element.1 = Ty::Custom(u32::from_be_bytes([*a, *b, *c, *d]));
-        pd = sub_data;
-      }
-    }
+    let pd_end = net_buffer.current_end_idx();
 
     let msg2 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
-    let columns_len = match msg2.ty {
-      MessageTy::NoData => 0,
+    let (columns_len, pd_data) = match msg2.ty {
+      MessageTy::NoData => (0, builder.expand(types_len.into(), dummy_stmt_value())?),
       MessageTy::RowDescription(columns_len, mut rd) => {
-        if let Some(diff @ 1..=u16::MAX) = columns_len.checked_sub(types_len) {
-          let _ = builder.expand(diff.into(), dummy_stmt_value())?;
-        }
-        let elements = builder.inserted_elements();
+        let data = builder.expand(types_len.max(columns_len).into(), dummy_stmt_value())?;
         row_description(columns_len, &mut rd, |idx, pci| {
-          if let Some(element) = elements.get_mut(usize::from(idx)) {
+          if let Some(element) = data.get_mut(usize::from(idx)) {
             element.0 = pci;
           }
           Ok(())
         })?;
-        columns_len
+        (columns_len, data.get_mut(..types_len.into()).unwrap_or_default())
       }
       _ => {
         return Err(E::from(
@@ -115,6 +105,8 @@ where
         ));
       }
     };
+    let bytes = net_buffer.all().get(pd_begin..pd_end);
+    parameter_description(bytes, pd_data).ok_or(crate::Error::ProgrammingError)?;
 
     if HAS_SYNC {
       let msg3 = Self::fetch_msg_from_stream(cs, net_buffer, stream).await?;
@@ -223,4 +215,19 @@ where
     }
     Ok(())
   }
+}
+
+fn parameter_description(
+  bytes: Option<&[u8]>,
+  elements: &mut [(PostgresColumnInfo, Ty)],
+) -> Option<()> {
+  let local_bytes = &mut bytes?;
+  for element in elements {
+    let [a, b, c, d, rest @ ..] = local_bytes else {
+      return unlikely_elem(None);
+    };
+    element.1 = Ty::Custom(u32::from_be_bytes([*a, *b, *c, *d]));
+    *local_bytes = rest;
+  }
+  Some(())
 }

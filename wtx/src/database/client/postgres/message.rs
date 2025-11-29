@@ -46,7 +46,7 @@ pub(crate) enum MessageTy<'bytes> {
   /// Notification response.
   NotificationResponse,
   /// Parameters of a query.
-  ParameterDescription(u16, &'bytes [u8]),
+  ParameterDescription(u16),
   /// Parameter status report.
   ParameterStatus(&'bytes [u8], &'bytes [u8]),
   /// Parse request was successful.
@@ -112,9 +112,7 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
       [b'd', ..] => Self::CopyData,
       [b'n', ..] => Self::NoData,
       [b's', ..] => Self::PortalSuspended,
-      [b't', _, _, _, _, a, b, rest @ ..] => {
-        Self::ParameterDescription(u16::from_be_bytes([*a, *b]), rest)
-      }
+      [b't', _, _, _, _, a, b, ..] => Self::ParameterDescription(u16::from_be_bytes([*a, *b])),
       _ => {
         return Err(
           DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Self>() }.into(),

@@ -25,7 +25,7 @@ pub use array_vector::{
 };
 pub use array_wrapper::ArrayWrapper;
 pub use auto_clear::AutoClear;
-pub use blocks_deque::{Block, BlocksDeque, BlocksDequeBuilder, BlocksDequeError};
+pub use blocks_deque::{Block, BlocksDeque, BlocksDequeError};
 pub use clear::Clear;
 pub use deque::{Deque, DequeueError};
 pub use expansion_ty::ExpansionTy;

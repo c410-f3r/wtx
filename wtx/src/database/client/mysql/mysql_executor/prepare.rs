@@ -80,14 +80,13 @@ where
       })
       .await?;
     let pres: PrepareRes = fetch_protocol(*capabilities, net_buffer, sequence_id, stream).await?.0;
-    let _ = builder.expand(tys_len.max(pres.columns.into()), dummy_stmt_value())?;
-    let elements = builder.inserted_elements();
+    let data = builder.expand(tys_len.max(pres.columns.into()), dummy_stmt_value())?;
     for _ in 0..pres.params {
       let _: ColumnRes = fetch_protocol(*capabilities, net_buffer, sequence_id, stream).await?.0;
     }
     for idx in 0..pres.columns {
       let cres = fetch_protocol(*capabilities, net_buffer, sequence_id, stream).await?.0;
-      let Some(elem) = elements.get_mut(usize::from(idx)) else {
+      let Some(elem) = data.get_mut(usize::from(idx)) else {
         break;
       };
       elem.0 = MysqlColumnInfo::from_column_res(&cres);

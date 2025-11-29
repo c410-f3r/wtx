@@ -124,10 +124,8 @@ where
           fun
         })
         .await?;
-      if !B::IS_UNIT {
-        let _ = builder.expand(columns_len, dummy_stmt_value())?;
-      }
-      let inserted_elements = builder.inserted_elements();
+      let data =
+        if B::IS_UNIT { &mut [] } else { builder.expand(columns_len, dummy_stmt_value())? };
       Self::fetch_columns(
         capabilities,
         columns_len,
@@ -136,7 +134,7 @@ where
         sequence_id,
         stream,
         |column_idx, mci| {
-          if let (false, Some(elem)) = (B::IS_UNIT, inserted_elements.get_mut(column_idx)) {
+          if let (false, Some(elem)) = (B::IS_UNIT, data.get_mut(column_idx)) {
             elem.0 = mci;
           }
           Ok(())

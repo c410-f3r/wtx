@@ -633,10 +633,6 @@ impl<T> Deque<T> {
     self.head
   }
 
-  pub(crate) const fn tail(&self) -> usize {
-    self.tail
-  }
-
   unsafe fn expand(&mut self, additional: usize, begin: usize, new_len: usize, value: T)
   where
     T: Clone,
@@ -726,10 +722,7 @@ where
   /// assert_eq!(queue.as_slices(), (&[0, 1, 1, 2, 3, 4][..], &[][..]));
   /// ```
   #[inline]
-  pub fn extend_front_from_copyable_slices<'iter, I>(
-    &mut self,
-    others: I,
-  ) -> crate::Result<(usize, usize)>
+  pub fn extend_front_from_copyable_slices<'iter, I>(&mut self, others: I) -> crate::Result<usize>
   where
     I: IntoIterator<Item = &'iter [T]>,
     I::IntoIter: Clone,
@@ -753,7 +746,7 @@ where
       self.data.set_len(self.data.len().wrapping_add(others_len));
     }
     self.head = rr.begin;
-    Ok((others_len, rr.head_shift))
+    Ok(others_len)
   }
 }
 

@@ -9,6 +9,14 @@ where
   cb()
 }
 
+/// Hints to the compiler that an element is unlikely to occur.
+#[cold]
+#[inline(always)]
+#[track_caller]
+pub fn unlikely_elem<T>(elem: T) -> T {
+  elem
+}
+
 #[allow(clippy::panic, reason = "programming error that should be unreachable")]
 #[cold]
 #[inline(always)]
