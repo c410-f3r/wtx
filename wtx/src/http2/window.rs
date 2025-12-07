@@ -1,10 +1,9 @@
 use crate::{
+  collection::ArrayVectorU8,
   http2::{
-    Http2Error, Http2ErrorCode, Http2Params, http2_params_send::Http2ParamsSend, misc::write_array,
-    u31::U31, window_update_frame::WindowUpdateFrame,
+    Http2Error, Http2ErrorCode, Http2Params, http2_params_send::Http2ParamsSend, u31::U31,
+    window_update_frame::WindowUpdateFrame,
   },
-  stream::StreamWriter,
-  sync::AtomicBool,
 };
 
 /// A "credit" system used to restrain the exchange of data in a single direction (receive or send).
@@ -127,60 +126,47 @@ impl<'any> WindowsPair<'any> {
   ///
   /// Controls window sizes received from external sources. Invalid or negative values trigger a
   /// frame dispatch to return to the default window size.
-  pub(crate) async fn withdrawn_recv<SW>(
+  pub(crate) fn withdrawn_recv(
     &mut self,
     hp: &Http2Params,
-    is_conn_open: &AtomicBool,
-    stream_writer: &mut SW,
     stream_id: U31,
     value: U31,
-  ) -> crate::Result<()>
-  where
-    SW: StreamWriter,
-  {
+  ) -> crate::Result<ArrayVectorU8<u8, 26>> {
     let iwl = U31::from_u32(hp.initial_window_len()).i32();
     self.conn.recv.withdrawn(None, value.i32())?;
     self.stream.recv.withdrawn(Some(stream_id), value.i32())?;
+    let mut frame = ArrayVectorU8::new();
     match (self.conn.recv.is_invalid(), self.stream.recv.is_invalid()) {
       (false, false) => {}
       (false, true) => {
         let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
         self.stream.recv.deposit(Some(stream_id), stream_value)?;
-        write_array(
-          [&WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes()],
-          is_conn_open,
-          stream_writer,
-        )
-        .await?;
+        let wuf = WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?;
+        let _rslt = frame.extend_from_copyable_slice(&wuf.bytes());
       }
       (true, false) => {
         let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
         self.conn.recv.deposit(Some(stream_id), conn_value)?;
-        write_array(
-          [&WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes()],
-          is_conn_open,
-          stream_writer,
-        )
-        .await?;
+        let wuf = WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?;
+        let _rslt = frame.extend_from_copyable_slice(&wuf.bytes());
       }
       (true, true) => {
         let conn_value = self.conn.recv.available().abs().wrapping_add(iwl);
         let stream_value = self.stream.recv.available().abs().wrapping_add(iwl);
         self.conn.recv.deposit(Some(stream_id), conn_value)?;
         self.stream.recv.deposit(Some(stream_id), stream_value)?;
-        write_array(
-          [
-            &WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes(),
-            &WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes(),
-          ],
-          is_conn_open,
-          stream_writer,
-        )
-        .await?;
+        let array0 = WindowUpdateFrame::new(U31::from_i32(conn_value), U31::ZERO)?.bytes();
+        let array1 = WindowUpdateFrame::new(U31::from_i32(stream_value), stream_id)?.bytes();
+        let [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12] = array0;
+        let [b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25] = array1;
+        frame.extend_from_copyable_slice(&[
+          b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19,
+          b20, b21, b22, b23, b24, b25,
+        ])?;
       }
     }
 
-    Ok(())
+    Ok(frame)
   }
 
   /// Withdrawn - Send

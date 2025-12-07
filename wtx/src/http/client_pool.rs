@@ -14,11 +14,11 @@ mod integration_tests;
 
 use crate::{
   http::conn_params::ConnParams,
-  http2::{Http2, Http2Buffer, Http2Data, Http2ErrorCode},
-  misc::UriRef,
-  pool::{Pool, ResourceManager, SimplePool, SimplePoolGetElem, SimplePoolResource},
+  http2::{Http2, Http2Buffer, Http2ErrorCode},
+  misc::{LeaseMut, UriRef},
+  pool::{ResourceManager, SimplePool, SimplePoolGetElem, SimplePoolResource},
   stream::StreamWriter,
-  sync::{Lock, RefCounter},
+  sync::AsyncMutexGuard,
 };
 pub use client_pool_builder::ClientPoolBuilder;
 pub use client_pool_resource::ClientPoolResource;
@@ -35,24 +35,23 @@ type NoAuxFn = fn(&());
 ///
 /// Currently supports only one domain with multiple connections.
 #[derive(Clone, Debug)]
-pub struct ClientPool<RL, RM> {
-  pool: SimplePool<RL, RM>,
+pub struct ClientPool<RM>
+where
+  RM: ResourceManager,
+{
+  pool: SimplePool<RM>,
 }
 
-impl<AUX, HD, RL, RM, SW> ClientPool<RL, RM>
+impl<AUX, HB, RM, SW> ClientPool<RM>
 where
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
-  RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
+  HB: LeaseMut<Http2Buffer>,
   RM: ResourceManager<
       CreateAux = str,
       Error = crate::Error,
       RecycleAux = str,
-      Resource = ClientPoolResource<AUX, Http2<HD, true>>,
+      Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
     >,
   SW: StreamWriter,
-  for<'any> RL: 'any,
-  for<'any> RM: 'any,
 {
   /// Closes all active connections
   #[inline]
@@ -67,10 +66,15 @@ where
 
   /// Returns a guard that contains the internal elements.
   #[inline]
-  pub async fn lock(
-    &self,
+  pub async fn lock<'this>(
+    &'this self,
     uri: &UriRef<'_>,
-  ) -> crate::Result<SimplePoolGetElem<<RL as Lock>::Guard<'_>>> {
+  ) -> crate::Result<SimplePoolGetElem<AsyncMutexGuard<'this, SimplePoolResource<RM::Resource>>>>
+  where
+    AUX: 'this,
+    HB: 'this,
+    SW: 'this,
+  {
     self.pool.get(uri.as_str(), uri.as_str()).await
   }
 }
@@ -79,21 +83,17 @@ where
 mod tokio {
   use crate::{
     http::client_pool::{ClientPool, ClientPoolBuilder, ClientPoolRM, ClientPoolResource, NoAuxFn},
-    http2::{Http2Buffer, Http2Tokio},
+    http2::{Http2, Http2Buffer},
     misc::UriRef,
-    pool::{ResourceManager, SimplePoolResource},
+    pool::ResourceManager,
   };
-  use tokio::{
-    net::{TcpStream, tcp::OwnedWriteHalf},
-    sync::Mutex,
-  };
+  use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 
   /// A [`ClientPool`] using the elements of `tokio`.
-  pub type ClientPoolTokio<A, AI, AO> =
-    ClientPool<Mutex<SimplePoolResource<Resource<AO>>>, ClientPoolRM<A, AI, TcpStream>>;
-  type Resource<AUX> = ClientPoolResource<AUX, Http2Tokio<Http2Buffer, OwnedWriteHalf, true>>;
+  pub type ClientPoolTokio<A, AI> = ClientPool<ClientPoolRM<A, AI, TcpStream>>;
+  type Resource<AUX> = ClientPoolResource<AUX, Http2<Http2Buffer, OwnedWriteHalf, true>>;
 
-  impl<AUX> ClientPoolBuilder<NoAuxFn, (), Mutex<SimplePoolResource<Resource<AUX>>>, TcpStream> {
+  impl ClientPoolBuilder<NoAuxFn, (), TcpStream> {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio` project.
@@ -115,7 +115,7 @@ mod tokio {
     #[inline]
     async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       let uri = UriRef::new(ca);
-      let (frame_reader, http2) = Http2Tokio::connect(
+      let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
         self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
@@ -139,7 +139,7 @@ mod tokio {
       let uri = UriRef::new(ra);
       let mut buffer = Http2Buffer::default();
       resource.client.swap_buffers(&mut buffer).await;
-      let (frame_reader, http2) = Http2Tokio::connect(
+      let (frame_reader, http2) = Http2::connect(
         buffer,
         self._cp._to_hp(),
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
@@ -156,20 +156,19 @@ mod tokio {
 mod tokio_rustls {
   use crate::{
     http::client_pool::{ClientPool, ClientPoolBuilder, ClientPoolRM, ClientPoolResource, NoAuxFn},
-    http2::{Http2Buffer, Http2Tokio},
+    http2::{Http2, Http2Buffer},
     misc::{TokioRustlsConnector, UriRef},
-    pool::{ResourceManager, SimplePoolResource},
+    pool::ResourceManager,
   };
-  use tokio::{io::WriteHalf, net::TcpStream, sync::Mutex};
+  use tokio::{io::WriteHalf, net::TcpStream};
   use tokio_rustls::client::TlsStream;
 
   /// A [`ClientPool`] using the elements of `tokio-rustls`.
-  pub type ClientPoolTokioRustls<A, AI, AO> =
-    ClientPool<Mutex<SimplePoolResource<Resource<AO>>>, ClientPoolRM<A, AI, Writer>>;
-  type Resource<AUX> = ClientPoolResource<AUX, Http2Tokio<Http2Buffer, Writer, true>>;
+  pub type ClientPoolTokioRustls<A, AI> = ClientPool<ClientPoolRM<A, AI, Writer>>;
+  type Resource<AUX> = ClientPoolResource<AUX, Http2<Http2Buffer, Writer, true>>;
   type Writer = WriteHalf<TlsStream<TcpStream>>;
 
-  impl<AUX> ClientPoolBuilder<NoAuxFn, (), Mutex<SimplePoolResource<Resource<AUX>>>, Writer> {
+  impl ClientPoolBuilder<NoAuxFn, (), Writer> {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio-rustls` project.
@@ -190,7 +189,7 @@ mod tokio_rustls {
     #[inline]
     async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       let uri = UriRef::new(ca);
-      let (frame_reader, http2) = Http2Tokio::connect(
+      let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
         self._cp._to_hp(),
         tokio::io::split(
@@ -222,7 +221,7 @@ mod tokio_rustls {
       let uri = UriRef::new(ra);
       let mut buffer = Http2Buffer::default();
       resource.client.swap_buffers(&mut buffer).await;
-      let (frame_reader, http2) = Http2Tokio::connect(
+      let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
         self._cp._to_hp(),
         tokio::io::split(

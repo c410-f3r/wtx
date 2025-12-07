@@ -16,7 +16,7 @@ use tokio_rustls::server::TlsStream;
 use wtx::{
   collection::Vector,
   http::{
-    AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Response,
+    AutoStream, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer, Response,
     StatusCode, is_web_socket_handshake,
   },
   http2::{Http2Buffer, Http2Params, WebSocketOverStream},
@@ -76,7 +76,7 @@ async fn auto(
 
 async fn manual(
   _: (),
-  mut hm: ManualServerStreamTokio<(), Http2Buffer, Vector<u8>, WriteHalf<TlsStream<TcpStream>>>,
+  mut hm: ManualServerStream<(), Http2Buffer, Vector<u8>, WriteHalf<TlsStream<TcpStream>>>,
 ) -> Result<(), wtx::Error> {
   let rng = Xorshift64::from(simple_seed());
   hm.req.rrd.headers.clear();

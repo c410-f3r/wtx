@@ -1,55 +1,48 @@
 macro_rules! prft {
-  ($fi:expr, $hdpm:ident, $pfb:expr, $stream_reader:expr) => {
+  ($fi:expr, $hdpm:ident, $inner:expr, $rd:expr) => {
     ProcessReceiptFrameTy {
       conn_windows: &mut $hdpm.windows,
       fi: $fi,
       hp: &mut $hdpm.hp,
       hpack_dec: &mut $hdpm.hb.hpack_dec,
       hps: &mut $hdpm.hps,
-      is_conn_open: &$hdpm.hb.is_conn_open,
+      is_conn_open: &$inner.is_conn_open,
       last_stream_id: &mut $hdpm.last_stream_id,
-      pfb: $pfb,
-      read_frame_waker: &$hdpm.hb.read_frame_waker,
+      rd: $rd,
+      read_frame_waker: &$inner.read_frame_waker,
       recv_streams_num: &mut $hdpm.recv_streams_num,
-      stream_reader: $stream_reader,
-      stream_writer: &mut $hdpm.stream_writer,
     }
   };
 }
 
 use crate::{
   http2::{
-    Http2Buffer, Http2Data, Http2Error,
+    Http2Buffer, Http2Error, Http2Inner,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
-    misc::{process_higher_operation_err, protocol_err, read_frame, send_go_away, write_array},
+    misc::{
+      process_higher_operation_err, protocol_err, read_frame, send_go_away, send_reset_stream,
+      write_array,
+    },
     ping_frame::PingFrame,
     process_receipt_frame_ty::ProcessReceiptFrameTy,
+    reader_data::ReaderData,
+    reset_stream_frame::ResetStreamFrame,
     settings_frame::SettingsFrame,
     window_update_frame::WindowUpdateFrame,
   },
-  misc::{LeaseMut, net::PartitionedFilledBuffer},
+  misc::LeaseMut,
   stream::{StreamReader, StreamWriter},
-  sync::{Arc, AtomicBool, AtomicWaker, Lock, RefCounter},
+  sync::Arc,
 };
-use core::{
-  future::poll_fn,
-  mem,
-  pin::pin,
-  task::{Poll, ready},
-};
+use core::mem;
 
-pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
-  hd: HD,
-  is_conn_open: Arc<AtomicBool>,
+pub(crate) async fn frame_reader<HB, SR, SW, const IS_CLIENT: bool>(
+  inner: Arc<Http2Inner<HB, SW, IS_CLIENT>>,
   max_frame_len: u32,
-  mut pfb: PartitionedFilledBuffer,
-  read_frame_waker: Arc<AtomicWaker>,
-  mut stream_reader: SR,
+  mut rd: ReaderData<SR>,
 ) where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -57,62 +50,59 @@ pub(crate) async fn frame_reader<HB, HD, SR, SW, const IS_CLIENT: bool>(
   let _e = span.enter();
   loop {
     let fi = match read_frame::<_, false>(
-      &is_conn_open,
+      &inner.is_conn_open,
       max_frame_len,
-      &mut pfb,
-      &read_frame_waker,
-      &mut stream_reader,
+      &mut rd,
+      &inner.read_frame_waker,
     )
     .await
     {
       Err(err) => {
-        process_higher_operation_err(&err, &hd).await;
-        finish(Some(err), &hd, &mut pfb).await;
+        process_higher_operation_err(&err, &inner).await;
+        finish(Some(err), &inner, &mut rd).await;
         return;
       }
       Ok(None) => {
-        finish(None, &hd, &mut pfb).await;
+        finish(None, &inner, &mut rd).await;
         return;
       }
       Ok(Some(fi)) => fi,
     };
-    if let Err(err) = manage_fi(fi, &hd, &is_conn_open, &mut pfb, &mut stream_reader).await {
-      process_higher_operation_err(&err, &hd).await;
-      finish(Some(err), &hd, &mut pfb).await;
+    if let Err(err) = manage_fi(fi, &inner, &mut rd).await {
+      process_higher_operation_err(&err, &inner).await;
+      finish(Some(err), &inner, &mut rd).await;
+      return;
     }
   }
 }
 
-async fn finish<HB, HD, SW, const IS_CLIENT: bool>(
+async fn finish<HB, SR, SW, const IS_CLIENT: bool>(
   err: Option<crate::Error>,
-  hd: &HD,
-  pfb: &mut PartitionedFilledBuffer,
+  inner: &Http2Inner<HB, SW, IS_CLIENT>,
+  rd: &mut ReaderData<SR>,
 ) where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
+  SR: StreamReader,
   SW: StreamWriter,
 {
-  let mut lock = hd.lock().await;
-  let hdpm = lock.parts_mut();
+  let mut hd_guard = inner.hd.lock().await;
+  let mut wd_guard = inner.wd.lock().await;
+  let hdpm = hd_guard.parts_mut();
   if let Some(elem) = err {
     *hdpm.frame_reader_error = Some(elem);
   }
-  mem::swap(pfb, &mut hdpm.hb.pfb);
+  mem::swap(&mut rd.pfb, &mut hdpm.hb.pfb);
+  mem::swap(&mut wd_guard.hpack_enc_buffer, &mut hdpm.hb.hpack_enc_buffer);
   _trace!("Finishing the reading of frames");
 }
 
-async fn manage_fi<HB, HD, SR, SW, const IS_CLIENT: bool>(
+async fn manage_fi<HB, SR, SW, const IS_CLIENT: bool>(
   fi: FrameInit,
-  hd: &HD,
-  is_conn_open: &AtomicBool,
-  pfb: &mut PartitionedFilledBuffer,
-  stream_reader: &mut SR,
+  inner: &Http2Inner<HB, SW, IS_CLIENT>,
+  rd: &mut ReaderData<SR>,
 ) -> crate::Result<()>
 where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SR: StreamReader,
   SW: StreamWriter,
 {
@@ -121,112 +111,79 @@ where
       return Err(protocol_err(Http2Error::InvalidContinuationFrame));
     }
     FrameInitTy::Data => {
-      let mut lock = hd.lock().await;
-      let mut hdpm = lock.parts_mut();
-      prft!(fi, hdpm, pfb, stream_reader).data(&mut hdpm.hb.sorp).await?;
+      let frame = {
+        let mut hd_guard = inner.hd.lock().await;
+        let mut hdpm = hd_guard.parts_mut();
+        prft!(fi, hdpm, inner, rd).data(&mut hdpm.hb.sorp).await?
+      };
+      write_array([&frame], &inner.is_conn_open, &mut inner.wd.lock().await.stream_writer).await?;
     }
     FrameInitTy::GoAway => {
-      let gaf = GoAwayFrame::read(pfb.current(), fi)?;
-      send_go_away(gaf.error_code(), &mut hd.lock().await.parts_mut()).await;
+      let gaf = GoAwayFrame::read(rd.pfb.current(), fi)?;
+      send_go_away(gaf.error_code(), inner).await;
     }
     FrameInitTy::Headers => {
-      let mut lock = hd.lock().await;
-      let mut hdpm = lock.parts_mut();
+      let mut hd_guard = inner.hd.lock().await;
+      let mut hdpm = hd_guard.parts_mut();
       if hdpm.hb.scrp.contains_key(&fi.stream_id) {
         return Err(protocol_err(Http2Error::UnexpectedNonControlFrame));
       }
       if IS_CLIENT {
-        prft!(fi, hdpm, pfb, stream_reader).header_client(&mut hdpm.hb.sorp).await?;
+        prft!(fi, hdpm, inner, rd).header_client(&mut hdpm.hb.sorp).await?;
       } else if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
-        prft!(fi, hdpm, pfb, stream_reader).header_server_trailer(elem).await?;
-      } else if let Some(elem) = hdpm.hb.local_server_streams.get_mut(0) {
-        if hdpm.hb.sorp.contains_key(&elem.stream_id) {
-          drop(lock);
-          wait_for_local_stream(fi, hd, pfb, stream_reader).await?;
-        } else {
-          let prft = prft!(fi, hdpm, pfb, stream_reader);
-          let rslt = prft.header_server_init(elem, &mut hdpm.hb.sorp).await;
-          elem.waker.wake_by_ref();
-          rslt?;
-        }
+        prft!(fi, hdpm, inner, rd).header_server_trailer(elem).await?;
       } else {
-        drop(lock);
-        wait_for_local_stream(fi, hd, pfb, stream_reader).await?;
+        let lss = prft!(fi, hdpm, inner, rd).header_server_init(&mut hdpm.hb.sorp).await?;
+        hdpm.hb.initial_server_streams_remote.push_back(lss)?;
+        if let Some(elem) = hdpm.hb.initial_server_streams_local.pop_front() {
+          elem.wake();
+        }
       }
     }
     FrameInitTy::Ping => {
-      let mut pf = PingFrame::read(pfb.current(), fi)?;
+      let mut pf = PingFrame::read(rd.pfb.current(), fi)?;
       if !pf.has_ack() {
         pf.set_ack();
-        write_array([&pf.bytes()], is_conn_open, hd.lock().await.parts_mut().stream_writer).await?;
+        let stream_writer = &mut inner.wd.lock().await.stream_writer;
+        write_array([&pf.bytes()], &inner.is_conn_open, stream_writer).await?;
       }
     }
+    FrameInitTy::PushPromise => {
+      return Err(protocol_err(Http2Error::PushPromiseIsUnsupported));
+    }
+    FrameInitTy::Priority => {}
     FrameInitTy::Reset => {
-      let mut lock = hd.lock().await;
-      let mut hdpm = lock.parts_mut();
-      let prft = prft!(fi, hdpm, pfb, stream_reader);
-      prft.reset(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp).await?;
+      let rsf = ResetStreamFrame::read(rd.pfb.current(), fi)?;
+      if !send_reset_stream(rsf.error_code(), inner, fi.stream_id).await {
+        return Err(protocol_err(Http2Error::UnknownResetStreamReceiver));
+      }
     }
     FrameInitTy::Settings => {
-      let sf = SettingsFrame::read(pfb.current(), fi)?;
+      let sf = SettingsFrame::read(rd.pfb.current(), fi)?;
       if !sf.has_ack() {
-        let mut lock = hd.lock().await;
-        let hdpm = lock.parts_mut();
-        hdpm.hps.update(&mut hdpm.hb.hpack_enc, &mut hdpm.hb.scrp, &sf, &mut hdpm.hb.sorp)?;
-        let array = &mut [0; 45];
+        {
+          let mut hd_guard = inner.hd.lock().await;
+          let hdpm = hd_guard.parts_mut();
+          hdpm.hps.update(&mut hdpm.hb.hpack_enc, &mut hdpm.hb.scrp, &sf, &mut hdpm.hb.sorp)?;
+        }
         write_array(
-          [SettingsFrame::ack().bytes(array)],
-          is_conn_open,
-          lock.parts_mut().stream_writer,
+          [SettingsFrame::ack().bytes(&mut [0; 45])],
+          &inner.is_conn_open,
+          &mut inner.wd.lock().await.stream_writer,
         )
         .await?;
       }
     }
     FrameInitTy::WindowUpdate => {
-      let mut lock = hd.lock().await;
-      let mut hdpm = lock.parts_mut();
+      let mut hd_guard = inner.hd.lock().await;
+      let mut hdpm = hd_guard.parts_mut();
       if fi.stream_id.is_zero() {
-        let wuf = WindowUpdateFrame::read(pfb.current(), fi)?;
+        let wuf = WindowUpdateFrame::read(rd.pfb.current(), fi)?;
         hdpm.windows.send_mut().deposit(None, wuf.size_increment().i32())?;
       } else {
-        let prft = prft!(fi, hdpm, pfb, stream_reader);
-        prft.window_update(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp)?;
+        prft!(fi, hdpm, inner, rd).window_update(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp)?;
       }
     }
   }
-  Ok(())
-}
-
-async fn wait_for_local_stream<HB, HD, SR, SW, const IS_CLIENT: bool>(
-  fi: FrameInit,
-  hd: &HD,
-  pfb: &mut PartitionedFilledBuffer,
-  stream_reader: &mut SR,
-) -> crate::Result<()>
-where
-  HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
-  SR: StreamReader,
-  SW: StreamWriter,
-{
-  let mut lock_pin = pin!(hd.lock());
-  poll_fn(|cx| {
-    let mut local_lock = lock_pin!(cx, hd, lock_pin);
-    let mut local_hdpm = local_lock.parts_mut();
-    let Some(elem) = local_hdpm.hb.local_server_streams.get_mut(0) else {
-      cx.waker().wake_by_ref();
-      return Poll::Pending;
-    };
-    if local_hdpm.hb.sorp.contains_key(&elem.stream_id) {
-      cx.waker().wake_by_ref();
-      return Poll::Pending;
-    }
-    let prft = prft!(fi, local_hdpm, pfb, stream_reader);
-    let rslt = ready!(pin!(prft.header_server_init(elem, &mut local_hdpm.hb.sorp)).poll(cx));
-    elem.waker.wake_by_ref();
-    Poll::Ready(rslt)
-  })
-  .await?;
   Ok(())
 }

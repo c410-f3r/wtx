@@ -97,7 +97,7 @@ pub(crate) fn log_http_req<T, TP>(
     body = debug(_body),
     method = %_method,
     trans_ty = display(_trans.ty()),
-    uri = display(_uri.as_str()),
+    uri = display(_uri.origin()),
     "Request"
   );
 }

@@ -2,62 +2,51 @@
 
 use core::ops::Deref;
 
+#[cfg(feature = "portable-atomic")]
+type LocalTy<T> = portable_atomic_util::Arc<T>;
+#[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
+type LocalTy<T> = loom::sync::Arc<T>;
+#[cfg(all(not(feature = "portable-atomic"), not(feature = "loom")))]
+type LocalTy<T> = alloc::sync::Arc<T>;
+
 /// A thread-safe reference-counting pointer. ‘Arc’ stands for ‘Atomically Reference Counted’.
 #[derive(Debug)]
-pub struct Arc<T>(
-  #[cfg(feature = "portable-atomic-util")] portable_atomic_util::Arc<T>,
-  #[cfg(not(feature = "portable-atomic-util"))] alloc::sync::Arc<T>,
-);
+pub struct Arc<T>(LocalTy<T>);
 
 impl<T> Arc<T> {
   /// Constructs a new instance.
   #[inline]
   pub fn new(data: T) -> Self {
-    Self(
-      #[cfg(feature = "portable-atomic-util")]
-      portable_atomic_util::Arc::new(data),
-      #[cfg(not(feature = "portable-atomic-util"))]
-      alloc::sync::Arc::new(data),
-    )
+    Self(LocalTy::new(data))
   }
 
   /// Returns a mutable reference into the given `Arc`, if there are
   /// no other `Arc` or `Weak` pointers to the same allocation.
   #[inline]
   pub fn get_mut(this: &mut Self) -> Option<&mut T> {
-    #[cfg(feature = "portable-atomic-util")]
-    return portable_atomic_util::Arc::get_mut(&mut this.0);
-    #[cfg(not(feature = "portable-atomic-util"))]
-    return alloc::sync::Arc::get_mut(&mut this.0);
+    LocalTy::get_mut(&mut this.0)
   }
 
   /// Returns the inner value, if the Arc has exactly one strong reference.
   #[inline]
   pub fn into_inner(this: Self) -> Option<T> {
-    #[cfg(feature = "portable-atomic-util")]
-    return portable_atomic_util::Arc::into_inner(this.0);
-    #[cfg(not(feature = "portable-atomic-util"))]
-    return alloc::sync::Arc::into_inner(this.0);
+    #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
+    return loom::sync::Arc::try_unwrap(this.0).ok();
+    #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
+    return LocalTy::into_inner(this.0);
   }
 
   /// Gets the number of strong pointers to this allocation.
   #[inline]
   pub fn strong_count(this: &Self) -> usize {
-    #[cfg(feature = "portable-atomic-util")]
-    return portable_atomic_util::Arc::strong_count(&this.0);
-    #[cfg(not(feature = "portable-atomic-util"))]
-    return alloc::sync::Arc::strong_count(&this.0);
+    LocalTy::strong_count(&this.0)
   }
 }
 
 impl<T> Clone for Arc<T> {
   #[inline]
   fn clone(&self) -> Self {
-    #[cfg(feature = "portable-atomic-util")]
-    let data = portable_atomic_util::Arc::clone(&self.0);
-    #[cfg(not(feature = "portable-atomic-util"))]
-    let data = alloc::sync::Arc::clone(&self.0);
-    Self(data)
+    Self(LocalTy::clone(&self.0))
   }
 }
 
@@ -70,7 +59,19 @@ impl<T> Deref for Arc<T> {
   }
 }
 
-#[cfg(feature = "portable-atomic-util")]
+impl<T: Eq> Eq for Arc<T> {}
+
+impl<T> PartialEq for Arc<T>
+where
+  T: PartialEq,
+{
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    self.0.eq(&other.0)
+  }
+}
+
+#[cfg(all(feature = "portable-atomic-util", not(feature = "loom")))]
 impl<T> From<Arc<T>> for portable_atomic_util::Arc<T> {
   #[inline]
   fn from(from: Arc<T>) -> Self {
@@ -78,7 +79,7 @@ impl<T> From<Arc<T>> for portable_atomic_util::Arc<T> {
   }
 }
 
-#[cfg(feature = "portable-atomic-util")]
+#[cfg(all(feature = "portable-atomic-util", not(feature = "loom")))]
 impl<T> From<portable_atomic_util::Arc<T>> for Arc<T> {
   #[inline]
   fn from(from: portable_atomic_util::Arc<T>) -> Self {
@@ -86,7 +87,7 @@ impl<T> From<portable_atomic_util::Arc<T>> for Arc<T> {
   }
 }
 
-#[cfg(not(feature = "portable-atomic-util"))]
+#[cfg(all(not(feature = "portable-atomic-util"), not(feature = "loom")))]
 impl<T> From<Arc<T>> for alloc::sync::Arc<T> {
   #[inline]
   fn from(from: Arc<T>) -> Self {
@@ -94,7 +95,7 @@ impl<T> From<Arc<T>> for alloc::sync::Arc<T> {
   }
 }
 
-#[cfg(not(feature = "portable-atomic-util"))]
+#[cfg(all(not(feature = "portable-atomic-util"), not(feature = "loom")))]
 impl<T> From<alloc::sync::Arc<T>> for Arc<T> {
   #[inline]
   fn from(from: alloc::sync::Arc<T>) -> Self {

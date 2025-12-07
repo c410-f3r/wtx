@@ -213,6 +213,8 @@ pub enum Error {
   UriCanNotBeOverwritten,
   /// In the current platform a number is larger than `usize`.
   UsizeConversionOverflow,
+  /// It is not possible to write more than 8 slices at once.
+  VectoredWriteOverflow,
 
   // Internal
   //

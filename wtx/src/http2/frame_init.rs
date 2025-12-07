@@ -5,8 +5,10 @@ create_enum! {
   pub(crate) enum FrameInitTy<u8> {
     Data = (0),
     Headers = (1),
+    Priority = (2),
     Reset = (3),
     Settings = (4),
+    PushPromise = (5),
     Ping = (6),
     GoAway = (7),
     WindowUpdate = (8),
@@ -19,8 +21,10 @@ impl FrameInitTy {
     match self {
       Self::Data => 0,
       Self::Headers => 1,
+      Self::Priority => 2,
       Self::Reset => 3,
       Self::Settings => 4,
+      Self::PushPromise => 5,
       Self::Ping => 6,
       Self::GoAway => 7,
       Self::WindowUpdate => 8,

@@ -155,6 +155,17 @@ where
     self.uri.lease().len()
   }
 
+  /// Everything before path
+  ///
+  /// ```rust
+  /// let uri = wtx::misc::Uri::new("foo://user:password@hostname:80/path?query=value#hash");
+  /// assert_eq!(uri.origin(), "foo://user:password@hostname:80");
+  /// ```
+  #[inline]
+  pub fn origin(&self) -> &str {
+    self.uri.lease().get(..self.href_start.into()).unwrap_or_default()
+  }
+
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.1>
   ///
   /// ```rust

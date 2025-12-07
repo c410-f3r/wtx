@@ -82,7 +82,7 @@ where
 impl<NC, R, SR, const IS_CLIENT: bool> Drop for WebSocketReaderOwned<NC, R, SR, IS_CLIENT> {
   #[inline]
   fn drop(&mut self) {
-    let _rslt = self.replier.data().fetch_update(|elem| Some((true, elem.1)));
+    let _rslt = self.replier.data().update(|elem| (true, elem.1));
     self.replier.waker().wake();
   }
 }

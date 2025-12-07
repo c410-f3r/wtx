@@ -1,37 +1,29 @@
 use crate::{
-  pool::{Pool, ResourceManager},
-  sync::{Arc, Lock},
+  misc::{Lease, LeaseMut},
+  pool::ResourceManager,
+  sync::{Arc, AsyncMutex, AsyncMutexGuard, SyncMutex},
 };
 use alloc::vec::Vec;
 use core::{
-  cell::RefCell,
+  fmt::{Debug, Formatter},
   future::poll_fn,
+  iter,
   ops::{Deref, DerefMut},
   task::{Poll, Waker},
 };
-use std::sync::Mutex;
-
-/// A [`SimplePool`] synchronized by [`RefCell`].
-pub type SimplePoolRefCell<RM> =
-  SimplePool<RefCell<SimplePoolResource<<RM as ResourceManager>::Resource>>, RM>;
-/// A [`SimplePool`] synchronized by [`tokio::sync::Mutex`].
-#[cfg(feature = "tokio")]
-pub type SimplePoolTokio<RM> =
-  SimplePool<tokio::sync::Mutex<SimplePoolResource<<RM as ResourceManager>::Resource>>, RM>;
 
 /// Pool with a fixed number of elements.
-#[derive(Debug)]
-pub struct SimplePool<RL, RM> {
-  resources: Arc<PoolResources<RL, RM>>,
-  state: Arc<Mutex<PoolState>>,
+pub struct SimplePool<RM>
+where
+  RM: ResourceManager,
+{
+  resources: Arc<PoolResources<RM>>,
+  state: Arc<SyncMutex<PoolState>>,
 }
 
-impl<R, RL, RM> SimplePool<RL, RM>
+impl<RM> SimplePool<RM>
 where
-  RL: Lock<Resource = SimplePoolResource<R>>,
-  RM: ResourceManager<Resource = R>,
-  for<'any> RL: 'any,
-  for<'any> RM: 'any,
+  RM: ResourceManager,
 {
   /// Creates a new instance with a maximum amount of elements delimited by `len`.
   ///
@@ -40,10 +32,10 @@ where
   pub fn new(mut len: usize, rm: RM) -> Self {
     len = len.max(1);
     let mut locks = Vec::with_capacity(len);
-    locks.extend((0..len).map(|_| RL::new(SimplePoolResource(None))));
+    locks.extend(iter::repeat_with(|| AsyncMutex::new(SimplePoolResource(None))).take(len));
     Self {
       resources: Arc::new(PoolResources { locks, rm }),
-      state: Arc::new(Mutex::new(PoolState {
+      state: Arc::new(SyncMutex::new(PoolState {
         available: (0..len).collect(),
         wakers: Vec::with_capacity(len),
       })),
@@ -59,82 +51,25 @@ where
     Ok(())
   }
 
-  #[cfg(feature = "http-client-pool")]
-  pub(crate) async fn into_for_each<FUN>(&self, mut cb: impl FnMut(R) -> FUN)
-  where
-    FUN: Future<Output = ()>,
-  {
-    for idx in 0..self.resources.locks.len() {
-      if let Some(lock) = self.resources.locks.get(idx) {
-        let mut resource = lock.lock().await;
-        if let Some(elem) = resource.0.take() {
-          cb(elem).await;
-        }
-      }
-    }
-  }
-}
-
-impl<R, RL, RM> SimplePool<RL, RM>
-where
-  RL: Lock<Resource = SimplePoolResource<R>>,
-  RM: ResourceManager<CreateAux = (), RecycleAux = (), Resource = R>,
-  for<'any> RL: 'any,
-  for<'any> RM: 'any,
-{
-  /// Shortcut for implementations that don't require inputs.
+  /// Tries to retrieve a free resource.
   #[inline]
-  pub async fn get(&self) -> Result<<Self as Pool>::GetElem<'_>, RM::Error> {
-    <Self as Pool>::get(self, &(), &()).await
-  }
-}
-
-#[cfg(feature = "http-server-framework")]
-impl<RL, RM> crate::http::server_framework::ConnAux for SimplePool<RL, RM> {
-  type Init = Self;
-
-  #[inline]
-  fn conn_aux(init: Self::Init) -> crate::Result<Self> {
-    Ok(init)
-  }
-}
-#[cfg(feature = "http-server-framework")]
-impl<RL, RM> crate::http::server_framework::StreamAux for SimplePool<RL, RM> {
-  type Init = Self;
-
-  #[inline]
-  fn stream_aux(init: Self::Init) -> crate::Result<Self> {
-    Ok(init)
-  }
-}
-
-impl<R, RL, RM> Pool for SimplePool<RL, RM>
-where
-  RL: Lock<Resource = SimplePoolResource<R>>,
-  RM: ResourceManager<Resource = R>,
-  for<'any> RL: 'any,
-  for<'any> RM: 'any,
-{
-  type GetElem<'this> = SimplePoolGetElem<RL::Guard<'this>>;
-  type ResourceManager = RM;
-
-  #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
-  #[inline]
-  async fn get<'this>(
+  pub async fn get<'guard, 'this>(
     &'this self,
     ca: &RM::CreateAux,
     ra: &RM::RecycleAux,
-  ) -> Result<Self::GetElem<'this>, RM::Error> {
-    let idx = poll_fn(|cx| match self.state.try_lock() {
-      Ok(mut elem) => {
+  ) -> Result<SimplePoolGetElem<AsyncMutexGuard<'guard, SimplePoolResource<RM::Resource>>>, RM::Error>
+  where
+    'this: 'guard,
+  {
+    let idx = poll_fn(|cx| {
+      if let Some(mut elem) = self.state.try_lock() {
         if let Some(idx) = elem.available.pop() {
           Poll::Ready(idx)
         } else {
           elem.wakers.push(cx.waker().clone());
           Poll::Pending
         }
-      }
-      Err(_) => {
+      } else {
         cx.waker().wake_by_ref();
         Poll::Pending
       }
@@ -157,12 +92,80 @@ where
     let _ = drop_guard.idx.take();
     Ok(SimplePoolGetElem { state: Arc::clone(&self.state), idx, resource: lock_guard })
   }
+
+  #[cfg(feature = "http-client-pool")]
+  pub(crate) async fn into_for_each<FUN>(&self, mut cb: impl FnMut(RM::Resource) -> FUN)
+  where
+    FUN: Future<Output = ()>,
+  {
+    for idx in 0..self.resources.locks.len() {
+      if let Some(lock) = self.resources.locks.get(idx) {
+        let mut resource = lock.lock().await;
+        if let Some(elem) = resource.0.take() {
+          cb(elem).await;
+        }
+      }
+    }
+  }
 }
 
-impl<RL, RM> Clone for SimplePool<RL, RM> {
+impl<RM> SimplePool<RM>
+where
+  RM: ResourceManager<CreateAux = (), RecycleAux = ()>,
+{
+  /// Shortcut for implementations that don't require inputs.
+  #[inline]
+  pub async fn get_with_unit(
+    &self,
+  ) -> Result<SimplePoolGetElem<AsyncMutexGuard<'_, SimplePoolResource<RM::Resource>>>, RM::Error>
+  {
+    self.get(&(), &()).await
+  }
+}
+
+#[cfg(feature = "http-server-framework")]
+impl<RM> crate::http::server_framework::ConnAux for SimplePool<RM>
+where
+  RM: ResourceManager,
+{
+  type Init = Self;
+
+  #[inline]
+  fn conn_aux(init: Self::Init) -> crate::Result<Self> {
+    Ok(init)
+  }
+}
+
+#[cfg(feature = "http-server-framework")]
+impl<RM> crate::http::server_framework::StreamAux for SimplePool<RM>
+where
+  RM: ResourceManager,
+{
+  type Init = Self;
+
+  #[inline]
+  fn stream_aux(init: Self::Init) -> crate::Result<Self> {
+    Ok(init)
+  }
+}
+
+impl<RM> Clone for SimplePool<RM>
+where
+  RM: ResourceManager,
+{
   #[inline]
   fn clone(&self) -> Self {
     Self { resources: Arc::clone(&self.resources), state: Arc::clone(&self.state) }
+  }
+}
+
+impl<RM> Debug for SimplePool<RM>
+where
+  RM: ResourceManager,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.debug_struct("Pool").finish()
   }
 }
 
@@ -171,7 +174,7 @@ impl<RL, RM> Clone for SimplePool<RL, RM> {
 pub struct SimplePoolGetElem<R> {
   idx: usize,
   resource: R,
-  state: Arc<Mutex<PoolState>>,
+  state: Arc<SyncMutex<PoolState>>,
 }
 
 impl<R> Deref for SimplePoolGetElem<R> {
@@ -191,10 +194,23 @@ impl<R> DerefMut for SimplePoolGetElem<R> {
 }
 
 impl<R> Drop for SimplePoolGetElem<R> {
-  #[expect(clippy::unwrap_used, reason = "poisoning is ignored")]
   #[inline]
   fn drop(&mut self) {
     push_available(self.idx, &self.state);
+  }
+}
+
+impl<R> Lease<R> for SimplePoolGetElem<AsyncMutexGuard<'_, SimplePoolResource<R>>> {
+  #[inline]
+  fn lease(&self) -> &R {
+    &self.resource
+  }
+}
+
+impl<R> LeaseMut<R> for SimplePoolGetElem<AsyncMutexGuard<'_, SimplePoolResource<R>>> {
+  #[inline]
+  fn lease_mut(&mut self) -> &mut R {
+    &mut self.resource
   }
 }
 
@@ -204,7 +220,11 @@ pub struct SimplePoolResource<T>(Option<T>);
 
 impl<T> SimplePoolResource<T> {
   /// Returns the inner element.
-  #[expect(clippy::unwrap_used, reason = "public instances always have valid contents")]
+  #[expect(
+    clippy::unwrap_used,
+    clippy::missing_panics_doc,
+    reason = "public instances always have valid contents"
+  )]
   #[inline]
   pub fn into_inner(self) -> T {
     self.0.unwrap()
@@ -236,57 +256,32 @@ struct PoolState {
 }
 
 #[derive(Debug)]
-struct PoolResources<RL, RM> {
-  locks: Vec<RL>,
+struct PoolResources<RM>
+where
+  RM: ResourceManager,
+{
+  locks: Vec<AsyncMutex<SimplePoolResource<RM::Resource>>>,
   rm: RM,
 }
 
-#[derive(Debug)]
 struct SimplePoolGetDropGuard<'any> {
-  state: &'any Mutex<PoolState>,
+  state: &'any SyncMutex<PoolState>,
   idx: Option<usize>,
 }
 
-impl<'a> Drop for SimplePoolGetDropGuard<'a> {
+impl Drop for SimplePoolGetDropGuard<'_> {
   fn drop(&mut self) {
     if let Some(idx) = self.idx {
-      let mut state = self.state.lock().unwrap();
-      state.available.push(idx);
-      if let Some(waker) = state.wakers.pop() {
-        waker.wake();
-      }
+      push_available(idx, self.state);
     }
   }
 }
 
-fn push_available(idx: usize, state: &Mutex<PoolState>) {
-  let mut state_guard = state.lock().unwrap();
+fn push_available(idx: usize, state: &SyncMutex<PoolState>) {
+  let mut state_guard = state.lock();
   state_guard.available.push(idx);
   if let Some(waker) = state_guard.wakers.pop() {
     waker.wake();
-  }
-}
-
-#[cfg(feature = "tokio")]
-mod _tokio {
-  use crate::{
-    misc::{Lease, LeaseMut},
-    pool::{SimplePoolGetElem, SimplePoolResource},
-  };
-  use tokio::sync::MutexGuard;
-
-  impl<R> Lease<R> for SimplePoolGetElem<MutexGuard<'_, SimplePoolResource<R>>> {
-    #[inline]
-    fn lease(&self) -> &R {
-      &self.resource
-    }
-  }
-
-  impl<R> LeaseMut<R> for SimplePoolGetElem<MutexGuard<'_, SimplePoolResource<R>>> {
-    #[inline]
-    fn lease_mut(&mut self) -> &mut R {
-      &mut self.resource
-    }
   }
 }
 
@@ -294,7 +289,7 @@ mod _tokio {
 mod tests {
   use crate::{
     executor::Runtime,
-    pool::{SimpleRM, simple_pool::SimplePoolRefCell},
+    pool::{SimpleRM, simple_pool::SimplePool},
   };
 
   #[test]
@@ -302,23 +297,26 @@ mod tests {
     Runtime::new()
       .block_on(async {
         let pool = pool();
-        let lhs_lock = pool.get().await.unwrap();
+        let lhs_lock = pool.get_with_unit().await.unwrap();
 
-        ***pool.get().await.unwrap() = 1;
-        assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 1]);
+        ***pool.get_with_unit().await.unwrap() = 1;
+        assert_eq!([***lhs_lock, ***pool.get_with_unit().await.unwrap()], [0, 1]);
 
-        ***pool.get().await.unwrap() = 2;
-        assert_eq!([***lhs_lock, ***pool.get().await.unwrap()], [0, 2]);
+        ***pool.get_with_unit().await.unwrap() = 2;
+        assert_eq!([***lhs_lock, ***pool.get_with_unit().await.unwrap()], [0, 2]);
 
         drop(lhs_lock);
 
-        ***pool.get().await.unwrap() = 1;
-        assert_eq!([***pool.get().await.unwrap(), ***pool.get().await.unwrap()], [1, 2]);
+        ***pool.get_with_unit().await.unwrap() = 1;
+        assert_eq!(
+          [***pool.get_with_unit().await.unwrap(), ***pool.get_with_unit().await.unwrap()],
+          [1, 2]
+        );
       })
       .unwrap();
   }
 
-  fn pool() -> SimplePoolRefCell<SimpleRM<fn() -> crate::Result<i32>>> {
-    SimplePoolRefCell::new(2, SimpleRM::new(|| Ok(0)))
+  fn pool() -> SimplePool<SimpleRM<fn() -> crate::Result<i32>>> {
+    SimplePool::new(2, SimpleRM::new(|| Ok(0)))
   }
 }

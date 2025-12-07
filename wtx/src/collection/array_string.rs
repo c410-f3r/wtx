@@ -113,10 +113,9 @@ where
   L: LinearStorageLen,
 {
   #[doc = from_iter_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]
-  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  pub fn from_iter(iter: impl IntoIterator<Item = char>) -> crate::Result<Self> {
-    Ok(Self(Inner::from_iter(iter)?))
+  pub fn from_iterator(iter: impl IntoIterator<Item = char>) -> crate::Result<Self> {
+    Ok(Self(Inner::from_iterator(iter)?))
   }
 
   #[doc = as_slice_doc!("ArrayStringUsize::<16>", "\"123\".chars()", "\"123\"")]

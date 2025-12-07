@@ -1,7 +1,7 @@
 use crate::{
   http::OptionedServer,
   misc::FnFut,
-  pool::{SimplePoolTokio, WebSocketRM},
+  pool::{SimplePool, WebSocketRM},
   rng::Xorshift64,
   stream::Stream,
   web_socket::{Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer},
@@ -10,7 +10,7 @@ use core::fmt::Debug;
 use std::sync::OnceLock;
 use tokio::net::{TcpListener, TcpStream};
 
-static POOL: OnceLock<SimplePoolTokio<WebSocketRM>> = OnceLock::new();
+static POOL: OnceLock<SimplePool<WebSocketRM>> = OnceLock::new();
 
 impl OptionedServer {
   /// Optioned WebSocket server using tokio.
@@ -55,10 +55,8 @@ impl OptionedServer {
       let conn_net_cb = net_cb.clone();
       let tcp_stream = listener.accept().await?.0;
       let mut conn_buffer = POOL
-        .get_or_init(|| {
-          SimplePoolTokio::new(buffers_len, WebSocketRM::new(|| Ok(Default::default())))
-        })
-        .get()
+        .get_or_init(|| SimplePool::new(buffers_len, WebSocketRM::new(|| Ok(Default::default()))))
+        .get_with_unit()
         .await?;
       let _jh = tokio::spawn(async move {
         let wsb = &mut ***conn_buffer;

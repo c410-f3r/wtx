@@ -26,7 +26,7 @@ pub struct WebSocketReplier<const IS_CLIENT: bool> {
 }
 
 impl<const IS_CLIENT: bool> WebSocketReplier<IS_CLIENT> {
-  pub(crate) const fn new() -> Self {
+  pub(crate) fn new() -> Self {
     Self { data: AtomicCell::new((false, None)), waker: AtomicWaker::new() }
   }
 
@@ -38,15 +38,7 @@ impl<const IS_CLIENT: bool> WebSocketReplier<IS_CLIENT> {
   #[inline]
   pub async fn reply_frame(&self) -> Option<FrameControlArray<IS_CLIENT>> {
     poll_fn(|cx| {
-      let rslt = self.data.fetch_update(|el| Some((el.0, None)));
-      let (is_conn_closed, frame) = match rslt {
-        Ok(elem) => elem,
-        // The closure always return `Some`, as such, this branch is impossible.
-        Err(_elem) => {
-          self.waker.register(cx.waker());
-          return Poll::Pending;
-        }
-      };
+      let (is_conn_closed, frame) = self.data.update(|el| (el.0, None));
       if let Some((op_code, data, len)) = frame {
         Poll::Ready(Some(FrameControlArray::<IS_CLIENT>::new_fin(
           op_code,

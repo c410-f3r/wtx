@@ -172,9 +172,9 @@ macro_rules! _conn_params_methods {
     /// Indicates the maximum length of the HPACK structure that holds cached decoded headers
     /// received from a counterpart.
     ///
-    /// - The first parameter indicates the local HPACK ***decoder*** length that is externally
+    /// * The first parameter indicates the local HPACK ***decoder*** length that is externally
     ///   advertised and can become the remote HPACK ***encoder*** length.
-    /// - The second parameter indicates the maximum local HPACK ***encoder*** length. In other words,
+    /// * The second parameter indicates the maximum local HPACK ***encoder*** length. In other words,
     ///   it doesn't allow external actors to dictate very large lengths.
     #[inline]
     #[must_use]

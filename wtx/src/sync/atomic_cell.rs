@@ -9,8 +9,6 @@ use core::{
 
 const LEN: usize = 67;
 
-static LOCKS: [CachePadded<SeqLock>; LEN] = [const { CachePadded(SeqLock::new()) }; LEN];
-
 /// A type that allows copyable elements to be safely shared between threads.
 pub struct AtomicCell<T> {
   value: UnsafeCell<T>,
@@ -33,8 +31,8 @@ impl<T> AtomicCell<T> {
   pub fn into_inner(self) -> T {
     let this = ManuallyDrop::new(self);
     // SAFETY:
-    // - ownership prevents concurrent access and ensures a valid pointer
-    // - `ManuallyDrop` prevents double free
+    // * ownership prevents concurrent access and ensures a valid pointer
+    // * `ManuallyDrop` prevents double free
     unsafe { this.as_ptr().read() }
   }
 
@@ -144,23 +142,42 @@ where
     }
   }
 
-  /// Fetches the value, and applies a function to it that returns an optional
-  /// new value. Returns a `Result` of `Ok(previous_value)` if the function returned `Some(_)`, else
+  /// Fetches the value, and applies a function to it that returns a new value.
+  ///
+  /// ```rust
+  /// let num = wtx::sync::AtomicCell::new(7);
+  /// assert_eq!(num.update(|local_num| local_num + 1), 7);
+  /// assert_eq!(num.load(), 8);
+  /// ```
+  #[inline]
+  pub fn update(&self, mut cb: impl FnMut(T) -> T) -> T {
+    let mut prev = self.load();
+    loop {
+      match self.compare_exchange(prev, cb(prev)) {
+        Ok(elem) => return elem,
+        Err(next_prev) => prev = next_prev,
+      }
+    }
+  }
+
+  /// Fetches the value, and applies a function to it that returns an optional new value.
+  ///
+  /// Returns a `Result` of `Ok(previous_value)` if the function returned `Some(_)`, else
   /// `Err(previous_value)`.
   ///
   /// ```rust
   /// let num = wtx::sync::AtomicCell::new(7);
-  /// assert_eq!(num.fetch_update(|_| None), Err(7));
-  /// assert_eq!(num.fetch_update(|local_num| Some(local_num + 1)), Ok(7));
-  /// assert_eq!(num.fetch_update(|local_num| Some(local_num + 1)), Ok(8));
+  /// assert_eq!(num.try_update(|_| None), Err(7));
+  /// assert_eq!(num.try_update(|local_num| Some(local_num + 1)), Ok(7));
+  /// assert_eq!(num.try_update(|local_num| Some(local_num + 1)), Ok(8));
   /// assert_eq!(num.load(), 9);
   /// ```
   #[inline]
-  pub fn fetch_update(&self, mut cb: impl FnMut(T) -> Option<T>) -> Result<T, T> {
+  pub fn try_update(&self, mut cb: impl FnMut(T) -> Option<T>) -> Result<T, T> {
     let mut prev = self.load();
     while let Some(next) = cb(prev) {
       match self.compare_exchange(prev, next) {
-        elem @ Ok(_) => return elem,
+        Ok(elem) => return Ok(elem),
         Err(next_prev) => prev = next_prev,
       }
     }
@@ -193,8 +210,8 @@ impl<T> Drop for AtomicCell<T> {
   fn drop(&mut self) {
     if mem::needs_drop::<T>() {
       // SAFETY:
-      // - mutable reference prevents concurrent access and ensures a valid pointer
-      // - `ManuallyDrop` prevents double free
+      // * mutable reference prevents concurrent access and ensures a valid pointer
+      // * `ManuallyDrop` prevents double free
       unsafe {
         self.as_ptr().drop_in_place();
       }
@@ -219,9 +236,19 @@ unsafe impl<T: Send> Sync for AtomicCell<T> {}
 
 impl<T> UnwindSafe for AtomicCell<T> where T: Send {}
 
+#[expect(clippy::indexing_slicing, reason = "modulo result will always be in-bounds")]
 fn lock(addr: usize) -> &'static SeqLock {
-  #[expect(clippy::indexing_slicing, reason = "modulo result will always be in-bounds")]
-  &LOCKS[addr % LEN].0
+  #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
+  {
+    static LOCKS: std::sync::OnceLock<[CachePadded<SeqLock>; LEN]> = std::sync::OnceLock::new();
+    let array = LOCKS.get_or_init(|| core::array::from_fn(|_| CachePadded(SeqLock::new())));
+    &array[addr % LEN].0
+  }
+  #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
+  {
+    static LOCKS: [CachePadded<SeqLock>; LEN] = [const { CachePadded(SeqLock::new()) }; LEN];
+    &LOCKS[addr % LEN].0
+  }
 }
 
 #[cfg(feature = "serde")]

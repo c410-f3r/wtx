@@ -1,7 +1,7 @@
 use crate::collection::{Block, BlocksDeque};
 use core::str;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct HpackHeaders<M> {
   bq: BlocksDeque<u8, Metadata<M>>,
   max_bytes: usize,

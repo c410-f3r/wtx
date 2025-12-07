@@ -59,7 +59,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
   }
 
   #[inline]
-  fn from_iter(
+  fn from_iterator(
     iter: impl IntoIterator<Item = <Self::Slice as LinearStorageSlice>::Unit>,
   ) -> crate::Result<Self>
   where

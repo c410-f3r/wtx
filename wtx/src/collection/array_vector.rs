@@ -119,6 +119,16 @@ where
     Ok(unsafe { ptr::read(self.0.data.as_ptr().cast()) })
   }
 
+  /// Maps the internal elements to a new format.
+  #[inline]
+  pub fn map<U>(self, mut cb: impl FnMut(T) -> U) -> ArrayVector<L, U, N> {
+    let mut vector = ArrayVector::new();
+    for elem in self {
+      let _rslt = vector.push(cb(elem));
+    }
+    vector
+  }
+
   unsafe fn get_owned(&mut self, idx: L) -> T {
     // SAFETY: it is up to the caller to provide a valid index
     let src = unsafe { self.0.data.as_ptr().add(idx.usize()) };
@@ -161,10 +171,9 @@ where
   }
 
   #[doc = from_iter_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]", "&[1, 2, 3]")]
-  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
-    Ok(Self(Inner::from_iter(iter)?))
+  pub fn from_iterator(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
+    Ok(Self(Inner::from_iterator(iter)?))
   }
 
   #[doc = as_ptr_doc!("ArrayVectorUsize::<_, 16>", "[1, 2, 3]")]
@@ -375,7 +384,7 @@ where
   where
     I: IntoIterator<Item = T>,
   {
-    Wrapper(ArrayVector::from_iter(iter))
+    Wrapper(ArrayVector::from_iterator(iter))
   }
 }
 

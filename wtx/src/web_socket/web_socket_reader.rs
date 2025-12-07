@@ -72,9 +72,7 @@ where
         .await?;
         rslt?;
       } else {
-        let _rslt = replier
-          .data()
-          .fetch_update(|elem| Some((elem.0, Some((OpCode::Close, params.0, params.1)))));
+        let _rslt = replier.data().update(|el| (el.0, Some((OpCode::Close, params.0, params.1))));
         replier.waker().wake();
       }
       Ok(true)
@@ -93,9 +91,7 @@ where
         )
         .await?;
       } else {
-        let _rslt = replier
-          .data()
-          .fetch_update(|elem| Some((elem.0, Some((OpCode::Pong, params.0, params.1)))));
+        let _rslt = replier.data().update(|el| (el.0, Some((OpCode::Pong, params.0, params.1))));
         replier.waker().wake();
       }
       Ok(true)

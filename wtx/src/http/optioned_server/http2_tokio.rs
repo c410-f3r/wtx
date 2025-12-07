@@ -1,11 +1,11 @@
 use crate::{
   calendar::Instant,
   http::{
-    AutoStream, ManualServerStreamTokio, OperationMode, Protocol, ReqResBuffer, Request, Response,
+    AutoStream, ManualServerStream, OperationMode, Protocol, ReqResBuffer, Request, Response,
     optioned_server::OptionedServer,
   },
-  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Tokio},
-  misc::{Either, FnFut},
+  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
+  misc::FnFut,
   stream::{StreamReader, StreamWriter},
 };
 use core::{mem, net::IpAddr};
@@ -76,7 +76,7 @@ impl OptionedServer {
       + Send
       + 'static,
     HSMC: Clone
-      + FnFut<(HA, ManualServerStreamTokio<CA, Http2Buffer, SA, SW>), Result = Result<(), ERR>>
+      + FnFut<(HA, ManualServerStream<CA, Http2Buffer, SA, SW>), Result = Result<(), ERR>>
       + Send
       + 'static,
     CA: Clone + Send + 'static,
@@ -116,7 +116,7 @@ impl OptionedServer {
         let initial_fut = async move {
           let (ca, hb, hp) = conn_http2_acceptance(conn_hcacp)?;
           let parts = conn_tcp_stream(conn_acpt, accepted_stream).await?;
-          let (frame_reader, http2) = Http2Tokio::accept(hb, hp, parts).await?;
+          let (frame_reader, http2) = Http2::accept(hb, hp, parts).await?;
           Ok::<_, ERR>((ca, frame_reader, http2))
         };
         let (mut conn_ca, frame_reader, http2) = match initial_fut.await {
@@ -150,8 +150,8 @@ impl OptionedServer {
               })
               .await?
             {
-              Either::Left(_) => return Ok(()),
-              Either::Right(elem) => elem,
+              None => return Ok(()),
+              Some(elem) => elem,
             };
             let (headers_aux, opt) = rslt?;
             let stream_auto_cb = conn_stream_auto.clone();
@@ -165,7 +165,7 @@ impl OptionedServer {
                   stream_manual_cb
                     .call((
                       headers_aux,
-                      ManualServerStreamTokio {
+                      ManualServerStream {
                         conn_aux: stream_ca,
                         peer,
                         protocol: stream.protocol(),

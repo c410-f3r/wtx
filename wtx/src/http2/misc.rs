@@ -1,38 +1,43 @@
 use crate::{
-  http::ReqResBuffer,
+  http::{ReqResBuffer, StatusCode},
   http2::{
-    Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2Params, Http2RecvStatus,
-    Http2SendStatus, Scrp, Sorp,
+    Http2Buffer, Http2Error, Http2ErrorCode, Http2Inner, Http2Params, Http2RecvStatus,
+    Http2SendStatus, Scrp, Sorp, Windows,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
     headers_frame::HeadersFrame,
     hpack_decoder::HpackDecoder,
     http2_data::Http2DataPartsMut,
+    reader_data::ReaderData,
     reset_stream_frame::ResetStreamFrame,
     stream_receiver::{StreamControlRecvParams, StreamOverallRecvParams},
     stream_state::StreamState,
     u31::U31,
   },
   misc::{
-    LeaseMut, Usize,
-    net::{PartitionedFilledBuffer, read_header, read_payload},
+    ConnectionState, LeaseMut, Usize,
+    net::{read_header, read_payload},
   },
   stream::{StreamReader, StreamWriter},
-  sync::{AtomicBool, AtomicWaker, Lock, RefCounter},
+  sync::{AtomicBool, AtomicWaker},
 };
 use core::{
   future::poll_fn,
+  mem,
   pin::pin,
   sync::atomic::Ordering,
-  task::{Context, Poll, ready},
+  task::{Context, Poll},
 };
 
-pub(crate) fn check_content_length(sorp: &StreamOverallRecvParams) -> crate::Result<()> {
-  let Some(content_length) = sorp.content_length else {
+pub(crate) fn check_content_length(
+  content_length: Option<usize>,
+  rrb: &ReqResBuffer,
+) -> crate::Result<()> {
+  let Some(elem) = content_length else {
     return Ok(());
   };
-  if sorp.rrb.body.len() != content_length {
+  if rrb.body.len() != elem {
     return Err(protocol_err(Http2Error::InvalidContentLength));
   }
   Ok(())
@@ -43,6 +48,10 @@ pub(crate) fn frame_reader_rslt(err: &mut Option<crate::Error>) -> crate::Result
     Some(elem) => Err(elem),
     None => Ok(()),
   }
+}
+
+pub(crate) fn connection_state(atomic_bool: &AtomicBool) -> ConnectionState {
+  ConnectionState::from(atomic_bool.load(Ordering::Relaxed))
 }
 
 #[track_caller]
@@ -61,66 +70,40 @@ pub(crate) fn sorp_mut(
   sorp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
 }
 
-pub(crate) fn manage_recurrent_stream_receiving<E, SW, const IS_CLIENT: bool>(
+/// * If the streams are in overall receiving mode, than `scrp` don't exist.
+/// * Callers of this function are already in an active future, as such, it is not necessary to
+///   awake them again.
+pub(crate) fn manage_recurrent_receiving_of_overall_stream<E, const IS_CLIENT: bool>(
   cx: &mut Context<'_>,
-  mut hdpm: Http2DataPartsMut<'_, SW, IS_CLIENT>,
+  mut hdpm: Http2DataPartsMut<'_, IS_CLIENT>,
   is_conn_open: &AtomicBool,
   stream_id: U31,
-  cb: impl FnOnce(
-    &mut Context<'_>,
-    &mut Http2DataPartsMut<'_, SW, IS_CLIENT>,
-    &StreamOverallRecvParams,
-  ) -> E,
+  cb: impl FnOnce(&mut Http2DataPartsMut<'_, IS_CLIENT>, StatusCode, StreamState, Windows) -> E,
 ) -> Poll<crate::Result<(Http2RecvStatus<E, ()>, ReqResBuffer)>> {
   let sorp = sorp_mut(&mut hdpm.hb.sorp, stream_id)?;
-  'block: {
-    let (hrs, rrb_opt) = match (is_conn_open.load(Ordering::Relaxed), sorp.is_stream_open) {
-      (false, false) => {
-        if let Some(elem) = hdpm.hb.scrp.remove(&stream_id) {
-          elem.waker.wake();
-        }
-        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|elem| {
-          elem.waker.wake();
-          elem.rrb
-        });
-        (Http2RecvStatus::ClosedConnection, rrb_opt)
-      }
-      (false, true) => {
-        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|elem| {
-          elem.waker.wake();
-          elem.rrb
-        });
-        (Http2RecvStatus::ClosedConnection, rrb_opt)
-      }
-      (true, false) => {
-        if let Some(elem) = hdpm.hb.scrp.remove(&stream_id) {
-          elem.waker.wake();
-        }
-        let rrb_opt = hdpm.hb.sorp.remove(&stream_id).map(|elem| {
-          elem.waker.wake();
-          elem.rrb
-        });
-        (Http2RecvStatus::ClosedStream, rrb_opt)
-      }
-      (true, true) => {
-        break 'block;
-      }
+  'invalid: {
+    let hrs = match (connection_state(is_conn_open), sorp.is_stream_open) {
+      (ConnectionState::Closed, false | true) => Http2RecvStatus::ClosedConnection,
+      (ConnectionState::Open, false) => Http2RecvStatus::ClosedStream,
+      (ConnectionState::Open, true) => break 'invalid,
     };
-    if let Some(elem) = rrb_opt {
-      frame_reader_rslt(hdpm.frame_reader_error)?;
-      return Poll::Ready(Ok((hrs, elem)));
-    }
-    return Poll::Ready(Err(protocol_err(Http2Error::UnknownStreamReceiver)));
+    let rrb = mem::take(&mut sorp.rrb);
+    drop(hdpm.hb.sorp.remove(&stream_id));
+    frame_reader_rslt(hdpm.frame_reader_error)?;
+    return Poll::Ready(Ok((hrs, rrb)));
   }
   if sorp.stream_state.recv_eos() {
-    if let Some(elem) = hdpm.hb.sorp.remove(&stream_id) {
-      check_content_length(&elem)?;
-      let rslt = cb(cx, &mut hdpm, &elem);
-      return Poll::Ready(Ok((Http2RecvStatus::Eos(rslt), elem.rrb)));
-    }
-  } else {
-    sorp.waker.clone_from(cx.waker());
+    let content_length = sorp.content_length;
+    let rrb = mem::take(&mut sorp.rrb);
+    let status_code = sorp.status_code;
+    let stream_state = sorp.stream_state;
+    let windows = sorp.windows;
+    drop(hdpm.hb.sorp.remove(&stream_id));
+    check_content_length(content_length, &rrb)?;
+    let rslt = cb(&mut hdpm, status_code, stream_state, windows);
+    return Poll::Ready(Ok((Http2RecvStatus::Eos(rslt), rrb)));
   }
+  sorp.waker.clone_from(cx.waker());
   Poll::Pending
 }
 
@@ -128,33 +111,22 @@ pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
   crate::Error::Http2ErrorGoAway(Http2ErrorCode::ProtocolError, error)
 }
 
-pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bool>(
+pub(crate) async fn process_higher_operation_err<HB, SW, const IS_CLIENT: bool>(
   err: &crate::Error,
-  hd: &HD,
+  inner: &Http2Inner<HB, SW, IS_CLIENT>,
 ) where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
-  let mut lock = hd.lock().await;
-  let mut hdpm = lock.parts_mut();
   match err {
     crate::Error::Http2ErrorGoAway(http2_error_code, _) => {
-      send_go_away(*http2_error_code, &mut hdpm).await;
+      send_go_away(*http2_error_code, inner).await;
     }
     crate::Error::Http2FlowControlError(_, stream_id) => {
-      let _ = send_reset_stream(
-        Http2ErrorCode::FlowControlError,
-        &mut hdpm.hb.scrp,
-        &mut hdpm.hb.sorp,
-        hdpm.stream_writer,
-        stream_id.into(),
-      )
-      .await;
+      let _ = send_reset_stream(Http2ErrorCode::FlowControlError, inner, stream_id.into()).await;
     }
     _ => {
-      send_go_away(Http2ErrorCode::InternalError, &mut hdpm).await;
+      send_go_away(Http2ErrorCode::InternalError, inner).await;
     }
   }
 }
@@ -162,20 +134,19 @@ pub(crate) async fn process_higher_operation_err<HB, HD, SW, const IS_CLIENT: bo
 pub(crate) async fn read_frame<SR, const IS_HEADER_BLOCK: bool>(
   is_conn_open: &AtomicBool,
   max_frame_len: u32,
-  pfb: &mut PartitionedFilledBuffer,
+  rd: &mut ReaderData<SR>,
   read_frame_waker: &AtomicWaker,
-  stream_reader: &mut SR,
 ) -> crate::Result<Option<FrameInit>>
 where
   SR: StreamReader,
 {
   let mut fut = pin!(async move {
     for _ in 0.._max_frames_mismatches!() {
-      pfb.clear_if_following_is_empty();
-      pfb.reserve(9)?;
-      let mut read = pfb.following_len();
-      let buffer = pfb.following_rest_mut();
-      let array = read_header::<0, 9, _>(buffer, &mut read, stream_reader).await?;
+      rd.pfb.clear_if_following_is_empty();
+      rd.pfb.reserve(9)?;
+      let mut read = rd.pfb.following_len();
+      let buffer = rd.pfb.following_rest_mut();
+      let array = read_header::<0, 9, _>(buffer, &mut read, &mut rd.stream_reader).await?;
       let (fi_opt, data_len) = FrameInit::from_array(array);
       if data_len > max_frame_len {
         return Err(crate::Error::Http2ErrorGoAway(
@@ -193,27 +164,30 @@ where
         }
         let frame_len = data_len_usize.wrapping_add(9);
         let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
-          stream_reader.read_skip(to_read).await?;
-          (pfb.all().len(), 0)
+          rd.stream_reader.read_skip(to_read).await?;
+          (rd.pfb.all().len(), 0)
         } else {
-          (pfb.current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
+          (rd.pfb.current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
         };
-        pfb.set_indices(antecedent_len, 0, following_len)?;
+        rd.pfb.set_indices(antecedent_len, 0, following_len)?;
         continue;
       };
       _trace!("Received frame: {fi:?}");
-      read_payload((9, data_len_usize), pfb, &mut read, stream_reader).await?;
+      read_payload((9, data_len_usize), &mut rd.pfb, &mut read, &mut rd.stream_reader).await?;
       return Ok(fi);
     }
     Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
   });
-  poll_fn(|cx| {
-    if !is_conn_open.load(Ordering::Relaxed) {
-      return Poll::Ready(Ok(None));
+  poll_fn(|cx| match fut.as_mut().poll(cx) {
+    Poll::Ready(Ok(fi)) => return Poll::Ready(Ok(Some(fi))),
+    Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
+    Poll::Pending => {
+      read_frame_waker.register(cx.waker());
+      if connection_state(is_conn_open).is_closed() {
+        return Poll::Ready(Ok(None));
+      }
+      Poll::Pending
     }
-    read_frame_waker.register(cx.waker());
-    let fi = ready!(fut.as_mut().poll(cx))?;
-    Poll::Ready(Ok(Some(fi)))
   })
   .await
 }
@@ -228,10 +202,9 @@ pub(crate) async fn read_header_and_continuations<
   is_conn_open: &AtomicBool,
   hp: &mut Http2Params,
   hpack_dec: &mut HpackDecoder,
-  pfb: &mut PartitionedFilledBuffer,
+  rd: &mut ReaderData<SR>,
   read_frame_waker: &AtomicWaker,
   rrb: &mut ReqResBuffer,
-  stream_reader: &mut SR,
   mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
 ) -> crate::Result<(Option<usize>, bool, H)>
 where
@@ -250,7 +223,7 @@ where
 
   if fi.cf.has_eoh() {
     let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
-      Some(pfb.current()),
+      Some(rd.pfb.current()),
       fi,
       hp,
       hpack_dec,
@@ -266,27 +239,21 @@ where
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
-  rrb.body.extend_from_copyable_slice(pfb.current())?;
+  rrb.body.extend_from_copyable_slice(rd.pfb.current())?;
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
-      let Some(frame_fi) = read_frame::<_, true>(
-        is_conn_open,
-        hp.max_frame_len(),
-        pfb,
-        read_frame_waker,
-        stream_reader,
-      )
-      .await?
+      let Some(frame_fi) =
+        read_frame::<_, true>(is_conn_open, hp.max_frame_len(), rd, read_frame_waker).await?
       else {
-        break 'continuation_frames;
+        return Err(protocol_err(Http2Error::IncompleteHeader));
       };
       let has_diff_id = fi.stream_id != frame_fi.stream_id;
       let is_not_continuation = frame_fi.ty != FrameInitTy::Continuation;
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      rrb.body.extend_from_copyable_slice(pfb.current())?;
+      rrb.body.extend_from_copyable_slice(rd.pfb.current())?;
       if frame_fi.cf.has_eoh() {
         break 'continuation_frames;
       }
@@ -310,46 +277,58 @@ where
   Ok((content_length, hf.has_eos(), headers_cb(&hf)?))
 }
 
-pub(crate) async fn send_go_away<SW, const IS_CLIENT: bool>(
+pub(crate) async fn send_go_away<HB, SW, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
-  hdpm: &mut Http2DataPartsMut<'_, SW, IS_CLIENT>,
+  inner: &Http2Inner<HB, SW, IS_CLIENT>,
 ) where
+  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
-  hdpm.hb.is_conn_open.store(false, Ordering::Relaxed);
-  let gaf = GoAwayFrame::new(error_code, *hdpm.last_stream_id);
-  let _rslt = hdpm.stream_writer.write_all(&gaf.bytes()).await;
-  for elem in hdpm.hb.local_server_streams.iter() {
-    elem.waker.wake_by_ref();
-  }
-  for elem in hdpm.hb.scrp.values() {
-    elem.waker.wake_by_ref();
-  }
-  for elem in hdpm.hb.sorp.values() {
-    elem.waker.wake_by_ref();
-  }
-  hdpm.hb.read_frame_waker.wake();
+  let last_stream_id = {
+    let mut hd_guard = inner.hd.lock().await;
+    let hdpm = hd_guard.parts_mut();
+    inner.is_conn_open.store(false, Ordering::Relaxed);
+    while let Some(elem) = hdpm.hb.initial_server_streams_local.pop_front() {
+      elem.wake();
+    }
+    for (_, value) in hdpm.hb.scrp.drain() {
+      value.waker.wake();
+    }
+    for (_, value) in hdpm.hb.sorp.drain() {
+      value.waker.wake();
+    }
+    inner.read_frame_waker.wake();
+    *hdpm.last_stream_id
+  };
+  let gaf = GoAwayFrame::new(error_code, last_stream_id);
+  let _rslt = inner.wd.lock().await.stream_writer.write_all(&gaf.bytes()).await;
 }
 
-pub(crate) async fn send_reset_stream<SW>(
+pub(crate) async fn send_reset_stream<HB, SW, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
-  scrp: &mut Scrp,
-  sorp: &mut Sorp,
-  stream_writer: &mut SW,
+  inner: &Http2Inner<HB, SW, IS_CLIENT>,
   stream_id: U31,
 ) -> bool
 where
+  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   let mut has_stored = false;
-  let _rslt = stream_writer.write_all(&ResetStreamFrame::new(error_code, stream_id).bytes()).await;
-  if let Some(elem) = scrp.get_mut(&stream_id) {
+  let _rslt = inner
+    .wd
+    .lock()
+    .await
+    .stream_writer
+    .write_all(&ResetStreamFrame::new(error_code, stream_id).bytes())
+    .await;
+  let mut hd_guard = inner.hd.lock().await;
+  if let Some(elem) = hd_guard.parts_mut().hb.scrp.get_mut(&stream_id) {
     has_stored = true;
     elem.is_stream_open = false;
     elem.stream_state = StreamState::Closed;
     elem.waker.wake_by_ref();
   }
-  if let Some(elem) = sorp.get_mut(&stream_id) {
+  if let Some(elem) = hd_guard.parts_mut().hb.sorp.get_mut(&stream_id) {
     has_stored = true;
     elem.is_stream_open = false;
     elem.stream_state = StreamState::Closed;
@@ -367,7 +346,7 @@ pub(crate) fn status_recv<E, O>(
   sorp: &mut StreamOverallRecvParams,
   eos_cb: impl FnOnce(&mut StreamOverallRecvParams) -> crate::Result<E>,
 ) -> crate::Result<Option<Http2RecvStatus<E, O>>> {
-  if !is_conn_open.load(Ordering::Relaxed) {
+  if connection_state(is_conn_open).is_closed() {
     return Ok(Some(Http2RecvStatus::ClosedConnection));
   }
   if !sorp.is_stream_open {
@@ -383,7 +362,7 @@ pub(crate) fn status_send<const IS_CLIENT: bool>(
   is_conn_open: &AtomicBool,
   sorp: &StreamOverallRecvParams,
 ) -> Option<Http2SendStatus> {
-  if !is_conn_open.load(Ordering::Relaxed) {
+  if connection_state(is_conn_open).is_closed() {
     return Some(Http2SendStatus::ClosedConnection);
   }
   if !sorp.is_stream_open {
@@ -419,7 +398,7 @@ pub(crate) async fn write_array<SW, const N: usize>(
 where
   SW: StreamWriter,
 {
-  if !is_conn_open.load(Ordering::Relaxed) {
+  if connection_state(is_conn_open).is_closed() {
     return Ok(());
   }
   _trace!("Sending frame(s): {:?}", {

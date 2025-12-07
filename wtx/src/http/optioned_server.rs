@@ -5,7 +5,7 @@
 
 #[cfg(all(feature = "http2", feature = "tokio"))]
 mod http2_tokio;
-#[cfg(all(feature = "pool", feature = "tokio", feature = "web-socket-handshake"))]
+#[cfg(all(feature = "tokio", feature = "web-socket-handshake"))]
 mod web_socket_tokio;
 
 /// Optioned abstractions of low-level servers.

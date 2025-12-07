@@ -19,12 +19,12 @@ use wtx::{
       VerbatimParams, get, json,
     },
   },
-  http2::{Http2Buffer, Http2DataTokio, Http2ErrorCode, ServerStream},
-  pool::{PostgresRM, SimplePoolTokio},
+  http2::{Http2Buffer, Http2ErrorCode, ServerStream},
+  pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, SeedableRng},
 };
 
-type Pool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
+type LocalPool = SimplePool<PostgresRM<wtx::Error, TcpStream>>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -37,7 +37,7 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  let pool = Pool::new(
+  let pool = LocalPool::new(
     4,
     PostgresRM::tokio(ChaCha20::from_os()?, "postgres://USER:PASSWORD@localhost/DB_NAME".into()),
   );
@@ -59,10 +59,10 @@ async fn deserialization_and_serialization(
 }
 
 async fn db(
-  state: StateClean<'_, (), Pool, ReqResBuffer>,
+  state: StateClean<'_, (), LocalPool, ReqResBuffer>,
   PathOwned(id): PathOwned<u32>,
 ) -> wtx::Result<VerbatimParams> {
-  let mut lock = state.stream_aux.get().await?;
+  let mut lock = state.stream_aux.get_with_unit().await?;
   let record = lock.execute_stmt_single("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
   state.req.rrd.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
@@ -74,11 +74,7 @@ async fn hello() -> &'static str {
 }
 
 async fn stream(
-  mut manual_stream: ManualStream<
-    (),
-    ServerStream<Http2DataTokio<Http2Buffer, OwnedWriteHalf, false>>,
-    Pool,
-  >,
+  mut manual_stream: ManualStream<(), ServerStream<Http2Buffer, OwnedWriteHalf>, LocalPool>,
 ) -> wtx::Result<()> {
   manual_stream.stream.common().send_go_away(Http2ErrorCode::NoError).await;
   Ok(())
@@ -90,7 +86,7 @@ async fn world() -> &'static str {
 
 struct CustomMiddleware;
 
-impl Middleware<(), wtx::Error, Pool> for CustomMiddleware {
+impl Middleware<(), wtx::Error, LocalPool> for CustomMiddleware {
   type Aux = ();
 
   fn aux(&self) -> Self::Aux {}
@@ -100,7 +96,7 @@ impl Middleware<(), wtx::Error, Pool> for CustomMiddleware {
     _: &mut (),
     _: &mut Self::Aux,
     _: &mut Request<ReqResBuffer>,
-    _: &mut Pool,
+    _: &mut LocalPool,
   ) -> wtx::Result<ControlFlow<StatusCode, ()>> {
     println!("Inspecting request");
     Ok(ControlFlow::Continue(()))
@@ -111,7 +107,7 @@ impl Middleware<(), wtx::Error, Pool> for CustomMiddleware {
     _: &mut (),
     _: &mut Self::Aux,
     _: Response<&mut ReqResBuffer>,
-    _: &mut Pool,
+    _: &mut LocalPool,
   ) -> wtx::Result<ControlFlow<StatusCode, ()>> {
     println!("Inspecting response");
     Ok(ControlFlow::Continue(()))

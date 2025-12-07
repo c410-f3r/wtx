@@ -162,10 +162,9 @@ impl<T> Vector<T> {
   }
 
   #[doc = from_iter_doc!("Vector", "[1, 2, 3]", "&[1, 2, 3]")]
-  #[expect(clippy::should_implement_trait, reason = "The std trait is infallible")]
   #[inline]
-  pub fn from_iter(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
-    Ok(Self(Inner::from_iter(iter)?))
+  pub fn from_iterator(iter: impl IntoIterator<Item = T>) -> crate::Result<Self> {
+    Ok(Self(Inner::from_iterator(iter)?))
   }
 
   #[doc = as_ptr_doc!("Vector", "[1, 2, 3]")]
@@ -441,7 +440,7 @@ impl<T> FromIterator<T> for Wrapper<crate::Result<Vector<T>>> {
   where
     I: IntoIterator<Item = T>,
   {
-    Wrapper(Vector::from_iter(iter))
+    Wrapper(Vector::from_iterator(iter))
   }
 }
 

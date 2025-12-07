@@ -18,6 +18,13 @@ pub struct AtomicWaker {
 
 impl AtomicWaker {
   /// Creates an empty instance.
+  #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
+  #[inline]
+  pub fn new() -> Self {
+    AtomicWaker { state: AtomicUsize::new(WAITING), waker: UnsafeCell::new(None) }
+  }
+  /// Creates an empty instance.
+  #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
   #[inline]
   pub const fn new() -> Self {
     AtomicWaker { state: AtomicUsize::new(WAITING), waker: UnsafeCell::new(None) }

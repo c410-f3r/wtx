@@ -6,8 +6,7 @@ use core::mem;
 use tokio::net::TcpListener;
 use wtx::{
   http::{ReqResBuffer, StatusCode},
-  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus, Http2Tokio, SendDataMode},
-  misc::Either,
+  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus},
   rng::{Xorshift64, simple_seed},
 };
 
@@ -20,7 +19,7 @@ async fn main() -> wtx::Result<()> {
       let fun = async {
         let http2_params = Http2Params::default();
         let http2_buffer = Http2Buffer::new(&mut Xorshift64::from(simple_seed()));
-        let tuple = Http2Tokio::accept(http2_buffer, http2_params, tcp_stream.into_split()).await?;
+        let tuple = Http2::accept(http2_buffer, http2_params, tcp_stream.into_split()).await?;
         let (frame_reader, http2) = tuple;
         let _jh = tokio::spawn(frame_reader);
         loop {
@@ -28,8 +27,8 @@ async fn main() -> wtx::Result<()> {
             .stream(ReqResBuffer::default(), |req, _| mem::take(&mut req.rrd.headers))
             .await?
           {
-            Either::Left(_) => return wtx::Result::Ok(()),
-            Either::Right(elem) => elem,
+            None => return wtx::Result::Ok(()),
+            Some(elem) => elem,
           };
           let _stream_jh = tokio::spawn(async move {
             let mut common = http2_stream.common();
@@ -46,7 +45,7 @@ async fn main() -> wtx::Result<()> {
               }
               let _ = common.recv_trailers().await?;
               let _ = common.send_headers(&headers, false, StatusCode::Ok).await?;
-              let _ = common.send_data(SendDataMode::scattered_data_frames(b"Hello"), true).await?;
+              let _ = common.send_data(b"Hello", true).await?;
               common.clear(true).await?;
               wtx::Result::Ok(())
             };

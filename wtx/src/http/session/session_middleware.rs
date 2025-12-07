@@ -7,8 +7,7 @@ use crate::{
     server_framework::Middleware,
   },
   misc::{Lease, LeaseMut, decrypt_aes256gcm_base64},
-  pool::{Pool, ResourceManager},
-  sync::Lock,
+  pool::{ResourceManager, SimplePool},
 };
 use alloc::string::String;
 use core::ops::ControlFlow;
@@ -16,34 +15,37 @@ use serde::de::DeserializeOwned;
 
 /// Decodes cookies received from requests and manages them.
 #[derive(Debug)]
-pub struct SessionMiddleware<SMI, SS> {
+pub struct SessionMiddleware<CS, E, RM>
+where
+  RM: ResourceManager,
+{
   allowed_paths: Vector<String>,
-  session_manager: SessionManager<SMI>,
-  session_store: SS,
+  session_manager: SessionManager<CS, E>,
+  session_store: SimplePool<RM>,
 }
 
-impl<SMI, SS> SessionMiddleware<SMI, SS> {
+impl<CS, E, RM> SessionMiddleware<CS, E, RM>
+where
+  RM: ResourceManager,
+{
   /// New instance
   #[inline]
   pub const fn new(
     allowed_paths: Vector<String>,
-    session_manager: SessionManager<SMI>,
-    session_store: SS,
+    session_manager: SessionManager<CS, E>,
+    session_store: SimplePool<RM>,
   ) -> Self {
     Self { allowed_paths, session_manager, session_store }
   }
 }
 
-impl<CA, CS, E, RM, SMI, SS, SA> Middleware<CA, E, SA> for SessionMiddleware<SMI, SS>
+impl<CA, CS, E, RM, SA> Middleware<CA, E, SA> for SessionMiddleware<CS, E, RM>
 where
   CA: LeaseMut<Option<SessionState<CS>>>,
   CS: DeserializeOwned + PartialEq,
   E: From<crate::Error>,
   RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
   RM::Resource: SessionStore<CS, E>,
-  SMI: Lock<Resource = SessionManagerInner<CS, E>>,
-  SS: Pool<ResourceManager = RM>,
-  for<'any> SS::GetElem<'any>: LeaseMut<RM::Resource>,
 {
   type Aux = ();
 
@@ -69,7 +71,7 @@ where
         && expires >= &Instant::now_date_time(0)?.trunc_to_us()
       {
         let _rslt =
-          self.session_store.get(&(), &()).await?.lease_mut().delete(&elem.session_key).await;
+          self.session_store.get_with_unit().await?.lease_mut().delete(&elem.session_key).await;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
       return Ok(ControlFlow::Continue(()));

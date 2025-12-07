@@ -4,13 +4,11 @@ use crate::{
   collection::Vector,
   http::{Headers, StatusCode},
   http2::{
-    Http2Buffer, Http2Data, Http2Error, Http2ErrorCode, Http2RecvStatus, SendDataMode,
-    ServerStream, misc::protocol_err,
+    Http2Buffer, Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err,
   },
-  misc::{ConnectionState, LeaseMut, SingleTypeStorage},
+  misc::{ConnectionState, JoinArray, LeaseMut, SingleTypeStorage},
   rng::Xorshift64,
   stream::StreamWriter,
-  sync::{Lock, RefCounter},
   web_socket::{
     Frame, FrameMut, OpCode, WebSocketReplier,
     read_frame_info::ReadFrameInfo,
@@ -28,12 +26,10 @@ pub struct WebSocketOverStream<S> {
   stream: S,
 }
 
-impl<HB, HD, S, SW> WebSocketOverStream<S>
+impl<HB, S, SW> WebSocketOverStream<S>
 where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
-  S: LeaseMut<ServerStream<HD>> + SingleTypeStorage<Item = HD>,
+  S: LeaseMut<ServerStream<HB, SW>> + SingleTypeStorage<Item = (HB, SW)>,
   SW: StreamWriter,
 {
   /// Creates a new instance sending an `Ok` status codes that confirms the WebSocket handshake.
@@ -104,28 +100,26 @@ where
       &mut self.rng,
     );
     let (header, payload) = frame.header_and_payload();
-    let hss = self
-      .stream
-      .lease_mut()
-      .common()
-      .send_data(SendDataMode::single_data_frame([header, payload.lease()]), false)
-      .await?;
-    if hss.is_closed() {
+    let common_stream = self.stream.lease_mut().common();
+    let [lhs_rslt, rhs_rslt] = JoinArray::new([
+      common_stream.send_data(header, false),
+      common_stream.send_data(payload.lease(), false),
+    ])
+    .await;
+    if lhs_rslt?.is_closed() || rhs_rslt?.is_closed() {
       return Err(crate::Error::ClosedHttpConnection);
     }
     Ok(())
   }
 }
 
-async fn recv_data<HB, HD, SW>(
+async fn recv_data<HB, SW>(
   buffer: &mut Vector<u8>,
   no_masking: bool,
-  stream: &mut ServerStream<HD>,
+  stream: &mut ServerStream<HB, SW>,
 ) -> crate::Result<(ReadFrameInfo, bool)>
 where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
   SW: StreamWriter,
 {
   let (data, is_eos) = match stream.common().recv_data().await? {
@@ -146,18 +140,22 @@ where
   Ok((rfi, is_eos))
 }
 
-async fn write_control_frame_cb<HB, HD, SW>(
-  stream: &mut ServerStream<HD>,
+async fn write_control_frame_cb<HB, SW>(
+  stream: &mut ServerStream<HB, SW>,
   header: &[u8],
   payload: &[u8],
 ) -> crate::Result<()>
 where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
   SW: StreamWriter,
 {
-  let array = [header, payload];
-  let _ = stream.common().send_data(SendDataMode::single_data_frame(array), true).await?;
+  let common_stream = stream.common();
+  let [lhs_rslt, rhs_rslt] = JoinArray::new([
+    common_stream.send_data(header, false),
+    common_stream.send_data(payload, false),
+  ])
+  .await;
+  let _ = lhs_rslt?;
+  let _ = rhs_rslt?;
   Ok(())
 }

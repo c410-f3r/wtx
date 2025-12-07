@@ -1,31 +1,37 @@
 use crate::{
+  executor::Runtime,
   http::{Header, Headers, Method, ReqResBuffer, ReqResData, Request, StatusCode},
-  http2::{Http2Buffer, Http2ErrorCode, Http2Params, Http2Std},
-  misc::{Either, UriRef, UriString},
+  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
+  misc::{UriRef, UriString},
   rng::{Xorshift64, simple_seed},
   tests::_uri,
 };
 use core::time::Duration;
-use tokio::net::{TcpListener, TcpStream, tcp::OwnedWriteHalf};
+use std::net::{TcpListener, TcpStream};
 
-#[tokio::test]
-async fn connections() {
+// FIXME(MIRI): socket support
+#[cfg_attr(miri, ignore)]
+#[test]
+fn connections() {
+  let runtime = Runtime::new();
   let uri = _uri();
-  server(&uri).await;
-  client(&uri).await;
+  server(&uri, &runtime);
+  let client_fut = client(&uri, &runtime);
+  runtime.block_on(client_fut).unwrap();
 }
 
-async fn client(uri: &UriString) {
+async fn client(uri: &UriString, runtime: &Runtime) {
   let mut rrb = ReqResBuffer::empty();
   rrb.headers.reserve(6, 1).unwrap();
-  let (frame_header, mut http2) = Http2Std::connect(
+  let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
+  let (frame_header, mut http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
     Http2Params::default(),
-    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap().into_split(),
+    (stream.try_clone().unwrap(), stream),
   )
   .await
   .unwrap();
-  let _jh = tokio::spawn(frame_header);
+  let _jh = runtime.spawn_threaded(frame_header).unwrap();
 
   let uri_ref = uri.to_ref();
 
@@ -50,50 +56,51 @@ async fn client(uri: &UriString) {
 
   http2.send_go_away(Http2ErrorCode::NoError).await;
 
-  tokio::time::sleep(Duration::from_millis(100)).await;
+  crate::misc::sleep(Duration::from_millis(100)).await.unwrap();
 }
 
-async fn server(uri: &UriString) {
-  let listener = TcpListener::bind(uri.hostname_with_implied_port()).await.unwrap();
-  let _server_jh = tokio::spawn(async move {
-    let (stream, _) = listener.accept().await.unwrap();
-    let mut rrb = ReqResBuffer::empty();
-    let (frame_header, mut http2) = Http2Std::accept(
-      Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
-      Http2Params::default(),
-      stream.into_split(),
-    )
-    .await
-    .unwrap();
-    let _jh = tokio::spawn(frame_header);
+fn server(uri: &UriString, runtime: &Runtime) {
+  let listener = TcpListener::bind(uri.hostname_with_implied_port()).unwrap();
+  let runtime_fut = runtime.clone();
+  let _server_jh = runtime
+    .spawn_threaded(async move {
+      let (stream, _) = listener.accept().unwrap();
+      let mut rrb = ReqResBuffer::empty();
+      let (frame_header, mut http2) = Http2::accept(
+        Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
+        Http2Params::default(),
+        (stream.try_clone().unwrap(), stream),
+      )
+      .await
+      .unwrap();
+      let _jh = runtime_fut.spawn_threaded(frame_header);
 
-    rrb = stream_server(&mut http2, rrb, |req| {
-      _0(req.rrd.body(), req.rrd.headers());
+      rrb = stream_server(&mut http2, rrb, |req| {
+        _0(req.rrd.body(), req.rrd.headers());
+      })
+      .await;
+      rrb = stream_server(&mut http2, rrb, |req| {
+        _1(req.rrd.body(), req.rrd.headers());
+      })
+      .await;
+      rrb = stream_server(&mut http2, rrb, |req| {
+        _2(req.rrd.body(), req.rrd.headers());
+      })
+      .await;
+      let _rrb = stream_server(&mut http2, rrb, |req| {
+        _3(req.rrd.body(), req.rrd.headers());
+      })
+      .await;
     })
-    .await;
-    rrb = stream_server(&mut http2, rrb, |req| {
-      _1(req.rrd.body(), req.rrd.headers());
-    })
-    .await;
-    rrb = stream_server(&mut http2, rrb, |req| {
-      _2(req.rrd.body(), req.rrd.headers());
-    })
-    .await;
-    let _rrb = stream_server(&mut http2, rrb, |req| {
-      _3(req.rrd.body(), req.rrd.headers());
-    })
-    .await;
-  });
+    .unwrap();
 }
 
 async fn stream_server(
-  server: &mut Http2Std<Http2Buffer, OwnedWriteHalf, false>,
+  server: &mut Http2<Http2Buffer, TcpStream, false>,
   rrb: ReqResBuffer,
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
 ) -> ReqResBuffer {
-  let Either::Right((mut stream, _)) = server.stream(rrb, |_, _| {}).await.unwrap() else {
-    panic!();
-  };
+  let (mut stream, _) = server.stream(rrb, |_, _| {}).await.unwrap().unwrap();
   let (_, mut req_rrb) = stream.recv_req().await.unwrap();
   cb(req_rrb.as_http2_request_mut(stream.method()));
   let _ = stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
@@ -101,7 +108,7 @@ async fn stream_server(
 }
 
 async fn stream_client(
-  client: &mut Http2Std<Http2Buffer, OwnedWriteHalf, true>,
+  client: &mut Http2<Http2Buffer, TcpStream, true>,
   rrb: ReqResBuffer,
   uri: &UriRef<'_>,
 ) -> ReqResBuffer {

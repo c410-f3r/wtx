@@ -27,6 +27,8 @@ pub enum Http2Error {
   HeadersOverflow,
   /// Couldn't decode a header into a hpack buffer
   HpackDecodingBufferIsTooSmall,
+  /// A header was not fully constructed.
+  IncompleteHeader,
   /// There are no bytes left to decode HPACK headers.
   InsufficientHpackBytes,
   /// Received data that should be exclusive for servers
@@ -102,6 +104,8 @@ pub enum Http2Error {
   OutOfBoundsMaxFrameSize,
   /// Window size must be within 0 and 2147483647
   OutOfBoundsWindowSize,
+  /// Browsers don't support PUSH_PROMISE
+  PushPromiseIsUnsupported,
   /// Received frame should be a continuation frame with correct ID
   UnexpectedContinuationFrame,
   /// Decoding logic encountered an unexpected ending string signal.

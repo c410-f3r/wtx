@@ -1,10 +1,10 @@
 use crate::http::{Protocol, ReqResBuffer, Request};
 use core::net::IpAddr;
 
-#[cfg(all(feature = "http2", feature = "tokio"))]
+#[cfg(feature = "http2")]
 /// Manual server stream backed by tokio structures.
-pub type ManualServerStreamTokio<CA, HB, SA, SW> =
-  ManualStream<CA, crate::http2::ServerStream<crate::http2::Http2DataTokio<HB, SW, false>>, SA>;
+pub type ManualServerStream<CA, HB, SA, SW> =
+  ManualStream<CA, crate::http2::ServerStream<HB, SW>, SA>;
 
 /// Tells how an HTTP stream should be handled.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

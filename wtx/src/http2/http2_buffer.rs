@@ -1,26 +1,25 @@
+use core::task::Waker;
+
 use crate::{
   collection::{Deque, Vector},
   http2::{
     Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
-    local_server_stream::LocalServerStream,
+    initial_server_stream_remote::InitialServerStreamRemote,
   },
   misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
   rng::{Rng, Xorshift64, simple_seed},
-  sync::{Arc, AtomicBool, AtomicWaker},
 };
-use core::sync::atomic::Ordering;
 use hashbrown::HashMap;
 
 /// Groups all intermediate structures necessary to perform HTTP/2 connections.
 #[derive(Debug)]
 pub struct Http2Buffer {
   pub(crate) hpack_dec: HpackDecoder,
-  pub(crate) hpack_enc: HpackEncoder,
   pub(crate) hpack_enc_buffer: Vector<u8>,
-  pub(crate) is_conn_open: Arc<AtomicBool>,
-  pub(crate) local_server_streams: Deque<LocalServerStream>,
+  pub(crate) hpack_enc: HpackEncoder,
+  pub(crate) initial_server_streams_local: Deque<Waker>,
+  pub(crate) initial_server_streams_remote: Deque<InitialServerStreamRemote>,
   pub(crate) pfb: PartitionedFilledBuffer,
-  pub(crate) read_frame_waker: Arc<AtomicWaker>,
   pub(crate) scrp: Scrp,
   pub(crate) sorp: Sorp,
 }
@@ -36,10 +35,9 @@ impl Http2Buffer {
       hpack_dec: HpackDecoder::new(),
       hpack_enc: HpackEncoder::new(rng),
       hpack_enc_buffer: Vector::new(),
-      is_conn_open: Arc::new(AtomicBool::new(false)),
-      local_server_streams: Deque::new(),
+      initial_server_streams_local: Deque::new(),
+      initial_server_streams_remote: Deque::new(),
       pfb: PartitionedFilledBuffer::new(),
-      read_frame_waker: Arc::new(AtomicWaker::new()),
       scrp: HashMap::new(),
       sorp: HashMap::new(),
     }
@@ -50,20 +48,18 @@ impl Http2Buffer {
       hpack_dec,
       hpack_enc,
       hpack_enc_buffer,
-      is_conn_open,
-      local_server_streams,
+      initial_server_streams_local,
+      initial_server_streams_remote,
       pfb,
-      read_frame_waker,
       scrp,
       sorp,
     } = self;
     hpack_dec.clear();
-    hpack_enc.clear();
     hpack_enc_buffer.clear();
-    is_conn_open.store(false, Ordering::Relaxed);
-    local_server_streams.clear();
+    hpack_enc.clear();
+    initial_server_streams_local.clear();
+    initial_server_streams_remote.clear();
     pfb.clear();
-    let _read_frame_waker = read_frame_waker.take();
     scrp.clear();
     sorp.clear();
   }
