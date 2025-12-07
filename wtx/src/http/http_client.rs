@@ -105,20 +105,17 @@ where
 mod http2 {
   use crate::{
     http::{HttpClient, Method, ReqResBuffer, ReqResData, Request, Response},
-    http2::{ClientStream, Http2, Http2Buffer, Http2Data, Http2RecvStatus},
+    http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
     misc::{Lease, LeaseMut, UriRef},
     stream::StreamWriter,
-    sync::{Lock, RefCounter},
   };
 
-  impl<HB, HD, SW> HttpClient for Http2<HD, true>
+  impl<HB, SW> HttpClient for Http2<HB, SW, true>
   where
     HB: LeaseMut<Http2Buffer>,
-    HD: RefCounter,
-    HD::Item: Lock<Resource = Http2Data<HB, SW, true>>,
     SW: StreamWriter,
   {
-    type ReqId = ClientStream<HD>;
+    type ReqId = ClientStream<HB, SW>;
 
     #[inline]
     async fn recv_res(
@@ -162,29 +159,24 @@ mod http_client_pool {
       HttpClient, Method, ReqResBuffer, ReqResData, Request, Response,
       client_pool::{ClientPool, ClientPoolResource},
     },
-    http2::{ClientStream, Http2, Http2Buffer, Http2Data, Http2RecvStatus},
-    misc::{Lease, UriRef},
-    pool::{ResourceManager, SimplePoolResource},
+    http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
+    misc::{Lease, LeaseMut, UriRef},
+    pool::ResourceManager,
     stream::StreamWriter,
-    sync::{Lock, RefCounter},
   };
 
-  impl<AUX, HD, RL, RM, SW> HttpClient for ClientPool<RL, RM>
+  impl<AUX, HB, RM, SW> HttpClient for ClientPool<RM>
   where
-    HD: RefCounter,
-    HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
-    RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
+    HB: LeaseMut<Http2Buffer>,
     RM: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HD, true>>,
+        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
       >,
     SW: StreamWriter,
-    for<'any> RL: 'any,
-    for<'any> RM: 'any,
   {
-    type ReqId = ClientStream<HD>;
+    type ReqId = ClientStream<HB, SW>;
 
     #[inline]
     async fn recv_res(
@@ -210,22 +202,18 @@ mod http_client_pool {
     }
   }
 
-  impl<AUX, HD, RL, RM, SW> HttpClient for &ClientPool<RL, RM>
+  impl<AUX, HB, RM, SW> HttpClient for &ClientPool<RM>
   where
-    HD: RefCounter,
-    HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
-    RL: Lock<Resource = SimplePoolResource<RM::Resource>>,
+    HB: LeaseMut<Http2Buffer>,
     RM: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HD, true>>,
+        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
       >,
     SW: StreamWriter,
-    for<'any> RL: 'any,
-    for<'any> RM: 'any,
   {
-    type ReqId = ClientStream<HD>;
+    type ReqId = ClientStream<HB, SW>;
 
     #[inline]
     async fn recv_res(

@@ -195,7 +195,7 @@ fn test_story_encoding_and_decoding(
       encoder.set_max_dyn_sub_bytes(MAX_HPACK_LEN).unwrap();
     }
 
-    let mut pseudo_headers = Vector::from_iter(case.headers.iter().filter_map(|header| {
+    let mut pseudo_headers = Vector::from_iterator(case.headers.iter().filter_map(|header| {
       Some(match header.name.as_str() {
         ":authority" => (HpackHeaderBasic::Authority, header.value.as_str()),
         ":method" => {
@@ -217,7 +217,7 @@ fn test_story_encoding_and_decoding(
     }))
     .unwrap();
 
-    let mut user_headers = Vector::from_iter(case.headers.iter().filter_map(|header| {
+    let mut user_headers = Vector::from_iterator(case.headers.iter().filter_map(|header| {
       if header.name.starts_with(":") {
         None
       } else {

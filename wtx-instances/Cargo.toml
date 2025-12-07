@@ -95,11 +95,6 @@ path = "generic-examples/http-client-pool.rs"
 required-features = ["http-client-pool"]
 
 [[example]]
-name = "pool"
-path = "generic-examples/pool.rs"
-required-features = ["pool"]
-
-[[example]]
 name = "secrets"
 path = "generic-examples/secrets.rs"
 required-features = ["secret"]
@@ -180,7 +175,7 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 [features]
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-client-concurrent = ["wtx/flate2", "wtx/web-socket-handshake"]
-autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/pool", "wtx/web-socket-handshake"]
+autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/web-socket-handshake"]
 h2load = ["wtx/http2", "wtx/nightly"]
 h2spec-high-server = ["wtx/http2", "wtx/nightly"]
 h2spec-low-server = ["wtx/http2"]
@@ -197,13 +192,12 @@ executor = ["wtx/executor", "wtx/macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
 http-client-pool = ["wtx/http-client-pool"]
-pool = ["wtx/pool"]
 secret = ["wtx/secret"]
 
-http-server-framework = ["serde", "wtx/getrandom", "wtx/http-server-framework", "wtx/nightly", "wtx/pool", "wtx/postgres", "wtx/serde_json"]
+http-server-framework = ["serde", "wtx/getrandom", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres", "wtx/serde_json"]
 http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
 http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
-http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/nightly", "wtx/pool", "wtx/postgres", "wtx-macros"]
+http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/nightly", "wtx/postgres", "wtx-macros"]
 
 http2-client = ["wtx/http2"]
 http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]
@@ -212,7 +206,7 @@ web-socket-client = ["wtx/web-socket-handshake"]
 web-socket-client-concurrent = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
 web-socket-client-concurrent-channel = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
 web-socket-client-concurrent-mutex = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
-web-socket-server = ["tokio-rustls", "wtx/pool", "wtx/web-socket-handshake"]
+web-socket-server = ["tokio-rustls", "wtx/web-socket-handshake"]
 
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
 mysql = ["wtx/getrandom", "wtx/mysql"]

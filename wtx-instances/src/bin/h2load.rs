@@ -5,7 +5,7 @@
 use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
   http::{
-    AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Response,
+    AutoStream, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer, Response,
     StatusCode,
   },
   http2::{Http2Buffer, Http2Params},
@@ -17,7 +17,10 @@ async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
     ((), "127.0.0.1:9000", Xorshift64::from(simple_seed()), ()),
     |_| Ok(()),
-    |_, stream| async move { Ok(stream.into_split()) },
+    |_, stream| async move {
+      stream.set_nodelay(true)?;
+      Ok(stream.into_split())
+    },
     |error| eprintln!("{error}"),
     |mut rng| {
       Ok((
@@ -36,6 +39,7 @@ async fn main() -> wtx::Result<()> {
   )
   .await
 }
+
 async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer>, wtx::Error> {
   ha.req.clear();
   Ok(ha.req.into_response(StatusCode::Ok))
@@ -43,7 +47,7 @@ async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer
 
 async fn manual(
   _: (),
-  _: ManualServerStreamTokio<(), Http2Buffer, (), OwnedWriteHalf>,
+  _: ManualServerStream<(), Http2Buffer, (), OwnedWriteHalf>,
 ) -> Result<(), wtx::Error> {
   Ok(())
 }

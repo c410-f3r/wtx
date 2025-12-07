@@ -64,10 +64,10 @@ impl Runtime {
       atomic_waker_thread.wake();
     })?;
     Ok(poll_fn(move |cx| {
+      atomic_waker.register(cx.waker());
       if let Ok(elem) = receiver.try_recv() {
         return Poll::Ready(elem);
       }
-      atomic_waker.register(cx.waker());
       Poll::Pending
     }))
   }

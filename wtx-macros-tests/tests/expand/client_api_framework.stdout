@@ -1,0 +1,776 @@
+#![feature(prelude_import)]
+//! Illustrates how the `client-api-framework` feature facilitates the management and utilization
+//! of large API endpoints for both HTTP and WebSocket requests.
+//!
+//! Contains one API called `GenericThrottlingApi` and its two endpoints: an HTTP JSON-RPC
+//! `genericHttpRequest` and an WebSocket `genericWebSocketSubscription`.
+//!
+//! Everything that is not inside `main` should be constructed only once in your program.
+#[macro_use]
+extern crate std;
+#[prelude_import]
+use std::prelude::rust_2021::*;
+
+extern crate serde;
+extern crate tokio;
+extern crate wtx;
+extern crate wtx_macros;
+
+use core::time::Duration;
+use tokio::net::TcpStream;
+use wtx::{
+    client_api_framework::{
+        Api, misc::{Pair, RequestCounter, RequestLimit},
+        network::{HttpParams, WsParams, transport::SendingReceivingTransport},
+    },
+    de::format::SerdeJson,
+    http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
+    misc::Uri, rng::Xorshift64,
+    web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/// Just a wrapper that implements [core::ops::Deref] and [`core::ops::DerefMut`] to easily call
+/// methods from `PkgsAux`.
+pub struct PkgsAux<A, DRSR,
+    TP>(::wtx::client_api_framework::pkg::PkgsAux<A, DRSR, TP>) where
+    TP: ::wtx::client_api_framework::network::transport::TransportParams;
+#[automatically_derived]
+impl<A: ::core::fmt::Debug, DRSR: ::core::fmt::Debug, TP: ::core::fmt::Debug>
+    ::core::fmt::Debug for PkgsAux<A, DRSR, TP> where
+    TP: ::wtx::client_api_framework::network::transport::TransportParams {
+    #[inline]
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_tuple_field1_finish(f, "PkgsAux",
+            &&self.0)
+    }
+}
+impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> where
+    TP: ::wtx::client_api_framework::network::transport::TransportParams {
+    /// Proxy of [`$crate::client_api_framework::pkg::PkgsAux::from_minimum`].
+    #[inline]
+    pub fn from_minimum(api: A, drsr: DRSR, tp: TP) -> Self {
+        Self(::wtx::client_api_framework::pkg::PkgsAux::from_minimum(api,
+                drsr, tp))
+    }
+    /// Proxy of [`$crate::client_api_framework::pkg::PkgsAux::new`].
+    #[inline]
+    pub fn new(api: A, built_requests: u64,
+        bytes_buffer: ::wtx::collection::Vector<u8>, drsr: DRSR,
+        log_body: bool, send_bytes_buffer: bool, tp: TP) -> Self {
+        Self(::wtx::client_api_framework::pkg::PkgsAux::new(api,
+                built_requests, bytes_buffer, drsr, log_body,
+                send_bytes_buffer, tp))
+    }
+}
+impl<A, DRSR, TP> core::ops::Deref for PkgsAux<A, DRSR, TP> where
+    TP: ::wtx::client_api_framework::network::transport::TransportParams {
+    type Target = ::wtx::client_api_framework::pkg::PkgsAux<A, DRSR, TP>;
+    #[inline]
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl<A, DRSR, TP> core::ops::DerefMut for PkgsAux<A, DRSR, TP> where
+    TP: ::wtx::client_api_framework::network::transport::TransportParams {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+impl<A, DRSR, TP> From<::wtx::client_api_framework::pkg::PkgsAux<A, DRSR, TP>>
+    for PkgsAux<A, DRSR, TP> where
+    TP: ::wtx::client_api_framework::network::transport::TransportParams {
+    #[inline]
+    fn from(from: ::wtx::client_api_framework::pkg::PkgsAux<A, DRSR, TP>)
+        -> Self {
+        Self(from)
+    }
+}
+impl wtx::misc::Lease<GenericThrottlingApi<>> for GenericThrottlingApi<> {
+    #[inline]
+    fn lease(&self) -> &GenericThrottlingApi<> { self }
+}
+impl wtx::misc::LeaseMut<GenericThrottlingApi<>> for GenericThrottlingApi<> {
+    #[inline]
+    fn lease_mut(&mut self) -> &mut GenericThrottlingApi<> { self }
+}
+impl wtx::misc::SingleTypeStorage for GenericThrottlingApi<> {
+    type Item = ();
+}
+#[doc = "Identifier of the `GenericThrottlingApi` API"]
+pub struct GenericThrottlingApiId;
+impl wtx::client_api_framework::ApiId for GenericThrottlingApiId {
+    type Api<__ApiParams> = GenericThrottlingApi<>;
+}
+pub struct GenericThrottlingApi {
+    pub rc: RequestCounter,
+}
+#[allow(unused_qualifications)]
+#[doc =
+"[wtx::client_api_framework::misc::Pair] with [GenericThrottlingApi] as the API."]
+pub type GenericThrottlingApiPair<DRSR, T, TP> =
+    wtx::client_api_framework::misc::Pair<PkgsAux<GenericThrottlingApi<>,
+    DRSR, TP>, T>;
+#[doc = "[PkgsAux] with an owned [GenericThrottlingApi] as the API."]
+pub type GenericThrottlingApiPkgsAux<DRSR, TP> =
+    PkgsAux<GenericThrottlingApi<>, DRSR, TP>;
+#[doc =
+"[PkgsAux] with a mutable reference of [GenericThrottlingApi] as the API."]
+pub type GenericThrottlingApiMutPkgsAux<'api, DRSR, TP> =
+    PkgsAux<&'api mut GenericThrottlingApi<>, DRSR, TP>;
+#[allow(unused_qualifications)]
+#[doc =
+"[PkgsAux] with an owned [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::HttpParams] as the transport parameter."]
+pub type GenericThrottlingApiHttpPkgsAux<DRSR> =
+    PkgsAux<GenericThrottlingApi<>, DRSR,
+    wtx::client_api_framework::network::HttpParams>;
+#[allow(unused_qualifications)]
+#[doc =
+"[PkgsAux] with a mutable reference of [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::HttpParams] as the transport parameter."]
+pub type GenericThrottlingApiMutHttpPkgsAux<'api, DRSR> =
+    PkgsAux<&'api mut GenericThrottlingApi<>, DRSR,
+    wtx::client_api_framework::network::HttpParams>;
+#[allow(unused_qualifications)]
+#[doc =
+"[PkgsAux] with [wtx::client_api_framework::network::HttpParams] as the transport parameter."]
+pub type HttpPkgsAux<A, DRSR> =
+    PkgsAux<A, DRSR, wtx::client_api_framework::network::HttpParams>;
+#[allow(unused_qualifications)]
+#[doc =
+"[PkgsAux] with an owned [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::WsParams] as the transport parameter."]
+pub type GenericThrottlingApiWsPkgsAux<DRSR> =
+    PkgsAux<GenericThrottlingApi<>, DRSR,
+    wtx::client_api_framework::network::WsParams>;
+#[allow(unused_qualifications)]
+#[doc =
+"[PkgsAux] with a mutable reference of [GenericThrottlingApi] as the API and [wtx::client_api_framework::network::WsParams] as the transport parameter."]
+pub type GenericThrottlingApiMutWsPkgsAux<'api, DRSR> =
+    PkgsAux<&'api mut GenericThrottlingApi<>, DRSR,
+    wtx::client_api_framework::network::WsParams>;
+#[allow(unused_qualifications)]
+#[doc =
+"[PkgsAux] with [wtx::client_api_framework::network::WsParams] as the transport parameter."]
+pub type WsPkgsAux<A, DRSR> =
+    PkgsAux<A, DRSR, wtx::client_api_framework::network::WsParams>;
+#[automatically_derived]
+impl ::core::fmt::Debug for GenericThrottlingApi {
+    #[inline]
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field1_finish(f,
+            "GenericThrottlingApi", "rc", &&self.rc)
+    }
+}
+impl Api for GenericThrottlingApi {
+    type Error = wtx::Error;
+    type Id = GenericThrottlingApiId;
+    async fn before_sending(&mut self) -> Result<(), Self::Error> {
+        self.rc.update_params().await?;
+        Ok(())
+    }
+}
+mod generic_http_request {
+    impl<A, DRSR> crate::HttpPkgsAux<A, DRSR> {}
+    #[doc = "Expected data request that will be sent to the server."]
+    pub struct GenericHttpRequestReq(i32);
+    #[automatically_derived]
+    impl ::core::fmt::Debug for GenericHttpRequestReq {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_tuple_field1_finish(f,
+                "GenericHttpRequestReq", &&self.0)
+        }
+    }
+    #[doc(hidden)]
+    #[allow(non_upper_case_globals, unused_attributes, unused_qualifications,
+    clippy :: absolute_paths,)]
+    const _: () =
+        {
+            #[allow(unused_extern_crates, clippy :: useless_attribute)]
+            extern crate serde as _serde;
+            ;
+            #[automatically_derived]
+            impl _serde::Serialize for GenericHttpRequestReq {
+                fn serialize<__S>(&self, __serializer: __S)
+                    -> _serde::__private228::Result<__S::Ok, __S::Error> where
+                    __S: _serde::Serializer {
+                    _serde::Serializer::serialize_newtype_struct(__serializer,
+                        "GenericHttpRequestReq", &self.0)
+                }
+            }
+        };
+    #[doc = "Expected data response returned by the server."]
+    pub type GenericHttpRequestRes = (u8, u16, u32);
+    #[doc =
+    "Corresponding package does not expect any additional custom parameter."]
+    pub type GenericHttpRequestParams = ();
+    impl<'aux, A, DRSR> GenericHttpRequestDataBuilder<'aux, A, DRSR> where  {
+        #[doc = r" Delegates to a new builder structure."]
+        #[doc = r""]
+        #[doc =
+        r" This function must be called in order to continue constructing a package."]
+        pub fn data(self, generic_number: i32)
+            -> GenericHttpRequestDataFormatBuilder<'aux, A, DRSR> where  {
+            (GenericHttpRequestDataFormatBuilder {
+                    params: (),
+                    data: GenericHttpRequestReq(generic_number),
+                    aux: self.aux,
+                })
+        }
+    }
+    #[doc =
+    r" Temporary building structure intended to statically create packages using a fluent"]
+    #[doc = r" interface."]
+    pub struct GenericHttpRequestDataFormatBuilder<'aux, A, DRSR> where  {
+        aux: &'aux mut crate::HttpPkgsAux<A, DRSR>,
+        data: GenericHttpRequestReq<>,
+        params: GenericHttpRequestParams<>,
+    }
+    #[automatically_derived]
+    impl<'aux, A: ::core::fmt::Debug, DRSR: ::core::fmt::Debug>
+        ::core::fmt::Debug for
+        GenericHttpRequestDataFormatBuilder<'aux, A, DRSR> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field3_finish(f,
+                "GenericHttpRequestDataFormatBuilder", "aux", &self.aux,
+                "data", &self.data, "params", &&self.params)
+        }
+    }
+    impl<A, DRSR> crate::HttpPkgsAux<A, DRSR> where  {
+        #[doc = r" Delegates to a new builder structure."]
+        #[doc = r""]
+        #[doc =
+        r" This function must be called in order to continue constructing a package."]
+        pub fn generic_http_request<'aux>(&'aux mut self)
+            -> GenericHttpRequestDataBuilder<'aux, A, DRSR> where  {
+            {
+                use wtx::client_api_framework::network::transport::TransportParams;
+                self.bytes_buffer.clear();
+                self.log_body = (false, self.log_body.0);
+                self.send_bytes_buffer = false;
+                self.tp.reset();
+            }
+            (GenericHttpRequestDataBuilder { params: (), aux: self })
+        }
+    }
+    #[doc =
+    r" Temporary building structure intended to statically create packages using a fluent"]
+    #[doc = r" interface."]
+    pub struct GenericHttpRequestDataBuilder<'aux, A, DRSR> where  {
+        aux: &'aux mut crate::HttpPkgsAux<A, DRSR>,
+        params: GenericHttpRequestParams<>,
+    }
+    #[automatically_derived]
+    impl<'aux, A: ::core::fmt::Debug, DRSR: ::core::fmt::Debug>
+        ::core::fmt::Debug for GenericHttpRequestDataBuilder<'aux, A, DRSR> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field2_finish(f,
+                "GenericHttpRequestDataBuilder", "aux", &self.aux, "params",
+                &&self.params)
+        }
+    }
+    impl<'aux, A, DRSR> GenericHttpRequestDataFormatBuilder<'aux, A, DRSR>
+        where  {
+        #[doc =
+        r" Final building method that creates a package with all the necessary values."]
+        pub fn build(self)
+            ->
+                GenericHttpRequestPkg<wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>> {
+            let data = self.data;
+            let content =
+                self.aux.json_rpc_request("genericHttpRequest", data);
+            let params = self.params;
+            GenericHttpRequestPkg { content, params }
+        }
+    }
+    #[doc =
+    r" Package containing all the expected parameters and data necessary to manage and issue"]
+    #[doc = r" a request."]
+    #[doc = r""]
+    #[doc =
+    r" For more information, please see the official API's documentation."]
+    pub struct GenericHttpRequestPkg<C> where  {
+        #[doc = r" Content. Data format containing request data."]
+        pub content: C,
+        #[doc = r" Parameters. Used across the package lifetime."]
+        pub params: GenericHttpRequestParams<>,
+    }
+    #[automatically_derived]
+    impl<C: ::core::fmt::Debug> ::core::fmt::Debug for
+        GenericHttpRequestPkg<C> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field2_finish(f,
+                "GenericHttpRequestPkg", "content", &self.content, "params",
+                &&self.params)
+        }
+    }
+    impl<__API, __API_PARAMS, __DRSR, __TRANSPORT>
+        wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
+        wtx::client_api_framework::network::HttpParams> for
+        GenericHttpRequestPkg<wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
+        where
+        wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
+        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::de::DecodeSeq<'__de,
+        wtx::de::format::De<__DRSR>>,
+        __API: wtx::client_api_framework::Api<Error =
+        <<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::Api>::Error, Id =
+        crate::GenericThrottlingApiId> +
+        wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
+        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        type ExternalRequestContent =
+            wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
+        type ExternalResponseContent<'__de> =
+            wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>;
+        type PackageParams = GenericHttpRequestParams<>;
+        #[inline]
+        async fn after_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut wtx::client_api_framework::network::HttpParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        async fn before_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut wtx::client_api_framework::network::HttpParams))
+            -> Result<(), __API::Error> {
+            {
+                use wtx::client_api_framework::network::transport::TransportParams;
+                _trans_params.ext_req_params_mut().method =
+                    wtx::http::Method::Post;
+                _trans_params.ext_req_params_mut().mime =
+                    Some(wtx::http::Mime::ApplicationJson);
+            }
+            Ok(())
+        }
+        #[inline]
+        fn ext_req_content(&self) -> &Self::ExternalRequestContent {
+            &self.content
+        }
+        #[inline]
+        fn ext_req_content_mut(&mut self)
+            -> &mut Self::ExternalRequestContent {
+            &mut self.content
+        }
+        #[inline]
+        fn pkg_params(&self) -> &Self::PackageParams { &self.params }
+        #[inline]
+        fn pkg_params_mut(&mut self) -> &mut Self::PackageParams {
+            &mut self.params
+        }
+    }
+    impl<'__is_mut, __API, __API_PARAMS, __DRSR, __TRANSPORT>
+        wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
+        &'__is_mut mut wtx::client_api_framework::network::HttpParams> for
+        GenericHttpRequestPkg<wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
+        where
+        wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
+        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::de::DecodeSeq<'__de,
+        wtx::de::format::De<__DRSR>>,
+        __API: wtx::client_api_framework::Api<Error =
+        <<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::Api>::Error, Id =
+        crate::GenericThrottlingApiId> +
+        wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
+        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        type ExternalRequestContent =
+            wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
+        type ExternalResponseContent<'__de> =
+            wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>;
+        type PackageParams = GenericHttpRequestParams<>;
+        #[inline]
+        async fn after_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut &'__is_mut mut wtx::client_api_framework::network::HttpParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        async fn before_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut &'__is_mut mut wtx::client_api_framework::network::HttpParams))
+            -> Result<(), __API::Error> {
+            {
+                use wtx::client_api_framework::network::transport::TransportParams;
+                _trans_params.ext_req_params_mut().method =
+                    wtx::http::Method::Post;
+                _trans_params.ext_req_params_mut().mime =
+                    Some(wtx::http::Mime::ApplicationJson);
+            }
+            Ok(())
+        }
+        #[inline]
+        fn ext_req_content(&self) -> &Self::ExternalRequestContent {
+            &self.content
+        }
+        #[inline]
+        fn ext_req_content_mut(&mut self)
+            -> &mut Self::ExternalRequestContent {
+            &mut self.content
+        }
+        #[inline]
+        fn pkg_params(&self) -> &Self::PackageParams { &self.params }
+        #[inline]
+        fn pkg_params_mut(&mut self) -> &mut Self::PackageParams {
+            &mut self.params
+        }
+    }
+}
+mod generic_web_socket_subscription {
+    impl<A, DRSR> crate::WsPkgsAux<A, DRSR> {}
+    #[doc = "Expected data request that will be sent to the server."]
+    pub struct GenericWebSocketSubscriptionReq<'str> {
+        generic_string: &'str str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        generic_number: Option<i32>,
+    }
+    #[automatically_derived]
+    impl<'str> ::core::fmt::Debug for GenericWebSocketSubscriptionReq<'str> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field2_finish(f,
+                "GenericWebSocketSubscriptionReq", "generic_string",
+                &self.generic_string, "generic_number", &&self.generic_number)
+        }
+    }
+    #[doc(hidden)]
+    #[allow(non_upper_case_globals, unused_attributes, unused_qualifications,
+    clippy :: absolute_paths,)]
+    const _: () =
+        {
+            #[allow(unused_extern_crates, clippy :: useless_attribute)]
+            extern crate serde as _serde;
+            ;
+            #[automatically_derived]
+            impl<'str> _serde::Serialize for
+                GenericWebSocketSubscriptionReq<'str> {
+                fn serialize<__S>(&self, __serializer: __S)
+                    -> _serde::__private228::Result<__S::Ok, __S::Error> where
+                    __S: _serde::Serializer {
+                    let mut __serde_state =
+                        _serde::Serializer::serialize_struct(__serializer,
+                                "GenericWebSocketSubscriptionReq",
+                                false as usize + 1 +
+                                    if Option::is_none(&self.generic_number) { 0 } else { 1 })?;
+                    _serde::ser::SerializeStruct::serialize_field(&mut __serde_state,
+                            "generic_string", &self.generic_string)?;
+                    if !Option::is_none(&self.generic_number) {
+                        _serde::ser::SerializeStruct::serialize_field(&mut __serde_state,
+                                "generic_number", &self.generic_number)?;
+                    } else {
+                        _serde::ser::SerializeStruct::skip_field(&mut __serde_state,
+                                "generic_number")?;
+                    }
+                    _serde::ser::SerializeStruct::end(__serde_state)
+                }
+            }
+        };
+    #[doc = "Expected data response returned by the server."]
+    pub type GenericWebSocketSubscriptionRes = u64;
+    #[doc =
+    "Corresponding package does not expect any additional custom parameter."]
+    pub type GenericWebSocketSubscriptionParams = ();
+    impl<'aux, A, DRSR> GenericWebSocketSubscriptionDataBuilder<'aux, A, DRSR>
+        where  {
+        #[doc = r" Delegates to a new builder structure."]
+        #[doc = r""]
+        #[doc =
+        r" This function must be called in order to continue constructing a package."]
+        pub fn data<'str>(self, generic_string: &'str str,
+            generic_number: Option<i32>)
+            ->
+                GenericWebSocketSubscriptionDataFormatBuilder<'aux, 'str, A,
+                DRSR> where  {
+            (GenericWebSocketSubscriptionDataFormatBuilder {
+                    params: (),
+                    data: GenericWebSocketSubscriptionReq {
+                        generic_string,
+                        generic_number,
+                    },
+                    aux: self.aux,
+                })
+        }
+    }
+    #[doc =
+    r" Temporary building structure intended to statically create packages using a fluent"]
+    #[doc = r" interface."]
+    pub struct GenericWebSocketSubscriptionDataFormatBuilder<'aux, 'str, A,
+        DRSR> where  {
+        aux: &'aux mut crate::WsPkgsAux<A, DRSR>,
+        data: GenericWebSocketSubscriptionReq<'str>,
+        params: GenericWebSocketSubscriptionParams<>,
+    }
+    #[automatically_derived]
+    impl<'aux, 'str, A: ::core::fmt::Debug, DRSR: ::core::fmt::Debug>
+        ::core::fmt::Debug for
+        GenericWebSocketSubscriptionDataFormatBuilder<'aux, 'str, A, DRSR> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field3_finish(f,
+                "GenericWebSocketSubscriptionDataFormatBuilder", "aux",
+                &self.aux, "data", &self.data, "params", &&self.params)
+        }
+    }
+    impl<A, DRSR> crate::WsPkgsAux<A, DRSR> where  {
+        #[doc = r" Delegates to a new builder structure."]
+        #[doc = r""]
+        #[doc =
+        r" This function must be called in order to continue constructing a package."]
+        pub fn generic_web_socket_subscription<'aux>(&'aux mut self)
+            -> GenericWebSocketSubscriptionDataBuilder<'aux, A, DRSR> where  {
+            {
+                use wtx::client_api_framework::network::transport::TransportParams;
+                self.bytes_buffer.clear();
+                self.log_body = (false, self.log_body.0);
+                self.send_bytes_buffer = false;
+                self.tp.reset();
+            }
+            (GenericWebSocketSubscriptionDataBuilder {
+                    params: (),
+                    aux: self,
+                })
+        }
+    }
+    #[doc =
+    r" Temporary building structure intended to statically create packages using a fluent"]
+    #[doc = r" interface."]
+    pub struct GenericWebSocketSubscriptionDataBuilder<'aux, A, DRSR> where  {
+        aux: &'aux mut crate::WsPkgsAux<A, DRSR>,
+        params: GenericWebSocketSubscriptionParams<>,
+    }
+    #[automatically_derived]
+    impl<'aux, A: ::core::fmt::Debug, DRSR: ::core::fmt::Debug>
+        ::core::fmt::Debug for
+        GenericWebSocketSubscriptionDataBuilder<'aux, A, DRSR> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field2_finish(f,
+                "GenericWebSocketSubscriptionDataBuilder", "aux", &self.aux,
+                "params", &&self.params)
+        }
+    }
+    impl<'aux, 'str, A, DRSR>
+        GenericWebSocketSubscriptionDataFormatBuilder<'aux, 'str, A, DRSR>
+        where  {
+        #[doc =
+        r" Final building method that creates a package with all the necessary values."]
+        pub fn build(self)
+            ->
+                GenericWebSocketSubscriptionPkg<wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>> {
+            let data = self.data;
+            let content =
+                self.aux.json_rpc_request("genericWebSocketSubscription",
+                    data);
+            let params = self.params;
+            GenericWebSocketSubscriptionPkg { content, params }
+        }
+    }
+    #[doc =
+    r" Package containing all the expected parameters and data necessary to manage and issue"]
+    #[doc = r" a request."]
+    #[doc = r""]
+    #[doc =
+    r" For more information, please see the official API's documentation."]
+    pub struct GenericWebSocketSubscriptionPkg<C> where  {
+        #[doc = r" Content. Data format containing request data."]
+        pub content: C,
+        #[doc = r" Parameters. Used across the package lifetime."]
+        pub params: GenericWebSocketSubscriptionParams<>,
+    }
+    #[automatically_derived]
+    impl<C: ::core::fmt::Debug> ::core::fmt::Debug for
+        GenericWebSocketSubscriptionPkg<C> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field2_finish(f,
+                "GenericWebSocketSubscriptionPkg", "content", &self.content,
+                "params", &&self.params)
+        }
+    }
+    impl<'str, __API, __API_PARAMS, __DRSR, __TRANSPORT>
+        wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
+        wtx::client_api_framework::network::WsParams> for
+        GenericWebSocketSubscriptionPkg<wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
+        where
+        wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
+        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::de::DecodeSeq<'__de,
+        wtx::de::format::De<__DRSR>>,
+        __API: wtx::client_api_framework::Api<Error =
+        <<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::Api>::Error, Id =
+        crate::GenericThrottlingApiId> +
+        wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
+        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        type ExternalRequestContent =
+            wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
+        type ExternalResponseContent<'__de> =
+            wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>;
+        type PackageParams = GenericWebSocketSubscriptionParams<>;
+        #[inline]
+        async fn after_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut wtx::client_api_framework::network::WsParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        async fn before_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut wtx::client_api_framework::network::WsParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        fn ext_req_content(&self) -> &Self::ExternalRequestContent {
+            &self.content
+        }
+        #[inline]
+        fn ext_req_content_mut(&mut self)
+            -> &mut Self::ExternalRequestContent {
+            &mut self.content
+        }
+        #[inline]
+        fn pkg_params(&self) -> &Self::PackageParams { &self.params }
+        #[inline]
+        fn pkg_params_mut(&mut self) -> &mut Self::PackageParams {
+            &mut self.params
+        }
+    }
+    impl<'__is_mut, 'str, __API, __API_PARAMS, __DRSR, __TRANSPORT>
+        wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
+        &'__is_mut mut wtx::client_api_framework::network::WsParams> for
+        GenericWebSocketSubscriptionPkg<wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
+        where
+        wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
+        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::de::DecodeSeq<'__de,
+        wtx::de::format::De<__DRSR>>,
+        __API: wtx::client_api_framework::Api<Error =
+        <<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
+        wtx::client_api_framework::Api>::Error, Id =
+        crate::GenericThrottlingApiId> +
+        wtx::misc::LeaseMut<<crate::GenericThrottlingApiId as
+        wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
+        wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
+        type ExternalRequestContent =
+            wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
+        type ExternalResponseContent<'__de> =
+            wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>;
+        type PackageParams = GenericWebSocketSubscriptionParams<>;
+        #[inline]
+        async fn after_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut &'__is_mut mut wtx::client_api_framework::network::WsParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        async fn before_sending(&mut self,
+            (_api, _bytes, _drsr):
+                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+            (_trans, _trans_params):
+                (&mut __TRANSPORT,
+                &mut &'__is_mut mut wtx::client_api_framework::network::WsParams))
+            -> Result<(), __API::Error> {
+            Ok(())
+        }
+        #[inline]
+        fn ext_req_content(&self) -> &Self::ExternalRequestContent {
+            &self.content
+        }
+        #[inline]
+        fn ext_req_content_mut(&mut self)
+            -> &mut Self::ExternalRequestContent {
+            &mut self.content
+        }
+        #[inline]
+        fn pkg_params(&self) -> &Self::PackageParams { &self.params }
+        #[inline]
+        fn pkg_params_mut(&mut self) -> &mut Self::PackageParams {
+            &mut self.params
+        }
+    }
+}
+async fn http_pair()
+    ->
+        Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>,
+        ClientPoolTokio<fn(&()), (), ()>> {
+    Pair::new(PkgsAux::from_minimum(GenericThrottlingApi {
+                rc: RequestCounter::new(RequestLimit::new(5,
+                        Duration::from_secs(1))),
+            }, SerdeJson,
+            HttpParams::from_uri("ws://generic_web_socket_uri.com".into())),
+        ClientPoolBuilder::tokio(1).build())
+}
+async fn web_socket_pair()
+    ->
+        wtx::Result<Pair<PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
+        WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>>> {
+    let uri = Uri::new("ws://generic_web_socket_uri.com");
+    let web_socket =
+        WebSocketConnector::default().connect(TcpStream::connect(uri.hostname_with_implied_port()).await?,
+                    &uri).await?;
+    Ok(Pair::new(PkgsAux::from_minimum(GenericThrottlingApi {
+                    rc: RequestCounter::new(RequestLimit::new(40,
+                            Duration::from_secs(2))),
+                }, SerdeJson, WsParams::default()), web_socket))
+}
+fn main() -> wtx::Result<()> {
+    let body =
+        async {
+            let mut hp = http_pair().await;
+            let _http_response_tuple =
+                hp.trans.send_pkg_recv_decode_contained(&mut hp.pkgs_aux.generic_http_request().data(123).build(),
+                                    &mut hp.pkgs_aux).await?.result?;
+            let mut wsp = web_socket_pair().await?;
+            let _web_socket_subscription_id =
+                wsp.trans.send_pkg_recv_decode_contained(&mut wsp.pkgs_aux.generic_web_socket_subscription().data("Hello",
+                                                None).build(), &mut wsp.pkgs_aux).await?.result?;
+            Ok(())
+        };
+
+    #[allow(clippy :: expect_used, clippy :: diverging_sub_expression, clippy
+    :: needless_return, clippy :: unwrap_in_result)]
+    {
+        return tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("Failed building the Runtime").block_on(body);
+    }
+}

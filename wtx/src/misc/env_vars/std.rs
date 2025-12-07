@@ -25,7 +25,7 @@ where
     Self::from_nearest_env_file()
   }
 
-  /// Constructs `T` through the deserialization of a literal `.env` data.
+  /// Constructs itself through the deserialization of a literal `.env` data.
   ///
   /// Intended for debugging or tests.
   #[inline]
@@ -33,7 +33,7 @@ where
     Ok(Self(T::from_vars(env(data)?)?))
   }
 
-  /// Constructs `T` through the deserialization of the passed `.env` file.
+  /// Constructs itself through the deserialization of the passed `.env` file.
   ///
   /// Intended for development purposes.
   #[inline]
@@ -54,7 +54,7 @@ where
     Ok(Self(T::from_vars(env(fs::File::open(buffer)?)?)?))
   }
 
-  /// Constructs `T` according to all the environment variables of the current process.
+  /// Constructs itself according to all the environment variables of the current process.
   #[inline]
   pub fn from_process() -> crate::Result<Self> {
     Ok(Self(T::from_vars(env::vars())?))

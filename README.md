@@ -34,7 +34,6 @@ In a way, `WTX` can be seen as an amalgamation that consolidates the functionali
 | [HTTP Client Pool][http-client-pool-doc]               | [reqwest][reqwest]                                                 | http-client-pool         |
 | [HTTP Server Framework][http-server-framework-doc]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
 | [HTTP/2][http2-doc]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
-| [Pool][pool-doc]                                       | [bb8][bb8], [deadpool][deadpool], [r2d2][r2d2]                     | pool                     |
 | [WebSocket][web-socket-doc]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     |
 
 Note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
@@ -105,7 +104,6 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 [http-client-pool-doc]: https://c410-f3r.github.io/wtx/http-client-pool/index.html
 [http-server-framework-doc]: https://c410-f3r.github.io/wtx/http-server-framework/index.html
 [http2-doc]: https://c410-f3r.github.io/wtx/http2/index.html
-[pool-doc]: https://c410-f3r.github.io/wtx/pool/index.html
 [web-socket-doc]: https://c410-f3r.github.io/wtx/web-socket/index.html
 
 [axum]: https://github.com/tokio-rs/axum

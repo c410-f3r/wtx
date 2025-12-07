@@ -1,6 +1,8 @@
 [dependencies]
+serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
+tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], version = "1.0" }
 ui_test = { default-features = false, features = ["rustc"], version = "0.30" }
-wtx = { default-features = false, features = ["client-api-framework", "http", "postgres"], path = "../wtx" }
+wtx = { default-features = false, features = ["client-api-framework", "http", "http-client-pool", "postgres", "serde_json", "tokio", "web-socket-handshake"], path = "../wtx" }
 wtx-macros = { default-features = false, path = "../wtx-macros" }
 
 [package]

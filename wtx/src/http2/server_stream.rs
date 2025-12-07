@@ -1,59 +1,49 @@
 use crate::{
   http::{Method, Protocol, ReqResBuffer, ReqResData, Response},
   http2::{
-    CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
+    CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
-    misc::{manage_recurrent_stream_receiving, process_higher_operation_err},
+    misc::{manage_recurrent_receiving_of_overall_stream, process_higher_operation_err},
     send_msg::send_msg,
     stream_receiver::StreamControlRecvParams,
     u31::U31,
   },
   misc::{Lease, LeaseMut, SingleTypeStorage, span::Span},
   stream::StreamWriter,
-  sync::{Arc, AtomicBool, Lock, RefCounter},
+  sync::Arc,
 };
-use core::{future::poll_fn, pin::pin};
+use core::{future::poll_fn, pin::pin, task::Waker};
 
 /// Created when a server receives an initial stream.
-#[derive(Clone, Debug)]
-pub struct ServerStream<HD> {
-  hd: HD,
-  is_conn_open: Arc<AtomicBool>,
+#[derive(Debug)]
+pub struct ServerStream<HB, SW> {
+  inner: Arc<Http2Inner<HB, SW, false>>,
   method: Method,
   protocol: Option<Protocol>,
   span: Span,
   stream_id: U31,
 }
 
-impl<HD> ServerStream<HD> {
+impl<HB, SW> ServerStream<HB, SW>
+where
+  HB: LeaseMut<Http2Buffer>,
+  SW: StreamWriter,
+{
   pub(crate) const fn new(
-    hd: HD,
-    is_conn_open: Arc<AtomicBool>,
+    inner: Arc<Http2Inner<HB, SW, false>>,
     method: Method,
     protocol: Option<Protocol>,
     span: Span,
     stream_id: U31,
   ) -> Self {
-    Self { hd, is_conn_open, method, protocol, span, stream_id }
+    Self { inner, method, protocol, span, stream_id }
   }
-}
 
-impl<HB, HD, SW> ServerStream<HD>
-where
-  HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, false>>,
-  SW: StreamWriter,
-{
   /// See [`CommonStream`].
   #[inline]
-  pub const fn common(&mut self) -> CommonStream<'_, HD, false> {
-    CommonStream {
-      hd: &mut self.hd,
-      is_conn_open: &self.is_conn_open,
-      span: &mut self.span,
-      stream_id: self.stream_id,
-    }
+  pub const fn common(&mut self) -> CommonStream<'_, HB, SW, false> {
+    let Self { inner, method: _, protocol: _, span, stream_id } = self;
+    CommonStream { inner, span, stream_id: *stream_id }
   }
 
   /// See [`Method`].
@@ -78,26 +68,26 @@ where
   /// Shouldn't be called more than once.
   #[inline]
   pub async fn recv_req(&mut self) -> crate::Result<(Http2RecvStatus<(), ()>, ReqResBuffer)> {
-    let Self { hd, is_conn_open, method: _, protocol: _, span, stream_id } = self;
+    let Self { inner, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Receiving request");
     let rslt = {
-      let mut lock_pin = pin!(hd.lock());
+      let mut lock_pin = pin!(inner.hd.lock());
       poll_fn(|cx| {
-        let mut lock = lock_pin!(cx, hd, lock_pin);
-        manage_recurrent_stream_receiving(
+        let mut lock = lock_pin!(cx, inner.hd, lock_pin);
+        manage_recurrent_receiving_of_overall_stream(
           cx,
           lock.parts_mut(),
-          is_conn_open,
+          &inner.is_conn_open,
           *stream_id,
-          |local_cx, hdpm, sorp| {
+          |hdpm, _, stream_state, windows| {
             drop(hdpm.hb.scrp.insert(
               *stream_id,
               StreamControlRecvParams {
                 is_stream_open: true,
-                stream_state: sorp.stream_state,
-                waker: local_cx.waker().clone(),
-                windows: sorp.windows,
+                stream_state,
+                waker: Waker::noop().clone(),
+                windows,
               },
             ));
           },
@@ -106,7 +96,7 @@ where
       .await
     };
     if let Err(err) = &rslt {
-      process_higher_operation_err(err, hd).await;
+      process_higher_operation_err(err, inner).await;
     }
     rslt
   }
@@ -127,18 +117,18 @@ where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
-    let _e = self.span.enter();
+    let Self { inner, method: _, protocol: _, span, stream_id } = self;
+    let _e = span.enter();
     _trace!("Sending response");
-    let hss = send_msg::<_, _, _, false>(
+    let hss = send_msg::<_, _, false>(
       res.rrd.body().lease(),
-      &self.hd,
+      inner,
       res.rrd.headers(),
       (
         HpackStaticRequestHeaders::EMPTY,
         HpackStaticResponseHeaders { status_code: Some(res.status_code) },
       ),
-      &self.is_conn_open,
-      self.stream_id,
+      *stream_id,
       |_| {},
     )
     .await?;
@@ -149,20 +139,33 @@ where
   }
 }
 
-impl<HD> Lease<ServerStream<HD>> for ServerStream<HD> {
+impl<HB, SW> Lease<ServerStream<HB, SW>> for ServerStream<HB, SW> {
   #[inline]
-  fn lease(&self) -> &ServerStream<HD> {
+  fn lease(&self) -> &ServerStream<HB, SW> {
     self
   }
 }
 
-impl<HD> LeaseMut<ServerStream<HD>> for ServerStream<HD> {
+impl<HB, SW> LeaseMut<ServerStream<HB, SW>> for ServerStream<HB, SW> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut ServerStream<HD> {
+  fn lease_mut(&mut self) -> &mut ServerStream<HB, SW> {
     self
   }
 }
 
-impl<HD> SingleTypeStorage for ServerStream<HD> {
-  type Item = HD;
+impl<HB, SW> SingleTypeStorage for ServerStream<HB, SW> {
+  type Item = (HB, SW);
+}
+
+impl<HB, SW> Clone for ServerStream<HB, SW> {
+  #[inline]
+  fn clone(&self) -> Self {
+    Self {
+      inner: self.inner.clone(),
+      method: self.method.clone(),
+      protocol: self.protocol.clone(),
+      span: self.span.clone(),
+      stream_id: self.stream_id.clone(),
+    }
+  }
 }

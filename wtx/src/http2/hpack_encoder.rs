@@ -27,7 +27,7 @@ use hashbrown::HashMap;
 
 const DYN_IDX_OFFSET: u32 = 61;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct HpackEncoder {
   dyn_headers: HpackHeaders<Metadata>,
   idx: u32,
@@ -617,7 +617,7 @@ enum EncodeIdx {
   UnsavedNameUnsavedValue,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 struct Metadata {
   name_hash: Option<u64>,
   pair_hash: u64,

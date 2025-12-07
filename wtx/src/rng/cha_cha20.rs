@@ -22,7 +22,7 @@ pub struct ChaCha20 {
 }
 
 impl ChaCha20 {
-  /// Calls [`ChaCha20::from_key`] with a `[0; 12]` nonce.
+  /// Creates a new instance with a `[0; 12]` nonce.
   #[inline]
   pub const fn from_key(key: [u8; 32]) -> ChaCha20 {
     ChaCha20 { block: Block::new(key, [0; 12]), idx: 16, output: [0; WORDS] }
@@ -151,7 +151,7 @@ impl Block {
     ] = key;
     let [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11] = nonce;
     Self {
-      constants: [0x6170_7865, 0x3320_646E, 0x7962_2D32, 0x6B2_06574],
+      constants: [0x6170_7865, 0x3320_646E, 0x7962_2D32, 0x6B20_6574],
       keys: [
         u32::from_le_bytes([k0, k1, k2, k3]),
         u32::from_le_bytes([k4, k5, k6, k7]),
@@ -267,9 +267,9 @@ const fn block_function<const ADD: bool>(block: &Block) -> Block {
       break;
     }
     round(&mut a, &mut b, &mut c, &mut d);
-    undiagonalize(&mut b, &mut c, &mut d);
-    round(&mut a, &mut b, &mut c, &mut d);
     diagonalize(&mut b, &mut c, &mut d);
+    round(&mut a, &mut b, &mut c, &mut d);
+    undiagonalize(&mut b, &mut c, &mut d);
     idx = idx.wrapping_add(1);
   }
 
@@ -285,15 +285,15 @@ const fn block_function<const ADD: bool>(block: &Block) -> Block {
 }
 
 const fn diagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
-  *b = b.shuffle_left3();
-  *c = c.shuffle_left2();
-  *d = d.shuffle_left1();
-}
-
-const fn undiagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
   *b = b.shuffle_left1();
   *c = c.shuffle_left2();
   *d = d.shuffle_left3();
+}
+
+const fn undiagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
+  *b = b.shuffle_left3();
+  *c = c.shuffle_left2();
+  *d = d.shuffle_left1();
 }
 
 const fn round(a: &mut Row, b: &mut Row, c: &mut Row, d: &mut Row) {

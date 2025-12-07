@@ -7,35 +7,25 @@ use crate::{
   },
   misc::{Lease, LeaseMut, encrypt_aes256gcm_base64},
   rng::CryptoRng,
-  sync::Lock,
+  sync::{Arc, AsyncMutex},
 };
-use alloc::rc::Rc;
 use core::{
-  cell::RefCell,
   fmt::{Debug, Formatter},
   marker::PhantomData,
   str,
 };
 use serde::Serialize;
 
-/// [`SessionManager`] synchronized by [`RefCell`].
-pub type SessionManagerRefCell<CS, E> = SessionManager<Rc<RefCell<SessionManagerInner<CS, E>>>>;
-/// [`SessionManager`] synchronized by [`tokio::sync::Mutex`].
-#[cfg(feature = "tokio")]
-pub type SessionManagerTokio<CS, E> =
-  SessionManager<crate::sync::Arc<tokio::sync::Mutex<SessionManagerInner<CS, E>>>>;
-
 /// Manages sessions
-#[derive(Clone, Debug)]
-pub struct SessionManager<SMI> {
+#[derive(Debug)]
+pub struct SessionManager<CS, E> {
   /// Inner content
-  pub inner: SMI,
+  pub inner: Arc<AsyncMutex<SessionManagerInner<CS, E>>>,
 }
 
-impl<CS, E, SMI> SessionManager<SMI>
+impl<CS, E> SessionManager<CS, E>
 where
   E: From<crate::Error>,
-  SMI: Lock<Resource = SessionManagerInner<CS, E>>,
 {
   /// Allows the specification of custom parameters.
   #[inline]
@@ -85,8 +75,10 @@ where
   {
     let inner = &mut *self.inner.lock().await;
     let SessionManagerInner { cookie_def, session_secret, .. } = inner;
-    let session_csrf = ArrayString::from_iter(rng.ascii_graphic_iter().take(32).map(Into::into))?;
-    let session_key = ArrayString::from_iter(rng.ascii_graphic_iter().take(32).map(Into::into))?;
+    let session_csrf =
+      ArrayString::from_iterator(rng.ascii_graphic_iter().take(32).map(Into::into))?;
+    let session_key =
+      ArrayString::from_iterator(rng.ascii_graphic_iter().take(32).map(Into::into))?;
     let local_state = match (cookie_def.expires, cookie_def.max_age) {
       (None, None) => SessionState { session_csrf, custom_state, expires_at: None, session_key },
       (Some(expires_at), None) => {
@@ -154,6 +146,13 @@ where
     cookie_def.expires = prev_expires;
     cookie_def.max_age = prev_max_age;
     rslt
+  }
+}
+
+impl<CS, E> Clone for SessionManager<CS, E> {
+  #[inline]
+  fn clone(&self) -> Self {
+    Self { inner: self.inner.clone() }
   }
 }
 

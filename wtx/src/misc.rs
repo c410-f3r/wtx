@@ -269,6 +269,9 @@ where
 }
 
 /// Sleeps for the specified amount of time.
+///
+/// Defaults to the selected runtime's reactor, for example, `tokio`. Fallbacks to a naive
+/// spin-like approach if no runtime is selected.
 #[allow(clippy::unused_async, reason = "depends on the selected set of features")]
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
@@ -285,14 +288,41 @@ pub async fn sleep(duration: Duration) -> crate::Result<()> {
   }
 
   #[cfg(feature = "executor")]
-  return _naive(duration).await;
-  #[cfg(all(feature = "tokio", not(any(feature = "executor"))))]
+  _naive(duration).await?;
+
+  #[cfg(all(
+    feature = "async-net",
+    not(any(feature = "embassy-time", feature = "executor", feature = "tokio"))
+  ))]
+  {
+    async_io::Timer::after(duration).await;
+  }
+
+  #[cfg(all(
+    feature = "embassy-time",
+    not(any(feature = "async-net", feature = "executor", feature = "tokio"))
+  ))]
+  {
+    embassy_time::Timer::after(duration.try_into()?).await
+  }
+
+  #[cfg(all(
+    feature = "tokio",
+    not(any(feature = "async-net", feature = "embassy-time", feature = "executor"))
+  ))]
   {
     tokio::time::sleep(duration).await;
-    Ok(())
   }
-  #[cfg(not(any(feature = "executor", feature = "tokio")))]
-  return _naive(duration).await;
+
+  #[cfg(not(any(
+    feature = "async-net",
+    feature = "embassy-time",
+    feature = "executor",
+    feature = "tokio"
+  )))]
+  _naive(duration).await?;
+
+  Ok(())
 }
 
 /// Requires a `Future` to complete within the specified `duration`.

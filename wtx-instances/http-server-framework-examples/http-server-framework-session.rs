@@ -27,16 +27,16 @@ use wtx::{
   collection::Vector,
   database::{Executor, Record},
   http::{
-    ReqResBuffer, ReqResData, SessionManagerTokio, SessionMiddleware, SessionState, StatusCode,
+    ReqResBuffer, ReqResData, SessionManager, SessionMiddleware, SessionState, StatusCode,
     server_framework::{DynParams, Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
   misc::argon2_pwd,
-  pool::{PostgresRM, SimplePoolTokio},
+  pool::{PostgresRM, SimplePool},
   rng::{ChaCha20, SeedableRng},
 };
 
-type DbPool = SimplePoolTokio<PostgresRM<wtx::Error, TcpStream>>;
-type SessionManager = SessionManagerTokio<u32, wtx::Error>;
+type DbPool = SimplePool<PostgresRM<wtx::Error, TcpStream>>;
+type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
@@ -44,7 +44,7 @@ async fn main() -> wtx::Result<()> {
   let mut db_rng = ChaCha20::from_os()?;
   let mut server_rng = ChaCha20::from_rng(&mut db_rng)?;
   let db_pool = DbPool::new(4, PostgresRM::tokio(db_rng, uri.into()));
-  let builder = SessionManager::builder();
+  let builder = LocalSessionManager::builder();
   let (expired_sessions, sm) = builder.build_generating_key(&mut server_rng, db_pool.clone())?;
   let router = Router::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
@@ -77,7 +77,7 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<DynPa
     return Ok(DynParams::Verbatim(StatusCode::Forbidden));
   }
   let user: UserLoginReq<'_> = serde_json::from_slice(state.req.rrd.body())?;
-  let mut pool_guard = pool.get().await?;
+  let mut pool_guard = pool.get_with_unit().await?;
   let record = pool_guard
     .execute_stmt_single(
       "SELECT id,first_name,password,salt FROM user WHERE email = $1",
@@ -111,7 +111,7 @@ async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result
 struct ConnAux {
   pool: DbPool,
   rng: ChaCha20,
-  session_manager: SessionManager,
+  session_manager: LocalSessionManager,
   session_state: Option<SessionState<u32>>,
 }
 

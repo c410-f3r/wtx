@@ -86,57 +86,6 @@ where
   }
 }
 
-#[cfg(feature = "pool")]
-mod pool {
-  use crate::{
-    database::client::postgres::Postgres,
-    de::{Decode, Encode},
-    http::session::{SessionKey, SessionState, SessionStore},
-    pool::{ResourceManager, SimplePool, SimplePoolResource},
-    sync::Lock,
-  };
-
-  impl<CS, E, R, RL, RM> SessionStore<CS, E> for SimplePool<RL, RM>
-  where
-    CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>>,
-    E: From<crate::Error>,
-    R: SessionStore<CS, E>,
-    RL: Lock<Resource = SimplePoolResource<R>>,
-    RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = (), Resource = R>,
-    for<'any> RL: 'any,
-    for<'any> RM: 'any,
-  {
-    #[inline]
-    async fn create(&mut self, state: &SessionState<CS>) -> Result<(), E> {
-      self.get().await?.create(state).await
-    }
-
-    #[inline]
-    async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
-      self.get().await?.delete(session_key).await
-    }
-
-    #[inline]
-    async fn delete_expired(&mut self) -> Result<(), E> {
-      self.get().await?.delete_expired().await
-    }
-
-    #[inline]
-    async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
-      self.get().await?.read(session_key).await
-    }
-
-    #[inline]
-    async fn update(
-      &mut self,
-      session_key: &SessionKey,
-      state: &SessionState<CS>,
-    ) -> Result<(), E> {
-      self.get().await?.update(session_key, state).await
-    }
-  }
-}
-
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
@@ -147,6 +96,7 @@ mod postgres {
     de::{Decode, Encode},
     http::session::{SessionKey, SessionState, SessionStore},
     misc::LeaseMut,
+    pool::{ResourceManager, SimplePool},
     stream::Stream,
   };
 
@@ -225,6 +175,43 @@ mod postgres {
         )
         .await?;
       Ok(())
+    }
+  }
+
+  impl<CS, E, RM> SessionStore<CS, E> for SimplePool<RM>
+  where
+    CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>>,
+    E: From<crate::Error>,
+    RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
+    RM::Resource: SessionStore<CS, E>,
+  {
+    #[inline]
+    async fn create(&mut self, state: &SessionState<CS>) -> Result<(), E> {
+      self.get_with_unit().await?.create(state).await
+    }
+
+    #[inline]
+    async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
+      self.get_with_unit().await?.delete(session_key).await
+    }
+
+    #[inline]
+    async fn delete_expired(&mut self) -> Result<(), E> {
+      self.get_with_unit().await?.delete_expired().await
+    }
+
+    #[inline]
+    async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
+      self.get_with_unit().await?.read(session_key).await
+    }
+
+    #[inline]
+    async fn update(
+      &mut self,
+      session_key: &SessionKey,
+      state: &SessionState<CS>,
+    ) -> Result<(), E> {
+      self.get_with_unit().await?.update(session_key, state).await
     }
   }
 }

@@ -28,7 +28,6 @@ $rt test-with-features wtx memchr
 $rt test-with-features wtx mysql
 $rt test-with-features wtx nightly
 $rt test-with-features wtx optimization
-$rt test-with-features wtx pool
 $rt test-with-features wtx portable-atomic-util
 $rt test-with-features wtx postgres
 $rt test-with-features wtx quick-protobuf

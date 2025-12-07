@@ -1,7 +1,7 @@
 use crate::{
   collection::{Deque, backward_deque_idx},
   misc::_unlikely_unreachable,
-  sync::{AtomicUsize, SyncMutex},
+  sync::{AtomicUsize, SyncMutex, sync_mutex::SyncMutexGuard},
 };
 use core::{
   cell::UnsafeCell,
@@ -35,6 +35,7 @@ impl<T> AsyncMutex<T> {
         added: 0,
         deque: Deque::new(),
         last_added: 0,
+        waiting_count: 0,
       }),
     }
   }
@@ -49,6 +50,7 @@ impl<T> AsyncMutex<T> {
         added: 0,
         deque: Deque::new(),
         last_added: 0,
+        waiting_count: 0,
       }),
     }
   }
@@ -68,8 +70,8 @@ impl<T> AsyncMutex<T> {
 
   /// Acquire the lock asynchronously.
   #[inline]
-  pub const fn lock(&self) -> AsyncMutexLockFuture<'_, T> {
-    AsyncMutexLockFuture { idx_opt: None, mutex_opt: Some(self) }
+  pub const fn lock(&self) -> AsyncMutexGuardFuture<'_, T> {
+    AsyncMutexGuardFuture { idx_opt: None, mutex_opt: Some(self) }
   }
 
   /// Attempt to acquire the lock immediately.
@@ -139,7 +141,7 @@ impl<T> Drop for AsyncMutexGuard<'_, T> {
   fn drop(&mut self) {
     let prev = self.mutex.state.fetch_and(!IS_LOCKED, Ordering::AcqRel);
     if has_waiters(prev) {
-      wake(&self.mutex.state, &mut *self.mutex.waiters.lock());
+      wake(&self.mutex.state, self.mutex.waiters.lock());
     }
   }
 }
@@ -151,28 +153,28 @@ unsafe impl<T: Sync> Sync for AsyncMutexGuard<'_, T> {}
 
 /// A future which resolves when the target mutex has been successfully acquired.
 #[derive(Debug)]
-pub struct AsyncMutexLockFuture<'mutex, T> {
+pub struct AsyncMutexGuardFuture<'mutex, T> {
   idx_opt: Option<usize>,
   // `None` indicates that the mutex was successfully acquired.
   mutex_opt: Option<&'mutex AsyncMutex<T>>,
 }
 
-impl<T> Drop for AsyncMutexLockFuture<'_, T> {
+impl<T> Drop for AsyncMutexGuardFuture<'_, T> {
   #[inline]
   fn drop(&mut self) {
     let (Some(idx), Some(mutex)) = (self.idx_opt, self.mutex_opt) else {
       return;
     };
     let mut guard = mutex.waiters.lock();
-    if matches!(remove_waker(idx, &mut guard), Some(Waiter::Woken)) {
+    if matches!(remove_waker(idx, &mutex.state, &mut guard), Some(Waiter::Woken)) {
       // Someone else awaked this instance while it is being dropped, which means that the `Drop`
       // implementation of `AsyncMutexGuard` will never call `wake`.
-      wake(&mutex.state, &mut guard);
+      wake(&mutex.state, guard);
     }
   }
 }
 
-impl<'any, T> Future for AsyncMutexLockFuture<'any, T> {
+impl<'any, T> Future for AsyncMutexGuardFuture<'any, T> {
   type Output = AsyncMutexGuard<'any, T>;
 
   #[inline]
@@ -181,7 +183,7 @@ impl<'any, T> Future for AsyncMutexLockFuture<'any, T> {
 
     if let Some(mutex_guard) = mutex.try_lock() {
       if let Some(idx) = self.idx_opt {
-        drop(remove_waker(idx, &mut mutex_guard.mutex.waiters.lock()));
+        drop(remove_waker(idx, &mutex.state, &mut mutex_guard.mutex.waiters.lock()));
       }
       self.mutex_opt = None;
       return Poll::Ready(mutex_guard);
@@ -190,24 +192,28 @@ impl<'any, T> Future for AsyncMutexLockFuture<'any, T> {
     let AsyncMutex { state, waiters, value: _ } = mutex;
     let mut waiters_guard = waiters.lock();
     if let Some(idx) = self.idx_opt {
-      let Waiters { added: _, deque, last_added } = &mut *waiters_guard;
+      let Waiters { added: _, deque, last_added, waiting_count } = &mut *waiters_guard;
       let actual_idx = backward_deque_idx(idx, *last_added);
       if let Some(elem) = deque.get_mut(actual_idx) {
-        elem.register(cx.waker());
+        elem.register(waiting_count, cx.waker());
+        if *waiting_count > 0 {
+          let _ = state.fetch_or(HAS_WAITERS, Ordering::Relaxed);
+        }
       }
     } else {
       waiters_guard.last_added = waiters_guard.added;
       self.idx_opt = Some(waiters_guard.last_added);
       waiters_guard.added = waiters_guard.added.wrapping_add(1);
       let _rslt = waiters_guard.deque.push_front(Waiter::Waiting(cx.waker().clone()));
-      if waiters_guard.deque.len() == 1 {
+      waiters_guard.waiting_count = waiters_guard.waiting_count.wrapping_add(1);
+      if waiters_guard.waiting_count == 1 {
         let _ = state.fetch_or(HAS_WAITERS, Ordering::Relaxed);
       }
     }
 
     if let Some(mutex_guard) = mutex.try_lock() {
       if let Some(idx) = self.idx_opt {
-        drop(remove_waker(idx,  &mut waiters_guard));
+        drop(remove_waker(idx, &mutex.state, &mut waiters_guard));
       }
       drop(waiters_guard);
       self.mutex_opt = None;
@@ -220,9 +226,9 @@ impl<'any, T> Future for AsyncMutexLockFuture<'any, T> {
 }
 
 // SAFETY: Access is exclusive regardless of the number of threads
-unsafe impl<T: Send> Send for AsyncMutexLockFuture<'_, T> {}
+unsafe impl<T: Send> Send for AsyncMutexGuardFuture<'_, T> {}
 // SAFETY: Access is exclusive regardless of the number of threads
-unsafe impl<T: Send> Sync for AsyncMutexLockFuture<'_, T> {}
+unsafe impl<T: Send> Sync for AsyncMutexGuardFuture<'_, T> {}
 
 #[derive(Debug)]
 enum Waiter {
@@ -233,10 +239,15 @@ enum Waiter {
 
 impl Waiter {
   #[inline]
-  fn register(&mut self, waker: &Waker) {
+  fn register(&mut self, waiting_count: &mut usize, waker: &Waker) {
     match self {
-      Self::Waiting(elem) if waker.will_wake(elem) => {}
-      _ => *self = Self::Waiting(waker.clone()),
+      Self::Removed | Self::Woken => {
+        *waiting_count = waiting_count.wrapping_add(1);
+        *self = Self::Waiting(waker.clone());
+      }
+      Self::Waiting(elem) => {
+        elem.clone_from(waker);
+      }
     }
   }
 }
@@ -246,6 +257,7 @@ struct Waiters {
   added: usize,
   deque: Deque<Waiter>,
   last_added: usize,
+  waiting_count: usize,
 }
 
 #[inline]
@@ -259,30 +271,44 @@ const fn has_waiters(state: usize) -> bool {
 }
 
 #[inline]
-fn remove_waker(idx: usize, waiters: &mut Waiters) -> Option<Waiter> {
+fn remove_waker(idx: usize, state: &AtomicUsize, waiters: &mut Waiters) -> Option<Waiter> {
   let actual_idx = backward_deque_idx(idx, waiters.last_added);
   let waiter = waiters.deque.get_mut(actual_idx)?;
   let prev = mem::replace(waiter, Waiter::Removed);
+  if matches!(&prev, Waiter::Waiting(_)) {
+    waiters.waiting_count = waiters.waiting_count.wrapping_sub(1);
+    if waiters.waiting_count == 0 {
+      let _ = state.fetch_and(!HAS_WAITERS, Ordering::Relaxed);
+    }
+  }
   Some(prev)
 }
 
 #[inline]
-fn wake(state: &AtomicUsize, waiters: &mut Waiters) {
-  loop {
+fn wake(state: &AtomicUsize, mut waiters: SyncMutexGuard<'_, Waiters>) {
+  let waker_opt = loop {
     let Some(waiter) = waiters.deque.last_mut() else {
       let _ = state.fetch_and(!HAS_WAITERS, Ordering::Relaxed);
-      break;
+      break None;
     };
     let prev = mem::replace(waiter, Waiter::Woken);
     match prev {
       Waiter::Removed => {
         let _elem = waiters.deque.pop_back();
-        continue;
       }
-      Waiter::Waiting(waker) => waker.wake(),
-      Waiter::Woken => {}
+      Waiter::Waiting(waker) => {
+        waiters.waiting_count = waiters.waiting_count.wrapping_sub(1);
+        if waiters.waiting_count == 0 {
+          let _ = state.fetch_and(!HAS_WAITERS, Ordering::Relaxed);
+        }
+        break Some(waker);
+      }
+      Waiter::Woken => break None,
     }
-    break;
+  };
+  drop(waiters);
+  if let Some(waker) = waker_opt {
+    waker.wake();
   }
 }
 
@@ -401,6 +427,6 @@ mod tests {
     let waiters = mutex.waiters.lock();
     assert_eq!(has_waiters(state), false);
     assert_eq!(is_locked(state), false);
-    assert_eq!(waiters.deque.len(), 0);
+    assert_eq!(waiters.waiting_count, 0);
   }
 }

@@ -8,7 +8,7 @@ use crate::{
   },
   misc::sleep,
   rng::CryptoRng,
-  sync::Lock,
+  sync::{Arc, AsyncMutex},
 };
 use core::{marker::PhantomData, time::Duration};
 
@@ -46,23 +46,22 @@ impl SessionManagerBuilder {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_generating_key<CS, E, RNG, SMI, SS>(
+  pub fn build_generating_key<CS, E, RNG, SS>(
     self,
     rng: &mut RNG,
     session_store: SS,
   ) -> crate::Result<(
-    impl Future<Output = Result<(), E>> + use<CS, E, RNG, SMI, SS>,
-    SessionManager<SMI>,
+    impl Future<Output = Result<(), E>> + use<CS, E, RNG, SS>,
+    SessionManager<CS, E>,
   )>
   where
     E: From<crate::Error>,
     RNG: CryptoRng,
-    SMI: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
     Ok(Self::build_with_key(
       self,
-      ArrayString::from_iter(rng.ascii_graphic_iter().take(32).map(Into::into))?,
+      ArrayString::from_iterator(rng.ascii_graphic_iter().take(32).map(Into::into))?,
       session_store,
     ))
   }
@@ -76,14 +75,13 @@ impl SessionManagerBuilder {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_with_key<CS, E, SMI, SS>(
+  pub fn build_with_key<CS, E, SS>(
     self,
     session_secret: SessionSecret,
     mut session_store: SS,
-  ) -> (impl Future<Output = Result<(), E>>, SessionManager<SMI>)
+  ) -> (impl Future<Output = Result<(), E>>, SessionManager<CS, E>)
   where
     E: From<crate::Error>,
-    SMI: Lock<Resource = SessionManagerInner<CS, E>>,
     SS: Clone + SessionStore<CS, E>,
   {
     let Self { cookie_def, inspection_interval } = self;
@@ -95,7 +93,11 @@ impl SessionManagerBuilder {
         }
       },
       SessionManager {
-        inner: SMI::new(SessionManagerInner { cookie_def, phantom: PhantomData, session_secret }),
+        inner: Arc::new(AsyncMutex::new(SessionManagerInner {
+          cookie_def,
+          phantom: PhantomData,
+          session_secret,
+        })),
       },
     )
   }

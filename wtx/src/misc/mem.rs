@@ -44,7 +44,7 @@ where
 ///
 /// # Safety
 ///
-/// - `addr` must point to `len` bytes of valid memory
+/// * `addr` must point to `len` bytes of valid memory
 #[inline]
 pub unsafe fn mlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
   #[cfg(feature = "libc")]
@@ -76,7 +76,7 @@ pub fn mlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
 ///
 /// # Safety
 ///
-/// - `addr` must point to `len` bytes of valid memory
+/// * `addr` must point to `len` bytes of valid memory
 #[inline]
 pub unsafe fn munlock(_addr: *mut u8, _len: usize) -> crate::Result<()> {
   #[cfg(feature = "libc")]

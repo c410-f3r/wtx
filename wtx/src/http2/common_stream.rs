@@ -2,42 +2,37 @@ use crate::{
   collection::Vector,
   http::{Headers, StatusCode},
   http2::{
-    Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus, SendDataMode,
+    Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
-    misc::{check_content_length, frame_reader_rslt, sorp_mut, status_recv, status_send},
-    send_data_mode::SendDataModeBytes,
+    misc::{
+      check_content_length, frame_reader_rslt, sorp_mut, status_recv, status_send, write_array,
+    },
     send_msg::{
-      encode_headers, write_standalone_data, write_standalone_headers, write_standalone_trailers,
+      encode_headers, gen_standalone_data, gen_standalone_headers, gen_standalone_trailers,
+      write_data_frames, write_header_frames,
     },
     u31::U31,
     window::WindowsPair,
+    writer_data::WriterData,
   },
-  misc::{LeaseMut, span::Span},
+  misc::{Either, LeaseMut, span::Span},
   stream::StreamWriter,
-  sync::{Arc, AtomicBool, Lock, RefCounter},
+  sync::Arc,
 };
-use core::{
-  future::poll_fn,
-  mem,
-  pin::pin,
-  task::{Poll, ready},
-};
+use core::{future::poll_fn, mem, pin::pin, task::Poll};
 
 /// Groups common client and server operations as well as low level methods that deal with
 /// individual frames.
 #[derive(Debug)]
-pub struct CommonStream<'instance, HD, const IS_CLIENT: bool> {
-  pub(crate) hd: &'instance mut HD,
-  pub(crate) is_conn_open: &'instance Arc<AtomicBool>,
-  pub(crate) span: &'instance mut Span,
+pub struct CommonStream<'instance, HB, SW, const IS_CLIENT: bool> {
+  pub(crate) inner: &'instance Arc<Http2Inner<HB, SW, IS_CLIENT>>,
+  pub(crate) span: &'instance Span,
   pub(crate) stream_id: U31,
 }
 
-impl<HB, HD, SW, const IS_CLIENT: bool> CommonStream<'_, HD, IS_CLIENT>
+impl<HB, SW, const IS_CLIENT: bool> CommonStream<'_, HB, SW, IS_CLIENT>
 where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, IS_CLIENT>>,
   SW: StreamWriter,
 {
   /// Removes internal elements that are no longer necessary after the end of the stream.
@@ -46,15 +41,16 @@ where
   /// the possible receiving of control frames.
   #[inline]
   pub async fn clear(&self, linger: bool) -> crate::Result<()> {
+    let Self { inner, span: _, stream_id } = self;
     if linger {
       crate::misc::sleep(core::time::Duration::from_millis(50)).await?;
     }
-    let mut lock = self.hd.lock().await;
-    let hdpm = lock.parts_mut();
-    if let Some(elem) = hdpm.hb.scrp.remove(&self.stream_id) {
+    let mut hd_guard = inner.hd.lock().await;
+    let hdpm = hd_guard.parts_mut();
+    if let Some(elem) = hdpm.hb.scrp.remove(stream_id) {
       elem.waker.wake();
     }
-    if let Some(elem) = hdpm.hb.sorp.remove(&self.stream_id) {
+    if let Some(elem) = hdpm.hb.sorp.remove(stream_id) {
       elem.waker.wake();
     }
     Ok(())
@@ -66,15 +62,16 @@ where
   /// with higher operations that receive data.
   #[inline]
   pub async fn recv_data(&mut self) -> crate::Result<Http2RecvStatus<Vector<u8>, Vector<u8>>> {
-    let _e = self.span.enter();
+    let Self { inner, span, stream_id } = self;
+    let _e = span.enter();
     _trace!("Fetching data");
-    let mut pin = pin!(self.hd.lock());
+    let mut pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, self.hd, pin);
+      let mut lock = lock_pin!(cx, inner.hd, pin);
       let hdpm = lock.parts_mut();
-      let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-      if let Some(elem) = status_recv(self.is_conn_open, sorp, |local_sorp| {
-        check_content_length(local_sorp)?;
+      let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+      if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
+        check_content_length(local_sorp.content_length, &local_sorp.rrb)?;
         Ok(mem::take(&mut local_sorp.rrb.body))
       })? {
         return Poll::Ready(Ok(elem));
@@ -98,14 +95,15 @@ where
   /// with higher operations that receive data.
   #[inline]
   pub async fn recv_trailers(&mut self) -> crate::Result<Http2RecvStatus<Headers, ()>> {
-    let _e = self.span.enter();
+    let Self { inner, span, stream_id } = self;
+    let _e = span.enter();
     _trace!("Fetching trailers");
-    let mut pin = pin!(self.hd.lock());
+    let mut pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, self.hd, pin);
+      let mut lock = lock_pin!(cx, inner.hd, pin);
       let hdpm = lock.parts_mut();
-      let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-      if let Some(elem) = status_recv(self.is_conn_open, sorp, |local_sorp| {
+      let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+      if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
         Ok(mem::take(&mut local_sorp.rrb.headers))
       })? {
         return Poll::Ready(Ok(elem));
@@ -123,18 +121,16 @@ where
   /// `value` is capped to an integer of 31 bits.
   #[inline]
   pub async fn release_capacity(&mut self, value: u32) -> crate::Result<()> {
-    let mut lock = self.hd.lock().await;
-    let hdpm = lock.parts_mut();
-    let elem = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-    let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
-    wp.withdrawn_recv(
-      hdpm.hp,
-      self.is_conn_open,
-      hdpm.stream_writer,
-      self.stream_id,
-      U31::from_u32(value),
-    )
-    .await
+    let Self { inner, span: _, stream_id } = self;
+    let frame = {
+      let mut hd_guard = inner.hd.lock().await;
+      let hdpm = hd_guard.parts_mut();
+      let elem = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+      let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
+      wp.withdrawn_recv(hdpm.hp, *stream_id, U31::from_u32(value))?
+    };
+    write_array([&frame], &inner.is_conn_open, &mut inner.wd.lock().await.stream_writer).await?;
+    Ok(())
   }
 
   /// Should be used when sending data to re-evaluated flow control values. Both connection and
@@ -143,11 +139,12 @@ where
   /// `value` is capped to an integer of 31 bits.
   #[inline]
   pub async fn reserve_capacity(&mut self, value: u32) -> crate::Result<()> {
-    let mut lock = self.hd.lock().await;
+    let Self { inner, span: _, stream_id } = self;
+    let mut lock = inner.hd.lock().await;
     let hdpm = lock.parts_mut();
-    let elem = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
+    let elem = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
     let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
-    wp.withdrawn_send(Some(self.stream_id), U31::from_u32(value))
+    wp.withdrawn_send(Some(*stream_id), U31::from_u32(value))
   }
 
   /// Low level operation that sends the content of `data` as one or more DATA frames. If `eos` is
@@ -157,51 +154,58 @@ where
   /// This method will spin until the entirety of `data` is sent and such behavior depends on the
   /// current available window size as well as the negotiated maximum frame length.
   #[inline]
-  pub async fn send_data<'bytes, B, const IS_SCATTERED: bool>(
-    &mut self,
-    mut data: SendDataMode<B, IS_SCATTERED>,
-    is_eos: bool,
-  ) -> crate::Result<Http2SendStatus>
-  where
-    B: SendDataModeBytes<'bytes, IS_SCATTERED>,
-  {
-    let _e = self.span.enter();
+  pub async fn send_data(&self, mut data: &[u8], is_eos: bool) -> crate::Result<Http2SendStatus> {
+    let Self { inner, span, stream_id } = self;
+    let _e = span.enter();
     _trace!("Sending data");
+    let mut orig_data = data;
     let mut has_data = false;
-    let mut pin = pin!(self.hd.lock());
-    poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, self.hd, pin);
-      let hdpm = lock.parts_mut();
-      let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-      if let Some(elem) = status_send::<false>(self.is_conn_open, sorp) {
-        return Poll::Ready(Ok(elem));
+    loop {
+      let mut hd_pin = pin!(inner.hd.lock());
+      let either = poll_fn(|cx| {
+        let mut hd_guard = lock_pin!(cx, inner.hd, hd_pin);
+        let hdpm = hd_guard.parts_mut();
+        let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+        if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
+          return Poll::Ready(crate::Result::Ok(Either::Left(elem)));
+        }
+        let mut wp = WindowsPair::new(hdpm.windows, &mut sorp.windows);
+        let Ok(available_send @ 1..=u32::MAX) = u32::try_from(wp.available_send()) else {
+          cx.waker().wake_by_ref();
+          return Poll::Pending;
+        };
+        let (frames, _) = gen_standalone_data(
+          available_send,
+          &mut data,
+          is_eos,
+          &mut has_data,
+          false,
+          hdpm.hps.max_frame_len,
+          *stream_id,
+          &mut wp,
+        )?;
+        Poll::Ready(Ok(Either::Right(frames.map(|(header, body)| (header, body.len())))))
+      })
+      .await?;
+      match either {
+        Either::Left(el) => return Ok(el),
+        Either::Right(frames) => {
+          write_data_frames(
+            frames.map(|(header, len)| {
+              let (lhs, rhs) = orig_data.split_at_checked(len).unwrap_or_default();
+              orig_data = rhs;
+              (header, lhs)
+            }),
+            &inner.is_conn_open,
+            &mut inner.wd.lock().await.stream_writer,
+          )
+          .await?;
+          if has_data {
+            return Ok(Http2SendStatus::Ok);
+          }
+        }
       }
-      let mut wp = WindowsPair::new(hdpm.windows, &mut sorp.windows);
-      let Ok(available_send @ 1..=u32::MAX) = u32::try_from(wp.available_send()) else {
-        cx.waker().wake_by_ref();
-        return Poll::Pending;
-      };
-      let fut = write_standalone_data(
-        available_send,
-        &mut data,
-        is_eos,
-        &mut has_data,
-        false,
-        self.is_conn_open,
-        hdpm.hps.max_frame_len,
-        hdpm.stream_writer,
-        self.stream_id,
-        &mut wp,
-      );
-      let _ = ready!(pin!(fut).poll(cx))?;
-      if has_data {
-        Poll::Ready(Ok(Http2SendStatus::Ok))
-      } else {
-        cx.waker().wake_by_ref();
-        Poll::Pending
-      }
-    })
-    .await
+    }
   }
 
   send_go_away_method!();
@@ -219,46 +223,41 @@ where
     is_eos: bool,
     status_code: StatusCode,
   ) -> crate::Result<Http2SendStatus> {
-    let _e = self.span.enter();
+    let Self { inner, span, stream_id } = self;
+    let _e = span.enter();
     _trace!("Sending headers");
-    let mut guard = self.hd.lock().await;
-    let hdpm = guard.parts_mut();
-    let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-    if let Some(elem) = status_send::<false>(self.is_conn_open, sorp) {
+    let hsreh = HpackStaticResponseHeaders { status_code: Some(status_code) };
+    let mut hd_guard = inner.hd.lock().await;
+    let hdpm = hd_guard.parts_mut();
+    let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+    if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
       return Ok(elem);
     }
-    let hsreh = HpackStaticResponseHeaders { status_code: Some(status_code) };
+    let mut wd_guard = inner.wd.lock().await;
+    let WriterData { hpack_enc_buffer, stream_writer } = &mut *wd_guard;
     encode_headers::<false>(
       headers,
-      (&mut hdpm.hb.hpack_enc, &mut hdpm.hb.hpack_enc_buffer),
+      (&mut hdpm.hb.hpack_enc, hpack_enc_buffer),
       (HpackStaticRequestHeaders::EMPTY, hsreh),
     )?;
-    let _ = write_standalone_headers::<_, IS_CLIENT>(
-      &mut hdpm.hb.hpack_enc_buffer,
+    let max_frame_len = hdpm.hp.max_frame_len();
+    drop(hd_guard);
+    let (frames, _) = gen_standalone_headers::<IS_CLIENT>(
+      hpack_enc_buffer,
       (HpackStaticRequestHeaders::EMPTY, hsreh),
-      self.is_conn_open,
       is_eos,
-      hdpm.hps.max_frame_len,
-      hdpm.stream_writer,
-      self.stream_id,
-    )
-    .await?;
+      max_frame_len,
+      *stream_id,
+    )?;
+    write_header_frames(frames, &inner.is_conn_open, stream_writer).await?;
     Ok(Http2SendStatus::Ok)
   }
 
   /// Sends a reset frame to the peer, which cancels this stream.
   #[inline]
   pub async fn send_reset(&self, error_code: crate::http2::Http2ErrorCode) {
-    let mut guard = self.hd.lock().await;
-    let hdpm = guard.parts_mut();
-    let _ = crate::http2::misc::send_reset_stream(
-      error_code,
-      &mut hdpm.hb.scrp,
-      &mut hdpm.hb.sorp,
-      hdpm.stream_writer,
-      self.stream_id,
-    )
-    .await;
+    let Self { inner, span: _, stream_id } = self;
+    let _ = crate::http2::misc::send_reset_stream(error_code, inner, *stream_id).await;
   }
 
   /// Low level operation that sends headers that are preceded by DATA frames and then closes
@@ -269,23 +268,21 @@ where
   /// Returns `false` if the stream is already closed.
   #[inline]
   pub async fn send_trailers(&mut self, trailers: &Headers) -> crate::Result<Http2SendStatus> {
-    let _e = self.span.enter();
+    let Self { inner, span, stream_id } = self;
+    let _e = span.enter();
     _trace!("Sending {} trailers", trailers.headers_len());
-    let mut lock = self.hd.lock().await;
-    let hdpm = lock.parts_mut();
-    let sorp = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
-    if let Some(elem) = status_send::<false>(self.is_conn_open, sorp) {
+    let mut hd_guard = inner.hd.lock().await;
+    let hdpm = hd_guard.parts_mut();
+    let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+    if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
       return Ok(elem);
     }
-    write_standalone_trailers(
-      trailers,
-      (&mut hdpm.hb.hpack_enc, &mut hdpm.hb.hpack_enc_buffer),
-      self.is_conn_open,
-      hdpm.hps.max_frame_len,
-      hdpm.stream_writer,
-      self.stream_id,
-    )
-    .await?;
+    let mut wd_guard = inner.wd.lock().await;
+    let WriterData { hpack_enc_buffer, stream_writer } = &mut *wd_guard;
+    let hpack = (&mut hdpm.hb.hpack_enc, hpack_enc_buffer);
+    let frames = gen_standalone_trailers(trailers, hpack, hdpm.hps.max_frame_len, *stream_id)?;
+    drop(hd_guard);
+    write_header_frames(frames, &inner.is_conn_open, stream_writer).await?;
     Ok(Http2SendStatus::Ok)
   }
 
@@ -298,9 +295,10 @@ where
   /// Low level operation that returns the current flow control parameters of the stream.
   #[inline]
   pub async fn windows(&self) -> crate::Result<crate::http2::Windows> {
-    let mut lock = self.hd.lock().await;
+    let Self { inner, span: _, stream_id } = self;
+    let mut lock = inner.hd.lock().await;
     let hdpm = lock.parts_mut();
-    let elem = sorp_mut(&mut hdpm.hb.sorp, self.stream_id)?;
+    let elem = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
     Ok(elem.windows)
   }
 }

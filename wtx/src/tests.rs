@@ -6,8 +6,18 @@ use crate::{
 use core::sync::atomic::Ordering;
 
 pub(crate) fn _uri() -> UriString {
-  static PORT: AtomicU32 = AtomicU32::new(7000);
-  let uri = alloc::format!("http://127.0.0.1:{}", PORT.fetch_add(1, Ordering::Relaxed));
+  const INITIAL_PORT: u32 = 7000;
+  #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
+  let port = {
+    static LOCKS: std::sync::OnceLock<AtomicU32> = std::sync::OnceLock::new();
+    &*LOCKS.get_or_init(|| AtomicU32::new(INITIAL_PORT))
+  };
+  #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
+  let port = {
+    static PORT: AtomicU32 = AtomicU32::new(INITIAL_PORT);
+    &PORT
+  };
+  let uri = alloc::format!("http://127.0.0.1:{}", port.fetch_add(1, Ordering::Relaxed));
   UriString::new(uri)
 }
 

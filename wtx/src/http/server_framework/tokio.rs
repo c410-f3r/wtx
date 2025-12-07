@@ -1,27 +1,23 @@
 use crate::{
   collection::ArrayVectorU8,
   http::{
-    AutoStream, ManualServerStreamTokio, OperationMode, OptionedServer, ReqResBuffer, Request,
-    Response,
+    AutoStream, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer, Request, Response,
     server_framework::{
       ConnAux, EndpointNode, Middleware, RouteMatch, Router, ServerFramework, StreamAux,
       endpoint::Endpoint,
     },
   },
-  http2::{Http2Buffer, Http2DataTokio, ServerStream},
+  http2::{Http2Buffer, ServerStream},
   rng::{Rng, SeedableRng},
   sync::Arc,
 };
 use tokio::net::tcp::OwnedWriteHalf;
 
-type Stream = ServerStream<Http2DataTokio<Http2Buffer, OwnedWriteHalf, false>>;
+type Stream = ServerStream<Http2Buffer, OwnedWriteHalf>;
 #[cfg(feature = "tokio-rustls")]
 type StreamRustls = ServerStream<
-  Http2DataTokio<
-    Http2Buffer,
-    tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
-    false,
-  >,
+  Http2Buffer,
+  tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
 >;
 
 impl<CA, CACB, CBP, E, EN, M, S, SA, SACB> ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB>
@@ -109,7 +105,7 @@ where
 
   async fn tokio_manual(
     headers_aux: (ArrayVectorU8<RouteMatch, 4>, Arc<Router<CA, E, EN, M, Stream, SA>>),
-    manual_stream: ManualServerStreamTokio<CA, Http2Buffer, SA, OwnedWriteHalf>,
+    manual_stream: ManualServerStream<CA, Http2Buffer, SA, OwnedWriteHalf>,
   ) -> Result<(), E> {
     headers_aux.1.en.manual(manual_stream, (0, &headers_aux.0)).await?;
     Ok(())
@@ -177,7 +173,7 @@ where
 
   async fn tokio_rustls_manual(
     headers_aux: (ArrayVectorU8<RouteMatch, 4>, Arc<Router<CA, E, EN, M, StreamRustls, SA>>),
-    manual_stream: ManualServerStreamTokio<
+    manual_stream: ManualServerStream<
       CA,
       Http2Buffer,
       SA,

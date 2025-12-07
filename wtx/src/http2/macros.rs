@@ -12,7 +12,7 @@ macro_rules! send_go_away_method {
     /// streams.
     #[inline]
     pub async fn send_go_away(&self, error_code: crate::http2::Http2ErrorCode) {
-      crate::http2::misc::send_go_away(error_code, &mut self.hd.lock().await.parts_mut()).await;
+      crate::http2::misc::send_go_away(error_code, &self.inner).await;
     }
   };
 }

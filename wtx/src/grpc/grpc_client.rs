@@ -8,10 +8,9 @@ use crate::{
   http::{
     Header, Headers, HttpClient, KnownHeaderName, Method, ReqResBuffer, Response, WTX_USER_AGENT,
   },
-  http2::{Http2, Http2Buffer, Http2Data},
+  http2::{Http2, Http2Buffer},
   misc::{LeaseMut, SingleTypeStorage, UriRef},
   stream::StreamWriter,
-  sync::{Lock, RefCounter},
 };
 
 /// Performs requests to gRPC servers.
@@ -21,11 +20,10 @@ pub struct GrpcClient<C, DRSR> {
   drsr: DRSR,
 }
 
-impl<C, DRSR, HD, SW> GrpcClient<C, DRSR>
+impl<C, DRSR, HB, SW> GrpcClient<C, DRSR>
 where
-  C: LeaseMut<Http2<HD, true>> + SingleTypeStorage<Item = HD>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<Http2Buffer, SW, true>>,
+  C: LeaseMut<Http2<HB, SW, true>> + SingleTypeStorage<Item = (HB, SW)>,
+  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   /// Constructor

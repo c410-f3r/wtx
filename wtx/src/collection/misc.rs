@@ -28,7 +28,7 @@ use core::{mem, ptr, slice};
 /// ```
 #[inline]
 pub const fn backward_deque_idx(elem_idx: usize, elem_idx_last: usize) -> usize {
-  elem_idx_last.wrapping_sub(elem_idx) % 9_223_372_036_854_775_807
+  elem_idx_last.wrapping_sub(elem_idx) % (usize::MAX >> 1)
 }
 
 pub(crate) fn is_char_boundary(idx: usize, slice: &[u8]) -> bool {
@@ -146,7 +146,7 @@ mod tests {
   fn drops_all_elements_with_buffer() {
     let dpm = DropSpyManager::new();
     let mut buffer = ArrayVectorU8::<_, 5>::new();
-    let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
+    let mut vec = Vector::from_iterator((0..5).map(|_| dpm.spawn())).unwrap();
     unsafe {
       drop_elements(&mut buffer, 5u32, 0, vec.as_mut_ptr()).unwrap();
       vec.set_len(0);
@@ -158,7 +158,7 @@ mod tests {
   #[test]
   fn drops_all_elements_without_buffer() {
     let dpm = DropSpyManager::new();
-    let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
+    let mut vec = Vector::from_iterator((0..5).map(|_| dpm.spawn())).unwrap();
     unsafe {
       drop_elements(&mut (), 5u32, 0, vec.as_mut_ptr()).unwrap();
       vec.set_len(0);
@@ -170,7 +170,7 @@ mod tests {
   fn drops_some_elements() {
     let dpm = DropSpyManager::new();
     let mut buffer = ArrayVectorU8::<_, 2>::new();
-    let mut vec = Vector::from_iter((0..5).map(|_| dpm.spawn())).unwrap();
+    let mut vec = Vector::from_iterator((0..5).map(|_| dpm.spawn())).unwrap();
     unsafe {
       let _rslt = drop_elements(&mut buffer, 5u32, 0, vec.as_mut_ptr());
       vec.set_len(0);

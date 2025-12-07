@@ -1,9 +1,12 @@
 use crate::{
   http::{ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{
-    CommonStream, Http2Buffer, Http2Data, Http2RecvStatus, Http2SendStatus,
+    CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
-    misc::{frame_reader_rslt, manage_recurrent_stream_receiving, process_higher_operation_err},
+    misc::{
+      connection_state, frame_reader_rslt, manage_recurrent_receiving_of_overall_stream,
+      process_higher_operation_err,
+    },
     send_msg::send_msg,
     stream_receiver::StreamOverallRecvParams,
     stream_state::StreamState,
@@ -12,48 +15,40 @@ use crate::{
   },
   misc::{Lease, LeaseMut, UriRef, span::Span},
   stream::StreamWriter,
-  sync::{Arc, AtomicBool, Lock, RefCounter},
+  sync::Arc,
 };
-use core::{future::poll_fn, pin::pin, sync::atomic::Ordering, task::Poll};
+use core::{future::poll_fn, pin::pin, task::Poll};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
-pub struct ClientStream<HD> {
-  hd: HD,
-  is_conn_open: Arc<AtomicBool>,
+pub struct ClientStream<HB, SW> {
+  inner: Arc<Http2Inner<HB, SW, true>>,
   span: Span,
   stream_id: U31,
   // Used after the initial sending
   windows: Windows,
 }
 
-impl<HD> ClientStream<HD> {
+impl<HB, SW> ClientStream<HB, SW> {
   pub(crate) const fn new(
-    hd: HD,
-    is_conn_open: Arc<AtomicBool>,
+    inner: Arc<Http2Inner<HB, SW, true>>,
     span: Span,
     stream_id: U31,
   ) -> Self {
-    Self { hd, is_conn_open, span, stream_id, windows: Windows::new() }
+    Self { inner, span, stream_id, windows: Windows::new() }
   }
 }
 
-impl<HB, HD, SW> ClientStream<HD>
+impl<HB, SW> ClientStream<HB, SW>
 where
   HB: LeaseMut<Http2Buffer>,
-  HD: RefCounter,
-  HD::Item: Lock<Resource = Http2Data<HB, SW, true>>,
   SW: StreamWriter,
 {
   /// See [`CommonStream`].
   #[inline]
-  pub const fn common(&mut self) -> CommonStream<'_, HD, true> {
-    CommonStream {
-      hd: &mut self.hd,
-      is_conn_open: &self.is_conn_open,
-      span: &mut self.span,
-      stream_id: self.stream_id,
-    }
+  pub const fn common(&mut self) -> CommonStream<'_, HB, SW, true> {
+    let Self { inner, span, stream_id, windows: _ } = self;
+    CommonStream { inner, span, stream_id: *stream_id }
   }
 
   /// Receive response
@@ -72,16 +67,16 @@ where
     &mut self,
     rrb: ReqResBuffer,
   ) -> crate::Result<(Http2RecvStatus<StatusCode, ()>, ReqResBuffer)> {
+    let Self { inner, span, stream_id, windows } = self;
     let rrb_opt = &mut Some(rrb);
-    let Self { hd, is_conn_open, span, stream_id, windows } = self;
     let _e = span.enter();
     _trace!("Receiving response");
-    let mut lock_pin = pin!(hd.lock());
+    let mut lock_pin = pin!(inner.hd.lock());
     let rslt = poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, hd, lock_pin);
+      let mut lock = lock_pin!(cx, inner.hd, lock_pin);
       let hdpm = lock.parts_mut();
       if let Some(elem) = rrb_opt.take() {
-        if !is_conn_open.load(Ordering::Relaxed) {
+        if connection_state(&inner.is_conn_open).is_closed() {
           frame_reader_rslt(hdpm.frame_reader_error)?;
           return Poll::Ready(Ok((Http2RecvStatus::ClosedConnection, elem)));
         }
@@ -102,14 +97,18 @@ where
         ));
         Poll::Pending
       } else {
-        manage_recurrent_stream_receiving(cx, hdpm, is_conn_open, *stream_id, |_, _, sorp| {
-          sorp.status_code
-        })
+        manage_recurrent_receiving_of_overall_stream(
+          cx,
+          hdpm,
+          &inner.is_conn_open,
+          *stream_id,
+          |_, status_code, _, _| status_code,
+        )
       }
     })
     .await;
     if let Err(err) = &rslt {
-      process_higher_operation_err(err, hd).await;
+      process_higher_operation_err(err, inner).await;
     }
     rslt
   }
@@ -132,11 +131,12 @@ where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
-    let _e = self.span.enter();
+    let Self { inner, span, stream_id, windows } = self;
+    let _e = span.enter();
     _trace!("Sending request");
-    send_msg::<_, _, _, true>(
+    send_msg::<_, _, true>(
       req.rrd.body().lease(),
-      &self.hd,
+      inner,
       req.rrd.headers(),
       (
         HpackStaticRequestHeaders {
@@ -148,11 +148,10 @@ where
         },
         HpackStaticResponseHeaders::EMPTY,
       ),
-      &self.is_conn_open,
-      self.stream_id,
+      *stream_id,
       |hdpm| {
-        if let Some(scrp) = hdpm.hb.scrp.remove(&self.stream_id) {
-          self.windows = scrp.windows;
+        if let Some(scrp) = hdpm.hb.scrp.remove(stream_id) {
+          *windows = scrp.windows;
         }
       },
     )

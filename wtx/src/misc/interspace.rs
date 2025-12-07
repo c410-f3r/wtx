@@ -121,7 +121,7 @@ mod tests {
   #[test]
   fn interspace() {
     assert_eq!(
-      Vector::from_iter(Intersperse::new(['0', '1', '2'], || ',')).unwrap().as_slice(),
+      Vector::from_iterator(Intersperse::new(['0', '1', '2'], || ',')).unwrap().as_slice(),
       &['0', ',', '1', ',', '2']
     );
   }

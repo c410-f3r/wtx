@@ -75,7 +75,7 @@ pub fn decode_hex<'out>(mut data: &[u8], out: &'out mut [u8]) -> crate::Result<&
   Ok(actual_out)
 }
 
-/// Decodes `data` into `out` returning the affected part.
+/// Encodes `data` into `out` returning the affected part.
 ///
 /// `mode` defaults to [`HexEncMode::WithPrefixLower`] if `None`.
 #[inline]

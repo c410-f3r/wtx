@@ -13,11 +13,7 @@ mod xorshift;
 
 use crate::sync::AtomicCell;
 pub use cha_cha20::ChaCha20;
-use core::{
-  cell::Cell,
-  iter,
-  ops::{Bound, RangeBounds},
-};
+use core::{cell::Cell, iter};
 pub use crypto_rng::CryptoRng;
 pub use from_rng::FromRng;
 pub use seed::*;
@@ -43,34 +39,6 @@ where
     slice.get(idx)
   }
 
-  /// Creates an element that is within the given `range`.
-  #[inline]
-  fn elem_from_range<R, T>(&mut self, range: &R) -> Option<T>
-  where
-    R: RangeBounds<T>,
-    T: FromRng<Self> + PartialOrd,
-  {
-    match (range.start_bound(), range.end_bound()) {
-      (Bound::Included(a) | Bound::Excluded(a), Bound::Included(b)) => {
-        if a < b {
-          return None;
-        }
-      }
-      (Bound::Included(a) | Bound::Excluded(a), Bound::Excluded(b)) => {
-        if a <= b {
-          return None;
-        }
-      }
-      _ => {}
-    }
-    loop {
-      let random = T::from_rng(self);
-      if range.contains(&random) {
-        return Some(random);
-      }
-    }
-  }
-
   /// Fills `slice` with random data.
   #[inline]
   fn fill_slice<T>(&mut self, slice: &mut [T])
@@ -83,21 +51,20 @@ where
   }
 
   /// Shuffles a mutable slice in place.
+  #[expect(clippy::arithmetic_side_effects, reason = "from_idx can't be zero")]
   #[inline]
   fn shuffle_slice<T>(&mut self, slice: &mut [T]) {
-    if slice.len() <= 1 {
+    let len = slice.len();
+    if len <= 1 {
       return;
     }
-    for from_idx in 0..slice.len() {
-      let range = 0..from_idx.wrapping_add(1);
-      let Some(to_idx) = self.elem_from_range(&range) else {
-        continue;
-      };
+    for from_idx in 1..len {
+      let to_idx = usize::from_rng(self) % from_idx.wrapping_add(1);
       slice.swap(from_idx, to_idx);
     }
   }
 
-  /// Creates an byte
+  /// Creates a byte
   fn u8(&mut self) -> u8;
 
   /// Creates an array of 4 bytes.
@@ -142,9 +109,9 @@ where
   #[inline]
   fn u8(&mut self) -> u8 {
     let mut ret = 0;
-    let _rslt = self.fetch_update(|mut el| {
+    let _rslt = self.update(|mut el| {
       ret = el.u8();
-      Some(el)
+      el
     });
     ret
   }
@@ -152,9 +119,9 @@ where
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     let mut ret = [0; 4];
-    let _rslt = self.fetch_update(|mut el| {
+    let _rslt = self.update(|mut el| {
       ret = el.u8_4();
-      Some(el)
+      el
     });
     ret
   }
@@ -162,9 +129,9 @@ where
   #[inline]
   fn u8_8(&mut self) -> [u8; 8] {
     let mut ret = [0; 8];
-    let _rslt = self.fetch_update(|mut el| {
+    let _rslt = self.update(|mut el| {
       ret = el.u8_8();
-      Some(el)
+      el
     });
     ret
   }
@@ -172,9 +139,9 @@ where
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     let mut ret = [0; 16];
-    let _rslt = self.fetch_update(|mut el| {
+    let _rslt = self.update(|mut el| {
       ret = el.u8_16();
-      Some(el)
+      el
     });
     ret
   }
@@ -277,11 +244,11 @@ mod tests {
   #[test]
   fn ascii_graphic_bytes() {
     let mut rng = Xorshift64::from(123);
-    let bytes = Vector::from_iter(rng.ascii_graphic_iter().take(16)).unwrap();
+    let bytes = Vector::from_iterator(rng.ascii_graphic_iter().take(16)).unwrap();
     assert_ne!(&bytes[0..8], &bytes[8..16]);
     for elem in &bytes {
       assert!(elem.is_ascii_graphic());
     }
-    assert_ne!(bytes, Vector::from_iter(rng.ascii_graphic_iter().take(16)).unwrap());
+    assert_ne!(bytes, Vector::from_iterator(rng.ascii_graphic_iter().take(16)).unwrap());
   }
 }

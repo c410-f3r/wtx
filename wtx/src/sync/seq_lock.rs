@@ -8,6 +8,12 @@ pub(crate) struct SeqLock {
 }
 
 impl SeqLock {
+  #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
+  #[inline]
+  pub(crate) fn new() -> Self {
+    Self { state: AtomicUsize::new(0) }
+  }
+  #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
   #[inline]
   pub(crate) const fn new() -> Self {
     Self { state: AtomicUsize::new(0) }

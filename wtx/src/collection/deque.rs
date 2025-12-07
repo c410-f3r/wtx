@@ -527,7 +527,7 @@ impl<T> Deque<T> {
             drop_elements(buffer, diff, back_begin, self.data.as_ptr_mut())?;
           }
         }
-        self.tail = if self.tail == diff { 0 } else { back_begin }
+        self.tail = if self.tail == diff { 0 } else { back_begin };
       } else {
         let front_len = diff.wrapping_sub(self.tail);
         let front_begin = self.data.capacity().wrapping_sub(front_len);
@@ -793,9 +793,16 @@ impl<T> Drop for Deque<T> {
       }
     }
 
-    let (front, back) = self.as_slices_mut();
-    let _back_dropper = Guard(back);
-    let _front_dropper = Guard(front);
+    {
+      let (front, back) = self.as_slices_mut();
+      let _back_dropper = Guard(back);
+      let _front_dropper = Guard(front);
+    }
+
+    // SAFETY: We have just manually dropped all valid elements.
+    unsafe {
+      self.data.set_len(0);
+    }
   }
 }
 

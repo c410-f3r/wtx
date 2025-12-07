@@ -210,7 +210,6 @@ impl SettingsFrame {
     if max_header_list_size.is_some() {
       *len = len.wrapping_add(6);
     }
-
     Ok(settings_frame)
   }
 

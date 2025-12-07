@@ -76,7 +76,7 @@ impl CorsMiddleware {
     Ok(Self {
       allow_credentials: true,
       allow_headers: (true, Vector::new()),
-      allow_methods: (false, Vector::from_iter(Method::ALL.into_iter())?),
+      allow_methods: (false, Vector::from_iterator(Method::ALL.into_iter())?),
       allow_origins: (true, Vector::new()),
       expose_headers: (true, Vector::new()),
       max_age: None,

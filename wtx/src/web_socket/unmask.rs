@@ -66,7 +66,7 @@ mod kani {
     let mut payload = Vector::from(kani::vec::any_vec::<u8, 128>());
     payload.fill(0);
     crate::web_socket::unmask::unmask(&mut payload, mask);
-    let expected = Vector::from_iter((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();
+    let expected = Vector::from_iterator((0..payload.len()).map(|idx| mask[idx & 3])).unwrap();
     assert_eq!(payload, expected);
   }
 }
@@ -81,7 +81,7 @@ mod tests {
       let mut payload = Vector::from_cloneable_elem(len, 0).unwrap();
       let mask = [1, 2, 3, 4];
       unmask(&mut payload, mask);
-      let expected = Vector::from_iter((0..len).map(|idx| mask[idx & 3])).unwrap();
+      let expected = Vector::from_iterator((0..len).map(|idx| mask[idx & 3])).unwrap();
       assert_eq!(payload, expected);
     }
   }

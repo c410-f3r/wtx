@@ -61,7 +61,8 @@ jobs:
           '.scripts/autobahn-fuzzingserver-concurrent.sh ci',
           '.scripts/h2load.sh ci',
           '.scripts/h2spec.sh high ci',
-          '.scripts/h2spec.sh low ci'
+          '.scripts/h2spec.sh low ci',
+          '.scripts/loom.sh',
         ]
     steps:
       - uses: actions/checkout@v6

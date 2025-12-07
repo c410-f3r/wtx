@@ -64,7 +64,7 @@ pub(crate) fn log_http_res(
     body = debug(_body),
     status_code = display(_status_code),
     trans_ty = display(_tg),
-    uri = display(_uri.as_str()),
+    uri = display(_uri.origin()),
     "Response"
   );
 }
