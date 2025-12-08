@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   http::{ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{
     CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
@@ -7,13 +8,13 @@ use crate::{
       connection_state, frame_reader_rslt, manage_recurrent_receiving_of_overall_stream,
       process_higher_operation_err,
     },
-    send_msg::send_msg,
     stream_receiver::StreamOverallRecvParams,
     stream_state::StreamState,
     u31::U31,
     window::Windows,
+    write_functions::send_msg,
   },
-  misc::{Lease, LeaseMut, UriRef, span::Span},
+  misc::{Lease, LeaseMut, span::Span},
   stream::StreamWriter,
   sync::Arc,
 };
@@ -65,8 +66,9 @@ where
   #[inline]
   pub async fn recv_res(
     &mut self,
-    rrb: ReqResBuffer,
+    mut rrb: ReqResBuffer,
   ) -> crate::Result<(Http2RecvStatus<StatusCode, ()>, ReqResBuffer)> {
+    rrb.clear();
     let Self { inner, span, stream_id, windows } = self;
     let rrb_opt = &mut Some(rrb);
     let _e = span.enter();
@@ -80,7 +82,7 @@ where
           frame_reader_rslt(hdpm.frame_reader_error)?;
           return Poll::Ready(Ok((Http2RecvStatus::ClosedConnection, elem)));
         }
-        drop(hdpm.hb.sorp.insert(
+        drop(hdpm.hb.sorps.insert(
           *stream_id,
           StreamOverallRecvParams {
             body_len: 0,
@@ -124,8 +126,8 @@ where
   #[inline]
   pub async fn send_req<RRD>(
     &mut self,
+    enc_buffer: &mut Vector<u8>,
     req: Request<RRD>,
-    uri: &UriRef<'_>,
   ) -> crate::Result<Http2SendStatus>
   where
     RRD: ReqResData,
@@ -134,10 +136,12 @@ where
     let Self { inner, span, stream_id, windows } = self;
     let _e = span.enter();
     _trace!("Sending request");
+    let uri = req.rrd.uri();
     send_msg::<_, _, true>(
       req.rrd.body().lease(),
-      inner,
+      enc_buffer,
       req.rrd.headers(),
+      inner,
       (
         HpackStaticRequestHeaders {
           authority: uri.authority(),
@@ -150,7 +154,7 @@ where
       ),
       *stream_id,
       |hdpm| {
-        if let Some(scrp) = hdpm.hb.scrp.remove(stream_id) {
+        if let Some(scrp) = hdpm.hb.scrps.remove(stream_id) {
           *windows = scrp.windows;
         }
       },

@@ -27,7 +27,7 @@ async fn main() -> wtx::Result<()> {
         generic_request_field1: 123,
       },
       rrb,
-      &"http://127.0.0.1:9000/wtx.GenericService/generic_method".into(),
+      "http://127.0.0.1:9000/wtx.GenericService/generic_method".into(),
     )
     .await?;
   let generic_response: GenericResponse = client.des_from_res_bytes(&mut res.rrd.body.as_ref())?;

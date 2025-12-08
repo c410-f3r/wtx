@@ -90,7 +90,7 @@ where
         let hb = Http2Buffer::new(&mut local_rng);
         Ok((CA::conn_aux(_ca_cb(local_rng)?)?, hb, _cp._to_hp()))
       },
-      move |ca| Ok((SA::stream_aux(_sa_cb(ca)?)?, ReqResBuffer::empty())),
+      move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {
         let rslt = Self::route_params(req.rrd.uri.path(), local_router)?;
         headers_cb(req)?;
@@ -158,7 +158,7 @@ where
         let hb = Http2Buffer::new(&mut local_rng);
         Ok((CA::conn_aux(_ca_cb(local_rng)?)?, hb, _cp._to_hp()))
       },
-      move |ca| Ok((SA::stream_aux(_sa_cb(ca)?)?, ReqResBuffer::empty())),
+      move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {
         let rslt = Self::route_params(req.rrd.uri.path(), local_router)?;
         headers_cb(req)?;

@@ -6,7 +6,7 @@ extern crate wtx_instances;
 
 use tokio::net::TcpStream;
 use wtx::{
-  http::{HttpClient, Method, ReqResBuffer},
+  http::{HttpClient, ReqBuilder, ReqResBuffer},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
   misc::{Uri, from_utf8_basic},
   rng::{Xorshift64, simple_seed},
@@ -22,7 +22,7 @@ async fn main() -> wtx::Result<()> {
   )
   .await?;
   let _jh = tokio::spawn(frame_reader);
-  let res = http2.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await?;
+  let res = http2.send_req_recv_res(ReqResBuffer::empty(), ReqBuilder::get(uri.to_ref())).await?;
   println!("{}", from_utf8_basic(&res.rrd.body)?);
   http2.send_go_away(Http2ErrorCode::NoError).await;
   Ok(())

@@ -48,7 +48,7 @@ async fn main() -> wtx::Result<()> {
           .set_max_hpack_len((128 * 1024, 128 * 1024)),
       ))
     },
-    |_| Ok((Vector::new(), ReqResBuffer::empty())),
+    |_| Ok(Vector::new()),
     |_, _, protocol, req, _| {
       Ok((
         (),

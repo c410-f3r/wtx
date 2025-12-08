@@ -1,11 +1,11 @@
 use crate::{
   collection::Clear,
   http::Headers,
-  misc::{Lease, LeaseMut, Uri, UriString},
+  misc::{Lease, LeaseMut, Uri, UriRef},
 };
-use alloc::{boxed::Box, string::String};
+use alloc::boxed::Box;
 
-static EMPTY_URI_STRING: UriString = UriString::empty(String::new());
+static EMPTY_URI_STRING: UriRef<'static> = UriRef::empty("");
 
 /// Groups the elements of an HTTP request/response.
 pub trait ReqResData {
@@ -18,8 +18,8 @@ pub trait ReqResData {
   /// See [Headers].
   fn headers(&self) -> &Headers;
 
-  /// See [`UriString`].
-  fn uri(&self) -> &UriString;
+  /// See [`UriRef<'_>`].
+  fn uri(&self) -> UriRef<'_>;
 }
 
 impl<T> ReqResData for &T
@@ -39,7 +39,7 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
+  fn uri(&self) -> UriRef<'_> {
     (*self).uri()
   }
 }
@@ -61,7 +61,7 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
+  fn uri(&self) -> UriRef<'_> {
     (**self).uri()
   }
 }
@@ -80,8 +80,8 @@ impl ReqResData for &[u8] {
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &EMPTY_URI_STRING
+  fn uri(&self) -> UriRef<'_> {
+    EMPTY_URI_STRING
   }
 }
 
@@ -99,8 +99,8 @@ impl<const N: usize> ReqResData for [u8; N] {
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &EMPTY_URI_STRING
+  fn uri(&self) -> UriRef<'_> {
+    EMPTY_URI_STRING
   }
 }
 
@@ -118,8 +118,8 @@ impl ReqResData for () {
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &EMPTY_URI_STRING
+  fn uri(&self) -> UriRef<'_> {
+    EMPTY_URI_STRING
   }
 }
 
@@ -140,15 +140,15 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &EMPTY_URI_STRING
+  fn uri(&self) -> UriRef<'_> {
+    EMPTY_URI_STRING
   }
 }
 
-impl<B, H, U> ReqResData for (B, H, U)
+impl<B, H, S> ReqResData for (B, H, Uri<S>)
 where
   H: Lease<Headers>,
-  U: Lease<UriString>,
+  S: Lease<str>,
 {
   type Body = B;
 
@@ -163,8 +163,8 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    self.2.lease()
+  fn uri(&self) -> UriRef<'_> {
+    self.2.lease().to_ref()
   }
 }
 
@@ -185,8 +185,8 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &EMPTY_URI_STRING
+  fn uri(&self) -> UriRef<'_> {
+    (**self).uri()
   }
 }
 
@@ -204,8 +204,8 @@ impl ReqResData for Headers {
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &EMPTY_URI_STRING
+  fn uri(&self) -> UriRef<'_> {
+    EMPTY_URI_STRING
   }
 }
 
@@ -226,8 +226,8 @@ where
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &EMPTY_URI_STRING
+  fn uri(&self) -> UriRef<'_> {
+    self.to_ref()
   }
 }
 
@@ -252,7 +252,7 @@ pub trait ReqResDataMut: ReqResData {
   }
 
   /// Mutable parts
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString);
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>);
 }
 
 impl<T> ReqResDataMut for &mut T
@@ -280,7 +280,7 @@ where
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
     (**self).parts_mut()
   }
 }
@@ -310,7 +310,7 @@ where
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
     (**self).parts_mut()
   }
 }
@@ -327,8 +327,8 @@ impl ReqResDataMut for Headers {
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
-    (&mut [], self, &EMPTY_URI_STRING)
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (&mut [], self, EMPTY_URI_STRING)
   }
 }
 
@@ -350,22 +350,22 @@ where
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
-    (&mut self.0, self.1.lease_mut(), &EMPTY_URI_STRING)
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (&mut self.0, self.1.lease_mut(), EMPTY_URI_STRING)
   }
 }
 
-impl<B, H, U> ReqResDataMut for (B, H, U)
+impl<B, H, S> ReqResDataMut for (B, H, Uri<S>)
 where
   B: Clear,
   H: LeaseMut<Headers>,
-  U: LeaseMut<UriString>,
+  S: Clear + Lease<str>,
 {
   #[inline]
   fn clear(&mut self) {
     self.0.clear();
     self.1.lease_mut().clear();
-    self.2.lease_mut().clear();
+    self.2.clear();
   }
 
   #[inline]
@@ -375,7 +375,7 @@ where
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
-    (&mut self.0, self.1.lease_mut(), self.2.lease())
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (&mut self.0, self.1.lease_mut(), self.2.to_ref())
   }
 }

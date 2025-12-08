@@ -110,12 +110,17 @@ where
   }
 
   /// The host and port number of the server to which the request is being sent.
+  ///
+  /// Uses the underlying URI if `value` is `None`.
   #[inline]
-  pub fn host(&mut self, value: Arguments<'_>) -> crate::Result<&mut Self> {
-    self
-      .rrd
-      .headers_mut()
-      .push_from_fmt(Header::from_name_and_value(KnownHeaderName::Host.into(), value))?;
+  pub fn host(&mut self, value: Option<Arguments<'_>>) -> crate::Result<&mut Self> {
+    let (_, headers, uri) = self.rrd.parts_mut();
+    let name = KnownHeaderName::Host;
+    if let Some(elem) = value {
+      headers.push_from_fmt(Header::from_name_and_value(name.into(), elem))?;
+    } else {
+      headers.push_from_iter(Header::from_name_and_value(name.into(), [uri.host()]))?;
+    }
     Ok(self)
   }
 

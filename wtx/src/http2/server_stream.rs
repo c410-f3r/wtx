@@ -1,12 +1,13 @@
 use crate::{
+  collection::Vector,
   http::{Method, Protocol, ReqResBuffer, ReqResData, Response},
   http2::{
     CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{manage_recurrent_receiving_of_overall_stream, process_higher_operation_err},
-    send_msg::send_msg,
     stream_receiver::StreamControlRecvParams,
     u31::U31,
+    write_functions::send_msg,
   },
   misc::{Lease, LeaseMut, SingleTypeStorage, span::Span},
   stream::StreamWriter,
@@ -81,7 +82,7 @@ where
           &inner.is_conn_open,
           *stream_id,
           |hdpm, _, stream_state, windows| {
-            drop(hdpm.hb.scrp.insert(
+            drop(hdpm.hb.scrps.insert(
               *stream_id,
               StreamControlRecvParams {
                 is_stream_open: true,
@@ -112,7 +113,11 @@ where
   /// are successfully executed. More specifically, should only be called in a half-closed stream
   /// state.
   #[inline]
-  pub async fn send_res<RRD>(&mut self, res: Response<RRD>) -> crate::Result<Http2SendStatus>
+  pub async fn send_res<RRD>(
+    &mut self,
+    enc_buffer: &mut Vector<u8>,
+    res: Response<RRD>,
+  ) -> crate::Result<Http2SendStatus>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
@@ -122,8 +127,9 @@ where
     _trace!("Sending response");
     let hss = send_msg::<_, _, false>(
       res.rrd.body().lease(),
-      inner,
+      enc_buffer,
       res.rrd.headers(),
+      inner,
       (
         HpackStaticRequestHeaders::EMPTY,
         HpackStaticResponseHeaders { status_code: Some(res.status_code) },

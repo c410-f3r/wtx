@@ -13,6 +13,7 @@ mod deque;
 mod expansion_ty;
 mod linear_storage;
 mod misc;
+mod truncate;
 mod try_extend;
 mod vector;
 
@@ -31,5 +32,6 @@ pub use deque::{Deque, DequeueError};
 pub use expansion_ty::ExpansionTy;
 pub use linear_storage::linear_storage_len::LinearStorageLen;
 pub use misc::backward_deque_idx;
+pub use truncate::Truncate;
 pub use try_extend::TryExtend;
 pub use vector::{Vector, VectorError};

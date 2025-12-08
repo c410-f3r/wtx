@@ -23,6 +23,12 @@ impl<RRD> ReqBuilder<RRD> {
     Self { method: Method::Get, rrb: ReqResBuilder::new(rrd), version: Version::Http2 }
   }
 
+  /// Constructor shortcut that has the provided method.
+  #[inline]
+  pub const fn method(method: Method, rrd: RRD) -> Self {
+    Self { method, rrb: ReqResBuilder::new(rrd), version: Version::Http2 }
+  }
+
   /// Constructor shortcut that has a default `POST` method
   #[inline]
   pub const fn post(rrd: RRD) -> Self {
@@ -37,7 +43,7 @@ impl<RRD> ReqBuilder<RRD> {
 
   /// Changes the method
   #[inline]
-  pub const fn method(&mut self, method: Method) -> &mut Self {
+  pub const fn set_method(&mut self, method: Method) -> &mut Self {
     self.method = method;
     self
   }

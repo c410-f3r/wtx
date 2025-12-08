@@ -20,7 +20,7 @@ async fn main() -> wtx::Result<()> {
     |_, stream| async move { Ok(stream.into_split()) },
     |error| eprintln!("{error}"),
     |_| Ok(((), Http2Buffer::new(&mut Xorshift64::from(simple_seed())), Http2Params::default())),
-    |_| Ok(((), ReqResBuffer::empty())),
+    |_| Ok(()),
     |_, _, _, _, _| Ok(((), OperationMode::Auto)),
     |error| eprintln!("{error}"),
     auto,

@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayStringU16,
+  collection::{ArrayStringU16, Clear, Truncate, TryExtend},
   de::FromRadix10 as _,
   misc::{Lease, LeaseMut, bytes_pos1, bytes_rpos1, str_split_once1, str_split1},
 };
@@ -142,6 +142,12 @@ where
   #[inline]
   pub fn hostname_with_implied_port(&self) -> (&str, u16) {
     (self.hostname(), self.port().unwrap_or_default())
+  }
+
+  /// Unwraps the underlying backing string
+  #[inline]
+  pub fn into_inner(self) -> S {
+    self.uri
   }
 
   /// Returns the number of characters.
@@ -410,7 +416,10 @@ where
   }
 }
 
-impl UriString {
+impl<S> Uri<S>
+where
+  S: Clear + Lease<str>,
+{
   /// Removes all content.
   #[inline]
   pub fn clear(&mut self) {
@@ -434,15 +443,27 @@ impl UriString {
     uri.clear();
   }
 
+  /// Clears the internal storage and makes room for a new base URI.
+  #[inline]
+  pub fn reset(&mut self) -> UriReset<'_, S> {
+    self.uri.clear();
+    UriReset(self)
+  }
+}
+
+impl<S> Uri<S>
+where
+  for<'any> S: Lease<str> + Truncate<usize> + TryExtend<&'any str> + Write,
+{
   /// Pushes an additional path only if there is no query.
   #[inline]
   pub fn push_path(&mut self, args: Arguments<'_>) -> crate::Result<()> {
     if !self.query_and_fragment().is_empty() {
       return Err(crate::Error::UriCanNotBeOverwritten);
     }
-    let prev = self.uri.len();
+    let prev = self.uri.lease().len();
     self.uri.write_fmt(args)?;
-    let diff = self.uri.len().wrapping_sub(prev).try_into().unwrap_or(u16::MAX);
+    let diff = self.uri.lease().len().wrapping_sub(prev).try_into().unwrap_or(u16::MAX);
     self.query_start = self.query_start.wrapping_add(diff);
     self.fragment_start = self.fragment_start.wrapping_add(diff);
     Ok(())
@@ -454,7 +475,7 @@ impl UriString {
     &mut self,
     param: &str,
     value: ELEM,
-  ) -> crate::Result<QueryWriter<'_, String>>
+  ) -> crate::Result<QueryWriter<'_, S>>
   where
     ELEM: Display,
   {
@@ -471,7 +492,7 @@ impl UriString {
     param: &str,
     value: impl IntoIterator<Item = ELEM>,
     sep: SEP,
-  ) -> crate::Result<QueryWriter<'_, String>>
+  ) -> crate::Result<QueryWriter<'_, S>>
   where
     ELEM: Display,
     SEP: Display,
@@ -480,13 +501,6 @@ impl UriString {
       return Err(crate::Error::UriCanNotBeOverwritten);
     }
     QueryWriter { s: &mut self.uri }.do_write_many::<_, _, true>(param, value, sep)
-  }
-
-  /// Clears the internal storage and makes room for a new base URI.
-  #[inline]
-  pub fn reset(&mut self) -> UriReset<'_, String> {
-    self.uri.clear();
-    UriReset(self)
   }
 
   /// Truncates the internal storage with the length of the base URI created in this instance.
@@ -499,9 +513,9 @@ impl UriString {
   #[cfg(all(feature = "base64", feature = "http"))]
   pub(crate) fn buffer(
     &mut self,
-    cb: impl FnOnce(&mut String) -> crate::Result<()>,
+    cb: impl FnOnce(&mut S) -> crate::Result<()>,
   ) -> crate::Result<()> {
-    let idx = self.uri.len();
+    let idx = self.uri.lease().len();
     let rslt = cb(&mut self.uri);
     self.uri.truncate(idx);
     rslt?;

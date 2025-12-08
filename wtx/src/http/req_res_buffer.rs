@@ -1,7 +1,7 @@
 use crate::{
   collection::Vector,
   http::{Headers, Method, ReqResData, ReqResDataMut, Request, Response, StatusCode, Version},
-  misc::{Lease, LeaseMut, UriString},
+  misc::{Lease, LeaseMut, UriRef, UriString},
 };
 use alloc::string::String;
 
@@ -97,8 +97,8 @@ impl ReqResData for ReqResBuffer {
   }
 
   #[inline]
-  fn uri(&self) -> &UriString {
-    &self.uri
+  fn uri(&self) -> UriRef<'_> {
+    self.uri.to_ref()
   }
 }
 
@@ -127,8 +127,8 @@ impl ReqResDataMut for ReqResBuffer {
   }
 
   #[inline]
-  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, &UriString) {
-    (&mut self.body, &mut self.headers, &self.uri)
+  fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>) {
+    (&mut self.body, &mut self.headers, self.uri.to_ref())
   }
 }
 

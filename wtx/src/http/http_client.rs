@@ -1,6 +1,7 @@
 use crate::{
-  http::{Method, ReqBuilder, ReqResBuffer, ReqResData, Response},
-  misc::{Lease, UriRef},
+  collection::Vector,
+  http::{ReqBuilder, ReqResBuffer, ReqResData, Response},
+  misc::Lease,
 };
 
 /// Generic HTTP client
@@ -16,59 +17,32 @@ pub trait HttpClient {
     req_id: Self::ReqId,
   ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>>;
 
+  /// Sends a request
+  fn send_req<RRD>(
+    &self,
+    enc_buffer: &mut Vector<u8>,
+    rb: ReqBuilder<RRD>,
+  ) -> impl Future<Output = crate::Result<Self::ReqId>>
+  where
+    RRD: ReqResData,
+    RRD::Body: Lease<[u8]>;
+
   /// Sends a request a [`ReqResData`] and receives a response using [`ReqResBuffer`].
   #[inline]
-  fn send_recv_dual<RRD>(
+  fn send_req_recv_res<RRD>(
     &self,
-    method: Method,
-    rrb: ReqResBuffer,
-    rrd: RRD,
-    uri: &UriRef<'_>,
+    mut rrb: ReqResBuffer,
+    rb: ReqBuilder<RRD>,
   ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
     async move {
-      let req_id = self.send_req(method, rrd, uri).await?;
+      let req_id = self.send_req(&mut rrb.body, rb).await?;
       self.recv_res(rrb, req_id).await
     }
   }
-
-  /// Sends a request and receives a response using a [`ReqBuilder`].
-  #[inline]
-  fn send_recv_rb(
-    &self,
-    rb: ReqBuilder<ReqResBuffer>,
-    uri: &UriRef<'_>,
-  ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>> {
-    self.send_recv_single(rb.method, rb.rrb.rrd, uri)
-  }
-
-  /// Sends a request and receives a response using a single [`ReqResBuffer`].
-  #[inline]
-  fn send_recv_single(
-    &self,
-    method: Method,
-    rrb: ReqResBuffer,
-    uri: &UriRef<'_>,
-  ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>> {
-    async move {
-      let req_id = self.send_req(method, &rrb, uri).await?;
-      self.recv_res(rrb, req_id).await
-    }
-  }
-
-  /// Sends a request
-  fn send_req<RRD>(
-    &self,
-    method: Method,
-    rrd: RRD,
-    uri: &UriRef<'_>,
-  ) -> impl Future<Output = crate::Result<Self::ReqId>>
-  where
-    RRD: ReqResData,
-    RRD::Body: Lease<[u8]>;
 }
 
 impl<T> HttpClient for &mut T
@@ -89,24 +63,24 @@ where
   #[inline]
   async fn send_req<RRD>(
     &self,
-    method: Method,
-    rrd: RRD,
-    uri: &UriRef<'_>,
+    enc_buffer: &mut Vector<u8>,
+    rb: ReqBuilder<RRD>,
   ) -> crate::Result<Self::ReqId>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
-    (**self).send_req(method, rrd, uri).await
+    (**self).send_req(enc_buffer, rb).await
   }
 }
 
 #[cfg(feature = "http2")]
 mod http2 {
   use crate::{
-    http::{HttpClient, Method, ReqResBuffer, ReqResData, Request, Response},
+    collection::Vector,
+    http::{HttpClient, ReqBuilder, ReqResBuffer, ReqResData, Response},
     http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
-    misc::{Lease, LeaseMut, UriRef},
+    misc::{Lease, LeaseMut},
     stream::StreamWriter,
   };
 
@@ -125,7 +99,7 @@ mod http2 {
     ) -> crate::Result<Response<ReqResBuffer>> {
       let (hrs, res_rrb) = req_id.recv_res(rrb).await?;
       let status_code = match hrs {
-        Http2RecvStatus::Eos(elem) => elem,
+        Http2RecvStatus::ClosedStream(elem) | Http2RecvStatus::Eos(elem) => elem,
         _ => return Err(crate::Error::ClosedHttpConnection),
       };
       req_id.common().clear(false).await?;
@@ -135,16 +109,15 @@ mod http2 {
     #[inline]
     async fn send_req<RRD>(
       &self,
-      method: Method,
-      rrd: RRD,
-      uri: &UriRef<'_>,
+      enc_buffer: &mut Vector<u8>,
+      rb: ReqBuilder<RRD>,
     ) -> crate::Result<Self::ReqId>
     where
       RRD: ReqResData,
       RRD::Body: Lease<[u8]>,
     {
       let mut req_id = self.stream().await?;
-      if req_id.send_req(Request::http2(method, rrd), uri).await?.is_closed() {
+      if req_id.send_req(enc_buffer, rb.into_request()).await?.is_closed() {
         return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)
@@ -155,12 +128,13 @@ mod http2 {
 #[cfg(feature = "http-client-pool")]
 mod http_client_pool {
   use crate::{
+    collection::Vector,
     http::{
-      HttpClient, Method, ReqResBuffer, ReqResData, Request, Response,
+      HttpClient, ReqBuilder, ReqResBuffer, ReqResData, Response,
       client_pool::{ClientPool, ClientPoolResource},
     },
     http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
-    misc::{Lease, LeaseMut, UriRef},
+    misc::{Lease, LeaseMut},
     pool::ResourceManager,
     stream::StreamWriter,
   };
@@ -190,15 +164,14 @@ mod http_client_pool {
     #[inline]
     async fn send_req<RRD>(
       &self,
-      method: Method,
-      rrd: RRD,
-      uri: &UriRef<'_>,
+      enc_buffer: &mut Vector<u8>,
+      rb: ReqBuilder<RRD>,
     ) -> crate::Result<Self::ReqId>
     where
       RRD: ReqResData,
       RRD::Body: Lease<[u8]>,
     {
-      (&self).send_req(method, rrd, uri).await
+      (&self).send_req(enc_buffer, rb).await
     }
   }
 
@@ -223,7 +196,7 @@ mod http_client_pool {
     ) -> crate::Result<Response<ReqResBuffer>> {
       let (hrs, res_rrb) = req_id.recv_res(rrb).await?;
       let status_code = match hrs {
-        Http2RecvStatus::Eos(elem) => elem,
+        Http2RecvStatus::ClosedStream(elem) | Http2RecvStatus::Eos(elem) => elem,
         _ => return Err(crate::Error::ClosedHttpConnection),
       };
       req_id.common().clear(false).await?;
@@ -233,16 +206,15 @@ mod http_client_pool {
     #[inline]
     async fn send_req<RRD>(
       &self,
-      method: Method,
-      rrd: RRD,
-      uri: &UriRef<'_>,
+      enc_buffer: &mut Vector<u8>,
+      rb: ReqBuilder<RRD>,
     ) -> crate::Result<Self::ReqId>
     where
       RRD: ReqResData,
       RRD::Body: Lease<[u8]>,
     {
-      let mut req_id = self.lock(uri).await?.client.stream().await?;
-      if req_id.send_req(Request::http2(method, rrd), uri).await?.is_closed() {
+      let mut req_id = self.lock(&rb.rrb.rrd.uri()).await?.client.stream().await?;
+      if req_id.send_req(enc_buffer, rb.into_request()).await?.is_closed() {
         return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)

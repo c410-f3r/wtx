@@ -73,35 +73,40 @@ pub(crate) fn sorp_mut(
 /// * If the streams are in overall receiving mode, than `scrp` don't exist.
 /// * Callers of this function are already in an active future, as such, it is not necessary to
 ///   awake them again.
-pub(crate) fn manage_recurrent_receiving_of_overall_stream<E, const IS_CLIENT: bool>(
+pub(crate) fn manage_recurrent_receiving_of_overall_stream<EOS, const IS_CLIENT: bool>(
   cx: &mut Context<'_>,
   mut hdpm: Http2DataPartsMut<'_, IS_CLIENT>,
   is_conn_open: &AtomicBool,
   stream_id: U31,
-  cb: impl FnOnce(&mut Http2DataPartsMut<'_, IS_CLIENT>, StatusCode, StreamState, Windows) -> E,
-) -> Poll<crate::Result<(Http2RecvStatus<E, ()>, ReqResBuffer)>> {
-  let sorp = sorp_mut(&mut hdpm.hb.sorp, stream_id)?;
-  'invalid: {
-    let hrs = match (connection_state(is_conn_open), sorp.is_stream_open) {
-      (ConnectionState::Closed, false | true) => Http2RecvStatus::ClosedConnection,
-      (ConnectionState::Open, false) => Http2RecvStatus::ClosedStream,
-      (ConnectionState::Open, true) => break 'invalid,
-    };
-    let rrb = mem::take(&mut sorp.rrb);
-    drop(hdpm.hb.sorp.remove(&stream_id));
-    frame_reader_rslt(hdpm.frame_reader_error)?;
-    return Poll::Ready(Ok((hrs, rrb)));
+  cb_eos: impl FnOnce(&mut Http2DataPartsMut<'_, IS_CLIENT>, StatusCode, StreamState, Windows) -> EOS,
+) -> Poll<crate::Result<(Http2RecvStatus<EOS, ()>, ReqResBuffer)>> {
+  macro_rules! eos {
+    ($hdpm:expr, $hrs:ident, $sorp:expr, $stream_id:expr) => {{
+      let content_length = $sorp.content_length;
+      let rrb = mem::take(&mut $sorp.rrb);
+      let status_code = $sorp.status_code;
+      let stream_state = $sorp.stream_state;
+      let windows = $sorp.windows;
+      drop($hdpm.hb.sorps.remove($stream_id));
+      check_content_length(content_length, &rrb)?;
+      let eos = cb_eos(&mut $hdpm, status_code, stream_state, windows);
+      Poll::Ready(Ok((Http2RecvStatus::$hrs(eos), rrb)))
+    }};
+  }
+
+  let sorp = sorp_mut(&mut hdpm.hb.sorps, stream_id)?;
+  match (connection_state(is_conn_open), sorp.is_stream_open) {
+    (ConnectionState::Closed, false | true) => {
+      let rrb = mem::take(&mut sorp.rrb);
+      drop(hdpm.hb.sorps.remove(&stream_id));
+      frame_reader_rslt(hdpm.frame_reader_error)?;
+      return Poll::Ready(Ok((Http2RecvStatus::ClosedConnection, rrb)));
+    }
+    (ConnectionState::Open, false) => return eos!(hdpm, ClosedStream, sorp, &stream_id),
+    (ConnectionState::Open, true) => {}
   }
   if sorp.stream_state.recv_eos() {
-    let content_length = sorp.content_length;
-    let rrb = mem::take(&mut sorp.rrb);
-    let status_code = sorp.status_code;
-    let stream_state = sorp.stream_state;
-    let windows = sorp.windows;
-    drop(hdpm.hb.sorp.remove(&stream_id));
-    check_content_length(content_length, &rrb)?;
-    let rslt = cb(&mut hdpm, status_code, stream_state, windows);
-    return Poll::Ready(Ok((Http2RecvStatus::Eos(rslt), rrb)));
+    return eos!(hdpm, Eos, sorp, &stream_id);
   }
   sorp.waker.clone_from(cx.waker());
   Poll::Pending
@@ -291,10 +296,10 @@ pub(crate) async fn send_go_away<HB, SW, const IS_CLIENT: bool>(
     while let Some(elem) = hdpm.hb.initial_server_streams_local.pop_front() {
       elem.wake();
     }
-    for (_, value) in hdpm.hb.scrp.drain() {
+    for (_, value) in hdpm.hb.scrps.drain() {
       value.waker.wake();
     }
-    for (_, value) in hdpm.hb.sorp.drain() {
+    for (_, value) in hdpm.hb.sorps.drain() {
       value.waker.wake();
     }
     inner.read_frame_waker.wake();
@@ -322,13 +327,13 @@ where
     .write_all(&ResetStreamFrame::new(error_code, stream_id).bytes())
     .await;
   let mut hd_guard = inner.hd.lock().await;
-  if let Some(elem) = hd_guard.parts_mut().hb.scrp.get_mut(&stream_id) {
+  if let Some(elem) = hd_guard.parts_mut().hb.scrps.get_mut(&stream_id) {
     has_stored = true;
     elem.is_stream_open = false;
     elem.stream_state = StreamState::Closed;
     elem.waker.wake_by_ref();
   }
-  if let Some(elem) = hd_guard.parts_mut().hb.sorp.get_mut(&stream_id) {
+  if let Some(elem) = hd_guard.parts_mut().hb.sorps.get_mut(&stream_id) {
     has_stored = true;
     elem.is_stream_open = false;
     elem.stream_state = StreamState::Closed;
@@ -350,7 +355,7 @@ pub(crate) fn status_recv<E, O>(
     return Ok(Some(Http2RecvStatus::ClosedConnection));
   }
   if !sorp.is_stream_open {
-    return Ok(Some(Http2RecvStatus::ClosedStream));
+    return Ok(Some(Http2RecvStatus::ClosedStream(eos_cb(sorp)?)));
   }
   if sorp.stream_state.recv_eos() {
     return Ok(Some(Http2RecvStatus::Eos(eos_cb(sorp)?)));

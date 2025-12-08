@@ -7,7 +7,7 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use wtx::{
-  http::{HttpClient, Method, ReqResBuffer, client_pool::ClientPoolBuilder},
+  http::{HttpClient, ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
   misc::{Uri, from_utf8_basic},
 };
 
@@ -15,7 +15,7 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
   let pool = ClientPoolBuilder::tokio(1).build();
-  let res = pool.send_recv_single(Method::Get, ReqResBuffer::empty(), &uri).await?;
+  let res = pool.send_req_recv_res(ReqResBuffer::empty(), ReqBuilder::get(uri.to_ref())).await?;
   println!("{}", from_utf8_basic(&res.rrd.body)?);
   Ok(())
 }
