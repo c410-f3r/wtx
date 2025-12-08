@@ -14,7 +14,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  http::{HttpClient, ReqBuilder, WTX_USER_AGENT},
+  http::{HttpClient, ReqBuilder, ReqResBuffer, WTX_USER_AGENT},
   http2::{ClientStream, Http2, Http2Buffer},
   misc::LeaseMut,
   stream::StreamWriter,
@@ -126,10 +126,12 @@ where
   let (req_params, res_params) = tp.ext_params_mut();
   let HttpReqParams { rrb, .. } = req_params;
   let HttpResParams { status_code } = res_params;
-  mem::swap(&mut rrb.body, &mut pkgs_aux.bytes_buffer);
-  let mut res = client.recv_res(mem::take(rrb), req_id).await?;
+  let mut local_rrb = ReqResBuffer::empty();
+  mem::swap(&mut local_rrb.body, &mut pkgs_aux.bytes_buffer);
+  mem::swap(&mut local_rrb.headers, &mut rrb.headers);
+  let mut res = client.recv_res(local_rrb, req_id).await?;
   mem::swap(&mut res.rrd.body, &mut pkgs_aux.bytes_buffer);
-  *rrb = res.rrd;
+  mem::swap(&mut res.rrd.headers, &mut rrb.headers);
   *status_code = res.status_code;
   log_http_res(
     &pkgs_aux.bytes_buffer,
@@ -162,9 +164,9 @@ where
     &pkgs_aux.tp.lease().ext_req_params().rrb.uri,
   );
   manage_params(local_bytes0.len(), pkgs_aux)?;
-  let HttpReqParams { rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
+  let HttpReqParams { method, rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
   let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
-  let rb = ReqBuilder::post((local_bytes, &rrb.headers, rrb.uri.to_ref()));
+  let rb = ReqBuilder::method(*method, (local_bytes, &rrb.headers, rrb.uri.to_ref()));
   let rslt = client.send_req(&mut rrb.body, rb).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(rslt)
@@ -191,8 +193,8 @@ where
     &pkgs_aux.tp.lease().ext_req_params().rrb.uri,
   );
   manage_params(pkgs_aux.bytes_buffer.len(), pkgs_aux)?;
-  let HttpReqParams { rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
-  let rb = ReqBuilder::post((&pkgs_aux.bytes_buffer, &rrb.headers, rrb.uri.to_ref()));
+  let HttpReqParams { method, rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
+  let rb = ReqBuilder::method(*method, (&pkgs_aux.bytes_buffer, &rrb.headers, rrb.uri.to_ref()));
   let rslt = client.send_req(&mut rrb.body, rb).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, client).await?;
   Ok(rslt)
