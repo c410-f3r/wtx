@@ -2,7 +2,7 @@ use crate::{
   collection::{ArrayString, ArrayVector, LinearStorageLen, Vector},
   misc::{Wrapper, from_utf8_basic},
 };
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 /// A trait for extending collections with fallible operations.
 pub trait TryExtend<S> {
@@ -157,6 +157,43 @@ where
       return Err(crate::Error::InsufficientOptionCapacity);
     };
     *self = Some(elem);
+    Ok(())
+  }
+}
+
+// String
+
+impl<'slice> TryExtend<&'slice str> for String {
+  #[inline]
+  fn try_extend(&mut self, set: &'slice str) -> crate::Result<()> {
+    self.push_str(set);
+    Ok(())
+  }
+}
+
+impl<'slice> TryExtend<&'slice [u8]> for String {
+  #[inline]
+  fn try_extend(&mut self, set: &'slice [u8]) -> crate::Result<()> {
+    self.push_str(from_utf8_basic(set)?);
+    Ok(())
+  }
+}
+
+impl<const M: usize> TryExtend<[u8; M]> for String {
+  #[inline]
+  fn try_extend(&mut self, set: [u8; M]) -> crate::Result<()> {
+    self.push_str(from_utf8_basic(&set)?);
+    Ok(())
+  }
+}
+
+impl<I> TryExtend<Wrapper<I>> for String
+where
+  I: IntoIterator<Item = char>,
+{
+  #[inline]
+  fn try_extend(&mut self, set: Wrapper<I>) -> crate::Result<()> {
+    self.extend(set.0);
     Ok(())
   }
 }

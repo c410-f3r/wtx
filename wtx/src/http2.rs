@@ -37,7 +37,6 @@ mod ping_frame;
 mod process_receipt_frame_ty;
 mod reader_data;
 mod reset_stream_frame;
-mod send_msg;
 mod server_stream;
 mod settings_frame;
 mod stream_receiver;
@@ -49,6 +48,7 @@ mod u31;
 mod web_socket_over_stream;
 mod window;
 mod window_update_frame;
+mod write_functions;
 mod writer_data;
 
 use crate::{
@@ -153,8 +153,7 @@ where
     hb.lease_mut().pfb.reserve(*Usize::from(hp.read_buffer_len()))?;
     let rd = reader_data::ReaderData::new(mem::take(&mut hb.lease_mut().pfb), stream_reader);
     let max_frame_len = hp.max_frame_len();
-    let wd =
-      writer_data::WriterData::new(mem::take(&mut hb.lease_mut().hpack_enc_buffer), stream_writer);
+    let wd = writer_data::WriterData::new(stream_writer);
     let inner = Arc::new(Http2Inner {
       hd: AsyncMutex::new(Http2Data::new(hb, hp)),
       is_conn_open,
@@ -200,7 +199,6 @@ where
   #[inline]
   pub async fn stream<T>(
     &self,
-    _: ReqResBuffer,
     mut cb: impl FnMut(Request<&mut ReqResBuffer>, Option<Protocol>) -> T,
   ) -> crate::Result<Option<(ServerStream<HB, SW>, T)>> {
     let Self { inner } = self;
@@ -222,7 +220,7 @@ where
         is_registered = true;
         return Poll::Pending;
       };
-      let Some(sorp) = hdpm.hb.sorp.get_mut(&lss.stream_id) else {
+      let Some(sorp) = hdpm.hb.sorps.get_mut(&lss.stream_id) else {
         // For example, GO_AWAY was sent before receiving a new stream
         misc::frame_reader_rslt(hdpm.frame_reader_error)?;
         return Poll::Ready(Ok(None));
@@ -269,7 +267,7 @@ where
     let Self { inner } = self;
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();
-    if hdpm.hb.sorp.len() >= *Usize::from(hdpm.hp.max_concurrent_streams_num()) {
+    if hdpm.hb.sorps.len() >= *Usize::from(hdpm.hp.max_concurrent_streams_num()) {
       drop(hd_guard);
       let err = misc::protocol_err(Http2Error::ExceedAmountOfActiveConcurrentStreams);
       misc::process_higher_operation_err(&err, inner).await;
@@ -277,7 +275,7 @@ where
     }
     let stream_id = *hdpm.last_stream_id;
     let span = _trace_span!("New client stream", stream_id = %stream_id);
-    drop(hdpm.hb.scrp.insert(
+    drop(hdpm.hb.scrps.insert(
       stream_id,
       stream_receiver::StreamControlRecvParams {
         is_stream_open: true,

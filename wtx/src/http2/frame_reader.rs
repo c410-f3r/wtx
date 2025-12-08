@@ -86,13 +86,11 @@ async fn finish<HB, SR, SW, const IS_CLIENT: bool>(
   SW: StreamWriter,
 {
   let mut hd_guard = inner.hd.lock().await;
-  let mut wd_guard = inner.wd.lock().await;
   let hdpm = hd_guard.parts_mut();
   if let Some(elem) = err {
     *hdpm.frame_reader_error = Some(elem);
   }
   mem::swap(&mut rd.pfb, &mut hdpm.hb.pfb);
-  mem::swap(&mut wd_guard.hpack_enc_buffer, &mut hdpm.hb.hpack_enc_buffer);
   _trace!("Finishing the reading of frames");
 }
 
@@ -114,7 +112,7 @@ where
       let frame = {
         let mut hd_guard = inner.hd.lock().await;
         let mut hdpm = hd_guard.parts_mut();
-        prft!(fi, hdpm, inner, rd).data(&mut hdpm.hb.sorp).await?
+        prft!(fi, hdpm, inner, rd).data(&mut hdpm.hb.sorps).await?
       };
       write_array([&frame], &inner.is_conn_open, &mut inner.wd.lock().await.stream_writer).await?;
     }
@@ -125,15 +123,15 @@ where
     FrameInitTy::Headers => {
       let mut hd_guard = inner.hd.lock().await;
       let mut hdpm = hd_guard.parts_mut();
-      if hdpm.hb.scrp.contains_key(&fi.stream_id) {
+      if hdpm.hb.scrps.contains_key(&fi.stream_id) {
         return Err(protocol_err(Http2Error::UnexpectedNonControlFrame));
       }
       if IS_CLIENT {
-        prft!(fi, hdpm, inner, rd).header_client(&mut hdpm.hb.sorp).await?;
-      } else if let Some(elem) = hdpm.hb.sorp.get_mut(&fi.stream_id) {
+        prft!(fi, hdpm, inner, rd).header_client(&mut hdpm.hb.sorps).await?;
+      } else if let Some(elem) = hdpm.hb.sorps.get_mut(&fi.stream_id) {
         prft!(fi, hdpm, inner, rd).header_server_trailer(elem).await?;
       } else {
-        let lss = prft!(fi, hdpm, inner, rd).header_server_init(&mut hdpm.hb.sorp).await?;
+        let lss = prft!(fi, hdpm, inner, rd).header_server_init(&mut hdpm.hb.sorps).await?;
         hdpm.hb.initial_server_streams_remote.push_back(lss)?;
         if let Some(elem) = hdpm.hb.initial_server_streams_local.pop_front() {
           elem.wake();
@@ -164,7 +162,7 @@ where
         {
           let mut hd_guard = inner.hd.lock().await;
           let hdpm = hd_guard.parts_mut();
-          hdpm.hps.update(&mut hdpm.hb.hpack_enc, &mut hdpm.hb.scrp, &sf, &mut hdpm.hb.sorp)?;
+          hdpm.hps.update(&mut hdpm.hb.hpack_enc, &mut hdpm.hb.scrps, &sf, &mut hdpm.hb.sorps)?;
         }
         write_array(
           [SettingsFrame::ack().bytes(&mut [0; 45])],
@@ -181,7 +179,7 @@ where
         let wuf = WindowUpdateFrame::read(rd.pfb.current(), fi)?;
         hdpm.windows.send_mut().deposit(None, wuf.size_increment().i32())?;
       } else {
-        prft!(fi, hdpm, inner, rd).window_update(&mut hdpm.hb.scrp, &mut hdpm.hb.sorp)?;
+        prft!(fi, hdpm, inner, rd).window_update(&mut hdpm.hb.scrps, &mut hdpm.hb.sorps)?;
       }
     }
   }

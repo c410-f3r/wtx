@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collection::{ArrayVectorU8, Vector},
   http::{Headers, StatusCode},
   http2::{
     Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
@@ -7,15 +7,11 @@ use crate::{
     misc::{
       check_content_length, frame_reader_rslt, sorp_mut, status_recv, status_send, write_array,
     },
-    send_msg::{
-      encode_headers, gen_standalone_data, gen_standalone_headers, gen_standalone_trailers,
-      write_data_frames, write_header_frames,
-    },
     u31::U31,
     window::WindowsPair,
-    writer_data::WriterData,
+    write_functions::{encode_headers, push_data, push_headers, push_trailers, write_frames},
   },
-  misc::{Either, LeaseMut, span::Span},
+  misc::{LeaseMut, Usize, span::Span},
   stream::StreamWriter,
   sync::Arc,
 };
@@ -47,10 +43,10 @@ where
     }
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();
-    if let Some(elem) = hdpm.hb.scrp.remove(stream_id) {
+    if let Some(elem) = hdpm.hb.scrps.remove(stream_id) {
       elem.waker.wake();
     }
-    if let Some(elem) = hdpm.hb.sorp.remove(stream_id) {
+    if let Some(elem) = hdpm.hb.sorps.remove(stream_id) {
       elem.waker.wake();
     }
     Ok(())
@@ -65,11 +61,11 @@ where
     let Self { inner, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Fetching data");
-    let mut pin = pin!(inner.hd.lock());
+    let mut hd_guard_pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, inner.hd, pin);
-      let hdpm = lock.parts_mut();
-      let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+      let mut hd_guard = lock_pin!(cx, inner.hd, hd_guard_pin);
+      let hdpm = hd_guard.parts_mut();
+      let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
       if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
         check_content_length(local_sorp.content_length, &local_sorp.rrb)?;
         Ok(mem::take(&mut local_sorp.rrb.body))
@@ -98,11 +94,11 @@ where
     let Self { inner, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Fetching trailers");
-    let mut pin = pin!(inner.hd.lock());
+    let mut hd_guard_pin = pin!(inner.hd.lock());
     poll_fn(|cx| {
-      let mut lock = lock_pin!(cx, inner.hd, pin);
-      let hdpm = lock.parts_mut();
-      let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+      let mut hd_guard = lock_pin!(cx, inner.hd, hd_guard_pin);
+      let hdpm = hd_guard.parts_mut();
+      let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
       if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
         Ok(mem::take(&mut local_sorp.rrb.headers))
       })? {
@@ -125,7 +121,7 @@ where
     let frame = {
       let mut hd_guard = inner.hd.lock().await;
       let hdpm = hd_guard.parts_mut();
-      let elem = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+      let elem = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
       let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
       wp.withdrawn_recv(hdpm.hp, *stream_id, U31::from_u32(value))?
     };
@@ -142,7 +138,7 @@ where
     let Self { inner, span: _, stream_id } = self;
     let mut lock = inner.hd.lock().await;
     let hdpm = lock.parts_mut();
-    let elem = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
+    let elem = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
     let mut wp = WindowsPair::new(hdpm.windows, &mut elem.windows);
     wp.withdrawn_send(Some(*stream_id), U31::from_u32(value))
   }
@@ -154,53 +150,53 @@ where
   /// This method will spin until the entirety of `data` is sent and such behavior depends on the
   /// current available window size as well as the negotiated maximum frame length.
   #[inline]
-  pub async fn send_data(&self, mut data: &[u8], is_eos: bool) -> crate::Result<Http2SendStatus> {
+  pub async fn send_data(&self, data: &[u8], is_eos: bool) -> crate::Result<Http2SendStatus> {
     let Self { inner, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Sending data");
-    let mut orig_data = data;
-    let mut has_data = false;
+    let mut data_idx = 0;
+    let mut frames = ArrayVectorU8::new();
     loop {
-      let mut hd_pin = pin!(inner.hd.lock());
-      let either = poll_fn(|cx| {
-        let mut hd_guard = lock_pin!(cx, inner.hd, hd_pin);
-        let hdpm = hd_guard.parts_mut();
-        let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
-        if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
-          return Poll::Ready(crate::Result::Ok(Either::Left(elem)));
-        }
-        let mut wp = WindowsPair::new(hdpm.windows, &mut sorp.windows);
-        let Ok(available_send @ 1..=u32::MAX) = u32::try_from(wp.available_send()) else {
-          cx.waker().wake_by_ref();
-          return Poll::Pending;
-        };
-        let (frames, _) = gen_standalone_data(
-          available_send,
-          &mut data,
-          is_eos,
-          &mut has_data,
-          false,
-          hdpm.hps.max_frame_len,
-          *stream_id,
-          &mut wp,
-        )?;
-        Poll::Ready(Ok(Either::Right(frames.map(|(header, body)| (header, body.len())))))
-      })
-      .await?;
-      match either {
-        Either::Left(el) => return Ok(el),
-        Either::Right(frames) => {
-          write_data_frames(
-            frames.map(|(header, len)| {
-              let (lhs, rhs) = orig_data.split_at_checked(len).unwrap_or_default();
-              orig_data = rhs;
-              (header, lhs)
-            }),
+      let opt = {
+        frames.clear();
+        let mut hd_pin = pin!(inner.hd.lock());
+        poll_fn(|cx| {
+          let mut hd_guard = lock_pin!(cx, inner.hd, hd_pin);
+          let hdpm = hd_guard.parts_mut();
+          let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
+          if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
+            return Poll::Ready(crate::Result::Ok(Some(elem)));
+          }
+          let mut wp = WindowsPair::new(hdpm.windows, &mut sorp.windows);
+          let Ok(available_send @ 1..=u32::MAX) = u32::try_from(wp.available_send()) else {
+            sorp.waker.clone_from(cx.waker());
+            return Poll::Pending;
+          };
+          let _ = push_data(
+            available_send,
+            data,
+            &mut data_idx,
+            &mut frames,
+            is_eos,
+            hdpm.hps.max_frame_len,
+            *stream_id,
+            &mut wp,
+          )?;
+          Poll::Ready(Ok(None))
+        })
+        .await?
+      };
+      match opt {
+        Some(el) => return Ok(el),
+        None => {
+          write_frames(
+            (&[], data),
+            &frames,
             &inner.is_conn_open,
             &mut inner.wd.lock().await.stream_writer,
           )
           .await?;
-          if has_data {
+          if *Usize::from(data_idx) >= data.len() {
             return Ok(Http2SendStatus::Ok);
           }
         }
@@ -219,6 +215,7 @@ where
   #[inline]
   pub async fn send_headers(
     &mut self,
+    enc_buffer: &mut Vector<u8>,
     headers: &Headers,
     is_eos: bool,
     status_code: StatusCode,
@@ -227,29 +224,38 @@ where
     let _e = span.enter();
     _trace!("Sending headers");
     let hsreh = HpackStaticResponseHeaders { status_code: Some(status_code) };
-    let mut hd_guard = inner.hd.lock().await;
-    let hdpm = hd_guard.parts_mut();
-    let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
-    if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
-      return Ok(elem);
-    }
-    let mut wd_guard = inner.wd.lock().await;
-    let WriterData { hpack_enc_buffer, stream_writer } = &mut *wd_guard;
-    encode_headers::<false>(
-      headers,
-      (&mut hdpm.hb.hpack_enc, hpack_enc_buffer),
-      (HpackStaticRequestHeaders::EMPTY, hsreh),
-    )?;
-    let max_frame_len = hdpm.hp.max_frame_len();
-    drop(hd_guard);
-    let (frames, _) = gen_standalone_headers::<IS_CLIENT>(
-      hpack_enc_buffer,
+    let max_frame_len = {
+      let mut hd_guard = inner.hd.lock().await;
+      let hdpm = hd_guard.parts_mut();
+      let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
+      if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
+        return Ok(elem);
+      }
+      encode_headers::<false>(
+        enc_buffer,
+        headers,
+        &mut hdpm.hb.hpack_enc,
+        (HpackStaticRequestHeaders::EMPTY, hsreh),
+      )?;
+      hdpm.hp.max_frame_len()
+    };
+    let mut frames = ArrayVectorU8::new();
+    let _ = push_headers::<IS_CLIENT>(
+      enc_buffer,
+      &mut frames,
+      &mut 0,
       (HpackStaticRequestHeaders::EMPTY, hsreh),
       is_eos,
       max_frame_len,
       *stream_id,
     )?;
-    write_header_frames(frames, &inner.is_conn_open, stream_writer).await?;
+    write_frames(
+      (&enc_buffer, &[]),
+      &frames,
+      &inner.is_conn_open,
+      &mut inner.wd.lock().await.stream_writer,
+    )
+    .await?;
     Ok(Http2SendStatus::Ok)
   }
 
@@ -267,22 +273,39 @@ where
   ///
   /// Returns `false` if the stream is already closed.
   #[inline]
-  pub async fn send_trailers(&mut self, trailers: &Headers) -> crate::Result<Http2SendStatus> {
+  pub async fn send_trailers(
+    &mut self,
+    enc_buffer: &mut Vector<u8>,
+    trailers: &Headers,
+  ) -> crate::Result<Http2SendStatus> {
     let Self { inner, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Sending {} trailers", trailers.headers_len());
-    let mut hd_guard = inner.hd.lock().await;
-    let hdpm = hd_guard.parts_mut();
-    let sorp = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
-    if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
-      return Ok(elem);
+    let mut frames = ArrayVectorU8::new();
+    {
+      let mut hd_guard = inner.hd.lock().await;
+      let hdpm = hd_guard.parts_mut();
+      let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
+      if let Some(elem) = status_send::<false>(&inner.is_conn_open, sorp) {
+        return Ok(elem);
+      }
+      let _ = push_trailers(
+        enc_buffer,
+        &mut frames,
+        trailers,
+        &mut hdpm.hb.hpack_enc,
+        &mut 0,
+        hdpm.hps.max_frame_len,
+        *stream_id,
+      )?;
     }
-    let mut wd_guard = inner.wd.lock().await;
-    let WriterData { hpack_enc_buffer, stream_writer } = &mut *wd_guard;
-    let hpack = (&mut hdpm.hb.hpack_enc, hpack_enc_buffer);
-    let frames = gen_standalone_trailers(trailers, hpack, hdpm.hps.max_frame_len, *stream_id)?;
-    drop(hd_guard);
-    write_header_frames(frames, &inner.is_conn_open, stream_writer).await?;
+    write_frames(
+      (enc_buffer, &[]),
+      &frames,
+      &inner.is_conn_open,
+      &mut inner.wd.lock().await.stream_writer,
+    )
+    .await?;
     Ok(Http2SendStatus::Ok)
   }
 
@@ -296,9 +319,6 @@ where
   #[inline]
   pub async fn windows(&self) -> crate::Result<crate::http2::Windows> {
     let Self { inner, span: _, stream_id } = self;
-    let mut lock = inner.hd.lock().await;
-    let hdpm = lock.parts_mut();
-    let elem = sorp_mut(&mut hdpm.hb.sorp, *stream_id)?;
-    Ok(elem.windows)
+    Ok(sorp_mut(&mut inner.hd.lock().await.parts_mut().hb.sorps, *stream_id)?.windows)
   }
 }

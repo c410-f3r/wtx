@@ -40,7 +40,11 @@ where
     rng: Xorshift64,
     mut stream: S,
   ) -> crate::Result<Self> {
-    let hss = stream.lease_mut().common().send_headers(headers, false, StatusCode::Ok).await?;
+    let hss = stream
+      .lease_mut()
+      .common()
+      .send_headers(&mut Vector::new(), headers, false, StatusCode::Ok)
+      .await?;
     if hss.is_closed() {
       return Err(crate::Error::ClosedHttpConnection);
     }
@@ -123,10 +127,7 @@ where
   SW: StreamWriter,
 {
   let (data, is_eos) = match stream.common().recv_data().await? {
-    Http2RecvStatus::ClosedConnection => {
-      return Err(crate::Error::ClosedHttpConnection);
-    }
-    Http2RecvStatus::ClosedStream => {
+    Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) => {
       return Err(crate::Error::ClosedHttpConnection);
     }
     Http2RecvStatus::Eos(data) => (data, true),

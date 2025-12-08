@@ -2,7 +2,8 @@
 
 use crate::{
   client_api_framework::network::transport::TransportParams,
-  http::{Headers, Method, Mime, StatusCode},
+  collection::Vector,
+  http::{Headers, Method, Mime, ReqResBuffer, StatusCode},
   misc::{Lease, LeaseMut, UriString},
 };
 use alloc::string::String;
@@ -17,11 +18,14 @@ impl HttpParams {
   pub fn from_uri(uri: String) -> Self {
     Self(
       HttpReqParams {
-        headers: Headers::new(),
         host: true,
         method: Method::Get,
         mime: None,
-        uri: UriString::new(uri),
+        rrb: ReqResBuffer {
+          body: Vector::new(),
+          headers: Headers::new(),
+          uri: UriString::new(uri),
+        },
         user_agent_custom: None,
         user_agent_default: true,
       },
@@ -70,18 +74,16 @@ impl TransportParams for HttpParams {
 #[derive(Debug)]
 #[doc = generic_trans_req_params_doc!("HTTP")]
 pub struct HttpReqParams {
-  /// Http headers
-  pub headers: Headers,
   /// If the host should be included in the headers.
   ///
   /// Defaults to `true`.
   pub host: bool,
-  /// Http method
+  /// See [`Method`].
   pub method: Method,
-  /// MIME type
+  /// See [`Mime`].
   pub mime: Option<Mime>,
-  /// URI
-  pub uri: UriString,
+  /// See [`ReqResBuffer`].
+  pub rrb: ReqResBuffer,
   /// Custom user agent that will be included in the headers
   ///
   /// If `user_agent_default` is `true`, then this field becomes a NO-OP.
@@ -96,14 +98,16 @@ impl HttpReqParams {
   /// Sets the inner parameters with their default values.
   #[inline]
   pub fn reset(&mut self) {
-    let Self { headers, host, method, mime, uri, user_agent_custom, user_agent_default } = self;
-    headers.clear();
+    let Self { host, method, mime, rrb, user_agent_custom, user_agent_default } = self;
     *host = true;
     *method = Method::Get;
     *mime = None;
-    uri.truncate_with_initial_len();
     *user_agent_custom = None;
     *user_agent_default = true;
+    let ReqResBuffer { body, headers, uri } = rrb;
+    body.clear();
+    headers.clear();
+    uri.truncate_with_initial_len();
   }
 }
 

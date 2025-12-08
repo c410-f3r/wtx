@@ -1,10 +1,11 @@
 use crate::{
   calendar::Instant,
+  collection::Vector,
   http::{
     AutoStream, ManualServerStream, OperationMode, Protocol, ReqResBuffer, Request, Response,
     optioned_server::OptionedServer,
   },
-  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
+  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus},
   misc::FnFut,
   stream::{StreamReader, StreamWriter},
 };
@@ -58,7 +59,7 @@ impl OptionedServer {
     HCEC: Clone + Fn(ERR) + Send + 'static,
     HCAC: Clone + Fn(HCACP) -> Result<(CA, Http2Buffer, Http2Params), ERR> + Send + 'static,
     HCACP: Clone + Send + 'static,
-    HCSC: Clone + Fn(&mut CA) -> Result<(SA, ReqResBuffer), ERR> + Send + 'static,
+    HCSC: Clone + Fn(&mut CA) -> Result<SA, ERR> + Send + 'static,
     HCOC: Clone
       + Fn(
         &CA,
@@ -131,11 +132,11 @@ impl OptionedServer {
         let rest = async move {
           loop {
             // !!! The line order is important !!!
-            let (stream_aux, rrb) = conn_http2_stream(&mut conn_ca)?;
+            let stream_aux = conn_http2_stream(&mut conn_ca)?;
             let stream_ca = conn_ca.clone();
             // !!! The line order is important !!!
             let (mut stream, rslt) = match http2
-              .stream(rrb, |req, protocol| {
+              .stream(|req, protocol| {
                 let op = conn_http2_om(
                   &stream_ca,
                   &mut conn_hcocp,
@@ -178,7 +179,7 @@ impl OptionedServer {
                   return Ok(());
                 }
                 let (hrs, local_rrb) = stream.recv_req().await?;
-                if hrs.is_closed() {
+                if let Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) = hrs {
                   return Ok(());
                 }
                 let req = local_rrb.into_http2_request(stream.method());
@@ -190,8 +191,13 @@ impl OptionedServer {
                   req,
                   stream_aux,
                 };
-                let res = stream_auto_cb.call((headers_aux, auto_stream)).await?;
-                let _ = stream.send_res(res).await?;
+                let mut res = stream_auto_cb.call((headers_aux, auto_stream)).await?;
+                let _ = stream
+                  .send_res(
+                    &mut Vector::from_vec(mem::take(&mut res.rrd.uri).into_inner().into_bytes()),
+                    res,
+                  )
+                  .await?;
                 Ok::<_, ERR>(())
               };
               let stream_fun_rslt = stream_fun.await;

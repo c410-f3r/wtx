@@ -31,7 +31,7 @@ async fn main() -> wtx::Result<()> {
           .set_max_recv_streams_num(u32::MAX),
       ))
     },
-    |_| Ok(((), ReqResBuffer::empty())),
+    |_| Ok(()),
     |_, _, _, _, _| Ok(((), OperationMode::Auto)),
     |error| eprintln!("{error}"),
     auto,

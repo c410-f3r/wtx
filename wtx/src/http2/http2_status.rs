@@ -1,22 +1,16 @@
 /// The possible states of a stream operation that is receiving data.
 #[derive(Clone, Copy, Debug)]
-pub enum Http2RecvStatus<E, O> {
-  /// Connection was closed, either locally or externally.
+pub enum Http2RecvStatus<EOS, ONG> {
+  /// Connection was closed (abruptly or not), either locally or externally.
   ClosedConnection,
-  /// Stream was closed, either locally or externally.
-  ClosedStream,
-  /// Remote peer sent an end of stream flag
-  Eos(E),
+  /// Stream was closed (abruptly or not), either locally or externally.
+  ClosedStream(EOS),
+  /// Remote peer sent an end of stream flag, which indicates a successful stream.
+  Eos(EOS),
   /// Signals an ongoing operation of an open stream
-  Ongoing(O),
-}
-
-impl<E, O> Http2RecvStatus<E, O> {
-  /// Is closed connection or stream
-  #[inline]
-  pub const fn is_closed(&self) -> bool {
-    matches!(self, Self::ClosedConnection | Self::ClosedStream)
-  }
+  ///
+  /// Unreachable if an higher operation is called.
+  Ongoing(ONG),
 }
 
 /// The possible states of a stream operation that is sending data.
