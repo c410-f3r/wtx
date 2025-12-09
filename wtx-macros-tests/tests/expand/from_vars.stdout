@@ -4,28 +4,42 @@ extern crate std;
 #[prelude_import]
 use std::prelude::rust_2021::*;
 pub struct Foo {
-    bar: String,
-    baz: String,
+    bar0: String,
+    bar1: Option<String>,
+    #[from_vars(parse_bar2)]
+    bar2: u16,
+    #[from_vars(parse_bar3)]
+    bar3: Option<u32>,
 }
 impl wtx::misc::FromVars for Foo {
     fn from_vars(vars: impl IntoIterator<Item = (String, String)>)
         -> wtx::Result<Self> {
-        let mut __bar = None;
-        let mut __baz = None;
+        let mut _bar0 = None;
+        let mut _bar1 = None;
+        let mut _bar2 = None;
+        let mut _bar3 = None;
         for (key, value) in vars {
             match key.as_str() {
-                "BAR" => __bar = Some(value),
-                "BAZ" => __baz = Some(value),
+                "BAR0" => _bar0 = Some(value),
+                "BAR1" => _bar1 = Some(value),
+                "BAR2" => _bar2 = Some(parse_bar2(value)?),
+                "BAR3" => _bar3 = Some(parse_bar3(value)?),
                 _ => {}
             }
         }
         Ok(Self {
-                bar: __bar.ok_or_else(||
-                            wtx::Error::MissingVar("bar".into()))?,
-                baz: __baz.ok_or_else(||
-                            wtx::Error::MissingVar("baz".into()))?,
+                bar0: _bar0.ok_or_else(||
+                            wtx::Error::MissingVar("bar0".into()))?,
+                bar1: _bar1,
+                bar2: _bar2.ok_or_else(||
+                            wtx::Error::MissingVar("bar2".into()))?,
+                bar3: _bar3,
             })
     }
 }
+
+fn parse_bar2(value: String) -> wtx::Result<u16> { Ok(value.parse()?) }
+
+fn parse_bar3(value: String) -> wtx::Result<u32> { Ok(value.parse()?) }
 
 fn main() {}

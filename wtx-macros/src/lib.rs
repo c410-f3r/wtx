@@ -49,7 +49,7 @@ pub fn from_records(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 /// Implements the `FromVars` trait.
-#[proc_macro_derive(FromVars)]
+#[proc_macro_derive(FromVars, attributes(from_vars))]
 pub fn from_vars(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
   match from_vars::from_vars(item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
