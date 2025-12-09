@@ -25,7 +25,18 @@ where
     &self,
     _: &mut CA,
     _: &mut Self::Aux,
-    req: &mut Request<ReqResBuffer>,
+    _: &mut Request<ReqResBuffer>,
+    _: &mut GrpcManager<DRSR>,
+  ) -> Result<ControlFlow<StatusCode, ()>, E> {
+    Ok(ControlFlow::Continue(()))
+  }
+
+  #[inline]
+  async fn res(
+    &self,
+    _: &mut CA,
+    _: &mut Self::Aux,
+    req: Response<&mut ReqResBuffer>,
     stream_aux: &mut GrpcManager<DRSR>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     req.rrd.headers.push_from_iter_many([
@@ -35,17 +46,6 @@ where
       ),
       Header::new(false, true, "grpc-status", [stream_aux.status_code_mut().as_str()].into_iter()),
     ])?;
-    Ok(ControlFlow::Continue(()))
-  }
-
-  #[inline]
-  async fn res(
-    &self,
-    _: &mut CA,
-    _: &mut Self::Aux,
-    _: Response<&mut ReqResBuffer>,
-    _: &mut GrpcManager<DRSR>,
-  ) -> Result<ControlFlow<StatusCode, ()>, E> {
     Ok(ControlFlow::Continue(()))
   }
 }
