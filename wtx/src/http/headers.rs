@@ -462,13 +462,18 @@ struct HeaderParts {
 
 #[cfg(test)]
 mod tests {
-  use crate::http::{Header, Headers, Trailers};
+  use crate::http::{Header, Headers, KnownHeaderName, Trailers};
 
   #[test]
   fn pop_resets_trailer_tail_state_correctly() {
     let mut headers = Headers::new();
 
-    headers.push_from_iter(Header::from_name_and_value("Content-Type", ["text/plain"])).unwrap();
+    headers
+      .push_from_iter(Header::from_name_and_value(
+        KnownHeaderName::ContentType.into(),
+        ["text/plain"],
+      ))
+      .unwrap();
     assert_eq!(headers.bytes_len(), 22);
     assert_eq!(headers.headers_len(), 1);
     assert_eq!(headers.trailers(), Trailers::None);
@@ -485,7 +490,7 @@ mod tests {
     assert_eq!(headers.trailers(), Trailers::None);
 
     let first = headers.get_by_idx(0).unwrap();
-    assert_eq!(first.name, "Content-Type");
+    assert_eq!(first.name, <&str>::from(KnownHeaderName::ContentType));
     assert!(!first.is_trailer);
   }
 }
