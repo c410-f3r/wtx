@@ -20,6 +20,7 @@ $rt test-with-features wtx aes-gcm
 $rt test-with-features wtx arbitrary
 $rt test-with-features wtx argon2
 $rt test-with-features wtx async-net
+$rt test-with-features wtx aws-lc-rs
 $rt test-with-features wtx base64
 $rt test-with-features wtx borsh
 $rt test-with-features wtx chacha20

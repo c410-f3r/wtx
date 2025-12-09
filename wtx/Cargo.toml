@@ -2,6 +2,7 @@
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 async-io = { default-features = false, optional = true, version = "2.0" }
 async-net = { default-features = false, optional = true, version = "2.0" }
+aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
@@ -18,6 +19,7 @@ libc = { default-features = false, optional = true, version = "0.2" }
 loom = { default-features = false, features = ["checkpoint", "futures"], optional = true, version = "0.7" }
 matchit = { default-features = false, optional = true, version = "0.8" }
 memchr = { default-features = false, optional = true, version = "2.0" }
+openssl = { default-features = false, optional = true, version = "0.10" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
@@ -26,14 +28,13 @@ rand_core = { default-features = false, optional = true, version = "0.9" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls = { default-features = false, optional = true, version = "0.23" }
-rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
 rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
+rustls-webpki = { default-features = false, optional = true, version = "0.103" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 serde_urlencoded = { default-features = false, optional = true, version = "0.7" }
-simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
+simdutf8 = { default-features = false, optional = true, version = "0.1" }
 tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
-tokio-rustls = { default-features = false, features = ["ring", "tls12"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"], optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
@@ -44,6 +45,7 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "=0.11.0-rc.1" }
 argon2 = { default-features = false, optional = true, version = "=0.6.0-rc.1" }
 chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "=0.10.0-rc.2" }
+chacha20poly1305 = { default-features = false, optional = true, version = "0.11.0-rc.1" }
 crypto-common = { default-features = false, optional = true, version = "=0.2.0-rc.4" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "=0.11.0-rc.3" }
 hmac = { default-features = false, optional = true, version = "=0.13.0-rc.2" }
@@ -86,6 +88,8 @@ portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 quick-protobuf = ["quick-protobuf/std", "std"]
 rand-compat = ["rand_core"]
+ring = ["dep:ring", "rustls-webpki?/ring"]
+rust-crypto = []
 rustls = ["dep:rustls", "rustls-pki-types"]
 schema-manager = ["database"]
 schema-manager-dev = ["schema-manager"]
@@ -93,15 +97,15 @@ secret = ["aes-gcm", "libc", "sha2", "std"]
 serde_json = ["serde", "serde_json/std", "std"]
 serde_urlencoded = ["serde", "dep:serde_urlencoded", "std"]
 std = []
+tls = []
 tokio = ["std", "dep:tokio"]
-tokio-rustls = ["ring", "rustls", "rustls-pemfile/std", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
 tracing-tree = ["std", "dep:tracing-tree"]
 web-socket = ["http"]
 web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 
 _async-tests = ["tokio/macros", "tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []
-_hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Crate must not decide for downstream users
+_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Crate must not decide for downstream users
 _integration-tests = ["serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]
 

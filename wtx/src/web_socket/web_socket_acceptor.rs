@@ -15,6 +15,18 @@ pub struct WebSocketAcceptor<C, R, RNG, WSB> {
 }
 
 impl<C, R, RNG, WSB> WebSocketAcceptor<C, R, RNG, WSB> {
+  /// WebSocket Buffer
+  #[inline]
+  pub fn buffer<NWSB>(self, elem: NWSB) -> WebSocketAcceptor<C, R, RNG, NWSB> {
+    WebSocketAcceptor {
+      compression: self.compression,
+      no_masking: self.no_masking,
+      req: self.req,
+      rng: self.rng,
+      wsb: elem,
+    }
+  }
+
   /// Defaults to no compression.
   #[inline]
   pub fn compression<NC>(self, elem: NC) -> WebSocketAcceptor<NC, R, RNG, WSB> {
@@ -53,18 +65,6 @@ impl<C, R, RNG, WSB> WebSocketAcceptor<C, R, RNG, WSB> {
   pub fn rng(mut self, elem: RNG) -> WebSocketAcceptor<C, R, RNG, WSB> {
     self.rng = elem;
     self
-  }
-
-  /// WebSocket Buffer
-  #[inline]
-  pub fn wsb<NWSB>(self, elem: NWSB) -> WebSocketAcceptor<C, R, RNG, NWSB> {
-    WebSocketAcceptor {
-      compression: self.compression,
-      no_masking: self.no_masking,
-      req: self.req,
-      rng: self.rng,
-      wsb: elem,
-    }
   }
 }
 

@@ -5,7 +5,6 @@
 //! mutex but you can also utilize any other method.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 

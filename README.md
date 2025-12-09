@@ -17,7 +17,7 @@
 [rustc-badge]: https://img.shields.io/badge/rustc-1.89-blue
 [rustc-url]: https://blog.rust-lang.org/2025/01/09/Rust-1.89.0.html
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 6 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 3 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [MySQL](https://dev.mysql.com/doc/dev/mysql-server/latest/), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 7 IETF RFCs ([6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [8446](https://datatracker.ietf.org/doc/html/rfc8446), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 3 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [MySQL](https://dev.mysql.com/doc/dev/mysql-server/latest/), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
 
 Works on embedded devices with heap allocators. If you find this crate interesting, please consider giving it a star ⭐ on `GitHub`.
 
@@ -34,6 +34,7 @@ In a way, `WTX` can be seen as an amalgamation that consolidates the functionali
 | [HTTP Client Pool][http-client-pool-doc]               | [reqwest][reqwest]                                                 | http-client-pool         |
 | [HTTP Server Framework][http-server-framework-doc]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
 | [HTTP/2][http2-doc]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
+| [TLS][tls-doc]                                         | [libssl][libssl], [rustls][rustls]                                 | tls                      |
 | [WebSocket][web-socket-doc]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     |
 
 Note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
@@ -104,6 +105,7 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 [http-client-pool-doc]: https://c410-f3r.github.io/wtx/http-client-pool/index.html
 [http-server-framework-doc]: https://c410-f3r.github.io/wtx/http-server-framework/index.html
 [http2-doc]: https://c410-f3r.github.io/wtx/http2/index.html
+[tls-doc]: https://c410-f3r.github.io/wtx/tls/index.html
 [web-socket-doc]: https://c410-f3r.github.io/wtx/web-socket/index.html
 
 [axum]: https://github.com/tokio-rs/axum
@@ -116,12 +118,14 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 [grpc]: https://github.com/grpc/grpc
 [h2]: https://github.com/hyperium/h2
 [jdbc]: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
+[libssl]: https://github.com/openssl/openssl
 [liquibase]: https://github.com/liquibase/liquibase
 [nghttp2]: https://github.com/nghttp2/nghttp2
 [odbc]: https://learn.microsoft.com/en-us/sql/odbc
 [r2d2]: https://github.com/sfackler/r2d2
 [refinery]: https://github.com/rust-db/refinery
 [reqwest]: https://github.com/seanmonstar/reqwest
+[rustls]: https://github.com/rustls/rustls
 [spring-boot]: https://github.com/spring-projects/spring-boot
 [sqlx]: https://github.com/launchbadge/sqlx
 [time]: https://github.com/time-rs/time

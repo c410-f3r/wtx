@@ -141,4 +141,5 @@ macro_rules! impl_trait {
 }
 
 impl_trait!(I16Counter, i16);
+impl_trait!(U16Counter, u16);
 impl_trait!(I32Counter, i32);

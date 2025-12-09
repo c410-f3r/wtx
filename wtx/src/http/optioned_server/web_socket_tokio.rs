@@ -66,7 +66,7 @@ impl OptionedServer {
             .call((WebSocketAcceptor::default()
               .compression(conn_compression_cb())
               .no_masking(true)
-              .wsb(wsb)
+              .buffer(wsb)
               .accept(net)
               .await?,))
             .await?;

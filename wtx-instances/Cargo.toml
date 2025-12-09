@@ -16,6 +16,11 @@ path = "src/bin/autobahn-server.rs"
 required-features = ["autobahn-server"]
 
 [[bin]]
+name = "boringssl"
+path = "src/bin/boringssl.rs"
+required-features = ["wtx/tls"]
+
+[[bin]]
 name = "h2load"
 path = "src/bin/h2load.rs"
 required-features = ["h2load"]
@@ -99,6 +104,11 @@ name = "secrets"
 path = "generic-examples/secrets.rs"
 required-features = ["secret"]
 
+[[example]]
+name = "tls"
+path = "generic-examples/tls.rs"
+required-features = ["tls"]
+
 # HTTP Server Framework Examples
 
 [[example]]
@@ -168,7 +178,6 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
-tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
 
@@ -190,7 +199,7 @@ client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-po
 environment-variables = ["wtx/std", "wtx-macros"]
 executor = ["wtx/executor", "wtx/macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]
-grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
+grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly"]
 http-client-pool = ["wtx/http-client-pool"]
 secret = ["wtx/secret"]
 
@@ -200,18 +209,17 @@ http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
 http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/nightly", "wtx/postgres", "wtx-macros"]
 
 http2-client = ["wtx/http2"]
-http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]
+http2-server = ["wtx/http2", "wtx/nightly", "wtx/tls", "wtx/web-socket"]
 
 web-socket-client = ["wtx/web-socket-handshake"]
-web-socket-client-concurrent = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
-web-socket-client-concurrent-channel = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
-web-socket-client-concurrent-mutex = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
-web-socket-server = ["tokio-rustls", "wtx/web-socket-handshake"]
+web-socket-client-concurrent = ["wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-client-concurrent-channel = ["wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-client-concurrent-mutex = ["wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-server = ["wtx/web-socket-handshake"]
 
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
 mysql = ["wtx/getrandom", "wtx/mysql"]
 postgres = ["wtx/getrandom", "wtx/postgres"]
-tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 
 [package]
 edition = "2024"

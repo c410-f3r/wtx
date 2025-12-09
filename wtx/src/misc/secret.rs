@@ -62,10 +62,11 @@ impl Drop for Protected {
   }
 }
 
-impl From<&[u8]> for Protected {
-  fn from(from: &[u8]) -> Self {
+impl From<&mut [u8]> for Protected {
+  fn from(from: &mut [u8]) -> Self {
     let mut protected = Protected::zeroed(from.len());
     copy_iter(from, &mut protected);
+    memset_slice_volatile(from, 0);
     protected
   }
 }
@@ -181,7 +182,7 @@ mod static_keys {
     let mut ctx = Sha256::new();
     ctx.update(salt);
     STATIC_KEYS.wait().iter().for_each(|static_key| ctx.update(static_key));
-    Protected::from(<[u8; 32]>::from(ctx.finalize()).as_ref())
+    Protected::from(<[u8; 32]>::from(ctx.finalize()).as_mut())
   }
 }
 

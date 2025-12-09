@@ -57,8 +57,9 @@ jobs:
       matrix:
         scripts: [
           '.scripts/autobahn-fuzzingclient.sh ci',
-          '.scripts/autobahn-fuzzingserver.sh ci',
           '.scripts/autobahn-fuzzingserver-concurrent.sh ci',
+          '.scripts/autobahn-fuzzingserver.sh ci',
+          '.scripts/boringssl.sh',
           '.scripts/h2load.sh ci',
           '.scripts/h2spec.sh high ci',
           '.scripts/h2spec.sh low ci',
