@@ -48,7 +48,7 @@ impl TimeZone for DynTz {
 
   #[expect(clippy::arithmetic_side_effects, reason = "`mph` is a constant")]
   #[inline]
-  fn iso_8601(self) -> ArrayStringU8<6> {
+  fn iso8601(self) -> ArrayStringU8<6> {
     let mph = i16::from(MINUTES_PER_HOUR);
     // SAFETY: the number of minutes is within the -1439..=1439 range
     let hour = unsafe {

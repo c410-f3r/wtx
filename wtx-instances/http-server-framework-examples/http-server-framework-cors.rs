@@ -14,6 +14,7 @@ async fn main() -> wtx::Result<()> {
       "0.0.0.0:9000",
       |error: wtx::Error| eprintln!("{error:?}"),
       |_| Ok(()),
+      |_| Ok(()),
       |error| eprintln!("{error}"),
     )
     .await?;

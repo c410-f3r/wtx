@@ -17,11 +17,11 @@ fn hour() {
 }
 
 #[test]
-fn iso_8601() {
-  assert_eq!(Time::ZERO.iso_8601().as_str(), "00:00:00");
-  assert_eq!(Time::MAX.iso_8601().as_str(), "23:59:59.999999999");
-  assert_eq!(_8_48_05_234_445_009().iso_8601().as_str(), "08:48:05.234445009");
-  assert_eq!(_14_20_30().iso_8601().as_str(), "14:20:30");
+fn iso8601() {
+  assert_eq!(Time::ZERO.iso8601().as_str(), "00:00:00");
+  assert_eq!(Time::MAX.iso8601().as_str(), "23:59:59.999999999");
+  assert_eq!(_8_48_05_234_445_009().iso8601().as_str(), "08:48:05.234445009");
+  assert_eq!(_14_20_30().iso8601().as_str(), "14:20:30");
 
   let valid = [
     "09:08:07",
@@ -37,9 +37,9 @@ fn iso_8601() {
     "09:08:07.123456789",
   ];
   for str in valid {
-    let time = Time::from_iso_8601(str.as_bytes()).unwrap();
-    let time_str = time.iso_8601();
-    assert_eq!(time, Time::from_iso_8601(time_str.as_bytes()).unwrap());
+    let time = Time::from_iso8601(str.as_bytes()).unwrap();
+    let time_str = time.iso8601();
+    assert_eq!(time, Time::from_iso8601(time_str.as_bytes()).unwrap());
   }
 
   let invalid = [
@@ -63,7 +63,7 @@ fn iso_8601() {
     "09:08:00000000007",
   ];
   for str in invalid {
-    assert!(Time::from_iso_8601(str.as_bytes()).is_err());
+    assert!(Time::from_iso8601(str.as_bytes()).is_err());
   }
 }
 

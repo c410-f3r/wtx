@@ -73,7 +73,7 @@ impl Time {
 
   /// Creates a new instance based on the string representation of the ISO-8601 specification.
   #[inline]
-  pub fn from_iso_8601(bytes: &[u8]) -> crate::Result<Self> {
+  pub fn from_iso8601(bytes: &[u8]) -> crate::Result<Self> {
     static TOKENS: &[CalendarToken] = &[
       CalendarToken::TwoDigitHour,
       CalendarToken::Colon,
@@ -103,7 +103,7 @@ impl Time {
 
   /// ISO-8601 string representation
   #[inline]
-  pub fn iso_8601(self) -> ArrayStringU8<18> {
+  pub fn iso8601(self) -> ArrayStringU8<18> {
     let mut array = ArrayString::new();
     let _rslt0 = array.push_str(self.hour().num_str());
     let _rslt1 = array.push(':');
@@ -252,7 +252,7 @@ impl Time {
 impl Debug for Time {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.iso_8601())
+    f.write_str(&self.iso8601())
   }
 }
 
@@ -266,7 +266,7 @@ impl Default for Time {
 impl Display for Time {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.iso_8601())
+    f.write_str(&self.iso8601())
   }
 }
 
@@ -299,7 +299,7 @@ mod serde {
         where
           E: Error,
         {
-          Time::from_iso_8601(v).map_err(E::custom)
+          Time::from_iso8601(v).map_err(E::custom)
         }
 
         #[inline]
@@ -307,7 +307,7 @@ mod serde {
         where
           E: Error,
         {
-          Time::from_iso_8601(value.as_bytes()).map_err(E::custom)
+          Time::from_iso8601(value.as_bytes()).map_err(E::custom)
         }
       }
 
@@ -320,7 +320,7 @@ mod serde {
     where
       S: Serializer,
     {
-      serializer.serialize_str(&self.iso_8601())
+      serializer.serialize_str(&self.iso8601())
     }
   }
 }

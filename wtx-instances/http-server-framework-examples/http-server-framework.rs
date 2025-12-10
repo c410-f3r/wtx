@@ -47,6 +47,7 @@ async fn main() -> wtx::Result<()> {
       &wtx_instances::host_from_args(),
       |error| eprintln!("{error:?}"),
       |_| Ok(()),
+      |_| Ok(()),
       |error| eprintln!("{error:?}"),
     )
     .await

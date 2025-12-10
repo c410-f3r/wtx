@@ -22,7 +22,7 @@ impl TimeZone for Local {
   }
 
   #[inline]
-  fn iso_8601(self) -> ArrayStringU8<6> {
+  fn iso8601(self) -> ArrayStringU8<6> {
     ArrayString::new()
   }
 

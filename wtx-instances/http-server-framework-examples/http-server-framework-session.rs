@@ -64,7 +64,13 @@ async fn main() -> wtx::Result<()> {
         session_state: None,
       })
     })
-    .tokio("0.0.0.0:9000", |err| eprintln!("{err:?}"), |_| Ok(()), |err| eprintln!("{err:?}"))
+    .tokio(
+      "0.0.0.0:9000",
+      |err| eprintln!("{err:?}"),
+      |_| Ok(()),
+      |_| Ok(()),
+      |err| eprintln!("{err:?}"),
+    )
     .await?;
   Ok(())
 }

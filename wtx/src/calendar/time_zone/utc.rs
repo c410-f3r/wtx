@@ -22,7 +22,7 @@ impl TimeZone for Utc {
   }
 
   #[inline]
-  fn iso_8601(self) -> ArrayStringU8<6> {
+  fn iso8601(self) -> ArrayStringU8<6> {
     let mut str = ArrayString::new();
     let _rslt = str.push('Z');
     str

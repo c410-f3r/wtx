@@ -63,11 +63,11 @@ fn day_of_year() {
 }
 
 #[test]
-fn iso_8601() {
-  assert_eq!(Date::MIN.iso_8601().as_str(), "-32767-01-01");
-  assert_eq!(Date::MAX.iso_8601().as_str(), "32766-12-31");
-  assert_eq!(_0401_03_02().iso_8601().as_str(), "401-03-02");
-  assert_eq!(_2025_04_20().iso_8601().as_str(), "2025-04-20");
+fn iso8601() {
+  assert_eq!(Date::MIN.iso8601().as_str(), "-32767-01-01");
+  assert_eq!(Date::MAX.iso8601().as_str(), "32766-12-31");
+  assert_eq!(_0401_03_02().iso8601().as_str(), "401-03-02");
+  assert_eq!(_2025_04_20().iso8601().as_str(), "2025-04-20");
 }
 
 #[test]

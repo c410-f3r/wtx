@@ -66,7 +66,7 @@ where
 {
   /// Creates a new instance based on the string representation of the ISO-8601 specification.
   #[inline]
-  pub fn from_iso_8601(bytes: &[u8]) -> crate::Result<Self> {
+  pub fn from_iso8601(bytes: &[u8]) -> crate::Result<Self> {
     static TOKENS: &[CalendarToken] = &[
       CalendarToken::FourDigitYear,
       CalendarToken::Dash,
@@ -117,12 +117,12 @@ where
 
   /// ISO-8601 string representation
   #[inline]
-  pub fn iso_8601(self) -> ArrayStringU8<38> {
+  pub fn iso8601(self) -> ArrayStringU8<38> {
     let mut rslt = ArrayString::new();
-    let _rslt0 = rslt.push_str(&self.date.iso_8601());
+    let _rslt0 = rslt.push_str(&self.date.iso8601());
     let _rslt1 = rslt.push('T');
-    let _rslt2 = rslt.push_str(&self.time.iso_8601());
-    let _rslt3 = rslt.push_str(&self.tz.iso_8601());
+    let _rslt2 = rslt.push_str(&self.time.iso8601());
+    let _rslt3 = rslt.push_str(&self.tz.iso8601());
     rslt
   }
 
@@ -216,7 +216,7 @@ where
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.iso_8601())
+    f.write_str(&self.iso8601())
   }
 }
 
@@ -233,7 +233,7 @@ where
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_str(&self.iso_8601())
+    f.write_str(&self.iso8601())
   }
 }
 
@@ -272,7 +272,7 @@ mod serde {
         where
           E: Error,
         {
-          DateTime::from_iso_8601(value.as_bytes()).map_err(E::custom)
+          DateTime::from_iso8601(value.as_bytes()).map_err(E::custom)
         }
       }
 
@@ -288,7 +288,7 @@ mod serde {
     where
       S: Serializer,
     {
-      serializer.serialize_str(&self.iso_8601())
+      serializer.serialize_str(&self.iso8601())
     }
   }
 }
