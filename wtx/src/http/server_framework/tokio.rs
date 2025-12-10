@@ -11,14 +11,12 @@ use crate::{
   rng::{Rng, SeedableRng},
   sync::Arc,
 };
-use tokio::net::tcp::OwnedWriteHalf;
+use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 
 type Stream = ServerStream<Http2Buffer, OwnedWriteHalf>;
 #[cfg(feature = "tokio-rustls")]
-type StreamRustls = ServerStream<
-  Http2Buffer,
-  tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
->;
+type StreamRustls =
+  ServerStream<Http2Buffer, tokio::io::WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>>;
 
 impl<CA, CACB, CBP, E, EN, M, S, SA, SACB> ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB>
 where
@@ -75,6 +73,7 @@ where
     host: &str,
     conn_error_cb: impl Clone + Fn(E) + Send + 'static,
     headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
+    stream_cb: impl Clone + Fn(&mut TcpStream) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> Result<(), E> {
     let Self { _ca_cb, _cbp, _cp, _sa_cb, _router } = self;
@@ -84,7 +83,13 @@ where
         *local_rng = CBP::from_rng(local_rng)?;
         Ok(())
       },
-      |_, stream| async move { Ok(stream.into_split()) },
+      move |_, mut stream| {
+        let rslt = stream_cb(&mut stream);
+        async move {
+          rslt?;
+          Ok(stream.into_split())
+        }
+      },
       conn_error_cb,
       move |mut local_rng| {
         let hb = Http2Buffer::new(&mut local_rng);
@@ -138,6 +143,7 @@ where
     host: &str,
     conn_error_cb: impl Clone + Fn(E) + Send + 'static,
     headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
+    stream_cb: impl Clone + Fn(&mut TcpStream) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> Result<(), E> {
     let Self { _ca_cb, _cbp, _cp, _sa_cb, _router } = self;
@@ -150,8 +156,12 @@ where
         *local_rng = CBP::from_rng(local_rng)?;
         Ok(())
       },
-      |acceptor, stream| async move {
-        Ok(tokio::io::split(acceptor.accept(stream).await.map_err(crate::Error::from)?))
+      move |acceptor, mut stream| {
+        let rslt = stream_cb(&mut stream);
+        async move {
+          rslt?;
+          Ok(tokio::io::split(acceptor.accept(stream).await.map_err(crate::Error::from)?))
+        }
       },
       conn_error_cb,
       move |mut local_rng| {
@@ -177,7 +187,7 @@ where
       CA,
       Http2Buffer,
       SA,
-      tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
+      tokio::io::WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>,
     >,
   ) -> Result<(), E> {
     headers_aux.1.en.manual(manual_stream, (0, &headers_aux.0)).await?;

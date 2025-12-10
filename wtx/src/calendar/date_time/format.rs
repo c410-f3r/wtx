@@ -79,7 +79,7 @@ where
           string.push(' ')?;
         }
         CalendarToken::TimeZone => {
-          string.push_str(&self.tz.iso_8601())?;
+          string.push_str(&self.tz.iso8601())?;
         }
         CalendarToken::TwoDigitDay => {
           string.push_str(self.date.day().num_str())?;

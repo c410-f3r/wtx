@@ -29,7 +29,7 @@ struct Vars {
 }
 
 fn map_now(var: String) -> wtx::Result<DateTime<Utc>> {
-  Ok(DateTime::from_iso_8601(var.as_bytes())?)
+  Ok(DateTime::from_iso8601(var.as_bytes())?)
 }
 
 fn map_port(var: String) -> wtx::Result<u16> {
