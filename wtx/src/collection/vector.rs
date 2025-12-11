@@ -496,13 +496,59 @@ where
   }
 }
 
-impl<T> PartialEq<[T]> for Vector<T>
+impl<T, U> PartialEq<[U]> for Vector<T>
 where
-  T: PartialEq,
+  T: PartialEq<U>,
 {
   #[inline]
-  fn eq(&self, other: &[T]) -> bool {
+  fn eq(&self, other: &[U]) -> bool {
     **self == *other
+  }
+}
+impl<T, U> PartialEq<&[U]> for Vector<T>
+where
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&[U]) -> bool {
+    **self == **other
+  }
+}
+impl<T, U> PartialEq<&mut [U]> for Vector<T>
+where
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&mut [U]) -> bool {
+    **self == **other
+  }
+}
+
+impl<T, U, const N: usize> PartialEq<[U; N]> for Vector<T>
+where
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &[U; N]) -> bool {
+    **self == *other
+  }
+}
+impl<T, U, const N: usize> PartialEq<&[U; N]> for Vector<T>
+where
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&[U; N]) -> bool {
+    **self == **other
+  }
+}
+impl<T, U, const N: usize> PartialEq<&mut [U; N]> for Vector<T>
+where
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&mut [U; N]) -> bool {
+    **self == **other
   }
 }
 

@@ -7,6 +7,7 @@ use crate::{
   },
   misc::{Lease, from_utf8_basic},
 };
+use alloc::string::String;
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -295,6 +296,16 @@ where
   }
 }
 
+impl<L, const N: usize> PartialEq<String> for ArrayString<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn eq(&self, other: &String) -> bool {
+    self.as_str() == *other
+  }
+}
+
 impl<L, const N: usize> PartialEq<[u8]> for ArrayString<L, N>
 where
   L: LinearStorageLen,
@@ -302,6 +313,15 @@ where
   #[inline]
   fn eq(&self, other: &[u8]) -> bool {
     self.as_bytes() == other
+  }
+}
+impl<L, const N: usize> PartialEq<&[u8]> for ArrayString<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn eq(&self, other: &&[u8]) -> bool {
+    self.as_bytes() == *other
   }
 }
 
@@ -312,6 +332,15 @@ where
   #[inline]
   fn eq(&self, other: &str) -> bool {
     self.as_str() == other
+  }
+}
+impl<L, const N: usize> PartialEq<&str> for ArrayString<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn eq(&self, other: &&str) -> bool {
+    self.as_str() == *other
   }
 }
 
