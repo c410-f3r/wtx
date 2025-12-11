@@ -189,12 +189,15 @@ mod tokio_rustls {
     #[inline]
     async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       let uri = UriRef::new(ca);
+      let mut connector = TokioRustlsConnector::from_auto()?.http2();
+      if let Some(elem) = &self._cert {
+        connector = connector.push_certs(elem)?;
+      }
       let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
         self._cp._to_hp(),
         tokio::io::split(
-          TokioRustlsConnector::from_auto()?
-            .http2()
+          connector
             .connect_without_client_auth(
               uri.hostname(),
               TcpStream::connect(uri.hostname_with_implied_port()).await?,
@@ -219,14 +222,17 @@ mod tokio_rustls {
       resource: &mut Self::Resource,
     ) -> Result<(), Self::Error> {
       let uri = UriRef::new(ra);
+      let mut connector = TokioRustlsConnector::from_auto()?.http2();
+      if let Some(elem) = &self._cert {
+        connector = connector.push_certs(elem)?;
+      }
       let mut buffer = Http2Buffer::default();
       resource.client.swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
         self._cp._to_hp(),
         tokio::io::split(
-          TokioRustlsConnector::from_auto()?
-            .http2()
+          connector
             .connect_without_client_auth(
               uri.hostname(),
               TcpStream::connect(uri.hostname_with_implied_port()).await?,

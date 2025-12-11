@@ -1,4 +1,5 @@
 use crate::{
+  collection::Vector,
   http::{
     client_pool::{ClientPool, ClientPoolRM},
     conn_params::ConnParams,
@@ -12,6 +13,7 @@ use core::marker::PhantomData;
 pub struct ClientPoolBuilder<A, AI, S> {
   aux: A,
   aux_input: AI,
+  cert: Option<Vector<u8>>,
   cp: ConnParams,
   len: usize,
   phantom: PhantomData<S>,
@@ -21,7 +23,21 @@ impl<A, AI, S> ClientPoolBuilder<A, AI, S> {
   /// Auxiliary callback.
   #[inline]
   pub fn aux<NA, NAI>(self, aux: NA, aux_input: NAI) -> ClientPoolBuilder<NA, NAI, S> {
-    ClientPoolBuilder { cp: self.cp, aux, aux_input, len: self.len, phantom: self.phantom }
+    ClientPoolBuilder {
+      cert: None,
+      cp: self.cp,
+      aux,
+      aux_input,
+      len: self.len,
+      phantom: self.phantom,
+    }
+  }
+
+  /// Sets a TLS certificate
+  #[inline]
+  pub fn cert(mut self, cert: Vector<u8>) -> Self {
+    self.cert = Some(cert);
+    self
   }
 
   _conn_params_methods!();
@@ -31,7 +47,7 @@ impl<A, AI, S> ClientPoolBuilder<A, AI, S> {
 impl<S> ClientPoolBuilder<crate::http::client_pool::NoAuxFn, (), S> {
   pub(crate) const fn no_fun(len: usize) -> Self {
     const fn fun(_: &()) {}
-    Self { cp: ConnParams::new(), aux: fun, aux_input: (), len, phantom: PhantomData }
+    Self { cert: None, cp: ConnParams::new(), aux: fun, aux_input: (), len, phantom: PhantomData }
   }
 }
 
@@ -49,6 +65,7 @@ where
       pool: SimplePool::new(
         self.len,
         ClientPoolRM {
+          _cert: self.cert,
           _cp: self.cp,
           _aux: self.aux,
           _aux_input: self.aux_input,
