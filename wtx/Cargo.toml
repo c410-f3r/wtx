@@ -39,7 +39,7 @@ tracing-subscriber = { default-features = false, features = ["env-filter", "fmt"
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
-wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.1" }
+wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.2" }
 
 aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "=0.11.0-rc.1" }
 argon2 = { default-features = false, optional = true, version = "=0.6.0-rc.1" }
@@ -92,7 +92,7 @@ schema-manager-dev = ["schema-manager"]
 secret = ["aes-gcm", "libc", "sha2", "std"]
 serde_json = ["serde", "serde_json/std", "std"]
 serde_urlencoded = ["serde", "dep:serde_urlencoded", "std"]
-std = []
+std = ["wtx-macros?/std"]
 tokio = ["std", "dep:tokio"]
 tokio-rustls = ["ring", "rustls", "rustls-pemfile/std", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
 tracing-tree = ["std", "dep:tracing-tree"]

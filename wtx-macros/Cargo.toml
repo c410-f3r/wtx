@@ -3,6 +3,10 @@ proc-macro2 = { default-features = false, version = "1.0" }
 quote = { default-features = false, features = ["proc-macro"], version = "1.0" }
 syn = { default-features = false, features = ["derive", "extra-traits", "full", "parsing", "printing", "proc-macro"], version = "2.0" }
 
+[features]
+default = []
+std = []
+
 [lib]
 proc-macro = true
 
@@ -17,7 +21,7 @@ name = "wtx-macros"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.89"
-version = "0.6.1"
+version = "0.6.2"
 
 [package.metadata.docs.rs]
 all-features = true
