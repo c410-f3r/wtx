@@ -53,9 +53,15 @@ pub(crate) fn from_vars(item: proc_macro::TokenStream) -> crate::Result<proc_mac
       }
     });
 
+  let string_path = if cfg!(feature = "std") {
+    quote::quote!(std::string::)
+  } else {
+    quote::quote!(alloc::string::)
+  };
+
   let expanded = quote::quote! {
     impl wtx::misc::FromVars for #struct_name {
-      fn from_vars(vars: impl IntoIterator<Item = (String, String)>) -> wtx::Result<Self> {
+      fn from_vars(vars: impl IntoIterator<Item = (#string_path String, #string_path String)>) -> wtx::Result<Self> {
         #(#var_declarations)*
         for (key, value) in vars {
           match key.as_str() {

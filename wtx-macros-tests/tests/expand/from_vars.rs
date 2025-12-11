@@ -1,3 +1,5 @@
+extern crate alloc;
+
 #[derive(wtx_macros::FromVars)]
 pub struct Foo {
   bar0: String,

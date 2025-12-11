@@ -3,6 +3,8 @@
 extern crate std;
 #[prelude_import]
 use std::prelude::rust_2021::*;
+extern crate alloc;
+
 pub struct Foo {
     bar0: String,
     bar1: Option<String>,
@@ -12,7 +14,9 @@ pub struct Foo {
     bar3: Option<u32>,
 }
 impl wtx::misc::FromVars for Foo {
-    fn from_vars(vars: impl IntoIterator<Item = (String, String)>)
+    fn from_vars(vars:
+            impl IntoIterator<Item =
+            (alloc::string::String, alloc::string::String)>)
         -> wtx::Result<Self> {
         let mut _bar0 = None;
         let mut _bar1 = None;
