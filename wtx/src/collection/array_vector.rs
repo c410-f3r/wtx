@@ -460,14 +460,65 @@ where
   }
 }
 
-impl<L, T, const N: usize> PartialEq<[T]> for ArrayVector<L, T, N>
+impl<L, T, U, const N: usize> PartialEq<[U]> for ArrayVector<L, T, N>
 where
   L: LinearStorageLen,
-  T: PartialEq,
+  T: PartialEq<U>,
 {
   #[inline]
-  fn eq(&self, other: &[T]) -> bool {
+  fn eq(&self, other: &[U]) -> bool {
     **self == *other
+  }
+}
+impl<L, T, U, const N: usize> PartialEq<&[U]> for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&[U]) -> bool {
+    **self == **other
+  }
+}
+impl<L, T, U, const N: usize> PartialEq<&mut [U]> for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&mut [U]) -> bool {
+    **self == **other
+  }
+}
+
+impl<L, T, U, const M: usize, const N: usize> PartialEq<[U; M]> for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &[U; M]) -> bool {
+    **self == *other
+  }
+}
+impl<L, T, U, const M: usize, const N: usize> PartialEq<&[U; M]> for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&[U; M]) -> bool {
+    **self == **other
+  }
+}
+impl<L, T, U, const M: usize, const N: usize> PartialEq<&mut [U; M]> for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: PartialEq<U>,
+{
+  #[inline]
+  fn eq(&self, other: &&mut [U; M]) -> bool {
+    **self == **other
   }
 }
 
