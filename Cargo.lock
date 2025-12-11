@@ -2077,7 +2077,7 @@ checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 
 [[package]]
 name = "wtx"
-version = "0.40.1"
+version = "0.41.0"
 dependencies = [
  "aes-gcm",
  "arbitrary",
@@ -2157,7 +2157,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "proc-macro2",
  "quote",
