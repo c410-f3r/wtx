@@ -64,7 +64,7 @@ impl AuthPlugin {
             from_utf8_basic(rsa_pub_key).map_err(crate::Error::from)?,
           )
           .map_err(crate::Error::from)?;
-          let padding = Oaep::new::<sha1::Sha1>();
+          let padding = Oaep::<sha1::Sha1>::new();
           let bytes = pkey.encrypt(rng, padding, &pw_array).map_err(crate::Error::from)?;
           let payload = bytes.as_slice();
           write_and_send_packet((capabilities, sequence_id), encode_buffer, payload, stream)
