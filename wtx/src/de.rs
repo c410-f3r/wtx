@@ -25,8 +25,8 @@ pub use encode::Encode;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use hex::{HexDisplay, HexEncMode, HexError, decode_hex, encode_hex};
 pub use num_array::{
-  I16String, U8String, U16String, U32String, U64String, i16_string, u8_string, u16_string,
-  u32_string, u64_string,
+  I8String, I16String, I32String, I64String, U8String, U16String, U32String, U64String, i8_string,
+  i16_string, i32_string, i64_string, u8_string, u16_string, u32_string, u64_string,
 };
 pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
 
