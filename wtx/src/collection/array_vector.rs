@@ -13,6 +13,7 @@ use crate::{
 use core::{
   cmp::Ordering,
   fmt::{self, Arguments, Debug, Formatter},
+  hash::{Hash, Hasher},
   iter::FusedIterator,
   mem::{self, MaybeUninit},
   ops::{Deref, DerefMut},
@@ -385,6 +386,20 @@ where
     I: IntoIterator<Item = T>,
   {
     Wrapper(ArrayVector::from_iterator(iter))
+  }
+}
+
+impl<L, T, const N: usize> Hash for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: Hash,
+{
+  #[inline]
+  fn hash<H>(&self, state: &mut H)
+  where
+    H: Hasher,
+  {
+    Hash::hash(&**self, state);
   }
 }
 
