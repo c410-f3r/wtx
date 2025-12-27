@@ -1,7 +1,6 @@
 //! `EnvVars` allows the interactive reading of environment variables.
 
 extern crate wtx;
-extern crate wtx_macros;
 
 use std::sync::OnceLock;
 use wtx::{
@@ -18,7 +17,7 @@ fn main() -> wtx::Result<()> {
   Ok(())
 }
 
-#[derive(Debug, wtx_macros::FromVars)]
+#[derive(Debug, wtx::FromVars)]
 struct Vars {
   #[from_vars(map_now)]
   now: Option<DateTime<Utc>>,

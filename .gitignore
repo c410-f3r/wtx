@@ -1,3 +1,4 @@
+.env
 .scripts/autobahn/reports
 .vscode
 **/*.rs.bk
@@ -6,6 +7,7 @@
 **/profile.json
 **/rustc-ice-*.txt
 **/target
+**/Cargo.lock
 boringssl
 callgrind*
 mdbook-target

@@ -6,7 +6,7 @@ use wtx::client_api_framework::network::transport::SendingTransport;
 
 type Api = ();
 
-#[wtx_macros::pkg(data_format(json), id(super::Api), transport(stub))]
+#[wtx::pkg(data_format(json), id(super::Api), transport(stub))]
 mod pkg {
   use wtx::client_api_framework::network::transport::TransportParams;
 

@@ -1,4 +1,4 @@
-#[derive(wtx_macros::Table)]
+#[derive(wtx::Table)]
 pub struct Foo {
     bar: String,
     baz: String,

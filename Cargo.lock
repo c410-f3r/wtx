@@ -2152,7 +2152,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "wtx",
- "wtx-macros",
 ]
 
 [[package]]

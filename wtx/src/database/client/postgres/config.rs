@@ -42,6 +42,21 @@ impl<'data> Config<'data> {
     }
     Ok(())
   }
+
+  /// Database
+  #[inline]
+  pub fn db(&self) -> &str {
+    self.db
+  }
+
+  /// Changes the database
+  #[inline]
+  pub fn set_db<'value>(&mut self, value: &'value str)
+  where
+    'value: 'data,
+  {
+    self.db = value;
+  }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

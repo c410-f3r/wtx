@@ -3,7 +3,7 @@ use crate::{
   misc::{EnvVars, FromVars, find_file, str_rsplit_once1, str_split_once1},
 };
 use alloc::string::String;
-use core::str;
+use core::{fmt::Write as _, str};
 use std::{
   env, fs,
   io::{BufRead as _, BufReader, Read},
@@ -19,10 +19,17 @@ where
   /// Intended for development purposes.
   #[inline]
   pub fn from_available() -> crate::Result<Self> {
-    if let Ok(elem) = Self::from_process() {
-      return Ok(elem);
-    }
-    Self::from_nearest_env_file()
+    let err0 = match Self::from_process() {
+      Ok(elem) => return Ok(elem),
+      Err(err) => err,
+    };
+    let err1 = match Self::from_nearest_env_file() {
+      Ok(elem) => return Ok(elem),
+      Err(err) => err,
+    };
+    let mut error = String::new();
+    error.write_fmt(format_args!("Errors: {err0}, {err1}"))?;
+    Err(crate::Error::NoAvailableVars(error.into()))
   }
 
   /// Constructs itself through the deserialization of a literal `.env` data.

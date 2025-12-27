@@ -38,14 +38,14 @@ path = "database-examples/database-client-mysql.rs"
 required-features = ["database-client-mysql"]
 
 [[example]]
-name = "database-client-postgres-batch"
-path = "database-examples/database-client-postgres-batch.rs"
-required-features = ["database-client-postgres-batch"]
-
-[[example]]
 name = "database-client-postgres"
 path = "database-examples/database-client-postgres.rs"
 required-features = ["database-client-postgres"]
+
+[[example]]
+name = "database-client-postgres-batch"
+path = "database-examples/database-client-postgres-batch.rs"
+required-features = ["database-client-postgres-batch"]
 
 [[example]]
 name = "database-client-postgres-composite-type"
@@ -56,6 +56,11 @@ required-features = ["database-client-postgres-composite-type"]
 name = "database-client-postgres-enum"
 path = "database-examples/database-client-postgres-enum.rs"
 required-features = ["database-client-postgres-enum"]
+
+[[example]]
+name = "database-client-tests"
+path = "database-examples/database-client-tests.rs"
+required-features = ["database-client-tests"]
 
 # Generic Examples
 
@@ -170,7 +175,6 @@ serde_json = { default-features = false, features = ["alloc"], optional = true, 
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
-wtx-macros = { default-features = false, optional = true, path = "../wtx-macros" }
 
 [features]
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
@@ -185,9 +189,10 @@ database-client-postgres = ["postgres"]
 database-client-postgres-batch = ["postgres"]
 database-client-postgres-composite-type = ["postgres"]
 database-client-postgres-enum = ["postgres"]
+database-client-tests = ["postgres", "wtx/executor", "wtx/macros", "wtx/schema-manager-dev"]
 
-client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/web-socket-handshake", "wtx-macros"]
-environment-variables = ["wtx/std", "wtx-macros"]
+client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/macros", "wtx/serde_json", "wtx/web-socket-handshake"]
+environment-variables = ["wtx/macros", "wtx/std"]
 executor = ["wtx/executor", "wtx/macros"]
 grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
@@ -197,7 +202,7 @@ secret = ["wtx/secret"]
 http-server-framework = ["serde", "wtx/getrandom", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres", "wtx/serde_json"]
 http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
 http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
-http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/nightly", "wtx/postgres", "wtx-macros"]
+http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/macros", "wtx/nightly", "wtx/postgres"]
 
 http2-client = ["wtx/http2"]
 http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]

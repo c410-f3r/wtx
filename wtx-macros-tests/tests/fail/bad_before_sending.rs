@@ -1,4 +1,4 @@
-#[wtx_macros::pkg(data_format(json), id(FooId))]
+#[wtx::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[pkg::before_sending]
   async fn before_sending(foo: i32) -> wtx::Result<()> {

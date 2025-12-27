@@ -113,7 +113,7 @@ async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result
   Ok(StatusCode::Ok)
 }
 
-#[derive(Clone, Debug, wtx_macros::ConnAux)]
+#[derive(Clone, Debug, wtx::ConnAux)]
 struct ConnAux {
   pool: DbPool,
   rng: ChaCha20,

@@ -14,6 +14,7 @@ use crate::{
   },
   de::DEController,
   executor::Runtime,
+  rng::simple_32_seed,
 };
 use alloc::string::String;
 use core::fmt::{Debug, Write};
@@ -45,11 +46,10 @@ macro_rules! create_integration_tests {
       create_integration_test!(
         {
           use crate::rng::SeedableRng;
-          let uri_string = std::env::var("DATABASE_URI_MYSQL").unwrap();
-          let uri = crate::misc::UriRef::new(&uri_string);
+          let uri = crate::misc::UriRef::new(crate::tests::_vars().database_uri_mysql.as_str());
           let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
-          let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
+          let mut rng = crate::rng::ChaCha20::from_seed(simple_32_seed()).unwrap();
           crate::database::client::mysql::MysqlExecutor::<crate::Error, _, _>::connect(
             &config,
             crate::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -66,11 +66,10 @@ macro_rules! create_integration_tests {
       create_integration_test!(
         {
           use crate::rng::SeedableRng;
-          let uri_string = std::env::var("DATABASE_URI_POSTGRES").unwrap();
-          let uri = crate::misc::UriRef::new(&uri_string);
+          let uri = crate::misc::UriRef::new(crate::tests::_vars().database_uri_postgres.as_str());
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
-          let mut rng = crate::rng::ChaCha20::from_seed(crate::tests::_32_bytes_seed()).unwrap();
+          let mut rng = crate::rng::ChaCha20::from_seed(simple_32_seed()).unwrap();
           crate::database::client::postgres::PostgresExecutor::<crate::Error, _, _>::connect(
             &config,
             crate::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
