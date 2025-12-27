@@ -75,7 +75,7 @@ impl TransportParams for CustomTransportParams {
 
 type Nothing = ();
 
-#[wtx_macros::pkg(data_format(json), id(super::Nothing), transport(custom(crate::CustomTransportParams)))]
+#[wtx::pkg(data_format(json), id(super::Nothing), transport(custom(crate::CustomTransportParams)))]
 mod pkg {
   #[pkg::req_data]
   struct Req;

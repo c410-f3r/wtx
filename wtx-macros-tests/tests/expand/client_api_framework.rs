@@ -9,7 +9,6 @@
 extern crate serde;
 extern crate tokio;
 extern crate wtx;
-extern crate wtx_macros;
 
 use core::time::Duration;
 use tokio::net::TcpStream;
@@ -29,7 +28,7 @@ use wtx::{
 wtx::create_packages_aux_wrapper!();
 
 #[derive(Debug)]
-#[wtx_macros::api(error(wtx::Error), pkgs_aux(PkgsAux), transport(http, ws))]
+#[wtx::api(error(wtx::Error), pkgs_aux(PkgsAux), transport(http, ws))]
 pub struct GenericThrottlingApi {
   pub rc: RequestCounter,
 }
@@ -44,7 +43,7 @@ impl Api for GenericThrottlingApi {
   }
 }
 
-#[wtx_macros::pkg(
+#[wtx::pkg(
   data_format(json_rpc("genericHttpRequest")),
   id(crate::GenericThrottlingApiId),
   transport(http)
@@ -61,7 +60,7 @@ mod generic_http_request {
   pub type GenericHttpRequestRes = (u8, u16, u32);
 }
 
-#[wtx_macros::pkg(
+#[wtx::pkg(
   data_format(json_rpc("genericWebSocketSubscription")),
   id(crate::GenericThrottlingApiId),
   transport(ws)

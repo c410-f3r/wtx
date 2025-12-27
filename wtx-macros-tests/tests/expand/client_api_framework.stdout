@@ -14,7 +14,6 @@ use std::prelude::rust_2021::*;
 extern crate serde;
 extern crate tokio;
 extern crate wtx;
-extern crate wtx_macros;
 
 use core::time::Duration;
 use tokio::net::TcpStream;

@@ -81,7 +81,7 @@ EOF
 
 psql -v ON_ERROR_STOP=1 --username $POSTGRES_USER <<-EOF
     SET password_encryption TO 'scram-sha-256';
-    CREATE ROLE wtx_scram PASSWORD 'wtx' LOGIN;
+    CREATE ROLE wtx_scram PASSWORD 'wtx' CREATEDB LOGIN;
     GRANT ALL ON DATABASE wtx TO wtx_scram;
     ALTER DATABASE wtx OWNER TO wtx_scram;
 EOF

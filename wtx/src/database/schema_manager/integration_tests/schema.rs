@@ -22,7 +22,7 @@ pub(crate) async fn migrate_works<DB, E>(
   DB: Database<Error = crate::Error>,
   E: SchemaManagement<Database = DB>,
 {
-  let path = Path::new("../.test-utils/migrations.toml");
+  let path = Path::new("../.test-utils/wtx.toml");
   let mut db_migrations = Vector::new();
   c.migrate_from_toml_path(path).await.unwrap();
   let initial = UserMigrationGroup::new("initial", 1);

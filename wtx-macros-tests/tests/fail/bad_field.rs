@@ -1,4 +1,4 @@
-#[wtx_macros::pkg(data_format(json), id(FooId))]
+#[wtx::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[derive(Debug)]
   #[pkg::req_data]
@@ -8,7 +8,7 @@ mod pkg {
   struct Res;
 }
 
-#[wtx_macros::pkg(data_format(json), id(FooId))]
+#[wtx::pkg(data_format(json), id(FooId))]
 mod pkg {
   #[derive(Debug)]
   #[pkg::req_data]

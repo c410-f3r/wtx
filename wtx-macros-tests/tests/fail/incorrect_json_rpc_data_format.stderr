@@ -1,10 +1,10 @@
 error: JSON-RPC expects the name of its method. For example, `#[pkg(data_format(json_rpc("method")))]`
  --> tests/fail/incorrect_json_rpc_data_format.rs:1:1
   |
-1 | #[wtx_macros::pkg(data_format(json_rpc(Bar)), id(Foo))]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1 | #[wtx::pkg(data_format(json_rpc(Bar)), id(Foo))]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
-  = note: this error originates in the attribute macro `wtx_macros::pkg` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the attribute macro `wtx::pkg` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error: aborting due to 1 previous error
 

@@ -45,7 +45,7 @@ pub(crate) async fn rollback_works<E>(
   E: SchemaManagement,
   <E::Database as DEController>::Error: Debug,
 {
-  let path = Path::new("../.test-utils/migrations.toml");
+  let path = Path::new("../.test-utils/wtx.toml");
   c.migrate_from_toml_path(path).await.unwrap();
   c.rollback_from_toml(path, None).await.unwrap();
   let initial = UserMigrationGroup::new("initial", 1);

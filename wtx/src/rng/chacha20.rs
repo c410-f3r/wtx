@@ -30,6 +30,19 @@ macro_rules! _implement_rand {
         let [i, j, k, l, m, n, o, p] = self.next_u64().to_be_bytes();
         [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
       }
+
+      #[inline]
+      fn u8_32(&mut self) -> [u8; 32] {
+        use chacha20::rand_core::RngCore;
+        let [b0, b1, b2, b3, b4, b5, b6, b7] = self.next_u64().to_be_bytes();
+        let [b8, b9, b10, b11, b12, b13, b14, b15] = self.next_u64().to_be_bytes();
+        let [b16, b17, b18, b19, b20, b21, b22, b23] = self.next_u64().to_be_bytes();
+        let [b24, b25, b26, b27, b28, b29, b30, b31] = self.next_u64().to_be_bytes();
+        [
+          b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19,
+          b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31,
+        ]
+      }
     }
 
     impl crate::rng::SeedableRng for $struct {

@@ -1,8 +1,8 @@
-#[wtx_macros::pkg]
+#[wtx::pkg]
 mod a {
 }
 
-#[wtx_macros::pkg]
+#[wtx::pkg]
 mod b {
   #[pkg::req_data]
   struct Req(
@@ -10,7 +10,7 @@ mod b {
   );
 }
 
-#[wtx_macros::pkg]
+#[wtx::pkg]
 mod c {
   #[pkg::res_data]
   struct Res;

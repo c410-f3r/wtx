@@ -1,8 +1,8 @@
 error: Unknown transport.
- --> tests/fail/unknown_transport.rs:1:59
+ --> tests/fail/unknown_transport.rs:1:52
   |
-1 | #[wtx_macros::pkg(data_format(json), id(FooId), transport(dasdasd))]
-  |                                                           ^^^^^^^
+1 | #[wtx::pkg(data_format(json), id(FooId), transport(dasdasd))]
+  |                                                    ^^^^^^^
 
 error: aborting due to 1 previous error
 

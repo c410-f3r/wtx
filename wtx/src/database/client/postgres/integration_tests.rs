@@ -11,13 +11,10 @@ use crate::{
   de::{Decode, Encode},
   executor::Runtime,
   misc::UriRef,
-  rng::{ChaCha20, SeedableRng},
-  tests::_32_bytes_seed,
+  rng::{ChaCha20, SeedableRng, simple_32_seed},
+  tests::_vars,
 };
 use alloc::string::String;
-use std::{env, sync::LazyLock};
-
-static URI: LazyLock<String> = LazyLock::new(|| env::var("DATABASE_URI_POSTGRES").unwrap());
 
 #[test]
 fn batch() {
@@ -365,9 +362,8 @@ fn serde_json() {
 #[cfg(feature = "tokio-rustls")]
 #[tokio::test]
 async fn tls() {
-  let uri_string = &*URI;
-  let uri = UriRef::new(uri_string.as_str());
-  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
+  let uri = UriRef::new(_vars().database_uri_postgres.as_str());
+  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
   let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -389,9 +385,8 @@ async fn tls() {
 }
 
 async fn executor() -> PostgresExecutor<crate::Error, ExecutorBuffer, std::net::TcpStream> {
-  let uri_string = &*URI;
-  let uri = UriRef::new(uri_string.as_str());
-  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
+  let uri = UriRef::new(_vars().database_uri_postgres.as_str());
+  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
   PostgresExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),

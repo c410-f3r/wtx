@@ -75,6 +75,9 @@ where
 
   /// Creates an array of 16 bytes.
   fn u8_16(&mut self) -> [u8; 16];
+
+  /// Creates an array of 32 bytes.
+  fn u8_32(&mut self) -> [u8; 32];
 }
 
 impl<T> Rng for AtomicCell<T>
@@ -99,6 +102,11 @@ where
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     (&*self).u8_16()
+  }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    (&*self).u8_32()
   }
 }
 
@@ -145,6 +153,16 @@ where
     });
     ret
   }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    let mut ret = [0; 32];
+    let _rslt = self.update(|mut el| {
+      ret = el.u8_32();
+      el
+    });
+    ret
+  }
 }
 
 impl<T> Rng for Cell<T>
@@ -169,6 +187,11 @@ where
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     (&*self).u8_16()
+  }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    (&*self).u8_32()
   }
 }
 
@@ -207,6 +230,14 @@ where
     self.set(instance);
     ret
   }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    let mut instance = self.get();
+    let ret = instance.u8_32();
+    self.set(instance);
+    ret
+  }
 }
 
 impl<T> Rng for &mut T
@@ -231,6 +262,11 @@ where
   #[inline]
   fn u8_16(&mut self) -> [u8; 16] {
     (*self).u8_16()
+  }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    (*self).u8_32()
   }
 }
 

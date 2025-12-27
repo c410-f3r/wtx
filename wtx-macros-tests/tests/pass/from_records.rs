@@ -1,6 +1,6 @@
 use wtx::database::client::postgres::Postgres;
 
-#[derive(wtx_macros::FromRecords)]
+#[derive(wtx::FromRecords)]
 #[from_records(Postgres<wtx::Error>)]
 pub struct Foo {
   pub bar: i32,

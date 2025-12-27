@@ -16,7 +16,7 @@ pub struct Foo {
 impl wtx::misc::FromVars for Foo {
     fn from_vars(vars:
             impl IntoIterator<Item =
-            (alloc::string::String, alloc::string::String)>)
+            (std::string::String, std::string::String)>)
         -> wtx::Result<Self> {
         let mut _bar0 = None;
         let mut _bar1 = None;

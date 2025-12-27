@@ -229,8 +229,7 @@ mod tests {
   use crate::{
     collection::Vector,
     misc::{decrypt_aes256gcm_base64, encrypt_aes256gcm_base64},
-    rng::ChaCha20,
-    tests::_32_bytes_seed,
+    rng::{ChaCha20, simple_32_seed},
   };
 
   const DATA: [u8; 4] = [1, 2, 3, 4];
@@ -239,13 +238,13 @@ mod tests {
   fn encrypt_and_decrypt() {
     let mut encrypt_buffer = Vector::new();
     let mut decrypt_buffer = Vector::new();
-    let secret = _32_bytes_seed();
+    let secret = simple_32_seed();
     let encrypted = encrypt_aes256gcm_base64(
       &[1],
       &mut encrypt_buffer,
       &DATA,
       &secret,
-      &mut ChaCha20::from_key(_32_bytes_seed()),
+      &mut ChaCha20::from_key(simple_32_seed()),
     )
     .unwrap();
     assert_eq!(

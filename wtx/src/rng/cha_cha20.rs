@@ -98,6 +98,22 @@ impl Rng for ChaCha20 {
     let [m, n, o, p] = self.u8_4();
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
   }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    let [b0, b1, b2, b3] = self.u8_4();
+    let [b4, b5, b6, b7] = self.u8_4();
+    let [b8, b9, b10, b11] = self.u8_4();
+    let [b12, b13, b14, b15] = self.u8_4();
+    let [b16, b17, b18, b19] = self.u8_4();
+    let [b20, b21, b22, b23] = self.u8_4();
+    let [b24, b25, b26, b27] = self.u8_4();
+    let [b28, b29, b30, b31] = self.u8_4();
+    [
+      b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19,
+      b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31,
+    ]
+  }
 }
 
 impl SeedableRng for ChaCha20 {

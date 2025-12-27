@@ -170,6 +170,8 @@ pub enum Error {
   MlockError,
   /// Something prevented a `munlock` operation
   MunlockError,
+  /// A variable does not have an ending quote
+  NoAvailableVars(Box<String>),
   /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(Box<&'static str>),
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero

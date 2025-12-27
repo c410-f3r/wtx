@@ -1,14 +1,10 @@
 use crate::{
   database::client::mysql::{Config, ExecutorBuffer, MysqlExecutor},
   misc::UriRef,
-  rng::{ChaCha20, SeedableRng},
-  tests::_32_bytes_seed,
+  rng::{ChaCha20, SeedableRng, simple_32_seed},
+  tests::_vars,
 };
-use alloc::string::String;
 use core::fmt::Debug;
-use std::sync::LazyLock;
-
-static URI: LazyLock<String> = LazyLock::new(|| std::env::var("DATABASE_URI_MYSQL").unwrap());
 
 #[test]
 fn execute() {
@@ -55,12 +51,8 @@ fn reuses_cached_statement() {
 #[cfg(feature = "tokio-rustls")]
 #[tokio::test]
 async fn tls() {
-  use crate::{
-    rng::{ChaCha20, SeedableRng},
-    tests::_32_bytes_seed,
-  };
-  let uri = UriRef::new(URI.as_str());
-  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
+  let uri = UriRef::new(_vars().database_uri_mysql.as_str());
+  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
   let _executor = MysqlExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -85,8 +77,8 @@ async fn executor<E>() -> MysqlExecutor<E, ExecutorBuffer, std::net::TcpStream>
 where
   E: Debug + From<crate::Error>,
 {
-  let uri = UriRef::new(URI.as_str());
-  let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
+  let uri = UriRef::new(&_vars().database_uri_mysql.as_str());
+  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
   MysqlExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),

@@ -1,4 +1,4 @@
-#[wtx_macros::pkg(data_format(), id(Foo))]
+#[wtx::pkg(data_format(), id(Foo))]
 mod pkg {
   #[pkg::req_data]
   struct Req;

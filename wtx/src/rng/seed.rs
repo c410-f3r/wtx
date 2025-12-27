@@ -1,4 +1,8 @@
-use crate::{calendar::Instant, misc::Usize};
+use crate::{
+  calendar::Instant,
+  misc::Usize,
+  rng::{Rng as _, Xorshift64},
+};
 use alloc::boxed::Box;
 use core::{panic::Location, ptr};
 
@@ -6,8 +10,9 @@ use core::{panic::Location, ptr};
 ///
 /// 1. The address of a heap allocation.
 /// 2. The line and column of the caller location.
-/// 3. The current duration, if any.
+/// 3. The current timestamp, if any.
 #[inline]
+#[track_caller]
 pub fn simple_seed() -> u64 {
   let heap = Box::new(1u8);
   let location = Location::caller();
@@ -16,6 +21,13 @@ pub fn simple_seed() -> u64 {
   mix_with_time(&mut seed);
   seed = mix(seed, u64::from(location.column().wrapping_add(location.line())));
   seed
+}
+
+/// Uses [`simple_seed`] to return an array of 32 bytes.
+#[inline]
+#[track_caller]
+pub fn simple_32_seed() -> [u8; 32] {
+  Xorshift64::from(simple_seed()).u8_32()
 }
 
 /// Seed retrieved from the machinery of the standard library.

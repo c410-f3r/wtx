@@ -3,6 +3,7 @@
 #![expect(clippy::too_many_lines, reason = "Unimportant")]
 
 mod client_api_framework;
+mod db;
 mod error;
 mod executor;
 mod from_records;
@@ -34,6 +35,20 @@ pub fn api(
 #[proc_macro_derive(ConnAux)]
 pub fn conn_aux(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
   match http::conn_aux(item) {
+    Err(err) => syn::Error::from(err).to_compile_error().into(),
+    Ok(elem) => elem,
+  }
+}
+
+/// Allows the execution of asynchronous database tests using the runtime provided by `WTX`.
+///
+/// This macro automatically creates an isolated environment with migrations and seeds
+#[proc_macro_attribute]
+pub fn db(
+  attrs: proc_macro::TokenStream,
+  item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+  match db::db(attrs, item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }
