@@ -43,11 +43,11 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 
 aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "=0.11.0-rc.2" }
 argon2 = { default-features = false, optional = true, version = "=0.6.0-rc.5" }
-chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "=0.10.0-rc.5" }
-crypto-common = { default-features = false, optional = true, version = "=0.2.0-rc.5" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "=0.11.0-rc.4" }
+chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "=0.10.0-rc.6" }
+crypto-common = { default-features = false, optional = true, version = "=0.2.0-rc.9" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "=0.11.0-rc.5" }
 hmac = { default-features = false, optional = true, version = "=0.13.0-rc.3" }
-rsa = { default-features = false, optional = true, version = "=0.10.0-rc.10" }
+rsa = { default-features = false, optional = true, version = "=0.10.0-rc.12" }
 sha1 = { default-features = false, optional = true, version = "=0.11.0-rc.3" }
 sha2 = { default-features = false, optional = true, version = "=0.11.0-rc.3" }
 spki = { default-features = false, optional = true, version = "=0.8.0-rc.4" }
