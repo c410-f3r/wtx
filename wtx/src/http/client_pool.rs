@@ -3,13 +3,7 @@
 mod client_pool_builder;
 mod client_pool_resource;
 mod client_pool_rm;
-#[cfg(all(
-  feature = "_async-tests",
-  feature = "_integration-tests",
-  feature = "tokio-rustls",
-  feature = "webpki-roots",
-  test
-))]
+#[cfg(all(feature = "_integration-tests", feature = "webpki-roots", test))]
 mod integration_tests;
 
 use crate::{
@@ -23,13 +17,8 @@ use crate::{
 pub use client_pool_builder::ClientPoolBuilder;
 pub use client_pool_resource::ClientPoolResource;
 pub use client_pool_rm::ClientPoolRM;
-#[cfg(feature = "tokio")]
+#[cfg(all(feature = "tls", feature = "tokio"))]
 pub use tokio::ClientPoolTokio;
-#[cfg(feature = "tokio-rustls")]
-pub use tokio_rustls::ClientPoolTokioRustls;
-
-#[cfg(feature = "tokio")]
-type NoAuxFn = fn(&());
 
 /// An optioned pool of different HTTP connections lazily constructed from different URIs.
 ///
@@ -79,21 +68,28 @@ where
   }
 }
 
-#[cfg(feature = "tokio")]
+#[cfg(all(feature = "tls", feature = "tokio"))]
 mod tokio {
   use crate::{
-    http::client_pool::{ClientPool, ClientPoolBuilder, ClientPoolRM, ClientPoolResource, NoAuxFn},
+    http::client_pool::{ClientPool, ClientPoolBuilder, ClientPoolRM, ClientPoolResource},
     http2::{Http2, Http2Buffer},
     misc::UriRef,
     pool::ResourceManager,
+    rng::{ChaCha20, SeedableRng},
+    tls::{
+      TlsBuffer, TlsConfig, TlsConnector, TlsMode, TlsModeVerifyFull, TlsStream, TlsStreamWriter,
+    },
   };
   use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 
-  /// A [`ClientPool`] using the elements of `tokio`.
-  pub type ClientPoolTokio<A, AI> = ClientPool<ClientPoolRM<A, AI, TcpStream>>;
-  type Resource<AUX> = ClientPoolResource<AUX, Http2<Http2Buffer, OwnedWriteHalf, true>>;
+  /// AF [`ClientPool`] using the elements of `tokio`.
+  pub type ClientPoolTokio<AA, AF> =
+    ClientPool<ClientPoolRM<AA, AF, TlsStream<TcpStream, TlsBuffer, TlsModeVerifyFull, true>>>;
+  pub(crate) type NoAuxFn = fn(&());
+  type Resource<AUX> =
+    ClientPoolResource<AUX, Http2<Http2Buffer, TlsStreamWriter<OwnedWriteHalf>, true>>;
 
-  impl ClientPoolBuilder<NoAuxFn, (), TcpStream> {
+  impl<TM> ClientPoolBuilder<(), NoAuxFn, TlsStream<TcpStream, TlsBuffer, TM, true>> {
     /// Creates a new builder with the maximum number of connections delimited by `len`.
     ///
     /// Connection is established using the elements provided by the `tokio` project.
@@ -103,9 +99,10 @@ mod tokio {
     }
   }
 
-  impl<A, AI, AO> ResourceManager for ClientPoolRM<A, AI, TcpStream>
+  impl<AA, AF, AO> ResourceManager for ClientPoolRM<AA, AF, TlsStream<TcpStream, TlsBuffer, AO, true>>
   where
-    A: Fn(&AI) -> AO,
+    AF: Fn(&AA) -> AO,
+    AO: TlsMode,
   {
     type CreateAux = str;
     type Error = crate::Error;
@@ -115,14 +112,20 @@ mod tokio {
     #[inline]
     async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       let uri = UriRef::new(ca);
+      let mut rng = ChaCha20::from_getrandom()?;
+      let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
+      let tls_stream = TlsConnector::default()
+        .set_tls_mode((self._aux_fun)(&self._aux_arg))
+        .connect(&mut rng, stream, &TlsConfig::default())
+        .await?;
       let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
         self._cp._to_hp(),
-        TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
+        tls_stream.into_split(|local_stream| local_stream.into_split()),
       )
       .await?;
       let _jh = tokio::spawn(frame_reader);
-      Ok(ClientPoolResource { aux: (self._aux)(&self._aux_input), client: http2 })
+      Ok(ClientPoolResource { aux: (self._aux_fun)(&self._aux_arg), client: http2 })
     }
 
     #[inline]
@@ -137,108 +140,18 @@ mod tokio {
       resource: &mut Self::Resource,
     ) -> Result<(), Self::Error> {
       let uri = UriRef::new(ra);
+      let mut rng = ChaCha20::from_getrandom()?;
+      let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
+      let tls_stream = TlsConnector::default()
+        .set_plain_text()
+        .connect(&mut rng, stream, &TlsConfig::default())
+        .await?;
       let mut buffer = Http2Buffer::default();
       resource.client.swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2::connect(
         buffer,
         self._cp._to_hp(),
-        TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
-      )
-      .await?;
-      let _jh = tokio::spawn(frame_reader);
-      resource.client = http2;
-      Ok(())
-    }
-  }
-}
-
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls {
-  use crate::{
-    http::client_pool::{ClientPool, ClientPoolBuilder, ClientPoolRM, ClientPoolResource, NoAuxFn},
-    http2::{Http2, Http2Buffer},
-    misc::{TokioRustlsConnector, UriRef},
-    pool::ResourceManager,
-  };
-  use tokio::{io::WriteHalf, net::TcpStream};
-  use tokio_rustls::client::TlsStream;
-
-  /// A [`ClientPool`] using the elements of `tokio-rustls`.
-  pub type ClientPoolTokioRustls<A, AI> = ClientPool<ClientPoolRM<A, AI, Writer>>;
-  type Resource<AUX> = ClientPoolResource<AUX, Http2<Http2Buffer, Writer, true>>;
-  type Writer = WriteHalf<TlsStream<TcpStream>>;
-
-  impl ClientPoolBuilder<NoAuxFn, (), Writer> {
-    /// Creates a new builder with the maximum number of connections delimited by `len`.
-    ///
-    /// Connection is established using the elements provided by the `tokio-rustls` project.
-    pub const fn tokio_rustls(len: usize) -> Self {
-      Self::no_fun(len)
-    }
-  }
-
-  impl<A, AI, AO> ResourceManager for ClientPoolRM<A, AI, Writer>
-  where
-    A: Fn(&AI) -> AO,
-  {
-    type CreateAux = str;
-    type Error = crate::Error;
-    type RecycleAux = str;
-    type Resource = Resource<AO>;
-
-    #[inline]
-    async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-      let uri = UriRef::new(ca);
-      let mut connector = TokioRustlsConnector::from_auto()?.http2();
-      if let Some(elem) = &self._cert {
-        connector = connector.push_certs(elem)?;
-      }
-      let (frame_reader, http2) = Http2::connect(
-        Http2Buffer::default(),
-        self._cp._to_hp(),
-        tokio::io::split(
-          connector
-            .connect_without_client_auth(
-              uri.hostname(),
-              TcpStream::connect(uri.hostname_with_implied_port()).await?,
-            )
-            .await?,
-        ),
-      )
-      .await?;
-      let _jh = tokio::spawn(frame_reader);
-      Ok(ClientPoolResource { aux: (self._aux)(&self._aux_input), client: http2 })
-    }
-
-    #[inline]
-    fn is_invalid(&self, resource: &Self::Resource) -> bool {
-      resource.client.connection_state().is_closed()
-    }
-
-    #[inline]
-    async fn recycle(
-      &self,
-      ra: &Self::RecycleAux,
-      resource: &mut Self::Resource,
-    ) -> Result<(), Self::Error> {
-      let uri = UriRef::new(ra);
-      let mut connector = TokioRustlsConnector::from_auto()?.http2();
-      if let Some(elem) = &self._cert {
-        connector = connector.push_certs(elem)?;
-      }
-      let mut buffer = Http2Buffer::default();
-      resource.client.swap_buffers(&mut buffer).await;
-      let (frame_reader, http2) = Http2::connect(
-        Http2Buffer::default(),
-        self._cp._to_hp(),
-        tokio::io::split(
-          connector
-            .connect_without_client_auth(
-              uri.hostname(),
-              TcpStream::connect(uri.hostname_with_implied_port()).await?,
-            )
-            .await?,
-        ),
+        tls_stream.into_split(|local_stream| local_stream.into_split()),
       )
       .await?;
       let _jh = tokio::spawn(frame_reader);

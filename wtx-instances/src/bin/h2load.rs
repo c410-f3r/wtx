@@ -15,9 +15,9 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
-    ((), "127.0.0.1:9000", Xorshift64::from(simple_seed()), ()),
+    ("127.0.0.1:9000", Xorshift64::from(simple_seed()), ()),
     |_| Ok(()),
-    |_, stream| async move {
+    |stream| async move {
       stream.set_nodelay(true)?;
       Ok(stream.into_split())
     },

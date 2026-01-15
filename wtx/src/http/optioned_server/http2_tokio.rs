@@ -21,7 +21,6 @@ impl OptionedServer {
   // explicit types declarations at call-site.
   #[inline]
   pub async fn http2_tokio<
-    ACPT,
     CA,
     ERR,
     HA,
@@ -41,7 +40,7 @@ impl OptionedServer {
     TSC,
     TSF,
   >(
-    (acpt, addr, mut hcacp, hcocp): (ACPT, &str, HCACP, HCOCP),
+    (addr, mut hcacp, hcocp): (&str, HCACP, HCOCP),
     tcp_acceptance_cb: TAC,
     tcp_stream: TSC,
     http2_conn_error_cb: HCEC,
@@ -53,9 +52,8 @@ impl OptionedServer {
     http2_stream_manual_cb: HSMC,
   ) -> Result<(), ERR>
   where
-    ACPT: Clone + Send + 'static,
     TAC: Fn(&mut HCACP) -> Result<(), ERR> + Send + 'static,
-    TSC: Clone + Fn(ACPT, TcpStream) -> TSF + Send + 'static,
+    TSC: Clone + Fn(TcpStream) -> TSF + Send + 'static,
     HCEC: Clone + Fn(ERR) + Send + 'static,
     HCAC: Clone + Fn(HCACP) -> Result<(CA, Http2Buffer, Http2Params), ERR> + Send + 'static,
     HCACP: Clone + Send + 'static,
@@ -100,7 +98,6 @@ impl OptionedServer {
       let accepted_stream = listener.accept().await.map_err(crate::Error::from)?.0;
       tcp_acceptance_cb(&mut hcacp)?;
 
-      let conn_acpt = acpt.clone();
       let conn_hcacp = hcacp.clone();
       let conn_http2_acceptance = http2_conn_acceptance_cb.clone();
       let conn_http2_error = http2_conn_error_cb.clone();
@@ -116,7 +113,7 @@ impl OptionedServer {
       let _conn_jh = tokio::spawn(async move {
         let initial_fut = async move {
           let (ca, hb, hp) = conn_http2_acceptance(conn_hcacp)?;
-          let parts = conn_tcp_stream(conn_acpt, accepted_stream).await?;
+          let parts = conn_tcp_stream(accepted_stream).await?;
           let (frame_reader, http2) = Http2::accept(hb, hp, parts).await?;
           Ok::<_, ERR>((ca, frame_reader, http2))
         };

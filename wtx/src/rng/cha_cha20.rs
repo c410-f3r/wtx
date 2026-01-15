@@ -1,5 +1,3 @@
-#![allow(clippy::wrong_self_convention, reason = "`to_*` is allowed for self references")]
-
 // 1 iteration = 2 rounds = 8 quarter rounds
 
 use crate::rng::{CryptoRng, Rng, SeedableRng};
@@ -56,13 +54,6 @@ impl ChaCha20 {
 }
 
 impl CryptoRng for ChaCha20 {}
-
-impl Debug for ChaCha20 {
-  #[inline]
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("ChaCha20").finish()
-  }
-}
 
 impl Rng for ChaCha20 {
   #[inline]
@@ -122,6 +113,13 @@ impl SeedableRng for ChaCha20 {
   #[inline]
   fn from_seed(seed: Self::Seed) -> crate::Result<Self> {
     Ok(Self::from_key(seed))
+  }
+}
+
+impl Debug for ChaCha20 {
+  #[inline]
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    f.debug_struct("ChaCha20").finish()
   }
 }
 

@@ -21,7 +21,7 @@ async fn main() -> wtx::Result<()> {
     Flate2::default,
     |error| eprintln!("{error}"),
     handle,
-    (|| Ok(()), |_, stream| async move { Ok(stream) }),
+    |stream| async move { Ok(stream) },
   )
   .await
 }
@@ -29,7 +29,7 @@ async fn main() -> wtx::Result<()> {
 async fn handle(
   mut ws: WebSocket<Option<NegotiatedFlate2>, Xorshift64, TcpStream, &mut WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
-  let (mut common, mut reader, mut writer) = ws.parts_mut();
+  let (mut common, mut reader, mut writer) = ws.split_mut();
   let mut buffer = Vector::new();
   loop {
     let mut frame =

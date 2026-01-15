@@ -39,9 +39,12 @@ async fn main() -> wtx::Result<()> {
   ))?;
   let pool = LocalPool::new(
     4,
-    PostgresRM::tokio(ChaCha20::from_os()?, "postgres://USER:PASSWORD@localhost/DB_NAME".into()),
+    PostgresRM::tokio(
+      ChaCha20::from_getrandom()?,
+      "postgres://USER:PASSWORD@localhost/DB_NAME".into(),
+    ),
   );
-  ServerFrameworkBuilder::new(ChaCha20::from_os()?, router)
+  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
     .with_stream_aux(move |_| Ok(pool.clone()))
     .tokio(
       &wtx_instances::host_from_args(),

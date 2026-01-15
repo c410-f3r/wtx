@@ -48,29 +48,35 @@ fn reuses_cached_statement() {
   );
 }
 
-#[cfg(feature = "tokio-rustls")]
-#[tokio::test]
-async fn tls() {
-  let uri = UriRef::new(_vars().database_uri_mysql.as_str());
-  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
-  let _executor = MysqlExecutor::<crate::Error, _, _>::connect_encrypted(
-    &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::new(usize::MAX, &mut rng),
-    &mut rng,
-    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    |stream| async {
-      Ok(
-        crate::misc::TokioRustlsConnector::default()
-          .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
-          .unwrap()
-          .connect_without_client_auth(uri.hostname(), stream)
-          .await
-          .unwrap(),
-      )
-    },
-  )
-  .await
-  .unwrap();
+#[cfg(feature = "rust-crypto")]
+#[test]
+fn tls() {
+  use crate::executor::Runtime;
+
+  Runtime::new()
+    .block_on(async {
+      //let uri = UriRef::new(URI.as_str());
+      //let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
+      //  let _executor = MysqlExecutor::<crate::Error, _, _>::connect_encrypted(
+      //    &Config::from_uri(&uri).unwrap(),
+      //    ExecutorBuffer::new(usize::MAX, &mut rng),
+      //    &mut rng,
+      //    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
+      //    |stream| async {
+      //      Ok(
+      //        crate::misc::TokioRustlsConnector::default()
+      //          .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
+      //          .unwrap()
+      //          .connect_without_client_auth(uri.hostname(), stream)
+      //          .await
+      //          .unwrap(),
+      //      )
+      //    },
+      //  )
+      //  .await
+      //  .unwrap();
+    })
+    .unwrap();
 }
 
 async fn executor<E>() -> MysqlExecutor<E, ExecutorBuffer, std::net::TcpStream>

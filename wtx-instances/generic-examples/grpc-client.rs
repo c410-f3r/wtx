@@ -10,6 +10,7 @@ use wtx::{
   de::format::QuickProtobuf,
   grpc::GrpcClient,
   http::{ReqResBuffer, client_pool::ClientPoolBuilder},
+  tls::TlsModePlainText,
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -17,7 +18,7 @@ use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 async fn main() -> wtx::Result<()> {
   let rrb = ReqResBuffer::empty();
   let uri_ref = rrb.uri.to_ref();
-  let pool = ClientPoolBuilder::tokio(1).build();
+  let pool = ClientPoolBuilder::tokio(1).aux((), |_: &()| TlsModePlainText).build();
   let mut guard = pool.lock(&uri_ref).await?;
   let mut client = GrpcClient::new(&mut guard.client, QuickProtobuf);
   let res = client

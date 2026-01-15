@@ -212,19 +212,6 @@ mod primitives {
   implement!(f32 f64 i8 i16 i32 i64 i128 u8 u16 u32 u64 u128);
 }
 
-#[cfg(feature = "ring")]
-mod ring {
-  use crate::misc::Lease;
-  use ring::digest::Digest;
-
-  impl Lease<[u8]> for Digest {
-    #[inline]
-    fn lease(&self) -> &[u8] {
-      self.as_ref()
-    }
-  }
-}
-
 mod smart_pointers {
   use crate::{
     misc::{Lease, LeaseMut},

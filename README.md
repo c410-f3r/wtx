@@ -77,12 +77,6 @@ These numbers provide an estimate of the expected waiting times when developing 
 | Postgres Client       | 13                 | 26                 | 5.12s       | 6.19s             | 6.69s           | 652K     |
 | WebSocket Client      | 10                 | 22                 | 4.24s       | 5.04s             | 5.31s           | 560K     |
 
-## Transport Layer Security (TLS)
-
-When using a feature that requires network connection, it is often necessary to perform encrypted communication and since `WTX` is not hard-coded with a specific stream implementation, it is up to you to choose the best TLS provider.
-
-Some utilities like `TokioRustlsConnector` or `TokioRustlsAcceptor` are available to make things more convenient but keep in mind that it is still necessary to activate a crate that provides certificates for client usage.
-
 ## Examples
 
 Demonstrations of different use-cases can be found in the `wtx-instances` directory as well as in the documentation.

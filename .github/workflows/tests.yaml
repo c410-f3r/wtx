@@ -30,7 +30,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-          toolchain: nightly-2025-10-31
+          toolchain: nightly-2025-12-18
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/${{ matrix.script }}
 
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-10-31
+          toolchain: nightly-2025-12-18
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install docker-compose -y
       - run: docker compose -f .test-utils/docker-compose.yml up -d --wait
@@ -68,6 +68,7 @@ jobs:
           '.scripts/autobahn-fuzzingclient.sh ci',
           '.scripts/autobahn-fuzzingserver.sh ci',
           '.scripts/autobahn-fuzzingserver-concurrent.sh ci',
+          '.scripts/boringssl.sh',
           '.scripts/h2load.sh ci',
           '.scripts/h2spec.sh high ci',
           '.scripts/h2spec.sh low ci',
@@ -77,7 +78,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-10-31
+          toolchain: nightly-2025-12-18
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install nghttp2-client -y
       - run: ${{ matrix.scripts }}

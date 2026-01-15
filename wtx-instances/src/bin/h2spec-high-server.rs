@@ -15,9 +15,9 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
-    ((), "127.0.0.1:9000", (), ()),
+    ("127.0.0.1:9000", (), ()),
     |_| Ok(()),
-    |_, stream| async move { Ok(stream.into_split()) },
+    |stream| async move { Ok(stream.into_split()) },
     |error| eprintln!("{error}"),
     |_| Ok(((), Http2Buffer::new(&mut Xorshift64::from(simple_seed())), Http2Params::default())),
     |_| Ok(()),

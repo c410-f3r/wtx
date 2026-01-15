@@ -2,7 +2,7 @@
 
 #[cfg(feature = "http2")]
 pub(crate) mod bytes_transfer;
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "postgres", feature = "tls"))]
 pub(crate) mod counter_writer;
 mod hints;
 #[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
@@ -31,16 +31,12 @@ mod secret;
 mod sensitive_bytes;
 mod single_type_storage;
 mod suffix_writer;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
 mod tuple_impls;
 mod uri;
 mod usize;
 mod utf8_errors;
 mod wrapper;
 
-#[cfg(feature = "tokio-rustls")]
-pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 use crate::{
   calendar::Instant,
   de::{U64String, u64_string},

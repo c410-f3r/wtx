@@ -5,30 +5,34 @@
 //! task but you can also utilize any other method.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_instances;
 
 use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
-  misc::{TokioRustlsConnector, Uri},
+  misc::Uri,
+  rng::{ChaCha20, SeedableRng as _},
+  tls::{TlsConfig, TlsConnector},
   web_socket::{Frame, OpCode, WebSocketConnector, WebSocketPartsOwned, WebSocketPayloadOrigin},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = Uri::new("SOME_TLS_URI");
-  let tls_connector = TokioRustlsConnector::from_auto()?.push_certs(wtx_instances::ROOT_CA)?;
-  let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
-  let ws = WebSocketConnector::default()
+  let uri = Uri::new("SOME_URI");
+  let mut rng = ChaCha20::from_getrandom()?;
+  let tls_stream = TlsConnector::default()
     .connect(
-      tls_connector.connect_without_client_auth(uri.hostname(), stream).await?,
-      &uri.to_ref(),
+      &mut rng,
+      TcpStream::connect(uri.hostname_with_implied_port()).await?,
+      &TlsConfig::default(),
     )
     .await?;
-  let WebSocketPartsOwned { mut reader, replier, mut writer } = ws.into_parts(tokio::io::split)?;
-
+  let ws = WebSocketConnector::default().connect(tls_stream, &uri.to_ref()).await?;
+  let parts = ws.into_split(|inner_tls_stream| {
+    inner_tls_stream.into_split(|inner_tcp_stream| inner_tcp_stream.into_split())
+  })?;
+  let WebSocketPartsOwned { mut reader, replier, mut writer } = parts;
   let reader_fut = async {
     let mut buffer = Vector::new();
     loop {

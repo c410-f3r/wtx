@@ -79,9 +79,9 @@ pub enum Error {
   #[cfg(feature = "rsa")]
   #[doc = associated_element_doc!()]
   RsaError(Box<rsa::Error>),
-  #[cfg(feature = "rustls")]
+  #[cfg(feature = "rustls-webpki")]
   #[doc = associated_element_doc!()]
-  RustlsError(Box<rustls::Error>),
+  RustlsWebpki(Box<webpki::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
   SerdeDeValue(Box<::serde::de::value::Error>),
@@ -145,6 +145,8 @@ pub enum Error {
   ClosedHttpConnection,
   /// A WebSocket connection was unexpectedly closed by an external actor or because of a local error.
   ClosedWebSocketConnection,
+  /// The amount of elements exceeds the underlying storage.
+  CounterWriterOverflow,
   /// Future should complete before a certain duration but didn't
   ExpiredFuture,
   /// Future must not be polled again after finalization
@@ -227,6 +229,9 @@ pub enum Error {
   ArrayStringError(ArrayStringError),
   #[doc = associated_element_doc!()]
   ArrayVectorError(ArrayVectorError),
+  #[cfg(feature = "aws-lc-rs")]
+  #[doc = associated_element_doc!()]
+  AwsLcRsUnspecified(aws_lc_rs::error::Unspecified),
   #[doc = associated_element_doc!()]
   BlocksQueueError(BlocksDequeError),
   #[doc = associated_element_doc!()]
@@ -278,6 +283,9 @@ pub enum Error {
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "tls")]
+  #[doc = associated_element_doc!()]
+  TlsError(crate::tls::TlsError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -511,11 +519,11 @@ impl From<rsa::Error> for Error {
   }
 }
 
-#[cfg(feature = "rustls")]
-impl From<rustls::Error> for Error {
+#[cfg(feature = "rustls-webpki")]
+impl From<webpki::Error> for Error {
   #[inline]
-  fn from(from: rustls::Error) -> Self {
-    Self::RustlsError(from.into())
+  fn from(from: webpki::Error) -> Self {
+    Self::RustlsWebpki(from.into())
   }
 }
 
@@ -556,6 +564,14 @@ impl From<spki::Error> for Error {
   #[inline]
   fn from(from: spki::Error) -> Self {
     Self::SpkiError(from.into())
+  }
+}
+
+#[cfg(feature = "tls")]
+impl From<crate::tls::TlsError> for Error {
+  #[inline]
+  fn from(from: crate::tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 
@@ -623,6 +639,14 @@ impl From<ArrayVectorError> for Error {
   #[inline]
   fn from(from: ArrayVectorError) -> Self {
     Self::ArrayVectorError(from)
+  }
+}
+
+#[cfg(feature = "aws-lc-rs")]
+impl From<aws_lc_rs::error::Unspecified> for Error {
+  #[inline]
+  fn from(from: aws_lc_rs::error::Unspecified) -> Self {
+    Self::AwsLcRsUnspecified(from)
   }
 }
 

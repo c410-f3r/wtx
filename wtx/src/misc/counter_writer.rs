@@ -2,34 +2,24 @@ use crate::{
   collection::Vector,
   misc::{LeaseMut, SuffixWriter},
 };
-use core::marker::PhantomData;
 
-pub(crate) trait CounterWriter<E, V>
-where
-  E: From<crate::Error>,
-  V: LeaseMut<Vector<u8>>,
-{
-  fn write(
-    &self,
-    sw: &mut SuffixWriter<V>,
-    include_len: bool,
-    prefix: Option<u8>,
-    cb: impl FnOnce(&mut SuffixWriter<V>) -> Result<(), E>,
-  ) -> Result<(), E>;
-
-  fn write_iter<T>(
-    &self,
-    sw: &mut SuffixWriter<V>,
-    iter: impl IntoIterator<Item = T>,
-    prefix: Option<u8>,
-    cb: impl FnMut(T, &mut SuffixWriter<V>) -> Result<(), E>,
-  ) -> Result<(), E>;
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum CounterWriterIterTy {
+  Bytes(CounterWriterBytesTy),
+  Elements,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum CounterWriterBytesTy {
+  IncludesLen,
+  IgnoresLen,
+}
+
+#[inline]
 fn write<E, V, const N: usize>(
-  sw: &mut SuffixWriter<V>,
-  include_len: bool,
+  cwbt: CounterWriterBytesTy,
   prefix: Option<u8>,
+  sw: &mut SuffixWriter<V>,
   sw_cb: impl FnOnce(&mut SuffixWriter<V>) -> Result<(), E>,
   value_cb: impl FnOnce(&mut SuffixWriter<V>, usize) -> Result<[u8; N], E>,
 ) -> Result<(), E>
@@ -37,15 +27,46 @@ where
   E: From<crate::Error>,
   V: LeaseMut<Vector<u8>>,
 {
-  let after_prefix = write_init::<_, _, N>(sw, prefix)?;
-  let len_before = if include_len { after_prefix } else { sw.len() };
+  let len_write_begin = writer_len_begin::<_, _, N>(sw, prefix)?;
+  let len_begin = match cwbt {
+    CounterWriterBytesTy::IgnoresLen => sw.len(),
+    CounterWriterBytesTy::IncludesLen => len_write_begin,
+  };
   sw_cb(sw)?;
-  let value = value_cb(sw, len_before)?;
-  write_prefix(after_prefix, sw, value);
-  Ok(())
+  let value = value_cb(sw, len_begin)?;
+  Ok(write_len_end(len_write_begin, sw, value))
 }
 
-fn write_init<E, V, const N: usize>(
+#[inline]
+fn write_iter<E, T, V, const N: usize>(
+  cwit: CounterWriterIterTy,
+  iter: impl IntoIterator<Item = T>,
+  prefix: Option<u8>,
+  sw: &mut SuffixWriter<V>,
+  mut sw_cb: impl FnMut(T, &mut SuffixWriter<V>) -> Result<(), E>,
+  value_cb: impl FnOnce(usize, &mut SuffixWriter<V>, usize) -> Result<[u8; N], E>,
+) -> Result<(), E>
+where
+  E: From<crate::Error>,
+  V: LeaseMut<Vector<u8>>,
+{
+  let len_write_begin = writer_len_begin::<_, _, N>(sw, prefix)?;
+  let len_begin = match cwit {
+    CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen) => sw.len(),
+    CounterWriterIterTy::Bytes(CounterWriterBytesTy::IncludesLen) => len_write_begin,
+    CounterWriterIterTy::Elements => 0,
+  };
+  let mut elements: usize = 0;
+  for elem in iter.into_iter() {
+    sw_cb(elem, sw)?;
+    elements = elements.wrapping_add(1);
+  }
+  let value = value_cb(elements, sw, len_begin)?;
+  Ok(write_len_end(len_write_begin, sw, value))
+}
+
+#[inline]
+fn writer_len_begin<E, V, const N: usize>(
   sw: &mut SuffixWriter<V>,
   prefix: Option<u8>,
 ) -> Result<usize, E>
@@ -61,84 +82,82 @@ where
   Ok(after_prefix)
 }
 
-fn write_iter<E, T, V, const N: usize>(
+#[inline]
+fn write_len_end<V, const N: usize>(
+  len_write_begin: usize,
   sw: &mut SuffixWriter<V>,
-  iter: impl IntoIterator<Item = T>,
-  prefix: Option<u8>,
-  mut sw_cb: impl FnMut(T, &mut SuffixWriter<V>) -> Result<(), E>,
-  value_cb: impl FnOnce(usize) -> Result<[u8; N], E>,
-) -> Result<(), E>
-where
-  E: From<crate::Error>,
+  value: [u8; N],
+) where
   V: LeaseMut<Vector<u8>>,
 {
-  let start = write_init::<_, _, N>(sw, prefix)?;
-  let mut counter: usize = 0;
-  for elem in iter.into_iter().take(u16::MAX.into()) {
-    sw_cb(elem, sw)?;
-    counter = counter.wrapping_add(1);
-  }
-  let value = value_cb(counter)?;
-  write_prefix(start, sw, value);
-  Ok(())
-}
-
-fn write_prefix<V, const N: usize>(start: usize, sw: &mut SuffixWriter<V>, value: [u8; N])
-where
-  V: LeaseMut<Vector<u8>>,
-{
-  let end = start.wrapping_add(value.len());
-  if let Some(elem) = sw.curr_bytes_mut().get_mut(start..end) {
-    elem.copy_from_slice(&value);
-  }
+  let range = len_write_begin..len_write_begin.wrapping_add(N);
+  let prefix_opt = sw.curr_bytes_mut().get_mut(range).and_then(|slice| slice.as_mut_array::<N>());
+  // SAFETY: `start` and `value` are internally evaluated parameters that adhere to slice bounds.
+  let prefix = unsafe { prefix_opt.unwrap_unchecked() };
+  prefix.copy_from_slice(&value);
 }
 
 macro_rules! impl_trait {
-  (
-    $name:ident,
-    $ty:ident
-  ) => {
-    #[derive(Debug)]
-    pub(crate) struct $name<E, V>(PhantomData<(E, V)>);
-
-    impl<E, V> CounterWriter<E, V> for $name<E, V>
+  ($name:ident, $name_iter:ident, $ty:ident, $bytes:literal, $max:literal) => {
+    #[inline]
+    pub(crate) fn $name<E, V>(
+      cwbt: CounterWriterBytesTy,
+      prefix: Option<u8>,
+      sw: &mut SuffixWriter<V>,
+      cb: impl FnOnce(&mut SuffixWriter<V>) -> Result<(), E>,
+    ) -> Result<(), E>
     where
       E: From<crate::Error>,
       V: LeaseMut<Vector<u8>>,
     {
-      fn write(
-        &self,
-        sw: &mut SuffixWriter<V>,
-        include_len: bool,
-        prefix: Option<u8>,
-        cb: impl FnOnce(&mut SuffixWriter<V>) -> Result<(), E>,
-      ) -> Result<(), E> {
-        write(sw, include_len, prefix, cb, |local_sw, len_before| {
-          let diff = local_sw.len().wrapping_sub(len_before);
-          Ok($ty::try_from(diff).map_err(Into::into)?.to_be_bytes())
-        })
-      }
-
-      fn write_iter<T>(
-        &self,
-        sw: &mut SuffixWriter<V>,
-        iter: impl IntoIterator<Item = T>,
-        prefix: Option<u8>,
-        cb: impl FnMut(T, &mut SuffixWriter<V>) -> Result<(), E>,
-      ) -> Result<(), E> {
-        write_iter(sw, iter, prefix, cb, |counter| {
-          Ok($ty::try_from(counter).map_err(Into::into)?.to_be_bytes())
-        })
-      }
+      write(cwbt, prefix, sw, cb, |local_sw, len_begin| {
+        let len = local_sw.len().wrapping_sub(len_begin);
+        if len > $max {
+          return Err(crate::Error::CounterWriterOverflow.into());
+        }
+        let array = $ty::try_from(len).map_err(Into::into)?.to_be_bytes();
+        let mut rslt = [0; $bytes];
+        rslt.copy_from_slice(&array[array.len() - $bytes..]);
+        Ok(rslt)
+      })
     }
 
-    impl<E, V> Default for $name<E, V> {
-      fn default() -> Self {
-        Self(PhantomData)
-      }
+    #[inline]
+    pub(crate) fn $name_iter<E, T, V>(
+      cwit: CounterWriterIterTy,
+      iter: impl IntoIterator<Item = T>,
+      prefix: Option<u8>,
+      sw: &mut SuffixWriter<V>,
+      cb: impl FnMut(T, &mut SuffixWriter<V>) -> Result<(), E>,
+    ) -> Result<(), E>
+    where
+      E: From<crate::Error>,
+      V: LeaseMut<Vector<u8>>,
+    {
+      write_iter(cwit, iter, prefix, sw, cb, |counter, local_sw, len_begin| {
+        let len = match cwit {
+          CounterWriterIterTy::Bytes(_) => local_sw.len().wrapping_sub(len_begin),
+          CounterWriterIterTy::Elements => counter,
+        };
+        if len > $max {
+          return Err(crate::Error::CounterWriterOverflow.into());
+        }
+        let array = $ty::try_from(len).map_err(Into::into)?.to_be_bytes();
+        let mut rslt = [0; $bytes];
+        rslt.copy_from_slice(&array[array.len() - $bytes..]);
+        Ok(rslt)
+      })
     }
   };
 }
 
-impl_trait!(I16Counter, i16);
-impl_trait!(I32Counter, i32);
+#[cfg(feature = "tls")]
+impl_trait!(u8_write, u8_write_iter, u8, 1, 255);
+#[cfg(feature = "postgres")]
+impl_trait!(i16_write, i16_write_iter, i16, 2, 32_767);
+#[cfg(feature = "tls")]
+impl_trait!(u16_write, u16_write_iter, u16, 2, 65_535);
+#[cfg(feature = "tls")]
+impl_trait!(u24_write, u24_write_iter, u32, 3, 16_777_215);
+#[cfg(feature = "postgres")]
+impl_trait!(i32_write, i32_write_iter, i32, 4, 2_147_483_647);

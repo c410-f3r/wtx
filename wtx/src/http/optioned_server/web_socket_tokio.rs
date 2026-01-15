@@ -2,7 +2,7 @@ use crate::{
   http::OptionedServer,
   misc::FnFut,
   pool::{SimplePool, WebSocketRM},
-  rng::Xorshift64,
+  rng::{CryptoRng, Xorshift64},
   stream::Stream,
   web_socket::{Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer},
 };
@@ -15,19 +15,16 @@ static POOL: OnceLock<SimplePool<WebSocketRM>> = OnceLock::new();
 impl OptionedServer {
   /// Optioned WebSocket server using tokio.
   #[inline]
-  pub async fn web_socket_tokio<ACPT, C, E, H, N, S>(
+  pub async fn web_socket_tokio<C, E, H, N, RNG, S>(
     addr: &str,
     buffers_len_opt: Option<usize>,
+    rng: RNG,
     compression_cb: impl Clone + Fn() -> C + Send + 'static,
     err_cb: impl Clone + Fn(E) + Send + 'static,
     handle_cb: H,
-    (acceptor_cb, net_cb): (
-      impl FnOnce() -> crate::Result<ACPT> + Send + 'static,
-      impl Clone + Fn(ACPT, TcpStream) -> N + Send + 'static,
-    ),
+    net_cb: impl Clone + Fn(TcpStream) -> N + Send + 'static,
   ) -> crate::Result<()>
   where
-    ACPT: Clone + Send + 'static,
     C: Compression<false> + Send + 'static,
     C::NegotiatedCompression: Send,
     E: Debug + From<crate::Error> + Send + 'static,
@@ -38,6 +35,7 @@ impl OptionedServer {
       > + Send
       + 'static,
     N: Send + Future<Output = crate::Result<S>>,
+    RNG: CryptoRng,
     S: Stream<read(..): Send, write_all(..): Send> + Send,
     for<'wsb> <H as FnFut<(
       WebSocket<C::NegotiatedCompression, Xorshift64, S, &'wsb mut WebSocketBuffer, false>,
@@ -46,9 +44,7 @@ impl OptionedServer {
   {
     let buffers_len = number_or_available_parallelism(buffers_len_opt)?;
     let listener = TcpListener::bind(addr).await?;
-    let acceptor = acceptor_cb()?;
     loop {
-      let conn_acceptor = acceptor.clone();
       let conn_compression_cb = compression_cb.clone();
       let conn_conn_err = err_cb.clone();
       let conn_handle_cb = handle_cb.clone();
@@ -61,7 +57,7 @@ impl OptionedServer {
       let _jh = tokio::spawn(async move {
         let wsb = &mut ***conn_buffer;
         let fun = async move {
-          let net = conn_net_cb(conn_acceptor, tcp_stream).await?;
+          let net = conn_net_cb(tcp_stream).await?;
           conn_handle_cb
             .call((WebSocketAcceptor::default()
               .compression(conn_compression_cb())

@@ -41,7 +41,7 @@ type LocalSessionManager = SessionManager<u32, wtx::Error>;
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = "postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut db_rng = ChaCha20::from_os()?;
+  let mut db_rng = ChaCha20::from_getrandom()?;
   let mut server_rng = ChaCha20::from_rng(&mut db_rng)?;
   let db_pool = DbPool::new(4, PostgresRM::tokio(db_rng, uri.into()));
   let builder = LocalSessionManager::builder();

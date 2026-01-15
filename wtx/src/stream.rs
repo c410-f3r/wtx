@@ -42,16 +42,12 @@ mod embassy_net;
 #[cfg(feature = "std")]
 mod std;
 mod stream_reader;
-mod stream_with_tls;
 mod stream_writer;
 #[cfg(feature = "tokio")]
 mod tokio;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
 
 pub use bytes_stream::BytesStream;
 pub use stream_reader::StreamReader;
-pub use stream_with_tls::StreamWithTls;
 pub use stream_writer::StreamWriter;
 
 /// A stream of values produced asynchronously.

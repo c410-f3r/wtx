@@ -21,7 +21,8 @@ use wtx::{
   de::format::SerdeJson,
   http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
   misc::Uri,
-  rng::Xorshift64,
+  rng::{ChaCha20, SeedableRng as _, Xorshift64},
+  tls::{TlsBuffer, TlsConfig, TlsConnector, TlsModeVerifyFull, TlsStream},
   web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
 
@@ -81,8 +82,14 @@ mod generic_web_socket_subscription {
   pub type GenericWebSocketSubscriptionRes = u64;
 }
 
-async fn http_pair()
--> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn(&()), ()>> {
+fn http_pair() -> Pair<
+  PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>,
+  ClientPoolTokio<(), fn(&()) -> TlsModeVerifyFull>,
+> {
+  fn fun(_: &()) -> TlsModeVerifyFull {
+    TlsModeVerifyFull
+  }
+  let fun: fn(&()) -> TlsModeVerifyFull = fun;
   Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
@@ -91,20 +98,32 @@ async fn http_pair()
       SerdeJson,
       HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
     ),
-    ClientPoolBuilder::tokio(1).build(),
+    ClientPoolBuilder::tokio(1).aux((), fun).build(),
   )
 }
 
 async fn web_socket_pair() -> wtx::Result<
   Pair<
     PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-    WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>,
+    WebSocket<
+      (),
+      Xorshift64,
+      TlsStream<TcpStream, TlsBuffer, TlsModeVerifyFull, true>,
+      WebSocketBuffer,
+      true,
+    >,
   >,
 > {
   let uri = Uri::new("ws://generic_web_socket_uri.com");
-  let web_socket = WebSocketConnector::default()
-    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri)
+  let mut rng = ChaCha20::from_getrandom()?;
+  let tls_stream = TlsConnector::default()
+    .connect(
+      &mut rng,
+      TcpStream::connect(uri.hostname_with_implied_port()).await?,
+      &TlsConfig::default(),
+    )
     .await?;
+  let web_socket = WebSocketConnector::default().connect(tls_stream, &uri).await?;
   Ok(Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
@@ -119,7 +138,7 @@ async fn web_socket_pair() -> wtx::Result<
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let mut hp = http_pair().await;
+  let mut hp = http_pair();
   let _http_response_tuple = hp
     .trans
     .send_pkg_recv_decode_contained(

@@ -25,8 +25,7 @@ async fn main() -> wtx::Result<()> {
   )?;
   ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
     .with_stream_aux(|_| Ok(QuickProtobuf))
-    .tokio_rustls(
-      (wtx_instances::CERT, wtx_instances::KEY),
+    .tokio(
       &wtx_instances::host_from_args(),
       |error| eprintln!("{error}"),
       |_| Ok(()),

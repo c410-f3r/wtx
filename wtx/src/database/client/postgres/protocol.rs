@@ -7,7 +7,7 @@ use crate::{
   de::U64String,
   misc::{
     SuffixWriterFbvm,
-    counter_writer::{CounterWriter, I16Counter, I32Counter},
+    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, i16_write_iter, i32_write},
   },
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -24,14 +24,15 @@ where
   E: From<crate::Error>,
   RV: RecordValues<Postgres<E>>,
 {
-  I32Counter::default().write(sw, true, Some(b'B'), |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'B'), sw, |local_sw| {
     local_sw.extend_from_slices_each_c(&[portal.as_bytes(), stmt_cmd_id_array.as_bytes()])?;
     let rv_len = rv.len();
 
-    I16Counter::default().write_iter(
-      local_sw,
+    i16_write_iter(
+      CounterWriterIterTy::Elements,
       (0..rv_len).map(|_| 1i16),
       None,
+      local_sw,
       |elem, local_local_sw| {
         local_local_sw.extend_from_slice(&elem.to_be_bytes())?;
         Ok(())
@@ -68,10 +69,16 @@ where
       }
     }
 
-    I16Counter::default().write_iter(local_sw, &[1i16], None, |elem, local_local_sw| {
-      local_local_sw.extend_from_slice(&elem.to_be_bytes())?;
-      Ok(())
-    })?;
+    i16_write_iter(
+      CounterWriterIterTy::Elements,
+      &[1i16],
+      None,
+      local_sw,
+      |elem, local_local_sw| {
+        local_local_sw.extend_from_slice(&elem.to_be_bytes())?;
+        Ok(())
+      },
+    )?;
 
     Ok::<_, E>(())
   })
@@ -82,7 +89,7 @@ pub(crate) fn describe(
   sw: &mut SuffixWriterFbvm<'_>,
   variant: u8,
 ) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, Some(b'D'), |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'D'), sw, |local_sw| {
     local_sw.extend_from_byte(variant)?;
     local_sw.extend_from_slice_c(data)?;
     Ok(())
@@ -90,7 +97,7 @@ pub(crate) fn describe(
 }
 
 pub(crate) fn encrypted_conn(sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, None, |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, None, sw, |local_sw| {
     local_sw.extend_from_slice(&0b0000_0100_1101_0010_0001_0110_0010_1111i32.to_be_bytes())?;
     Ok::<_, crate::Error>(())
   })
@@ -101,7 +108,7 @@ pub(crate) fn execute(
   max_rows: i32,
   portal: &str,
 ) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, Some(b'E'), |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'E'), sw, |local_sw| {
     local_sw.extend_from_slice_c(portal.as_bytes())?;
     local_sw.extend_from_slice(&max_rows.to_be_bytes())?;
     Ok::<_, crate::Error>(())
@@ -112,7 +119,7 @@ pub(crate) fn initial_conn_msg(
   config: &Config<'_>,
   sw: &mut SuffixWriterFbvm<'_>,
 ) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, None, |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, None, sw, |local_sw| {
     local_sw.extend_from_slice(&0b11_0000_0000_0000_0000i32.to_be_bytes())?;
     local_sw.extend_from_slices_each_c(&[b"user", config.user.as_bytes()])?;
     local_sw.extend_from_slices_each_c(&[b"database", config.db.as_bytes()])?;
@@ -139,9 +146,9 @@ pub(crate) fn parse(
   iter: impl IntoIterator<Item = Oid>,
   name: &U64String,
 ) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, Some(b'P'), |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'P'), sw, |local_sw| {
     local_sw.extend_from_slices_each_c(&[name.as_bytes(), cmd.as_bytes()])?;
-    I16Counter::default().write_iter(local_sw, iter, None, |ty, local_local_sw| {
+    i16_write_iter(CounterWriterIterTy::Elements, iter, None, local_sw, |ty, local_local_sw| {
       local_local_sw.extend_from_slice(&ty.to_be_bytes())?;
       Ok(())
     })
@@ -149,7 +156,7 @@ pub(crate) fn parse(
 }
 
 pub(crate) fn query(cmd: &[u8], sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, Some(b'Q'), |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'Q'), sw, |local_sw| {
     local_sw.extend_from_slice_c(cmd)?;
     Ok::<_, crate::Error>(())
   })
@@ -160,16 +167,15 @@ pub(crate) fn sasl_first(
   (method_bytes, method_header): (&[u8], &[u8]),
   nonce: &[u8],
 ) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, Some(b'p'), |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'p'), sw, |local_sw| {
     local_sw.extend_from_slice_c(method_bytes)?;
-    I32Counter::default().write(local_sw, false, None, |local_local_sw| {
+    i32_write(CounterWriterBytesTy::IgnoresLen, None, local_sw, |local_local_sw| {
       local_local_sw.extend_from_slice(method_header)?;
       local_local_sw.extend_from_slice(b"n=,r=")?;
       local_local_sw.extend_from_slice(nonce)?;
       Ok::<_, crate::Error>(())
     })
-  })?;
-  Ok(())
+  })
 }
 
 pub(crate) fn sasl_second(
@@ -180,7 +186,7 @@ pub(crate) fn sasl_second(
   salted_password: &[u8; 32],
   tls_server_end_point: &[u8],
 ) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, Some(b'p'), |local_sw| {
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'p'), sw, |local_sw| {
     local_sw.extend_from_slice(b"c=")?;
     local_sw.create_buffer(method_header.len().wrapping_mul(2), |slice| {
       Ok(STANDARD.encode_slice(method_header, slice)?)
@@ -225,5 +231,5 @@ pub(crate) fn sasl_second(
 }
 
 pub(crate) fn sync(sw: &mut SuffixWriterFbvm<'_>) -> crate::Result<()> {
-  I32Counter::default().write(sw, true, Some(b'S'), |_| Ok::<_, crate::Error>(()))
+  i32_write(CounterWriterBytesTy::IncludesLen, Some(b'S'), sw, |_| Ok::<_, crate::Error>(()))
 }

@@ -114,7 +114,7 @@ where
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("AsyncMutexGuard").field("mutex", &self.mutex).field("value", &&**self).finish()
+    f.debug_struct("AsyncMutexGuard").field("mutex", &self.mutex).field("value", &**self).finish()
   }
 }
 
@@ -220,7 +220,6 @@ impl<'any, T> Future for AsyncMutexGuardFuture<'any, T> {
       return Poll::Ready(mutex_guard);
     }
 
-    // Lock failed, waiter is registered. We return pending.
     Poll::Pending
   }
 }

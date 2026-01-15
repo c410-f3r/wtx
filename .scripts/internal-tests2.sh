@@ -12,7 +12,6 @@ $rt test-with-features wtx sha2
 $rt test-with-features wtx simdutf8
 $rt test-with-features wtx std
 $rt test-with-features wtx tokio
-$rt test-with-features wtx tokio-rustls
 $rt test-with-features wtx tracing
 $rt test-with-features wtx uuid
 $rt test-with-features wtx web-socket

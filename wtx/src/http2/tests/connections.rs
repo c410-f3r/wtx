@@ -67,7 +67,6 @@ fn server(uri: &UriString, runtime: &Runtime) {
   let _server_jh = runtime
     .spawn_threaded(async move {
       let (stream, _) = listener.accept().unwrap();
-      let mut rrb = ReqResBuffer::empty();
       let (frame_header, mut http2) = Http2::accept(
         Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
         Http2Params::default(),
@@ -77,15 +76,15 @@ fn server(uri: &UriString, runtime: &Runtime) {
       .unwrap();
       let _jh = runtime_fut.spawn_threaded(frame_header);
       let enc_buffer = &mut Vector::new();
-      rrb = stream_server(enc_buffer, &mut http2, |req| {
+      stream_server(enc_buffer, &mut http2, |req| {
         _0(req.rrd.body(), req.rrd.headers());
       })
       .await;
-      rrb = stream_server(enc_buffer, &mut http2, |req| {
+      stream_server(enc_buffer, &mut http2, |req| {
         _1(req.rrd.body(), req.rrd.headers());
       })
       .await;
-      rrb = stream_server(enc_buffer, &mut http2, |req| {
+      stream_server(enc_buffer, &mut http2, |req| {
         _2(req.rrd.body(), req.rrd.headers());
       })
       .await;
@@ -101,12 +100,11 @@ async fn stream_server(
   enc_buffer: &mut Vector<u8>,
   server: &mut Http2<Http2Buffer, TcpStream, false>,
   mut cb: impl FnMut(Request<&mut ReqResBuffer>),
-) -> ReqResBuffer {
+) {
   let (mut stream, _) = server.stream(|_, _| {}).await.unwrap().unwrap();
   let (_, mut req_rrb) = stream.recv_req().await.unwrap();
   cb(req_rrb.as_http2_request_mut(stream.method()));
   let _ = stream.send_res(enc_buffer, req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
-  req_rrb
 }
 
 async fn stream_client(
