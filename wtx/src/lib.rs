@@ -1,7 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
-#![cfg_attr(feature = "nightly", feature(mpmc_channel, return_type_notation))]
+#![cfg_attr(feature = "nightly", feature(mpmc_channel, random, return_type_notation))]
 #![doc = include_str!("../README.md")]
 #![no_std]
 
