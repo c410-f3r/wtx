@@ -88,6 +88,9 @@ pub enum Error {
   #[cfg(feature = "serde_json")]
   #[doc = associated_element_doc!()]
   SerdeJson(serde_json::Error),
+  #[cfg(feature = "serde_json")]
+  #[doc = associated_element_doc!()]
+  SerdeJsonDeserialize(Box<String>),
   #[cfg(feature = "serde_urlencoded")]
   #[doc = associated_element_doc!()]
   SerdeUrlencodedSer(Box<serde_urlencoded::ser::Error>),

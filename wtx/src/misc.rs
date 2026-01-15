@@ -244,6 +244,25 @@ pub fn find_file(dir: &mut std::path::PathBuf, file: &std::path::Path) -> std::i
   }
 }
 
+/// A version of `serde_json::from_slice` that aggregates the payload in case of an error.
+#[cfg(feature = "serde_json")]
+pub fn serde_json_deserialize_from_slice<'any, T>(slice: &'any [u8]) -> crate::Result<T>
+where
+  T: serde::de::Deserialize<'any>,
+{
+  match serde_json::from_slice(slice) {
+    Ok(elem) => Ok(elem),
+    Err(err) => {
+      use core::{fmt::Write, str};
+      let mut string = alloc::string::String::new();
+      let idx = slice.len().max(1024);
+      let payload = slice.get(..idx).and_then(|el| str::from_utf8(el).ok()).unwrap_or_default();
+      string.write_fmt(format_args!("Error: {err}. Payload: {payload}"))?;
+      Err(crate::Error::SerdeJsonDeserialize(string.into()))
+    }
+  }
+}
+
 /// Similar to `collect_seq` of `serde` but expects a `Result`.
 #[cfg(feature = "serde")]
 pub fn serialize_seq_with_serde<E, I, S, T>(ser: S, into_iter: I) -> Result<S::Ok, S::Error>

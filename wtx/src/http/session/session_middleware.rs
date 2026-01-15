@@ -6,7 +6,7 @@ use crate::{
     SessionManagerInner, SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
     server_framework::Middleware,
   },
-  misc::{Lease, LeaseMut, decrypt_aes256gcm_base64},
+  misc::{Lease, LeaseMut, decrypt_aes256gcm_base64, serde_json_deserialize_from_slice},
   pool::{ResourceManager, SimplePool},
 };
 use alloc::string::String;
@@ -104,7 +104,7 @@ where
         );
         req.rrd.body.truncate(idx);
         let value_json = decrypt_rslt?;
-        let json_rslt = serde_json::from_slice(value_json);
+        let json_rslt = serde_json_deserialize_from_slice(value_json);
         cookie_def.value.clear();
         json_rslt.map_err(Into::into)?
       };

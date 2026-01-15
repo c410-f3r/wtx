@@ -154,9 +154,12 @@ mod serde {
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::de::{
-    format::SerdeJson,
-    protocol::{GraphQlDecoder, misc::collect_using_serde_json},
+  use crate::{
+    de::{
+      format::SerdeJson,
+      protocol::{GraphQlDecoder, misc::collect_using_serde_json},
+    },
+    misc::serde_json_deserialize_from_slice,
   };
   use serde::{Deserialize, Serialize};
 
@@ -164,7 +167,7 @@ mod serde_json {
     GraphQlDecoder<(D): Deserialize<'de>, (E): Deserialize<'de>>,
     SerdeJson,
     |_aux, dw| {
-      Ok(serde_json::from_slice(dw.bytes)?)
+      Ok(serde_json_deserialize_from_slice(dw.bytes)?)
     }
   }
 

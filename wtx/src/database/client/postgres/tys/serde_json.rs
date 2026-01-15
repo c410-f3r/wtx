@@ -4,6 +4,7 @@ use crate::{
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
   },
   de::{Decode, Encode},
+  misc::serde_json_deserialize_from_slice,
 };
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +18,7 @@ where
     let [1, rest @ ..] = input.bytes() else {
       return Err(E::from(PostgresError::InvalidJsonFormat.into()));
     };
-    let elem = serde_json::from_slice(rest).map(Json).map_err(Into::into)?;
+    let elem = serde_json_deserialize_from_slice(rest)?;
     Ok(elem)
   }
 }
