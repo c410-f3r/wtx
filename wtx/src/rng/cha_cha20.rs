@@ -1,8 +1,14 @@
-// 1 iteration = 2 rounds = 8 quarter rounds
-
 use crate::rng::{CryptoRng, Rng, SeedableRng};
 use core::fmt::Debug;
 
+const LEN: usize = _simd!(
+  8 => { 8 },
+  16 => { 16 },
+  32 => { 32 },
+  64 => { 64 },
+);
+
+// 1 iteration = 2 rounds = 8 quarter rounds
 const ITERATIONS: u8 = 10;
 // Each word has 32 bits or 4 bytes
 const WORDS: usize = 16;
@@ -227,24 +233,24 @@ impl Row {
   }
 
   const fn roll_left<const N: u8>(self) -> Row {
-    let lefted = self.shift_left::<N>();
+    let lefted = self.shift_left_inner::<N>();
     let righted = self.shift_right(32u8.wrapping_sub(N));
     lefted.or(&righted)
   }
 
-  const fn shift_left<const N: u8>(self) -> Row {
+  const fn shift_left_inner<const N: u8>(self) -> Row {
     Row(self.0 << N, self.1 << N, self.2 << N, self.3 << N)
   }
 
-  const fn shuffle_left1(self) -> Row {
+  const fn shift_left_outer1(self) -> Row {
     Row(self.1, self.2, self.3, self.0)
   }
 
-  const fn shuffle_left2(self) -> Row {
+  const fn shift_left_outer2(self) -> Row {
     Row(self.2, self.3, self.0, self.1)
   }
 
-  const fn shuffle_left3(self) -> Row {
+  const fn shift_left_outer3(self) -> Row {
     Row(self.3, self.0, self.1, self.2)
   }
 
@@ -299,15 +305,15 @@ const fn block_function<const ADD: bool>(block: &Block) -> Block {
 }
 
 const fn diagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
-  *b = b.shuffle_left1();
-  *c = c.shuffle_left2();
-  *d = d.shuffle_left3();
+  *b = b.shift_left_outer1();
+  *c = c.shift_left_outer2();
+  *d = d.shift_left_outer3();
 }
 
 const fn undiagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
-  *b = b.shuffle_left3();
-  *c = c.shuffle_left2();
-  *d = d.shuffle_left1();
+  *b = b.shift_left_outer3();
+  *c = c.shift_left_outer2();
+  *d = d.shift_left_outer1();
 }
 
 const fn round(a: &mut Row, b: &mut Row, c: &mut Row, d: &mut Row) {

@@ -79,9 +79,6 @@ pub enum Error {
   #[cfg(feature = "rsa")]
   #[doc = associated_element_doc!()]
   RsaError(Box<rsa::Error>),
-  #[cfg(feature = "rustls-webpki")]
-  #[doc = associated_element_doc!()]
-  RustlsWebpki(Box<webpki::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
   SerdeDeValue(Box<::serde::de::value::Error>),
@@ -516,14 +513,6 @@ impl From<rsa::Error> for Error {
   #[inline]
   fn from(from: rsa::Error) -> Self {
     Self::RsaError(from.into())
-  }
-}
-
-#[cfg(feature = "rustls-webpki")]
-impl From<webpki::Error> for Error {
-  #[inline]
-  fn from(from: webpki::Error) -> Self {
-    Self::RustlsWebpki(from.into())
   }
 }
 
