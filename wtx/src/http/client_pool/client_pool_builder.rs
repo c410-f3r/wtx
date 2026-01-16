@@ -1,10 +1,8 @@
 use crate::{
-  collection::Vector,
-  http::{
+  collection::Vector, http::{
     client_pool::{ClientPool, ClientPoolRM},
     conn_params::ConnParams,
-  },
-  pool::{ResourceManager, SimplePool},
+  }, pool::{ResourceManager, SimplePool}, rng::ChaCha20, sync::AtomicCell
 };
 use core::marker::PhantomData;
 
@@ -57,7 +55,7 @@ where
 {
   /// Creates a new client with inner parameters.
   #[inline]
-  pub fn build(self) -> ClientPool<ClientPoolRM<AA, AF, S>> {
+  pub fn build(self, rng: ChaCha20) -> ClientPool<ClientPoolRM<AA, AF, S>> {
     ClientPool {
       pool: SimplePool::new(
         self.len,
@@ -67,6 +65,7 @@ where
           _cert: self.cert,
           _cp: self.cp,
           _phantom: PhantomData,
+          _rng: AtomicCell::new(rng)
         },
       ),
     }

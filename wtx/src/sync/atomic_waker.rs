@@ -140,8 +140,7 @@ mod tests {
             waiting_clone.store(true, Ordering::Relaxed);
             Poll::Pending
           }
-        }))
-        .unwrap()
+        }));
     });
 
     while !waiting.load(Ordering::Relaxed) {}

@@ -75,8 +75,7 @@ fn tls() {
       //  )
       //  .await
       //  .unwrap();
-    })
-    .unwrap();
+    });
 }
 
 async fn executor<E>() -> MysqlExecutor<E, ExecutorBuffer, std::net::TcpStream>

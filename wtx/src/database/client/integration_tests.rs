@@ -78,8 +78,7 @@ where
       assert_eq!(records21.decode::<_, &str>(0).unwrap(), "15");
       assert_eq!(records21.decode::<_, &str>(1).unwrap(), "16");
       assert_eq!(records21.decode::<_, &str>(2).unwrap(), "17");
-    })
-    .unwrap();
+    });
 }
 
 pub(crate) fn execute_interleaved<D, E>(fut: impl Future<Output = E>)
@@ -118,8 +117,7 @@ where
       assert_eq!(records1.len(), 1);
       assert_eq!(records10.len(), 1);
       assert_eq!(records10.decode::<_, &str>(0).unwrap(), "1");
-    })
-    .unwrap();
+    });
 }
 
 pub(crate) fn execute_stmt_inserts<D, E>(fut: impl Future<Output = E>)
@@ -172,8 +170,7 @@ where
       assert_eq!(records.get(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
       assert_eq!(records.get(2).unwrap().len(), 1);
       assert_eq!(records.get(2).unwrap().decode::<_, u32>(0).unwrap(), 3);
-    })
-    .unwrap();
+    });
 }
 
 pub(crate) fn execute_stmt_selects<D, E>(fut: impl Future<Output = E>, ty0: &str, ty1: &str)
@@ -384,8 +381,7 @@ where
         assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, &str>(0).unwrap(), "3");
         assert_eq!(_2r_2c_2p.get(1).unwrap().decode::<_, &str>(1).unwrap(), "4");
       }
-    })
-    .unwrap();
+    });
 }
 
 pub(crate) fn ping<E>(fut: impl Future<Output = E>)
@@ -396,8 +392,7 @@ where
   Runtime::new()
     .block_on(async {
       fut.await.ping().await.unwrap();
-    })
-    .unwrap();
+    });
 }
 
 pub(crate) fn records_after_prepare<D, E>(fut: impl Future<Output = E>)
@@ -410,8 +405,7 @@ where
       let mut executor = fut.await;
       let _ = executor.prepare("SELECT 1").await.unwrap();
       let _record = executor.execute_stmt_many("SELECT 1", (), |_| Ok(())).await.unwrap();
-    })
-    .unwrap();
+    });
 }
 
 pub(crate) fn reuses_cached_statement<D, E>(fut: impl Future<Output = E>, ty0: &str)
@@ -432,6 +426,5 @@ where
         let _record =
           executor.execute_stmt_single(&format!("SELECT '1' WHERE 0={}", ty0), (0,)).await.unwrap();
       }
-    })
-    .unwrap();
+    });
 }

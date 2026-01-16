@@ -6,7 +6,7 @@ use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
   http::OptionedServer,
-  rng::Xorshift64,
+  rng::{ChaCha20, SeedableRng, Xorshift64},
   web_socket::{
     OpCode, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin,
     compression::{Flate2, NegotiatedFlate2},
@@ -18,6 +18,7 @@ async fn main() -> wtx::Result<()> {
   OptionedServer::web_socket_tokio(
     "127.0.0.1:9070",
     None,
+    ChaCha20::from_std_random()?,
     Flate2::default,
     |error| eprintln!("{error}"),
     handle,

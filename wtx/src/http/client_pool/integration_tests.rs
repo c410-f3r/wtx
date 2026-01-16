@@ -12,8 +12,7 @@ fn popular_sites() {
       send_recv("https://github.com".into()).await;
       send_recv("https://duckduckgo.com".into()).await;
       send_recv("https://www.google.com".into()).await;
-    })
-    .unwrap();
+    });
 }
 
 async fn send_recv(uri: UriRef<'_>) {

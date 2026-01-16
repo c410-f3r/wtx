@@ -108,7 +108,9 @@ pub(crate) mod aws_lc_rs {
 
 #[cfg(feature = "rust-crypto")]
 pub(crate) mod rust_crypto {
-  use crate::{
+  use crypto_common::Generate;
+
+use crate::{
     collection::ArrayVectorU8,
     rng::CryptoRng,
     tls::{
@@ -132,12 +134,12 @@ pub(crate) mod rust_crypto {
     { 
       Ok(match ng {
         NamedGroup::Secp256r1 => NamedGroupParamRustCrypto::Secp256r1(
-          match p256::ecdh::EphemeralSecret::try_from_rng(rng) {
+          match p256::ecdh::EphemeralSecret::try_generate_from_rng(rng) {
             Ok(el) => el,
           },
         ),
         NamedGroup::Secp384r1 => NamedGroupParamRustCrypto::Secp384r1(
-          match p384::ecdh::EphemeralSecret::try_from_rng(rng) {
+          match p384::ecdh::EphemeralSecret::try_generate_from_rng(rng) {
             Ok(el) => el,
           },
         ),

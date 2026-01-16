@@ -112,7 +112,7 @@ mod tokio {
     #[inline]
     async fn create(&self, ca: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       let uri = UriRef::new(ca);
-      let mut rng = ChaCha20::from_getrandom()?;
+      let mut rng = ChaCha20::from_rng(&mut &self._rng)?;
       let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
       let tls_stream = TlsConnector::default()
         .set_tls_mode((self._aux_fun)(&self._aux_arg))
@@ -140,7 +140,7 @@ mod tokio {
       resource: &mut Self::Resource,
     ) -> Result<(), Self::Error> {
       let uri = UriRef::new(ra);
-      let mut rng = ChaCha20::from_getrandom()?;
+      let mut rng = ChaCha20::from_rng(&mut &self._rng)?;
       let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
       let tls_stream = TlsConnector::default()
         .set_plain_text()

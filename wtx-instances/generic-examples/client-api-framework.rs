@@ -115,7 +115,7 @@ async fn web_socket_pair() -> wtx::Result<
   >,
 > {
   let uri = Uri::new("ws://generic_web_socket_uri.com");
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let tls_stream = TlsConnector::default()
     .connect(
       &mut rng,

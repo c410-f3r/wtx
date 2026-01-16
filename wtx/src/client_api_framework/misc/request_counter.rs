@@ -86,8 +86,7 @@ mod tests {
         rc.update_params().await.unwrap();
         assert!(final_call_start.elapsed() < Duration::from_millis(50));
         assert_eq!(rc.counter, 2);
-      })
-      .unwrap();
+      });
   }
 
   #[test]
@@ -103,8 +102,7 @@ mod tests {
         sleep(Duration::from_millis(150)).await.unwrap();
         rc.update_params().await.unwrap();
         assert_eq!(rc.counter, 1);
-      })
-      .unwrap();
+      });
   }
 
   #[test]
@@ -134,8 +132,7 @@ mod tests {
         sleep(Duration::from_millis(100)).await.unwrap();
         test(&mut rc).await;
         sleep(Duration::from_millis(100)).await.unwrap();
-      })
-      .unwrap();
+      });
   }
 
   #[test]
@@ -161,8 +158,7 @@ mod tests {
         assert_eq!(rc.counter, 1);
         rc.update_params().await.unwrap();
         assert_eq!(rc.counter, 2);
-      })
-      .unwrap();
+      });
   }
 
   #[test]
@@ -187,8 +183,7 @@ mod tests {
         rc.update_params().await.unwrap();
         assert!(third_call.elapsed() >= DURATION - Duration::from_millis(50));
         assert_eq!(rc.counter, 1);
-      })
-      .unwrap();
+      });
   }
 
   #[test]
@@ -211,7 +206,6 @@ mod tests {
 
         let expected_wait = DURATION.saturating_sub(Duration::from_millis(20));
         assert!(elapsed >= expected_wait);
-      })
-      .unwrap();
+      });
   }
 }

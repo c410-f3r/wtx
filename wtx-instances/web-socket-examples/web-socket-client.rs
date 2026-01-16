@@ -17,7 +17,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let tls_stream = TlsConnector::default()
     .connect(
       &mut rng,

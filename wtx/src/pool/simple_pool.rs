@@ -312,8 +312,7 @@ mod tests {
           [***pool.get_with_unit().await.unwrap(), ***pool.get_with_unit().await.unwrap()],
           [1, 2]
         );
-      })
-      .unwrap();
+      });
   }
 
   fn pool() -> SimplePool<SimpleRM<fn() -> crate::Result<i32>>> {

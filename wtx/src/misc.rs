@@ -436,7 +436,6 @@ mod tests {
           .await
           .is_err()
         )
-      })
-      .unwrap();
+      });
   }
 }

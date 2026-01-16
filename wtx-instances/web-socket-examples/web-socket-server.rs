@@ -8,7 +8,7 @@ use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
   http::OptionedServer,
-  rng::Xorshift64,
+  rng::{ChaCha20, SeedableRng, Xorshift64},
   tls::{TlsAcceptor, TlsBuffer, TlsConfig, TlsModeVerifyFull, TlsStream},
   web_socket::{OpCode, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin},
 };
@@ -18,6 +18,7 @@ async fn main() -> wtx::Result<()> {
   OptionedServer::web_socket_tokio(
     &wtx_instances::host_from_args(),
     None,
+    ChaCha20::from_std_random()?,
     || {},
     |error| eprintln!("{error}"),
     handle,

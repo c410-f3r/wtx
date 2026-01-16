@@ -96,8 +96,7 @@ macro_rules! _create_dnsn_test {
             );
             trans.assert_request($raw_ser);
             trans.assert_does_not_have_non_asserted_requests();
-          })
-          .unwrap();
+          });
       }
     }
   };

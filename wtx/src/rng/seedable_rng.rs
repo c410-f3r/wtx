@@ -17,7 +17,7 @@ pub trait SeedableRng: Sized {
   /// Creates a new instance based on the entropy provided by the `std::random` module.
   #[cfg(all(feature = "nightly", feature = "std"))]
   #[inline]
-  fn from_random() -> crate::Result<Self> {
+  fn from_std_random() -> crate::Result<Self> {
     use std::random::RandomSource;
     let mut seed = Self::Seed::default();
     std::random::DefaultRandomSource.fill_bytes(seed.lease_mut());

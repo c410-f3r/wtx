@@ -32,7 +32,7 @@ pub async fn autobahn_case_conn(
   wtx::web_socket::WebSocket<
     Option<wtx::web_socket::compression::NegotiatedFlate2>,
     wtx::rng::Xorshift64,
-    tokio::net::TcpStream,
+    std::net::TcpStream,
     wtx::web_socket::WebSocketBuffer,
     true,
   >,
@@ -41,7 +41,7 @@ pub async fn autobahn_case_conn(
     .compression(wtx::web_socket::compression::Flate2::default())
     .no_masking(false)
     .connect(
-      tokio::net::TcpStream::connect(host).await?,
+      std::net::TcpStream::connect(host)?,
       &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
         "http://{host}/runCase?case={case}&agent=wtx"
       ))?
@@ -55,7 +55,7 @@ pub async fn autobahn_case_conn(
 pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
   wtx::web_socket::WebSocketConnector::default()
     .connect(
-      tokio::net::TcpStream::connect(host).await?,
+      std::net::TcpStream::connect(host)?,
       &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
         "http://{host}/updateReports?agent=wtx"
       ))?
@@ -74,7 +74,7 @@ pub async fn autobahn_get_case_count(
 ) -> wtx::Result<u32> {
   let mut ws = wtx::web_socket::WebSocketConnector::default()
     .connect(
-      tokio::net::TcpStream::connect(host).await?,
+      std::net::TcpStream::connect(host)?,
       &wtx::collection::ArrayStringU8::<128>::try_from(format_args!("http://{host}/getCaseCount"))?
         .as_str()
         .into(),
@@ -103,7 +103,7 @@ pub async fn executor_mysql(
 > {
   use wtx::rng::SeedableRng;
   let uri = wtx::misc::Uri::new(uri_str);
-  let mut rng = wtx::rng::ChaCha20::from_getrandom()?;
+  let mut rng = wtx::rng::ChaCha20::from_std_random()?;
   wtx::database::client::mysql::MysqlExecutor::connect(
     &wtx::database::client::mysql::Config::from_uri(&uri)?,
     wtx::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -125,7 +125,7 @@ pub async fn executor_postgres(
 > {
   use wtx::rng::SeedableRng;
   let uri = wtx::misc::Uri::new(uri_str);
-  let mut rng = wtx::rng::ChaCha20::from_getrandom()?;
+  let mut rng = wtx::rng::ChaCha20::from_std_random()?;
   wtx::database::client::postgres::PostgresExecutor::connect(
     &wtx::database::client::postgres::Config::from_uri(&uri)?,
     wtx::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),

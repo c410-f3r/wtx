@@ -44,24 +44,21 @@ fn compressed() {
         runtime_fut2,
       )
       .await;
-    })
-    .unwrap();
+    });
 }
 
 #[test]
 fn uncompressed() {
   let runtime = Arc::new(Runtime::new());
   let runtime_fut = runtime.clone();
-  runtime
-    .block_on(do_test_client_and_server_frames(((), false), ((), false), runtime_fut))
-    .unwrap();
+  runtime.block_on(do_test_client_and_server_frames(((), false), ((), false), runtime_fut));
 }
 
 #[test]
 fn uncompressed_no_masking() {
   let runtime = Arc::new(Runtime::new());
   let runtime_fut = runtime.clone();
-  runtime.block_on(do_test_client_and_server_frames(((), true), ((), true), runtime_fut)).unwrap();
+  runtime.block_on(do_test_client_and_server_frames(((), true), ((), true), runtime_fut));
 }
 
 async fn do_test_client_and_server_frames<CC, SC>(

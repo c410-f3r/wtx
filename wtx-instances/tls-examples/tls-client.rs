@@ -11,7 +11,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("localhost:9000");
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let _tls_stream = TlsConnector::default()
     .connect(&mut rng, TcpStream::connect(uri.hostname_with_implied_port())?, &TlsConfig::default())
     .await?;

@@ -27,7 +27,7 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   let uri = UriRef::new(&var);
   match uri.scheme() {
     "postgres" | "postgresql" => {
-      let mut rng = ChaCha20::from_getrandom()?;
+      let mut rng = ChaCha20::from_std_random()?;
       let executor = PostgresExecutor::<wtx::Error, _, _>::connect(
         &Config::from_uri(&uri)?,
         ExecutorBuffer::new(usize::MAX, &mut rng),

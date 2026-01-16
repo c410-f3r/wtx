@@ -37,8 +37,7 @@ fn batch() {
           idx = idx.wrapping_add(1);
           Ok(())
         })
-        .await
-        .unwrap();
+        .await;
       assert_eq!(records.len(), 3);
 
       let records0 = records.get(0).unwrap();
@@ -79,8 +78,7 @@ fn batch() {
       assert_eq!(records21.decode::<_, u32>(0).unwrap(), 15);
       assert_eq!(records21.decode::<_, u32>(1).unwrap(), 16);
       assert_eq!(records21.decode::<_, u32>(2).unwrap(), 17);
-    })
-    .unwrap();
+    });
 }
 
 #[test]
@@ -146,8 +144,7 @@ fn custom_composite_type() {
         record.decode::<_, CustomCompositeType>(1).unwrap(),
         CustomCompositeType(2, None, 4)
       );
-    })
-    .unwrap();
+    });
 }
 
 #[test]
@@ -207,8 +204,7 @@ fn custom_domain() {
         executor.execute_stmt_single("SELECT * FROM custom_domain_table;", ()).await.unwrap();
       assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
       assert_eq!(record.decode::<_, CustomDomain>(1).unwrap(), CustomDomain(String::from("23")));
-    })
-    .unwrap();
+    });
 }
 
 #[test]
@@ -279,8 +275,7 @@ fn custom_enum() {
         executor.execute_stmt_single("SELECT * FROM custom_enum_table;", ()).await.unwrap();
       assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
       assert!(matches!(record.decode(1).unwrap(), Enum::Bar));
-    })
-    .unwrap();
+    });
 }
 
 #[test]
@@ -316,8 +311,7 @@ fn multiple_notifications() {
         .await
         .unwrap();
       executor.execute_stmt_none("TRUNCATE TABLE multiple_notifications_test CASCADE", ()).await.unwrap();
-    })
-    .unwrap();
+    });
 }
 
 #[test]
@@ -355,8 +349,7 @@ fn serde_json() {
         .unwrap();
       let record = executor.execute_stmt_single("SELECT * FROM serde_json", ()).await.unwrap();
       assert_eq!(record.decode::<_, Json<(u32, i64)>>(0).unwrap(), Json(col));
-    })
-    .unwrap();
+    });
 }
 
 #[cfg(feature = "rust-crypto")]
@@ -385,8 +378,7 @@ fn tls() {
       //)
       //.await
       //.unwrap();
-    })
-    .unwrap();
+    });
 }
 
 async fn executor() -> PostgresExecutor<crate::Error, ExecutorBuffer, std::net::TcpStream> {

@@ -3,33 +3,31 @@
 #![expect(clippy::print_stderr, reason = "internal")]
 
 use core::mem;
-use tokio::net::TcpListener;
+use std::net::TcpListener;
 use wtx::{
-  collection::Vector,
-  http::StatusCode,
-  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus},
-  rng::{Xorshift64, simple_seed},
+  collection::Vector, executor::Runtime, http::StatusCode, http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus}, rng::{Xorshift64, simple_seed}, sync::Arc
 };
 
-#[tokio::main]
-async fn main() -> wtx::Result<()> {
-  let listener = TcpListener::bind("127.0.0.1:9000").await?;
+#[wtx::main]
+async fn main(runtime: Arc<Runtime>) -> wtx::Result<()> {
+  let listener = TcpListener::bind("127.0.0.1:9000")?;
   loop {
-    let (tcp_stream, _) = listener.accept().await?;
-    let _conn_jh = tokio::spawn(async move {
+    let (tcp_stream, _) = listener.accept()?;
+    let conn_runtime = runtime.clone();
+    let _conn_jh = runtime.spawn_threaded(async move {
       let fun = async {
         let http2_params = Http2Params::default();
         let http2_buffer = Http2Buffer::new(&mut Xorshift64::from(simple_seed()));
-        let tuple = Http2::accept(http2_buffer, http2_params, tcp_stream.into_split()).await?;
+        let tuple = Http2::accept(http2_buffer, http2_params, (tcp_stream.try_clone()?, tcp_stream)).await?;
         let (frame_reader, http2) = tuple;
-        let _jh = tokio::spawn(frame_reader);
+        let _jh = conn_runtime.spawn_threaded(frame_reader)?;
         loop {
           let (mut http2_stream, headers) =
             match http2.stream(|req, _| mem::take(&mut req.rrd.headers)).await? {
               None => return wtx::Result::Ok(()),
               Some(elem) => elem,
             };
-          let _stream_jh = tokio::spawn(async move {
+          let _stream_jh = conn_runtime.spawn_threaded(async move {
             let mut enc_buffer = Vector::new();
             let mut common = http2_stream.common();
             let fun = async {

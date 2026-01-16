@@ -22,7 +22,7 @@ use wtx::{
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
-  let mut rng = ChaCha20::from_getrandom()?;
+  let mut rng = ChaCha20::from_std_random()?;
   let tls_stream = TlsConnector::default()
     .connect(
       &mut rng,
@@ -32,7 +32,7 @@ async fn main() -> wtx::Result<()> {
     .await?;
   let ws = WebSocketConnector::default().connect(tls_stream, &uri.to_ref()).await?;
   let parts = ws.into_split(|inner_tls_stream| {
-    inner_tls_stream.into_split(|inner_tcp_stream| inner_tcp_stream.into_split())
+    Ok(inner_tls_stream.into_split(|inner_tcp_stream| inner_tcp_stream.into_split()))
   })?;
   let WebSocketPartsOwned { mut reader, replier, mut writer } = parts;
   let (sender, mut receiver) = unbounded_channel::<FrameVector<true>>();

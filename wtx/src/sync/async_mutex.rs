@@ -382,8 +382,7 @@ mod tests {
           rx.recv().unwrap();
         }
         assert_eq!(num_threads, *mutex.lock().await);
-      })
-      .unwrap();
+      });
 
     // FIXME(MIRI): https://github.com/rust-lang/miri/issues/1371
     std::thread::sleep(std::time::Duration::from_millis(500));
@@ -400,8 +399,7 @@ mod tests {
           let _guard = mutex.lock().await;
         }
         check_mutex(&mutex);
-      })
-      .unwrap();
+      });
   }
 
   #[test]
@@ -417,8 +415,7 @@ mod tests {
           assert!(PollOnce::new(&mut lock1_fut).await.is_some());
         }
         check_mutex(&mutex);
-      })
-      .unwrap();
+      });
   }
 
   fn check_mutex<T>(mutex: &AsyncMutex<T>) {

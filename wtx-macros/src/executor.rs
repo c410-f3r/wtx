@@ -12,12 +12,12 @@ pub(crate) fn main(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
   let name = &sig.ident;
   let output = &sig.output;
 
-  let priv_fn_args = if inputs.is_empty() { None } else { Some(quote::quote!(&*_runtime_clone)) };
+  let priv_fn_args = if inputs.is_empty() { None } else { Some(quote::quote!(_runtime_clone)) };
   let priv_fn_name = &syn::Ident::new(&format!("__{name}"), name.span());
 
   let tokens = quote::quote!(
     #(#attrs)*
-    fn main() {
+    fn main() #output {
       #asyncness fn #priv_fn_name(#inputs) #output {
         #block
       }
@@ -28,7 +28,6 @@ pub(crate) fn main(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .block_on(async move {
           #priv_fn_name(#priv_fn_args).await
         })
-        .unwrap();
     }
   );
   tokens.into()

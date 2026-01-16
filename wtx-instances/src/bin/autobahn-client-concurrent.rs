@@ -8,14 +8,14 @@ use wtx::{
 };
 use wtx_instances::{autobahn_case_conn, autobahn_close, autobahn_get_case_count};
 
-#[tokio::main]
+#[wtx::main]
 async fn main() -> wtx::Result<()> {
   let host = "127.0.0.1:9080";
   let mut buffer = Vector::new();
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await? {
     let ws = autobahn_case_conn(case, host).await?;
     let WebSocketPartsOwned { mut reader, replier, mut writer } =
-      ws.into_split(tokio::io::split)?;
+      ws.into_split(|el| Ok((el.try_clone()?, el)))?;
     let mut reply_frame = pin!(replier.reply_frame());
     loop {
       let mut frame = match reader.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await {

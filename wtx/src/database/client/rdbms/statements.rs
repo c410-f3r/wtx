@@ -216,8 +216,7 @@ mod tests {
         assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id0), None);
         assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id1), None);
         assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id2), None);
-      })
-      .unwrap();
+      });
   }
 
   pub(crate) async fn builder_fn(_: &mut (), _: StatementsMisc<i32>) -> crate::Result<()> {

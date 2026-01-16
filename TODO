@@ -1,3 +1,5 @@
 ClientConnection::new -> ConnectionCore::for_client -> ClientHelloInput::start_handshake
 
 Change ArrayVector to slice in places like ClientHello
+
+Abstract over runtimes to make abstract optioned servers

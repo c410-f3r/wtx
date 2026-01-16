@@ -18,7 +18,7 @@ fn connections() {
   let uri = _uri();
   server(&uri, &runtime);
   let client_fut = client(&uri, &runtime);
-  runtime.block_on(client_fut).unwrap();
+  runtime.block_on(client_fut);
 }
 
 async fn client(uri: &UriString, runtime: &Runtime) {

@@ -186,9 +186,12 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
-wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
+wtx = { default-features = false, features = ["macros", "nightly"], path = "../wtx" }
 
 [features]
+
+# Binaries
+
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-client-concurrent = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/web-socket-handshake"]
@@ -197,40 +200,42 @@ h2load = ["wtx/http2", "wtx/nightly"]
 h2spec-high-server = ["wtx/http2", "wtx/nightly"]
 h2spec-low-server = ["wtx/http2"]
 
-database-client-mysql = ["mysql"]
-database-client-postgres = ["postgres"]
-database-client-postgres-batch = ["postgres"]
-database-client-postgres-composite-type = ["postgres"]
-database-client-postgres-enum = ["postgres"]
-database-client-tests = ["postgres", "wtx/executor", "wtx/macros", "wtx/schema-manager-dev"]
+# Examples
 
-client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/macros", "wtx/serde_json", "wtx/web-socket-handshake"]
-environment-variables = ["wtx/macros", "wtx/std"]
+database-client-mysql = ["mysql", "wtx/tokio"]
+database-client-postgres = ["postgres", "wtx/tokio"]
+database-client-postgres-batch = ["postgres", "wtx/tokio"]
+database-client-postgres-composite-type = ["postgres", "wtx/tokio"]
+database-client-postgres-enum = ["postgres", "wtx/tokio"]
+database-client-tests = ["postgres", "wtx/executor", "wtx/schema-manager-dev", "wtx/tokio"]
+
+client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/serde_json", "wtx/tokio", "wtx/web-socket-handshake"]
+environment-variables = ["wtx/std"]
 executor = ["wtx/executor", "wtx/macros"]
-grpc-client = ["grpc", "wtx/grpc-client"]
-grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly"]
-http-client-pool = ["wtx/http-client-pool"]
+grpc-client = ["grpc", "wtx/grpc-client", "wtx/tokio"]
+grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly", "wtx/tokio"]
+http-client-pool = ["wtx/http-client-pool", "wtx/tokio"]
 secret = ["wtx/secret"]
 
-http-server-framework = ["serde", "wtx/getrandom", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres", "wtx/serde_json"]
-http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
-http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
-http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/macros", "wtx/nightly", "wtx/postgres"]
+http-server-framework = ["serde", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres", "wtx/serde_json", "wtx/tokio"]
+http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly", "wtx/tokio"]
+http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly", "wtx/tokio"]
+http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/nightly", "wtx/postgres", "wtx/tokio"]
 
 http2-client = ["wtx/http2"]
 http2-server = ["wtx/http2", "wtx/nightly", "wtx/web-socket"]
 
-tls-client = ["wtx/aws-lc-rs", "wtx/_hack", "wtx/getrandom"]
+tls-client = ["wtx/aws-lc-rs", "wtx/_hack"]
 
-web-socket-client = ["wtx/getrandom", "wtx/tls", "wtx/web-socket-handshake"]
+web-socket-client = ["wtx/tls", "wtx/web-socket-handshake"]
 web-socket-client-concurrent = ["wtx/web-socket-handshake", "wtx/webpki-roots"]
 web-socket-client-concurrent-channel = ["wtx/web-socket-handshake", "wtx/webpki-roots"]
 web-socket-client-concurrent-mutex = ["wtx/web-socket-handshake", "wtx/webpki-roots"]
 web-socket-server = ["wtx/web-socket-handshake"]
 
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
-mysql = ["wtx/getrandom", "wtx/mysql"]
-postgres = ["wtx/getrandom", "wtx/postgres"]
+mysql = ["wtx/mysql"]
+postgres = ["wtx/postgres"]
 
 [package]
 edition = "2024"

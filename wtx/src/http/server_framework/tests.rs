@@ -195,6 +195,5 @@ fn nested_middlewares() {
         // 3 + 17 + 7
         assert_eq!(auto_stream.stream_aux.0, 27);
       }
-    })
-    .unwrap()
+    });
 }
