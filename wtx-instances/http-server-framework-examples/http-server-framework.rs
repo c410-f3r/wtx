@@ -41,10 +41,7 @@ async fn main() -> wtx::Result<()> {
   let rng_server = ChaCha20::from_rng(&mut rng_pool)?;
   let pool = LocalPool::new(
     4,
-    PostgresRM::tokio(
-      rng_pool,
-      "postgres://USER:PASSWORD@localhost/DB_NAME".into(),
-    ),
+    PostgresRM::tokio(rng_pool, "postgres://USER:PASSWORD@localhost/DB_NAME".into()),
   );
   ServerFrameworkBuilder::new(rng_server, router)
     .with_stream_aux(move |_| Ok(pool.clone()))

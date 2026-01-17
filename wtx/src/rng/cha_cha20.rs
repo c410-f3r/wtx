@@ -9,8 +9,7 @@ const WORDS: usize = 16;
 /// `ChaCha` block function with 20 rounds and a nonce of 12 bytes as specified in
 /// <https://datatracker.ietf.org/doc/html/rfc7539>.
 ///
-/// This structure is `Copy` to allow usage with `AtomicCell` in concurrent scenarios. You should
-/// probably use other implementations if performance or auditability is a concern.
+/// This structure is `Copy` to allow usage with `AtomicCell` in concurrent scenarios.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ChaCha20 {
   block: Block,
@@ -44,7 +43,7 @@ impl Rng for ChaCha20 {
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     if usize::from(self.idx) >= WORDS {
-      let local_block = block_function::<true>(self.block);
+      let local_block = block_function::<true>(&self.block);
       self.idx = 0;
       self.output = local_block.words();
       self.block.increment_counter();
@@ -143,26 +142,6 @@ impl Block {
     ])
   }
 
-  #[inline(always)]
-  fn add_block(&mut self, other: &Block) {
-    self.0[0] = self.0[0].wrapping_add(other.0[0]);
-    self.0[1] = self.0[1].wrapping_add(other.0[1]);
-    self.0[2] = self.0[2].wrapping_add(other.0[2]);
-    self.0[3] = self.0[3].wrapping_add(other.0[3]);
-    self.0[4] = self.0[4].wrapping_add(other.0[4]);
-    self.0[5] = self.0[5].wrapping_add(other.0[5]);
-    self.0[6] = self.0[6].wrapping_add(other.0[6]);
-    self.0[7] = self.0[7].wrapping_add(other.0[7]);
-    self.0[8] = self.0[8].wrapping_add(other.0[8]);
-    self.0[9] = self.0[9].wrapping_add(other.0[9]);
-    self.0[10] = self.0[10].wrapping_add(other.0[10]);
-    self.0[11] = self.0[11].wrapping_add(other.0[11]);
-    self.0[12] = self.0[12].wrapping_add(other.0[12]);
-    self.0[13] = self.0[13].wrapping_add(other.0[13]);
-    self.0[14] = self.0[14].wrapping_add(other.0[14]);
-    self.0[15] = self.0[15].wrapping_add(other.0[15]);
-  }
-
   #[inline]
   const fn block_counter_mut(&mut self) -> &mut u32 {
     &mut self.0[12]
@@ -230,8 +209,8 @@ impl Block {
 
 // https://datatracker.ietf.org/doc/html/rfc7539#section-2.3
 #[inline(always)]
-fn block_function<const ADD: bool>(block: Block) -> Block {
-  let mut rslt = block;
+fn block_function<const ADD: bool>(block: &Block) -> Block {
+  let mut rslt = *block;
   for _ in 0..ITERATIONS {
     rslt.quarter_round(0, 4, 8, 12);
     rslt.quarter_round(1, 5, 9, 13);
@@ -243,7 +222,9 @@ fn block_function<const ADD: bool>(block: Block) -> Block {
     rslt.quarter_round(3, 4, 9, 14);
   }
   if ADD {
-    rslt.add_block(&block);
+    for (a, b) in rslt.0.iter_mut().zip(block.0) {
+      *a = a.wrapping_add(b);
+    }
   }
   rslt
 }
@@ -374,7 +355,7 @@ mod tests {
       0x4a000000, 0x00000000,
     ]);
     assert_eq!(
-      block_function::<false>(block),
+      block_function::<false>(&block),
       Block::from_words([
         0x837778ab, 0xe238d763, 0xa67ae21e, 0x5950bb2f, 0xc4f2d0c7, 0xfc62bb2f, 0x8fa018fc,
         0x3f5ec7b7, 0x335271c2, 0xf29489f3, 0xeabda8fc, 0x82e46ebd, 0xd19c12b4, 0xb04e16de,
@@ -382,7 +363,7 @@ mod tests {
       ])
     );
     assert_eq!(
-      block_function::<true>(block),
+      block_function::<true>(&block),
       Block::from_words([
         0xe4e7f110, 0x15593bd1, 0x1fdd0f50, 0xc47120a3, 0xc7f4d1c7, 0x0368c033, 0x9aaa2204,
         0x4e6cd4c3, 0x466482d2, 0x09aa9f07, 0x05d7c214, 0xa2028bd9, 0xd19c12b5, 0xb94e16de,

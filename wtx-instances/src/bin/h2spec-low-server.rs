@@ -5,7 +5,12 @@
 use core::mem;
 use std::net::TcpListener;
 use wtx::{
-  collection::Vector, executor::Runtime, http::StatusCode, http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus}, rng::{Xorshift64, simple_seed}, sync::Arc
+  collection::Vector,
+  executor::Runtime,
+  http::StatusCode,
+  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus},
+  rng::{Xorshift64, simple_seed},
+  sync::Arc,
 };
 
 #[wtx::main]
@@ -18,7 +23,8 @@ async fn main(runtime: Arc<Runtime>) -> wtx::Result<()> {
       let fun = async {
         let http2_params = Http2Params::default();
         let http2_buffer = Http2Buffer::new(&mut Xorshift64::from(simple_seed()));
-        let tuple = Http2::accept(http2_buffer, http2_params, (tcp_stream.try_clone()?, tcp_stream)).await?;
+        let tuple =
+          Http2::accept(http2_buffer, http2_params, (tcp_stream.try_clone()?, tcp_stream)).await?;
         let (frame_reader, http2) = tuple;
         let _jh = conn_runtime.spawn_threaded(frame_reader)?;
         loop {
