@@ -19,7 +19,6 @@ pub struct ChaCha20 {
 }
 
 impl ChaCha20 {
-  /// Creates a new instance with a `[0; 12]` nonce.
   #[inline]
   pub const fn from_key(key: [u8; 32]) -> ChaCha20 {
     ChaCha20 { block: Block::new(key, [0; 12]), idx: 16, output: [0; WORDS] }
@@ -31,25 +30,6 @@ impl ChaCha20 {
   #[inline]
   pub const fn new(key: [u8; 32], nonce: [u8; 12]) -> ChaCha20 {
     ChaCha20 { block: Block::new(key, nonce), idx: 16, output: [0; WORDS] }
-  }
-
-  #[inline]
-  const fn increment_counter(&mut self) {
-    const fn fun(num: &mut u32) -> bool {
-      let (rslt, overflow) = num.overflowing_add(1);
-      *num = rslt;
-      !overflow
-    }
-    if fun(self.block.block_counter_mut()) {
-      return;
-    }
-    if fun(self.block.nonce0_mut()) {
-      return;
-    }
-    if fun(self.block.nonce1_mut()) {
-      return;
-    }
-    let _ = fun(self.block.nonce2_mut());
   }
 }
 
@@ -63,13 +43,13 @@ impl Rng for ChaCha20 {
 
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
-    if usize::from(self.idx) == WORDS {
-      let lock_block = block_function::<true>(&self.block);
+    if usize::from(self.idx) >= WORDS {
+      let local_block = block_function::<true>(self.block);
       self.idx = 0;
-      self.output = lock_block.to_words();
-      self.increment_counter();
+      self.output = local_block.words();
+      self.block.increment_counter();
     }
-    let rslt = self.output.get(usize::from(self.idx) % WORDS).copied().unwrap_or_default();
+    let rslt = self.output.get(usize::from(self.idx)).copied().unwrap_or_default();
     self.idx = self.idx.wrapping_add(1);
     rslt.to_le_bytes()
   }
@@ -130,15 +110,6 @@ struct Block([u32; WORDS]);
 
 impl Block {
   #[inline]
-  const fn from_rows(a: Row, b: Row, c: Row, d: Row) -> Self {
-    let Row([a0, a1, a2, a3]) = a;
-    let Row([b0, b1, b2, b3]) = b;
-    let Row([c0, c1, c2, c3]) = c;
-    let Row([d0, d1, d2, d3]) = d;
-    Self([a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3])
-  }
-
-  #[inline]
   #[cfg(test)]
   const fn from_words(words: [u32; WORDS]) -> Self {
     Self(words)
@@ -148,8 +119,8 @@ impl Block {
   const fn new(key: [u8; 32], nonce: [u8; 12]) -> Self {
     #[rustfmt::skip]
     let [
-      k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, k10, k11, k12, k13, k14, k15,
-      k16, k17, k18, k19, k20, k21, k22, k23, k24, k25, k26, k27, k28, k29, k30, k31,
+        k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, k10, k11, k12, k13, k14, k15,
+        k16, k17, k18, k19, k20, k21, k22, k23, k24, k25, k26, k27, k28, k29, k30, k31,
     ] = key;
     let [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11] = nonce;
     Self([
@@ -172,9 +143,48 @@ impl Block {
     ])
   }
 
+  #[inline(always)]
+  fn add_block(&mut self, other: &Block) {
+    self.0[0] = self.0[0].wrapping_add(other.0[0]);
+    self.0[1] = self.0[1].wrapping_add(other.0[1]);
+    self.0[2] = self.0[2].wrapping_add(other.0[2]);
+    self.0[3] = self.0[3].wrapping_add(other.0[3]);
+    self.0[4] = self.0[4].wrapping_add(other.0[4]);
+    self.0[5] = self.0[5].wrapping_add(other.0[5]);
+    self.0[6] = self.0[6].wrapping_add(other.0[6]);
+    self.0[7] = self.0[7].wrapping_add(other.0[7]);
+    self.0[8] = self.0[8].wrapping_add(other.0[8]);
+    self.0[9] = self.0[9].wrapping_add(other.0[9]);
+    self.0[10] = self.0[10].wrapping_add(other.0[10]);
+    self.0[11] = self.0[11].wrapping_add(other.0[11]);
+    self.0[12] = self.0[12].wrapping_add(other.0[12]);
+    self.0[13] = self.0[13].wrapping_add(other.0[13]);
+    self.0[14] = self.0[14].wrapping_add(other.0[14]);
+    self.0[15] = self.0[15].wrapping_add(other.0[15]);
+  }
+
   #[inline]
   const fn block_counter_mut(&mut self) -> &mut u32 {
     &mut self.0[12]
+  }
+
+  #[inline]
+  fn increment_counter(&mut self) {
+    const fn fun(num: &mut u32) -> bool {
+      let (rslt, overflow) = num.overflowing_add(1);
+      *num = rslt;
+      !overflow
+    }
+    if fun(self.block_counter_mut()) {
+      return;
+    }
+    if fun(self.nonce0_mut()) {
+      return;
+    }
+    if fun(self.nonce1_mut()) {
+      return;
+    }
+    let _ = fun(self.nonce2_mut());
   }
 
   #[inline]
@@ -192,126 +202,50 @@ impl Block {
     &mut self.0[15]
   }
 
-  #[inline]
-  fn to_rows(&self) -> (Row, Row, Row, Row) {
-    let [a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, d0, d1, d2, d3] = self.0;
-    (Row([a0, a1, a2, a3]), Row([b0, b1, b2, b3]), Row([c0, c1, c2, c3]), Row([d0, d1, d2, d3]))
+  // https://datatracker.ietf.org/doc/html/rfc7539#section-2.1
+  #[inline(always)]
+  fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) {
+    self.0[a] = self.0[a].wrapping_add(self.0[b]);
+    self.0[d] ^= self.0[a];
+    self.0[d] = self.0[d].rotate_left(16);
+
+    self.0[c] = self.0[c].wrapping_add(self.0[d]);
+    self.0[b] ^= self.0[c];
+    self.0[b] = self.0[b].rotate_left(12);
+
+    self.0[a] = self.0[a].wrapping_add(self.0[b]);
+    self.0[d] ^= self.0[a];
+    self.0[d] = self.0[d].rotate_left(8);
+
+    self.0[c] = self.0[c].wrapping_add(self.0[d]);
+    self.0[b] ^= self.0[c];
+    self.0[b] = self.0[b].rotate_left(7);
   }
 
   #[inline]
-  const fn to_words(&self) -> [u32; WORDS] {
+  fn words(&self) -> [u32; WORDS] {
     self.0
   }
 }
 
-#[cfg_attr(test, derive(Debug))]
-#[derive(Copy, Clone)]
-struct Row([u32; 4]);
-
-impl Row {
-  #[inline]
-  fn rotate_left_inner<const N: u8>(self) -> Row {
-    let mut rslt = self;
-    for el in rslt.0.iter_mut() {
-      *el = el.rotate_left(u32::from(N));
-    }
-    rslt
-  }
-
-  #[inline]
-  const fn rotate_left1_outer(self) -> Row {
-    let mut rslt = self;
-    rslt.0.rotate_left(1);
-    rslt
-  }
-
-  #[inline]
-  const fn rotate_left2_outer(self) -> Row {
-    let mut rslt = self;
-    rslt.0.rotate_left(2);
-    rslt
-  }
-
-  #[inline]
-  const fn rotate_left3_outer(self) -> Row {
-    let mut rslt = self;
-    rslt.0.rotate_left(3);
-    rslt
-  }
-
-  #[inline]
-  fn wrapping_add(self, other: Row) -> Row {
-    let mut rslt = self;
-    for (a, b) in rslt.0.iter_mut().zip(other.0) {
-      *a = a.wrapping_add(b);
-    }
-    rslt
-  }
-
-  #[inline]
-  fn xor(self, other: Row) -> Row {
-    let mut rslt = self;
-    for (a, b) in rslt.0.iter_mut().zip(other.0) {
-      *a = *a ^ b;
-    }
-    rslt
-  }
-}
-
 // https://datatracker.ietf.org/doc/html/rfc7539#section-2.3
-#[inline]
-fn block_function<const ADD: bool>(block: &Block) -> Block {
-  let (mut a, mut b, mut c, mut d) = block.to_rows();
-
+#[inline(always)]
+fn block_function<const ADD: bool>(block: Block) -> Block {
+  let mut rslt = block;
   for _ in 0..ITERATIONS {
-    quarter_round(&mut a, &mut b, &mut c, &mut d);
-    diagonalize(&mut b, &mut c, &mut d);
-    quarter_round(&mut a, &mut b, &mut c, &mut d);
-    undiagonalize(&mut b, &mut c, &mut d);
+    rslt.quarter_round(0, 4, 8, 12);
+    rslt.quarter_round(1, 5, 9, 13);
+    rslt.quarter_round(2, 6, 10, 14);
+    rslt.quarter_round(3, 7, 11, 15);
+    rslt.quarter_round(0, 5, 10, 15);
+    rslt.quarter_round(1, 6, 11, 12);
+    rslt.quarter_round(2, 7, 8, 13);
+    rslt.quarter_round(3, 4, 9, 14);
   }
-
   if ADD {
-    let (e, f, g, h) = block.to_rows();
-    a = a.wrapping_add(e);
-    b = b.wrapping_add(f);
-    c = c.wrapping_add(g);
-    d = d.wrapping_add(h);
+    rslt.add_block(&block);
   }
-
-  Block::from_rows(a, b, c, d)
-}
-
-#[inline]
-const fn diagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
-  *b = b.rotate_left1_outer();
-  *c = c.rotate_left2_outer();
-  *d = d.rotate_left3_outer();
-}
-
-#[inline]
-fn quarter_round(a: &mut Row, b: &mut Row, c: &mut Row, d: &mut Row) {
-  *a = a.wrapping_add(*b);
-  *d = a.xor(*d);
-  *d = d.rotate_left_inner::<16>();
-
-  *c = c.wrapping_add(*d);
-  *b = b.xor(*c);
-  *b = b.rotate_left_inner::<12>();
-
-  *a = a.wrapping_add(*b);
-  *d = a.xor(*d);
-  *d = d.rotate_left_inner::<8>();
-
-  *c = c.wrapping_add(*d);
-  *b = b.xor(*c);
-  *b = b.rotate_left_inner::<7>();
-}
-
-#[inline]
-const fn undiagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
-  *b = b.rotate_left3_outer();
-  *c = c.rotate_left2_outer();
-  *d = d.rotate_left1_outer();
+  rslt
 }
 
 #[cfg(feature = "rand_core")]
@@ -440,7 +374,7 @@ mod tests {
       0x4a000000, 0x00000000,
     ]);
     assert_eq!(
-      block_function::<false>(&block),
+      block_function::<false>(block),
       Block::from_words([
         0x837778ab, 0xe238d763, 0xa67ae21e, 0x5950bb2f, 0xc4f2d0c7, 0xfc62bb2f, 0x8fa018fc,
         0x3f5ec7b7, 0x335271c2, 0xf29489f3, 0xeabda8fc, 0x82e46ebd, 0xd19c12b4, 0xb04e16de,
@@ -448,7 +382,7 @@ mod tests {
       ])
     );
     assert_eq!(
-      block_function::<true>(&block),
+      block_function::<true>(block),
       Block::from_words([
         0xe4e7f110, 0x15593bd1, 0x1fdd0f50, 0xc47120a3, 0xc7f4d1c7, 0x0368c033, 0x9aaa2204,
         0x4e6cd4c3, 0x466482d2, 0x09aa9f07, 0x05d7c214, 0xa2028bd9, 0xd19c12b5, 0xb94e16de,
