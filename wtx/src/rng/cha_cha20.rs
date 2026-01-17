@@ -1,13 +1,12 @@
 use crate::rng::{CryptoRng, Rng, SeedableRng};
 use core::fmt::Debug;
 
-const LEN: usize = _simd!(
+const BLOCKS: usize = _simd!(
   8 => { 8 },
   16 => { 16 },
   32 => { 32 },
   64 => { 64 },
 );
-
 // 1 iteration = 2 rounds = 8 quarter rounds
 const ITERATIONS: u8 = 10;
 // Each word has 32 bits or 4 bytes
@@ -49,13 +48,13 @@ impl ChaCha20 {
     if fun(&mut self.block.block_counter) {
       return;
     }
-    if fun(self.block.first_nonce_mut()) {
+    if fun(self.block.nonce0_mut()) {
       return;
     }
-    if fun(self.block.second_nonce_mut()) {
+    if fun(self.block.nonce1_mut()) {
       return;
     }
-    let _ = fun(self.block.third_nonce_mut());
+    let _ = fun(self.block.nonce2_mut());
   }
 }
 
@@ -129,6 +128,7 @@ impl Debug for ChaCha20 {
   }
 }
 
+// 4 * 16 bytes = 64 bytes = 512 bits
 #[cfg_attr(test, derive(Debug))]
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 struct Block {
@@ -140,10 +140,10 @@ struct Block {
 
 impl Block {
   const fn from_rows(a: Row, b: Row, c: Row, d: Row) -> Self {
-    let Row(a0, a1, a2, a3) = a;
-    let Row(b0, b1, b2, b3) = b;
-    let Row(c0, c1, c2, c3) = c;
-    let Row(d0, d1, d2, d3) = d;
+    let Row([a0, a1, a2, a3]) = a;
+    let Row([b0, b1, b2, b3]) = b;
+    let Row([c0, c1, c2, c3]) = c;
+    let Row([d0, d1, d2, d3]) = d;
     Self {
       constants: [a0, a1, a2, a3],
       keys: [b0, b1, b2, b3, c0, c1, c2, c3],
@@ -191,27 +191,27 @@ impl Block {
     }
   }
 
-  const fn first_nonce_mut(&mut self) -> &mut u32 {
+  const fn nonce0_mut(&mut self) -> &mut u32 {
     &mut self.nonces[0]
   }
 
-  const fn second_nonce_mut(&mut self) -> &mut u32 {
+  const fn nonce1_mut(&mut self) -> &mut u32 {
     &mut self.nonces[1]
   }
 
-  const fn third_nonce_mut(&mut self) -> &mut u32 {
+  const fn nonce2_mut(&mut self) -> &mut u32 {
     &mut self.nonces[2]
   }
 
-  const fn to_rows(&self) -> (Row, Row, Row, Row) {
+  fn to_rows(&self) -> (Row, Row, Row, Row) {
     let [c0, c1, c2, c3] = self.constants;
     let [k0, k1, k2, k3, k4, k5, k6, k7] = self.keys;
     let [n0, n1, n2] = self.nonces;
     (
-      Row(c0, c1, c2, c3),
-      Row(k0, k1, k2, k3),
-      Row(k4, k5, k6, k7),
-      Row(self.block_counter, n0, n1, n2),
+      Row([c0, c1, c2, c3]),
+      Row([k0, k1, k2, k3]),
+      Row([k4, k5, k6, k7]),
+      Row([self.block_counter, n0, n1, n2]),
     )
   }
 
@@ -225,60 +225,76 @@ impl Block {
 
 #[cfg_attr(test, derive(Debug))]
 #[derive(Copy, Clone)]
-struct Row(u32, u32, u32, u32);
+struct Row([u32; 4]);
 
 impl Row {
-  const fn or(self, x: &Row) -> Row {
-    Row(self.0 | x.0, self.1 | x.1, self.2 | x.2, self.3 | x.3)
+  fn or(self, x: &Row) -> Row {
+    let mut rslt = self;
+    for (a, b) in rslt.0.iter_mut().zip(x.0) {
+      *a = *a | b;
+    }
+    rslt
   }
 
-  const fn roll_left<const N: u8>(self) -> Row {
-    let lefted = self.shift_left_inner::<N>();
-    let righted = self.shift_right(32u8.wrapping_sub(N));
-    lefted.or(&righted)
+  fn roll_left<const N: u8>(self) -> Row {
+    let left = self.shift_left::<N>();
+    let right = self.shift_right(32u8.wrapping_sub(N));
+    left.or(&right)
   }
 
-  const fn shift_left_inner<const N: u8>(self) -> Row {
-    Row(self.0 << N, self.1 << N, self.2 << N, self.3 << N)
+  const fn rotate_left1(self) -> Row {
+    let mut rslt = self;
+    rslt.0.rotate_left(1);
+    rslt
   }
 
-  const fn shift_left_outer1(self) -> Row {
-    Row(self.1, self.2, self.3, self.0)
+  const fn rotate_left2(self) -> Row {
+    let mut rslt = self;
+    rslt.0.rotate_left(2);
+    rslt
   }
 
-  const fn shift_left_outer2(self) -> Row {
-    Row(self.2, self.3, self.0, self.1)
+  const fn rotate_left3(self) -> Row {
+    let mut rslt = self;
+    rslt.0.rotate_left(3);
+    rslt
   }
 
-  const fn shift_left_outer3(self) -> Row {
-    Row(self.3, self.0, self.1, self.2)
+  fn shift_left<const N: u8>(self) -> Row {
+    let mut rslt = self;
+    for el in rslt.0.iter_mut() {
+      *el = *el << N;
+    }
+    rslt
   }
 
-  const fn shift_right(self, bit_distance: u8) -> Row {
-    Row(
-      self.0 >> bit_distance,
-      self.1 >> bit_distance,
-      self.2 >> bit_distance,
-      self.3 >> bit_distance,
-    )
+  fn shift_right(self, bit_distance: u8) -> Row {
+    let mut rslt = self;
+    for el in rslt.0.iter_mut() {
+      *el = *el >> bit_distance;
+    }
+    rslt
   }
 
-  const fn wrapping_add(self, x: &Row) -> Row {
-    Row(
-      self.0.wrapping_add(x.0),
-      self.1.wrapping_add(x.1),
-      self.2.wrapping_add(x.2),
-      self.3.wrapping_add(x.3),
-    )
+  fn wrapping_add(self, x: &Row) -> Row {
+    let mut rslt = self;
+    for (a, b) in rslt.0.iter_mut().zip(x.0) {
+      *a = a.wrapping_add(b);
+    }
+    rslt
   }
 
-  const fn xor(self, x: &Row) -> Row {
-    Row(self.0 ^ x.0, self.1 ^ x.1, self.2 ^ x.2, self.3 ^ x.3)
+  fn xor(self, x: &Row) -> Row {
+    let mut rslt = self;
+    for (a, b) in rslt.0.iter_mut().zip(x.0) {
+      *a = *a ^ b;
+    }
+    rslt
   }
 }
 
 // https://datatracker.ietf.org/doc/html/rfc7539#section-2.3
-const fn block_function<const ADD: bool>(block: &Block) -> Block {
+fn block_function<const ADD: bool>(block: &Block) -> Block {
   let (mut a, mut b, mut c, mut d) = block.to_rows();
 
   let mut idx = 0;
@@ -305,18 +321,18 @@ const fn block_function<const ADD: bool>(block: &Block) -> Block {
 }
 
 const fn diagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
-  *b = b.shift_left_outer1();
-  *c = c.shift_left_outer2();
-  *d = d.shift_left_outer3();
+  *b = b.rotate_left1();
+  *c = c.rotate_left2();
+  *d = d.rotate_left3();
 }
 
 const fn undiagonalize(b: &mut Row, c: &mut Row, d: &mut Row) {
-  *b = b.shift_left_outer3();
-  *c = c.shift_left_outer2();
-  *d = d.shift_left_outer1();
+  *b = b.rotate_left3();
+  *c = c.rotate_left2();
+  *d = d.rotate_left1();
 }
 
-const fn round(a: &mut Row, b: &mut Row, c: &mut Row, d: &mut Row) {
+fn round(a: &mut Row, b: &mut Row, c: &mut Row, d: &mut Row) {
   *a = a.wrapping_add(b);
   *d = a.xor(d);
   *d = d.roll_left::<16>();
@@ -354,6 +370,24 @@ mod rand_core {
 
   impl rand_core::CryptoRng for ChaCha20 {}
 }
+
+#[cfg(all(feature = "_bench", test))]
+mod bench {
+  use core::hint::black_box;
+  use crate::rng::{ChaCha20, Rng};
+
+  #[bench]
+  fn cha_cha20(b: &mut test::Bencher) {
+    let mut rng = ChaCha20::from_key([7; 32]);
+    b.iter(|| {
+      black_box({
+        let mut array = [0; 256];
+        rng.shuffle_slice(&mut array);
+      });
+    });
+  }
+}
+
 
 #[cfg(test)]
 mod tests {

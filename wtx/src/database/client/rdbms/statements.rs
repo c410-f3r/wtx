@@ -152,71 +152,70 @@ mod tests {
   #[cfg_attr(miri, ignore)]
   #[test]
   fn two_statements() {
-    Runtime::new()
-      .block_on(async {
-        let mut stmts = Statements::new(2, &mut Xorshift64::from(simple_seed()));
+    Runtime::new().block_on(async {
+      let mut stmts = Statements::new(2, &mut Xorshift64::from(simple_seed()));
 
-        let stmt_id0 = 123;
-        let mut builder = stmts.builder((), builder_fn).await.unwrap();
-        {
-          let data = builder.expand(2, ("", 0)).unwrap();
-          data[0] = (_column0(), 100);
-          data[1] = (_column1(), 100);
-          let _ = builder.build(stmt_id0, StatementsMisc::new(10, 2, 0, 1)).unwrap();
-          let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id0).unwrap().into_stmt();
-          assert_eq!(stmt.columns().len(), 2);
-          assert_eq!(stmt.column(0).unwrap(), &_column0());
-          assert_eq!(stmt.column(1).unwrap(), &_column1());
-          assert_eq!(stmt.tys().len(), 1);
-          assert_eq!(stmt.ty(0).unwrap(), &100);
-        }
+      let stmt_id0 = 123;
+      let mut builder = stmts.builder((), builder_fn).await.unwrap();
+      {
+        let data = builder.expand(2, ("", 0)).unwrap();
+        data[0] = (_column0(), 100);
+        data[1] = (_column1(), 100);
+        let _ = builder.build(stmt_id0, StatementsMisc::new(10, 2, 0, 1)).unwrap();
+        let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id0).unwrap().into_stmt();
+        assert_eq!(stmt.columns().len(), 2);
+        assert_eq!(stmt.column(0).unwrap(), &_column0());
+        assert_eq!(stmt.column(1).unwrap(), &_column1());
+        assert_eq!(stmt.tys().len(), 1);
+        assert_eq!(stmt.ty(0).unwrap(), &100);
+      }
 
-        let stmt_id1 = 456;
-        let mut builder = stmts.builder((), builder_fn).await.unwrap();
-        {
-          let data = builder.expand(1, ("", 0)).unwrap();
-          data[0] = (_column2(), 200);
-          let _ = builder.build(stmt_id1, StatementsMisc::new(11, 1, 0, 1)).unwrap();
-          let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id0).unwrap().into_stmt();
-          assert_eq!(stmt.columns().len(), 2);
-          assert_eq!(stmt.column(0).unwrap(), &_column0());
-          assert_eq!(stmt.column(1).unwrap(), &_column1());
-          assert_eq!(stmt.tys().len(), 1);
-          assert_eq!(stmt.ty(0).unwrap(), &100);
-        }
-        {
-          let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id1).unwrap().into_stmt();
-          assert_eq!(stmt.columns().len(), 1);
-          assert_eq!(stmt.column(0).unwrap(), &_column2());
-          assert_eq!(stmt.tys().len(), 1);
-          assert_eq!(stmt.ty(0).unwrap(), &200);
-        }
+      let stmt_id1 = 456;
+      let mut builder = stmts.builder((), builder_fn).await.unwrap();
+      {
+        let data = builder.expand(1, ("", 0)).unwrap();
+        data[0] = (_column2(), 200);
+        let _ = builder.build(stmt_id1, StatementsMisc::new(11, 1, 0, 1)).unwrap();
+        let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id0).unwrap().into_stmt();
+        assert_eq!(stmt.columns().len(), 2);
+        assert_eq!(stmt.column(0).unwrap(), &_column0());
+        assert_eq!(stmt.column(1).unwrap(), &_column1());
+        assert_eq!(stmt.tys().len(), 1);
+        assert_eq!(stmt.ty(0).unwrap(), &100);
+      }
+      {
+        let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id1).unwrap().into_stmt();
+        assert_eq!(stmt.columns().len(), 1);
+        assert_eq!(stmt.column(0).unwrap(), &_column2());
+        assert_eq!(stmt.tys().len(), 1);
+        assert_eq!(stmt.ty(0).unwrap(), &200);
+      }
 
-        let stmt_id2 = 789;
-        let mut builder = stmts.builder((), builder_fn).await.unwrap();
-        {
-          let data = builder.expand(1, ("", 0)).unwrap();
-          data[0].0 = _column3();
-          let _ = builder.build(stmt_id2, StatementsMisc::new(12, 1, 0, 0)).unwrap();
-          assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id0), None);
-          let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id1).unwrap().into_stmt();
-          assert_eq!(stmt.columns().len(), 1);
-          assert_eq!(stmt.column(0).unwrap(), &_column2());
-          assert_eq!(stmt.tys().len(), 1);
-          assert_eq!(stmt.ty(0).unwrap(), &200);
-        }
-        {
-          let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id2).unwrap().into_stmt();
-          assert_eq!(stmt.columns().len(), 1);
-          assert_eq!(stmt.column(0).unwrap(), &_column3());
-          assert_eq!(stmt.tys().len(), 0);
-        }
-
-        stmts.clear();
+      let stmt_id2 = 789;
+      let mut builder = stmts.builder((), builder_fn).await.unwrap();
+      {
+        let data = builder.expand(1, ("", 0)).unwrap();
+        data[0].0 = _column3();
+        let _ = builder.build(stmt_id2, StatementsMisc::new(12, 1, 0, 0)).unwrap();
         assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id0), None);
-        assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id1), None);
-        assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id2), None);
-      });
+        let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id1).unwrap().into_stmt();
+        assert_eq!(stmt.columns().len(), 1);
+        assert_eq!(stmt.column(0).unwrap(), &_column2());
+        assert_eq!(stmt.tys().len(), 1);
+        assert_eq!(stmt.ty(0).unwrap(), &200);
+      }
+      {
+        let stmt = stmts.get_by_stmt_cmd_id_mut(stmt_id2).unwrap().into_stmt();
+        assert_eq!(stmt.columns().len(), 1);
+        assert_eq!(stmt.column(0).unwrap(), &_column3());
+        assert_eq!(stmt.tys().len(), 0);
+      }
+
+      stmts.clear();
+      assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id0), None);
+      assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id1), None);
+      assert_eq!(stmts.get_by_stmt_cmd_id_mut(stmt_id2), None);
+    });
   }
 
   pub(crate) async fn builder_fn(_: &mut (), _: StatementsMisc<i32>) -> crate::Result<()> {

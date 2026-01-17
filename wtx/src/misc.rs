@@ -422,20 +422,19 @@ mod tests {
 
   #[test]
   fn timeout() {
-    Runtime::new()
-      .block_on(async {
-        assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
-        assert!(
-          crate::misc::timeout(
-            async {
-              sleep(Duration::from_millis(20)).await.unwrap();
-              async { 1 }
-            },
-            Duration::from_millis(10)
-          )
-          .await
-          .is_err()
+    Runtime::new().block_on(async {
+      assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
+      assert!(
+        crate::misc::timeout(
+          async {
+            sleep(Duration::from_millis(20)).await.unwrap();
+            async { 1 }
+          },
+          Duration::from_millis(10)
         )
-      });
+        .await
+        .is_err()
+      )
+    });
   }
 }

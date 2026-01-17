@@ -129,18 +129,17 @@ mod tests {
 
     let jh = thread::spawn(move || {
       let mut pending = 0;
-      Runtime::new()
-        .block_on(poll_fn(move |cx| {
-          if woken_clone.load(Ordering::Relaxed) {
-            Poll::Ready(())
-          } else {
-            assert_eq!(0, pending);
-            pending += 1;
-            atomic_waker_clone.register(cx.waker());
-            waiting_clone.store(true, Ordering::Relaxed);
-            Poll::Pending
-          }
-        }));
+      Runtime::new().block_on(poll_fn(move |cx| {
+        if woken_clone.load(Ordering::Relaxed) {
+          Poll::Ready(())
+        } else {
+          assert_eq!(0, pending);
+          pending += 1;
+          atomic_waker_clone.register(cx.waker());
+          waiting_clone.store(true, Ordering::Relaxed);
+          Poll::Pending
+        }
+      }));
     });
 
     while !waiting.load(Ordering::Relaxed) {}

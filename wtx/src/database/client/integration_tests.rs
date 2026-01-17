@@ -13,72 +13,71 @@ where
   E: Executor<Database = D>,
   for<'any> &'any str: Decode<'any, E::Database>,
 {
-  Runtime::new()
-    .block_on(async {
-      let mut executor = fut.await;
-      let mut idx: u16 = 0;
-      let mut records = Vector::new();
-      executor
-        .execute_many(
-          &mut records,
-          "
+  Runtime::new().block_on(async {
+    let mut executor = fut.await;
+    let mut idx: u16 = 0;
+    let mut records = Vector::new();
+    executor
+      .execute_many(
+        &mut records,
+        "
             SELECT 0,1,2 UNION SELECT 3,4,5;
             SELECT 6,7,8 UNION SELECT 9,10,11;
             SELECT 12,13,14 UNION SELECT 15,16,17;
           ",
-          |record| {
-            assert_eq!(record.decode::<_, &str>(0).unwrap(), u16_string(idx).as_str());
-            idx = idx.wrapping_add(1);
-            assert_eq!(record.decode::<_, &str>(1).unwrap(), u16_string(idx).as_str());
-            idx = idx.wrapping_add(1);
-            assert_eq!(record.decode::<_, &str>(2).unwrap(), u16_string(idx).as_str());
-            idx = idx.wrapping_add(1);
-            Ok(())
-          },
-        )
-        .await
-        .unwrap();
-      assert_eq!(records.len(), 3);
+        |record| {
+          assert_eq!(record.decode::<_, &str>(0).unwrap(), u16_string(idx).as_str());
+          idx = idx.wrapping_add(1);
+          assert_eq!(record.decode::<_, &str>(1).unwrap(), u16_string(idx).as_str());
+          idx = idx.wrapping_add(1);
+          assert_eq!(record.decode::<_, &str>(2).unwrap(), u16_string(idx).as_str());
+          idx = idx.wrapping_add(1);
+          Ok(())
+        },
+      )
+      .await
+      .unwrap();
+    assert_eq!(records.len(), 3);
 
-      let records0 = records.get(0).unwrap();
-      let records00 = records0.get(0).unwrap();
-      let records01 = records0.get(1).unwrap();
-      assert_eq!(records0.len(), 2);
-      assert_eq!(records00.len(), 3);
-      assert_eq!(records00.decode::<_, &str>(0).unwrap(), "0");
-      assert_eq!(records00.decode::<_, &str>(1).unwrap(), "1");
-      assert_eq!(records00.decode::<_, &str>(2).unwrap(), "2");
-      assert_eq!(records01.len(), 3);
-      assert_eq!(records01.decode::<_, &str>(0).unwrap(), "3");
-      assert_eq!(records01.decode::<_, &str>(1).unwrap(), "4");
-      assert_eq!(records01.decode::<_, &str>(2).unwrap(), "5");
+    let records0 = records.get(0).unwrap();
+    let records00 = records0.get(0).unwrap();
+    let records01 = records0.get(1).unwrap();
+    assert_eq!(records0.len(), 2);
+    assert_eq!(records00.len(), 3);
+    assert_eq!(records00.decode::<_, &str>(0).unwrap(), "0");
+    assert_eq!(records00.decode::<_, &str>(1).unwrap(), "1");
+    assert_eq!(records00.decode::<_, &str>(2).unwrap(), "2");
+    assert_eq!(records01.len(), 3);
+    assert_eq!(records01.decode::<_, &str>(0).unwrap(), "3");
+    assert_eq!(records01.decode::<_, &str>(1).unwrap(), "4");
+    assert_eq!(records01.decode::<_, &str>(2).unwrap(), "5");
 
-      let records1 = records.get(1).unwrap();
-      let records10 = records1.get(0).unwrap();
-      let records11 = records1.get(1).unwrap();
-      assert_eq!(records1.len(), 2);
-      assert_eq!(records10.len(), 3);
-      assert_eq!(records10.decode::<_, &str>(0).unwrap(), "6");
-      assert_eq!(records10.decode::<_, &str>(1).unwrap(), "7");
-      assert_eq!(records10.decode::<_, &str>(2).unwrap(), "8");
-      assert_eq!(records11.len(), 3);
-      assert_eq!(records11.decode::<_, &str>(0).unwrap(), "9");
-      assert_eq!(records11.decode::<_, &str>(1).unwrap(), "10");
-      assert_eq!(records11.decode::<_, &str>(2).unwrap(), "11");
+    let records1 = records.get(1).unwrap();
+    let records10 = records1.get(0).unwrap();
+    let records11 = records1.get(1).unwrap();
+    assert_eq!(records1.len(), 2);
+    assert_eq!(records10.len(), 3);
+    assert_eq!(records10.decode::<_, &str>(0).unwrap(), "6");
+    assert_eq!(records10.decode::<_, &str>(1).unwrap(), "7");
+    assert_eq!(records10.decode::<_, &str>(2).unwrap(), "8");
+    assert_eq!(records11.len(), 3);
+    assert_eq!(records11.decode::<_, &str>(0).unwrap(), "9");
+    assert_eq!(records11.decode::<_, &str>(1).unwrap(), "10");
+    assert_eq!(records11.decode::<_, &str>(2).unwrap(), "11");
 
-      let records2 = records.get(2).unwrap();
-      let records20 = records2.get(0).unwrap();
-      let records21 = records2.get(1).unwrap();
-      assert_eq!(records2.len(), 2);
-      assert_eq!(records20.len(), 3);
-      assert_eq!(records20.decode::<_, &str>(0).unwrap(), "12");
-      assert_eq!(records20.decode::<_, &str>(1).unwrap(), "13");
-      assert_eq!(records20.decode::<_, &str>(2).unwrap(), "14");
-      assert_eq!(records21.len(), 3);
-      assert_eq!(records21.decode::<_, &str>(0).unwrap(), "15");
-      assert_eq!(records21.decode::<_, &str>(1).unwrap(), "16");
-      assert_eq!(records21.decode::<_, &str>(2).unwrap(), "17");
-    });
+    let records2 = records.get(2).unwrap();
+    let records20 = records2.get(0).unwrap();
+    let records21 = records2.get(1).unwrap();
+    assert_eq!(records2.len(), 2);
+    assert_eq!(records20.len(), 3);
+    assert_eq!(records20.decode::<_, &str>(0).unwrap(), "12");
+    assert_eq!(records20.decode::<_, &str>(1).unwrap(), "13");
+    assert_eq!(records20.decode::<_, &str>(2).unwrap(), "14");
+    assert_eq!(records21.len(), 3);
+    assert_eq!(records21.decode::<_, &str>(0).unwrap(), "15");
+    assert_eq!(records21.decode::<_, &str>(1).unwrap(), "16");
+    assert_eq!(records21.decode::<_, &str>(2).unwrap(), "17");
+  });
 }
 
 pub(crate) fn execute_interleaved<D, E>(fut: impl Future<Output = E>)
@@ -87,37 +86,36 @@ where
   E: Executor<Database = D>,
   for<'any> &'any str: Decode<'any, E::Database>,
 {
-  Runtime::new()
-    .block_on(async {
-      let mut executor = fut.await;
-      let mut records = Vector::new();
-      executor
-        .execute_many(
-          &mut records,
-          "
+  Runtime::new().block_on(async {
+    let mut executor = fut.await;
+    let mut records = Vector::new();
+    executor
+      .execute_many(
+        &mut records,
+        "
             DROP TABLE IF EXISTS foo;
             SELECT 0;
             DROP TABLE IF EXISTS bar;
             SELECT 1;
           ",
-          |_| Ok(()),
-        )
-        .await
-        .unwrap();
-      assert_eq!(records.len(), 2);
+        |_| Ok(()),
+      )
+      .await
+      .unwrap();
+    assert_eq!(records.len(), 2);
 
-      let records0 = records.get(0).unwrap();
-      let records00 = records0.get(0).unwrap();
-      assert_eq!(records0.len(), 1);
-      assert_eq!(records00.len(), 1);
-      assert_eq!(records00.decode::<_, &str>(0).unwrap(), "0");
+    let records0 = records.get(0).unwrap();
+    let records00 = records0.get(0).unwrap();
+    assert_eq!(records0.len(), 1);
+    assert_eq!(records00.len(), 1);
+    assert_eq!(records00.decode::<_, &str>(0).unwrap(), "0");
 
-      let records1 = records.get(1).unwrap();
-      let records10 = records1.get(0).unwrap();
-      assert_eq!(records1.len(), 1);
-      assert_eq!(records10.len(), 1);
-      assert_eq!(records10.decode::<_, &str>(0).unwrap(), "1");
-    });
+    let records1 = records.get(1).unwrap();
+    let records10 = records1.get(0).unwrap();
+    assert_eq!(records1.len(), 1);
+    assert_eq!(records10.len(), 1);
+    assert_eq!(records10.decode::<_, &str>(0).unwrap(), "1");
+  });
 }
 
 pub(crate) fn execute_stmt_inserts<D, E>(fut: impl Future<Output = E>)
@@ -126,51 +124,50 @@ where
   E: Executor<Database = D>,
   for<'any> u32: Decode<'any, E::Database>,
 {
-  Runtime::new()
-    .block_on(async {
-      let mut executor = fut.await;
-      assert_eq!(
-        executor
-          .execute_stmt_many("DROP TABLE IF EXISTS execute_test", (), |_| Ok(()))
-          .await
-          .unwrap()
-          .len(),
-        0
-      );
-      assert_eq!(
-        executor
-          .execute_stmt_many("CREATE TABLE IF NOT EXISTS execute_test(id INT)", (), |_| Ok(()))
-          .await
-          .unwrap()
-          .len(),
-        0
-      );
-      assert_eq!(
-        executor
-          .execute_stmt_many("INSERT INTO execute_test VALUES (1)", (), |_| Ok(()))
-          .await
-          .unwrap()
-          .len(),
-        0
-      );
-      assert_eq!(
-        executor
-          .execute_stmt_many("INSERT INTO execute_test VALUES (2), (3)", (), |_| Ok(()))
-          .await
-          .unwrap()
-          .len(),
-        0
-      );
-      let select = "SELECT * FROM execute_test";
-      let records = executor.execute_stmt_many(select, (), |_| Ok(())).await.unwrap();
-      assert_eq!(records.len(), 3);
-      assert_eq!(records.get(0).unwrap().len(), 1);
-      assert_eq!(records.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
-      assert_eq!(records.get(1).unwrap().len(), 1);
-      assert_eq!(records.get(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
-      assert_eq!(records.get(2).unwrap().len(), 1);
-      assert_eq!(records.get(2).unwrap().decode::<_, u32>(0).unwrap(), 3);
-    });
+  Runtime::new().block_on(async {
+    let mut executor = fut.await;
+    assert_eq!(
+      executor
+        .execute_stmt_many("DROP TABLE IF EXISTS execute_test", (), |_| Ok(()))
+        .await
+        .unwrap()
+        .len(),
+      0
+    );
+    assert_eq!(
+      executor
+        .execute_stmt_many("CREATE TABLE IF NOT EXISTS execute_test(id INT)", (), |_| Ok(()))
+        .await
+        .unwrap()
+        .len(),
+      0
+    );
+    assert_eq!(
+      executor
+        .execute_stmt_many("INSERT INTO execute_test VALUES (1)", (), |_| Ok(()))
+        .await
+        .unwrap()
+        .len(),
+      0
+    );
+    assert_eq!(
+      executor
+        .execute_stmt_many("INSERT INTO execute_test VALUES (2), (3)", (), |_| Ok(()))
+        .await
+        .unwrap()
+        .len(),
+      0
+    );
+    let select = "SELECT * FROM execute_test";
+    let records = executor.execute_stmt_many(select, (), |_| Ok(())).await.unwrap();
+    assert_eq!(records.len(), 3);
+    assert_eq!(records.get(0).unwrap().len(), 1);
+    assert_eq!(records.get(0).unwrap().decode::<_, u32>(0).unwrap(), 1);
+    assert_eq!(records.get(1).unwrap().len(), 1);
+    assert_eq!(records.get(1).unwrap().decode::<_, u32>(0).unwrap(), 2);
+    assert_eq!(records.get(2).unwrap().len(), 1);
+    assert_eq!(records.get(2).unwrap().decode::<_, u32>(0).unwrap(), 3);
+  });
 }
 
 pub(crate) fn execute_stmt_selects<D, E>(fut: impl Future<Output = E>, ty0: &str, ty1: &str)
@@ -389,10 +386,9 @@ where
   E: Executor,
   <E::Database as DEController>::Error: Debug,
 {
-  Runtime::new()
-    .block_on(async {
-      fut.await.ping().await.unwrap();
-    });
+  Runtime::new().block_on(async {
+    fut.await.ping().await.unwrap();
+  });
 }
 
 pub(crate) fn records_after_prepare<D, E>(fut: impl Future<Output = E>)
@@ -400,12 +396,11 @@ where
   D: Database<Error = crate::Error>,
   E: Executor<Database = D>,
 {
-  Runtime::new()
-    .block_on(async {
-      let mut executor = fut.await;
-      let _ = executor.prepare("SELECT 1").await.unwrap();
-      let _record = executor.execute_stmt_many("SELECT 1", (), |_| Ok(())).await.unwrap();
-    });
+  Runtime::new().block_on(async {
+    let mut executor = fut.await;
+    let _ = executor.prepare("SELECT 1").await.unwrap();
+    let _record = executor.execute_stmt_many("SELECT 1", (), |_| Ok(())).await.unwrap();
+  });
 }
 
 pub(crate) fn reuses_cached_statement<D, E>(fut: impl Future<Output = E>, ty0: &str)
@@ -415,16 +410,15 @@ where
   i32: Encode<E::Database>,
   i32: Typed<D>,
 {
-  Runtime::new()
-    .block_on(async {
-      let mut executor = fut.await;
-      {
-        let _record =
-          executor.execute_stmt_single(&format!("SELECT '1' WHERE 0={}", ty0), (0,)).await.unwrap();
-      }
-      {
-        let _record =
-          executor.execute_stmt_single(&format!("SELECT '1' WHERE 0={}", ty0), (0,)).await.unwrap();
-      }
-    });
+  Runtime::new().block_on(async {
+    let mut executor = fut.await;
+    {
+      let _record =
+        executor.execute_stmt_single(&format!("SELECT '1' WHERE 0={}", ty0), (0,)).await.unwrap();
+    }
+    {
+      let _record =
+        executor.execute_stmt_single(&format!("SELECT '1' WHERE 0={}", ty0), (0,)).await.unwrap();
+    }
+  });
 }

@@ -1,8 +1,12 @@
 use crate::{
-  collection::Vector, http::{
+  collection::Vector,
+  http::{
     client_pool::{ClientPool, ClientPoolRM},
     conn_params::ConnParams,
-  }, pool::{ResourceManager, SimplePool}, rng::ChaCha20, sync::AtomicCell
+  },
+  pool::{ResourceManager, SimplePool},
+  rng::ChaCha20,
+  sync::AtomicCell,
 };
 use core::marker::PhantomData;
 
@@ -65,7 +69,7 @@ where
           _cert: self.cert,
           _cp: self.cp,
           _phantom: PhantomData,
-          _rng: AtomicCell::new(rng)
+          _rng: AtomicCell::new(rng),
         },
       ),
     }

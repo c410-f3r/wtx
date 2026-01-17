@@ -110,7 +110,7 @@ pub(crate) mod aws_lc_rs {
 pub(crate) mod rust_crypto {
   use crypto_common::Generate;
 
-use crate::{
+  use crate::{
     collection::ArrayVectorU8,
     rng::CryptoRng,
     tls::{
@@ -131,7 +131,7 @@ use crate::{
     fn random<RNG>(ng: NamedGroup, rng: &mut RNG) -> crate::Result<Self>
     where
       RNG: CryptoRng,
-    { 
+    {
       Ok(match ng {
         NamedGroup::Secp256r1 => NamedGroupParamRustCrypto::Secp256r1(
           match p256::ecdh::EphemeralSecret::try_generate_from_rng(rng) {

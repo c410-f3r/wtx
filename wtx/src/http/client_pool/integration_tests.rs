@@ -7,12 +7,11 @@ use crate::{
 
 #[test]
 fn popular_sites() {
-  Runtime::new()
-    .block_on(async move {
-      send_recv("https://github.com".into()).await;
-      send_recv("https://duckduckgo.com".into()).await;
-      send_recv("https://www.google.com".into()).await;
-    });
+  Runtime::new().block_on(async move {
+    send_recv("https://github.com".into()).await;
+    send_recv("https://duckduckgo.com".into()).await;
+    send_recv("https://www.google.com".into()).await;
+  });
 }
 
 async fn send_recv(uri: UriRef<'_>) {

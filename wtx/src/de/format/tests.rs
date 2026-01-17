@@ -79,24 +79,23 @@ macro_rules! _create_dnsn_test {
 
       #[test]
       fn der_and_ser_have_correct_outputs() {
-        crate::executor::Runtime::new()
-          .block_on(async {
-            let pkgs_aux = &mut PkgsAux::from_minimum((), $drsr_expr, ());
-            let mut trans = Mock::default();
-            trans.push_response($raw_der);
-            assert_eq!(
-              trans
-                .send_pkg_recv_decode_contained(
-                  &mut _FooBar::<_, $res<_Bar>>::_new($fmt_ser),
-                  pkgs_aux
-                )
-                .await
-                .unwrap(),
-              $fmt_der
-            );
-            trans.assert_request($raw_ser);
-            trans.assert_does_not_have_non_asserted_requests();
-          });
+        crate::executor::Runtime::new().block_on(async {
+          let pkgs_aux = &mut PkgsAux::from_minimum((), $drsr_expr, ());
+          let mut trans = Mock::default();
+          trans.push_response($raw_der);
+          assert_eq!(
+            trans
+              .send_pkg_recv_decode_contained(
+                &mut _FooBar::<_, $res<_Bar>>::_new($fmt_ser),
+                pkgs_aux
+              )
+              .await
+              .unwrap(),
+            $fmt_der
+          );
+          trans.assert_request($raw_ser);
+          trans.assert_does_not_have_non_asserted_requests();
+        });
       }
     }
   };

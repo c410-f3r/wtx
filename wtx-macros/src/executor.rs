@@ -51,7 +51,7 @@ pub(crate) fn test(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
   let tokens = quote::quote!(
     #[test]
     #(#attrs)*
-    fn #name() {
+    fn #name() #output {
       #asyncness fn #priv_fn_name(#inputs) #output {
         #block
       }
@@ -62,7 +62,6 @@ pub(crate) fn test(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .block_on(async move {
           #priv_fn_name(#priv_fn_args).await
         })
-        .unwrap();
     }
   );
   tokens.into()

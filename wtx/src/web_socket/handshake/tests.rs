@@ -31,20 +31,19 @@ fn compressed() {
   let runtime_fut0 = runtime.clone();
   let runtime_fut1 = runtime.clone();
   let runtime_fut2 = runtime.clone();
-  runtime
-    .block_on(async {
-      use crate::web_socket::compression::Flate2;
-      do_test_client_and_server_frames(((), false), (Flate2::default(), false), runtime_fut0).await;
-      sleep(Duration::from_millis(200)).await.unwrap();
-      do_test_client_and_server_frames((Flate2::default(), false), ((), false), runtime_fut1).await;
-      sleep(Duration::from_millis(200)).await.unwrap();
-      do_test_client_and_server_frames(
-        (Flate2::default(), false),
-        (Flate2::default(), false),
-        runtime_fut2,
-      )
-      .await;
-    });
+  runtime.block_on(async {
+    use crate::web_socket::compression::Flate2;
+    do_test_client_and_server_frames(((), false), (Flate2::default(), false), runtime_fut0).await;
+    sleep(Duration::from_millis(200)).await.unwrap();
+    do_test_client_and_server_frames((Flate2::default(), false), ((), false), runtime_fut1).await;
+    sleep(Duration::from_millis(200)).await.unwrap();
+    do_test_client_and_server_frames(
+      (Flate2::default(), false),
+      (Flate2::default(), false),
+      runtime_fut2,
+    )
+    .await;
+  });
 }
 
 #[test]

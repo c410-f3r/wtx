@@ -294,25 +294,24 @@ mod tests {
 
   #[test]
   fn held_lock_is_not_modified() {
-    Runtime::new()
-      .block_on(async {
-        let pool = pool();
-        let lhs_lock = pool.get_with_unit().await.unwrap();
+    Runtime::new().block_on(async {
+      let pool = pool();
+      let lhs_lock = pool.get_with_unit().await.unwrap();
 
-        ***pool.get_with_unit().await.unwrap() = 1;
-        assert_eq!([***lhs_lock, ***pool.get_with_unit().await.unwrap()], [0, 1]);
+      ***pool.get_with_unit().await.unwrap() = 1;
+      assert_eq!([***lhs_lock, ***pool.get_with_unit().await.unwrap()], [0, 1]);
 
-        ***pool.get_with_unit().await.unwrap() = 2;
-        assert_eq!([***lhs_lock, ***pool.get_with_unit().await.unwrap()], [0, 2]);
+      ***pool.get_with_unit().await.unwrap() = 2;
+      assert_eq!([***lhs_lock, ***pool.get_with_unit().await.unwrap()], [0, 2]);
 
-        drop(lhs_lock);
+      drop(lhs_lock);
 
-        ***pool.get_with_unit().await.unwrap() = 1;
-        assert_eq!(
-          [***pool.get_with_unit().await.unwrap(), ***pool.get_with_unit().await.unwrap()],
-          [1, 2]
-        );
-      });
+      ***pool.get_with_unit().await.unwrap() = 1;
+      assert_eq!(
+        [***pool.get_with_unit().await.unwrap(), ***pool.get_with_unit().await.unwrap()],
+        [1, 2]
+      );
+    });
   }
 
   fn pool() -> SimplePool<SimpleRM<fn() -> crate::Result<i32>>> {
