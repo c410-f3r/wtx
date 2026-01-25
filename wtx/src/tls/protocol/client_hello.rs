@@ -9,14 +9,14 @@ use crate::{
   },
   rng::CryptoRng,
   tls::{
-    KEY_SHARES_LEN, MaxFragmentLength, TlsError,
+    MAX_KEY_SHARES_LEN, MaxFragmentLength, TlsError,
     cipher_suite::CipherSuiteTy,
     de::De,
+    ephemeral_secret_key::EphemeralSecretKey,
     misc::{u8_chunk, u16_chunk, u16_list},
     protocol::{
       client_hello_extension::ClientHelloExtension,
       client_hello_extension_ty::ClientHelloExtensionTy,
-      ephemeral_secret_key::EphemeralSecretKey,
       key_share_client_hello::KeyShareClientHello,
       key_share_entry::KeyShareEntry,
       offered_psks::OfferedPsks,
@@ -38,7 +38,7 @@ pub(crate) struct ClientHello<ES, TC> {
   random: [u8; 32],
   legacy_session_id: ArrayVectorU8<u8, 32>,
   legacy_compression_methods: [u8; 2],
-  secrets: ArrayVectorU8<ES, KEY_SHARES_LEN>,
+  secrets: ArrayVectorU8<ES, MAX_KEY_SHARES_LEN>,
   supported_versions: SupportedVersions,
   psk_key_exchange_modes: Option<PskKeyExchangeModes>,
   tls_config: TC,
@@ -81,7 +81,7 @@ where
     })
   }
 
-  pub(crate) fn into_secrets(self) -> ArrayVectorU8<ES, KEY_SHARES_LEN> {
+  pub(crate) fn into_secrets(self) -> ArrayVectorU8<ES, MAX_KEY_SHARES_LEN> {
     self.secrets
   }
 
@@ -289,7 +289,7 @@ where
       .encode(sw)?;
 
       {
-        let mut client_shares = ArrayVectorU8::<_, KEY_SHARES_LEN>::new();
+        let mut client_shares = ArrayVectorU8::<_, MAX_KEY_SHARES_LEN>::new();
         for (key_share, secret) in self.tls_config.lease().key_shares.iter().zip(&self.secrets) {
           let opaque = secret.public_key()?;
           client_shares.push((key_share.group, opaque))?;

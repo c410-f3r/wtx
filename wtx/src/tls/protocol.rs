@@ -1,7 +1,7 @@
+pub(crate) mod alert;
 pub(crate) mod client_hello;
 pub(crate) mod client_hello_extension;
 pub(crate) mod client_hello_extension_ty;
-pub(crate) mod ephemeral_secret_key;
 pub(crate) mod handshake;
 pub(crate) mod key_share_client_hello;
 pub(crate) mod key_share_entry;
@@ -22,4 +22,5 @@ pub(crate) mod server_name;
 pub(crate) mod server_name_list;
 pub(crate) mod signature_algorithms;
 pub(crate) mod signature_algorithms_cert;
+pub(crate) mod signature_scheme;
 pub(crate) mod supported_groups;

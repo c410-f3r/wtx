@@ -21,14 +21,14 @@ use crate::{
 
 /// Basically performs the TLS handshake
 #[derive(Debug)]
-pub struct TlsConnector<TB, TM> {
+pub struct TlsStreamConnector<TB, TM> {
   //alpn_protocols: Vec<Vec<u8>>,
   //store: RootCertStore,
   tb: TB,
   tm: TM,
 }
 
-impl<TB, TM> TlsConnector<TB, TM>
+impl<TB, TM> TlsStreamConnector<TB, TM>
 where
   TB: LeaseMut<TlsBuffer>,
   TM: TlsMode,
@@ -96,20 +96,20 @@ where
   /// testing.
   ///
   /// Shortcut of [`Self::set_tls_mode`] with [`TlsModePlainText`].
-  pub fn set_plain_text(self) -> TlsConnector<TB, TlsModePlainText> {
-    TlsConnector { tb: self.tb, tm: TlsModePlainText }
+  pub fn set_plain_text(self) -> TlsStreamConnector<TB, TlsModePlainText> {
+    TlsStreamConnector { tb: self.tb, tm: TlsModePlainText }
   }
 
   pub fn push_cert(self, cert: &[u8]) -> Self {
     self
   }
 
-  pub fn set_tls_mode<_TM>(self, tm: _TM) -> TlsConnector<TB, _TM> {
-    TlsConnector { tb: self.tb, tm }
+  pub fn set_tls_mode<_TM>(self, tm: _TM) -> TlsStreamConnector<TB, _TM> {
+    TlsStreamConnector { tb: self.tb, tm }
   }
 }
 
-impl TlsConnector<TlsBuffer, TlsModeVerifyFull> {
+impl TlsStreamConnector<TlsBuffer, TlsModeVerifyFull> {
   /// From the automatic selection of dependencies.
   ///
   /// An error will be returned if no dependency that provides CA certificates is selected.
@@ -126,7 +126,7 @@ impl TlsConnector<TlsBuffer, TlsModeVerifyFull> {
   }
 }
 
-impl Default for TlsConnector<TlsBuffer, TlsModeVerifyFull> {
+impl Default for TlsStreamConnector<TlsBuffer, TlsModeVerifyFull> {
   #[inline]
   fn default() -> Self {
     Self { tb: TlsBuffer::default(), tm: TlsModeVerifyFull }

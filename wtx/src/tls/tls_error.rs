@@ -1,5 +1,3 @@
-use crate::tls::alert::Alert;
-
 /// TLS errror
 #[derive(Debug)]
 pub enum TlsError {
@@ -7,6 +5,8 @@ pub enum TlsError {
   AbortedHandshake,
   /// Bad Pre Key Share
   BadPreKeyShare,
+  /// Diffie–Hellman error
+  DiffieHellmanError,
   /// Duplicated Client Hello Parameters
   DuplicatedClientHelloParameters,
   /// Invalid array
@@ -75,7 +75,8 @@ pub enum TlsError {
   UnknownNameType,
   /// Unknown Webpki Signature Scheme
   UnknownWebpkiSignatureScheme,
-
+  /// Secret mismatch
+  SecretMismatch,
   /// The server has a set of suites that the client don't support
   ServerNoCompatibleCypherSuite,
   /// The server has a set of suites that the client don't support

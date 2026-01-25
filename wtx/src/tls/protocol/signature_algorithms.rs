@@ -5,7 +5,7 @@ use crate::{
     SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   },
-  tls::{SignatureScheme, TlsError, de::De, misc::u16_list},
+  tls::{TlsError, de::De, misc::u16_list, protocol::signature_scheme::SignatureScheme},
 };
 
 #[derive(Debug)]

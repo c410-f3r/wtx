@@ -1,7 +1,7 @@
 //#[cfg(feature = "rustls-webpki")]
 //mod rustls_webpki;
 
-use crate::{collection::ArrayVectorU8, tls::SignatureScheme};
+use crate::{collection::ArrayVectorU8, tls::protocol::signature_scheme::SignatureScheme};
 use core::time::Duration;
 
 /// Verifies client certificates

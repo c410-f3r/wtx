@@ -13,7 +13,7 @@ pub trait EphemeralSecretKey: Sized {
   where
     RNG: CryptoRng;
 
-  fn diffie_hellman(&self, pk: &[u8]) -> Self::SharedSecret;
+  fn diffie_hellman(self, pk: &[u8]) -> crate::Result<Self::SharedSecret>;
 
   /// Associated public key
   fn public_key(&self) -> crate::Result<ArrayVectorU8<u8, MAX_PK_LEN>>;
@@ -29,8 +29,8 @@ impl EphemeralSecretKey for () {
     Ok(())
   }
 
-  fn diffie_hellman(&self, _: &[u8]) -> Self::SharedSecret {
-    ()
+  fn diffie_hellman(self, _: &[u8]) -> crate::Result<Self::SharedSecret> {
+    Ok(())
   }
 
   fn public_key(&self) -> crate::Result<ArrayVectorU8<u8, MAX_PK_LEN>> {

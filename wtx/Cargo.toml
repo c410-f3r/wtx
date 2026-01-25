@@ -44,6 +44,7 @@ chacha20 = { default-features = false, features = ["cipher", "rng"], optional = 
 chacha20poly1305 = { default-features = false, optional = true, version = "0.11.0-rc.2" }
 crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.9" }
 digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.5" }
+hkdf = { default-features = false, optional = true, version = "0.13.0-rc.3" }
 hmac = { default-features = false, optional = true, version = "0.13.0-rc.3" }
 p256 = { default-features = false, optional = true, version = "0.14.0-rc.1" }
 p384 = { default-features = false, optional = true, version = "0.14.0-rc.1" }
@@ -86,7 +87,7 @@ portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util"]
 postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 quick-protobuf = ["quick-protobuf/std", "std"]
 rand-compat = ["rand_core"]
-rust-crypto = ["p256?/ecdh", "p384?/ecdh", "x25519-dalek"]
+rust-crypto = ["hkdf", "p256?/ecdh", "p384?/ecdh", "x25519-dalek"]
 schema-manager = ["database"]
 schema-manager-dev = ["schema-manager"]
 secret = ["aes-gcm", "libc", "sha2", "std"]

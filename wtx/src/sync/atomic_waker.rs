@@ -71,7 +71,7 @@ impl AtomicWaker {
       WAITING => {
         // SAFETY: lock was acquire through `fetch_or` so the last waker can be retrieved.
         let waker = unsafe { (*self.waker.get()).take() };
-        let _ = self.state.fetch_and(!WAKING, Ordering::Release);
+        let _ = self.state.swap(WAITING, Ordering::Release);
         waker
       }
       _ => None,

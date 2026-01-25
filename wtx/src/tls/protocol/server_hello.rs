@@ -57,6 +57,10 @@ impl<'any> ServerHello<'any> {
     })
   }
 
+  pub(crate) fn cipher_suite(&self) -> CipherSuiteTy {
+    self.cipher_suite
+  }
+
   pub(crate) fn key_share(&self) -> &KeyShareEntry<'any> {
     &self.key_share
   }

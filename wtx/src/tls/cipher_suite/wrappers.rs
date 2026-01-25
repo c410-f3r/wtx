@@ -27,5 +27,4 @@ _create! {
   (P256AwsLcRs, aws_lc_rs::agreement::Algorithm, aws_lc_rs::agreement::ECDH_P256)
   (P384AwsLcRs, aws_lc_rs::agreement::Algorithm, aws_lc_rs::agreement::ECDH_P384)
   (X25519AwsLcRs, aws_lc_rs::agreement::Algorithm, aws_lc_rs::agreement::X25519)
-
 }

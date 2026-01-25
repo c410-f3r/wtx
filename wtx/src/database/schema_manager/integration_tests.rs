@@ -122,8 +122,7 @@ macro_rules! create_all_integration_tests {
           integration_tests_db().await;
           integration_tests_generic().await;
           integration_tests_schema().await;
-        })
-        .unwrap();
+        });
     }
   };
 }

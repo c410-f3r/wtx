@@ -305,24 +305,16 @@ macro_rules! _max_frames_mismatches {
 
 macro_rules! _simd {
   (
-    8 => $_8:expr,
+    4 => $_4:expr,
     16 => $_16:expr,
     32 => $_32:expr,
     64 => $_64:expr $(,)?
   ) => {{
-    #[cfg(not(any(
-      target_feature = "avx2",
-      target_feature = "avx512f",
-      target_feature = "neon",
-      target_feature = "sse2"
-    )))]
-    let rslt = $_8;
+    #[cfg(target_feature = "avx512f")]
+    let rslt = $_64;
 
-    #[cfg(all(
-      target_feature = "neon",
-      not(any(target_feature = "avx2", target_feature = "avx512f"))
-    ))]
-    let rslt = $_16;
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+    let rslt = $_32;
 
     #[cfg(all(
       target_feature = "sse2",
@@ -330,11 +322,19 @@ macro_rules! _simd {
     ))]
     let rslt = $_16;
 
-    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-    let rslt = $_32;
+    #[cfg(all(
+      target_feature = "neon",
+      not(any(target_feature = "avx2", target_feature = "avx512f"))
+    ))]
+    let rslt = $_16;
 
-    #[cfg(target_feature = "avx512f")]
-    let rslt = $_64;
+    #[cfg(not(any(
+      target_feature = "avx2",
+      target_feature = "avx512f",
+      target_feature = "neon",
+      target_feature = "sse2"
+    )))]
+    let rslt = $_4;
 
     rslt
   }};
@@ -344,18 +344,18 @@ macro_rules! _simd_slice {
   (
     ($($immutables:ident),* $(,)?),
     ($($mutables:ident),* $(,)?),
-    $_8_pat:pat => $_8_expr:expr,
+    $_4_pat:pat => $_4_expr:expr,
     $_16_pat:pat => $_16_expr:expr,
     $_32_pat:pat => $_32_expr:expr,
     $_64_pat:pat => $_64_expr:expr,
     $rest_pat:pat => $rest_expr:expr $(,)?
   ) => {{
     let rest = _simd! {
-      8 => {
-        let ($($immutables,)*) = ($($immutables.as_chunks::<8>(),)*);
-        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<8>(),)*);
-        let $_8_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
-        $_8_expr;
+      4 => {
+        let ($($immutables,)*) = ($($immutables.as_chunks::<4>(),)*);
+        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<4>(),)*);
+        let $_4_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
+        $_4_expr;
         (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
       },
       16 => {

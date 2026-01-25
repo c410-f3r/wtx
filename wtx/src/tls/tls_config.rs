@@ -2,10 +2,11 @@ use crate::{
   collection::{ArrayVector, ArrayVectorU8},
   misc::{Lease, LeaseMut},
   tls::{
-    KEY_SHARES_LEN, MaxFragmentLength, NamedGroup, SignatureScheme,
+    MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup,
     cipher_suite::CipherSuiteTy,
     protocol::{
       key_share_entry::KeyShareEntry, offered_psks::OfferedPsks, server_name_list::ServerNameList,
+      signature_scheme::SignatureScheme,
     },
   },
 };
@@ -55,7 +56,7 @@ pub(crate) struct TlsConfigInner<'any> {
   pub(crate) secret_key: &'any [u8],
 
   pub(crate) cipher_suites: ArrayVectorU8<CipherSuiteTy, { CipherSuiteTy::len() }>,
-  pub(crate) key_shares: ArrayVectorU8<KeyShareEntry<'any>, KEY_SHARES_LEN>,
+  pub(crate) key_shares: ArrayVectorU8<KeyShareEntry<'any>, MAX_KEY_SHARES_LEN>,
   pub(crate) max_fragment_length: Option<MaxFragmentLength>,
   pub(crate) named_groups: ArrayVectorU8<NamedGroup, { NamedGroup::len() }>,
   pub(crate) offered_psks: OfferedPsks<'any>,

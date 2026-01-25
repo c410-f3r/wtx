@@ -1,5 +1,4 @@
 use crate::{
-  collection::ArrayVectorU8,
   de::{Decode as _, Encode},
   misc::{LeaseMut, SuffixWriter},
   rng::CryptoRng,

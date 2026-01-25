@@ -17,6 +17,26 @@ create_enum! {
   }
 }
 
+impl CipherSuiteTy {
+  #[inline]
+  pub(crate) fn cipher_key_len(self) -> u8 {
+    match self {
+      CipherSuiteTy::Aes128GcmSha256 => 16,
+      CipherSuiteTy::Aes256GcmSha384 => 32,
+      CipherSuiteTy::Chacha20Poly1305Sha256 => 32,
+    }
+  }
+
+  #[inline]
+  pub(crate) fn hash_len(self) -> u8 {
+    match self {
+      CipherSuiteTy::Aes128GcmSha256 => 32,
+      CipherSuiteTy::Aes256GcmSha384 => 48,
+      CipherSuiteTy::Chacha20Poly1305Sha256 => 32,
+    }
+  }
+}
+
 impl<'de> Decode<'de, De> for CipherSuiteTy {
   #[inline]
   fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {

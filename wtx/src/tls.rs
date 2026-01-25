@@ -1,15 +1,20 @@
-mod alert;
 mod certificate_revocation_list;
-pub mod cipher_suite;
+pub(crate) mod cipher_suite;
 mod client_verifier;
-mod crypto_sets;
 mod de;
+mod ephemeral_secret_key;
+mod hash;
+mod hkdf;
+mod key_schedule;
 mod misc;
 pub(crate) mod protocol;
+mod psk;
+mod psk_ty;
 mod revocation_reason;
+mod tls_stream_connector;
 mod revoked_certificate;
 mod server_verifier;
-mod signature_scheme;
+mod shared_secret;
 mod signed_certificate_data;
 mod state;
 mod tls_acceptor;
@@ -24,7 +29,11 @@ mod tls_stream_reader;
 mod tls_stream_writer;
 mod trust_anchor;
 
-const KEY_SHARES_LEN: usize = 2;
+const IV_LEN: usize = 12;
+const MAX_CIPHER_KEY_LEN: usize = 32;
+const MAX_HASH_LEN: usize = 48;
+const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;
+const MAX_KEY_SHARES_LEN: usize = 2;
 // Maximum length of P-384 uncompressed.
 const MAX_PK_LEN: usize = 97;
 
@@ -35,19 +44,21 @@ type CurrTlsCrypto = tls_crypto::RustCrypto;
 #[cfg(not(any(feature = "aws-lc-rs", feature = "rust-crypto")))]
 type CurrTlsCrypto = ();
 
+type CurrCipherSuite = <CurrTlsCrypto as TlsCrypto>::CipherSuite;
 type CurrEphemeralSecretKey = <CurrTlsCrypto as TlsCrypto>::EphemeralSecretKey;
 
+pub use tls_stream_connector::TlsStreamConnector;
 pub use certificate_revocation_list::CertificateRevocationList;
 pub use client_verifier::ClientVerifier;
-pub use crypto_sets::{AwsLc, Ring, RustCrypto};
 pub use protocol::{
   max_fragment_length::MaxFragmentLength, named_group::NamedGroup,
   protocol_version::ProtocolVersion,
 };
+pub use psk::Psk;
+pub use psk_ty::PskTy;
 pub use revocation_reason::RevocationReasonCode;
 pub use revoked_certificate::RevokedCertificate;
 pub use server_verifier::ServerVerifier;
-pub use signature_scheme::SignatureScheme;
 pub use signed_certificate_data::SignedCertificateData;
 pub use tls_acceptor::TlsAcceptor;
 pub use tls_buffer::TlsBuffer;

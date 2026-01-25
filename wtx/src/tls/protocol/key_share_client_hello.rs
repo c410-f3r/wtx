@@ -6,13 +6,13 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   },
   tls::{
-    KEY_SHARES_LEN, TlsError, de::De, misc::u16_list, protocol::key_share_entry::KeyShareEntry,
+    MAX_KEY_SHARES_LEN, TlsError, de::De, misc::u16_list, protocol::key_share_entry::KeyShareEntry,
   },
 };
 
 #[derive(Debug, PartialEq)]
 pub struct KeyShareClientHello<'any> {
-  pub client_shares: ArrayVectorU8<KeyShareEntry<'any>, KEY_SHARES_LEN>,
+  pub client_shares: ArrayVectorU8<KeyShareEntry<'any>, MAX_KEY_SHARES_LEN>,
 }
 
 impl<'de> Decode<'de, De> for KeyShareClientHello<'de> {

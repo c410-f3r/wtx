@@ -5,7 +5,7 @@ pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
     (),
     (bytes,),
     (_, (local_bytes,)) => {
-      _do_unmask(&[a, b, c, d, a, b, c, d], local_bytes);
+      _do_unmask(&[a, b, c, d], local_bytes);
     },
     (_, (local_bytes,)) => {
       _do_unmask(&[a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d], local_bytes);
