@@ -19,7 +19,7 @@ use crate::{
   },
 };
 
-/// Basically performs the TLS handshake
+/// High level abstractions that use [`TlsConnector`] under the hood.
 #[derive(Debug)]
 pub struct TlsStreamConnector<TB, TM> {
   //alpn_protocols: Vec<Vec<u8>>,
@@ -45,50 +45,6 @@ where
     RNG: CryptoRng,
     S: Stream,
   {
-    if TM::TY.is_plain_text() {
-      return Ok(TlsStream::new(stream, self.tb, self.tm));
-    }
-    self.tb.lease_mut().clear();
-
-    let mut key_schedule = if let Some(Psk { cipher_suite_ty, .. }) = psk {
-      let mut key_schedule = KeySchedule::from_cipher_suite(CurrCipherSuite::from(cipher_suite_ty));
-      key_schedule.early_secret(psk.map(|Psk { data, psk_ty, .. }| (data, psk_ty)))?;
-      key_schedule
-    } else {
-      KeySchedule::from_cipher_suite(CurrCipherSuite::Aes128GcmSha256(<_>::default()))
-    };
-    let secrets = {
-      let handshake = Handshake {
-        data: ClientHello::<<CurrTlsCrypto as TlsCrypto>::EphemeralSecretKey, _>::new(
-          rng,
-          &tls_config.inner,
-        )?,
-        msg_type: HandshakeType::ClientHello,
-      };
-      let record = Record::new(RecordContentType::Handshake, &handshake);
-      let mut sw = SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer);
-      record.encode(&mut sw)?;
-      stream.write_all(sw.curr_bytes()).await?;
-      handshake.data.into_secrets()
-    };
-    {
-      let ty = fetch_rec_from_stream(&mut self.tb.lease_mut().network_buffer, &mut stream).await?;
-      let RecordContentType::Handshake = ty else {
-        return Err(TlsError::InvalidHandshakeRecord.into());
-      };
-      let server_hello =
-        Handshake::<ServerHello>::decode(&mut self.tb.lease_mut().network_buffer.current())?;
-      let secret = secrets
-        .into_iter()
-        .find(|secret| secret.simplify() == server_hello.data.key_share().group)
-        .ok_or(TlsError::SecretMismatch)?;
-      if psk.is_none() {
-        key_schedule.set_cipher_suite(CurrCipherSuite::from(server_hello.data.cipher_suite()));
-        key_schedule.early_secret(None)?;
-      }
-      let shared_secret = secret.diffie_hellman(server_hello.data.key_share().opaque)?;
-      key_schedule.handshake_secret(shared_secret.as_slice())?;
-    }
     Ok(TlsStream::new(stream, self.tb, self.tm))
   }
 

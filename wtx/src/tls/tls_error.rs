@@ -1,7 +1,7 @@
 /// TLS errror
 #[derive(Debug)]
 pub enum TlsError {
-  /// Aborted handshake
+  /// Received an alert record in teh handshake phase
   AbortedHandshake,
   /// Bad Pre Key Share
   BadPreKeyShare,
@@ -23,8 +23,6 @@ pub enum TlsError {
   InvalidHandshake,
   /// Invalid Alert
   InvalidAlert,
-  /// Invalid Handshake Record
-  InvalidHandshakeRecord,
   /// Invalid Legacy Session Id
   InvalidLegacySessionId,
   /// Invalid Key Share Client Hello

@@ -52,6 +52,12 @@ pub(crate) struct Alert {
   pub(crate) description: AlertDescription,
 }
 
+impl Alert {
+    pub(crate) fn new(level: AlertLevel, description: AlertDescription) -> Self {
+        Self { level, description }
+    }
+}
+
 impl<'de> Decode<'de, De> for Alert {
   #[inline]
   fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {

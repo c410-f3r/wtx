@@ -10,11 +10,7 @@ use crate::{
     key_schedule::KeySchedule,
     misc::fetch_rec_from_stream,
     protocol::{
-      client_hello::ClientHello,
-      handshake::{Handshake, HandshakeType},
-      record::Record,
-      record_content_type::RecordContentType,
-      server_hello::ServerHello,
+      alert::Alert, client_hello::ClientHello, handshake::{Handshake, HandshakeType}, record::Record, record_content_type::RecordContentType, server_hello::ServerHello
     },
   },
 };
@@ -73,9 +69,20 @@ where
     };
     {
       let ty = fetch_rec_from_stream(&mut self.tb.lease_mut().network_buffer, &mut stream).await?;
-      let RecordContentType::Handshake = ty else {
-        return Err(TlsError::InvalidHandshakeRecord.into());
-      };
+      match ty {
+        RecordContentType::Alert => {
+          let alert = Alert::decode(&mut self.tb.lease_mut().network_buffer.current())?;
+          let record = Record::new(RecordContentType::Alert, alert);
+          let mut sw = SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer);
+          record.encode(&mut sw)?;
+          stream.write_all(sw.curr_bytes()).await?;
+          return Err(TlsError::AbortedHandshake.into());
+        },
+        RecordContentType::Handshake => {},
+        _ => {
+          return Err(TlsError::InvalidHandshake.into());
+        }
+      }
       let server_hello =
         Handshake::<ServerHello>::decode(&mut self.tb.lease_mut().network_buffer.current())?;
       let secret = secrets

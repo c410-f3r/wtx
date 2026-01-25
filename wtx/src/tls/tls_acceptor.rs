@@ -53,7 +53,7 @@ where
       let ty =
         fetch_rec_from_stream(&mut tls_buffer.lease_mut().network_buffer, &mut stream).await?;
       let RecordContentType::Handshake = ty else {
-        return Err(TlsError::InvalidHandshakeRecord.into());
+        return Err(TlsError::InvalidHandshake.into());
       };
       Handshake::<ClientHello<CurrEphemeralSecretKey, _>>::decode(
         &mut tls_buffer.lease_mut().network_buffer.current(),
