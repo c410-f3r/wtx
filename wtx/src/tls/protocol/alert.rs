@@ -53,9 +53,9 @@ pub(crate) struct Alert {
 }
 
 impl Alert {
-    pub(crate) fn new(level: AlertLevel, description: AlertDescription) -> Self {
-        Self { level, description }
-    }
+  pub(crate) fn new(level: AlertLevel, description: AlertDescription) -> Self {
+    Self { level, description }
+  }
 }
 
 impl<'de> Decode<'de, De> for Alert {

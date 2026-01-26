@@ -10,6 +10,7 @@ use crate::{
 };
 
 create_enum! {
+  /// https://datatracker.ietf.org/doc/html/rfc8446#appendix-B.3
   #[derive(Copy, Clone, Debug)]
   pub enum HandshakeType<u8> {
     ClientHello = (1),

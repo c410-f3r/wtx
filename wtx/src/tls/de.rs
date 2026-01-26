@@ -18,6 +18,14 @@ impl DEController for De {
     'inner: 'outer;
 }
 
+impl<'de> Decode<'de, De> for &'de [u8] {
+  #[inline]
+  #[track_caller]
+  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+    Ok(*dw)
+  }
+}
+
 impl<'de> Decode<'de, De> for u8 {
   #[inline]
   #[track_caller]

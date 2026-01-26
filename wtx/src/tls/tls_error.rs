@@ -61,6 +61,8 @@ pub enum TlsError {
   InvalidU8Prefix,
   /// Invalid u16 prefix
   InvalidU16Prefix,
+  /// Unsupported extension
+  UnsupportedExtension,
   /// Only TLS 1.3 is supported
   UnsupportedTlsVersion,
   /// Missing Key Shares

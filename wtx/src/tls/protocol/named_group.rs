@@ -106,14 +106,14 @@ pub(crate) mod aws_lc_rs {
 
     fn diffie_hellman(self, pk: &[u8]) -> crate::Result<Self::SharedSecret> {
       let (algorithm, epk) = match self {
-        NamedGroupParam::Secp256r1(el) => (aws_lc_rs::agreement::ECDH_P256, el),
-        NamedGroupParam::Secp384r1(el) => (aws_lc_rs::agreement::ECDH_P384, el),
-        NamedGroupParam::X25519(el) => (aws_lc_rs::agreement::X25519, el),
+        NamedGroupParam::Secp256r1(el) => (&aws_lc_rs::agreement::ECDH_P256, el),
+        NamedGroupParam::Secp384r1(el) => (&aws_lc_rs::agreement::ECDH_P384, el),
+        NamedGroupParam::X25519(el) => (&aws_lc_rs::agreement::X25519, el),
       };
       let mut secret = ArrayVectorU8::new();
       aws_lc_rs::agreement::agree_ephemeral(
         epk,
-        aws_lc_rs::agreement::UnparsedPublicKey::new(&aws_lc_rs::agreement::ECDH_P256, pk),
+        aws_lc_rs::agreement::UnparsedPublicKey::new(algorithm, pk),
         TlsError::DiffieHellmanError.into(),
         |value| {
           secret.extend_from_copyable_slice(value)?;

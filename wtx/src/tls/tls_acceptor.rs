@@ -4,9 +4,9 @@ use crate::{
   rng::CryptoRng,
   stream::Stream,
   tls::{
-    CurrEphemeralSecretKey, TlsBuffer, TlsConfig, TlsCrypto, TlsError, TlsMode, TlsModePlainText,
-    TlsModeVerifyFull, TlsStream,
-    cipher_suite::{CipherSuite, CipherSuiteTy},
+    TlsBuffer, TlsConfig, TlsError, TlsMode, TlsModePlainText, TlsModeVerifyFull,
+    TlsStream,
+    cipher_suite::CipherSuiteTy,
     misc::fetch_rec_from_stream,
     protocol::{
       client_hello::ClientHello,
@@ -55,9 +55,7 @@ where
       let RecordContentType::Handshake = ty else {
         return Err(TlsError::InvalidHandshake.into());
       };
-      Handshake::<ClientHello<CurrEphemeralSecretKey, _>>::decode(
-        &mut tls_buffer.lease_mut().network_buffer.current(),
-      )?
+      Handshake::<ClientHello<(), _>>::decode(&mut tls_buffer.lease_mut().network_buffer.current())?
     };
     {
       let record = Record::new(
