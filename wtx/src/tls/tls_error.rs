@@ -13,6 +13,12 @@ pub enum TlsError {
   InvalidArray,
   /// Invalid slice
   InvalidSlice,
+  /// Invalid certificate
+  InvalidCertificate,
+  /// Invalid certificate request
+  InvalidCertificateRequest,
+  /// Invalid certificate verify
+  InvalidCertificateVerify,
   /// Invalid Cipher Suite
   InvalidCipherSuite,
   /// Invalid client hello
@@ -25,6 +31,8 @@ pub enum TlsError {
   InvalidAlert,
   /// Invalid Legacy Session Id
   InvalidLegacySessionId,
+  /// Invalid new session ticket
+  InvalidNewSessionTicket,
   /// Invalid Key Share Client Hello
   InvalidKeyShareClientHello,
   /// Invalid Key Share
@@ -61,6 +69,8 @@ pub enum TlsError {
   InvalidU8Prefix,
   /// Invalid u16 prefix
   InvalidU16Prefix,
+  /// Invalid u24 prefix
+  InvalidU24Prefix,
   /// Mismatch Extension
   MismatchedExtension,
   /// Unsupported extension

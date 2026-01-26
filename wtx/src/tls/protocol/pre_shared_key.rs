@@ -2,11 +2,8 @@
 
 use crate::{
   de::{Decode, Encode},
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write, u16_write_iter},
-  },
-  tls::{de::De, decode_wrapper::DecodeWrapper},
+  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write, u16_write_iter},
+  tls::{de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper},
 };
 
 #[derive(Debug, PartialEq)]
@@ -17,15 +14,15 @@ pub struct PreSharedKeyClientHello<'any> {
 
 impl Encode<De> for PreSharedKeyClientHello<'_> {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       self.identities,
       None,
-      sw,
+      ew,
       |elem, local_sw| {
         u16_write(CounterWriterBytesTy::IgnoresLen, None, local_sw, |local_local_sw| {
-          local_local_sw.extend_from_slice(elem)?;
+          local_local_sw.buffer().extend_from_slice(elem)?;
           crate::Result::Ok(())
         })
       },
@@ -34,10 +31,10 @@ impl Encode<De> for PreSharedKeyClientHello<'_> {
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       self.identities,
       None,
-      sw,
+      ew,
       |elem, local_sw| {
         u16_write(CounterWriterBytesTy::IgnoresLen, None, local_sw, |local_local_sw| {
-          local_local_sw.extend_from_slice(elem)?;
+          local_local_sw.buffer().extend_from_slice(elem)?;
           crate::Result::Ok(())
         })
       },

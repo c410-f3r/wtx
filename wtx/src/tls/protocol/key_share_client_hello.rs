@@ -1,13 +1,10 @@
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
-  },
+  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   tls::{
-    MAX_KEY_SHARES_LEN, TlsError, de::De, decode_wrapper::DecodeWrapper, misc::u16_list,
-    protocol::key_share_entry::KeyShareEntry,
+    MAX_KEY_SHARES_LEN, TlsError, de::De, decode_wrapper::DecodeWrapper,
+    encode_wrapper::EncodeWrapper, misc::u16_list, protocol::key_share_entry::KeyShareEntry,
   },
 };
 
@@ -27,7 +24,7 @@ impl<'de> Decode<'de, De> for KeyShareClientHello<'de> {
 
 impl<'any> Encode<De> for KeyShareClientHello<'any> {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       &self.client_shares,

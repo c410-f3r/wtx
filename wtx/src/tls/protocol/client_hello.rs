@@ -4,12 +4,18 @@ use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
   misc::{
-    Lease, SuffixWriterMut,
+    Lease,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   rng::CryptoRng,
   tls::{
-    CipherSuiteTy, MAX_KEY_SHARES_LEN, MaxFragmentLength, TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, ephemeral_secret_key::EphemeralSecretKey, misc::{u8_chunk, u16_chunk, u16_list}, protocol::{
+    CipherSuiteTy, MAX_KEY_SHARES_LEN, MaxFragmentLength, TlsError,
+    de::De,
+    decode_wrapper::DecodeWrapper,
+    encode_wrapper::EncodeWrapper,
+    ephemeral_secret_key::EphemeralSecretKey,
+    misc::{u8_chunk, u16_chunk, u16_list},
+    protocol::{
       extension::Extension,
       extension_ty::ExtensionTy,
       key_share_client_hello::KeyShareClientHello,
@@ -22,7 +28,8 @@ use crate::{
       signature_algorithms::SignatureAlgorithms,
       signature_algorithms_cert::SignatureAlgorithmsCert,
       supported_groups::SupportedGroups,
-    }, tls_config::TlsConfigInner
+    },
+    tls_config::TlsConfigInner,
   },
 };
 
@@ -249,7 +256,8 @@ where
       )
       .encode(local_ew)?;
       Extension::new(ExtensionTy::SupportedVersions, &self.supported_versions).encode(local_ew)?;
-      Extension::new(ExtensionTy::PskKeyExchangeModes, &self.psk_key_exchange_modes).encode(local_ew)?;
+      Extension::new(ExtensionTy::PskKeyExchangeModes, &self.psk_key_exchange_modes)
+        .encode(local_ew)?;
       {
         let mut client_shares = ArrayVectorU8::<_, MAX_KEY_SHARES_LEN>::new();
         for (key_share, secret) in self.tls_config.lease().key_shares.iter().zip(self.secrets) {

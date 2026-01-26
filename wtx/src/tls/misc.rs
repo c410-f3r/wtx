@@ -10,7 +10,9 @@ use crate::{
     TlsError,
     de::De,
     decode_wrapper::DecodeWrapper,
-    protocol::{protocol_version::ProtocolVersion, record_content_type::RecordContentType},
+    protocol::{
+      protocol_version::ProtocolVersion, record_content_type::RecordContentType, u24::U24,
+    },
   },
 };
 
@@ -120,6 +122,36 @@ where
 }
 
 #[inline]
+pub(crate) fn u24_chunk<'de, T>(
+  dw: &mut DecodeWrapper<'de>,
+  err: TlsError,
+  cb: impl FnOnce(&mut DecodeWrapper<'de>) -> crate::Result<T>,
+) -> crate::Result<T>
+where
+  T: Decode<'de, De>,
+{
+  chunk::<U24, T>(dw, err, cb)
+}
+
+#[inline]
+pub(crate) fn u24_list<'de, B, T>(
+  buffer: &mut B,
+  dw: &mut DecodeWrapper<'de>,
+  err: TlsError,
+) -> crate::Result<()>
+where
+  B: TryExtend<[T; 1]>,
+  T: Decode<'de, De>,
+{
+  chunk::<U24, _>(dw, err, |dw| {
+    while !dw.bytes().is_empty() {
+      buffer.try_extend([T::decode(dw)?])?;
+    }
+    Ok(())
+  })
+}
+
+#[inline]
 fn chunk<'de, L, T>(
   dw: &mut DecodeWrapper<'de>,
   err: TlsError,
@@ -129,7 +161,7 @@ where
   L: Decode<'de, De> + Into<usize>,
 {
   let len: L = Decode::<'_, De>::decode(dw)?;
-  let Some((mut before, after)) = dw.bytes().split_at_checked(len.into()) else {
+  let Some((before, after)) = dw.bytes().split_at_checked(len.into()) else {
     return Err(err.into());
   };
   *dw.bytes_mut() = before;

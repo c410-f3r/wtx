@@ -8,6 +8,7 @@ use crate::{
     CurrCipherSuite, CurrEphemeralSecretKey, MAX_KEY_SHARES_LEN, Psk, TlsBuffer, TlsConfig,
     TlsError, TlsMode, TlsModeVerifyFull, TlsStream,
     decode_wrapper::DecodeWrapper,
+    encode_wrapper::EncodeWrapper,
     ephemeral_secret_key::EphemeralSecretKey,
     key_schedule::KeySchedule,
     misc::fetch_rec_from_stream,
@@ -119,9 +120,9 @@ where
     }
     let mut dw = DecodeWrapper::from_bytes(self.tb.lease_mut().network_buffer.current());
     let mut hs = Handshake::<&[u8]>::decode(&mut dw)?;
+    *dw.bytes_mut() = hs.data;
     match hs.msg_type {
       HandshakeType::EncryptedExtensions => {
-        *dw.bytes_mut() = hs.data;
         let _encrypted_extensions = EncryptedExtensions::decode(&mut dw)?;
       }
       HandshakeType::Certificate => {}
@@ -169,8 +170,9 @@ where
     };
     let record = Record::new(RecordContentType::Handshake, &handshake);
     self.tb.lease_mut().write_buffer.clear();
-    let mut sw = SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer);
-    record.encode(&mut sw)?;
+    let mut ew =
+      EncodeWrapper::from_buffer(SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer));
+    record.encode(&mut ew)?;
     Ok(secrets)
   }
 
@@ -184,8 +186,9 @@ where
     let alert =
       Alert::decode(&mut DecodeWrapper::from_bytes(self.tb.lease_mut().network_buffer.current()))?;
     self.tb.lease_mut().write_buffer.clear();
-    let mut sw = SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer);
-    Record::new(RecordContentType::Alert, alert).encode(&mut sw)?;
+    let mut ew =
+      EncodeWrapper::from_buffer(SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer));
+    Record::new(RecordContentType::Alert, alert).encode(&mut ew)?;
     Ok(())
   }
 }

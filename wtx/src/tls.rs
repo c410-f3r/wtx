@@ -39,6 +39,7 @@ const HELLO_RETRY_REQUEST: [u8; 32] = [
   187, 140, 94, 7, 158, 9, 226, 200, 168, 51, 156,
 ];
 const IV_LEN: usize = 12;
+const MAX_CERTIFICATES: usize = 3;
 const MAX_CIPHER_KEY_LEN: usize = 32;
 const MAX_HASH_LEN: usize = 48;
 const MAX_LABEL_LEN: usize = 22 + MAX_HASH_LEN;

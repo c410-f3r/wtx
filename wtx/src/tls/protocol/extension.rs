@@ -1,10 +1,9 @@
 use crate::{
   de::{Decode, Encode},
-  misc::{
-    counter_writer::{CounterWriterBytesTy, u16_write},
-  },
+  misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
-    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_chunk, protocol::extension_ty::ExtensionTy
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper,
+    misc::u16_chunk, protocol::extension_ty::ExtensionTy,
   },
 };
 

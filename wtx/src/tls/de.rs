@@ -65,7 +65,7 @@ impl Encode<De> for u16 {
   #[inline]
   #[track_caller]
   fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
-    sw.extend_from_slice(&self.to_be_bytes())?;
+    ew.buffer().extend_from_slice(&self.to_be_bytes())?;
     Ok(())
   }
 }

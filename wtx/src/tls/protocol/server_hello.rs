@@ -3,15 +3,13 @@
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, u16_write},
-  },
+  misc::counter_writer::{CounterWriterBytesTy, u16_write},
   rng::CryptoRng,
   tls::{
     CipherSuiteTy, HELLO_RETRY_REQUEST, TlsError,
     de::De,
     decode_wrapper::DecodeWrapper,
+    encode_wrapper::EncodeWrapper,
     misc::{u8_chunk, u16_chunk},
     protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
@@ -106,7 +104,10 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
             }
           }
           ExtensionTy::KeyShare => {
-            key_share_opt = Some(KeyShareEntry::decode(local_dw)?);
+            *local_dw.is_hello_retry_request_mut() = is_hello_retry_request;
+            let rslt = KeyShareEntry::decode(local_dw);
+            *local_dw.is_hello_retry_request_mut() = false;
+            key_share_opt = Some(rslt?);
           }
           ExtensionTy::PreSharedKey => {
             if is_hello_retry_request {
@@ -147,20 +148,25 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
 
 impl Encode<De> for ServerHello<'_> {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     self.legacy_version.encode(ew)?;
-    ew.extend_from_slices([
+    ew.buffer().extend_from_slices([
       &self.random,
       &[self.legacy_session_id_echo.len()][..],
       &self.legacy_session_id_echo,
     ])?;
     self.cipher_suite.encode(ew)?;
-    ew.extend_from_byte(self.legacy_compression_method)?;
+    ew.buffer().extend_from_byte(self.legacy_compression_method)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       if !self.is_hello_retry_request {
         Extension::new(ExtensionTy::PreSharedKey, self.selected_identity).encode(local_ew)?;
       }
-      Extension::new(ExtensionTy::KeyShare, &self.key_share).encode(local_ew)?;
+      {
+        *local_ew.is_hello_retry_request_mut() = self.is_hello_retry_request;
+        let rslt = Extension::new(ExtensionTy::KeyShare, &self.key_share).encode(local_ew);
+        *local_ew.is_hello_retry_request_mut() = false;
+        rslt?;
+      }
       Extension::new(ExtensionTy::SupportedVersions, &self.supported_versions).encode(local_ew)?;
       Ok(())
     })

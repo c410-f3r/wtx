@@ -1,11 +1,10 @@
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write, u16_write_iter},
+  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write, u16_write_iter},
+  tls::{
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_chunk,
   },
-  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_chunk},
 };
 
 #[derive(Clone, Debug)]
@@ -41,6 +40,7 @@ impl Encode<De> for OfferedPsks<'_> {
       |elem, local_sw| {
         u16_write(CounterWriterBytesTy::IgnoresLen, None, local_sw, |local_local_sw| {
           local_local_sw
+            .buffer()
             .extend_from_slices([elem.identity, &elem.obfuscated_ticket_age.to_be_bytes()])?;
           crate::Result::Ok(())
         })
@@ -52,8 +52,8 @@ impl Encode<De> for OfferedPsks<'_> {
       None,
       ew,
       |elem, local_ew| {
-        u16_write(CounterWriterBytesTy::IgnoresLen, None, local_ew, |local_local_sw| {
-          local_local_sw.extend_from_slice(elem)?;
+        u16_write(CounterWriterBytesTy::IgnoresLen, None, local_ew, |local_local_ew| {
+          local_local_ew.buffer().extend_from_slice(elem)?;
           crate::Result::Ok(())
         })
       },

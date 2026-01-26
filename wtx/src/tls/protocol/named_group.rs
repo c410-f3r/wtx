@@ -1,7 +1,6 @@
 use crate::{
   de::{Decode, Encode},
-  misc::SuffixWriterMut,
-  tls::{de::De, decode_wrapper::DecodeWrapper},
+  tls::{de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper},
 };
 
 create_enum! {
@@ -26,8 +25,8 @@ impl<'de> Decode<'de, De> for NamedGroup {
 
 impl Encode<De> for NamedGroup {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    ew.extend_from_slice(&u16::from(*self).to_be_bytes())?;
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    ew.buffer().extend_from_slice(&u16::from(*self).to_be_bytes())?;
     Ok(())
   }
 }

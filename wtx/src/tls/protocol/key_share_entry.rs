@@ -1,7 +1,10 @@
 use crate::{
   de::{Decode, Encode},
-  misc::{Lease, SuffixWriterMut},
-  tls::{NamedGroup, TlsError, de::De, decode_wrapper::DecodeWrapper, misc::u16_chunk},
+  misc::Lease,
+  tls::{
+    NamedGroup, TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper,
+    misc::u16_chunk,
+  },
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -31,12 +34,16 @@ impl<'de> Decode<'de, De> for KeyShareEntry<'de> {
 
 impl<'de> Encode<De> for KeyShareEntry<'de> {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    ew.extend_from_slices([
-      &u16::from(self.group).to_be_bytes(),
-      &u16::try_from(self.opaque.lease().len())?.to_be_bytes(),
-      self.opaque.lease(),
-    ])?;
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    if ew.is_hello_retry_request() {
+      ew.buffer().extend_from_slice(&u16::from(self.group).to_be_bytes())?;
+    } else {
+      ew.buffer().extend_from_slices([
+        &u16::from(self.group).to_be_bytes(),
+        &u16::try_from(self.opaque.lease().len())?.to_be_bytes(),
+        self.opaque.lease(),
+      ])?;
+    }
     Ok(())
   }
 }

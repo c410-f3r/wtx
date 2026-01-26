@@ -5,15 +5,12 @@ use crate::misc::Lease;
 pub struct DecodeWrapper<'de> {
   bytes: &'de [u8],
   is_hello_retry_request: bool,
+  is_x509: bool,
 }
 
 impl<'de> DecodeWrapper<'de> {
   pub(crate) const fn from_bytes(bytes: &'de [u8]) -> Self {
-    Self { bytes, is_hello_retry_request: false }
-  }
-
-  pub(crate) const fn new(bytes: &'de [u8], is_hello_retry_request: bool) -> Self {
-    Self { bytes, is_hello_retry_request }
+    Self { bytes, is_hello_retry_request: false, is_x509: false }
   }
 
   #[inline]
@@ -27,8 +24,13 @@ impl<'de> DecodeWrapper<'de> {
   }
 
   #[inline]
-  pub const fn is_hello_retry_request(&self) -> bool {
+  pub(crate) const fn is_hello_retry_request(&self) -> bool {
     self.is_hello_retry_request
+  }
+
+  #[inline]
+  pub(crate) const fn is_hello_retry_request_mut(&mut self) -> &mut bool {
+    &mut self.is_hello_retry_request
   }
 }
 

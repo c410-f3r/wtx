@@ -2,12 +2,11 @@
 
 use crate::{
   de::Encode,
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, u16_write},
-  },
+  misc::counter_writer::{CounterWriterBytesTy, u16_write},
   tls::{
-    de::De, encode_wrapper::EncodeWrapper, protocol::{protocol_version::ProtocolVersion, record_content_type::RecordContentType}
+    de::De,
+    encode_wrapper::EncodeWrapper,
+    protocol::{protocol_version::ProtocolVersion, record_content_type::RecordContentType},
   },
 };
 

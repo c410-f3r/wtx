@@ -1,12 +1,10 @@
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
-  },
+  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
   tls::{
-    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u8_list, protocol::protocol_version::ProtocolVersion
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u8_list,
+    protocol::protocol_version::ProtocolVersion,
   },
 };
 

@@ -1,15 +1,20 @@
-// https://datatracker.ietf.org/doc/html/rfc8446#section-4.1.3
+// https://datatracker.ietf.org/doc/html/rfc8446#section-4.3.1
 
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
   rng::CryptoRng,
   tls::{
-    CipherSuiteTy, MaxFragmentLength, TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::{duplicated_error, u16_chunk}, protocol::{
+    CipherSuiteTy, MaxFragmentLength, TlsError,
+    de::De,
+    decode_wrapper::DecodeWrapper,
+    encode_wrapper::EncodeWrapper,
+    misc::{duplicated_error, u16_chunk},
+    protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersions,
       server_name_list::ServerNameList, supported_groups::SupportedGroups,
-    }
+    },
   },
 };
 

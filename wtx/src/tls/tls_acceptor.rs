@@ -7,6 +7,7 @@ use crate::{
     CipherSuiteTy, TlsBuffer, TlsConfig, TlsError, TlsMode, TlsModePlainText, TlsModeVerifyFull,
     TlsStream,
     decode_wrapper::DecodeWrapper,
+    encode_wrapper::EncodeWrapper,
     misc::fetch_rec_from_stream,
     protocol::{
       client_hello::ClientHello,
@@ -80,9 +81,10 @@ where
           msg_type: HandshakeType::ServerHello,
         },
       );
-      let mut sw = SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer);
-      record.encode(&mut sw)?;
-      stream.write_all(sw.curr_bytes()).await?;
+      let mut ew =
+        EncodeWrapper::from_buffer(SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer));
+      record.encode(&mut ew)?;
+      stream.write_all(ew.buffer().curr_bytes()).await?;
     }
 
     Ok(TlsStream::new(stream, self.tb, self.tm))

@@ -2,7 +2,10 @@ use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
   misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
-  tls::{NamedGroup, TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_list},
+  tls::{
+    NamedGroup, TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper,
+    misc::u16_list,
+  },
 };
 
 #[derive(Debug)]
@@ -27,8 +30,8 @@ impl Encode<De> for SupportedGroups {
       &self.supported_groups,
       None,
       ew,
-      |el, local_sw| {
-        local_sw.extend_from_slice(&u16::from(*el).to_be_bytes())?;
+      |el, local_ew| {
+        local_ew.buffer().extend_from_slice(&u16::from(*el).to_be_bytes())?;
         crate::Result::Ok(())
       },
     )?;

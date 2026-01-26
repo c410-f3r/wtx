@@ -1,11 +1,13 @@
 use crate::{
   de::{Decode, Encode},
   misc::{
-    SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, u16_write},
     from_utf8_basic,
   },
-  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, protocol::name_type::NameType},
+  tls::{
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper,
+    protocol::name_type::NameType,
+  },
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -29,10 +31,10 @@ impl<'de> Decode<'de, De> for ServerName<'de> {
 
 impl Encode<De> for ServerName<'_> {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     self.name_type.encode(ew)?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
-      local_ew.extend_from_slice(self.name.as_bytes())?;
+      local_ew.buffer().extend_from_slice(self.name.as_bytes())?;
       Ok(())
     })
   }

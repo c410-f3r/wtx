@@ -1,7 +1,6 @@
 use crate::{
   de::{Decode, Encode},
-  misc::SuffixWriterMut,
-  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -22,8 +21,8 @@ impl<'de> Decode<'de, De> for NameType {
 
 impl Encode<De> for NameType {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    ew.extend_from_byte(0)?;
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    ew.buffer().extend_from_byte(0)?;
     Ok(())
   }
 }

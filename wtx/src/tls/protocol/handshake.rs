@@ -2,11 +2,10 @@
 
 use crate::{
   de::{Decode, Encode},
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, u16_write},
+  misc::counter_writer::{CounterWriterBytesTy, u16_write},
+  tls::{
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_chunk,
   },
-  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, misc::u16_chunk},
 };
 
 create_enum! {
@@ -49,8 +48,8 @@ where
   T: Encode<De>,
 {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    ew.extend_from_byte(u8::from(self.msg_type))?;
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    ew.buffer().extend_from_byte(u8::from(self.msg_type))?;
     u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| self.data.encode(local_ew))
   }
 }
