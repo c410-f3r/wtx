@@ -16,7 +16,7 @@ pub enum TlsError {
   /// Invalid Cipher Suite
   InvalidCipherSuite,
   /// Invalid client hello
-  InvalidClientHelloExtension,
+  InvalidExtension,
   /// Invalid client hello length
   InvalidClientHelloLength,
   /// Invalid Handshake
@@ -61,6 +61,8 @@ pub enum TlsError {
   InvalidU8Prefix,
   /// Invalid u16 prefix
   InvalidU16Prefix,
+  /// Mismatch Extension
+  MismatchedExtension,
   /// Unsupported extension
   UnsupportedExtension,
   /// Only TLS 1.3 is supported

@@ -13,6 +13,13 @@ use crate::{
   },
 };
 
+pub(crate) fn duplicated_error(is_some: bool) -> crate::Result<()> {
+  if is_some {
+    return Err(TlsError::DuplicatedClientHelloParameters.into());
+  }
+  Ok(())
+}
+
 pub(crate) async fn fetch_rec_from_stream<SR>(
   network_buffer: &mut PartitionedFilledBuffer,
   stream_reader: &mut SR,

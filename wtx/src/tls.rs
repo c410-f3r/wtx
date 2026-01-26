@@ -29,6 +29,10 @@ mod tls_stream_reader;
 mod tls_stream_writer;
 mod trust_anchor;
 
+const HELLO_RETRY_REQUEST: [u8; 32] = [
+  207, 33, 173, 116, 229, 154, 97, 17, 190, 29, 140, 2, 30, 101, 184, 145, 194, 162, 17, 22, 122,
+  187, 140, 94, 7, 158, 9, 226, 200, 168, 51, 156,
+];
 const IV_LEN: usize = 12;
 const MAX_CIPHER_KEY_LEN: usize = 32;
 const MAX_HASH_LEN: usize = 48;

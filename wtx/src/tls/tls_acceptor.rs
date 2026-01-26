@@ -4,8 +4,7 @@ use crate::{
   rng::CryptoRng,
   stream::Stream,
   tls::{
-    TlsBuffer, TlsConfig, TlsError, TlsMode, TlsModePlainText, TlsModeVerifyFull,
-    TlsStream,
+    TlsBuffer, TlsConfig, TlsError, TlsMode, TlsModePlainText, TlsModeVerifyFull, TlsStream,
     cipher_suite::CipherSuiteTy,
     misc::fetch_rec_from_stream,
     protocol::{
@@ -66,6 +65,7 @@ where
               &client_hello.data.tls_config().cipher_suites,
               &tls_config.inner.cipher_suites,
             )?,
+            false,
             seek_keyshare(
               &client_hello.data.tls_config().key_shares,
               &tls_config.inner.key_shares,

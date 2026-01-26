@@ -4,18 +4,16 @@ use crate::{
     SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
-  tls::{
-    TlsError, de::De, misc::u16_chunk, protocol::client_hello_extension_ty::ClientHelloExtensionTy,
-  },
+  tls::{TlsError, de::De, misc::u16_chunk, protocol::extension_ty::ExtensionTy},
 };
 
-pub(crate) struct ClientHelloExtension<T> {
+pub(crate) struct Extension<T> {
   data: T,
-  extension_ty: ClientHelloExtensionTy,
+  extension_ty: ExtensionTy,
 }
 
-impl<T> ClientHelloExtension<T> {
-  pub(crate) fn new(extension_ty: ClientHelloExtensionTy, data: T) -> Self {
+impl<T> Extension<T> {
+  pub(crate) fn new(extension_ty: ExtensionTy, data: T) -> Self {
     Self { data, extension_ty }
   }
 
@@ -24,19 +22,19 @@ impl<T> ClientHelloExtension<T> {
   }
 }
 
-impl<'de, T> Decode<'de, De> for ClientHelloExtension<T>
+impl<'de, T> Decode<'de, De> for Extension<T>
 where
   T: Decode<'de, De>,
 {
   #[inline]
   fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
-    let extension_ty = ClientHelloExtensionTy::decode(dw)?;
-    let data = u16_chunk(dw, TlsError::InvalidClientHelloExtension, |chunk| T::decode(chunk))?;
+    let extension_ty = ExtensionTy::decode(dw)?;
+    let data = u16_chunk(dw, TlsError::InvalidExtension, |chunk| T::decode(chunk))?;
     Ok(Self { data, extension_ty })
   }
 }
 
-impl<T> Encode<De> for ClientHelloExtension<T>
+impl<T> Encode<De> for Extension<T>
 where
   T: Encode<De>,
 {

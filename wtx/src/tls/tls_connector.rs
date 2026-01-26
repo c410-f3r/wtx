@@ -13,6 +13,7 @@ use crate::{
     protocol::{
       alert::Alert,
       client_hello::ClientHello,
+      encrypted_extensions::EncryptedExtensions,
       handshake::{Handshake, HandshakeType},
       record::Record,
       record_content_type::RecordContentType,
@@ -23,7 +24,7 @@ use crate::{
 
 /// Basically performs the TLS handshake
 #[derive(Debug)]
-pub struct TlsConnector<TB, TM, const IS_AUTOMATIC: bool> {
+pub struct TlsConnector<TB, TM> {
   //alpn_protocols: Vec<Vec<u8>>,
   //store: RootCertStore,
   has_psk: bool,
@@ -32,14 +33,16 @@ pub struct TlsConnector<TB, TM, const IS_AUTOMATIC: bool> {
   tm: TM,
 }
 
-impl<TB, TM> TlsConnector<TB, TM, true>
+impl<TB, TM> TlsConnector<TB, TM>
 where
   TB: LeaseMut<TlsBuffer>,
   TM: TlsMode,
 {
-  /// High level operation that performs a full handshake automatically.
+  /// High level operation that automatically performs a full handshake.
+  ///
+  /// Low level operations must not be mixed with high level operations.
   pub async fn connect<RNG, S>(
-    self,
+    mut self,
     psk: Option<Psk<'_>>,
     rng: &mut RNG,
     mut stream: S,
@@ -49,31 +52,21 @@ where
     RNG: CryptoRng,
     S: Stream,
   {
-    let mut this: TlsConnector<TB, TM, false> = TlsConnector {
-      has_psk: self.has_psk,
-      key_schedule: self.key_schedule,
-      tb: self.tb,
-      tm: self.tm,
-    };
-    let secrets = this.write_client_hello(psk, rng, tls_config)?;
-    stream.write_all(&this.tb.lease_mut().write_buffer).await?;
-    let ty = fetch_rec_from_stream(&mut this.tb.lease_mut().network_buffer, &mut stream).await?;
-    if !this.manage_initial_server_record(secrets, ty)? {
-      stream.write_all(&this.tb.lease_mut().write_buffer).await?;
+    let secrets = self.write_client_hello(psk, rng, tls_config)?;
+    stream.write_all(&self.tb.lease_mut().write_buffer).await?;
+    let ty = fetch_rec_from_stream(&mut self.tb.lease_mut().network_buffer, &mut stream).await?;
+    if !self.manage_initial_server_record(secrets, ty)? {
+      stream.write_all(&self.tb.lease_mut().write_buffer).await?;
       return Err(TlsError::AbortedHandshake.into());
     }
-    Ok(TlsStream::new(stream, this.tb, this.tm))
+    Ok(TlsStream::new(stream, self.tb, self.tm))
   }
-}
 
-impl<TB, TM> TlsConnector<TB, TM, false>
-where
-  TB: LeaseMut<TlsBuffer>,
-  TM: TlsMode,
-{
-  /// Must be called after [`Self::write_client_hello`].
+  /// Low level operation that must be called after [`Self::write_client_hello`].
   ///
-  /// Returns `false` if the connection was aborted by the server
+  /// Returns `false` if the connection was aborted by the server.
+  ///
+  /// High level operations must not be mixed with low level operations.
   #[inline]
   pub fn manage_initial_server_record(
     &mut self,
@@ -103,10 +96,12 @@ where
     Ok(true)
   }
 
-  /// Must be called after [`Self::write_client_hello`].
+  /// Low level operation that must be called after [`Self::write_client_hello`].
   ///
-  /// Returns `None` if the connection was aborted by the server or `Some(false)` if this
-  /// method needs to be called again.
+  /// Returns `None` if the connection was aborted by the server or `Some(false)` if
+  /// this method needs to be called again.
+  ///
+  /// High level operations must not be mixed with low level operations.
   #[inline]
   pub fn manage_remaining_server_records<RNG>(
     &mut self,
@@ -120,10 +115,10 @@ where
       }
       _ => return Err(TlsError::InvalidHandshake.into()),
     }
-    let hs = Handshake::<&[u8]>::decode(&mut self.tb.lease_mut().network_buffer.current())?;
+    let mut hs = Handshake::<&[u8]>::decode(&mut self.tb.lease_mut().network_buffer.current())?;
     match hs.msg_type {
       HandshakeType::EncryptedExtensions => {
-        
+        let _encrypted_extensions = EncryptedExtensions::decode(&mut hs.data)?;
       }
       HandshakeType::Certificate => {}
       HandshakeType::CertificateRequest => {}
@@ -136,8 +131,10 @@ where
     Ok(Some(false))
   }
 
-  /// Responsible for informing the local parameters to the remote server. No other method should
+  /// Low level operation responsible for informing the local parameters to the remote server. No other method should
   /// be called before it.
+  ///
+  /// High level operations must not be mixed with low level operations.
   #[inline]
   pub fn write_client_hello<RNG>(
     &mut self,
@@ -173,7 +170,9 @@ where
     Ok(secrets)
   }
 
-  /// Must be called after [`Self::manage_remaining_server_records`] is concluded.
+  /// Low level operation that must be called after [`Self::manage_remaining_server_records`] is concluded.
+  ///
+  /// High level operations must not be mixed with low level operations.
   #[inline]
   pub fn write_final_records<RNG, S>() {}
 
@@ -186,7 +185,7 @@ where
   }
 }
 
-impl<const IS_AUTOMATIC: bool> TlsConnector<TlsBuffer, TlsModeVerifyFull, IS_AUTOMATIC> {
+impl TlsConnector<TlsBuffer, TlsModeVerifyFull> {
   /// From the automatic selection of dependencies.
   ///
   /// An error will be returned if no dependency that provides CA certificates is selected.
@@ -203,9 +202,7 @@ impl<const IS_AUTOMATIC: bool> TlsConnector<TlsBuffer, TlsModeVerifyFull, IS_AUT
   }
 }
 
-impl<const IS_AUTOMATIC: bool> Default
-  for TlsConnector<TlsBuffer, TlsModeVerifyFull, IS_AUTOMATIC>
-{
+impl Default for TlsConnector<TlsBuffer, TlsModeVerifyFull> {
   #[inline]
   fn default() -> Self {
     let dummy_cipher_suite = CurrCipherSuite::Aes128GcmSha256(<_>::default());
