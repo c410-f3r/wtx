@@ -2,10 +2,9 @@ use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
   misc::{
-    SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
   },
-  tls::{TlsError, de::De, misc::u8_list},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u8_list},
 };
 
 create_enum! {
@@ -17,15 +16,15 @@ create_enum! {
 
 impl<'de> Decode<'de, De> for PskKeyExchangeMode {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self::try_from(<u8 as Decode<'de, De>>::decode(dw)?)?)
   }
 }
 
 impl Encode<De> for PskKeyExchangeMode {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    ew.extend_from_byte(u8::from(*self))
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    ew.buffer().extend_from_byte(u8::from(*self))
   }
 }
 
@@ -42,7 +41,7 @@ impl PskKeyExchangeModes {
 
 impl<'de> Decode<'de, De> for PskKeyExchangeModes {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let mut modes = ArrayVectorU8::new();
     u8_list(&mut modes, dw, TlsError::InvalidPskKeyExchangeModes)?;
     Ok(Self { modes })
@@ -51,7 +50,7 @@ impl<'de> Decode<'de, De> for PskKeyExchangeModes {
 
 impl Encode<De> for PskKeyExchangeModes {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     u8_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       &self.modes,

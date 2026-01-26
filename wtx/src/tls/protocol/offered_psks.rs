@@ -5,7 +5,7 @@ use crate::{
     SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write, u16_write_iter},
   },
-  tls::{TlsError, de::De, misc::u16_chunk},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_chunk},
 };
 
 #[derive(Clone, Debug)]
@@ -15,10 +15,10 @@ pub(crate) struct OfferedPsks<'any> {
 
 impl<'de> Decode<'de, De> for OfferedPsks<'de> {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let mut offered_psks = ArrayVectorU8::new();
-    u16_chunk(dw, TlsError::InvalidOfferedPsks, |bytes| {
-      while !bytes.is_empty() {
+    u16_chunk(dw, TlsError::InvalidOfferedPsks, |local_dw| {
+      while !local_dw.bytes().is_empty() {
         offered_psks.push(OfferedPsk {
           identity: PskIdentity { identity: &[], obfuscated_ticket_age: 0 },
           binder: &[],
@@ -32,12 +32,12 @@ impl<'de> Decode<'de, De> for OfferedPsks<'de> {
 
 impl Encode<De> for OfferedPsks<'_> {
   #[inline]
-  fn encode(&self, sw: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       self.offered_psks.iter().map(|el| &el.identity),
       None,
-      sw,
+      ew,
       |elem, local_sw| {
         u16_write(CounterWriterBytesTy::IgnoresLen, None, local_sw, |local_local_sw| {
           local_local_sw
@@ -50,9 +50,9 @@ impl Encode<De> for OfferedPsks<'_> {
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       self.offered_psks.iter().map(|el| el.binder),
       None,
-      sw,
-      |elem, local_sw| {
-        u16_write(CounterWriterBytesTy::IgnoresLen, None, local_sw, |local_local_sw| {
+      ew,
+      |elem, local_ew| {
+        u16_write(CounterWriterBytesTy::IgnoresLen, None, local_ew, |local_local_sw| {
           local_local_sw.extend_from_slice(elem)?;
           crate::Result::Ok(())
         })

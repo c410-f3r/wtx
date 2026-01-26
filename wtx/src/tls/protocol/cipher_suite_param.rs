@@ -1,8 +1,11 @@
 use crate::tls::cipher_suite::CipherSuite;
 #[cfg(any(feature = "aws-lc-rs", feature = "rust-crypto"))]
-use crate::tls::cipher_suite::{
-  CipherSuiteTy, aes_128_gcm_sha_256::Aes128GcmSha256, aes_256_gcm_sha_384::Aes256GcmSha384,
-  chacha20_poly1305_sha256::Chacha20Poly1305Sha256,
+use crate::tls::{
+  CipherSuiteTy,
+  protocol::{
+    aes_128_gcm_sha_256::Aes128GcmSha256, aes_256_gcm_sha_384::Aes256GcmSha384,
+    chacha20_poly1305_sha256::Chacha20Poly1305Sha256,
+  },
 };
 
 #[cfg(feature = "aws-lc-rs")]
@@ -32,8 +35,8 @@ where
   B: CipherSuite,
   C: CipherSuite,
 {
-  type Aead = crate::tls::cipher_suite::Aes128GcmAwsLcRs;
-  type Hash = crate::tls::cipher_suite::Sha256AwsLcRs;
+  type Aead = crate::tls::protocol::cipher_suite_wrappers::Aes128GcmAwsLcRs;
+  type Hash = crate::tls::protocol::cipher_suite_wrappers::Sha256AwsLcRs;
   type Hkdf = ();
 
   fn ty(&self) -> CipherSuiteTy {

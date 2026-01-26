@@ -1,7 +1,7 @@
 use crate::{
   de::{Decode, Encode},
   misc::SuffixWriterMut,
-  tls::{TlsError, de::De},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper},
 };
 
 create_enum! {
@@ -24,11 +24,11 @@ create_enum! {
 
 impl<'de> Decode<'de, De> for MaxFragmentLength {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
-    let [a, rest @ ..] = dw else {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+    let [a, rest @ ..] = dw.bytes() else {
       return Err(TlsError::InvalidMaxFragmentLength.into());
     };
-    *dw = rest;
+    *dw.bytes_mut() = rest;
     Ok(Self::try_from(*a)?)
   }
 }

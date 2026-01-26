@@ -1,7 +1,7 @@
 use crate::{
   de::{Decode, Encode},
   misc::SuffixWriterMut,
-  tls::{TlsError, de::De},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -11,11 +11,11 @@ pub(crate) enum NameType {
 
 impl<'de> Decode<'de, De> for NameType {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
-    let [0, rest @ ..] = dw else {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+    let [0, rest @ ..] = dw.bytes() else {
       return Err(TlsError::UnknownNameType.into());
     };
-    *dw = rest;
+    *dw.bytes_mut() = rest;
     Ok(Self::HostName)
   }
 }

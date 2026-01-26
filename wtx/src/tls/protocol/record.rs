@@ -7,8 +7,7 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
   tls::{
-    de::De,
-    protocol::{protocol_version::ProtocolVersion, record_content_type::RecordContentType},
+    de::De, encode_wrapper::EncodeWrapper, protocol::{protocol_version::ProtocolVersion, record_content_type::RecordContentType}
   },
 };
 
@@ -30,8 +29,8 @@ where
   T: Encode<De>,
 {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    ew.extend_from_slices([
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    ew.buffer().extend_from_slices([
       &[u8::from(self.ty)][..],
       &u16::from(self.legacy_record_version).to_be_bytes(),
     ])?;

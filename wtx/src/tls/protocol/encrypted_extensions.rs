@@ -3,18 +3,13 @@
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
-  misc::SuffixWriterMut,
   rng::CryptoRng,
   tls::{
-    MaxFragmentLength, TlsError,
-    cipher_suite::CipherSuiteTy,
-    de::De,
-    misc::{duplicated_error, u16_chunk},
-    protocol::{
+    CipherSuiteTy, MaxFragmentLength, TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::{duplicated_error, u16_chunk}, protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersions,
       server_name_list::ServerNameList, supported_groups::SupportedGroups,
-    },
+    }
   },
 };
 
@@ -68,10 +63,11 @@ impl<'any> EncryptedExtensions<'any> {
 
 impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let legacy_version = ProtocolVersion::decode(dw)?;
     let random = <[u8; 32]>::decode(dw)?;
-    let legacy_session_id_echo = u16_chunk(dw, TlsError::InvalidLegacySessionIdEcho, |el| Ok(*el))?;
+    let legacy_session_id_echo =
+      u16_chunk(dw, TlsError::InvalidLegacySessionIdEcho, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuiteTy::decode(dw)?;
     let legacy_compression_method = <u8 as Decode<'de, De>>::decode(dw)?;
     let mut key_share_opt = None;
@@ -80,38 +76,39 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
     let mut selected_identity = None;
     let mut server_name = None;
     let mut supported_versions_opt = None;
-    u16_chunk(dw, TlsError::InvalidClientHelloLength, |bytes| {
-      while !bytes.is_empty() {
+    u16_chunk(dw, TlsError::InvalidClientHelloLength, |local_dw| {
+      while !local_dw.bytes().is_empty() {
         let extension_ty = {
-          let tmp_bytes = &mut *bytes;
+          let tmp_bytes = &mut *local_dw;
           ExtensionTy::decode(tmp_bytes)?
         };
         match extension_ty {
           ExtensionTy::KeyShare => {
             duplicated_error(key_share_opt.is_some())?;
-            key_share_opt = Some(KeyShareEntry::decode(bytes)?);
+            key_share_opt = Some(KeyShareEntry::decode(local_dw)?);
           }
           ExtensionTy::MaxFragmentLength => {
             duplicated_error(max_fragment_length.is_some())?;
-            max_fragment_length = Some(Extension::<MaxFragmentLength>::decode(bytes)?.into_data());
+            max_fragment_length =
+              Some(Extension::<MaxFragmentLength>::decode(local_dw)?.into_data());
           }
           ExtensionTy::PreSharedKey => {
             duplicated_error(selected_identity.is_some())?;
-            selected_identity = Some(Extension::<u16>::decode(bytes)?.into_data());
+            selected_identity = Some(Extension::<u16>::decode(local_dw)?.into_data());
           }
           ExtensionTy::ServerName => {
             duplicated_error(server_name.is_some())?;
-            server_name = Some(Extension::<ServerNameList>::decode(bytes)?.into_data());
+            server_name = Some(Extension::<ServerNameList>::decode(local_dw)?.into_data());
           }
           ExtensionTy::SupportedGroups => {
             duplicated_error(!named_groups.is_empty())?;
             named_groups =
-              Extension::<SupportedGroups>::decode(bytes)?.into_data().supported_groups;
+              Extension::<SupportedGroups>::decode(local_dw)?.into_data().supported_groups;
           }
           ExtensionTy::SupportedVersions => {
             duplicated_error(supported_versions_opt.is_some())?;
             supported_versions_opt =
-              Some(Extension::<SupportedVersions>::decode(bytes)?.into_data());
+              Some(Extension::<SupportedVersions>::decode(local_dw)?.into_data());
           }
           ExtensionTy::ApplicationLayerProtocolNegotiation
           | ExtensionTy::ClientCertificateType
@@ -139,7 +136,7 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
       cipher_suite,
       key_share: key_share_opt.ok_or_else(|| TlsError::MissingKeyShares)?,
       legacy_compression_method,
-      legacy_session_id_echo: legacy_session_id_echo.try_into()?,
+      legacy_session_id_echo,
       legacy_version,
       random,
       selected_identity,
@@ -150,12 +147,12 @@ impl<'de> Decode<'de, De> for EncryptedExtensions<'de> {
 
 impl Encode<De> for EncryptedExtensions<'_> {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     self.legacy_version.encode(ew)?;
-    ew.extend_from_slice(&self.random)?;
-    ew.extend_from_slice(&self.legacy_session_id_echo)?;
+    ew.buffer().extend_from_slice(&self.random)?;
+    ew.buffer().extend_from_slice(&self.legacy_session_id_echo)?;
     self.cipher_suite.encode(ew)?;
-    ew.extend_from_byte(self.legacy_compression_method)?;
+    ew.buffer().extend_from_byte(self.legacy_compression_method)?;
     Extension::new(ExtensionTy::PreSharedKey, self.selected_identity).encode(ew)?;
     Extension::new(ExtensionTy::KeyShare, &self.key_share).encode(ew)?;
     Extension::new(ExtensionTy::SupportedVersions, &self.supported_versions).encode(ew)?;

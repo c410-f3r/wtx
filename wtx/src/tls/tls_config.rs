@@ -2,8 +2,7 @@ use crate::{
   collection::{ArrayVector, ArrayVectorU8},
   misc::{Lease, LeaseMut},
   tls::{
-    MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup,
-    cipher_suite::CipherSuiteTy,
+    CipherSuiteTy, MAX_KEY_SHARES_LEN, MaxFragmentLength, NamedGroup,
     protocol::{
       key_share_entry::KeyShareEntry, offered_psks::OfferedPsks, server_name_list::ServerNameList,
       signature_scheme::SignatureScheme,

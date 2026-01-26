@@ -6,7 +6,7 @@ use crate::{
     SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
-  tls::{TlsError, de::De, misc::u16_chunk},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, misc::u16_chunk},
 };
 
 create_enum! {
@@ -37,9 +37,9 @@ where
   T: Decode<'de, De>,
 {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let msg_type = HandshakeType::try_from(<u8 as Decode<De>>::decode(dw)?)?;
-    let data = u16_chunk(dw, TlsError::InvalidHandshake, |bytes| T::decode(bytes))?;
+    let data = u16_chunk(dw, TlsError::InvalidHandshake, |local_dw| T::decode(local_dw))?;
     Ok(Self { msg_type, data })
   }
 }

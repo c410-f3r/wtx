@@ -1,7 +1,7 @@
 use crate::{
   de::{Decode, Encode},
   misc::SuffixWriterMut,
-  tls::de::De,
+  tls::{de::De, decode_wrapper::DecodeWrapper},
 };
 
 create_enum! {
@@ -35,64 +35,11 @@ impl SignatureScheme {
     Self::RsaPssRsaeSha512,
     Self::RsaPkcs1Sha512,
   ];
-  //  fn ring(&self) {
-  //    &[
-  //      (SignatureScheme::RsaPkcs1Sha256, &[webpki::ring::RSA_PKCS1_2048_8192_SHA256]),
-  //      (SignatureScheme::RsaPkcs1Sha384, &[webpki::ring::RSA_PKCS1_2048_8192_SHA384]),
-  //      (SignatureScheme::RsaPkcs1Sha512, &[webpki::ring::RSA_PKCS1_2048_8192_SHA512]),
-  //      (
-  //        SignatureScheme::EcdsaSecp256r1Sha256,
-  //        &[
-  //          webpki::ring::ECDSA_P256_SHA256,
-  //          webpki::ring::ECDSA_P384_SHA256,
-  //          webpki::ring::ECDSA_P521_SHA256,
-  //        ],
-  //      ),
-  //      (
-  //        SignatureScheme::EcdsaSecp384r1Sha384,
-  //        &[
-  //          webpki::ring::ECDSA_P384_SHA384,
-  //          webpki::ring::ECDSA_P256_SHA384,
-  //          webpki::ring::ECDSA_P521_SHA384,
-  //        ],
-  //      ),
-  //      (SignatureScheme::EcdsaSecp521r1Sha512, &[webpki::ring::ECDSA_P521_SHA512]),
-  //      (SignatureScheme::RsaPssRsaeSha256, &[webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY]),
-  //      (SignatureScheme::RsaPssRsaeSha384, &[webpki::ring::RSA_PSS_2048_8192_SHA384_LEGACY_KEY]),
-  //      (SignatureScheme::RsaPssRsaeSha512, &[webpki::ring::RSA_PSS_2048_8192_SHA512_LEGACY_KEY]),
-  //      (SignatureScheme::Ed25519, &[webpki::ring::ED25519]),
-  //    ];
-  //  }
 }
-
-//#[cfg(feature = "rustls-webpki")]
-//impl TryFrom<SignatureScheme> for &'static dyn rustls_pki_types::SignatureVerificationAlgorithm {
-//  type Error = crate::Error;
-//
-//  #[inline]
-//  fn try_from(from: SignatureScheme) -> Result<Self, Self::Error> {
-//    return Ok(match from {
-//      SignatureScheme::RsaPkcs1Sha256 => webpki::ring::RSA_PKCS1_2048_8192_SHA256,
-//      SignatureScheme::RsaPkcs1Sha384 => webpki::ring::RSA_PKCS1_2048_8192_SHA384,
-//      SignatureScheme::RsaPkcs1Sha512 => webpki::ring::RSA_PKCS1_2048_8192_SHA512,
-//
-//      SignatureScheme::EcdsaSecp256r1Sha256 => webpki::ring::ECDSA_P256_SHA256,
-//      SignatureScheme::EcdsaSecp384r1Sha384 => webpki::ring::ECDSA_P384_SHA384,
-//
-//      SignatureScheme::RsaPssRsaeSha256 => webpki::ring::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
-//      SignatureScheme::RsaPssRsaeSha384 => webpki::ring::RSA_PSS_2048_8192_SHA384_LEGACY_KEY,
-//      SignatureScheme::RsaPssRsaeSha512 => webpki::ring::RSA_PSS_2048_8192_SHA512_LEGACY_KEY,
-//
-//      SignatureScheme::Ed25519 => webpki::ring::ED25519,
-//
-//      _ => return Err(TlsError::UnknownWebpkiSignatureScheme.into()),
-//    });
-//  }
-//}
 
 impl<'de> Decode<'de, De> for SignatureScheme {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self::try_from(<u16 as Decode<De>>::decode(dw)?)?)
   }
 }

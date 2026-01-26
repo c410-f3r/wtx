@@ -7,6 +7,7 @@ use crate::{
   tls::{
     CurrCipherSuite, CurrEphemeralSecretKey, MAX_KEY_SHARES_LEN, Psk, TlsBuffer, TlsConfig,
     TlsError, TlsMode, TlsModeVerifyFull, TlsStream,
+    decode_wrapper::DecodeWrapper,
     ephemeral_secret_key::EphemeralSecretKey,
     key_schedule::KeySchedule,
     misc::fetch_rec_from_stream,
@@ -81,8 +82,9 @@ where
       }
       _ => return Err(TlsError::InvalidHandshake.into()),
     }
-    let server_hello =
-      Handshake::<ServerHello>::decode(&mut self.tb.lease_mut().network_buffer.current())?;
+    let server_hello = Handshake::<ServerHello>::decode(&mut DecodeWrapper::from_bytes(
+      self.tb.lease_mut().network_buffer.current(),
+    ))?;
     let secret = secrets
       .into_iter()
       .find(|secret| secret.simplify() == server_hello.data.key_share().group)
@@ -115,10 +117,12 @@ where
       }
       _ => return Err(TlsError::InvalidHandshake.into()),
     }
-    let mut hs = Handshake::<&[u8]>::decode(&mut self.tb.lease_mut().network_buffer.current())?;
+    let mut dw = DecodeWrapper::from_bytes(self.tb.lease_mut().network_buffer.current());
+    let mut hs = Handshake::<&[u8]>::decode(&mut dw)?;
     match hs.msg_type {
       HandshakeType::EncryptedExtensions => {
-        let _encrypted_extensions = EncryptedExtensions::decode(&mut hs.data)?;
+        *dw.bytes_mut() = hs.data;
+        let _encrypted_extensions = EncryptedExtensions::decode(&mut dw)?;
       }
       HandshakeType::Certificate => {}
       HandshakeType::CertificateRequest => {}
@@ -177,7 +181,8 @@ where
   pub fn write_final_records<RNG, S>() {}
 
   fn read_and_write_alert(&mut self) -> crate::Result<()> {
-    let alert = Alert::decode(&mut self.tb.lease_mut().network_buffer.current())?;
+    let alert =
+      Alert::decode(&mut DecodeWrapper::from_bytes(self.tb.lease_mut().network_buffer.current()))?;
     self.tb.lease_mut().write_buffer.clear();
     let mut sw = SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer);
     Record::new(RecordContentType::Alert, alert).encode(&mut sw)?;

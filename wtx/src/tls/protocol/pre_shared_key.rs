@@ -6,7 +6,7 @@ use crate::{
     SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write, u16_write_iter},
   },
-  tls::de::De,
+  tls::{de::De, decode_wrapper::DecodeWrapper},
 };
 
 #[derive(Debug, PartialEq)]
@@ -17,7 +17,7 @@ pub struct PreSharedKeyClientHello<'any> {
 
 impl Encode<De> for PreSharedKeyClientHello<'_> {
   #[inline]
-  fn encode(&self, sw: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
     u16_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       self.identities,
@@ -53,7 +53,7 @@ pub(crate) struct PreSharedKeyServerHello {
 
 impl<'de> Decode<'de, De> for PreSharedKeyServerHello {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let selected_identity: u16 = Decode::<'_, De>::decode(dw)?;
     Ok(Self { selected_identity })
   }

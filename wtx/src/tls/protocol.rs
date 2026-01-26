@@ -1,4 +1,10 @@
+pub(crate) mod aes_128_gcm_sha_256;
+pub(crate) mod aes_256_gcm_sha_384;
 pub(crate) mod alert;
+pub(crate) mod chacha20_poly1305_sha256;
+pub(crate) mod cipher_suite_param;
+pub(crate) mod cipher_suite_ty;
+pub(crate) mod cipher_suite_wrappers;
 pub(crate) mod client_hello;
 pub(crate) mod encrypted_extensions;
 pub(crate) mod extension;

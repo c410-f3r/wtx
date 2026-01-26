@@ -1,7 +1,7 @@
 use crate::{
   de::{Decode, Encode},
   misc::SuffixWriterMut,
-  tls::de::De,
+  tls::{de::De, decode_wrapper::DecodeWrapper},
 };
 
 create_enum! {
@@ -17,7 +17,7 @@ create_enum! {
 
 impl<'de> Decode<'de, De> for ProtocolVersion {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self::try_from(<u16 as Decode<De>>::decode(dw)?)?)
   }
 }

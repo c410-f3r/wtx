@@ -2,8 +2,7 @@
 
 use crate::{
   de::{Decode, Encode},
-  misc::SuffixWriterMut,
-  tls::de::De,
+  tls::{de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper},
 };
 
 create_enum! {
@@ -36,7 +35,7 @@ create_enum! {
 
 impl<'de> Decode<'de, De> for ExtensionTy {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let tag: u16 = Decode::<'_, De>::decode(dw)?;
     Self::try_from(tag)
   }
@@ -44,7 +43,7 @@ impl<'de> Decode<'de, De> for ExtensionTy {
 
 impl Encode<De> for ExtensionTy {
   #[inline]
-  fn encode(&self, sw: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    <u16 as Encode<De>>::encode(&u16::from(*self), sw)
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    <u16 as Encode<De>>::encode(&u16::from(*self), ew)
   }
 }

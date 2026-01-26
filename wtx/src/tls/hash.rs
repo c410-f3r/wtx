@@ -10,11 +10,11 @@ impl Hash for () {
 }
 
 #[cfg(feature = "aws-lc-rs")]
-impl Hash for crate::tls::cipher_suite::Sha256AwsLcRs {
+impl Hash for crate::tls::protocol::cipher_suite_wrappers::Sha256AwsLcRs {
   fn digest(data: &[u8], buffer: &mut ArrayVectorU8<u8, MAX_HASH_LEN>) {}
 }
 #[cfg(feature = "aws-lc-rs")]
-impl Hash for crate::tls::cipher_suite::Sha384AwsLcRs {
+impl Hash for crate::tls::protocol::cipher_suite_wrappers::Sha384AwsLcRs {
   fn digest(data: &[u8], buffer: &mut ArrayVectorU8<u8, MAX_HASH_LEN>) {}
 }
 

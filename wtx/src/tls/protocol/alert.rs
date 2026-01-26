@@ -1,7 +1,6 @@
 use crate::{
   de::{Decode, Encode},
-  misc::SuffixWriterMut,
-  tls::{TlsError, de::De},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper},
 };
 
 create_enum! {
@@ -60,19 +59,19 @@ impl Alert {
 
 impl<'de> Decode<'de, De> for Alert {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
-    let [a, b, ref rest @ ..] = **dw else {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
+    let [a, b, ref rest @ ..] = *dw.bytes() else {
       return Err(TlsError::InvalidAlert.into());
     };
-    *dw = rest;
+    *dw.bytes_mut() = rest;
     Ok(Self { level: a.try_into()?, description: b.try_into()? })
   }
 }
 
 impl<'any> Encode<De> for Alert {
   #[inline]
-  fn encode(&self, ew: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    ew.extend_from_slice(&[u8::from(self.level), u8::from(self.description)])?;
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    ew.buffer().extend_from_slice(&[u8::from(self.level), u8::from(self.description)])?;
     Ok(())
   }
 }

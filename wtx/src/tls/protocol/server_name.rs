@@ -5,7 +5,7 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, u16_write},
     from_utf8_basic,
   },
-  tls::{TlsError, de::De, protocol::name_type::NameType},
+  tls::{TlsError, de::De, decode_wrapper::DecodeWrapper, protocol::name_type::NameType},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -16,13 +16,13 @@ pub struct ServerName<'any> {
 
 impl<'de> Decode<'de, De> for ServerName<'de> {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let name_type = NameType::decode(dw)?;
     let len: u16 = Decode::<'_, De>::decode(dw)?;
-    let Some((name, rest)) = dw.split_at_checked(len.into()) else {
+    let Some((name, rest)) = dw.bytes().split_at_checked(len.into()) else {
       return Err(TlsError::InvalidServerName.into());
     };
-    *dw = rest;
+    *dw.bytes_mut() = rest;
     Ok(Self { name_type, name: from_utf8_basic(name)? })
   }
 }

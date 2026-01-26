@@ -9,7 +9,7 @@ pub(crate) trait TlsCrypto {
 }
 
 impl TlsCrypto for () {
-  type CipherSuite = crate::tls::cipher_suite::cipher_suite_param::CipherSuiteParamUnit;
+  type CipherSuite = crate::tls::protocol::cipher_suite_param::CipherSuiteParamUnit;
   type EphemeralSecretKey = ();
 }
 
@@ -20,7 +20,7 @@ pub struct AwsLcRs {}
 
 #[cfg(feature = "aws-lc-rs")]
 impl TlsCrypto for AwsLcRs {
-  type CipherSuite = crate::tls::cipher_suite::cipher_suite_param::CipherSuiteParamAwsLcRs;
+  type CipherSuite = crate::tls::protocol::cipher_suite_param::CipherSuiteParamAwsLcRs;
   type EphemeralSecretKey = crate::tls::protocol::named_group::aws_lc_rs::NamedGroupEpkAwsLcRs;
 }
 
@@ -31,6 +31,6 @@ pub struct RustCrypto {}
 
 #[cfg(feature = "rust-crypto")]
 impl TlsCrypto for RustCrypto {
-  type CipherSuite = crate::tls::cipher_suite::cipher_suite_param::CipherSuiteParamRustCrypto;
+  type CipherSuite = crate::tls::protocol::cipher_suite_param::CipherSuiteParamRustCrypto;
   type EphemeralSecretKey = crate::tls::protocol::named_group::rust_crypto::NamedGroupEpkRustCrypto;
 }

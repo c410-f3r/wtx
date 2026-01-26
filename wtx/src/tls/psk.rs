@@ -1,4 +1,4 @@
-use crate::tls::{PskTy, cipher_suite::CipherSuiteTy};
+use crate::tls::{CipherSuiteTy, PskTy};
 
 /// Pre Shared Key
 #[derive(Clone, Copy, Debug)]

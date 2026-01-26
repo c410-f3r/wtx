@@ -1,10 +1,11 @@
 use crate::{
   de::{Decode, Encode},
   misc::{
-    SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, u16_write},
   },
-  tls::{TlsError, de::De, misc::u16_chunk, protocol::extension_ty::ExtensionTy},
+  tls::{
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_chunk, protocol::extension_ty::ExtensionTy
+  },
 };
 
 pub(crate) struct Extension<T> {
@@ -27,9 +28,9 @@ where
   T: Decode<'de, De>,
 {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let extension_ty = ExtensionTy::decode(dw)?;
-    let data = u16_chunk(dw, TlsError::InvalidExtension, |chunk| T::decode(chunk))?;
+    let data = u16_chunk(dw, TlsError::InvalidExtension, |local_dw| T::decode(local_dw))?;
     Ok(Self { data, extension_ty })
   }
 }
@@ -39,9 +40,9 @@ where
   T: Encode<De>,
 {
   #[inline]
-  fn encode(&self, sw: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
-    self.extension_ty.encode(sw)?;
-    u16_write(CounterWriterBytesTy::IgnoresLen, None, sw, |local_ew| {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    self.extension_ty.encode(ew)?;
+    u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| {
       self.data.encode(local_ew)?;
       Ok(())
     })

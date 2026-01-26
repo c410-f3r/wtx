@@ -3,13 +3,20 @@
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
-  misc::{SuffixWriterMut, counter_writer::{CounterWriterBytesTy, u16_write}},
+  misc::{
+    SuffixWriterMut,
+    counter_writer::{CounterWriterBytesTy, u16_write},
+  },
   rng::CryptoRng,
   tls::{
-    HELLO_RETRY_REQUEST, TlsError, cipher_suite::CipherSuiteTy, de::De, misc::{u8_chunk, u16_chunk}, protocol::{
+    CipherSuiteTy, HELLO_RETRY_REQUEST, TlsError,
+    de::De,
+    decode_wrapper::DecodeWrapper,
+    misc::{u8_chunk, u16_chunk},
+    protocol::{
       extension::Extension, extension_ty::ExtensionTy, key_share_entry::KeyShareEntry,
       protocol_version::ProtocolVersion, protocol_versions::SupportedVersions,
-    }
+    },
   },
 };
 
@@ -71,21 +78,24 @@ impl<'any> ServerHello<'any> {
 
 impl<'de> Decode<'de, De> for ServerHello<'de> {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let legacy_version = ProtocolVersion::decode(dw)?;
     let random = <[u8; 32]>::decode(dw)?;
     let is_hello_retry_request = random == HELLO_RETRY_REQUEST;
-    let legacy_session_id_echo = u8_chunk(dw, TlsError::InvalidLegacySessionIdEcho, |el| Ok(*el))?;
+    let legacy_session_id_echo =
+      u8_chunk(dw, TlsError::InvalidLegacySessionIdEcho, |el| Ok(el.bytes()))?.try_into()?;
     let cipher_suite = CipherSuiteTy::decode(dw)?;
     let legacy_compression_method = <u8 as Decode<'de, De>>::decode(dw)?;
     let mut key_share_opt = None;
     let mut selected_identity_opt = None;
     let mut supported_versions_opt = None;
-    u16_chunk(dw, TlsError::InvalidServerHelloLen, |bytes| {
-      while !bytes.is_empty() {
+    u16_chunk(dw, TlsError::InvalidServerHelloLen, |local_dw| {
+      while !local_dw.bytes().is_empty() {
         let extension_ty = {
-          let mut ty_bytes = *bytes;
-          ExtensionTy::decode(&mut ty_bytes)?
+          let begin_bytes = local_dw.bytes();
+          let extension_ty = ExtensionTy::decode(local_dw)?;
+          *local_dw.bytes_mut() = begin_bytes;
+          extension_ty
         };
         match extension_ty {
           ExtensionTy::Cookie => {
@@ -96,17 +106,17 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
             }
           }
           ExtensionTy::KeyShare => {
-            key_share_opt = Some(KeyShareEntry::decode(bytes)?);
+            key_share_opt = Some(KeyShareEntry::decode(local_dw)?);
           }
           ExtensionTy::PreSharedKey => {
             if is_hello_retry_request {
               return Err(TlsError::MismatchedExtension.into());
             }
-            selected_identity_opt = Some(Extension::<u16>::decode(bytes)?.into_data());
+            selected_identity_opt = Some(Extension::<u16>::decode(local_dw)?.into_data());
           }
           ExtensionTy::SupportedVersions => {
             supported_versions_opt =
-              Some(Extension::<SupportedVersions>::decode(bytes)?.into_data());
+              Some(Extension::<SupportedVersions>::decode(local_dw)?.into_data());
           }
           _ => {
             return Err(TlsError::MismatchedExtension.into());
@@ -126,7 +136,7 @@ impl<'de> Decode<'de, De> for ServerHello<'de> {
       is_hello_retry_request,
       key_share: key_share_opt.ok_or_else(|| TlsError::MissingKeyShares)?,
       legacy_compression_method,
-      legacy_session_id_echo: legacy_session_id_echo.try_into()?,
+      legacy_session_id_echo,
       legacy_version,
       random,
       selected_identity: selected_identity_opt,
@@ -142,7 +152,7 @@ impl Encode<De> for ServerHello<'_> {
     ew.extend_from_slices([
       &self.random,
       &[self.legacy_session_id_echo.len()][..],
-      &self.legacy_session_id_echo
+      &self.legacy_session_id_echo,
     ])?;
     self.cipher_suite.encode(ew)?;
     ew.extend_from_byte(self.legacy_compression_method)?;

@@ -1,7 +1,7 @@
 use crate::{
   de::{Decode, Encode},
   misc::SuffixWriterMut,
-  tls::de::De,
+  tls::{de::De, decode_wrapper::DecodeWrapper},
 };
 
 create_enum! {
@@ -19,7 +19,7 @@ create_enum! {
 
 impl<'de> Decode<'de, De> for NamedGroup {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     Ok(Self::try_from(<u16 as Decode<De>>::decode(dw)?)?)
   }
 }
@@ -59,9 +59,11 @@ pub(crate) mod aws_lc_rs {
     rng::CryptoRng,
     tls::{
       MAX_PK_LEN, NamedGroup, TlsError,
-      cipher_suite::{P256AwsLcRs, P384AwsLcRs, X25519AwsLcRs},
       ephemeral_secret_key::EphemeralSecretKey,
-      protocol::named_group::NamedGroupParam,
+      protocol::{
+        cipher_suite_wrappers::{P256AwsLcRs, P384AwsLcRs, X25519AwsLcRs},
+        named_group::NamedGroupParam,
+      },
     },
   };
   use aws_lc_rs::rand::SystemRandom;

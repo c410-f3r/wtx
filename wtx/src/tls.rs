@@ -1,13 +1,18 @@
+#[macro_use]
+mod macros;
+
 mod certificate_revocation_list;
-pub(crate) mod cipher_suite;
+mod cipher_suite;
 mod client_verifier;
 mod de;
+mod decode_wrapper;
+mod encode_wrapper;
 mod ephemeral_secret_key;
 mod hash;
 mod hkdf;
 mod key_schedule;
 mod misc;
-pub(crate) mod protocol;
+mod protocol;
 mod psk;
 mod psk_ty;
 mod revocation_reason;
@@ -54,7 +59,7 @@ type CurrEphemeralSecretKey = <CurrTlsCrypto as TlsCrypto>::EphemeralSecretKey;
 pub use certificate_revocation_list::CertificateRevocationList;
 pub use client_verifier::ClientVerifier;
 pub use protocol::{
-  max_fragment_length::MaxFragmentLength, named_group::NamedGroup,
+  cipher_suite_ty::CipherSuiteTy, max_fragment_length::MaxFragmentLength, named_group::NamedGroup,
   protocol_version::ProtocolVersion,
 };
 pub use psk::Psk;

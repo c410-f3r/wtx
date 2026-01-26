@@ -5,7 +5,9 @@ use crate::{
     SuffixWriterMut,
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u8_write_iter},
   },
-  tls::{TlsError, de::De, misc::u8_list, protocol::protocol_version::ProtocolVersion},
+  tls::{
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u8_list, protocol::protocol_version::ProtocolVersion
+  },
 };
 
 #[derive(Debug)]
@@ -21,7 +23,7 @@ impl SupportedVersions {
 
 impl<'de> Decode<'de, De> for SupportedVersions {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let mut versions = ArrayVectorU8::new();
     u8_list(&mut versions, dw, TlsError::InvalidSupportedVersions)?;
     Ok(Self { versions })
@@ -30,14 +32,14 @@ impl<'de> Decode<'de, De> for SupportedVersions {
 
 impl Encode<De> for SupportedVersions {
   #[inline]
-  fn encode(&self, sw: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     u8_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       &self.versions,
       None,
-      sw,
-      |el, local_sw| {
-        el.encode(local_sw)?;
+      ew,
+      |el, local_ew| {
+        el.encode(local_ew)?;
         crate::Result::Ok(())
       },
     )?;

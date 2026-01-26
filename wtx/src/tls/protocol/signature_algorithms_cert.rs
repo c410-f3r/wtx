@@ -1,11 +1,10 @@
 use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
-  misc::{
-    SuffixWriterMut,
-    counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
+  misc::counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
+  tls::{
+    TlsError, de::De, decode_wrapper::DecodeWrapper, encode_wrapper::EncodeWrapper, misc::u16_list, protocol::signature_scheme::SignatureScheme
   },
-  tls::{TlsError, de::De, misc::u16_list, protocol::signature_scheme::SignatureScheme},
 };
 
 #[derive(Debug)]
@@ -15,7 +14,7 @@ pub(crate) struct SignatureAlgorithmsCert {
 
 impl<'de> Decode<'de, De> for SignatureAlgorithmsCert {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let mut supported_groups = ArrayVectorU8::new();
     u16_list(&mut supported_groups, dw, TlsError::InvalidSignatureAlgorithmsCert)?;
     Ok(Self { supported_groups })
@@ -24,12 +23,12 @@ impl<'de> Decode<'de, De> for SignatureAlgorithmsCert {
 
 impl Encode<De> for SignatureAlgorithmsCert {
   #[inline]
-  fn encode(&self, sw: &mut SuffixWriterMut<'_>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
     u16_write_iter(
       CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen),
       &self.supported_groups,
       None,
-      sw,
+      ew,
       |el, local_sw| {
         let num: u16 = (*el).into();
         local_sw.extend_from_slice(&num.to_be_bytes())?;

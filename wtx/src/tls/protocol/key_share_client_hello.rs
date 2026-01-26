@@ -6,7 +6,8 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, u16_write_iter},
   },
   tls::{
-    MAX_KEY_SHARES_LEN, TlsError, de::De, misc::u16_list, protocol::key_share_entry::KeyShareEntry,
+    MAX_KEY_SHARES_LEN, TlsError, de::De, decode_wrapper::DecodeWrapper, misc::u16_list,
+    protocol::key_share_entry::KeyShareEntry,
   },
 };
 
@@ -17,7 +18,7 @@ pub struct KeyShareClientHello<'any> {
 
 impl<'de> Decode<'de, De> for KeyShareClientHello<'de> {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let mut client_shares = ArrayVectorU8::new();
     u16_list(&mut client_shares, dw, TlsError::InvalidKeyShareClientHello)?;
     Ok(Self { client_shares })

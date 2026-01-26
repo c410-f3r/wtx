@@ -1,7 +1,7 @@
 use crate::{
   de::{Decode, Encode},
   misc::{Lease, SuffixWriterMut},
-  tls::{NamedGroup, TlsError, de::De, misc::u16_chunk},
+  tls::{NamedGroup, TlsError, de::De, decode_wrapper::DecodeWrapper, misc::u16_chunk},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -18,9 +18,13 @@ impl<'any> KeyShareEntry<'any> {
 
 impl<'de> Decode<'de, De> for KeyShareEntry<'de> {
   #[inline]
-  fn decode(dw: &mut &'de [u8]) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de>) -> crate::Result<Self> {
     let group = NamedGroup::decode(dw)?;
-    let opaque = u16_chunk(dw, TlsError::InvalidKeyShareEntry, |el| Ok(*el))?;
+    let opaque = if dw.is_hello_retry_request() {
+      &[][..]
+    } else {
+      u16_chunk(dw, TlsError::InvalidKeyShareEntry, |el| Ok(el.bytes()))?
+    };
     Ok(Self { group, opaque })
   }
 }
