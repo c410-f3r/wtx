@@ -36,8 +36,8 @@ impl ChaCha20 {
   #[inline(always)]
   pub fn from_key(key: [u8; 32]) -> ChaCha20 {
     ChaCha20 {
-      // FIXME(STABLE): idx: const { TOTAL_WORDS.into() }
       block: ParBlock::from_key_and_nonce(key, [0; 12]),
+      // FIXME(STABLE): const { TOTAL_WORDS.into() }
       idx: TOTAL_WORDS as u16,
       output: ParBlock::new(),
     }
@@ -50,7 +50,7 @@ impl ChaCha20 {
   pub fn new(key: [u8; 32], nonce: [u8; 12]) -> ChaCha20 {
     ChaCha20 {
       block: ParBlock::from_key_and_nonce(key, nonce),
-      // FIXME(STABLE): idx: const { TOTAL_WORDS.into() }
+      // FIXME(STABLE): const { TOTAL_WORDS.into() }
       idx: TOTAL_WORDS as u16,
       output: ParBlock::new(),
     }

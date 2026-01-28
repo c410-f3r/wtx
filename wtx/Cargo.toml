@@ -25,6 +25,8 @@ portable-atomic-util = { default-features = false, features = ["alloc"], optiona
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 rand_core = { default-features = false, optional = true, version = "0.10.0-rc-3" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
+rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
+rustls-webpki = { default-features = false, optional = true, version = "0.103" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 serde_urlencoded = { default-features = false, optional = true, version = "0.7" }
@@ -37,7 +39,7 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.2" }
 
-# Rust Crypto and its enormous set of associated dependencies
+# Rust Crypto and its extravagant set of associated dependencies
 aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.2" }
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.5" }
 chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "0.10.0-rc.6" }
@@ -94,7 +96,7 @@ secret = ["aes-gcm", "libc", "sha2", "std"]
 serde_json = ["serde", "serde_json/std", "std"]
 serde_urlencoded = ["serde", "dep:serde_urlencoded", "std"]
 std = ["wtx-macros?/std"]
-tls = []
+tls = ["rustls-pki-types", "rustls-webpki"]
 tokio = ["std", "dep:tokio"]
 tracing-tree = ["std", "dep:tracing-tree"]
 web-socket = ["http"]

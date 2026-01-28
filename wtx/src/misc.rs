@@ -5,18 +5,28 @@ pub(crate) mod bytes_transfer;
 #[cfg(any(feature = "postgres", feature = "tls"))]
 pub(crate) mod counter_writer;
 mod hints;
-#[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(
+  feature = "http2",
+  feature = "mysql",
+  feature = "postgres",
+  feature = "tls",
+  feature = "web-socket"
+))]
 pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
 mod connection_state;
-#[cfg(feature = "aes-gcm")]
-mod crypto;
 mod either;
 mod enum_var_strings;
 mod env_vars;
-#[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(
+  feature = "http2",
+  feature = "mysql",
+  feature = "postgres",
+  feature = "tls",
+  feature = "web-socket"
+))]
 mod filled_buffer;
 mod fn_fut;
 mod incomplete_utf8_char;
@@ -43,8 +53,6 @@ use crate::{
 };
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
-#[cfg(feature = "aes-gcm")]
-pub use crypto::*;
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::{EnvVars, FromVars};

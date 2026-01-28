@@ -21,6 +21,7 @@ pub mod calendar;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
 pub mod collection;
+pub mod crypto;
 #[cfg(feature = "database")]
 pub mod database;
 pub mod de;

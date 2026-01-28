@@ -14,8 +14,12 @@ use crate::{
     misc::fetch_rec_from_stream,
     protocol::{
       alert::Alert,
+      certificate::Certificate,
+      certificate_request::CertificateRequest,
+      certificate_verify::CertificateVerify,
       client_hello::ClientHello,
       encrypted_extensions::EncryptedExtensions,
+      finished::Finished,
       handshake::{Handshake, HandshakeType},
       record::Record,
       record_content_type::RecordContentType,
@@ -119,16 +123,27 @@ where
       _ => return Err(TlsError::InvalidHandshake.into()),
     }
     let mut dw = DecodeWrapper::from_bytes(self.tb.lease_mut().network_buffer.current());
-    let mut hs = Handshake::<&[u8]>::decode(&mut dw)?;
+    let hs = Handshake::<&[u8]>::decode(&mut dw)?;
     *dw.bytes_mut() = hs.data;
     match hs.msg_type {
       HandshakeType::EncryptedExtensions => {
         let _encrypted_extensions = EncryptedExtensions::decode(&mut dw)?;
       }
-      HandshakeType::Certificate => {}
-      HandshakeType::CertificateRequest => {}
-      HandshakeType::CertificateVerify => {}
-      HandshakeType::Finished => return Ok(Some(true)),
+      HandshakeType::Certificate => {
+        // verifier.verify_certificate(verify)?;
+        let _certificate = Certificate::decode(&mut dw)?;
+      }
+      HandshakeType::CertificateRequest => {
+        let _certificate_request = CertificateRequest::decode(&mut dw)?;
+      }
+      HandshakeType::CertificateVerify => {
+        // verifier.verify_signature(verify)?;
+        let _certificate_request = CertificateVerify::decode(&mut dw)?;
+      }
+      HandshakeType::Finished => {
+        let _finished = Finished::decode(&mut dw)?;
+        return Ok(Some(true));
+      }
       _ => {
         return Err(TlsError::InvalidHandshake.into());
       }

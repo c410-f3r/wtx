@@ -4,7 +4,7 @@ use crate::{
   collection::ArrayVectorU8,
   de::{Decode, Encode},
   misc::counter_writer::{
-    CounterWriterBytesTy, CounterWriterIterTy, u8_write, u16_write, u24_write, u24_write_iter
+    CounterWriterBytesTy, CounterWriterIterTy, u8_write, u16_write, u24_write, u24_write_iter,
   },
   tls::{
     MAX_CERTIFICATES, TlsError,
@@ -65,10 +65,7 @@ impl<'de> Decode<'de, De> for CertificateEntry<'de> {
       u24_chunk(dw, TlsError::InvalidCertificate, |local_dw| Ok(local_dw.bytes()))?;
     u16_chunk(dw, TlsError::InvalidCertificate, |local_dw| {
       while !local_dw.bytes().is_empty() {
-        let extension_ty = {
-          let tmp_bytes = &mut *local_dw;
-          ExtensionTy::decode(tmp_bytes)?
-        };
+        let extension_ty = ExtensionTy::decode(local_dw)?;
         match extension_ty {
           ExtensionTy::SignedCertificateTimestamp | ExtensionTy::StatusRequest => {
             return Err(TlsError::UnsupportedExtension.into());
@@ -91,8 +88,6 @@ impl<'de> Encode<De> for CertificateEntry<'de> {
       local_ew.buffer().extend_from_slice(self.certificate_bytes)?;
       crate::Result::Ok(())
     })?;
-    u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |_| {
-      Ok(())
-    })
+    u16_write(CounterWriterBytesTy::IgnoresLen, None, ew, |_| Ok(()))
   }
 }

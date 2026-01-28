@@ -60,8 +60,8 @@ pub(crate) struct TlsConfigInner<'any> {
   pub(crate) named_groups: ArrayVectorU8<NamedGroup, { NamedGroup::len() }>,
   pub(crate) offered_psks: OfferedPsks<'any>,
   pub(crate) server_name: Option<ServerNameList<'any>>,
-  pub(crate) signature_algorithms_cert: ArrayVectorU8<SignatureScheme, { SignatureScheme::len() }>,
   pub(crate) signature_algorithms: ArrayVectorU8<SignatureScheme, { SignatureScheme::len() }>,
+  pub(crate) signature_algorithms_cert: ArrayVectorU8<SignatureScheme, { SignatureScheme::len() }>,
 }
 
 impl<'any> Lease<TlsConfigInner<'any>> for TlsConfigInner<'any> {

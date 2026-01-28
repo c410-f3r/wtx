@@ -239,6 +239,8 @@ pub enum Error {
   #[cfg(feature = "http-cookie")]
   #[doc = associated_element_doc!()]
   Cookie(crate::http::CookieError),
+  #[doc = associated_element_doc!()]
+  CryptoError(crate::crypto::CryptoError),
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
   DatabaseError(Box<crate::database::DatabaseError>),
@@ -328,6 +330,15 @@ impl From<crate::http::CookieError> for Error {
   #[track_caller]
   fn from(from: crate::http::CookieError) -> Self {
     Self::Cookie(from)
+  }
+}
+
+#[cfg(feature = "http-cookie")]
+impl From<crate::crypto::CryptoError> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: crate::crypto::CryptoError) -> Self {
+    Self::CryptoError(from)
   }
 }
 

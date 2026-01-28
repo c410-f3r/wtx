@@ -30,4 +30,4 @@ Active the `ktls` feature to use this functionality. At the current time only Li
 * Zero Round Trip Time Resumption (0-RTT)
 * PSK-only key establishment (https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.9)
 * Key Agreement: ffdhe2048, ffdhe3072, ffdhe4096, ffdhe6144, ffdhe8192, secp521r1, x448
-* Signing: ecdsa_secp521r1_sha512, ecdsa_sha1, ed448, rsa_pkcs1_sha1
+* Signatures: ecdsa_secp521r1_sha512, ecdsa_sha1, ed448, rsa_pkcs1_sha1, rsa_pkcs1_sha512, rsa_pss_pss_sha512

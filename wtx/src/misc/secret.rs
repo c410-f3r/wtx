@@ -88,8 +88,9 @@ fn copy_iter(from: &[u8], to: &mut [u8]) {
 mod static_keys {
   use crate::{
     collection::{Clear, ExpansionTy, TryExtend, Vector},
+    crypto::{Aead, Aes256GcmAesGcm},
     misc::{
-      LeaseMut, Secret, SensitiveBytes, decrypt_aes256gcm, encrypt_aes256gcm_vectored, mlock_slice,
+      LeaseMut, Secret, SensitiveBytes, mlock_slice,
       secret::{Protected, copy_iter},
     },
     rng::CryptoRng,
@@ -129,7 +130,7 @@ mod static_keys {
     {
       buffer.clear();
       buffer.try_extend(&self.protected)?;
-      Ok(fun(decrypt_aes256gcm(
+      Ok(fun(Aes256GcmAesGcm::decrypt(
         &[],
         SensitiveBytes::new_locked(buffer.lease_mut())?.bytes_mut(),
         &secret_key(&self.salt).as_ref().try_into().map_err(crate::Error::from)?,
@@ -157,7 +158,7 @@ mod static_keys {
       let mut salt = [0; 32];
       rng.fill_slice(&mut salt);
       let secret_key = secret_key(&salt).as_ref().try_into()?;
-      let (nonce, tag) = encrypt_aes256gcm_vectored(&[], data, &secret_key, rng)?;
+      let (nonce, tag) = Aes256GcmAesGcm::encrypt_vectored(&[], data, &secret_key, rng)?;
       let all_len = nonce.len().wrapping_add(data.len()).wrapping_add(tag.len());
       let mut protected = Protected::zeroed(all_len);
       if let [

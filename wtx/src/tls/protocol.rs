@@ -25,6 +25,7 @@ pub(crate) mod pre_shared_key;
 pub(crate) mod protocol_version;
 pub(crate) mod protocol_versions;
 pub(crate) mod psk_key_exchange_modes;
+pub(crate) mod raw_public_key;
 pub(crate) mod record;
 pub(crate) mod record_content_type;
 pub(crate) mod server_hello;

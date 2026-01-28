@@ -1,6 +1,11 @@
 /// TLS errror
 #[derive(Debug)]
 pub enum TlsError {
+  /// Invalid ASN.1 Tag Length Value
+  InvalidAsn1Tlv,
+  /// Invalid ASN.1 length
+  InvalidAsn1Len,
+
   /// Received an alert record in teh handshake phase
   AbortedHandshake,
   /// Bad Pre Key Share
@@ -59,6 +64,8 @@ pub enum TlsError {
   InvalidServerHelloLen,
   /// Invalid Legacy Session Id Echo
   InvalidLegacySessionIdEcho,
+  /// Invalid Raw Public Key
+  InvalidRawPublicKey,
   /// Invalid server name
   InvalidServerName,
   /// Invalid server name list

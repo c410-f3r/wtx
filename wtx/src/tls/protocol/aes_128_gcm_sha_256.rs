@@ -14,6 +14,17 @@ impl crate::tls::cipher_suite::CipherSuite for Aes128GcmSha256<crate::tls::AwsLc
   type Hash = crate::tls::protocol::cipher_suite_wrappers::Sha256AwsLcRs;
   type Hkdf = aws_lc_rs::hkdf::Algorithm;
 
+  #[inline]
+  fn aead(&self) -> &Self::Aead {
+    self
+  }
+
+  #[inline]
+  fn hash(&self) -> &Self::Hash {
+    self
+  }
+
+  #[inline]
   fn ty(&self) -> crate::tls::CipherSuiteTy {
     crate::tls::CipherSuiteTy::Aes128GcmSha256
   }
@@ -25,6 +36,17 @@ impl crate::tls::cipher_suite::CipherSuite for Aes128GcmSha256<crate::tls::RustC
   type Hash = sha2::Sha256;
   type Hkdf = hkdf::Hkdf<Self::Hash>;
 
+  #[inline]
+  fn aead(&self) -> &Self::Aead {
+    self
+  }
+
+  #[inline]
+  fn hash(&self) -> &Self::Hash {
+    self
+  }
+
+  #[inline]
   fn ty(&self) -> crate::tls::CipherSuiteTy {
     crate::tls::CipherSuiteTy::Aes128GcmSha256
   }

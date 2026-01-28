@@ -29,10 +29,10 @@ where
   /// Returns an infinite iterator that will always output printable ASCII bytes.
   #[inline]
   fn ascii_graphic_iter(&mut self) -> impl Iterator<Item = u8> {
-    iter::repeat_with(|| self.u8_8()).flat_map(IntoIterator::into_iter).filter(u8::is_ascii_graphic)
+    iter::repeat_with(|| self.u8_4()).flat_map(IntoIterator::into_iter).filter(u8::is_ascii_graphic)
   }
 
-  /// Chooses a random element from the slice. Returns `None` if the iterator is empty.
+  /// Chooses a random element from the slice. Returns `None` if the slice is empty.
   #[inline]
   fn choose_from_slice<'slice, T>(&mut self, slice: &'slice [T]) -> Option<&'slice T> {
     let idx = usize::from_rng(self).checked_rem(slice.len())?;
