@@ -41,8 +41,8 @@ pub mod stream;
 pub mod sync;
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "tls")]
-pub mod tls;
+//#[cfg(feature = "tls")]
+//pub mod tls;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 

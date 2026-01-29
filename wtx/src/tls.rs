@@ -8,8 +8,6 @@ mod de;
 mod decode_wrapper;
 mod encode_wrapper;
 mod ephemeral_secret_key;
-mod hash;
-mod hkdf;
 mod key_schedule;
 mod misc;
 mod protocol;

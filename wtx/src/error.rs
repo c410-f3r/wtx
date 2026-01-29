@@ -333,7 +333,6 @@ impl From<crate::http::CookieError> for Error {
   }
 }
 
-#[cfg(feature = "http-cookie")]
 impl From<crate::crypto::CryptoError> for Error {
   #[inline]
   #[track_caller]

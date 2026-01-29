@@ -158,7 +158,7 @@ mod static_keys {
       let mut salt = [0; 32];
       rng.fill_slice(&mut salt);
       let secret_key = secret_key(&salt).as_ref().try_into()?;
-      let (nonce, tag) = Aes256GcmAesGcm::encrypt_vectored(&[], data, &secret_key, rng)?;
+      let (nonce, tag) = Aes256GcmAesGcm::encrypt_plaintext(&[], data, rng, &secret_key)?;
       let all_len = nonce.len().wrapping_add(data.len()).wrapping_add(tag.len());
       let mut protected = Protected::zeroed(all_len);
       if let [

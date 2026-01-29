@@ -10,18 +10,18 @@ impl<CS> Default for Aes128GcmSha256<CS> {
 
 #[cfg(feature = "aws-lc-rs")]
 impl crate::tls::cipher_suite::CipherSuite for Aes128GcmSha256<crate::tls::AwsLcRs> {
-  type Aead = crate::tls::protocol::cipher_suite_wrappers::Aes128GcmAwsLcRs;
-  type Hash = crate::tls::protocol::cipher_suite_wrappers::Sha256AwsLcRs;
-  type Hkdf = aws_lc_rs::hkdf::Algorithm;
+  type Aead = crate::crypto::Aes256GcmAesGcm;
+  type Hash = crate::crypto::Sha256DigestAwsLcRs;
+  type Hkdf = crate::crypto::Sha256HkdfAwsLcRs;
 
   #[inline]
   fn aead(&self) -> &Self::Aead {
-    self
+    &crate::crypto::Aes256GcmAesGcm::new()
   }
 
   #[inline]
   fn hash(&self) -> &Self::Hash {
-    self
+    &crate::crypto::Sha256DigestAwsLcRs::new()
   }
 
   #[inline]

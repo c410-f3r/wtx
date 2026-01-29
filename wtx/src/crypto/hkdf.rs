@@ -47,7 +47,7 @@ impl Hkdf for () {
 mod aws_lc_rs {
   use crate::{
     collection::ArrayVectorU8,
-    crypto::{Hkdf, MAX_HASH_LEN, Sha256HkdfAwsLcRs, Sha384HkdfAwsLcRs},
+    crypto::{CryptoError, Hkdf, MAX_HASH_LEN, Sha256HkdfAwsLcRs, Sha384HkdfAwsLcRs},
   };
   use aws_lc_rs::{
     hkdf::{self, HKDF_SHA256, HKDF_SHA384, Prk},
@@ -151,7 +151,7 @@ mod aws_lc_rs {
     value: &hkdf::Prk,
   ) -> crate::Result<()> {
     let mut fun = || value.expand(&[info], algorithm).ok()?.fill(okm).ok();
-    fun().ok_or(crate::crypto::CryptoError::HkdfExpandError)?;
+    fun().ok_or(CryptoError::HkdfExpandError)?;
     Ok(())
   }
 }
@@ -197,8 +197,7 @@ mod hkdf {
 
     #[inline]
     fn expand(&self, info: &[u8], okm: &mut [u8]) -> crate::Result<()> {
-      hkdf::Hkdf::<H>::expand(self, info, okm)
-        .map_err(|_err| crate::crypto::CryptoError::HkdfExpandError)?;
+      hkdf::Hkdf::<H>::expand(self, info, okm).map_err(|_err| CryptoError::HkdfExpandError)?;
       Ok(())
     }
   }
