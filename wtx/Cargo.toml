@@ -11,7 +11,6 @@ fastrand = { default-features = false, optional = true, version = "2.0" }
 flate2 = { default-features = false, features = ["zlib-rs"], optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.2" }
 futures-lite = { default-features = false, optional = true, version = "2.0" }
-getrandom = { default-features = false, optional = true, version = "0.4.0-rc.0" }
 hashbrown = { default-features = false, features = ["default-hasher", "inline-more"], optional = true, version = "0.16" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 libc = { default-features = false, optional = true, version = "0.2" }
@@ -22,7 +21,6 @@ parking_lot = { default-features = false, optional = true, version = "0.12" }
 portable-atomic = { default-features = false, features = ["fallback"], optional = true, version = "1.0" }
 portable-atomic-util = { default-features = false, features = ["alloc"], optional = true, version = "0.2" }
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
-rand_core = { default-features = false, optional = true, version = "0.10.0-rc-3" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, features = ["maths"], optional = true, version = "1.0" }
 rustls = { default-features = false, optional = true, version = "0.23" }
@@ -41,16 +39,18 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.2" }
 
-aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "=0.11.0-rc.2" }
-argon2 = { default-features = false, optional = true, version = "=0.6.0-rc.5" }
-chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "=0.10.0-rc.6" }
-crypto-common = { default-features = false, optional = true, version = "=0.2.0-rc.9" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "=0.11.0-rc.5" }
-hmac = { default-features = false, optional = true, version = "=0.13.0-rc.3" }
-rsa = { default-features = false, optional = true, version = "=0.10.0-rc.12" }
-sha1 = { default-features = false, optional = true, version = "=0.11.0-rc.3" }
-sha2 = { default-features = false, optional = true, version = "=0.11.0-rc.3" }
-spki = { default-features = false, optional = true, version = "=0.8.0-rc.4" }
+aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.2" }
+argon2 = { default-features = false, optional = true, version = "0.6.0-rc.6" }
+chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "0.10.0-rc.9" }
+crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.13" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.9" }
+getrandom = { default-features = false, optional = true, version = "0.4.0-rc.1" }
+hmac = { default-features = false, optional = true, version = "0.13.0-rc.4" }
+rand_core = { default-features = false, optional = true, version = "0.10.0-rc-6" }
+rsa = { default-features = false, optional = true, version = "0.10.0-rc.14" }
+sha1 = { default-features = false, optional = true, version = "0.11.0-rc.4" }
+sha2 = { default-features = false, optional = true, version = "0.11.0-rc.4" }
+spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 
 [dev-dependencies]
 tokio = { default-features = false, features = ["rt-multi-thread", "sync"], version = "1.0" }
@@ -121,7 +121,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.89"
-version = "0.41.7"
+version = "0.41.8"
 
 [package.metadata.docs.rs]
 all-features = true
