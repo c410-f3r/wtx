@@ -5,27 +5,27 @@ macro_rules! _implement_rand {
     impl crate::rng::Rng for $struct {
       #[inline]
       fn u8(&mut self) -> u8 {
-        use chacha20::rand_core::RngCore;
+        use chacha20::rand_core::Rng;
         let [a, ..] = self.next_u32().to_be_bytes();
         a
       }
 
       #[inline]
       fn u8_4(&mut self) -> [u8; 4] {
-        use chacha20::rand_core::RngCore;
+        use chacha20::rand_core::Rng;
         self.next_u32().to_be_bytes()
       }
 
       #[inline]
       fn u8_8(&mut self) -> [u8; 8] {
-        use chacha20::rand_core::RngCore;
+        use chacha20::rand_core::Rng;
         let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
         [a, b, c, d, e, f, g, h]
       }
 
       #[inline]
       fn u8_16(&mut self) -> [u8; 16] {
-        use chacha20::rand_core::RngCore;
+        use chacha20::rand_core::Rng;
         let [a, b, c, d, e, f, g, h] = self.next_u64().to_be_bytes();
         let [i, j, k, l, m, n, o, p] = self.next_u64().to_be_bytes();
         [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
@@ -33,7 +33,7 @@ macro_rules! _implement_rand {
 
       #[inline]
       fn u8_32(&mut self) -> [u8; 32] {
-        use chacha20::rand_core::RngCore;
+        use chacha20::rand_core::Rng;
         let [b0, b1, b2, b3, b4, b5, b6, b7] = self.next_u64().to_be_bytes();
         let [b8, b9, b10, b11, b12, b13, b14, b15] = self.next_u64().to_be_bytes();
         let [b16, b17, b18, b19, b20, b21, b22, b23] = self.next_u64().to_be_bytes();
