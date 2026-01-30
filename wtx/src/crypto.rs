@@ -25,6 +25,9 @@ const MAX_HASH_LEN: usize = 48;
 // Maximum length of P-384 uncompressed.
 const MAX_PK_LEN: usize = 97;
 
+#[cfg(feature = "aes-gcm")]
+_create_wrapper!((Aes128GcmRustCrypto), (Aes256GcmRustCrypto));
+
 #[cfg(feature = "aws-lc-rs")]
 _create_wrapper!(
   (Aes128GcmAwsLcRs),
@@ -42,5 +45,5 @@ _create_wrapper!(
   (Sha384HkdfAwsLcRs, aws_lc_rs::hkdf::Prk),
 );
 
-#[cfg(feature = "aes-gcm")]
-_create_wrapper!((Aes128GcmAesGcm), (Aes256GcmAesGcm));
+#[cfg(feature = "chacha20poly1305")]
+_create_wrapper!((Chacha20Poly1305RustCrypto));

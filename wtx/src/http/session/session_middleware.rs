@@ -1,7 +1,7 @@
 use crate::{
   calendar::Instant,
   collection::Vector,
-  crypto::{Aead, Aes256GcmAesGcm},
+  crypto::{Aead, Aes256GcmRustCrypto},
   http::{
     KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
@@ -97,7 +97,7 @@ where
           continue;
         }
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-        let decrypt_rslt = Aes256GcmAesGcm::decrypt_base64(
+        let decrypt_rslt = Aes256GcmRustCrypto::decrypt_base64(
           name.as_bytes(),
           &mut cookie_def.value,
           value.as_bytes(),

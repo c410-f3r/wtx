@@ -152,8 +152,6 @@ pub enum Error {
   Generic(Box<String>),
   /// It is not possible to add an element into an `Option` because it is already occupied.
   InsufficientOptionCapacity,
-  /// Data must have a nonce and a tag.
-  InvalidAes256GcmData,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
   /// Invalid UTF-8.
