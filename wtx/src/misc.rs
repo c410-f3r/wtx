@@ -255,7 +255,7 @@ where
     Err(err) => {
       use core::{fmt::Write, str};
       let mut string = alloc::string::String::new();
-      let idx = slice.len().max(1024);
+      let idx = slice.len().min(1024);
       let payload = slice.get(..idx).and_then(|el| str::from_utf8(el).ok()).unwrap_or_default();
       string.write_fmt(format_args!("Error: {err}. Payload: {payload}"))?;
       Err(crate::Error::SerdeJsonDeserialize(string.into()))
@@ -367,6 +367,13 @@ where
   .await
 }
 
+/// The current time in milliseconds as a string.
+#[inline]
+pub fn timestamp_millis_str() -> crate::Result<(u64, U64String)> {
+  let number = Instant::now_timestamp(0).map(|el| el.as_millis())?.try_into()?;
+  Ok((number, u64_string(number)))
+}
+
 /// The current time in nanoseconds as a string.
 #[inline]
 pub fn timestamp_nanos_str() -> crate::Result<(u64, U64String)> {
@@ -427,21 +434,19 @@ mod tests {
 
   #[test]
   fn timeout() {
-    Runtime::new()
-      .block_on(async {
-        assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
-        assert!(
-          crate::misc::timeout(
-            async {
-              sleep(Duration::from_millis(20)).await.unwrap();
-              async { 1 }
-            },
-            Duration::from_millis(10)
-          )
-          .await
-          .is_err()
+    Runtime::new().block_on(async {
+      assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
+      assert!(
+        crate::misc::timeout(
+          async {
+            sleep(Duration::from_millis(20)).await.unwrap();
+            async { 1 }
+          },
+          Duration::from_millis(10)
         )
-      })
-      .unwrap();
+        .await
+        .is_err()
+      )
+    });
   }
 }

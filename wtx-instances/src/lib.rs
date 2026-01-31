@@ -103,7 +103,7 @@ pub async fn executor_mysql(
 > {
   use wtx::rng::SeedableRng;
   let uri = wtx::misc::Uri::new(uri_str);
-  let mut rng = wtx::rng::ChaCha20::from_os()?;
+  let mut rng = wtx::rng::ChaCha20::from_std_random()?;
   wtx::database::client::mysql::MysqlExecutor::connect(
     &wtx::database::client::mysql::Config::from_uri(&uri)?,
     wtx::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -125,7 +125,7 @@ pub async fn executor_postgres(
 > {
   use wtx::rng::SeedableRng;
   let uri = wtx::misc::Uri::new(uri_str);
-  let mut rng = wtx::rng::ChaCha20::from_os()?;
+  let mut rng = wtx::rng::ChaCha20::from_std_random()?;
   wtx::database::client::postgres::PostgresExecutor::connect(
     &wtx::database::client::postgres::Config::from_uri(&uri)?,
     wtx::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),

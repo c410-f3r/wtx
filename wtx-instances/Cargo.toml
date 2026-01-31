@@ -174,7 +174,7 @@ serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
-wtx = { default-features = false, features = ["tokio"], path = "../wtx" }
+wtx = { default-features = false, features = ["nightly", "tokio"], path = "../wtx" }
 
 [features]
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
@@ -199,10 +199,10 @@ grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
 http-client-pool = ["wtx/http-client-pool"]
 secret = ["wtx/secret"]
 
-http-server-framework = ["serde", "wtx/getrandom", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres", "wtx/serde_json"]
+http-server-framework = ["serde", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres", "wtx/serde_json"]
 http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
 http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
-http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/getrandom", "wtx/http-server-framework", "wtx/http-session", "wtx/macros", "wtx/nightly", "wtx/postgres"]
+http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/macros", "wtx/nightly", "wtx/postgres"]
 
 http2-client = ["wtx/http2"]
 http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]
@@ -214,8 +214,8 @@ web-socket-client-concurrent-mutex = ["tokio-rustls", "wtx/web-socket-handshake"
 web-socket-server = ["tokio-rustls", "wtx/web-socket-handshake"]
 
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
-mysql = ["wtx/getrandom", "wtx/mysql"]
-postgres = ["wtx/getrandom", "wtx/postgres"]
+mysql = ["wtx/mysql"]
+postgres = ["wtx/postgres"]
 tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 
 [package]

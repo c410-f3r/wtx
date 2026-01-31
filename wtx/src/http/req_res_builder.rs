@@ -162,24 +162,6 @@ where
     self.content_type(Mime::ApplicationJson)
   }
 
-  /// Uses `serde_urlencoded` to inject a raw structure as Percent-encoding into the internal
-  /// buffer.
-  ///
-  /// A `content-type` header of type `application/x-www-form-urlencoded` is also applied.
-  #[cfg(feature = "serde_urlencoded")]
-  #[inline]
-  pub fn serde_urlencoded<T>(&mut self, data: &T) -> crate::Result<&mut Self>
-  where
-    T: serde::Serialize,
-  {
-    self
-      .rrd
-      .body_mut()
-      .lease_mut()
-      .extend_from_copyable_slice(serde_urlencoded::to_string(data)?.as_bytes())?;
-    self.content_type(Mime::ApplicationXWwwFormUrlEncoded)
-  }
-
   /// Injects a sequence of bytes into the internal buffer.
   ///
   /// A `content-type` header of type `text/plain` is also applied.

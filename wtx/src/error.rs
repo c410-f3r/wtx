@@ -91,9 +91,6 @@ pub enum Error {
   #[cfg(feature = "serde_json")]
   #[doc = associated_element_doc!()]
   SerdeJsonDeserialize(Box<String>),
-  #[cfg(feature = "serde_urlencoded")]
-  #[doc = associated_element_doc!()]
-  SerdeUrlencodedSer(Box<serde_urlencoded::ser::Error>),
   #[cfg(feature = "spki")]
   #[doc = associated_element_doc!()]
   SpkiError(Box<spki::Error>),
@@ -534,14 +531,6 @@ impl From<serde_json::Error> for Error {
   #[inline]
   fn from(from: serde_json::Error) -> Self {
     Self::SerdeJson(from)
-  }
-}
-
-#[cfg(feature = "serde_urlencoded")]
-impl From<serde_urlencoded::ser::Error> for Error {
-  #[inline]
-  fn from(from: serde_urlencoded::ser::Error) -> Self {
-    Self::SerdeUrlencodedSer(from.into())
   }
 }
 

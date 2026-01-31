@@ -22,7 +22,7 @@ impl Runtime {
 
   /// Blocks the current thread on a future.
   #[inline]
-  pub fn block_on<F>(&self, future: F) -> crate::Result<F::Output>
+  pub fn block_on<F>(&self, future: F) -> F::Output
   where
     F: Future,
   {
@@ -30,7 +30,7 @@ impl Runtime {
       static CACHE: RefCell<Waker> = RefCell::new(CurrThreadWaker::waker());
     }
     let pinned_future = pin!(future);
-    Ok(CACHE.with(|cache| {
+    CACHE.with(|cache| {
       let new;
       let stored;
       let waker = if let Ok(elem) = cache.try_borrow_mut() {
@@ -41,7 +41,7 @@ impl Runtime {
         &new
       };
       work(Context::from_waker(waker), pinned_future)
-    }))
+    })
   }
 
   /// Spawns a new thread in the background that will awake the returned future once finished.

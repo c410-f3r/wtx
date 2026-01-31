@@ -137,33 +137,3 @@ mod serde_json {
     }
   }
 }
-
-#[cfg(feature = "serde_urlencoded")]
-mod urlencoded {
-  use crate::de::{DecError, format::Urlencoded, protocol::VerbatimEncoder};
-  use serde::{Deserialize, Serialize};
-
-  _impl_dec! {
-    VerbatimEncoder<(D): Deserialize<'de>>,
-    Urlencoded,
-    |_aux, dw| {
-      Ok(serde_urlencoded::from_bytes(dw.bytes)?)
-    }
-  }
-
-  _impl_dec_seq! {
-    VerbatimEncoder<D: Deserialize<'de>>,
-    Urlencoded,
-    |_aux, _buffer, _dw| {
-      Err(DecError::UnsupportedOperation.into())
-    }
-  }
-
-  _impl_enc! {
-    VerbatimEncoder<D: Serialize>,
-    Urlencoded,
-    |this, _aux, ew| {
-      ew.vector.extend_from_copyable_slice(serde_urlencoded::to_string(&this.data)?.as_bytes())?;
-    }
-  }
-}
