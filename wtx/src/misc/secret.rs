@@ -119,7 +119,8 @@ mod static_keys {
     /// will likely make the usage of this structure expensive and irrelevant.
     ///
     /// `buffer` is utilized for internal operations and can be freely reused for any other action
-    /// afterwards.
+    /// afterwards. Please note that its capacity should at least be the original data byte length
+    /// plus 28 bytes.
     ///
     /// When the closure is executing, the plaintext secret will exist transiently in CPU registers
     /// and caches, which is unavoidable.

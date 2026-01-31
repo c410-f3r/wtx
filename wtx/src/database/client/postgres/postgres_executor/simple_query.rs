@@ -87,7 +87,7 @@ where
         MessageTy::RowDescription(columns_len, mut rd) => {
           if !B::IS_UNIT {
             let timestamp_nanos_str = timestamp_nanos_str()?;
-            let stmt_cmd_id = timestamp_nanos_str.as_str().hash(stmts.hasher_mut());
+            let stmt_cmd_id = timestamp_nanos_str.1.as_str().hash(stmts.hasher_mut());
             let mut builder = stmts
               .builder((), {
                 async fn fun(_: &mut (), _: StatementsMisc<U64String>) -> crate::Result<()> {
@@ -99,7 +99,7 @@ where
             let _ = builder.expand(columns_len.into(), dummy_stmt_value())?;
             stmt_idx = Some(builder.build(
               stmt_cmd_id,
-              StatementsMisc::new(timestamp_nanos_str, columns_len.into(), 0, 0),
+              StatementsMisc::new(timestamp_nanos_str.1, columns_len.into(), 0, 0),
             )?);
             row_description(columns_len, &mut rd, |_, _| Ok(()))?;
           }

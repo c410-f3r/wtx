@@ -296,7 +296,11 @@ impl Headers {
     self.trailers
   }
 
-  const fn manage_trailers_deletion(&mut self, popped_idx: usize) {
+  fn manage_trailers_deletion(&mut self, popped_idx: usize) {
+    if self.headers_parts.is_empty() {
+      self.trailers = Trailers::None;
+      return;
+    }
     match self.trailers {
       Trailers::Tail(idx) if idx == popped_idx => {
         self.trailers = Trailers::None;

@@ -28,7 +28,7 @@ pub use num_array::{
   I8String, I16String, I32String, I64String, U8String, U16String, U32String, U64String, i8_string,
   i16_string, i32_string, i64_string, u8_string, u16_string, u32_string, u64_string,
 };
-pub use percent_encoding::{AsciiSet, PercentDecode, PercentEncode};
+pub use percent_encoding::*;
 
 /// Identifier used to track the number of issued requests.
 pub type Id = u64;
