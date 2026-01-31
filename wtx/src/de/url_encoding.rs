@@ -82,15 +82,15 @@ impl AsciiSet {
 /// When `IS_PERCENT` is `true`, spaces are encoded as `%20` (percent encoding).
 #[derive(Clone, Copy, Debug)]
 pub struct UrlEncode<'bytes, const IS_PERCENT: bool> {
-  bytes: &'bytes [u8],
   ascii_set: AsciiSet,
+  bytes: &'bytes [u8],
 }
 
 impl<'bytes, const IS_PERCENT: bool> UrlEncode<'bytes, IS_PERCENT> {
   /// New instance that will use `ascii_set` to guide which elements should be encoded.
   #[inline]
   pub const fn new(bytes: &'bytes [u8], ascii_set: AsciiSet) -> Self {
-    Self { bytes, ascii_set }
+    Self { ascii_set, bytes }
   }
 }
 
