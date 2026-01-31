@@ -214,6 +214,8 @@ pub enum Error {
   },
   /// The operation `mlock` is not supported in your platform
   UnsupportedMlockPlatform,
+  /// Unsupported operation
+  UnsupportedOperation,
   /// Only appending is possible but overwritten is still viable through resetting.
   UriCanNotBeOverwritten,
   /// In the current platform a number is larger than `usize`.

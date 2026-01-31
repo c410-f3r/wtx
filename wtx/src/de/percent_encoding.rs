@@ -1,5 +1,19 @@
+#[cfg(feature = "serde")]
+mod serde;
+
 use crate::collection::Vector;
 use core::str;
+#[cfg(feature = "serde")]
+pub use serde::*;
+
+/// Type alias for `application/x-www-form-urlencoded` (spaces as `+`).
+pub type FormUrlDecode<'bytes> = UrlDecode<'bytes, false>;
+/// Type alias for `application/x-www-form-urlencoded` (spaces as `+`).
+pub type FormUrlEncode<'bytes> = UrlEncode<'bytes, false>;
+/// Type alias for percent encoding (spaces as `%20`).
+pub type PercentDecode<'bytes> = UrlDecode<'bytes, true>;
+/// Type alias for percent encoding (spaces as `%20`).
+pub type PercentEncode<'bytes> = UrlEncode<'bytes, true>;
 
 const ASCII_RANGE_LEN: usize = 128;
 const BITS_PER_CHUNK: usize = 32;
@@ -11,7 +25,7 @@ pub struct AsciiSet {
 }
 
 impl AsciiSet {
-  /// Characters from 0x00 to 0x1F (C0 controls), and 0x7F (DEL).
+  /// Characters from 0x00 to 0x1F (C0 controls), and 0x7F (DEL).
   ///
   /// <https://url.spec.whatwg.org/#c0-control-percent-encode-set>
   pub const CONTROLS: &AsciiSet = &AsciiSet { mask: [u32::MAX, 0, 0, 2_147_483_648] };
@@ -57,19 +71,22 @@ impl AsciiSet {
     (chunk & mask) != 0
   }
 
-  fn should_percent_encode(self, byte: u8) -> bool {
+  fn should_encode(self, byte: u8) -> bool {
     !byte.is_ascii() || self.contains(byte)
   }
 }
 
-/// Responsible for encoding `Percent-encoding` bytes.
+/// Responsible for encoding URL bytes.
+///
+/// When `IS_PERCENT` is `false`, spaces are encoded as `+` (application/x-www-form-urlencoded).
+/// When `IS_PERCENT` is `true`, spaces are encoded as `%20` (percent encoding).
 #[derive(Clone, Copy, Debug)]
-pub struct PercentEncode<'bytes> {
+pub struct UrlEncode<'bytes, const IS_PERCENT: bool> {
   bytes: &'bytes [u8],
   ascii_set: AsciiSet,
 }
 
-impl<'bytes> PercentEncode<'bytes> {
+impl<'bytes, const IS_PERCENT: bool> UrlEncode<'bytes, IS_PERCENT> {
   /// New instance that will use `ascii_set` to guide which elements should be encoded.
   #[inline]
   pub const fn new(bytes: &'bytes [u8], ascii_set: AsciiSet) -> Self {
@@ -77,18 +94,18 @@ impl<'bytes> PercentEncode<'bytes> {
   }
 }
 
-impl<'bytes> Iterator for PercentEncode<'bytes> {
+impl<'bytes, const IS_PERCENT: bool> Iterator for UrlEncode<'bytes, IS_PERCENT> {
   type Item = &'bytes [u8];
 
   #[inline]
   fn next(&mut self) -> Option<&'bytes [u8]> {
     let (&byte, remaining) = self.bytes.split_first()?;
-    if self.ascii_set.should_percent_encode(byte) {
+    if self.ascii_set.should_encode(byte) {
       self.bytes = remaining;
-      Some(percent_encode_str(byte).as_bytes())
+      Some(percent_encode_str::<IS_PERCENT>(byte).as_bytes())
     } else {
       for (idx, local_byte) in remaining.iter().copied().enumerate() {
-        if self.ascii_set.should_percent_encode(local_byte) {
+        if self.ascii_set.should_encode(local_byte) {
           let (left, right) = self.bytes.split_at_checked(idx.wrapping_add(1))?;
           self.bytes = right;
           return Some(left);
@@ -106,13 +123,16 @@ impl<'bytes> Iterator for PercentEncode<'bytes> {
   }
 }
 
-/// Responsible for managing decoding `Percent-encoding` bytes.
+/// Responsible for decoding URL bytes.
+///
+/// When `IS_PERCENT` is `false`, spaces are encoded as `+` (application/x-www-form-urlencoded).
+/// When `IS_PERCENT` is `true`, spaces are encoded as `%20` (percent encoding).
 #[derive(Clone, Copy, Debug)]
-pub struct PercentDecode<'bytes> {
+pub struct UrlDecode<'bytes, const IS_PERCENT: bool> {
   bytes: &'bytes [u8],
 }
 
-impl<'bytes> PercentDecode<'bytes> {
+impl<'bytes, const IS_PERCENT: bool> UrlDecode<'bytes, IS_PERCENT> {
   /// New instance
   #[inline]
   pub const fn new(bytes: &'bytes [u8]) -> Self {
@@ -129,11 +149,15 @@ impl<'bytes> PercentDecode<'bytes> {
     let decoded_byte = 'unmodified: {
       while let [first, rest @ ..] = bytes {
         bytes = rest;
+        if !IS_PERCENT && *first == b'+' {
+          break 'unmodified b' ';
+        }
         if *first != b'%' {
           idx = idx.wrapping_add(1);
           continue;
         }
         let Some(byte) = manage_percent_char(&mut bytes) else {
+          idx = idx.wrapping_add(1);
           continue;
         };
         break 'unmodified byte;
@@ -146,6 +170,8 @@ impl<'bytes> PercentDecode<'bytes> {
       bytes = rest;
       vector.push(if *byte == b'%' {
         manage_percent_char(&mut bytes).unwrap_or(*byte)
+      } else if !IS_PERCENT && *byte == b'+' {
+        b' '
       } else {
         *byte
       })?;
@@ -164,8 +190,8 @@ fn manage_percent_char(bytes: &mut &[u8]) -> Option<u8> {
   Some(c.wrapping_mul(16).wrapping_add(d))
 }
 
-fn percent_encode_str(byte: u8) -> &'static str {
-  static TABLE: &[u8; 768] = b"\
+fn percent_encode_str<const IS_PERCENT: bool>(byte: u8) -> &'static str {
+  static TABLE_PERCENT: &[u8; 768] = b"\
     %00%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F\
     %10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F\
     %20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2D%2E%2F\
@@ -183,9 +209,12 @@ fn percent_encode_str(byte: u8) -> &'static str {
     %E0%E1%E2%E3%E4%E5%E6%E7%E8%E9%EA%EB%EC%ED%EE%EF\
     %F0%F1%F2%F3%F4%F5%F6%F7%F8%F9%FA%FB%FC%FD%FE%FF\
   ";
+  if !IS_PERCENT && byte == b' ' {
+    return "+";
+  }
   let idx = usize::from(byte).wrapping_mul(3);
-  let slice = TABLE.get(idx..idx.wrapping_add(3)).unwrap_or_default();
-  // SAFETY: tABLE is ascii-only
+  let slice = TABLE_PERCENT.get(idx..idx.wrapping_add(3)).unwrap_or_default();
+  // SAFETY: TABLE is ascii-only
   unsafe { str::from_utf8_unchecked(slice) }
 }
 
@@ -193,20 +222,56 @@ fn percent_encode_str(byte: u8) -> &'static str {
 mod tests {
   use crate::{
     collection::Vector,
-    de::{AsciiSet, PercentDecode, PercentEncode},
+    de::{AsciiSet, FormUrlDecode, FormUrlEncode, PercentDecode, PercentEncode},
   };
 
   #[test]
-  fn decode() {
-    let decoded = "y+DvKRKG/sTPjjmItrMFJZcCE/MBi5rlXPXsNA==";
-    let encoded = "y%2BDvKRKG%2FsTPjjmItrMFJZcCE%2FMBi5rlXPXsNA%3D%3D";
+  fn decode_form() {
+    let decoded = "y+DvKRKG/sTPjjmItrMFJZcCE/MBi5rlXPXsNA== ";
+    let encoded = "y%2BDvKRKG%2FsTPjjmItrMFJZcCE%2FMBi5rlXPXsNA%3D%3D+";
+    let mut buffer = Vector::new();
+    let _ = FormUrlDecode::new(encoded.as_bytes()).decode(&mut buffer).unwrap(); // 43 == + 32 == space
+    assert_eq!(buffer.as_slice(), decoded.as_bytes());
+  }
+
+  #[test]
+  fn decode_form_simple_space() {
+    let input = "hello+world";
+    let expected = b"hello world";
+    let mut buffer = Vector::new();
+    let _ = FormUrlDecode::new(input.as_bytes()).decode(&mut buffer).unwrap();
+    assert_eq!(buffer.as_slice(), expected);
+  }
+
+  #[test]
+  fn decode_percent() {
+    let decoded = "y+DvKRKG/sTPjjmItrMFJZcCE/MBi5rlXPXsNA== ";
+    let encoded = "y%2BDvKRKG%2FsTPjjmItrMFJZcCE%2FMBi5rlXPXsNA%3D%3D%20";
     let mut buffer = Vector::new();
     let _ = PercentDecode::new(encoded.as_bytes()).decode(&mut buffer).unwrap();
     assert_eq!(buffer.as_slice(), decoded.as_bytes());
   }
 
   #[test]
-  fn encode() {
+  fn decode_percent_drops_chars_after_invalid_percent() {
+    let input = "foo%ZZbar%21";
+    let expected = b"foo%ZZbar!";
+    let mut buffer = Vector::new();
+    let _ = PercentDecode::new(input.as_bytes()).decode(&mut buffer).unwrap();
+    assert_eq!(buffer.as_slice(), expected);
+  }
+
+  #[test]
+  fn encode_form() {
+    let mut buffer = Vector::new();
+    for elem in FormUrlEncode::new(b"hello world?", AsciiSet::NON_ALPHANUMERIC) {
+      buffer.extend_from_copyable_slice(elem).unwrap();
+    }
+    assert_eq!(buffer.as_ref(), b"hello+world%3F");
+  }
+
+  #[test]
+  fn encode_percent() {
     let mut buffer = Vector::new();
     for elem in PercentEncode::new(b"hello world?", AsciiSet::NON_ALPHANUMERIC) {
       buffer.extend_from_copyable_slice(elem).unwrap();

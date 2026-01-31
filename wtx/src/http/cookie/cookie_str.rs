@@ -74,7 +74,7 @@ impl<'str> CookieStr<'str> {
         return Err(crate::Error::from(CookieError::IrregularCookie));
       };
       make_lowercase::<12>(&mut lower_case, name);
-      match (lower_case.as_ref(), value.as_bytes()) {
+      match (lower_case.as_slice(), value.as_bytes()) {
         (b"domain", [_, ..]) => {
           cookie.domain = value;
         }
@@ -102,7 +102,7 @@ impl<'str> CookieStr<'str> {
         }
         (b"samesite", [_, ..]) => {
           make_lowercase::<6>(&mut lower_case, value);
-          match lower_case.as_ref() {
+          match lower_case.as_slice() {
             b"lax" => cookie.same_site = Some(SameSite::Lax),
             b"none" => cookie.same_site = Some(SameSite::None),
             b"strict" => cookie.same_site = Some(SameSite::Strict),

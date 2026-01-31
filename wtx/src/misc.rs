@@ -369,8 +369,9 @@ where
 
 /// The current time in nanoseconds as a string.
 #[inline]
-pub fn timestamp_nanos_str() -> crate::Result<U64String> {
-  Ok(u64_string(Instant::now_timestamp(0).map(|el| el.as_nanos())?.try_into()?))
+pub fn timestamp_nanos_str() -> crate::Result<(u64, U64String)> {
+  let number = Instant::now_timestamp(0).map(|el| el.as_nanos())?.try_into()?;
+  Ok((number, u64_string(number)))
 }
 
 /// A tracing register with optioned parameters.
