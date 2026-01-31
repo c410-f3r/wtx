@@ -377,14 +377,12 @@ mod tests {
         .unwrap();
     }
 
-    runtime
-      .block_on(async {
-        for _ in 0..num_threads {
-          rx.recv().unwrap();
-        }
-        assert_eq!(num_threads, *mutex.lock().await);
-      })
-      .unwrap();
+    runtime.block_on(async {
+      for _ in 0..num_threads {
+        rx.recv().unwrap();
+      }
+      assert_eq!(num_threads, *mutex.lock().await);
+    });
 
     // FIXME(MIRI): https://github.com/rust-lang/miri/issues/1371
     std::thread::sleep(std::time::Duration::from_millis(500));
@@ -394,32 +392,28 @@ mod tests {
 
   #[test]
   fn sequential() {
-    Runtime::new()
-      .block_on(async {
-        let mutex = AsyncMutex::new(());
-        for _ in 0..10 {
-          let _guard = mutex.lock().await;
-        }
-        check_mutex(&mutex);
-      })
-      .unwrap();
+    Runtime::new().block_on(async {
+      let mutex = AsyncMutex::new(());
+      for _ in 0..10 {
+        let _guard = mutex.lock().await;
+      }
+      check_mutex(&mutex);
+    });
   }
 
   #[test]
   fn wakes_waiter() {
-    Runtime::new()
-      .block_on(async {
-        let mutex = AsyncMutex::new(());
-        {
-          let lock0 = mutex.lock().await;
-          let mut lock1_fut = mutex.lock();
-          assert!(PollOnce::new(&mut lock1_fut).await.is_none());
-          drop(lock0);
-          assert!(PollOnce::new(&mut lock1_fut).await.is_some());
-        }
-        check_mutex(&mutex);
-      })
-      .unwrap();
+    Runtime::new().block_on(async {
+      let mutex = AsyncMutex::new(());
+      {
+        let lock0 = mutex.lock().await;
+        let mut lock1_fut = mutex.lock();
+        assert!(PollOnce::new(&mut lock1_fut).await.is_none());
+        drop(lock0);
+        assert!(PollOnce::new(&mut lock1_fut).await.is_some());
+      }
+      check_mutex(&mutex);
+    });
   }
 
   fn check_mutex<T>(mutex: &AsyncMutex<T>) {

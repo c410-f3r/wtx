@@ -119,8 +119,7 @@ pub(crate) fn db(
             drop_db_query.push_str(&db_name);
             conn.execute_ignored(drop_db_query.as_str()).await.unwrap();
           }
-        })
-        .unwrap();
+        });
       }
   );
   Ok(tokens.into())

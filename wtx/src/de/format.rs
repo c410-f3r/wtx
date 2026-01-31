@@ -14,8 +14,6 @@ mod hex;
 mod quick_protobuf;
 #[cfg(feature = "serde_json")]
 mod serde_json;
-#[cfg(feature = "serde_urlencoded")]
-mod urlencoded;
 
 #[cfg(feature = "borsh")]
 pub use self::borsh::*;
@@ -27,5 +25,3 @@ pub use de::De;
 pub use decode_wrapper::DecodeWrapper;
 pub use encode_wrapper::EncodeWrapper;
 pub use hex::Hex;
-#[cfg(feature = "serde_urlencoded")]
-pub use urlencoded::Urlencoded;

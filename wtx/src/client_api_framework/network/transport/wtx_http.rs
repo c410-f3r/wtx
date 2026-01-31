@@ -165,8 +165,8 @@ where
   );
   manage_params(local_bytes0.len(), pkgs_aux)?;
   let HttpReqParams { method, rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
-  let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
-  let rb = ReqBuilder::method(*method, (local_bytes, &rrb.headers, rrb.uri.to_ref()));
+  let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
+  let rb = ReqBuilder::method(*method, (local_bytes1, &rrb.headers, rrb.uri.to_ref()));
   let rslt = client.send_req(&mut rrb.body, rb).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(rslt)

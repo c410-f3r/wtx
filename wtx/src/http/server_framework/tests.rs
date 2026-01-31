@@ -153,48 +153,46 @@ fn nested_middlewares() {
   )
   .unwrap();
 
-  Runtime::new()
-    .block_on(async {
-      let sf = ServerFrameworkBuilder::new((), router).with_dflt_aux();
-      let mut auto_stream = AutoStream {
-        conn_aux: Counter(0),
-        peer: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-        protocol: None,
-        req: Request::http2(Method::Get, ReqResBuffer::default()),
-        stream_aux: Counter(0),
-      };
+  Runtime::new().block_on(async {
+    let sf = ServerFrameworkBuilder::new((), router).with_dflt_aux();
+    let mut auto_stream = AutoStream {
+      conn_aux: Counter(0),
+      peer: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+      protocol: None,
+      req: Request::http2(Method::Get, ReqResBuffer::default()),
+      stream_aux: Counter(0),
+    };
 
-      {
-        auto_stream.req.rrd.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
-        let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
-          auto_stream.req.rrd.uri.path(),
-          &sf._router,
-        )
-        .unwrap();
-        let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
-        // 3 + 3 + 11 + 7 + 7
-        assert_eq!(auto_stream.conn_aux.0, 31);
-        // 3 + 3 + 11 + 7 + 7
-        assert_eq!(auto_stream.stream_aux.0, 31);
-      }
+    {
+      auto_stream.req.rrd.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
+      let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
+        auto_stream.req.rrd.uri.path(),
+        &sf._router,
+      )
+      .unwrap();
+      let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
+      // 3 + 3 + 11 + 7 + 7
+      assert_eq!(auto_stream.conn_aux.0, 31);
+      // 3 + 3 + 11 + 7 + 7
+      assert_eq!(auto_stream.stream_aux.0, 31);
+    }
 
-      auto_stream.conn_aux = Counter(0);
-      auto_stream.req.clear();
-      auto_stream.stream_aux = Counter(0);
+    auto_stream.conn_aux = Counter(0);
+    auto_stream.req.clear();
+    auto_stream.stream_aux = Counter(0);
 
-      {
-        auto_stream.req.rrd.uri.reset().push_str("http://localhost/fff");
-        let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
-          auto_stream.req.rrd.uri.path(),
-          &sf._router,
-        )
-        .unwrap();
-        let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
-        // 3 + 17 + 7
-        assert_eq!(auto_stream.conn_aux.0, 27);
-        // 3 + 17 + 7
-        assert_eq!(auto_stream.stream_aux.0, 27);
-      }
-    })
-    .unwrap()
+    {
+      auto_stream.req.rrd.uri.reset().push_str("http://localhost/fff");
+      let el = ServerFramework::<_, (), (), _, _, _, _, _, ()>::route_params(
+        auto_stream.req.rrd.uri.path(),
+        &sf._router,
+      )
+      .unwrap();
+      let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
+      // 3 + 17 + 7
+      assert_eq!(auto_stream.conn_aux.0, 27);
+      // 3 + 17 + 7
+      assert_eq!(auto_stream.stream_aux.0, 27);
+    }
+  });
 }
