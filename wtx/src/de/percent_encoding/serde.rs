@@ -14,13 +14,15 @@ pub type FormUrlSerializer<'buffer> = UrlSerializer<'buffer, false>;
 pub type PercentSerializer<'buffer> = UrlSerializer<'buffer, true>;
 
 /// Serializes data into a `Vector`.
+#[derive(Debug)]
 pub struct UrlSerializer<'buffer, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
   buffer: &'buffer mut Vector<u8>,
 }
 
 impl<'buffer, const IS_PERCENT: bool> UrlSerializer<'buffer, IS_PERCENT> {
-  pub fn new(ascii_set: AsciiSet, buffer: &'buffer mut Vector<u8>) -> Self {
+  /// New instance
+  pub const fn new(ascii_set: AsciiSet, buffer: &'buffer mut Vector<u8>) -> Self {
     Self { ascii_set, buffer }
   }
 }
@@ -213,6 +215,7 @@ impl<'buffer, const IS_PERCENT: bool> ser::Serializer for UrlSerializer<'buffer,
 }
 
 /// Struct serializer
+#[derive(Debug)]
 pub struct StructSerializer<'buffer, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
   buffer: &'buffer mut Vector<u8>,
