@@ -33,6 +33,7 @@ mod single_type_storage;
 mod suffix_writer;
 #[cfg(feature = "tokio-rustls")]
 mod tokio_rustls;
+mod try_arithmetic;
 mod tuple_impls;
 mod uri;
 mod usize;
@@ -73,6 +74,7 @@ pub use secret::Secret;
 pub use sensitive_bytes::SensitiveBytes;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
+pub use try_arithmetic::*;
 pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
 pub use utf8_errors::{BasicUtf8Error, ExtUtf8Error, StdUtf8Error};

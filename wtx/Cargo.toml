@@ -40,12 +40,12 @@ wtx-macros = { default-features = false, optional = true, path = "../wtx-macros"
 
 aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.2" }
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.6" }
-chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "0.10.0-rc.9" }
-crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.13" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.9" }
+chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "0.10.0-rc.10" }
+crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.14" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.10" }
 getrandom = { default-features = false, optional = true, version = "0.4.0-rc.1" }
 hmac = { default-features = false, optional = true, version = "0.13.0-rc.4" }
-rand_core = { default-features = false, optional = true, version = "0.10.0-rc-6" }
+rand_core = { default-features = false, optional = true, version = "0.10" }
 rsa = { default-features = false, optional = true, version = "0.10.0-rc.14" }
 sha1 = { default-features = false, optional = true, version = "0.11.0-rc.4" }
 sha2 = { default-features = false, optional = true, version = "0.11.0-rc.4" }
@@ -53,7 +53,7 @@ spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 
 [dev-dependencies]
 tokio = { default-features = false, features = ["rt-multi-thread", "sync"], version = "1.0" }
-wtx = { default-features = false, features = ["executor", "macros"], path = "." }
+wtx = { default-features = false, features = ["executor", "macros", "nightly"], path = "." }
 
 [features]
 32-tuple-impls = []
@@ -119,7 +119,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.89"
-version = "0.42.0"
+version = "0.42.1"
 
 [package.metadata.docs.rs]
 all-features = true

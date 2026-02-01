@@ -41,11 +41,19 @@ macro_rules! usize_cap {
   };
 }
 
-use crate::misc::Usize;
+use crate::misc::{TryArithmetic, Usize};
 
 /// Determines how many elements can be stored in a linear collection.
 pub trait LinearStorageLen:
-  Copy + Default + Eq + From<u8> + Ord + PartialEq + PartialOrd + Sized
+  Copy
+  + Default
+  + Eq
+  + From<u8>
+  + Ord
+  + PartialEq
+  + PartialOrd
+  + Sized
+  + TryArithmetic<Self, Output = Self>
 {
   /// If the maximum number of allowed elements is backed by an `u64` primitive.
   const IS_UPPER_BOUND_U64: bool = Self::UPPER_BOUND_USIZE == u64_cap!();
@@ -60,12 +68,6 @@ pub trait LinearStorageLen:
 
   /// Tries to create a new instance from a `usize` primitive.
   fn from_usize(num: usize) -> crate::Result<Self>;
-
-  /// Checked integer addition.
-  fn checked_add(self, rhs: Self) -> Option<Self>;
-
-  /// Checked integer subtraction.
-  fn checked_sub(self, rhs: Self) -> Option<Self>;
 
   /// Converts itself into `usize`.
   fn usize(self) -> usize;
@@ -88,16 +90,6 @@ impl LinearStorageLen for u8 {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num.try_into()?)
-  }
-
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
   }
 
   #[inline]
@@ -128,16 +120,6 @@ impl LinearStorageLen for u16 {
   }
 
   #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
-  }
-
-  #[inline]
   fn usize(self) -> usize {
     self.into()
   }
@@ -162,16 +144,6 @@ impl LinearStorageLen for u32 {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num.try_into()?)
-  }
-
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
   }
 
   #[inline]
@@ -203,16 +175,6 @@ impl LinearStorageLen for u64 {
   }
 
   #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
-  }
-
-  #[inline]
   fn usize(self) -> usize {
     *Usize::from(self)
   }
@@ -237,16 +199,6 @@ impl LinearStorageLen for usize {
   #[inline]
   fn from_usize(num: usize) -> crate::Result<Self> {
     Ok(num)
-  }
-
-  #[inline]
-  fn checked_add(self, rhs: Self) -> Option<Self> {
-    self.checked_add(rhs)
-  }
-
-  #[inline]
-  fn checked_sub(self, rhs: Self) -> Option<Self> {
-    self.checked_sub(rhs)
   }
 
   #[inline]

@@ -91,7 +91,7 @@ where
       ptr::copy_nonoverlapping(data.as_ptr(), this.as_ptr_mut(), instance_len.usize());
     }
     if Inner::<L, T, N>::NEEDS_DROP
-      && let Some(diff) = data_len.checked_sub(instance_len)
+      && let Ok(diff) = data_len.try_sub(instance_len)
       && diff > L::ZERO
     {
       // SAFETY: indices are within bounds
@@ -670,7 +670,7 @@ where
 {
   #[inline]
   fn next_back(&mut self) -> Option<Self::Item> {
-    if let Some(diff) = self.data.0.len.checked_sub(L::ONE)
+    if let Ok(diff) = self.data.0.len.try_sub(L::ONE)
       && diff > L::ZERO
     {
       self.data.0.len = diff;
