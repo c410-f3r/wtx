@@ -4,6 +4,7 @@ use crate::{
     ArrayStringError, ArrayStringU8, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
   },
   de::{FromRadix10Error, HexError},
+  misc::TryArithmeticError,
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -144,6 +145,8 @@ pub enum Error {
   ClosedWebSocketConnection,
   /// Future should complete before a certain duration but didn't
   ExpiredFuture,
+  /// Weight is zero, negative or overflowed list
+  InvalidWeight,
   /// Future must not be polled again after finalization
   FuturePolledAfterFinalization,
   /// Generic error
@@ -277,6 +280,8 @@ pub enum Error {
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
+  #[doc = associated_element_doc!()]
+  TryArithmeticError(TryArithmeticError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -712,6 +717,13 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   #[inline]
   fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
+  }
+}
+
+impl From<TryArithmeticError> for Error {
+  #[inline]
+  fn from(from: TryArithmeticError) -> Self {
+    Self::TryArithmeticError(from)
   }
 }
 

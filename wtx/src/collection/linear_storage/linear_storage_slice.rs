@@ -4,7 +4,7 @@ use crate::{
     linear_storage::linear_storage_mut::LinearStorageMut,
     misc::{drop_elements, is_char_boundary},
   },
-  misc::{Lease, char_slice},
+  misc::{Lease, TryArithmetic as _, char_slice},
 };
 use core::{ptr, slice};
 
@@ -174,7 +174,7 @@ impl<T> LinearStorageSlice for [T] {
   where
     LSM: LinearStorageMut<Self::Data>,
   {
-    let new_len = lsm.len().checked_sub(LSM::Len::ONE)?;
+    let new_len = lsm.len().try_sub(LSM::Len::ONE).ok()?;
     // SAFETY: collection is not empty
     unsafe {
       lsm.set_len(new_len);
@@ -222,7 +222,7 @@ impl<T> LinearStorageSlice for [T] {
     LSM: LinearStorageMut<Self::Data> + ?Sized,
   {
     let len = lsm.len();
-    let diff = if let Some(diff) = len.checked_sub(new_len)
+    let diff = if let Ok(diff) = len.try_sub(new_len)
       && diff > LSM::Len::ZERO
     {
       diff

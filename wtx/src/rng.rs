@@ -9,19 +9,22 @@ mod fastrand;
 mod from_rng;
 mod seed;
 mod seedable_rng;
+mod weighted_index;
 mod xorshift;
 
-use crate::sync::AtomicCell;
+use crate::{misc::TryArithmetic, sync::AtomicCell};
 pub use cha_cha20::ChaCha20;
-use core::{cell::Cell, iter};
+use core::{cell::Cell, iter, ops::Range};
 pub use crypto_rng::CryptoRng;
 pub use from_rng::FromRng;
 pub use seed::*;
 pub use seedable_rng::SeedableRng;
+pub use weighted_index::*;
 pub use xorshift::*;
 
-/// Abstraction tailored for the needs of this project. Each implementation should manage how
-/// seeds are retrieved as well as how numbers are generated.
+/// Random number generator.
+///
+/// Abstraction tailored for the needs of this project.
 pub trait Rng
 where
   Self: Sized,
@@ -29,14 +32,13 @@ where
   /// Returns an infinite iterator that will always output printable ASCII bytes.
   #[inline]
   fn ascii_graphic_iter(&mut self) -> impl Iterator<Item = u8> {
-    iter::repeat_with(|| self.u8_8()).flat_map(IntoIterator::into_iter).filter(u8::is_ascii_graphic)
+    iter::repeat_with(|| self.u8_4()).flat_map(IntoIterator::into_iter).filter(u8::is_ascii_graphic)
   }
 
-  /// Chooses a random element from the slice. Returns `None` if the iterator is empty.
+  /// Chooses a random element from the slice. Returns `None` if the slice is empty.
   #[inline]
   fn choose_from_slice<'slice, T>(&mut self, slice: &'slice [T]) -> Option<&'slice T> {
-    let idx = usize::from_rng(self).checked_rem(slice.len())?;
-    slice.get(idx)
+    slice.get(usize::from_rng(self).checked_rem(slice.len())?)
   }
 
   /// Fills `slice` with random data.
@@ -50,8 +52,27 @@ where
     }
   }
 
+  /// Picks a random value from the exclusive `range`.
+  ///
+  /// Returns `None` if the range is empty or range start is greater or equal to range end.
+  #[inline]
+  fn pick_from_range<T>(&mut self, range: Range<T>) -> Option<T>
+  where
+    T: Clone + From<u8> + FromRng<Self> + PartialOrd + TryArithmetic<Output = T>,
+  {
+    if range.start >= range.end {
+      return None;
+    }
+    let len = range.end.try_sub(range.start.clone()).ok()?;
+    let random = T::from_rng(self);
+    let mut offset = random.try_rem(len.clone()).ok()?;
+    if random < T::from(0) {
+      offset = offset.try_add(len).ok()?;
+    }
+    range.start.try_add(offset).ok()
+  }
+
   /// Shuffles a mutable slice in place.
-  #[expect(clippy::arithmetic_side_effects, reason = "from_idx can't be zero")]
   #[inline]
   fn shuffle_slice<T>(&mut self, slice: &mut [T]) {
     let len = slice.len();
@@ -59,7 +80,7 @@ where
       return;
     }
     for from_idx in 1..len {
-      let to_idx = usize::from_rng(self) % from_idx.wrapping_add(1);
+      let to_idx = usize::from_rng(self).checked_rem(from_idx.wrapping_add(1)).unwrap_or_default();
       slice.swap(from_idx, to_idx);
     }
   }
