@@ -79,7 +79,6 @@ macro_rules! implement {
 implement!(
   (f32, [a, b, c, d], u8_4, [a, b, c, d]),
   (f64, [a, b, c, d, e, f, g, h], u8_8, [a, b, c, d, e, f, g, h]),
-  //
   (i8, [a, _, _, _], u8_4, [a]),
   (i16, [a, b, _, _], u8_4, [a, b]),
   (i32, [a, b, c, d], u8_4, [a, b, c, d]),
@@ -90,7 +89,6 @@ implement!(
     u8_16,
     [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
   ),
-  //
   (u8, [a, _, _, _], u8_4, [a]),
   (u16, [a, b, _, _], u8_4, [a, b]),
   (u32, [a, b, c, d], u8_4, [a, b, c, d]),
