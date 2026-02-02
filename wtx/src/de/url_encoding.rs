@@ -37,6 +37,24 @@ impl AsciiSet {
   pub const NON_ALPHANUMERIC: AsciiSet =
     AsciiSet { mask: [u32::MAX, 4_227_923_967, 4_160_749_569, 4_160_749_569] };
 
+  /// Full path where slashes are ***NOT*** encoded.
+  ///
+  /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.3>
+  pub const PATH: AsciiSet =
+    AsciiSet { mask: [u32::MAX, 3_489_660_973, 2_013_265_920, 3_087_007_745] };
+
+  /// Contains the characters encoded in a path segment, including slashes.
+  ///
+  /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.3>
+  pub const PATH_SEGMENT: AsciiSet =
+    AsciiSet { mask: [u32::MAX, 3_489_693_741, 2_013_265_920, 3_087_007_745] };
+
+  /// You should probably use this set in case of doubt.
+  ///
+  /// <https://datatracker.ietf.org/doc/html/rfc3986#section-2.3>
+  pub const UNRESERVED: AsciiSet =
+    AsciiSet { mask: [u32::MAX, 4_227_899_391, 2_013_265_921, 3_087_007_745] };
+
   /// Adds a character into the set.
   #[inline]
   #[must_use]

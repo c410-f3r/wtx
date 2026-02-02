@@ -119,7 +119,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.89"
-version = "0.42.2"
+version = "0.42.3"
 
 [package.metadata.docs.rs]
 all-features = true
