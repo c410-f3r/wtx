@@ -35,6 +35,12 @@ where
     Ok(Self { buffer, sum })
   }
 
+  /// Mutable buffer
+  #[inline]
+  pub fn buffer_mut(&mut self) -> &mut B {
+    &mut self.buffer
+  }
+
   /// Buffer ownership
   #[inline]
   pub fn into_buffer(self) -> B {
@@ -50,6 +56,17 @@ where
   {
     let random = rng.pick_from_range(B::Item::from(0u8)..self.sum.clone())?;
     Some(self.buffer.lease().partition_point(|el| *el < random))
+  }
+}
+
+impl<B> Default for WeightedIndex<B>
+where
+  B: Default + SingleTypeStorage,
+  B::Item: Default,
+{
+  #[inline]
+  fn default() -> Self {
+    Self { buffer: B::default(), sum: B::Item::default() }
   }
 }
 
