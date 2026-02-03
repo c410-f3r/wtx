@@ -6,6 +6,9 @@ const UPPER_HEX_CHARS: &[u8; 16] = b"0123456789ABCDEF";
 /// Hex Encode Mode
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum HexEncMode {
+  /// <https://eips.ethereum.org/EIPS/eip-55>
+  #[cfg(feature = "sha3")]
+  Eip55,
   /// Lower case characters ***with*** a `0x` prefix
   WithPrefixLower,
   /// Upper case characters ***with*** a `0x` prefix
@@ -21,6 +24,9 @@ pub enum HexEncMode {
 pub enum HexError {
   /// Provided buffer is too small
   InsufficientBuffer,
+  /// Eip55 encoding only supports input data lesser or equal to 32 bytes
+  #[cfg(feature = "sha3")]
+  InvalidEip55Input,
   /// Provided element is not a valid hex character
   InvalidHexCharacter,
   /// Provided data is not multiple of two
@@ -34,7 +40,7 @@ pub struct HexDisplay<'bytes>(
   pub &'bytes [u8],
   /// See [`HexEncMode`].
   ///
-  /// Defaults to [`HexEncMode::WithPrefixLower`] if `None`.
+  /// Defaults to [`HexEncMode::WithoutPrefixLower`] if `None`.
   pub Option<HexEncMode>,
 );
 
@@ -42,13 +48,15 @@ impl Display for HexDisplay<'_> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     let actual_mode = actual_mode(self.1);
-    if matches!(actual_mode, HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper) {
-      write!(f, "0x")?;
-    }
     let table = match actual_mode {
+      #[cfg(feature = "sha3")]
+      HexEncMode::Eip55 => return Err(core::fmt::Error),
       HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
       HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
     };
+    if matches!(actual_mode, HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper) {
+      write!(f, "0x")?;
+    }
     for byte in self.0 {
       let (lhs, rhs) = byte_to_hex(*byte, table);
       write!(f, "{}{}", char::from(lhs), char::from(rhs))?;
@@ -60,7 +68,7 @@ impl Display for HexDisplay<'_> {
 /// Decodes `data` into `out` returning the affected part.
 #[inline]
 pub fn decode_hex<'out>(mut data: &[u8], out: &'out mut [u8]) -> crate::Result<&'out mut [u8]> {
-  data = if let [b'0', b'x', rest @ ..] = data { rest } else { data };
+  data = if let [b'0', b'x' | b'X', rest @ ..] = data { rest } else { data };
   let bytes_len = data.len() / 2;
   let Some(actual_out) = out.get_mut(..bytes_len) else {
     return Err(HexError::InsufficientBuffer.into());
@@ -77,7 +85,7 @@ pub fn decode_hex<'out>(mut data: &[u8], out: &'out mut [u8]) -> crate::Result<&
 
 /// Encodes `data` into `out` returning the affected part.
 ///
-/// `mode` defaults to [`HexEncMode::WithPrefixLower`] if `None`.
+/// `mode` defaults to [`HexEncMode::WithoutPrefixLower`] if `None`.
 #[inline]
 pub fn encode_hex<'out>(
   data: &[u8],
@@ -87,6 +95,8 @@ pub fn encode_hex<'out>(
   let actual_mode = actual_mode(mode);
   let mut hex_len = data.len().wrapping_mul(2);
   let actual_out = match actual_mode {
+    #[cfg(feature = "sha3")]
+    HexEncMode::Eip55 => return encode_eip55(data, out),
     HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper => {
       hex_len = hex_len.wrapping_add(2);
       let Some([a, b, actual_out @ ..]) = out.get_mut(..hex_len) else {
@@ -105,6 +115,8 @@ pub fn encode_hex<'out>(
   };
   let (arrays, _) = actual_out.as_chunks_mut::<2>();
   let table = match actual_mode {
+    #[cfg(feature = "sha3")]
+    HexEncMode::Eip55 => return Ok(""),
     HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
     HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
   };
@@ -118,7 +130,7 @@ pub fn encode_hex<'out>(
 }
 
 const fn actual_mode(hem: Option<HexEncMode>) -> HexEncMode {
-  if let Some(elem) = hem { elem } else { HexEncMode::WithPrefixLower }
+  if let Some(elem) = hem { elem } else { HexEncMode::WithoutPrefixLower }
 }
 
 #[expect(clippy::indexing_slicing, reason = "all bytes are limited to the array's length")]
@@ -126,6 +138,36 @@ fn byte_to_hex(byte: u8, table: &[u8; 16]) -> (u8, u8) {
   let lhs_idx: usize = (byte >> 4).into();
   let rhs_idx: usize = (byte & 0b0000_1111).into();
   (table[lhs_idx], table[rhs_idx])
+}
+
+#[cfg(feature = "sha3")]
+fn encode_eip55<'out>(data: &[u8], out: &'out mut [u8]) -> crate::Result<&'out str> {
+  use sha3::Digest;
+  if data.len() > 32 {
+    return Err(HexError::InvalidEip55Input.into());
+  }
+  let rslt_len = encode_hex(data, Some(HexEncMode::WithPrefixLower), out)?.len();
+  let Some([_, _, hex @ ..]) = out.get_mut(..rslt_len) else {
+    return Ok("");
+  };
+  let hash: [u8; 32] = {
+    let mut hasher = sha3::Keccak256::default();
+    hasher.update(&*hex);
+    hasher.finalize().into()
+  };
+  for (idx, byte) in hex.iter_mut().enumerate() {
+    let is_letter = byte.is_ascii_lowercase();
+    if !is_letter {
+      continue;
+    }
+    let half_idx = hash.get(idx / 2).copied().unwrap_or_default();
+    let nibble = if idx % 2 == 0 { half_idx >> 4 } else { half_idx & 0b0000_1111 };
+    if nibble >= 8 {
+      *byte = byte.to_ascii_uppercase();
+    }
+  }
+  // SAFETY: HEX is always UTF-8
+  unsafe { Ok(str::from_utf8_unchecked(out.get_mut(..rslt_len).unwrap_or_default())) }
 }
 
 fn hex_to_bytes(lhs: u8, rhs: u8) -> crate::Result<u8> {
@@ -154,10 +196,28 @@ mod test {
     assert!(decode_hex(b"6", &mut [0, 0, 0, 0]).is_err());
   }
 
+  #[cfg(feature = "sha3")]
+  #[test]
+  fn eip55() {
+    let mut buf = [0u8; 44];
+    assert_eq!(
+      encode_hex(
+        &[
+          90, 174, 182, 5, 63, 62, 148, 201, 185, 160, 159, 51, 102, 148, 53, 231, 239, 27, 234,
+          237,
+        ],
+        Some(HexEncMode::Eip55),
+        &mut buf
+      )
+      .unwrap(),
+      "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+    );
+  }
+
   #[test]
   fn encode_has_correct_output() {
-    assert_eq!(encode_hex(&[], None, &mut [0u8; 8]).unwrap(), "0x");
-    assert_eq!(encode_hex(b"AZ", None, &mut [0u8; 8]).unwrap(), "0x415a");
+    assert_eq!(encode_hex(&[], None, &mut [0u8; 8]).unwrap(), "");
+    assert_eq!(encode_hex(b"AZ", None, &mut [0u8; 8]).unwrap(), "415a");
     assert_eq!(
       encode_hex(b"AZ", Some(HexEncMode::WithoutPrefixUpper), &mut [0u8; 8]).unwrap(),
       "415A"
