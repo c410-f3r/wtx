@@ -11,8 +11,6 @@ pub(crate) mod net;
 pub(crate) mod span;
 
 mod connection_state;
-#[cfg(feature = "aes-gcm")]
-mod crypto;
 mod either;
 mod enum_var_strings;
 mod env_vars;
@@ -42,14 +40,9 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-use crate::{
-  calendar::Instant,
-  de::{U64String, u64_string},
-};
+use crate::calendar::Instant;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
-#[cfg(feature = "aes-gcm")]
-pub use crypto::*;
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::{EnvVars, FromVars};
@@ -369,20 +362,6 @@ where
   .await
 }
 
-/// The current time in milliseconds as a string.
-#[inline]
-pub fn timestamp_millis_str() -> crate::Result<(u64, U64String)> {
-  let number = Instant::now_timestamp(0).map(|el| el.as_millis())?.try_into()?;
-  Ok((number, u64_string(number)))
-}
-
-/// The current time in nanoseconds as a string.
-#[inline]
-pub fn timestamp_nanos_str() -> crate::Result<(u64, U64String)> {
-  let number = Instant::now_timestamp(0).map(|el| el.as_nanos())?.try_into()?;
-  Ok((number, u64_string(number)))
-}
-
 /// A tracing register with optioned parameters.
 #[cfg(feature = "_tracing-tree")]
 #[inline]
@@ -407,6 +386,24 @@ pub fn tracing_tree_init(
     .with_verbose_exit(false)
     .with_writer(std::io::stderr);
   tracing_subscriber::Registry::default().with(env_filter).with(tracing_tree).try_init()
+}
+
+/// A version of `std::env::var` where the name of the variable appears in errors.
+#[cfg(feature = "std")]
+#[inline]
+pub fn var<K>(key: K) -> crate::Result<alloc::string::String>
+where
+  K: AsRef<std::ffi::OsStr>,
+{
+  match std::env::var(key.as_ref()) {
+    Err(std::env::VarError::NotPresent) => Err(crate::error::Error::VarIsNotPresent(
+      key.as_ref().to_str().map(|el| alloc::boxed::Box::new(el.into())),
+    )),
+    Err(std::env::VarError::NotUnicode(_)) => Err(crate::error::Error::VarIsNotUnicode(
+      key.as_ref().to_str().map(|el| alloc::boxed::Box::new(el.into())),
+    )),
+    Ok(elem) => Ok(elem),
+  }
 }
 
 // It is important to enforce the array length to avoid panics

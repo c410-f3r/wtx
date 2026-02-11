@@ -9,14 +9,14 @@ use wtx::{
   http::{HttpClient, ReqBuilder, ReqResBuffer},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
   misc::{Uri, from_utf8_basic},
-  rng::{Xorshift64, simple_seed},
+  rng::{SeedableRng, Xorshift64},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
   let (frame_reader, http2) = Http2::connect(
-    Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
+    Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
     Http2Params::default(),
     TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
   )

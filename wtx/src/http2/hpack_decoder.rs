@@ -150,9 +150,9 @@ impl HpackDecoder {
         elem_cb((new_hhb, dyn_name, value))?;
         self.header_buffers.0.clear();
         self.header_buffers.0.extend_from_copyable_slice(dyn_name.str().as_bytes())?;
-        let bytes = self.header_buffers.0.get_mut(..dyn_name.str().len()).unwrap_or_default();
         // SAFETY: just a temporary copy of an already existing string
-        (new_hhb, HeaderName::new(unsafe { str::from_utf8_unchecked(bytes) }), value)
+        let string = unsafe { str::from_utf8_unchecked(&self.header_buffers.0) };
+        (new_hhb, HeaderName::new(string), value)
       } else {
         return Err(crate::Error::Http2ErrorGoAway(
           Http2ErrorCode::CompressionError,
@@ -167,7 +167,7 @@ impl HpackDecoder {
       (hhb, name, value)
     };
     if STORE {
-      self.dyn_headers.push_front(hhb, name.str(), [value], false, |_| {})?;
+      self.dyn_headers.push_front(false, hhb, name.str(), [value], |_| {})?;
     }
     Ok(())
   }
@@ -196,7 +196,7 @@ impl HpackDecoder {
   {
     let (before, after, is_encoded) = Self::decode_string_init(data)?;
     let (hhn, bytes) = if is_encoded {
-      let _ = huffman_decode(before, buffer)?;
+      huffman_decode(before, buffer)?;
       (HpackHeaderName::new(buffer)?, &**buffer)
     } else {
       let hhn = HpackHeaderName::new(before)?;
@@ -215,7 +215,12 @@ impl HpackDecoder {
     'data: 'rslt,
   {
     let (before, after, is_encoded) = Self::decode_string_init(bytes)?;
-    let rslt = if is_encoded { huffman_decode(before, buffer)? } else { from_utf8_basic(before)? };
+    let rslt = from_utf8_basic(if is_encoded {
+      huffman_decode(before, buffer)?;
+      buffer
+    } else {
+      before
+    })?;
     *bytes = after;
     Ok(rslt)
   }
@@ -318,7 +323,7 @@ impl HpackDecoder {
       }
       DecodeIdx::SizeUpdate => {
         size_update_cb()?;
-        let local_max_bytes: u32 = Self::decode_integer(data, 0b0001_1111)?.1;
+        let local_max_bytes = Self::decode_integer(data, 0b0001_1111)?.1;
         if local_max_bytes > self.max_bytes.0 {
           return Err(crate::Error::Http2ErrorGoAway(
             Http2ErrorCode::CompressionError,

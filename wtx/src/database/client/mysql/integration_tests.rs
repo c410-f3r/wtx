@@ -1,7 +1,7 @@
 use crate::{
   database::client::mysql::{Config, ExecutorBuffer, MysqlExecutor},
   misc::UriRef,
-  rng::{ChaCha20, SeedableRng, simple_32_seed},
+  rng::{ChaCha20, SeedableRng},
   tests::_vars,
 };
 use core::fmt::Debug;
@@ -52,7 +52,7 @@ fn reuses_cached_statement() {
 #[tokio::test]
 async fn tls() {
   let uri = UriRef::new(_vars().database_uri_mysql.as_str());
-  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
+  let mut rng = ChaCha20::from_std_random().unwrap();
   let _executor = MysqlExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -78,7 +78,7 @@ where
   E: Debug + From<crate::Error>,
 {
   let uri = UriRef::new(&_vars().database_uri_mysql.as_str());
-  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
+  let mut rng = ChaCha20::from_std_random().unwrap();
   MysqlExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),

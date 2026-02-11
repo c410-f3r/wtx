@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayString, ArrayVector, LinearStorageLen, Vector},
+  collection::{ArrayString, ArrayVector, LinearStorageLen, Uninit, Vector},
   misc::{Wrapper, from_utf8_basic},
 };
 use alloc::{string::String, vec::Vec};
@@ -194,6 +194,43 @@ where
   #[inline]
   fn try_extend(&mut self, set: Wrapper<I>) -> crate::Result<()> {
     self.extend(set.0);
+    Ok(())
+  }
+}
+
+// Uninit
+
+impl<'slice, L, T> TryExtend<&'slice [T]> for Uninit<'_, L, T>
+where
+  L: LinearStorageLen,
+  T: Copy,
+{
+  #[inline]
+  fn try_extend(&mut self, set: &'slice [T]) -> crate::Result<()> {
+    self.copy_from_slice(set);
+    Ok(())
+  }
+}
+
+impl<L, const M: usize, T> TryExtend<[T; M]> for Uninit<'_, L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn try_extend(&mut self, set: [T; M]) -> crate::Result<()> {
+    self.extend_from_iter(set)?;
+    Ok(())
+  }
+}
+
+impl<I, L, T> TryExtend<Wrapper<I>> for Uninit<'_, L, T>
+where
+  I: IntoIterator<Item = T>,
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn try_extend(&mut self, set: Wrapper<I>) -> crate::Result<()> {
+    self.extend_from_iter(set.0)?;
     Ok(())
   }
 }

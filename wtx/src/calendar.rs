@@ -28,6 +28,7 @@ mod tracing_tree_timer;
 mod weekday;
 mod year;
 
+use crate::de::{U64String, u64_string};
 pub use calendar_error::CalendarError;
 pub use ce_days::CeDays;
 pub use date::Date;
@@ -70,3 +71,12 @@ pub(crate) static DAYS_OF_MONTHS: [[u16; 12]; 2] = [
   [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],
   [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335],
 ];
+
+/// The current time in according to `cb` as a string.
+#[inline]
+pub fn timestamp_str(
+  cb: impl FnOnce(core::time::Duration) -> u128,
+) -> crate::Result<(u64, U64String)> {
+  let number = Instant::now_timestamp(0).map(cb)?.try_into()?;
+  Ok((number, u64_string(number)))
+}

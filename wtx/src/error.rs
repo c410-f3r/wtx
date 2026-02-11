@@ -1,7 +1,8 @@
 use crate::{
   calendar::CalendarError,
   collection::{
-    ArrayStringError, ArrayStringU8, ArrayVectorError, BlocksDequeError, DequeueError, VectorError,
+    ArrayStringError, ArrayStringU8, ArrayVectorError, BlocksDequeError, DequeueError, UninitError,
+    VectorError,
   },
   de::{FromRadix10Error, HexError},
   misc::TryArithmeticError,
@@ -32,9 +33,9 @@ macro_rules! associated_element_doc {
 pub enum Error {
   // External - Third parties
   //
-  #[cfg(feature = "aes-gcm")]
+  #[cfg(feature = "aead")]
   #[doc = associated_element_doc!()]
-  AeadError(aes_gcm::aead::Error),
+  AeadError(aead::Error),
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
@@ -127,9 +128,15 @@ pub enum Error {
   TryFromIntError(core::num::TryFromIntError),
   #[doc = associated_element_doc!()]
   TryFromSliceError(core::array::TryFromSliceError),
+  /// The specified environment variable was not present in the current
+  /// process's environment.
   #[cfg(feature = "std")]
-  #[doc = associated_element_doc!()]
-  VarError(VarError),
+  VarIsNotPresent(Option<Box<String>>),
+  /// The specified environment variable was found, but it did not contain
+  /// valid unicode data. The found data is returned as a payload of this
+  /// variant.
+  #[cfg(feature = "std")]
+  VarIsNotUnicode(Option<Box<String>>),
   #[doc = associated_element_doc!()]
   Utf8Error(Box<core::str::Utf8Error>),
 
@@ -143,6 +150,8 @@ pub enum Error {
   ClosedHttpConnection,
   /// A WebSocket connection was unexpectedly closed by an external actor or because of a local error.
   ClosedWebSocketConnection,
+  /// The amount of elements exceeds the underlying storage.
+  CounterWriterOverflow,
   /// Future should complete before a certain duration but didn't
   ExpiredFuture,
   /// Weight is zero, negative or overflowed list
@@ -153,8 +162,6 @@ pub enum Error {
   Generic(Box<String>),
   /// It is not possible to add an element into an `Option` because it is already occupied.
   InsufficientOptionCapacity,
-  /// Data must have a nonce and a tag.
-  InvalidAes256GcmData,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
   /// Invalid UTF-8.
@@ -229,6 +236,9 @@ pub enum Error {
   ArrayStringError(ArrayStringError),
   #[doc = associated_element_doc!()]
   ArrayVectorError(ArrayVectorError),
+  #[cfg(feature = "aws-lc-rs")]
+  #[doc = associated_element_doc!()]
+  AwsLcRsUnspecified(aws_lc_rs::error::Unspecified),
   #[doc = associated_element_doc!()]
   BlocksQueueError(BlocksDequeError),
   #[doc = associated_element_doc!()]
@@ -239,6 +249,8 @@ pub enum Error {
   #[cfg(feature = "http-cookie")]
   #[doc = associated_element_doc!()]
   Cookie(crate::http::CookieError),
+  #[doc = associated_element_doc!()]
+  CryptoError(crate::crypto::CryptoError),
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
   DatabaseError(Box<crate::database::DatabaseError>),
@@ -283,6 +295,8 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   TryArithmeticError(TryArithmeticError),
   #[doc = associated_element_doc!()]
+  UninitError(UninitError),
+  #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
   #[doc = associated_element_doc!()]
@@ -303,11 +317,11 @@ impl From<Error> for () {
   fn from(_: Error) -> Self {}
 }
 
-#[cfg(feature = "aes-gcm")]
-impl From<aes_gcm::aead::Error> for Error {
+#[cfg(feature = "aead")]
+impl From<aead::Error> for Error {
   #[inline]
   #[track_caller]
-  fn from(from: aes_gcm::aead::Error) -> Self {
+  fn from(from: aead::Error) -> Self {
     Self::AeadError(from)
   }
 }
@@ -327,6 +341,14 @@ impl From<crate::http::CookieError> for Error {
   #[track_caller]
   fn from(from: crate::http::CookieError) -> Self {
     Self::Cookie(from)
+  }
+}
+
+impl From<crate::crypto::CryptoError> for Error {
+  #[inline]
+  #[track_caller]
+  fn from(from: crate::crypto::CryptoError) -> Self {
+    Self::CryptoError(from)
   }
 }
 
@@ -440,17 +462,6 @@ impl From<std::io::Error> for Error {
   #[inline]
   fn from(from: std::io::Error) -> Self {
     Self::IoError(from)
-  }
-}
-
-#[cfg(feature = "std")]
-impl From<std::env::VarError> for Error {
-  #[inline]
-  fn from(from: std::env::VarError) -> Self {
-    Self::VarError(match from {
-      std::env::VarError::NotPresent => VarError::NotPresent,
-      std::env::VarError::NotUnicode(_) => VarError::NotUnicode,
-    })
   }
 }
 
@@ -622,6 +633,14 @@ impl From<ArrayVectorError> for Error {
   }
 }
 
+#[cfg(feature = "aws-lc-rs")]
+impl From<aws_lc_rs::error::Unspecified> for Error {
+  #[inline]
+  fn from(from: aws_lc_rs::error::Unspecified) -> Self {
+    Self::AwsLcRsUnspecified(from)
+  }
+}
+
 impl From<BlocksDequeError> for Error {
   #[inline]
   fn from(from: BlocksDequeError) -> Self {
@@ -727,6 +746,13 @@ impl From<TryArithmeticError> for Error {
   }
 }
 
+impl From<UninitError> for Error {
+  #[inline]
+  fn from(from: UninitError) -> Self {
+    Self::UninitError(from)
+  }
+}
+
 impl From<VectorError> for Error {
   #[inline]
   fn from(from: VectorError) -> Self {
@@ -778,20 +804,6 @@ impl<T> SendError<T> {
       SendError::Disconnected(_) => SendError::Disconnected(()),
     }
   }
-}
-
-/// The error type for operations interacting with environment variables.
-#[cfg(feature = "std")]
-#[derive(Clone, Copy, Debug)]
-pub enum VarError {
-  /// The specified environment variable was not present in the current
-  /// process's environment.
-  NotPresent,
-
-  /// The specified environment variable was found, but it did not contain
-  /// valid unicode data. The found data is returned as a payload of this
-  /// variant.
-  NotUnicode,
 }
 
 #[cfg(feature = "serde")]

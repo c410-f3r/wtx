@@ -62,11 +62,6 @@ impl CryptoRng for ChaCha20 {}
 
 impl Rng for ChaCha20 {
   #[inline(always)]
-  fn u8(&mut self) -> u8 {
-    self.u8_4()[0]
-  }
-
-  #[inline(always)]
   fn u8_4(&mut self) -> [u8; 4] {
     if usize::from(self.idx) >= TOTAL_WORDS {
       block_function::<true>(&self.block, &mut self.output);

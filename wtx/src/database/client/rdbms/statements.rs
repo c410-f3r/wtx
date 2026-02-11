@@ -138,7 +138,7 @@ mod tests {
       tests::{_column0, _column1, _column2, _column3},
     },
     executor::Runtime,
-    rng::{Xorshift64, simple_seed},
+    rng::{SeedableRng, Xorshift64},
   };
 
   // FIXME(MIRI): The modification of the vector's length makes MIRI think that there is an
@@ -153,7 +153,7 @@ mod tests {
   #[test]
   fn two_statements() {
     Runtime::new().block_on(async {
-      let mut stmts = Statements::new(2, &mut Xorshift64::from(simple_seed()));
+      let mut stmts = Statements::new(2, &mut Xorshift64::from_std_random().unwrap());
 
       let stmt_id0 = 123;
       let mut builder = stmts.builder((), builder_fn).await.unwrap();

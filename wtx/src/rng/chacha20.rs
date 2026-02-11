@@ -4,13 +4,6 @@ macro_rules! _implement_rand {
 
     impl crate::rng::Rng for $struct {
       #[inline]
-      fn u8(&mut self) -> u8 {
-        use chacha20::rand_core::Rng;
-        let [a, ..] = self.next_u32().to_be_bytes();
-        a
-      }
-
-      #[inline]
       fn u8_4(&mut self) -> [u8; 4] {
         use chacha20::rand_core::Rng;
         self.next_u32().to_be_bytes()

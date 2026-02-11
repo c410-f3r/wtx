@@ -11,7 +11,7 @@ use crate::{
   de::{Decode, Encode},
   executor::Runtime,
   misc::UriRef,
-  rng::{ChaCha20, SeedableRng, simple_32_seed},
+  rng::{ChaCha20, SeedableRng},
   tests::_vars,
 };
 use alloc::string::String;
@@ -355,7 +355,7 @@ fn serde_json() {
 #[tokio::test]
 async fn tls() {
   let uri = UriRef::new(_vars().database_uri_postgres.as_str());
-  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
+  let mut rng = ChaCha20::from_std_random().unwrap();
   let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),
@@ -378,7 +378,7 @@ async fn tls() {
 
 async fn executor() -> PostgresExecutor<crate::Error, ExecutorBuffer, std::net::TcpStream> {
   let uri = UriRef::new(_vars().database_uri_postgres.as_str());
-  let mut rng = ChaCha20::from_seed(simple_32_seed()).unwrap();
+  let mut rng = ChaCha20::from_std_random().unwrap();
   PostgresExecutor::connect(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),

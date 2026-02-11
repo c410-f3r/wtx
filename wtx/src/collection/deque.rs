@@ -95,7 +95,7 @@ pub enum DequeueError {
 //         |
 //         |----------------------------------> head
 //
-// The vector length is a shortcut for the sum of head of tail elements.
+// The vector length is a shortcut for the sum of head and tail elements.
 pub struct Deque<T> {
   data: Vector<T>,
   head: usize,

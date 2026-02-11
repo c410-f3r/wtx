@@ -1,4 +1,5 @@
 use crate::{
+  calendar::timestamp_str,
   collection::{TryExtend, Vector},
   database::{
     StmtCmd,
@@ -14,10 +15,7 @@ use crate::{
     },
   },
   de::U64String,
-  misc::{
-    ConnectionState, LeaseMut, SuffixWriterFbvm, Usize, net::PartitionedFilledBuffer,
-    timestamp_nanos_str,
-  },
+  misc::{ConnectionState, LeaseMut, SuffixWriterFbvm, Usize, net::PartitionedFilledBuffer},
   stream::Stream,
 };
 use core::ops::Range;
@@ -86,7 +84,7 @@ where
         MessageTy::ReadyForQuery => break,
         MessageTy::RowDescription(columns_len, mut rd) => {
           if !B::IS_UNIT {
-            let timestamp_nanos_str = timestamp_nanos_str()?;
+            let timestamp_nanos_str = timestamp_str(|dur| dur.as_nanos())?;
             let stmt_cmd_id = timestamp_nanos_str.1.as_str().hash(stmts.hasher_mut());
             let mut builder = stmts
               .builder((), {

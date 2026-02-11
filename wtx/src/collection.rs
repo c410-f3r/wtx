@@ -15,6 +15,7 @@ mod linear_storage;
 mod misc;
 mod truncate;
 mod try_extend;
+mod uninit;
 mod vector;
 
 pub use array_string::{
@@ -34,4 +35,5 @@ pub use linear_storage::linear_storage_len::LinearStorageLen;
 pub use misc::backward_deque_idx;
 pub use truncate::Truncate;
 pub use try_extend::TryExtend;
+pub use uninit::{Uninit, UninitError, UninitU8, UninitU16, UninitU32, UninitUsize};
 pub use vector::{Vector, VectorError};

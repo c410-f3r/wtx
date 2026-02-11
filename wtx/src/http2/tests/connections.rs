@@ -4,7 +4,7 @@ use crate::{
   http::{Header, Headers, ReqBuilder, ReqResBuffer, ReqResData, Request, StatusCode},
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
   misc::{UriRef, UriString},
-  rng::{Xorshift64, simple_seed},
+  rng::{SeedableRng, Xorshift64},
   tests::_uri,
 };
 use core::time::Duration;
@@ -26,7 +26,7 @@ async fn client(uri: &UriString, runtime: &Runtime) {
   rrb.headers.reserve(6, 1).unwrap();
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
   let (frame_header, mut http2) = Http2::connect(
-    Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
+    Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
     Http2Params::default(),
     (stream.try_clone().unwrap(), stream),
   )
@@ -69,7 +69,7 @@ fn server(uri: &UriString, runtime: &Runtime) {
       let (stream, _) = listener.accept().unwrap();
       let mut rrb = ReqResBuffer::empty();
       let (frame_header, mut http2) = Http2::accept(
-        Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
+        Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
         Http2Params::default(),
         (stream.try_clone().unwrap(), stream),
       )

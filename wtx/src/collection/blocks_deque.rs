@@ -253,11 +253,7 @@ impl<D, M> BlocksDeque<D, M> {
 
   /// Prepends a block to the queue.
   #[inline]
-  pub fn push_front_from_copyable_data<'data, I>(
-    &mut self,
-    local_data: I,
-    misc: M,
-  ) -> crate::Result<()>
+  pub fn push_front_from_copyable_data<'data, I>(&mut self, iter: I, misc: M) -> crate::Result<()>
   where
     D: Copy + 'data,
     I: IntoIterator<Item = &'data [D]>,
@@ -265,7 +261,7 @@ impl<D, M> BlocksDeque<D, M> {
   {
     let Self { data, logical_begin, metadata } = self;
     let total_data_len = data
-      .extend_front_from_copyable_slices(local_data)
+      .extend_front_from_copyable_slices(iter)
       .map_err(|_err| BlocksDequeError::PushFrontDataOverflow)?;
     *logical_begin = logical_begin.wrapping_sub(total_data_len);
     metadata

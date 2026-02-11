@@ -47,19 +47,19 @@ where
 }
 
 #[cfg(feature = "web-socket")]
-pub(crate) fn log_generic_res(_bytes: &[u8], _log_body: bool, _tg: TransportGroup) {
-  let _body = if _log_body { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
+pub(crate) fn log_generic_res(_bytes: &[u8], _log_data: bool, _tg: TransportGroup) {
+  let _body = if _log_data { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
   _debug!(body = debug(_body), trans_ty = display(_tg), "Response");
 }
 #[cfg(feature = "http2")]
 pub(crate) fn log_http_res(
   _bytes: &[u8],
-  _log_body: bool,
+  _log_data: bool,
   _status_code: crate::http::StatusCode,
   _tg: TransportGroup,
   _uri: &crate::misc::UriString,
 ) {
-  let _body = if _log_body { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
+  let _body = if _log_data { crate::misc::from_utf8_basic(_bytes).ok() } else { None };
   _debug!(
     body = debug(_body),
     status_code = display(_status_code),
@@ -154,13 +154,12 @@ mod tests {
 }
 
 fn local_send_bytes<'bytes, 'bytes_buffer, 'rslt>(
-  bytes: &'bytes [u8],
+  bytes: Option<&'bytes [u8]>,
   bytes_buffer: &'bytes_buffer [u8],
-  send_bytes_buffer: bool,
 ) -> &'rslt [u8]
 where
   'bytes: 'rslt,
   'bytes_buffer: 'rslt,
 {
-  if send_bytes_buffer { bytes_buffer } else { bytes }
+  if let Some(el) = bytes { el } else { bytes_buffer }
 }

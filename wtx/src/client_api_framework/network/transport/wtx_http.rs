@@ -49,7 +49,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: Option<&[u8]>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<Self::ReqId, A::Error>
   where
@@ -121,7 +121,7 @@ where
   SW: StreamWriter,
   TP: LeaseMut<HttpParams>,
 {
-  let should_log_body = pkgs_aux.should_log_body();
+  let log_data = pkgs_aux.log_data;
   let tp = pkgs_aux.tp.lease_mut();
   let (req_params, res_params) = tp.ext_params_mut();
   let HttpReqParams { rrb, .. } = req_params;
@@ -133,18 +133,12 @@ where
   mem::swap(&mut res.rrd.body, &mut pkgs_aux.bytes_buffer);
   mem::swap(&mut res.rrd.headers, &mut rrb.headers);
   *status_code = res.status_code;
-  log_http_res(
-    &pkgs_aux.bytes_buffer,
-    should_log_body,
-    res.status_code,
-    TransportGroup::HTTP,
-    &rrb.uri,
-  );
+  log_http_res(&pkgs_aux.bytes_buffer, log_data, res.status_code, TransportGroup::HTTP, &rrb.uri);
   Ok(())
 }
 
 async fn send_bytes<A, DRSR, HB, SW, TP>(
-  bytes: &[u8],
+  bytes: Option<&[u8]>,
   client: &mut Http2<HB, SW, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
 ) -> Result<ClientStream<HB, SW>, A::Error>
@@ -155,17 +149,13 @@ where
   TP: LeaseMut<HttpParams>,
 {
   manage_before_sending_bytes(pkgs_aux).await?;
-  let local_bytes0 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
-  log_http_req::<_, TP>(
-    local_bytes0,
-    pkgs_aux.should_log_body(),
-    pkgs_aux.tp.lease().ext_req_params().method,
-    client,
-    &pkgs_aux.tp.lease().ext_req_params().rrb.uri,
-  );
+  let PkgsAux { log_data, tp, .. } = pkgs_aux;
+  let HttpReqParams { method, rrb, .. } = tp.lease_mut().ext_params_mut().0;
+  let local_bytes0 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
+  log_http_req::<_, TP>(local_bytes0, *log_data, *method, client, &rrb.uri);
   manage_params(local_bytes0.len(), pkgs_aux)?;
-  let HttpReqParams { method, rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
-  let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
+  let HttpReqParams { method, rrb, .. } = pkgs_aux.tp.lease_mut().ext_params_mut().0;
+  let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
   let rb = ReqBuilder::method(*method, (local_bytes1, &rrb.headers, rrb.uri.to_ref()));
   let rslt = client.send_req(&mut rrb.body, rb).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
@@ -187,7 +177,7 @@ where
   manage_before_sending_pkg(pkg, pkgs_aux, client).await?;
   log_http_req::<_, TP>(
     &pkgs_aux.bytes_buffer,
-    pkgs_aux.should_log_body(),
+    pkgs_aux.log_data,
     pkgs_aux.tp.lease().ext_req_params().method,
     client,
     &pkgs_aux.tp.lease().ext_req_params().rrb.uri,
@@ -269,7 +259,7 @@ mod http_client_pool {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: &[u8],
+      bytes: Option<&[u8]>,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<Self::ReqId, A::Error>
     where
@@ -370,7 +360,7 @@ mod http_client_pool {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: &[u8],
+      bytes: Option<&[u8]>,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<Self::ReqId, A::Error>
     where

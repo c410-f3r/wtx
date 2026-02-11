@@ -96,8 +96,7 @@ impl<'module, 'others>
     let fn_stmts = quote::quote!({
       use wtx::client_api_framework::network::transport::TransportParams;
       self.bytes_buffer.clear();
-      self.log_body = (false, self.log_body.0);
-      self.send_bytes_buffer = false;
+      self.encode_data = true;
       self.tp.reset();
     });
     let params_builder_fn_name_ident = &Ident::new("params", Span::mixed_site());

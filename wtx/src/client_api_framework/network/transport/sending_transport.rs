@@ -7,9 +7,11 @@ use crate::client_api_framework::{
 /// Transport that sends package data.
 pub trait SendingTransport<TP>: Transport<TP> {
   /// Sends a sequence of bytes without trying to retrieve any counterpart data.
+  ///
+  /// If `bytes` is `None`, then the buffer of `pkgs_aux` will be sent.
   fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: Option<&[u8]>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<Self::ReqId, A::Error>>
   where
@@ -33,7 +35,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: Option<&[u8]>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<Self::ReqId, A::Error>
   where
@@ -72,7 +74,7 @@ mod tokio {
     #[inline]
     async fn send_bytes<A, DRSR>(
       &mut self,
-      bytes: &[u8],
+      bytes: Option<&[u8]>,
       pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
     ) -> Result<Self::ReqId, A::Error>
     where

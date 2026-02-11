@@ -23,7 +23,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   #[inline]
   fn send_bytes_recv<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: Option<&[u8]>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> impl Future<Output = Result<(), A::Error>>
   where

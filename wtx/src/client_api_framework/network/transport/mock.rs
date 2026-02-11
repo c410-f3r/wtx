@@ -123,15 +123,15 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: Option<&[u8]>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where
     A: Api,
   {
     manage_before_sending_bytes(pkgs_aux).await?;
-    let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer, pkgs_aux.send_bytes_buffer);
-    log_req(local_bytes, pkgs_aux.should_log_body(), self);
+    let local_bytes = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
+    log_req(local_bytes, pkgs_aux.log_data, self);
     self.requests.push(Cow::Owned(FromBytes::from_bytes(local_bytes)?))?;
     pkgs_aux.bytes_buffer.clear();
     manage_after_sending_bytes(pkgs_aux).await?;
@@ -149,7 +149,7 @@ where
     P: Package<A, DRSR, Self::Inner, TP>,
   {
     manage_before_sending_pkg(pkg, pkgs_aux, &mut *self).await?;
-    log_req(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), self);
+    log_req(&pkgs_aux.bytes_buffer, pkgs_aux.log_data, self);
     self.requests.push(Cow::Owned(FromBytes::from_bytes(&pkgs_aux.bytes_buffer)?))?;
     pkgs_aux.bytes_buffer.clear();
     manage_after_sending_pkg(pkg, pkgs_aux, &mut *self).await?;

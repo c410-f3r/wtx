@@ -68,7 +68,8 @@ pub(crate) fn db(
           let mut db_name = String::new();
           db_name.push('_');
           db_name.push_str(wtx::misc::timestamp_nanos_str().unwrap().1.as_str());
-          let mut rng = wtx::rng::ChaCha20::from_seed(wtx::rng::simple_32_seed()).unwrap();
+          // FIXME(STABLE): Use `from_std_random`
+          let mut rng = wtx::rng::ChaCha20::from_simple_seed().unwrap();
 
           let orig_db = String::from(config.db());
 

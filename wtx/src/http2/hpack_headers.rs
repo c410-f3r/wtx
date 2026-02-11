@@ -3,7 +3,7 @@ use core::str;
 
 #[derive(Debug, Default)]
 pub(crate) struct HpackHeaders<M> {
-  bq: BlocksDeque<u8, Metadata<M>>,
+  bd: BlocksDeque<u8, Metadata<M>>,
   max_bytes: usize,
 }
 
@@ -12,23 +12,23 @@ where
   M: Copy,
 {
   pub(crate) const fn new(max_bytes: usize) -> Self {
-    Self { bq: BlocksDeque::new(), max_bytes }
+    Self { bd: BlocksDeque::new(), max_bytes }
   }
 
   pub(crate) fn bytes_len(&self) -> usize {
-    self.bq.elements_len()
+    self.bd.elements_len()
   }
 
   pub(crate) fn clear(&mut self) {
-    self.bq.clear();
+    self.bd.clear();
   }
 
   pub(crate) fn headers_len(&self) -> usize {
-    self.bq.blocks_len()
+    self.bd.blocks_len()
   }
 
   pub(crate) fn get_by_idx(&self, idx: usize) -> Option<AbstractHeader<'_, M>> {
-    self.bq.get(idx).as_ref().map(Self::map)
+    self.bd.get(idx).as_ref().map(Self::map)
   }
 
   pub(crate) const fn max_bytes(&self) -> usize {
@@ -37,10 +37,10 @@ where
 
   pub(crate) fn push_front<'str, I>(
     &mut self,
+    is_sensitive: bool,
     misc: M,
     name: &'str str,
     values: I,
-    is_sensitive: bool,
     cb: impl FnMut(M),
   ) -> crate::Result<()>
   where
@@ -48,16 +48,16 @@ where
     I::IntoIter: Clone + ExactSizeIterator,
   {
     let iter = values.into_iter();
-    let mut local_len = name.len();
+    let mut total_len = name.len();
     for elem in iter.clone() {
-      local_len = local_len.wrapping_add(elem.len());
+      total_len = total_len.wrapping_add(elem.len());
     }
-    if local_len > self.max_bytes {
+    if total_len > self.max_bytes {
       self.clear();
       return Ok(());
     }
-    self.remove_until_max_bytes(local_len, cb);
-    self.bq.push_front_from_copyable_data(
+    self.remove_until_max_bytes(total_len, cb);
+    self.bd.push_front_from_copyable_data(
       [name].into_iter().chain(iter).map(|el| el.as_bytes()),
       Metadata { is_sensitive, misc, name_len: name.len() },
     )?;
@@ -66,7 +66,7 @@ where
 
   #[inline(always)]
   pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
-    self.bq.reserve_front(headers, bytes)?;
+    self.bd.reserve_front(headers, bytes)?;
     Ok(())
   }
 
@@ -93,7 +93,7 @@ where
   }
 
   fn pop_back(&mut self) -> Option<Metadata<M>> {
-    self.bq.pop_back()
+    self.bd.pop_back()
   }
 
   fn remove_until_max_bytes(&mut self, additional: usize, mut cb: impl FnMut(M)) {

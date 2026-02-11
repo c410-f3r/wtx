@@ -54,7 +54,7 @@ where
 
   /// Picks a random value from the exclusive `range`.
   ///
-  /// Returns `None` if the range is empty or range start is greater or equal to range end.
+  /// Returns `None` if the range is empty or the range start is greater or equal to the range end.
   #[inline]
   fn pick_from_range<T>(&mut self, range: Range<T>) -> Option<T>
   where
@@ -85,9 +85,6 @@ where
     }
   }
 
-  /// Creates a byte
-  fn u8(&mut self) -> u8;
-
   /// Creates an array of 4 bytes.
   fn u8_4(&mut self) -> [u8; 4];
 
@@ -105,11 +102,6 @@ impl<T> Rng for AtomicCell<T>
 where
   T: Copy + Eq + Rng,
 {
-  #[inline]
-  fn u8(&mut self) -> u8 {
-    (&*self).u8()
-  }
-
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     (&*self).u8_4()
@@ -135,16 +127,6 @@ impl<T> Rng for &AtomicCell<T>
 where
   T: Copy + Eq + Rng,
 {
-  #[inline]
-  fn u8(&mut self) -> u8 {
-    let mut ret = 0;
-    let _rslt = self.update(|mut el| {
-      ret = el.u8();
-      el
-    });
-    ret
-  }
-
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     let mut ret = [0; 4];
@@ -191,11 +173,6 @@ where
   T: Copy + Rng,
 {
   #[inline]
-  fn u8(&mut self) -> u8 {
-    (&*self).u8()
-  }
-
-  #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     (&*self).u8_4()
   }
@@ -220,14 +197,6 @@ impl<T> Rng for &Cell<T>
 where
   T: Copy + Rng,
 {
-  #[inline]
-  fn u8(&mut self) -> u8 {
-    let mut instance = self.get();
-    let ret = instance.u8();
-    self.set(instance);
-    ret
-  }
-
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     let mut instance = self.get();
@@ -265,11 +234,6 @@ impl<T> Rng for &mut T
 where
   T: Rng,
 {
-  #[inline]
-  fn u8(&mut self) -> u8 {
-    (*self).u8()
-  }
-
   #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     (*self).u8_4()

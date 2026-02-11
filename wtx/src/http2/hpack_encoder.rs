@@ -417,10 +417,10 @@ impl HpackEncoder {
   ) -> crate::Result<()> {
     self.idx = self.idx.wrapping_add(1);
     self.dyn_headers.push_front(
+      is_sensitive,
       Metadata { name_hash, pair_hash },
       name,
       [value],
-      is_sensitive,
       |metadata| {
         Self::remove_outdated_indices(&mut self.indcs, metadata);
       },
@@ -639,14 +639,14 @@ mod tests {
       hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
       hpack_static_headers::HpackStaticResponseHeaders,
     },
-    rng::{Xorshift64, simple_seed},
+    rng::{SeedableRng, Xorshift64},
   };
 
   #[test]
   fn duplicated_is_indexed() {
     let headers = [(HpackHeaderBasic::Method(Method::Patch), Method::Patch.strings().custom[0])];
     let mut buffer = Vector::new();
-    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
     hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
     hpack_enc.encode(&mut buffer, headers, []).unwrap();
     assert_eq!(buffer[0], 66);
@@ -660,7 +660,7 @@ mod tests {
   #[test]
   fn encodes_status_code() {
     let mut buffer = Vector::new();
-    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
     hpack_enc
       .encode(
         &mut buffer,
@@ -674,7 +674,7 @@ mod tests {
   #[test]
   fn encodes_methods_that_are_not_get_or_post() {
     let mut buffer = Vector::new();
-    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
     hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
     hpack_enc
       .encode(
