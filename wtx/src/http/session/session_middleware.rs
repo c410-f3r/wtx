@@ -1,12 +1,13 @@
 use crate::{
   calendar::Instant,
   collection::Vector,
+  crypto::{Aead, Aes128GcmRustCrypto},
   http::{
     KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
     server_framework::Middleware,
   },
-  misc::{Lease, LeaseMut, decrypt_aes256gcm_base64, serde_json_deserialize_from_slice},
+  misc::{Lease, LeaseMut, serde_json_deserialize_from_slice},
   pool::{ResourceManager, SimplePool},
 };
 use alloc::string::String;
@@ -96,7 +97,7 @@ where
           continue;
         }
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-        let decrypt_rslt = decrypt_aes256gcm_base64(
+        let decrypt_rslt = Aes128GcmRustCrypto::decrypt_base64_to_buffer(
           name.as_bytes(),
           &mut cookie_def.value,
           value.as_bytes(),

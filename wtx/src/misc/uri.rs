@@ -1,7 +1,7 @@
 use crate::{
   collection::{ArrayStringU16, Clear, Truncate, TryExtend},
   de::FromRadix10 as _,
-  misc::{Lease, LeaseMut, bytes_pos1, bytes_rpos1, str_split_once1, str_split1},
+  misc::{Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
 };
 use alloc::{boxed::Box, string::String};
 use core::{
@@ -385,13 +385,13 @@ where
     };
     let query_start = {
       let after_href = valid_uri.get(usize::from(href_start)..).unwrap_or_default();
-      bytes_rpos1(after_href, b'?')
+      bytes_pos1(after_href, b'?')
         .and_then(|idx| usize::from(href_start).wrapping_add(idx).try_into().ok())
         .unwrap_or(initial_len)
     };
     let fragment_start = {
       let after_path = uri.get(query_start.into()..).unwrap_or_default();
-      bytes_rpos1(after_path, b'#')
+      bytes_pos1(after_path, b'#')
         .and_then(|idx| usize::from(query_start).wrapping_add(idx).try_into().ok())
         .unwrap_or(initial_len)
     };
@@ -458,7 +458,7 @@ where
   /// Pushes an additional path only if there is no query.
   #[inline]
   pub fn push_path(&mut self, args: Arguments<'_>) -> crate::Result<()> {
-    if !self.query_and_fragment().is_empty() {
+    if self.uri.lease().len() != usize::from(self.initial_len) {
       return Err(crate::Error::UriCanNotBeOverwritten);
     }
     let prev = self.uri.lease().len();
@@ -707,5 +707,12 @@ mod tests {
     assert_eq!(uri.fragment(), "");
     assert_eq!(uri.query_and_fragment(), "");
     assert_eq!(uri.as_str(), "");
+  }
+
+  #[test]
+  fn multiple_question_markets() {
+    let uri = UriString::new("http://example.com/path?key=value?1".into());
+    assert_eq!(uri.path(), "/path");
+    assert_eq!(uri.query(), "?key=value?1");
   }
 }

@@ -6,7 +6,7 @@
 use wtx::{
   collection::Vector,
   executor::Runtime,
-  rng::{Xorshift64, simple_seed},
+  rng::{SeedableRng, Xorshift64},
   stream::BytesStream,
   web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin},
 };
@@ -16,7 +16,7 @@ libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
     let mut ws = WebSocket::<_, _, _, _, false>::new(
       (),
       false,
-      Xorshift64::from(simple_seed()),
+      Xorshift64::from_std_random().unwrap(),
       BytesStream::default(),
       WebSocketBuffer::default(),
     );

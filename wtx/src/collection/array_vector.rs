@@ -575,7 +575,7 @@ where
 {
   #[inline]
   fn cmp(&self, other: &Self) -> Ordering {
-    (**self).cmp(other)
+    (**self).cmp(&**other)
   }
 }
 

@@ -5,7 +5,7 @@ use crate::{
     MAX_HPACK_LEN, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
     hpack_header::HpackHeaderBasic,
   },
-  rng::{Xorshift64, simple_seed},
+  rng::{SeedableRng, Xorshift64},
 };
 use alloc::string::String;
 use core::{fmt::Formatter, marker::PhantomData};
@@ -28,7 +28,7 @@ fn hpack_test_cases() {
   fetch_project();
   let mut buffer = Vector::new();
   let mut decoder = HpackDecoder::new();
-  let mut encoder = HpackEncoder::new(&mut Xorshift64::from(simple_seed()));
+  let mut encoder = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
   decoder.set_max_bytes(MAX_HEADER_LEN);
   encoder.set_max_dyn_super_bytes(MAX_HEADER_LEN);
   let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("hpack-test-case");

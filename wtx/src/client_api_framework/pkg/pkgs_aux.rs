@@ -27,13 +27,10 @@ pub struct PkgsAux<A, DRSR, TP> {
   pub bytes_buffer: Vector<u8>,
   /// Deserializer/Serializer instance
   pub drsr: DRSR,
-  /// The second element is a back-up of the first element. Such a structure is used
-  /// by transports.
-  ///
-  /// See [Self::log_body]
-  pub log_body: (bool, bool),
-  /// In cases where the data is already available in the `bytes_buffer` field.
-  pub send_bytes_buffer: bool,
+  /// Useful in cases where the data is already encoded in the buffers.
+  pub encode_data: bool,
+  /// /// If the current request/response should be logged.
+  pub log_data: bool,
   /// External request and response parameters.
   pub tp: TP,
 }
@@ -46,8 +43,8 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
       api,
       bytes_buffer: Vector::new(),
       drsr,
-      log_body: (false, false),
-      send_bytes_buffer: false,
+      encode_data: true,
+      log_data: false,
       tp,
       built_requests: 0,
     }
@@ -60,19 +57,11 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
     built_requests: u64,
     bytes_buffer: Vector<u8>,
     drsr: DRSR,
-    log_body: bool,
-    send_bytes_buffer: bool,
+    encode_data: bool,
+    log_data: bool,
     tp: TP,
   ) -> Self {
-    Self {
-      api,
-      built_requests,
-      bytes_buffer,
-      drsr,
-      log_body: (log_body, false),
-      send_bytes_buffer,
-      tp,
-    }
+    Self { api, built_requests, bytes_buffer, drsr, encode_data, log_data, tp }
   }
 
   /// Should be used after a new request construction
@@ -89,18 +78,6 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   ) -> JsonRpcEncoder<P> {
     self.increase_requests_num();
     JsonRpcEncoder { id: self.built_requests, method, params }
-  }
-
-  /// Temporally logs sending or receiving bytes.
-  #[inline]
-  pub const fn log_body(&mut self) {
-    self.log_body.0 = true;
-  }
-
-  /// If the current request/response should be logged
-  #[inline]
-  pub const fn should_log_body(&self) -> bool {
-    self.log_body.0
   }
 
   /// Constructs [VerbatimEncoder] and also increases the number of requests.

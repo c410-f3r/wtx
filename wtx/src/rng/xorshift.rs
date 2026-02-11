@@ -21,11 +21,6 @@ impl Xorshift64 {
 
 impl Rng for Xorshift64 {
   #[inline]
-  fn u8(&mut self) -> u8 {
-    xor_u8(&mut self.value)
-  }
-
-  #[inline]
   fn u8_4(&mut self) -> [u8; 4] {
     xor_u8_4(&mut self.value)
   }
@@ -75,11 +70,6 @@ impl From<u64> for Xorshift64 {
   }
 }
 
-const fn u8(n: u64) -> u8 {
-  let [a, ..] = n.to_be_bytes();
-  a
-}
-
 const fn u8_4(n: u64) -> [u8; 4] {
   let [a, b, c, d, ..] = n.to_be_bytes();
   [a, b, c, d]
@@ -111,10 +101,6 @@ const fn xor_numbers(seed: &mut u64) -> u64 {
   *seed ^= *seed >> 17;
   *seed ^= *seed << 5;
   *seed
-}
-
-const fn xor_u8(seed: &mut u64) -> u8 {
-  u8(xor_numbers(seed))
 }
 
 const fn xor_u8_4(seed: &mut u64) -> [u8; 4] {

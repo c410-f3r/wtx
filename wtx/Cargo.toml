@@ -2,6 +2,7 @@
 arbitrary = { default-features = false, features = ["derive_arbitrary"], optional = true, version = "1.0" }
 async-io = { default-features = false, optional = true, version = "2.0" }
 async-net = { default-features = false, optional = true, version = "2.0" }
+aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
 base64 = { default-features = false, features = ["alloc"], optional = true, version = "0.22" }
 borsh = { default-features = false, features = ["derive"], optional = true, version = "1.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
@@ -28,7 +29,7 @@ rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
 rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, features = ["alloc", "derive"], optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
-simdutf8 = { default-features = false, features = ["aarch64_neon"], optional = true, version = "0.1" }
+simdutf8 = { default-features = false, optional = true, version = "0.1" }
 tokio = { default-features = false, features = ["io-util", "net", "rt", "sync", "time"], optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, features = ["ring", "tls12"], optional = true, version = "0.26" }
 tracing = { default-features = false, features = ["attributes"], optional = true, version = "0.1" }
@@ -38,17 +39,21 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.3" }
 
-aes-gcm = { default-features = false, features = ["aes"], optional = true, version = "0.11.0-rc.3" }
-argon2 = { default-features = false, optional = true, version = "0.6.0-rc.6" }
-chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "0.10.0-rc.10" }
-crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.15" }
-digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.11" }
-getrandom = { default-features = false, optional = true, version = "0.4.0" }
-hmac = { default-features = false, optional = true, version = "0.13.0-rc.5" }
-rand_core = { default-features = false, optional = true, version = "0.10" }
-rsa = { default-features = false, optional = true, version = "0.10.0-rc.14" }
-sha1 = { default-features = false, optional = true, version = "0.11.0-rc.5" }
-sha2 = { default-features = false, optional = true, version = "0.11.0-rc.5" }
+# Rust Crypto and its extravagant set of associated dependencies
+aead = { default-features = false, optional = true, version = "0.6.0-rc.5" }
+aes-gcm = { default-features = false, optional = true, version = "0.11.0-rc.2" }
+argon2 = { default-features = false, optional = true, version = "0.6.0-rc.5" }
+chacha20 = { default-features = false, features = ["cipher", "rng"], optional = true, version = "0.10.0" }
+chacha20poly1305 = { default-features = false, optional = true, version = "0.11.0-rc.2" }
+crypto-common = { default-features = false, optional = true, version = "0.2.0-rc.9" }
+digest = { default-features = false, features = ["mac"], optional = true, version = "0.11.0-rc.5" }
+getrandom = { default-features = false, optional = true, version = "0.4.0-rc.0" }
+hkdf = { default-features = false, optional = true, version = "0.13.0-rc.3" }
+hmac = { default-features = false, optional = true, version = "0.13.0-rc.3" }
+rand_core = { default-features = false, optional = true, version = "0.10.0-rc-3" }
+rsa = { default-features = false, optional = true, version = "0.10.0-rc.12" }
+sha1 = { default-features = false, optional = true, version = "0.11.0-rc.3" }
+sha2 = { default-features = false, optional = true, version = "0.11.0-rc.3" }
 sha3 = { default-features = false, optional = true, version = "0.11.0-rc.7" }
 spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
 
@@ -58,9 +63,11 @@ wtx = { default-features = false, features = ["executor", "macros", "nightly"], 
 
 [features]
 32-tuple-impls = []
+aes-gcm = ["aead", "aes-gcm/aes"]
 arbitrary = ["dep:arbitrary", "std"]
 async-net = ["dep:async-io", "dep:async-net", "futures-lite", "std"]
 borsh = ["borsh/std", "std"]
+chacha20poly1305 = ["aead", "dep:chacha20poly1305"]
 client-api-framework = []
 crossbeam-channel = ["crossbeam-channel/std", "std"]
 database = []
@@ -70,6 +77,7 @@ foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
 grpc = []
 grpc-client = ["grpc", "http-client-pool"]
 grpc-server = ["grpc", "http-server-framework"]
+hkdf = ["crypto-common", "dep:hkdf"]
 http = []
 http-client-pool = ["http2", "std"]
 http-cookie = ["http"]
@@ -100,7 +108,7 @@ web-socket-handshake = ["base64", "httparse", "sha1", "web-socket"]
 
 _async-tests = ["tokio/macros", "tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []
-_hack = ["embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Crate must not decide for downstream users
+_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4"] # Does not decide for downstream users
 _integration-tests = ["serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]
 

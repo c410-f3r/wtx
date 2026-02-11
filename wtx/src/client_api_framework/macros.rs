@@ -40,11 +40,11 @@ macro_rules! create_packages_aux_wrapper {
         built_requests: u64,
         bytes_buffer: $crate::collection::Vector<u8>,
         drsr: DRSR,
-        log_body: bool,
-        send_bytes_buffer: bool,
+        encode_data: bool,
+        log_data: bool,
         tp: TP
       ) -> Self {
-        Self($crate::client_api_framework::pkg::PkgsAux::new(api, built_requests, bytes_buffer, drsr, log_body, send_bytes_buffer, tp))
+        Self($crate::client_api_framework::pkg::PkgsAux::new(api, built_requests, bytes_buffer, drsr, encode_data, log_data, tp))
       }
     }
 

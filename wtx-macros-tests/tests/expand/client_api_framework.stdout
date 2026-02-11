@@ -68,10 +68,10 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> where
     #[inline]
     pub fn new(api: A, built_requests: u64,
         bytes_buffer: ::wtx::collection::Vector<u8>, drsr: DRSR,
-        log_body: bool, send_bytes_buffer: bool, tp: TP) -> Self {
+        encode_data: bool, log_data: bool, tp: TP) -> Self {
         Self(::wtx::client_api_framework::pkg::PkgsAux::new(api,
-                built_requests, bytes_buffer, drsr, log_body,
-                send_bytes_buffer, tp))
+                built_requests, bytes_buffer, drsr, encode_data, log_data,
+                tp))
     }
 }
 impl<A, DRSR, TP> core::ops::Deref for PkgsAux<A, DRSR, TP> where
@@ -254,8 +254,7 @@ mod generic_http_request {
             {
                 use wtx::client_api_framework::network::transport::TransportParams;
                 self.bytes_buffer.clear();
-                self.log_body = (false, self.log_body.0);
-                self.send_bytes_buffer = false;
+                self.encode_data = true;
                 self.tp.reset();
             }
             (GenericHttpRequestDataBuilder { params: (), aux: self })
@@ -548,8 +547,7 @@ mod generic_web_socket_subscription {
             {
                 use wtx::client_api_framework::network::transport::TransportParams;
                 self.bytes_buffer.clear();
-                self.log_body = (false, self.log_body.0);
-                self.send_bytes_buffer = false;
+                self.encode_data = true;
                 self.tp.reset();
             }
             (GenericWebSocketSubscriptionDataBuilder {

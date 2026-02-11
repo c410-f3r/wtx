@@ -1,19 +1,16 @@
 use crate::{
-  collection::{ArrayVector, LinearStorageLen, Vector},
+  collection::{Clear, TryExtend, Vector},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
     misc::protocol_err,
   },
-  misc::{_unlikely_unreachable, from_utf8_basic},
+  misc::{_unlikely_unreachable, Lease, SingleTypeStorage},
 };
 
-pub(crate) fn huffman_decode<'to, L, const N: usize>(
-  from: &[u8],
-  to: &'to mut ArrayVector<L, u8, N>,
-) -> crate::Result<&'to str>
+pub(crate) fn huffman_decode<T>(from: &[u8], to: &mut T) -> crate::Result<()>
 where
-  L: LinearStorageLen,
+  T: Clear + Lease<[u8]> + SingleTypeStorage + TryExtend<[u8; 1]>,
 {
   fn decode_4_bits(
     curr_state: &mut u8,
@@ -55,11 +52,11 @@ where
     |elem| {
       let left_nibble = elem >> 4;
       if let Some(byte) = decode_4_bits(&mut curr_state, left_nibble, &mut end_of_string)? {
-        is_ok = to.push(byte).is_ok();
+        is_ok = to.try_extend([byte]).is_ok();
       }
       let right_nibble = elem & 0b0000_1111;
       if let Some(byte) = decode_4_bits(&mut curr_state, right_nibble, &mut end_of_string)? {
-        is_ok = to.push(byte).is_ok();
+        is_ok = to.try_extend([byte]).is_ok();
       }
     }
   );
@@ -76,7 +73,7 @@ where
     ));
   }
 
-  Ok(from_utf8_basic(to)?)
+  Ok(())
 }
 
 pub(crate) fn huffman_encode(from: &[u8], wb: &mut Vector<u8>) -> crate::Result<()> {
@@ -160,14 +157,13 @@ mod kani {
 mod test {
   use crate::{
     collection::Vector,
-    http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
   };
 
   #[test]
   fn decode_and_encode() {
-    let mut decode = _HeaderValueBuffer::default();
-    let mut encode = Vector::default();
+    let mut decode = Vector::new();
+    let mut encode = Vector::new();
 
     decode_and_encode_cmp((&mut decode, &mut encode), b"o", &[0b00111111]);
     decode_and_encode_cmp((&mut decode, &mut encode), b"0", &[7]);
@@ -182,11 +178,11 @@ mod test {
   }
 
   fn decode_and_encode_cmp(
-    (decode_buffer, encode_buffer): (&mut _HeaderValueBuffer, &mut Vector<u8>),
+    (decode_buffer, encode_buffer): (&mut Vector<u8>, &mut Vector<u8>),
     bytes: &[u8],
     encoded: &[u8],
   ) {
-    let _ = huffman_decode(encoded, decode_buffer).unwrap();
+    huffman_decode(encoded, decode_buffer).unwrap();
     assert_eq!(&**decode_buffer, bytes);
 
     huffman_encode(bytes, encode_buffer).unwrap();

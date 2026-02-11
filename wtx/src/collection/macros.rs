@@ -104,12 +104,15 @@ macro_rules! expand_doc {
 }
 
 macro_rules! extend_from_cloneable_slice_doc {
-  ($struct:literal) => {
+  ($struct:literal $(, ($new_var:literal, $new_expr:literal))?) => {
     concat!(
       "Iterates over the slice `other`, clones each element and then appends it to this instance. The `other` slice is traversed in-order.\n",
       "\n",
       "```rust\n",
-      "let mut instance = wtx::collection::", $struct ,"::new();\n",
+      $("let ", $new_var, " = ", $new_expr, ";",)?
+      "let mut instance = wtx::collection::", $struct ,"::new(",
+      $($new_var,)?
+      ");\n",
       "instance.extend_from_cloneable_slice(&[1, 2, 3]).unwrap();\n",
       "assert_eq!(instance.as_slice(), &[1, 2, 3]);\n",
       "```"
@@ -118,12 +121,15 @@ macro_rules! extend_from_cloneable_slice_doc {
 }
 
 macro_rules! extend_from_copyable_slice_doc {
-  ($struct:literal) => {
+  ($struct:literal $(, ($new_var:literal, $new_expr:literal))?) => {
     concat!(
       "Iterates over the slice `other`, copies each element and then appends it to this instance. The `other` slice is traversed in-order.\n",
       "\n",
       "```rust\n",
-      "let mut instance = wtx::collection::", $struct ,"::new();\n",
+      $("let ", $new_var, " = ", $new_expr, ";",)?
+      "let mut instance = wtx::collection::", $struct ,"::new(",
+      $($new_var,)?
+      ");\n",
       "instance.extend_from_copyable_slice(&[1, 2, 3]).unwrap();\n",
       "assert_eq!(instance.as_slice(), &[1, 2, 3]);\n",
       "```"
@@ -132,14 +138,15 @@ macro_rules! extend_from_copyable_slice_doc {
 }
 
 macro_rules! extend_from_iter_doc {
-  ($struct:literal, $new:literal, $slice:literal) => {
+  ($struct:literal, $new:literal, $slice:literal $(, ($new_var:literal, $new_expr:literal))?) => {
     concat!(
       "Appends all elements of the iterator.\n",
       "\n",
       "```rust\n",
-      "let mut instance = wtx::collection::",
-      $struct,
-      "::new();\n",
+      $("let ", $new_var, " = ", $new_expr, ";",)?
+      "let mut instance = wtx::collection::", $struct ,"::new(",
+      $($new_var,)?
+      ");\n",
       "instance.extend_from_iter(",
       $new,
       ").unwrap();\n",
@@ -242,14 +249,15 @@ macro_rules! pop_doc {
 }
 
 macro_rules! push_doc {
-  ($struct:literal, $elem:literal, $slice:literal) => {
+  ($struct:literal, $elem:literal, $slice:literal $(, ($new_var:literal, $new_expr:literal))?) => {
     concat!(
       "Appends an element to the back of the collection.\n",
       "\n",
       "```rust\n",
-      "let mut instance = wtx::collection::",
-      $struct,
-      "::new();\n",
+      $("let ", $new_var, " = ", $new_expr, ";",)?
+      "let mut instance = wtx::collection::", $struct ,"::new(",
+      $($new_var,)?
+      ");\n",
       "instance.push(",
       $elem,
       ").unwrap();\n",

@@ -24,8 +24,14 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool>
   UrlSerializer<'buffer, IS_PERCENT, IS_TOP_LEVEL>
 {
   /// New instance
-  pub const fn new(ascii_set: AsciiSet, buffer: &'buffer mut Vector<u8>) -> Self {
-    Self { ascii_set, buffer }
+  ///
+  /// Defaults to [`AsciiSet::UNRESERVED`] if `ascii_set` is `None`.
+  pub fn new(ascii_set: Option<AsciiSet>, buffer: &'buffer mut Vector<u8>) -> Self {
+    if IS_TOP_LEVEL {
+      buffer.clear();
+    }
+    let actual = if let Some(elem) = ascii_set { elem } else { AsciiSet::UNRESERVED };
+    Self { ascii_set: actual, buffer }
   }
 }
 
@@ -33,11 +39,11 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
   for UrlSerializer<'buffer, IS_PERCENT, IS_TOP_LEVEL>
 {
   type Error = crate::Error;
-  type Ok = ();
+  type Ok = &'buffer str;
   type SerializeMap = MapSerializer<'buffer, IS_PERCENT>;
   type SerializeSeq = SeqSerializer<'buffer, IS_PERCENT>;
   type SerializeStruct = StructSerializer<'buffer, IS_PERCENT>;
-  type SerializeStructVariant = ser::Impossible<(), Self::Error>;
+  type SerializeStructVariant = ser::Impossible<&'buffer str, Self::Error>;
   type SerializeTuple = SeqSerializer<'buffer, IS_PERCENT>;
   type SerializeTupleStruct = SeqSerializer<'buffer, IS_PERCENT>;
   type SerializeTupleVariant = TupleVariantSerializer<'buffer, IS_PERCENT>;
@@ -50,7 +56,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     for chunk in UrlEncode::<IS_PERCENT>::new(v, self.ascii_set) {
       self.buffer.extend_from_copyable_slice(chunk)?;
     }
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_char(self, v: char) -> Result<Self::Ok, Self::Error> {
@@ -62,7 +68,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
       UrlEncodeWriter::<IS_PERCENT> { ascii_set: self.ascii_set, buffer: self.buffer },
       "{v}"
     )?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_f64(self, v: f64) -> Result<Self::Ok, Self::Error> {
@@ -70,27 +76,27 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
       UrlEncodeWriter::<IS_PERCENT> { ascii_set: self.ascii_set, buffer: self.buffer },
       "{v}"
     )?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i8_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_i16(self, v: i16) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i16_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_i32(self, v: i32) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i32_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_i64(self, v: i64) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i64_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_newtype_struct<T: ?Sized>(
@@ -118,8 +124,9 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
       self.buffer.extend_from_copyable_slice(chunk)?;
     }
     self.buffer.extend_from_copyable_slice(b"=")?;
-    value.serialize(UrlSerializer::<IS_PERCENT, false>::new(self.ascii_set, self.buffer))?;
-    Ok(())
+    let _ = value
+      .serialize(UrlSerializer::<IS_PERCENT, false>::new(Some(self.ascii_set), self.buffer))?;
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
@@ -130,7 +137,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
   }
 
   fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
@@ -209,30 +216,30 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
 
   fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u8_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u16_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_u32(self, v: u32) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u32_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u64_string(v).as_bytes())?;
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_unit_struct(self, _: &'static str) -> Result<Self::Ok, Self::Error> {
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_unit_variant(
@@ -258,10 +265,10 @@ pub struct MapSerializer<'buffer, const IS_PERCENT: bool> {
 
 impl<'buffer, const IS_PERCENT: bool> ser::SerializeMap for MapSerializer<'buffer, IS_PERCENT> {
   type Error = crate::Error;
-  type Ok = ();
+  type Ok = &'buffer str;
 
   fn end(self) -> crate::Result<Self::Ok> {
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_key<T>(&mut self, key: &T) -> crate::Result<()>
@@ -272,7 +279,8 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeMap for MapSerializer<'buffe
       self.buffer.extend_from_copyable_slice(b"&")?;
     }
     self.is_first = false;
-    key.serialize(UrlSerializer::<IS_PERCENT, false>::new(self.ascii_set, self.buffer))?;
+    let _ =
+      key.serialize(UrlSerializer::<IS_PERCENT, false>::new(Some(self.ascii_set), self.buffer))?;
     self.buffer.extend_from_copyable_slice(b"=")?;
     Ok(())
   }
@@ -281,7 +289,8 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeMap for MapSerializer<'buffe
   where
     T: ser::Serialize + ?Sized,
   {
-    value.serialize(UrlSerializer::<IS_PERCENT, false>::new(self.ascii_set, self.buffer))?;
+    let _ = value
+      .serialize(UrlSerializer::<IS_PERCENT, false>::new(Some(self.ascii_set), self.buffer))?;
     Ok(())
   }
 }
@@ -296,10 +305,10 @@ pub struct SeqSerializer<'buffer, const IS_PERCENT: bool> {
 
 impl<'buffer, const IS_PERCENT: bool> ser::SerializeSeq for SeqSerializer<'buffer, IS_PERCENT> {
   type Error = crate::Error;
-  type Ok = ();
+  type Ok = &'buffer str;
 
   fn end(self) -> crate::Result<Self::Ok> {
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_element<T>(&mut self, value: &T) -> crate::Result<()>
@@ -310,14 +319,15 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeSeq for SeqSerializer<'buffe
       self.buffer.extend_from_copyable_slice(b",")?;
     }
     self.is_first = false;
-    value.serialize(UrlSerializer::<IS_PERCENT, false>::new(self.ascii_set, self.buffer))?;
+    let _ = value
+      .serialize(UrlSerializer::<IS_PERCENT, false>::new(Some(self.ascii_set), self.buffer))?;
     Ok(())
   }
 }
 
 impl<'buffer, const IS_PERCENT: bool> ser::SerializeTuple for SeqSerializer<'buffer, IS_PERCENT> {
   type Error = crate::Error;
-  type Ok = ();
+  type Ok = &'buffer str;
 
   fn end(self) -> crate::Result<Self::Ok> {
     ser::SerializeSeq::end(self)
@@ -335,7 +345,7 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTupleStruct
   for SeqSerializer<'buffer, IS_PERCENT>
 {
   type Error = crate::Error;
-  type Ok = ();
+  type Ok = &'buffer str;
 
   fn end(self) -> crate::Result<Self::Ok> {
     ser::SerializeSeq::end(self)
@@ -361,10 +371,10 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeStruct
   for StructSerializer<'buffer, IS_PERCENT>
 {
   type Error = crate::Error;
-  type Ok = ();
+  type Ok = &'buffer str;
 
   fn end(self) -> crate::Result<Self::Ok> {
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> crate::Result<()>
@@ -379,7 +389,8 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeStruct
       self.buffer.extend_from_copyable_slice(chunk)?;
     }
     self.buffer.extend_from_copyable_slice(b"=")?;
-    value.serialize(UrlSerializer::<IS_PERCENT, false>::new(self.ascii_set, self.buffer))?;
+    let _ = value
+      .serialize(UrlSerializer::<IS_PERCENT, false>::new(Some(self.ascii_set), self.buffer))?;
     Ok(())
   }
 }
@@ -396,10 +407,10 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTupleVariant
   for TupleVariantSerializer<'buffer, IS_PERCENT>
 {
   type Error = crate::Error;
-  type Ok = ();
+  type Ok = &'buffer str;
 
   fn end(self) -> crate::Result<Self::Ok> {
-    Ok(())
+    Ok(url_encode_str(self.buffer))
   }
 
   fn serialize_field<T>(&mut self, value: &T) -> crate::Result<()>
@@ -410,7 +421,8 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTupleVariant
       self.buffer.extend_from_copyable_slice(b",")?;
     }
     self.is_first = false;
-    value.serialize(UrlSerializer::<IS_PERCENT, false>::new(self.ascii_set, self.buffer))?;
+    let _ = value
+      .serialize(UrlSerializer::<IS_PERCENT, false>::new(Some(self.ascii_set), self.buffer))?;
     Ok(())
   }
 }
@@ -429,12 +441,14 @@ impl<const IS_PERCENT: bool> Write for UrlEncodeWriter<'_, IS_PERCENT> {
   }
 }
 
+fn url_encode_str(bytes: &[u8]) -> &str {
+  // SAFETY: Url encoding is ASCII
+  unsafe { str::from_utf8_unchecked(bytes) }
+}
+
 #[cfg(test)]
 mod tests {
-  use crate::{
-    collection::Vector,
-    de::{AsciiSet, FormUrlSerializer},
-  };
+  use crate::{collection::Vector, de::FormUrlSerializer};
   use serde::Serialize;
 
   #[test]
@@ -446,8 +460,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    Foo { yes: true, no: false }.serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = Foo { yes: true, no: false }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"yes=true&no=false");
   }
 
@@ -461,8 +475,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    FooTy { value: Foo(42) }.serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = FooTy { value: Foo(42) }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"value=42");
   }
 
@@ -478,8 +492,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    Foo { value: Value::Count(42) }.serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = Foo { value: Value::Count(42) }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"value=Count=42");
   }
 
@@ -492,8 +506,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    Foo { present: Some(5), absent: None }.serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = Foo { present: Some(5), absent: None }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"present=5&absent=");
   }
 
@@ -505,8 +519,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    Foo { items: [1, 2, 3] }.serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = Foo { items: [1, 2, 3] }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"items=1,2,3");
   }
 
@@ -519,8 +533,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    Foo { bar: 123, baz: "hello there!" }.serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = Foo { bar: 123, baz: "hello there!" }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"bar=123&baz=hello+there%21");
   }
 
@@ -534,8 +548,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    Bar { data: Foo(1, "a") }.serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = Bar { data: Foo(1, "a") }.serialize(serializer).unwrap();
     assert_eq!(&buffer, b"data=1,a");
   }
 
@@ -547,8 +561,8 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    let serializer = FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer);
-    Coords::Point(10, 20).serialize(serializer).unwrap();
+    let serializer = FormUrlSerializer::new(None, &mut buffer);
+    let _ = Coords::Point(10, 20).serialize(serializer).unwrap();
     assert_eq!(&buffer, b"Point=10,20");
   }
 
@@ -566,14 +580,12 @@ mod tests {
     }
 
     let mut buffer = Vector::new();
-    Foo { status: Status::Absent }
-      .serialize(FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer))
-      .unwrap();
+    let _ =
+      Foo { status: Status::Absent }.serialize(FormUrlSerializer::new(None, &mut buffer)).unwrap();
     assert_eq!(&buffer, b"status=absent");
     buffer.clear();
-    Foo { status: Status::Active }
-      .serialize(FormUrlSerializer::new(AsciiSet::NON_ALPHANUMERIC, &mut buffer))
-      .unwrap();
+    let _ =
+      Foo { status: Status::Active }.serialize(FormUrlSerializer::new(None, &mut buffer)).unwrap();
     assert_eq!(&buffer, b"status=active");
   }
 }

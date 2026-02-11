@@ -13,7 +13,7 @@ use wtx::{
     ReqResBuffer, StatusCode,
     server_framework::{Router, ServerFrameworkBuilder, State, post},
   },
-  rng::{Xorshift64, simple_seed},
+  rng::{SeedableRng, Xorshift64},
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -23,7 +23,7 @@ async fn main() -> wtx::Result<()> {
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
   )?;
-  ServerFrameworkBuilder::new(Xorshift64::from(simple_seed()), router)
+  ServerFrameworkBuilder::new(Xorshift64::from_std_random()?, router)
     .with_stream_aux(|_| Ok(QuickProtobuf))
     .tokio_rustls(
       (wtx_instances::CERT, wtx_instances::KEY),

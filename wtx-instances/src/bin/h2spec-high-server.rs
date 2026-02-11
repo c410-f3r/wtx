@@ -9,7 +9,7 @@ use wtx::{
     StatusCode,
   },
   http2::{Http2Buffer, Http2Params},
-  rng::{Xorshift64, simple_seed},
+  rng::{SeedableRng, Xorshift64},
 };
 
 #[tokio::main]
@@ -19,7 +19,13 @@ async fn main() -> wtx::Result<()> {
     |_| Ok(()),
     |_, stream| async move { Ok(stream.into_split()) },
     |error| eprintln!("{error}"),
-    |_| Ok(((), Http2Buffer::new(&mut Xorshift64::from(simple_seed())), Http2Params::default())),
+    |_| {
+      Ok((
+        (),
+        Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
+        Http2Params::default(),
+      ))
+    },
     |_| Ok(()),
     |_, _, _, _, _| Ok(((), OperationMode::Auto)),
     |error| eprintln!("{error}"),

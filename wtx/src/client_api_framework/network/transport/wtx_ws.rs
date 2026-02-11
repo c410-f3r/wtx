@@ -32,7 +32,7 @@ where
 }
 
 async fn send_bytes<A, DRSR, T, TP>(
-  bytes: &[u8],
+  bytes: Option<&[u8]>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
   mut cb: impl for<'any> FnMutFut<
@@ -46,10 +46,10 @@ where
   TP: LeaseMut<WsParams>,
 {
   manage_before_sending_bytes(pkgs_aux).await?;
-  if !pkgs_aux.send_bytes_buffer {
-    pkgs_aux.bytes_buffer.extend_from_copyable_slice(bytes)?;
+  if let Some(el) = bytes {
+    pkgs_aux.bytes_buffer.extend_from_copyable_slice(el)?;
   }
-  log_req::<_, TP>(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), trans);
+  log_req::<_, TP>(&pkgs_aux.bytes_buffer, pkgs_aux.log_data, trans);
   cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(())
@@ -71,7 +71,7 @@ where
   TP: LeaseMut<WsParams>,
 {
   manage_before_sending_pkg(pkg, pkgs_aux, trans).await?;
-  log_req(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), trans);
+  log_req(&pkgs_aux.bytes_buffer, pkgs_aux.log_data, trans);
   cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, trans).await
 }

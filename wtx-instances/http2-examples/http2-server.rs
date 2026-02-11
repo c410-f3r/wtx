@@ -21,7 +21,7 @@ use wtx::{
   },
   http2::{Http2Buffer, Http2Params, WebSocketOverStream},
   misc::TokioRustlsAcceptor,
-  rng::{Xorshift64, simple_seed},
+  rng::{SeedableRng, Xorshift64},
   web_socket::{Frame, OpCode},
 };
 
@@ -42,7 +42,7 @@ async fn main() -> wtx::Result<()> {
     |_| {
       Ok((
         (),
-        Http2Buffer::new(&mut Xorshift64::from(simple_seed())),
+        Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
         Http2Params::default()
           .set_enable_connect_protocol(true)
           .set_max_hpack_len((128 * 1024, 128 * 1024)),
@@ -78,7 +78,7 @@ async fn manual(
   _: (),
   mut hm: ManualServerStream<(), Http2Buffer, Vector<u8>, WriteHalf<TlsStream<TcpStream>>>,
 ) -> Result<(), wtx::Error> {
-  let rng = Xorshift64::from(simple_seed());
+  let rng = Xorshift64::from_std_random().unwrap();
   hm.req.rrd.headers.clear();
   let mut wos = WebSocketOverStream::new(&hm.req.rrd.headers, false, rng, hm.stream).await?;
   loop {

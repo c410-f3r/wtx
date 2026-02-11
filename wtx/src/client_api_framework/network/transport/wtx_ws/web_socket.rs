@@ -38,7 +38,7 @@ where
     pkgs_aux.bytes_buffer.clear();
     let wpo = WebSocketPayloadOrigin::Consistent;
     let _frame = self.read_frame(&mut pkgs_aux.bytes_buffer, wpo).await?;
-    log_generic_res(&pkgs_aux.bytes_buffer, pkgs_aux.should_log_body(), TransportGroup::WebSocket);
+    log_generic_res(&pkgs_aux.bytes_buffer, pkgs_aux.log_data, TransportGroup::WebSocket);
     Ok(())
   }
 }
@@ -54,7 +54,7 @@ where
   #[inline]
   async fn send_bytes<A, DRSR>(
     &mut self,
-    bytes: &[u8],
+    bytes: Option<&[u8]>,
     pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   ) -> Result<(), A::Error>
   where

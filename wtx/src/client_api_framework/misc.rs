@@ -76,7 +76,7 @@ where
       (trans, &mut pkgs_aux.tp),
     )
     .await?;
-  if !pkgs_aux.send_bytes_buffer {
+  if pkgs_aux.encode_data {
     pkg.ext_req_content_mut().encode(&mut EncodeWrapper::new(&mut pkgs_aux.bytes_buffer))?;
   }
   Ok(())
@@ -85,14 +85,14 @@ where
 #[cfg(feature = "http2")]
 pub(crate) fn log_http_req<T, TP>(
   _bytes: &[u8],
-  _log_body: bool,
+  _log_data: bool,
   _method: crate::http::Method,
   _trans: &T,
   _uri: &crate::misc::UriString,
 ) where
   T: Transport<TP>,
 {
-  let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
+  let _body = if _log_data { from_utf8_basic(_bytes).ok() } else { None };
   _debug!(
     body = debug(_body),
     method = %_method,
@@ -102,10 +102,10 @@ pub(crate) fn log_http_req<T, TP>(
   );
 }
 
-pub(crate) fn log_req<T, TP>(_bytes: &[u8], _log_body: bool, _trans: &T)
+pub(crate) fn log_req<T, TP>(_bytes: &[u8], _log_data: bool, _trans: &T)
 where
   T: Transport<TP>,
 {
-  let _body = if _log_body { from_utf8_basic(_bytes).ok() } else { None };
+  let _body = if _log_data { from_utf8_basic(_bytes).ok() } else { None };
   _debug!(body = debug(_body), trans_ty = display(_trans.ty()), "Request");
 }

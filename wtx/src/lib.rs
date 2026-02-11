@@ -21,6 +21,7 @@ pub mod calendar;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
 pub mod collection;
+pub mod crypto;
 #[cfg(feature = "database")]
 pub mod database;
 pub mod de;
@@ -43,8 +44,6 @@ mod tests;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 
-#[cfg(feature = "std")]
-pub use error::VarError;
 pub use error::{Error, RecvError, SendError};
 #[cfg(feature = "macros")]
 pub use wtx_macros::*;
