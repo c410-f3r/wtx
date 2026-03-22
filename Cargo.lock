@@ -2106,7 +2106,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "proc-macro2",
  "quote",
