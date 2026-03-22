@@ -8,6 +8,7 @@ mod array_vector;
 mod array_wrapper;
 mod auto_clear;
 mod blocks_deque;
+mod capacity_upper_bound;
 mod clear;
 mod deque;
 mod expansion_ty;
@@ -29,6 +30,7 @@ pub use array_vector::{
 pub use array_wrapper::ArrayWrapper;
 pub use auto_clear::AutoClear;
 pub use blocks_deque::{Block, BlocksDeque, BlocksDequeError};
+pub use capacity_upper_bound::CapacityUpperBound;
 pub use clear::Clear;
 pub use deque::{Deque, DequeueError};
 pub use expansion_ty::ExpansionTy;

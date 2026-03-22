@@ -9,21 +9,26 @@ pub(crate) trait LinearStorage<T> {
   /// See [`needs_drop`].
   const NEEDS_DROP: bool = needs_drop::<T>();
 
-  /// See [`indexed_storage_len::LinearStorageLen`].
+  /// See [`linear_storage_len::LinearStorageLen`].
   type Len: linear_storage_len::LinearStorageLen;
-  /// See [`indexed_storage_slice::LinearStorageSlice`].
+  /// See [`linear_storage_slice::LinearStorageSlice`].
   type Slice: linear_storage_slice::LinearStorageSlice<Data = T> + ?Sized;
 
   // ***** REQUIRED *****
 
+  /// Returns a raw pointer to the vector’s buffer, or a dangling raw pointer valid for zero sized
+  /// reads if the storage didn’t allocate.
   fn as_ptr(&self) -> *const T;
 
+  /// Returns the total number of elements the vector can hold without reallocating.
   fn capacity(&self) -> Self::Len;
 
+  /// Returns the number of elements in the vector, also referred to as its `length`.
   fn len(&self) -> Self::Len;
 
   // ***** PROVIDED *****
 
+  /// Extracts a slice containing the entire vector.
   #[inline]
   fn as_slice(&self) -> &Self::Slice {
     use linear_storage_len::LinearStorageLen as _;
@@ -32,6 +37,7 @@ pub(crate) trait LinearStorage<T> {
     unsafe { Self::Slice::from_raw_parts(self.as_ptr(), self.len().usize()) }
   }
 
+  /// Returns the capacity left in the storage.
   #[inline]
   fn remaining(&self) -> Self::Len {
     use linear_storage_len::LinearStorageLen as _;

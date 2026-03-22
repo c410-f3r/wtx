@@ -11,12 +11,17 @@ use core::{ptr, slice};
 pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
   // ***** REQUIRED *****
 
+  /// Returns a mutable raw pointer to the underlying data buffer.
   fn as_ptr_mut(&mut self) -> *mut T;
 
+  /// Reserves capacity for at least `additional` more elements.
   fn reserve(&mut self, additional: Self::Len) -> crate::Result<()>;
 
+  /// Reserves exactly `additional` more elements of capacity.
   fn reserve_exact(&mut self, additional: Self::Len) -> crate::Result<()>;
 
+  /// Sets the length of the collection without any checks.
+  ///
   /// # Safety
   ///
   /// The underlying collection must `new_len` initialized elements.
@@ -24,6 +29,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
 
   // ***** PROVIDED *****
 
+  /// Creates a new instance filled with `len` clones of `value`.
   #[inline]
   fn from_cloneable_elem(len: usize, value: T) -> crate::Result<Self>
   where
@@ -35,6 +41,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(this)
   }
 
+  /// Creates a new instance by cloning all units from the given slice.
   #[inline]
   fn from_cloneable_slice(slice: &Self::Slice) -> crate::Result<Self>
   where
@@ -47,6 +54,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(this)
   }
 
+  /// Creates a new instance by copying all data from the given slice.
   #[inline]
   fn from_copyable_slice(slice: &Self::Slice) -> crate::Result<Self>
   where
@@ -58,6 +66,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(this)
   }
 
+  /// Creates a new instance by pushing each unit yielded by the iterator.
   #[inline]
   fn from_iterator(
     iter: impl IntoIterator<Item = <Self::Slice as LinearStorageSlice>::Unit>,
@@ -72,17 +81,20 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(this)
   }
 
+  /// Returns a mutable reference to the underlying slice.
   #[inline]
   fn as_slice_mut(&mut self) -> &mut Self::Slice {
     // SAFETY: it is assumed that implementations ensured `self.len()` initialized elements
     unsafe { Self::Slice::from_raw_parts_mut(self.as_ptr_mut(), self.len().usize()) }
   }
 
+  /// Removes all elements from the collection.
   #[inline]
   fn clear(&mut self) {
     let _rslt = Self::Slice::truncate(self, Self::Len::ZERO);
   }
 
+  /// Expands the collection by filling new slots with clones of `value`.
   #[inline]
   fn expand(&mut self, et: ExpansionTy, value: T) -> crate::Result<()>
   where
@@ -108,6 +120,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(())
   }
 
+  /// Appends all units from the given slice by cloning each one.
   #[inline]
   fn extend_from_cloneable_slice(&mut self, other: &Self::Slice) -> crate::Result<()>
   where
@@ -120,6 +133,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(())
   }
 
+  /// Appends all data from the given slice using a copy operation.
   #[inline]
   fn extend_from_copyable_slice(&mut self, other: &Self::Slice) -> crate::Result<()>
   where
@@ -129,6 +143,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(())
   }
 
+  /// Appends data from multiple copyable slices, returning the total number of elements added.
   #[inline]
   fn extend_from_copyable_slices<E, I>(&mut self, others: I) -> crate::Result<Self::Len>
   where
@@ -163,6 +178,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(others_len)
   }
 
+  /// Appends each unit yielded by the iterator to the collection.
   #[inline]
   fn extend_from_iter(
     &mut self,
@@ -174,6 +190,7 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
     Ok(())
   }
 
+  /// Appends a single logical unit to the end of the collection.
   #[inline]
   fn push(&mut self, elem: <Self::Slice as LinearStorageSlice>::Unit) -> crate::Result<()> {
     let data = Self::Slice::data_from_unit(elem);

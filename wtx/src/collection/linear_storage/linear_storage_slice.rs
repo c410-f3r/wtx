@@ -10,7 +10,9 @@ use core::{ptr, slice};
 
 /// Unsized slices like `str` or `[T]`.
 pub(crate) trait LinearStorageSlice: Lease<Self> {
+  /// Underlying data element type.
   type Data;
+  ///Logical unit type yielded during iteration.
   type Unit;
 
   /// # Safety
@@ -18,27 +20,35 @@ pub(crate) trait LinearStorageSlice: Lease<Self> {
   /// The same safety rules of [`core::slice::from_raw_parts`] apply to this method.
   unsafe fn from_raw_parts<'any>(data: *const Self::Data, len: usize) -> &'any Self;
 
+  /// Mutable version of [`LinearStorageSlice::from_raw_parts_mut`].
+  ///
   /// # Safety
   ///
   /// The same safety rules of [`core::slice::from_raw_parts_mut`] apply to this method.
   unsafe fn from_raw_parts_mut<'any>(data: *mut Self::Data, len: usize) -> &'any mut Self;
 
+  /// Returns the underlying data as a byte/element slice.
   fn data(&self) -> &[Self::Data];
 
+  /// Converts a logical unit into an iterator over its constituent data elements.
   fn data_from_unit(unit: Self::Unit) -> impl ExactSizeIterator<Item = Self::Data>;
 
+  /// Converts a logical unit into an iterator over its constituent data elements.
   fn pop<LSM>(lsm: &mut LSM) -> Option<Self::Unit>
   where
     LSM: LinearStorageMut<Self::Data, Slice = Self>;
 
+  /// Removes and returns the logical unit at the given index.
   fn remove<LSM>(lsm: &mut LSM, idx: LSM::Len) -> Option<Self::Unit>
   where
     LSM: LinearStorageMut<Self::Data, Slice = Self>;
 
+  /// Shortens the storage to the specified length, dropping excess elements.
   fn truncate<LSM>(lsm: &mut LSM, new_len: LSM::Len) -> crate::Result<()>
   where
     LSM: LinearStorageMut<Self::Data, Slice = Self> + ?Sized;
 
+  /// Returns a double-ended iterator over the logical units of this slice.
   fn units(&self) -> impl DoubleEndedIterator<Item = Self::Unit>
   where
     Self::Unit: Clone;
