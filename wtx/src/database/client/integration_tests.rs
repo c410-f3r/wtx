@@ -1,7 +1,7 @@
 use crate::{
+  codec::{CodecController, Decode, Encode, u16_string},
   collection::Vector,
   database::{Database, Executor, Typed, record::Record, records::Records},
-  de::{DEController, Decode, Encode, u16_string},
   executor::Runtime,
 };
 use alloc::format;
@@ -39,7 +39,7 @@ where
       .unwrap();
     assert_eq!(records.len(), 3);
 
-    let records0 = records.get(0).unwrap();
+    let records0 = records.first().unwrap();
     let records00 = records0.get(0).unwrap();
     let records01 = records0.get(1).unwrap();
     assert_eq!(records0.len(), 2);
@@ -104,7 +104,7 @@ where
       .unwrap();
     assert_eq!(records.len(), 2);
 
-    let records0 = records.get(0).unwrap();
+    let records0 = records.first().unwrap();
     let records00 = records0.get(0).unwrap();
     assert_eq!(records0.len(), 1);
     assert_eq!(records00.len(), 1);
@@ -384,7 +384,7 @@ where
 pub(crate) fn ping<E>(fut: impl Future<Output = E>)
 where
   E: Executor,
-  <E::Database as DEController>::Error: Debug,
+  <E::Database as CodecController>::Error: Debug,
 {
   Runtime::new().block_on(async {
     fut.await.ping().await.unwrap();

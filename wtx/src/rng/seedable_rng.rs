@@ -1,30 +1,19 @@
-use crate::{misc::LeaseMut, rng::Rng};
+use crate::{
+  misc::LeaseMut as _,
+  rng::{CryptoSeedableRng, Rng, Xorshift64, simple_seed},
+};
 
-/// A random number generator that can be explicitly seeded.
-pub trait SeedableRng: Sized {
-  /// Number used to construct instances
-  type Seed: Clone + Default + LeaseMut<[u8]>;
-
-  /// Creates a new instance based on the entropy provided by the `getrandom` dependency.
-  #[cfg(feature = "getrandom")]
+/// Non-crypto version of [`CryptoSeedableRng`].
+pub trait SeedableRng: CryptoSeedableRng {
+  /// Creates a new instance based on the entropy provided by [`simple_seed`].
   #[inline]
-  fn from_getrandom() -> crate::Result<Self> {
+  fn from_simple_seed() -> crate::Result<Self> {
     let mut seed = Self::Seed::default();
-    getrandom::fill(seed.lease_mut())?;
+    Xorshift64::from(simple_seed()).fill_slice(seed.lease_mut());
     Self::from_seed(seed)
   }
 
-  /// Creates a new instance based on the entropy provided by `std::random`.
-  #[cfg(all(feature = "nightly", feature = "std"))]
-  #[inline]
-  fn from_std_random() -> crate::Result<Self> {
-    use core::random::RandomSource as _;
-    let mut seed = Self::Seed::default();
-    std::random::DefaultRandomSource.fill_bytes(seed.lease_mut());
-    Self::from_seed(seed)
-  }
-
-  /// Creates a new instance based on another RNG.
+  /// Creates a new instance based on another non-crypto RNG.
   #[inline]
   fn from_rng<R>(rng: &mut R) -> crate::Result<Self>
   where
@@ -34,7 +23,4 @@ pub trait SeedableRng: Sized {
     rng.fill_slice(seed.lease_mut());
     Self::from_seed(seed)
   }
-
-  /// Creates a new instance based on the provided seed.
-  fn from_seed(seed: Self::Seed) -> crate::Result<Self>;
 }

@@ -9,8 +9,8 @@ use crate::{
     misc::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
     nanosecond::Nanosecond,
   },
+  codec::u32_string,
   collection::{ArrayString, ArrayStringU8},
-  de::u32_string,
 };
 use core::{
   fmt::{Debug, Display, Formatter},
@@ -141,7 +141,7 @@ impl Time {
     let mut seconds = u32i64(self.seconds_since_mn());
     let mut nanosecond = self.nanosecond.num().cast_signed();
     seconds = seconds.wrapping_add(duration.seconds());
-    nanosecond = nanosecond.wrapping_add(duration.subsec_nanoseconds());
+    nanosecond = nanosecond.wrapping_add(duration.nanoseconds());
     manage_out_of_bounds!(@one, 0, NANOSECONDS_PER_SECOND.cast_signed(), nanosecond, seconds);
     let (day_seconds, this_hours, this_minutes, this_seconds) = Time::hms_from_seconds(seconds);
     (

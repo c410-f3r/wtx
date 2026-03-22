@@ -1,15 +1,16 @@
 use crate::{
   calendar::{DateTime, Instant},
-  collection::{ArrayString, Vector},
+  collection::{ArrayString, ArrayStringU8, ArrayVectorU8, Vector},
   crypto::{Aead, Aes128GcmRustCrypto},
   http::{
     Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
-    SessionState, SessionStore, cookie::cookie_generic::CookieGeneric, session::SessionSecret,
+    SessionState, SessionStore, cookie::cookie_generic::CookieGeneric,
   },
-  misc::{Lease, LeaseMut},
+  misc::{Lease, LeaseMut, Secret},
   rng::CryptoRng,
   sync::{Arc, AsyncMutex},
 };
+use alloc::string::String;
 use core::{
   fmt::{Debug, Formatter},
   marker::PhantomData,
@@ -21,7 +22,11 @@ use serde::Serialize;
 #[derive(Debug)]
 pub struct SessionManager<CS, E> {
   /// Inner content
-  pub inner: Arc<AsyncMutex<SessionManagerInner<CS, E>>>,
+  pub inner: Arc<(
+    // Used to avoid excessive locks
+    ArrayStringU8<15>,
+    AsyncMutex<SessionManagerInner<CS, E>>,
+  )>,
 }
 
 impl<CS, E> SessionManager<CS, E>
@@ -30,7 +35,7 @@ where
 {
   /// Allows the specification of custom parameters.
   #[inline]
-  pub const fn builder() -> SessionManagerBuilder {
+  pub fn builder() -> SessionManagerBuilder {
     SessionManagerBuilder::new()
   }
 
@@ -46,13 +51,10 @@ where
     RRD: ReqResDataMut,
     S: SessionStore<CS, E>,
   {
-    let SessionManagerInner { cookie_def, .. } = &mut *self.inner.lock().await;
-    let Some(elem) = state.take() else {
-      return Ok(());
-    };
-    if elem.expires_at.is_some() {
+    let SessionManagerInner { cookie_def, .. } = &mut *self.inner.1.lock().await;
+    if let Some(elem) = state.take() {
       store.delete(&elem.session_key).await?;
-    }
+    };
     Self::clear_cookie(cookie_def, rrd.headers_mut())?;
     Ok(())
   }
@@ -74,7 +76,7 @@ where
     RRD: LeaseMut<ReqResBuffer>,
     S: SessionStore<CS, E>,
   {
-    let inner = &mut *self.inner.lock().await;
+    let inner = &mut *self.inner.1.lock().await;
     let SessionManagerInner { cookie_def, session_secret, .. } = inner;
     let session_csrf =
       ArrayString::from_iterator(rng.ascii_graphic_iter().take(32).map(Into::into))?;
@@ -100,15 +102,17 @@ where
     let idx = rrd.lease().body.len();
     serde_json::to_writer(&mut rrd.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
-    let enc_rslt = Aes128GcmRustCrypto::encrypt_to_buffer_base64(
-      cookie_def.name.as_bytes(),
-      &mut cookie_def.value,
-      rrd.lease().body.get(idx..).unwrap_or_default(),
-      rng,
-      session_secret.data()?,
-    );
+    let enc_rslt = session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new(), |el| {
+      Aes128GcmRustCrypto::encrypt_to_buffer_base64(
+        cookie_def.name.as_bytes(),
+        &mut cookie_def.value,
+        rrd.lease().body.get(idx..).unwrap_or_default(),
+        rng,
+        el.as_ref().try_into()?,
+      )
+    });
     rrd.lease_mut().body.truncate(idx);
-    let _ = enc_rslt?;
+    let _ = enc_rslt??;
     let headers_rslt = rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
       format_args!(
@@ -132,7 +136,7 @@ where
   }
 
   pub(crate) fn clear_cookie(
-    cookie_def: &mut CookieGeneric<&'static str, Vector<u8>>,
+    cookie_def: &mut CookieGeneric<String, Vector<u8>>,
     headers: &mut Headers,
   ) -> crate::Result<()> {
     let prev_expires = cookie_def.expires;
@@ -159,9 +163,9 @@ impl<CS, E> Clone for SessionManager<CS, E> {
 
 /// Allows the management of state across requests within a connection.
 pub struct SessionManagerInner<CS, E> {
-  pub(crate) cookie_def: CookieGeneric<&'static str, Vector<u8>>,
+  pub(crate) cookie_def: CookieGeneric<String, Vector<u8>>,
   pub(crate) phantom: PhantomData<(CS, E)>,
-  pub(crate) session_secret: SessionSecret,
+  pub(crate) session_secret: Secret,
 }
 
 impl<CS, E> Debug for SessionManagerInner<CS, E> {

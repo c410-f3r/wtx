@@ -1,5 +1,6 @@
 use crate::{
   calendar::{DateTime, Utc},
+  collection::ArrayStringU8,
   http::cookie::{FMT1, SameSite},
   misc::Lease,
 };
@@ -14,7 +15,7 @@ pub(crate) struct CookieGeneric<T, V> {
   pub(crate) expires: Option<DateTime<Utc>>,
   pub(crate) http_only: bool,
   pub(crate) max_age: Option<Duration>,
-  pub(crate) name: T,
+  pub(crate) name: ArrayStringU8<15>,
   pub(crate) path: T,
   pub(crate) same_site: Option<SameSite>,
   pub(crate) secure: bool,
@@ -32,7 +33,7 @@ impl<T, V> CookieGeneric<T, V> {
       expires: self.expires,
       http_only: self.http_only,
       max_age: self.max_age,
-      name: data(&mut self.name),
+      name: self.name,
       path: data(&mut self.path),
       same_site: self.same_site,
       secure: self.secure,
@@ -48,7 +49,7 @@ where
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_fmt(format_args!("{}={}", self.name.lease(), self.value.lease()))?;
+    f.write_fmt(format_args!("{}={}", &self.name, self.value.lease()))?;
     if !self.domain.lease().is_empty() {
       f.write_fmt(format_args!("; Domain={}", self.domain.lease()))?;
     }

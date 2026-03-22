@@ -14,10 +14,7 @@ pub fn parse_bytes_into_tokens(
 ) -> crate::Result<ArrayVectorU8<calendar_token::CalendarToken, 16>> {
   let mut tokens = ArrayVector::new();
   let mut iter = bytes.into_iter().peekable();
-  loop {
-    let Some(first) = iter.next() else {
-      break;
-    };
+  while let Some(first) = iter.next() {
     match first {
       b'%' => {
         let Some(second) = iter.next() else {

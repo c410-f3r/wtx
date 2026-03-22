@@ -1,13 +1,11 @@
 //! Pool Manager
 
 mod resource_manager;
-#[cfg(feature = "std")]
 mod simple_pool;
 
-#[cfg(feature = "postgres")]
+#[cfg(all(feature = "postgres", feature = "secret"))]
 pub use resource_manager::database::PostgresRM;
 pub use resource_manager::{ResourceManager, SimpleRM};
-#[cfg(feature = "std")]
 pub use simple_pool::*;
 
 /// Manages HTTP/2 resources for clients and servers.

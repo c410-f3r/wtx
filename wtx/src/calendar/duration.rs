@@ -10,7 +10,7 @@ use crate::calendar::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Duration {
   seconds: i64,
-  nanosecond: i32,
+  nanoseconds: i32,
 }
 
 impl Duration {
@@ -50,7 +50,7 @@ impl Duration {
   pub const fn from_milliseconds(milliseconds: i64) -> Self {
     Self {
       seconds: milliseconds / u16i64(MILLISECONDS_PER_SECOND),
-      nanosecond: {
+      nanoseconds: {
         let rest = (milliseconds % u16i64(MILLISECONDS_PER_SECOND)) as i32;
         rest.wrapping_mul(NANOSECONDS_PER_MILLISECOND.cast_signed())
       },
@@ -72,7 +72,7 @@ impl Duration {
     if seconds == i64::MIN {
       return Err(CalendarError::ArithmeticOverflow);
     }
-    Ok(Self { seconds, nanosecond: 0 })
+    Ok(Self { seconds, nanoseconds: 0 })
   }
 
   /// Creates a new instance from the specified number of whole seconds and additional
@@ -101,7 +101,7 @@ impl Duration {
     if seconds == i64::MIN {
       return Err(CalendarError::ArithmeticOverflow);
     }
-    Ok(Self { seconds, nanosecond })
+    Ok(Self { seconds, nanoseconds: nanosecond })
   }
 
   /// Returns the number of days contained in this instance.
@@ -121,7 +121,7 @@ impl Duration {
   /// Returns `true` if the number of seconds and nanoseconds are zero
   #[inline]
   pub const fn is_zero(self) -> bool {
-    self.seconds == 0 && self.nanosecond == 0
+    self.seconds == 0 && self.nanoseconds == 0
   }
 
   /// Returns the number of minutes contained in this instance.
@@ -136,7 +136,7 @@ impl Duration {
   #[inline]
   #[must_use]
   pub const fn neg(self) -> Self {
-    Self { seconds: -self.seconds, nanosecond: -self.nanosecond }
+    Self { seconds: -self.seconds, nanoseconds: -self.nanoseconds }
   }
 
   /// Returns the number of _whole_ seconds contained in this instance.
@@ -147,8 +147,8 @@ impl Duration {
 
   /// Returns the number of nanosecond past the number of whole seconds.
   #[inline]
-  pub const fn subsec_nanoseconds(self) -> i32 {
-    self.nanosecond
+  pub const fn nanoseconds(self) -> i32 {
+    self.nanoseconds
   }
 }
 
@@ -166,6 +166,6 @@ impl TryFrom<Duration> for core::time::Duration {
 
   #[inline]
   fn try_from(from: Duration) -> crate::Result<Self> {
-    Ok(Self::new(from.seconds.try_into()?, from.nanosecond.try_into()?))
+    Ok(Self::new(from.seconds.try_into()?, from.nanoseconds.try_into()?))
   }
 }

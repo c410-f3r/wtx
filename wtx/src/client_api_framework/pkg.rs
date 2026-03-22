@@ -8,8 +8,8 @@ mod pkgs_aux;
 
 use crate::{
   client_api_framework::Api,
+  codec::{DecodeSeq, Encode, GenericCodec},
   collection::Vector,
-  de::{DecodeSeq, Encode, format::De},
 };
 pub use batch_pkg::{BatchElems, BatchPkg};
 pub use pkg_with_helper::*;
@@ -28,9 +28,9 @@ where
   A: Api,
 {
   /// The expected data format that is going to be sent to an external actor.
-  type ExternalRequestContent: Encode<De<DRSR>>;
+  type ExternalRequestContent: Encode<GenericCodec<DRSR>>;
   /// The expected data format returned by an external actor.
-  type ExternalResponseContent<'de>: DecodeSeq<'de, De<DRSR>>;
+  type ExternalResponseContent<'de>: DecodeSeq<'de, GenericCodec<DRSR>>;
   /// Any additional parameters used by this package.
   type PackageParams;
 

@@ -1,9 +1,10 @@
 #![feature(prelude_import)]
-#[macro_use]
 extern crate std;
 #[prelude_import]
 use std::prelude::rust_2021::*;
 extern crate alloc;
+
+use wtx::collection::Vector;
 
 pub struct Foo {
     bar0: String,
@@ -12,6 +13,7 @@ pub struct Foo {
     bar2: u16,
     #[from_vars(parse_bar3)]
     bar3: Option<u32>,
+    bar4: Vector<u8>,
 }
 impl wtx::misc::FromVars for Foo {
     fn from_vars(vars:
@@ -22,12 +24,14 @@ impl wtx::misc::FromVars for Foo {
         let mut _bar1 = None;
         let mut _bar2 = None;
         let mut _bar3 = None;
+        let mut _bar4 = None;
         for (key, value) in vars {
             match key.as_str() {
-                "BAR0" => _bar0 = Some(value),
-                "BAR1" => _bar1 = Some(value),
+                "BAR0" => _bar0 = Some(TryFrom::try_from(value)?),
+                "BAR1" => _bar1 = Some(TryFrom::try_from(value)?),
                 "BAR2" => _bar2 = Some(parse_bar2(value)?),
                 "BAR3" => _bar3 = Some(parse_bar3(value)?),
+                "BAR4" => _bar4 = Some(TryFrom::try_from(value)?),
                 _ => {}
             }
         }
@@ -38,6 +42,8 @@ impl wtx::misc::FromVars for Foo {
                 bar2: _bar2.ok_or_else(||
                             wtx::Error::MissingVar("bar2".into()))?,
                 bar3: _bar3,
+                bar4: _bar4.ok_or_else(||
+                            wtx::Error::MissingVar("bar4".into()))?,
             })
     }
 }

@@ -11,7 +11,7 @@ use crate::{
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
-  de::{Encode, format::EncodeWrapper},
+  codec::{Encode, GenericEncodeWrapper},
   misc::from_utf8_basic,
 };
 pub use from_bytes::FromBytes;
@@ -77,7 +77,7 @@ where
     )
     .await?;
   if pkgs_aux.encode_data {
-    pkg.ext_req_content_mut().encode(&mut EncodeWrapper::new(&mut pkgs_aux.bytes_buffer))?;
+    pkg.ext_req_content_mut().encode(&mut GenericEncodeWrapper::new(&mut pkgs_aux.bytes_buffer))?;
   }
   Ok(())
 }

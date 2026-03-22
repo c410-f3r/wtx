@@ -1,9 +1,9 @@
 use crate::{
-  collection::Vector,
-  de::{
+  codec::{
     Id,
     protocol::{JsonRpcEncoder, VerbatimEncoder},
   },
+  collection::Vector,
 };
 
 /// # Packages Auxiliary

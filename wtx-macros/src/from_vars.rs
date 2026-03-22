@@ -36,7 +36,7 @@ pub(crate) fn from_vars(item: proc_macro::TokenStream) -> crate::Result<proc_mac
         }
       } else {
         quote::quote! {
-          #upper => #var = Some(value),
+          #upper => #var = Some(TryFrom::try_from(value)?),
         }
       }
     });

@@ -6,8 +6,8 @@ use crate::{
       push::{push_four_digit_year, push_two_space_day},
     },
   },
+  codec::i16_string,
   collection::{ArrayString, ArrayStringU8},
-  de::i16_string,
 };
 
 impl Date {

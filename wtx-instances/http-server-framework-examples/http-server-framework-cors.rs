@@ -2,13 +2,13 @@
 
 use wtx::{
   http::server_framework::{CorsMiddleware, Router, ServerFrameworkBuilder, get},
-  rng::{SeedableRng, Xorshift64},
+  rng::{ChaCha20, CryptoSeedableRng},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let router = Router::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::permissive()?)?;
-  ServerFrameworkBuilder::new(Xorshift64::from_std_random()?, router)
+  let router = Router::new(wtx::paths!(("/hello", get(hello))), CorsMiddleware::permissive())?;
+  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
     .without_aux()
     .tokio(
       "0.0.0.0:9000",

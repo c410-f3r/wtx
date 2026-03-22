@@ -31,16 +31,16 @@ pub trait HttpClient {
   #[inline]
   fn send_req_recv_res<RRD>(
     &self,
-    mut rrb: ReqResBuffer,
-    rb: ReqBuilder<RRD>,
+    req_builder: ReqBuilder<RRD>,
+    mut res_buffer: ReqResBuffer,
   ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
     async move {
-      let req_id = self.send_req(&mut rrb.body, rb).await?;
-      self.recv_res(rrb, req_id).await
+      let req_id = self.send_req(&mut res_buffer.body, req_builder).await?;
+      self.recv_res(res_buffer, req_id).await
     }
   }
 }
@@ -213,7 +213,7 @@ mod http_client_pool {
       RRD: ReqResData,
       RRD::Body: Lease<[u8]>,
     {
-      let mut req_id = self.lock(&rb.rrb.rrd.uri()).await?.client.stream().await?;
+      let mut req_id = self.lock(&rb.rrd.uri()).await?.client.stream().await?;
       if req_id.send_req(enc_buffer, rb.into_request()).await?.is_closed() {
         return Err(crate::Error::ClosedHttpConnection);
       }

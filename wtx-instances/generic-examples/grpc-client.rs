@@ -7,7 +7,7 @@ extern crate wtx_instances;
 
 use std::borrow::Cow;
 use wtx::{
-  de::format::QuickProtobuf,
+  codec::format::QuickProtobuf,
   grpc::GrpcClient,
   http::{ReqResBuffer, client_pool::ClientPoolBuilder},
 };

@@ -1,4 +1,5 @@
 use crate::{
+  codec::{Decode, FromRadix10},
   database::client::mysql::{
     MysqlError,
     auth_plugin::AuthPlugin,
@@ -6,7 +7,6 @@ use crate::{
     protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol},
     status::Status,
   },
-  de::{Decode, FromRadix10},
   misc::{bytes_split_once1, bytes_split1},
 };
 

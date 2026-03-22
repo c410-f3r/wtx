@@ -2,12 +2,14 @@
 
 macro_rules! create_atomic_primitive {
   ($local_ty:ident, $name:ident, $ty:ty) => {
-    #[cfg(feature = "portable-atomic")]
-    type $local_ty = portable_atomic::$name;
-    #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
-    type $local_ty = loom::sync::atomic::$name;
-    #[cfg(all(not(feature = "portable-atomic"), not(feature = "loom")))]
-    type $local_ty = core::sync::atomic::$name;
+    cfg_select! {
+      feature = "portable-atomic" => {
+        type $local_ty = portable_atomic::$name;
+      }
+      _ => {
+        type $local_ty = core::sync::atomic::$name;
+      }
+    }
 
     /// An integer type which can be safely shared between threads.
     #[derive(Debug)]
@@ -15,13 +17,6 @@ macro_rules! create_atomic_primitive {
 
     impl $name {
       /// New instance with the given data.
-      #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
-      #[inline]
-      pub fn new(data: $ty) -> Self {
-        Self($local_ty::new(data))
-      }
-      /// New instance with the given data.
-      #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
       #[inline]
       pub const fn new(data: $ty) -> Self {
         Self($local_ty::new(data))

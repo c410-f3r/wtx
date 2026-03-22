@@ -21,24 +21,27 @@ where
   B::Item: Clone + From<u8> + PartialOrd + TryArithmetic<Output = B::Item>,
 {
   /// Creates a new instance with the given buffer and weights.
+  ///
+  /// No element in the `weights` set should be negative.
   #[inline]
-  pub fn new(mut buffer: B, weights: impl IntoIterator<Item = B::Item>) -> crate::Result<Self> {
-    buffer.clear();
-    let mut sum = B::Item::from(0u8);
-    for elem in weights {
-      if elem < B::Item::from(0u8) {
-        return Err(crate::Error::InvalidWeight);
-      }
-      sum = sum.try_add(elem)?;
-      buffer.try_extend([sum.clone()])?;
-    }
-    Ok(Self { buffer, sum })
+  pub fn new(buffer: B, weights: impl IntoIterator<Item = B::Item>) -> crate::Result<Self> {
+    let mut this = Self { buffer, sum: B::Item::from(0u8) };
+    this.recalc(weights)?;
+    Ok(this)
   }
 
   /// Mutable buffer
   #[inline]
   pub fn buffer_mut(&mut self) -> &mut B {
     &mut self.buffer
+  }
+
+  /// Clears internal state
+  #[inline]
+  pub fn clear(&mut self) {
+    let Self { buffer, sum } = self;
+    buffer.clear();
+    *sum = B::Item::from(0u8);
   }
 
   /// Buffer ownership
@@ -54,8 +57,34 @@ where
     B::Item: FromRng<R>,
     R: Rng,
   {
-    let random = rng.pick_from_range(B::Item::from(0u8)..self.sum.clone())?;
-    Some(self.buffer.lease().partition_point(|el| *el < random))
+    let buffer = self.buffer.lease();
+    let len = buffer.len();
+    let sum = self.sum.clone();
+    let Some(random) = rng.pick_from_range(B::Item::from(0u8)..sum) else {
+      if buffer.is_empty() {
+        return None;
+      }
+      return Some(0);
+    };
+    let idx = buffer.partition_point(|el| *el <= random);
+    Some(idx.min(len.wrapping_sub(1)))
+  }
+
+  /// Clears previous results to calculate new weights using the same internal buffer.
+  ///
+  /// No element in the `weights` set should be negative.
+  #[inline]
+  pub fn recalc(&mut self, weights: impl IntoIterator<Item = B::Item>) -> crate::Result<()> {
+    self.clear();
+    let Self { buffer, sum } = self;
+    for elem in weights {
+      if elem < B::Item::from(0u8) {
+        return Err(crate::Error::InvalidWeight);
+      }
+      *sum = sum.try_add(elem)?;
+      buffer.try_extend([sum.clone()])?;
+    }
+    Ok(())
   }
 }
 
@@ -78,9 +107,9 @@ mod tests {
   };
 
   #[test]
-  fn pick() {
+  fn distribution() {
     let mut buffer = ArrayVectorU8::<_, 3>::new();
-    let mut rng = Xorshift64::from_std_random().unwrap();
+    let mut rng = Xorshift64::from_simple_seed().unwrap();
     let weighted_index = WeightedIndex::new(&mut buffer, [6, 2, 12]).unwrap();
     assert_eq!(weighted_index.buffer, &[6, 8, 20]);
     let mut indices = [0, 0, 0];
@@ -90,5 +119,14 @@ mod tests {
     }
     assert!(indices[0] > indices[1]);
     assert!(indices[2] > indices[0] && indices[2] > indices[1]);
+  }
+
+  #[test]
+  fn zeros() {
+    let mut buffer = ArrayVectorU8::<_, 3>::new();
+    let mut rng = Xorshift64::from_simple_seed().unwrap();
+    let weighted_index = WeightedIndex::new(&mut buffer, [0, 0, 0]).unwrap();
+    assert_eq!(weighted_index.buffer, &[0, 0, 0]);
+    assert_eq!(weighted_index.pick(&mut rng).unwrap(), 0);
   }
 }

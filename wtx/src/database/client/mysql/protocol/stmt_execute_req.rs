@@ -1,4 +1,5 @@
 use crate::{
+  codec::Encode,
   database::{
     RecordValues,
     client::mysql::{
@@ -9,7 +10,6 @@ use crate::{
       protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
     },
   },
-  de::Encode,
 };
 
 #[derive(Debug)]

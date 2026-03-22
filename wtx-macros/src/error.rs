@@ -8,8 +8,11 @@ pub(crate) enum Error {
 
   // FromRecords
   DuplicatedId(Span),
+  DuplicatedContainerTy(Span),
   MissingDatabase(Span),
   MissingId(Span),
+  ReservedTypeNameE,
+  UnknownContainerTy,
   UnknownFieldTy(Span),
 
   // Pkg
@@ -52,6 +55,9 @@ impl From<Error> for syn::Error {
       Error::AbsentApi => {
         syn::Error::new(Span::call_site(), "All APIs must have an `error(SOME_ERROR) attribute`")
       }
+      Error::DuplicatedContainerTy(span) => {
+        syn::Error::new(span, "Type can only be specified once")
+      }
       Error::DuplicatedId(span) => syn::Error::new(span, "A record must have only one ID field"),
       Error::MissingDatabase(span) => {
         syn::Error::new(span, "It is necessary to specify a database")
@@ -62,10 +68,16 @@ impl From<Error> for syn::Error {
       Error::UnknownApiMode(span) => {
         syn::Error::new(span, "Unknown mode. Possible values are `auto` or `manual`")
       }
+      Error::UnknownContainerTy => {
+        syn::Error::new(Span::call_site(), "Only `bound` and `modifier` are allowed")
+      }
       Error::UnknownFieldTy(span) => syn::Error::new(
         span,
-        "Unknown field ty. Possible values are `decode`, `id`, `many` and `ony`",
+        "Unknown field ty. Possible values are `decode`, `id`, `ignore`, `many` and `ony`",
       ),
+      Error::ReservedTypeNameE => {
+        syn::Error::new(Span::call_site(), "A database generic must use the letter `E")
+      }
       Error::AbsentFieldInUnnamedStruct(span) => syn::Error::new(
         span,
         "Unnamed structures must have a `#[pkg::field]` attribute on each field.",

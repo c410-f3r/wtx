@@ -1,4 +1,5 @@
 use crate::{
+  codec::{Decode, Encode},
   collection::Vector,
   database::{
     Executor as _, Record, Typed,
@@ -8,10 +9,9 @@ use crate::{
     },
     records::Records,
   },
-  de::{Decode, Encode},
   executor::Runtime,
   misc::UriRef,
-  rng::{ChaCha20, SeedableRng},
+  rng::{ChaCha20, CryptoSeedableRng},
   tests::_vars,
 };
 use alloc::string::String;
@@ -40,7 +40,7 @@ fn batch() {
       .unwrap();
     assert_eq!(records.len(), 3);
 
-    let records0 = records.get(0).unwrap();
+    let records0 = records.first().unwrap();
     let records00 = records0.get(0).unwrap();
     let records01 = records0.get(1).unwrap();
     assert_eq!(records0.len(), 2);
@@ -102,7 +102,7 @@ fn custom_composite_type() {
           let _ev = StructEncoder::<crate::Error>::new(ew)?
             .encode(self.0)?
             .encode_with_ty(&self.1, Ty::Varchar)?
-            .encode(&self.2)?;
+            .encode(self.2)?;
           Ok(())
         }
       }

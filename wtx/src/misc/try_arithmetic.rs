@@ -1,6 +1,6 @@
 /// Try Arithmetic Error
 #[derive(Clone, Copy, Debug)]
-pub enum TryArithmeticError {
+pub enum ArithmeticError {
   /// The result of an addition is greater than the underlying capacity
   AddOverflow,
   /// Division by zero or an overflow involving signed numbers
@@ -40,27 +40,27 @@ impl TryArithmetic<rust_decimal::Decimal> for rust_decimal::Decimal {
 
   #[inline]
   fn try_add(&self, rhs: rust_decimal::Decimal) -> crate::Result<Self::Output> {
-    Ok(self.checked_add(rhs).ok_or(TryArithmeticError::AddOverflow)?)
+    Ok(self.checked_add(rhs).ok_or(ArithmeticError::AddOverflow)?)
   }
 
   #[inline]
   fn try_div(&self, rhs: rust_decimal::Decimal) -> crate::Result<Self::Output> {
-    Ok(self.checked_div(rhs).ok_or(TryArithmeticError::AddOverflow)?)
+    Ok(self.checked_div(rhs).ok_or(ArithmeticError::DivOverflow)?)
   }
 
   #[inline]
   fn try_mul(&self, rhs: rust_decimal::Decimal) -> crate::Result<Self::Output> {
-    Ok(self.checked_mul(rhs).ok_or(TryArithmeticError::AddOverflow)?)
+    Ok(self.checked_mul(rhs).ok_or(ArithmeticError::MulOverflow)?)
   }
 
   #[inline]
   fn try_rem(&self, rhs: rust_decimal::Decimal) -> crate::Result<Self::Output> {
-    Ok(self.checked_rem(rhs).ok_or(TryArithmeticError::AddOverflow)?)
+    Ok(self.checked_rem(rhs).ok_or(ArithmeticError::RemOverflow)?)
   }
 
   #[inline]
   fn try_sub(&self, rhs: rust_decimal::Decimal) -> crate::Result<Self::Output> {
-    Ok(self.checked_sub(rhs).ok_or(TryArithmeticError::AddOverflow)?)
+    Ok(self.checked_sub(rhs).ok_or(ArithmeticError::SubOverflow)?)
   }
 }
 
@@ -106,27 +106,27 @@ macro_rules! impl_integer {
 
         #[inline]
         fn try_add(&self, rhs: $ty) -> crate::Result<Self::Output> {
-          Ok(self.checked_add(rhs).ok_or(TryArithmeticError::AddOverflow)?)
+          Ok(self.checked_add(rhs).ok_or(ArithmeticError::AddOverflow)?)
         }
 
         #[inline]
         fn try_div(&self, rhs: $ty) -> crate::Result<Self::Output> {
-          Ok(self.checked_div(rhs).ok_or(TryArithmeticError::DivOverflow)?)
+          Ok(self.checked_div(rhs).ok_or(ArithmeticError::DivOverflow)?)
         }
 
         #[inline]
         fn try_mul(&self, rhs: $ty) -> crate::Result<Self::Output> {
-          Ok(self.checked_mul(rhs).ok_or(TryArithmeticError::MulOverflow)?)
+          Ok(self.checked_mul(rhs).ok_or(ArithmeticError::MulOverflow)?)
         }
 
         #[inline]
         fn try_rem(&self, rhs: $ty) -> crate::Result<Self::Output> {
-          Ok(self.checked_rem(rhs).ok_or(TryArithmeticError::RemOverflow)?)
+          Ok(self.checked_rem(rhs).ok_or(ArithmeticError::RemOverflow)?)
         }
 
         #[inline]
         fn try_sub(&self, rhs: $ty) -> crate::Result<Self::Output> {
-          Ok(self.checked_sub(rhs).ok_or(TryArithmeticError::SubOverflow)?)
+          Ok(self.checked_sub(rhs).ok_or(ArithmeticError::SubOverflow)?)
         }
       }
     )*

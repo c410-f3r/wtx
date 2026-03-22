@@ -9,7 +9,6 @@ use syn::{
 
 #[derive(Debug)]
 pub(crate) enum DataFormat {
-  Borsh,
   Json,
   JsonRpc(String),
   Protobuf,
@@ -47,19 +46,13 @@ impl DataFormat {
       DataFormat::Json => rslt!(http_mime_type!(ApplicationJson)),
       DataFormat::JsonRpc(_) => rslt!(http_method_and_mime_type!(Post, ApplicationJson)),
       DataFormat::Protobuf => rslt!(http_mime_type!(ApplicationVndGoogleProtobuf)),
-      _ => TokenStream::new(),
+      DataFormat::Verbatim => TokenStream::new(),
     }
   }
 
   pub(crate) fn elems(&self) -> DataFormatElems {
     let ident_fn = |name| Ident::new(name, Span::mixed_site());
     match self {
-      DataFormat::Borsh => DataFormatElems {
-        dfe_data_format_builder_fn: ident_fn("build_borsh"),
-        dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimEncoder"),
-        dfe_ext_res_ctnt_wrapper: ident_fn("VerbatimDecoder"),
-        dfe_pkgs_aux_call: quote::quote!(verbatim_request(data)),
-      },
       DataFormat::Json => DataFormatElems {
         dfe_data_format_builder_fn: ident_fn("build_json"),
         dfe_ext_req_ctnt_wrapper: ident_fn("VerbatimEncoder"),
@@ -114,7 +107,6 @@ impl TryFrom<&Meta> for DataFormat {
       }
     } else if let Meta::Path(elem) = from {
       match first_path_seg_ident!(elem).to_string().as_str() {
-        "borsh" => Ok(Self::Borsh),
         "json" => Ok(Self::Json),
         "protobuf" => Ok(Self::Protobuf),
         "verbatim" => Ok(Self::Verbatim),

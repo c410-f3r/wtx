@@ -1,4 +1,7 @@
-use crate::sync::{CachePadded, SeqLock};
+use crate::{
+  rng::{CryptoRng, Rng},
+  sync::{CachePadded, SeqLock},
+};
 use core::{
   cell::UnsafeCell,
   fmt::{Debug, Formatter},
@@ -185,6 +188,80 @@ where
   }
 }
 
+impl<T> CryptoRng for AtomicCell<T> where T: Copy + Eq + CryptoRng {}
+
+impl<T> CryptoRng for &AtomicCell<T> where T: Copy + Eq + CryptoRng {}
+
+impl<T> Rng for AtomicCell<T>
+where
+  T: Copy + Eq + Rng,
+{
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    (&*self).u8_4()
+  }
+
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    (&*self).u8_8()
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    (&*self).u8_16()
+  }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    (&*self).u8_32()
+  }
+}
+
+impl<T> Rng for &AtomicCell<T>
+where
+  T: Copy + Eq + Rng,
+{
+  #[inline]
+  fn u8_4(&mut self) -> [u8; 4] {
+    let mut ret = [0; 4];
+    let _rslt = self.update(|mut el| {
+      ret = el.u8_4();
+      el
+    });
+    ret
+  }
+
+  #[inline]
+  fn u8_8(&mut self) -> [u8; 8] {
+    let mut ret = [0; 8];
+    let _rslt = self.update(|mut el| {
+      ret = el.u8_8();
+      el
+    });
+    ret
+  }
+
+  #[inline]
+  fn u8_16(&mut self) -> [u8; 16] {
+    let mut ret = [0; 16];
+    let _rslt = self.update(|mut el| {
+      ret = el.u8_16();
+      el
+    });
+    ret
+  }
+
+  #[inline]
+  fn u8_32(&mut self) -> [u8; 32] {
+    let mut ret = [0; 32];
+    let _rslt = self.update(|mut el| {
+      ret = el.u8_32();
+      el
+    });
+    ret
+  }
+}
+
 impl<T> Debug for AtomicCell<T>
 where
   T: Copy + Debug,
@@ -238,16 +315,63 @@ impl<T> UnwindSafe for AtomicCell<T> where T: Send {}
 
 #[expect(clippy::indexing_slicing, reason = "modulo result will always be in-bounds")]
 fn lock(addr: usize) -> &'static SeqLock {
-  #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
+  static LOCKS: [CachePadded<SeqLock>; LEN] = [const { CachePadded(SeqLock::new()) }; LEN];
+  &LOCKS[addr % LEN].0
+}
+
+#[cfg(feature = "rand_core")]
+mod rand_core {
+  use crate::{rng::Rng, sync::AtomicCell};
+  use core::convert::Infallible;
+
+  impl<T> rand_core::TryCryptoRng for AtomicCell<T> where T: Copy + Eq + Rng {}
+
+  impl<T> rand_core::TryCryptoRng for &AtomicCell<T> where T: Copy + Eq + Rng {}
+
+  impl<T> rand_core::TryRng for AtomicCell<T>
+  where
+    T: Copy + Eq + Rng,
   {
-    static LOCKS: std::sync::OnceLock<[CachePadded<SeqLock>; LEN]> = std::sync::OnceLock::new();
-    let array = LOCKS.get_or_init(|| core::array::from_fn(|_| CachePadded(SeqLock::new())));
-    &array[addr % LEN].0
+    type Error = Infallible;
+
+    #[inline(always)]
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+      Ok(u32::from_le_bytes(self.u8_4()))
+    }
+
+    #[inline(always)]
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+      Ok(u64::from_le_bytes(self.u8_8()))
+    }
+
+    #[inline(always)]
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+      self.fill_slice(dst);
+      Ok(())
+    }
   }
-  #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
+
+  impl<T> rand_core::TryRng for &AtomicCell<T>
+  where
+    T: Copy + Eq + Rng,
   {
-    static LOCKS: [CachePadded<SeqLock>; LEN] = [const { CachePadded(SeqLock::new()) }; LEN];
-    &LOCKS[addr % LEN].0
+    type Error = Infallible;
+
+    #[inline(always)]
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+      Ok(u32::from_le_bytes(self.u8_4()))
+    }
+
+    #[inline(always)]
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+      Ok(u64::from_le_bytes(self.u8_8()))
+    }
+
+    #[inline(always)]
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+      self.fill_slice(dst);
+      Ok(())
+    }
   }
 }
 

@@ -1,9 +1,9 @@
 //! Database
 
 use crate::{
+  codec::CodecController,
   collection::TryExtend,
   database::{Database, DatabaseError, RecordValues, Records, StmtCmd},
-  de::DEController,
   misc::ConnectionState,
 };
 
@@ -22,7 +22,7 @@ pub trait Executor {
   fn execute_ignored(
     &mut self,
     cmd: &str,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>> {
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>> {
     // FIXME(STABLE): For some reason this method makes `http-server-framework-session` !Send.
     const fn nothing() -> &'static mut () {
       static mut NOTHING: &mut () = &mut ();
@@ -51,8 +51,8 @@ pub trait Executor {
     cmd: &str,
     cb: impl FnMut(
       <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
+    ) -> Result<(), <Self::Database as CodecController>::Error>,
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>;
 
@@ -62,7 +62,7 @@ pub trait Executor {
   fn execute_none(
     &mut self,
     cmd: &str,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>> {
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>> {
     async {
       let mut buffer = None;
       self.execute_many(&mut buffer, cmd, |_| Ok(())).await?;
@@ -70,6 +70,31 @@ pub trait Executor {
         return Err(From::from(DatabaseError::UnexpectedRecords.into()));
       }
       Ok(())
+    }
+  }
+
+  /// Execute - Optional
+  ///
+  /// A version of [`Executor::execute_many`] where at most one record is expected.
+  fn execute_optional(
+    &mut self,
+    cmd: &str,
+  ) -> impl Future<
+    Output = Result<
+      Option<<Self::Database as Database>::Record<'_>>,
+      <Self::Database as CodecController>::Error,
+    >,
+  > {
+    async {
+      let mut buffer = None;
+      self.execute_many(&mut buffer, cmd, |_| Ok(())).await?;
+      let Some(records) = buffer else {
+        return Err(From::from(DatabaseError::ExpectedAtMostOneRecord.into()));
+      };
+      if records.len() > 1 {
+        return Err(From::from(DatabaseError::ExpectedAtMostOneRecord.into()));
+      };
+      Ok(records.get(0))
     }
   }
 
@@ -82,7 +107,7 @@ pub trait Executor {
   ) -> impl Future<
     Output = Result<
       <Self::Database as Database>::Record<'_>,
-      <Self::Database as DEController>::Error,
+      <Self::Database as CodecController>::Error,
     >,
   > {
     async {
@@ -106,7 +131,7 @@ pub trait Executor {
     &mut self,
     sc: SC,
     rv: RV,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
@@ -131,11 +156,11 @@ pub trait Executor {
     rv: RV,
     cb: impl FnMut(
       <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as DEController>::Error>,
+    ) -> Result<(), <Self::Database as CodecController>::Error>,
   ) -> impl Future<
     Output = Result<
       <Self::Database as Database>::Records<'_>,
-      <Self::Database as DEController>::Error,
+      <Self::Database as CodecController>::Error,
     >,
   >
   where
@@ -149,7 +174,7 @@ pub trait Executor {
     &mut self,
     sc: SC,
     rv: RV,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
@@ -164,6 +189,32 @@ pub trait Executor {
     }
   }
 
+  /// Execute Statement - Optional
+  ///
+  /// A version of [`Executor::execute_stmt_many`] where at most one record is expected.
+  fn execute_stmt_optional<SC, RV>(
+    &mut self,
+    sc: SC,
+    rv: RV,
+  ) -> impl Future<
+    Output = Result<
+      Option<<Self::Database as Database>::Record<'_>>,
+      <Self::Database as CodecController>::Error,
+    >,
+  >
+  where
+    RV: RecordValues<Self::Database>,
+    SC: StmtCmd,
+  {
+    async {
+      let records = self.execute_stmt_many(sc, rv, |_| Ok(())).await?;
+      if records.len() > 1 {
+        return Err(From::from(DatabaseError::MissingSingleRecord.into()));
+      };
+      Ok(records.get(0))
+    }
+  }
+
   /// Execute Statement - Single
   ///
   /// A version of [`Executor::execute_stmt_many`] where a single record is expected.
@@ -174,7 +225,7 @@ pub trait Executor {
   ) -> impl Future<
     Output = Result<
       <Self::Database as Database>::Record<'_>,
-      <Self::Database as DEController>::Error,
+      <Self::Database as CodecController>::Error,
     >,
   >
   where
@@ -191,7 +242,9 @@ pub trait Executor {
   }
 
   /// Pings the server to signal an active connection
-  fn ping(&mut self) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
+  fn ping(
+    &mut self,
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 
   /// Caches the passed command to create a statement, which speeds up subsequent calls that match
   /// the same `cmd`.
@@ -200,15 +253,15 @@ pub trait Executor {
   fn prepare(
     &mut self,
     cmd: &str,
-  ) -> impl Future<Output = Result<u64, <Self::Database as DEController>::Error>>;
+  ) -> impl Future<Output = Result<u64, <Self::Database as CodecController>::Error>>;
 
   /// Makes internal calls to "BEGIN" and "COMMIT".
   fn transaction<'this, F, R>(
     &'this mut self,
     fun: impl FnOnce(&'this mut Self) -> F,
-  ) -> impl Future<Output = Result<R, <Self::Database as DEController>::Error>>
+  ) -> impl Future<Output = Result<R, <Self::Database as CodecController>::Error>>
   where
-    F: Future<Output = Result<(R, &'this mut Self), <Self::Database as DEController>::Error>>,
+    F: Future<Output = Result<(R, &'this mut Self), <Self::Database as CodecController>::Error>>,
   {
     async move {
       self.execute_ignored("BEGIN").await?;
@@ -237,8 +290,8 @@ where
     cmd: &str,
     cb: impl FnMut(
       <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> Result<(), <Self::Database as DEController>::Error>
+    ) -> Result<(), <Self::Database as CodecController>::Error>,
+  ) -> Result<(), <Self::Database as CodecController>::Error>
   where
     B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>,
   {
@@ -252,8 +305,8 @@ where
     rv: RV,
     cb: impl FnMut(
       <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> Result<<Self::Database as Database>::Records<'_>, <Self::Database as DEController>::Error>
+    ) -> Result<(), <Self::Database as CodecController>::Error>,
+  ) -> Result<<Self::Database as Database>::Records<'_>, <Self::Database as CodecController>::Error>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
@@ -262,12 +315,15 @@ where
   }
 
   #[inline]
-  async fn ping(&mut self) -> Result<(), <Self::Database as DEController>::Error> {
+  async fn ping(&mut self) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).ping().await
   }
 
   #[inline]
-  async fn prepare(&mut self, cmd: &str) -> Result<u64, <Self::Database as DEController>::Error> {
+  async fn prepare(
+    &mut self,
+    cmd: &str,
+  ) -> Result<u64, <Self::Database as CodecController>::Error> {
     (**self).prepare(cmd).await
   }
 }
@@ -287,8 +343,8 @@ impl Executor for () {
     _: &str,
     _: impl FnMut(
       <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> Result<(), <Self::Database as DEController>::Error>
+    ) -> Result<(), <Self::Database as CodecController>::Error>,
+  ) -> Result<(), <Self::Database as CodecController>::Error>
   where
     B: TryExtend<[<Self::Database as Database>::Records<'this>; 1]>,
   {
@@ -302,8 +358,8 @@ impl Executor for () {
     _: RV,
     _: impl FnMut(
       <Self::Database as Database>::Record<'_>,
-    ) -> Result<(), <Self::Database as DEController>::Error>,
-  ) -> Result<<Self::Database as Database>::Records<'_>, <Self::Database as DEController>::Error>
+    ) -> Result<(), <Self::Database as CodecController>::Error>,
+  ) -> Result<<Self::Database as Database>::Records<'_>, <Self::Database as CodecController>::Error>
   where
     RV: RecordValues<Self::Database>,
     SC: StmtCmd,
@@ -312,12 +368,12 @@ impl Executor for () {
   }
 
   #[inline]
-  async fn ping(&mut self) -> Result<(), <Self::Database as DEController>::Error> {
+  async fn ping(&mut self) -> Result<(), <Self::Database as CodecController>::Error> {
     Ok(())
   }
 
   #[inline]
-  async fn prepare(&mut self, _: &str) -> Result<u64, <Self::Database as DEController>::Error> {
+  async fn prepare(&mut self, _: &str) -> Result<u64, <Self::Database as CodecController>::Error> {
     Ok(0)
   }
 }

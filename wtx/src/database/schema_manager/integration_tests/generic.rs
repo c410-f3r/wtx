@@ -1,4 +1,5 @@
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{
     Executor, Identifier,
@@ -7,7 +8,6 @@ use crate::{
       integration_tests::AuxTestParams,
     },
   },
-  de::DEController,
 };
 use alloc::string::String;
 use core::fmt::Debug;
@@ -24,7 +24,7 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
-  <<E as Executor>::Database as DEController>::Error: Debug,
+  <<E as Executor>::Database as CodecController>::Error: Debug,
 {
   c.executor_mut().execute_ignored("CREATE TABLE IF NOT EXISTS foo(id INT)").await.unwrap();
   c.executor_mut().table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();
@@ -43,7 +43,7 @@ pub(crate) async fn rollback_works<E>(
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
-  <E::Database as DEController>::Error: Debug,
+  <E::Database as CodecController>::Error: Debug,
 {
   let path = Path::new("../.test-utils/wtx.toml");
   c.migrate_from_toml_path(path).await.unwrap();

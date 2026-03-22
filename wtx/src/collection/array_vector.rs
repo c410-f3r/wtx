@@ -47,6 +47,9 @@ impl<L, T, const N: usize> ArrayVector<L, T, N>
 where
   L: LinearStorageLen,
 {
+  /// See [`Self::capacity`].
+  pub const CAPACITY: usize = N;
+
   const INSTANCE_CHECK: () = {
     assert!(N <= L::UPPER_BOUND_USIZE);
   };
@@ -110,7 +113,17 @@ where
     Self(Inner { len: L::ZERO, data: [const { MaybeUninit::uninit() }; N] })
   }
 
-  /// Return the inner fixed size array, if the capacity is full.
+  /// Returns the inner fixed size array, if the capacity is full.
+  #[inline]
+  pub fn as_inner(&self) -> crate::Result<&[T; N]> {
+    if self.0.len.usize() != N {
+      return Err(ArrayVectorError::IntoInnerIncomplete.into());
+    }
+    // SAFETY: All elements are initialized
+    Ok(unsafe { &*self.0.data.as_ptr().cast() })
+  }
+
+  /// Owned version of [`Self::as_inner`].
   #[inline]
   pub fn into_inner(self) -> crate::Result<[T; N]> {
     if self.0.len.usize() < N {

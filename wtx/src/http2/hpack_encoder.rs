@@ -646,7 +646,7 @@ mod tests {
   fn duplicated_is_indexed() {
     let headers = [(HpackHeaderBasic::Method(Method::Patch), Method::Patch.strings().custom[0])];
     let mut buffer = Vector::new();
-    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
     hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
     hpack_enc.encode(&mut buffer, headers, []).unwrap();
     assert_eq!(buffer[0], 66);
@@ -660,7 +660,7 @@ mod tests {
   #[test]
   fn encodes_status_code() {
     let mut buffer = Vector::new();
-    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
     hpack_enc
       .encode(
         &mut buffer,
@@ -674,7 +674,7 @@ mod tests {
   #[test]
   fn encodes_methods_that_are_not_get_or_post() {
     let mut buffer = Vector::new();
-    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
+    let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
     hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
     hpack_enc
       .encode(

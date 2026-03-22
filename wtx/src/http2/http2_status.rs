@@ -5,7 +5,7 @@ pub enum Http2RecvStatus<EOS, ONG> {
   ClosedConnection,
   /// Stream was closed (abruptly or not), either locally or externally.
   ClosedStream(EOS),
-  /// Remote peer sent an end of stream flag, which indicates a successful stream.
+  /// Remote peer sent an end of stream flag, which indicates a successful and finished stream.
   Eos(EOS),
   /// Signals an ongoing operation of an open stream
   ///

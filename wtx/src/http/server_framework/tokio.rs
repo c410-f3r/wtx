@@ -8,7 +8,7 @@ use crate::{
     },
   },
   http2::{Http2Buffer, ServerStream},
-  rng::{Rng, SeedableRng},
+  rng::{CryptoRng, CryptoSeedableRng},
   sync::Arc,
 };
 use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
@@ -54,7 +54,7 @@ impl<CA, CACB, CBP, E, EN, M, SA, SACB> ServerFramework<CA, CACB, CBP, E, EN, M,
 where
   CA: Clone + ConnAux + Send + 'static,
   CACB: Clone + Fn(CBP) -> Result<CA::Init, E> + Send + 'static,
-  CBP: Clone + Rng + SeedableRng + Send + 'static,
+  CBP: Clone + CryptoRng + CryptoSeedableRng + Send + 'static,
   E: From<crate::Error> + Send + 'static,
   EN: EndpointNode<CA, E, Stream, SA, auto(..): Send, manual(..): Send> + Send + 'static,
   M: Middleware<CA, E, SA, req(..): Send, res(..): Send> + Send + 'static,
@@ -80,7 +80,7 @@ where
     OptionedServer::http2_tokio(
       ((), host, _cbp, _router),
       |local_rng| {
-        *local_rng = CBP::from_rng(local_rng)?;
+        *local_rng = CBP::from_crypto_rng(local_rng)?;
         Ok(())
       },
       move |_, mut stream| {
@@ -123,7 +123,7 @@ impl<CA, CACB, CBP, E, EN, M, SA, SACB>
 where
   CA: Clone + ConnAux + Send + 'static,
   CACB: Clone + Fn(CBP) -> Result<CA::Init, E> + Send + 'static,
-  CBP: Clone + Rng + SeedableRng + Send + 'static,
+  CBP: Clone + CryptoRng + CryptoSeedableRng + Send + 'static,
   E: From<crate::Error> + Send + 'static,
   EN: EndpointNode<CA, E, StreamRustls, SA, auto(..): Send, manual(..): Send> + Send + 'static,
   M: Middleware<CA, E, SA, req(..): Send, res(..): Send> + Send + 'static,
@@ -153,7 +153,7 @@ where
     OptionedServer::http2_tokio(
       (tls_acceptor, host, _cbp, _router),
       |local_rng| {
-        *local_rng = CBP::from_rng(local_rng)?;
+        *local_rng = CBP::from_crypto_rng(local_rng)?;
         Ok(())
       },
       move |acceptor, mut stream| {

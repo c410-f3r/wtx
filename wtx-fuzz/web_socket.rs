@@ -16,7 +16,7 @@ libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
     let mut ws = WebSocket::<_, _, _, _, false>::new(
       (),
       false,
-      Xorshift64::from_std_random().unwrap(),
+      Xorshift64::from_simple_seed().unwrap(),
       BytesStream::default(),
       WebSocketBuffer::default(),
     );

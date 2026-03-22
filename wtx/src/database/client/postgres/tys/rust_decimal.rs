@@ -1,4 +1,5 @@
 use crate::{
+  codec::{Decode, Encode},
   collection::ArrayVectorU8,
   database::{
     Typed,
@@ -7,7 +8,6 @@ use crate::{
       tys::pg_numeric::{PgNumeric, Sign},
     },
   },
-  de::{Decode, Encode},
 };
 use rust_decimal::{Decimal, MathematicalOps};
 

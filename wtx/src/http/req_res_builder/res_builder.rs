@@ -9,11 +9,11 @@ use core::ops::{Deref, DerefMut};
 #[derive(Debug)]
 pub struct ResBuilder<RRD> {
   /// Generic builder
-  pub rrb: ReqResBuilder<RRD>,
+  rrb: ReqResBuilder<RRD>,
   /// Status code
-  pub status_code: StatusCode,
+  status_code: StatusCode,
   /// See [`Version`].
-  pub version: Version,
+  version: Version,
 }
 
 impl<RRD> ResBuilder<RRD> {

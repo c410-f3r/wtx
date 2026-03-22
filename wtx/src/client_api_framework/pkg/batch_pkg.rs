@@ -3,8 +3,8 @@ use crate::{
     Api,
     pkg::{Package, PkgsAux},
   },
+  codec::{Encode, GenericCodec},
   collection::Vector,
-  de::{Encode, format::De},
 };
 use core::marker::PhantomData;
 
@@ -23,7 +23,7 @@ impl<'slice, A, DRSR, P, T, TP> BatchPkg<'slice, A, DRSR, P, T, TP> {
 impl<'slice, A, DRSR, P, T, TP> Package<A, DRSR, T, TP> for BatchPkg<'slice, A, DRSR, P, T, TP>
 where
   A: Api,
-  BatchElems<'slice, A, DRSR, P, T, TP>: Encode<De<DRSR>>,
+  BatchElems<'slice, A, DRSR, P, T, TP>: Encode<GenericCodec<DRSR>>,
   P: Package<A, DRSR, T, TP>,
 {
   type ExternalRequestContent = BatchElems<'slice, A, DRSR, P, T, TP>;
@@ -87,14 +87,11 @@ mod serde_json {
       network::transport::Transport,
       pkg::{BatchElems, Package},
     },
-    de::{
-      Encode,
-      format::{De, EncodeWrapper, SerdeJson},
-    },
+    codec::{Encode, GenericCodec, GenericEncodeWrapper, format::SerdeJson},
   };
   use serde::Serializer as _;
 
-  impl<A, DRSR, P, T, TP> Encode<De<SerdeJson>> for BatchElems<'_, A, DRSR, P, T, TP>
+  impl<A, DRSR, P, T, TP> Encode<GenericCodec<SerdeJson>> for BatchElems<'_, A, DRSR, P, T, TP>
   where
     A: Api,
     P: Package<A, DRSR, T, TP>,
@@ -102,7 +99,7 @@ mod serde_json {
     T: Transport<TP>,
   {
     #[inline]
-    fn encode(&self, ew: &mut EncodeWrapper<'_>) -> crate::Result<()> {
+    fn encode(&self, ew: &mut GenericEncodeWrapper<'_>) -> crate::Result<()> {
       serde_json::Serializer::new(&mut *ew.vector)
         .collect_seq(self.0.iter().map(Package::ext_req_content))?;
       Ok(())

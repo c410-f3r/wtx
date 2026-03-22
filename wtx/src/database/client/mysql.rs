@@ -30,6 +30,7 @@ mod ty_params;
 mod tys;
 
 use crate::{
+  codec::CodecController,
   database::{
     Database, DatabaseTy,
     client::rdbms::{
@@ -40,7 +41,6 @@ use crate::{
       statements::Statements,
     },
   },
-  de::DEController,
 };
 pub use config::Config;
 use core::{
@@ -84,7 +84,7 @@ where
   type Ty = TyParams;
 }
 
-impl<E> DEController for Mysql<E>
+impl<E> CodecController for Mysql<E>
 where
   E: From<crate::Error>,
 {

@@ -1,6 +1,6 @@
 use crate::{
+  codec::Encode,
   database::{Database, Typed},
-  de::Encode,
   misc::{Lease, Wrapper},
 };
 
@@ -28,6 +28,36 @@ where
     &self,
     cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
   ) -> Result<(), D::Error>;
+}
+
+impl<D, T> RecordValues<D> for &T
+where
+  D: Database,
+  T: RecordValues<D>,
+{
+  #[inline]
+  fn encode_values<'inner, 'outer, 'rem, A>(
+    &self,
+    aux: &mut A,
+    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
+    prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
+    suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+  ) -> Result<usize, D::Error> {
+    (**self).encode_values(aux, ew, prefix_cb, suffix_cb)
+  }
+
+  #[inline]
+  fn len(&self) -> usize {
+    (**self).len()
+  }
+
+  #[inline]
+  fn walk(
+    &self,
+    cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
+  ) -> Result<(), D::Error> {
+    (**self).walk(cb)
+  }
 }
 
 impl<D, T> RecordValues<D> for &mut T
@@ -91,6 +121,43 @@ where
     mut cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
   ) -> Result<(), D::Error> {
     for elem in *self {
+      cb(elem.is_null(), elem.runtime_ty())?;
+    }
+    Ok(())
+  }
+}
+
+impl<D, T> RecordValues<D> for &mut [T]
+where
+  D: Database,
+  T: Encode<D> + Typed<D>,
+{
+  #[inline]
+  fn encode_values<'inner, 'outer, 'rem, A>(
+    &self,
+    aux: &mut A,
+    ew: &mut D::EncodeWrapper<'inner, 'outer, 'rem>,
+    mut prefix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>) -> usize,
+    mut suffix_cb: impl FnMut(&mut A, &mut D::EncodeWrapper<'inner, 'outer, 'rem>, bool, usize) -> usize,
+  ) -> Result<usize, D::Error> {
+    let mut n: usize = 0;
+    for elem in self.iter() {
+      encode(aux, elem, ew, &mut n, &mut prefix_cb, &mut suffix_cb)?;
+    }
+    Ok(n)
+  }
+
+  #[inline]
+  fn len(&self) -> usize {
+    (**self).len()
+  }
+
+  #[inline]
+  fn walk(
+    &self,
+    mut cb: impl FnMut(bool, Option<D::Ty>) -> Result<(), D::Error>,
+  ) -> Result<(), D::Error> {
+    for elem in self.iter() {
       cb(elem.is_null(), elem.runtime_ty())?;
     }
     Ok(())

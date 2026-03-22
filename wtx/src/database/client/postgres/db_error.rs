@@ -1,6 +1,6 @@
 use crate::{
+  codec::FromRadix10,
   database::client::postgres::{PostgresError, SqlState},
-  de::FromRadix10,
   misc::{Usize, into_rslt, str_split1, usize_range_from_u32_range},
 };
 use alloc::boxed::Box;
@@ -224,10 +224,7 @@ impl TryFrom<&str> for DbError {
     let mut r#where = None;
 
     let mut idx: u32 = 0;
-    loop {
-      let Some(curr) = from.get(*Usize::from(idx)..) else {
-        break;
-      };
+    while let Some(curr) = from.get(*Usize::from(idx)..) {
       let Some((ty, rest)) = curr.split_at_checked(1) else {
         break;
       };

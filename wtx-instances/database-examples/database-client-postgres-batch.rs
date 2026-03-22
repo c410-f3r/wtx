@@ -25,7 +25,7 @@ async fn main() -> wtx::Result<()> {
   }
   batch.flush(&mut records, |_| Ok(())).await?;
   for record in records {
-    assert_eq!(into_rslt(record.get(0))?.decode::<_, bool>(0)?, true);
+    assert!(into_rslt(record.get(0))?.decode::<_, bool>(0)?);
   }
   Ok(())
 }

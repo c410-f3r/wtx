@@ -1,9 +1,9 @@
 use crate::{
+  codec::FromRadix10,
   database::{
     DatabaseError,
     client::postgres::{DbError, PostgresError, authentication::Authentication},
   },
-  de::FromRadix10,
   misc::{ConnectionState, bytes_rsplit1, bytes_split1, from_utf8_basic},
 };
 use core::any::type_name;

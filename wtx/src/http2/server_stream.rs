@@ -168,10 +168,10 @@ impl<HB, SW> Clone for ServerStream<HB, SW> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
-      method: self.method.clone(),
-      protocol: self.protocol.clone(),
+      method: self.method,
+      protocol: self.protocol,
       span: self.span.clone(),
-      stream_id: self.stream_id.clone(),
+      stream_id: self.stream_id,
     }
   }
 }

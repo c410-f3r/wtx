@@ -1,34 +1,35 @@
 use crate::{
   calendar::{DateTime, Utc},
-  collection::{ArrayString, Vector},
+  collection::Vector,
   http::{
-    SessionManager, SessionStore,
+    SessionError, SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},
-    session::{SessionManagerInner, SessionSecret},
+    session::SessionManagerInner,
   },
-  misc::sleep,
+  misc::{Secret, SecretContext, sleep},
   rng::CryptoRng,
   sync::{Arc, AsyncMutex},
 };
+use alloc::string::String;
 use core::{marker::PhantomData, time::Duration};
 
 /// Default and optional parameters for the construction of a [`SessionManager`].
 #[derive(Debug)]
 pub struct SessionManagerBuilder {
-  pub(crate) cookie_def: CookieGeneric<&'static str, Vector<u8>>,
+  pub(crate) cookie_def: CookieGeneric<String, Vector<u8>>,
   pub(crate) inspection_interval: Duration,
 }
 
 impl SessionManagerBuilder {
-  pub(crate) const fn new() -> Self {
+  pub(crate) fn new() -> Self {
     Self {
       cookie_def: CookieGeneric {
-        domain: "",
+        domain: "".into(),
         expires: None,
         http_only: true,
         max_age: None,
-        name: "id",
-        path: "/",
+        name: "id".try_into().unwrap_or_default(),
+        path: "/".into(),
         same_site: Some(SameSite::Strict),
         secure: true,
         value: Vector::new(),
@@ -49,6 +50,7 @@ impl SessionManagerBuilder {
   pub fn build_generating_key<CS, E, RNG, SS>(
     self,
     rng: &mut RNG,
+    secret_context: SecretContext,
     session_store: SS,
   ) -> crate::Result<(
     impl Future<Output = Result<(), E>> + use<CS, E, RNG, SS>,
@@ -59,15 +61,13 @@ impl SessionManagerBuilder {
     RNG: CryptoRng,
     SS: Clone + SessionStore<CS, E>,
   {
-    Ok(Self::build_with_key(
-      self,
-      ArrayString::from_iterator(rng.ascii_graphic_iter().take(32).map(Into::into))?,
-      session_store,
-    ))
+    let mut session_secret = [0u8; 16];
+    rng.fill_slice(&mut session_secret);
+    Self::build_with_key(self, rng, secret_context, &mut session_secret, session_store)
   }
 
   /// Creates a new [`SessionManager`] with the provided key. It is up to the caller to
-  /// provide a cryptographically secure secret.
+  /// provide a 16 bytes cryptographically secure secret.
   ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
   /// [`Self::inspection_interval`] and should be called in a separated task.
@@ -75,17 +75,26 @@ impl SessionManagerBuilder {
   /// If the backing store already has a system that automatically removes outdated sessions like
   /// SQL triggers, then the [`Future`] can be ignored.
   #[inline]
-  pub fn build_with_key<CS, E, SS>(
+  pub fn build_with_key<CS, E, RNG, SS>(
     self,
-    session_secret: SessionSecret,
+    rng: &mut RNG,
+    secret_context: SecretContext,
+    session_secret: &mut [u8],
     mut session_store: SS,
-  ) -> (impl Future<Output = Result<(), E>>, SessionManager<CS, E>)
+  ) -> crate::Result<(
+    impl Future<Output = Result<(), E>> + use<CS, E, RNG, SS>,
+    SessionManager<CS, E>,
+  )>
   where
     E: From<crate::Error>,
+    RNG: CryptoRng,
     SS: Clone + SessionStore<CS, E>,
   {
+    if session_secret.len() != 16 {
+      return Err(SessionError::InvalidSecretLength.into());
+    }
     let Self { cookie_def, inspection_interval } = self;
-    (
+    Ok((
       async move {
         loop {
           session_store.delete_expired().await?;
@@ -93,18 +102,21 @@ impl SessionManagerBuilder {
         }
       },
       SessionManager {
-        inner: Arc::new(AsyncMutex::new(SessionManagerInner {
-          cookie_def,
-          phantom: PhantomData,
-          session_secret,
-        })),
+        inner: Arc::new((
+          cookie_def.name,
+          AsyncMutex::new(SessionManagerInner {
+            cookie_def,
+            phantom: PhantomData,
+            session_secret: Secret::new(session_secret, rng, secret_context)?,
+          }),
+        )),
       },
-    )
+    ))
   }
 
   /// Defines the host to which the cookie will be sent.
   #[inline]
-  pub const fn domain(mut self, elem: &'static str) -> Self {
+  pub fn domain(mut self, elem: String) -> Self {
     self.cookie_def.domain = elem;
     self
   }
@@ -134,13 +146,6 @@ impl SessionManagerBuilder {
     self
   }
 
-  /// Cookie name.
-  #[inline]
-  pub const fn name(mut self, elem: &'static str) -> Self {
-    self.cookie_def.name = elem;
-    self
-  }
-
   /// Indicates the number of seconds until the cookie expires.
   #[inline]
   pub const fn max_age(mut self, elem: Option<Duration>) -> Self {
@@ -148,10 +153,17 @@ impl SessionManagerBuilder {
     self
   }
 
+  /// Cookie name.
+  #[inline]
+  pub fn name(mut self, elem: &str) -> crate::Result<Self> {
+    self.cookie_def.name = elem.try_into()?;
+    Ok(self)
+  }
+
   /// Indicates the path that must exist in the requested URL for the browser to send the Cookie
   /// header.
   #[inline]
-  pub const fn path(mut self, elem: &'static str) -> Self {
+  pub fn path(mut self, elem: String) -> Self {
     self.cookie_def.path = elem;
     self
   }

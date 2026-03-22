@@ -26,7 +26,7 @@ async fn client(uri: &UriString, runtime: &Runtime) {
   rrb.headers.reserve(6, 1).unwrap();
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
   let (frame_header, mut http2) = Http2::connect(
-    Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
+    Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
     Http2Params::default(),
     (stream.try_clone().unwrap(), stream),
   )
@@ -67,9 +67,8 @@ fn server(uri: &UriString, runtime: &Runtime) {
   let _server_jh = runtime
     .spawn_threaded(async move {
       let (stream, _) = listener.accept().unwrap();
-      let mut rrb = ReqResBuffer::empty();
       let (frame_header, mut http2) = Http2::accept(
-        Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
+        Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
         Http2Params::default(),
         (stream.try_clone().unwrap(), stream),
       )
@@ -77,15 +76,15 @@ fn server(uri: &UriString, runtime: &Runtime) {
       .unwrap();
       let _jh = runtime_fut.spawn_threaded(frame_header);
       let enc_buffer = &mut Vector::new();
-      rrb = stream_server(enc_buffer, &mut http2, |req| {
+      let _rrb = stream_server(enc_buffer, &mut http2, |req| {
         _0(req.rrd.body(), req.rrd.headers());
       })
       .await;
-      rrb = stream_server(enc_buffer, &mut http2, |req| {
+      let _rrb = stream_server(enc_buffer, &mut http2, |req| {
         _1(req.rrd.body(), req.rrd.headers());
       })
       .await;
-      rrb = stream_server(enc_buffer, &mut http2, |req| {
+      let _rrb = stream_server(enc_buffer, &mut http2, |req| {
         _2(req.rrd.body(), req.rrd.headers());
       })
       .await;

@@ -1,48 +1,24 @@
 #[doc = _internal_doc!()]
 pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
-  let [a, b, c, d] = mask;
   _simd_slice!(
-    (),
-    (bytes,),
-    (_, (local_bytes,)) => {
-      _do_unmask(&[a, b, c, d], local_bytes);
+    ((), (bytes,)),
+    (_, (local_bytes,), LEN) => {
+      let mut local_mask = [0; LEN];
+      for (elem, mask_elem) in local_mask.iter_mut().zip(mask.into_iter().cycle()) {
+        *elem = mask_elem;
+      }
+      for array in local_bytes {
+        for (array_elem, mask_elem) in array.iter_mut().zip(local_mask) {
+          *array_elem ^= mask_elem;
+        }
+      }
     },
-    (_, (local_bytes,)) => {
-      _do_unmask(&[a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d], local_bytes);
-    },
-    (_, (local_bytes,)) => {
-      _do_unmask(
-        &[
-          a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
-          c, d,
-        ],
-        local_bytes,
-      );
-    },
-    (_, (local_bytes,)) => {
-      _do_unmask(
-        &[
-          a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b,
-          c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-          a, b, c, d,
-        ],
-        local_bytes,
-      );
-    },
-    (_, (rest,)) => {
-      for (elem, mask_elem) in rest.iter_mut().zip(mask.into_iter().cycle()) {
+    (_, (local_bytes,), _LEN) => {
+      for (elem, mask_elem) in local_bytes.iter_mut().zip(mask.into_iter().cycle()) {
         *elem ^= mask_elem;
       }
     },
   );
-}
-
-fn _do_unmask<const N: usize>(mask: &[u8], slice: &mut [[u8; N]]) {
-  for array in slice {
-    for (array_elem, mask_elem) in array.iter_mut().zip(mask) {
-      *array_elem ^= mask_elem;
-    }
-  }
 }
 
 #[cfg(all(feature = "_bench", test))]

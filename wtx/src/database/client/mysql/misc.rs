@@ -1,4 +1,5 @@
 use crate::{
+  codec::{Decode, Encode},
   collection::{ArrayString, ArrayVector, ArrayVectorU8, Vector},
   database::client::mysql::{
     DbError, MysqlError, Ty, TyParams,
@@ -9,7 +10,6 @@ use crate::{
       encode_wrapper_protocol::EncodeWrapperProtocol, packet_req::PacketReq,
     },
   },
-  de::{Decode, Encode},
   misc::{
     Usize,
     net::{PartitionedFilledBuffer, read_header, read_payload},

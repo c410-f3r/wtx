@@ -1,10 +1,10 @@
 use crate::{
+  codec::{Decode, Encode},
   collection::ArrayVectorU8,
   database::{
     DatabaseError,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError},
   },
-  de::{Decode, Encode},
   misc::Usize,
 };
 
@@ -133,12 +133,12 @@ impl TryFrom<u16> for Sign {
 #[cfg(test)]
 mod tests {
   use crate::{
+    codec::{Decode, Encode},
     collection::{ArrayVectorU8, Vector},
     database::client::postgres::{
       DecodeWrapper, EncodeWrapper, Postgres, Ty,
       tys::pg_numeric::{CAP, PgNumeric, Sign},
     },
-    de::{Decode, Encode},
     misc::{FilledBuffer, SuffixWriterFbvm},
   };
 

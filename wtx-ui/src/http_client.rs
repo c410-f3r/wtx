@@ -41,7 +41,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
   }
   let client = ClientPoolBuilder::tokio_rustls(1).build();
   let res = client
-    .send_req_recv_res(rrb, ReqBuilder::method(method, UriRef::new(uri.as_str())))
+    .send_req_recv_res(ReqBuilder::method(method, UriRef::new(uri.as_str())), rrb)
     .await
     .unwrap();
   if let Some(elem) = output {

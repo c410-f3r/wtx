@@ -16,10 +16,54 @@ where
 {
   /// Tries reading from [`Self::from_process`] and then fallbacks to [`Self::from_nearest_env_file`].
   ///
-  /// Intended for development purposes.
+  /// `others` can be used to pass sensible variables that are locally available for tests or
+  /// development but are retrieved by other means in production.
+  ///
+  /// For example, in a system that needs two variables `DATABASE_URI` and `ROOT_CA` to work:
+  ///
+  /// * `development`: Both elements are inside an `.env` file.
+  /// * `continuous integration`: Both elements are passed as environment variables.
+  /// * `production`: `ROOT_CA` is passed as an environment variable and `DATABASE_URI` is
+  ///   fetched from `HashiCorp` Vault.
+  ///
+  /// ```ignore
+  /// use wtx::{
+  ///   collection::Vector,
+  ///   misc::{EnvVars, Secret},
+  ///   rng::{ChaCha20, CryptoSeedableRng},
+  /// };
+  ///
+  /// #[derive(wtx::FromVars)]
+  /// struct Vars {
+  ///   #[from_vars(map_secret)]
+  ///   database_uri: Secret,
+  ///   root_ca: String,
+  /// }
+  ///
+  /// fn map_secret(var: String) -> wtx::Result<Secret> {
+  ///   let mut rng = ChaCha20::from_std_random()?;
+  ///   let secret_context = SecretContext::new(&mut rng)?;
+  ///   Ok(Secret::new(&mut var.into_bytes(), &mut rng, secret_context)?)
+  /// }
+  ///
+  /// async fn fetch_database_uri() -> String {
+  ///   "Some secret value fetched from HashiCorp Vault".into()
+  /// }
+  ///
+  /// async fn manage_vars() -> Vars {
+  ///   let mut others = Vector::new();
+  ///   if cfg!(feature = "production") {
+  ///     others.push(("DATABASE_URI".into(), fetch_database_uri().await)).unwrap();
+  ///   }
+  ///   EnvVars::from_available(others).unwrap().finish()
+  /// }
+  /// ```
+  ///
+  /// Beware of accidental deploys of `.env` files because this method will read them if the
+  /// initial [`Self::from_process`] fails.
   #[inline]
-  pub fn from_available() -> crate::Result<Self> {
-    let err0 = match Self::from_process() {
+  pub fn from_available(others: impl IntoIterator<Item = (String, String)>) -> crate::Result<Self> {
+    let err0 = match Self::from_process(others) {
       Ok(elem) => return Ok(elem),
       Err(err) => err,
     };
@@ -32,15 +76,16 @@ where
     Err(crate::Error::NoAvailableVars(error.into()))
   }
 
-  /// Constructs itself through the deserialization of a literal `.env` data.
+  /// Constructs itself through the deserialization of a literal `.env` file data.
   ///
   /// Intended for debugging or tests.
   #[inline]
   pub fn from_env_data(data: &[u8]) -> crate::Result<Self> {
-    Ok(Self(T::from_vars(env(data)?)?))
+    let vector = env(data)?;
+    Ok(Self(T::from_vars(vector)?))
   }
 
-  /// Constructs itself through the deserialization of the passed `.env` file.
+  /// Constructs itself through the deserialization of the passed `.env` file path.
   ///
   /// Intended for development purposes.
   #[inline]
@@ -48,7 +93,8 @@ where
   where
     P: AsRef<Path>,
   {
-    Ok(Self(T::from_vars(env(fs::File::open(path)?)?)?))
+    let vector = env(fs::File::open(path)?)?;
+    Ok(Self(T::from_vars(vector)?))
   }
 
   /// Tries to find an `.env` file starting at the current location until the root directory.
@@ -58,13 +104,16 @@ where
   pub fn from_nearest_env_file() -> crate::Result<Self> {
     let mut buffer = env::current_dir()?;
     find_file(&mut buffer, Path::new(".env"))?;
-    Ok(Self(T::from_vars(env(fs::File::open(buffer)?)?)?))
+    let vector = env(fs::File::open(buffer)?)?;
+    Ok(Self(T::from_vars(vector)?))
   }
 
   /// Constructs itself according to all the environment variables of the current process.
+  ///
+  /// See [`Self::from_available`] to understand the meaning of `others`.
   #[inline]
-  pub fn from_process() -> crate::Result<Self> {
-    Ok(Self(T::from_vars(env::vars())?))
+  pub fn from_process(others: impl IntoIterator<Item = (String, String)>) -> crate::Result<Self> {
+    Ok(Self(T::from_vars(env::vars().chain(others))?))
   }
 
   /// Unwraps `T`.

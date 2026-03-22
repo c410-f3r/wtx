@@ -1,11 +1,11 @@
 use crate::{
   collection::{
-    LinearStorageLen,
+    FixedString, LinearStorageLen,
     linear_storage::{
       LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
     },
   },
-  misc::{Lease, from_utf8_basic},
+  misc::{Lease, LeaseMut, from_utf8_basic},
 };
 use alloc::string::String;
 use core::{
@@ -13,7 +13,7 @@ use core::{
   cmp::Ordering,
   fmt::{self, Arguments, Debug, Display, Formatter, Write},
   hash::{Hash, Hasher},
-  ops::Deref,
+  ops::{Deref, DerefMut},
   str,
 };
 
@@ -43,6 +43,9 @@ impl<L, const N: usize> ArrayString<L, N>
 where
   L: LinearStorageLen,
 {
+  /// See [`Self::capacity`].
+  pub const CAPACITY: usize = N;
+
   const INSTANCE_CHECK: () = {
     assert!(N <= L::UPPER_BOUND_USIZE);
   };
@@ -106,6 +109,16 @@ where
       return Err(ArrayStringError::IncompleteArray.into());
     }
     Ok(&self.0.data)
+  }
+
+  /// Converts itself into a string of fixed size.
+  #[inline]
+  pub fn into_fixed_string(self) -> crate::Result<FixedString<N>> {
+    if self.0.len.usize() != N {
+      return Err(ArrayStringError::IncompleteArray.into());
+    }
+    // SAFETY: Inner data is UTF-8
+    Ok(unsafe { FixedString::from_array_unchecked(self.0.data) })
   }
 }
 
@@ -261,12 +274,42 @@ where
   }
 }
 
+impl<L, const N: usize> DerefMut for ArrayString<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    self.0.as_slice_mut()
+  }
+}
+
+impl<L, const N: usize> Lease<[u8]> for ArrayString<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn lease(&self) -> &[u8] {
+    self.as_bytes()
+  }
+}
+
 impl<L, const N: usize> Lease<str> for ArrayString<L, N>
 where
   L: LinearStorageLen,
 {
   #[inline]
   fn lease(&self) -> &str {
+    self
+  }
+}
+
+impl<L, const N: usize> LeaseMut<str> for ArrayString<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn lease_mut(&mut self) -> &mut str {
     self
   }
 }

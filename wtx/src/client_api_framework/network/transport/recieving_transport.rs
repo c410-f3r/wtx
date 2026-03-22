@@ -4,7 +4,7 @@ use crate::{
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
-  de::{Decode, format::DecodeWrapper},
+  codec::{Decode, GenericDecodeWrapper},
 };
 
 /// Transport that receives package data.
@@ -33,7 +33,9 @@ pub trait ReceivingTransport<TP>: Sized + Transport<TP> {
   {
     async {
       self.recv(pkgs_aux, req_id).await?;
-      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(&pkgs_aux.bytes_buffer))?)
+      Ok(P::ExternalResponseContent::decode(&mut GenericDecodeWrapper::new(
+        &pkgs_aux.bytes_buffer,
+      ))?)
     }
   }
 }

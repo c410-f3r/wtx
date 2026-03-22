@@ -3,7 +3,7 @@ use crate::{
     CalendarError, CalendarToken, Date, DateTime, Hour, Minute, Month, Nanosecond, Time, TimeZone,
     Weekday,
   },
-  de::FromRadix10 as _,
+  codec::FromRadix10 as _,
 };
 
 pub(crate) enum ParsedData<TZ> {
@@ -57,10 +57,7 @@ where
             continue;
           };
           let mut idx: usize = 0;
-          loop {
-            let Some(elem) = rest.get(idx) else {
-              break;
-            };
+          while let Some(elem) = rest.get(idx) {
             if !elem.is_ascii_digit() {
               break;
             }

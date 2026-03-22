@@ -1,9 +1,9 @@
 use crate::{
+  codec::Encode,
   database::{
     Typed,
     client::postgres::{EncodeWrapper, Postgres, Ty},
   },
-  de::Encode,
 };
 use core::marker::PhantomData;
 

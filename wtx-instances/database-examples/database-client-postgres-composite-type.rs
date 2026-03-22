@@ -8,11 +8,11 @@ extern crate wtx;
 extern crate wtx_instances;
 
 use wtx::{
+  codec::{Decode, Encode},
   database::{
     Executor as _, Record, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder, Ty},
   },
-  de::{Decode, Encode},
 };
 
 #[tokio::main]

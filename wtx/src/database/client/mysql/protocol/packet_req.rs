@@ -1,10 +1,10 @@
 use crate::{
+  codec::Encode,
   database::client::mysql::{
     misc::packet_header,
     mysql_executor::MAX_PAYLOAD,
     protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
-  de::Encode,
   misc::Usize,
   stream::Stream,
 };

@@ -1,7 +1,5 @@
 #[cfg(feature = "crossbeam-channel")]
 pub use crossbeam::*;
-#[cfg(all(feature = "std", feature = "nightly"))]
-pub use nightly::*;
 
 use crate::SendError;
 
@@ -60,48 +58,6 @@ mod crossbeam {
   }
 
   impl<T> crate::sync::Sender<T> for crossbeam_channel::Sender<T> {
-    #[inline]
-    fn send(&self, msg: T) -> Result<(), SendError<T>> {
-      self.try_send(msg).map_err(|err| match err {
-        TrySendError::Full(elem) => SendError::Full(elem),
-        TrySendError::Disconnected(elem) => SendError::Disconnected(elem),
-      })
-    }
-  }
-}
-
-#[cfg(all(feature = "std", feature = "nightly"))]
-mod nightly {
-  use crate::{RecvError, SendError, sync::Mpmc};
-  use std::sync::mpmc::{self, TryRecvError, TrySendError};
-
-  /// Uses the channel provided by the standard library.
-  #[derive(Debug)]
-  pub struct StdMpmc {
-    _nothing: (),
-  }
-
-  impl<T> Mpmc<T> for StdMpmc {
-    type Receiver = mpmc::Receiver<T>;
-    type Sender = mpmc::Sender<T>;
-
-    #[inline]
-    fn unbounded() -> (Self::Sender, Self::Receiver) {
-      mpmc::channel()
-    }
-  }
-
-  impl<T> crate::sync::Receiver<T> for mpmc::Receiver<T> {
-    #[inline]
-    fn recv(&self) -> crate::Result<T> {
-      Ok(self.try_recv().map_err(|err| match err {
-        TryRecvError::Empty => RecvError::Empty,
-        TryRecvError::Disconnected => RecvError::Disconnected,
-      })?)
-    }
-  }
-
-  impl<T> crate::sync::Sender<T> for mpmc::Sender<T> {
     #[inline]
     fn send(&self, msg: T) -> Result<(), SendError<T>> {
       self.try_send(msg).map_err(|err| match err {

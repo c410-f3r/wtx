@@ -1,6 +1,6 @@
 use crate::{
+  codec::{CodecController, Decode},
   database::{Database, DatabaseError, ValueIdent},
-  de::{DEController, Decode},
 };
 use core::any::type_name;
 
@@ -11,7 +11,7 @@ pub trait Record<'exec>: Sized {
 
   /// Tries to retrieve and decode a value.
   #[inline]
-  fn decode<CI, D>(&self, ci: CI) -> Result<D, <Self::Database as DEController>::Error>
+  fn decode<CI, D>(&self, ci: CI) -> Result<D, <Self::Database as CodecController>::Error>
   where
     CI: ValueIdent<Self>,
     D: Decode<'exec, Self::Database>,
@@ -27,7 +27,10 @@ pub trait Record<'exec>: Sized {
 
   /// Tries to retrieve and decode an optional value.
   #[inline]
-  fn decode_opt<CI, D>(&self, ci: CI) -> Result<Option<D>, <Self::Database as DEController>::Error>
+  fn decode_opt<CI, D>(
+    &self,
+    ci: CI,
+  ) -> Result<Option<D>, <Self::Database as CodecController>::Error>
   where
     CI: ValueIdent<Self>,
     D: Decode<'exec, Self::Database>,
@@ -45,7 +48,7 @@ pub trait Record<'exec>: Sized {
   fn value<CI>(
     &self,
     ci: CI,
-  ) -> Option<<Self::Database as DEController>::DecodeWrapper<'exec, '_, '_>>
+  ) -> Option<<Self::Database as CodecController>::DecodeWrapper<'exec, '_, '_>>
   where
     CI: ValueIdent<Self>;
 
@@ -53,7 +56,9 @@ pub trait Record<'exec>: Sized {
   #[inline]
   fn values<'this>(
     &'this self,
-  ) -> impl Iterator<Item = Option<<Self::Database as DEController>::DecodeWrapper<'exec, 'this, 'this>>>
+  ) -> impl Iterator<
+    Item = Option<<Self::Database as CodecController>::DecodeWrapper<'exec, 'this, 'this>>,
+  >
   where
     'exec: 'this,
   {
@@ -70,7 +75,10 @@ impl Record<'_> for () {
   }
 
   #[inline]
-  fn value<CI>(&self, _: CI) -> Option<<Self::Database as DEController>::DecodeWrapper<'_, '_, '_>>
+  fn value<CI>(
+    &self,
+    _: CI,
+  ) -> Option<<Self::Database as CodecController>::DecodeWrapper<'_, '_, '_>>
   where
     CI: ValueIdent<Self>,
   {

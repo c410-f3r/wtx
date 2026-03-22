@@ -1,10 +1,10 @@
 use crate::{
+  codec::Encode,
   database::client::mysql::{
     capability::Capability,
     collation::Collation,
     protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
-  de::Encode,
 };
 
 #[derive(Debug)]

@@ -1,11 +1,11 @@
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{
     Database, DatabaseTy, FromRecords,
     executor::Executor,
     schema_manager::{DbMigration, Uid, UserMigration, UserMigrationGroup, VERSION},
   },
-  de::DEController,
   misc::Lease,
 };
 use alloc::string::String;
@@ -18,7 +18,7 @@ pub(crate) async fn delete_migrations<E, S>(
   mg: &UserMigrationGroup<S>,
   schema_prefix: &str,
   uid: Uid,
-) -> Result<(), <E::Database as DEController>::Error>
+) -> Result<(), <E::Database as CodecController>::Error>
 where
   E: Executor,
   S: Lease<str>,
@@ -39,7 +39,7 @@ pub(crate) async fn insert_migrations<'migration, DBS, E, I, S>(
   mg: &UserMigrationGroup<S>,
   migrations: I,
   schema_prefix: &str,
-) -> Result<(), <E::Database as DEController>::Error>
+) -> Result<(), <E::Database as CodecController>::Error>
 where
   DBS: Lease<[DatabaseTy]> + 'migration,
   E: Executor,

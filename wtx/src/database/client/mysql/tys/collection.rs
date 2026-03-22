@@ -1,10 +1,10 @@
 use crate::{
+  codec::{Decode, Encode},
   collection::{ArrayString, LinearStorageLen},
   database::{
     Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams, misc::encoded_len},
   },
-  de::{Decode, Encode},
   misc::{Usize, from_utf8_basic},
 };
 use alloc::string::String;
@@ -32,6 +32,34 @@ where
   }
 }
 impl<E> Typed<Mysql<E>> for &[u8]
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<TyParams> {
+    <Self as Typed<Mysql<E>>>::static_ty()
+  }
+
+  #[inline]
+  fn static_ty() -> Option<TyParams> {
+    Some(TyParams::binary(Ty::Blob))
+  }
+}
+
+// &mut [u8]
+
+impl<E> Encode<Mysql<E>> for &mut [u8]
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn encode(&self, ew: &mut EncodeWrapper<'_>) -> Result<(), E> {
+    let len = encoded_len(*Usize::from(self.len()))?;
+    let _ = ew.buffer().extend_from_copyable_slices([len.as_slice(), self])?;
+    Ok(())
+  }
+}
+impl<E> Typed<Mysql<E>> for &mut [u8]
 where
   E: From<crate::Error>,
 {

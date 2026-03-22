@@ -2,6 +2,7 @@ use crate::clap::{SchemaManager, SchemaManagerCommands};
 use std::{borrow::Cow, env::current_dir, path::Path};
 use tokio::net::TcpStream;
 use wtx::{
+  codec::CodecController,
   collection::Vector,
   database::{
     DEFAULT_URI_VAR, Identifier,
@@ -10,19 +11,18 @@ use wtx::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
   },
-  de::DEController,
   misc::{EnvVars, FromVars, UriRef, find_file},
-  rng::{ChaCha20, SeedableRng},
+  rng::{ChaCha20, CryptoSeedableRng},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
   let var = {
     wtx::misc::tracing_tree_init(None)?;
-    EnvVars::<DefaultUriVar>::from_available()?.finish().0
+    EnvVars::<DefaultUriVar>::from_available([])?.finish().0
   };
   #[cfg(not(feature = "schema-manager-dev"))]
-  let var = EnvVars::<DefaultUriVar>::from_process()?.finish().0;
+  let var = EnvVars::<DefaultUriVar>::from_process([])?.finish().0;
 
   let uri = UriRef::new(&var);
   match uri.scheme() {
@@ -69,7 +69,7 @@ fn toml_file_path(sm: &SchemaManager) -> wtx::Result<Cow<'_, Path>> {
 async fn handle_commands<E>(
   executor: E,
   sm: &SchemaManager,
-) -> Result<(), <E::Database as DEController>::Error>
+) -> Result<(), <E::Database as CodecController>::Error>
 where
   E: SchemaManagement,
 {

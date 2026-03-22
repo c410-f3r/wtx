@@ -1,7 +1,7 @@
 use crate::{
+  codec::Decode,
   database::{Database, Records},
-  de::Decode,
-  misc::into_rslt,
+  misc::{Lease, into_rslt},
 };
 use alloc::boxed::Box;
 use core::{fmt::Debug, iter};
@@ -58,7 +58,7 @@ where
 {
   /// The number of fields
   const FIELDS: u16;
-  /// Where the ID is located, if any.
+  /// Field index where the ID is located, if any.
   const ID_IDX: Option<usize>;
 
   /// The type of the ID.
@@ -78,20 +78,24 @@ where
   /// Used by consumers of this trait. Expects that one or more records can represent zero or more
   /// entities.
   #[inline]
-  fn many(records: &D::Records<'exec>) -> impl Iterator<Item = Result<Self, D::Error>> {
-    FromRecordsParams::init::<D>(records).into_iter().flat_map(move |mut params| {
-      iter::from_fn(move || {
-        let record = records.get(params.consumed_records)?;
-        params.curr_field_idx = 0;
-        params.curr_record = record;
-        params.curr_record_idx = params.consumed_records;
-        let prev_consumed_records = params.consumed_records;
-        let rslt = Self::from_records(&mut params, records);
-        if prev_consumed_records == params.consumed_records {
-          return None;
-        }
-        Some(rslt)
-      })
+  fn many<R>(records: R) -> impl Iterator<Item = Result<Self, D::Error>>
+  where
+    R: Lease<D::Records<'exec>>,
+  {
+    let mut state = FromRecordsParams::init::<D>(records.lease()).map(|el| (el, records));
+    iter::from_fn(move || {
+      let (params, local_records) = state.as_mut()?;
+      let local_records_ref = local_records.lease();
+      let record = local_records_ref.get(params.consumed_records)?;
+      params.curr_field_idx = 0;
+      params.curr_record = record;
+      params.curr_record_idx = params.consumed_records;
+      let prev_consumed_records = params.consumed_records;
+      let rslt = Self::from_records(params, local_records_ref);
+      if prev_consumed_records == params.consumed_records {
+        return None;
+      }
+      Some(rslt)
     })
   }
 
@@ -100,6 +104,25 @@ where
   #[inline]
   fn single(records: &D::Records<'exec>) -> Result<Self, D::Error> {
     Self::from_records(&mut into_rslt(FromRecordsParams::init::<D>(records))?, records)
+  }
+}
+
+impl<'exec, D> FromRecords<'exec, D> for ()
+where
+  D: Database,
+  i32: Decode<'exec, D>,
+{
+  const FIELDS: u16 = 0;
+  const ID_IDX: Option<usize> = None;
+
+  type IdTy = i32;
+
+  #[inline]
+  fn from_records(
+    _: &mut FromRecordsParams<D::Record<'exec>>,
+    _: &D::Records<'exec>,
+  ) -> Result<Self, D::Error> {
+    Ok(())
   }
 }
 

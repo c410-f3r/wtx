@@ -4,11 +4,8 @@ use crate::{
     network::transport::{ReceivingTransport, SendingTransport},
     pkg::{BatchElems, BatchPkg, Package, PkgsAux},
   },
+  codec::{Decode, DecodeSeq, Encode, GenericCodec, GenericDecodeWrapper},
   collection::Vector,
-  de::{
-    Decode, DecodeSeq, Encode,
-    format::{De, DecodeWrapper},
-  },
 };
 
 /// Transport that sends and receives package data
@@ -68,13 +65,13 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
-    BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Encode<De<DRSR>>,
+    BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Encode<GenericCodec<DRSR>>,
   {
     async {
       self.send_pkg_recv(&mut BatchPkg::new(pkgs, pkgs_aux), pkgs_aux).await?;
       P::ExternalResponseContent::decode_seq(
         buffer,
-        &mut DecodeWrapper::new(&pkgs_aux.bytes_buffer),
+        &mut GenericDecodeWrapper::new(&pkgs_aux.bytes_buffer),
       )?;
       Ok(())
     }
@@ -94,7 +91,9 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
   {
     async {
       self.send_pkg_recv(pkg, pkgs_aux).await?;
-      Ok(P::ExternalResponseContent::decode(&mut DecodeWrapper::new(&pkgs_aux.bytes_buffer))?)
+      Ok(P::ExternalResponseContent::decode(&mut GenericDecodeWrapper::new(
+        &pkgs_aux.bytes_buffer,
+      ))?)
     }
   }
 }

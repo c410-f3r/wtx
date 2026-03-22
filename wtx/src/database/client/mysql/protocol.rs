@@ -20,16 +20,16 @@ pub(crate) mod stmt_execute_req;
 pub(crate) mod text_row_res;
 
 use crate::{
+  codec::{CodecController, Encode},
   database::client::mysql::protocol::{
     decode_wrapper_protocol::DecodeWrapperProtocol, encode_wrapper_protocol::EncodeWrapperProtocol,
   },
-  de::{DEController, Encode},
 };
 use core::marker::PhantomData;
 
 pub(crate) struct Protocol<DO, E>(PhantomData<(DO, E)>);
 
-impl<DO, E> DEController for Protocol<DO, E>
+impl<DO, E> CodecController for Protocol<DO, E>
 where
   E: From<crate::Error>,
 {

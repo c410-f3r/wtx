@@ -174,7 +174,7 @@ serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
-wtx = { default-features = false, features = ["nightly", "tokio"], path = "../wtx" }
+wtx = { default-features = false, features = ["getrandom", "nightly", "tokio"], path = "../wtx" }
 
 [features]
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
@@ -222,5 +222,5 @@ tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 edition = "2024"
 name = "wtx-instances"
 publish = false
-rust-version = "1.89"
+rust-version = "1.95"
 version = "0.0.0"

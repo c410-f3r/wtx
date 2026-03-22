@@ -1,11 +1,11 @@
 use core::fmt::{Arguments, Write};
 
 use crate::{
+  codec::Encode,
   database::{
     Typed,
     client::postgres::{EncodeWrapper, Postgres, Ty},
   },
-  de::Encode,
 };
 
 impl<E> Encode<Postgres<E>> for Arguments<'_>

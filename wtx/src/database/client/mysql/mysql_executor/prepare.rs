@@ -1,4 +1,5 @@
 use crate::{
+  codec::{U64String, u64_string},
   collection::Vector,
   database::{
     DatabaseError, StmtCmd,
@@ -15,7 +16,6 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  de::{U64String, u64_string},
   misc::{LeaseMut, net::PartitionedFilledBuffer},
   stream::Stream,
 };

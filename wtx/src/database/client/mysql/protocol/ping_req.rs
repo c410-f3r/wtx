@@ -1,9 +1,9 @@
 use crate::{
+  codec::Encode,
   database::client::mysql::{
     command::Command,
     protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
   },
-  de::Encode,
 };
 
 pub(crate) struct PingReq;

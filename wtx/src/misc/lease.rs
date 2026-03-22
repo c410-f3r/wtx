@@ -255,7 +255,7 @@ mod smart_pointers {
 }
 
 mod str {
-  use crate::misc::Lease;
+  use crate::misc::{Lease, LeaseMut};
   use alloc::string::String;
 
   impl Lease<[u8]> for str {
@@ -285,10 +285,22 @@ mod str {
       self
     }
   }
+  impl LeaseMut<str> for String {
+    #[inline]
+    fn lease_mut(&mut self) -> &mut str {
+      self
+    }
+  }
 
   impl Lease<String> for String {
     #[inline]
     fn lease(&self) -> &String {
+      self
+    }
+  }
+  impl LeaseMut<String> for String {
+    #[inline]
+    fn lease_mut(&mut self) -> &mut String {
       self
     }
   }
