@@ -29,6 +29,7 @@ mod ty;
 mod tys;
 
 use crate::{
+  codec::{CodecController, U64String},
   database::{
     Database, DatabaseTy,
     client::rdbms::{
@@ -39,7 +40,6 @@ use crate::{
       statements::Statements,
     },
   },
-  de::{DEController, U64String},
 };
 pub use batch::Batch;
 pub use config::Config;
@@ -88,7 +88,7 @@ where
   type Ty = Ty;
 }
 
-impl<E> DEController for Postgres<E>
+impl<E> CodecController for Postgres<E>
 where
   E: From<crate::Error>,
 {

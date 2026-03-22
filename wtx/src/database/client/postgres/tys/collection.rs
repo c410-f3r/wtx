@@ -1,9 +1,9 @@
 use crate::{
+  codec::{Decode, Encode},
   database::{
     Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
   },
-  de::{Decode, Encode},
   misc::from_utf8_basic,
 };
 use alloc::string::String;
@@ -44,6 +44,33 @@ where
   }
 }
 test!(bytes, &[u8], &[1, 2, 3, 4]);
+
+// &mut [u8]
+
+impl<E> Encode<Postgres<E>> for &mut [u8]
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().extend_from_slice(self)?;
+    Ok(())
+  }
+}
+impl<E> Typed<Postgres<E>> for &mut [u8]
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  fn runtime_ty(&self) -> Option<Ty> {
+    Some(Ty::ByteaArray)
+  }
+
+  #[inline]
+  fn static_ty() -> Option<Ty> {
+    Some(Ty::ByteaArray)
+  }
+}
 
 // str
 

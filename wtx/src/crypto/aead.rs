@@ -25,13 +25,13 @@ pub trait Aead {
     secret: &Self::Secret,
   ) -> crate::Result<&'buffer mut [u8]> {
     use crate::collection::ExpansionTy;
-    use base64::{Engine, engine::general_purpose::STANDARD};
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 
     let additional = base64::decoded_len_estimate(encrypted_data.len());
     let begin = buffer.len();
     buffer.expand(ExpansionTy::Additional(additional), 0)?;
     let buffer_slice = buffer.get_mut(begin..).unwrap_or_default();
-    let len = STANDARD.decode_slice(encrypted_data, buffer_slice)?;
+    let len = URL_SAFE_NO_PAD.decode_slice(encrypted_data, buffer_slice)?;
     buffer.truncate(begin.wrapping_add(len));
     Self::decrypt_in_place(associated_data, buffer.get_mut(begin..).unwrap_or_default(), secret)
   }
@@ -154,7 +154,7 @@ pub trait Aead {
     RNG: CryptoRng,
   {
     use crate::{collection::ExpansionTy, misc::SensitiveBytes};
-    use base64::{Engine, engine::general_purpose::STANDARD};
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 
     let begin = buffer.len();
     let data_len = NONCE_LEN.wrapping_add(plaintext.len()).wrapping_add(TAG_LEN);
@@ -175,7 +175,7 @@ pub trait Aead {
     let Some((base64, content)) = slice_mut else {
       return Ok("");
     };
-    let base64_idx = STANDARD.encode_slice(&mut *content, base64)?;
+    let base64_idx = URL_SAFE_NO_PAD.encode_slice(&mut *content, base64)?;
     drop(SensitiveBytes::new_unlocked(content));
     buffer.truncate(begin.wrapping_add(base64_idx));
     let bytes = buffer.get_mut(begin..).unwrap_or_default();

@@ -52,12 +52,20 @@ where
     Ok(())
   }
 
-  /// Receive Data
+  /// Receive Data.
   ///
-  /// Low level operation that retrieves a DATA frame sent by the remote peer. Shouldn't interact
-  /// with higher operations that receive data.
+  /// `cb` contains the bytes received from a ongoing stream and all operations inside of it should
+  /// be finished as soon as possible to avoid long contentions. If the remote peer sends no data
+  /// or only a single DATA frame, `cb` is never called.
+  ///
+  /// The remaining payload (if any) is returned in the [`Http2RecvStatus`] result.
+  ///
+  /// Shouldn't interact with higher operations that receive data.
   #[inline]
-  pub async fn recv_data(&mut self) -> crate::Result<Http2RecvStatus<Vector<u8>, Vector<u8>>> {
+  pub async fn recv_data<ONG>(
+    &mut self,
+    mut cb: impl FnMut(&mut [u8]) -> crate::Result<ONG>,
+  ) -> crate::Result<Http2RecvStatus<Vector<u8>, ONG>> {
     let Self { inner, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Fetching data");
@@ -74,9 +82,9 @@ where
       }
       if sorp.has_one_or_more_data_frames && !sorp.rrb.body.is_empty() {
         frame_reader_rslt(hdpm.frame_reader_error)?;
-        let rslt = sorp.rrb.body.clone();
+        let ongoing = cb(&mut sorp.rrb.body)?;
         sorp.rrb.body.clear();
-        Poll::Ready(Ok(Http2RecvStatus::Ongoing(rslt)))
+        Poll::Ready(Ok(Http2RecvStatus::Ongoing(ongoing)))
       } else {
         sorp.waker.clone_from(cx.waker());
         Poll::Pending
@@ -250,7 +258,7 @@ where
       *stream_id,
     )?;
     write_frames(
-      (&enc_buffer, &[]),
+      (enc_buffer, &[]),
       &frames,
       &inner.is_conn_open,
       &mut inner.wd.lock().await.stream_writer,

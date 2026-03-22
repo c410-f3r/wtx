@@ -4,6 +4,7 @@ mod generic;
 mod schema;
 
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{
     Database, Executor, Identifier,
@@ -12,7 +13,6 @@ use crate::{
       doc_tests::{user_migration, user_migration_group},
     },
   },
-  de::DEController,
   executor::Runtime,
 };
 use alloc::string::String;
@@ -44,7 +44,7 @@ macro_rules! create_integration_tests {
       #[cfg(feature = "mysql")]
       create_integration_test!(
         {
-          use crate::rng::SeedableRng;
+          use crate::rng::CryptoSeedableRng;
           let uri = crate::misc::UriRef::new(crate::tests::_vars().database_uri_mysql.as_str());
           let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
@@ -64,7 +64,7 @@ macro_rules! create_integration_tests {
       #[cfg(feature = "postgres")]
       create_integration_test!(
         {
-          use crate::rng::SeedableRng;
+          use crate::rng::CryptoSeedableRng;
           let uri = crate::misc::UriRef::new(crate::tests::_vars().database_uri_postgres.as_str());
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
@@ -163,7 +163,7 @@ pub(crate) async fn create_foo_table<E>(
   schema_prefix: &str,
 ) where
   E: SchemaManagement,
-  <<E as Executor>::Database as DEController>::Error: Debug,
+  <<E as Executor>::Database as CodecController>::Error: Debug,
 {
   buffer_cmd.write_fmt(format_args!("CREATE TABLE {schema_prefix}foo(id INT)")).unwrap();
   c.executor_mut().execute_ignored(buffer_cmd.as_str()).await.unwrap();

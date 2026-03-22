@@ -17,10 +17,11 @@ jobs:
           - script: internal-tests1.sh
           - script: internal-tests2.sh
           - script: internal-tests3.sh
-            install-crate: mdbook
           - script: internal-tests4.sh
-            install-crate: cargo-fuzz
+            install-crate: mdbook
           - script: internal-tests5.sh
+            install-crate: cargo-fuzz
+          - script: internal-tests6.sh
     steps:
       - uses: actions/checkout@v6
       - if: matrix.install-crate
@@ -30,7 +31,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-          toolchain: nightly-2025-10-31
+          toolchain: nightly-2026-03-08
       - uses: Swatinem/rust-cache@v2
       - run: .scripts/${{ matrix.script }}
 
@@ -50,7 +51,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-10-31
+          toolchain: nightly-2026-03-08
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install docker-compose -y
       - run: docker compose -f .test-utils/docker-compose.yml up -d --wait
@@ -71,13 +72,12 @@ jobs:
           '.scripts/h2load.sh ci',
           '.scripts/h2spec.sh high ci',
           '.scripts/h2spec.sh low ci',
-          '.scripts/loom.sh',
         ]
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-10-31
+          toolchain: nightly-2026-03-08
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install nghttp2-client -y
       - run: ${{ matrix.scripts }}

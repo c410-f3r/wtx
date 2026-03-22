@@ -1,6 +1,5 @@
 #![feature(prelude_import)]
 //! Custom transport through `transport(Custom)`.
-#[macro_use]
 extern crate std;
 #[prelude_import]
 use std::prelude::rust_2021::*;
@@ -105,10 +104,10 @@ mod pkg {
     impl<__API, __API_PARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         crate::CustomTransportParams> for
-        Pkg<wtx::de::protocol::VerbatimEncoder<Req<>>> where
-        wtx::de::protocol::VerbatimEncoder<Req<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
-        for<'__de> wtx::de::protocol::VerbatimDecoder<Res<>>: wtx::de::DecodeSeq<'__de,
-        wtx::de::format::De<__DRSR>>,
+        Pkg<wtx::codec::protocol::VerbatimEncoder<Req<>>> where
+        wtx::codec::protocol::VerbatimEncoder<Req<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
+        for<'__de> wtx::codec::protocol::VerbatimDecoder<Res<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<__DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<super::Nothing as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -117,9 +116,9 @@ mod pkg {
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
         wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
-            wtx::de::protocol::VerbatimEncoder<Req<>>;
+            wtx::codec::protocol::VerbatimEncoder<Req<>>;
         type ExternalResponseContent<'__de> =
-            wtx::de::protocol::VerbatimDecoder<Res<>>;
+            wtx::codec::protocol::VerbatimDecoder<Res<>>;
         type PackageParams = Params<>;
         #[inline]
         async fn after_sending(&mut self,
@@ -158,10 +157,10 @@ mod pkg {
     impl<'__is_mut, __API, __API_PARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         &'__is_mut mut crate::CustomTransportParams> for
-        Pkg<wtx::de::protocol::VerbatimEncoder<Req<>>> where
-        wtx::de::protocol::VerbatimEncoder<Req<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
-        for<'__de> wtx::de::protocol::VerbatimDecoder<Res<>>: wtx::de::DecodeSeq<'__de,
-        wtx::de::format::De<__DRSR>>,
+        Pkg<wtx::codec::protocol::VerbatimEncoder<Req<>>> where
+        wtx::codec::protocol::VerbatimEncoder<Req<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
+        for<'__de> wtx::codec::protocol::VerbatimDecoder<Res<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<__DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<super::Nothing as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -170,9 +169,9 @@ mod pkg {
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
         wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
-            wtx::de::protocol::VerbatimEncoder<Req<>>;
+            wtx::codec::protocol::VerbatimEncoder<Req<>>;
         type ExternalResponseContent<'__de> =
-            wtx::de::protocol::VerbatimDecoder<Res<>>;
+            wtx::codec::protocol::VerbatimDecoder<Res<>>;
         type PackageParams = Params<>;
         #[inline]
         async fn after_sending(&mut self,

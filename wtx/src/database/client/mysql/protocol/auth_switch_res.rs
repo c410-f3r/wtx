@@ -1,10 +1,10 @@
 use crate::{
+  codec::Decode,
   database::client::mysql::{
     MysqlError,
     auth_plugin::AuthPlugin,
     protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
-  de::Decode,
   misc::bytes_split_once1,
 };
 

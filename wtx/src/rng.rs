@@ -4,6 +4,7 @@ mod cha_cha20;
 #[cfg(feature = "chacha20")]
 mod chacha20;
 mod crypto_rng;
+mod crypto_seedable_rng;
 #[cfg(feature = "fastrand")]
 mod fastrand;
 mod from_rng;
@@ -12,10 +13,11 @@ mod seedable_rng;
 mod weighted_index;
 mod xorshift;
 
-use crate::{misc::TryArithmetic, sync::AtomicCell};
+use crate::misc::TryArithmetic;
 pub use cha_cha20::ChaCha20;
 use core::{cell::Cell, iter, ops::Range};
 pub use crypto_rng::CryptoRng;
+pub use crypto_seedable_rng::CryptoSeedableRng;
 pub use from_rng::FromRng;
 pub use seed::*;
 pub use seedable_rng::SeedableRng;
@@ -96,76 +98,6 @@ where
 
   /// Creates an array of 32 bytes.
   fn u8_32(&mut self) -> [u8; 32];
-}
-
-impl<T> Rng for AtomicCell<T>
-where
-  T: Copy + Eq + Rng,
-{
-  #[inline]
-  fn u8_4(&mut self) -> [u8; 4] {
-    (&*self).u8_4()
-  }
-
-  #[inline]
-  fn u8_8(&mut self) -> [u8; 8] {
-    (&*self).u8_8()
-  }
-
-  #[inline]
-  fn u8_16(&mut self) -> [u8; 16] {
-    (&*self).u8_16()
-  }
-
-  #[inline]
-  fn u8_32(&mut self) -> [u8; 32] {
-    (&*self).u8_32()
-  }
-}
-
-impl<T> Rng for &AtomicCell<T>
-where
-  T: Copy + Eq + Rng,
-{
-  #[inline]
-  fn u8_4(&mut self) -> [u8; 4] {
-    let mut ret = [0; 4];
-    let _rslt = self.update(|mut el| {
-      ret = el.u8_4();
-      el
-    });
-    ret
-  }
-
-  #[inline]
-  fn u8_8(&mut self) -> [u8; 8] {
-    let mut ret = [0; 8];
-    let _rslt = self.update(|mut el| {
-      ret = el.u8_8();
-      el
-    });
-    ret
-  }
-
-  #[inline]
-  fn u8_16(&mut self) -> [u8; 16] {
-    let mut ret = [0; 16];
-    let _rslt = self.update(|mut el| {
-      ret = el.u8_16();
-      el
-    });
-    ret
-  }
-
-  #[inline]
-  fn u8_32(&mut self) -> [u8; 32] {
-    let mut ret = [0; 32];
-    let _rslt = self.update(|mut el| {
-      ret = el.u8_32();
-      el
-    });
-    ret
-  }
 }
 
 impl<T> Rng for Cell<T>

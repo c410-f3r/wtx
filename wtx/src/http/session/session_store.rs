@@ -89,11 +89,11 @@ where
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
+    codec::{Decode, Encode},
     database::{
       Executor as _, Record, Typed,
       client::postgres::{ExecutorBuffer, Postgres, PostgresExecutor},
     },
-    de::{Decode, Encode},
     http::session::{SessionKey, SessionState, SessionStore},
     misc::LeaseMut,
     pool::{ResourceManager, SimplePool},
@@ -103,7 +103,7 @@ mod postgres {
   /// Expects the following SQL table definition in your database. Column names can NOT be changed.
   ///
   /// ```sql
-  /// CREATE TABLE "session" (
+  /// CREATE TABLE _wtx.session (
   ///   key VARCHAR(32) NOT NULL PRIMARY KEY,
   ///   csrf VARCHAR(32) NOT NULL,
   ///   custom_state SOME_CUSTOM_TY NOT NULL,
@@ -125,7 +125,7 @@ mod postgres {
       let SessionState { custom_state, expires_at, session_csrf, session_key } = state;
       self
         .execute_stmt_none(
-          "INSERT INTO session (key, csrf, custom_state, expires_at) VALUES ($1, $2, $3, $4)",
+          "INSERT INTO _wtx.session (key, csrf, custom_state, expires_at) VALUES ($1, $2, $3, $4)",
           (session_key, session_csrf, custom_state, expires_at),
         )
         .await?;
@@ -134,28 +134,31 @@ mod postgres {
 
     #[inline]
     async fn delete(&mut self, session_key: &SessionKey) -> Result<(), E> {
-      self.execute_stmt_none("DELETE FROM session WHERE key=$1", (session_key,)).await?;
+      self.execute_stmt_none("DELETE FROM _wtx.session WHERE key=$1", (session_key,)).await?;
       Ok(())
     }
 
     #[inline]
     async fn delete_expired(&mut self) -> Result<(), E> {
-      self.execute_ignored("DELETE FROM session WHERE expires_at <= NOW()").await?;
+      self.execute_ignored("DELETE FROM _wtx.session WHERE expires_at <= NOW()").await?;
       Ok(())
     }
 
     #[inline]
     async fn read(&mut self, session_key: SessionKey) -> Result<Option<SessionState<CS>>, E> {
-      let rec = self
-        .execute_stmt_single(
-          "SELECT csrf, custom_state, expires_at FROM session WHERE key=$1",
+      let Some(record) = self
+        .execute_stmt_optional(
+          "SELECT csrf, custom_state, expires_at FROM _wtx.session WHERE key=$1",
           (&session_key,),
         )
-        .await?;
+        .await?
+      else {
+        return Ok(None);
+      };
       Ok(Some(SessionState {
-        session_csrf: rec.decode::<_, &[u8]>(0)?.try_into()?,
-        custom_state: rec.decode(1)?,
-        expires_at: Some(rec.decode(2)?),
+        session_csrf: record.decode::<_, &[u8]>(0)?.try_into()?,
+        custom_state: record.decode(1)?,
+        expires_at: Some(record.decode(2)?),
         session_key,
       }))
     }

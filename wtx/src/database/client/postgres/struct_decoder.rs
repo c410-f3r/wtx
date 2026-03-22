@@ -1,6 +1,6 @@
 use crate::{
+  codec::Decode,
   database::client::postgres::{DecodeWrapper, Postgres, PostgresError, Ty},
-  de::Decode,
   misc::Usize,
 };
 use core::marker::PhantomData;

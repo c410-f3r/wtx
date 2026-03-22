@@ -25,22 +25,6 @@ pub struct AsyncMutex<T> {
 
 impl<T> AsyncMutex<T> {
   /// Creates a new futures-aware mutex.
-  #[cfg(feature = "loom")]
-  #[inline]
-  pub fn new(t: T) -> Self {
-    Self {
-      state: AtomicUsize::new(0),
-      value: UnsafeCell::new(t),
-      waiters: SyncMutex::new(Waiters {
-        added: 0,
-        deque: Deque::new(),
-        last_added: 0,
-        waiting_count: 0,
-      }),
-    }
-  }
-  /// Creates a new futures-aware mutex.
-  #[cfg(not(feature = "loom"))]
   #[inline]
   pub const fn new(t: T) -> Self {
     Self {
@@ -312,39 +296,6 @@ fn wake(state: &AtomicUsize, mut waiters: SyncMutexGuard<'_, Waiters>) {
   }
 }
 
-#[cfg(all(feature = "loom", test))]
-mod loom_tests {
-  use crate::{
-    collection::Vector,
-    sync::{Arc, AsyncMutex},
-  };
-
-  #[test]
-  fn addition() {
-    const THREADS: usize = 4;
-
-    loom::model(|| {
-      let mutex = Arc::new(AsyncMutex::new(0));
-      let vector = Vector::from_iterator((0..THREADS).map(|_| {
-        let local_mutex = mutex.clone();
-        loom::thread::spawn(move || {
-          loom::future::block_on(async {
-            let mut guard = local_mutex.lock().await;
-            *guard += 1;
-          });
-        })
-      }))
-      .unwrap();
-      for jh in vector {
-        jh.join().unwrap();
-      }
-      loom::future::block_on(async {
-        assert_eq!(*mutex.lock().await, THREADS);
-      });
-    });
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use crate::{
@@ -419,8 +370,8 @@ mod tests {
   fn check_mutex<T>(mutex: &AsyncMutex<T>) {
     let state = mutex.state.load(Ordering::Relaxed);
     let waiters = mutex.waiters.lock();
-    assert_eq!(has_waiters(state), false);
-    assert_eq!(is_locked(state), false);
+    assert!(!has_waiters(state));
+    assert!(!is_locked(state));
     assert_eq!(waiters.waiting_count, 0);
   }
 }

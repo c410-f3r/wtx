@@ -74,7 +74,7 @@ where
     use crate::database::Record as _;
     let rslt = Self {
       common: MigrationCommon {
-        checksum: checksum_from_bytes(curr_params.curr_record.decode("checksum")?)?.into(),
+        checksum: checksum_from_bytes(curr_params.curr_record.decode("checksum")?)?,
         name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
         repeatability: from_u32(curr_params.curr_record.decode_opt("repeatability")?),
         uid: curr_params.curr_record.decode("uid")?,
@@ -139,7 +139,7 @@ impl fmt::Display for DbMigration {
 
 #[cfg(any(feature = "mysql", feature = "postgres"))]
 fn checksum_from_bytes(bytes: &[u8]) -> crate::Result<u64> {
-  use crate::de::FromRadix10;
+  use crate::codec::FromRadix10;
   Ok(
     u64::from_radix_10(bytes)
       .map_err(|_err| crate::database::schema_manager::SchemaManagerError::ChecksumMustBeANumber)?,

@@ -1,10 +1,9 @@
 use crate::{
-  collection::Vector,
-  de::{
-    Decode, Encode,
-    format::{De, DecodeWrapper},
+  codec::{
+    Decode, Encode, GenericCodec, GenericDecodeWrapper,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
+  collection::Vector,
   grpc::{GrpcStatusCode, serialize},
 };
 
@@ -28,17 +27,17 @@ impl<DRSR> GrpcManager<DRSR> {
   #[inline]
   pub fn des_from_req_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimEncoder<T>: Decode<'de, De<DRSR>>,
+    VerbatimEncoder<T>: Decode<'de, GenericCodec<DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimEncoder::decode(&mut DecodeWrapper::new(elem))?.data)
+    Ok(VerbatimEncoder::decode(&mut GenericDecodeWrapper::new(elem))?.data)
   }
 
   /// Serialize to Response Bytes
   #[inline]
   pub fn ser_to_res_bytes<T>(&mut self, bytes: &mut Vector<u8>, data: T) -> crate::Result<()>
   where
-    VerbatimDecoder<T>: Encode<De<DRSR>>,
+    VerbatimDecoder<T>: Encode<GenericCodec<DRSR>>,
   {
     serialize(bytes, VerbatimDecoder { data }, &mut self.drsr)
   }

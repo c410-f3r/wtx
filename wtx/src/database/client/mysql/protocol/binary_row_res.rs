@@ -1,10 +1,10 @@
 use crate::{
+  codec::Decode,
   collection::Vector,
   database::client::mysql::{
     MysqlError, MysqlStatement, Ty,
     protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc},
   },
-  de::Decode,
   misc::Usize,
 };
 use core::ops::Range;

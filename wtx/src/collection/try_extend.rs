@@ -1,10 +1,11 @@
 use crate::{
-  collection::{ArrayString, ArrayVector, LinearStorageLen, Uninit, Vector},
+  collection::{ArrayString, ArrayVector, ExpansionTy, LinearStorageLen, Uninit, Vector},
   misc::{Wrapper, from_utf8_basic},
 };
 use alloc::{string::String, vec::Vec};
 
-/// A trait for extending collections with fallible operations.
+/// Extends collections in a fallible way, i.e., checks if the upcoming elements would exceed
+/// the associated capacity.
 pub trait TryExtend<S> {
   /// If the implementation is of type `()`. In other words, a dummy type.
   const IS_UNIT: bool = false;
@@ -26,6 +27,17 @@ where
 }
 
 // ArrayString
+
+impl<L, const N: usize> TryExtend<(u8, usize)> for ArrayString<L, N>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn try_extend(&mut self, (elem, len): (u8, usize)) -> crate::Result<()> {
+    self.extend_from_iter((0..len).map(|_| char::from(elem)))?;
+    Ok(())
+  }
+}
 
 impl<'slice, L, const N: usize> TryExtend<&'slice str> for ArrayString<L, N>
 where
@@ -73,6 +85,18 @@ where
 }
 
 // ArrayVector
+
+impl<L, T, const N: usize> TryExtend<(T, usize)> for ArrayVector<L, T, N>
+where
+  L: LinearStorageLen,
+  T: Clone,
+{
+  #[inline]
+  fn try_extend(&mut self, (elem, len): (T, usize)) -> crate::Result<()> {
+    self.expand(ExpansionTy::Additional(len), elem)?;
+    Ok(())
+  }
+}
 
 impl<'slice, L, T, const N: usize> TryExtend<&'slice [T]> for ArrayVector<L, T, N>
 where
@@ -162,6 +186,14 @@ where
 }
 
 // String
+
+impl TryExtend<(u8, usize)> for String {
+  #[inline]
+  fn try_extend(&mut self, (elem, len): (u8, usize)) -> crate::Result<()> {
+    self.extend((0..len).map(|_| char::from(elem)));
+    Ok(())
+  }
+}
 
 impl<'slice> TryExtend<&'slice str> for String {
   #[inline]
@@ -272,6 +304,17 @@ where
 
 // Vec
 
+impl<T> TryExtend<(T, usize)> for Vec<T>
+where
+  T: Clone,
+{
+  #[inline]
+  fn try_extend(&mut self, (elem, len): (T, usize)) -> crate::Result<()> {
+    self.resize(len, elem);
+    Ok(())
+  }
+}
+
 impl<'slice, T> TryExtend<&'slice [T]> for Vec<T>
 where
   T: Copy,
@@ -303,6 +346,17 @@ where
 }
 
 // Vector
+
+impl<T> TryExtend<(T, usize)> for Vector<T>
+where
+  T: Clone,
+{
+  #[inline]
+  fn try_extend(&mut self, (elem, len): (T, usize)) -> crate::Result<()> {
+    self.expand(ExpansionTy::Additional(len), elem)?;
+    Ok(())
+  }
+}
 
 impl<'slice, T> TryExtend<&'slice [T]> for Vector<T>
 where

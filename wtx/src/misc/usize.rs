@@ -136,6 +136,13 @@ impl From<Usize> for u64 {
 impl From<Usize> for u128 {
   #[inline]
   fn from(from: Usize) -> Self {
-    from.0 as u128
+    u64::from(from).into()
+  }
+}
+
+impl From<Usize> for usize {
+  #[inline]
+  fn from(from: Usize) -> Self {
+    from.into_usize()
   }
 }

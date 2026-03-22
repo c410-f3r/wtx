@@ -1,6 +1,6 @@
 use crate::{
   misc::{Lease, LeaseMut},
-  rng::{Rng, SeedableRng},
+  rng::{CryptoSeedableRng, Rng, SeedableRng},
 };
 
 /// Xorshift that deals with 64 bits numbers.
@@ -41,8 +41,9 @@ impl Rng for Xorshift64 {
   }
 }
 
-impl SeedableRng for Xorshift64 {
+impl CryptoSeedableRng for Xorshift64 {
   type Seed = [u8; 8];
+
   #[inline]
   fn from_seed(seed: Self::Seed) -> crate::Result<Self> {
     Ok(Self::from(u64::from_be_bytes(seed)))
@@ -62,6 +63,8 @@ impl LeaseMut<Xorshift64> for Xorshift64 {
     self
   }
 }
+
+impl SeedableRng for Xorshift64 {}
 
 impl From<u64> for Xorshift64 {
   #[inline]

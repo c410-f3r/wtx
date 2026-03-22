@@ -7,7 +7,7 @@ use crate::{
       msg_field::MsgField, postgres_column_info::PostgresColumnInfo,
     },
   },
-  misc::net::PartitionedFilledBuffer,
+  misc::{Either, net::PartitionedFilledBuffer},
 };
 use core::ops::Range;
 
@@ -49,7 +49,7 @@ pub(crate) fn extend_records<'exec, B, E>(
   net_buffer: &'exec mut PartitionedFilledBuffer,
   records_params: &'exec mut Vector<(Range<usize>, Range<usize>)>,
   stmts: &'exec mut PostgresStatements,
-  stmts_begin: usize,
+  stmts_identifiers: impl IntoIterator<Item = Either<usize, u64>>,
   values_params: &'exec mut Vector<(bool, Range<usize>)>,
 ) -> crate::Result<()>
 where
@@ -60,12 +60,16 @@ where
   }
   let mut rows_idx: usize = 0;
   let mut values_idx: usize = 0;
-  for idx in stmts_begin..stmts.len() {
-    let Some(stmt) = stmts.get_by_idx(idx) else {
-      return Err(crate::Error::ProgrammingError.into());
+  for identifier in stmts_identifiers {
+    let opt = match identifier {
+      Either::Left(idx) => stmts.get_by_idx(idx),
+      Either::Right(id) => stmts.get_by_stmt_cmd_id(id),
+    };
+    let Some(stmt) = opt else {
+      return Err(crate::Error::ProgrammingError);
     };
     let local_rows_idx = rows_idx.wrapping_add(stmt.rows_len);
-    let local_values_idx = stmt.columns_len.wrapping_mul(local_rows_idx);
+    let local_values_idx = values_idx.wrapping_add(stmt.columns_len.wrapping_mul(stmt.rows_len));
     let local_rp = records_params.get(rows_idx..local_rows_idx).unwrap_or_default();
     let local_vp = values_params.get(values_idx..local_values_idx).unwrap_or_default();
     rows_idx = local_rows_idx;

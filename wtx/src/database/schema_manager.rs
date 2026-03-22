@@ -19,9 +19,9 @@ mod schema_manager_error;
 pub mod toml_parser;
 
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{DatabaseTy, Identifier, executor::Executor},
-  de::DEController,
   misc::Lease,
 };
 use alloc::string::String;
@@ -59,18 +59,18 @@ pub trait SchemaManagement: Executor {
   fn all_elements(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 
   /// Cleans all database resources.
   fn clear(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 
   /// Initial tables meant for initialization.
   fn create_wtx_tables(
     &mut self,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 
   /// Removes every migration of a given group `mg`` that is greater than `uid`.
   fn delete_migrations<S>(
@@ -78,7 +78,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     uid: Uid,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     S: Lease<str>;
 
@@ -88,7 +88,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     migrations: I,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -100,7 +100,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     results: &mut Vector<DbMigration>,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>
   where
     S: Lease<str>;
 
@@ -111,7 +111,7 @@ pub trait SchemaManagement: Executor {
     buffer_cmd: &mut String,
     results: &mut Vector<Identifier>,
     schema: &str,
-  ) -> impl Future<Output = Result<(), <Self::Database as DEController>::Error>>;
+  ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 }
 
 impl<T> SchemaManagement for &mut T
@@ -122,7 +122,7 @@ where
   async fn all_elements(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> Result<(), <Self::Database as DEController>::Error> {
+  ) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).all_elements(buffer).await
   }
 
@@ -130,12 +130,12 @@ where
   async fn clear(
     &mut self,
     buffer: (&mut String, &mut Vector<Identifier>),
-  ) -> Result<(), <Self::Database as DEController>::Error> {
+  ) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).clear(buffer).await
   }
 
   #[inline]
-  async fn create_wtx_tables(&mut self) -> Result<(), <Self::Database as DEController>::Error> {
+  async fn create_wtx_tables(&mut self) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).create_wtx_tables().await
   }
 
@@ -145,7 +145,7 @@ where
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     uid: Uid,
-  ) -> Result<(), <Self::Database as DEController>::Error>
+  ) -> Result<(), <Self::Database as CodecController>::Error>
   where
     S: Lease<str>,
   {
@@ -158,7 +158,7 @@ where
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     migrations: I,
-  ) -> Result<(), <Self::Database as DEController>::Error>
+  ) -> Result<(), <Self::Database as CodecController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -173,7 +173,7 @@ where
     buffer_cmd: &mut String,
     mg: &UserMigrationGroup<S>,
     results: &mut Vector<DbMigration>,
-  ) -> Result<(), <Self::Database as DEController>::Error>
+  ) -> Result<(), <Self::Database as CodecController>::Error>
   where
     S: Lease<str>,
   {
@@ -186,7 +186,7 @@ where
     buffer_cmd: &mut String,
     results: &mut Vector<Identifier>,
     schema: &str,
-  ) -> Result<(), <Self::Database as DEController>::Error> {
+  ) -> Result<(), <Self::Database as CodecController>::Error> {
     (**self).table_names(buffer_cmd, results, schema).await
   }
 }

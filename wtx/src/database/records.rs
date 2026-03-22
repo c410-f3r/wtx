@@ -1,7 +1,7 @@
-use crate::database::Database;
+use crate::{database::Database, misc::Lease};
 
 /// A collection of [`crate::database::Record`].
-pub trait Records<'exec>: Default {
+pub trait Records<'exec>: Default + Lease<Self> {
   /// See [Database].
   type Database: Database;
 

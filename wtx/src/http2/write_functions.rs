@@ -223,6 +223,7 @@ where
   HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
+  enc_buffer.clear();
   let fut = async {
     let mut data_idx = 0;
     let mut frames = ArrayVectorU8::new();
@@ -520,9 +521,9 @@ fn encode_trailers(
   Ok(())
 }
 
-fn has_delimited_bytes(data_bytes: &[u8], available_len: u32) -> Option<U31> {
-  if !data_bytes.is_empty() && data_bytes.len() <= *Usize::from(available_len) {
-    return Some(U31::from_u32(u32::try_from(data_bytes.len()).ok()?));
+fn has_delimited_bytes(bytes: &[u8], available_len: u32) -> Option<U31> {
+  if !bytes.is_empty() && bytes.len() <= *Usize::from(available_len) {
+    return Some(U31::from_u32(u32::try_from(bytes.len()).ok()?));
   }
   None
 }

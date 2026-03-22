@@ -1,7 +1,7 @@
 use crate::{
   database::client::mysql::{Config, ExecutorBuffer, MysqlExecutor},
   misc::UriRef,
-  rng::{ChaCha20, SeedableRng},
+  rng::{ChaCha20, CryptoSeedableRng},
   tests::_vars,
 };
 use core::fmt::Debug;
@@ -77,7 +77,7 @@ async fn executor<E>() -> MysqlExecutor<E, ExecutorBuffer, std::net::TcpStream>
 where
   E: Debug + From<crate::Error>,
 {
-  let uri = UriRef::new(&_vars().database_uri_mysql.as_str());
+  let uri = UriRef::new(_vars().database_uri_mysql.as_str());
   let mut rng = ChaCha20::from_std_random().unwrap();
   MysqlExecutor::connect(
     &Config::from_uri(&uri).unwrap(),

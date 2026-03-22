@@ -1,11 +1,11 @@
 use crate::{
   calendar::CalendarError,
+  codec::{FromRadix10Error, HexError},
   collection::{
-    ArrayStringError, ArrayStringU8, ArrayVectorError, BlocksDequeError, DequeueError, UninitError,
-    VectorError,
+    ArrayStringError, ArrayStringU8, ArrayVectorError, BlocksDequeError, DequeueError,
+    FixedStringError, UninitError, VectorError,
   },
-  de::{FromRadix10Error, HexError},
-  misc::TryArithmeticError,
+  misc::ArithmeticError,
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -13,6 +13,7 @@ use alloc::string::String;
 use core::{
   alloc::Layout,
   any::Any,
+  convert::Infallible,
   fmt::{Debug, Display, Formatter, Write as _},
   ops::RangeInclusive,
 };
@@ -44,10 +45,10 @@ pub enum Error {
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "base64")]
   #[doc = associated_element_doc!()]
-  DecodeError(Box<base64::DecodeError>),
+  Base64DecodeError(Box<base64::DecodeError>),
   #[cfg(feature = "base64")]
   #[doc = associated_element_doc!()]
-  DecodeSliceError(Box<base64::DecodeSliceError>),
+  Base64DecodeSliceError(Box<base64::DecodeSliceError>),
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNet(embassy_net::tcp::Error),
@@ -233,6 +234,8 @@ pub enum Error {
   // Internal
   //
   #[doc = associated_element_doc!()]
+  ArithmeticError(ArithmeticError),
+  #[doc = associated_element_doc!()]
   ArrayStringError(ArrayStringError),
   #[doc = associated_element_doc!()]
   ArrayVectorError(ArrayVectorError),
@@ -255,7 +258,9 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   DatabaseError(Box<crate::database::DatabaseError>),
   #[doc = associated_element_doc!()]
-  DecError(crate::de::DecError),
+  DecError(crate::codec::CodecError),
+  #[doc = associated_element_doc!()]
+  FixedStringError(FixedStringError),
   #[doc = associated_element_doc!()]
   FromRadix10Error(FromRadix10Error),
   #[doc = associated_element_doc!()]
@@ -293,8 +298,6 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
   #[doc = associated_element_doc!()]
-  TryArithmeticError(TryArithmeticError),
-  #[doc = associated_element_doc!()]
   UninitError(UninitError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
@@ -311,6 +314,13 @@ impl Display for Error {
 }
 
 impl core::error::Error for Error {}
+
+impl From<Infallible> for Error {
+  #[inline]
+  fn from(value: Infallible) -> Self {
+    match value {}
+  }
+}
 
 impl From<Error> for () {
   #[inline]
@@ -366,7 +376,7 @@ impl From<base64::DecodeError> for Error {
   #[inline]
   #[track_caller]
   fn from(from: base64::DecodeError) -> Self {
-    Self::DecodeError(from.into())
+    Self::Base64DecodeError(from.into())
   }
 }
 
@@ -375,7 +385,7 @@ impl From<base64::DecodeSliceError> for Error {
   #[inline]
   #[track_caller]
   fn from(from: base64::DecodeSliceError) -> Self {
-    Self::DecodeSliceError(from.into())
+    Self::Base64DecodeSliceError(from.into())
   }
 }
 
@@ -679,10 +689,17 @@ impl From<crate::database::DatabaseError> for Error {
   }
 }
 
-impl From<crate::de::DecError> for Error {
+impl From<crate::codec::CodecError> for Error {
   #[inline]
-  fn from(from: crate::de::DecError) -> Self {
+  fn from(from: crate::codec::CodecError) -> Self {
     Self::DecError(from)
+  }
+}
+
+impl From<FixedStringError> for Error {
+  #[inline]
+  fn from(from: FixedStringError) -> Self {
+    Self::FixedStringError(from)
   }
 }
 
@@ -739,10 +756,10 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   }
 }
 
-impl From<TryArithmeticError> for Error {
+impl From<ArithmeticError> for Error {
   #[inline]
-  fn from(from: TryArithmeticError) -> Self {
-    Self::TryArithmeticError(from)
+  fn from(from: ArithmeticError) -> Self {
+    Self::ArithmeticError(from)
   }
 }
 

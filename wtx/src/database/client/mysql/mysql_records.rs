@@ -1,6 +1,9 @@
-use crate::database::{
-  Records,
-  client::mysql::{Mysql, MysqlCommonRecords, MysqlRecord, MysqlStatement},
+use crate::{
+  database::{
+    Records,
+    client::mysql::{Mysql, MysqlCommonRecords, MysqlRecord, MysqlStatement},
+  },
+  misc::Lease,
 };
 use core::ops::Range;
 
@@ -40,6 +43,13 @@ where
   #[inline]
   fn len(&self) -> usize {
     self.common.len()
+  }
+}
+
+impl<'exec, E> Lease<MysqlRecords<'exec, E>> for MysqlRecords<'exec, E> {
+  #[inline]
+  fn lease(&self) -> &MysqlRecords<'exec, E> {
+    self
   }
 }
 

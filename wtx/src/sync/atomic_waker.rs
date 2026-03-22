@@ -18,13 +18,6 @@ pub struct AtomicWaker {
 
 impl AtomicWaker {
   /// Creates an empty instance.
-  #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
-  #[inline]
-  pub fn new() -> Self {
-    AtomicWaker { state: AtomicUsize::new(WAITING), waker: UnsafeCell::new(None) }
-  }
-  /// Creates an empty instance.
-  #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
   #[inline]
   pub const fn new() -> Self {
     AtomicWaker { state: AtomicUsize::new(WAITING), waker: UnsafeCell::new(None) }
@@ -33,11 +26,11 @@ impl AtomicWaker {
   /// Registers the waker to be notified on calls to `wake`.
   #[inline]
   pub fn register(&self, waker: &Waker) {
-    match self
+    let prev_state = self
       .state
       .compare_exchange(WAITING, REGISTERING, Ordering::Acquire, Ordering::Acquire)
-      .unwrap_or_else(|el| el)
-    {
+      .unwrap_or_else(|el| el);
+    match prev_state {
       WAITING => {
         // SAFETY: `compare_exchange` manages concurrent accesses.
         let waker_opt = unsafe { &mut *self.waker.get() };
@@ -45,14 +38,15 @@ impl AtomicWaker {
           Some(elem) => elem.clone_from(waker),
           _ => *waker_opt = Some(waker.clone()),
         }
-        if self
+        let prev_state_is_not_waiting = self
           .state
           .compare_exchange(REGISTERING, WAITING, Ordering::AcqRel, Ordering::Acquire)
-          .is_err()
-        {
+          .is_err();
+        if prev_state_is_not_waiting {
           let Some(local_waker) = waker_opt.take() else {
             return;
           };
+          // Swap because data is not changed while state is `REGISTERING or `WAITING`
           let _ = self.state.swap(WAITING, Ordering::AcqRel);
           local_waker.wake();
         }

@@ -1,6 +1,6 @@
 use crate::{
+  codec::FromRadix10 as _,
   collection::{ArrayStringU16, Clear, Truncate, TryExtend},
-  de::FromRadix10 as _,
   misc::{Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
 };
 use alloc::{boxed::Box, string::String};
@@ -453,6 +453,31 @@ where
 
 impl<S> Uri<S>
 where
+  S: LeaseMut<str> + Truncate<usize> + TryExtend<(u8, usize)>,
+{
+  /// Allows the usage of the internal buffer to perform arbitrary operations.
+  #[inline]
+  pub fn buffer<R>(
+    &mut self,
+    additional: usize,
+    cb: impl FnOnce(&mut [u8]) -> R,
+  ) -> crate::Result<R> {
+    let idx = self.uri.lease().len();
+    self.uri.try_extend((0, additional))?;
+    let buffer = self.uri.lease_mut().get_mut(idx..).unwrap_or_default();
+    // SAFETY: These bytes will be erased in `truncate`, as such, it doesn't matter.
+    let buffer_bytes = unsafe { buffer.as_bytes_mut() };
+    let rslt = cb(buffer_bytes);
+    if let Some(elem) = buffer_bytes.first_mut() {
+      *elem = 0;
+    }
+    self.uri.truncate(idx);
+    Ok(rslt)
+  }
+}
+
+impl<S> Uri<S>
+where
   for<'any> S: Lease<str> + Truncate<usize> + TryExtend<&'any str> + Write,
 {
   /// Pushes an additional path only if there is no query.
@@ -508,18 +533,6 @@ where
   pub fn truncate_with_initial_len(&mut self) {
     self.uri.truncate(self.initial_len.into());
     self.query_start = self.query_start.min(self.initial_len);
-  }
-
-  #[cfg(all(feature = "base64", feature = "http"))]
-  pub(crate) fn buffer(
-    &mut self,
-    cb: impl FnOnce(&mut S) -> crate::Result<()>,
-  ) -> crate::Result<()> {
-    let idx = self.uri.lease().len();
-    let rslt = cb(&mut self.uri);
-    self.uri.truncate(idx);
-    rslt?;
-    Ok(())
   }
 }
 

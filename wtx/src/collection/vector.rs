@@ -7,7 +7,10 @@ use crate::{
   },
   misc::{_unlikely_unreachable, Lease, LeaseMut, Wrapper},
 };
-use alloc::vec::{IntoIter, Vec};
+use alloc::{
+  string::String,
+  vec::{IntoIter, Vec},
+};
 use core::{
   borrow::{Borrow, BorrowMut},
   cmp::Ordering,
@@ -417,6 +420,13 @@ impl<T> DerefMut for Vector<T> {
   #[inline]
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.0.as_slice_mut()
+  }
+}
+
+impl From<String> for Vector<u8> {
+  #[inline]
+  fn from(from: String) -> Self {
+    Vector::from_vec(from.into())
   }
 }
 

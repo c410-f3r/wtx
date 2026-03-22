@@ -123,8 +123,8 @@ mod tests {
   }
 
   #[test]
-  fn mlock_slice_and_munlock_slice() {
-    let mut data = Vector::with_capacity(1024).unwrap();
+  fn mlock_and_munlock_slice() {
+    let mut data = [1, 2, 3, 4];
     mlock_slice(&mut data).unwrap();
     munlock_slice(&mut data).unwrap();
   }

@@ -39,7 +39,7 @@ pub const DEFAULT_URI_VAR: &str = "DATABASE_URI";
 pub type Identifier = crate::collection::ArrayStringU8<63>;
 
 /// Database
-pub trait Database: crate::de::DEController {
+pub trait Database: crate::codec::CodecController {
   /// See [`DatabaseTy`].
   const TY: DatabaseTy;
 

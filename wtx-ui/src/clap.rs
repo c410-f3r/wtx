@@ -23,32 +23,12 @@ pub(crate) async fn init() -> wtx::Result<()> {
   }
 
   #[cfg(not(feature = "unified"))]
-  {
-    #[cfg(all(
-      feature = "embed-migrations",
-      not(any(feature = "http-client", feature = "schema-manager", feature = "web-socket"))
-    ))]
-    crate::embed_migrations::embed_migrations(_args.commands).await?;
-
-    #[cfg(all(
-      feature = "http-client",
-      not(any(feature = "embed-migrations", feature = "schema-manager", feature = "web-socket"))
-    ))]
-    crate::http_client::http_client(_args.commands).await;
-
-    #[cfg(all(
-      feature = "schema-manager",
-      not(any(feature = "embed-migrations", feature = "http-client", feature = "web-socket"))
-    ))]
-    crate::schema_manager::schema_manager(_args.commands).await?;
-
-    #[cfg(all(
-      feature = "web-socket",
-      not(any(feature = "embed-migrations", feature = "http-client", feature = "schema-manager"))
-    ))]
-    manage_web_socket(_args.commands).await;
+  cfg_select! {
+    feature = "embed-migrations" => crate::embed_migrations::embed_migrations(_args.commands).await?,
+    feature = "http-client" =>  crate::http_client::http_client(_args.commands).await,
+    feature = "schema-manager" => crate::schema_manager::schema_manager(_args.commands).await?,
+    feature = "web-socket" => manage_web_socket(_args.commands).await,
   }
-
   Ok(())
 }
 

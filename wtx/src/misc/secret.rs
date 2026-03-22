@@ -1,9 +1,18 @@
-use crate::misc::memset_slice_volatile;
+mod secret_context;
+
+use crate::{
+  collection::{Clear, TryExtend},
+  crypto::{Aead, Aes256GcmRustCrypto},
+  misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
+  rng::CryptoRng,
+};
 use alloc::boxed::Box;
 use core::{
   fmt::{Debug, Formatter},
   ops::{Deref, DerefMut},
 };
+pub use secret_context::SecretContext;
+use sha2::{Digest, Sha256};
 
 /// Long-lived sensitive data.
 ///
@@ -11,9 +20,78 @@ use core::{
 ///
 /// ***Tries*** to provide a layer of protection against Spectre, Meltdown, RowHammer,
 /// RAMbleed, etc. Moreover, secrets probably won't be swapped out to the swap area.
+///
+/// At the current time, does not make use of hardware solutions like TEE.
 pub struct Secret {
   protected: Protected,
   salt: [u8; 32],
+  secret_context: SecretContext,
+}
+
+impl Secret {
+  /// `data` will be internally zeroed regardless if an error occurred.
+  #[rustfmt::skip]
+  pub fn new<RNG: CryptoRng>(
+    data: &mut [u8],
+    rng: &mut RNG,
+    secret_context: SecretContext,
+  ) -> crate::Result<Self> {
+    let mut data_locked = SensitiveBytes::new_locked(data)?;
+    let mut salt = [0; 32];
+    rng.fill_slice(&mut salt);
+    let (nonce, tag) = {
+      let mut secret_key = [0; 32];
+      let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
+      fill_secret_key(&salt, &secret_context, &mut secret_key_locked);
+      Aes256GcmRustCrypto::encrypt_in_place_detached(
+        &[],
+        &mut data_locked,
+        rng,
+        *secret_key_locked,
+      )?
+    };
+    let all_len = nonce.len().wrapping_add(data_locked.len()).wrapping_add(tag.len());
+    let mut protected = Protected::zeroed(all_len);
+    if let [
+      a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+      content @ ..,
+      b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
+    ] = &mut *protected {
+      copy_iter_mut(&nonce, &mut [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]);
+      copy_iter(&data_locked, content);
+      copy_iter_mut(&tag, &mut [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]);
+    }
+    Ok(Self { protected, salt, secret_context })
+  }
+
+  /// Decrypts secret temporally.
+  ///
+  /// The bytes of the closure shouldn't be cloned into another location. Failing to do so
+  /// will likely make the usage of this structure irrelevant and expensive.
+  ///
+  /// `buffer` is utilized for internal operations and can be freely reused for any other action
+  /// afterwards. Please note that its capacity should at least be the original data byte length
+  /// plus 28 bytes.
+  ///
+  /// When the closure is executing, the plaintext secret will exist transiently in CPU registers
+  /// and caches, which is unavoidable.
+  pub fn peek<'buffer, B, T>(
+    &self,
+    buffer: &'buffer mut B,
+    fun: impl FnOnce(SensitiveBytes<&'buffer mut [u8]>) -> T,
+  ) -> crate::Result<T>
+  where
+    for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8]>,
+  {
+    buffer.clear();
+    buffer.try_extend(&self.protected)?;
+    let mut secret_key = [0; 32];
+    let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
+    fill_secret_key(&self.salt, &self.secret_context, &mut secret_key_locked);
+    let data = buffer.lease_mut();
+    let plaintext = Aes256GcmRustCrypto::decrypt_in_place(&[], data, *secret_key_locked)?;
+    Ok(fun(SensitiveBytes::new_locked(plaintext)?))
+  }
 }
 
 impl Debug for Secret {
@@ -72,7 +150,7 @@ impl From<&[u8]> for Protected {
 
 impl From<Box<[u8]>> for Protected {
   fn from(from: Box<[u8]>) -> Self {
-    Protected(Box::leak(from))
+    Protected(Box::into_raw(from))
   }
 }
 
@@ -85,114 +163,27 @@ fn copy_iter(from: &[u8], to: &mut [u8]) {
   from.iter().zip(to.iter_mut()).for_each(|(lhs, rhs)| *rhs = *lhs);
 }
 
-mod static_keys {
-  use crate::{
-    collection::{Clear, ExpansionTy, TryExtend, Vector},
-    crypto::{Aead, Aes256GcmRustCrypto},
-    misc::{
-      LeaseMut, Secret, SensitiveBytes, mlock_slice,
-      secret::{Protected, copy_iter},
-    },
-    rng::CryptoRng,
-  };
-  use alloc::boxed::Box;
-  use core::slice;
-  use sha2::{Digest, Sha256};
-  use std::sync::OnceLock;
+fn copy_iter_mut(from: &[u8], to: &mut [&mut u8]) {
+  from.iter().zip(to.iter_mut()).for_each(|(lhs, rhs)| **rhs = *lhs);
+}
 
-  const STATIC_KEYS_NUM: usize = 4;
-  const STATIC_KEYS_SIZE: usize = 4096;
-
-  static STATIC_KEYS: OnceLock<Box<[Box<[u8]>]>> = OnceLock::new();
-
-  impl Secret {
-    /// `data` will be internally zeroed regardless if an error occurred.
-    pub fn new<RNG: CryptoRng>(
-      mut data: SensitiveBytes<&mut [u8]>,
-      rng: &mut RNG,
-    ) -> crate::Result<Self> {
-      Self::do_new(data.bytes_mut(), rng)
-    }
-
-    /// Decrypts secret temporally.
-    ///
-    /// The bytes of the closure shouldn't be cloned into another location. Failing to do so
-    /// will likely make the usage of this structure expensive and irrelevant.
-    ///
-    /// `buffer` is utilized for internal operations and can be freely reused for any other action
-    /// afterwards. Please note that its capacity should at least be the original data byte length
-    /// plus 28 bytes.
-    ///
-    /// When the closure is executing, the plaintext secret will exist transiently in CPU registers
-    /// and caches, which is unavoidable.
-    pub fn peek<B, T>(&self, buffer: &mut B, fun: impl FnOnce(&[u8]) -> T) -> crate::Result<T>
-    where
-      for<'any> B: Clear + LeaseMut<[u8]> + TryExtend<&'any [u8]>,
-    {
-      buffer.clear();
-      buffer.try_extend(&self.protected)?;
-      Ok(fun(Aes256GcmRustCrypto::decrypt_in_place(
-        &[],
-        SensitiveBytes::new_locked(buffer.lease_mut())?.bytes_mut(),
-        &secret_key(&self.salt).as_ref().try_into().map_err(crate::Error::from)?,
-      )?))
-    }
-
-    #[rustfmt::skip]
-    fn do_new<RNG>(data: &mut [u8], rng: &mut RNG) -> crate::Result<Self>
-    where
-      RNG: CryptoRng,
-    {
-      let _rslt = STATIC_KEYS.set({
-        let mut pages = Vector::new();
-        for _ in 0..STATIC_KEYS_NUM {
-          let mut page = Vector::with_capacity(STATIC_KEYS_SIZE)?;
-          let capacity = page.capacity();
-          // SAFETY: slice comes from newly allocated memory
-          mlock_slice(unsafe { slice::from_raw_parts_mut(page.as_mut_ptr(), capacity) })?;
-          page.expand(ExpansionTy::Len(STATIC_KEYS_SIZE), 0)?;
-          rng.fill_slice(&mut page);
-          pages.push(page.into_vec().into())?;
-        }
-        pages.into_vec().into()
-      });
-      let mut salt = [0; 32];
-      rng.fill_slice(&mut salt);
-      let secret_key = secret_key(&salt).as_ref().try_into()?;
-      let (nonce, tag) = Aes256GcmRustCrypto::encrypt_in_place_detached(&[], data, rng, &secret_key)?;
-      let all_len = nonce.len().wrapping_add(data.len()).wrapping_add(tag.len());
-      let mut protected = Protected::zeroed(all_len);
-      if let [
-        a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
-        content @ ..,
-        b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
-      ] = &mut *protected {
-        copy_iter_mut(&nonce, &mut [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11]);
-        copy_iter(data, content);
-        copy_iter_mut(&tag, &mut [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]);
-      }
-      Ok(Self { protected, salt })
-    }
-  }
-
-  fn copy_iter_mut(from: &[u8], to: &mut [&mut u8]) {
-    from.iter().zip(to.iter_mut()).for_each(|(lhs, rhs)| **rhs = *lhs);
-  }
-
-  fn secret_key(salt: &[u8; 32]) -> Protected {
-    let mut ctx = Sha256::new();
-    ctx.update(salt);
-    STATIC_KEYS.wait().iter().for_each(|static_key| ctx.update(static_key));
-    Protected::from(<[u8; 32]>::from(ctx.finalize()).as_ref())
-  }
+fn fill_secret_key(
+  salt: &[u8; 32],
+  secret_context: &SecretContext,
+  secret_key: &mut SensitiveBytes<&mut [u8; 32]>,
+) {
+  let mut ctx = Sha256::new();
+  ctx.update(salt);
+  secret_context.0.iter().for_each(|static_key| ctx.update(static_key));
+  ctx.finalize_into((&mut ***secret_key).into());
 }
 
 #[cfg(test)]
 mod tests {
   use crate::{
     collection::Vector,
-    misc::{Secret, SensitiveBytes},
-    rng::{ChaCha20, SeedableRng},
+    misc::{Secret, SecretContext},
+    rng::{ChaCha20, CryptoSeedableRng},
   };
 
   const DATA: [u8; 4] = [1, 2, 3, 4];
@@ -202,16 +193,17 @@ mod tests {
     let mut buffer = Vector::new();
     let mut data = DATA;
     let mut rng = ChaCha20::from_std_random().unwrap();
-    let secret = Secret::new(SensitiveBytes::new_unlocked(&mut data), &mut rng).unwrap();
+    let secret_context = SecretContext::new(&mut rng).unwrap();
+    let secret = Secret::new(&mut data, &mut rng, secret_context).unwrap();
     let mut option = None;
     secret
-      .peek(&mut buffer, |bytes| {
-        option = Some(bytes.try_into().unwrap());
+      .peek(&mut buffer, |local_buffer| {
+        option = Some(local_buffer.as_ref().try_into().unwrap());
       })
       .unwrap();
     assert_eq!(option, Some(DATA));
-    for elem in buffer {
-      assert_eq!(elem, 0);
+    for elem in &buffer[12..16] {
+      assert_eq!(*elem, 0);
     }
   }
 }

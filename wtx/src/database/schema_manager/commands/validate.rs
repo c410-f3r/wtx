@@ -1,5 +1,5 @@
 #[cfg(feature = "std")]
-use crate::de::DEController;
+use crate::codec::CodecController;
 use crate::{
   collection::Vector,
   database::{
@@ -29,7 +29,7 @@ where
     &mut self,
     mg: &UserMigrationGroup<S>,
     migrations: I,
-  ) -> Result<(), <E::Database as DEController>::Error>
+  ) -> Result<(), <E::Database as CodecController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -38,7 +38,7 @@ where
     let mut buffer_cmd = String::new();
     let mut buffer_db_migrations = Vector::new();
     self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
-    Self::do_validate(&mut buffer_db_migrations, Self::filter_by_db(migrations))?;
+    Self::do_validate(&buffer_db_migrations, Self::filter_by_db(migrations))?;
     Ok(())
   }
 
@@ -48,7 +48,7 @@ where
   pub async fn validate_from_toml(
     &mut self,
     path: &Path,
-  ) -> Result<(), <E::Database as DEController>::Error> {
+  ) -> Result<(), <E::Database as CodecController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     migration_groups.sort_unstable();
     for mg in migration_groups.into_iter() {
@@ -63,7 +63,7 @@ where
   pub async fn validate_from_dir(
     &mut self,
     path: &Path,
-  ) -> Result<(), <E::Database as DEController>::Error> {
+  ) -> Result<(), <E::Database as CodecController>::Error> {
     self.do_validate_from_dir((&mut String::new(), &mut Vector::new()), path).await
   }
 
@@ -105,7 +105,7 @@ where
     &mut self,
     (buffer_cmd, buffer_db_migrations): (&mut String, &mut Vector<DbMigration>),
     path: &Path,
-  ) -> Result<(), <E::Database as DEController>::Error> {
+  ) -> Result<(), <E::Database as CodecController>::Error> {
     let opt = group_and_migrations_from_path(path, Ord::cmp);
     let Ok((mg, mut migrations)) = opt else { return Ok(()) };
     self.executor.migrations(buffer_cmd, &mg, buffer_db_migrations).await?;

@@ -1,6 +1,7 @@
 #[cfg(feature = "std")]
 mod std;
 
+use crate::misc::FromVars;
 use alloc::string::String;
 
 /// Allows the interactive reading of environment variables.
@@ -18,10 +19,4 @@ where
   pub fn from_iterator(vars: impl IntoIterator<Item = (String, String)>) -> crate::Result<Self> {
     Ok(Self(T::from_vars(vars)?))
   }
-}
-
-/// Constructs itself using a set of `(key, value)` string pairs.
-pub trait FromVars: Sized {
-  /// See [`FromVars`].
-  fn from_vars(vars: impl IntoIterator<Item = (String, String)>) -> crate::Result<Self>;
 }

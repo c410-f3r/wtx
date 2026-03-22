@@ -146,7 +146,7 @@ where
       let stmt_mut = if B::IS_UNIT {
         StatementMut::new(0, stmt_columns_len, stmt_rows_len, stmt_tys_len, &mut [])
       } else {
-        let idx = builder.build(stmt_cmd_id, StatementsMisc::new(0, columns_len.into(), 0, 0))?;
+        let idx = builder.build(stmt_cmd_id, StatementsMisc::new(0, columns_len, 0, 0))?;
         let Some(stmt_mut) = stmts.get_by_idx_mut(idx) else {
           return Err(crate::Error::ProgrammingError.into());
         };

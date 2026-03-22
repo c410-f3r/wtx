@@ -52,14 +52,14 @@ impl<T> Clear for Option<T> {
 impl Clear for String {
   #[inline]
   fn clear(&mut self) {
-    self.clear();
+    self.truncate(0);
   }
 }
 
 impl<T> Clear for Vec<T> {
   #[inline]
   fn clear(&mut self) {
-    self.clear();
+    self.truncate(0);
   }
 }
 

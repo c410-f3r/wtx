@@ -1,6 +1,6 @@
 use crate::{
+  codec::CodecController,
   database::{executor::Executor, schema_manager::Commands},
-  de::DEController,
   misc::Lease,
 };
 use alloc::string::String;
@@ -18,7 +18,7 @@ where
   pub async fn seed<S>(
     &mut self,
     seeds: impl IntoIterator<Item = S>,
-  ) -> Result<(), <E::Database as DEController>::Error>
+  ) -> Result<(), <E::Database as CodecController>::Error>
   where
     S: Lease<str>,
   {
@@ -42,7 +42,7 @@ where
   pub async fn seed_from_dir(
     &mut self,
     dir: &Path,
-  ) -> Result<(), <E::Database as DEController>::Error> {
+  ) -> Result<(), <E::Database as CodecController>::Error> {
     let iter = crate::database::schema_manager::misc::files(dir)?.filter_map(|el_rslt| {
       let el = el_rslt.ok()?;
       read_to_string(el.path()).ok()

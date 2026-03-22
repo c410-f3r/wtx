@@ -1,10 +1,10 @@
 use crate::{
   calendar::{Date, DateTime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Utc, Year},
+  codec::{Decode, Encode},
   database::{
     DatabaseError, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
   },
-  de::{Decode, Encode},
 };
 
 const PG_EPOCH: DateTime<Utc> = DateTime::new(

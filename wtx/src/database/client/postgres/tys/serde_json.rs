@@ -1,9 +1,9 @@
 use crate::{
+  codec::{Decode, Encode},
   database::{
     Json, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
   },
-  de::{Decode, Encode},
   misc::serde_json_deserialize_from_slice,
 };
 use serde::{Deserialize, Serialize};

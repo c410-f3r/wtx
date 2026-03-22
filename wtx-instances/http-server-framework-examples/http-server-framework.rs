@@ -20,8 +20,9 @@ use wtx::{
     },
   },
   http2::{Http2Buffer, Http2ErrorCode, ServerStream},
+  misc::SecretContext,
   pool::{PostgresRM, SimplePool},
-  rng::{ChaCha20, SeedableRng},
+  rng::{ChaCha20, CryptoSeedableRng},
 };
 
 type LocalPool = SimplePool<PostgresRM<wtx::Error, TcpStream>>;
@@ -37,14 +38,11 @@ async fn main() -> wtx::Result<()> {
     ),
     ("/stream", get(stream)),
   ))?;
-  let pool = LocalPool::new(
-    4,
-    PostgresRM::tokio(
-      ChaCha20::from_std_random()?,
-      "postgres://USER:PASSWORD@localhost/DB_NAME".into(),
-    ),
-  );
-  ServerFrameworkBuilder::new(ChaCha20::from_std_random()?, router)
+  let mut rng = ChaCha20::from_getrandom()?;
+  let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
+  let secret_context = SecretContext::new(&mut rng)?;
+  let pool = LocalPool::new(4, PostgresRM::tokio(rng, secret_context, &mut uri)?);
+  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
     .with_stream_aux(move |_| Ok(pool.clone()))
     .tokio(
       &wtx_instances::host_from_args(),

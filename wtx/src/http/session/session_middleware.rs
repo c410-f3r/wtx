@@ -1,6 +1,6 @@
 use crate::{
   calendar::Instant,
-  collection::Vector,
+  collection::{ArrayVectorU8, Vector},
   crypto::{Aead, Aes128GcmRustCrypto},
   http::{
     KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
@@ -65,18 +65,22 @@ where
     req: &mut Request<ReqResBuffer>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    let mut session_guard = self.session_manager.inner.lock().await;
-    let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
-    if let Some(elem) = ca.lease() {
-      if let Some(expires) = &elem.expires_at
-        && expires >= &Instant::now_date_time(0)?.trunc_to_us()
+    if let Some(session_state) = ca.lease() {
+      if let Some(elem) = &session_state.expires_at
+        && *elem < Instant::now_date_time(0)?.trunc_to_us()
       {
-        let _rslt =
-          self.session_store.get_with_unit().await?.lease_mut().delete(&elem.session_key).await;
+        let _rslt = self
+          .session_store
+          .get_with_unit()
+          .await?
+          .lease_mut()
+          .delete(&session_state.session_key)
+          .await;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
       return Ok(ControlFlow::Continue(()));
     }
+    let mut has_stored_session = true;
     let mut x_csrf_token_value = None;
     for header in req.rrd.headers.iter() {
       if ca.lease_mut().is_some() && x_csrf_token_value.is_some() {
@@ -93,39 +97,51 @@ where
       let ss_des: SessionState<CS> = {
         let idx = req.rrd.body.len();
         let cookie_des = CookieStr::parse(header.value, &mut req.rrd.body)?;
-        if cookie_des.generic.name != cookie_def.name {
+        if cookie_des.generic.name != self.session_manager.inner.0 {
+          req.rrd.body.truncate(idx);
           continue;
         }
+        let mut session_guard = self.session_manager.inner.1.lock().await;
+        let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
-        let decrypt_rslt = Aes128GcmRustCrypto::decrypt_base64_to_buffer(
-          name.as_bytes(),
-          &mut cookie_def.value,
-          value.as_bytes(),
-          session_secret.data()?,
-        );
+        let decrypt_rslt = session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new(), |el| {
+          Aes128GcmRustCrypto::decrypt_base64_to_buffer(
+            name.as_bytes(),
+            &mut cookie_def.value,
+            value.as_bytes(),
+            el.as_ref().try_into()?,
+          )
+        });
         req.rrd.body.truncate(idx);
-        let value_json = decrypt_rslt?;
+        let value_json = decrypt_rslt??;
         let json_rslt = serde_json_deserialize_from_slice(value_json);
         cookie_def.value.clear();
-        json_rslt.map_err(Into::into)?
+        json_rslt?
       };
-      let ss_db_opt = {
-        let mut lock = self.session_store.get(&(), &()).await?;
-        lock.lease_mut().read(ss_des.session_key).await?
-      };
+      let ss_db_opt =
+        self.session_store.get_with_unit().await?.lease_mut().read(ss_des.session_key).await?;
       let Some(ss_db) = ss_db_opt else {
-        return Err(crate::Error::from(SessionError::MissingStoredSession).into());
+        has_stored_session = false;
+        break;
       };
       if ss_db.custom_state != ss_des.custom_state {
-        self.session_store.get(&(), &()).await?.lease_mut().delete(&ss_des.session_key).await?;
+        self.session_store.get_with_unit().await?.lease_mut().delete(&ss_des.session_key).await?;
         return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
       }
       *ca.lease_mut() = Some(ss_des);
     }
+    if !has_stored_session {
+      req.rrd.clear();
+      let _rslt = SessionManager::<CS, E>::clear_cookie(
+        &mut self.session_manager.inner.1.lock().await.cookie_def,
+        &mut req.rrd.headers,
+      );
+      return Ok(ControlFlow::Break(StatusCode::Forbidden));
+    }
     if let Some(local) = ca.lease_mut() {
       if req.method.is_mutable() && Some(local.session_csrf.as_str()) != x_csrf_token_value {
         let session_key = &local.session_key;
-        let _rslt = self.session_store.get(&(), &()).await?.lease_mut().delete(session_key).await;
+        let _rslt = self.session_store.get_with_unit().await?.lease_mut().delete(session_key).await;
         return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
       }
     } else {

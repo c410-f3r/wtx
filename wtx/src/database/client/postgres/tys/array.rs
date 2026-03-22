@@ -1,10 +1,10 @@
 use crate::{
+  codec::{Decode, Encode},
   collection::{ArrayString, ArrayVector, LinearStorageLen},
   database::{
     Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
   },
-  de::{Decode, Encode},
   misc::from_utf8_basic,
 };
 

@@ -28,7 +28,7 @@ mod tracing_tree_timer;
 mod weekday;
 mod year;
 
-use crate::de::{U64String, u64_string};
+use crate::codec::{U64String, u64_string};
 pub use calendar_error::CalendarError;
 pub use ce_days::CeDays;
 pub use date::Date;

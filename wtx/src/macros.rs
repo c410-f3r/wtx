@@ -310,78 +310,44 @@ macro_rules! _simd {
     32 => $_32:expr,
     64 => $_64:expr $(,)?
   ) => {{
-    #[cfg(not(any(
-      target_feature = "avx2",
-      target_feature = "avx512f",
-      target_feature = "neon",
-      target_feature = "sse2"
-    )))]
-    let rslt = $_4;
-
-    #[cfg(all(
-      target_feature = "neon",
-      not(any(target_feature = "avx2", target_feature = "avx512f"))
-    ))]
-    let rslt = $_16;
-
-    #[cfg(all(
-      target_feature = "sse2",
-      not(any(target_feature = "avx2", target_feature = "avx512f", target_feature = "neon"))
-    ))]
-    let rslt = $_16;
-
-    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-    let rslt = $_32;
-
-    #[cfg(target_feature = "avx512f")]
-    let rslt = $_64;
-
-    rslt
+    cfg_select! {
+      target_feature = "avx512f" => $_64,
+      target_feature = "avx2" => $_32,
+      any(target_feature = "neon", target_feature = "sse2") => $_16,
+      _ => $_4
+    }
   }};
 }
 
 macro_rules! _simd_slice {
   (
-    ($($immutables:ident),* $(,)?),
-    ($($mutables:ident),* $(,)?),
-    $_4_pat:pat => $_4_expr:expr,
-    $_16_pat:pat => $_16_expr:expr,
-    $_32_pat:pat => $_32_expr:expr,
-    $_64_pat:pat => $_64_expr:expr,
-    $rest_pat:pat => $rest_expr:expr $(,)?
+    (($($immutables:ident),* $(,)?), ($($mutables:ident),* $(,)?)),
+    ($exact_immutable:pat, $exact_mutable:pat, $exact_len:ident) => $exact_expr:expr,
+    ($rest_immutable:pat, $rest_mutable:pat, $rest_len:ident) => $rest_expr:expr $(,)?
   ) => {{
-    let rest = _simd! {
-      4 => {
-        let ($($immutables,)*) = ($($immutables.as_chunks::<4>(),)*);
-        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<4>(),)*);
-        let $_4_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
-        $_4_expr;
-        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
-      },
-      16 => {
-        let ($($immutables,)*) = ($($immutables.as_chunks::<16>(),)*);
-        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<16>(),)*);
-        let $_16_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
-        $_16_expr;
-        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
-      },
-      32 => {
-        let ($($immutables,)*) = ($($immutables.as_chunks::<32>(),)*);
-        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<32>(),)*);
-        let $_32_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
-        $_32_expr;
-        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
-      },
-      64 => {
-        let ($($immutables,)*) = ($($immutables.as_chunks::<64>(),)*);
-        let ($($mutables,)*) = ($($mutables.as_chunks_mut::<64>(),)*);
-        let $_64_pat = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
-        $_64_expr;
-        (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
-      }
+    let rest = {
+      const $exact_len: usize = _simd! {
+        4 => 4,
+        16 => 16,
+        32 => 32,
+        64 => 64
+      };
+      let ($($immutables,)*) = ($($immutables.as_chunks::<$exact_len>(),)*);
+      let ($($mutables,)*) = ($($mutables.as_chunks_mut::<$exact_len>(),)*);
+      let ($exact_immutable, $exact_mutable) = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
+      $exact_expr
+      (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
     };
-    let $rest_pat = rest;
-    $rest_expr
+    {
+      const $rest_len: usize = _simd! {
+        4 => 4,
+        16 => 16,
+        32 => 32,
+        64 => 64
+      };
+      let ($rest_immutable, $rest_mutable) = rest;
+      $rest_expr
+    }
   }};
 }
 

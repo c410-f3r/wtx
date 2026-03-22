@@ -17,6 +17,7 @@ mod env_vars;
 #[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
 mod filled_buffer;
 mod fn_fut;
+mod from_vars;
 mod incomplete_utf8_char;
 mod interspace;
 mod join_array;
@@ -24,6 +25,7 @@ mod lease;
 mod mem;
 mod optimization;
 mod poll_once;
+mod role;
 #[cfg(feature = "secret")]
 mod secret;
 mod sensitive_bytes;
@@ -40,12 +42,11 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-use crate::calendar::Instant;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
 pub use either::Either;
 pub use enum_var_strings::EnumVarStrings;
-pub use env_vars::{EnvVars, FromVars};
+pub use env_vars::EnvVars;
 #[cfg(any(
   feature = "http2",
   feature = "mysql",
@@ -54,6 +55,7 @@ pub use env_vars::{EnvVars, FromVars};
 ))]
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
+pub use from_vars::FromVars;
 pub use hints::*;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
@@ -62,8 +64,9 @@ pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimization::*;
 pub use poll_once::PollOnce;
+pub use role::{Client, Role, RoleTy, Server};
 #[cfg(feature = "secret")]
-pub use secret::Secret;
+pub use secret::{Secret, SecretContext};
 pub use sensitive_bytes::SensitiveBytes;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
@@ -248,10 +251,10 @@ where
   match serde_json::from_slice(slice) {
     Ok(elem) => Ok(elem),
     Err(err) => {
-      use core::{fmt::Write, str};
+      use core::fmt::Write;
       let mut string = alloc::string::String::new();
       let idx = slice.len().min(1024);
-      let payload = slice.get(..idx).and_then(|el| str::from_utf8(el).ok()).unwrap_or_default();
+      let payload = slice.get(..idx).and_then(|el| from_utf8_basic(el).ok()).unwrap_or_default();
       string.write_fmt(format_args!("Error: {err}. Payload: {payload}"))?;
       Err(crate::Error::SerdeJsonDeserialize(string.into()))
     }
@@ -289,53 +292,25 @@ where
 #[allow(clippy::unused_async, reason = "depends on the selected set of features")]
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
-  async fn _naive(duration: Duration) -> crate::Result<()> {
-    let now = Instant::now();
-    poll_fn(|cx| {
-      if now.elapsed()? >= duration {
-        return Poll::Ready(Ok(()));
-      }
-      cx.waker().wake_by_ref();
-      Poll::Pending
-    })
-    .await
+  cfg_select! {
+    feature = "async-net" => {
+      let _ = async_io::Timer::after(duration).await;
+    },
+    feature = "embassy-time" => embassy_time::Timer::after(duration.try_into()?).await,
+    feature = "tokio" => tokio::time::sleep(duration).await,
+    _ => {
+      use crate::calendar::Instant;
+      let now = Instant::now();
+      poll_fn(|cx| {
+        if now.elapsed()? >= duration {
+          return Poll::Ready(crate::Result::Ok(()));
+        }
+        cx.waker().wake_by_ref();
+        Poll::Pending
+      })
+      .await?;
+    }
   }
-
-  #[cfg(feature = "executor")]
-  _naive(duration).await?;
-
-  #[cfg(all(
-    feature = "async-net",
-    not(any(feature = "embassy-time", feature = "executor", feature = "tokio"))
-  ))]
-  {
-    async_io::Timer::after(duration).await;
-  }
-
-  #[cfg(all(
-    feature = "embassy-time",
-    not(any(feature = "async-net", feature = "executor", feature = "tokio"))
-  ))]
-  {
-    embassy_time::Timer::after(duration.try_into()?).await
-  }
-
-  #[cfg(all(
-    feature = "tokio",
-    not(any(feature = "async-net", feature = "embassy-time", feature = "executor"))
-  ))]
-  {
-    tokio::time::sleep(duration).await;
-  }
-
-  #[cfg(not(any(
-    feature = "async-net",
-    feature = "embassy-time",
-    feature = "executor",
-    feature = "tokio"
-  )))]
-  _naive(duration).await?;
-
   Ok(())
 }
 
@@ -428,24 +403,23 @@ pub(crate) fn usize_range_from_u32_range(range: core::ops::Range<u32>) -> core::
 
 #[cfg(test)]
 mod tests {
-  use crate::{executor::Runtime, misc::sleep};
+  use crate::misc::sleep;
   use core::time::Duration;
 
-  #[test]
-  fn timeout() {
-    Runtime::new().block_on(async {
-      assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
-      assert!(
-        crate::misc::timeout(
-          async {
-            sleep(Duration::from_millis(20)).await.unwrap();
-            async { 1 }
-          },
-          Duration::from_millis(10)
-        )
-        .await
-        .is_err()
+  // TODO: Use Runtime when TLS 1.3 arrives
+  #[tokio::test]
+  async fn timeout() {
+    assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
+    assert!(
+      crate::misc::timeout(
+        async {
+          sleep(Duration::from_millis(20)).await.unwrap();
+          1
+        },
+        Duration::from_millis(10)
       )
-    });
+      .await
+      .is_err()
+    )
   }
 }

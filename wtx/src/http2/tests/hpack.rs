@@ -5,6 +5,7 @@ use crate::{
     MAX_HPACK_LEN, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
     hpack_header::HpackHeaderBasic,
   },
+  misc::serde_json_deserialize_from_slice,
   rng::{SeedableRng, Xorshift64},
 };
 use alloc::string::String;
@@ -28,7 +29,7 @@ fn hpack_test_cases() {
   fetch_project();
   let mut buffer = Vector::new();
   let mut decoder = HpackDecoder::new();
-  let mut encoder = HpackEncoder::new(&mut Xorshift64::from_std_random().unwrap());
+  let mut encoder = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
   decoder.set_max_bytes(MAX_HEADER_LEN);
   encoder.set_max_dyn_super_bytes(MAX_HEADER_LEN);
   let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("hpack-test-case");
@@ -165,7 +166,7 @@ fn test_story(
   let mut file = File::open(story_path).unwrap();
   let mut data = String::new();
   let _ = file.read_to_string(&mut data).unwrap();
-  let root: Root = serde_json::from_str(&data).unwrap();
+  let root: Root = serde_json_deserialize_from_slice(data.as_bytes()).unwrap();
 
   let mut cases = root.cases;
   cases.sort_unstable_by_key(|case| case.seqno);

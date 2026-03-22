@@ -77,7 +77,7 @@ impl Month {
       if year.is_leap_year() { 29 } else { 28 }
     } else {
       let num = self.num();
-      30 | num ^ (num >> 3)
+      0b0001_1110 | num ^ (num >> 3)
     }
   }
 

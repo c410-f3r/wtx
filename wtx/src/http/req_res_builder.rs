@@ -3,7 +3,7 @@ mod res_builder;
 
 use crate::{
   collection::Vector,
-  http::{Header, KnownHeaderName, Mime, ReqResBuffer, ReqResDataMut},
+  http::{Header, KnownHeaderName, Mime, ReqResDataMut},
   misc::LeaseMut,
 };
 use core::fmt::Arguments;
@@ -22,38 +22,6 @@ impl<RRD> ReqResBuilder<RRD> {
   #[inline]
   pub const fn new(rrd: RRD) -> Self {
     Self { rrd }
-  }
-}
-
-impl ReqResBuilder<ReqResBuffer> {
-  /// Applies a header field in the form of `Authorization: Basic <credentials>` where
-  /// `credentials` is the Base64 encoding of `id` and `pw` joined by a single colon `:`.
-  #[cfg(feature = "base64")]
-  #[inline]
-  pub fn auth_basic(&mut self, id: Arguments<'_>, pw: Arguments<'_>) -> crate::Result<&mut Self> {
-    use base64::{Engine, engine::general_purpose::STANDARD};
-    use core::fmt::Write;
-    let ReqResBuffer { body, headers, uri } = self.rrd.lease_mut();
-    let body_idx = body.len();
-    let mut fun = || {
-      uri.buffer(|buffer| {
-        let uri_idx = buffer.len();
-        buffer.write_fmt(format_args!("Basic {id}:{pw}"))?;
-        let input = buffer.get(uri_idx..).unwrap_or_default();
-        let _ = STANDARD.encode_slice(input, body)?;
-        Ok(())
-      })?;
-      headers.push_from_iter(Header::from_name_and_value(
-        KnownHeaderName::Authorization.into(),
-        // SAFETY: everything after `body_idx` is UTF-8
-        [unsafe { core::str::from_utf8_unchecked(body.get(body_idx..).unwrap_or_default()) }],
-      ))
-    };
-    if let Err(err) = fun() {
-      body.truncate(body_idx);
-      return Err(err);
-    }
-    Ok(self)
   }
 }
 

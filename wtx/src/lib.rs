@@ -1,7 +1,8 @@
+#![allow(unused_features, reason = "remove this once `return_type_notation` is stabilized")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
-#![cfg_attr(feature = "nightly", feature(mpmc_channel, random, return_type_notation))]
+#![cfg_attr(feature = "nightly", feature(random, return_type_notation))]
 #![doc = include_str!("../README.md")]
 #![no_std]
 
@@ -20,11 +21,11 @@ pub(crate) mod bench;
 pub mod calendar;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
+pub mod codec;
 pub mod collection;
 pub mod crypto;
 #[cfg(feature = "database")]
 pub mod database;
-pub mod de;
 mod error;
 #[cfg(feature = "executor")]
 pub mod executor;

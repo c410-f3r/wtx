@@ -22,9 +22,13 @@ fn manage_path<'uri>(
     let mut iter = path_defs.1.iter().map(|el| el.path.as_bytes());
     while let Some([b'/', sub_path_def @ ..]) = iter.next() {
       prev_idx = prev_idx.wrapping_add(1);
+      let mut is_first = true;
       let has_placeholder = bytes_split1(sub_path_def, b'/').any(|elem| {
-        if let [b'{', ..] = elem {
+        if !is_first {
           prev_idx = prev_idx.wrapping_add(1);
+        }
+        is_first = false;
+        if let [b'{', ..] = elem {
           true
         } else {
           prev_idx = prev_idx.wrapping_add(elem.len());

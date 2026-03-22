@@ -38,7 +38,7 @@ macro_rules! _implement_rand {
       }
     }
 
-    impl crate::rng::SeedableRng for $struct {
+    impl crate::rng::CryptoSeedableRng for $struct {
       type Seed = $seed;
 
       #[inline]

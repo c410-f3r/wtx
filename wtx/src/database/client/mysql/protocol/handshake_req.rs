@@ -1,4 +1,5 @@
 use crate::{
+  codec::Encode,
   collection::ArrayVectorU8,
   database::client::mysql::{
     auth_plugin::AuthPlugin,
@@ -7,7 +8,6 @@ use crate::{
     misc::encoded_len,
     protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol, initial_req::InitialReq},
   },
-  de::Encode,
 };
 
 pub(crate) struct HandshakeReq<'bytes> {

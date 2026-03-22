@@ -17,8 +17,8 @@ use crate::{
       u16u32, u32i64,
     },
   },
+  codec::i16_string,
   collection::{ArrayString, ArrayStringU8},
-  de::i16_string,
   misc::Usize,
 };
 use core::{

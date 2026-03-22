@@ -1,9 +1,9 @@
 use crate::{
+  codec::Decode,
   database::client::mysql::{
     MysqlError,
     protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc},
   },
-  de::Decode,
 };
 
 #[derive(Debug)]

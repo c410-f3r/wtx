@@ -9,11 +9,8 @@ mod grpc_middleware;
 mod grpc_status_code;
 
 use crate::{
+  codec::{Encode, GenericCodec, GenericEncodeWrapper},
   collection::Vector,
-  de::{
-    Encode,
-    format::{De, EncodeWrapper},
-  },
 };
 
 #[cfg(feature = "grpc-client")]
@@ -25,11 +22,11 @@ pub use grpc_status_code::GrpcStatusCode;
 
 fn serialize<DRSR, T>(bytes: &mut Vector<u8>, data: T, _: &mut DRSR) -> crate::Result<()>
 where
-  T: Encode<De<DRSR>>,
+  T: Encode<GenericCodec<DRSR>>,
 {
   bytes.extend_from_copyable_slice(&[0; 5])?;
   let before_len = bytes.len();
-  data.encode(&mut EncodeWrapper::new(bytes))?;
+  data.encode(&mut GenericEncodeWrapper::new(bytes))?;
   let after_len = bytes.len();
   if let [_, a, b, c, d, ..] = bytes.as_mut() {
     let len = u32::try_from(after_len.wrapping_sub(before_len)).unwrap_or_default();

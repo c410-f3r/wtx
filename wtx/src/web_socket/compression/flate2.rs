@@ -1,5 +1,5 @@
 use crate::{
-  de::FromRadix10,
+  codec::FromRadix10,
   http::{GenericHeader, KnownHeaderName},
   misc::{SuffixWriterFbvm, bytes_split1},
   web_socket::{

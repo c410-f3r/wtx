@@ -1,16 +1,43 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
+. "$(dirname "$0")/common.sh" --source-only
 
 # WTX
 
-cargo check --all-features --all-targets
+$rt test-with-features wtx rust_decimal
+$rt test-with-features wtx rustls
+$rt test-with-features wtx rustls-pemfile
+$rt test-with-features wtx rustls-pki-types
+$rt test-with-features wtx schema-manager
+$rt test-with-features wtx schema-manager-dev
+$rt test-with-features wtx secret
+$rt test-with-features wtx serde
+$rt test-with-features wtx serde_json
+$rt test-with-features wtx sha1
+$rt test-with-features wtx sha2
+$rt test-with-features wtx sha3
+$rt test-with-features wtx simdutf8
+$rt test-with-features wtx spki
+$rt test-with-features wtx std
+$rt test-with-features wtx tokio
+$rt test-with-features wtx tokio-rustls
+$rt test-with-features wtx tracing
+$rt test-with-features wtx tracing-subscriber
+$rt test-with-features wtx tracing-tree
+$rt test-with-features wtx uuid
+$rt test-with-features wtx web-socket
+$rt test-with-features wtx web-socket-handshake
+$rt test-with-features wtx webpki-roots
 
-# WTX Docs
+# WTX Macros
 
-rustup default nightly-2025-10-31
-cargo clean --target-dir mdbook-target
-cargo build --all-features --target-dir mdbook-target
-mdbook test -L mdbook-target/debug/deps wtx-docs
+$rt test-generic wtx-macros
 
-RUSTDOCFLAGS="-Dwarnings" cargo doc --all-features
+# WTX UI
+
+$rt check-generic wtx-ui
+$rt test-with-features wtx-ui embed-migrations
+$rt test-with-features wtx-ui schema-manager
+$rt test-with-features wtx-ui schema-manager-dev
+$rt test-with-features wtx-ui http-client
+$rt test-with-features wtx-ui web-socket

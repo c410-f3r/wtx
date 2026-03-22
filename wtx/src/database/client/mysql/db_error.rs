@@ -1,11 +1,11 @@
 use crate::{
+  codec::Decode,
   collection::ArrayStringU8,
   database::client::mysql::{
     MysqlError,
     capability::Capability,
     protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol},
   },
-  de::Decode,
   misc::from_utf8_basic,
 };
 use alloc::string::String;

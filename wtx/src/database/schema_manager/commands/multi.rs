@@ -1,8 +1,8 @@
 use crate::{
+  codec::CodecController,
   database::schema_manager::{
     Commands, DEFAULT_CFG_FILE_NAME, SchemaManagement, misc::parse_root_toml,
   },
-  de::DEController,
   misc::find_file,
 };
 use std::{
@@ -19,7 +19,7 @@ where
   pub async fn clear_migrate_and_seed(
     &mut self,
     dir: Option<&str>,
-  ) -> Result<(), <E::Database as DEController>::Error> {
+  ) -> Result<(), <E::Database as CodecController>::Error> {
     let mut buffer = if let Some(elem) = dir {
       PathBuf::from(elem)
     } else {

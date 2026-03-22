@@ -1,9 +1,9 @@
 use crate::{
+  codec::{Decode, Encode},
   database::{
     DatabaseError, Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, TyParams},
   },
-  de::{Decode, Encode},
   misc::Usize,
 };
 

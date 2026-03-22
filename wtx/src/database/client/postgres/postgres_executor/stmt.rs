@@ -1,4 +1,5 @@
 use crate::{
+  codec::{U64String, u64_string},
   database::{
     DatabaseError, RecordValues, StmtCmd,
     client::{
@@ -14,7 +15,6 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  de::{U64String, u64_string},
   misc::{
     ConnectionState, FilledBufferVectorMut, LeaseMut, SuffixWriter, SuffixWriterFbvm,
     net::PartitionedFilledBuffer, unlikely_elem,

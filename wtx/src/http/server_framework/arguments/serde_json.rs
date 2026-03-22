@@ -28,7 +28,7 @@ where
     _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
     let body = &auto_stream.req.rrd.lease_mut().body;
-    let elem = serde_json_deserialize_from_slice(body).map_err(crate::Error::from)?;
+    let elem = serde_json_deserialize_from_slice(body)?;
     auto_stream.req.rrd.lease_mut().clear();
     self.0.call((SerdeJsonOwned(elem),)).await.finalize_response(&mut auto_stream.req)
   }
@@ -52,7 +52,7 @@ where
     _: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
     let body = &auto_stream.req.rrd.lease_mut().body;
-    let elem = serde_json_deserialize_from_slice(body).map_err(crate::Error::from)?;
+    let elem = serde_json_deserialize_from_slice(body)?;
     auto_stream.req.rrd.lease_mut().clear();
     self
       .0

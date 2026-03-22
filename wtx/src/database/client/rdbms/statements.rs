@@ -110,6 +110,14 @@ impl<A, C, T> Statements<A, C, T> {
     ))
   }
 
+  #[cfg(feature = "postgres")]
+  pub(crate) fn get_by_stmt_cmd_id(&self, stmt_cmd_id: u64) -> Option<Statement<'_, A, C, T>>
+  where
+    A: Clone,
+  {
+    self.get_by_idx(*self.stmts_indcs.get(&stmt_cmd_id)?)
+  }
+
   pub(crate) fn get_by_stmt_cmd_id_mut(
     &mut self,
     stmt_cmd_id: u64,
@@ -146,14 +154,14 @@ mod tests {
   //
   // | A | B |   | <- Push back one block of 2 elements. Length is 2
   // | A | B | C | <- Push back one block of 1 element. Length is 3
-  // |   |   | C | <- Pop front two bloc0sk. Length is 1
+  // |   |   | C | <- Pop front two blocks. Length is 1
   //
   // Such a behavior does not occur with "miri-tree-borrows".
   #[cfg_attr(miri, ignore)]
   #[test]
   fn two_statements() {
     Runtime::new().block_on(async {
-      let mut stmts = Statements::new(2, &mut Xorshift64::from_std_random().unwrap());
+      let mut stmts = Statements::new(2, &mut Xorshift64::from_simple_seed().unwrap());
 
       let stmt_id0 = 123;
       let mut builder = stmts.builder((), builder_fn).await.unwrap();

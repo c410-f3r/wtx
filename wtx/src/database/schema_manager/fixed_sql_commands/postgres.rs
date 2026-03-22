@@ -1,7 +1,7 @@
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{FromRecords, Identifier, client::postgres::Postgres, executor::Executor},
-  de::DEController,
 };
 use alloc::string::String;
 use core::fmt::Write;
@@ -29,7 +29,7 @@ pub(crate) async fn all_elements<E, ERR>(
   table_names_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
   procedures_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
   types_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
-) -> Result<(), <E::Database as DEController>::Error>
+) -> Result<(), <E::Database as CodecController>::Error>
 where
   E: Executor<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,

@@ -1,6 +1,6 @@
 use crate::{
+  codec::Encode,
   database::client::mysql::protocol::{Protocol, encode_wrapper_protocol::EncodeWrapperProtocol},
-  de::Encode,
 };
 
 pub(crate) struct AuthSwitchReq<'bytes>(pub(crate) &'bytes [u8]);

@@ -1,9 +1,9 @@
 use crate::{
+  codec::{Decode, Encode},
   database::{
     Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
   },
-  de::{Decode, Encode},
 };
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 

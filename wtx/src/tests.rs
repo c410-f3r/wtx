@@ -6,19 +6,13 @@ use wtx::misc::EnvVars;
 
 #[allow(unused, reason = "depends on feature")]
 #[derive(Debug, wtx::FromVars)]
-pub(crate) struct _Vars {
+pub(crate) struct Vars {
   pub(crate) database_uri_mysql: String,
   pub(crate) database_uri_postgres: String,
 }
 
 pub(crate) fn _uri() -> UriString {
   const INITIAL_PORT: u32 = 7000;
-  #[cfg(all(feature = "loom", not(feature = "portable-atomic")))]
-  let port = {
-    static LOCKS: OnceLock<AtomicU32> = std::sync::OnceLock::new();
-    &*LOCKS.get_or_init(|| AtomicU32::new(INITIAL_PORT))
-  };
-  #[cfg(any(not(feature = "loom"), feature = "portable-atomic"))]
   let port = {
     static PORT: AtomicU32 = AtomicU32::new(INITIAL_PORT);
     &PORT
@@ -27,7 +21,7 @@ pub(crate) fn _uri() -> UriString {
   UriString::new(uri)
 }
 
-pub(crate) fn _vars() -> &'static _Vars {
-  static VARS: OnceLock<_Vars> = OnceLock::new();
-  VARS.get_or_init(|| EnvVars::from_available().unwrap().finish())
+pub(crate) fn _vars() -> &'static Vars {
+  static VARS: OnceLock<Vars> = OnceLock::new();
+  VARS.get_or_init(|| EnvVars::from_available([]).unwrap().finish())
 }

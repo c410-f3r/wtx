@@ -1,10 +1,9 @@
 use crate::{
-  collection::Vector,
-  de::{
-    Decode, Encode,
-    format::{De, DecodeWrapper},
+  codec::{
+    Decode, Encode, GenericCodec, GenericDecodeWrapper,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
+  collection::Vector,
   grpc::serialize,
   http::{
     Header, Headers, HttpClient, KnownHeaderName, ReqBuilder, ReqResBuffer, Response,
@@ -39,10 +38,10 @@ where
   #[inline]
   pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimDecoder<T>: Decode<'de, De<DRSR>>,
+    VerbatimDecoder<T>: Decode<'de, GenericCodec<DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimDecoder::decode(&mut DecodeWrapper::new(elem))?.data)
+    Ok(VerbatimDecoder::decode(&mut GenericDecodeWrapper::new(elem))?.data)
   }
 
   /// Send Unary Request
@@ -58,7 +57,7 @@ where
     uri: UriRef<'_>,
   ) -> crate::Result<Response<ReqResBuffer>>
   where
-    VerbatimEncoder<T>: Encode<De<DRSR>>,
+    VerbatimEncoder<T>: Encode<GenericCodec<DRSR>>,
   {
     rrb.clear();
     serialize(&mut rrb.body, VerbatimEncoder { data }, &mut self.drsr)?;

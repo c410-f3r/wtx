@@ -7,13 +7,13 @@ extern crate wtx_instances;
 
 use std::borrow::Cow;
 use wtx::{
-  de::format::QuickProtobuf,
+  codec::format::QuickProtobuf,
   grpc::{GrpcManager, GrpcMiddleware},
   http::{
     ReqResBuffer, StatusCode,
     server_framework::{Router, ServerFrameworkBuilder, State, post},
   },
-  rng::{SeedableRng, Xorshift64},
+  rng::{ChaCha20, CryptoSeedableRng},
 };
 use wtx_instances::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -23,7 +23,7 @@ async fn main() -> wtx::Result<()> {
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
   )?;
-  ServerFrameworkBuilder::new(Xorshift64::from_std_random()?, router)
+  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
     .with_stream_aux(|_| Ok(QuickProtobuf))
     .tokio_rustls(
       (wtx_instances::CERT, wtx_instances::KEY),

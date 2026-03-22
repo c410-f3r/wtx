@@ -1,4 +1,5 @@
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{
     Record, ValueIdent,
@@ -7,7 +8,6 @@ use crate::{
       rdbms::value,
     },
   },
-  de::DEController,
   misc::Lease,
 };
 use core::ops::Range;
@@ -93,7 +93,7 @@ where
   fn value<CI>(
     &self,
     ci: CI,
-  ) -> Option<<Self::Database as DEController>::DecodeWrapper<'exec, '_, '_>>
+  ) -> Option<<Self::Database as CodecController>::DecodeWrapper<'exec, '_, '_>>
   where
     CI: ValueIdent<Self>,
   {

@@ -1,6 +1,9 @@
-use crate::database::{
-  Records,
-  client::postgres::{Postgres, PostgresCommonRecords, PostgresRecord, PostgresStatement},
+use crate::{
+  database::{
+    Records,
+    client::postgres::{Postgres, PostgresCommonRecords, PostgresRecord, PostgresStatement},
+  },
+  misc::Lease,
 };
 use core::ops::Range;
 
@@ -37,6 +40,13 @@ where
 
   fn len(&self) -> usize {
     self.common.len()
+  }
+}
+
+impl<'exec, E> Lease<PostgresRecords<'exec, E>> for PostgresRecords<'exec, E> {
+  #[inline]
+  fn lease(&self) -> &PostgresRecords<'exec, E> {
+    self
   }
 }
 

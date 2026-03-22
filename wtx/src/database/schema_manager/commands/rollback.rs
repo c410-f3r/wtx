@@ -1,10 +1,10 @@
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{
     DatabaseTy,
     schema_manager::{Commands, SchemaManagement, Uid, UserMigration, UserMigrationGroup},
   },
-  de::DEController,
   misc::Lease,
 };
 use alloc::string::String;
@@ -29,7 +29,7 @@ where
     mg: &UserMigrationGroup<S>,
     migrations: I,
     uid: Uid,
-  ) -> Result<(), <E::Database as DEController>::Error>
+  ) -> Result<(), <E::Database as CodecController>::Error>
   where
     DBS: Lease<[DatabaseTy]> + 'migration,
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
@@ -39,7 +39,7 @@ where
     let mut buffer_db_migrations = Vector::new();
     self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
     let filtered_by_db = Self::filter_by_db(migrations);
-    Self::do_validate(&mut buffer_db_migrations, filtered_by_db.clone())?;
+    Self::do_validate(&buffer_db_migrations, filtered_by_db.clone())?;
     for elem in filtered_by_db.map(UserMigration::sql_down) {
       buffer_cmd.push_str(elem);
     }
@@ -66,7 +66,7 @@ where
     &mut self,
     path: &Path,
     uids: Option<&[Uid]>,
-  ) -> Result<(), <E::Database as DEController>::Error> {
+  ) -> Result<(), <E::Database as CodecController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     migration_groups.sort_by(|a, b| b.cmp(a));
     if let Some(elem) = uids {
@@ -92,7 +92,7 @@ where
     &mut self,
     path: &Path,
     uid: Uid,
-  ) -> Result<(), <E::Database as DEController>::Error> {
+  ) -> Result<(), <E::Database as CodecController>::Error> {
     let Ok((mg, mut migrations)) = group_and_migrations_from_path(path, |a, b| b.cmp(a)) else {
       return Ok(());
     };

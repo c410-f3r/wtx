@@ -18,7 +18,7 @@ use wtx::{
     misc::{Pair, RequestCounter, RequestLimit},
     network::{HttpParams, WsParams, transport::SendingReceivingTransport},
   },
-  de::format::SerdeJson,
+  codec::format::SerdeJson,
   http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
   misc::Uri,
   rng::Xorshift64,

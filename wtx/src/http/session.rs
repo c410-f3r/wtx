@@ -16,4 +16,8 @@ pub use session_store::SessionStore;
 
 type SessionCsrf = crate::collection::ArrayStringU8<32>;
 type SessionKey = crate::collection::ArrayStringU8<32>;
-type SessionSecret = crate::collection::ArrayStringU8<16>;
+
+/// Convert an optional [`SessionState`] a `Result`.
+pub fn session_state_rslt<CS>(ss: &Option<SessionState<CS>>) -> crate::Result<&SessionState<CS>> {
+  Ok(ss.as_ref().ok_or(SessionError::RequiredSession)?)
+}

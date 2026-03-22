@@ -5,14 +5,14 @@ use wtx::{
     ReqResBuffer, StatusCode,
     server_framework::{Redirect, Router, ServerFrameworkBuilder, StateClean, get},
   },
-  rng::{SeedableRng, Xorshift64},
+  rng::{ChaCha20, CryptoSeedableRng},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let router =
     Router::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
-  ServerFrameworkBuilder::new(Xorshift64::from_std_random().unwrap(), router)
+  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
     .without_aux()
     .tokio(
       &wtx_instances::host_from_args(),

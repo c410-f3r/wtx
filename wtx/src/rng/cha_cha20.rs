@@ -2,7 +2,7 @@
 //
 // `#[inline(always)]` made a huge positive difference in practically all places.
 
-use crate::rng::{CryptoRng, Rng, SeedableRng};
+use crate::rng::{CryptoRng, CryptoSeedableRng, Rng};
 use core::fmt::Debug;
 
 #[cfg(test)]
@@ -115,7 +115,7 @@ impl Rng for ChaCha20 {
   }
 }
 
-impl SeedableRng for ChaCha20 {
+impl CryptoSeedableRng for ChaCha20 {
   type Seed = [u8; 32];
 
   #[inline(always)]
@@ -351,7 +351,7 @@ mod rand_core {
 #[cfg(test)]
 mod tests {
   use crate::rng::{
-    Rng, SeedableRng,
+    CryptoSeedableRng, Rng,
     cha_cha20::{ChaCha20, ParBlock, WORDS_PER_BLOCK, block_function},
   };
 

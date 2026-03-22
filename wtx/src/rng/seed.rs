@@ -15,7 +15,8 @@ use core::{panic::Location, ptr};
 pub fn simple_seed() -> u64 {
   let location = Location::caller();
   let (stack, heap) = (7, Box::new(7));
-  let mut seed = Usize::from_usize(ptr::addr_of!(stack).addr()).into_u64();
+  let mut seed = 5_871_781_006_564_002_453u64;
+  seed = mix(seed, Usize::from_usize(ptr::addr_of!(stack).addr()).into_u64());
   seed = mix(seed, Usize::from_usize(ptr::addr_of!(heap).addr()).into_u64());
   seed = mix(seed, location.column().into());
   seed = mix(seed, location.line().into());

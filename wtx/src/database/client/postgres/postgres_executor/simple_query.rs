@@ -1,5 +1,6 @@
 use crate::{
   calendar::timestamp_str,
+  codec::U64String,
   collection::{TryExtend, Vector},
   database::{
     StmtCmd,
@@ -14,8 +15,9 @@ use crate::{
       rdbms::statements_misc::StatementsMisc,
     },
   },
-  de::U64String,
-  misc::{ConnectionState, LeaseMut, SuffixWriterFbvm, Usize, net::PartitionedFilledBuffer},
+  misc::{
+    ConnectionState, Either, LeaseMut, SuffixWriterFbvm, Usize, net::PartitionedFilledBuffer,
+  },
   stream::Stream,
 };
 use core::ops::Range;
@@ -116,7 +118,7 @@ where
       net_buffer,
       records_params,
       stmts,
-      stmts_begin,
+      (stmts_begin..stmts.len()).map(Either::Left),
       values_params,
     )?;
     Ok(())

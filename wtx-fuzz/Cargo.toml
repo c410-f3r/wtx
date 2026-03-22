@@ -16,7 +16,7 @@ wtx = { default-features = false, features = ["arbitrary", "executor", "nightly"
 edition = "2024"
 name = "wtx-fuzz"
 publish = false
-rust-version = "1.89"
+rust-version = "1.95"
 version = "0.0.0"
 
 [package.metadata]

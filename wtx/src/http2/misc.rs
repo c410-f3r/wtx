@@ -184,8 +184,8 @@ where
     Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
   });
   poll_fn(|cx| match fut.as_mut().poll(cx) {
-    Poll::Ready(Ok(fi)) => return Poll::Ready(Ok(Some(fi))),
-    Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
+    Poll::Ready(Ok(fi)) => Poll::Ready(Ok(Some(fi))),
+    Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
     Poll::Pending => {
       read_frame_waker.register(cx.waker());
       if connection_state(is_conn_open).is_closed() {
@@ -346,11 +346,11 @@ pub(crate) const fn server_header_stream_state(has_eos: bool) -> StreamState {
   if has_eos { StreamState::HalfClosedRemote } else { StreamState::Open }
 }
 
-pub(crate) fn status_recv<E, O>(
+pub(crate) fn status_recv<EOS, ONG>(
   is_conn_open: &AtomicBool,
   sorp: &mut StreamOverallRecvParams,
-  eos_cb: impl FnOnce(&mut StreamOverallRecvParams) -> crate::Result<E>,
-) -> crate::Result<Option<Http2RecvStatus<E, O>>> {
+  eos_cb: impl FnOnce(&mut StreamOverallRecvParams) -> crate::Result<EOS>,
+) -> crate::Result<Option<Http2RecvStatus<EOS, ONG>>> {
   if connection_state(is_conn_open).is_closed() {
     return Ok(Some(Http2RecvStatus::ClosedConnection));
   }

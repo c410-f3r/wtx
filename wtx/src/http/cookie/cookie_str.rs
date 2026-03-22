@@ -1,7 +1,7 @@
 use crate::{
   calendar::DateTime,
-  collection::{ArrayVectorU8, Vector},
-  de::PercentDecode,
+  codec::PercentDecode,
+  collection::{ArrayStringU8, ArrayVectorU8, Vector},
   http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
   misc::{str_split_once1, str_split1},
 };
@@ -44,16 +44,11 @@ impl<'str> CookieStr<'str> {
         expires: None,
         http_only: false,
         max_age: None,
-        name: if has_decoded_name {
-          // SAFETY: everything after before_name_len is ASCII percent-encoding
-          unsafe {
-            str::from_utf8_unchecked(
-              vector.get(before_name_len..before_value_len).unwrap_or_default(),
-            )
-          }
+        name: ArrayStringU8::try_from(if has_decoded_name {
+          vector.get(before_name_len..before_value_len).unwrap_or_default()
         } else {
-          name
-        },
+          name.as_bytes()
+        })?,
         path: "",
         same_site: None,
         secure: false,
@@ -71,7 +66,7 @@ impl<'str> CookieStr<'str> {
       let (name, value) = if let Some(elem) = str_split_once1(semicolon, b'=') {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
-        return Err(crate::Error::from(CookieError::IrregularCookie));
+        (semicolon.trim_ascii(), "")
       };
       make_lowercase::<12>(&mut lower_case, name);
       match (lower_case.as_slice(), value.as_bytes()) {

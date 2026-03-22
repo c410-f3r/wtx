@@ -5,7 +5,7 @@ macro_rules! impl_tuples {
     #[cfg(feature = "database")]
     mod database {
       use crate::database::{Database, RecordValues, Typed, record_values::encode};
-      use crate::de::Encode;
+      use crate::codec::Encode;
 
       $(
         impl<DB, $($T,)*> RecordValues<DB> for ($( $T, )*)
@@ -266,10 +266,10 @@ macro_rules! impl_tuples {
     #[cfg(feature = "postgres")]
     mod postgres {
       use crate::{
+        codec::{Decode, Encode},
         database::{
           Typed, client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder},
         },
-        de::{Decode, Encode}
       };
 
       $(

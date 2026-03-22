@@ -15,7 +15,7 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
   let pool = ClientPoolBuilder::tokio(1).build();
-  let res = pool.send_req_recv_res(ReqResBuffer::empty(), ReqBuilder::get(uri.to_ref())).await?;
+  let res = pool.send_req_recv_res(ReqBuilder::get(uri.to_ref()), ReqResBuffer::empty()).await?;
   println!("{}", from_utf8_basic(&res.rrd.body)?);
   Ok(())
 }

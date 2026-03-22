@@ -1,5 +1,7 @@
 extern crate alloc;
 
+use wtx::collection::Vector;
+
 #[derive(wtx::FromVars)]
 pub struct Foo {
   bar0: String,
@@ -8,6 +10,7 @@ pub struct Foo {
   bar2: u16,
   #[from_vars(parse_bar3)]
   bar3: Option<u32>,
+  bar4: Vector<u8>
 }
 
 fn parse_bar2(value: String) -> wtx::Result<u16> {

@@ -117,6 +117,17 @@ where
   }
 }
 
+fn extend_buffer(
+  buffer: &mut Vector<u8>,
+  no_masking: bool,
+  mut slice: &[u8],
+) -> Result<(ReadFrameInfo, usize), crate::Error> {
+  let rfi = ReadFrameInfo::from_bytes::<(), false>(&mut slice, usize::MAX, 0, no_masking)?;
+  let before = buffer.len();
+  buffer.extend_from_copyable_slice(slice)?;
+  Ok((rfi, before))
+}
+
 async fn recv_data<HB, SW>(
   buffer: &mut Vector<u8>,
   no_masking: bool,
@@ -126,17 +137,20 @@ where
   HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
-  let (data, is_eos) = match stream.common().recv_data().await? {
+  let (before, is_eos, rfi) = match stream
+    .common()
+    .recv_data(|ongoing_data| extend_buffer(buffer, no_masking, ongoing_data))
+    .await?
+  {
     Http2RecvStatus::ClosedConnection | Http2RecvStatus::ClosedStream(_) => {
       return Err(crate::Error::ClosedHttpConnection);
     }
-    Http2RecvStatus::Eos(data) => (data, true),
-    Http2RecvStatus::Ongoing(data) => (data, false),
+    Http2RecvStatus::Eos(data) => {
+      let (rfi, before) = extend_buffer(buffer, no_masking, &data)?;
+      (before, true, rfi)
+    }
+    Http2RecvStatus::Ongoing((rfi, before)) => (before, false, rfi),
   };
-  let mut slice = data.as_slice();
-  let rfi = ReadFrameInfo::from_bytes::<(), false>(&mut slice, usize::MAX, 0, no_masking)?;
-  let before = buffer.len();
-  buffer.extend_from_copyable_slice(slice)?;
   unmask_nb::<false>(rfi.mask, buffer.get_mut(before..).unwrap_or_default(), no_masking)?;
   Ok((rfi, is_eos))
 }

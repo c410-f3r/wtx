@@ -8,12 +8,12 @@ pub(crate) mod statements;
 pub(crate) mod statements_misc;
 
 use crate::{
+  codec::CodecController,
   collection::Vector,
   database::{
     Database, ValueIdent,
     client::rdbms::{column_info::ColumnInfo, common_record::CommonRecord},
   },
-  de::DEController,
   misc::{Lease, net::PartitionedFilledBuffer},
 };
 use core::ops::Range;
@@ -34,7 +34,7 @@ pub(crate) fn clear_cmd_buffers(
 pub(crate) fn value<'inner, 'outer, 'rem, A, C, CI, D, R, T>(
   ci: CI,
   record: &'rem R,
-) -> Option<<D as DEController>::DecodeWrapper<'inner, 'outer, 'rem>>
+) -> Option<<D as CodecController>::DecodeWrapper<'inner, 'outer, 'rem>>
 where
   A: 'rem,
   C: ColumnInfo<Ty = D::Ty> + 'inner + 'rem,
@@ -43,7 +43,7 @@ where
   D::Ty: Clone,
   R: Lease<CommonRecord<'inner, A, C, D, T>>,
   T: 'inner,
-  <D as DEController>::DecodeWrapper<'inner, 'outer, 'rem>: From<(&'inner [u8], &'rem C)>,
+  <D as CodecController>::DecodeWrapper<'inner, 'outer, 'rem>: From<(&'inner [u8], &'rem C)>,
   'inner: 'rem,
 {
   let idx = ci.idx(record)?;

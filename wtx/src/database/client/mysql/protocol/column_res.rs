@@ -1,4 +1,5 @@
 use crate::{
+  codec::Decode,
   database::{
     Identifier,
     client::mysql::{
@@ -10,7 +11,6 @@ use crate::{
       ty::Ty,
     },
   },
-  de::Decode,
 };
 
 #[derive(Debug)]

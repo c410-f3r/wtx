@@ -6,7 +6,6 @@
 //! `genericHttpRequest` and an WebSocket `genericWebSocketSubscription`.
 //!
 //! Everything that is not inside `main` should be constructed only once in your program.
-#[macro_use]
 extern crate std;
 #[prelude_import]
 use std::prelude::rust_2021::*;
@@ -22,7 +21,7 @@ use wtx::{
         Api, misc::{Pair, RequestCounter, RequestLimit},
         network::{HttpParams, WsParams, transport::SendingReceivingTransport},
     },
-    de::format::SerdeJson,
+    codec::format::SerdeJson,
     http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
     misc::Uri, rng::Xorshift64,
     web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
@@ -283,7 +282,7 @@ mod generic_http_request {
         r" Final building method that creates a package with all the necessary values."]
         pub fn build(self)
             ->
-                GenericHttpRequestPkg<wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>> {
+                GenericHttpRequestPkg<wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>> {
             let data = self.data;
             let content =
                 self.aux.json_rpc_request("genericHttpRequest", data);
@@ -316,11 +315,11 @@ mod generic_http_request {
     impl<__API, __API_PARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         wtx::client_api_framework::network::HttpParams> for
-        GenericHttpRequestPkg<wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
+        GenericHttpRequestPkg<wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
         where
-        wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
-        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::de::DecodeSeq<'__de,
-        wtx::de::format::De<__DRSR>>,
+        wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
+        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<__DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -330,9 +329,9 @@ mod generic_http_request {
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
         wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
-            wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
+            wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
         type ExternalResponseContent<'__de> =
-            wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>;
+            wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>;
         type PackageParams = GenericHttpRequestParams<>;
         #[inline]
         async fn after_sending(&mut self,
@@ -380,11 +379,11 @@ mod generic_http_request {
     impl<'__is_mut, __API, __API_PARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         &'__is_mut mut wtx::client_api_framework::network::HttpParams> for
-        GenericHttpRequestPkg<wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
+        GenericHttpRequestPkg<wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
         where
-        wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
-        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::de::DecodeSeq<'__de,
-        wtx::de::format::De<__DRSR>>,
+        wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
+        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<__DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -394,9 +393,9 @@ mod generic_http_request {
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
         wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
-            wtx::de::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
+            wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>;
         type ExternalResponseContent<'__de> =
-            wtx::de::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>;
+            wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>;
         type PackageParams = GenericHttpRequestParams<>;
         #[inline]
         async fn after_sending(&mut self,
@@ -581,7 +580,7 @@ mod generic_web_socket_subscription {
         r" Final building method that creates a package with all the necessary values."]
         pub fn build(self)
             ->
-                GenericWebSocketSubscriptionPkg<wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>> {
+                GenericWebSocketSubscriptionPkg<wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>> {
             let data = self.data;
             let content =
                 self.aux.json_rpc_request("genericWebSocketSubscription",
@@ -615,11 +614,11 @@ mod generic_web_socket_subscription {
     impl<'str, __API, __API_PARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         wtx::client_api_framework::network::WsParams> for
-        GenericWebSocketSubscriptionPkg<wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
+        GenericWebSocketSubscriptionPkg<wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
         where
-        wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
-        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::de::DecodeSeq<'__de,
-        wtx::de::format::De<__DRSR>>,
+        wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
+        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<__DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -629,9 +628,9 @@ mod generic_web_socket_subscription {
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
         wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
-            wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
+            wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
         type ExternalResponseContent<'__de> =
-            wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>;
+            wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>;
         type PackageParams = GenericWebSocketSubscriptionParams<>;
         #[inline]
         async fn after_sending(&mut self,
@@ -672,11 +671,11 @@ mod generic_web_socket_subscription {
     impl<'__is_mut, 'str, __API, __API_PARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         &'__is_mut mut wtx::client_api_framework::network::WsParams> for
-        GenericWebSocketSubscriptionPkg<wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
+        GenericWebSocketSubscriptionPkg<wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
         where
-        wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::de::Encode<wtx::de::format::De<__DRSR>>,
-        for<'__de> wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::de::DecodeSeq<'__de,
-        wtx::de::format::De<__DRSR>>,
+        wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
+        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<__DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -686,9 +685,9 @@ mod generic_web_socket_subscription {
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS>> +
         wtx::misc::SingleTypeStorage<Item = __API_PARAMS> {
         type ExternalRequestContent =
-            wtx::de::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
+            wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>;
         type ExternalResponseContent<'__de> =
-            wtx::de::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>;
+            wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>;
         type PackageParams = GenericWebSocketSubscriptionParams<>;
         #[inline]
         async fn after_sending(&mut self,
@@ -764,10 +763,19 @@ fn main() -> wtx::Result<()> {
                                                 None).build(), &mut wsp.pkgs_aux).await?.result?;
             Ok(())
         };
+    let body =
+        {
+            if false {
+                let _: &dyn ::core::future::Future<Output = wtx::Result<()>> =
+                    &body;
+            }
+            body
+        };
 
     #[allow(clippy :: expect_used, clippy :: diverging_sub_expression, clippy
     :: needless_return, clippy :: unwrap_in_result)]
     {
-        return tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("Failed building the Runtime").block_on(body);
+        use tokio::runtime::Builder;
+        return Builder::new_multi_thread().enable_all().build().expect("Failed building the Runtime").block_on(body);
     }
 }

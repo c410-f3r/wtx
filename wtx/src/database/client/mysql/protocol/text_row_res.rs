@@ -1,10 +1,10 @@
 use crate::{
+  codec::Decode,
   collection::Vector,
   database::client::mysql::{
     MysqlError,
     protocol::{Protocol, decode_wrapper_protocol::DecodeWrapperProtocol, lenenc::Lenenc},
   },
-  de::Decode,
   misc::Usize,
 };
 use core::ops::Range;
@@ -53,11 +53,11 @@ where
 #[cfg(test)]
 mod tests {
   use crate::{
+    codec::Decode,
     collection::Vector,
     database::client::mysql::protocol::{
       decode_wrapper_protocol::DecodeWrapperProtocol, text_row_res::TextRowRes,
     },
-    de::Decode,
   };
 
   #[test]

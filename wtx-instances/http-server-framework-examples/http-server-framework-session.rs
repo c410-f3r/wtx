@@ -13,13 +13,13 @@
 //! );
 //! ALTER TABLE "user" ADD CONSTRAINT user__email__uq UNIQUE (email);
 //!
-//! CREATE TABLE "session" (
+//! CREATE TABLE _wtx.session (
 //!   key VARCHAR(32) NOT NULL PRIMARY KEY,
 //!   csrf VARCHAR(32) NOT NULL,
 //!   custom_state INT NOT NULL,
 //!   expires_at TIMESTAMPTZ NOT NULL
 //! );
-//! ALTER TABLE "session" ADD CONSTRAINT session__user__fk FOREIGN KEY (custom_state) REFERENCES "user" (id);
+//! ALTER TABLE _wtx.session ADD CONSTRAINT session__user__fk FOREIGN KEY (custom_state) REFERENCES "user" (id);
 //! ```
 
 use tokio::net::TcpStream;
@@ -30,9 +30,9 @@ use wtx::{
     ReqResBuffer, ReqResData, SessionManager, SessionMiddleware, SessionState, StatusCode,
     server_framework::{DynParams, Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
-  misc::argon2_pwd,
+  misc::{SecretContext, argon2_pwd},
   pool::{PostgresRM, SimplePool},
-  rng::{ChaCha20, SeedableRng},
+  rng::{ChaCha20, CryptoSeedableRng},
 };
 
 type DbPool = SimplePool<PostgresRM<wtx::Error, TcpStream>>;
@@ -40,12 +40,14 @@ type LocalSessionManager = SessionManager<u32, wtx::Error>;
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let uri = "postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut db_rng = ChaCha20::from_std_random()?;
-  let mut server_rng = ChaCha20::from_rng(&mut db_rng)?;
-  let db_pool = DbPool::new(4, PostgresRM::tokio(db_rng, uri.into()));
+  let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
+  let mut db_rng = ChaCha20::from_getrandom()?;
+  let mut server_rng = ChaCha20::from_getrandom()?;
+  let secret_context = SecretContext::new(&mut db_rng)?;
+  let db_pool = DbPool::new(4, PostgresRM::tokio(db_rng, secret_context.clone(), &mut uri)?);
   let builder = LocalSessionManager::builder();
-  let (expired_sessions, sm) = builder.build_generating_key(&mut server_rng, db_pool.clone())?;
+  let (expired_sessions, sm) =
+    builder.build_generating_key(&mut server_rng, secret_context, db_pool.clone())?;
   let router = Router::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
     SessionMiddleware::new(Vector::new(), sm.clone(), db_pool.clone()),
