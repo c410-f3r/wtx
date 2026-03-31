@@ -222,6 +222,30 @@ where
   }
 }
 
+impl<const N: usize> ArrayString<u8, N> {
+  /// Constructs a new instance from string.
+  ///
+  /// This method only exists because `Result` and traits can't be used in constant environments.
+  #[inline]
+  #[expect(clippy::cast_possible_truncation, reason = "initial check verifies length")]
+  #[expect(clippy::indexing_slicing, reason = "indexes are not out-of-bounds")]
+  pub const fn from_str_u8_opt(str: &str) -> Option<Self> {
+    const { Self::INSTANCE_CHECK };
+    if str.len() > N {
+      return None;
+    }
+    let len = str.len() as u8;
+    let mut data = [0; N];
+    let bytes = str.as_bytes();
+    let mut idx = 0;
+    while idx < bytes.len() {
+      data[idx] = bytes[idx];
+      idx = idx.wrapping_add(1);
+    }
+    Some(Self(Inner { len, data }))
+  }
+}
+
 impl<L, const N: usize> Borrow<str> for ArrayString<L, N>
 where
   L: LinearStorageLen,

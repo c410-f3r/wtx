@@ -1,4 +1,8 @@
-use crate::calendar::CalendarError;
+use crate::{
+  calendar::CalendarError,
+  codec::{I16String, i16_string_pad},
+  misc::AsciiGraphic,
+};
 
 /// All possible years that can be represented by the system. Goes from -32767 to 32766.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -35,6 +39,12 @@ impl Year {
   #[inline]
   pub const fn num(&self) -> i16 {
     self.0
+  }
+
+  /// String representation
+  #[inline]
+  pub fn num_str(&self) -> I16String {
+    i16_string_pad(self.0, AsciiGraphic::ZERO, 4)
   }
 }
 

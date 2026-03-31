@@ -5,6 +5,7 @@
 #[macro_use]
 mod macros;
 
+mod base64;
 mod codec_controller;
 mod codec_error;
 mod codec_mode;
@@ -28,10 +29,7 @@ pub use encode::Encode;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use generic_codec::{GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper};
 pub use hex::{HexDisplay, HexEncMode, HexError, decode_hex, encode_hex};
-pub use num_array::{
-  I8String, I16String, I32String, I64String, U8String, U16String, U32String, U64String, i8_string,
-  i16_string, i32_string, i64_string, u8_string, u16_string, u32_string, u64_string,
-};
+pub use num_array::*;
 pub use url_encoding::*;
 
 /// Identifier used to track the number of issued requests.

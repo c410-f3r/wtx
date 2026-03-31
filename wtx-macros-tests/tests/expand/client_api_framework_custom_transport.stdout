@@ -92,22 +92,27 @@ mod pkg {
         pub content: C,
         #[doc = r" Parameters. Used across the package lifetime."]
         pub params: Params<>,
+        #[doc = r" Response lifetimes, generics, etc..."]
+        pub res: core::marker::PhantomData<()>,
     }
     #[automatically_derived]
     impl<C: ::core::fmt::Debug> ::core::fmt::Debug for Pkg<C> {
         #[inline]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-            ::core::fmt::Formatter::debug_struct_field2_finish(f, "Pkg",
-                "content", &self.content, "params", &&self.params)
+            ::core::fmt::Formatter::debug_struct_field3_finish(f, "Pkg",
+                "content", &self.content, "params", &self.params, "res",
+                &&self.res)
         }
     }
     impl<__API, __API_PARAMS, __DRSR, __TRANSPORT>
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         crate::CustomTransportParams> for
         Pkg<wtx::codec::protocol::VerbatimEncoder<Req<>>> where
-        wtx::codec::protocol::VerbatimEncoder<Req<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
-        for<'__de> wtx::codec::protocol::VerbatimDecoder<Res<>>: wtx::codec::DecodeSeq<'__de,
-        wtx::codec::GenericCodec<__DRSR>>,
+        for<'__drsr> wtx::codec::protocol::VerbatimEncoder<Req<>>: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR,
+        &'__drsr mut __DRSR>>,
+        for<'__de,
+        '__drsr> wtx::codec::protocol::VerbatimDecoder<Res<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<super::Nothing as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -158,9 +163,11 @@ mod pkg {
         wtx::client_api_framework::pkg::Package<__API, __DRSR, __TRANSPORT,
         &'__is_mut mut crate::CustomTransportParams> for
         Pkg<wtx::codec::protocol::VerbatimEncoder<Req<>>> where
-        wtx::codec::protocol::VerbatimEncoder<Req<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
-        for<'__de> wtx::codec::protocol::VerbatimDecoder<Res<>>: wtx::codec::DecodeSeq<'__de,
-        wtx::codec::GenericCodec<__DRSR>>,
+        for<'__drsr> wtx::codec::protocol::VerbatimEncoder<Req<>>: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR,
+        &'__drsr mut __DRSR>>,
+        for<'__de,
+        '__drsr> wtx::codec::protocol::VerbatimDecoder<Res<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<super::Nothing as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as

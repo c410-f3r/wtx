@@ -73,7 +73,7 @@ pub type WebSocketOwned<NC, R, S, const IS_CLIENT: bool> =
 ///
 /// <https://tools.ietf.org/html/rfc6455>
 #[derive(Debug)]
-pub struct WebSocket<NC, R, S, WSB, const IS_CLIENT: bool> {
+pub struct WebSocket<NC, R, S, WB, const IS_CLIENT: bool> {
   connection_state: ConnectionState,
   is_in_continuation_frame: Option<is_in_continuation_frame::IsInContinuationFrame>,
   max_payload_len: usize,
@@ -82,10 +82,10 @@ pub struct WebSocket<NC, R, S, WSB, const IS_CLIENT: bool> {
   no_masking: bool,
   rng: R,
   stream: S,
-  wsb: WSB,
+  wsb: WB,
 }
 
-impl<NC, R, S, WSB, const IS_CLIENT: bool> WebSocket<NC, R, S, WSB, IS_CLIENT> {
+impl<NC, R, S, WB, const IS_CLIENT: bool> WebSocket<NC, R, S, WB, IS_CLIENT> {
   /// Sets whether to automatically close the connection when a received frame payload length
   /// exceeds `max_payload_len`. Defaults to `64 * 1024 * 1024` bytes (64 MiB).
   #[inline]
@@ -94,16 +94,16 @@ impl<NC, R, S, WSB, const IS_CLIENT: bool> WebSocket<NC, R, S, WSB, IS_CLIENT> {
   }
 }
 
-impl<NC, R, S, WSB, const IS_CLIENT: bool> WebSocket<NC, R, S, WSB, IS_CLIENT>
+impl<NC, R, S, WB, const IS_CLIENT: bool> WebSocket<NC, R, S, WB, IS_CLIENT>
 where
   NC: compression::NegotiatedCompression,
   R: Rng,
   S: Stream,
-  WSB: LeaseMut<WebSocketBuffer>,
+  WB: LeaseMut<WebSocketBuffer>,
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
-  pub fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WSB) -> Self {
+  pub fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WB) -> Self {
     let nc_rsv1 = nc.rsv1();
     Self {
       connection_state: ConnectionState::Open,
@@ -116,49 +116,6 @@ where
       stream,
       wsb,
     }
-  }
-
-  /// Different mutable parts that allow sending received frames using common elements.
-  #[inline]
-  pub fn parts_mut(
-    &mut self,
-  ) -> (
-    WebSocketCommonMut<'_, NC, R, S, IS_CLIENT>,
-    WebSocketReaderMut<'_, NC, R, S, IS_CLIENT>,
-    WebSocketWriterMut<'_, NC, R, S, IS_CLIENT>,
-  ) {
-    let WebSocket {
-      connection_state,
-      is_in_continuation_frame,
-      nc,
-      nc_rsv1,
-      no_masking,
-      rng,
-      stream,
-      wsb,
-      max_payload_len,
-    } = self;
-    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb.lease_mut();
-    (
-      WebSocketCommonMut { connection_state, nc, nc_rsv1: *nc_rsv1, rng, stream },
-      WebSocketReaderMut {
-        is_in_continuation_frame,
-        phantom: PhantomData,
-        wsrp: web_socket_parts::web_socket_generic::WebSocketReaderGeneric {
-          max_payload_len: *max_payload_len,
-          network_buffer,
-          no_masking: *no_masking,
-          reader_buffer,
-        },
-      },
-      WebSocketWriterMut {
-        phantom: PhantomData,
-        wswp: web_socket_parts::web_socket_generic::WebSocketWriterGeneric {
-          no_masking: *no_masking,
-          writer_buffer,
-        },
-      },
-    )
   }
 
   /// Reads a frame from the stream.
@@ -207,6 +164,49 @@ where
     .await
   }
 
+  /// Different mutable parts that allow sending received frames using common elements.
+  #[inline]
+  pub fn split_mut(
+    &mut self,
+  ) -> (
+    WebSocketCommonMut<'_, NC, R, S, IS_CLIENT>,
+    WebSocketReaderMut<'_, NC, R, S, IS_CLIENT>,
+    WebSocketWriterMut<'_, NC, R, S, IS_CLIENT>,
+  ) {
+    let WebSocket {
+      connection_state,
+      is_in_continuation_frame,
+      nc,
+      nc_rsv1,
+      no_masking,
+      rng,
+      stream,
+      wsb,
+      max_payload_len,
+    } = self;
+    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb.lease_mut();
+    (
+      WebSocketCommonMut { connection_state, nc, nc_rsv1: *nc_rsv1, rng, stream },
+      WebSocketReaderMut {
+        is_in_continuation_frame,
+        phantom: PhantomData,
+        wsrp: web_socket_parts::web_socket_generic::WebSocketReaderGeneric {
+          max_payload_len: *max_payload_len,
+          network_buffer,
+          no_masking: *no_masking,
+          reader_buffer,
+        },
+      },
+      WebSocketWriterMut {
+        phantom: PhantomData,
+        wswp: web_socket_parts::web_socket_generic::WebSocketWriterGeneric {
+          no_masking: *no_masking,
+          writer_buffer,
+        },
+      },
+    )
+  }
+
   /// Writes a frame to the stream.
   #[inline]
   pub async fn write_frame<P>(&mut self, frame: &mut Frame<P, IS_CLIENT>) -> crate::Result<()>
@@ -237,7 +237,7 @@ where
 {
   /// Splits the instance into owned parts that can be used in concurrent scenarios.
   #[inline]
-  pub fn into_parts<SR, SW>(
+  pub fn into_split<SR, SW>(
     self,
     split: impl FnOnce(S) -> (SR, SW),
   ) -> crate::Result<WebSocketPartsOwned<NC, R, SR, SW, IS_CLIENT>> {

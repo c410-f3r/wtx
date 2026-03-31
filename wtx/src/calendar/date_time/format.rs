@@ -3,7 +3,7 @@ use crate::{
     CalendarError, CalendarToken, DateTime, TimeZone,
     format::{
       parsed_data::ParsedData,
-      push::{push_four_digit_year, push_two_space_day},
+      push::{push_four_digits_year, push_two_spaces_day},
     },
   },
   codec::{i16_string, u32_string},
@@ -61,7 +61,7 @@ where
           string.push_str(&u32_string(self.time.nanosecond().num()))?;
         }
         CalendarToken::FourDigitYear => {
-          push_four_digit_year(self.date, &mut string)?;
+          push_four_digits_year(self.date, &mut string)?;
         }
         CalendarToken::FullWeekdayName => {
           string.push_str(self.date.weekday().name())?;
@@ -100,7 +100,7 @@ where
           string.push_str(&i16_string(self.date.year().num().rem_euclid(100)))?;
         }
         CalendarToken::TwoSpaceDay => {
-          push_two_space_day(self.date, &mut string)?;
+          push_two_spaces_day(self.date, &mut string)?;
         }
       }
     }

@@ -16,6 +16,8 @@ extern crate test;
 #[macro_use]
 mod macros;
 
+#[cfg(feature = "asn1")]
+pub mod asn1;
 #[cfg(all(feature = "_bench", test))]
 pub(crate) mod bench;
 pub mod calendar;
@@ -23,6 +25,7 @@ pub mod calendar;
 pub mod client_api_framework;
 pub mod codec;
 pub mod collection;
+#[cfg(feature = "crypto")]
 pub mod crypto;
 #[cfg(feature = "database")]
 pub mod database;
@@ -44,6 +47,8 @@ pub mod sync;
 mod tests;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
+#[cfg(feature = "x509")]
+pub mod x509;
 
 pub use error::{Error, RecvError, SendError};
 #[cfg(feature = "macros")]

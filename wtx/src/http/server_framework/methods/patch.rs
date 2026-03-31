@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Requires a request of type `PATCH`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Patch<T>(
   /// Function
   pub T,

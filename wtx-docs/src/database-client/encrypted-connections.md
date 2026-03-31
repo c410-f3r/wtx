@@ -80,7 +80,7 @@ Now it is just a matter of including the root CA certificate in the `wtx` client
 ```text
 async fn tls() {
   let uri = UriRef::new("SOME_URI");
-  let mut rng = ChaCha20::from_os().unwrap();
+  let mut rng = ChaCha20::from_std_random().unwrap();
   let _executor = MysqlExecutor::<crate::Error, _, _>::connect_encrypted(
     &Config::from_uri(&uri).unwrap(),
     ExecutorBuffer::new(usize::MAX, &mut rng),

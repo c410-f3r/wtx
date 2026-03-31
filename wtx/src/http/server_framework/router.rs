@@ -162,3 +162,18 @@ where
     self.en.paths_indices(prev, vec)
   }
 }
+
+impl<CA, E, EN, M, S, SA> Clone for Router<CA, E, EN, M, S, SA>
+where
+  EN: Clone,
+  M: Clone,
+{
+  fn clone(&self) -> Self {
+    Self {
+      en: self.en.clone(),
+      _matcher: self._matcher.clone(),
+      middlewares: self.middlewares.clone(),
+      phantom: self.phantom.clone(),
+    }
+  }
+}

@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Requires a request of type `DELETE`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Delete<T>(
   /// Function
   pub T,

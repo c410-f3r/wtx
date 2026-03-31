@@ -30,6 +30,11 @@ name = "h2spec-low-server"
 path = "src/bin/h2spec-low-server.rs"
 required-features = ["h2spec-low-server"]
 
+[[bin]]
+name = "x509-limbo"
+path = "src/bin/x509-limbo.rs"
+required-features = ["x509-limbo"]
+
 # Database Examples
 
 [[example]]
@@ -183,6 +188,7 @@ autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/web-socket-handshake"]
 h2load = ["wtx/http2", "wtx/nightly"]
 h2spec-high-server = ["wtx/http2", "wtx/nightly"]
 h2spec-low-server = ["wtx/http2"]
+x509-limbo = ["serde/derive", "serde_json", "wtx/x509"]
 
 database-client-mysql = ["mysql"]
 database-client-postgres = ["postgres"]

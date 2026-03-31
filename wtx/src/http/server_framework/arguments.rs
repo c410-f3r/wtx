@@ -1,3 +1,4 @@
+mod json_reply;
 mod path_owned;
 mod path_str;
 #[cfg(feature = "serde_json")]
@@ -7,6 +8,7 @@ use crate::{
   http::{HttpError, server_framework::RouteMatch},
   misc::{UriString, bytes_split1},
 };
+pub use json_reply::JsonReply;
 pub use path_owned::PathOwned;
 pub use path_str::PathStr;
 #[cfg(feature = "serde_json")]

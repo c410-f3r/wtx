@@ -28,7 +28,7 @@ async fn main() -> wtx::Result<()> {
       &uri.to_ref(),
     )
     .await?;
-  let WebSocketPartsOwned { mut reader, replier, writer } = ws.into_parts(tokio::io::split)?;
+  let WebSocketPartsOwned { mut reader, replier, writer } = ws.into_split(tokio::io::split)?;
   let writer_reply_manager = Arc::new(Mutex::new(writer));
   let writer_writer = writer_reply_manager.clone();
 

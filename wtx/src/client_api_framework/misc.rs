@@ -77,7 +77,9 @@ where
     )
     .await?;
   if pkgs_aux.encode_data {
-    pkg.ext_req_content_mut().encode(&mut GenericEncodeWrapper::new(&mut pkgs_aux.bytes_buffer))?;
+    pkg
+      .ext_req_content_mut()
+      .encode(&mut GenericEncodeWrapper::new(&mut pkgs_aux.bytes_buffer, &mut pkgs_aux.drsr))?;
   }
   Ok(())
 }

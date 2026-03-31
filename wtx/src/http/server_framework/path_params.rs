@@ -1,5 +1,5 @@
 /// Router paths
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PathParams<T> {
   pub(crate) full_path: &'static str,
   pub(crate) value: T,

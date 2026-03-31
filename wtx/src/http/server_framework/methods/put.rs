@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Requires a request of type `PUT`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Put<T>(
   /// Function
   pub T,

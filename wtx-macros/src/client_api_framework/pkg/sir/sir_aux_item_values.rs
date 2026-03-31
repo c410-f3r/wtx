@@ -6,6 +6,7 @@ use crate::{
     fir::{
       fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef,
       fir_params_items_values::FirParamsItemValues, fir_req_item_values::FirReqItemValues,
+      fir_res_item_values::FirResItemValues,
     },
     misc::{EMPTY_GEN_PARAMS, from_camel_case_to_snake_case, split_params},
     sir::sir_pkg_attr::SirPkaAttr,
@@ -67,6 +68,7 @@ impl<'module, 'others>
     &'others FirAuxItemValues<'module>,
     &'others FirParamsItemValues<'module>,
     &'others FirReqItemValues<'module>,
+    &'others FirResItemValues<'others>,
     &'others SirPkaAttr,
   )> for SirAuxItemValues
 {
@@ -74,12 +76,13 @@ impl<'module, 'others>
 
   #[inline]
   fn try_from(
-    (camel_case_id, pkg_ident, faiv, fpiv, freqdiv, spa): (
+    (camel_case_id, pkg_ident, faiv, fpiv, freqdiv, fresdiv, spa): (
       &'others mut String,
       &'others Ident,
       &'others FirAuxItemValues<'module>,
       &'others FirParamsItemValues<'module>,
       &'others FirReqItemValues<'module>,
+      &'others FirResItemValues<'others>,
       &'others SirPkaAttr,
     ),
   ) -> Result<Self, Self::Error> {
@@ -239,6 +242,7 @@ impl<'module, 'others>
       &spa.data_formats,
       fpiv,
       freqdiv,
+      fresdiv,
       pkg_ident,
       &mut saiv_tts,
       BuilderCommonValues {

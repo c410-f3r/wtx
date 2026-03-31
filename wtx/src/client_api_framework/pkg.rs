@@ -2,7 +2,6 @@
 //!
 //! Groups all elements that interact with packages.
 
-mod batch_pkg;
 mod pkg_with_helper;
 mod pkgs_aux;
 
@@ -11,7 +10,6 @@ use crate::{
   codec::{DecodeSeq, Encode, GenericCodec},
   collection::Vector,
 };
-pub use batch_pkg::{BatchElems, BatchPkg};
 pub use pkg_with_helper::*;
 pub use pkgs_aux::*;
 
@@ -26,11 +24,14 @@ pub use pkgs_aux::*;
 pub trait Package<A, DRSR, T, TP>
 where
   A: Api,
+  for<'drsr> Self::ExternalRequestContent: Encode<GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
+  for<'de, 'drsr> Self::ExternalResponseContent<'de>:
+    DecodeSeq<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
 {
   /// The expected data format that is going to be sent to an external actor.
-  type ExternalRequestContent: Encode<GenericCodec<DRSR>>;
+  type ExternalRequestContent;
   /// The expected data format returned by an external actor.
-  type ExternalResponseContent<'de>: DecodeSeq<'de, GenericCodec<DRSR>>;
+  type ExternalResponseContent<'de>;
   /// Any additional parameters used by this package.
   type PackageParams;
 

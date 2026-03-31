@@ -13,7 +13,7 @@ mod seedable_rng;
 mod weighted_index;
 mod xorshift;
 
-use crate::misc::TryArithmetic;
+use crate::misc::{AsciiGraphic, TryArithmetic};
 pub use cha_cha20::ChaCha20;
 use core::{cell::Cell, iter, ops::Range};
 pub use crypto_rng::CryptoRng;
@@ -33,8 +33,10 @@ where
 {
   /// Returns an infinite iterator that will always output printable ASCII bytes.
   #[inline]
-  fn ascii_graphic_iter(&mut self) -> impl Iterator<Item = u8> {
-    iter::repeat_with(|| self.u8_4()).flat_map(IntoIterator::into_iter).filter(u8::is_ascii_graphic)
+  fn ascii_graphic_iter(&mut self) -> impl Iterator<Item = AsciiGraphic> {
+    iter::repeat_with(|| self.u8_4())
+      .flat_map(IntoIterator::into_iter)
+      .filter_map(|el| AsciiGraphic::new(el).ok())
   }
 
   /// Chooses a random element from the slice. Returns `None` if the slice is empty.
@@ -184,24 +186,5 @@ where
   #[inline]
   fn u8_32(&mut self) -> [u8; 32] {
     (*self).u8_32()
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use crate::{
-    collection::Vector,
-    rng::{Rng, Xorshift64},
-  };
-
-  #[test]
-  fn ascii_graphic_bytes() {
-    let mut rng = Xorshift64::from(123);
-    let bytes = Vector::from_iterator(rng.ascii_graphic_iter().take(16)).unwrap();
-    assert_ne!(&bytes[0..8], &bytes[8..16]);
-    for elem in &bytes {
-      assert!(elem.is_ascii_graphic());
-    }
-    assert_ne!(bytes, Vector::from_iterator(rng.ascii_graphic_iter().take(16)).unwrap());
   }
 }

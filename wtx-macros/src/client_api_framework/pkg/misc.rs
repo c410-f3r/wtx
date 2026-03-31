@@ -10,6 +10,12 @@ pub(crate) const EMPTY_GEN_ARGS: &Punctuated<GenericArgument, Token![,]> = &Punc
 pub(crate) const EMPTY_GEN_PARAMS: &Punctuated<GenericParam, Token![,]> = &Punctuated::new();
 pub(crate) const EMPTY_PATH_SEGS: &Punctuated<PathSegment, Token![::]> = &Punctuated::new();
 
+pub(crate) fn fresdiv_non_lf_params(
+  fresdiv_params: &Punctuated<GenericParam, syn::token::Comma>,
+) -> impl Iterator<Item = &GenericParam> {
+  fresdiv_params.iter().filter(|param| !matches!(param, GenericParam::Lifetime(_)))
+}
+
 pub(crate) fn from_camel_case_to_snake_case(string: &str) -> String {
   let mut snake_case_string = String::new();
   let mut iter = string.as_bytes().windows(2);

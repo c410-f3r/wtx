@@ -24,22 +24,22 @@ pub struct JsonRpcEncoder<P> {
   pub params: P,
 }
 
-impl<'de, P> Decode<'de, GenericCodec<()>> for JsonRpcEncoder<P>
+impl<'de, EA, P> Decode<'de, GenericCodec<(), EA>> for JsonRpcEncoder<P>
 where
   P: Default,
 {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'de>) -> crate::Result<Self> {
+  fn decode(_: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<Self> {
     Ok(Self { id: 0, method: "", params: P::default() })
   }
 }
 
-impl<'de, P> DecodeSeq<'de, GenericCodec<()>> for JsonRpcEncoder<P>
+impl<'de, EA, P> DecodeSeq<'de, GenericCodec<(), EA>> for JsonRpcEncoder<P>
 where
   P: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -51,9 +51,9 @@ impl<P> Borrow<Id> for JsonRpcEncoder<P> {
   }
 }
 
-impl<P> Encode<GenericCodec<()>> for JsonRpcEncoder<P> {
+impl<DA, P> Encode<GenericCodec<DA, ()>> for JsonRpcEncoder<P> {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_>) -> crate::Result<()> {
+  fn encode(&self, _: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -136,7 +136,7 @@ mod serde_json {
     JsonRpcEncoder<R: Serialize>,
     SerdeJson,
     |this, _aux, ew| {
-      serde_json::to_writer(&mut *ew.vector, this)?;
+      serde_json::to_writer(&mut *ew.buffer, this)?;
     }
   }
 }

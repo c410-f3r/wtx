@@ -29,7 +29,7 @@ async fn main() -> wtx::Result<()> {
       &uri.to_ref(),
     )
     .await?;
-  let WebSocketPartsOwned { mut reader, replier, mut writer } = ws.into_parts(tokio::io::split)?;
+  let WebSocketPartsOwned { mut reader, replier, mut writer } = ws.into_split(tokio::io::split)?;
   let (sender, mut receiver) = unbounded_channel::<FrameVector<true>>();
 
   let reader_fut = async {

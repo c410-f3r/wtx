@@ -27,17 +27,17 @@ impl<DRSR> GrpcManager<DRSR> {
   #[inline]
   pub fn des_from_req_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimEncoder<T>: Decode<'de, GenericCodec<DRSR>>,
+    VerbatimEncoder<T>: for<'drsr> Decode<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimEncoder::decode(&mut GenericDecodeWrapper::new(elem))?.data)
+    Ok(VerbatimEncoder::decode(&mut GenericDecodeWrapper::new(elem, &mut self.drsr))?.data)
   }
 
   /// Serialize to Response Bytes
   #[inline]
   pub fn ser_to_res_bytes<T>(&mut self, bytes: &mut Vector<u8>, data: T) -> crate::Result<()>
   where
-    VerbatimDecoder<T>: Encode<GenericCodec<DRSR>>,
+    VerbatimDecoder<T>: for<'drsr> Encode<GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
     serialize(bytes, VerbatimDecoder { data }, &mut self.drsr)
   }

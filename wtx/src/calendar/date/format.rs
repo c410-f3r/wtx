@@ -3,7 +3,7 @@ use crate::{
     CalendarError, CalendarToken, Date, Utc,
     format::{
       parsed_data::ParsedData,
-      push::{push_four_digit_year, push_two_space_day},
+      push::{push_four_digits_year, push_two_spaces_day},
     },
   },
   codec::i16_string,
@@ -51,7 +51,7 @@ impl Date {
           string.push('-')?;
         }
         CalendarToken::FourDigitYear => {
-          push_four_digit_year(*self, &mut string)?;
+          push_four_digits_year(*self, &mut string)?;
         }
         CalendarToken::FullWeekdayName => {
           string.push_str(self.weekday().name())?;
@@ -72,7 +72,7 @@ impl Date {
           string.push_str(&i16_string(self.year().num().rem_euclid(100)))?;
         }
         CalendarToken::TwoSpaceDay => {
-          push_two_space_day(*self, &mut string)?;
+          push_two_spaces_day(*self, &mut string)?;
         }
         _ => return Err(CalendarError::InvalidParsingDate.into()),
       }

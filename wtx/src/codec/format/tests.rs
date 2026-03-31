@@ -16,8 +16,8 @@ impl<EREQC, ERESC> _FooBar<EREQC, ERESC> {
 
 impl<DRSR, EREQC, ERESC, T> Package<(), DRSR, T, ()> for _FooBar<EREQC, ERESC>
 where
-  EREQC: Encode<GenericCodec<DRSR>>,
-  ERESC: for<'de> DecodeSeq<'de, GenericCodec<DRSR>>,
+  EREQC: for<'drsr> Encode<GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
+  ERESC: for<'de, 'drsr> DecodeSeq<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
 {
   type ExternalRequestContent = EREQC;
   type ExternalResponseContent<'de> = ERESC;

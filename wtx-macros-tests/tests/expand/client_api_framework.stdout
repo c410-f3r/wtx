@@ -282,12 +282,17 @@ mod generic_http_request {
         r" Final building method that creates a package with all the necessary values."]
         pub fn build(self)
             ->
-                GenericHttpRequestPkg<wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>> {
+                GenericHttpRequestPkg<wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
+            where  {
             let data = self.data;
             let content =
                 self.aux.json_rpc_request("genericHttpRequest", data);
             let params = self.params;
-            GenericHttpRequestPkg { content, params }
+            GenericHttpRequestPkg {
+                content,
+                params,
+                res: core::marker::PhantomData,
+            }
         }
     }
     #[doc =
@@ -301,15 +306,17 @@ mod generic_http_request {
         pub content: C,
         #[doc = r" Parameters. Used across the package lifetime."]
         pub params: GenericHttpRequestParams<>,
+        #[doc = r" Response lifetimes, generics, etc..."]
+        pub res: core::marker::PhantomData<()>,
     }
     #[automatically_derived]
     impl<C: ::core::fmt::Debug> ::core::fmt::Debug for
         GenericHttpRequestPkg<C> {
         #[inline]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-            ::core::fmt::Formatter::debug_struct_field2_finish(f,
+            ::core::fmt::Formatter::debug_struct_field3_finish(f,
                 "GenericHttpRequestPkg", "content", &self.content, "params",
-                &&self.params)
+                &self.params, "res", &&self.res)
         }
     }
     impl<__API, __API_PARAMS, __DRSR, __TRANSPORT>
@@ -317,9 +324,11 @@ mod generic_http_request {
         wtx::client_api_framework::network::HttpParams> for
         GenericHttpRequestPkg<wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
         where
-        wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
-        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::codec::DecodeSeq<'__de,
-        wtx::codec::GenericCodec<__DRSR>>,
+        for<'__drsr> wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR,
+        &'__drsr mut __DRSR>>,
+        for<'__de,
+        '__drsr> wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -381,9 +390,11 @@ mod generic_http_request {
         &'__is_mut mut wtx::client_api_framework::network::HttpParams> for
         GenericHttpRequestPkg<wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>>
         where
-        wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
-        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::codec::DecodeSeq<'__de,
-        wtx::codec::GenericCodec<__DRSR>>,
+        for<'__drsr> wtx::codec::protocol::JsonRpcEncoder<GenericHttpRequestReq<>>: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR,
+        &'__drsr mut __DRSR>>,
+        for<'__de,
+        '__drsr> wtx::codec::protocol::JsonRpcDecoder<GenericHttpRequestRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -580,13 +591,18 @@ mod generic_web_socket_subscription {
         r" Final building method that creates a package with all the necessary values."]
         pub fn build(self)
             ->
-                GenericWebSocketSubscriptionPkg<wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>> {
+                GenericWebSocketSubscriptionPkg<wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
+            where  {
             let data = self.data;
             let content =
                 self.aux.json_rpc_request("genericWebSocketSubscription",
                     data);
             let params = self.params;
-            GenericWebSocketSubscriptionPkg { content, params }
+            GenericWebSocketSubscriptionPkg {
+                content,
+                params,
+                res: core::marker::PhantomData,
+            }
         }
     }
     #[doc =
@@ -600,15 +616,17 @@ mod generic_web_socket_subscription {
         pub content: C,
         #[doc = r" Parameters. Used across the package lifetime."]
         pub params: GenericWebSocketSubscriptionParams<>,
+        #[doc = r" Response lifetimes, generics, etc..."]
+        pub res: core::marker::PhantomData<()>,
     }
     #[automatically_derived]
     impl<C: ::core::fmt::Debug> ::core::fmt::Debug for
         GenericWebSocketSubscriptionPkg<C> {
         #[inline]
         fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-            ::core::fmt::Formatter::debug_struct_field2_finish(f,
+            ::core::fmt::Formatter::debug_struct_field3_finish(f,
                 "GenericWebSocketSubscriptionPkg", "content", &self.content,
-                "params", &&self.params)
+                "params", &self.params, "res", &&self.res)
         }
     }
     impl<'str, __API, __API_PARAMS, __DRSR, __TRANSPORT>
@@ -616,9 +634,11 @@ mod generic_web_socket_subscription {
         wtx::client_api_framework::network::WsParams> for
         GenericWebSocketSubscriptionPkg<wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
         where
-        wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
-        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::codec::DecodeSeq<'__de,
-        wtx::codec::GenericCodec<__DRSR>>,
+        for<'__drsr> wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR,
+        &'__drsr mut __DRSR>>,
+        for<'__de,
+        '__drsr> wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as
@@ -673,9 +693,11 @@ mod generic_web_socket_subscription {
         &'__is_mut mut wtx::client_api_framework::network::WsParams> for
         GenericWebSocketSubscriptionPkg<wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>>
         where
-        wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
-        for<'__de> wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::codec::DecodeSeq<'__de,
-        wtx::codec::GenericCodec<__DRSR>>,
+        for<'__drsr> wtx::codec::protocol::JsonRpcEncoder<GenericWebSocketSubscriptionReq<'str>>: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR,
+        &'__drsr mut __DRSR>>,
+        for<'__de,
+        '__drsr> wtx::codec::protocol::JsonRpcDecoder<GenericWebSocketSubscriptionRes<>>: wtx::codec::DecodeSeq<'__de,
+        wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
         __API: wtx::client_api_framework::Api<Error =
         <<crate::GenericThrottlingApiId as
         wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as

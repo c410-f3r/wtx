@@ -17,7 +17,6 @@ use crate::{
       u16u32, u32i64,
     },
   },
-  codec::i16_string,
   collection::{ArrayString, ArrayStringU8},
   misc::Usize,
 };
@@ -211,7 +210,7 @@ impl Date {
   #[inline]
   pub fn iso8601(self) -> ArrayStringU8<12> {
     let mut array = ArrayString::new();
-    let _rslt0 = array.push_str(&i16_string(self.year.num()));
+    let _rslt0 = array.push_str(&self.year.num_str());
     let _rslt1 = array.push('-');
     let _rslt2 = array.push_str(self.month().num_str());
     let _rslt3 = array.push('-');

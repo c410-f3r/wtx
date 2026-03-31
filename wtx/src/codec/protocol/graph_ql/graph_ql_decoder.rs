@@ -13,29 +13,29 @@ pub struct GraphQlDecoder<D, E> {
   pub result: Result<D, Vector<GraphQlResponseError<E>>>,
 }
 
-impl<'de, D, E> Decode<'de, GenericCodec<()>> for GraphQlDecoder<D, E>
+impl<'de, D, E, EA> Decode<'de, GenericCodec<(), EA>> for GraphQlDecoder<D, E>
 where
   D: Default,
 {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'de>) -> crate::Result<Self> {
+  fn decode(_: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<Self> {
     Ok(Self { result: Ok(D::default()) })
   }
 }
 
-impl<'de, D, E> DecodeSeq<'de, GenericCodec<()>> for GraphQlDecoder<D, E>
+impl<'de, D, E, EA> DecodeSeq<'de, GenericCodec<(), EA>> for GraphQlDecoder<D, E>
 where
   D: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
 
-impl<D, E> Encode<GenericCodec<()>> for GraphQlDecoder<D, E> {
+impl<D, DA, E> Encode<GenericCodec<DA, ()>> for GraphQlDecoder<D, E> {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_>) -> crate::Result<()> {
+  fn encode(&self, _: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -182,7 +182,7 @@ mod serde_json {
     GraphQlDecoder<D: Serialize, E: Serialize>,
     SerdeJson,
     |this, _aux, ew| {
-      serde_json::to_writer(&mut *ew.vector, &this.result)?;
+      serde_json::to_writer(&mut *ew.buffer, &this.result)?;
     }
   }
 }

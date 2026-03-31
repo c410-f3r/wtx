@@ -12,29 +12,32 @@ pub struct VerbatimDecoder<D> {
   pub data: D,
 }
 
-impl<'de, D> Decode<'de, GenericCodec<()>> for VerbatimDecoder<D>
+impl<'de, D, EA> Decode<'de, GenericCodec<&mut (), EA>> for VerbatimDecoder<D>
 where
   D: Default,
 {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'de>) -> crate::Result<Self> {
+  fn decode(_: &mut GenericDecodeWrapper<'de, &mut ()>) -> crate::Result<Self> {
     Ok(Self { data: D::default() })
   }
 }
 
-impl<'de, D> DecodeSeq<'de, GenericCodec<()>> for VerbatimDecoder<D>
+impl<'de, D, EA> DecodeSeq<'de, GenericCodec<&mut (), EA>> for VerbatimDecoder<D>
 where
   D: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de>) -> crate::Result<()> {
+  fn decode_seq(
+    _: &mut Vector<Self>,
+    _: &mut GenericDecodeWrapper<'de, &mut ()>,
+  ) -> crate::Result<()> {
     Ok(())
   }
 }
 
-impl<D> Encode<GenericCodec<()>> for VerbatimDecoder<D> {
+impl<D, DA> Encode<GenericCodec<DA, &mut ()>> for VerbatimDecoder<D> {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_>) -> crate::Result<()> {
+  fn encode(&self, _: &mut GenericEncodeWrapper<'_, &mut ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -64,7 +67,7 @@ mod quick_protobuf {
     VerbatimDecoder<D: MessageWrite>,
     QuickProtobuf,
     |this, _aux, ew| {
-      this.data.write_message(&mut Writer::new(&mut *ew.vector))?;
+      this.data.write_message(&mut Writer::new(&mut *ew.buffer))?;
     }
   }
 }
@@ -100,7 +103,7 @@ mod serde_json {
     VerbatimDecoder<D: Serialize>,
     SerdeJson,
     |this, _aux, ew| {
-      serde_json::to_writer(&mut *ew.vector, &this.data)?;
+      serde_json::to_writer(&mut *ew.buffer, &this.data)?;
     }
   }
 }
