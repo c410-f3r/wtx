@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Requires a request of type `POST`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Post<T>(
   /// Function
   pub T,

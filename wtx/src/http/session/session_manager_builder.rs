@@ -88,7 +88,7 @@ impl SessionManagerBuilder {
   where
     E: From<crate::Error>,
     RNG: CryptoRng,
-    SS: Clone + SessionStore<CS, E>,
+    SS: SessionStore<CS, E>,
   {
     if session_secret.len() != 16 {
       return Err(SessionError::InvalidSecretLength.into());

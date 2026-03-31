@@ -6,18 +6,30 @@ use httparse::Request;
 
 /// WebSocket acceptor
 #[derive(Debug)]
-pub struct WebSocketAcceptor<C, R, RNG, WSB> {
+pub struct WebSocketAcceptor<C, R, RNG, WB> {
   pub(crate) compression: C,
   pub(crate) no_masking: bool,
   pub(crate) req: R,
   pub(crate) rng: RNG,
-  pub(crate) wsb: WSB,
+  pub(crate) wsb: WB,
 }
 
-impl<C, R, RNG, WSB> WebSocketAcceptor<C, R, RNG, WSB> {
+impl<C, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB> {
+  /// WebSocket Buffer
+  #[inline]
+  pub fn buffer<NWSB>(self, elem: NWSB) -> WebSocketAcceptor<C, R, RNG, NWSB> {
+    WebSocketAcceptor {
+      compression: self.compression,
+      no_masking: self.no_masking,
+      req: self.req,
+      rng: self.rng,
+      wsb: elem,
+    }
+  }
+
   /// Defaults to no compression.
   #[inline]
-  pub fn compression<NC>(self, elem: NC) -> WebSocketAcceptor<NC, R, RNG, WSB> {
+  pub fn compression<NC>(self, elem: NC) -> WebSocketAcceptor<NC, R, RNG, WB> {
     WebSocketAcceptor {
       compression: elem,
       no_masking: self.no_masking,
@@ -31,14 +43,14 @@ impl<C, R, RNG, WSB> WebSocketAcceptor<C, R, RNG, WSB> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  pub const fn no_masking(mut self, elem: bool) -> WebSocketAcceptor<C, R, RNG, WSB> {
+  pub const fn no_masking(mut self, elem: bool) -> WebSocketAcceptor<C, R, RNG, WB> {
     self.no_masking = elem;
     self
   }
 
   /// Request callback.
   #[inline]
-  pub fn req<NR>(self, elem: NR) -> WebSocketAcceptor<C, NR, RNG, WSB> {
+  pub fn req<NR>(self, elem: NR) -> WebSocketAcceptor<C, NR, RNG, WB> {
     WebSocketAcceptor {
       compression: self.compression,
       no_masking: self.no_masking,
@@ -50,7 +62,7 @@ impl<C, R, RNG, WSB> WebSocketAcceptor<C, R, RNG, WSB> {
 
   /// Random number generator
   #[inline]
-  pub fn rng(mut self, elem: RNG) -> WebSocketAcceptor<C, R, RNG, WSB> {
+  pub fn rng(mut self, elem: RNG) -> WebSocketAcceptor<C, R, RNG, WB> {
     self.rng = elem;
     self
   }

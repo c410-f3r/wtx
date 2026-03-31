@@ -38,20 +38,20 @@ const UPGRADE: &str = "Upgrade";
 const VERSION: &str = "13";
 const WEBSOCKET: &str = "websocket";
 
-impl<C, E, R, RNG, WSB> WebSocketAcceptor<C, R, RNG, WSB>
+impl<C, E, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB>
 where
   C: Compression<false>,
   E: From<crate::Error>,
   R: FnOnce(&Request<'_, '_>) -> Result<(), E>,
   RNG: Rng,
-  WSB: LeaseMut<WebSocketBuffer>,
+  WB: LeaseMut<WebSocketBuffer>,
 {
   /// Reads external data to establish an WebSocket connection.
   #[inline]
   pub async fn accept<S>(
     mut self,
     mut stream: S,
-  ) -> Result<WebSocket<C::NegotiatedCompression, RNG, S, WSB, false>, E>
+  ) -> Result<WebSocket<C::NegotiatedCompression, RNG, S, WB, false>, E>
   where
     S: Stream,
   {
@@ -109,14 +109,14 @@ where
   }
 }
 
-impl<'headers, C, E, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB>
+impl<'headers, C, E, H, R, RNG, WB> WebSocketConnector<C, H, R, RNG, WB>
 where
   C: Compression<true>,
   E: From<crate::Error>,
   H: IntoIterator<Item = (&'headers str, &'headers str)>,
   R: FnOnce(&Response<'_, '_>) -> Result<(), E>,
   RNG: Rng,
-  WSB: LeaseMut<WebSocketBuffer>,
+  WB: LeaseMut<WebSocketBuffer>,
 {
   /// Sends data to establish an WebSocket connection.
   #[inline]
@@ -124,7 +124,7 @@ where
     mut self,
     mut stream: S,
     uri: &UriRef<'_>,
-  ) -> Result<WebSocket<C::NegotiatedCompression, RNG, S, WSB, true>, E>
+  ) -> Result<WebSocket<C::NegotiatedCompression, RNG, S, WB, true>, E>
   where
     S: Stream,
   {

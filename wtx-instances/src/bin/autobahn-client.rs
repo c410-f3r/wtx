@@ -12,7 +12,7 @@ async fn main() -> wtx::Result<()> {
   let mut buffer = Vector::new();
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await? {
     let mut ws = autobahn_case_conn(case, host).await?;
-    let (mut common, mut reader, mut writer) = ws.parts_mut();
+    let (mut common, mut reader, mut writer) = ws.split_mut();
     loop {
       let mut frame =
         match reader.read_frame(&mut buffer, &mut common, WebSocketPayloadOrigin::Adaptive).await {

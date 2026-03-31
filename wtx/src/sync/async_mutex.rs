@@ -204,7 +204,6 @@ impl<'any, T> Future for AsyncMutexGuardFuture<'any, T> {
       return Poll::Ready(mutex_guard);
     }
 
-    // Lock failed, waiter is registered. We return pending.
     Poll::Pending
   }
 }

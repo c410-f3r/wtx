@@ -124,10 +124,10 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Ping;
 
-  impl<DRSR> Encode<GenericCodec<DRSR>> for _Ping {
+  impl<DRSR> Encode<GenericCodec<DRSR, DRSR>> for _Ping {
     #[inline]
-    fn encode(&self, ew: &mut GenericEncodeWrapper<'_>) -> crate::Result<()> {
-      ew.vector.extend_from_copyable_slice(b"ping")?;
+    fn encode(&self, ew: &mut GenericEncodeWrapper<'_, DRSR>) -> crate::Result<()> {
+      ew.buffer.extend_from_copyable_slice(b"ping")?;
       Ok(())
     }
   }
@@ -135,16 +135,19 @@ mod tests {
   #[derive(Debug, Eq, PartialEq)]
   pub(crate) struct _Pong(pub(crate) &'static str);
 
-  impl<'de, DRSR> Decode<'de, GenericCodec<DRSR>> for _Pong {
+  impl<'de, DRSR> Decode<'de, GenericCodec<DRSR, DRSR>> for _Pong {
     #[inline]
-    fn decode(_: &mut GenericDecodeWrapper<'de>) -> crate::Result<Self> {
+    fn decode(_: &mut GenericDecodeWrapper<'de, DRSR>) -> crate::Result<Self> {
       Ok(Self("pong"))
     }
   }
 
-  impl<'de, DRSR> DecodeSeq<'de, GenericCodec<DRSR>> for _Pong {
+  impl<'de, DRSR> DecodeSeq<'de, GenericCodec<DRSR, DRSR>> for _Pong {
     #[inline]
-    fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de>) -> crate::Result<()> {
+    fn decode_seq(
+      _: &mut Vector<Self>,
+      _: &mut GenericDecodeWrapper<'de, DRSR>,
+    ) -> crate::Result<()> {
       Ok(())
     }
   }

@@ -173,6 +173,9 @@ where
       };
       let mut decoded_salt = [0; 128];
       let n = BASE64_STANDARD.decode_slice(salt, &mut decoded_salt)?;
+      let salt = decoded_salt.get(..n).unwrap_or_default();
+      let salted_passworded = salted_password(iterations, salt, config.password)?;
+      let nonce_array = ArrayVectorU8::<u8, 68>::from_copyable_slice(nonce)?;
       (
         {
           let mut vec = Vector::with_capacity(64)?;
@@ -180,8 +183,8 @@ where
             vec.extend_from_copyable_slices([&b"n=,r="[..], &local_nonce, &b","[..], payload])?;
           vec
         },
-        ArrayVectorU8::<u8, 68>::from_copyable_slice(nonce)?,
-        salted_password(iterations, decoded_salt.get(..n).unwrap_or_default(), config.password)?,
+        nonce_array,
+        salted_passworded,
       )
     };
 

@@ -10,6 +10,7 @@ pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
+mod ascii_graphic;
 mod connection_state;
 mod either;
 mod enum_var_strings;
@@ -24,6 +25,8 @@ mod join_array;
 mod lease;
 mod mem;
 mod optimization;
+#[cfg(feature = "base64")]
+mod pem;
 mod poll_once;
 mod role;
 #[cfg(feature = "secret")]
@@ -42,6 +45,7 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
+pub use ascii_graphic::AsciiGraphic;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
 pub use either::Either;
@@ -63,6 +67,8 @@ pub use join_array::JoinArray;
 pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimization::*;
+#[cfg(feature = "base64")]
+pub use pem::Pem;
 pub use poll_once::PollOnce;
 pub use role::{Client, Role, RoleTy, Server};
 #[cfg(feature = "secret")]

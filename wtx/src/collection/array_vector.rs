@@ -56,15 +56,18 @@ where
 
   /// Constructs a new instance from a fully initialized array.
   #[inline]
-  pub fn from_array(array: [T; N]) -> Self {
+  pub fn from_array<const M: usize>(array: [T; M]) -> Self {
+    const {
+      assert!(M <= L::UPPER_BOUND_USIZE);
+      assert!(M <= N);
+    }
     const { Self::INSTANCE_CHECK };
     let mut this = Self::new();
-    // `_INSTANCE_CHECK` makes this conversion infallible
-    this.0.len = L::from_usize(N).unwrap_or_default();
+    this.0.len = L::from_usize(M).unwrap_or_default();
     // SAFETY: the inner `data` as well as the provided `array` have the same layout in different
     //         memory regions
     unsafe {
-      ptr::copy_nonoverlapping(array.as_ptr(), this.as_ptr_mut(), N);
+      ptr::copy_nonoverlapping(array.as_ptr(), this.as_ptr_mut(), M);
     }
     mem::forget(array);
     this
@@ -80,7 +83,6 @@ where
       assert!(M <= N);
     }
     const { Self::INSTANCE_CHECK };
-    // The initial check makes this conversion infallible.
     let data_len = L::from_usize(M).unwrap_or_default();
     let mut instance_len = data_len;
     if let Some(elem) = len {
@@ -311,6 +313,30 @@ where
   #[inline]
   pub fn truncate(&mut self, new_len: L) {
     let _rslt = <[T] as LinearStorageSlice>::truncate(&mut self.0, new_len);
+  }
+}
+
+impl<T, const N: usize> ArrayVector<u8, T, N>
+where
+  T: Copy,
+{
+  // FIXME(stable): const traits
+  #[expect(clippy::cast_possible_truncation, reason = "const traits")]
+  #[cfg(feature = "asn1")]
+  pub(crate) const fn from_array_u8<const M: usize>(data: [T; M]) -> Self {
+    const {
+      assert!(M <= u8::UPPER_BOUND_USIZE);
+      assert!(M <= N);
+    }
+    const { Self::INSTANCE_CHECK };
+    let mut this = Self::new();
+    this.0.len = M as u8;
+    // SAFETY: the inner `data` as well as the provided `array` have the same layout in different
+    //         memory regions
+    unsafe {
+      ptr::copy_nonoverlapping(data.as_ptr(), this.0.data.as_mut_ptr().cast(), M);
+    }
+    this
   }
 }
 

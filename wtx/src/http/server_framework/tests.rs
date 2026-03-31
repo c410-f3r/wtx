@@ -26,7 +26,6 @@ fn compiles() {
   async fn three(_: ManualStream<(), (), ()>) -> crate::Result<()> {
     Ok(())
   }
-
   let router = Router::paths(paths!(
     ("/aaa", Router::paths(paths!(("/bbb", get(one)), ("/ccc", get(two)))).unwrap()),
     ("/ddd", get(one)),

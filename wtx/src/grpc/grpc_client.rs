@@ -38,10 +38,10 @@ where
   #[inline]
   pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
   where
-    VerbatimDecoder<T>: Decode<'de, GenericCodec<DRSR>>,
+    VerbatimDecoder<T>: for<'drsr> Decode<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimDecoder::decode(&mut GenericDecodeWrapper::new(elem))?.data)
+    Ok(VerbatimDecoder::decode(&mut GenericDecodeWrapper::new(elem, &mut self.drsr))?.data)
   }
 
   /// Send Unary Request
@@ -57,7 +57,7 @@ where
     uri: UriRef<'_>,
   ) -> crate::Result<Response<ReqResBuffer>>
   where
-    VerbatimEncoder<T>: Encode<GenericCodec<DRSR>>,
+    VerbatimEncoder<T>: for<'drsr> Encode<GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
     rrb.clear();
     serialize(&mut rrb.body, VerbatimEncoder { data }, &mut self.drsr)?;

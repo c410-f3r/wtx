@@ -20,13 +20,17 @@ pub use grpc_manager::GrpcManager;
 pub use grpc_middleware::GrpcMiddleware;
 pub use grpc_status_code::GrpcStatusCode;
 
-fn serialize<DRSR, T>(bytes: &mut Vector<u8>, data: T, _: &mut DRSR) -> crate::Result<()>
+fn serialize<'drsr, DRSR, T>(
+  bytes: &mut Vector<u8>,
+  data: T,
+  drsr: &'drsr mut DRSR,
+) -> crate::Result<()>
 where
-  T: Encode<GenericCodec<DRSR>>,
+  T: Encode<GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
 {
   bytes.extend_from_copyable_slice(&[0; 5])?;
   let before_len = bytes.len();
-  data.encode(&mut GenericEncodeWrapper::new(bytes))?;
+  data.encode(&mut GenericEncodeWrapper::new(bytes, drsr))?;
   let after_len = bytes.len();
   if let [_, a, b, c, d, ..] = bytes.as_mut() {
     let len = u32::try_from(after_len.wrapping_sub(before_len)).unwrap_or_default();

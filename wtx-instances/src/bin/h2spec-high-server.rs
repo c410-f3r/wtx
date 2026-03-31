@@ -19,9 +19,7 @@ async fn main() -> wtx::Result<()> {
     |_| Ok(()),
     |_, stream| async move { Ok(stream.into_split()) },
     |error| eprintln!("{error}"),
-    |_| {
-      Ok(((), Http2Buffer::new(&mut Xorshift64::from_getrandom().unwrap()), Http2Params::default()))
-    },
+    |_| Ok(((), Http2Buffer::new(&mut Xorshift64::from_getrandom()?), Http2Params::default())),
     |_| Ok(()),
     |_, _, _, _, _| Ok(((), OperationMode::Auto)),
     |error| eprintln!("{error}"),

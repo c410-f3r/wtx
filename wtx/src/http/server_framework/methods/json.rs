@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Requires a JSON request as well as an associated method.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Json<T>(
   /// Function
   pub T,

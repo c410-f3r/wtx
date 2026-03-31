@@ -4,6 +4,10 @@ mod aes_gcm;
 mod aws_lc_rs;
 #[cfg(feature = "chacha20poly1305")]
 mod chacha20poly1305;
+#[cfg(feature = "graviola")]
+mod graviola;
+#[cfg(feature = "ring")]
+mod ring;
 
 use crate::{collection::Vector, crypto::CryptoError, rng::CryptoRng};
 
@@ -231,7 +235,7 @@ fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) ->
   [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11]
 }
 
-#[cfg(feature = "aws-lc-rs")]
+#[cfg(any(feature = "aws-lc-rs", feature = "ring"))]
 fn split_nonce_content(
   data: &mut [u8],
   error: CryptoError,

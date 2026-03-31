@@ -1,62 +1,69 @@
+use core::marker::PhantomData;
+
 use crate::{
   codec::{CodecController, Decode, DecodeSeq, Encode},
   collection::Vector,
   misc::Lease,
 };
-use core::marker::PhantomData;
 
-/// `D`ecode/`E`ncode
+/// Generic `D`ecoder/`E`ncoder
 #[derive(Debug)]
-pub struct GenericCodec<DRSR>(PhantomData<DRSR>);
+pub struct GenericCodec<DA, EA> {
+  decode_aux: PhantomData<DA>,
+  encode_aux: PhantomData<EA>,
+}
 
-impl<DRSR> CodecController for GenericCodec<DRSR> {
+impl<DA, EA> CodecController for GenericCodec<DA, EA> {
   type DecodeWrapper<'inner, 'outer, 'rem>
-    = GenericDecodeWrapper<'inner>
+    = GenericDecodeWrapper<'inner, DA>
   where
     'inner: 'outer;
   type Error = crate::Error;
   type EncodeWrapper<'inner, 'outer, 'rem>
-    = GenericEncodeWrapper<'inner>
+    = GenericEncodeWrapper<'inner, EA>
   where
     'inner: 'outer;
 }
 
-impl<DRSR> Decode<'_, GenericCodec<DRSR>> for () {
+impl<DA, EA> Decode<'_, GenericCodec<DA, EA>> for () {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'_>) -> crate::Result<Self> {
+  fn decode(_: &mut GenericDecodeWrapper<'_, DA>) -> crate::Result<Self> {
     Ok(())
   }
 }
 
-impl<DRSR> DecodeSeq<'_, GenericCodec<DRSR>> for () {
+impl<DA, EA> DecodeSeq<'_, GenericCodec<DA, EA>> for () {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'_>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'_, DA>) -> crate::Result<()> {
     Ok(())
   }
 }
 
-impl<DRSR> Encode<GenericCodec<DRSR>> for () {
+impl<DA, EA> Encode<GenericCodec<DA, EA>> for () {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_>) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut GenericEncodeWrapper<'_, EA>) -> Result<(), crate::Error> {
     Ok(())
   }
 }
 
 /// Struct used for decoding different formats.
 #[derive(Debug, PartialEq)]
-pub struct GenericDecodeWrapper<'de> {
-  pub(crate) bytes: &'de [u8],
+pub struct GenericDecodeWrapper<'de, DA> {
+  /// Raw bytes where decoded elements are originated.
+  pub bytes: &'de [u8],
+  /// Auxiliary decoding data
+  pub decode_aux: DA,
 }
 
-impl<'de> GenericDecodeWrapper<'de> {
-  /// New instance
+impl<'de, DA> GenericDecodeWrapper<'de, DA> {
+  /// Shortcut
   #[inline]
-  pub const fn new(bytes: &'de [u8]) -> Self {
-    Self { bytes }
+  pub const fn new(bytes: &'de [u8], decode_aux: DA) -> Self {
+    Self { bytes, decode_aux }
   }
 }
 
-impl Lease<[u8]> for GenericDecodeWrapper<'_> {
+impl<DA> Lease<[u8]> for GenericDecodeWrapper<'_, DA> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.bytes
@@ -65,21 +72,24 @@ impl Lease<[u8]> for GenericDecodeWrapper<'_> {
 
 /// Struct used for encoding different formats.
 #[derive(Debug)]
-pub struct GenericEncodeWrapper<'any> {
-  pub(crate) vector: &'any mut Vector<u8>,
+pub struct GenericEncodeWrapper<'any, EA> {
+  /// Buffer where the encoded contents are stored.
+  pub buffer: &'any mut Vector<u8>,
+  /// Auxiliary encoding data
+  pub encode_aux: EA,
 }
 
-impl<'any> GenericEncodeWrapper<'any> {
-  /// New instance
+impl<'any, EA> GenericEncodeWrapper<'any, EA> {
+  /// Shortcut
   #[inline]
-  pub const fn new(vector: &'any mut Vector<u8>) -> Self {
-    Self { vector }
+  pub const fn new(buffer: &'any mut Vector<u8>, encode_aux: EA) -> Self {
+    Self { buffer, encode_aux }
   }
 }
 
-impl Lease<[u8]> for GenericEncodeWrapper<'_> {
+impl<EA> Lease<[u8]> for GenericEncodeWrapper<'_, EA> {
   #[inline]
   fn lease(&self) -> &[u8] {
-    self.vector
+    self.buffer
   }
 }

@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Requires a WebSocket tunneling.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct WebSocket<T>(
   /// Arbitrary type
   pub T,

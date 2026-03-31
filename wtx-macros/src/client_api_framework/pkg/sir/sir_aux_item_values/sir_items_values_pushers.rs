@@ -3,9 +3,9 @@ use crate::{
     data_format::DataFormat,
     fir::{
       fir_aux_item_values::FirAuxItemValues, fir_params_items_values::FirParamsItemValues,
-      fir_req_item_values::FirReqItemValues,
+      fir_req_item_values::FirReqItemValues, fir_res_item_values::FirResItemValues,
     },
-    misc::{EMPTY_GEN_ARGS, EMPTY_PATH_SEGS},
+    misc::{EMPTY_GEN_ARGS, EMPTY_PATH_SEGS, fresdiv_non_lf_params},
     sir::sir_aux_item_values::{
       BuilderCommonValues, BuilderExtendedValues, CreateMethodReturningBuilderParams,
       FnCommonValues, SirAuxItemValues,
@@ -50,6 +50,7 @@ impl SirAuxItemValues {
     data_formats: &[DataFormat],
     fpiv: &FirParamsItemValues<'_>,
     freqdiv: &FirReqItemValues<'_>,
+    fresdiv: &FirResItemValues<'_>,
     pkg_ident: &Ident,
     saiv_tts: &mut Vec<TokenStream>,
     impl_values: BuilderCommonValues<'_>,
@@ -57,17 +58,25 @@ impl SirAuxItemValues {
     let mut do_push = |aux_call: &TokenStream, fn_ident: &Ident, wrapper_ident: &Ident| {
       let FirParamsItemValues { fpiv_params, .. } = *fpiv;
       let FirReqItemValues { freqdiv_ident, freqdiv_params, .. } = *freqdiv;
+      let FirResItemValues { fresdiv_params, fresdiv_where_predicates, .. } = *fresdiv;
       let fpiv_params_iter = fpiv_params.iter();
+      let fresdiv_params_iter0 = fresdiv_non_lf_params(fresdiv_params);
+      let fresdiv_params_iter1 = fresdiv_non_lf_params(fresdiv_params);
+      let fresdiv_where_predicates_iter = fresdiv_where_predicates.iter();
       let method = quote::quote!(
         /// Final building method that creates a package with all the necessary values.
-        pub fn #fn_ident(self) -> #pkg_ident<
+        pub fn #fn_ident<#(#fresdiv_params_iter0,)*>(self) -> #pkg_ident<
           #(#fpiv_params_iter,)*
+          #(#fresdiv_params_iter1,)*
           wtx::codec::protocol::#wrapper_ident<#freqdiv_ident<#freqdiv_params>>
-        > {
+        >
+        where
+          #(#fresdiv_where_predicates_iter,)*
+        {
           let data = self.data;
           let content = self.aux.#aux_call;
           let params = self.params;
-          #pkg_ident { content, params }
+          #pkg_ident { content, params, res: core::marker::PhantomData }
         }
       );
       let impl_ident = impl_values.ident;

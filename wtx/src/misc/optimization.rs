@@ -4,11 +4,11 @@ use crate::misc::{BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUt
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn bytes_pos_any(bytes: &[u8], elem: &[u8]) -> Option<usize> {
+pub fn bytes_pos_seq(bytes: &[u8], elem: &[u8]) -> Option<usize> {
   #[cfg(feature = "memchr")]
-  return memchr::memmem::find_iter(bytes, elem).next();
+  return memchr::memmem::find(bytes, elem);
   #[cfg(not(feature = "memchr"))]
-  return bytes.windows(elem.len()).enumerate().find(|(_, w)| *w == elem).map(|(idx, _)| idx);
+  return bytes.windows(elem.len()).position(|w| w == elem);
 }
 
 /// Internally uses `memchr` if the feature is active.
@@ -76,11 +76,11 @@ pub fn bytes_split_once1(bytes: &[u8], elem: u8) -> Option<(&[u8], &[u8])> {
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn bytes_split_once_any<'bytes>(
+pub fn bytes_split_once_seq<'bytes>(
   bytes: &'bytes [u8],
   elem: &[u8],
 ) -> Option<(&'bytes [u8], &'bytes [u8])> {
-  let idx = bytes_pos_any(bytes, elem)?;
+  let idx = bytes_pos_seq(bytes, elem)?;
   Some((bytes.get(..idx)?, bytes.get(idx.wrapping_add(elem.len())..)?))
 }
 
@@ -138,7 +138,7 @@ pub fn str_pos1(str: &str, elem: u8) -> Option<usize> {
 /// Internally uses `memchr` if the feature is active.
 #[inline]
 pub fn str_rsplit_once1(str: &str, elem: u8) -> Option<(&str, &str)> {
-  let idx = str_pos1(str, elem)?;
+  let idx = bytes_rpos1(str.as_bytes(), elem)?;
   Some((str.get(..idx)?, str.get(idx.wrapping_add(1)..)?))
 }
 

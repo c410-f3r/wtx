@@ -1,0 +1,40 @@
+#![feature(prelude_import)]
+extern crate std;
+#[prelude_import]
+use std::prelude::rust_2021::*;
+mod pkg {
+    #[doc = "Expected data request that will be sent to the server."]
+    struct Req;
+
+    #[doc = "Expected data response returned by the server."]
+    struct Res<T>(T);
+    #[doc =
+    "Corresponding package does not expect any additional custom parameter."]
+    pub type Params = ();
+    #[doc =
+    r" Package containing all the expected parameters and data necessary to manage and issue"]
+    #[doc = r" a request."]
+    #[doc = r""]
+    #[doc =
+    r" For more information, please see the official API's documentation."]
+    pub struct Pkg<T, C> where  {
+        #[doc = r" Content. Data format containing request data."]
+        pub content: C,
+        #[doc = r" Parameters. Used across the package lifetime."]
+        pub params: Params<>,
+        #[doc = r" Response lifetimes, generics, etc..."]
+        pub res: core::marker::PhantomData<(fn() -> T,)>,
+    }
+    #[automatically_derived]
+    impl<T: ::core::fmt::Debug, C: ::core::fmt::Debug> ::core::fmt::Debug for
+        Pkg<T, C> {
+        #[inline]
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+            ::core::fmt::Formatter::debug_struct_field3_finish(f, "Pkg",
+                "content", &self.content, "params", &self.params, "res",
+                &&self.res)
+        }
+    }
+}
+
+fn main() {}

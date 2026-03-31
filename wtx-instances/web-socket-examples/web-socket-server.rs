@@ -37,7 +37,7 @@ async fn main() -> wtx::Result<()> {
 async fn handle(
   mut ws: WebSocket<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
-  let (mut common, mut reader, mut writer) = ws.parts_mut();
+  let (mut common, mut reader, mut writer) = ws.split_mut();
   let mut buffer = Vector::new();
   loop {
     let mut frame =

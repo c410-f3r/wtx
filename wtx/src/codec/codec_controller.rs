@@ -1,6 +1,11 @@
 use crate::misc::Lease;
 
-/// Decode/Encode Controller
+/// Decoder/Encoder Controller
+///
+/// This is a marker trait intended for coordination. When serializing or deserializing
+/// implementations aren't expected to be instantiated.
+//
+// 'inner, 'outer and 'rem exist to allow nested codecs. See PostgreSQL.
 pub trait CodecController {
   /// Decode wrapper
   type DecodeWrapper<'inner, 'outer, 'rem>: Lease<[u8]>

@@ -7,19 +7,32 @@ use httparse::Response;
 
 /// WebSocket connector
 #[derive(Debug)]
-pub struct WebSocketConnector<C, H, R, RNG, WSB> {
+pub struct WebSocketConnector<C, H, R, RNG, WB> {
   pub(crate) compression: C,
   pub(crate) headers: H,
   pub(crate) no_masking: bool,
   pub(crate) res: R,
   pub(crate) rng: RNG,
-  pub(crate) wsb: WSB,
+  pub(crate) wsb: WB,
 }
 
-impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
+impl<C, H, R, RNG, WB> WebSocketConnector<C, H, R, RNG, WB> {
+  /// WebSocket Buffer
+  #[inline]
+  pub fn buffer<NWSB>(self, elem: NWSB) -> WebSocketConnector<C, H, R, RNG, NWSB> {
+    WebSocketConnector {
+      compression: self.compression,
+      headers: self.headers,
+      no_masking: self.no_masking,
+      res: self.res,
+      rng: self.rng,
+      wsb: elem,
+    }
+  }
+
   /// Defaults to no compression.
   #[inline]
-  pub fn compression<NC>(self, elem: NC) -> WebSocketConnector<NC, H, R, RNG, WSB> {
+  pub fn compression<NC>(self, elem: NC) -> WebSocketConnector<NC, H, R, RNG, WB> {
     WebSocketConnector {
       compression: elem,
       headers: self.headers,
@@ -32,7 +45,7 @@ impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
 
   /// Additional header that must be sent in the request.
   #[inline]
-  pub fn headers<NH>(self, elem: NH) -> WebSocketConnector<C, NH, R, RNG, WSB> {
+  pub fn headers<NH>(self, elem: NH) -> WebSocketConnector<C, NH, R, RNG, WB> {
     WebSocketConnector {
       compression: self.compression,
       headers: elem,
@@ -47,14 +60,14 @@ impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  pub const fn no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R, RNG, WSB> {
+  pub const fn no_masking(mut self, elem: bool) -> WebSocketConnector<C, H, R, RNG, WB> {
     self.no_masking = elem;
     self
   }
 
   /// Response callback.
   #[inline]
-  pub fn res<NR>(self, elem: NR) -> WebSocketConnector<C, H, NR, RNG, WSB> {
+  pub fn res<NR>(self, elem: NR) -> WebSocketConnector<C, H, NR, RNG, WB> {
     WebSocketConnector {
       compression: self.compression,
       headers: self.headers,
@@ -67,7 +80,7 @@ impl<C, H, R, RNG, WSB> WebSocketConnector<C, H, R, RNG, WSB> {
 
   /// Random number generator
   #[inline]
-  pub fn rng(mut self, elem: RNG) -> WebSocketConnector<C, H, R, RNG, WSB> {
+  pub fn rng(mut self, elem: RNG) -> WebSocketConnector<C, H, R, RNG, WB> {
     self.rng = elem;
     self
   }

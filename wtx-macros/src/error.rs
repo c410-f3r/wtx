@@ -31,7 +31,6 @@ pub(crate) enum Error {
   IncorrectJsonRpcDataFormat,
   MandatoryOuterAttrsAreNotPresent,
   NoEnumStructOrType(Span),
-  ResponsesCanHaveAtMostOneLt(Span),
   Syn(syn::Error),
   UnknownDataFormat,
   UnknownTransport(Span),
@@ -140,9 +139,6 @@ impl From<Error> for syn::Error {
       ),
       Error::NoEnumStructOrType(span) => {
         syn::Error::new(span, "Invalid item. Expected enum, struct or type.")
-      }
-      Error::ResponsesCanHaveAtMostOneLt(span) => {
-        syn::Error::new(span, "Responses can have at most one lifetime. Types aren't supported")
       }
       Error::Syn(error) => error,
       Error::UnknownDataFormat => syn::Error::new(Span::call_site(), "Unknown data format."),

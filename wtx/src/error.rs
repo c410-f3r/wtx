@@ -1,3 +1,5 @@
+#[cfg(feature = "asn1")]
+use crate::asn1::Asn1Error;
 use crate::{
   calendar::CalendarError,
   codec::{FromRadix10Error, HexError},
@@ -40,15 +42,18 @@ pub enum Error {
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
-  #[cfg(feature = "crypto-common")]
-  #[doc = associated_element_doc!()]
-  CryptoCommonInvalidLength(crypto_common::InvalidLength),
   #[cfg(feature = "base64")]
   #[doc = associated_element_doc!()]
   Base64DecodeError(Box<base64::DecodeError>),
   #[cfg(feature = "base64")]
   #[doc = associated_element_doc!()]
   Base64DecodeSliceError(Box<base64::DecodeSliceError>),
+  #[cfg(feature = "crypto-common")]
+  #[doc = associated_element_doc!()]
+  CryptoCommonInvalidLength(crypto_common::InvalidLength),
+  #[cfg(feature = "elliptic-curve")]
+  #[doc = associated_element_doc!()]
+  EllipticCurveError(elliptic_curve::Error),
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNet(embassy_net::tcp::Error),
@@ -64,6 +69,9 @@ pub enum Error {
   #[cfg(feature = "getrandom")]
   #[doc = associated_element_doc!()]
   GetRandomError(getrandom::Error),
+  #[cfg(feature = "graviola")]
+  #[doc = associated_element_doc!()]
+  GraviolaError(graviola::Error),
   #[cfg(feature = "httparse")]
   #[doc = associated_element_doc!()]
   HttpParse(httparse::Error),
@@ -165,6 +173,8 @@ pub enum Error {
   InsufficientOptionCapacity,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
+  /// Invalid PEM file contents.
+  InvalidPem,
   /// Invalid UTF-8.
   InvalidUTF8,
   /// An index that cuts an UTF-8 string makes the sequence invalid.
@@ -185,6 +195,8 @@ pub enum Error {
   NoAvailableVars(Box<String>),
   /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(Box<&'static str>),
+  /// Byte is not an ASCII graphic character
+  NonGraphicByte,
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
   OutOfBoundsArithmetic,
   /// An error that shouldn't exist. If this variant is raised, then it is very likely that the
@@ -233,6 +245,9 @@ pub enum Error {
 
   // Internal
   //
+  #[cfg(feature = "asn1")]
+  #[doc = associated_element_doc!()]
+  Asn1Error(Asn1Error),
   #[doc = associated_element_doc!()]
   ArithmeticError(ArithmeticError),
   #[doc = associated_element_doc!()]
@@ -252,6 +267,7 @@ pub enum Error {
   #[cfg(feature = "http-cookie")]
   #[doc = associated_element_doc!()]
   Cookie(crate::http::CookieError),
+  #[cfg(feature = "crypto")]
   #[doc = associated_element_doc!()]
   CryptoError(crate::crypto::CryptoError),
   #[cfg(feature = "database")]
@@ -304,6 +320,9 @@ pub enum Error {
   #[cfg(feature = "web-socket")]
   #[doc = associated_element_doc!()]
   WebSocketError(crate::web_socket::WebSocketError),
+  #[cfg(feature = "x509")]
+  #[doc = associated_element_doc!()]
+  X509Error(crate::x509::X509Error),
 }
 
 impl Display for Error {
@@ -354,6 +373,7 @@ impl From<crate::http::CookieError> for Error {
   }
 }
 
+#[cfg(feature = "crypto")]
 impl From<crate::crypto::CryptoError> for Error {
   #[inline]
   #[track_caller]
@@ -389,6 +409,14 @@ impl From<base64::DecodeSliceError> for Error {
   }
 }
 
+#[cfg(feature = "elliptic-curve")]
+impl From<elliptic_curve::Error> for Error {
+  #[inline]
+  fn from(from: elliptic_curve::Error) -> Self {
+    Self::EllipticCurveError(from)
+  }
+}
+
 #[cfg(feature = "embassy-net")]
 impl From<embassy_net::tcp::Error> for Error {
   #[inline]
@@ -418,6 +446,14 @@ impl From<flate2::DecompressError> for Error {
   #[inline]
   fn from(from: flate2::DecompressError) -> Self {
     Self::Flate2DecompressError(from.into())
+  }
+}
+
+#[cfg(feature = "graviola")]
+impl From<graviola::Error> for Error {
+  #[inline]
+  fn from(from: graviola::Error) -> Self {
+    Self::GraviolaError(from)
   }
 }
 
@@ -756,6 +792,14 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   }
 }
 
+#[cfg(feature = "asn1")]
+impl From<Asn1Error> for Error {
+  #[inline]
+  fn from(from: Asn1Error) -> Self {
+    Self::Asn1Error(from)
+  }
+}
+
 impl From<ArithmeticError> for Error {
   #[inline]
   fn from(from: ArithmeticError) -> Self {
@@ -782,6 +826,14 @@ impl From<crate::web_socket::WebSocketError> for Error {
   #[inline]
   fn from(from: crate::web_socket::WebSocketError) -> Self {
     Self::WebSocketError(from)
+  }
+}
+
+#[cfg(feature = "x509")]
+impl From<crate::x509::X509Error> for Error {
+  #[inline]
+  fn from(from: crate::x509::X509Error) -> Self {
+    Self::X509Error(from)
   }
 }
 

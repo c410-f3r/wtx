@@ -17,29 +17,29 @@ pub struct GraphQlEncoder<ON, Q, V> {
   pub variables: Option<V>,
 }
 
-impl<'de, ON, Q, V> Decode<'de, GenericCodec<()>> for GraphQlEncoder<ON, Q, V>
+impl<'de, EA, ON, Q, V> Decode<'de, GenericCodec<(), EA>> for GraphQlEncoder<ON, Q, V>
 where
   Q: Default,
 {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'de>) -> crate::Result<Self> {
+  fn decode(_: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<Self> {
     Ok(Self { operation_name: None, query: Q::default(), variables: None })
   }
 }
 
-impl<'de, ON, Q, V> DecodeSeq<'de, GenericCodec<()>> for GraphQlEncoder<ON, Q, V>
+impl<'de, EA, ON, Q, V> DecodeSeq<'de, GenericCodec<(), EA>> for GraphQlEncoder<ON, Q, V>
 where
   Q: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
 
-impl<ON, Q, V> Encode<GenericCodec<()>> for GraphQlEncoder<ON, Q, V> {
+impl<DA, ON, Q, V> Encode<GenericCodec<DA, ()>> for GraphQlEncoder<ON, Q, V> {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_>) -> crate::Result<()> {
+  fn encode(&self, _: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -53,7 +53,7 @@ mod serde_json {
     GraphQlEncoder<ON: Serialize, Q: Serialize, V: Serialize>,
     SerdeJson,
     |this, _aux, ew| {
-      serde_json::to_writer(&mut *ew.vector, this)?;
+      serde_json::to_writer(&mut *ew.buffer, this)?;
     }
   }
 }

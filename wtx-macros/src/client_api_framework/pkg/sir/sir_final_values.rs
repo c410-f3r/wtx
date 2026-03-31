@@ -8,13 +8,13 @@ use crate::client_api_framework::{
       fir_params_items_values::FirParamsItemValues, fir_req_item_values::FirReqItemValues,
       fir_res_item_values::FirResItemValues,
     },
-    misc::split_params,
+    misc::{fresdiv_non_lf_params, split_params},
     sir::{sir_aux_item_values::SirAuxItemValues, sir_pkg_attr::SirPkaAttr},
   },
   transport_group::TransportGroup,
 };
 use proc_macro2::{Ident, Span, TokenStream};
-use syn::GenericParam;
+use syn::{GenericParam, punctuated::Punctuated};
 
 pub(crate) struct SirFinalValues {
   pub(crate) auxs: Vec<TokenStream>,
@@ -26,10 +26,12 @@ impl SirFinalValues {
   fn pkg_params<'any>(
     freqdiv: &'any FirReqItemValues<'any>,
     fpiv: &'any FirParamsItemValues<'any>,
+    fresdiv: &'any FirResItemValues<'any>,
   ) -> (impl Iterator<Item = &'any GenericParam>, impl Iterator<Item = &'any GenericParam>) {
     let (a_lts, a_tys) = split_params(fpiv.fpiv_params);
     let (b_lts, b_tys) = split_params(freqdiv.freqdiv_params);
-    (a_lts.chain(b_lts), a_tys.chain(b_tys))
+    let (_c_lts, c_tys) = split_params(fresdiv.fresdiv_params);
+    (a_lts.chain(b_lts), a_tys.chain(b_tys).chain(c_tys))
   }
 
   fn transport_params(transport_group: &TransportGroup) -> TokenStream {
@@ -70,23 +72,9 @@ impl<'module, 'others>
     ),
   ) -> Result<Self, Self::Error> {
     let FirParamsItemValues { fpiv_ident, fpiv_params, fpiv_where_predicates, .. } = &fpiv;
-    let FirReqItemValues { freqdiv_ident, freqdiv_params, freqdiv_where_predicates, .. } = freqdiv;
-    let FirResItemValues { fresdiv_ident, fresdiv_params, .. } = fresdiv;
+    let FirReqItemValues { freqdiv_ident, freqdiv_params, freqdiv_where_predicates, .. } = &freqdiv;
+    let FirResItemValues { fresdiv_ident, fresdiv_params, fresdiv_where_predicates, .. } = &fresdiv;
     let SirPkaAttr { data_formats, id, transport_groups } = &spa;
-
-    let res_lf = {
-      let mut iter = fresdiv_params.iter();
-      if let Some(elem) = iter.next() {
-        if matches!(elem, GenericParam::Lifetime(_)) && iter.next().is_none() {
-          Some(quote::quote!('__de))
-        } else {
-          // FIXME(STABLE): non_lifetime_binders
-          return Err(crate::Error::ResponsesCanHaveAtMostOneLt(fresdiv_ident.span()));
-        }
-      } else {
-        None
-      }
-    };
 
     let camel_case_pkg_ident = &{
       let idx = camel_case_id.len();
@@ -111,6 +99,7 @@ impl<'module, 'others>
           elem,
           &fpiv,
           &freqdiv,
+          &fresdiv,
           &spa,
         ))
       })
@@ -127,8 +116,8 @@ impl<'module, 'others>
         .map(|el| (false, el))
         .chain(transport_groups.iter().map(|el| (true, el)));
       for (is_mut, transport_group) in iter {
-        let res_lf_iter0 = res_lf.iter();
-        let res_lf_iter1 = res_lf.iter();
+        let res_lf_iter0 = fresdiv_associated_params(fresdiv_params);
+        let res_lf_iter1 = fresdiv_associated_params(fresdiv_params);
         let before_sending_defaults = data_format.before_sending_defaults(transport_group);
         let fasiv_fn_name_ident_iter =
           fasiv_opt.as_ref().map(|el| &el.fasiv_item.sig.ident).into_iter();
@@ -136,9 +125,11 @@ impl<'module, 'others>
           fbsiv_opt.as_ref().map(|el| &el.fbsiv_item.sig.ident).into_iter();
         let fpiv_params_iter0 = fpiv_params.iter();
         let fpiv_params_iter1 = fpiv_params.iter();
+        let fresdiv_params_iter0 = fresdiv_non_lf_params(fresdiv_params);
         let fpiv_where_predicates_iter = fpiv_where_predicates.iter();
         let freqdiv_where_predicates_iter = freqdiv_where_predicates.iter();
-        let (lts, tys) = Self::pkg_params(&freqdiv, &fpiv);
+        let fresdiv_where_predicates_iter0 = fresdiv_where_predicates.iter();
+        let (lts, tys) = Self::pkg_params(&freqdiv, &fpiv, &fresdiv);
         let is_mut_lf = is_mut.then(|| quote::quote!('__is_mut)).into_iter();
         let tp = {
           let tt = Self::transport_params(transport_group);
@@ -151,6 +142,7 @@ impl<'module, 'others>
             __API, __DRSR, __TRANSPORT, #tp
           > for #camel_case_pkg_ident<
             #(#fpiv_params_iter0,)*
+            #(#fresdiv_params_iter0,)*
             wtx::codec::protocol::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
           >
           where
@@ -158,12 +150,13 @@ impl<'module, 'others>
             #fbsiv_fn_where_predicates
             #(#fpiv_where_predicates_iter,)*
             #(#freqdiv_where_predicates_iter,)*
-            wtx::codec::protocol::#dfe_ext_req_ctnt_wrapper<
+            #(#fresdiv_where_predicates_iter0,)*
+            for<'__drsr> wtx::codec::protocol::#dfe_ext_req_ctnt_wrapper<
               #freqdiv_ident<#freqdiv_params>
-            >: wtx::codec::Encode<wtx::codec::GenericCodec<__DRSR>>,
-            for<'__de> wtx::codec::protocol::#dfe_ext_res_ctnt_wrapper<
+            >: wtx::codec::Encode<wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
+            for<'__de, '__drsr> wtx::codec::protocol::#dfe_ext_res_ctnt_wrapper<
               #fresdiv_ident<#(#res_lf_iter0)*>
-            >: wtx::codec::DecodeSeq<'__de, wtx::codec::GenericCodec<__DRSR>>,
+            >: wtx::codec::DecodeSeq<'__de, wtx::codec::GenericCodec<&'__drsr mut __DRSR, &'__drsr mut __DRSR>>,
             __API: wtx::client_api_framework::Api<
                 Error = <<#id as wtx::client_api_framework::ApiId>::Api<__API_PARAMS> as wtx::client_api_framework::Api>::Error,
                 Id = #id
@@ -226,6 +219,17 @@ impl<'module, 'others>
 
     let fpiv_params_iter0 = fpiv_params.iter();
     let fpiv_params_iter1 = fpiv_params.iter();
+    let fpiv_where_predicates_iter1 = fpiv_where_predicates.iter();
+    let fresdiv_params_iter1 = fresdiv_non_lf_params(fresdiv_params);
+    let fresdiv_where_predicates_iter1 = fresdiv_where_predicates.iter();
+    let fresdiv_phantom_tys = fresdiv_params.iter().filter_map(|param| match param {
+      GenericParam::Const(_) | GenericParam::Lifetime(_) => None,
+      GenericParam::Type(elem) => {
+        let ident = &elem.ident;
+        Some(quote::quote!(fn() -> #ident))
+      }
+    });
+
     Ok(Self {
       auxs: saiv_tts,
       package: quote::quote!(
@@ -234,17 +238,36 @@ impl<'module, 'others>
         ///
         /// For more information, please see the official API's documentation.
         #[derive(Debug)]
-        pub struct #camel_case_pkg_ident<#(#fpiv_params_iter0,)* C>
+        pub struct #camel_case_pkg_ident<#(#fpiv_params_iter0,)* #(#fresdiv_params_iter1,)* C>
         where
-          #fpiv_where_predicates
+          #(#fpiv_where_predicates_iter1,)*
+          #(#fresdiv_where_predicates_iter1,)*
         {
           /// Content. Data format containing request data.
           pub content: C,
           /// Parameters. Used across the package lifetime.
           pub params: #fpiv_ident<#(#fpiv_params_iter1)*>,
+          /// Response lifetimes, generics, etc...
+          pub res: core::marker::PhantomData<(#(#fresdiv_phantom_tys,)*)>,
         }
       ),
       package_impls,
     })
   }
+}
+
+fn fresdiv_associated_params(
+  fresdiv_params: &Punctuated<GenericParam, syn::token::Comma>,
+) -> impl Iterator<Item = TokenStream> {
+  fresdiv_params.iter().map(move |param| match param {
+    GenericParam::Lifetime(_) => quote::quote!('__de),
+    GenericParam::Type(elem) => {
+      let ident = &elem.ident;
+      quote::quote!(#ident)
+    }
+    GenericParam::Const(elem) => {
+      let ident = &elem.ident;
+      quote::quote!(#ident)
+    }
+  })
 }

@@ -1,6 +1,10 @@
 /// Crypto error
 #[derive(Clone, Copy, Debug)]
 pub enum CryptoError {
+  /// Diffie Hellman Error
+  DiffieHellmanError,
+  /// Ephemeral Secret Key Error
+  EphemeralSecretKeyError,
   /// Opaque error originated from `Hkdf::expand`
   HkdfExpandError,
   /// Opaque error originated from `Hkdf::from_prk`
@@ -13,4 +17,6 @@ pub enum CryptoError {
   InvalidAes256GcmData,
   /// Opaque error originated from `Chacha20Poly1305` operations
   InvalidChacha20Poly1305Data,
+  /// Public Key Agreement Error
+  PublicKeyAgreementError,
 }

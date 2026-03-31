@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Requires a request of type `GET`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Get<T>(
   /// Function
   pub T,

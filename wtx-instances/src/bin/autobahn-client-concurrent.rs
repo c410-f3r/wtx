@@ -15,7 +15,7 @@ async fn main() -> wtx::Result<()> {
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await? {
     let ws = autobahn_case_conn(case, host).await?;
     let WebSocketPartsOwned { mut reader, replier, mut writer } =
-      ws.into_parts(tokio::io::split)?;
+      ws.into_split(tokio::io::split)?;
     let mut reply_frame = pin!(replier.reply_frame());
     loop {
       let mut frame = match reader.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await {

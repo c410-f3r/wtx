@@ -2,10 +2,9 @@ use crate::{
   client_api_framework::{
     Api,
     network::transport::{ReceivingTransport, SendingTransport},
-    pkg::{BatchElems, BatchPkg, Package, PkgsAux},
+    pkg::{Package, PkgsAux},
   },
-  codec::{Decode, DecodeSeq, Encode, GenericCodec, GenericDecodeWrapper},
-  collection::Vector,
+  codec::{Decode, GenericDecodeWrapper},
 };
 
 /// Transport that sends and receives package data
@@ -51,32 +50,6 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
     }
   }
 
-  /// Convenient method similar to [`Self::send_pkg_recv_decode_contained`] but used for batch
-  /// requests.
-  ///
-  /// All the expected data must be available in a single response.
-  #[inline]
-  fn send_pkg_recv_decode_batch<'pkgs, 'pkgs_aux, A, DRSR, P>(
-    &mut self,
-    buffer: &mut Vector<P::ExternalResponseContent<'pkgs_aux>>,
-    pkgs: &'pkgs mut [P],
-    pkgs_aux: &'pkgs_aux mut PkgsAux<A, DRSR, TP>,
-  ) -> impl Future<Output = Result<(), A::Error>>
-  where
-    A: Api,
-    P: Package<A, DRSR, Self::Inner, TP>,
-    BatchElems<'pkgs, A, DRSR, P, Self::Inner, TP>: Encode<GenericCodec<DRSR>>,
-  {
-    async {
-      self.send_pkg_recv(&mut BatchPkg::new(pkgs, pkgs_aux), pkgs_aux).await?;
-      P::ExternalResponseContent::decode_seq(
-        buffer,
-        &mut GenericDecodeWrapper::new(&pkgs_aux.bytes_buffer),
-      )?;
-      Ok(())
-    }
-  }
-
   /// Internally calls [`Self::send_pkg_recv`] and then tries to decode the defined response specified
   /// in [`Package::ExternalResponseContent`].
   #[inline]
@@ -93,6 +66,7 @@ pub trait SendingReceivingTransport<TP>: ReceivingTransport<TP> + SendingTranspo
       self.send_pkg_recv(pkg, pkgs_aux).await?;
       Ok(P::ExternalResponseContent::decode(&mut GenericDecodeWrapper::new(
         &pkgs_aux.bytes_buffer,
+        &mut pkgs_aux.drsr,
       ))?)
     }
   }
