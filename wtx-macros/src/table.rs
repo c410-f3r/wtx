@@ -28,8 +28,8 @@ pub(crate) fn table(item: proc_macro::TokenStream) -> crate::Result<proc_macro::
 
   let expanded = quote::quote! {
     impl #struct_name {
-      /// Fields separated by commas
-      pub(crate) fn fields() -> &'static str {
+      /// Table fields separated by commas
+      pub(crate) const fn table_fields() -> &'static str {
         #fields
       }
     }

@@ -216,7 +216,12 @@ impl Aead for () {
   }
 }
 
-#[cfg(any(feature = "aes-gcm", feature = "aws-lc-rs", feature = "chacha20poly1305"))]
+#[cfg(any(
+  feature = "aes-gcm",
+  feature = "aws-lc-rs",
+  feature = "chacha20poly1305",
+  feature = "ring"
+))]
 fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) -> [u8; NONCE_LEN] {
   let [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11] = nonce;
   let [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, _, _, _, _] = rng.u8_16();
@@ -266,7 +271,12 @@ fn split_nonce_content_tag(
   Ok((nonce, content, tag))
 }
 
-#[cfg(any(feature = "aes-gcm", feature = "aws-lc-rs", feature = "chacha20poly1305"))]
+#[cfg(any(
+  feature = "aes-gcm",
+  feature = "aws-lc-rs",
+  feature = "chacha20poly1305",
+  feature = "ring"
+))]
 fn write_tag(from: [u8; TAG_LEN], to: [&mut u8; TAG_LEN]) {
   for (dest, src) in to.into_iter().zip(from) {
     *dest = src;

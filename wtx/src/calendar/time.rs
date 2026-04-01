@@ -18,6 +18,11 @@ use core::{
 };
 
 /// Clock time with nanosecond precision.
+//
+// With a considerable and probably unworthy effort it is possible to save 2 bytes.
+//
+// | x      | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxx | xxxxxx | xxxxx |
+// | unused | nanosecond                     | second | minute | hour  |
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Time {
   hour: Hour,

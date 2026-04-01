@@ -17,9 +17,24 @@
 [rustc-badge]: https://img.shields.io/badge/rustc-1.95-blue
 [rustc-url]: https://blog.rust-lang.org/2025/01/09/Rust-1.95.0.html
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 9 IETF RFCs ([5280](https://datatracker.ietf.org/doc/html/rfc5280), [6265](https://datatracker.ietf.org/doc/html/rfc6265), [6455](https://datatracker.ietf.org/doc/html/rfc6455), [7301](https://datatracker.ietf.org/doc/html/rfc7301), [7468](https://datatracker.ietf.org/doc/html/rfc7468), [7541](https://datatracker.ietf.org/doc/html/rfc7541), [7692](https://datatracker.ietf.org/doc/html/rfc7692), [8441](https://datatracker.ietf.org/doc/html/rfc8441), [9113](https://datatracker.ietf.org/doc/html/rfc9113)), 3 formal specifications ([gRPC](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md), [MySQL](https://dev.mysql.com/doc/dev/mysql-server/latest/), [PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)) and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 9 IETF RFCs, 3 formal specifications and several other invented ideas.
 
 Works on embedded devices with heap allocators. If you find this crate interesting, please consider giving it a star ⭐ on `GitHub`.
+
+| Specification           | URL                                                              |
+| ----------------------- | ---------------------------------------------------------------- |
+| `gRPC`                  | <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md> |
+| `HPACK`                 | <https://datatracker.ietf.org/doc/html/rfc7541>                  |
+| `HTTP Cookies`          | <https://datatracker.ietf.org/doc/html/rfc6265>                  |
+| `HTTP/2`                | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
+| `MySQL`                 | <https://dev.mysql.com/doc/dev/mysql-server/latest>              |
+| `PEM`                   | <https://datatracker.ietf.org/doc/html/rfc7468>                  |
+| `PostgreSQL`            | <https://www.postgresql.org/docs/current/protocol.html>          |
+| `TLS 1.3`               | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
+| `WebSocket`             | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
+| `WebSocket Compression` | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
+| `WebSocket over HTTP/2` | <https://datatracker.ietf.org/doc/html/rfc8441>                  |
+| `X.509`                 | <https://datatracker.ietf.org/doc/html/rfc5280>                  |
 
 ## Comparisons
 
@@ -55,8 +70,6 @@ Checkout [wtx-bench](https://c410-f3r.github.io/wtx-bench/) to see a variety of 
 ![WebSocket Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
 
 There are mainly 2 things that impact performance, the chosen runtime and the number of pre-allocated bytes. Specially for servers that have to create a new instance for each handshake, pre-allocating a high number of bytes for short-lived or low-transfer connections can have a negative impact.
-
-![PostgreSQL Benchmark](https://i.imgur.com/vf2tYxY.jpg)
 
 ## Low-level benchmarks
 
