@@ -1,10 +1,13 @@
 use crate::{
   asn1::{BitString, Len, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv},
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  misc::Lease,
   x509::{AlgorithmIdentifier, TbsCertificate, X509Error},
 };
 #[cfg(feature = "base64")]
-use crate::{collection::TryExtend, misc::LeaseMut};
+use crate::{collection::TryExtend, misc::Pem};
+#[cfg(feature = "base64")]
+use core::ops::Range;
 
 /// A complete X.509 certificate comprising the signed data, algorithm, and signature.
 #[derive(Debug, PartialEq)]
@@ -23,21 +26,35 @@ impl<'bytes> Certificate<'bytes> {
     Self::decode(&mut GenericDecodeWrapper::new(bytes, None))
   }
 
-  /// From PEM contents or in other words, from base64 data.
+  /// From PEM contents or in other words, from base64 data delimited by labels.
   ///
   /// See [`crate::misc::Pem`].
   #[cfg(feature = "base64")]
-  pub fn from_pem<B>(buffer: &'bytes mut B, bytes: &[u8]) -> crate::Result<Self>
+  pub fn from_pem(buffer: &'bytes [u8], pem: &Pem<Range<usize>, 1>) -> crate::Result<Self> {
+    let [(_label, range)] = pem.data.as_inner()?;
+    Self::decode(&mut GenericDecodeWrapper::new(
+      buffer.get(range.clone()).unwrap_or_default(),
+      None,
+    ))
+  }
+
+  /// Generalization of [`Self::from_pem`].
+  #[cfg(feature = "base64")]
+  pub fn from_pems<'pem, I>(
+    buffer: &'bytes [u8],
+    instances: &mut I,
+    pems: impl IntoIterator<Item = &'pem Pem<Range<usize>, 1>>,
+  ) -> crate::Result<()>
   where
-    B: LeaseMut<[u8]> + TryExtend<(u8, usize)>,
+    I: TryExtend<[Certificate<'bytes>; 1]>,
   {
-    use crate::{
-      codec::{Decode, GenericDecodeWrapper},
-      misc::Pem,
-    };
-    let pem = Pem::<_, 1>::decode(&mut GenericDecodeWrapper::new(bytes, &mut *buffer))?;
-    let [(_label, _content)] = pem.data.into_inner()?;
-    Self::decode(&mut GenericDecodeWrapper::new(buffer.lease(), None))
+    for pem in pems {
+      let [(_label, range)] = pem.data.as_inner()?;
+      let bytes = buffer.get(range.clone()).unwrap_or_default();
+      let instance = Self::decode(&mut GenericDecodeWrapper::new(bytes, None))?;
+      instances.try_extend([instance])?;
+    }
+    Ok(())
   }
 }
 
@@ -65,5 +82,12 @@ impl<'bytes> Encode<GenericCodec<(), ()>> for Certificate<'bytes> {
       self.signature_value.encode(local_ew)?;
       Ok(())
     })
+  }
+}
+
+impl<'bytes> Lease<Certificate<'bytes>> for Certificate<'bytes> {
+  #[inline]
+  fn lease(&self) -> &Certificate<'bytes> {
+    self
   }
 }

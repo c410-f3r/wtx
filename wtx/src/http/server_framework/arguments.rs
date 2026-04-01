@@ -1,8 +1,6 @@
 mod json_reply;
 mod path_owned;
 mod path_str;
-#[cfg(feature = "serde_json")]
-mod serde_json;
 
 use crate::{
   http::{HttpError, server_framework::RouteMatch},
@@ -11,8 +9,6 @@ use crate::{
 pub use json_reply::JsonReply;
 pub use path_owned::PathOwned;
 pub use path_str::PathStr;
-#[cfg(feature = "serde_json")]
-pub use serde_json::SerdeJsonOwned;
 
 fn manage_path<'uri>(
   path_defs: (u8, &[RouteMatch]),

@@ -28,17 +28,17 @@ const MAX_LABEL_LEN: usize = 23;
 /// -----END BAR-----
 /// ```
 #[derive(Debug, PartialEq)]
-pub struct Pem<T, const N: usize> {
+pub struct Pem<T, const B: usize> {
   /// Vector of labels and their associated decoded contents
-  pub data: ArrayVectorU8<(ArrayStringU8<MAX_LABEL_LEN>, T), N>,
+  pub data: ArrayVectorU8<(ArrayStringU8<MAX_LABEL_LEN>, T), B>,
 }
 
-impl<B, const N: usize> Decode<'_, GenericCodec<B, ()>> for Pem<Range<usize>, N>
+impl<T, const B: usize> Decode<'_, GenericCodec<T, ()>> for Pem<Range<usize>, B>
 where
-  B: LeaseMut<[u8]> + TryExtend<(u8, usize)>,
+  T: LeaseMut<[u8]> + TryExtend<(u8, usize)>,
 {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'_, B>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'_, T>) -> crate::Result<Self> {
     let mut this = Self { data: ArrayVectorU8::new() };
     let GenericDecodeWrapper { bytes, decode_aux } = dw;
     let idx = decode_aux.lease().len();
@@ -60,7 +60,7 @@ where
   }
 }
 
-impl<T, const N: usize> Encode<GenericCodec<(), &mut Vector<u8>>> for Pem<T, N>
+impl<T, const B: usize> Encode<GenericCodec<(), &mut Vector<u8>>> for Pem<T, B>
 where
   T: Lease<[u8]>,
 {
@@ -101,7 +101,7 @@ fn parse_block(
   output_idx: &mut usize,
 ) -> crate::Result<ArrayStringU8<MAX_LABEL_LEN>> {
   let [
-    b'-', b'-', b'-', b'-', b'-', b'T', b'E', b'G', b'I', b'N', b' ',
+    b'-', b'-', b'-', b'-', b'-', b'T', b'E', b'G', b'I', b'B', b' ',
     label_begin @ ..,
     b'-', b'-', b'-', b'-', b'-'
   ] = first_line else {
@@ -111,7 +111,7 @@ fn parse_block(
     *bytes = rest;
     let actual_line = strip_cr(line);
     if let [
-      b'-', b'-', b'-', b'-', b'-', b'E', b'N', b'D', b' ',
+      b'-', b'-', b'-', b'-', b'-', b'E', b'B', b'D', b' ',
       label_end @ ..,
       b'-', b'-', b'-', b'-', b'-'
     ] = actual_line

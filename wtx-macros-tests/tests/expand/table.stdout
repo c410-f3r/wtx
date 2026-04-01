@@ -7,8 +7,10 @@ pub struct Foo {
     baz: String,
 }
 impl Foo {
-    #[doc = r" Fields separated by commas"]
-    pub(crate) fn fields() -> &'static str { "\"foo\".bar,\"foo\".baz" }
+    #[doc = r" Table fields separated by commas"]
+    pub(crate) const fn table_fields() -> &'static str {
+        "\"foo\".bar,\"foo\".baz"
+    }
 }
 
 fn main() {}

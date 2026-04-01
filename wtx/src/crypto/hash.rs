@@ -14,14 +14,14 @@ pub trait Hash {
 
   /// Computes the hash digest of the given `data` and writes the resulting
   /// fixed-size output into `buffer`.
-  fn digest(data: &[u8]) -> Self::Digest;
+  fn digest<'data>(data: impl Iterator<Item = &'data [u8]>) -> Self::Digest;
 }
 
 impl Hash for () {
   type Digest = [u8; 0];
 
   #[inline]
-  fn digest(_: &[u8]) -> Self::Digest {
+  fn digest<'data>(_: impl Iterator<Item = &'data [u8]>) -> Self::Digest {
     [0; 0]
   }
 }

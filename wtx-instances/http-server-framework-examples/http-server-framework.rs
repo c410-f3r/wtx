@@ -4,6 +4,7 @@
 //! Currently, only HTTP/2 is supported.
 
 extern crate serde;
+extern crate serde_json;
 extern crate tokio;
 extern crate wtx;
 extern crate wtx_instances;
@@ -15,7 +16,7 @@ use wtx::{
   http::{
     ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
     server_framework::{
-      Middleware, PathOwned, Router, SerdeJsonOwned, ServerFrameworkBuilder, StateClean,
+      JsonReply, Middleware, PathOwned, Router, ServerFrameworkBuilder, State, StateClean,
       VerbatimParams, get, json,
     },
   },
@@ -55,9 +56,15 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn deserialization_and_serialization(
-  _: SerdeJsonOwned<DeserializeExample>,
-) -> wtx::Result<SerdeJsonOwned<SerializeExample>> {
-  Ok(SerdeJsonOwned(SerializeExample { _baz: [1, 2, 3, 4] }))
+  state: State<'_, (), LocalPool, ReqResBuffer>,
+) -> wtx::Result<JsonReply> {
+  let deserialize_example: DeserializeExample = serde_json::from_slice(&state.req.rrd.body)?;
+  let serialize_example = SerializeExample {
+    _baz: [u32::from(deserialize_example._bar / 2), u32::from(deserialize_example._bar % 2)],
+  };
+  state.req.rrd.clear();
+  serde_json::to_writer(&mut state.req.rrd.body, &serialize_example)?;
+  Ok(JsonReply::default())
 }
 
 async fn db(
@@ -118,11 +125,11 @@ impl Middleware<(), wtx::Error, LocalPool> for CustomMiddleware {
 
 #[derive(serde::Deserialize)]
 struct DeserializeExample {
-  _foo: i32,
-  _bar: u64,
+  _foo: u16,
+  _bar: u16,
 }
 
 #[derive(serde::Serialize)]
 struct SerializeExample {
-  _baz: [u8; 4],
+  _baz: [u32; 2],
 }

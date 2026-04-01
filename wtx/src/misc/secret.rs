@@ -2,7 +2,7 @@ mod secret_context;
 
 use crate::{
   collection::{Clear, TryExtend},
-  crypto::{Aead, Aes256GcmRustCrypto},
+  crypto::{Aead, Aes256GcmRustCrypto, Hash, Sha256DigestRustCrypto},
   misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
   rng::CryptoRng,
 };
@@ -12,7 +12,6 @@ use core::{
   ops::{Deref, DerefMut},
 };
 pub use secret_context::SecretContext;
-use sha2::{Digest, Sha256};
 
 /// Long-lived sensitive data.
 ///
@@ -42,7 +41,7 @@ impl Secret {
     let (nonce, tag) = {
       let mut secret_key = [0; 32];
       let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
-      fill_secret_key(&salt, &secret_context, &mut secret_key_locked);
+      fill_secret_key(&salt, &secret_context, &mut secret_key_locked)?;
       Aes256GcmRustCrypto::encrypt_in_place_detached(
         &[],
         &mut data_locked,
@@ -87,7 +86,7 @@ impl Secret {
     buffer.try_extend(&self.protected)?;
     let mut secret_key = [0; 32];
     let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
-    fill_secret_key(&self.salt, &self.secret_context, &mut secret_key_locked);
+    fill_secret_key(&self.salt, &self.secret_context, &mut secret_key_locked)?;
     let data = buffer.lease_mut();
     let plaintext = Aes256GcmRustCrypto::decrypt_in_place(&[], data, *secret_key_locked)?;
     Ok(fun(SensitiveBytes::new_locked(plaintext)?))
@@ -171,11 +170,12 @@ fn fill_secret_key(
   salt: &[u8; 32],
   secret_context: &SecretContext,
   secret_key: &mut SensitiveBytes<&mut [u8; 32]>,
-) {
-  let mut ctx = Sha256::new();
-  ctx.update(salt);
-  secret_context.0.iter().for_each(|static_key| ctx.update(static_key));
-  ctx.finalize_into((&mut ***secret_key).into());
+) -> crate::Result<()> {
+  let mut array = Sha256DigestRustCrypto::digest(
+    [&salt[..]].into_iter().chain(secret_context.0.iter().map(|el| &**el)),
+  );
+  secret_key.copy_from_slice(&**SensitiveBytes::new_locked(&mut array)?);
+  Ok(())
 }
 
 #[cfg(test)]
