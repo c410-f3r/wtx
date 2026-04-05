@@ -103,7 +103,7 @@ impl Default
   for WebSocketConnector<
     (),
     IntoIter<(&'static str, &'static str), 0>,
-    fn(&Response<'_, '_>) -> Result<(), crate::Error>,
+    fn(&Response<'_, '_>) -> crate::Result<()>,
     Xorshift64,
     WebSocketBuffer,
   >
@@ -111,7 +111,7 @@ impl Default
   #[inline]
   fn default() -> Self {
     #[inline]
-    const fn res(_: &Response<'_, '_>) -> Result<(), crate::Error> {
+    const fn res(_: &Response<'_, '_>) -> crate::Result<()> {
       Ok(())
     }
     Self {

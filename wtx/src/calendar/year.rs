@@ -4,7 +4,7 @@ use crate::{
   misc::AsciiGraphic,
 };
 
-/// All possible years that can be represented by the system. Goes from -32767 to 32766.
+/// All possible years that can be represented by the system. Goes from -32767 to 32767.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Year(i16);
@@ -14,8 +14,8 @@ impl Year {
   pub const CE: Self = Self(1);
   /// Instance that refers the UNIX epoch (1970).
   pub const EPOCH: Self = Self(1970);
-  /// Instance with the maximum allowed value of `32766`
-  pub const MAX: Self = Self(32766);
+  /// Instance with the maximum allowed value of `32767`
+  pub const MAX: Self = Self(32767);
   /// Instance with the minimum allowed value of `-32767`
   pub const MIN: Self = Self(-32767);
 
@@ -30,20 +30,26 @@ impl Year {
 
   /// If this instance has an additional day.
   #[inline]
-  pub const fn is_leap_year(&self) -> bool {
-    let value = if self.0 % 100 == 0 { 0b1111 } else { 0b11 };
+  pub const fn is_leap_year(self) -> bool {
+    let value = if self.0 % 100 == 0 { 0b1111 } else { 0b0011 };
     self.0 & value == 0
+  }
+
+  /// Constant unary negation
+  #[inline]
+  pub const fn neg(self) -> Self {
+    Self(-self.0)
   }
 
   /// Integer representation
   #[inline]
-  pub const fn num(&self) -> i16 {
+  pub const fn num(self) -> i16 {
     self.0
   }
 
   /// String representation
   #[inline]
-  pub fn num_str(&self) -> I16String {
+  pub fn num_str(self) -> I16String {
     i16_string_pad(self.0, AsciiGraphic::ZERO, 4)
   }
 }

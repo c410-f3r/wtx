@@ -70,7 +70,7 @@ impl Month {
     })
   }
 
-  /// The number of days given an arbitrary year.
+  /// The number of days of this month in a given year.
   #[inline]
   pub const fn days(self, year: Year) -> u8 {
     if let Self::February = self {

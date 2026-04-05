@@ -17,14 +17,14 @@ where
 
 impl Encode<()> for u32 {
   #[inline]
-  fn encode(&self, _: &mut ()) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl Encode<()> for &str {
   #[inline]
-  fn encode(&self, _: &mut ()) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut ()) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -106,10 +106,10 @@ where
 {
   #[inline]
   fn encode(&self, ew: &mut CC::EncodeWrapper<'_, '_, '_>) -> Result<(), CC::Error> {
-    match self {
-      None => Ok(()),
-      Some(elem) => elem.encode(ew),
+    if let Some(elem) = self {
+      elem.encode(ew)?;
     }
+    Ok(())
   }
 
   #[inline]

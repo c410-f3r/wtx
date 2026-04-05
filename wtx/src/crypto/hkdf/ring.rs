@@ -1,5 +1,5 @@
 use crate::{
-  crypto::{CryptoError, Hkdf, Sha256HkdfRing, Sha384HkdfRing},
+  crypto::{CryptoError, Hkdf, HkdfSha256Ring, HkdfSha384Ring},
   misc::unlikely_elem,
 };
 use ring::{
@@ -7,7 +7,7 @@ use ring::{
   hmac::{self, Context, HMAC_SHA256, HMAC_SHA384, Key},
 };
 
-impl Hkdf for Sha256HkdfRing {
+impl Hkdf for HkdfSha256Ring {
   type Digest = [u8; 32];
 
   #[inline]
@@ -35,7 +35,7 @@ impl Hkdf for Sha256HkdfRing {
   }
 }
 
-impl Hkdf for Sha384HkdfRing {
+impl Hkdf for HkdfSha384Ring {
   type Digest = [u8; 48];
 
   #[inline]

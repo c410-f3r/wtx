@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ ! -e "x509-limbo" ]; then
+if [ ! -e "limbo.json" ]; then
     curl -L -o limbo.json https://raw.githubusercontent.com/C2SP/x509-limbo/refs/heads/main/limbo.json
 fi
 

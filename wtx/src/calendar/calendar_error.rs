@@ -5,7 +5,7 @@ pub enum CalendarError {
   //
   /// Underlying time structure couldn't hold the value generated during an arithmetic operation.
   ArithmeticOverflow,
-  /// Days from CE must be within the `-11967900` ~ `11967535` range
+  /// Days from CE must be within the `-11968265` ~ `11967535` range
   InvalidCeDays {
     /// Invalid received number
     received: i32,
@@ -15,6 +15,8 @@ pub enum CalendarError {
     /// Invalid received number
     received: u8,
   },
+  /// A day can not be represented in a given month. For example, 29/02/2023.
+  InvalidDayOfTheMonth,
   /// A year can only have up to 366 days
   InvalidDayOfTheYear {
     /// Invalid received number
@@ -24,12 +26,12 @@ pub enum CalendarError {
   InvalidDayOfTheYearInNonLeapYear,
   /// The hardware returned an incorrect time value
   InvalidHardwareTime,
-  /// A day can only have up to 24 hours
+  /// A day can only have up to 23 hours
   InvalidHour {
     /// Invalid received number
     received: u8,
   },
-  /// A second can only have up to `999_999` microsecond
+  /// A second can only have up to `999_999` microseconds
   InvalidMicrosecond {
     /// Invalid received number
     received: u32,
@@ -39,40 +41,35 @@ pub enum CalendarError {
     /// Invalid received number
     received: u16,
   },
-  /// A hour can only have up to 60 hours
-  InvalidMinute {
-    /// Invalid received number
-    received: u8,
-  },
-  /// A hour can only have up to 60 hours
+  /// A month can not be represented by a number or a string
   InvalidMonth {
     /// Invalid received number
     received: Option<u8>,
   },
-  /// A second can only have up to `999_999_999` nanosecond
+  /// A second can only have up to `999_999_999` nanoseconds
   InvalidNanosecond {
     /// Invalid received number
     received: u32,
   },
   /// `Instant` doesn't have a time provider.
   InstantNeedsBackend,
-  /// A minute can only have up to 60 seconds
-  InvalidSecond {
+  /// A minute or second can only have up to 59 seconds
+  InvalidSixty {
     /// Invalid received number
     received: u8,
   },
-  /// A timestamp in this project can only go up to `32768-12-31`.
+  /// A timestamp in this project can only go up to `32767-12-31`.
   InvalidTimestamp,
-  /// Time zone couldn't be constructed with the given seconds
-  InvalidTimezoneSeconds {
-    /// Expected number of seconds
+  /// Time zone couldn't be constructed with the given minutes
+  InvalidTimezoneMinutes {
+    /// Expected number of minutes
     expected: Option<i16>,
     /// Invalid received number
     received: i16,
   },
   /// A weekday must be, for example, "Mon" or "Monday"
   InvalidWeekday,
-  /// A year be must between `-32767` and `32766`.
+  /// A year must be between `-32767` and `32767`.
   InvalidYear {
     /// Invalid received year
     received: i16,

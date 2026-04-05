@@ -1,5 +1,14 @@
 // FIXME(STABLE): Constant traits
 
+use crate::{
+  codec::{U32String, u32_string_pad},
+  misc::AsciiGraphic,
+};
+
+pub(crate) fn nanosecond_string(nanosecond: u32) -> U32String {
+  u32_string_pad(nanosecond, AsciiGraphic::ZERO, 9)
+}
+
 pub(crate) const fn boolu16(val: bool) -> u16 {
   val as u16
 }
@@ -14,6 +23,10 @@ pub(crate) const fn boolusize(val: bool) -> usize {
 
 pub(crate) const fn i16i32(val: i16) -> i32 {
   val as i32
+}
+
+pub(crate) const fn i16i64(val: i16) -> i64 {
+  val as i64
 }
 
 pub(crate) const fn i32i64(val: i32) -> i64 {

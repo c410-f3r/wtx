@@ -4,29 +4,29 @@ use crate::calendar::CalendarError;
 ///
 /// # Date Formats
 ///
-/// | Format  | Example  | Description                                                                        |
-/// | ------- | -------- | ---------------------------------------------------------------------------------- |
-/// | `%Y`    | `2001`   | Year with four zero-padded digits                                                  |
-/// | `%y`    | `01`     | Year with two zero-padded digits                                                   |
-/// |         |          |                                                                                    |
-/// | `%m`    | `07`     | Month with two zero-padded digits                                                  |
-/// | `%b`    | `Jul`    | Abbreviated month name                                                             |
-/// |         |          |                                                                                    |
-/// | `%d`    | `08`     | Day of month with two zero-padded digits                                           |
-/// | `%e`    | ` 8`     | Same as `%d` but space-padded                                                      |
-/// |         |          |                                                                                    |
-/// | `%a`    | `Sun`    | Abbreviated weekday name                                                           |
-/// | `%A`    | `Sunday` | Full weekday name                                                                  |
-/// |         |          |                                                                                    |
-/// | `%z?`   | `±03`    | Optional offset from the local time to UTC with or wihtout `Z`, colon and minutes¹ |
+/// | Format  | Example  | Description                                                                       |
+/// | ------- | -------- | --------------------------------------------------------------------------------- |
+/// | `%Y`    | `2001`   | Year with four zero-padded digits                                                 |
+/// | `%y`    | `01`     | Year with two zero-padded digits                                                  |
+/// |         |          |                                                                                   |
+/// | `%m`    | `07`     | Month with two zero-padded digits                                                 |
+/// | `%b`    | `Jul`    | Abbreviated month name                                                            |
+/// |         |          |                                                                                   |
+/// | `%d`    | `08`     | Day of month with two zero-padded digits                                          |
+/// | `%e`    | ` 8`     | Same as `%d` but space-padded                                                     |
+/// |         |          |                                                                                   |
+/// | `%a`    | `Sun`    | Abbreviated weekday name                                                          |
+/// | `%A`    | `Sunday` | Full weekday name                                                                 |
+/// |         |          |                                                                                   |
+/// | `%z?`   | `±03`    | Optional offset from the local time to UTC with or without `Z`, colon or minutes¹ |
 ///
 /// # Time Formats
 ///
 /// | Format  | Example  | Description                                     |
 /// | ------- | -------- | ----------------------------------------------- |
-/// | `%H`    | `00`     | Year with two zero-padded digits                |
+/// | `%H`    | `00`     | Hour with two zero-padded digits                |
 /// |         |          |                                                 |
-/// | `%M`    | `59`     | Minute with two zero-padded digits              |
+/// | `%M`    | `59`     | Sixty with two zero-padded digits               |
 /// |         |          |                                                 |
 /// | `%S`    | `59`     | Second with two zero-padded digits              |
 /// |         |          |                                                 |
@@ -44,7 +44,7 @@ use crate::calendar::CalendarError;
 /// | ` `     | Space               |
 /// | `T`     | Date/Time separator |
 ///
-/// ¹: Decoding accept many optinal paramenters but encoding will always output ±00:00 or `Z`.
+/// ¹: Decoding accept many optional parameters but encoding will always output ±00:00 or `Z`.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum CalendarToken {
   /// `%b` (Jul)

@@ -1,4 +1,6 @@
-use crate::calendar::{CeDays, DAYS_PER_QUADCENTURY, Date, DayOfYear, Duration, Weekday, Year};
+use crate::calendar::{
+  CeDays, DAYS_PER_QUADCENTURY, Date, Day, DayOfYear, Duration, Month, Weekday, Year,
+};
 
 fn _0401_03_02() -> Date {
   Date::from_ce_days(CeDays::from_num(DAYS_PER_QUADCENTURY.cast_signed() + 59 + 2).unwrap())
@@ -13,7 +15,7 @@ fn _2025_04_20() -> Date {
 fn ce_days() {
   assert_eq!(Date::CE.ce_days(), 1);
   assert_eq!(Date::MIN.ce_days(), -11968265);
-  assert_eq!(Date::MAX.ce_days(), 11967535);
+  assert_eq!(Date::MAX.ce_days(), 11967900);
   assert_eq!(_0401_03_02().ce_days(), DAYS_PER_QUADCENTURY.cast_signed() + 59 + 2);
   assert_eq!(_2025_04_20().ce_days(), 739361);
 }
@@ -63,9 +65,15 @@ fn day_of_year() {
 }
 
 #[test]
+fn invalids() {
+  assert!(Date::from_ymd(Year::from_num(2023).unwrap(), Month::February, Day::N29).is_err());
+  assert!(Date::from_ymd(Year::from_num(2023).unwrap(), Month::April, Day::N31).is_err());
+}
+
+#[test]
 fn iso8601() {
   assert_eq!(Date::MIN.iso8601().as_str(), "-32767-01-01");
-  assert_eq!(Date::MAX.iso8601().as_str(), "32766-12-31");
+  assert_eq!(Date::MAX.iso8601().as_str(), "32767-12-31");
   assert_eq!(_0401_03_02().iso8601().as_str(), "0401-03-02");
   assert_eq!(_2025_04_20().iso8601().as_str(), "2025-04-20");
 }
@@ -76,6 +84,20 @@ fn month() {
   assert_eq!(Date::MAX.month().num(), 12);
   assert_eq!(_0401_03_02().month().num(), 3);
   assert_eq!(_2025_04_20().month().num(), 4);
+}
+
+#[test]
+fn roundtrip() {
+  {
+    let text = Date::MAX.iso8601();
+    let reparsed = Date::from_iso8601(text.as_str().as_bytes()).unwrap();
+    assert_eq!(reparsed, Date::MAX);
+  }
+  {
+    let text = Date::MIN.iso8601();
+    let reparsed = Date::from_iso8601(text.as_str().as_bytes()).unwrap();
+    assert_eq!(reparsed, Date::MIN);
+  }
 }
 
 #[test]
@@ -104,7 +126,7 @@ fn weekday() {
 #[test]
 fn year() {
   assert_eq!(Date::MIN.year().num(), -32767);
-  assert_eq!(Date::MAX.year().num(), 32766);
+  assert_eq!(Date::MAX.year().num(), 32767);
   assert_eq!(_0401_03_02().year().num(), 401);
   assert_eq!(_2025_04_20().year().num(), 2025);
 }

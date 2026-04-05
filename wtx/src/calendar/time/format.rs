@@ -1,6 +1,8 @@
 use crate::{
-  calendar::{CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData},
-  codec::u32_string,
+  calendar::{
+    CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData,
+    misc::nanosecond_string,
+  },
   collection::{ArrayString, ArrayStringU8},
 };
 
@@ -19,7 +21,7 @@ impl Time {
     Ok(elem)
   }
 
-  /// Creates a string represented based on the given `tokens`.
+  /// Creates a string representation based on the given `tokens`.
   ///
   /// A string of 18 bytes is usually more than enough for most representations.
   ///
@@ -37,7 +39,7 @@ impl Time {
         }
         CalendarToken::DotNano => {
           string.push('.')?;
-          string.push_str(&u32_string(self.nanosecond().num()))?;
+          string.push_str(&nanosecond_string(self.nanosecond().num()))?;
         }
         CalendarToken::TwoDigitHour => {
           string.push_str(self.hour().num_str())?;

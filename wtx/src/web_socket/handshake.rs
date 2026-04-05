@@ -18,6 +18,7 @@ macro_rules! check_headers {
 }
 
 use crate::{
+  crypto::{GlobalSha1, Hash},
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
   misc::{LeaseMut, SuffixWriterFbvm, UriRef, bytes_split1},
   rng::Rng,
@@ -29,7 +30,6 @@ use crate::{
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
 use httparse::{EMPTY_HEADER, Header, Request, Response, Status};
-use sha1::{Digest, Sha1};
 
 const MAX_READ_HEADER_LEN: usize = 64;
 const MAX_READ_LEN: usize = 2 * 1024;
@@ -298,10 +298,8 @@ fn check_headers<'headers, const N: usize>(
 }
 
 fn derived_key<'buffer>(buffer: &'buffer mut [u8; 30], key: &[u8]) -> &'buffer [u8] {
-  let mut sha1 = Sha1::new();
-  sha1.update(key);
-  sha1.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-  base64_from_array(&sha1.finalize().into(), buffer)
+  let array = GlobalSha1::digest([key, b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"]);
+  base64_from_array(&array, buffer)
 }
 
 fn gen_key<'buffer>(buffer: &'buffer mut [u8; 26], rng: &mut impl Rng) -> &'buffer [u8] {

@@ -49,7 +49,7 @@ Only PostgreSQL supports the sending of multiple statements in a single round-tr
 
 The `#[wtx::db]` macro automatically migrates and seeds individual tests in isolation to allow concurrent evaluations.
 
-Its current state is limited to PostgreSQL tests that use the standard `std::net::TcpStream` along side the built-in executor.
+Its current state is limited to PostgreSQL tests that use the standard `std::net::TcpStream` alongside the built-in executor.
 
 Required features: `executor`, `macros`, `postgres` and `schema-manager-dev`. Connected users must have the right to create new databases.
 

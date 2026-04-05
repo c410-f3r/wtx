@@ -1,7 +1,7 @@
 use crate::{
-  asn1::{Len, SEQUENCE_TAG, Time, asn1_writer, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv},
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
-  x509::X509Error,
+  x509::{Time, X509Error},
 };
 
 /// Time interval during which the CA warrants that it will maintain information about the status
@@ -14,9 +14,9 @@ pub struct Validity {
   pub not_after: Time,
 }
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Validity {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Validity {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidValidity.into());
     };
@@ -28,10 +28,10 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Validity {
   }
 }
 
-impl Encode<GenericCodec<(), ()>> for Validity {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Validity {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
-    asn1_writer(ew, Len::MAX_ONE, SEQUENCE_TAG, |local_ew| {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
       self.not_before.encode(local_ew)?;
       self.not_after.encode(local_ew)?;
       Ok(())

@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Local time.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Local;
 
 impl TimeZone for Local {
@@ -15,7 +15,7 @@ impl TimeZone for Local {
   fn from_minutes(minutes: i16) -> crate::Result<Self> {
     if minutes != 0 {
       return Err(
-        CalendarError::InvalidTimezoneSeconds { expected: None, received: minutes }.into(),
+        CalendarError::InvalidTimezoneMinutes { expected: None, received: minutes }.into(),
       );
     }
     Ok(Self)

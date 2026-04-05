@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1Error, Len, OID_TAG, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, Len, OID_TAG, decode_asn1_tlv},
   codec::{
     Decode, Encode, FromRadix10, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper,
     u32_string,
@@ -19,11 +19,11 @@ impl Oid {
   /// New instance where `str` must be a valid `ITU-T` sequence. For example, zero padding like in
   /// `1.01.2` is invalid.
   #[inline]
-  pub const fn from_str_opt(str: &str) -> Option<Self> {
-    if !is_valid(str.as_bytes()) {
+  pub const fn from_bytes_opt(bytes: &[u8]) -> Option<Self> {
+    let Some(string) = is_valid(bytes) else {
       return None;
-    }
-    let inner = match ArrayStringU8::from_str_u8_opt(str) {
+    };
+    let inner = match ArrayStringU8::from_str_u8_opt(string) {
       Some(elem) => elem,
       None => return None,
     };
@@ -31,9 +31,9 @@ impl Oid {
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Oid {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Oid {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (OID_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
     };
@@ -53,9 +53,9 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Oid {
   }
 }
 
-impl Encode<GenericCodec<(), ()>> for Oid {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Oid {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let mut components = OidComponentIter(self.0.as_bytes());
     let (Some(c1_rslt), Some(c2_rslt)) = (components.next(), components.next()) else {
       return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
@@ -128,8 +128,19 @@ fn decode_base128_one(bytes: &[u8]) -> crate::Result<(u32, &[u8])> {
     return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
   }
   let mut value: u32 = 0;
-  for (idx, &byte) in bytes.iter().enumerate() {
-    let shift = value.checked_shl(7).ok_or(Asn1Error::InvalidBase128ObjectIdentifier)?;
+  let mut iter = bytes.iter().copied().enumerate();
+  for (idx, byte) in iter.by_ref().take(4) {
+    let shift = value << 7;
+    value = shift | u32::from(byte & 0b0111_1111);
+    if byte & 0b1000_0000 == 0 {
+      return Ok((value, bytes.get(idx.wrapping_add(1)..).unwrap_or_default()));
+    }
+  }
+  if let Some((idx, byte)) = iter.next() {
+    if value > 0b1_1111_1111_1111_1111_1111_1111 {
+      return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
+    }
+    let shift = value << 7;
     value = shift | u32::from(byte & 0b0111_1111);
     if byte & 0b1000_0000 == 0 {
       return Ok((value, bytes.get(idx.wrapping_add(1)..).unwrap_or_default()));
@@ -147,12 +158,14 @@ fn encode_base128(buffer: &mut ArrayVectorU8<u8, 20>, mut val: u32) -> crate::Re
   let mut idx = local_buffer.len();
   while val > 0 {
     idx = idx.wrapping_sub(1);
-    local_buffer[idx] = u8::try_from(val & 0b0111_1111)?;
+    if let Some(elem) = local_buffer.get_mut(idx) {
+      *elem = u8::try_from(val & 0b0111_1111)?;
+    }
     val >>= 7;
   }
   for local_idx in idx..local_buffer.len().wrapping_sub(1) {
     if let Some(elem) = local_buffer.get_mut(local_idx) {
-      *elem |= 0x80;
+      *elem |= 0b10000000;
     }
   }
   for elem in local_buffer.get(idx..).unwrap_or_default() {
@@ -162,49 +175,53 @@ fn encode_base128(buffer: &mut ArrayVectorU8<u8, 20>, mut val: u32) -> crate::Re
 }
 
 #[inline]
-const fn is_valid(mut bytes: &[u8]) -> bool {
-  let first = {
-    let [first, b'.', rest @ ..] = bytes else {
-      return false;
+const fn is_valid(mut bytes: &[u8]) -> Option<&str> {
+  let orig = bytes;
+  'validation: {
+    let first = {
+      let [first, b'.', rest @ ..] = bytes else {
+        return None;
+      };
+      bytes = rest;
+      *first
     };
-    bytes = rest;
-    *first
-  };
-  match first {
-    b'0' | b'1' => {
-      match bytes {
-        [b'0'] => return true,
-        [b'0', b'.', rest @ ..] => {
-          bytes = rest;
+    match first {
+      b'0' | b'1' => {
+        match bytes {
+          [b'0'] => break 'validation,
+          [b'0', b'.', rest @ ..] => {
+            bytes = rest;
+          }
+          [b'1'..=b'9'] => break 'validation,
+          [b'1'..=b'9', b'.', rest @ ..] => {
+            bytes = rest;
+          }
+          [b'1'..=b'3', b'0'..=b'9'] => break 'validation,
+          [b'1'..=b'3', b'0'..=b'9', b'.', rest @ ..] => {
+            bytes = rest;
+          }
+          _ => return None,
         }
-        [b'1'..=b'9'] => return true,
-        [b'1'..=b'9', b'.', rest @ ..] => {
-          bytes = rest;
+        if bytes.is_empty() {
+          return None;
         }
-        [b'1'..=b'3', b'0'..=b'9'] => return true,
-        [b'1'..=b'3', b'0'..=b'9', b'.', rest @ ..] => {
-          bytes = rest;
-        }
-        _ => return false,
       }
-      if bytes.is_empty() {
-        return false;
+      b'2' => {
+        if bytes.is_empty() {
+          return None;
+        }
       }
+      _ => return None,
     }
-    b'2' => {
-      if bytes.is_empty() {
-        return false;
+    while let [first, rest @ ..] = bytes {
+      bytes = rest;
+      if !is_valid_node(*first, &mut bytes) {
+        return None;
       }
-    }
-    _ => return false,
-  }
-  while let [first, rest @ ..] = bytes {
-    bytes = rest;
-    if !is_valid_node(*first, &mut bytes) {
-      return false;
     }
   }
-  true
+  // SAFETY: bytes are just a bunch of ASCII numbers or dots
+  Some(unsafe { core::str::from_utf8_unchecked(orig) })
 }
 
 #[inline]
@@ -238,31 +255,32 @@ mod tests {
 
   #[test]
   fn invalid_oids() {
-    assert!(Oid::from_str_opt("").is_none());
-    assert!(Oid::from_str_opt("1").is_none());
-    assert!(Oid::from_str_opt("3.0").is_none());
-    assert!(Oid::from_str_opt("0.40").is_none());
-    assert!(Oid::from_str_opt("1.40").is_none());
-    assert!(Oid::from_str_opt("0.00").is_none());
-    assert!(Oid::from_str_opt("0.01").is_none());
-    assert!(Oid::from_str_opt("1.2.").is_none());
-    assert!(Oid::from_str_opt("2.").is_none());
-    assert!(Oid::from_str_opt("2.0.").is_none());
-    assert!(Oid::from_str_opt("1.2.00").is_none());
-    assert!(Oid::from_str_opt("1.2.01").is_none());
+    assert!(Oid::from_bytes_opt(b"").is_none());
+    assert!(Oid::from_bytes_opt(b"1").is_none());
+    assert!(Oid::from_bytes_opt(b"3.0").is_none());
+    assert!(Oid::from_bytes_opt(b"0.40").is_none());
+    assert!(Oid::from_bytes_opt(b"1.40").is_none());
+    assert!(Oid::from_bytes_opt(b"0.00").is_none());
+    assert!(Oid::from_bytes_opt(b"0.01").is_none());
+    assert!(Oid::from_bytes_opt(b"1.2.").is_none());
+    assert!(Oid::from_bytes_opt(b"2.").is_none());
+    assert!(Oid::from_bytes_opt(b"2.0.").is_none());
+    assert!(Oid::from_bytes_opt(b"1.2.00").is_none());
+    assert!(Oid::from_bytes_opt(b"1.2.01").is_none());
   }
 
   #[test]
   fn valid_oids() {
-    let _ = Oid::from_str_opt("0.0").unwrap();
-    let _ = Oid::from_str_opt("0.39").unwrap();
-    let _ = Oid::from_str_opt("1.0").unwrap();
-    let _ = Oid::from_str_opt("1.0.8571.2").unwrap();
-    let _ = Oid::from_str_opt("1.2.3").unwrap();
-    let _ = Oid::from_str_opt("1.2.840.10045.3.1.7").unwrap();
-    let _ = Oid::from_str_opt("2.0").unwrap();
-    let _ = Oid::from_str_opt("2.0.3").unwrap();
-    let _ = Oid::from_str_opt("2.100.3").unwrap();
-    let _ = Oid::from_str_opt("2.999999999999999999.3").unwrap();
+    let _ = Oid::from_bytes_opt(b"0.0").unwrap();
+    let _ = Oid::from_bytes_opt(b"0.39").unwrap();
+    let _ = Oid::from_bytes_opt(b"1.0").unwrap();
+    let _ = Oid::from_bytes_opt(b"1.2").unwrap();
+    let _ = Oid::from_bytes_opt(b"1.0.8571.2").unwrap();
+    let _ = Oid::from_bytes_opt(b"1.2.3").unwrap();
+    let _ = Oid::from_bytes_opt(b"1.2.840.10045.3.1.7").unwrap();
+    let _ = Oid::from_bytes_opt(b"2.0").unwrap();
+    let _ = Oid::from_bytes_opt(b"2.0.3").unwrap();
+    let _ = Oid::from_bytes_opt(b"2.100.3").unwrap();
+    let _ = Oid::from_bytes_opt(b"2.999999999999999999.3").unwrap();
   }
 }

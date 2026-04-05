@@ -69,7 +69,7 @@ pub enum Error {
   #[cfg(feature = "getrandom")]
   #[doc = associated_element_doc!()]
   GetRandomError(getrandom::Error),
-  #[cfg(feature = "graviola")]
+  #[cfg(feature = "crypto-graviola")]
   #[doc = associated_element_doc!()]
   GraviolaError(graviola::Error),
   #[cfg(feature = "httparse")]
@@ -102,6 +102,9 @@ pub enum Error {
   #[cfg(feature = "serde_json")]
   #[doc = associated_element_doc!()]
   SerdeJsonDeserialize(Box<String>),
+  #[cfg(feature = "signature")]
+  #[doc = associated_element_doc!()]
+  Signature(Box<signature::Error>),
   #[cfg(feature = "spki")]
   #[doc = associated_element_doc!()]
   SpkiError(Box<spki::Error>),
@@ -254,9 +257,6 @@ pub enum Error {
   ArrayStringError(ArrayStringError),
   #[doc = associated_element_doc!()]
   ArrayVectorError(ArrayVectorError),
-  #[cfg(feature = "aws-lc-rs")]
-  #[doc = associated_element_doc!()]
-  AwsLcRsUnspecified(aws_lc_rs::error::Unspecified),
   #[doc = associated_element_doc!()]
   BlocksQueueError(BlocksDequeError),
   #[doc = associated_element_doc!()]
@@ -449,7 +449,7 @@ impl From<flate2::DecompressError> for Error {
   }
 }
 
-#[cfg(feature = "graviola")]
+#[cfg(feature = "crypto-graviola")]
 impl From<graviola::Error> for Error {
   #[inline]
   fn from(from: graviola::Error) -> Self {
@@ -604,6 +604,14 @@ impl From<crate::http::SessionError> for Error {
   }
 }
 
+#[cfg(feature = "signature")]
+impl From<signature::Error> for Error {
+  #[inline]
+  fn from(from: signature::Error) -> Self {
+    Self::Signature(from.into())
+  }
+}
+
 #[cfg(feature = "spki")]
 impl From<spki::Error> for Error {
   #[inline]
@@ -676,14 +684,6 @@ impl From<ArrayVectorError> for Error {
   #[inline]
   fn from(from: ArrayVectorError) -> Self {
     Self::ArrayVectorError(from)
-  }
-}
-
-#[cfg(feature = "aws-lc-rs")]
-impl From<aws_lc_rs::error::Unspecified> for Error {
-  #[inline]
-  fn from(from: aws_lc_rs::error::Unspecified) -> Self {
-    Self::AwsLcRsUnspecified(from)
   }
 }
 

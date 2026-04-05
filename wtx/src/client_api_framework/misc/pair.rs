@@ -2,7 +2,7 @@
 pub type PairMut<'any, PA, T> = Pair<&'any mut PA, &'any mut T>;
 
 /// A convenient wrapper intended for anything that mutable dereferences to
-/// [`crate::client_api_framework::pkg::PkgsAux`] along side any given `T: Transport`.
+/// [`crate::client_api_framework::pkg::PkgsAux`] alongside any given `T: Transport`.
 ///
 /// If desired, you can create your own set of APIs or transports by directly calling
 /// their constructors.

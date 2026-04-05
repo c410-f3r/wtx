@@ -1,12 +1,11 @@
 use crate::calendar::{
-  Date, DateTime, DayOfYear, Duration, DynTz, Hour, Minute, Nanosecond, Second, Time, TimeZone,
-  Utc, Year,
+  Date, DateTime, DayOfYear, Duration, DynTz, Hour, Nanosecond, Sixty, Time, TimeZone, Utc, Year,
 };
 
 fn _2025_04_20_14_20_30_1234() -> DateTime<Utc> {
   DateTime::new(
     Date::new(Year::from_num(2025).unwrap(), DayOfYear::from_num(110).unwrap()).unwrap(),
-    Time::from_hms_ns(Hour::N14, Minute::N20, Second::N30, Nanosecond::from_num(1234).unwrap()),
+    Time::from_hms_ns(Hour::N14, Sixty::N20, Sixty::N30, Nanosecond::from_num(1234).unwrap()),
     Utc,
   )
 }
@@ -149,21 +148,28 @@ fn iso8601() {
   assert_eq!(&base2(kst).iso8601(), "2014-05-06T23:59:59+09:00");
 
   assert_eq!(DateTime::MIN.iso8601().as_str(), "-32767-01-01T00:00:00Z");
-  assert_eq!(DateTime::MAX.iso8601().as_str(), "32766-12-31T23:59:59.999999999Z");
-  assert_eq!(_2025_04_20_14_20_30_1234().iso8601().as_str(), "2025-04-20T14:20:30.1234Z");
+  assert_eq!(DateTime::MAX.iso8601().as_str(), "32767-12-31T23:59:59.999999999Z");
+  assert_eq!(_2025_04_20_14_20_30_1234().iso8601().as_str(), "2025-04-20T14:20:30.000001234Z");
+}
+
+#[test]
+fn matches_utc_conversion() {
+  let local = DateTime::new(Date::EPOCH, Time::ZERO, DynTz::new(60).unwrap());
+  let utc = local.to_utc().unwrap();
+  assert_eq!(local.timestamp_secs_and_ns(), utc.timestamp_secs_and_ns());
 }
 
 #[test]
 fn timestamp() {
   assert_eq!(DateTime::MIN.timestamp_secs_and_ns().0, -1096193779200);
-  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971859427199);
+  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971890963199);
   assert_eq!(_2025_04_20_14_20_30_1234().timestamp_secs_and_ns().0, 1745158830);
 }
 
 #[test]
 fn times_zones() {
   assert_eq!(DateTime::MIN.timestamp_secs_and_ns().0, -1096193779200);
-  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971859427199);
+  assert_eq!(DateTime::MAX.timestamp_secs_and_ns().0, 971890963199);
   assert_eq!(_2025_04_20_14_20_30_1234().timestamp_secs_and_ns().0, 1745158830);
 }
 
@@ -192,8 +198,8 @@ fn to_utc() {
     DateTime::<Utc>::from_iso8601(b"0123-01-04T07:20:01Z").unwrap()
   );
   assert_eq!(
-    DateTime::<DynTz>::from_iso8601(b"3210-02-30T13:25:10+04:05").unwrap().to_utc().unwrap(),
-    DateTime::<Utc>::from_iso8601(b"3210-02-30T09:20:10Z").unwrap()
+    DateTime::<DynTz>::from_iso8601(b"3210-02-28T13:25:10+04:05").unwrap().to_utc().unwrap(),
+    DateTime::<Utc>::from_iso8601(b"3210-02-28T09:20:10Z").unwrap()
   );
 }
 

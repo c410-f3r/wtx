@@ -11,7 +11,6 @@ impl Agreement for X25519RustCrypto {
 
   #[inline]
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
@@ -20,7 +19,7 @@ impl Agreement for X25519RustCrypto {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, rng: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(rng: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
@@ -28,7 +27,7 @@ impl Agreement for X25519RustCrypto {
   }
 
   #[inline]
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
     Ok(PublicKey::from(esk))
   }
 }

@@ -36,7 +36,8 @@ where
   };
   sw_cb(sw)?;
   let value = value_cb(sw, len_begin)?;
-  Ok(write_len_end(len_write_begin, sw, value))
+  write_len_end(len_write_begin, sw, value);
+  Ok(())
 }
 
 #[inline]
@@ -65,7 +66,8 @@ where
     elements = elements.wrapping_add(1);
   }
   let value = value_cb(elements, sw, len_begin)?;
-  Ok(write_len_end(len_write_begin, sw, value))
+  write_len_end(len_write_begin, sw, value);
+  Ok(())
 }
 
 #[inline]

@@ -1,7 +1,8 @@
 use crate::misc::Lease;
 
 /// An enum that can contain two different types.
-#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Either<L, R> {
   /// Left
   Left(L),

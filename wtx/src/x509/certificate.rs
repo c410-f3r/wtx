@@ -1,5 +1,8 @@
 use crate::{
-  asn1::{BitString, Len, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv},
+  asn1::{
+    Asn1DecodeWrapper, Asn1EncodeWrapper, BitString, Len, SEQUENCE_TAG, asn1_writer,
+    decode_asn1_tlv,
+  },
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
   misc::Lease,
   x509::{AlgorithmIdentifier, TbsCertificate, X509Error},
@@ -23,7 +26,7 @@ pub struct Certificate<'bytes> {
 impl<'bytes> Certificate<'bytes> {
   /// From DER bytes
   pub fn from_der(bytes: &'bytes [u8]) -> crate::Result<Self> {
-    Self::decode(&mut GenericDecodeWrapper::new(bytes, None))
+    Self::decode(&mut GenericDecodeWrapper::new(bytes, Asn1DecodeWrapper::default()))
   }
 
   /// From PEM contents or in other words, from base64 data delimited by labels.
@@ -34,7 +37,7 @@ impl<'bytes> Certificate<'bytes> {
     let [(_label, range)] = pem.data.as_inner()?;
     Self::decode(&mut GenericDecodeWrapper::new(
       buffer.get(range.clone()).unwrap_or_default(),
-      None,
+      Asn1DecodeWrapper::default(),
     ))
   }
 
@@ -51,16 +54,18 @@ impl<'bytes> Certificate<'bytes> {
     for pem in pems {
       let [(_label, range)] = pem.data.as_inner()?;
       let bytes = buffer.get(range.clone()).unwrap_or_default();
-      let instance = Self::decode(&mut GenericDecodeWrapper::new(bytes, None))?;
-      instances.try_extend([instance])?;
+      instances.try_extend([Self::decode(&mut GenericDecodeWrapper::new(
+        bytes,
+        Asn1DecodeWrapper::default(),
+      ))?])?;
     }
     Ok(())
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Certificate<'de> {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Certificate<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidCertificate.into());
     };
@@ -73,10 +78,10 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Certificate<'de> {
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), ()>> for Certificate<'bytes> {
+impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Certificate<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
-    asn1_writer(ew, Len::MAX_THREE, SEQUENCE_TAG, |local_ew| {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       self.tbs_certificate.encode(local_ew)?;
       self.signature_algorithm.encode(local_ew)?;
       self.signature_value.encode(local_ew)?;

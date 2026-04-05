@@ -50,7 +50,7 @@ static QUADCENTURY_ADJUSTMENTS: &[u8; 401] = &[
 
 /// Proleptic Gregorian calendar.
 ///
-/// Can represent years from -32767 to +32766.
+/// Can represent years from -32767 to +32767.
 #[derive(Clone, Copy)]
 pub struct Date {
   year: Year,
@@ -72,7 +72,7 @@ impl Date {
   } else {
     panic!();
   };
-  /// Instance with the maximum allowed value of `32768-12-31`
+  /// Instance with the maximum allowed value of `32767-12-31`
   pub const MAX: Self = if let Ok(elem) = Self::new(Year::MAX, DayOfYear::N365) {
     elem
   } else {
@@ -126,6 +126,9 @@ impl Date {
   /// Constructs a new instance that automatically deals with leap years.
   #[inline]
   pub const fn from_ymd(year: Year, month: Month, day: Day) -> Result<Self, CalendarError> {
+    if day.num() > month.days(year) {
+      return Err(CalendarError::InvalidDayOfTheMonth);
+    }
     #[allow(clippy::indexing_slicing, reason = "zero or one are valid indices for a 2 len array")]
     let months_year = &DAYS_OF_MONTHS[boolusize(year.is_leap_year())];
     #[allow(clippy::indexing_slicing, reason = "month only goes up to 12")]
@@ -285,10 +288,18 @@ impl Date {
       return Ok(Self::EPOCH);
     };
 
-    let year_num = this_quadcenturies
-      .wrapping_add(sum_quadcenturies)
-      .saturating_mul(YEARS_PER_QUADCENTURY.cast_signed())
-      .saturating_add(sum_quadcentury_years);
+    let year_num = {
+      let lhs_opt = this_quadcenturies
+        .wrapping_add(sum_quadcenturies)
+        .checked_mul(YEARS_PER_QUADCENTURY.cast_signed());
+      let Some(lhs) = lhs_opt else {
+        return Err(CalendarError::ArithmeticOverflow);
+      };
+      let Some(rslt) = lhs.checked_add(sum_quadcentury_years) else {
+        return Err(CalendarError::ArithmeticOverflow);
+      };
+      rslt
+    };
     let year = match Year::from_num(year_num) {
       Ok(elem) => elem,
       Err(_err) => return Err(CalendarError::ArithmeticOverflow),

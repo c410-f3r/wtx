@@ -101,7 +101,7 @@ fn parse_block(
   output_idx: &mut usize,
 ) -> crate::Result<ArrayStringU8<MAX_LABEL_LEN>> {
   let [
-    b'-', b'-', b'-', b'-', b'-', b'T', b'E', b'G', b'I', b'B', b' ',
+    b'-', b'-', b'-', b'-', b'-', b'B', b'E', b'G', b'I', b'N', b' ',
     label_begin @ ..,
     b'-', b'-', b'-', b'-', b'-'
   ] = first_line else {
@@ -111,7 +111,7 @@ fn parse_block(
     *bytes = rest;
     let actual_line = strip_cr(line);
     if let [
-      b'-', b'-', b'-', b'-', b'-', b'E', b'B', b'D', b' ',
+      b'-', b'-', b'-', b'-', b'-', b'E', b'N', b'D', b' ',
       label_end @ ..,
       b'-', b'-', b'-', b'-', b'-'
     ] = actual_line
@@ -126,7 +126,7 @@ fn parse_block(
       *output_idx = output_idx.wrapping_add(len);
     }
   }
-  Ok(label_begin.try_into()?)
+  label_begin.try_into()
 }
 
 #[inline]

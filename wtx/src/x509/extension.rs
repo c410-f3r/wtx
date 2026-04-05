@@ -1,5 +1,8 @@
 use crate::{
-  asn1::{BOOLEAN_TAG, Boolean, Len, Octetstring, Oid, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv},
+  asn1::{
+    Asn1DecodeWrapper, Asn1EncodeWrapper, BOOLEAN_TAG, Boolean, Len, Octetstring, Oid,
+    SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
+  },
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
   x509::X509Error,
 };
@@ -16,9 +19,9 @@ pub struct Extension<'bytes> {
   pub extn_value: Octetstring<&'bytes [u8]>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Extension<'de> {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Extension<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtension.into());
     };
@@ -32,10 +35,10 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Extension<'de> {
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), ()>> for Extension<'bytes> {
+impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Extension<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
-    asn1_writer(ew, Len::MAX_TWO, SEQUENCE_TAG, |local_ew| {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
       self.extn_id.encode(local_ew)?;
       if self.critical.0 {
         self.critical.encode(local_ew)?;
