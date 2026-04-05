@@ -16,14 +16,13 @@ $rt test-with-features wtx arbitrary
 $rt test-with-features wtx argon2
 $rt test-with-features wtx asn1
 $rt test-with-features wtx async-net
-$rt test-with-features wtx aws-lc-rs,_hack
 $rt test-with-features wtx base64
 $rt test-with-features wtx chacha20
 $rt test-with-features wtx chacha20poly1305
 $rt test-with-features wtx client-api-framework
 $rt test-with-features wtx crossbeam-channel
 $rt test-with-features wtx crypto
-$rt test-with-features wtx crypto-aws-lc-rs
+$rt test-with-features wtx crypto-aws-lc-rs,_hack
 $rt test-with-features wtx crypto-common
 $rt test-with-features wtx crypto-graviola 
 $rt test-with-features wtx crypto-ring

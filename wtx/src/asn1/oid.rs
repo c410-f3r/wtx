@@ -90,6 +90,7 @@ impl Deref for Oid {
 }
 
 struct OidComponentIter<'any>(&'any [u8]);
+
 impl<'any> Iterator for OidComponentIter<'any> {
   type Item = crate::Result<u32>;
 
