@@ -32,10 +32,14 @@ impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for CrlDistributionPoin
   }
 }
 
+/// An entry in the CRL Distribution Points extension.
 #[derive(Debug, PartialEq)]
 pub struct DistributionPoint<'bytes> {
+  /// See [`DistributionPointName`].
   pub distribution_point: Option<DistributionPointName<'bytes>>,
+  /// See [`ReasonFlags`].
   pub reasons: Option<ReasonFlags>,
+  /// See [`GeneralNames`].
   pub crl_issuer: Option<GeneralNames<'bytes>>,
 }
 

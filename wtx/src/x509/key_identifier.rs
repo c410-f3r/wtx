@@ -7,7 +7,10 @@ use crate::{
 /// The value is typically a hash of the subject's public key.
 #[derive(Debug, PartialEq)]
 pub enum KeyIdentifier {
+  /// Four-bit type field with the value 0100 followed by the least significant 60 bits of
+  /// the SHA-1 hash of the value of the BIT STRING subjectPublicKey.
   Composed([u8; 8]),
+  /// SHA-1 hash of the value of the BIT STRING subjectPublicKey.
   Sha1([u8; 20]),
 }
 

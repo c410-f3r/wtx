@@ -6,10 +6,14 @@ use crate::{
   x509::{GeneralName, MAXIMUM_TAG, MINIMUM_TAG, X509Error},
 };
 
+/// Represents a name range used in name constraints.
 #[derive(Debug, PartialEq)]
 pub struct GeneralSubtree<'bytes> {
+  /// Defines the subtree root.
   pub base: GeneralName<'bytes>,
+  /// Optional minimum distance.
   pub minimum: Option<U32>,
+  /// Optional maximum distance.
   pub maximum: Option<U32>,
 }
 

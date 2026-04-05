@@ -4,16 +4,26 @@ use crate::{
   x509::X509Error,
 };
 
+/// A `BIT STRING` variation of `ReasonCode`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ReasonFlags {
+  /// Not used
   Unused,
+  /// Subject's private key has been compromised
   KeyCompromise,
+  /// Issuing CA's private key has been compromised
   CaCompromise,
+  /// Subject is no longer affiliated with the issuing organization
   AffiliationChanged,
+  /// Certificate has been replaced by a new one
   Superseded,
+  /// Subject has ceased operation
   CessationOfOperation,
+  /// Certificate is temporarily on hold
   CertificateHold,
+  /// Privileges granted to the subject have been withdrawn
   PrivilegeWithdrawn,
+  /// Authority attribute (AA) has been compromised
   AaCompromise,
 }
 

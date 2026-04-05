@@ -226,7 +226,8 @@ impl<S> Aead for AeadStub<S> {
   feature = "aes-gcm",
   feature = "chacha20poly1305",
   feature = "crypto-aws-lc-rs",
-  feature = "crypto-ring"
+  feature = "crypto-graviola",
+  feature = "crypto-ring",
 ))]
 fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) -> [u8; NONCE_LEN] {
   let [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11] = nonce;
@@ -246,7 +247,7 @@ fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) ->
   [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11]
 }
 
-#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
+#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-graviola", feature = "crypto-ring"))]
 fn split_nonce_content(
   data: &mut [u8],
   error: CryptoError,
@@ -281,6 +282,7 @@ fn split_nonce_content_tag(
   feature = "aes-gcm",
   feature = "chacha20poly1305",
   feature = "crypto-aws-lc-rs",
+  feature = "crypto-graviola",
   feature = "crypto-ring"
 ))]
 fn write_tag(from: [u8; TAG_LEN], to: [&mut u8; TAG_LEN]) {

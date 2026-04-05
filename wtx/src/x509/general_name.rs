@@ -56,7 +56,7 @@ impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralName<'bytes>
   fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let (tag, content) = self.into();
     asn1_writer(ew, Len::MAX_ONE_BYTE, tag, |local_ew| {
-      local_ew.buffer.extend_from_copyable_slices([content])?;
+      let _ = local_ew.buffer.extend_from_copyable_slices([content])?;
       Ok(())
     })
   }

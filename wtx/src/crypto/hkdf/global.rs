@@ -2,14 +2,12 @@ use crate::crypto::Hkdf;
 
 type HkdfSha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha256Ring,
-  feature = "crypto-graviola" => crate::crypto::HkdfSha256Graviola,
   feature = "crypto-rust-crypto" => crate::crypto::HkdfSha256RustCrypto,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha256AwsLcRs,
   _ => crate::crypto::HkdfStub::<[u8; 32]>
 };
 type HkdfSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha384Ring,
-  feature = "crypto-graviola" => crate::crypto::HkdfSha384Graviola,
   feature = "crypto-rust-crypto" => crate::crypto::HkdfSha384RustCrypto,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha384AwsLcRs,
   _ => crate::crypto::HkdfStub::<[u8; 48]>

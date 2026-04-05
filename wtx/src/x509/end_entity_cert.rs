@@ -14,6 +14,14 @@ use crate::{
 };
 
 /// Semantic entry-point where certificates can be validated.
+///
+/// Servers should concurrently or sequentially call `validate_chain`, `validate_signature` and
+/// `validate_subject_name` to fully validate certificates. It is also possible to call
+/// `validate_server` to sequentially invoke all three methods at once.
+///
+/// Clients should concurrently or sequentially call `validate_chain` and `validate_signature` to
+/// to fully validate certificates. It is also possible to call `validate_client` to sequentially
+/// invoke all two methods at once.
 #[derive(Debug, PartialEq)]
 pub struct EndEntityCert<C>(
   /// Generic Certificate
@@ -24,6 +32,24 @@ impl<'bytes, C> EndEntityCert<C>
 where
   C: Lease<Certificate<'bytes>>,
 {
+  /// Sequentially calls [`Self::validate_chain`], [`Self::validate_signature`].
+  #[inline]
+  pub fn validate_client(
+    &self,
+    intermediate_certs: &[Certificate<'_>],
+    msg: &[u8],
+    signature: &[u8],
+    time: DateTime<Utc>,
+    trust_anchors: &[Certificate<'_>],
+  ) -> crate::Result<()> {
+    self.validate_chain(intermediate_certs, time, trust_anchors)?;
+    self.validate_signature(msg, signature)?;
+    Ok(())
+  }
+
+  /// Checks that a valid path exists when walking through the provided intermediate certificates.
+  /// A valid path is constructed when it hits one of the trust anchors and the associated
+  /// constraints like expirations times are satisfied.
   #[inline]
   pub fn validate_chain(
     &self,
@@ -37,6 +63,7 @@ where
     Ok(())
   }
 
+  /// Verifies `signature` over `msg` using the public key contained in this certificate.
   #[inline]
   pub fn validate_signature(&self, msg: &[u8], signature: &[u8]) -> crate::Result<()> {
     let spki = &self.0.lease().tbs_certificate.subject_public_key_info;
@@ -44,6 +71,24 @@ where
     let pk = spki.subject_public_key.bytes();
     let signature_ty = SignatureTy::try_from((alg_oid, params_oid(spki).as_ref()))?;
     signature_ty.validate_signature(pk, msg, signature)?;
+    Ok(())
+  }
+
+  /// Sequentially calls [`Self::validate_chain`], [`Self::validate_signature`] and
+  /// [`Self::validate_subject_name`].
+  #[inline]
+  pub fn validate_server(
+    &self,
+    intermediate_certs: &[Certificate<'_>],
+    msg: &[u8],
+    signature: &[u8],
+    sn: &[u8],
+    time: DateTime<Utc>,
+    trust_anchors: &[Certificate<'_>],
+  ) -> crate::Result<()> {
+    self.validate_chain(intermediate_certs, time, trust_anchors)?;
+    self.validate_signature(msg, signature)?;
+    self.validate_subject_name(sn)?;
     Ok(())
   }
 

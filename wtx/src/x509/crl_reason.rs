@@ -4,17 +4,28 @@ use crate::{
   x509::X509Error,
 };
 
+/// Identifies the reason for the certificate revocation.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CrlReason {
+  /// No specific reason provided
   Unspecified,
+  /// Subject's private key has been compromised
   KeyCompromise,
+  /// Issuing CA's private key has been compromised
   CaCompromise,
+  /// Subject is no longer affiliated with the issuing organization
   AffiliationChanged,
+  /// Certificate has been replaced by a new one
   Superseded,
+  /// Subject has ceased operation
   CessationOfOperation,
+  /// Certificate is temporarily on hold
   CertificateHold,
+  /// Entry removed from CRL (used in delta CRLs)
   RemoveFromCrl,
+  /// Privileges granted to the subject have been withdrawn
   PrivilegeWithdrawn,
+  /// Authority attribute (AA) has been compromised
   AaCompromise,
 }
 

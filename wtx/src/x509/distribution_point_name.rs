@@ -7,9 +7,12 @@ use crate::{
   },
 };
 
+/// Specifies where to find CRL information for a certificate.
 #[derive(Debug, PartialEq)]
 pub enum DistributionPointName<'bytes> {
+  /// [`GeneralNames`].
   FullName(GeneralNames<'bytes>),
+  /// [`RelativeDistinguishedName`].
   NameRelativeToCrlIssuer(RelativeDistinguishedName<'bytes>),
 }
 

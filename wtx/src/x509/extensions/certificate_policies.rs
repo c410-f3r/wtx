@@ -64,9 +64,12 @@ impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyInformation<'
   }
 }
 
+/// A policy qualifier for certificate policies.
 #[derive(Debug, PartialEq)]
 pub struct PolicyQualifierInfo<'bytes> {
+  /// See [`Oid`].
   pub policy_qualifier_id: Oid,
+  /// Opaque bytes
   pub qualifier: Any<&'bytes [u8]>,
 }
 

@@ -46,7 +46,7 @@ pub const MAX_HASH_LEN: usize = 48;
 pub const MAX_PK_LEN: usize = 97;
 
 /// A wrapper around public keys or other external structures that don't implement `AsRef<[u8]>`.
-#[cfg(any(feature = "p256", feature = "p384"))]
+#[cfg(any(feature = "crypto-graviola", feature = "p256", feature = "p384"))]
 #[derive(Debug)]
 pub struct AsRefWrapper<T>(T);
 
