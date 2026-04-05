@@ -72,7 +72,7 @@ impl U32 {
     Ok(Self::from_u32(u32::try_from(value)?))
   }
 
-  /// Interprets the internal bytes as [`MaxIntTy`].
+  /// Interprets the internal bytes as `u32`.
   #[inline]
   pub fn u32(&self) -> u32 {
     match self.0.as_slice() {

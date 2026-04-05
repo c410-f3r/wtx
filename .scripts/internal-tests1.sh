@@ -22,7 +22,12 @@ $rt test-with-features wtx chacha20
 $rt test-with-features wtx chacha20poly1305
 $rt test-with-features wtx client-api-framework
 $rt test-with-features wtx crossbeam-channel
+$rt test-with-features wtx crypto
+$rt test-with-features wtx crypto-aws-lc-rs
 $rt test-with-features wtx crypto-common
+$rt test-with-features wtx crypto-graviola 
+$rt test-with-features wtx crypto-ring
+$rt test-with-features wtx crypto-rust-crypto
 $rt test-with-features wtx database
 $rt test-with-features wtx default
 $rt test-with-features wtx digest

@@ -70,7 +70,7 @@ where
           let take_len = idx.min(9);
           let (nano_bytes, _) = num.split_at_checked(take_len).unwrap_or_default();
           let value = u32::from_radix_10(nano_bytes)?;
-          let multiplier = NANO_MULTIPLIERS[take_len];
+          let multiplier = NANO_MULTIPLIERS.get(take_len).copied().unwrap_or_default();
           nanos_opt = Some(value.wrapping_mul(multiplier));
           rhs
         }

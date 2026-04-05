@@ -23,7 +23,7 @@ pub struct TbsCertList<'bytes> {
   pub this_update: Time,
   /// The date by which the next CRL will be issued.
   pub next_update: Option<Time>,
-  /// See [`RevokedCertificate`].
+  /// See [`RevokedCertificates`].
   pub revoked_certificates: Option<RevokedCertificates<'bytes>>,
   /// Additional information.
   pub crl_extensions: Option<Extensions<'bytes, EXPLICIT_TAG0>>,

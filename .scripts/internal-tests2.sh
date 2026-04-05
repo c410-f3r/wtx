@@ -32,5 +32,4 @@ $rt test-with-features wtx postgres
 $rt test-with-features wtx quick-protobuf
 $rt test-with-features wtx rand_core
 $rt test-with-features wtx rand-compat
-$rt test-with-features wtx ring
 $rt test-with-features wtx rsa

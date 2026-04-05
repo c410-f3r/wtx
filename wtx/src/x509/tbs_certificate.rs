@@ -31,7 +31,7 @@ pub struct TbsCertificate<'bytes> {
   pub issuer_unique_id: Option<BitString<&'bytes [u8]>>,
   /// Optional subject unique identifier.
   pub subject_unique_id: Option<BitString<&'bytes [u8]>>,
-  /// See [`Extension`].
+  /// See [`Extensions`].
   pub extensions: Option<Extensions<'bytes, EXPLICIT_TAG3>>,
 }
 
