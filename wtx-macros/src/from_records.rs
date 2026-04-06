@@ -351,7 +351,7 @@ fn process_data<'any>(
   input: &'any DeriveInput,
   name: &Ident,
   quote_params: &mut ProcessDataInput<'any>,
-) -> Result<(), crate::Error> {
+) -> crate::Result<()> {
   match &input.data {
     Data::Struct(data) => match &data.fields {
       Fields::Named(fields) => {

@@ -11,7 +11,6 @@ impl Agreement for P256Graviola {
 
   #[inline]
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
@@ -24,7 +23,7 @@ impl Agreement for P256Graviola {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, _: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
@@ -32,7 +31,7 @@ impl Agreement for P256Graviola {
   }
 
   #[inline]
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
     Ok(esk.public_key_uncompressed())
   }
 }
@@ -44,7 +43,6 @@ impl Agreement for P384Graviola {
 
   #[inline]
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
@@ -57,7 +55,7 @@ impl Agreement for P384Graviola {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, _: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
@@ -65,7 +63,7 @@ impl Agreement for P384Graviola {
   }
 
   #[inline]
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
     Ok(esk.public_key_uncompressed())
   }
 }
@@ -77,7 +75,6 @@ impl Agreement for X25519Graviola {
 
   #[inline]
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
@@ -89,7 +86,7 @@ impl Agreement for X25519Graviola {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, _: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
@@ -97,7 +94,7 @@ impl Agreement for X25519Graviola {
   }
 
   #[inline]
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
     Ok(esk.public_key().as_bytes())
   }
 }

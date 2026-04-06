@@ -16,11 +16,10 @@ mod format;
 mod hour;
 mod microsecond;
 mod millisecond;
-mod minute;
 mod misc;
 mod month;
 mod nanosecond;
-mod second;
+mod sixty;
 mod time;
 mod time_zone;
 #[cfg(feature = "tracing-tree")]
@@ -41,10 +40,9 @@ pub use hour::Hour;
 pub use instant::Instant;
 pub use microsecond::Microsecond;
 pub use millisecond::Millisecond;
-pub use minute::Minute;
 pub use month::Month;
 pub use nanosecond::Nanosecond;
-pub use second::Second;
+pub use sixty::Sixty;
 pub use time::Time;
 pub use time_zone::*;
 #[cfg(feature = "tracing-tree")]

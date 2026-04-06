@@ -1,8 +1,8 @@
 use crate::calendar::CalendarError;
 
-/// Minutes of an hour.
+/// Seconds or minutes.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum Minute {
+pub enum Sixty {
   /// Zero
   N0,
   /// One
@@ -125,7 +125,7 @@ pub enum Minute {
   N59,
 }
 
-impl Minute {
+impl Sixty {
   /// Creates a new instance from a valid `num` number.
   #[inline]
   pub const fn from_num(num: u8) -> Result<Self, CalendarError> {
@@ -190,7 +190,7 @@ impl Minute {
       57 => Self::N57,
       58 => Self::N58,
       59 => Self::N59,
-      _ => return Err(CalendarError::InvalidMinute { received: num }),
+      _ => return Err(CalendarError::InvalidSixty { received: num }),
     })
   }
 
@@ -329,7 +329,7 @@ impl Minute {
   }
 }
 
-impl TryFrom<u8> for Minute {
+impl TryFrom<u8> for Sixty {
   type Error = crate::Error;
 
   #[inline]

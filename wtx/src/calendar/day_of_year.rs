@@ -1,6 +1,6 @@
 use crate::calendar::CalendarError;
 
-/// This particular structure can represent at most one second in nanosecond.
+/// This particular structure can represent 1 to 366 days.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DayOfYear(u16);
 

@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1Error, INTEGER_TAG, Len, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, INTEGER_TAG, Len, decode_asn1_tlv},
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
   misc::Lease,
 };
@@ -24,9 +24,9 @@ where
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Integer<&'de [u8]> {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Integer<&'de [u8]> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (INTEGER_TAG, _, bytes, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(Asn1Error::InvalidInteger.into());
     };
@@ -36,12 +36,12 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Integer<&'de [u8]> {
   }
 }
 
-impl<B> Encode<GenericCodec<(), ()>> for Integer<B>
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Integer<B>
 where
   B: Lease<[u8]>,
 {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let bytes = self.0.lease();
     let _ = ew.buffer.extend_from_copyable_slices([
       &[INTEGER_TAG][..],

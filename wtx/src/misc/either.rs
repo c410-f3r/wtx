@@ -1,7 +1,14 @@
 use crate::misc::Lease;
 
-/// An enum that can contain two different types.
-#[derive(Clone, Debug, PartialEq)]
+/// A `Cow` version without `alloc` and `ToOwned`.
+pub type RefOrOwned<'any, T> = Either<&'any T, T>;
+
+/// An enum that can contain two different types and only one is selected at runtime, in other
+/// words, a choice.
+///
+/// <i>Choice, the problem is choice.</i>
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Either<L, R> {
   /// Left
   Left(L),
@@ -19,6 +26,16 @@ where
     match self {
       Either::Left(elem) => elem.lease(),
       Either::Right(elem) => elem.lease(),
+    }
+  }
+}
+
+impl<T> Lease<T> for Either<&T, T> {
+  #[inline]
+  fn lease(&self) -> &T {
+    match self {
+      Either::Left(elem) => elem,
+      Either::Right(elem) => elem,
     }
   }
 }

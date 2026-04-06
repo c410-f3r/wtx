@@ -67,6 +67,12 @@ pub fn u64_string(value: u64) -> U64String {
   num_string::<false, 20, 20, u64>(0, false, value, 0)
 }
 
+/// Transforms an `u32` into an [`ArrayStringU8`] with padding.
+#[inline]
+pub fn u32_string_pad(value: u32, fill: AsciiGraphic, width: u8) -> U32String {
+  num_string::<false, 10, 10, u32>(fill.into(), false, value, width)
+}
+
 #[expect(
   clippy::arithmetic_side_effects,
   reason = "% and / will never overflow with 5, 10 and 20 integer literals"

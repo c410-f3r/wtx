@@ -5,8 +5,9 @@ use crate::{
       parsed_data::ParsedData,
       push::{push_four_digits_year, push_two_spaces_day},
     },
+    misc::nanosecond_string,
   },
-  codec::{i16_string, u32_string},
+  codec::i16_string,
   collection::{ArrayString, ArrayStringU8},
 };
 
@@ -58,7 +59,7 @@ where
         }
         CalendarToken::DotNano => {
           string.push('.')?;
-          string.push_str(&u32_string(self.time.nanosecond().num()))?;
+          string.push_str(&nanosecond_string(self.time.nanosecond().num()))?;
         }
         CalendarToken::FourDigitYear => {
           push_four_digits_year(self.date, &mut string)?;
@@ -124,19 +125,19 @@ mod tests {
   static _3_DATA: &[u8] = b"Mon, 12-May-2025 14:30:00 GMT";
   static _3_FMT: &[u8] = b"%a, %d-%b-%Y %H:%M:%S GMT";
 
-  static _4_DATA: &[u8] = b"1999-02-03T23:40:20.1234Z";
+  static _4_DATA: &[u8] = b"1999-02-03T23:40:20.000001234Z";
   static _4_FMT: &[u8] = b"%Y-%m-%dT%H:%M:%S%f?Z";
 
-  static _5_DATA0: &[u8] = b"2000-02-01T00:40:20.1234";
-  static _5_DATA1: &[u8] = b"2000-02-01T00:40:20.1234Z";
-  static _5_DATA2: &[u8] = b"2000-02-01T00:40:20.1234+03";
-  static _5_DATA3: &[u8] = b"2000-02-01T00:40:20.1234+0300";
-  static _5_DATA4: &[u8] = b"2000-02-01T00:40:20.1234+03:00";
-  static _5_DATA5: &[u8] = b"2000-02-01T00:40:20.1234+03:30";
-  static _5_DATA6: &[u8] = b"2000-02-01T00:40:20.1234-03";
-  static _5_DATA7: &[u8] = b"2000-02-01T00:40:20.1234-0300";
-  static _5_DATA8: &[u8] = b"2000-02-01T00:40:20.1234-03:00";
-  static _5_DATA9: &[u8] = b"2000-02-01T00:40:20.1234-03:30";
+  static _5_DATA0: &[u8] = b"2000-02-01T00:40:20.000001234";
+  static _5_DATA1: &[u8] = b"2000-02-01T00:40:20.000001234Z";
+  static _5_DATA2: &[u8] = b"2000-02-01T00:40:20.000001234+03";
+  static _5_DATA3: &[u8] = b"2000-02-01T00:40:20.000001234+0300";
+  static _5_DATA4: &[u8] = b"2000-02-01T00:40:20.000001234+03:00";
+  static _5_DATA5: &[u8] = b"2000-02-01T00:40:20.000001234+03:30";
+  static _5_DATA6: &[u8] = b"2000-02-01T00:40:20.000001234-03";
+  static _5_DATA7: &[u8] = b"2000-02-01T00:40:20.000001234-0300";
+  static _5_DATA8: &[u8] = b"2000-02-01T00:40:20.000001234-03:00";
+  static _5_DATA9: &[u8] = b"2000-02-01T00:40:20.000001234-03:30";
   static _5_FMT: &[u8] = b"%Y-%m-%dT%H:%M:%S%f?%z?";
 
   #[test]

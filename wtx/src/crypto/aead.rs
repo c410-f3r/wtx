@@ -1,15 +1,17 @@
 #[cfg(feature = "aes-gcm")]
 mod aes_gcm;
-#[cfg(feature = "aws-lc-rs")]
+#[cfg(feature = "crypto-aws-lc-rs")]
 mod aws_lc_rs;
 #[cfg(feature = "chacha20poly1305")]
 mod chacha20poly1305;
-#[cfg(feature = "graviola")]
+pub(crate) mod global;
+#[cfg(feature = "crypto-graviola")]
 mod graviola;
-#[cfg(feature = "ring")]
+#[cfg(feature = "crypto-ring")]
 mod ring;
 
 use crate::{collection::Vector, crypto::CryptoError, rng::CryptoRng};
+use core::marker::PhantomData;
 
 const NONCE_LEN: usize = 12;
 const TAG_LEN: usize = 16;
@@ -188,8 +190,12 @@ pub trait Aead {
   }
 }
 
-impl Aead for () {
-  type Secret = [u8; 0];
+/// Stub [`Aead`] implementation used when no backend is enabled.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct AeadStub<S>(PhantomData<S>);
+
+impl<S> Aead for AeadStub<S> {
+  type Secret = S;
 
   #[inline]
   fn decrypt_in_place<'encrypted>(
@@ -218,9 +224,10 @@ impl Aead for () {
 
 #[cfg(any(
   feature = "aes-gcm",
-  feature = "aws-lc-rs",
   feature = "chacha20poly1305",
-  feature = "ring"
+  feature = "crypto-aws-lc-rs",
+  feature = "crypto-graviola",
+  feature = "crypto-ring",
 ))]
 fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) -> [u8; NONCE_LEN] {
   let [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11] = nonce;
@@ -240,7 +247,7 @@ fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) ->
   [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11]
 }
 
-#[cfg(any(feature = "aws-lc-rs", feature = "ring"))]
+#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-graviola", feature = "crypto-ring"))]
 fn split_nonce_content(
   data: &mut [u8],
   error: CryptoError,
@@ -273,9 +280,10 @@ fn split_nonce_content_tag(
 
 #[cfg(any(
   feature = "aes-gcm",
-  feature = "aws-lc-rs",
   feature = "chacha20poly1305",
-  feature = "ring"
+  feature = "crypto-aws-lc-rs",
+  feature = "crypto-graviola",
+  feature = "crypto-ring"
 ))]
 fn write_tag(from: [u8; TAG_LEN], to: [&mut u8; TAG_LEN]) {
   for (dest, src) in to.into_iter().zip(from) {

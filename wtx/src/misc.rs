@@ -12,6 +12,7 @@ pub(crate) mod span;
 
 mod ascii_graphic;
 mod connection_state;
+mod default_array;
 mod either;
 mod enum_var_strings;
 mod env_vars;
@@ -48,7 +49,8 @@ pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use ascii_graphic::AsciiGraphic;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
-pub use either::Either;
+pub use default_array::DefaultArray;
+pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::EnvVars;
 #[cfg(any(

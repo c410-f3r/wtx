@@ -5,7 +5,7 @@ impl Hash for Sha256DigestRustCrypto {
   type Digest = [u8; 32];
 
   #[inline]
-  fn digest<'data>(data: impl Iterator<Item = &'data [u8]>) -> Self::Digest {
+  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
     let mut ctx = <sha2::Sha256 as Digest>::new();
     for elem in data {
       ctx.update(elem);
@@ -18,7 +18,7 @@ impl Hash for Sha384DigestRustCrypto {
   type Digest = [u8; 48];
 
   #[inline]
-  fn digest<'data>(data: impl Iterator<Item = &'data [u8]>) -> Self::Digest {
+  fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
     let mut ctx = <sha2::Sha384 as Digest>::new();
     for elem in data {
       ctx.update(elem);
