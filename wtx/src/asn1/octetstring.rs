@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1Error, Len, OCTET_STRING_TAG, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, Len, OCTET_STRING_TAG, decode_asn1_tlv},
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
   misc::Lease,
 };
@@ -26,9 +26,9 @@ where
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Octetstring<&'de [u8]> {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Octetstring<&'de [u8]> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (OCTET_STRING_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(Asn1Error::InvalidOctetstring.into());
     };
@@ -37,12 +37,12 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Octetstring<&'de [u8]> {
   }
 }
 
-impl<S> Encode<GenericCodec<(), ()>> for Octetstring<S>
+impl<S> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Octetstring<S>
 where
   S: Lease<[u8]>,
 {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let _ = ew.buffer.extend_from_copyable_slices([
       &[OCTET_STRING_TAG][..],
       &*Len::from_usize(0, self.0.lease().len())?,

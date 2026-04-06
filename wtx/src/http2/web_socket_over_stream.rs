@@ -121,7 +121,7 @@ fn extend_buffer(
   buffer: &mut Vector<u8>,
   no_masking: bool,
   mut slice: &[u8],
-) -> Result<(ReadFrameInfo, usize), crate::Error> {
+) -> crate::Result<(ReadFrameInfo, usize)> {
   let rfi = ReadFrameInfo::from_bytes::<(), false>(&mut slice, usize::MAX, 0, no_masking)?;
   let before = buffer.len();
   buffer.extend_from_copyable_slice(slice)?;

@@ -1,5 +1,8 @@
 use crate::{
-  asn1::{BitString, Len, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv},
+  asn1::{
+    Asn1DecodeWrapper, Asn1EncodeWrapper, BitString, Len, SEQUENCE_TAG, asn1_writer,
+    decode_asn1_tlv,
+  },
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
   x509::{AlgorithmIdentifier, X509Error},
 };
@@ -14,9 +17,9 @@ pub struct SubjectPublicKeyInfo<'bytes> {
   pub subject_public_key: BitString<&'bytes [u8]>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for SubjectPublicKeyInfo<'de> {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for SubjectPublicKeyInfo<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidSubjectPublicKeyInfo.into());
     };
@@ -28,10 +31,10 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for SubjectPublicKeyInfo<'de
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), ()>> for SubjectPublicKeyInfo<'bytes> {
+impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for SubjectPublicKeyInfo<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
-    asn1_writer(ew, Len::MAX_ONE, SEQUENCE_TAG, |local_ew| {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
       self.algorithm.encode(local_ew)?;
       self.subject_public_key.encode(local_ew)?;
       Ok(())

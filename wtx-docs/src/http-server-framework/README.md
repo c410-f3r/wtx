@@ -45,7 +45,7 @@ On the other hand, the above example gives you access to the full request. This 
 
 Determines how responses are constructed. Similar to input handling, the output defines what clients receive.
 
-For instance, this endpoint returns a simple `Hello` as the response body along side an implicit 200 OK status. No headers are sent.
+For instance, this endpoint returns a simple `Hello` as the response body alongside an implicit 200 OK status. No headers are sent.
 
 ```rust,edition2024
 async fn hello() -> &'static str {

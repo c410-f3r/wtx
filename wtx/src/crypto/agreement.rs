@@ -1,17 +1,19 @@
-#[cfg(feature = "aws-lc-rs")]
+#[cfg(feature = "crypto-aws-lc-rs")]
 mod aws_lc_rs;
-#[cfg(feature = "graviola")]
+pub(crate) mod global;
+#[cfg(feature = "crypto-graviola")]
 mod graviola;
 #[cfg(feature = "p256")]
 mod p256;
 #[cfg(feature = "p384")]
 mod p384;
-#[cfg(feature = "ring")]
+#[cfg(feature = "crypto-ring")]
 mod ring;
 #[cfg(feature = "x25519-dalek")]
 mod x25519_dalek;
 
-use crate::rng::CryptoRng;
+use crate::{misc::DefaultArray, rng::CryptoRng};
+use core::marker::PhantomData;
 
 /// Temporary single-use secret key.
 pub trait Agreement: Sized {
@@ -24,44 +26,48 @@ pub trait Agreement: Sized {
 
   /// Generates a symmetric cryptographic key.
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret>;
 
   /// New random ephemeral secret key
-  fn ephemeral_secret_key<RNG>(&self, rng: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(rng: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng;
 
   /// Associated public key of an ephemeral secret
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey>;
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey>;
 }
 
-impl Agreement for () {
-  type EphemeralSecretKey = ();
-  type SharedSecret = [u8; 0];
-  type PublicKey = [u8; 0];
+/// Stub [`Agreement`] implementation used when no backend is enabled.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct AgreementStub<ESK, PK, SS>(PhantomData<(ESK, PK, SS)>);
+
+impl<ESK, PK, SS> Agreement for AgreementStub<ESK, PK, SS>
+where
+  ESK: Default,
+  PK: AsRef<[u8]> + DefaultArray,
+  SS: AsRef<[u8]> + DefaultArray,
+{
+  type EphemeralSecretKey = ESK;
+  type PublicKey = PK;
+  type SharedSecret = SS;
 
   #[inline]
-  fn diffie_hellman(
-    &self,
-    _: Self::EphemeralSecretKey,
-    _: &[u8],
-  ) -> crate::Result<Self::SharedSecret> {
-    Ok([])
+  fn diffie_hellman(_: Self::EphemeralSecretKey, _: &[u8]) -> crate::Result<Self::SharedSecret> {
+    Ok(Self::SharedSecret::default_array())
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, _: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
-    Ok(())
+    Ok(Self::EphemeralSecretKey::default())
   }
 
   #[inline]
-  fn public_key(&self, _: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
-    Ok([0; 0])
+  fn public_key(_: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+    Ok(Self::PublicKey::default_array())
   }
 }

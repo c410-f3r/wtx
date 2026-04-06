@@ -2,7 +2,7 @@
 
 Provides basic primitives to work with time-related operations.
 
-* `Date`: Proleptic Gregorian calendar. Can represent years from -32767 to 32766.
+* `Date`: Proleptic Gregorian calendar. Can represent years from -32767 to 32767.
 
 * `DateTime`: ISO-8601 representation with timezones.
 

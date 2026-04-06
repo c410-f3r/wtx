@@ -1,11 +1,11 @@
-use crate::calendar::{Duration, Hour, Minute, Second, Time, nanosecond::Nanosecond};
+use crate::calendar::{Duration, Hour, Sixty, Time, nanosecond::Nanosecond};
 
 fn _8_48_05_234_445_009() -> Time {
-  Time::from_hms_ns(Hour::N8, Minute::N48, Second::N5, Nanosecond::from_num(234_445_009).unwrap())
+  Time::from_hms_ns(Hour::N8, Sixty::N48, Sixty::N5, Nanosecond::from_num(234_445_009).unwrap())
 }
 
 fn _14_20_30() -> Time {
-  Time::from_hms(Hour::N14, Minute::N20, Second::N30)
+  Time::from_hms(Hour::N14, Sixty::N20, Sixty::N30)
 }
 
 #[test]

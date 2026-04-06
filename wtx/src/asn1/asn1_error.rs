@@ -1,22 +1,30 @@
 /// ASN.1 Error
 #[derive(Debug)]
 pub enum Asn1Error {
-  /// Invalid ASN.1 Bit String
-  InvalidBitString,
-  /// Invalid ASN.1 Boolean
-  InvalidBoolean,
-  /// Invalid ASN.1 Integer
-  InvalidInteger,
-  /// Invalid ASN.1 length
-  InvalidLen,
-  /// Invalid ASN.1 Object Identifier
+  /// Invalid Object Identifier
   InvalidBase128ObjectIdentifier,
-  /// Invalid ASN.1 Octetstring
+  /// Invalid Bit String
+  InvalidBitString,
+  /// Invalid Boolean
+  InvalidBoolean,
+  /// Invalid Generalized Time
+  InvalidGeneralizedTime,
+  /// Invalid Generic Sequence
+  InvalidGenericSequence(u8, u8),
+  /// Invalid Integer
+  InvalidInteger,
+  /// Invalid length
+  InvalidLen,
+  /// Invalid Octetstring
   InvalidOctetstring,
-  /// Invalid ASN.1 Set
+  /// A sequence of DER bytes can not represent a serial number.
+  InvalidSerialNumberBytes,
+  /// Invalid Set
   InvalidSet,
-  /// Invalid ASN.1 time
-  InvalidTime,
-  /// Invalid ASN.1 Tag-Length-Value
+  /// Invalid Tag-Length-Value
   InvalidTlv,
+  /// A sequence of DER bytes can not represent `u32`
+  InvalidU32Bytes,
+  /// Invalid UTC Time
+  InvalidUtcTime,
 }

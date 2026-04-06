@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1Error, BOOLEAN_TAG, Len, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, BOOLEAN_TAG, Len, decode_asn1_tlv},
   codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
 };
 
@@ -10,9 +10,9 @@ pub struct Boolean(
   pub bool,
 );
 
-impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Boolean {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Boolean {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Option<u8>>) -> crate::Result<Self> {
+  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (BOOLEAN_TAG, _, [boolean], rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(Asn1Error::InvalidBoolean.into());
     };
@@ -21,13 +21,13 @@ impl<'de> Decode<'de, GenericCodec<Option<u8>, ()>> for Boolean {
   }
 }
 
-impl Encode<GenericCodec<(), ()>> for Boolean {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Boolean {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let _ = ew.buffer.extend_from_copyable_slices([
       &[BOOLEAN_TAG][..],
       &*Len::from_usize(0, 1)?,
-      &[if self.0 { 1 } else { 255 }],
+      &[if self.0 { 255 } else { 0 }],
     ])?;
     Ok(())
   }

@@ -1,10 +1,10 @@
 use crate::{
-  calendar::{CalendarError, Hour, MINUTES_PER_HOUR, Minute, TimeZone},
+  calendar::{CalendarError, Hour, MINUTES_PER_HOUR, Sixty, TimeZone},
   collection::{ArrayString, ArrayStringU8},
 };
 
 /// Dynamic Time Zone. From -23:59 to +23:59.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct DynTz(i16);
 
 impl DynTz {
@@ -19,7 +19,7 @@ impl DynTz {
   /// Greenwich Mean Time
   pub const GMT: DynTz = DynTz(0);
   /// Indian Standard Time
-  pub const IST: DynTz = DynTz(-330);
+  pub const IST: DynTz = DynTz(330);
   /// Japan Standard Time
   pub const JST: DynTz = DynTz(540);
   /// Pacific Standard Time
@@ -31,7 +31,7 @@ impl DynTz {
   #[inline]
   pub const fn new(minutes: i16) -> Result<Self, CalendarError> {
     let -1439..=1439 = minutes else {
-      return Err(CalendarError::InvalidTimezoneSeconds { expected: None, received: minutes });
+      return Err(CalendarError::InvalidTimezoneMinutes { expected: None, received: minutes });
     };
     Ok(Self(minutes))
   }
@@ -58,7 +58,7 @@ impl TimeZone for DynTz {
     // SAFETY: module 60 guarantees bounds
     let minute = unsafe {
       let elem = (self.0.abs() % mph).abs().try_into().unwrap_or_default();
-      Minute::from_num(elem).unwrap_unchecked()
+      Sixty::from_num(elem).unwrap_unchecked()
     };
     let mut str = ArrayString::new();
     let _rslt0 = str.push(if self.0 < 0 { '-' } else { '+' });

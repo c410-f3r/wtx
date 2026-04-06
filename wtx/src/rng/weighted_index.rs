@@ -15,17 +15,17 @@ where
   sum: B::Item,
 }
 
-impl<B> WeightedIndex<B>
+impl<B, E> WeightedIndex<B>
 where
-  B: Clear + Lease<[B::Item]> + SingleTypeStorage + TryExtend<[B::Item; 1]>,
-  B::Item: Clone + From<u8> + PartialOrd + TryArithmetic<Output = B::Item>,
+  B: Clear + Lease<[E]> + SingleTypeStorage<Item = E> + TryExtend<[E; 1]>,
+  E: Clone + From<u8> + PartialOrd + TryArithmetic<Output = E>,
 {
   /// Creates a new instance with the given buffer and weights.
   ///
   /// No element in the `weights` set should be negative.
   #[inline]
-  pub fn new(buffer: B, weights: impl IntoIterator<Item = B::Item>) -> crate::Result<Self> {
-    let mut this = Self { buffer, sum: B::Item::from(0u8) };
+  pub fn new(buffer: B, weights: impl IntoIterator<Item = E>) -> crate::Result<Self> {
+    let mut this = Self { buffer, sum: E::from(0u8) };
     this.recalc(weights)?;
     Ok(this)
   }
@@ -41,7 +41,7 @@ where
   pub fn clear(&mut self) {
     let Self { buffer, sum } = self;
     buffer.clear();
-    *sum = B::Item::from(0u8);
+    *sum = E::from(0u8);
   }
 
   /// Buffer ownership
@@ -54,13 +54,13 @@ where
   #[inline]
   pub fn pick<R>(&self, rng: &mut R) -> Option<usize>
   where
-    B::Item: FromRng<R>,
+    E: FromRng<R>,
     R: Rng,
   {
     let buffer = self.buffer.lease();
     let len = buffer.len();
     let sum = self.sum.clone();
-    let Some(random) = rng.pick_from_range(B::Item::from(0u8)..sum) else {
+    let Some(random) = rng.pick_from_range(E::from(0u8)..sum) else {
       if buffer.is_empty() {
         return None;
       }
@@ -74,11 +74,11 @@ where
   ///
   /// No element in the `weights` set should be negative.
   #[inline]
-  pub fn recalc(&mut self, weights: impl IntoIterator<Item = B::Item>) -> crate::Result<()> {
+  pub fn recalc(&mut self, weights: impl IntoIterator<Item = E>) -> crate::Result<()> {
     self.clear();
     let Self { buffer, sum } = self;
     for elem in weights {
-      if elem < B::Item::from(0u8) {
+      if elem < E::from(0u8) {
         return Err(crate::Error::InvalidWeight);
       }
       *sum = sum.try_add(elem)?;
@@ -88,14 +88,14 @@ where
   }
 }
 
-impl<B> Default for WeightedIndex<B>
+impl<B, E> Default for WeightedIndex<B>
 where
-  B: Default + SingleTypeStorage,
-  B::Item: Default,
+  B: Default + SingleTypeStorage<Item = E>,
+  E: Default,
 {
   #[inline]
   fn default() -> Self {
-    Self { buffer: B::default(), sum: B::Item::default() }
+    Self { buffer: B::default(), sum: E::default() }
   }
 }
 

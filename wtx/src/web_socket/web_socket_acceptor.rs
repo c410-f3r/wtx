@@ -81,17 +81,12 @@ impl<C, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB> {
 }
 
 impl Default
-  for WebSocketAcceptor<
-    (),
-    fn(&Request<'_, '_>) -> Result<(), crate::Error>,
-    Xorshift64,
-    WebSocketBuffer,
-  >
+  for WebSocketAcceptor<(), fn(&Request<'_, '_>) -> crate::Result<()>, Xorshift64, WebSocketBuffer>
 {
   #[inline]
   fn default() -> Self {
     #[inline]
-    const fn req(_: &Request<'_, '_>) -> Result<(), crate::Error> {
+    const fn req(_: &Request<'_, '_>) -> crate::Result<()> {
       Ok(())
     }
     Self {

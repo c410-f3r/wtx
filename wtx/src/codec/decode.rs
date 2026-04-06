@@ -11,21 +11,21 @@ where
 
 impl Decode<'_, ()> for &str {
   #[inline]
-  fn decode(_: &mut ()) -> Result<Self, crate::Error> {
+  fn decode(_: &mut ()) -> crate::Result<Self> {
     Ok("")
   }
 }
 
 impl Decode<'_, ()> for u32 {
   #[inline]
-  fn decode(_: &mut ()) -> Result<Self, crate::Error> {
+  fn decode(_: &mut ()) -> crate::Result<Self> {
     Ok(0)
   }
 }
 
 impl Decode<'_, ()> for u64 {
   #[inline]
-  fn decode(_: &mut ()) -> Result<Self, crate::Error> {
+  fn decode(_: &mut ()) -> crate::Result<Self> {
     Ok(0)
   }
 }

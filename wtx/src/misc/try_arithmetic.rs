@@ -1,3 +1,6 @@
+#[cfg(feature = "rust_decimal")]
+use rust_decimal::MathematicalOps;
+
 /// Try Arithmetic Error
 #[derive(Clone, Copy, Debug)]
 pub enum ArithmeticError {
@@ -7,6 +10,10 @@ pub enum ArithmeticError {
   DivOverflow,
   /// The result of a multiplication is greater than the underlying capacity
   MulOverflow,
+  /// The result of an exponentiation is greater than the underlying capacity
+  PowI32Overflow,
+  /// The result of an exponentiation is greater than the underlying capacity
+  PowU32Overflow,
   /// Remainder by zero or an overflow involving signed numbers
   RemOverflow,
   /// The result of a subtraction is lesser or greater than the underlying capacity
@@ -26,6 +33,12 @@ pub trait TryArithmetic<Rhs = Self> {
 
   /// Performs the `*` operation.
   fn try_mul(&self, rhs: Rhs) -> crate::Result<Self::Output>;
+
+  /// Raises itself to an integer power.
+  fn try_pow_i32(&self, exp: i32) -> crate::Result<Self::Output>;
+
+  /// Raises itself to an integer power.
+  fn try_pow_u32(&self, exp: u32) -> crate::Result<Self::Output>;
 
   /// Performs the `%` operation.
   fn try_rem(&self, rhs: Rhs) -> crate::Result<Self::Output>;
@@ -51,6 +64,16 @@ impl TryArithmetic<rust_decimal::Decimal> for rust_decimal::Decimal {
   #[inline]
   fn try_mul(&self, rhs: rust_decimal::Decimal) -> crate::Result<Self::Output> {
     Ok(self.checked_mul(rhs).ok_or(ArithmeticError::MulOverflow)?)
+  }
+
+  #[inline]
+  fn try_pow_i32(&self, rhs: i32) -> crate::Result<Self::Output> {
+    Ok(self.checked_powi(rhs.into()).ok_or(ArithmeticError::PowI32Overflow)?)
+  }
+
+  #[inline]
+  fn try_pow_u32(&self, rhs: u32) -> crate::Result<Self::Output> {
+    Ok(self.checked_powi(rhs.into()).ok_or(ArithmeticError::PowU32Overflow)?)
   }
 
   #[inline]
@@ -86,6 +109,16 @@ macro_rules! impl_float {
         }
 
         #[inline]
+        fn try_pow_i32(&self, rhs: i32) -> crate::Result<Self::Output> {
+          Ok(self.powi(rhs))
+        }
+
+        #[inline]
+        fn try_pow_u32(&self, rhs: u32) -> crate::Result<Self::Output> {
+          Ok(self.powi(rhs.try_into()?))
+        }
+
+        #[inline]
         fn try_rem(&self, rhs: $ty) -> crate::Result<Self::Output> {
           Ok(self % rhs)
         }
@@ -117,6 +150,16 @@ macro_rules! impl_integer {
         #[inline]
         fn try_mul(&self, rhs: $ty) -> crate::Result<Self::Output> {
           Ok(self.checked_mul(rhs).ok_or(ArithmeticError::MulOverflow)?)
+        }
+
+        #[inline]
+        fn try_pow_i32(&self, rhs: i32) -> crate::Result<Self::Output> {
+          Ok(self.checked_pow(rhs.try_into()?).ok_or(ArithmeticError::PowI32Overflow)?)
+        }
+
+        #[inline]
+        fn try_pow_u32(&self, rhs: u32) -> crate::Result<Self::Output> {
+          Ok(self.checked_pow(rhs).ok_or(ArithmeticError::PowU32Overflow)?)
         }
 
         #[inline]

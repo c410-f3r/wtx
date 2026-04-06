@@ -1,10 +1,13 @@
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, Date, DateTime, Hour, Minute, Month, Nanosecond, Time, TimeZone,
+    CalendarError, CalendarToken, Date, DateTime, Hour, Month, Nanosecond, Sixty, Time, TimeZone,
     Weekday,
   },
   codec::FromRadix10 as _,
 };
+
+const NANO_MULTIPLIERS: &[u32; 10] =
+  &[1_000_000_000, 100_000_000, 10_000_000, 1_000_000, 100_000, 10_000, 1_000, 100, 10, 1];
 
 pub(crate) enum ParsedData<TZ> {
   Time(Time),
@@ -64,14 +67,23 @@ where
             idx = idx.wrapping_add(1);
           }
           let (num, rhs) = rest.split_at_checked(idx).unwrap_or_default();
-          nanos_opt = Some(u32::from_radix_10(num)?);
+          let take_len = idx.min(9);
+          let (nano_bytes, _) = num.split_at_checked(take_len).unwrap_or_default();
+          let value = u32::from_radix_10(nano_bytes)?;
+          let multiplier = NANO_MULTIPLIERS.get(take_len).copied().unwrap_or_default();
+          nanos_opt = Some(value.wrapping_mul(multiplier));
           rhs
         }
         CalendarToken::FourDigitYear => {
           if year_opt.is_some() {
             return Err(CalendarError::DuplicatedParsingFormatYear.into());
           }
-          let (lhs, rhs) = split_at(bytes, 4)?;
+          let idx = match bytes {
+            [b'-', a, b, c, d, e, rest @ ..] if e.is_ascii_digit() => 6,
+            [a, b, c, d, e, rest @ ..] if e.is_ascii_digit() => 5,
+            _ => 4,
+          };
+          let (lhs, rhs) = split_at(bytes, idx)?;
           year_opt = Some(i16::from_radix_10(lhs)?);
           rhs
         }
@@ -242,7 +254,7 @@ fn minute(bytes: &[u8]) -> Option<(i16, &[u8])> {
   let [a, b, after_minute @ ..] = rest else {
     return None;
   };
-  let minute = Minute::from_num(u8::from_radix_10(&[*a, *b]).ok()?).ok()?;
+  let minute = Sixty::from_num(u8::from_radix_10(&[*a, *b]).ok()?).ok()?;
   Some((i16::from(minute.num()), after_minute))
 }
 

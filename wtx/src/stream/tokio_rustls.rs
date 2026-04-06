@@ -1,5 +1,7 @@
-use crate::stream::{StreamReader, StreamWithTls, StreamWriter};
-use ring::digest::{self, Digest};
+use crate::{
+  crypto::{Hash, Sha256DigestRing},
+  stream::{StreamReader, StreamWithTls, StreamWriter},
+};
 use rustls_pki_types::CertificateDer;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -17,7 +19,7 @@ impl<T> StreamWithTls for tokio_rustls::client::TlsStream<T>
 where
   T: AsyncRead + AsyncWrite + Unpin,
 {
-  type TlsServerEndPoint = Digest;
+  type TlsServerEndPoint = [u8; 32];
 
   #[inline]
   fn tls_server_end_point(&self) -> crate::Result<Option<Self::TlsServerEndPoint>> {
@@ -57,7 +59,7 @@ impl<T> StreamWithTls for tokio_rustls::server::TlsStream<T>
 where
   T: AsyncRead + AsyncWrite + Unpin,
 {
-  type TlsServerEndPoint = Digest;
+  type TlsServerEndPoint = [u8; 32];
 
   #[inline]
   fn tls_server_end_point(&self) -> crate::Result<Option<Self::TlsServerEndPoint>> {
@@ -85,9 +87,9 @@ where
 
 fn tls_server_end_point(
   certs: Option<&[CertificateDer<'static>]>,
-) -> crate::Result<Option<Digest>> {
+) -> crate::Result<Option<[u8; 32]>> {
   Ok(match certs {
-    Some([cert, ..]) => Some(digest::digest(&digest::SHA256, cert.as_ref())),
+    Some([cert, ..]) => Some(Sha256DigestRing::digest([cert.as_ref()])),
     _ => None,
   })
 }

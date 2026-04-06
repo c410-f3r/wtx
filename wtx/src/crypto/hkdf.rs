@@ -1,8 +1,12 @@
-#[cfg(feature = "aws-lc-rs")]
+use crate::misc::DefaultArray;
+use core::marker::PhantomData;
+
+#[cfg(feature = "crypto-aws-lc-rs")]
 mod aws_lc_rs;
+pub(crate) mod global;
 #[cfg(feature = "hkdf")]
 mod hkdf;
-#[cfg(feature = "ring")]
+#[cfg(feature = "crypto-ring")]
 mod ring;
 
 /// HMAC-based Key Derivation Function
@@ -26,17 +30,24 @@ pub trait Hkdf: Sized {
   fn expand(&self, info: &[u8], okm: &mut [u8]) -> crate::Result<()>;
 }
 
-impl Hkdf for () {
-  type Digest = [u8; 0];
+/// Stub [`Hkdf`] implementation used when no backend is enabled.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct HkdfStub<D>(PhantomData<D>);
+
+impl<D> Hkdf for HkdfStub<D>
+where
+  D: DefaultArray,
+{
+  type Digest = D;
 
   #[inline]
   fn extract(_: Option<&[u8]>, _: &[u8]) -> (Self::Digest, Self) {
-    ([0; 0], ())
+    (Self::Digest::default_array(), Self(PhantomData))
   }
 
   #[inline]
   fn from_prk(_: &[u8]) -> crate::Result<Self> {
-    Ok(())
+    Ok(Self(PhantomData))
   }
 
   #[inline]
@@ -44,7 +55,7 @@ impl Hkdf for () {
     _: impl IntoIterator<Item = &'data [u8]>,
     _: &[u8],
   ) -> crate::Result<Self::Digest> {
-    Ok([0; 0])
+    Ok(Self::Digest::default_array())
   }
 
   #[inline]
