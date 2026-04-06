@@ -19,4 +19,8 @@ pub enum CryptoError {
   InvalidChacha20Poly1305Data,
   /// Public Key Agreement Error
   PublicKeyAgreementError,
+  /// Signature Error
+  SignatureError,
+  /// Unsupported Signature Oid
+  UnsupportedSignatureOid,
 }

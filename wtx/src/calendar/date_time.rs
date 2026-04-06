@@ -4,9 +4,9 @@ mod tests;
 
 use crate::{
   calendar::{
-    CalendarError, CalendarToken, CeDays, Date, Duration, EPOCH_CE_DAYS, Hour, Minute, Nanosecond,
-    SECONDS_PER_DAY, Second, Time, TimeZone, Utc,
-    misc::{i32i64, u32i64},
+    CalendarError, CalendarToken, CeDays, Date, Duration, EPOCH_CE_DAYS, Hour, Nanosecond,
+    SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc,
+    misc::{i16i64, i32i64, u8i64, u32i64},
   },
   collection::{ArrayString, ArrayStringU8},
 };
@@ -25,9 +25,9 @@ impl DateTime<Utc> {
   pub const CE: Self = Self::new(Date::CE, Time::ZERO, Utc);
   /// Instance that refers the UNIX epoch (1970-01-01).
   pub const EPOCH: Self = Self::new(Date::EPOCH, Time::ZERO, Utc);
-  /// Instance with the maximum allowed value of `32768-12-31 24:59:59.999_999_999`
+  /// Instance with the maximum allowed value of `32767-12-31 23:59:59.999_999_999`
   pub const MAX: Self = Self::new(Date::MAX, Time::MAX, Utc);
-  /// Instance with the minimum allowed value of `-32768-01-01 00:00:00.000_000_000`
+  /// Instance with the minimum allowed value of `-32767-01-01 00:00:00.000_000_000`
   pub const MIN: Self = Self::new(Date::MIN, Time::ZERO, Utc);
 
   /// Creates a new instance from a UNIX timestamp expressed in seconds.
@@ -36,7 +36,7 @@ impl DateTime<Utc> {
     Self::from_timestamp_secs_and_ns(second, Nanosecond::ZERO)
   }
 
-  /// Creates a new instance from a UNIX timestamp expressed in seconds along side the number of
+  /// Creates a new instance from a UNIX timestamp expressed in seconds alongside the number of
   /// nanoseconds.
   #[inline]
   pub fn from_timestamp_secs_and_ns(seconds: i64, nanoseconds: Nanosecond) -> crate::Result<Self> {
@@ -51,8 +51,8 @@ impl DateTime<Utc> {
       Date::from_ce_days(CeDays::from_num(days.try_into()?)?)?,
       Time::from_hms_ns(
         Hour::from_num(hour)?,
-        Minute::from_num(minute)?,
-        Second::from_num(second)?,
+        Sixty::from_num(minute)?,
+        Sixty::from_num(second)?,
         nanoseconds,
       ),
       Utc,
@@ -151,11 +151,13 @@ where
   ///
   /// It is worth noting that it is much cheaper to get the timestamp using `Instant`.
   #[inline]
-  pub const fn timestamp_secs_and_ns(self) -> (i64, Nanosecond) {
+  pub fn timestamp_secs_and_ns(self) -> (i64, Nanosecond) {
     let mut rslt = i32i64(self.date.ce_days());
     rslt = rslt.wrapping_sub(u32i64(EPOCH_CE_DAYS));
     rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
-    (rslt.wrapping_add(u32i64(self.time.seconds_since_mn())), self.time.nanosecond())
+    rslt = rslt.wrapping_add(u32i64(self.time.seconds_since_mn()));
+    rslt = rslt.wrapping_sub(i16i64(self.tz.minutes()).wrapping_mul(u8i64(SECONDS_PER_MINUTE)));
+    (rslt, self.time.nanosecond())
   }
 
   /// Returns a new instance with the internal values converted to the provided timezone.
@@ -265,6 +267,14 @@ mod serde {
         #[inline]
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
           formatter.write_str("a formatted date and time string")
+        }
+
+        #[inline]
+        fn visit_bytes<E>(self, value: &[u8]) -> Result<Self::Value, E>
+        where
+          E: Error,
+        {
+          DateTime::from_iso8601(value).map_err(E::custom)
         }
 
         #[inline]

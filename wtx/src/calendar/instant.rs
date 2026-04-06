@@ -96,7 +96,7 @@ impl Instant {
       feature = "embassy-time" => {
         let _inner = self
           ._inner
-          .checked_sub(embassy_time::Duration::from_secs(_duration.as_secs()))
+          .checked_sub(embassy_time::Duration::from_micros(_duration.as_micros() as u64))
           .ok_or(CalendarError::ArithmeticOverflow)?;
         Ok(Self { _inner })
       },

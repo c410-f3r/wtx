@@ -173,7 +173,7 @@ where
       en: self.en.clone(),
       _matcher: self._matcher.clone(),
       middlewares: self.middlewares.clone(),
-      phantom: self.phantom.clone(),
+      phantom: self.phantom,
     }
   }
 }

@@ -45,11 +45,8 @@ impl<T> SingleTypeStorage for Arc<T> {
   type Item = T;
 }
 
-impl<T> SingleTypeStorage for Option<T>
-where
-  T: SingleTypeStorage,
-{
-  type Item = T::Item;
+impl<T> SingleTypeStorage for Option<T> {
+  type Item = T;
 }
 
 impl<T> SingleTypeStorage for RefCell<T> {

@@ -5,11 +5,10 @@ mod tests;
 use crate::{
   calendar::{
     CalendarError, CalendarToken, Duration, Hour, MINUTES_PER_HOUR, Microsecond, Millisecond,
-    Minute, NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Second,
-    misc::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
+    NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Sixty,
+    misc::{i32i64, nanosecond_string, u8i32, u8u32, u16i32, u16u32, u32i64},
     nanosecond::Nanosecond,
   },
-  codec::u32_string,
   collection::{ArrayString, ArrayStringU8},
 };
 use core::{
@@ -26,20 +25,20 @@ use core::{
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Time {
   hour: Hour,
-  minute: Minute,
-  second: Second,
+  minute: Sixty,
+  second: Sixty,
   nanosecond: Nanosecond,
 }
 
 impl Time {
   /// Instance with the maximum allowed value of `23:59:59.999_999_999`
-  pub const MAX: Self = Self::from_hms_ns(Hour::N23, Minute::N59, Second::N59, Nanosecond::MAX);
+  pub const MAX: Self = Self::from_hms_ns(Hour::N23, Sixty::N59, Sixty::N59, Nanosecond::MAX);
   /// Instance with the minimum allowed value of `00:00:00.000_000_000`
-  pub const ZERO: Self = Self::from_hms_ns(Hour::N0, Minute::N0, Second::N0, Nanosecond::ZERO);
+  pub const ZERO: Self = Self::from_hms_ns(Hour::N0, Sixty::N0, Sixty::N0, Nanosecond::ZERO);
 
   /// New instance without nanosecond precision.
   #[inline]
-  pub const fn from_hms(hour: Hour, minute: Minute, second: Second) -> Self {
+  pub const fn from_hms(hour: Hour, minute: Sixty, second: Sixty) -> Self {
     Self { hour, minute, second, nanosecond: Nanosecond::ZERO }
   }
 
@@ -47,8 +46,8 @@ impl Time {
   #[inline]
   pub const fn from_hms_ms(
     hour: Hour,
-    minute: Minute,
-    second: Second,
+    minute: Sixty,
+    second: Sixty,
     millisecond: Millisecond,
   ) -> Self {
     Self::from_hms_ns(hour, minute, second, millisecond.to_ns())
@@ -58,8 +57,8 @@ impl Time {
   #[inline]
   pub const fn from_hms_ns(
     hour: Hour,
-    minute: Minute,
-    second: Second,
+    minute: Sixty,
+    second: Sixty,
     nanosecond: Nanosecond,
   ) -> Self {
     Self { hour, minute, second, nanosecond }
@@ -69,8 +68,8 @@ impl Time {
   #[inline]
   pub const fn from_hms_us(
     hour: Hour,
-    minute: Minute,
-    second: Second,
+    minute: Sixty,
+    second: Sixty,
     microsecond: Microsecond,
   ) -> Self {
     Self::from_hms_ns(hour, minute, second, microsecond.to_ns())
@@ -94,7 +93,7 @@ impl Time {
   #[inline]
   pub const fn add(self, duration: Duration) -> Result<Self, CalendarError> {
     let (this, remaining) = self.overflowing_add(duration);
-    if remaining > 0 {
+    if remaining != 0 {
       return Err(CalendarError::ArithmeticOverflow);
     }
     Ok(this)
@@ -118,14 +117,14 @@ impl Time {
     let nanosecond = self.nanosecond();
     if nanosecond.num() > 0 {
       let _rslt5 = array.push('.');
-      let _rslt6 = array.push_str(&u32_string(nanosecond.num()));
+      let _rslt6 = array.push_str(&nanosecond_string(nanosecond.num()));
     }
     array
   }
 
   /// Minutes of a hour.
   #[inline]
-  pub const fn minute(self) -> Minute {
+  pub const fn minute(self) -> Sixty {
     self.minute
   }
 
@@ -156,12 +155,12 @@ impl Time {
           // SAFETY: `hms_from_seconds` keeps `hours` within bounds
           Err(_) => unsafe { unreachable_unchecked() },
         },
-        match Minute::from_num(this_minutes) {
+        match Sixty::from_num(this_minutes) {
           Ok(elem) => elem,
           // SAFETY: `hms_from_seconds` keeps `minutes` within bounds
           Err(_) => unsafe { unreachable_unchecked() },
         },
-        match Second::from_num(this_seconds) {
+        match Sixty::from_num(this_seconds) {
           Ok(elem) => elem,
           // SAFETY: `hms_from_seconds` keeps `seconds` within bounds
           Err(_) => unsafe { unreachable_unchecked() },
@@ -187,7 +186,7 @@ impl Time {
 
   /// Seconds of a minute
   #[inline]
-  pub const fn second(self) -> Second {
+  pub const fn second(self) -> Sixty {
     self.second
   }
 
@@ -203,7 +202,7 @@ impl Time {
   #[inline]
   pub const fn sub(self, duration: Duration) -> Result<Self, CalendarError> {
     let (this, remaining) = self.overflowing_sub(duration);
-    if remaining < 0 {
+    if remaining != 0 {
       return Err(CalendarError::ArithmeticOverflow);
     }
     Ok(this)

@@ -17,7 +17,6 @@ impl Agreement for P256Ring {
 
   #[inline]
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
@@ -30,7 +29,7 @@ impl Agreement for P256Ring {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, _: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
@@ -41,7 +40,7 @@ impl Agreement for P256Ring {
   }
 
   #[inline]
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
     Ok(esk.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
   }
 }
@@ -53,7 +52,6 @@ impl Agreement for P384Ring {
 
   #[inline]
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
@@ -66,7 +64,7 @@ impl Agreement for P384Ring {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, _: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
@@ -77,7 +75,7 @@ impl Agreement for P384Ring {
   }
 
   #[inline]
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
     Ok(esk.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
   }
 }
@@ -89,7 +87,6 @@ impl Agreement for X25519Ring {
 
   #[inline]
   fn diffie_hellman(
-    &self,
     esk: Self::EphemeralSecretKey,
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
@@ -102,7 +99,7 @@ impl Agreement for X25519Ring {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(&self, _: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
+  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
   where
     RNG: CryptoRng,
   {
@@ -113,7 +110,7 @@ impl Agreement for X25519Ring {
   }
 
   #[inline]
-  fn public_key(&self, esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
+  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
     Ok(esk.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
   }
 }

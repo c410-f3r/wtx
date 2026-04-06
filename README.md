@@ -30,7 +30,7 @@ Works on embedded devices with heap allocators. If you find this crate interesti
 | `MySQL`                 | <https://dev.mysql.com/doc/dev/mysql-server/latest>              |
 | `PEM`                   | <https://datatracker.ietf.org/doc/html/rfc7468>                  |
 | `PostgreSQL`            | <https://www.postgresql.org/docs/current/protocol.html>          |
-| `TLS 1.3`               | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
+| `TLS 1.3` (soon)        | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
 | `WebSocket`             | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
 | `WebSocket Compression` | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
 | `WebSocket over HTTP/2` | <https://datatracker.ietf.org/doc/html/rfc8441>                  |

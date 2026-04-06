@@ -1,4 +1,4 @@
-#[cfg(any(feature = "aws-lc-rs", feature = "ring"))]
+#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
 macro_rules! common_aead_functions {
   () => {
     #[inline]
@@ -45,7 +45,7 @@ macro_rules! common_aead_functions {
   };
 }
 
-#[cfg(any(feature = "aws-lc-rs", feature = "ring"))]
+#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
 macro_rules! common_hkdf_functions {
   () => {
     #[inline]

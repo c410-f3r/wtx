@@ -9,7 +9,7 @@ use core::{
   hash::{Hash, Hasher},
 };
 
-/// Used to store any type of helper data along side a package.
+/// Used to store any type of helper data alongside a package.
 ///
 /// # Types
 ///

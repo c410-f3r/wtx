@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Universal Time Coordinated (UTC)
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Utc;
 
 impl TimeZone for Utc {
@@ -15,7 +15,7 @@ impl TimeZone for Utc {
   fn from_minutes(minutes: i16) -> crate::Result<Self> {
     if minutes != 0 {
       return Err(
-        CalendarError::InvalidTimezoneSeconds { expected: Some(0), received: minutes }.into(),
+        CalendarError::InvalidTimezoneMinutes { expected: Some(0), received: minutes }.into(),
       );
     }
     Ok(Self)

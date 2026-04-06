@@ -1,4 +1,4 @@
-//! Serves requests using low-level WebSockets resources along side self-made certificates.
+//! Serves requests using low-level WebSockets resources alongside self-made certificates.
 
 extern crate tokio;
 extern crate tokio_rustls;

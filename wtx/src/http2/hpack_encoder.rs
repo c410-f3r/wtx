@@ -1,4 +1,4 @@
-// In `EncodeIdx::RefNameSavedValue` the name is locally indexed along side the value to allow
+// In `EncodeIdx::RefNameSavedValue` the name is locally indexed alongside the value to allow
 // future usages of `RefNameRefValue` potentially reducing sent bytes. It is possible to only
 // store non-static names but that would de-synchronize the decoder.
 //

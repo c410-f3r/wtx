@@ -51,7 +51,7 @@ impl TryFrom<u16> for CloseCode {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: u16) -> Result<Self, crate::Error> {
+  fn try_from(from: u16) -> crate::Result<Self> {
     Ok(match from {
       1000 => Self::Normal,
       1001 => Self::Away,

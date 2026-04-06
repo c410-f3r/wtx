@@ -41,7 +41,7 @@ impl<DA, EA> DecodeSeq<'_, GenericCodec<DA, EA>> for () {
 
 impl<DA, EA> Encode<GenericCodec<DA, EA>> for () {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_, EA>) -> Result<(), crate::Error> {
+  fn encode(&self, _: &mut GenericEncodeWrapper<'_, EA>) -> crate::Result<()> {
     Ok(())
   }
 }

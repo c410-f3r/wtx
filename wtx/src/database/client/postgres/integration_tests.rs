@@ -90,7 +90,7 @@ fn custom_composite_type() {
 
       impl Decode<'_, Postgres<crate::Error>> for CustomCompositeType {
         #[inline]
-        fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, crate::Error> {
+        fn decode(dw: &mut DecodeWrapper<'_, '_>) -> crate::Result<Self> {
           let mut sd = StructDecoder::<crate::Error>::new(dw);
           Ok(Self(sd.decode()?, sd.decode_opt()?, sd.decode()?))
         }
@@ -98,7 +98,7 @@ fn custom_composite_type() {
 
       impl Encode<Postgres<crate::Error>> for CustomCompositeType {
         #[inline]
-        fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+        fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> crate::Result<()> {
           let _ev = StructEncoder::<crate::Error>::new(ew)?
             .encode(self.0)?
             .encode_with_ty(&self.1, Ty::Varchar)?
@@ -155,14 +155,14 @@ fn custom_domain() {
 
     impl Decode<'_, Postgres<crate::Error>> for CustomDomain {
       #[inline]
-      fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, crate::Error> {
+      fn decode(dw: &mut DecodeWrapper<'_, '_>) -> crate::Result<Self> {
         Ok(Self(<_ as Decode<Postgres<crate::Error>>>::decode(dw)?))
       }
     }
 
     impl Encode<Postgres<crate::Error>> for CustomDomain {
       #[inline]
-      fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+      fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> crate::Result<()> {
         <_ as Encode<Postgres<crate::Error>>>::encode(&self.0, ew)?;
         Ok(())
       }
@@ -217,7 +217,7 @@ fn custom_enum() {
 
     impl Decode<'_, Postgres<crate::Error>> for Enum {
       #[inline]
-      fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, crate::Error> {
+      fn decode(dw: &mut DecodeWrapper<'_, '_>) -> crate::Result<Self> {
         let s = <&str as Decode<Postgres<crate::Error>>>::decode(dw)?;
         Ok(match s {
           "foo" => Self::Foo,
@@ -230,7 +230,7 @@ fn custom_enum() {
 
     impl Encode<Postgres<crate::Error>> for Enum {
       #[inline]
-      fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), crate::Error> {
+      fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> crate::Result<()> {
         let s = match self {
           Enum::Foo => "foo",
           Enum::Bar => "bar",
