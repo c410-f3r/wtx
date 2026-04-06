@@ -14,7 +14,7 @@ impl Signature for P256Graviola {
   #[inline]
   fn sign(sign_key: &mut Self::SignKey, msg: &[u8]) -> crate::Result<Self::SignOutput> {
     let mut buffer = [0; _];
-    sign_key.sign::<Sha256>(&[msg], &mut buffer)?;
+    let _ = sign_key.sign::<Sha256>(&[msg], &mut buffer)?;
     Ok(buffer)
   }
 
@@ -32,7 +32,7 @@ impl Signature for P384Graviola {
   #[inline]
   fn sign(sign_key: &mut Self::SignKey, msg: &[u8]) -> crate::Result<Self::SignOutput> {
     let mut buffer = [0; _];
-    sign_key.sign::<Sha384>(&[msg], &mut buffer)?;
+    let _ = sign_key.sign::<Sha384>(&[msg], &mut buffer)?;
     Ok(buffer)
   }
 

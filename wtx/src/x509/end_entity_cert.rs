@@ -50,6 +50,9 @@ where
   /// Checks that a valid path exists when walking through the provided intermediate certificates.
   /// A valid path is constructed when it hits one of the trust anchors and the associated
   /// constraints like expirations times are satisfied.
+  ///
+  /// It is worth noting that this method is not cheap and the number of intermediates is a
+  /// considerable factor.
   #[inline]
   pub fn validate_chain(
     &self,
@@ -92,6 +95,8 @@ where
     Ok(())
   }
 
+  /// Matches `sn` with [`SubjectAlternativeName`] if it exists, otherwise tries to match `sn`
+  /// with the common name.
   #[inline]
   pub fn validate_subject_name(&self, sn: &[u8]) -> crate::Result<()> {
     let cert = self.0.lease();
