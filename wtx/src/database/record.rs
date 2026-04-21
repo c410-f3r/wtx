@@ -1,6 +1,5 @@
 use crate::{
   codec::{CodecController, Decode},
-  collection::ShortStrU8,
   database::{Database, DatabaseError, ValueIdent},
 };
 use core::any::type_name;
@@ -19,7 +18,7 @@ pub trait Record<'exec>: Sized {
   {
     let mut dw = self.value(ci).ok_or_else(|| {
       DatabaseError::MissingFieldDataInDecoding(
-        ShortStrU8::new_truncated_u8(type_name::<D>()),
+        type_name::<D>().into(),
         ci.idx(self).map(|el| u16::try_from(el).unwrap_or(u16::MAX)),
       )
       .into()

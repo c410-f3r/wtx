@@ -46,6 +46,7 @@ pub struct CvCertificate<'any, 'bytes, const IS_EE: bool> {
   pub(crate) basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   pub(crate) crl_distribution_points: Option<CrlDistributionPoints<'bytes>>,
   pub(crate) extended_key_usage: Option<FlaggedExtension<ExtendedKeyUsage>>,
+  pub(crate) has_unknown_critical_extension: bool,
   pub(crate) is_self_signed: bool,
   pub(crate) issuer: RefOrOwned<'any, NameVector<'bytes>>,
   pub(crate) key_usage: Option<KeyUsage>,
@@ -75,6 +76,7 @@ impl<'any, 'bytes, const IS_EE: bool> TryFrom<Certificate<'bytes>>
       basic_constraints: parts.basic_constraints,
       crl_distribution_points: parts.crl_distribution_points,
       extended_key_usage: parts.extended_key_usage,
+      has_unknown_critical_extension: parts.has_unknown_critical_extension,
       is_self_signed: parts.is_self_signed,
       issuer: RefOrOwned::Right(tbs.issuer),
       key_usage: parts.key_usage,
@@ -106,6 +108,7 @@ impl<'any, 'bytes, const IS_EE: bool> TryFrom<&'any Certificate<'bytes>>
       basic_constraints: parts.basic_constraints,
       crl_distribution_points: parts.crl_distribution_points,
       extended_key_usage: parts.extended_key_usage,
+      has_unknown_critical_extension: parts.has_unknown_critical_extension,
       is_self_signed: tbs.issuer == tbs.subject,
       issuer: RefOrOwned::Left(&tbs.issuer),
       key_usage: parts.key_usage,
@@ -128,6 +131,7 @@ struct Parts<'bytes> {
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   crl_distribution_points: Option<CrlDistributionPoints<'bytes>>,
   extended_key_usage: Option<FlaggedExtension<ExtendedKeyUsage>>,
+  has_unknown_critical_extension: bool,
   is_self_signed: bool,
   key_usage: Option<KeyUsage>,
   name_constraints: Option<NameConstraints<'bytes>>,
@@ -221,12 +225,7 @@ impl<'bytes> Parts<'bytes> {
     }
 
     let mut last_err = None;
-    let _ = validate_common_static(
-      basic_constraints,
-      has_unknown_critical_extension,
-      key_usage,
-      &mut last_err,
-    );
+    let _ = validate_common_static(basic_constraints, key_usage, &mut last_err);
     if IS_EE {
       let _ = validate_ee_static(&mut last_err, &name_constraints);
     } else {
@@ -241,6 +240,7 @@ impl<'bytes> Parts<'bytes> {
       basic_constraints,
       crl_distribution_points,
       extended_key_usage,
+      has_unknown_critical_extension,
       is_self_signed: tbs.issuer == tbs.subject,
       key_usage,
       name_constraints,

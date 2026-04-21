@@ -1,7 +1,6 @@
 use crate::{
   calendar::{Date, DateTime, Day, Month, Nanosecond, SECONDS_PER_DAY, Time, Utc, Year},
   codec::{Decode, Encode},
-  collection::ShortStrU8,
   database::{
     DatabaseError, Typed,
     client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
@@ -116,8 +115,7 @@ where
   fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
     if self < &PG_MIN.date() || self > &Date::MAX {
       return Err(E::from(
-        DatabaseError::UnexpectedValueFromBytes { expected: ShortStrU8::new_truncated_u8("date") }
-          .into(),
+        DatabaseError::UnexpectedValueFromBytes { expected: "date".into() }.into(),
       ));
     }
     let this_timestamp = DateTime::new(*self, Time::ZERO, Utc).timestamp_secs_and_ns().0;

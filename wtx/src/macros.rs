@@ -125,7 +125,7 @@ macro_rules! create_enum {
           )*
           _ => Err($crate::Error::UnexpectedBytes {
             length: from.len().try_into().unwrap_or(u16::MAX),
-            ty: $crate::collection::ShortStrU8::new_truncated_u8(core::any::type_name::<Self>()),
+            ty: core::any::type_name::<Self>().into(),
           }),
         }
       }

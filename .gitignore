@@ -7,7 +7,6 @@
 **/profile.json
 **/rustc-ice-*.txt
 **/target
-**/Cargo.lock
 boringssl
 callgrind*
 limbo.json

@@ -25,6 +25,7 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct CvTrustAnchor<'any, 'bytes> {
   authority_key_identifier: Option<AuthorityKeyIdentifier>,
+  has_unknown_critical_extension: bool,
   is_self_signed: bool,
   key_usage: Option<KeyUsage>,
   name_constraints: Option<NameConstraints<'bytes>>,
@@ -39,6 +40,12 @@ impl<'any, 'bytes> CvTrustAnchor<'any, 'bytes> {
   #[inline]
   pub const fn authority_key_identifier(&self) -> &Option<AuthorityKeyIdentifier> {
     &self.authority_key_identifier
+  }
+
+  /// Custom extensions can not be critical.
+  #[inline]
+  pub const fn has_unknown_critical_extension(&self) -> bool {
+    self.has_unknown_critical_extension
   }
 
   /// If `issuer` is equal to `subject`.
@@ -93,6 +100,7 @@ impl<'any, 'bytes> TryFrom<Certificate<'bytes>> for CvTrustAnchor<'any, 'bytes> 
     let parts = Parts::new(&tbs)?;
     Ok(Self {
       authority_key_identifier: parts.authority_key_identifier,
+      has_unknown_critical_extension: parts.has_unknown_critical_extension,
       is_self_signed: parts.is_self_signed,
       key_usage: parts.key_usage,
       name_constraints: parts.name_constraints,
@@ -113,6 +121,7 @@ impl<'any, 'bytes> TryFrom<&'any Certificate<'bytes>> for CvTrustAnchor<'any, 'b
     let parts = Parts::new(tbs)?;
     Ok(Self {
       authority_key_identifier: parts.authority_key_identifier,
+      has_unknown_critical_extension: parts.has_unknown_critical_extension,
       is_self_signed: parts.is_self_signed,
       key_usage: parts.key_usage,
       name_constraints: parts.name_constraints,
@@ -126,6 +135,7 @@ impl<'any, 'bytes> TryFrom<&'any Certificate<'bytes>> for CvTrustAnchor<'any, 'b
 
 struct Parts<'bytes> {
   authority_key_identifier: Option<AuthorityKeyIdentifier>,
+  has_unknown_critical_extension: bool,
   is_self_signed: bool,
   key_usage: Option<KeyUsage>,
   name_constraints: Option<NameConstraints<'bytes>>,
@@ -197,12 +207,7 @@ impl<'bytes> Parts<'bytes> {
     }
 
     let mut last_err = None;
-    let _ = validate_common_static(
-      basic_constraints,
-      has_unknown_critical_extension,
-      key_usage,
-      &mut last_err,
-    );
+    let _ = validate_common_static(basic_constraints, key_usage, &mut last_err);
     let _ = validate_ica_static(basic_constraints, &mut last_err, &tbs.subject);
     if let Some(err) = last_err {
       return Err(err.into());
@@ -210,6 +215,7 @@ impl<'bytes> Parts<'bytes> {
 
     Ok(Self {
       authority_key_identifier,
+      has_unknown_critical_extension,
       is_self_signed: tbs.issuer == tbs.subject,
       key_usage,
       name_constraints,

@@ -1,6 +1,5 @@
 use crate::{
   codec::FromRadix10,
-  collection::ShortStrU8,
   database::{
     DatabaseError,
     client::postgres::{DbError, PostgresError, authentication::Authentication},
@@ -116,10 +115,7 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
       [b't', _, _, _, _, a, b, ..] => Self::ParameterDescription(u16::from_be_bytes([*a, *b])),
       _ => {
         return Err(
-          DatabaseError::UnexpectedValueFromBytes {
-            expected: ShortStrU8::new_truncated_u8(type_name::<Self>()),
-          }
-          .into(),
+          DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Self>().into() }.into(),
         );
       }
     };

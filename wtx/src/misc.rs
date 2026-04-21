@@ -45,7 +45,6 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-use crate::collection::ShortStr;
 pub use ascii_graphic::AsciiGraphic;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
@@ -169,7 +168,7 @@ where
 #[inline]
 #[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
-  opt.ok_or(crate::Error::NoInnerValue(ShortStr::new_truncated_u8(type_name::<T>())))
+  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>().into()))
 }
 
 /// Deserializes a sequence passing each element to `cb`. Works with any deserializer of any format.
@@ -389,7 +388,6 @@ where
 }
 
 // It is important to enforce the array length to avoid panics
-#[expect(clippy::disallowed_methods, reason = "that is the only allowed place")]
 pub(crate) const fn char_slice(buffer: &mut [u8; 4], ch: char) -> &mut str {
   ch.encode_utf8(buffer)
 }

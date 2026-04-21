@@ -37,13 +37,13 @@ impl wtx::misc::FromVars for Foo {
         }
         Ok(Self {
                 bar0: _bar0.ok_or_else(||
-                            wtx::Error::MissingVar(wtx::collection::ShortStr::new_truncated_u8("bar0")))?,
+                            wtx::Error::MissingVar("bar0".into()))?,
                 bar1: _bar1,
                 bar2: _bar2.ok_or_else(||
-                            wtx::Error::MissingVar(wtx::collection::ShortStr::new_truncated_u8("bar2")))?,
+                            wtx::Error::MissingVar("bar2".into()))?,
                 bar3: _bar3,
                 bar4: _bar4.ok_or_else(||
-                            wtx::Error::MissingVar(wtx::collection::ShortStr::new_truncated_u8("bar4")))?,
+                            wtx::Error::MissingVar("bar4".into()))?,
             })
     }
 }

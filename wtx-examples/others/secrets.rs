@@ -13,7 +13,7 @@ use wtx::{
 static SECRET: OnceLock<Secret> = OnceLock::new();
 
 fn main() -> wtx::Result<()> {
-  let data = env::args().nth(1).ok_or(wtx::Error::Generic(Box::new("No data".into())))?;
+  let data = env::args().nth(1).ok_or_else(|| wtx::Error::GenericStatic("No data".into()))?;
   let mut rng = ChaCha20::from_getrandom()?;
   let secret_context = SecretContext::new(&mut rng)?;
   let secret = Secret::new(data.into_bytes().as_mut(), &mut rng, secret_context)?;

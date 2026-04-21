@@ -361,6 +361,7 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
   if !validate_ica_dyn(
     &cert.authority_key_identifier,
     cv_policy,
+    cert.has_unknown_critical_extension,
     cert.is_self_signed,
     last_err,
     &cert.subject_key_identifier,
@@ -389,6 +390,7 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     if !validate_ica_dyn(
       trust_anchor.authority_key_identifier(),
       cv_policy,
+      trust_anchor.has_unknown_critical_extension(),
       trust_anchor.is_self_signed(),
       last_err,
       trust_anchor.subject_key_identifier(),
@@ -504,14 +506,9 @@ fn validate_chain_signature<const IS_EE: bool>(
 #[inline]
 fn validate_common_static(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
-  has_unknown_critical_extension: bool,
   key_usage: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
 ) -> bool {
-  if has_unknown_critical_extension {
-    *last_err = Some(X509CvError::CertsMustNotHaveCriticalUnknownExtensions);
-    return false;
-  }
   let is_ca =
     basic_constraints.as_ref().is_some_and(|basic_constraints| basic_constraints.extension.ca());
   let key_cert_sign_set = key_usage.as_ref().is_some_and(|key_usage| key_usage.key_cert_sign());
@@ -544,15 +541,11 @@ fn validate_eku<const IS_EE: bool>(
     if IS_EE && *critical {
       return Err(X509CvError::EeCanNotHaveACriticalEku);
     }
-    if extension.len() == 0 {
-      if cv_policy.mode().is_strict() {
-        return Err(X509CvError::EkuCanNotBeEmpty);
-      }
+    if extension.len() == 0 && cv_policy.mode().is_strict() {
+      return Err(X509CvError::EkuCanNotBeEmpty);
     }
-    if extension.any() {
-      if cv_policy.mode().is_strict() {
-        return Err(X509CvError::EkuCanNotBeAny);
-      }
+    if extension.any() && cv_policy.mode().is_strict() {
+      return Err(X509CvError::EkuCanNotBeAny);
     }
     if cv_policy.extended_key_usage().server_auth() && !extension.server_auth() {
       return Err(X509CvError::EkuMismatch);
@@ -582,11 +575,16 @@ fn validate_eku<const IS_EE: bool>(
 fn validate_ica_dyn(
   aki_opt: &Option<AuthorityKeyIdentifier>,
   cv_policy: &CvPolicy<'_, '_>,
+  has_unknown_critical_extension: bool,
   is_self_signed: bool,
   last_err: &mut Option<X509CvError>,
   ski_opt: &Option<FlaggedExtension<SubjectKeyIdentifier>>,
   validity: &Validity,
 ) -> bool {
+  if has_unknown_critical_extension {
+    *last_err = Some(X509CvError::CertsMustNotHaveCriticalUnknownExtensions);
+    return false;
+  }
   let not_before = validity.not_before.date_time();
   let not_after = validity.not_after.date_time();
   if *cv_policy.validation_time() < not_before || *cv_policy.validation_time() > not_after {
