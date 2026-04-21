@@ -9,6 +9,8 @@ pub enum CryptoError {
   HkdfExpandError,
   /// Opaque error originated from `Hkdf::from_prk`
   HkdfFromPrkError,
+  /// A tag does not match the computed value
+  HmacVerificationError,
   /// Opaque error originated from AES operations
   InvalidAesData,
   /// Opaque error originated from AES-128 operations
@@ -19,6 +21,8 @@ pub enum CryptoError {
   InvalidChacha20Poly1305Data,
   /// Public Key Agreement Error
   PublicKeyAgreementError,
+  /// Sig Key Error
+  SignKeyError,
   /// Signature Error
   SignatureError,
   /// Unsupported Signature Oid

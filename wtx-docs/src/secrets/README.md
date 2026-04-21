@@ -7,5 +7,5 @@ Please keep in mind that this is not a silver bullet, but rather an additional l
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/secrets.rs}}
+{{#rustdoc_include ../../../wtx-examples/others/secrets.rs}}
 ```

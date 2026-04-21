@@ -10,7 +10,15 @@ mod graviola;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 
-use crate::{collection::Vector, crypto::CryptoError, rng::CryptoRng};
+use crate::{
+  codec::{
+    Base64Alphabet, base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
+  },
+  collection::{ExpansionTy, Vector},
+  crypto::CryptoError,
+  misc::SensitiveBytes,
+  rng::CryptoRng,
+};
 use core::marker::PhantomData;
 
 const NONCE_LEN: usize = 12;
@@ -22,7 +30,7 @@ pub trait Aead {
   type Secret;
 
   /// Decrypts a base64 encoded string, using the provided buffer for the output.
-  #[cfg(feature = "base64")]
+
   #[inline]
   fn decrypt_base64_to_buffer<'buffer>(
     associated_data: &[u8],
@@ -30,14 +38,11 @@ pub trait Aead {
     encrypted_data: &[u8],
     secret: &Self::Secret,
   ) -> crate::Result<&'buffer mut [u8]> {
-    use crate::collection::ExpansionTy;
-    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-
-    let additional = base64::decoded_len_estimate(encrypted_data.len());
+    let additional = base64_decoded_len_ub(encrypted_data.len());
     let begin = buffer.len();
     buffer.expand(ExpansionTy::Additional(additional), 0)?;
     let buffer_slice = buffer.get_mut(begin..).unwrap_or_default();
-    let len = URL_SAFE_NO_PAD.decode_slice(encrypted_data, buffer_slice)?;
+    let len = base64_decode(Base64Alphabet::UrlNoPad, encrypted_data, buffer_slice)?.len();
     buffer.truncate(begin.wrapping_add(len));
     Self::decrypt_in_place(associated_data, buffer.get_mut(begin..).unwrap_or_default(), secret)
   }
@@ -147,7 +152,6 @@ pub trait Aead {
   //
   // Buffer allocates two areas: one for the resulting base64 and another for intermediary work.
   // FIXME(UPSTREAM): Only one page would be needed if `base64` had support for vectored reads.
-  #[cfg(feature = "base64")]
   #[inline]
   fn encrypt_to_buffer_base64<'buffer, RNG>(
     associated_data: &[u8],
@@ -159,12 +163,9 @@ pub trait Aead {
   where
     RNG: CryptoRng,
   {
-    use crate::{collection::ExpansionTy, misc::SensitiveBytes};
-    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-
     let begin = buffer.len();
     let data_len = NONCE_LEN.wrapping_add(plaintext.len()).wrapping_add(TAG_LEN);
-    let base64_len = base64::encoded_len(data_len, true).unwrap_or(usize::MAX);
+    let base64_len = base64_encoded_len(data_len, true).unwrap_or(usize::MAX);
     buffer.expand(ExpansionTy::Additional(base64_len), 0)?;
     let _ = buffer.extend_from_copyable_slices([
       [0; NONCE_LEN].as_slice(),
@@ -181,7 +182,7 @@ pub trait Aead {
     let Some((base64, content)) = slice_mut else {
       return Ok("");
     };
-    let base64_idx = URL_SAFE_NO_PAD.encode_slice(&mut *content, base64)?;
+    let base64_idx = base64_encode(Base64Alphabet::UrlNoPad, content, base64)?.len();
     drop(SensitiveBytes::new_unlocked(content));
     buffer.truncate(begin.wrapping_add(base64_idx));
     let bytes = buffer.get_mut(begin..).unwrap_or_default();

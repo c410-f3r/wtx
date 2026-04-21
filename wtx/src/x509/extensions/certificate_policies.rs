@@ -3,7 +3,7 @@ use crate::{
     Any, Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Oid, Opt, SEQUENCE_TAG, SequenceBuffer,
     asn1_writer, decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::ArrayVectorU8,
   x509::X509Error,
 };
@@ -18,14 +18,14 @@ pub struct CertificatePolicies<'bytes>(
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for CertificatePolicies<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0))
   }
 }
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for CertificatePolicies<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)
   }
 }
@@ -41,7 +41,7 @@ pub struct PolicyInformation<'bytes> {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyInformation<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionCertificatePolicies.into());
     };
@@ -55,7 +55,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyInformation
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyInformation<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       self.policy_identifier.encode(local_ew)?;
       Opt(&self.policy_qualifiers).encode_seq(local_ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG)?;
@@ -75,7 +75,7 @@ pub struct PolicyQualifierInfo<'bytes> {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyQualifierInfo<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionCertificatePolicies.into());
     };
@@ -89,7 +89,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyQualifierIn
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyQualifierInfo<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       self.policy_qualifier_id.encode(local_ew)?;
       self.qualifier.encode(local_ew)?;

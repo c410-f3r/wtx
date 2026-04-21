@@ -88,7 +88,7 @@ mod tokio {
 mod tests {
   use crate::{
     client_api_framework::pkg::Package,
-    codec::{Decode, DecodeSeq, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+    codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
     collection::Vector,
   };
 
@@ -126,7 +126,7 @@ mod tests {
 
   impl<DRSR> Encode<GenericCodec<DRSR, DRSR>> for _Ping {
     #[inline]
-    fn encode(&self, ew: &mut GenericEncodeWrapper<'_, DRSR>) -> crate::Result<()> {
+    fn encode(&self, ew: &mut EncodeWrapper<'_, DRSR>) -> crate::Result<()> {
       ew.buffer.extend_from_copyable_slice(b"ping")?;
       Ok(())
     }
@@ -137,17 +137,14 @@ mod tests {
 
   impl<'de, DRSR> Decode<'de, GenericCodec<DRSR, DRSR>> for _Pong {
     #[inline]
-    fn decode(_: &mut GenericDecodeWrapper<'de, DRSR>) -> crate::Result<Self> {
+    fn decode(_: &mut DecodeWrapper<'de, DRSR>) -> crate::Result<Self> {
       Ok(Self("pong"))
     }
   }
 
   impl<'de, DRSR> DecodeSeq<'de, GenericCodec<DRSR, DRSR>> for _Pong {
     #[inline]
-    fn decode_seq(
-      _: &mut Vector<Self>,
-      _: &mut GenericDecodeWrapper<'de, DRSR>,
-    ) -> crate::Result<()> {
+    fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de, DRSR>) -> crate::Result<()> {
       Ok(())
     }
   }

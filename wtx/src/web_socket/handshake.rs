@@ -18,6 +18,7 @@ macro_rules! check_headers {
 }
 
 use crate::{
+  codec::{Base64Alphabet, base64_encode, base64_encoded_len},
   crypto::{Hash, Sha1DigestRustCrypto},
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
   misc::{LeaseMut, SuffixWriterFbvm, UriRef, bytes_split1},
@@ -28,7 +29,6 @@ use crate::{
     compression::NegotiatedCompression,
   },
 };
-use base64::{Engine, engine::general_purpose::STANDARD};
 use httparse::{EMPTY_HEADER, Header, Request, Response, Status};
 
 const MAX_READ_HEADER_LEN: usize = 64;
@@ -187,11 +187,10 @@ fn base64_from_array<'output, const I: usize, const O: usize>(
   output: &'output mut [u8; O],
 ) -> &'output [u8] {
   const {
-    let rslt = if let Some(elem) = base64::encoded_len(I, false) { elem } else { 0 };
+    let rslt = if let Some(elem) = base64_encoded_len(I, false) { elem } else { 0 };
     assert!(O >= rslt);
   }
-  let len = STANDARD.encode_slice(input, output).unwrap_or_default();
-  output.get(..len).unwrap_or_default()
+  base64_encode(Base64Alphabet::Standard, input, output).map(|el| el.as_bytes()).unwrap_or_default()
 }
 
 /// Client request

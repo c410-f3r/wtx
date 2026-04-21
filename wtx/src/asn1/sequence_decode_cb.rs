@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1Error, decode_asn1_tlv},
-  codec::{Decode, GenericCodec, GenericDecodeWrapper},
+  codec::{Decode, DecodeWrapper, GenericCodec},
 };
 
 /// Helper that streams decoded elements to `C`
@@ -24,7 +24,7 @@ where
   #[inline]
   pub fn decode(
     &mut self,
-    dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>,
+    dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>,
     tag: u8,
   ) -> crate::Result<()> {
     let (local_tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
@@ -32,7 +32,9 @@ where
       return Err(Asn1Error::InvalidGenericSequence(local_tag, tag).into());
     }
     dw.bytes = value;
-    (self.0)(E::decode(dw)?)?;
+    while !dw.bytes.is_empty() {
+      (self.0)(E::decode(dw)?)?;
+    }
     dw.bytes = rest;
     Ok(())
   }

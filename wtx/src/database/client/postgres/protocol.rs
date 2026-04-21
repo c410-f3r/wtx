@@ -1,6 +1,7 @@
 use crate::{
-  codec::U64String,
+  codec::{Base64Alphabet, U64String, base64_encode},
   collection::Vector,
+  crypto::{Hash, Hmac, HmacSha256RustCrypto, Sha256DigestRustCrypto},
   database::{
     RecordValues,
     client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError},
@@ -10,9 +11,6 @@ use crate::{
     counter_writer::{CounterWriterBytesTy, CounterWriterIterTy, i16_write_iter, i32_write},
   },
 };
-use base64::{Engine, engine::general_purpose::STANDARD};
-use hmac::{Hmac, KeyInit, Mac, digest::FixedOutput};
-use sha2::{Digest, Sha256};
 
 pub(crate) fn bind<E, RV>(
   sw: &mut SuffixWriterFbvm<'_>,
@@ -189,10 +187,10 @@ pub(crate) fn sasl_second(
   i32_write(CounterWriterBytesTy::IncludesLen, Some(b'p'), sw, |local_sw| {
     local_sw.extend_from_slice(b"c=")?;
     local_sw.create_buffer(method_header.len().wrapping_mul(2), |slice| {
-      Ok(STANDARD.encode_slice(method_header, slice)?)
+      Ok(base64_encode(Base64Alphabet::Standard, method_header, slice)?.len())
     })?;
     local_sw.create_buffer(tls_server_end_point.len().wrapping_mul(2), |slice| {
-      Ok(STANDARD.encode_slice(tls_server_end_point, slice)?)
+      Ok(base64_encode(Base64Alphabet::Standard, tls_server_end_point, slice)?.len())
     })?;
     local_sw.extend_from_slices([b",r=", response_nonce])?;
 
@@ -200,20 +198,16 @@ pub(crate) fn sasl_second(
     let _ = auth_data.extend_from_copyable_slices([&b","[..], local_bytes])?;
 
     let client_key: [u8; 32] = {
-      let mut mac = Hmac::<Sha256>::new_from_slice(salted_password)?;
+      let mut mac = HmacSha256RustCrypto::from_key(salted_password)?;
       mac.update(b"Client Key");
-      mac.finalize().into_bytes().into()
+      mac.digest()
     };
 
     let client_signature = {
-      let stored_client_key: [u8; 32] = {
-        let mut hash = Sha256::default();
-        hash.update(client_key.as_slice());
-        hash.finalize_fixed().into()
-      };
-      let mut hmac = Hmac::<Sha256>::new_from_slice(&stored_client_key)?;
+      let stored_client_key: [u8; 32] = Sha256DigestRustCrypto::digest([client_key.as_slice()]);
+      let mut hmac = HmacSha256RustCrypto::from_key(&stored_client_key)?;
       hmac.update(auth_data);
-      hmac.finalize().into_bytes()
+      hmac.digest()
     };
 
     let mut client_proof = client_key;
@@ -222,7 +216,7 @@ pub(crate) fn sasl_second(
     }
     local_sw.extend_from_slice(b",p=")?;
     local_sw.create_buffer(client_proof.len().wrapping_mul(2), |slice| {
-      Ok(STANDARD.encode_slice(client_proof, slice)?)
+      Ok(base64_encode(Base64Alphabet::Standard, &client_proof, slice)?.len())
     })?;
 
     Ok::<_, crate::Error>(())

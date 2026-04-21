@@ -11,6 +11,6 @@ The unsafe `std::env::set_var` function is not invoked due to concerns about con
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/environment-variables.rs}}
+{{#rustdoc_include ../../../wtx-examples/others/environment-variables.rs}}
 ```
 

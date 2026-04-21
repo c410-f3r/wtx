@@ -1,6 +1,6 @@
 use crate::{
   codec::{
-    Decode, Encode, GenericCodec, GenericDecodeWrapper,
+    Decode, DecodeWrapper, Encode, GenericCodec,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
   collection::Vector,
@@ -41,7 +41,7 @@ where
     VerbatimDecoder<T>: for<'drsr> Decode<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimDecoder::decode(&mut GenericDecodeWrapper::new(elem, &mut self.drsr))?.data)
+    Ok(VerbatimDecoder::decode(&mut DecodeWrapper::new(elem, &mut self.drsr))?.data)
   }
 
   /// Send Unary Request

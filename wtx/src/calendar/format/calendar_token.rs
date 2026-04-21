@@ -39,6 +39,7 @@ use crate::calendar::CalendarError;
 /// | `:`     | Colon               |
 /// | `,`     | Comma               |
 /// | `-`     | Dash                |
+/// | `.`     | Dot                 |
 /// | `GMT`   | Greenwich Mean Time |
 /// | `/`     | Slash               |
 /// | ` `     | Space               |
@@ -57,6 +58,8 @@ pub enum CalendarToken {
   Comma,
   /// Literal `-`
   Dash,
+  /// Literal `.`
+  Dot,
   /// Optional `%f?` `123_456_789`
   DotNano,
   /// `%Y` (2001)
@@ -98,6 +101,7 @@ impl TryFrom<[u8; 2]> for CalendarToken {
       [0, b'b'] => Self::AbbreviatedMonthName,
       [0, b'a'] => Self::AbbreviatedWeekdayName,
       [0, b':'] => Self::Colon,
+      [0, b'.'] => Self::Dot,
       [0, b','] => Self::Comma,
       [0, b'-'] => Self::Dash,
       [b'f', b'?'] => Self::DotNano,

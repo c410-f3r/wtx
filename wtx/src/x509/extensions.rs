@@ -32,7 +32,7 @@ pub use certificate_issuer::CertificateIssuer;
 pub use certificate_policies::{CertificatePolicies, PolicyInformation, PolicyQualifierInfo};
 pub use crl_distribution_points::{CrlDistributionPoints, DistributionPoint};
 pub use crl_number::CrlNumber;
-pub use extended_key_usage::{ExtendedKeyUsage, ExtendedKeyUsageBuilder};
+pub use extended_key_usage::ExtendedKeyUsage;
 pub use freshest_crl::FreshestCrl;
 pub use inhibit_any_policy::InhibitAnyPolicy;
 pub use invalidity_date::InvalidityDate;
@@ -55,54 +55,51 @@ use crate::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
     decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
-  collection::{TryExtend, Vector},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  collection::Vector,
   x509::{Extension, X509Error},
 };
 
 /// List of extensions
 #[derive(Debug, PartialEq)]
-pub struct Extensions<'bytes, const TAG: u8>(
-  /// List of extensions
-  pub Vector<Extension<'bytes>>,
-);
+pub struct Extensions<'bytes> {
+  /// Entries
+  pub entries: Vector<Extension<'bytes>>,
+  /// Tag
+  pub tag: u8,
+}
 
-impl<'de, const TAG: u8> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Extensions<'de, TAG> {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Extensions<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    let (tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
-    if tag != TAG {
-      return Err(X509Error::InvalidExtensions(tag).into());
-    }
-    dw.bytes = value;
-    let collection = if TAG == SEQUENCE_TAG {
-      let mut extensions = Vector::default();
-      while !dw.bytes.is_empty() {
-        extensions.try_extend([Extension::decode(dw)?])?;
-      }
-      extensions
-    } else {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+    let tag = dw.decode_aux.tag.unwrap_or(SEQUENCE_TAG);
+    dw.decode_aux.tag = None;
+    let entries = if tag == SEQUENCE_TAG {
       SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0
+    } else {
+      let (actual_tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
+      if actual_tag != tag {
+        return Err(X509Error::InvalidExtensions(actual_tag).into());
+      }
+      dw.bytes = value;
+      let entries = SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0;
+      dw.bytes = rest;
+      entries
     };
-    dw.bytes = rest;
-    Ok(Self(collection))
+    Ok(Self { entries, tag })
   }
 }
 
-impl<'bytes, const TAG: u8> Encode<GenericCodec<(), Asn1EncodeWrapper>>
-  for Extensions<'bytes, TAG>
-{
+impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Extensions<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
-    asn1_writer(ew, Len::MAX_THREE_BYTES, TAG, |local_ew| {
-      if TAG == SEQUENCE_TAG {
-        for elem in self.0.iter() {
-          elem.encode(local_ew)?;
-        }
-      } else {
-        SequenceBuffer(&self.0).encode(local_ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG)?;
-      }
-      Ok(())
-    })
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    if self.tag == SEQUENCE_TAG {
+      SequenceBuffer(&self.entries).encode(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG)
+    } else {
+      asn1_writer(ew, Len::MAX_THREE_BYTES, self.tag, |local_ew| {
+        SequenceBuffer(&self.entries).encode(local_ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG)?;
+        Ok(())
+      })
+    }
   }
 }

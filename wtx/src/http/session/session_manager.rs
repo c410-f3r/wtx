@@ -1,10 +1,10 @@
 use crate::{
-  calendar::{DateTime, Instant},
+  calendar::Instant,
   collection::{ArrayString, ArrayStringU8, ArrayVectorU8, Vector},
   crypto::{Aead, Aes128GcmRustCrypto},
   http::{
-    Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder,
-    SessionState, SessionStore, cookie::cookie_generic::CookieGeneric,
+    Header, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder, SessionState,
+    SessionStore, cookie::cookie_generic::CookieGeneric,
   },
   misc::{Lease, LeaseMut, Secret},
   rng::CryptoRng,
@@ -51,12 +51,7 @@ where
     RRD: ReqResDataMut,
     S: SessionStore<CS, E>,
   {
-    let SessionManagerInner { cookie_def, .. } = &mut *self.inner.1.lock().await;
-    if let Some(elem) = state.take() {
-      store.delete(&elem.session_key).await?;
-    };
-    Self::clear_cookie(cookie_def, rrd.headers_mut())?;
-    Ok(())
+    self.inner.1.lock().await.delete_session_cookie(rrd, state, store).await
   }
 
   /// Saves the session in the store and also modifies headers.
@@ -134,24 +129,6 @@ where
     ))?;
     Ok(())
   }
-
-  pub(crate) fn clear_cookie(
-    cookie_def: &mut CookieGeneric<String, Vector<u8>>,
-    headers: &mut Headers,
-  ) -> crate::Result<()> {
-    let prev_expires = cookie_def.expires;
-    let prev_max_age = cookie_def.max_age;
-    cookie_def.expires = Some(DateTime::EPOCH);
-    cookie_def.max_age = None;
-    cookie_def.value.clear();
-    let rslt = headers.push_from_fmt(Header::from_name_and_value(
-      KnownHeaderName::SetCookie.into(),
-      format_args!("{}", cookie_def.map_mut(move |el| el, |_| "")),
-    ));
-    cookie_def.expires = prev_expires;
-    cookie_def.max_age = prev_max_age;
-    rslt
-  }
 }
 
 impl<CS, E> Clone for SessionManager<CS, E> {
@@ -166,6 +143,29 @@ pub struct SessionManagerInner<CS, E> {
   pub(crate) cookie_def: CookieGeneric<String, Vector<u8>>,
   pub(crate) phantom: PhantomData<(CS, E)>,
   pub(crate) session_secret: Secret,
+}
+
+impl<CS, E> SessionManagerInner<CS, E>
+where
+  E: From<crate::Error>,
+{
+  #[inline]
+  pub(crate) async fn delete_session_cookie<RRD, S>(
+    &mut self,
+    rrd: &mut RRD,
+    state: &mut Option<SessionState<CS>>,
+    store: &mut S,
+  ) -> Result<(), E>
+  where
+    RRD: ReqResDataMut,
+    S: SessionStore<CS, E>,
+  {
+    if let Some(elem) = state.take() {
+      store.delete(&elem.session_key).await?;
+    };
+    self.cookie_def.delete(rrd.headers_mut())?;
+    Ok(())
+  }
 }
 
 impl<CS, E> Debug for SessionManagerInner<CS, E> {

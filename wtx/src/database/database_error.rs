@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use crate::collection::ShortStrU8;
 
 /// Database Error
 #[derive(Debug, PartialEq)]
@@ -8,7 +8,7 @@ pub enum DatabaseError {
   /// The method `expand` of `StatementBuilder` must be called only once.
   InconsistentStatementBuilder,
   /// A "null" field received from the database was decoded as a non-nullable type or value.
-  MissingFieldDataInDecoding(Box<str>),
+  MissingFieldDataInDecoding(ShortStrU8<'static>, Option<u16>),
   /// Expected one record but got none.
   MissingSingleRecord,
   /// Received size differs from expected size.
@@ -23,7 +23,7 @@ pub enum DatabaseError {
   /// Bytes don't represent expected type
   UnexpectedValueFromBytes {
     /// Expected
-    expected: &'static str,
+    expected: ShortStrU8<'static>,
   },
   /// Received a statement ID that is not present in the local cache.
   UnknownStatementId,

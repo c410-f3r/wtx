@@ -1,7 +1,14 @@
-use crate::crypto::{GlobalEd25519, GlobalP256Signature, GlobalP384Signature, Signature};
+use crate::crypto::{
+  GlobalEd25519, GlobalP256Signature, GlobalP384Signature, GlobalRsaPssRsaeSha256,
+  GlobalRsaPssRsaeSha384, Signature,
+};
 #[cfg(feature = "asn1")]
 use crate::{
-  asn1::{OID_EC_P256, OID_KEY_TYPE_EC_PUBLIC_KEY, OID_NIST_EC_P384, OID_SIG_ED25519, Oid},
+  asn1::{
+    OID_EC_P256, OID_KEY_TYPE_EC_PUBLIC_KEY, OID_NIST_EC_P384, OID_NIST_HASH_SHA256,
+    OID_NIST_HASH_SHA384, OID_PKCS1_RSASSAPSS, OID_SIG_ECDSA_WITH_SHA256,
+    OID_SIG_ECDSA_WITH_SHA384, OID_SIG_ED25519, Oid,
+  },
   crypto::CryptoError,
 };
 #[cfg(feature = "database")]
@@ -17,11 +24,15 @@ create_enum! {
   #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
   pub enum SignatureTy<u16> {
     /// Ed25519
-    Ed25519 = (1),
-    /// P256
-    P256 = (2),
-    /// P384
-    P384 = (3),
+    Ed25519 = (1, "ED25519"),
+    /// RSA PSS RSAE SHA-256
+    RsaPssRsaeSha256 = (2, "RSAPSSRSAESHA256"),
+    /// RSA PSS RSAE SHA-384
+    RsaPssRsaeSha384 = (3, "RSAPSSRSAESHA384"),
+    /// Secp256r1
+    Secp256r1 = (4, "SECP256R1"),
+    /// Secp384r1
+    Secp384r1 = (5, "SECP384R1"),
   }
 }
 
@@ -32,8 +43,10 @@ impl SignatureTy {
   pub fn validate_signature(&self, pk: &[u8], msg: &[u8], signature: &[u8]) -> crate::Result<()> {
     match self {
       SignatureTy::Ed25519 => GlobalEd25519::validate(pk, msg, signature),
-      SignatureTy::P256 => GlobalP256Signature::validate(pk, msg, signature),
-      SignatureTy::P384 => GlobalP384Signature::validate(pk, msg, signature),
+      SignatureTy::RsaPssRsaeSha256 => GlobalRsaPssRsaeSha256::validate(pk, msg, signature),
+      SignatureTy::RsaPssRsaeSha384 => GlobalRsaPssRsaeSha384::validate(pk, msg, signature),
+      SignatureTy::Secp256r1 => GlobalP256Signature::validate(pk, msg, signature),
+      SignatureTy::Secp384r1 => GlobalP384Signature::validate(pk, msg, signature),
     }
   }
 }
@@ -108,8 +121,10 @@ impl From<SignatureTy> for &'static str {
   fn from(from: SignatureTy) -> Self {
     match from {
       SignatureTy::Ed25519 => "ED25519",
-      SignatureTy::P256 => "P256",
-      SignatureTy::P384 => "P384",
+      SignatureTy::RsaPssRsaeSha256 => "RSAPSSRSAESHA256",
+      SignatureTy::RsaPssRsaeSha384 => "RSAPSSRSAESHA384",
+      SignatureTy::Secp256r1 => "SECP256R1",
+      SignatureTy::Secp384r1 => "SECP384R1",
     }
   }
 }
@@ -118,18 +133,25 @@ impl From<SignatureTy> for &'static str {
 impl TryFrom<(&Oid, Option<&Oid>)> for SignatureTy {
   type Error = crate::Error;
 
-  #[inline]
   fn try_from(value: (&Oid, Option<&Oid>)) -> Result<Self, Self::Error> {
-    if value.0 == &OID_KEY_TYPE_EC_PUBLIC_KEY
-      && let Some(elem) = value.1
-    {
-      if elem == &OID_EC_P256 {
-        return Ok(Self::P256);
-      } else if elem == &OID_NIST_EC_P384 {
-        return Ok(Self::P384);
-      }
-    } else if value.0 == &OID_SIG_ED25519 {
-      return Ok(Self::Ed25519);
+    let (sig_alg, param) = value;
+    match sig_alg {
+      oid if oid == &OID_SIG_ED25519 => return Ok(Self::Ed25519),
+
+      oid if oid == &OID_SIG_ECDSA_WITH_SHA256 => return Ok(Self::Secp256r1),
+      oid if oid == &OID_SIG_ECDSA_WITH_SHA384 => return Ok(Self::Secp384r1),
+      oid if oid == &OID_KEY_TYPE_EC_PUBLIC_KEY => match param {
+        Some(param) if param == &OID_EC_P256 => return Ok(Self::Secp256r1),
+        Some(param) if param == &OID_NIST_EC_P384 => return Ok(Self::Secp384r1),
+        _ => {}
+      },
+
+      oid if oid == &OID_PKCS1_RSASSAPSS => match param {
+        Some(param) if param == &OID_NIST_HASH_SHA256 => return Ok(Self::RsaPssRsaeSha256),
+        Some(param) if param == &OID_NIST_HASH_SHA384 => return Ok(Self::RsaPssRsaeSha384),
+        _ => {}
+      },
+      _ => {}
     }
     Err(CryptoError::UnsupportedSignatureOid.into())
   }

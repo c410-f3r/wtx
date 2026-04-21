@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, SequenceBuffer},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::Vector,
   x509::AccessDescription,
 };
@@ -15,14 +15,14 @@ pub struct AuthorityInformationAccess<'bytes>(
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AuthorityInformationAccess<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0))
   }
 }
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for AuthorityInformationAccess<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)
   }
 }

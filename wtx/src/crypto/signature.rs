@@ -1,4 +1,4 @@
-use crate::misc::DefaultArray;
+use crate::{crypto::SignKey, misc::DefaultArray, rng::CryptoRng};
 use core::marker::PhantomData;
 
 #[cfg(feature = "crypto-aws-lc-rs")]
@@ -14,17 +14,25 @@ mod p256;
 mod p384;
 #[cfg(feature = "crypto-ring")]
 mod ring;
+#[cfg(feature = "rsa")]
+mod rsa;
 pub(crate) mod signature_ty;
 
 /// A mathematical scheme for verifying the authenticity of digital messages or documents.
 pub trait Signature {
   /// The structure used to sign messages
-  type SignKey;
+  type SignKey: SignKey;
   /// The result of a signing operation
   type SignOutput;
 
   /// Checks if the `signature` derived from `msg` was signed by `pubkey` .
-  fn sign(sign_key: &mut Self::SignKey, msg: &[u8]) -> crate::Result<Self::SignOutput>;
+  fn sign<RNG>(
+    rng: &mut RNG,
+    sign_key: &mut Self::SignKey,
+    msg: &[u8],
+  ) -> crate::Result<Self::SignOutput>
+  where
+    RNG: CryptoRng;
 
   /// Checks if the `signature` derived from `msg` was signed by `pubkey` .
   fn validate(pk: &[u8], msg: &[u8], signature: &[u8]) -> crate::Result<()>;
@@ -36,13 +44,17 @@ pub struct SignatureStub<SK, SO>(PhantomData<(SK, SO)>);
 
 impl<SK, SO> Signature for SignatureStub<SK, SO>
 where
+  SK: SignKey,
   SO: DefaultArray,
 {
   type SignKey = SK;
   type SignOutput = SO;
 
   #[inline]
-  fn sign(_: &mut Self::SignKey, _: &[u8]) -> crate::Result<Self::SignOutput> {
+  fn sign<RNG>(_: &mut RNG, _: &mut Self::SignKey, _: &[u8]) -> crate::Result<Self::SignOutput>
+  where
+    RNG: CryptoRng,
+  {
     Ok(Self::SignOutput::default_array())
   }
 

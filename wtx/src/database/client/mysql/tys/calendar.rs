@@ -1,6 +1,7 @@
 use crate::{
   calendar::{Date, DateTime, Time, Utc},
   codec::{Decode, Encode},
+  collection::ShortStrU8,
   database::{
     DatabaseError, Typed,
     client::mysql::{DecodeWrapper, EncodeWrapper, Mysql, Ty, ty_params::TyParams},
@@ -101,8 +102,10 @@ fn date_decode<'de>(dw: &mut DecodeWrapper<'de, '_>) -> crate::Result<(u8, Date,
 }
 
 fn date_encode(date: &Date, ew: &mut EncodeWrapper<'_>, len: u8) -> crate::Result<()> {
-  let year = u16::try_from(date.year().num())
-    .map_err(|_err| DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Date>() })?;
+  let year =
+    u16::try_from(date.year().num()).map_err(|_err| DatabaseError::UnexpectedValueFromBytes {
+      expected: ShortStrU8::new_truncated_u8(type_name::<Date>()),
+    })?;
   let [year_a, year_b] = year.to_le_bytes();
   ew.buffer().extend_from_copyable_slice(&[
     len,

@@ -11,5 +11,5 @@ To use this functionality, it is necessary to activate the `http-client-pool` fe
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/http-client-pool.rs}}
+{{#rustdoc_include ../../../wtx-examples/others/http-client-pool.rs}}
 ```

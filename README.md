@@ -17,7 +17,7 @@
 [rustc-badge]: https://img.shields.io/badge/rustc-1.95-blue
 [rustc-url]: https://blog.rust-lang.org/2025/01/09/Rust-1.95.0.html
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 9 IETF RFCs, 3 formal specifications and several other invented ideas.
+A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 8 IETF RFCs, 3 formal specifications and several other invented ideas.
 
 Works on embedded devices with heap allocators. If you find this crate interesting, please consider giving it a star ⭐ on `GitHub`.
 
@@ -28,30 +28,12 @@ Works on embedded devices with heap allocators. If you find this crate interesti
 | `HTTP Cookies`          | <https://datatracker.ietf.org/doc/html/rfc6265>                  |
 | `HTTP/2`                | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
 | `MySQL`                 | <https://dev.mysql.com/doc/dev/mysql-server/latest>              |
-| `PEM`                   | <https://datatracker.ietf.org/doc/html/rfc7468>                  |
 | `PostgreSQL`            | <https://www.postgresql.org/docs/current/protocol.html>          |
 | `TLS 1.3` (soon)        | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
 | `WebSocket`             | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
 | `WebSocket Compression` | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
 | `WebSocket over HTTP/2` | <https://datatracker.ietf.org/doc/html/rfc8441>                  |
 | `X.509`                 | <https://datatracker.ietf.org/doc/html/rfc5280>                  |
-
-## Comparisons
-
-In a way, `WTX` can be seen as an amalgamation that consolidates the functionality of several other web development projects into a single toolkit. Take a look at the following table to see how some built-from-scratch implementations compare with other similar projects.
-
-| Technology                                             | Similar Projects                                                   | Feature (`wtx`)          |
-| ------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------ |
-| [Client API Framework][client-api-framework-doc]       | N/A                                                                | client-api-framework     |
-| [Database Client][database-client-doc]                 | [jdbc][jdbc], [odbc][odbc], [sqlx][sqlx]                           | postgres, mysql          |
-| [Database Schema Manager][database-schema-manager-doc] | [flyway][flyway], [liquibase][liquibase], [refinery][refinery]     | schema-manager           |
-| [gRPC][grpc-doc]                                       | [grpc][grpc], [tonic][tonic]                                       | grpc-client, grpc-server |
-| [HTTP Client Pool][http-client-pool-doc]               | [reqwest][reqwest]                                                 | http-client-pool         |
-| [HTTP Server Framework][http-server-framework-doc]     | [axum][axum], [spring-boot][spring-boot], [fastapi][fastapi]       | http-server-framework    |
-| [HTTP/2][http2-doc]                                    | [h2][h2], [nghttp2][nghttp2]                                       | http2                    |
-| [WebSocket][web-socket-doc]                            | [tokio-tungstenite][tokio-tungstenite], [uWebSockets][uWebSockets] | web-socket-handshake     |
-
-Note that all features are optional and must be set at compile time. For more information, take a look at the documentation available at <https://c410-f3r.github.io/wtx>.
 
 ## Performance
 
@@ -77,6 +59,17 @@ Anything marked with `#[bench]` in the repository is considered a low-level benc
 
 Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks over different periods of time.
 
+## Crypto Backend
+
+`WTX` does not have built-in cryptographic algorithms, as such, it is necessary to select a backend when working with `X.509` or `TLS`.
+
+* `crypto-aws-lc-rs`
+* `crypto-graviola`
+* `crypto-ring`
+* `crypto-rust-crypto`
+
+Calling methods will act as NO-OPs if no backend is selected.
+
 ## Development benchmarks
 
 These numbers provide an estimate of the expected waiting times when developing with `WTX`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
@@ -98,7 +91,7 @@ Some utilities like `TokioRustlsConnector` or `TokioRustlsAcceptor` are availabl
 
 ## Examples
 
-Demonstrations of different use-cases can be found in the `wtx-instances` directory as well as in the documentation.
+Demonstrations of different use-cases can be found in the `wtx-examples` directory as well as in the documentation.
 
 ## Limitations
 
@@ -109,35 +102,3 @@ Demonstrations of different use-cases can be found in the `wtx-instances` direct
 [^1]: Internal dependencies required by the feature.
 
 [^2]: The sum of optional and required dependencies used by the associated binaries.
-
-[client-api-framework-doc]: https://c410-f3r.github.io/wtx/client-api-framework/index.html
-[database-client-doc]: https://c410-f3r.github.io/wtx/database-client/index.html
-[database-schema-manager-doc]: https://c410-f3r.github.io/wtx/database-schema-manager/index.html
-[grpc-doc]: https://c410-f3r.github.io/wtx/grpc/index.html
-[http-client-pool-doc]: https://c410-f3r.github.io/wtx/http-client-pool/index.html
-[http-server-framework-doc]: https://c410-f3r.github.io/wtx/http-server-framework/index.html
-[http2-doc]: https://c410-f3r.github.io/wtx/http2/index.html
-[web-socket-doc]: https://c410-f3r.github.io/wtx/web-socket/index.html
-
-[axum]: https://github.com/tokio-rs/axum
-[bb8]: https://github.com/djc/bb8
-[chrono]: https://github.com/chronotope/chrono
-[deadpool]: https://github.com/deadpool-rs/deadpool
-[diesel]: https://github.com/diesel-rs/diesel
-[fastapi]: https://github.com/fastapi/fastapi
-[flyway]: https://github.com/flyway/flyway
-[grpc]: https://github.com/grpc/grpc
-[h2]: https://github.com/hyperium/h2
-[jdbc]: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
-[liquibase]: https://github.com/liquibase/liquibase
-[nghttp2]: https://github.com/nghttp2/nghttp2
-[odbc]: https://learn.microsoft.com/en-us/sql/odbc
-[r2d2]: https://github.com/sfackler/r2d2
-[refinery]: https://github.com/rust-db/refinery
-[reqwest]: https://github.com/seanmonstar/reqwest
-[spring-boot]: https://github.com/spring-projects/spring-boot
-[sqlx]: https://github.com/launchbadge/sqlx
-[time]: https://github.com/time-rs/time
-[tokio-tungstenite]: https://github.com/snapview/tokio-tungstenite
-[tonic]: https://github.com/hyperium/tonic
-[uWebSockets]: https://github.com/uNetworking/uWebSockets

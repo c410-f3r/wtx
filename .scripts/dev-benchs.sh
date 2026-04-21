@@ -11,7 +11,7 @@ techs["http-client-pool"]="--example http-client-pool --features http-client-poo
 techs["http-server-framework"]="--example http-server-framework --features http-server-framework"
 techs["web-socket-client"]="--example web-socket-client --features web-socket-client"
 
-pushd wtx-instances
+pushd wtx-examples
 
 for tech in "${!techs[@]}"; do
 	echo "Testing '$tech'"

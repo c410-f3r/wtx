@@ -99,7 +99,7 @@ mod tests {
 
   #[test]
   fn parse_and_format() {
-    let _0_tokens = parse_bytes_into_tokens(_0_FMT.iter().copied()).unwrap();
+    let _0_tokens = parse_bytes_into_tokens(_0_FMT).unwrap();
     assert_eq!(
       Date::parse(_0_DATA, _0_tokens.clone())
         .unwrap()
@@ -109,7 +109,7 @@ mod tests {
         .as_bytes(),
       _0_DATA
     );
-    let _1_tokens = parse_bytes_into_tokens(_1_FMT.iter().copied()).unwrap();
+    let _1_tokens = parse_bytes_into_tokens(_1_FMT).unwrap();
     assert_eq!(
       Date::parse(_1_DATA, _1_tokens.clone())
         .unwrap()
@@ -119,7 +119,7 @@ mod tests {
         .as_bytes(),
       _1_DATA
     );
-    let _2_tokens = parse_bytes_into_tokens(_2_FMT.iter().copied()).unwrap();
+    let _2_tokens = parse_bytes_into_tokens(_2_FMT).unwrap();
     assert_eq!(
       Date::parse(_2_DATA, _2_tokens.clone())
         .unwrap()
@@ -129,7 +129,7 @@ mod tests {
         .as_bytes(),
       _2_DATA
     );
-    let _3_tokens = parse_bytes_into_tokens(_3_FMT.iter().copied()).unwrap();
+    let _3_tokens = parse_bytes_into_tokens(_3_FMT).unwrap();
     assert_eq!(
       Date::parse(_3_DATA, _3_tokens.clone())
         .unwrap()

@@ -102,7 +102,6 @@ macro_rules! _create_wrappers {
   ),* $(,)?) => {
     $(
       /// A wrapper used to generalize third-party dependencies.
-      #[derive(Debug)]
       $(#[$meta])*
       pub struct $name<$($param $(: $bound)?)?>($(pub(crate) $ty)?);
 
@@ -116,6 +115,13 @@ macro_rules! _create_wrappers {
               value
             })?
           )
+        }
+      }
+
+      impl core::fmt::Debug for $name {
+        #[inline]
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+          f.write_str(stringify!($name))
         }
       }
     )*

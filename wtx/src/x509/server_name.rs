@@ -37,7 +37,7 @@ where
 }
 impl<'this> ServerName<&'this [u8]> {
   /// Tries to first convert `data` to [`IpAddr`]. If unsuccessful, fallbacks to a domain.
-  pub fn from_arbitrary_bytes(data: &'this [u8]) -> crate::Result<Self> {
+  pub fn from_ascii(data: &'this [u8]) -> crate::Result<Self> {
     if let Ok(ip_addr) = from_utf8_basic(data)?.parse() {
       return Ok(Self(Either::Left(ip_addr)));
     }

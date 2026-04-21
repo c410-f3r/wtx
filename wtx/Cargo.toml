@@ -3,7 +3,6 @@ arbitrary = { default-features = false, optional = true, version = "1.0" }
 async-io = { default-features = false, optional = true, version = "2.0" }
 async-net = { default-features = false, optional = true, version = "2.0" }
 aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
-base64 = { default-features = false, optional = true, version = "0.22" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
 embassy-net = { default-features = false, optional = true, version = "0.5" }
 embassy-time = { default-features = false, optional = true, version = "0.3" }
@@ -12,7 +11,7 @@ flate2 = { default-features = false, optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.2" }
 futures-lite = { default-features = false, optional = true, version = "2.0" }
 graviola = { default-features = false, optional = true, version = "0.3" }
-hashbrown = { default-features = false, optional = true, version = "0.16" }
+hashbrown = { default-features = false, optional = true, version = "0.17" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 libc = { default-features = false, optional = true, version = "0.2" }
 matchit = { default-features = false, optional = true, version = "0.8" }
@@ -38,29 +37,30 @@ uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.4" }
 
-# Rust Crypto and its extravagant set of associated dependencies
-aead = { default-features = false, optional = true, version = "0.6.0-rc.5" }
-aes-gcm = { default-features = false, optional = true, version = "0.11.0-rc.2" }
-argon2 = { default-features = false, optional = true, version = "0.6.0-rc.5" }
+# Rust Crypto and its extravagant/unfortunate set of associated dependencies
+aead = { default-features = false, optional = true, version = "0.6.0-rc.10" }
+aes-gcm = { default-features = false, optional = true, version = "0.11.0-rc.3" }
+argon2 = { default-features = false, optional = true, version = "0.6.0-rc.8" }
 chacha20 = { default-features = false, optional = true, version = "0.10" }
-chacha20poly1305 = { default-features = false, optional = true, version = "0.11.0-rc.2" }
+chacha20poly1305 = { default-features = false, optional = true, version = "0.11.0-rc.3" }
 crypto-common = { default-features = false, optional = true, version = "0.2" }
-digest = { default-features = false, optional = true, version = "0.11.0-rc.11" }
+digest = { default-features = false, optional = true, version = "0.11" }
 ed25519-dalek = { default-features = false, optional = true, version = "3.0.0-pre.6" }
-elliptic-curve = { default-features = false, optional = true, version = "0.14.0-rc.28" }
+elliptic-curve = { default-features = false, optional = true, version = "0.14.0-rc.30" }
 getrandom = { default-features = false, optional = true, version = "0.4" }
 hkdf = { default-features = false, optional = true, version = "0.13" }
-hmac = { default-features = false, optional = true, version = "0.13.0-rc.5" }
-p256 = { default-features = false, optional = true, version = "0.14.0-rc.1" }
-p384 = { default-features = false, optional = true, version = "0.14.0-rc.1" }
+hmac = { default-features = false, optional = true, version = "0.13" }
+p256 = { default-features = false, optional = true, version = "0.14.0-rc.8" }
+p384 = { default-features = false, optional = true, version = "0.14.0-rc.8" }
+pkcs8 = { default-features = false, optional = true, version = "0.11.0-rc.11" }
 rand_core = { default-features = false, optional = true, version = "0.10" }
 rsa = { default-features = false, optional = true, version = "0.10.0-rc.12" }
 sha1 = { default-features = false, optional = true, version = "0.11" }
 sha2 = { default-features = false, optional = true, version = "0.11" }
-sha3 = { default-features = false, optional = true, version = "0.11.0-rc.7" }
+sha3 = { default-features = false, optional = true, version = "0.11" }
 signature = { default-features = false, optional = true, version = "3.0.0-rc.10" }
-spki = { default-features = false, optional = true, version = "0.8.0-rc.4" }
-x25519-dalek = { default-features = false, optional = true, version = "3.0.0-pre.3" }
+spki = { default-features = false, optional = true, version = "0.8" }
+x25519-dalek = { default-features = false, optional = true, version = "3.0.0-pre.6" }
 
 [dev-dependencies]
 tokio = { default-features = false, features = ["macros", "rt-multi-thread", "sync"], version = "1.0" }
@@ -72,7 +72,6 @@ aes-gcm = ["aead", "aes-gcm/aes"]
 arbitrary = ["dep:arbitrary", "arbitrary/derive_arbitrary", "std"]
 asn1 = []
 async-net = ["dep:async-io", "dep:async-net", "futures-lite", "std"]
-base64 = ["dep:base64", "base64/alloc"]
 chacha20 = ["dep:chacha20", "chacha20/cipher", "chacha20/rng"]
 chacha20poly1305 = ["aead", "dep:chacha20poly1305"]
 client-api-framework = []
@@ -80,12 +79,12 @@ crossbeam-channel = ["crossbeam-channel/std", "std"]
 crypto = []
 crypto-aws-lc-rs = ["dep:aws-lc-rs", "crypto"]
 crypto-graviola = ["crypto", "dep:graviola", "std"]
-crypto-ring = ["crypto", "dep:ring"]
-crypto-rust-crypto = ["aes-gcm", "chacha20poly1305", "crypto", "ed25519-dalek", "hkdf", "p256", "p384", "sha1", "sha2", "x25519-dalek"]
+crypto-ring = ["crypto", "dep:ring", "ring/alloc"]
+crypto-rust-crypto = ["aes-gcm", "chacha20poly1305", "crypto", "ed25519-dalek", "hkdf", "p256", "p384", "rsa", "sha1", "sha2", "x25519-dalek"]
 database = []
 default = []
 digest = ["dep:digest", "digest/mac"]
-ed25519-dalek = ["dep:ed25519-dalek", "ed25519-dalek?/digest"]
+ed25519-dalek = ["dep:ed25519-dalek", "ed25519-dalek?/digest", "ed25519-dalek?/pkcs8"]
 embassy-net = ["dep:embassy-net", "embassy-net/tcp"]
 executor = ["std"]
 flate2 = ["dep:flate2", "flate2/zlib-rs"]
@@ -98,21 +97,21 @@ hkdf = ["crypto-common", "digest", "dep:hkdf", "hmac"]
 http = []
 http-client-pool = ["http2", "std"]
 http-cookie = ["http"]
-http-cookie-secure = ["aes-gcm", "base64", "crypto", "digest", "http-cookie"]
+http-cookie-secure = ["aes-gcm", "crypto", "digest", "http-cookie"]
 http-server-framework = ["http2"]
 http-session = ["http-cookie-secure", "secret", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 macros = ["dep:wtx-macros"]
-mysql = ["database", "digest", "foldhash", "hashbrown", "rand-compat", "rsa/encoding", "spki", "sha1", "sha2"]
+mysql = ["database", "digest", "foldhash", "hashbrown", "rand_core", "rsa", "sha1", "sha2"]
 nightly = []
 optimization = ["memchr", "simdutf8"]
-p256 = ["dep:p256", "p256?/arithmetic", "p256?/ecdh", "p256?/ecdsa", "elliptic-curve", "rand-compat", "signature"]
-p384 = ["dep:p384", "p384?/arithmetic", "p384?/ecdh", "p384?/ecdsa", "elliptic-curve", "rand-compat", "signature"]
+p256 = ["dep:p256", "p256?/arithmetic", "p256?/ecdh", "p256?/pkcs8", "p256?/ecdsa", "elliptic-curve", "pkcs8", "rand_core", "signature"]
+p384 = ["dep:p384", "p384?/arithmetic", "p384?/ecdh", "p384?/pkcs8", "p384?/ecdsa", "elliptic-curve", "pkcs8", "rand_core", "signature"]
 portable-atomic = ["dep:portable-atomic", "portable-atomic/fallback"]
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util", "portable-atomic-util/alloc"]
-postgres = ["base64", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
+postgres = ["crypto", "crypto-common", "database", "digest", "foldhash", "hashbrown", "hmac", "sha2"]
 quick-protobuf = ["quick-protobuf/std", "std"]
-rand-compat = ["rand_core"]
+rsa = ["dep:rsa", "rsa/encoding", "pkcs8", "signature", "spki"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal/maths"]
 rustls = ["dep:rustls", "rustls-pki-types"]
 schema-manager = ["database"]
@@ -127,9 +126,9 @@ tracing = ["dep:tracing", "tracing/attributes"]
 tracing-subscriber = ["dep:tracing-subscriber", "tracing-subscriber/env-filter", "tracing-subscriber/fmt"]
 tracing-tree = ["std", "dep:tracing-tree"]
 web-socket = ["http"]
-web-socket-handshake = ["base64", "crypto", "httparse", "sha1", "web-socket"]
+web-socket-handshake = ["crypto", "httparse", "sha1", "web-socket"]
 x25519-dalek = ["signature", "dep:x25519-dalek"]
-x509 = ["asn1", "crypto"]
+x509 = ["asn1", "crypto", "hashbrown"]
 
 _async-tests = ["tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []

@@ -1,5 +1,7 @@
 use crate::{
+  codec::{Base64Alphabet, base64_decode},
   collection::{ArrayVectorU8, Vector},
+  crypto::{Hmac as _, HmacSha256RustCrypto},
   database::{
     Identifier,
     client::{
@@ -21,9 +23,6 @@ use crate::{
   rng::CryptoRng,
   stream::Stream,
 };
-use base64::prelude::{BASE64_STANDARD, Engine as _};
-use hmac::{Hmac, KeyInit, Mac};
-use sha2::Sha256;
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
@@ -171,10 +170,9 @@ where
       else {
         return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into());
       };
-      let mut decoded_salt = [0; 128];
-      let n = BASE64_STANDARD.decode_slice(salt, &mut decoded_salt)?;
-      let salt = decoded_salt.get(..n).unwrap_or_default();
-      let salted_passworded = salted_password(iterations, salt, config.password)?;
+      let mut decoded_salt_buffer = [0; 128];
+      let decoded_salt = base64_decode(Base64Alphabet::Standard, salt, &mut decoded_salt_buffer)?;
+      let salted_passworded = salted_password(iterations, decoded_salt, config.password)?;
       let nonce_array = ArrayVectorU8::<u8, 68>::from_copyable_slice(nonce)?;
       (
         {
@@ -206,16 +204,17 @@ where
       let MessageTy::Authentication(Authentication::SaslFinal(verifier_slice)) = msg.ty else {
         return Err(PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into());
       };
-      let mut buffer = [0; 68];
-      let idx = BASE64_STANDARD.decode_slice(verifier_slice, &mut buffer)?;
+      let mut decoded_buffer = [0; 68];
+      let decoded = base64_decode(Base64Alphabet::Standard, verifier_slice, &mut decoded_buffer)?;
       let server_key = {
-        let mut mac = Hmac::<Sha256>::new_from_slice(&salted_password)?;
+        let mut mac = HmacSha256RustCrypto::from_key(&salted_password)?;
         mac.update(b"Server Key");
-        mac.finalize().into_bytes()
+        mac.digest()
       };
-      let mut mac_verifier = Hmac::<Sha256>::new_from_slice(&server_key)?;
+
+      let mut mac_verifier = HmacSha256RustCrypto::from_key(&server_key[..])?;
       mac_verifier.update(&auth_data);
-      mac_verifier.verify_slice(buffer.get(..idx).unwrap_or_default())?;
+      mac_verifier.verify(decoded)?;
     }
 
     Ok(())
@@ -251,16 +250,16 @@ where
 
 fn salted_password(len: u32, salt: &[u8], str: &str) -> crate::Result<[u8; 32]> {
   let mut array: [u8; 32] = {
-    let mut hmac = Hmac::<Sha256>::new_from_slice(str.as_bytes())?;
+    let mut hmac = HmacSha256RustCrypto::from_key(str.as_bytes())?;
     hmac.update(salt);
     hmac.update(&[0, 0, 0, 1]);
-    hmac.finalize().into_bytes().into()
+    hmac.digest()
   };
   let mut salted_password = array;
   for _ in 1..len {
-    let mut mac = Hmac::<Sha256>::new_from_slice(str.as_bytes())?;
+    let mut mac = HmacSha256RustCrypto::from_key(str.as_bytes())?;
     mac.update(&array);
-    array = mac.finalize().into_bytes().into();
+    array = mac.digest();
     for (sp_elem, array_elem) in salted_password.iter_mut().zip(array) {
       *sp_elem ^= array_elem;
     }

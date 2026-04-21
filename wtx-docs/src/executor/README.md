@@ -7,6 +7,6 @@ To use this functionality, it is necessary to activate the `executor` feature.
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/executor.rs}}
+{{#rustdoc_include ../../../wtx-examples/others/executor.rs}}
 ```
 

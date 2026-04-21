@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SequenceBuffer},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::TryExtend,
   misc::{Lease, SingleTypeStorage},
 };
@@ -17,10 +17,7 @@ where
   T: Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>>,
 {
   /// The decoding of an optional object requires the injection of a tag.
-  pub fn decode(
-    dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>,
-    tag: u8,
-  ) -> crate::Result<Self> {
+  pub fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>, tag: u8) -> crate::Result<Self> {
     if dw.bytes.first().copied() == Some(tag) {
       dw.decode_aux.tag = Some(tag);
       let rslt = T::decode(dw);
@@ -39,7 +36,7 @@ where
 {
   /// The decoding of an optional collection requires the injection of a tag.
   pub fn decode_seq(
-    dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>,
+    dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>,
     tag: u8,
   ) -> crate::Result<Self> {
     if dw.bytes.first().copied() == Some(tag) {
@@ -58,7 +55,7 @@ where
   /// The encoding of an optional object requires the injection of a tag.
   pub fn encode(
     &self,
-    ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>,
+    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
     tag: u8,
   ) -> crate::Result<()> {
     if let Some(elem) = self.0.lease() {
@@ -81,7 +78,7 @@ where
   /// its entire length for performance reasons.
   pub fn encode_seq(
     &self,
-    ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>,
+    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
     len_guess: Len,
     tag: u8,
   ) -> crate::Result<()> {

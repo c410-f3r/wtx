@@ -15,47 +15,47 @@ pub struct GenericCodec<DA, EA> {
 
 impl<DA, EA> CodecController for GenericCodec<DA, EA> {
   type DecodeWrapper<'inner, 'outer, 'rem>
-    = GenericDecodeWrapper<'inner, DA>
+    = DecodeWrapper<'inner, DA>
   where
     'inner: 'outer;
   type Error = crate::Error;
   type EncodeWrapper<'inner, 'outer, 'rem>
-    = GenericEncodeWrapper<'inner, EA>
+    = EncodeWrapper<'inner, EA>
   where
     'inner: 'outer;
 }
 
 impl<DA, EA> Decode<'_, GenericCodec<DA, EA>> for () {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'_, DA>) -> crate::Result<Self> {
+  fn decode(_: &mut DecodeWrapper<'_, DA>) -> crate::Result<Self> {
     Ok(())
   }
 }
 
 impl<DA, EA> DecodeSeq<'_, GenericCodec<DA, EA>> for () {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'_, DA>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'_, DA>) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl<DA, EA> Encode<GenericCodec<DA, EA>> for () {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_, EA>) -> crate::Result<()> {
+  fn encode(&self, _: &mut EncodeWrapper<'_, EA>) -> crate::Result<()> {
     Ok(())
   }
 }
 
 /// Struct used for decoding different formats.
 #[derive(Debug, PartialEq)]
-pub struct GenericDecodeWrapper<'de, DA> {
+pub struct DecodeWrapper<'de, DA> {
   /// Raw bytes where decoded elements are originated.
   pub bytes: &'de [u8],
   /// Auxiliary decoding data
   pub decode_aux: DA,
 }
 
-impl<'de, DA> GenericDecodeWrapper<'de, DA> {
+impl<'de, DA> DecodeWrapper<'de, DA> {
   /// Shortcut
   #[inline]
   pub const fn new(bytes: &'de [u8], decode_aux: DA) -> Self {
@@ -63,7 +63,7 @@ impl<'de, DA> GenericDecodeWrapper<'de, DA> {
   }
 }
 
-impl<DA> Lease<[u8]> for GenericDecodeWrapper<'_, DA> {
+impl<DA> Lease<[u8]> for DecodeWrapper<'_, DA> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.bytes
@@ -72,14 +72,14 @@ impl<DA> Lease<[u8]> for GenericDecodeWrapper<'_, DA> {
 
 /// Struct used for encoding different formats.
 #[derive(Debug)]
-pub struct GenericEncodeWrapper<'any, EA> {
+pub struct EncodeWrapper<'any, EA> {
   /// Buffer where the encoded contents are stored.
   pub buffer: &'any mut Vector<u8>,
   /// Auxiliary encoding data
   pub encode_aux: EA,
 }
 
-impl<'any, EA> GenericEncodeWrapper<'any, EA> {
+impl<'any, EA> EncodeWrapper<'any, EA> {
   /// Shortcut
   #[inline]
   pub const fn new(buffer: &'any mut Vector<u8>, encode_aux: EA) -> Self {
@@ -87,7 +87,7 @@ impl<'any, EA> GenericEncodeWrapper<'any, EA> {
   }
 }
 
-impl<EA> Lease<[u8]> for GenericEncodeWrapper<'_, EA> {
+impl<EA> Lease<[u8]> for EncodeWrapper<'_, EA> {
   #[inline]
   fn lease(&self) -> &[u8] {
     self.buffer

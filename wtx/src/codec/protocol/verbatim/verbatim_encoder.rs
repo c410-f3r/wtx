@@ -1,5 +1,5 @@
 use crate::{
-  codec::{Decode, DecodeSeq, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::Vector,
 };
 
@@ -12,12 +12,20 @@ pub struct VerbatimEncoder<D> {
   pub data: D,
 }
 
+impl<D> VerbatimEncoder<D> {
+  /// Shortcut
+  #[inline]
+  pub const fn new(data: D) -> Self {
+    Self { data }
+  }
+}
+
 impl<'de, D, EA> Decode<'de, GenericCodec<&mut (), EA>> for VerbatimEncoder<D>
 where
   D: Default,
 {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'de, &mut ()>) -> crate::Result<Self> {
+  fn decode(_: &mut DecodeWrapper<'de, &mut ()>) -> crate::Result<Self> {
     Ok(Self { data: D::default() })
   }
 }
@@ -27,17 +35,14 @@ where
   D: Default,
 {
   #[inline]
-  fn decode_seq(
-    _: &mut Vector<Self>,
-    _: &mut GenericDecodeWrapper<'de, &mut ()>,
-  ) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de, &mut ()>) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl<D, DA> Encode<GenericCodec<DA, &mut ()>> for VerbatimEncoder<D> {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_, &mut ()>) -> crate::Result<()> {
+  fn encode(&self, _: &mut EncodeWrapper<'_, &mut ()>) -> crate::Result<()> {
     Ok(())
   }
 }

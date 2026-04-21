@@ -27,6 +27,8 @@ pub enum Http2Error {
   HeadersOverflow,
   /// Couldn't decode a header into a hpack buffer
   HpackDecodingBufferIsTooSmall,
+  /// Couldn't encode a header into a hpack buffer
+  HpackEncodingBufferIsTooSmall,
   /// A header was not fully constructed.
   IncompleteHeader,
   /// There are no bytes left to decode HPACK headers.

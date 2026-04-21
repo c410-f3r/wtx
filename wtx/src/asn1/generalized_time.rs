@@ -4,7 +4,7 @@ use crate::{
     parse_datetime,
   },
   calendar::{DateTime, Utc},
-  codec::{Decode, Encode, FromRadix10, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10, GenericCodec},
 };
 
 /// X509 time, which has two different representations.
@@ -16,7 +16,7 @@ pub struct GeneralizedTime(
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralizedTime {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (GENERALIZED_TIME_TAG, _, [a, b, c, d, e, f, g, h, i, j, k, l, m, n, b'Z'], rest) =
       decode_asn1_tlv(dw.bytes)?
     else {
@@ -31,7 +31,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralizedTime {
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralizedTime {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let _ = ew.buffer.extend_from_copyable_slices([
       &[GENERALIZED_TIME_TAG][..],
       &*Len::from_usize(0, 15)?,

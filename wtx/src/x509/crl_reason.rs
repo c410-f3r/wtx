@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, ENUMERATED_TAG, U32},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::X509Error,
 };
 
@@ -31,7 +31,7 @@ pub enum CrlReason {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for CrlReason {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     dw.decode_aux.tag = Some(ENUMERATED_TAG);
     let rslt = U32::decode(dw)?.u32().try_into();
     dw.decode_aux.tag = None;
@@ -41,7 +41,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for CrlReason {
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for CrlReason {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     ew.encode_aux.tag = Some(ENUMERATED_TAG);
     U32::from_u8((*self).into()).encode(ew)?;
     ew.encode_aux.tag = None;

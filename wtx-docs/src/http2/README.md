@@ -27,11 +27,11 @@ Allows more control but you should know HTTP/2 concepts and their interactions. 
 ## Client Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/http2-examples/http2-client.rs}}
+{{#rustdoc_include ../../../wtx-examples/http2/http2-client.rs}}
 ```
 
 ## Server Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/http2-examples/http2-server.rs}}
+{{#rustdoc_include ../../../wtx-examples/http2/http2-server.rs}}
 ```

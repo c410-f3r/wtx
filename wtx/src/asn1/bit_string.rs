@@ -1,26 +1,30 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, BIT_STRING_TAG, Len, decode_asn1_tlv},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
 };
 
 /// Arbitrary-length sequence of binary digits. Not to be confused with UTF-8 strings.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BitString<B> {
   bytes: B,
   unused_bits: u8,
+}
+
+// FIXME(stable): use generic instead of hardcoded type
+impl<'any> BitString<&'any [u8]> {
+  /// New instance from arbitrary bytes
+  #[inline]
+  pub const fn from_bytes(bytes: &'any [u8]) -> Self {
+    let unused_bits = if let [.., last] = bytes { last.trailing_zeros() % 8 } else { 0 };
+    Self { bytes, unused_bits: unused_bits as u8 }
+  }
 }
 
 impl<B> BitString<B>
 where
   B: Lease<[u8]>,
 {
-  /// New instance without unused bits.
-  #[inline]
-  pub const fn from_bytes(bytes: B) -> Self {
-    Self { unused_bits: 0, bytes }
-  }
-
   /// New instance from all parameters.
   #[inline]
   pub fn new(bytes: B, unused_bits: u8) -> crate::Result<Self> {
@@ -53,7 +57,7 @@ where
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for BitString<&'de [u8]> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let actual_tag = dw.decode_aux.tag.unwrap_or(BIT_STRING_TAG);
     let (tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
     let (true, [unused_bits, bytes @ ..]) = (tag == actual_tag, value) else {
@@ -70,7 +74,7 @@ where
   B: Lease<[u8]>,
 {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let actual_tag = ew.encode_aux.tag.unwrap_or(BIT_STRING_TAG);
     let _ = ew.buffer.extend_from_copyable_slices([
       &[actual_tag][..],

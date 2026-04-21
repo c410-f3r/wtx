@@ -1,4 +1,6 @@
 //! Collection types
+//!
+//! Hash-based collections are just re-exports of the hashbrown crate.
 
 #[macro_use]
 mod macros;
@@ -16,6 +18,8 @@ mod expansion_ty;
 mod fixed_string;
 mod linear_storage;
 mod misc;
+mod short_slice;
+mod short_str;
 mod truncate;
 mod try_extend;
 mod uninit;
@@ -37,8 +41,12 @@ pub use compressed_rows::CompressedRows;
 pub use deque::{Deque, DequeueError};
 pub use expansion_ty::ExpansionTy;
 pub use fixed_string::{FixedString, FixedStringError};
+#[cfg(feature = "hashbrown")]
+pub use hashbrown::{HashMap, HashSet, hash_map, hash_set};
 pub use linear_storage::linear_storage_len::LinearStorageLen;
 pub use misc::backward_deque_idx;
+pub use short_slice::{ShortSlice, ShortSliceU8, ShortSliceU16};
+pub use short_str::{ShortStr, ShortStrU8, ShortStrU16};
 pub use truncate::Truncate;
 pub use try_extend::TryExtend;
 pub use uninit::{Uninit, UninitError, UninitU8, UninitU16, UninitU32, UninitUsize};

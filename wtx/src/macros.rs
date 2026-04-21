@@ -125,7 +125,7 @@ macro_rules! create_enum {
           )*
           _ => Err($crate::Error::UnexpectedBytes {
             length: from.len().try_into().unwrap_or(u16::MAX),
-            ty: core::any::type_name::<Self>().split("::").last().and_then(|el| el.get(..8)).unwrap_or_default().try_into()?,
+            ty: $crate::collection::ShortStrU8::new_truncated_u8(core::any::type_name::<Self>()),
           }),
         }
       }
@@ -248,49 +248,6 @@ macro_rules! _internal_doc {
   };
 }
 
-macro_rules! _iter4 {
-  ($slice:expr, $init:block, |$elem:ident| $block:block) => {{
-    let (chunks, rem) = $slice.as_chunks();
-    let mut iter = chunks.iter();
-    for [a, b, c, d] in iter.by_ref() {
-      $init
-      let $elem = a;
-      $block
-      let $elem = b;
-      $block
-      let $elem = c;
-      $block
-      let $elem = d;
-      $block
-    }
-    for elem in rem {
-      let $elem = elem;
-      $block
-    }
-  }};
-}
-
-macro_rules! _iter4_mut {
-  ($slice:expr, $init:block, |$elem:ident| $block:block) => {{
-    let mut iter = crate::misc::ArrayChunksMut::new($slice);
-    for [a, b, c, d] in iter.by_ref() {
-      $init
-      let $elem = a;
-      $block
-      let $elem = b;
-      $block
-      let $elem = c;
-      $block
-      let $elem = d;
-      $block
-    }
-    for elem in iter.into_remainder() {
-      let $elem = elem;
-      $block
-    }
-  }};
-}
-
 macro_rules! _max_continuation_frames {
   () => {
     16
@@ -315,38 +272,6 @@ macro_rules! _simd {
       target_feature = "avx2" => $_32,
       any(target_feature = "neon", target_feature = "sse2") => $_16,
       _ => $_4
-    }
-  }};
-}
-
-macro_rules! _simd_slice {
-  (
-    (($($immutables:ident),* $(,)?), ($($mutables:ident),* $(,)?)),
-    ($exact_immutable:pat, $exact_mutable:pat, $exact_len:ident) => $exact_expr:expr,
-    ($rest_immutable:pat, $rest_mutable:pat, $rest_len:ident) => $rest_expr:expr $(,)?
-  ) => {{
-    let rest = {
-      const $exact_len: usize = _simd! {
-        4 => 4,
-        16 => 16,
-        32 => 32,
-        64 => 64
-      };
-      let ($($immutables,)*) = ($($immutables.as_chunks::<$exact_len>(),)*);
-      let ($($mutables,)*) = ($($mutables.as_chunks_mut::<$exact_len>(),)*);
-      let ($exact_immutable, $exact_mutable) = (($({ $immutables.0 },)*), ($({ $mutables.0 },)*));
-      $exact_expr
-      (($({ $immutables.1 },)*), ($({ $mutables.1 },)*))
-    };
-    {
-      const $rest_len: usize = _simd! {
-        4 => 4,
-        16 => 16,
-        32 => 32,
-        64 => 64
-      };
-      let ($rest_immutable, $rest_mutable) = rest;
-      $rest_expr
     }
   }};
 }

@@ -26,7 +26,6 @@ mod join_array;
 mod lease;
 mod mem;
 mod optimization;
-#[cfg(feature = "base64")]
 mod pem;
 mod poll_once;
 mod role;
@@ -46,6 +45,7 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
+use crate::collection::ShortStr;
 pub use ascii_graphic::AsciiGraphic;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
@@ -69,7 +69,6 @@ pub use join_array::JoinArray;
 pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimization::*;
-#[cfg(feature = "base64")]
 pub use pem::Pem;
 pub use poll_once::PollOnce;
 pub use role::{Client, Role, RoleTy, Server};
@@ -170,7 +169,7 @@ where
 #[inline]
 #[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
-  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>().into()))
+  opt.ok_or(crate::Error::NoInnerValue(ShortStr::new_truncated_u8(type_name::<T>())))
 }
 
 /// Deserializes a sequence passing each element to `cb`. Works with any deserializer of any format.
@@ -402,6 +401,15 @@ where
 {
   let [a, b, c, d, e, f, g, h] = rng.u8_8();
   foldhash::fast::FixedState::with_seed(u64::from_ne_bytes([a, b, c, d, e, f, g, h]))
+}
+
+#[inline]
+pub(crate) fn strip_new_line(bytes: &[u8]) -> (u8, &[u8]) {
+  match bytes {
+    [rest @ .., b'\r', b'\n'] => (2, rest),
+    [rest @ .., b'\n'] => (1, rest),
+    _ => (0, bytes),
+  }
 }
 
 #[cfg(feature = "postgres")]

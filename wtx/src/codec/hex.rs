@@ -9,13 +9,13 @@ pub enum HexEncMode {
   /// <https://eips.ethereum.org/EIPS/eip-55>
   #[cfg(feature = "sha3")]
   Eip55,
-  /// Lower case characters ***with*** a `0x` prefix
+  /// Lower case characters ***WITH*** a `0x` prefix
   WithPrefixLower,
-  /// Upper case characters ***with*** a `0x` prefix
+  /// Upper case characters ***WITH*** a `0x` prefix
   WithPrefixUpper,
-  /// Lower case characters ***without*** a `0x` prefix
+  /// Lower case characters ***WITHOUT*** a `0x` prefix
   WithoutPrefixLower,
-  /// Upper case characters ***without*** a `0x` prefix
+  /// Upper case characters ***WITHOUT*** a `0x` prefix
   WithoutPrefixUpper,
 }
 
@@ -67,13 +67,13 @@ impl Display for HexDisplay<'_> {
 
 /// Decodes `data` into `out` returning the affected part.
 #[inline]
-pub fn decode_hex<'out>(mut data: &[u8], out: &'out mut [u8]) -> crate::Result<&'out mut [u8]> {
-  data = if let [b'0', b'x' | b'X', rest @ ..] = data { rest } else { data };
-  let bytes_len = data.len() / 2;
-  let Some(out_data) = out.get_mut(..bytes_len) else {
+pub fn hex_decode<'to>(mut from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to mut [u8]> {
+  from = if let [b'0', b'x' | b'X', rest @ ..] = from { rest } else { from };
+  let bytes_len = from.len() / 2;
+  let Some(out_data) = to.get_mut(..bytes_len) else {
     return Err(HexError::InsufficientBuffer.into());
   };
-  let (arrays, rem) = data.as_chunks::<2>();
+  let (arrays, rem) = from.as_chunks::<2>();
   if !rem.is_empty() {
     return Err(HexError::OddLen.into());
   }
@@ -87,19 +87,19 @@ pub fn decode_hex<'out>(mut data: &[u8], out: &'out mut [u8]) -> crate::Result<&
 ///
 /// `mode` defaults to [`HexEncMode::WithoutPrefixLower`] if `None`.
 #[inline]
-pub fn encode_hex<'out>(
-  data: &[u8],
+pub fn hex_encode<'to>(
+  from: &[u8],
   hex_mode: Option<HexEncMode>,
-  out: &'out mut [u8],
-) -> crate::Result<&'out str> {
+  to: &'to mut [u8],
+) -> crate::Result<&'to str> {
   let actual_mode = actual_mode(hex_mode);
-  let mut hex_len = data.len().wrapping_mul(2);
+  let mut hex_len = from.len().wrapping_mul(2);
   let out_data = match actual_mode {
     #[cfg(feature = "sha3")]
-    HexEncMode::Eip55 => return encode_eip55(data, out),
+    HexEncMode::Eip55 => return encode_eip55(from, to),
     HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper => {
       hex_len = hex_len.wrapping_add(2);
-      let Some([a, b, actual_out @ ..]) = out.get_mut(..hex_len) else {
+      let Some([a, b, actual_out @ ..]) = to.get_mut(..hex_len) else {
         return Err(HexError::InsufficientBuffer.into());
       };
       *a = b'0';
@@ -107,7 +107,7 @@ pub fn encode_hex<'out>(
       actual_out
     }
     HexEncMode::WithoutPrefixLower | HexEncMode::WithoutPrefixUpper => {
-      let Some(out_data) = out.get_mut(..hex_len) else {
+      let Some(out_data) = to.get_mut(..hex_len) else {
         return Err(HexError::InsufficientBuffer.into());
       };
       out_data
@@ -120,13 +120,13 @@ pub fn encode_hex<'out>(
     HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
   };
   let (arrays, _) = out_data.as_chunks_mut::<2>();
-  for (byte, [a, b]) in data.iter().zip(arrays) {
+  for (byte, [a, b]) in from.iter().zip(arrays) {
     let (lhs, rhs) = byte_to_hex(*byte, table);
     *a = lhs;
     *b = rhs;
   }
   // SAFETY: HEX is always UTF-8
-  unsafe { Ok(str::from_utf8_unchecked(out.get_mut(..hex_len).unwrap_or_default())) }
+  unsafe { Ok(str::from_utf8_unchecked(to.get_mut(..hex_len).unwrap_or_default())) }
 }
 
 const fn actual_mode(hem: Option<HexEncMode>) -> HexEncMode {
@@ -141,13 +141,13 @@ fn byte_to_hex(byte: u8, table: &[u8; 16]) -> (u8, u8) {
 }
 
 #[cfg(feature = "sha3")]
-fn encode_eip55<'out>(data: &[u8], out: &'out mut [u8]) -> crate::Result<&'out str> {
+fn encode_eip55<'to>(from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to str> {
   use sha3::Digest;
-  if data.len() > 32 {
+  if from.len() > 32 {
     return Err(HexError::InvalidEip55Input.into());
   }
-  let rslt_len = encode_hex(data, Some(HexEncMode::WithPrefixLower), out)?.len();
-  let Some([_, _, hex @ ..]) = out.get_mut(..rslt_len) else {
+  let rslt_len = hex_encode(from, Some(HexEncMode::WithPrefixLower), to)?.len();
+  let Some([_, _, hex @ ..]) = to.get_mut(..rslt_len) else {
     return Ok("");
   };
   let hash: [u8; 32] = {
@@ -167,7 +167,7 @@ fn encode_eip55<'out>(data: &[u8], out: &'out mut [u8]) -> crate::Result<&'out s
     }
   }
   // SAFETY: HEX is always UTF-8
-  unsafe { Ok(str::from_utf8_unchecked(out.get_mut(..rslt_len).unwrap_or_default())) }
+  unsafe { Ok(str::from_utf8_unchecked(to.get_mut(..rslt_len).unwrap_or_default())) }
 }
 
 fn hex_to_bytes(lhs: u8, rhs: u8) -> crate::Result<u8> {
@@ -185,25 +185,25 @@ fn hex_to_bytes(lhs: u8, rhs: u8) -> crate::Result<u8> {
 #[cfg(test)]
 mod test {
   use crate::{
-    codec::{HexDisplay, HexEncMode, decode_hex, encode_hex},
+    codec::{HexDisplay, HexEncMode, hex_decode, hex_encode},
     collection::{ArrayVectorU8, Vector},
   };
 
   #[test]
   fn decode_has_correct_output() {
-    assert_eq!(decode_hex(b"61626364", &mut [0; 4]).unwrap(), b"abcd");
-    assert_eq!(decode_hex(b"0x6162636465", &mut [0; 5]).unwrap(), b"abcde");
-    assert!(decode_hex(b"6", &mut [0, 0, 0, 0]).is_err());
+    assert_eq!(hex_decode(b"61626364", &mut [0; 4]).unwrap(), b"abcd");
+    assert_eq!(hex_decode(b"0x6162636465", &mut [0; 5]).unwrap(), b"abcde");
+    assert!(hex_decode(b"6", &mut [0, 0, 0, 0]).is_err());
   }
 
   #[test]
   fn decode_insufficient_buffer() {
-    assert!(decode_hex(b"61626364", &mut [0; 2]).is_err());
+    assert!(hex_decode(b"61626364", &mut [0; 2]).is_err());
   }
 
   #[test]
   fn decode_invalid_character() {
-    assert!(decode_hex(b"6G", &mut [0; 1]).is_err());
+    assert!(hex_decode(b"6G", &mut [0; 1]).is_err());
   }
 
   #[cfg(feature = "sha3")]
@@ -211,7 +211,7 @@ mod test {
   fn eip55() {
     let mut buf = [0u8; 44];
     assert_eq!(
-      encode_hex(
+      hex_encode(
         &[
           90, 174, 182, 5, 63, 62, 148, 201, 185, 160, 159, 51, 102, 148, 53, 231, 239, 27, 234,
           237,
@@ -226,10 +226,10 @@ mod test {
 
   #[test]
   fn encode_has_correct_output() {
-    assert_eq!(encode_hex(&[], None, &mut [0u8; 8]).unwrap(), "");
-    assert_eq!(encode_hex(b"AZ", None, &mut [0u8; 8]).unwrap(), "415a");
+    assert_eq!(hex_encode(&[], None, &mut [0u8; 8]).unwrap(), "");
+    assert_eq!(hex_encode(b"AZ", None, &mut [0u8; 8]).unwrap(), "415a");
     assert_eq!(
-      encode_hex(b"AZ", Some(HexEncMode::WithoutPrefixUpper), &mut [0u8; 8]).unwrap(),
+      hex_encode(b"AZ", Some(HexEncMode::WithoutPrefixUpper), &mut [0u8; 8]).unwrap(),
       "415A"
     );
   }
@@ -259,9 +259,9 @@ mod test {
     for len in 0u8..=20 {
       let data = Vector::from_iterator(0..len).unwrap();
       let mut enc_buf = Vector::from_iterator(0u8..len * 2 + 2).unwrap();
-      let hex = encode_hex(&data, None, &mut enc_buf).unwrap();
+      let hex = hex_encode(&data, None, &mut enc_buf).unwrap();
       let mut dec_buf = Vector::from_iterator(0u8..len).unwrap();
-      let decoded = decode_hex(hex.as_bytes(), &mut dec_buf).unwrap();
+      let decoded = hex_decode(hex.as_bytes(), &mut dec_buf).unwrap();
       assert_eq!(decoded, &data[..]);
     }
   }
