@@ -10,14 +10,17 @@ use wtx::{
   codec::format::QuickProtobuf,
   grpc::GrpcClient,
   http::{ReqResBuffer, client_pool::ClientPoolBuilder},
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::TlsModePlainText,
 };
 use wtx_examples::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let rrb = ReqResBuffer::empty();
+  let rng = ChaCha20::from_std_random()?;
   let uri_ref = rrb.uri.to_ref();
-  let pool = ClientPoolBuilder::tokio(1).build();
+  let pool = ClientPoolBuilder::tokio(1).aux((), |_: &()| TlsModePlainText).build(rng);
   let mut guard = pool.lock(&uri_ref).await?;
   let mut client = GrpcClient::new(&mut guard.client, QuickProtobuf);
   let res = client

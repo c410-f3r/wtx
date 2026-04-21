@@ -1,0 +1,255 @@
+use crate::{
+  collection::ArrayVectorU8,
+  crypto::Agreement,
+  codec::{Decode as _, Encode},
+  misc::{LeaseMut, SuffixWriter},
+  rng::CryptoRng,
+  stream::Stream,
+  tls::{
+    CipherSuiteTy, CurrAgreement, CurrEphemeralSecretKey, MAX_KEY_SHARES_LEN, NamedGroup, Psk,
+    TlsBuffer, TlsConfig, TlsError, TlsMode, TlsModePlainText, TlsModeVerifyFull, TlsStream,
+    decode_wrapper::DecodeWrapper,
+    encode_wrapper::EncodeWrapper,
+    key_schedule::KeySchedule,
+    misc::fetch_rec_from_stream,
+    protocol::{
+      alert::Alert,
+      certificate::Certificate,
+      certificate_request::CertificateRequest,
+      certificate_verify::CertificateVerify,
+      client_hello::ClientHello,
+      encrypted_extensions::EncryptedExtensions,
+      finished::Finished,
+      handshake::{Handshake, HandshakeType},
+      record::Record,
+      record_content_type::RecordContentType,
+      server_hello::ServerHello,
+    },
+  },
+};
+
+/// Basically performs the TLS handshake
+#[derive(Debug)]
+pub struct TlsConnector<TB, TM> {
+  //alpn_protocols: Vec<Vec<u8>>,
+  //store: RootCertStore,
+  has_psk: bool,
+  key_schedule: KeySchedule,
+  tb: TB,
+  tm: TM,
+}
+
+impl<TB, TM> TlsConnector<TB, TM>
+where
+  TB: LeaseMut<TlsBuffer>,
+  TM: TlsMode,
+{
+  /// High level operation that automatically performs a full handshake.
+  ///
+  /// Low level operations must not be mixed with high level operations.
+  pub async fn connect<RNG, S>(
+    mut self,
+    psk: Option<Psk<'_>>,
+    rng: &mut RNG,
+    mut stream: S,
+    tls_config: &TlsConfig<'_>,
+  ) -> crate::Result<TlsStream<S, TB, TM, true>>
+  where
+    RNG: CryptoRng,
+    S: Stream,
+  {
+    let secrets = self.write_client_hello(psk, rng, tls_config)?;
+    stream.write_all(&self.tb.lease_mut().write_buffer).await?;
+    let ty = fetch_rec_from_stream(&mut self.tb.lease_mut().network_buffer, &mut stream).await?;
+    if !self.manage_initial_server_record(secrets, ty)? {
+      stream.write_all(&self.tb.lease_mut().write_buffer).await?;
+      return Err(TlsError::AbortedHandshake.into());
+    }
+    Ok(TlsStream::new(stream, self.tb, self.tm))
+  }
+
+  /// Low level operation that must be called after [`Self::write_client_hello`].
+  ///
+  /// Returns `false` if the connection was aborted by the server.
+  ///
+  /// High level operations must not be mixed with low level operations.
+  #[inline]
+  pub fn manage_initial_server_record(
+    &mut self,
+    secrets: ArrayVectorU8<CurrEphemeralSecretKey, MAX_KEY_SHARES_LEN>,
+    ty: RecordContentType,
+  ) -> crate::Result<bool> {
+    match ty {
+      RecordContentType::Handshake => {}
+      RecordContentType::Alert => {
+        self.read_and_write_alert()?;
+        return Ok(false);
+      }
+      _ => return Err(TlsError::InvalidHandshake.into()),
+    }
+    let server_hello = Handshake::<ServerHello>::decode(&mut DecodeWrapper::from_bytes(
+      self.tb.lease_mut().network_buffer.current(),
+    ))?;
+    let (secret, agreement) = secrets
+      .into_iter()
+      .find_map(|secret| {
+        if NamedGroup::from(&secret) == server_hello.data.key_share().group {
+          Some((secret, CurrAgreement::from(server_hello.data.key_share().group)))
+        } else {
+          None
+        }
+      })
+      .ok_or(TlsError::SecretMismatch)?;
+    if !self.has_psk {
+      self.key_schedule.set_cipher_suite_ty(server_hello.data.cipher_suite_ty());
+      self.key_schedule.early_secret(None)?;
+    }
+    let shared_secret = agreement.diffie_hellman(secret, server_hello.data.key_share().opaque)?;
+    self.key_schedule.handshake_secret(shared_secret.as_ref())?;
+    Ok(true)
+  }
+
+  /// Low level operation that must be called after [`Self::write_client_hello`].
+  ///
+  /// Returns `None` if the connection was aborted by the server or `Some(false)` if
+  /// this method needs to be called again.
+  ///
+  /// High level operations must not be mixed with low level operations.
+  #[inline]
+  pub fn manage_remaining_server_records<RNG>(
+    &mut self,
+    ty: RecordContentType,
+  ) -> crate::Result<Option<bool>> {
+    match ty {
+      RecordContentType::Handshake => {}
+      RecordContentType::Alert => {
+        self.read_and_write_alert();
+        return Ok(None);
+      }
+      _ => return Err(TlsError::InvalidHandshake.into()),
+    }
+    let mut dw = DecodeWrapper::from_bytes(self.tb.lease_mut().network_buffer.current());
+    let hs = Handshake::<&[u8]>::decode(&mut dw)?;
+    *dw.bytes_mut() = hs.data;
+    match hs.msg_type {
+      HandshakeType::EncryptedExtensions => {
+        let _encrypted_extensions = EncryptedExtensions::decode(&mut dw)?;
+      }
+      HandshakeType::Certificate => {
+        // verifier.verify_certificate(verify)?;
+        let _certificate = Certificate::decode(&mut dw)?;
+      }
+      HandshakeType::CertificateRequest => {
+        let _certificate_request = CertificateRequest::decode(&mut dw)?;
+      }
+      HandshakeType::CertificateVerify => {
+        // verifier.verify_signature(verify)?;
+        let _certificate_request = CertificateVerify::decode(&mut dw)?;
+      }
+      HandshakeType::Finished => {
+        let _finished = Finished::decode(&mut dw)?;
+        return Ok(Some(true));
+      }
+      _ => {
+        return Err(TlsError::InvalidHandshake.into());
+      }
+    }
+    Ok(Some(false))
+  }
+
+  /// Skips all TLS actions nullifying all other TLS structures and configurations. Useful for
+  /// unencrypted tests.
+  ///
+  /// Shortcut of [`Self::set_tls_mode`] with [`TlsModePlainText`].
+  pub fn set_plain_text(self) -> TlsConnector<TB, TlsModePlainText> {
+    TlsConnector {
+      has_psk: self.has_psk,
+      key_schedule: self.key_schedule,
+      tb: self.tb,
+      tm: TlsModePlainText,
+    }
+  }
+
+  pub fn set_tls_mode<_TM>(self, tm: _TM) -> TlsConnector<TB, _TM> {
+    TlsConnector { has_psk: self.has_psk, key_schedule: self.key_schedule, tb: self.tb, tm }
+  }
+
+  /// Low level operation responsible for informing the local parameters to the remote server. No other method should
+  /// be called before it.
+  ///
+  /// High level operations must not be mixed with low level operations.
+  #[inline]
+  pub fn write_client_hello<RNG>(
+    &mut self,
+    psk: Option<Psk<'_>>,
+    rng: &mut RNG,
+    tls_config: &TlsConfig<'_>,
+  ) -> crate::Result<ArrayVectorU8<CurrEphemeralSecretKey, MAX_KEY_SHARES_LEN>>
+  where
+    RNG: CryptoRng,
+  {
+    if TM::TY.is_plain_text() {
+      return Ok(ArrayVectorU8::new());
+    }
+    self.tb.lease_mut().clear();
+    if let Some(Psk { cipher_suite_ty, .. }) = psk {
+      let mut key_schedule = KeySchedule::from_cipher_suite_ty(cipher_suite_ty);
+      key_schedule.early_secret(psk.map(|Psk { data, psk_ty, .. }| (data, psk_ty)))?;
+      self.key_schedule = key_schedule;
+      self.has_psk = true;
+    }
+    let mut secrets = ArrayVectorU8::new();
+    for key_share in &tls_config.inner.key_shares {
+      let agreement = CurrAgreement::from(key_share.group);
+      secrets.push(agreement.ephemeral_secret_key(rng)?)?;
+    }
+    let handshake = Handshake {
+      data: ClientHello::new(rng, &secrets, &tls_config.inner)?,
+      msg_type: HandshakeType::ClientHello,
+    };
+    let record = Record::new(RecordContentType::Handshake, &handshake);
+    self.tb.lease_mut().write_buffer.clear();
+    let mut ew =
+      EncodeWrapper::from_buffer(SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer));
+    record.encode(&mut ew)?;
+    Ok(secrets)
+  }
+
+  /// Low level operation that must be called after [`Self::manage_remaining_server_records`] is concluded.
+  ///
+  /// High level operations must not be mixed with low level operations.
+  #[inline]
+  pub fn write_final_records<RNG, S>() {}
+
+  fn read_and_write_alert(&mut self) -> crate::Result<()> {
+    let alert =
+      Alert::decode(&mut DecodeWrapper::from_bytes(self.tb.lease_mut().network_buffer.current()))?;
+    self.tb.lease_mut().write_buffer.clear();
+    let mut ew =
+      EncodeWrapper::from_buffer(SuffixWriter::new(0, &mut self.tb.lease_mut().write_buffer));
+    Record::new(RecordContentType::Alert, alert).encode(&mut ew)?;
+    Ok(())
+  }
+}
+
+impl TlsConnector<TlsBuffer, TlsModeVerifyFull> {
+  /// From the trust anchors provided by the `CCADB`.
+  #[inline]
+  pub fn from_ccadb() -> crate::Result<Self> {
+    let mut this = Self::default();
+    //this.store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    Ok(this)
+  }
+}
+
+impl Default for TlsConnector<TlsBuffer, TlsModeVerifyFull> {
+  #[inline]
+  fn default() -> Self {
+    Self {
+      has_psk: false,
+      key_schedule: KeySchedule::from_cipher_suite_ty(CipherSuiteTy::Aes128GcmSha256),
+      tb: TlsBuffer::default(),
+      tm: TlsModeVerifyFull,
+    }
+  }
+}

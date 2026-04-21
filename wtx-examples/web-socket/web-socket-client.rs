@@ -9,15 +9,26 @@ use tokio::net::TcpStream;
 use wtx::{
   collection::Vector,
   misc::Uri,
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::{TlsConfig, TlsConnector},
   web_socket::{OpCode, WebSocketConnector, WebSocketPayloadOrigin},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
+  let mut rng = ChaCha20::from_std_random()?;
+  let tls_stream = TlsConnector::default()
+    .connect(
+      None,
+      &mut rng,
+      TcpStream::connect(uri.hostname_with_implied_port()).await?,
+      &TlsConfig::default(),
+    )
+    .await?;
   let mut ws = WebSocketConnector::default()
-    .headers([("custom-key", "CUSTOM_VALUE")]) // Headers are optional. This method can be omitted.
-    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri.to_ref())
+    .headers([("custom-key", "custom value")]) // Headers are optional. This method can be omitted.
+    .connect(tls_stream, &uri.to_ref())
     .await?;
   let mut buffer = Vector::new();
   loop {

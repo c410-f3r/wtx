@@ -1,5 +1,7 @@
-use crate::stream::{StreamReader, StreamWriter};
+use crate::stream::{StreamCommon, StreamReader, StreamWriter};
 use embassy_net::tcp::TcpSocket;
+
+impl StreamCommon for TcpSocket<'_> {}
 
 impl StreamReader for TcpSocket<'_> {
   #[inline]

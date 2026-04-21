@@ -1,4 +1,4 @@
-use crate::stream::{StreamReader, StreamWriter};
+use crate::stream::{StreamCommon, StreamReader, StreamWriter};
 use tokio::{
   io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf},
   net::{
@@ -6,6 +6,19 @@ use tokio::{
     tcp::{OwnedReadHalf, OwnedWriteHalf},
   },
 };
+
+impl StreamCommon for OwnedReadHalf {}
+
+impl StreamCommon for OwnedWriteHalf {}
+
+impl<T> StreamCommon for ReadHalf<T> where T: AsyncRead {}
+
+impl StreamCommon for TcpStream {}
+
+#[cfg(unix)]
+impl StreamCommon for tokio::net::UnixStream {}
+
+impl<T> StreamCommon for WriteHalf<T> where T: AsyncWrite {}
 
 impl StreamReader for OwnedReadHalf {
   #[inline]

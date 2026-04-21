@@ -71,3 +71,7 @@ where
     Ok(Self::PublicKey::default_array())
   }
 }
+
+/// A wrapper around public keys or other external structures that don't implement `AsRef<[u8]>`.
+#[cfg(any(feature = "p256", feature = "p384"))]
+pub struct AsRefWrapper<T>(T);

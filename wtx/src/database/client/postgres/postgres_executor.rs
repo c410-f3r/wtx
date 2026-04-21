@@ -18,9 +18,9 @@ use crate::{
       rdbms::{clear_cmd_buffers, common_executor_buffer::CommonExecutorBuffer},
     },
   },
-  misc::{ConnectionState, Lease, LeaseMut},
+  misc::{ConnectionState, LeaseMut},
   rng::CryptoRng,
-  stream::{Stream, StreamWithTls},
+  stream::Stream,
 };
 use core::marker::PhantomData;
 
@@ -51,38 +51,6 @@ where
   {
     eb.lease_mut().clear();
     Self::do_connect(config, eb, rng, stream, None).await
-  }
-
-  /// Initially connects with an unencrypted stream that should be later upgraded to an encrypted
-  /// stream.
-  pub async fn connect_encrypted<F, IS, RNG>(
-    config: &Config<'_>,
-    mut eb: EB,
-    rng: &mut RNG,
-    mut stream: IS,
-    cb: impl FnOnce(IS) -> F,
-  ) -> crate::Result<Self>
-  where
-    F: Future<Output = crate::Result<S>>,
-    IS: Stream,
-    RNG: CryptoRng,
-    S: StreamWithTls,
-  {
-    eb.lease_mut().clear();
-    {
-      let mut sw = eb.lease_mut().common.net_buffer.suffix_writer();
-      encrypted_conn(&mut sw)?;
-      stream.write_all(sw.curr_bytes()).await?;
-    }
-    let mut buf = [0];
-    let _ = stream.read(&mut buf).await?;
-    if buf[0] != b'S' {
-      return Err(PostgresError::ServerDoesNotSupportEncryption.into());
-    }
-    let enc_stream = cb(stream).await?;
-    let tls_server_end_point = enc_stream.tls_server_end_point()?;
-    Self::do_connect(config, eb, rng, enc_stream, tls_server_end_point.as_ref().map(Lease::lease))
-      .await
   }
 
   /// See [`Batch`].
@@ -119,6 +87,43 @@ where
     initial_conn_msg(config, &mut sw)?;
     self.stream.write_all(sw.curr_bytes()).await?;
     Ok(())
+  }
+}
+
+#[cfg(feature = "tls")]
+impl<E, EB, TB, S>
+  PostgresExecutor<E, EB, crate::tls::TlsStream<S, TB, crate::tls::TlsModeVerifyFull, true>>
+where
+  E: From<crate::Error>,
+  EB: LeaseMut<ExecutorBuffer>,
+  S: Stream,
+{
+  /// Initially connects with an unencrypted stream that should be later upgraded to an encrypted
+  /// stream.
+  pub async fn connect_encrypted<RNG>(
+    config: &Config<'_>,
+    mut eb: EB,
+    rng: &mut RNG,
+    mut stream: S,
+    tb: TB,
+  ) -> crate::Result<Self>
+  where
+    RNG: CryptoRng,
+  {
+    eb.lease_mut().clear();
+    {
+      let mut sw = eb.lease_mut().common.net_buffer.suffix_writer();
+      encrypted_conn(&mut sw)?;
+      stream.write_all(sw.curr_bytes()).await?;
+    }
+    let mut buf = [0];
+    let _ = stream.read(&mut buf).await?;
+    if buf[0] != b'S' {
+      return Err(PostgresError::ServerDoesNotSupportEncryption.into());
+    }
+    let tls_stream = crate::tls::TlsStream::new(stream, tb, crate::tls::TlsModeVerifyFull);
+    let tls_server_end_point = tls_stream.tls_server_end_point();
+    PostgresExecutor::do_connect(config, eb, rng, tls_stream, Some(&tls_server_end_point)).await
   }
 }
 

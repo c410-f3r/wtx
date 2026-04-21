@@ -7,12 +7,10 @@
 //! Please note that it is much easier to just use the HTTP server framework.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_examples;
 
-use tokio::{io::WriteHalf, net::TcpStream};
-use tokio_rustls::server::TlsStream;
+use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
   collection::Vector,
   http::{
@@ -20,29 +18,32 @@ use wtx::{
     StatusCode, is_web_socket_handshake,
   },
   http2::{Http2Buffer, Http2Params, WebSocketOverStream},
-  misc::TokioRustlsAcceptor,
-  rng::{CryptoSeedableRng, Xorshift64},
+  rng::{ChaCha20, CryptoSeedableRng, Xorshift64},
+  tls::{TlsAcceptor, TlsBuffer, TlsConfig, TlsStreamWriter},
   web_socket::{Frame, OpCode},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
-    (
-      TokioRustlsAcceptor::without_client_auth()
-        .http2()
-        .build_with_cert_chain_and_priv_key(wtx_examples::CERT, wtx_examples::KEY)?,
-      &wtx_examples::host_from_args(),
-      (),
-      (),
-    ),
+    (&wtx_instances::host_from_args(), (), ()),
     |_| Ok(()),
-    |acceptor, stream| async move { Ok(tokio::io::split(acceptor.accept(stream).await?)) },
+    |stream| async move {
+      let mut rng = ChaCha20::from_std_random()?;
+      Ok(
+        TlsAcceptor::default()
+          .push_cert(wtx_instances::CERT)
+          .push_priv_key(wtx_instances::KEY)
+          .accept(&mut rng, stream, TlsBuffer::default(), &TlsConfig::default())
+          .await?
+          .into_split(|el| el.into_split()),
+      )
+    },
     |error| eprintln!("{error}"),
     |_| {
       Ok((
         (),
-        Http2Buffer::new(&mut Xorshift64::from_getrandom().unwrap()),
+        Http2Buffer::new(&mut Xorshift64::from_std_random()?),
         Http2Params::default()
           .set_enable_connect_protocol(true)
           .set_max_hpack_len((128 * 1024, 128 * 1024)),
@@ -76,9 +77,9 @@ async fn auto(
 
 async fn manual(
   _: (),
-  mut hm: ManualServerStream<(), Http2Buffer, Vector<u8>, WriteHalf<TlsStream<TcpStream>>>,
+  mut hm: ManualServerStream<(), Http2Buffer, Vector<u8>, TlsStreamWriter<OwnedWriteHalf>>,
 ) -> Result<(), wtx::Error> {
-  let rng = Xorshift64::from_getrandom().unwrap();
+  let rng = Xorshift64::from_std_random()?;
   hm.req.rrd.headers.clear();
   let mut wos = WebSocketOverStream::new(&hm.req.rrd.headers, false, rng, hm.stream).await?;
   loop {

@@ -41,7 +41,7 @@ mod server_stream;
 mod settings_frame;
 mod stream_receiver;
 mod stream_state;
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests;
 mod u31;
 #[cfg(feature = "web-socket")]
