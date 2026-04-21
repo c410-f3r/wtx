@@ -19,7 +19,7 @@ use crate::{
   },
   misc::{ConnectionState, LeaseMut},
   rng::CryptoRng,
-  stream::{Stream, StreamWithTls},
+  stream::Stream,
 };
 use core::marker::PhantomData;
 
@@ -91,22 +91,28 @@ where
     this.connect3(config).await?;
     Ok(this)
   }
+}
 
+#[cfg(feature = "tls")]
+impl<E, EB, S, TB>
+  MysqlExecutor<E, EB, crate::tls::TlsStream<S, TB, crate::tls::TlsModeVerifyFull, true>>
+where
+  E: From<crate::Error>,
+  EB: LeaseMut<ExecutorBuffer>,
+  S: Stream,
+{
   /// Initially connects with an unencrypted stream that should be later upgraded to an encrypted
   /// stream.
   #[inline]
-  pub async fn connect_encrypted<F, IS, RNG>(
+  pub async fn connect_encrypted<RNG>(
     config: &Config<'_>,
     mut eb: EB,
     rng: &mut RNG,
-    mut stream: IS,
-    cb: impl FnOnce(IS) -> F,
+    mut stream: S,
+    tb: TB,
   ) -> Result<Self, E>
   where
-    F: Future<Output = crate::Result<S>>,
-    IS: Stream,
     RNG: CryptoRng,
-    S: StreamWithTls,
   {
     eb.lease_mut().clear();
     let mut sequence_id = 0;
@@ -124,14 +130,14 @@ where
       write_and_send_packet((&mut capabilities, &mut sequence_id), encode_buffer, req, &mut stream)
         .await?;
     }
-    let mut enc_stream = cb(stream).await?;
+    let mut tls_stream = crate::tls::TlsStream::new(stream, tb, crate::tls::TlsModeVerifyFull);
     let plugin = handshake_res.auth_plugin;
     Self::connect1(
       (&mut capabilities, &mut sequence_id),
       config,
       encode_buffer,
       &handshake_res,
-      &mut enc_stream,
+      &mut tls_stream,
     )
     .await?;
     Self::connect2::<_, true>(
@@ -142,7 +148,7 @@ where
       net_buffer,
       plugin,
       rng,
-      &mut enc_stream,
+      &mut tls_stream,
     )
     .await?;
     let mut this = Self {
@@ -151,7 +157,7 @@ where
       eb,
       phantom: PhantomData,
       sequence_id,
-      stream: enc_stream,
+      stream: tls_stream,
     };
     this.connect3(config).await?;
     Ok(this)

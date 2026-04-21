@@ -1,5 +1,7 @@
+use crate::stream::StreamCommon;
+
 /// A stream of values sent asynchronously.
-pub trait StreamReader {
+pub trait StreamReader: StreamCommon {
   /// Pulls some bytes from this source into the specified buffer, returning how many bytes
   /// were read.
   fn read(&mut self, bytes: &mut [u8]) -> impl Future<Output = crate::Result<usize>>;

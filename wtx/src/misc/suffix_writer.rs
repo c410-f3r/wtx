@@ -36,7 +36,7 @@ where
     self.extend_from_slices([other])
   }
 
-  #[cfg(any(feature = "postgres", feature = "web-socket-handshake"))]
+  #[cfg(any(feature = "postgres", feature = "tls", feature = "web-socket-handshake"))]
   pub(crate) fn curr_bytes(&self) -> &[u8] {
     self.vec.lease().get(self.initial_idx..self.curr_idx).unwrap_or_default()
   }
@@ -64,7 +64,7 @@ where
   }
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "postgres", feature = "tls"))]
 impl<V> SuffixWriter<V>
 where
   V: LeaseMut<Vector<u8>>,
@@ -105,7 +105,7 @@ where
   }
 }
 
-#[cfg(any(feature = "postgres", feature = "web-socket-handshake"))]
+#[cfg(any(feature = "postgres", feature = "tls", feature = "web-socket-handshake"))]
 impl<V> SuffixWriter<V>
 where
   V: LeaseMut<Vector<u8>>,

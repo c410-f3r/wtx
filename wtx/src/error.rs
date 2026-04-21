@@ -81,9 +81,6 @@ pub enum Error {
   #[cfg(feature = "rsa")]
   #[doc = associated_element_doc!()]
   RsaError(Box<rsa::Error>),
-  #[cfg(feature = "rustls")]
-  #[doc = associated_element_doc!()]
-  RustlsError(Box<rustls::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
   SerdeDeValue(Box<::serde::de::value::Error>),
@@ -309,6 +306,9 @@ pub enum Error {
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "tls")]
+  #[doc = associated_element_doc!()]
+  TlsError(crate::tls::TlsError),
   #[doc = associated_element_doc!()]
   UninitError(UninitError),
   #[doc = associated_element_doc!()]
@@ -545,14 +545,6 @@ impl From<rsa::Error> for Error {
   }
 }
 
-#[cfg(feature = "rustls")]
-impl From<rustls::Error> for Error {
-  #[inline]
-  fn from(from: rustls::Error) -> Self {
-    Self::RustlsError(from.into())
-  }
-}
-
 #[cfg(feature = "serde")]
 impl From<::serde::de::value::Error> for Error {
   #[inline]
@@ -590,6 +582,14 @@ impl From<spki::Error> for Error {
   #[inline]
   fn from(from: spki::Error) -> Self {
     Self::SpkiError(from.into())
+  }
+}
+
+#[cfg(feature = "tls")]
+impl From<crate::tls::TlsError> for Error {
+  #[inline]
+  fn from(from: crate::tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 

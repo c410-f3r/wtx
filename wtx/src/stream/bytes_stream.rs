@@ -1,6 +1,6 @@
 use crate::{
   collection::Vector,
-  stream::{StreamReader, StreamWriter},
+  stream::{StreamCommon, StreamReader, StreamWriter},
 };
 use core::cmp::Ordering;
 
@@ -19,6 +19,8 @@ impl BytesStream {
     self.idx = 0;
   }
 }
+
+impl StreamCommon for BytesStream {}
 
 impl StreamReader for BytesStream {
   #[inline]

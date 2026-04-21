@@ -9,12 +9,16 @@ extern crate wtx_examples;
 use wtx::{
   http::{HttpClient, ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
   misc::{Uri, from_utf8_basic},
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::TlsModePlainText,
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let uri = Uri::new("SOME_URI");
-  let pool = ClientPoolBuilder::tokio(1).build();
+  let pool = ClientPoolBuilder::tokio(1)
+    .aux((), |_: &()| TlsModePlainText)
+    .build(ChaCha20::from_std_random()?);
   let res = pool.send_req_recv_res(ReqBuilder::get(uri.to_ref()), ReqResBuffer::empty()).await?;
   println!("{}", from_utf8_basic(&res.rrd.body)?);
   Ok(())
