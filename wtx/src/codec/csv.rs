@@ -1,11 +1,11 @@
 use crate::{
   codec::CodecError,
-  collection::{ArrayVectorU8, Clear, Vector},
+  collection::{ArrayVectorU8, Clear},
   misc::{Lease, bytes_split2_indices, strip_new_line},
 };
 use core::{marker::PhantomData, ops::Range};
 #[cfg(feature = "std")]
-use std::io::BufRead;
+use {crate::collection::Vector, std::io::BufRead};
 
 const MAX_COLUMNS: usize = 64;
 
