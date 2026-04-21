@@ -1,0 +1,51 @@
+//! h2load
+
+use tokio::net::tcp::OwnedWriteHalf;
+use wtx::{
+  http::{
+    AutoStream, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer, Response,
+    StatusCode,
+  },
+  http2::{Http2Buffer, Http2Params},
+  rng::{CryptoSeedableRng, Xorshift64},
+};
+
+#[tokio::main]
+async fn main() -> wtx::Result<()> {
+  OptionedServer::http2_tokio(
+    ((), "127.0.0.1:9000", Xorshift64::from_std_random().unwrap(), ()),
+    |_| Ok(()),
+    |_, stream| async move {
+      stream.set_nodelay(true).unwrap();
+      Ok(stream.into_split())
+    },
+    |_conn_error| {},
+    |mut rng| {
+      Ok((
+        (),
+        Http2Buffer::new(&mut rng),
+        Http2Params::default()
+          .set_max_concurrent_streams_num(u32::MAX)
+          .set_max_recv_streams_num(u32::MAX),
+      ))
+    },
+    |_| Ok(()),
+    |_, _, _, _, _| Ok(((), OperationMode::Auto)),
+    |_stream_error| {},
+    auto,
+    manual,
+  )
+  .await
+}
+
+async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer>, wtx::Error> {
+  ha.req.clear();
+  Ok(ha.req.into_response(StatusCode::Ok))
+}
+
+async fn manual(
+  _: (),
+  _: ManualServerStream<(), Http2Buffer, (), OwnedWriteHalf>,
+) -> Result<(), wtx::Error> {
+  Ok(())
+}

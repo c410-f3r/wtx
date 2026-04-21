@@ -23,20 +23,14 @@ mod u32;
 
 use crate::{
   calendar::{Date, DateTime, Day, Hour, Month, Sixty, Time, Utc, Year},
-  codec::{FromRadix10, GenericEncodeWrapper},
-  collection::ExpansionTy,
-};
-#[cfg(feature = "base64")]
-use crate::{
-  codec::{Decode, GenericCodec, GenericDecodeWrapper},
-  collection::TryExtend,
+  codec::{Decode, DecodeWrapper, EncodeWrapper, FromRadix10, GenericCodec},
+  collection::{ExpansionTy, TryExtend},
   misc::Pem,
 };
 pub use any::Any;
 pub use asn1_error::Asn1Error;
 pub use bit_string::BitString;
 pub use boolean::Boolean;
-#[cfg(feature = "base64")]
 use core::ops::Range;
 pub use generalized_time::GeneralizedTime;
 pub use integer::Integer;
@@ -75,23 +69,21 @@ pub type MaxSizeTy = u16;
 /// Parses an DER element from PEM contents or in other words, from base64 data delimited by labels.
 ///
 /// The [`Pem`] structure must delimit `buffer` through its indices.
-#[cfg(feature = "base64")]
 pub fn parse_der_from_pem_range<'bytes, T>(
-  buffer: &'bytes [u8],
+  bytes: &'bytes [u8],
   pem: &Pem<Range<usize>, 1>,
 ) -> crate::Result<T>
 where
   T: Decode<'bytes, GenericCodec<Asn1DecodeWrapper, ()>>,
 {
   let [(_label, range)] = pem.data.as_inner()?;
-  T::decode(&mut GenericDecodeWrapper::new(
-    buffer.get(range.clone()).unwrap_or_default(),
+  T::decode(&mut DecodeWrapper::new(
+    bytes.get(range.clone()).unwrap_or_default(),
     Asn1DecodeWrapper::default(),
   ))
 }
 
 /// Generalization of [`parse_der_from_pem_range`].
-#[cfg(feature = "base64")]
 pub fn parse_der_from_pem_range_many<'bytes, 'pem, I, T, U>(
   buffer: &'bytes [u8],
   instances: &mut I,
@@ -105,7 +97,7 @@ where
   for pem in pems {
     let [(_label, range)] = pem.data.as_inner()?;
     let bytes = buffer.get(range.clone()).unwrap_or_default();
-    instances.try_extend([cb(T::decode(&mut GenericDecodeWrapper::new(
+    instances.try_extend([cb(T::decode(&mut DecodeWrapper::new(
       bytes,
       Asn1DecodeWrapper::default(),
     ))?)?])?;
@@ -115,10 +107,10 @@ where
 
 #[inline]
 pub(crate) fn asn1_writer(
-  ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>,
+  ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
   len_guess: Len,
   tag: u8,
-  cb: impl FnOnce(&mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()>,
+  cb: impl FnOnce(&mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()>,
 ) -> crate::Result<()> {
   let _ = ew.buffer.extend_from_copyable_slices([&[tag][..], &*len_guess])?;
   let before = ew.buffer.len();
@@ -180,7 +172,7 @@ pub(crate) fn decode_asn1_tlv(bytes: &[u8]) -> crate::Result<(u8, Len, &[u8], &[
     }
     (Len::from_u16(len), rest)
   } else {
-    return Err(Asn1Error::InvalidTlv.into());
+    return Err(Asn1Error::LargeData.into());
   };
   let Some((value, rest)) = after_len.split_at_checked(len.size().into()) else {
     return Err(Asn1Error::InvalidTlv.into());

@@ -1,13 +1,13 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, BitString},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::X509Error,
 };
 
 /// A `BIT STRING` variation of `ReasonCode`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ReasonFlags {
-  bytes: (u8, Option<u8>),
+  bytes: (u8, u8),
   unused_bits: u8,
 }
 
@@ -63,19 +63,18 @@ impl ReasonFlags {
   /// Authority attribute (AA) has been compromised
   #[inline]
   pub fn aa_compromise(&self) -> bool {
-    self.bytes.1.is_some_and(|el| el & 0b1000_0000 != 0)
+    self.bytes.1 & 0b1000_0000 != 0
   }
 }
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for ReasonFlags {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let bit_string = BitString::decode(dw)?;
     let bytes = match bit_string.bytes() {
-      [] => (0, None),
-      [a] => (*a, None),
-      [a, b] => (*a, Some(*b)),
-      _ => return Err(X509Error::InvalidReasonFlags.into()),
+      [a] => (*a, 0),
+      [a, b] => (*a, *b),
+      _ => return Err(X509Error::InvalidExtensionKeyUsage.into()),
     };
     Ok(Self { bytes, unused_bits: bit_string.unused_bits() })
   }
@@ -83,11 +82,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for ReasonFlags {
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for ReasonFlags {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
-    let slice = match self.bytes {
-      (a, None) => &[a][..],
-      (a, Some(b)) => &[a, b][..],
-    };
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    let slice =
+      if self.bytes.1 == 0 { &[self.bytes.0][..] } else { &[self.bytes.0, self.bytes.1][..] };
     // SAFETY: `unused_bits` comes from a valid `BitString` instance when decoding
     unsafe {
       BitString::new_unchecked(slice, self.unused_bits).encode(ew)?;

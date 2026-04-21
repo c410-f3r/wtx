@@ -55,6 +55,7 @@ where
         CalendarToken::Colon => parse_token_literal(b":", bytes)?,
         CalendarToken::Comma => parse_token_literal(b",", bytes)?,
         CalendarToken::Dash => parse_token_literal(b"-", bytes)?,
+        CalendarToken::Dot => parse_token_literal(b".", bytes)?,
         CalendarToken::DotNano => {
           let Ok(rest) = parse_token_literal(b".", bytes) else {
             continue;

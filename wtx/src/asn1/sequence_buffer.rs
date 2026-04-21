@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SequenceDecodeCb, SequenceEncodeIter},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::TryExtend,
   misc::{Lease, SingleTypeStorage},
 };
@@ -19,10 +19,7 @@ where
 {
   /// The encoding of an collection object requires the injection of a tag.
   #[inline]
-  pub fn decode(
-    dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>,
-    tag: u8,
-  ) -> crate::Result<Self> {
+  pub fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>, tag: u8) -> crate::Result<Self> {
     let mut extensions = B::default();
     SequenceDecodeCb::new(|elem| {
       extensions.try_extend([elem])?;
@@ -42,7 +39,7 @@ where
   /// its entire length for performance reasons.
   pub fn encode(
     &self,
-    ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>,
+    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
     len_guess: Len,
     tag: u8,
   ) -> crate::Result<()> {

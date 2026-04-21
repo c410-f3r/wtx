@@ -1,7 +1,5 @@
 use crate::{
-  codec::{
-    Decode, DecodeSeq, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper, Id,
-  },
+  codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec, Id},
   collection::Vector,
   misc::Lease,
 };
@@ -29,7 +27,7 @@ where
   P: Default,
 {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<Self> {
+  fn decode(_: &mut DecodeWrapper<'de, ()>) -> crate::Result<Self> {
     Ok(Self { id: 0, method: "", params: P::default() })
   }
 }
@@ -39,7 +37,7 @@ where
   P: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -53,7 +51,7 @@ impl<P> Borrow<Id> for JsonRpcEncoder<P> {
 
 impl<DA, P> Encode<GenericCodec<DA, ()>> for JsonRpcEncoder<P> {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
+  fn encode(&self, _: &mut EncodeWrapper<'_, ()>) -> crate::Result<()> {
     Ok(())
   }
 }

@@ -19,6 +19,8 @@ pub enum Mime {
   Custom(&'static str),
   /// multipart/form-data
   MultipartFormData,
+  /// text/csv
+  TextCsv,
   /// text/plain
   TextPlain,
 }
@@ -37,6 +39,7 @@ impl Mime {
       Self::ApplicationYaml => "application/yaml",
       Self::Custom(el) => el,
       Self::MultipartFormData => "multipart/form-data",
+      Self::TextCsv => "text/csv",
       Self::TextPlain => "text/plain",
     }
   }

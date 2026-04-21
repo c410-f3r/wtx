@@ -2,7 +2,7 @@ use crate::{
   asn1::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Oid, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{GeneralName, X509Error},
 };
 
@@ -18,7 +18,7 @@ pub struct AccessDescription<'bytes> {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AccessDescription<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidAccessDescription.into());
     };
@@ -32,7 +32,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AccessDescription
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for AccessDescription<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       self.access_method.encode(local_ew)?;
       self.access_location.encode(local_ew)?;

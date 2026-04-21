@@ -16,7 +16,7 @@ To use this functionality, it is necessary to activate the `postgres` feature.
 ### Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/database-examples/database-client-postgres.rs}}
+{{#rustdoc_include ../../../wtx-examples/database/database-client-postgres.rs}}
 ```
 
 ## MySQL
@@ -30,7 +30,7 @@ To use this functionality, it is necessary to activate the `mysql` feature.
 ### Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/database-examples/database-client-mysql.rs}}
+{{#rustdoc_include ../../../wtx-examples/database/database-client-mysql.rs}}
 ```
 
 ## Batch
@@ -42,7 +42,7 @@ Only PostgreSQL supports the sending of multiple statements in a single round-tr
 * `MULTI_STATEMENT`, from the Client/Server protocol, does not allow multiple prepared statements.
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/database-examples/database-client-postgres-batch.rs}}
+{{#rustdoc_include ../../../wtx-examples/database/database-client-postgres-batch.rs}}
 ```
 
 ## Tests
@@ -54,5 +54,5 @@ Its current state is limited to PostgreSQL tests that use the standard `std::net
 Required features: `executor`, `macros`, `postgres` and `schema-manager-dev`. Connected users must have the right to create new databases.
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/database-examples/database-client-tests.rs}}
+{{#rustdoc_include ../../../wtx-examples/database/database-client-tests.rs}}
 ```

@@ -1,6 +1,6 @@
 use crate::{
   codec::{
-    Decode, Encode, GenericCodec, GenericDecodeWrapper,
+    Decode, DecodeWrapper, Encode, GenericCodec,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
   collection::Vector,
@@ -30,7 +30,7 @@ impl<DRSR> GrpcManager<DRSR> {
     VerbatimEncoder<T>: for<'drsr> Decode<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
     let elem = if let [_, _, _, _, _, elem @ ..] = bytes { elem } else { &[] };
-    Ok(VerbatimEncoder::decode(&mut GenericDecodeWrapper::new(elem, &mut self.drsr))?.data)
+    Ok(VerbatimEncoder::decode(&mut DecodeWrapper::new(elem, &mut self.drsr))?.data)
   }
 
   /// Serialize to Response Bytes

@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Octetstring},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::X509Error,
 };
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -20,15 +20,15 @@ pub enum IpAddress {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for IpAddress {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     Self::try_from(*Octetstring::decode(dw)?.bytes())
   }
 }
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for IpAddress {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
-    Octetstring::new(<&[u8]>::from(self)).encode(ew)
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    Octetstring::from_bytes(<&[u8]>::from(self)).encode(ew)
   }
 }
 

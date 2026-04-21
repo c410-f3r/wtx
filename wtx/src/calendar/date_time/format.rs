@@ -57,6 +57,9 @@ where
         CalendarToken::Dash => {
           string.push('-')?;
         }
+        CalendarToken::Dot => {
+          string.push('.')?;
+        }
         CalendarToken::DotNano => {
           string.push('.')?;
           string.push_str(&nanosecond_string(self.time.nanosecond().num()))?;
@@ -142,7 +145,7 @@ mod tests {
 
   #[test]
   fn _0() {
-    let _0_tokens = parse_bytes_into_tokens(_0_FMT.iter().copied()).unwrap();
+    let _0_tokens = parse_bytes_into_tokens(_0_FMT).unwrap();
     assert_eq!(
       DateTime::<Utc>::parse(_0_DATA, _0_tokens.clone())
         .unwrap()
@@ -156,7 +159,7 @@ mod tests {
 
   #[test]
   fn _1() {
-    let _1_tokens = parse_bytes_into_tokens(_1_FMT.iter().copied()).unwrap();
+    let _1_tokens = parse_bytes_into_tokens(_1_FMT).unwrap();
     assert_eq!(
       DateTime::<Utc>::parse(_1_DATA, _1_tokens.clone())
         .unwrap()
@@ -170,7 +173,7 @@ mod tests {
 
   #[test]
   fn _2() {
-    let _2_tokens = parse_bytes_into_tokens(_2_FMT.iter().copied()).unwrap();
+    let _2_tokens = parse_bytes_into_tokens(_2_FMT).unwrap();
     assert_eq!(
       DateTime::<Utc>::parse(_2_DATA, _2_tokens.clone())
         .unwrap()
@@ -184,7 +187,7 @@ mod tests {
 
   #[test]
   fn _3() {
-    let _3_tokens = parse_bytes_into_tokens(_3_FMT.iter().copied()).unwrap();
+    let _3_tokens = parse_bytes_into_tokens(_3_FMT).unwrap();
     assert_eq!(
       DateTime::<Utc>::parse(_3_DATA, _3_tokens.clone())
         .unwrap()
@@ -198,7 +201,7 @@ mod tests {
 
   #[test]
   fn _4() {
-    let _4_tokens = parse_bytes_into_tokens(_4_FMT.iter().copied()).unwrap();
+    let _4_tokens = parse_bytes_into_tokens(_4_FMT).unwrap();
     assert_eq!(
       DateTime::<Utc>::parse(_4_DATA, _4_tokens.clone())
         .unwrap()
@@ -212,7 +215,7 @@ mod tests {
 
   #[test]
   fn _5() {
-    let _5_tokens = parse_bytes_into_tokens(_5_FMT.iter().copied()).unwrap();
+    let _5_tokens = parse_bytes_into_tokens(_5_FMT).unwrap();
     assert_eq!(
       DateTime::<Local>::parse(_5_DATA0, _5_tokens.clone())
         .unwrap()

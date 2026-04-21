@@ -18,8 +18,9 @@ debug = true
 [workspace]
 members = [
     "wtx",
+    "wtx-examples",
     "wtx-fuzz",
-    "wtx-instances",
+    "wtx-internal",
     "wtx-macros",
     "wtx-ui"
 ]

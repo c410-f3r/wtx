@@ -3,7 +3,7 @@ use crate::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, BitString, Len, SEQUENCE_TAG, asn1_writer,
     decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{AlgorithmIdentifier, TbsCertList, X509Error},
 };
 
@@ -21,9 +21,9 @@ pub struct Crl<'bytes> {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Crl<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
-      return Err(X509Error::InvalidCertificateList.into());
+      return Err(X509Error::InvalidCrl.into());
     };
     dw.bytes = value;
     let tbs_cert_list = TbsCertList::decode(dw)?;
@@ -36,7 +36,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Crl<'de> {
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Crl<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       self.tbs_cert_list.encode(local_ew)?;
       self.signature_algorithm.encode(local_ew)?;

@@ -1,11 +1,11 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, INTEGER_TAG, Len, decode_asn1_tlv},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
 };
 
 /// Big-endian two's complement bytes
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Integer<B>(B);
 
 impl<B> Integer<B>
@@ -26,7 +26,7 @@ where
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Integer<&'de [u8]> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (INTEGER_TAG, _, bytes, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(Asn1Error::InvalidInteger.into());
     };
@@ -41,7 +41,7 @@ where
   B: Lease<[u8]>,
 {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let bytes = self.0.lease();
     let _ = ew.buffer.extend_from_copyable_slices([
       &[INTEGER_TAG][..],

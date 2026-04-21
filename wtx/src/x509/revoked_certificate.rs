@@ -2,7 +2,7 @@ use crate::{
   asn1::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Opt, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{Extensions, SerialNumber, Time, X509Error},
 };
 
@@ -14,12 +14,12 @@ pub struct RevokedCertificate<'bytes> {
   /// The date and time when the certificate was revoked.
   pub revocation_date: Time,
   /// Additional information.
-  pub crl_entry_extensions: Option<Extensions<'bytes, SEQUENCE_TAG>>,
+  pub crl_entry_extensions: Option<Extensions<'bytes>>,
 }
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RevokedCertificate<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidRevokedCertificate.into());
     };
@@ -34,7 +34,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RevokedCertificat
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for RevokedCertificate<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       self.user_certificate.encode(local_ew)?;
       self.revocation_date.encode(local_ew)?;

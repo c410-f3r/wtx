@@ -7,8 +7,8 @@ if [ "$ARG" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-cargo build --bin h2load --features h2load --profile deploy
-cargo run --bin h2load --features h2load --profile deploy &
+RUSTFLAGS='-C target-cpu=native' cargo build --bin h2load --features h2load --profile deploy
+RUSTFLAGS='-C target-cpu=native' cargo run --bin h2load --features h2load --profile deploy &
 sleep 1
 
 > /tmp/h2load.txt

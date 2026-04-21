@@ -13,7 +13,7 @@ Independent benchmarks are available at <https://github.com/LesnyRumcajs/grpc_be
 To use this functionality, it is necessary to activate the `grpc-client` feature.
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/grpc-client.rs}}
+{{#rustdoc_include ../../../wtx-examples/grpc/grpc-client.rs}}
 ```
 
 ## Server Example
@@ -21,5 +21,5 @@ To use this functionality, it is necessary to activate the `grpc-client` feature
 To use this functionality, it is necessary to activate the `grpc-server` feature.
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/generic-examples/grpc-server.rs}}
+{{#rustdoc_include ../../../wtx-examples/grpc/grpc-server.rs}}
 ```

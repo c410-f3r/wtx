@@ -3,7 +3,7 @@ use crate::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Oid, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
     decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::ArrayVectorU8,
   x509::X509Error,
 };
@@ -19,7 +19,7 @@ pub struct PolicyMapping {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyMapping {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionPolicyMappings.into());
     };
@@ -33,7 +33,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyMapping {
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyMapping {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
       self.issuer_domain_policy.encode(local_ew)?;
       self.subject_domain_policy.encode(local_ew)?;
@@ -53,14 +53,14 @@ pub struct PolicyMappings(
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyMappings {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0))
   }
 }
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyMappings {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG)
   }
 }

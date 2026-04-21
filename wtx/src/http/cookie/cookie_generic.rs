@@ -1,7 +1,10 @@
 use crate::{
   calendar::{DateTime, Utc},
-  collection::ArrayStringU8,
-  http::cookie::{FMT1, SameSite},
+  collection::{ArrayStringU8, Clear},
+  http::{
+    Header, Headers, KnownHeaderName,
+    cookie::{FMT1, SameSite},
+  },
   misc::Lease,
 };
 use core::{
@@ -23,6 +26,25 @@ pub(crate) struct CookieGeneric<T, V> {
 }
 
 impl<T, V> CookieGeneric<T, V> {
+  pub(crate) fn delete(&mut self, headers: &mut Headers) -> crate::Result<()>
+  where
+    T: Lease<str>,
+    V: Clear,
+  {
+    let prev_expires = self.expires;
+    let prev_max_age = self.max_age;
+    self.expires = Some(DateTime::EPOCH);
+    self.max_age = None;
+    self.value.clear();
+    let rslt = headers.push_from_fmt(Header::from_name_and_value(
+      KnownHeaderName::SetCookie.into(),
+      format_args!("{}", self.map_mut(move |el| el, |_| "")),
+    ));
+    self.expires = prev_expires;
+    self.max_age = prev_max_age;
+    rslt
+  }
+
   pub(crate) fn map_mut<'this, NT, NV>(
     &'this mut self,
     mut data: impl FnMut(&'this mut T) -> NT,

@@ -40,6 +40,37 @@ where
   }
 }
 
+impl<CS, E, RM> SessionMiddleware<CS, E, RM>
+where
+  E: From<crate::Error>,
+  RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
+  RM::Resource: SessionStore<CS, E>,
+{
+  #[inline]
+  async fn delete_session_cookie<CA>(
+    &self,
+    ca: &mut CA,
+    req: &mut Request<ReqResBuffer>,
+  ) -> Result<(), E>
+  where
+    CA: LeaseMut<Option<SessionState<CS>>>,
+  {
+    let _rslt = self
+      .session_manager
+      .inner
+      .1
+      .lock()
+      .await
+      .delete_session_cookie(
+        &mut req.rrd,
+        ca.lease_mut(),
+        &mut ***self.session_store.get_with_unit().await?,
+      )
+      .await;
+    Ok(())
+  }
+}
+
 impl<CA, CS, E, RM, SA> Middleware<CA, E, SA> for SessionMiddleware<CS, E, RM>
 where
   CA: LeaseMut<Option<SessionState<CS>>>,
@@ -69,18 +100,12 @@ where
       if let Some(elem) = &session_state.expires_at
         && *elem < Instant::now_date_time(0)?.trunc_to_us()
       {
-        let _rslt = self
-          .session_store
-          .get_with_unit()
-          .await?
-          .lease_mut()
-          .delete(&session_state.session_key)
-          .await;
+        self.delete_session_cookie(ca, req).await?;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
       return Ok(ControlFlow::Continue(()));
     }
-    let mut has_stored_session = true;
+    let mut has_stored_session = true; // `true` because of log-ins
     let mut x_csrf_token_value = None;
     for header in req.rrd.headers.iter() {
       if ca.lease_mut().is_some() && x_csrf_token_value.is_some() {
@@ -104,6 +129,10 @@ where
         let mut session_guard = self.session_manager.inner.1.lock().await;
         let SessionManagerInner { cookie_def, session_secret, .. } = &mut *session_guard;
         let (name, value) = (cookie_des.generic.name, cookie_des.generic.value);
+        // For some reason a deleted cookie in the frontend only has its contents erased but the cookie still exists.
+        if name.is_empty() || value.is_empty() {
+          continue;
+        }
         let decrypt_rslt = session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new(), |el| {
           Aes128GcmRustCrypto::decrypt_base64_to_buffer(
             name.as_bytes(),
@@ -132,10 +161,7 @@ where
     }
     if !has_stored_session {
       req.rrd.clear();
-      let _rslt = SessionManager::<CS, E>::clear_cookie(
-        &mut self.session_manager.inner.1.lock().await.cookie_def,
-        &mut req.rrd.headers,
-      );
+      self.delete_session_cookie(ca, req).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
     if let Some(local) = ca.lease_mut() {

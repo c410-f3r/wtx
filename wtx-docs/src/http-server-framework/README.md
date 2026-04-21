@@ -35,7 +35,7 @@ extern crate wtx;
 use wtx::http::{ReqResBuffer, server_framework::State};
 
 async fn print_request(state: State<'_, (), (), ReqResBuffer>) {
-  println!("Request: {:?}", &state.req);
+  assert_eq!(state.req.rrd.body.len(), 0);
 }
 ```
 
@@ -76,5 +76,5 @@ async fn echo(_: State<'_, (), (), ReqResBuffer>) -> wtx::Result<VerbatimParams>
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/http-server-framework-examples/http-server-framework.rs}}
+{{#rustdoc_include ../../../wtx-examples/http-server-framework/http-server-framework.rs}}
 ```

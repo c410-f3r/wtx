@@ -2,7 +2,7 @@ use crate::{
   asn1::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Opt, SEQUENCE_TAG, U32, asn1_writer, decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{INHIBIT_POLICY_MAPPING_TAG, REQUIRE_EXPLICIT_POLICY_TAG, X509Error},
 };
 
@@ -12,32 +12,37 @@ use crate::{
 pub struct PolicyConstraints {
   /// Number of additional certificates that may appear in the path before an explicit policy
   /// is required.
-  pub require_explicit_policy: Option<U32>,
+  pub require_explicit_policy: Option<u32>,
   /// Number of additional certificates that may appear in the path before policy mapping
   /// is no longer permitted.
-  pub inhibit_policy_mapping: Option<U32>,
+  pub inhibit_policy_mapping: Option<u32>,
 }
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyConstraints {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionPolicyConstraints.into());
     };
     dw.bytes = value;
-    let require_explicit_policy = Opt::decode(dw, REQUIRE_EXPLICIT_POLICY_TAG)?.0;
-    let inhibit_policy_mapping = Opt::decode(dw, INHIBIT_POLICY_MAPPING_TAG)?.0;
+    let require_explicit_policy: Option<U32> = Opt::decode(dw, REQUIRE_EXPLICIT_POLICY_TAG)?.0;
+    let inhibit_policy_mapping: Option<U32> = Opt::decode(dw, INHIBIT_POLICY_MAPPING_TAG)?.0;
     dw.bytes = rest;
-    Ok(Self { require_explicit_policy, inhibit_policy_mapping })
+    Ok(Self {
+      require_explicit_policy: require_explicit_policy.map(|el| el.u32()),
+      inhibit_policy_mapping: inhibit_policy_mapping.map(|el| el.u32()),
+    })
   }
 }
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyConstraints {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
-      Opt(&self.require_explicit_policy).encode(local_ew, REQUIRE_EXPLICIT_POLICY_TAG)?;
-      Opt(&self.inhibit_policy_mapping).encode(local_ew, INHIBIT_POLICY_MAPPING_TAG)?;
+      Opt(&self.require_explicit_policy.map(U32::from_u32))
+        .encode(local_ew, REQUIRE_EXPLICIT_POLICY_TAG)?;
+      Opt(&self.inhibit_policy_mapping.map(U32::from_u32))
+        .encode(local_ew, INHIBIT_POLICY_MAPPING_TAG)?;
       Ok(())
     })
   }

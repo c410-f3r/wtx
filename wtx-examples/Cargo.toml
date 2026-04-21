@@ -1,0 +1,196 @@
+# Database Examples
+
+[[example]]
+name = "database-client-mysql"
+path = "database/database-client-mysql.rs"
+required-features = ["database-client-mysql"]
+
+[[example]]
+name = "database-client-postgres"
+path = "database/database-client-postgres.rs"
+required-features = ["database-client-postgres"]
+
+[[example]]
+name = "database-client-postgres-batch"
+path = "database/database-client-postgres-batch.rs"
+required-features = ["database-client-postgres-batch"]
+
+[[example]]
+name = "database-client-postgres-composite-type"
+path = "database/database-client-postgres-composite-type.rs"
+required-features = ["database-client-postgres-composite-type"]
+
+[[example]]
+name = "database-client-postgres-enum"
+path = "database/database-client-postgres-enum.rs"
+required-features = ["database-client-postgres-enum"]
+
+[[example]]
+name = "database-client-tests"
+path = "database/database-client-tests.rs"
+required-features = ["database-client-tests"]
+
+# gRPC
+
+[[example]]
+name = "grpc-client"
+path = "grpc/grpc-client.rs"
+required-features = ["grpc-client"]
+
+[[example]]
+name = "grpc-server"
+path = "grpc/grpc-server.rs"
+required-features = ["grpc-server"]
+
+# HTTP Server Framework Examples
+
+[[example]]
+name = "http-server-framework"
+path = "http-server-framework/http-server-framework.rs"
+required-features = ["http-server-framework"]
+
+[[example]]
+name = "http-server-framework-cors"
+path = "http-server-framework/http-server-framework-cors.rs"
+required-features = ["http-server-framework-cors"]
+
+[[example]]
+name = "http-server-framework-redirect"
+path = "http-server-framework/http-server-framework-redirect.rs"
+required-features = ["http-server-framework-redirect"]
+
+[[example]]
+name = "http-server-framework-session"
+path = "http-server-framework/http-server-framework-session.rs"
+required-features = ["http-server-framework-session"]
+
+# HTTP/2 Examples
+
+[[example]]
+name = "http2-client"
+path = "http2/http2-client.rs"
+required-features = ["http2-client"]
+
+[[example]]
+name = "http2-server"
+path = "http2/http2-server.rs"
+required-features = ["http2-server"]
+
+# Others
+
+[[example]]
+name = "calendar"
+path = "others/calendar.rs"
+
+[[example]]
+name = "client-api-framework"
+path = "others/client-api-framework.rs"
+required-features = ["client-api-framework"]
+
+[[example]]
+name = "environment-variables"
+path = "others/environment-variables.rs"
+required-features = ["environment-variables"]
+
+[[example]]
+name = "executor"
+path = "others/executor.rs"
+required-features = ["executor"]
+
+[[example]]
+name = "http-client-pool"
+path = "others/http-client-pool.rs"
+required-features = ["http-client-pool"]
+
+[[example]]
+name = "secrets"
+path = "others/secrets.rs"
+required-features = ["secret"]
+
+[[example]]
+name = "x509"
+path = "others/x509.rs"
+required-features = ["x509"]
+
+# WebSocket Examples
+
+[[example]]
+name = "web-socket-client"
+path = "web-socket/web-socket-client.rs"
+required-features = ["web-socket-client"]
+
+[[example]]
+name = "web-socket-client-concurrent"
+path = "web-socket/web-socket-client-concurrent.rs"
+required-features = ["web-socket-client-concurrent"]
+
+[[example]]
+name = "web-socket-client-concurrent-channel"
+path = "web-socket/web-socket-client-concurrent-channel.rs"
+required-features = ["web-socket-client-concurrent-channel"]
+
+[[example]]
+name = "web-socket-client-concurrent-mutex"
+path = "web-socket/web-socket-client-concurrent-mutex.rs"
+required-features = ["web-socket-client-concurrent-mutex"]
+
+[[example]]
+name = "web-socket-server"
+path = "web-socket/web-socket-server.rs"
+required-features = ["web-socket-server"]
+
+[build-dependencies]
+pb-rs = { default-features = false, optional = true, version = "0.10" }
+
+[dependencies]
+quick-protobuf = { default-features = false, optional = true, version = "0.8" }
+serde = { default-features = false, optional = true, version = "1.0" }
+serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
+tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
+tokio-rustls = { default-features = false, optional = true, version = "0.26" }
+wtx = { default-features = false, features = ["getrandom", "nightly", "tokio"], path = "../wtx" }
+
+[features]
+database-client-mysql = ["mysql"]
+database-client-postgres = ["postgres"]
+database-client-postgres-batch = ["postgres"]
+database-client-postgres-composite-type = ["postgres"]
+database-client-postgres-enum = ["postgres"]
+database-client-tests = ["postgres", "wtx/executor", "wtx/macros", "wtx/schema-manager-dev"]
+
+grpc-client = ["grpc", "wtx/grpc-client"]
+grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
+
+http-server-framework = ["serde", "serde_json", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres"]
+http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
+http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
+http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/macros", "wtx/nightly", "wtx/postgres"]
+
+http2-client = ["wtx/http2"]
+http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]
+
+client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/macros", "wtx/serde_json", "wtx/web-socket-handshake"]
+environment-variables = ["wtx/macros", "wtx/std"]
+executor = ["wtx/executor", "wtx/macros"]
+http-client-pool = ["wtx/http-client-pool"]
+secret = ["wtx/secret"]
+x509 = ["wtx/x509"]
+
+web-socket-client = ["wtx/web-socket-handshake"]
+web-socket-client-concurrent = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-client-concurrent-channel = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-client-concurrent-mutex = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
+web-socket-server = ["tokio-rustls", "wtx/web-socket-handshake"]
+
+# Common features used by this crate
+grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
+mysql = ["wtx/mysql"]
+postgres = ["wtx/postgres"]
+tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
+
+[package]
+edition = "2024"
+name = "wtx-examples"
+publish = false
+rust-version = "1.95"
+version = "0.0.0"

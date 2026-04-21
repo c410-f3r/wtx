@@ -9,7 +9,7 @@ mod grpc_middleware;
 mod grpc_status_code;
 
 use crate::{
-  codec::{Encode, GenericCodec, GenericEncodeWrapper},
+  codec::{Encode, EncodeWrapper, GenericCodec},
   collection::Vector,
 };
 
@@ -30,7 +30,7 @@ where
 {
   bytes.extend_from_copyable_slice(&[0; 5])?;
   let before_len = bytes.len();
-  data.encode(&mut GenericEncodeWrapper::new(bytes, drsr))?;
+  data.encode(&mut EncodeWrapper::new(bytes, drsr))?;
   let after_len = bytes.len();
   if let [_, a, b, c, d, ..] = bytes.as_mut() {
     let len = u32::try_from(after_len.wrapping_sub(before_len)).unwrap_or_default();

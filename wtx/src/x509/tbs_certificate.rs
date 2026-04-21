@@ -3,9 +3,9 @@ use crate::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, BitString, INTEGER_TAG, Len, Opt, SEQUENCE_TAG,
     asn1_writer, decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{
-    AlgorithmIdentifier, EXPLICIT_TAG0, EXPLICIT_TAG3, Extensions, ISSUER_UID_TAG, Name,
+    AlgorithmIdentifier, EXPLICIT_TAG0, EXPLICIT_TAG3, Extensions, ISSUER_UID_TAG, NameVector,
     SUBJECT_UID_TAG, SerialNumber, SubjectPublicKeyInfo, Validity, X509Error,
   },
 };
@@ -20,11 +20,11 @@ pub struct TbsCertificate<'bytes> {
   /// The algorithm the CA used to sign this certificate.
   pub signature: AlgorithmIdentifier<'bytes>,
   /// The distinguished name of the certificate issuer (the signing CA).
-  pub issuer: Name<'bytes>,
+  pub issuer: NameVector<'bytes>,
   /// See [`Validity`].
   pub validity: Validity,
   /// The distinguished name of the entity this certificate identifies.
-  pub subject: Name<'bytes>,
+  pub subject: NameVector<'bytes>,
   /// The subject's public key and its associated algorithm.
   pub subject_public_key_info: SubjectPublicKeyInfo<'bytes>,
   /// Optional issuer unique identifier.
@@ -32,12 +32,12 @@ pub struct TbsCertificate<'bytes> {
   /// Optional subject unique identifier.
   pub subject_unique_id: Option<BitString<&'bytes [u8]>>,
   /// See [`Extensions`].
-  pub extensions: Option<Extensions<'bytes, EXPLICIT_TAG3>>,
+  pub extensions: Option<Extensions<'bytes>>,
 }
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertificate<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let full_bytes = dw.bytes;
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidTbsCertificate.into());
@@ -48,14 +48,14 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertificate<'d
     };
     dw.bytes = value;
     let (EXPLICIT_TAG0, _, [INTEGER_TAG, 1, 2], after) = decode_asn1_tlv(dw.bytes)? else {
-      return Err(X509Error::InvalidVersion.into());
+      return Err(X509Error::InvalidCertificateVersion.into());
     };
     dw.bytes = after;
     let serial_number = SerialNumber::decode(dw)?;
     let signature = AlgorithmIdentifier::decode(dw)?;
-    let issuer = Name::decode(dw)?;
+    let issuer = NameVector::decode(dw)?;
     let validity = Validity::decode(dw)?;
-    let subject = Name::decode(dw)?;
+    let subject = NameVector::decode(dw)?;
     let subject_public_key_info = SubjectPublicKeyInfo::decode(dw)?;
     let issuer_unique_id = Opt::decode(dw, ISSUER_UID_TAG)?.0;
     let subject_unique_id = Opt::decode(dw, SUBJECT_UID_TAG)?.0;
@@ -78,7 +78,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertificate<'d
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for TbsCertificate<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       let version_bytes = [&[EXPLICIT_TAG0, 3, INTEGER_TAG, 1, 2][..]];
       let _ = local_ew.buffer.extend_from_copyable_slices(version_bytes)?;

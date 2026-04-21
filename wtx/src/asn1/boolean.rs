@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, BOOLEAN_TAG, Len, decode_asn1_tlv},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
 };
 
 /// `true` or `false`
@@ -12,7 +12,7 @@ pub struct Boolean(
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Boolean {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (BOOLEAN_TAG, _, [boolean], rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(Asn1Error::InvalidBoolean.into());
     };
@@ -23,7 +23,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Boolean {
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Boolean {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let _ = ew.buffer.extend_from_copyable_slices([
       &[BOOLEAN_TAG][..],
       &*Len::from_usize(0, 1)?,

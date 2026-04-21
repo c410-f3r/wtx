@@ -1,14 +1,6 @@
 /// X.509 error
 #[derive(Debug)]
 pub enum X509Error {
-  /// Could not not find a path with the given intermediates and trusted chains
-  ChainValidationDidNotFindPath,
-  /// Path is too long to continue validating a chain
-  ChainValidationExceedDepth,
-  /// A certificate can not be used for path validation because it is expired.
-  ChainValidationHasExpiredCerts,
-  /// The signature of a parent certificate did not match the signature of a child certificate
-  ChainValidationSignatureMismatch,
   /// Invalid Access Description
   InvalidAccessDescription,
   /// Invalid Algorithm Identifier
@@ -19,8 +11,10 @@ pub enum X509Error {
   InvalidAttributeTypeAndValue,
   /// Invalid Certificate
   InvalidCertificate,
-  /// Invalid Certificate List
-  InvalidCertificateList,
+  /// Invalid Certificate Version (only v3 supported)
+  InvalidCertificateVersion,
+  /// Invalid Certificate Revocation List
+  InvalidCrl,
   /// Invalid Extended Key Usage
   InvalidExtendedKeyUsage,
   /// Invalid Extension
@@ -61,18 +55,22 @@ pub enum X509Error {
   InvalidReasonFlags,
   /// Invalid Revoked Certificate
   InvalidRevokedCertificate,
+  /// Invalid RSASSA-PSS Parameters
+  InvalidRsassaPssParams,
+  /// Invalid Subject Alternative NAme
+  InvalidSan,
+  /// A sequence of DER bytes can not represent a serial number.
+  InvalidSerialNumberBytes,
   /// Invalid Subject Public Key Info
   InvalidSubjectPublicKeyInfo,
   /// Invalid TBS (To Be Signed) Certificate
   InvalidTbsCertificate,
   /// Invalid TBS Certificate List
   InvalidTbsCertList,
+  /// Invalid TBS Certificate List Version
+  InvalidTbsCertListVersion,
   /// Invalid time
   InvalidTime,
   /// Invalid Validity period
   InvalidValidity,
-  /// Invalid Version (only v3 supported)
-  InvalidVersion,
-  /// A Subject Name is not included in the list of extensions nor in the Rdn Sequence.
-  UnknownSubjectName,
 }

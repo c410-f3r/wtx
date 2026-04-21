@@ -13,7 +13,7 @@ use core::{future::poll_fn, task::Poll};
 /// to approach this and the choice is yours to make.
 ///
 /// You can see this structure as a bridge between the reader and the writer. Examples about
-/// possible utilizations are available at the `wtx-instances` directory in the repository.
+/// possible utilizations are available at the `wtx-examples` directory in the repository.
 ///
 /// #### Noteworthy
 ///

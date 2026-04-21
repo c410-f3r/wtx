@@ -194,9 +194,8 @@ impl ParBlock {
     &mut self.0[12]
   }
 
-  // https://datatracker.ietf.org/doc/html/rfc7539#section-2.4: ChaCha20 successively calls the
-  // ChaCha20 block function, with the same key and nonce, and with successively increasing block
-  // counter parameters.
+  // https://datatracker.ietf.org/doc/html/rfc7539#section-2.4: ChaCha20 iteratively calls the
+  // ChaCha20 block function with the same key and nonce increasing the block counter.
   //
   // Not sure why an implementation would increase the nonces here.
   #[inline(always)]

@@ -32,19 +32,19 @@ To make everything work as intended both parties, client and server, need to imp
 A received `Ping` frame automatically triggers an internal `Pong` response. Similarly, when a `Close` frame is received an automatic `Close` frame response is also sent.
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-client.rs}}
+{{#rustdoc_include ../../../wtx-examples/web-socket/web-socket-client.rs}}
 ```
 
 The same automatic behavior **does not** happen with concurrent instances because there are multiple ways to synchronize resources. In other words, you are responsible for managing replies.
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-client-concurrent.rs}}
+{{#rustdoc_include ../../../wtx-examples/web-socket/web-socket-client-concurrent.rs}}
 ```
 
-Alternative replying methods can be found at `web-socket-examples` in the `wtx-instances` crate.
+Alternative replying methods can be found at `web-socket` in the `wtx-examples` crate.
 
 ## Server Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-instances/web-socket-examples/web-socket-server.rs}}
+{{#rustdoc_include ../../../wtx-examples/web-socket/web-socket-server.rs}}
 ```

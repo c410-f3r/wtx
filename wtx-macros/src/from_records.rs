@@ -152,6 +152,7 @@ pub(crate) fn from_records(
         let prev_consumed_records = _curr_params.consumed_records;
         #(
           let mut #manys: #manys_tys = Default::default();
+          #[allow(clippy::needless_question_mark, reason = "sometimes the error type is the same")]
           wtx::database::seek_related_entities(
             _curr_params,
             (_parent_id_iter0, _parent_id_column_idx),

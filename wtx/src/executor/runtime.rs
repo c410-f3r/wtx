@@ -65,6 +65,8 @@ impl Runtime {
     })?;
     Ok(poll_fn(move |cx| {
       atomic_waker.register(cx.waker());
+      // If `Err`, then the thread didn't initiate but the waker is registered for posterior calls.
+      // if `Ok`, then the thread initialized with or withouts `wake` calls.
       if let Ok(elem) = receiver.try_recv() {
         return Poll::Ready(elem);
       }

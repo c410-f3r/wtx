@@ -3,7 +3,7 @@ use std::{borrow::Cow, env::current_dir, path::Path};
 use tokio::net::TcpStream;
 use wtx::{
   codec::CodecController,
-  collection::Vector,
+  collection::{ShortStr, Vector},
   database::{
     DEFAULT_URI_VAR, Identifier,
     client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
@@ -52,7 +52,9 @@ impl FromVars for DefaultUriVar {
         rslt = Some(value)
       }
     }
-    Ok(Self(rslt.ok_or_else(|| wtx::Error::MissingVar(DEFAULT_URI_VAR.into()))?))
+    Ok(Self(
+      rslt.ok_or_else(|| wtx::Error::MissingVar(ShortStr::new_truncated_u8(DEFAULT_URI_VAR)))?,
+    ))
   }
 }
 

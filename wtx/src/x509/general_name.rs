@@ -3,7 +3,7 @@ use crate::{
     Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
     decode_asn1_tlv,
   },
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::Vector,
   x509::X509Error,
 };
@@ -43,7 +43,7 @@ pub enum GeneralName<'bytes> {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralName<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
     let name = (tag, value).try_into()?;
     dw.bytes = rest;
@@ -53,7 +53,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralName<'de> 
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralName<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let (tag, content) = self.into();
     asn1_writer(ew, Len::MAX_TWO_BYTES, tag, |local_ew| {
       let _ = local_ew.buffer.extend_from_copyable_slices([content])?;
@@ -101,21 +101,31 @@ impl<'bytes> TryFrom<(u8, &'bytes [u8])> for GeneralName<'bytes> {
 
 /// A sequence of [`GeneralName`] values.
 #[derive(Debug, PartialEq)]
-pub struct GeneralNames<'bytes>(
+pub struct GeneralNames<'bytes> {
   /// Entries
-  pub Vector<GeneralName<'bytes>>,
-);
+  pub entries: Vector<GeneralName<'bytes>>,
+  /// Tag
+  pub tag: u8,
+}
+
+impl<'bytes> GeneralNames<'bytes> {
+  /// If `None`, `tag` will be turned into the default sequence tag.
+  pub fn new(entries: Vector<GeneralName<'bytes>>, tag: Option<u8>) -> Self {
+    Self { entries, tag: tag.unwrap_or(SEQUENCE_TAG) }
+  }
+}
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralNames<'de> {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0))
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+    let tag = dw.decode_aux.tag.unwrap_or(SEQUENCE_TAG);
+    Ok(Self { entries: SequenceBuffer::decode(dw, tag)?.0, tag })
   }
 }
 
 impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralNames<'bytes> {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
-    SequenceBuffer(&self.0).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+    SequenceBuffer(&self.entries).encode(ew, Len::MAX_TWO_BYTES, self.tag)
   }
 }

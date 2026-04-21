@@ -6,8 +6,11 @@ use core::{
   task::Waker,
 };
 
+// Idle. No registration or wake operation is in progress.
 const WAITING: usize = 0;
+// A task is in the middle of storing a waker or is already registered.
 const REGISTERING: usize = 0b01;
+// A signal has been issued with `take` to awake a registered waker.
 const WAKING: usize = 0b10;
 
 /// [Waker] that can be shared across tasks.
@@ -17,10 +20,19 @@ pub struct AtomicWaker {
 }
 
 impl AtomicWaker {
-  /// Creates an empty instance.
+  /// Creates an idle instance.
   #[inline]
   pub const fn new() -> Self {
     AtomicWaker { state: AtomicUsize::new(WAITING), waker: UnsafeCell::new(None) }
+  }
+
+  /// Checks if a waker is currently registered.
+  ///
+  /// This is a best-effort because the state may change immediately after this call.
+  #[inline]
+  pub fn is_registered(&self) -> bool {
+    // Use Relaxed?
+    self.state.load(Ordering::Acquire) != WAITING
   }
 
   /// Registers the waker to be notified on calls to `wake`.
@@ -34,9 +46,11 @@ impl AtomicWaker {
       WAITING => {
         // SAFETY: `compare_exchange` manages concurrent accesses.
         let waker_opt = unsafe { &mut *self.waker.get() };
-        match waker_opt {
-          Some(elem) => elem.clone_from(waker),
-          _ => *waker_opt = Some(waker.clone()),
+        // `waker_opt` is `Some` when `take` (struct's method) sets `WAITING` but `take`
+        // (option's method) wasn't called yet, which should be rare. In this scenario a clone
+        // operation is avoid if both wakers refer the same task.
+        if !matches!(waker_opt, Some(elem) if elem.will_wake(waker)) {
+          *waker_opt = Some(waker.clone());
         }
         let prev_state_is_not_waiting = self
           .state
@@ -46,7 +60,7 @@ impl AtomicWaker {
           let Some(local_waker) = waker_opt.take() else {
             return;
           };
-          // Swap because data is not changed while state is `REGISTERING or `WAITING`
+          // Swap because data did not changed while state is `REGISTERING or `WAITING`
           let _ = self.state.swap(WAITING, Ordering::AcqRel);
           local_waker.wake();
         }

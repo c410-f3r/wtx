@@ -1,8 +1,8 @@
 /// ASN.1 Error
 #[derive(Debug)]
 pub enum Asn1Error {
-  /// Invalid Object Identifier
-  InvalidBase128ObjectIdentifier,
+  /// Invalid Any bytes
+  InvalidAnyBytes,
   /// Invalid Bit String
   InvalidBitString,
   /// Invalid Boolean
@@ -15,10 +15,12 @@ pub enum Asn1Error {
   InvalidInteger,
   /// Invalid length
   InvalidLen,
+  /// Invalid Object Identifier Base128 bytes
+  InvalidOidBase128,
+  /// Invalid Object Identifier bytes
+  InvalidOidBytes,
   /// Invalid Octetstring
   InvalidOctetstring,
-  /// A sequence of DER bytes can not represent a serial number.
-  InvalidSerialNumberBytes,
   /// Invalid Set
   InvalidSet,
   /// Invalid Tag-Length-Value
@@ -27,4 +29,6 @@ pub enum Asn1Error {
   InvalidU32Bytes,
   /// Invalid UTC Time
   InvalidUtcTime,
+  /// ASN.1 data can not be greater than `u16::MAX`
+  LargeData,
 }

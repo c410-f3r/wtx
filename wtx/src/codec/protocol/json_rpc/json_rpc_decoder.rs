@@ -1,11 +1,8 @@
 use crate::{
-  codec::{
-    Decode, DecodeSeq, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper, Id,
-  },
-  collection::Vector,
+  codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec, Id},
+  collection::{ArrayStringU8, Vector},
   misc::Lease,
 };
-use alloc::boxed::Box;
 use core::{
   borrow::Borrow,
   cmp::Ordering,
@@ -20,7 +17,7 @@ pub struct JsonRpcDecoder<R> {
   /// The same value specified in the request.
   pub id: Id,
   /// Optional parameter returns by the counterpart.
-  pub method: Option<Box<str>>,
+  pub method: Option<ArrayStringU8<31>>,
   /// Contains the `result` or the `error` field.
   pub result: crate::Result<R>,
 }
@@ -37,7 +34,7 @@ where
   R: Default,
 {
   #[inline]
-  fn decode(_: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<Self> {
+  fn decode(_: &mut DecodeWrapper<'de, ()>) -> crate::Result<Self> {
     Ok(Self { id: 0, method: None, result: Ok(R::default()) })
   }
 }
@@ -47,14 +44,14 @@ where
   R: Default,
 {
   #[inline]
-  fn decode_seq(_: &mut Vector<Self>, _: &mut GenericDecodeWrapper<'de, ()>) -> crate::Result<()> {
+  fn decode_seq(_: &mut Vector<Self>, _: &mut DecodeWrapper<'de, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
 
 impl<DA, R> Encode<GenericCodec<DA, ()>> for JsonRpcDecoder<R> {
   #[inline]
-  fn encode(&self, _: &mut GenericEncodeWrapper<'_, ()>) -> crate::Result<()> {
+  fn encode(&self, _: &mut EncodeWrapper<'_, ()>) -> crate::Result<()> {
     Ok(())
   }
 }
@@ -198,7 +195,7 @@ mod serde {
             },
             method,
             result: if let Some(elem) = error {
-              Err(CodecError::JsonRpcDecoderErr(elem.into()).into())
+              Err(CodecError::JsonRpcDecoderErr(elem).into())
             } else {
               Ok(result.ok_or_else(|| serde::de::Error::missing_field("result"))?)
             },

@@ -12,7 +12,7 @@ macro_rules! _impl_dec {
   ) => {
     impl<'de, EA, $($($ty)* $(: $bound)?,)*> crate::codec::Decode<'de, crate::codec::GenericCodec<&mut $drsr, EA>> for $struct<$($($ty)*,)*> {
       #[inline]
-      fn decode($dw: &mut crate::codec::GenericDecodeWrapper<'de, &mut $drsr>) -> crate::Result<Self> {
+      fn decode($dw: &mut crate::codec::DecodeWrapper<'de, &mut $drsr>) -> crate::Result<Self> {
         $impl
       }
     }
@@ -29,7 +29,7 @@ macro_rules! _impl_dec_seq {
       #[inline]
       fn decode_seq(
         $buffer: &mut crate::collection::Vector<Self>,
-        $dw: &mut crate::codec::GenericDecodeWrapper<'de, &mut $drsr>,
+        $dw: &mut crate::codec::DecodeWrapper<'de, &mut $drsr>,
       ) -> crate::Result<()> {
         $impl
       }
@@ -47,7 +47,7 @@ macro_rules! _impl_enc {
       #[inline]
       fn encode(
         &self,
-        $ew: &mut crate::codec::GenericEncodeWrapper<'_, &mut $drsr>
+        $ew: &mut crate::codec::EncodeWrapper<'_, &mut $drsr>
       ) -> crate::Result<()> {
         if size_of::<Self>() == 0 {
           return Ok(());
@@ -74,7 +74,7 @@ macro_rules! _impl_se_collections {
         T: $bound,
       {
         #[inline]
-        fn encode(&self, ew: &mut crate::codec::GenericEncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
+        fn encode(&self, ew: &mut crate::codec::EncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
           let $array_self = self;
           let $array_bytes = &mut *ew.buffer;
           $array_block;
@@ -90,7 +90,7 @@ macro_rules! _impl_se_collections {
         T: $bound,
       {
         #[inline]
-        fn encode(&self, ew: &mut crate::codec::GenericEncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
+        fn encode(&self, ew: &mut crate::codec::EncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
           let $arrayvector_self = self;
           let $arrayvector_bytes = &mut *ew.buffer;
           $arrayvector_block;
@@ -104,7 +104,7 @@ macro_rules! _impl_se_collections {
       T: $bound,
     {
       #[inline]
-      fn encode(&self, ew: &mut crate::codec::GenericEncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
+      fn encode(&self, ew: &mut crate::codec::EncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
         let $slice_ref_self = self;
         let $slice_ref_bytes = &mut *ew.buffer;
         $slice_ref_block;
@@ -117,7 +117,7 @@ macro_rules! _impl_se_collections {
       T: $bound,
     {
       #[inline]
-      fn encode(&self, ew: &mut crate::codec::GenericEncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
+      fn encode(&self, ew: &mut crate::codec::EncodeWrapper<'_, &mut $drsr>) -> crate::Result<()> {
         let $vec_self = self;
         let $vec_bytes = &mut *ew.buffer;
         $vec_block;

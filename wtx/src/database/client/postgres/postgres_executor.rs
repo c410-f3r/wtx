@@ -200,7 +200,7 @@ where
           break;
         }
         _ => {
-          return Err(<_>::from(
+          return Err(E::from(
             PostgresError::UnexpectedDatabaseMessage { received: msg.tag }.into(),
           ));
         }

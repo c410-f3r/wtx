@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, INTEGER_TAG, Len, decode_asn1_tlv},
-  codec::{Decode, Encode, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   collection::ArrayVectorU8,
   misc::Lease,
 };
@@ -92,7 +92,7 @@ impl U32 {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for U32 {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let actual_tag = dw.decode_aux.tag.unwrap_or(INTEGER_TAG);
     let (tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
     if tag != actual_tag {
@@ -106,7 +106,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for U32 {
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for U32 {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let actual_tag = ew.encode_aux.tag.unwrap_or(INTEGER_TAG);
     let _ = ew.buffer.extend_from_copyable_slices([
       &[actual_tag][..],

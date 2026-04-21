@@ -69,6 +69,18 @@ pub fn bytes_split1(bytes: &[u8], elem: u8) -> impl Clone + Iterator<Item = &[u8
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
+pub fn bytes_split2_indices(bytes: &[u8], [a, b]: [u8; 2]) -> impl Clone + Iterator<Item = usize> {
+  #[cfg(feature = "memchr")]
+  return memchr::memchr2_iter(a, b, bytes);
+  #[cfg(not(feature = "memchr"))]
+  return bytes
+    .iter()
+    .enumerate()
+    .filter_map(move |(idx, byte)| (*byte == a || *byte == b).then_some(idx));
+}
+
+/// Internally uses `memchr` if the feature is active.
+#[inline]
 pub fn bytes_split_once1(bytes: &[u8], elem: u8) -> Option<(&[u8], &[u8])> {
   let idx = bytes_pos1(bytes, elem)?;
   Some((bytes.get(..idx)?, bytes.get(idx.wrapping_add(1)..)?))
@@ -88,9 +100,9 @@ pub fn bytes_split_once_seq<'bytes>(
 #[inline]
 pub fn from_utf8_basic(bytes: &[u8]) -> Result<&str, BasicUtf8Error> {
   #[cfg(feature = "simdutf8")]
-  return simdutf8::basic::from_utf8(bytes).ok().ok_or(BasicUtf8Error {});
+  return simdutf8::basic::from_utf8(bytes).map_err(|_err| BasicUtf8Error {});
   #[cfg(not(feature = "simdutf8"))]
-  return core::str::from_utf8(bytes).ok().ok_or(BasicUtf8Error {});
+  return core::str::from_utf8(bytes).map_err(|_err| BasicUtf8Error {});
 }
 
 /// Internally uses `simdutf8` if the feature is active.
@@ -155,7 +167,9 @@ pub fn str_split1(str: &str, elem: u8) -> impl Iterator<Item = &str> {
     },
   );
   #[cfg(not(feature = "memchr"))]
-  return str.split(char::from(elem));
+  // SAFETY: The source is a string
+  return bytes_split1(str.as_bytes(), elem)
+    .map(|slice| unsafe { core::str::from_utf8_unchecked(slice) });
 }
 
 /// Internally uses `memchr` if the feature is active.

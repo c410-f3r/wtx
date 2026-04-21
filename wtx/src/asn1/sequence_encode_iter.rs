@@ -1,6 +1,6 @@
 use crate::{
   asn1::{Asn1EncodeWrapper, Len, asn1_writer},
-  codec::{Encode, GenericCodec, GenericEncodeWrapper},
+  codec::{Encode, EncodeWrapper, GenericCodec},
 };
 
 /// Helper that encodes elements yielded by `C`
@@ -19,7 +19,7 @@ where
   /// its entire length for performance reasons.
   pub fn encode(
     &mut self,
-    ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>,
+    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
     len_guess: Len,
     tag: u8,
   ) -> crate::Result<()> {

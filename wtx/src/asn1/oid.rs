@@ -1,23 +1,30 @@
 use crate::{
   asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, Len, OID_TAG, decode_asn1_tlv},
-  codec::{
-    Decode, Encode, FromRadix10, GenericCodec, GenericDecodeWrapper, GenericEncodeWrapper,
-    u32_string,
-  },
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10, GenericCodec, u32_string},
   collection::{ArrayString, ArrayStringU8, ArrayVectorU8},
   misc::bytes_split_once1,
 };
-use core::ops::Deref;
+use alloc::fmt::Debug;
+use core::{
+  fmt::{Display, Formatter},
+  ops::Deref,
+};
 
 /// Object identifier
 ///
 /// Unique, dot-separated numerical string.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Oid(ArrayStringU8<31>);
 
 impl Oid {
   /// New instance where `str` must be a valid `ITU-T` sequence. For example, zero padding like in
   /// `1.01.2` is invalid.
+  #[inline]
+  pub fn from_bytes(bytes: &[u8]) -> crate::Result<Self> {
+    Ok(Self::from_bytes_opt(bytes).ok_or(Asn1Error::InvalidOidBytes)?)
+  }
+
+  /// Constant version of [`Self::from_bytes`].
   #[inline]
   pub const fn from_bytes_opt(bytes: &[u8]) -> Option<Self> {
     let Some(string) = is_valid(bytes) else {
@@ -33,9 +40,9 @@ impl Oid {
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Oid {
   #[inline]
-  fn decode(dw: &mut GenericDecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let (OID_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
-      return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
+      return Err(Asn1Error::InvalidOidBase128.into());
     };
     dw.bytes = rest;
     let (first_combined, remaining) = decode_base128_one(value)?;
@@ -55,10 +62,10 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Oid {
 
 impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Oid {
   #[inline]
-  fn encode(&self, ew: &mut GenericEncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let mut components = OidComponentIter(self.0.as_bytes());
     let (Some(c1_rslt), Some(c2_rslt)) = (components.next(), components.next()) else {
-      return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
+      return Err(Asn1Error::InvalidOidBase128.into());
     };
     let c1 = c1_rslt?;
     let c2 = c2_rslt?;
@@ -66,10 +73,10 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Oid {
     let first = c1
       .checked_mul(40)
       .and_then(|elem| elem.checked_add(c2))
-      .ok_or(Asn1Error::InvalidBase128ObjectIdentifier)?;
-    encode_base128(&mut encoded, first)?;
+      .ok_or(Asn1Error::InvalidOidBase128)?;
+    encode_base128_one(&mut encoded, first)?;
     for component in components {
-      encode_base128(&mut encoded, component?)?;
+      encode_base128_one(&mut encoded, component?)?;
     }
     let _ = ew.buffer.extend_from_copyable_slices([
       &[OID_TAG][..],
@@ -80,12 +87,26 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Oid {
   }
 }
 
+impl Debug for Oid {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.write_str(self)
+  }
+}
+
 impl Deref for Oid {
   type Target = str;
 
   #[inline]
   fn deref(&self) -> &Self::Target {
     &self.0
+  }
+}
+
+impl Display for Oid {
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    f.write_str(self)
   }
 }
 
@@ -126,7 +147,7 @@ fn decode_base128(buffer: &mut ArrayString<u8, 31>, value: &[u8]) -> crate::Resu
 
 fn decode_base128_one(bytes: &[u8]) -> crate::Result<(u32, &[u8])> {
   if bytes.is_empty() {
-    return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
+    return Err(Asn1Error::InvalidOidBase128.into());
   }
   let mut value: u32 = 0;
   let mut iter = bytes.iter().copied().enumerate();
@@ -139,7 +160,7 @@ fn decode_base128_one(bytes: &[u8]) -> crate::Result<(u32, &[u8])> {
   }
   if let Some((idx, byte)) = iter.next() {
     if value > 0b1_1111_1111_1111_1111_1111_1111 {
-      return Err(Asn1Error::InvalidBase128ObjectIdentifier.into());
+      return Err(Asn1Error::InvalidOidBase128.into());
     }
     let shift = value << 7;
     value = shift | u32::from(byte & 0b0111_1111);
@@ -147,10 +168,10 @@ fn decode_base128_one(bytes: &[u8]) -> crate::Result<(u32, &[u8])> {
       return Ok((value, bytes.get(idx.wrapping_add(1)..).unwrap_or_default()));
     }
   }
-  Err(Asn1Error::InvalidBase128ObjectIdentifier.into())
+  Err(Asn1Error::InvalidOidBase128.into())
 }
 
-fn encode_base128(buffer: &mut ArrayVectorU8<u8, 20>, mut val: u32) -> crate::Result<()> {
+fn encode_base128_one(buffer: &mut ArrayVectorU8<u8, 20>, mut val: u32) -> crate::Result<()> {
   if val == 0 {
     buffer.push(0)?;
     return Ok(());

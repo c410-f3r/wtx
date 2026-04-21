@@ -69,7 +69,7 @@ mod tests {
 
   #[test]
   fn parse_and_format() {
-    let _0_tokens = parse_bytes_into_tokens(_0_FMT.iter().copied()).unwrap();
+    let _0_tokens = parse_bytes_into_tokens(_0_FMT).unwrap();
     assert_eq!(
       Time::parse(_0_DATA, _0_tokens.clone())
         .unwrap()
@@ -79,7 +79,7 @@ mod tests {
         .as_bytes(),
       _0_DATA
     );
-    let _1_tokens = parse_bytes_into_tokens(_1_FMT.iter().copied()).unwrap();
+    let _1_tokens = parse_bytes_into_tokens(_1_FMT).unwrap();
     assert_eq!(
       Time::parse(_1_DATA, _1_tokens.clone())
         .unwrap()

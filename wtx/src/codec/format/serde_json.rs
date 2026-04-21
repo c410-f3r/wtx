@@ -51,7 +51,7 @@ mod tests {
       JsonRpcEncoder { id: 0, method: "method", params: _Foo { foo: "foo" } },
       JsonRpcDecoder {
         id: 0,
-        method: Some("method".into()),
+        method: Some("method".try_into().unwrap()),
         result: Ok(_Bar { bar: "bar".into() })
       }
     ),

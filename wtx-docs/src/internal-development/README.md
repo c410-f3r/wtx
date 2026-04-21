@@ -20,7 +20,7 @@ That is why `WTX` has an enforced `Error` enum size of 16 bytes and that is also
 
 ## Profiling
 
-Uses the `h2load` benchmarking tool (<https://nghttp2.org/documentation/h2load-howto.htm>l) and the `h2load` internal binary (<https://github.com/c410-f3r/wtx/blob/main/wtx-instances/src/bin/h2load.rs>) for illustration purposes.
+Uses the `h2load` benchmarking tool (<https://nghttp2.org/documentation/h2load-howto.htm>l) and the `h2load` internal binary (<https://github.com/c410-f3r/wtx/blob/main/wtx-internal/src/bin/h2load.rs>) for illustration purposes.
 
 ### Compilation time / Size
 
@@ -33,7 +33,7 @@ cargo bloat --bin h2load --features h2load | head -20
 [`cargo-llvm-lines`](https://github.com/dtolnay/cargo-llvm-lines): Measures the number and size of instantiations of each generic function in a program.
 
 ```bash
-CARGO_PROFILE_RELEASE_LTO=fat cargo llvm-lines --bin h2load --features h2load --package wtx-instances --release | head -20
+CARGO_PROFILE_RELEASE_LTO=fat cargo llvm-lines --bin h2load --features h2load --package wtx-internal --release | head -20
 ```
 
 ### Performance
@@ -67,21 +67,21 @@ Some non-standard options that will influence the final binary. Only use them if
 
 ### Size
 
-* -Cforce-frame-pointers=no
-* -Cforce-unwind-tables=no
+* -C force-frame-pointers=no
+* -C force-unwind-tables=no
 
 More size-related parameters can be found at <https://github.com/johnthagen/min-sized-rust>.
 
 ### Runtime
 
-* -Cllvm-args=--inline-threshold=1000
-* -Cllvm-args=-vectorize-loops
-* -Cllvm-args=-vectorize-slp
-* -Ctarget-cpu=x86-64-v3
+* -C llvm-args=--inline-threshold=9999
+* -C llvm-args=-vectorize-loops
+* -C llvm-args=-vectorize-slp
+* -C target-cpu=x86-64-v3
 
 ### Security
 
-* -Ccontrol-flow-guard=yes
-* -Crelocation-model=pie
-* -Crelro-level=full
-* -Zstack-protector=strong
+* -C control-flow-guard=yes
+* -C relocation-model=pie
+* -C relro-level=full
+* -Z stack-protector=strong

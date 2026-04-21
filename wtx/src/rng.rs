@@ -27,10 +27,7 @@ pub use xorshift::*;
 /// Random number generator.
 ///
 /// Abstraction tailored for the needs of this project.
-pub trait Rng
-where
-  Self: Sized,
-{
+pub trait Rng: Sized {
   /// Returns an infinite iterator that will always output printable ASCII bytes.
   #[inline]
   fn ascii_graphic_iter(&mut self) -> impl Iterator<Item = AsciiGraphic> {

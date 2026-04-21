@@ -2,10 +2,10 @@
 use crate::asn1::Asn1Error;
 use crate::{
   calendar::CalendarError,
-  codec::{FromRadix10Error, HexError},
+  codec::{Base64Error, FromRadix10Error, HexError},
   collection::{
-    ArrayStringError, ArrayStringU8, ArrayVectorError, BlocksDequeError, DequeueError,
-    FixedStringError, UninitError, VectorError,
+    ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
+    ShortStrU8, UninitError, VectorError,
   },
   misc::ArithmeticError,
 };
@@ -42,12 +42,6 @@ pub enum Error {
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
-  #[cfg(feature = "base64")]
-  #[doc = associated_element_doc!()]
-  Base64DecodeError(Box<base64::DecodeError>),
-  #[cfg(feature = "base64")]
-  #[doc = associated_element_doc!()]
-  Base64DecodeSliceError(Box<base64::DecodeSliceError>),
   #[cfg(feature = "crypto-common")]
   #[doc = associated_element_doc!()]
   CryptoCommonInvalidLength(crypto_common::InvalidLength),
@@ -57,9 +51,6 @@ pub enum Error {
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNet(embassy_net::tcp::Error),
-  #[cfg(feature = "base64")]
-  #[doc = associated_element_doc!()]
-  EncodeSliceError(base64::EncodeSliceError),
   #[cfg(feature = "flate2")]
   #[doc = associated_element_doc!()]
   Flate2CompressError(Box<flate2::CompressError>),
@@ -176,8 +167,6 @@ pub enum Error {
   InsufficientOptionCapacity,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
-  /// Invalid PEM file contents.
-  InvalidPem,
   /// Invalid UTF-8.
   InvalidUTF8,
   /// An index that cuts an UTF-8 string makes the sequence invalid.
@@ -187,7 +176,7 @@ pub enum Error {
   /// There is no CA provider.
   MissingCaProviders,
   /// A instance could not be constructed because of a missing required variable.
-  MissingVar(Box<&'static str>),
+  MissingVar(ShortStrU8<'static>),
   /// A variable does not have an ending quote
   MissingVarQuote(Box<String>),
   /// Something prevented a `mlock` operation
@@ -197,7 +186,7 @@ pub enum Error {
   /// A variable does not have an ending quote
   NoAvailableVars(Box<String>),
   /// Usually used to transform `Option`s into `Result`s
-  NoInnerValue(Box<&'static str>),
+  NoInnerValue(ShortStrU8<'static>),
   /// Byte is not an ASCII graphic character
   NonGraphicByte,
   /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
@@ -219,7 +208,7 @@ pub enum Error {
     /// Length of the unexpected bytes
     length: u16,
     /// Name of the associated entity
-    ty: ArrayStringU8<9>,
+    ty: ShortStrU8<'static>,
   },
   /// Unexpected end of file when reading from a stream.
   UnexpectedStreamReadEOF,
@@ -258,12 +247,16 @@ pub enum Error {
   #[doc = associated_element_doc!()]
   ArrayVectorError(ArrayVectorError),
   #[doc = associated_element_doc!()]
+  Base64Error(Base64Error),
+  #[doc = associated_element_doc!()]
   BlocksQueueError(BlocksDequeError),
   #[doc = associated_element_doc!()]
   CalendarError(CalendarError),
   #[cfg(feature = "client-api-framework")]
   #[doc = associated_element_doc!()]
   ClientApiFrameworkError(crate::client_api_framework::ClientApiFrameworkError),
+  #[doc = associated_element_doc!()]
+  CodecError(Box<crate::codec::CodecError>),
   #[cfg(feature = "http-cookie")]
   #[doc = associated_element_doc!()]
   Cookie(crate::http::CookieError),
@@ -273,8 +266,6 @@ pub enum Error {
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
   DatabaseError(Box<crate::database::DatabaseError>),
-  #[doc = associated_element_doc!()]
-  DecError(crate::codec::CodecError),
   #[doc = associated_element_doc!()]
   FixedStringError(FixedStringError),
   #[doc = associated_element_doc!()]
@@ -296,6 +287,9 @@ pub enum Error {
   #[cfg(feature = "mysql")]
   #[doc = associated_element_doc!()]
   MysqlError(crate::database::client::mysql::MysqlError),
+  #[cfg(feature = "pkcs8")]
+  #[doc = associated_element_doc!()]
+  Pkcs8Error(Box<pkcs8::Error>),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
@@ -323,6 +317,9 @@ pub enum Error {
   #[cfg(feature = "x509")]
   #[doc = associated_element_doc!()]
   X509Error(crate::x509::X509Error),
+  #[cfg(feature = "x509")]
+  #[doc = associated_element_doc!()]
+  X509CvError(crate::x509::X509CvError),
 }
 
 impl Display for Error {
@@ -391,24 +388,6 @@ impl From<crypto_common::InvalidLength> for Error {
   }
 }
 
-#[cfg(feature = "base64")]
-impl From<base64::DecodeError> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: base64::DecodeError) -> Self {
-    Self::Base64DecodeError(from.into())
-  }
-}
-
-#[cfg(feature = "base64")]
-impl From<base64::DecodeSliceError> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: base64::DecodeSliceError) -> Self {
-    Self::Base64DecodeSliceError(from.into())
-  }
-}
-
 #[cfg(feature = "elliptic-curve")]
 impl From<elliptic_curve::Error> for Error {
   #[inline]
@@ -422,14 +401,6 @@ impl From<embassy_net::tcp::Error> for Error {
   #[inline]
   fn from(from: embassy_net::tcp::Error) -> Self {
     Self::EmbassyNet(from)
-  }
-}
-
-#[cfg(feature = "base64")]
-impl From<base64::EncodeSliceError> for Error {
-  #[inline]
-  fn from(from: base64::EncodeSliceError) -> Self {
-    Self::EncodeSliceError(from)
   }
 }
 
@@ -687,6 +658,13 @@ impl From<ArrayVectorError> for Error {
   }
 }
 
+impl From<Base64Error> for Error {
+  #[inline]
+  fn from(from: Base64Error) -> Self {
+    Self::Base64Error(from)
+  }
+}
+
 impl From<BlocksDequeError> for Error {
   #[inline]
   fn from(from: BlocksDequeError) -> Self {
@@ -717,18 +695,18 @@ impl From<crate::client_api_framework::ClientApiFrameworkError> for Error {
   }
 }
 
+impl From<crate::codec::CodecError> for Error {
+  #[inline]
+  fn from(from: crate::codec::CodecError) -> Self {
+    Self::CodecError(from.into())
+  }
+}
+
 #[cfg(feature = "database")]
 impl From<crate::database::DatabaseError> for Error {
   #[inline]
   fn from(from: crate::database::DatabaseError) -> Self {
     Self::DatabaseError(from.into())
-  }
-}
-
-impl From<crate::codec::CodecError> for Error {
-  #[inline]
-  fn from(from: crate::codec::CodecError) -> Self {
-    Self::DecError(from)
   }
 }
 
@@ -758,6 +736,14 @@ impl From<crate::database::client::mysql::MysqlError> for Error {
   #[inline]
   fn from(from: crate::database::client::mysql::MysqlError) -> Self {
     Self::MysqlError(from)
+  }
+}
+
+#[cfg(feature = "pkcs8")]
+impl From<pkcs8::Error> for Error {
+  #[inline]
+  fn from(from: pkcs8::Error) -> Self {
+    Self::Pkcs8Error(from.into())
   }
 }
 
@@ -834,6 +820,14 @@ impl From<crate::x509::X509Error> for Error {
   #[inline]
   fn from(from: crate::x509::X509Error) -> Self {
     Self::X509Error(from)
+  }
+}
+
+#[cfg(feature = "x509")]
+impl From<crate::x509::X509CvError> for Error {
+  #[inline]
+  fn from(from: crate::x509::X509CvError) -> Self {
+    Self::X509CvError(from)
   }
 }
 
