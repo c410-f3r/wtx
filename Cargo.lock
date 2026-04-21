@@ -2333,7 +2333,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2342,7 +2342,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-ui"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "tokio",

@@ -35,7 +35,7 @@ tracing-subscriber = { default-features = false, optional = true, version = "0.3
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
-wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.4" }
+wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.6.5" }
 
 # Rust Crypto and its extravagant/unfortunate set of associated dependencies
 aead = { default-features = false, optional = true, version = "0.6.0-rc.10" }
