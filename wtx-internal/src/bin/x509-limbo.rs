@@ -1,5 +1,5 @@
 use core::{mem, ops::Range, slice};
-use std::{borrow::Cow, fs::File, io::BufReader};
+use std::{borrow::Cow, fmt::Debug, fs::File, io::BufReader};
 use wtx::{
   asn1::{Asn1Error, parse_der_from_pem_range, parse_der_from_pem_range_many},
   calendar::{DateTime, Instant, Utc},
@@ -296,34 +296,39 @@ fn evaluate_test_case<'bytes>(
   let Some(leaf) = eval_eager_checks(
     parse_der_from_pem_range::<Certificate<'_>>(&*bytes_certs, &leaf_pem)
       .and_then(CvCertificate::<'_, '_>::try_from),
+    testcase,
   ) else {
     return;
   };
 
-  let Some(_) = eval_eager_checks(parse_der_from_pem_range_many(
-    &*bytes_certs,
-    crls,
-    &pems[..idx0],
-    |el: Crl<'_>| el.try_into(),
-  )) else {
+  let Some(_) = eval_eager_checks(
+    parse_der_from_pem_range_many(&*bytes_certs, crls, &pems[..idx0], |el: Crl<'_>| el.try_into()),
+    testcase,
+  ) else {
     return;
   };
 
-  let Some(_) = eval_eager_checks(parse_der_from_pem_range_many(
-    &*bytes_certs,
-    trusted_certs,
-    &pems[idx0..idx1],
-    |el: Certificate<'_>| el.try_into(),
-  )) else {
+  let Some(_) = eval_eager_checks(
+    parse_der_from_pem_range_many(
+      &*bytes_certs,
+      trusted_certs,
+      &pems[idx0..idx1],
+      |el: Certificate<'_>| el.try_into(),
+    ),
+    testcase,
+  ) else {
     return;
   };
 
-  let Some(_) = eval_eager_checks(parse_der_from_pem_range_many(
-    &*bytes_certs,
-    untrusted_intermediates,
-    &pems[idx1..],
-    |el: Certificate<'_>| el.try_into(),
-  )) else {
+  let Some(_) = eval_eager_checks(
+    parse_der_from_pem_range_many(
+      &*bytes_certs,
+      untrusted_intermediates,
+      &pems[idx1..],
+      |el: Certificate<'_>| el.try_into(),
+    ),
+    testcase,
+  ) else {
     return;
   };
 
@@ -358,7 +363,10 @@ fn evaluate_test_case<'bytes>(
   }
 }
 
-fn eval_eager_checks<T>(rslt: wtx::Result<T>) -> Option<T> {
+fn eval_eager_checks<T>(rslt: wtx::Result<T>, testcase: &Testcase) -> Option<T>
+where
+  T: Debug,
+{
   match rslt {
     Ok(elem) => Some(elem),
     Err(wtx::Error::Asn1Error(Asn1Error::LargeData))
@@ -371,7 +379,6 @@ fn eval_eager_checks<T>(rslt: wtx::Result<T>) -> Option<T> {
     | Err(wtx::Error::X509CvError(X509CvError::AuthorityKeyIdentifierMustNotBeCritical))
     | Err(wtx::Error::X509CvError(X509CvError::CertCanNotHaveDuplicateExtensions))
     | Err(wtx::Error::X509CvError(X509CvError::CertificateAlgorithmMismatch))
-    | Err(wtx::Error::X509CvError(X509CvError::CertsMustNotHaveCriticalUnknownExtensions))
     | Err(wtx::Error::X509CvError(X509CvError::HasIncompatibleKeyUsage))
     | Err(wtx::Error::X509CvError(X509CvError::InvalidNameConstraints))
     | Err(wtx::Error::X509CvError(X509CvError::CrlNumberMustNotBeCritical))
@@ -385,8 +392,17 @@ fn eval_eager_checks<T>(rslt: wtx::Result<T>) -> Option<T> {
     | Err(wtx::Error::X509CvError(X509CvError::PolicyConstraintMustBeCritical))
     | Err(wtx::Error::X509CvError(X509CvError::RootCasMustHaveKeyIdentifiers))
     | Err(wtx::Error::X509CvError(X509CvError::RootCasMustHaveMatchingAkiAndSki))
-    | Err(wtx::Error::X509CvError(X509CvError::SubjectKeyIdentifierMustNotBeCritical)) => None,
-    Err(err) => panic!("{err}"),
+    | Err(wtx::Error::X509CvError(X509CvError::SubjectKeyIdentifierMustNotBeCritical)) => {
+      match testcase.expected_result {
+        ExpectedResult::Success => {
+          panic!("{:?}", TestcaseResult::fail(testcase, rslt.unwrap_err().to_string()));
+        }
+        ExpectedResult::Failure => None,
+      }
+    }
+    Err(err) => {
+      panic!("{:?}", TestcaseResult::fail(testcase, err.to_string()));
+    }
   }
 }
 

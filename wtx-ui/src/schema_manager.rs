@@ -3,7 +3,7 @@ use std::{borrow::Cow, env::current_dir, path::Path};
 use tokio::net::TcpStream;
 use wtx::{
   codec::CodecController,
-  collection::{ShortStr, Vector},
+  collection::Vector,
   database::{
     DEFAULT_URI_VAR, Identifier,
     client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
@@ -52,9 +52,7 @@ impl FromVars for DefaultUriVar {
         rslt = Some(value)
       }
     }
-    Ok(Self(
-      rslt.ok_or_else(|| wtx::Error::MissingVar(ShortStr::new_truncated_u8(DEFAULT_URI_VAR)))?,
-    ))
+    Ok(Self(rslt.ok_or_else(|| wtx::Error::MissingVar(DEFAULT_URI_VAR.into()))?))
   }
 }
 
@@ -87,8 +85,12 @@ where
       let mut iter = commands.all_elements().await?.into_iter();
       let (Some("_wtx"), None) = (iter.next().as_deref(), iter.next()) else {
         eprintln!("{_buffer_idents:?}");
-        let msg = String::from("The rollback operation didn't leave the database in a clean state");
-        return Err(wtx::Error::Generic(msg.into()).into());
+        return Err(
+          wtx::Error::GenericStatic(
+            "The rollback operation didn't leave the database in a clean state".into(),
+          )
+          .into(),
+        );
       };
     }
     #[cfg(feature = "schema-manager-dev")]

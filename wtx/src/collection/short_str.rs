@@ -12,7 +12,7 @@ pub type ShortStrU16<'any> = ShortStr<'any, u16>;
 
 /// An unaligned structure that has 9~10 bytes in `x86_64`. Useful in places where a bunch of
 /// standard slices would take too much space.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct ShortStr<'any, L>(ShortSlice<'any, L, u8>)
 where
   L: LinearStorageLen;
@@ -55,6 +55,13 @@ where
   fn deref(&self) -> &Self::Target {
     // SAFETY: Constructors only accept strings
     unsafe { str::from_utf8_unchecked(self.0.data()) }
+  }
+}
+
+impl<'any> From<&'any str> for ShortStrU8<'any> {
+  #[inline]
+  fn from(value: &'any str) -> Self {
+    Self::new_truncated_u8(value)
   }
 }
 

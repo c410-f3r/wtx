@@ -163,6 +163,8 @@ pub enum Error {
   FuturePolledAfterFinalization,
   /// Generic error
   Generic(Box<String>),
+  /// Generic static error
+  GenericStatic(ShortStrU8<'static>),
   /// It is not possible to add an element into an `Option` because it is already occupied.
   InsufficientOptionCapacity,
   /// Indices are out-of-bounds or the number of bytes are too small.

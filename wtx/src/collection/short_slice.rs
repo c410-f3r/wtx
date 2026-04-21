@@ -92,6 +92,16 @@ where
   }
 }
 
+impl<L, T> Default for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn default() -> Self {
+    Self { ptr: ptr::null(), len: L::ZERO, phantom: PhantomData }
+  }
+}
+
 impl<L, T> Deref for ShortSlice<'_, L, T>
 where
   L: LinearStorageLen,
@@ -101,6 +111,13 @@ where
   #[inline]
   fn deref(&self) -> &Self::Target {
     self.data()
+  }
+}
+
+impl<'any, T> From<&'any [T]> for ShortSliceU8<'any, T> {
+  #[inline]
+  fn from(value: &'any [T]) -> Self {
+    Self::new_truncated_u8(value)
   }
 }
 

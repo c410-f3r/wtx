@@ -1,6 +1,5 @@
 use crate::{
   codec::FromRadix10,
-  collection::ShortStrU8,
   database::DatabaseError,
   misc::{bytes_split1, into_rslt},
 };
@@ -23,10 +22,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
       (u32::from_be_bytes([*a, *b, *c, *d]), rest)
     } else {
       return Err(
-        DatabaseError::UnexpectedValueFromBytes {
-          expected: ShortStrU8::new_truncated_u8(type_name::<Self>()),
-        }
-        .into(),
+        DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Self>().into() }.into(),
       );
     };
     Ok(match n {
@@ -68,10 +64,7 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
       }
       _ => {
         return Err(
-          DatabaseError::UnexpectedValueFromBytes {
-            expected: ShortStrU8::new_truncated_u8(type_name::<Self>()),
-          }
-          .into(),
+          DatabaseError::UnexpectedValueFromBytes { expected: type_name::<Self>().into() }.into(),
         );
       }
     })
