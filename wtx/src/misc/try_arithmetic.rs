@@ -109,13 +109,19 @@ macro_rules! impl_float {
         }
 
         #[inline]
-        fn try_pow_i32(&self, rhs: i32) -> crate::Result<Self::Output> {
-          Ok(self.powi(rhs))
+        fn try_pow_i32(&self, _rhs: i32) -> crate::Result<Self::Output> {
+          #[cfg(feature = "std")]
+          return Ok(self.powi(_rhs));
+          #[cfg(not(feature = "std"))]
+          return Err(crate::Error::UnsupportedOperation);
         }
 
         #[inline]
-        fn try_pow_u32(&self, rhs: u32) -> crate::Result<Self::Output> {
-          Ok(self.powi(rhs.try_into()?))
+        fn try_pow_u32(&self, _rhs: u32) -> crate::Result<Self::Output> {
+          #[cfg(feature = "std")]
+          return Ok(self.powi(_rhs.try_into()?));
+          #[cfg(not(feature = "std"))]
+          return Err(crate::Error::UnsupportedOperation);
         }
 
         #[inline]
