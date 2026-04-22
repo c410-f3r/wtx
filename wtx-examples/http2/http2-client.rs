@@ -13,8 +13,8 @@ extern crate wtx_examples;
 use std::net::TcpStream;
 use wtx::{
   executor::Runtime,
-  http::{HttpClient, ReqBuilder, ReqResBuffer},
-  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
+  http::{HttpClient, HttpRecvParams, ReqBuilder, ReqResBuffer},
+  http2::{Http2, Http2Buffer, Http2ErrorCode},
   misc::{Uri, from_utf8_basic},
   rng::{CryptoSeedableRng, Xorshift64},
   sync::Arc,
@@ -26,7 +26,7 @@ async fn main(runtime: Arc<Runtime>) -> wtx::Result<()> {
   let stream = TcpStream::connect(uri.hostname_with_implied_port())?;
   let (frame_reader, http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from_getrandom()?),
-    Http2Params::default(),
+    HttpRecvParams::with_optioned_params(),
     (stream.try_clone()?, stream),
   )
   .await?;

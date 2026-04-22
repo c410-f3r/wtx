@@ -3,32 +3,23 @@
 use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
   http::{
-    AutoStream, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer, Response,
-    StatusCode,
+    AutoStream, HttpRecvParams, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer,
+    Response, StatusCode,
   },
-  http2::{Http2Buffer, Http2Params},
-  rng::{CryptoSeedableRng, Xorshift64},
+  http2::Http2Buffer,
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   OptionedServer::http2_tokio(
-    ((), "127.0.0.1:9000", Xorshift64::from_std_random().unwrap(), ()),
+    ((), "127.0.0.1:9000", (), ()),
     |_| Ok(()),
     |_, stream| async move {
       stream.set_nodelay(true).unwrap();
       Ok(stream.into_split())
     },
     |_conn_error| {},
-    |mut rng| {
-      Ok((
-        (),
-        Http2Buffer::new(&mut rng),
-        Http2Params::default()
-          .set_max_concurrent_streams_num(u32::MAX)
-          .set_max_recv_streams_num(u32::MAX),
-      ))
-    },
+    |_, mut rng| Ok(((), Http2Buffer::new(&mut rng), HttpRecvParams::with_permissive_params())),
     |_| Ok(()),
     |_, _, _, _, _| Ok(((), OperationMode::Auto)),
     |_stream_error| {},

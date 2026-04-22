@@ -5,11 +5,10 @@
 use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
   http::{
-    AutoStream, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer, Response,
-    StatusCode,
+    AutoStream, HttpRecvParams, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer,
+    Response, StatusCode,
   },
-  http2::{Http2Buffer, Http2Params},
-  rng::{CryptoSeedableRng, Xorshift64},
+  http2::Http2Buffer,
 };
 
 #[tokio::main]
@@ -19,13 +18,7 @@ async fn main() -> wtx::Result<()> {
     |_| Ok(()),
     |_, stream| async move { Ok(stream.into_split()) },
     |error| eprintln!("{error}"),
-    |_| {
-      Ok((
-        (),
-        Http2Buffer::new(&mut Xorshift64::from_std_random().unwrap()),
-        Http2Params::default(),
-      ))
-    },
+    |_, mut rng| Ok(((), Http2Buffer::new(&mut rng), HttpRecvParams::with_default_params())),
     |_| Ok(()),
     |_, _, _, _, _| Ok(((), OperationMode::Auto)),
     |error| eprintln!("{error}"),

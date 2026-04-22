@@ -13,7 +13,7 @@ mod client_pool_rm;
 mod integration_tests;
 
 use crate::{
-  http::conn_params::ConnParams,
+  http::HttpRecvParams,
   http2::{Http2, Http2Buffer, Http2ErrorCode},
   misc::{LeaseMut, UriRef},
   pool::{ResourceManager, SimplePool, SimplePoolGetElem, SimplePoolResource},
@@ -117,7 +117,7 @@ mod tokio {
       let uri = UriRef::new(ca);
       let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
-        self._cp._to_hp(),
+        self._cp,
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
       .await?;
@@ -141,7 +141,7 @@ mod tokio {
       resource.client.swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2::connect(
         buffer,
-        self._cp._to_hp(),
+        self._cp,
         TcpStream::connect(uri.hostname_with_implied_port()).await?.into_split(),
       )
       .await?;
@@ -195,7 +195,7 @@ mod tokio_rustls {
       }
       let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
-        self._cp._to_hp(),
+        self._cp,
         tokio::io::split(
           connector
             .connect_without_client_auth(
@@ -230,7 +230,7 @@ mod tokio_rustls {
       resource.client.swap_buffers(&mut buffer).await;
       let (frame_reader, http2) = Http2::connect(
         Http2Buffer::default(),
-        self._cp._to_hp(),
+        self._cp,
         tokio::io::split(
           connector
             .connect_without_client_auth(

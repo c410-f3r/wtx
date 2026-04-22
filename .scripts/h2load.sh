@@ -11,5 +11,9 @@ RUSTFLAGS='-C target-cpu=native' cargo build --bin h2load --features h2load --pr
 RUSTFLAGS='-C target-cpu=native' cargo run --bin h2load --features h2load --profile deploy &
 sleep 1
 
+# -c = Concurrent clients
+# -m = Max concurrent streams
+# -n = Requests across all clients
+# -t = System threads
 > /tmp/h2load.txt
-h2load -c100 --log-file=/tmp/h2load.txt -m10 -n100000 --no-tls-proto=h2c http://localhost:9000
+h2load -c128 --log-file=/tmp/h2load.txt -m8 -n131072 --no-tls-proto=h2c -t4 http://localhost:9000

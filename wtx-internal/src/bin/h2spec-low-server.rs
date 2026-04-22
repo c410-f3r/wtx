@@ -6,8 +6,8 @@ use core::mem;
 use tokio::net::TcpListener;
 use wtx::{
   collection::Vector,
-  http::StatusCode,
-  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus},
+  http::{HttpRecvParams, StatusCode},
+  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
   rng::{CryptoSeedableRng, Xorshift64},
 };
 
@@ -18,7 +18,7 @@ async fn main() -> wtx::Result<()> {
     let (tcp_stream, _) = listener.accept().await?;
     let _conn_jh = tokio::spawn(async move {
       let fun = async {
-        let http2_params = Http2Params::default();
+        let http2_params = HttpRecvParams::with_default_params();
         let http2_buffer = Http2Buffer::new(&mut Xorshift64::from_std_random()?);
         let tuple = Http2::accept(http2_buffer, http2_params, tcp_stream.into_split()).await?;
         let (frame_reader, http2) = tuple;

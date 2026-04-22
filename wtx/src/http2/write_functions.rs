@@ -28,7 +28,7 @@ macro_rules! frame_params {
 
 use crate::{
   collection::{ArrayVectorU8, Vector},
-  http::{Headers, Trailers},
+  http::{Headers, Trailers, u31::U31},
   http2::{
     Http2Buffer, Http2Data, Http2Error, Http2Inner, Http2SendStatus,
     continuation_frame::ContinuationFrame,
@@ -39,7 +39,6 @@ use crate::{
     http2_data::Http2DataPartsMut,
     misc::{connection_state, process_higher_operation_err, protocol_err, scrp_mut, write_array},
     stream_state::StreamState,
-    u31::U31,
     window::WindowsPair,
   },
   misc::{LeaseMut, Usize},
@@ -62,25 +61,31 @@ pub(crate) fn encode_headers<const IS_CLIENT: bool>(
   match headers.trailers() {
     Trailers::None => {
       if IS_CLIENT {
-        hpack_enc.encode(enc_buffer, hsreqh.iter(), headers.iter())?;
+        let bytes_len = hsreqh.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsreqh.iter(), headers.iter())?;
       } else {
-        hpack_enc.encode(enc_buffer, hsresh.iter(), headers.iter())?;
+        let bytes_len = hsresh.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsresh.iter(), headers.iter())?;
       }
     }
     Trailers::Mixed => {
       let iter = headers.iter().filter(|el| !el.is_trailer);
       if IS_CLIENT {
-        hpack_enc.encode(enc_buffer, hsreqh.iter(), iter)?;
+        let bytes_len = hsreqh.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsreqh.iter(), iter)?;
       } else {
-        hpack_enc.encode(enc_buffer, hsresh.iter(), iter)?;
+        let bytes_len = hsresh.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsresh.iter(), iter)?;
       }
     }
     Trailers::Tail(idx) => {
       let iter = headers.iter().take(idx);
       if IS_CLIENT {
-        hpack_enc.encode(enc_buffer, hsreqh.iter(), iter)?;
+        let bytes_len = hsreqh.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsreqh.iter(), iter)?;
       } else {
-        hpack_enc.encode(enc_buffer, hsresh.iter(), iter)?;
+        let bytes_len = hsresh.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsresh.iter(), iter)?;
       }
     }
   }
@@ -512,10 +517,15 @@ fn encode_trailers(
   match headers.trailers() {
     Trailers::None => {}
     Trailers::Mixed => {
-      hpack_enc.encode(enc_buffer, [], headers.iter().filter(|el| el.is_trailer))?;
+      hpack_enc.encode(
+        enc_buffer,
+        headers.bytes_len(),
+        [],
+        headers.iter().filter(|el| el.is_trailer),
+      )?;
     }
     Trailers::Tail(idx) => {
-      hpack_enc.encode(enc_buffer, [], headers.iter().skip(idx))?;
+      hpack_enc.encode(enc_buffer, headers.bytes_len(), [], headers.iter().skip(idx))?;
     }
   }
   Ok(())

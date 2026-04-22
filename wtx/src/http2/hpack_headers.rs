@@ -64,12 +64,6 @@ where
     Ok(())
   }
 
-  #[inline(always)]
-  pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
-    self.bd.reserve_front(headers, bytes)?;
-    Ok(())
-  }
-
   pub(crate) fn set_max_bytes(&mut self, max_bytes: usize, cb: impl FnMut(M)) {
     self.max_bytes = max_bytes;
     self.remove_until_max_bytes(0, cb);

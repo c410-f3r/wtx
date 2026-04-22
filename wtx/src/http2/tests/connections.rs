@@ -1,8 +1,10 @@
 use crate::{
   collection::Vector,
   executor::Runtime,
-  http::{Header, Headers, ReqBuilder, ReqResBuffer, ReqResData, Request, StatusCode},
-  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params},
+  http::{
+    Header, Headers, HttpRecvParams, ReqBuilder, ReqResBuffer, ReqResData, Request, StatusCode,
+  },
+  http2::{Http2, Http2Buffer, Http2ErrorCode},
   misc::{UriRef, UriString},
   rng::{SeedableRng, Xorshift64},
   tests::_uri,
@@ -27,7 +29,7 @@ async fn client(uri: &UriString, runtime: &Runtime) {
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
   let (frame_header, mut http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
-    Http2Params::default(),
+    HttpRecvParams::with_optioned_params(),
     (stream.try_clone().unwrap(), stream),
   )
   .await
@@ -69,7 +71,7 @@ fn server(uri: &UriString, runtime: &Runtime) {
       let (stream, _) = listener.accept().unwrap();
       let (frame_header, mut http2) = Http2::accept(
         Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
-        Http2Params::default(),
+        HttpRecvParams::with_optioned_params(),
         (stream.try_clone().unwrap(), stream),
       )
       .await

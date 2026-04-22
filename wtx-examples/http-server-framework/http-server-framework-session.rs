@@ -27,7 +27,8 @@ use wtx::{
   collection::Vector,
   database::{Executor, Record},
   http::{
-    ReqResBuffer, ReqResData, SessionManager, SessionMiddleware, SessionState, StatusCode,
+    HttpRecvParams, ReqResBuffer, ReqResData, SessionManager, SessionMiddleware, SessionState,
+    StatusCode,
     server_framework::{DynParams, Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
   misc::{SecretContext, argon2_pwd},
@@ -41,13 +42,12 @@ type LocalSessionManager = SessionManager<u32, wtx::Error>;
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
-  let mut db_rng = ChaCha20::from_getrandom()?;
-  let mut server_rng = ChaCha20::from_getrandom()?;
-  let secret_context = SecretContext::new(&mut db_rng)?;
-  let db_pool = DbPool::new(4, PostgresRM::tokio(db_rng, secret_context.clone(), &mut uri)?);
+  let mut rng = ChaCha20::from_getrandom()?;
+  let secret_context = SecretContext::new(&mut rng)?;
+  let db_pool = DbPool::new(4, PostgresRM::tokio(rng, secret_context.clone(), &mut uri)?);
   let builder = LocalSessionManager::builder();
   let (expired_sessions, sm) =
-    builder.build_generating_key(&mut server_rng, secret_context, db_pool.clone())?;
+    builder.build_generating_key(&mut rng, secret_context, db_pool.clone())?;
   let router = Router::new(
     wtx::paths!(("/login", post(login)), ("/logout", get(logout))),
     SessionMiddleware::new(Vector::new(), sm.clone(), db_pool.clone()),
@@ -57,14 +57,9 @@ async fn main() -> wtx::Result<()> {
       eprintln!("{err}");
     }
   });
-  ServerFrameworkBuilder::new(server_rng, router)
-    .with_conn_aux(move |local_rng| {
-      Ok(ConnAux {
-        pool: db_pool.clone(),
-        rng: local_rng,
-        session_manager: sm.clone(),
-        session_state: None,
-      })
+  ServerFrameworkBuilder::new(HttpRecvParams::with_optioned_params(), router)
+    .with_conn_aux(move || {
+      Ok(ConnAux { pool: db_pool.clone(), session_manager: sm.clone(), session_state: None })
     })
     .tokio(
       "0.0.0.0:9000",
@@ -78,7 +73,7 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<DynParams> {
-  let ConnAux { pool, rng, session_manager, session_state } = state.conn_aux;
+  let ConnAux { pool, session_manager, session_state } = state.conn_aux;
   if session_state.is_some() {
     state.req.clear();
     session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
@@ -103,12 +98,14 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<DynPa
   }
   serde_json::to_writer(&mut state.req.rrd.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
-  session_manager.set_session_cookie(id, rng, &mut state.req.rrd, pool).await?;
+  session_manager
+    .set_session_cookie(id, &mut ChaCha20::from_getrandom()?, &mut state.req.rrd, pool)
+    .await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 
 async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  let ConnAux { pool, rng: _, session_manager, session_state } = state.conn_aux;
+  let ConnAux { pool, session_manager, session_state } = state.conn_aux;
   if session_state.is_some() {
     session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
   }
@@ -118,7 +115,6 @@ async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result
 #[derive(Clone, Debug, wtx::ConnAux)]
 struct ConnAux {
   pool: DbPool,
-  rng: ChaCha20,
   session_manager: LocalSessionManager,
   session_state: Option<SessionState<u32>>,
 }

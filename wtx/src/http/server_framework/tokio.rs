@@ -8,7 +8,7 @@ use crate::{
     },
   },
   http2::{Http2Buffer, ServerStream},
-  rng::{CryptoRng, CryptoSeedableRng},
+  rng::{SeedableRng, Xorshift64},
   sync::Arc,
 };
 use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
@@ -18,7 +18,7 @@ type Stream = ServerStream<Http2Buffer, OwnedWriteHalf>;
 type StreamRustls =
   ServerStream<Http2Buffer, tokio::io::WriteHalf<tokio_rustls::server::TlsStream<TcpStream>>>;
 
-impl<CA, CACB, CBP, E, EN, M, S, SA, SACB> ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB>
+impl<CA, CACB, E, EN, M, S, SA, SACB> ServerFramework<CA, CACB, E, EN, M, S, SA, SACB>
 where
   E: From<crate::Error>,
   EN: EndpointNode<CA, E, S, SA>,
@@ -50,11 +50,10 @@ where
   }
 }
 
-impl<CA, CACB, CBP, E, EN, M, SA, SACB> ServerFramework<CA, CACB, CBP, E, EN, M, Stream, SA, SACB>
+impl<CA, CACB, E, EN, M, SA, SACB> ServerFramework<CA, CACB, E, EN, M, Stream, SA, SACB>
 where
   CA: Clone + ConnAux + Send + 'static,
-  CACB: Clone + Fn(CBP) -> Result<CA::Init, E> + Send + 'static,
-  CBP: Clone + CryptoRng + CryptoSeedableRng + Send + 'static,
+  CACB: Clone + Fn() -> Result<CA::Init, E> + Send + 'static,
   E: From<crate::Error> + Send + 'static,
   EN: EndpointNode<CA, E, Stream, SA, auto(..): Send, manual(..): Send> + Send + 'static,
   M: Middleware<CA, E, SA, req(..): Send, res(..): Send> + Send + 'static,
@@ -76,13 +75,10 @@ where
     stream_cb: impl Clone + Fn(&mut TcpStream) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> Result<(), E> {
-    let Self { _ca_cb, _cbp, _cp, _sa_cb, _router } = self;
+    let Self { _ca_cb, _cp, _sa_cb, _router } = self;
     OptionedServer::http2_tokio(
-      ((), host, _cbp, _router),
-      |local_rng| {
-        *local_rng = CBP::from_crypto_rng(local_rng)?;
-        Ok(())
-      },
+      ((), host, (), _router),
+      |_| Ok(()),
       move |_, mut stream| {
         let rslt = stream_cb(&mut stream);
         async move {
@@ -91,9 +87,9 @@ where
         }
       },
       conn_error_cb,
-      move |mut local_rng| {
+      move |_, mut local_rng| {
         let hb = Http2Buffer::new(&mut local_rng);
-        Ok((CA::conn_aux(_ca_cb(local_rng)?)?, hb, _cp._to_hp()))
+        Ok((CA::conn_aux(_ca_cb()?)?, hb, _cp))
       },
       move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {
@@ -118,12 +114,10 @@ where
 }
 
 #[cfg(feature = "tokio-rustls")]
-impl<CA, CACB, CBP, E, EN, M, SA, SACB>
-  ServerFramework<CA, CACB, CBP, E, EN, M, StreamRustls, SA, SACB>
+impl<CA, CACB, E, EN, M, SA, SACB> ServerFramework<CA, CACB, E, EN, M, StreamRustls, SA, SACB>
 where
   CA: Clone + ConnAux + Send + 'static,
-  CACB: Clone + Fn(CBP) -> Result<CA::Init, E> + Send + 'static,
-  CBP: Clone + CryptoRng + CryptoSeedableRng + Send + 'static,
+  CACB: Clone + Fn() -> Result<CA::Init, E> + Send + 'static,
   E: From<crate::Error> + Send + 'static,
   EN: EndpointNode<CA, E, StreamRustls, SA, auto(..): Send, manual(..): Send> + Send + 'static,
   M: Middleware<CA, E, SA, req(..): Send, res(..): Send> + Send + 'static,
@@ -146,16 +140,13 @@ where
     stream_cb: impl Clone + Fn(&mut TcpStream) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> Result<(), E> {
-    let Self { _ca_cb, _cbp, _cp, _sa_cb, _router } = self;
+    let Self { _ca_cb, _cp, _sa_cb, _router } = self;
     let tls_acceptor = crate::misc::TokioRustlsAcceptor::without_client_auth()
       .http2()
       .build_with_cert_chain_and_priv_key(cert_chain, priv_key)?;
     OptionedServer::http2_tokio(
-      (tls_acceptor, host, _cbp, _router),
-      |local_rng| {
-        *local_rng = CBP::from_crypto_rng(local_rng)?;
-        Ok(())
-      },
+      (tls_acceptor, host, Xorshift64::from_simple_seed()?, _router),
+      |_| Ok(()),
       move |acceptor, mut stream| {
         let rslt = stream_cb(&mut stream);
         async move {
@@ -164,9 +155,9 @@ where
         }
       },
       conn_error_cb,
-      move |mut local_rng| {
+      move |_, mut local_rng| {
         let hb = Http2Buffer::new(&mut local_rng);
-        Ok((CA::conn_aux(_ca_cb(local_rng)?)?, hb, _cp._to_hp()))
+        Ok((CA::conn_aux(_ca_cb()?)?, hb, _cp))
       },
       move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {

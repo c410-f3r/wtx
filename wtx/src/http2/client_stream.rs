@@ -1,6 +1,6 @@
 use crate::{
   collection::Vector,
-  http::{ReqResBuffer, ReqResData, Request, StatusCode},
+  http::{ReqResBuffer, ReqResData, Request, StatusCode, u31::U31},
   http2::{
     CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
@@ -10,7 +10,6 @@ use crate::{
     },
     stream_receiver::StreamOverallRecvParams,
     stream_state::StreamState,
-    u31::U31,
     window::Windows,
     write_functions::send_msg,
   },

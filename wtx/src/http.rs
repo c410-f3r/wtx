@@ -2,8 +2,6 @@
 
 #[cfg(feature = "http-client-pool")]
 pub mod client_pool;
-#[cfg(any(feature = "http2", feature = "http-client-pool", feature = "http-server-framework"))]
-pub(crate) mod conn_params;
 #[cfg(feature = "http-cookie")]
 mod cookie;
 mod generic_header;
@@ -13,6 +11,7 @@ mod header_name;
 mod headers;
 mod http_client;
 mod http_error;
+mod http_recv_params;
 mod method;
 mod mime;
 mod misc;
@@ -30,6 +29,7 @@ pub mod server_framework;
 #[cfg(feature = "http-session")]
 mod session;
 mod status_code;
+pub(crate) mod u31;
 mod version;
 
 #[cfg(feature = "http-cookie")]
@@ -41,6 +41,7 @@ pub use header_name::*;
 pub use headers::{Header, Headers, Trailers};
 pub use http_client::HttpClient;
 pub use http_error::HttpError;
+pub use http_recv_params::HttpRecvParams;
 pub use method::Method;
 pub use mime::Mime;
 pub use misc::*;
@@ -65,9 +66,13 @@ pub const MAX_HEADER_VALUE_LEN: usize = 1024 * 3;
 /// Current user agent of this project
 pub const WTX_USER_AGENT: &str = concat!("wtx/", env!("CARGO_PKG_VERSION"));
 
-pub(crate) const _MAX_AUTHORITY_LEN: usize = 64;
-pub(crate) const _MAX_PATH_LEN: usize = 128;
-pub(crate) const _MAX_SCHEME_LEN: usize = 16;
+pub(crate) const DEFAULT_INITIAL_WINDOW_LEN: u32 = 64 * 1024 - 1;
+pub(crate) const DEFAULT_MAX_CONCURRENT_STREAMS_NUM: u32 = 32;
+pub(crate) const DEFAULT_MAX_FRAME_LEN: u32 = 16 * 1024;
+pub(crate) const DEFAULT_MAX_HEADERS_LEN: u32 = 4 * 1024;
+pub(crate) const DEFAULT_MAX_HPACK_LEN: u32 = 4 * 1024;
+pub(crate) const MAX_FRAME_LEN_LOWER_BOUND: u32 = 16 * 1024;
+pub(crate) const MAX_FRAME_LEN_UPPER_BOUND: u32 = 16 * 1024 * 1024 - 1;
 
 pub(crate) type _HeaderNameBuffer = crate::collection::ArrayVectorU8<u8, MAX_HEADER_NAME_LEN>;
 pub(crate) type _HeaderValueBuffer = crate::collection::ArrayVectorU16<u8, MAX_HEADER_VALUE_LEN>;

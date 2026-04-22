@@ -1,8 +1,10 @@
-use crate::http2::{
-  Http2Error, Http2ErrorCode,
-  common_flags::CommonFlags,
-  frame_init::{FrameInit, FrameInitTy},
-  u31::U31,
+use crate::{
+  http::u31::U31,
+  http2::{
+    Http2Error, Http2ErrorCode,
+    common_flags::CommonFlags,
+    frame_init::{FrameInit, FrameInitTy},
+  },
 };
 
 #[derive(Debug, Eq, PartialEq)]

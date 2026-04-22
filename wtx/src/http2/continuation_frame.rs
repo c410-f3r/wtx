@@ -1,7 +1,9 @@
-use crate::http2::{
-  common_flags::CommonFlags,
-  frame_init::{FrameInit, FrameInitTy},
-  u31::U31,
+use crate::{
+  http::u31::U31,
+  http2::{
+    common_flags::CommonFlags,
+    frame_init::{FrameInit, FrameInitTy},
+  },
 };
 
 #[derive(Debug)]
