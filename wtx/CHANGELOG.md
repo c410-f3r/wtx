@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.3](https://github.com/c410-f3r/wtx/compare/wtx-v0.44.2...wtx-v0.44.3) - 2026-04-22
+
+### Other
+
+- Allow users to specify HTTP parameters
+- release
+
 ## [0.44.2](https://github.com/c410-f3r/wtx/compare/wtx-v0.44.1...wtx-v0.44.2) - 2026-04-21
 
 ### Other
