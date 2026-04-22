@@ -12,6 +12,7 @@ use core::hint::cold_path;
 
 const ENCODE_MASK: u64 = 0b1111_1111;
 
+// Buffers are already pre-allocated in HPACK
 pub(crate) fn huffman_decode<T>(from: &[u8], to: &mut T) -> crate::Result<()>
 where
   T: Clear + Lease<[u8]> + SingleTypeStorage + TryExtend<[u8; 1]>,
@@ -27,7 +28,6 @@ where
     let (arrays, rem) = from.as_chunks::<{ _SIMD_LEN }>();
     for array in arrays {
       decode_all(&mut curr_state, &mut end_of_string, &mut has_error, &mut has_overflow, array, to);
-
       if has_error || has_overflow {
         break 'decode;
       }
@@ -57,12 +57,11 @@ where
   Ok(())
 }
 
+// Buffers are already pre-allocated in HPACK
 pub(crate) fn huffman_encode(from: &[u8], to: &mut Vector<u8>) -> crate::Result<()> {
   let mut bits: u64 = 0;
   let mut bits_left: u64 = 40;
   let mut has_overflow = false;
-
-  to.reserve((from.len() << 1).wrapping_add(5))?;
 
   let (arrays, rem) = from.as_chunks::<{ _SIMD_LEN }>();
   for array in arrays {

@@ -1,9 +1,8 @@
 use crate::{
   collection::Vector,
-  http::{Header, StatusCode},
+  http::{DEFAULT_MAX_HPACK_LEN, Header, StatusCode},
   http2::{
-    MAX_HPACK_LEN, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
-    hpack_header::HpackHeaderBasic,
+    hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,
   },
   misc::serde_json_deserialize_from_slice,
   rng::{SeedableRng, Xorshift64},
@@ -192,8 +191,8 @@ fn test_story_encoding_and_decoding(
       decoder.set_max_bytes(size);
       encoder.set_max_dyn_sub_bytes(size).unwrap();
     } else {
-      decoder.set_max_bytes(MAX_HPACK_LEN);
-      encoder.set_max_dyn_sub_bytes(MAX_HPACK_LEN).unwrap();
+      decoder.set_max_bytes(DEFAULT_MAX_HPACK_LEN);
+      encoder.set_max_dyn_sub_bytes(DEFAULT_MAX_HPACK_LEN).unwrap();
     }
 
     let mut pseudo_headers = Vector::from_iterator(case.headers.iter().filter_map(|header| {
@@ -230,6 +229,7 @@ fn test_story_encoding_and_decoding(
     encoder
       .encode(
         buffer,
+        0,
         pseudo_headers.iter().copied(),
         user_headers.iter().map(|el| Header::from_name_and_value(el.1, el.2)),
       )

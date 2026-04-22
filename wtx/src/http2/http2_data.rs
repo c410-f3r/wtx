@@ -1,7 +1,6 @@
 use crate::{
-  http2::{
-    Http2Buffer, Http2Params, http2_params_send::Http2ParamsSend, u31::U31, window::Windows,
-  },
+  http::{HttpRecvParams, u31::U31},
+  http2::{Http2Buffer, http_send_params::HttpSendParams, window::Windows},
   misc::{Lease, LeaseMut},
 };
 
@@ -10,8 +9,8 @@ use crate::{
 pub struct Http2Data<HB, const IS_CLIENT: bool> {
   frame_reader_error: Option<crate::Error>,
   hb: HB,
-  hp: Http2Params,
-  hps: Http2ParamsSend,
+  hp: HttpRecvParams,
+  hps: HttpSendParams,
   last_stream_id: U31,
   recv_streams_num: u32,
   windows: Windows,
@@ -21,8 +20,8 @@ impl<HB, const IS_CLIENT: bool> Http2Data<HB, IS_CLIENT>
 where
   HB: LeaseMut<Http2Buffer>,
 {
-  pub(crate) fn new(hb: HB, hp: Http2Params) -> Self {
-    let hps = Http2ParamsSend::default();
+  pub(crate) fn new(hb: HB, hp: HttpRecvParams) -> Self {
+    let hps = HttpSendParams::default();
     let windows = Windows::initial(&hp, &hps);
     Self {
       frame_reader_error: None,
@@ -65,8 +64,8 @@ impl<HB, const IS_CLIENT: bool> LeaseMut<Http2Data<HB, IS_CLIENT>> for Http2Data
 pub(crate) struct Http2DataPartsMut<'instance, const IS_CLIENT: bool> {
   pub(crate) frame_reader_error: &'instance mut Option<crate::Error>,
   pub(crate) hb: &'instance mut Http2Buffer,
-  pub(crate) hp: &'instance mut Http2Params,
-  pub(crate) hps: &'instance mut Http2ParamsSend,
+  pub(crate) hp: &'instance mut HttpRecvParams,
+  pub(crate) hps: &'instance mut HttpSendParams,
   pub(crate) last_stream_id: &'instance mut U31,
   pub(crate) recv_streams_num: &'instance mut u32,
   pub(crate) windows: &'instance mut Windows,

@@ -26,7 +26,7 @@ mod tests;
 mod tokio;
 mod verbatim_params;
 
-use crate::{http::conn_params::ConnParams, sync::Arc};
+use crate::{http::HttpRecvParams, sync::Arc};
 pub use arguments::*;
 pub use conn_aux::ConnAux;
 pub use cors_middleware::{CorsMiddleware, OriginResponse};
@@ -56,10 +56,9 @@ pub use verbatim_params::VerbatimParams;
 
 /// Server
 #[derive(Debug)]
-pub struct ServerFramework<CA, CACB, CBP, E, EN, M, S, SA, SACB> {
+pub struct ServerFramework<CA, CACB, E, EN, M, S, SA, SACB> {
   _ca_cb: CACB,
-  _cbp: CBP,
-  _cp: ConnParams,
+  _cp: HttpRecvParams,
   _sa_cb: SACB,
   _router: Arc<Router<CA, E, EN, M, S, SA>>,
 }

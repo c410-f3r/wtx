@@ -14,7 +14,7 @@ use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
   database::{Executor, Record},
   http::{
-    ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
+    HttpRecvParams, ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
     server_framework::{
       JsonReply, Middleware, PathOwned, Router, ServerFrameworkBuilder, State, StateClean,
       VerbatimParams, get, json,
@@ -43,7 +43,7 @@ async fn main() -> wtx::Result<()> {
   let mut uri = *b"postgres://USER:PASSWORD@localhost/DB_NAME";
   let secret_context = SecretContext::new(&mut rng)?;
   let pool = LocalPool::new(4, PostgresRM::tokio(rng, secret_context, &mut uri)?);
-  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
+  ServerFrameworkBuilder::new(HttpRecvParams::with_optioned_params(), router)
     .with_stream_aux(move |_| Ok(pool.clone()))
     .tokio(
       &wtx_examples::host_from_args(),

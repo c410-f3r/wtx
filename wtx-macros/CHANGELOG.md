@@ -11,8 +11,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
-- wtx-0.44.2
-- Pass the X.509-limbo testsuite
-- Finish X.509
-- Add x509-limbo
-- X.509
+- Initial automatic publishing

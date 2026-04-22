@@ -26,9 +26,8 @@ mod http2_buffer;
 mod http2_data;
 mod http2_error;
 mod http2_error_code;
-mod http2_params;
-mod http2_params_send;
 mod http2_status;
+mod http_send_params;
 mod huffman;
 mod huffman_tables;
 mod initial_server_stream_remote;
@@ -43,7 +42,6 @@ mod stream_receiver;
 mod stream_state;
 #[cfg(all(feature = "_async-tests", test))]
 mod tests;
-mod u31;
 #[cfg(feature = "web-socket")]
 mod web_socket_over_stream;
 mod window;
@@ -52,7 +50,8 @@ mod write_functions;
 mod writer_data;
 
 use crate::{
-  http::{Protocol, ReqResBuffer, Request},
+  http::{DEFAULT_INITIAL_WINDOW_LEN, HttpRecvParams, Protocol, ReqResBuffer, Request, u31::U31},
+  http2::settings_frame::SettingsFrame,
   misc::{ConnectionState, Lease, LeaseMut, SingleTypeStorage, Usize},
   stream::{StreamReader, StreamWriter},
   sync::{Arc, AsyncMutex, AtomicBool, AtomicWaker},
@@ -70,26 +69,16 @@ pub use http2_buffer::Http2Buffer;
 pub use http2_data::Http2Data;
 pub use http2_error::Http2Error;
 pub use http2_error_code::Http2ErrorCode;
-pub use http2_params::Http2Params;
 pub use http2_status::{Http2RecvStatus, Http2SendStatus};
 pub use server_stream::ServerStream;
 #[cfg(feature = "web-socket")]
 pub use web_socket_over_stream::WebSocketOverStream;
 pub use window::{Window, Windows};
 
-const MAX_BODY_LEN: u32 = max_body_len!();
-const MAX_CONCURRENT_STREAMS_NUM: u32 = max_concurrent_streams_num!();
-const MAX_FRAME_LEN: u32 = max_frame_len!();
-const MAX_FRAME_LEN_LOWER_BOUND: u32 = max_frame_len_lower_bound!();
-const MAX_FRAME_LEN_UPPER_BOUND: u32 = max_frame_len_upper_bound!();
-const MAX_HEADERS_LEN: u32 = max_headers_len!();
-const MAX_HPACK_LEN: u32 = max_hpack_len!();
-const MAX_RECV_STREAMS_NUM: u32 = max_recv_streams_num!();
-const READ_BUFFER_LEN: u32 = read_buffer_len!();
 const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
-pub(crate) type Scrp = HashMap<u31::U31, stream_receiver::StreamControlRecvParams>;
-pub(crate) type Sorp = HashMap<u31::U31, stream_receiver::StreamOverallRecvParams>;
+pub(crate) type Scrp = HashMap<U31, stream_receiver::StreamControlRecvParams>;
+pub(crate) type Sorp = HashMap<U31, stream_receiver::StreamOverallRecvParams>;
 
 /// Negotiates initial "handshakes" or connections and also manages the creation of streams.
 #[derive(Debug)]
@@ -117,7 +106,7 @@ where
 
   async fn manage_initial_params<SR, const HAS_PREFACE: bool>(
     mut hb: HB,
-    hp: Http2Params,
+    hp: HttpRecvParams,
     stream_reader: SR,
     mut stream_writer: SW,
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
@@ -125,10 +114,10 @@ where
     SR: StreamReader,
   {
     let is_conn_open = AtomicBool::new(true);
-    let sf = hp.to_settings_frame();
+    let sf = SettingsFrame::from_hp(hp);
     let sf_buffer = &mut [0; 45];
     let sf_bytes = sf.bytes(sf_buffer);
-    if hp.initial_window_len() == initial_window_len!() {
+    if hp.initial_window_len() == DEFAULT_INITIAL_WINDOW_LEN {
       if HAS_PREFACE {
         misc::write_array([PREFACE, sf_bytes], &is_conn_open, &mut stream_writer).await?;
       } else {
@@ -136,8 +125,8 @@ where
       }
     } else {
       let wuf = window_update_frame::WindowUpdateFrame::new(
-        hp.initial_window_len().wrapping_sub(initial_window_len!()).into(),
-        u31::U31::ZERO,
+        hp.initial_window_len().wrapping_sub(DEFAULT_INITIAL_WINDOW_LEN).into(),
+        U31::ZERO,
       )?;
       if HAS_PREFACE {
         let array = [PREFACE, sf_bytes, &wuf.bytes()];
@@ -147,10 +136,7 @@ where
       }
     }
     hb.lease_mut().hpack_dec.set_max_bytes(hp.max_hpack_len().0);
-    hb.lease_mut().hpack_dec.reserve(4, 256)?;
     hb.lease_mut().hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
-    hb.lease_mut().hpack_enc.reserve(4, 256)?;
-    hb.lease_mut().pfb.reserve(*Usize::from(hp.read_buffer_len()))?;
     let rd = reader_data::ReaderData::new(mem::take(&mut hb.lease_mut().pfb), stream_reader);
     let max_frame_len = hp.max_frame_len();
     let wd = writer_data::WriterData::new(stream_writer);
@@ -173,7 +159,7 @@ where
   #[inline]
   pub async fn accept<SR>(
     mut hb: HB,
-    hp: Http2Params,
+    hp: HttpRecvParams,
     (mut stream_reader, mut stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
@@ -185,7 +171,7 @@ where
     if &buffer != PREFACE {
       let _rslt = stream_writer
         .write_all(
-          &go_away_frame::GoAwayFrame::new(Http2ErrorCode::ProtocolError, u31::U31::ZERO).bytes(),
+          &go_away_frame::GoAwayFrame::new(Http2ErrorCode::ProtocolError, U31::ZERO).bytes(),
         )
         .await;
       return Err(misc::protocol_err(Http2Error::NoPreface));
@@ -250,7 +236,7 @@ where
   #[inline]
   pub async fn connect<SR>(
     mut hb: HB,
-    mut hp: Http2Params,
+    mut hp: HttpRecvParams,
     (stream_reader, stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
@@ -284,7 +270,7 @@ where
         windows: Windows::initial(hdpm.hp, hdpm.hps),
       },
     ));
-    *hdpm.last_stream_id = hdpm.last_stream_id.wrapping_add(u31::U31::TWO);
+    *hdpm.last_stream_id = hdpm.last_stream_id.wrapping_add(U31::TWO);
     drop(hd_guard);
     Ok(ClientStream::new(inner.clone(), span, stream_id))
   }

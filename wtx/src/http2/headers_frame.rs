@@ -1,15 +1,14 @@
 use crate::{
   collection::ArrayStringU8,
-  http::{Header, KnownHeaderName, Method, ReqResBuffer},
+  http::{Header, HttpRecvParams, KnownHeaderName, Method, ReqResBuffer, u31::U31},
   http2::{
-    Http2Error, Http2Params,
+    Http2Error,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     hpack_decoder::HpackDecoder,
     hpack_header::HpackHeaderBasic,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{protocol_err, trim_frame_pad},
-    u31::U31,
   },
   misc::{LeaseMut, Usize},
 };
@@ -65,7 +64,7 @@ impl<'uri> HeadersFrame<'uri> {
   pub(crate) fn read<const IS_CLIENT: bool, const IS_TRAILER: bool>(
     data: Option<&[u8]>,
     mut fi: FrameInit,
-    hp: &Http2Params,
+    hp: &HttpRecvParams,
     hpack_dec: &mut HpackDecoder,
     (rrb, rrb_body_start): (&mut ReqResBuffer, usize),
   ) -> crate::Result<(Option<usize>, Self)> {
@@ -91,7 +90,7 @@ impl<'uri> HeadersFrame<'uri> {
     let mut status = None;
 
     let mut already_created_path = false;
-    let mut authority = ArrayStringU8::<60>::new();
+    let mut authority = ArrayStringU8::<64>::new();
     let mut path_len = 0;
     let mut scheme = ArrayStringU8::<12>::new();
     let mut static_path = None;

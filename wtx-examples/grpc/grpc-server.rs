@@ -10,10 +10,9 @@ use wtx::{
   codec::format::QuickProtobuf,
   grpc::{GrpcManager, GrpcMiddleware},
   http::{
-    ReqResBuffer, StatusCode,
+    HttpRecvParams, ReqResBuffer, StatusCode,
     server_framework::{Router, ServerFrameworkBuilder, State, post},
   },
-  rng::{ChaCha20, CryptoSeedableRng},
 };
 use wtx_examples::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
@@ -23,7 +22,7 @@ async fn main() -> wtx::Result<()> {
     wtx::paths!(("wtx.GenericService/generic_method", post(wtx_generic_service_generic_method))),
     GrpcMiddleware,
   )?;
-  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
+  ServerFrameworkBuilder::new(HttpRecvParams::with_optioned_params(), router)
     .with_stream_aux(|_| Ok(QuickProtobuf))
     .tokio_rustls(
       (wtx_examples::CERT, wtx_examples::KEY),

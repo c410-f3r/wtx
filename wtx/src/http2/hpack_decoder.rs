@@ -82,10 +82,6 @@ impl HpackDecoder {
     }
   }
 
-  pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
-    self.dyn_headers.reserve(headers, bytes)
-  }
-
   // It is not possible to lower the initial set value
   pub(crate) fn set_max_bytes(&mut self, max_bytes: u32) {
     self.max_bytes.1 = Some(match self.max_bytes.1 {

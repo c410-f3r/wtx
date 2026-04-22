@@ -1,13 +1,12 @@
 use crate::{
   collection::{ArrayVectorU8, Vector},
-  http::{Headers, StatusCode},
+  http::{Headers, StatusCode, u31::U31},
   http2::{
     Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{
       check_content_length, frame_reader_rslt, sorp_mut, status_recv, status_send, write_array,
     },
-    u31::U31,
     window::WindowsPair,
     write_functions::{encode_headers, push_data, push_headers, push_trailers, write_frames},
   },

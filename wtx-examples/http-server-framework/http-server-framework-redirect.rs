@@ -1,18 +1,15 @@
 //! Different types of redirects.
 
-use wtx::{
-  http::{
-    ReqResBuffer, StatusCode,
-    server_framework::{Redirect, Router, ServerFrameworkBuilder, StateClean, get},
-  },
-  rng::{ChaCha20, CryptoSeedableRng},
+use wtx::http::{
+  HttpRecvParams, ReqResBuffer, StatusCode,
+  server_framework::{Redirect, Router, ServerFrameworkBuilder, StateClean, get},
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
   let router =
     Router::paths(wtx::paths!(("/permanent", get(permanent)), ("/temporary", get(temporary))))?;
-  ServerFrameworkBuilder::new(ChaCha20::from_getrandom()?, router)
+  ServerFrameworkBuilder::new(HttpRecvParams::with_optioned_params(), router)
     .without_aux()
     .tokio(
       &wtx_examples::host_from_args(),

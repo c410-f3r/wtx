@@ -2,11 +2,12 @@ use crate::{
   calendar::Instant,
   collection::Vector,
   http::{
-    AutoStream, ManualServerStream, OperationMode, Protocol, ReqResBuffer, Request, Response,
-    optioned_server::OptionedServer,
+    AutoStream, HttpRecvParams, ManualServerStream, OperationMode, Protocol, ReqResBuffer, Request,
+    Response, optioned_server::OptionedServer,
   },
-  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2Params, Http2RecvStatus},
+  http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
   misc::FnFut,
+  rng::{SeedableRng, Xorshift64},
   stream::{StreamReader, StreamWriter},
 };
 use core::{mem, net::IpAddr};
@@ -57,7 +58,10 @@ impl OptionedServer {
     TAC: Fn(&mut HCACP) -> Result<(), ERR> + Send + 'static,
     TSC: Clone + Fn(ACPT, TcpStream) -> TSF + Send + 'static,
     HCEC: Clone + Fn(ERR) + Send + 'static,
-    HCAC: Clone + Fn(HCACP) -> Result<(CA, Http2Buffer, Http2Params), ERR> + Send + 'static,
+    HCAC: Clone
+      + Fn(HCACP, Xorshift64) -> Result<(CA, Http2Buffer, HttpRecvParams), ERR>
+      + Send
+      + 'static,
     HCACP: Clone + Send + 'static,
     HCSC: Clone + Fn(&mut CA) -> Result<SA, ERR> + Send + 'static,
     HCOC: Clone
@@ -96,10 +100,12 @@ impl OptionedServer {
     for<'any> &'any SA: Send,
   {
     let listener = TcpListener::bind(addr).await.map_err(crate::Error::from)?;
+    let mut xorshift = Xorshift64::from_simple_seed()?;
     loop {
       let accepted_stream = listener.accept().await.map_err(crate::Error::from)?.0;
       tcp_acceptance_cb(&mut hcacp)?;
 
+      let conn_xorshift = Xorshift64::from_rng(&mut xorshift)?;
       let conn_acpt = acpt.clone();
       let conn_hcacp = hcacp.clone();
       let conn_http2_acceptance = http2_conn_acceptance_cb.clone();
@@ -115,7 +121,7 @@ impl OptionedServer {
 
       let _conn_jh = tokio::spawn(async move {
         let initial_fut = async move {
-          let (ca, hb, hp) = conn_http2_acceptance(conn_hcacp)?;
+          let (ca, hb, hp) = conn_http2_acceptance(conn_hcacp, conn_xorshift)?;
           let parts = conn_tcp_stream(conn_acpt, accepted_stream).await?;
           let (frame_reader, http2) = Http2::accept(hb, hp, parts).await?;
           Ok::<_, ERR>((ca, frame_reader, http2))

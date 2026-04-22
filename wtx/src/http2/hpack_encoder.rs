@@ -65,6 +65,7 @@ impl HpackEncoder {
   pub(crate) fn encode<'pseudo, 'user>(
     &mut self,
     buffer: &mut Vector<u8>,
+    bytes_len_hint: usize,
     pseudo_headers: impl IntoIterator<Item = (HpackHeaderBasic, &'pseudo str)>,
     user_headers: impl IntoIterator<Item = Header<'user, &'user str>>,
   ) -> crate::Result<()> {
@@ -77,8 +78,7 @@ impl HpackEncoder {
         .and_then(|el| el.checked_add(user_headers_iter.size_hint().1?))
         .unwrap_or(usize::MAX),
     );
-    let reserve = pseudo_headers_iter.size_hint().0.wrapping_add(user_headers_iter.size_hint().0);
-    buffer.reserve(reserve)?;
+    buffer.reserve(bytes_len_hint / 2)?;
     self.manage_size_update(buffer)?;
     for (hhb, value) in pseudo_headers_iter {
       let idx = self.encode_idx(("", value, false), hhb, Self::shi_pseudo((hhb, value)))?;
@@ -93,10 +93,6 @@ impl HpackEncoder {
       Self::manage_encode(buffer, (name, value), idx)?;
     }
     Ok(())
-  }
-
-  pub(crate) fn reserve(&mut self, headers: usize, bytes: usize) -> crate::Result<()> {
-    self.dyn_headers.reserve(headers, bytes)
   }
 
   // It is not possible to lower the initial set value
@@ -177,7 +173,6 @@ impl HpackEncoder {
 
     self.push_dyn_headers((name, value, is_sensitive), (Some(name_hash), pair_hash))?;
     let next_dyn_idx = self.next_dyn_idx();
-    self.indcs.reserve(2);
     let _ = self.indcs.insert(name_hash, next_dyn_idx);
     let _ = self.indcs.insert(pair_hash, next_dyn_idx);
     Ok(EncodeIdx::SavedNameSavedValue)
@@ -226,7 +221,6 @@ impl HpackEncoder {
     }
 
     let mask = first_byte.wrapping_sub(1);
-    buffer.reserve(4)?;
 
     if n < u32::from(mask) {
       buffer.push(first_byte | last_byte(n))?;
@@ -248,8 +242,8 @@ impl HpackEncoder {
     Err(protocol_err(Http2Error::VeryLargeHeaderInteger))
   }
 
-  // 1. 0 -> 0xxxx -> 4xxxx
-  // 2,3,4. 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
+  // 1, 0 -> 0xxxx -> 4xxxx
+  // 2/3/4, 0 -> 0xxxxxxxxxx -> 0xxxxxxxxxx10 -> 10xxxxxxxxxx
   fn encode_str(buffer: &mut Vector<u8>, bytes: &str) -> crate::Result<()> {
     let before_byte = buffer.len();
     buffer.push(0)?;
@@ -648,11 +642,11 @@ mod tests {
     let mut buffer = Vector::new();
     let mut hpack_enc = HpackEncoder::new(&mut Xorshift64::from_simple_seed().unwrap());
     hpack_enc.dyn_headers.set_max_bytes(4096, |_| {});
-    hpack_enc.encode(&mut buffer, headers, []).unwrap();
+    hpack_enc.encode(&mut buffer, 0, headers, []).unwrap();
     assert_eq!(buffer[0], 66);
     assert_eq!(buffer[1], 133);
     buffer.clear();
-    hpack_enc.encode(&mut buffer, headers, []).unwrap();
+    hpack_enc.encode(&mut buffer, 0, headers, []).unwrap();
     assert_eq!(buffer[0], 190);
     assert_eq!(buffer.len(), 1);
   }
@@ -664,6 +658,7 @@ mod tests {
     hpack_enc
       .encode(
         &mut buffer,
+        0,
         HpackStaticResponseHeaders { status_code: Some(StatusCode::Unauthorized) }.iter(),
         [],
       )
@@ -679,6 +674,7 @@ mod tests {
     hpack_enc
       .encode(
         &mut buffer,
+        0,
         [(HpackHeaderBasic::Method(Method::Delete), Method::Delete.strings().custom[0])],
         [],
       )

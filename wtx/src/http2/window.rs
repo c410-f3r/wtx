@@ -1,7 +1,8 @@
 use crate::{
   collection::ArrayVectorU8,
+  http::{HttpRecvParams, u31::U31},
   http2::{
-    Http2Error, Http2ErrorCode, Http2Params, http2_params_send::Http2ParamsSend, u31::U31,
+    Http2Error, Http2ErrorCode, http_send_params::HttpSendParams,
     window_update_frame::WindowUpdateFrame,
   },
 };
@@ -79,7 +80,7 @@ pub struct Windows {
 
 impl Windows {
   /// Used in initial connections/streams.
-  pub(crate) const fn initial(hp: &Http2Params, hps: &Http2ParamsSend) -> Self {
+  pub(crate) const fn initial(hp: &HttpRecvParams, hps: &HttpSendParams) -> Self {
     Self {
       recv: Window::new(U31::from_u32(hp.initial_window_len()).i32()),
       send: Window::new(hps.initial_window_len.i32()),
@@ -128,7 +129,7 @@ impl<'any> WindowsPair<'any> {
   /// frame dispatch to return to the default window size.
   pub(crate) fn withdrawn_recv(
     &mut self,
-    hp: &Http2Params,
+    hp: &HttpRecvParams,
     stream_id: U31,
     value: U31,
   ) -> crate::Result<ArrayVectorU8<u8, 26>> {

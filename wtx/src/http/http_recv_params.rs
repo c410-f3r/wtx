@@ -1,14 +1,12 @@
-use crate::http2::{
-  MAX_BODY_LEN, MAX_CONCURRENT_STREAMS_NUM, MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND,
-  MAX_FRAME_LEN_UPPER_BOUND, MAX_HEADERS_LEN, MAX_HPACK_LEN, MAX_RECV_STREAMS_NUM, READ_BUFFER_LEN,
-  settings_frame::SettingsFrame, u31::U31,
+use crate::http::{
+  DEFAULT_INITIAL_WINDOW_LEN, DEFAULT_MAX_CONCURRENT_STREAMS_NUM, DEFAULT_MAX_FRAME_LEN,
+  DEFAULT_MAX_HEADERS_LEN, DEFAULT_MAX_HPACK_LEN, MAX_FRAME_LEN_LOWER_BOUND,
+  MAX_FRAME_LEN_UPPER_BOUND, u31::U31,
 };
 
 /// Indicates to a remote peer the receiving parameters of a connection as well as its streams.
-///
-/// Also states some configurations for local structures.
-#[derive(Debug)]
-pub struct Http2Params {
+#[derive(Clone, Copy, Debug)]
+pub struct HttpRecvParams {
   enable_connect_protocol: bool,
   initial_window_len: U31,
   max_body_len: u32,
@@ -17,31 +15,55 @@ pub struct Http2Params {
   max_headers_len: u32,
   max_hpack_len: (u32, u32),
   max_recv_streams_num: u32,
-  read_buffer_len: u32,
 }
 
-impl Http2Params {
-  /// New instance with the default parameters declared in the RFC.
+impl HttpRecvParams {
+  /// New instance with the default parameters declared by the official specification.
+  ///
+  /// These parameters are outdated and don't reflect reality nowadays.
   #[inline]
   pub const fn with_default_params() -> Self {
     Self {
       enable_connect_protocol: false,
-      initial_window_len: U31::from_u32(initial_window_len!()),
-      max_body_len: MAX_BODY_LEN,
-      max_concurrent_streams_num: MAX_CONCURRENT_STREAMS_NUM,
-      max_frame_len: MAX_FRAME_LEN,
-      max_headers_len: MAX_HEADERS_LEN,
-      max_hpack_len: (MAX_HPACK_LEN, MAX_HPACK_LEN),
-      max_recv_streams_num: MAX_RECV_STREAMS_NUM,
-      read_buffer_len: READ_BUFFER_LEN,
+      initial_window_len: U31::from_u32(DEFAULT_INITIAL_WINDOW_LEN),
+      max_body_len: 1024 * 1024,
+      max_concurrent_streams_num: DEFAULT_MAX_CONCURRENT_STREAMS_NUM,
+      max_frame_len: DEFAULT_MAX_FRAME_LEN,
+      max_headers_len: DEFAULT_MAX_HEADERS_LEN,
+      max_hpack_len: (DEFAULT_MAX_HPACK_LEN, DEFAULT_MAX_HPACK_LEN),
+      max_recv_streams_num: 32,
     }
   }
 
   /// New instance with optioned default parameters that allows the interaction with most
   /// modern websites.
   #[inline]
-  pub const fn from_optioned_params() -> Self {
-    crate::http::conn_params::ConnParams::new()._to_hp()
+  pub const fn with_optioned_params() -> Self {
+    Self {
+      enable_connect_protocol: false,
+      initial_window_len: U31::from_i32(4 * 1024 * 1024),
+      max_body_len: 64 * 1024 * 1024,
+      max_concurrent_streams_num: 256,
+      max_frame_len: 64 * 1024,
+      max_headers_len: 64 * 1024,
+      max_hpack_len: (128 * 1024, 128 * 1024),
+      max_recv_streams_num: 256,
+    }
+  }
+
+  /// New instance without constraints. Not recommended for production but potentially useful for testing.
+  #[inline]
+  pub const fn with_permissive_params() -> Self {
+    Self {
+      enable_connect_protocol: false,
+      initial_window_len: U31::MAX,
+      max_body_len: u32::MAX,
+      max_concurrent_streams_num: u32::MAX,
+      max_frame_len: u32::MAX,
+      max_headers_len: u32::MAX,
+      max_hpack_len: (u32::MAX, u32::MAX),
+      max_recv_streams_num: u32::MAX,
+    }
   }
 
   /// Enable connect protocol
@@ -59,10 +81,7 @@ impl Http2Params {
   ///
   /// The initial amount of "credit" a counterpart can have for sending data.
   ///
-  /// Corresponds to `SETTINGS_INITIAL_WINDOW_SIZE`. Capped within 0 ~ (2^31 - 1) bytes. Defaults
-  /// to
-  #[doc = concat!(initial_window_len!())]
-  /// bytes.
+  /// Corresponds to `SETTINGS_INITIAL_WINDOW_SIZE`. Capped within 0 ~ (2^31 - 1) bytes.
   #[inline]
   pub const fn initial_window_len(&self) -> u32 {
     self.initial_window_len.u32()
@@ -71,10 +90,6 @@ impl Http2Params {
   /// Maximum request/response body length
   ///
   /// Or the maximum size allowed for the sum of the length of all data frames.
-  ///
-  /// Defaults to
-  #[doc = concat!(max_body_len!())]
-  /// bytes.
   #[inline]
   pub const fn max_body_len(&self) -> u32 {
     self.max_body_len
@@ -82,9 +97,7 @@ impl Http2Params {
 
   /// Maximum number of active concurrent streams
   ///
-  /// Corresponds to `SETTINGS_MAX_CONCURRENT_STREAMS`. Defaults to
-  #[doc = concat!(max_concurrent_streams_num!())]
-  /// streams
+  /// Corresponds to `SETTINGS_MAX_CONCURRENT_STREAMS`.
   #[inline]
   pub const fn max_concurrent_streams_num(&self) -> u32 {
     self.max_concurrent_streams_num
@@ -95,9 +108,7 @@ impl Http2Params {
   /// The final Request/Response header is composed by the sum of headers and trailers. Contents
   /// may or may not originate from the HPACK structure that holds cached decoded headers.
   ///
-  /// Corresponds to `SETTINGS_MAX_HEADER_LIST_SIZE`. Defaults to
-  #[doc = concat!(max_headers_len!())]
-  /// bytes.
+  /// Corresponds to `SETTINGS_MAX_HEADER_LIST_SIZE`.
   #[inline]
   pub const fn max_headers_len(&self) -> u32 {
     self.max_headers_len
@@ -113,9 +124,7 @@ impl Http2Params {
   /// * The second parameter indicates the maximum local HPACK ***encoder*** length. In other words,
   ///   it doesn't allow external actors to dictate very large lengths.
   ///
-  /// Corresponds to `SETTINGS_HEADER_TABLE_SIZE`. Defaults to
-  #[doc = concat!(max_hpack_len!())]
-  /// bytes.
+  /// Corresponds to `SETTINGS_HEADER_TABLE_SIZE`.
   #[inline]
   pub const fn max_hpack_len(&self) -> (u32, u32) {
     self.max_hpack_len
@@ -125,13 +134,7 @@ impl Http2Params {
   ///
   /// Avoids the reading of very large payload frames sent by external actors.
   ///
-  /// Corresponds to `SETTINGS_MAX_FRAME_SIZE`. Capped within
-  #[doc = concat!(max_frame_len_lower_bound!())]
-  /// ~
-  #[doc = concat!(max_frame_len_upper_bound!())]
-  /// bytes. Defaults to
-  #[doc = concat!(max_frame_len!())]
-  /// bytes.
+  /// Corresponds to `SETTINGS_MAX_FRAME_SIZE`.
   #[inline]
   pub const fn max_frame_len(&self) -> u32 {
     self.max_frame_len
@@ -140,25 +143,9 @@ impl Http2Params {
   /// Maximum number of receiving streams
   ///
   /// Servers only. Prevents clients from opening more than the specified number of streams.
-  ///
-  /// Defaults to
-  #[doc = concat!(max_recv_streams_num!())]
-  /// streams
   #[inline]
   pub const fn max_recv_streams_num(&self) -> u32 {
     self.max_recv_streams_num
-  }
-
-  /// Read Buffer Length.
-  ///
-  /// Allocated space intended to read bytes sent by external actors.
-  ///
-  /// Defaults to
-  #[doc = concat!(read_buffer_len!())]
-  /// streams
-  #[inline]
-  pub const fn read_buffer_len(&self) -> u32 {
-    self.read_buffer_len
   }
 
   /// Mutable version of [`Self::enable_connect_protocol`].
@@ -230,32 +217,5 @@ impl Http2Params {
   pub const fn set_max_recv_streams_num(mut self, value: u32) -> Self {
     self.max_recv_streams_num = value;
     self
-  }
-
-  /// Mutable version of [`Self::read_buffer_len`].
-  #[inline]
-  #[must_use]
-  pub const fn set_read_buffer_len(mut self, value: u32) -> Self {
-    self.read_buffer_len = value;
-    self
-  }
-
-  #[inline]
-  pub(crate) fn to_settings_frame(&self) -> SettingsFrame {
-    let mut settings_frame = SettingsFrame::empty();
-    settings_frame.set_enable_connect_protocol(Some(self.enable_connect_protocol));
-    settings_frame.set_header_table_size(Some(self.max_hpack_len.0));
-    settings_frame.set_initial_window_size(Some(self.initial_window_len));
-    settings_frame.set_max_concurrent_streams(Some(self.max_concurrent_streams_num));
-    settings_frame.set_max_frame_size(Some(self.max_frame_len));
-    settings_frame.set_max_header_list_size(Some(self.max_headers_len));
-    settings_frame
-  }
-}
-
-impl Default for Http2Params {
-  #[inline]
-  fn default() -> Self {
-    Self::with_default_params()
   }
 }

@@ -1,12 +1,16 @@
-use crate::http2::{
-  MAX_FRAME_LEN, MAX_FRAME_LEN_LOWER_BOUND, MAX_FRAME_LEN_UPPER_BOUND, MAX_HPACK_LEN, Scrp, Sorp,
-  Window, hpack_encoder::HpackEncoder, settings_frame::SettingsFrame, u31::U31,
+use crate::{
+  http::{
+    DEFAULT_INITIAL_WINDOW_LEN, DEFAULT_MAX_CONCURRENT_STREAMS_NUM, DEFAULT_MAX_FRAME_LEN,
+    DEFAULT_MAX_HEADERS_LEN, DEFAULT_MAX_HPACK_LEN, MAX_FRAME_LEN_LOWER_BOUND,
+    MAX_FRAME_LEN_UPPER_BOUND, u31::U31,
+  },
+  http2::{Scrp, Sorp, Window, hpack_encoder::HpackEncoder, settings_frame::SettingsFrame},
 };
 use core::cmp::Ordering;
 
 /// Parameters used when sending data.
 #[derive(Debug)]
-pub(crate) struct Http2ParamsSend {
+pub(crate) struct HttpSendParams {
   pub(crate) enable_connect_protocol: u32,
   pub(crate) initial_window_len: U31,
   pub(crate) max_concurrent_streams_num: u32,
@@ -15,7 +19,7 @@ pub(crate) struct Http2ParamsSend {
   pub(crate) max_hpack_len: u32,
 }
 
-impl Http2ParamsSend {
+impl HttpSendParams {
   pub(crate) fn update(
     &mut self,
     hpack_enc: &mut HpackEncoder,
@@ -73,16 +77,16 @@ impl Http2ParamsSend {
 /// It is not possible to use the same default values of `Http2Params` because, for sending
 /// purposes, the default values provided by the RFC must be used until a settings frame
 /// is received.
-impl Default for Http2ParamsSend {
+impl Default for HttpSendParams {
   #[inline]
   fn default() -> Self {
     Self {
       enable_connect_protocol: 0,
-      initial_window_len: U31::from_u32(initial_window_len!()),
-      max_hpack_len: MAX_HPACK_LEN,
-      max_headers_len: u32::MAX,
-      max_frame_len: MAX_FRAME_LEN,
-      max_concurrent_streams_num: u32::MAX,
+      initial_window_len: U31::from_u32(DEFAULT_INITIAL_WINDOW_LEN),
+      max_hpack_len: DEFAULT_MAX_HPACK_LEN,
+      max_headers_len: DEFAULT_MAX_HEADERS_LEN,
+      max_frame_len: DEFAULT_MAX_FRAME_LEN,
+      max_concurrent_streams_num: DEFAULT_MAX_CONCURRENT_STREAMS_NUM,
     }
   }
 }

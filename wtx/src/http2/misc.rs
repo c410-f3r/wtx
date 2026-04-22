@@ -1,8 +1,8 @@
 use crate::{
-  http::{ReqResBuffer, StatusCode},
+  http::{HttpRecvParams, ReqResBuffer, StatusCode, u31::U31},
   http2::{
-    Http2Buffer, Http2Error, Http2ErrorCode, Http2Inner, Http2Params, Http2RecvStatus,
-    Http2SendStatus, Scrp, Sorp, Windows,
+    Http2Buffer, Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scrp,
+    Sorp, Windows,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
@@ -13,7 +13,6 @@ use crate::{
     reset_stream_frame::ResetStreamFrame,
     stream_receiver::{StreamControlRecvParams, StreamOverallRecvParams},
     stream_state::StreamState,
-    u31::U31,
   },
   misc::{
     ConnectionState, LeaseMut, Usize,
@@ -205,7 +204,7 @@ pub(crate) async fn read_header_and_continuations<
 >(
   fi: FrameInit,
   is_conn_open: &AtomicBool,
-  hp: &mut Http2Params,
+  hp: &mut HttpRecvParams,
   hpack_dec: &mut HpackDecoder,
   rd: &mut ReaderData<SR>,
   read_frame_waker: &AtomicWaker,
