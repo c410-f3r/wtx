@@ -7,6 +7,8 @@ mod macros;
 mod authentication;
 mod batch;
 mod config;
+#[cfg(feature = "database-tests")]
+mod database_test;
 mod db_error;
 mod decode_wrapper;
 mod encode_wrapper;
@@ -47,6 +49,8 @@ use core::{
   fmt::{Debug, Formatter},
   marker::PhantomData,
 };
+#[cfg(feature = "database-tests")]
+pub use database_test::database_test;
 pub use db_error::{DbError, ErrorPosition, Severity};
 pub use decode_wrapper::DecodeWrapper;
 pub use encode_wrapper::EncodeWrapper;
@@ -59,6 +63,7 @@ pub use sql_state::SqlState;
 pub use struct_decoder::StructDecoder;
 pub use struct_encoder::StructEncoder;
 pub use ty::Ty;
+pub use tys::pg_range::PgRange;
 
 pub(crate) type Oid = u32;
 pub(crate) type PostgresCommonRecord<'exec, E> =

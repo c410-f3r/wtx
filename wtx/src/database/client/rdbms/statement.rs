@@ -83,14 +83,4 @@ impl<'stmts, A, C, T> StatementMut<'stmts, A, C, T> {
   {
     Statement::new(self.aux.clone(), *self.columns_len, *self.rows_len, *self.tys_len, self.values)
   }
-
-  #[cfg(feature = "mysql")]
-  pub(crate) fn tys(&self) -> &[(C, T)] {
-    self.values.get(..*self.tys_len).unwrap_or_default()
-  }
-
-  #[cfg(feature = "mysql")]
-  pub(crate) fn tys_mut(&mut self) -> &mut [(C, T)] {
-    self.values.get_mut(..*self.tys_len).unwrap_or_default()
-  }
 }

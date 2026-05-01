@@ -431,7 +431,7 @@ struct UrlEncodeWriter<'buffer, const IS_PERCENT: bool> {
 impl<const IS_PERCENT: bool> Write for UrlEncodeWriter<'_, IS_PERCENT> {
   fn write_str(&mut self, s: &str) -> core::fmt::Result {
     for chunk in UrlEncode::<IS_PERCENT>::new(s.as_bytes(), self.ascii_set) {
-      self.buffer.extend_from_copyable_slice(chunk).map_err(|_| core::fmt::Error)?;
+      self.buffer.extend_from_copyable_slice(chunk).map_err(|_err| core::fmt::Error)?;
     }
     Ok(())
   }

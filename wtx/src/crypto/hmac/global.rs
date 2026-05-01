@@ -2,25 +2,25 @@ use crate::crypto::Hmac;
 
 type HmacSha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HmacSha256Ring,
-  feature = "crypto-rust-crypto" => crate::crypto::HmacSha256RustCrypto,
   feature = "crypto-graviola" => crate::crypto::HmacSha256Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::HmacSha256AwsLcRs,
-  _ => crate::crypto::HmacStub::<[u8; 32]>
+  feature = "crypto-openssl" => crate::crypto::HmacSha256Openssl,
+  _ => crate::crypto::HmacDummy::<[u8; 32]>
 };
 
 type HmacSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HmacSha384Ring,
-  feature = "crypto-rust-crypto" => crate::crypto::HmacSha384RustCrypto,
   feature = "crypto-graviola" => crate::crypto::HmacSha384Graviola,
   feature = "crypto-aws-lc-rs" => crate::crypto::HmacSha384AwsLcRs,
-  _ => crate::crypto::HmacStub::<[u8; 48]>
+  feature = "crypto-openssl" => crate::crypto::HmacSha384Openssl,
+  _ => crate::crypto::HmacDummy::<[u8; 48]>
 };
 
 /// A structure that delegates HMAC-SHA-256 execution to the selected crypto backend.
 #[derive(Debug)]
-pub struct GlobalHmacSha256(HmacSha256Ty);
+pub struct HmacSha256Global(HmacSha256Ty);
 
-impl Hmac for GlobalHmacSha256 {
+impl Hmac for HmacSha256Global {
   type Digest = <HmacSha256Ty as Hmac>::Digest;
 
   #[inline]
@@ -46,9 +46,9 @@ impl Hmac for GlobalHmacSha256 {
 
 /// A structure that delegates HMAC-SHA-384 execution to the selected crypto backend.
 #[derive(Debug)]
-pub struct GlobalHmacSha384(HmacSha384Ty);
+pub struct HmacSha384Global(HmacSha384Ty);
 
-impl Hmac for GlobalHmacSha384 {
+impl Hmac for HmacSha384Global {
   type Digest = <HmacSha384Ty as Hmac>::Digest;
 
   #[inline]

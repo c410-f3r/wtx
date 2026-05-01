@@ -1,3 +1,6 @@
+// Unaligned reads are UB if references are involved but in this scenario fields are copied
+// by value.
+
 use crate::collection::LinearStorageLen;
 use core::{
   fmt::{Debug, Formatter},
@@ -26,23 +29,6 @@ where
   L: LinearStorageLen,
 {
   const CHECK_LEN: () = { assert!(L::BYTES <= 2) };
-
-  /// Reinterprets inner data back into a standard slice.
-  #[inline]
-  pub fn data(&self) -> &[T] {
-    // SAFETY: Pointer and length come from a slice that is tied to `'any`
-    unsafe { slice::from_raw_parts(self.ptr(), self.len().usize()) }
-  }
-
-  fn len(&self) -> L {
-    // SAFETY: Pointer and length come from a slice that is tied to `'any`
-    unsafe { ptr::addr_of!(self.len).read_unaligned() }
-  }
-
-  fn ptr(&self) -> *const T {
-    // SAFETY: Pointer and length come from a slice that is tied to `'any`
-    unsafe { ptr::addr_of!(self.ptr).read_unaligned() }
-  }
 }
 
 impl<'any, T> ShortSliceU8<'any, T> {
@@ -110,7 +96,10 @@ where
 
   #[inline]
   fn deref(&self) -> &Self::Target {
-    self.data()
+    let ptr = self.ptr;
+    let len = self.len;
+    // SAFETY: pointer and length come from a slice that is tied to `'any`
+    unsafe { slice::from_raw_parts(ptr, len.usize()) }
   }
 }
 
@@ -132,9 +121,9 @@ where
   }
 }
 
-// SAFETY: Pointer is not used to perform mutable operations behaving like  &'any [T]
-unsafe impl<L, T: Sync> Send for ShortSlice<'_, L, T> {}
-// SAFETY: Pointer is not used to perform mutable operations behaving like  &'any [T]
+// SAFETY: pointer is not used to perform mutable operations behaving like a slice
+unsafe impl<L, T: Send> Send for ShortSlice<'_, L, T> {}
+// SAFETY: pointer is not used to perform mutable operations behaving like a slice
 unsafe impl<L, T: Sync> Sync for ShortSlice<'_, L, T> {}
 
 #[cfg(test)]
@@ -145,15 +134,15 @@ mod tests {
   #[test]
   fn empty_slice() {
     let empty: &[u8] = &[];
-    let short = ShortSliceU8::new_truncated_u8(empty);
-    assert!(short.is_empty());
+    let instance = ShortSliceU8::new_truncated_u8(empty);
+    assert!(instance.is_empty());
   }
 
   #[test]
   fn new_truncated() {
     let large_slice = &[0u8; 300];
-    let short = ShortSliceU8::new_truncated_u8(large_slice);
-    assert_eq!(short.len(), 255);
+    let instance = ShortSliceU8::new_truncated_u8(large_slice);
+    assert_eq!(instance.len(), 255);
   }
 
   #[test]

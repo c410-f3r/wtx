@@ -30,6 +30,8 @@ pub enum HttpError {
     /// Received length
     length: u32,
   },
+  /// Unknown `WebAuthn` Algorithm
+  UnknownWebAuthnAlg,
   /// URI mismatch
   UriMismatch,
 }

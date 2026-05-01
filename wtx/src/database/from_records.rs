@@ -93,7 +93,7 @@ where
       let prev_consumed_records = params.consumed_records;
       let rslt = Self::from_records(params, local_records_ref);
       if prev_consumed_records == params.consumed_records {
-        return None;
+        return if rslt.is_err() { Some(rslt) } else { None };
       }
       Some(rslt)
     })

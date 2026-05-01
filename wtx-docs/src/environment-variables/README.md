@@ -1,6 +1,6 @@
 # Environment Variables
 
-`EnvVars` allows the insertion of environment variables into a custom structure where the name of the fields match the name of the variables. `.env` files are also supported but they should be restricted to development environments.
+The `EnvVars` structure allows the insertion of environment variables into a custom container where the name of the fields match the name of the variables. `.env` files are also supported but they should be restricted to development environments.
 
 The unsafe `std::env::set_var` function is not invoked due to concerns about concurrent access, therefore, direct usage of `std::env::var` is not recommended unless:
 

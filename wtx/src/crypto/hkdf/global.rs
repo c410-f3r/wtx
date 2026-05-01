@@ -2,22 +2,20 @@ use crate::crypto::Hkdf;
 
 type HkdfSha256Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha256Ring,
-  feature = "crypto-rust-crypto" => crate::crypto::HkdfSha256RustCrypto,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha256AwsLcRs,
-  _ => crate::crypto::HkdfStub::<[u8; 32]>
+  _ => crate::crypto::HkdfDummy::<[u8; 32]>
 };
 type HkdfSha384Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::HkdfSha384Ring,
-  feature = "crypto-rust-crypto" => crate::crypto::HkdfSha384RustCrypto,
   feature = "crypto-aws-lc-rs" => crate::crypto::HkdfSha384AwsLcRs,
-  _ => crate::crypto::HkdfStub::<[u8; 48]>
+  _ => crate::crypto::HkdfDummy::<[u8; 48]>
 };
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Debug)]
-pub struct GlobalHkdfSha256(HkdfSha256Ty);
+pub struct HkdfSha256Global(HkdfSha256Ty);
 
-impl Hkdf for GlobalHkdfSha256 {
+impl Hkdf for HkdfSha256Global {
   type Digest = <HkdfSha256Ty as Hkdf>::Digest;
 
   #[inline]
@@ -47,9 +45,9 @@ impl Hkdf for GlobalHkdfSha256 {
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Debug)]
-pub struct GlobalHkdfSha384(HkdfSha384Ty);
+pub struct HkdfSha384Global(HkdfSha384Ty);
 
-impl Hkdf for GlobalHkdfSha384 {
+impl Hkdf for HkdfSha384Global {
   type Digest = <HkdfSha384Ty as Hkdf>::Digest;
 
   #[inline]

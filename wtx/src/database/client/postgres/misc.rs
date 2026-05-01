@@ -91,7 +91,7 @@ pub(crate) fn row_description(
 ) -> crate::Result<()> {
   for idx in 0..columns_len {
     let (read, msg_field) = MsgField::parse(rd)?;
-    let ty = Ty::Custom(msg_field.type_oid);
+    let ty = Ty::from_arbitrary_u32(msg_field.type_oid);
     let pci = PostgresColumnInfo::new(msg_field.name.try_into()?, ty);
     cb(idx, pci)?;
     if let Some(elem @ [_not_empty, ..]) = rd.get(read..) {

@@ -10,7 +10,7 @@ use crate::{
   x509::{
     AlgorithmIdentifier, Certificate, FlaggedExtension, SerialNumber, SubjectPublicKeyInfo,
     TbsCertificate, Validity, X509CvError,
-    cv::{validate_common_static, validate_ee_static, validate_ica_static},
+    cv::{validate_ee_static, validate_ica_static},
     extensions::{
       AuthorityKeyIdentifier, BasicConstraints, CrlDistributionPoints, ExtendedKeyUsage, KeyUsage,
       NameConstraints, SubjectAlternativeName, SubjectKeyIdentifier,
@@ -150,6 +150,7 @@ impl<'bytes> Parts<'bytes> {
       };
     }
 
+    let is_self_signed = tbs.issuer == tbs.subject;
     let mut authority_key_identifier = None;
     let mut basic_constraints = None;
     let mut crl_distribution_points = None;
@@ -225,9 +226,8 @@ impl<'bytes> Parts<'bytes> {
     }
 
     let mut last_err = None;
-    let _ = validate_common_static(basic_constraints, key_usage, &mut last_err);
     if IS_EE {
-      let _ = validate_ee_static(&mut last_err, &name_constraints);
+      let _ = validate_ee_static(basic_constraints, key_usage, &mut last_err, &name_constraints);
     } else {
       let _ = validate_ica_static(basic_constraints, &mut last_err, &tbs.subject);
     }
@@ -241,7 +241,7 @@ impl<'bytes> Parts<'bytes> {
       crl_distribution_points,
       extended_key_usage,
       has_unknown_critical_extension,
-      is_self_signed: tbs.issuer == tbs.subject,
+      is_self_signed,
       key_usage,
       name_constraints,
       subject_alt_name: subject_alternative_name,

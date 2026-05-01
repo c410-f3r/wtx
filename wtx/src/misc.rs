@@ -5,7 +5,7 @@ pub(crate) mod bytes_transfer;
 #[cfg(feature = "postgres")]
 pub(crate) mod counter_writer;
 mod hints;
-#[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
@@ -16,7 +16,7 @@ mod default_array;
 mod either;
 mod enum_var_strings;
 mod env_vars;
-#[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 mod filled_buffer;
 mod fn_fut;
 mod from_vars;
@@ -52,12 +52,7 @@ pub use default_array::DefaultArray;
 pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::EnvVars;
-#[cfg(any(
-  feature = "http2",
-  feature = "mysql",
-  feature = "postgres",
-  feature = "web-socket"
-))]
+#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
 pub use from_vars::FromVars;
@@ -262,7 +257,7 @@ where
       let idx = slice.len().min(1024);
       let payload = slice.get(..idx).and_then(|el| from_utf8_basic(el).ok()).unwrap_or_default();
       string.write_fmt(format_args!("Error: {err}. Payload: {payload}"))?;
-      Err(crate::Error::SerdeJsonDeserialize(string.into()))
+      Err(crate::Error::SerdeJsonDeserialize(string.try_into()?))
     }
   }
 }
@@ -378,10 +373,10 @@ where
 {
   match std::env::var(key.as_ref()) {
     Err(std::env::VarError::NotPresent) => Err(crate::error::Error::VarIsNotPresent(
-      key.as_ref().to_str().map(|el| alloc::boxed::Box::new(el.into())),
+      key.as_ref().to_os_string().into_string().unwrap_or_default().try_into()?,
     )),
     Err(std::env::VarError::NotUnicode(_)) => Err(crate::error::Error::VarIsNotUnicode(
-      key.as_ref().to_str().map(|el| alloc::boxed::Box::new(el.into())),
+      key.as_ref().to_os_string().into_string().unwrap_or_default().try_into()?,
     )),
     Ok(elem) => Ok(elem),
   }
@@ -392,7 +387,7 @@ pub(crate) const fn char_slice(buffer: &mut [u8; 4], ch: char) -> &mut str {
   ch.encode_utf8(buffer)
 }
 
-#[cfg(all(feature = "foldhash", any(feature = "http2", feature = "mysql", feature = "postgres")))]
+#[cfg(all(feature = "foldhash", any(feature = "http2", feature = "postgres")))]
 pub(crate) fn random_state<RNG>(rng: &mut RNG) -> foldhash::fast::FixedState
 where
   RNG: crate::rng::Rng,

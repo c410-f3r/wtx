@@ -379,13 +379,14 @@ where
     | Err(wtx::Error::X509CvError(X509CvError::AuthorityKeyIdentifierMustNotBeCritical))
     | Err(wtx::Error::X509CvError(X509CvError::CertCanNotHaveDuplicateExtensions))
     | Err(wtx::Error::X509CvError(X509CvError::CertificateAlgorithmMismatch))
-    | Err(wtx::Error::X509CvError(X509CvError::HasIncompatibleKeyUsage))
-    | Err(wtx::Error::X509CvError(X509CvError::InvalidNameConstraints))
     | Err(wtx::Error::X509CvError(X509CvError::CrlNumberMustNotBeCritical))
+    | Err(wtx::Error::X509CvError(X509CvError::HasIncompatibleKeyUsage))
     | Err(wtx::Error::X509CvError(X509CvError::IcasMustHaveASubjectSequence))
+    | Err(wtx::Error::X509CvError(X509CvError::IcasMustHaveBasicConstraints))
     | Err(wtx::Error::X509CvError(X509CvError::IcasMustHaveCriticalBasicConstraints))
     | Err(wtx::Error::X509CvError(X509CvError::IcasMustHaveSki))
     | Err(wtx::Error::X509CvError(X509CvError::InvalidAuthorityKeyIdentifier))
+    | Err(wtx::Error::X509CvError(X509CvError::InvalidNameConstraints))
     | Err(wtx::Error::X509CvError(X509CvError::MissingCrlNumber))
     | Err(wtx::Error::X509CvError(X509CvError::NameConstraintsMustBeCritical))
     | Err(wtx::Error::X509CvError(X509CvError::NameConstraintsOverflow))
@@ -488,8 +489,10 @@ fn fill_cvp<'any>(
   *cvp.mode_mut() = if is_pedantic {
     CvPolicyMode::Strict
   } else {
-    // The vast majority don't have AKI, even some `webpki` tests don't have AKI.
     if [
+      "rfc5280::ski::critical-ski",
+      "rfc5280::ski::intermediate-missing-ski",
+      "rfc5280::ski::root-missing-ski",
       "webpki::aki::root-with-aki-missing-keyidentifier",
       "webpki::aki::root-with-aki-ski-mismatch",
     ]

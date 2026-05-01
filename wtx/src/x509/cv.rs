@@ -18,8 +18,8 @@ use crate::{
   crypto::SignatureTy,
   misc::Lease,
   x509::{
-    FlaggedExtension, GeneralName, NameVector, RsassaPssParams, SubjectPublicKeyInfo, Validity,
-    VerifiedPath, X509CvError,
+    AttributeTypeAndValue, FlaggedExtension, GeneralName, NameVector, RsassaPssParams,
+    SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
     cv::{
       cv_certificate::CvCertificate, cv_crl_expiration::CvCrlExpiration,
       cv_evaluation_depth::CvEvaluationDepth, cv_policy::CvPolicy, cv_trust_anchor::CvTrustAnchor,
@@ -32,58 +32,28 @@ use crate::{
 };
 use core::mem;
 
-// Certs without SAN or Subject are valid
 #[inline]
-fn check_cn_or_nc<const IS_EE: bool>(
-  is_ica: bool,
+fn check_common_name(atv: &AttributeTypeAndValue<'_>, last_err: &mut Option<X509CvError>) -> bool {
+  let cn_data = atv.value.data();
+  if let [b'0', b'x', ..] = cn_data {
+    *last_err = Some(X509CvError::IpCanNotBeHex);
+    return false;
+  }
+  true
+}
+
+#[inline]
+fn check_common_names<const IS_EE: bool>(
   cert: &CvCertificate<'_, '_, IS_EE>,
   last_err: &mut Option<X509CvError>,
-  nc_opt: Option<&NameConstraints<'_>>,
 ) -> bool {
-  if let Some(name_constraints) = nc_opt {
-    if let Some(subject_alternative_name) = &cert.subject_alternative_name {
-      for gn in &subject_alternative_name.extension.general_names.entries {
-        if !check_gn_against_nc::<true>(gn, is_ica, last_err, name_constraints) {
-          *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
-          return false;
-        }
+  for rdn in cert.subject.lease().rdn_sequence.iter() {
+    for atv in rdn.entries.iter() {
+      if atv.oid != OID_X509_COMMON_NAME {
+        continue;
       }
-      return true;
-    }
-    if !IS_EE {
-      return true;
-    }
-    for rdn in cert.subject.lease().rdn_sequence.iter() {
-      for atv in rdn.entries.iter() {
-        if atv.oid != OID_X509_COMMON_NAME {
-          continue;
-        }
-        let cn_data = atv.value.data();
-        if let [b'0', b'x', ..] = cn_data {
-          *last_err = Some(X509CvError::IpCanNotBeHex);
-          return false;
-        }
-        let cn_gn = GeneralName::DnsName(cn_data);
-        if !check_gn_against_nc::<false>(&cn_gn, is_ica, last_err, name_constraints) {
-          *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
-          return false;
-        }
-      }
-    }
-  } else {
-    if !IS_EE {
-      return true;
-    }
-    for rdn in cert.subject.lease().rdn_sequence.iter() {
-      for atv in rdn.entries.iter() {
-        if atv.oid != OID_X509_COMMON_NAME {
-          continue;
-        }
-        let cn_data = atv.value.data();
-        if let [b'0', b'x', ..] = cn_data {
-          *last_err = Some(X509CvError::IpCanNotBeHex);
-          return false;
-        }
+      if !check_common_name(atv, last_err) {
+        return false;
       }
     }
   }
@@ -93,13 +63,12 @@ fn check_cn_or_nc<const IS_EE: bool>(
 #[inline]
 fn check_gn_against_nc<const IS_SAN: bool>(
   gn: &GeneralName<'_>,
-  is_ica: bool,
   last_err: &mut Option<X509CvError>,
   name_constraints: &NameConstraints<'_>,
 ) -> bool {
   if let Some(excluded) = &name_constraints.excluded_subtrees {
     for subtree in excluded.iter() {
-      if matches_name::<IS_SAN>(&subtree.base, is_ica, gn) {
+      if matches_name::<IS_SAN>(&subtree.base, gn) {
         *last_err = Some(X509CvError::HasExcludedCerts);
         return false;
       }
@@ -112,7 +81,7 @@ fn check_gn_against_nc<const IS_SAN: bool>(
       if mem::discriminant(gn) == mem::discriminant(&subtree.base) {
         same_type_found = true;
       }
-      if matches_name::<IS_SAN>(&subtree.base, is_ica, gn) {
+      if matches_name::<IS_SAN>(&subtree.base, gn) {
         matched = true;
         break;
       }
@@ -125,21 +94,54 @@ fn check_gn_against_nc<const IS_SAN: bool>(
 }
 
 #[inline]
+fn check_name_constraint<const IS_EE: bool>(
+  cert: &CvCertificate<'_, '_, IS_EE>,
+  last_err: &mut Option<X509CvError>,
+  name_constraints: &NameConstraints<'_>,
+) -> bool {
+  if let Some(subject_alternative_name) = &cert.subject_alternative_name {
+    for gn in &subject_alternative_name.extension.general_names.entries {
+      if !check_gn_against_nc::<true>(gn, last_err, name_constraints) {
+        *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
+        return false;
+      }
+    }
+  }
+  if !IS_EE {
+    return true;
+  }
+  for rdn in cert.subject.lease().rdn_sequence.iter() {
+    for atv in rdn.entries.iter() {
+      if atv.oid != OID_X509_COMMON_NAME {
+        continue;
+      }
+      if !check_common_name(atv, last_err) {
+        return false;
+      }
+      let cn_gn = GeneralName::DnsName(atv.value.data());
+      if !check_gn_against_nc::<false>(&cn_gn, last_err, name_constraints) {
+        *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
+        return false;
+      }
+    }
+  }
+  true
+}
+
+#[inline]
 fn check_name_constraints(
-  is_ica: bool,
   last_err: &mut Option<X509CvError>,
   name_constraints: &NameConstraints<'_>,
   verified_path: &VerifiedPath<'_, '_>,
 ) -> bool {
-  if !check_cn_or_nc(is_ica, verified_path.end_entity(), last_err, Some(name_constraints)) {
+  if !check_name_constraint(verified_path.end_entity(), last_err, name_constraints) {
     return false;
   }
   for child in verified_path.intermediates() {
-    let is_self_issued = child.issuer == child.subject;
-    if is_self_issued {
+    if child.is_self_signed {
       continue;
     }
-    if !check_cn_or_nc(is_ica, child, last_err, Some(name_constraints)) {
+    if !check_name_constraint(child, last_err, name_constraints) {
       return false;
     }
   }
@@ -249,15 +251,11 @@ fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
 }
 
 #[inline]
-fn matches_name<const IS_SAN: bool>(
-  constraint: &GeneralName<'_>,
-  is_ica: bool,
-  name: &GeneralName<'_>,
-) -> bool {
+fn matches_name<const IS_SAN: bool>(constraint: &GeneralName<'_>, name: &GeneralName<'_>) -> bool {
   match (name, constraint) {
     (GeneralName::DirectoryName(lhs), GeneralName::DirectoryName(rhs)) => lhs == rhs,
     (GeneralName::DnsName(lhs), GeneralName::DnsName(rhs)) => {
-      matches_name_domain::<IS_SAN>(is_ica, lhs, rhs)
+      matches_name_domain::<IS_SAN>(lhs, rhs)
     }
     (GeneralName::Rfc822Name(lhs), GeneralName::Rfc822Name(rhs)) => matches_rfc822(lhs, rhs),
     (GeneralName::IpAddress(lhs), GeneralName::IpAddress(rhs)) => matches_ip_address(lhs, rhs),
@@ -266,16 +264,18 @@ fn matches_name<const IS_SAN: bool>(
   }
 }
 
+// `domain` always come from an ICA and ICAs can't have wildcards.
 #[inline]
-fn matches_name_domain<const IS_SAN: bool>(is_ica: bool, other: &[u8], domain: &[u8]) -> bool {
+fn matches_name_domain<const IS_SAN: bool>(other: &[u8], domain: &[u8]) -> bool {
   #[inline]
   fn slices<'other>(other: &'other [u8], domain: &[u8]) -> Option<(&'other [u8], &'other [u8])> {
     other.len().checked_sub(domain.len()).and_then(|idx| other.split_at_checked(idx))
   }
 
-  #[inline]
-  fn manage_wildcard<const IS_SAN: bool>(is_ica: bool, other: &[u8], rest: &[u8]) -> bool {
-    if !IS_SAN || is_ica {
+  if let [b'*', b'.', ..] = domain {
+    false
+  } else if let [b'*', b'.', rest @ ..] = other {
+    if !IS_SAN {
       return false;
     }
     let Some((other_begin, other_domain)) = slices(other, rest) else {
@@ -285,12 +285,6 @@ fn matches_name_domain<const IS_SAN: bool>(is_ica: bool, other: &[u8], domain: &
       [] | [b'.'] | [.., 0..=45 | 47..=255] => false,
       [local_rest @ .., b'.'] => other_domain == rest && !local_rest.contains(&b'.'),
     }
-  }
-
-  if let [b'*', b'.', rest @ ..] = domain {
-    manage_wildcard::<IS_SAN>(is_ica, other, rest)
-  } else if let [b'*', b'.', rest @ ..] = other {
-    manage_wildcard::<IS_SAN>(is_ica, other, rest)
   } else {
     let Some((other_begin, other_domain)) = slices(other, domain) else {
       return false;
@@ -339,13 +333,14 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
   trust_anchors: &'any [CvTrustAnchor<'any, 'bytes>],
   verified_path: &mut VerifiedPath<'any, 'bytes>,
 ) -> bool {
+  // A `validate_ee_dyn` function is impossible at the current time.
   if IS_EE {
-    if !check_cn_or_nc(false, cert, last_err, None) {
+    if !check_common_names(cert, last_err) {
       return false;
     }
-
-    // A `validate_ee_dyn` function is impossible at the current time.
-    if let Err(err) = validate_eku::<IS_EE>(&cert.extended_key_usage, cv_policy) {
+    if let Err(err) =
+      validate_eku::<IS_EE>(cv_policy.extended_key_usage(), &cert.extended_key_usage)
+    {
       *last_err = Some(err);
       return false;
     }
@@ -362,7 +357,6 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     &cert.authority_key_identifier,
     cv_policy,
     cert.has_unknown_critical_extension,
-    cert.is_self_signed,
     last_err,
     &cert.subject_key_identifier,
     &cert.validity,
@@ -370,7 +364,7 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     return false;
   }
 
-  if cert.issuer != cert.subject && cert.authority_key_identifier.is_none() {
+  if !cert.is_self_signed && cert.authority_key_identifier.is_none() {
     *last_err = Some(X509CvError::HasIncompatibleSignature);
     return false;
   }
@@ -391,7 +385,6 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
       trust_anchor.authority_key_identifier(),
       cv_policy,
       trust_anchor.has_unknown_critical_extension(),
-      trust_anchor.is_self_signed(),
       last_err,
       trust_anchor.subject_key_identifier(),
       trust_anchor.validity(),
@@ -415,7 +408,7 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     }
 
     if let Some(name_constraints) = trust_anchor.name_constraints()
-      && !check_name_constraints(true, last_err, name_constraints, verified_path)
+      && !check_name_constraints(last_err, name_constraints, verified_path)
     {
       continue;
     }
@@ -427,10 +420,12 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     if cert.issuer != intermediate.subject {
       continue;
     }
-    if !validate_chain_signature(cert, last_err, intermediate.subject_public_key_info.lease()) {
+    if let Some(elem) = &cert.extended_key_usage
+      && validate_eku::<false>(&elem.extension, &intermediate.extended_key_usage).is_err()
+    {
       continue;
     }
-    if validate_eku::<false>(&intermediate.extended_key_usage, cv_policy).is_err() {
+    if !validate_chain_signature(cert, last_err, intermediate.subject_public_key_info.lease()) {
       continue;
     }
     if let Some(basic_constraints) = &intermediate.basic_constraints {
@@ -454,7 +449,7 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     }
 
     if let Some(name_constraints) = &intermediate.name_constraints
-      && !check_name_constraints(true, last_err, name_constraints, verified_path)
+      && !check_name_constraints(last_err, name_constraints, verified_path)
     {
       continue;
     }
@@ -504,11 +499,16 @@ fn validate_chain_signature<const IS_EE: bool>(
 }
 
 #[inline]
-fn validate_common_static(
+fn validate_ee_static<'bytes>(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   key_usage: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
+  name_constraints: &Option<NameConstraints<'bytes>>,
 ) -> bool {
+  if name_constraints.is_some() {
+    *last_err = Some(X509CvError::InvalidNameConstraints);
+    return false;
+  }
   let is_ca =
     basic_constraints.as_ref().is_some_and(|basic_constraints| basic_constraints.extension.ca());
   let key_cert_sign_set = key_usage.as_ref().is_some_and(|key_usage| key_usage.key_cert_sign());
@@ -520,53 +520,39 @@ fn validate_common_static(
 }
 
 #[inline]
-fn validate_ee_static<'bytes>(
-  last_err: &mut Option<X509CvError>,
-  name_constraints: &Option<NameConstraints<'bytes>>,
-) -> bool {
-  if name_constraints.is_some() {
-    *last_err = Some(X509CvError::InvalidNameConstraints);
-    return false;
-  }
-  true
-}
-
-#[inline]
 fn validate_eku<const IS_EE: bool>(
-  cert_ek: &Option<FlaggedExtension<ExtendedKeyUsage>>,
-  cv_policy: &CvPolicy<'_, '_>,
+  eku_lhs: &ExtendedKeyUsage,
+  eku_rhs: &Option<FlaggedExtension<ExtendedKeyUsage>>,
 ) -> Result<(), X509CvError> {
-  if let Some(elem) = cert_ek {
+  if let Some(elem) = eku_rhs {
     let FlaggedExtension { extension, critical } = elem;
     if IS_EE && *critical {
       return Err(X509CvError::EeCanNotHaveACriticalEku);
     }
-    if extension.len() == 0 && cv_policy.mode().is_strict() {
+    if extension.len() == 0 {
       return Err(X509CvError::EkuCanNotBeEmpty);
     }
-    if extension.any() && cv_policy.mode().is_strict() {
+    if extension.any() {
       return Err(X509CvError::EkuCanNotBeAny);
     }
-    if cv_policy.extended_key_usage().server_auth() && !extension.server_auth() {
+    if eku_lhs.server_auth() && !extension.server_auth() {
       return Err(X509CvError::EkuMismatch);
     }
-    if cv_policy.extended_key_usage().client_auth() && !extension.client_auth() {
+    if eku_lhs.client_auth() && !extension.client_auth() {
       return Err(X509CvError::EkuMismatch);
     }
-    if cv_policy.extended_key_usage().code_signing() && !extension.code_signing() {
+    if eku_lhs.code_signing() && !extension.code_signing() {
       return Err(X509CvError::EkuMismatch);
     }
-    if cv_policy.extended_key_usage().email_protection() && !extension.email_protection() {
+    if eku_lhs.email_protection() && !extension.email_protection() {
       return Err(X509CvError::EkuMismatch);
     }
-    if cv_policy.extended_key_usage().time_stamping() && !extension.time_stamping() {
+    if eku_lhs.time_stamping() && !extension.time_stamping() {
       return Err(X509CvError::EkuMismatch);
     }
-    if cv_policy.extended_key_usage().ocsp_signing() && !extension.ocsp_signing() {
+    if eku_lhs.ocsp_signing() && !extension.ocsp_signing() {
       return Err(X509CvError::EkuMismatch);
     }
-  } else if IS_EE && cv_policy.mode().is_strict() {
-    return Err(X509CvError::EeMustHaveEku);
   }
   Ok(())
 }
@@ -576,7 +562,6 @@ fn validate_ica_dyn(
   aki_opt: &Option<AuthorityKeyIdentifier>,
   cv_policy: &CvPolicy<'_, '_>,
   has_unknown_critical_extension: bool,
-  is_self_signed: bool,
   last_err: &mut Option<X509CvError>,
   ski_opt: &Option<FlaggedExtension<SubjectKeyIdentifier>>,
   validity: &Validity,
@@ -591,24 +576,34 @@ fn validate_ica_dyn(
     *last_err = Some(X509CvError::HasExpiredCerts);
     return false;
   }
-  {
-    // TODO(UPSTREAM): Dynamic because of <https://github.com/C2SP/x509-limbo/issues/598>
-    let Some(subject_key_identifier) = ski_opt else {
-      *last_err = Some(X509CvError::IcasMustHaveSki);
-      return false;
-    };
-    if subject_key_identifier.critical {
-      *last_err = Some(X509CvError::SubjectKeyIdentifierMustNotBeCritical);
-      return false;
+  'ski: {
+    if cv_policy.mode().is_lenient() {
+      break 'ski;
     }
-    if cv_policy.mode().is_strict() && is_self_signed {
-      let Some(ki) = aki_opt.as_ref().and_then(|el| el.key_identifier.as_ref()) else {
-        *last_err = Some(X509CvError::RootCasMustHaveKeyIdentifiers);
+    match (aki_opt, ski_opt) {
+      (None, None) | (Some(_), None) => {
+        *last_err = Some(X509CvError::IcasMustHaveSki);
         return false;
-      };
-      if ki.bytes() != subject_key_identifier.extension.key_identifier.bytes() {
-        *last_err = Some(X509CvError::RootCasMustHaveMatchingAkiAndSki);
-        return false;
+      }
+      (None, Some(ski)) => {
+        if ski.critical {
+          *last_err = Some(X509CvError::SubjectKeyIdentifierMustNotBeCritical);
+          return false;
+        }
+      }
+      (Some(aki), Some(ski)) => {
+        if ski.critical {
+          *last_err = Some(X509CvError::SubjectKeyIdentifierMustNotBeCritical);
+          return false;
+        }
+        let Some(ki) = &aki.key_identifier else {
+          *last_err = Some(X509CvError::RootCasMustHaveKeyIdentifiers);
+          return false;
+        };
+        if ki.bytes() != ski.extension.key_identifier.bytes() {
+          *last_err = Some(X509CvError::RootCasMustHaveMatchingAkiAndSki);
+          return false;
+        }
       }
     }
   }
@@ -621,7 +616,11 @@ fn validate_ica_static<'bytes>(
   last_err: &mut Option<X509CvError>,
   subject: &NameVector<'bytes>,
 ) -> bool {
-  if basic_constraints.is_none() || !basic_constraints.as_ref().is_some_and(|el| el.critical) {
+  let Some(bc) = basic_constraints else {
+    *last_err = Some(X509CvError::IcasMustHaveBasicConstraints);
+    return false;
+  };
+  if !bc.critical {
     *last_err = Some(X509CvError::IcasMustHaveCriticalBasicConstraints);
     return false;
   }

@@ -32,28 +32,6 @@ rm $CERTS_DIR/key.csr
 rm $CERTS_DIR/localhost.ext
 rm $CERTS_DIR/root-ca.srl
 
-# MySQL
-
-MYSQL_LOCAL_FILE="$TEST_UTILS_DIR/mysql.sh"
-MYSQL_REMOTE_DATA_DIR="/var/lib/mysql"
-
-db_file_init $MYSQL_LOCAL_FILE $MYSQL_REMOTE_DATA_DIR
-
-echo "chown mysql:mysql $MYSQL_REMOTE_DATA_DIR/cert.pem $MYSQL_REMOTE_DATA_DIR/key.pem" >> $MYSQL_LOCAL_FILE
-echo "chmod 0600 $MYSQL_REMOTE_DATA_DIR/cert.pem $MYSQL_REMOTE_DATA_DIR/key.pem" >> $MYSQL_LOCAL_FILE
-
-echo "CLIENT=\"\"
-if command -v mysql &> /dev/null; then
-  CLIENT=mysql
-elif command -v mariadb &> /dev/null; then
-  CLIENT=mariadb
-else
-  echo "Neither mysql nor mariadb client found!"
-  exit 1
-fi
-\$CLIENT -uroot -p\"\$MYSQL_ROOT_PASSWORD\" -e \"CREATE USER 'no_password'@'%'; GRANT SELECT ON wtx.* TO 'no_password'@'%';\"
-" >> $MYSQL_LOCAL_FILE
-
 # PostgreSQL
 
 POSTGRES_LOCAL_FILE="$TEST_UTILS_DIR/postgres.sh"

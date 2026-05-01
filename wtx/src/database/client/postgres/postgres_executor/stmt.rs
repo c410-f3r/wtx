@@ -143,15 +143,16 @@ where
     Self::await_stmt_bind(cs, net_buffer, stream).await
   }
 
-  pub(crate) async fn write_send_await_stmt_prepare<'stmts, SC>(
+  pub(crate) async fn write_send_await_stmt_prepare<'stmts, RV, SC>(
     cs: &mut ConnectionState,
     net_buffer: &mut PartitionedFilledBuffer,
+    rv: &RV,
     sc: SC,
     stmts: &'stmts mut PostgresStatements,
     stream: &mut S,
-    tys: &[Ty],
   ) -> Result<(u64, U64String, PostgresStatementMut<'stmts>), E>
   where
+    RV: RecordValues<Postgres<E>>,
     S: Stream,
     SC: StmtCmd,
   {
@@ -168,7 +169,7 @@ where
     let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
     {
       let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
-      Self::write_stmt_prepare::<true>(stmt_cmd, &stmt_cmd_id_array, &mut sw, tys)?;
+      Self::write_stmt_prepare::<_, true>(rv, stmt_cmd, &stmt_cmd_id_array, &mut sw)?;
       stream.write_all(sw.curr_bytes()).await?;
     }
     let stmt_mut = Self::await_stmt_prepare::<true>(
@@ -199,16 +200,17 @@ where
     Ok(())
   }
 
-  pub(crate) fn write_stmt_prepare<const SYNC: bool>(
+  pub(crate) fn write_stmt_prepare<RV, const SYNC: bool>(
+    rv: &RV,
     stmt_cmd: &str,
     stmt_cmd_id_array: &U64String,
     sw: &mut SuffixWriter<FilledBufferVectorMut<'_>>,
-    tys: &[Ty],
   ) -> Result<(), E>
   where
+    RV: RecordValues<Postgres<E>>,
     S: Stream,
   {
-    parse(stmt_cmd, sw, tys.iter().copied().map(Into::into), stmt_cmd_id_array)?;
+    parse(rv, stmt_cmd, stmt_cmd_id_array, sw)?;
     describe(stmt_cmd_id_array.as_bytes(), sw, b'S')?;
     if SYNC {
       sync(sw)?;
@@ -226,7 +228,7 @@ fn parameter_description(
     let [a, b, c, d, rest @ ..] = local_bytes else {
       return unlikely_elem(None);
     };
-    element.1 = Ty::Custom(u32::from_be_bytes([*a, *b, *c, *d]));
+    element.1 = Ty::from_arbitrary_u32(u32::from_be_bytes([*a, *b, *c, *d]));
     *local_bytes = rest;
   }
   Some(())

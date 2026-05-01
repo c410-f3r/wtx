@@ -12,7 +12,8 @@ pub struct DecodeWrapper<'de, 'rem> {
 }
 
 impl<'de, 'rem> DecodeWrapper<'de, 'rem> {
-  pub(crate) const fn new(bytes: &'de [u8], name: &'rem str, ty: Ty) -> Self {
+  /// It is up to the caller to provide valid types to the decoding element.
+  pub const fn new(bytes: &'de [u8], name: &'rem str, ty: Ty) -> Self {
     Self { bytes, name, ty }
   }
 
@@ -22,16 +23,34 @@ impl<'de, 'rem> DecodeWrapper<'de, 'rem> {
     self.bytes
   }
 
+  /// Mutable version of [`Self::bytes`].
+  #[inline]
+  pub const fn bytes_mut(&mut self) -> &mut &'de [u8] {
+    &mut self.bytes
+  }
+
   /// Column's name
   #[inline]
   pub const fn name(&self) -> &'rem str {
     self.name
   }
 
+  /// Mutable version of [`Self::name`].
+  #[inline]
+  pub const fn name_mut(&mut self) -> &mut &'rem str {
+    &mut self.name
+  }
+
   /// Type of the column.
   #[inline]
   pub const fn ty(&self) -> &Ty {
     &self.ty
+  }
+
+  /// Mutable version of [`Self::ty`].
+  #[inline]
+  pub const fn ty_mut(&mut self) -> &mut Ty {
+    &mut self.ty
   }
 }
 

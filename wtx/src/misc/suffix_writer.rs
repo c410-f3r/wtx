@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Helper that appends data into a [`crate::misc::FilledBufferVectorMut`].
-#[cfg(any(feature = "http2", feature = "mysql", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 pub type SuffixWriterFbvm<'fb> = SuffixWriter<crate::misc::FilledBufferVectorMut<'fb>>;
 /// Helper that appends data into a mutable vector.
 pub type SuffixWriterMut<'vec> = SuffixWriter<&'vec mut Vector<u8>>;

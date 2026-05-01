@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, LinearStorageLen, Uninit, Vector},
+  collection::{ArrayVector, LinearStorageLen, Vector},
   sync::Arc,
 };
 use alloc::{rc::Rc, vec::Vec};
@@ -54,13 +54,6 @@ impl<T> SingleTypeStorage for RefCell<T> {
 }
 
 impl<T> SingleTypeStorage for Rc<T> {
-  type Item = T;
-}
-
-impl<L, T> SingleTypeStorage for Uninit<'_, L, T>
-where
-  L: LinearStorageLen,
-{
   type Item = T;
 }
 

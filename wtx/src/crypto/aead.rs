@@ -1,12 +1,10 @@
-#[cfg(feature = "aes-gcm")]
-mod aes_gcm;
 #[cfg(feature = "crypto-aws-lc-rs")]
 mod aws_lc_rs;
-#[cfg(feature = "chacha20poly1305")]
-mod chacha20poly1305;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;
+#[cfg(feature = "crypto-openssl")]
+mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 
@@ -15,7 +13,7 @@ use crate::{
     Base64Alphabet, base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
   },
   collection::{ExpansionTy, Vector},
-  crypto::CryptoError,
+  crypto::{CryptoError, dummy_impl_call},
   misc::SensitiveBytes,
   rng::CryptoRng,
 };
@@ -30,7 +28,6 @@ pub trait Aead {
   type Secret;
 
   /// Decrypts a base64 encoded string, using the provided buffer for the output.
-
   #[inline]
   fn decrypt_base64_to_buffer<'buffer>(
     associated_data: &[u8],
@@ -52,7 +49,7 @@ pub trait Aead {
   /// `data` should contain any associated affix.
   fn decrypt_in_place<'encrypted>(
     associated_data: &[u8],
-    data: &'encrypted mut [u8],
+    encrypted_data: &'encrypted mut [u8],
     secret: &Self::Secret,
   ) -> crate::Result<&'encrypted mut [u8]>;
 
@@ -191,11 +188,11 @@ pub trait Aead {
   }
 }
 
-/// Stub [`Aead`] implementation used when no backend is enabled.
+/// Dummy [`Aead`] implementation used when no backend is enabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct AeadStub<S>(PhantomData<S>);
+pub struct AeadDummy<S>(PhantomData<S>);
 
-impl<S> Aead for AeadStub<S> {
+impl<S> Aead for AeadDummy<S> {
   type Secret = S;
 
   #[inline]
@@ -204,7 +201,7 @@ impl<S> Aead for AeadStub<S> {
     _: &'encrypted mut [u8],
     _: &Self::Secret,
   ) -> crate::Result<&'encrypted mut [u8]> {
-    Ok(&mut [])
+    dummy_impl_call();
   }
 
   #[inline]
@@ -219,16 +216,15 @@ impl<S> Aead for AeadStub<S> {
   where
     RNG: CryptoRng,
   {
-    Ok(())
+    dummy_impl_call();
   }
 }
 
 #[cfg(any(
-  feature = "aes-gcm",
-  feature = "chacha20poly1305",
   feature = "crypto-aws-lc-rs",
   feature = "crypto-graviola",
-  feature = "crypto-ring",
+  feature = "crypto-openssl",
+  feature = "crypto-ring"
 ))]
 fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) -> [u8; NONCE_LEN] {
   let [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11] = nonce;
@@ -248,7 +244,7 @@ fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) ->
   [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11]
 }
 
-#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-graviola", feature = "crypto-ring"))]
+#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
 fn split_nonce_content(
   data: &mut [u8],
   error: CryptoError,
@@ -260,30 +256,31 @@ fn split_nonce_content(
   Ok((nonce, content))
 }
 
-#[cfg(any(feature = "aes-gcm", feature = "chacha20poly1305"))]
+#[cfg(any(feature = "crypto-graviola", feature = "crypto-openssl"))]
+#[rustfmt::skip]
 fn split_nonce_content_tag(
   data: &mut [u8],
   error: CryptoError,
 ) -> crate::Result<([u8; NONCE_LEN], &mut [u8], [u8; TAG_LEN])> {
-  #[rustfmt::skip]
   let [
     a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
     content @ ..,
-    b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15
+    a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27,
   ] = data
   else {
     return Err(error.into());
   };
-  let nonce = [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11];
-  let tag = [*b0, *b1, *b2, *b3, *b4, *b5, *b6, *b7, *b8, *b9, *b10, *b11, *b12, *b13, *b14, *b15];
-  Ok((nonce, content, tag))
+  Ok((
+    [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11],
+    content,
+    [*a12, *a13, *a14, *a15, *a16, *a17, *a18, *a19, *a20, *a21, *a22, *a23, *a24, *a25, *a26, *a27]
+  ))
 }
 
 #[cfg(any(
-  feature = "aes-gcm",
-  feature = "chacha20poly1305",
   feature = "crypto-aws-lc-rs",
   feature = "crypto-graviola",
+  feature = "crypto-openssl",
   feature = "crypto-ring"
 ))]
 fn write_tag(from: [u8; TAG_LEN], to: [&mut u8; TAG_LEN]) {

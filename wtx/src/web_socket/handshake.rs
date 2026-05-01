@@ -19,7 +19,7 @@ macro_rules! check_headers {
 
 use crate::{
   codec::{Base64Alphabet, base64_encode, base64_encoded_len},
-  crypto::{Hash, Sha1DigestRustCrypto},
+  crypto::{Hash, Sha1DigestGlobal},
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
   misc::{LeaseMut, SuffixWriterFbvm, UriRef, bytes_split1},
   rng::Rng,
@@ -297,7 +297,7 @@ fn check_headers<'headers, const N: usize>(
 }
 
 fn derived_key<'buffer>(buffer: &'buffer mut [u8; 30], key: &[u8]) -> &'buffer [u8] {
-  let array = Sha1DigestRustCrypto::digest([key, b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"]);
+  let array = Sha1DigestGlobal::digest([key, b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"]);
   base64_from_array(&array, buffer)
 }
 

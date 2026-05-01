@@ -58,3 +58,28 @@ impl Database for () {
   type Records<'exec> = ();
   type Ty = ();
 }
+
+/// Fills `uri` according to the current set of environment variables that match
+/// [`DEFAULT_URI_VAR`].
+#[derive(Debug)]
+pub struct DatabaseUriFromVars {
+  /// Uri
+  pub uri: alloc::string::String,
+}
+
+#[cfg(feature = "std")]
+impl crate::misc::FromVars for DatabaseUriFromVars {
+  #[inline]
+  fn from_vars(
+    vars: impl IntoIterator<Item = (alloc::string::String, alloc::string::String)>,
+  ) -> crate::Result<Self> {
+    let mut rslt = None;
+    for (key, value) in vars {
+      if key == DEFAULT_URI_VAR {
+        rslt = Some(value)
+      }
+    }
+    let uri = rslt.ok_or_else(|| crate::Error::MissingVar(DEFAULT_URI_VAR.into()))?;
+    Ok(Self { uri })
+  }
+}

@@ -1,4 +1,5 @@
 use core::{
+  array,
   borrow::{Borrow, BorrowMut},
   ops::{Deref, DerefMut},
   slice::{Iter, IterMut},
@@ -46,7 +47,7 @@ where
 {
   #[inline]
   fn default() -> Self {
-    ArrayWrapper(core::array::from_fn(|_| T::default()))
+    ArrayWrapper(array::from_fn(|_| T::default()))
   }
 }
 

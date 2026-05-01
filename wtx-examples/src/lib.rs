@@ -24,28 +24,6 @@ pub static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
-#[cfg(feature = "mysql")]
-pub async fn executor_mysql(
-  uri_str: &str,
-) -> wtx::Result<
-  wtx::database::client::mysql::MysqlExecutor<
-    wtx::Error,
-    wtx::database::client::mysql::ExecutorBuffer,
-    tokio::net::TcpStream,
-  >,
-> {
-  use wtx::rng::CryptoSeedableRng;
-  let uri = wtx::misc::Uri::new(uri_str);
-  let mut rng = wtx::rng::ChaCha20::from_getrandom()?;
-  wtx::database::client::mysql::MysqlExecutor::connect(
-    &wtx::database::client::mysql::Config::from_uri(&uri)?,
-    wtx::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
-    &mut rng,
-    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await?,
-  )
-  .await
-}
-
 #[cfg(feature = "postgres")]
 pub async fn executor_postgres(
   uri_str: &str,

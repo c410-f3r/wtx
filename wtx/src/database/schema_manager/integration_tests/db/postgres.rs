@@ -24,28 +24,28 @@ pub(crate) async fn clean_drops_all_objs<'exec, E>(
   Identifier: FromRecords<'exec, Postgres<crate::Error>>,
 {
   integration_tests::create_foo_table(buffer_cmd, c, "public.").await;
-  c.executor_mut().execute_ignored("CREATE SCHEMA bar").await.unwrap();
+  c._executor_mut().execute_ignored("CREATE SCHEMA bar").await.unwrap();
   integration_tests::create_foo_table(buffer_cmd, c, "bar.").await;
-  c.executor_mut().execute_ignored("CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0)").await.unwrap();
-  c.executor_mut().execute_ignored("CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE").await.unwrap();
-  c.executor_mut()
+  c._executor_mut().execute_ignored("CREATE DOMAIN integer0 AS INTEGER CONSTRAINT must_be_greater_than_or_equal_to_zero_chk CHECK(VALUE >= 0)").await.unwrap();
+  c._executor_mut().execute_ignored("CREATE FUNCTION time_subtype_diff(x time, y time) RETURNS float8 AS 'SELECT EXTRACT(EPOCH FROM (x - y))' LANGUAGE sql STRICT IMMUTABLE").await.unwrap();
+  c._executor_mut()
     .execute_ignored("CREATE PROCEDURE something() LANGUAGE SQL AS $$ $$")
     .await
     .unwrap();
-  c.executor_mut().execute_ignored("CREATE SEQUENCE serial START 101").await.unwrap();
-  c.executor_mut().execute_ignored("CREATE TYPE a_type AS (field INTEGER[31])").await.unwrap();
-  c.executor_mut()
+  c._executor_mut().execute_ignored("CREATE SEQUENCE serial START 101").await.unwrap();
+  c._executor_mut().execute_ignored("CREATE TYPE a_type AS (field INTEGER[31])").await.unwrap();
+  c._executor_mut()
     .execute_ignored("CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy')")
     .await
     .unwrap();
-  c.executor_mut()
+  c._executor_mut()
     .execute_ignored("CREATE VIEW view AS SELECT * FROM foo WHERE id = 1")
     .await
     .unwrap();
 
   postgres::all_elements(
     (buffer_cmd, buffer_idents),
-    &mut c.executor_mut(),
+    &mut c._executor_mut(),
     |buffer| {
       assert_eq!(buffer.1.len(), 1);
       buffer.1.clear();
@@ -94,7 +94,7 @@ pub(crate) async fn clean_drops_all_objs<'exec, E>(
 
   postgres::all_elements(
     (buffer_cmd, buffer_idents),
-    c.executor_mut(),
+    c._executor_mut(),
     |buffer| {
       assert_eq!(buffer.1.len(), 0);
       buffer.1.clear();

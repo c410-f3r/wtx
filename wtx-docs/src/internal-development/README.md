@@ -51,7 +51,6 @@ cargo build --bin h2load --features h2load --profile profiling --target x86_64-u
 [`samply`](https://github.com/mstange/samply): Command line CPU profiler.
 
 ```bash
-cargo build --bin h2load --features h2load --profile profiling --target x86_64-unknown-linux-gnu
 samply record ./target/x86_64-unknown-linux-gnu/profiling/h2load
 ```
 

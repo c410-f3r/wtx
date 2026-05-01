@@ -39,6 +39,8 @@ pub enum X509CvError {
   HasNotTrustAnchor,
   /// Certificate serial number found in a revocation list.
   HasRevokedCerts,
+  /// Issuing CAs must have Basic Constraints.
+  IcasMustHaveBasicConstraints,
   /// Issuing CAs must have a non-empty subject name.
   IcasMustHaveASubjectSequence,
   /// Issuing CAs must have critical Basic Constraints.

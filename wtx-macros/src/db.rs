@@ -51,77 +51,17 @@ pub(crate) fn db(
       }
 
       let runtime = wtx::sync::Arc::new(wtx::executor::Runtime::new());
-      let _runtime_clone = runtime.clone();
-      runtime
-        .block_on(async move {
-          use wtx::{database::Executor as _, rng::SeedableRng as _};
-
-          #[derive(wtx::FromVars)]
-          struct LocalVars {
-            database_uri: String,
-          }
-
-          let local_vars: LocalVars = wtx::misc::EnvVars::from_available().unwrap().finish();
-          let uri = local_vars.database_uri.as_str().into();
-
-          let mut config = wtx::database::client::postgres::Config::from_uri(&uri).unwrap();
-          let mut db_name = String::new();
-          db_name.push('_');
-          db_name.push_str(wtx::misc::timestamp_nanos_str().unwrap().1.as_str());
-          // FIXME(STABLE): Use `from_std_random`
-          let mut rng = wtx::rng::ChaCha20::from_simple_seed().unwrap();
-
-          let orig_db = String::from(config.db());
-
-          {
-            let mut conn = wtx::database::client::postgres::PostgresExecutor::<wtx::Error, _, _>::connect(
-              &wtx::database::client::postgres::Config::from_uri(&uri).unwrap(),
-              wtx::database::client::postgres::ExecutorBuffer::new(100, &mut rng),
-              &mut rng,
-              std::net::TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
-            )
-            .await
-            .unwrap();
-            let mut create_db_query = String::new();
-            create_db_query.push_str("CREATE DATABASE ");
-            create_db_query.push_str(&db_name);
-            conn.execute_ignored(create_db_query.as_str()).await.unwrap();
-          }
-
-          {
-            config.set_db(db_name.as_str());
-            let mut conn = wtx::database::client::postgres::PostgresExecutor::connect(
-              &config,
-              wtx::database::client::postgres::ExecutorBuffer::new(100, &mut rng),
-              &mut rng,
-              std::net::TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
-            )
-            .await
-            .unwrap();
-            wtx::database::schema_manager::Commands::new(8, &mut conn)
-              .clear_migrate_and_seed(#dir_ts)
-              .await
-              .unwrap();
-            #priv_fn_name(#(#priv_fn_args),*).await
-          }
-
-          {
-            config.set_db(orig_db.as_str());
-            let mut conn = wtx::database::client::postgres::PostgresExecutor::<wtx::Error, _, _>::connect(
-              &config,
-              wtx::database::client::postgres::ExecutorBuffer::new(100, &mut rng),
-              &mut rng,
-              std::net::TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
-            )
-            .await
-            .unwrap();
-            let mut drop_db_query = String::new();
-            drop_db_query.push_str("DROP DATABASE ");
-            drop_db_query.push_str(&db_name);
-            conn.execute_ignored(drop_db_query.as_str()).await.unwrap();
-          }
-        });
-      }
+      let runtime_clone = runtime.clone();
+      runtime.block_on(async move {
+        wtx::database::client::postgres::database_test(
+          #dir_ts,
+          runtime_clone,
+          |conn, _runtime| async move { #priv_fn_name(#(#priv_fn_args),*).await }
+        )
+        .await
+        .unwrap();
+      });
+    }
   );
   Ok(tokens.into())
 }

@@ -75,7 +75,8 @@ where
       }
     }
   }
-  curr_params.inc_consumed_records(curr_params.curr_record_idx.wrapping_sub(prev_record_idx));
+  let records_consumed = curr_params.curr_record_idx.wrapping_sub(prev_record_idx);
+  curr_params.inc_consumed_records(records_consumed);
   curr_params.curr_field_idx = next_field_idx;
   curr_params.curr_record_idx = prev_record_idx;
   Ok(())
@@ -93,13 +94,12 @@ where
   T: FromRecords<'exec, D>,
 {
   let local_id: T::IdTy = curr_params.curr_record.decode(parent_record_id_field_idx)?;
-  if local_id == *parent_record_id {
-    entity_cb(T::from_records(curr_params, records)?)?;
-    *next_field_idx = curr_params.curr_field_idx;
-    curr_params.curr_field_idx = initial_field_idx;
-    curr_params.inc_record_idx();
-  } else {
+  if local_id != *parent_record_id {
     return Ok(ControlFlow::Break(()));
   }
+  entity_cb(T::from_records(curr_params, records)?)?;
+  *next_field_idx = curr_params.curr_field_idx;
+  curr_params.curr_field_idx = initial_field_idx;
+  curr_params.inc_record_idx();
   Ok(ControlFlow::Continue(()))
 }

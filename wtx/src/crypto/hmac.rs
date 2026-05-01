@@ -1,4 +1,4 @@
-use crate::misc::DefaultArray;
+use crate::{crypto::dummy_impl_call, misc::DefaultArray};
 use core::marker::PhantomData;
 
 #[cfg(feature = "crypto-aws-lc-rs")]
@@ -6,8 +6,8 @@ mod aws_lc_rs;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;
-#[cfg(feature = "hmac")]
-mod hmac;
+#[cfg(feature = "crypto-openssl")]
+mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 
@@ -29,11 +29,11 @@ pub trait Hmac: Sized {
   fn verify(self, tag: &[u8]) -> crate::Result<()>;
 }
 
-/// Stub [`Hmac`] implementation used when no backend is enabled.
+/// Dummy [`Hmac`] implementation used when no backend is enabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct HmacStub<D>(PhantomData<D>);
+pub struct HmacDummy<D>(PhantomData<D>);
 
-impl<D> Hmac for HmacStub<D>
+impl<D> Hmac for HmacDummy<D>
 where
   D: AsRef<[u8]> + DefaultArray,
 {
@@ -41,7 +41,7 @@ where
 
   #[inline]
   fn from_key(_: &[u8]) -> crate::Result<Self> {
-    Ok(HmacStub(PhantomData))
+    dummy_impl_call();
   }
 
   #[inline]
@@ -49,11 +49,11 @@ where
 
   #[inline]
   fn digest(self) -> Self::Digest {
-    Self::Digest::default_array()
+    dummy_impl_call();
   }
 
   #[inline]
   fn verify(self, _: &[u8]) -> crate::Result<()> {
-    Ok(())
+    dummy_impl_call();
   }
 }

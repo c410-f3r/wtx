@@ -7,6 +7,8 @@ pub enum PostgresError {
   DecodingError,
   /// There are no bytes left to build a `DbError`
   InsufficientDbErrorBytes,
+  /// Invalid array
+  InvalidArray,
   /// Invalid IP format
   InvalidIpFormat,
   /// JSONB is the only supported JSON format
@@ -16,6 +18,8 @@ pub enum PostgresError {
   InvalidPostgresUint,
   /// Received bytes don't compose a valid record.
   InvalidPostgresRecord,
+  /// Unknown range type
+  InvalidRangeTy,
   /// The iterator that composed a `RecordValues` does not contain a corresponding length.
   InvalidRecordValuesIterator,
   /// It is required to connect using a TLS channel but the server didn't provide any. Probably

@@ -32,7 +32,6 @@ macro_rules! create_integration_test {
 macro_rules! create_integration_tests {
   (
     $fn_name:ident,
-    mysql: $($mysql:path),*;
     postgres: $($postgres:path),*;
   ) => {
     pub(crate) async fn $fn_name() {
@@ -40,26 +39,6 @@ macro_rules! create_integration_tests {
       let mut _buffer_db_migrations = Vector::<DbMigration>::new();
       let mut _buffer_idents = Vector::<Identifier>::new();
       let mut _buffer_status = Vector::<MigrationStatus>::new();
-
-      #[cfg(feature = "mysql")]
-      create_integration_test!(
-        {
-          use crate::rng::CryptoSeedableRng;
-          let uri = crate::misc::UriRef::new(crate::tests::_vars().database_uri_mysql.as_str());
-          let config = crate::database::client::mysql::Config::from_uri(&uri).unwrap();
-          let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
-          let mut rng = crate::rng::ChaCha20::from_std_random().unwrap();
-          crate::database::client::mysql::MysqlExecutor::<crate::Error, _, _>::connect(
-            &config,
-            crate::database::client::mysql::ExecutorBuffer::new(usize::MAX, &mut rng),
-            &mut rng,
-            stream,
-          ).await.unwrap()
-        },
-        (&mut _buffer_cmd, &mut _buffer_db_migrations, &mut _buffer_idents, &mut _buffer_status),
-        _generic_schema(),
-        $($mysql),*
-      );
 
       #[cfg(feature = "postgres")]
       create_integration_test!(
@@ -88,7 +67,6 @@ macro_rules! create_integration_tests {
 
 macro_rules! create_all_integration_tests {
   (
-    mysql: $($mysql:path),*;
     postgres: $($postgres:path),*;
 
     generic: $($fun:path),*;
@@ -98,19 +76,16 @@ macro_rules! create_all_integration_tests {
   ) => {
     create_integration_tests!(
       integration_tests_db,
-      mysql: $($mysql),*;
       postgres: $($postgres),*;
     );
 
     create_integration_tests!(
       integration_tests_generic,
-      mysql: $($fun),*;
       postgres: $($fun),*;
     );
 
     create_integration_tests!(
       integration_tests_schema,
-      mysql: $($without_schema),*;
       postgres: $($with_schema),*;
     );
 
@@ -129,8 +104,6 @@ macro_rules! create_all_integration_tests {
 create_all_integration_tests!(
   // Database
 
-  mysql:
-    db::mysql::clean_drops_all_objs;
   postgres:
     db::postgres::clean_drops_all_objs;
 
@@ -166,7 +139,7 @@ pub(crate) async fn create_foo_table<E>(
   <<E as Executor>::Database as CodecController>::Error: Debug,
 {
   buffer_cmd.write_fmt(format_args!("CREATE TABLE {schema_prefix}foo(id INT)")).unwrap();
-  c.executor_mut().execute_ignored(buffer_cmd.as_str()).await.unwrap();
+  c._executor_mut().execute_ignored(buffer_cmd.as_str()).await.unwrap();
   buffer_cmd.clear();
 }
 

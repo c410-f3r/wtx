@@ -1,7 +1,7 @@
 use crate::{
   calendar::Instant,
   collection::{ArrayVectorU8, Vector},
-  crypto::{Aead, Aes128GcmRustCrypto},
+  crypto::{Aead, Aes128GcmGlobal},
   http::{
     KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
@@ -134,7 +134,7 @@ where
           continue;
         }
         let decrypt_rslt = session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new(), |el| {
-          Aes128GcmRustCrypto::decrypt_base64_to_buffer(
+          Aes128GcmGlobal::decrypt_base64_to_buffer(
             name.as_bytes(),
             &mut cookie_def.value,
             value.as_bytes(),

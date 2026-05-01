@@ -1,11 +1,9 @@
-use crate::misc::DefaultArray;
+use crate::{crypto::dummy_impl_call, misc::DefaultArray};
 use core::marker::PhantomData;
 
 #[cfg(feature = "crypto-aws-lc-rs")]
 mod aws_lc_rs;
 pub(crate) mod global;
-#[cfg(feature = "hkdf")]
-mod hkdf;
 #[cfg(feature = "crypto-ring")]
 mod ring;
 
@@ -30,11 +28,11 @@ pub trait Hkdf: Sized {
   fn expand(&self, info: &[u8], okm: &mut [u8]) -> crate::Result<()>;
 }
 
-/// Stub [`Hkdf`] implementation used when no backend is enabled.
+/// Dummy [`Hkdf`] implementation used when no backend is enabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct HkdfStub<D>(PhantomData<D>);
+pub struct HkdfDummy<D>(PhantomData<D>);
 
-impl<D> Hkdf for HkdfStub<D>
+impl<D> Hkdf for HkdfDummy<D>
 where
   D: DefaultArray,
 {
@@ -42,12 +40,12 @@ where
 
   #[inline]
   fn extract(_: Option<&[u8]>, _: &[u8]) -> (Self::Digest, Self) {
-    (Self::Digest::default_array(), Self(PhantomData))
+    dummy_impl_call();
   }
 
   #[inline]
   fn from_prk(_: &[u8]) -> crate::Result<Self> {
-    Ok(Self(PhantomData))
+    dummy_impl_call();
   }
 
   #[inline]
@@ -55,11 +53,11 @@ where
     _: impl IntoIterator<Item = &'data [u8]>,
     _: &[u8],
   ) -> crate::Result<Self::Digest> {
-    Ok(Self::Digest::default_array())
+    dummy_impl_call();
   }
 
   #[inline]
   fn expand(&self, _: &[u8], _: &mut [u8]) -> crate::Result<()> {
-    Ok(())
+    dummy_impl_call();
   }
 }

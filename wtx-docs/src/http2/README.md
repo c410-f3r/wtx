@@ -10,7 +10,7 @@ To use this functionality, it is necessary to activate the `http2` feature.
 
 ## HTTP/1.1 Upgrade
 
-Does not support upgrading from HTTP/1.1 because browsers also don't support such a feature. Connections must be established directly using HTTP/2 or via ALPN (Application-Layer Protocol Negotiation) during the TLS handshake.
+Does not support upgrading from HTTP/1.1 because browsers also don't support such a feature. Connections must be established directly using HTTP/2 (h2c) or via ALPN (Application-Layer Protocol Negotiation) during the TLS handshake.
 
 ## Operating Modes
 

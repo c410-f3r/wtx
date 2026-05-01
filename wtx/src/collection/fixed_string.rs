@@ -170,7 +170,7 @@ mod serde {
         where
           E: de::Error,
         {
-          FixedString::try_from(v).map_err(|_| E::invalid_length(v.len(), &self))
+          FixedString::try_from(v).map_err(|_err| E::invalid_length(v.len(), &self))
         }
 
         #[inline]
@@ -178,7 +178,7 @@ mod serde {
         where
           E: de::Error,
         {
-          FixedString::try_from(str).map_err(|_| E::invalid_length(str.len(), &self))
+          FixedString::try_from(str).map_err(|_err| E::invalid_length(str.len(), &self))
         }
       }
 
