@@ -48,7 +48,7 @@ wtx = { default-features = false, features = ["crypto-ring", "executor", "macros
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-client-concurrent = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/web-socket-handshake"]
-ccadb = ["wtx/hashbrown", "wtx/http-client-pool", "wtx/http2", "wtx/tokio-rustls", "wtx/webpki-roots", "wtx/x509"]
+ccadb = ["wtx/hashbrown", "wtx/http-client-pool", "wtx/http2", "wtx/x509"]
 h2load = ["wtx/http2", "wtx/nightly"]
 h2spec-high-server = ["wtx/http2", "wtx/nightly"]
 h2spec-low-server = ["wtx/http2"]

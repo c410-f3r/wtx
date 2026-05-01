@@ -1,0 +1,24 @@
+//! Pure TLS client intended for testing purposes.
+
+use std::net::TcpStream;
+
+use wtx::{
+  misc::Uri,
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::{TlsConfig, TlsConnector},
+};
+
+#[tokio::main]
+async fn main() -> wtx::Result<()> {
+  let uri = Uri::new("localhost:9000");
+  let mut rng = ChaCha20::from_std_random()?;
+  let _tls_stream = TlsConnector::default()
+    .connect(
+      None,
+      &mut rng,
+      TcpStream::connect(uri.hostname_with_implied_port())?,
+      &TlsConfig::default(),
+    )
+    .await?;
+  Ok(())
+}

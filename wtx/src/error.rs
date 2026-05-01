@@ -282,6 +282,9 @@ pub enum Error {
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "tls")]
+  #[doc = associated_element_doc!()]
+  TlsError(crate::tls::TlsError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -474,14 +477,6 @@ impl From<quick_protobuf::Error> for Error {
   }
 }
 
-#[cfg(feature = "rustls")]
-impl From<rustls::Error> for Error {
-  #[inline]
-  fn from(from: rustls::Error) -> Self {
-    Self::RustlsError(from.into())
-  }
-}
-
 #[cfg(feature = "serde")]
 impl From<::serde::de::value::Error> for Error {
   #[inline]
@@ -503,6 +498,14 @@ impl From<crate::http::SessionError> for Error {
   #[inline]
   fn from(from: crate::http::SessionError) -> Self {
     Self::SessionError(from)
+  }
+}
+
+#[cfg(feature = "tls")]
+impl From<crate::tls::TlsError> for Error {
+  #[inline]
+  fn from(from: crate::tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 
