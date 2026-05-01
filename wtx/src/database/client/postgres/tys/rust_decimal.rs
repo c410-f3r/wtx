@@ -60,7 +60,7 @@ impl TryFrom<Decimal> for PgNumeric {
       });
     }
 
-    let scale = value.scale() as u16;
+    let scale: u16 = value.scale().try_into()?;
 
     let mut mantissa = value.mantissa().unsigned_abs();
     let diff = scale % 4;
@@ -71,13 +71,13 @@ impl TryFrom<Decimal> for PgNumeric {
 
     let mut digits = ArrayVectorU8::new();
     while mantissa != 0 {
-      digits.push((mantissa % 10_000) as i16)?;
+      digits.push(i16::try_from(mantissa % 10_000)?)?;
       mantissa /= 10_000;
     }
     digits.reverse();
 
-    let after_decimal = scale.wrapping_add(3) / 4;
-    let weight = u16::from(digits.len()).wrapping_sub(after_decimal).wrapping_sub(1) as i16;
+    let after_decimal = i16::try_from(scale.wrapping_add(3) / 4)?;
+    let weight = i16::from(digits.len()).wrapping_sub(after_decimal).wrapping_sub(1);
 
     while let Some(&0) = digits.last() {
       let _ = digits.pop();
@@ -133,23 +133,86 @@ kani!(rust_decimal, Decimal);
 
 #[cfg(test)]
 mod tests {
-  use crate::database::client::postgres::tys::pg_numeric::{PgNumeric, Sign};
+  use crate::database::client::postgres::tys::pg_numeric::PgNumeric;
   use rust_decimal::Decimal;
 
   #[test]
   fn encodes_and_decodes() {
-    let original: Decimal = "12345.67890".try_into().unwrap();
-    let encoded = PgNumeric::try_from(original).unwrap();
-    assert_eq!(
-      encoded,
-      PgNumeric::Number {
-        sign: Sign::Positive,
-        scale: 5,
-        weight: 1,
-        digits: [1, 2345, 6789].as_ref().try_into().unwrap(),
-      }
-    );
-    let decoded = Decimal::try_from(encoded).unwrap();
-    assert_eq!(decoded, original);
+    {
+      let original: Decimal = "-12345.67890".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "-10000".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = Decimal::ZERO;
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "0.0000".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "0.0001".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "0.00000001".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "123.4500".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(original, decoded);
+    }
+
+    {
+      let original: Decimal = "12345.67890".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "10000".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "100000".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
+
+    {
+      let original: Decimal = "10000000000".try_into().unwrap();
+      let encoded = PgNumeric::try_from(original).unwrap();
+      let decoded = Decimal::try_from(encoded).unwrap();
+      assert_eq!(decoded, original);
+    }
   }
 }

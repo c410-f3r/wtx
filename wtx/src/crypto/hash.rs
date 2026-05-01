@@ -1,4 +1,4 @@
-use crate::misc::DefaultArray;
+use crate::{crypto::dummy_impl_call, misc::DefaultArray};
 use core::marker::PhantomData;
 
 #[cfg(feature = "crypto-aws-lc-rs")]
@@ -6,12 +6,10 @@ mod aws_lc_rs;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;
+#[cfg(feature = "crypto-openssl")]
+mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
-#[cfg(feature = "sha1")]
-mod sha1;
-#[cfg(feature = "sha2")]
-mod sha2;
 
 /// Maps data of arbitrary size into a fixed-size value.
 pub trait Hash {
@@ -23,11 +21,11 @@ pub trait Hash {
   fn digest<'data>(data: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest;
 }
 
-/// Stub [`Hash`] implementation used when no backend is enabled.
+/// Dummy [`Hash`] implementation used when no backend is enabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct HashStub<D>(PhantomData<D>);
+pub struct HashDummy<D>(PhantomData<D>);
 
-impl<D> Hash for HashStub<D>
+impl<D> Hash for HashDummy<D>
 where
   D: AsRef<[u8]> + DefaultArray,
 {
@@ -35,6 +33,6 @@ where
 
   #[inline]
   fn digest<'data>(_: impl IntoIterator<Item = &'data [u8]>) -> Self::Digest {
-    Self::Digest::default_array()
+    dummy_impl_call();
   }
 }

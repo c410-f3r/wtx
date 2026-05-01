@@ -52,9 +52,7 @@ where
   }
 
   /// Allows the access of the internal executor
-  #[cfg(test)]
-  #[cfg(any(feature = "mysql", feature = "postgres"))]
-  pub(crate) fn executor_mut(&mut self) -> &mut E {
+  pub(crate) fn _executor_mut(&mut self) -> &mut E {
     &mut self.executor
   }
 

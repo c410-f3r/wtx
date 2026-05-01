@@ -15,6 +15,17 @@ use crate::{
   tests::_vars,
 };
 use alloc::string::String;
+use core::ops::Range;
+
+#[test]
+fn array() {
+  Runtime::new().block_on(async {
+    let mut executor = executor().await;
+    let array = [1i32, 2, 3];
+    let record = executor.execute_stmt_single("SELECT $1", (&array,)).await.unwrap();
+    assert_eq!(record.decode::<_, [i32; 3]>(0).unwrap(), array);
+  });
+}
 
 #[test]
 fn batch() {
@@ -317,6 +328,16 @@ fn multiple_notifications() {
 #[test]
 fn ping() {
   crate::database::client::integration_tests::ping(executor());
+}
+
+#[test]
+fn range() {
+  Runtime::new().block_on(async {
+    let range = 3..7;
+    let mut executor = executor().await;
+    let record = executor.execute_stmt_single("SELECT $1", (range.clone(),)).await.unwrap();
+    assert_eq!(record.decode::<_, Range<i32>>(0).unwrap(), range);
+  });
 }
 
 #[test]

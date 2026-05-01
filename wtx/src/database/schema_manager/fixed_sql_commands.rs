@@ -26,9 +26,7 @@ macro_rules! _serial_id {
   };
 }
 
-#[cfg(any(feature = "mysql", feature = "postgres"))]
+#[cfg(feature = "postgres")]
 pub(crate) mod common;
-#[cfg(feature = "mysql")]
-pub(crate) mod mysql;
 #[cfg(feature = "postgres")]
 pub(crate) mod postgres;

@@ -174,7 +174,7 @@ where
     let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    let tuple = Self::write_send_await_stmt_prepare(cs, net_buffer, sc, stmts, stream, &[]).await?;
+    let tuple = Self::write_send_await_stmt_prepare(cs, net_buffer, &rv, sc, stmts, stream).await?;
     let (_, stmt_cmd_id_array, stmt_mut) = tuple;
     Self::write_send_await_stmt_bind(cs, net_buffer, rv, &stmt_cmd_id_array, stream).await?;
     let begin = net_buffer.current_end_idx();
@@ -225,6 +225,6 @@ where
     let ExecutorBuffer { common, .. } = eb.lease_mut();
     let CommonExecutorBuffer { net_buffer, records_params, stmts, values_params } = common;
     clear_cmd_buffers(net_buffer, records_params, values_params);
-    Ok(Self::write_send_await_stmt_prepare(cs, net_buffer, cmd, stmts, stream, &[]).await?.0)
+    Ok(Self::write_send_await_stmt_prepare(cs, net_buffer, &(), cmd, stmts, stream).await?.0)
   }
 }

@@ -31,6 +31,7 @@ mod session;
 mod status_code;
 pub(crate) mod u31;
 mod version;
+pub mod web_authn;
 
 #[cfg(feature = "http-cookie")]
 pub use cookie::*;

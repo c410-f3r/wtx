@@ -50,14 +50,6 @@ impl Usize {
     self.0 as f64
   }
 
-  #[cfg(feature = "mysql")]
-  pub(crate) const fn into_saturating_u32(self) -> u32 {
-    if self.0 > _u32_max!() {
-      return _u32_max!();
-    }
-    self.0 as u32
-  }
-
   pub(crate) const fn into_u64(self) -> u64 {
     self.0 as u64
   }

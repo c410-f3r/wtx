@@ -73,7 +73,7 @@ where
     };
     let mut error = String::new();
     error.write_fmt(format_args!("Errors: {err0}, {err1}"))?;
-    Err(crate::Error::NoAvailableVars(error.into()))
+    Err(crate::Error::NoAvailableVars(error.try_into()?))
   }
 
   /// Constructs itself through the deserialization of a literal `.env` file data.
@@ -197,7 +197,7 @@ where
   }
   let mut value_final = unescape(value_all);
   if Some(char::from(delimiter)) != value_final.pop() {
-    return Err(crate::Error::MissingVarQuote(key_trimmed.into()));
+    return Err(crate::Error::MissingVarQuote(key_trimmed.try_into()?));
   }
   vars.push((key_trimmed, value_final))?;
   Ok(())

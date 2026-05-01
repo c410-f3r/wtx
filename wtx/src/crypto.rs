@@ -16,32 +16,32 @@ mod sign_key;
 mod signature;
 
 pub use aead::{
-  Aead, AeadStub,
-  global::{GlobalAes128GcmTy, GlobalAes256GcmTy, GlobalChacha20Poly1305Ty},
+  Aead, AeadDummy,
+  global::{Aes128GcmGlobal, Aes256GcmGlobal, Chacha20Poly1305TyGlobal},
 };
 pub use agreement::{
-  Agreement, AgreementStub,
-  global::{GlobalP256Agreement, GlobalP384Agreement, GlobalX25519},
+  Agreement, AgreementDummy,
+  global::{P256AgreementGlobal, P384AgreementGlobal, X25519Global},
 };
 pub use crypto_error::CryptoError;
 pub use hash::{
-  Hash, HashStub,
-  global::{GlobalSha1, GlobalSha256, GlobalSha386},
+  Hash, HashDummy,
+  global::{Sha1DigestGlobal, Sha256DigestGlobal, Sha386DigestGlobal},
 };
 pub use hkdf::{
-  Hkdf, HkdfStub,
-  global::{GlobalHkdfSha256, GlobalHkdfSha384},
+  Hkdf, HkdfDummy,
+  global::{HkdfSha256Global, HkdfSha384Global},
 };
 pub use hmac::{
-  Hmac, HmacStub,
-  global::{GlobalHmacSha256, GlobalHmacSha384},
+  Hmac, HmacDummy,
+  global::{HmacSha256Global, HmacSha384Global},
 };
-pub use sign_key::{SignKey, SignKeyStub};
+pub use sign_key::{SignKey, SignKeyDummy};
 pub use signature::{
-  Signature, SignatureStub,
+  Signature, SignatureDummy,
   global::{
-    GlobalEd25519, GlobalP256Signature, GlobalP384Signature, GlobalRsaPssRsaeSha256,
-    GlobalRsaPssRsaeSha384,
+    Ed25519Global, P256SignatureGlobal, P384SignatureGlobal, RsaPssRsaeSha256Global,
+    RsaPssRsaeSha384Global,
   },
   signature_ty::SignatureTy,
 };
@@ -56,7 +56,7 @@ pub const MAX_HASH_LEN: usize = 48;
 pub const MAX_PK_LEN: usize = 97;
 
 /// A wrapper around public keys or other external structures that don't implement `AsRef<[u8]>`.
-#[cfg(any(feature = "crypto-graviola", feature = "p256", feature = "p384"))]
+#[cfg(feature = "crypto-graviola")]
 #[derive(Debug)]
 pub struct AsRefWrapper<T>(T);
 
@@ -146,6 +146,47 @@ _create_wrappers!(
   RsaPssSignKeySha256Graviola<>(graviola::signing::rsa::SigningKey),
 );
 
+#[cfg(feature = "crypto-openssl")]
+_create_wrappers!(
+  #[derive(Default)]
+  Aes128GcmOpenssl<>(),
+  #[derive(Default)]
+  Aes256GcmOpenssl<>(),
+  #[derive(Default)]
+  Chacha20Poly1305Openssl<>(),
+  //
+  #[derive(Default)]
+  P256Openssl<>(),
+  #[derive(Default)]
+  P384Openssl<>(),
+  #[derive(Default)]
+  X25519Openssl<>(),
+  //
+  #[derive(Default)]
+  Sha1DigestOpenssl<>(),
+  #[derive(Default)]
+  Sha256DigestOpenssl<>(),
+  #[derive(Default)]
+  Sha384DigestOpenssl<>(),
+  //
+  //
+  HmacSha256Openssl<>(HmacOpenssl),
+  HmacSha384Openssl<>(HmacOpenssl),
+  //
+  Ed25519SignKeyOpenssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
+  P256SignKeyOpenssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
+  P384SignKeyOpenssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
+  RsaPssSignKeySha256Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
+  RsaPssSignKeySha384Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
+  //
+  #[derive(Default)]
+  Ed25519Openssl<>(),
+  #[derive(Default)]
+  RsaPssRsaeSha256Openssl<>(),
+  #[derive(Default)]
+  RsaPssRsaeSha384Openssl<>(),
+);
+
 #[cfg(feature = "crypto-ring")]
 _create_wrappers!(
   #[derive(Default)]
@@ -189,71 +230,32 @@ _create_wrappers!(
   RsaPssSignKeySha256Ring<>(ring::signature::RsaKeyPair),
 );
 
-// Rust Crypto
+/// HMAC helper for OpenSSL
+#[cfg(feature = "crypto-openssl")]
+pub struct HmacOpenssl {
+  signer: openssl::sign::Signer<'static>,
+}
 
-#[cfg(feature = "aes-gcm")]
-_create_wrappers!(
-  #[derive(Default)]
-  Aes128GcmRustCrypto<>(),
-  #[derive(Default)]
-  Aes256GcmRustCrypto<>()
-);
-#[cfg(feature = "chacha20poly1305")]
-_create_wrappers!(
-  #[derive(Default)]
-  Chacha20Poly1305RustCrypto<>()
-);
-#[cfg(feature = "ed25519-dalek")]
-_create_wrappers!(
-  #[derive(Default)]
-  Ed25519RustCrypto<>(),
-  Ed25519SignKeyRustCrypto<>(ed25519_dalek::SigningKey)
-);
-#[cfg(feature = "hkdf")]
-_create_wrappers!(
-  HkdfSha256RustCrypto<>(::hkdf::Hkdf<sha2::Sha256>),
-  HkdfSha384RustCrypto<>(::hkdf::Hkdf<sha2::Sha384>)
-);
-#[cfg(feature = "hmac")]
-_create_wrappers!(
-  HmacSha256RustCrypto<>(::hmac::Hmac<sha2::Sha256>),
-  HmacSha384RustCrypto<>(::hmac::Hmac<sha2::Sha384>)
-);
-#[cfg(feature = "p256")]
-_create_wrappers!(
-  #[derive(Default)]
-  P256RustCrypto<>(),
-  P256SignKeyRustCrypto<>(p256::ecdsa::SigningKey)
-);
-#[cfg(feature = "p384")]
-_create_wrappers!(
-  #[derive(Default)]
-  P384RustCrypto<>(),
-  P384SignKeyRustCrypto<>(p384::ecdsa::SigningKey)
-);
-#[cfg(feature = "rsa")]
-_create_wrappers!(
-  #[derive(Default)]
-  RsaPssRsaeSha256RustCrypto<>(),
-  #[derive(Default)]
-  RsaPssRsaeSha384RustCrypto<>(),
-  RsaPssSignKeySha256RustCrypto<>(rsa::pss::SigningKey<sha2::Sha256>),
-  RsaPssSignKeySha384RustCrypto<>(rsa::pss::SigningKey<sha2::Sha384>)
-);
-#[cfg(feature = "sha1")]
-_create_wrappers!(
-  #[derive(Default)]
-  Sha1DigestRustCrypto<>()
-);
-#[cfg(feature = "sha2")]
-_create_wrappers!(
-  #[derive(Default)]
-  Sha256DigestRustCrypto<>(),
-  #[derive(Default)]
-  Sha384DigestRustCrypto<>()
-);
-#[cfg(feature = "x25519-dalek")]
-_create_wrappers!(
-  #[derive(Default)]
-  X25519RustCrypto<>()
-);
+#[cfg(feature = "crypto-openssl")]
+impl HmacOpenssl {
+  fn new(digest: openssl::hash::MessageDigest, key: &[u8]) -> crate::Result<Self> {
+    let pkey = openssl::pkey::PKey::hmac(key)?;
+    let signer = openssl::sign::Signer::new(digest, &pkey)?;
+    Ok(Self { signer })
+  }
+}
+
+#[cfg(feature = "crypto-openssl")]
+impl core::fmt::Debug for HmacOpenssl {
+  #[inline]
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    f.debug_struct("HmacOpenssl").finish()
+  }
+}
+
+#[allow(clippy::panic, reason = "dummy structures should not be called")]
+fn dummy_impl_call() -> ! {
+  panic!(
+    "An operation required a crypto algorithm but no crypto backend was selected! You can, for example, enable the `crypto-ring` feature."
+  );
+}

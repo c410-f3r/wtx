@@ -81,7 +81,7 @@ impl FilledBuffer {
   }
 }
 
-#[cfg(any(feature = "mysql", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(feature = "postgres", feature = "web-socket"))]
 impl FilledBuffer {
   pub(crate) fn with_capacity(capacity: usize) -> crate::Result<Self> {
     let mut data = Vector::with_capacity(capacity)?;

@@ -530,6 +530,182 @@ impl Ty {
       _ => return None,
     })
   }
+
+  pub(crate) const fn array_ty(&self) -> Option<Self> {
+    match self {
+      Self::Aclitem => Some(Self::AclitemArray),
+      Self::Bit => Some(Self::BitArray),
+      Self::Bool => Some(Self::BoolArray),
+      Self::Box => Some(Self::BoxArray),
+      Self::Bpchar => Some(Self::BpcharArray),
+      Self::Bytea => Some(Self::ByteaArray),
+      Self::Char => Some(Self::CharArray),
+      Self::Cid => Some(Self::CidArray),
+      Self::Cidr => Some(Self::CidrArray),
+      Self::Circle => Some(Self::CircleArray),
+      Self::Cstring => Some(Self::CstringArray),
+      Self::Date => Some(Self::DateArray),
+      Self::DateRange => Some(Self::DateRangeArray),
+      Self::Float4 => Some(Self::Float4Array),
+      Self::Float8 => Some(Self::Float8Array),
+      Self::GtsVector => Some(Self::GtsVectorArray),
+      Self::Inet => Some(Self::InetArray),
+      Self::Int2 => Some(Self::Int2Array),
+      Self::Int2Vector => Some(Self::Int2VectorArray),
+      Self::Int4 => Some(Self::Int4Array),
+      Self::Int4Range => Some(Self::Int4RangeArray),
+      Self::Int8 => Some(Self::Int8Array),
+      Self::Int8Range => Some(Self::Int8RangeArray),
+      Self::Interval => Some(Self::IntervalArray),
+      Self::Json => Some(Self::JsonArray),
+      Self::Jsonb => Some(Self::JsonbArray),
+      Self::Jsonpath => Some(Self::JsonpathArray),
+      Self::Line => Some(Self::LineArray),
+      Self::Lseg => Some(Self::LsegArray),
+      Self::Macaddr => Some(Self::MacaddrArray),
+      Self::Macaddr8 => Some(Self::Macaddr8Array),
+      Self::Money => Some(Self::MoneyArray),
+      Self::Name => Some(Self::NameArray),
+      Self::Numeric => Some(Self::NumericArray),
+      Self::NumRange => Some(Self::NumRangeArray),
+      Self::Oid => Some(Self::OidArray),
+      Self::OidVector => Some(Self::OidVectorArray),
+      Self::Path => Some(Self::PathArray),
+      Self::PgLsn => Some(Self::PgLsnArray),
+      Self::PgSnapshot => Some(Self::PgSnapshotArray),
+      Self::Point => Some(Self::PointArray),
+      Self::Polygon => Some(Self::PolygonArray),
+      Self::Record => Some(Self::RecordArray),
+      Self::Refcursor => Some(Self::RefcursorArray),
+      Self::Regclass => Some(Self::RegclassArray),
+      Self::Regcollation => Some(Self::RegcollationArray),
+      Self::Regconfig => Some(Self::RegconfigArray),
+      Self::Regdictionary => Some(Self::RegdictionaryArray),
+      Self::Regnamespace => Some(Self::RegnamespaceArray),
+      Self::Regoper => Some(Self::RegoperArray),
+      Self::Regoperator => Some(Self::RegoperatorArray),
+      Self::Regproc => Some(Self::RegprocArray),
+      Self::Regprocedure => Some(Self::RegprocedureArray),
+      Self::Regrole => Some(Self::RegroleArray),
+      Self::Regtype => Some(Self::RegtypeArray),
+      Self::Text => Some(Self::TextArray),
+      Self::Tid => Some(Self::TidArray),
+      Self::Time => Some(Self::TimeArray),
+      Self::Timestamp => Some(Self::TimestampArray),
+      Self::Timestamptz => Some(Self::TimestamptzArray),
+      Self::Timetz => Some(Self::TimetzArray),
+      Self::Tsquery => Some(Self::TsqueryArray),
+      Self::TsRange => Some(Self::TsRangeArray),
+      Self::TstzRange => Some(Self::TstzRangeArray),
+      Self::TsVector => Some(Self::TsVectorArray),
+      Self::TxidSnapshot => Some(Self::TxidSnapshotArray),
+      Self::Uuid => Some(Self::UuidArray),
+      Self::Varbit => Some(Self::VarbitArray),
+      Self::Varchar => Some(Self::VarcharArray),
+      Self::Xid => Some(Self::XidArray),
+      Self::Xid8 => Some(Self::Xid8Array),
+      Self::Xml => Some(Self::XmlArray),
+
+      Self::AclitemArray
+      | Self::Anyarray
+      | Self::Anycompatiblearray
+      | Self::BitArray
+      | Self::BoolArray
+      | Self::BoxArray
+      | Self::BpcharArray
+      | Self::ByteaArray
+      | Self::CharArray
+      | Self::CidArray
+      | Self::CidrArray
+      | Self::CircleArray
+      | Self::CstringArray
+      | Self::DateArray
+      | Self::DateRangeArray
+      | Self::Float4Array
+      | Self::Float8Array
+      | Self::GtsVectorArray
+      | Self::InetArray
+      | Self::Int2Array
+      | Self::Int2VectorArray
+      | Self::Int4Array
+      | Self::Int4RangeArray
+      | Self::Int8Array
+      | Self::Int8RangeArray
+      | Self::IntervalArray
+      | Self::JsonArray
+      | Self::JsonbArray
+      | Self::JsonpathArray
+      | Self::LineArray
+      | Self::LsegArray
+      | Self::Macaddr8Array
+      | Self::MacaddrArray
+      | Self::MoneyArray
+      | Self::NameArray
+      | Self::NumericArray
+      | Self::NumRangeArray
+      | Self::OidArray
+      | Self::OidVectorArray
+      | Self::PathArray
+      | Self::PgLsnArray
+      | Self::PgSnapshotArray
+      | Self::PointArray
+      | Self::PolygonArray
+      | Self::RecordArray
+      | Self::RefcursorArray
+      | Self::RegclassArray
+      | Self::RegcollationArray
+      | Self::RegconfigArray
+      | Self::RegdictionaryArray
+      | Self::RegnamespaceArray
+      | Self::RegoperArray
+      | Self::RegoperatorArray
+      | Self::RegprocArray
+      | Self::RegprocedureArray
+      | Self::RegroleArray
+      | Self::RegtypeArray
+      | Self::TextArray
+      | Self::TidArray
+      | Self::TimeArray
+      | Self::TimestampArray
+      | Self::TimestamptzArray
+      | Self::TimetzArray
+      | Self::TsqueryArray
+      | Self::TsRangeArray
+      | Self::TstzRangeArray
+      | Self::TsVectorArray
+      | Self::TxidSnapshotArray
+      | Self::UuidArray
+      | Self::VarbitArray
+      | Self::VarcharArray
+      | Self::Xid8Array
+      | Self::XidArray
+      | Self::XmlArray => Some(*self),
+
+      _ => None,
+    }
+  }
+
+  pub(crate) const fn range_ty(&self) -> Option<Self> {
+    match self {
+      Self::Date => Some(Self::DateRange),
+      Self::Int4 => Some(Self::Int4Range),
+      Self::Int8 => Some(Self::Int8Range),
+      Self::Numeric => Some(Self::NumRange),
+      Self::Timestamp => Some(Self::TsRange),
+      Self::Timestamptz => Some(Self::TstzRange),
+
+      Self::AnyRange
+      | Self::AnycompatibleRange
+      | Self::DateRange
+      | Self::Int4Range
+      | Self::Int8Range
+      | Self::NumRange
+      | Self::TsRange
+      | Self::TstzRange => Some(*self),
+
+      _ => None,
+    }
+  }
 }
 
 impl From<Ty> for u32 {

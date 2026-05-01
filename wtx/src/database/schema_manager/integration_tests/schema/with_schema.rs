@@ -23,11 +23,11 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_wtx_schema<DB, E>
   DB: Database<Error = crate::Error>,
   E: SchemaManagement<Database = DB>,
 {
-  c.executor_mut().table_names(buffer_cmd, buffer_idents, "_wtx").await.unwrap();
+  c._executor_mut().table_names(buffer_cmd, buffer_idents, "_wtx").await.unwrap();
   assert_eq!(buffer_idents.len(), 0);
   let _ = _migrate_doc_test(c).await;
 
-  c.executor_mut().table_names(buffer_cmd, buffer_idents, "_wtx").await.unwrap();
+  c._executor_mut().table_names(buffer_cmd, buffer_idents, "_wtx").await.unwrap();
   assert_eq!(buffer_idents.len(), 2);
   buffer_idents.clear();
 }

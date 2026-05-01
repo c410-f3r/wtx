@@ -5,9 +5,9 @@ use core::{
   str,
 };
 
-/// [`ShortSlice`] with a capacity limited by `u8`.
+/// [`ShortStr`] with a capacity limited by `u8`.
 pub type ShortStrU8<'any> = ShortStr<'any, u8>;
-/// [`ShortSlice`] with a capacity limited by `u16`.
+/// [`ShortStr`] with a capacity limited by `u16`.
 pub type ShortStrU16<'any> = ShortStr<'any, u16>;
 
 /// An unaligned structure that has 9~10 bytes in `x86_64`. Useful in places where a bunch of
@@ -54,7 +54,7 @@ where
   #[inline]
   fn deref(&self) -> &Self::Target {
     // SAFETY: Constructors only accept strings
-    unsafe { str::from_utf8_unchecked(self.0.data()) }
+    unsafe { str::from_utf8_unchecked(&self.0) }
   }
 }
 

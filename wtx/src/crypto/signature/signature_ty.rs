@@ -1,6 +1,6 @@
 use crate::crypto::{
-  GlobalEd25519, GlobalP256Signature, GlobalP384Signature, GlobalRsaPssRsaeSha256,
-  GlobalRsaPssRsaeSha384, Signature,
+  Ed25519Global, P256SignatureGlobal, P384SignatureGlobal, RsaPssRsaeSha256Global,
+  RsaPssRsaeSha384Global, Signature as _,
 };
 #[cfg(feature = "asn1")]
 use crate::{
@@ -37,16 +37,16 @@ create_enum! {
 }
 
 impl SignatureTy {
-  /// Calls [`Signature::validate`] according to the current instance value and the selected crypto
-  /// backend.
+  /// Calls the validation method that corresponds to the current instance variant and the selected
+  /// crypto backend.
   #[inline]
   pub fn validate_signature(&self, pk: &[u8], msg: &[u8], signature: &[u8]) -> crate::Result<()> {
     match self {
-      SignatureTy::Ed25519 => GlobalEd25519::validate(pk, msg, signature),
-      SignatureTy::RsaPssRsaeSha256 => GlobalRsaPssRsaeSha256::validate(pk, msg, signature),
-      SignatureTy::RsaPssRsaeSha384 => GlobalRsaPssRsaeSha384::validate(pk, msg, signature),
-      SignatureTy::Secp256r1 => GlobalP256Signature::validate(pk, msg, signature),
-      SignatureTy::Secp384r1 => GlobalP384Signature::validate(pk, msg, signature),
+      SignatureTy::Ed25519 => Ed25519Global::validate(pk, msg, signature),
+      SignatureTy::RsaPssRsaeSha256 => RsaPssRsaeSha256Global::validate(pk, msg, signature),
+      SignatureTy::RsaPssRsaeSha384 => RsaPssRsaeSha384Global::validate(pk, msg, signature),
+      SignatureTy::Secp256r1 => P256SignatureGlobal::validate(pk, msg, signature),
+      SignatureTy::Secp384r1 => P384SignatureGlobal::validate(pk, msg, signature),
     }
   }
 }

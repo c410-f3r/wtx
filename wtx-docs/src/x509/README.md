@@ -2,7 +2,9 @@
 
 The most utilized format to define public key certificates. X.509 is used in TLS connections, e-mail communication, internal corporate structuring and many other cases.
 
-Implementation of <https://datatracker.ietf.org/doc/html/rfc5280>. Passes the `x509-limbo` testsuite (<https://github.com/C2SP/x509-limbo>).
+Implementation of <https://datatracker.ietf.org/doc/html/rfc5280>. Passes a subset of the `x509-limbo` testsuite (<https://github.com/C2SP/x509-limbo>).
+
+To use this functionality, it is necessary to activate the `x509` feature.
 
 ## Unsupported
 

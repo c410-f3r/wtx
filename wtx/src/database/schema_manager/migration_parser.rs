@@ -188,10 +188,9 @@ mod tests {
     let with_incorrect_declaration = parse_unified_migration(s.as_bytes()).unwrap();
     assert!(with_incorrect_declaration.cfg.dbs.is_empty());
 
-    let s = "-- wtx dbs mysql,postgres\n-- wtx IN\nSOMETHING";
+    let s = "-- wtx dbs postgres\n-- wtx IN\nSOMETHING";
     let two_dbs = parse_unified_migration(s.as_bytes()).unwrap();
-    assert_eq!(two_dbs.cfg.dbs[0], DatabaseTy::Mysql);
-    assert_eq!(two_dbs.cfg.dbs[1], DatabaseTy::Postgres);
+    assert_eq!(two_dbs.cfg.dbs[0], DatabaseTy::Postgres);
   }
 
   #[test]

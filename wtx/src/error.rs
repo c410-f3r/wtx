@@ -5,7 +5,7 @@ use crate::{
   codec::{Base64Error, FromRadix10Error, HexError},
   collection::{
     ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
-    ShortStrU8, UninitError, VectorError,
+    ShortBoxStringU16, ShortStrU8, VectorError,
   },
   misc::ArithmeticError,
 };
@@ -36,18 +36,9 @@ macro_rules! associated_element_doc {
 pub enum Error {
   // External - Third parties
   //
-  #[cfg(feature = "aead")]
-  #[doc = associated_element_doc!()]
-  AeadError(aead::Error),
   #[cfg(feature = "argon2")]
   #[doc = associated_element_doc!()]
   Argon2(argon2::Error),
-  #[cfg(feature = "crypto-common")]
-  #[doc = associated_element_doc!()]
-  CryptoCommonInvalidLength(crypto_common::InvalidLength),
-  #[cfg(feature = "elliptic-curve")]
-  #[doc = associated_element_doc!()]
-  EllipticCurveError(elliptic_curve::Error),
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNet(embassy_net::tcp::Error),
@@ -72,15 +63,12 @@ pub enum Error {
   #[cfg(feature = "matchit")]
   #[doc = associated_element_doc!()]
   MatchitInsertError(Box<matchit::InsertError>),
-  #[cfg(feature = "digest")]
+  #[cfg(feature = "crypto-openssl")]
   #[doc = associated_element_doc!()]
-  MacError(digest::MacError),
+  OpensslError(Box<openssl::error::ErrorStack>),
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
-  #[cfg(feature = "rsa")]
-  #[doc = associated_element_doc!()]
-  RsaError(Box<rsa::Error>),
   #[cfg(feature = "rustls")]
   #[doc = associated_element_doc!()]
   RustlsError(Box<rustls::Error>),
@@ -92,13 +80,7 @@ pub enum Error {
   SerdeJson(serde_json::Error),
   #[cfg(feature = "serde_json")]
   #[doc = associated_element_doc!()]
-  SerdeJsonDeserialize(Box<String>),
-  #[cfg(feature = "signature")]
-  #[doc = associated_element_doc!()]
-  Signature(Box<signature::Error>),
-  #[cfg(feature = "spki")]
-  #[doc = associated_element_doc!()]
-  SpkiError(Box<spki::Error>),
+  SerdeJsonDeserialize(ShortBoxStringU16),
   #[cfg(feature = "tokio")]
   #[doc = associated_element_doc!()]
   TokioJoinError(Box<tokio::task::JoinError>),
@@ -134,12 +116,12 @@ pub enum Error {
   /// The specified environment variable was not present in the current
   /// process's environment.
   #[cfg(feature = "std")]
-  VarIsNotPresent(Option<Box<String>>),
+  VarIsNotPresent(ShortBoxStringU16),
   /// The specified environment variable was found, but it did not contain
   /// valid unicode data. The found data is returned as a payload of this
   /// variant.
   #[cfg(feature = "std")]
-  VarIsNotUnicode(Option<Box<String>>),
+  VarIsNotUnicode(ShortBoxStringU16),
   #[doc = associated_element_doc!()]
   Utf8Error(Box<core::str::Utf8Error>),
 
@@ -162,7 +144,7 @@ pub enum Error {
   /// Future must not be polled again after finalization
   FuturePolledAfterFinalization,
   /// Generic error
-  Generic(Box<String>),
+  Generic(ShortBoxStringU16),
   /// Generic static error
   GenericStatic(ShortStrU8<'static>),
   /// It is not possible to add an element into an `Option` because it is already occupied.
@@ -180,13 +162,13 @@ pub enum Error {
   /// A instance could not be constructed because of a missing required variable.
   MissingVar(ShortStrU8<'static>),
   /// A variable does not have an ending quote
-  MissingVarQuote(Box<String>),
+  MissingVarQuote(ShortBoxStringU16),
   /// Something prevented a `mlock` operation
   MlockError,
   /// Something prevented a `munlock` operation
   MunlockError,
   /// A variable does not have an ending quote
-  NoAvailableVars(Box<String>),
+  NoAvailableVars(ShortBoxStringU16),
   /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(ShortStrU8<'static>),
   /// Byte is not an ASCII graphic character
@@ -283,15 +265,6 @@ pub enum Error {
   #[cfg(feature = "http2")]
   #[doc = associated_element_doc!()]
   Http2FlowControlError(crate::http2::Http2Error, u32),
-  #[cfg(feature = "mysql")]
-  #[doc = associated_element_doc!()]
-  MysqlDbError(Box<crate::database::client::mysql::DbError>),
-  #[cfg(feature = "mysql")]
-  #[doc = associated_element_doc!()]
-  MysqlError(crate::database::client::mysql::MysqlError),
-  #[cfg(feature = "pkcs8")]
-  #[doc = associated_element_doc!()]
-  Pkcs8Error(Box<pkcs8::Error>),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
@@ -309,8 +282,6 @@ pub enum Error {
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
-  #[doc = associated_element_doc!()]
-  UninitError(UninitError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -345,15 +316,6 @@ impl From<Error> for () {
   fn from(_: Error) -> Self {}
 }
 
-#[cfg(feature = "aead")]
-impl From<aead::Error> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: aead::Error) -> Self {
-    Self::AeadError(from)
-  }
-}
-
 #[cfg(feature = "argon2")]
 impl From<argon2::Error> for Error {
   #[inline]
@@ -378,23 +340,6 @@ impl From<crate::crypto::CryptoError> for Error {
   #[track_caller]
   fn from(from: crate::crypto::CryptoError) -> Self {
     Self::CryptoError(from)
-  }
-}
-
-#[cfg(feature = "crypto-common")]
-impl From<crypto_common::InvalidLength> for Error {
-  #[inline]
-  #[track_caller]
-  fn from(from: crypto_common::InvalidLength) -> Self {
-    Self::CryptoCommonInvalidLength(from)
-  }
-}
-
-#[cfg(feature = "elliptic-curve")]
-impl From<elliptic_curve::Error> for Error {
-  #[inline]
-  fn from(from: elliptic_curve::Error) -> Self {
-    Self::EllipticCurveError(from)
   }
 }
 
@@ -484,22 +429,6 @@ impl From<std::io::Error> for Error {
   }
 }
 
-#[cfg(feature = "digest")]
-impl From<digest::MacError> for Error {
-  #[inline]
-  fn from(from: digest::MacError) -> Self {
-    Self::MacError(from)
-  }
-}
-
-#[cfg(feature = "mysql")]
-impl From<crate::database::client::mysql::DbError> for Error {
-  #[inline]
-  fn from(from: crate::database::client::mysql::DbError) -> Self {
-    Self::MysqlDbError(from.into())
-  }
-}
-
 impl From<core::num::ParseIntError> for Error {
   #[inline]
   fn from(from: core::num::ParseIntError) -> Self {
@@ -529,19 +458,19 @@ impl From<crate::database::client::postgres::DbError> for Error {
   }
 }
 
+#[cfg(feature = "crypto-openssl")]
+impl From<openssl::error::ErrorStack> for Error {
+  #[inline]
+  fn from(from: openssl::error::ErrorStack) -> Self {
+    Self::OpensslError(from.into())
+  }
+}
+
 #[cfg(feature = "quick-protobuf")]
 impl From<quick_protobuf::Error> for Error {
   #[inline]
   fn from(from: quick_protobuf::Error) -> Self {
     Self::QuickProtobuf(from.into())
-  }
-}
-
-#[cfg(feature = "rsa")]
-impl From<rsa::Error> for Error {
-  #[inline]
-  fn from(from: rsa::Error) -> Self {
-    Self::RsaError(from.into())
   }
 }
 
@@ -574,22 +503,6 @@ impl From<crate::http::SessionError> for Error {
   #[inline]
   fn from(from: crate::http::SessionError) -> Self {
     Self::SessionError(from)
-  }
-}
-
-#[cfg(feature = "signature")]
-impl From<signature::Error> for Error {
-  #[inline]
-  fn from(from: signature::Error) -> Self {
-    Self::Signature(from.into())
-  }
-}
-
-#[cfg(feature = "spki")]
-impl From<spki::Error> for Error {
-  #[inline]
-  fn from(from: spki::Error) -> Self {
-    Self::SpkiError(from.into())
   }
 }
 
@@ -733,22 +646,6 @@ impl From<HexError> for Error {
   }
 }
 
-#[cfg(feature = "mysql")]
-impl From<crate::database::client::mysql::MysqlError> for Error {
-  #[inline]
-  fn from(from: crate::database::client::mysql::MysqlError) -> Self {
-    Self::MysqlError(from)
-  }
-}
-
-#[cfg(feature = "pkcs8")]
-impl From<pkcs8::Error> for Error {
-  #[inline]
-  fn from(from: pkcs8::Error) -> Self {
-    Self::Pkcs8Error(from.into())
-  }
-}
-
 #[cfg(feature = "postgres")]
 impl From<crate::database::client::postgres::PostgresError> for Error {
   #[inline]
@@ -795,13 +692,6 @@ impl From<ArithmeticError> for Error {
   }
 }
 
-impl From<UninitError> for Error {
-  #[inline]
-  fn from(from: UninitError) -> Self {
-    Self::UninitError(from)
-  }
-}
-
 impl From<VectorError> for Error {
   #[inline]
   fn from(from: VectorError) -> Self {
@@ -837,8 +727,9 @@ impl From<Box<dyn Any + Send + 'static>> for Error {
   #[inline]
   fn from(from: Box<dyn Any + Send + 'static>) -> Self {
     let mut string = String::new();
+    string.truncate(1024);
     let _rslt = string.write_fmt(format_args!("{from:?}"));
-    Self::Generic(Box::new(string))
+    Self::Generic(string.try_into().unwrap_or_default())
   }
 }
 
@@ -882,7 +773,9 @@ mod serde {
     where
       T: Display,
     {
-      Self::Generic(msg.to_string().into())
+      let mut string = msg.to_string();
+      string.truncate(1024);
+      Self::Generic(string.try_into().unwrap_or_default())
     }
   }
 }

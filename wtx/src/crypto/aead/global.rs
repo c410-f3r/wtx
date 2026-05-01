@@ -9,30 +9,30 @@ use crate::{
 type Aes128GcmTy = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Aes128GcmRing,
   feature = "crypto-graviola" => crate::crypto::Aes128GcmGraviola,
-  feature = "crypto-rust-crypto" => crate::crypto::Aes128GcmRustCrypto,
   feature = "crypto-aws-lc-rs" => crate::crypto::Aes128GcmAwsLcRs,
-  _ => crate::crypto::AeadStub::<[u8; 16]>
+  feature = "crypto-openssl" => crate::crypto::Aes128GcmOpenssl,
+  _ => crate::crypto::AeadDummy::<[u8; 16]>
 };
 type Aes256GcmTy = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Aes256GcmRing,
   feature = "crypto-graviola" => crate::crypto::Aes256GcmGraviola,
-  feature = "crypto-rust-crypto" => crate::crypto::Aes256GcmRustCrypto,
   feature = "crypto-aws-lc-rs" => crate::crypto::Aes256GcmAwsLcRs,
-  _ => crate::crypto::AeadStub::<[u8; 32]>
+  feature = "crypto-openssl" => crate::crypto::Aes256GcmOpenssl,
+  _ => crate::crypto::AeadDummy::<[u8; 32]>
 };
 type Chacha20Poly1305Ty = cfg_select! {
   feature = "crypto-ring" => crate::crypto::Chacha20Poly1305Ring,
   feature = "crypto-graviola" => crate::crypto::Chacha20Poly1305Graviola,
-  feature = "crypto-rust-crypto" => crate::crypto::Chacha20Poly1305RustCrypto,
   feature = "crypto-aws-lc-rs" => crate::crypto::Chacha20Poly1305AwsLcRs,
-  _ => crate::crypto::AeadStub::<[u8; 32]>
+  feature = "crypto-openssl" => crate::crypto::Chacha20Poly1305Openssl,
+  _ => crate::crypto::AeadDummy::<[u8; 32]>
 };
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Debug)]
-pub struct GlobalAes128GcmTy;
+pub struct Aes128GcmGlobal;
 
-impl Aead for GlobalAes128GcmTy {
+impl Aead for Aes128GcmGlobal {
   type Secret = <Aes128GcmTy as Aead>::Secret;
 
   #[inline]
@@ -62,9 +62,9 @@ impl Aead for GlobalAes128GcmTy {
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Debug)]
-pub struct GlobalAes256GcmTy;
+pub struct Aes256GcmGlobal;
 
-impl Aead for GlobalAes256GcmTy {
+impl Aead for Aes256GcmGlobal {
   type Secret = <Aes256GcmTy as Aead>::Secret;
 
   #[inline]
@@ -94,9 +94,9 @@ impl Aead for GlobalAes256GcmTy {
 
 /// A structure that delegates execution to the selected crypto backend.
 #[derive(Debug)]
-pub struct GlobalChacha20Poly1305Ty;
+pub struct Chacha20Poly1305TyGlobal;
 
-impl Aead for GlobalChacha20Poly1305Ty {
+impl Aead for Chacha20Poly1305TyGlobal {
   type Secret = <Chacha20Poly1305Ty as Aead>::Secret;
 
   #[inline]

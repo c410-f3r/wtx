@@ -5,13 +5,13 @@ use wtx::{
   codec::CodecController,
   collection::Vector,
   database::{
-    DEFAULT_URI_VAR, Identifier,
+    DatabaseUriFromVars, Identifier,
     client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
     schema_manager::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
   },
-  misc::{EnvVars, FromVars, UriRef, find_file},
+  misc::{EnvVars, UriRef, find_file},
   rng::{ChaCha20, CryptoSeedableRng},
 };
 
@@ -19,10 +19,10 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   #[cfg(feature = "schema-manager-dev")]
   let var = {
     wtx::misc::tracing_tree_init(None)?;
-    EnvVars::<DefaultUriVar>::from_available([])?.finish().0
+    EnvVars::<DatabaseUriFromVars>::from_available([])?.finish().uri
   };
   #[cfg(not(feature = "schema-manager-dev"))]
-  let var = EnvVars::<DefaultUriVar>::from_process([])?.finish().0;
+  let var = EnvVars::<DatabaseUriFromVars>::from_process([])?.finish().uri;
 
   let uri = UriRef::new(&var);
   match uri.scheme() {
@@ -40,20 +40,6 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
     _ => return Err(wtx::Error::InvalidUri),
   }
   Ok(())
-}
-
-struct DefaultUriVar(String);
-
-impl FromVars for DefaultUriVar {
-  fn from_vars(vars: impl IntoIterator<Item = (String, String)>) -> wtx::Result<Self> {
-    let mut rslt = None;
-    for (key, value) in vars {
-      if key == DEFAULT_URI_VAR {
-        rslt = Some(value)
-      }
-    }
-    Ok(Self(rslt.ok_or_else(|| wtx::Error::MissingVar(DEFAULT_URI_VAR.into()))?))
-  }
 }
 
 fn toml_file_path(sm: &SchemaManager) -> wtx::Result<Cow<'_, Path>> {

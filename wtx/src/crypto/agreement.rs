@@ -3,16 +3,12 @@ mod aws_lc_rs;
 pub(crate) mod global;
 #[cfg(feature = "crypto-graviola")]
 mod graviola;
-#[cfg(feature = "p256")]
-mod p256;
-#[cfg(feature = "p384")]
-mod p384;
+#[cfg(feature = "crypto-openssl")]
+mod openssl;
 #[cfg(feature = "crypto-ring")]
 mod ring;
-#[cfg(feature = "x25519-dalek")]
-mod x25519_dalek;
 
-use crate::{misc::DefaultArray, rng::CryptoRng};
+use crate::{crypto::dummy_impl_call, misc::DefaultArray, rng::CryptoRng};
 use core::marker::PhantomData;
 
 /// Temporary single-use secret key.
@@ -39,11 +35,11 @@ pub trait Agreement: Sized {
   fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey>;
 }
 
-/// Stub [`Agreement`] implementation used when no backend is enabled.
+/// Dummy [`Agreement`] implementation used when no backend is enabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct AgreementStub<ESK, PK, SS>(PhantomData<(ESK, PK, SS)>);
+pub struct AgreementDummy<ESK, PK, SS>(PhantomData<(ESK, PK, SS)>);
 
-impl<ESK, PK, SS> Agreement for AgreementStub<ESK, PK, SS>
+impl<ESK, PK, SS> Agreement for AgreementDummy<ESK, PK, SS>
 where
   ESK: Default,
   PK: AsRef<[u8]> + DefaultArray,
@@ -55,7 +51,7 @@ where
 
   #[inline]
   fn diffie_hellman(_: Self::EphemeralSecretKey, _: &[u8]) -> crate::Result<Self::SharedSecret> {
-    Ok(Self::SharedSecret::default_array())
+    dummy_impl_call();
   }
 
   #[inline]
@@ -63,11 +59,11 @@ where
   where
     RNG: CryptoRng,
   {
-    Ok(Self::EphemeralSecretKey::default())
+    dummy_impl_call();
   }
 
   #[inline]
   fn public_key(_: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
-    Ok(Self::PublicKey::default_array())
+    dummy_impl_call();
   }
 }

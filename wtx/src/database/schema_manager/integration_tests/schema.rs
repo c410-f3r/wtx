@@ -26,7 +26,7 @@ pub(crate) async fn migrate_works<DB, E>(
   let mut db_migrations = Vector::new();
   c.migrate_from_toml_path(path).await.unwrap();
   let initial = UserMigrationGroup::new("initial", 1);
-  c.executor_mut().migrations(buffer_cmd, &initial, &mut db_migrations).await.unwrap();
+  c._executor_mut().migrations(buffer_cmd, &initial, &mut db_migrations).await.unwrap();
   assert_eq!(db_migrations[0].checksum(), 7573493478190316387);
   assert_eq!(db_migrations[0].uid(), 1);
   assert_eq!(db_migrations[0].name(), "create_author");
@@ -39,7 +39,7 @@ pub(crate) async fn migrate_works<DB, E>(
   assert_eq!(db_migrations.get(4), None);
   let more_stuff = UserMigrationGroup::new("more_stuff", 2);
   db_migrations.clear();
-  c.executor_mut().migrations(buffer_cmd, &more_stuff, &mut db_migrations).await.unwrap();
+  c._executor_mut().migrations(buffer_cmd, &more_stuff, &mut db_migrations).await.unwrap();
   assert_eq!(db_migrations[0].checksum(), 8208328219135761847);
   assert_eq!(db_migrations[0].uid(), 1);
   assert_eq!(db_migrations[0].name(), "create_stuff");
@@ -47,9 +47,9 @@ pub(crate) async fn migrate_works<DB, E>(
   assert_eq!(db_migrations[1].name(), "insert_stuff");
   assert_eq!(db_migrations.get(4), None);
   let mut idents = Vector::new();
-  c.executor_mut().table_names(buffer_cmd, &mut idents, aux.default_schema).await.unwrap();
+  c._executor_mut().table_names(buffer_cmd, &mut idents, aux.default_schema).await.unwrap();
   assert_eq!(idents.len(), 4 + aux.schema_regulator);
   idents.clear();
-  c.executor_mut().table_names(buffer_cmd, &mut idents, aux.wtx_schema).await.unwrap();
+  c._executor_mut().table_names(buffer_cmd, &mut idents, aux.wtx_schema).await.unwrap();
   assert_eq!(idents.len(), wtx_schema_tables);
 }

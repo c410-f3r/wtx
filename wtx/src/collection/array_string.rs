@@ -661,8 +661,8 @@ mod serde {
           E: de::Error,
         {
           let rslt = from_utf8_basic(v);
-          let str = rslt.map_err(|_| E::invalid_value(de::Unexpected::Bytes(v), &self))?;
-          ArrayString::try_from(str).map_err(|_| E::invalid_length(str.len(), &self))
+          let str = rslt.map_err(|_err| E::invalid_value(de::Unexpected::Bytes(v), &self))?;
+          ArrayString::try_from(str).map_err(|_err| E::invalid_length(str.len(), &self))
         }
 
         #[inline]
@@ -670,7 +670,7 @@ mod serde {
         where
           E: de::Error,
         {
-          ArrayString::try_from(str).map_err(|_| E::invalid_length(str.len(), &self))
+          ArrayString::try_from(str).map_err(|_err| E::invalid_length(str.len(), &self))
         }
       }
 

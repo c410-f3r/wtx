@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use crate::collection::ShortBoxStringU16;
 
 /// When a rpc call encounters an error.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
@@ -10,5 +10,5 @@ pub struct JsonRpcResponseError {
   #[cfg(feature = "serde_json")]
   pub data: Option<serde_json::Value>,
   /// Short description of the error.
-  pub message: Box<str>,
+  pub message: ShortBoxStringU16,
 }

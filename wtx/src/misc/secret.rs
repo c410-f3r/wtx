@@ -2,7 +2,7 @@ mod secret_context;
 
 use crate::{
   collection::{Clear, TryExtend},
-  crypto::{Aead, Aes256GcmRustCrypto, Hash, Sha256DigestRustCrypto},
+  crypto::{Aead, Aes256GcmGlobal, Hash, Sha256DigestGlobal},
   misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
   rng::CryptoRng,
 };
@@ -42,7 +42,7 @@ impl Secret {
       let mut secret_key = [0; 32];
       let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
       fill_secret_key(&salt, &secret_context, &mut secret_key_locked)?;
-      Aes256GcmRustCrypto::encrypt_in_place_detached(
+      Aes256GcmGlobal::encrypt_in_place_detached(
         &[],
         &mut data_locked,
         rng,
@@ -88,7 +88,7 @@ impl Secret {
     let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
     fill_secret_key(&self.salt, &self.secret_context, &mut secret_key_locked)?;
     let data = buffer.lease_mut();
-    let plaintext = Aes256GcmRustCrypto::decrypt_in_place(&[], data, *secret_key_locked)?;
+    let plaintext = Aes256GcmGlobal::decrypt_in_place(&[], data, *secret_key_locked)?;
     Ok(fun(SensitiveBytes::new_locked(plaintext)?))
   }
 }
@@ -171,7 +171,7 @@ fn fill_secret_key(
   secret_context: &SecretContext,
   secret_key: &mut SensitiveBytes<&mut [u8; 32]>,
 ) -> crate::Result<()> {
-  let mut array = Sha256DigestRustCrypto::digest(
+  let mut array = Sha256DigestGlobal::digest(
     [&salt[..]].into_iter().chain(secret_context.0.iter().map(|el| &**el)),
   );
   secret_key.copy_from_slice(&**SensitiveBytes::new_locked(&mut array)?);

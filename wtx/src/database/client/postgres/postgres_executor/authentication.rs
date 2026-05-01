@@ -1,7 +1,7 @@
 use crate::{
   codec::{Base64Alphabet, base64_decode},
   collection::{ArrayVectorU8, Vector},
-  crypto::{Hmac as _, HmacSha256RustCrypto},
+  crypto::{Hmac as _, HmacSha256Global},
   database::{
     Identifier,
     client::{
@@ -207,12 +207,12 @@ where
       let mut decoded_buffer = [0; 68];
       let decoded = base64_decode(Base64Alphabet::Standard, verifier_slice, &mut decoded_buffer)?;
       let server_key = {
-        let mut mac = HmacSha256RustCrypto::from_key(&salted_password)?;
+        let mut mac = HmacSha256Global::from_key(&salted_password)?;
         mac.update(b"Server Key");
         mac.digest()
       };
 
-      let mut mac_verifier = HmacSha256RustCrypto::from_key(&server_key[..])?;
+      let mut mac_verifier = HmacSha256Global::from_key(&server_key[..])?;
       mac_verifier.update(&auth_data);
       mac_verifier.verify(decoded)?;
     }
@@ -250,14 +250,14 @@ where
 
 fn salted_password(len: u32, salt: &[u8], str: &str) -> crate::Result<[u8; 32]> {
   let mut array: [u8; 32] = {
-    let mut hmac = HmacSha256RustCrypto::from_key(str.as_bytes())?;
+    let mut hmac = HmacSha256Global::from_key(str.as_bytes())?;
     hmac.update(salt);
     hmac.update(&[0, 0, 0, 1]);
     hmac.digest()
   };
   let mut salted_password = array;
   for _ in 1..len {
-    let mut mac = HmacSha256RustCrypto::from_key(str.as_bytes())?;
+    let mut mac = HmacSha256Global::from_key(str.as_bytes())?;
     mac.update(&array);
     array = mac.digest();
     for (sp_elem, array_elem) in salted_password.iter_mut().zip(array) {

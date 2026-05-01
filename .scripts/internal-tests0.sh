@@ -7,4 +7,3 @@ $rt clippy -Aclippy::as_conversions,-Aclippy::cfg_not_test,-Aclippy::float_arith
 
 MIRIFLAGS="-Zmiri-disable-isolation" cargo miri test --features http2,postgres,web-socket -p wtx
 
-$rt check-generic wtx

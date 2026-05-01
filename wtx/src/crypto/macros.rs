@@ -10,9 +10,9 @@ macro_rules! common_aead_functions {
       secret: &[u8; S],
     ) -> crate::Result<&'encrypted mut [u8]> {
       let (nonce, content) = split_nonce_content(encrypted_data, error)?;
-      let bytes = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_| error)?)
+      let bytes = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_err| error)?)
         .open_in_place(Nonce::assume_unique_for_key(nonce), Aad::from(associated_data), content)
-        .map_err(|_| error)?;
+        .map_err(|_err| error)?;
       Ok(bytes)
     }
 
@@ -30,13 +30,13 @@ macro_rules! common_aead_functions {
     where
       RNG: CryptoRng,
     {
-      let local_tag = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_| error)?)
+      let local_tag = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_err| error)?)
         .seal_in_place_separate_tag(
           Nonce::assume_unique_for_key(generate_nonce(nonce, rng)),
           Aad::from(associated_data),
           plaintext,
         )
-        .map_err(|_| error)?
+        .map_err(|_err| error)?
         .as_ref()
         .try_into()?;
       write_tag(local_tag, tag);

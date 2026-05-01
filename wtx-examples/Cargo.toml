@@ -1,11 +1,6 @@
 # Database Examples
 
 [[example]]
-name = "database-client-mysql"
-path = "database/database-client-mysql.rs"
-required-features = ["database-client-mysql"]
-
-[[example]]
 name = "database-client-postgres"
 path = "database/database-client-postgres.rs"
 required-features = ["database-client-postgres"]
@@ -148,15 +143,14 @@ serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
-wtx = { default-features = false, features = ["getrandom", "nightly", "tokio"], path = "../wtx" }
+wtx = { default-features = false, features = ["crypto-ring", "getrandom", "nightly", "tokio"], path = "../wtx" }
 
 [features]
-database-client-mysql = ["mysql"]
 database-client-postgres = ["postgres"]
 database-client-postgres-batch = ["postgres"]
 database-client-postgres-composite-type = ["postgres"]
 database-client-postgres-enum = ["postgres"]
-database-client-tests = ["postgres", "wtx/executor", "wtx/macros", "wtx/schema-manager-dev"]
+database-client-tests = ["postgres", "wtx/database-tests"]
 
 grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
@@ -184,8 +178,7 @@ web-socket-server = ["tokio-rustls", "wtx/web-socket-handshake"]
 
 # Common features used by this crate
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
-mysql = ["wtx/mysql"]
-postgres = ["wtx/postgres"]
+postgres = ["wtx/crypto-ring", "wtx/postgres"]
 tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 
 [package]

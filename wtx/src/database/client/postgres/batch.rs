@@ -169,11 +169,11 @@ where
       let mut sw = SuffixWriterFbvm::from(net_buffer.suffix_writer());
       if !is_already_known {
         let stmt_cmd = sc.cmd().ok_or_else(|| E::from(DatabaseError::UnknownStatementId.into()))?;
-        PostgresExecutor::<E, EB, S>::write_stmt_prepare::<false>(
+        PostgresExecutor::<E, EB, S>::write_stmt_prepare::<_, false>(
+          &rv,
           stmt_cmd,
           &stmt_cmd_id_array,
           &mut sw,
-          &[],
         )?;
       }
       PostgresExecutor::<E, EB, S>::write_stmt_bind::<_, false>(rv, &stmt_cmd_id_array, &mut sw)?;

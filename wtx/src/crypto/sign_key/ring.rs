@@ -39,7 +39,7 @@ impl SignKey for P256SignKeyRing {
     let rng = SystemRandom::new();
     Ok(Self(
       EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, bytes, &rng)
-        .map_err(|_| CryptoError::SignKeyError)?,
+        .map_err(|_err| CryptoError::SignKeyError)?,
     ))
   }
 
@@ -49,7 +49,7 @@ impl SignKey for P256SignKeyRing {
     RNG: CryptoRng,
   {
     let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &SystemRandom::new())
-      .map_err(|_| CryptoError::SignKeyError)?;
+      .map_err(|_err| CryptoError::SignKeyError)?;
     Self::from_pkcs8(pkcs8.as_ref())
   }
 }
@@ -59,7 +59,7 @@ impl SignKey for P384SignKeyRing {
   fn from_pkcs8(bytes: &[u8]) -> crate::Result<Self> {
     Ok(Self(
       EcdsaKeyPair::from_pkcs8(&ECDSA_P384_SHA384_ASN1_SIGNING, bytes, &SystemRandom::new())
-        .map_err(|_| CryptoError::SignKeyError)?,
+        .map_err(|_err| CryptoError::SignKeyError)?,
     ))
   }
 
@@ -69,7 +69,7 @@ impl SignKey for P384SignKeyRing {
     RNG: CryptoRng,
   {
     let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P384_SHA384_ASN1_SIGNING, &SystemRandom::new())
-      .map_err(|_| CryptoError::SignKeyError)?;
+      .map_err(|_err| CryptoError::SignKeyError)?;
     Self::from_pkcs8(pkcs8.as_ref())
   }
 }
@@ -77,7 +77,7 @@ impl SignKey for P384SignKeyRing {
 impl SignKey for RsaPssSignKeySha256Ring {
   #[inline]
   fn from_pkcs8(bytes: &[u8]) -> crate::Result<Self> {
-    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_err| CryptoError::SignKeyError)?))
   }
 
   #[inline]
@@ -92,7 +92,7 @@ impl SignKey for RsaPssSignKeySha256Ring {
 impl SignKey for RsaPssSignKeySha384Ring {
   #[inline]
   fn from_pkcs8(bytes: &[u8]) -> crate::Result<Self> {
-    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_err| CryptoError::SignKeyError)?))
   }
 
   #[inline]

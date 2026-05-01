@@ -73,7 +73,7 @@ impl SignKey for RsaPssSignKeySha256Graviola {
   where
     RNG: CryptoRng,
   {
-    Ok(Self(rsa::SigningKey::generate(KeySize::Rsa2048).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(rsa::SigningKey::generate(KeySize::Rsa2048).map_err(|_err| CryptoError::SignKeyError)?))
   }
 }
 
@@ -88,6 +88,6 @@ impl SignKey for RsaPssSignKeySha384Graviola {
   where
     RNG: CryptoRng,
   {
-    Ok(Self(rsa::SigningKey::generate(KeySize::Rsa4096).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(rsa::SigningKey::generate(KeySize::Rsa4096).map_err(|_err| CryptoError::SignKeyError)?))
   }
 }

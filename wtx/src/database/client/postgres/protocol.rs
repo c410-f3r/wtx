@@ -1,10 +1,10 @@
 use crate::{
   codec::{Base64Alphabet, U64String, base64_encode},
   collection::Vector,
-  crypto::{Hash, Hmac, HmacSha256RustCrypto, Sha256DigestRustCrypto},
+  crypto::{Hash, Hmac, HmacSha256Global, Sha256DigestGlobal},
   database::{
     RecordValues,
-    client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError},
+    client::postgres::{Config, EncodeWrapper, Oid, Postgres, PostgresError, Ty},
   },
   misc::{
     SuffixWriterFbvm,
@@ -118,7 +118,7 @@ pub(crate) fn initial_conn_msg(
   sw: &mut SuffixWriterFbvm<'_>,
 ) -> crate::Result<()> {
   i32_write(CounterWriterBytesTy::IncludesLen, None, sw, |local_sw| {
-    local_sw.extend_from_slice(&0b11_0000_0000_0000_0000i32.to_be_bytes())?;
+    local_sw.extend_from_slice(&196_608i32.to_be_bytes())?;
     local_sw.extend_from_slices_each_c(&[b"user", config.user.as_bytes()])?;
     local_sw.extend_from_slices_each_c(&[b"database", config.db.as_bytes()])?;
     if !config.application_name.is_empty() {
@@ -138,18 +138,33 @@ pub(crate) fn initial_conn_msg(
   })
 }
 
-pub(crate) fn parse(
-  cmd: &str,
+pub(crate) fn parse<E, RV>(
+  rv: &RV,
+  stmt_cmd: &str,
+  stmt_cmd_id_array: &U64String,
   sw: &mut SuffixWriterFbvm<'_>,
-  iter: impl IntoIterator<Item = Oid>,
-  name: &U64String,
-) -> crate::Result<()> {
+) -> Result<(), E>
+where
+  E: From<crate::Error>,
+  RV: RecordValues<Postgres<E>>,
+{
   i32_write(CounterWriterBytesTy::IncludesLen, Some(b'P'), sw, |local_sw| {
-    local_sw.extend_from_slices_each_c(&[name.as_bytes(), cmd.as_bytes()])?;
-    i16_write_iter(CounterWriterIterTy::Elements, iter, None, local_sw, |ty, local_local_sw| {
-      local_local_sw.extend_from_slice(&ty.to_be_bytes())?;
+    local_sw.extend_from_slices_each_c(&[stmt_cmd_id_array.as_bytes(), stmt_cmd.as_bytes()])?;
+    let idx = local_sw.len();
+    local_sw.extend_from_slice(&[0, 0])?;
+    let mut counter: i16 = 0;
+    rv.walk(|_is_null, ty| {
+      let oid: Oid = ty.unwrap_or(Ty::Custom(0)).into();
+      local_sw.extend_from_slice(&oid.to_be_bytes())?;
+      counter = counter.wrapping_add(1);
       Ok(())
-    })
+    })?;
+    if let Some([a, b, ..]) = local_sw.curr_bytes_mut().get_mut(idx..) {
+      let [c, d] = counter.to_be_bytes();
+      *a = c;
+      *b = d;
+    }
+    Ok(())
   })
 }
 
@@ -198,14 +213,14 @@ pub(crate) fn sasl_second(
     let _ = auth_data.extend_from_copyable_slices([&b","[..], local_bytes])?;
 
     let client_key: [u8; 32] = {
-      let mut mac = HmacSha256RustCrypto::from_key(salted_password)?;
+      let mut mac = HmacSha256Global::from_key(salted_password)?;
       mac.update(b"Client Key");
       mac.digest()
     };
 
     let client_signature = {
-      let stored_client_key: [u8; 32] = Sha256DigestRustCrypto::digest([client_key.as_slice()]);
-      let mut hmac = HmacSha256RustCrypto::from_key(&stored_client_key)?;
+      let stored_client_key: [u8; 32] = Sha256DigestGlobal::digest([client_key.as_slice()]);
+      let mut hmac = HmacSha256Global::from_key(&stored_client_key)?;
       hmac.update(auth_data);
       hmac.digest()
     };

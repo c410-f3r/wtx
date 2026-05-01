@@ -1,6 +1,5 @@
 use crate::{
-  calendar::timestamp_str,
-  codec::U64String,
+  codec::{U64String, u64_string},
   collection::{TryExtend, Vector},
   database::{
     StmtCmd,
@@ -19,8 +18,9 @@ use crate::{
     ConnectionState, Either, LeaseMut, SuffixWriterFbvm, Usize, net::PartitionedFilledBuffer,
   },
   stream::Stream,
+  sync::AtomicU64,
 };
-use core::ops::Range;
+use core::{ops::Range, sync::atomic::Ordering};
 
 impl<E, EB, S> PostgresExecutor<E, EB, S>
 where
@@ -86,8 +86,9 @@ where
         MessageTy::ReadyForQuery => break,
         MessageTy::RowDescription(columns_len, mut rd) => {
           if !B::IS_UNIT {
-            let timestamp_nanos_str = timestamp_str(|dur| dur.as_nanos())?;
-            let stmt_cmd_id = timestamp_nanos_str.1.as_str().hash(stmts.hasher_mut());
+            static ID: AtomicU64 = AtomicU64::new(1);
+            let timestamp_nanos_str = u64_string(ID.fetch_add(1, Ordering::Relaxed));
+            let stmt_cmd_id = timestamp_nanos_str.as_str().hash(stmts.hasher_mut());
             let mut builder = stmts
               .builder((), {
                 async fn fun(_: &mut (), _: StatementsMisc<U64String>) -> crate::Result<()> {
@@ -99,7 +100,7 @@ where
             let _ = builder.expand(columns_len.into(), dummy_stmt_value())?;
             stmt_idx = Some(builder.build(
               stmt_cmd_id,
-              StatementsMisc::new(timestamp_nanos_str.1, columns_len.into(), 0, 0),
+              StatementsMisc::new(timestamp_nanos_str, columns_len.into(), 0, 0),
             )?);
             row_description(columns_len, &mut rd, |_, _| Ok(()))?;
           }

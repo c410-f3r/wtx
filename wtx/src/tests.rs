@@ -7,7 +7,6 @@ use wtx::misc::EnvVars;
 #[allow(unused, reason = "depends on feature")]
 #[derive(Debug, wtx::FromVars)]
 pub(crate) struct Vars {
-  pub(crate) database_uri_mysql: String,
   pub(crate) database_uri_postgres: String,
 }
 

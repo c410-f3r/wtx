@@ -15,9 +15,6 @@ mv ./target/release/x509-limbo /tmp/graviola
 cargo run --bin x509-limbo --features x509-limbo,crypto-ring --profile release
 mv ./target/release/x509-limbo /tmp/ring
 
-cargo run --bin x509-limbo --features x509-limbo,crypto-rust-crypto --profile release
-mv ./target/release/x509-limbo /tmp/rust-crypto
-
 if [ "$ARG" == "bench" ]; then
-    hyperfine /tmp/aws-lc-rs /tmp/graviola /tmp/ring /tmp/rust-crypto
+    hyperfine /tmp/aws-lc-rs /tmp/graviola /tmp/ring
 fi;

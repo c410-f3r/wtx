@@ -39,14 +39,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - scripts: integration-tests
-            db_uri: 'mysql://wtx:wtx@localhost:3306/wtx'
-          - scripts: integration-tests-mysql
-            db_uri: 'mysql://wtx:wtx@localhost:3307/wtx'
-          - scripts: integration-tests-mysql
-            db_uri: 'mysql://wtx:wtx@localhost:3308/wtx'
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -55,9 +47,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt install docker-compose -y
       - run: docker compose -f .test-utils/docker-compose.yml up -d --wait
-      - run: .scripts/${{ matrix.scripts }}.sh
+      - run: .scripts/integration-tests.sh
         env:
-          DATABASE_URI_MYSQL: ${{ matrix.db_uri }}
           DATABASE_URI_POSTGRES: postgres://wtx_scram:wtx@localhost:5432/wtx
 
   other-tests:

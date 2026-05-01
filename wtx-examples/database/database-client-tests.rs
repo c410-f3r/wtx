@@ -32,9 +32,9 @@ mod tests {
     conn
       .execute_ignored(
         "
-        CREATE TABLE foo(id INT PRIMARY KEY, description TEXT NOT NULL);
-        INSERT INTO foo VALUES (1, 'BAR!');
-    ",
+          CREATE TABLE foo(id INT PRIMARY KEY, description TEXT NOT NULL);
+          INSERT INTO foo VALUES (1, 'BAR!');
+        ",
       )
       .await
       .unwrap();

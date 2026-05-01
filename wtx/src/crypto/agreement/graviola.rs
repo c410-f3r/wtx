@@ -15,10 +15,10 @@ impl Agreement for P256Graviola {
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
     let pk_bytes: &[u8; 65] =
-      other_participant_pk.try_into().map_err(|_| CryptoError::PublicKeyAgreementError)?;
+      other_participant_pk.try_into().map_err(|_err| CryptoError::PublicKeyAgreementError)?;
     let pk = p256::PublicKey::from_x962_uncompressed(pk_bytes)
-      .map_err(|_| CryptoError::PublicKeyAgreementError)?;
-    let shared = esk.diffie_hellman(&pk).map_err(|_| CryptoError::PublicKeyAgreementError)?;
+      .map_err(|_err| CryptoError::PublicKeyAgreementError)?;
+    let shared = esk.diffie_hellman(&pk).map_err(|_err| CryptoError::PublicKeyAgreementError)?;
     Ok(AsRefWrapper(shared))
   }
 
@@ -47,10 +47,10 @@ impl Agreement for P384Graviola {
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
     let pk_bytes: &[u8; 97] =
-      other_participant_pk.try_into().map_err(|_| CryptoError::PublicKeyAgreementError)?;
+      other_participant_pk.try_into().map_err(|_err| CryptoError::PublicKeyAgreementError)?;
     let pk = p384::PublicKey::from_x962_uncompressed(pk_bytes)
-      .map_err(|_| CryptoError::PublicKeyAgreementError)?;
-    let shared = esk.diffie_hellman(&pk).map_err(|_| CryptoError::PublicKeyAgreementError)?;
+      .map_err(|_err| CryptoError::PublicKeyAgreementError)?;
+    let shared = esk.diffie_hellman(&pk).map_err(|_err| CryptoError::PublicKeyAgreementError)?;
     Ok(AsRefWrapper(shared))
   }
 
@@ -79,9 +79,9 @@ impl Agreement for X25519Graviola {
     other_participant_pk: &[u8],
   ) -> crate::Result<Self::SharedSecret> {
     let pk_bytes: &[u8; 32] =
-      other_participant_pk.try_into().map_err(|_| CryptoError::PublicKeyAgreementError)?;
+      other_participant_pk.try_into().map_err(|_err| CryptoError::PublicKeyAgreementError)?;
     let pk = x25519::PublicKey::from_array(pk_bytes);
-    let shared = esk.diffie_hellman(&pk).map_err(|_| CryptoError::PublicKeyAgreementError)?;
+    let shared = esk.diffie_hellman(&pk).map_err(|_err| CryptoError::PublicKeyAgreementError)?;
     Ok(AsRefWrapper(shared))
   }
 

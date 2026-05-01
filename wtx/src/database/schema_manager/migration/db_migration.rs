@@ -54,44 +54,6 @@ impl DbMigration {
   }
 }
 
-#[cfg(feature = "mysql")]
-impl<'exec, E> crate::database::FromRecords<'exec, crate::database::client::mysql::Mysql<E>>
-  for DbMigration
-where
-  E: From<crate::Error>,
-{
-  const FIELDS: u16 = 8;
-  const ID_IDX: Option<usize> = None;
-  type IdTy = ();
-
-  #[inline]
-  fn from_records(
-    curr_params: &mut crate::database::FromRecordsParams<
-      crate::database::client::mysql::MysqlRecord<'exec, E>,
-    >,
-    _: &crate::database::client::mysql::MysqlRecords<'exec, E>,
-  ) -> Result<Self, E> {
-    use crate::database::Record as _;
-    let rslt = Self {
-      common: MigrationCommon {
-        checksum: checksum_from_bytes(curr_params.curr_record.decode("checksum")?)?,
-        name: curr_params.curr_record.decode::<_, &str>("name")?.try_into()?,
-        repeatability: from_u32(curr_params.curr_record.decode_opt("repeatability")?),
-        uid: curr_params.curr_record.decode("uid")?,
-      },
-      created_on: curr_params.curr_record.decode("created_on")?,
-      db_ty: DatabaseTy::Mysql,
-      group: DbMigrationGroup::new(
-        curr_params.curr_record.decode::<_, &str>("mg_name")?.try_into()?,
-        curr_params.curr_record.decode("mg_uid")?,
-        curr_params.curr_record.decode("mg_version")?,
-      ),
-    };
-    curr_params.inc_consumed_records(1);
-    Ok(rslt)
-  }
-}
-
 #[cfg(feature = "postgres")]
 impl<'exec, E> crate::database::FromRecords<'exec, crate::database::client::postgres::Postgres<E>>
   for DbMigration
@@ -137,7 +99,7 @@ impl fmt::Display for DbMigration {
   }
 }
 
-#[cfg(any(feature = "mysql", feature = "postgres"))]
+#[cfg(feature = "postgres")]
 fn checksum_from_bytes(bytes: &[u8]) -> crate::Result<u64> {
   use crate::codec::FromRadix10;
   Ok(
@@ -146,7 +108,7 @@ fn checksum_from_bytes(bytes: &[u8]) -> crate::Result<u64> {
   )
 }
 
-#[cfg(any(feature = "mysql", feature = "postgres"))]
+#[cfg(feature = "postgres")]
 fn from_u32(n: Option<u32>) -> Option<crate::database::schema_manager::Repeatability> {
   match n? {
     0 => Some(crate::database::schema_manager::Repeatability::Always),

@@ -39,7 +39,7 @@ impl SignKey for P256SignKeyAwsLcRs {
   fn from_pkcs8(bytes: &[u8]) -> crate::Result<Self> {
     Ok(Self(
       EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, bytes)
-        .map_err(|_| CryptoError::SignKeyError)?,
+        .map_err(|_err| CryptoError::SignKeyError)?,
     ))
   }
 
@@ -49,7 +49,7 @@ impl SignKey for P256SignKeyAwsLcRs {
     RNG: CryptoRng,
   {
     let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &SystemRandom::new())
-      .map_err(|_| CryptoError::SignKeyError)?;
+      .map_err(|_err| CryptoError::SignKeyError)?;
     Self::from_pkcs8(pkcs8.as_ref())
   }
 }
@@ -59,7 +59,7 @@ impl SignKey for P384SignKeyAwsLcRs {
   fn from_pkcs8(bytes: &[u8]) -> crate::Result<Self> {
     Ok(Self(
       EcdsaKeyPair::from_pkcs8(&ECDSA_P384_SHA384_ASN1_SIGNING, bytes)
-        .map_err(|_| CryptoError::SignKeyError)?,
+        .map_err(|_err| CryptoError::SignKeyError)?,
     ))
   }
 
@@ -69,7 +69,7 @@ impl SignKey for P384SignKeyAwsLcRs {
     RNG: CryptoRng,
   {
     let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P384_SHA384_ASN1_SIGNING, &SystemRandom::new())
-      .map_err(|_| CryptoError::SignKeyError)?;
+      .map_err(|_err| CryptoError::SignKeyError)?;
     Self::from_pkcs8(pkcs8.as_ref())
   }
 }
@@ -77,7 +77,7 @@ impl SignKey for P384SignKeyAwsLcRs {
 impl SignKey for RsaPssSignKeySha256AwsLcRs {
   #[inline]
   fn from_pkcs8(bytes: &[u8]) -> crate::Result<Self> {
-    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_err| CryptoError::SignKeyError)?))
   }
 
   #[inline]
@@ -85,14 +85,14 @@ impl SignKey for RsaPssSignKeySha256AwsLcRs {
   where
     RNG: CryptoRng,
   {
-    Ok(Self(RsaKeyPair::generate(KeySize::Rsa2048).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(RsaKeyPair::generate(KeySize::Rsa2048).map_err(|_err| CryptoError::SignKeyError)?))
   }
 }
 
 impl SignKey for RsaPssSignKeySha384AwsLcRs {
   #[inline]
   fn from_pkcs8(bytes: &[u8]) -> crate::Result<Self> {
-    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(RsaKeyPair::from_pkcs8(bytes).map_err(|_err| CryptoError::SignKeyError)?))
   }
 
   #[inline]
@@ -100,6 +100,6 @@ impl SignKey for RsaPssSignKeySha384AwsLcRs {
   where
     RNG: CryptoRng,
   {
-    Ok(Self(RsaKeyPair::generate(KeySize::Rsa4096).map_err(|_| CryptoError::SignKeyError)?))
+    Ok(Self(RsaKeyPair::generate(KeySize::Rsa4096).map_err(|_err| CryptoError::SignKeyError)?))
   }
 }

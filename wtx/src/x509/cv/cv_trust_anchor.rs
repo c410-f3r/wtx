@@ -8,7 +8,7 @@ use crate::{
   x509::{
     Certificate, FlaggedExtension, NameVector, SubjectPublicKeyInfo, TbsCertificate, Validity,
     X509CvError,
-    cv::{validate_common_static, validate_ica_static},
+    cv::validate_ica_static,
     extensions::{
       AuthorityKeyIdentifier, BasicConstraints, KeyUsage, NameConstraints, SubjectKeyIdentifier,
     },
@@ -153,6 +153,7 @@ impl<'bytes> Parts<'bytes> {
       };
     }
 
+    let is_self_signed = tbs.issuer == tbs.subject;
     let mut authority_key_identifier = None;
     let mut basic_constraints = None;
     let mut has_unknown_critical_extension = false;
@@ -207,7 +208,6 @@ impl<'bytes> Parts<'bytes> {
     }
 
     let mut last_err = None;
-    let _ = validate_common_static(basic_constraints, key_usage, &mut last_err);
     let _ = validate_ica_static(basic_constraints, &mut last_err, &tbs.subject);
     if let Some(err) = last_err {
       return Err(err.into());
@@ -216,7 +216,7 @@ impl<'bytes> Parts<'bytes> {
     Ok(Self {
       authority_key_identifier,
       has_unknown_critical_extension,
-      is_self_signed: tbs.issuer == tbs.subject,
+      is_self_signed,
       key_usage,
       name_constraints,
       subject_key_identifier,
