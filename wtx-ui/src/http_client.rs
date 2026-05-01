@@ -1,4 +1,5 @@
 use crate::clap::HttpClient;
+use wtx::tls::CipherSuiteTy::Aes128GcmSha256;
 use std::{fs::OpenOptions, io::Write};
 use wtx::{
   http::{
@@ -6,6 +7,8 @@ use wtx::{
     client_pool::ClientPoolBuilder,
   },
   misc::{UriRef, from_utf8_basic, str_split_once1, tracing_tree_init},
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::TlsModeVerifyFull,
 };
 
 pub(crate) async fn http_client(http_client: HttpClient) {
@@ -39,7 +42,9 @@ pub(crate) async fn http_client(http_client: HttpClient) {
   if let Some(elem) = data {
     rrb.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
   }
-  let client = ClientPoolBuilder::tokio_rustls(1).build();
+  let client = ClientPoolBuilder::tokio(1)
+    .aux((), |_: &()| TlsModeVerifyFull)
+    .build(ChaCha20::from_std_random().unwrap());
   let res = client
     .send_req_recv_res(ReqBuilder::method(method, UriRef::new(uri.as_str())), rrb)
     .await

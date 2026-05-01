@@ -142,8 +142,7 @@ quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
-tokio-rustls = { default-features = false, optional = true, version = "0.26" }
-wtx = { default-features = false, features = ["crypto-ring", "getrandom", "nightly", "tokio"], path = "../wtx" }
+wtx = { default-features = false, features = ["crypto-ring", "getrandom", "macros", "nightly"], path = "../wtx" }
 
 [features]
 database-client-postgres = ["postgres"]
@@ -153,7 +152,7 @@ database-client-postgres-enum = ["postgres"]
 database-client-tests = ["postgres", "wtx/database-tests"]
 
 grpc-client = ["grpc", "wtx/grpc-client"]
-grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
+grpc-server = ["grpc", "wtx/grpc-server", "wtx/nightly"]
 
 http-server-framework = ["serde", "serde_json", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres"]
 http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
@@ -161,7 +160,7 @@ http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
 http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/macros", "wtx/nightly", "wtx/postgres"]
 
 http2-client = ["wtx/http2"]
-http2-server = ["tokio-rustls", "wtx/http2", "wtx/nightly", "wtx/web-socket"]
+http2-server = ["wtx/http2", "wtx/nightly", "wtx/web-socket"]
 
 client-api-framework = ["serde", "wtx/client-api-framework", "wtx/http-client-pool", "wtx/macros", "wtx/serde_json", "wtx/web-socket-handshake"]
 environment-variables = ["wtx/macros", "wtx/std"]
@@ -171,15 +170,14 @@ secret = ["wtx/secret"]
 x509 = ["wtx/x509"]
 
 web-socket-client = ["wtx/web-socket-handshake"]
-web-socket-client-concurrent = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
-web-socket-client-concurrent-channel = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
-web-socket-client-concurrent-mutex = ["tokio-rustls", "wtx/web-socket-handshake", "wtx/webpki-roots"]
-web-socket-server = ["tokio-rustls", "wtx/web-socket-handshake"]
+web-socket-client-concurrent = ["wtx/web-socket-handshake"]
+web-socket-client-concurrent-channel = ["wtx/web-socket-handshake"]
+web-socket-client-concurrent-mutex = ["wtx/web-socket-handshake"]
+web-socket-server = ["wtx/web-socket-handshake"]
 
 # Common features used by this crate
 grpc = ["pb-rs", "quick-protobuf", "wtx/grpc", "wtx/quick-protobuf"]
 postgres = ["wtx/crypto-ring", "wtx/postgres"]
-tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 
 [package]
 edition = "2024"

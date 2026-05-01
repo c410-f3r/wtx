@@ -2,10 +2,15 @@
 
 #[cfg(feature = "http2")]
 pub(crate) mod bytes_transfer;
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "postgres", feature = "tls"))]
 pub(crate) mod counter_writer;
 mod hints;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(
+  feature = "http2",
+  feature = "postgres",
+  feature = "tls",
+  feature = "web-socket"
+))]
 pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
@@ -16,7 +21,12 @@ mod default_array;
 mod either;
 mod enum_var_strings;
 mod env_vars;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(
+  feature = "http2",
+  feature = "postgres",
+  feature = "tls",
+  feature = "web-socket"
+))]
 mod filled_buffer;
 mod fn_fut;
 mod from_vars;
@@ -34,8 +44,6 @@ mod secret;
 mod sensitive_bytes;
 mod single_type_storage;
 mod suffix_writer;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
 mod try_arithmetic;
 mod tuple_impls;
 mod uri;
@@ -43,8 +51,6 @@ mod usize;
 mod utf8_errors;
 mod wrapper;
 
-#[cfg(feature = "tokio-rustls")]
-pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 pub use ascii_graphic::AsciiGraphic;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};

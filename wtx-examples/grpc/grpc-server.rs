@@ -24,9 +24,8 @@ async fn main() -> wtx::Result<()> {
   )?;
   ServerFrameworkBuilder::new(HttpRecvParams::with_optioned_params(), router)
     .with_stream_aux(|_| Ok(QuickProtobuf))
-    .tokio_rustls(
-      (wtx_examples::CERT, wtx_examples::KEY),
-      &wtx_examples::host_from_args(),
+    .tokio(
+      &wtx_instances::host_from_args(),
       |error| eprintln!("{error}"),
       |_| Ok(()),
       |_| Ok(()),

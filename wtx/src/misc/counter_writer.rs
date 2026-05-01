@@ -5,7 +5,6 @@ use crate::{
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum CounterWriterIterTy {
-  #[expect(dead_code, reason = "TLS 1.3")]
   Bytes(CounterWriterBytesTy),
   Elements,
 }
@@ -159,10 +158,13 @@ macro_rules! impl_trait {
   };
 }
 
-impl_trait!((), (), u8, 1, 255);
+#[cfg(feature = "tls")]
+impl_trait!((u8_write), (u8_write_iter), u8, 1, 255);
 #[cfg(feature = "postgres")]
 impl_trait!((), (i16_write_iter), i16, 2, 32_767);
-impl_trait!((), (), u16, 2, 65_535);
-impl_trait!((), (), u32, 3, 16_777_215);
+#[cfg(feature = "tls")]
+impl_trait!((u16_write), (u16_write_iter), u16, 2, 65_535);
+#[cfg(feature = "tls")]
+impl_trait!((u24_write), (u24_write_iter), u32, 3, 16_777_215);
 #[cfg(feature = "postgres")]
 impl_trait!((i32_write), (), i32, 4, 2_147_483_647);

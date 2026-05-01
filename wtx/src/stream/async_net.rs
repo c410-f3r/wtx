@@ -1,6 +1,8 @@
-use crate::stream::{StreamReader, StreamWriter};
+use crate::stream::{StreamCommon, StreamReader, StreamWriter};
 use async_net::TcpStream;
 use futures_lite::{AsyncReadExt, AsyncWriteExt};
+
+impl StreamCommon for TcpStream {}
 
 impl StreamReader for TcpStream {
   #[inline]

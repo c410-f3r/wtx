@@ -10,14 +10,12 @@ $rt test-with-features wtx sha3
 $rt test-with-features wtx simdutf8
 $rt test-with-features wtx std
 $rt test-with-features wtx tokio
-$rt test-with-features wtx tokio-rustls
 $rt test-with-features wtx tracing
 $rt test-with-features wtx tracing-subscriber
 $rt test-with-features wtx tracing-tree
 $rt test-with-features wtx uuid
 $rt test-with-features wtx web-socket
 $rt test-with-features wtx web-socket-handshake,crypto-ring
-$rt test-with-features wtx webpki-roots
 $rt test-with-features wtx wtx-macros
 $rt test-with-features wtx x509
 

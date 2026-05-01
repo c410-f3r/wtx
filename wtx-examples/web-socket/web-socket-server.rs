@@ -1,17 +1,15 @@
 //! Serves requests using low-level WebSockets resources alongside self-made certificates.
 
 extern crate tokio;
-extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_examples;
 
 use tokio::net::TcpStream;
-use tokio_rustls::server::TlsStream;
 use wtx::{
   collection::Vector,
   http::OptionedServer,
-  misc::TokioRustlsAcceptor,
-  rng::Xorshift64,
+  rng::{ChaCha20, CryptoSeedableRng, Xorshift64},
+  tls::{TlsAcceptor, TlsBuffer, TlsConfig, TlsModeVerifyFull, TlsStream},
   web_socket::{OpCode, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin},
 };
 
@@ -20,22 +18,31 @@ async fn main() -> wtx::Result<()> {
   OptionedServer::web_socket_tokio(
     &wtx_examples::host_from_args(),
     None,
+    ChaCha20::from_std_random()?,
     || {},
     |error| eprintln!("{error}"),
     handle,
-    (
-      || {
-        TokioRustlsAcceptor::without_client_auth()
-          .build_with_cert_chain_and_priv_key(wtx_examples::CERT, wtx_examples::KEY)
-      },
-      |acceptor, stream| async move { Ok(acceptor.accept(stream).await?) },
-    ),
+    |mut rng, stream| async move {
+      Ok(
+        TlsAcceptor::default()
+          .push_cert(wtx_instances::CERT)
+          .push_priv_key(wtx_instances::KEY)
+          .accept(&mut rng, stream, TlsBuffer::default(), &TlsConfig::default())
+          .await?,
+      )
+    },
   )
   .await
 }
 
 async fn handle(
-  mut ws: WebSocket<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer, false>,
+  mut ws: WebSocket<
+    (),
+    Xorshift64,
+    TlsStream<TcpStream, TlsBuffer, TlsModeVerifyFull, false>,
+    &mut WebSocketBuffer,
+    false,
+  >,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
   let mut buffer = Vector::new();

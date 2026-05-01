@@ -239,7 +239,7 @@ where
   #[inline]
   pub fn into_split<SR, SW>(
     self,
-    split: impl FnOnce(S) -> (SR, SW),
+    split: impl FnOnce(S) -> crate::Result<(SR, SW)>,
   ) -> crate::Result<WebSocketPartsOwned<NC, R, SR, SW, IS_CLIENT>> {
     let WebSocket {
       connection_state,
@@ -253,7 +253,7 @@ where
       max_payload_len,
     } = self;
     let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
-    let (stream_reader, stream_writer) = split(stream);
+    let (stream_reader, stream_writer) = split(stream)?;
     let local_connection_state = Arc::new(AtomicBool::new(connection_state.into()));
     let replier = Arc::new(WebSocketReplier::new());
     Ok(WebSocketPartsOwned {
