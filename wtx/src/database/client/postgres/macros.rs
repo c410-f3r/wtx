@@ -13,7 +13,7 @@ macro_rules! impl_primitive {
           $({
             let signed = $ty1::from_be_bytes(array);
             num = signed.try_into().map_err(crate::Error::from)?;
-          })*
+          })?
           return Ok(num);
         }
         Err(E::from(DatabaseError::UnexpectedBufferSize {

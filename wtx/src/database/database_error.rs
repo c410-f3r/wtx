@@ -8,7 +8,7 @@ pub enum DatabaseError {
   /// The method `expand` of `StatementBuilder` must be called only once.
   InconsistentStatementBuilder,
   /// A "null" field received from the database was decoded as a non-nullable type or value.
-  MissingFieldDataInDecoding(ShortStrU8<'static>, Option<u16>),
+  MissingFieldDataInDecoding(ShortStrU8<'static>, Option<u8>),
   /// Expected one record but got none.
   MissingSingleRecord,
   /// Received size differs from expected size.

@@ -249,7 +249,7 @@ pub enum Error {
   CryptoError(crate::crypto::CryptoError),
   #[cfg(feature = "database")]
   #[doc = associated_element_doc!()]
-  DatabaseError(Box<crate::database::DatabaseError>),
+  DatabaseError(crate::database::DatabaseError),
   #[doc = associated_element_doc!()]
   FixedStringError(FixedStringError),
   #[doc = associated_element_doc!()]
@@ -621,7 +621,7 @@ impl From<crate::codec::CodecError> for Error {
 impl From<crate::database::DatabaseError> for Error {
   #[inline]
   fn from(from: crate::database::DatabaseError) -> Self {
-    Self::DatabaseError(from.into())
+    Self::DatabaseError(from)
   }
 }
 
