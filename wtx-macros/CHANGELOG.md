@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.6.6...wtx-macros-v0.7.0) - 2026-05-02
+
+### Added
+
+- [**breaking**] Allow the decoding and encoding of arbitrary collections
+
 ## [0.6.6](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.6.5...wtx-macros-v0.6.6) - 2026-04-22
 
 ### Other
