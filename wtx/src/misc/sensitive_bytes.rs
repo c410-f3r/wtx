@@ -112,11 +112,11 @@ mod database {
     DB: Database,
   {
     fn runtime_ty(&self) -> Option<DB::Ty> {
-      self.bytes.runtime_ty()
+      None
     }
 
     fn static_ty() -> Option<DB::Ty> {
-      B::static_ty()
+      None
     }
   }
 }

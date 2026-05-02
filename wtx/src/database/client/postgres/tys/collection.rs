@@ -41,7 +41,7 @@ where
 
   #[inline]
   fn static_ty() -> Option<Ty> {
-    Some(Ty::ByteaArray)
+    Some(Ty::Bytea)
   }
 }
 test!(bytes, &[u8], &[1u8, 2, 3, 4]);
@@ -64,12 +64,12 @@ where
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
-    Some(Ty::ByteaArray)
+    Some(Ty::Bytea)
   }
 
   #[inline]
   fn static_ty() -> Option<Ty> {
-    Some(Ty::ByteaArray)
+    Some(Ty::Bytea)
   }
 }
 
