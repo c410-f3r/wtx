@@ -19,7 +19,7 @@ pub trait Record<'exec>: Sized {
     let mut dw = self.value(ci).ok_or_else(|| {
       DatabaseError::MissingFieldDataInDecoding(
         type_name::<D>().into(),
-        ci.idx(self).map(|el| u16::try_from(el).unwrap_or(u16::MAX)),
+        ci.idx(self).map(|el| u8::try_from(el).unwrap_or(u8::MAX)),
       )
       .into()
     })?;

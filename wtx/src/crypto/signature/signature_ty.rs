@@ -107,12 +107,12 @@ where
 {
   #[inline]
   fn runtime_ty(&self) -> Option<D::Ty> {
-    <&str as Typed<D>>::runtime_ty(&<&str>::from(*self))
+    None
   }
 
   #[inline]
   fn static_ty() -> Option<D::Ty> {
-    <&str as Typed<D>>::static_ty()
+    None
   }
 }
 

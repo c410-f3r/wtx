@@ -55,15 +55,15 @@ where
 kani!(bool_true, bool);
 kani!(bool_false, bool);
 
-impl_primitive!(37.0, [a, b, c, d], f32, Ty::Float4);
-impl_primitive!(37.0, [a, b, c, d, e, f, g, h], f64, Ty::Float8);
+impl_primitive!(37.0, [a, b, c, d], Ty::Float4, f32);
+impl_primitive!(37.0, [a, b, c, d, e, f, g, h], Ty::Float8, f64);
 
-impl_primitive!(37, [a], i8, Ty::Char);
-impl_primitive!(37, [a, b], i16, Ty::Int2);
-impl_primitive!(37, [a, b, c, d], i32, Ty::Int4);
-impl_primitive!(37, [a, b, c, d, e, f, g, h], i64, Ty::Int8);
+impl_primitive!(37, [a], Ty::Char, i8);
+impl_primitive!(37, [a, b], Ty::Int2, i16);
+impl_primitive!(37, [a, b, c, d], Ty::Int4, i32);
+impl_primitive!(37, [a, b, c, d, e, f, g, h], Ty::Int8, i64);
 
-impl_primitive!(37, [a], u8, Ty::Bytea);
-impl_primitive!(37, [a, b], u16, Ty::ByteaArray);
-impl_primitive!(37, [a, b, c, d], u32, Ty::ByteaArray);
-impl_primitive!(37, [a, b, c, d, e, f, g, h], u64, Ty::ByteaArray);
+impl_primitive!(37, [a], Ty::Bytea, u8, i8);
+impl_primitive!(37, [a, b], Ty::Int2, u16, i16);
+impl_primitive!(37, [a, b, c, d], Ty::Int4, u32, i32);
+impl_primitive!(37, [a, b, c, d, e, f, g, h], Ty::Int8, u64, i64);

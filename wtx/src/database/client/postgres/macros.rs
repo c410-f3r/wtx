@@ -1,22 +1,29 @@
 macro_rules! impl_primitive {
-  ($instance:expr, [$($elem:ident),+], $ty:ident, $pg_ty:expr) => {
-    impl<E> Decode<'_, Postgres<E>> for $ty
+  ($instance:expr, [$($elem:ident),+], $pg_ty:expr, $ty0:ident $(, $ty1:ident)?) => {
+    impl<E> Decode<'_, Postgres<E>> for $ty0
     where
       E: From<crate::Error>,
     {
       #[inline]
       fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
         if let &[$($elem,)+] = dw.bytes() {
-          return Ok(<Self>::from_be_bytes([$($elem),+]).into());
+          let array = [$($elem),+];
+          #[allow(unused_assignments, unused_mut, reason = "depends on macro")]
+          let mut num = <Self>::from_be_bytes(array);
+          $({
+            let signed = $ty1::from_be_bytes(array);
+            num = signed.try_into().map_err(crate::Error::from)?;
+          })?
+          return Ok(num);
         }
         Err(E::from(DatabaseError::UnexpectedBufferSize {
-          expected: Usize::from(size_of::<$ty>()).into_u64().try_into().unwrap_or(u32::MAX),
+          expected: Usize::from(size_of::<$ty0>()).into_u64().try_into().unwrap_or(u32::MAX),
           received: Usize::from(dw.bytes().len()).into_u64().try_into().unwrap_or(u32::MAX)
         }.into()))
       }
     }
 
-    impl<E> Encode<Postgres<E>> for $ty
+    impl<E> Encode<Postgres<E>> for $ty0
     where
       E: From<crate::Error>,
     {
@@ -27,7 +34,7 @@ macro_rules! impl_primitive {
       }
     }
 
-    impl<E> Typed<Postgres<E>> for $ty
+    impl<E> Typed<Postgres<E>> for $ty0
     where
       E: From<crate::Error>
     {
@@ -42,7 +49,7 @@ macro_rules! impl_primitive {
       }
     }
 
-    test!($ty, $ty, $instance);
+    test!($ty0, $ty0, $instance);
   }
 }
 
