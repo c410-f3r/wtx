@@ -20,7 +20,7 @@ mod server_framework_builder;
 mod server_framework_error;
 mod state;
 mod stream_aux;
-#[cfg(all(feature = "matchit", test))]
+#[cfg(test)]
 mod tests;
 #[cfg(all(feature = "nightly", feature = "tokio"))]
 mod tokio;

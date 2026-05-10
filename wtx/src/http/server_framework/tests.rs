@@ -3,7 +3,7 @@ use crate::{
   http::{
     AutoStream, HttpRecvParams, ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
     server_framework::{
-      ConnAux, Middleware, Router, ServerFramework, ServerFrameworkBuilder, StateClean, StreamAux,
+      ConnAux, Middleware, Router, ServerFrameworkBuilder, StateClean, StreamAux,
       endpoint::Endpoint, get,
     },
   },
@@ -166,12 +166,9 @@ fn nested_middlewares() {
 
     {
       auto_stream.req.rrd.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
-      let el = ServerFramework::<_, (), _, _, _, _, _, ()>::route_params(
-        auto_stream.req.rrd.uri.path(),
-        &sf._router,
-      )
-      .unwrap();
-      let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
+      let el = &sf._router._matcher.at(auto_stream.req.rrd.uri.path()).unwrap();
+      let path_defs = el.value.clone().0;
+      let _ = sf._router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();
       // 3 + 3 + 11 + 7 + 7
       assert_eq!(auto_stream.conn_aux.0, 31);
       // 3 + 3 + 11 + 7 + 7
@@ -184,12 +181,10 @@ fn nested_middlewares() {
 
     {
       auto_stream.req.rrd.uri.reset().push_str("http://localhost/fff");
-      let el = ServerFramework::<_, (), _, _, _, _, _, ()>::route_params(
-        auto_stream.req.rrd.uri.path(),
-        &sf._router,
-      )
-      .unwrap();
-      let _ = sf._router.auto(&mut auto_stream, (0, &el.0)).await.unwrap();
+      let path = auto_stream.req.rrd.uri.path();
+      let el = &sf._router._matcher.at(path).unwrap();
+      let path_defs = el.value.clone().0;
+      let _ = sf._router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();
       // 3 + 17 + 7
       assert_eq!(auto_stream.conn_aux.0, 27);
       // 3 + 17 + 7

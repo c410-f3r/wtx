@@ -53,7 +53,7 @@ macro_rules! impl_tuples {
     #[cfg(feature = "http-server-framework")]
     mod http_server_framework {
       use crate::{
-        collection::{ArrayVectorU8, Vector},
+        collection::{ArrayVectorU8, ShortStrU8, Vector},
         http::{
           OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
           ReqResBuffer, Response,
@@ -152,7 +152,6 @@ macro_rules! impl_tuples {
             _auto_stream: &mut AutoStream<CA, SA>,
             _path_defs: (u8, &[RouteMatch]),
           ) -> Result<StatusCode, ERR> {
-            #[cfg(feature = "matchit")]
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
               $(
                 Some($N) => {
@@ -161,19 +160,6 @@ macro_rules! impl_tuples {
                     .value
                     .auto(_auto_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await;
-                }
-              )*
-              _ => Err(ERR::from(HttpError::UriMismatch.into()))
-            }
-            #[cfg(not(feature = "matchit"))]
-            match _auto_stream.req.rrd.uri.path() {
-              $(
-                elem if elem == self.$N.full_path => {
-                  return self
-                    .$N
-                    .value
-                    .auto(_auto_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
-                    .await
                 }
               )*
               _ => Err(ERR::from(HttpError::UriMismatch.into()))
@@ -186,7 +172,6 @@ macro_rules! impl_tuples {
             _manual_stream: ManualStream<CA, STREAM, SA>,
             _path_defs: (u8, &[RouteMatch]),
           ) -> Result<(), ERR> {
-            #[cfg(feature = "matchit")]
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
               $(
                 Some($N) => {
@@ -195,19 +180,6 @@ macro_rules! impl_tuples {
                     .value
                     .manual(_manual_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await;
-                }
-              )*
-              _ => Err(ERR::from(HttpError::UriMismatch.into()))
-            }
-            #[cfg(not(feature = "matchit"))]
-            match _manual_stream.req.rrd.uri.path() {
-              $(
-                elem if elem == self.$N.full_path => {
-                  return self
-                    .$N
-                    .value
-                    .manual(_manual_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
-                    .await
                 }
               )*
               _ => Err(ERR::from(HttpError::UriMismatch.into()))
@@ -230,7 +202,7 @@ macro_rules! impl_tuples {
           ) -> crate::Result<()> {
             $({
               let mut local_prev = _prev.clone();
-              local_prev.push(RouteMatch::new($N, $T::OM, self.$N.full_path))?;
+              local_prev.push(RouteMatch::new($N, $T::OM, ShortStrU8::new(self.$N.full_path)?))?;
               if $T::IS_ROUTER {
                 self.$N.value.paths_indices(local_prev, _vec)?;
               } else {

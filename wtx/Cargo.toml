@@ -4,8 +4,8 @@ async-io = { default-features = false, optional = true, version = "2.0" }
 async-net = { default-features = false, optional = true, version = "2.0" }
 aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
-embassy-net = { default-features = false, optional = true, version = "0.5" }
-embassy-time = { default-features = false, optional = true, version = "0.3" }
+embassy-net = { default-features = false, optional = true, version = "0.9" }
+embassy-time = { default-features = false, optional = true, version = "0.5" }
 flate2 = { default-features = false, optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.2" }
 futures-lite = { default-features = false, optional = true, version = "2.0" }
@@ -13,7 +13,7 @@ graviola = { default-features = false, optional = true, version = "0.3" }
 hashbrown = { default-features = false, optional = true, version = "0.17" }
 httparse = { default-features = false, optional = true, version = "1.0" }
 libc = { default-features = false, optional = true, version = "0.2" }
-matchit = { default-features = false, optional = true, version = "0.8" }
+matchit = { default-features = false, optional = true, version = "0.9" }
 memchr = { default-features = false, optional = true, version = "2.0" }
 openssl = { default-features = false, optional = true, version = "0.10" }
 parking_lot = { default-features = false, optional = true, version = "0.12" }
@@ -77,7 +77,7 @@ http = []
 http-client-pool = ["http2", "std"]
 http-cookie = ["http"]
 http-cookie-secure = ["crypto", "http-cookie"]
-http-server-framework = ["http2"]
+http-server-framework = ["http2", "matchit"]
 http-session = ["http-cookie-secure", "secret", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
@@ -120,7 +120,7 @@ x509 = ["asn1", "crypto", "hashbrown"]
 
 _async-tests = ["tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []
-_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/std", "openssl?/vendored"] # Does not decide for downstream users
+_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/generic-queue-64", "embassy-time?/std", "openssl?/vendored"] # Does not decide for downstream users
 _integration-tests = ["serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]
 

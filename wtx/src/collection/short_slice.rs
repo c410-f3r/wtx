@@ -24,11 +24,27 @@ pub struct ShortSlice<'any, L, T> {
   phantom: PhantomData<&'any T>,
 }
 
-impl<L, T> ShortSlice<'_, L, T>
+impl<'any, L, T> ShortSlice<'any, L, T>
 where
   L: LinearStorageLen,
 {
   const CHECK_LEN: () = { assert!(L::BYTES <= 2) };
+
+  /// Throws an error if the length of `slice` is greater than the capacity.
+  #[inline]
+  pub fn new(slice: &'any [T]) -> crate::Result<Self> {
+    const { Self::CHECK_LEN }
+    Ok(Self { len: L::from_usize(slice.len())?, phantom: PhantomData, ptr: slice.as_ptr() })
+  }
+
+  /// Owned method that returns the original slice with its associated lifetime.
+  #[inline]
+  pub fn into_slice(self) -> &'any [T] {
+    let ptr = self.ptr;
+    let len = self.len;
+    // SAFETY: pointer and length come from a slice that is tied to `'any`
+    unsafe { slice::from_raw_parts(ptr, len.usize()) }
+  }
 }
 
 impl<'any, T> ShortSliceU8<'any, T> {
@@ -96,10 +112,7 @@ where
 
   #[inline]
   fn deref(&self) -> &Self::Target {
-    let ptr = self.ptr;
-    let len = self.len;
-    // SAFETY: pointer and length come from a slice that is tied to `'any`
-    unsafe { slice::from_raw_parts(ptr, len.usize()) }
+    self.into_slice()
   }
 }
 
@@ -163,5 +176,14 @@ mod tests {
   fn static_instance() {
     static FOO: ShortSliceU8<'static, u8> = ShortSliceU8::new_truncated_u8(&[1, 2, 3]);
     assert_eq!(&*FOO, &[1, 2, 3]);
+  }
+
+  #[test]
+  fn static_ref() {
+    fn fun(_: &'static [u8]) {}
+
+    static FOO: &[u8] = &[1, 2, 3];
+    let foo: ShortSliceU8<'static, _> = ShortSliceU8::from(FOO);
+    fun(foo.into_slice());
   }
 }

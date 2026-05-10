@@ -24,7 +24,7 @@ impl SessionManagerBuilder {
   pub(crate) fn new() -> Self {
     Self {
       cookie_def: CookieGeneric {
-        domain: "".into(),
+        domain: String::new(),
         expires: None,
         http_only: true,
         max_age: None,

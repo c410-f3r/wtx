@@ -17,6 +17,24 @@ pub struct ShortStr<'any, L>(ShortSlice<'any, L, u8>)
 where
   L: LinearStorageLen;
 
+impl<'any, L> ShortStr<'any, L>
+where
+  L: LinearStorageLen,
+{
+  /// Throws an error if the length of `slice` is greater than the capacity.
+  #[inline]
+  pub fn new(slice: &'any str) -> crate::Result<Self> {
+    Ok(Self(ShortSlice::new(slice.as_bytes())?))
+  }
+
+  /// Owned method that returns the original string with its associated lifetime.
+  #[inline]
+  pub fn into_str(self) -> &'any str {
+    // SAFETY: Constructors only accept strings
+    unsafe { str::from_utf8_unchecked(self.0.into_slice()) }
+  }
+}
+
 impl<'any> ShortStrU8<'any> {
   /// If necessary, `slice` is truncated to the maximum length capacity.
   #[inline]
@@ -53,8 +71,7 @@ where
 
   #[inline]
   fn deref(&self) -> &Self::Target {
-    // SAFETY: Constructors only accept strings
-    unsafe { str::from_utf8_unchecked(&self.0) }
+    self.into_str()
   }
 }
 

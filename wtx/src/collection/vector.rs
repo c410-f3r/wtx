@@ -251,6 +251,12 @@ impl<T> Vector<T> {
     self.0.extend_from_iter(iter)
   }
 
+  #[doc = insert_doc!("Vector")]
+  #[inline]
+  pub fn insert(&mut self, idx: usize, elem: T) -> crate::Result<()> {
+    self.0.insert(VectorError::OutOfBoundsInsertIdx.into(), idx, elem)
+  }
+
   #[doc = len_doc!()]
   #[inline]
   pub fn len(&self) -> usize {

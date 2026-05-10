@@ -1,6 +1,6 @@
 #![allow(clippy::disallowed_methods, reason = "used as fallbacks")]
 
-use crate::misc::{BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUtf8Error};
+use crate::misc::{Ascii, BasicUtf8Error, ExtUtf8Error, IncompleteUtf8Char, Lease, StdUtf8Error};
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
@@ -140,25 +140,25 @@ pub fn from_utf8_std(bytes: &[u8]) -> Result<&str, StdUtf8Error> {
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_pos1(str: &str, elem: u8) -> Option<usize> {
+pub fn str_pos1(str: &str, elem: Ascii) -> Option<usize> {
   #[cfg(feature = "memchr")]
-  return memchr::memchr(elem, str.as_bytes());
+  return memchr::memchr(elem.into(), str.as_bytes());
   #[cfg(not(feature = "memchr"))]
-  return str.as_bytes().iter().position(|byte| *byte == elem);
+  return str.as_bytes().iter().position(|byte| *byte == u8::from(elem));
 }
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_rsplit_once1(str: &str, elem: u8) -> Option<(&str, &str)> {
-  let idx = bytes_rpos1(str.as_bytes(), elem)?;
+pub fn str_rsplit_once1(str: &str, elem: Ascii) -> Option<(&str, &str)> {
+  let idx = bytes_rpos1(str.as_bytes(), elem.into())?;
   Some((str.get(..idx)?, str.get(idx.wrapping_add(1)..)?))
 }
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_split1(str: &str, elem: u8) -> impl Iterator<Item = &str> {
+pub fn str_split1(str: &str, elem: Ascii) -> impl Iterator<Item = &str> {
   #[cfg(feature = "memchr")]
-  return memchr::memchr_iter(elem, str.as_bytes()).chain(core::iter::once(str.len())).scan(
+  return memchr::memchr_iter(elem.into(), str.as_bytes()).chain(core::iter::once(str.len())).scan(
     0,
     move |begin, end| {
       let rslt = str.get(*begin..end);
@@ -168,13 +168,25 @@ pub fn str_split1(str: &str, elem: u8) -> impl Iterator<Item = &str> {
   );
   #[cfg(not(feature = "memchr"))]
   // SAFETY: The source is a string
-  return bytes_split1(str.as_bytes(), elem)
+  return bytes_split1(str.as_bytes(), elem.into())
     .map(|slice| unsafe { core::str::from_utf8_unchecked(slice) });
 }
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn str_split_once1(str: &str, elem: u8) -> Option<(&str, &str)> {
+pub fn str_split_once1(str: &str, elem: Ascii) -> Option<(&str, &str)> {
   let idx = str_pos1(str, elem)?;
   Some((str.get(..idx)?, str.get(idx.wrapping_add(1)..)?))
+}
+
+/// Internally uses `memchr` if the feature is active.
+#[inline]
+pub fn str_split_once_str<'any>(str: &'any str, elem: &str) -> Option<(&'any str, &'any str)> {
+  #[cfg(feature = "memchr")]
+  {
+    let idx = memchr::memmem::Finder::new(elem.as_bytes()).find(str.as_bytes())?;
+    Some((str.get(..idx)?, str.get(idx.wrapping_add(elem.len())..)?))
+  }
+  #[cfg(not(feature = "memchr"))]
+  return str.split_once(elem);
 }

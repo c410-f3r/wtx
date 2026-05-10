@@ -67,7 +67,7 @@ where
       }
 
       let iter_line = line.get(*scan_from..).unwrap_or_default();
-      let iter = &mut bytes_split2_indices(iter_line, [b',', b'"']);
+      let iter = &mut bytes_split2_indices(iter_line, *b",\"");
       let mut has_init = *is_in_quote;
 
       self.eval_first(&mut has_init, is_in_quote, is_quoted, iter, line, prev_idx, *scan_from)?;

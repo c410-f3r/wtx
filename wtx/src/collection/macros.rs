@@ -222,6 +222,24 @@ macro_rules! from_iter_doc {
   };
 }
 
+macro_rules! insert_doc {
+  ($struct:literal) => {
+    concat!(
+      "Inserts an element at position index within the instance, shifting all elements after",
+      "it to the right.\n",
+      "\n",
+      "```rust\n",
+      "let mut instance = wtx::collection::",
+      $struct,
+      "::new();\n",
+      "instance.extend_from_iter([1, 3]).unwrap();\n",
+      "instance.insert(1, 2).unwrap();\n",
+      "assert_eq!(instance.as_slice(), &[1, 2, 3]);\n",
+      "```"
+    )
+  };
+}
+
 macro_rules! len_doc {
   () => {
     "Returns the number of elements in the storage, also referred to as its ‘length’."
