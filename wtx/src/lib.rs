@@ -1,6 +1,5 @@
 #![allow(unused_features, reason = "remove this once `return_type_notation` is stabilized")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg_attr(feature = "_bench", allow(soft_unstable))]
 #![cfg_attr(feature = "_bench", feature(test))]
 #![cfg_attr(feature = "nightly", feature(random, return_type_notation))]
 #![doc = include_str!("../README.md")]

@@ -1,7 +1,7 @@
 use crate::{
   codec::FromRadix10 as _,
   collection::{ArrayStringU16, Clear, Truncate, TryExtend},
-  misc::{Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
+  misc::{Ascii, Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
 };
 use alloc::{boxed::Box, string::String};
 use core::{
@@ -116,7 +116,7 @@ where
   #[inline]
   pub fn host(&self) -> &str {
     let authority = self.authority();
-    if let Some(elem) = str_split_once1(authority, b'@') { elem.1 } else { authority }
+    if let Some(elem) = str_split_once1(authority, Ascii::AT) { elem.1 } else { authority }
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2>
@@ -128,7 +128,7 @@ where
   #[inline]
   pub fn hostname(&self) -> &str {
     let host = self.host();
-    str_split_once1(host, b':').map_or(host, |el| el.0)
+    str_split_once1(host, Ascii::COLON).map_or(host, |el| el.0)
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.2.2>
@@ -180,7 +180,7 @@ where
   /// ```
   #[inline]
   pub fn password(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.userinfo(), b':') { elem.1 } else { "" }
+    if let Some(elem) = str_split_once1(self.userinfo(), Ascii::COLON) { elem.1 } else { "" }
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-3.3>
@@ -242,7 +242,7 @@ where
   #[inline]
   pub fn query_params(&self) -> impl Iterator<Item = (&str, &str)> {
     let str = self.query().get(1..).unwrap_or_default();
-    str_split1(str, b'&').filter_map(|el| str_split_once1(el, b'='))
+    str_split1(str, Ascii::AMPERSAND).filter_map(|el| str_split_once1(el, Ascii::EQUAL))
   }
 
   /// <https://datatracker.ietf.org/doc/html/rfc3986#section-4.2>
@@ -322,7 +322,7 @@ where
   /// ```
   #[inline]
   pub fn user(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.userinfo(), b':') { elem.0 } else { "" }
+    if let Some(elem) = str_split_once1(self.userinfo(), Ascii::COLON) { elem.0 } else { "" }
   }
 
   /// ```rust
@@ -331,7 +331,7 @@ where
   /// ```
   #[inline]
   pub fn userinfo(&self) -> &str {
-    if let Some(elem) = str_split_once1(self.authority(), b'@') { elem.0 } else { "" }
+    if let Some(elem) = str_split_once1(self.authority(), Ascii::AT) { elem.0 } else { "" }
   }
 
   fn process(&mut self) {

@@ -21,13 +21,13 @@ $rt test-with-features wtx crossbeam-channel
 $rt test-with-features wtx crypto
 $rt test-with-features wtx crypto-aws-lc-rs,_hack
 $rt test-with-features wtx crypto-graviola
-$rt test-with-features wtx crypto-openssl
+$rt test-with-features wtx crypto-openssl,_hack
 $rt test-with-features wtx crypto-ring
 $rt test-with-features wtx database
 $rt test-with-features wtx database-tests
 $rt test-with-features wtx default
 $rt test-with-features wtx embassy-net,_hack
-#$rt test-with-features wtx embassy-time
+$rt test-with-features wtx embassy-time,_hack
 $rt test-with-features wtx executor
 $rt test-with-features wtx flate2
 $rt test-with-features wtx foldhash

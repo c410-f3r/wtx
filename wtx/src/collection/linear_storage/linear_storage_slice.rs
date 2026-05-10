@@ -12,7 +12,7 @@ use core::{ptr, slice};
 pub(crate) trait LinearStorageSlice: Lease<Self> {
   /// Underlying data element type.
   type Data;
-  ///Logical unit type yielded during iteration.
+  /// Logical unit type yielded during iteration.
   type Unit;
 
   /// # Safety

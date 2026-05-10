@@ -167,6 +167,8 @@ pub enum Error {
   MlockError,
   /// Something prevented a `munlock` operation
   MunlockError,
+  /// Byte is not an ASCII character
+  NonAsciiByte,
   /// A variable does not have an ending quote
   NoAvailableVars(ShortBoxStringU16),
   /// Usually used to transform `Option`s into `Result`s

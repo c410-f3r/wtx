@@ -5,7 +5,7 @@ use crate::{
   },
   misc::Lease,
 };
-use core::{ptr, slice};
+use core::{hint::cold_path, ptr, slice};
 
 /// Mutable version of [`LinearStorage`].
 pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
@@ -186,6 +186,42 @@ pub(crate) trait LinearStorageMut<T>: LinearStorage<T> {
   ) -> crate::Result<()> {
     for elem in iter {
       self.push(elem)?;
+    }
+    Ok(())
+  }
+
+  /// Inserts an element at position index within the instance, shifting all elements after it to
+  /// the right.
+  #[inline]
+  fn insert(&mut self, err: crate::Error, idx: Self::Len, elem: T) -> crate::Result<()> {
+    let len = self.len();
+    let idx_usize = idx.usize();
+    let len_usize = len.usize();
+    if idx_usize > len_usize {
+      cold_path();
+      return Err(err);
+    }
+    self.reserve(Self::Len::ONE)?;
+    // SAFETY: top-level check ensures bounds
+    let ptr = unsafe { self.as_ptr_mut().add(idx_usize) };
+    if idx_usize < len_usize {
+      // SAFETY: top-level check ensures bounds
+      let diff = unsafe { len_usize.unchecked_sub(idx_usize) };
+      // SAFETY: `reserve` allocated one more element
+      let dst = unsafe { ptr.add(1) };
+      // SAFETY: up to the other elements
+      unsafe {
+        ptr::copy(ptr, dst, diff);
+      }
+    }
+    // SAFETY: write it in, overwriting the first copy of the `index`th element
+    unsafe {
+      ptr::write(ptr, elem);
+    }
+    // SAFETY: `reserve` already handled memory capacity
+    unsafe {
+      let new_len = len.wrapping_add(Self::Len::ONE);
+      self.set_len(new_len);
     }
     Ok(())
   }

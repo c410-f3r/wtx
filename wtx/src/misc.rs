@@ -10,7 +10,7 @@ pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
-mod ascii_graphic;
+mod ascii;
 mod connection_state;
 mod default_array;
 mod either;
@@ -45,7 +45,7 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-pub use ascii_graphic::AsciiGraphic;
+pub use ascii::{Ascii, AsciiGeneric, AsciiGraphic};
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
 pub use default_array::DefaultArray;

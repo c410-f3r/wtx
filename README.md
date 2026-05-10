@@ -1,21 +1,11 @@
 # WTX
 
-[![crates.io][crates-badge]][crates-url]
-[![docs][docs-badge]][docs-url]
-[![license][license-badge]][license-url]
-[![rustc][rustc-badge]][rustc-url]
-[![Tests][actions-badge]][actions-url]
-
-[actions-badge]: https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml/badge.svg
-[actions-url]: https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml
-[crates-badge]: https://img.shields.io/crates/v/wtx.svg?color=blue
-[crates-url]: https://crates.io/crates/wtx
-[docs-badge]: https://docs.rs/wtx/badge.svg
-[docs-url]: https://docs.rs/wtx
-[license-badge]: https://img.shields.io/badge/license-MPL2-blue.svg
-[license-url]: https://github.com/c410-f3r/wtx/blob/main/LICENSE
-[rustc-badge]: https://img.shields.io/badge/rustc-1.95-blue
-[rustc-url]: https://blog.rust-lang.org/2025/01/09/Rust-1.95.0.html
+[![crates.io](https://img.shields.io/crates/v/wtx?color=blue)](https://crates.io/crates/wtx)
+[![deps.rs](https://deps.rs/crate/wtx/latest/status.svg)](https://deps.rs/crate/wtx)
+[![docs.rs](https://img.shields.io/docsrs/wtx?color=blue)](https://docs.rs/wtx)
+[![license](https://img.shields.io/crates/l/wtx?&color=blue)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
+[![rustc](https://img.shields.io/badge/rustc-1.95-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.95.0.html)
+[![tests](https://img.shields.io/github/actions/workflow/status/c410-f3r/wtx/tests.yaml?label=tests)](https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml)
 
 A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 8 IETF RFCs along side other elements.
 

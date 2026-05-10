@@ -11,10 +11,7 @@ use core::{marker::PhantomData, ops::ControlFlow};
 #[derive(Debug)]
 pub struct Router<CA, E, EN, M, S, SA> {
   pub(crate) en: EN,
-  #[cfg(feature = "matchit")]
   pub(crate) _matcher: matchit::Router<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>,
-  #[cfg(not(feature = "matchit"))]
-  pub(crate) _matcher: hashbrown::HashMap<alloc::string::String, OperationMode>,
   pub(crate) middlewares: M,
   pub(crate) phantom: PhantomData<(CA, E, S, SA)>,
 }
@@ -27,11 +24,10 @@ where
   /// Creates a new instance with generic paths and middlewares.
   #[inline]
   pub fn new(en: EN, middlewares: M) -> crate::Result<Self> {
-    let matcher = Self::matcher(&en)?;
-    Ok(Self { _matcher: matcher, middlewares, en, phantom: PhantomData })
+    let _matcher = Self::matcher(&en)?;
+    Ok(Self { _matcher, middlewares, en, phantom: PhantomData })
   }
 
-  #[cfg(feature = "matchit")]
   fn matcher(
     en: &EN,
   ) -> crate::Result<matchit::Router<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>> {
@@ -44,29 +40,13 @@ where
       };
       let mut key = alloc::string::String::new();
       for elem in initials {
-        key.push_str(elem.path);
+        key.push_str(&*elem.path);
       }
-      key.push_str(last.path);
+      key.push_str(&*last.path);
       let om = last.om;
       matcher.insert(key, (array, om))?;
     }
     Ok(matcher)
-  }
-
-  #[cfg(not(feature = "matchit"))]
-  fn matcher(
-    paths: &EN,
-  ) -> crate::Result<hashbrown::HashMap<alloc::string::String, OperationMode>> {
-    let mut paths_indices = Vector::new();
-    paths.paths_indices(ArrayVectorU8::new(), &mut paths_indices)?;
-    let mut paths = hashbrown::HashMap::new();
-    for array in paths_indices {
-      let [first, ..] = array.as_slice() else {
-        continue;
-      };
-      let _ = paths.insert(first.path.into(), first.om);
-    }
-    Ok(paths)
   }
 }
 
@@ -78,8 +58,8 @@ where
   /// Creates a new instance with automatic paths and middlewares.
   #[inline]
   pub fn paths(en: EN) -> crate::Result<Self> {
-    let matcher = Self::matcher(&en)?;
-    Ok(Self { en, _matcher: matcher, middlewares: (), phantom: PhantomData })
+    let _matcher = Self::matcher(&en)?;
+    Ok(Self { en, _matcher, middlewares: (), phantom: PhantomData })
   }
 }
 

@@ -81,53 +81,61 @@ mod tests {
     assert_eq!(
       vec.as_slice(),
       &[
-        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(0, OperationMode::Auto, "/a")])
+        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(0, OperationMode::Auto, "/a".into())])
           .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(1, OperationMode::Auto, "/a"),
-          RouteMatch::new(0, OperationMode::Auto, "/b")
+          RouteMatch::new(1, OperationMode::Auto, "/a".into()),
+          RouteMatch::new(0, OperationMode::Auto, "/b".into())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(2, OperationMode::Auto, "/a"),
-          RouteMatch::new(0, OperationMode::Auto, "/c/d")
+          RouteMatch::new(2, OperationMode::Auto, "/a".into()),
+          RouteMatch::new(0, OperationMode::Auto, "/c/d".into())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(3, OperationMode::Auto, "/a"),
-          RouteMatch::new(0, OperationMode::Auto, "/d"),
-          RouteMatch::new(0, OperationMode::Auto, "/e")
+          RouteMatch::new(3, OperationMode::Auto, "/a".into()),
+          RouteMatch::new(0, OperationMode::Auto, "/d".into()),
+          RouteMatch::new(0, OperationMode::Auto, "/e".into())
         ])
         .unwrap(),
-        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(4, OperationMode::Auto, "/f/g")])
-          .unwrap(),
-        ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(5, OperationMode::Auto, "/f/g"),
-          RouteMatch::new(0, OperationMode::Auto, "/h")
-        ])
-        .unwrap(),
-        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(6, OperationMode::Manual, "/i/j/k")])
-          .unwrap(),
-        ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l"),
-          RouteMatch::new(0, OperationMode::Auto, "/m")
-        ])
+        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(
+          4,
+          OperationMode::Auto,
+          "/f/g".into()
+        )])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l"),
-          RouteMatch::new(1, OperationMode::Auto, "/n")
+          RouteMatch::new(5, OperationMode::Auto, "/f/g".into()),
+          RouteMatch::new(0, OperationMode::Auto, "/h".into())
         ])
         .unwrap(),
+        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(
+          6,
+          OperationMode::Manual,
+          "/i/j/k".into()
+        )])
+        .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l"),
-          RouteMatch::new(2, OperationMode::Auto, "/o"),
-          RouteMatch::new(0, OperationMode::Auto, "/p")
+          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
+          RouteMatch::new(0, OperationMode::Auto, "/m".into())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l"),
-          RouteMatch::new(2, OperationMode::Auto, "/o"),
-          RouteMatch::new(1, OperationMode::Auto, "/q")
+          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
+          RouteMatch::new(1, OperationMode::Auto, "/n".into())
+        ])
+        .unwrap(),
+        ArrayVectorU8::from_copyable_slice(&[
+          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
+          RouteMatch::new(2, OperationMode::Auto, "/o".into()),
+          RouteMatch::new(0, OperationMode::Auto, "/p".into())
+        ])
+        .unwrap(),
+        ArrayVectorU8::from_copyable_slice(&[
+          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
+          RouteMatch::new(2, OperationMode::Auto, "/o".into()),
+          RouteMatch::new(1, OperationMode::Auto, "/q".into())
         ])
         .unwrap(),
       ]
