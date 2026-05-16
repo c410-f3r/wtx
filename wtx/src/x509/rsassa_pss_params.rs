@@ -23,6 +23,7 @@ pub struct RsassaPssParams<'bytes> {
   /// Provides compatibility with IEEE Std 1363a-2004.
   pub trailer_field: Option<u32>,
 }
+
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RsassaPssParams<'de> {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {

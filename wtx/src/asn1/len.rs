@@ -54,6 +54,12 @@ impl Len {
     }
   }
 
+  /// Encoded representation
+  #[inline]
+  pub fn bytes(&self) -> &ArrayVectorU8<u8, 3> {
+    &self.0
+  }
+
   /// Number representation.
   #[inline]
   pub fn size(&self) -> MaxSizeTy {
