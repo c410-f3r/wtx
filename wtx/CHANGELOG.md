@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.46.1](https://github.com/c410-f3r/wtx/compare/wtx-v0.46.0...wtx-v0.46.1) - 2026-05-16
+
+### Fixed
+
+- Read whole ASN.1 bytes in params_oid
+
+### Other
+
+- Merge pull request #529 from c410-f3r/misc
+
 ## [0.46.0](https://github.com/c410-f3r/wtx/compare/wtx-v0.45.0...wtx-v0.46.0) - 2026-05-16
 
 ### Added
