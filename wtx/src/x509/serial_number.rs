@@ -62,9 +62,6 @@ impl TryFrom<&[u8]> for SerialNumber {
     if value.len() > MAX_LEN {
       return Err(X509Error::InvalidSerialNumberBytes.into());
     }
-    let [1..=255, ..] = value else {
-      return Err(X509Error::InvalidSerialNumberBytes.into());
-    };
     Ok(Self(ArrayVectorU8::try_from(value)?))
   }
 }

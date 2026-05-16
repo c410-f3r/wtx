@@ -1,13 +1,23 @@
 use crate::_SIMD_LEN;
 
 #[doc = _internal_doc!()]
-pub(crate) fn unmask(bytes: &mut [u8], mask: [u8; 4]) {
+pub(crate) fn unmask(bytes: &mut [u8], [a, b, c, d]: [u8; 4]) {
   let (arrays, rem) = bytes.as_chunks_mut::<{ _SIMD_LEN }>();
 
-  let mut local_mask = [0; _SIMD_LEN];
-  for (elem, mask_elem) in local_mask.iter_mut().zip(mask.iter().cycle()) {
-    *elem = *mask_elem;
-  }
+  let local_mask = _simd! {
+    4 => [a, b, c, d],
+    16 => [a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d],
+    32 => [
+      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d
+    ],
+    64 => [
+      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+    ]
+  };
 
   for array in arrays {
     for (array_elem, mask_elem) in array.iter_mut().zip(&local_mask) {
