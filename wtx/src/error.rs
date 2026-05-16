@@ -5,7 +5,7 @@ use crate::{
   codec::{Base64Error, FromRadix10Error, HexError},
   collection::{
     ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
-    ShortBoxStringU16, ShortStrU8, VectorError,
+    RadixTreeError, ShortBoxStringU16, ShortStrU8, VectorError,
   },
   misc::ArithmeticError,
 };
@@ -275,6 +275,8 @@ pub enum Error {
   PostgresError(crate::database::client::postgres::PostgresError),
   #[doc = associated_element_doc!()]
   QueueError(DequeueError),
+  #[doc = associated_element_doc!()]
+  RadixTreeError(RadixTreeError),
   #[cfg(feature = "schema-manager")]
   #[doc = associated_element_doc!()]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
@@ -660,6 +662,13 @@ impl From<DequeueError> for Error {
   #[inline]
   fn from(from: DequeueError) -> Self {
     Self::QueueError(from)
+  }
+}
+
+impl From<RadixTreeError> for Error {
+  #[inline]
+  fn from(from: RadixTreeError) -> Self {
+    Self::RadixTreeError(from)
   }
 }
 
