@@ -314,8 +314,8 @@ fn matches_rfc822(other: &[u8], domain: &[u8]) -> bool {
 
 #[inline]
 fn params_oid(subject_public_key_info: &SubjectPublicKeyInfo<'_>) -> Option<Oid> {
-  let params = subject_public_key_info.algorithm.parameters.as_ref()?;
-  let mut dw = DecodeWrapper::new(params.data(), Asn1DecodeWrapper::default());
+  let bytes = subject_public_key_info.algorithm.parameters.as_ref()?.bytes();
+  let mut dw = DecodeWrapper::new(bytes, Asn1DecodeWrapper::default());
   if subject_public_key_info.algorithm.algorithm == OID_PKCS1_RSASSAPSS {
     Some(RsassaPssParams::decode(&mut dw).ok()?.hash_algorithm?.algorithm)
   } else {
