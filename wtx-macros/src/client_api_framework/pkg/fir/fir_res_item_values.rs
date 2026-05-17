@@ -1,6 +1,6 @@
 create_fir_custom_item_values!(
   "Expected data response returned by the server.",
-  FirResItemValues,
+  FirRespItemValues,
   fresdiv_fields_attrs,
   fresdiv_ident,
   fresdiv_item,

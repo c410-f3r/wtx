@@ -70,7 +70,7 @@ use core::{
 };
 
 /// Errors of [Deque].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum DequeueError {
   #[doc = doc_single_elem_cap_overflow!()]
   ExtendFromSliceOverflow,

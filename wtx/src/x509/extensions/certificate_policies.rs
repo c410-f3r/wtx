@@ -23,7 +23,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for CertificatePolici
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for CertificatePolicies<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for CertificatePolicies<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)
@@ -53,7 +53,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyInformation
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyInformation<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyInformation<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
@@ -87,7 +87,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyQualifierIn
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyQualifierInfo<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyQualifierInfo<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {

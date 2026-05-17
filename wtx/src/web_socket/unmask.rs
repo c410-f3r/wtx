@@ -1,21 +1,21 @@
 use crate::_SIMD_LEN;
 
 #[doc = _internal_doc!()]
-pub(crate) fn unmask(bytes: &mut [u8], [a, b, c, d]: [u8; 4]) {
+pub(crate) fn unmask(bytes: &mut [u8], [b0, b1, b2, b3]: [u8; 4]) {
   let (arrays, rem) = bytes.as_chunks_mut::<{ _SIMD_LEN }>();
 
   let local_mask = _simd! {
-    4 => [a, b, c, d],
-    16 => [a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d],
+    4 => [b0, b1, b2, b3],
+    16 => [b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3],
     32 => [
-      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d
+      b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3,
+      b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3
     ],
     64 => [
-      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
-      a, b, c, d, a, b, c, d, a, b, c, d, a, b, c, d,
+      b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3,
+      b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3,
+      b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3,
+      b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3, b0, b1, b2, b3,
     ]
   };
 
@@ -35,9 +35,9 @@ mod bench {
   use crate::bench::_data;
 
   #[bench]
-  fn unmask(b: &mut test::Bencher) {
+  fn unmask(b1: &mut test::Bencher) {
     let mut data = _data(1024 * 1024 * 8);
-    b.iter(|| crate::web_socket::unmask::unmask(&mut data, [3, 5, 7, 11]));
+    b1.iter(|| crate::web_socket::unmask::unmask(&mut data, [3, 5, 7, 11]));
   }
 }
 

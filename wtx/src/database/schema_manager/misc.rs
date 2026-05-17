@@ -74,10 +74,7 @@ where
 {
   use crate::{
     collection::ArrayStringU8,
-    database::schema_manager::{
-      SchemaManagerError,
-      migration_parser::{parse_migration_toml, parse_unified_migration},
-    },
+    database::schema_manager::migration_parser::{parse_migration_toml, parse_unified_migration},
   };
 
   fn group_and_migrations_from_path<F>(

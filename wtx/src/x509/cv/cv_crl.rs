@@ -20,7 +20,7 @@ pub struct CvCrl<'any, 'bytes> {
   pub(crate) revoked_certs: RefOrOwned<'any, Option<RevokedCertificates<'bytes>>>,
 }
 
-impl<'any, 'bytes> TryFrom<Crl<'bytes>> for CvCrl<'any, 'bytes> {
+impl<'bytes> TryFrom<Crl<'bytes>> for CvCrl<'_, 'bytes> {
   type Error = crate::Error;
 
   #[inline]

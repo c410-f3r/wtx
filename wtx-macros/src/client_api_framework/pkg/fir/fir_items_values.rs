@@ -29,7 +29,7 @@ impl<'module> TryFrom<(&'module mut Vec<Item>, Span)> for FirItemsValues<'module
     let mut before_sending = None;
     let mut req_data = None;
     let mut params = None;
-    let mut res_data = None;
+    let mut resp_data = None;
 
     for item in items {
       let Some(attr) = item.contained_attrs() else {
@@ -60,8 +60,8 @@ impl<'module> TryFrom<(&'module mut Vec<Item>, Span)> for FirItemsValues<'module
           req_data = Some(ItemWithAttrSpan::from(((), &mut *item, span)));
         }
         FirItemAttrTy::Res => {
-          manage_unique_attribute(res_data.as_ref(), span)?;
-          res_data = Some(ItemWithAttrSpan::from(((), &mut *item, span)));
+          manage_unique_attribute(resp_data.as_ref(), span)?;
+          resp_data = Some(ItemWithAttrSpan::from(((), &mut *item, span)));
         }
       }
     }
@@ -72,7 +72,7 @@ impl<'module> TryFrom<(&'module mut Vec<Item>, Span)> for FirItemsValues<'module
       before_sending,
       params,
       req_data: req_data.ok_or(crate::Error::AbsentReqOrRes(mod_span))?,
-      res_data: res_data.ok_or(crate::Error::AbsentReqOrRes(mod_span))?,
+      res_data: resp_data.ok_or(crate::Error::AbsentReqOrRes(mod_span))?,
     })
   }
 }

@@ -141,15 +141,15 @@ impl ReadFrameInfo {
   }
 
   fn manage_first_two_bytes<NC>(
-    [a, b]: [u8; 2],
+    [b0, b1]: [u8; 2],
     nc_rsv1: u8,
   ) -> crate::Result<(bool, u8, bool, OpCode, bool)>
   where
     NC: NegotiatedCompression,
   {
-    let rsv1 = a & RSV1_MASK;
-    let rsv2 = a & RSV2_MASK;
-    let rsv3 = a & RSV3_MASK;
+    let rsv1 = b0 & RSV1_MASK;
+    let rsv2 = b0 & RSV2_MASK;
+    let rsv3 = b0 & RSV3_MASK;
     if rsv2 != 0 || rsv3 != 0 {
       return Err(WebSocketError::InvalidCompressionHeaderParameter.into());
     }
@@ -163,10 +163,10 @@ impl ReadFrameInfo {
     } else {
       rsv1 != 0
     };
-    let fin = a & FIN_MASK != 0;
-    let length_code = b & PAYLOAD_MASK;
-    let masked = has_masked_frame(b);
-    let op_code = op_code(a)?;
+    let fin = b0 & FIN_MASK != 0;
+    let length_code = b1 & PAYLOAD_MASK;
+    let masked = has_masked_frame(b1);
+    let op_code = op_code(b0)?;
     Ok((fin, length_code, masked, op_code, should_decompress))
   }
 

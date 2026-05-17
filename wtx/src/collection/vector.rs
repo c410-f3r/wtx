@@ -5,7 +5,7 @@ use crate::{
       LinearStorage, linear_storage_mut::LinearStorageMut, linear_storage_slice::LinearStorageSlice,
     },
   },
-  misc::{_unlikely_unreachable, Lease, LeaseMut, Wrapper},
+  misc::{Lease, LeaseMut, Wrapper, unlikely_unreachable},
 };
 use alloc::{
   string::String,
@@ -379,7 +379,7 @@ where
   #[track_caller]
   fn clone(&self) -> Self {
     let Ok(mut vector) = Self::with_capacity(self.len()) else {
-      _unlikely_unreachable();
+      unlikely_unreachable();
     };
     let _rslt = vector.extend_from_cloneable_slice(self);
     vector
@@ -391,7 +391,7 @@ where
     let (init, tail) = source.split_at(self.len());
     self.clone_from_slice(init);
     if self.extend_from_cloneable_slice(tail).is_err() {
-      _unlikely_unreachable();
+      unlikely_unreachable();
     }
   }
 }
@@ -618,7 +618,7 @@ impl std::io::Write for Vector<u8> {
   #[inline]
   fn write_vectored(&mut self, bufs: &[std::io::IoSlice<'_>]) -> std::io::Result<usize> {
     let mut fun = || {
-      let len: usize = bufs.iter().map(|b| b.len()).sum();
+      let len: usize = bufs.iter().map(|el| el.len()).sum();
       self.reserve(len)?;
       self.extend_from_copyable_slices(bufs)
     };

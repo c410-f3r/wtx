@@ -6,9 +6,9 @@ use crate::{
   calendar::{
     CalendarError, CalendarToken, CeDays, Date, Duration, EPOCH_CE_DAYS, Hour, Nanosecond,
     SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc,
-    misc::{i16i64, i32i64, u8i64, u32i64},
   },
   collection::{ArrayString, ArrayStringU8},
+  misc::int_conv::{i16i64, i32i64, u8i64, u32i64},
 };
 use core::fmt::{Debug, Display, Formatter};
 

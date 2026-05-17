@@ -50,7 +50,11 @@ where
 impl<'any, T> ShortSliceU8<'any, T> {
   /// If necessary, `slice` is truncated to the maximum length capacity.
   #[inline]
-  #[expect(clippy::cast_possible_truncation, reason = "lack of const support")]
+  #[expect(
+    clippy::as_conversions,
+    clippy::cast_possible_truncation,
+    reason = "lack of const support"
+  )]
   pub const fn new_truncated_u8(slice: &'any [T]) -> Self {
     const { Self::CHECK_LEN }
     Self {

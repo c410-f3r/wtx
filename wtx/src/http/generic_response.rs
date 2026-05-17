@@ -25,13 +25,13 @@ impl GenericResponse for () {
 mod httparse {
   use crate::{
     http::{GenericResponse, Version},
-    misc::_unlikely_unreachable,
+    misc::unlikely_unreachable,
   };
 
   impl GenericResponse for httparse::Response<'_, '_> {
     #[inline]
     fn code(&self) -> u16 {
-      if let Some(el) = self.code { el } else { _unlikely_unreachable() }
+      if let Some(el) = self.code { el } else { unlikely_unreachable() }
     }
 
     #[inline]
@@ -39,7 +39,7 @@ mod httparse {
       match self.version {
         Some(0) => Version::Http1,
         Some(1) => Version::Http1_1,
-        _ => _unlikely_unreachable(),
+        _ => unlikely_unreachable(),
       }
     }
   }

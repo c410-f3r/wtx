@@ -9,5 +9,5 @@ mod http2_tokio;
 mod web_socket_tokio;
 
 /// Optioned abstractions of low-level servers.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct OptionedServer;

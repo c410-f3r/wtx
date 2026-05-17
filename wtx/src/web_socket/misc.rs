@@ -27,12 +27,12 @@ pub fn fill_buffer_with_close_frame(
 /// less than 2 bytes.
 #[inline]
 pub fn fill_buffer_with_close_code(buffer: &mut [u8], code: CloseCode) -> Option<&mut [u8]> {
-  let [a, b, rest @ ..] = buffer else {
+  let [b1, b2, rest @ ..] = buffer else {
     return None;
   };
-  let [c, d] = u16::from(code).to_be_bytes();
-  *a = c;
-  *b = d;
+  let [b3, b4] = u16::from(code).to_be_bytes();
+  *b1 = b3;
+  *b2 = b4;
   Some(rest)
 }
 
@@ -49,9 +49,9 @@ pub(crate) fn check_read_close_frame(
   match payload {
     [] => Ok(false),
     [_] => Err(WebSocketError::InvalidCloseFrame.into()),
-    [a, b, rest @ ..] => {
+    [b1, b2, rest @ ..] => {
       let _str_validation = from_utf8_basic(rest)?;
-      let close_code = CloseCode::try_from(u16::from_be_bytes([*a, *b]))?;
+      let close_code = CloseCode::try_from(u16::from_be_bytes([*b1, *b2]))?;
       if !close_code.is_allowed() || rest.len() > MAX_CONTROL_PAYLOAD_LEN - 2 {
         Ok(true)
       } else {
@@ -82,34 +82,34 @@ pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
 
   match payload_len {
     0..=125 => {
-      let [a, b, ..] = header;
-      *a = first_header_byte(fin, op_code, rsv1);
-      *b = u8::try_from(payload_len).unwrap_or_default();
+      let [b1, b2, ..] = header;
+      *b1 = first_header_byte(fin, op_code, rsv1);
+      *b2 = u8::try_from(payload_len).unwrap_or_default();
       2
     }
-    126..=65535 => {
+    126..=65_535 => {
       let [len_c, len_d] = u16::try_from(payload_len).map(u16::to_be_bytes).unwrap_or_default();
-      let [a, b, c, d, ..] = header;
-      *a = first_header_byte(fin, op_code, rsv1);
-      *b = 126;
-      *c = len_c;
-      *d = len_d;
+      let [b0, b1, b2, b3, ..] = header;
+      *b0 = first_header_byte(fin, op_code, rsv1);
+      *b1 = 126;
+      *b2 = len_c;
+      *b3 = len_d;
       4
     }
     _ => {
       let len = u64::try_from(payload_len).map(u64::to_be_bytes).unwrap_or_default();
       let [len_c, len_d, len_e, len_f, len_g, len_h, len_i, len_j] = len;
-      let [a, b, c, d, e, f, g, h, i, j, ..] = header;
-      *a = first_header_byte(fin, op_code, rsv1);
-      *b = 127;
-      *c = len_c;
-      *d = len_d;
-      *e = len_e;
-      *f = len_f;
-      *g = len_g;
-      *h = len_h;
-      *i = len_i;
-      *j = len_j;
+      let [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ..] = header;
+      *b0 = first_header_byte(fin, op_code, rsv1);
+      *b1 = 127;
+      *b2 = len_c;
+      *b3 = len_d;
+      *b4 = len_e;
+      *b5 = len_f;
+      *b6 = len_g;
+      *b7 = len_h;
+      *b8 = len_i;
+      *b9 = len_j;
       10
     }
   }

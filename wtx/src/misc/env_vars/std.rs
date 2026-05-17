@@ -123,7 +123,6 @@ where
   }
 }
 
-#[expect(clippy::ref_patterns, reason = "false-positive")]
 fn env<R>(read: R) -> crate::Result<Vector<(String, String)>>
 where
   R: Read,
@@ -146,19 +145,19 @@ where
     };
     let key_trimmed = key.trim_end().into();
     let value_trimmed = value.trim_start();
-    if let &[delimiter @ (b'\'' | b'"'), ref value_after_del @ ..] = value_trimmed.as_bytes() {
+    if let [delimiter @ (b'\'' | b'"'), value_after_del @ ..] = value_trimmed.as_bytes() {
       let diff = value.len().wrapping_sub(value_trimmed.len());
       let value_begin = key.len().wrapping_add(1).wrapping_add(diff).wrapping_add(1);
-      if let &[ref value_surrounded @ .., last] = value_after_del {
-        if delimiter == last {
+      if let [value_surrounded @ .., last] = value_after_del {
+        if *delimiter == *last {
           // SAFETY: The cut of surrounding quotes don't invalidate UTF-8
           let value_final = unsafe { str::from_utf8_unchecked(value_surrounded) };
           vars.push((key_trimmed, unescape(value_final)))?;
         } else {
-          process_multiline(buffer, reader, delimiter, key_trimmed, value_begin, &mut vars)?;
+          process_multiline(buffer, reader, *delimiter, key_trimmed, value_begin, &mut vars)?;
         }
       } else {
-        process_multiline(buffer, reader, delimiter, key_trimmed, value_begin, &mut vars)?;
+        process_multiline(buffer, reader, *delimiter, key_trimmed, value_begin, &mut vars)?;
       }
     } else {
       vars.push((key_trimmed, unescape(strip_ending_comment(value_trimmed))))?;

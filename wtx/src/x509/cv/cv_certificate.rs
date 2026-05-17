@@ -62,9 +62,7 @@ pub struct CvCertificate<'any, 'bytes, const IS_EE: bool> {
   pub(crate) validity: Validity,
 }
 
-impl<'any, 'bytes, const IS_EE: bool> TryFrom<Certificate<'bytes>>
-  for CvCertificate<'any, 'bytes, IS_EE>
-{
+impl<'bytes, const IS_EE: bool> TryFrom<Certificate<'bytes>> for CvCertificate<'_, 'bytes, IS_EE> {
   type Error = crate::Error;
 
   #[inline]

@@ -14,15 +14,15 @@ pub(crate) fn push_two_spaces_day<const N: usize>(
   date: Date,
   string: &mut ArrayStringU8<N>,
 ) -> crate::Result<()> {
-  let [a, b] = date.day().num_str().as_bytes() else {
+  let [b0, b1] = date.day().num_str().as_bytes() else {
     return Ok(());
   };
-  if *a == b'0' {
+  if *b0 == b'0' {
     string.push(' ')?;
-    string.push((*b).into())?;
+    string.push((*b1).into())?;
   } else {
-    string.push((*a).into())?;
-    string.push((*b).into())?;
+    string.push((*b0).into())?;
+    string.push((*b1).into())?;
   }
   Ok(())
 }

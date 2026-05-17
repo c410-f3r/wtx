@@ -19,7 +19,6 @@ pub(crate) fn db(
         has_conn = true;
       } else if name == "runtime" {
         has_runtime = true;
-      } else {
       }
     }
   }

@@ -1,7 +1,7 @@
 use crate::http::{KnownHeaderName, Method};
 
 /// Http error
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum HttpError {
   /// Generic request error
   BadRequest,

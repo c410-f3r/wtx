@@ -22,7 +22,7 @@ type Sha384Ty = cfg_select! {
 };
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Sha1DigestGlobal;
 
 impl Hash for Sha1DigestGlobal {
@@ -35,7 +35,7 @@ impl Hash for Sha1DigestGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Sha256DigestGlobal;
 
 impl Hash for Sha256DigestGlobal {
@@ -48,7 +48,7 @@ impl Hash for Sha256DigestGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Sha386DigestGlobal;
 
 impl Hash for Sha386DigestGlobal {

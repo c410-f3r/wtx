@@ -84,18 +84,18 @@ impl Rng for ChaCha20 {
 
   #[inline(always)]
   fn u8_8(&mut self) -> [u8; 8] {
-    let [a, b, c, d] = self.u8_4();
-    let [e, f, g, h] = self.u8_4();
-    [a, b, c, d, e, f, g, h]
+    let [b0, b1, b2, b3] = self.u8_4();
+    let [b4, b5, b6, b7] = self.u8_4();
+    [b0, b1, b2, b3, b4, b5, b6, b7]
   }
 
   #[inline(always)]
   fn u8_16(&mut self) -> [u8; 16] {
-    let [a, b, c, d] = self.u8_4();
-    let [e, f, g, h] = self.u8_4();
-    let [i, j, k, l] = self.u8_4();
-    let [m, n, o, p] = self.u8_4();
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+    let [b0, b1, b2, b3] = self.u8_4();
+    let [b4, b5, b6, b7] = self.u8_4();
+    let [b8, b9, b10, b11] = self.u8_4();
+    let [b12, b13, b14, b15] = self.u8_4();
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]
   }
 
   #[inline(always)]
@@ -207,22 +207,22 @@ impl ParBlock {
 
   // https://datatracker.ietf.org/doc/html/rfc7539#section-2.1
   #[inline(always)]
-  fn quarter_round(&mut self, a: usize, b: usize, c: usize, d: usize) -> Option<()> {
-    *self.0.get_mut(a)? = self.0.get(a)?.wrapping_add(self.0.get(b)?);
-    *self.0.get_mut(d)? = self.0.get(d)?.xor(self.0.get(a)?);
-    *self.0.get_mut(d)? = self.0.get(d)?.rotate_left(16);
+  fn quarter_round(&mut self, idx0: usize, idx1: usize, idx2: usize, idx3: usize) -> Option<()> {
+    *self.0.get_mut(idx0)? = self.0.get(idx0)?.wrapping_add(self.0.get(idx1)?);
+    *self.0.get_mut(idx3)? = self.0.get(idx3)?.xor(self.0.get(idx0)?);
+    *self.0.get_mut(idx3)? = self.0.get(idx3)?.rotate_left(16);
 
-    *self.0.get_mut(c)? = self.0.get(c)?.wrapping_add(self.0.get(d)?);
-    *self.0.get_mut(b)? = self.0.get(b)?.xor(self.0.get(c)?);
-    *self.0.get_mut(b)? = self.0.get(b)?.rotate_left(12);
+    *self.0.get_mut(idx2)? = self.0.get(idx2)?.wrapping_add(self.0.get(idx3)?);
+    *self.0.get_mut(idx1)? = self.0.get(idx1)?.xor(self.0.get(idx2)?);
+    *self.0.get_mut(idx1)? = self.0.get(idx1)?.rotate_left(12);
 
-    *self.0.get_mut(a)? = self.0.get(a)?.wrapping_add(self.0.get(b)?);
-    *self.0.get_mut(d)? = self.0.get(d)?.xor(self.0.get(a)?);
-    *self.0.get_mut(d)? = self.0.get(d)?.rotate_left(8);
+    *self.0.get_mut(idx0)? = self.0.get(idx0)?.wrapping_add(self.0.get(idx1)?);
+    *self.0.get_mut(idx3)? = self.0.get(idx3)?.xor(self.0.get(idx0)?);
+    *self.0.get_mut(idx3)? = self.0.get(idx3)?.rotate_left(8);
 
-    *self.0.get_mut(c)? = self.0.get(c)?.wrapping_add(self.0.get(d)?);
-    *self.0.get_mut(b)? = self.0.get(b)?.xor(self.0.get(c)?);
-    *self.0.get_mut(b)? = self.0.get(b)?.rotate_left(7);
+    *self.0.get_mut(idx2)? = self.0.get(idx2)?.wrapping_add(self.0.get(idx3)?);
+    *self.0.get_mut(idx1)? = self.0.get(idx1)?.xor(self.0.get(idx2)?);
+    *self.0.get_mut(idx1)? = self.0.get(idx1)?.rotate_left(7);
 
     Some(())
   }
@@ -256,8 +256,8 @@ impl ParWord {
   #[inline(always)]
   fn rotate_left(&self, n: u32) -> Self {
     let mut rslt = self.0;
-    for a in &mut rslt {
-      *a = a.rotate_left(n);
+    for el in &mut rslt {
+      *el = el.rotate_left(n);
     }
     Self(rslt)
   }
@@ -265,8 +265,8 @@ impl ParWord {
   #[inline(always)]
   fn wrapping_add(&self, other: &Self) -> Self {
     let mut rslt = self.0;
-    for (a, b) in rslt.iter_mut().zip(other.0) {
-      *a = a.wrapping_add(b);
+    for (lhs, rhs) in rslt.iter_mut().zip(other.0) {
+      *lhs = lhs.wrapping_add(rhs);
     }
     Self(rslt)
   }
@@ -274,8 +274,8 @@ impl ParWord {
   #[inline(always)]
   fn xor(&self, other: &Self) -> Self {
     let mut rslt = self.0;
-    for (a, b) in rslt.iter_mut().zip(other.0) {
-      *a ^= b;
+    for (lhs, rhs) in rslt.iter_mut().zip(other.0) {
+      *lhs ^= rhs;
     }
     Self(rslt)
   }
@@ -296,8 +296,8 @@ fn block_function<const ADD: bool>(block: &ParBlock, output: &mut ParBlock) {
     let _ = output.quarter_round(3, 4, 9, 14);
   }
   if ADD {
-    for (a, b) in output.0.iter_mut().zip(&block.0) {
-      *a = a.wrapping_add(b);
+    for (lhs, rhs) in output.0.iter_mut().zip(&block.0) {
+      *lhs = lhs.wrapping_add(rhs);
     }
   }
 }

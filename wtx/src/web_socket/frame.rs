@@ -72,8 +72,8 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
   }
 
   pub(crate) const fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
-    let [a, b, ..] = &mut self.header;
-    [a, b]
+    let [b1, b2, ..] = &mut self.header;
+    [b1, b2]
   }
 
   pub(crate) fn set_mask(&mut self, mask: [u8; 4]) {
@@ -81,12 +81,12 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
       return;
     }
     self.header_len = self.header_len.wrapping_add(4);
-    if let Some([_, a, .., b, c, d, e]) = self.header.get_mut(..self.header_len.into()) {
-      *a |= MASK_MASK;
-      *b = mask[0];
-      *c = mask[1];
-      *d = mask[2];
-      *e = mask[3];
+    if let Some([_, b0, .., b1, b2, b3, b4]) = self.header.get_mut(..self.header_len.into()) {
+      *b0 |= MASK_MASK;
+      *b1 = mask[0];
+      *b2 = mask[1];
+      *b3 = mask[2];
+      *b4 = mask[3];
     }
   }
 }

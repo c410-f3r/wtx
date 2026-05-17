@@ -1,6 +1,6 @@
 //! WTX - Macros
 
-#![expect(clippy::too_many_lines, reason = "Unimportant")]
+#![expect(clippy::struct_field_names, clippy::too_many_lines, reason = "Unimportant")]
 
 mod client_api_framework;
 mod db;

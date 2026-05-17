@@ -53,8 +53,8 @@ where
   #[inline]
   fn next(&mut self) -> Option<Self::Item> {
     if self.started {
-      if let Some(v) = self.next_item.take() {
-        Some(v)
+      if let Some(el) = self.next_item.take() {
+        Some(el)
       } else {
         let next_item = self.iter.next();
         next_item.is_some().then(|| {
@@ -77,7 +77,7 @@ where
 fn intersperse_fold<I, B, F, S>(
   mut iter: I,
   init: B,
-  mut f: F,
+  mut fun: F,
   mut separator: S,
   started: bool,
   mut next_item: Option<I::Item>,
@@ -91,12 +91,12 @@ where
 
   let first = if started { next_item.take() } else { iter.next() };
   if let Some(x) = first {
-    accum = f(accum, x);
+    accum = fun(accum, x);
   }
 
   iter.fold(accum, |mut elem, x| {
-    elem = f(elem, separator());
-    elem = f(elem, x);
+    elem = fun(elem, separator());
+    elem = fun(elem, x);
     elem
   })
 }

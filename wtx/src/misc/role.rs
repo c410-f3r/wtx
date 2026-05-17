@@ -5,21 +5,21 @@ pub trait Role {
 }
 
 /// Local instance is a client, i.e., opens connections.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Client;
 impl Role for Client {
   const TY: RoleTy = RoleTy::Client;
 }
 
 /// Local instance is a server, i.e., listens for connections.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Server;
 impl Role for Server {
   const TY: RoleTy = RoleTy::Server;
 }
 
 /// Represents the type of role a local protocol instance fulfills.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RoleTy {
   /// The local instance is a client that opens connections.
   Client,

@@ -1,5 +1,5 @@
 /// WebSocket Error
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum WebSocketError {
   /// HTTP headers must be unique.
   DuplicatedHeader,

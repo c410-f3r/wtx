@@ -24,7 +24,7 @@ macro_rules! _local_write_all_vectored {
         let mut $io_slices = crate::stream::convert_to_io_slices(&mut buffer, $bytes)?;
         while !$io_slices.is_empty() {
           match $write_many {
-            Err(e) => return Err(e.into()),
+            Err(err) => return Err(err.into()),
             Ok(0) => return Err(crate::Error::UnexpectedStreamWriteEOF),
             Ok(n) => std::io::IoSlice::advance_slices(&mut $io_slices, n),
           }

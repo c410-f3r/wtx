@@ -5,7 +5,7 @@ use crate::{
 use core::ops::Range;
 
 /// Radix Tree Error
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum RadixTreeError {
   /// Conflicting route definitions
   ConflictingRoute,
@@ -35,8 +35,8 @@ pub enum RadixTreeError {
 /// This particular radix tree allows the insertion of wildcards or dynamic parameters, which makes
 /// it suitable for URI routers.
 ///
-/// * `hey_{anything*}`: hey_, hey_world, hey_you_you_are_nodding_out
-/// * `{phrase}_ready_to_go.avif`: are_you_ready_to_go.avif,  cause i_am_ready_to_go.avif
+/// * `hey_{anything*}`: `hey_`, `hey_you_you_are_nodding_out`
+/// * `{phrase}_ready_to_go.avif`: `are_you_ready_to_go.avif`, `cause_i_am_ready_to_go.avif`
 #[derive(Clone, Debug)]
 pub struct RadixTree<T> {
   edges: Vector<Edge>,
@@ -96,7 +96,6 @@ impl<T> RadixTree<T> {
       ) {
         Some(false) => {
           node_idx = node_idx.wrapping_add(1);
-          continue;
         }
         Some(true) => return Ok(RadixTreePath { identifier, nodes: &self.nodes, nodes_params }),
         None => {
@@ -126,7 +125,7 @@ impl<T> RadixTree<T> {
           edge.node_target_idx,
           &mut nodes_params,
         ) {
-          Some(false) => continue,
+          Some(false) => {}
           Some(true) => return Ok(RadixTreePath { identifier, nodes: &self.nodes, nodes_params }),
           None => {
             let consumed = len_before.wrapping_sub(curr_identifier.len()).try_into()?;
@@ -168,7 +167,7 @@ impl<T> RadixTree<T> {
       }
       NodeTy::Param { after, end_idx, .. } => {
         let tail = node.identifier.get(usize::from(end_idx)..).unwrap_or_default();
-        let (param, after) = if tail.is_empty() {
+        let (param, tail_after) = if tail.is_empty() {
           if let Some(byte) = after
             && let Some((param, _)) = str_split_once1(rhs, byte)
           {
@@ -177,12 +176,12 @@ impl<T> RadixTree<T> {
             (rhs, "")
           }
         } else {
-          let Some((param, after)) = str_split_once_str(rhs, tail) else {
+          let Some((param, tail_after)) = str_split_once_str(rhs, tail) else {
             return Some(false);
           };
-          (param, after)
+          (param, tail_after)
         };
-        *curr_identifier = after;
+        *curr_identifier = tail_after;
         let comparing_name_len = comparing_name.len().try_into().unwrap_or_default();
         let param_start = absolute_offset.wrapping_add(comparing_name_len);
         let param_end = param_start.wrapping_add(param.len().try_into().unwrap_or_default());
@@ -220,7 +219,7 @@ pub struct RadixTreeBuilder<'instance, T> {
   root_len: &'instance mut u8,
 }
 
-impl<'instance, T> RadixTreeBuilder<'instance, T> {
+impl<T> RadixTreeBuilder<'_, T> {
   /// Adds a new node and its associated value to the tree.
   #[inline]
   pub fn node(&mut self, mut identifier: &'static str, value: T) -> crate::Result<&mut Self> {
@@ -240,7 +239,6 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
       )? {
         CheckInsertNodeRslt::Impossible | CheckInsertNodeRslt::Unmatched => {
           nodes_idx = nodes_idx.wrapping_add(1);
-          continue;
         }
         CheckInsertNodeRslt::MatchedAll => {
           parent_node_idx = nodes_idx;
@@ -281,7 +279,7 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
           node,
           &mut identifier,
         )? {
-          CheckInsertNodeRslt::Impossible | CheckInsertNodeRslt::Unmatched => continue,
+          CheckInsertNodeRslt::Impossible | CheckInsertNodeRslt::Unmatched => {}
           CheckInsertNodeRslt::MatchedAll => {
             parent_node_idx = edge.node_target_idx;
             has_match = true;
@@ -323,7 +321,7 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
     node_insert_idx0 = node_insert_idx0.wrapping_add(1);
     let is_in_same_depth = common_prefix_len > 0;
     let offset = if is_single { 1 } else { 2 };
-    self.adjust_edges(node_insert_idx0.into(), offset);
+    self.adjust_edges(node_insert_idx0, offset);
     let (parent, rest) = if is_single {
       self.nodes.insert(node_insert_idx0.into(), Node::from_identifier(node_identifier))?;
       let split_opt = self.nodes.split_at_mut_checked(node_insert_idx0.into());
@@ -331,7 +329,7 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
         return Ok(());
       };
       Self::modify_child(child, common_prefix_len, node_identifier, parent)?;
-      child.edges_offset = parent.edges_offset.wrapping_add(offset.into());
+      child.edges_offset = parent.edges_offset.wrapping_add(offset);
       child.value = Some(node_value);
       self.edges.insert(parent.edges_offset.into(), Edge::new(node_insert_idx0))?;
       (parent, rest)
@@ -421,13 +419,13 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
       }
       return Ok(CheckInsertNodeRslt::Impossible);
     };
-    let common_prefix_len = Self::common_prefix_len(lhs, comparing_identifier);
-    if common_prefix_len == 0 {
+    let common_prefix_len_lhs = Self::common_prefix_len(lhs, comparing_identifier);
+    if common_prefix_len_lhs == 0 {
       return Ok(CheckInsertNodeRslt::Unmatched);
-    } else if common_prefix_len != lhs.len() {
+    } else if common_prefix_len_lhs != lhs.len() {
       return Ok(CheckInsertNodeRslt::MatchedPart {
-        common_prefix_len,
-        is_single: common_prefix_len == comparing_identifier.len(),
+        common_prefix_len: common_prefix_len_lhs,
+        is_single: common_prefix_len_lhs == comparing_identifier.len(),
       });
     }
     *is_root = false;
@@ -438,7 +436,7 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
       NodeTy::Param { end_idx, .. } => {
         let tail = node.identifier.get(usize::from(end_idx)..).unwrap_or_default();
         if tail.is_empty() {
-          let common_prefix_len = Self::common_prefix_len(&*node.identifier, *node_identifier);
+          let common_prefix_len = Self::common_prefix_len(&node.identifier, node_identifier);
           if common_prefix_len == node.identifier.len() {
             let remainder = &node_identifier.get(common_prefix_len..).unwrap_or_default();
             *curr_edges_range_opt = Some(edges_range);
@@ -446,19 +444,18 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
             return Ok(CheckInsertNodeRslt::MatchedAll);
           }
           return Err(RadixTreeError::ConflictingRoute.into());
-        } else {
-          let Some((_, after)) = str_split_once_str(rhs, tail) else {
-            let common_prefix_len = Self::common_prefix_len(&*node.identifier, *node_identifier);
-            return Ok(CheckInsertNodeRslt::MatchedPart {
-              common_prefix_len,
-              is_single: common_prefix_len == node.identifier.len(),
-            });
-          };
-          *node_identifier = after;
         }
+        let Some((_, after)) = str_split_once_str(rhs, tail) else {
+          let common_prefix_len = Self::common_prefix_len(&node.identifier, node_identifier);
+          return Ok(CheckInsertNodeRslt::MatchedPart {
+            common_prefix_len,
+            is_single: common_prefix_len == node.identifier.len(),
+          });
+        };
+        *node_identifier = after;
       }
       NodeTy::Wildcard { .. } => return Err(RadixTreeError::MultipleWildcardsInPath.into()),
-    };
+    }
     if node_identifier.is_empty() {
       return Err(RadixTreeError::DuplicateRoute.into());
     }
@@ -473,7 +470,7 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
 
   #[inline]
   fn common_prefix_len(lhs: &str, rhs: &str) -> usize {
-    lhs.as_bytes().iter().zip(rhs.as_bytes()).take_while(|(a, b)| a == b).count()
+    lhs.as_bytes().iter().zip(rhs.as_bytes()).take_while(|(b0, b1)| b0 == b1).count()
   }
 
   #[inline]
@@ -542,6 +539,7 @@ impl<'instance, T> RadixTreeBuilder<'instance, T> {
   }
 }
 
+/// Path constructed from a root node
 #[derive(Debug, PartialEq)]
 pub struct RadixTreePath<'any, T> {
   identifier: &'any str,
@@ -549,7 +547,8 @@ pub struct RadixTreePath<'any, T> {
   nodes_params: ArrayVectorU8<NodeParam, 8>,
 }
 
-impl<'any, T> RadixTreePath<'any, T> {
+impl<T> RadixTreePath<'_, T> {
+  /// User data originated from a node
   #[inline]
   pub fn data(&self) -> &T {
     // SAFETY: Non-empty routes always have at least one path
@@ -569,7 +568,7 @@ impl<'any, T> RadixTreePath<'any, T> {
   /// Gets a parameter according to its declared name.
   #[inline]
   pub fn param_by_name(&self, name: &[u8]) -> Option<RadixTreePathParam<'_>> {
-    self.params().find(|p| p.name.as_bytes() == name)
+    self.params().find(|el| el.name.as_bytes() == name)
   }
 
   /// Iterator over all parameters
@@ -580,8 +579,7 @@ impl<'any, T> RadixTreePath<'any, T> {
       let node = nodes.get(usize::from(*node_idx))?;
       let name = match node.ty {
         NodeTy::Literal => return None,
-        NodeTy::Param { name, .. } => name,
-        NodeTy::Wildcard { name, .. } => name,
+        NodeTy::Param { name, .. } | NodeTy::Wildcard { name, .. } => name,
       };
       let value = identifier.get(param_range.start.into()..param_range.end.into())?;
       Some(RadixTreePathParam::new(name.into_str(), value))
@@ -709,9 +707,9 @@ mod tests {
     let mut radix_tree = RadixTree::new();
     {
       let mut builder = radix_tree.builder();
-      builder.node("/api/users", 1).unwrap();
-      builder.node("/api/posts", 2).unwrap();
-      builder.node("/api/comments", 3).unwrap();
+      let _ = builder.node("/api/users", 1).unwrap();
+      let _ = builder.node("/api/posts", 2).unwrap();
+      let _ = builder.node("/api/comments", 3).unwrap();
     }
     assert_eq!(radix_tree.find("/api/users").unwrap().data(), &1);
     assert_eq!(radix_tree.find("/api/posts").unwrap().data(), &2);
@@ -785,9 +783,9 @@ mod tests {
     let mut radix_tree = RadixTree::new();
     {
       let mut builder = radix_tree.builder();
-      builder.node("/foo", 1).unwrap();
-      builder.node("/bar", 2).unwrap();
-      builder.node("/baz", 3).unwrap();
+      let _ = builder.node("/foo", 1).unwrap();
+      let _ = builder.node("/bar", 2).unwrap();
+      let _ = builder.node("/baz", 3).unwrap();
     }
     assert_eq!(
       &radix_tree.nodes,
@@ -835,8 +833,8 @@ mod tests {
     let mut radix_tree = RadixTree::new();
     {
       let mut builder = radix_tree.builder();
-      builder.node("/user/{id}/profile", 1).unwrap();
-      builder.node("/user/{id}/settings", 2).unwrap();
+      let _ = builder.node("/user/{id}/profile", 1).unwrap();
+      let _ = builder.node("/user/{id}/settings", 2).unwrap();
     }
     assert_eq!(radix_tree.find("/user/123/profile").unwrap().data(), &1);
     assert_eq!(radix_tree.find("/user/456/settings").unwrap().data(), &2);
@@ -875,10 +873,10 @@ mod tests {
       let _ = builder.node("/bb/{}", 3).unwrap();
       let _ = builder.node("/bb/{}/cc/{}", 4).unwrap();
     }
-    let _ = radix_tree.find("/aa").unwrap();
-    let _ = radix_tree.find("/aa/111").unwrap();
-    let _ = radix_tree.find("/bb/222").unwrap();
-    let _ = radix_tree.find("/bb/333/cc/444").unwrap();
+    drop(radix_tree.find("/aa").unwrap());
+    drop(radix_tree.find("/aa/111").unwrap());
+    drop(radix_tree.find("/bb/222").unwrap());
+    drop(radix_tree.find("/bb/333/cc/444").unwrap());
   }
 
   #[test]
@@ -887,8 +885,8 @@ mod tests {
       let mut radix_tree = RadixTree::new();
       {
         let mut builder = radix_tree.builder();
-        builder.node("/ab", 1).unwrap();
-        builder.node("/abc", 2).unwrap();
+        let _ = builder.node("/ab", 1).unwrap();
+        let _ = builder.node("/abc", 2).unwrap();
       }
       assert_eq!(radix_tree.find("/ab").unwrap().data(), &1);
       assert_eq!(radix_tree.find("/abc").unwrap().data(), &2);
@@ -898,8 +896,8 @@ mod tests {
       let mut radix_tree = RadixTree::new();
       {
         let mut builder = radix_tree.builder();
-        builder.node("/abc", 2).unwrap();
-        builder.node("/ab", 1).unwrap();
+        let _ = builder.node("/abc", 2).unwrap();
+        let _ = builder.node("/ab", 1).unwrap();
       }
       assert_eq!(radix_tree.find("/ab").unwrap().data(), &1);
       assert_eq!(radix_tree.find("/abc").unwrap().data(), &2);

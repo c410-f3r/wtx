@@ -29,7 +29,7 @@ type Chacha20Poly1305Ty = cfg_select! {
 };
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Aes128GcmGlobal;
 
 impl Aead for Aes128GcmGlobal {
@@ -61,7 +61,7 @@ impl Aead for Aes128GcmGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Aes256GcmGlobal;
 
 impl Aead for Aes256GcmGlobal {
@@ -93,7 +93,7 @@ impl Aead for Aes256GcmGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Chacha20Poly1305TyGlobal;
 
 impl Aead for Chacha20Poly1305TyGlobal {

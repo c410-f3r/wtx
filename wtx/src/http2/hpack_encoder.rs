@@ -15,7 +15,7 @@ use crate::{
     Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
     huffman::huffman_encode, misc::protocol_err,
   },
-  misc::{_unlikely_unreachable, Usize, bytes_transfer::shift_copyable_chunks, random_state},
+  misc::{Usize, bytes_transfer::shift_copyable_chunks, random_state, unlikely_unreachable},
   rng::Rng,
 };
 use core::{
@@ -257,7 +257,7 @@ impl HpackEncoder {
     let fits_in_1_byte = len_usize < 0b0111_1111;
     if let (true, Ok(len)) = (fits_in_1_byte, u8::try_from(len_usize)) {
       let Some(byte) = buffer.get_mut(before_byte) else {
-        _unlikely_unreachable();
+        unlikely_unreachable();
       };
       *byte = 0b1000_0000 | len;
     } else if let Ok(len) = u32::try_from(len_usize) {

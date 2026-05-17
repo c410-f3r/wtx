@@ -1,5 +1,7 @@
-use crate::{executor::curr_thread_waker::CurrThreadWaker, sync::AtomicWaker};
-use alloc::sync::Arc;
+use crate::{
+  executor::curr_thread_waker::CurrThreadWaker,
+  sync::{Arc, AtomicWaker},
+};
 use core::{
   cell::RefCell,
   fmt::{Debug, Formatter},
@@ -10,7 +12,7 @@ use core::{
 use std::{thread, thread_local};
 
 /// Simple dependency-free runtime intended for tests, toy programs and demonstrations.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Runtime(());
 
 impl Runtime {

@@ -21,9 +21,9 @@ pub(crate) fn table(item: proc_macro::TokenStream) -> crate::Result<proc_macro::
         }
         string
       }
-      _ => return Err(crate::Error::InvalidStruct),
+      Fields::Unnamed(_) | Fields::Unit => return Err(crate::Error::InvalidStruct),
     },
-    _ => return Err(crate::Error::InvalidStruct),
+    Data::Enum(_) | Data::Union(_) => return Err(crate::Error::InvalidStruct),
   };
 
   let expanded = quote::quote! {

@@ -1,5 +1,5 @@
 /// Calendar error
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum CalendarError {
   // Generic
   //

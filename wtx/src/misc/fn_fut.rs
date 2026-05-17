@@ -62,11 +62,11 @@ pub trait FnFut<A> {
 }
 
 create_and_implement!(&Self, Fn, FnFut, ());
-create_and_implement!(&Self, Fn, FnFut, (A));
-create_and_implement!(&Self, Fn, FnFut, (A, B));
-create_and_implement!(&Self, Fn, FnFut, (A, B, C));
-create_and_implement!(&Self, Fn, FnFut, (A, B, C, D));
-create_and_implement!(&Self, Fn, FnFut, (A, B, C, D, E));
+create_and_implement!(&Self, Fn, FnFut, (T0));
+create_and_implement!(&Self, Fn, FnFut, (T0, T1));
+create_and_implement!(&Self, Fn, FnFut, (T0, T1, T2));
+create_and_implement!(&Self, Fn, FnFut, (T0, T1, T2, T3));
+create_and_implement!(&Self, Fn, FnFut, (T0, T1, T2, T3, T4));
 
 /// Simulates `impl for<'any> FnMut(&'any ..) -> impl Future + 'any` due to the lack of compiler
 /// support.
@@ -91,8 +91,8 @@ pub trait FnMutFut<A> {
 }
 
 create_and_implement!(&mut Self, FnMut, FnMutFut, ());
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D));
-create_and_implement!(&mut Self, FnMut, FnMutFut, (A, B, C, D, E));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (T0));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (T0, T1));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (T0, T1, T2));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (T0, T1, T2, T3));
+create_and_implement!(&mut Self, FnMut, FnMutFut, (T0, T1, T2, T3, T4));

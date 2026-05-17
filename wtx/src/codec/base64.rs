@@ -17,7 +17,7 @@ pub enum Base64Alphabet {
 }
 
 /// Base64 Error
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Base64Error {
   /// The encoding of a sequence of bytes would overflow its capacity.
   EncodingLengthOverflow,
@@ -157,8 +157,8 @@ pub const fn base64_encoded_len(decoded_len: usize, is_padded: bool) -> Option<u
 //
 // This is a best effort. See <https://godbolt.org/z/svKzM449n>
 #[inline(always)]
-fn byte_cmp_ct(a: u8, b: u8) -> u8 {
-  let diff = a ^ b;
+fn byte_cmp_ct(lhs: u8, rhs: u8) -> u8 {
+  let diff = lhs ^ rhs;
   let (_, overflow) = diff.overflowing_sub(1);
   u8::from(overflow)
 }
@@ -175,13 +175,13 @@ fn decode_3bytes(decoder: &'static [DecodeStep], from: &[u8; 4], to: &mut [u8; 3
   if (a_i16 | b_i16 | c_i16 | d_i16) < 0 {
     return 1;
   }
-  let a = u8::try_from(a_i16).unwrap_or_default();
-  let b = u8::try_from(b_i16).unwrap_or_default();
-  let c = u8::try_from(c_i16).unwrap_or_default();
-  let d = u8::try_from(d_i16).unwrap_or_default();
-  to[0] = (a << 2) | (b >> 4);
-  to[1] = (b << 4) | (c >> 2);
-  to[2] = (c << 6) | d;
+  let b0 = u8::try_from(a_i16).unwrap_or_default();
+  let b1 = u8::try_from(b_i16).unwrap_or_default();
+  let b2 = u8::try_from(c_i16).unwrap_or_default();
+  let b3 = u8::try_from(d_i16).unwrap_or_default();
+  to[0] = (b0 << 2) | (b1 >> 4);
+  to[1] = (b1 << 4) | (b2 >> 2);
+  to[2] = (b2 << 6) | b3;
   0
 }
 
@@ -192,9 +192,9 @@ fn decode_6bits(decoder: &'static [DecodeStep], from: u8) -> i16 {
   ///
   /// Returns `-1` if `from` is in the range delimited by `a` and `b`.
   #[inline(always)]
-  fn is_in_range(a: u8, b: u8, from: u8) -> i16 {
-    let begin = i16::from(a).wrapping_sub(1);
-    let end = i16::from(b).wrapping_add(1);
+  fn is_in_range(b0: u8, b1: u8, from: u8) -> i16 {
+    let begin = i16::from(b0).wrapping_sub(1);
+    let end = i16::from(b1).wrapping_add(1);
     let value = begin.wrapping_sub(i16::from(from)) & i16::from(from).wrapping_sub(end);
     value >> 8
   }
@@ -228,13 +228,13 @@ const fn decoded_len_no_pad(encoded_len: usize) -> Option<usize> {
 
 #[inline(always)]
 fn encode_3bytes(base: u8, encoder: &'static [EncodeStep], from: &[u8; 3], to: &mut [u8; 4]) {
-  let a = i16::from(from[0]);
-  let b = i16::from(from[1]);
-  let c = i16::from(from[2]);
-  to[0] = encode_6bits(base, encoder, a >> 2);
-  to[1] = encode_6bits(base, encoder, ((a << 4) | (b >> 4)) & 63);
-  to[2] = encode_6bits(base, encoder, ((b << 2) | (c >> 6)) & 63);
-  to[3] = encode_6bits(base, encoder, c & 63);
+  let e0 = i16::from(from[0]);
+  let e1 = i16::from(from[1]);
+  let e2 = i16::from(from[2]);
+  to[0] = encode_6bits(base, encoder, e0 >> 2);
+  to[1] = encode_6bits(base, encoder, ((e0 << 4) | (e1 >> 4)) & 63);
+  to[2] = encode_6bits(base, encoder, ((e1 << 2) | (e2 >> 6)) & 63);
+  to[3] = encode_6bits(base, encoder, e2 & 63);
 }
 
 #[inline(always)]
@@ -281,9 +281,9 @@ const fn parts(
 #[inline(always)]
 fn strip_padding(bytes: &[u8], pad: u8) -> &[u8] {
   match bytes {
-    [rest @ .., a, b] => {
-      let a_is_equal = byte_cmp_ct(*a, pad) == 1;
-      let b_is_equal = byte_cmp_ct(*b, pad) == 1;
+    [rest @ .., b0, b1] => {
+      let a_is_equal = byte_cmp_ct(*b0, pad) == 1;
+      let b_is_equal = byte_cmp_ct(*b1, pad) == 1;
       match (a_is_equal, b_is_equal) {
         (true, true) => rest,
         (false, true) => {
@@ -293,8 +293,8 @@ fn strip_padding(bytes: &[u8], pad: u8) -> &[u8] {
         _ => bytes,
       }
     }
-    [rest @ .., a] => {
-      if byte_cmp_ct(*a, pad) == 1 {
+    [rest @ .., b0] => {
+      if byte_cmp_ct(*b0, pad) == 1 {
         rest
       } else {
         bytes
@@ -302,11 +302,6 @@ fn strip_padding(bytes: &[u8], pad: u8) -> &[u8] {
     }
     _ => bytes,
   }
-}
-
-#[inline(always)]
-const fn u8i16(n: u8) -> i16 {
-  n as i16
 }
 
 #[cfg(test)]

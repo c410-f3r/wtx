@@ -6,9 +6,9 @@ pub(crate) fn from_vars(item: proc_macro::TokenStream) -> crate::Result<proc_mac
   let fields = match &input.data {
     Data::Struct(data) => match &data.fields {
       Fields::Named(fields) => &fields.named,
-      _ => return Err(crate::Error::InvalidStruct),
+      Fields::Unnamed(_) | Fields::Unit => return Err(crate::Error::InvalidStruct),
     },
-    _ => return Err(crate::Error::InvalidStruct),
+    Data::Enum(_) | Data::Union(_) => return Err(crate::Error::InvalidStruct),
   };
 
   let mut field_infos = Vec::new();
@@ -20,7 +20,7 @@ pub(crate) fn from_vars(item: proc_macro::TokenStream) -> crate::Result<proc_mac
     });
   }
 
-  let field_strings: Vec<_> = field_infos.iter().map(|f| f.ident.to_string()).collect();
+  let field_strings: Vec<_> = field_infos.iter().map(|fi| fi.ident.to_string()).collect();
   let field_vars: Vec<_> =
     field_infos.iter().map(|field_info| quote::format_ident!("_{}", field_info.ident)).collect();
   let var_declarations = field_vars.iter().map(|var| {

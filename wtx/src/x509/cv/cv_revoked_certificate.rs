@@ -47,8 +47,8 @@ impl<'any, 'bytes> TryFrom<&'any RevokedCertificate<'bytes>> for CvRevokedCertif
   }
 }
 
-fn extensions<'bytes>(
-  extensions_opt: Option<&Extensions<'bytes>>,
+fn extensions(
+  extensions_opt: Option<&Extensions<'_>>,
   reason_code: &mut Option<CrlReason>,
   invalidity_date: &mut Option<Time>,
 ) -> crate::Result<()> {

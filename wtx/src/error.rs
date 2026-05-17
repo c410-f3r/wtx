@@ -745,7 +745,7 @@ impl From<Box<dyn Any + Send + 'static>> for Error {
 }
 
 /// An error returned by the receiving part of a channel
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum RecvError {
   /// A message could not be received because the channel is empty.
   Empty,

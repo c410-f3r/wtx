@@ -33,7 +33,7 @@ impl<T> DerefMut for CachePadded<T> {
 
 impl<T> From<T> for CachePadded<T> {
   #[inline]
-  fn from(t: T) -> Self {
-    CachePadded(t)
+  fn from(value: T) -> Self {
+    CachePadded(value)
   }
 }

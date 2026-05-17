@@ -1,6 +1,6 @@
-#![allow(
+#![expect(
   clippy::cast_possible_truncation,
-  reason = "shifted integers are reduced to a smaller representation"
+  reason = "shifted integers are reduced to smaller representations"
 )]
 
 mod format;
@@ -12,13 +12,15 @@ use crate::{
     CalendarError, CalendarToken, CeDays, DAYS_OF_MONTHS, DAYS_PER_4_YEARS, DAYS_PER_NON_LEAP_YEAR,
     DAYS_PER_QUADCENTURY, Day, DayOfYear, Duration, Month, SECONDS_PER_DAY, Weekday,
     YEARS_PER_QUADCENTURY, Year,
-    misc::{
+  },
+  collection::{ArrayString, ArrayStringU8},
+  misc::{
+    Usize,
+    int_conv::{
       boolu16, boolu32, boolusize, i16i32, i32i64, u8i16, u8i32, u8u16, u8u32, u8usize, u16i32,
       u16u32, u32i64,
     },
   },
-  collection::{ArrayString, ArrayStringU8},
-  misc::Usize,
 };
 use core::{
   cmp::Ordering,
@@ -129,9 +131,9 @@ impl Date {
     if day.num() > month.days(year) {
       return Err(CalendarError::InvalidDayOfTheMonth);
     }
-    #[allow(clippy::indexing_slicing, reason = "zero or one are valid indices for a 2 len array")]
+    #[expect(clippy::indexing_slicing, reason = "zero or one are valid indices for a 2 len array")]
     let months_year = &DAYS_OF_MONTHS[boolusize(year.is_leap_year())];
-    #[allow(clippy::indexing_slicing, reason = "month only goes up to 12")]
+    #[expect(clippy::indexing_slicing, reason = "month only goes up to 12")]
     let month_days = months_year[u8usize(month.num()).wrapping_sub(1)];
     let day_of_year = match DayOfYear::from_num(month_days.wrapping_add(u8u16(day.num()))) {
       Ok(elem) => elem,
@@ -383,7 +385,7 @@ impl PartialOrd for Date {
   }
 }
 
-#[allow(
+#[expect(
   clippy::indexing_slicing,
   reason = "`years` is not greater than the length of `QUADCENTURY_ADJUSTMENTS`"
 )]
@@ -401,11 +403,11 @@ const fn days_from_quadcentury_years(years: i16, day_of_year: u16) -> Option<i32
   )
 }
 
-#[allow(
+#[expect(
   clippy::arithmetic_side_effects,
   reason = "Divisions/modulos are using non-zero numbers but it can't see past a literal constant"
 )]
-#[allow(
+#[expect(
   clippy::indexing_slicing,
   reason = "days / DAYS_PER_NON_LEAP_YEAR_U16 will never be greater than 400"
 )]

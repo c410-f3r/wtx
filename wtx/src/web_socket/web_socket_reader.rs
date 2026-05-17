@@ -369,12 +369,12 @@ where
   let curr_end_idx_p4 = curr_end_idx.wrapping_add(4);
   let has_following = network_buffer.has_following();
   let input = network_buffer.current_rest_mut().get_mut(..curr_end_idx_p4).unwrap_or_default();
-  let original = if let [.., a, b, c, d] = input {
-    let original = [*a, *b, *c, *d];
-    *a = DECOMPRESSION_SUFFIX[0];
-    *b = DECOMPRESSION_SUFFIX[1];
-    *c = DECOMPRESSION_SUFFIX[2];
-    *d = DECOMPRESSION_SUFFIX[3];
+  let original = if let [.., b0, b1, b2, b3] = input {
+    let original = [*b0, *b1, *b2, *b3];
+    *b0 = DECOMPRESSION_SUFFIX[0];
+    *b1 = DECOMPRESSION_SUFFIX[1];
+    *b2 = DECOMPRESSION_SUFFIX[2];
+    *b3 = DECOMPRESSION_SUFFIX[3];
     original
   } else {
     [0, 0, 0, 0]
@@ -387,11 +387,11 @@ where
     |local_rb| expand_rb(additional, local_rb, before),
     |local_rb, written| expand_rb(additional, local_rb, before.wrapping_add(written)),
   );
-  if has_following && let [.., a, b, c, d] = input {
-    *a = original[0];
-    *b = original[1];
-    *c = original[2];
-    *d = original[3];
+  if has_following && let [.., b0, b1, b2, b3] = input {
+    *b0 = original[0];
+    *b1 = original[1];
+    *b2 = original[2];
+    *b3 = original[3];
   }
   let payload_len = payload_len_rslt?;
   reader_buffer_first.truncate(before.wrapping_add(payload_len));

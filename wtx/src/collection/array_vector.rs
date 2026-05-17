@@ -30,7 +30,7 @@ pub type ArrayVectorU32<T, const N: usize> = ArrayVector<u32, T, N>;
 pub type ArrayVectorUsize<T, const N: usize> = ArrayVector<usize, T, N>;
 
 /// Errors of [`ArrayVector`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ArrayVectorError {
   /// Inner array is not totally full
   IntoInnerIncomplete,
@@ -871,8 +871,8 @@ mod arbitrary {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'any>) -> arbitrary::Result<Self> {
       let mut len = const {
-        let [_, _, _, _, a, b, c, d] = Usize::from_usize(N).into_u64().to_be_bytes();
-        u32::from_be_bytes([a, b, c, d])
+        let [_, _, _, _, b0, b1, b2, b3] = Usize::from_usize(N).into_u64().to_be_bytes();
+        u32::from_be_bytes([b0, b1, b2, b3])
       };
       len = u32::arbitrary(u)?.min(len);
       let mut this = Self::new();

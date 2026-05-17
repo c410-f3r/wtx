@@ -19,7 +19,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for IssuerAlternative
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for IssuerAlternativeName<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for IssuerAlternativeName<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     self.general_names.encode(ew)

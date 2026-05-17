@@ -1,6 +1,6 @@
 // The algorithm is infallible but somehow openssl's internals can throw errors
 
-#![allow(
+#![expect(
   clippy::unwrap_used,
   reason = "it is not worth changing the signature because of one backend"
 )]

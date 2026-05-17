@@ -1,5 +1,5 @@
 /// Completion error
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum CompletionErr {
   /// It is impossible to verify the string
   HasInvalidBytes,
@@ -8,7 +8,7 @@ pub enum CompletionErr {
 }
 
 /// Bytes that can or can not represent an incomplete UTF-8 character.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct IncompleteUtf8Char {
   _buffer: [u8; 4],
   _len: usize,
@@ -19,23 +19,23 @@ impl IncompleteUtf8Char {
     let mut buffer = [0, 0, 0, 0];
     match bytes {
       [] => {}
-      [a] => {
-        buffer[0] = *a;
+      [b0] => {
+        buffer[0] = *b0;
       }
-      [a, b] => {
-        buffer[0] = *a;
-        buffer[1] = *b;
+      [b0, b1] => {
+        buffer[0] = *b0;
+        buffer[1] = *b1;
       }
-      [a, b, c] => {
-        buffer[0] = *a;
-        buffer[1] = *b;
-        buffer[2] = *c;
+      [b0, b1, b2] => {
+        buffer[0] = *b0;
+        buffer[1] = *b1;
+        buffer[2] = *b2;
       }
-      [a, b, c, d] => {
-        buffer[0] = *a;
-        buffer[1] = *b;
-        buffer[2] = *c;
-        buffer[3] = *d;
+      [b0, b1, b2, b3] => {
+        buffer[0] = *b0;
+        buffer[1] = *b1;
+        buffer[2] = *b2;
+        buffer[3] = *b3;
       }
       _ => return None,
     }

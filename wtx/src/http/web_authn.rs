@@ -207,7 +207,7 @@ pub enum UserVerificationRequirement {
 pub struct AttestationObject<B> {
   /// See [`AttestationFormat`].
   #[cfg_attr(feature = "serde", serde(rename = "fmt"))]
-  pub f: AttestationFormat,
+  pub att: AttestationFormat,
   /// See [`AttestationStatement`].
   pub att_stmt: AttestationStatement<B>,
   /// The authenticator data, which contains the new credential's public key and other flags.
@@ -229,7 +229,7 @@ pub struct AttestationStatement<B> {
 /// Specifies requirements for the authenticator to be used.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AuthenticatorSelectionCriteria {
   /// See [`AuthenticatorAttachment`].
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
@@ -264,7 +264,7 @@ pub struct AuthenticationExtensionsClientInputs<S> {
 /// Client extension outputs returned by the authenticator/client after a `WebAuthn` ceremony.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AuthenticationExtensionsClientOutputs {
   /// Result of the FIDO `AppID` extension.
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
@@ -353,7 +353,7 @@ pub struct CoseKey<B> {
 
 /// Output of the `credProps` extension.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CredentialPropertiesOutput {
   /// Whether the credential was created as a client-side discoverable credential.
   #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
@@ -435,7 +435,7 @@ pub struct PublicKeyCredentialDescriptor<B> {
 
 /// Specifies the acceptable credential type and signing algorithm.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PublicKeyCredentialParameters {
   /// See [`PublicKeyCredentialType`].
   #[cfg_attr(feature = "serde", serde(rename = "type"))]

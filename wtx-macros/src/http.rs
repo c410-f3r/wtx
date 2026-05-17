@@ -14,9 +14,9 @@ pub(crate) fn conn_aux(item: proc_macro::TokenStream) -> crate::Result<proc_macr
           field_tys.push(elem.ty);
         }
       }
-      _ => return Err(crate::Error::UnsupportedStructure),
+      Fields::Unnamed(_) | Fields::Unit => return Err(crate::Error::UnsupportedStructure),
     },
-    _ => return Err(crate::Error::UnsupportedStructure),
+    Data::Enum(_) | Data::Union(_) => return Err(crate::Error::UnsupportedStructure),
   }
   let expanded = quote!(
     impl wtx::http::server_framework::ConnAux for #name {

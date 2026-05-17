@@ -382,7 +382,7 @@ async fn tls() {
     ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    |stream| async {
+    async |stream| {
       Ok(
         crate::misc::TokioRustlsConnector::default()
           .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))

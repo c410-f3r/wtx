@@ -6,7 +6,7 @@ use crate::client_api_framework::{
       fir_aux_item_values::FirAuxItemValues,
       fir_before_sending_item_values::FirBeforeSendingItemValues,
       fir_params_items_values::FirParamsItemValues, fir_req_item_values::FirReqItemValues,
-      fir_res_item_values::FirResItemValues,
+      fir_res_item_values::FirRespItemValues,
     },
     misc::{fresdiv_non_lf_params, split_params},
     sir::{sir_aux_item_values::SirAuxItemValues, sir_pkg_attr::SirPkaAttr},
@@ -25,12 +25,12 @@ pub(crate) struct SirFinalValues {
 impl SirFinalValues {
   fn pkg_params<'any>(
     freqdiv: &'any FirReqItemValues<'any>,
-    fpiv: &'any FirParamsItemValues<'any>,
-    fresdiv: &'any FirResItemValues<'any>,
+    fparamsiv: &'any FirParamsItemValues<'any>,
+    frespdiv: &'any FirRespItemValues<'any>,
   ) -> (impl Iterator<Item = &'any GenericParam>, impl Iterator<Item = &'any GenericParam>) {
-    let (a_lts, a_tys) = split_params(fpiv.fpiv_params);
+    let (a_lts, a_tys) = split_params(fparamsiv.fpiv_params);
     let (b_lts, b_tys) = split_params(freqdiv.freqdiv_params);
-    let (_c_lts, c_tys) = split_params(fresdiv.fresdiv_params);
+    let (_c_lts, c_tys) = split_params(frespdiv.fresdiv_params);
     (a_lts.chain(b_lts), a_tys.chain(b_tys).chain(c_tys))
   }
 
@@ -49,7 +49,7 @@ impl<'module, 'others>
     &'others mut String,
     FirParamsItemValues<'module>,
     FirReqItemValues<'module>,
-    FirResItemValues<'others>,
+    FirRespItemValues<'others>,
     SirPkaAttr,
     Option<FirAfterSendingItemValues<'module>>,
     Option<FirAuxItemValues<'module>>,
@@ -60,20 +60,21 @@ impl<'module, 'others>
 
   #[inline]
   fn try_from(
-    (camel_case_id, fpiv, freqdiv, fresdiv, spa, fasiv_opt, faiv_opt, fbsiv_opt): (
+    (camel_case_id, fparamsiv, freqdiv, frespdiv, spa, fasiv_opt, fauxiv_opt, fbefsiv_opt): (
       &'others mut String,
       FirParamsItemValues<'module>,
       FirReqItemValues<'module>,
-      FirResItemValues<'others>,
+      FirRespItemValues<'others>,
       SirPkaAttr,
       Option<FirAfterSendingItemValues<'module>>,
       Option<FirAuxItemValues<'module>>,
       Option<FirBeforeSendingItemValues<'module>>,
     ),
   ) -> Result<Self, Self::Error> {
-    let FirParamsItemValues { fpiv_ident, fpiv_params, fpiv_where_predicates, .. } = &fpiv;
+    let FirParamsItemValues { fpiv_ident, fpiv_params, fpiv_where_predicates, .. } = &fparamsiv;
     let FirReqItemValues { freqdiv_ident, freqdiv_params, freqdiv_where_predicates, .. } = &freqdiv;
-    let FirResItemValues { fresdiv_ident, fresdiv_params, fresdiv_where_predicates, .. } = &fresdiv;
+    let FirRespItemValues { fresdiv_ident, fresdiv_params, fresdiv_where_predicates, .. } =
+      &frespdiv;
     let SirPkaAttr { data_formats, id, transport_groups } = &spa;
 
     let camel_case_pkg_ident = &{
@@ -85,21 +86,21 @@ impl<'module, 'others>
     };
 
     let fasiv_fn_call_idents = fasiv_opt.as_ref().map(|el| &el.fasiv_fn_call_idents);
-    let fasiv_fn_where_predicates = fasiv_opt.as_ref().map(|el| &el.fasiv_where_predicates);
+    let faftsiv_fn_where_predicates = fasiv_opt.as_ref().map(|el| &el.fasiv_where_predicates);
 
-    let fbsiv_fn_call_idents = fbsiv_opt.as_ref().map(|el| &el.fbsiv_fn_call_idents);
-    let fbsiv_fn_where_predicates = fbsiv_opt.as_ref().map(|el| &el.fbsiv_where_predicates);
+    let fbefsiv_fn_call_idents = fbefsiv_opt.as_ref().map(|el| &el.fbsiv_fn_call_idents);
+    let fbefsiv_fn_where_predicates = fbefsiv_opt.as_ref().map(|el| &el.fbsiv_where_predicates);
 
-    let saiv_tts = faiv_opt
+    let saiv_tts = fauxiv_opt
       .as_ref()
       .map(|elem| {
         SirAuxItemValues::try_from((
           camel_case_id,
           camel_case_pkg_ident,
           elem,
-          &fpiv,
+          &fparamsiv,
           &freqdiv,
-          &fresdiv,
+          &frespdiv,
           &spa,
         ))
       })
@@ -122,14 +123,14 @@ impl<'module, 'others>
         let fasiv_fn_name_ident_iter =
           fasiv_opt.as_ref().map(|el| &el.fasiv_item.sig.ident).into_iter();
         let fbsiv_fn_name_ident_iter =
-          fbsiv_opt.as_ref().map(|el| &el.fbsiv_item.sig.ident).into_iter();
+          fbefsiv_opt.as_ref().map(|el| &el.fbsiv_item.sig.ident).into_iter();
         let fpiv_params_iter0 = fpiv_params.iter();
         let fpiv_params_iter1 = fpiv_params.iter();
         let fresdiv_params_iter0 = fresdiv_non_lf_params(fresdiv_params);
         let fpiv_where_predicates_iter = fpiv_where_predicates.iter();
         let freqdiv_where_predicates_iter = freqdiv_where_predicates.iter();
         let fresdiv_where_predicates_iter0 = fresdiv_where_predicates.iter();
-        let (lts, tys) = Self::pkg_params(&freqdiv, &fpiv, &fresdiv);
+        let (lts, tys) = Self::pkg_params(&freqdiv, &fparamsiv, &frespdiv);
         let is_mut_lf = is_mut.then(|| quote::quote!('__is_mut)).into_iter();
         let tp = {
           let tt = Self::transport_params(transport_group);
@@ -146,8 +147,8 @@ impl<'module, 'others>
             wtx::codec::protocol::#dfe_ext_req_ctnt_wrapper<#freqdiv_ident<#freqdiv_params>>
           >
           where
-            #fasiv_fn_where_predicates
-            #fbsiv_fn_where_predicates
+            #faftsiv_fn_where_predicates
+            #fbefsiv_fn_where_predicates
             #(#fpiv_where_predicates_iter,)*
             #(#freqdiv_where_predicates_iter,)*
             #(#fresdiv_where_predicates_iter0,)*
@@ -189,7 +190,7 @@ impl<'module, 'others>
               (_trans, _trans_params): (&mut __TRANSPORT, &mut #tp),
             ) -> Result<(), __API::Error> {
               #before_sending_defaults
-              #( #fbsiv_fn_name_ident_iter(#fbsiv_fn_call_idents).await?; )*
+              #( #fbsiv_fn_name_ident_iter(#fbefsiv_fn_call_idents).await?; )*
               Ok(())
             }
 

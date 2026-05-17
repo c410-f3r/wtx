@@ -305,7 +305,7 @@ impl Headers {
       Trailers::Tail(idx) if idx == popped_idx => {
         self.trailers = Trailers::None;
       }
-      _ => {}
+      Trailers::Mixed | Trailers::None | Trailers::Tail(_) => {}
     }
   }
 
@@ -363,14 +363,8 @@ impl Headers {
   }
 
   fn map(bytes: &[u8], header_parts: HeaderParts) -> Header<'_, &str> {
-    let HeaderParts {
-      header_begin,
-      header_end,
-      header_name_end,
-      header_len: _,
-      is_sensitive,
-      is_trailer,
-    } = header_parts;
+    let HeaderParts { header_begin, header_end, header_name_end, is_sensitive, is_trailer, .. } =
+      header_parts;
     Header {
       is_sensitive,
       is_trailer,

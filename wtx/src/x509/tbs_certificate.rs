@@ -76,7 +76,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertificate<'d
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for TbsCertificate<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for TbsCertificate<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {

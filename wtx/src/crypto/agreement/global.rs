@@ -23,7 +23,7 @@ type X25519Ty = cfg_select! {
 };
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct P256AgreementGlobal;
 
 impl Agreement for P256AgreementGlobal {
@@ -54,7 +54,7 @@ impl Agreement for P256AgreementGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct P384AgreementGlobal;
 
 impl Agreement for P384AgreementGlobal {
@@ -85,7 +85,7 @@ impl Agreement for P384AgreementGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct X25519Global;
 
 impl Agreement for X25519Global {

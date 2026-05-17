@@ -74,8 +74,8 @@ impl From<u64> for Xorshift64 {
 }
 
 const fn u8_4(n: u64) -> [u8; 4] {
-  let [a, b, c, d, ..] = n.to_be_bytes();
-  [a, b, c, d]
+  let [b0, b1, b2, b3, ..] = n.to_be_bytes();
+  [b0, b1, b2, b3]
 }
 
 const fn u8_8(n: u64) -> [u8; 8] {
@@ -83,9 +83,9 @@ const fn u8_8(n: u64) -> [u8; 8] {
 }
 
 const fn u8_16(first: u64, second: u64) -> [u8; 16] {
-  let [a, b, c, d, e, f, g, h] = first.to_be_bytes();
-  let [i, j, k, l, m, n, o, p] = second.to_be_bytes();
-  [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+  let [b0, b1, b2, b3, b4, b5, b6, b7] = first.to_be_bytes();
+  let [b8, b9, b10, b11, b12, b13, b14, b15] = second.to_be_bytes();
+  [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]
 }
 
 const fn u8_32(first: u64, second: u64, third: u64, forth: u64) -> [u8; 32] {

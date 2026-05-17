@@ -6,23 +6,23 @@ pub(crate) trait ContainedAttrs {
 
 impl ContainedAttrs for syn::Item {
   fn contained_attrs(&mut self) -> Option<&mut Vec<Attribute>> {
-    Some(match *self {
-      Self::Const(ref mut item) => item.attrs.as_mut(),
-      Self::Enum(ref mut item) => item.attrs.as_mut(),
-      Self::ExternCrate(ref mut item) => item.attrs.as_mut(),
-      Self::Fn(ref mut item) => item.attrs.as_mut(),
-      Self::ForeignMod(ref mut item) => item.attrs.as_mut(),
-      Self::Impl(ref mut item) => item.attrs.as_mut(),
-      Self::Macro(ref mut item) => item.attrs.as_mut(),
-      Self::Mod(ref mut item) => item.attrs.as_mut(),
-      Self::Static(ref mut item) => item.attrs.as_mut(),
-      Self::Struct(ref mut item) => item.attrs.as_mut(),
-      Self::Trait(ref mut item) => item.attrs.as_mut(),
-      Self::TraitAlias(ref mut item) => item.attrs.as_mut(),
-      Self::Type(ref mut item) => item.attrs.as_mut(),
-      Self::Union(ref mut item) => item.attrs.as_mut(),
-      Self::Use(ref mut item) => item.attrs.as_mut(),
-      _ => return None,
+    Some(match self {
+      Self::Const(item) => item.attrs.as_mut(),
+      Self::Enum(item) => item.attrs.as_mut(),
+      Self::ExternCrate(item) => item.attrs.as_mut(),
+      Self::Fn(item) => item.attrs.as_mut(),
+      Self::ForeignMod(item) => item.attrs.as_mut(),
+      Self::Impl(item) => item.attrs.as_mut(),
+      Self::Macro(item) => item.attrs.as_mut(),
+      Self::Mod(item) => item.attrs.as_mut(),
+      Self::Static(item) => item.attrs.as_mut(),
+      Self::Struct(item) => item.attrs.as_mut(),
+      Self::Trait(item) => item.attrs.as_mut(),
+      Self::TraitAlias(item) => item.attrs.as_mut(),
+      Self::Type(item) => item.attrs.as_mut(),
+      Self::Union(item) => item.attrs.as_mut(),
+      Self::Use(item) => item.attrs.as_mut(),
+      Self::Verbatim(_) | _ => return None,
     })
   }
 }

@@ -102,9 +102,9 @@ impl SirAuxItemValues {
   pub(super) fn create_builder_struct(bcv: BuilderCommonValues<'_>) -> TokenStream {
     let (lts, tys) = Self::builder_params(bcv);
     let where_predicates = Self::builder_where_predicates(bcv);
-    let FirAuxItemValues { faiv_ty, .. } = *bcv.faiv;
+    let FirAuxItemValues { faiv_ty, .. } = *bcv.fauxiv;
     let data_ty = bcv.freqdiv.map(|el| &el.freqdiv_ty).into_iter();
-    let params_ty = bcv.fpiv.map(|el| &el.fpiv_ty).into_iter();
+    let params_ty = bcv.fparamsiv.map(|el| &el.fpiv_ty).into_iter();
     let ident = bcv.ident;
     quote::quote!(
       /// Temporary building structure intended to statically create packages using a fluent

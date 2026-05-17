@@ -19,182 +19,34 @@ impl<TZ> ParsedData<TZ>
 where
   TZ: TimeZone,
 {
-  #[allow(clippy::too_many_lines, reason = "enum is exhaustive")]
   #[inline]
   pub(crate) fn new(
     mut bytes: &[u8],
     tokens: impl IntoIterator<Item = CalendarToken>,
   ) -> crate::Result<Self> {
-    let mut day_opt = None;
-    let mut hour_opt = None;
-    let mut minute_opt = None;
-    let mut month_opt = None;
-    let mut nanos_opt = None;
-    let mut second_opt = None;
-    let mut time_zone_opt = None;
-    let mut weekday_opt = None;
-    let mut year_opt = None;
+    let mut params = Params::default();
     for token in tokens {
-      let rhs = match token {
-        CalendarToken::AbbreviatedMonthName => {
-          if month_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatMonth.into());
-          }
-          let (lhs, rhs) = split_at(bytes, 3)?;
-          month_opt = Some(Month::from_short_name(lhs)?);
-          rhs
-        }
-        CalendarToken::AbbreviatedWeekdayName => {
-          if weekday_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatWeekday.into());
-          }
-          let (lhs, rhs) = split_at(bytes, 3)?;
-          weekday_opt = Some(Weekday::from_short_name(lhs)?);
-          rhs
-        }
-        CalendarToken::Colon => parse_token_literal(b":", bytes)?,
-        CalendarToken::Comma => parse_token_literal(b",", bytes)?,
-        CalendarToken::Dash => parse_token_literal(b"-", bytes)?,
-        CalendarToken::Dot => parse_token_literal(b".", bytes)?,
-        CalendarToken::DotNano => {
-          let Ok(rest) = parse_token_literal(b".", bytes) else {
-            continue;
-          };
-          let mut idx: usize = 0;
-          while let Some(elem) = rest.get(idx) {
-            if !elem.is_ascii_digit() {
-              break;
-            }
-            idx = idx.wrapping_add(1);
-          }
-          let (num, rhs) = rest.split_at_checked(idx).unwrap_or_default();
-          let take_len = idx.min(9);
-          let (nano_bytes, _) = num.split_at_checked(take_len).unwrap_or_default();
-          let value = u32::from_radix_10(nano_bytes)?;
-          let multiplier = NANO_MULTIPLIERS.get(take_len).copied().unwrap_or_default();
-          nanos_opt = Some(value.wrapping_mul(multiplier));
-          rhs
-        }
-        CalendarToken::FourDigitYear => {
-          if year_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatYear.into());
-          }
-          let idx = match bytes {
-            [b'-', a, b, c, d, e, rest @ ..] if e.is_ascii_digit() => 6,
-            [a, b, c, d, e, rest @ ..] if e.is_ascii_digit() => 5,
-            _ => 4,
-          };
-          let (lhs, rhs) = split_at(bytes, idx)?;
-          year_opt = Some(i16::from_radix_10(lhs)?);
-          rhs
-        }
-        CalendarToken::FullWeekdayName => {
-          if weekday_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatWeekday.into());
-          }
-          let (weekday, rhs) = Weekday::from_name_relaxed(bytes)?;
-          weekday_opt = Some(weekday);
-          rhs
-        }
-        CalendarToken::Gmt => parse_token_literal(b"GMT", bytes)?,
-        CalendarToken::Separator => parse_token_literal(b"T", bytes)?,
-        CalendarToken::Slash => parse_token_literal(b"/", bytes)?,
-        CalendarToken::Space => parse_token_literal(b" ", bytes)?,
-        CalendarToken::TimeZone => manage_time_zone(
-          bytes,
-          &mut time_zone_opt,
-          |local_time_zone_opt, is_neg, hour, after_hour| {
-            const fn change_sign(num: i16, is_neg: bool) -> i16 {
-              #[expect(clippy::arithmetic_side_effects, reason = "callers never pass `i16::MAX`")]
-              if is_neg { -num } else { num }
-            }
-
-            if let Some((minute, after_minute)) = minute(after_hour) {
-              *local_time_zone_opt = Some(change_sign(hour.wrapping_add(minute), is_neg));
-              Ok(after_minute)
-            } else {
-              *local_time_zone_opt = Some(change_sign(hour, is_neg));
-              Ok(after_hour)
-            }
-          },
-        )?,
-        CalendarToken::TwoDigitDay => {
-          if day_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatDay.into());
-          }
-          let (lhs, rhs) = split_at(bytes, 2)?;
-          day_opt = Some(u8::from_radix_10(lhs)?);
-          rhs
-        }
-        CalendarToken::TwoDigitHour => {
-          let (lhs, rhs) = split_at(bytes, 2)?;
-          hour_opt = Some(u8::from_radix_10(lhs)?);
-          rhs
-        }
-        CalendarToken::TwoDigitMinute => {
-          let (lhs, rhs) = split_at(bytes, 2)?;
-          minute_opt = Some(u8::from_radix_10(lhs)?);
-          rhs
-        }
-        CalendarToken::TwoDigitMonth => {
-          if month_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatMonth.into());
-          }
-          let (lhs, rhs) = split_at(bytes, 2)?;
-          month_opt = Some(Month::from_num(u8::from_radix_10(lhs)?)?);
-          rhs
-        }
-        CalendarToken::TwoDigitSecond => {
-          let (lhs, rhs) = split_at(bytes, 2)?;
-          second_opt = Some(u8::from_radix_10(lhs)?);
-          rhs
-        }
-        CalendarToken::TwoDigitYear => {
-          if year_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatYear.into());
-          }
-          let (lhs, rhs) = split_at(bytes, 2)?;
-          let year = i16::from_radix_10(lhs)?;
-          if !(0..=99).contains(&year) {
-            return Err(CalendarError::InvalidParsingBytes.into());
-          }
-          year_opt = Some(year.wrapping_add(2000));
-          rhs
-        }
-        CalendarToken::TwoSpaceDay => {
-          if day_opt.is_some() {
-            return Err(CalendarError::DuplicatedParsingFormatDay.into());
-          }
-          let Some(([a, b], rhs)) = bytes.split_at_checked(2) else {
-            return Err(CalendarError::InvalidParsingBytes.into());
-          };
-          if *a == b' ' {
-            day_opt = Some(u8::from_radix_10(&[*b])?);
-          } else {
-            day_opt = Some(u8::from_radix_10(&[*a, *b])?);
-          }
-          rhs
-        }
-      };
-      bytes = rhs;
+      if let Some(elem) = process_token(bytes, &mut params, token)? {
+        bytes = elem;
+      }
     }
     if !bytes.is_empty() {
       return Err(CalendarError::InvalidParsingBytes.into());
     }
-    let nano = if let Some(elem) = nanos_opt { elem.try_into()? } else { Nanosecond::ZERO };
-    match (year_opt, month_opt, day_opt, hour_opt, minute_opt, second_opt) {
+    let nano = if let Some(elem) = params.nanos { elem.try_into()? } else { Nanosecond::ZERO };
+    match (params.year, params.month, params.day, params.hour, params.minute, params.second) {
       (None, None, None, Some(hour), Some(minute), Some(second)) => Ok(Self::Time(
         Time::from_hms_ns(hour.try_into()?, minute.try_into()?, second.try_into()?, nano),
       )),
       (Some(year), Some(month), Some(day), None, None, None) => {
         let date = Date::from_ymd(year.try_into()?, month, day.try_into()?)?;
-        check_weekday(date, weekday_opt)?;
+        check_weekday(date, params.weekday)?;
         Ok(Self::Date(date))
       }
       (Some(year), Some(month), Some(day), Some(hour), Some(minute), Some(second)) => {
-        let tz_minutes = time_zone_opt.unwrap_or(0);
+        let tz_minutes = params.time_zone.unwrap_or(0);
         let date = Date::from_ymd(year.try_into()?, month, day.try_into()?)?;
-        check_weekday(date, weekday_opt)?;
+        check_weekday(date, params.weekday)?;
         Ok(Self::DateTime(DateTime::new(
           date,
           Time::from_hms_ns(hour.try_into()?, minute.try_into()?, second.try_into()?, nano),
@@ -217,8 +69,8 @@ fn check_weekday(date: Date, weekday_opt: Option<Weekday>) -> crate::Result<()> 
 
 fn hour(first: u8, bytes: &[u8]) -> crate::Result<(bool, i16, &[u8])> {
   let (is_neg, array, rest) = match (first, bytes) {
-    (b'-', [a, b, rest @ ..]) => (true, [*a, *b], rest),
-    (b'+', [a, b, rest @ ..]) => (false, [*a, *b], rest),
+    (b'-', [b0, b1, rest @ ..]) => (true, [*b0, *b1], rest),
+    (b'+', [b0, b1, rest @ ..]) => (false, [*b0, *b1], rest),
     _ => {
       return Err(CalendarError::InvalidParsingTimezone.into());
     }
@@ -252,10 +104,10 @@ fn minute(bytes: &[u8]) -> Option<(i16, &[u8])> {
     return None;
   };
   let rest = if *first == b':' { after_first } else { bytes };
-  let [a, b, after_minute @ ..] = rest else {
+  let [b0, b1, after_minute @ ..] = rest else {
     return None;
   };
-  let minute = Sixty::from_num(u8::from_radix_10(&[*a, *b]).ok()?).ok()?;
+  let minute = Sixty::from_num(u8::from_radix_10(&[*b0, *b1]).ok()?).ok()?;
   Some((i16::from(minute.num()), after_minute))
 }
 
@@ -269,10 +121,173 @@ fn parse_token_literal<'value>(lit: &[u8], value: &'value [u8]) -> crate::Result
   Ok(rhs)
 }
 
+#[expect(clippy::too_many_lines, reason = "enum is exhaustive")]
+fn process_token<'bytes>(
+  bytes: &'bytes [u8],
+  params: &mut Params,
+  token: CalendarToken,
+) -> crate::Result<Option<&'bytes [u8]>> {
+  let rslt = match token {
+    CalendarToken::AbbreviatedMonthName => {
+      if params.month.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatMonth.into());
+      }
+      let (lhs, rhs) = split_at(bytes, 3)?;
+      params.month = Some(Month::from_short_name(lhs)?);
+      rhs
+    }
+    CalendarToken::AbbreviatedWeekdayName => {
+      if params.weekday.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatWeekday.into());
+      }
+      let (lhs, rhs) = split_at(bytes, 3)?;
+      params.weekday = Some(Weekday::from_short_name(lhs)?);
+      rhs
+    }
+    CalendarToken::Colon => parse_token_literal(b":", bytes)?,
+    CalendarToken::Comma => parse_token_literal(b",", bytes)?,
+    CalendarToken::Dash => parse_token_literal(b"-", bytes)?,
+    CalendarToken::Dot => parse_token_literal(b".", bytes)?,
+    CalendarToken::DotNano => {
+      let Ok(rest) = parse_token_literal(b".", bytes) else {
+        return Ok(None);
+      };
+      let mut idx: usize = 0;
+      while let Some(elem) = rest.get(idx) {
+        if !elem.is_ascii_digit() {
+          break;
+        }
+        idx = idx.wrapping_add(1);
+      }
+      let (num, rhs) = rest.split_at_checked(idx).unwrap_or_default();
+      let take_len = idx.min(9);
+      let (nano_bytes, _) = num.split_at_checked(take_len).unwrap_or_default();
+      let value = u32::from_radix_10(nano_bytes)?;
+      let multiplier = NANO_MULTIPLIERS.get(take_len).copied().unwrap_or_default();
+      params.nanos = Some(value.wrapping_mul(multiplier));
+      rhs
+    }
+    CalendarToken::FourDigitYear => {
+      if params.year.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatYear.into());
+      }
+      let idx = match bytes {
+        [b'-', b0, b1, b2, b3, b4, rest @ ..] if b4.is_ascii_digit() => 6,
+        [b0, b1, b2, b3, b4, rest @ ..] if b4.is_ascii_digit() => 5,
+        _ => 4,
+      };
+      let (lhs, rhs) = split_at(bytes, idx)?;
+      params.year = Some(i16::from_radix_10(lhs)?);
+      rhs
+    }
+    CalendarToken::FullWeekdayName => {
+      if params.weekday.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatWeekday.into());
+      }
+      let (weekday, rhs) = Weekday::from_name_relaxed(bytes)?;
+      params.weekday = Some(weekday);
+      rhs
+    }
+    CalendarToken::Gmt => parse_token_literal(b"GMT", bytes)?,
+    CalendarToken::Separator => parse_token_literal(b"T", bytes)?,
+    CalendarToken::Slash => parse_token_literal(b"/", bytes)?,
+    CalendarToken::Space => parse_token_literal(b" ", bytes)?,
+    CalendarToken::TimeZone => manage_time_zone(
+      bytes,
+      &mut params.time_zone,
+      |local_time_zone_opt, is_neg, hour, after_hour| {
+        const fn change_sign(num: i16, is_neg: bool) -> i16 {
+          #[expect(clippy::arithmetic_side_effects, reason = "callers never pass `i16::MAX`")]
+          if is_neg { -num } else { num }
+        }
+
+        if let Some((minute, after_minute)) = minute(after_hour) {
+          *local_time_zone_opt = Some(change_sign(hour.wrapping_add(minute), is_neg));
+          Ok(after_minute)
+        } else {
+          *local_time_zone_opt = Some(change_sign(hour, is_neg));
+          Ok(after_hour)
+        }
+      },
+    )?,
+    CalendarToken::TwoDigitDay => {
+      if params.day.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatDay.into());
+      }
+      let (lhs, rhs) = split_at(bytes, 2)?;
+      params.day = Some(u8::from_radix_10(lhs)?);
+      rhs
+    }
+    CalendarToken::TwoDigitHour => {
+      let (lhs, rhs) = split_at(bytes, 2)?;
+      params.hour = Some(u8::from_radix_10(lhs)?);
+      rhs
+    }
+    CalendarToken::TwoDigitMinute => {
+      let (lhs, rhs) = split_at(bytes, 2)?;
+      params.minute = Some(u8::from_radix_10(lhs)?);
+      rhs
+    }
+    CalendarToken::TwoDigitMonth => {
+      if params.month.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatMonth.into());
+      }
+      let (lhs, rhs) = split_at(bytes, 2)?;
+      params.month = Some(Month::from_num(u8::from_radix_10(lhs)?)?);
+      rhs
+    }
+    CalendarToken::TwoDigitSecond => {
+      let (lhs, rhs) = split_at(bytes, 2)?;
+      params.second = Some(u8::from_radix_10(lhs)?);
+      rhs
+    }
+    CalendarToken::TwoDigitYear => {
+      if params.year.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatYear.into());
+      }
+      let (lhs, rhs) = split_at(bytes, 2)?;
+      let year = i16::from_radix_10(lhs)?;
+      if !(0..=99).contains(&year) {
+        return Err(CalendarError::InvalidParsingBytes.into());
+      }
+      params.year = Some(year.wrapping_add(2000));
+      rhs
+    }
+    CalendarToken::TwoSpaceDay => {
+      if params.day.is_some() {
+        return Err(CalendarError::DuplicatedParsingFormatDay.into());
+      }
+      let Some(([b0, b1], rhs)) = bytes.split_at_checked(2) else {
+        return Err(CalendarError::InvalidParsingBytes.into());
+      };
+      if *b0 == b' ' {
+        params.day = Some(u8::from_radix_10(&[*b1])?);
+      } else {
+        params.day = Some(u8::from_radix_10(&[*b0, *b1])?);
+      }
+      rhs
+    }
+  };
+  Ok(Some(rslt))
+}
+
 #[track_caller]
 fn split_at(data: &[u8], mid: usize) -> crate::Result<(&[u8], &[u8])> {
   let Some(elem) = data.split_at_checked(mid) else {
     return Err(CalendarError::InvalidParsingBytes.into());
   };
   Ok(elem)
+}
+
+#[derive(Debug, Default)]
+struct Params {
+  day: Option<u8>,
+  hour: Option<u8>,
+  minute: Option<u8>,
+  month: Option<Month>,
+  nanos: Option<u32>,
+  second: Option<u8>,
+  time_zone: Option<i16>,
+  weekday: Option<Weekday>,
+  year: Option<i16>,
 }

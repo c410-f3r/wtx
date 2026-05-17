@@ -118,7 +118,7 @@ pub(crate) mod database {
   macro_rules! _executor {
     ($uri_secret:expr, |$config:ident, $uri:ident| $cb:expr) => {{
       $uri_secret
-        .peek(&mut Vector::new(), |secret| async move {
+        .peek(&mut Vector::new(), async |secret| {
           // SAFERT: URI is a string.
           let string = unsafe { core::str::from_utf8_unchecked(&*secret) };
           let $uri = crate::misc::UriRef::new(string);
@@ -340,7 +340,7 @@ pub(crate) mod database {
             TcpStream::connect(uri.hostname_with_implied_port())
               .await
               .map_err(crate::Error::from)?,
-            |stream| async {
+            async |stream| {
               let mut rslt = TokioRustlsConnector::from_auto()?;
               if let Some(elem) = &self._certs {
                 rslt = rslt.push_certs(elem.as_slice())?;
@@ -373,7 +373,7 @@ pub(crate) mod database {
             TcpStream::connect(uri.hostname_with_implied_port())
               .await
               .map_err(crate::Error::from)?,
-            |stream| async {
+            async |stream| {
               let mut rslt = TokioRustlsConnector::from_auto()?;
               if let Some(elem) = &self._certs {
                 rslt = rslt.push_certs(elem.as_slice())?;

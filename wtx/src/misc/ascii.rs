@@ -42,7 +42,6 @@ impl<const IS_GRAPHIC: bool> AsciiGeneric<IS_GRAPHIC> {
       }
     } else if !byte.is_ascii() {
       return Err(crate::Error::NonAsciiByte);
-    } else {
     }
     Ok(Self(byte))
   }

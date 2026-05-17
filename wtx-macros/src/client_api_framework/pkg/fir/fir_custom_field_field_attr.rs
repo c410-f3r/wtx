@@ -18,8 +18,8 @@ impl Parse for FirCustomFieldFieldAttr {
       if lookahead.peek(keywords::name) {
         let _ = input.parse::<keywords::name>()?;
         let _ = input.parse::<Token![=]>()?;
-        let s = input.parse::<LitStr>()?;
-        name = Some(Ident::new(&s.value(), s.span()));
+        let lit_str = input.parse::<LitStr>()?;
+        name = Some(Ident::new(&lit_str.value(), lit_str.span()));
       } else {
         return Err(lookahead.error());
       }
