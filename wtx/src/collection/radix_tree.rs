@@ -51,7 +51,7 @@ impl<T> RadixTree<T> {
     Self { edges: Vector::new(), nodes: Vector::new(), root_len: 0 }
   }
 
-  /// See [`MatcherBuilder`].
+  /// See [`RadixTreeBuilder`].
   #[inline]
   pub fn builder(&mut self) -> RadixTreeBuilder<'_, T> {
     self.edges.clear();
