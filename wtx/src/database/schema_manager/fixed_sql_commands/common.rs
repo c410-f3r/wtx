@@ -64,7 +64,7 @@ where
     buffer_cmd.push_str(migration.sql_up());
   }
   executor
-    .transaction(|this| async {
+    .transaction(async |this| {
       this.execute_ignored(buffer_cmd.as_str()).await?;
       Ok(((), this))
     })
@@ -88,7 +88,7 @@ where
       .map_err(Into::into)?;
   }
   executor
-    .transaction(|this| async {
+    .transaction(async |this| {
       this.execute_ignored(buffer_cmd.as_str()).await?;
       Ok(((), this))
     })

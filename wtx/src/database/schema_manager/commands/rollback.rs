@@ -45,7 +45,7 @@ where
     }
     self
       .executor
-      .transaction(|this| async {
+      .transaction(async |this| {
         this.execute_ignored(buffer_cmd.as_str()).await?;
         Ok(((), this))
       })

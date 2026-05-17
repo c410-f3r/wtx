@@ -112,7 +112,7 @@ impl Display for Oid {
 
 struct OidComponentIter<'any>(&'any [u8]);
 
-impl<'any> Iterator for OidComponentIter<'any> {
+impl Iterator for OidComponentIter<'_> {
   type Item = crate::Result<u32>;
 
   #[inline]

@@ -34,7 +34,7 @@ pub(crate) struct ProcessReceiptFrameTy<'instance, SR> {
   pub(crate) recv_streams_num: &'instance mut u32,
 }
 
-impl<'instance, SR> ProcessReceiptFrameTy<'instance, SR>
+impl<SR> ProcessReceiptFrameTy<'_, SR>
 where
   SR: StreamReader,
 {

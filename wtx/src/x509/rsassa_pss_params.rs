@@ -45,7 +45,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RsassaPssParams<'
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for RsassaPssParams<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for RsassaPssParams<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {

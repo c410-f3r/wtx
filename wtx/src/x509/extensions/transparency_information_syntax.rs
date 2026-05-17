@@ -17,7 +17,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TransparencyInfor
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for TransparencyInformationSyntax<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for TransparencyInformationSyntax<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     self.0.encode(ew)

@@ -26,6 +26,7 @@ impl Time {
   /// A string of 18 bytes is usually more than enough for most representations.
   ///
   /// See [`CalendarToken`] for more information.
+  #[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
   #[inline]
   pub fn to_string<const N: usize>(
     &self,

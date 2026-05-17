@@ -3,7 +3,7 @@ use crate::{
     data_format::DataFormat,
     fir::{
       fir_aux_item_values::FirAuxItemValues, fir_params_items_values::FirParamsItemValues,
-      fir_req_item_values::FirReqItemValues, fir_res_item_values::FirResItemValues,
+      fir_req_item_values::FirReqItemValues, fir_res_item_values::FirRespItemValues,
     },
     misc::{EMPTY_GEN_ARGS, EMPTY_PATH_SEGS, fresdiv_non_lf_params},
     sir::sir_aux_item_values::{
@@ -48,17 +48,17 @@ impl SirAuxItemValues {
 
   pub(super) fn push_dt_methods_returning_pkg(
     data_formats: &[DataFormat],
-    fpiv: &FirParamsItemValues<'_>,
+    fparamsiv: &FirParamsItemValues<'_>,
     freqdiv: &FirReqItemValues<'_>,
-    fresdiv: &FirResItemValues<'_>,
+    frespdiv: &FirRespItemValues<'_>,
     pkg_ident: &Ident,
     saiv_tts: &mut Vec<TokenStream>,
     impl_values: BuilderCommonValues<'_>,
   ) {
     let mut do_push = |aux_call: &TokenStream, fn_ident: &Ident, wrapper_ident: &Ident| {
-      let FirParamsItemValues { fpiv_params, .. } = *fpiv;
+      let FirParamsItemValues { fpiv_params, .. } = *fparamsiv;
       let FirReqItemValues { freqdiv_ident, freqdiv_params, .. } = *freqdiv;
-      let FirResItemValues { fresdiv_params, fresdiv_where_predicates, .. } = *fresdiv;
+      let FirRespItemValues { fresdiv_params, fresdiv_where_predicates, .. } = *frespdiv;
       let fpiv_params_iter = fpiv_params.iter();
       let fresdiv_params_iter0 = fresdiv_non_lf_params(fresdiv_params);
       let fresdiv_params_iter1 = fresdiv_non_lf_params(fresdiv_params);
@@ -146,7 +146,8 @@ impl SirAuxItemValues {
       fn_name_ident: pkgs_aux_fn_name_ident,
       fn_this: &quote::quote!(&'aux mut self),
     });
-    let FirAuxItemValues { faiv_params, faiv_ty, faiv_where_predicates, .. } = *ret_values.bcv.faiv;
+    let FirAuxItemValues { faiv_params, faiv_ty, faiv_where_predicates, .. } =
+      *ret_values.bcv.fauxiv;
     saiv_tts.push(quote::quote!(
       impl<#faiv_params> #faiv_ty
       where

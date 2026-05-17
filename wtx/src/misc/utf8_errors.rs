@@ -1,7 +1,7 @@
 use crate::misc::IncompleteUtf8Char;
 
 /// Extended error built upon [`StdUtf8Error`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ExtUtf8Error {
   /// More bytes are needed to validate the string.
   Incomplete {
@@ -13,7 +13,7 @@ pub enum ExtUtf8Error {
 }
 
 /// Basic string error that doesn't contain any information.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct BasicUtf8Error;
 
 impl From<BasicUtf8Error> for crate::Error {
@@ -25,7 +25,7 @@ impl From<BasicUtf8Error> for crate::Error {
 }
 
 /// Standard error that is similar to the error type of the standard library.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct StdUtf8Error {
   /// Error length
   pub error_len: Option<usize>,

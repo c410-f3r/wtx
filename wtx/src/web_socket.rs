@@ -143,7 +143,7 @@ where
       stream,
       wsb,
     } = self;
-    let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer: _ } = wsb.lease_mut();
+    let WebSocketBuffer { network_buffer, reader_buffer, .. } = wsb.lease_mut();
     web_socket_reader::read_frame::<_, _, _, _, _, true, IS_CLIENT>(
       connection_state,
       is_in_continuation_frame,

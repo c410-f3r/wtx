@@ -77,7 +77,7 @@ use core::{
 };
 
 /// Errors of [`FromRadix10`] implementations.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum FromRadix10Error {
   /// One of the bytes is not a number.
   ByteNaN,

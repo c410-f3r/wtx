@@ -1,6 +1,6 @@
 use crate::{
   collection::{Deque, backward_deque_idx},
-  misc::_unlikely_unreachable,
+  misc::unlikely_unreachable,
   sync::{AtomicUsize, SyncMutex, sync_mutex::SyncMutexGuard},
 };
 use core::{
@@ -26,10 +26,10 @@ pub struct AsyncMutex<T> {
 impl<T> AsyncMutex<T> {
   /// Creates a new futures-aware mutex.
   #[inline]
-  pub const fn new(t: T) -> Self {
+  pub const fn new(value: T) -> Self {
     Self {
       state: AtomicUsize::new(0),
-      value: UnsafeCell::new(t),
+      value: UnsafeCell::new(value),
       waiters: SyncMutex::new(Waiters {
         added: 0,
         deque: Deque::new(),
@@ -163,7 +163,7 @@ impl<'any, T> Future for AsyncMutexGuardFuture<'any, T> {
 
   #[inline]
   fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-    let Some(mutex) = self.mutex_opt else { _unlikely_unreachable() };
+    let Some(mutex) = self.mutex_opt else { unlikely_unreachable() };
 
     if let Some(mutex_guard) = mutex.try_lock() {
       if let Some(idx) = self.idx_opt {
@@ -173,10 +173,10 @@ impl<'any, T> Future for AsyncMutexGuardFuture<'any, T> {
       return Poll::Ready(mutex_guard);
     }
 
-    let AsyncMutex { state, waiters, value: _ } = mutex;
+    let AsyncMutex { state, waiters, .. } = mutex;
     let mut waiters_guard = waiters.lock();
     if let Some(idx) = self.idx_opt {
-      let Waiters { added: _, deque, last_added, waiting_count } = &mut *waiters_guard;
+      let Waiters { deque, last_added, waiting_count, .. } = &mut *waiters_guard;
       let actual_idx = backward_deque_idx(idx, *last_added);
       if let Some(elem) = deque.get_mut(actual_idx) {
         elem.register(waiting_count, cx.waker());

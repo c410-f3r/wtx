@@ -407,9 +407,9 @@ fn process_data<'any>(
           }
         }
       }
-      _ => return Err(crate::Error::UnsupportedStructure),
+      Fields::Unnamed(_) | Fields::Unit => return Err(crate::Error::UnsupportedStructure),
     },
-    _ => return Err(crate::Error::UnsupportedStructure),
+    Data::Enum(_) | Data::Union(_) => return Err(crate::Error::UnsupportedStructure),
   }
   Ok(())
 }

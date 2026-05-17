@@ -253,7 +253,7 @@ impl core::fmt::Debug for HmacOpenssl {
   }
 }
 
-#[allow(clippy::panic, reason = "dummy structures should not be called")]
+#[expect(clippy::panic, reason = "dummy structures should not be called")]
 fn dummy_impl_call() -> ! {
   panic!(
     "An operation required a crypto algorithm but no crypto backend was selected! You can, for example, enable the `crypto-ring` feature."

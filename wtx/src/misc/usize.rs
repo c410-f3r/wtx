@@ -1,4 +1,5 @@
 #![expect(
+  clippy::as_conversions,
   clippy::cast_possible_truncation,
   reason = "some platforms were removed to allow infallible casts"
 )]

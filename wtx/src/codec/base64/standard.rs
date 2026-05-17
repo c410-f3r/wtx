@@ -1,6 +1,6 @@
-use crate::codec::{
-  alphabet::{Alphabet, DecodeStep, EncodeStep},
-  base64::u8i16,
+use crate::{
+  codec::alphabet::{Alphabet, DecodeStep, EncodeStep},
+  misc::int_conv::u8i16,
 };
 
 #[derive(Debug)]

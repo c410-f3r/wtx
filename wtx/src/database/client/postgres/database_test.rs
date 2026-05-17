@@ -10,7 +10,6 @@ use crate::{
   rng::{ChaCha20, CryptoSeedableRng as _},
   sync::Arc,
 };
-use core::future::Future;
 use std::{net::TcpStream, string::String};
 
 const BATCH_SIZE: usize = 8;

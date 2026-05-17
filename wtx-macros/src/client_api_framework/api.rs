@@ -31,6 +31,7 @@ pub(crate) fn api(
     OwnedOrRef::Ref,
   );
 
+  #[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
   let (api_ident, api_generics) = match &mut item {
     Item::Enum(container) => (&mut container.ident, &container.generics),
     Item::Struct(container) => (&mut container.ident, &container.generics),

@@ -400,10 +400,10 @@ where
 
   fn process_port(str: Option<&str>) -> Option<u16> {
     match str.map(str::as_bytes) {
-      Some([.., b':', a, b]) => u16::from_radix_10(&[*a, *b]).ok(),
-      Some([.., b':', a, b, c]) => u16::from_radix_10(&[*a, *b, *c]).ok(),
-      Some([.., b':', a, b, c, d]) => u16::from_radix_10(&[*a, *b, *c, *d]).ok(),
-      Some([.., b':', a, b, c, d, e]) => u16::from_radix_10(&[*a, *b, *c, *d, *e]).ok(),
+      Some([.., b':', b0, b1]) => u16::from_radix_10(&[*b0, *b1]).ok(),
+      Some([.., b':', b0, b1, b2]) => u16::from_radix_10(&[*b0, *b1, *b2]).ok(),
+      Some([.., b':', b0, b1, b2, b3]) => u16::from_radix_10(&[*b0, *b1, *b2, *b3]).ok(),
+      Some([.., b':', b0, b1, b2, b3, b4]) => u16::from_radix_10(&[*b0, *b1, *b2, *b3, *b4]).ok(),
       Some([b'h', b't', b't', b'p', b's', ..] | [b'w', b's', b's', ..]) => Some(443),
       Some([b'h', b't', b't', b'p', ..] | [b'w', b's', ..]) => Some(80),
       Some([b'm', b'y', b's', b'q', b'l', ..]) => Some(3306),
@@ -507,7 +507,7 @@ where
     if !self.query_and_fragment().is_empty() {
       return Err(crate::Error::UriCanNotBeOverwritten);
     }
-    QueryWriter { s: &mut self.uri }.do_write::<_, true>(param, value)
+    QueryWriter { string: &mut self.uri }.do_write::<_, true>(param, value)
   }
 
   /// Starts the query writer with an initial `?param=value0(sep)value1(sep)value2...`.
@@ -525,7 +525,7 @@ where
     if !self.query_and_fragment().is_empty() {
       return Err(crate::Error::UriCanNotBeOverwritten);
     }
-    QueryWriter { s: &mut self.uri }.do_write_many::<_, _, true>(param, value, sep)
+    QueryWriter { string: &mut self.uri }.do_write_many::<_, _, true>(param, value, sep)
   }
 
   /// Truncates the internal storage with the length of the base URI created in this instance.
@@ -621,7 +621,7 @@ where
 /// URL query writer.
 #[derive(Debug)]
 pub struct QueryWriter<'str, S> {
-  s: &'str mut S,
+  string: &'str mut S,
 }
 
 impl<S> QueryWriter<'_, S>
@@ -659,9 +659,9 @@ where
     T: Display,
   {
     if IS_INITIAL {
-      self.s.write_fmt(format_args!("?{param}={value}"))?;
+      self.string.write_fmt(format_args!("?{param}={value}"))?;
     } else {
-      self.s.write_fmt(format_args!("&{param}={value}"))?;
+      self.string.write_fmt(format_args!("&{param}={value}"))?;
     }
     Ok(self)
   }
@@ -681,12 +681,12 @@ where
       return Ok(self);
     };
     if IS_INITIAL {
-      self.s.write_fmt(format_args!("?{param}={first}"))?;
+      self.string.write_fmt(format_args!("?{param}={first}"))?;
     } else {
-      self.s.write_fmt(format_args!("&{param}={first}"))?;
+      self.string.write_fmt(format_args!("&{param}={first}"))?;
     }
     for elem in iter {
-      self.s.write_fmt(format_args!("{sep}{elem}"))?;
+      self.string.write_fmt(format_args!("{sep}{elem}"))?;
     }
     Ok(self)
   }

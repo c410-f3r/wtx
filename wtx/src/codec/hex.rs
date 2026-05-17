@@ -20,7 +20,7 @@ pub enum HexEncMode {
 }
 
 /// Errors of hexadecimal operations
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum HexError {
   /// Provided buffer is too small
   InsufficientBuffer,
@@ -77,8 +77,8 @@ pub fn hex_decode<'to>(mut from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to
   if !rem.is_empty() {
     return Err(HexError::OddLen.into());
   }
-  for ([a, b], byte) in arrays.iter().zip(&mut *out_data) {
-    *byte = hex_to_bytes(*a, *b)?;
+  for ([lhs, rhs], byte) in arrays.iter().zip(&mut *out_data) {
+    *byte = hex_to_bytes(*lhs, *rhs)?;
   }
   Ok(out_data)
 }
@@ -99,11 +99,11 @@ pub fn hex_encode<'to>(
     HexEncMode::Eip55 => return encode_eip55(from, to),
     HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper => {
       hex_len = hex_len.wrapping_add(2);
-      let Some([a, b, actual_out @ ..]) = to.get_mut(..hex_len) else {
+      let Some([b0, b1, actual_out @ ..]) = to.get_mut(..hex_len) else {
         return Err(HexError::InsufficientBuffer.into());
       };
-      *a = b'0';
-      *b = b'x';
+      *b0 = b'0';
+      *b1 = b'x';
       actual_out
     }
     HexEncMode::WithoutPrefixLower | HexEncMode::WithoutPrefixUpper => {
@@ -120,10 +120,10 @@ pub fn hex_encode<'to>(
     HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
   };
   let (arrays, _) = out_data.as_chunks_mut::<2>();
-  for (byte, [a, b]) in from.iter().zip(arrays) {
-    let (lhs, rhs) = byte_to_hex(*byte, table);
-    *a = lhs;
-    *b = rhs;
+  for (byte, [b0, b1]) in from.iter().zip(arrays) {
+    let (b2, b3) = byte_to_hex(*byte, table);
+    *b0 = b2;
+    *b1 = b3;
   }
   // SAFETY: HEX is always UTF-8
   unsafe { Ok(str::from_utf8_unchecked(to.get_mut(..hex_len).unwrap_or_default())) }

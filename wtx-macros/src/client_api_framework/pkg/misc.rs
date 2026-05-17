@@ -19,38 +19,38 @@ pub(crate) fn fresdiv_non_lf_params(
 pub(crate) fn from_camel_case_to_snake_case(string: &str) -> String {
   let mut snake_case_string = String::new();
   let mut iter = string.as_bytes().windows(2);
-  if let Some(&[a, b]) = iter.next() {
-    match (a.is_ascii_uppercase(), b.is_ascii_uppercase()) {
+  if let Some(&[lhs, rhs]) = iter.next() {
+    match (lhs.is_ascii_uppercase(), rhs.is_ascii_uppercase()) {
       (true, true) => {
-        snake_case_string.push(a.to_ascii_lowercase().into());
-        snake_case_string.push(b.to_ascii_lowercase().into());
+        snake_case_string.push(lhs.to_ascii_lowercase().into());
+        snake_case_string.push(rhs.to_ascii_lowercase().into());
       }
       (true, false) => {
-        snake_case_string.push(a.to_ascii_lowercase().into());
-        snake_case_string.push(b.into());
+        snake_case_string.push(lhs.to_ascii_lowercase().into());
+        snake_case_string.push(rhs.into());
       }
       (false, true) => {
-        snake_case_string.push(a.into());
+        snake_case_string.push(lhs.into());
         snake_case_string.push('_');
-        snake_case_string.push(b.to_ascii_lowercase().into());
+        snake_case_string.push(rhs.to_ascii_lowercase().into());
       }
       (false, false) => {
-        snake_case_string.push(a.into());
-        snake_case_string.push(b.into());
+        snake_case_string.push(lhs.into());
+        snake_case_string.push(rhs.into());
       }
     }
   }
-  while let Some(&[a, b]) = iter.next() {
-    match (a.is_ascii_uppercase(), b.is_ascii_uppercase()) {
+  while let Some(&[lhs, rhs]) = iter.next() {
+    match (lhs.is_ascii_uppercase(), rhs.is_ascii_uppercase()) {
       (true, true) => {
-        snake_case_string.push(b.to_ascii_lowercase().into());
+        snake_case_string.push(rhs.to_ascii_lowercase().into());
       }
       (false, true) => {
         snake_case_string.push('_');
-        snake_case_string.push(b.to_ascii_lowercase().into());
+        snake_case_string.push(rhs.to_ascii_lowercase().into());
       }
       (true | false, false) => {
-        snake_case_string.push(b.into());
+        snake_case_string.push(rhs.into());
       }
     }
   }

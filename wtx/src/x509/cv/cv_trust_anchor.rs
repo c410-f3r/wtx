@@ -91,7 +91,7 @@ impl<'any, 'bytes> CvTrustAnchor<'any, 'bytes> {
   }
 }
 
-impl<'any, 'bytes> TryFrom<Certificate<'bytes>> for CvTrustAnchor<'any, 'bytes> {
+impl<'bytes> TryFrom<Certificate<'bytes>> for CvTrustAnchor<'_, 'bytes> {
   type Error = crate::Error;
 
   #[inline]

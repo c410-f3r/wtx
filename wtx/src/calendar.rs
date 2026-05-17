@@ -1,5 +1,7 @@
 //! Simple time utilities
 
+#![expect(clippy::as_conversions, reason = "lack of const trait")]
+
 mod calendar_error;
 mod instant;
 
@@ -60,8 +62,8 @@ pub(crate) const MILLISECONDS_PER_SECOND: u16 = 1_000;
 pub(crate) const NANOSECONDS_PER_MICROSECONDS: u32 = 1_000;
 pub(crate) const NANOSECONDS_PER_MILLISECOND: u32 = 1_000_000;
 pub(crate) const NANOSECONDS_PER_SECOND: u32 = 1_000_000_000;
-pub(crate) const SECONDS_PER_DAY: u32 = misc::u16u32(SECONDS_PER_HOUR) * 24;
-pub(crate) const SECONDS_PER_HOUR: u16 = misc::u8u16(SECONDS_PER_MINUTE) * 60;
+pub(crate) const SECONDS_PER_DAY: u32 = crate::misc::int_conv::u16u32(SECONDS_PER_HOUR) * 24;
+pub(crate) const SECONDS_PER_HOUR: u16 = crate::misc::int_conv::u8u16(SECONDS_PER_MINUTE) * 60;
 pub(crate) const SECONDS_PER_MINUTE: u8 = 60;
 pub(crate) const YEARS_PER_QUADCENTURY: u16 = 400;
 

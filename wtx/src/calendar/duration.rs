@@ -1,7 +1,9 @@
-use crate::calendar::{
-  CalendarError, MILLISECONDS_PER_SECOND, NANOSECONDS_PER_MILLISECOND, NANOSECONDS_PER_SECOND,
-  SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE,
-  misc::{i32i64, u8i64, u16i64, u32i64},
+use crate::{
+  calendar::{
+    CalendarError, MILLISECONDS_PER_SECOND, NANOSECONDS_PER_MILLISECOND, NANOSECONDS_PER_SECOND,
+    SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE,
+  },
+  misc::int_conv::{i32i64, u8i64, u16i64, u32i64},
 };
 
 /// A span of time with nanosecond precision.
@@ -96,7 +98,6 @@ impl Duration {
     } else if seconds < 0 && nanosecond > 0 {
       seconds = seconds.wrapping_add(1);
       nanosecond = nanosecond.wrapping_sub(NANOSECONDS_PER_SECOND.cast_signed());
-    } else {
     }
     if seconds == i64::MIN {
       return Err(CalendarError::ArithmeticOverflow);

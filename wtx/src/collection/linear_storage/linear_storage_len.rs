@@ -41,7 +41,7 @@ macro_rules! usize_cap {
   };
 }
 
-use crate::misc::{LeaseMut, TryArithmetic, Usize};
+use crate::misc::{LeaseMut, TryArithmetic, Usize, int_conv::u8usize};
 use core::fmt::Display;
 
 /// Determines how many elements can be stored in a linear collection.
@@ -258,14 +258,18 @@ impl LinearStorageLen for u64 {
 }
 
 impl LinearStorageLen for usize {
-  #[expect(clippy::cast_possible_truncation, reason = "lack of const support")]
+  #[expect(
+    clippy::as_conversions,
+    clippy::cast_possible_truncation,
+    reason = "lack of const support"
+  )]
   const BITS: u8 = usize::BITS as u8;
   const UPPER_BOUND: Self = usize_cap!();
   const UPPER_BOUND_USIZE: usize = usize_cap!();
   const ONE: Self = 1;
   const ZERO: Self = 0;
 
-  type Array = [u8; usize::BYTES as usize];
+  type Array = [u8; u8usize(usize::BYTES)];
 
   #[inline]
   fn from_le_bytes(array: Self::Array) -> Self {

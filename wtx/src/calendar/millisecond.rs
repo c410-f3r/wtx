@@ -1,4 +1,7 @@
-use crate::calendar::{CalendarError, NANOSECONDS_PER_MILLISECOND, Nanosecond, misc::u16u32};
+use crate::{
+  calendar::{CalendarError, NANOSECONDS_PER_MILLISECOND, Nanosecond},
+  misc::int_conv::u16u32,
+};
 use core::hint::unreachable_unchecked;
 
 /// This particular structure can represent at most one second in milliseconds.

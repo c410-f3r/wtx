@@ -1,7 +1,7 @@
 use crate::collection::ShortStrU8;
 
 /// Database Error
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DatabaseError {
   /// Query returned more than one record
   ExpectedAtMostOneRecord,

@@ -103,6 +103,7 @@ macro_rules! _create_wrappers {
     $(
       /// A wrapper used to generalize third-party dependencies.
       $(#[$meta])*
+      #[allow(missing_copy_implementations, reason = "too many structures to control")]
       pub struct $name<$($param $(: $bound)?)?>($(pub(crate) $ty)?);
 
       impl<$($param $(: $bound)?)?> $name<$($param)?> {

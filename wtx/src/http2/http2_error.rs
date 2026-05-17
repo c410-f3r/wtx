@@ -17,7 +17,7 @@ macro_rules! stream_id_must_not_be_zero {
 }
 
 /// Errors for `Http2`.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Http2Error {
   /// The number of opened streams extrapolated the threshold
   ExceedAmountOfOpenedStreams,

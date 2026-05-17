@@ -6,7 +6,7 @@ use crate::{
     fir::{
       fir_aux_item_values::FirAuxItemValues, fir_custom_item_values::FirCustomItemValuesRef,
       fir_params_items_values::FirParamsItemValues, fir_req_item_values::FirReqItemValues,
-      fir_res_item_values::FirResItemValues,
+      fir_res_item_values::FirRespItemValues,
     },
     misc::{EMPTY_GEN_PARAMS, from_camel_case_to_snake_case, split_params},
     sir::sir_pkg_attr::SirPkaAttr,
@@ -27,8 +27,8 @@ impl SirAuxItemValues {
   fn builder_params(
     bcv: BuilderCommonValues<'_>,
   ) -> (impl Iterator<Item = &GenericParam>, impl Iterator<Item = &GenericParam>) {
-    let (a_lts, a_tys) = split_params(bcv.faiv.faiv_params);
-    let (b_lts, b_tys) = split_params(bcv.fpiv.map_or(EMPTY_GEN_PARAMS, |el| el.fpiv_params));
+    let (a_lts, a_tys) = split_params(bcv.fauxiv.faiv_params);
+    let (b_lts, b_tys) = split_params(bcv.fparamsiv.map_or(EMPTY_GEN_PARAMS, |el| el.fpiv_params));
     let (c_lts, c_tys) = split_params(bcv.freqdiv.map_or(EMPTY_GEN_PARAMS, |el| el.freqdiv_params));
     (a_lts.chain(b_lts).chain(c_lts), a_tys.chain(b_tys).chain(c_tys))
   }
@@ -37,10 +37,10 @@ impl SirAuxItemValues {
     bcv: BuilderCommonValues<'_>,
   ) -> impl Iterator<Item = &WherePredicate> {
     bcv
-      .faiv
+      .fauxiv
       .faiv_where_predicates
       .iter()
-      .chain(bcv.fpiv.into_iter().flat_map(|el| el.fpiv_where_predicates))
+      .chain(bcv.fparamsiv.into_iter().flat_map(|el| el.fpiv_where_predicates))
       .chain(bcv.freqdiv.into_iter().flat_map(|el| el.freqdiv_where_predicates))
   }
 
@@ -68,7 +68,7 @@ impl<'module, 'others>
     &'others FirAuxItemValues<'module>,
     &'others FirParamsItemValues<'module>,
     &'others FirReqItemValues<'module>,
-    &'others FirResItemValues<'others>,
+    &'others FirRespItemValues<'others>,
     &'others SirPkaAttr,
   )> for SirAuxItemValues
 {
@@ -76,22 +76,27 @@ impl<'module, 'others>
 
   #[inline]
   fn try_from(
-    (camel_case_id, pkg_ident, faiv, fpiv, freqdiv, fresdiv, spa): (
+    (camel_case_id, pkg_ident, fauxiv, fparamsiv, freqdiv, frespdiv, spa): (
       &'others mut String,
       &'others Ident,
       &'others FirAuxItemValues<'module>,
       &'others FirParamsItemValues<'module>,
       &'others FirReqItemValues<'module>,
-      &'others FirResItemValues<'others>,
+      &'others FirRespItemValues<'others>,
       &'others SirPkaAttr,
     ),
   ) -> Result<Self, Self::Error> {
     let mut snake_case_id = from_camel_case_to_snake_case(camel_case_id);
 
     let (data_builder_fn_common_values, data_builder_fn_ret_constr, data_builder_is_trivial) =
-      Self::fn_params(faiv.faiv_user_data_method, freqdiv.into(), &mut snake_case_id, "_data")?;
+      Self::fn_params(fauxiv.faiv_user_data_method, freqdiv.into(), &mut snake_case_id, "_data")?;
     let (params_builder_fn_common_values, params_builder_fn_ret_constr, params_builder_is_trivial) =
-      Self::fn_params(faiv.faiv_user_params_method, fpiv.into(), &mut snake_case_id, "_params")?;
+      Self::fn_params(
+        fauxiv.faiv_user_params_method,
+        fparamsiv.into(),
+        &mut snake_case_id,
+        "_params",
+      )?;
 
     let data_builder_fn_name_ident = &Ident::new("data", Span::mixed_site());
     let data_builder_ident = &create_ident(camel_case_id, ["DataBuilder"]);
@@ -113,13 +118,13 @@ impl<'module, 'others>
           data_builder_fn_name_ident,
           &data_builder_fn_common_values,
           &mut saiv_tts,
-          BuilderCommonValues { faiv, fpiv: None, freqdiv: None, ident: data_builder_ident },
+          BuilderCommonValues { fauxiv, fparamsiv: None, freqdiv: None, ident: data_builder_ident },
           BuilderExtendedValues {
             bcv: BuilderCommonValues {
               ident: params_builder_ident,
-              faiv,
+              fauxiv,
               freqdiv: Some(freqdiv),
-              fpiv: None,
+              fparamsiv: None,
             },
             data_field_constr: Some(&data_builder_fn_ret_constr),
             fn_stmts: None,
@@ -131,17 +136,17 @@ impl<'module, 'others>
           &params_builder_fn_common_values,
           &mut saiv_tts,
           BuilderCommonValues {
-            faiv,
-            fpiv: None,
+            fauxiv,
+            fparamsiv: None,
             freqdiv: Some(freqdiv),
             ident: params_builder_ident,
           },
           BuilderExtendedValues {
             bcv: BuilderCommonValues {
               ident: data_format_builder_ident,
-              faiv,
+              fauxiv,
               freqdiv: Some(freqdiv),
-              fpiv: Some(fpiv),
+              fparamsiv: Some(fparamsiv),
             },
             data_field_constr: Some(&quote::quote!(self.data)),
             fn_stmts: None,
@@ -149,7 +154,12 @@ impl<'module, 'others>
           },
         );
         BuilderExtendedValues {
-          bcv: BuilderCommonValues { ident: data_builder_ident, faiv, freqdiv: None, fpiv: None },
+          bcv: BuilderCommonValues {
+            ident: data_builder_ident,
+            fauxiv,
+            freqdiv: None,
+            fparamsiv: None,
+          },
           data_field_constr: None,
           fn_stmts: Some(&fn_stmts),
           params_field_constr: None,
@@ -160,13 +170,18 @@ impl<'module, 'others>
           data_builder_fn_name_ident,
           &data_builder_fn_common_values,
           &mut saiv_tts,
-          BuilderCommonValues { faiv, fpiv: Some(fpiv), freqdiv: None, ident: data_builder_ident },
+          BuilderCommonValues {
+            fauxiv,
+            fparamsiv: Some(fparamsiv),
+            freqdiv: None,
+            ident: data_builder_ident,
+          },
           BuilderExtendedValues {
             bcv: BuilderCommonValues {
               ident: data_format_builder_ident,
-              faiv,
+              fauxiv,
               freqdiv: Some(freqdiv),
-              fpiv: Some(fpiv),
+              fparamsiv: Some(fparamsiv),
             },
             data_field_constr: Some(&data_builder_fn_ret_constr),
             fn_stmts: None,
@@ -176,9 +191,9 @@ impl<'module, 'others>
         BuilderExtendedValues {
           bcv: BuilderCommonValues {
             ident: data_builder_ident,
-            faiv,
+            fauxiv,
             freqdiv: None,
-            fpiv: Some(fpiv),
+            fparamsiv: Some(fparamsiv),
           },
           data_field_constr: None,
           fn_stmts: Some(&fn_stmts),
@@ -191,17 +206,17 @@ impl<'module, 'others>
           &params_builder_fn_common_values,
           &mut saiv_tts,
           BuilderCommonValues {
-            faiv,
-            fpiv: None,
+            fauxiv,
+            fparamsiv: None,
             freqdiv: Some(freqdiv),
             ident: params_builder_ident,
           },
           BuilderExtendedValues {
             bcv: BuilderCommonValues {
               ident: data_format_builder_ident,
-              faiv,
+              fauxiv,
               freqdiv: Some(freqdiv),
-              fpiv: Some(fpiv),
+              fparamsiv: Some(fparamsiv),
             },
             data_field_constr: Some(&data_builder_fn_ret_constr),
             fn_stmts: None,
@@ -211,9 +226,9 @@ impl<'module, 'others>
         BuilderExtendedValues {
           bcv: BuilderCommonValues {
             ident: params_builder_ident,
-            faiv,
+            fauxiv,
             freqdiv: Some(freqdiv),
-            fpiv: None,
+            fparamsiv: None,
           },
           data_field_constr: Some(&data_builder_fn_ret_constr),
           fn_stmts: Some(&fn_stmts),
@@ -223,9 +238,9 @@ impl<'module, 'others>
       (true, true) => BuilderExtendedValues {
         bcv: BuilderCommonValues {
           ident: data_format_builder_ident,
-          faiv,
+          fauxiv,
           freqdiv: Some(freqdiv),
-          fpiv: Some(fpiv),
+          fparamsiv: Some(fparamsiv),
         },
         data_field_constr: Some(&data_builder_fn_ret_constr),
         fn_stmts: Some(&fn_stmts),
@@ -240,14 +255,14 @@ impl<'module, 'others>
     );
     Self::push_dt_methods_returning_pkg(
       &spa.data_formats,
-      fpiv,
+      fparamsiv,
       freqdiv,
-      fresdiv,
+      frespdiv,
       pkg_ident,
       &mut saiv_tts,
       BuilderCommonValues {
-        faiv,
-        fpiv: Some(fpiv),
+        fauxiv,
+        fparamsiv: Some(fparamsiv),
         freqdiv: Some(freqdiv),
         ident: data_format_builder_ident,
       },
@@ -259,8 +274,8 @@ impl<'module, 'others>
 
 #[derive(Clone, Copy, Debug)]
 struct BuilderCommonValues<'any> {
-  faiv: &'any FirAuxItemValues<'any>,
-  fpiv: Option<&'any FirParamsItemValues<'any>>,
+  fauxiv: &'any FirAuxItemValues<'any>,
+  fparamsiv: Option<&'any FirParamsItemValues<'any>>,
   freqdiv: Option<&'any FirReqItemValues<'any>>,
   ident: &'any Ident,
 }

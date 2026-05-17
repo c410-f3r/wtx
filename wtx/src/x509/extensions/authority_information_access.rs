@@ -20,7 +20,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AuthorityInformat
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for AuthorityInformationAccess<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for AuthorityInformationAccess<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)

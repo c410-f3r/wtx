@@ -5,7 +5,7 @@ pub trait FromRng<RNG>
 where
   RNG: Rng,
 {
-  /// Creates a new instance based on `rng`.
+  /// Creates b0 new instance based on `rng`.
   fn from_rng(rng: &mut RNG) -> Self;
 }
 
@@ -77,26 +77,26 @@ macro_rules! implement {
 }
 
 implement!(
-  (f32, [a, b, c, d], u8_4, [a, b, c, d]),
-  (f64, [a, b, c, d, e, f, g, h], u8_8, [a, b, c, d, e, f, g, h]),
-  (i8, [a, _, _, _], u8_4, [a]),
-  (i16, [a, b, _, _], u8_4, [a, b]),
-  (i32, [a, b, c, d], u8_4, [a, b, c, d]),
-  (i64, [a, b, c, d, e, f, g, h], u8_8, [a, b, c, d, e, f, g, h]),
+  (f32, [b0, b1, b2, b3], u8_4, [b0, b1, b2, b3]),
+  (f64, [b0, b1, b2, b3, b4, b5, b6, b7], u8_8, [b0, b1, b2, b3, b4, b5, b6, b7]),
+  (i8, [b0, _, _, _], u8_4, [b0]),
+  (i16, [b0, b1, _, _], u8_4, [b0, b1]),
+  (i32, [b0, b1, b2, b3], u8_4, [b0, b1, b2, b3]),
+  (i64, [b0, b1, b2, b3, b4, b5, b6, b7], u8_8, [b0, b1, b2, b3, b4, b5, b6, b7]),
   (
     i128,
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p],
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15],
     u8_16,
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]
   ),
-  (u8, [a, _, _, _], u8_4, [a]),
-  (u16, [a, b, _, _], u8_4, [a, b]),
-  (u32, [a, b, c, d], u8_4, [a, b, c, d]),
-  (u64, [a, b, c, d, e, f, g, h], u8_8, [a, b, c, d, e, f, g, h]),
+  (u8, [b0, _, _, _], u8_4, [b0]),
+  (u16, [b0, b1, _, _], u8_4, [b0, b1]),
+  (u32, [b0, b1, b2, b3], u8_4, [b0, b1, b2, b3]),
+  (u64, [b0, b1, b2, b3, b4, b5, b6, b7], u8_8, [b0, b1, b2, b3, b4, b5, b6, b7]),
   (
     u128,
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p],
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15],
     u8_16,
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p]
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]
   ),
 );

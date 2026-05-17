@@ -1,5 +1,3 @@
-#![expect(clippy::ref_patterns, reason = "false-positive")]
-
 macro_rules! do_get {
   ($block:ident, $data:expr, $metadata:expr, $logical_begin:expr, $ptr:ident, $slice:ident, $($ref:tt)*) => {{
     let metadata = $metadata;
@@ -55,7 +53,7 @@ type BlockRef<'bq, D, M> = Block<&'bq [D], &'bq M>;
 type BlockMut<'bq, D, M> = Block<&'bq mut [D], &'bq mut M>;
 
 /// Errors of [`BlocksDeque`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum BlocksDequeError {
   /// The provided index does not point to valid internal data
   OutOfBoundsIndex,
@@ -167,9 +165,9 @@ impl<D, M> BlocksDeque<D, M> {
   /// Provides a reference to a block at the given index.
   #[inline]
   pub fn get(&self, idx: usize) -> Option<BlockRef<'_, D, M>> {
-    let Self { ref data, logical_begin, ref metadata } = *self;
+    let Self { data, logical_begin, metadata } = self;
     let local_metadata = metadata.get(idx)?;
-    Some(get!(data, logical_begin, local_metadata))
+    Some(get!(data, *logical_begin, local_metadata))
   }
 
   /// Mutable version of [`Self::get`].
@@ -183,8 +181,8 @@ impl<D, M> BlocksDeque<D, M> {
   /// Returns a front-to-back iterator.
   #[inline]
   pub fn iter(&self) -> impl Iterator<Item = BlockRef<'_, D, M>> {
-    let Self { ref data, logical_begin, ref metadata } = *self;
-    metadata.iter().map(move |elem| get!(data, logical_begin, elem))
+    let Self { data, logical_begin, metadata } = self;
+    metadata.iter().map(move |elem| get!(data, *logical_begin, elem))
   }
 
   /// Mutable version of [`Self::iter`].
@@ -197,7 +195,7 @@ impl<D, M> BlocksDeque<D, M> {
   /// Removes the last element from the queue and returns it, or `None` if it is empty.
   #[inline]
   pub fn pop_back(&mut self) -> Option<M> {
-    let Self { data, logical_begin: _, metadata } = self;
+    let Self { data, metadata, .. } = self;
     let local_metadata = metadata.pop_back()?;
     data.truncate_back(data.len().wrapping_sub(local_metadata.len));
     Some(local_metadata.misc)
@@ -232,7 +230,7 @@ impl<D, M> BlocksDeque<D, M> {
   where
     B: TryExtend<[D; 1]>,
   {
-    let Self { ref mut data, logical_begin: _, ref mut metadata } = *self;
+    let Self { data, metadata, .. } = self;
     let local_metadata = metadata.pop_back()?;
     let new_len = data.len().wrapping_sub(local_metadata.len);
     if let Err(err) = data.truncate_back_to_buffer(buffer, new_len) {
@@ -289,7 +287,7 @@ impl<D, M> BlocksDeque<D, M> {
   /// Reserves capacity for at least additional more elements to be inserted in the given queue.
   #[inline(always)]
   pub fn reserve_front(&mut self, blocks: usize, elements: usize) -> crate::Result<()> {
-    let Self { data, logical_begin: _, metadata } = self;
+    let Self { data, metadata, .. } = self;
     let _ = metadata.reserve_front(blocks).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     let _ = data.reserve_front(elements).map_err(|_err| BlocksDequeError::ReserveOverflow)?;
     Ok(())

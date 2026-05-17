@@ -6,10 +6,10 @@ use crate::{
   calendar::{
     CalendarError, CalendarToken, Duration, Hour, MINUTES_PER_HOUR, Microsecond, Millisecond,
     NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Sixty,
-    misc::{i32i64, nanosecond_string, u8i32, u8u32, u16i32, u16u32, u32i64},
-    nanosecond::Nanosecond,
+    misc::nanosecond_string, nanosecond::Nanosecond,
   },
   collection::{ArrayString, ArrayStringU8},
+  misc::int_conv::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
 };
 use core::{
   fmt::{Debug, Display, Formatter},
@@ -238,9 +238,6 @@ impl Time {
   #[expect(clippy::arithmetic_side_effects, reason = "divisors are constants")]
   #[expect(
     clippy::cast_possible_truncation,
-    reason = "resulting values of divisions and modules don't extrapolate associated types"
-  )]
-  #[expect(
     clippy::cast_sign_loss,
     reason = "resulting values of divisions and modules don't extrapolate associated types"
   )]

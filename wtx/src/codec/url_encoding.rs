@@ -98,7 +98,7 @@ impl AsciiSet {
 ///
 /// When `IS_PERCENT` is `false`, spaces are encoded as `+` (application/x-www-form-urlencoded).
 /// When `IS_PERCENT` is `true`, spaces are encoded as `%20` (percent encoding).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct UrlEncode<'bytes, const IS_PERCENT: bool> {
   ascii_set: AsciiSet,
   bytes: &'bytes [u8],
@@ -199,13 +199,13 @@ impl<'bytes, const IS_PERCENT: bool> UrlDecode<'bytes, IS_PERCENT> {
 }
 
 fn manage_percent_char(bytes: &mut &[u8]) -> Option<u8> {
-  let [a, b, rest @ ..] = bytes else {
+  let [b0, b1, rest @ ..] = bytes else {
     return None;
   };
-  let c = u8::try_from(char::from(*a).to_digit(16)?).ok()?;
-  let d = u8::try_from(char::from(*b).to_digit(16)?).ok()?;
+  let b2 = u8::try_from(char::from(*b0).to_digit(16)?).ok()?;
+  let b3 = u8::try_from(char::from(*b1).to_digit(16)?).ok()?;
   *bytes = rest;
-  Some(c.wrapping_mul(16).wrapping_add(d))
+  Some(b2.wrapping_mul(16).wrapping_add(b3))
 }
 
 fn percent_encode_str<const IS_PERCENT: bool>(byte: u8) -> &'static str {

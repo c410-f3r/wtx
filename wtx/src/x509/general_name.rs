@@ -51,7 +51,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralName<'de> 
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralName<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralName<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     let (tag, content) = self.into();
@@ -123,7 +123,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralNames<'de>
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralNames<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralNames<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     SequenceBuffer(&self.entries).encode(ew, Len::MAX_TWO_BYTES, self.tag)

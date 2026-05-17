@@ -499,11 +499,11 @@ fn validate_chain_signature<const IS_EE: bool>(
 }
 
 #[inline]
-fn validate_ee_static<'bytes>(
+fn validate_ee_static(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   key_usage: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
-  name_constraints: &Option<NameConstraints<'bytes>>,
+  name_constraints: &Option<NameConstraints<'_>>,
 ) -> bool {
   if name_constraints.is_some() {
     *last_err = Some(X509CvError::InvalidNameConstraints);
@@ -611,10 +611,10 @@ fn validate_ica_dyn(
 }
 
 #[inline]
-fn validate_ica_static<'bytes>(
+fn validate_ica_static(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   last_err: &mut Option<X509CvError>,
-  subject: &NameVector<'bytes>,
+  subject: &NameVector<'_>,
 ) -> bool {
   let Some(bc) = basic_constraints else {
     *last_err = Some(X509CvError::IcasMustHaveBasicConstraints);

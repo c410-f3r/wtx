@@ -7,7 +7,7 @@ use core::{
 };
 
 /// Errors of [`FixedString`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum FixedStringError {
   /// Bytes are not UTF-8
   NotUtf8,

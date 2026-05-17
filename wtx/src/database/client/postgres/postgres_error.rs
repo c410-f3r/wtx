@@ -1,5 +1,5 @@
 /// PostgreSQL error
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum PostgresError {
   /// Not-A-Number is not supported
   DecimalCanNotBeConvertedFromNaN,

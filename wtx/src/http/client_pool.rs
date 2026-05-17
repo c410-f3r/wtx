@@ -58,7 +58,7 @@ where
   pub async fn close_all(&self) {
     self
       .pool
-      .into_for_each(|elem| async move {
+      .into_for_each(async |elem| {
         elem.client.send_go_away(Http2ErrorCode::NoError).await;
       })
       .await;

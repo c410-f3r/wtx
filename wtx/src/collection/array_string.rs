@@ -27,7 +27,7 @@ pub type ArrayStringU32<const N: usize> = ArrayString<u32, N>;
 pub type ArrayStringUsize<const N: usize> = ArrayString<usize, N>;
 
 /// Errors of [`ArrayString`].
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ArrayStringError {
   /// Inner array is not fully
   IncompleteArray,
@@ -227,7 +227,11 @@ impl<const N: usize> ArrayString<u8, N> {
   ///
   /// This method only exists because `Result` and traits can't be used in constant environments.
   #[inline]
-  #[expect(clippy::cast_possible_truncation, reason = "initial check verifies length")]
+  #[expect(
+    clippy::as_conversions,
+    clippy::cast_possible_truncation,
+    reason = "initial check verifies length"
+  )]
   #[expect(clippy::indexing_slicing, reason = "indexes are not out-of-bounds")]
   pub const fn from_str_u8_opt(str: &str) -> Option<Self> {
     const { Self::INSTANCE_CHECK };
@@ -462,9 +466,9 @@ where
 
   #[inline]
   fn try_from(from: Arguments<'args>) -> Result<Self, Self::Error> {
-    let mut v = Self::new();
-    v.write_fmt(from)?;
-    Ok(v)
+    let mut rslt = Self::new();
+    rslt.write_fmt(from)?;
+    Ok(rslt)
   }
 }
 

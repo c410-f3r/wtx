@@ -30,7 +30,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AccessDescription
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for AccessDescription<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for AccessDescription<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {

@@ -103,12 +103,12 @@ fn attrs_by_names<'attrs, const N: usize>(
     let Some(last) = attr.meta.path().segments.last() else {
       continue;
     };
-    let s = last.ident.to_string();
+    let string = last.ident.to_string();
     for (name, rslt_attr) in names.iter().zip(&mut rslt) {
       if rslt_attr.is_some() {
         continue;
       }
-      if name == &s {
+      if name == &string {
         *rslt_attr = Some(attr);
         break;
       }

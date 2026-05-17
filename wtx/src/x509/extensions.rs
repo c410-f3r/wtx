@@ -90,7 +90,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Extensions<'de> {
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Extensions<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Extensions<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     if self.tag == SEQUENCE_TAG {

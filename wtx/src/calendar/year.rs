@@ -36,7 +36,7 @@ impl Year {
   }
 
   /// Constant unary negation
-  #[allow(clippy::arithmetic_side_effects, reason = "constructors don't allow -32768")]
+  #[expect(clippy::arithmetic_side_effects, reason = "constructors don't allow -32768")]
   #[inline]
   #[must_use]
   pub const fn neg(self) -> Self {

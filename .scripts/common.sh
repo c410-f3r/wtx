@@ -9,4 +9,4 @@ export rt='rust-tools --template you-rust'
 export CARGO_TARGET_DIR="$($rt target-dir)"
 export RUST_BACKTRACE=1
 export RUST_LOG=debug
-export RUSTFLAGS="$($rt rust-flags -Asingle-use-lifetimes,-Aunsafe-code)"
+export RUSTFLAGS="$($rt rust-flags -Aunsafe-code)"

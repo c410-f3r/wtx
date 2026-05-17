@@ -37,7 +37,7 @@ type RsaPssRsaeSha384Ty = cfg_select! {
 };
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Ed25519Global;
 
 impl Signature for Ed25519Global {
@@ -63,7 +63,7 @@ impl Signature for Ed25519Global {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct P256SignatureGlobal;
 
 impl Signature for P256SignatureGlobal {
@@ -89,7 +89,7 @@ impl Signature for P256SignatureGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct P384SignatureGlobal;
 
 impl Signature for P384SignatureGlobal {
@@ -115,7 +115,7 @@ impl Signature for P384SignatureGlobal {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct RsaPssRsaeSha256Global;
 
 impl Signature for RsaPssRsaeSha256Global {
@@ -141,7 +141,7 @@ impl Signature for RsaPssRsaeSha256Global {
 }
 
 /// A structure that delegates execution to the selected crypto backend.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct RsaPssRsaeSha384Global;
 
 impl Signature for RsaPssRsaeSha384Global {

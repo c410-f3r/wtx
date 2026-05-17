@@ -69,14 +69,17 @@ pub fn bytes_split1(bytes: &[u8], elem: u8) -> impl Clone + Iterator<Item = &[u8
 
 /// Internally uses `memchr` if the feature is active.
 #[inline]
-pub fn bytes_split2_indices(bytes: &[u8], [a, b]: [u8; 2]) -> impl Clone + Iterator<Item = usize> {
+pub fn bytes_split2_indices(
+  bytes: &[u8],
+  [b0, b1]: [u8; 2],
+) -> impl Clone + Iterator<Item = usize> {
   #[cfg(feature = "memchr")]
-  return memchr::memchr2_iter(a, b, bytes);
+  return memchr::memchr2_iter(b0, b1, bytes);
   #[cfg(not(feature = "memchr"))]
   return bytes
     .iter()
     .enumerate()
-    .filter_map(move |(idx, byte)| (*byte == a || *byte == b).then_some(idx));
+    .filter_map(move |(idx, byte)| (*byte == b0 || *byte == b1).then_some(idx));
 }
 
 /// Internally uses `memchr` if the feature is active.

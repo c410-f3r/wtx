@@ -41,7 +41,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AlgorithmIdentifi
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for AlgorithmIdentifier<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for AlgorithmIdentifier<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {

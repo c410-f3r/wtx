@@ -21,9 +21,10 @@ pub fn simple_seed() -> u64 {
   seed = mix(seed, location.column().into());
   seed = mix(seed, location.line().into());
   if let Ok(timestamp) = Instant::now_timestamp(0).map(|dur| dur.as_nanos()) {
-    let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = timestamp.to_le_bytes();
-    let lo = u64::from_le_bytes([a, b, c, d, e, f, g, h]);
-    let hi = u64::from_le_bytes([i, j, k, l, m, n, o, p]);
+    let [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15] =
+      timestamp.to_le_bytes();
+    let lo = u64::from_le_bytes([b0, b1, b2, b3, b4, b5, b6, b7]);
+    let hi = u64::from_le_bytes([b8, b9, b10, b11, b12, b13, b14, b15]);
     seed = mix(seed, lo);
     seed = mix(seed, hi);
   }
@@ -59,8 +60,8 @@ fn mix(seed: u64, number: u64) -> u64 {
   let x = seed ^ number;
   let y = 10_526_836_309_316_205_339u64;
   let array = u128::from(x).wrapping_mul(u128::from(y)).to_le_bytes();
-  let [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = array;
-  let lo = u64::from_le_bytes([a, b, c, d, e, f, g, h]);
-  let hi = u64::from_le_bytes([i, j, k, l, m, n, o, p]);
+  let [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15] = array;
+  let lo = u64::from_le_bytes([b0, b1, b2, b3, b4, b5, b6, b7]);
+  let hi = u64::from_le_bytes([b8, b9, b10, b11, b12, b13, b14, b15]);
   lo ^ hi
 }

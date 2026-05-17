@@ -21,6 +21,7 @@ mod filled_buffer;
 mod fn_fut;
 mod from_vars;
 mod incomplete_utf8_char;
+pub(crate) mod int_conv;
 mod interspace;
 mod join_array;
 mod lease;
@@ -120,7 +121,7 @@ where
   crate::Error: From<D::Error>,
 {
   use crate::collection::Vector;
-  use core::{any::type_name, fmt::Formatter};
+  use core::fmt::Formatter;
   use serde::{
     Deserialize,
     de::{Error, SeqAccess, Visitor},
@@ -178,7 +179,7 @@ where
   T: serde::Deserialize<'de>,
   crate::Error: From<D::Error>,
 {
-  use core::{any::type_name, fmt::Formatter, marker::PhantomData};
+  use core::{fmt::Formatter, marker::PhantomData};
   use serde::{
     Deserialize,
     de::{SeqAccess, Visitor},
@@ -290,7 +291,6 @@ where
 ///
 /// Defaults to the selected runtime's reactor, for example, `tokio`. Fallbacks to a naive
 /// spin-like approach if no runtime is selected.
-#[allow(clippy::unused_async, reason = "depends on the selected set of features")]
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
   cfg_select! {

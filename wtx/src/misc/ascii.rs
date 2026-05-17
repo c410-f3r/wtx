@@ -26,6 +26,8 @@ impl<const IS_GRAPHIC: bool> AsciiGeneric<IS_GRAPHIC> {
   pub const OPENING_BRACE: Self = Self(b'{');
   /// Semicolon
   pub const SEMICOLON: Self = Self(b';');
+  /// Slash
+  pub const SLASH: Self = Self(b'/');
   /// Space
   pub const SPACE: Self = Self(b' ');
   /// Zero
@@ -40,7 +42,6 @@ impl<const IS_GRAPHIC: bool> AsciiGeneric<IS_GRAPHIC> {
       }
     } else if !byte.is_ascii() {
       return Err(crate::Error::NonAsciiByte);
-    } else {
     }
     Ok(Self(byte))
   }

@@ -260,7 +260,11 @@ where
   }
 }
 
-#[expect(clippy::cast_possible_truncation, reason = "all callers don't exceed 65_535 ")]
+#[expect(
+  clippy::as_conversions,
+  clippy::cast_possible_truncation,
+  reason = "all callers don't exceed 65_535 "
+)]
 #[inline]
 const fn idx16(idx: usize) -> u16 {
   idx as u16

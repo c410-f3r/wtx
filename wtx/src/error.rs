@@ -5,7 +5,7 @@ use crate::{
   codec::{Base64Error, FromRadix10Error, HexError},
   collection::{
     ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
-    ShortBoxStringU16, ShortStrU8, VectorError,
+    RadixTreeError, ShortBoxStringU16, ShortStrU8, VectorError,
   },
   misc::ArithmeticError,
 };
@@ -275,6 +275,8 @@ pub enum Error {
   PostgresError(crate::database::client::postgres::PostgresError),
   #[doc = associated_element_doc!()]
   QueueError(DequeueError),
+  #[doc = associated_element_doc!()]
+  RadixTreeError(RadixTreeError),
   #[cfg(feature = "schema-manager")]
   #[doc = associated_element_doc!()]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
@@ -663,6 +665,13 @@ impl From<DequeueError> for Error {
   }
 }
 
+impl From<RadixTreeError> for Error {
+  #[inline]
+  fn from(from: RadixTreeError) -> Self {
+    Self::RadixTreeError(from)
+  }
+}
+
 #[cfg(feature = "schema-manager")]
 impl From<crate::database::schema_manager::SchemaManagerError> for Error {
   #[inline]
@@ -736,7 +745,7 @@ impl From<Box<dyn Any + Send + 'static>> for Error {
 }
 
 /// An error returned by the receiving part of a channel
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum RecvError {
   /// A message could not be received because the channel is empty.
   Empty,

@@ -17,7 +17,7 @@ use fir::{
   fir_aux_item_values::FirAuxItemValues,
   fir_before_sending_item_values::FirBeforeSendingItemValues, fir_items_values::FirItemsValues,
   fir_params_items_values::FirParamsItemValues, fir_pkg_attr::FirPkgAttr,
-  fir_req_item_values::FirReqItemValues, fir_res_item_values::FirResItemValues,
+  fir_req_item_values::FirReqItemValues, fir_res_item_values::FirRespItemValues,
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens as _;
@@ -48,7 +48,7 @@ pub(crate) fn pkg(
     string
   };
   let mut params_item_unit = Item::Verbatim(TokenStream::new());
-  let fpiv = if let Some(elem) = fiv.params {
+  let fparamsiv = if let Some(elem) = fiv.params {
     FirParamsItemValues::try_from(elem)?
   } else {
     params_item_unit = params_item_unit_fn(&mut camel_case_id);
@@ -58,20 +58,20 @@ pub(crate) fn pkg(
       span: Span::mixed_site(),
     })?
   };
-  let fasiv = fiv.after_sending.map(FirAfterSendingItemValues::try_from).transpose()?;
-  let fbsiv = fiv.before_sending.map(FirBeforeSendingItemValues::try_from).transpose()?;
-  let faiv = fiv.aux.map(FirAuxItemValues::try_from).transpose()?;
-  let fresdiv = FirResItemValues::try_from(fiv.res_data)?;
+  let faftsiv = fiv.after_sending.map(FirAfterSendingItemValues::try_from).transpose()?;
+  let fbefsiv = fiv.before_sending.map(FirBeforeSendingItemValues::try_from).transpose()?;
+  let fauxiv = fiv.aux.map(FirAuxItemValues::try_from).transpose()?;
+  let frespdiv = FirRespItemValues::try_from(fiv.res_data)?;
   let spa = SirPkaAttr::try_from(FirPkgAttr::try_from(&attr_args.0)?)?;
   let SirFinalValues { auxs, package, package_impls } = SirFinalValues::try_from((
     &mut camel_case_id,
-    fpiv,
+    fparamsiv,
     freqdiv,
-    fresdiv,
+    frespdiv,
     spa,
-    fasiv,
-    faiv,
-    fbsiv,
+    faftsiv,
+    fauxiv,
+    fbefsiv,
   ))?;
   if let Some(content) = item_mod.content.as_mut() {
     content.1.push(Item::Verbatim(quote::quote!(
