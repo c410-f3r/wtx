@@ -9,6 +9,7 @@ mod cors_middleware;
 mod dyn_params;
 mod endpoint;
 pub(crate) mod endpoint_node;
+mod matcher;
 mod methods;
 mod middleware;
 mod path_params;
@@ -33,6 +34,7 @@ pub use cors_middleware::{CorsMiddleware, OriginResponse};
 pub use dyn_params::DynParams;
 pub use endpoint::Endpoint;
 pub use endpoint_node::EndpointNode;
+pub use matcher::{Matcher, MatcherBuilder, MatcherError, MatcherPath, MatcherPathParam};
 pub use methods::{
   delete::{Delete, delete},
   get::{Get, get},

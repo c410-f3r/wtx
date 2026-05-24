@@ -19,7 +19,7 @@ where
 {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    Ok(Self(SequenceBuffer::decode(dw, SET_TAG)?.0))
+    Ok(Self(SequenceBuffer::decode(dw, SET_TAG)?.0.0))
   }
 }
 

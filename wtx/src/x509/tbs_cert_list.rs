@@ -5,7 +5,7 @@ use crate::{
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{
-    AlgorithmIdentifier, EXPLICIT_TAG0, Extensions, NameVector, OptTime, RevokedCertificates, Time,
+    AlgorithmIdentifier, EXPLICIT_TAG0, Extensions, Name, OptTime, RevokedCertificates, Time,
     X509Error,
   },
 };
@@ -19,7 +19,7 @@ pub struct TbsCertList<'bytes> {
   /// See [`AlgorithmIdentifier`].
   pub signature: AlgorithmIdentifier<'bytes>,
   /// The issuer name identifies the entity that has signed and issued the CRL.
-  pub issuer: NameVector<'bytes>,
+  pub issuer: Name<'bytes>,
   /// Indicates the issue date of this CRL.
   pub this_update: Time,
   /// Indicates the date and time by which the CA will issue a new update, making this
@@ -50,7 +50,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertList<'de> 
       }
     }
     let signature = AlgorithmIdentifier::decode(dw)?;
-    let issuer = NameVector::decode(dw)?;
+    let issuer = Name::decode(dw)?;
     let this_update = Time::decode(dw)?;
     let next_update = OptTime::decode(dw)?.0;
     let revoked_certificates = Opt::decode(dw, SEQUENCE_TAG)?.0;

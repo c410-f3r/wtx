@@ -19,7 +19,7 @@ pub struct CertificatePolicies<'bytes>(
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for CertificatePolicies<'de> {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0))
+    Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0.0))
   }
 }
 

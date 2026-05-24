@@ -86,7 +86,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Extensions<'de> {
       dw.bytes = rest;
       entries
     };
-    Ok(Self { entries, tag })
+    Ok(Self { entries: entries.0, tag })
   }
 }
 

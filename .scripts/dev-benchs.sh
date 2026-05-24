@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 declare -A techs
 declare -A results_check
 declare -A results_debug

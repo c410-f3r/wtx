@@ -53,10 +53,13 @@ where
     let this_ts = micros.div_euclid(1_000_000);
     let this_ns = ((micros.rem_euclid(1_000_000)) as u32).wrapping_mul(1_000);
     let ts_diff = epoch_ts.wrapping_add(this_ts);
-    Ok(DateTime::from_timestamp_secs_and_ns(
-      ts_diff,
-      Nanosecond::from_num(this_ns).map_err(crate::Error::from)?,
-    )?)
+    Ok(
+      DateTime::from_timestamp_secs_and_ns(
+        ts_diff,
+        Nanosecond::from_num(this_ns).map_err(crate::Error::from)?,
+      )
+      .map_err(crate::Error::from)?,
+    )
   }
 }
 impl<E> Encode<Postgres<E>> for DateTime<Utc>
@@ -103,7 +106,7 @@ where
     let days: i32 = Decode::<Postgres<E>>::decode(dw)?;
     let days_in_secs = i64::from(SECONDS_PER_DAY).wrapping_mul(days.into());
     let timestamp = days_in_secs.wrapping_add(PG_EPOCH.timestamp_secs_and_ns().0);
-    Ok(DateTime::from_timestamp_secs(timestamp)?.date())
+    Ok(DateTime::from_timestamp_secs(timestamp).map_err(crate::Error::from)?.date())
   }
 }
 

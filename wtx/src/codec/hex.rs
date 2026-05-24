@@ -1,4 +1,9 @@
-use core::fmt::{Display, Formatter};
+use core::{
+  fmt::{Display, Formatter},
+  str,
+};
+
+use crate::misc::int_conv::u8usize;
 
 const LOWER_HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
 const UPPER_HEX_CHARS: &[u8; 16] = b"0123456789ABCDEF";
@@ -6,9 +11,6 @@ const UPPER_HEX_CHARS: &[u8; 16] = b"0123456789ABCDEF";
 /// Hex Encode Mode
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum HexEncMode {
-  /// <https://eips.ethereum.org/EIPS/eip-55>
-  #[cfg(feature = "sha3")]
-  Eip55,
   /// Lower case characters ***WITH*** a `0x` prefix
   WithPrefixLower,
   /// Upper case characters ***WITH*** a `0x` prefix
@@ -49,13 +51,14 @@ impl Display for HexDisplay<'_> {
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     let actual_mode = actual_mode(self.1);
     let table = match actual_mode {
-      #[cfg(feature = "sha3")]
-      HexEncMode::Eip55 => return Err(core::fmt::Error),
       HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
       HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
     };
     if matches!(actual_mode, HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper) {
       write!(f, "0x")?;
+    }
+    if self.0.is_empty() {
+      write!(f, "00")?;
     }
     for byte in self.0 {
       let (lhs, rhs) = byte_to_hex(*byte, table);
@@ -65,83 +68,10 @@ impl Display for HexDisplay<'_> {
   }
 }
 
-/// Decodes `data` into `out` returning the affected part.
-#[inline]
-pub fn hex_decode<'to>(mut from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to mut [u8]> {
-  from = if let [b'0', b'x' | b'X', rest @ ..] = from { rest } else { from };
-  let bytes_len = from.len() / 2;
-  let Some(out_data) = to.get_mut(..bytes_len) else {
-    return Err(HexError::InsufficientBuffer.into());
-  };
-  let (arrays, rem) = from.as_chunks::<2>();
-  if !rem.is_empty() {
-    return Err(HexError::OddLen.into());
-  }
-  for ([lhs, rhs], byte) in arrays.iter().zip(&mut *out_data) {
-    *byte = hex_to_bytes(*lhs, *rhs)?;
-  }
-  Ok(out_data)
-}
-
-/// Encodes `data` into `out` returning the affected part.
-///
-/// `mode` defaults to [`HexEncMode::WithoutPrefixLower`] if `None`.
-#[inline]
-pub fn hex_encode<'to>(
-  from: &[u8],
-  hex_mode: Option<HexEncMode>,
-  to: &'to mut [u8],
-) -> crate::Result<&'to str> {
-  let actual_mode = actual_mode(hex_mode);
-  let mut hex_len = from.len().wrapping_mul(2);
-  let out_data = match actual_mode {
-    #[cfg(feature = "sha3")]
-    HexEncMode::Eip55 => return encode_eip55(from, to),
-    HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper => {
-      hex_len = hex_len.wrapping_add(2);
-      let Some([b0, b1, actual_out @ ..]) = to.get_mut(..hex_len) else {
-        return Err(HexError::InsufficientBuffer.into());
-      };
-      *b0 = b'0';
-      *b1 = b'x';
-      actual_out
-    }
-    HexEncMode::WithoutPrefixLower | HexEncMode::WithoutPrefixUpper => {
-      let Some(out_data) = to.get_mut(..hex_len) else {
-        return Err(HexError::InsufficientBuffer.into());
-      };
-      out_data
-    }
-  };
-  let table = match actual_mode {
-    #[cfg(feature = "sha3")]
-    HexEncMode::Eip55 => return Ok(""),
-    HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
-    HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
-  };
-  let (arrays, _) = out_data.as_chunks_mut::<2>();
-  for (byte, [b0, b1]) in from.iter().zip(arrays) {
-    let (b2, b3) = byte_to_hex(*byte, table);
-    *b0 = b2;
-    *b1 = b3;
-  }
-  // SAFETY: HEX is always UTF-8
-  unsafe { Ok(str::from_utf8_unchecked(to.get_mut(..hex_len).unwrap_or_default())) }
-}
-
-const fn actual_mode(hem: Option<HexEncMode>) -> HexEncMode {
-  if let Some(elem) = hem { elem } else { HexEncMode::WithoutPrefixLower }
-}
-
-#[expect(clippy::indexing_slicing, reason = "all bytes are limited to the array's length")]
-fn byte_to_hex(byte: u8, table: &[u8; 16]) -> (u8, u8) {
-  let lhs_idx: usize = (byte >> 4).into();
-  let rhs_idx: usize = (byte & 0b0000_1111).into();
-  (table[lhs_idx], table[rhs_idx])
-}
-
+/// <https://eips.ethereum.org/EIPS/eip-55>
 #[cfg(feature = "sha3")]
-fn encode_eip55<'to>(from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to str> {
+#[inline]
+pub fn eip55_encode<'to>(from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to str> {
   use sha3::Digest;
   if from.len() > 32 {
     return Err(HexError::InvalidEip55Input.into());
@@ -170,16 +100,110 @@ fn encode_eip55<'to>(from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to str> 
   unsafe { Ok(str::from_utf8_unchecked(to.get_mut(..rslt_len).unwrap_or_default())) }
 }
 
-fn hex_to_bytes(lhs: u8, rhs: u8) -> crate::Result<u8> {
-  fn half(byte: u8) -> crate::Result<u8> {
+/// Decodes `data` into `out` returning the affected part.
+#[inline]
+pub const fn hex_decode<'to>(
+  mut from: &[u8],
+  to: &'to mut [u8],
+) -> Result<&'to mut [u8], HexError> {
+  from = if let [b'0', b'x' | b'X', rest @ ..] = from { rest } else { from };
+  let bytes_len = from.len() / 2;
+  let Some((out_data, _)) = to.split_at_mut_checked(bytes_len) else {
+    return Err(HexError::InsufficientBuffer);
+  };
+  let (arrays, rem) = from.as_chunks::<2>();
+  if !rem.is_empty() {
+    return Err(HexError::OddLen);
+  }
+  let mut idx = 0;
+  while idx < bytes_len {
+    let [lhs, rhs] = arrays[idx];
+    out_data[idx] = match hex_to_bytes(lhs, rhs) {
+      Ok(b) => b,
+      Err(err) => return Err(err),
+    };
+    idx = idx.wrapping_add(1);
+  }
+  Ok(out_data)
+}
+
+/// Encodes `data` into `out` returning the affected part.
+///
+/// `mode` defaults to [`HexEncMode::WithoutPrefixLower`] if `None`.
+#[inline]
+pub const fn hex_encode<'to>(
+  from: &[u8],
+  hex_mode: Option<HexEncMode>,
+  to: &'to mut [u8],
+) -> Result<&'to str, HexError> {
+  let actual_mode = actual_mode(hex_mode);
+  let mut hex_len = from.len().wrapping_mul(2);
+  let mut out_offset: usize = 0;
+  match actual_mode {
+    HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper => {
+      hex_len = hex_len.wrapping_add(2);
+      if to.len() < hex_len {
+        return Err(HexError::InsufficientBuffer);
+      }
+      to[0] = b'0';
+      to[1] = b'x';
+      out_offset = 2;
+    }
+    HexEncMode::WithoutPrefixLower | HexEncMode::WithoutPrefixUpper => {
+      if to.len() < hex_len {
+        return Err(HexError::InsufficientBuffer);
+      }
+    }
+  };
+  let table = match actual_mode {
+    HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
+    HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,
+  };
+  let mut idx = 0;
+  while idx < from.len() {
+    let (b2, b3) = byte_to_hex(from[idx], table);
+    let b0 = out_offset.wrapping_add(idx.wrapping_mul(2));
+    let b1 = b0.wrapping_add(1);
+    to[b0] = b2;
+    to[b1] = b3;
+    idx = idx.wrapping_add(1);
+  }
+  let Some((hex, _)) = to.split_at_checked(hex_len) else {
+    return Ok("");
+  };
+  // SAFETY: HEX is always UTF-8
+  unsafe { Ok(str::from_utf8_unchecked(hex)) }
+}
+
+const fn actual_mode(hem: Option<HexEncMode>) -> HexEncMode {
+  if let Some(elem) = hem { elem } else { HexEncMode::WithoutPrefixLower }
+}
+
+#[expect(clippy::indexing_slicing, reason = "all bytes are limited to the array's length")]
+const fn byte_to_hex(byte: u8, table: &[u8; 16]) -> (u8, u8) {
+  let lhs_idx = u8usize(byte >> 4);
+  let rhs_idx = u8usize(byte & 0b0000_1111);
+  (table[lhs_idx], table[rhs_idx])
+}
+
+const fn hex_to_bytes(lhs: u8, rhs: u8) -> Result<u8, HexError> {
+  const fn half(byte: u8) -> Result<u8, HexError> {
     match byte {
       b'0'..=b'9' => Ok(byte.wrapping_sub(b'0')),
       b'A'..=b'F' => Ok(byte.wrapping_sub(b'A').wrapping_add(10)),
       b'a'..=b'f' => Ok(byte.wrapping_sub(b'a').wrapping_add(10)),
-      _ => Err(HexError::InvalidHexCharacter.into()),
+      _ => Err(HexError::InvalidHexCharacter),
     }
   }
-  Ok((half(lhs)? << 4) | half(rhs)?)
+  let first = match half(lhs) {
+    Ok(el) => el,
+    Err(err) => return Err(err),
+  };
+  let second = match half(rhs) {
+    Ok(el) => el,
+    Err(err) => return Err(err),
+  };
+  Ok((first << 4) | second)
 }
 
 #[cfg(test)]
@@ -211,12 +235,11 @@ mod test {
   fn eip55() {
     let mut buf = [0u8; 44];
     assert_eq!(
-      hex_encode(
+      crate::codec::eip55_encode(
         &[
           90, 174, 182, 5, 63, 62, 148, 201, 185, 160, 159, 51, 102, 148, 53, 231, 239, 27, 234,
           237,
         ],
-        Some(HexEncMode::Eip55),
         &mut buf
       )
       .unwrap(),

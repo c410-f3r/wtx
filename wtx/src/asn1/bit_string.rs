@@ -11,7 +11,7 @@ pub struct BitString<B> {
   unused_bits: u8,
 }
 
-// FIXME(stable): use generic instead of hardcoded type
+// FIXME(STABLE): use generic instead of hardcoded type
 impl<'any> BitString<&'any [u8]> {
   /// New instance from arbitrary bytes
   #[inline]

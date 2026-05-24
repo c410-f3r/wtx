@@ -263,7 +263,7 @@ fn evaluate_test_case<'bytes>(
   crls: &mut Vector<CvCrl<'_, 'bytes>>,
   pems: &mut Vector<Pem<Range<usize>, 1>>,
   testcase: &Testcase,
-  trusted_certs: &mut Vector<CvTrustAnchor<'_, 'bytes>>,
+  trusted_certs: &mut Vector<CvTrustAnchor<'bytes>>,
   untrusted_intermediates: &mut Vector<CvCertificate<'_, 'bytes, false>>,
 ) {
   let supported = ["crl", "cve", "invalid", "pathlen", "pathological", "rfc5280"];

@@ -6,6 +6,8 @@ mod access_description;
 mod algorithm_identifier;
 mod attribute;
 mod attribute_type_and_value;
+#[cfg(feature = "ccadb")]
+mod ccadb;
 mod certificate;
 mod crl;
 mod crl_reason;
@@ -41,6 +43,8 @@ pub use access_description::AccessDescription;
 pub use algorithm_identifier::AlgorithmIdentifier;
 pub use attribute::Attribute;
 pub use attribute_type_and_value::AttributeTypeAndValue;
+#[cfg(feature = "ccadb")]
+pub use ccadb::CCADB;
 pub use certificate::Certificate;
 pub use crl::Crl;
 pub use crl_reason::CrlReason;
@@ -62,7 +66,7 @@ pub use general_name::{GeneralName, GeneralNames};
 pub use general_subtree::GeneralSubtree;
 pub use ip_address::IpAddress;
 pub use key_identifier::KeyIdentifier;
-pub use name::{Name, NameArrayVector, NameVector};
+pub use name::Name;
 pub use opt_time::OptTime;
 pub use reason_flags::ReasonFlags;
 pub use relative_distinguished_name::RelativeDistinguishedName;

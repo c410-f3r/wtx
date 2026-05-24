@@ -15,7 +15,7 @@ pub struct RevokedCertificates<'bytes>(
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RevokedCertificates<'de> {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    let collection = SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0;
+    let collection = SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0.0;
     Ok(Self(collection))
   }
 }

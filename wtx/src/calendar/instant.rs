@@ -52,10 +52,10 @@ impl Instant {
     secs: u64,
   ) -> crate::Result<crate::calendar::DateTime<crate::calendar::Utc>> {
     let timestamp = Instant::now_timestamp(secs)?;
-    crate::calendar::DateTime::from_timestamp_secs_and_ns(
+    Ok(crate::calendar::DateTime::from_timestamp_secs_and_ns(
       timestamp.as_secs().cast_signed(),
       timestamp.subsec_nanos().try_into()?,
-    )
+    )?)
   }
 
   /// Constructor that returns the number of non-leap seconds since the UNIX epoch.

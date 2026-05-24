@@ -25,7 +25,7 @@ impl<'de, const N: usize> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for A
     };
     dw.bytes = value;
     let oid = Oid::decode(dw)?;
-    let value = SequenceBuffer::decode(dw, SET_TAG)?.0;
+    let value = SequenceBuffer::decode(dw, SET_TAG)?.0.0;
     dw.bytes = rest;
     Ok(Self { oid, value })
   }

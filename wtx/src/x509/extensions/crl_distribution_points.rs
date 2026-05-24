@@ -21,7 +21,7 @@ pub struct CrlDistributionPoints<'bytes> {
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for CrlDistributionPoints<'de> {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    Ok(Self { entries: SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0 })
+    Ok(Self { entries: SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0.0 })
   }
 }
 

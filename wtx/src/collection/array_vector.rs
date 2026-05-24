@@ -320,7 +320,7 @@ impl<T, const N: usize> ArrayVector<u8, T, N>
 where
   T: Copy,
 {
-  // FIXME(stable): const traits
+  // FIXME(STABLE): const traits
   #[expect(clippy::cast_possible_truncation, reason = "const traits")]
   #[cfg(feature = "asn1")]
   pub(crate) const fn from_array_u8<const M: usize>(data: [T; M]) -> Self {

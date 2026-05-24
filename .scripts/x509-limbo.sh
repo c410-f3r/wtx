@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euxo pipefail
+
 ARG=${1:-""}
 
 if [ ! -e "limbo.json" ]; then

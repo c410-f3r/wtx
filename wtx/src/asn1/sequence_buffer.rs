@@ -19,14 +19,17 @@ where
 {
   /// The encoding of an collection object requires the injection of a tag.
   #[inline]
-  pub fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>, tag: u8) -> crate::Result<Self> {
+  pub fn decode(
+    dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>,
+    tag: u8,
+  ) -> crate::Result<(Self, &'de [u8])> {
     let mut extensions = B::default();
-    SequenceDecodeCb::new(|elem| {
+    let bytes = SequenceDecodeCb::new(|elem| {
       extensions.try_extend([elem])?;
       Ok(())
     })
     .decode(dw, tag)?;
-    Ok(Self(extensions))
+    Ok((Self(extensions), bytes))
   }
 }
 

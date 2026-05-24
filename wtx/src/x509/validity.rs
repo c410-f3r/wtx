@@ -14,6 +14,14 @@ pub struct Validity {
   pub not_after: Time,
 }
 
+impl Validity {
+  /// Shortcut
+  #[inline]
+  pub const fn new(not_before: Time, not_after: Time) -> Self {
+    Self { not_before, not_after }
+  }
+}
+
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Validity {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {

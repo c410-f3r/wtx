@@ -119,7 +119,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralNames<'de>
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
     let tag = dw.decode_aux.tag.unwrap_or(SEQUENCE_TAG);
-    Ok(Self { entries: SequenceBuffer::decode(dw, tag)?.0, tag })
+    Ok(Self { entries: SequenceBuffer::decode(dw, tag)?.0.0, tag })
   }
 }
 

@@ -18,7 +18,7 @@ use crate::{
   crypto::SignatureTy,
   misc::Lease,
   x509::{
-    AttributeTypeAndValue, FlaggedExtension, GeneralName, NameVector, RsassaPssParams,
+    AttributeTypeAndValue, FlaggedExtension, GeneralName, Name, RsassaPssParams,
     SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
     cv::{
       cv_certificate::CvCertificate, cv_crl_expiration::CvCrlExpiration,
@@ -47,7 +47,7 @@ fn check_common_names<const IS_EE: bool>(
   cert: &CvCertificate<'_, '_, IS_EE>,
   last_err: &mut Option<X509CvError>,
 ) -> bool {
-  for rdn in cert.subject.lease().rdn_sequence.iter() {
+  for rdn in cert.subject.lease().rdn_sequence().iter() {
     for atv in rdn.entries.iter() {
       if atv.oid != OID_X509_COMMON_NAME {
         continue;
@@ -100,7 +100,7 @@ fn check_name_constraint<const IS_EE: bool>(
   name_constraints: &NameConstraints<'_>,
 ) -> bool {
   if let Some(subject_alternative_name) = &cert.subject_alternative_name {
-    for gn in &subject_alternative_name.extension.general_names.entries {
+    for gn in &subject_alternative_name.extension().general_names.entries {
       if !check_gn_against_nc::<true>(gn, last_err, name_constraints) {
         *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
         return false;
@@ -110,7 +110,7 @@ fn check_name_constraint<const IS_EE: bool>(
   if !IS_EE {
     return true;
   }
-  for rdn in cert.subject.lease().rdn_sequence.iter() {
+  for rdn in cert.subject.lease().rdn_sequence().iter() {
     for atv in rdn.entries.iter() {
       if atv.oid != OID_X509_COMMON_NAME {
         continue;
@@ -161,7 +161,7 @@ fn check_revocation<const IS_EE: bool>(
   }
 
   for crl in cv_policy.crls() {
-    if *cert.issuer.lease() != *crl.issuer.lease() {
+    if cert.issuer.lease().bytes() != crl.issuer.lease().bytes() {
       continue;
     }
 
@@ -330,12 +330,16 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
   depth: u8,
   intermediates: &'any [CvCertificate<'any, 'bytes, false>],
   last_err: &mut Option<X509CvError>,
-  trust_anchors: &'any [CvTrustAnchor<'any, 'bytes>],
+  trust_anchors: &'any [CvTrustAnchor<'bytes>],
   verified_path: &mut VerifiedPath<'any, 'bytes>,
 ) -> bool {
   // A `validate_ee_dyn` function is impossible at the current time.
   if IS_EE {
     if !check_common_names(cert, last_err) {
+      return false;
+    }
+    if cert.subject_alternative_name.is_none() {
+      *last_err = Some(X509CvError::EeMustHaveSan);
       return false;
     }
     if let Err(err) =
@@ -369,15 +373,15 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     return false;
   }
 
-  if cert.subject.lease().rdn_sequence.is_empty()
-    && !cert.subject_alternative_name.as_ref().is_some_and(|el| el.critical)
+  if cert.subject.lease().rdn_sequence().is_empty()
+    && !cert.subject_alternative_name.as_ref().is_some_and(|el| el.critical())
   {
     *last_err = Some(X509CvError::SanMustBeCritical);
     return false;
   }
 
   for trust_anchor in trust_anchors {
-    if *trust_anchor.subject() != cert.issuer {
+    if trust_anchor.subject() != cert.issuer.lease().bytes() {
       continue;
     }
 
@@ -417,11 +421,11 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
   }
 
   for intermediate in intermediates {
-    if cert.issuer != intermediate.subject {
+    if cert.issuer.lease().bytes() != intermediate.subject.lease().bytes() {
       continue;
     }
     if let Some(elem) = &cert.extended_key_usage
-      && validate_eku::<false>(&elem.extension, &intermediate.extended_key_usage).is_err()
+      && validate_eku::<false>(elem.extension(), &intermediate.extended_key_usage).is_err()
     {
       continue;
     }
@@ -429,10 +433,10 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
       continue;
     }
     if let Some(basic_constraints) = &intermediate.basic_constraints {
-      if !basic_constraints.extension.ca() {
+      if !basic_constraints.extension().ca() {
         continue;
       }
-      if let Some(plc) = basic_constraints.extension.path_len_constraint()
+      if let Some(plc) = basic_constraints.extension().path_len_constraint()
         && u32::from(depth) > plc
       {
         continue;
@@ -510,7 +514,7 @@ fn validate_ee_static(
     return false;
   }
   let is_ca =
-    basic_constraints.as_ref().is_some_and(|basic_constraints| basic_constraints.extension.ca());
+    basic_constraints.as_ref().is_some_and(|basic_constraints| basic_constraints.extension().ca());
   let key_cert_sign_set = key_usage.as_ref().is_some_and(|key_usage| key_usage.key_cert_sign());
   if !is_ca && key_cert_sign_set {
     *last_err = Some(X509CvError::HasIncompatibleKeyUsage);
@@ -525,32 +529,31 @@ fn validate_eku<const IS_EE: bool>(
   eku_rhs: &Option<FlaggedExtension<ExtendedKeyUsage>>,
 ) -> Result<(), X509CvError> {
   if let Some(elem) = eku_rhs {
-    let FlaggedExtension { extension, critical } = elem;
-    if IS_EE && *critical {
+    if IS_EE && elem.critical() {
       return Err(X509CvError::EeCanNotHaveACriticalEku);
     }
-    if extension.len() == 0 {
+    if elem.extension().len() == 0 {
       return Err(X509CvError::EkuCanNotBeEmpty);
     }
-    if extension.any() {
+    if elem.extension().any() {
       return Err(X509CvError::EkuCanNotBeAny);
     }
-    if eku_lhs.server_auth() && !extension.server_auth() {
+    if eku_lhs.server_auth() && !elem.extension().server_auth() {
       return Err(X509CvError::EkuMismatch);
     }
-    if eku_lhs.client_auth() && !extension.client_auth() {
+    if eku_lhs.client_auth() && !elem.extension().client_auth() {
       return Err(X509CvError::EkuMismatch);
     }
-    if eku_lhs.code_signing() && !extension.code_signing() {
+    if eku_lhs.code_signing() && !elem.extension().code_signing() {
       return Err(X509CvError::EkuMismatch);
     }
-    if eku_lhs.email_protection() && !extension.email_protection() {
+    if eku_lhs.email_protection() && !elem.extension().email_protection() {
       return Err(X509CvError::EkuMismatch);
     }
-    if eku_lhs.time_stamping() && !extension.time_stamping() {
+    if eku_lhs.time_stamping() && !elem.extension().time_stamping() {
       return Err(X509CvError::EkuMismatch);
     }
-    if eku_lhs.ocsp_signing() && !extension.ocsp_signing() {
+    if eku_lhs.ocsp_signing() && !elem.extension().ocsp_signing() {
       return Err(X509CvError::EkuMismatch);
     }
   }
@@ -586,13 +589,13 @@ fn validate_ica_dyn(
         return false;
       }
       (None, Some(ski)) => {
-        if ski.critical {
+        if ski.critical() {
           *last_err = Some(X509CvError::SubjectKeyIdentifierMustNotBeCritical);
           return false;
         }
       }
       (Some(aki), Some(ski)) => {
-        if ski.critical {
+        if ski.critical() {
           *last_err = Some(X509CvError::SubjectKeyIdentifierMustNotBeCritical);
           return false;
         }
@@ -600,7 +603,7 @@ fn validate_ica_dyn(
           *last_err = Some(X509CvError::RootCasMustHaveKeyIdentifiers);
           return false;
         };
-        if ki.bytes() != ski.extension.key_identifier.bytes() {
+        if ki.bytes() != ski.extension().key_identifier.bytes() {
           *last_err = Some(X509CvError::RootCasMustHaveMatchingAkiAndSki);
           return false;
         }
@@ -614,17 +617,17 @@ fn validate_ica_dyn(
 fn validate_ica_static(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   last_err: &mut Option<X509CvError>,
-  subject: &NameVector<'_>,
+  subject: &Name<'_>,
 ) -> bool {
   let Some(bc) = basic_constraints else {
     *last_err = Some(X509CvError::IcasMustHaveBasicConstraints);
     return false;
   };
-  if !bc.critical {
+  if !bc.critical() {
     *last_err = Some(X509CvError::IcasMustHaveCriticalBasicConstraints);
     return false;
   }
-  if subject.rdn_sequence.is_empty() {
+  if subject.rdn_sequence().is_empty() {
     *last_err = Some(X509CvError::IcasMustHaveASubjectSequence);
     return false;
   }

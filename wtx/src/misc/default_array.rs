@@ -1,6 +1,6 @@
 /// A specified version of `Default` indented only for arrays of arbitrary sizes.
 //
-// FIXME(stable): impl Default for [T; N]
+// FIXME(STABLE): impl Default for [T; N]
 pub trait DefaultArray {
   /// Returns the "default value" for the array.
   fn default_array() -> Self;

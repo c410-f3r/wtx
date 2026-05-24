@@ -21,7 +21,7 @@ impl<'any, 'bytes> CvEndEntity<'any, 'bytes> {
     &'any self,
     intermediates: &'any [CvCertificate<'any, 'bytes, false>],
     cv_policy: &'any CvPolicy<'any, 'bytes>,
-    trust_anchors: &'any [CvTrustAnchor<'any, 'bytes>],
+    trust_anchors: &'any [CvTrustAnchor<'bytes>],
   ) -> crate::Result<VerifiedPath<'any, 'bytes>> {
     let mut verified_path = VerifiedPath::new(
       self,
@@ -72,7 +72,7 @@ impl<'any, 'bytes> CvEndEntity<'any, 'bytes> {
     let ip_buffer = &mut [0; 16];
     let sn_bytes = sn.bytes(ip_buffer);
     if let Some(subject_alternative_name) = &self.subject_alternative_name {
-      if validate_sn(sn_bytes, &subject_alternative_name.extension)? {
+      if validate_sn(sn_bytes, subject_alternative_name.extension())? {
         return Ok(());
       }
     } else {
@@ -119,7 +119,7 @@ fn validate_sn(
 
 #[inline]
 fn validate_sn_from_subject(cert: &CvCertificate<'_, '_, true>, sn: &[u8]) -> crate::Result<bool> {
-  for rdn in cert.subject.lease().rdn_sequence.iter() {
+  for rdn in cert.subject.lease().rdn_sequence().iter() {
     for atv in rdn.entries.iter() {
       if atv.oid != OID_X509_COMMON_NAME {
         continue;

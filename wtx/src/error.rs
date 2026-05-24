@@ -5,7 +5,7 @@ use crate::{
   codec::{Base64Error, FromRadix10Error, HexError},
   collection::{
     ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
-    RadixTreeError, ShortBoxStringU16, ShortStrU8, VectorError,
+    ShortBoxStringU16, ShortStrU8, VectorError,
   },
   misc::ArithmeticError,
 };
@@ -151,6 +151,8 @@ pub enum Error {
   InsufficientOptionCapacity,
   /// Indices are out-of-bounds or the number of bytes are too small.
   InvalidPartitionedBufferBounds,
+  /// Invalid PPM value
+  InvalidPpmValue,
   /// Invalid UTF-8.
   InvalidUTF8,
   /// An index that cuts an UTF-8 string makes the sequence invalid.
@@ -267,6 +269,9 @@ pub enum Error {
   #[cfg(feature = "http2")]
   #[doc = associated_element_doc!()]
   Http2FlowControlError(crate::http2::Http2Error, u32),
+  #[cfg(feature = "http-server-framework")]
+  #[doc = associated_element_doc!()]
+  MatcherError(crate::http::server_framework::MatcherError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
@@ -275,8 +280,6 @@ pub enum Error {
   PostgresError(crate::database::client::postgres::PostgresError),
   #[doc = associated_element_doc!()]
   QueueError(DequeueError),
-  #[doc = associated_element_doc!()]
-  RadixTreeError(RadixTreeError),
   #[cfg(feature = "schema-manager")]
   #[doc = associated_element_doc!()]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
@@ -665,10 +668,11 @@ impl From<DequeueError> for Error {
   }
 }
 
-impl From<RadixTreeError> for Error {
+#[cfg(feature = "http-server-framework")]
+impl From<crate::http::server_framework::MatcherError> for Error {
   #[inline]
-  fn from(from: RadixTreeError) -> Self {
-    Self::RadixTreeError(from)
+  fn from(from: crate::http::server_framework::MatcherError) -> Self {
+    Self::MatcherError(from)
   }
 }
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 podman run \
     --name wtx_postgres_scram \
     -d \

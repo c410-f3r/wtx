@@ -3,7 +3,7 @@ use crate::{
   codec::{Decode, DecodeWrapper},
   misc::RefOrOwned,
   x509::{
-    Crl, NameVector, RevokedCertificates, TbsCertList, Time, X509CvError,
+    Crl, Name, RevokedCertificates, TbsCertList, Time, X509CvError,
     extensions::{CrlNumber, IssuingDistributionPoint},
   },
 };
@@ -14,7 +14,7 @@ use crate::{
 /// fields required to perform a chain validation.
 #[derive(Debug, PartialEq)]
 pub struct CvCrl<'any, 'bytes> {
-  pub(crate) issuer: RefOrOwned<'any, NameVector<'bytes>>,
+  pub(crate) issuer: RefOrOwned<'any, Name<'bytes>>,
   pub(crate) issuing_distribution_point: Option<IssuingDistributionPoint<'bytes>>,
   pub(crate) next_update: Option<Time>,
   pub(crate) revoked_certs: RefOrOwned<'any, Option<RevokedCertificates<'bytes>>>,
