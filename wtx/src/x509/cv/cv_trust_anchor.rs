@@ -13,6 +13,18 @@ use crate::{
   },
 };
 
+#[cfg(feature = "ccadb")]
+pub(crate) type CvTrustAnchorRaw<'bytes> = (
+  Option<[u8; 20]>,
+  bool,
+  bool,
+  Option<(u8, u8)>,
+  &'bytes [u8],
+  Option<([u8; 20], bool)>,
+  (&'bytes [u8], Option<(&'bytes [u8], u8)>, &'bytes [u8]),
+  (i64, i64),
+);
+
 /// Chain Validation - Trust Anchor
 ///
 /// A trust anchor is the top-most certificate in a certificate chain.
@@ -33,7 +45,7 @@ pub struct CvTrustAnchor<'bytes> {
   validity: Validity,
 }
 
-impl<'any, 'bytes> CvTrustAnchor<'bytes> {
+impl<'bytes> CvTrustAnchor<'bytes> {
   /// This constructor doesn't perform checks that assert correctness.
   #[inline]
   pub const fn new(
@@ -58,6 +70,46 @@ impl<'any, 'bytes> CvTrustAnchor<'bytes> {
       subject_public_key_info,
       validity,
     }
+  }
+
+  #[cfg(feature = "ccadb")]
+  pub(crate) fn _from_raw(raw: CvTrustAnchorRaw<'bytes>) -> Option<Self> {
+    use crate::{
+      asn1::{Any, BitString, Len, Oid},
+      calendar::DateTime,
+      collection::ArrayVectorU8,
+      x509::{AlgorithmIdentifier, KeyIdentifier, Time},
+    };
+
+    Some(CvTrustAnchor::new(
+      raw.0.map(|el| {
+        AuthorityKeyIdentifier::new(Some(KeyIdentifier::new(ArrayVectorU8::from_array_u8(el))))
+      }),
+      raw.1,
+      raw.2,
+      raw.3.map(|el| KeyUsage::new(el)),
+      None,
+      raw.4,
+      raw.5.map(|el| {
+        let ki = KeyIdentifier::new(ArrayVectorU8::from_array_u8(el.0));
+        FlaggedExtension::new(SubjectKeyIdentifier::new(ki), el.1)
+      }),
+      {
+        let algorithm = Oid::from_bytes_opt(raw.6.0)?;
+        let parameters = raw.6.1.and_then(|(bytes, tag)| {
+          let len = Len::from_u8(bytes.len().try_into().ok()?);
+          Some(Any::new(bytes, tag, len))
+        });
+        SubjectPublicKeyInfo::new(
+          AlgorithmIdentifier::new(algorithm, parameters),
+          BitString::from_bytes(raw.6.2),
+        )
+      },
+      Validity::new(
+        Time::new(DateTime::from_timestamp_secs(raw.7.0).ok()?, false),
+        Time::new(DateTime::from_timestamp_secs(raw.7.1).ok()?, false),
+      ),
+    ))
   }
 
   /// See [`AuthorityKeyIdentifier`].
@@ -90,7 +142,7 @@ impl<'any, 'bytes> CvTrustAnchor<'bytes> {
     &self.name_constraints
   }
 
-  /// See [`Name`].
+  /// Raw bytes of the subject's field
   #[inline]
   pub const fn subject(&self) -> &'bytes [u8] {
     &self.subject

@@ -1,9 +1,14 @@
+#![expect(
+  clippy::indexing_slicing,
+  clippy::missing_asserts_for_indexing,
+  reason = "constant trait support"
+)]
+
+use crate::misc::int_conv::u8usize;
 use core::{
   fmt::{Display, Formatter},
   str,
 };
-
-use crate::misc::int_conv::u8usize;
 
 const LOWER_HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
 const UPPER_HEX_CHARS: &[u8; 16] = b"0123456789ABCDEF";
@@ -56,9 +61,6 @@ impl Display for HexDisplay<'_> {
     };
     if matches!(actual_mode, HexEncMode::WithPrefixLower | HexEncMode::WithPrefixUpper) {
       write!(f, "0x")?;
-    }
-    if self.0.is_empty() {
-      write!(f, "00")?;
     }
     for byte in self.0 {
       let (lhs, rhs) = byte_to_hex(*byte, table);
@@ -119,7 +121,7 @@ pub const fn hex_decode<'to>(
   while idx < bytes_len {
     let [lhs, rhs] = arrays[idx];
     out_data[idx] = match hex_to_bytes(lhs, rhs) {
-      Ok(b) => b,
+      Ok(el) => el,
       Err(err) => return Err(err),
     };
     idx = idx.wrapping_add(1);
@@ -154,7 +156,7 @@ pub const fn hex_encode<'to>(
         return Err(HexError::InsufficientBuffer);
       }
     }
-  };
+  }
   let table = match actual_mode {
     HexEncMode::WithPrefixLower | HexEncMode::WithoutPrefixLower => LOWER_HEX_CHARS,
     HexEncMode::WithPrefixUpper | HexEncMode::WithoutPrefixUpper => UPPER_HEX_CHARS,

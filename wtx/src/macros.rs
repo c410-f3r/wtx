@@ -144,7 +144,7 @@ macro_rules! hexd {
         $input.len() / 2
       };
       let mut out = [0u8; LEN];
-      if crate::codec::hex_decode($input, &mut out).is_err() {
+      if $crate::codec::hex_decode($input, &mut out).is_err() {
         panic!();
       }
       out
@@ -158,7 +158,7 @@ macro_rules! hexe {
   ($input:expr) => {
     const {
       let mut out = [0u8; $input.len() * 2];
-      if crate::codec::hex_encode($input, None, &mut out).is_err() {
+      if $crate::codec::hex_encode($input, None, &mut out).is_err() {
         panic!();
       }
       out

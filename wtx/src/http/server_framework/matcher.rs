@@ -763,44 +763,8 @@ mod bench {
         concat!("/applications/", $p1, "/tokens/", $p2),
         concat!("/events"),
         concat!("/feeds"),
-        concat!("/networks/", $p1),
-        concat!("/networks/", $p1, "/", $p2, "/events"),
-        //concat!("/notifications"),
-        //concat!("/notifications/threads/", $p1),
-        //concat!("/notifications/threads/", $p1, "/subscription"),
-        concat!("/orgs/", $p1, "/events"),
-        concat!("/repos/", $p1),
-        concat!("/repos/", $p1, "/", $p2, "/events"),
-        concat!("/repos/", $p1, "/", $p2, "/notifications"),
-        concat!("/repos/", $p1, "/", $p2, "/stargazers"),
-        concat!("/repos/", $p1, "/", $p2, "/subscribers"),
-        concat!("/repos/", $p1, "/", $p2, "/subscription"),
-        concat!("/users/", $p1),
-        concat!("/users/", $p1, "/events"),
-        concat!("/users/", $p1, "/events/orgs/"),
-        concat!("/users/", $p1, "/events/orgs/", $p2),
-        concat!("/users/", $p1, "/events/public"),
-        concat!("/users/", $p1, "/gists"),
-        concat!("/users/", $p1, "/received_events"),
-        concat!("/users/", $p1, "/received_events/public"),
-        concat!("/users/", $p1, "/starred"),
-        concat!("/users/", $p1, "/subscriptions"),
       ]
     }};
-  }
-
-  #[bench]
-  fn matchit(b: &mut test::Bencher) {
-    let routes = routes!(literal).to_vec();
-    let mut radix_tree = matchit::Router::new();
-    for route in routes!(params) {
-      let _ = radix_tree.insert(route, true).unwrap();
-    }
-    b.iter(|| {
-      for route in black_box(&routes) {
-        assert!(*black_box(radix_tree.at(route).unwrap()).value);
-      }
-    });
   }
 
   #[bench]
@@ -853,7 +817,7 @@ mod tests {
     {
       let mut builder = matcher.builder();
       let _ = builder.node("/api/{version}/users", 1).unwrap();
-      let _ = builder.node("/api/v1/users", 2);
+      assert!(builder.node("/api/v1/users", 2).is_err());
     }
   }
 
@@ -877,8 +841,8 @@ mod tests {
   fn duplicate_route_error_on_intermediate_node() {
     let mut tree = Matcher::new();
     let mut builder = tree.builder();
-    builder.node("/foo/bar", 1).unwrap();
-    builder.node("/foo/baz", 2).unwrap();
+    let _ = builder.node("/foo/bar", 1).unwrap();
+    let _ = builder.node("/foo/baz", 2).unwrap();
     let _ = builder.node("/foo/b", 3).unwrap();
   }
 
@@ -886,9 +850,9 @@ mod tests {
   fn duplicate_route_due_to_impossible_skip() {
     let mut matcher = Matcher::new();
     let mut builder = matcher.builder();
-    builder.node("/abcd", 1).unwrap();
-    builder.node("/ab", 2).unwrap();
-    builder.node("/abxy", 3).unwrap();
+    let _ = builder.node("/abcd", 1).unwrap();
+    let _ = builder.node("/ab", 2).unwrap();
+    let _ = builder.node("/abxy", 3).unwrap();
     let res = builder.node("/ab", 4);
     assert!(res.is_err());
   }
@@ -919,9 +883,9 @@ mod tests {
     let mut matcher = Matcher::new();
     {
       let mut builder = matcher.builder();
-      builder.node("/a/b/c", 1).unwrap();
-      builder.node("/a/b/d", 2).unwrap();
-      builder.node("/a/{p}/e", 3).unwrap();
+      let _ = builder.node("/a/b/c", 1).unwrap();
+      let _ = builder.node("/a/b/d", 2).unwrap();
+      let _ = builder.node("/a/{p}/e", 3).unwrap();
     }
     assert!(matcher.find("/a/b/e").is_err());
   }
@@ -931,8 +895,8 @@ mod tests {
     let mut tree = Matcher::new();
     {
       let mut builder = tree.builder();
-      builder.node("/foo/bar", 1).unwrap();
-      builder.node("/foo/baz", 2).unwrap();
+      let _ = builder.node("/foo/bar", 1).unwrap();
+      let _ = builder.node("/foo/baz", 2).unwrap();
     }
     let path = tree.find("/foo/b");
     assert!(path.is_err());
@@ -1056,15 +1020,15 @@ mod tests {
     let mut tree = Matcher::new();
     {
       let mut builder = tree.builder();
-      builder.node("/a", 1).unwrap();
-      builder.node("/a/b", 2).unwrap();
-      builder.node("/a/b/c", 3).unwrap();
-      builder.node("/a/b/c/d", 4).unwrap();
-      builder.node("/a/b/c/d/e", 5).unwrap();
-      builder.node("/a/b/c/d/e/f", 6).unwrap();
-      builder.node("/a/b/c/d/e/f/g", 7).unwrap();
-      builder.node("/a/b/c/d/e/f/g/h", 8).unwrap();
-      builder.node("/a/b/c/d/e/f/g/h/i", 9).unwrap();
+      let _ = builder.node("/a", 1).unwrap();
+      let _ = builder.node("/a/b", 2).unwrap();
+      let _ = builder.node("/a/b/c", 3).unwrap();
+      let _ = builder.node("/a/b/c/d", 4).unwrap();
+      let _ = builder.node("/a/b/c/d/e", 5).unwrap();
+      let _ = builder.node("/a/b/c/d/e/f", 6).unwrap();
+      let _ = builder.node("/a/b/c/d/e/f/g", 7).unwrap();
+      let _ = builder.node("/a/b/c/d/e/f/g/h", 8).unwrap();
+      let _ = builder.node("/a/b/c/d/e/f/g/h/i", 9).unwrap();
     }
     let path = tree.find("/a/b/c/d/e/f/g/h/i").unwrap();
     assert_eq!(*path.data(), 9);
@@ -1197,9 +1161,9 @@ mod tests {
     let mut matcher = Matcher::new();
     {
       let mut builder = matcher.builder();
-      builder.node("/a/{p}w", 1).unwrap();
-      builder.node("/a/{p}x", 2).unwrap();
-      builder.node("/a/{p}y", 3).unwrap();
+      let _ = builder.node("/a/{p}w", 1).unwrap();
+      let _ = builder.node("/a/{p}x", 2).unwrap();
+      let _ = builder.node("/a/{p}y", 3).unwrap();
     }
 
     let path = matcher.find("/a/123y");
@@ -1211,9 +1175,9 @@ mod tests {
     let mut matcher = Matcher::new();
     {
       let mut builder = matcher.builder();
-      builder.node("/a/{p}w", 1).unwrap();
-      builder.node("/a/{p}x", 2).unwrap();
-      builder.node("/a/123y", 3).unwrap();
+      let _ = builder.node("/a/{p}w", 1).unwrap();
+      let _ = builder.node("/a/{p}x", 2).unwrap();
+      let _ = builder.node("/a/123y", 3).unwrap();
     }
 
     let path = matcher.find("/a/123y").unwrap();

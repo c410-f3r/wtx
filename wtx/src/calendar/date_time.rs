@@ -38,6 +38,10 @@ impl DateTime<Utc> {
 
   /// Creates a new instance from a UNIX timestamp expressed in seconds alongside the number of
   /// nanoseconds.
+  #[expect(
+    clippy::cast_possible_truncation,
+    reason = "resulting values of divisions and modules don't extrapolate associated types"
+  )]
   #[inline]
   pub const fn from_timestamp_secs_and_ns(
     seconds: i64,
@@ -50,7 +54,7 @@ impl DateTime<Utc> {
     }
     let days = seconds.div_euclid(u32i64(SECONDS_PER_DAY)).wrapping_add(u32i64(EPOCH_CE_DAYS));
     let (_, hour, minute, second) = Time::hms_from_seconds(seconds);
-    let ce_days = match CeDays::from_num(days as _) {
+    let ce_days = match CeDays::from_num(days as i32) {
       Ok(val) => val,
       Err(err) => return Err(err),
     };

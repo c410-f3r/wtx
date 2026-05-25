@@ -11,7 +11,7 @@ use wtx::{
   collection::{ArrayVectorU8, HashSet, Vector},
   http::{HttpClient, ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
   misc::UriRef,
-  x509::{Certificate, CvTrustAnchor, Time as X509Time, X509Error, extensions::NameConstraints},
+  x509::{Certificate, CvTrustAnchor, X509Error},
 };
 
 static EXCLUDED_FINGERPRINTS: &[&str] =
@@ -26,7 +26,6 @@ async fn main() {
     pool.send_req_recv_res(ReqBuilder::get(UriRef::new(uri)), rrb).await.unwrap().rrd.body
   };
 
-  let mut counters = Counters::default();
   let mut csv = Csv::from_buf_read(BufReader::new(&*csv));
   let mut file_buffer = Vector::new();
   let mut line_buffer = Vector::new();
@@ -35,23 +34,13 @@ async fn main() {
 
   file_buffer
     .extend_from_copyable_slice(
-      b"use crate::{\n  \
-        asn1::{Any, BitString, Len, Oid},\n  \
-        calendar::DateTime,\n  \
-        collection::ArrayVectorU8,\n  \
-        x509::{\n    \
-          AlgorithmIdentifier, CvTrustAnchor, FlaggedExtension, KeyIdentifier, SubjectPublicKeyInfo,\n    \
-          Time as X509Time, Validity,\n    \
-          extensions::{AuthorityKeyIdentifier, KeyUsage, SubjectKeyIdentifier},\n  \
-        },\n\
-      };\n\n\
-      \
+      b"use crate::x509::cv::cv_trust_anchor::CvTrustAnchorRaw;\n\n\
       /// Set of filtered certificates from CCADB suitable for scenarios related to TLS chain verification.\n",
     )
     .unwrap();
   file_buffer.extend_from_copyable_slice(b"#[rustfmt::skip]\n").unwrap();
   file_buffer
-    .extend_from_copyable_slice(b"pub static CCADB: &[CvTrustAnchor<'_,>] = &[\n")
+    .extend_from_copyable_slice(b"pub static CCADB: &[CvTrustAnchorRaw<'_,>] = &[\n")
     .unwrap();
 
   let _ = csv.next_elements(&mut line_buffer).unwrap().unwrap();
@@ -70,13 +59,12 @@ async fn main() {
       Err(err) => panic!("{err}"),
     };
     let ta = CvTrustAnchor::try_from(cert).unwrap();
-    counters.increment(&ta);
-    file_buffer.extend_from_copyable_slice(b"  CvTrustAnchor::new(").unwrap();
+    file_buffer.extend_from_copyable_slice(b"  (").unwrap();
     write_authority_key_identifier(&mut file_buffer, &ta);
     write_has_unknown_critical_extension(&mut file_buffer, &ta);
     write_is_self_signed(&mut file_buffer, &ta);
     write_key_usage(&mut file_buffer, &ta);
-    write_name_constraints(&mut file_buffer, ta.name_constraints());
+    write_name_constraints(&mut file_buffer, &ta);
     write_subject(&mut file_buffer, &ta);
     write_subject_key_identifier(&mut file_buffer, &ta);
     write_subject_public_key_info(&mut file_buffer, &ta);
@@ -84,18 +72,9 @@ async fn main() {
     file_buffer.extend_from_copyable_slice(b"),\n").unwrap();
   }
 
-  file_buffer.extend_from_copyable_slice(b"];\n\n").unwrap();
-  file_buffer
-    .extend_from_copyable_slice(
-      b"const fn el<T: Copy>(rslt: Result<T, crate::calendar::CalendarError>) -> T {\n  \
-        let Ok(elem) = rslt else { panic!() };\n  \
-        elem\n\
-      }\n",
-    )
-    .unwrap();
+  file_buffer.extend_from_copyable_slice(b"];\n").unwrap();
 
   fs::write("wtx/src/x509/ccadb.rs", &file_buffer).unwrap();
-  counters.print();
 }
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -219,10 +198,14 @@ struct Bytes<'any>(&'any [u8]);
 
 impl Debug for Bytes<'_> {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    f.write_fmt(format_args!(
-      "&hexd!(b\"{}\")",
-      HexDisplay(self.0, Some(HexEncMode::WithPrefixLower))
-    ))
+    if self.0.is_empty() {
+      f.write_str("[]")
+    } else {
+      f.write_fmt(format_args!(
+        "hexd!(b\"{}\")",
+        HexDisplay(self.0, Some(HexEncMode::WithPrefixLower))
+      ))
+    }
   }
 }
 
@@ -232,53 +215,13 @@ impl Display for Bytes<'_> {
   }
 }
 
-#[derive(Debug, Default)]
-struct Counters {
-  max_algo_any: usize,
-  max_es: usize,
-  max_ps: usize,
-}
-
-impl Counters {
-  fn increment(&mut self, tav: &CvTrustAnchor<'_>) {
-    let subject_public_key_info = tav.subject_public_key_info();
-    if let Some(parameters) = &subject_public_key_info.algorithm.parameters {
-      self.max_algo_any = self.max_algo_any.max(parameters.data().len());
-    }
-    if let Some(nc) = tav.name_constraints() {
-      self.max_es = self
-        .max_es
-        .max(nc.excluded_subtrees.as_ref().map(|el| el.len()).unwrap_or_default().into());
-      self.max_ps = self
-        .max_ps
-        .max(nc.permitted_subtrees.as_ref().map(|el| el.len()).unwrap_or_default().into());
-    }
-  }
-
-  fn print(&self) {
-    let Self { max_algo_any, max_es, max_ps } = self;
-    println!("Max ALGORITHM_ANY = {max_algo_any}");
-    println!("Max EXCLUDED_SUBTREES = {max_es}");
-    println!("Max INCLUDED_SUBTREES = {max_ps}");
-  }
-}
-
 fn write_authority_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
-  let Some(aki) = ta.authority_key_identifier() else {
+  let Some(ki) = ta.authority_key_identifier().as_ref().and_then(|aki| aki.key_identifier.as_ref())
+  else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
     return;
   };
-  file_buffer.extend_from_copyable_slice(b"Some(AuthorityKeyIdentifier::new(").unwrap();
-  let Some(ki) = &aki.key_identifier else {
-    file_buffer.extend_from_copyable_slice(b"None)),").unwrap();
-    return;
-  };
-  file_buffer
-    .write_fmt(format_args!(
-      "Some(KeyIdentifier::new(ArrayVectorU8::from_array_u8(*{}))))),",
-      Bytes(ki.bytes().as_inner().unwrap())
-    ))
-    .unwrap();
+  file_buffer.write_fmt(format_args!("Some({}),", Bytes(ki.bytes().as_inner().unwrap()))).unwrap();
 }
 
 fn write_has_unknown_critical_extension(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
@@ -294,54 +237,29 @@ fn write_key_usage(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
     return;
   };
-  file_buffer.write_fmt(format_args!("Some(KeyUsage::new({:?})),", ku.bytes())).unwrap();
+  let bytes = ku.bytes();
+  file_buffer.write_fmt(format_args!("Some(({},{})),", bytes.0, bytes.1)).unwrap();
 }
 
-fn write_name_constraints(
-  file_buffer: &mut Vector<u8>,
-  name_constraints: &Option<NameConstraints<'_>>,
-) {
-  let Some(elem) = name_constraints else {
-    file_buffer.extend_from_copyable_slice(b"None,").unwrap();
-    return;
-  };
-  assert_eq!(elem.excluded_subtrees.iter().count(), 0);
-  assert_eq!(elem.permitted_subtrees.iter().count(), 0);
-  file_buffer.extend_from_copyable_slice(b"None,").unwrap();
+fn write_name_constraints(_: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  assert!(ta.name_constraints().is_none());
 }
 
 fn write_subject(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
-  file_buffer.write_fmt(format_args!("{},", Bytes(ta.subject()))).unwrap();
+  file_buffer.write_fmt(format_args!("&{},", Bytes(ta.subject()))).unwrap();
 }
 
 fn write_subject_public_key_info(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
   let spki = ta.subject_public_key_info();
-
-  file_buffer.extend_from_copyable_slice(b"SubjectPublicKeyInfo::new(").unwrap();
-  file_buffer.extend_from_copyable_slice(b"AlgorithmIdentifier::new(").unwrap();
-
-  file_buffer
-    .write_fmt(format_args!("Oid::from_bytes_opt(b\"{}\").unwrap(),", &spki.algorithm.algorithm))
-    .unwrap();
-
+  file_buffer.write_fmt(format_args!("(b\"{}\",", &spki.algorithm.algorithm)).unwrap();
   if let Some(params) = &spki.algorithm.parameters {
     file_buffer
-      .write_fmt(format_args!(
-        "Some(Any::new({},{},Len::from_u8({})))",
-        Bytes(params.data()),
-        params.tag(),
-        params.data().len()
-      ))
+      .write_fmt(format_args!("Some((&{},{})),", Bytes(params.data()), params.tag()))
       .unwrap();
   } else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
   }
-
-  file_buffer.extend_from_copyable_slice(b"),").unwrap();
-  file_buffer
-    .write_fmt(format_args!("BitString::from_bytes({})", Bytes(spki.subject_public_key.bytes())))
-    .unwrap();
-  file_buffer.extend_from_copyable_slice(b"),").unwrap();
+  file_buffer.write_fmt(format_args!("&{}),", Bytes(spki.subject_public_key.bytes()))).unwrap();
 }
 
 fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
@@ -351,7 +269,7 @@ fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor
   };
   file_buffer
     .write_fmt(format_args!(
-      "Some(FlaggedExtension::new(SubjectKeyIdentifier::new(KeyIdentifier::new(ArrayVectorU8::from_array_u8(*{}))),{})),",
+      "Some(({},{})),",
       Bytes(el.extension().key_identifier.bytes()),
       el.critical()
     ))
@@ -359,19 +277,7 @@ fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor
 }
 
 fn write_validity(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
-  fn write_time(file_buffer: &mut Vector<u8>, time: X509Time) {
-    file_buffer
-      .write_fmt(format_args!(
-        "X509Time::new(el(DateTime::from_timestamp_secs({})),{})",
-        time.date_time().timestamp_secs_and_ns().0,
-        time.is_generalized()
-      ))
-      .unwrap();
-  }
-
-  file_buffer.extend_from_copyable_slice(b"Validity::new(").unwrap();
-  write_time(file_buffer, ta.validity().not_before);
-  file_buffer.extend_from_copyable_slice(b",").unwrap();
-  write_time(file_buffer, ta.validity().not_after);
-  file_buffer.extend_from_copyable_slice(b")").unwrap();
+  let not_before = ta.validity().not_before.date_time().timestamp_secs_and_ns().0;
+  let not_after = ta.validity().not_after.date_time().timestamp_secs_and_ns().0;
+  file_buffer.write_fmt(format_args!("({},{})", not_before, not_after)).unwrap();
 }

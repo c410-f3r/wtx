@@ -45,14 +45,14 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Name<'de> {
   }
 }
 
-impl<'bytes> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Name<'bytes> {
+impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Name<'_> {
   #[inline]
   fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
     SequenceBuffer(&self.rdn_sequence).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)
   }
 }
 
-impl<'bytes> PartialEq for Name<'bytes> {
+impl PartialEq for Name<'_> {
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     self.bytes == other.bytes
