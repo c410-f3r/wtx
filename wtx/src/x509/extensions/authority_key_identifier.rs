@@ -17,6 +17,13 @@ pub struct AuthorityKeyIdentifier {
   pub key_identifier: Option<KeyIdentifier>,
 }
 
+impl AuthorityKeyIdentifier {
+  /// Shortcut
+  pub const fn new(key_identifier: Option<KeyIdentifier>) -> Self {
+    Self { key_identifier }
+  }
+}
+
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AuthorityKeyIdentifier {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {

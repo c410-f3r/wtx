@@ -16,6 +16,7 @@ mod default_array;
 mod either;
 mod enum_var_strings;
 mod env_vars;
+mod error_info;
 #[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 mod filled_buffer;
 mod fn_fut;
@@ -29,6 +30,7 @@ mod mem;
 mod optimization;
 mod pem;
 mod poll_once;
+mod ppm;
 mod role;
 #[cfg(feature = "secret")]
 mod secret;
@@ -53,6 +55,7 @@ pub use default_array::DefaultArray;
 pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::EnvVars;
+pub use error_info::ErrorInfo;
 #[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
@@ -66,6 +69,7 @@ pub use mem::*;
 pub use optimization::*;
 pub use pem::Pem;
 pub use poll_once::PollOnce;
+pub use ppm::Ppm;
 pub use role::{Client, Role, RoleTy, Server};
 #[cfg(feature = "secret")]
 pub use secret::{Secret, SecretContext};
@@ -415,7 +419,7 @@ mod tests {
   use crate::misc::sleep;
   use core::time::Duration;
 
-  // TODO: Use Runtime when TLS 1.3 arrives
+  // FIXME: Use Runtime when TLS 1.3 arrives
   #[tokio::test]
   async fn timeout() {
     assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);

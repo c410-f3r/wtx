@@ -5,7 +5,7 @@ use crate::{
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{
-    AlgorithmIdentifier, EXPLICIT_TAG0, EXPLICIT_TAG3, Extensions, ISSUER_UID_TAG, NameVector,
+    AlgorithmIdentifier, EXPLICIT_TAG0, EXPLICIT_TAG3, Extensions, ISSUER_UID_TAG, Name,
     SUBJECT_UID_TAG, SerialNumber, SubjectPublicKeyInfo, Validity, X509Error,
   },
 };
@@ -20,11 +20,11 @@ pub struct TbsCertificate<'bytes> {
   /// The algorithm the CA used to sign this certificate.
   pub signature: AlgorithmIdentifier<'bytes>,
   /// The distinguished name of the certificate issuer (the signing CA).
-  pub issuer: NameVector<'bytes>,
+  pub issuer: Name<'bytes>,
   /// See [`Validity`].
   pub validity: Validity,
   /// The distinguished name of the entity this certificate identifies.
-  pub subject: NameVector<'bytes>,
+  pub subject: Name<'bytes>,
   /// The subject's public key and its associated algorithm.
   pub subject_public_key_info: SubjectPublicKeyInfo<'bytes>,
   /// Optional issuer unique identifier.
@@ -53,9 +53,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertificate<'d
     dw.bytes = after;
     let serial_number = SerialNumber::decode(dw)?;
     let signature = AlgorithmIdentifier::decode(dw)?;
-    let issuer = NameVector::decode(dw)?;
+    let issuer = Name::decode(dw)?;
     let validity = Validity::decode(dw)?;
-    let subject = NameVector::decode(dw)?;
+    let subject = Name::decode(dw)?;
     let subject_public_key_info = SubjectPublicKeyInfo::decode(dw)?;
     let issuer_unique_id = Opt::decode(dw, ISSUER_UID_TAG)?.0;
     let subject_unique_id = Opt::decode(dw, SUBJECT_UID_TAG)?.0;

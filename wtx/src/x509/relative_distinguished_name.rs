@@ -22,7 +22,7 @@ impl<'bytes> RelativeDistinguishedName<'bytes> {
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RelativeDistinguishedName<'de> {
   #[inline]
   fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    Ok(Self { entries: SequenceBuffer::decode(dw, SET_TAG)?.0 })
+    Ok(Self { entries: SequenceBuffer::decode(dw, SET_TAG)?.0.0 })
   }
 }
 

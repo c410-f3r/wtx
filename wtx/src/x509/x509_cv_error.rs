@@ -19,6 +19,8 @@ pub enum X509CvError {
   EeCanNotHaveACriticalEku,
   /// End Entity certificate must have an Extended Key Usage extension.
   EeMustHaveEku,
+  /// End Entity certificate must have SAN
+  EeMustHaveSan,
   /// Extended Key Usage cannot contain the anyExtendedKeyUsage OID.
   EkuCanNotBeAny,
   /// Extended Key Usage sequence cannot be empty.

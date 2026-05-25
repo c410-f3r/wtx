@@ -14,6 +14,10 @@ pub(crate) const fn boolusize(val: bool) -> usize {
   val as usize
 }
 
+pub(crate) const fn i8i32(val: i8) -> i32 {
+  val as i32
+}
+
 pub(crate) const fn i16i32(val: i16) -> i32 {
   val as i32
 }
@@ -24,6 +28,10 @@ pub(crate) const fn i16i64(val: i16) -> i64 {
 
 pub(crate) const fn i32i64(val: i32) -> i64 {
   val as i64
+}
+
+pub(crate) const fn i32f64(val: i32) -> f64 {
+  val as f64
 }
 
 pub(crate) const fn u8i16(val: u8) -> i16 {

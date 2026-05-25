@@ -2,7 +2,7 @@ use core::ops::RangeInclusive;
 
 /// Branchless decoding based on iterative offsets.
 //
-// FIXME(stable): Copy with the new RangeInclusive
+// FIXME(STABLE): Copy with the new RangeInclusive
 #[derive(Clone, Debug)]
 pub(crate) enum DecodeStep {
   /// Maps exactly one byte value to an offset.

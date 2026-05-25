@@ -40,7 +40,7 @@ where
     tag: u8,
   ) -> crate::Result<Self> {
     if dw.bytes.first().copied() == Some(tag) {
-      Ok(Self(Some(SequenceBuffer::<B>::decode(dw, tag)?.0)))
+      Ok(Self(Some(SequenceBuffer::<B>::decode(dw, tag)?.0.0)))
     } else {
       Ok(Self(None))
     }

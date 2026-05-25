@@ -4,16 +4,26 @@ use crate::{
     OID_X509_EXT_KEY_USAGE, OID_X509_EXT_NAME_CONSTRAINTS, OID_X509_EXT_SUBJECT_KEY_IDENTIFIER,
   },
   codec::{Decode, DecodeWrapper},
-  misc::RefOrOwned,
   x509::{
-    Certificate, FlaggedExtension, NameVector, SubjectPublicKeyInfo, TbsCertificate, Validity,
-    X509CvError,
+    Certificate, FlaggedExtension, SubjectPublicKeyInfo, TbsCertificate, Validity, X509CvError,
     cv::validate_ica_static,
     extensions::{
       AuthorityKeyIdentifier, BasicConstraints, KeyUsage, NameConstraints, SubjectKeyIdentifier,
     },
   },
 };
+
+#[cfg(feature = "ccadb")]
+pub(crate) type CvTrustAnchorRaw<'bytes> = (
+  Option<[u8; 20]>,
+  bool,
+  bool,
+  Option<(u8, u8)>,
+  &'bytes [u8],
+  Option<([u8; 20], bool)>,
+  (&'bytes [u8], Option<(&'bytes [u8], u8)>, &'bytes [u8]),
+  (i64, i64),
+);
 
 /// Chain Validation - Trust Anchor
 ///
@@ -23,19 +33,85 @@ use crate::{
 /// Trust Anchors <- Intermediates <- End Entity
 /// ```
 #[derive(Debug, PartialEq)]
-pub struct CvTrustAnchor<'any, 'bytes> {
+pub struct CvTrustAnchor<'bytes> {
   authority_key_identifier: Option<AuthorityKeyIdentifier>,
   has_unknown_critical_extension: bool,
   is_self_signed: bool,
   key_usage: Option<KeyUsage>,
   name_constraints: Option<NameConstraints<'bytes>>,
+  subject: &'bytes [u8],
   subject_key_identifier: Option<FlaggedExtension<SubjectKeyIdentifier>>,
   subject_public_key_info: SubjectPublicKeyInfo<'bytes>,
-  subject: RefOrOwned<'any, NameVector<'bytes>>,
   validity: Validity,
 }
 
-impl<'any, 'bytes> CvTrustAnchor<'any, 'bytes> {
+impl<'bytes> CvTrustAnchor<'bytes> {
+  /// This constructor doesn't perform checks that assert correctness.
+  #[inline]
+  pub const fn new(
+    authority_key_identifier: Option<AuthorityKeyIdentifier>,
+    has_unknown_critical_extension: bool,
+    is_self_signed: bool,
+    key_usage: Option<KeyUsage>,
+    name_constraints: Option<NameConstraints<'bytes>>,
+    subject: &'bytes [u8],
+    subject_key_identifier: Option<FlaggedExtension<SubjectKeyIdentifier>>,
+    subject_public_key_info: SubjectPublicKeyInfo<'bytes>,
+    validity: Validity,
+  ) -> Self {
+    Self {
+      authority_key_identifier,
+      has_unknown_critical_extension,
+      is_self_signed,
+      key_usage,
+      name_constraints,
+      subject,
+      subject_key_identifier,
+      subject_public_key_info,
+      validity,
+    }
+  }
+
+  #[cfg(feature = "ccadb")]
+  pub(crate) fn _from_raw(raw: CvTrustAnchorRaw<'bytes>) -> Option<Self> {
+    use crate::{
+      asn1::{Any, BitString, Len, Oid},
+      calendar::DateTime,
+      collection::ArrayVectorU8,
+      x509::{AlgorithmIdentifier, KeyIdentifier, Time},
+    };
+
+    Some(CvTrustAnchor::new(
+      raw.0.map(|el| {
+        AuthorityKeyIdentifier::new(Some(KeyIdentifier::new(ArrayVectorU8::from_array_u8(el))))
+      }),
+      raw.1,
+      raw.2,
+      raw.3.map(|el| KeyUsage::new(el)),
+      None,
+      raw.4,
+      raw.5.map(|el| {
+        let ki = KeyIdentifier::new(ArrayVectorU8::from_array_u8(el.0));
+        FlaggedExtension::new(SubjectKeyIdentifier::new(ki), el.1)
+      }),
+      {
+        let algorithm = Oid::from_bytes_opt(raw.6.0)?;
+        let parameters = raw.6.1.and_then(|(bytes, tag)| {
+          let len = Len::from_u8(bytes.len().try_into().ok()?);
+          Some(Any::new(bytes, tag, len))
+        });
+        SubjectPublicKeyInfo::new(
+          AlgorithmIdentifier::new(algorithm, parameters),
+          BitString::from_bytes(raw.6.2),
+        )
+      },
+      Validity::new(
+        Time::new(DateTime::from_timestamp_secs(raw.7.0).ok()?, false),
+        Time::new(DateTime::from_timestamp_secs(raw.7.1).ok()?, false),
+      ),
+    ))
+  }
+
   /// See [`AuthorityKeyIdentifier`].
   #[inline]
   pub const fn authority_key_identifier(&self) -> &Option<AuthorityKeyIdentifier> {
@@ -66,9 +142,9 @@ impl<'any, 'bytes> CvTrustAnchor<'any, 'bytes> {
     &self.name_constraints
   }
 
-  /// See [`NameVector`].
+  /// Raw bytes of the subject's field
   #[inline]
-  pub const fn subject(&self) -> &RefOrOwned<'any, NameVector<'bytes>> {
+  pub const fn subject(&self) -> &'bytes [u8] {
     &self.subject
   }
 
@@ -91,7 +167,7 @@ impl<'any, 'bytes> CvTrustAnchor<'any, 'bytes> {
   }
 }
 
-impl<'bytes> TryFrom<Certificate<'bytes>> for CvTrustAnchor<'_, 'bytes> {
+impl<'bytes> TryFrom<Certificate<'bytes>> for CvTrustAnchor<'bytes> {
   type Error = crate::Error;
 
   #[inline]
@@ -104,7 +180,7 @@ impl<'bytes> TryFrom<Certificate<'bytes>> for CvTrustAnchor<'_, 'bytes> {
       is_self_signed: parts.is_self_signed,
       key_usage: parts.key_usage,
       name_constraints: parts.name_constraints,
-      subject: RefOrOwned::Right(tbs.subject),
+      subject: tbs.subject.bytes(),
       subject_key_identifier: parts.subject_key_identifier,
       subject_public_key_info: tbs.subject_public_key_info,
       validity: tbs.validity,
@@ -112,7 +188,7 @@ impl<'bytes> TryFrom<Certificate<'bytes>> for CvTrustAnchor<'_, 'bytes> {
   }
 }
 
-impl<'any, 'bytes> TryFrom<&'any Certificate<'bytes>> for CvTrustAnchor<'any, 'bytes> {
+impl<'any, 'bytes> TryFrom<&'any Certificate<'bytes>> for CvTrustAnchor<'bytes> {
   type Error = crate::Error;
 
   #[inline]
@@ -125,7 +201,7 @@ impl<'any, 'bytes> TryFrom<&'any Certificate<'bytes>> for CvTrustAnchor<'any, 'b
       is_self_signed: parts.is_self_signed,
       key_usage: parts.key_usage,
       name_constraints: parts.name_constraints,
-      subject: RefOrOwned::Left(&value.tbs_certificate().subject),
+      subject: value.tbs_certificate().subject.bytes(),
       subject_key_identifier: parts.subject_key_identifier,
       subject_public_key_info: value.tbs_certificate().subject_public_key_info.clone(),
       validity: value.tbs_certificate().validity.clone(),
@@ -153,7 +229,7 @@ impl<'bytes> Parts<'bytes> {
       };
     }
 
-    let is_self_signed = tbs.issuer == tbs.subject;
+    let is_self_signed = tbs.issuer.bytes() == tbs.subject.bytes();
     let mut authority_key_identifier = None;
     let mut basic_constraints = None;
     let mut has_unknown_critical_extension = false;

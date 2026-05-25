@@ -12,6 +12,16 @@ pub struct Any<D> {
   len: Len,
 }
 
+impl<'bytes> Any<&'bytes [u8]> {
+  /// Doesn't perform checks that ensure that `len` is equal to the length of `bytes`.
+  //
+  // FIXME(STABLE): Return `Result`
+  #[inline]
+  pub const fn new(bytes: &'bytes [u8], tag: u8, len: Len) -> Self {
+    Self { bytes, tag, len }
+  }
+}
+
 impl<D> Any<D> {
   /// The whole slice that contains the tag, the length and the data.
   #[inline]

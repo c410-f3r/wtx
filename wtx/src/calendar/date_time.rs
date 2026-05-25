@@ -32,31 +32,59 @@ impl DateTime<Utc> {
 
   /// Creates a new instance from a UNIX timestamp expressed in seconds.
   #[inline]
-  pub fn from_timestamp_secs(second: i64) -> crate::Result<Self> {
+  pub const fn from_timestamp_secs(second: i64) -> Result<Self, CalendarError> {
     Self::from_timestamp_secs_and_ns(second, Nanosecond::ZERO)
   }
 
   /// Creates a new instance from a UNIX timestamp expressed in seconds alongside the number of
   /// nanoseconds.
+  #[expect(
+    clippy::cast_possible_truncation,
+    reason = "resulting values of divisions and modules don't extrapolate associated types"
+  )]
   #[inline]
-  pub fn from_timestamp_secs_and_ns(seconds: i64, nanoseconds: Nanosecond) -> crate::Result<Self> {
-    if seconds < Self::MIN.timestamp_secs_and_ns().0
-      || seconds > Self::MAX.timestamp_secs_and_ns().0
+  pub const fn from_timestamp_secs_and_ns(
+    seconds: i64,
+    nanosecond: Nanosecond,
+  ) -> Result<Self, CalendarError> {
+    if seconds < Self::MIN.timestamp_secs_and_ns_utc().0
+      || seconds > Self::MAX.timestamp_secs_and_ns_utc().0
     {
-      return Err(CalendarError::InvalidTimestamp.into());
+      return Err(CalendarError::InvalidTimestamp);
     }
-    let days = seconds.div_euclid(SECONDS_PER_DAY.into()).wrapping_add(EPOCH_CE_DAYS.into());
+    let days = seconds.div_euclid(u32i64(SECONDS_PER_DAY)).wrapping_add(u32i64(EPOCH_CE_DAYS));
     let (_, hour, minute, second) = Time::hms_from_seconds(seconds);
-    Ok(Self::new(
-      Date::from_ce_days(CeDays::from_num(days.try_into()?)?)?,
-      Time::from_hms_ns(
-        Hour::from_num(hour)?,
-        Sixty::from_num(minute)?,
-        Sixty::from_num(second)?,
-        nanoseconds,
-      ),
-      Utc,
-    ))
+    let ce_days = match CeDays::from_num(days as i32) {
+      Ok(val) => val,
+      Err(err) => return Err(err),
+    };
+    let date = match Date::from_ce_days(ce_days) {
+      Ok(val) => val,
+      Err(err) => return Err(err),
+    };
+    let local_hour = match Hour::from_num(hour) {
+      Ok(val) => val,
+      Err(err) => return Err(err),
+    };
+    let local_minute = match Sixty::from_num(minute) {
+      Ok(val) => val,
+      Err(err) => return Err(err),
+    };
+    let local_second = match Sixty::from_num(second) {
+      Ok(val) => val,
+      Err(err) => return Err(err),
+    };
+    Ok(Self::new(date, Time::from_hms_ns(local_hour, local_minute, local_second, nanosecond), Utc))
+  }
+
+  // FIXME(STABLE): Use `timestamp_secs_and_ns` with constant traits
+  #[inline]
+  const fn timestamp_secs_and_ns_utc(self) -> (i64, Nanosecond) {
+    let mut rslt = i32i64(self.date.ce_days());
+    rslt = rslt.wrapping_sub(u32i64(EPOCH_CE_DAYS));
+    rslt = rslt.wrapping_mul(u32i64(SECONDS_PER_DAY));
+    rslt = rslt.wrapping_add(u32i64(self.time.seconds_since_mn()));
+    (rslt, self.time.nanosecond())
   }
 }
 

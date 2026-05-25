@@ -27,6 +27,18 @@ impl Time {
   pub const fn date_time(&self) -> DateTime<Utc> {
     self.date_time
   }
+
+  /// If this instance is a generalized time
+  #[inline]
+  pub const fn is_generalized(&self) -> bool {
+    self.tag == GENERALIZED_TIME_TAG
+  }
+
+  /// Associated tag
+  #[inline]
+  pub const fn tag(&self) -> u8 {
+    self.tag
+  }
 }
 
 impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Time {

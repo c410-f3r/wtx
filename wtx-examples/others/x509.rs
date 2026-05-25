@@ -121,7 +121,7 @@ fn single_buffer() -> wtx::Result<()> {
 fn validate_chain(
   end_entity: &CvEndEntity<'_, '_>,
   intermediate: &CvIntermediate<'_, '_>,
-  trust_anchor: &CvTrustAnchor<'_, '_>,
+  trust_anchor: &CvTrustAnchor<'_>,
 ) -> wtx::Result<()> {
   let cvp = CvPolicy::from_crls(&[])?;
   let verified_path = end_entity.validate_chain(

@@ -7,14 +7,11 @@ use std::{
 };
 use wtx::{
   calendar::{Date, DateTime, Duration, Instant, Time, Utc, parse_bytes_into_tokens},
-  codec::Csv,
+  codec::{Csv, HexDisplay, HexEncMode},
   collection::{ArrayVectorU8, HashSet, Vector},
   http::{HttpClient, ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
-  misc::{Lease, UriRef},
-  x509::{
-    Certificate, CvTrustAnchor, RelativeDistinguishedName, SubjectPublicKeyInfo, X509Error,
-    extensions::NameConstraints,
-  },
+  misc::UriRef,
+  x509::{Certificate, CvTrustAnchor, X509Error},
 };
 
 static EXCLUDED_FINGERPRINTS: &[&str] =
@@ -29,7 +26,6 @@ async fn main() {
     pool.send_req_recv_res(ReqBuilder::get(UriRef::new(uri)), rrb).await.unwrap().rrd.body
   };
 
-  let mut counters = Counters::default();
   let mut csv = Csv::from_buf_read(BufReader::new(&*csv));
   let mut file_buffer = Vector::new();
   let mut line_buffer = Vector::new();
@@ -38,15 +34,13 @@ async fn main() {
 
   file_buffer
     .extend_from_copyable_slice(
-      b"/// Set of filtered certificates from CCADB suitable for scenarios related to TLS \
-      chain verification.\n",
+      b"use crate::x509::cv::cv_trust_anchor::CvTrustAnchorRaw;\n\n\
+      /// Set of filtered certificates from CCADB suitable for scenarios related to TLS chain verification.\n",
     )
     .unwrap();
   file_buffer.extend_from_copyable_slice(b"#[rustfmt::skip]\n").unwrap();
   file_buffer
-    .extend_from_copyable_slice(
-      b"pub static CCADB_TLS: &[(&[(&str,u8,&[u8])],(&str,u8,&[u8],&[u8]))] = &[\n",
-    )
+    .extend_from_copyable_slice(b"pub static CCADB: &[CvTrustAnchorRaw<'_,>] = &[\n")
     .unwrap();
 
   let _ = csv.next_elements(&mut line_buffer).unwrap().unwrap();
@@ -64,21 +58,23 @@ async fn main() {
       Err(wtx::Error::X509Error(X509Error::InvalidSerialNumberBytes)) => continue,
       Err(err) => panic!("{err}"),
     };
-    let tav = CvTrustAnchor::try_from(cert).unwrap();
-    let rdn_sequence = &tav.subject().lease().rdn_sequence;
-    let subject_public_key_info = &tav.subject_public_key_info();
-    counters.increment(&tav);
+    let ta = CvTrustAnchor::try_from(cert).unwrap();
     file_buffer.extend_from_copyable_slice(b"  (").unwrap();
-    write_subject(&mut file_buffer, rdn_sequence);
-    write_subject_public_key_info(&mut file_buffer, subject_public_key_info);
-    write_name_constraints(tav.name_constraints());
+    write_authority_key_identifier(&mut file_buffer, &ta);
+    write_has_unknown_critical_extension(&mut file_buffer, &ta);
+    write_is_self_signed(&mut file_buffer, &ta);
+    write_key_usage(&mut file_buffer, &ta);
+    write_name_constraints(&mut file_buffer, &ta);
+    write_subject(&mut file_buffer, &ta);
+    write_subject_key_identifier(&mut file_buffer, &ta);
+    write_subject_public_key_info(&mut file_buffer, &ta);
+    write_validity(&mut file_buffer, &ta);
     file_buffer.extend_from_copyable_slice(b"),\n").unwrap();
   }
 
   file_buffer.extend_from_copyable_slice(b"];\n").unwrap();
 
   fs::write("wtx/src/x509/ccadb.rs", &file_buffer).unwrap();
-  counters.print();
 }
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -202,15 +198,14 @@ struct Bytes<'any>(&'any [u8]);
 
 impl Debug for Bytes<'_> {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    f.write_str("&[")?;
-    let mut iter = self.0.iter();
-    if let Some(elem) = iter.next() {
-      f.write_fmt(format_args!("{elem}"))?;
+    if self.0.is_empty() {
+      f.write_str("[]")
+    } else {
+      f.write_fmt(format_args!(
+        "hexd!(b\"{}\")",
+        HexDisplay(self.0, Some(HexEncMode::WithPrefixLower))
+      ))
     }
-    for elem in iter {
-      f.write_fmt(format_args!(",{elem}"))?;
-    }
-    f.write_str("]")
   }
 }
 
@@ -220,86 +215,69 @@ impl Display for Bytes<'_> {
   }
 }
 
-#[derive(Debug, Default)]
-struct Counters {
-  max_algo_any: usize,
-  max_es: usize,
-  max_name_tv: usize,
-  max_ps: usize,
-  max_rdn: usize,
-  max_rdn_fields: u8,
-}
-
-impl Counters {
-  fn increment(&mut self, tav: &CvTrustAnchor<'_, '_>) {
-    let rdn_sequence = &tav.subject().lease().rdn_sequence;
-    let subject_public_key_info = &tav.subject_public_key_info();
-    self.max_rdn = self.max_rdn.max(rdn_sequence.len());
-    for fields in rdn_sequence {
-      self.max_rdn_fields = self.max_rdn_fields.max(fields.entries.len());
-      for field in &fields.entries {
-        self.max_name_tv = self.max_name_tv.max(field.value.data().len());
-      }
-    }
-    if let Some(parameters) = &subject_public_key_info.algorithm.parameters {
-      self.max_algo_any = self.max_algo_any.max(parameters.data().len());
-    }
-    if let Some(nc) = tav.name_constraints() {
-      self.max_es = self
-        .max_es
-        .max(nc.excluded_subtrees.as_ref().map(|el| el.len()).unwrap_or_default().into());
-      self.max_ps = self
-        .max_ps
-        .max(nc.permitted_subtrees.as_ref().map(|el| el.len()).unwrap_or_default().into());
-    }
-  }
-
-  fn print(&self) {
-    let Self { max_algo_any, max_es, max_name_tv, max_ps, max_rdn, max_rdn_fields } = self;
-    println!("Max ALGORITHM_ANY = {max_algo_any}");
-    println!("Max NAME_TYPE_AND_VALUE = {max_name_tv}");
-    println!("Max RDN_SEQUENCE = {max_rdn}");
-    println!("Max RDN_SEQUENCE_FIELDS = {max_rdn_fields}");
-    println!("Max EXCLUDED_SUBTREES = {max_es}");
-    println!("Max INCLUDED_SUBTREES = {max_ps}");
-  }
-}
-
-fn write_name_constraints(name_constraints: &Option<NameConstraints<'_>>) {
-  let Some(elem) = name_constraints else {
+fn write_authority_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  let Some(ki) = ta.authority_key_identifier().as_ref().and_then(|aki| aki.key_identifier.as_ref())
+  else {
+    file_buffer.extend_from_copyable_slice(b"None,").unwrap();
     return;
   };
-  assert_eq!(elem.excluded_subtrees.iter().count(), 0);
-  assert_eq!(elem.permitted_subtrees.iter().count(), 0);
+  file_buffer.write_fmt(format_args!("Some({}),", Bytes(ki.bytes().as_inner().unwrap()))).unwrap();
 }
 
-fn write_subject(file_buffer: &mut Vector<u8>, rdn_sequence: &[RelativeDistinguishedName<'_>]) {
-  file_buffer.extend_from_copyable_slice(b"&[").unwrap();
-  assert!(rdn_sequence.len() <= 1);
-  if let Some(first_rdn) = rdn_sequence.first() {
-    assert!(first_rdn.entries.len() <= 1);
-    if let Some(first_name) = first_rdn.entries.first() {
-      let name_oid = &*first_name.oid;
-      let tag = first_name.value.tag();
-      let any = Bytes(first_name.value.data());
-      file_buffer.write_fmt(format_args!("(\"{name_oid}\",{tag},{any})")).unwrap();
-    }
+fn write_has_unknown_critical_extension(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  file_buffer.write_fmt(format_args!("{},", ta.has_unknown_critical_extension())).unwrap();
+}
+
+fn write_is_self_signed(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  file_buffer.write_fmt(format_args!("{},", ta.is_self_signed())).unwrap();
+}
+
+fn write_key_usage(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  let Some(ku) = ta.key_usage() else {
+    file_buffer.extend_from_copyable_slice(b"None,").unwrap();
+    return;
+  };
+  let bytes = ku.bytes();
+  file_buffer.write_fmt(format_args!("Some(({},{})),", bytes.0, bytes.1)).unwrap();
+}
+
+fn write_name_constraints(_: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  assert!(ta.name_constraints().is_none());
+}
+
+fn write_subject(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  file_buffer.write_fmt(format_args!("&{},", Bytes(ta.subject()))).unwrap();
+}
+
+fn write_subject_public_key_info(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  let spki = ta.subject_public_key_info();
+  file_buffer.write_fmt(format_args!("(b\"{}\",", &spki.algorithm.algorithm)).unwrap();
+  if let Some(params) = &spki.algorithm.parameters {
+    file_buffer
+      .write_fmt(format_args!("Some((&{},{})),", Bytes(params.data()), params.tag()))
+      .unwrap();
+  } else {
+    file_buffer.extend_from_copyable_slice(b"None,").unwrap();
   }
-  file_buffer.extend_from_copyable_slice(b"],").unwrap();
+  file_buffer.write_fmt(format_args!("&{}),", Bytes(spki.subject_public_key.bytes()))).unwrap();
 }
 
-fn write_subject_public_key_info(
-  file_buffer: &mut Vector<u8>,
-  subject_public_key_info: &SubjectPublicKeyInfo<'_>,
-) {
-  let (params_bytes, params_tag) =
-    if let Some(params) = &subject_public_key_info.algorithm.parameters {
-      (Bytes(params.data()), params.tag())
-    } else {
-      (Bytes(&[]), 0)
-    };
-  let algorithm_oid = &subject_public_key_info.algorithm.algorithm;
-  file_buffer.write_fmt(format_args!("(\"{algorithm_oid}\",{params_tag},{params_bytes},")).unwrap();
-  let pk = subject_public_key_info.subject_public_key.bytes();
-  file_buffer.write_fmt(format_args!("{})", Bytes(pk))).unwrap();
+fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  let Some(el) = ta.subject_key_identifier() else {
+    file_buffer.extend_from_copyable_slice(b"None,").unwrap();
+    return;
+  };
+  file_buffer
+    .write_fmt(format_args!(
+      "Some(({},{})),",
+      Bytes(el.extension().key_identifier.bytes()),
+      el.critical()
+    ))
+    .unwrap();
+}
+
+fn write_validity(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+  let not_before = ta.validity().not_before.date_time().timestamp_secs_and_ns().0;
+  let not_after = ta.validity().not_after.date_time().timestamp_secs_and_ns().0;
+  file_buffer.write_fmt(format_args!("({},{})", not_before, not_after)).unwrap();
 }

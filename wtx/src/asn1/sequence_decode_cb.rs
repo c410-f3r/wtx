@@ -26,7 +26,7 @@ where
     &mut self,
     dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>,
     tag: u8,
-  ) -> crate::Result<()> {
+  ) -> crate::Result<&'de [u8]> {
     let (local_tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
     if local_tag != tag {
       return Err(Asn1Error::InvalidGenericSequence(local_tag, tag).into());
@@ -36,6 +36,6 @@ where
       (self.0)(E::decode(dw)?)?;
     }
     dw.bytes = rest;
-    Ok(())
+    Ok(value)
   }
 }

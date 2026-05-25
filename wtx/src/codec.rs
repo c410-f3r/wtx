@@ -33,7 +33,7 @@ pub use decode::{Decode, DecodeSeq};
 pub use encode::Encode;
 pub use from_radix_10::{FromRadix10, FromRadix10Error};
 pub use generic_codec::{DecodeWrapper, EncodeWrapper, GenericCodec};
-pub use hex::{HexDisplay, HexEncMode, HexError, hex_decode, hex_encode};
+pub use hex::*;
 pub use num_array::*;
 pub use url_encoding::*;
 

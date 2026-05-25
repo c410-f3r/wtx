@@ -13,6 +13,20 @@ pub struct KeyUsage {
 }
 
 impl KeyUsage {
+  /// Removes the last 7 bits of the second byte.
+  pub const fn new(bytes: (u8, u8)) -> Self {
+    let first = bytes.0;
+    let second = bytes.1 & 0b1000_0000;
+    let unused_bits = if second | 0b1000_0000 == 0 { 8 } else { 7 };
+    Self { bytes: (first, second), unused_bits }
+  }
+
+  /// Raw bytes
+  #[inline]
+  pub const fn bytes(&self) -> (u8, u8) {
+    self.bytes
+  }
+
   /// Returns `true` if the `digitalSignature` bit is set.
   #[inline]
   pub fn digital_signature(&self) -> bool {

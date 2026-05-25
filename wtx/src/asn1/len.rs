@@ -1,6 +1,7 @@
 use crate::{
   asn1::{Asn1Error, MaxSizeTy},
   collection::ArrayVectorU8,
+  misc::int_conv::u8u16,
 };
 use core::{hint::unreachable_unchecked, ops::Deref};
 
@@ -64,8 +65,8 @@ impl Len {
   #[inline]
   pub fn size(&self) -> MaxSizeTy {
     match self.0.as_slice() {
-      [a] => MaxSizeTy::from(*a),
-      [_, b] => MaxSizeTy::from(*b),
+      [a] => u8u16(*a),
+      [_, b] => u8u16(*b),
       [_, b, c] => MaxSizeTy::from_be_bytes([*b, *c]),
       // SAFETY: Constructors don't permit this branch
       _ => unsafe { unreachable_unchecked() },

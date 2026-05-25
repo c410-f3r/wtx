@@ -180,7 +180,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for ExtendedKeyUsage 
       others: ArrayVectorU8::new(),
     };
     let mut has_at_least_one = false;
-    SequenceDecodeCb::new(|oid: Oid| {
+    let _bytes = SequenceDecodeCb::new(|oid: Oid| {
       if oid == OID_X509_EXT_ANY_EXTENDED_KEY_USAGE {
         has_at_least_one = true;
         this.any = true;

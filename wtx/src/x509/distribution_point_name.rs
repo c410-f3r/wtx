@@ -28,7 +28,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for DistributionPoint
       }
       Some(DISTRIBUTION_POINT_NAME_RELATIVE_TAG) => {
         Ok(Self::NameRelativeToCrlIssuer(RelativeDistinguishedName {
-          entries: SequenceBuffer::decode(dw, DISTRIBUTION_POINT_NAME_RELATIVE_TAG)?.0,
+          entries: SequenceBuffer::decode(dw, DISTRIBUTION_POINT_NAME_RELATIVE_TAG)?.0.0,
         }))
       }
       _ => Err(X509Error::InvalidExtensionCrlDistributionPoints.into()),

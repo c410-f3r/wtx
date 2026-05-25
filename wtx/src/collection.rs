@@ -17,7 +17,6 @@ mod expansion_ty;
 mod fixed_string;
 mod linear_storage;
 mod misc;
-mod radix_tree;
 mod short_box_string;
 mod short_box_vector;
 mod short_slice;
@@ -45,9 +44,6 @@ pub use fixed_string::{FixedString, FixedStringError};
 pub use hashbrown::{HashMap, HashSet, hash_map, hash_set};
 pub use linear_storage::linear_storage_len::LinearStorageLen;
 pub use misc::backward_deque_idx;
-pub use radix_tree::{
-  RadixTree, RadixTreeBuilder, RadixTreeError, RadixTreePath, RadixTreePathParam,
-};
 pub use short_box_string::{ShortBoxString, ShortBoxStringU8, ShortBoxStringU16};
 pub use short_box_vector::{ShortBoxVector, ShortBoxVectorU8, ShortBoxVectorU16};
 pub use short_slice::{ShortSlice, ShortSliceU8, ShortSliceU16};
