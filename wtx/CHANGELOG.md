@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.1](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.0...wtx-v0.47.1) - 2026-05-28
+
+### Fixed
+
+- byte arrays in pgsql
+
 ## [0.47.0](https://github.com/c410-f3r/wtx/compare/wtx-v0.46.1...wtx-v0.47.0) - 2026-05-28
 
 ### Added
