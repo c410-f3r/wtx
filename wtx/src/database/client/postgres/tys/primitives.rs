@@ -63,7 +63,9 @@ impl_primitive!(37, [a, b], Ty::Int2, i16);
 impl_primitive!(37, [a, b, c, d], Ty::Int4, i32);
 impl_primitive!(37, [a, b, c, d, e, f, g, h], Ty::Int8, i64);
 
-impl_primitive!(37, [a], Ty::Bytea, u8, i8);
+// A hack, more or less. `Ty::Char` is not used because of arrays. For example, `[u8; 3]` would
+// imply `CHAR[]`
+impl_primitive!(37, [a], Ty::Bytea, u8);
 impl_primitive!(37, [a, b], Ty::Int2, u16, i16);
 impl_primitive!(37, [a, b, c, d], Ty::Int4, u32, i32);
 impl_primitive!(37, [a, b, c, d, e, f, g, h], Ty::Int8, u64, i64);
