@@ -93,6 +93,24 @@ fn batch() {
 }
 
 #[test]
+fn bytes() {
+  Runtime::new().block_on(async {
+    let id = 1;
+    let bytes = &[255, 2, 3];
+    let mut executor = executor().await;
+    executor.execute_none("DROP TABLE IF EXISTS bytes_test").await.unwrap();
+    executor.execute_none("CREATE TABLE bytes_test(id INT, foo BYTEA[])").await.unwrap();
+    executor.execute_stmt_none("INSERT INTO bytes_test VALUES($1, $2)", (id, bytes)).await.unwrap();
+    let record = executor
+      .execute_stmt_single("SELECT id,foo FROM bytes_test WHERE foo = $1", (bytes,))
+      .await
+      .unwrap();
+    assert_eq!(record.decode::<_, i32>(0).unwrap(), 1);
+    assert_eq!(record.decode::<_, [u8; 3]>(1).unwrap(), *bytes);
+  });
+}
+
+#[test]
 fn custom_composite_type() {
   Runtime::new()
     .block_on(async {
