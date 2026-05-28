@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0](https://github.com/c410-f3r/wtx/compare/wtx-v0.46.1...wtx-v0.47.0) - 2026-05-28
+
+### Added
+
+- [**breaking**] Improve ASCII
+- [**breaking**] Add CCADB anchors
+- add `RadixTree`
+
+### Other
+
+- Update lints
+
 ## [0.46.1](https://github.com/c410-f3r/wtx/compare/wtx-v0.46.0...wtx-v0.46.1) - 2026-05-16
 
 ### Fixed
@@ -36,14 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix PgSQL types
-- Fix PgSQL types
 
 ## [0.44.3](https://github.com/c410-f3r/wtx/compare/wtx-v0.44.2...wtx-v0.44.3) - 2026-04-22
 
 ### Other
 
 - Allow users to specify HTTP parameters
-- release
 
 ## [0.44.2](https://github.com/c410-f3r/wtx/compare/wtx-v0.44.1...wtx-v0.44.2) - 2026-04-21
 
