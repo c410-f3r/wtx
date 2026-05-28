@@ -1,7 +1,7 @@
 use crate::{
   calendar::CalendarError,
   codec::{I16String, i16_string_pad},
-  misc::AsciiGraphic,
+  misc::{AsciiGraphic, const_ok},
 };
 
 /// All possible years that can be represented by the system. Goes from -32767 to 32767.
@@ -52,7 +52,7 @@ impl Year {
   /// String representation
   #[inline]
   pub fn num_str(self) -> I16String {
-    i16_string_pad(self.0, AsciiGraphic::ZERO, 4)
+    i16_string_pad(self.0, const { const_ok(AsciiGraphic::new(b'0')).unwrap() }, 4)
   }
 }
 

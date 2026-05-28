@@ -7,7 +7,7 @@ use crate::{
     ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
     ShortBoxStringU16, ShortStrU8, VectorError,
   },
-  misc::ArithmeticError,
+  misc::{ArithmeticError, AsciiError},
 };
 #[allow(unused_imports, reason = "Depends on the selection of features")]
 use alloc::boxed::Box;
@@ -169,8 +169,6 @@ pub enum Error {
   MlockError,
   /// Something prevented a `munlock` operation
   MunlockError,
-  /// Byte is not an ASCII character
-  NonAsciiByte,
   /// A variable does not have an ending quote
   NoAvailableVars(ShortBoxStringU16),
   /// Usually used to transform `Option`s into `Result`s
@@ -225,6 +223,8 @@ pub enum Error {
 
   // Internal
   //
+  #[doc = associated_element_doc!()]
+  AsciiError(AsciiError),
   #[cfg(feature = "asn1")]
   #[doc = associated_element_doc!()]
   Asn1Error(Asn1Error),
@@ -689,6 +689,13 @@ impl From<crate::http::server_framework::ServerFrameworkError> for Error {
   #[inline]
   fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
+  }
+}
+
+impl From<AsciiError> for Error {
+  #[inline]
+  fn from(from: AsciiError) -> Self {
+    Self::AsciiError(from)
   }
 }
 

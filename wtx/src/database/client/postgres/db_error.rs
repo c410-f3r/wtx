@@ -1,7 +1,7 @@
 use crate::{
   codec::FromRadix10,
   database::client::postgres::{PostgresError, SqlState},
-  misc::{Ascii, Usize, into_rslt, str_split1, usize_range_from_u32_range},
+  misc::{AsciiGeneric, Usize, into_rslt, str_split1, usize_range_from_u32_range},
 };
 use alloc::boxed::Box;
 use core::{
@@ -235,7 +235,7 @@ impl TryFrom<&str> for DbError {
         }
         return Err(crate::Error::UnexpectedString { length: rest.len() });
       }
-      let Some(data) = str_split1(rest, Ascii::NULL).next() else {
+      let Some(data) = str_split1(rest, AsciiGeneric::NULL).next() else {
         return Err(PostgresError::InsufficientDbErrorBytes.into());
       };
       let begin = idx;

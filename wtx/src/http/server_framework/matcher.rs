@@ -1,6 +1,6 @@
 use crate::{
   collection::{ArrayVectorU8, ShortStr, ShortStrU8, Vector},
-  misc::{Ascii, str_split_once_str, str_split_once1},
+  misc::{AsciiGeneric, str_split_once_str, str_split_once1},
 };
 use core::{mem, ops::Range};
 
@@ -507,7 +507,7 @@ impl<T, const N: usize> MatcherBuilder<'_, T, N> {
   #[inline]
   fn find_node_ty(ident: ShortStrU8<'static>) -> crate::Result<NodeTy> {
     let str = ident.into_str();
-    let Some((lhs, rhs)) = str_split_once1(str, Ascii::OPENING_BRACE) else {
+    let Some((lhs, rhs)) = str_split_once1(str, AsciiGeneric::LEFT_BRACE) else {
       return Ok(NodeTy::Literal);
     };
     let begin_idx: u8 = lhs.len().try_into()?;
@@ -671,7 +671,7 @@ enum CheckInsertNodeRslt {
 enum NodeTy {
   Literal,
   // If `after` is null, then the parameter has a suffix
-  Param { after: Option<Ascii>, begin_idx: u8, end_idx: u8, name: ShortStrU8<'static> },
+  Param { after: Option<AsciiGeneric>, begin_idx: u8, end_idx: u8, name: ShortStrU8<'static> },
 }
 
 /// An edge is also a piece of data in CSR terms.

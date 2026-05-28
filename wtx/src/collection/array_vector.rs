@@ -1,5 +1,3 @@
-#![expect(clippy::mem_forget, reason = "out-of-bounds elements are manually dropped")]
-
 use crate::{
   collection::{
     ExpansionTy, LinearStorageLen,
@@ -15,7 +13,7 @@ use core::{
   fmt::{self, Arguments, Debug, Formatter},
   hash::{Hash, Hasher},
   iter::FusedIterator,
-  mem::{self, MaybeUninit},
+  mem::{ManuallyDrop, MaybeUninit},
   ops::{Deref, DerefMut},
   ptr, slice,
 };
@@ -57,32 +55,20 @@ where
   /// Constructs a new instance from a fully initialized array.
   #[inline]
   pub fn from_array<const M: usize>(array: [T; M]) -> Self {
-    const {
-      assert!(M <= L::UPPER_BOUND_USIZE);
-      assert!(M <= N);
-    }
-    const { Self::INSTANCE_CHECK };
-    let mut this = Self::new();
-    this.0.len = L::from_usize(M).unwrap_or_default();
-    // SAFETY: the inner `data` as well as the provided `array` have the same layout in different
-    //         memory regions
-    unsafe {
-      ptr::copy_nonoverlapping(array.as_ptr(), this.as_ptr_mut(), M);
-    }
-    mem::forget(array);
-    this
+    Self::from_parts(array, None)
   }
 
   /// Constructs a new instance reusing `data` elements optionally delimited by `len`.
   ///
   /// The actual length will be the smallest value among `M`, `N` and `len`
   #[inline]
-  pub fn from_parts<const M: usize>(mut data: [T; M], len: Option<L>) -> Self {
+  pub fn from_parts<const M: usize>(data: [T; M], len: Option<L>) -> Self {
+    const { Self::INSTANCE_CHECK };
     const {
       assert!(M <= L::UPPER_BOUND_USIZE);
       assert!(M <= N);
     }
-    const { Self::INSTANCE_CHECK };
+    let mut data_md = ManuallyDrop::new(data);
     let data_len = L::from_usize(M).unwrap_or_default();
     let mut instance_len = data_len;
     if let Some(elem) = len {
@@ -93,7 +79,7 @@ where
     // SAFETY: the inner `data` as well as the provided `data` have the same layout in different
     //         memory regions
     unsafe {
-      ptr::copy_nonoverlapping(data.as_ptr(), this.as_ptr_mut(), instance_len.usize());
+      ptr::copy_nonoverlapping(data_md.as_ptr(), this.as_ptr_mut(), instance_len.usize());
     }
     if Inner::<L, T, N>::NEEDS_DROP
       && let Ok(diff) = data_len.try_sub(instance_len)
@@ -101,10 +87,9 @@ where
     {
       // SAFETY: indices are within bounds
       unsafe {
-        let _rslt = drop_elements(&mut (), diff, instance_len, data.as_mut_ptr());
+        let _rslt = drop_elements(&mut (), diff, instance_len, data_md.as_mut_ptr());
       }
     }
-    mem::forget(data);
     this
   }
 
@@ -131,8 +116,9 @@ where
     if self.0.len.usize() < N {
       return Err(ArrayVectorError::IntoInnerIncomplete.into());
     }
+    let this = ManuallyDrop::new(self);
     // SAFETY: All elements are initialized
-    Ok(unsafe { ptr::read(self.0.data.as_ptr().cast()) })
+    Ok(unsafe { ptr::read(this.0.data.as_ptr().cast()) })
   }
 
   /// Maps the internal elements to a new format.
@@ -710,7 +696,7 @@ where
   #[inline]
   fn next_back(&mut self) -> Option<Self::Item> {
     if let Ok(diff) = self.data.0.len.try_sub(L::ONE)
-      && diff > L::ZERO
+      && diff >= self.idx
     {
       self.data.0.len = diff;
       // SAFETY: `diff` is within bounds
@@ -924,9 +910,7 @@ mod serde {
         {
           let mut this = ArrayVector::new();
           while let Some(elem) = seq.next_element()? {
-            this.push(elem).map_err(|_err| {
-              de::Error::invalid_length(N, &"vector need more data to be constructed")
-            })?;
+            this.push(elem).map_err(|err| de::Error::custom(err))?;
           }
           Ok(this)
         }

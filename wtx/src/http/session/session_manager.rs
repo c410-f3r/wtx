@@ -6,7 +6,7 @@ use crate::{
     Header, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder, SessionState,
     SessionStore, cookie::cookie_generic::CookieGeneric,
   },
-  misc::{Lease, LeaseMut, Secret},
+  misc::{AsciiGraphic, Lease, LeaseMut, Secret},
   rng::CryptoRng,
   sync::{Arc, AsyncMutex},
 };
@@ -73,10 +73,9 @@ where
   {
     let inner = &mut *self.inner.1.lock().await;
     let SessionManagerInner { cookie_def, session_secret, .. } = inner;
-    let session_csrf =
-      ArrayString::from_iterator(rng.ascii_graphic_iter().take(32).map(Into::into))?;
-    let session_key =
-      ArrayString::from_iterator(rng.ascii_graphic_iter().take(32).map(Into::into))?;
+    let ascii = AsciiGraphic::default();
+    let session_csrf = ArrayString::from_iterator(rng.ascii_iter(ascii).take(32).map(Into::into))?;
+    let session_key = ArrayString::from_iterator(rng.ascii_iter(ascii).take(32).map(Into::into))?;
     let local_state = match (cookie_def.expires, cookie_def.max_age) {
       (None, None) => SessionState { session_csrf, custom_state, expires_at: None, session_key },
       (Some(expires_at), None) => {

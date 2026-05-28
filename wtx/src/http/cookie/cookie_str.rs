@@ -3,7 +3,7 @@ use crate::{
   codec::PercentDecode,
   collection::{ArrayStringU8, ArrayVectorU8, Vector},
   http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
-  misc::{Ascii, str_split_once1, str_split1},
+  misc::{AsciiGeneric, str_split_once1, str_split1},
 };
 use core::{str, time::Duration};
 
@@ -23,11 +23,12 @@ impl<'str> CookieStr<'str> {
     'local_str: 'str,
     'vector: 'str,
   {
-    let mut semicolons = str_split1(str, Ascii::SEMICOLON);
+    let mut semicolons = str_split1(str, AsciiGeneric::SEMICOLON);
 
     let mut cookie: CookieGeneric<&'str str, &'str str> = {
       let first_semicolon = semicolons.next().unwrap_or_default();
-      let (name, value) = if let Some(elem) = str_split_once1(first_semicolon, Ascii::EQUAL) {
+      let (name, value) = if let Some(elem) = str_split_once1(first_semicolon, AsciiGeneric::EQUAL)
+      {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
         return Err(crate::Error::from(CookieError::IrregularCookie));
@@ -63,7 +64,7 @@ impl<'str> CookieStr<'str> {
 
     let mut lower_case = ArrayVectorU8::<u8, 12>::new();
     for semicolon in semicolons {
-      let (name, value) = if let Some(elem) = str_split_once1(semicolon, Ascii::EQUAL) {
+      let (name, value) = if let Some(elem) = str_split_once1(semicolon, AsciiGeneric::EQUAL) {
         (elem.0.trim_ascii(), elem.1.trim_ascii())
       } else {
         (semicolon.trim_ascii(), "")

@@ -61,14 +61,14 @@ fn check_common_names<const IS_EE: bool>(
 }
 
 #[inline]
-fn check_gn_against_nc<const IS_SAN: bool>(
+fn check_gn_against_nc(
   gn: &GeneralName<'_>,
   last_err: &mut Option<X509CvError>,
   name_constraints: &NameConstraints<'_>,
 ) -> bool {
   if let Some(excluded) = &name_constraints.excluded_subtrees {
     for subtree in excluded.iter() {
-      if matches_name::<IS_SAN>(&subtree.base, gn) {
+      if matches_name::<true>(&subtree.base, gn) {
         *last_err = Some(X509CvError::HasExcludedCerts);
         return false;
       }
@@ -81,12 +81,13 @@ fn check_gn_against_nc<const IS_SAN: bool>(
       if mem::discriminant(gn) == mem::discriminant(&subtree.base) {
         same_type_found = true;
       }
-      if matches_name::<IS_SAN>(&subtree.base, gn) {
+      if matches_name::<false>(&subtree.base, gn) {
         matched = true;
         break;
       }
     }
     if same_type_found && !matched {
+      *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
       return false;
     }
   }
@@ -99,15 +100,16 @@ fn check_name_constraint<const IS_EE: bool>(
   last_err: &mut Option<X509CvError>,
   name_constraints: &NameConstraints<'_>,
 ) -> bool {
+  let mut has_san = false;
   if let Some(subject_alternative_name) = &cert.subject_alternative_name {
+    has_san = true;
     for gn in &subject_alternative_name.extension().general_names.entries {
-      if !check_gn_against_nc::<true>(gn, last_err, name_constraints) {
-        *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
+      if !check_gn_against_nc(gn, last_err, name_constraints) {
         return false;
       }
     }
   }
-  if !IS_EE {
+  if !IS_EE || has_san {
     return true;
   }
   for rdn in cert.subject.lease().rdn_sequence().iter() {
@@ -119,8 +121,7 @@ fn check_name_constraint<const IS_EE: bool>(
         return false;
       }
       let cn_gn = GeneralName::DnsName(atv.value.data());
-      if !check_gn_against_nc::<false>(&cn_gn, last_err, name_constraints) {
-        *last_err = Some(X509CvError::DoesNotHaveMatchedConstraints);
+      if !check_gn_against_nc(&cn_gn, last_err, name_constraints) {
         return false;
       }
     }
@@ -251,11 +252,14 @@ fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
 }
 
 #[inline]
-fn matches_name<const IS_SAN: bool>(constraint: &GeneralName<'_>, name: &GeneralName<'_>) -> bool {
+fn matches_name<const IS_EXCLUDED: bool>(
+  constraint: &GeneralName<'_>,
+  name: &GeneralName<'_>,
+) -> bool {
   match (name, constraint) {
     (GeneralName::DirectoryName(lhs), GeneralName::DirectoryName(rhs)) => lhs == rhs,
     (GeneralName::DnsName(lhs), GeneralName::DnsName(rhs)) => {
-      matches_name_domain::<IS_SAN>(lhs, rhs)
+      matches_name_domain::<IS_EXCLUDED>(lhs, rhs)
     }
     (GeneralName::Rfc822Name(lhs), GeneralName::Rfc822Name(rhs)) => matches_rfc822(lhs, rhs),
     (GeneralName::IpAddress(lhs), GeneralName::IpAddress(rhs)) => matches_ip_address(lhs, rhs),
@@ -264,9 +268,14 @@ fn matches_name<const IS_SAN: bool>(constraint: &GeneralName<'_>, name: &General
   }
 }
 
-// `domain` always come from an ICA and ICAs can't have wildcards.
+// `domain` always comes from an ICA and ICAs can't have wildcards.
 #[inline]
-fn matches_name_domain<const IS_SAN: bool>(other: &[u8], domain: &[u8]) -> bool {
+fn matches_name_domain<const IS_EXCLUDED: bool>(other: &[u8], domain: &[u8]) -> bool {
+  #[inline]
+  fn matched(slice0: &[u8], slice1: &[u8], slice2: &[u8]) -> bool {
+    if let [b'.'] | [.., 0..=45 | 47..=255] = slice0 { false } else { slice1 == slice2 }
+  }
+
   #[inline]
   fn slices<'other>(other: &'other [u8], domain: &[u8]) -> Option<(&'other [u8], &'other [u8])> {
     other.len().checked_sub(domain.len()).and_then(|idx| other.split_at_checked(idx))
@@ -275,16 +284,18 @@ fn matches_name_domain<const IS_SAN: bool>(other: &[u8], domain: &[u8]) -> bool 
   if let [b'*', b'.', ..] = domain {
     false
   } else if let [b'*', b'.', rest @ ..] = other {
-    if !IS_SAN {
-      return false;
+    if let Some((other_begin, other_domain)) = slices(rest, domain)
+      && matched(other_begin, other_domain, domain)
+    {
+      return true;
     }
-    let Some((other_begin, other_domain)) = slices(other, rest) else {
-      return false;
-    };
-    match other_begin {
-      [] | [b'.'] | [.., 0..=45 | 47..=255] => false,
-      [local_rest @ .., b'.'] => other_domain == rest && !local_rest.contains(&b'.'),
+    if IS_EXCLUDED
+      && let Some((domain_begin, domain_domain)) = slices(domain, rest)
+      && matched(domain_begin, domain_domain, rest)
+    {
+      return true;
     }
+    false
   } else {
     let Some((other_begin, other_domain)) = slices(other, domain) else {
       return false;

@@ -48,7 +48,7 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-pub use ascii::{Ascii, AsciiGeneric, AsciiGraphic};
+pub use ascii::*;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
 pub use default_array::DefaultArray;
@@ -111,6 +111,18 @@ pub fn argon2_pwd<const N: usize>(
   blocks.clear();
   rslt?;
   Ok(out)
+}
+
+/// Only works with elements that implement `Copy`.
+//
+// FIXME(stable): Constant operations
+#[inline]
+pub const fn const_ok<E, T>(rslt: Result<T, E>) -> Option<T>
+where
+  E: Copy,
+  T: Copy,
+{
+  if let Ok(elem) = rslt { Some(elem) } else { None }
 }
 
 /// Deserializes a sequence of elements info `buffer`. Works with any deserializer of any format.
