@@ -14,7 +14,7 @@ use core::{
   fmt::{self, Arguments, Debug, Display, Formatter, Write},
   hash::{Hash, Hasher},
   ops::{Deref, DerefMut},
-  str,
+  ptr, str,
 };
 
 /// [`ArrayString`] with a capacity limited by `u8`.
@@ -29,7 +29,7 @@ pub type ArrayStringUsize<const N: usize> = ArrayString<usize, N>;
 /// Errors of [`ArrayString`].
 #[derive(Clone, Copy, Debug)]
 pub enum ArrayStringError {
-  /// Inner array is not fully
+  /// Inner array is not fully filled
   IncompleteArray,
   #[doc = doc_reserve_overflow!()]
   ReserveOverflow,
@@ -52,21 +52,19 @@ where
 
   /// Constructs a new instance from a complete byte array.
   #[inline]
-  pub fn from_array(data: [u8; N]) -> crate::Result<Self> {
-    const { Self::INSTANCE_CHECK };
-    Self::from_parts(data, L::UPPER_BOUND)
+  pub fn from_array<const M: usize>(data: [u8; M]) -> crate::Result<Self> {
+    Self::from_parts(data, None)
   }
 
-  /// Constructs a new instance from a byte array and an explicit length.
+  /// Constructs a new instance reusing `data` elements optionally delimited by `len`.
   ///
-  /// If `len` is greater than the capacity, then `len` will be truncated to `N`.
+  /// The actual length will be the smallest value among `M`, `N` and `len`.
   #[inline]
-  pub fn from_parts(data: [u8; N], len: L) -> crate::Result<Self> {
-    const { Self::INSTANCE_CHECK };
-    let instance_len = if len > L::UPPER_BOUND { L::UPPER_BOUND } else { len };
-    let _ = from_utf8_basic(data.get(..instance_len.usize()).unwrap_or_default())?;
-    // SAFETY: delimited data is UTF-8
-    Ok(unsafe { Self::from_parts_unchecked(data, instance_len) })
+  pub fn from_parts<const M: usize>(data: [u8; M], len: Option<L>) -> crate::Result<Self> {
+    // SAFETY: Bytes are verified in the next line
+    let this = unsafe { Self::from_parts_unchecked(data, len) };
+    let _ = from_utf8_basic(this.0.data.get(..this.0.len.usize()).unwrap_or_default())?;
+    Ok(this)
   }
 
   /// Constructs a new, empty instance without verifying if the delimited bytes are valid UTF-8.
@@ -77,9 +75,24 @@ where
   ///
   /// It is up to the caller to provide valid UTF-8 bytes until `len`.
   #[inline]
-  pub unsafe fn from_parts_unchecked(data: [u8; N], len: L) -> Self {
-    const { Self::INSTANCE_CHECK };
-    Self(Inner { len: if len > L::UPPER_BOUND { L::UPPER_BOUND } else { len }, data })
+  pub unsafe fn from_parts_unchecked<const M: usize>(data: [u8; M], len: Option<L>) -> Self {
+    const { Self::INSTANCE_CHECK }
+    const {
+      assert!(M <= L::UPPER_BOUND_USIZE);
+      assert!(M <= N);
+    }
+    let data_len = L::from_usize(M).unwrap_or_default();
+    let mut instance_len = data_len;
+    if let Some(elem) = len {
+      instance_len = instance_len.min(elem);
+    }
+    let mut instance_data = [0u8; N];
+    // SAFETY: the inner `data` as well as the provided `data` have the same layout in different
+    //         memory regions
+    unsafe {
+      ptr::copy_nonoverlapping(data.as_ptr(), instance_data.as_mut_ptr(), instance_len.usize());
+    }
+    Self(Inner { len: instance_len, data: instance_data })
   }
 
   /// Constructs a new, empty instance.
@@ -91,9 +104,9 @@ where
 
   /// Constructs a new instance full of `NULL` characters.
   #[inline]
-  pub const fn zeroed() -> Self {
+  pub fn zeroed() -> Self {
     const { Self::INSTANCE_CHECK };
-    Self(Inner { len: L::UPPER_BOUND, data: [0; N] })
+    Self(Inner { len: L::from_usize(N).unwrap_or_default(), data: [0; N] })
   }
 
   /// The filled elements that composed a string.
@@ -440,10 +453,7 @@ where
   }
 
   #[inline]
-  fn partial_cmp(&self, other: &Self) -> Option<Ordering>
-  where
-    L: LinearStorageLen,
-  {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     Some(self.cmp(other))
   }
 }
@@ -590,38 +600,6 @@ where
   fn default() -> Self {
     const { Self::INSTANCE_CHECK };
     Self { len: L::ZERO, data: [0; N] }
-  }
-}
-
-#[cfg(feature = "arbitrary")]
-mod arbitrary {
-  use crate::collection::{ArrayString, LinearStorageLen, array_string::Inner};
-  use arbitrary::{Arbitrary, Unstructured};
-
-  impl<'any, L, const N: usize> Arbitrary<'any> for ArrayString<L, N>
-  where
-    L: LinearStorageLen,
-  {
-    #[inline]
-    fn arbitrary(u: &mut Unstructured<'any>) -> arbitrary::Result<Self> {
-      let len = loop {
-        let n = usize::arbitrary(u)?;
-        if let Ok(converted) = L::from_usize(n) {
-          break converted;
-        }
-      };
-      let mut data = [0; N];
-      for elem in data.iter_mut().take(len.usize()) {
-        loop {
-          let byte = u8::arbitrary(u)?;
-          if byte.is_ascii_alphanumeric() {
-            *elem = byte;
-            break;
-          }
-        }
-      }
-      Ok(Self(Inner { len, data }))
-    }
   }
 }
 

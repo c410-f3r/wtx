@@ -5,7 +5,7 @@ use wtx::{
     Header, HttpClient as _, KnownHeaderName, ReqBuilder, ReqResBuffer,
     client_pool::ClientPoolBuilder,
   },
-  misc::{Ascii, UriRef, from_utf8_basic, str_split_once1, tracing_tree_init},
+  misc::{AsciiGeneric, UriRef, from_utf8_basic, str_split_once1, tracing_tree_init},
 };
 
 pub(crate) async fn http_client(http_client: HttpClient) {
@@ -18,7 +18,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
   }
   let mut rrb = ReqResBuffer::empty();
   for pair in header {
-    let (name, values) = str_split_once1(&pair, Ascii::COLON).unwrap();
+    let (name, values) = str_split_once1(&pair, AsciiGeneric::COLON).unwrap();
     rrb
       .headers
       .push_from_iter(Header::from_name_and_value(

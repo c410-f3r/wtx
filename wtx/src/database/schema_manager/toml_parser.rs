@@ -3,7 +3,7 @@
 use crate::{
   collection::{ArrayStringU8, ArrayVectorU8},
   database::schema_manager::SchemaManagerError,
-  misc::{Ascii, str_split1},
+  misc::{AsciiGeneric, str_split1},
 };
 use alloc::string::String;
 use std::io::{BufRead, BufReader, Read};
@@ -119,7 +119,7 @@ fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
   if s.is_empty() {
     return Ok(array);
   }
-  for elem in str_split1(s, Ascii::COMMA) {
+  for elem in str_split1(s, AsciiGeneric::COMMA) {
     let expr_string = parse_expr_string(elem.trim())?;
     array.push(expr_string).map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?;
   }
@@ -127,7 +127,7 @@ fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
 }
 
 fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
-  let mut iter = str_split1(s, Ascii::DOUBLE_QUOTE);
+  let mut iter = str_split1(s, AsciiGeneric::DOUBLE_QUOTE);
   let _ = iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
   let value =
     iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;

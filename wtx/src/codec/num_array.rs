@@ -119,7 +119,7 @@ where
   }
   buffer.copy_within(usize::from(idx).., 0);
   // SAFETY: Numbers are ASCII
-  unsafe { ArrayStringU8::from_parts_unchecked(buffer, len) }
+  unsafe { ArrayStringU8::from_parts_unchecked(buffer, Some(len)) }
 }
 
 #[cfg(test)]
@@ -129,16 +129,16 @@ pub(crate) mod tests {
       i8_string, i16_string, i16_string_pad, i32_string, i64_string, u8_string, u16_string,
       u32_string, u64_string,
     },
-    misc::AsciiGraphic,
+    misc::AsciiGeneric,
   };
 
   #[test]
   fn pad() {
-    assert_eq!(i16_string_pad(5, AsciiGraphic::ZERO, 4).as_str(), "0005");
-    assert_eq!(i16_string_pad(-5, AsciiGraphic::ZERO, 4).as_str(), "-0005");
-    assert_eq!(i16_string_pad(0, AsciiGraphic::ZERO, 3).as_str(), "000");
-    assert_eq!(i16_string_pad(1234, AsciiGraphic::ZERO, 2).as_str(), "1234");
-    assert_eq!(i16_string_pad(-1234, AsciiGraphic::ZERO, 5).as_str(), "-01234");
+    assert_eq!(i16_string_pad(5, AsciiGeneric::ZERO.try_into().unwrap(), 4).as_str(), "0005");
+    assert_eq!(i16_string_pad(-5, AsciiGeneric::ZERO.try_into().unwrap(), 4).as_str(), "-0005");
+    assert_eq!(i16_string_pad(0, AsciiGeneric::ZERO.try_into().unwrap(), 3).as_str(), "000");
+    assert_eq!(i16_string_pad(1234, AsciiGeneric::ZERO.try_into().unwrap(), 2).as_str(), "1234");
+    assert_eq!(i16_string_pad(-1234, AsciiGeneric::ZERO.try_into().unwrap(), 5).as_str(), "-01234");
   }
 
   #[test]

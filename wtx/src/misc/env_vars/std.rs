@@ -1,6 +1,6 @@
 use crate::{
   collection::Vector,
-  misc::{Ascii, EnvVars, FromVars, find_file, str_rsplit_once1, str_split_once1},
+  misc::{AsciiGeneric, EnvVars, FromVars, find_file, str_rsplit_once1, str_split_once1},
 };
 use alloc::string::String;
 use core::{fmt::Write as _, str};
@@ -139,7 +139,7 @@ where
       buffer.clear();
       continue;
     }
-    let Some((key, value)) = str_split_once1(buffer_ref, Ascii::EQUAL) else {
+    let Some((key, value)) = str_split_once1(buffer_ref, AsciiGeneric::EQUAL) else {
       buffer.clear();
       continue;
     };
@@ -203,7 +203,7 @@ where
 }
 
 fn strip_ending_comment(value: &str) -> &str {
-  if let Some((lhs, _)) = str_rsplit_once1(value, Ascii::NUMBER_SIGN) {
+  if let Some((lhs, _)) = str_rsplit_once1(value, AsciiGeneric::HASH) {
     lhs.trim_end()
   } else {
     value

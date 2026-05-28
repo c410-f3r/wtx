@@ -7,7 +7,7 @@ use crate::{
     StatusCode,
     server_framework::{ConnAux, Middleware, ServerFrameworkError},
   },
-  misc::{Ascii, Intersperse, str_split1},
+  misc::{AsciiGeneric, Intersperse, str_split1},
 };
 use alloc::string::String;
 use core::{ops::ControlFlow, str};
@@ -382,7 +382,7 @@ impl CorsMiddleware {
       body.extend_from_copyable_slice(acrh.value.as_bytes())?;
       return Ok(());
     }
-    let mut iter = str_split1(acrh.value, Ascii::COMMA).map(str::trim);
+    let mut iter = str_split1(acrh.value, AsciiGeneric::COMMA).map(str::trim);
     if let Some(elem) = iter.next() {
       self.push_preflight_headers(body, (&[], elem))?;
     }

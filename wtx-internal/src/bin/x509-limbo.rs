@@ -266,8 +266,20 @@ fn evaluate_test_case<'bytes>(
   trusted_certs: &mut Vector<CvTrustAnchor<'bytes>>,
   untrusted_intermediates: &mut Vector<CvCertificate<'_, 'bytes, false>>,
 ) {
-  let supported = ["crl", "cve", "invalid", "pathlen", "pathological", "rfc5280"];
-  if !supported.iter().any(|el| testcase.id.starts_with(el)) {
+  let unsupported = [
+    "bettertls::nameconstraints::tc8769",
+    "bettertls::nameconstraints::tc8770",
+    "bettertls::nameconstraints::tc8779",
+    "bettertls::nameconstraints::tc8780",
+    "bettertls::nameconstraints::tc8793",
+    "bettertls::nameconstraints::tc8794",
+    "bettertls::nameconstraints::tc8853",
+    "bettertls::nameconstraints::tc8854",
+    "bettertls::pathbuilding",
+    "online",
+    "webpki",
+  ];
+  if unsupported.iter().any(|el| testcase.id.starts_with(el)) {
     return;
   }
 

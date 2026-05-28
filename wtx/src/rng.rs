@@ -9,7 +9,7 @@ mod seedable_rng;
 mod weighted_index;
 mod xorshift;
 
-use crate::misc::{AsciiGraphic, TryArithmetic};
+use crate::misc::{Ascii, TryArithmetic};
 pub use cha_cha20::ChaCha20;
 use core::{cell::Cell, iter, ops::Range};
 pub use crypto_rng::CryptoRng;
@@ -25,11 +25,15 @@ pub use xorshift::*;
 /// Abstraction tailored for the needs of this project.
 pub trait Rng: Sized {
   /// Returns an infinite iterator that will always output printable ASCII bytes.
+  ///
+  /// The ASCII parameter is only used for inference.
+  //
+  // FIXME(stable) `const AT: AsciiTy`
   #[inline]
-  fn ascii_graphic_iter(&mut self) -> impl Iterator<Item = AsciiGraphic> {
+  fn ascii_iter<const AT: u8>(&mut self, _: Ascii<AT>) -> impl Iterator<Item = Ascii<AT>> {
     iter::repeat_with(|| self.u8_4())
       .flat_map(IntoIterator::into_iter)
-      .filter_map(|el| AsciiGraphic::new(el).ok())
+      .filter_map(|el| Ascii::<AT>::new(el).ok())
   }
 
   /// Chooses a random element from the slice. Returns `None` if the slice is empty.
