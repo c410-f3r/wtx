@@ -120,6 +120,8 @@ where
   }
 }
 
+impl<L> Eq for ShortSliceU8<'_, L> where L: LinearStorageLen {}
+
 impl<'any, T> From<&'any [T]> for ShortSliceU8<'any, T> {
   #[inline]
   fn from(value: &'any [T]) -> Self {

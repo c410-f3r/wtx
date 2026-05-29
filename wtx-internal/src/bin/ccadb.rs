@@ -23,7 +23,12 @@ async fn main() {
     let uri = "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV";
     let rrb = ReqResBuffer::empty();
     let pool = ClientPoolBuilder::tokio_rustls(1).build();
-    pool.send_req_recv_res(ReqBuilder::get(UriRef::new(uri)), rrb).await.unwrap().rrd.body
+    pool
+      .send_req_recv_res(ReqBuilder::get(UriRef::new(uri)).into_request(), rrb)
+      .await
+      .unwrap()
+      .rrd
+      .body
   };
 
   let mut csv = Csv::from_buf_read(BufReader::new(&*csv));

@@ -8,8 +8,8 @@ use rust_decimal::Decimal;
 
 /// Parts Per Million (PPM).
 ///
-/// * 1₁₀  = 10²%    = 10⁴bps = 10⁶ppm
-/// * 1ppm = 10⁻²bps = 10⁻⁴%  = 10⁻⁶₁₀
+/// * `1₁₀  = 10²%    = 10⁴bps = 10⁶ppm`
+/// * `1ppm = 10⁻²bps = 10⁻⁴%  = 10⁻⁶₁₀`
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Ppm {

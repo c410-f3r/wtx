@@ -93,14 +93,14 @@ where
   let HttpReqParams { host, method, mime, rrb, user_agent_custom, user_agent_default } = params;
   let mut rb = ReqBuilder::method(*method, rrb);
   if *host {
-    let _ = rb.host(None)?;
+    let _ = rb.host::<()>(None)?;
   }
   if *user_agent_default {
-    let _ = rb.user_agent(WTX_USER_AGENT)?;
+    let _ = rb.user_agent(&[WTX_USER_AGENT])?;
   } else if let Some(elem) = user_agent_custom
     && !elem.is_empty()
   {
-    let _ = rb.user_agent(elem)?;
+    let _ = rb.user_agent(&[*elem])?;
   }
   if let Some(elem) = mime
     && bytes_len > 0
@@ -157,7 +157,7 @@ where
   let HttpReqParams { method, rrb, .. } = pkgs_aux.tp.lease_mut().ext_params_mut().0;
   let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
   let rb = ReqBuilder::method(*method, (local_bytes1, &rrb.headers, rrb.uri.to_ref()));
-  let rslt = client.send_req(&mut rrb.body, rb).await?;
+  let rslt = client.send_req(&mut rrb.body, rb.into_request()).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(rslt)
 }
@@ -185,7 +185,7 @@ where
   manage_params(pkgs_aux.bytes_buffer.len(), pkgs_aux)?;
   let HttpReqParams { method, rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
   let rb = ReqBuilder::method(*method, (&pkgs_aux.bytes_buffer, &rrb.headers, rrb.uri.to_ref()));
-  let rslt = client.send_req(&mut rrb.body, rb).await?;
+  let rslt = client.send_req(&mut rrb.body, rb.into_request()).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, client).await?;
   Ok(rslt)
 }
