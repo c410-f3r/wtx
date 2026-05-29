@@ -31,7 +31,9 @@ async fn main(runtime: Arc<Runtime>) -> wtx::Result<()> {
   )
   .await?;
   let _jh = runtime.spawn_threaded(frame_reader)?;
-  let res = http2.send_req_recv_res(ReqBuilder::get(uri.to_ref()), ReqResBuffer::empty()).await?;
+  let res = http2
+    .send_req_recv_res(ReqBuilder::get(uri.to_ref()).into_request(), ReqResBuffer::empty())
+    .await?;
   println!("{}", from_utf8_basic(&res.rrd.body)?);
   http2.send_go_away(Http2ErrorCode::NoError).await;
   Ok(())

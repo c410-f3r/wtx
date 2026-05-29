@@ -1,6 +1,6 @@
 use crate::{
   collection::Vector,
-  http::{ReqBuilder, ReqResBuffer, ReqResData, Response},
+  http::{ReqResBuffer, ReqResData, Request, Response},
   misc::Lease,
 };
 
@@ -21,7 +21,7 @@ pub trait HttpClient {
   fn send_req<RRD>(
     &self,
     enc_buffer: &mut Vector<u8>,
-    rb: ReqBuilder<RRD>,
+    req: Request<RRD>,
   ) -> impl Future<Output = crate::Result<Self::ReqId>>
   where
     RRD: ReqResData,
@@ -31,7 +31,7 @@ pub trait HttpClient {
   #[inline]
   fn send_req_recv_res<RRD>(
     &self,
-    req_builder: ReqBuilder<RRD>,
+    req: Request<RRD>,
     mut res_buffer: ReqResBuffer,
   ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>>
   where
@@ -39,7 +39,7 @@ pub trait HttpClient {
     RRD::Body: Lease<[u8]>,
   {
     async move {
-      let req_id = self.send_req(&mut res_buffer.body, req_builder).await?;
+      let req_id = self.send_req(&mut res_buffer.body, req).await?;
       self.recv_res(res_buffer, req_id).await
     }
   }
@@ -64,13 +64,13 @@ where
   async fn send_req<RRD>(
     &self,
     enc_buffer: &mut Vector<u8>,
-    rb: ReqBuilder<RRD>,
+    req: Request<RRD>,
   ) -> crate::Result<Self::ReqId>
   where
     RRD: ReqResData,
     RRD::Body: Lease<[u8]>,
   {
-    (**self).send_req(enc_buffer, rb).await
+    (**self).send_req(enc_buffer, req).await
   }
 }
 
@@ -78,7 +78,7 @@ where
 mod http2 {
   use crate::{
     collection::Vector,
-    http::{HttpClient, ReqBuilder, ReqResBuffer, ReqResData, Response},
+    http::{HttpClient, ReqResBuffer, ReqResData, Request, Response},
     http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
     misc::{Lease, LeaseMut},
     stream::StreamWriter,
@@ -110,14 +110,14 @@ mod http2 {
     async fn send_req<RRD>(
       &self,
       enc_buffer: &mut Vector<u8>,
-      rb: ReqBuilder<RRD>,
+      req: Request<RRD>,
     ) -> crate::Result<Self::ReqId>
     where
       RRD: ReqResData,
       RRD::Body: Lease<[u8]>,
     {
       let mut req_id = self.stream().await?;
-      if req_id.send_req(enc_buffer, rb.into_request()).await?.is_closed() {
+      if req_id.send_req(enc_buffer, req).await?.is_closed() {
         return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)
@@ -130,7 +130,7 @@ mod http_client_pool {
   use crate::{
     collection::Vector,
     http::{
-      HttpClient, ReqBuilder, ReqResBuffer, ReqResData, Response,
+      HttpClient, ReqResBuffer, ReqResData, Request, Response,
       client_pool::{ClientPool, ClientPoolResource},
     },
     http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
@@ -165,7 +165,7 @@ mod http_client_pool {
     async fn send_req<RRD>(
       &self,
       enc_buffer: &mut Vector<u8>,
-      rb: ReqBuilder<RRD>,
+      rb: Request<RRD>,
     ) -> crate::Result<Self::ReqId>
     where
       RRD: ReqResData,
@@ -207,14 +207,14 @@ mod http_client_pool {
     async fn send_req<RRD>(
       &self,
       enc_buffer: &mut Vector<u8>,
-      rb: ReqBuilder<RRD>,
+      req: Request<RRD>,
     ) -> crate::Result<Self::ReqId>
     where
       RRD: ReqResData,
       RRD::Body: Lease<[u8]>,
     {
-      let mut req_id = self.lock(&rb.rrd.uri()).await?.client.stream().await?;
-      if req_id.send_req(enc_buffer, rb.into_request()).await?.is_closed() {
+      let mut req_id = self.lock(&req.rrd.uri()).await?.client.stream().await?;
+      if req_id.send_req(enc_buffer, req).await?.is_closed() {
         return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)

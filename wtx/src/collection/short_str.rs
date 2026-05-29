@@ -75,6 +75,8 @@ where
   }
 }
 
+impl<L> Eq for ShortStr<'_, L> where L: LinearStorageLen {}
+
 impl<'any> From<&'any str> for ShortStrU8<'any> {
   #[inline]
   fn from(value: &'any str) -> Self {

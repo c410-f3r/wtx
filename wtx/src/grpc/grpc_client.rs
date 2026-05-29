@@ -64,7 +64,7 @@ where
     Self::push_headers(&mut rrb.headers)?;
     let rrd = (rrb.body.as_ref(), &rrb.headers, uri);
     let rb = ReqBuilder::post(rrd);
-    let req_id = self.client.lease_mut().send_req(&mut self.enc_buffer, rb).await?;
+    let req_id = self.client.lease_mut().send_req(&mut self.enc_buffer, rb.into_request()).await?;
     let res = self.client.lease_mut().recv_res(rrb, req_id).await?;
     Ok(Response::http2(res.rrd, res.status_code))
   }
