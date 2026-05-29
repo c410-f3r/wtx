@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.2](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.1...wtx-v0.47.2) - 2026-05-29
+
+### Added
+
+- add more ReqBuilder methods
+
 ## [0.47.1](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.0...wtx-v0.47.1) - 2026-05-28
 
 ### Fixed
