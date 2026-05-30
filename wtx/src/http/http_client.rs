@@ -1,6 +1,5 @@
 use crate::{
-  collection::Vector,
-  http::{ReqResBuffer, ReqResData, Request, Response},
+  http::{MsgBufferString, MsgData, Request, Response},
   misc::Lease,
 };
 
@@ -13,34 +12,28 @@ pub trait HttpClient {
   /// Receives a response
   fn recv_res(
     &self,
-    rrb: ReqResBuffer,
     req_id: Self::ReqId,
-  ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>>;
+  ) -> impl Future<Output = crate::Result<Response<MsgBufferString>>>;
 
   /// Sends a request
-  fn send_req<RRD>(
-    &self,
-    enc_buffer: &mut Vector<u8>,
-    req: Request<RRD>,
-  ) -> impl Future<Output = crate::Result<Self::ReqId>>
+  fn send_req<MD>(&self, req: Request<MD>) -> impl Future<Output = crate::Result<Self::ReqId>>
   where
-    RRD: ReqResData,
-    RRD::Body: Lease<[u8]>;
+    MD: MsgData,
+    MD::Body: Lease<[u8]>;
 
-  /// Sends a request a [`ReqResData`] and receives a response using [`ReqResBuffer`].
+  /// Sends a request a [`MsgData`] and receives a response using [`MsgData`].
   #[inline]
-  fn send_req_recv_res<RRD>(
+  fn send_req_recv_res<MD>(
     &self,
-    req: Request<RRD>,
-    mut res_buffer: ReqResBuffer,
-  ) -> impl Future<Output = crate::Result<Response<ReqResBuffer>>>
+    req: Request<MD>,
+  ) -> impl Future<Output = crate::Result<Response<MsgBufferString>>>
   where
-    RRD: ReqResData,
-    RRD::Body: Lease<[u8]>,
+    MD: MsgData,
+    MD::Body: Lease<[u8]>,
   {
     async move {
-      let req_id = self.send_req(&mut res_buffer.body, req).await?;
-      self.recv_res(res_buffer, req_id).await
+      let req_id = self.send_req(req).await?;
+      self.recv_res(req_id).await
     }
   }
 }
@@ -52,33 +45,24 @@ where
   type ReqId = T::ReqId;
 
   #[inline]
-  async fn recv_res(
-    &self,
-    rrb: ReqResBuffer,
-    req_id: Self::ReqId,
-  ) -> crate::Result<Response<ReqResBuffer>> {
-    (**self).recv_res(rrb, req_id).await
+  async fn recv_res(&self, req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
+    (**self).recv_res(req_id).await
   }
 
   #[inline]
-  async fn send_req<RRD>(
-    &self,
-    enc_buffer: &mut Vector<u8>,
-    req: Request<RRD>,
-  ) -> crate::Result<Self::ReqId>
+  async fn send_req<MD>(&self, req: Request<MD>) -> crate::Result<Self::ReqId>
   where
-    RRD: ReqResData,
-    RRD::Body: Lease<[u8]>,
+    MD: MsgData,
+    MD::Body: Lease<[u8]>,
   {
-    (**self).send_req(enc_buffer, req).await
+    (**self).send_req(req).await
   }
 }
 
 #[cfg(feature = "http2")]
 mod http2 {
   use crate::{
-    collection::Vector,
-    http::{HttpClient, ReqResBuffer, ReqResData, Request, Response},
+    http::{HttpClient, MsgBufferString, MsgData, Request, Response},
     http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
     misc::{Lease, LeaseMut},
     stream::StreamWriter,
@@ -92,12 +76,8 @@ mod http2 {
     type ReqId = ClientStream<HB, SW>;
 
     #[inline]
-    async fn recv_res(
-      &self,
-      rrb: ReqResBuffer,
-      mut req_id: Self::ReqId,
-    ) -> crate::Result<Response<ReqResBuffer>> {
-      let (hrs, res_rrb) = req_id.recv_res(rrb).await?;
+    async fn recv_res(&self, mut req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
+      let (hrs, res_rrb) = req_id.recv_res().await?;
       let status_code = match hrs {
         Http2RecvStatus::ClosedStream(elem) | Http2RecvStatus::Eos(elem) => elem,
         _ => return Err(crate::Error::ClosedHttpConnection),
@@ -107,17 +87,13 @@ mod http2 {
     }
 
     #[inline]
-    async fn send_req<RRD>(
-      &self,
-      enc_buffer: &mut Vector<u8>,
-      req: Request<RRD>,
-    ) -> crate::Result<Self::ReqId>
+    async fn send_req<MD>(&self, req: Request<MD>) -> crate::Result<Self::ReqId>
     where
-      RRD: ReqResData,
-      RRD::Body: Lease<[u8]>,
+      MD: MsgData,
+      MD::Body: Lease<[u8]>,
     {
       let mut req_id = self.stream().await?;
-      if req_id.send_req(enc_buffer, req).await?.is_closed() {
+      if req_id.send_req(req).await?.is_closed() {
         return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)
@@ -128,9 +104,8 @@ mod http2 {
 #[cfg(feature = "http-client-pool")]
 mod http_client_pool {
   use crate::{
-    collection::Vector,
     http::{
-      HttpClient, ReqResBuffer, ReqResData, Request, Response,
+      HttpClient, MsgBufferString, MsgData, Request, Response,
       client_pool::{ClientPool, ClientPoolResource},
     },
     http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
@@ -153,25 +128,17 @@ mod http_client_pool {
     type ReqId = ClientStream<HB, SW>;
 
     #[inline]
-    async fn recv_res(
-      &self,
-      rrb: ReqResBuffer,
-      req_id: Self::ReqId,
-    ) -> crate::Result<Response<ReqResBuffer>> {
-      (&self).recv_res(rrb, req_id).await
+    async fn recv_res(&self, req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
+      (&self).recv_res(req_id).await
     }
 
     #[inline]
-    async fn send_req<RRD>(
-      &self,
-      enc_buffer: &mut Vector<u8>,
-      rb: Request<RRD>,
-    ) -> crate::Result<Self::ReqId>
+    async fn send_req<MD>(&self, rb: Request<MD>) -> crate::Result<Self::ReqId>
     where
-      RRD: ReqResData,
-      RRD::Body: Lease<[u8]>,
+      MD: MsgData,
+      MD::Body: Lease<[u8]>,
     {
-      (&self).send_req(enc_buffer, rb).await
+      (&self).send_req(rb).await
     }
   }
 
@@ -189,12 +156,8 @@ mod http_client_pool {
     type ReqId = ClientStream<HB, SW>;
 
     #[inline]
-    async fn recv_res(
-      &self,
-      rrb: ReqResBuffer,
-      mut req_id: Self::ReqId,
-    ) -> crate::Result<Response<ReqResBuffer>> {
-      let (hrs, res_rrb) = req_id.recv_res(rrb).await?;
+    async fn recv_res(&self, mut req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
+      let (hrs, res_rrb) = req_id.recv_res().await?;
       let status_code = match hrs {
         Http2RecvStatus::ClosedStream(elem) | Http2RecvStatus::Eos(elem) => elem,
         _ => return Err(crate::Error::ClosedHttpConnection),
@@ -204,17 +167,13 @@ mod http_client_pool {
     }
 
     #[inline]
-    async fn send_req<RRD>(
-      &self,
-      enc_buffer: &mut Vector<u8>,
-      req: Request<RRD>,
-    ) -> crate::Result<Self::ReqId>
+    async fn send_req<MD>(&self, req: Request<MD>) -> crate::Result<Self::ReqId>
     where
-      RRD: ReqResData,
-      RRD::Body: Lease<[u8]>,
+      MD: MsgData,
+      MD::Body: Lease<[u8]>,
     {
-      let mut req_id = self.lock(&req.rrd.uri()).await?.client.stream().await?;
-      if req_id.send_req(enc_buffer, req).await?.is_closed() {
+      let mut req_id = self.lock(&req.msg_data.uri()).await?.client.stream().await?;
+      if req_id.send_req(req).await?.is_closed() {
         return Err(crate::Error::ClosedHttpConnection);
       }
       Ok(req_id)

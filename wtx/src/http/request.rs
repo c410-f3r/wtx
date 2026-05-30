@@ -1,43 +1,41 @@
-use crate::http::{Method, ReqResDataMut, Response, StatusCode, Version};
+use crate::http::{Method, MsgDataMut, Response, StatusCode};
 
 /// An HTTP request received by a server or to be sent by a client.
 #[derive(Debug)]
-pub struct Request<RRD> {
+pub struct Request<MD> {
   /// See [`Method`].
   pub method: Method,
-  /// See [`crate::http::ReqResData`].
-  pub rrd: RRD,
-  /// See [`Version`].
-  pub version: Version,
+  /// See [`crate::http::MsgData`].
+  pub msg_data: MD,
 }
 
-impl<RRD> Request<RRD> {
+impl<MD> Request<MD> {
   /// Constructor shortcut
   #[inline]
-  pub const fn new(method: Method, rrd: RRD, version: Version) -> Self {
-    Self { method, rrd, version }
+  pub const fn new(method: Method, msg_data: MD) -> Self {
+    Self { method, msg_data }
   }
 
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
-  pub const fn http2(method: Method, rrd: RRD) -> Self {
-    Self { method, rrd, version: Version::Http2 }
+  pub const fn http2(method: Method, msg_data: MD) -> Self {
+    Self { method, msg_data }
   }
 
   /// Creates a new [`Response`] using the inner buffer as well as the given `status_code`.
   #[inline]
-  pub fn into_response(self, status_code: StatusCode) -> Response<RRD> {
-    Response { rrd: self.rrd, status_code, version: self.version }
+  pub fn into_response(self, status_code: StatusCode) -> Response<MD> {
+    Response { msg_data: self.msg_data, status_code }
   }
 }
 
-impl<RRD> Request<RRD>
+impl<MD> Request<MD>
 where
-  RRD: ReqResDataMut,
+  MD: MsgDataMut,
 {
   /// Clear body and header contents
   #[inline]
   pub fn clear(&mut self) {
-    self.rrd.clear();
+    self.msg_data.clear();
   }
 }

@@ -66,7 +66,7 @@ where
 
   /// Returns a guard that contains the internal elements.
   #[inline]
-  pub async fn lock<'this>(
+  pub(crate) async fn lock<'this>(
     &'this self,
     uri: &UriRef<'_>,
   ) -> crate::Result<SimplePoolGetElem<AsyncMutexGuard<'this, SimplePoolResource<RM::Resource>>>>

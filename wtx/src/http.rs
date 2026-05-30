@@ -15,13 +15,13 @@ mod http_recv_params;
 mod method;
 mod mime;
 mod misc;
+mod msg_buffer;
+mod msg_builder;
+mod msg_data;
 mod operation_mode;
 #[cfg(feature = "nightly")]
 mod optioned_server;
 mod protocol;
-mod req_res_buffer;
-mod req_res_builder;
-mod req_res_data;
 mod request;
 mod response;
 #[cfg(feature = "http-server-framework")]
@@ -46,13 +46,13 @@ pub use http_recv_params::HttpRecvParams;
 pub use method::Method;
 pub use mime::Mime;
 pub use misc::*;
+pub use msg_buffer::{MsgBuffer, MsgBufferStr, MsgBufferString};
+pub use msg_builder::{MsgBuilder, MsgBuilderInput, ReqBuilder, ResBuilder};
+pub use msg_data::{MsgData, MsgDataMut};
 pub use operation_mode::*;
 #[cfg(feature = "nightly")]
 pub use optioned_server::OptionedServer;
 pub use protocol::Protocol;
-pub use req_res_buffer::ReqResBuffer;
-pub use req_res_builder::*;
-pub use req_res_data::{ReqResData, ReqResDataMut};
 pub use request::Request;
 pub use response::Response;
 #[cfg(feature = "http-session")]

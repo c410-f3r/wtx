@@ -17,6 +17,16 @@ where
   }
 }
 
+impl Clear for &[u8] {
+  #[inline]
+  fn clear(&mut self) {}
+}
+
+impl Clear for &str {
+  #[inline]
+  fn clear(&mut self) {}
+}
+
 impl Clear for () {
   #[inline]
   fn clear(&mut self) {}

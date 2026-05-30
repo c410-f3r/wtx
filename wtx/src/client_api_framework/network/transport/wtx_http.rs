@@ -14,7 +14,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  http::{HttpClient, ReqBuilder, ReqResBuffer, WTX_USER_AGENT},
+  http::{HttpClient, MsgBufferString, ReqBuilder, WTX_USER_AGENT},
   http2::{ClientStream, Http2, Http2Buffer},
   misc::LeaseMut,
   stream::StreamWriter,
@@ -90,8 +90,9 @@ where
 {
   let tp = pkgs_aux.tp.lease_mut();
   let params = &mut tp.ext_params_mut().0;
-  let HttpReqParams { host, method, mime, rrb, user_agent_custom, user_agent_default } = params;
-  let mut rb = ReqBuilder::method(*method, rrb);
+  let HttpReqParams { host, method, mime, msg_buffer, user_agent_custom, user_agent_default } =
+    params;
+  let mut rb = ReqBuilder::new(*method, msg_buffer);
   if *host {
     let _ = rb.host::<()>(None)?;
   }
@@ -124,16 +125,22 @@ where
   let log_data = pkgs_aux.log_data;
   let tp = pkgs_aux.tp.lease_mut();
   let (req_params, res_params) = tp.ext_params_mut();
-  let HttpReqParams { rrb, .. } = req_params;
+  let HttpReqParams { msg_buffer, .. } = req_params;
   let HttpResParams { status_code } = res_params;
-  let mut local_rrb = ReqResBuffer::empty();
+  let mut local_rrb = MsgBufferString::default();
   mem::swap(&mut local_rrb.body, &mut pkgs_aux.bytes_buffer);
-  mem::swap(&mut local_rrb.headers, &mut rrb.headers);
-  let mut res = client.recv_res(local_rrb, req_id).await?;
-  mem::swap(&mut res.rrd.body, &mut pkgs_aux.bytes_buffer);
-  mem::swap(&mut res.rrd.headers, &mut rrb.headers);
+  mem::swap(&mut local_rrb.headers, &mut msg_buffer.headers);
+  let mut res = client.recv_res(req_id).await?;
+  mem::swap(&mut res.msg_data.body, &mut pkgs_aux.bytes_buffer);
+  mem::swap(&mut res.msg_data.headers, &mut msg_buffer.headers);
   *status_code = res.status_code;
-  log_http_res(&pkgs_aux.bytes_buffer, log_data, res.status_code, TransportGroup::HTTP, &rrb.uri);
+  log_http_res(
+    &pkgs_aux.bytes_buffer,
+    log_data,
+    res.status_code,
+    TransportGroup::HTTP,
+    &msg_buffer.uri,
+  );
   Ok(())
 }
 
@@ -150,14 +157,14 @@ where
 {
   manage_before_sending_bytes(pkgs_aux).await?;
   let PkgsAux { log_data, tp, .. } = pkgs_aux;
-  let HttpReqParams { method, rrb, .. } = tp.lease_mut().ext_params_mut().0;
+  let HttpReqParams { method, msg_buffer, .. } = tp.lease_mut().ext_params_mut().0;
   let local_bytes0 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
-  log_http_req::<_, TP>(local_bytes0, *log_data, *method, client, &rrb.uri);
+  log_http_req::<_, TP>(local_bytes0, *log_data, *method, client, &msg_buffer.uri);
   manage_params(local_bytes0.len(), pkgs_aux)?;
-  let HttpReqParams { method, rrb, .. } = pkgs_aux.tp.lease_mut().ext_params_mut().0;
+  let HttpReqParams { method, msg_buffer, .. } = pkgs_aux.tp.lease_mut().ext_params_mut().0;
   let local_bytes1 = local_send_bytes(bytes, &pkgs_aux.bytes_buffer);
-  let rb = ReqBuilder::method(*method, (local_bytes1, &rrb.headers, rrb.uri.to_ref()));
-  let rslt = client.send_req(&mut rrb.body, rb.into_request()).await?;
+  let rb = ReqBuilder::new(*method, (local_bytes1, &msg_buffer.headers, msg_buffer.uri.to_ref()));
+  let rslt = client.send_req(rb.into_request()).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(rslt)
 }
@@ -180,12 +187,15 @@ where
     pkgs_aux.log_data,
     pkgs_aux.tp.lease().ext_req_params().method,
     client,
-    &pkgs_aux.tp.lease().ext_req_params().rrb.uri,
+    &pkgs_aux.tp.lease().ext_req_params().msg_buffer.uri,
   );
   manage_params(pkgs_aux.bytes_buffer.len(), pkgs_aux)?;
-  let HttpReqParams { method, rrb, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
-  let rb = ReqBuilder::method(*method, (&pkgs_aux.bytes_buffer, &rrb.headers, rrb.uri.to_ref()));
-  let rslt = client.send_req(&mut rrb.body, rb.into_request()).await?;
+  let HttpReqParams { method, msg_buffer, .. } = &mut pkgs_aux.tp.lease_mut().ext_params_mut().0;
+  let rb = ReqBuilder::new(
+    *method,
+    (&pkgs_aux.bytes_buffer, &msg_buffer.headers, msg_buffer.uri.to_ref()),
+  );
+  let rslt = client.send_req(rb.into_request()).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, client).await?;
   Ok(rslt)
 }
@@ -234,7 +244,7 @@ mod http_client_pool {
     {
       recv(
         &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
           .await?
           .client,
         pkgs_aux,
@@ -268,7 +278,7 @@ mod http_client_pool {
       send_bytes(
         bytes,
         &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
           .await?
           .client,
         pkgs_aux,
@@ -288,7 +298,7 @@ mod http_client_pool {
     {
       send_pkg(
         &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
           .await?
           .client,
         pkg,
@@ -335,7 +345,7 @@ mod http_client_pool {
     {
       recv(
         &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
           .await?
           .client,
         pkgs_aux,
@@ -369,7 +379,7 @@ mod http_client_pool {
       send_bytes(
         bytes,
         &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
           .await?
           .client,
         pkgs_aux,
@@ -389,7 +399,7 @@ mod http_client_pool {
     {
       send_pkg(
         &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
           .await?
           .client,
         pkg,

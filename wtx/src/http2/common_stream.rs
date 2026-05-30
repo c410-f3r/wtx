@@ -74,15 +74,15 @@ where
       let hdpm = hd_guard.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
       if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
-        check_content_length(local_sorp.content_length, &local_sorp.rrb)?;
-        Ok(mem::take(&mut local_sorp.rrb.body))
+        check_content_length(local_sorp.content_length, &local_sorp.msg_buffer)?;
+        Ok(mem::take(&mut local_sorp.msg_buffer.body))
       })? {
         return Poll::Ready(Ok(elem));
       }
-      if sorp.has_one_or_more_data_frames && !sorp.rrb.body.is_empty() {
+      if sorp.has_one_or_more_data_frames && !sorp.msg_buffer.body.is_empty() {
         frame_reader_rslt(hdpm.frame_reader_error)?;
-        let ongoing = cb(&mut sorp.rrb.body)?;
-        sorp.rrb.body.clear();
+        let ongoing = cb(&mut sorp.msg_buffer.body)?;
+        sorp.msg_buffer.body.clear();
         Poll::Ready(Ok(Http2RecvStatus::Ongoing(ongoing)))
       } else {
         sorp.waker.clone_from(cx.waker());
@@ -107,7 +107,7 @@ where
       let hdpm = hd_guard.parts_mut();
       let sorp = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
       if let Some(elem) = status_recv(&inner.is_conn_open, sorp, |local_sorp| {
-        Ok(mem::take(&mut local_sorp.rrb.headers))
+        Ok(mem::take(&mut local_sorp.msg_buffer.headers))
       })? {
         return Poll::Ready(Ok(elem));
       }

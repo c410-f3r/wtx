@@ -1,6 +1,6 @@
 use crate::{
   collection::ArrayVectorU8,
-  http::{HttpError, HttpRecvParams, ReqResBuffer, StatusCode, u31::U31},
+  http::{HttpError, HttpRecvParams, MsgBufferString, StatusCode, u31::U31},
   http2::{
     Http2Error, Http2ErrorCode, Scrp, Sorp,
     data_frame::DataFrame,
@@ -60,7 +60,7 @@ where
     };
     elem.body_len = local_body_len;
     let (df, body_bytes) = DataFrame::read(self.rd.pfb.current(), self.fi)?;
-    elem.rrb.body.extend_from_copyable_slice(body_bytes)?;
+    elem.msg_buffer.body.extend_from_copyable_slice(body_bytes)?;
     elem.has_one_or_more_data_frames = true;
     if df.has_eos() {
       elem.stream_state = StreamState::HalfClosedRemote;
@@ -81,9 +81,9 @@ where
         self.is_conn_open,
         self.hp,
         self.hpack_dec,
+        &mut elem.msg_buffer,
         self.rd,
         self.read_frame_waker,
-        &mut elem.rrb,
         |_| Ok(()),
       )
       .await?
@@ -94,9 +94,9 @@ where
         self.is_conn_open,
         self.hp,
         self.hpack_dec,
+        &mut elem.msg_buffer,
         self.rd,
         self.read_frame_waker,
-        &mut elem.rrb,
         |hf| hf.hsresh().status_code.ok_or_else(|| HttpError::MissingResponseStatusCode.into()),
       )
       .await?;
@@ -123,15 +123,15 @@ where
     }
     *self.recv_streams_num = self.recv_streams_num.wrapping_add(1);
     *self.last_stream_id = self.fi.stream_id;
-    let mut rrb = ReqResBuffer::empty();
+    let mut msg_buffer = MsgBufferString::default();
     let tuple = read_header_and_continuations::<_, _, false, false>(
       self.fi,
       self.is_conn_open,
       self.hp,
       self.hpack_dec,
+      &mut msg_buffer,
       self.rd,
       self.read_frame_waker,
-      &mut rrb,
       |hf| Ok((hf.hsreqh().method.ok_or(HttpError::MissingRequestMethod)?, hf.hsreqh().protocol)),
     )
     .await?;
@@ -145,7 +145,7 @@ where
         has_initial_header: true,
         has_one_or_more_data_frames: false,
         is_stream_open: true,
-        rrb,
+        msg_buffer,
         status_code: StatusCode::Ok,
         stream_state,
         waker: Waker::noop().clone(),
@@ -167,9 +167,9 @@ where
       self.is_conn_open,
       self.hp,
       self.hpack_dec,
+      &mut sorp.msg_buffer,
       self.rd,
       self.read_frame_waker,
-      &mut sorp.rrb,
       |_| Ok(()),
     )
     .await?;

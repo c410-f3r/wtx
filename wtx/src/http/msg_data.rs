@@ -7,8 +7,10 @@ use alloc::boxed::Box;
 
 static EMPTY_URI_STRING: UriRef<'static> = UriRef::empty("");
 
+/// An HTTP message data can refer a request or a response.
+///
 /// Groups the elements of an HTTP request/response.
-pub trait ReqResData {
+pub trait MsgData {
   /// See [`Self::body`].
   type Body: ?Sized;
 
@@ -22,9 +24,9 @@ pub trait ReqResData {
   fn uri(&self) -> UriRef<'_>;
 }
 
-impl<T> ReqResData for &T
+impl<T> MsgData for &T
 where
-  T: ReqResData,
+  T: MsgData,
 {
   type Body = T::Body;
 
@@ -44,9 +46,9 @@ where
   }
 }
 
-impl<T> ReqResData for &mut T
+impl<T> MsgData for &mut T
 where
-  T: ReqResData,
+  T: MsgData,
 {
   type Body = T::Body;
 
@@ -66,7 +68,7 @@ where
   }
 }
 
-impl ReqResData for &[u8] {
+impl MsgData for &[u8] {
   type Body = [u8];
 
   #[inline]
@@ -85,7 +87,7 @@ impl ReqResData for &[u8] {
   }
 }
 
-impl<const N: usize> ReqResData for [u8; N] {
+impl<const N: usize> MsgData for [u8; N] {
   type Body = [u8; N];
 
   #[inline]
@@ -104,7 +106,7 @@ impl<const N: usize> ReqResData for [u8; N] {
   }
 }
 
-impl ReqResData for () {
+impl MsgData for () {
   type Body = [u8];
 
   #[inline]
@@ -123,7 +125,7 @@ impl ReqResData for () {
   }
 }
 
-impl<B, H> ReqResData for (B, H)
+impl<B, H> MsgData for (B, H)
 where
   H: Lease<Headers>,
 {
@@ -145,7 +147,7 @@ where
   }
 }
 
-impl<B, H, S> ReqResData for (B, H, Uri<S>)
+impl<B, H, S> MsgData for (B, H, Uri<S>)
 where
   H: Lease<Headers>,
   S: Lease<str>,
@@ -168,9 +170,9 @@ where
   }
 }
 
-impl<T> ReqResData for Box<T>
+impl<T> MsgData for Box<T>
 where
-  T: ReqResData,
+  T: MsgData,
 {
   type Body = T::Body;
 
@@ -190,7 +192,7 @@ where
   }
 }
 
-impl ReqResData for Headers {
+impl MsgData for Headers {
   type Body = [u8];
 
   #[inline]
@@ -209,7 +211,7 @@ impl ReqResData for Headers {
   }
 }
 
-impl<S> ReqResData for Uri<S>
+impl<S> MsgData for Uri<S>
 where
   S: Lease<str>,
 {
@@ -231,8 +233,8 @@ where
   }
 }
 
-/// Mutable version of [`ReqResData`].
-pub trait ReqResDataMut: ReqResData {
+/// Mutable version of [`MsgData`].
+pub trait MsgDataMut: MsgData {
   /// Can be a sequence of mutable bytes, a mutable string or any other desired type.
   #[inline]
   fn body_mut(&mut self) -> &mut Self::Body {
@@ -245,7 +247,7 @@ pub trait ReqResDataMut: ReqResData {
   /// Removes all but URI values.
   fn clear_body_and_headers(&mut self);
 
-  /// Mutable version of [`ReqResData::headers`].
+  /// Mutable version of [`MsgData::headers`].
   #[inline]
   fn headers_mut(&mut self) -> &mut Headers {
     self.parts_mut().1
@@ -255,9 +257,9 @@ pub trait ReqResDataMut: ReqResData {
   fn parts_mut(&mut self) -> (&mut Self::Body, &mut Headers, UriRef<'_>);
 }
 
-impl<T> ReqResDataMut for &mut T
+impl<T> MsgDataMut for &mut T
 where
-  T: ReqResDataMut,
+  T: MsgDataMut,
 {
   #[inline]
   fn body_mut(&mut self) -> &mut Self::Body {
@@ -285,9 +287,9 @@ where
   }
 }
 
-impl<T> ReqResDataMut for Box<T>
+impl<T> MsgDataMut for Box<T>
 where
-  T: ReqResDataMut,
+  T: MsgDataMut,
 {
   #[inline]
   fn body_mut(&mut self) -> &mut Self::Body {
@@ -315,7 +317,7 @@ where
   }
 }
 
-impl ReqResDataMut for Headers {
+impl MsgDataMut for Headers {
   #[inline]
   fn clear(&mut self) {
     self.headers_mut().clear();
@@ -332,7 +334,7 @@ impl ReqResDataMut for Headers {
   }
 }
 
-impl<B, H> ReqResDataMut for (B, H)
+impl<B, H> MsgDataMut for (B, H)
 where
   B: Clear,
   H: LeaseMut<Headers>,
@@ -355,7 +357,7 @@ where
   }
 }
 
-impl<B, H, S> ReqResDataMut for (B, H, Uri<S>)
+impl<B, H, S> MsgDataMut for (B, H, Uri<S>)
 where
   B: Clear,
   H: LeaseMut<Headers>,

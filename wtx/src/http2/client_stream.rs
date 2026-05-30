@@ -1,13 +1,9 @@
 use crate::{
-  collection::Vector,
-  http::{ReqResBuffer, ReqResData, Request, StatusCode, u31::U31},
+  http::{MsgBufferString, MsgData, Request, StatusCode, u31::U31},
   http2::{
     CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
-    misc::{
-      connection_state, frame_reader_rslt, manage_recurrent_receiving_of_overall_stream,
-      process_higher_operation_err,
-    },
+    misc::{manage_recurrent_receiving_of_overall_stream, process_higher_operation_err},
     stream_receiver::StreamOverallRecvParams,
     stream_state::StreamState,
     window::Windows,
@@ -17,7 +13,7 @@ use crate::{
   stream::StreamWriter,
   sync::Arc,
 };
-use core::{future::poll_fn, pin::pin, task::Poll};
+use core::{future::poll_fn, pin::pin, task::Waker};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
@@ -65,47 +61,21 @@ where
   #[inline]
   pub async fn recv_res(
     &mut self,
-    mut rrb: ReqResBuffer,
-  ) -> crate::Result<(Http2RecvStatus<StatusCode, ()>, ReqResBuffer)> {
-    rrb.clear();
-    let Self { inner, span, stream_id, windows } = self;
-    let rrb_opt = &mut Some(rrb);
+  ) -> crate::Result<(Http2RecvStatus<StatusCode, ()>, MsgBufferString)> {
+    let Self { inner, span, stream_id, windows: _ } = self;
     let _e = span.enter();
     _trace!("Receiving response");
     let mut lock_pin = pin!(inner.hd.lock());
     let rslt = poll_fn(|cx| {
       let mut lock = lock_pin!(cx, inner.hd, lock_pin);
       let hdpm = lock.parts_mut();
-      if let Some(elem) = rrb_opt.take() {
-        if connection_state(&inner.is_conn_open).is_closed() {
-          frame_reader_rslt(hdpm.frame_reader_error)?;
-          return Poll::Ready(Ok((Http2RecvStatus::ClosedConnection, elem)));
-        }
-        drop(hdpm.hb.sorps.insert(
-          *stream_id,
-          StreamOverallRecvParams {
-            body_len: 0,
-            content_length: None,
-            has_initial_header: false,
-            has_one_or_more_data_frames: false,
-            is_stream_open: true,
-            rrb: elem,
-            status_code: StatusCode::Ok,
-            stream_state: StreamState::HalfClosedLocal,
-            waker: cx.waker().clone(),
-            windows: *windows,
-          },
-        ));
-        Poll::Pending
-      } else {
-        manage_recurrent_receiving_of_overall_stream(
-          cx,
-          hdpm,
-          &inner.is_conn_open,
-          *stream_id,
-          |_, status_code, _, _| status_code,
-        )
-      }
+      manage_recurrent_receiving_of_overall_stream(
+        cx,
+        hdpm,
+        &inner.is_conn_open,
+        *stream_id,
+        |_, status_code, _, _| status_code,
+      )
     })
     .await;
     if let Err(err) = &rslt {
@@ -123,23 +93,18 @@ where
   ///
   /// Shouldn't be called more than once.
   #[inline]
-  pub async fn send_req<RRD>(
-    &mut self,
-    enc_buffer: &mut Vector<u8>,
-    req: Request<RRD>,
-  ) -> crate::Result<Http2SendStatus>
+  pub async fn send_req<MD>(&mut self, req: Request<MD>) -> crate::Result<Http2SendStatus>
   where
-    RRD: ReqResData,
-    RRD::Body: Lease<[u8]>,
+    MD: MsgData,
+    MD::Body: Lease<[u8]>,
   {
     let Self { inner, span, stream_id, windows } = self;
     let _e = span.enter();
     _trace!("Sending request");
-    let uri = req.rrd.uri();
+    let uri = req.msg_data.uri();
     send_msg::<_, _, true>(
-      req.rrd.body().lease(),
-      enc_buffer,
-      req.rrd.headers(),
+      req.msg_data.body().lease(),
+      req.msg_data.headers(),
       inner,
       (
         HpackStaticRequestHeaders {
@@ -156,6 +121,23 @@ where
         if let Some(scrp) = hdpm.hb.scrps.remove(stream_id) {
           *windows = scrp.windows;
         }
+        drop(hdpm.hb.sorps.insert(
+          *stream_id,
+          StreamOverallRecvParams {
+            body_len: 0,
+            content_length: None,
+            has_initial_header: false,
+            has_one_or_more_data_frames: false,
+            is_stream_open: true,
+            msg_buffer: MsgBufferString::default(),
+            status_code: StatusCode::Ok,
+            stream_state: StreamState::HalfClosedLocal,
+            // The possible future invocation of this waker by the reading task won't be a problem
+            // because users will manually call `recv_res`.
+            waker: Waker::noop().clone(),
+            windows: *windows,
+          },
+        ));
       },
     )
     .await

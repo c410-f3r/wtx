@@ -50,7 +50,9 @@ mod write_functions;
 mod writer_data;
 
 use crate::{
-  http::{DEFAULT_INITIAL_WINDOW_LEN, HttpRecvParams, Protocol, ReqResBuffer, Request, u31::U31},
+  http::{
+    DEFAULT_INITIAL_WINDOW_LEN, HttpRecvParams, MsgBufferString, Protocol, Request, u31::U31,
+  },
   http2::settings_frame::SettingsFrame,
   misc::{ConnectionState, Lease, LeaseMut, SingleTypeStorage, Usize},
   stream::{StreamReader, StreamWriter},
@@ -185,7 +187,7 @@ where
   #[inline]
   pub async fn stream<T>(
     &self,
-    mut cb: impl FnMut(Request<&mut ReqResBuffer>, Option<Protocol>) -> T,
+    mut cb: impl FnMut(Request<&mut MsgBufferString>, Option<Protocol>) -> T,
   ) -> crate::Result<Option<(ServerStream<HB, SW>, T)>> {
     let Self { inner } = self;
     let mut is_registered = false;
@@ -220,7 +222,7 @@ where
           _trace_span!("New server stream", stream_id = %stream_id),
           stream_id,
         ),
-        cb(Request::http2(method, &mut sorp.rrb), protocol),
+        cb(Request::http2(method, &mut sorp.msg_buffer), protocol),
       ))))
     })
     .await

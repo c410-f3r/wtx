@@ -14,7 +14,8 @@ use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
 use wtx::{
   database::{Executor, Record},
   http::{
-    HttpRecvParams, ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
+    HttpRecvParams, ManualStream, Method, MsgBufferString, MsgDataMut, Request, Response,
+    StatusCode,
     server_framework::{
       JsonReply, Middleware, PathOwned, Router, ServerFrameworkBuilder, State, StateClean,
       VerbatimParams, get, json,
@@ -56,25 +57,25 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn deserialization_and_serialization(
-  state: State<'_, (), LocalPool, ReqResBuffer>,
+  state: State<'_, (), LocalPool, MsgBufferString>,
 ) -> wtx::Result<JsonReply> {
-  let deserialize_example: DeserializeExample = serde_json::from_slice(&state.req.rrd.body)?;
+  let deserialize_example: DeserializeExample = serde_json::from_slice(&state.req.msg_data.body)?;
   let serialize_example = SerializeExample {
     _baz: [u32::from(deserialize_example._bar / 2), u32::from(deserialize_example._bar % 2)],
   };
-  state.req.rrd.clear();
-  serde_json::to_writer(&mut state.req.rrd.body, &serialize_example)?;
+  state.req.msg_data.clear();
+  serde_json::to_writer(&mut state.req.msg_data.body, &serialize_example)?;
   Ok(JsonReply::default())
 }
 
 async fn db(
-  state: StateClean<'_, (), LocalPool, ReqResBuffer>,
+  state: StateClean<'_, (), LocalPool, MsgBufferString>,
   PathOwned(id): PathOwned<u32>,
 ) -> wtx::Result<VerbatimParams> {
   let mut lock = state.stream_aux.get_with_unit().await?;
   let record = lock.execute_stmt_single("SELECT name FROM persons WHERE id = $1", (id,)).await?;
   let name = record.decode::<_, &str>(0)?;
-  state.req.rrd.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
+  state.req.msg_data.body.write_fmt(format_args!("Person of id `{id}` has name `{name}`"))?;
   Ok(VerbatimParams(StatusCode::Ok))
 }
 
@@ -104,7 +105,7 @@ impl Middleware<(), wtx::Error, LocalPool> for CustomMiddleware {
     &self,
     _: &mut (),
     _: &mut Self::Aux,
-    _: &mut Request<ReqResBuffer>,
+    _: &mut Request<MsgBufferString>,
     _: &mut LocalPool,
   ) -> wtx::Result<ControlFlow<StatusCode, ()>> {
     println!("Inspecting request");
@@ -115,7 +116,7 @@ impl Middleware<(), wtx::Error, LocalPool> for CustomMiddleware {
     &self,
     _: &mut (),
     _: &mut Self::Aux,
-    _: Response<&mut ReqResBuffer>,
+    _: Response<&mut MsgBufferString>,
     _: &mut LocalPool,
   ) -> wtx::Result<ControlFlow<StatusCode, ()>> {
     println!("Inspecting response");

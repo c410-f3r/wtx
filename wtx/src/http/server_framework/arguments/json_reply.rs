@@ -1,5 +1,5 @@
 use crate::http::{
-  Mime, ReqBuilder, ReqResBuffer, Request, StatusCode, server_framework::ResFinalizer,
+  Mime, MsgBufferString, ReqBuilder, Request, StatusCode, server_framework::ResFinalizer,
 };
 
 /// Finalizes the response by setting the `content-type` header to `application/json`.
@@ -17,7 +17,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+  fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
     drop(ReqBuilder::from_req_mut(req).content_type(Mime::ApplicationJson));
     Ok(self.0)
   }

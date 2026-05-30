@@ -91,7 +91,7 @@ where
       .res(
         &mut auto_stream.conn_aux,
         mw_aux,
-        Response { rrd: &mut auto_stream.req.rrd, status_code, version: auto_stream.req.version },
+        Response { msg_data: &mut auto_stream.req.msg_data, status_code },
         &mut auto_stream.stream_aux,
       )
       .await?

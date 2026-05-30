@@ -16,7 +16,7 @@ use tokio_rustls::server::TlsStream;
 use wtx::{
   collection::Vector,
   http::{
-    AutoStream, HttpRecvParams, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer,
+    AutoStream, HttpRecvParams, ManualServerStream, MsgBufferString, OperationMode, OptionedServer,
     Response, StatusCode, is_web_socket_handshake,
   },
   http2::{Http2Buffer, WebSocketOverStream},
@@ -44,7 +44,7 @@ async fn main() -> wtx::Result<()> {
     |_, _, protocol, req, _| {
       Ok((
         (),
-        if is_web_socket_handshake(&req.rrd.headers, req.method, protocol) {
+        if is_web_socket_handshake(&req.msg_data.headers, req.method, protocol) {
           OperationMode::Manual
         } else {
           OperationMode::Auto
@@ -61,7 +61,7 @@ async fn main() -> wtx::Result<()> {
 async fn auto(
   _: (),
   mut ha: AutoStream<(), Vector<u8>>,
-) -> Result<Response<ReqResBuffer>, wtx::Error> {
+) -> Result<Response<MsgBufferString>, wtx::Error> {
   ha.req.clear();
   Ok(ha.req.into_response(StatusCode::Ok))
 }
@@ -71,8 +71,8 @@ async fn manual(
   mut hm: ManualServerStream<(), Http2Buffer, Vector<u8>, WriteHalf<TlsStream<TcpStream>>>,
 ) -> Result<(), wtx::Error> {
   let rng = Xorshift64::from_getrandom().unwrap();
-  hm.req.rrd.headers.clear();
-  let mut wos = WebSocketOverStream::new(&hm.req.rrd.headers, false, rng, hm.stream).await?;
+  hm.req.msg_data.headers.clear();
+  let mut wos = WebSocketOverStream::new(&hm.req.msg_data.headers, false, rng, hm.stream).await?;
   loop {
     let mut frame = wos.read_frame(&mut hm.stream_aux).await?;
     match (frame.op_code(), frame.text_payload()) {

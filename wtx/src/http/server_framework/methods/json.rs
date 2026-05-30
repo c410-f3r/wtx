@@ -39,7 +39,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    check_json(&auto_stream.req.rrd.headers, auto_stream.req.method, self.1)?;
+    check_json(&auto_stream.req.msg_data.headers, auto_stream.req.method, self.1)?;
     self.0.auto(auto_stream, path_defs).await
   }
 
@@ -49,7 +49,7 @@ where
     manual_stream: ManualStream<CA, S, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<(), E> {
-    check_json(&manual_stream.req.rrd.headers, manual_stream.req.method, self.1)?;
+    check_json(&manual_stream.req.msg_data.headers, manual_stream.req.method, self.1)?;
     self.0.manual(manual_stream, path_defs).await
   }
 }

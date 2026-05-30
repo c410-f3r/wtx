@@ -1,7 +1,7 @@
 use crate::{
   grpc::GrpcManager,
   http::{
-    Header, KnownHeaderName, Mime, ReqResBuffer, Request, Response, StatusCode,
+    Header, KnownHeaderName, Mime, MsgBufferString, Request, Response, StatusCode,
     server_framework::Middleware,
   },
 };
@@ -25,7 +25,7 @@ where
     &self,
     _: &mut CA,
     _: &mut Self::Aux,
-    _: &mut Request<ReqResBuffer>,
+    _: &mut Request<MsgBufferString>,
     _: &mut GrpcManager<DRSR>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     Ok(ControlFlow::Continue(()))
@@ -36,10 +36,10 @@ where
     &self,
     _: &mut CA,
     _: &mut Self::Aux,
-    req: Response<&mut ReqResBuffer>,
+    req: Response<&mut MsgBufferString>,
     stream_aux: &mut GrpcManager<DRSR>,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    req.rrd.headers.push_from_iter_many([
+    req.msg_data.headers.push_from_iter_many([
       Header::from_name_and_value(
         KnownHeaderName::ContentType.into(),
         [Mime::ApplicationGrpc.as_str()].into_iter(),

@@ -13,7 +13,7 @@ pub use simple_pool::*;
 pub type Http2BufferRM = SimpleRM<fn() -> crate::Result<crate::http2::Http2Buffer>>;
 /// Manages resources for HTTP2 requests and responses.
 #[cfg(feature = "http2")]
-pub type StreamBufferRM = SimpleRM<fn() -> crate::Result<crate::http::ReqResBuffer>>;
+pub type StreamBufferRM = SimpleRM<fn() -> crate::Result<crate::http::MsgBufferString>>;
 /// Manages WebSocket resources.
 #[cfg(feature = "web-socket")]
 pub type WebSocketRM = SimpleRM<fn() -> crate::Result<crate::web_socket::WebSocketBuffer>>;

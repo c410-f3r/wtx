@@ -1,8 +1,8 @@
 use crate::{
-  collection::Vector,
   executor::Runtime,
   http::{
-    Header, Headers, HttpRecvParams, ReqBuilder, ReqResBuffer, ReqResData, Request, StatusCode,
+    Header, Headers, HttpRecvParams, MsgBufferString, MsgData, MsgDataMut, ReqBuilder, Request,
+    StatusCode,
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode},
   misc::{UriRef, UriString},
@@ -24,8 +24,8 @@ fn connections() {
 }
 
 async fn client(uri: &UriString, runtime: &Runtime) {
-  let mut rrb = ReqResBuffer::empty();
-  rrb.headers.reserve(6, 1).unwrap();
+  let mut msg_buffer = MsgBufferString::default();
+  msg_buffer.headers.reserve(6, 1).unwrap();
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
   let (frame_header, mut http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
@@ -38,25 +38,24 @@ async fn client(uri: &UriString, runtime: &Runtime) {
 
   let uri_ref = uri.to_ref();
 
-  let enc_buffer = &mut Vector::new();
-  rrb = stream_client(&mut http2, enc_buffer, rrb, uri_ref).await;
-  _0(rrb.body(), rrb.headers());
+  msg_buffer = stream_client(&mut http2, msg_buffer, uri_ref).await;
+  _0(msg_buffer.body(), msg_buffer.headers());
 
-  rrb.clear();
-  rrb.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
-  rrb = stream_client(&mut http2, enc_buffer, rrb, uri_ref).await;
-  _1(rrb.body(), rrb.headers());
+  msg_buffer.clear();
+  msg_buffer.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
+  msg_buffer = stream_client(&mut http2, msg_buffer, uri_ref).await;
+  _1(msg_buffer.body(), msg_buffer.headers());
 
-  rrb.clear();
-  rrb.body.extend_from_copyable_slice(b"123").unwrap();
-  rrb = stream_client(&mut http2, enc_buffer, rrb, uri_ref).await;
-  _2(rrb.body(), rrb.headers());
+  msg_buffer.clear();
+  msg_buffer.body.extend_from_copyable_slice(b"123").unwrap();
+  msg_buffer = stream_client(&mut http2, msg_buffer, uri_ref).await;
+  _2(msg_buffer.body(), msg_buffer.headers());
 
-  rrb.clear();
-  rrb.body.extend_from_copyable_slice(b"123").unwrap();
-  rrb.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
-  rrb = stream_client(&mut http2, enc_buffer, rrb, uri_ref).await;
-  _3(rrb.body(), rrb.headers());
+  msg_buffer.clear();
+  msg_buffer.body.extend_from_copyable_slice(b"123").unwrap();
+  msg_buffer.headers.push_from_iter(Header::from_name_and_value("123", ["456"])).unwrap();
+  msg_buffer = stream_client(&mut http2, msg_buffer, uri_ref).await;
+  _3(msg_buffer.body(), msg_buffer.headers());
 
   http2.send_go_away(Http2ErrorCode::NoError).await;
 
@@ -77,21 +76,20 @@ fn server(uri: &UriString, runtime: &Runtime) {
       .await
       .unwrap();
       let _jh = runtime_fut.spawn_threaded(frame_header);
-      let enc_buffer = &mut Vector::new();
-      stream_server(enc_buffer, &mut http2, |req| {
-        _0(req.rrd.body(), req.rrd.headers());
+      stream_server(&mut http2, |req| {
+        _0(req.msg_data.body(), req.msg_data.headers());
       })
       .await;
-      stream_server(enc_buffer, &mut http2, |req| {
-        _1(req.rrd.body(), req.rrd.headers());
+      stream_server(&mut http2, |req| {
+        _1(req.msg_data.body(), req.msg_data.headers());
       })
       .await;
-      stream_server(enc_buffer, &mut http2, |req| {
-        _2(req.rrd.body(), req.rrd.headers());
+      stream_server(&mut http2, |req| {
+        _2(req.msg_data.body(), req.msg_data.headers());
       })
       .await;
-      stream_server(enc_buffer, &mut http2, |req| {
-        _3(req.rrd.body(), req.rrd.headers());
+      stream_server(&mut http2, |req| {
+        _3(req.msg_data.body(), req.msg_data.headers());
       })
       .await;
     })
@@ -99,26 +97,24 @@ fn server(uri: &UriString, runtime: &Runtime) {
 }
 
 async fn stream_server(
-  enc_buffer: &mut Vector<u8>,
   server: &mut Http2<Http2Buffer, TcpStream, false>,
-  mut cb: impl FnMut(Request<&mut ReqResBuffer>),
+  mut cb: impl FnMut(Request<&mut MsgBufferString>),
 ) {
   let (mut stream, _) = server.stream(|_, _| {}).await.unwrap().unwrap();
   let (_, mut req_rrb) = stream.recv_req().await.unwrap();
   cb(req_rrb.as_http2_request_mut(stream.method()));
-  let _ = stream.send_res(enc_buffer, req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
+  let _ = stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
 }
 
 async fn stream_client(
   client: &mut Http2<Http2Buffer, TcpStream, true>,
-  enc_buffer: &mut Vector<u8>,
-  rrb: ReqResBuffer,
+  msg_buffer: MsgBufferString,
   uri: UriRef<'_>,
-) -> ReqResBuffer {
+) -> MsgBufferString {
   let mut stream = client.stream().await.unwrap();
-  let rb = ReqBuilder::get((rrb.body.as_ref(), &rrb.headers, uri));
-  let _ = stream.send_req(enc_buffer, rb.into_request()).await.unwrap();
-  stream.recv_res(rrb).await.unwrap().1
+  let rb = ReqBuilder::get((msg_buffer.body.as_ref(), &msg_buffer.headers, uri));
+  let _ = stream.send_req(rb.into_request()).await.unwrap();
+  stream.recv_res().await.unwrap().1
 }
 
 #[track_caller]

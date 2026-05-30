@@ -1,9 +1,8 @@
 use crate::{
   calendar::Instant,
-  collection::Vector,
   http::{
-    AutoStream, HttpRecvParams, ManualServerStream, OperationMode, Protocol, ReqResBuffer, Request,
-    Response, optioned_server::OptionedServer,
+    AutoStream, HttpRecvParams, ManualServerStream, MsgBufferString, OperationMode, Protocol,
+    Request, Response, optioned_server::OptionedServer,
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
   misc::FnFut,
@@ -69,7 +68,7 @@ impl OptionedServer {
         &CA,
         &mut HCOCP,
         Option<Protocol>,
-        Request<&mut ReqResBuffer>,
+        Request<&mut MsgBufferString>,
         &SA,
       ) -> Result<(HA, OperationMode), ERR>
       + Send
@@ -77,7 +76,7 @@ impl OptionedServer {
     HCOCP: Clone + Send + 'static,
     HSEC: Clone + Fn(ERR) + Send + 'static,
     HSAC: Clone
-      + FnFut<(HA, AutoStream<CA, SA>), Result = Result<Response<ReqResBuffer>, ERR>>
+      + FnFut<(HA, AutoStream<CA, SA>), Result = Result<Response<MsgBufferString>, ERR>>
       + Send
       + 'static,
     HSMC: Clone
@@ -147,12 +146,12 @@ impl OptionedServer {
                   &stream_ca,
                   &mut conn_hcocp,
                   protocol,
-                  Request { method: req.method, rrd: &mut *req.rrd, version: req.version },
+                  Request { method: req.method, msg_data: &mut *req.msg_data },
                   &stream_aux,
                 )?;
                 Ok::<_, ERR>(match op.1 {
                   OperationMode::Auto => (op.0, None),
-                  OperationMode::Manual => (op.0, Some(mem::take(req.rrd))),
+                  OperationMode::Manual => (op.0, Some(mem::take(req.msg_data))),
                 })
               })
               .await?
@@ -197,13 +196,8 @@ impl OptionedServer {
                   req,
                   stream_aux,
                 };
-                let mut res = stream_auto_cb.call((headers_aux, auto_stream)).await?;
-                let _ = stream
-                  .send_res(
-                    &mut Vector::from_vec(mem::take(&mut res.rrd.uri).into_inner().into_bytes()),
-                    res,
-                  )
-                  .await?;
+                let res = stream_auto_cb.call((headers_aux, auto_stream)).await?;
+                let _ = stream.send_res(res).await?;
                 Ok::<_, ERR>(())
               };
               let stream_fun_rslt = stream_fun.await;
@@ -224,11 +218,10 @@ impl OptionedServer {
   }
 }
 
-fn log_req(_peer: &IpAddr, _req: &Request<ReqResBuffer>) {
+fn log_req(_peer: &IpAddr, _req: &Request<MsgBufferString>) {
   let _method = _req.method.strings().custom[0];
-  let _path = _req.rrd.uri.path();
-  let _version = _req.version.strings().custom[0];
+  let _path = _req.msg_data.uri.path();
   let _time = Instant::now_timestamp(0).unwrap_or_default().as_secs().cast_signed();
   let _time_display = crate::calendar::DateTime::from_timestamp_secs(_time).unwrap_or_default();
-  _debug!(r#"{_peer} "{_method} {_path} {_version}""#,);
+  _debug!(r#"{_peer} "{_method} {_path}""#,);
 }

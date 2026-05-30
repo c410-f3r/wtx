@@ -1,6 +1,5 @@
 use crate::{
-  collection::Vector,
-  http::{Method, Protocol, ReqResBuffer, ReqResData, Response, u31::U31},
+  http::{Method, MsgBufferString, MsgData, Protocol, Response, u31::U31},
   http2::{
     CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
@@ -67,7 +66,7 @@ where
   ///
   /// Shouldn't be called more than once.
   #[inline]
-  pub async fn recv_req(&mut self) -> crate::Result<(Http2RecvStatus<(), ()>, ReqResBuffer)> {
+  pub async fn recv_req(&mut self) -> crate::Result<(Http2RecvStatus<(), ()>, MsgBufferString)> {
     let Self { inner, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Receiving request");
@@ -112,22 +111,17 @@ where
   /// are successfully executed. More specifically, should only be called in a half-closed stream
   /// state.
   #[inline]
-  pub async fn send_res<RRD>(
-    &mut self,
-    enc_buffer: &mut Vector<u8>,
-    res: Response<RRD>,
-  ) -> crate::Result<Http2SendStatus>
+  pub async fn send_res<MD>(&mut self, res: Response<MD>) -> crate::Result<Http2SendStatus>
   where
-    RRD: ReqResData,
-    RRD::Body: Lease<[u8]>,
+    MD: MsgData,
+    MD::Body: Lease<[u8]>,
   {
     let Self { inner, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Sending response");
     let hss = send_msg::<_, _, false>(
-      res.rrd.body().lease(),
-      enc_buffer,
-      res.rrd.headers(),
+      res.msg_data.body().lease(),
+      res.msg_data.headers(),
       inner,
       (
         HpackStaticRequestHeaders::EMPTY,

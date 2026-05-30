@@ -217,7 +217,6 @@ pub(crate) fn push_trailers(
 /// * At most one continuation frame can be sent
 pub(crate) async fn send_msg<HB, SW, const IS_CLIENT: bool>(
   data: &[u8],
-  enc_buffer: &mut Vector<u8>,
   headers: &Headers,
   inner: &Http2Inner<HB, SW, IS_CLIENT>,
   (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
@@ -228,7 +227,7 @@ where
   HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
-  enc_buffer.clear();
+  let mut enc_buffer = Vector::new();
   let fut = async {
     let mut data_idx = 0;
     let mut frames = ArrayVectorU8::new();
@@ -242,7 +241,7 @@ where
         let state = do_send_msg::<_, IS_CLIENT>(
           data,
           &mut data_idx,
-          enc_buffer,
+          &mut enc_buffer,
           &mut frames,
           &mut *lock_pin!(cx, inner.hd, hd_guard_pin),
           headers,

@@ -133,14 +133,14 @@ create_enum! {
 
 #[cfg(feature = "http-server-framework")]
 mod http_server_framework {
-  use crate::http::{ReqResBuffer, Request, StatusCode, server_framework::ResFinalizer};
+  use crate::http::{MsgBufferString, Request, StatusCode, server_framework::ResFinalizer};
 
   impl<E> ResFinalizer<E> for StatusCode
   where
     E: From<crate::Error>,
   {
     #[inline]
-    fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+    fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
       req.clear();
       Ok(self)
     }

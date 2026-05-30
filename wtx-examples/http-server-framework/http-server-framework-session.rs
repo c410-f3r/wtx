@@ -27,7 +27,7 @@ use wtx::{
   collection::Vector,
   database::{Executor, Record},
   http::{
-    HttpRecvParams, ReqResBuffer, ReqResData, SessionManager, SessionMiddleware, SessionState,
+    HttpRecvParams, MsgBufferString, MsgData, SessionManager, SessionMiddleware, SessionState,
     StatusCode,
     server_framework::{DynParams, Router, ServerFrameworkBuilder, State, StateClean, get, post},
   },
@@ -72,14 +72,14 @@ async fn main() -> wtx::Result<()> {
   Ok(())
 }
 
-async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<DynParams> {
+async fn login(state: State<'_, ConnAux, (), MsgBufferString>) -> wtx::Result<DynParams> {
   let ConnAux { pool, session_manager, session_state } = state.conn_aux;
   if session_state.is_some() {
     state.req.clear();
-    session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
+    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, pool).await?;
     return Ok(DynParams::Verbatim(StatusCode::Forbidden));
   }
-  let user: UserLoginReq<'_> = serde_json::from_slice(state.req.rrd.body())?;
+  let user: UserLoginReq<'_> = serde_json::from_slice(state.req.msg_data.body())?;
   let mut pool_guard = pool.get_with_unit().await?;
   let record = pool_guard
     .execute_stmt_single(
@@ -96,18 +96,18 @@ async fn login(state: State<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<DynPa
   if pw_db != pw_req {
     return Ok(DynParams::ClearAll(StatusCode::Unauthorized));
   }
-  serde_json::to_writer(&mut state.req.rrd.body, &UserLoginRes { id, name: first_name })?;
+  serde_json::to_writer(&mut state.req.msg_data.body, &UserLoginRes { id, name: first_name })?;
   drop(pool_guard);
   session_manager
-    .set_session_cookie(id, &mut ChaCha20::from_getrandom()?, &mut state.req.rrd, pool)
+    .set_session_cookie(id, &mut state.req.msg_data, &mut ChaCha20::from_getrandom()?, pool)
     .await?;
   Ok(DynParams::Verbatim(StatusCode::Ok))
 }
 
-async fn logout(state: StateClean<'_, ConnAux, (), ReqResBuffer>) -> wtx::Result<StatusCode> {
+async fn logout(state: StateClean<'_, ConnAux, (), MsgBufferString>) -> wtx::Result<StatusCode> {
   let ConnAux { pool, session_manager, session_state } = state.conn_aux;
   if session_state.is_some() {
-    session_manager.delete_session_cookie(&mut state.req.rrd, session_state, pool).await?;
+    session_manager.delete_session_cookie(&mut state.req.msg_data, session_state, pool).await?;
   }
   Ok(StatusCode::Ok)
 }

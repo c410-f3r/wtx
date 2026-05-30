@@ -41,7 +41,7 @@ mod tests {
   use crate::{
     collection::{ArrayVectorU8, Vector},
     http::{
-      ManualStream, OperationMode, ReqResBuffer, StatusCode,
+      ManualStream, MsgBufferString, OperationMode, StatusCode,
       server_framework::{EndpointNode, RouteMatch, Router, StateClean, get},
     },
   };
@@ -142,7 +142,7 @@ mod tests {
     );
   }
 
-  async fn auto(_: StateClean<'_, (), (), ReqResBuffer>) -> crate::Result<StatusCode> {
+  async fn auto(_: StateClean<'_, (), (), MsgBufferString>) -> crate::Result<StatusCode> {
     Ok(StatusCode::Ok)
   }
 

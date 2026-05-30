@@ -1,4 +1,4 @@
-use crate::http::{ReqResBuffer, Request, Response, StatusCode};
+use crate::http::{MsgBufferString, Request, Response, StatusCode};
 use core::ops::ControlFlow;
 
 /// Request middleware
@@ -17,7 +17,7 @@ where
     &self,
     conn_aux: &mut CA,
     mw_aux: &mut Self::Aux,
-    req: &mut Request<ReqResBuffer>,
+    req: &mut Request<MsgBufferString>,
     stream_aux: &mut SA,
   ) -> impl Future<Output = Result<ControlFlow<StatusCode, ()>, E>>;
 
@@ -26,7 +26,7 @@ where
     &self,
     conn_aux: &mut CA,
     mw_aux: &mut Self::Aux,
-    res: Response<&mut ReqResBuffer>,
+    res: Response<&mut MsgBufferString>,
     stream_aux: &mut SA,
   ) -> impl Future<Output = Result<ControlFlow<StatusCode, ()>, E>>;
 }

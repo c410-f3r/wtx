@@ -1,6 +1,6 @@
 use crate::{
   collection::ArrayStringU8,
-  http::{Header, HttpRecvParams, KnownHeaderName, Method, ReqResBuffer, u31::U31},
+  http::{Header, HttpRecvParams, KnownHeaderName, Method, MsgBufferString, u31::U31},
   http2::{
     Http2Error,
     common_flags::CommonFlags,
@@ -66,7 +66,7 @@ impl<'uri> HeadersFrame<'uri> {
     mut fi: FrameInit,
     hp: &HttpRecvParams,
     hpack_dec: &mut HpackDecoder,
-    (rrb, rrb_body_start): (&mut ReqResBuffer, usize),
+    (msg_buffer, rrb_body_start): (&mut MsgBufferString, usize),
   ) -> crate::Result<(Option<usize>, Self)> {
     if fi.stream_id.is_zero() {
       return Err(protocol_err(Http2Error::InvalidHeadersFrameZeroId));
@@ -74,7 +74,7 @@ impl<'uri> HeadersFrame<'uri> {
 
     fi.cf.only_eoh_eos_pad_pri();
 
-    let lease = rrb.lease_mut();
+    let lease = msg_buffer.lease_mut();
     let (rrb_body, rrb_headers, rrb_uri) = (&lease.body, &mut lease.headers, &mut lease.uri);
     let mut data_bytes = data.unwrap_or_else(|| rrb_body.get(rrb_body_start..).unwrap_or_default());
     let _ = trim_frame_pad(fi.cf, &mut data_bytes)?;

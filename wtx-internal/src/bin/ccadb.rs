@@ -9,7 +9,7 @@ use wtx::{
   calendar::{Date, DateTime, Duration, Instant, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
   collection::{ArrayVectorU8, HashSet, Vector},
-  http::{HttpClient, ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
+  http::{HttpClient, ReqBuilder, client_pool::ClientPoolBuilder},
   misc::UriRef,
   x509::{Certificate, CvTrustAnchor, X509Error},
 };
@@ -21,13 +21,12 @@ static EXCLUDED_FINGERPRINTS: &[&str] =
 async fn main() {
   let csv = {
     let uri = "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV";
-    let rrb = ReqResBuffer::empty();
     let pool = ClientPoolBuilder::tokio_rustls(1).build();
     pool
-      .send_req_recv_res(ReqBuilder::get(UriRef::new(uri)).into_request(), rrb)
+      .send_req_recv_res(ReqBuilder::get(UriRef::new(uri)).into_request())
       .await
       .unwrap()
-      .rrd
+      .msg_data
       .body
   };
 

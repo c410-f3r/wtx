@@ -10,7 +10,7 @@ use wtx::{
   codec::format::QuickProtobuf,
   grpc::{GrpcManager, GrpcMiddleware},
   http::{
-    HttpRecvParams, ReqResBuffer, StatusCode,
+    HttpRecvParams, MsgBufferString, StatusCode,
     server_framework::{Router, ServerFrameworkBuilder, State, post},
   },
 };
@@ -36,13 +36,13 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn wtx_generic_service_generic_method(
-  state: State<'_, (), GrpcManager<QuickProtobuf>, ReqResBuffer>,
+  state: State<'_, (), GrpcManager<QuickProtobuf>, MsgBufferString>,
 ) -> wtx::Result<StatusCode> {
   let _generic_request: GenericRequest =
-    state.stream_aux.des_from_req_bytes(&mut state.req.rrd.body.as_ref())?;
+    state.stream_aux.des_from_req_bytes(&mut state.req.msg_data.body.as_ref())?;
   state.req.clear();
   state.stream_aux.ser_to_res_bytes(
-    &mut state.req.rrd.body,
+    &mut state.req.msg_data.body,
     GenericResponse {
       generic_response_field0: Cow::Borrowed(b"generic_response_value"),
       generic_response_field1: 321,
