@@ -1,6 +1,6 @@
 use crate::{
   http::{
-    AutoStream, ReqResBuffer, StatusCode,
+    AutoStream, MsgBufferString, StatusCode,
     server_framework::{Endpoint, ResFinalizer, RouteMatch, StateGeneric, arguments::manage_path},
   },
   misc::{FnFut, FnFutWrapper},
@@ -28,7 +28,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let path = manage_path(path_defs, &auto_stream.req.rrd.uri)?;
+    let path = manage_path(path_defs, &auto_stream.req.msg_data.uri)?;
     let path_owned = PathOwned(P::from_str(path).map_err(Into::into)?);
     auto_stream.req.clear();
     self.0.call((path_owned,)).await.finalize_response(&mut auto_stream.req)
@@ -36,12 +36,15 @@ where
 }
 
 impl<CA, E, F, P, RES, S, SA, const CLEAN: bool> Endpoint<CA, E, S, SA>
-  for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>, PathOwned<P>), F>
+  for FnFutWrapper<(StateGeneric<'_, CA, SA, MsgBufferString, CLEAN>, PathOwned<P>), F>
 where
   E: From<crate::Error>,
   P: FromStr,
   P::Err: Into<crate::Error>,
-  F: for<'any> FnFut<(StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>, PathOwned<P>), Result = RES>,
+  F: for<'any> FnFut<
+      (StateGeneric<'any, CA, SA, MsgBufferString, CLEAN>, PathOwned<P>),
+      Result = RES,
+    >,
   RES: ResFinalizer<E>,
 {
   #[inline]
@@ -50,7 +53,7 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let path = manage_path(path_defs, &auto_stream.req.rrd.uri)?;
+    let path = manage_path(path_defs, &auto_stream.req.msg_data.uri)?;
     let path_owned = PathOwned(P::from_str(path).map_err(Into::into)?);
     self
       .0

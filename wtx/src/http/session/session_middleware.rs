@@ -3,7 +3,7 @@ use crate::{
   collection::{ArrayVectorU8, Vector},
   crypto::{Aead, Aes128GcmGlobal},
   http::{
-    KnownHeaderName, ReqResBuffer, Request, Response, SessionError, SessionManager,
+    KnownHeaderName, MsgBufferString, MsgDataMut, Request, Response, SessionError, SessionManager,
     SessionManagerInner, SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
     server_framework::Middleware,
   },
@@ -50,7 +50,7 @@ where
   async fn delete_session_cookie<CA>(
     &self,
     ca: &mut CA,
-    req: &mut Request<ReqResBuffer>,
+    req: &mut Request<MsgBufferString>,
   ) -> Result<(), E>
   where
     CA: LeaseMut<Option<SessionState<CS>>>,
@@ -62,7 +62,7 @@ where
       .lock()
       .await
       .delete_session_cookie(
-        &mut req.rrd,
+        &mut req.msg_data,
         ca.lease_mut(),
         &mut ***self.session_store.get_with_unit().await?,
       )
@@ -93,7 +93,7 @@ where
     &self,
     ca: &mut CA,
     _: &mut Self::Aux,
-    req: &mut Request<ReqResBuffer>,
+    req: &mut Request<MsgBufferString>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     if let Some(session_state) = ca.lease() {
@@ -107,7 +107,7 @@ where
     }
     let mut has_stored_session = true; // `true` because of log-ins
     let mut x_csrf_token_value = None;
-    for header in req.rrd.headers.iter() {
+    for header in req.msg_data.headers.iter() {
       if ca.lease_mut().is_some() && x_csrf_token_value.is_some() {
         break;
       }
@@ -120,10 +120,10 @@ where
         _ => continue,
       }
       let ss_des: SessionState<CS> = {
-        let idx = req.rrd.body.len();
-        let cookie_des = CookieStr::parse(header.value, &mut req.rrd.body)?;
+        let idx = req.msg_data.body.len();
+        let cookie_des = CookieStr::parse(header.value, &mut req.msg_data.body)?;
         if cookie_des.generic.name != self.session_manager.inner.0 {
-          req.rrd.body.truncate(idx);
+          req.msg_data.body.truncate(idx);
           continue;
         }
         let mut session_guard = self.session_manager.inner.1.lock().await;
@@ -141,7 +141,7 @@ where
             el.as_ref().try_into()?,
           )
         });
-        req.rrd.body.truncate(idx);
+        req.msg_data.body.truncate(idx);
         let value_json = decrypt_rslt??;
         let json_rslt = serde_json_deserialize_from_slice(value_json);
         cookie_def.value.clear();
@@ -160,7 +160,7 @@ where
       *ca.lease_mut() = Some(ss_des);
     }
     if !has_stored_session {
-      req.rrd.clear();
+      req.msg_data.clear();
       self.delete_session_cookie(ca, req).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
@@ -171,7 +171,7 @@ where
         return Err(crate::Error::from(SessionError::InvalidCsrfRequest).into());
       }
     } else {
-      let path = req.rrd.uri.path();
+      let path = req.msg_data.uri.path();
       if self.allowed_paths.iter().all(|el| el != path) {
         return Err(crate::Error::from(SessionError::RequiredSession).into());
       }
@@ -184,7 +184,7 @@ where
     &self,
     _: &mut CA,
     _: &mut Self::Aux,
-    _: Response<&mut ReqResBuffer>,
+    _: Response<&mut MsgBufferString>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     Ok(ControlFlow::Continue(()))

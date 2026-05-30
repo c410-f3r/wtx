@@ -1,4 +1,4 @@
-use crate::http::{Protocol, ReqResBuffer, Request};
+use crate::http::{MsgBufferString, Protocol, Request};
 use core::net::IpAddr;
 
 #[cfg(feature = "http2")]
@@ -26,7 +26,7 @@ pub struct AutoStream<CA, SA> {
   /// See [Protocol].
   pub protocol: Option<Protocol>,
   /// Request
-  pub req: Request<ReqResBuffer>,
+  pub req: Request<MsgBufferString>,
   /// Stream auxiliary
   pub stream_aux: SA,
 }
@@ -41,7 +41,7 @@ pub struct ManualStream<CA, S, SA> {
   /// See [Protocol].
   pub protocol: Option<Protocol>,
   /// Request
-  pub req: Request<ReqResBuffer>,
+  pub req: Request<MsgBufferString>,
   /// Stream
   pub stream: S,
   /// Stream auxiliary
@@ -61,13 +61,13 @@ pub trait OperationModeStream {
   fn conn_aux(&mut self) -> &mut Self::ConnAux;
 
   /// Remote peer address
-  fn parts(&mut self) -> (&mut Self::ConnAux, &mut Request<ReqResBuffer>, &mut Self::StreamAux);
+  fn parts(&mut self) -> (&mut Self::ConnAux, &mut Request<MsgBufferString>, &mut Self::StreamAux);
 
   /// Remote peer address
   fn peer(&self) -> &IpAddr;
 
   /// Request
-  fn req(&mut self) -> &mut Request<ReqResBuffer>;
+  fn req(&mut self) -> &mut Request<MsgBufferString>;
 
   /// Stream auxiliary
   fn stream_aux(&mut self) -> &mut Self::StreamAux;
@@ -84,7 +84,7 @@ impl<CA, SA> OperationModeStream for AutoStream<CA, SA> {
   }
 
   #[inline]
-  fn parts(&mut self) -> (&mut Self::ConnAux, &mut Request<ReqResBuffer>, &mut Self::StreamAux) {
+  fn parts(&mut self) -> (&mut Self::ConnAux, &mut Request<MsgBufferString>, &mut Self::StreamAux) {
     (&mut self.conn_aux, &mut self.req, &mut self.stream_aux)
   }
 
@@ -94,7 +94,7 @@ impl<CA, SA> OperationModeStream for AutoStream<CA, SA> {
   }
 
   #[inline]
-  fn req(&mut self) -> &mut Request<ReqResBuffer> {
+  fn req(&mut self) -> &mut Request<MsgBufferString> {
     &mut self.req
   }
 
@@ -115,7 +115,7 @@ impl<CA, S, SA> OperationModeStream for ManualStream<CA, S, SA> {
   }
 
   #[inline]
-  fn parts(&mut self) -> (&mut Self::ConnAux, &mut Request<ReqResBuffer>, &mut Self::StreamAux) {
+  fn parts(&mut self) -> (&mut Self::ConnAux, &mut Request<MsgBufferString>, &mut Self::StreamAux) {
     (&mut self.conn_aux, &mut self.req, &mut self.stream_aux)
   }
 
@@ -125,7 +125,7 @@ impl<CA, S, SA> OperationModeStream for ManualStream<CA, S, SA> {
   }
 
   #[inline]
-  fn req(&mut self) -> &mut Request<ReqResBuffer> {
+  fn req(&mut self) -> &mut Request<MsgBufferString> {
     &mut self.req
   }
 

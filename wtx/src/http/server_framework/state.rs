@@ -1,16 +1,16 @@
 use crate::{
   collection::Vector,
   http::{
-    AutoStream, Headers, ReqResBuffer, ReqResDataMut, Request, StatusCode,
+    AutoStream, Headers, MsgBufferString, MsgDataMut, Request, StatusCode,
     server_framework::{Endpoint, ResFinalizer, RouteMatch},
   },
   misc::{FnFut, FnFutWrapper},
 };
 
 /// [`StateGeneric`] with original content
-pub type State<'any, CA, SA, RRD> = StateGeneric<'any, CA, SA, RRD, false>;
+pub type State<'any, CA, SA, MD> = StateGeneric<'any, CA, SA, MD, false>;
 /// [`StateGeneric`] with cleaned content
-pub type StateClean<'any, CA, SA, RRD> = StateGeneric<'any, CA, SA, RRD, true>;
+pub type StateClean<'any, CA, SA, MD> = StateGeneric<'any, CA, SA, MD, true>;
 
 /// State of a connection
 ///
@@ -20,28 +20,24 @@ pub type StateClean<'any, CA, SA, RRD> = StateGeneric<'any, CA, SA, RRD, true>;
 /// endpoint, response data is automatically cleaned.
 //
 // The use of generics without lifetimes make `Endpoint::auto` `!Send` when associated with an
-// hypothetical `State<&mut CA, &mut SA, &mut RRD>`, for whatever the reason.
+// hypothetical `State<&mut CA, &mut SA, &mut MD>`, for whatever the reason.
 #[derive(Debug)]
-pub struct StateGeneric<'any, CA, SA, RRD, const CLEAN: bool> {
+pub struct StateGeneric<'any, CA, SA, MD, const CLEAN: bool> {
   /// Connection auxiliary
   pub conn_aux: &'any mut CA,
   /// Request/Response Data
-  pub req: &'any mut Request<RRD>,
+  pub req: &'any mut Request<MD>,
   /// Stream auxiliary
   pub stream_aux: &'any mut SA,
 }
 
-impl<'any, CA, SA, RRD, const CLEAN: bool> StateGeneric<'any, CA, SA, RRD, CLEAN>
+impl<'any, CA, SA, MD, const CLEAN: bool> StateGeneric<'any, CA, SA, MD, CLEAN>
 where
-  RRD: ReqResDataMut,
+  MD: MsgDataMut,
 {
-  /// Creates an instance with erased `RRD` data if `CLEAN` is true.
+  /// Creates an instance with erased `MD` data if `CLEAN` is true.
   #[inline]
-  pub fn new(
-    conn_aux: &'any mut CA,
-    stream_aux: &'any mut SA,
-    req: &'any mut Request<RRD>,
-  ) -> Self {
+  pub fn new(conn_aux: &'any mut CA, stream_aux: &'any mut SA, req: &'any mut Request<MD>) -> Self {
     if CLEAN {
       req.clear();
     }
@@ -50,10 +46,10 @@ where
 }
 
 impl<CA, E, F, RES, S, SA, const CLEAN: bool> Endpoint<CA, E, S, SA>
-  for FnFutWrapper<(StateGeneric<'_, CA, SA, ReqResBuffer, CLEAN>,), F>
+  for FnFutWrapper<(StateGeneric<'_, CA, SA, MsgBufferString, CLEAN>,), F>
 where
   E: From<crate::Error>,
-  F: for<'any> FnFut<(StateGeneric<'any, CA, SA, ReqResBuffer, CLEAN>,), Result = RES>,
+  F: for<'any> FnFut<(StateGeneric<'any, CA, SA, MsgBufferString, CLEAN>,), Result = RES>,
   RES: ResFinalizer<E>,
 {
   #[inline]
@@ -74,36 +70,35 @@ where
   }
 }
 
-impl<'any, CA, SA, RRD> From<State<'any, CA, SA, RRD>> for StateClean<'any, CA, SA, RRD>
+impl<'any, CA, SA, MD> From<State<'any, CA, SA, MD>> for StateClean<'any, CA, SA, MD>
 where
-  RRD: ReqResDataMut,
+  MD: MsgDataMut,
 {
   #[inline]
-  fn from(state: State<'any, CA, SA, RRD>) -> Self {
+  fn from(state: State<'any, CA, SA, MD>) -> Self {
     Self::new(state.conn_aux, state.stream_aux, state.req)
   }
 }
 
-impl<'any, CA, SA, RRD, const CLEAN: bool> From<&'any mut (CA, SA, Request<RRD>)>
-  for StateGeneric<'any, CA, SA, RRD, CLEAN>
+impl<'any, CA, SA, MD, const CLEAN: bool> From<&'any mut (CA, SA, Request<MD>)>
+  for StateGeneric<'any, CA, SA, MD, CLEAN>
 where
-  RRD: ReqResDataMut,
+  MD: MsgDataMut,
 {
   #[inline]
-  fn from((conn_aux, stream_aux, req): &'any mut (CA, SA, Request<RRD>)) -> Self {
+  fn from((conn_aux, stream_aux, req): &'any mut (CA, SA, Request<MD>)) -> Self {
     Self::new(conn_aux, stream_aux, req)
   }
 }
 
-impl<'any, CA, SA, RRD, const CLEAN: bool>
-  From<&'any mut (&'any mut CA, &'any mut SA, Request<RRD>)>
-  for StateGeneric<'any, CA, SA, RRD, CLEAN>
+impl<'any, CA, SA, MD, const CLEAN: bool> From<&'any mut (&'any mut CA, &'any mut SA, Request<MD>)>
+  for StateGeneric<'any, CA, SA, MD, CLEAN>
 where
-  RRD: ReqResDataMut,
+  MD: MsgDataMut,
 {
   #[inline]
   fn from(
-    (conn_aux, stream_aux, req): &'any mut (&'any mut CA, &'any mut SA, Request<RRD>),
+    (conn_aux, stream_aux, req): &'any mut (&'any mut CA, &'any mut SA, Request<MD>),
   ) -> Self {
     Self::new(conn_aux, stream_aux, req)
   }
@@ -111,25 +106,25 @@ where
 
 /// Owned state used in testing environments.
 #[derive(Debug)]
-pub struct StateTest<CA, SA, RRD> {
+pub struct StateTest<CA, SA, MD> {
   /// Connection auxiliary
   pub conn_aux: CA,
   /// Request/Response Data
-  pub req: Request<RRD>,
+  pub req: Request<MD>,
   /// Stream auxiliary
   pub stream_aux: SA,
 }
 
-impl<CA, SA, RRD> StateTest<CA, SA, RRD> {
+impl<CA, SA, MD> StateTest<CA, SA, MD> {
   /// Mutable parts
   #[inline]
-  pub const fn parts_mut(&mut self) -> (&mut CA, &mut SA, &mut Request<RRD>) {
+  pub const fn parts_mut(&mut self) -> (&mut CA, &mut SA, &mut Request<MD>) {
     (&mut self.conn_aux, &mut self.stream_aux, &mut self.req)
   }
 
   /// Returns a new [`StateGeneric`].
   #[inline]
-  pub const fn state<const CLEAR: bool>(&mut self) -> StateGeneric<'_, CA, SA, RRD, CLEAR> {
+  pub const fn state<const CLEAR: bool>(&mut self) -> StateGeneric<'_, CA, SA, MD, CLEAR> {
     StateGeneric {
       conn_aux: &mut self.conn_aux,
       req: &mut self.req,
@@ -138,7 +133,7 @@ impl<CA, SA, RRD> StateTest<CA, SA, RRD> {
   }
 }
 
-impl<CA, SA> StateTest<CA, SA, ReqResBuffer> {
+impl<CA, SA> StateTest<CA, SA, MsgBufferString> {
   /// Mutable parts with a modified request that only contains data and headers.
   #[inline]
   pub const fn parts_mut_with_body_and_headers(
@@ -149,8 +144,7 @@ impl<CA, SA> StateTest<CA, SA, ReqResBuffer> {
       &mut self.stream_aux,
       Request {
         method: self.req.method,
-        rrd: (&mut self.req.rrd.body, &mut self.req.rrd.headers),
-        version: self.req.version,
+        msg_data: (&mut self.req.msg_data.body, &mut self.req.msg_data.headers),
       },
     )
   }

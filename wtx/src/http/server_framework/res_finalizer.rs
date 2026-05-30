@@ -1,9 +1,9 @@
-use crate::http::{ReqResBuffer, Request, StatusCode};
+use crate::http::{MsgBufferString, Request, StatusCode};
 
 /// Modifies responses
 pub trait ResFinalizer<E> {
   /// Finalize response
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E>;
+  fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E>;
 }
 
 impl<E> ResFinalizer<E> for ()
@@ -11,7 +11,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+  fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
     req.clear();
     Ok(StatusCode::Ok)
   }
@@ -22,9 +22,9 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+  fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
     req.clear();
-    req.rrd.body.extend_from_copyable_slice(self.as_bytes())?;
+    req.msg_data.body.extend_from_copyable_slice(self.as_bytes())?;
     Ok(StatusCode::Ok)
   }
 }
@@ -35,7 +35,7 @@ where
   T: ResFinalizer<E>,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+  fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
     self.and_then(|elem| elem.finalize_response(req))
   }
 }

@@ -1,5 +1,5 @@
 use crate::http::{
-  Header, Headers, KnownHeaderName, ReqResBuffer, ReqResDataMut, Request, StatusCode,
+  Header, Headers, KnownHeaderName, MsgBufferString, MsgDataMut, Request, StatusCode,
   server_framework::ResFinalizer,
 };
 
@@ -65,9 +65,9 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+  fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
     req.clear();
-    Self::push_headers(req.rrd.headers_mut(), self.uri)?;
+    Self::push_headers(req.msg_data.headers_mut(), self.uri)?;
     Ok(self.status_code)
   }
 }

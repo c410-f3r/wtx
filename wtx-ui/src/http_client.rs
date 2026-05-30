@@ -2,10 +2,9 @@ use crate::clap::HttpClient;
 use std::{fs::OpenOptions, io::Write};
 use wtx::{
   http::{
-    Header, HttpClient as _, KnownHeaderName, ReqBuilder, ReqResBuffer,
-    client_pool::ClientPoolBuilder,
+    Header, HttpClient as _, KnownHeaderName, MsgBuffer, ReqBuilder, client_pool::ClientPoolBuilder,
   },
-  misc::{AsciiGeneric, UriRef, from_utf8_basic, str_split_once1, tracing_tree_init},
+  misc::{AsciiGeneric, from_utf8_basic, str_split_once1, tracing_tree_init},
 };
 
 pub(crate) async fn http_client(http_client: HttpClient) {
@@ -16,10 +15,10 @@ pub(crate) async fn http_client(http_client: HttpClient) {
     2 => tracing_tree_init(Some("debug")).unwrap(),
     _ => tracing_tree_init(Some("trace")).unwrap(),
   }
-  let mut rrb = ReqResBuffer::empty();
+  let mut msg_buffer = MsgBuffer::from_uri(uri.into());
   for pair in header {
     let (name, values) = str_split_once1(&pair, AsciiGeneric::COLON).unwrap();
-    rrb
+    msg_buffer
       .headers
       .push_from_iter(Header::from_name_and_value(
         name.trim(),
@@ -28,7 +27,7 @@ pub(crate) async fn http_client(http_client: HttpClient) {
       .unwrap();
   }
   if let Some(elem) = user_agent {
-    rrb
+    msg_buffer
       .headers
       .push_from_iter(Header::from_name_and_value(
         KnownHeaderName::UserAgent.into(),
@@ -37,13 +36,11 @@ pub(crate) async fn http_client(http_client: HttpClient) {
       .unwrap();
   }
   if let Some(elem) = data {
-    rrb.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
+    msg_buffer.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
   }
   let client = ClientPoolBuilder::tokio_rustls(1).build();
-  let res = client
-    .send_req_recv_res(ReqBuilder::method(method, UriRef::new(uri.as_str())).into_request(), rrb)
-    .await
-    .unwrap();
+  let res =
+    client.send_req_recv_res(ReqBuilder::new(method, msg_buffer).into_request()).await.unwrap();
   if let Some(elem) = output {
     OpenOptions::new()
       .create(true)
@@ -51,9 +48,9 @@ pub(crate) async fn http_client(http_client: HttpClient) {
       .write(true)
       .open(elem)
       .unwrap()
-      .write_all(&res.rrd.body)
+      .write_all(&res.msg_data.body)
       .unwrap();
   } else {
-    println!("{}", from_utf8_basic(&res.rrd.body).unwrap());
+    println!("{}", from_utf8_basic(&res.msg_data.body).unwrap());
   }
 }

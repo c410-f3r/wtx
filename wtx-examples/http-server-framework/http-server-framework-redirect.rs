@@ -1,7 +1,7 @@
 //! Different types of redirects.
 
 use wtx::http::{
-  HttpRecvParams, ReqResBuffer, StatusCode,
+  HttpRecvParams, MsgBufferString, StatusCode,
   server_framework::{Redirect, Router, ServerFrameworkBuilder, StateClean, get},
 };
 
@@ -25,6 +25,6 @@ async fn permanent() -> Redirect {
   Redirect::permanent("/some/path")
 }
 
-async fn temporary(state: StateClean<'_, (), (), ReqResBuffer>) -> wtx::Result<StatusCode> {
-  Redirect::temporary_raw(&mut state.req.rrd.headers, "/another/path")
+async fn temporary(state: StateClean<'_, (), (), MsgBufferString>) -> wtx::Result<StatusCode> {
+  Redirect::temporary_raw(&mut state.req.msg_data.headers, "/another/path")
 }

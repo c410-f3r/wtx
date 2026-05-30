@@ -56,7 +56,7 @@ macro_rules! impl_tuples {
         collection::{ArrayVectorU8, ShortStrU8, Vector},
         http::{
           OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
-          ReqResBuffer, Response,
+          MsgBufferString, Response,
           server_framework::{ConnAux, Endpoint, Middleware, StreamAux, RouteMatch, EndpointNode, PathParams}
         },
       };
@@ -104,7 +104,7 @@ macro_rules! impl_tuples {
             &self,
             _conn_aux: &mut CA,
             _mw_aux: &mut Self::Aux,
-            _req: &mut Request<ReqResBuffer>,
+            _req: &mut Request<MsgBufferString>,
             _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
@@ -121,14 +121,13 @@ macro_rules! impl_tuples {
             &self,
             _conn_aux: &mut CA,
             _mw_aux: &mut Self::Aux,
-            _res: Response<&mut ReqResBuffer>,
+            _res: Response<&mut MsgBufferString>,
             _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
               let local_res = Response {
-                rrd: &mut *_res.rrd,
+                msg_data: &mut *_res.msg_data,
                 status_code: _res.status_code,
-                version: _res.version,
               };
               let rslt = self.$N.res(_conn_aux, &mut _mw_aux.$N, local_res, _stream_aux).await?;
               if let ControlFlow::Break(status_code) = rslt {

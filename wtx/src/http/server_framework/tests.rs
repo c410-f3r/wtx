@@ -1,7 +1,8 @@
 use crate::{
   executor::Runtime,
   http::{
-    AutoStream, HttpRecvParams, ManualStream, Method, ReqResBuffer, Request, Response, StatusCode,
+    AutoStream, HttpRecvParams, ManualStream, Method, MsgBufferString, Request, Response,
+    StatusCode,
     server_framework::{
       ConnAux, Middleware, Router, ServerFrameworkBuilder, StateClean, StreamAux,
       endpoint::Endpoint, get,
@@ -15,11 +16,11 @@ use core::{
 
 #[test]
 fn compiles() {
-  async fn one(_: StateClean<'_, (), (), ReqResBuffer>) -> crate::Result<StatusCode> {
+  async fn one(_: StateClean<'_, (), (), MsgBufferString>) -> crate::Result<StatusCode> {
     Ok(StatusCode::Ok)
   }
 
-  async fn two(_: StateClean<'_, (), (), ReqResBuffer>) -> crate::Result<StatusCode> {
+  async fn two(_: StateClean<'_, (), (), MsgBufferString>) -> crate::Result<StatusCode> {
     Ok(StatusCode::Ok)
   }
 
@@ -76,7 +77,7 @@ fn nested_middlewares() {
       &self,
       conn_aux: &mut Counter,
       _: &mut Self::Aux,
-      _: &mut Request<ReqResBuffer>,
+      _: &mut Request<MsgBufferString>,
       stream_aux: &mut Counter,
     ) -> crate::Result<ControlFlow<StatusCode, ()>> {
       conn_aux.0 += 3;
@@ -88,7 +89,7 @@ fn nested_middlewares() {
       &self,
       conn_aux: &mut Counter,
       _: &mut Self::Aux,
-      _: Response<&mut ReqResBuffer>,
+      _: Response<&mut MsgBufferString>,
       stream_aux: &mut Counter,
     ) -> crate::Result<ControlFlow<StatusCode, ()>> {
       conn_aux.0 += 7;
@@ -98,7 +99,7 @@ fn nested_middlewares() {
   }
 
   async fn add11(
-    state: StateClean<'_, Counter, Counter, ReqResBuffer>,
+    state: StateClean<'_, Counter, Counter, MsgBufferString>,
   ) -> crate::Result<StatusCode> {
     assert_eq!(state.conn_aux.0, 6);
     assert_eq!(state.stream_aux.0, 6);
@@ -114,7 +115,7 @@ fn nested_middlewares() {
   }
 
   async fn add13(
-    state: StateClean<'_, Counter, Counter, ReqResBuffer>,
+    state: StateClean<'_, Counter, Counter, MsgBufferString>,
   ) -> crate::Result<StatusCode> {
     state.conn_aux.0 += 15;
     state.stream_aux.0 += 15;
@@ -122,7 +123,7 @@ fn nested_middlewares() {
   }
 
   async fn add14(
-    state: StateClean<'_, Counter, Counter, ReqResBuffer>,
+    state: StateClean<'_, Counter, Counter, MsgBufferString>,
   ) -> crate::Result<StatusCode> {
     assert_eq!(state.conn_aux.0, 3);
     assert_eq!(state.stream_aux.0, 3);
@@ -160,13 +161,13 @@ fn nested_middlewares() {
       conn_aux: Counter(0),
       peer: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
       protocol: None,
-      req: Request::http2(Method::Get, ReqResBuffer::default()),
+      req: Request::http2(Method::Get, MsgBufferString::default()),
       stream_aux: Counter(0),
     };
 
     {
-      auto_stream.req.rrd.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
-      let el = &sf._router._matcher.at(auto_stream.req.rrd.uri.path()).unwrap();
+      auto_stream.req.msg_data.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
+      let el = &sf._router._matcher.at(auto_stream.req.msg_data.uri.path()).unwrap();
       let path_defs = el.value.clone().0;
       let _ = sf._router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();
       // 3 + 3 + 11 + 7 + 7
@@ -180,8 +181,8 @@ fn nested_middlewares() {
     auto_stream.stream_aux = Counter(0);
 
     {
-      auto_stream.req.rrd.uri.reset().push_str("http://localhost/fff");
-      let path = auto_stream.req.rrd.uri.path();
+      auto_stream.req.msg_data.uri.reset().push_str("http://localhost/fff");
+      let path = auto_stream.req.msg_data.uri.path();
       let el = &sf._router._matcher.at(path).unwrap();
       let path_defs = el.value.clone().0;
       let _ = sf._router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();

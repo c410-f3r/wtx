@@ -1,5 +1,5 @@
 use crate::{
-  http::{HttpClient, ReqBuilder, ReqResBuffer, client_pool::ClientPoolBuilder},
+  http::{HttpClient, ReqBuilder, client_pool::ClientPoolBuilder},
   misc::UriRef,
 };
 
@@ -12,8 +12,5 @@ async fn popular_sites() {
 
 async fn send_recv(uri: UriRef<'_>) {
   let client = ClientPoolBuilder::tokio_rustls(1).build();
-  let _res = client
-    .send_req_recv_res(ReqBuilder::get(uri).into_request(), ReqResBuffer::empty())
-    .await
-    .unwrap();
+  let _res = client.send_req_recv_res(ReqBuilder::get(uri).into_request()).await.unwrap();
 }

@@ -1,43 +1,41 @@
-use crate::http::{Headers, ReqResData, StatusCode, Version};
+use crate::http::{Headers, MsgData, StatusCode};
 
 /// Represents the response from an HTTP request.
 #[derive(Debug)]
-pub struct Response<RRD> {
-  /// See [`ReqResData`].
-  pub rrd: RRD,
+pub struct Response<MD> {
+  /// See [`MsgData`].
+  pub msg_data: MD,
   /// See [`StatusCode`].
   pub status_code: StatusCode,
-  /// See [`Version`].
-  pub version: Version,
 }
 
-impl<RRD> Response<RRD> {
+impl<MD> Response<MD> {
   /// Constructor shortcut
   #[inline]
-  pub const fn new(rrd: RRD, status_code: StatusCode, version: Version) -> Self {
-    Self { rrd, status_code, version }
+  pub const fn new(msg_data: MD, status_code: StatusCode) -> Self {
+    Self { msg_data, status_code }
   }
 
   /// Constructor that defaults to an HTTP/2 version.
   #[inline]
-  pub const fn http2(data: RRD, status_code: StatusCode) -> Self {
-    Self { rrd: data, status_code, version: Version::Http2 }
+  pub const fn http2(data: MD, status_code: StatusCode) -> Self {
+    Self { msg_data: data, status_code }
   }
 }
 
-impl<RRD> Response<RRD>
+impl<MD> Response<MD>
 where
-  RRD: ReqResData,
+  MD: MsgData,
 {
   /// Shortcut to access the body of `data`.
   #[inline]
-  pub fn body(&self) -> &RRD::Body {
-    self.rrd.body()
+  pub fn body(&self) -> &MD::Body {
+    self.msg_data.body()
   }
 
   /// Shortcut to access the headers of `data`.
   #[inline]
   pub fn headers(&self) -> &Headers {
-    self.rrd.headers()
+    self.msg_data.headers()
   }
 }

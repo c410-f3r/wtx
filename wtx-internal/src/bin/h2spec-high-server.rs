@@ -5,7 +5,7 @@
 use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
   http::{
-    AutoStream, HttpRecvParams, ManualServerStream, OperationMode, OptionedServer, ReqResBuffer,
+    AutoStream, HttpRecvParams, ManualServerStream, MsgBufferString, OperationMode, OptionedServer,
     Response, StatusCode,
   },
   http2::Http2Buffer,
@@ -28,9 +28,9 @@ async fn main() -> wtx::Result<()> {
   .await
 }
 
-async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<ReqResBuffer>, wtx::Error> {
+async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<MsgBufferString>, wtx::Error> {
   ha.req.clear();
-  ha.req.rrd.body.extend_from_copyable_slice(b"Hello").unwrap();
+  ha.req.msg_data.body.extend_from_copyable_slice(b"Hello").unwrap();
   Ok(ha.req.into_response(StatusCode::Ok))
 }
 

@@ -3,7 +3,7 @@ use crate::{
   collection::{ArrayString, ArrayStringU8, ArrayVectorU8, Vector},
   crypto::{Aead, Aes128GcmGlobal},
   http::{
-    Header, KnownHeaderName, ReqResBuffer, ReqResDataMut, SessionManagerBuilder, SessionState,
+    Header, KnownHeaderName, MsgBufferString, MsgDataMut, SessionManagerBuilder, SessionState,
     SessionStore, cookie::cookie_generic::CookieGeneric,
   },
   misc::{AsciiGraphic, Lease, LeaseMut, Secret},
@@ -41,34 +41,34 @@ where
 
   /// Removes the session from the store and also modifies headers.
   #[inline]
-  pub async fn delete_session_cookie<RRD, S>(
+  pub async fn delete_session_cookie<MD, S>(
     &mut self,
-    rrd: &mut RRD,
+    msg_data: &mut MD,
     state: &mut Option<SessionState<CS>>,
     store: &mut S,
   ) -> Result<(), E>
   where
-    RRD: ReqResDataMut,
+    MD: MsgDataMut,
     S: SessionStore<CS, E>,
   {
-    self.inner.1.lock().await.delete_session_cookie(rrd, state, store).await
+    self.inner.1.lock().await.delete_session_cookie(msg_data, state, store).await
   }
 
   /// Saves the session in the store and also modifies headers.
   ///
-  /// The `rrd` body is used as a temporary buffer but no existing content is erased.
+  /// The `msg_data` body is used as a temporary buffer but no existing content is erased.
   #[inline]
-  pub async fn set_session_cookie<RNG, RRD, S>(
+  pub async fn set_session_cookie<RNG, MD, S>(
     &mut self,
     custom_state: CS,
+    msg_data: &mut MD,
     rng: &mut RNG,
-    rrd: &mut RRD,
     store: &mut S,
   ) -> Result<(), E>
   where
     CS: Serialize,
     RNG: CryptoRng,
-    RRD: LeaseMut<ReqResBuffer>,
+    MD: LeaseMut<MsgBufferString>,
     S: SessionStore<CS, E>,
   {
     let inner = &mut *self.inner.1.lock().await;
@@ -93,21 +93,21 @@ where
         elem
       }
     };
-    let idx = rrd.lease().body.len();
-    serde_json::to_writer(&mut rrd.lease_mut().body, &local_state).map_err(Into::into)?;
+    let idx = msg_data.lease().body.len();
+    serde_json::to_writer(&mut msg_data.lease_mut().body, &local_state).map_err(Into::into)?;
     cookie_def.value.clear();
     let enc_rslt = session_secret.peek(&mut ArrayVectorU8::<_, { 16 + 28 }>::new(), |el| {
       Aes128GcmGlobal::encrypt_to_buffer_base64(
         cookie_def.name.as_bytes(),
         &mut cookie_def.value,
-        rrd.lease().body.get(idx..).unwrap_or_default(),
+        msg_data.lease().body.get(idx..).unwrap_or_default(),
         rng,
         el.as_ref().try_into()?,
       )
     });
-    rrd.lease_mut().body.truncate(idx);
+    msg_data.lease_mut().body.truncate(idx);
     let _ = enc_rslt??;
-    let headers_rslt = rrd.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
+    let headers_rslt = msg_data.lease_mut().headers.push_from_fmt(Header::from_name_and_value(
       KnownHeaderName::SetCookie.into(),
       format_args!(
         "{}",
@@ -122,7 +122,7 @@ where
     ));
     cookie_def.value.clear();
     headers_rslt?;
-    rrd.lease_mut().headers.push_from_iter(Header::from_name_and_value(
+    msg_data.lease_mut().headers.push_from_iter(Header::from_name_and_value(
       KnownHeaderName::XCsrfToken.into(),
       [local_state.session_csrf.as_str()],
     ))?;
@@ -149,20 +149,20 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  pub(crate) async fn delete_session_cookie<RRD, S>(
+  pub(crate) async fn delete_session_cookie<MD, S>(
     &mut self,
-    rrd: &mut RRD,
+    msg_data: &mut MD,
     state: &mut Option<SessionState<CS>>,
     store: &mut S,
   ) -> Result<(), E>
   where
-    RRD: ReqResDataMut,
+    MD: MsgDataMut,
     S: SessionStore<CS, E>,
   {
     if let Some(elem) = state.take() {
       store.delete(&elem.session_key).await?;
     };
-    self.cookie_def.delete(rrd.headers_mut())?;
+    self.cookie_def.delete(msg_data.headers_mut())?;
     Ok(())
   }
 }

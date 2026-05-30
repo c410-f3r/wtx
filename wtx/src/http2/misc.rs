@@ -1,5 +1,5 @@
 use crate::{
-  http::{HttpRecvParams, ReqResBuffer, StatusCode, u31::U31},
+  http::{HttpRecvParams, MsgBufferString, MsgDataMut, StatusCode, u31::U31},
   http2::{
     Http2Buffer, Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scrp,
     Sorp, Windows,
@@ -31,12 +31,12 @@ use core::{
 
 pub(crate) fn check_content_length(
   content_length: Option<usize>,
-  rrb: &ReqResBuffer,
+  msg_buffer: &MsgBufferString,
 ) -> crate::Result<()> {
   let Some(elem) = content_length else {
     return Ok(());
   };
-  if rrb.body.len() != elem {
+  if msg_buffer.body.len() != elem {
     return Err(protocol_err(Http2Error::InvalidContentLength));
   }
   Ok(())
@@ -78,28 +78,28 @@ pub(crate) fn manage_recurrent_receiving_of_overall_stream<EOS, const IS_CLIENT:
   is_conn_open: &AtomicBool,
   stream_id: U31,
   cb_eos: impl FnOnce(&mut Http2DataPartsMut<'_, IS_CLIENT>, StatusCode, StreamState, Windows) -> EOS,
-) -> Poll<crate::Result<(Http2RecvStatus<EOS, ()>, ReqResBuffer)>> {
+) -> Poll<crate::Result<(Http2RecvStatus<EOS, ()>, MsgBufferString)>> {
   macro_rules! eos {
     ($hdpm:expr, $hrs:ident, $sorp:expr, $stream_id:expr) => {{
       let content_length = $sorp.content_length;
-      let rrb = mem::take(&mut $sorp.rrb);
+      let msg_buffer = mem::take(&mut $sorp.msg_buffer);
       let status_code = $sorp.status_code;
       let stream_state = $sorp.stream_state;
       let windows = $sorp.windows;
       drop($hdpm.hb.sorps.remove($stream_id));
-      check_content_length(content_length, &rrb)?;
+      check_content_length(content_length, &msg_buffer)?;
       let eos = cb_eos(&mut $hdpm, status_code, stream_state, windows);
-      Poll::Ready(Ok((Http2RecvStatus::$hrs(eos), rrb)))
+      Poll::Ready(Ok((Http2RecvStatus::$hrs(eos), msg_buffer)))
     }};
   }
 
   let sorp = sorp_mut(&mut hdpm.hb.sorps, stream_id)?;
   match (connection_state(is_conn_open), sorp.is_stream_open) {
     (ConnectionState::Closed, false | true) => {
-      let rrb = mem::take(&mut sorp.rrb);
+      let msg_buffer = mem::take(&mut sorp.msg_buffer);
       drop(hdpm.hb.sorps.remove(&stream_id));
       frame_reader_rslt(hdpm.frame_reader_error)?;
-      return Poll::Ready(Ok((Http2RecvStatus::ClosedConnection, rrb)));
+      return Poll::Ready(Ok((Http2RecvStatus::ClosedConnection, msg_buffer)));
     }
     (ConnectionState::Open, false) => return eos!(hdpm, ClosedStream, sorp, &stream_id),
     (ConnectionState::Open, true) => {}
@@ -206,9 +206,9 @@ pub(crate) async fn read_header_and_continuations<
   is_conn_open: &AtomicBool,
   hp: &mut HttpRecvParams,
   hpack_dec: &mut HpackDecoder,
+  msg_buffer: &mut MsgBufferString,
   rd: &mut ReaderData<SR>,
   read_frame_waker: &AtomicWaker,
-  rrb: &mut ReqResBuffer,
   mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
 ) -> crate::Result<(Option<usize>, bool, H)>
 where
@@ -219,9 +219,9 @@ where
   }
 
   let rrb_body_start = if IS_TRAILER {
-    rrb.body.len()
+    msg_buffer.body.len()
   } else {
-    rrb.clear();
+    msg_buffer.clear();
     0
   };
 
@@ -231,7 +231,7 @@ where
       fi,
       hp,
       hpack_dec,
-      (rrb, rrb_body_start),
+      (msg_buffer, rrb_body_start),
     )?;
 
     if hf.is_over_size() {
@@ -243,7 +243,7 @@ where
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
-  rrb.body.extend_from_copyable_slice(rd.pfb.current())?;
+  msg_buffer.body.extend_from_copyable_slice(rd.pfb.current())?;
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
@@ -257,7 +257,7 @@ where
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      rrb.body.extend_from_copyable_slice(rd.pfb.current())?;
+      msg_buffer.body.extend_from_copyable_slice(rd.pfb.current())?;
       if frame_fi.cf.has_eoh() {
         break 'continuation_frames;
       }
@@ -265,12 +265,17 @@ where
     return Err(protocol_err(Http2Error::VeryLargeAmountOfContinuationFrames));
   }
 
-  let (content_length, hf) =
-    HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(None, fi, hp, hpack_dec, (rrb, rrb_body_start))?;
+  let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
+    None,
+    fi,
+    hp,
+    hpack_dec,
+    (msg_buffer, rrb_body_start),
+  )?;
   if IS_TRAILER {
-    rrb.body.truncate(rrb_body_start);
+    msg_buffer.body.truncate(rrb_body_start);
   } else {
-    rrb.clear();
+    msg_buffer.clear();
   }
   if hf.is_over_size() {
     return Err(crate::Error::Http2ErrorGoAway(

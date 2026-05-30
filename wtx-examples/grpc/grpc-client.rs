@@ -9,28 +9,27 @@ use std::borrow::Cow;
 use wtx::{
   codec::format::QuickProtobuf,
   grpc::GrpcClient,
-  http::{ReqResBuffer, client_pool::ClientPoolBuilder},
+  http::{MsgBuffer, client_pool::ClientPoolBuilder},
 };
 use wtx_examples::grpc_bindings::wtx::{GenericRequest, GenericResponse};
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  let rrb = ReqResBuffer::empty();
-  let uri_ref = rrb.uri.to_ref();
+  let msg_buffer =
+    MsgBuffer::from_uri("http://127.0.0.1:9000/wtx.GenericService/generic_method".into());
   let pool = ClientPoolBuilder::tokio(1).build();
-  let mut guard = pool.lock(&uri_ref).await?;
-  let mut client = GrpcClient::new(&mut guard.client, QuickProtobuf);
+  let mut client = GrpcClient::new(pool, QuickProtobuf);
   let res = client
     .send_unary_req(
       GenericRequest {
         generic_request_field0: Cow::Borrowed(b"generic_request_value"),
         generic_request_field1: 123,
       },
-      rrb,
-      "http://127.0.0.1:9000/wtx.GenericService/generic_method".into(),
+      msg_buffer,
     )
     .await?;
-  let generic_response: GenericResponse = client.des_from_res_bytes(&mut res.rrd.body.as_ref())?;
+  let generic_response: GenericResponse =
+    client.des_from_res_bytes(&mut res.msg_data.body.as_ref())?;
   println!("{generic_response:?}");
   Ok(())
 }

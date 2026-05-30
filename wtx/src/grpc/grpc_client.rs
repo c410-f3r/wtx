@@ -3,15 +3,13 @@ use crate::{
     Decode, DecodeWrapper, Encode, GenericCodec,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
-  collection::Vector,
+  collection::Clear,
   grpc::serialize,
   http::{
-    Header, Headers, HttpClient, KnownHeaderName, ReqBuilder, ReqResBuffer, Response,
-    WTX_USER_AGENT,
+    Header, Headers, HttpClient, KnownHeaderName, MsgBuffer, MsgBufferString, MsgDataMut,
+    ReqBuilder, Response, WTX_USER_AGENT,
   },
-  http2::{Http2, Http2Buffer},
-  misc::{LeaseMut, SingleTypeStorage, UriRef},
-  stream::StreamWriter,
+  misc::Lease,
 };
 
 /// Performs requests to gRPC servers.
@@ -19,19 +17,16 @@ use crate::{
 pub struct GrpcClient<C, DRSR> {
   client: C,
   drsr: DRSR,
-  enc_buffer: Vector<u8>,
 }
 
-impl<C, DRSR, HB, SW> GrpcClient<C, DRSR>
+impl<C, DRSR> GrpcClient<C, DRSR>
 where
-  C: LeaseMut<Http2<HB, SW, true>> + SingleTypeStorage<Item = (HB, SW)>,
-  HB: LeaseMut<Http2Buffer>,
-  SW: StreamWriter,
+  C: HttpClient,
 {
   /// Constructor
   #[inline]
   pub const fn new(client: C, drsr: DRSR) -> Self {
-    Self { client, drsr, enc_buffer: Vector::new() }
+    Self { client, drsr }
   }
 
   /// Deserialize From Response Bytes
@@ -50,23 +45,22 @@ where
   ///
   /// It is necessary to call [`Self::des_from_res_bytes`] to create the corresponding decoded element.
   #[inline]
-  pub async fn send_unary_req<T>(
+  pub async fn send_unary_req<S, T>(
     &mut self,
     data: T,
-    mut rrb: ReqResBuffer,
-    uri: UriRef<'_>,
-  ) -> crate::Result<Response<ReqResBuffer>>
+    mut msg_buffer: MsgBuffer<S>,
+  ) -> crate::Result<Response<MsgBufferString>>
   where
+    S: Clear + Lease<str>,
     VerbatimEncoder<T>: for<'drsr> Encode<GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
-    rrb.clear();
-    serialize(&mut rrb.body, VerbatimEncoder { data }, &mut self.drsr)?;
-    Self::push_headers(&mut rrb.headers)?;
-    let rrd = (rrb.body.as_ref(), &rrb.headers, uri);
-    let rb = ReqBuilder::post(rrd);
-    let req_id = self.client.lease_mut().send_req(&mut self.enc_buffer, rb.into_request()).await?;
-    let res = self.client.lease_mut().recv_res(rrb, req_id).await?;
-    Ok(Response::http2(res.rrd, res.status_code))
+    msg_buffer.clear_body_and_headers();
+    serialize(&mut msg_buffer.body, VerbatimEncoder { data }, &mut self.drsr)?;
+    Self::push_headers(&mut msg_buffer.headers)?;
+    let rb = ReqBuilder::post(msg_buffer);
+    let req_id = self.client.send_req(rb.into_request()).await?;
+    let res = self.client.recv_res(req_id).await?;
+    Ok(Response::http2(res.msg_data, res.status_code))
   }
 
   #[inline]

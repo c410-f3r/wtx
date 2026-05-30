@@ -18,7 +18,7 @@ impl Default for VerbatimParams {
 #[cfg(feature = "http-server-framework")]
 mod http_server_framework {
   use crate::http::{
-    ReqResBuffer, Request, StatusCode,
+    MsgBufferString, Request, StatusCode,
     server_framework::{ResFinalizer, VerbatimParams},
   };
 
@@ -27,7 +27,7 @@ mod http_server_framework {
     E: From<crate::Error>,
   {
     #[inline]
-    fn finalize_response(self, _: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+    fn finalize_response(self, _: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
       Ok(self.0)
     }
   }

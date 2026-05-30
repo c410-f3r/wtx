@@ -3,7 +3,7 @@
 use crate::{
   collection::Vector,
   http::{
-    Header, Headers, HttpError, KnownHeaderName, Method, ReqResBuffer, Request, Response,
+    Header, Headers, HttpError, KnownHeaderName, Method, MsgBufferString, Request, Response,
     StatusCode,
     server_framework::{ConnAux, Middleware, ServerFrameworkError},
   },
@@ -457,41 +457,42 @@ where
     &self,
     _: &mut CA,
     mw_aux: &mut Self::Aux,
-    req: &mut Request<ReqResBuffer>,
+    req: &mut Request<MsgBufferString>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     let origin_header_opt = if req.method == Method::Options {
-      let [acrh_opt, acrm_opt, origin_opt] = req.rrd.headers.get_by_names([
+      let [acrh_opt, acrm_opt, origin_opt] = req.msg_data.headers.get_by_names([
         KnownHeaderName::AccessControlRequestHeaders.into(),
         KnownHeaderName::AccessControlRequestMethod.into(),
         KnownHeaderName::Origin.into(),
       ]);
       if let Some(acrm) = acrm_opt {
-        req.rrd.body.clear();
+        req.msg_data.body.clear();
         if let Some(acrh) = acrh_opt {
-          self.manage_preflight_headers(acrh, &mut req.rrd.body)?;
+          self.manage_preflight_headers(acrh, &mut req.msg_data.body)?;
         }
         self.manage_preflight_methods(acrm)?;
-        let idx = req.rrd.body.len();
+        let idx = req.msg_data.body.len();
         let origin = Self::extract_origin(origin_opt)?;
-        let apply_vary = self.manage_preflight_origin(&mut req.rrd.body, origin)?;
-        let (headers_bytes, origin_bytes) = req.rrd.body.split_at_checked(idx).unwrap_or_default();
-        req.rrd.headers.clear();
+        let apply_vary = self.manage_preflight_origin(&mut req.msg_data.body, origin)?;
+        let (headers_bytes, origin_bytes) =
+          req.msg_data.body.split_at_checked(idx).unwrap_or_default();
+        req.msg_data.headers.clear();
         self.apply_preflight_response(
           apply_vary,
-          // SAFETY: every single element of `req.rrd.body` was previously inserted with UTF-8
+          // SAFETY: every single element of `req.msg_data.body` was previously inserted with UTF-8
           unsafe { str::from_utf8_unchecked(headers_bytes) },
-          // SAFETY: every single element of `req.rrd.body` was previously inserted with UTF-8
+          // SAFETY: every single element of `req.msg_data.body` was previously inserted with UTF-8
           unsafe { str::from_utf8_unchecked(origin_bytes) },
-          &mut req.rrd.headers,
+          &mut req.msg_data.headers,
         )?;
-        req.rrd.body.clear();
+        req.msg_data.body.clear();
         return Ok(ControlFlow::Break(StatusCode::Ok));
       } else {
         origin_opt
       }
     } else {
-      req.rrd.headers.get_by_name(KnownHeaderName::Origin.into())
+      req.msg_data.headers.get_by_name(KnownHeaderName::Origin.into())
     };
     if let Some(origin_header) = origin_header_opt {
       if self.allow_origins.0 {
@@ -510,10 +511,10 @@ where
     &self,
     _: &mut CA,
     mw_aux: &mut Self::Aux,
-    res: Response<&mut ReqResBuffer>,
+    res: Response<&mut MsgBufferString>,
     _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    self.apply_normal_response(mw_aux, &mut res.rrd.headers)?;
+    self.apply_normal_response(mw_aux, &mut res.msg_data.headers)?;
     Ok(ControlFlow::Continue(()))
   }
 }

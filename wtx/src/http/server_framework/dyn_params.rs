@@ -16,7 +16,7 @@ pub enum DynParams {
 #[cfg(feature = "http-server-framework")]
 mod http_server_framework {
   use crate::http::{
-    ReqResBuffer, Request, StatusCode,
+    MsgBufferString, MsgDataMut, Request, StatusCode,
     server_framework::{DynParams, ResFinalizer},
   };
 
@@ -25,18 +25,18 @@ mod http_server_framework {
     E: From<crate::Error>,
   {
     #[inline]
-    fn finalize_response(self, req: &mut Request<ReqResBuffer>) -> Result<StatusCode, E> {
+    fn finalize_response(self, req: &mut Request<MsgBufferString>) -> Result<StatusCode, E> {
       Ok(match self {
         DynParams::ClearAll(elem) => {
-          req.rrd.clear();
+          req.msg_data.clear();
           elem
         }
         DynParams::NoBody(elem) => {
-          req.rrd.body.clear();
+          req.msg_data.body.clear();
           elem
         }
         DynParams::NoHeaders(elem) => {
-          req.rrd.headers.clear();
+          req.msg_data.headers.clear();
           elem
         }
         DynParams::Verbatim(elem) => elem,

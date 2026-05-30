@@ -3,7 +3,7 @@
 use crate::{
   client_api_framework::network::transport::TransportParams,
   collection::Vector,
-  http::{Headers, Method, Mime, ReqResBuffer, StatusCode},
+  http::{Headers, Method, Mime, MsgBufferString, StatusCode},
   misc::{Lease, LeaseMut, UriString},
 };
 use alloc::string::String;
@@ -21,7 +21,7 @@ impl HttpParams {
         host: true,
         method: Method::Get,
         mime: None,
-        rrb: ReqResBuffer {
+        msg_buffer: MsgBufferString {
           body: Vector::new(),
           headers: Headers::new(),
           uri: UriString::new(uri),
@@ -82,8 +82,8 @@ pub struct HttpReqParams {
   pub method: Method,
   /// See [`Mime`].
   pub mime: Option<Mime>,
-  /// See [`ReqResBuffer`].
-  pub rrb: ReqResBuffer,
+  /// See [`MsgBufferString`].
+  pub msg_buffer: MsgBufferString,
   /// Custom user agent that will be included in the headers
   ///
   /// If `user_agent_default` is `true`, then this field becomes a NO-OP.
@@ -98,13 +98,13 @@ impl HttpReqParams {
   /// Sets the inner parameters with their default values.
   #[inline]
   pub fn reset(&mut self) {
-    let Self { host, method, mime, rrb, user_agent_custom, user_agent_default } = self;
+    let Self { host, method, mime, msg_buffer, user_agent_custom, user_agent_default } = self;
     *host = true;
     *method = Method::Get;
     *mime = None;
     *user_agent_custom = None;
     *user_agent_default = true;
-    let ReqResBuffer { body, headers, uri } = rrb;
+    let MsgBufferString { body, headers, uri } = msg_buffer;
     body.clear();
     headers.clear();
     uri.truncate_with_initial_len();

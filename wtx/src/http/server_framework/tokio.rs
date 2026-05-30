@@ -1,14 +1,13 @@
 use crate::{
   collection::ArrayVectorU8,
   http::{
-    AutoStream, ManualServerStream, OptionedServer, ReqResBuffer, Request, Response,
+    AutoStream, ManualServerStream, MsgBufferString, OptionedServer, Request, Response,
     server_framework::{
       ConnAux, EndpointNode, Middleware, RouteMatch, Router, ServerFramework, StreamAux,
       endpoint::Endpoint,
     },
   },
   http2::{Http2Buffer, ServerStream},
-  rng::{SeedableRng, Xorshift64},
   sync::Arc,
 };
 use tokio::net::{TcpStream, tcp::OwnedWriteHalf};
@@ -28,9 +27,9 @@ where
   async fn auto(
     headers_aux: (ArrayVectorU8<RouteMatch, 4>, Arc<Router<CA, E, EN, M, S, SA>>),
     mut auto_stream: AutoStream<CA, SA>,
-  ) -> Result<Response<ReqResBuffer>, E> {
+  ) -> Result<Response<MsgBufferString>, E> {
     let status_code = headers_aux.1.auto(&mut auto_stream, (0, &headers_aux.0)).await?;
-    Ok(Response { rrd: auto_stream.req.rrd, status_code, version: auto_stream.req.version })
+    Ok(Response { msg_data: auto_stream.req.msg_data, status_code })
   }
 }
 
@@ -55,7 +54,7 @@ where
     self,
     host: &str,
     conn_error_cb: impl Clone + Fn(E) + Send + 'static,
-    headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
+    headers_cb: impl Clone + Fn(Request<&mut MsgBufferString>) -> Result<(), E> + Send + Sync + 'static,
     stream_cb: impl Clone + Fn(&mut TcpStream) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> Result<(), E> {
@@ -77,7 +76,8 @@ where
       },
       move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {
-        let rslt = local_router._matcher.at(req.rrd.uri.path()).map_err(From::from)?.value.clone();
+        let rslt =
+          local_router._matcher.at(req.msg_data.uri.path()).map_err(From::from)?.value.clone();
         headers_cb(req)?;
         Ok(((rslt.0, Arc::clone(local_router)), rslt.1))
       },
@@ -120,10 +120,12 @@ where
     (cert_chain, priv_key): (&[u8], &[u8]),
     host: &str,
     conn_error_cb: impl Clone + Fn(E) + Send + 'static,
-    headers_cb: impl Clone + Fn(Request<&mut ReqResBuffer>) -> Result<(), E> + Send + Sync + 'static,
+    headers_cb: impl Clone + Fn(Request<&mut MsgBufferString>) -> Result<(), E> + Send + Sync + 'static,
     stream_cb: impl Clone + Fn(&mut TcpStream) -> Result<(), E> + Send + Sync + 'static,
     stream_error_cb: impl Clone + Fn(E) + Send + 'static,
   ) -> Result<(), E> {
+    use crate::rng::{SeedableRng as _, Xorshift64};
+
     let Self { _ca_cb, _cp, _sa_cb, _router } = self;
     let tls_acceptor = crate::misc::TokioRustlsAcceptor::without_client_auth()
       .http2()
@@ -145,7 +147,8 @@ where
       },
       move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {
-        let rslt = local_router._matcher.at(req.rrd.uri.path()).map_err(From::from)?.value.clone();
+        let rslt =
+          local_router._matcher.at(req.msg_data.uri.path()).map_err(From::from)?.value.clone();
         headers_cb(req)?;
         Ok(((rslt.0, Arc::clone(local_router)), rslt.1))
       },

@@ -1,5 +1,5 @@
 use crate::{
-  http::{ReqResBuffer, StatusCode},
+  http::{MsgBufferString, StatusCode},
   http2::{stream_state::StreamState, window::Windows},
 };
 use core::task::Waker;
@@ -27,7 +27,7 @@ pub(crate) struct StreamOverallRecvParams {
   pub(crate) has_initial_header: bool,
   pub(crate) has_one_or_more_data_frames: bool,
   pub(crate) is_stream_open: bool,
-  pub(crate) rrb: ReqResBuffer,
+  pub(crate) msg_buffer: MsgBufferString,
   pub(crate) status_code: StatusCode,
   pub(crate) stream_state: StreamState,
   pub(crate) windows: Windows,

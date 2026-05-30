@@ -1,7 +1,7 @@
 use crate::{
   collection::Vector,
   http::{
-    AutoStream, Headers, ReqResDataMut, Request, StatusCode,
+    AutoStream, Headers, MsgDataMut, Request, StatusCode,
     server_framework::{
       Endpoint, ResFinalizer, StateGeneric,
       arguments::{RouteMatch, manage_path},
@@ -29,8 +29,8 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    auto_stream.req.rrd.clear_body_and_headers();
-    let path = manage_path(path_defs, &auto_stream.req.rrd.uri)?;
+    auto_stream.req.msg_data.clear_body_and_headers();
+    let path = manage_path(path_defs, &auto_stream.req.msg_data.uri)?;
     self.0.call((PathStr(path),)).await.finalize_response(&mut auto_stream.req)
   }
 }
@@ -54,9 +54,8 @@ where
     auto_stream: &mut AutoStream<CA, SA>,
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
-    let (body, headers, uri) = auto_stream.req.rrd.parts_mut();
-    let mut new_req =
-      Request::new(auto_stream.req.method, (body, headers), auto_stream.req.version);
+    let (body, headers, uri) = auto_stream.req.msg_data.parts_mut();
+    let mut new_req = Request::new(auto_stream.req.method, (body, headers));
     let path = manage_path(path_defs, uri)?;
     self
       .0

@@ -1,7 +1,9 @@
 use crate::{
   codec::FromRadix10 as _,
   collection::{ArrayStringU16, Clear, Truncate, TryExtend},
-  misc::{AsciiGeneric, Lease, LeaseMut, bytes_pos1, str_split_once1, str_split1},
+  misc::{
+    AsciiGeneric, Lease, LeaseMut, SingleTypeStorage, bytes_pos1, str_split_once1, str_split1,
+  },
 };
 use alloc::{boxed::Box, string::String};
 use core::{
@@ -421,29 +423,6 @@ impl<S> Uri<S>
 where
   S: Clear + Lease<str>,
 {
-  /// Removes all content.
-  #[inline]
-  pub fn clear(&mut self) {
-    let Self {
-      authority_start,
-      fragment_start,
-      href_start,
-      initial_len,
-      port,
-      query_start,
-      start,
-      uri,
-    } = self;
-    *authority_start = 0;
-    *fragment_start = 0;
-    *href_start = 0;
-    *initial_len = 0;
-    *port = None;
-    *query_start = 0;
-    *start = 0;
-    uri.clear();
-  }
-
   /// Clears the internal storage and makes room for a new base URI.
   #[inline]
   pub fn reset(&mut self) -> UriReset<'_, S> {
@@ -537,6 +516,33 @@ where
   }
 }
 
+impl<S> Clear for Uri<S>
+where
+  S: Clear,
+{
+  #[inline]
+  fn clear(&mut self) {
+    let Self {
+      authority_start,
+      fragment_start,
+      href_start,
+      initial_len,
+      port,
+      query_start,
+      start,
+      uri,
+    } = self;
+    *authority_start = 0;
+    *fragment_start = 0;
+    *href_start = 0;
+    *initial_len = 0;
+    *port = None;
+    *query_start = 0;
+    *start = 0;
+    uri.clear();
+  }
+}
+
 impl<S> Lease<Uri<S>> for Uri<S> {
   #[inline]
   fn lease(&self) -> &Uri<S> {
@@ -549,6 +555,10 @@ impl<S> LeaseMut<Uri<S>> for Uri<S> {
   fn lease_mut(&mut self) -> &mut Uri<S> {
     self
   }
+}
+
+impl<S> SingleTypeStorage for Uri<S> {
+  type Item = S;
 }
 
 impl<S> Debug for Uri<S>
@@ -695,7 +705,7 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::misc::UriString;
+  use crate::{collection::Clear, misc::UriString};
 
   #[test]
   fn dynamic_methods_have_correct_behavior() {

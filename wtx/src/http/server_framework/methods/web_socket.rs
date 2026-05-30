@@ -37,7 +37,7 @@ where
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<StatusCode, E> {
     if !is_web_socket_handshake(
-      &auto_stream.req.rrd.headers,
+      &auto_stream.req.msg_data.headers,
       auto_stream.req.method,
       auto_stream.protocol,
     ) {
@@ -53,7 +53,7 @@ where
     path_defs: (u8, &[RouteMatch]),
   ) -> Result<(), E> {
     if !is_web_socket_handshake(
-      &manual_stream.req.rrd.headers,
+      &manual_stream.req.msg_data.headers,
       manual_stream.req.method,
       manual_stream.protocol,
     ) {
