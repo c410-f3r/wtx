@@ -1,4 +1,7 @@
-use crate::collection::{LinearStorageLen, ShortSlice};
+use crate::{
+  collection::{LinearStorageLen, ShortSlice},
+  misc::from_utf8_basic,
+};
 use core::{
   fmt::{Debug, Formatter},
   ops::Deref,
@@ -25,6 +28,18 @@ where
   #[inline]
   pub fn new(slice: &'any str) -> crate::Result<Self> {
     Ok(Self(ShortSlice::new(slice.as_bytes())?))
+  }
+
+  /// Length
+  #[inline]
+  pub const fn len(self) -> L {
+    self.0.len()
+  }
+
+  /// Underlying byte slice
+  #[inline]
+  pub fn into_short_slice(self) -> ShortSlice<'any, L, u8> {
+    self.0
   }
 
   /// Owned method that returns the original string with its associated lifetime.
@@ -77,10 +92,13 @@ where
 
 impl<L> Eq for ShortStr<'_, L> where L: LinearStorageLen {}
 
-impl<'any> From<&'any str> for ShortStrU8<'any> {
+impl<'any, L> From<ShortStr<'any, L>> for &'any str
+where
+  L: LinearStorageLen,
+{
   #[inline]
-  fn from(value: &'any str) -> Self {
-    Self::new_truncated_u8(value)
+  fn from(value: ShortStr<'any, L>) -> Self {
+    value.into_str()
   }
 }
 
@@ -91,5 +109,29 @@ where
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0
+  }
+}
+
+impl<'any, L> TryFrom<&'any [u8]> for ShortStr<'any, L>
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: &'any [u8]) -> Result<Self, Self::Error> {
+    Self::new(from_utf8_basic(value)?)
+  }
+}
+
+impl<'any, L> TryFrom<&'any str> for ShortStr<'any, L>
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: &'any str) -> Result<Self, Self::Error> {
+    Self::new(value)
   }
 }

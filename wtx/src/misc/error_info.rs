@@ -25,8 +25,11 @@ impl<E> ErrorInfo<E> {
     } else {
       0
     };
-    let file =
-      if cfg!(feature = "error-loc") { location.file().into() } else { ShortStrU8::default() };
+    let file = if cfg!(feature = "error-loc") {
+      ShortStrU8::new_truncated_u8(location.file())
+    } else {
+      ShortStrU8::default()
+    };
     let line =
       if cfg!(feature = "error-loc") { location.line().try_into().unwrap_or(u16::MAX) } else { 0 };
     Self { column, error, file, line }

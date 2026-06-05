@@ -1,7 +1,7 @@
 use crate::{
   codec::Decode,
-  database::{Database, Records},
-  misc::{Lease, into_rslt},
+  database::{Database, DatabaseError, Records},
+  misc::Lease,
 };
 use alloc::boxed::Box;
 use core::{fmt::Debug, iter};
@@ -103,7 +103,11 @@ where
   /// entity.
   #[inline]
   fn single(records: &D::Records<'exec>) -> Result<Self, D::Error> {
-    Self::from_records(&mut into_rslt(FromRecordsParams::init::<D>(records))?, records)
+    Self::from_records(
+      &mut FromRecordsParams::init::<D>(records)
+        .ok_or_else(|| DatabaseError::MissingSingleRecord.into())?,
+      records,
+    )
   }
 }
 

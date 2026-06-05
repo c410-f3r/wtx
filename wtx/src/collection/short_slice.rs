@@ -37,6 +37,12 @@ where
     Ok(Self { len: L::from_usize(slice.len())?, phantom: PhantomData, ptr: slice.as_ptr() })
   }
 
+  /// Length
+  #[inline]
+  pub const fn len(self) -> L {
+    self.len
+  }
+
   /// Owned method that returns the original slice with its associated lifetime.
   #[inline]
   pub fn into_slice(self) -> &'any [T] {
@@ -122,10 +128,13 @@ where
 
 impl<L> Eq for ShortSliceU8<'_, L> where L: LinearStorageLen {}
 
-impl<'any, T> From<&'any [T]> for ShortSliceU8<'any, T> {
+impl<'any, L, T> From<ShortSlice<'any, L, T>> for &'any [T]
+where
+  L: LinearStorageLen,
+{
   #[inline]
-  fn from(value: &'any [T]) -> Self {
-    Self::new_truncated_u8(value)
+  fn from(value: ShortSlice<'any, L, T>) -> Self {
+    value.into_slice()
   }
 }
 
@@ -137,6 +146,18 @@ where
   #[inline]
   fn eq(&self, other: &Self) -> bool {
     **self == **other
+  }
+}
+
+impl<'any, L, T> TryFrom<&'any [T]> for ShortSlice<'any, L, T>
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: &'any [T]) -> Result<Self, Self::Error> {
+    Self::new(value)
   }
 }
 
@@ -189,7 +210,7 @@ mod tests {
     fn fun(_: &'static [u8]) {}
 
     static FOO: &[u8] = &[1, 2, 3];
-    let foo: ShortSliceU8<'static, _> = ShortSliceU8::from(FOO);
+    let foo: ShortSliceU8<'static, _> = ShortSliceU8::try_from(FOO).unwrap();
     fun(foo.into_slice());
   }
 }

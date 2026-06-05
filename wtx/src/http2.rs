@@ -195,6 +195,7 @@ where
     poll_fn(|cx| {
       let mut guard = lock_pin!(cx, inner.hd, lock_pin);
       let hdpm = guard.parts_mut();
+      let linger = hdpm.hp.linger();
       if misc::connection_state(&inner.is_conn_open).is_closed() {
         misc::frame_reader_rslt(hdpm.frame_reader_error)?;
         return Poll::Ready(Ok(None));
@@ -217,6 +218,7 @@ where
       Poll::Ready(Ok(Some((
         ServerStream::new(
           inner.clone(),
+          linger,
           method,
           protocol,
           _trace_span!("New server stream", stream_id = %stream_id),
@@ -255,6 +257,7 @@ where
     let Self { inner } = self;
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();
+    let linger = hdpm.hp.linger();
     if hdpm.hb.sorps.len() >= *Usize::from(hdpm.hp.max_concurrent_streams_num()) {
       drop(hd_guard);
       let err = misc::protocol_err(Http2Error::ExceedAmountOfActiveConcurrentStreams);
@@ -274,7 +277,7 @@ where
     ));
     *hdpm.last_stream_id = hdpm.last_stream_id.wrapping_add(U31::TWO);
     drop(hd_guard);
-    Ok(ClientStream::new(inner.clone(), span, stream_id))
+    Ok(ClientStream::new(inner.clone(), linger, span, stream_id))
   }
 }
 

@@ -27,7 +27,7 @@ mod interspace;
 mod join_array;
 mod lease;
 mod mem;
-mod optimization;
+mod optimizations;
 mod pem;
 mod poll_once;
 mod ppm;
@@ -48,6 +48,7 @@ mod wrapper;
 
 #[cfg(feature = "tokio-rustls")]
 pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
+use crate::collection::ShortStrU8;
 pub use ascii::*;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
@@ -66,7 +67,7 @@ pub use interspace::Intersperse;
 pub use join_array::JoinArray;
 pub use lease::{Lease, LeaseMut};
 pub use mem::*;
-pub use optimization::*;
+pub use optimizations::*;
 pub use pem::Pem;
 pub use poll_once::PollOnce;
 pub use ppm::Ppm;
@@ -180,7 +181,7 @@ where
 #[inline]
 #[track_caller]
 pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
-  opt.ok_or(crate::Error::NoInnerValue(type_name::<T>().into()))
+  opt.ok_or(crate::Error::NoInnerValue(ShortStrU8::new_truncated_u8(type_name::<T>())))
 }
 
 /// Deserializes a sequence passing each element to `cb`. Works with any deserializer of any format.

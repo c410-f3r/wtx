@@ -46,7 +46,7 @@ async fn main() -> wtx::Result<()> {
               let _ = common.recv_trailers().await?;
               let _ = common.send_headers(&mut enc_buffer, &headers, false, StatusCode::Ok).await?;
               let _ = common.send_data(b"Hello", true).await?;
-              common.clear(true).await?;
+              common.clear().await?;
               wtx::Result::Ok(())
             };
             if let Err(err) = fun.await {

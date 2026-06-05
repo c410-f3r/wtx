@@ -81,61 +81,65 @@ mod tests {
     assert_eq!(
       vec.as_slice(),
       &[
-        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(0, OperationMode::Auto, "/a".into())])
-          .unwrap(),
+        ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(
+          0,
+          OperationMode::Auto,
+          "/a".try_into().unwrap()
+        )])
+        .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(1, OperationMode::Auto, "/a".into()),
-          RouteMatch::new(0, OperationMode::Auto, "/b".into())
+          RouteMatch::new(1, OperationMode::Auto, "/a".try_into().unwrap()),
+          RouteMatch::new(0, OperationMode::Auto, "/b".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(2, OperationMode::Auto, "/a".into()),
-          RouteMatch::new(0, OperationMode::Auto, "/c/d".into())
+          RouteMatch::new(2, OperationMode::Auto, "/a".try_into().unwrap()),
+          RouteMatch::new(0, OperationMode::Auto, "/c/d".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(3, OperationMode::Auto, "/a".into()),
-          RouteMatch::new(0, OperationMode::Auto, "/d".into()),
-          RouteMatch::new(0, OperationMode::Auto, "/e".into())
+          RouteMatch::new(3, OperationMode::Auto, "/a".try_into().unwrap()),
+          RouteMatch::new(0, OperationMode::Auto, "/d".try_into().unwrap()),
+          RouteMatch::new(0, OperationMode::Auto, "/e".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(
           4,
           OperationMode::Auto,
-          "/f/g".into()
+          "/f/g".try_into().unwrap()
         )])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(5, OperationMode::Auto, "/f/g".into()),
-          RouteMatch::new(0, OperationMode::Auto, "/h".into())
+          RouteMatch::new(5, OperationMode::Auto, "/f/g".try_into().unwrap()),
+          RouteMatch::new(0, OperationMode::Auto, "/h".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[RouteMatch::new(
           6,
           OperationMode::Manual,
-          "/i/j/k".into()
+          "/i/j/k".try_into().unwrap()
         )])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
-          RouteMatch::new(0, OperationMode::Auto, "/m".into())
+          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
+          RouteMatch::new(0, OperationMode::Auto, "/m".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
-          RouteMatch::new(1, OperationMode::Auto, "/n".into())
+          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
+          RouteMatch::new(1, OperationMode::Auto, "/n".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
-          RouteMatch::new(2, OperationMode::Auto, "/o".into()),
-          RouteMatch::new(0, OperationMode::Auto, "/p".into())
+          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
+          RouteMatch::new(2, OperationMode::Auto, "/o".try_into().unwrap()),
+          RouteMatch::new(0, OperationMode::Auto, "/p".try_into().unwrap())
         ])
         .unwrap(),
         ArrayVectorU8::from_copyable_slice(&[
-          RouteMatch::new(7, OperationMode::Auto, "/l".into()),
-          RouteMatch::new(2, OperationMode::Auto, "/o".into()),
-          RouteMatch::new(1, OperationMode::Auto, "/q".into())
+          RouteMatch::new(7, OperationMode::Auto, "/l".try_into().unwrap()),
+          RouteMatch::new(2, OperationMode::Auto, "/o".try_into().unwrap()),
+          RouteMatch::new(1, OperationMode::Auto, "/q".try_into().unwrap())
         ])
         .unwrap(),
       ]

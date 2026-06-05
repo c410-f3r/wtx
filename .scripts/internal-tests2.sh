@@ -16,10 +16,9 @@ $rt test-with-features wtx http2
 $rt test-with-features wtx httparse
 $rt test-with-features wtx libc
 $rt test-with-features wtx macros
-$rt test-with-features wtx matchit
 $rt test-with-features wtx memchr
 $rt test-with-features wtx nightly
-$rt test-with-features wtx optimization
+$rt test-with-features wtx optimizations
 $rt test-with-features wtx parking_lot
 $rt test-with-features wtx portable-atomic
 $rt test-with-features wtx portable-atomic-util

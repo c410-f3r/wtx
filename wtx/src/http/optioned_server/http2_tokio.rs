@@ -201,7 +201,7 @@ impl OptionedServer {
                 Ok::<_, ERR>(())
               };
               let stream_fun_rslt = stream_fun.await;
-              let _rslt = stream.common().clear(true).await;
+              let _rslt = stream.common().clear().await;
               if let Err(err) = stream_fun_rslt {
                 stream.common().send_go_away(Http2ErrorCode::InternalError).await;
                 stream_err_cb(err);

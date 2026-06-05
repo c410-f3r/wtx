@@ -79,7 +79,9 @@ impl crate::misc::FromVars for DatabaseUriFromVars {
         rslt = Some(value)
       }
     }
-    let uri = rslt.ok_or_else(|| crate::Error::MissingVar(DEFAULT_URI_VAR.into()))?;
+    let uri = rslt.ok_or_else(|| {
+      crate::Error::MissingVar(crate::collection::ShortStrU8::new_truncated_u8(DEFAULT_URI_VAR))
+    })?;
     Ok(Self { uri })
   }
 }
