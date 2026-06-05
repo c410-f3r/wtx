@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.5.5...wtx-ui-v0.5.6) - 2026-06-05
+
+### Other
+
+- updated the following local packages: wtx
+
 ## [0.5.5](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.5.4...wtx-ui-v0.5.5) - 2026-06-05
 
 ### Other
