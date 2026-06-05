@@ -17,7 +17,6 @@ use wtx::{
 async fn main() {
   OptionedServer::web_socket_tokio(
     "127.0.0.1:9070",
-    None,
     Flate2::default,
     |error| eprintln!("{error}"),
     handle,
@@ -28,7 +27,7 @@ async fn main() {
 }
 
 async fn handle(
-  mut ws: WebSocket<Option<NegotiatedFlate2>, Xorshift64, TcpStream, &mut WebSocketBuffer, false>,
+  mut ws: WebSocket<Option<NegotiatedFlate2>, Xorshift64, TcpStream, WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
   let mut buffer = Vector::new();

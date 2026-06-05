@@ -4,7 +4,7 @@
 [![deps.rs](https://deps.rs/crate/wtx/latest/status.svg)](https://deps.rs/crate/wtx)
 [![docs.rs](https://img.shields.io/docsrs/wtx?color=blue)](https://docs.rs/wtx)
 [![license](https://img.shields.io/crates/l/wtx?&color=blue)](https://github.com/c410-f3r/wtx/blob/main/LICENSE)
-[![rustc](https://img.shields.io/badge/rustc-1.95-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.95.0.html)
+[![rustc](https://img.shields.io/badge/rustc-1.96-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.96.0.html)
 [![tests](https://img.shields.io/github/actions/workflow/status/c410-f3r/wtx/tests.yaml?label=tests)](https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml)
 
 A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 8 IETF RFCs along side other elements.

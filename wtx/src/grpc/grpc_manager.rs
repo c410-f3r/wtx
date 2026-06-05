@@ -25,7 +25,7 @@ impl<DRSR> GrpcManager<DRSR> {
 
   /// Deserialize From Request Bytes.
   #[inline]
-  pub fn des_from_req_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
+  pub fn des_from_req_bytes<'de, T>(&mut self, bytes: &'de [u8]) -> crate::Result<T>
   where
     VerbatimEncoder<T>: for<'drsr> Decode<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {

@@ -28,6 +28,7 @@ rustls-pki-types = { default-features = false, optional = true, version = "1.0" 
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 simdutf8 = { default-features = false, optional = true, version = "0.1" }
+socket2 = { default-features = false, features = ["all"], optional = true, version = "0.6" }
 tokio = { default-features = false, optional = true, version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 tracing = { default-features = false, optional = true, version = "0.1" }
@@ -88,6 +89,7 @@ macros = ["dep:wtx-macros"]
 memchr = ["dep:memchr"]
 nightly = []
 optimizations = ["memchr", "simdutf8"]
+optioned-server = ["nightly", "socket2"]
 parking_lot = ["dep:parking_lot"]
 portable-atomic = ["dep:portable-atomic", "portable-atomic/fallback"]
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util", "portable-atomic-util/alloc"]
@@ -140,7 +142,7 @@ license = "MPL-2.0"
 name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
-rust-version = "1.95"
+rust-version = "1.96"
 version = "0.47.6"
 
 [package.metadata.docs.rs]

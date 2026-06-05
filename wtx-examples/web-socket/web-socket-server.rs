@@ -19,7 +19,6 @@ use wtx::{
 async fn main() -> wtx::Result<()> {
   OptionedServer::web_socket_tokio(
     &wtx_examples::host_from_args(),
-    None,
     || {},
     |error| eprintln!("{error}"),
     handle,
@@ -35,7 +34,7 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn handle(
-  mut ws: WebSocket<(), Xorshift64, TlsStream<TcpStream>, &mut WebSocketBuffer, false>,
+  mut ws: WebSocket<(), Xorshift64, TlsStream<TcpStream>, WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
   let mut buffer = Vector::new();

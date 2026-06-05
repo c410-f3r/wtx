@@ -19,7 +19,7 @@ mod msg_buffer;
 mod msg_builder;
 mod msg_data;
 mod operation_mode;
-#[cfg(feature = "nightly")]
+#[cfg(feature = "optioned-server")]
 mod optioned_server;
 mod protocol;
 mod request;
@@ -50,7 +50,7 @@ pub use msg_buffer::{MsgBuffer, MsgBufferStr, MsgBufferString};
 pub use msg_builder::{MsgBuilder, MsgBuilderInput, ReqBuilder, ResBuilder};
 pub use msg_data::{MsgData, MsgDataMut};
 pub use operation_mode::*;
-#[cfg(feature = "nightly")]
+#[cfg(feature = "optioned-server")]
 pub use optioned_server::OptionedServer;
 pub use protocol::Protocol;
 pub use request::Request;
