@@ -50,7 +50,10 @@ impl<C, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB> {
 
   /// Request callback.
   #[inline]
-  pub fn req<NR>(self, elem: NR) -> WebSocketAcceptor<C, NR, RNG, WB> {
+  pub fn req<NE, NR>(self, elem: NR) -> WebSocketAcceptor<C, NR, RNG, WB>
+  where
+    NR: FnOnce(&Request<'_, '_>) -> Result<(), NE>,
+  {
     WebSocketAcceptor {
       compression: self.compression,
       no_masking: self.no_masking,
