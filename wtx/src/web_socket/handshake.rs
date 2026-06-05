@@ -21,7 +21,7 @@ use crate::{
   codec::{Base64Alphabet, base64_encode, base64_encoded_len},
   crypto::{Hash, Sha1DigestGlobal},
   http::{GenericHeader as _, GenericRequest as _, HttpError, KnownHeaderName, Method},
-  misc::{LeaseMut, SuffixWriterFbvm, UriRef, bytes_split1},
+  misc::{LeaseMut, SuffixWriterFbvm, UriRef, bytes_split1, net::PartitionedFilledBuffer},
   rng::Rng,
   stream::Stream,
   web_socket::{
@@ -42,7 +42,7 @@ impl<C, E, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB>
 where
   C: Compression<false>,
   E: From<crate::Error>,
-  R: FnOnce(&Request<'_, '_>) -> Result<(), E>,
+  R: FnOnce(&Request<'_, '_>) -> Result<bool, E>,
   RNG: Rng,
   WB: LeaseMut<WebSocketBuffer>,
 {
@@ -68,26 +68,27 @@ where
       read = read.wrapping_add(local_read);
       let mut req_buffer = [EMPTY_HEADER; MAX_READ_HEADER_LEN];
       let mut req = Request::new(&mut req_buffer);
-      match req.parse(nb.following()).map_err(From::from)? {
-        Status::Complete(_) => {
-          (self.req)(&req)?;
+      match req.parse(nb.all().get(..read).unwrap_or_default()).map_err(From::from)? {
+        Status::Complete(len) => {
+          if !(self.req)(&req)? {
+            build_and_send_res400(nb, &mut stream).await?;
+            return Err(crate::Error::from(WebSocketError::ClosedHandshake).into());
+          }
           if !req.method().trim_ascii().eq_ignore_ascii_case(b"get") {
+            build_and_send_res400(nb, &mut stream).await?;
             return Err(
               crate::Error::from(HttpError::UnexpectedHttpMethod { expected: Method::Get }).into(),
             );
           }
           let mut key_buffer = [0; 30];
-          let [_, _, c, d, e] = check_headers!(
-            req.headers,
-            (KnownHeaderName::SecWebsocketExtensions, None),
-            (KnownHeaderName::SecWebsocketKey, None),
-            (KnownHeaderName::SecWebsocketVersion, Some(VERSION.as_bytes()))
-          );
-          self.no_masking &= check_header_value(c).is_ok_and(has_no_masking);
-          let key = check_header_value(d)?;
-          let _ = check_header_value(e)?;
+          let swa = match Self::check_req_headers(&mut self.no_masking, &req, &mut key_buffer) {
+            Ok(el) => el,
+            Err(err) => {
+              build_and_send_res400(nb, &mut stream).await?;
+              return Err(err.into());
+            }
+          };
           let nc = self.compression.negotiate(req.headers.iter())?;
-          let swa = derived_key(&mut key_buffer, key);
           let mut headers_buffer = [EMPTY_HEADER; 3];
           headers_buffer[0] = Header { name: "Connection", value: UPGRADE.as_bytes() };
           headers_buffer[1] = Header { name: "Sec-WebSocket-Accept", value: swa };
@@ -97,15 +98,32 @@ where
           res.version = Some(req.version().into());
           {
             let mut sw = nb.suffix_writer();
-            build_res(&mut sw, res.headers, &nc, self.no_masking)?;
+            build_res101(&mut sw, res.headers, &nc, self.no_masking)?;
             stream.write_all(sw.curr_bytes()).await?;
           }
-          nb.clear();
+          self.wsb.lease_mut().network_buffer.set_indices(0, len, read.wrapping_sub(len))?;
           return Ok(WebSocket::new(nc, self.no_masking, self.rng, stream, self.wsb));
         }
         Status::Partial => {}
       }
     }
+  }
+
+  fn check_req_headers<'kb>(
+    no_masking: &mut bool,
+    req: &Request<'_, '_>,
+    key_buffer: &'kb mut [u8; 30],
+  ) -> crate::Result<&'kb [u8]> {
+    let [_, _, c, d, e] = check_headers!(
+      req.headers,
+      (KnownHeaderName::SecWebsocketExtensions, None),
+      (KnownHeaderName::SecWebsocketKey, None),
+      (KnownHeaderName::SecWebsocketVersion, Some(VERSION.as_bytes()))
+    );
+    *no_masking &= check_header_value(c).is_ok_and(has_no_masking);
+    let key = check_header_value(d)?;
+    let _ = check_header_value(e)?;
+    Ok(derived_key(key_buffer, key))
   }
 }
 
@@ -233,8 +251,22 @@ where
   Ok(key)
 }
 
+async fn build_and_send_res400<S>(
+  nb: &mut PartitionedFilledBuffer,
+  stream: &mut S,
+) -> crate::Result<()>
+where
+  S: Stream,
+{
+  let mut sw = nb.suffix_writer();
+  sw.extend_from_slice_rn(b"HTTP/1.1 400 Bad Request")?;
+  sw.extend_from_slice_rn(b"")?;
+  stream.write_all(sw.curr_bytes()).await?;
+  Ok(())
+}
+
 /// Server response
-fn build_res<NC>(
+fn build_res101<NC>(
   sw: &mut SuffixWriterFbvm<'_>,
   headers: &[Header<'_>],
   nc: &NC,

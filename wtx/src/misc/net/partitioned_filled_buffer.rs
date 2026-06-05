@@ -150,11 +150,6 @@ impl PartitionedFilledBuffer {
   pub(crate) fn all_mut(&mut self) -> &mut [u8] {
     self.buffer.all_mut()
   }
-
-  pub(crate) fn following(&self) -> &[u8] {
-    let idx = self.current_end_idx();
-    self.all().get(idx..).unwrap_or_default()
-  }
 }
 
 impl Lease<PartitionedFilledBuffer> for PartitionedFilledBuffer {

@@ -52,7 +52,7 @@ impl<C, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB> {
   #[inline]
   pub fn req<NE, NR>(self, elem: NR) -> WebSocketAcceptor<C, NR, RNG, WB>
   where
-    NR: FnOnce(&Request<'_, '_>) -> Result<(), NE>,
+    NR: FnOnce(&Request<'_, '_>) -> Result<bool, NE>,
   {
     WebSocketAcceptor {
       compression: self.compression,
@@ -84,13 +84,18 @@ impl<C, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB> {
 }
 
 impl Default
-  for WebSocketAcceptor<(), fn(&Request<'_, '_>) -> crate::Result<()>, Xorshift64, WebSocketBuffer>
+  for WebSocketAcceptor<
+    (),
+    fn(&Request<'_, '_>) -> crate::Result<bool>,
+    Xorshift64,
+    WebSocketBuffer,
+  >
 {
   #[inline]
   fn default() -> Self {
     #[inline]
-    const fn req(_: &Request<'_, '_>) -> crate::Result<()> {
-      Ok(())
+    const fn req(_: &Request<'_, '_>) -> crate::Result<bool> {
+      Ok(true)
     }
     Self {
       compression: (),
