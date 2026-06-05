@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.5.3...wtx-ui-v0.5.4) - 2026-06-05
+
+### Added
+
+- Improve Matcher
+
+### Other
+
+- Merge pull request #541 from c410-f3r/misc
+
 ## [0.5.3](https://github.com/c410-f3r/wtx/compare/wtx-ui-v0.5.2...wtx-ui-v0.5.3) - 2026-05-30
 
 ### Other
