@@ -36,7 +36,7 @@ tracing-subscriber = { default-features = false, optional = true, version = "0.3
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
 webpki-roots = { default-features = false, optional = true, version = "1.0" }
-wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.8.2" }
+wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.8.3" }
 
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.8" }
 getrandom = { default-features = false, optional = true, version = "0.4" }
@@ -143,7 +143,7 @@ name = "wtx"
 readme = "README.md"
 repository = "https://github.com/c410-f3r/wtx"
 rust-version = "1.96"
-version = "0.47.6"
+version = "0.47.7"
 
 [package.metadata.docs.rs]
 all-features = true

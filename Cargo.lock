@@ -1793,7 +1793,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.47.6"
+version = "0.47.7"
 dependencies = [
  "arbitrary",
  "argon2",
@@ -1873,7 +1873,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-macros"
-version = "0.8.2"
+version = "0.8.3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1882,7 +1882,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-ui"
-version = "0.5.6"
+version = "0.5.7"
 dependencies = [
  "clap",
  "tokio",
