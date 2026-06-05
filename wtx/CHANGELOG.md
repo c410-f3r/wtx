@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.6](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.5...wtx-v0.47.6) - 2026-06-05
+
+### Other
+
+- Merge pull request #545 from c410-f3r/misc
+- Send 400 if WS upgrade fails
+
 ## [0.47.5](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.4...wtx-v0.47.5) - 2026-06-05
 
 ### Other
