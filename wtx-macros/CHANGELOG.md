@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.8.1...wtx-macros-v0.8.2) - 2026-06-05
+
+### Added
+
+- Improve Matcher
+
 ## [0.8.1](https://github.com/c410-f3r/wtx/compare/wtx-macros-v0.8.0...wtx-macros-v0.8.1) - 2026-05-28
 
 ### Other
