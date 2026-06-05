@@ -185,5 +185,5 @@ tokio-rustls = ["dep:tokio-rustls", "wtx/tokio-rustls"]
 edition = "2024"
 name = "wtx-examples"
 publish = false
-rust-version = "1.95"
+rust-version = "1.96"
 version = "0.0.0"

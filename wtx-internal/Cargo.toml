@@ -47,10 +47,10 @@ wtx = { default-features = false, features = ["crypto-ring", "executor", "macros
 [features]
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-client-concurrent = ["wtx/flate2", "wtx/web-socket-handshake"]
-autobahn-server = ["wtx/flate2", "wtx/nightly", "wtx/web-socket-handshake"]
+autobahn-server = ["wtx/flate2", "wtx/optioned-server", "wtx/web-socket-handshake"]
 ccadb = ["wtx/ccadb", "wtx/hashbrown", "wtx/http-client-pool", "wtx/http2", "wtx/tokio-rustls", "wtx/webpki-roots", "wtx/x509"]
-h2load = ["wtx/http2", "wtx/nightly"]
-h2spec-high-server = ["wtx/http2", "wtx/nightly"]
+h2load = ["wtx/http2", "wtx/optioned-server"]
+h2spec-high-server = ["wtx/http2", "wtx/optioned-server"]
 h2spec-low-server = ["wtx/http2"]
 x509-limbo = ["wtx/serde", "serde/derive", "serde_json/std", "wtx/x509"]
 
@@ -58,5 +58,5 @@ x509-limbo = ["wtx/serde", "serde/derive", "serde_json/std", "wtx/x509"]
 edition = "2024"
 name = "wtx-internal"
 publish = false
-rust-version = "1.95"
+rust-version = "1.96"
 version = "0.0.0"

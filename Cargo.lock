@@ -1828,6 +1828,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "simdutf8",
+ "socket2",
  "tokio",
  "tokio-rustls",
  "tracing",

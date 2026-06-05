@@ -2,7 +2,8 @@ use crate::{
   calendar::Instant,
   http::{
     AutoStream, HttpRecvParams, ManualServerStream, MsgBufferString, OperationMode, Protocol,
-    Request, Response, optioned_server::OptionedServer,
+    Request, Response,
+    optioned_server::{OptionedServer, default_listener},
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode, Http2RecvStatus},
   misc::FnFut,
@@ -10,7 +11,7 @@ use crate::{
   stream::{StreamReader, StreamWriter},
 };
 use core::{mem, net::IpAddr};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
 
 impl OptionedServer {
   /// Optioned HTTP/2 server using tokio.
@@ -98,7 +99,7 @@ impl OptionedServer {
     for<'any> &'any HSMC: Send,
     for<'any> &'any SA: Send,
   {
-    let listener = TcpListener::bind(addr).await.map_err(crate::Error::from)?;
+    let listener = default_listener(addr)?;
     let mut xorshift = Xorshift64::from_simple_seed()?;
     loop {
       let accepted_stream = listener.accept().await.map_err(crate::Error::from)?.0;
