@@ -19,8 +19,8 @@ jobs:
           - script: internal-tests3.sh
           - script: internal-tests4.sh
             install-crate: mdbook
-          # - script: internal-tests5.sh
-          #   install-crate: cargo-fuzz
+#          - script: internal-tests5.sh
+#            install-crate: cargo-fuzz
           - script: internal-tests6.sh
     steps:
       - uses: actions/checkout@v6

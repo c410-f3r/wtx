@@ -167,8 +167,8 @@ fn nested_middlewares() {
 
     {
       auto_stream.req.msg_data.uri.reset().push_str("http://localhost/aaa/bbb/ccc");
-      let el = &sf._router._matcher.at(auto_stream.req.msg_data.uri.path()).unwrap();
-      let path_defs = el.value.clone().0;
+      let path_defs =
+        sf._router._matcher.find(auto_stream.req.msg_data.uri.path()).unwrap().data().clone().0;
       let _ = sf._router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();
       // 3 + 3 + 11 + 7 + 7
       assert_eq!(auto_stream.conn_aux.0, 31);
@@ -183,8 +183,7 @@ fn nested_middlewares() {
     {
       auto_stream.req.msg_data.uri.reset().push_str("http://localhost/fff");
       let path = auto_stream.req.msg_data.uri.path();
-      let el = &sf._router._matcher.at(path).unwrap();
-      let path_defs = el.value.clone().0;
+      let path_defs = sf._router._matcher.find(path).unwrap().data().clone().0;
       let _ = sf._router.auto(&mut auto_stream, (0, &path_defs)).await.unwrap();
       // 3 + 17 + 7
       assert_eq!(auto_stream.conn_aux.0, 27);

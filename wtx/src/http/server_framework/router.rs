@@ -2,7 +2,7 @@ use crate::{
   collection::{ArrayVectorU8, Vector},
   http::{
     AutoStream, ManualStream, OperationMode, Response, StatusCode,
-    server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
+    server_framework::{Endpoint, EndpointNode, Matcher, Middleware, RouteMatch},
   },
 };
 use core::{marker::PhantomData, ops::ControlFlow};
@@ -11,7 +11,7 @@ use core::{marker::PhantomData, ops::ControlFlow};
 #[derive(Debug)]
 pub struct Router<CA, E, EN, M, S, SA> {
   pub(crate) en: EN,
-  pub(crate) _matcher: matchit::Router<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>,
+  pub(crate) _matcher: Matcher<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>,
   pub(crate) middlewares: M,
   pub(crate) phantom: PhantomData<(CA, E, S, SA)>,
 }
@@ -28,12 +28,11 @@ where
     Ok(Self { _matcher, middlewares, en, phantom: PhantomData })
   }
 
-  fn matcher(
-    en: &EN,
-  ) -> crate::Result<matchit::Router<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>> {
+  fn matcher(en: &EN) -> crate::Result<Matcher<(ArrayVectorU8<RouteMatch, 4>, OperationMode)>> {
     let mut vec = Vector::new();
     en.paths_indices(ArrayVectorU8::new(), &mut vec)?;
-    let mut matcher = matchit::Router::new();
+    let mut matcher = Matcher::new();
+    let mut builder = matcher.builder();
     for array in vec {
       let [initials @ .., last] = array.as_slice() else {
         continue;
@@ -44,8 +43,9 @@ where
       }
       key.push_str(&*last.path);
       let om = last.om;
-      matcher.insert(key, (array, om))?;
+      let _ = builder.add(key.try_into()?, (array, om))?;
     }
+    drop(builder);
     Ok(matcher)
   }
 }

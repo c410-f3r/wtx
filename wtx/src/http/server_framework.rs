@@ -56,6 +56,9 @@ pub use state::{State, StateClean, StateGeneric, StateTest};
 pub use stream_aux::StreamAux;
 pub use verbatim_params::VerbatimParams;
 
+const DEFAULT_MAX_CHILDREN: usize = 18;
+const DEFAULT_MAX_DEPTH: usize = 16;
+
 /// Server
 #[derive(Debug)]
 pub struct ServerFramework<CA, CACB, E, EN, M, S, SA, SACB> {

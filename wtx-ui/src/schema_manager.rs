@@ -73,7 +73,7 @@ where
         eprintln!("{_buffer_idents:?}");
         return Err(
           wtx::Error::GenericStatic(
-            "The rollback operation didn't leave the database in a clean state".into(),
+            "The rollback operation didn't leave the database in a clean state".try_into()?,
           )
           .into(),
         );

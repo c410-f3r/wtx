@@ -20,7 +20,7 @@ pub(crate) trait LinearStorageSlice: Lease<Self> {
   /// The same safety rules of [`core::slice::from_raw_parts`] apply to this method.
   unsafe fn from_raw_parts<'any>(data: *const Self::Data, len: usize) -> &'any Self;
 
-  /// Mutable version of [`LinearStorageSlice::from_raw_parts_mut`].
+  /// Mutable version of [`LinearStorageSlice::from_raw_parts`].
   ///
   /// # Safety
   ///

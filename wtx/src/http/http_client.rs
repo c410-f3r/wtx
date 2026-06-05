@@ -82,7 +82,7 @@ mod http2 {
         Http2RecvStatus::ClosedStream(elem) | Http2RecvStatus::Eos(elem) => elem,
         _ => return Err(crate::Error::ClosedHttpConnection),
       };
-      req_id.common().clear(false).await?;
+      req_id.common().clear().await?;
       Ok(Response::http2(res_rrb, status_code))
     }
 
@@ -162,7 +162,7 @@ mod http_client_pool {
         Http2RecvStatus::ClosedStream(elem) | Http2RecvStatus::Eos(elem) => elem,
         _ => return Err(crate::Error::ClosedHttpConnection),
       };
-      req_id.common().clear(false).await?;
+      req_id.common().clear().await?;
       Ok(Response::http2(res_rrb, status_code))
     }
 

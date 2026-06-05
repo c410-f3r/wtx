@@ -17,6 +17,7 @@ use core::{future::poll_fn, pin::pin, task::Waker};
 #[derive(Debug)]
 pub struct ServerStream<HB, SW> {
   inner: Arc<Http2Inner<HB, SW, false>>,
+  linger: bool,
   method: Method,
   protocol: Option<Protocol>,
   span: Span,
@@ -30,19 +31,20 @@ where
 {
   pub(crate) const fn new(
     inner: Arc<Http2Inner<HB, SW, false>>,
+    linger: bool,
     method: Method,
     protocol: Option<Protocol>,
     span: Span,
     stream_id: U31,
   ) -> Self {
-    Self { inner, method, protocol, span, stream_id }
+    Self { inner, linger, method, protocol, span, stream_id }
   }
 
   /// See [`CommonStream`].
   #[inline]
   pub const fn common(&mut self) -> CommonStream<'_, HB, SW, false> {
-    let Self { inner, method: _, protocol: _, span, stream_id } = self;
-    CommonStream { inner, span, stream_id: *stream_id }
+    let Self { inner, linger, method: _, protocol: _, span, stream_id } = self;
+    CommonStream { inner, linger: *linger, span, stream_id: *stream_id }
   }
 
   /// See [`Method`].
@@ -67,7 +69,7 @@ where
   /// Shouldn't be called more than once.
   #[inline]
   pub async fn recv_req(&mut self) -> crate::Result<(Http2RecvStatus<(), ()>, MsgBufferString)> {
-    let Self { inner, method: _, protocol: _, span, stream_id } = self;
+    let Self { inner, linger: _, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Receiving request");
     let rslt = {
@@ -116,7 +118,7 @@ where
     MD: MsgData,
     MD::Body: Lease<[u8]>,
   {
-    let Self { inner, method: _, protocol: _, span, stream_id } = self;
+    let Self { inner, linger: _, method: _, protocol: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Sending response");
     let hss = send_msg::<_, _, false>(
@@ -161,6 +163,7 @@ impl<HB, SW> Clone for ServerStream<HB, SW> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
+      linger: self.linger,
       method: self.method,
       protocol: self.protocol,
       span: self.span.clone(),

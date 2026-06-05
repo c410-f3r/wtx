@@ -140,7 +140,7 @@ pb-rs = { default-features = false, optional = true, version = "0.10" }
 [dependencies]
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 serde = { default-features = false, optional = true, version = "1.0" }
-serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
+serde_json = { default-features = false, features = ["std"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["io-std", "macros", "net", "rt-multi-thread"], version = "1.0" }
 tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 wtx = { default-features = false, features = ["crypto-ring", "getrandom", "nightly", "tokio"], path = "../wtx" }
@@ -155,7 +155,7 @@ database-client-tests = ["postgres", "wtx/database-tests"]
 grpc-client = ["grpc", "wtx/grpc-client"]
 grpc-server = ["grpc", "tokio-rustls", "wtx/grpc-server", "wtx/nightly"]
 
-http-server-framework = ["serde", "serde_json", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres"]
+http-server-framework = ["serde", "serde_json", "wtx/http-server-framework", "wtx/nightly", "wtx/postgres", "wtx/secret", "wtx/serde_json"]
 http-server-framework-cors = ["wtx/http-server-framework", "wtx/nightly"]
 http-server-framework-redirect = ["wtx/http-server-framework", "wtx/nightly"]
 http-server-framework-session = ["serde", "serde_json", "wtx/argon2", "wtx/http-server-framework", "wtx/http-session", "wtx/macros", "wtx/nightly", "wtx/postgres"]

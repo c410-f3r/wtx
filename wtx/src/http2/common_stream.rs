@@ -21,6 +21,7 @@ use core::{future::poll_fn, mem, pin::pin, task::Poll};
 #[derive(Debug)]
 pub struct CommonStream<'instance, HB, SW, const IS_CLIENT: bool> {
   pub(crate) inner: &'instance Arc<Http2Inner<HB, SW, IS_CLIENT>>,
+  pub(crate) linger: bool,
   pub(crate) span: &'instance Span,
   pub(crate) stream_id: U31,
 }
@@ -35,9 +36,9 @@ where
   /// If `linger` is true, then the stream will remain alive for a short period of time to allow
   /// the possible receiving of control frames.
   #[inline]
-  pub async fn clear(&self, linger: bool) -> crate::Result<()> {
-    let Self { inner, span: _, stream_id } = self;
-    if linger {
+  pub async fn clear(&self) -> crate::Result<()> {
+    let Self { inner, linger, span: _, stream_id } = self;
+    if *linger {
       crate::misc::sleep(core::time::Duration::from_millis(50)).await?;
     }
     let mut hd_guard = inner.hd.lock().await;
@@ -65,7 +66,7 @@ where
     &mut self,
     mut cb: impl FnMut(&mut [u8]) -> crate::Result<ONG>,
   ) -> crate::Result<Http2RecvStatus<Vector<u8>, ONG>> {
-    let Self { inner, span, stream_id } = self;
+    let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Fetching data");
     let mut hd_guard_pin = pin!(inner.hd.lock());
@@ -98,7 +99,7 @@ where
   /// with higher operations that receive data.
   #[inline]
   pub async fn recv_trailers(&mut self) -> crate::Result<Http2RecvStatus<Headers, ()>> {
-    let Self { inner, span, stream_id } = self;
+    let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Fetching trailers");
     let mut hd_guard_pin = pin!(inner.hd.lock());
@@ -124,7 +125,7 @@ where
   /// `value` is capped to an integer of 31 bits.
   #[inline]
   pub async fn release_capacity(&mut self, value: u32) -> crate::Result<()> {
-    let Self { inner, span: _, stream_id } = self;
+    let Self { inner, linger: _, span: _, stream_id } = self;
     let frame = {
       let mut hd_guard = inner.hd.lock().await;
       let hdpm = hd_guard.parts_mut();
@@ -142,7 +143,7 @@ where
   /// `value` is capped to an integer of 31 bits.
   #[inline]
   pub async fn reserve_capacity(&mut self, value: u32) -> crate::Result<()> {
-    let Self { inner, span: _, stream_id } = self;
+    let Self { inner, linger: _, span: _, stream_id } = self;
     let mut lock = inner.hd.lock().await;
     let hdpm = lock.parts_mut();
     let elem = sorp_mut(&mut hdpm.hb.sorps, *stream_id)?;
@@ -158,7 +159,7 @@ where
   /// current available window size as well as the negotiated maximum frame length.
   #[inline]
   pub async fn send_data(&self, data: &[u8], is_eos: bool) -> crate::Result<Http2SendStatus> {
-    let Self { inner, span, stream_id } = self;
+    let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Sending data");
     let mut data_idx = 0;
@@ -227,7 +228,7 @@ where
     is_eos: bool,
     status_code: StatusCode,
   ) -> crate::Result<Http2SendStatus> {
-    let Self { inner, span, stream_id } = self;
+    let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Sending headers");
     let hsreh = HpackStaticResponseHeaders { status_code: Some(status_code) };
@@ -269,7 +270,7 @@ where
   /// Sends a reset frame to the peer, which cancels this stream.
   #[inline]
   pub async fn send_reset(&self, error_code: crate::http2::Http2ErrorCode) {
-    let Self { inner, span: _, stream_id } = self;
+    let Self { inner, linger: _, span: _, stream_id } = self;
     let _ = crate::http2::misc::send_reset_stream(error_code, inner, *stream_id).await;
   }
 
@@ -285,7 +286,7 @@ where
     enc_buffer: &mut Vector<u8>,
     trailers: &Headers,
   ) -> crate::Result<Http2SendStatus> {
-    let Self { inner, span, stream_id } = self;
+    let Self { inner, linger: _, span, stream_id } = self;
     let _e = span.enter();
     _trace!("Sending {} trailers", trailers.headers_len());
     let mut frames = ArrayVectorU8::new();
@@ -325,7 +326,7 @@ where
   /// Low level operation that returns the current flow control parameters of the stream.
   #[inline]
   pub async fn windows(&self) -> crate::Result<crate::http2::Windows> {
-    let Self { inner, span: _, stream_id } = self;
+    let Self { inner, linger: _, span: _, stream_id } = self;
     Ok(sorp_mut(&mut inner.hd.lock().await.parts_mut().hb.sorps, *stream_id)?.windows)
   }
 }

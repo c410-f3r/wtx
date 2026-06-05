@@ -1,19 +1,23 @@
 // `Usize` only permits platforms with pointer sizes of 32bits or 64bits.
 
+// Rust requires a minimum pointer size of `u16`, therefore, it is safe to use the full length.
 macro_rules! u8_cap {
   () => {
     255
   };
 }
+// `WTX` requires a minimum pointer size of `u32`, therefore, it is safe to use the full length.
 macro_rules! u16_cap {
   () => {
     65_535
   };
 }
-#[cfg(target_pointer_width = "64")]
 macro_rules! u32_cap {
   () => {
-    4_294_967_295
+    cfg_select! {
+      target_pointer_width = "64" => 4_294_967_295,
+      _ => 2_147_483_647
+    }
   };
 }
 macro_rules! u64_cap {
@@ -21,23 +25,12 @@ macro_rules! u64_cap {
     9_223_372_036_854_775_807
   };
 }
-#[cfg(target_pointer_width = "64")]
 macro_rules! usize_cap {
   () => {
-    9_223_372_036_854_775_807
-  };
-}
-
-#[cfg(not(target_pointer_width = "64"))]
-macro_rules! u32_cap {
-  () => {
-    2_147_483_647
-  };
-}
-#[cfg(not(target_pointer_width = "64"))]
-macro_rules! usize_cap {
-  () => {
-    2_147_483_647
+    cfg_select! {
+      target_pointer_width = "64" => 9_223_372_036_854_775_807,
+      _ => 2_147_483_647
+    }
   };
 }
 
@@ -97,7 +90,7 @@ pub trait LinearStorageLen:
 }
 
 impl LinearStorageLen for u8 {
-  const BITS: u8 = 5;
+  const BITS: u8 = 8;
   const UPPER_BOUND: Self = u8_cap!();
   const UPPER_BOUND_USIZE: usize = u8_cap!();
   const ONE: Self = 1;

@@ -9,6 +9,7 @@ use crate::http::{
 pub struct HttpRecvParams {
   enable_connect_protocol: bool,
   initial_window_len: U31,
+  linger: bool,
   max_body_len: u32,
   max_concurrent_streams_num: u32,
   max_frame_len: u32,
@@ -26,6 +27,7 @@ impl HttpRecvParams {
     Self {
       enable_connect_protocol: false,
       initial_window_len: U31::from_u32(DEFAULT_INITIAL_WINDOW_LEN),
+      linger: true,
       max_body_len: 1024 * 1024,
       max_concurrent_streams_num: DEFAULT_MAX_CONCURRENT_STREAMS_NUM,
       max_frame_len: DEFAULT_MAX_FRAME_LEN,
@@ -42,6 +44,7 @@ impl HttpRecvParams {
     Self {
       enable_connect_protocol: false,
       initial_window_len: U31::from_i32(4 * 1024 * 1024),
+      linger: true,
       max_body_len: 64 * 1024 * 1024,
       max_concurrent_streams_num: 256,
       max_frame_len: 64 * 1024,
@@ -57,6 +60,7 @@ impl HttpRecvParams {
     Self {
       enable_connect_protocol: false,
       initial_window_len: U31::MAX,
+      linger: true,
       max_body_len: u32::MAX,
       max_concurrent_streams_num: u32::MAX,
       max_frame_len: u32::MAX,
@@ -85,6 +89,13 @@ impl HttpRecvParams {
   #[inline]
   pub const fn initial_window_len(&self) -> u32 {
     self.initial_window_len.u32()
+  }
+
+  /// If true, then streams will remain alive for a short period of time to allow the possible
+  /// receiving of control frames.
+  #[inline]
+  pub const fn linger(&self) -> bool {
+    self.linger
   }
 
   /// Maximum request/response body length
@@ -161,6 +172,14 @@ impl HttpRecvParams {
   #[must_use]
   pub const fn set_initial_window_len(mut self, value: u32) -> Self {
     self.initial_window_len = U31::from_u32(value);
+    self
+  }
+
+  /// Mutable version of [`Self::linger`].
+  #[inline]
+  #[must_use]
+  pub const fn set_linger(mut self, value: bool) -> Self {
+    self.linger = value;
     self
   }
 

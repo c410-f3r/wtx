@@ -19,6 +19,7 @@ use core::{future::poll_fn, pin::pin, task::Waker};
 #[derive(Debug)]
 pub struct ClientStream<HB, SW> {
   inner: Arc<Http2Inner<HB, SW, true>>,
+  linger: bool,
   span: Span,
   stream_id: U31,
   // Used after the initial sending
@@ -28,10 +29,11 @@ pub struct ClientStream<HB, SW> {
 impl<HB, SW> ClientStream<HB, SW> {
   pub(crate) const fn new(
     inner: Arc<Http2Inner<HB, SW, true>>,
+    linger: bool,
     span: Span,
     stream_id: U31,
   ) -> Self {
-    Self { inner, span, stream_id, windows: Windows::new() }
+    Self { inner, linger, span, stream_id, windows: Windows::new() }
   }
 }
 
@@ -43,8 +45,8 @@ where
   /// See [`CommonStream`].
   #[inline]
   pub const fn common(&mut self) -> CommonStream<'_, HB, SW, true> {
-    let Self { inner, span, stream_id, windows: _ } = self;
-    CommonStream { inner, span, stream_id: *stream_id }
+    let Self { inner, linger, span, stream_id, windows: _ } = self;
+    CommonStream { inner, linger: *linger, span, stream_id: *stream_id }
   }
 
   /// Receive response
@@ -62,7 +64,7 @@ where
   pub async fn recv_res(
     &mut self,
   ) -> crate::Result<(Http2RecvStatus<StatusCode, ()>, MsgBufferString)> {
-    let Self { inner, span, stream_id, windows: _ } = self;
+    let Self { inner, linger: _, span, stream_id, windows: _ } = self;
     let _e = span.enter();
     _trace!("Receiving response");
     let mut lock_pin = pin!(inner.hd.lock());
@@ -98,7 +100,7 @@ where
     MD: MsgData,
     MD::Body: Lease<[u8]>,
   {
-    let Self { inner, span, stream_id, windows } = self;
+    let Self { inner, linger: _, span, stream_id, windows } = self;
     let _e = span.enter();
     _trace!("Sending request");
     let uri = req.msg_data.uri();

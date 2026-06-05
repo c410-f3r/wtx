@@ -76,8 +76,7 @@ where
       },
       move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {
-        let rslt =
-          local_router._matcher.at(req.msg_data.uri.path()).map_err(From::from)?.value.clone();
+        let rslt = local_router._matcher.find(req.msg_data.uri.path())?.data().clone();
         headers_cb(req)?;
         Ok(((rslt.0, Arc::clone(local_router)), rslt.1))
       },
@@ -147,8 +146,7 @@ where
       },
       move |ca| Ok(SA::stream_aux(_sa_cb(ca)?)?),
       move |_, local_router, _, req, _| {
-        let rslt =
-          local_router._matcher.at(req.msg_data.uri.path()).map_err(From::from)?.value.clone();
+        let rslt = local_router._matcher.find(req.msg_data.uri.path())?.data().clone();
         headers_cb(req)?;
         Ok(((rslt.0, Arc::clone(local_router)), rslt.1))
       },

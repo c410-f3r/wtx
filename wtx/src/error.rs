@@ -5,7 +5,7 @@ use crate::{
   codec::{Base64Error, FromRadix10Error, HexError},
   collection::{
     ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
-    ShortBoxStringU16, ShortStrU8, VectorError,
+    ShortBoxStrU16, ShortStrU8, VectorError,
   },
   misc::{ArithmeticError, AsciiError},
 };
@@ -18,6 +18,7 @@ use core::{
   convert::Infallible,
   fmt::{Debug, Display, Formatter, Write as _},
   ops::RangeInclusive,
+  slice::GetDisjointMutError,
 };
 
 #[cfg(target_pointer_width = "64")]
@@ -57,12 +58,6 @@ pub enum Error {
   #[cfg(feature = "httparse")]
   #[doc = associated_element_doc!()]
   HttpParse(httparse::Error),
-  #[cfg(feature = "matchit")]
-  #[doc = associated_element_doc!()]
-  MatchitError(matchit::MatchError),
-  #[cfg(feature = "matchit")]
-  #[doc = associated_element_doc!()]
-  MatchitInsertError(Box<matchit::InsertError>),
   #[cfg(feature = "crypto-openssl")]
   #[doc = associated_element_doc!()]
   OpensslError(Box<openssl::error::ErrorStack>),
@@ -80,7 +75,7 @@ pub enum Error {
   SerdeJson(serde_json::Error),
   #[cfg(feature = "serde_json")]
   #[doc = associated_element_doc!()]
-  SerdeJsonDeserialize(ShortBoxStringU16),
+  SerdeJsonDeserialize(ShortBoxStrU16),
   #[cfg(feature = "tokio")]
   #[doc = associated_element_doc!()]
   TokioJoinError(Box<tokio::task::JoinError>),
@@ -100,6 +95,8 @@ pub enum Error {
   AddrParseError(core::net::AddrParseError),
   #[doc = associated_element_doc!()]
   Fmt(core::fmt::Error),
+  #[doc = associated_element_doc!()]
+  GetDisjointMutError(GetDisjointMutError),
   #[cfg(feature = "std")]
   #[doc = associated_element_doc!()]
   IoError(std::io::Error),
@@ -116,12 +113,12 @@ pub enum Error {
   /// The specified environment variable was not present in the current
   /// process's environment.
   #[cfg(feature = "std")]
-  VarIsNotPresent(ShortBoxStringU16),
+  VarIsNotPresent(ShortBoxStrU16),
   /// The specified environment variable was found, but it did not contain
   /// valid unicode data. The found data is returned as a payload of this
   /// variant.
   #[cfg(feature = "std")]
-  VarIsNotUnicode(ShortBoxStringU16),
+  VarIsNotUnicode(ShortBoxStrU16),
   #[doc = associated_element_doc!()]
   Utf8Error(Box<core::str::Utf8Error>),
 
@@ -144,7 +141,7 @@ pub enum Error {
   /// Future must not be polled again after finalization
   FuturePolledAfterFinalization,
   /// Generic error
-  Generic(ShortBoxStringU16),
+  Generic(ShortBoxStrU16),
   /// Generic static error
   GenericStatic(ShortStrU8<'static>),
   /// It is not possible to add an element into an `Option` because it is already occupied.
@@ -164,13 +161,13 @@ pub enum Error {
   /// A instance could not be constructed because of a missing required variable.
   MissingVar(ShortStrU8<'static>),
   /// A variable does not have an ending quote
-  MissingVarQuote(ShortBoxStringU16),
+  MissingVarQuote(ShortBoxStrU16),
   /// Something prevented a `mlock` operation
   MlockError,
   /// Something prevented a `munlock` operation
   MunlockError,
   /// A variable does not have an ending quote
-  NoAvailableVars(ShortBoxStringU16),
+  NoAvailableVars(ShortBoxStrU16),
   /// Usually used to transform `Option`s into `Result`s
   NoInnerValue(ShortStrU8<'static>),
   /// Byte is not an ASCII graphic character
@@ -412,19 +409,10 @@ impl From<httparse::Error> for Error {
   }
 }
 
-#[cfg(feature = "matchit")]
-impl From<matchit::MatchError> for Error {
+impl From<GetDisjointMutError> for Error {
   #[inline]
-  fn from(from: matchit::MatchError) -> Self {
-    Self::MatchitError(from)
-  }
-}
-
-#[cfg(feature = "matchit")]
-impl From<matchit::InsertError> for Error {
-  #[inline]
-  fn from(from: matchit::InsertError) -> Self {
-    Self::MatchitInsertError(from.into())
+  fn from(from: GetDisjointMutError) -> Self {
+    Self::GetDisjointMutError(from)
   }
 }
 

@@ -4,19 +4,13 @@
   reason = "some platforms were removed to allow infallible casts"
 )]
 
-#[cfg(target_pointer_width = "16")]
-compile_error!("WTX does not support hardwares with pointer sizes less than 32 bits");
-
-macro_rules! _u32_max {
-  () => {
-    4_294_967_295
-  };
-}
+#[cfg(not(any(target_pointer_width = "32", target_pointer_width = "64")))]
+compile_error!("`WTX` requires hardware with a pointer size of at least 32 bits");
 
 use core::ops::{Deref, DerefMut};
 
-/// An `usize` that can be infallible converted from an `u32`, which effectively drops support
-/// for 16bit hardware.
+/// An `usize` that can be infallibly converted from an `u32`, which effectively drops support
+/// for 8-bi or 16-bit hardware.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Usize(usize);
 
