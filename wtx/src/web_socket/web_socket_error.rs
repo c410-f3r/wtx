@@ -1,6 +1,8 @@
 /// WebSocket Error
 #[derive(Clone, Copy, Debug)]
 pub enum WebSocketError {
+  /// User manually closed the handshake process midway.
+  ClosedHandshake,
   /// HTTP headers must be unique.
   DuplicatedHeader,
   /// Received close frame has invalid parameters.
