@@ -1,4 +1,4 @@
-use crate::http::server_framework::Matcher;
+use crate::http::Matcher;
 use core::hint::black_box;
 
 // Retrieved from the `matchit` project
@@ -152,7 +152,7 @@ fn routes(b: &mut test::Bencher) {
   {
     let mut builder = matcher.builder();
     for route in routes!(params) {
-      let _ = builder.add(route.try_into().unwrap(), true).unwrap();
+      let _ = builder.add(&route.try_into().unwrap(), true).unwrap();
     }
   }
   b.iter(|| {

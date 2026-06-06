@@ -5,7 +5,7 @@ mod tests;
 
 use crate::{
   collection::{ArrayVectorU8, ShortBoxStrU8, ShortStrU8, Vector},
-  http::server_framework::{DEFAULT_MAX_CHILDREN, DEFAULT_MAX_DEPTH},
+  http::{DEFAULT_MAX_CHILDREN, DEFAULT_MAX_DEPTH},
   misc::{bytes_pos1, from_utf8_basic},
 };
 use core::{
@@ -88,7 +88,7 @@ impl<T, const MC: usize, const MD: usize> Matcher<T, MC, MD> {
     let mut edges;
     let mut path_rows = ArrayVectorU8::new();
 
-    let Some(first_row) = rows.get(0) else {
+    let Some(first_row) = rows.first() else {
       cold_path();
       return Err(MatcherError::FindErrEmpty.into());
     };
@@ -108,7 +108,7 @@ impl<T, const MC: usize, const MD: usize> Matcher<T, MC, MD> {
       let last_edge_has_param = last.first_byte.is_none();
       if last_edge_has_param {
         if let Some(edge) = statics.iter().find(|el| el.first_byte == curr_ident_first) {
-          match Self::check_edge(edge, &mut edges, curr_route, &mut path_rows, route_len, rows) {
+          match Self::check_edge(*edge, &mut edges, curr_route, &mut path_rows, route_len, rows) {
             CheckSearchRowRslt::CompleteMatch(value) => {
               return Ok(MatcherPath { path_rows, route, rows, value });
             }
@@ -116,7 +116,7 @@ impl<T, const MC: usize, const MD: usize> Matcher<T, MC, MD> {
             CheckSearchRowRslt::Mismatch => {}
           }
         }
-        match Self::check_edge(last, &mut edges, curr_route, &mut path_rows, route_len, rows) {
+        match Self::check_edge(*last, &mut edges, curr_route, &mut path_rows, route_len, rows) {
           CheckSearchRowRslt::CompleteMatch(value) => {
             return Ok(MatcherPath { path_rows, route, rows, value });
           }
@@ -127,7 +127,7 @@ impl<T, const MC: usize, const MD: usize> Matcher<T, MC, MD> {
         let Some(edge) = edges.iter().find(|el| el.first_byte == curr_ident_first) else {
           return Err(MatcherError::FindErrMismatch.into());
         };
-        match Self::check_edge(edge, &mut edges, curr_route, &mut path_rows, route_len, rows) {
+        match Self::check_edge(*edge, &mut edges, curr_route, &mut path_rows, route_len, rows) {
           CheckSearchRowRslt::CompleteMatch(value) => {
             return Ok(MatcherPath { path_rows, route, rows, value });
           }
@@ -140,7 +140,7 @@ impl<T, const MC: usize, const MD: usize> Matcher<T, MC, MD> {
 
   #[inline(always)]
   fn check_edge<'this>(
-    edge: &Edge,
+    edge: Edge,
     edges: &mut &'this ArrayVectorU8<Edge, MC>,
     curr_route: &mut &'this [u8],
     path_rows: &mut ArrayVectorU8<PathRow, MD>,
@@ -176,9 +176,14 @@ impl<T, const MC: usize, const MD: usize> Matcher<T, MC, MD> {
           return CheckSearchRowRslt::Mismatch;
         }
       }
+      #[expect(
+        clippy::as_conversions,
+        clippy::cast_possible_truncation,
+        reason = "full routes are limited by 255, subroutes are smaller"
+      )]
       RowTy::Param => {
         // For some reason `memchr` degrades the performance if `target-cpu=native`.
-        let (param, rest) = if let Some(param_end_idx) = bytes_pos1(&*curr_route, b'/') {
+        let (param, rest) = if let Some(param_end_idx) = bytes_pos1(*curr_route, b'/') {
           // SAFETY: the index has just been checked
           unsafe { curr_route.split_at_checked(param_end_idx).unwrap_unchecked() }
         } else {
@@ -222,11 +227,11 @@ pub struct MatcherBuilder<
 impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
   /// Adds a new route and its associated value.
   #[inline]
-  pub fn add(&mut self, route: ShortBoxStrU8, value: T) -> crate::Result<&mut Self> {
+  pub fn add(&mut self, route: &ShortBoxStrU8, value: T) -> crate::Result<&mut Self> {
     let mut curr_bytes_idx = 0;
     loop {
       let (mut local_route, local_ty) = Self::manage_row_ty(route.as_bytes(), &mut curr_bytes_idx)?;
-      let final_row_idx = Self::add_local_route(&mut local_route, local_ty, &mut self.rows)?;
+      let final_row_idx = Self::add_local_route(&mut local_route, local_ty, self.rows)?;
       let should_stop = curr_bytes_idx >= usize::from(route.len());
       if should_stop {
         if let Some(row) = self.rows.get_mut(usize::from(final_row_idx)) {
@@ -248,7 +253,7 @@ impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
   ) -> crate::Result<u8> {
     let mut row_idx = 0;
 
-    let mut edges = if let Some(row) = rows.get(0) {
+    let mut edges = if let Some(row) = rows.first() {
       let crr = Self::compare_row(local_route, row)?;
       match crr {
         CompareRowRslt::Finished => {
@@ -298,7 +303,7 @@ impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
         }
       }
       Self::add_row((local_route, local_ty), 0, true, &mut row_idx, rows)?;
-      return Ok(row_idx.into());
+      return Ok(row_idx);
     }
   }
 
@@ -313,12 +318,12 @@ impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
     let route_str: ShortBoxStrU8 = route.try_into()?;
     let parent_idx = usize::from(*row_idx);
     if is_single {
-      let child_idx = u8::try_from(rows.len()).map_err(|_| MatcherError::AddErrOverflow)?;
+      let child_idx = u8::try_from(rows.len()).map_err(|_err| MatcherError::AddErrOverflow)?;
       if route_str.is_empty() {
         let Some(parent) = rows.get_mut(parent_idx) else {
           return Ok(());
         };
-        let child_edges = mem::replace(&mut parent.edges, ArrayVectorU8::new());
+        let child_edges = mem::take(&mut parent.edges);
         let child_route = unique_route(common_prefix_len, &parent.route)?;
         let child_value = parent.value.take();
         parent.edges.push(Edge::new(None, child_idx))?;
@@ -334,12 +339,12 @@ impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
         *row_idx = child_idx;
       }
     } else {
-      let child0_idx = u8::try_from(rows.len()).map_err(|_| MatcherError::AddErrOverflow)?;
+      let child0_idx = u8::try_from(rows.len()).map_err(|_err| MatcherError::AddErrOverflow)?;
       let child1_idx = child0_idx.checked_add(1).ok_or(MatcherError::AddErrOverflow)?;
       let Some(parent) = rows.get_mut(parent_idx) else {
         return Ok(());
       };
-      let child0_edges = mem::replace(&mut parent.edges, ArrayVectorU8::new());
+      let child0_edges = mem::take(&mut parent.edges);
       let child0_route = unique_route(common_prefix_len, &parent.route)?;
       let child0_value = parent.value.take();
       parent.edges.push(Edge::new(None, child0_idx))?;
@@ -369,12 +374,10 @@ impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
           *route = rhs;
           if rhs.is_empty() {
             return Ok(CompareRowRslt::Finished);
-          } else {
-            return Ok(CompareRowRslt::RowFull(row.edges.clone()));
           }
-        } else {
-          return Err(MatcherError::AddErrMultipleRouteParameters.into());
+          return Ok(CompareRowRslt::RowFull(row.edges.clone()));
         }
+        return Err(MatcherError::AddErrMultipleRouteParameters.into());
       }
       return Ok(CompareRowRslt::Unmatched);
     }
@@ -421,7 +424,7 @@ impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
               }
               route_end_idx = route_end_idx.checked_add(1).ok_or(MatcherError::AddErrOverflow)?;
               *curr_bytes_idx = curr_bytes_idx.wrapping_add(route_end_idx.into());
-              let route = bytes.get(..usize::from(*curr_bytes_idx)).unwrap_or_default();
+              let route = bytes.get(..*curr_bytes_idx).unwrap_or_default();
               return Ok((route, RowTy::Param));
             }
             other => {
@@ -447,10 +450,10 @@ impl<T, const MC: usize, const MD: usize> MatcherBuilder<'_, T, MC, MD> {
           route_end_idx = route_end_idx.checked_add(1).ok_or(MatcherError::AddErrOverflow)?;
         }
         *curr_bytes_idx = curr_bytes_idx.wrapping_add(route_end_idx.into());
-        let route = bytes.get(..usize::from(*curr_bytes_idx)).unwrap_or_default();
+        let route = bytes.get(..*curr_bytes_idx).unwrap_or_default();
         Ok((route, RowTy::Literal))
       }
-      _ => return Err(MatcherError::AddErrInvalidStart.into()),
+      _ => Err(MatcherError::AddErrInvalidStart.into()),
     }
   }
 }
@@ -528,7 +531,7 @@ impl<T, const MC: usize, const MD: usize> Drop for MatcherBuilder<'_, T, MC, MD>
         let Some(row) = rows.get(idx) else {
           continue;
         };
-        let mut weight: u32 = if row.value.is_some() { 1 } else { 0 };
+        let mut weight = u32::from(row.value.is_some());
         for edge in &row.edges {
           let weight_node = weights.get(usize::from(edge.row_target_idx)).copied();
           weight = weight.wrapping_add(weight_node.unwrap_or_default());
@@ -710,7 +713,7 @@ fn common_route(
   common_prefix_len: usize,
   common_route: &ShortBoxStrU8,
 ) -> crate::Result<ShortBoxStrU8> {
-  Ok(common_route.get(..common_prefix_len).unwrap_or_default().try_into()?)
+  common_route.get(..common_prefix_len).unwrap_or_default().try_into()
 }
 
 #[inline]
@@ -718,5 +721,5 @@ fn unique_route(
   common_prefix_len: usize,
   common_route: &ShortBoxStrU8,
 ) -> crate::Result<ShortBoxStrU8> {
-  Ok(common_route.get(common_prefix_len..).unwrap_or_default().try_into()?)
+  common_route.get(common_prefix_len..).unwrap_or_default().try_into()
 }

@@ -9,7 +9,6 @@ mod cors_middleware;
 mod dyn_params;
 mod endpoint;
 pub(crate) mod endpoint_node;
-mod matcher;
 mod methods;
 mod middleware;
 mod path_params;
@@ -34,7 +33,6 @@ pub use cors_middleware::{CorsMiddleware, OriginResponse};
 pub use dyn_params::DynParams;
 pub use endpoint::Endpoint;
 pub use endpoint_node::EndpointNode;
-pub use matcher::{Matcher, MatcherBuilder, MatcherError, MatcherPath, MatcherPathParam};
 pub use methods::{
   delete::{Delete, delete},
   get::{Get, get},
@@ -55,9 +53,6 @@ pub use server_framework_error::ServerFrameworkError;
 pub use state::{State, StateClean, StateGeneric, StateTest};
 pub use stream_aux::StreamAux;
 pub use verbatim_params::VerbatimParams;
-
-const DEFAULT_MAX_CHILDREN: usize = 18;
-const DEFAULT_MAX_DEPTH: usize = 16;
 
 /// Server
 #[derive(Debug)]

@@ -1,8 +1,8 @@
 use crate::{
   collection::{ArrayVectorU8, Vector},
   http::{
-    AutoStream, ManualStream, OperationMode, Response, StatusCode,
-    server_framework::{Endpoint, EndpointNode, Matcher, Middleware, RouteMatch},
+    AutoStream, ManualStream, Matcher, OperationMode, Response, StatusCode,
+    server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
   },
 };
 use core::{marker::PhantomData, ops::ControlFlow};
@@ -39,11 +39,11 @@ where
       };
       let mut key = alloc::string::String::new();
       for elem in initials {
-        key.push_str(&*elem.path);
+        key.push_str(&elem.path);
       }
-      key.push_str(&*last.path);
+      key.push_str(&last.path);
       let om = last.om;
-      let _ = builder.add(key.try_into()?, (array, om))?;
+      let _ = builder.add(&key.try_into()?, (array, om))?;
     }
     drop(builder);
     Ok(matcher)
