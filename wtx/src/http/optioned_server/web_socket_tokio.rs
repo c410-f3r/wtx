@@ -5,6 +5,7 @@ use crate::{
   stream::Stream,
   web_socket::{Compression, WebSocket, WebSocketAcceptor, WebSocketBuffer},
 };
+use alloc::string::String;
 use core::fmt::Debug;
 use tokio::net::TcpStream;
 
@@ -28,13 +29,14 @@ impl OptionedServer {
     E: Debug + From<crate::Error> + Send + 'static,
     H: Clone
       + FnFut<
-        (WebSocket<C::NegotiatedCompression, Xorshift64, S, WebSocketBuffer, false>,),
+        (String, WebSocket<C::NegotiatedCompression, Xorshift64, S, WebSocketBuffer, false>),
         Result = Result<(), E>,
       > + Send
       + 'static,
     N: Send + Future<Output = crate::Result<S>>,
     S: Stream<read(..): Send, write_all(..): Send> + Send,
     <H as FnFut<(
+      String,
       WebSocket<C::NegotiatedCompression, Xorshift64, S, WebSocketBuffer, false>,
     )>>::Future: Send,
     for<'handle> &'handle H: Send,
@@ -51,13 +53,18 @@ impl OptionedServer {
       let _jh = tokio::spawn(async move {
         let fun = async move {
           let net = conn_net_cb(conn_acceptor, tcp_stream).await?;
-          conn_handle_cb
-            .call((WebSocketAcceptor::default()
-              .compression(conn_compression_cb())
-              .no_masking(true)
-              .accept(net)
-              .await?,))
+          let mut path = String::new();
+          let ws = WebSocketAcceptor::default()
+            .compression(conn_compression_cb())
+            .req(|req| {
+              if let Some(elem) = req.path {
+                path.push_str(elem);
+              }
+              crate::Result::Ok(true)
+            })
+            .accept(net)
             .await?;
+          conn_handle_cb.call((path, ws)).await?;
           Ok::<_, E>(())
         };
         if let Err(err) = fun.await {

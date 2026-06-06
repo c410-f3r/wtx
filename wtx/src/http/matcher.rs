@@ -5,7 +5,7 @@ mod tests;
 
 use crate::{
   collection::{ArrayVectorU8, ShortBoxStrU8, ShortStrU8, Vector},
-  http::server_framework::{DEFAULT_MAX_CHILDREN, DEFAULT_MAX_DEPTH},
+  http::{DEFAULT_MAX_CHILDREN, DEFAULT_MAX_DEPTH},
   misc::{bytes_pos1, from_utf8_basic},
 };
 use core::{

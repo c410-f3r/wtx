@@ -2,9 +2,9 @@
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
+use std::string::String;
 use tokio::net::TcpStream;
 use wtx::{
-  collection::Vector,
   http::OptionedServer,
   rng::Xorshift64,
   web_socket::{
@@ -27,10 +27,11 @@ async fn main() {
 }
 
 async fn handle(
+  path: String,
   mut ws: WebSocket<Option<NegotiatedFlate2>, Xorshift64, TcpStream, WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
-  let mut buffer = Vector::new();
+  let mut buffer = path.into_bytes().into();
   loop {
     let mut frame =
       reader.read_frame(&mut buffer, &mut common, WebSocketPayloadOrigin::Adaptive).await.unwrap();

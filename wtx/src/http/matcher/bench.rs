@@ -1,4 +1,4 @@
-use crate::http::server_framework::Matcher;
+use crate::http::Matcher;
 use core::hint::black_box;
 
 // Retrieved from the `matchit` project

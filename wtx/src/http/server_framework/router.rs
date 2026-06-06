@@ -1,8 +1,8 @@
 use crate::{
   collection::{ArrayVectorU8, Vector},
   http::{
-    AutoStream, ManualStream, OperationMode, Response, StatusCode,
-    server_framework::{Endpoint, EndpointNode, Matcher, Middleware, RouteMatch},
+    AutoStream, ManualStream, Matcher, OperationMode, Response, StatusCode,
+    server_framework::{Endpoint, EndpointNode, Middleware, RouteMatch},
   },
 };
 use core::{marker::PhantomData, ops::ControlFlow};

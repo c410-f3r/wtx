@@ -266,9 +266,9 @@ pub enum Error {
   #[cfg(feature = "http2")]
   #[doc = associated_element_doc!()]
   Http2FlowControlError(crate::http2::Http2Error, u32),
-  #[cfg(feature = "http-server-framework")]
+  #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
-  MatcherError(crate::http::server_framework::MatcherError),
+  MatcherError(crate::http::MatcherError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
@@ -656,10 +656,10 @@ impl From<DequeueError> for Error {
   }
 }
 
-#[cfg(feature = "http-server-framework")]
-impl From<crate::http::server_framework::MatcherError> for Error {
+#[cfg(feature = "http")]
+impl From<crate::http::MatcherError> for Error {
   #[inline]
-  fn from(from: crate::http::server_framework::MatcherError) -> Self {
+  fn from(from: crate::http::MatcherError) -> Self {
     Self::MatcherError(from)
   }
 }

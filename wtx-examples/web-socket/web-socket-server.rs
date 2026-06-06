@@ -5,10 +5,10 @@ extern crate tokio_rustls;
 extern crate wtx;
 extern crate wtx_examples;
 
+use std::string::String;
 use tokio::net::TcpStream;
 use tokio_rustls::server::TlsStream;
 use wtx::{
-  collection::Vector,
   http::OptionedServer,
   misc::TokioRustlsAcceptor,
   rng::Xorshift64,
@@ -34,10 +34,11 @@ async fn main() -> wtx::Result<()> {
 }
 
 async fn handle(
+  path: String,
   mut ws: WebSocket<(), Xorshift64, TlsStream<TcpStream>, WebSocketBuffer, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
-  let mut buffer = Vector::new();
+  let mut buffer = path.into_bytes().into();
   loop {
     let mut frame =
       reader.read_frame(&mut buffer, &mut common, WebSocketPayloadOrigin::Adaptive).await?;
