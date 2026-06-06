@@ -87,7 +87,7 @@ impl<'bytes> CvTrustAnchor<'bytes> {
       }),
       raw.1,
       raw.2,
-      raw.3.map(|el| KeyUsage::new(el)),
+      raw.3.map(KeyUsage::new),
       None,
       raw.4,
       raw.5.map(|el| {
@@ -145,7 +145,7 @@ impl<'bytes> CvTrustAnchor<'bytes> {
   /// Raw bytes of the subject's field
   #[inline]
   pub const fn subject(&self) -> &'bytes [u8] {
-    &self.subject
+    self.subject
   }
 
   /// See [`SubjectKeyIdentifier`].

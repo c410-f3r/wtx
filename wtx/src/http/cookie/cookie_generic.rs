@@ -71,7 +71,7 @@ where
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.write_fmt(format_args!("{}={}", &self.name, self.value.lease()))?;
+    f.write_fmt(format_args!("{}={}", self.name, self.value.lease()))?;
     if !self.domain.lease().is_empty() {
       f.write_fmt(format_args!("; Domain={}", self.domain.lease()))?;
     }

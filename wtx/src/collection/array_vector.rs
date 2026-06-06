@@ -910,7 +910,7 @@ mod serde {
         {
           let mut this = ArrayVector::new();
           while let Some(elem) = seq.next_element()? {
-            this.push(elem).map_err(|err| de::Error::custom(err))?;
+            this.push(elem).map_err(de::Error::custom)?;
           }
           Ok(this)
         }

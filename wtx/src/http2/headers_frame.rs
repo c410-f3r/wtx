@@ -245,7 +245,6 @@ impl<'uri> HeadersFrame<'uri> {
           }
         } else if scheme.is_empty() || path_len == 0 {
           return Err(protocol_err(Http2Error::InvalidServerHeader));
-        } else {
         }
         if !already_created_path {
           if let Some(path) = static_path {
