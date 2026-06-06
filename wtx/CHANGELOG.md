@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.9](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.8...wtx-v0.47.9) - 2026-06-06
+
+### Added
+
+- return path in websocket optioned server
+
+### Other
+
+- Fix CI
+
 ## [0.47.8](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.7...wtx-v0.47.8) - 2026-06-06
 
 ### Other
