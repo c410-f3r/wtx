@@ -284,7 +284,7 @@ impl<'bytes> Parts<'bytes> {
     }
 
     let mut last_err = None;
-    let _ = validate_ica_static(basic_constraints, &mut last_err, &tbs.subject);
+    let _ = validate_ica_static(basic_constraints, key_usage, &mut last_err, &tbs.subject);
     if let Some(err) = last_err {
       return Err(err.into());
     }

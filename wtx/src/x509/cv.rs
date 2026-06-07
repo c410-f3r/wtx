@@ -61,14 +61,35 @@ fn check_common_names<const IS_EE: bool>(
 }
 
 #[inline]
-fn check_gn_against_nc(
+fn check_gn(
   gn: &GeneralName<'_>,
   last_err: &mut Option<X509CvError>,
   name_constraints: &NameConstraints<'_>,
 ) -> bool {
+  match gn {
+    GeneralName::DnsName(dns) => {
+      if dns.len() == 4 || dns.len() == 16 {
+        *last_err = Some(X509CvError::InvalidGeneralName);
+        return false;
+      }
+    }
+    GeneralName::IpAddress(ip) => {
+      if ip.len() != 4 && ip.len() != 16 {
+        *last_err = Some(X509CvError::InvalidGeneralName);
+        return false;
+      }
+    }
+    GeneralName::Rfc822Name(email) => {
+      if !email.contains(&b'@') {
+        *last_err = Some(X509CvError::InvalidGeneralName);
+        return false;
+      }
+    }
+    _ => {}
+  }
   if let Some(excluded) = &name_constraints.excluded_subtrees {
     for subtree in excluded.iter() {
-      if matches_name::<true>(&subtree.base, gn) {
+      if matches_name_constraint::<true>(&subtree.base, gn) {
         *last_err = Some(X509CvError::HasExcludedCerts);
         return false;
       }
@@ -81,7 +102,7 @@ fn check_gn_against_nc(
       if mem::discriminant(gn) == mem::discriminant(&subtree.base) {
         same_type_found = true;
       }
-      if matches_name::<false>(&subtree.base, gn) {
+      if matches_name_constraint::<false>(&subtree.base, gn) {
         matched = true;
         break;
       }
@@ -104,7 +125,7 @@ fn check_name_constraint<const IS_EE: bool>(
   if let Some(subject_alternative_name) = &cert.subject_alternative_name {
     has_san = true;
     for gn in &subject_alternative_name.extension().general_names.entries {
-      if !check_gn_against_nc(gn, last_err, name_constraints) {
+      if !check_gn(gn, last_err, name_constraints) {
         return false;
       }
     }
@@ -121,29 +142,9 @@ fn check_name_constraint<const IS_EE: bool>(
         return false;
       }
       let cn_gn = GeneralName::DnsName(atv.value.data());
-      if !check_gn_against_nc(&cn_gn, last_err, name_constraints) {
+      if !check_gn(&cn_gn, last_err, name_constraints) {
         return false;
       }
-    }
-  }
-  true
-}
-
-#[inline]
-fn check_name_constraints(
-  last_err: &mut Option<X509CvError>,
-  name_constraints: &NameConstraints<'_>,
-  verified_path: &VerifiedPath<'_, '_>,
-) -> bool {
-  if !check_name_constraint(verified_path.end_entity(), last_err, name_constraints) {
-    return false;
-  }
-  for child in verified_path.intermediates() {
-    if child.is_self_signed {
-      continue;
-    }
-    if !check_name_constraint(child, last_err, name_constraints) {
-      return false;
     }
   }
   true
@@ -212,6 +213,51 @@ fn check_revocation<const IS_EE: bool>(
 }
 
 #[inline]
+fn check_verified_path(
+  last_err: &mut Option<X509CvError>,
+  name_constraints: &Option<NameConstraints<'_>>,
+  subject: &[u8],
+  subject_public_key: &[u8],
+  verified_path: &VerifiedPath<'_, '_>,
+) -> bool {
+  macro_rules! is_equal {
+    ($lhs:expr, $rhs:expr) => {{
+      let equal_subject = $lhs.0.subject.lease().bytes() == $lhs.1;
+      let equal_spk = *$rhs.0.subject_public_key_info.lease().subject_public_key.bytes() == $rhs.1;
+      equal_subject && equal_spk
+    }};
+  }
+
+  let ee = verified_path.end_entity();
+  if is_equal!((ee, subject), (ee, subject_public_key)) {
+    return false;
+  }
+  if let Some(elem) = name_constraints {
+    if !check_name_constraint(verified_path.end_entity(), last_err, elem) {
+      return false;
+    }
+    for child in verified_path.intermediates() {
+      if child.is_self_signed {
+        continue;
+      }
+      if !check_name_constraint(child, last_err, elem) {
+        return false;
+      }
+      if is_equal!((child, subject), (child, subject_public_key)) {
+        return false;
+      }
+    }
+  } else {
+    for child in verified_path.intermediates() {
+      if is_equal!((child, subject), (child, subject_public_key)) {
+        return false;
+      }
+    }
+  }
+  true
+}
+
+#[inline]
 #[rustfmt::skip]
 fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
   match lhs.len() {
@@ -252,7 +298,7 @@ fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
 }
 
 #[inline]
-fn matches_name<const IS_EXCLUDED: bool>(
+fn matches_name_constraint<const IS_EXCLUDED: bool>(
   constraint: &GeneralName<'_>,
   name: &GeneralName<'_>,
 ) -> bool {
@@ -417,14 +463,17 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     if !check_revocation(cert, cv_policy, depth, trust_anchor.key_usage(), last_err) {
       continue;
     }
-    let parent = trust_anchor.subject_public_key_info();
-    if !validate_chain_signature(cert, last_err, parent) {
+    if !validate_chain_signature(cert, last_err, trust_anchor.subject_public_key_info()) {
       continue;
     }
 
-    if let Some(name_constraints) = trust_anchor.name_constraints()
-      && !check_name_constraints(last_err, name_constraints, verified_path)
-    {
+    if !check_verified_path(
+      last_err,
+      trust_anchor.name_constraints(),
+      trust_anchor.subject(),
+      trust_anchor.subject_public_key_info().subject_public_key.bytes(),
+      verified_path,
+    ) {
       continue;
     }
     *verified_path.trust_anchor_mut() = trust_anchor;
@@ -435,6 +484,7 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     if cert.issuer.lease().bytes() != intermediate.subject.lease().bytes() {
       continue;
     }
+
     if let Some(elem) = &cert.extended_key_usage
       && validate_eku::<false>(elem.extension(), &intermediate.extended_key_usage).is_err()
     {
@@ -463,9 +513,13 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
       continue;
     }
 
-    if let Some(name_constraints) = &intermediate.name_constraints
-      && !check_name_constraints(last_err, name_constraints, verified_path)
-    {
+    if !check_verified_path(
+      last_err,
+      &intermediate.name_constraints,
+      intermediate.subject.lease().bytes(),
+      intermediate.subject_public_key_info.lease().subject_public_key.bytes(),
+      verified_path,
+    ) {
       continue;
     }
 
@@ -627,6 +681,7 @@ fn validate_ica_dyn(
 #[inline]
 fn validate_ica_static(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
+  key_usage: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
   subject: &Name<'_>,
 ) -> bool {
@@ -640,6 +695,12 @@ fn validate_ica_static(
   }
   if subject.rdn_sequence().is_empty() {
     *last_err = Some(X509CvError::IcasMustHaveASubjectSequence);
+    return false;
+  }
+  if let Some(key_usage) = key_usage
+    && bc.extension().ca() != key_usage.key_cert_sign()
+  {
+    *last_err = Some(X509CvError::KeyUsageKeyCertSignMismatch);
     return false;
   }
   true

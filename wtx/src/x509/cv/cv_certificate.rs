@@ -227,7 +227,7 @@ impl<'bytes> Parts<'bytes> {
     if IS_EE {
       let _ = validate_ee_static(basic_constraints, key_usage, &mut last_err, &name_constraints);
     } else {
-      let _ = validate_ica_static(basic_constraints, &mut last_err, &tbs.subject);
+      let _ = validate_ica_static(basic_constraints, key_usage, &mut last_err, &tbs.subject);
     }
     if let Some(err) = last_err {
       return Err(err.into());
