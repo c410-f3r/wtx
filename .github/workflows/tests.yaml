@@ -73,4 +73,3 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt update && sudo apt install nghttp2-client -y
       - run: ${{ matrix.scripts }}
-        continue-on-error: ${{ matrix.scripts == '.scripts/x509-limbo.sh' }}

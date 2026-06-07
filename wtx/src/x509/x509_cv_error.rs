@@ -51,10 +51,14 @@ pub enum X509CvError {
   IcasMustHaveSki,
   /// Authority Key Identifier extension is malformed.
   InvalidAuthorityKeyIdentifier,
+  /// Invalid General Name
+  InvalidGeneralName,
   /// Name Constraints extension is malformed or invalid.
   InvalidNameConstraints,
   /// IP address in subject name cannot be hex formatted.
   IpCanNotBeHex,
+  /// `KeyCertSig` must match the `ca` flag of basic constraints
+  KeyUsageKeyCertSignMismatch,
   /// CRL is missing the mandatory CRL Number extension.
   MissingCrlNumber,
   /// Name Constraints extension must be marked critical.
