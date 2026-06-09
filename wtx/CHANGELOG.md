@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.10](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.9...wtx-v0.47.10) - 2026-06-09
+
+### Other
+
+- Merge pull request #555 from c410-f3r/misc
+- Fix more x509 tests
+- Update x509-limbo
+
 ## [0.47.9](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.8...wtx-v0.47.9) - 2026-06-06
 
 ### Added

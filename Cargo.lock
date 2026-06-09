@@ -1793,7 +1793,7 @@ dependencies = [
 
 [[package]]
 name = "wtx"
-version = "0.47.9"
+version = "0.47.10"
 dependencies = [
  "arbitrary",
  "argon2",
@@ -1882,7 +1882,7 @@ dependencies = [
 
 [[package]]
 name = "wtx-ui"
-version = "0.5.9"
+version = "0.5.10"
 dependencies = [
  "clap",
  "tokio",
