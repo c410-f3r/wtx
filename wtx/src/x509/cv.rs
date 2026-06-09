@@ -490,9 +490,11 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
     {
       continue;
     }
+
     if !validate_chain_signature(cert, last_err, intermediate.subject_public_key_info.lease()) {
       continue;
     }
+
     if let Some(basic_constraints) = &intermediate.basic_constraints {
       if !basic_constraints.extension().ca() {
         continue;
@@ -502,7 +504,10 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
       {
         continue;
       }
+    } else {
+      continue;
     }
+
     if let Some(key_usage) = &intermediate.key_usage
       && !key_usage.key_cert_sign()
     {
@@ -681,27 +686,30 @@ fn validate_ica_dyn(
 #[inline]
 fn validate_ica_static(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
+  is_self_signed: bool,
   key_usage: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
   subject: &Name<'_>,
 ) -> bool {
-  let Some(bc) = basic_constraints else {
-    *last_err = Some(X509CvError::IcasMustHaveBasicConstraints);
-    return false;
-  };
-  if !bc.critical() {
-    *last_err = Some(X509CvError::IcasMustHaveCriticalBasicConstraints);
-    return false;
-  }
   if subject.rdn_sequence().is_empty() {
     *last_err = Some(X509CvError::IcasMustHaveASubjectSequence);
     return false;
   }
-  if let Some(key_usage) = key_usage
-    && bc.extension().ca() != key_usage.key_cert_sign()
-  {
-    *last_err = Some(X509CvError::KeyUsageKeyCertSignMismatch);
-    return false;
+  if is_self_signed {
+    let Some(bc) = basic_constraints else {
+      *last_err = Some(X509CvError::IcasMustHaveBasicConstraints);
+      return false;
+    };
+    if !bc.critical() {
+      *last_err = Some(X509CvError::IcasMustHaveCriticalBasicConstraints);
+      return false;
+    }
+    if let Some(key_usage) = key_usage
+      && bc.extension().ca() != key_usage.key_cert_sign()
+    {
+      *last_err = Some(X509CvError::KeyUsageKeyCertSignMismatch);
+      return false;
+    }
   }
   true
 }

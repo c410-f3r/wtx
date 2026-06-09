@@ -179,9 +179,9 @@ enum SignatureAlgorithm {
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 enum TestcaseResultStatus {
-  Success,
   Failure,
   Skipped,
+  Success,
 }
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -266,7 +266,8 @@ fn evaluate_test_case<'bytes>(
   trusted_certs: &mut Vector<CvTrustAnchor<'bytes>>,
   untrusted_intermediates: &mut Vector<CvCertificate<'_, 'bytes, false>>,
 ) {
-  let unsupported = ["bettertls::pathbuilding", "online", "webpki"];
+  let unsupported =
+    ["bettertls::pathbuilding::tc71", "bettertls::pathbuilding::tc77", "online", "webpki"];
   if unsupported.iter().any(|el| testcase.id.starts_with(el)) {
     return;
   }
