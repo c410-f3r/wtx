@@ -6,7 +6,7 @@ use crate::{
     Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
     initial_server_stream_remote::InitialServerStreamRemote,
   },
-  misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
+  misc::{Lease, LeaseMut, PartitionedFilledBuffer},
   rng::{Rng, Xorshift64, simple_seed},
 };
 use hashbrown::HashMap;

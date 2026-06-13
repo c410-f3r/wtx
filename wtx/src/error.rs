@@ -64,9 +64,6 @@ pub enum Error {
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
-  #[cfg(feature = "rustls")]
-  #[doc = associated_element_doc!()]
-  RustlsError(Box<rustls::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
   SerdeDeValue(Box<::serde::de::value::Error>),
@@ -268,7 +265,7 @@ pub enum Error {
   Http2FlowControlError(crate::http2::Http2Error, u32),
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
-  MatcherError(crate::http::MatcherError),
+  MatcherError(crate::http::RouterError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
@@ -280,12 +277,15 @@ pub enum Error {
   #[cfg(feature = "schema-manager")]
   #[doc = associated_element_doc!()]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
-  #[cfg(feature = "http-server-framework")]
+  #[cfg(feature = "http2-server-framework")]
   #[doc = associated_element_doc!()]
-  ServerFrameworkError(crate::http::server_framework::ServerFrameworkError),
+  ServerFrameworkError(crate::http::http2_server_framework::Http2ServerFrameworkError),
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "tls")]
+  #[doc = associated_element_doc!()]
+  TlsError(crate::tls::TlsError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -469,14 +469,6 @@ impl From<quick_protobuf::Error> for Error {
   }
 }
 
-#[cfg(feature = "rustls")]
-impl From<rustls::Error> for Error {
-  #[inline]
-  fn from(from: rustls::Error) -> Self {
-    Self::RustlsError(from.into())
-  }
-}
-
 #[cfg(feature = "serde")]
 impl From<::serde::de::value::Error> for Error {
   #[inline]
@@ -498,6 +490,14 @@ impl From<crate::http::SessionError> for Error {
   #[inline]
   fn from(from: crate::http::SessionError) -> Self {
     Self::SessionError(from)
+  }
+}
+
+#[cfg(feature = "tls")]
+impl From<crate::tls::TlsError> for Error {
+  #[inline]
+  fn from(from: crate::tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 
@@ -657,9 +657,9 @@ impl From<DequeueError> for Error {
 }
 
 #[cfg(feature = "http")]
-impl From<crate::http::MatcherError> for Error {
+impl From<crate::http::RouterError> for Error {
   #[inline]
-  fn from(from: crate::http::MatcherError) -> Self {
+  fn from(from: crate::http::RouterError) -> Self {
     Self::MatcherError(from)
   }
 }
@@ -672,10 +672,10 @@ impl From<crate::database::schema_manager::SchemaManagerError> for Error {
   }
 }
 
-#[cfg(feature = "http-server-framework")]
-impl From<crate::http::server_framework::ServerFrameworkError> for Error {
+#[cfg(feature = "http2-server-framework")]
+impl From<crate::http::http2_server_framework::Http2ServerFrameworkError> for Error {
   #[inline]
-  fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
+  fn from(from: crate::http::http2_server_framework::Http2ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
   }
 }

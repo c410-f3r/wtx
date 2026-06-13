@@ -1,4 +1,5 @@
 use crate::{
+  collection::ArrayVectorU8,
   misc::{ConnectionState, FnMutFut, from_utf8_basic},
   rng::Rng,
   stream::StreamWriter,
@@ -69,50 +70,45 @@ pub(crate) fn control_frame_payload(data: &[u8]) -> ([u8; MAX_CONTROL_PAYLOAD_LE
   (array, len.try_into().unwrap_or_default())
 }
 
-pub(crate) fn fill_header_from_params<const IS_CLIENT: bool>(
+pub(crate) fn header_from_params(
   fin: bool,
-  header: &mut [u8; MAX_HEADER_LEN],
   op_code: OpCode,
   payload_len: usize,
   rsv1: u8,
-) -> u8 {
+) -> ArrayVectorU8<u8, MAX_HEADER_LEN> {
   fn first_header_byte(fin: bool, op_code: OpCode, rsv1: u8) -> u8 {
     (u8::from(fin) << 7) | rsv1 | u8::from(op_code)
   }
 
+  let mut header = ArrayVectorU8::from_array([0; MAX_HEADER_LEN]);
   match payload_len {
     0..=125 => {
-      let [b1, b2, ..] = header;
-      *b1 = first_header_byte(fin, op_code, rsv1);
-      *b2 = u8::try_from(payload_len).unwrap_or_default();
-      2
+      let _rslt = header.push(first_header_byte(fin, op_code, rsv1));
+      let _rslt = header.push(u8::try_from(payload_len).unwrap_or_default());
     }
     126..=65_535 => {
       let [len_c, len_d] = u16::try_from(payload_len).map(u16::to_be_bytes).unwrap_or_default();
-      let [b0, b1, b2, b3, ..] = header;
-      *b0 = first_header_byte(fin, op_code, rsv1);
-      *b1 = 126;
-      *b2 = len_c;
-      *b3 = len_d;
-      4
+      let _rslt = header.push(first_header_byte(fin, op_code, rsv1));
+      let _rslt = header.push(126);
+      let _rslt = header.push(len_c);
+      let _rslt = header.push(len_d);
     }
     _ => {
       let len = u64::try_from(payload_len).map(u64::to_be_bytes).unwrap_or_default();
       let [len_c, len_d, len_e, len_f, len_g, len_h, len_i, len_j] = len;
-      let [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ..] = header;
-      *b0 = first_header_byte(fin, op_code, rsv1);
-      *b1 = 127;
-      *b2 = len_c;
-      *b3 = len_d;
-      *b4 = len_e;
-      *b5 = len_f;
-      *b6 = len_g;
-      *b7 = len_h;
-      *b8 = len_i;
-      *b9 = len_j;
-      10
+      let _rslt = header.push(first_header_byte(fin, op_code, rsv1));
+      let _rslt = header.push(127);
+      let _rslt = header.push(len_c);
+      let _rslt = header.push(len_d);
+      let _rslt = header.push(len_e);
+      let _rslt = header.push(len_f);
+      let _rslt = header.push(len_g);
+      let _rslt = header.push(len_h);
+      let _rslt = header.push(len_i);
+      let _rslt = header.push(len_j);
     }
   }
+  header
 }
 
 pub(crate) const fn has_masked_frame(second_header_byte: u8) -> bool {
@@ -135,8 +131,8 @@ pub(crate) async fn write_control_frame<A, RNG, const IS_CLIENT: bool>(
 where
   RNG: Rng,
 {
-  let mut frame = Frame::<_, IS_CLIENT>::new_fin(op_code, payload);
-  manage_normal_frame(connection_state, &mut frame, no_masking, rng);
+  let mut frame = Frame::new(true, op_code, payload, 0);
+  manage_normal_frame::<_, _, IS_CLIENT>(connection_state, &mut frame, no_masking, rng);
   wsc_cb.call((aux, frame.header(), frame.payload())).await?;
   Ok(())
 }

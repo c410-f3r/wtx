@@ -5,23 +5,24 @@
 
 use wtx::{
   collection::Vector,
-  executor::Runtime,
+  executor::StdRuntime,
   rng::{SeedableRng, Xorshift64},
   stream::BytesStream,
+  tls::{TlsModePlainText, TlsStream},
   web_socket::{Frame, OpCode, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin},
 };
 
 libfuzzer_sys::fuzz_target!(|data: (OpCode, Vec<u8>)| {
-  Runtime::new().block_on(async move {
+  StdRuntime::new().block_on(async move {
     let mut ws = WebSocket::<_, _, _, _, false>::new(
       (),
       false,
       Xorshift64::from_simple_seed().unwrap(),
-      BytesStream::default(),
+      TlsStream::new(BytesStream::default(), TlsModePlainText),
       WebSocketBuffer::default(),
     );
     ws.set_max_payload_len(u16::MAX.into());
-    let mut frame = Frame::new_fin(data.0, data.1);
+    let mut frame = Frame::new_fin(data.0, data.1).unwrap();
     if ws.write_frame(&mut frame).await.is_err() {
       return;
     };

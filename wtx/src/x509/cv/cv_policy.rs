@@ -1,5 +1,5 @@
 use crate::{
-  calendar::{DateTime, Instant, Utc},
+  calendar::{DateTime, Utc},
   x509::{
     CvCrl, CvPolicyMode,
     cv::{cv_crl_expiration::CvCrlExpiration, cv_evaluation_depth::CvEvaluationDepth},
@@ -10,33 +10,33 @@ use crate::{
 /// Chain Validation - Policy
 ///
 /// Groups all configurable rule parameters.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CvPolicy<'any, 'bytes> {
   cep: CvCrlExpiration,
   crls: &'any [CvCrl<'any, 'bytes>],
-  extended_key_usage: &'any ExtendedKeyUsage,
   evaluation_depth: CvEvaluationDepth,
+  extended_key_usage: &'any ExtendedKeyUsage,
   key_usage: KeyUsage,
   mode: CvPolicyMode,
   validation_time: DateTime<Utc>,
 }
 
 impl<'any, 'bytes> CvPolicy<'any, 'bytes> {
-  /// The other parameters are set using optioned parameters.
-  pub fn from_crls(crls: &'any [CvCrl<'any, 'bytes>]) -> crate::Result<Self> {
-    Ok(Self {
+  /// New instance with optioned parameters.
+  //
+  // FIXME(STABLE): Use `::default()`
+  pub const fn new() -> Self {
+    Self {
       cep: CvCrlExpiration::Enforce,
-      crls,
-      extended_key_usage: const { &ExtendedKeyUsage::SERVER },
-      evaluation_depth: CvEvaluationDepth::Chain(10),
-      key_usage: KeyUsage::default(),
+      crls: &[],
+      evaluation_depth: CvEvaluationDepth::Chain(8),
+      extended_key_usage: const { &ExtendedKeyUsage::EMPTY },
+      key_usage: KeyUsage::new((0, 0)),
       mode: CvPolicyMode::Strict,
-      validation_time: Instant::now_date_time(0)?,
-    })
+      validation_time: DateTime::EPOCH,
+    }
   }
-}
 
-impl<'any, 'bytes> CvPolicy<'any, 'bytes> {
   /// See [`CvCrl`].
   #[inline]
   pub const fn crls(&self) -> &'any [CvCrl<'any, 'bytes>] {
@@ -109,6 +109,12 @@ impl<'any, 'bytes> CvPolicy<'any, 'bytes> {
     &mut self.mode
   }
 
+  /// Mutable version of [`Self::crls`].
+  #[inline]
+  pub const fn set_crls(&mut self, crls: &'any [CvCrl<'any, 'bytes>]) {
+    self.crls = crls;
+  }
+
   /// Mutable version of [`Self::validation_time`].
   #[inline]
   pub const fn set_validation_time(&mut self, value: DateTime<Utc>) {
@@ -119,5 +125,12 @@ impl<'any, 'bytes> CvPolicy<'any, 'bytes> {
   #[inline]
   pub const fn validation_time(&self) -> &DateTime<Utc> {
     &self.validation_time
+  }
+}
+
+impl<'any, 'bytes> Default for CvPolicy<'any, 'bytes> {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
   }
 }

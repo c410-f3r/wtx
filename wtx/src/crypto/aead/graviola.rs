@@ -1,7 +1,7 @@
 use crate::{
   crypto::{
     Aes128GcmGraviola, Aes256GcmGraviola, Chacha20Poly1305Graviola, CryptoError,
-    aead::{Aead, NONCE_LEN, TAG_LEN, generate_nonce, split_nonce_content_tag, write_tag},
+    aead::{Aead, NONCE_LEN, TAG_LEN, generate_nonce, split_content_tag, write_tag},
   },
   rng::CryptoRng,
 };
@@ -11,13 +11,13 @@ impl Aead for Aes128GcmGraviola {
   type Secret = [u8; 16];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
-    let (nonce, content, tag) =
-      split_nonce_content_tag(encrypted_data, CryptoError::InvalidAes128GcmData)?;
+  ) -> crate::Result<&'data mut [u8]> {
+    let (content, tag) = split_content_tag(data, CryptoError::InvalidAes128GcmData)?;
     AesGcm::new(secret).decrypt(&nonce, associated_data, content, &tag)?;
     Ok(content)
   }
@@ -44,13 +44,13 @@ impl Aead for Aes256GcmGraviola {
   type Secret = [u8; 32];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
-    let (nonce, content, tag) =
-      split_nonce_content_tag(encrypted_data, CryptoError::InvalidAes256GcmData)?;
+  ) -> crate::Result<&'data mut [u8]> {
+    let (content, tag) = split_content_tag(data, CryptoError::InvalidAes256GcmData)?;
     AesGcm::new(secret).decrypt(&nonce, associated_data, content, &tag)?;
     Ok(content)
   }
@@ -77,13 +77,13 @@ impl Aead for Chacha20Poly1305Graviola {
   type Secret = [u8; 32];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
-    let (nonce, content, tag) =
-      split_nonce_content_tag(encrypted_data, CryptoError::InvalidChacha20Poly1305Data)?;
+  ) -> crate::Result<&'data mut [u8]> {
+    let (content, tag) = split_content_tag(data, CryptoError::InvalidChacha20Poly1305Data)?;
     ChaCha20Poly1305::new(*secret).decrypt(&nonce, associated_data, content, &tag)?;
     Ok(content)
   }

@@ -77,7 +77,7 @@ macro_rules! _create_dnsn_test {
 
       #[test]
       fn der_and_ser_have_correct_outputs() {
-        crate::executor::Runtime::new().block_on(async {
+        crate::executor::StdRuntime::new().block_on(async {
           let pkgs_aux = &mut PkgsAux::from_minimum((), $drsr_expr, ());
           let mut trans = Mock::default();
           trans.push_response($raw_der);

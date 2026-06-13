@@ -38,8 +38,7 @@ impl SessionManagerBuilder {
     }
   }
 
-  /// Creates a new [`SessionManager`] with random generated keys. It is up to the caller to
-  /// provide a good RNG.
+  /// Creates a new [`SessionManager`] with random generated keys.
   ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
   /// [`Self::inspection_interval`] and should be called in a separated task.

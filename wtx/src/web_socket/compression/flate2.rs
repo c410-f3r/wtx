@@ -10,9 +10,10 @@ use crate::{
 use flate2::{Compress, Decompress, FlushCompress, FlushDecompress};
 
 /// Initial Flate2 compression
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Flate2 {
-  dc: DeflateConfig,
+  /// See [`DeflateConfig`].
+  pub dc: DeflateConfig,
 }
 
 impl From<DeflateConfig> for Flate2 {

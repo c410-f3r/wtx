@@ -1,5 +1,5 @@
 use crate::{
-  executor::Runtime,
+  executor::StdRuntime,
   http::{
     Header, Headers, HttpRecvParams, MsgBufferString, MsgData, MsgDataMut, ReqBuilder, Request,
     StatusCode,
@@ -16,14 +16,14 @@ use std::net::{TcpListener, TcpStream};
 #[cfg_attr(miri, ignore)]
 #[test]
 fn connections() {
-  let runtime = Runtime::new();
+  let runtime = StdRuntime::new();
   let uri = _uri();
   server(&uri, &runtime);
   let client_fut = client(&uri, &runtime);
   runtime.block_on(client_fut);
 }
 
-async fn client(uri: &UriString, runtime: &Runtime) {
+async fn client(uri: &UriString, runtime: &StdRuntime) {
   let mut msg_buffer = MsgBufferString::default();
   msg_buffer.headers.reserve(6, 1).unwrap();
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
@@ -62,7 +62,7 @@ async fn client(uri: &UriString, runtime: &Runtime) {
   crate::misc::sleep(Duration::from_millis(100)).await.unwrap();
 }
 
-fn server(uri: &UriString, runtime: &Runtime) {
+fn server(uri: &UriString, runtime: &StdRuntime) {
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).unwrap();
   let runtime_fut = runtime.clone();
   let _server_jh = runtime

@@ -2,16 +2,16 @@
 macro_rules! common_aead_functions {
   () => {
     #[inline]
-    fn local_decrypt<'encrypted, const S: usize>(
+    fn local_decrypt<'data, const S: usize>(
       algorithm: &'static Algorithm,
       associated_data: &[u8],
-      encrypted_data: &'encrypted mut [u8],
+      data: &'data mut [u8],
       error: CryptoError,
+      nonce: [u8; NONCE_LEN],
       secret: &[u8; S],
-    ) -> crate::Result<&'encrypted mut [u8]> {
-      let (nonce, content) = split_nonce_content(encrypted_data, error)?;
+    ) -> crate::Result<&'data mut [u8]> {
       let bytes = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_err| error)?)
-        .open_in_place(Nonce::assume_unique_for_key(nonce), Aad::from(associated_data), content)
+        .open_in_place(Nonce::assume_unique_for_key(nonce), Aad::from(associated_data), data)
         .map_err(|_err| error)?;
       Ok(bytes)
     }

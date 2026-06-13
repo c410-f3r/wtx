@@ -1,7 +1,4 @@
-mod partitioned_filled_buffer;
-
-use crate::stream::StreamReader;
-pub(crate) use partitioned_filled_buffer::PartitionedFilledBuffer;
+use crate::{misc::PartitionedFilledBuffer, stream::StreamReader};
 
 pub(crate) async fn read_header<const BEGIN: usize, const LEN: usize, SR>(
   buffer: &mut [u8],

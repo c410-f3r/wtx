@@ -4,7 +4,7 @@ Implementation of [RFC7541](https://datatracker.ietf.org/doc/html/rfc7541) and [
 
 Passes the `hpack-test-case` and the `h2spec` test suites. Due to official and unofficial deprecations, prioritization and server-push are not supported.
 
-There are a bunch of low-level details that most individuals don't care about when they are building applications. If that is your case, high level interfaces are available in `http-client-pool` or `http-server-framework`.
+There are a bunch of low-level details that most individuals don't care about when they are building applications. If that is your case, high level interfaces are available in `http2-client-pool` or `http2-server-framework`.
 
 To use this functionality, it is necessary to activate the `http2` feature.
 

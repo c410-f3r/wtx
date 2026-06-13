@@ -1,14 +1,11 @@
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
-async-io = { default-features = false, optional = true, version = "2.0" }
-async-net = { default-features = false, optional = true, version = "2.0" }
 aws-lc-rs = { default-features = false, optional = true, version = "1.0" }
 crossbeam-channel = { default-features = false, optional = true, version = "0.5" }
 embassy-net = { default-features = false, optional = true, version = "0.9" }
 embassy-time = { default-features = false, optional = true, version = "0.5" }
 flate2 = { default-features = false, optional = true, version = "1.0" }
 foldhash = { default-features = false, optional = true, version = "0.2" }
-futures-lite = { default-features = false, optional = true, version = "2.0" }
 graviola = { default-features = false, optional = true, version = "0.3" }
 hashbrown = { default-features = false, optional = true, version = "0.17" }
 httparse = { default-features = false, optional = true, version = "1.0" }
@@ -22,20 +19,15 @@ portable-atomic-util = { default-features = false, optional = true, version = "0
 quick-protobuf = { default-features = false, optional = true, version = "0.8" }
 ring = { default-features = false, optional = true, version = "0.17" }
 rust_decimal = { default-features = false, optional = true, version = "1.0" }
-rustls = { default-features = false, optional = true, version = "0.23" }
-rustls-pemfile = { default-features = false, optional = true, version = "2.0" }
-rustls-pki-types = { default-features = false, optional = true, version = "1.0" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 simdutf8 = { default-features = false, optional = true, version = "0.1" }
 socket2 = { default-features = false, features = ["all"], optional = true, version = "0.6" }
 tokio = { default-features = false, optional = true, version = "1.0" }
-tokio-rustls = { default-features = false, optional = true, version = "0.26" }
 tracing = { default-features = false, optional = true, version = "0.1" }
 tracing-subscriber = { default-features = false, optional = true, version = "0.3" }
 tracing-tree = { default-features = false, optional = true, version = "0.4" }
 uuid = { default-features = false, optional = true, version = "1.0" }
-webpki-roots = { default-features = false, optional = true, version = "1.0" }
 wtx-macros = { default-features = false, optional = true, path = "../wtx-macros", version = "0.8.3" }
 
 argon2 = { default-features = false, optional = true, version = "0.6.0-rc.8" }
@@ -44,16 +36,13 @@ rand_core = { default-features = false, optional = true, version = "0.10" }
 sha3 = { default-features = false, optional = true, version = "0.12" }
 
 [dev-dependencies]
-tokio = { default-features = false, features = ["macros", "rt-multi-thread", "sync"], version = "1.0" }
-wtx = { default-features = false, features = ["executor", "macros", "nightly"], path = "." }
+wtx = { default-features = false, features = ["macros", "nightly"], path = "." }
 
 [features]
 32-tuple-impls = []
 arbitrary = ["dep:arbitrary", "arbitrary/derive_arbitrary", "std"]
 argon2 = ["dep:argon2"]
 asn1 = []
-async-io = ["dep:async-io"]
-async-net = ["dep:async-io", "dep:async-net", "dep:futures-lite", "std"]
 ccadb = ["x509"]
 client-api-framework = []
 crossbeam-channel = ["dep:crossbeam-channel", "crossbeam-channel/std", "std"]
@@ -63,7 +52,7 @@ crypto-graviola = ["crypto", "dep:graviola", "std"]
 crypto-openssl = ["crypto", "dep:openssl"]
 crypto-ring = ["crypto", "dep:ring", "ring/alloc"]
 database = []
-database-tests = ["executor", "getrandom", "macros", "postgres", "schema-manager-dev"]
+database-tests = ["getrandom", "macros", "postgres", "schema-manager-dev"]
 default = []
 embassy-net = ["dep:embassy-net", "embassy-net/tcp"]
 embassy-time = ["dep:embassy-time"]
@@ -73,14 +62,14 @@ flate2 = ["dep:flate2", "flate2/zlib-rs"]
 foldhash = ["dep:foldhash", "hashbrown?/default-hasher"]
 getrandom = ["dep:getrandom"]
 grpc = []
-grpc-client = ["grpc", "http-client-pool"]
-grpc-server = ["grpc", "http-server-framework"]
+grpc-client = ["grpc", "http2-client-pool"]
+grpc-server = ["grpc", "http2-server-framework"]
 hashbrown = ["dep:hashbrown", "hashbrown/default-hasher", "hashbrown/inline-more"]
 http = []
-http-client-pool = ["http2", "std"]
+http2-client-pool = ["http2", "std"]
 http-cookie = ["http"]
 http-cookie-secure = ["crypto", "http-cookie"]
-http-server-framework = ["http2", "optioned-server"]
+http2-server-framework = ["http2", "nightly"]
 http-session = ["http-cookie-secure", "secret", "serde_json"]
 http2 = ["foldhash", "hashbrown", "http"]
 httparse = ["dep:httparse"]
@@ -89,18 +78,14 @@ macros = ["dep:wtx-macros"]
 memchr = ["dep:memchr"]
 nightly = []
 optimizations = ["memchr", "simdutf8"]
-optioned-server = ["nightly", "socket2"]
 parking_lot = ["dep:parking_lot"]
 portable-atomic = ["dep:portable-atomic", "portable-atomic/fallback"]
 portable-atomic-util = ["portable-atomic", "dep:portable-atomic-util", "portable-atomic-util/alloc"]
-postgres = ["crypto", "database", "foldhash", "hashbrown"]
+postgres = ["crypto", "database", "foldhash", "hashbrown", "tls"]
 quick-protobuf = ["dep:quick-protobuf", "quick-protobuf/std", "std"]
 rand_core = ["dep:rand_core"]
 ring = ["dep:ring"]
 rust_decimal = ["dep:rust_decimal", "rust_decimal/maths"]
-rustls = ["dep:rustls", "rustls-pki-types"]
-rustls-pemfile = ["dep:rustls-pemfile"]
-rustls-pki-types = ["dep:rustls-pki-types"]
 schema-manager = ["database"]
 schema-manager-dev = ["schema-manager"]
 secret = ["crypto", "libc"]
@@ -108,22 +93,21 @@ serde = ["dep:serde", "serde/alloc", "serde/derive"]
 serde_json = ["serde", "dep:serde_json", "serde_json/alloc", "serde_json/std", "std"]
 sha3 = ["dep:sha3"]
 simdutf8 = ["dep:simdutf8"]
-std = ["wtx-macros?/std"]
+std = ["socket2", "wtx-macros?/std"]
+tls = ["x509"]
 tokio = ["dep:tokio", "tokio/io-util", "tokio/net", "tokio/rt", "std", "tokio/sync", "tokio/time"]
-tokio-rustls = ["crypto-ring", "rustls", "rustls-pemfile/std", "rustls-pki-types", "tokio", "dep:tokio-rustls", "tokio-rustls/ring"]
 tracing = ["dep:tracing", "tracing/attributes"]
 tracing-subscriber = ["dep:tracing-subscriber", "tracing-subscriber/env-filter", "tracing-subscriber/fmt"]
 tracing-tree = ["std", "dep:tracing-tree"]
 uuid = ["dep:uuid"]
-web-socket = ["http"]
+web-socket = ["http", "tls"]
 web-socket-handshake = ["crypto", "httparse", "web-socket"]
-webpki-roots = ["dep:webpki-roots"]
+web-socket-server-framework = ["web-socket-handshake"]
 wtx-macros = ["dep:wtx-macros"]
 x509 = ["asn1", "crypto", "hashbrown"]
 
-_async-tests = ["tokio/net", "tokio/rt-multi-thread", "tokio/time"]
 _bench = []
-_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/generic-queue-64", "embassy-time?/std", "openssl?/vendored"] # Does not decide for downstream users
+_hack = ["aws-lc-rs?/aws-lc-sys", "embassy-net?/medium-ip", "embassy-net?/proto-ipv4", "embassy-time?/generic-queue-64", "embassy-time?/std"] # Does not decide for downstream users
 _integration-tests = ["serde_json?/raw_value"]
 _tracing-tree = ["tracing", "tracing-subscriber", "tracing-tree"]
 

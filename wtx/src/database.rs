@@ -3,7 +3,7 @@
 pub mod client;
 mod database_error;
 mod database_ty;
-mod executor;
+mod db_client;
 mod from_records;
 mod json;
 mod misc;
@@ -18,7 +18,7 @@ mod value_ident;
 
 pub use database_error::DatabaseError;
 pub use database_ty::DatabaseTy;
-pub use executor::Executor;
+pub use db_client::DbClient;
 pub use from_records::{FromRecords, FromRecordsParams};
 pub use json::Json;
 pub use misc::seek_related_entities;

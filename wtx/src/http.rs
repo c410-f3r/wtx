@@ -1,7 +1,5 @@
 //! Generic HTTP elements
 
-#[cfg(feature = "http-client-pool")]
-pub mod client_pool;
 #[cfg(feature = "http-cookie")]
 mod cookie;
 mod generic_header;
@@ -9,10 +7,13 @@ mod generic_request;
 mod generic_response;
 mod header_name;
 mod headers;
+#[cfg(feature = "http2-client-pool")]
+pub mod http2_client_pool;
+#[cfg(feature = "http2-server-framework")]
+pub mod http2_server_framework;
 mod http_client;
 mod http_error;
 mod http_recv_params;
-mod matcher;
 mod method;
 mod mime;
 mod misc;
@@ -20,19 +21,18 @@ mod msg_buffer;
 mod msg_builder;
 mod msg_data;
 mod operation_mode;
-#[cfg(feature = "optioned-server")]
-mod optioned_server;
 mod protocol;
 mod request;
 mod response;
-#[cfg(feature = "http-server-framework")]
-pub mod server_framework;
+mod router;
 #[cfg(feature = "http-session")]
 mod session;
 mod status_code;
 pub(crate) mod u31;
 mod version;
 pub mod web_authn;
+#[cfg(feature = "web-socket-server-framework")]
+mod web_socket_server_framework;
 
 #[cfg(feature = "http-cookie")]
 pub use cookie::*;
@@ -44,7 +44,6 @@ pub use headers::{Header, Headers, Trailers};
 pub use http_client::HttpClient;
 pub use http_error::HttpError;
 pub use http_recv_params::HttpRecvParams;
-pub use matcher::{Matcher, MatcherBuilder, MatcherError, MatcherPath, MatcherPathParam};
 pub use method::Method;
 pub use mime::Mime;
 pub use misc::*;
@@ -52,15 +51,16 @@ pub use msg_buffer::{MsgBuffer, MsgBufferStr, MsgBufferString};
 pub use msg_builder::{MsgBuilder, MsgBuilderInput, ReqBuilder, ResBuilder};
 pub use msg_data::{MsgData, MsgDataMut};
 pub use operation_mode::*;
-#[cfg(feature = "optioned-server")]
-pub use optioned_server::OptionedServer;
 pub use protocol::Protocol;
 pub use request::Request;
 pub use response::Response;
+pub use router::{Router, RouterBuilder, RouterError, RouterMatch, RouterMatchParam};
 #[cfg(feature = "http-session")]
 pub use session::*;
 pub use status_code::StatusCode;
 pub use version::Version;
+#[cfg(feature = "web-socket-server-framework")]
+pub use web_socket_server_framework::{WebSocketRouter, WebSocketServerFramework};
 
 /// Maximum number of bytes for the name of a header.
 pub const MAX_HEADER_NAME_LEN: usize = 48;

@@ -19,8 +19,8 @@ jobs:
           - script: internal-tests3.sh
           - script: internal-tests4.sh
             install-crate: mdbook
-#          - script: internal-tests5.sh
-#            install-crate: cargo-fuzz
+          - script: internal-tests5.sh
+            install-crate: cargo-fuzz
           - script: internal-tests6.sh
     steps:
       - uses: actions/checkout@v6
@@ -60,6 +60,7 @@ jobs:
           '.scripts/autobahn-fuzzingclient.sh ci',
           '.scripts/autobahn-fuzzingserver.sh ci',
           '.scripts/autobahn-fuzzingserver-concurrent.sh ci',
+          '.scripts/boringssl.sh',
           '.scripts/h2load.sh ci',
           '.scripts/h2spec.sh high ci',
           '.scripts/h2spec.sh low ci',

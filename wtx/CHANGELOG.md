@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Other
 
 - Merge pull request #549 from c410-f3r/misc
-- Include `optioned-server` in `http-server-framework`
+- Include `optioned-server` in `http2-server-framework`
 
 ## [0.47.7](https://github.com/c410-f3r/wtx/compare/wtx-v0.47.6...wtx-v0.47.7) - 2026-06-05
 

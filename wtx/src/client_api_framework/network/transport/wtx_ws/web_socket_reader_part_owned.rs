@@ -8,15 +8,13 @@ use crate::{
     pkg::PkgsAux,
   },
   misc::LeaseMut,
-  rng::Rng,
   stream::StreamReader,
   web_socket::{WebSocketPayloadOrigin, WebSocketReaderOwned, compression::NegotiatedCompression},
 };
 
-impl<NC, R, SR, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, R, SR, true>
+impl<NC, SR, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, SR, true>
 where
   NC: NegotiatedCompression,
-  R: Rng,
   SR: StreamReader,
   TP: LeaseMut<WsParams>,
 {
@@ -37,7 +35,7 @@ where
   }
 }
 
-impl<NC, R, SR, TP> Transport<TP> for WebSocketReaderOwned<NC, R, SR, true>
+impl<NC, SR, TP> Transport<TP> for WebSocketReaderOwned<NC, SR, true>
 where
   NC: NegotiatedCompression,
   SR: StreamReader,

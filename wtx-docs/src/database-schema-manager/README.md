@@ -94,14 +94,13 @@ wtx.toml
 The library gives freedom to arrange groups and uses some external crates, bringing ~10 additional dependencies into your application. If this overhead is not acceptable, then you probably should discard the library and use the CLI binary instead as part of a custom deployment strategy.
 
 ```rust,edition2024,no_run
-extern crate tokio;
 extern crate wtx;
 
 use std::path::Path;
 use wtx::database::{schema_manager::Commands, DEFAULT_URI_VAR};
 use wtx::collection::Vector;
 
-#[tokio::main]
+#[wtx::main]
 async fn main() {
   let mut commands = Commands::with_executor(());
   commands.migrate_from_dir(Path::new("my_custom_migration_group_path")).await.unwrap();

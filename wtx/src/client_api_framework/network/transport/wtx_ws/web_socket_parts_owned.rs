@@ -8,15 +8,13 @@ use crate::{
     pkg::{Package, PkgsAux},
   },
   misc::LeaseMut,
-  rng::Rng,
   stream::{StreamReader, StreamWriter},
   web_socket::{WebSocketPartsOwned, WebSocketWriterOwned, compression::NegotiatedCompression},
 };
 
-impl<NC, R, SR, SW, TP> ReceivingTransport<TP> for WebSocketPartsOwned<NC, R, SR, SW, true>
+impl<NC, SR, SW, TP> ReceivingTransport<TP> for WebSocketPartsOwned<NC, SR, SW, true>
 where
   NC: NegotiatedCompression,
-  R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
   TP: LeaseMut<WsParams>,
@@ -34,10 +32,9 @@ where
   }
 }
 
-impl<NC, R, SR, SW, TP> SendingTransport<TP> for WebSocketPartsOwned<NC, R, SR, SW, true>
+impl<NC, SR, SW, TP> SendingTransport<TP> for WebSocketPartsOwned<NC, SR, SW, true>
 where
   NC: NegotiatedCompression,
-  R: Rng,
   SR: StreamReader,
   SW: StreamWriter,
   TP: LeaseMut<WsParams>,
@@ -68,13 +65,13 @@ where
   }
 }
 
-impl<NC, R, SR, SW, TP> Transport<TP> for WebSocketPartsOwned<NC, R, SR, SW, true>
+impl<NC, SR, SW, TP> Transport<TP> for WebSocketPartsOwned<NC, SR, SW, true>
 where
   NC: NegotiatedCompression,
   SR: StreamReader,
   SW: StreamWriter,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
-  type Inner = WebSocketWriterOwned<NC, R, SW, true>;
+  type Inner = WebSocketWriterOwned<NC, SW, true>;
   type ReqId = ();
 }

@@ -18,6 +18,14 @@ Some real-world use-cases and associated benchmarks.
 
 That is why `WTX` has an enforced `Error` enum size of 16 bytes and that is also the reason why `WTX` has so many bare variants.
 
+## Performance
+
+Many things that generally improve performance are used in the project, to name a few:
+
+1. **Manual vectorization**: When an algorithm is known for processing large amounts of data, several experiments are performed to analyze the best way to split loops in order to allow the compiler to take advantage of SIMD instructions.
+2. **Memory allocation**: Whenever possible, all heap allocations are called only once at the start of an instance creation and additionally, stack memory usage is preferably prioritized over heap memory.
+3. **Fewer dependencies**: No third-party is injected by default. In other words, additional dependencies are up to the user through the selection of Cargo features, which decreases compilation times. For example, you can see the mere 13 dependencies required by the PostgreSQL client using `cargo tree -e normal --features postgres`.
+
 ## Profiling
 
 Uses the `h2load` benchmarking tool (<https://nghttp2.org/documentation/h2load-howto.htm>l) and the `h2load` internal binary (<https://github.com/c410-f3r/wtx/blob/main/wtx-internal/src/bin/h2load.rs>) for illustration purposes.

@@ -91,8 +91,8 @@ mod postgres {
   use crate::{
     codec::{Decode, Encode},
     database::{
-      Executor as _, Record, Typed,
-      client::postgres::{ExecutorBuffer, Postgres, PostgresExecutor},
+      DbClient as _, Record, Typed,
+      client::postgres::{ClientBuffer, Postgres, PostgresClient},
     },
     http::session::{SessionKey, SessionState, SessionStore},
     misc::LeaseMut,
@@ -113,11 +113,11 @@ mod postgres {
   ///
   /// Change `SOME_CUSTOM_TY` to any type you want, just make sure that it implements [`Decode`] and
   /// [`Encode`] in the Rust side.
-  impl<CS, E, EB, S> SessionStore<CS, E> for PostgresExecutor<E, EB, S>
+  impl<CS, CB, E, S> SessionStore<CS, E> for PostgresClient<CB, E, S>
   where
     CS: for<'de> Decode<'de, Postgres<E>> + Encode<Postgres<E>> + Typed<Postgres<E>>,
     E: From<crate::Error>,
-    EB: LeaseMut<ExecutorBuffer>,
+    CB: LeaseMut<ClientBuffer>,
     S: Stream,
   {
     #[inline]

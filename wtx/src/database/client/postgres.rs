@@ -6,21 +6,21 @@ mod macros;
 
 mod authentication;
 mod batch;
+mod client_buffer;
 mod config;
 #[cfg(feature = "database-tests")]
 mod database_test;
 mod db_error;
 mod decode_wrapper;
 mod encode_wrapper;
-mod executor_buffer;
 #[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod message;
 mod misc;
 mod msg_field;
+mod postgres_client;
 mod postgres_column_info;
 mod postgres_error;
-mod postgres_executor;
 mod postgres_record;
 mod postgres_records;
 mod protocol;
@@ -44,19 +44,19 @@ use crate::{
   },
 };
 pub use batch::Batch;
+pub use client_buffer::ClientBuffer;
 pub use config::Config;
 use core::{
   fmt::{Debug, Formatter},
   marker::PhantomData,
 };
 #[cfg(feature = "database-tests")]
-pub use database_test::database_test;
+pub use database_test::*;
 pub use db_error::{DbError, ErrorPosition, Severity};
 pub use decode_wrapper::DecodeWrapper;
 pub use encode_wrapper::EncodeWrapper;
-pub use executor_buffer::ExecutorBuffer;
+pub use postgres_client::PostgresClient;
 pub use postgres_error::PostgresError;
-pub use postgres_executor::PostgresExecutor;
 pub use postgres_record::PostgresRecord;
 pub use postgres_records::PostgresRecords;
 pub use sql_state::SqlState;

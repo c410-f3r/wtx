@@ -1,7 +1,7 @@
 use crate::{
   crypto::{
     Aes128GcmAwsLcRs, Aes256GcmAwsLcRs, Chacha20Poly1305AwsLcRs, CryptoError,
-    aead::{Aead, NONCE_LEN, TAG_LEN, generate_nonce, split_nonce_content, write_tag},
+    aead::{Aead, NONCE_LEN, TAG_LEN, generate_nonce, write_tag},
   },
   rng::CryptoRng,
 };
@@ -13,16 +13,18 @@ impl Aead for Aes128GcmAwsLcRs {
   type Secret = [u8; 16];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
+  ) -> crate::Result<&'data mut [u8]> {
     local_decrypt(
       &AES_128_GCM,
       associated_data,
-      encrypted_data,
+      data,
       CryptoError::InvalidAes128GcmData,
+      nonce,
       secret,
     )
   }
@@ -56,16 +58,18 @@ impl Aead for Aes256GcmAwsLcRs {
   type Secret = [u8; 32];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
+  ) -> crate::Result<&'data mut [u8]> {
     local_decrypt(
       &AES_256_GCM,
       associated_data,
-      encrypted_data,
+      data,
       CryptoError::InvalidAes256GcmData,
+      nonce,
       secret,
     )
   }
@@ -99,16 +103,18 @@ impl Aead for Chacha20Poly1305AwsLcRs {
   type Secret = [u8; 32];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
+  ) -> crate::Result<&'data mut [u8]> {
     local_decrypt(
       &CHACHA20_POLY1305,
       associated_data,
-      encrypted_data,
+      data,
       CryptoError::InvalidChacha20Poly1305Data,
+      nonce,
       secret,
     )
   }

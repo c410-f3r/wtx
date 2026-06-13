@@ -1,5 +1,7 @@
+use crate::stream::StreamCommon;
+
 /// A stream of values written asynchronously.
-pub trait StreamWriter {
+pub trait StreamWriter: StreamCommon {
   /// Attempts to write ***all*** `bytes`.
   fn write_all(&mut self, bytes: &[u8]) -> impl Future<Output = crate::Result<()>>;
 

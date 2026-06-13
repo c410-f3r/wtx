@@ -27,19 +27,45 @@ pub trait Aead {
   /// Secret
   type Secret;
 
+  /// Decrypts data in-place with the associated affixes
+  ///
+  /// This is an internal low-level operation. You should probably call other encryption methods.
+  fn decrypt_parts<'data>(
+    associated_data: &[u8],
+    data: &'data mut [u8],
+    nonce: [u8; NONCE_LEN],
+    secret: &Self::Secret,
+  ) -> crate::Result<&'data mut [u8]>;
+
+  /// Encrypts plaintext content with the associated affixes.
+  ///
+  /// This is an internal low-level operation. You should probably call other encryption methods.
+  fn encrypt_parts<RNG>(
+    associated_data: &[u8],
+    nonce: [&mut u8; NONCE_LEN],
+    plaintext: &mut [u8],
+    rng: &mut RNG,
+    secret: &Self::Secret,
+    tag: [&mut u8; TAG_LEN],
+  ) -> crate::Result<()>
+  where
+    RNG: CryptoRng;
+
+  // ***** PROVIDED *****
+
   /// Decrypts a base64 encoded string, using the provided buffer for the output.
   #[inline]
   fn decrypt_base64_to_buffer<'buffer>(
     associated_data: &[u8],
     buffer: &'buffer mut Vector<u8>,
-    encrypted_data: &[u8],
+    data: &[u8],
     secret: &Self::Secret,
   ) -> crate::Result<&'buffer mut [u8]> {
-    let additional = base64_decoded_len_ub(encrypted_data.len());
+    let additional = base64_decoded_len_ub(data.len());
     let begin = buffer.len();
     buffer.expand(ExpansionTy::Additional(additional), 0)?;
     let buffer_slice = buffer.get_mut(begin..).unwrap_or_default();
-    let len = base64_decode(Base64Alphabet::UrlNoPad, encrypted_data, buffer_slice)?.len();
+    let len = base64_decode(Base64Alphabet::UrlNoPad, data, buffer_slice)?.len();
     buffer.truncate(begin.wrapping_add(len));
     Self::decrypt_in_place(associated_data, buffer.get_mut(begin..).unwrap_or_default(), secret)
   }
@@ -47,11 +73,18 @@ pub trait Aead {
   /// Decrypts data in-place.
   ///
   /// `data` should contain any associated affix.
-  fn decrypt_in_place<'encrypted>(
+  #[inline]
+  fn decrypt_in_place<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]>;
+  ) -> crate::Result<&'data mut [u8]> {
+    let [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, payload @ ..] = data else {
+      return Err(CryptoError::InvalidAesData.into());
+    };
+    let nonce = [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11];
+    Self::decrypt_parts(associated_data, payload, nonce, secret)
+  }
 
   /// Encrypts data that contains the plaintext content as well as the associated affixes.
   #[inline]
@@ -103,20 +136,6 @@ pub trait Aead {
     )?;
     Ok((nonce, tag))
   }
-
-  /// Encrypts plaintext content with the associated affixes.
-  ///
-  /// This is an internal low-level operation. You should probably call other encryption methods.
-  fn encrypt_parts<RNG>(
-    associated_data: &[u8],
-    nonce: [&mut u8; NONCE_LEN],
-    plaintext: &mut [u8],
-    rng: &mut RNG,
-    secret: &Self::Secret,
-    tag: [&mut u8; TAG_LEN],
-  ) -> crate::Result<()>
-  where
-    RNG: CryptoRng;
 
   /// Encrypts data into a dedicated buffer
   #[inline]
@@ -196,11 +215,12 @@ impl<S> Aead for AeadDummy<S> {
   type Secret = S;
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     _: &[u8],
-    _: &'encrypted mut [u8],
+    _: &'data mut [u8],
+    _: [u8; NONCE_LEN],
     _: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
+  ) -> crate::Result<&'data mut [u8]> {
     dummy_impl_call();
   }
 
@@ -244,36 +264,22 @@ fn generate_nonce<RNG: CryptoRng>(nonce: [&mut u8; NONCE_LEN], rng: &mut RNG) ->
   [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11]
 }
 
-#[cfg(any(feature = "crypto-aws-lc-rs", feature = "crypto-ring"))]
-fn split_nonce_content(
-  data: &mut [u8],
-  error: CryptoError,
-) -> crate::Result<([u8; NONCE_LEN], &mut [u8])> {
-  let [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, content @ ..] = data else {
-    return Err(error.into());
-  };
-  let nonce = [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11];
-  Ok((nonce, content))
-}
-
 #[cfg(any(feature = "crypto-graviola", feature = "crypto-openssl"))]
 #[rustfmt::skip]
-fn split_nonce_content_tag(
+fn split_content_tag(
   data: &mut [u8],
   error: CryptoError,
-) -> crate::Result<([u8; NONCE_LEN], &mut [u8], [u8; TAG_LEN])> {
+) -> crate::Result<(&mut [u8], [u8; TAG_LEN])> {
   let [
-    a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
     content @ ..,
-    a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23, a24, a25, a26, a27,
+    a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15
   ] = data
   else {
     return Err(error.into());
   };
   Ok((
-    [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11],
     content,
-    [*a12, *a13, *a14, *a15, *a16, *a17, *a18, *a19, *a20, *a21, *a22, *a23, *a24, *a25, *a26, *a27]
+    [*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9, *a10, *a11, *a12, *a13, *a14, *a15],
   ))
 }
 

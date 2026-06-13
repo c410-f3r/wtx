@@ -37,14 +37,14 @@ impl SettingsFrame {
       max_header_list_size: None,
     }
   }
-  pub(crate) fn from_hp(hp: HttpRecvParams) -> Self {
+  pub(crate) fn from_hrp(hrp: HttpRecvParams) -> Self {
     let mut settings_frame = SettingsFrame::empty();
-    settings_frame.set_enable_connect_protocol(Some(hp.enable_connect_protocol()));
-    settings_frame.set_header_table_size(Some(hp.max_hpack_len().0));
-    settings_frame.set_initial_window_size(Some(U31::from_u32(hp.initial_window_len())));
-    settings_frame.set_max_concurrent_streams(Some(hp.max_concurrent_streams_num()));
-    settings_frame.set_max_frame_size(Some(hp.max_frame_len()));
-    settings_frame.set_max_header_list_size(Some(hp.max_headers_len()));
+    settings_frame.set_enable_connect_protocol(Some(hrp.enable_connect_protocol()));
+    settings_frame.set_header_table_size(Some(hrp.max_hpack_len().0));
+    settings_frame.set_initial_window_size(Some(U31::from_u32(hrp.initial_window_len())));
+    settings_frame.set_max_concurrent_streams(Some(hrp.max_concurrent_streams_num()));
+    settings_frame.set_max_frame_size(Some(hrp.max_frame_len()));
+    settings_frame.set_max_header_list_size(Some(hrp.max_headers_len()));
     settings_frame
   }
 

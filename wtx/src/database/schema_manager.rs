@@ -21,7 +21,7 @@ pub mod toml_parser;
 use crate::{
   codec::CodecController,
   collection::Vector,
-  database::{DatabaseTy, Identifier, executor::Executor},
+  database::{DatabaseTy, Identifier, db_client::DbClient},
   misc::Lease,
 };
 use alloc::string::String;
@@ -54,7 +54,7 @@ pub type EmbeddedMigrationsTy = &'static [(
 pub type Uid = u32;
 
 /// Contains methods responsible to manage database migrations.
-pub trait SchemaManagement: Executor {
+pub trait SchemaManagement: DbClient {
   /// Retrieves all inserted elements.
   fn all_elements(
     &mut self,
@@ -264,8 +264,8 @@ mod postgres {
   use crate::{
     collection::Vector,
     database::{
-      DatabaseTy, Executor as _, Identifier,
-      client::postgres::{ExecutorBuffer, PostgresExecutor},
+      DatabaseTy, DbClient as _, Identifier,
+      client::postgres::{ClientBuffer, PostgresClient},
       schema_manager::{
         _WTX_SCHEMA, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
         fixed_sql_commands::{
@@ -279,10 +279,10 @@ mod postgres {
   };
   use alloc::string::String;
 
-  impl<E, EB, STREAM> SchemaManagement for PostgresExecutor<E, EB, STREAM>
+  impl<E, CB, STREAM> SchemaManagement for PostgresClient<CB, E, STREAM>
   where
     E: From<crate::Error>,
-    EB: LeaseMut<ExecutorBuffer>,
+    CB: LeaseMut<ClientBuffer>,
     STREAM: Stream,
   {
     #[inline]

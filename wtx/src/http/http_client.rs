@@ -83,7 +83,7 @@ mod http2 {
         _ => return Err(crate::Error::ClosedHttpConnection),
       };
       req_id.common().clear().await?;
-      Ok(Response::http2(res_rrb, status_code))
+      Ok(Response::new(res_rrb, status_code))
     }
 
     #[inline]
@@ -101,31 +101,31 @@ mod http2 {
   }
 }
 
-#[cfg(feature = "http-client-pool")]
+#[cfg(feature = "http2-client-pool")]
 mod http_client_pool {
   use crate::{
     http::{
       HttpClient, MsgBufferString, MsgData, Request, Response,
-      client_pool::{ClientPool, ClientPoolResource},
+      http2_client_pool::{Http2ClientPool, Http2RM, Http2Resource},
     },
-    http2::{ClientStream, Http2, Http2Buffer, Http2RecvStatus},
-    misc::{Lease, LeaseMut},
+    http2::{ClientStream, Http2Buffer, Http2RecvStatus},
+    misc::Lease,
     pool::ResourceManager,
     stream::StreamWriter,
+    tls::TlsStreamWriter,
   };
 
-  impl<AUX, HB, RM, SW> HttpClient for ClientPool<RM>
+  impl<EX, SW, TM> HttpClient for Http2ClientPool<EX, TM>
   where
-    HB: LeaseMut<Http2Buffer>,
-    RM: ResourceManager<
+    SW: StreamWriter,
+    Http2RM<EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
+        Resource = Http2Resource<SW>,
       >,
-    SW: StreamWriter,
   {
-    type ReqId = ClientStream<HB, SW>;
+    type ReqId = ClientStream<Http2Buffer, TlsStreamWriter<SW>>;
 
     #[inline]
     async fn recv_res(&self, req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
@@ -140,20 +140,33 @@ mod http_client_pool {
     {
       (&self).send_req(rb).await
     }
+
+    fn send_req_recv_res<MD>(
+      &self,
+      req: Request<MD>,
+    ) -> impl Future<Output = crate::Result<Response<MsgBufferString>>>
+    where
+      MD: MsgData,
+      MD::Body: Lease<[u8]>,
+    {
+      async move {
+        let req_id = self.send_req(req).await?;
+        self.recv_res(req_id).await
+      }
+    }
   }
 
-  impl<AUX, HB, RM, SW> HttpClient for &ClientPool<RM>
+  impl<EX, SW, TM> HttpClient for &Http2ClientPool<EX, TM>
   where
-    HB: LeaseMut<Http2Buffer>,
-    RM: ResourceManager<
+    SW: StreamWriter,
+    Http2RM<EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
+        Resource = Http2Resource<SW>,
       >,
-    SW: StreamWriter,
   {
-    type ReqId = ClientStream<HB, SW>;
+    type ReqId = ClientStream<Http2Buffer, TlsStreamWriter<SW>>;
 
     #[inline]
     async fn recv_res(&self, mut req_id: Self::ReqId) -> crate::Result<Response<MsgBufferString>> {
@@ -163,7 +176,7 @@ mod http_client_pool {
         _ => return Err(crate::Error::ClosedHttpConnection),
       };
       req_id.common().clear().await?;
-      Ok(Response::http2(res_rrb, status_code))
+      Ok(Response::new(res_rrb, status_code))
     }
 
     #[inline]

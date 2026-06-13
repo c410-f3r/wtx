@@ -1,8 +1,13 @@
-use crate::stream::{StreamReader, StreamWriter};
+use crate::stream::{StreamCommon, StreamReader, StreamWriter};
 use std::{
   io::{Read, Write},
   net::TcpStream,
 };
+
+impl StreamCommon for TcpStream {}
+
+#[cfg(unix)]
+impl StreamCommon for std::os::unix::net::UnixStream {}
 
 impl StreamReader for TcpStream {
   #[inline]

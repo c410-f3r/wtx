@@ -16,7 +16,7 @@ impl Default for DeflateConfig {
   fn default() -> Self {
     DeflateConfig {
       client_max_window_bits: WindowBits::Twelve,
-      compression_level: CompressionLevel::default(),
+      compression_level: CompressionLevel::Six,
       server_max_window_bits: WindowBits::Twelve,
     }
   }

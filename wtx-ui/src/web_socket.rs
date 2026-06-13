@@ -5,13 +5,21 @@ use tokio::{
 use wtx::{
   collection::Vector,
   misc::UriRef,
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsModePlainText},
   web_socket::{Frame, OpCode, WebSocketAcceptor, WebSocketConnector, WebSocketPayloadOrigin},
 };
 
 pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
   let uri = UriRef::new(uri);
+  let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
   let mut ws = WebSocketConnector::default()
-    .connect(TcpStream::connect(uri.hostname_with_implied_port()).await?, &uri)
+    .connect(
+      &mut ChaCha20::from_std_random()?,
+      TlsConnector::from_stream(stream),
+      &TlsConfig::from_ccadb(),
+      &uri,
+    )
     .await?;
   let mut read_frame_buffer = Vector::new();
   let mut stdin_buffer = Vec::new();
@@ -28,7 +36,7 @@ pub(crate) async fn connect(uri: &str, cb: impl Fn(&str)) -> wtx::Result<()> {
       }
       read_rslt = buf_reader.read_until(b'\n', &mut stdin_buffer) => {
         let _ = read_rslt?;
-        ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut stdin_buffer)).await?;
+        ws.write_frame(&mut Frame::new_fin(OpCode::Text, &mut stdin_buffer)?).await?;
       }
     }
   }
@@ -48,7 +56,13 @@ pub(crate) async fn serve(
     let _jh = tokio::spawn(async move {
       let fun = async move {
         let mut buffer = Vector::new();
-        let mut ws = WebSocketAcceptor::default().accept(stream).await?;
+        let mut ws = WebSocketAcceptor::default()
+          .accept(
+            &mut ChaCha20::from_std_random()?,
+            TlsAcceptor::new(stream, TlsModePlainText),
+            &TlsConfig::uncertified(),
+          )
+          .await?;
         loop {
           let frame = ws.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await?;
           match (frame.op_code(), frame.text_payload()) {

@@ -1,12 +1,12 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  collection::Vector,
+  collection::{ArrayVectorU8, Vector},
   http::{Headers, StatusCode},
   http2::{
     Http2Buffer, Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err,
   },
-  misc::{ConnectionState, JoinArray, LeaseMut, SingleTypeStorage},
+  misc::{ConnectionState, JoinArrayVector, LeaseMut, SingleTypeStorage},
   rng::Xorshift64,
   stream::StreamWriter,
   web_socket::{
@@ -54,7 +54,7 @@ where
   /// Closes the stream as well as the WebSocket connection.
   #[inline]
   pub async fn close(&mut self) -> crate::Result<()> {
-    self.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
+    self.write_frame(&mut Frame::new(true, OpCode::Close, &mut [], 0)).await?;
     self.stream.lease_mut().common().send_reset(Http2ErrorCode::NoError).await;
     Ok(())
   }
@@ -67,7 +67,7 @@ where
   pub async fn read_frame<'buffer>(
     &mut self,
     buffer: &'buffer mut Vector<u8>,
-  ) -> crate::Result<FrameMut<'buffer, false>> {
+  ) -> crate::Result<FrameMut<'buffer>> {
     buffer.clear();
     let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
     if rfi.fin {
@@ -83,7 +83,7 @@ where
       )
       .await?;
       manage_op_code_of_first_final_frame(rfi.op_code, buffer)?;
-      return Ok(FrameMut::new_fin(rfi.op_code, buffer));
+      return Ok(FrameMut::new(true, rfi.op_code, buffer, 0));
     }
     if is_eos {
       return Err(crate::Error::ClosedHttpConnection);
@@ -93,7 +93,7 @@ where
 
   /// Writes a frame to the stream.
   #[inline]
-  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P, false>) -> crate::Result<()>
+  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P>) -> crate::Result<()>
   where
     P: LeaseMut<[u8]>,
   {
@@ -105,13 +105,15 @@ where
     );
     let (header, payload) = frame.header_and_payload();
     let common_stream = self.stream.lease_mut().common();
-    let [lhs_rslt, rhs_rslt] = JoinArray::new([
+    let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([
       common_stream.send_data(header, false),
       common_stream.send_data(payload.lease(), false),
-    ])
+    ]))
     .await;
-    if lhs_rslt?.is_closed() || rhs_rslt?.is_closed() {
-      return Err(crate::Error::ClosedHttpConnection);
+    for result in results {
+      if result?.is_closed() {
+        return Err(crate::Error::ClosedHttpConnection);
+      }
     }
     Ok(())
   }
@@ -165,12 +167,15 @@ where
   SW: StreamWriter,
 {
   let common_stream = stream.common();
-  let [lhs_rslt, rhs_rslt] = JoinArray::new([
+  let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([
     common_stream.send_data(header, false),
     common_stream.send_data(payload, false),
-  ])
+  ]))
   .await;
-  let _ = lhs_rslt?;
-  let _ = rhs_rslt?;
+  for result in results {
+    if result?.is_closed() {
+      return Err(crate::Error::ClosedHttpConnection);
+    }
+  }
   Ok(())
 }

@@ -16,6 +16,8 @@ To accelerate and facilitate code review, PRs should contain a minimal descripti
 
 The use of `unsafe` is discourage but when necessary, consider implementing MIRI tests to verify memory safety guarantees. If the introduction of `unsafe` enhances performance, also consider providing `#[bench]` benchmarks.
 
+OPTIONAL: Attach a funny or awesome image, video or short history.
+
 ## Commit's description
 
 Releases are issued through the use of automating tools, as such, it is important to use `Conventional Commits` (<https://www.conventionalcommits.org>) to allow the creation of more detailed changelogs.

@@ -18,6 +18,7 @@ use crate::{
   http2::{ClientStream, Http2, Http2Buffer},
   misc::LeaseMut,
   stream::StreamWriter,
+  tls::TlsStreamWriter,
 };
 use core::mem;
 
@@ -36,7 +37,7 @@ where
   where
     A: Api,
   {
-    recv(self, pkgs_aux, req_id).await?;
+    //recv(self, pkgs_aux, req_id).await?;
     Ok(())
   }
 }
@@ -68,7 +69,8 @@ where
     A: Api,
     P: Package<A, DRSR, Self::Inner, TP>,
   {
-    send_pkg(self, pkg, pkgs_aux).await
+    //send_pkg(self, pkg, pkgs_aux).await
+    todo!()
   }
 }
 impl<HB, SW, TP> Transport<TP> for Http2<HB, SW, true>
@@ -77,7 +79,7 @@ where
 {
   const GROUP: TransportGroup = TransportGroup::HTTP;
   type Inner = Self;
-  type ReqId = ClientStream<HB, SW>;
+  type ReqId = ClientStream<HB, TlsStreamWriter<SW>>;
 }
 
 fn manage_params<A, DRSR, TP>(
@@ -148,7 +150,7 @@ async fn send_bytes<A, DRSR, HB, SW, TP>(
   bytes: Option<&[u8]>,
   client: &mut Http2<HB, SW, true>,
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-) -> Result<ClientStream<HB, SW>, A::Error>
+) -> Result<ClientStream<HB, TlsStreamWriter<SW>>, A::Error>
 where
   A: Api,
   HB: LeaseMut<Http2Buffer>,
@@ -166,7 +168,7 @@ where
   let rb = ReqBuilder::new(*method, (local_bytes1, &msg_buffer.headers, msg_buffer.uri.to_ref()));
   let rslt = client.send_req(rb.into_request()).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
-  Ok(rslt)
+  todo!()
 }
 
 async fn send_pkg<A, DRSR, HB, P, SW, TP>(
@@ -200,7 +202,7 @@ where
   Ok(rslt)
 }
 
-#[cfg(feature = "http-client-pool")]
+#[cfg(feature = "http2-client-pool")]
 mod http_client_pool {
   use crate::{
     client_api_framework::{
@@ -214,24 +216,125 @@ mod http_client_pool {
       },
       pkg::{Package, PkgsAux},
     },
-    http::client_pool::{ClientPool, ClientPoolResource},
+    http::http2_client_pool::{Http2ClientPool, Http2RM, Http2Resource},
     http2::{ClientStream, Http2, Http2Buffer},
     misc::LeaseMut,
     pool::ResourceManager,
     stream::StreamWriter,
+    tls::TlsStreamWriter,
   };
 
-  impl<AUX, HB, RM, SW, TP> ReceivingTransport<TP> for ClientPool<RM>
+  impl<EX, SW, TM, TP> ReceivingTransport<TP> for Http2ClientPool<EX, TM>
   where
-    HB: LeaseMut<Http2Buffer>,
-    RM: ResourceManager<
+    SW: StreamWriter,
+    TP: LeaseMut<HttpParams>,
+    Http2RM<EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
+        Resource = Http2Resource<SW>,
       >,
+  {
+    #[inline]
+    async fn recv<A, DRSR>(
+      &mut self,
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+      req_id: Self::ReqId,
+    ) -> Result<(), A::Error>
+    where
+      A: Api,
+    {
+      //recv(
+      //  &mut self
+      //    .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+      //    .await?
+      //    .client,
+      //  pkgs_aux,
+      //  req_id,
+      //)
+      //.await?;
+      Ok(())
+    }
+  }
+  impl<EX, SW, TM, TP> SendingTransport<TP> for Http2ClientPool<EX, TM>
+  where
     SW: StreamWriter,
     TP: LeaseMut<HttpParams>,
+    Http2RM<EX, TM>: ResourceManager<
+        CreateAux = str,
+        Error = crate::Error,
+        RecycleAux = str,
+        Resource = Http2Resource<SW>,
+      >,
+  {
+    #[inline]
+    async fn send_bytes<A, DRSR>(
+      &mut self,
+      bytes: Option<&[u8]>,
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+    ) -> Result<Self::ReqId, A::Error>
+    where
+      A: Api,
+    {
+      //send_bytes(
+      //  bytes,
+      //  &mut self
+      //    .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+      //    .await?
+      //    .client,
+      //  pkgs_aux,
+      //)
+      //.await
+      todo!()
+    }
+
+    #[inline]
+    async fn send_pkg<A, DRSR, P>(
+      &mut self,
+      pkg: &mut P,
+      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
+    ) -> Result<Self::ReqId, A::Error>
+    where
+      A: Api,
+      P: Package<A, DRSR, Self::Inner, TP>,
+    {
+      //send_pkg(
+      //  &mut self
+      //    .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+      //    .await?
+      //    .client,
+      //  pkg,
+      //  pkgs_aux,
+      //)
+      //.await
+      todo!()
+    }
+  }
+  impl<EX, SW, TM, TP> Transport<TP> for Http2ClientPool<EX, TM>
+  where
+    SW: StreamWriter,
+    Http2RM<EX, TM>: ResourceManager<
+        CreateAux = str,
+        Error = crate::Error,
+        RecycleAux = str,
+        Resource = Http2Resource<SW>,
+      >,
+  {
+    const GROUP: TransportGroup = TransportGroup::HTTP;
+    type Inner = Http2<Http2Buffer, SW, true>;
+    type ReqId = ClientStream<Http2Buffer, SW>;
+  }
+
+  impl<EX, SW, TM, TP> ReceivingTransport<TP> for &Http2ClientPool<EX, TM>
+  where
+    SW: StreamWriter,
+    TP: LeaseMut<HttpParams>,
+    Http2RM<EX, TM>: ResourceManager<
+        CreateAux = str,
+        Error = crate::Error,
+        RecycleAux = str,
+        Resource = Http2Resource<SW>,
+      >,
   {
     #[inline]
     async fn recv<A, DRSR>(
@@ -254,17 +357,16 @@ mod http_client_pool {
       Ok(())
     }
   }
-  impl<AUX, HB, RM, SW, TP> SendingTransport<TP> for ClientPool<RM>
+  impl<EX, SW, TM, TP> SendingTransport<TP> for &Http2ClientPool<EX, TM>
   where
-    HB: LeaseMut<Http2Buffer>,
-    RM: ResourceManager<
+    SW: StreamWriter,
+    TP: LeaseMut<HttpParams>,
+    Http2RM<EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
+        Resource = Http2Resource<SW>,
       >,
-    SW: StreamWriter,
-    TP: LeaseMut<HttpParams>,
   {
     #[inline]
     async fn send_bytes<A, DRSR>(
@@ -275,15 +377,16 @@ mod http_client_pool {
     where
       A: Api,
     {
-      send_bytes(
-        bytes,
-        &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
-          .await?
-          .client,
-        pkgs_aux,
-      )
-      .await
+      //send_bytes(
+      //  bytes,
+      //  &mut self
+      //    .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+      //    .await?
+      //    .client,
+      //  pkgs_aux,
+      //)
+      //.await
+      todo!()
     }
 
     #[inline]
@@ -296,131 +399,30 @@ mod http_client_pool {
       A: Api,
       P: Package<A, DRSR, Self::Inner, TP>,
     {
-      send_pkg(
-        &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
-          .await?
-          .client,
-        pkg,
-        pkgs_aux,
-      )
-      .await
+      //send_pkg(
+      //  &mut self
+      //    .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().rrb.uri.to_ref())
+      //    .await?
+      //    .client,
+      //  pkg,
+      //  pkgs_aux,
+      //)
+      //.await
+      todo!()
     }
   }
-  impl<AUX, HB, RM, SW, TP> Transport<TP> for ClientPool<RM>
+  impl<EX, SW, TM, TP> Transport<TP> for &Http2ClientPool<EX, TM>
   where
-    RM: ResourceManager<
+    SW: StreamWriter,
+    Http2RM<EX, TM>: ResourceManager<
         CreateAux = str,
         Error = crate::Error,
         RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
+        Resource = Http2Resource<SW>,
       >,
-    SW: StreamWriter,
   {
     const GROUP: TransportGroup = TransportGroup::HTTP;
-    type Inner = Http2<HB, SW, true>;
-    type ReqId = ClientStream<HB, SW>;
-  }
-
-  impl<AUX, HB, RM, SW, TP> ReceivingTransport<TP> for &ClientPool<RM>
-  where
-    HB: LeaseMut<Http2Buffer>,
-    RM: ResourceManager<
-        CreateAux = str,
-        Error = crate::Error,
-        RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
-      >,
-    SW: StreamWriter,
-    TP: LeaseMut<HttpParams>,
-  {
-    #[inline]
-    async fn recv<A, DRSR>(
-      &mut self,
-      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-      req_id: Self::ReqId,
-    ) -> Result<(), A::Error>
-    where
-      A: Api,
-    {
-      recv(
-        &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
-          .await?
-          .client,
-        pkgs_aux,
-        req_id,
-      )
-      .await?;
-      Ok(())
-    }
-  }
-  impl<AUX, HB, RM, SW, TP> SendingTransport<TP> for &ClientPool<RM>
-  where
-    HB: LeaseMut<Http2Buffer>,
-    RM: ResourceManager<
-        CreateAux = str,
-        Error = crate::Error,
-        RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
-      >,
-    SW: StreamWriter,
-    TP: LeaseMut<HttpParams>,
-  {
-    #[inline]
-    async fn send_bytes<A, DRSR>(
-      &mut self,
-      bytes: Option<&[u8]>,
-      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<Self::ReqId, A::Error>
-    where
-      A: Api,
-    {
-      send_bytes(
-        bytes,
-        &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
-          .await?
-          .client,
-        pkgs_aux,
-      )
-      .await
-    }
-
-    #[inline]
-    async fn send_pkg<A, DRSR, P>(
-      &mut self,
-      pkg: &mut P,
-      pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
-    ) -> Result<Self::ReqId, A::Error>
-    where
-      A: Api,
-      P: Package<A, DRSR, Self::Inner, TP>,
-    {
-      send_pkg(
-        &mut self
-          .lock(&pkgs_aux.tp.lease_mut().ext_req_params_mut().msg_buffer.uri.to_ref())
-          .await?
-          .client,
-        pkg,
-        pkgs_aux,
-      )
-      .await
-    }
-  }
-  impl<AUX, HB, RM, SW, TP> Transport<TP> for &ClientPool<RM>
-  where
-    HB: LeaseMut<Http2Buffer>,
-    RM: ResourceManager<
-        CreateAux = str,
-        Error = crate::Error,
-        RecycleAux = str,
-        Resource = ClientPoolResource<AUX, Http2<HB, SW, true>>,
-      >,
-    SW: StreamWriter,
-  {
-    const GROUP: TransportGroup = TransportGroup::HTTP;
-    type Inner = Http2<HB, SW, true>;
-    type ReqId = ClientStream<HB, SW>;
+    type Inner = Http2<Http2Buffer, SW, true>;
+    type ReqId = ClientStream<Http2Buffer, TlsStreamWriter<SW>>;
   }
 }

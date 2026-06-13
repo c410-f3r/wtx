@@ -13,7 +13,7 @@ Implements a subset of <https://www.postgresql.org/docs/16/protocol.html>. Postg
 
 To use this functionality, it is necessary to activate the `postgres` feature.
 
-### Example
+### Prepared statements
 
 ```rust,edition2024,no_run
 {{#rustdoc_include ../../../wtx-examples/database/database-client-postgres.rs}}
@@ -29,9 +29,7 @@ PostgreSQL supports the sending of multiple statements in a single round-trip.
 
 ## Tests
 
-The `#[wtx::db]` macro automatically migrates and seeds individual tests in isolation to allow concurrent evaluations.
-
-Its current state is limited to PostgreSQL tests that use the standard `std::net::TcpStream` alongside the built-in executor. Connected users must have the right to create new databases.
+The `#[wtx::db]` macro automatically migrates and seeds individual tests in isolation to allow concurrent evaluations. Connected users must have the right to create new databases.
 
 To use this functionality, it is necessary to activate the `database-tests` feature.
 

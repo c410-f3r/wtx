@@ -19,7 +19,7 @@ macro_rules! create_enum {
     impl $enum_ident {
       #[inline]
       /// An array that contains all variants
-      $v fn all() -> [Self; { Self::len() }] {
+      $v const fn all() -> [Self; { Self::len() }] {
         [$( $enum_ident::$variant_ident_fixed, )*]
       }
 

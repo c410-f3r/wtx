@@ -17,7 +17,7 @@ mod signature;
 
 pub use aead::{
   Aead, AeadDummy,
-  global::{Aes128GcmGlobal, Aes256GcmGlobal, Chacha20Poly1305TyGlobal},
+  global::{Aes128GcmGlobal, Aes256GcmGlobal, Chacha20Poly1305Global},
 };
 pub use agreement::{
   Agreement, AgreementDummy,
@@ -26,7 +26,7 @@ pub use agreement::{
 pub use crypto_error::CryptoError;
 pub use hash::{
   Hash, HashDummy,
-  global::{Sha1DigestGlobal, Sha256DigestGlobal, Sha386DigestGlobal},
+  global::{Sha1HashGlobal, Sha256HashGlobal, Sha384HashGlobal},
 };
 pub use hkdf::{
   Hkdf, HkdfDummy,
@@ -48,7 +48,7 @@ pub use signature::{
 
 /// Maximum hash length
 //
-// Based on Sha386.
+// Based on Sha384.
 pub const MAX_HASH_LEN: usize = 48;
 /// Maximum public key length
 //
@@ -69,23 +69,20 @@ _create_wrappers!(
   #[derive(Default)]
   Chacha20Poly1305AwsLcRs<>(),
   //
-  #[derive(Default)]
-  P256AwsLcRs<>(),
-  #[derive(Default)]
-  P384AwsLcRs<>(),
+  P256AwsLcRs<>(aws_lc_rs::agreement::EphemeralPrivateKey),
+  P384AwsLcRs<>(aws_lc_rs::agreement::EphemeralPrivateKey),
   #[derive(Default)]
   RsaPssRsaeSha256AwsLcRs<>(),
   #[derive(Default)]
   RsaPssRsaeSha384AwsLcRs<>(),
-  #[derive(Default)]
-  X25519AwsLcRs<>(),
+  X25519AwsLcRs<>(aws_lc_rs::agreement::EphemeralPrivateKey),
   //
   #[derive(Default)]
-  Sha1DigestAwsLcRs<>(),
+  Sha1HashAwsLcRs<>(),
   #[derive(Default)]
-  Sha256DigestAwsLcRs<>(),
+  Sha256HashAwsLcRs<>(),
   #[derive(Default)]
-  Sha384DigestAwsLcRs<>(),
+  Sha384HashAwsLcRs<>(),
   //
   HkdfSha256AwsLcRs<>(aws_lc_rs::hkdf::Prk),
   HkdfSha384AwsLcRs<>(aws_lc_rs::hkdf::Prk),
@@ -112,21 +109,18 @@ _create_wrappers!(
   #[derive(Default)]
   Chacha20Poly1305Graviola<>(),
   //
-  #[derive(Default)]
-  P256Graviola<>(),
-  #[derive(Default)]
-  P384Graviola<>(),
+  P256Graviola<>(graviola::key_agreement::p256::PrivateKey),
+  P384Graviola<>(graviola::key_agreement::p384::PrivateKey),
   #[derive(Default)]
   RsaPssRsaeSha256Graviola<>(),
   #[derive(Default)]
   RsaPssRsaeSha384Graviola<>(),
-  #[derive(Default)]
-  X25519Graviola<>(),
+  X25519Graviola<>(graviola::key_agreement::x25519::PrivateKey),
   //
   #[derive(Default)]
-  Sha256DigestGraviola<>(),
+  Sha256HashGraviola<>(),
   #[derive(Default)]
-  Sha384DigestGraviola<>(),
+  Sha384HashGraviola<>(),
   //
   #[derive(Default)]
   HkdfSha256Graviola<>(),
@@ -155,20 +149,16 @@ _create_wrappers!(
   #[derive(Default)]
   Chacha20Poly1305Openssl<>(),
   //
-  #[derive(Default)]
-  P256Openssl<>(),
-  #[derive(Default)]
-  P384Openssl<>(),
-  #[derive(Default)]
-  X25519Openssl<>(),
+  P256Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
+  P384Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
+  X25519Openssl<>(openssl::pkey::PKey<openssl::pkey::Private>),
   //
   #[derive(Default)]
-  Sha1DigestOpenssl<>(),
+  Sha1HashOpenssl<>(),
   #[derive(Default)]
-  Sha256DigestOpenssl<>(),
+  Sha256HashOpenssl<>(),
   #[derive(Default)]
-  Sha384DigestOpenssl<>(),
-  //
+  Sha384HashOpenssl<>(),
   //
   HmacSha256Openssl<>(HmacOpenssl),
   HmacSha384Openssl<>(HmacOpenssl),
@@ -196,23 +186,20 @@ _create_wrappers!(
   #[derive(Default)]
   Chacha20Poly1305Ring<>(),
   //
-  #[derive(Default)]
-  P256Ring<>(),
-  #[derive(Default)]
-  P384Ring<>(),
+  P256Ring<>(ring::agreement::EphemeralPrivateKey),
+  P384Ring<>(ring::agreement::EphemeralPrivateKey),
   #[derive(Default)]
   RsaPssRsaeSha256Ring<>(),
   #[derive(Default)]
   RsaPssRsaeSha384Ring<>(),
-  #[derive(Default)]
-  X25519Ring<>(),
+  X25519Ring<>(ring::agreement::EphemeralPrivateKey),
   //
   #[derive(Default)]
-  Sha1DigestRing<>(),
+  Sha1HashRing<>(),
   #[derive(Default)]
-  Sha256DigestRing<>(),
+  Sha256HashRing<>(),
   #[derive(Default)]
-  Sha384DigestRing<>(),
+  Sha384HashRing<>(),
   //
   HkdfSha256Ring<>(ring::hkdf::Prk),
   HkdfSha384Ring<>(ring::hkdf::Prk),

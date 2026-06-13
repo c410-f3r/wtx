@@ -31,7 +31,7 @@ where
 
   /// Deserialize From Response Bytes
   #[inline]
-  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
+  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &'de [u8]) -> crate::Result<T>
   where
     VerbatimDecoder<T>: for<'drsr> Decode<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
@@ -60,7 +60,7 @@ where
     let rb = ReqBuilder::post(msg_buffer);
     let req_id = self.client.send_req(rb.into_request()).await?;
     let res = self.client.recv_res(req_id).await?;
-    Ok(Response::http2(res.msg_data, res.status_code))
+    Ok(Response::new(res.msg_data, res.status_code))
   }
 
   #[inline]

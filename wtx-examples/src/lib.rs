@@ -17,31 +17,39 @@
 #[cfg(feature = "grpc")]
 pub mod grpc_bindings;
 
-/// Certificate
-pub static CERT: &[u8] = include_bytes!("../../.certs/cert.pem");
-/// Private key
-pub static KEY: &[u8] = include_bytes!("../../.certs/key.pem");
+/// Public key
+pub static PUBLIC_KEY: &[u8] = include_bytes!("../../.certs/cert.pem");
+/// Secret key
+pub static SECRET_KEY: &[u8] = include_bytes!("../../.certs/key.pem");
 /// Root CA
 pub static ROOT_CA: &[u8] = include_bytes!("../../.certs/root-ca.crt");
 
+/// Illustrates how a tls stream can be converted into a plain-text stream for testing purposes.
+pub type LocalTlsMode = cfg_select! {
+  feature = "prod" => wtx::tls::TlsModeVerified,
+  _ => wtx::tls::TlsModePlainText,
+};
+
+/// Generic Postgres client
 #[cfg(feature = "postgres")]
-pub async fn executor_postgres(
+pub async fn postgres_client(
   uri_str: &str,
 ) -> wtx::Result<
-  wtx::database::client::postgres::PostgresExecutor<
+  wtx::database::client::postgres::PostgresClient<
+    wtx::database::client::postgres::ClientBuffer,
     wtx::Error,
-    wtx::database::client::postgres::ExecutorBuffer,
     tokio::net::TcpStream,
   >,
 > {
   use wtx::rng::CryptoSeedableRng;
   let uri = wtx::misc::Uri::new(uri_str);
   let mut rng = wtx::rng::ChaCha20::from_getrandom()?;
-  wtx::database::client::postgres::PostgresExecutor::connect(
+  wtx::database::client::postgres::PostgresClient::connect(
+    wtx::database::client::postgres::ClientBuffer::new(usize::MAX, &mut rng),
     &wtx::database::client::postgres::Config::from_uri(&uri)?,
-    wtx::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await?,
+    None,
   )
   .await
 }

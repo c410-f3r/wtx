@@ -14,17 +14,17 @@ use crate::{
     Database, ValueIdent,
     client::rdbms::{column_info::ColumnInfo, common_record::CommonRecord},
   },
-  misc::{Lease, net::PartitionedFilledBuffer},
+  misc::{Lease, PartitionedFilledBuffer},
 };
 use core::ops::Range;
 
 /// Should be called before executing commands.
 pub(crate) fn clear_cmd_buffers(
-  net_buffer: &mut PartitionedFilledBuffer,
+  read_buffer: &mut PartitionedFilledBuffer,
   records_params: &mut Vector<(Range<usize>, Range<usize>)>,
   values_params: &mut Vector<(bool, Range<usize>)>,
 ) {
-  net_buffer.clear_if_following_is_empty();
+  read_buffer.clear_if_following_is_empty();
   records_params.clear();
   values_params.clear();
 }

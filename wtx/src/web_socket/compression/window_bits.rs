@@ -9,9 +9,9 @@ create_enum! {
     /// Ten
     Ten = (10),
     /// Eleven
-    #[default]
     Eleven = (11),
     /// Twelve
+    #[default]
     Twelve = (12),
     /// Thirteen
     Thirteen = (13),

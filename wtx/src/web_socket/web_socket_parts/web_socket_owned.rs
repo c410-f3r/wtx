@@ -1,9 +1,10 @@
 use crate::{
   collection::Vector,
-  misc::{LeaseMut, net::PartitionedFilledBuffer},
-  rng::Rng,
+  misc::{LeaseMut, PartitionedFilledBuffer},
+  rng::Xorshift64,
   stream::{StreamReader, StreamWriter},
   sync::{Arc, AtomicBool},
+  tls::{TlsStreamReader, TlsStreamWriter},
   web_socket::{
     Frame, FrameControlArray, FrameMut, WebSocketPayloadOrigin,
     compression::NegotiatedCompression,
@@ -16,18 +17,18 @@ use core::{marker::PhantomData, sync::atomic::Ordering};
 
 /// Owned reader and writer pair
 #[derive(Debug)]
-pub struct WebSocketPartsOwned<NC, R, SR, SW, const IS_CLIENT: bool> {
+pub struct WebSocketPartsOwned<NC, SR, SW, const IS_CLIENT: bool> {
   /// See [`WebSocketReaderOwned`];
-  pub reader: WebSocketReaderOwned<NC, R, SR, IS_CLIENT>,
+  pub reader: WebSocketReaderOwned<NC, SR, IS_CLIENT>,
   /// See [`WebSocketReplier`];
   pub replier: Arc<WebSocketReplier<IS_CLIENT>>,
   /// See [`WebSocketWriterOwned`];
-  pub writer: WebSocketWriterOwned<NC, R, SW, IS_CLIENT>,
+  pub writer: WebSocketWriterOwned<NC, SW, IS_CLIENT>,
 }
 
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketReaderOwned<NC, R, SR, const IS_CLIENT: bool> {
+pub struct WebSocketReaderOwned<NC, SR, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
   pub(crate) is_in_continuation_frame: Option<IsInContinuationFrame>,
   pub(crate) nc: NC,
@@ -35,14 +36,13 @@ pub struct WebSocketReaderOwned<NC, R, SR, const IS_CLIENT: bool> {
   pub(crate) phantom: PhantomData<SR>,
   pub(crate) reader_part: WebSocketReaderGeneric<PartitionedFilledBuffer, Vector<u8>, IS_CLIENT>,
   pub(crate) replier: Arc<WebSocketReplier<IS_CLIENT>>,
-  pub(crate) rng: R,
-  pub(crate) stream_reader: SR,
+  pub(crate) rng: Xorshift64,
+  pub(crate) stream_reader: TlsStreamReader<SR>,
 }
 
-impl<NC, R, SR, const IS_CLIENT: bool> WebSocketReaderOwned<NC, R, SR, IS_CLIENT>
+impl<NC, SR, const IS_CLIENT: bool> WebSocketReaderOwned<NC, SR, IS_CLIENT>
 where
   NC: NegotiatedCompression,
-  R: Rng,
   SR: StreamReader,
 {
   /// Reads a frame from the stream.
@@ -54,7 +54,7 @@ where
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
     payload_origin: WebSocketPayloadOrigin,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'buffer: 'frame,
     'this: 'frame,
@@ -79,7 +79,7 @@ where
   }
 }
 
-impl<NC, R, SR, const IS_CLIENT: bool> Drop for WebSocketReaderOwned<NC, R, SR, IS_CLIENT> {
+impl<NC, SR, const IS_CLIENT: bool> Drop for WebSocketReaderOwned<NC, SR, IS_CLIENT> {
   #[inline]
   fn drop(&mut self) {
     let _rslt = self.replier.data().update(|elem| (true, elem.1));
@@ -89,24 +89,23 @@ impl<NC, R, SR, const IS_CLIENT: bool> Drop for WebSocketReaderOwned<NC, R, SR, 
 
 /// Writer that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketWriterOwned<NC, R, SW, const IS_CLIENT: bool> {
+pub struct WebSocketWriterOwned<NC, SW, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
   pub(crate) nc: NC,
   pub(crate) nc_rsv1: u8,
-  pub(crate) rng: R,
-  pub(crate) stream_writer: SW,
+  pub(crate) rng: Xorshift64,
+  pub(crate) stream_writer: TlsStreamWriter<SW>,
   pub(crate) writer_part: WebSocketWriterGeneric<Vector<u8>, IS_CLIENT>,
 }
 
-impl<NC, R, SW, const IS_CLIENT: bool> WebSocketWriterOwned<NC, R, SW, IS_CLIENT>
+impl<NC, SW, const IS_CLIENT: bool> WebSocketWriterOwned<NC, SW, IS_CLIENT>
 where
   NC: NegotiatedCompression,
-  R: Rng,
   SW: StreamWriter,
 {
   /// Writes a frame to the stream.
   #[inline]
-  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P, IS_CLIENT>) -> crate::Result<()>
+  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P>) -> crate::Result<()>
   where
     P: LeaseMut<[u8]>,
   {
@@ -131,7 +130,7 @@ where
   #[inline]
   pub async fn write_reply_frame(
     &mut self,
-    control_frame: &mut Option<FrameControlArray<IS_CLIENT>>,
+    control_frame: &mut Option<FrameControlArray>,
   ) -> crate::Result<bool> {
     match control_frame {
       Some(frame) => {

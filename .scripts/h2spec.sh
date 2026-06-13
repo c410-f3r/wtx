@@ -9,22 +9,22 @@ if [ "$CI" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-touch /tmp/h2spec-server.xml
+touch /tmp/h2spec.xml
 
 if [ "$TY" != "high" ]; then
 	TY="low";
 fi;
 
-cargo build --bin "h2spec-$TY-server" --features h2spec-$TY-server --release
-cargo run --bin "h2spec-$TY-server" --features h2spec-$TY-server --release &> /tmp/h2spec-server.txt &
+cargo build --bin "h2spec-$TY" --features h2spec-$TY --release
+cargo run --bin "h2spec-$TY" --features h2spec-$TY --release &> /tmp/h2spec.txt &
 sleep 1
 
 podman run \
-	-v "/tmp/h2spec-server.xml:/tmp/h2spec-server.xml" \
+	-v "/tmp/h2spec.xml:/tmp/h2spec.xml" \
 	--name h2spec \
 	--network host \
 	--rm \
-	docker.io/summerwind/h2spec:2.6.0 h2spec -j "/tmp/h2spec-server.xml" --max-header-length 800 -p 9000 -v \
+	docker.io/summerwind/h2spec:2.6.0 h2spec -j "/tmp/h2spec.xml" --max-header-length 800 -p 9000 -v \
 		generic/1 \
 		generic/2 \
 		generic/3.1 \

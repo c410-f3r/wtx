@@ -2,10 +2,10 @@
 
 #[cfg(feature = "http2")]
 pub(crate) mod bytes_transfer;
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "postgres", feature = "tls"))]
 pub(crate) mod counter_writer;
 mod hints;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
+#[cfg(any(feature = "http2", feature = "postgres", feature = "tls", feature = "web-socket"))]
 pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
@@ -17,17 +17,17 @@ mod either;
 mod enum_var_strings;
 mod env_vars;
 mod error_info;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 mod filled_buffer;
 mod fn_fut;
 mod from_vars;
 mod incomplete_utf8_char;
 pub(crate) mod int_conv;
 mod interspace;
-mod join_array;
+mod join_array_vector;
 mod lease;
 mod mem;
 mod optimizations;
+mod partitioned_filled_buffer;
 mod pem;
 mod poll_once;
 mod ppm;
@@ -37,8 +37,7 @@ mod secret;
 mod sensitive_bytes;
 mod single_type_storage;
 mod suffix_writer;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
+mod tcp_params;
 mod try_arithmetic;
 mod tuple_impls;
 mod uri;
@@ -46,8 +45,6 @@ mod usize;
 mod utf8_errors;
 mod wrapper;
 
-#[cfg(feature = "tokio-rustls")]
-pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
 use crate::collection::ShortStrU8;
 pub use ascii::*;
 pub use connection_state::ConnectionState;
@@ -57,17 +54,17 @@ pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::EnvVars;
 pub use error_info::ErrorInfo;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
 pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
 pub use from_vars::FromVars;
 pub use hints::*;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
-pub use join_array::JoinArray;
+pub use join_array_vector::{JoinArrayVector, TryJoinArrayVector};
 pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimizations::*;
+pub use partitioned_filled_buffer::PartitionedFilledBuffer;
 pub use pem::Pem;
 pub use poll_once::PollOnce;
 pub use ppm::Ppm;
@@ -77,6 +74,7 @@ pub use secret::{Secret, SecretContext};
 pub use sensitive_bytes::SensitiveBytes;
 pub use single_type_storage::SingleTypeStorage;
 pub use suffix_writer::*;
+pub use tcp_params::TcpParams;
 pub use try_arithmetic::*;
 pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
@@ -116,7 +114,7 @@ pub fn argon2_pwd<const N: usize>(
 
 /// Only works with elements that implement `Copy`.
 //
-// FIXME(stable): Constant operations
+// FIXME(STABLE): Constant operations
 #[inline]
 pub const fn const_ok<E, T>(rslt: Result<T, E>) -> Option<T>
 where
@@ -311,9 +309,6 @@ where
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
   cfg_select! {
-    feature = "async-net" => {
-      let _ = async_io::Timer::after(duration).await;
-    },
     feature = "embassy-time" => embassy_time::Timer::after(duration.try_into()?).await,
     feature = "tokio" => tokio::time::sleep(duration).await,
     _ => {
@@ -432,8 +427,7 @@ mod tests {
   use crate::misc::sleep;
   use core::time::Duration;
 
-  // FIXME: Use Runtime when TLS 1.3 arrives
-  #[tokio::test]
+  #[wtx::test]
   async fn timeout() {
     assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
     assert!(
