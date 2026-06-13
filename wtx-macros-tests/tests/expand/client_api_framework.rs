@@ -7,11 +7,10 @@
 //! Everything that is not inside `main` should be constructed only once in your program.
 
 extern crate serde;
-extern crate tokio;
 extern crate wtx;
 
 use core::time::Duration;
-use tokio::net::TcpStream;
+use std::net::TcpStream;
 use wtx::{
   client_api_framework::{
     Api,
@@ -117,7 +116,7 @@ async fn web_socket_pair() -> wtx::Result<
   ))
 }
 
-#[tokio::main]
+#[wtx::main]
 async fn main() -> wtx::Result<()> {
   let mut hp = http_pair().await;
   let _http_response_tuple = hp

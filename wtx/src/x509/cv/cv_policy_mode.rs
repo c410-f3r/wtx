@@ -1,11 +1,12 @@
 /// Chain Validation - Policy Mode
 ///
 /// Dictates non-configurable rules in chain validation.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum CvPolicyMode {
   /// Ignores some rules.
   Lenient,
   /// Tries to enforce as much policies as possible.
+  #[default]
   Strict,
 }
 

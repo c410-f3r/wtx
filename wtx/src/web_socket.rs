@@ -27,9 +27,10 @@ use crate::{
   _MAX_PAYLOAD_LEN,
   collection::Vector,
   misc::{ConnectionState, LeaseMut},
-  rng::{Rng, SeedableRng},
+  rng::{SeedableRng, Xorshift64},
   stream::Stream,
   sync::{Arc, AtomicBool},
+  tls::TlsStream,
 };
 pub use close_code::CloseCode;
 pub use compression::{Compression, CompressionLevel, DeflateConfig};
@@ -62,30 +63,23 @@ const RSV1_MASK: u8 = 0b0100_0000;
 const RSV2_MASK: u8 = 0b0010_0000;
 const RSV3_MASK: u8 = 0b0001_0000;
 
-/// [`WebSocket`] with a mutable reference of [`WebSocketBuffer`].
-pub type WebSocketMut<'wsb, NC, R, S, const IS_CLIENT: bool> =
-  WebSocket<NC, R, S, &'wsb mut WebSocketBuffer, IS_CLIENT>;
-/// [`WebSocket`] with an owned [`WebSocketBuffer`].
-pub type WebSocketOwned<NC, R, S, const IS_CLIENT: bool> =
-  WebSocket<NC, R, S, WebSocketBuffer, IS_CLIENT>;
-
 /// Full-duplex communication over an asynchronous stream.
 ///
 /// <https://tools.ietf.org/html/rfc6455>
 #[derive(Debug)]
-pub struct WebSocket<NC, R, S, WB, const IS_CLIENT: bool> {
+pub struct WebSocket<NC, S, TM, WB, const IS_CLIENT: bool> {
   connection_state: ConnectionState,
   is_in_continuation_frame: Option<is_in_continuation_frame::IsInContinuationFrame>,
   max_payload_len: usize,
   nc: NC,
   nc_rsv1: u8,
   no_masking: bool,
-  rng: R,
-  stream: S,
+  rng: Xorshift64,
+  stream: TlsStream<S, TM, IS_CLIENT>,
   wsb: WB,
 }
 
-impl<NC, R, S, WB, const IS_CLIENT: bool> WebSocket<NC, R, S, WB, IS_CLIENT> {
+impl<NC, S, TM, WB, const IS_CLIENT: bool> WebSocket<NC, S, TM, WB, IS_CLIENT> {
   /// Sets whether to automatically close the connection when a received frame payload length
   /// exceeds `max_payload_len`. Defaults to `64 * 1024 * 1024` bytes (64 MiB).
   #[inline]
@@ -94,16 +88,21 @@ impl<NC, R, S, WB, const IS_CLIENT: bool> WebSocket<NC, R, S, WB, IS_CLIENT> {
   }
 }
 
-impl<NC, R, S, WB, const IS_CLIENT: bool> WebSocket<NC, R, S, WB, IS_CLIENT>
+impl<NC, S, TM, WB, const IS_CLIENT: bool> WebSocket<NC, S, TM, WB, IS_CLIENT>
 where
   NC: compression::NegotiatedCompression,
-  R: Rng,
   S: Stream,
   WB: LeaseMut<WebSocketBuffer>,
 {
   /// Creates a new instance from a stream that supposedly has already completed the handshake.
   #[inline]
-  pub fn new(nc: NC, no_masking: bool, rng: R, stream: S, wsb: WB) -> Self {
+  pub fn new(
+    nc: NC,
+    no_masking: bool,
+    rng: Xorshift64,
+    stream: TlsStream<S, TM, IS_CLIENT>,
+    wsb: WB,
+  ) -> Self {
     let nc_rsv1 = nc.rsv1();
     Self {
       connection_state: ConnectionState::Open,
@@ -127,7 +126,7 @@ where
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
     payload_origin: WebSocketPayloadOrigin,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'buffer: 'frame,
     'this: 'frame,
@@ -169,9 +168,9 @@ where
   pub fn split_mut(
     &mut self,
   ) -> (
-    WebSocketCommonMut<'_, NC, R, S, IS_CLIENT>,
-    WebSocketReaderMut<'_, NC, R, S, IS_CLIENT>,
-    WebSocketWriterMut<'_, NC, R, S, IS_CLIENT>,
+    WebSocketCommonMut<'_, NC, S, TM, IS_CLIENT>,
+    WebSocketReaderMut<'_, NC, S, TM, IS_CLIENT>,
+    WebSocketWriterMut<'_, NC, S, TM, IS_CLIENT>,
   ) {
     let WebSocket {
       connection_state,
@@ -209,13 +208,13 @@ where
 
   /// Writes a frame to the stream.
   #[inline]
-  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P, IS_CLIENT>) -> crate::Result<()>
+  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P>) -> crate::Result<()>
   where
     P: LeaseMut<[u8]>,
   {
     let WebSocket { connection_state, nc, nc_rsv1, no_masking, rng, stream, wsb, .. } = self;
     let WebSocketBuffer { writer_buffer, .. } = wsb.lease_mut();
-    web_socket_writer::write_frame(
+    web_socket_writer::write_frame::<_, _, _, _, IS_CLIENT>(
       connection_state,
       frame,
       *no_masking,
@@ -230,17 +229,16 @@ where
   }
 }
 
-impl<NC, R, S, const IS_CLIENT: bool> WebSocket<NC, R, S, WebSocketBuffer, IS_CLIENT>
+impl<NC, S, TM, const IS_CLIENT: bool> WebSocket<NC, S, TM, WebSocketBuffer, IS_CLIENT>
 where
   NC: Clone + compression::NegotiatedCompression,
-  R: Rng + SeedableRng,
 {
   /// Splits the instance into owned parts that can be used in concurrent scenarios.
   #[inline]
   pub fn into_split<SR, SW>(
     self,
-    split: impl FnOnce(S) -> (SR, SW),
-  ) -> crate::Result<WebSocketPartsOwned<NC, R, SR, SW, IS_CLIENT>> {
+    split: impl FnOnce(S) -> crate::Result<(SR, SW)>,
+  ) -> crate::Result<WebSocketPartsOwned<NC, SR, SW, IS_CLIENT>> {
     let WebSocket {
       connection_state,
       is_in_continuation_frame,
@@ -253,7 +251,7 @@ where
       max_payload_len,
     } = self;
     let WebSocketBuffer { network_buffer, reader_buffer, writer_buffer } = wsb;
-    let (stream_reader, stream_writer) = split(stream);
+    let (stream_reader, stream_writer) = stream.into_split(split)?;
     let local_connection_state = Arc::new(AtomicBool::new(connection_state.into()));
     let replier = Arc::new(WebSocketReplier::new());
     Ok(WebSocketPartsOwned {
@@ -270,7 +268,7 @@ where
           reader_buffer,
         },
         replier: replier.clone(),
-        rng: R::from_rng(&mut rng)?,
+        rng: Xorshift64::from_rng(&mut rng)?,
         stream_reader,
       },
       writer: WebSocketWriterOwned {

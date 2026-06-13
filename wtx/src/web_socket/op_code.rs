@@ -25,6 +25,10 @@ impl OpCode {
     matches!(self, OpCode::Close)
   }
 
+  pub(crate) const fn is_binary(self) -> bool {
+    matches!(self, OpCode::Binary)
+  }
+
   pub(crate) const fn is_control(self) -> bool {
     matches!(self, OpCode::Close | OpCode::Ping | OpCode::Pong)
   }

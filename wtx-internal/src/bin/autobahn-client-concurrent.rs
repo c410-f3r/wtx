@@ -15,12 +15,12 @@ async fn main() {
   for case in 1..=autobahn_get_case_count(&mut buffer, host).await.unwrap() {
     let ws = autobahn_case_conn(case, host).await.unwrap();
     let WebSocketPartsOwned { mut reader, replier, mut writer } =
-      ws.into_split(|el| (el.try_clone().unwrap(), el)).unwrap();
+      ws.into_split(|el| Ok((el.try_clone().unwrap(), el))).unwrap();
     let mut reply_frame = pin!(replier.reply_frame());
     loop {
       let mut frame = match reader.read_frame(&mut buffer, WebSocketPayloadOrigin::Adaptive).await {
         Err(_err) => {
-          writer.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await.unwrap();
+          writer.write_frame(&mut Frame::new_fin(OpCode::Close, &mut []).unwrap()).await.unwrap();
           break;
         }
         Ok(elem) => elem,

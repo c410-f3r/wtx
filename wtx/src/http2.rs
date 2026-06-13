@@ -40,7 +40,7 @@ mod server_stream;
 mod settings_frame;
 mod stream_receiver;
 mod stream_state;
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests;
 #[cfg(feature = "web-socket")]
 mod web_socket_over_stream;
@@ -101,14 +101,14 @@ where
 
   send_go_away_method!();
 
-  #[cfg(all(feature = "http-client-pool", feature = "tokio"))]
+  #[cfg(all(feature = "http2-client-pool", feature = "tls"))]
   pub(crate) async fn swap_buffers(&mut self, hb: &mut HB) {
     mem::swap(hb.lease_mut(), self.inner.hd.lock().await.parts_mut().hb);
   }
 
   async fn manage_initial_params<SR, const HAS_PREFACE: bool>(
     mut hb: HB,
-    hp: HttpRecvParams,
+    hrp: HttpRecvParams,
     stream_reader: SR,
     mut stream_writer: SW,
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
@@ -116,10 +116,10 @@ where
     SR: StreamReader,
   {
     let is_conn_open = AtomicBool::new(true);
-    let sf = SettingsFrame::from_hp(hp);
+    let sf = SettingsFrame::from_hrp(hrp);
     let sf_buffer = &mut [0; 45];
     let sf_bytes = sf.bytes(sf_buffer);
-    if hp.initial_window_len() == DEFAULT_INITIAL_WINDOW_LEN {
+    if hrp.initial_window_len() == DEFAULT_INITIAL_WINDOW_LEN {
       if HAS_PREFACE {
         misc::write_array([PREFACE, sf_bytes], &is_conn_open, &mut stream_writer).await?;
       } else {
@@ -127,7 +127,7 @@ where
       }
     } else {
       let wuf = window_update_frame::WindowUpdateFrame::new(
-        hp.initial_window_len().wrapping_sub(DEFAULT_INITIAL_WINDOW_LEN).into(),
+        hrp.initial_window_len().wrapping_sub(DEFAULT_INITIAL_WINDOW_LEN).into(),
         U31::ZERO,
       )?;
       if HAS_PREFACE {
@@ -137,13 +137,13 @@ where
         misc::write_array([sf_bytes, &wuf.bytes()], &is_conn_open, &mut stream_writer).await?;
       }
     }
-    hb.lease_mut().hpack_dec.set_max_bytes(hp.max_hpack_len().0);
-    hb.lease_mut().hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
+    hb.lease_mut().hpack_dec.set_max_bytes(hrp.max_hpack_len().0);
+    hb.lease_mut().hpack_enc.set_max_dyn_super_bytes(hrp.max_hpack_len().1);
     let rd = reader_data::ReaderData::new(mem::take(&mut hb.lease_mut().pfb), stream_reader);
-    let max_frame_len = hp.max_frame_len();
+    let max_frame_len = hrp.max_frame_len();
     let wd = writer_data::WriterData::new(stream_writer);
     let inner = Arc::new(Http2Inner {
-      hd: AsyncMutex::new(Http2Data::new(hb, hp)),
+      hd: AsyncMutex::new(Http2Data::new(hb, hrp)),
       is_conn_open,
       read_frame_waker: AtomicWaker::new(),
       wd: AsyncMutex::new(wd),
@@ -161,7 +161,7 @@ where
   #[inline]
   pub async fn accept<SR>(
     mut hb: HB,
-    hp: HttpRecvParams,
+    hrp: HttpRecvParams,
     (mut stream_reader, mut stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
@@ -178,7 +178,7 @@ where
         .await;
       return Err(misc::protocol_err(Http2Error::NoPreface));
     }
-    Self::manage_initial_params::<_, false>(hb, hp, stream_reader, stream_writer).await
+    Self::manage_initial_params::<_, false>(hb, hrp, stream_reader, stream_writer).await
   }
 
   /// Awaits for an initial header to create a stream.
@@ -240,15 +240,15 @@ where
   #[inline]
   pub async fn connect<SR>(
     mut hb: HB,
-    mut hp: HttpRecvParams,
+    mut hrp: HttpRecvParams,
     (stream_reader, stream_writer): (SR, SW),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {
     hb.lease_mut().clear();
-    hp = hp.set_enable_connect_protocol(false);
-    Self::manage_initial_params::<_, true>(hb, hp, stream_reader, stream_writer).await
+    hrp = hrp.set_enable_connect_protocol(false);
+    Self::manage_initial_params::<_, true>(hb, hrp, stream_reader, stream_writer).await
   }
 
   /// Opens a local stream.

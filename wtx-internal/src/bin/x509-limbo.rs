@@ -333,7 +333,8 @@ fn evaluate_test_case<'bytes>(
     return;
   };
 
-  let mut cvp = CvPolicy::from_crls(crls).unwrap();
+  let mut cvp = CvPolicy::default();
+  cvp.set_crls(crls);
   let mut eku = ExtendedKeyUsage::default();
   fill_cvp(&mut cvp, &mut eku, testcase);
 

@@ -94,8 +94,8 @@ pub(crate) mod database {
   use crate::{
     collection::Vector,
     database::{
-      DEFAULT_MAX_STMTS, Executor,
-      client::postgres::{ExecutorBuffer, PostgresExecutor},
+      DEFAULT_MAX_STMTS, DbClient,
+      client::postgres::{ClientBuffer, PostgresClient},
     },
     misc::{Secret, SecretContext},
     pool::ResourceManager,
@@ -157,17 +157,18 @@ pub(crate) mod database {
     type CreateAux = ();
     type Error = E;
     type RecycleAux = ();
-    type Resource = PostgresExecutor<E, ExecutorBuffer, ()>;
+    type Resource = PostgresClient<ClientBuffer, E, ()>;
 
     #[inline]
     async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
       let mut rng = ChaCha20::from_crypto_rng(&mut &self._rng)?;
       Ok(_executor!(&self._uri, |config, uri| {
-        PostgresExecutor::connect(
+        PostgresClient::connect(
+          ClientBuffer::new(self._max_stmts, &mut rng),
           &config,
-          ExecutorBuffer::new(self._max_stmts, &mut rng),
           &mut rng,
           (),
+          None,
         )
       }))
     }
@@ -184,10 +185,10 @@ pub(crate) mod database {
       resource: &mut Self::Resource,
     ) -> Result<(), Self::Error> {
       let mut rng = ChaCha20::from_crypto_rng(&mut &self._rng)?;
-      let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
-      mem::swap(&mut buffer, &mut resource.eb);
+      let mut buffer = ClientBuffer::new(self._max_stmts, &mut rng);
+      mem::swap(&mut buffer, &mut resource.cb);
       *resource = _executor!(&self._uri, |config, uri| {
-        PostgresExecutor::connect(&config, buffer, &mut rng, ())
+        PostgresClient::connect(buffer, &config, &mut rng, (), None)
       });
       Ok(())
     }
@@ -198,8 +199,8 @@ pub(crate) mod database {
     use crate::{
       collection::Vector,
       database::{
-        DEFAULT_MAX_STMTS, Executor as _,
-        client::postgres::{ExecutorBuffer, PostgresExecutor},
+        DEFAULT_MAX_STMTS, DbClient as _,
+        client::postgres::{ClientBuffer, PostgresClient},
       },
       misc::{Secret, SecretContext},
       pool::{PostgresRM, ResourceManager},
@@ -236,19 +237,20 @@ pub(crate) mod database {
       type CreateAux = ();
       type Error = E;
       type RecycleAux = ();
-      type Resource = PostgresExecutor<E, ExecutorBuffer, TcpStream>;
+      type Resource = PostgresClient<ClientBuffer, E, TcpStream>;
 
       #[inline]
       async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
         let mut rng = ChaCha20::from_crypto_rng(&mut &self._rng)?;
         Ok(_executor!(&self._uri, |config, uri| {
-          PostgresExecutor::connect(
+          PostgresClient::connect(
+            ClientBuffer::new(self._max_stmts, &mut rng),
             &config,
-            ExecutorBuffer::new(self._max_stmts, &mut rng),
             &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port())
               .await
               .map_err(crate::Error::from)?,
+            None,
           )
         }))
       }
@@ -265,121 +267,17 @@ pub(crate) mod database {
         resource: &mut Self::Resource,
       ) -> Result<(), Self::Error> {
         let mut rng = ChaCha20::from_crypto_rng(&mut &self._rng)?;
-        let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
-        mem::swap(&mut buffer, &mut resource.eb);
+        let mut buffer = ClientBuffer::new(self._max_stmts, &mut rng);
+        mem::swap(&mut buffer, &mut resource.cb);
         *resource = _executor!(&self._uri, |config, uri| {
-          PostgresExecutor::connect(
-            &config,
+          PostgresClient::connect(
             buffer,
-            &mut rng,
-            TcpStream::connect(uri.hostname_with_implied_port())
-              .await
-              .map_err(crate::Error::from)?,
-          )
-        });
-        Ok(())
-      }
-    }
-  }
-
-  #[cfg(feature = "tokio-rustls")]
-  mod tokio_rustls {
-    use crate::{
-      collection::Vector,
-      database::{
-        DEFAULT_MAX_STMTS, Executor as _,
-        client::postgres::{ExecutorBuffer, PostgresExecutor},
-      },
-      misc::{Secret, SecretContext, TokioRustlsConnector},
-      pool::{PostgresRM, ResourceManager},
-      rng::{ChaCha20, CryptoSeedableRng},
-      sync::AtomicCell,
-    };
-    use core::{marker::PhantomData, mem};
-    use tokio::net::TcpStream;
-    use tokio_rustls::client::TlsStream;
-
-    impl<E> PostgresRM<E, TlsStream<TcpStream>> {
-      /// Resource manager using the `tokio-rustls` project.
-      #[inline]
-      pub fn tokio_rustls(
-        certs: Option<Vector<u8>>,
-        mut rng: ChaCha20,
-        secret_context: SecretContext,
-        uri: &mut [u8],
-      ) -> crate::Result<Self> {
-        let _uri = Secret::new(uri, &mut rng, secret_context)?;
-        Ok(Self {
-          _certs: certs,
-          _error: PhantomData,
-          _max_stmts: DEFAULT_MAX_STMTS,
-          _rng: AtomicCell::new(rng),
-          _stream: PhantomData,
-          _uri,
-        })
-      }
-    }
-
-    impl<E> ResourceManager for PostgresRM<E, TlsStream<TcpStream>>
-    where
-      E: From<crate::Error>,
-    {
-      type CreateAux = ();
-      type Error = E;
-      type RecycleAux = ();
-      type Resource = PostgresExecutor<E, ExecutorBuffer, TlsStream<TcpStream>>;
-
-      #[inline]
-      async fn create(&self, _: &Self::CreateAux) -> Result<Self::Resource, Self::Error> {
-        let mut rng = ChaCha20::from_crypto_rng(&mut &self._rng)?;
-        Ok(_executor!(&self._uri, |config, uri| {
-          PostgresExecutor::connect_encrypted(
             &config,
-            ExecutorBuffer::new(self._max_stmts, &mut rng),
             &mut rng,
             TcpStream::connect(uri.hostname_with_implied_port())
               .await
               .map_err(crate::Error::from)?,
-            async |stream| {
-              let mut rslt = TokioRustlsConnector::from_auto()?;
-              if let Some(elem) = &self._certs {
-                rslt = rslt.push_certs(elem.as_slice())?;
-              }
-              rslt.connect_without_client_auth(uri.hostname(), stream).await
-            },
-          )
-        }))
-      }
-
-      #[inline]
-      fn is_invalid(&self, resource: &Self::Resource) -> bool {
-        resource.connection_state().is_closed()
-      }
-
-      #[inline]
-      async fn recycle(
-        &self,
-        _: &Self::RecycleAux,
-        resource: &mut Self::Resource,
-      ) -> Result<(), Self::Error> {
-        let mut rng = ChaCha20::from_crypto_rng(&mut &self._rng)?;
-        let mut buffer = ExecutorBuffer::new(self._max_stmts, &mut rng);
-        mem::swap(&mut buffer, &mut resource.eb);
-        *resource = _executor!(&self._uri, |config, uri| {
-          PostgresExecutor::connect_encrypted(
-            &config,
-            buffer,
-            &mut rng,
-            TcpStream::connect(uri.hostname_with_implied_port())
-              .await
-              .map_err(crate::Error::from)?,
-            async |stream| {
-              let mut rslt = TokioRustlsConnector::from_auto()?;
-              if let Some(elem) = &self._certs {
-                rslt = rslt.push_certs(elem.as_slice())?;
-              }
-              rslt.connect_without_client_auth(uri.hostname(), stream).await
-            },
+            None,
           )
         });
         Ok(())

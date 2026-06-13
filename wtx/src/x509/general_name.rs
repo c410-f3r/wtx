@@ -21,23 +21,23 @@ const REGISTERED_ID_TAG: u8 = 136;
 /// Represents a name in one of several forms as defined in RFC 5280.
 #[derive(Debug, PartialEq)]
 pub enum GeneralName<'bytes> {
-  /// An OtherName (Opaque).
+  /// Other
   OtherName(&'bytes [u8]),
-  /// An RFC 822 email address (IA5String).
+  /// Email address
   Rfc822Name(&'bytes [u8]),
-  /// A DNS domain name (IA5String).
+  /// DNS domain name
   DnsName(&'bytes [u8]),
-  /// An X.400 address (Opaque).
+  /// X.400 address
   X400Address(&'bytes [u8]),
-  /// A directory name (DER).
+  /// Directory name
   DirectoryName(&'bytes [u8]),
-  /// An EDI party name (Opaque).
+  /// EDI party name
   EdiPartyName(&'bytes [u8]),
-  /// A URI (IA5String).
+  /// URI
   UniformResourceIdentifier(&'bytes [u8]),
-  /// An IP address (4 bytes for IPv4, 16 for IPv6; 8 or 32 in name constraints).
+  /// IP address
   IpAddress(&'bytes [u8]),
-  /// A registered OID
+  /// Oid
   RegisteredId(&'bytes [u8]),
 }
 

@@ -10,3 +10,10 @@ pub enum CvEvaluationDepth {
   /// Only verifies the leaf certificate
   EndEntity,
 }
+
+impl Default for CvEvaluationDepth {
+  #[inline]
+  fn default() -> Self {
+    Self::Chain(8)
+  }
+}

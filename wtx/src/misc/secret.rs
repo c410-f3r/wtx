@@ -2,7 +2,7 @@ mod secret_context;
 
 use crate::{
   collection::{Clear, TryExtend},
-  crypto::{Aead, Aes256GcmGlobal, Hash, Sha256DigestGlobal},
+  crypto::{Aead, Aes256GcmGlobal, Hash, Sha256HashGlobal},
   misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
   rng::CryptoRng,
 };
@@ -171,7 +171,7 @@ fn fill_secret_key(
   secret_context: &SecretContext,
   secret_key: &mut SensitiveBytes<&mut [u8; 32]>,
 ) -> crate::Result<()> {
-  let mut array = Sha256DigestGlobal::digest(
+  let mut array = Sha256HashGlobal::digest(
     [&salt[..]].into_iter().chain(secret_context.0.iter().map(|el| &**el)),
   );
   secret_key.copy_from_slice(&**SensitiveBytes::new_locked(&mut array)?);

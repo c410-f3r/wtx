@@ -1,6 +1,12 @@
 //! WTX - Internal
 
 #[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
+use wtx::{
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::{TlsConfig, TlsConnector, TlsModePlainText},
+};
+
+#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
 #[inline]
 pub async fn autobahn_case_conn(
   case: u32,
@@ -8,17 +14,20 @@ pub async fn autobahn_case_conn(
 ) -> wtx::Result<
   wtx::web_socket::WebSocket<
     Option<wtx::web_socket::compression::NegotiatedFlate2>,
-    wtx::rng::Xorshift64,
     std::net::TcpStream,
+    TlsModePlainText,
     wtx::web_socket::WebSocketBuffer,
     true,
   >,
 > {
+  let stream = std::net::TcpStream::connect(host)?;
   wtx::web_socket::WebSocketConnector::default()
     .compression(wtx::web_socket::compression::Flate2::default())
     .no_masking(false)
     .connect(
-      std::net::TcpStream::connect(host)?,
+      &mut ChaCha20::from_std_random()?,
+      TlsConnector::from_stream(stream).tls_mode(TlsModePlainText),
+      &TlsConfig::uncertified(),
       &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
         "http://{host}/runCase?case={case}&agent=wtx"
       ))?
@@ -31,17 +40,17 @@ pub async fn autobahn_case_conn(
 #[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
 #[inline]
 pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
+  let url = format_args!("http://{host}/updateReports?agent=wtx");
+  let stream = std::net::TcpStream::connect(host)?;
   wtx::web_socket::WebSocketConnector::default()
     .connect(
-      std::net::TcpStream::connect(host)?,
-      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
-        "http://{host}/updateReports?agent=wtx"
-      ))?
-      .as_str()
-      .into(),
+      &mut ChaCha20::from_std_random()?,
+      TlsConnector::from_stream(stream).tls_mode(TlsModePlainText),
+      &TlsConfig::uncertified(),
+      &wtx::collection::ArrayStringU8::<128>::try_from(url)?.as_str().into(),
     )
     .await?
-    .write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut []))
+    .write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut [])?)
     .await
 }
 
@@ -51,12 +60,14 @@ pub async fn autobahn_get_case_count(
   buffer: &mut wtx::collection::Vector<u8>,
   host: &str,
 ) -> wtx::Result<u32> {
+  let stream = std::net::TcpStream::connect(host)?;
+  let fmt = format_args!("http://{host}/getCaseCount");
   let mut ws = wtx::web_socket::WebSocketConnector::default()
     .connect(
-      std::net::TcpStream::connect(host)?,
-      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!("http://{host}/getCaseCount"))?
-        .as_str()
-        .into(),
+      &mut ChaCha20::from_std_random()?,
+      TlsConnector::from_stream(stream).tls_mode(TlsModePlainText),
+      &TlsConfig::uncertified(),
+      &wtx::collection::ArrayStringU8::<128>::try_from(fmt)?.as_str().into(),
     )
     .await?;
   let rslt = ws
@@ -65,7 +76,7 @@ pub async fn autobahn_get_case_count(
     .text_payload()
     .unwrap_or_default()
     .parse()?;
-  ws.write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut []))
+  ws.write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut [])?)
     .await?;
   Ok(rslt)
 }

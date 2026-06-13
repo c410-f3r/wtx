@@ -7,13 +7,13 @@ use crate::{
   codec::CodecController,
   collection::Vector,
   database::{
-    Database, Executor, Identifier,
+    Database, DbClient, Identifier,
     schema_manager::{
       Commands, DbMigration, MigrationStatus, SchemaManagement, UserMigrationGroup,
       doc_tests::{user_migration, user_migration_group},
     },
   },
-  executor::Runtime,
+  executor::StdRuntime,
 };
 use alloc::string::String;
 use core::fmt::{Debug, Write};
@@ -48,11 +48,12 @@ macro_rules! create_integration_tests {
           let config = crate::database::client::postgres::Config::from_uri(&uri).unwrap();
           let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
           let mut rng = crate::rng::ChaCha20::from_std_random().unwrap();
-          crate::database::client::postgres::PostgresExecutor::<crate::Error, _, _>::connect(
+          crate::database::client::postgres::PostgresClient::<_, crate::Error, _>::connect(
+            crate::database::client::postgres::ClientBuffer::new(usize::MAX, &mut rng),
             &config,
-            crate::database::client::postgres::ExecutorBuffer::new(usize::MAX, &mut rng),
             &mut rng,
             stream,
+            None,
           )
           .await
           .unwrap()
@@ -91,7 +92,7 @@ macro_rules! create_all_integration_tests {
 
     #[test]
     fn integration_tests() {
-      Runtime::new()
+      StdRuntime::new()
         .block_on(async {
           integration_tests_db().await;
           integration_tests_generic().await;
@@ -136,7 +137,7 @@ pub(crate) async fn create_foo_table<E>(
   schema_prefix: &str,
 ) where
   E: SchemaManagement,
-  <<E as Executor>::Database as CodecController>::Error: Debug,
+  <<E as DbClient>::Database as CodecController>::Error: Debug,
 {
   buffer_cmd.write_fmt(format_args!("CREATE TABLE {schema_prefix}foo(id INT)")).unwrap();
   c._executor_mut().execute_ignored(buffer_cmd.as_str()).await.unwrap();

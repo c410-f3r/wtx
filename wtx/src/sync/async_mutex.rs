@@ -98,7 +98,7 @@ where
 {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("AsyncMutexGuard").field("mutex", &self.mutex).field("value", &&**self).finish()
+    f.debug_struct("AsyncMutexGuard").field("mutex", &self.mutex).field("value", &**self).finish()
   }
 }
 
@@ -298,7 +298,7 @@ fn wake(state: &AtomicUsize, mut waiters: SyncMutexGuard<'_, Waiters>) {
 #[cfg(test)]
 mod tests {
   use crate::{
-    executor::Runtime,
+    executor::StdRuntime,
     misc::PollOnce,
     sync::{
       Arc, AsyncMutex,
@@ -312,7 +312,7 @@ mod tests {
     let (tx, rx) = std::sync::mpsc::channel();
     let mutex = Arc::new(AsyncMutex::new(0));
     let num_threads = 1000;
-    let runtime = Runtime::new();
+    let runtime = StdRuntime::new();
     let tx = Arc::new(tx);
 
     for _ in 0..num_threads {
@@ -342,7 +342,7 @@ mod tests {
 
   #[test]
   fn sequential() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let mutex = AsyncMutex::new(());
       for _ in 0..10 {
         let _guard = mutex.lock().await;
@@ -353,7 +353,7 @@ mod tests {
 
   #[test]
   fn wakes_waiter() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let mutex = AsyncMutex::new(());
       {
         let lock0 = mutex.lock().await;

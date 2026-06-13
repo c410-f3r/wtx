@@ -13,7 +13,7 @@ use crate::{
   collection::Vector,
   database::{
     Database, DatabaseTy, Identifier,
-    executor::Executor,
+    db_client::DbClient,
     schema_manager::{DEFAULT_BATCH_SIZE, SchemaManagement, UserMigration},
   },
   misc::Lease,
@@ -29,7 +29,7 @@ pub struct Commands<E> {
 
 impl<E> Commands<E>
 where
-  E: Executor,
+  E: DbClient,
 {
   /// Creates a new instance from a given Backend and batch size.
   #[inline]

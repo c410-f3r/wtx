@@ -1,6 +1,6 @@
 use crate::{
   collection::Vector,
-  misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
+  misc::{Lease, LeaseMut, PartitionedFilledBuffer},
 };
 
 #[derive(Debug)]

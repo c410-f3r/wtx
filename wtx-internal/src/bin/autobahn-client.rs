@@ -17,7 +17,7 @@ async fn main() -> wtx::Result<()> {
       let mut frame =
         match reader.read_frame(&mut buffer, &mut common, WebSocketPayloadOrigin::Adaptive).await {
           Err(_err) => {
-            ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await.unwrap();
+            ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut []).unwrap()).await.unwrap();
             break;
           }
           Ok(elem) => elem,

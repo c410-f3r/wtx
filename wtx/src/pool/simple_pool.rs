@@ -92,21 +92,6 @@ where
     let _ = drop_guard.idx.take();
     Ok(SimplePoolGetElem { state: Arc::clone(&self.state), idx, resource: lock_guard })
   }
-
-  #[cfg(feature = "http-client-pool")]
-  pub(crate) async fn into_for_each<FUN>(&self, mut cb: impl FnMut(RM::Resource) -> FUN)
-  where
-    FUN: Future<Output = ()>,
-  {
-    for idx in 0..self.resources.locks.len() {
-      if let Some(lock) = self.resources.locks.get(idx) {
-        let mut resource = lock.lock().await;
-        if let Some(elem) = resource.0.take() {
-          cb(elem).await;
-        }
-      }
-    }
-  }
 }
 
 impl<RM> SimplePool<RM>
@@ -120,32 +105,6 @@ where
   ) -> Result<SimplePoolGetElem<AsyncMutexGuard<'_, SimplePoolResource<RM::Resource>>>, RM::Error>
   {
     self.get(&(), &()).await
-  }
-}
-
-#[cfg(feature = "http-server-framework")]
-impl<RM> crate::http::server_framework::ConnAux for SimplePool<RM>
-where
-  RM: ResourceManager,
-{
-  type Init = Self;
-
-  #[inline]
-  fn conn_aux(init: Self::Init) -> crate::Result<Self> {
-    Ok(init)
-  }
-}
-
-#[cfg(feature = "http-server-framework")]
-impl<RM> crate::http::server_framework::StreamAux for SimplePool<RM>
-where
-  RM: ResourceManager,
-{
-  type Init = Self;
-
-  #[inline]
-  fn stream_aux(init: Self::Init) -> crate::Result<Self> {
-    Ok(init)
   }
 }
 
@@ -288,13 +247,13 @@ fn push_available(idx: usize, state: &SyncMutex<PoolState>) {
 #[cfg(test)]
 mod tests {
   use crate::{
-    executor::Runtime,
+    executor::StdRuntime,
     pool::{SimpleRM, simple_pool::SimplePool},
   };
 
   #[test]
   fn held_lock_is_not_modified() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let pool = pool();
       let lhs_lock = pool.get_with_unit().await.unwrap();
 

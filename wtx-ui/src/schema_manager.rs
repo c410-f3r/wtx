@@ -6,7 +6,7 @@ use wtx::{
   collection::Vector,
   database::{
     DatabaseUriFromVars, Identifier,
-    client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
+    client::postgres::{ClientBuffer, Config, PostgresClient},
     schema_manager::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
@@ -28,11 +28,12 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   match uri.scheme() {
     "postgres" | "postgresql" => {
       let mut rng = ChaCha20::from_std_random()?;
-      let executor = PostgresExecutor::<wtx::Error, _, _>::connect(
+      let executor = PostgresClient::<_, wtx::Error, _>::connect(
+        ClientBuffer::new(usize::MAX, &mut rng),
         &Config::from_uri(&uri)?,
-        ExecutorBuffer::new(usize::MAX, &mut rng),
         &mut rng,
         TcpStream::connect(uri.hostname_with_implied_port()).await?,
+        None,
       )
       .await?;
       handle_commands(executor, &sm).await?;

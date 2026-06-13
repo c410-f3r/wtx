@@ -36,13 +36,15 @@ impl<const IS_CLIENT: bool> WebSocketReplier<IS_CLIENT> {
   /// Received `Close` frames should halt further processing. Returns `None` when the reader
   /// part is dropped.
   #[inline]
-  pub async fn reply_frame(&self) -> Option<FrameControlArray<IS_CLIENT>> {
+  pub async fn reply_frame(&self) -> Option<FrameControlArray> {
     poll_fn(|cx| {
       let (is_conn_closed, frame) = self.data.update(|el| (el.0, None));
       if let Some((op_code, data, len)) = frame {
-        Poll::Ready(Some(FrameControlArray::<IS_CLIENT>::new_fin(
+        Poll::Ready(Some(FrameControlArray::new(
+          true,
           op_code,
           ArrayVectorU8::from_parts(data, Some(len)),
+          0,
         )))
       } else if is_conn_closed {
         Poll::Ready(None)

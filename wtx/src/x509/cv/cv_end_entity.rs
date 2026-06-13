@@ -4,8 +4,8 @@ use crate::{
   crypto::SignatureTy,
   misc::{Lease, bytes_split_once1},
   x509::{
-    CvCertificate, CvEndEntity, CvPolicy, CvTrustAnchor, GeneralName, ServerName, VerifiedPath,
-    X509CvError, cv::params_oid, extensions::SubjectAlternativeName,
+    CvCertificate, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor, GeneralName, ServerName,
+    VerifiedPath, X509CvError, cv::params_oid, extensions::SubjectAlternativeName,
   },
 };
 
@@ -19,7 +19,7 @@ impl<'any, 'bytes> CvEndEntity<'any, 'bytes> {
   #[inline]
   pub fn validate_chain(
     &'any self,
-    intermediates: &'any [CvCertificate<'any, 'bytes, false>],
+    intermediates: &'any [CvIntermediate<'any, 'bytes>],
     cv_policy: &'any CvPolicy<'any, 'bytes>,
     trust_anchors: &'any [CvTrustAnchor<'bytes>],
   ) -> crate::Result<VerifiedPath<'any, 'bytes>> {

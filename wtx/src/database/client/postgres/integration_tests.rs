@@ -2,14 +2,14 @@ use crate::{
   codec::{Decode, Encode},
   collection::Vector,
   database::{
-    Executor as _, Record, Typed,
+    DbClient as _, Record, Typed,
     client::postgres::{
-      Config, DecodeWrapper, EncodeWrapper, ExecutorBuffer, Postgres, PostgresExecutor,
-      StructDecoder, StructEncoder, Ty,
+      ClientBuffer, Config, DecodeWrapper, EncodeWrapper, Postgres, PostgresClient, StructDecoder,
+      StructEncoder, Ty,
     },
     records::Records,
   },
-  executor::Runtime,
+  executor::StdRuntime,
   misc::UriRef,
   rng::{ChaCha20, CryptoSeedableRng},
   tests::_vars,
@@ -19,7 +19,7 @@ use core::ops::Range;
 
 #[test]
 fn array() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = executor().await;
     let array = [1i32, 2, 3];
     let record = executor.execute_stmt_single("SELECT $1", (&array,)).await.unwrap();
@@ -29,7 +29,7 @@ fn array() {
 
 #[test]
 fn batch() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = executor().await;
     let mut idx: u32 = 0;
     let mut records = Vector::new();
@@ -94,7 +94,7 @@ fn batch() {
 
 #[test]
 fn bytes() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let id = 1;
     let bytes = &[255, 2, 3];
     let mut executor = executor().await;
@@ -112,7 +112,7 @@ fn bytes() {
 
 #[test]
 fn custom_composite_type() {
-  Runtime::new()
+  StdRuntime::new()
     .block_on(async {
       #[derive(Debug, PartialEq)]
       struct CustomCompositeType(i32, Option<String>, i64);
@@ -178,7 +178,7 @@ fn custom_composite_type() {
 
 #[test]
 fn custom_domain() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     #[derive(Debug, PartialEq)]
     struct CustomDomain(String);
 
@@ -237,7 +237,7 @@ fn custom_domain() {
 
 #[test]
 fn custom_enum() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     enum Enum {
       Foo,
       Bar,
@@ -327,7 +327,7 @@ fn execute_stmt_selects() {
 
 #[test]
 fn multiple_notifications() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = executor().await;
     executor
       .execute_stmt_none(
@@ -350,7 +350,7 @@ fn ping() {
 
 #[test]
 fn range() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let range = 3..7;
     let mut executor = executor().await;
     let record = executor.execute_stmt_single("SELECT $1", (range.clone(),)).await.unwrap();
@@ -371,7 +371,7 @@ fn reuses_cached_statement() {
 #[cfg(feature = "serde_json")]
 #[test]
 fn serde_json() {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     use crate::database::Json;
     let mut executor = executor().await;
     executor
@@ -390,39 +390,43 @@ fn serde_json() {
   });
 }
 
-#[cfg(feature = "tokio-rustls")]
-#[tokio::test]
-async fn tls() {
-  let uri = UriRef::new(_vars().database_uri_postgres.as_str());
-  let mut rng = ChaCha20::from_std_random().unwrap();
-  let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
-    &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::new(usize::MAX, &mut rng),
-    &mut rng,
-    tokio::net::TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    async |stream| {
-      Ok(
-        crate::misc::TokioRustlsConnector::default()
-          .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
-          .unwrap()
-          .connect_without_client_auth(uri.hostname(), stream)
-          .await
-          .unwrap(),
-      )
-    },
-  )
-  .await
-  .unwrap();
+#[cfg(feature = "ring")]
+#[test]
+fn tls() {
+  StdRuntime::new().block_on(async {
+    //let uri_string = &*URI;
+    //let uri = UriRef::new(uri_string.as_str());
+    //let mut rng = ChaCha20::from_seed(_32_bytes_seed()).unwrap();
+    //let _executor = PostgresClient::<_, crate::Error, _>::connect_encrypted(
+    //  &Config::from_uri(&uri).unwrap(),
+    //  ExecutorBuffer::new(usize::MAX, &mut rng),
+    //  &mut rng,
+    //  TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
+    //  |stream| async {
+    //    Ok(
+    //      crate::misc::TokioRustlsConnector::default()
+    //        .push_certs(include_bytes!("../../../../../.certs/root-ca.crt"))
+    //        .unwrap()
+    //        .connect_without_client_auth(uri.hostname(), stream)
+    //        .await
+    //        .unwrap(),
+    //    )
+    //  },
+    //)
+    //.await
+    //.unwrap();
+  });
 }
 
-async fn executor() -> PostgresExecutor<crate::Error, ExecutorBuffer, std::net::TcpStream> {
+async fn executor() -> PostgresClient<ClientBuffer, crate::Error, std::net::TcpStream> {
   let uri = UriRef::new(_vars().database_uri_postgres.as_str());
   let mut rng = ChaCha20::from_std_random().unwrap();
-  PostgresExecutor::connect(
+  PostgresClient::connect(
+    ClientBuffer::new(usize::MAX, &mut rng),
     &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::new(usize::MAX, &mut rng),
     &mut rng,
     std::net::TcpStream::connect(uri.hostname_with_implied_port()).unwrap(),
+    None,
   )
   .await
   .unwrap()

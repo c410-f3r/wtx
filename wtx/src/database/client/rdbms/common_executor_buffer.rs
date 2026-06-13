@@ -1,14 +1,14 @@
 use crate::{
   collection::Vector,
   database::client::rdbms::statements::Statements,
-  misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
+  misc::{Lease, LeaseMut, PartitionedFilledBuffer},
   rng::Rng,
 };
 use core::ops::Range;
 
 #[derive(Debug)]
 pub(crate) struct CommonExecutorBuffer<A, C, T> {
-  pub(crate) net_buffer: PartitionedFilledBuffer,
+  pub(crate) read_buffer: PartitionedFilledBuffer,
   /// Each element represents a ***whole*** record. The first element is the number of affected
   /// values, the second element is the range delimitates bytes and the third element if the range
   /// that delimitates `values_params`.
@@ -26,7 +26,7 @@ impl<A, C, T> CommonExecutorBuffer<A, C, T> {
     RNG: Rng,
   {
     Self {
-      net_buffer: PartitionedFilledBuffer::new(),
+      read_buffer: PartitionedFilledBuffer::new(),
       records_params: Vector::new(),
       stmts: Statements::new(max_stmts, rng),
       values_params: Vector::new(),
@@ -43,7 +43,7 @@ impl<A, C, T> CommonExecutorBuffer<A, C, T> {
     RNG: Rng,
   {
     Ok(Self {
-      net_buffer: PartitionedFilledBuffer::with_capacity(network_buffer_cap)?,
+      read_buffer: PartitionedFilledBuffer::with_capacity(network_buffer_cap)?,
       records_params: Vector::with_capacity(rows_cap)?,
       stmts: Statements::with_capacity(columns_cap, max_stmts, rng, stmts_cap)?,
       values_params: Vector::with_capacity(rows_cap.saturating_mul(columns_cap))?,
@@ -52,8 +52,8 @@ impl<A, C, T> CommonExecutorBuffer<A, C, T> {
 
   /// Should be used in a new instance.
   pub(crate) fn clear(&mut self) {
-    let Self { net_buffer, records_params, stmts, values_params } = self;
-    net_buffer.clear();
+    let Self { read_buffer, records_params, stmts, values_params } = self;
+    read_buffer.clear();
     records_params.clear();
     stmts.clear();
     values_params.clear();

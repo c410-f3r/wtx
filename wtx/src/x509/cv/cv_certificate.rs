@@ -33,7 +33,7 @@ pub type CvEndEntity<'any, 'bytes> = CvCertificate<'any, 'bytes, true>;
 
 /// Chain Validation - Intermediate
 ///
-/// This certificate is considered an intermediate. There are no entrypoints for chaiCvvalidation.
+/// This certificate is considered an intermediate. There are no entrypoints for chain validation.
 pub type CvIntermediate<'any, 'bytes> = CvCertificate<'any, 'bytes, false>;
 
 /// Chain Validation - Certificate
@@ -148,7 +148,7 @@ impl<'bytes> Parts<'bytes> {
       };
     }
 
-    let is_self_signed = tbs.issuer == tbs.subject;
+    let is_self_signed = tbs.issuer.bytes() == tbs.subject.bytes();
     let mut authority_key_identifier = None;
     let mut basic_constraints = None;
     let mut crl_distribution_points = None;

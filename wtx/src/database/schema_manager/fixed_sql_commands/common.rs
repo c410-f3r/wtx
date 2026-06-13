@@ -3,7 +3,7 @@ use crate::{
   collection::Vector,
   database::{
     Database, DatabaseTy, FromRecords,
-    executor::Executor,
+    db_client::DbClient,
     schema_manager::{DbMigration, Uid, UserMigration, UserMigrationGroup, VERSION},
   },
   misc::Lease,
@@ -20,7 +20,7 @@ pub(crate) async fn delete_migrations<E, S>(
   uid: Uid,
 ) -> Result<(), <E::Database as CodecController>::Error>
 where
-  E: Executor,
+  E: DbClient,
   S: Lease<str>,
 {
   buffer_cmd.write_fmt(format_args!(
@@ -42,7 +42,7 @@ pub(crate) async fn insert_migrations<'migration, DBS, E, I, S>(
 ) -> Result<(), <E::Database as CodecController>::Error>
 where
   DBS: Lease<[DatabaseTy]> + 'migration,
-  E: Executor,
+  E: DbClient,
   I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
   S: Lease<str> + 'migration,
 {
@@ -108,7 +108,7 @@ pub(crate) async fn migrations_by_mg_uid_query<'exec, E, ERR, D>(
 ) -> Result<(), ERR>
 where
   D: Database<Error = ERR>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
   ERR: From<crate::Error>,
   DbMigration: FromRecords<'exec, E::Database>,
 {

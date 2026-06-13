@@ -1,4 +1,4 @@
-use crate::misc::net::PartitionedFilledBuffer;
+use crate::misc::PartitionedFilledBuffer;
 
 #[derive(Debug)]
 pub(crate) struct ReaderData<SR> {

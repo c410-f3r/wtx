@@ -18,7 +18,7 @@ use crate::{
   crypto::SignatureTy,
   misc::Lease,
   x509::{
-    AttributeTypeAndValue, FlaggedExtension, GeneralName, Name, RsassaPssParams,
+    AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name, RsassaPssParams,
     SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
     cv::{
       cv_certificate::CvCertificate, cv_crl_expiration::CvCrlExpiration,
@@ -385,7 +385,7 @@ fn validate_chain<'any, 'bytes, const IS_EE: bool>(
   cert: &'any CvCertificate<'any, 'bytes, IS_EE>,
   cv_policy: &CvPolicy<'any, 'bytes>,
   depth: u8,
-  intermediates: &'any [CvCertificate<'any, 'bytes, false>],
+  intermediates: &'any [CvIntermediate<'any, 'bytes>],
   last_err: &mut Option<X509CvError>,
   trust_anchors: &'any [CvTrustAnchor<'bytes>],
   verified_path: &mut VerifiedPath<'any, 'bytes>,

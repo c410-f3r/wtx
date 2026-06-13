@@ -10,7 +10,7 @@ use crate::{
     window::WindowsPair,
     write_functions::{encode_headers, push_data, push_headers, push_trailers, write_frames},
   },
-  misc::{LeaseMut, Usize, span::Span},
+  misc::{LeaseMut, TryJoinArrayVector, Usize, span::Span},
   stream::StreamWriter,
   sync::Arc,
 };
@@ -32,9 +32,6 @@ where
   SW: StreamWriter,
 {
   /// Removes internal elements that are no longer necessary after the end of the stream.
-  ///
-  /// If `linger` is true, then the stream will remain alive for a short period of time to allow
-  /// the possible receiving of control frames.
   #[inline]
   pub async fn clear(&self) -> crate::Result<()> {
     let Self { inner, linger, span: _, stream_id } = self;
@@ -210,6 +207,59 @@ where
         }
       }
     }
+  }
+
+  /// Calls [`Self::send_data`] concurrently on each data element terminating the stream in the
+  /// final iteration.
+  ///
+  /// Returns [`None`] if `data` is empty. This method will abort early if any sending result is
+  /// not [`Http2SendStatus::Ok`].
+  pub async fn send_data_concurrent<'bytes, const N: usize>(
+    &self,
+    mut data: ArrayVectorU8<&[u8], N>,
+  ) -> crate::Result<Option<Http2SendStatus>> {
+    let Some(last) = data.pop() else {
+      return Ok(None);
+    };
+    let mut futures = ArrayVectorU8::<_, N>::new();
+    for elem in data {
+      futures.push(self.send_data(elem, false))?;
+    }
+    let _ = TryJoinArrayVector::new(futures, |hss| {
+      if !matches!(hss, Http2SendStatus::Ok) {
+        return Err(crate::Error::ClosedConnection);
+      }
+      Ok(hss)
+    })
+    .await?;
+    Ok(Some(self.send_data(last, true).await?))
+  }
+
+  /// Calls [`Self::send_data`] sequentially on each data element terminating the stream in the
+  /// final iteration.
+  ///
+  /// Returns [`None`] if `data` is empty. This method will abort early if any sending result is
+  /// not [`Http2SendStatus::Ok`].
+  pub async fn send_data_sequential<'bytes, I>(
+    &self,
+    data: I,
+  ) -> crate::Result<Option<Http2SendStatus>>
+  where
+    I: IntoIterator<Item = &'bytes [u8]>,
+    I::IntoIter: ExactSizeIterator,
+  {
+    let mut iter = data.into_iter();
+    let take = iter.len().saturating_sub(1);
+    for elem in iter.by_ref().take(take) {
+      let hss = self.send_data(elem, false).await?;
+      if !matches!(hss, Http2SendStatus::Ok) {
+        return Ok(Some(hss));
+      }
+    }
+    if let Some(elem) = iter.next() {
+      return Ok(Some(self.send_data(elem, true).await?));
+    }
+    Ok(None)
   }
 
   send_go_away_method!();

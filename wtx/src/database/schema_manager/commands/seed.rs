@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  database::{executor::Executor, schema_manager::Commands},
+  database::{db_client::DbClient, schema_manager::Commands},
   misc::Lease,
 };
 use alloc::string::String;
@@ -9,7 +9,7 @@ use std::{fs::read_to_string, path::Path};
 
 impl<E> Commands<E>
 where
-  E: Executor,
+  E: DbClient,
 {
   /// Executes an arbitrary stream of SQL commands
   ///

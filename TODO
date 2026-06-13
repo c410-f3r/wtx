@@ -1,0 +1,36 @@
+ClientConnection::new -> ConnectionCore::for_client -> ClientHelloInput::start_handshake
+
+Change ArrayVector to slice in places like ClientHello
+
+Use TlsStream in protocols
+
+USe haspmap in trustanchors
+
+
+move PartitionedFilledBuffer and similars to collection
+
+remove zeroed bytes in network byte filling
+
+user provided buffer in send_msg
+
+remove tls_acceptor
+
+instantiate TlsStream in mocks
+
+
+add flag in tcp that identifies backends that don't support uninitialized reads
+
+Socket per thread spawned in a spawn, build, new_current_thread
+Socket per thread spawned in a spawn, build, new_multi_thread
+Socket per thread spawned in a spawn, build_local, new_current_thread
+Socket per thread spawned in a thread, build, new_current_thread
+Socket per thread spawned in a thread, build, new_multi_thread
+Socket per thread spawned in a thread, build_local, new_current_thread
+---> Evaluate the best approach before the creation of run_in_threads in HTTP/2 <---
+
+
+post handshake: NewSessionTicket, KeyUpdate and alerts
+
+join stream traits with tcpstream
+
+avoid duplication in Http2ServerFramework and WebSocketServerFramework

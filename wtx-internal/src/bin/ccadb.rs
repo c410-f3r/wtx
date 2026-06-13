@@ -9,20 +9,24 @@ use wtx::{
   calendar::{Date, DateTime, Duration, Instant, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
   collection::{ArrayVectorU8, HashSet, Vector},
-  http::{HttpClient, ReqBuilder, client_pool::ClientPoolBuilder},
+  executor::StdExecutor,
+  http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::UriRef,
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::TlsConfig,
   x509::{Certificate, CvTrustAnchor, X509Error},
 };
 
 static EXCLUDED_FINGERPRINTS: &[&str] =
   &["9A296A5182D1D451A2E37F439B74DAAFA267523329F90F9A0D2007C334E23C9A"];
 
-#[tokio::main]
+#[wtx::main]
 async fn main() {
   let csv = {
     let uri = "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV";
-    let pool = ClientPoolBuilder::tokio_rustls(1).build();
-    pool
+    let rng = ChaCha20::from_std_random().unwrap();
+    Http2ClientPoolBuilder::new(StdExecutor::default(), 1, TlsConfig::from_ccadb())
+      .build(rng)
       .send_req_recv_res(ReqBuilder::get(UriRef::new(uri)).into_request())
       .await
       .unwrap()

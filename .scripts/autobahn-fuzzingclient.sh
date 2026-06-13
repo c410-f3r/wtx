@@ -13,10 +13,9 @@ sleep 1
 mkdir -p .scripts/autobahn/reports/fuzzingclient
 podman run \
 	-p 9070:9070 \
-	-v .scripts/autobahn/fuzzingclient-min.json:/fuzzingclient.json:ro \
-	-v .scripts/autobahn:/autobahn \
+	-v .scripts/autobahn/fuzzingclient-min.json:/fuzzingclient.json:z \
+	-v .scripts/autobahn:/autobahn:z \
 	--name fuzzingclient \
-	--network host \
 	--rm \
 	crossbario/autobahn-testsuite:25.10.1 wstest -m fuzzingclient -s fuzzingclient.json
 kill -9 $cargo_pid

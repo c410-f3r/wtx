@@ -10,9 +10,8 @@
 use crate::{
   collection::{ExpansionTy, Vector},
   misc::{
-    CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char, from_utf8_basic,
-    from_utf8_ext,
-    net::{PartitionedFilledBuffer, read_payload},
+    CompletionErr, ConnectionState, ExtUtf8Error, FnMutFut, IncompleteUtf8Char,
+    PartitionedFilledBuffer, from_utf8_basic, from_utf8_ext, net::read_payload,
   },
   rng::Rng,
   stream::{StreamReader, StreamWriter},
@@ -227,7 +226,7 @@ pub(crate) async fn read_frame<
   user_buffer: &'ub mut Vector<u8>,
   mut stream_reader: impl FnMut(&mut S) -> &mut SR,
   mut stream_writer: impl FnMut(&mut S) -> &mut SW,
-) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+) -> crate::Result<FrameMut<'frame>>
 where
   'nb: 'frame,
   'ub: 'frame,
@@ -480,7 +479,7 @@ async fn manage_first_finished_frame<
   rng: &mut R,
   stream_writer: &mut SW,
   user_buffer: &'rbf mut Vector<u8>,
-) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+) -> crate::Result<FrameMut<'frame>>
 where
   'nb: 'frame,
   'rbf: 'frame,

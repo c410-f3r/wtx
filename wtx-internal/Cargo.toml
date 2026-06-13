@@ -24,14 +24,14 @@ path = "src/bin/h2load.rs"
 required-features = ["h2load"]
 
 [[bin]]
-name = "h2spec-high-server"
-path = "src/bin/h2spec-high-server.rs"
-required-features = ["h2spec-high-server"]
+name = "h2spec-high"
+path = "src/bin/h2spec-high.rs"
+required-features = ["h2spec-high"]
 
 [[bin]]
-name = "h2spec-low-server"
-path = "src/bin/h2spec-low-server.rs"
-required-features = ["h2spec-low-server"]
+name = "h2spec-low"
+path = "src/bin/h2spec-low.rs"
+required-features = ["h2spec-low"]
 
 [[bin]]
 name = "x509-limbo"
@@ -42,16 +42,16 @@ required-features = ["x509-limbo"]
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, features = ["alloc"], optional = true, version = "1.0" }
 tokio = { default-features = false, features = ["macros", "net", "rt-multi-thread"], version = "1.0" }
-wtx = { default-features = false, features = ["crypto-ring", "executor", "macros", "nightly", "std", "tokio"], path = "../wtx" }
+wtx = { default-features = false, features = ["crypto-ring", "macros", "nightly", "std", "tokio"], path = "../wtx" }
 
 [features]
 autobahn-client = ["wtx/flate2", "wtx/web-socket-handshake"]
 autobahn-client-concurrent = ["wtx/flate2", "wtx/web-socket-handshake"]
-autobahn-server = ["wtx/flate2", "wtx/optioned-server", "wtx/web-socket-handshake"]
-ccadb = ["wtx/ccadb", "wtx/hashbrown", "wtx/http-client-pool", "wtx/http2", "wtx/tokio-rustls", "wtx/webpki-roots", "wtx/x509"]
-h2load = ["wtx/http2", "wtx/optioned-server"]
-h2spec-high-server = ["wtx/http2", "wtx/optioned-server"]
-h2spec-low-server = ["wtx/http2"]
+autobahn-server = ["wtx/flate2", "wtx/web-socket-server-framework"]
+ccadb = ["wtx/ccadb", "wtx/hashbrown", "wtx/http2-client-pool", "wtx/http2"]
+h2load = ["wtx/http2-server-framework", "wtx/nightly", "wtx/tokio"]
+h2spec-high = ["wtx/http2"]
+h2spec-low = ["wtx/http2"]
 x509-limbo = ["wtx/serde", "serde/derive", "serde_json/std", "wtx/x509"]
 
 [package]

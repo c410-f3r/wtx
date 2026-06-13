@@ -1,7 +1,7 @@
 use crate::{crypto::Hash, misc::unlikely_elem};
 use ring::digest::Context;
 
-impl Hash for crate::crypto::Sha1DigestRing {
+impl Hash for crate::crypto::Sha1HashRing {
   type Digest = [u8; 20];
 
   #[inline]
@@ -15,7 +15,7 @@ impl Hash for crate::crypto::Sha1DigestRing {
   }
 }
 
-impl Hash for crate::crypto::Sha256DigestRing {
+impl Hash for crate::crypto::Sha256HashRing {
   type Digest = [u8; 32];
 
   #[inline]
@@ -29,7 +29,7 @@ impl Hash for crate::crypto::Sha256DigestRing {
   }
 }
 
-impl Hash for crate::crypto::Sha384DigestRing {
+impl Hash for crate::crypto::Sha384HashRing {
   type Digest = [u8; 48];
 
   #[inline]

@@ -40,13 +40,13 @@ impl<T> Lease<T> for Either<&T, T> {
   }
 }
 
-impl<'any, L, R> Lease<&'any [u8]> for Either<L, R>
+impl<'any, L, R, T> Lease<&'any [T]> for Either<L, R>
 where
-  L: Lease<&'any [u8]>,
-  R: Lease<&'any [u8]>,
+  L: Lease<&'any [T]>,
+  R: Lease<&'any [T]>,
 {
   #[inline]
-  fn lease(&self) -> &&'any [u8] {
+  fn lease(&self) -> &&'any [T] {
     match self {
       Either::Left(elem) => elem.lease(),
       Either::Right(elem) => elem.lease(),

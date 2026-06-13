@@ -50,46 +50,22 @@ macro_rules! impl_tuples {
       )+
     }
 
-    #[cfg(feature = "http-server-framework")]
+    #[cfg(feature = "http2-server-framework")]
     mod http_server_framework {
       use crate::{
         collection::{ArrayVectorU8, ShortStrU8, Vector},
         http::{
           OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
           MsgBufferString, Response,
-          server_framework::{ConnAux, Endpoint, Middleware, StreamAux, RouteMatch, EndpointNode, PathParams}
+          http2_server_framework::{Endpoint, Middleware, RouteMatch, EndpointNode, PathParams}
         },
       };
       use core::ops::ControlFlow;
 
       $(
-        impl<$($T,)*> ConnAux for ($($T,)*)
+        impl<$($T,)* DATA, ERR> Middleware<DATA, ERR> for ($($T,)*)
         where
-          $($T: ConnAux,)*
-        {
-          type Init = ($($T::Init,)*);
-
-          #[inline]
-          fn conn_aux(_init: Self::Init) -> crate::Result<Self> {
-            Ok(($( $T::conn_aux(_init.$N)?, )*))
-          }
-        }
-
-        impl<$($T,)*> StreamAux for ($($T,)*)
-        where
-          $($T: StreamAux,)*
-        {
-          type Init = ($($T::Init,)*);
-
-          #[inline]
-          fn stream_aux(_init: Self::Init) -> crate::Result<Self> {
-            Ok(($( $T::stream_aux(_init.$N)?, )*))
-          }
-        }
-
-        impl<$($T,)* CA, ERR, SA> Middleware<CA, ERR, SA> for ($($T,)*)
-        where
-          $($T: Middleware<CA, ERR, SA>,)*
+          $($T: Middleware<DATA, ERR>,)*
           ERR: From<crate::Error>
         {
           type Aux = ($($T::Aux,)*);
@@ -102,13 +78,12 @@ macro_rules! impl_tuples {
           #[inline]
           async fn req(
             &self,
-            _conn_aux: &mut CA,
+            _data: &mut DATA,
             _mw_aux: &mut Self::Aux,
             _req: &mut Request<MsgBufferString>,
-            _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
-              let rslt = self.$N.req(_conn_aux, &mut _mw_aux.$N, _req, _stream_aux).await?;
+              let rslt = self.$N.req(_data, &mut _mw_aux.$N, _req).await?;
               if let ControlFlow::Break(status_code) = rslt {
                 return Ok(ControlFlow::Break(status_code));
               }
@@ -119,17 +94,16 @@ macro_rules! impl_tuples {
           #[inline]
           async fn res(
             &self,
-            _conn_aux: &mut CA,
+            _data: &mut DATA,
             _mw_aux: &mut Self::Aux,
             _res: Response<&mut MsgBufferString>,
-            _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
               let local_res = Response {
                 msg_data: &mut *_res.msg_data,
                 status_code: _res.status_code,
               };
-              let rslt = self.$N.res(_conn_aux, &mut _mw_aux.$N, local_res, _stream_aux).await?;
+              let rslt = self.$N.res(_data, &mut _mw_aux.$N, local_res).await?;
               if let ControlFlow::Break(status_code) = rslt {
                 return Ok(ControlFlow::Break(status_code));
               }
@@ -138,9 +112,9 @@ macro_rules! impl_tuples {
           }
         }
 
-        impl<$($T,)* CA, ERR, STREAM, SA> Endpoint<CA, ERR, STREAM, SA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* DATA, ERR, STREAM> Endpoint<DATA, ERR, STREAM> for ($(PathParams<$T>,)*)
         where
-          $($T: Endpoint<CA, ERR, STREAM, SA>,)*
+          $($T: Endpoint<DATA, ERR, STREAM>,)*
           ERR: From<crate::Error>,
         {
           const OM: OperationMode = OperationMode::Auto;
@@ -148,7 +122,7 @@ macro_rules! impl_tuples {
           #[inline]
           async fn auto(
             &self,
-            _auto_stream: &mut AutoStream<CA, SA>,
+            _auto_stream: &mut AutoStream<DATA>,
             _path_defs: (u8, &[RouteMatch]),
           ) -> Result<StatusCode, ERR> {
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
@@ -168,7 +142,7 @@ macro_rules! impl_tuples {
           #[inline]
           async fn manual(
             &self,
-            _manual_stream: ManualStream<CA, STREAM, SA>,
+            _manual_stream: ManualStream<DATA, STREAM>,
             _path_defs: (u8, &[RouteMatch]),
           ) -> Result<(), ERR> {
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
@@ -186,9 +160,9 @@ macro_rules! impl_tuples {
           }
         }
 
-        impl<$($T,)* CA, ERR, STREAM, SA> EndpointNode<CA, ERR, STREAM, SA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* DATA, ERR, STREAM> EndpointNode<DATA, ERR, STREAM> for ($(PathParams<$T>,)*)
         where
-          $($T: EndpointNode<CA, ERR, STREAM, SA>,)*
+          $($T: EndpointNode<DATA, ERR, STREAM>,)*
           ERR: From<crate::Error>,
         {
           const IS_ROUTER: bool = false;
@@ -273,6 +247,58 @@ macro_rules! impl_tuples {
           }
         }
       )+
+    }
+
+    #[cfg(feature = "web-socket-server-framework")]
+    mod web_socket_server_framework {
+      use crate::http::{Router, WebSocketRouter};
+      use crate::web_socket::{WebSocket, Compression, WebSocketBuffer};
+      use crate::executor::Executor;
+      use crate::misc::FnFut;
+      use crate::collection::Vector;
+      use alloc::string::String;
+
+      type LocalWs<C, EX, TM> = WebSocket<
+        <C as Compression<false>>::NegotiatedCompression,
+        <EX as Executor>::TcpStream,
+        TM,
+        WebSocketBuffer,
+        false,
+      >;
+
+      $(
+        impl<$($T,)* CO, ER, EX, TM> WebSocketRouter<CO, ER, EX, TM> for (
+          $(
+            (&'static str, $T),
+          )*
+        )
+        where
+          $($T: FnFut<(Vector<u8>, LocalWs<CO, EX, TM>), Result = Result<(), ER>>,)*
+          CO: Compression<false>,
+          ER: From<crate::Error>,
+          EX: Executor,
+        {
+          async fn call(
+            &self,
+            matcher: &Router<u8>,
+            path: String,
+            _ws: LocalWs<CO, EX, TM>,
+          ) -> Result<(), ER> {
+            let rslt = matcher.find(&path)?;
+            match rslt.data() {
+              $(
+                $N => (self.$N.1).call((path.into_bytes().into(), _ws)).await?,
+              )*
+              _ => {}
+            }
+            Ok(())
+          }
+
+          fn paths(&self) -> impl ExactSizeIterator<Item = &'static str> {
+            [$(self.$N.0,)*].into_iter()
+          }
+        }
+      )*
     }
   }
 }

@@ -145,7 +145,7 @@ mod tests {
       statements_misc::StatementsMisc,
       tests::{_column0, _column1, _column2, _column3},
     },
-    executor::Runtime,
+    executor::StdRuntime,
     rng::{SeedableRng, Xorshift64},
   };
 
@@ -160,7 +160,7 @@ mod tests {
   #[cfg_attr(miri, ignore)]
   #[test]
   fn two_statements() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let mut stmts = Statements::new(2, &mut Xorshift64::from_simple_seed().unwrap());
 
       let stmt_id0 = 123;

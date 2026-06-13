@@ -4,8 +4,8 @@ mod cha_cha20;
 mod crypto_rng;
 mod crypto_seedable_rng;
 mod from_rng;
-mod seed;
 mod seedable_rng;
+mod simple_seed;
 mod weighted_index;
 mod xorshift;
 
@@ -15,8 +15,8 @@ use core::{cell::Cell, iter, ops::Range};
 pub use crypto_rng::CryptoRng;
 pub use crypto_seedable_rng::CryptoSeedableRng;
 pub use from_rng::FromRng;
-pub use seed::*;
 pub use seedable_rng::SeedableRng;
+pub use simple_seed::*;
 pub use weighted_index::*;
 pub use xorshift::*;
 
@@ -28,7 +28,7 @@ pub trait Rng: Sized {
   ///
   /// The ASCII parameter is only used for inference.
   //
-  // FIXME(stable) `const AT: AsciiTy`
+  // FIXME(STABLE) `const AT: AsciiTy`
   #[inline]
   fn ascii_iter<const AT: u8>(&mut self, _: Ascii<AT>) -> impl Iterator<Item = Ascii<AT>> {
     iter::repeat_with(|| self.u8_4())

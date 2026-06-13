@@ -1,10 +1,14 @@
 use crate::clap::HttpClient;
 use std::{fs::OpenOptions, io::Write};
 use wtx::{
+  executor::TokioExecutor,
   http::{
-    Header, HttpClient as _, KnownHeaderName, MsgBuffer, ReqBuilder, client_pool::ClientPoolBuilder,
+    Header, HttpClient as _, KnownHeaderName, MsgBuffer, ReqBuilder,
+    http2_client_pool::Http2ClientPoolBuilder,
   },
   misc::{AsciiGeneric, from_utf8_basic, str_split_once1, tracing_tree_init},
+  rng::{ChaCha20, CryptoSeedableRng},
+  tls::TlsConfig,
 };
 
 pub(crate) async fn http_client(http_client: HttpClient) {
@@ -38,7 +42,8 @@ pub(crate) async fn http_client(http_client: HttpClient) {
   if let Some(elem) = data {
     msg_buffer.body.extend_from_copyable_slice(elem.as_bytes()).unwrap();
   }
-  let client = ClientPoolBuilder::tokio_rustls(1).build();
+  let client = Http2ClientPoolBuilder::new(TokioExecutor, 1, TlsConfig::from_ccadb())
+    .build(ChaCha20::from_std_random().unwrap());
   let res =
     client.send_req_recv_res(ReqBuilder::new(method, msg_buffer).into_request()).await.unwrap();
   if let Some(elem) = output {

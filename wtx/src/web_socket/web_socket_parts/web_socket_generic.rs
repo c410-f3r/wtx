@@ -1,6 +1,6 @@
 use crate::{
   collection::Vector,
-  misc::{ConnectionState, LeaseMut, net::PartitionedFilledBuffer},
+  misc::{ConnectionState, LeaseMut, PartitionedFilledBuffer},
   rng::Rng,
   stream::{Stream, StreamReader, StreamWriter},
   web_socket::{
@@ -33,7 +33,7 @@ where
     rng: &mut R,
     stream: &mut S,
     user_buffer: &'ub mut Vector<u8>,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'this: 'frame,
     'ub: 'frame,
@@ -73,7 +73,7 @@ where
     rng: &mut R,
     stream_reader: &mut SR,
     user_buffer: &'ub mut Vector<u8>,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'this: 'frame,
     'ub: 'frame,
@@ -118,7 +118,7 @@ where
   pub(crate) async fn write_frame<NC, P, R, SW>(
     &mut self,
     connection_state: &mut ConnectionState,
-    frame: &mut Frame<P, IS_CLIENT>,
+    frame: &mut Frame<P>,
     nc: &mut NC,
     nc_rsv1: u8,
     rng: &mut R,
@@ -131,7 +131,7 @@ where
     SW: StreamWriter,
   {
     let Self { no_masking, writer_buffer } = self;
-    web_socket_writer::write_frame(
+    web_socket_writer::write_frame::<_, _, _, _, IS_CLIENT>(
       connection_state,
       frame,
       *no_masking,
