@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::Vector,
+  collections::Vector,
 };
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]

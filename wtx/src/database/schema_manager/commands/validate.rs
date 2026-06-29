@@ -1,7 +1,7 @@
 #[cfg(feature = "std")]
 use crate::codec::CodecController;
 use crate::{
-  collection::Vector,
+  collections::Vector,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -51,7 +51,7 @@ where
   ) -> Result<(), <E::Database as CodecController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
     migration_groups.sort_unstable();
-    for mg in migration_groups.into_iter() {
+    for mg in migration_groups {
       self.do_validate_from_dir((&mut String::new(), &mut Vector::new()), &mg).await?;
     }
     Ok(())

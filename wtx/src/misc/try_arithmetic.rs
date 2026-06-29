@@ -1,5 +1,5 @@
 #[cfg(feature = "rust_decimal")]
-use rust_decimal::MathematicalOps;
+use rust_decimal::MathematicalOps as _;
 
 /// Try Arithmetic Error
 #[derive(Clone, Copy, Debug)]
@@ -67,13 +67,13 @@ impl TryArithmetic<rust_decimal::Decimal> for rust_decimal::Decimal {
   }
 
   #[inline]
-  fn try_pow_i32(&self, rhs: i32) -> crate::Result<Self::Output> {
-    Ok(self.checked_powi(rhs.into()).ok_or(ArithmeticError::PowI32Overflow)?)
+  fn try_pow_i32(&self, exp: i32) -> crate::Result<Self::Output> {
+    Ok(self.checked_powi(exp.into()).ok_or(ArithmeticError::PowI32Overflow)?)
   }
 
   #[inline]
-  fn try_pow_u32(&self, rhs: u32) -> crate::Result<Self::Output> {
-    Ok(self.checked_powi(rhs.into()).ok_or(ArithmeticError::PowU32Overflow)?)
+  fn try_pow_u32(&self, exp: u32) -> crate::Result<Self::Output> {
+    Ok(self.checked_powi(exp.into()).ok_or(ArithmeticError::PowU32Overflow)?)
   }
 
   #[inline]
@@ -109,19 +109,19 @@ macro_rules! impl_float {
         }
 
         #[inline]
-        fn try_pow_i32(&self, _rhs: i32) -> crate::Result<Self::Output> {
-          #[cfg(feature = "std")]
-          return Ok(self.powi(_rhs));
-          #[cfg(not(feature = "std"))]
-          return Err(crate::Error::UnsupportedOperation);
+        fn try_pow_i32(&self, _exp: i32) -> crate::Result<Self::Output> {
+          cfg_select! {
+            feature = "std" => Ok(self.powi(_exp)),
+            _ => Err(crate::Error::UnsupportedOperation)
+          }
         }
 
         #[inline]
-        fn try_pow_u32(&self, _rhs: u32) -> crate::Result<Self::Output> {
-          #[cfg(feature = "std")]
-          return Ok(self.powi(_rhs.try_into()?));
-          #[cfg(not(feature = "std"))]
-          return Err(crate::Error::UnsupportedOperation);
+        fn try_pow_u32(&self, _exp: u32) -> crate::Result<Self::Output> {
+          cfg_select! {
+            feature = "std" => Ok(self.powi(_exp.try_into()?)),
+            _ => Err(crate::Error::UnsupportedOperation)
+          }
         }
 
         #[inline]
@@ -159,13 +159,13 @@ macro_rules! impl_integer {
         }
 
         #[inline]
-        fn try_pow_i32(&self, rhs: i32) -> crate::Result<Self::Output> {
-          Ok(self.checked_pow(rhs.try_into()?).ok_or(ArithmeticError::PowI32Overflow)?)
+        fn try_pow_i32(&self, exp: i32) -> crate::Result<Self::Output> {
+          Ok(self.checked_pow(exp.try_into()?).ok_or(ArithmeticError::PowI32Overflow)?)
         }
 
         #[inline]
-        fn try_pow_u32(&self, rhs: u32) -> crate::Result<Self::Output> {
-          Ok(self.checked_pow(rhs).ok_or(ArithmeticError::PowU32Overflow)?)
+        fn try_pow_u32(&self, exp: u32) -> crate::Result<Self::Output> {
+          Ok(self.checked_pow(exp).ok_or(ArithmeticError::PowU32Overflow)?)
         }
 
         #[inline]

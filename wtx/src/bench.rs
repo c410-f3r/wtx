@@ -1,4 +1,4 @@
-use crate::collection::Vector;
+use crate::collections::Vector;
 
 pub(crate) fn _data(len: usize) -> Vector<u8> {
   Vector::from_iterator((0..len).map(|el| {

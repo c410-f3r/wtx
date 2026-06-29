@@ -189,9 +189,21 @@ pub fn str_split_once1(str: &str, elem: AsciiGeneric) -> Option<(&str, &str)> {
 pub fn str_split_once_str<'any>(str: &'any str, elem: &str) -> Option<(&'any str, &'any str)> {
   #[cfg(feature = "memchr")]
   {
-    let idx = memchr::memmem::Finder::new(elem.as_bytes()).find(str.as_bytes())?;
+    let idx = memchr::memmem::find(str.as_bytes(), elem.as_bytes())?;
     Some((str.get(..idx)?, str.get(idx.wrapping_add(elem.len())..)?))
   }
   #[cfg(not(feature = "memchr"))]
   return str.split_once(elem);
+}
+
+/// Internally uses `memchr` if the feature is active.
+#[inline]
+pub fn str_rsplit_once_str<'any>(str: &'any str, elem: &str) -> Option<(&'any str, &'any str)> {
+  #[cfg(feature = "memchr")]
+  {
+    let idx = memchr::memmem::rfind(str.as_bytes(), elem.as_bytes())?;
+    Some((str.get(..idx)?, str.get(idx.wrapping_add(elem.len())..)?))
+  }
+  #[cfg(not(feature = "memchr"))]
+  return str.rsplit_once(elem);
 }

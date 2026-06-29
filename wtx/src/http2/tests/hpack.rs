@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collections::Vector,
   http::{DEFAULT_MAX_HPACK_LEN, Header, StatusCode},
   http2::{
     hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,

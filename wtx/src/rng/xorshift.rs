@@ -121,16 +121,3 @@ const fn xor_u8_16(seed: &mut u64) -> [u8; 16] {
 const fn xor_u8_32(seed: &mut u64) -> [u8; 32] {
   u8_32(xor_numbers(seed), xor_numbers(seed), xor_numbers(seed), xor_numbers(seed))
 }
-
-#[cfg(feature = "http-server-framework")]
-mod http_server_framework {
-  use crate::{http::server_framework::ConnAux, rng::Xorshift64};
-
-  impl ConnAux for Xorshift64 {
-    type Init = Self;
-
-    fn conn_aux(init: Self::Init) -> crate::Result<Self> {
-      Ok(init)
-    }
-  }
-}

@@ -1,4 +1,4 @@
-use crate::collection::Vector;
+use crate::collections::Vector;
 
 /// The payload of a received frame can represent two things:
 ///

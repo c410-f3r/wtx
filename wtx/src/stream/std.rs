@@ -1,21 +1,55 @@
-use crate::stream::{StreamReader, StreamWriter};
+use crate::{
+  collections::MaybeUninitSlice,
+  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
+};
+use core::num::NonZeroUsize;
 use std::{
   io::{Read, Write},
   net::TcpStream,
 };
 
+impl Stream for TcpStream {
+  type BridgeOwned = ();
+  type ReadHalfOwned = TcpStream;
+  type WriteHalfOwned = TcpStream;
+
+  #[inline]
+  fn into_split(
+    self,
+  ) -> crate::Result<(Self::BridgeOwned, Self::ReadHalfOwned, Self::WriteHalfOwned)> {
+    Ok(((), self.try_clone()?, self))
+  }
+}
+
+impl StreamCommon for TcpStream {}
+
+#[cfg(unix)]
+impl StreamCommon for std::os::unix::net::UnixStream {}
+
 impl StreamReader for TcpStream {
   #[inline]
-  async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
-    Ok(<Self as Read>::read(self, bytes)?)
+  async fn read(
+    &mut self,
+    mut bytes: MaybeUninitSlice<'_, u8>,
+  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+    Ok(StreamReadItem::from_opt(NonZeroUsize::new(<Self as Read>::read(
+      self,
+      bytes.initialize_all_bytes(),
+    )?)))
   }
 }
 
 #[cfg(unix)]
 impl StreamReader for std::os::unix::net::UnixStream {
   #[inline]
-  async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
-    Ok(<Self as Read>::read(self, bytes)?)
+  async fn read(
+    &mut self,
+    mut bytes: MaybeUninitSlice<'_, u8>,
+  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+    Ok(StreamReadItem::from_opt(NonZeroUsize::new(<Self as Read>::read(
+      self,
+      bytes.initialize_all_bytes(),
+    )?)))
   }
 }
 

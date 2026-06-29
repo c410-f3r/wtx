@@ -10,7 +10,7 @@ mod grpc_status_code;
 
 use crate::{
   codec::{Encode, EncodeWrapper, GenericCodec},
-  collection::Vector,
+  collections::Vector,
 };
 
 #[cfg(feature = "grpc-client")]
@@ -32,13 +32,13 @@ where
   let before_len = bytes.len();
   data.encode(&mut EncodeWrapper::new(bytes, drsr))?;
   let after_len = bytes.len();
-  if let [_, a, b, c, d, ..] = bytes.as_mut() {
+  if let [_, b1, b2, b3, b4, ..] = bytes.as_mut() {
     let len = u32::try_from(after_len.wrapping_sub(before_len)).unwrap_or_default();
-    let [e, f, g, h] = len.to_be_bytes();
-    *a = e;
-    *b = f;
-    *c = g;
-    *d = h;
+    let [b5, b6, b7, b8] = len.to_be_bytes();
+    *b1 = b5;
+    *b2 = b6;
+    *b3 = b7;
+    *b4 = b8;
   }
   Ok(())
 }

@@ -1,5 +1,9 @@
+use core::future;
+
+use crate::stream::StreamCommon;
+
 /// A stream of values written asynchronously.
-pub trait StreamWriter {
+pub trait StreamWriter: StreamCommon {
   /// Attempts to write ***all*** `bytes`.
   fn write_all(&mut self, bytes: &[u8]) -> impl Future<Output = crate::Result<()>>;
 
@@ -28,12 +32,12 @@ where
 
 impl StreamWriter for () {
   #[inline]
-  async fn write_all(&mut self, _: &[u8]) -> crate::Result<()> {
-    Ok(())
+  fn write_all(&mut self, _: &[u8]) -> impl Future<Output = crate::Result<()>> {
+    future::ready(Ok(()))
   }
 
   #[inline]
-  async fn write_all_vectored(&mut self, _: &[&[u8]]) -> crate::Result<()> {
-    Ok(())
+  fn write_all_vectored(&mut self, _: &[&[u8]]) -> impl Future<Output = crate::Result<()>> {
+    future::ready(Ok(()))
   }
 }

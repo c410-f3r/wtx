@@ -9,16 +9,13 @@ pub(crate) fn db(
   let input_fn: ItemFn = syn::parse(item)?;
 
   let mut has_conn = false;
-  let mut has_runtime = false;
   for input in &input_fn.sig.inputs {
     if let FnArg::Typed(pat_type) = input
       && let Pat::Ident(pat_ident) = &*pat_type.pat
     {
       let name = pat_ident.ident.to_string();
-      if name == "conn" {
+      if name == "client" {
         has_conn = true;
-      } else if name == "runtime" {
-        has_runtime = true;
       }
     }
   }
@@ -34,32 +31,24 @@ pub(crate) fn db(
 
   let mut priv_fn_args = Vec::new();
   if has_conn {
-    priv_fn_args.push(quote::quote!(conn));
-  }
-  if has_runtime {
-    priv_fn_args.push(quote::quote!(&*_runtime_clone));
+    priv_fn_args.push(quote::quote!(client));
   }
   let priv_fn_name = &syn::Ident::new(&format!("__{fn_name}"), fn_name.span());
 
   let tokens = quote::quote!(
-    #[test]
     #(#fn_attrs)*
-    fn #fn_name() {
+    #[test]
+    fn #fn_name() #fn_output {
+      use wtx::executor::Runtime as _;
+
       #fn_asyncness fn #priv_fn_name(#fn_inputs) #fn_output {
         #fn_block
       }
 
-      let runtime = wtx::sync::Arc::new(wtx::executor::Runtime::new());
-      let runtime_clone = runtime.clone();
-      runtime.block_on(async move {
-        wtx::database::client::postgres::database_test(
-          #dir_ts,
-          runtime_clone,
-          |conn, _runtime| async move { #priv_fn_name(#(#priv_fn_args),*).await }
-        )
-        .await
-        .unwrap();
-      });
+      wtx::database::client::postgres::database_test(
+        #dir_ts,
+        #priv_fn_name
+      ).unwrap()
     }
   );
   Ok(tokens.into())

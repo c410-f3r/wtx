@@ -6,21 +6,21 @@ mod macros;
 
 mod authentication;
 mod batch;
+mod client_buffer;
 mod config;
 #[cfg(feature = "database-tests")]
 mod database_test;
 mod db_error;
-mod decode_wrapper;
-mod encode_wrapper;
-mod executor_buffer;
 #[cfg(all(feature = "_integration-tests", test))]
 mod integration_tests;
 mod message;
 mod misc;
 mod msg_field;
+mod postgres_client;
 mod postgres_column_info;
+mod postgres_decode_wrapper;
+mod postgres_encode_wrapper;
 mod postgres_error;
-mod postgres_executor;
 mod postgres_record;
 mod postgres_records;
 mod protocol;
@@ -35,7 +35,7 @@ use crate::{
   database::{
     Database, DatabaseTy,
     client::rdbms::{
-      common_executor_buffer::CommonExecutorBuffer,
+      common_client_buffer::CommonClientBuffer,
       common_record::CommonRecord,
       common_records::CommonRecords,
       statement::{Statement, StatementMut},
@@ -44,19 +44,19 @@ use crate::{
   },
 };
 pub use batch::Batch;
+pub use client_buffer::ClientBuffer;
 pub use config::Config;
 use core::{
   fmt::{Debug, Formatter},
   marker::PhantomData,
 };
 #[cfg(feature = "database-tests")]
-pub use database_test::database_test;
+pub use database_test::*;
 pub use db_error::{DbError, ErrorPosition, Severity};
-pub use decode_wrapper::DecodeWrapper;
-pub use encode_wrapper::EncodeWrapper;
-pub use executor_buffer::ExecutorBuffer;
+pub use postgres_client::PostgresClient;
+pub use postgres_decode_wrapper::PostgresDecodeWrapper;
+pub use postgres_encode_wrapper::PostgresEncodeWrapper;
 pub use postgres_error::PostgresError;
-pub use postgres_executor::PostgresExecutor;
 pub use postgres_record::PostgresRecord;
 pub use postgres_records::PostgresRecords;
 pub use sql_state::SqlState;
@@ -77,7 +77,7 @@ pub(crate) type PostgresStatement<'stmts> =
 pub(crate) type PostgresStatementMut<'stmts> =
   StatementMut<'stmts, U64String, postgres_column_info::PostgresColumnInfo, Ty>;
 pub(crate) type PostgresCommonExecutorBuffer =
-  CommonExecutorBuffer<U64String, postgres_column_info::PostgresColumnInfo, Ty>;
+  CommonClientBuffer<U64String, postgres_column_info::PostgresColumnInfo, Ty>;
 
 /// Postgres
 pub struct Postgres<E>(PhantomData<fn() -> E>);
@@ -98,12 +98,12 @@ where
   E: From<crate::Error>,
 {
   type DecodeWrapper<'inner, 'outer, 'rem>
-    = DecodeWrapper<'inner, 'rem>
+    = PostgresDecodeWrapper<'inner, 'rem>
   where
     'inner: 'outer;
   type Error = E;
   type EncodeWrapper<'inner, 'outer, 'rem>
-    = EncodeWrapper<'inner, 'outer>
+    = PostgresEncodeWrapper<'inner, 'outer>
   where
     'inner: 'outer;
 }
@@ -124,9 +124,9 @@ impl<E> Default for Postgres<E> {
 
 mod array {
   use crate::{
-    collection::{ArrayString, LinearStorageLen},
+    collections::{ArrayString, LinearStorageLen},
     database::{
-      FromRecords, FromRecordsParams, Record,
+      FromRecords, FromRecordsParams, Record as _,
       client::postgres::{Postgres, PostgresRecord, PostgresRecords},
     },
     misc::{from_utf8_basic, into_rslt},
@@ -151,6 +151,54 @@ mod array {
         .try_into()?;
       curr_params.inc_consumed_records(1);
       Ok(rslt)
+    }
+  }
+}
+
+#[cfg(feature = "crypto")]
+mod crypto {
+  use crate::{
+    codec::{Decode, Encode},
+    crypto::SignatureTy,
+    database::{
+      Typed,
+      client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
+    },
+  };
+
+  impl<'de, E> Decode<'de, Postgres<E>> for SignatureTy
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
+      let string = <&str as Decode<'de, Postgres<E>>>::decode(dw)?;
+      Ok(Self::try_from(string.as_bytes())?)
+    }
+  }
+
+  impl<E> Encode<Postgres<E>> for SignatureTy
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+      <&str as Encode<Postgres<E>>>::encode(&(*self).into(), ew)
+    }
+  }
+
+  impl<E> Typed<Postgres<E>> for SignatureTy
+  where
+    E: From<crate::Error>,
+  {
+    #[inline]
+    fn runtime_ty(&self) -> Option<Ty> {
+      None
+    }
+
+    #[inline]
+    fn static_ty() -> Option<Ty> {
+      None
     }
   }
 }

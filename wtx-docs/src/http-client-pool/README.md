@@ -6,10 +6,10 @@ Reuses valid connections and recycles dropped communications to minimize content
 
 Also useful because HTTP/2 and HTTP/3 expect long-lived sessions by default unlike HTTP/1.
 
-To use this functionality, it is necessary to activate the `http-client-pool` feature.
+To use this functionality, it is necessary to activate the `http2-client-pool` feature.
 
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-examples/others/http-client-pool.rs}}
+{{#rustdoc_include ../../../wtx-examples/examples/http2-client-pool.rs}}
 ```

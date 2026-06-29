@@ -74,7 +74,7 @@ impl Display for HexDisplay<'_> {
 #[cfg(feature = "sha3")]
 #[inline]
 pub fn eip55_encode<'to>(from: &[u8], to: &'to mut [u8]) -> crate::Result<&'to str> {
-  use sha3::Digest;
+  use sha3::Digest as _;
   if from.len() > 32 {
     return Err(HexError::InvalidEip55Input.into());
   }
@@ -212,7 +212,7 @@ const fn hex_to_bytes(lhs: u8, rhs: u8) -> Result<u8, HexError> {
 mod test {
   use crate::{
     codec::{HexDisplay, HexEncMode, hex_decode, hex_encode},
-    collection::{ArrayVectorU8, Vector},
+    collections::{ArrayVectorU8, Vector},
   };
 
   #[test]

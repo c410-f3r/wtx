@@ -8,7 +8,7 @@ cargo check --all-features --all-targets
 
 # WTX Docs
 
-rustup default nightly-2026-05-07
+rustup default nightly-2026-06-27
 cargo clean --target-dir mdbook-target
 cargo build --all-features --target-dir mdbook-target
 mdbook test -L mdbook-target/debug/deps wtx-docs

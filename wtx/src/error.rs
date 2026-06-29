@@ -3,7 +3,7 @@ use crate::asn1::Asn1Error;
 use crate::{
   calendar::CalendarError,
   codec::{Base64Error, FromRadix10Error, HexError},
-  collection::{
+  collections::{
     ArrayStringError, ArrayVectorError, BlocksDequeError, DequeueError, FixedStringError,
     ShortBoxStrU16, ShortStrU8, VectorError,
   },
@@ -43,12 +43,6 @@ pub enum Error {
   #[cfg(feature = "embassy-net")]
   #[doc = associated_element_doc!()]
   EmbassyNet(embassy_net::tcp::Error),
-  #[cfg(feature = "flate2")]
-  #[doc = associated_element_doc!()]
-  Flate2CompressError(Box<flate2::CompressError>),
-  #[cfg(feature = "flate2")]
-  #[doc = associated_element_doc!()]
-  Flate2DecompressError(Box<flate2::DecompressError>),
   #[cfg(feature = "getrandom")]
   #[doc = associated_element_doc!()]
   GetRandomError(getrandom::Error),
@@ -64,9 +58,6 @@ pub enum Error {
   #[cfg(feature = "quick-protobuf")]
   #[doc = associated_element_doc!()]
   QuickProtobuf(Box<quick_protobuf::Error>),
-  #[cfg(feature = "rustls")]
-  #[doc = associated_element_doc!()]
-  RustlsError(Box<rustls::Error>),
   #[cfg(feature = "serde")]
   #[doc = associated_element_doc!()]
   SerdeDeValue(Box<::serde::de::value::Error>),
@@ -88,6 +79,12 @@ pub enum Error {
   #[cfg(feature = "uuid")]
   #[doc = associated_element_doc!()]
   UuidError(Box<uuid::Error>),
+  #[cfg(feature = "zlib-rs")]
+  #[doc = associated_element_doc!()]
+  ZlibRsDeflateError(zlib_rs::DeflateError),
+  #[cfg(feature = "zlib-rs")]
+  #[doc = associated_element_doc!()]
+  ZlibRsInflateError(zlib_rs::InflateError),
 
   // External - Std
   //
@@ -126,8 +123,6 @@ pub enum Error {
   //
   /// Allocation error
   AllocError(Box<Layout>),
-  /// A connection was unexpectedly closed by an external actor or because of a local error.
-  ClosedConnection,
   /// A HTTP connection was unexpectedly closed by an external actor or because of a local error.
   ClosedHttpConnection,
   /// A WebSocket connection was unexpectedly closed by an external actor or because of a local error.
@@ -172,8 +167,6 @@ pub enum Error {
   NoInnerValue(ShortStrU8<'static>),
   /// Byte is not an ASCII graphic character
   NonGraphicByte,
-  /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
-  OutOfBoundsArithmetic,
   /// An error that shouldn't exist. If this variant is raised, then it is very likely that the
   /// involved code was not built the way it should be.
   ProgrammingError,
@@ -186,6 +179,9 @@ pub enum Error {
   },
   /// A buffer was partially read or write but should in fact be fully processed.
   UnexpectedBufferState,
+  /// In compression/decompression. A buffer was partially read or write but should in fact be
+  /// fully processed.
+  UnexpectedBufferStateInCodec,
   /// Unexpected bytes
   UnexpectedBytes {
     /// Length of the unexpected bytes
@@ -268,7 +264,9 @@ pub enum Error {
   Http2FlowControlError(crate::http2::Http2Error, u32),
   #[cfg(feature = "http")]
   #[doc = associated_element_doc!()]
-  MatcherError(crate::http::MatcherError),
+  RouterError(crate::http::RouterError),
+  #[doc = associated_element_doc!()]
+  NetReadBufferError(crate::stream::BufStreamReaderError),
   #[cfg(feature = "postgres")]
   #[doc = associated_element_doc!()]
   PostgresDbError(Box<crate::database::client::postgres::DbError>),
@@ -280,12 +278,15 @@ pub enum Error {
   #[cfg(feature = "schema-manager")]
   #[doc = associated_element_doc!()]
   SchemaManagerError(crate::database::schema_manager::SchemaManagerError),
-  #[cfg(feature = "http-server-framework")]
+  #[cfg(feature = "http2-server-framework")]
   #[doc = associated_element_doc!()]
-  ServerFrameworkError(crate::http::server_framework::ServerFrameworkError),
+  ServerFrameworkError(crate::http::http2_server_framework::Http2ServerFrameworkError),
   #[cfg(feature = "http-session")]
   #[doc = associated_element_doc!()]
   SessionError(crate::http::SessionError),
+  #[cfg(feature = "tls")]
+  #[doc = associated_element_doc!()]
+  TlsError(crate::tls::TlsError),
   #[doc = associated_element_doc!()]
   VectorError(VectorError),
   #[cfg(feature = "web-socket")]
@@ -352,22 +353,6 @@ impl From<embassy_net::tcp::Error> for Error {
   #[inline]
   fn from(from: embassy_net::tcp::Error) -> Self {
     Self::EmbassyNet(from)
-  }
-}
-
-#[cfg(feature = "flate2")]
-impl From<flate2::CompressError> for Error {
-  #[inline]
-  fn from(from: flate2::CompressError) -> Self {
-    Self::Flate2CompressError(from.into())
-  }
-}
-
-#[cfg(feature = "flate2")]
-impl From<flate2::DecompressError> for Error {
-  #[inline]
-  fn from(from: flate2::DecompressError) -> Self {
-    Self::Flate2DecompressError(from.into())
   }
 }
 
@@ -469,14 +454,6 @@ impl From<quick_protobuf::Error> for Error {
   }
 }
 
-#[cfg(feature = "rustls")]
-impl From<rustls::Error> for Error {
-  #[inline]
-  fn from(from: rustls::Error) -> Self {
-    Self::RustlsError(from.into())
-  }
-}
-
 #[cfg(feature = "serde")]
 impl From<::serde::de::value::Error> for Error {
   #[inline]
@@ -498,6 +475,14 @@ impl From<crate::http::SessionError> for Error {
   #[inline]
   fn from(from: crate::http::SessionError) -> Self {
     Self::SessionError(from)
+  }
+}
+
+#[cfg(feature = "tls")]
+impl From<crate::tls::TlsError> for Error {
+  #[inline]
+  fn from(from: crate::tls::TlsError) -> Self {
+    Self::TlsError(from)
   }
 }
 
@@ -549,6 +534,22 @@ impl From<uuid::Error> for Error {
   #[inline]
   fn from(value: uuid::Error) -> Self {
     Self::UuidError(value.into())
+  }
+}
+
+#[cfg(feature = "zlib-rs")]
+impl From<zlib_rs::DeflateError> for Error {
+  #[inline]
+  fn from(value: zlib_rs::DeflateError) -> Self {
+    Self::ZlibRsDeflateError(value)
+  }
+}
+
+#[cfg(feature = "zlib-rs")]
+impl From<zlib_rs::InflateError> for Error {
+  #[inline]
+  fn from(value: zlib_rs::InflateError) -> Self {
+    Self::ZlibRsInflateError(value)
   }
 }
 
@@ -657,10 +658,17 @@ impl From<DequeueError> for Error {
 }
 
 #[cfg(feature = "http")]
-impl From<crate::http::MatcherError> for Error {
+impl From<crate::http::RouterError> for Error {
   #[inline]
-  fn from(from: crate::http::MatcherError) -> Self {
-    Self::MatcherError(from)
+  fn from(from: crate::http::RouterError) -> Self {
+    Self::RouterError(from)
+  }
+}
+
+impl From<crate::stream::BufStreamReaderError> for Error {
+  #[inline]
+  fn from(from: crate::stream::BufStreamReaderError) -> Self {
+    Self::NetReadBufferError(from)
   }
 }
 
@@ -672,10 +680,10 @@ impl From<crate::database::schema_manager::SchemaManagerError> for Error {
   }
 }
 
-#[cfg(feature = "http-server-framework")]
-impl From<crate::http::server_framework::ServerFrameworkError> for Error {
+#[cfg(feature = "http2-server-framework")]
+impl From<crate::http::http2_server_framework::Http2ServerFrameworkError> for Error {
   #[inline]
-  fn from(from: crate::http::server_framework::ServerFrameworkError) -> Self {
+  fn from(from: crate::http::http2_server_framework::Http2ServerFrameworkError) -> Self {
     Self::ServerFrameworkError(from)
   }
 }
@@ -774,7 +782,7 @@ impl<T> SendError<T> {
 
 #[cfg(feature = "serde")]
 mod serde {
-  use alloc::string::ToString;
+  use alloc::string::ToString as _;
   use core::fmt::Display;
 
   impl serde::ser::Error for crate::Error {

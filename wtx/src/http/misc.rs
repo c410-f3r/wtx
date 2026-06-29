@@ -12,3 +12,13 @@ pub fn is_web_socket_handshake(
     && protocol == Some(Protocol::WebSocket)
     && headers.get_by_name(header).map(|el| el.value) == Some("13")
 }
+
+#[cfg(any(feature = "http2-client-pool", feature = "http2-server-framework"))]
+pub(crate) fn push_h2_alpn(
+  alpn: &mut crate::collections::ArrayVectorU8<
+    crate::collections::ArrayVectorU8<u8, 8>,
+    { crate::tls::MAX_ALPN_LEN },
+  >,
+) -> crate::Result<()> {
+  alpn.push("h2".as_bytes().try_into()?)
+}

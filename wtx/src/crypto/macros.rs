@@ -2,45 +2,39 @@
 macro_rules! common_aead_functions {
   () => {
     #[inline]
-    fn local_decrypt<'encrypted, const S: usize>(
+    fn local_decrypt<'data, const S: usize>(
       algorithm: &'static Algorithm,
       associated_data: &[u8],
-      encrypted_data: &'encrypted mut [u8],
+      data: &'data mut [u8],
       error: CryptoError,
+      nonce: [u8; AEAD_NONCE_LEN],
       secret: &[u8; S],
-    ) -> crate::Result<&'encrypted mut [u8]> {
-      let (nonce, content) = split_nonce_content(encrypted_data, error)?;
+    ) -> crate::Result<&'data mut [u8]> {
       let bytes = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_err| error)?)
-        .open_in_place(Nonce::assume_unique_for_key(nonce), Aad::from(associated_data), content)
+        .open_in_place(Nonce::assume_unique_for_key(nonce), Aad::from(associated_data), data)
         .map_err(|_err| error)?;
       Ok(bytes)
     }
 
     #[inline]
-    fn local_encrypt_vectored_data<RNG, const S: usize>(
+    fn local_encrypt_vectored_data<const S: usize>(
       algorithm: &'static Algorithm,
       associated_data: &[u8],
       error: CryptoError,
-      nonce: [&mut u8; NONCE_LEN],
+      nonce: [u8; AEAD_NONCE_LEN],
       plaintext: &mut [u8],
-      rng: &mut RNG,
       secret: &[u8; S],
-      tag: [&mut u8; TAG_LEN],
-    ) -> crate::Result<()>
-    where
-      RNG: CryptoRng,
-    {
-      let local_tag = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_err| error)?)
+    ) -> crate::Result<[u8; AEAD_TAG_LEN]> {
+      let tag = LessSafeKey::new(UnboundKey::new(algorithm, secret).map_err(|_err| error)?)
         .seal_in_place_separate_tag(
-          Nonce::assume_unique_for_key(generate_nonce(nonce, rng)),
+          Nonce::assume_unique_for_key(nonce),
           Aad::from(associated_data),
           plaintext,
         )
         .map_err(|_err| error)?
         .as_ref()
         .try_into()?;
-      write_tag(local_tag, tag);
-      Ok(())
+      Ok(tag)
     }
   };
 }

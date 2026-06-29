@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
     DatabaseTy,
     schema_manager::{Commands, SchemaManagement, Uid, UserMigration, UserMigrationGroup},
@@ -68,7 +68,7 @@ where
     uids: Option<&[Uid]>,
   ) -> Result<(), <E::Database as CodecController>::Error> {
     let (mut migration_groups, _) = parse_root_toml(path)?;
-    migration_groups.sort_by(|a, b| b.cmp(a));
+    migration_groups.sort_by(|lhs, rhs| rhs.cmp(lhs));
     if let Some(elem) = uids {
       if migration_groups.len() != elem.len() {
         return Err(crate::Error::from(SchemaManagerError::DifferentRollbackUids).into());
@@ -81,7 +81,7 @@ where
       for (mg, uid) in migration_groups.into_iter().zip(iter) {
         self.rollback_from_dir(&mg, uid).await?;
       }
-    };
+    }
     Ok(())
   }
 
@@ -93,7 +93,8 @@ where
     path: &Path,
     uid: Uid,
   ) -> Result<(), <E::Database as CodecController>::Error> {
-    let Ok((mg, mut migrations)) = group_and_migrations_from_path(path, |a, b| b.cmp(a)) else {
+    let Ok((mg, mut migrations)) = group_and_migrations_from_path(path, |lhs, rhs| rhs.cmp(lhs))
+    else {
       return Ok(());
     };
     let mut tmp_migrations = Vector::new();

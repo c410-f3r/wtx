@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::Parser as _;
 
 pub(crate) async fn init() -> wtx::Result<()> {
   let _args = Cli::parse();
@@ -12,22 +12,22 @@ pub(crate) async fn init() -> wtx::Result<()> {
     }
     #[cfg(feature = "http-client")]
     Commands::HttpClient(elem) => {
-      crate::http_client::http_client(elem).await;
+      crate::http_client::http_client(elem).await?;
     }
     #[cfg(feature = "schema-manager")]
     Commands::SchemaManager(schema_manager) => {
       crate::schema_manager::schema_manager(schema_manager).await?;
     }
     #[cfg(feature = "web-socket")]
-    Commands::WebSocket(elem) => manage_web_socket(elem).await,
+    Commands::WebSocket(elem) => manage_web_socket(elem).await?,
   }
 
   #[cfg(not(feature = "unified"))]
   cfg_select! {
     feature = "embed-migrations" => crate::embed_migrations::embed_migrations(_args.commands).await?,
-    feature = "http-client" =>  crate::http_client::http_client(_args.commands).await,
+    feature = "http-client" =>  crate::http_client::http_client(_args.commands).await?,
     feature = "schema-manager" => crate::schema_manager::schema_manager(_args.commands).await?,
-    feature = "web-socket" => manage_web_socket(_args.commands).await,
+    feature = "web-socket" => manage_web_socket(_args.commands).await?,
   }
   Ok(())
 }
@@ -204,7 +204,7 @@ struct WebSocket {
 }
 
 #[cfg(feature = "web-socket")]
-async fn manage_web_socket(elem: WebSocket) {
+async fn manage_web_socket(elem: WebSocket) -> wtx::Result<()> {
   match (elem.connect, elem.serve) {
     (None, None) | (Some(_), Some(_)) => {
       panic!("Please connect to a server using `-c` or listen to requests using `-s`");
@@ -216,11 +216,11 @@ async fn manage_web_socket(elem: WebSocket) {
         |err| println!("{err}"),
         |payload| println!("{payload}"),
       )
-      .await
-      .unwrap();
+      .await?;
     }
     (Some(uri), None) => {
-      crate::web_socket::connect(&uri, |payload| println!("{payload}")).await.unwrap();
+      crate::web_socket::connect(&uri, |payload| println!("{payload}")).await?;
     }
   }
+  Ok(())
 }

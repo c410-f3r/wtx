@@ -23,13 +23,13 @@ impl WindowUpdateFrame {
   }
 
   pub(crate) fn read(bytes: &[u8], fi: FrameInit) -> crate::Result<Self> {
-    let [a, b, c, d] = bytes else {
+    let [b0, b1, b2, b3] = bytes else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
         Http2Error::InvalidWindowUpdateFrameBytes,
       ));
     };
-    let size_increment = U31::from_u32(u32::from_be_bytes([*a, *b, *c, *d]));
+    let size_increment = U31::from_u32(u32::from_be_bytes([*b0, *b1, *b2, *b3]));
     if size_increment > U31::MAX {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
@@ -40,10 +40,10 @@ impl WindowUpdateFrame {
   }
 
   pub(crate) const fn bytes(&self) -> [u8; 13] {
-    let [a, b, c, d, e, f, g, h, i] =
+    let [b0, b1, b2, b3, b4, b5, b6, b7, b8] =
       FrameInit::new(CommonFlags::empty(), 4, self.stream_id, FrameInitTy::WindowUpdate).bytes();
-    let [j, k, l, m] = self.size_increment.to_be_bytes();
-    [a, b, c, d, e, f, g, h, i, j, k, l, m]
+    let [b9, b10, b11, b12] = self.size_increment.to_be_bytes();
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12]
   }
 
   pub(crate) const fn size_increment(&self) -> U31 {

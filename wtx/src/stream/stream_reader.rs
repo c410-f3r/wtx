@@ -1,8 +1,18 @@
+use core::{future, num::NonZeroUsize};
+
+use crate::{
+  collections::MaybeUninitSlice,
+  stream::{StreamCommon, StreamReadItem},
+};
+
 /// A stream of values sent asynchronously.
-pub trait StreamReader {
+pub trait StreamReader: StreamCommon {
   /// Pulls some bytes from this source into the specified buffer, returning how many bytes
   /// were read.
-  fn read(&mut self, bytes: &mut [u8]) -> impl Future<Output = crate::Result<usize>>;
+  fn read(
+    &mut self,
+    bytes: MaybeUninitSlice<'_, u8>,
+  ) -> impl Future<Output = crate::Result<StreamReadItem<NonZeroUsize>>>;
 
   /// Reads and at the same time discards exactly `len` bytes.
   #[inline]
@@ -15,11 +25,10 @@ pub trait StreamReader {
           break;
         }
         let slice = if let Some(el) = buffer.get_mut(..counter) { el } else { &mut buffer[..] };
-        let read = self.read(slice).await?;
-        if read == 0 {
+        let Some(read) = self.read(slice.into()).await?.opt() else {
           return Err(crate::Error::UnexpectedStreamReadEOF);
-        }
-        counter = counter.wrapping_sub(read);
+        };
+        counter = counter.wrapping_sub(read.get());
       }
       Ok(())
     }
@@ -31,14 +40,20 @@ where
   T: StreamReader,
 {
   #[inline]
-  async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
+  async fn read(
+    &mut self,
+    bytes: MaybeUninitSlice<'_, u8>,
+  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
     (**self).read(bytes).await
   }
 }
 
 impl StreamReader for () {
   #[inline]
-  async fn read(&mut self, _: &mut [u8]) -> crate::Result<usize> {
-    Ok(0)
+  fn read(
+    &mut self,
+    _: MaybeUninitSlice<'_, u8>,
+  ) -> impl Future<Output = crate::Result<StreamReadItem<NonZeroUsize>>> {
+    future::ready(Ok(StreamReadItem::empty_cold()))
   }
 }

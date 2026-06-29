@@ -1,28 +1,36 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, SequenceBuffer},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::Vector,
+  collections::Vector,
+  misc::Lease,
   x509::AccessDescription,
 };
 
 /// Indicates how to access information and services for the subject of the certificate in which
 /// the extension appears.
 #[derive(Debug, PartialEq)]
-pub struct SubjectInformationAccess<'bytes>(
+pub struct SubjectInformationAccess<B>(
   /// Entries
-  pub Vector<AccessDescription<'bytes>>,
+  pub Vector<AccessDescription<B>>,
 );
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for SubjectInformationAccess<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for SubjectInformationAccess<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0.0))
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for SubjectInformationAccess<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for SubjectInformationAccess<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)
   }
 }

@@ -10,21 +10,20 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collection::Vector,
+  collections::Vector,
   misc::LeaseMut,
-  rng::Rng,
   stream::Stream,
+  tls::TlsMode,
   web_socket::{
-    Frame, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin, compression::NegotiatedCompression,
+    Frame, WebSocket, WebSocketPayloadOrigin, web_socket_compression::NegotiatedWsCompression,
   },
 };
 
-impl<NC, R, S, TP, WB> ReceivingTransport<TP> for WebSocket<NC, R, S, WB, true>
+impl<NC, S, TM, TP> ReceivingTransport<TP> for WebSocket<NC, S, TM, true>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   S: Stream,
-  WB: LeaseMut<WebSocketBuffer>,
+  TM: TlsMode,
 {
   #[inline]
   async fn recv<A, DRSR>(
@@ -43,13 +42,12 @@ where
   }
 }
 
-impl<NC, R, S, TP, WB> SendingTransport<TP> for WebSocket<NC, R, S, WB, true>
+impl<NC, S, TM, TP> SendingTransport<TP> for WebSocket<NC, S, TM, true>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   S: Stream,
+  TM: TlsMode,
   TP: LeaseMut<WsParams>,
-  WB: LeaseMut<WebSocketBuffer>,
 {
   #[inline]
   async fn send_bytes<A, DRSR>(
@@ -77,26 +75,25 @@ where
   }
 }
 
-impl<NC, R, S, TP, WB> Transport<TP> for WebSocket<NC, R, S, WB, true>
+impl<NC, S, TM, TP> Transport<TP> for WebSocket<NC, S, TM, true>
 where
-  NC: NegotiatedCompression,
+  NC: NegotiatedWsCompression,
   S: Stream,
-  WB: LeaseMut<WebSocketBuffer>,
+  TM: TlsMode,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
   type Inner = Self;
   type ReqId = ();
 }
 
-async fn cb<NC, R, S, WB>(
-  mut frame: Frame<&mut Vector<u8>, true>,
-  trans: &mut WebSocket<NC, R, S, WB, true>,
+async fn cb<NC, S, TM>(
+  mut frame: Frame<&mut Vector<u8>>,
+  trans: &mut WebSocket<NC, S, TM, true>,
 ) -> crate::Result<()>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   S: Stream,
-  WB: LeaseMut<WebSocketBuffer>,
+  TM: TlsMode,
 {
   trans.write_frame(&mut frame).await?;
   Ok(())

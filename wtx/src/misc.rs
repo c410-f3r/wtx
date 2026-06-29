@@ -2,11 +2,9 @@
 
 #[cfg(feature = "http2")]
 pub(crate) mod bytes_transfer;
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "postgres", feature = "tls"))]
 pub(crate) mod counter_writer;
 mod hints;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
-pub(crate) mod net;
 #[cfg(feature = "http2")]
 pub(crate) mod span;
 
@@ -17,14 +15,12 @@ mod either;
 mod enum_var_strings;
 mod env_vars;
 mod error_info;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
-mod filled_buffer;
 mod fn_fut;
 mod from_vars;
 mod incomplete_utf8_char;
 pub(crate) mod int_conv;
 mod interspace;
-mod join_array;
+mod join_array_vector;
 mod lease;
 mod mem;
 mod optimizations;
@@ -36,9 +32,7 @@ mod role;
 mod secret;
 mod sensitive_bytes;
 mod single_type_storage;
-mod suffix_writer;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
+mod tcp_params;
 mod try_arithmetic;
 mod tuple_impls;
 mod uri;
@@ -46,9 +40,7 @@ mod usize;
 mod utf8_errors;
 mod wrapper;
 
-#[cfg(feature = "tokio-rustls")]
-pub use self::tokio_rustls::{TokioRustlsAcceptor, TokioRustlsConnector};
-use crate::collection::ShortStrU8;
+use crate::collections::ShortStrU8;
 pub use ascii::*;
 pub use connection_state::ConnectionState;
 use core::{any::type_name, future::poll_fn, pin::pin, task::Poll, time::Duration};
@@ -57,14 +49,12 @@ pub use either::{Either, RefOrOwned};
 pub use enum_var_strings::EnumVarStrings;
 pub use env_vars::EnvVars;
 pub use error_info::ErrorInfo;
-#[cfg(any(feature = "http2", feature = "postgres", feature = "web-socket"))]
-pub use filled_buffer::{FilledBuffer, FilledBufferVectorMut};
 pub use fn_fut::{FnFut, FnFutWrapper, FnMutFut};
 pub use from_vars::FromVars;
 pub use hints::*;
 pub use incomplete_utf8_char::{CompletionErr, IncompleteUtf8Char};
 pub use interspace::Intersperse;
-pub use join_array::JoinArray;
+pub use join_array_vector::{JoinArrayVector, TryJoinArrayVector};
 pub use lease::{Lease, LeaseMut};
 pub use mem::*;
 pub use optimizations::*;
@@ -76,7 +66,7 @@ pub use role::{Client, Role, RoleTy, Server};
 pub use secret::{Secret, SecretContext};
 pub use sensitive_bytes::SensitiveBytes;
 pub use single_type_storage::SingleTypeStorage;
-pub use suffix_writer::*;
+pub use tcp_params::TcpParams;
 pub use try_arithmetic::*;
 pub use uri::{QueryWriter, Uri, UriArrayString, UriBox, UriCow, UriRef, UriReset, UriString};
 pub use usize::Usize;
@@ -85,12 +75,13 @@ pub use wrapper::Wrapper;
 
 /// Hashes a password using the `argon2` algorithm.
 #[cfg(feature = "argon2")]
+#[inline]
 pub fn argon2_pwd<const N: usize>(
-  blocks: &mut crate::collection::Vector<argon2::Block>,
+  blocks: &mut crate::collections::Vector<argon2::Block>,
   pwd: &[u8],
   salt: &[u8],
 ) -> crate::Result<[u8; N]> {
-  use crate::collection::ExpansionTy;
+  use crate::collections::ExpansionTy;
   use argon2::{Algorithm, Argon2, Params, Version};
 
   let params = const {
@@ -116,7 +107,7 @@ pub fn argon2_pwd<const N: usize>(
 
 /// Only works with elements that implement `Copy`.
 //
-// FIXME(stable): Constant operations
+// FIXME(STABLE): Constant operations
 #[inline]
 pub const fn const_ok<E, T>(rslt: Result<T, E>) -> Option<T>
 where
@@ -128,20 +119,21 @@ where
 
 /// Deserializes a sequence of elements info `buffer`. Works with any deserializer of any format.
 #[cfg(feature = "serde")]
+#[inline]
 pub fn deserialize_seq_into_buffer_with_serde<'de, D, T>(
   deserializer: D,
-  buffer: &mut crate::collection::Vector<T>,
+  buffer: &mut crate::collections::Vector<T>,
 ) -> crate::Result<()>
 where
   D: serde::de::Deserializer<'de>,
   T: serde::Deserialize<'de>,
   crate::Error: From<D::Error>,
 {
-  use crate::collection::Vector;
+  use crate::collections::Vector;
   use core::fmt::Formatter;
   use serde::{
     Deserialize,
-    de::{Error, SeqAccess, Visitor},
+    de::{Error as _, SeqAccess, Visitor},
   };
 
   struct LocalVisitor<'any, T>(&'any mut Vector<T>);
@@ -186,6 +178,7 @@ pub fn into_rslt<T>(opt: Option<T>) -> crate::Result<T> {
 
 /// Deserializes a sequence passing each element to `cb`. Works with any deserializer of any format.
 #[cfg(feature = "serde")]
+#[inline]
 pub fn deserialize_seq_into_cb_with_serde<'de, D, E, T>(
   deserializer: D,
   cb: impl FnMut(T) -> Result<(), E>,
@@ -263,6 +256,7 @@ pub fn find_file(dir: &mut std::path::PathBuf, file: &std::path::Path) -> std::i
 
 /// A version of `serde_json::from_slice` that aggregates the payload in case of an error.
 #[cfg(feature = "serde_json")]
+#[inline]
 pub fn serde_json_deserialize_from_slice<'any, T>(slice: &'any [u8]) -> crate::Result<T>
 where
   T: serde::de::Deserialize<'any>,
@@ -270,7 +264,7 @@ where
   match serde_json::from_slice(slice) {
     Ok(elem) => Ok(elem),
     Err(err) => {
-      use core::fmt::Write;
+      use core::fmt::Write as _;
       let mut string = alloc::string::String::new();
       let idx = slice.len().min(1024);
       let payload = slice.get(..idx).and_then(|el| from_utf8_basic(el).ok()).unwrap_or_default();
@@ -282,6 +276,7 @@ where
 
 /// Similar to `collect_seq` of `serde` but expects a `Result`.
 #[cfg(feature = "serde")]
+#[inline]
 pub fn serialize_seq_with_serde<E, I, S, T>(ser: S, into_iter: I) -> Result<S::Ok, S::Error>
 where
   E: core::fmt::Display,
@@ -295,7 +290,7 @@ where
       _ => None,
     }
   }
-  use serde::ser::{Error, SerializeSeq};
+  use serde::ser::{Error as _, SerializeSeq as _};
   let iter = into_iter.into_iter();
   let mut sq = ser.serialize_seq(conservative_size_hint_len(iter.size_hint()))?;
   for elem in iter {
@@ -311,14 +306,10 @@ where
 #[inline]
 pub async fn sleep(duration: Duration) -> crate::Result<()> {
   cfg_select! {
-    feature = "async-net" => {
-      let _ = async_io::Timer::after(duration).await;
-    },
     feature = "embassy-time" => embassy_time::Timer::after(duration.try_into()?).await,
     feature = "tokio" => tokio::time::sleep(duration).await,
     _ => {
-      use crate::calendar::Instant;
-      let now = Instant::now();
+      let now = crate::calendar::Instant::now();
       poll_fn(|cx| {
         if now.elapsed()? >= duration {
           return Poll::Ready(crate::Result::Ok(()));
@@ -341,15 +332,13 @@ where
   let mut fut_pin = pin!(fut);
   let mut timeout_pin = pin!(sleep(duration));
   poll_fn(|cx| {
-    let fut_poll = fut_pin.as_mut().poll(cx);
-    let timeout_poll = timeout_pin.as_mut().poll(cx);
-    match (fut_poll, timeout_poll) {
-      (Poll::Ready(el), Poll::Pending | Poll::Ready(_)) => Poll::Ready(Ok(el)),
-      (Poll::Pending, Poll::Ready(_)) => Poll::Ready(Err(crate::Error::ExpiredFuture)),
-      (Poll::Pending, Poll::Pending) => {
-        cx.waker().wake_by_ref();
-        Poll::Pending
-      }
+    if let Poll::Ready(output) = fut_pin.as_mut().poll(cx) {
+      return Poll::Ready(Ok(output));
+    }
+    match timeout_pin.as_mut().poll(cx) {
+      Poll::Ready(Ok(_)) => Poll::Ready(Err(crate::Error::ExpiredFuture)),
+      Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+      Poll::Pending => Poll::Pending,
     }
   })
   .await
@@ -362,7 +351,7 @@ pub fn tracing_tree_init(
   fallback_opt: Option<&str>,
 ) -> Result<(), tracing_subscriber::util::TryInitError> {
   use tracing_subscriber::{
-    EnvFilter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
+    EnvFilter, prelude::__tracing_subscriber_SubscriberExt as _, util::SubscriberInitExt as _,
   };
   let fallback = fallback_opt.unwrap_or("");
   let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(fallback));
@@ -374,7 +363,7 @@ pub fn tracing_tree_init(
     .with_targets(true)
     .with_thread_ids(true)
     .with_thread_names(true)
-    .with_timer(crate::calendar::TracingTreeTimer)
+    .with_timer(crate::calendar::TracingTreeTimer {})
     .with_verbose_entry(false)
     .with_verbose_exit(false)
     .with_writer(std::io::stderr);
@@ -409,8 +398,8 @@ pub(crate) fn random_state<RNG>(rng: &mut RNG) -> foldhash::fast::FixedState
 where
   RNG: crate::rng::Rng,
 {
-  let [a, b, c, d, e, f, g, h] = rng.u8_8();
-  foldhash::fast::FixedState::with_seed(u64::from_ne_bytes([a, b, c, d, e, f, g, h]))
+  let [b0, b1, b2, b3, b4, b5, b6, b7] = rng.u8_8();
+  foldhash::fast::FixedState::with_seed(u64::from_be_bytes([b0, b1, b2, b3, b4, b5, b6, b7]))
 }
 
 #[inline]
@@ -427,13 +416,12 @@ pub(crate) fn usize_range_from_u32_range(range: core::ops::Range<u32>) -> core::
   *Usize::from(range.start)..*Usize::from(range.end)
 }
 
-#[cfg(test)]
+#[cfg(all(not(feature = "tokio"), test))]
 mod tests {
   use crate::misc::sleep;
   use core::time::Duration;
 
-  // FIXME: Use Runtime when TLS 1.3 arrives
-  #[tokio::test]
+  #[wtx::test]
   async fn timeout() {
     assert_eq!(crate::misc::timeout(async { 1 }, Duration::from_millis(10)).await.unwrap(), 1);
     assert!(

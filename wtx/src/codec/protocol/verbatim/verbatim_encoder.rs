@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::Vector,
+  collections::Vector,
 };
 
 /// A wrapper for data types that don't require a special pre-fixed structure.

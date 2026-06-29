@@ -1,10 +1,10 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Oid, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
-    decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Oid, SEQUENCE_TAG, SequenceBuffer,
+    asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::ArrayVectorU8,
+  collections::ArrayVectorU8,
   x509::X509Error,
 };
 
@@ -17,9 +17,9 @@ pub struct PolicyMapping {
   pub subject_domain_policy: Oid,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyMapping {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for PolicyMapping {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionPolicyMappings.into());
     };
@@ -31,9 +31,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyMapping {
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyMapping {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for PolicyMapping {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
       self.issuer_domain_policy.encode(local_ew)?;
       self.subject_domain_policy.encode(local_ew)?;
@@ -51,16 +51,16 @@ pub struct PolicyMappings(
   pub ArrayVectorU8<PolicyMapping, 2>,
 );
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for PolicyMappings {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for PolicyMappings {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self(SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0.0))
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for PolicyMappings {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for PolicyMappings {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG)
   }
 }

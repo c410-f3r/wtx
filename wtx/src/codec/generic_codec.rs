@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use crate::{
   codec::{CodecController, Decode, DecodeSeq, Encode},
-  collection::Vector,
+  collections::Vector,
   misc::Lease,
 };
 

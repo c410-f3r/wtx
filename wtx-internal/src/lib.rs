@@ -1,83 +1,73 @@
 //! WTX - Internal
 
 #[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
+use {
+  tokio::net::TcpStream,
+  wtx::{
+    collections::{ArrayStringU8, Vector},
+    rng::{ChaCha20, CryptoSeedableRng as _},
+    tls::{TlsConfig, TlsConnector, TlsModePlainText},
+    web_socket::{
+      Frame, OpCode, WebSocket, WebSocketConnector, WebSocketPayloadOrigin,
+      web_socket_compression::{NegotiatedZlibRs, ZlibRs},
+    },
+  },
+};
+
+/// Used by autobahn
+#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
 #[inline]
 pub async fn autobahn_case_conn(
   case: u32,
   host: &str,
-) -> wtx::Result<
-  wtx::web_socket::WebSocket<
-    Option<wtx::web_socket::compression::NegotiatedFlate2>,
-    wtx::rng::Xorshift64,
-    std::net::TcpStream,
-    wtx::web_socket::WebSocketBuffer,
-    true,
-  >,
-> {
-  wtx::web_socket::WebSocketConnector::default()
-    .compression(wtx::web_socket::compression::Flate2::default())
-    .no_masking(false)
+) -> wtx::Result<WebSocket<Option<NegotiatedZlibRs>, TcpStream, TlsModePlainText, true>> {
+  let stream = TcpStream::connect(host).await?;
+  WebSocketConnector::default()
+    .set_compression(ZlibRs::default())
+    .set_no_masking(false)
     .connect(
-      std::net::TcpStream::connect(host)?,
-      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
-        "http://{host}/runCase?case={case}&agent=wtx"
-      ))?
-      .as_str()
-      .into(),
-    )
-    .await
-}
-
-#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
-#[inline]
-pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
-  wtx::web_socket::WebSocketConnector::default()
-    .connect(
-      std::net::TcpStream::connect(host)?,
-      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!(
-        "http://{host}/updateReports?agent=wtx"
-      ))?
-      .as_str()
-      .into(),
-    )
-    .await?
-    .write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut []))
-    .await
-}
-
-#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
-#[inline]
-pub async fn autobahn_get_case_count(
-  buffer: &mut wtx::collection::Vector<u8>,
-  host: &str,
-) -> wtx::Result<u32> {
-  let mut ws = wtx::web_socket::WebSocketConnector::default()
-    .connect(
-      std::net::TcpStream::connect(host)?,
-      &wtx::collection::ArrayStringU8::<128>::try_from(format_args!("http://{host}/getCaseCount"))?
+      TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream),
+      &ArrayStringU8::<128>::try_from(format_args!("http://{host}/runCase?case={case}&agent=wtx"))?
         .as_str()
         .into(),
     )
+    .await
+}
+
+/// Used by autobahn
+#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
+#[inline]
+pub async fn autobahn_close(host: &str) -> wtx::Result<()> {
+  let url = format_args!("http://{host}/updateReports?agent=wtx");
+  let stream = TcpStream::connect(host).await?;
+  WebSocketConnector::default()
+    .connect(
+      TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream),
+      &ArrayStringU8::<128>::try_from(url)?.as_str().into(),
+    )
+    .await?
+    .write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])?)
+    .await
+}
+
+/// Used by autobahn
+#[cfg(any(feature = "autobahn-client", feature = "autobahn-client-concurrent"))]
+#[inline]
+pub async fn autobahn_get_case_count(buffer: &mut Vector<u8>, host: &str) -> wtx::Result<u32> {
+  let stream = TcpStream::connect(host).await?;
+  let fmt = format_args!("http://{host}/getCaseCount");
+  let mut ws = WebSocketConnector::default()
+    .connect(
+      TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream),
+      &ArrayStringU8::<128>::try_from(fmt)?.as_str().into(),
+    )
     .await?;
   let rslt = ws
-    .read_frame(buffer, wtx::web_socket::WebSocketPayloadOrigin::Adaptive)
+    .read_frame(buffer, WebSocketPayloadOrigin::Adaptive)
     .await?
     .text_payload()
     .unwrap_or_default()
     .parse()?;
-  ws.write_frame(&mut wtx::web_socket::Frame::new_fin(wtx::web_socket::OpCode::Close, &mut []))
-    .await?;
+  ws.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])?).await?;
   Ok(rslt)
-}
-
-/// Host from arguments
-#[inline]
-pub fn host_from_args() -> String {
-  std::env::args().nth(1).unwrap_or_else(|| "127.0.0.1:9000".to_owned())
-}
-
-/// Uri from arguments
-#[inline]
-pub fn uri_from_args() -> String {
-  std::env::args().nth(1).unwrap_or_else(|| "http://127.0.0.1:9000".to_owned())
 }

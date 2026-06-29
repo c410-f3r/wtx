@@ -7,7 +7,7 @@ use crate::{
     CalendarError, CalendarToken, CeDays, Date, Duration, EPOCH_CE_DAYS, Hour, Nanosecond,
     SECONDS_PER_DAY, SECONDS_PER_MINUTE, Sixty, Time, TimeZone, Utc,
   },
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
   misc::int_conv::{i16i64, i32i64, u8i64, u32i64},
 };
 use core::fmt::{Debug, Display, Formatter};
@@ -176,8 +176,6 @@ where
   }
 
   /// UNIX timestamp in seconds as well as the number of nanoseconds.
-  ///
-  /// It is worth noting that it is much cheaper to get the timestamp using `Instant`.
   #[inline]
   pub fn timestamp_secs_and_ns(self) -> (i64, Nanosecond) {
     let mut rslt = i32i64(self.date.ce_days());
@@ -280,6 +278,7 @@ mod serde {
   where
     TZ: TimeZone,
   {
+    #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
       D: Deserializer<'de>,
@@ -298,19 +297,19 @@ mod serde {
         }
 
         #[inline]
-        fn visit_bytes<E>(self, value: &[u8]) -> Result<Self::Value, E>
+        fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
         where
           E: Error,
         {
-          DateTime::from_iso8601(value).map_err(E::custom)
+          DateTime::from_iso8601(v).map_err(E::custom)
         }
 
         #[inline]
-        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
           E: Error,
         {
-          DateTime::from_iso8601(value.as_bytes()).map_err(E::custom)
+          DateTime::from_iso8601(v.as_bytes()).map_err(E::custom)
         }
       }
 
@@ -322,6 +321,7 @@ mod serde {
   where
     TZ: TimeZone,
   {
+    #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
       S: Serializer,

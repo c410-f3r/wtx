@@ -1,7 +1,7 @@
 mod cookie_error;
 #[cfg(feature = "http-session")]
 pub(crate) mod cookie_generic;
-#[cfg(all(feature = "http-server-framework", feature = "http-session"))]
+#[cfg(all(feature = "http2-server-framework", feature = "http-session"))]
 pub(crate) mod cookie_str;
 mod same_site;
 

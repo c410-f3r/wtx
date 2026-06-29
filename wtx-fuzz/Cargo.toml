@@ -3,14 +3,9 @@ name = "date_time"
 path = "date_time.rs"
 required-features = ["libfuzzer-sys/link_libfuzzer"]
 
-[[bin]]
-name = "web-socket"
-path = "web_socket.rs"
-required-features = ["libfuzzer-sys/link_libfuzzer"]
-
 [dependencies]
 libfuzzer-sys = { default-features = false, version = "0.4" }
-wtx = { default-features = false, features = ["arbitrary", "executor", "nightly", "web-socket"], path = "../wtx" }
+wtx = { default-features = false, features = ["arbitrary", "nightly", "web-socket"], path = "../wtx" }
 
 [package]
 edition = "2024"

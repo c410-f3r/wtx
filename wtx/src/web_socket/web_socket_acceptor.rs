@@ -1,40 +1,23 @@
-use crate::{
-  rng::{Xorshift64, simple_seed},
-  web_socket::WebSocketBuffer,
-};
+use crate::web_socket::WebSocketBuffer;
 use httparse::Request;
 
 /// WebSocket acceptor
 #[derive(Debug)]
-pub struct WebSocketAcceptor<C, R, RNG, WB> {
+pub struct WebSocketAcceptor<C, R> {
   pub(crate) compression: C,
   pub(crate) no_masking: bool,
   pub(crate) req: R,
-  pub(crate) rng: RNG,
-  pub(crate) wsb: WB,
+  pub(crate) wsb: WebSocketBuffer,
 }
 
-impl<C, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB> {
-  /// WebSocket Buffer
-  #[inline]
-  pub fn buffer<NWSB>(self, elem: NWSB) -> WebSocketAcceptor<C, R, RNG, NWSB> {
-    WebSocketAcceptor {
-      compression: self.compression,
-      no_masking: self.no_masking,
-      req: self.req,
-      rng: self.rng,
-      wsb: elem,
-    }
-  }
-
+impl<C, R> WebSocketAcceptor<C, R> {
   /// Defaults to no compression.
   #[inline]
-  pub fn compression<NC>(self, elem: NC) -> WebSocketAcceptor<NC, R, RNG, WB> {
+  pub fn set_compression<_C>(self, elem: _C) -> WebSocketAcceptor<_C, R> {
     WebSocketAcceptor {
       compression: elem,
       no_masking: self.no_masking,
       req: self.req,
-      rng: self.rng,
       wsb: self.wsb,
     }
   }
@@ -43,66 +26,35 @@ impl<C, R, RNG, WB> WebSocketAcceptor<C, R, RNG, WB> {
   ///
   /// <https://datatracker.ietf.org/doc/draft-damjanovic-websockets-nomasking/>
   #[inline]
-  pub const fn no_masking(mut self, elem: bool) -> WebSocketAcceptor<C, R, RNG, WB> {
+  #[must_use]
+  pub const fn set_no_masking(mut self, elem: bool) -> WebSocketAcceptor<C, R> {
     self.no_masking = elem;
     self
   }
 
   /// Request callback.
   #[inline]
-  pub fn req<NE, NR>(self, elem: NR) -> WebSocketAcceptor<C, NR, RNG, WB>
+  pub fn set_req<_E, _R>(self, elem: _R) -> WebSocketAcceptor<C, _R>
   where
-    NR: FnOnce(&Request<'_, '_>) -> Result<bool, NE>,
+    _R: FnOnce(&Request<'_, '_>) -> Result<bool, _E>,
   {
     WebSocketAcceptor {
       compression: self.compression,
       no_masking: self.no_masking,
       req: elem,
-      rng: self.rng,
       wsb: self.wsb,
-    }
-  }
-
-  /// Random number generator
-  #[inline]
-  pub fn rng(mut self, elem: RNG) -> WebSocketAcceptor<C, R, RNG, WB> {
-    self.rng = elem;
-    self
-  }
-
-  /// WebSocket Buffer
-  #[inline]
-  pub fn wsb<NWSB>(self, elem: NWSB) -> WebSocketAcceptor<C, R, RNG, NWSB> {
-    WebSocketAcceptor {
-      compression: self.compression,
-      no_masking: self.no_masking,
-      req: self.req,
-      rng: self.rng,
-      wsb: elem,
     }
   }
 }
 
-impl Default
-  for WebSocketAcceptor<
-    (),
-    fn(&Request<'_, '_>) -> crate::Result<bool>,
-    Xorshift64,
-    WebSocketBuffer,
-  >
-{
+impl Default for WebSocketAcceptor<(), fn(&Request<'_, '_>) -> crate::Result<bool>> {
   #[inline]
   fn default() -> Self {
+    #[expect(clippy::unnecessary_wraps, reason = "false-positive")]
     #[inline]
     const fn req(_: &Request<'_, '_>) -> crate::Result<bool> {
       Ok(true)
     }
-    Self {
-      compression: (),
-      no_masking: true,
-      req,
-      rng: Xorshift64::from(simple_seed()),
-      wsb: WebSocketBuffer::new(),
-    }
+    Self { compression: (), no_masking: true, req, wsb: WebSocketBuffer::default() }
   }
 }

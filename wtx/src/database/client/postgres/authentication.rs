@@ -1,6 +1,6 @@
 use crate::{
-  codec::FromRadix10,
-  collection::ShortStrU8,
+  codec::FromRadix10 as _,
+  collections::ShortStrU8,
   database::DatabaseError,
   misc::{bytes_split1, into_rslt},
 };
@@ -19,8 +19,8 @@ impl<'bytes> TryFrom<&'bytes [u8]> for Authentication<'bytes> {
 
   #[inline]
   fn try_from(bytes: &'bytes [u8]) -> Result<Self, Self::Error> {
-    let (n, rest) = if let [a, b, c, d, rest @ ..] = bytes {
-      (u32::from_be_bytes([*a, *b, *c, *d]), rest)
+    let (n, rest) = if let [b0, b1, b2, b3, rest @ ..] = bytes {
+      (u32::from_be_bytes([*b0, *b1, *b2, *b3]), rest)
     } else {
       return Err(
         DatabaseError::UnexpectedValueFromBytes {

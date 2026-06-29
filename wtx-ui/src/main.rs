@@ -1,5 +1,16 @@
 //! WTX - Cli
 
+#![allow(
+  clippy::panic,
+  clippy::print_stderr,
+  clippy::print_stdout,
+  clippy::use_debug,
+  reason = "CLI application"
+)]
+
+#[cfg(feature = "schema-manager")]
+extern crate alloc;
+
 #[cfg(feature = "clap")]
 mod clap;
 #[cfg(feature = "embed-migrations")]

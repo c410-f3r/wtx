@@ -1,18 +1,20 @@
 use crate::clap::{SchemaManager, SchemaManagerCommands};
-use std::{borrow::Cow, env::current_dir, path::Path};
+use alloc::borrow::Cow;
+use std::{env::current_dir, path::Path};
 use tokio::net::TcpStream;
 use wtx::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
     DatabaseUriFromVars, Identifier,
-    client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
+    client::postgres::{ClientBuffer, Config, PostgresClient},
     schema_manager::{
       Commands, DEFAULT_CFG_FILE_NAME, DbMigration, MigrationStatus, SchemaManagement,
     },
   },
   misc::{EnvVars, UriRef, find_file},
-  rng::{ChaCha20, CryptoSeedableRng},
+  rng::{ChaCha20, CryptoSeedableRng as _},
+  tls::{TlsConfig, TlsConnector},
 };
 
 pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
@@ -27,12 +29,13 @@ pub(crate) async fn schema_manager(sm: SchemaManager) -> wtx::Result<()> {
   let uri = UriRef::new(&var);
   match uri.scheme() {
     "postgres" | "postgresql" => {
-      let mut rng = ChaCha20::from_std_random()?;
-      let executor = PostgresExecutor::<wtx::Error, _, _>::connect(
+      let stream = TcpStream::connect(uri.hostname_with_implied_port()).await?;
+      let mut tls_connector =
+        TlsConnector::new(TlsConfig::empty(), ChaCha20::from_std_random()?, stream);
+      let executor = PostgresClient::<wtx::Error, _, _>::connect(
+        ClientBuffer::new(usize::MAX, tls_connector.rng_mut()),
         &Config::from_uri(&uri)?,
-        ExecutorBuffer::new(usize::MAX, &mut rng),
-        &mut rng,
-        TcpStream::connect(uri.hostname_with_implied_port()).await?,
+        tls_connector,
       )
       .await?;
       handle_commands(executor, &sm).await?;
@@ -91,7 +94,7 @@ where
       use wtx::database::schema_manager::misc::parse_root_toml;
       let (migration_groups, seeds) = parse_root_toml(&toml_file_path(sm)?)?;
       commands.migrate_from_groups_paths(&migration_groups).await?;
-      commands.seed_from_dir(seeds_file_path(sm, seeds.as_deref())?).await?;
+      commands.seed_from_dir(seeds_file_path(sm, seeds.as_deref())).await?;
     }
     SchemaManagerCommands::Rollback { versions: _versions } => {
       commands.rollback_from_toml(&toml_file_path(sm)?, Some(_versions)).await?;
@@ -100,7 +103,7 @@ where
     SchemaManagerCommands::Seed {} => {
       use wtx::database::schema_manager::misc::parse_root_toml;
       let (_, seeds) = parse_root_toml(&toml_file_path(sm)?)?;
-      commands.seed_from_dir(seeds_file_path(sm, seeds.as_deref())?).await?;
+      commands.seed_from_dir(seeds_file_path(sm, seeds.as_deref())).await?;
     }
     SchemaManagerCommands::Validate {} => {
       commands.validate_from_toml(&toml_file_path(sm)?).await?;
@@ -110,19 +113,19 @@ where
 }
 
 #[cfg(feature = "schema-manager-dev")]
-fn seeds_file_path<'a, 'b, 'c>(
-  sm: &'a SchemaManager,
-  seeds_toml: Option<&'b Path>,
-) -> wtx::Result<&'c Path>
+fn seeds_file_path<'sm, 'st, 'path>(
+  sm: &'sm SchemaManager,
+  seeds_toml: Option<&'st Path>,
+) -> &'path Path
 where
-  'a: 'c,
-  'b: 'c,
+  'sm: 'path,
+  'st: 'path,
 {
   if let Some(el) = sm.seeds.as_deref() {
-    return Ok(el);
+    return el;
   }
   if let Some(el) = seeds_toml {
-    return Ok(el);
+    return el;
   }
   panic!("The `seeds` parameter must be provided through the CLI or the configuration file");
 }

@@ -1,42 +1,23 @@
 //! h2load
 
-use tokio::net::tcp::OwnedWriteHalf;
 use wtx::{
+  executor::TokioExecutor,
   http::{
-    AutoStream, HttpRecvParams, ManualServerStream, MsgBufferString, OperationMode, OptionedServer,
-    Response, StatusCode,
+    HttpRecvParams,
+    http2_server_framework::{Http2ServerFramework, HttpRouter, State, get},
   },
-  http2::Http2Buffer,
+  tls::TlsConfig,
 };
 
 #[tokio::main]
 async fn main() -> wtx::Result<()> {
-  OptionedServer::http2_tokio(
-    ((), "127.0.0.1:9000", (), ()),
-    |_| Ok(()),
-    |_, stream| async move {
-      stream.set_nodelay(true).unwrap();
-      Ok(stream.into_split())
-    },
-    |_conn_error| {},
-    |_, mut rng| Ok(((), Http2Buffer::new(&mut rng), HttpRecvParams::with_permissive_params())),
-    |_| Ok(()),
-    |_, _, _, _, _| Ok(((), OperationMode::Auto)),
-    |_stream_error| {},
-    auto,
-    manual,
-  )
-  .await
+  let router = HttpRouter::paths(wtx::paths!(("/", get(root)),))?;
+  Http2ServerFramework::new(TokioExecutor::default(), TlsConfig::empty())?
+    .set_http_recv_params(HttpRecvParams::with_permissive_params())
+    .run("127.0.0.1:9000", router)
+    .await
 }
 
-async fn auto(_: (), mut ha: AutoStream<(), ()>) -> Result<Response<MsgBufferString>, wtx::Error> {
-  ha.req.clear();
-  Ok(ha.req.into_response(StatusCode::Ok))
-}
-
-async fn manual(
-  _: (),
-  _: ManualServerStream<(), Http2Buffer, (), OwnedWriteHalf>,
-) -> Result<(), wtx::Error> {
+async fn root(_state: State<'_, ()>) -> wtx::Result<()> {
   Ok(())
 }

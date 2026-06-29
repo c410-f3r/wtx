@@ -22,7 +22,7 @@ pub(crate) fn main(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #block
       }
 
-      let runtime = wtx::sync::Arc::new(wtx::executor::Runtime::new());
+      let runtime = wtx::sync::Arc::new(wtx::executor::StdRuntime::new());
       let _runtime_clone = runtime.clone();
       runtime
         .block_on(async move {
@@ -56,7 +56,7 @@ pub(crate) fn test(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #block
       }
 
-      let runtime = wtx::sync::Arc::new(wtx::executor::Runtime::new());
+      let runtime = wtx::sync::Arc::new(wtx::executor::StdRuntime::new());
       let _runtime_clone = runtime.clone();
       runtime
         .block_on(async move {

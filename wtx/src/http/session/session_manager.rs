@@ -1,12 +1,12 @@
 use crate::{
   calendar::Instant,
-  collection::{ArrayString, ArrayStringU8, ArrayVectorU8, Vector},
-  crypto::{Aead, Aes128GcmGlobal},
+  collections::{ArrayString, ArrayStringU8, ArrayVectorU8, Vector},
+  crypto::{Aead as _, Aes128GcmGlobal, gen_aead_nonce},
   http::{
     Header, KnownHeaderName, MsgBufferString, MsgDataMut, SessionManagerBuilder, SessionState,
     SessionStore, cookie::cookie_generic::CookieGeneric,
   },
-  misc::{AsciiGraphic, Lease, LeaseMut, Secret},
+  misc::{AsciiGraphic, Lease as _, LeaseMut, Secret},
   rng::CryptoRng,
   sync::{Arc, AsyncMutex},
 };
@@ -83,7 +83,7 @@ where
         store.create(&elem).await?;
         elem
       }
-      (Some(_), Some(max_age)) | (None, Some(max_age)) => {
+      (Some(_) | None, Some(max_age)) => {
         let expires_at = Instant::now_date_time(0)?
           .add(max_age.try_into()?)
           .map_err(crate::Error::from)?
@@ -100,8 +100,8 @@ where
       Aes128GcmGlobal::encrypt_to_buffer_base64(
         cookie_def.name.as_bytes(),
         &mut cookie_def.value,
+        gen_aead_nonce(rng),
         msg_data.lease().body.get(idx..).unwrap_or_default(),
-        rng,
         el.as_ref().try_into()?,
       )
     });
@@ -161,7 +161,7 @@ where
   {
     if let Some(elem) = state.take() {
       store.delete(&elem.session_key).await?;
-    };
+    }
     self.cookie_def.delete(msg_data.headers_mut())?;
     Ok(())
   }
@@ -170,9 +170,6 @@ where
 impl<CS, E> Debug for SessionManagerInner<CS, E> {
   #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-    f.debug_struct("SessionManagerInner")
-      .field("cookie_def", &self.cookie_def)
-      .field("phantom", &self.phantom)
-      .finish()
+    f.debug_struct("SessionManagerInner").finish()
   }
 }

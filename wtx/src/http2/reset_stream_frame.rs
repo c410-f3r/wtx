@@ -23,14 +23,14 @@ impl ResetStreamFrame {
     if fi.stream_id.is_zero() {
       return Err(protocol_err(Http2Error::InvalidResetStreamFrameBytes));
     }
-    let [a, b, c, d] = bytes else {
+    let [b0, b1, b2, b3] = bytes else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
         Http2Error::InvalidResetStreamFrameZeroId,
       ));
     };
     Ok(Self {
-      error_code: u32::from_be_bytes([*a, *b, *c, *d])
+      error_code: u32::from_be_bytes([*b0, *b1, *b2, *b3])
         .try_into()
         .unwrap_or(Http2ErrorCode::InternalError),
       stream_id: fi.stream_id,
@@ -38,10 +38,10 @@ impl ResetStreamFrame {
   }
 
   pub(crate) fn bytes(&self) -> [u8; 13] {
-    let [a, b, c, d, e, f, g, h, i] =
+    let [b0, b1, b2, b3, b4, b5, b6, b7, b8] =
       FrameInit::new(CommonFlags::empty(), 4, self.stream_id, FrameInitTy::Reset).bytes();
-    let [j, k, l, m] = u32::from(self.error_code).to_be_bytes();
-    [a, b, c, d, e, f, g, h, i, j, k, l, m]
+    let [b9, b10, b11, b12] = u32::from(self.error_code).to_be_bytes();
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12]
   }
 
   pub(crate) const fn error_code(&self) -> Http2ErrorCode {

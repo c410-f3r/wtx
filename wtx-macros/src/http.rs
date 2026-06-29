@@ -1,7 +1,7 @@
 use quote::quote;
 use syn::{Data, DeriveInput, Fields};
 
-pub(crate) fn conn_aux(item: proc_macro::TokenStream) -> crate::Result<proc_macro::TokenStream> {
+pub(crate) fn lease(item: proc_macro::TokenStream) -> crate::Result<proc_macro::TokenStream> {
   let input = syn::parse::<DeriveInput>(item)?;
   let name = input.ident;
   let mut field_names = Vec::new();
@@ -19,15 +19,6 @@ pub(crate) fn conn_aux(item: proc_macro::TokenStream) -> crate::Result<proc_macr
     Data::Enum(_) | Data::Union(_) => return Err(crate::Error::UnsupportedStructure),
   }
   let expanded = quote!(
-    impl wtx::http::server_framework::ConnAux for #name {
-      type Init = Self;
-
-      #[inline]
-      fn conn_aux(init: Self::Init) -> wtx::Result<Self> {
-        Ok(init)
-      }
-    }
-
     #(
       impl wtx::misc::Lease<#field_tys> for #name {
         #[inline]

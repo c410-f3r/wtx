@@ -1,7 +1,7 @@
 //! Migration file parser
 
 use crate::{
-  collection::ArrayVectorU8,
+  collections::ArrayVectorU8,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -9,10 +9,10 @@ use crate::{
       toml_parser::{Expr, toml},
     },
   },
-  misc::{AsciiGeneric, str_split1},
+  misc::{AsciiGeneric, str_rsplit_once_str, str_split1},
 };
 use alloc::string::String;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead as _, BufReader, Read};
 
 /// Auxiliary parameters of a migration file
 #[derive(Debug, Default)]
@@ -26,7 +26,7 @@ pub struct MigrationCfg {
 /// In-memory representation of a parsed migration file
 #[derive(Debug, Default)]
 pub struct ParsedMigration {
-  /// See [MigrationCfg].
+  /// See [`MigrationCfg`].
   pub cfg: MigrationCfg,
   /// -- wtx IN contents
   pub sql_in: String,
@@ -71,7 +71,7 @@ where
 
   iterations(&mut overall_buffer, &mut br, |str_read| !str_read.contains("-- wtx OUT"))?;
 
-  if let Some(rslt) = overall_buffer.rsplit("-- wtx OUT").nth(1) {
+  if let Some((rslt, _)) = str_rsplit_once_str(&overall_buffer, "-- wtx OUT") {
     parsed_migration.sql_in = rslt.trim().into();
   } else {
     parsed_migration.sql_in = overall_buffer.trim().into();
@@ -99,15 +99,15 @@ where
   for (ident, toml_expr) in toml(read)? {
     match (ident.as_str(), toml_expr) {
       ("dbs", Expr::Array(array)) => {
-        for str in array.into_iter() {
+        for str in array {
           let Ok(elem) = str.as_str().try_into() else {
             continue;
           };
           migration_toml.dbs.push(elem)?;
         }
       }
-      ("repeatability", Expr::String(s)) => {
-        let Ok(elem) = s.as_str().try_into() else {
+      ("repeatability", Expr::String(str)) => {
+        let Ok(elem) = str.as_str().try_into() else {
           continue;
         };
         migration_toml.repeatability = Some(elem);

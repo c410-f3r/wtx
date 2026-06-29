@@ -52,26 +52,31 @@ pub use transparency_information_syntax::TransparencyInformationSyntax;
 
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::Vector,
+  collections::Vector,
+  misc::Lease,
   x509::{Extension, X509Error},
 };
 
 /// List of extensions
-#[derive(Debug, PartialEq)]
-pub struct Extensions<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct Extensions<B> {
   /// Entries
-  pub entries: Vector<Extension<'bytes>>,
+  pub entries: Vector<Extension<B>>,
   /// Tag
   pub tag: u8,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Extensions<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Extensions<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let tag = dw.decode_aux.tag.unwrap_or(SEQUENCE_TAG);
     dw.decode_aux.tag = None;
     let entries = if tag == SEQUENCE_TAG {
@@ -90,9 +95,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Extensions<'de> {
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Extensions<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for Extensions<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     if self.tag == SEQUENCE_TAG {
       SequenceBuffer(&self.entries).encode(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG)
     } else {

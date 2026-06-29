@@ -8,16 +8,18 @@ use crate::{
     pkg::PkgsAux,
   },
   misc::LeaseMut,
-  rng::Rng,
   stream::StreamReader,
-  web_socket::{WebSocketPayloadOrigin, WebSocketReaderOwned, compression::NegotiatedCompression},
+  tls::TlsMode,
+  web_socket::{
+    WebSocketPayloadOrigin, WebSocketReaderOwned, web_socket_compression::NegotiatedWsCompression,
+  },
 };
 
-impl<NC, R, SR, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, R, SR, true>
+impl<NC, SR, TM, TP> ReceivingTransport<TP> for WebSocketReaderOwned<NC, SR, TM, true>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   SR: StreamReader,
+  TM: TlsMode,
   TP: LeaseMut<WsParams>,
 {
   #[inline]
@@ -37,9 +39,9 @@ where
   }
 }
 
-impl<NC, R, SR, TP> Transport<TP> for WebSocketReaderOwned<NC, R, SR, true>
+impl<NC, SR, TM, TP> Transport<TP> for WebSocketReaderOwned<NC, SR, TM, true>
 where
-  NC: NegotiatedCompression,
+  NC: NegotiatedWsCompression,
   SR: StreamReader,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;

@@ -1,10 +1,11 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Opt, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
-    decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, SequenceBuffer,
+    asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::Vector,
+  collections::Vector,
+  misc::Lease,
   x509::{
     CRL_ISSUER_TAG, DISTRIBUTION_POINT_TAG, DistributionPointName, GeneralNames, REASONS_TAG,
     ReasonFlags, X509Error,
@@ -12,40 +13,51 @@ use crate::{
 };
 
 /// Identifies how CRL information is obtained.
-#[derive(Debug, PartialEq)]
-pub struct CrlDistributionPoints<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct CrlDistributionPoints<B> {
   /// Identifies how CRL information is obtained.
-  pub entries: Vector<DistributionPoint<'bytes>>,
+  pub entries: Vector<DistributionPoint<B>>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for CrlDistributionPoints<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for CrlDistributionPoints<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self { entries: SequenceBuffer::decode(dw, SEQUENCE_TAG)?.0.0 })
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for CrlDistributionPoints<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for CrlDistributionPoints<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     SequenceBuffer(&self.entries).encode(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG)
   }
 }
 
 /// An entry in the CRL Distribution Points extension.
-#[derive(Debug, PartialEq)]
-pub struct DistributionPoint<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct DistributionPoint<B> {
   /// See [`DistributionPointName`].
-  pub distribution_point: Option<DistributionPointName<'bytes>>,
+  pub distribution_point: Option<DistributionPointName<B>>,
   /// See [`ReasonFlags`].
   pub reasons: Option<ReasonFlags>,
   /// See [`GeneralNames`].
-  pub crl_issuer: Option<GeneralNames<'bytes>>,
+  pub crl_issuer: Option<GeneralNames<B>>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for DistributionPoint<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for DistributionPoint<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionCrlDistributionPoints.into());
     };
@@ -58,9 +70,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for DistributionPoint
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for DistributionPoint<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for DistributionPoint<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       Opt(&self.distribution_point).encode(local_ew, DISTRIBUTION_POINT_TAG)?;
       Opt(&self.reasons).encode(local_ew, REASONS_TAG)?;

@@ -1,6 +1,6 @@
 use crate::{
   codec::Decode,
-  database::{Database, DatabaseError, Records},
+  database::{Database, DatabaseError, Records as _},
   misc::Lease,
 };
 use alloc::boxed::Box;
@@ -36,16 +36,19 @@ impl<'exec, R> FromRecordsParams<R> {
   }
 
   /// Increases the number of consumed records by the given number.
+  #[inline]
   pub const fn inc_consumed_records(&mut self, value: usize) {
     self.consumed_records = self.consumed_records.wrapping_add(value);
   }
 
   /// Increases the current field or column index by 1.
+  #[inline]
   pub const fn inc_field_idx(&mut self) {
     self.curr_field_idx = self.curr_field_idx.wrapping_add(1);
   }
 
   /// Increases the current record or row index by 1.
+  #[inline]
   pub const fn inc_record_idx(&mut self) {
     self.curr_record_idx = self.curr_record_idx.wrapping_add(1);
   }
@@ -93,7 +96,7 @@ where
       let prev_consumed_records = params.consumed_records;
       let rslt = Self::from_records(params, local_records_ref);
       if prev_consumed_records == params.consumed_records {
-        return if rslt.is_err() { Some(rslt) } else { None };
+        return rslt.is_err().then_some(rslt);
       }
       Some(rslt)
     })

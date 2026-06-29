@@ -10,10 +10,10 @@ mod validate;
 
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
     Database, DatabaseTy, Identifier,
-    executor::Executor,
+    db_client::DbClient,
     schema_manager::{DEFAULT_BATCH_SIZE, SchemaManagement, UserMigration},
   },
   misc::Lease,
@@ -29,7 +29,7 @@ pub struct Commands<E> {
 
 impl<E> Commands<E>
 where
-  E: Executor,
+  E: DbClient,
 {
   /// Creates a new instance from a given Backend and batch size.
   #[inline]
@@ -64,8 +64,8 @@ where
     I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
     S: Lease<str> + 'migration,
   {
-    migrations.filter(move |m| {
-      if m.dbs().is_empty() { true } else { m.dbs().contains(&<E::Database as Database>::TY) }
+    migrations.filter(move |el| {
+      if el.dbs().is_empty() { true } else { el.dbs().contains(&<E::Database as Database>::TY) }
     })
   }
 }
@@ -75,6 +75,7 @@ where
   E: SchemaManagement,
 {
   /// Retrieves all inserted elements.
+  #[inline]
   pub async fn all_elements(
     &mut self,
   ) -> Result<Vector<Identifier>, <E::Database as CodecController>::Error> {

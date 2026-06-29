@@ -43,7 +43,7 @@ mod bench {
 
 #[cfg(kani)]
 mod kani {
-  use crate::collection::Vector;
+  use crate::collections::Vector;
 
   #[kani::proof]
   fn unmask() {
@@ -58,7 +58,7 @@ mod kani {
 
 #[cfg(test)]
 mod tests {
-  use crate::{collection::Vector, web_socket::unmask::unmask};
+  use crate::{collections::Vector, web_socket::unmask::unmask};
 
   #[test]
   fn length_variation_unmask() {

@@ -20,11 +20,11 @@ where
   {
     match &self.0 {
       Either::Left(IpAddr::V4(el)) => {
-        let [a, b, c, d] = el.octets();
-        ip_buffer[0] = a;
-        ip_buffer[1] = b;
-        ip_buffer[2] = c;
-        ip_buffer[3] = d;
+        let [b0, b1, b2, b3] = el.octets();
+        ip_buffer[0] = b0;
+        ip_buffer[1] = b1;
+        ip_buffer[2] = b2;
+        ip_buffer[3] = b3;
         &ip_buffer[..4]
       }
       Either::Left(IpAddr::V6(el)) => {
@@ -37,6 +37,7 @@ where
 }
 impl<'this> ServerName<&'this [u8]> {
   /// Tries to first convert `data` to [`IpAddr`]. If unsuccessful, fallbacks to a domain.
+  #[inline]
   pub fn from_ascii(data: &'this [u8]) -> crate::Result<Self> {
     if let Ok(ip_addr) = from_utf8_basic(data)?.parse() {
       return Ok(Self(Either::Left(ip_addr)));
@@ -47,6 +48,7 @@ impl<'this> ServerName<&'this [u8]> {
 
 impl<'this> ServerName<&'this str> {
   /// Tries to first convert `data` to [`IpAddr`]. If unsuccessful, fallbacks to a domain.
+  #[inline]
   pub fn from_arbitrary_str(data: &'this str) -> crate::Result<Self> {
     if let Ok(ip_addr) = data.parse() {
       return Ok(Self(Either::Left(ip_addr)));

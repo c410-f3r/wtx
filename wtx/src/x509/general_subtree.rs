@@ -1,19 +1,26 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv},
+  asn1::{
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
+  },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{GeneralName, X509Error},
 };
 
 /// Represents a name range used in name constraints.
-#[derive(Debug, PartialEq)]
-pub struct GeneralSubtree<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct GeneralSubtree<B> {
   /// Defines the subtree root.
-  pub base: GeneralName<'bytes>,
+  pub base: GeneralName<B>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralSubtree<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for GeneralSubtree<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidGeneralSubtree.into());
     };
@@ -24,9 +31,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralSubtree<'d
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralSubtree<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for GeneralSubtree<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       self.base.encode(local_ew)?;
       Ok(())

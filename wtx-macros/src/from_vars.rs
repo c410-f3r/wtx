@@ -48,7 +48,7 @@ pub(crate) fn from_vars(item: proc_macro::TokenStream) -> crate::Result<proc_mac
         quote::quote! { #name: #var }
       } else {
         quote::quote! {
-          #name: #var.ok_or_else(|| wtx::Error::MissingVar(wtx::collection::ShortStrU8::new_truncated_u8(#name_str)))?
+          #name: #var.ok_or_else(|| wtx::Error::MissingVar(wtx::collections::ShortStrU8::new_truncated_u8(#name_str)))?
         }
       }
     });

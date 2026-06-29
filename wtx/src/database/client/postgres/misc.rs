@@ -1,5 +1,5 @@
 use crate::{
-  collection::{TryExtend, Vector},
+  collections::{TryExtend, Vector},
   database::{
     Identifier,
     client::postgres::{
@@ -7,14 +7,14 @@ use crate::{
       msg_field::MsgField, postgres_column_info::PostgresColumnInfo,
     },
   },
-  misc::{Either, net::PartitionedFilledBuffer},
+  misc::Either,
+  stream::BufStreamReader,
 };
 use core::ops::Range;
 
 pub(crate) fn data_row<E>(
-  begin: usize,
   begin_data: usize,
-  net_buffer: &mut PartitionedFilledBuffer,
+  read_buffer: &mut BufStreamReader,
   records_params: &mut Vector<(Range<usize>, Range<usize>)>,
   stmt: PostgresStatement<'_>,
   values_len: u16,
@@ -25,15 +25,15 @@ pub(crate) fn data_row<E>(
 where
   E: From<crate::Error>,
 {
-  let net_buffer_range = begin_data..net_buffer.current_end_idx();
-  let mut bytes = net_buffer.all().get(net_buffer_range).unwrap_or_default();
-  let record_range_begin = net_buffer.antecedent_end_idx().wrapping_sub(begin);
-  let record_range_end = net_buffer.current_end_idx().wrapping_sub(begin_data);
-  bytes = bytes.get(record_range_begin..record_range_end).unwrap_or_default();
+  let net_buffer_range = begin_data..read_buffer.current_end_idx();
+  let mut bytes = read_buffer.filled().get(net_buffer_range.clone()).unwrap_or_default();
+  let rec_range_begin = read_buffer.antecedent_end_idx().wrapping_add(2).wrapping_sub(begin_data);
+  let rec_range_end = read_buffer.current_end_idx().wrapping_sub(begin_data);
+  bytes = bytes.get(rec_range_begin..rec_range_end).unwrap_or_default();
   let values_params_begin = values_params.len().wrapping_sub(values_params_offset);
   cb(PostgresRecord::parse(bytes, stmt, values_len, values_params)?)?;
   records_params.push((
-    record_range_begin..record_range_end,
+    rec_range_begin..rec_range_end,
     values_params_begin..values_params.len().wrapping_sub(values_params_offset),
   ))?;
   Ok(())
@@ -46,7 +46,7 @@ pub(crate) const fn dummy_stmt_value() -> (PostgresColumnInfo, Ty) {
 pub(crate) fn extend_records<'exec, B, E>(
   begin_data: usize,
   buffer: &mut B,
-  net_buffer: &'exec mut PartitionedFilledBuffer,
+  read_buffer: &'exec mut BufStreamReader,
   records_params: &'exec mut Vector<(Range<usize>, Range<usize>)>,
   stmts: &'exec mut PostgresStatements,
   stmts_identifiers: impl IntoIterator<Item = Either<usize, u64>>,
@@ -70,15 +70,15 @@ where
     };
     let local_rows_idx = rows_idx.wrapping_add(stmt.rows_len);
     let local_values_idx = values_idx.wrapping_add(stmt.columns_len.wrapping_mul(stmt.rows_len));
-    let local_rp = records_params.get(rows_idx..local_rows_idx).unwrap_or_default();
-    let local_vp = values_params.get(values_idx..local_values_idx).unwrap_or_default();
+    let local_recp = records_params.get(rows_idx..local_rows_idx).unwrap_or_default();
+    let local_valp = values_params.get(values_idx..local_values_idx).unwrap_or_default();
     rows_idx = local_rows_idx;
     values_idx = local_values_idx;
     buffer.try_extend([PostgresRecords::new(
-      net_buffer.all().get(begin_data..net_buffer.current_end_idx()).unwrap_or_default(),
-      local_rp,
+      read_buffer.filled().get(begin_data..read_buffer.current_end_idx()).unwrap_or_default(),
+      local_recp,
       stmt,
-      local_vp,
+      local_valp,
     )])?;
   }
   Ok(())

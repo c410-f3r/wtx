@@ -3,7 +3,7 @@
 pub mod client;
 mod database_error;
 mod database_ty;
-mod executor;
+mod db_client;
 mod from_records;
 mod json;
 mod misc;
@@ -18,7 +18,7 @@ mod value_ident;
 
 pub use database_error::DatabaseError;
 pub use database_ty::DatabaseTy;
-pub use executor::Executor;
+pub use db_client::DbClient;
 pub use from_records::{FromRecords, FromRecordsParams};
 pub use json::Json;
 pub use misc::seek_related_entities;
@@ -36,7 +36,7 @@ pub const DEFAULT_URI_VAR: &str = "DATABASE_URI";
 
 /// The maximum number of characters that a database identifier can have. For example, tables,
 /// procedures, triggers, etc.
-pub type Identifier = crate::collection::ArrayStringU8<63>;
+pub type Identifier = crate::collections::ArrayStringU8<63>;
 
 /// Database
 pub trait Database: crate::codec::CodecController {
@@ -76,11 +76,11 @@ impl crate::misc::FromVars for DatabaseUriFromVars {
     let mut rslt = None;
     for (key, value) in vars {
       if key == DEFAULT_URI_VAR {
-        rslt = Some(value)
+        rslt = Some(value);
       }
     }
     let uri = rslt.ok_or_else(|| {
-      crate::Error::MissingVar(crate::collection::ShortStrU8::new_truncated_u8(DEFAULT_URI_VAR))
+      crate::Error::MissingVar(crate::collections::ShortStrU8::new_truncated_u8(DEFAULT_URI_VAR))
     })?;
     Ok(Self { uri })
   }

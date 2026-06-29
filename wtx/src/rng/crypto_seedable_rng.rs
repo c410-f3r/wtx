@@ -29,9 +29,9 @@ pub trait CryptoSeedableRng: Sized {
   #[cfg(all(feature = "nightly", feature = "std"))]
   #[inline]
   fn from_std_random() -> crate::Result<Self> {
-    use core::random::RandomSource as _;
+    use core::random::Rng as _;
     let mut seed = Self::Seed::default();
-    std::random::DefaultRandomSource.fill_bytes(seed.lease_mut());
+    std::random::SystemRng.fill_bytes(seed.lease_mut());
     Self::from_seed(seed)
   }
 

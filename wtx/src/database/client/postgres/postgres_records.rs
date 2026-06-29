@@ -30,14 +30,17 @@ where
 {
   type Database = Postgres<E>;
 
-  fn get(&self, idx: usize) -> Option<PostgresRecord<'exec, E>> {
-    self.common.get(idx)
+  #[inline]
+  fn get(&self, record_idx: usize) -> Option<PostgresRecord<'exec, E>> {
+    self.common.get(record_idx)
   }
 
+  #[inline]
   fn iter(&self) -> impl Iterator<Item = PostgresRecord<'exec, E>> {
     self.common.iter()
   }
 
+  #[inline]
   fn len(&self) -> usize {
     self.common.len()
   }

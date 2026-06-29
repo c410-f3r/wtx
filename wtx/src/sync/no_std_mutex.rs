@@ -101,7 +101,7 @@ impl<T> Drop for NoStdMutexGuard<'_, T> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::Vector,
+    collections::Vector,
     sync::{Arc, NoStdMutex},
   };
   use std::thread;

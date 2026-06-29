@@ -7,22 +7,49 @@
 [![rustc](https://img.shields.io/badge/rustc-1.96-blue.svg)](https://blog.rust-lang.org/2025/01/09/Rust-1.96.0.html)
 [![tests](https://img.shields.io/github/actions/workflow/status/c410-f3r/wtx/tests.yaml?label=tests)](https://github.com/c410-f3r/wtx/actions/workflows/tests.yaml)
 
-A collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 8 IETF RFCs along side other elements.
+Written by humans. `WTX` is a collection of different transport implementations and related tools focused primarily on web technologies. Features the in-house development of 9 IETF RFCs along side other elements.
 
 Works on embedded devices with heap allocators. If you find this crate interesting, please consider giving it a star ⭐ on `GitHub`.
 
-| Specification           | URL                                                              |
-| ----------------------- | ---------------------------------------------------------------- |
-| `gRPC`                  | <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md> |
-| `HPACK`                 | <https://datatracker.ietf.org/doc/html/rfc7541>                  |
-| `HTTP Cookies`          | <https://datatracker.ietf.org/doc/html/rfc6265>                  |
-| `HTTP/2`                | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
-| `PostgreSQL`            | <https://www.postgresql.org/docs/current/protocol.html>          |
-| `TLS 1.3` (soon)        | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
-| `WebSocket`             | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
-| `WebSocket Compression` | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
-| `WebSocket over HTTP/2` | <https://datatracker.ietf.org/doc/html/rfc8441>                  |
-| `X.509`                 | <https://datatracker.ietf.org/doc/html/rfc5280>                  |
+| Specification            | URL                                                              |
+| ------------------------ | ---------------------------------------------------------------- |
+| `gRPC`                   | <https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md> |
+| `HPACK`                  | <https://datatracker.ietf.org/doc/html/rfc7541>                  |
+| `HTTP Cookies`           | <https://datatracker.ietf.org/doc/html/rfc6265>                  |
+| `HTTP/2`                 | <https://datatracker.ietf.org/doc/html/rfc9113>                  |
+| `PostgreSQL`             | <https://www.postgresql.org/docs/current/protocol.html>          |
+| `Raw Public Keys in TLS` | <https://datatracker.ietf.org/doc/html/rfc7250>                        |
+| `TLS 1.3`                | <https://datatracker.ietf.org/doc/html/rfc7301>                  |
+| `WebSocket`              | <https://datatracker.ietf.org/doc/html/rfc6455>                  |
+| `WebSocket Compression`  | <https://datatracker.ietf.org/doc/html/rfc7692>                  |
+| `WebSocket over HTTP/2`  | <https://datatracker.ietf.org/doc/html/rfc8441>                  |
+| `X.509`                  | <https://datatracker.ietf.org/doc/html/rfc5280>                  |
+
+## High-level benchmarks
+
+Checkout [wtx-bench](https://c410-f3r.github.io/wtx-bench) or [HttpArena](https://www.http-arena.com). Feel free to indicate possible misconfigurations or misunderstandings.
+
+| gRPC                                      | HTTP/2                                        | WebSocket                                  |
+| :---------------------------------------: | :-------------------------------------------: | :----------------------------------------: |
+| [![HttpArena - gRPC][grpc-img]][grpc-url] | [![HttpArena - HTTP/2][http2-img]][http2-url] | [![HttpArena - WebSocket][ws-img]][ws-url] |
+
+## Low-level benchmarks
+
+Anything marked with `#[bench]` in the repository is considered a low-level benchmark in the sense that they measure very specific operations that generally serve as the basis for other parts.
+
+Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks over different periods of time.
+
+## Development benchmarks
+
+These numbers provide an estimate of the expected waiting times when developing with `WTX`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
+
+| Technology              | Required Deps [^1] | All Deps [^2]  | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
+| ----------------------- | ------------------ | -------------- | ----------- | ----------------- | --------------- | -------- |
+| gRPC Client             | 2                  | 16             | 4.80s       | 6.04s             | 6.53s           | 736K     |
+| HTTP/2 Client Pool      | 2                  | 15             | 4.60s       | 5.84s             | 6.44s           | 728K     |
+| HTTP/2 Server Framework | 2                  | 34             | 7.87s       | 10.53s            | 10.60s          | 996K     |
+| Postgres Client         | 13                 | 26             | 5.12s       | 6.19s             | 6.69s           | 652K     |
+| WebSocket Client        | 10                 | 22             | 4.24s       | 5.04s             | 5.31s           | 560K     |
 
 ## Crypto Backend
 
@@ -37,54 +64,13 @@ Calling methods will halt/panic the application if no backend is selected. These
 
 In practice many things require cryptography algorithms. For example, `PostgreSQL` uses `HMAC` and secure `HTTP` cookies use `AEAD`.
 
-## Performance
-
-Many things that generally improve performance are used in the project, to name a few:
-
-1. **Manual vectorization**: When an algorithm is known for processing large amounts of data, several experiments are performed to analyze the best way to split loops in order to allow the compiler to take advantage of SIMD instructions in x86 processors.
-2. **Memory allocation**: Whenever possible, all heap allocations are called only once at the start of an instance creation and additionally, stack memory usage is preferably prioritized over heap memory.
-3. **Fewer dependencies**: No third-party is injected by default. In other words, additional dependencies are up to the user through the selection of Cargo features, which decreases compilation times. For example, you can see the mere 13 dependencies required by the PostgreSQL client using `cargo tree -e normal --features postgres`.
-
-Since memory are usually held at the instance level instead of being created and dropped on the fly, its usage can growth significantly depending on the use-case. If appropriated, try using a shared pool of resources or try limiting how much data can be exchanged between parties.
-
-## High-level benchmarks
-
-Checkout [wtx-bench](https://c410-f3r.github.io/wtx-bench/) to see a variety of benchmarks or feel free to point any misunderstandings or misconfigurations.
-
-![WebSocket Benchmark](https://i.imgur.com/Iv2WzJV.jpg)
-
-There are mainly 2 things that impact performance, the chosen runtime and the number of pre-allocated bytes. Specially for servers that have to create a new instance for each handshake, pre-allocating a high number of bytes for short-lived or low-transfer connections can have a negative impact.
-
-## Low-level benchmarks
-
-Anything marked with `#[bench]` in the repository is considered a low-level benchmark in the sense that they measure very specific operations that generally serve as the basis for other parts.
-
-Take a look at <https://bencher.dev/perf/wtx> to see all low-level benchmarks over different periods of time.
-
-## Development benchmarks
-
-These numbers provide an estimate of the expected waiting times when developing with `WTX`. If desired, you can compare them with other similar Rust projects through the `dev-bench.sh` script.
-
-| Technology            | Required Deps [^1] | All Deps [^2]      | Clean Check | Clean Debug Build | Clean Opt Build | Opt size |
-| --------------------- | ------------------ | ------------------ | ----------- | ----------------- | --------------- | -------- |
-| Client API Framework  | 0                  | 31                 | 6.42s       | 7.79s             | 8.45s           | 872K     |
-| gRPC Client           | 2                  | 16                 | 4.80s       | 6.04s             | 6.53s           | 736K     |
-| HTTP Client Pool      | 2                  | 15                 | 4.60s       | 5.84s             | 6.44s           | 728K     |
-| HTTP Server Framework | 2                  | 34                 | 7.87s       | 10.53s            | 10.60s          | 996K     |
-| Postgres Client       | 13                 | 26                 | 5.12s       | 6.19s             | 6.69s           | 652K     |
-| WebSocket Client      | 10                 | 22                 | 4.24s       | 5.04s             | 5.31s           | 560K     |
-
-## Transport Layer Security (TLS)
-
-When using a feature that requires network connection, it is often necessary to perform encrypted communication and since `WTX` is not hard-coded with a specific stream implementation, it is up to you to choose the best TLS provider.
-
-Some utilities like `TokioRustlsConnector` or `TokioRustlsAcceptor` are available to make things more convenient but keep in mind that it is still necessary to activate a crate that provides certificates for client usage.
-
 ## Examples
 
-Demonstrations of different use-cases can be found in the `wtx-examples` directory as well as in the documentation.
+Demonstrations of different use-cases can be found in the `wtx-examples` directory as well as in the documentation located at <https://c410-f3r.github.io/wtx>.
 
 ## Limitations
+
+* `WTX` is not widely used and has not undergone security audits, therefore, use it at your own risk. However, reproducible contributions that improve security are always welcome.
 
 * Does not support systems with a pointer length of 16 bits.
 
@@ -93,3 +79,10 @@ Demonstrations of different use-cases can be found in the `wtx-examples` directo
 [^1]: Internal dependencies required by the feature.
 
 [^2]: The sum of optional and required dependencies used by the associated binaries.
+
+[grpc-img]: https://cdn.jsdelivr.net/gh/MDA2AV/httparena-badge/httparena-badge-grpc.svg
+[grpc-url]: https://www.http-arena.com/#scope=grpc&tuned=0
+[http2-img]: https://cdn.jsdelivr.net/gh/MDA2AV/httparena-badge/httparena-badge-h2.svg
+[http2-url]: https://www.http-arena.com/#scope=h2&tuned=0
+[ws-img]: https://cdn.jsdelivr.net/gh/MDA2AV/httparena-badge/httparena-badge-websocket.svg
+[ws-url]: https://www.http-arena.com/#scope=ws&tuned=0

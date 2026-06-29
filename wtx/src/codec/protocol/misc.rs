@@ -3,7 +3,7 @@ pub(crate) use serde_json::collect_using_serde_json;
 
 #[cfg(feature = "serde_json")]
 mod serde_json {
-  use crate::{collection::Vector, misc::deserialize_seq_into_buffer_with_serde};
+  use crate::{collections::Vector, misc::deserialize_seq_into_buffer_with_serde};
   use serde::Deserialize;
 
   pub(crate) fn collect_using_serde_json<'de, T>(
@@ -18,7 +18,7 @@ mod serde_json {
 
   #[cfg(test)]
   mod tests {
-    use crate::{codec::protocol::misc::serde_json::collect_using_serde_json, collection::Vector};
+    use crate::{codec::protocol::misc::serde_json::collect_using_serde_json, collections::Vector};
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Foo {

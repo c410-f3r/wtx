@@ -27,6 +27,7 @@ impl<'exec, A, C, D, T> ValueIdent<CommonRecord<'exec, A, C, D, T>> for &str
 where
   C: Lease<str>,
 {
+  #[inline]
   fn idx(&self, input: &CommonRecord<'exec, A, C, D, T>) -> Option<usize> {
     input.stmt.columns().iter().position(|(column, _)| column.lease() == *self)
   }

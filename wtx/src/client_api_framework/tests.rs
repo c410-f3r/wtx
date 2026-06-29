@@ -1,4 +1,4 @@
-use crate::collection::Vector;
+use crate::collections::Vector;
 
 #[allow(unreachable_pub, reason = "tests")]
 #[test]

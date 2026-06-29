@@ -1,48 +1,48 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, Len, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, Len, decode_asn1_tlv},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
 };
 
 /// Opaque ASN.1 object or element.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Any<D> {
-  bytes: D,
+pub struct Any<B> {
+  bytes: B,
   tag: u8,
   len: Len,
 }
 
-impl<'bytes> Any<&'bytes [u8]> {
+impl<B> Any<B> {
   /// Doesn't perform checks that ensure that `len` is equal to the length of `bytes`.
   //
   // FIXME(STABLE): Return `Result`
   #[inline]
-  pub const fn new(bytes: &'bytes [u8], tag: u8, len: Len) -> Self {
+  pub const fn new(bytes: B, tag: u8, len: Len) -> Self {
     Self { bytes, tag, len }
   }
-}
 
-impl<D> Any<D> {
   /// The whole slice that contains the tag, the length and the data.
   #[inline]
-  pub const fn bytes(&self) -> &D {
+  pub const fn bytes(&self) -> &B {
     &self.bytes
   }
 
   /// Length of its associated data.
+  #[inline]
   pub const fn len(&self) -> &Len {
     &self.len
   }
 
   /// Identifier.
+  #[inline]
   pub const fn tag(&self) -> u8 {
     self.tag
   }
 }
 
-impl<D> Any<D>
+impl<B> Any<B>
 where
-  D: Lease<[u8]>,
+  B: Lease<[u8]>,
 {
   /// Generic data
   #[inline]
@@ -53,25 +53,29 @@ where
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Any<&'de [u8]> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Any<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (tag, len, data, _) = decode_asn1_tlv(dw.bytes)?;
     let idx = 1usize.wrapping_add(len.bytes().len().into()).wrapping_add(data.len());
     let Some((lhs, rhs)) = dw.bytes.split_at_checked(idx) else {
       return Err(Asn1Error::InvalidAnyBytes.into());
     };
     dw.bytes = rhs;
-    Ok(Self { bytes: lhs, len, tag })
+    Ok(Self { bytes: lhs.try_into().map_err(Into::into)?, len, tag })
   }
 }
 
-impl<D> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Any<D>
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for Any<B>
 where
-  D: Lease<[u8]>,
+  B: Lease<[u8]>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let _ =
       ew.buffer.extend_from_copyable_slices([&[self.tag][..], &*self.len, self.bytes.lease()])?;
     Ok(())

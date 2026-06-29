@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ExpansionTy, Vector},
+  collections::{ExpansionTy, Vector},
   misc::mlock_slice,
   rng::Rng,
   sync::Arc,
@@ -16,6 +16,7 @@ pub struct SecretContext(pub(crate) Arc<[Box<[u8]>]>);
 
 impl SecretContext {
   /// New instance
+  #[inline]
   pub fn new<RNG>(rng: &mut RNG) -> crate::Result<Self>
   where
     RNG: Rng,
@@ -33,6 +34,7 @@ impl SecretContext {
 }
 
 impl Debug for SecretContext {
+  #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     f.debug_struct("SecretContext").finish()
   }

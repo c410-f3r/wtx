@@ -1,35 +1,43 @@
 use crate::{
   asn1::{
-    Any, Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Oid, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
+    Any, Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Oid, SEQUENCE_TAG, asn1_writer,
+    decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::X509Error,
 };
 
 /// The algorithm identifier is used to identify a cryptographic algorithm.
 #[derive(Clone, Debug, PartialEq)]
-pub struct AlgorithmIdentifier<'bytes> {
+pub struct AlgorithmIdentifier<B> {
   /// The OID that uniquely identifies the algorithm.
   pub algorithm: Oid,
   /// Optional DER-encoded algorithm parameters (may be NULL or absent).
-  pub parameters: Option<Any<&'bytes [u8]>>,
+  pub parameters: Option<Any<B>>,
 }
 
-impl<'bytes> AlgorithmIdentifier<'bytes> {
+impl<B> AlgorithmIdentifier<B> {
   /// Shortcut
+  #[inline]
   pub const fn from_algorithm(algorithm: Oid) -> Self {
     Self { algorithm, parameters: None }
   }
 
   /// Shortcut
-  pub const fn new(algorithm: Oid, parameters: Option<Any<&'bytes [u8]>>) -> Self {
+  #[inline]
+  pub const fn new(algorithm: Oid, parameters: Option<Any<B>>) -> Self {
     Self { algorithm, parameters }
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AlgorithmIdentifier<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for AlgorithmIdentifier<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidAlgorithmIdentifier.into());
     };
@@ -41,9 +49,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AlgorithmIdentifi
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for AlgorithmIdentifier<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for AlgorithmIdentifier<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_ONE_BYTE, SEQUENCE_TAG, |local_ew| {
       self.algorithm.encode(local_ew)?;
       if let Some(params) = &self.parameters {

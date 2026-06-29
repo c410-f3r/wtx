@@ -107,7 +107,7 @@ pub fn munlock_slice(_slice: &mut [u8]) -> crate::Result<()> {
 #[cfg(all(feature = "libc", test))]
 mod tests {
   use crate::{
-    collection::Vector,
+    collections::Vector,
     misc::{mlock, mlock_slice, munlock, munlock_slice},
   };
 

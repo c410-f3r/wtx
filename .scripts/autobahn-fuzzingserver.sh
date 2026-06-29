@@ -11,11 +11,10 @@ cargo build --bin autobahn-client --features autobahn-client --release
 mkdir -p .scripts/autobahn/reports/fuzzingserver
 podman run \
 	-d \
-	-p 9080:9080 \
 	-v .scripts/autobahn/fuzzingserver-min.json:/fuzzingserver.json:ro \
 	-v .scripts/autobahn:/autobahn \
 	--name fuzzingserver \
-	--net=host \
+	--network host \
 	crossbario/autobahn-testsuite:25.10.1 wstest -m fuzzingserver -s fuzzingserver.json
 sleep 5
 cargo run --bin autobahn-client --features autobahn-client --release

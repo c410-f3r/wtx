@@ -13,7 +13,7 @@ jobs:
       pages: write
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install latest mdbook
@@ -25,7 +25,7 @@ jobs:
           echo `pwd`/mdbook >> $GITHUB_PATH
       - name: Test and Build Book
         run: |
-          rustup default nightly-2026-05-07
+          rustup default nightly-2026-06-27
           cargo clean --target-dir mdbook-target
           cargo build --all-features --target-dir mdbook-target
           mdbook test -L mdbook-target/debug/deps wtx-docs && mdbook build wtx-docs

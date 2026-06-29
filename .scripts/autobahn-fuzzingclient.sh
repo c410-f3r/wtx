@@ -12,9 +12,8 @@ cargo run --bin autobahn-server --features autobahn-server --release & cargo_pid
 sleep 1
 mkdir -p .scripts/autobahn/reports/fuzzingclient
 podman run \
-	-p 9070:9070 \
-	-v .scripts/autobahn/fuzzingclient-min.json:/fuzzingclient.json:ro \
-	-v .scripts/autobahn:/autobahn \
+	-v .scripts/autobahn/fuzzingclient-min.json:/fuzzingclient.json:z \
+	-v .scripts/autobahn:/autobahn:z \
 	--name fuzzingclient \
 	--network host \
 	--rm \

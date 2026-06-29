@@ -1,8 +1,8 @@
 mod secret_context;
 
 use crate::{
-  collection::{Clear, TryExtend},
-  crypto::{Aead, Aes256GcmGlobal, Hash, Sha256DigestGlobal},
+  collections::{Clear, TryExtend},
+  crypto::{Aead as _, Aes256GcmGlobal, Hash as _, Sha256HashGlobal, gen_aead_nonce},
   misc::{LeaseMut, SensitiveBytes, memset_slice_volatile},
   rng::CryptoRng,
 };
@@ -17,8 +17,8 @@ pub use secret_context::SecretContext;
 ///
 /// Holds encrypted heap-allocated memory that is decrypted on demand.
 ///
-/// ***Tries*** to provide a layer of protection against Spectre, Meltdown, RowHammer,
-/// RAMbleed, etc. Moreover, secrets probably won't be swapped out to the swap area.
+/// ***Tries*** to provide a layer of protection against Spectre, Meltdown, `RowHammer`,
+/// `RAMbleed`, etc. Moreover, secrets probably won't be swapped out to the swap area.
 ///
 /// At the current time, does not make use of hardware solutions like TEE.
 pub struct Secret {
@@ -29,23 +29,28 @@ pub struct Secret {
 
 impl Secret {
   /// `data` will be internally zeroed regardless if an error occurred.
+  #[inline]
   #[rustfmt::skip]
-  pub fn new<RNG: CryptoRng>(
+  pub fn new<RNG>(
     data: &mut [u8],
     rng: &mut RNG,
     secret_context: SecretContext,
-  ) -> crate::Result<Self> {
+  ) -> crate::Result<Self>
+  where
+    RNG: CryptoRng
+  {
     let mut data_locked = SensitiveBytes::new_locked(data)?;
     let mut salt = [0; 32];
     rng.fill_slice(&mut salt);
-    let (nonce, tag) = {
+    let nonce = gen_aead_nonce(rng);
+    let tag = {
       let mut secret_key = [0; 32];
       let mut secret_key_locked = SensitiveBytes::new_locked(&mut secret_key)?;
       fill_secret_key(&salt, &secret_context, &mut secret_key_locked)?;
-      Aes256GcmGlobal::encrypt_in_place_detached(
+      Aes256GcmGlobal::encrypt_parts(
         &[],
+        nonce,
         &mut data_locked,
-        rng,
         *secret_key_locked,
       )?
     };
@@ -74,6 +79,7 @@ impl Secret {
   ///
   /// When the closure is executing, the plaintext secret will exist transiently in CPU registers
   /// and caches, which is unavoidable.
+  #[inline]
   pub fn peek<'buffer, B, T>(
     &self,
     buffer: &'buffer mut B,
@@ -94,6 +100,7 @@ impl Secret {
 }
 
 impl Debug for Secret {
+  #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     f.debug_struct("Secret").finish()
   }
@@ -119,12 +126,16 @@ impl Deref for Protected {
   type Target = [u8];
 
   fn deref(&self) -> &Self::Target {
+    // SAFETY: Pointer comes from a valid owned chunk of memory according to all related
+    //         constructors
     unsafe { &*self.0 }
   }
 }
 
 impl DerefMut for Protected {
   fn deref_mut(&mut self) -> &mut [u8] {
+    // SAFETY: Pointer comes from a valid owned chunk of memory according to all related
+    //         constructors
     unsafe { &mut *self.0 }
   }
 }
@@ -171,7 +182,7 @@ fn fill_secret_key(
   secret_context: &SecretContext,
   secret_key: &mut SensitiveBytes<&mut [u8; 32]>,
 ) -> crate::Result<()> {
-  let mut array = Sha256DigestGlobal::digest(
+  let mut array = Sha256HashGlobal::digest(
     [&salt[..]].into_iter().chain(secret_context.0.iter().map(|el| &**el)),
   );
   secret_key.copy_from_slice(&**SensitiveBytes::new_locked(&mut array)?);
@@ -181,7 +192,7 @@ fn fill_secret_key(
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::Vector,
+    collections::Vector,
     misc::{Secret, SecretContext},
     rng::{ChaCha20, CryptoSeedableRng},
   };

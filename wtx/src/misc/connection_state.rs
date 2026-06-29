@@ -1,5 +1,5 @@
 /// The state of a connection between two parties.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ConnectionState {
   /// Is locally closed. Does not necessary means that both parties are in the same state.
   Closed,

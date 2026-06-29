@@ -1,7 +1,7 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Octetstring},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Octetstring},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::ArrayVectorU8,
+  collections::ArrayVectorU8,
 };
 
 /// The value is typically a hash of the subject's public key.
@@ -25,16 +25,16 @@ impl KeyIdentifier {
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for KeyIdentifier {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for KeyIdentifier {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    Ok(Self(ArrayVectorU8::from_copyable_slice(Octetstring::decode(dw)?.bytes())?))
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
+    Ok(Self(ArrayVectorU8::from_copyable_slice(Octetstring::<&[u8]>::decode(dw)?.bytes())?))
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for KeyIdentifier {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for KeyIdentifier {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     Octetstring::from_bytes(&self.0).encode(ew)?;
     Ok(())
   }

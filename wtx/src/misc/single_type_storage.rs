@@ -1,5 +1,5 @@
 use crate::{
-  collection::{ArrayVector, LinearStorageLen, Vector},
+  collections::{ArrayVector, LinearStorageLen, Vector},
   sync::Arc,
 };
 use alloc::{rc::Rc, vec::Vec};

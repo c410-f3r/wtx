@@ -1,18 +1,19 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, OID_PKIX_KP_CLIENT_AUTH, OID_PKIX_KP_CODE_SIGNING,
-    OID_PKIX_KP_EMAIL_PROTECTION, OID_PKIX_KP_OCSP_SIGNING, OID_PKIX_KP_SERVER_AUTH,
-    OID_PKIX_KP_TIMESTAMPING, OID_X509_EXT_ANY_EXTENDED_KEY_USAGE, Oid, SEQUENCE_TAG,
-    SequenceDecodeCb, SequenceEncodeIter,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, OID_PKIX_KP_CLIENT_AUTH,
+    OID_PKIX_KP_CODE_SIGNING, OID_PKIX_KP_EMAIL_PROTECTION, OID_PKIX_KP_OCSP_SIGNING,
+    OID_PKIX_KP_SERVER_AUTH, OID_PKIX_KP_TIMESTAMPING, OID_X509_EXT_ANY_EXTENDED_KEY_USAGE, Oid,
+    SEQUENCE_TAG, SequenceDecodeCb, SequenceEncodeIter,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::ArrayVectorU8,
+  collections::ArrayVectorU8,
   x509::X509Error,
 };
 
 /// This extension indicates one or more purposes for which the certified public key may be used,
 /// in addition to or in place of the basic purposes indicated in the key usage extension.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[expect(clippy::struct_excessive_bools, reason = "false-positive")]
 pub struct ExtendedKeyUsage {
   any: bool,
   server_auth: bool,
@@ -152,6 +153,7 @@ impl ExtendedKeyUsage {
   }
 
   /// The number of registered OIDs
+  #[inline]
   pub fn len(&self) -> u16 {
     let mut len = 0u16;
     len = len.wrapping_add(u16::from(self.any));
@@ -166,9 +168,9 @@ impl ExtendedKeyUsage {
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for ExtendedKeyUsage {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for ExtendedKeyUsage {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let mut this = ExtendedKeyUsage {
       any: false,
       server_auth: false,
@@ -216,9 +218,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for ExtendedKeyUsage 
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for ExtendedKeyUsage {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for ExtendedKeyUsage {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     if self.len() == 0 {
       return Err(X509Error::InvalidExtendedKeyUsage.into());
     }

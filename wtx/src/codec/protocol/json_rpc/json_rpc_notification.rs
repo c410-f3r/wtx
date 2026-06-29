@@ -1,4 +1,4 @@
-use crate::{codec::protocol::JsonRpcNotificationParams, collection::ArrayStringU8};
+use crate::{codec::protocol::JsonRpcNotificationParams, collections::ArrayStringU8};
 
 /// A request object without an "id" member. Generally used with WebSocket connections.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]

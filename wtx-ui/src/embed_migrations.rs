@@ -1,6 +1,7 @@
 use crate::clap::EmbedMigrations;
-use std::{fmt::Write, path::Path};
-use tokio::{fs::OpenOptions, io::AsyncWriteExt};
+use core::fmt::Write as _;
+use std::path::Path;
+use tokio::{fs::OpenOptions, io::AsyncWriteExt as _};
 use wtx::database::schema_manager::misc::{group_and_migrations_from_path, parse_root_toml};
 
 pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
@@ -48,9 +49,9 @@ pub(crate) async fn embed_migrations(elem: EmbedMigrations) -> wtx::Result<()> {
       buffer.write_fmt(format_args!(r#"],"{name}","#))?;
       match migration.repeatability() {
         None => buffer.push_str("None"),
-        Some(elem) => buffer.write_fmt(format_args!(
+        Some(repeatability) => buffer.write_fmt(format_args!(
           "Some(wtx::database::schema_manager::Repeatability::{})",
-          elem.strings().ident
+          repeatability.strings().ident
         ))?,
       }
       buffer.write_fmt(format_args!(r#","{sql_down}","{sql_up}",{uid}),"#))?;

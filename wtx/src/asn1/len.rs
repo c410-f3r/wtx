@@ -1,33 +1,33 @@
 use crate::{
   asn1::{Asn1Error, MaxSizeTy},
-  collection::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   misc::int_conv::u8u16,
 };
 use core::{hint::unreachable_unchecked, ops::Deref};
 
 /// Length in DER encoding
-#[derive(Clone, Debug, PartialEq)]
-pub struct Len(ArrayVectorU8<u8, 3>);
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Len(ArrayVectorCopy<u8, 3>);
 
 impl Len {
   /// Instance with the value `1`.
-  pub const ONE: Self = Self(ArrayVectorU8::from_array_u8([1]));
+  pub const ONE: Self = Self(ArrayVectorCopy::from_array([1]));
   /// Maximum length of the 1-byte long form.
-  pub const MAX_ONE_BYTE: Self = Self(ArrayVectorU8::from_array_u8([127]));
+  pub const MAX_ONE_BYTE: Self = Self(ArrayVectorCopy::from_array([127]));
   /// Maximum length of the 2-byte long form.
-  pub const MAX_TWO_BYTES: Self = Self(ArrayVectorU8::from_array_u8([129, 255]));
+  pub const MAX_TWO_BYTES: Self = Self(ArrayVectorCopy::from_array([129, 255]));
   /// Maximum length of the 3-byte long form.
-  pub const MAX_THREE_BYTES: Self = Self(ArrayVectorU8::from_array_u8([130, 255, 255]));
+  pub const MAX_THREE_BYTES: Self = Self(ArrayVectorCopy::from_array([130, 255, 255]));
   /// Instance with the value `0`.
-  pub const ZERO: Self = Self(ArrayVectorU8::from_array_u8([0]));
+  pub const ZERO: Self = Self(ArrayVectorCopy::from_array([0]));
 
   /// Creates a length encoding from a `u8`, using short form (<=127) or long form (>127)
   #[inline]
   pub const fn from_u8(len: u8) -> Self {
     if len <= 127 {
-      Self(ArrayVectorU8::from_array_u8([len]))
+      Self(ArrayVectorCopy::from_array([len]))
     } else {
-      Self(ArrayVectorU8::from_array_u8([129, len]))
+      Self(ArrayVectorCopy::from_array([129, len]))
     }
   }
 
@@ -37,8 +37,8 @@ impl Len {
     if let Ok(elem) = len.try_into() {
       Self::from_u8(elem)
     } else {
-      let [a, b] = len.to_be_bytes();
-      Self(ArrayVectorU8::from_array_u8([130, a, b]))
+      let [b0, b1] = len.to_be_bytes();
+      Self(ArrayVectorCopy::from_array([130, b0, b1]))
     }
   }
 
@@ -46,10 +46,10 @@ impl Len {
   #[inline]
   pub fn from_usize(additional: usize, mut len: usize) -> crate::Result<Len> {
     len = len.checked_add(additional).ok_or(Asn1Error::InvalidLen)?;
-    if let Ok(len) = u8::try_from(len) {
-      Ok(Len::from_u8(len))
-    } else if let Ok(len) = u16::try_from(len) {
-      Ok(Len::from_u16(len))
+    if let Ok(elem) = u8::try_from(len) {
+      Ok(Len::from_u8(elem))
+    } else if let Ok(elem) = u16::try_from(len) {
+      Ok(Len::from_u16(elem))
     } else {
       Err(Asn1Error::InvalidLen.into())
     }
@@ -57,7 +57,7 @@ impl Len {
 
   /// Encoded representation
   #[inline]
-  pub fn bytes(&self) -> &ArrayVectorU8<u8, 3> {
+  pub fn bytes(&self) -> &ArrayVectorCopy<u8, 3> {
     &self.0
   }
 
@@ -65,9 +65,8 @@ impl Len {
   #[inline]
   pub fn size(&self) -> MaxSizeTy {
     match self.0.as_slice() {
-      [a] => u8u16(*a),
-      [_, b] => u8u16(*b),
-      [_, b, c] => MaxSizeTy::from_be_bytes([*b, *c]),
+      [b0] | [_, b0] => u8u16(*b0),
+      [_, b0, b1] => MaxSizeTy::from_be_bytes([*b0, *b1]),
       // SAFETY: Constructors don't permit this branch
       _ => unsafe { unreachable_unchecked() },
     }

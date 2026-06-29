@@ -1,7 +1,7 @@
 use crate::misc::{Lease, LeaseMut};
 
 /// Type that indicates the usage of the `quick-protobuf` dependency.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct QuickProtobuf;
 
 impl Lease<QuickProtobuf> for QuickProtobuf {

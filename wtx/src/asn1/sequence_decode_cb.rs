@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1Error, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapperAux, Asn1Error, decode_asn1_tlv},
   codec::{Decode, DecodeWrapper, GenericCodec},
 };
 
@@ -12,7 +12,7 @@ pub struct SequenceDecodeCb<C, E>(C, PhantomData<E>);
 impl<'de, C, E> SequenceDecodeCb<C, E>
 where
   C: FnMut(E) -> crate::Result<()>,
-  E: Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>>,
+  E: Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>>,
 {
   /// Constructor.
   #[inline]
@@ -24,7 +24,7 @@ where
   #[inline]
   pub fn decode(
     &mut self,
-    dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>,
+    dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>,
     tag: u8,
   ) -> crate::Result<&'de [u8]> {
     let (local_tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;

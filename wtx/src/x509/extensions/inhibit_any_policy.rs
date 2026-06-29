@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, U32},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, U32},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
 };
 
@@ -9,16 +9,16 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct InhibitAnyPolicy(U32);
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for InhibitAnyPolicy {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for InhibitAnyPolicy {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self(U32::decode(dw)?))
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for InhibitAnyPolicy {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for InhibitAnyPolicy {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     self.0.encode(ew)?;
     Ok(())
   }

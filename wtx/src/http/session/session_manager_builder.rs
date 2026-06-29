@@ -1,6 +1,6 @@
 use crate::{
   calendar::{DateTime, Utc},
-  collection::Vector,
+  collections::Vector,
   http::{
     SessionError, SessionManager, SessionStore,
     cookie::{SameSite, cookie_generic::CookieGeneric},
@@ -34,12 +34,11 @@ impl SessionManagerBuilder {
         secure: true,
         value: Vector::new(),
       },
-      inspection_interval: Duration::from_secs(60 * 30),
+      inspection_interval: Duration::from_mins(30),
     }
   }
 
-  /// Creates a new [`SessionManager`] with random generated keys. It is up to the caller to
-  /// provide a good RNG.
+  /// Creates a new [`SessionManager`] with random generated keys.
   ///
   /// The returned [`Future`] is responsible for deleting expired sessions at an interval defined by
   /// [`Self::inspection_interval`] and should be called in a separated task.
@@ -116,6 +115,7 @@ impl SessionManagerBuilder {
 
   /// Defines the host to which the cookie will be sent.
   #[inline]
+  #[must_use]
   pub fn domain(mut self, elem: String) -> Self {
     self.cookie_def.domain = elem;
     self
@@ -123,16 +123,18 @@ impl SessionManagerBuilder {
 
   /// Indicates the maximum lifetime of the cookie as an HTTP-date timestamp.
   ///
-  /// If [Self::max_age] is set, then this parameter is ignored when setting the cookie in the
+  /// If [`Self::max_age`] is set, then this parameter is ignored when setting the cookie in the
   /// header.
   #[inline]
+  #[must_use]
   pub const fn expires(mut self, elem: Option<DateTime<Utc>>) -> Self {
     self.cookie_def.expires = elem;
     self
   }
 
-  /// Forbids JavaScript from accessing the cookie.
+  /// Forbids `JavaScript` from accessing the cookie.
   #[inline]
+  #[must_use]
   pub const fn http_only(mut self, elem: bool) -> Self {
     self.cookie_def.http_only = elem;
     self
@@ -141,6 +143,7 @@ impl SessionManagerBuilder {
   /// The amount of time the future returned by the building methods will wait before
   /// deleting expired sessions.
   #[inline]
+  #[must_use]
   pub const fn inspection_interval(mut self, elem: Duration) -> Self {
     self.inspection_interval = elem;
     self
@@ -148,6 +151,7 @@ impl SessionManagerBuilder {
 
   /// Indicates the number of seconds until the cookie expires.
   #[inline]
+  #[must_use]
   pub const fn max_age(mut self, elem: Option<Duration>) -> Self {
     self.cookie_def.max_age = elem;
     self
@@ -163,6 +167,7 @@ impl SessionManagerBuilder {
   /// Indicates the path that must exist in the requested URL for the browser to send the Cookie
   /// header.
   #[inline]
+  #[must_use]
   pub fn path(mut self, elem: String) -> Self {
     self.cookie_def.path = elem;
     self
@@ -170,6 +175,7 @@ impl SessionManagerBuilder {
 
   /// Controls whether or not a cookie is sent with cross-site requests.
   #[inline]
+  #[must_use]
   pub const fn same_site(mut self, elem: Option<SameSite>) -> Self {
     self.cookie_def.same_site = elem;
     self
@@ -178,6 +184,7 @@ impl SessionManagerBuilder {
   /// Indicates that the cookie is sent to the server only when a request is made with the `https`
   /// scheme.
   #[inline]
+  #[must_use]
   pub const fn secure(mut self, elem: bool) -> Self {
     self.cookie_def.secure = elem;
     self

@@ -11,18 +11,25 @@ use aws_lc_rs::{
 };
 
 impl Agreement for P256AwsLcRs {
-  type EphemeralSecretKey = EphemeralPrivateKey;
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 32];
 
   #[inline]
-  fn diffie_hellman(
-    esk: Self::EphemeralSecretKey,
-    other_participant_pk: &[u8],
-  ) -> crate::Result<Self::SharedSecret> {
+  fn generate<RNG>(_: &mut RNG) -> crate::Result<Self>
+  where
+    RNG: CryptoRng,
+  {
+    Ok(Self(
+      EphemeralPrivateKey::generate(&ECDH_P256, &SystemRandom::new())
+        .map_err(|_err| CryptoError::PublicKeyAgreementError)?,
+    ))
+  }
+
+  #[inline]
+  fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
     let mut secret = [0u8; _];
     agree_ephemeral(
-      esk,
+      self.0,
       UnparsedPublicKey::new(&ECDH_P256, other_participant_pk),
       CryptoError::DiffieHellmanError.into(),
       |value| {
@@ -34,35 +41,31 @@ impl Agreement for P256AwsLcRs {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
-  where
-    RNG: CryptoRng,
-  {
-    Ok(
-      EphemeralPrivateKey::generate(&ECDH_P256, &SystemRandom::new())
-        .map_err(|_err| CryptoError::PublicKeyAgreementError)?,
-    )
-  }
-
-  #[inline]
-  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
-    Ok(esk.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
+  fn public_key(&self) -> crate::Result<Self::PublicKey> {
+    Ok(self.0.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
   }
 }
 
 impl Agreement for P384AwsLcRs {
-  type EphemeralSecretKey = EphemeralPrivateKey;
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 48];
 
   #[inline]
-  fn diffie_hellman(
-    esk: Self::EphemeralSecretKey,
-    other_participant_pk: &[u8],
-  ) -> crate::Result<Self::SharedSecret> {
+  fn generate<RNG>(_: &mut RNG) -> crate::Result<Self>
+  where
+    RNG: CryptoRng,
+  {
+    Ok(Self(
+      EphemeralPrivateKey::generate(&ECDH_P384, &SystemRandom::new())
+        .map_err(|_err| CryptoError::PublicKeyAgreementError)?,
+    ))
+  }
+
+  #[inline]
+  fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
     let mut secret = [0u8; _];
     agree_ephemeral(
-      esk,
+      self.0,
       UnparsedPublicKey::new(&ECDH_P384, other_participant_pk),
       CryptoError::DiffieHellmanError.into(),
       |value| {
@@ -74,35 +77,31 @@ impl Agreement for P384AwsLcRs {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
-  where
-    RNG: CryptoRng,
-  {
-    Ok(
-      EphemeralPrivateKey::generate(&ECDH_P384, &SystemRandom::new())
-        .map_err(|_err| CryptoError::PublicKeyAgreementError)?,
-    )
-  }
-
-  #[inline]
-  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
-    Ok(esk.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
+  fn public_key(&self) -> crate::Result<Self::PublicKey> {
+    Ok(self.0.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
   }
 }
 
 impl Agreement for X25519AwsLcRs {
-  type EphemeralSecretKey = EphemeralPrivateKey;
   type PublicKey = PublicKey;
   type SharedSecret = [u8; 32];
 
   #[inline]
-  fn diffie_hellman(
-    esk: Self::EphemeralSecretKey,
-    other_participant_pk: &[u8],
-  ) -> crate::Result<Self::SharedSecret> {
+  fn generate<RNG>(_: &mut RNG) -> crate::Result<Self>
+  where
+    RNG: CryptoRng,
+  {
+    Ok(Self(
+      EphemeralPrivateKey::generate(&X25519, &SystemRandom::new())
+        .map_err(|_err| CryptoError::PublicKeyAgreementError)?,
+    ))
+  }
+
+  #[inline]
+  fn diffie_hellman(self, other_participant_pk: &[u8]) -> crate::Result<Self::SharedSecret> {
     let mut secret = [0u8; _];
     agree_ephemeral(
-      esk,
+      self.0,
       UnparsedPublicKey::new(&X25519, other_participant_pk),
       CryptoError::DiffieHellmanError.into(),
       |value| {
@@ -114,18 +113,7 @@ impl Agreement for X25519AwsLcRs {
   }
 
   #[inline]
-  fn ephemeral_secret_key<RNG>(_: &mut RNG) -> crate::Result<Self::EphemeralSecretKey>
-  where
-    RNG: CryptoRng,
-  {
-    Ok(
-      EphemeralPrivateKey::generate(&X25519, &SystemRandom::new())
-        .map_err(|_err| CryptoError::PublicKeyAgreementError)?,
-    )
-  }
-
-  #[inline]
-  fn public_key(esk: &Self::EphemeralSecretKey) -> crate::Result<Self::PublicKey> {
-    Ok(esk.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
+  fn public_key(&self) -> crate::Result<Self::PublicKey> {
+    Ok(self.0.compute_public_key().map_err(|_err| CryptoError::PublicKeyAgreementError)?)
   }
 }

@@ -1,10 +1,10 @@
-use core::fmt::{Arguments, Write};
+use core::fmt::{Arguments, Write as _};
 
 use crate::{
   codec::Encode,
   database::{
     Typed,
-    client::postgres::{EncodeWrapper, Postgres, Ty},
+    client::postgres::{Postgres, PostgresEncodeWrapper, Ty},
   },
 };
 
@@ -13,7 +13,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     ew.buffer().write_fmt(*self).map_err(crate::Error::from)?;
     Ok(())
   }

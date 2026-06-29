@@ -1,9 +1,9 @@
 use crate::{
   codec::{Decode, Encode},
-  collection::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   database::{
     DatabaseError,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError},
   },
   misc::Usize,
 };
@@ -16,7 +16,7 @@ const SIGN_POS: u16 = 0b0;
 #[derive(Debug, PartialEq)]
 pub(crate) enum PgNumeric {
   NaN,
-  Number { digits: ArrayVectorU8<i16, CAP>, scale: u16, sign: Sign, weight: i16 },
+  Number { digits: ArrayVectorCopy<i16, CAP>, scale: u16, sign: Sign, weight: i16 },
 }
 
 impl<E> Decode<'_, Postgres<E>> for PgNumeric
@@ -24,8 +24,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
-    let [a, b, c, d, e, f, g, h, rest @ ..] = dw.bytes() else {
+  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
+    let [b0, b1, b2, b3, b4, b5, b6, b7, rest @ ..] = dw.bytes() else {
       return Err(E::from(
         DatabaseError::UnexpectedBufferSize {
           expected: 8,
@@ -34,11 +34,11 @@ where
         .into(),
       ));
     };
-    let digits: u8 = u16::from_be_bytes([*a, *b]).try_into().map_err(crate::Error::from)?;
+    let digits: u8 = u16::from_be_bytes([*b0, *b1]).try_into().map_err(crate::Error::from)?;
     let digits_usize = usize::from(digits);
-    let weight = i16::from_be_bytes([*c, *d]);
-    let sign = u16::from_be_bytes([*e, *f]);
-    let scale = u16::from_be_bytes([*g, *h]);
+    let weight = i16::from_be_bytes([*b2, *b3]);
+    let sign = u16::from_be_bytes([*b4, *b5]);
+    let scale = u16::from_be_bytes([*b6, *b7]);
     if sign == SIGN_NAN {
       return Ok(PgNumeric::NaN);
     }
@@ -60,7 +60,7 @@ where
       *elem = i16::from_be_bytes([*i, *j]);
     }
     Ok(PgNumeric::Number {
-      digits: ArrayVectorU8::from_parts(array, Some(digits)),
+      digits: ArrayVectorCopy::from_parts(array, Some(digits)),
       scale,
       sign: Sign::try_from(sign)?,
       weight,
@@ -73,10 +73,10 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     match self {
       PgNumeric::NaN => {
-        ew.buffer().extend_from_slices([
+        let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
           &0i16.to_be_bytes()[..],
           &0i16.to_be_bytes()[..],
           &SIGN_NAN.to_be_bytes()[..],
@@ -85,14 +85,14 @@ where
       }
       PgNumeric::Number { digits, scale, sign, weight } => {
         let len: i16 = digits.len().into();
-        ew.buffer().extend_from_slices([
+        let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
           &len.to_be_bytes()[..],
           &weight.to_be_bytes()[..],
           &u16::from(*sign).to_be_bytes()[..],
           &scale.to_be_bytes()[..],
         ])?;
         for digit in digits {
-          ew.buffer().extend_from_slice(&digit.to_be_bytes())?;
+          ew.buffer().inner_mut().extend_from_copyable_slice(&digit.to_be_bytes())?;
         }
       }
     }
@@ -134,12 +134,11 @@ impl TryFrom<u16> for Sign {
 mod tests {
   use crate::{
     codec::{Decode, Encode},
-    collection::{ArrayVectorU8, Vector},
+    collections::{ArrayVectorCopy, Vector},
     database::client::postgres::{
-      DecodeWrapper, EncodeWrapper, Postgres, Ty,
+      Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty,
       tys::pg_numeric::{CAP, PgNumeric, Sign},
     },
-    misc::{FilledBuffer, SuffixWriterFbvm},
   };
 
   #[test]
@@ -148,17 +147,17 @@ mod tests {
       digits: {
         let mut arr = [0i16; CAP];
         arr[0] = 1234;
-        ArrayVectorU8::from_parts(arr, Some(1))
+        ArrayVectorCopy::from_parts(arr, Some(1))
       },
       scale: 0,
       sign: Sign::Positive,
       weight: 0,
     };
-    let mut filled_buffer = FilledBuffer::from_vector(Vector::new());
-    let mut suffix_writer = SuffixWriterFbvm::new(0, filled_buffer.vector_mut());
-    let mut ew = EncodeWrapper::new(&mut suffix_writer);
+    let mut buffer = Vector::new();
+    let mut suffix_pusher = buffer.suffix_pusher();
+    let mut ew = PostgresEncodeWrapper::new(&mut suffix_pusher);
     <PgNumeric as Encode<Postgres<crate::Error>>>::encode(&original, &mut ew).unwrap();
-    let mut dw = DecodeWrapper::new(suffix_writer.curr_bytes(), "", Ty::Numeric);
+    let mut dw = PostgresDecodeWrapper::new(suffix_pusher.curr(), "", Ty::Numeric);
     let decoded = <PgNumeric as Decode<Postgres<crate::Error>>>::decode(&mut dw).unwrap();
     match decoded {
       PgNumeric::Number { digits, scale, sign, weight } => {

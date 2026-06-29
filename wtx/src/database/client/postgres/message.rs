@@ -1,6 +1,6 @@
 use crate::{
-  codec::FromRadix10,
-  collection::ShortStrU8,
+  codec::FromRadix10 as _,
+  collections::ShortStrU8,
   database::{
     DatabaseError,
     client::postgres::{DbError, PostgresError, authentication::Authentication},
@@ -15,7 +15,7 @@ pub(crate) struct Message<'bytes> {
   pub(crate) ty: MessageTy<'bytes>,
 }
 
-/// Messages that five bytes as well as their corresponding rest.
+/// Messages that five bytes as well as their corresponding data.
 #[derive(Debug)]
 pub(crate) enum MessageTy<'bytes> {
   /// See [Authentication].
@@ -60,18 +60,20 @@ pub(crate) enum MessageTy<'bytes> {
   RowDescription(u16, &'bytes [u8]),
 }
 
-impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes> {
+impl<'bytes> TryFrom<(&mut ConnectionState, u8, &'bytes [u8])> for MessageTy<'bytes> {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(from: (&mut ConnectionState, &'bytes [u8])) -> Result<Self, Self::Error> {
-    let rslt = match from.1 {
-      [b'1', ..] => Self::ParseComplete,
-      [b'2', ..] => Self::BindComplete,
-      [b'3', ..] => Self::CloseComplete,
-      [b'A', ..] => Self::NotificationResponse,
-      [b'C', _, _, _, _, rest @ ..] => {
-        let rows = bytes_rsplit1(rest, b' ')
+  fn try_from(
+    (cs, tag, payload): (&mut ConnectionState, u8, &'bytes [u8]),
+  ) -> Result<Self, Self::Error> {
+    let rslt = match (tag, payload) {
+      (b'1', _) => Self::ParseComplete,
+      (b'2', _) => Self::BindComplete,
+      (b'3', _) => Self::CloseComplete,
+      (b'A', _) => Self::NotificationResponse,
+      (b'C', data) => {
+        let rows = bytes_rsplit1(data, b' ')
           .next()
           .and_then(|el| {
             if let [all_but_last @ .., _] = el {
@@ -83,20 +85,20 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
           .unwrap_or(0);
         Self::CommandComplete(rows)
       }
-      [b'D', _, _, _, _, a, b, ..] => Self::DataRow(u16::from_be_bytes([*a, *b])),
-      [b'E', _, _, _, _, rest @ ..] => {
-        *from.0 = ConnectionState::Closed;
-        return Err(DbError::try_from(from_utf8_basic(rest)?)?.into());
+      (b'D', [b0, b1, ..]) => Self::DataRow(u16::from_be_bytes([*b0, *b1])),
+      (b'E', data) => {
+        *cs = ConnectionState::Closed;
+        return Err(DbError::try_from(from_utf8_basic(data)?)?.into());
       }
-      [b'G', ..] => Self::CopyInResponse,
-      [b'H', ..] => Self::CopyOutResponse,
-      [b'I', ..] => Self::EmptyQueryResponse,
-      [b'K', _, _, _, _, _a, _b, _c, _d, _e, _f, _g, _h] => Self::BackendKeyData,
-      [b'N', ..] => Self::NoticeResponse,
-      [b'R', _, _, _, _, rest @ ..] => Self::Authentication(rest.try_into()?),
-      [b'S', _, _, _, _, rest @ ..] => {
+      (b'G', _) => Self::CopyInResponse,
+      (b'H', _) => Self::CopyOutResponse,
+      (b'I', _) => Self::EmptyQueryResponse,
+      (b'K', [_, _, _, _, _, _, _, _]) => Self::BackendKeyData,
+      (b'N', _) => Self::NoticeResponse,
+      (b'R', data) => Self::Authentication(data.try_into()?),
+      (b'S', data) => {
         let rslt = || {
-          let mut iter = bytes_split1(rest, b'\0');
+          let mut iter = bytes_split1(data, b'\0');
           let name = iter.next()?;
           let value = iter.next()?;
           let _ = iter.next()?;
@@ -105,15 +107,13 @@ impl<'bytes> TryFrom<(&mut ConnectionState, &'bytes [u8])> for MessageTy<'bytes>
         let (name, value) = rslt().ok_or(PostgresError::UnexpectedDatabaseMessageBytes)?;
         Self::ParameterStatus(name, value)
       }
-      [b'T', _, _, _, _, a, b, rest @ ..] => {
-        Self::RowDescription(u16::from_be_bytes([*a, *b]), rest)
-      }
-      [b'Z', _, _, _, _, _] => Self::ReadyForQuery,
-      [b'c', ..] => Self::CopyDone,
-      [b'd', ..] => Self::CopyData,
-      [b'n', ..] => Self::NoData,
-      [b's', ..] => Self::PortalSuspended,
-      [b't', _, _, _, _, a, b, ..] => Self::ParameterDescription(u16::from_be_bytes([*a, *b])),
+      (b'T', [b0, b1, data @ ..]) => Self::RowDescription(u16::from_be_bytes([*b0, *b1]), data),
+      (b'Z', _) => Self::ReadyForQuery,
+      (b'c', _) => Self::CopyDone,
+      (b'd', _) => Self::CopyData,
+      (b'n', _) => Self::NoData,
+      (b's', _) => Self::PortalSuspended,
+      (b't', [b0, b1, ..]) => Self::ParameterDescription(u16::from_be_bytes([*b0, *b1])),
       _ => {
         return Err(
           DatabaseError::UnexpectedValueFromBytes {

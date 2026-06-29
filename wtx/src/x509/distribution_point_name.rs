@@ -1,6 +1,7 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SequenceBuffer},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{
     DISTRIBUTION_POINT_NAME_FULL_NAME_TAG, DISTRIBUTION_POINT_NAME_RELATIVE_TAG, GeneralNames,
     RelativeDistinguishedName, X509Error,
@@ -8,17 +9,21 @@ use crate::{
 };
 
 /// Specifies where to find CRL information for a certificate.
-#[derive(Debug, PartialEq)]
-pub enum DistributionPointName<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub enum DistributionPointName<B> {
   /// [`GeneralNames`].
-  FullName(GeneralNames<'bytes>),
+  FullName(GeneralNames<B>),
   /// [`RelativeDistinguishedName`].
-  NameRelativeToCrlIssuer(RelativeDistinguishedName<'bytes>),
+  NameRelativeToCrlIssuer(RelativeDistinguishedName<B>),
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for DistributionPointName<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for DistributionPointName<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     match dw.bytes.first().copied() {
       Some(DISTRIBUTION_POINT_NAME_FULL_NAME_TAG) => {
         dw.decode_aux.tag = Some(DISTRIBUTION_POINT_NAME_FULL_NAME_TAG);
@@ -36,9 +41,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for DistributionPoint
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for DistributionPointName<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for DistributionPointName<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     match self {
       Self::FullName(elem) => SequenceBuffer(&elem.entries).encode(
         ew,

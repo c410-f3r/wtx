@@ -11,7 +11,7 @@ use crate::{
     network::transport::Transport,
     pkg::{Package, PkgsAux},
   },
-  codec::{Encode, EncodeWrapper},
+  codec::{Encode as _, EncodeWrapper},
   misc::from_utf8_basic,
 };
 pub use from_bytes::FromBytes;

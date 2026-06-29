@@ -1,9 +1,10 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Boolean, Len, Opt, SEQUENCE_TAG, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Boolean, Len, Opt, SEQUENCE_TAG, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{
     DISTRIBUTION_POINT_TAG, DistributionPointName, INDIRECT_CRL_TAG,
     ONLY_CONTAINS_ATTRIBUTE_CERTS_TAG, ONLY_CONTAINS_CA_CERTS_TAG, ONLY_CONTAINS_USER_CERTS_TAG,
@@ -14,10 +15,10 @@ use crate::{
 /// Identifies the CRL distribution point and scope for a particular CRL, and it indicates
 /// whether the CRL covers revocation for end entity certificates only, CA certificates only,
 /// attribute certificates only, or a limited set of reason codes.
-#[derive(Debug, PartialEq)]
-pub struct IssuingDistributionPoint<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct IssuingDistributionPoint<B> {
   /// The distribution point name.
-  pub distribution_point: Option<DistributionPointName<'bytes>>,
+  pub distribution_point: Option<DistributionPointName<B>>,
   /// Indicates whether the CRL only contains end entity certificates.
   pub only_contains_user_certs: Option<bool>,
   /// Indicates whether the CRL only contains CA certificates.
@@ -30,9 +31,13 @@ pub struct IssuingDistributionPoint<'bytes> {
   pub only_contains_attribute_certs: Option<bool>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for IssuingDistributionPoint<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for IssuingDistributionPoint<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionIssuingDistributionPoint.into());
     };
@@ -57,9 +62,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for IssuingDistributi
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for IssuingDistributionPoint<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for IssuingDistributionPoint<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       Opt(&self.distribution_point).encode(local_ew, DISTRIBUTION_POINT_TAG)?;
       Opt(self.only_contains_user_certs.map(Boolean))

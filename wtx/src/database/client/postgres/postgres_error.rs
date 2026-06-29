@@ -25,6 +25,8 @@ pub enum PostgresError {
   /// It is required to connect using a TLS channel but the server didn't provide any. Probably
   /// because the connection is unencrypted.
   MissingChannel,
+  /// A set of arithmetic operations resulted in an overflow, underflow or division by zero
+  OutOfBoundsNumericArithmetic,
   /// It is required to connect without using a TLS channel but the server only provided a way to
   /// connect using channels. Probably because the connection is encrypted.
   RequiredChannel,

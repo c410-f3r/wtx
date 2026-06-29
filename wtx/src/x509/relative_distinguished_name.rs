@@ -1,34 +1,43 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SET_TAG, SequenceBuffer},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SET_TAG, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::ArrayVectorU8,
+  collections::ArrayVectorU8,
+  misc::Lease,
   x509::AttributeTypeAndValue,
 };
 
 /// Unordered set of attribute type-value pairs.
-#[derive(Debug, Default, PartialEq)]
-pub struct RelativeDistinguishedName<'bytes> {
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RelativeDistinguishedName<B> {
   /// Entries
-  pub entries: ArrayVectorU8<AttributeTypeAndValue<'bytes>, 2>,
+  pub entries: ArrayVectorU8<AttributeTypeAndValue<B>, 2>,
 }
 
-impl<'bytes> RelativeDistinguishedName<'bytes> {
+impl<B> RelativeDistinguishedName<B> {
   /// Shortcut
-  pub const fn new(entries: ArrayVectorU8<AttributeTypeAndValue<'bytes>, 2>) -> Self {
+  #[inline]
+  pub const fn new(entries: ArrayVectorU8<AttributeTypeAndValue<B>, 2>) -> Self {
     Self { entries }
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RelativeDistinguishedName<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for RelativeDistinguishedName<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self { entries: SequenceBuffer::decode(dw, SET_TAG)?.0.0 })
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for RelativeDistinguishedName<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for RelativeDistinguishedName<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     SequenceBuffer(&self.entries).encode(ew, Len::MAX_ONE_BYTE, SET_TAG)
   }
 }

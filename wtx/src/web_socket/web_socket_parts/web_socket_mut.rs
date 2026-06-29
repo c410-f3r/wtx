@@ -1,12 +1,13 @@
 use crate::{
-  collection::Vector,
-  misc::{ConnectionState, LeaseMut, net::PartitionedFilledBuffer},
-  rng::Rng,
-  stream::Stream,
+  collections::Vector,
+  misc::{ConnectionState, LeaseMut},
+  rng::Xorshift64,
+  stream::{BufStreamReader, Stream},
+  tls::{TlsMode, TlsStream},
   web_socket::{
     Frame, FrameMut, WebSocketPayloadOrigin,
-    compression::NegotiatedCompression,
     is_in_continuation_frame::IsInContinuationFrame,
+    web_socket_compression::NegotiatedWsCompression,
     web_socket_parts::web_socket_generic::{WebSocketReaderGeneric, WebSocketWriterGeneric},
   },
 };
@@ -14,32 +15,30 @@ use core::marker::PhantomData;
 
 /// Auxiliary common structure used by [`WebSocketReaderMut`] and [`WebSocketWriterMut`]
 #[derive(Debug)]
-pub struct WebSocketCommonMut<'instance, NC, R, S, const IS_CLIENT: bool> {
+pub struct WebSocketCommonMut<'instance, NC, S, TM, const IS_CLIENT: bool> {
   pub(crate) connection_state: &'instance mut ConnectionState,
   pub(crate) nc: &'instance mut NC,
   pub(crate) nc_rsv1: u8,
-  pub(crate) rng: &'instance mut R,
-  pub(crate) stream: &'instance mut S,
+  pub(crate) rng: &'instance mut Xorshift64,
+  pub(crate) stream: &'instance mut TlsStream<S, TM, IS_CLIENT>,
 }
 
 /// Auxiliary structure that can be used when it is necessary to write a received frame that belongs
 /// to the same instance.
 #[derive(Debug)]
-pub struct WebSocketReaderMut<'instance, NC, R, S, const IS_CLIENT: bool> {
+pub struct WebSocketReaderMut<'instance, NC, S, TM, const IS_CLIENT: bool> {
   pub(crate) is_in_continuation_frame: &'instance mut Option<IsInContinuationFrame>,
-  pub(crate) phantom: PhantomData<(NC, R, S)>,
-  pub(crate) wsrp: WebSocketReaderGeneric<
-    &'instance mut PartitionedFilledBuffer,
-    &'instance mut Vector<u8>,
-    IS_CLIENT,
-  >,
+  pub(crate) phantom: PhantomData<(NC, S, TM)>,
+  pub(crate) wsrp:
+    WebSocketReaderGeneric<&'instance mut BufStreamReader, &'instance mut Vector<u8>, IS_CLIENT>,
 }
 
-impl<'instance, NC, R, S, const IS_CLIENT: bool> WebSocketReaderMut<'instance, NC, R, S, IS_CLIENT>
+impl<'instance, NC, S, TM, const IS_CLIENT: bool>
+  WebSocketReaderMut<'instance, NC, S, TM, IS_CLIENT>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   S: Stream,
+  TM: TlsMode,
 {
   /// Reads a frame from the stream.
   ///
@@ -49,9 +48,9 @@ where
   pub async fn read_frame<'buffer, 'frame, 'this>(
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
-    common: &mut WebSocketCommonMut<'instance, NC, R, S, IS_CLIENT>,
+    common: &mut WebSocketCommonMut<'instance, NC, S, TM, IS_CLIENT>,
     payload_origin: WebSocketPayloadOrigin,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'buffer: 'frame,
     'this: 'frame,
@@ -75,23 +74,24 @@ where
 /// Auxiliary structure that can be used when it is necessary to write a received frame that belongs
 /// to the same instance.
 #[derive(Debug)]
-pub struct WebSocketWriterMut<'instance, NC, R, S, const IS_CLIENT: bool> {
-  pub(crate) phantom: PhantomData<(NC, R, S)>,
+pub struct WebSocketWriterMut<'instance, NC, S, TM, const IS_CLIENT: bool> {
+  pub(crate) phantom: PhantomData<(NC, S, TM)>,
   pub(crate) wswp: WebSocketWriterGeneric<&'instance mut Vector<u8>, IS_CLIENT>,
 }
 
-impl<'instance, NC, R, S, const IS_CLIENT: bool> WebSocketWriterMut<'instance, NC, R, S, IS_CLIENT>
+impl<'instance, NC, S, TM, const IS_CLIENT: bool>
+  WebSocketWriterMut<'instance, NC, S, TM, IS_CLIENT>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   S: Stream,
+  TM: TlsMode,
 {
   /// Writes a frame to the stream.
   #[inline]
   pub async fn write_frame<P>(
     &mut self,
-    common: &mut WebSocketCommonMut<'instance, NC, R, S, IS_CLIENT>,
-    frame: &mut Frame<P, IS_CLIENT>,
+    common: &mut WebSocketCommonMut<'instance, NC, S, TM, IS_CLIENT>,
+    frame: &mut Frame<P>,
   ) -> crate::Result<()>
   where
     P: LeaseMut<[u8]>,

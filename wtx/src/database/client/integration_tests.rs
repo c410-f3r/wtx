@@ -1,8 +1,8 @@
 use crate::{
   codec::{CodecController, Decode, Encode, u16_string},
-  collection::Vector,
-  database::{Database, Executor, Typed, record::Record, records::Records},
-  executor::Runtime,
+  collections::Vector,
+  database::{Database, DbClient, Typed, record::Record, records::Records},
+  executor::StdRuntime,
 };
 use alloc::format;
 use core::fmt::Debug;
@@ -10,10 +10,10 @@ use core::fmt::Debug;
 pub(crate) fn execute<D, E>(fut: impl Future<Output = E>)
 where
   D: Database<Error = crate::Error>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
   for<'any> &'any str: Decode<'any, E::Database>,
 {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = fut.await;
     let mut idx: u16 = 0;
     let mut records = Vector::new();
@@ -83,10 +83,10 @@ where
 pub(crate) fn execute_interleaved<D, E>(fut: impl Future<Output = E>)
 where
   D: Database<Error = crate::Error>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
   for<'any> &'any str: Decode<'any, E::Database>,
 {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = fut.await;
     let mut records = Vector::new();
     executor
@@ -121,10 +121,10 @@ where
 pub(crate) fn execute_stmt_inserts<D, E>(fut: impl Future<Output = E>)
 where
   D: Database<Error = crate::Error>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
   for<'any> u32: Decode<'any, E::Database>,
 {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = fut.await;
     assert_eq!(
       executor
@@ -173,13 +173,13 @@ where
 pub(crate) fn execute_stmt_selects<D, E>(fut: impl Future<Output = E>, ty0: &str, ty1: &str)
 where
   D: Database<Error = crate::Error>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
   i32: Encode<E::Database>,
   i32: Typed<D>,
   for<'any> &'any str: Decode<'any, E::Database>,
   for<'any> i32: Decode<'any, E::Database>,
 {
-  Runtime::new()
+  StdRuntime::new()
     .block_on(async {
       let mut executor = fut.await;
 
@@ -383,10 +383,10 @@ where
 
 pub(crate) fn ping<E>(fut: impl Future<Output = E>)
 where
-  E: Executor,
+  E: DbClient,
   <E::Database as CodecController>::Error: Debug,
 {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     fut.await.ping().await.unwrap();
   });
 }
@@ -394,9 +394,9 @@ where
 pub(crate) fn records_after_prepare<D, E>(fut: impl Future<Output = E>)
 where
   D: Database<Error = crate::Error>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
 {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = fut.await;
     let _ = executor.prepare("SELECT 1").await.unwrap();
     let _record = executor.execute_stmt_many("SELECT 1", (), |_| Ok(())).await.unwrap();
@@ -406,11 +406,11 @@ where
 pub(crate) fn reuses_cached_statement<D, E>(fut: impl Future<Output = E>, ty0: &str)
 where
   D: Database<Error = crate::Error>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
   i32: Encode<E::Database>,
   i32: Typed<D>,
 {
-  Runtime::new().block_on(async {
+  StdRuntime::new().block_on(async {
     let mut executor = fut.await;
     {
       let _record =

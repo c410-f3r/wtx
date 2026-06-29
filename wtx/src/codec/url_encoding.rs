@@ -1,7 +1,7 @@
 #[cfg(feature = "serde")]
 mod serde;
 
-use crate::collection::Vector;
+use crate::collections::Vector;
 use core::str;
 #[cfg(feature = "serde")]
 pub use serde::*;
@@ -240,7 +240,7 @@ fn percent_encode_str<const IS_PERCENT: bool>(byte: u8) -> &'static str {
 mod tests {
   use crate::{
     codec::{AsciiSet, FormUrlDecode, FormUrlEncode, PercentDecode, PercentEncode},
-    collection::Vector,
+    collections::Vector,
   };
 
   #[test]

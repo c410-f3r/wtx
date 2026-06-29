@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, BitString},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::X509Error,
 };
@@ -67,22 +67,22 @@ impl ReasonFlags {
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for ReasonFlags {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for ReasonFlags {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    let bit_string = BitString::decode(dw)?;
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
+    let bit_string = BitString::<&[u8]>::decode(dw)?;
     let bytes = match bit_string.bytes() {
-      [a] => (*a, 0),
-      [a, b] => (*a, *b),
+      [b0] => (*b0, 0),
+      [b0, b1] => (*b0, *b1),
       _ => return Err(X509Error::InvalidExtensionKeyUsage.into()),
     };
     Ok(Self { bytes, unused_bits: bit_string.unused_bits() })
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for ReasonFlags {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for ReasonFlags {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let slice =
       if self.bytes.1 == 0 { &[self.bytes.0][..] } else { &[self.bytes.0, self.bytes.1][..] };
     // SAFETY: `unused_bits` comes from a valid `BitString` instance when decoding

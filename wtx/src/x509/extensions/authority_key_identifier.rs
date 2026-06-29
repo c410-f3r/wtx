@@ -1,6 +1,7 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Opt, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, asn1_writer,
+    decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::{
@@ -11,7 +12,7 @@ use crate::{
 
 /// Provides a means of identifying the public key corresponding to the private key used to sign
 /// a certificate.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AuthorityKeyIdentifier {
   /// See [`KeyIdentifier`].
   pub key_identifier: Option<KeyIdentifier>,
@@ -19,21 +20,22 @@ pub struct AuthorityKeyIdentifier {
 
 impl AuthorityKeyIdentifier {
   /// Shortcut
+  #[inline]
   pub const fn new(key_identifier: Option<KeyIdentifier>) -> Self {
     Self { key_identifier }
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AuthorityKeyIdentifier {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for AuthorityKeyIdentifier {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidExtensionAuthorityKeyIdentifier.into());
     };
     dw.bytes = value;
     let key_identifier = Opt::decode(dw, KEY_IDENTIFIER_TAG)?.0;
     dw.decode_aux.tag = Some(AUTHORITY_CERT_ISSUER_TAG);
-    let authority_cert_issuer: Option<GeneralNames<'_>> =
+    let authority_cert_issuer: Option<GeneralNames<&[u8]>> =
       Opt::decode(dw, AUTHORITY_CERT_ISSUER_TAG)?.0;
     dw.decode_aux.tag = None;
     let authority_cert_serial_number: Option<SerialNumber> =
@@ -46,9 +48,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AuthorityKeyIdent
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for AuthorityKeyIdentifier {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for AuthorityKeyIdentifier {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       Opt(&self.key_identifier).encode(local_ew, KEY_IDENTIFIER_TAG)
     })

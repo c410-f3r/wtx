@@ -15,12 +15,6 @@ impl<MD> Response<MD> {
   pub const fn new(msg_data: MD, status_code: StatusCode) -> Self {
     Self { msg_data, status_code }
   }
-
-  /// Constructor that defaults to an HTTP/2 version.
-  #[inline]
-  pub const fn http2(data: MD, status_code: StatusCode) -> Self {
-    Self { msg_data: data, status_code }
-  }
 }
 
 impl<MD> Response<MD>

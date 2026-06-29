@@ -1,4 +1,9 @@
-#![expect(clippy::indexing_slicing, reason = "intended for testing environments")]
+#![expect(
+  clippy::indexing_slicing,
+  clippy::missing_panics_doc,
+  clippy::unwrap_used,
+  reason = "intended for testing environments"
+)]
 
 use crate::{
   client_api_framework::{
@@ -15,7 +20,7 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collection::{Deque, Vector},
+  collections::{Deque, Vector},
   misc::Lease,
 };
 use alloc::borrow::{Cow, ToOwned};

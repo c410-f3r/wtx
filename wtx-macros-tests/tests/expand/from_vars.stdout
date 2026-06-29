@@ -4,7 +4,7 @@ extern crate std;
 use std::prelude::rust_2021::*;
 extern crate alloc;
 
-use wtx::collection::Vector;
+use wtx::collections::Vector;
 
 pub struct Foo {
     bar0: String,
@@ -37,13 +37,13 @@ impl wtx::misc::FromVars for Foo {
         }
         Ok(Self {
                 bar0: _bar0.ok_or_else(||
-                            wtx::Error::MissingVar(wtx::collection::ShortStrU8::new_truncated_u8("bar0")))?,
+                            wtx::Error::MissingVar(wtx::collections::ShortStrU8::new_truncated_u8("bar0")))?,
                 bar1: _bar1,
                 bar2: _bar2.ok_or_else(||
-                            wtx::Error::MissingVar(wtx::collection::ShortStrU8::new_truncated_u8("bar2")))?,
+                            wtx::Error::MissingVar(wtx::collections::ShortStrU8::new_truncated_u8("bar2")))?,
                 bar3: _bar3,
                 bar4: _bar4.ok_or_else(||
-                            wtx::Error::MissingVar(wtx::collection::ShortStrU8::new_truncated_u8("bar4")))?,
+                            wtx::Error::MissingVar(wtx::collections::ShortStrU8::new_truncated_u8("bar4")))?,
             })
     }
 }

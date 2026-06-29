@@ -1,49 +1,39 @@
 use crate::{
-  collection::Vector,
-  misc::{LeaseMut, net::PartitionedFilledBuffer},
-  rng::Rng,
-  stream::{StreamReader, StreamWriter},
+  collections::Vector,
+  misc::LeaseMut,
+  rng::Xorshift64,
+  stream::{BufStreamReader, StreamReader, StreamWriter},
   sync::{Arc, AtomicBool},
+  tls::{TlsMode, TlsStreamReader, TlsStreamWriter},
   web_socket::{
-    Frame, FrameControlArray, FrameMut, WebSocketPayloadOrigin,
-    compression::NegotiatedCompression,
+    Frame, FrameMut, WebSocketPayloadOrigin,
     is_in_continuation_frame::IsInContinuationFrame,
+    web_socket_bridge::{WebSocketBridge, WebSocketBridgeData},
+    web_socket_compression::{WebSocketCompression, WebSocketDecompression},
     web_socket_parts::web_socket_generic::{WebSocketReaderGeneric, WebSocketWriterGeneric},
-    web_socket_replier::WebSocketReplier,
   },
 };
 use core::{marker::PhantomData, sync::atomic::Ordering};
 
-/// Owned reader and writer pair
-#[derive(Debug)]
-pub struct WebSocketPartsOwned<NC, R, SR, SW, const IS_CLIENT: bool> {
-  /// See [`WebSocketReaderOwned`];
-  pub reader: WebSocketReaderOwned<NC, R, SR, IS_CLIENT>,
-  /// See [`WebSocketReplier`];
-  pub replier: Arc<WebSocketReplier<IS_CLIENT>>,
-  /// See [`WebSocketWriterOwned`];
-  pub writer: WebSocketWriterOwned<NC, R, SW, IS_CLIENT>,
-}
-
 /// Reader that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketReaderOwned<NC, R, SR, const IS_CLIENT: bool> {
+pub struct WebSocketReaderOwned<D, SR, TM, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
   pub(crate) is_in_continuation_frame: Option<IsInContinuationFrame>,
-  pub(crate) nc: NC,
+  pub(crate) nc: D,
   pub(crate) nc_rsv1: u8,
   pub(crate) phantom: PhantomData<SR>,
-  pub(crate) reader_part: WebSocketReaderGeneric<PartitionedFilledBuffer, Vector<u8>, IS_CLIENT>,
-  pub(crate) replier: Arc<WebSocketReplier<IS_CLIENT>>,
-  pub(crate) rng: R,
-  pub(crate) stream_reader: SR,
+  pub(crate) reader_part: WebSocketReaderGeneric<BufStreamReader, Vector<u8>, IS_CLIENT>,
+  pub(crate) rng: Xorshift64,
+  pub(crate) stream_bridge: WebSocketBridge<IS_CLIENT>,
+  pub(crate) stream_reader: TlsStreamReader<SR, TM, IS_CLIENT>,
 }
 
-impl<NC, R, SR, const IS_CLIENT: bool> WebSocketReaderOwned<NC, R, SR, IS_CLIENT>
+impl<D, SR, TM, const IS_CLIENT: bool> WebSocketReaderOwned<D, SR, TM, IS_CLIENT>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  D: WebSocketDecompression,
   SR: StreamReader,
+  TM: TlsMode,
 {
   /// Reads a frame from the stream.
   ///
@@ -54,7 +44,7 @@ where
     &'this mut self,
     buffer: &'buffer mut Vector<u8>,
     payload_origin: WebSocketPayloadOrigin,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'buffer: 'frame,
     'this: 'frame,
@@ -68,8 +58,8 @@ where
         &mut self.nc,
         self.nc_rsv1,
         payload_origin,
-        &self.replier,
         &mut self.rng,
+        &self.stream_bridge,
         &mut self.stream_reader,
         buffer,
       )
@@ -79,34 +69,54 @@ where
   }
 }
 
-impl<NC, R, SR, const IS_CLIENT: bool> Drop for WebSocketReaderOwned<NC, R, SR, IS_CLIENT> {
+impl<NC, SR, TM, const IS_CLIENT: bool> Drop for WebSocketReaderOwned<NC, SR, TM, IS_CLIENT> {
   #[inline]
   fn drop(&mut self) {
-    let _rslt = self.replier.data().update(|elem| (true, elem.1));
-    self.replier.waker().wake();
+    let _rslt = self.stream_bridge.data().update(|elem| (true, elem.1));
+    self.stream_bridge.waker().wake();
   }
 }
 
 /// Writer that can be used in concurrent scenarios.
 #[derive(Debug)]
-pub struct WebSocketWriterOwned<NC, R, SW, const IS_CLIENT: bool> {
+pub struct WebSocketWriterOwned<C, SW, TM, const IS_CLIENT: bool> {
   pub(crate) connection_state: Arc<AtomicBool>,
-  pub(crate) nc: NC,
+  pub(crate) nc: C,
   pub(crate) nc_rsv1: u8,
-  pub(crate) rng: R,
-  pub(crate) stream_writer: SW,
+  pub(crate) rng: Xorshift64,
+  pub(crate) stream_writer: TlsStreamWriter<SW, TM, IS_CLIENT>,
   pub(crate) writer_part: WebSocketWriterGeneric<Vector<u8>, IS_CLIENT>,
 }
 
-impl<NC, R, SW, const IS_CLIENT: bool> WebSocketWriterOwned<NC, R, SW, IS_CLIENT>
+impl<C, SW, TM, const IS_CLIENT: bool> WebSocketWriterOwned<C, SW, TM, IS_CLIENT>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  C: WebSocketCompression,
   SW: StreamWriter,
+  TM: TlsMode,
 {
+  /// Writes the reply frame returned by [`WebSocketBridge::listen`]. Returns `true` if the
+  /// connection has been closed.
+  #[inline]
+  pub async fn manage_brige_data(&mut self, data: WebSocketBridgeData) -> crate::Result<()> {
+    match (data.tls, data.ws) {
+      (None, None) => {}
+      (None, Some(mut ws)) => {
+        self.write_frame(&mut ws).await?;
+      }
+      (Some(tls), None) => {
+        self.stream_writer.manage_bridge_data(tls).await?;
+      }
+      (Some(tls), Some(mut ws)) => {
+        self.stream_writer.manage_bridge_data(tls).await?;
+        self.write_frame(&mut ws).await?;
+      }
+    }
+    Ok(())
+  }
+
   /// Writes a frame to the stream.
   #[inline]
-  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P, IS_CLIENT>) -> crate::Result<()>
+  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P>) -> crate::Result<()>
   where
     P: LeaseMut<[u8]>,
   {
@@ -124,24 +134,5 @@ where
       .await?;
     self.connection_state.store(connection_state.into(), Ordering::Relaxed);
     Ok(())
-  }
-
-  /// Awaits until a control frame is returned by [`WebSocketReplier::reply_frame`] and then
-  /// writes it back to the stream. Returns `true` if the connection has been closed.
-  #[inline]
-  pub async fn write_reply_frame(
-    &mut self,
-    control_frame: &mut Option<FrameControlArray<IS_CLIENT>>,
-  ) -> crate::Result<bool> {
-    match control_frame {
-      Some(frame) => {
-        self.write_frame(frame).await?;
-        if frame.op_code().is_close() {
-          return Ok(true);
-        }
-      }
-      None => return Ok(true),
-    }
-    Ok(false)
   }
 }

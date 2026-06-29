@@ -18,6 +18,8 @@ pub enum HttpError {
   MissingResponseStatusCode,
   /// The URI doesn't have any placeholder
   MissingUriPlaceholder,
+  /// `TlsConfig` is mandatory for TLS connections
+  TlsConnectionRequireTlsConfig,
   /// Content-Type mismatch
   UnexpectedContentType,
   /// HTTP version does not match the expected method.

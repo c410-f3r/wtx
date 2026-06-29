@@ -2,7 +2,7 @@
 
 use crate::{
   client_api_framework::network::transport::TransportParams,
-  collection::Vector,
+  collections::Vector,
   http::{Headers, Method, Mime, MsgBufferString, StatusCode},
   misc::{Lease, LeaseMut, UriString},
 };

@@ -1,10 +1,35 @@
-use crate::stream::{StreamReader, StreamWriter};
+use core::num::NonZeroUsize;
+
+use crate::{
+  collections::MaybeUninitSlice,
+  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
+};
 use embassy_net::tcp::TcpSocket;
+
+impl Stream for TcpSocket<'_> {
+  type BridgeOwned = ();
+  type ReadHalfOwned = ();
+  type WriteHalfOwned = ();
+
+  #[inline]
+  fn into_split(
+    self,
+  ) -> crate::Result<(Self::BridgeOwned, Self::ReadHalfOwned, Self::WriteHalfOwned)> {
+    Ok(((), (), ()))
+  }
+}
+
+impl StreamCommon for TcpSocket<'_> {}
 
 impl StreamReader for TcpSocket<'_> {
   #[inline]
-  async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
-    Ok((*self).read(bytes).await?)
+  async fn read(
+    &mut self,
+    mut bytes: MaybeUninitSlice<'_, u8>,
+  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+    Ok(StreamReadItem::from_opt(NonZeroUsize::new(
+      (*self).read(bytes.initialize_all_bytes()).await?,
+    )))
   }
 }
 

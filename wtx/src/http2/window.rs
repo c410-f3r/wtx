@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayVectorU8,
+  collections::ArrayVectorU8,
   http::{HttpRecvParams, u31::U31},
   http2::{
     Http2Error, Http2ErrorCode, http_send_params::HttpSendParams,
@@ -92,12 +92,14 @@ impl Windows {
   }
 
   /// Parameters used to received data. It is defined locally.
+  #[inline]
   pub const fn recv(&self) -> Window {
     self.recv
   }
 
   /// Parameters used to send data. It is initially defined locally with default parameters
   /// and then defined by a remote peer.
+  #[inline]
   pub const fn send(&self) -> Window {
     self.send
   }

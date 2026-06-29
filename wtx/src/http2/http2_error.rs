@@ -19,6 +19,8 @@ macro_rules! stream_id_must_not_be_zero {
 /// Errors for `Http2`.
 #[derive(Clone, Copy, Debug)]
 pub enum Http2Error {
+  /// For example, when calling `send_data_concurrent`.
+  ClosedConnectionWhenSendingConcurrentData,
   /// The number of opened streams extrapolated the threshold
   ExceedAmountOfOpenedStreams,
   /// The number of active concurrent streams extrapolated the threshold
@@ -106,7 +108,7 @@ pub enum Http2Error {
   OutOfBoundsMaxFrameSize,
   /// Window size must be within 0 and 2147483647
   OutOfBoundsWindowSize,
-  /// Browsers don't support PUSH_PROMISE
+  /// Browsers don't support `PUSH_PROMISE`.
   PushPromiseIsUnsupported,
   /// Received frame should be a continuation frame with correct ID
   UnexpectedContinuationFrame,

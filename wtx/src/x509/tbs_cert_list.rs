@@ -1,9 +1,10 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, INTEGER_TAG, Len, Opt, SEQUENCE_TAG, U32, asn1_writer,
-    decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, INTEGER_TAG, Len, Opt, SEQUENCE_TAG, U32,
+    asn1_writer, decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{
     AlgorithmIdentifier, EXPLICIT_TAG0, Extensions, Name, OptTime, RevokedCertificates, Time,
     X509Error,
@@ -13,27 +14,34 @@ use crate::{
 /// A sequence containing the name of the issuer, issue date, issue date of the next list, the
 /// optional list of revoked certificates, and optional CRL extensions.
 #[derive(Debug, PartialEq)]
-pub struct TbsCertList<'bytes> {
+pub struct TbsCertList<B>
+where
+  B: Lease<[u8]>,
+{
   /// The entirety of the bytes that compose this structure.
-  pub bytes: &'bytes [u8],
+  pub bytes: B,
   /// See [`AlgorithmIdentifier`].
-  pub signature: AlgorithmIdentifier<'bytes>,
+  pub signature: AlgorithmIdentifier<B>,
   /// The issuer name identifies the entity that has signed and issued the CRL.
-  pub issuer: Name<'bytes>,
+  pub issuer: Name<B>,
   /// Indicates the issue date of this CRL.
   pub this_update: Time,
   /// Indicates the date and time by which the CA will issue a new update, making this
   /// structure outdated.
   pub next_update: Option<Time>,
   /// See [`RevokedCertificates`].
-  pub revoked_certificates: Option<RevokedCertificates<'bytes>>,
+  pub revoked_certificates: Option<RevokedCertificates<B>>,
   /// Additional information.
-  pub crl_extensions: Option<Extensions<'bytes>>,
+  pub crl_extensions: Option<Extensions<B>>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertList<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for TbsCertList<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let full_bytes = dw.bytes;
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidTbsCertList.into());
@@ -57,7 +65,7 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertList<'de> 
     let crl_extensions = Opt::decode(dw, EXPLICIT_TAG0)?.0;
     dw.bytes = rest;
     Ok(Self {
-      bytes,
+      bytes: bytes.try_into().map_err(Into::into)?,
       signature,
       issuer,
       this_update,
@@ -68,9 +76,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for TbsCertList<'de> 
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for TbsCertList<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for TbsCertList<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       U32::ONE.encode(local_ew)?;
       self.signature.encode(local_ew)?;

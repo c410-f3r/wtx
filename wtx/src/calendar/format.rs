@@ -4,7 +4,7 @@ pub(crate) mod push;
 
 use crate::{
   calendar::CalendarError,
-  collection::{ArrayVector, ArrayVectorU8},
+  collections::{ArrayVector, ArrayVectorU8},
   misc::Lease,
 };
 

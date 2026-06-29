@@ -1,5 +1,7 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, BIT_STRING_TAG, Len, decode_asn1_tlv},
+  asn1::{
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, BIT_STRING_TAG, Len, decode_asn1_tlv,
+  },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   misc::Lease,
 };
@@ -11,20 +13,17 @@ pub struct BitString<B> {
   unused_bits: u8,
 }
 
-// FIXME(STABLE): use generic instead of hardcoded type
-impl<'any> BitString<&'any [u8]> {
-  /// New instance from arbitrary bytes
-  #[inline]
-  pub const fn from_bytes(bytes: &'any [u8]) -> Self {
-    let unused_bits = if let [.., last] = bytes { last.trailing_zeros() % 8 } else { 0 };
-    Self { bytes, unused_bits: unused_bits as u8 }
-  }
-}
-
 impl<B> BitString<B>
 where
   B: Lease<[u8]>,
 {
+  /// New instance from arbitrary bytes
+  #[inline]
+  pub fn from_bytes(bytes: B) -> Self {
+    let unused_bits = if let [.., last] = bytes.lease() { last.trailing_zeros() % 8 } else { 0 };
+    Self { bytes, unused_bits: unused_bits.try_into().unwrap_or_default() }
+  }
+
   /// New instance from all parameters.
   #[inline]
   pub fn new(bytes: B, unused_bits: u8) -> crate::Result<Self> {
@@ -48,6 +47,12 @@ where
     &self.bytes
   }
 
+  /// Returns the inner elements
+  #[inline]
+  pub fn into_parts(self) -> (B, u8) {
+    (self.bytes, self.unused_bits)
+  }
+
   /// Returns the number of **padding bits** in the final octet of the underlying payload.
   #[inline]
   pub const fn unused_bits(&self) -> u8 {
@@ -55,9 +60,13 @@ where
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for BitString<&'de [u8]> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for BitString<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let actual_tag = dw.decode_aux.tag.unwrap_or(BIT_STRING_TAG);
     let (tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
     let (true, [unused_bits, bytes @ ..]) = (tag == actual_tag, value) else {
@@ -65,16 +74,16 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for BitString<&'de [u
     };
     check_unused_bits(*unused_bits, bytes)?;
     dw.bytes = rest;
-    Ok(Self { bytes, unused_bits: *unused_bits })
+    Ok(Self { bytes: bytes.try_into().map_err(Into::into)?, unused_bits: *unused_bits })
   }
 }
 
-impl<B> Encode<GenericCodec<(), Asn1EncodeWrapper>> for BitString<B>
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for BitString<B>
 where
   B: Lease<[u8]>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let actual_tag = ew.encode_aux.tag.unwrap_or(BIT_STRING_TAG);
     let _ = ew.buffer.extend_from_copyable_slices([
       &[actual_tag][..],

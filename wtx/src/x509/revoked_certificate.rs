@@ -1,25 +1,31 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Opt, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, asn1_writer,
+    decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{Extensions, SerialNumber, Time, X509Error},
 };
 
 /// A revoked certificate entry in a Certificate Revocation List (CRL)
-#[derive(Debug, PartialEq)]
-pub struct RevokedCertificate<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct RevokedCertificate<B> {
   /// Serial number of the revoked certificate.
   pub user_certificate: SerialNumber,
   /// The date and time when the certificate was revoked.
   pub revocation_date: Time,
   /// Additional information.
-  pub crl_entry_extensions: Option<Extensions<'bytes>>,
+  pub crl_entry_extensions: Option<Extensions<B>>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RevokedCertificate<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for RevokedCertificate<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidRevokedCertificate.into());
     };
@@ -28,13 +34,16 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RevokedCertificat
     let revocation_date = Time::decode(dw)?;
     let crl_entry_extensions = Opt::decode(dw, SEQUENCE_TAG)?.0;
     dw.bytes = rest;
-    Ok(Self { crl_entry_extensions, revocation_date, user_certificate })
+    Ok(Self { user_certificate, revocation_date, crl_entry_extensions })
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for RevokedCertificate<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for RevokedCertificate<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       self.user_certificate.encode(local_ew)?;
       self.revocation_date.encode(local_ew)?;

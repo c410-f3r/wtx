@@ -1,8 +1,10 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, INTEGER_TAG, Len, decode_asn1_tlv},
+  asn1::{
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, INTEGER_TAG, Len, decode_asn1_tlv,
+  },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::ArrayVectorU8,
-  misc::Lease,
+  collections::ArrayVectorCopy,
+  misc::Lease as _,
 };
 use core::{hint::unreachable_unchecked, ops::Deref};
 
@@ -10,7 +12,7 @@ use core::{hint::unreachable_unchecked, ops::Deref};
 ///
 /// Not meant to be used for public keys or serial numbers.
 #[derive(Clone, Debug, PartialEq)]
-pub struct U32(ArrayVectorU8<u8, 5>);
+pub struct U32(ArrayVectorCopy<u8, 5>);
 
 impl U32 {
   /// Instance with the value `1`
@@ -20,9 +22,9 @@ impl U32 {
   #[inline]
   pub const fn from_u8(value: u8) -> Self {
     if value <= 127 {
-      Self(ArrayVectorU8::from_array_u8([value]))
+      Self(ArrayVectorCopy::from_array([value]))
     } else {
-      Self(ArrayVectorU8::from_array_u8([0, value]))
+      Self(ArrayVectorCopy::from_array([0, value]))
     }
   }
 
@@ -32,11 +34,11 @@ impl U32 {
     if let Ok(elem) = value.try_into() {
       Self::from_u8(elem)
     } else {
-      let [a, b] = value.to_be_bytes();
+      let [b0, b1] = value.to_be_bytes();
       if value <= 32767 {
-        Self(ArrayVectorU8::from_array_u8([a, b]))
+        Self(ArrayVectorCopy::from_array([b0, b1]))
       } else {
-        Self(ArrayVectorU8::from_array_u8([0, a, b]))
+        Self(ArrayVectorCopy::from_array([0, b0, b1]))
       }
     }
   }
@@ -44,23 +46,23 @@ impl U32 {
   /// Creates a 1-byte, 2-bytes, 3-bytes or 4-bytes long form integer encoding from an `u32`.
   #[inline]
   pub fn from_u32(value: u32) -> Self {
-    if let Ok(elem) = value.try_into() {
+    if let Ok(elem) = u8::try_from(value) {
       Self::from_u8(elem)
-    } else if let Ok(elem) = value.try_into() {
+    } else if let Ok(elem) = u16::try_from(value) {
       Self::from_u16(elem)
     } else {
-      let [a, b, c, d] = value.to_be_bytes();
+      let [b0, b1, b2, b3] = value.to_be_bytes();
       if value <= 16_777_215 {
         if value <= 8_388_607 {
-          Self(ArrayVectorU8::from_array_u8([b, c, d]))
+          Self(ArrayVectorCopy::from_array([b1, b2, b3]))
         } else {
-          Self(ArrayVectorU8::from_array_u8([0, b, c, d]))
+          Self(ArrayVectorCopy::from_array([0, b1, b2, b3]))
         }
       } else {
         if value <= 2_147_483_647 {
-          Self(ArrayVectorU8::from_array_u8([a, b, c, d]))
+          Self(ArrayVectorCopy::from_array([b0, b1, b2, b3]))
         } else {
-          Self(ArrayVectorU8::from_array_u8([0, a, b, c, d]))
+          Self(ArrayVectorCopy::from_array([0, b0, b1, b2, b3]))
         }
       }
     }
@@ -76,37 +78,33 @@ impl U32 {
   #[inline]
   pub fn u32(&self) -> u32 {
     match self.0.as_slice() {
-      [a] => u32::from(*a),
-      [0, b] => u32::from(*b),
-      [a, b] => u32::from(u16::from_be_bytes([*a, *b])),
-      [0, a, b] => u32::from(u16::from_be_bytes([*a, *b])),
-      [a, b, c] => u32::from_be_bytes([0, *a, *b, *c]),
-      [0, a, b, c] => u32::from_be_bytes([0, *a, *b, *c]),
-      [a, b, c, d] => u32::from_be_bytes([*a, *b, *c, *d]),
-      [0, a, b, c, d] => u32::from_be_bytes([*a, *b, *c, *d]),
+      [b0] | [0, b0] => u32::from(*b0),
+      [b0, b1] | [0, b0, b1] => u32::from(u16::from_be_bytes([*b0, *b1])),
+      [b0, b1, b2] | [0, b0, b1, b2] => u32::from_be_bytes([0, *b0, *b1, *b2]),
+      [b0, b1, b2, b3] | [0, b0, b1, b2, b3] => u32::from_be_bytes([*b0, *b1, *b2, *b3]),
       // SAFETY: Constructors ensure valid lengths
       _ => unsafe { unreachable_unchecked() },
     }
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for U32 {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for U32 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let actual_tag = dw.decode_aux.tag.unwrap_or(INTEGER_TAG);
     let (tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
     if tag != actual_tag {
       return Err(Asn1Error::InvalidInteger.into());
     }
-    let value = U32::try_from(value)?;
+    let rslt = U32::try_from(value)?;
     dw.bytes = rest;
-    Ok(value)
+    Ok(rslt)
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for U32 {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for U32 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let actual_tag = ew.encode_aux.tag.unwrap_or(INTEGER_TAG);
     let _ = ew.buffer.extend_from_copyable_slices([
       &[actual_tag][..],
@@ -132,14 +130,16 @@ impl TryFrom<&[u8]> for U32 {
   #[inline]
   fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
     Ok(match value {
-      [a @ 0..=127] => Self::from_u32(u32::from(*a)),
-      [0, a @ 128..=255] => Self::from_u32(u32::from(*a)),
-      [a @ 1..=127, b] => Self::from_u32(u16::from_be_bytes([*a, *b]).into()),
-      [0, a @ 128..=255, b] => Self::from_u32(u16::from_be_bytes([*a, *b]).into()),
-      [a @ 1..=127, b, c] => Self::from_u32(u32::from_be_bytes([0, *a, *b, *c])),
-      [0, a @ 128..=255, b, c] => Self::from_u32(u32::from_be_bytes([0, *a, *b, *c])),
-      [a @ 1..=127, b, c, d] => Self::from_u32(u32::from_be_bytes([*a, *b, *c, *d])),
-      [0, a @ 128..=255, b, c, d] => Self::from_u32(u32::from_be_bytes([*a, *b, *c, *d])),
+      [b0 @ 0..=127] | [0, b0 @ 128..=255] => Self::from_u32(u32::from(*b0)),
+      [b0 @ 1..=127, b1] | [0, b0 @ 128..=255, b1] => {
+        Self::from_u32(u16::from_be_bytes([*b0, *b1]).into())
+      }
+      [b0 @ 1..=127, b1, b2] | [0, b0 @ 128..=255, b1, b2] => {
+        Self::from_u32(u32::from_be_bytes([0, *b0, *b1, *b2]))
+      }
+      [b0 @ 1..=127, b1, b2, b3] | [0, b0 @ 128..=255, b1, b2, b3] => {
+        Self::from_u32(u32::from_be_bytes([*b0, *b1, *b2, *b3]))
+      }
       _ => return Err(Asn1Error::InvalidU32Bytes.into()),
     })
   }

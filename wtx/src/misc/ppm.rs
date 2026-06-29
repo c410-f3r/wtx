@@ -184,6 +184,7 @@ mod database {
     DB: Database,
     i32: Decode<'de, DB>,
   {
+    #[inline]
     fn decode(dw: &mut DB::DecodeWrapper<'de, '_, '_>) -> Result<Self, DB::Error> {
       let value: i32 = Decode::<'_, DB>::decode(dw)?;
       Ok(Self::from_ppm_i32(value)?)
@@ -195,6 +196,7 @@ mod database {
     DB: Database,
     i32: Encode<DB>,
   {
+    #[inline]
     fn encode(&self, ew: &mut DB::EncodeWrapper<'_, '_, '_>) -> Result<(), DB::Error> {
       <i32 as Encode<DB>>::encode(&self.value, ew)
     }
@@ -204,10 +206,12 @@ mod database {
   where
     DB: Database,
   {
+    #[inline]
     fn runtime_ty(&self) -> Option<DB::Ty> {
       None
     }
 
+    #[inline]
     fn static_ty() -> Option<DB::Ty> {
       None
     }

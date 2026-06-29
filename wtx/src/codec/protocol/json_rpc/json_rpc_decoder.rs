@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec, Id},
-  collection::{ArrayStringU8, Vector},
+  collections::{ArrayStringU8, Vector},
   misc::Lease,
 };
 use core::{
@@ -106,7 +106,7 @@ mod serde {
   use serde::{
     Deserialize, Serialize,
     de::{Deserializer, MapAccess, Visitor},
-    ser::{SerializeStruct, Serializer},
+    ser::{SerializeStruct as _, Serializer},
   };
 
   impl<'de, R> Deserialize<'de> for JsonRpcDecoder<R>
@@ -223,11 +223,11 @@ mod serde {
     {
       let mut state = serializer.serialize_struct("JsonRpcDecoder", 3)?;
       state.serialize_field("jsonrpc", "2.0")?;
-      match self.result {
-        Err(ref err) => {
-          state.serialize_field("error", &alloc::string::ToString::to_string(&err))?;
+      match &self.result {
+        Err(err) => {
+          state.serialize_field("error", &alloc::string::ToString::to_string(err))?;
         }
-        Ok(ref el) => state.serialize_field("result", &el)?,
+        Ok(el) => state.serialize_field("result", el)?,
       }
       state.serialize_field("id", &self.id)?;
       state.end()

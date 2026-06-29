@@ -9,6 +9,8 @@ pub enum WebSocketError {
   InvalidCloseFrame,
   /// It was not possible to create a close frame with the given parameters.
   InvalidCloseFrameParams,
+  /// Control frames can not exceed 125 bytes.
+  InvalidControlFrame,
   /// Received an invalid header compression parameter.
   InvalidCompressionHeaderParameter,
   /// The client sent an invalid mask bit.

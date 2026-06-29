@@ -1,4 +1,4 @@
-#![expect(clippy::too_many_lines, reason = "PostgreSQL stuff")]
+#![expect(clippy::too_many_lines, clippy::wildcard_enum_match_arm, reason = "PostgreSQL stuff")]
 
 /// Type
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -531,7 +531,7 @@ impl Ty {
     })
   }
 
-  pub(crate) const fn array_ty(&self) -> Option<Self> {
+  pub(crate) const fn array_ty(self) -> Option<Self> {
     match self {
       Self::Aclitem => Some(Self::AclitemArray),
       Self::Bit => Some(Self::BitArray),
@@ -679,13 +679,13 @@ impl Ty {
       | Self::VarcharArray
       | Self::Xid8Array
       | Self::XidArray
-      | Self::XmlArray => Some(*self),
+      | Self::XmlArray => Some(self),
 
       _ => None,
     }
   }
 
-  pub(crate) const fn range_ty(&self) -> Option<Self> {
+  pub(crate) const fn range_ty(self) -> Option<Self> {
     match self {
       Self::Date => Some(Self::DateRange),
       Self::Int4 => Some(Self::Int4Range),
@@ -701,7 +701,7 @@ impl Ty {
       | Self::Int8Range
       | Self::NumRange
       | Self::TsRange
-      | Self::TstzRange => Some(*self),
+      | Self::TstzRange => Some(self),
 
       _ => None,
     }

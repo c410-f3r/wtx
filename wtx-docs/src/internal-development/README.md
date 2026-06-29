@@ -16,7 +16,16 @@ Some real-world use-cases and associated benchmarks.
 * <https://github.com/rust-lang/rust/pull/100441>
 * <https://github.com/rust-lang/rust/pull/95715>
 
-That is why `WTX` has an enforced `Error` enum size of 16 bytes and that is also the reason why `WTX` has so many bare variants.
+That is why `WTX` has an enforced `Error` enum size of 16 bytes and that is also the reason why `WTX` has so many bare error variants.
+
+## Performance
+
+Many things that generally improve performance are used in the project, to name a few:
+
+1. **Manual Vectorization**: When an algorithm is known for processing large amounts of data, several experiments are performed to analyze the best way to split loops in order to allow the compiler to take advantage of SIMD instructions.
+2. **Memory Allocation**: Whenever possible, all structures related to heap allocations are only created at the instantiation level. 
+3. **Fewer Dependencies**: No third-party is injected by default. In other words, additional dependencies are up to the user through the selection of Cargo features, which decreases the compilation time of full builds. For example, you can see the mere 7 dependencies required by the PostgreSQL client using `cargo tree -e normal --features crypto-ring,postgres`.
+4. **Vectored and Buffered IO**: Instead of writing a single chunk of data and waiting for it to be sent, multiple chunks are gathered and transmitted in a single operation whenever possible.
 
 ## Profiling
 
@@ -74,6 +83,7 @@ More size-related parameters can be found at <https://github.com/johnthagen/min-
 ### Runtime
 
 * -C llvm-args=--inline-threshold=9999
+* -C llvm-args=-enable-dfa-jump-thread
 * -C llvm-args=-vectorize-loops
 * -C llvm-args=-vectorize-slp
 * -C target-cpu=x86-64-v3

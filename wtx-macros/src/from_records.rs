@@ -157,7 +157,7 @@ pub(crate) fn from_records(
             _curr_params,
             (_parent_id_iter0, _parent_id_column_idx),
             _records,
-            |elem| Ok(wtx::collection::TryExtend::try_extend(&mut #manys, [elem]).map_err(#database_err_ty::from)?)
+            |elem| Ok(wtx::collections::TryExtend::try_extend(&mut #manys, [elem]).map_err(#database_err_ty::from)?)
           )?;
         )*
         if prev_consumed_records == _curr_params.consumed_records && !is_in_one_relationship {

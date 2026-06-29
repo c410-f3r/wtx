@@ -1,13 +1,13 @@
 use core::task::Waker;
 
 use crate::{
-  collection::Deque,
+  collections::Deque,
   http2::{
-    Scrp, Sorp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
+    Scorp, Sovrp, hpack_decoder::HpackDecoder, hpack_encoder::HpackEncoder,
     initial_server_stream_remote::InitialServerStreamRemote,
   },
-  misc::{Lease, LeaseMut, net::PartitionedFilledBuffer},
   rng::{Rng, Xorshift64, simple_seed},
+  stream::BufStreamReader,
 };
 use hashbrown::HashMap;
 
@@ -18,9 +18,9 @@ pub struct Http2Buffer {
   pub(crate) hpack_enc: HpackEncoder,
   pub(crate) initial_server_streams_local: Deque<Waker>,
   pub(crate) initial_server_streams_remote: Deque<InitialServerStreamRemote>,
-  pub(crate) pfb: PartitionedFilledBuffer,
-  pub(crate) scrps: Scrp,
-  pub(crate) sorps: Sorp,
+  pub(crate) nrb: BufStreamReader,
+  pub(crate) scrps: Scorp,
+  pub(crate) sorps: Sovrp,
 }
 
 impl Http2Buffer {
@@ -35,7 +35,7 @@ impl Http2Buffer {
       hpack_enc: HpackEncoder::new(rng),
       initial_server_streams_local: Deque::new(),
       initial_server_streams_remote: Deque::new(),
-      pfb: PartitionedFilledBuffer::new(),
+      nrb: BufStreamReader::new(),
       scrps: HashMap::new(),
       sorps: HashMap::new(),
     }
@@ -47,7 +47,7 @@ impl Http2Buffer {
       hpack_enc,
       initial_server_streams_local,
       initial_server_streams_remote,
-      pfb,
+      nrb,
       scrps,
       sorps,
     } = self;
@@ -55,7 +55,7 @@ impl Http2Buffer {
     hpack_enc.clear();
     initial_server_streams_local.clear();
     initial_server_streams_remote.clear();
-    pfb.clear();
+    nrb.clear();
     scrps.clear();
     sorps.clear();
   }
@@ -65,19 +65,5 @@ impl Default for Http2Buffer {
   #[inline]
   fn default() -> Self {
     Self::new(&mut Xorshift64::from(simple_seed()))
-  }
-}
-
-impl Lease<Http2Buffer> for Http2Buffer {
-  #[inline]
-  fn lease(&self) -> &Http2Buffer {
-    self
-  }
-}
-
-impl LeaseMut<Http2Buffer> for Http2Buffer {
-  #[inline]
-  fn lease_mut(&mut self) -> &mut Http2Buffer {
-    self
   }
 }

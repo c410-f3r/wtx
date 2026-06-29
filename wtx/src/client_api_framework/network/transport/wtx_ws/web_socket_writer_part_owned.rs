@@ -10,18 +10,18 @@ use crate::{
     },
     pkg::{Package, PkgsAux},
   },
-  collection::Vector,
+  collections::Vector,
   misc::LeaseMut,
-  rng::Rng,
   stream::StreamWriter,
-  web_socket::{Frame, WebSocketWriterOwned, compression::NegotiatedCompression},
+  tls::TlsMode,
+  web_socket::{Frame, WebSocketWriterOwned, web_socket_compression::NegotiatedWsCompression},
 };
 
-impl<NC, R, SW, TP> SendingTransport<TP> for WebSocketWriterOwned<NC, R, SW, true>
+impl<NC, SW, TM, TP> SendingTransport<TP> for WebSocketWriterOwned<NC, SW, TM, true>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   SW: StreamWriter,
+  TM: TlsMode,
   TP: LeaseMut<WsParams>,
 {
   #[inline]
@@ -50,9 +50,9 @@ where
   }
 }
 
-impl<NC, R, SW, TP> Transport<TP> for WebSocketWriterOwned<NC, R, SW, true>
+impl<NC, SW, TM, TP> Transport<TP> for WebSocketWriterOwned<NC, SW, TM, true>
 where
-  NC: NegotiatedCompression,
+  NC: NegotiatedWsCompression,
   SW: StreamWriter,
 {
   const GROUP: TransportGroup = TransportGroup::WebSocket;
@@ -60,14 +60,14 @@ where
   type ReqId = ();
 }
 
-async fn cb<NC, R, SW>(
-  mut frame: Frame<&mut Vector<u8>, true>,
-  trans: &mut WebSocketWriterOwned<NC, R, SW, true>,
+async fn cb<NC, SW, TM>(
+  mut frame: Frame<&mut Vector<u8>>,
+  trans: &mut WebSocketWriterOwned<NC, SW, TM, true>,
 ) -> crate::Result<()>
 where
-  NC: NegotiatedCompression,
-  R: Rng,
+  NC: NegotiatedWsCompression,
   SW: StreamWriter,
+  TM: TlsMode,
 {
   trans.write_frame(&mut frame).await?;
   Ok(())

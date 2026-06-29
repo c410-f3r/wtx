@@ -131,9 +131,9 @@ create_enum! {
   }
 }
 
-#[cfg(feature = "http-server-framework")]
+#[cfg(feature = "http2-server-framework")]
 mod http_server_framework {
-  use crate::http::{MsgBufferString, Request, StatusCode, server_framework::ResFinalizer};
+  use crate::http::{MsgBufferString, Request, StatusCode, http2_server_framework::ResFinalizer};
 
   impl<E> ResFinalizer<E> for StatusCode
   where

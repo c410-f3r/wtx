@@ -37,14 +37,14 @@ impl SettingsFrame {
       max_header_list_size: None,
     }
   }
-  pub(crate) fn from_hp(hp: HttpRecvParams) -> Self {
+  pub(crate) fn from_hrp(hrp: HttpRecvParams) -> Self {
     let mut settings_frame = SettingsFrame::empty();
-    settings_frame.set_enable_connect_protocol(Some(hp.enable_connect_protocol()));
-    settings_frame.set_header_table_size(Some(hp.max_hpack_len().0));
-    settings_frame.set_initial_window_size(Some(U31::from_u32(hp.initial_window_len())));
-    settings_frame.set_max_concurrent_streams(Some(hp.max_concurrent_streams_num()));
-    settings_frame.set_max_frame_size(Some(hp.max_frame_len()));
-    settings_frame.set_max_header_list_size(Some(hp.max_headers_len()));
+    settings_frame.set_enable_connect_protocol(Some(hrp.enable_connect_protocol()));
+    settings_frame.set_header_table_size(Some(hrp.max_hpack_len().0));
+    settings_frame.set_initial_window_size(Some(U31::from_u32(hrp.initial_window_len())));
+    settings_frame.set_max_concurrent_streams(Some(hrp.max_concurrent_streams_num()));
+    settings_frame.set_max_frame_size(Some(hrp.max_frame_len()));
+    settings_frame.set_max_header_list_size(Some(hrp.max_headers_len()));
     settings_frame
   }
 
@@ -52,40 +52,41 @@ impl SettingsFrame {
     macro_rules! copy_bytes {
       ($buffer:expr, $bytes:expr, $idx:expr) => {{
         let next_idx = $idx.wrapping_add(6);
-        if let Some([a, b, c, d, e, f]) = $buffer.get_mut($idx..next_idx) {
-          if let Some([g, h, i, j, k, l]) = $bytes {
-            *a = g;
-            *b = h;
-            *c = i;
-            *d = j;
-            *e = k;
-            *f = l;
+        if let Some([b0, b1, b2, b3, b4, b5]) = $buffer.get_mut($idx..next_idx) {
+          if let Some([b6, b7, b8, b9, b10, b11]) = $bytes {
+            *b0 = b6;
+            *b1 = b7;
+            *b2 = b8;
+            *b3 = b9;
+            *b4 = b10;
+            *b5 = b11;
             $idx = next_idx;
           }
         }
       }};
     }
 
-    #[inline] // INLINE!
+    // FIXME(upstream): LLVM doesn't inline this lightweight function without `#[inline]`.
+    #[inline]
     const fn bytes(ty: u16, value: u32) -> [u8; 6] {
-      let [a, b] = ty.to_be_bytes();
-      let [c, d, e, f] = value.to_be_bytes();
-      [a, b, c, d, e, f]
+      let [b0, b1] = ty.to_be_bytes();
+      let [b2, b3, b4, b5] = value.to_be_bytes();
+      [b0, b1, b2, b3, b4, b5]
     }
 
     {
       let fi = FrameInit::new(self.cf, self.len.into(), U31::ZERO, FrameInitTy::Settings);
-      let [a, b, c, d, e, f, g, h, i, ..] = buffer;
-      let [j, k, l, m, n, o, p, q, r] = fi.bytes();
-      *a = j;
-      *b = k;
-      *c = l;
-      *d = m;
-      *e = n;
-      *f = o;
-      *g = p;
-      *h = q;
-      *i = r;
+      let [b0, b1, b2, b3, b4, b5, b6, b7, b8, ..] = buffer;
+      let [b9, b10, b11, b12, b13, b14, b15, b16, b17] = fi.bytes();
+      *b0 = b9;
+      *b1 = b10;
+      *b2 = b11;
+      *b3 = b12;
+      *b4 = b13;
+      *b5 = b14;
+      *b6 = b15;
+      *b7 = b16;
+      *b8 = b17;
     }
     let Self {
       cf: _,
@@ -171,8 +172,8 @@ impl SettingsFrame {
       max_header_list_size,
     } = &mut settings_frame;
 
-    for [a, b, c, d, e, f] in bytes.as_chunks().0 {
-      let Ok(setting) = Setting::new([*a, *b, *c, *d, *e, *f]) else {
+    for [b0, b1, b2, b3, b4, b5] in bytes.as_chunks().0 {
+      let Ok(setting) = Setting::new([*b0, *b1, *b2, *b3, *b4, *b5]) else {
         continue;
       };
       match setting {
@@ -256,8 +257,8 @@ impl SettingsFrame {
     self.max_header_list_size = elem;
   }
 
-  fn update_len<T>(len: &mut u8, a: Option<T>, b: Option<T>) {
-    match (a, b) {
+  fn update_len<T>(len: &mut u8, lhs: Option<T>, rhs: Option<T>) {
+    match (lhs, rhs) {
       (None, Some(_)) => {
         *len = len.wrapping_add(6);
       }
@@ -281,8 +282,8 @@ enum Setting {
 
 impl Setting {
   pub(crate) fn new(array: [u8; 6]) -> crate::Result<Setting> {
-    let [a, b, c, d, e, f] = array;
-    Setting::from_id((u16::from(a) << 8) | u16::from(b), u32::from_be_bytes([c, d, e, f]))
+    let [b0, b1, b2, b3, b4, b5] = array;
+    Setting::from_id((u16::from(b0) << 8) | u16::from(b1), u32::from_be_bytes([b2, b3, b4, b5]))
   }
 
   pub(crate) const fn from_id(id: u16, value: u32) -> crate::Result<Setting> {

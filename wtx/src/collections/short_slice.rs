@@ -1,0 +1,226 @@
+// Unaligned reads are UB if references are involved but in this scenario fields are copied
+// by value.
+
+use crate::{collections::LinearStorageLen, misc::Lease};
+use core::{
+  fmt::{Debug, Formatter},
+  marker::PhantomData,
+  ops::Deref,
+  ptr, slice,
+};
+
+/// [`ShortSlice`] with a capacity limited by `u8`.
+pub type ShortSliceU8<'any, T> = ShortSlice<'any, u8, T>;
+/// [`ShortSlice`] with a capacity limited by `u16`.
+pub type ShortSliceU16<'any, T> = ShortSlice<'any, u16, T>;
+
+/// An unaligned structure that has 9~10 bytes in `x86_64`. Useful in places where a bunch of
+/// standard slices would take too much space.
+#[expect(clippy::repr_packed_without_abi, reason = "only used internally")]
+#[repr(packed)]
+pub struct ShortSlice<'any, L, T> {
+  ptr: *const T,
+  len: L,
+  phantom: PhantomData<&'any T>,
+}
+
+impl<'any, L, T> ShortSlice<'any, L, T>
+where
+  L: LinearStorageLen,
+{
+  const CHECK_LEN: () = { assert!(L::BYTES <= 2) };
+
+  /// Throws an error if the length of `slice` is greater than the capacity.
+  #[inline]
+  pub fn new(slice: &'any [T]) -> crate::Result<Self> {
+    const { Self::CHECK_LEN }
+    Ok(Self { len: L::from_usize(slice.len())?, phantom: PhantomData, ptr: slice.as_ptr() })
+  }
+
+  /// Length
+  #[inline]
+  pub const fn len(self) -> L {
+    self.len
+  }
+
+  /// Owned method that returns the original slice with its associated lifetime.
+  #[inline]
+  pub fn into_slice(self) -> &'any [T] {
+    let ptr = self.ptr;
+    let len = self.len;
+    // SAFETY: pointer and length come from a slice that is tied to `'any`
+    unsafe { slice::from_raw_parts(ptr, len.usize()) }
+  }
+}
+
+impl<'any, T> ShortSliceU8<'any, T> {
+  /// If necessary, `slice` is truncated to the maximum length capacity.
+  #[inline]
+  #[expect(
+    clippy::as_conversions,
+    clippy::cast_possible_truncation,
+    reason = "lack of const support"
+  )]
+  pub const fn new_truncated_u8(slice: &'any [T]) -> Self {
+    const { Self::CHECK_LEN }
+    Self {
+      len: if slice.len() <= 255 { slice.len() as u8 } else { 255 },
+      phantom: PhantomData,
+      ptr: slice.as_ptr(),
+    }
+  }
+}
+
+impl<L, T> Lease<[T]> for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn lease(&self) -> &[T] {
+    self
+  }
+}
+
+impl<L, T> AsRef<[T]> for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn as_ref(&self) -> &[T] {
+    self
+  }
+}
+
+impl<L, T> Clone for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn clone(&self) -> Self {
+    *self
+  }
+}
+
+impl<L, T> Copy for ShortSlice<'_, L, T> where L: LinearStorageLen {}
+
+impl<L, T> Debug for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+  T: Debug,
+{
+  #[inline]
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+    (**self).fmt(f)
+  }
+}
+
+impl<L, T> Default for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn default() -> Self {
+    Self { ptr: ptr::null(), len: L::ZERO, phantom: PhantomData }
+  }
+}
+
+impl<L, T> Deref for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+{
+  type Target = [T];
+
+  #[inline]
+  fn deref(&self) -> &Self::Target {
+    self.into_slice()
+  }
+}
+
+impl<L> Eq for ShortSliceU8<'_, L> where L: LinearStorageLen {}
+
+impl<'any, L, T> From<ShortSlice<'any, L, T>> for &'any [T]
+where
+  L: LinearStorageLen,
+{
+  #[inline]
+  fn from(value: ShortSlice<'any, L, T>) -> Self {
+    value.into_slice()
+  }
+}
+
+impl<L, T> PartialEq for ShortSlice<'_, L, T>
+where
+  L: LinearStorageLen,
+  T: PartialEq,
+{
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    **self == **other
+  }
+}
+
+impl<'any, L, T> TryFrom<&'any [T]> for ShortSlice<'any, L, T>
+where
+  L: LinearStorageLen,
+{
+  type Error = crate::Error;
+
+  #[inline]
+  fn try_from(value: &'any [T]) -> Result<Self, Self::Error> {
+    Self::new(value)
+  }
+}
+
+// SAFETY: pointer is not used to perform mutable operations behaving like a slice
+unsafe impl<L, T: Send> Send for ShortSlice<'_, L, T> {}
+// SAFETY: pointer is not used to perform mutable operations behaving like a slice
+unsafe impl<L, T: Sync> Sync for ShortSlice<'_, L, T> {}
+
+#[cfg(test)]
+mod tests {
+  use crate::collections::ShortSliceU8;
+  use core::mem;
+
+  #[test]
+  fn empty_slice() {
+    let empty: &[u8] = &[];
+    let instance = ShortSliceU8::new_truncated_u8(empty);
+    assert!(instance.is_empty());
+  }
+
+  #[test]
+  fn new_truncated() {
+    let large_slice = &[0u8; 300];
+    let instance = ShortSliceU8::new_truncated_u8(large_slice);
+    assert_eq!(instance.len(), 255);
+  }
+
+  #[test]
+  fn size_of() {
+    assert!(mem::size_of::<ShortSliceU8<'_, u8>>() < 2usize * mem::size_of::<usize>());
+  }
+
+  #[test]
+  fn size_of_in_context() {
+    struct Foo<'any> {
+      _a: ShortSliceU8<'any, u8>,
+      _b: u32,
+    }
+    assert!(mem::size_of::<Foo<'_>>() <= 2usize * mem::size_of::<usize>());
+  }
+
+  #[test]
+  fn static_instance() {
+    static FOO: ShortSliceU8<'static, u8> = ShortSliceU8::new_truncated_u8(&[1, 2, 3]);
+    assert_eq!(&*FOO, &[1, 2, 3]);
+  }
+
+  #[test]
+  fn static_ref() {
+    fn fun(_: &'static [u8]) {}
+
+    static FOO: &[u8] = &[1, 2, 3];
+    let foo: ShortSliceU8<'static, _> = ShortSliceU8::try_from(FOO).unwrap();
+    fun(foo.into_slice());
+  }
+}

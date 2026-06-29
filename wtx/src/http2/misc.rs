@@ -1,24 +1,20 @@
 use crate::{
-  http::{HttpRecvParams, MsgBufferString, MsgDataMut, StatusCode, u31::U31},
+  http::{HttpRecvParams, MsgBufferString, MsgDataMut as _, StatusCode, u31::U31},
   http2::{
-    Http2Buffer, Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scrp,
-    Sorp, Windows,
+    Http2Error, Http2ErrorCode, Http2Inner, Http2RecvStatus, Http2SendStatus, Scorp, Sovrp,
+    Windows,
     common_flags::CommonFlags,
     frame_init::{FrameInit, FrameInitTy},
     go_away_frame::GoAwayFrame,
     headers_frame::HeadersFrame,
     hpack_decoder::HpackDecoder,
     http2_data::Http2DataPartsMut,
-    reader_data::ReaderData,
     reset_stream_frame::ResetStreamFrame,
     stream_receiver::{StreamControlRecvParams, StreamOverallRecvParams},
     stream_state::StreamState,
   },
-  misc::{
-    ConnectionState, LeaseMut, Usize,
-    net::{read_header, read_payload},
-  },
-  stream::{StreamReader, StreamWriter},
+  misc::{ConnectionState, Usize},
+  stream::{BufStreamReader, StreamReader, StreamWriter},
   sync::{AtomicBool, AtomicWaker},
 };
 use core::{
@@ -55,7 +51,7 @@ pub(crate) fn connection_state(atomic_bool: &AtomicBool) -> ConnectionState {
 
 #[track_caller]
 pub(crate) fn scrp_mut(
-  scrp: &mut Scrp,
+  scrp: &mut Scorp,
   stream_id: U31,
 ) -> crate::Result<&mut StreamControlRecvParams> {
   scrp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
@@ -63,7 +59,7 @@ pub(crate) fn scrp_mut(
 
 #[track_caller]
 pub(crate) fn sorp_mut(
-  sorp: &mut Sorp,
+  sorp: &mut Sovrp,
   stream_id: U31,
 ) -> crate::Result<&mut StreamOverallRecvParams> {
   sorp.get_mut(&stream_id).ok_or_else(|| protocol_err(Http2Error::UnknownStreamId))
@@ -115,11 +111,11 @@ pub(crate) const fn protocol_err(error: Http2Error) -> crate::Error {
   crate::Error::Http2ErrorGoAway(Http2ErrorCode::ProtocolError, error)
 }
 
-pub(crate) async fn process_higher_operation_err<HB, SW, const IS_CLIENT: bool>(
+#[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
+pub(crate) async fn process_higher_operation_err<SW, TM, const IS_CLIENT: bool>(
   err: &crate::Error,
-  inner: &Http2Inner<HB, SW, IS_CLIENT>,
+  inner: &Http2Inner<SW, TM, IS_CLIENT>,
 ) where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   match err {
@@ -138,19 +134,18 @@ pub(crate) async fn process_higher_operation_err<HB, SW, const IS_CLIENT: bool>(
 pub(crate) async fn read_frame<SR, const IS_HEADER_BLOCK: bool>(
   is_conn_open: &AtomicBool,
   max_frame_len: u32,
-  rd: &mut ReaderData<SR>,
+  nrb: &mut BufStreamReader,
   read_frame_waker: &AtomicWaker,
+  stream_reader: &mut SR,
 ) -> crate::Result<Option<FrameInit>>
 where
   SR: StreamReader,
 {
   let mut fut = pin!(async move {
     for _ in 0.._max_frames_mismatches!() {
-      rd.pfb.clear_if_following_is_empty();
-      rd.pfb.reserve(9)?;
-      let mut read = rd.pfb.following_len();
-      let buffer = rd.pfb.following_rest_mut();
-      let array = read_header::<0, 9, _>(buffer, &mut read, &mut rd.stream_reader).await?;
+      let Some(array) = nrb.read_header::<_, 9>(stream_reader).await?.opt() else {
+        return Ok(None);
+      };
       let (fi_opt, data_len) = FrameInit::from_array(array);
       if data_len > max_frame_len {
         return Err(crate::Error::Http2ErrorGoAway(
@@ -166,24 +161,21 @@ where
         if data_len > 32 {
           return Err(protocol_err(Http2Error::LargeIgnorableFrameLen));
         }
-        let frame_len = data_len_usize.wrapping_add(9);
-        let (antecedent_len, following_len) = if let Some(to_read) = frame_len.checked_sub(read) {
-          rd.stream_reader.read_skip(to_read).await?;
-          (rd.pfb.all().len(), 0)
-        } else {
-          (rd.pfb.current_end_idx().wrapping_add(frame_len), read.wrapping_sub(frame_len))
-        };
-        rd.pfb.set_indices(antecedent_len, 0, following_len)?;
+        if nrb.read_payload(data_len_usize, stream_reader).await?.is_closed() {
+          return Ok(None);
+        }
         continue;
       };
       _trace!("Received frame: {fi:?}");
-      read_payload((9, data_len_usize), &mut rd.pfb, &mut read, &mut rd.stream_reader).await?;
-      return Ok(fi);
+      if nrb.read_payload(data_len_usize, stream_reader).await?.is_closed() {
+        return Ok(None);
+      }
+      return Ok(Some(fi));
     }
     Err(protocol_err(Http2Error::VeryLargeAmountOfFrameMismatches))
   });
   poll_fn(|cx| match fut.as_mut().poll(cx) {
-    Poll::Ready(Ok(fi)) => Poll::Ready(Ok(Some(fi))),
+    Poll::Ready(Ok(fi)) => Poll::Ready(Ok(fi)),
     Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
     Poll::Pending => {
       read_frame_waker.register(cx.waker());
@@ -207,8 +199,9 @@ pub(crate) async fn read_header_and_continuations<
   hp: &mut HttpRecvParams,
   hpack_dec: &mut HpackDecoder,
   msg_buffer: &mut MsgBufferString,
-  rd: &mut ReaderData<SR>,
+  nrb: &mut BufStreamReader,
   read_frame_waker: &AtomicWaker,
+  stream_reader: &mut SR,
   mut headers_cb: impl FnMut(&HeadersFrame<'_>) -> crate::Result<H>,
 ) -> crate::Result<(Option<usize>, bool, H)>
 where
@@ -227,7 +220,7 @@ where
 
   if fi.cf.has_eoh() {
     let (content_length, hf) = HeadersFrame::read::<IS_CLIENT, IS_TRAILER>(
-      Some(rd.pfb.current()),
+      Some(nrb.current()),
       fi,
       hp,
       hpack_dec,
@@ -243,12 +236,18 @@ where
     return Ok((content_length, hf.has_eos(), headers_cb(&hf)?));
   }
 
-  msg_buffer.body.extend_from_copyable_slice(rd.pfb.current())?;
+  msg_buffer.body.extend_from_copyable_slice(nrb.current())?;
 
   'continuation_frames: {
     for _ in 0.._max_continuation_frames!() {
-      let Some(frame_fi) =
-        read_frame::<_, true>(is_conn_open, hp.max_frame_len(), rd, read_frame_waker).await?
+      let Some(frame_fi) = read_frame::<_, true>(
+        is_conn_open,
+        hp.max_frame_len(),
+        nrb,
+        read_frame_waker,
+        stream_reader,
+      )
+      .await?
       else {
         return Err(protocol_err(Http2Error::IncompleteHeader));
       };
@@ -257,7 +256,7 @@ where
       if has_diff_id || is_not_continuation {
         return Err(protocol_err(Http2Error::UnexpectedContinuationFrame));
       }
-      msg_buffer.body.extend_from_copyable_slice(rd.pfb.current())?;
+      msg_buffer.body.extend_from_copyable_slice(nrb.current())?;
       if frame_fi.cf.has_eoh() {
         break 'continuation_frames;
       }
@@ -286,11 +285,10 @@ where
   Ok((content_length, hf.has_eos(), headers_cb(&hf)?))
 }
 
-pub(crate) async fn send_go_away<HB, SW, const IS_CLIENT: bool>(
+pub(crate) async fn send_go_away<SW, TM, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
-  inner: &Http2Inner<HB, SW, IS_CLIENT>,
+  inner: &Http2Inner<SW, TM, IS_CLIENT>,
 ) where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   let last_stream_id = {
@@ -313,13 +311,12 @@ pub(crate) async fn send_go_away<HB, SW, const IS_CLIENT: bool>(
   let _rslt = inner.wd.lock().await.stream_writer.write_all(&gaf.bytes()).await;
 }
 
-pub(crate) async fn send_reset_stream<HB, SW, const IS_CLIENT: bool>(
+pub(crate) async fn send_reset_stream<SW, TM, const IS_CLIENT: bool>(
   error_code: Http2ErrorCode,
-  inner: &Http2Inner<HB, SW, IS_CLIENT>,
+  inner: &Http2Inner<SW, TM, IS_CLIENT>,
   stream_id: U31,
 ) -> bool
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   let mut has_stored = false;
@@ -412,13 +409,14 @@ where
   }
   _trace!("Sending frame(s): {:?}", {
     let process = |elem: &mut Option<_>, frame: &[u8]| {
-      let [a, b, c, d, e, f, g, h, i, rest @ ..] = frame else {
+      let [b0, b1, b2, b3, b4, b5, b6, b7, b8, rest @ ..] = frame else {
         return;
       };
       if rest.len() > 36 {
         return;
       }
-      let (Some(fi), _) = FrameInit::from_array([*a, *b, *c, *d, *e, *f, *g, *h, *i]) else {
+      let (Some(fi), _) = FrameInit::from_array([*b0, *b1, *b2, *b3, *b4, *b5, *b6, *b7, *b8])
+      else {
         return;
       };
       *elem = Some(fi);
@@ -426,7 +424,7 @@ where
     let mut rslt = [None; N];
     let mut iter = rslt.iter_mut().zip(array.iter());
     if let Some((elem, frame)) = iter.next()
-      && frame != crate::http2::PREFACE
+      && frame != &crate::http2::PREFACE
     {
       process(elem, frame);
     }

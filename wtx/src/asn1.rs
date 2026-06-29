@@ -23,8 +23,8 @@ mod u32;
 
 use crate::{
   calendar::{Date, DateTime, Day, Hour, Month, Sixty, Time, Utc, Year},
-  codec::{Decode, DecodeWrapper, EncodeWrapper, FromRadix10, GenericCodec},
-  collection::{ExpansionTy, TryExtend},
+  codec::{Decode, DecodeWrapper, EncodeWrapper, FromRadix10 as _, GenericCodec},
+  collections::{ExpansionTy, TryExtend},
   misc::Pem,
 };
 pub use any::Any;
@@ -69,48 +69,51 @@ pub type MaxSizeTy = u16;
 /// Parses an DER element from PEM contents or in other words, from base64 data delimited by labels.
 ///
 /// The [`Pem`] structure must delimit `buffer` through its indices.
+#[inline]
 pub fn parse_der_from_pem_range<'bytes, T>(
   bytes: &'bytes [u8],
   pem: &Pem<Range<usize>, 1>,
-) -> crate::Result<T>
+) -> crate::Result<(T, &'bytes [u8])>
 where
-  T: Decode<'bytes, GenericCodec<Asn1DecodeWrapper, ()>>,
+  T: Decode<'bytes, GenericCodec<Asn1DecodeWrapperAux, ()>>,
 {
   let [(_label, range)] = pem.data.as_inner()?;
-  T::decode(&mut DecodeWrapper::new(
-    bytes.get(range.clone()).unwrap_or_default(),
-    Asn1DecodeWrapper::default(),
-  ))
+  let data = bytes.get(range.clone()).unwrap_or_default();
+  let mut dw = DecodeWrapper::new(data, Asn1DecodeWrapperAux::default());
+  let element = T::decode(&mut dw)?;
+  let tbs_bytes = data.get(dw.decode_aux.tbs_cert_range()).unwrap_or_default();
+  Ok((element, tbs_bytes))
 }
 
 /// Generalization of [`parse_der_from_pem_range`].
+#[inline]
 pub fn parse_der_from_pem_range_many<'bytes, 'pem, I, T, U>(
   buffer: &'bytes [u8],
   instances: &mut I,
   pems: impl IntoIterator<Item = &'pem Pem<Range<usize>, 1>>,
-  mut cb: impl FnMut(T) -> crate::Result<U>,
+  mut cb: impl FnMut((T, &'bytes [u8])) -> crate::Result<U>,
 ) -> crate::Result<()>
 where
   I: TryExtend<[U; 1]>,
-  T: Decode<'bytes, GenericCodec<Asn1DecodeWrapper, ()>>,
+  T: Decode<'bytes, GenericCodec<Asn1DecodeWrapperAux, ()>>,
 {
   for pem in pems {
     let [(_label, range)] = pem.data.as_inner()?;
     let bytes = buffer.get(range.clone()).unwrap_or_default();
-    instances.try_extend([cb(T::decode(&mut DecodeWrapper::new(
-      bytes,
-      Asn1DecodeWrapper::default(),
-    ))?)?])?;
+    let mut dw = DecodeWrapper::new(bytes, Asn1DecodeWrapperAux::default());
+    let element = T::decode(&mut dw)?;
+    let tbs_bytes = bytes.get(dw.decode_aux.tbs_cert_range()).unwrap_or_default();
+    instances.try_extend([cb((element, tbs_bytes))?])?;
   }
   Ok(())
 }
 
 #[inline]
 pub(crate) fn asn1_writer(
-  ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
+  ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>,
   len_guess: Len,
   tag: u8,
-  cb: impl FnOnce(&mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()>,
+  cb: impl FnOnce(&mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()>,
 ) -> crate::Result<()> {
   let _ = ew.buffer.extend_from_copyable_slices([&[tag][..], &*len_guess])?;
   let before = ew.buffer.len();
@@ -155,18 +158,18 @@ pub(crate) fn decode_asn1_tlv(bytes: &[u8]) -> crate::Result<(u8, Len, &[u8], &[
   let (len, after_len) = if *maybe_len <= 127 {
     (Len::from_u8(*maybe_len), maybe_after_len)
   } else if *maybe_len == 129 {
-    let [a, rest @ ..] = maybe_after_len else {
+    let [b0, rest @ ..] = maybe_after_len else {
       return Err(Asn1Error::InvalidTlv.into());
     };
-    if *a < 128 {
+    if *b0 < 128 {
       return Err(Asn1Error::InvalidTlv.into());
     }
-    (Len::from_u8(*a), rest)
+    (Len::from_u8(*b0), rest)
   } else if *maybe_len == 130 {
-    let [a, b, rest @ ..] = maybe_after_len else {
+    let [b0, b1, rest @ ..] = maybe_after_len else {
       return Err(Asn1Error::InvalidTlv.into());
     };
-    let len = u16::from_be_bytes([*a, *b]);
+    let len = u16::from_be_bytes([*b0, *b1]);
     if len < 256 {
       return Err(Asn1Error::InvalidTlv.into());
     }
@@ -198,13 +201,50 @@ fn parse_datetime(year: i16, bytes: [&u8; 10]) -> crate::Result<DateTime<Utc>> {
 
 /// Auxiliary wrapper used for decoding
 #[derive(Debug, Default)]
-pub struct Asn1DecodeWrapper {
+pub struct Asn1DecodeWrapperAux {
+  #[cfg(feature = "x509")]
+  pub(crate) curr_idx: usize,
+  pub(crate) spki_range: Range<u16>,
   pub(crate) tag: Option<u8>,
+  pub(crate) tbs_cert_range: Range<u16>,
+}
+
+impl Asn1DecodeWrapperAux {
+  /// Returns the bytes that compose a `SubjectPublicKeyInfo`, if any.
+  #[inline]
+  pub fn spki<'bytes>(&self, decoding_bytes: &'bytes [u8]) -> Option<&'bytes [u8]> {
+    decoding_bytes.get(self.spki_range())
+  }
+
+  /// Returns the range that compose a `SubjectPublicKeyInfo`, if any.
+  #[inline]
+  pub fn spki_range(&self) -> Range<usize> {
+    let range = self.spki_range.clone();
+    range.start.into()..range.end.into()
+  }
+
+  /// Returns the bytes that compose a `TbsCertificate`, if any.
+  #[inline]
+  pub fn tbs_cert<'bytes>(&self, decoding_bytes: &'bytes [u8]) -> Option<&'bytes [u8]> {
+    decoding_bytes.get(self.tbs_cert_range())
+  }
+
+  /// Returns the range that compose a `TbsCertificate`, if any.
+  #[inline]
+  pub fn tbs_cert_range(&self) -> Range<usize> {
+    let range = self.tbs_cert_range.clone();
+    range.start.into()..range.end.into()
+  }
+
+  #[cfg(feature = "x509")]
+  pub(crate) fn inc_curr_idx(&mut self, len: usize) {
+    self.curr_idx = self.curr_idx.wrapping_add(len);
+  }
 }
 
 /// Auxiliary wrapper used for encoding
 #[derive(Debug, Default)]
-pub struct Asn1EncodeWrapper {
+pub struct Asn1EncodeWrapperAux {
   pub(crate) len_guess: Len,
   pub(crate) tag: Option<u8>,
 }

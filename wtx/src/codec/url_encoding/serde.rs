@@ -3,7 +3,7 @@ use crate::{
     AsciiSet, UrlEncode, i8_string, i16_string, i32_string, i64_string, u8_string, u16_string,
     u32_string, u64_string,
   },
-  collection::Vector,
+  collections::Vector,
 };
 use core::fmt::Write;
 use serde::ser;
@@ -26,6 +26,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool>
   /// New instance
   ///
   /// Defaults to [`AsciiSet::UNRESERVED`] if `ascii_set` is `None`.
+  #[inline]
   pub fn new(ascii_set: Option<AsciiSet>, buffer: &'buffer mut Vector<u8>) -> Self {
     if IS_TOP_LEVEL {
       buffer.clear();
@@ -48,10 +49,12 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
   type SerializeTupleStruct = SeqSerializer<'buffer, IS_PERCENT>;
   type SerializeTupleVariant = TupleVariantSerializer<'buffer, IS_PERCENT>;
 
+  #[inline]
   fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
     self.serialize_str(if v { "true" } else { "false" })
   }
 
+  #[inline]
   fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
     for chunk in UrlEncode::<IS_PERCENT>::new(v, self.ascii_set) {
       self.buffer.extend_from_copyable_slice(chunk)?;
@@ -59,10 +62,12 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_char(self, v: char) -> Result<Self::Ok, Self::Error> {
     self.serialize_str(v.encode_utf8(&mut [0u8; 4]))
   }
 
+  #[inline]
   fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {
     write!(
       UrlEncodeWriter::<IS_PERCENT> { ascii_set: self.ascii_set, buffer: self.buffer },
@@ -71,6 +76,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_f64(self, v: f64) -> Result<Self::Ok, Self::Error> {
     write!(
       UrlEncodeWriter::<IS_PERCENT> { ascii_set: self.ascii_set, buffer: self.buffer },
@@ -79,26 +85,31 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i8_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_i16(self, v: i16) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i16_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_i32(self, v: i32) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i32_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_i64(self, v: i64) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(i64_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_newtype_struct<T>(self, _: &'static str, value: &T) -> Result<Self::Ok, Self::Error>
   where
     T: ser::Serialize + ?Sized,
@@ -106,6 +117,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     value.serialize(self)
   }
 
+  #[inline]
   fn serialize_newtype_variant<T>(
     self,
     _: &'static str,
@@ -125,6 +137,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
     if !IS_TOP_LEVEL {
       return Err(crate::Error::UnsupportedOperation);
@@ -132,10 +145,12 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(MapSerializer { ascii_set: self.ascii_set, buffer: self.buffer, is_first: true })
   }
 
+  #[inline]
   fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
     if IS_TOP_LEVEL {
       return Err(crate::Error::UnsupportedOperation);
@@ -143,6 +158,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(SeqSerializer { ascii_set: self.ascii_set, buffer: self.buffer, is_first: true })
   }
 
+  #[inline]
   fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
   where
     T: ser::Serialize + ?Sized,
@@ -150,10 +166,12 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     value.serialize(self)
   }
 
+  #[inline]
   fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
     self.serialize_bytes(v.as_bytes())
   }
 
+  #[inline]
   fn serialize_struct(
     self,
     _: &'static str,
@@ -165,6 +183,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(StructSerializer { ascii_set: self.ascii_set, buffer: self.buffer, is_first: true })
   }
 
+  #[inline]
   fn serialize_struct_variant(
     self,
     _: &'static str,
@@ -175,6 +194,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Err(crate::Error::UnsupportedOperation)
   }
 
+  #[inline]
   fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, Self::Error> {
     if IS_TOP_LEVEL {
       return Err(crate::Error::UnsupportedOperation);
@@ -182,6 +202,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(SeqSerializer { ascii_set: self.ascii_set, buffer: self.buffer, is_first: true })
   }
 
+  #[inline]
   fn serialize_tuple_struct(
     self,
     _: &'static str,
@@ -193,6 +214,7 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(SeqSerializer { ascii_set: self.ascii_set, buffer: self.buffer, is_first: true })
   }
 
+  #[inline]
   fn serialize_tuple_variant(
     self,
     _: &'static str,
@@ -210,34 +232,41 @@ impl<'buffer, const IS_PERCENT: bool, const IS_TOP_LEVEL: bool> ser::Serializer
     Ok(TupleVariantSerializer { ascii_set: self.ascii_set, buffer: self.buffer, is_first: true })
   }
 
+  #[inline]
   fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u8_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u16_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_u32(self, v: u32) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u32_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
     self.buffer.extend_from_copyable_slice(u64_string(v).as_bytes())?;
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_unit_struct(self, _: &'static str) -> Result<Self::Ok, Self::Error> {
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_unit_variant(
     self,
     _: &'static str,
@@ -263,10 +292,12 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeMap for MapSerializer<'buffe
   type Error = crate::Error;
   type Ok = &'buffer str;
 
+  #[inline]
   fn end(self) -> crate::Result<Self::Ok> {
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_key<T>(&mut self, key: &T) -> crate::Result<()>
   where
     T: ser::Serialize + ?Sized,
@@ -281,6 +312,7 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeMap for MapSerializer<'buffe
     Ok(())
   }
 
+  #[inline]
   fn serialize_value<T>(&mut self, value: &T) -> crate::Result<()>
   where
     T: ser::Serialize + ?Sized,
@@ -303,10 +335,12 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeSeq for SeqSerializer<'buffe
   type Error = crate::Error;
   type Ok = &'buffer str;
 
+  #[inline]
   fn end(self) -> crate::Result<Self::Ok> {
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_element<T>(&mut self, value: &T) -> crate::Result<()>
   where
     T: ser::Serialize + ?Sized,
@@ -325,10 +359,12 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTuple for SeqSerializer<'buf
   type Error = crate::Error;
   type Ok = &'buffer str;
 
+  #[inline]
   fn end(self) -> crate::Result<Self::Ok> {
     ser::SerializeSeq::end(self)
   }
 
+  #[inline]
   fn serialize_element<T>(&mut self, value: &T) -> crate::Result<()>
   where
     T: ser::Serialize + ?Sized,
@@ -343,10 +379,12 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTupleStruct
   type Error = crate::Error;
   type Ok = &'buffer str;
 
+  #[inline]
   fn end(self) -> crate::Result<Self::Ok> {
     ser::SerializeSeq::end(self)
   }
 
+  #[inline]
   fn serialize_field<T>(&mut self, value: &T) -> crate::Result<()>
   where
     T: ser::Serialize + ?Sized,
@@ -369,10 +407,12 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeStruct
   type Error = crate::Error;
   type Ok = &'buffer str;
 
+  #[inline]
   fn end(self) -> crate::Result<Self::Ok> {
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> crate::Result<()>
   where
     T: ser::Serialize + ?Sized,
@@ -405,10 +445,12 @@ impl<'buffer, const IS_PERCENT: bool> ser::SerializeTupleVariant
   type Error = crate::Error;
   type Ok = &'buffer str;
 
+  #[inline]
   fn end(self) -> crate::Result<Self::Ok> {
     Ok(url_encode_str(self.buffer))
   }
 
+  #[inline]
   fn serialize_field<T>(&mut self, value: &T) -> crate::Result<()>
   where
     T: ser::Serialize + ?Sized,
@@ -429,6 +471,7 @@ struct UrlEncodeWriter<'buffer, const IS_PERCENT: bool> {
 }
 
 impl<const IS_PERCENT: bool> Write for UrlEncodeWriter<'_, IS_PERCENT> {
+  #[inline]
   fn write_str(&mut self, s: &str) -> core::fmt::Result {
     for chunk in UrlEncode::<IS_PERCENT>::new(s.as_bytes(), self.ascii_set) {
       self.buffer.extend_from_copyable_slice(chunk).map_err(|_err| core::fmt::Error)?;
@@ -444,7 +487,7 @@ fn url_encode_str(bytes: &[u8]) -> &str {
 
 #[cfg(test)]
 mod tests {
-  use crate::{codec::FormUrlSerializer, collection::Vector};
+  use crate::{codec::FormUrlSerializer, collections::Vector};
   use serde::Serialize;
 
   #[test]

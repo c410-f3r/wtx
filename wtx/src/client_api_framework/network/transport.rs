@@ -23,7 +23,7 @@ pub use transport_params::TransportParams;
 /// Please, see the [`crate::client_api_framework::pkg::Package`] implementation of the desired package to know
 /// more about the expected types as well as any other additional documentation.
 pub trait Transport<TP> {
-  /// See [TransportGroup].
+  /// See [`TransportGroup`].
   const GROUP: TransportGroup;
   /// The inner implementation.
   type Inner: Transport<TP>;
@@ -89,7 +89,7 @@ mod tests {
   use crate::{
     client_api_framework::pkg::Package,
     codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-    collection::Vector,
+    collections::Vector,
   };
 
   #[derive(Debug, Eq, PartialEq)]

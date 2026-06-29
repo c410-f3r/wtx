@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, Hour, MINUTES_PER_HOUR, Sixty, TimeZone},
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
 };
 
 /// Dynamic Time Zone. From -23:59 to +23:59.

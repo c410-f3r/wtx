@@ -34,20 +34,18 @@ mod initial_server_stream_remote;
 mod misc;
 mod ping_frame;
 mod process_receipt_frame_ty;
-mod reader_data;
 mod reset_stream_frame;
 mod server_stream;
 mod settings_frame;
 mod stream_receiver;
 mod stream_state;
-#[cfg(all(feature = "_async-tests", test))]
+#[cfg(test)]
 mod tests;
 #[cfg(feature = "web-socket")]
 mod web_socket_over_stream;
 mod window;
 mod window_update_frame;
 mod write_functions;
-mod writer_data;
 
 use crate::{
   http::{
@@ -57,6 +55,7 @@ use crate::{
   misc::{ConnectionState, Lease, LeaseMut, SingleTypeStorage, Usize},
   stream::{StreamReader, StreamWriter},
   sync::{Arc, AsyncMutex, AtomicBool, AtomicWaker},
+  tls::{TlsMode, TlsStreamBridge, TlsStreamReader, TlsStreamWriter},
 };
 pub use client_stream::ClientStream;
 pub use common_stream::CommonStream;
@@ -77,21 +76,21 @@ pub use server_stream::ServerStream;
 pub use web_socket_over_stream::WebSocketOverStream;
 pub use window::{Window, Windows};
 
-const PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+const PREFACE: [u8; 24] = *b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
-pub(crate) type Scrp = HashMap<U31, stream_receiver::StreamControlRecvParams>;
-pub(crate) type Sorp = HashMap<U31, stream_receiver::StreamOverallRecvParams>;
+pub(crate) type Scorp = HashMap<U31, stream_receiver::StreamControlRecvParams>;
+pub(crate) type Sovrp = HashMap<U31, stream_receiver::StreamOverallRecvParams>;
 
 /// Negotiates initial "handshakes" or connections and also manages the creation of streams.
 #[derive(Debug)]
-pub struct Http2<HB, SW, const IS_CLIENT: bool> {
-  inner: Arc<Http2Inner<HB, SW, IS_CLIENT>>,
+pub struct Http2<SW, TM, const IS_CLIENT: bool> {
+  inner: Arc<Http2Inner<SW, TM, IS_CLIENT>>,
 }
 
-impl<HB, SW, const IS_CLIENT: bool> Http2<HB, SW, IS_CLIENT>
+impl<SW, TM, const IS_CLIENT: bool> Http2<SW, TM, IS_CLIENT>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
+  TM: TlsMode,
 {
   /// See [`ConnectionState`].
   #[inline]
@@ -101,76 +100,83 @@ where
 
   send_go_away_method!();
 
-  #[cfg(all(feature = "http-client-pool", feature = "tokio"))]
-  pub(crate) async fn swap_buffers(&mut self, hb: &mut HB) {
-    mem::swap(hb.lease_mut(), self.inner.hd.lock().await.parts_mut().hb);
+  #[cfg(all(feature = "http2-client-pool", feature = "tls"))]
+  pub(crate) async fn swap_buffers(&mut self, hb: &mut Http2Buffer) {
+    mem::swap(hb, self.inner.hd.lock().await.parts_mut().hb);
   }
 
   async fn manage_initial_params<SR, const HAS_PREFACE: bool>(
-    mut hb: HB,
-    hp: HttpRecvParams,
-    stream_reader: SR,
-    mut stream_writer: SW,
+    mut hb: Http2Buffer,
+    hrp: HttpRecvParams,
+    stream_bridge: TlsStreamBridge<IS_CLIENT>,
+    stream_reader: TlsStreamReader<SR, TM, IS_CLIENT>,
+    mut stream_writer: TlsStreamWriter<SW, TM, IS_CLIENT>,
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {
     let is_conn_open = AtomicBool::new(true);
-    let sf = SettingsFrame::from_hp(hp);
+    let sf = SettingsFrame::from_hrp(hrp);
     let sf_buffer = &mut [0; 45];
     let sf_bytes = sf.bytes(sf_buffer);
-    if hp.initial_window_len() == DEFAULT_INITIAL_WINDOW_LEN {
+    if hrp.initial_window_len() == DEFAULT_INITIAL_WINDOW_LEN {
       if HAS_PREFACE {
-        misc::write_array([PREFACE, sf_bytes], &is_conn_open, &mut stream_writer).await?;
+        misc::write_array([&PREFACE, sf_bytes], &is_conn_open, &mut stream_writer).await?;
       } else {
         misc::write_array([sf_bytes], &is_conn_open, &mut stream_writer).await?;
       }
     } else {
       let wuf = window_update_frame::WindowUpdateFrame::new(
-        hp.initial_window_len().wrapping_sub(DEFAULT_INITIAL_WINDOW_LEN).into(),
+        hrp.initial_window_len().wrapping_sub(DEFAULT_INITIAL_WINDOW_LEN).into(),
         U31::ZERO,
       )?;
       if HAS_PREFACE {
-        let array = [PREFACE, sf_bytes, &wuf.bytes()];
+        let array = [&PREFACE, sf_bytes, &wuf.bytes()];
         misc::write_array(array, &is_conn_open, &mut stream_writer).await?;
       } else {
         misc::write_array([sf_bytes, &wuf.bytes()], &is_conn_open, &mut stream_writer).await?;
       }
     }
-    hb.lease_mut().hpack_dec.set_max_bytes(hp.max_hpack_len().0);
-    hb.lease_mut().hpack_enc.set_max_dyn_super_bytes(hp.max_hpack_len().1);
-    let rd = reader_data::ReaderData::new(mem::take(&mut hb.lease_mut().pfb), stream_reader);
-    let max_frame_len = hp.max_frame_len();
-    let wd = writer_data::WriterData::new(stream_writer);
+    hb.hpack_dec.set_max_bytes(hrp.max_hpack_len().0);
+    hb.hpack_enc.set_max_dyn_super_bytes(hrp.max_hpack_len().1);
+    let nrb = mem::take(&mut hb.nrb);
+    let max_frame_len = hrp.max_frame_len();
     let inner = Arc::new(Http2Inner {
-      hd: AsyncMutex::new(Http2Data::new(hb, hp)),
+      hd: AsyncMutex::new(Http2Data::new(hb, hrp)),
       is_conn_open,
       read_frame_waker: AtomicWaker::new(),
-      wd: AsyncMutex::new(wd),
+      wd: AsyncMutex::new(stream_writer),
     });
-    Ok((frame_reader::frame_reader(inner.clone(), max_frame_len, rd), Self { inner }))
+    Ok((
+      frame_reader::frame_reader(inner.clone(), max_frame_len, nrb, stream_bridge, stream_reader),
+      Self { inner },
+    ))
   }
 }
 
-impl<HB, SW> Http2<HB, SW, false>
+impl<SW, TM> Http2<SW, TM, false>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
+  TM: TlsMode,
 {
   /// Accepts an initial connection sending the local parameters to the remote peer.
   #[inline]
   pub async fn accept<SR>(
-    mut hb: HB,
-    hp: HttpRecvParams,
-    (mut stream_reader, mut stream_writer): (SR, SW),
+    mut hb: Http2Buffer,
+    hrp: HttpRecvParams,
+    (stream_bridge, mut stream_reader, mut stream_writer): (
+      TlsStreamBridge<false>,
+      TlsStreamReader<SR, TM, false>,
+      TlsStreamWriter<SW, TM, false>,
+    ),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {
-    hb.lease_mut().clear();
-    let mut buffer = [0; 24];
-    let _ = stream_reader.read(&mut buffer).await?;
-    if &buffer != PREFACE {
+    hb.clear();
+    let mut buffer = [0; PREFACE.len()];
+    let _read = stream_reader.read(buffer.as_mut_slice().into()).await?;
+    if buffer != PREFACE {
       let _rslt = stream_writer
         .write_all(
           &go_away_frame::GoAwayFrame::new(Http2ErrorCode::ProtocolError, U31::ZERO).bytes(),
@@ -178,7 +184,8 @@ where
         .await;
       return Err(misc::protocol_err(Http2Error::NoPreface));
     }
-    Self::manage_initial_params::<_, false>(hb, hp, stream_reader, stream_writer).await
+    Self::manage_initial_params::<_, false>(hb, hrp, stream_bridge, stream_reader, stream_writer)
+      .await
   }
 
   /// Awaits for an initial header to create a stream.
@@ -188,7 +195,7 @@ where
   pub async fn stream<T>(
     &self,
     mut cb: impl FnMut(Request<&mut MsgBufferString>, Option<Protocol>) -> T,
-  ) -> crate::Result<Option<(ServerStream<HB, SW>, T)>> {
+  ) -> crate::Result<Option<(ServerStream<SW, TM>, T)>> {
     let Self { inner } = self;
     let mut is_registered = false;
     let mut lock_pin = pin!(inner.hd.lock());
@@ -231,29 +238,34 @@ where
   }
 }
 
-impl<HB, SW> Http2<HB, SW, true>
+impl<SW, TM> Http2<SW, TM, true>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
+  TM: TlsMode,
 {
   /// Tries to connect to a server sending the local parameters.
   #[inline]
   pub async fn connect<SR>(
-    mut hb: HB,
-    mut hp: HttpRecvParams,
-    (stream_reader, stream_writer): (SR, SW),
+    mut hb: Http2Buffer,
+    mut hrp: HttpRecvParams,
+    (stream_bridge, stream_reader, stream_writer): (
+      TlsStreamBridge<true>,
+      TlsStreamReader<SR, TM, true>,
+      TlsStreamWriter<SW, TM, true>,
+    ),
   ) -> crate::Result<(impl Future<Output = ()>, Self)>
   where
     SR: StreamReader,
   {
-    hb.lease_mut().clear();
-    hp = hp.set_enable_connect_protocol(false);
-    Self::manage_initial_params::<_, true>(hb, hp, stream_reader, stream_writer).await
+    hb.clear();
+    hrp = hrp.set_enable_connect_protocol(false);
+    Self::manage_initial_params::<_, true>(hb, hrp, stream_bridge, stream_reader, stream_writer)
+      .await
   }
 
   /// Opens a local stream.
   #[inline]
-  pub async fn stream(&self) -> crate::Result<ClientStream<HB, SW>> {
+  pub async fn stream(&self) -> crate::Result<ClientStream<SW, TM>> {
     let Self { inner } = self;
     let mut hd_guard = inner.hd.lock().await;
     let hdpm = hd_guard.parts_mut();
@@ -281,27 +293,27 @@ where
   }
 }
 
-impl<HB, SW, const IS_CLIENT: bool> Lease<Http2<HB, SW, IS_CLIENT>> for Http2<HB, SW, IS_CLIENT> {
+impl<SW, TM, const IS_CLIENT: bool> Lease<Http2<SW, TM, IS_CLIENT>> for Http2<SW, TM, IS_CLIENT> {
   #[inline]
-  fn lease(&self) -> &Http2<HB, SW, IS_CLIENT> {
+  fn lease(&self) -> &Http2<SW, TM, IS_CLIENT> {
     self
   }
 }
 
-impl<HB, SW, const IS_CLIENT: bool> LeaseMut<Http2<HB, SW, IS_CLIENT>>
-  for Http2<HB, SW, IS_CLIENT>
+impl<SW, TM, const IS_CLIENT: bool> LeaseMut<Http2<SW, TM, IS_CLIENT>>
+  for Http2<SW, TM, IS_CLIENT>
 {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Http2<HB, SW, IS_CLIENT> {
+  fn lease_mut(&mut self) -> &mut Http2<SW, TM, IS_CLIENT> {
     self
   }
 }
 
-impl<HB, SW, const IS_CLIENT: bool> SingleTypeStorage for Http2<HB, SW, IS_CLIENT> {
-  type Item = (HB, SW);
+impl<SW, TM, const IS_CLIENT: bool> SingleTypeStorage for Http2<SW, TM, IS_CLIENT> {
+  type Item = (Http2Buffer, SW);
 }
 
-impl<HB, SW, const IS_CLIENT: bool> Clone for Http2<HB, SW, IS_CLIENT> {
+impl<SW, TM, const IS_CLIENT: bool> Clone for Http2<SW, TM, IS_CLIENT> {
   #[inline]
   fn clone(&self) -> Self {
     Self { inner: self.inner.clone() }
@@ -309,9 +321,9 @@ impl<HB, SW, const IS_CLIENT: bool> Clone for Http2<HB, SW, IS_CLIENT> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Http2Inner<HB, SW, const IS_CLIENT: bool> {
-  pub(crate) hd: AsyncMutex<Http2Data<HB, IS_CLIENT>>,
+pub(crate) struct Http2Inner<SW, TM, const IS_CLIENT: bool> {
+  pub(crate) hd: AsyncMutex<Http2Data<IS_CLIENT>>,
   pub(crate) is_conn_open: AtomicBool,
   pub(crate) read_frame_waker: AtomicWaker,
-  pub(crate) wd: AsyncMutex<writer_data::WriterData<SW>>,
+  pub(crate) wd: AsyncMutex<TlsStreamWriter<SW, TM, IS_CLIENT>>,
 }

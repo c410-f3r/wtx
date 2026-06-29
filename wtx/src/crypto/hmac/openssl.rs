@@ -1,3 +1,8 @@
+#![expect(
+  clippy::unwrap_used,
+  reason = "it is not worth changing the signature because of one backend"
+)]
+
 use crate::crypto::{CryptoError, Hmac, HmacOpenssl, HmacSha256Openssl, HmacSha384Openssl};
 use openssl::{hash::MessageDigest, memcmp};
 
@@ -11,7 +16,7 @@ impl Hmac for HmacSha256Openssl {
 
   #[inline]
   fn update(&mut self, data: &[u8]) {
-    self.0.signer.update(data).unwrap()
+    self.0.signer.update(data).unwrap();
   }
 
   #[inline]
@@ -38,7 +43,7 @@ impl Hmac for HmacSha384Openssl {
 
   #[inline]
   fn update(&mut self, data: &[u8]) {
-    self.0.signer.update(data).unwrap()
+    self.0.signer.update(data).unwrap();
   }
 
   #[inline]

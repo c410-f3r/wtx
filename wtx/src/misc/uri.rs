@@ -1,6 +1,6 @@
 use crate::{
   codec::FromRadix10 as _,
-  collection::{ArrayStringU16, Clear, Truncate, TryExtend},
+  collections::{ArrayStringU16, Clear, Truncate, TryExtend},
   misc::{
     AsciiGeneric, Lease, LeaseMut, SingleTypeStorage, bytes_pos1, str_split_once1, str_split1,
   },
@@ -28,19 +28,20 @@ pub type UriString = Uri<String>;
 /// ```txt
 /// foo://user:password@hostname:80/path?query=value#hash
 /// ```
-// \0\0\0 | foo:// | user:password@hostname:80 | /path | ?query=value | #hash |
-//        |        |                           |       |              |       |
-//        |        |                           |       |              |       |-> initial_len
-//        |        |                           |       |              |
-//        |        |                           |       |              |---------> fragment_start
-//        |        |                           |       |
-//        |        |                           |       |------------------------> query_start
-//        |        |                           |
-//        |        |                           |--------------------------------> href_start
-//        |        |
-//        |        |------------------------------------------------------------> authority_start
-//        |
-//        |---------------------------------------------------------------------> start
+//
+// 000 | foo:// | user:password@hostname:80 | /path | ?query=value | #hash |
+//     |        |                           |       |              |       |
+//     |        |                           |       |              |       |-> initial_len
+//     |        |                           |       |              |
+//     |        |                           |       |              |---------> fragment_start
+//     |        |                           |       |
+//     |        |                           |       |------------------------> query_start
+//     |        |                           |
+//     |        |                           |--------------------------------> href_start
+//     |        |
+//     |        |------------------------------------------------------------> authority_start
+//     |
+//     |---------------------------------------------------------------------> start
 #[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Uri<S>
 where
@@ -705,7 +706,7 @@ where
 
 #[cfg(test)]
 mod tests {
-  use crate::{collection::Clear, misc::UriString};
+  use crate::{collections::Clear, misc::UriString};
 
   #[test]
   fn dynamic_methods_have_correct_behavior() {

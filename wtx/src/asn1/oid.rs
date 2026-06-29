@@ -1,12 +1,13 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, Len, OID_TAG, decode_asn1_tlv},
-  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10, GenericCodec, u32_string},
-  collection::{ArrayString, ArrayStringU8, ArrayVectorU8},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, Len, OID_TAG, decode_asn1_tlv},
+  codec::{
+    Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec, u32_string,
+  },
+  collections::{ArrayString, ArrayStringU8, ArrayVectorU8},
   misc::bytes_split_once1,
 };
-use alloc::fmt::Debug;
 use core::{
-  fmt::{Display, Formatter},
+  fmt::{Debug, Display, Formatter},
   ops::Deref,
 };
 
@@ -30,17 +31,14 @@ impl Oid {
     let Some(string) = is_valid(bytes) else {
       return None;
     };
-    let inner = match ArrayStringU8::from_str_u8_opt(string) {
-      Some(elem) => elem,
-      None => return None,
-    };
+    let Some(inner) = ArrayStringU8::from_str_u8_opt(string) else { return None };
     Some(Self(inner))
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Oid {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Oid {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (OID_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(Asn1Error::InvalidOidBase128.into());
     };
@@ -49,9 +47,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Oid {
     let (c1, c2) = if first_combined < 40 {
       (0u32, first_combined)
     } else if first_combined < 80 {
-      (1u32, first_combined - 40)
+      (1u32, first_combined.wrapping_sub(40))
     } else {
-      (2u32, first_combined - 80)
+      (2u32, first_combined.wrapping_sub(80))
     };
     let mut buffer = ArrayStringU8::<31>::new();
     let _ = buffer.push_strs([&u32_string(c1), ".", &u32_string(c2)])?;
@@ -60,9 +58,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Oid {
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Oid {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for Oid {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let mut components = OidComponentIter(self.0.as_bytes());
     let (Some(c1_rslt), Some(c2_rslt)) = (components.next(), components.next()) else {
       return Err(Asn1Error::InvalidOidBase128.into());
@@ -120,16 +118,13 @@ impl Iterator for OidComponentIter<'_> {
     if self.0.is_empty() {
       return None;
     }
-    let bytes = match bytes_split_once1(self.0, b'.') {
-      Some((lhs, rhs)) => {
-        self.0 = rhs;
-        lhs
-      }
-      None => {
-        let lhs = self.0;
-        self.0 = &[];
-        lhs
-      }
+    let bytes = if let Some((lhs, rhs)) = bytes_split_once1(self.0, b'.') {
+      self.0 = rhs;
+      lhs
+    } else {
+      let lhs = self.0;
+      self.0 = &[];
+      lhs
     };
     Some(u32::from_radix_10(bytes))
   }
@@ -187,7 +182,7 @@ fn encode_base128_one(buffer: &mut ArrayVectorU8<u8, 20>, mut val: u32) -> crate
   }
   for local_idx in idx..local_buffer.len().wrapping_sub(1) {
     if let Some(elem) = local_buffer.get_mut(local_idx) {
-      *elem |= 0b10000000;
+      *elem |= 0b1000_0000;
     }
   }
   for elem in local_buffer.get(idx..).unwrap_or_default() {
@@ -210,16 +205,8 @@ const fn is_valid(mut bytes: &[u8]) -> Option<&str> {
     match first {
       b'0' | b'1' => {
         match bytes {
-          [b'0'] => break 'validation,
-          [b'0', b'.', rest @ ..] => {
-            bytes = rest;
-          }
-          [b'1'..=b'9'] => break 'validation,
-          [b'1'..=b'9', b'.', rest @ ..] => {
-            bytes = rest;
-          }
-          [b'1'..=b'3', b'0'..=b'9'] => break 'validation,
-          [b'1'..=b'3', b'0'..=b'9', b'.', rest @ ..] => {
+          [b'0' | b'1'..=b'9'] | [b'1'..=b'3', b'0'..=b'9'] => break 'validation,
+          [b'0' | b'1'..=b'9', b'.', rest @ ..] | [b'1'..=b'3', b'0'..=b'9', b'.', rest @ ..] => {
             bytes = rest;
           }
           _ => return None,
@@ -235,9 +222,9 @@ const fn is_valid(mut bytes: &[u8]) -> Option<&str> {
       }
       _ => return None,
     }
-    while let [first, rest @ ..] = bytes {
+    while let [b0, rest @ ..] = bytes {
       bytes = rest;
-      if !is_valid_node(*first, &mut bytes) {
+      if !is_valid_node(*b0, &mut bytes) {
         return None;
       }
     }

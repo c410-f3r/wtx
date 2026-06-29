@@ -3,7 +3,7 @@ mod res_builder;
 
 use crate::{
   codec::u32_string,
-  collection::Vector,
+  collections::Vector,
   http::{Header, KnownHeaderName, Mime, MsgDataMut},
   misc::{Either, LeaseMut},
 };

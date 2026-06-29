@@ -1,5 +1,5 @@
 use crate::{
-  collection::BlocksDeque,
+  collections::BlocksDeque,
   database::client::rdbms::{
     statement::{Statement, StatementMut},
     statement_builder::StatementBuilder,
@@ -33,23 +33,6 @@ impl<A, C, T> Statements<A, C, T> {
     }
   }
 
-  pub(crate) fn with_capacity<RNG>(
-    columns: usize,
-    max_stmts: usize,
-    rng: &mut RNG,
-    stmts: usize,
-  ) -> crate::Result<Self>
-  where
-    RNG: Rng,
-  {
-    Ok(Self {
-      max_stmts: max_stmts.max(1),
-      rs: random_state(rng),
-      stmts: BlocksDeque::with_capacity(stmts, columns)?,
-      stmts_indcs: HashMap::with_capacity(stmts),
-    })
-  }
-
   pub(crate) async fn builder<AUX>(
     &mut self,
     mut aux: AUX,
@@ -71,7 +54,7 @@ impl<A, C, T> Statements<A, C, T> {
         }
         *value = value.wrapping_sub(to_remove);
         true
-      })
+      });
     }
     Ok(StatementBuilder::new(&mut self.stmts_indcs, &mut self.stmts))
   }
@@ -145,7 +128,7 @@ mod tests {
       statements_misc::StatementsMisc,
       tests::{_column0, _column1, _column2, _column3},
     },
-    executor::Runtime,
+    executor::StdRuntime,
     rng::{SeedableRng, Xorshift64},
   };
 
@@ -160,7 +143,7 @@ mod tests {
   #[cfg_attr(miri, ignore)]
   #[test]
   fn two_statements() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let mut stmts = Statements::new(2, &mut Xorshift64::from_simple_seed().unwrap());
 
       let stmt_id0 = 123;

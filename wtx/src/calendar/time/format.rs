@@ -3,7 +3,7 @@ use crate::{
     CalendarError, CalendarToken, Time, Utc, format::parsed_data::ParsedData,
     misc::nanosecond_string,
   },
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
 };
 
 impl Time {

@@ -1,22 +1,22 @@
 use crate::{
   codec::{Decode, Encode},
-  collection::ArrayVectorU8,
+  collections::ArrayVectorCopy,
   database::{
     Typed,
     client::postgres::{
-      DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty,
+      Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty,
       tys::pg_numeric::{PgNumeric, Sign},
     },
   },
 };
-use rust_decimal::{Decimal, MathematicalOps};
+use rust_decimal::{Decimal, MathematicalOps as _};
 
 impl<E> Decode<'_, Postgres<E>> for Decimal
 where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
     Ok(PgNumeric::decode(dw)?.try_into()?)
   }
 }
@@ -26,7 +26,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     PgNumeric::try_from(*self)?.encode(ew)
   }
 }
@@ -53,7 +53,7 @@ impl TryFrom<Decimal> for PgNumeric {
   fn try_from(value: Decimal) -> Result<Self, Self::Error> {
     if value.is_zero() {
       return Ok(PgNumeric::Number {
-        digits: ArrayVectorU8::new(),
+        digits: ArrayVectorCopy::new(),
         scale: 0,
         sign: Sign::Positive,
         weight: 0,
@@ -69,7 +69,7 @@ impl TryFrom<Decimal> for PgNumeric {
       mantissa = mantissa.wrapping_mul(u128::from(10u32.pow(remainder)));
     }
 
-    let mut digits = ArrayVectorU8::new();
+    let mut digits = ArrayVectorCopy::new();
     while mantissa != 0 {
       digits.push(i16::try_from(mantissa % 10_000)?)?;
       mantissa /= 10_000;
@@ -86,10 +86,7 @@ impl TryFrom<Decimal> for PgNumeric {
     Ok(PgNumeric::Number {
       digits,
       scale,
-      sign: match value.is_sign_negative() {
-        false => Sign::Positive,
-        true => Sign::Negative,
-      },
+      sign: if value.is_sign_negative() { Sign::Negative } else { Sign::Positive },
       weight,
     })
   }
@@ -109,23 +106,23 @@ impl TryFrom<PgNumeric> for Decimal {
     if digits.is_empty() {
       return Ok(0u64.into());
     }
-    let mut value = Decimal::ZERO;
-    for digit in digits.into_iter() {
+    let mut num = Decimal::ZERO;
+    for digit in digits {
       let mut operations = || {
         let mul = Decimal::from(10_000u16).checked_powi(weight.into())?;
         let part = Decimal::from(digit).checked_mul(mul)?;
-        value = value.checked_add(part)?;
+        num = num.checked_add(part)?;
         weight = weight.checked_sub(1)?;
         Some(())
       };
-      operations().ok_or_else(|| crate::Error::OutOfBoundsArithmetic)?;
+      operations().ok_or(PostgresError::OutOfBoundsNumericArithmetic)?;
     }
     match sign {
-      Sign::Positive => value.set_sign_positive(true),
-      Sign::Negative => value.set_sign_negative(true),
+      Sign::Positive => num.set_sign_positive(true),
+      Sign::Negative => num.set_sign_negative(true),
     }
-    value.rescale(scale.into());
-    Ok(value)
+    num.rescale(scale.into());
+    Ok(num)
   }
 }
 

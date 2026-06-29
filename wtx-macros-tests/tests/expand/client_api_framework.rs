@@ -7,11 +7,8 @@
 //! Everything that is not inside `main` should be constructed only once in your program.
 
 extern crate serde;
-extern crate tokio;
 extern crate wtx;
 
-use core::time::Duration;
-use tokio::net::TcpStream;
 use wtx::{
   client_api_framework::{
     Api,
@@ -19,11 +16,14 @@ use wtx::{
     network::{HttpParams, WsParams, transport::SendingReceivingTransport},
   },
   codec::format::SerdeJson,
-  http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
+  executor::StdExecutor,
+  http::http2_client_pool::{Http2ClientPool, Http2ClientPoolBuilder},
   misc::Uri,
-  rng::Xorshift64,
+  tls::{TlsConfig, TlsModePlainText},
   web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
+use core::time::Duration;
+use std::net::TcpStream;
 
 wtx::create_packages_aux_wrapper!();
 
@@ -81,8 +81,10 @@ mod generic_web_socket_subscription {
   pub type GenericWebSocketSubscriptionRes = u64;
 }
 
-async fn http_pair()
--> Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>, ClientPoolTokio<fn(&()), (), ()>> {
+async fn http_pair() -> Pair<
+  PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>,
+  Http2ClientPool<StdExecutor, TlsModePlainText>,
+> {
   Pair::new(
     PkgsAux::from_minimum(
       GenericThrottlingApi {
@@ -91,14 +93,14 @@ async fn http_pair()
       SerdeJson,
       HttpParams::from_uri("ws://generic_web_socket_uri.com".into()),
     ),
-    ClientPoolBuilder::tokio(1).build(),
+    Http2ClientPoolBuilder::new(StdExecutor::default(), 1, TlsConfig::empty()).build(),
   )
 }
 
 async fn web_socket_pair() -> wtx::Result<
   Pair<
     PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-    WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>,
+    WebSocket<(), TcpStream, WebSocketBuffer, true>,
   >,
 > {
   let uri = Uri::new("ws://generic_web_socket_uri.com");
@@ -117,7 +119,7 @@ async fn web_socket_pair() -> wtx::Result<
   ))
 }
 
-#[tokio::main]
+#[wtx::main]
 async fn main() -> wtx::Result<()> {
   let mut hp = http_pair().await;
   let _http_response_tuple = hp

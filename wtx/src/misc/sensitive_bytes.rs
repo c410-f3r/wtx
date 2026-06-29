@@ -90,6 +90,7 @@ mod database {
     B: Decode<'de, DB> + LeaseMut<[u8]>,
     DB: Database,
   {
+    #[inline]
     fn decode(dw: &mut DB::DecodeWrapper<'de, '_, '_>) -> Result<Self, DB::Error> {
       let data: B = Decode::<'_, DB>::decode(dw)?;
       Ok(Self::new_locked(data)?)
@@ -101,6 +102,7 @@ mod database {
     B: Encode<DB> + LeaseMut<[u8]>,
     DB: Database,
   {
+    #[inline]
     fn encode(&self, ew: &mut DB::EncodeWrapper<'_, '_, '_>) -> Result<(), DB::Error> {
       <B as Encode<DB>>::encode(self, ew)
     }
@@ -111,10 +113,12 @@ mod database {
     B: LeaseMut<[u8]> + Typed<DB>,
     DB: Database,
   {
+    #[inline]
     fn runtime_ty(&self) -> Option<DB::Ty> {
       None
     }
 
+    #[inline]
     fn static_ty() -> Option<DB::Ty> {
       None
     }

@@ -3,7 +3,7 @@
 //! The existence of some elements does not necessarily mean that `WTX` support them.
 
 use crate::{
-  collection::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorU8, Vector},
   http::HttpError,
 };
 

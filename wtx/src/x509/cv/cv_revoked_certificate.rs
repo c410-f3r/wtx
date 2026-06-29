@@ -1,6 +1,7 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, OID_X509_EXT_CRL_NUMBER, OID_X509_EXT_INVALIDITY_DATE},
-  codec::{Decode, DecodeWrapper},
+  asn1::{Asn1DecodeWrapperAux, OID_X509_EXT_CRL_NUMBER, OID_X509_EXT_INVALIDITY_DATE},
+  codec::{Decode as _, DecodeWrapper},
+  misc::Lease,
   x509::{CrlReason, Extensions, RevokedCertificate, SerialNumber, Time},
 };
 
@@ -13,11 +14,14 @@ pub struct CvRevokedCertificate {
   serial_number: SerialNumber,
 }
 
-impl<'bytes> TryFrom<RevokedCertificate<'bytes>> for CvRevokedCertificate {
+impl<B> TryFrom<RevokedCertificate<B>> for CvRevokedCertificate
+where
+  B: Lease<[u8]>,
+{
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(value: RevokedCertificate<'bytes>) -> Result<Self, Self::Error> {
+  fn try_from(value: RevokedCertificate<B>) -> Result<Self, Self::Error> {
     let mut reason_code = None;
     let mut invalidity_date = None;
     extensions(value.crl_entry_extensions.as_ref(), &mut reason_code, &mut invalidity_date)?;
@@ -30,11 +34,14 @@ impl<'bytes> TryFrom<RevokedCertificate<'bytes>> for CvRevokedCertificate {
   }
 }
 
-impl<'any, 'bytes> TryFrom<&'any RevokedCertificate<'bytes>> for CvRevokedCertificate {
+impl<'any, B> TryFrom<&'any RevokedCertificate<B>> for CvRevokedCertificate
+where
+  B: Lease<[u8]>,
+{
   type Error = crate::Error;
 
   #[inline]
-  fn try_from(value: &'any RevokedCertificate<'bytes>) -> Result<Self, Self::Error> {
+  fn try_from(value: &'any RevokedCertificate<B>) -> Result<Self, Self::Error> {
     let mut reason_code = None;
     let mut invalidity_date = None;
     extensions(value.crl_entry_extensions.as_ref(), &mut reason_code, &mut invalidity_date)?;
@@ -47,15 +54,18 @@ impl<'any, 'bytes> TryFrom<&'any RevokedCertificate<'bytes>> for CvRevokedCertif
   }
 }
 
-fn extensions(
-  extensions_opt: Option<&Extensions<'_>>,
+fn extensions<B>(
+  extensions_opt: Option<&Extensions<B>>,
   reason_code: &mut Option<CrlReason>,
   invalidity_date: &mut Option<Time>,
-) -> crate::Result<()> {
+) -> crate::Result<()>
+where
+  B: Lease<[u8]>,
+{
   if let Some(extensions) = extensions_opt {
     for extension in &extensions.entries {
-      let decode_aux = Asn1DecodeWrapper::default();
-      let mut dw = DecodeWrapper::new(extension.extn_value.bytes(), decode_aux);
+      let decode_aux = Asn1DecodeWrapperAux::default();
+      let mut dw = DecodeWrapper::new(extension.extn_value.bytes().lease(), decode_aux);
       match extension.extn_id {
         el if el == OID_X509_EXT_CRL_NUMBER => {
           *reason_code = Some(CrlReason::decode(&mut dw)?);

@@ -4,7 +4,7 @@ macro_rules! _local_write_all {
   ($bytes:expr, $write:expr) => {{
     while !$bytes.is_empty() {
       match $write {
-        Err(e) => return Err(e.into()),
+        Err(err) => return Err(err.into()),
         Ok(0) => return { Err(crate::Error::UnexpectedStreamWriteEOF) },
         Ok(n) => $bytes = $bytes.get(n..).unwrap_or_default(),
       }
@@ -34,30 +34,51 @@ macro_rules! _local_write_all_vectored {
   }};
 }
 
-#[cfg(feature = "async-net")]
-mod async_net;
+mod buf_stream_reader;
 mod bytes_stream;
 #[cfg(feature = "embassy-net")]
 mod embassy_net;
 #[cfg(feature = "std")]
 mod std;
+mod stream_common;
 mod stream_reader;
-mod stream_with_tls;
 mod stream_writer;
 #[cfg(feature = "tokio")]
 mod tokio;
-#[cfg(feature = "tokio-rustls")]
-mod tokio_rustls;
 
+pub use buf_stream_reader::{BufStreamReader, BufStreamReaderError, StreamReadItem};
 pub use bytes_stream::BytesStream;
+pub use stream_common::StreamCommon;
 pub use stream_reader::StreamReader;
-pub use stream_with_tls::StreamWithTls;
 pub use stream_writer::StreamWriter;
 
 /// A stream of values produced asynchronously.
-pub trait Stream: StreamReader + StreamWriter {}
+pub trait Stream: StreamReader + StreamWriter {
+  /// Connects the reader and the writer.
+  type BridgeOwned;
+  /// See [`StreamReader`].
+  type ReadHalfOwned: StreamReader;
+  /// See [`StreamWriter`].
+  type WriteHalfOwned: StreamWriter;
 
-impl<T> Stream for T where T: StreamReader + StreamWriter {}
+  /// Splits this instance into owned parts that can be used in concurrent scenarios.
+  fn into_split(
+    self,
+  ) -> crate::Result<(Self::BridgeOwned, Self::ReadHalfOwned, Self::WriteHalfOwned)>;
+}
+
+impl Stream for () {
+  type BridgeOwned = ();
+  type ReadHalfOwned = ();
+  type WriteHalfOwned = ();
+
+  #[inline]
+  fn into_split(
+    self,
+  ) -> crate::Result<(Self::BridgeOwned, Self::ReadHalfOwned, Self::WriteHalfOwned)> {
+    Ok(((), (), ()))
+  }
+}
 
 #[cfg(feature = "std")]
 fn convert_to_io_slices<'buffer, 'bytes>(

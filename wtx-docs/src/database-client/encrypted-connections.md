@@ -59,7 +59,6 @@ EOF
 
 Everything should be ready on the server side.
 
-
 ```bash
 podman run \
   --name SOME_CONTAINER_NAME \
@@ -73,25 +72,34 @@ podman run \
 
 Now it is just a matter of including the root CA certificate in the `wtx` client. With everything properly configured, a successful encrypted connection should be expected.
 
-```text
-async fn tls() {
-  let uri = UriRef::new("SOME_URI");
-  let mut rng = ChaCha20::from_std_random().unwrap();
-  let _executor = PostgresExecutor::<crate::Error, _, _>::connect_encrypted(
-    &Config::from_uri(&uri).unwrap(),
-    ExecutorBuffer::new(usize::MAX, &mut rng),
-    &mut rng,
-    TcpStream::connect(uri.hostname_with_implied_port()).await.unwrap(),
-    |stream| async {
-      Ok(
-        crate::misc::TokioRustlsConnector::default()
-          .push_certs(include_bytes!("SOME_DIRECTORY/root-ca.crt"))
-          .unwrap()
-          .connect_without_client_auth(uri.hostname(), stream)
-          .await
-          .unwrap(),
-      )
-    },
+```rust,edition2024,no_run
+extern crate wtx;
+
+pub async fn postgres_client(
+  root_ca: &[u8],
+  uri_str: &str,
+) -> wtx::Result<wtx::database::client::postgres::PostgresClient<
+  wtx::Error,
+  std::net::TcpStream,
+  wtx::tls::TlsModeVerified
+>> {
+  use std::net::TcpStream;
+  use wtx::{
+    database::client::postgres::{ClientBuffer, Config, PostgresClient},
+    rng::{ChaCha20, CryptoSeedableRng},
+    tls::{TlsConfig, TlsConnector},
+  };
+  let uri = wtx::misc::Uri::new(uri_str);
+  let mut tls_connector = TlsConnector::new(
+    TlsConfig::from_trust_anchors_pem(wtx::tls::TlsModeVerified::default(), [root_ca])?,
+    ChaCha20::from_getrandom()?,
+    TcpStream::connect(uri.hostname_with_implied_port())?,
+  );
+  PostgresClient::connect(
+    ClientBuffer::new(usize::MAX, tls_connector.rng_mut()),
+    &Config::from_uri(&uri)?,
+    tls_connector,
   )
-  .await?;
+  .await
 }
+```

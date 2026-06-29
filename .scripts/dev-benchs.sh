@@ -6,11 +6,10 @@ declare -A results_debug
 declare -A results_opt
 declare -A results_opt_size
 
-techs["client-api-framework"]="--example client-api-framework --features client-api-framework"
 techs["database-client-postgres"]="--example database-client-postgres --features database-client-postgres"
 techs["grpc-client"]="--example grpc-client --features grpc-client"
-techs["http-client-pool"]="--example http-client-pool --features http-client-pool"
-techs["http-server-framework"]="--example http-server-framework --features http-server-framework"
+techs["http2-client-pool"]="--example http2-client-pool --features http2-client-pool"
+techs["http2-server-framework"]="--example http2-server-framework --features http2-server-framework"
 techs["web-socket-client"]="--example web-socket-client --features web-socket-client"
 
 pushd wtx-examples

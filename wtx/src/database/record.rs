@@ -1,6 +1,6 @@
 use crate::{
   codec::{CodecController, Decode},
-  collection::ShortStrU8,
+  collections::ShortStrU8,
   database::{Database, DatabaseError, ValueIdent},
 };
 use core::any::type_name;

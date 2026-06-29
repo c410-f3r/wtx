@@ -1,10 +1,11 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SEQUENCE_TAG, SequenceBuffer, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::Vector,
+  collections::Vector,
+  misc::Lease,
   x509::X509Error,
 };
 
@@ -19,41 +20,48 @@ const IP_ADDRESS_TAG: u8 = 135;
 const REGISTERED_ID_TAG: u8 = 136;
 
 /// Represents a name in one of several forms as defined in RFC 5280.
-#[derive(Debug, PartialEq)]
-pub enum GeneralName<'bytes> {
-  /// An OtherName (Opaque).
-  OtherName(&'bytes [u8]),
-  /// An RFC 822 email address (IA5String).
-  Rfc822Name(&'bytes [u8]),
-  /// A DNS domain name (IA5String).
-  DnsName(&'bytes [u8]),
-  /// An X.400 address (Opaque).
-  X400Address(&'bytes [u8]),
-  /// A directory name (DER).
-  DirectoryName(&'bytes [u8]),
-  /// An EDI party name (Opaque).
-  EdiPartyName(&'bytes [u8]),
-  /// A URI (IA5String).
-  UniformResourceIdentifier(&'bytes [u8]),
-  /// An IP address (4 bytes for IPv4, 16 for IPv6; 8 or 32 in name constraints).
-  IpAddress(&'bytes [u8]),
-  /// A registered OID
-  RegisteredId(&'bytes [u8]),
+#[derive(Clone, Debug, PartialEq)]
+pub enum GeneralName<B> {
+  /// Other
+  OtherName(B),
+  /// Email address
+  Rfc822Name(B),
+  /// DNS domain name
+  DnsName(B),
+  /// X.400 address
+  X400Address(B),
+  /// Directory name
+  DirectoryName(B),
+  /// EDI party name
+  EdiPartyName(B),
+  /// URI
+  UniformResourceIdentifier(B),
+  /// IP address
+  IpAddress(B),
+  /// Oid
+  RegisteredId(B),
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralName<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for GeneralName<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (tag, _, value, rest) = decode_asn1_tlv(dw.bytes)?;
-    let name = (tag, value).try_into()?;
+    let name = (tag, value.try_into().map_err(Into::into)?).try_into()?;
     dw.bytes = rest;
     Ok(name)
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralName<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for GeneralName<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let (tag, content) = self.into();
     asn1_writer(ew, Len::MAX_TWO_BYTES, tag, |local_ew| {
       let _ = local_ew.buffer.extend_from_copyable_slices([content])?;
@@ -62,9 +70,9 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralName<'_> {
   }
 }
 
-impl<'bytes> From<&GeneralName<'bytes>> for (u8, &'bytes [u8]) {
+impl<'any, B> From<&'any GeneralName<B>> for (u8, &'any B) {
   #[inline]
-  fn from(value: &GeneralName<'bytes>) -> Self {
+  fn from(value: &'any GeneralName<B>) -> Self {
     match value {
       GeneralName::OtherName(el) => (OTHER_NAME_TAG, el),
       GeneralName::Rfc822Name(el) => (RFC822_NAME_TAG, el),
@@ -79,11 +87,11 @@ impl<'bytes> From<&GeneralName<'bytes>> for (u8, &'bytes [u8]) {
   }
 }
 
-impl<'bytes> TryFrom<(u8, &'bytes [u8])> for GeneralName<'bytes> {
+impl<B> TryFrom<(u8, B)> for GeneralName<B> {
   type Error = crate::Error;
 
   #[inline]
-  fn try_from((tag, value): (u8, &'bytes [u8])) -> Result<Self, Self::Error> {
+  fn try_from((tag, value): (u8, B)) -> Result<Self, Self::Error> {
     Ok(match tag {
       OTHER_NAME_TAG => Self::OtherName(value),
       RFC822_NAME_TAG => Self::Rfc822Name(value),
@@ -100,32 +108,40 @@ impl<'bytes> TryFrom<(u8, &'bytes [u8])> for GeneralName<'bytes> {
 }
 
 /// A sequence of [`GeneralName`] values.
-#[derive(Debug, PartialEq)]
-pub struct GeneralNames<'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct GeneralNames<B> {
   /// Entries
-  pub entries: Vector<GeneralName<'bytes>>,
+  pub entries: Vector<GeneralName<B>>,
   /// Tag
   pub tag: u8,
 }
 
-impl<'bytes> GeneralNames<'bytes> {
+impl<B> GeneralNames<B> {
   /// If `None`, `tag` will be turned into the default sequence tag.
-  pub fn new(entries: Vector<GeneralName<'bytes>>, tag: Option<u8>) -> Self {
+  #[inline]
+  pub fn new(entries: Vector<GeneralName<B>>, tag: Option<u8>) -> Self {
     Self { entries, tag: tag.unwrap_or(SEQUENCE_TAG) }
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for GeneralNames<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for GeneralNames<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let tag = dw.decode_aux.tag.unwrap_or(SEQUENCE_TAG);
     Ok(Self { entries: SequenceBuffer::decode(dw, tag)?.0.0, tag })
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for GeneralNames<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for GeneralNames<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     SequenceBuffer(&self.entries).encode(ew, Len::MAX_TWO_BYTES, self.tag)
   }
 }

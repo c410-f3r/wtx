@@ -1,8 +1,8 @@
 use crate::{
-  collection::Vector,
-  stream::{StreamReader, StreamWriter},
+  collections::{MaybeUninitSlice, Vector},
+  stream::{Stream, StreamCommon, StreamReadItem, StreamReader, StreamWriter},
 };
-use core::cmp::Ordering;
+use core::{cmp::Ordering, num::NonZeroUsize};
 
 /// Stores written data to transfer when read.
 #[derive(Debug, Default)]
@@ -20,26 +20,48 @@ impl BytesStream {
   }
 }
 
+impl Stream for BytesStream {
+  type BridgeOwned = ();
+  type ReadHalfOwned = ();
+  type WriteHalfOwned = ();
+
+  #[inline]
+  fn into_split(
+    self,
+  ) -> crate::Result<(Self::BridgeOwned, Self::ReadHalfOwned, Self::WriteHalfOwned)> {
+    Ok(((), (), ()))
+  }
+}
+
+impl StreamCommon for BytesStream {}
+
 impl StreamReader for BytesStream {
   #[inline]
-  async fn read(&mut self, bytes: &mut [u8]) -> crate::Result<usize> {
+  async fn read(
+    &mut self,
+    mut bytes: MaybeUninitSlice<'_, u8>,
+  ) -> crate::Result<StreamReadItem<NonZeroUsize>> {
+    let initialized = bytes.initialize_all_bytes();
     let working_buffer = self.buffer.get(self.idx..).unwrap_or_default();
     let working_buffer_len = working_buffer.len();
-    Ok(match working_buffer_len.cmp(&bytes.len()) {
+    Ok(match working_buffer_len.cmp(&initialized.len()) {
       Ordering::Less => {
-        bytes.get_mut(..working_buffer_len).unwrap_or_default().copy_from_slice(working_buffer);
+        initialized
+          .get_mut(..working_buffer_len)
+          .unwrap_or_default()
+          .copy_from_slice(working_buffer);
         self.clear();
-        working_buffer_len
+        StreamReadItem::from_opt(NonZeroUsize::new(working_buffer_len))
       }
       Ordering::Equal => {
-        bytes.copy_from_slice(working_buffer);
+        initialized.copy_from_slice(working_buffer);
         self.clear();
-        working_buffer_len
+        StreamReadItem::from_opt(NonZeroUsize::new(working_buffer_len))
       }
       Ordering::Greater => {
-        bytes.copy_from_slice(working_buffer.get(..bytes.len()).unwrap_or_default());
-        self.idx = self.idx.wrapping_add(bytes.len());
-        bytes.len()
+        initialized.copy_from_slice(working_buffer.get(..initialized.len()).unwrap_or_default());
+        self.idx = self.idx.wrapping_add(initialized.len());
+        StreamReadItem::from_opt(NonZeroUsize::new(initialized.len()))
       }
     })
   }

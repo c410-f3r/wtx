@@ -1,35 +1,38 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, BitString, Len, SEQUENCE_TAG, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString, Len, SEQUENCE_TAG, asn1_writer,
     decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{AlgorithmIdentifier, X509Error},
 };
 
 /// Used to carry the public key and identify the algorithm with which the key is used
 /// (e.g., RSA, DSA, or Diffie-Hellman).
 #[derive(Clone, Debug, PartialEq)]
-pub struct SubjectPublicKeyInfo<'bytes> {
+pub struct SubjectPublicKeyInfo<B> {
   /// See [`AlgorithmIdentifier`].
-  pub algorithm: AlgorithmIdentifier<'bytes>,
+  pub algorithm: AlgorithmIdentifier<B>,
   /// Content of the public key.
-  pub subject_public_key: BitString<&'bytes [u8]>,
+  pub subject_public_key: BitString<B>,
 }
 
-impl<'bytes> SubjectPublicKeyInfo<'bytes> {
+impl<B> SubjectPublicKeyInfo<B> {
   /// Shortcut
-  pub const fn new(
-    algorithm: AlgorithmIdentifier<'bytes>,
-    subject_public_key: BitString<&'bytes [u8]>,
-  ) -> Self {
+  #[inline]
+  pub const fn new(algorithm: AlgorithmIdentifier<B>, subject_public_key: BitString<B>) -> Self {
     Self { algorithm, subject_public_key }
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for SubjectPublicKeyInfo<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for SubjectPublicKeyInfo<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidSubjectPublicKeyInfo.into());
     };
@@ -41,9 +44,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for SubjectPublicKeyI
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for SubjectPublicKeyInfo<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for SubjectPublicKeyInfo<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       self.algorithm.encode(local_ew)?;
       self.subject_public_key.encode(local_ew)?;
