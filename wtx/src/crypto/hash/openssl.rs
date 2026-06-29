@@ -6,12 +6,12 @@
 )]
 
 use crate::{
-  crypto::{Hash, Sha1DigestOpenssl, Sha256DigestOpenssl, Sha384DigestOpenssl},
+  crypto::{Hash, Sha1HashOpenssl, Sha256HashOpenssl, Sha384HashOpenssl},
   misc::unlikely_elem,
 };
 use openssl::hash::{Hasher, MessageDigest};
 
-impl Hash for Sha1DigestOpenssl {
+impl Hash for Sha1HashOpenssl {
   type Digest = [u8; 20];
 
   #[inline]
@@ -20,7 +20,7 @@ impl Hash for Sha1DigestOpenssl {
   }
 }
 
-impl Hash for Sha256DigestOpenssl {
+impl Hash for Sha256HashOpenssl {
   type Digest = [u8; 32];
 
   #[inline]
@@ -29,7 +29,7 @@ impl Hash for Sha256DigestOpenssl {
   }
 }
 
-impl Hash for Sha384DigestOpenssl {
+impl Hash for Sha384HashOpenssl {
   type Digest = [u8; 48];
 
   #[inline]

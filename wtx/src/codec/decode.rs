@@ -1,4 +1,4 @@
-use crate::{codec::CodecController, collection::Vector};
+use crate::{codec::CodecController, collections::Vector};
 
 /// A data structure that can be deserialized from a data format.
 pub trait Decode<'de, CC>: Sized

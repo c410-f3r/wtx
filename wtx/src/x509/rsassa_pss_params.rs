@@ -1,8 +1,10 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Opt, SEQUENCE_TAG, U32, asn1_writer, decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Opt, SEQUENCE_TAG, U32, asn1_writer,
+    decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{AlgorithmIdentifier, X509Error},
 };
 
@@ -13,20 +15,24 @@ const TAG_TRAILER_FIELD: u8 = 163;
 
 /// RSA metadata
 #[derive(Debug, PartialEq)]
-pub struct RsassaPssParams<'bytes> {
+pub struct RsassaPssParams<B> {
   /// See [`AlgorithmIdentifier`].
-  pub hash_algorithm: Option<AlgorithmIdentifier<'bytes>>,
+  pub hash_algorithm: Option<AlgorithmIdentifier<B>>,
   /// See [`AlgorithmIdentifier`].
-  pub mask_gen_algorithm: Option<AlgorithmIdentifier<'bytes>>,
+  pub mask_gen_algorithm: Option<AlgorithmIdentifier<B>>,
   /// Length of the salt value.
   pub salt_length: Option<u32>,
   /// Provides compatibility with IEEE Std 1363a-2004.
   pub trailer_field: Option<u32>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RsassaPssParams<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for RsassaPssParams<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidRsassaPssParams.into());
     };
@@ -45,9 +51,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for RsassaPssParams<'
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for RsassaPssParams<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for RsassaPssParams<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       Opt(&self.hash_algorithm).encode(local_ew, TAG_HASH_ALGORITHM)?;
       Opt(&self.mask_gen_algorithm).encode(local_ew, TAG_MASK_GEN_ALGORITHM)?;

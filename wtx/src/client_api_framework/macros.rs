@@ -38,7 +38,7 @@ macro_rules! create_packages_aux_wrapper {
       pub fn new(
         api: $api_ty,
         built_requests: u64,
-        bytes_buffer: $crate::collection::Vector<u8>,
+        bytes_buffer: $crate::collections::Vector<u8>,
         drsr: DRSR,
         encode_data: bool,
         log_data: bool,

@@ -6,9 +6,9 @@ use crate::{
 
 /// Internal resource used in every new instance of `Http2`.
 #[derive(Debug)]
-pub struct Http2Data<HB, const IS_CLIENT: bool> {
+pub struct Http2Data<const IS_CLIENT: bool> {
   frame_reader_error: Option<crate::Error>,
-  hb: HB,
+  hb: Http2Buffer,
   hp: HttpRecvParams,
   hps: HttpSendParams,
   last_stream_id: U31,
@@ -16,11 +16,8 @@ pub struct Http2Data<HB, const IS_CLIENT: bool> {
   windows: Windows,
 }
 
-impl<HB, const IS_CLIENT: bool> Http2Data<HB, IS_CLIENT>
-where
-  HB: LeaseMut<Http2Buffer>,
-{
-  pub(crate) fn new(hb: HB, hp: HttpRecvParams) -> Self {
+impl<const IS_CLIENT: bool> Http2Data<IS_CLIENT> {
+  pub(crate) fn new(hb: Http2Buffer, hp: HttpRecvParams) -> Self {
     let hps = HttpSendParams::default();
     let windows = Windows::initial(&hp, &hps);
     Self {
@@ -37,7 +34,7 @@ where
   pub(crate) fn parts_mut(&mut self) -> Http2DataPartsMut<'_, IS_CLIENT> {
     Http2DataPartsMut {
       frame_reader_error: &mut self.frame_reader_error,
-      hb: self.hb.lease_mut(),
+      hb: &mut self.hb,
       hp: &mut self.hp,
       hps: &mut self.hps,
       last_stream_id: &mut self.last_stream_id,
@@ -47,16 +44,16 @@ where
   }
 }
 
-impl<HB, const IS_CLIENT: bool> Lease<Http2Data<HB, IS_CLIENT>> for Http2Data<HB, IS_CLIENT> {
+impl<const IS_CLIENT: bool> Lease<Http2Data<IS_CLIENT>> for Http2Data<IS_CLIENT> {
   #[inline]
-  fn lease(&self) -> &Http2Data<HB, IS_CLIENT> {
+  fn lease(&self) -> &Http2Data<IS_CLIENT> {
     self
   }
 }
 
-impl<HB, const IS_CLIENT: bool> LeaseMut<Http2Data<HB, IS_CLIENT>> for Http2Data<HB, IS_CLIENT> {
+impl<const IS_CLIENT: bool> LeaseMut<Http2Data<IS_CLIENT>> for Http2Data<IS_CLIENT> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut Http2Data<HB, IS_CLIENT> {
+  fn lease_mut(&mut self) -> &mut Http2Data<IS_CLIENT> {
     self
   }
 }

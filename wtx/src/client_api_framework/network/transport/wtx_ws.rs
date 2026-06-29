@@ -1,5 +1,4 @@
 mod web_socket;
-mod web_socket_parts_owned;
 mod web_socket_reader_part_owned;
 mod web_socket_writer_part_owned;
 
@@ -12,11 +11,11 @@ use crate::{
     },
     network::{
       WsParams, WsReqParamsTy,
-      transport::{Transport, TransportParams},
+      transport::{Transport, TransportParams as _},
     },
     pkg::{Package, PkgsAux},
   },
-  collection::Vector,
+  collections::Vector,
   misc::{FnMutFut, LeaseMut},
   web_socket::{Frame, OpCode},
 };
@@ -36,7 +35,7 @@ async fn send_bytes<A, DRSR, T, TP>(
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
   mut cb: impl for<'any> FnMutFut<
-    (Frame<&'any mut Vector<u8>, true>, &'any mut T),
+    (Frame<&'any mut Vector<u8>>, &'any mut T),
     Result = crate::Result<()>,
   >,
 ) -> Result<(), A::Error>
@@ -50,7 +49,7 @@ where
     pkgs_aux.bytes_buffer.extend_from_copyable_slice(el)?;
   }
   log_req::<_, TP>(&pkgs_aux.bytes_buffer, pkgs_aux.log_data, trans);
-  cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
+  cb.call((Frame::new(true, op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer, 0), trans)).await?;
   manage_after_sending_bytes(pkgs_aux).await?;
   Ok(())
 }
@@ -60,7 +59,7 @@ async fn send_pkg<A, DRSR, P, T, TP>(
   pkgs_aux: &mut PkgsAux<A, DRSR, TP>,
   trans: &mut T,
   mut cb: impl for<'any> FnMutFut<
-    (Frame<&'any mut Vector<u8>, true>, &'any mut T),
+    (Frame<&'any mut Vector<u8>>, &'any mut T),
     Result = crate::Result<()>,
   >,
 ) -> Result<(), A::Error>
@@ -72,6 +71,6 @@ where
 {
   manage_before_sending_pkg(pkg, pkgs_aux, trans).await?;
   log_req(&pkgs_aux.bytes_buffer, pkgs_aux.log_data, trans);
-  cb.call((Frame::new_fin(op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer), trans)).await?;
+  cb.call((Frame::new(true, op_code(pkgs_aux), &mut pkgs_aux.bytes_buffer, 0), trans)).await?;
   manage_after_sending_pkg(pkg, pkgs_aux, trans).await
 }

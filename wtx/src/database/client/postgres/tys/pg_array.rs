@@ -1,9 +1,9 @@
 use crate::{
   codec::{Decode, Encode},
-  collection::{ArrayVector, ArrayVectorU8, LinearStorageLen, TryExtend, Vector},
+  collections::{ArrayVector, ArrayVectorU8, LinearStorageLen, TryExtend, Vector},
   database::{
     Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty},
   },
   misc::{
     Lease, SingleTypeStorage, Usize,
@@ -25,20 +25,22 @@ where
   T::Item: Decode<'de, Postgres<E>>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
-    let [0, 0, 0, 1, 0, 0, 0, 0, a, b, c, d, e, f, g, h, 0, 0, 0, 1, rest @ ..] = dw.bytes() else {
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
+    let [0, 0, 0, 1, 0, 0, 0, 0, b0, b1, b2, b3, b4, b5, b6, b7, 0, 0, 0, 1, rest @ ..] =
+      dw.bytes()
+    else {
       return Err(crate::Error::from(PostgresError::InvalidArray).into());
     };
-    *dw.ty_mut() = Ty::from_arbitrary_u32(u32::from_be_bytes([*a, *b, *c, *d]));
-    let len = u32::from_be_bytes([*e, *f, *g, *h]);
+    *dw.ty_mut() = Ty::from_arbitrary_u32(u32::from_be_bytes([*b0, *b1, *b2, *b3]));
+    let len = u32::from_be_bytes([*b4, *b5, *b6, *b7]);
     let mut bytes = rest;
     let mut rslt = T::default();
     for _ in 0..len {
-      let [i, j, k, l, local_rest0 @ ..] = bytes else {
+      let [b8, b9, b10, b11, local_rest0 @ ..] = bytes else {
         return Err(crate::Error::from(PostgresError::InvalidArray).into());
       };
-      let len = Usize::from(u32::from_be_bytes([*i, *j, *k, *l])).usize();
-      let Some((elem_bytes, local_rest1)) = local_rest0.split_at_checked(len) else {
+      let local_len = Usize::from(u32::from_be_bytes([*b8, *b9, *b10, *b11])).usize();
+      let Some((elem_bytes, local_rest1)) = local_rest0.split_at_checked(local_len) else {
         return Err(crate::Error::from(PostgresError::InvalidArray).into());
       };
       *dw.bytes_mut() = elem_bytes;
@@ -56,9 +58,9 @@ where
   T::Item: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     let slice = self.0.lease();
-    ew.buffer().extend_from_slices([
+    let _ = ew.buffer().inner_mut().extend_from_copyable_slices([
       &[0, 0, 0, 1, 0, 0, 0, 0][..],
       &u32::from(T::Item::static_ty().unwrap_or(Ty::Custom(0))).to_be_bytes(),
       &u32::try_from(slice.len()).map_err(crate::Error::from)?.to_be_bytes(),
@@ -66,11 +68,9 @@ where
     ])?;
     for elem in slice {
       if elem.is_null() {
-        ew.buffer().extend_from_slice(&(-1i32).to_be_bytes())?;
+        ew.buffer().inner_mut().extend_from_copyable_slice(&(-1i32).to_be_bytes())?;
       } else {
-        i32_write(CounterWriterBytesTy::IgnoresLen, None, ew.buffer(), |local_sw| {
-          elem.encode(&mut EncodeWrapper::new(local_sw))
-        })?;
+        i32_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| elem.encode(local_ew))?;
       }
     }
     Ok(())
@@ -83,7 +83,7 @@ where
   T: Decode<'de, Postgres<E>>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
     Ok(ArrayVectorU8::<T, N>::decode(dw)?.into_inner()?)
   }
 }
@@ -95,7 +95,7 @@ where
   T: Decode<'de, Postgres<E>>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
     Ok(PgArray::<ArrayVector<L, T, N>>::decode(dw)?.0)
   }
 }
@@ -106,7 +106,7 @@ where
   T: Decode<'de, Postgres<E>>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
     Ok(PgArray::<Vec<T>>::decode(dw)?.0)
   }
 }
@@ -117,7 +117,7 @@ where
   T: Decode<'de, Postgres<E>>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
     Ok(PgArray::<Vector<T>>::decode(dw)?.0)
   }
 }
@@ -128,7 +128,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }
@@ -140,7 +140,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }
@@ -151,7 +151,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }
@@ -162,7 +162,7 @@ where
   T: Encode<Postgres<E>> + Typed<Postgres<E>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     PgArray(self).encode(ew)
   }
 }
@@ -174,12 +174,12 @@ where
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 
   #[inline]
   fn static_ty() -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 }
 
@@ -191,12 +191,12 @@ where
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 
   #[inline]
   fn static_ty() -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 }
 
@@ -207,12 +207,12 @@ where
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 
   #[inline]
   fn static_ty() -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 }
 
@@ -223,11 +223,11 @@ where
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 
   #[inline]
   fn static_ty() -> Option<Ty> {
-    T::static_ty().and_then(|el| el.array_ty())
+    T::static_ty()?.array_ty()
   }
 }

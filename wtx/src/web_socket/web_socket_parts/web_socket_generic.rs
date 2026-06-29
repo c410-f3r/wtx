@@ -1,12 +1,18 @@
 use crate::{
-  collection::Vector,
-  misc::{ConnectionState, LeaseMut, net::PartitionedFilledBuffer},
+  collections::Vector,
+  misc::{ConnectionState, LeaseMut},
   rng::Rng,
-  stream::{Stream, StreamReader, StreamWriter},
+  stream::{BufStreamReader, Stream, StreamReader, StreamWriter},
+  tls::TlsStreamBridge,
   web_socket::{
-    Frame, FrameMut, WebSocketPayloadOrigin, compression::NegotiatedCompression,
-    is_in_continuation_frame::IsInContinuationFrame, web_socket_reader::read_frame,
-    web_socket_replier::WebSocketReplier, web_socket_writer,
+    Frame, FrameMut, WebSocketPayloadOrigin,
+    is_in_continuation_frame::IsInContinuationFrame,
+    web_socket_bridge::WebSocketBridge,
+    web_socket_compression::{
+      NegotiatedWsCompression, WebSocketCompression, WebSocketDecompression,
+    },
+    web_socket_reader::read_frame,
+    web_socket_writer,
   },
 };
 
@@ -20,7 +26,7 @@ pub(crate) struct WebSocketReaderGeneric<PFB, V, const IS_CLIENT: bool> {
 
 impl<PFB, V, const IS_CLIENT: bool> WebSocketReaderGeneric<PFB, V, IS_CLIENT>
 where
-  PFB: LeaseMut<PartitionedFilledBuffer>,
+  PFB: LeaseMut<BufStreamReader>,
   V: LeaseMut<Vector<u8>>,
 {
   pub(crate) async fn read_frame_mut<'frame, 'this, 'ub, NC, R, S>(
@@ -33,11 +39,11 @@ where
     rng: &mut R,
     stream: &mut S,
     user_buffer: &'ub mut Vector<u8>,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'this: 'frame,
     'ub: 'frame,
-    NC: NegotiatedCompression,
+    NC: NegotiatedWsCompression,
     R: Rng,
     S: Stream,
   {
@@ -52,9 +58,9 @@ where
       *no_masking,
       payload_origin,
       reader_buffer.lease_mut(),
-      &WebSocketReplier::new(),
       rng,
       stream,
+      &WebSocketBridge::new(TlsStreamBridge::new()),
       user_buffer,
       |local_stream| local_stream,
       |local_stream| local_stream,
@@ -62,22 +68,22 @@ where
     .await
   }
 
-  pub(crate) async fn read_frame_owned<'frame, 'this, 'ub, NC, R, SR>(
+  pub(crate) async fn read_frame_owned<'frame, 'this, 'ub, D, R, SR>(
     &'this mut self,
     connection_state: &mut ConnectionState,
     is_in_continuation_frame: &mut Option<IsInContinuationFrame>,
-    nc: &mut NC,
+    nc: &mut D,
     nc_rsv1: u8,
     payload_origin: WebSocketPayloadOrigin,
-    replier: &WebSocketReplier<IS_CLIENT>,
     rng: &mut R,
+    stream_bridge: &WebSocketBridge<IS_CLIENT>,
     stream_reader: &mut SR,
     user_buffer: &'ub mut Vector<u8>,
-  ) -> crate::Result<FrameMut<'frame, IS_CLIENT>>
+  ) -> crate::Result<FrameMut<'frame>>
   where
     'this: 'frame,
     'ub: 'frame,
-    NC: NegotiatedCompression,
+    D: WebSocketDecompression,
     R: Rng,
     SR: StreamReader,
   {
@@ -92,9 +98,9 @@ where
       *no_masking,
       payload_origin,
       reader_buffer.lease_mut(),
-      replier,
       rng,
       &mut (stream_reader, &mut ()),
+      stream_bridge,
       user_buffer,
       |local_stream| local_stream.0,
       |local_stream| local_stream.1,
@@ -115,23 +121,23 @@ impl<V, const IS_CLIENT: bool> WebSocketWriterGeneric<V, IS_CLIENT>
 where
   V: LeaseMut<Vector<u8>>,
 {
-  pub(crate) async fn write_frame<NC, P, R, SW>(
+  pub(crate) async fn write_frame<C, P, R, SW>(
     &mut self,
     connection_state: &mut ConnectionState,
-    frame: &mut Frame<P, IS_CLIENT>,
-    nc: &mut NC,
+    frame: &mut Frame<P>,
+    nc: &mut C,
     nc_rsv1: u8,
     rng: &mut R,
     stream_writer: &mut SW,
   ) -> crate::Result<()>
   where
-    NC: NegotiatedCompression,
+    C: WebSocketCompression,
     P: LeaseMut<[u8]>,
     R: Rng,
     SW: StreamWriter,
   {
     let Self { no_masking, writer_buffer } = self;
-    web_socket_writer::write_frame(
+    web_socket_writer::write_frame::<_, _, _, _, IS_CLIENT>(
       connection_state,
       frame,
       *no_masking,

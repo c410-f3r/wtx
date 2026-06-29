@@ -1,13 +1,13 @@
 use crate::{
   calendar::Instant,
-  collection::{ArrayVectorU8, Vector},
-  crypto::{Aead, Aes128GcmGlobal},
+  collections::{ArrayVectorU8, Vector},
+  crypto::{Aead as _, Aes128GcmGlobal},
   http::{
-    KnownHeaderName, MsgBufferString, MsgDataMut, Request, Response, SessionError, SessionManager,
-    SessionManagerInner, SessionState, SessionStore, StatusCode, cookie::cookie_str::CookieStr,
-    server_framework::Middleware,
+    KnownHeaderName, MsgBufferString, MsgDataMut as _, Request, Response, SessionError,
+    SessionManager, SessionManagerInner, SessionState, SessionStore, StatusCode,
+    cookie::cookie_str::CookieStr, http2_server_framework::Middleware,
   },
-  misc::{Lease, LeaseMut, serde_json_deserialize_from_slice},
+  misc::{Lease as _, LeaseMut, serde_json_deserialize_from_slice},
   pool::{ResourceManager, SimplePool},
 };
 use alloc::string::String;
@@ -47,13 +47,13 @@ where
   RM::Resource: SessionStore<CS, E>,
 {
   #[inline]
-  async fn delete_session_cookie<CA>(
+  async fn delete_session_cookie<D>(
     &self,
-    ca: &mut CA,
+    data: &mut D,
     req: &mut Request<MsgBufferString>,
   ) -> Result<(), E>
   where
-    CA: LeaseMut<Option<SessionState<CS>>>,
+    D: LeaseMut<Option<SessionState<CS>>>,
   {
     let _rslt = self
       .session_manager
@@ -63,7 +63,7 @@ where
       .await
       .delete_session_cookie(
         &mut req.msg_data,
-        ca.lease_mut(),
+        data.lease_mut(),
         &mut ***self.session_store.get_with_unit().await?,
       )
       .await;
@@ -71,9 +71,9 @@ where
   }
 }
 
-impl<CA, CS, E, RM, SA> Middleware<CA, E, SA> for SessionMiddleware<CS, E, RM>
+impl<D, CS, E, RM> Middleware<D, E> for SessionMiddleware<CS, E, RM>
 where
-  CA: LeaseMut<Option<SessionState<CS>>>,
+  D: LeaseMut<Option<SessionState<CS>>>,
   CS: DeserializeOwned + PartialEq,
   E: From<crate::Error>,
   RM: ResourceManager<CreateAux = (), Error = E, RecycleAux = ()>,
@@ -91,16 +91,15 @@ where
   #[inline]
   async fn req(
     &self,
-    ca: &mut CA,
+    data: &mut D,
     _: &mut Self::Aux,
     req: &mut Request<MsgBufferString>,
-    _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
-    if let Some(session_state) = ca.lease() {
+    if let Some(session_state) = data.lease() {
       if let Some(elem) = &session_state.expires_at
         && *elem < Instant::now_date_time(0)?.trunc_to_us()
       {
-        self.delete_session_cookie(ca, req).await?;
+        self.delete_session_cookie(data, req).await?;
         return Err(crate::Error::from(SessionError::ExpiredSession).into());
       }
       return Ok(ControlFlow::Continue(()));
@@ -108,7 +107,7 @@ where
     let mut has_stored_session = true; // `true` because of log-ins
     let mut x_csrf_token_value = None;
     for header in req.msg_data.headers.iter() {
-      if ca.lease_mut().is_some() && x_csrf_token_value.is_some() {
+      if data.lease_mut().is_some() && x_csrf_token_value.is_some() {
         break;
       }
       match header.name {
@@ -157,14 +156,14 @@ where
         self.session_store.get_with_unit().await?.lease_mut().delete(&ss_des.session_key).await?;
         return Err(crate::Error::from(SessionError::InvalidStoredSession).into());
       }
-      *ca.lease_mut() = Some(ss_des);
+      *data.lease_mut() = Some(ss_des);
     }
     if !has_stored_session {
       req.msg_data.clear();
-      self.delete_session_cookie(ca, req).await?;
+      self.delete_session_cookie(data, req).await?;
       return Ok(ControlFlow::Break(StatusCode::Forbidden));
     }
-    if let Some(local) = ca.lease_mut() {
+    if let Some(local) = data.lease_mut() {
       if req.method.is_mutable() && Some(local.session_csrf.as_str()) != x_csrf_token_value {
         let session_key = &local.session_key;
         let _rslt = self.session_store.get_with_unit().await?.lease_mut().delete(session_key).await;
@@ -182,10 +181,9 @@ where
   #[inline]
   async fn res(
     &self,
-    _: &mut CA,
+    _: &mut D,
     _: &mut Self::Aux,
     _: Response<&mut MsgBufferString>,
-    _: &mut SA,
   ) -> Result<ControlFlow<StatusCode, ()>, E> {
     Ok(ControlFlow::Continue(()))
   }

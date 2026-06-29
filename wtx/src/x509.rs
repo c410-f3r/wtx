@@ -7,6 +7,7 @@ mod algorithm_identifier;
 mod attribute;
 mod attribute_type_and_value;
 #[cfg(feature = "ccadb")]
+#[expect(clippy::unreadable_literal, reason = "generated code")]
 mod ccadb;
 mod certificate;
 mod crl;
@@ -30,7 +31,6 @@ mod rsassa_pss_params;
 mod serial_number;
 mod server_name;
 mod subject_public_key_info;
-mod tav_store;
 mod tbs_cert_list;
 mod tbs_certificate;
 mod time;
@@ -76,7 +76,6 @@ pub use rsassa_pss_params::RsassaPssParams;
 pub use serial_number::SerialNumber;
 pub use server_name::ServerName;
 pub use subject_public_key_info::SubjectPublicKeyInfo;
-pub use tav_store::TavStore;
 pub use tbs_cert_list::TbsCertList;
 pub use tbs_certificate::TbsCertificate;
 pub use time::Time;

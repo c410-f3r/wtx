@@ -1,10 +1,9 @@
 use crate::{
   crypto::{
     Aes128GcmOpenssl, Aes256GcmOpenssl, Chacha20Poly1305Openssl, CryptoError,
-    aead::{Aead, NONCE_LEN, TAG_LEN, generate_nonce, split_nonce_content_tag, write_tag},
+    aead::{AEAD_NONCE_LEN, AEAD_TAG_LEN, Aead, split_content_tag},
   },
   misc::SensitiveBytes,
-  rng::CryptoRng,
 };
 use openssl::symm::{Cipher, decrypt_aead, encrypt_aead};
 
@@ -12,33 +11,30 @@ impl Aead for Aes128GcmOpenssl {
   type Secret = [u8; 16];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; AEAD_NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
+  ) -> crate::Result<&'data mut [u8]> {
     local_decrypt(
       associated_data,
       Cipher::aes_128_gcm(),
-      encrypted_data,
+      data,
       CryptoError::InvalidAes128GcmData,
+      nonce,
       secret,
     )
   }
 
   #[inline]
-  fn encrypt_parts<RNG>(
+  fn encrypt_parts(
     associated_data: &[u8],
-    nonce: [&mut u8; NONCE_LEN],
+    nonce: [u8; AEAD_NONCE_LEN],
     plaintext: &mut [u8],
-    rng: &mut RNG,
     secret: &Self::Secret,
-    tag: [&mut u8; TAG_LEN],
-  ) -> crate::Result<()>
-  where
-    RNG: CryptoRng,
-  {
-    local_encrypt(associated_data, Cipher::aes_128_gcm(), nonce, plaintext, rng, secret, tag)
+  ) -> crate::Result<[u8; AEAD_TAG_LEN]> {
+    local_encrypt(associated_data, Cipher::aes_128_gcm(), nonce, plaintext, secret)
   }
 }
 
@@ -46,33 +42,30 @@ impl Aead for Aes256GcmOpenssl {
   type Secret = [u8; 32];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; AEAD_NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
+  ) -> crate::Result<&'data mut [u8]> {
     local_decrypt(
       associated_data,
       Cipher::aes_256_gcm(),
-      encrypted_data,
+      data,
       CryptoError::InvalidAes256GcmData,
+      nonce,
       secret,
     )
   }
 
   #[inline]
-  fn encrypt_parts<RNG>(
+  fn encrypt_parts(
     associated_data: &[u8],
-    nonce: [&mut u8; NONCE_LEN],
+    nonce: [u8; AEAD_NONCE_LEN],
     plaintext: &mut [u8],
-    rng: &mut RNG,
     secret: &Self::Secret,
-    tag: [&mut u8; TAG_LEN],
-  ) -> crate::Result<()>
-  where
-    RNG: CryptoRng,
-  {
-    local_encrypt(associated_data, Cipher::aes_256_gcm(), nonce, plaintext, rng, secret, tag)
+  ) -> crate::Result<[u8; AEAD_TAG_LEN]> {
+    local_encrypt(associated_data, Cipher::aes_256_gcm(), nonce, plaintext, secret)
   }
 }
 
@@ -80,44 +73,42 @@ impl Aead for Chacha20Poly1305Openssl {
   type Secret = [u8; 32];
 
   #[inline]
-  fn decrypt_in_place<'encrypted>(
+  fn decrypt_parts<'data>(
     associated_data: &[u8],
-    encrypted_data: &'encrypted mut [u8],
+    data: &'data mut [u8],
+    nonce: [u8; AEAD_NONCE_LEN],
     secret: &Self::Secret,
-  ) -> crate::Result<&'encrypted mut [u8]> {
+  ) -> crate::Result<&'data mut [u8]> {
     local_decrypt(
       associated_data,
       Cipher::chacha20_poly1305(),
-      encrypted_data,
+      data,
       CryptoError::InvalidChacha20Poly1305Data,
+      nonce,
       secret,
     )
   }
 
   #[inline]
-  fn encrypt_parts<RNG>(
+  fn encrypt_parts(
     associated_data: &[u8],
-    nonce: [&mut u8; NONCE_LEN],
+    nonce: [u8; AEAD_NONCE_LEN],
     plaintext: &mut [u8],
-    rng: &mut RNG,
     secret: &Self::Secret,
-    tag: [&mut u8; TAG_LEN],
-  ) -> crate::Result<()>
-  where
-    RNG: CryptoRng,
-  {
-    local_encrypt(associated_data, Cipher::chacha20_poly1305(), nonce, plaintext, rng, secret, tag)
+  ) -> crate::Result<[u8; AEAD_TAG_LEN]> {
+    local_encrypt(associated_data, Cipher::chacha20_poly1305(), nonce, plaintext, secret)
   }
 }
 
-fn local_decrypt<'encrypted>(
+fn local_decrypt<'data>(
   associated_data: &[u8],
   cipher: Cipher,
-  encrypted_data: &'encrypted mut [u8],
+  data: &'data mut [u8],
   error: CryptoError,
+  nonce: [u8; AEAD_NONCE_LEN],
   secret: &[u8],
-) -> crate::Result<&'encrypted mut [u8]> {
-  let (nonce, content, tag) = split_nonce_content_tag(encrypted_data, error)?;
+) -> crate::Result<&'data mut [u8]> {
+  let (content, tag) = split_content_tag(data, error)?;
   let mut decrypted = decrypt_aead(cipher, secret, Some(&nonce), associated_data, content, &tag)?;
   let decrypted_len = decrypted.len();
   content.get_mut(..decrypted_len).unwrap_or_default().copy_from_slice(&decrypted);
@@ -125,23 +116,15 @@ fn local_decrypt<'encrypted>(
   Ok(content)
 }
 
-fn local_encrypt<RNG>(
+fn local_encrypt(
   associated_data: &[u8],
   cipher: Cipher,
-  nonce: [&mut u8; NONCE_LEN],
+  nonce: [u8; AEAD_NONCE_LEN],
   plaintext: &mut [u8],
-  rng: &mut RNG,
   secret: &[u8],
-  tag_bytes_out: [&mut u8; TAG_LEN],
-) -> crate::Result<()>
-where
-  RNG: CryptoRng,
-{
-  let nonce_bytes = generate_nonce(nonce, rng);
-  let mut tag = [0u8; TAG_LEN];
-  let content =
-    encrypt_aead(cipher, secret, Some(&nonce_bytes), associated_data, plaintext, &mut tag)?;
+) -> crate::Result<[u8; AEAD_TAG_LEN]> {
+  let mut tag = [0u8; AEAD_TAG_LEN];
+  let content = encrypt_aead(cipher, secret, Some(&nonce), associated_data, plaintext, &mut tag)?;
   plaintext.get_mut(..content.len()).unwrap_or_default().copy_from_slice(&content);
-  write_tag(tag, tag_bytes_out);
-  Ok(())
+  Ok(tag)
 }

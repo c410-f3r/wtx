@@ -1,4 +1,4 @@
-use crate::collection::ShortBoxStrU16;
+use crate::collections::ShortBoxStrU16;
 
 /// When a rpc call encounters an error.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]

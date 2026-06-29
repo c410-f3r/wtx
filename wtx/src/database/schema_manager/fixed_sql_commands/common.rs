@@ -1,15 +1,15 @@
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
     Database, DatabaseTy, FromRecords,
-    executor::Executor,
+    db_client::DbClient,
     schema_manager::{DbMigration, Uid, UserMigration, UserMigrationGroup, VERSION},
   },
   misc::Lease,
 };
 use alloc::string::String;
-use core::fmt::Write;
+use core::fmt::Write as _;
 
 #[cfg(feature = "postgres")]
 pub(crate) async fn delete_migrations<E, S>(
@@ -20,7 +20,7 @@ pub(crate) async fn delete_migrations<E, S>(
   uid: Uid,
 ) -> Result<(), <E::Database as CodecController>::Error>
 where
-  E: Executor,
+  E: DbClient,
   S: Lease<str>,
 {
   buffer_cmd.write_fmt(format_args!(
@@ -42,7 +42,7 @@ pub(crate) async fn insert_migrations<'migration, DBS, E, I, S>(
 ) -> Result<(), <E::Database as CodecController>::Error>
 where
   DBS: Lease<[DatabaseTy]> + 'migration,
-  E: Executor,
+  E: DbClient,
   I: Clone + Iterator<Item = &'migration UserMigration<DBS, S>>,
   S: Lease<str> + 'migration,
 {
@@ -108,7 +108,7 @@ pub(crate) async fn migrations_by_mg_uid_query<'exec, E, ERR, D>(
 ) -> Result<(), ERR>
 where
   D: Database<Error = ERR>,
-  E: Executor<Database = D>,
+  E: DbClient<Database = D>,
   ERR: From<crate::Error>,
   DbMigration: FromRecords<'exec, E::Database>,
 {
@@ -134,9 +134,9 @@ where
   for elem in
     DbMigration::many(&executor.execute_stmt_many(buffer_cmd.as_str(), (), |_elem| Ok(())).await?)
   {
-    if let Err(elem) = results.push(elem?) {
+    if let Err(err) = results.push(elem?) {
       buffer_cmd.clear();
-      return Err(elem.into());
+      return Err(err.into());
     }
   }
   buffer_cmd.clear();

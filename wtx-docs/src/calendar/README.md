@@ -17,5 +17,5 @@ Also supports arithmetic operations and flexible formatting.
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-examples/others/calendar.rs}}
+{{#rustdoc_include ../../../wtx-examples/examples/calendar.rs}}
 ```

@@ -22,7 +22,7 @@ impl RequestCounter {
   }
 
   /// If the values defined in [`RequestLimit`] are in agreement with the `current` values
-  /// of [RequestCounter], then return `T`. Otherwise, awaits until [RequestCounter] is updated.
+  /// of [`RequestCounter`], then return `T`. Otherwise, awaits until [`RequestCounter`] is updated.
   #[inline]
   pub async fn update_params(&mut self) -> crate::Result<()> {
     let now = Instant::now();
@@ -53,7 +53,7 @@ impl RequestCounter {
 mod tests {
   use crate::{
     client_api_framework::misc::{RequestCounter, RequestLimit},
-    executor::Runtime,
+    executor::StdRuntime,
     misc::sleep,
   };
   use core::time::Duration;
@@ -61,7 +61,7 @@ mod tests {
 
   #[test]
   fn allows_requests_up_to_limit_then_waits() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       const LIMIT: u16 = 5;
       const DURATION: Duration = Duration::from_millis(200);
 
@@ -90,7 +90,7 @@ mod tests {
 
   #[test]
   fn counter_resets_after_time_expires() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let rl = RequestLimit::new(10, Duration::from_millis(100));
       let mut rc = RequestCounter::new(rl);
       rc.update_params().await.unwrap();
@@ -105,7 +105,7 @@ mod tests {
 
   #[test]
   fn does_not_awaits_when_idle_is_greater_than_duration() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let rl = RequestLimit::new(2, Duration::from_millis(50));
       let mut rc = RequestCounter::new(rl);
 
@@ -134,7 +134,7 @@ mod tests {
 
   #[test]
   fn has_correct_counter_increment() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       let rl = RequestLimit::new(2, Duration::from_millis(100));
       let mut rc = RequestCounter::new(rl);
       assert_eq!(rc.counter, 0);
@@ -159,7 +159,7 @@ mod tests {
 
   #[test]
   fn one_request_limit_waits_each_time() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       const DURATION: Duration = Duration::from_millis(100);
       let rl = RequestLimit::new(1, DURATION);
       let mut rc = RequestCounter::new(rl);
@@ -183,7 +183,7 @@ mod tests {
 
   #[test]
   fn window_starts_at_first_use_not_at_creation() {
-    Runtime::new().block_on(async {
+    StdRuntime::new().block_on(async {
       const DURATION: Duration = Duration::from_millis(200);
 
       let rl = RequestLimit::new(2, DURATION);

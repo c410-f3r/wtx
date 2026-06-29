@@ -1,0 +1,76 @@
+pub(crate) mod linear_storage_len;
+pub(crate) mod linear_storage_mut;
+pub(crate) mod linear_storage_slice;
+
+use core::{
+  mem::{MaybeUninit, needs_drop},
+  slice,
+};
+use linear_storage_len::LinearStorageLen as _;
+use linear_storage_slice::LinearStorageSlice as _;
+
+/// A storage that can be represented through a contiguous segment of memory.
+pub(crate) trait LinearStorage<T> {
+  /// See [`needs_drop`].
+  const NEEDS_DROP: bool = needs_drop::<T>();
+
+  /// See [`linear_storage_len::LinearStorageLen`].
+  type Len: linear_storage_len::LinearStorageLen;
+  /// See [`linear_storage_slice::LinearStorageSlice`].
+  type Slice: linear_storage_slice::LinearStorageSlice<Data = T> + ?Sized;
+
+  // ***** REQUIRED *****
+
+  /// Returns a raw pointer to the vector’s buffer, or a dangling raw pointer valid for zero sized
+  /// reads if the storage didn’t allocate.
+  fn as_ptr(&self) -> *const T;
+
+  /// Returns the total number of elements the vector can hold without reallocating.
+  fn capacity(&self) -> Self::Len;
+
+  /// Returns the number of elements in the vector, also referred to as its `length`.
+  fn len(&self) -> Self::Len;
+
+  // ***** PROVIDED *****
+
+  /// The entire allocated region, from zero to the buffer's capacity.
+  #[inline]
+  fn allocated(&self) -> &[MaybeUninit<T>] {
+    // SAFETY: `self.capacity()` is guarantee to have allocated elements
+    unsafe { slice::from_raw_parts(self.as_ptr().cast(), self.capacity().usize()) }
+  }
+
+  /// Extracts a slice containing the entire vector.
+  #[inline]
+  fn as_slice(&self) -> &Self::Slice {
+    // SAFETY: it is assumed that implementations ensured `self.len()` initialized elements
+    unsafe { Self::Slice::from_raw_parts(self.as_ptr(), self.len().usize()) }
+  }
+
+  /// Returns the capacity left in the storage.
+  #[inline]
+  fn remaining(&self) -> Self::Len {
+    use linear_storage_len::LinearStorageLen as _;
+    self.capacity().wrapping_sub(self.len())
+  }
+}
+
+impl<T> LinearStorage<T> for alloc::vec::Vec<T> {
+  type Len = usize;
+  type Slice = [T];
+
+  #[inline]
+  fn as_ptr(&self) -> *const T {
+    (*self).as_ptr()
+  }
+
+  #[inline]
+  fn capacity(&self) -> Self::Len {
+    (*self).capacity()
+  }
+
+  #[inline]
+  fn len(&self) -> Self::Len {
+    (*self).len()
+  }
+}

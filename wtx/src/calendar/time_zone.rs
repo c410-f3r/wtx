@@ -2,7 +2,7 @@ mod dyn_tz;
 mod local;
 mod utc;
 
-use crate::collection::ArrayStringU8;
+use crate::collections::ArrayStringU8;
 pub use dyn_tz::DynTz;
 pub use local::Local;
 pub use utc::Utc;

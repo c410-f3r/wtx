@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collections::Vector,
   crypto::{
     CryptoError, Ed25519AwsLcRs, Ed25519SignKeyAwsLcRs, P256AwsLcRs, P256SignKeyAwsLcRs,
     P384AwsLcRs, P384SignKeyAwsLcRs, RsaPssRsaeSha256AwsLcRs, RsaPssRsaeSha384AwsLcRs,

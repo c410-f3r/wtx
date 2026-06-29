@@ -1,5 +1,5 @@
 use crate::{
-  collection::{Clear, TryExtend},
+  collections::{Clear, TryExtend},
   misc::{Lease, SingleTypeStorage, TryArithmetic},
   rng::{FromRng, Rng},
 };
@@ -102,7 +102,7 @@ where
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::ArrayVectorU8,
+    collections::ArrayVectorU8,
     rng::{SeedableRng, WeightedIndex, Xorshift64},
   };
 

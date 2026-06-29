@@ -1,8 +1,8 @@
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
-    Executor, Identifier,
+    DbClient, Identifier,
     schema_manager::{
       Commands, DbMigration, MigrationStatus, SchemaManagement, UserMigrationGroup,
       integration_tests::AuxTestParams,
@@ -24,7 +24,7 @@ pub(crate) async fn all_tables_returns_the_number_of_tables_of_the_default_schem
   aux: AuxTestParams,
 ) where
   E: SchemaManagement,
-  <<E as Executor>::Database as CodecController>::Error: Debug,
+  <<E as DbClient>::Database as CodecController>::Error: Debug,
 {
   c._executor_mut().execute_ignored("CREATE TABLE IF NOT EXISTS foo(id INT)").await.unwrap();
   c._executor_mut().table_names(buffer_cmd, buffer_idents, aux.default_schema).await.unwrap();

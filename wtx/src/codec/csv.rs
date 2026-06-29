@@ -1,11 +1,11 @@
 use crate::{
   codec::CodecError,
-  collection::{ArrayVectorU8, Clear},
+  collections::{ArrayVectorU8, Clear},
   misc::{Lease, bytes_split2_indices, strip_new_line},
 };
 use core::{marker::PhantomData, ops::Range};
 #[cfg(feature = "std")]
-use {crate::collection::Vector, std::io::BufRead};
+use {crate::collections::Vector, std::io::BufRead};
 
 const MAX_COLUMNS: usize = 64;
 
@@ -274,7 +274,7 @@ const fn idx16(idx: usize) -> u16 {
 mod tests {
   use crate::{
     codec::Csv,
-    collection::{ArrayVectorU8, Vector},
+    collections::{ArrayVectorU8, Vector},
   };
   use core::str;
   use std::io::BufReader;

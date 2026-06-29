@@ -1,6 +1,6 @@
 use crate::{
   calendar::{CalendarError, TimeZone},
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
 };
 
 /// Local time.

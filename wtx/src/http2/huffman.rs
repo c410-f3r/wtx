@@ -1,6 +1,6 @@
 use crate::{
   _SIMD_LEN,
-  collection::{Clear, TryExtend, Vector},
+  collections::{Clear, TryExtend, Vector},
   http2::{
     Http2Error, Http2ErrorCode,
     huffman_tables::{DECODE_TABLE, DECODED, ENCODE_TABLE, END_OF_STRING, ERROR},
@@ -182,7 +182,7 @@ fn push_encoded_byte(
 #[cfg(kani)]
 mod kani {
   use crate::{
-    collection::Vector,
+    collections::Vector,
     http::_HeaderValueBuffer,
     http2::huffman::{huffman_decode, huffman_encode},
   };
@@ -202,7 +202,7 @@ mod kani {
 #[cfg(test)]
 mod test {
   use crate::{
-    collection::Vector,
+    collections::Vector,
     http2::huffman::{huffman_decode, huffman_encode},
   };
 

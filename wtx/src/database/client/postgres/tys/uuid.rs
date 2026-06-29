@@ -2,7 +2,7 @@ use crate::{
   codec::{Decode, Encode},
   database::{
     Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
   },
 };
 use uuid::Uuid;
@@ -12,7 +12,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
     let elem = Uuid::from_slice(dw.bytes()).map_err(Into::into)?;
     Ok(elem)
   }
@@ -23,8 +23,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self.as_bytes())?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().inner_mut().extend_from_copyable_slice(self.as_bytes())?;
     Ok(())
   }
 }

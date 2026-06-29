@@ -1,7 +1,7 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, GENERALIZED_TIME_TAG, GeneralizedTime, UTC_TIME_TAG,
-    UtcTime,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, GENERALIZED_TIME_TAG, GeneralizedTime,
+    UTC_TIME_TAG, UtcTime,
   },
   calendar::{DateTime, Utc},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
@@ -41,9 +41,9 @@ impl Time {
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Time {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Time {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (date_time, tag) = if let Ok(elem) = GeneralizedTime::decode(dw) {
       (elem.0, GENERALIZED_TIME_TAG)
     } else if let Ok(elem) = UtcTime::decode(dw) {
@@ -55,9 +55,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Time {
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Time {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for Time {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     if self.tag == GENERALIZED_TIME_TAG {
       GeneralizedTime(self.date_time).encode(ew)?;
     } else {

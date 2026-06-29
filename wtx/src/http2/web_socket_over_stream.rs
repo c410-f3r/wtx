@@ -1,16 +1,15 @@
 //! Tools to manage WebSocket connections in HTTP/2 streams
 
 use crate::{
-  collection::Vector,
+  collections::{ArrayVectorU8, Vector},
   http::{Headers, StatusCode},
-  http2::{
-    Http2Buffer, Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err,
-  },
-  misc::{ConnectionState, JoinArray, LeaseMut, SingleTypeStorage},
+  http2::{Http2Error, Http2ErrorCode, Http2RecvStatus, ServerStream, misc::protocol_err},
+  misc::{ConnectionState, JoinArrayVector, LeaseMut, SingleTypeStorage},
   rng::Xorshift64,
   stream::StreamWriter,
+  tls::TlsStreamBridge,
   web_socket::{
-    Frame, FrameMut, OpCode, WebSocketReplier,
+    Frame, FrameMut, OpCode, WebSocketBridge,
     read_frame_info::ReadFrameInfo,
     web_socket_reader::{manage_auto_reply, manage_op_code_of_first_final_frame, unmask_nb},
     web_socket_writer::manage_normal_frame,
@@ -26,10 +25,9 @@ pub struct WebSocketOverStream<S> {
   stream: S,
 }
 
-impl<HB, S, SW> WebSocketOverStream<S>
+impl<S, SW, TM> WebSocketOverStream<S>
 where
-  HB: LeaseMut<Http2Buffer>,
-  S: LeaseMut<ServerStream<HB, SW>> + SingleTypeStorage<Item = (HB, SW)>,
+  S: LeaseMut<ServerStream<SW, TM>> + SingleTypeStorage<Item = (SW, TM)>,
   SW: StreamWriter,
 {
   /// Creates a new instance sending an `Ok` status codes that confirms the WebSocket handshake.
@@ -54,7 +52,7 @@ where
   /// Closes the stream as well as the WebSocket connection.
   #[inline]
   pub async fn close(&mut self) -> crate::Result<()> {
-    self.write_frame(&mut Frame::new_fin(OpCode::Close, &mut [])).await?;
+    self.write_frame(&mut Frame::new(true, OpCode::Close, &mut [], 0)).await?;
     self.stream.lease_mut().common().send_reset(Http2ErrorCode::NoError).await;
     Ok(())
   }
@@ -67,7 +65,7 @@ where
   pub async fn read_frame<'buffer>(
     &mut self,
     buffer: &'buffer mut Vector<u8>,
-  ) -> crate::Result<FrameMut<'buffer, false>> {
+  ) -> crate::Result<FrameMut<'buffer>> {
     buffer.clear();
     let (rfi, is_eos) = recv_data(buffer, self.no_masking, self.stream.lease_mut()).await?;
     if rfi.fin {
@@ -77,13 +75,13 @@ where
         self.no_masking,
         rfi.op_code,
         buffer,
-        &WebSocketReplier::new(),
         &mut self.rng,
+        &WebSocketBridge::new(TlsStreamBridge::new()),
         write_control_frame_cb,
       )
       .await?;
       manage_op_code_of_first_final_frame(rfi.op_code, buffer)?;
-      return Ok(FrameMut::new_fin(rfi.op_code, buffer));
+      return Ok(FrameMut::new(true, rfi.op_code, buffer, 0));
     }
     if is_eos {
       return Err(crate::Error::ClosedHttpConnection);
@@ -93,7 +91,7 @@ where
 
   /// Writes a frame to the stream.
   #[inline]
-  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P, false>) -> crate::Result<()>
+  pub async fn write_frame<P>(&mut self, frame: &mut Frame<P>) -> crate::Result<()>
   where
     P: LeaseMut<[u8]>,
   {
@@ -105,13 +103,15 @@ where
     );
     let (header, payload) = frame.header_and_payload();
     let common_stream = self.stream.lease_mut().common();
-    let [lhs_rslt, rhs_rslt] = JoinArray::new([
+    let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([
       common_stream.send_data(header, false),
       common_stream.send_data(payload.lease(), false),
-    ])
+    ]))
     .await;
-    if lhs_rslt?.is_closed() || rhs_rslt?.is_closed() {
-      return Err(crate::Error::ClosedHttpConnection);
+    for result in results {
+      if result?.is_closed() {
+        return Err(crate::Error::ClosedHttpConnection);
+      }
     }
     Ok(())
   }
@@ -128,13 +128,12 @@ fn extend_buffer(
   Ok((rfi, before))
 }
 
-async fn recv_data<HB, SW>(
+async fn recv_data<SW, TM>(
   buffer: &mut Vector<u8>,
   no_masking: bool,
-  stream: &mut ServerStream<HB, SW>,
+  stream: &mut ServerStream<SW, TM>,
 ) -> crate::Result<(ReadFrameInfo, bool)>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   let (before, is_eos, rfi) = match stream
@@ -155,22 +154,24 @@ where
   Ok((rfi, is_eos))
 }
 
-async fn write_control_frame_cb<HB, SW>(
-  stream: &mut ServerStream<HB, SW>,
+async fn write_control_frame_cb<SW, TM>(
+  stream: &mut ServerStream<SW, TM>,
   header: &[u8],
   payload: &[u8],
 ) -> crate::Result<()>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   let common_stream = stream.common();
-  let [lhs_rslt, rhs_rslt] = JoinArray::new([
+  let results = JoinArrayVector::new(ArrayVectorU8::<_, 2>::from_array([
     common_stream.send_data(header, false),
     common_stream.send_data(payload, false),
-  ])
+  ]))
   .await;
-  let _ = lhs_rslt?;
-  let _ = rhs_rslt?;
+  for result in results {
+    if result?.is_closed() {
+      return Err(crate::Error::ClosedHttpConnection);
+    }
+  }
   Ok(())
 }

@@ -19,7 +19,7 @@ macro_rules! create_enum {
     impl $enum_ident {
       #[inline]
       /// An array that contains all variants
-      $v fn all() -> [Self; { Self::len() }] {
+      $v const fn all() -> [Self; { Self::len() }] {
         [$( $enum_ident::$variant_ident_fixed, )*]
       }
 
@@ -125,7 +125,7 @@ macro_rules! create_enum {
           )*
           _ => Err($crate::Error::UnexpectedBytes {
             length: from.len().try_into().unwrap_or(u16::MAX),
-            ty: $crate::collection::ShortStrU8::new_truncated_u8(core::any::type_name::<Self>()),
+            ty: $crate::collections::ShortStrU8::new_truncated_u8(core::any::type_name::<Self>()),
           }),
         }
       }
@@ -219,7 +219,7 @@ macro_rules! _max_continuation_frames {
 
 macro_rules! _max_frames_mismatches {
   () => {
-    32
+    2
   };
 }
 

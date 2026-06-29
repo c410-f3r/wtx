@@ -2,7 +2,7 @@ use crate::{
   codec::{Decode, Encode},
   database::{
     Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty},
   },
 };
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -12,7 +12,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'exec, '_>) -> Result<Self, E> {
     Ok(match dw.bytes() {
       [2, ..] => IpAddr::V4(Ipv4Addr::decode(dw)?),
       [3, ..] => IpAddr::V6(Ipv6Addr::decode(dw)?),
@@ -25,7 +25,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     match self {
       IpAddr::V4(ipv4_addr) => ipv4_addr.encode(ew),
       IpAddr::V6(ipv6_addr) => ipv6_addr.encode(ew),
@@ -54,11 +54,11 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
-    let [2, 32, 0, 4, e, f, g, h] = dw.bytes() else {
+  fn decode(dw: &mut PostgresDecodeWrapper<'exec, '_>) -> Result<Self, E> {
+    let [2, 32, 0, 4, b0, b1, b2, b3] = dw.bytes() else {
       return Err(E::from(PostgresError::InvalidIpFormat.into()));
     };
-    Ok(Ipv4Addr::from([*e, *f, *g, *h]))
+    Ok(Ipv4Addr::from([*b0, *b1, *b2, *b3]))
   }
 }
 impl<E> Encode<Postgres<E>> for Ipv4Addr
@@ -66,8 +66,9 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slices([&[2, 32, 0, 4][..], &self.octets()])?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    let _ =
+      ew.buffer().inner_mut().extend_from_copyable_slices([&[2, 32, 0, 4][..], &self.octets()])?;
     Ok(())
   }
 }
@@ -92,11 +93,15 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
-    let [3, 128, 0, 16, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t] = dw.bytes() else {
+  fn decode(dw: &mut PostgresDecodeWrapper<'exec, '_>) -> Result<Self, E> {
+    let [3, 128, 0, 16, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15] =
+      dw.bytes()
+    else {
       return Err(E::from(PostgresError::InvalidIpFormat.into()));
     };
-    Ok(Ipv6Addr::from([*e, *f, *g, *h, *i, *j, *k, *l, *m, *n, *o, *p, *q, *r, *s, *t]))
+    Ok(Ipv6Addr::from([
+      *b0, *b1, *b2, *b3, *b4, *b5, *b6, *b7, *b8, *b9, *b10, *b11, *b12, *b13, *b14, *b15,
+    ]))
   }
 }
 impl<E> Encode<Postgres<E>> for Ipv6Addr
@@ -104,8 +109,11 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slices([&[3, 128, 0, 16][..], &self.octets()])?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    let _ = ew
+      .buffer()
+      .inner_mut()
+      .extend_from_copyable_slices([&[3, 128, 0, 16][..], &self.octets()])?;
     Ok(())
   }
 }

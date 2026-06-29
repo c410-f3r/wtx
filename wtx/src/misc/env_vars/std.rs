@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collections::Vector,
   misc::{AsciiGeneric, EnvVars, FromVars, find_file, str_rsplit_once1, str_split_once1},
 };
 use alloc::string::String;

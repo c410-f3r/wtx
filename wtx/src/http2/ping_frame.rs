@@ -26,20 +26,20 @@ impl PingFrame {
       ));
     }
     fi.cf.only_ack();
-    let [a, b, c, d, e, f, g, h] = bytes else {
+    let [b0, b1, b2, b3, b4, b5, b6, b7] = bytes else {
       return Err(crate::Error::Http2ErrorGoAway(
         Http2ErrorCode::FrameSizeError,
         Http2Error::InvalidPingFrameBytes,
       ));
     };
-    Ok(Self::new(fi.cf, [*a, *b, *c, *d, *e, *f, *g, *h]))
+    Ok(Self::new(fi.cf, [*b0, *b1, *b2, *b3, *b4, *b5, *b6, *b7]))
   }
 
   pub(crate) const fn bytes(&self) -> [u8; 17] {
     let fi = FrameInit::new(self.cf, 8, U31::ZERO, FrameInitTy::Ping);
-    let [a, b, c, d, e, f, g, h, i] = fi.bytes();
-    let [j, k, l, m, n, o, p, q] = self.payload;
-    [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q]
+    let [b0, b1, b2, b3, b4, b5, b6, b7, b8] = fi.bytes();
+    let [b9, b10, b11, b12, b13, b14, b15, b16] = self.payload;
+    [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16]
   }
 
   pub(crate) const fn has_ack(&self) -> bool {

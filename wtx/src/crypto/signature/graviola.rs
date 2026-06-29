@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collections::Vector,
   crypto::{
     Ed25519Graviola, Ed25519SignKeyGraviola, P256Graviola, P256SignKeyGraviola, P384Graviola,
     P384SignKeyGraviola, RsaPssRsaeSha256Graviola, RsaPssRsaeSha384Graviola,

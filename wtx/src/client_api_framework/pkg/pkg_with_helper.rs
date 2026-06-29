@@ -1,7 +1,7 @@
 use crate::{
   client_api_framework::{Api, pkg::Package},
   codec::{Id, protocol::JsonRpcEncoder},
-  collection::Vector,
+  collections::Vector,
 };
 use core::{
   borrow::Borrow,

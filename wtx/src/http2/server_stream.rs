@@ -1,7 +1,8 @@
 use crate::{
+  collections::Vector,
   http::{Method, MsgBufferString, MsgData, Protocol, Response, u31::U31},
   http2::{
-    CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
+    CommonStream, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{manage_recurrent_receiving_of_overall_stream, process_higher_operation_err},
     stream_receiver::StreamControlRecvParams,
@@ -15,8 +16,8 @@ use core::{future::poll_fn, pin::pin, task::Waker};
 
 /// Created when a server receives an initial stream.
 #[derive(Debug)]
-pub struct ServerStream<HB, SW> {
-  inner: Arc<Http2Inner<HB, SW, false>>,
+pub struct ServerStream<SW, TM> {
+  inner: Arc<Http2Inner<SW, TM, false>>,
   linger: bool,
   method: Method,
   protocol: Option<Protocol>,
@@ -24,13 +25,12 @@ pub struct ServerStream<HB, SW> {
   stream_id: U31,
 }
 
-impl<HB, SW> ServerStream<HB, SW>
+impl<SW, TM> ServerStream<SW, TM>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   pub(crate) const fn new(
-    inner: Arc<Http2Inner<HB, SW, false>>,
+    inner: Arc<Http2Inner<SW, TM, false>>,
     linger: bool,
     method: Method,
     protocol: Option<Protocol>,
@@ -42,7 +42,7 @@ where
 
   /// See [`CommonStream`].
   #[inline]
-  pub const fn common(&mut self) -> CommonStream<'_, HB, SW, false> {
+  pub const fn common(&mut self) -> CommonStream<'_, SW, TM, false> {
     let Self { inner, linger, method: _, protocol: _, span, stream_id } = self;
     CommonStream { inner, linger: *linger, span, stream_id: *stream_id }
   }
@@ -113,7 +113,11 @@ where
   /// are successfully executed. More specifically, should only be called in a half-closed stream
   /// state.
   #[inline]
-  pub async fn send_res<MD>(&mut self, res: Response<MD>) -> crate::Result<Http2SendStatus>
+  pub async fn send_res<MD>(
+    &mut self,
+    enc_buffer: &mut Vector<u8>,
+    res: Response<MD>,
+  ) -> crate::Result<Http2SendStatus>
   where
     MD: MsgData,
     MD::Body: Lease<[u8]>,
@@ -123,6 +127,7 @@ where
     _trace!("Sending response");
     let hss = send_msg::<_, _, false>(
       res.msg_data.body().lease(),
+      enc_buffer,
       res.msg_data.headers(),
       inner,
       (
@@ -140,25 +145,25 @@ where
   }
 }
 
-impl<HB, SW> Lease<ServerStream<HB, SW>> for ServerStream<HB, SW> {
+impl<SW, TM> Lease<ServerStream<SW, TM>> for ServerStream<SW, TM> {
   #[inline]
-  fn lease(&self) -> &ServerStream<HB, SW> {
+  fn lease(&self) -> &ServerStream<SW, TM> {
     self
   }
 }
 
-impl<HB, SW> LeaseMut<ServerStream<HB, SW>> for ServerStream<HB, SW> {
+impl<SW, TM> LeaseMut<ServerStream<SW, TM>> for ServerStream<SW, TM> {
   #[inline]
-  fn lease_mut(&mut self) -> &mut ServerStream<HB, SW> {
+  fn lease_mut(&mut self) -> &mut ServerStream<SW, TM> {
     self
   }
 }
 
-impl<HB, SW> SingleTypeStorage for ServerStream<HB, SW> {
-  type Item = (HB, SW);
+impl<SW, TM> SingleTypeStorage for ServerStream<SW, TM> {
+  type Item = (SW, TM);
 }
 
-impl<HB, SW> Clone for ServerStream<HB, SW> {
+impl<SW, TM> Clone for ServerStream<SW, TM> {
   #[inline]
   fn clone(&self) -> Self {
     Self {

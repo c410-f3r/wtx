@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use wtx::collection::Vector;
+use wtx::collections::Vector;
 
 #[derive(wtx::FromVars)]
 pub struct Foo {

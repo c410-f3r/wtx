@@ -1,8 +1,8 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, INTEGER_TAG, Len, decode_asn1_tlv},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, INTEGER_TAG, Len, decode_asn1_tlv},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::ArrayVectorU8,
-  misc::Lease,
+  collections::ArrayVectorU8,
+  misc::Lease as _,
   x509::X509Error,
 };
 use core::ops::Deref;
@@ -21,21 +21,21 @@ impl SerialNumber {
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for SerialNumber {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for SerialNumber {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (INTEGER_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidSerialNumberBytes.into());
     };
-    let value = SerialNumber::try_from(value)?;
+    let serial_number = SerialNumber::try_from(value)?;
     dw.bytes = rest;
-    Ok(value)
+    Ok(serial_number)
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for SerialNumber {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for SerialNumber {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let _ = ew.buffer.extend_from_copyable_slices([
       &[INTEGER_TAG][..],
       &*Len::from_u8(self.0.len()),

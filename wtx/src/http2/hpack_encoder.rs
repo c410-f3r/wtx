@@ -9,7 +9,7 @@
 // bytes or runtime performance.
 
 use crate::{
-  collection::Vector,
+  collections::Vector,
   http::{Header, KnownHeaderName, Method, StatusCode},
   http2::{
     Http2Error, hpack_header::HpackHeaderBasic, hpack_headers::HpackHeaders,
@@ -19,7 +19,7 @@ use crate::{
   rng::Rng,
 };
 use core::{
-  hash::{BuildHasher, Hasher},
+  hash::{BuildHasher as _, Hasher as _},
   iter,
 };
 use foldhash::fast::FixedState;
@@ -264,20 +264,20 @@ impl HpackEncoder {
       let octets = Self::encode_int(buffer, 0b1000_0000, len)?;
       let mut array = [0; 4];
       match (octets, buffer.as_slice()) {
-        (2, [.., a, b]) => {
-          array[0] = *a;
-          array[1] = *b;
+        (2, [.., b0, b1]) => {
+          array[0] = *b0;
+          array[1] = *b1;
         }
-        (3, [.., a, b, c]) => {
-          array[0] = *a;
-          array[1] = *b;
-          array[2] = *c;
+        (3, [.., b0, b1, b2]) => {
+          array[0] = *b0;
+          array[1] = *b1;
+          array[2] = *b2;
         }
-        (4, [.., a, b, c, d]) => {
-          array[0] = *a;
-          array[1] = *b;
-          array[2] = *c;
-          array[3] = *d;
+        (4, [.., b0, b1, b2, b3]) => {
+          array[0] = *b0;
+          array[1] = *b1;
+          array[2] = *b2;
+          array[3] = *b3;
         }
         _ => return Ok(()),
       }
@@ -288,20 +288,20 @@ impl HpackEncoder {
       );
       buffer.truncate(buffer.len().wrapping_sub(1));
       match (octets, buffer.get_mut(before_byte..)) {
-        (2, Some([a, b, ..])) => {
-          *a = array[0];
-          *b = array[1];
+        (2, Some([b0, b1, ..])) => {
+          *b0 = array[0];
+          *b1 = array[1];
         }
-        (3, Some([a, b, c, ..])) => {
-          *a = array[0];
-          *b = array[1];
-          *c = array[2];
+        (3, Some([b0, b1, b2, ..])) => {
+          *b0 = array[0];
+          *b1 = array[1];
+          *b2 = array[2];
         }
-        (4, Some([a, b, c, d, ..])) => {
-          *a = array[0];
-          *b = array[1];
-          *c = array[2];
-          *d = array[3];
+        (4, Some([b0, b1, b2, b3, ..])) => {
+          *b0 = array[0];
+          *b1 = array[1];
+          *b2 = array[2];
+          *b3 = array[3];
         }
         _ => {}
       }
@@ -330,7 +330,11 @@ impl HpackEncoder {
         )
       ),
       HpackHeaderBasic::Path => true,
-      _ => false,
+      HpackHeaderBasic::Authority
+      | HpackHeaderBasic::Method(_)
+      | HpackHeaderBasic::Protocol(_)
+      | HpackHeaderBasic::Scheme
+      | HpackHeaderBasic::StatusCode(_) => false,
     }
   }
 
@@ -431,7 +435,13 @@ impl HpackEncoder {
         let (has_value, idx) = match method {
           Method::Get => (true, 2),
           Method::Post => (true, 3),
-          _ => (false, 2),
+          Method::Connect
+          | Method::Delete
+          | Method::Head
+          | Method::Options
+          | Method::Patch
+          | Method::Put
+          | Method::Trace => (false, 2),
         };
         (has_value, idx, name)
       }
@@ -453,6 +463,7 @@ impl HpackEncoder {
         };
         (has_value, idx, name)
       }
+      #[expect(clippy::wildcard_enum_match_arm, reason = "too many variants")]
       HpackHeaderBasic::StatusCode(status) => {
         let name = ":status";
         let (has_value, idx) = match status {
@@ -627,7 +638,7 @@ struct StaticHeader {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::Vector,
+    collections::Vector,
     http::{Method, StatusCode},
     http2::{
       hpack_encoder::HpackEncoder, hpack_header::HpackHeaderBasic,

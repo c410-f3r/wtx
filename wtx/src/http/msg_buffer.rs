@@ -1,5 +1,5 @@
 use crate::{
-  collection::{Clear, Vector},
+  collections::{Clear, Vector},
   http::{Headers, Method, MsgData, MsgDataMut, Request, Response, StatusCode},
   misc::{Lease, LeaseMut, Uri, UriRef},
 };

@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, BitString},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::X509Error,
 };
@@ -13,6 +13,7 @@ pub struct KeyUsage {
 
 impl KeyUsage {
   /// Removes the last 7 bits of the second byte.
+  #[inline]
   pub const fn new(bytes: (u8, u8)) -> Self {
     let first = bytes.0;
     let second = bytes.1 & 0b1000_0000;
@@ -156,23 +157,23 @@ impl Default for KeyUsage {
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for KeyUsage {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for KeyUsage {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    let bit_string = BitString::decode(dw)?;
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
+    let bit_string = BitString::<&[u8]>::decode(dw)?;
     let bytes = match bit_string.bytes() {
       [] => (0, 0),
-      [a] => (*a, 0),
-      [a, b] => (*a, *b),
+      [b0] => (*b0, 0),
+      [b0, b1] => (*b0, *b1),
       _ => return Err(X509Error::InvalidExtensionKeyUsage.into()),
     };
     Ok(Self { bytes })
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for KeyUsage {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for KeyUsage {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let (slice, unused_bits) = if self.bytes.1 != 0 {
       (
         &[self.bytes.0, self.bytes.1][..],

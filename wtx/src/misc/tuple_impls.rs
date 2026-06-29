@@ -1,7 +1,9 @@
 // FIXME(STABLE): macro_metavar_expr
 
+#![allow(clippy::unused_unit, reason = "macro-generated code")]
+
 macro_rules! impl_tuples {
-  ($( [$($T:ident($N:tt))*] )+) => {
+  ($( [$($T:ident($T13:tt))*] )+) => {
     #[cfg(feature = "database")]
     mod database {
       use crate::database::{Database, RecordValues, Typed, record_values::encode};
@@ -25,7 +27,7 @@ macro_rules! impl_tuples {
             $(
               encode(
                 _aux,
-                &self.$N,
+                &self.$T13,
                 _ew,
                 &mut _n,
                 &mut _prefix_cb,
@@ -43,72 +45,47 @@ macro_rules! impl_tuples {
           #[allow(unused_mut, reason = "0-arity tuple")]
           #[inline]
           fn walk(&self, mut _cb: impl FnMut(bool, Option<DB::Ty>) -> Result<(), DB::Error>) -> Result<(), DB::Error> {
-            $( _cb(self.$N.is_null(), self.$N.runtime_ty())?; )*
+            $( _cb(self.$T13.is_null(), self.$T13.runtime_ty())?; )*
             Ok(())
           }
         }
       )+
     }
 
-    #[cfg(feature = "http-server-framework")]
+    #[cfg(feature = "http2-server-framework")]
     mod http_server_framework {
       use crate::{
-        collection::{ArrayVectorU8, ShortStrU8, Vector},
+        collections::{ArrayVectorCopy, ShortStrU8, Vector},
         http::{
           OperationMode, HttpError, StatusCode, AutoStream, ManualStream, Request,
           MsgBufferString, Response,
-          server_framework::{ConnAux, Endpoint, Middleware, StreamAux, RouteMatch, EndpointNode, PathParams}
+          http2_server_framework::{Endpoint, Middleware, RouteMatch, EndpointNode, PathParams}
         },
       };
       use core::ops::ControlFlow;
 
       $(
-        impl<$($T,)*> ConnAux for ($($T,)*)
+        impl<$($T,)* DATA, ERR> Middleware<DATA, ERR> for ($($T,)*)
         where
-          $($T: ConnAux,)*
-        {
-          type Init = ($($T::Init,)*);
-
-          #[inline]
-          fn conn_aux(_init: Self::Init) -> crate::Result<Self> {
-            Ok(($( $T::conn_aux(_init.$N)?, )*))
-          }
-        }
-
-        impl<$($T,)*> StreamAux for ($($T,)*)
-        where
-          $($T: StreamAux,)*
-        {
-          type Init = ($($T::Init,)*);
-
-          #[inline]
-          fn stream_aux(_init: Self::Init) -> crate::Result<Self> {
-            Ok(($( $T::stream_aux(_init.$N)?, )*))
-          }
-        }
-
-        impl<$($T,)* CA, ERR, SA> Middleware<CA, ERR, SA> for ($($T,)*)
-        where
-          $($T: Middleware<CA, ERR, SA>,)*
+          $($T: Middleware<DATA, ERR>,)*
           ERR: From<crate::Error>
         {
           type Aux = ($($T::Aux,)*);
 
           #[inline]
           fn aux(&self) -> Self::Aux {
-            ($(self.$N.aux(),)*)
+            ($(self.$T13.aux(),)*)
           }
 
           #[inline]
           async fn req(
             &self,
-            _conn_aux: &mut CA,
+            _data: &mut DATA,
             _mw_aux: &mut Self::Aux,
             _req: &mut Request<MsgBufferString>,
-            _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
-              let rslt = self.$N.req(_conn_aux, &mut _mw_aux.$N, _req, _stream_aux).await?;
+              let rslt = self.$T13.req(_data, &mut _mw_aux.$T13, _req).await?;
               if let ControlFlow::Break(status_code) = rslt {
                 return Ok(ControlFlow::Break(status_code));
               }
@@ -119,17 +96,16 @@ macro_rules! impl_tuples {
           #[inline]
           async fn res(
             &self,
-            _conn_aux: &mut CA,
+            _data: &mut DATA,
             _mw_aux: &mut Self::Aux,
             _res: Response<&mut MsgBufferString>,
-            _stream_aux: &mut SA,
           ) -> Result<ControlFlow<StatusCode, ()>, ERR> {
             $({
               let local_res = Response {
                 msg_data: &mut *_res.msg_data,
                 status_code: _res.status_code,
               };
-              let rslt = self.$N.res(_conn_aux, &mut _mw_aux.$N, local_res, _stream_aux).await?;
+              let rslt = self.$T13.res(_data, &mut _mw_aux.$T13, local_res).await?;
               if let ControlFlow::Break(status_code) = rslt {
                 return Ok(ControlFlow::Break(status_code));
               }
@@ -138,9 +114,9 @@ macro_rules! impl_tuples {
           }
         }
 
-        impl<$($T,)* CA, ERR, STREAM, SA> Endpoint<CA, ERR, STREAM, SA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* DATA, ERR, STREAM> Endpoint<DATA, ERR, STREAM> for ($(PathParams<$T>,)*)
         where
-          $($T: Endpoint<CA, ERR, STREAM, SA>,)*
+          $($T: Endpoint<DATA, ERR, STREAM>,)*
           ERR: From<crate::Error>,
         {
           const OM: OperationMode = OperationMode::Auto;
@@ -148,14 +124,14 @@ macro_rules! impl_tuples {
           #[inline]
           async fn auto(
             &self,
-            _auto_stream: &mut AutoStream<CA, SA>,
+            _auto_stream: &mut AutoStream<DATA>,
             _path_defs: (u8, &[RouteMatch]),
           ) -> Result<StatusCode, ERR> {
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
               $(
-                Some($N) => {
+                Some($T13) => {
                   return self
-                    .$N
+                    .$T13
                     .value
                     .auto(_auto_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await;
@@ -168,14 +144,14 @@ macro_rules! impl_tuples {
           #[inline]
           async fn manual(
             &self,
-            _manual_stream: ManualStream<CA, STREAM, SA>,
+            _manual_stream: ManualStream<DATA, STREAM>,
             _path_defs: (u8, &[RouteMatch]),
           ) -> Result<(), ERR> {
             match _path_defs.1.get(usize::from(_path_defs.0)).map(|el| el.idx) {
               $(
-                Some($N) => {
+                Some($T13) => {
                   return self
-                    .$N
+                    .$T13
                     .value
                     .manual(_manual_stream, (_path_defs.0.wrapping_add(1), _path_defs.1))
                     .await;
@@ -186,9 +162,9 @@ macro_rules! impl_tuples {
           }
         }
 
-        impl<$($T,)* CA, ERR, STREAM, SA> EndpointNode<CA, ERR, STREAM, SA> for ($(PathParams<$T>,)*)
+        impl<$($T,)* DATA, ERR, STREAM> EndpointNode<DATA, ERR, STREAM> for ($(PathParams<$T>,)*)
         where
-          $($T: EndpointNode<CA, ERR, STREAM, SA>,)*
+          $($T: EndpointNode<DATA, ERR, STREAM>,)*
           ERR: From<crate::Error>,
         {
           const IS_ROUTER: bool = false;
@@ -196,14 +172,14 @@ macro_rules! impl_tuples {
           #[inline]
           fn paths_indices(
             &self,
-            _prev: ArrayVectorU8<RouteMatch, 4>,
-            _vec: &mut Vector<ArrayVectorU8<RouteMatch, 4>>
+            _prev: ArrayVectorCopy<RouteMatch, 4>,
+            _vec: &mut Vector<ArrayVectorCopy<RouteMatch, 4>>
           ) -> crate::Result<()> {
             $({
               let mut local_prev = _prev.clone();
-              local_prev.push(RouteMatch::new($N, $T::OM, ShortStrU8::new(self.$N.full_path)?))?;
+              local_prev.push(RouteMatch::new($T13, $T::OM, ShortStrU8::new(self.$T13.full_path)?))?;
               if $T::IS_ROUTER {
-                self.$N.value.paths_indices(local_prev, _vec)?;
+                self.$T13.value.paths_indices(local_prev, _vec)?;
               } else {
                 _vec.push(local_prev)?;
               }
@@ -239,7 +215,7 @@ macro_rules! impl_tuples {
       use crate::{
         codec::{Decode, Encode},
         database::{
-          Typed, client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, StructDecoder, StructEncoder},
+          Typed, client::postgres::{PostgresDecodeWrapper, PostgresEncodeWrapper, Postgres, StructDecoder, StructEncoder},
         },
       };
 
@@ -250,7 +226,7 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, ERR> {
+          fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, ERR> {
             let mut _sd = StructDecoder::<ERR>::new(dw);
             Ok((
               $( _sd.decode::<$T>()?, )*
@@ -264,12 +240,67 @@ macro_rules! impl_tuples {
           ERR: From<crate::Error>,
         {
           #[inline]
-          fn encode(&self, _ew: &mut EncodeWrapper<'_, '_>) -> Result<(), ERR> {
+          fn encode(&self, _ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), ERR> {
             let mut _ev = StructEncoder::<ERR>::new(_ew)?;
             $(
-              _ev = _ev.encode(&self.$N)?;
+              _ev = _ev.encode(&self.$T13)?;
             )*
             Ok(())
+          }
+        }
+      )+
+    }
+
+    #[cfg(feature = "web-socket-server-framework")]
+    mod web_socket_server_framework {
+      use alloc::string::String;
+      use crate::{
+        collections::Vector,
+        executor::Executor,
+        http::{Router, WebSocketRouter},
+        misc::FnFut,
+        web_socket::{WebSocket, WsCompression},
+      };
+
+      type LocalWs<T2, EX, TM> = WebSocket<
+        <T2 as WsCompression<false>>::NegotiatedCompression,
+        <EX as Executor>::TcpStream,
+        TM,
+        false,
+      >;
+
+      $(
+        impl<$($T,)* CO, ER, EX, TM> WebSocketRouter<CO, ER, EX, TM> for (
+          $(
+            (&'static str, $T),
+          )*
+        )
+        where
+          $($T: FnFut<(Vector<u8>, LocalWs<CO, EX, TM>), Result = Result<(), ER>>,)*
+          CO: WsCompression<false>,
+          ER: From<crate::Error>,
+          EX: Executor,
+        {
+          #[inline]
+          async fn call(
+            &self,
+            matcher: &Router<u8>,
+            path: String,
+            _ws: LocalWs<CO, EX, TM>,
+          ) -> Result<(), ER> {
+            let rslt = matcher.find(&path)?;
+            match rslt.data() {
+              $(
+                $T13 => (self.$T13.1).call((path.into_bytes().into(), _ws)).await?,
+              )*
+              _ => {}
+            }
+            Ok(())
+          }
+
+          #[inline]
+          fn paths(&self) -> impl ExactSizeIterator<Item = &'static str> {
+            [$(self.$T13.0,)*].into_iter()
           }
         }
       )+
@@ -280,43 +311,43 @@ macro_rules! impl_tuples {
 mod _16_tuple_impls {
   impl_tuples! {
     []
-    [A(0)]
-    [A(0) B(1)]
-    [A(0) B(1) C(2)]
-    [A(0) B(1) C(2) D(3)]
-    [A(0) B(1) C(2) D(3) E(4)]
-    [A(0) B(1) C(2) D(3) E(4) F(5)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15)]
+    [T0(0)]
+    [T0(0) T1(1)]
+    [T0(0) T1(1) T2(2)]
+    [T0(0) T1(1) T2(2) T3(3)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15)]
   }
 }
 
 #[cfg(feature = "32-tuple-impls")]
 mod _32_tuple_impls {
   impl_tuples! {
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28) AD(29)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28) AD(29) AE(30)]
-    [A(0) B(1) C(2) D(3) E(4) F(5) G(6) H(7) I(8) J(9) K(10) L(11) M(12) N(13) O(14) P(15) Q(16) R(17) S(18) T(19) U(20) V(21) W(22) X(23) Y(24) Z(25) AA(26) AB(27) AC(28) AD(29) AE(30) AF(31)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24) T25(25)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24) T25(25) T26(26)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24) T25(25) T26(26) T27(27)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24) T25(25) T26(26) T27(27) T28(28)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24) T25(25) T26(26) T27(27) T28(28) T29(29)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24) T25(25) T26(26) T27(27) T28(28) T29(29) T30(30)]
+    [T0(0) T1(1) T2(2) T3(3) T4(4) T5(5) T6(6) T7(7) T8(8) T9(9) T10(10) T11(11) T12(12) T13(13) T14(14) T15(15) T16(16) T17(17) T18(18) T19(19) T20(20) T21(21) T22(22) T23(23) T24(24) T25(25) T26(26) T27(27) T28(28) T29(29) T30(30) T31(31)]
   }
 }

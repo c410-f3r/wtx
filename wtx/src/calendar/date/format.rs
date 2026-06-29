@@ -7,7 +7,7 @@ use crate::{
     },
   },
   codec::i16_string,
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
 };
 
 impl Date {

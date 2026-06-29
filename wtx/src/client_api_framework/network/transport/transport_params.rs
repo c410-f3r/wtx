@@ -8,7 +8,7 @@ pub trait TransportParams {
   /// External Request and Response Parameters.
   fn ext_params(&self) -> (&Self::ExternalRequestParams, &Self::ExternalResponseParams);
 
-  /// Mutable version of [TransportParams::ext_params].
+  /// Mutable version of [`TransportParams::ext_params`].
   fn ext_params_mut(
     &mut self,
   ) -> (&mut Self::ExternalRequestParams, &mut Self::ExternalResponseParams);

@@ -1,4 +1,4 @@
-use crate::collection::ShortStrU8;
+use crate::collections::ShortStrU8;
 
 /// Used to specify the data type that is going to be sent to a counterpart.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

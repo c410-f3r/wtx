@@ -29,7 +29,7 @@ impl DbMigration {
     &self.created_on
   }
 
-  /// See [DatabaseTy].
+  /// See [`DatabaseTy`].
   #[inline]
   pub const fn db_ty(&self) -> DatabaseTy {
     self.db_ty
@@ -94,14 +94,14 @@ where
 
 impl fmt::Display for DbMigration {
   #[inline]
-  fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(fmt, "{}__{}", self.common.uid, self.common.name)
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}__{}", self.common.uid, self.common.name)
   }
 }
 
 #[cfg(feature = "postgres")]
 fn checksum_from_bytes(bytes: &[u8]) -> crate::Result<u64> {
-  use crate::codec::FromRadix10;
+  use crate::codec::FromRadix10 as _;
   Ok(
     u64::from_radix_10(bytes)
       .map_err(|_err| crate::database::schema_manager::SchemaManagerError::ChecksumMustBeANumber)?,

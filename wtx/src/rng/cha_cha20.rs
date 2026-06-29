@@ -304,7 +304,7 @@ fn block_function<const ADD: bool>(block: &ParBlock, output: &mut ParBlock) {
 
 #[cfg(all(feature = "_bench", test))]
 mod bench {
-  use crate::rng::{ChaCha20, Rng};
+  use crate::rng::{ChaCha20, Rng as _};
   use core::hint::black_box;
 
   #[bench]
@@ -321,7 +321,7 @@ mod bench {
 
 #[cfg(feature = "rand_core")]
 mod rand_core {
-  use crate::rng::{ChaCha20, Rng};
+  use crate::rng::{ChaCha20, Rng as _};
   use core::convert::Infallible;
 
   impl rand_core::TryCryptoRng for ChaCha20 {}

@@ -1,6 +1,6 @@
 use crate::{
   calendar::{DateTime, Utc},
-  collection::{ArrayStringU8, Clear},
+  collections::{ArrayStringU8, Clear},
   http::{
     Header, Headers, KnownHeaderName,
     cookie::{FMT1, SameSite},

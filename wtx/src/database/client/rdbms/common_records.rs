@@ -44,9 +44,9 @@ where
   type Database = D;
 
   #[inline]
-  fn get(&self, idx: usize) -> Option<<Self::Database as Database>::Record<'exec>> {
+  fn get(&self, record_idx: usize) -> Option<<Self::Database as Database>::Record<'exec>> {
     do_get::<A, C, D, T>(
-      idx,
+      record_idx,
       self.records_params,
       self.records,
       self.stmt.clone(),

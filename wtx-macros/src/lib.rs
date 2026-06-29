@@ -31,10 +31,10 @@ pub fn api(
   }
 }
 
-/// Connection Auxiliary
-#[proc_macro_derive(ConnAux)]
-pub fn conn_aux(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  match http::conn_aux(item) {
+/// Implements the `Lease` trait to different structures.
+#[proc_macro_derive(Lease)]
+pub fn lease(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  match http::lease(item) {
     Err(err) => syn::Error::from(err).to_compile_error().into(),
     Ok(elem) => elem,
   }

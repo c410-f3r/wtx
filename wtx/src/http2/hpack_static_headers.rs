@@ -50,7 +50,8 @@ pub(crate) struct HpackStaticResponseHeaders {
 impl HpackStaticResponseHeaders {
   pub(crate) const EMPTY: Self = Self { status_code: None };
 
-  pub(crate) fn bytes_len(&self) -> usize {
+  #[expect(clippy::unused_self, reason = "consistency with request headers")]
+  pub(crate) fn bytes_len(self) -> usize {
     3
   }
 

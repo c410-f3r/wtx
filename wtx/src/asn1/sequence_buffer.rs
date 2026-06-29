@@ -1,7 +1,7 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SequenceDecodeCb, SequenceEncodeIter},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SequenceDecodeCb, SequenceEncodeIter},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::TryExtend,
+  collections::TryExtend,
   misc::{Lease, SingleTypeStorage},
 };
 
@@ -15,12 +15,12 @@ pub struct SequenceBuffer<B>(
 impl<'de, B, E> SequenceBuffer<B>
 where
   B: Default + SingleTypeStorage<Item = E> + TryExtend<[E; 1]>,
-  E: Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>>,
+  E: Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>>,
 {
   /// The encoding of an collection object requires the injection of a tag.
   #[inline]
   pub fn decode(
-    dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>,
+    dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>,
     tag: u8,
   ) -> crate::Result<(Self, &'de [u8])> {
     let mut extensions = B::default();
@@ -36,13 +36,14 @@ where
 impl<B, E> SequenceBuffer<B>
 where
   B: Lease<[E]> + SingleTypeStorage<Item = E>,
-  E: Encode<GenericCodec<(), Asn1EncodeWrapper>>,
+  E: Encode<GenericCodec<(), Asn1EncodeWrapperAux>>,
 {
   /// The encoding of an collection object requires the injection of a tag and the guessing of
   /// its entire length for performance reasons.
+  #[inline]
   pub fn encode(
     &self,
-    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
+    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>,
     len_guess: Len,
     tag: u8,
   ) -> crate::Result<()> {

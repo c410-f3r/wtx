@@ -1,9 +1,9 @@
 use crate::{
   codec::{Decode, Encode},
-  collection::{ArrayString, LinearStorageLen},
+  collections::{ArrayString, LinearStorageLen},
   database::{
     Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, Ty},
   },
   misc::from_utf8_basic,
 };
@@ -16,7 +16,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'exec, '_>) -> Result<Self, E> {
     Ok(dw.bytes())
   }
 }
@@ -25,8 +25,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self)?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().inner_mut().extend_from_copyable_slice(self)?;
     Ok(())
   }
 }
@@ -53,8 +53,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self)?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().inner_mut().extend_from_copyable_slice(self)?;
     Ok(())
   }
 }
@@ -80,8 +80,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self.as_bytes())?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().inner_mut().extend_from_copyable_slice(self.as_bytes())?;
     Ok(())
   }
 }
@@ -102,7 +102,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'exec, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'exec, '_>) -> Result<Self, E> {
     Ok(from_utf8_basic(dw.bytes()).map_err(crate::Error::from)?)
   }
 }
@@ -111,8 +111,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self.as_bytes())?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().inner_mut().extend_from_copyable_slice(self.as_bytes())?;
     Ok(())
   }
 }
@@ -140,7 +140,7 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
     Ok(from_utf8_basic(dw.bytes()).map_err(Into::into)?.try_into()?)
   }
 }
@@ -150,8 +150,8 @@ where
   L: LinearStorageLen,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self.as_bytes())?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().inner_mut().extend_from_copyable_slice(self.as_bytes())?;
     Ok(())
   }
 }
@@ -170,7 +170,7 @@ where
     Some(Ty::Text)
   }
 }
-test!(array_string, crate::collection::ArrayStringU8<4>, ArrayString::try_from("123").unwrap());
+test!(array_string, crate::collections::ArrayStringU8<4>, ArrayString::try_from("123").unwrap());
 
 // String
 
@@ -179,7 +179,7 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
     match from_utf8_basic(dw.bytes()).map_err(crate::Error::from) {
       Ok(elem) => Ok(elem.into()),
       Err(err) => Err(err.into()),
@@ -191,8 +191,8 @@ where
   E: From<crate::Error>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-    ew.buffer().extend_from_slice(self.as_bytes())?;
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+    ew.buffer().inner_mut().extend_from_copyable_slice(self.as_bytes())?;
     Ok(())
   }
 }

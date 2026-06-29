@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::schema_manager::{Commands, SchemaManagement},
 };
 use alloc::string::String;

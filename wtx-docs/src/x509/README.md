@@ -17,5 +17,5 @@ X.509 is huge and was initially issued in 1988, consequently, it contains some e
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-examples/others/x509.rs}}
+{{#rustdoc_include ../../../wtx-examples/examples/x509.rs}}
 ```

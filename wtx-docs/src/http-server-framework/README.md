@@ -9,7 +9,7 @@ A small and fast to compile framework that can interact with many built-in featu
 * URI router
 * WebSocket
 
-To use this functionality, it is necessary to activate the `http-server-framework` feature.
+To use this functionality, it is necessary to activate the `http2-server-framework` feature.
 
 ![HTTP/2 Benchmarks](https://i.imgur.com/lUOX3iM.png)
 
@@ -74,5 +74,5 @@ async fn echo(_: State<'_, (), (), MsgBufferString>) -> wtx::Result<VerbatimPara
 ## Example
 
 ```rust,edition2024,no_run
-{{#rustdoc_include ../../../wtx-examples/http-server-framework/http-server-framework.rs}}
+{{#rustdoc_include ../../../wtx-examples/examples/http2-server-framework.rs}}
 ```

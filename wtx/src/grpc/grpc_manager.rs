@@ -3,12 +3,12 @@ use crate::{
     Decode, DecodeWrapper, Encode, GenericCodec,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
-  collection::Vector,
+  collections::Vector,
   grpc::{GrpcStatusCode, serialize},
 };
 
 /// Responsible for managing internal structures that interact with gRPC.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GrpcManager<DRSR> {
   drsr: DRSR,
   status_code: GrpcStatusCode,
@@ -46,18 +46,5 @@ impl<DRSR> GrpcManager<DRSR> {
   #[inline]
   pub const fn status_code_mut(&mut self) -> &mut GrpcStatusCode {
     &mut self.status_code
-  }
-}
-
-#[cfg(feature = "grpc-server")]
-impl<DRSR> crate::http::server_framework::StreamAux for GrpcManager<DRSR>
-where
-  DRSR: Default,
-{
-  type Init = DRSR;
-
-  #[inline]
-  fn stream_aux(init: Self::Init) -> crate::Result<Self> {
-    Ok(GrpcManager::from_drsr(init))
   }
 }

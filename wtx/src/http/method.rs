@@ -57,8 +57,8 @@ mod serde {
     where
       D: Deserializer<'de>,
     {
-      let s = <&str>::deserialize(deserializer)?;
-      Self::try_from(s).map_err(de::Error::custom)
+      let str = <&str>::deserialize(deserializer)?;
+      Self::try_from(str).map_err(de::Error::custom)
     }
   }
 

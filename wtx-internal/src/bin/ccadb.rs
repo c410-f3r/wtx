@@ -8,9 +8,11 @@ use std::{
 use wtx::{
   calendar::{Date, DateTime, Duration, Instant, Time, Utc, parse_bytes_into_tokens},
   codec::{Csv, HexDisplay, HexEncMode},
-  collection::{ArrayVectorU8, HashSet, Vector},
-  http::{HttpClient, ReqBuilder, client_pool::ClientPoolBuilder},
+  collections::{ArrayVectorU8, HashSet, Vector},
+  executor::TokioExecutor,
+  http::{HttpClient, ReqBuilder, http2_client_pool::Http2ClientPoolBuilder},
   misc::UriRef,
+  tls::{TlsConfig, TlsModeVerified},
   x509::{Certificate, CvTrustAnchor, X509Error},
 };
 
@@ -21,13 +23,18 @@ static EXCLUDED_FINGERPRINTS: &[&str] =
 async fn main() {
   let csv = {
     let uri = "https://ccadb.my.salesforce-sites.com/mozilla/IncludedCACertificateReportPEMCSV";
-    let pool = ClientPoolBuilder::tokio_rustls(1).build();
-    pool
-      .send_req_recv_res(ReqBuilder::get(UriRef::new(uri)).into_request())
-      .await
-      .unwrap()
-      .msg_data
-      .body
+    Http2ClientPoolBuilder::new(
+      TokioExecutor::default(),
+      1,
+      TlsConfig::from_ccadb(TlsModeVerified::default()).unwrap(),
+    )
+    .unwrap()
+    .build()
+    .send_req_recv_res(&mut Vector::new(), ReqBuilder::get(UriRef::new(uri)).into_request())
+    .await
+    .unwrap()
+    .msg_data
+    .body
   };
 
   let mut csv = Csv::from_buf_read(BufReader::new(&*csv));
@@ -43,9 +50,7 @@ async fn main() {
     )
     .unwrap();
   file_buffer.extend_from_copyable_slice(b"#[rustfmt::skip]\n").unwrap();
-  file_buffer
-    .extend_from_copyable_slice(b"pub static CCADB: &[CvTrustAnchorRaw<'_,>] = &[\n")
-    .unwrap();
+  file_buffer.extend_from_copyable_slice(b"pub static CCADB: &[CvTrustAnchorRaw] = &[\n").unwrap();
 
   let _ = csv.next_elements(&mut line_buffer).unwrap().unwrap();
   while let Some(line) = csv.next_elements(&mut line_buffer).unwrap() {
@@ -57,12 +62,12 @@ async fn main() {
     if !unique_certs.insert(hash) {
       panic!();
     }
-    let cert = match Certificate::from_pem(&mut pem_buffer, cm.pem_info) {
-      Ok(cert) => cert,
+    let cert = match Certificate::<&[u8]>::from_pem(&mut pem_buffer, cm.pem_info) {
+      Ok(cert) => cert.0,
       Err(wtx::Error::X509Error(X509Error::InvalidSerialNumberBytes)) => continue,
       Err(err) => panic!("{err}"),
     };
-    let ta = CvTrustAnchor::try_from(cert).unwrap();
+    let ta = CvTrustAnchor::from_certificate_ref(&cert).unwrap();
     file_buffer.extend_from_copyable_slice(b"  (").unwrap();
     write_authority_key_identifier(&mut file_buffer, &ta);
     write_has_unknown_critical_extension(&mut file_buffer, &ta);
@@ -188,8 +193,8 @@ impl<'any> CertificateMetadata<'any> {
     let mut trust_bits = ArrayVectorU8::from_iterator(iter).unwrap();
     trust_bits.sort_unstable();
     let mut iter = trust_bits.windows(2);
-    while let Some([a, b]) = iter.next() {
-      assert!(a != b);
+    while let Some([lhs, rhs]) = iter.next() {
+      assert_ne!(lhs, rhs);
     }
     if trust_bits.contains(&TrustBits::AllTrustBitsTurnedOff) && trust_bits.len() > 1 {
       panic!();
@@ -201,7 +206,7 @@ impl<'any> CertificateMetadata<'any> {
 struct Bytes<'any>(&'any [u8]);
 
 impl Debug for Bytes<'_> {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     if self.0.is_empty() {
       f.write_str("[]")
     } else {
@@ -214,12 +219,12 @@ impl Debug for Bytes<'_> {
 }
 
 impl Display for Bytes<'_> {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
     <Bytes as Debug>::fmt(self, f)
   }
 }
 
-fn write_authority_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_authority_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let Some(ki) = ta.authority_key_identifier().as_ref().and_then(|aki| aki.key_identifier.as_ref())
   else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
@@ -228,15 +233,15 @@ fn write_authority_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnch
   file_buffer.write_fmt(format_args!("Some({}),", Bytes(ki.bytes().as_inner().unwrap()))).unwrap();
 }
 
-fn write_has_unknown_critical_extension(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_has_unknown_critical_extension(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   file_buffer.write_fmt(format_args!("{},", ta.has_unknown_critical_extension())).unwrap();
 }
 
-fn write_is_self_signed(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_is_self_signed(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   file_buffer.write_fmt(format_args!("{},", ta.is_self_signed())).unwrap();
 }
 
-fn write_key_usage(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_key_usage(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let Some(ku) = ta.key_usage() else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
     return;
@@ -245,17 +250,17 @@ fn write_key_usage(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
   file_buffer.write_fmt(format_args!("Some(({},{})),", bytes.0, bytes.1)).unwrap();
 }
 
-fn write_name_constraints(_: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_name_constraints(_: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   assert!(ta.name_constraints().is_none());
 }
 
-fn write_subject(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_subject(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   file_buffer.write_fmt(format_args!("&{},", Bytes(ta.subject()))).unwrap();
 }
 
-fn write_subject_public_key_info(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_subject_public_key_info(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let spki = ta.subject_public_key_info();
-  file_buffer.write_fmt(format_args!("(b\"{}\",", &spki.algorithm.algorithm)).unwrap();
+  file_buffer.write_fmt(format_args!("(b\"{}\",", spki.algorithm.algorithm)).unwrap();
   if let Some(params) = &spki.algorithm.parameters {
     file_buffer
       .write_fmt(format_args!("Some((&{},{})),", Bytes(params.data()), params.tag()))
@@ -266,7 +271,7 @@ fn write_subject_public_key_info(file_buffer: &mut Vector<u8>, ta: &CvTrustAncho
   file_buffer.write_fmt(format_args!("&{}),", Bytes(spki.subject_public_key.bytes()))).unwrap();
 }
 
-fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let Some(el) = ta.subject_key_identifier() else {
     file_buffer.extend_from_copyable_slice(b"None,").unwrap();
     return;
@@ -280,7 +285,7 @@ fn write_subject_key_identifier(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor
     .unwrap();
 }
 
-fn write_validity(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<'_>) {
+fn write_validity(file_buffer: &mut Vector<u8>, ta: &CvTrustAnchor<&[u8]>) {
   let not_before = ta.validity().not_before.date_time().timestamp_secs_and_ns().0;
   let not_after = ta.validity().not_after.date_time().timestamp_secs_and_ns().0;
   file_buffer.write_fmt(format_args!("({},{})", not_before, not_after)).unwrap();

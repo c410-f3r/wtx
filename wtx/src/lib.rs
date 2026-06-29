@@ -23,13 +23,12 @@ pub mod calendar;
 #[cfg(feature = "client-api-framework")]
 pub mod client_api_framework;
 pub mod codec;
-pub mod collection;
+pub mod collections;
 #[cfg(feature = "crypto")]
 pub mod crypto;
 #[cfg(feature = "database")]
 pub mod database;
 mod error;
-#[cfg(feature = "executor")]
 pub mod executor;
 #[cfg(feature = "grpc")]
 pub mod grpc;
@@ -44,6 +43,8 @@ pub mod stream;
 pub mod sync;
 #[cfg(test)]
 mod tests;
+#[cfg(feature = "tls")]
+pub mod tls;
 #[cfg(feature = "web-socket")]
 pub mod web_socket;
 #[cfg(feature = "x509")]

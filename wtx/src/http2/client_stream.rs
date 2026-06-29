@@ -1,7 +1,8 @@
 use crate::{
+  collections::Vector,
   http::{MsgBufferString, MsgData, Request, StatusCode, u31::U31},
   http2::{
-    CommonStream, Http2Buffer, Http2Inner, Http2RecvStatus, Http2SendStatus,
+    CommonStream, Http2Inner, Http2RecvStatus, Http2SendStatus,
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{manage_recurrent_receiving_of_overall_stream, process_higher_operation_err},
     stream_receiver::StreamOverallRecvParams,
@@ -9,7 +10,7 @@ use crate::{
     window::Windows,
     write_functions::send_msg,
   },
-  misc::{Lease, LeaseMut, span::Span},
+  misc::{Lease, span::Span},
   stream::StreamWriter,
   sync::Arc,
 };
@@ -17,8 +18,8 @@ use core::{future::poll_fn, pin::pin, task::Waker};
 
 /// Groups the methods used by clients that connect to servers.
 #[derive(Debug)]
-pub struct ClientStream<HB, SW> {
-  inner: Arc<Http2Inner<HB, SW, true>>,
+pub struct ClientStream<SW, TM> {
+  inner: Arc<Http2Inner<SW, TM, true>>,
   linger: bool,
   span: Span,
   stream_id: U31,
@@ -26,9 +27,9 @@ pub struct ClientStream<HB, SW> {
   windows: Windows,
 }
 
-impl<HB, SW> ClientStream<HB, SW> {
+impl<SW, TM> ClientStream<SW, TM> {
   pub(crate) const fn new(
-    inner: Arc<Http2Inner<HB, SW, true>>,
+    inner: Arc<Http2Inner<SW, TM, true>>,
     linger: bool,
     span: Span,
     stream_id: U31,
@@ -37,14 +38,13 @@ impl<HB, SW> ClientStream<HB, SW> {
   }
 }
 
-impl<HB, SW> ClientStream<HB, SW>
+impl<SW, TM> ClientStream<SW, TM>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
   /// See [`CommonStream`].
   #[inline]
-  pub const fn common(&mut self) -> CommonStream<'_, HB, SW, true> {
+  pub const fn common(&mut self) -> CommonStream<'_, SW, TM, true> {
     let Self { inner, linger, span, stream_id, windows: _ } = self;
     CommonStream { inner, linger: *linger, span, stream_id: *stream_id }
   }
@@ -95,7 +95,11 @@ where
   ///
   /// Shouldn't be called more than once.
   #[inline]
-  pub async fn send_req<MD>(&mut self, req: Request<MD>) -> crate::Result<Http2SendStatus>
+  pub async fn send_req<MD>(
+    &mut self,
+    enc_buffer: &mut Vector<u8>,
+    req: Request<MD>,
+  ) -> crate::Result<Http2SendStatus>
   where
     MD: MsgData,
     MD::Body: Lease<[u8]>,
@@ -106,6 +110,7 @@ where
     let uri = req.msg_data.uri();
     send_msg::<_, _, true>(
       req.msg_data.body().lease(),
+      enc_buffer,
       req.msg_data.headers(),
       inner,
       (

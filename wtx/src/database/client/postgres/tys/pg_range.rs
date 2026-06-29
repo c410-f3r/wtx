@@ -1,9 +1,9 @@
 use crate::{
   codec::{Decode, Encode},
-  collection::LinearStorageLen,
+  collections::LinearStorageLen as _,
   database::{
     Typed,
-    client::postgres::{DecodeWrapper, EncodeWrapper, Postgres, PostgresError, Ty},
+    client::postgres::{Postgres, PostgresDecodeWrapper, PostgresEncodeWrapper, PostgresError, Ty},
   },
   misc::{
     Usize,
@@ -13,7 +13,7 @@ use crate::{
 use core::{
   fmt::{self, Debug, Display, Formatter},
   ops::{
-    Bound, Range, RangeBounds, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
+    Bound, Range, RangeBounds as _, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive,
   },
 };
 
@@ -40,12 +40,12 @@ where
   T: Decode<'de, Postgres<E>>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+  fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
     fn extract_elem_bytes<'bytes>(bytes: &mut &'bytes [u8]) -> crate::Result<&'bytes [u8]> {
-      let [a, b, c, d, rest0 @ ..] = bytes else {
+      let [b0, b1, b2, b3, rest0 @ ..] = bytes else {
         return Err(crate::Error::from(PostgresError::InvalidRangeTy));
       };
-      let len = Usize::from(u32::from_be_bytes([*a, *b, *c, *d])).usize();
+      let len = Usize::from(u32::from_be_bytes([*b0, *b1, *b2, *b3])).usize();
       let Some((elem_bytes, rest1)) = rest0.split_at_checked(len) else {
         return Err(crate::Error::from(PostgresError::InvalidRangeTy));
       };
@@ -90,16 +90,15 @@ where
   T: Encode<Postgres<E>> + PartialOrd,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+  fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
     let is_empty = match (&self.start, &self.end) {
       (Bound::Unbounded, _) | (_, Bound::Unbounded) => false,
-      (Bound::Included(start), Bound::Excluded(end))
-      | (Bound::Excluded(start), Bound::Included(end))
-      | (Bound::Excluded(start), Bound::Excluded(end)) => start >= end,
+      (Bound::Included(start) | Bound::Excluded(start), Bound::Excluded(end))
+      | (Bound::Excluded(start), Bound::Included(end)) => start >= end,
       (Bound::Included(start), Bound::Included(end)) => start > end,
     };
     if is_empty {
-      ew.buffer().extend_from_byte(RangeFlags::Empty.into())?;
+      ew.buffer().inner_mut().push(RangeFlags::Empty.into())?;
       return Ok(());
     }
     let mut flags = 0u8;
@@ -113,16 +112,12 @@ where
       Bound::Unbounded => u8::from(RangeFlags::UbInf),
       Bound::Excluded(_) => 0,
     };
-    ew.buffer().extend_from_byte(flags)?;
+    ew.buffer().inner_mut().push(flags)?;
     if let Bound::Excluded(elem) | Bound::Included(elem) = &self.start {
-      i32_write(CounterWriterBytesTy::IgnoresLen, None, ew.buffer(), |local_sw| {
-        elem.encode(&mut EncodeWrapper::new(local_sw))
-      })?;
+      i32_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| elem.encode(local_ew))?;
     }
     if let Bound::Excluded(elem) | Bound::Included(elem) = &self.end {
-      i32_write(CounterWriterBytesTy::IgnoresLen, None, ew.buffer(), |local_sw| {
-        elem.encode(&mut EncodeWrapper::new(local_sw))
-      })?;
+      i32_write(CounterWriterBytesTy::IgnoresLen, None, ew, |local_ew| elem.encode(local_ew))?;
     }
     Ok(())
   }
@@ -135,12 +130,12 @@ where
 {
   #[inline]
   fn runtime_ty(&self) -> Option<Ty> {
-    T::static_ty().and_then(|el| el.range_ty())
+    T::static_ty()?.range_ty()
   }
 
   #[inline]
   fn static_ty() -> Option<Ty> {
-    T::static_ty().and_then(|el| el.range_ty())
+    T::static_ty()?.range_ty()
   }
 }
 
@@ -148,6 +143,7 @@ impl<T> Display for PgRange<T>
 where
   T: Display,
 {
+  #[inline]
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     match &self.start {
       Bound::Unbounded => f.write_str("(,")?,
@@ -336,7 +332,7 @@ macro_rules! range {
       PgRange<T>: Decode<'de, Postgres<E>>,
     {
       #[inline]
-      fn decode(dw: &mut DecodeWrapper<'de, '_>) -> Result<Self, E> {
+      fn decode(dw: &mut PostgresDecodeWrapper<'de, '_>) -> Result<Self, E> {
         Ok(PgRange::<T>::decode(dw)?.try_into()?)
       }
     }
@@ -348,7 +344,7 @@ macro_rules! range {
       for<'any> PgRange<&'any T>: Encode<Postgres<E>>,
     {
       #[inline]
-      fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
+      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
         PgRange::new(self.start_bound(), self.end_bound()).encode(ew)
       }
     }

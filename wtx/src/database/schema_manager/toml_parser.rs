@@ -1,12 +1,12 @@
 //! Migration TOML parser
 
 use crate::{
-  collection::{ArrayStringU8, ArrayVectorU8},
+  collections::{ArrayStringU8, ArrayVectorU8},
   database::schema_manager::SchemaManagerError,
   misc::{AsciiGeneric, str_split1},
 };
 use alloc::string::String;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead as _, BufReader, Read};
 
 pub(crate) const EXPR_ARRAY_MAX_LEN: usize = 8;
 
@@ -91,11 +91,11 @@ where
 }
 
 fn parse_and_push_toml_expr_array(
-  s: &str,
+  str: &str,
   ident: IdentTy,
   root_params: &mut RootParamsTy,
 ) -> crate::Result<()> {
-  let expr_array = parse_expr_array(s)?;
+  let expr_array = parse_expr_array(str)?;
   root_params
     .push((ident, Expr::Array(expr_array)))
     .map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?;
@@ -103,31 +103,31 @@ fn parse_and_push_toml_expr_array(
 }
 
 fn parse_and_push_toml_expr_string(
-  s: &str,
+  str: &str,
   ident: IdentTy,
   root_params: &mut RootParamsTy,
 ) -> crate::Result<()> {
-  let expr_string = parse_expr_string(s)?;
+  let expr_string = parse_expr_string(str)?;
   root_params
     .push((ident, Expr::String(expr_string)))
     .map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?;
   Ok(())
 }
 
-fn parse_expr_array(s: &str) -> crate::Result<ExprArrayTy> {
+fn parse_expr_array(str: &str) -> crate::Result<ExprArrayTy> {
   let mut array = ArrayVectorU8::new();
-  if s.is_empty() {
+  if str.is_empty() {
     return Ok(array);
   }
-  for elem in str_split1(s, AsciiGeneric::COMMA) {
+  for elem in str_split1(str, AsciiGeneric::COMMA) {
     let expr_string = parse_expr_string(elem.trim())?;
     array.push(expr_string).map_err(|_err| SchemaManagerError::TomlValueIsTooLarge)?;
   }
   Ok(array)
 }
 
-fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
-  let mut iter = str_split1(s, AsciiGeneric::DOUBLE_QUOTE);
+fn parse_expr_string(str: &str) -> crate::Result<ExprStringTy> {
+  let mut iter = str_split1(str, AsciiGeneric::DOUBLE_QUOTE);
   let _ = iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
   let value =
     iter.next().ok_or(SchemaManagerError::TomlParserOnlySupportsStringsAndArraysOfStrings)?;
@@ -141,7 +141,7 @@ fn parse_expr_string(s: &str) -> crate::Result<ExprStringTy> {
 #[cfg(test)]
 mod tests {
   use crate::{
-    collection::ArrayVectorU8,
+    collections::ArrayVectorU8,
     database::schema_manager::toml_parser::{Expr, ExprArrayTy, toml},
   };
 

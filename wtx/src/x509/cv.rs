@@ -13,12 +13,12 @@ pub(crate) mod cv_revoked_certificate;
 pub(crate) mod cv_trust_anchor;
 
 use crate::{
-  asn1::{Asn1DecodeWrapper, OID_PKCS1_RSASSAPSS, OID_X509_COMMON_NAME, Oid},
-  codec::{Decode, DecodeWrapper},
+  asn1::{Asn1DecodeWrapperAux, OID_PKCS1_RSASSAPSS, OID_X509_COMMON_NAME, Oid},
+  codec::{Decode as _, DecodeWrapper},
   crypto::SignatureTy,
   misc::Lease,
   x509::{
-    AttributeTypeAndValue, FlaggedExtension, GeneralName, Name, RsassaPssParams,
+    AttributeTypeAndValue, CvIntermediate, FlaggedExtension, GeneralName, Name, RsassaPssParams,
     SubjectPublicKeyInfo, Validity, VerifiedPath, X509CvError,
     cv::{
       cv_certificate::CvCertificate, cv_crl_expiration::CvCrlExpiration,
@@ -30,10 +30,134 @@ use crate::{
     },
   },
 };
-use core::mem;
 
 #[inline]
-fn check_common_name(atv: &AttributeTypeAndValue<'_>, last_err: &mut Option<X509CvError>) -> bool {
+pub(crate) fn validate_chain<'any, B, const IS_EE: bool>(
+  cert: &'any CvCertificate<&'any [u8], IS_EE>,
+  cv_policy: &CvPolicy<B>,
+  depth: u8,
+  intermediates: &'any [CvIntermediate<&'any [u8]>],
+  last_err: &mut Option<X509CvError>,
+  trust_anchors: &'any [CvTrustAnchor<B>],
+  verified_path: &mut VerifiedPath<'any, B>,
+) -> bool
+where
+  B: Lease<[u8]>,
+{
+  // A `validate_ee_dyn` function is impossible at the current time.
+  if IS_EE {
+    if !check_common_names(cert, last_err) {
+      return false;
+    }
+    if cert.subject_alternative_name.is_none() {
+      *last_err = Some(X509CvError::EeMustHaveSan);
+      return false;
+    }
+    if let Err(err) =
+      validate_eku::<IS_EE>(cv_policy.extended_key_usage(), &cert.extended_key_usage)
+    {
+      *last_err = Some(err);
+      return false;
+    }
+  }
+
+  if let CvEvaluationDepth::Chain(max) = cv_policy.evaluation_depth()
+    && depth > max
+  {
+    *last_err = Some(X509CvError::ExceedDepth);
+    return false;
+  }
+
+  if !validate_ica_dyn(
+    &cert.authority_key_identifier,
+    cv_policy,
+    cert.has_unknown_critical_extension,
+    last_err,
+    &cert.subject_key_identifier,
+    &cert.validity,
+  ) {
+    return false;
+  }
+
+  if !cert.is_self_signed && cert.authority_key_identifier.is_none() {
+    *last_err = Some(X509CvError::HasIncompatibleSignature);
+    return false;
+  }
+
+  if cert.subject.rdn_sequence().is_empty()
+    && !cert.subject_alternative_name.as_ref().is_some_and(FlaggedExtension::critical)
+  {
+    *last_err = Some(X509CvError::SanMustBeCritical);
+    return false;
+  }
+
+  for trust_anchor in trust_anchors {
+    if trust_anchor.subject().lease() != cert.issuer.lease() {
+      continue;
+    }
+
+    if !validate_ica_dyn(
+      trust_anchor.authority_key_identifier(),
+      cv_policy,
+      trust_anchor.has_unknown_critical_extension(),
+      last_err,
+      trust_anchor.subject_key_identifier(),
+      trust_anchor.validity(),
+    ) {
+      return false;
+    }
+
+    if cv_policy.mode().is_strict()
+      && !trust_anchor.is_self_signed()
+      && trust_anchor.authority_key_identifier().is_none()
+    {
+      continue;
+    }
+
+    if !check_revocation(cert, cv_policy, depth, trust_anchor.key_usage(), last_err) {
+      continue;
+    }
+    if !validate_chain_signature(cert, last_err, trust_anchor.subject_public_key_info()) {
+      continue;
+    }
+
+    if !check_verified_path(
+      last_err,
+      trust_anchor.name_constraints(),
+      trust_anchor.subject().lease(),
+      trust_anchor.subject_public_key_info().subject_public_key.bytes().lease(),
+      verified_path,
+    ) {
+      continue;
+    }
+    *verified_path.trust_anchor_mut() = trust_anchor;
+    return true;
+  }
+
+  for intermediate in intermediates {
+    let Some(rslt) = validate_intermediate(
+      cert,
+      cv_policy,
+      depth,
+      intermediate,
+      last_err,
+      verified_path,
+      intermediates,
+      trust_anchors,
+    ) else {
+      continue;
+    };
+    return rslt;
+  }
+
+  false
+}
+
+#[inline]
+fn check_common_name<B>(atv: &AttributeTypeAndValue<B>, last_err: &mut Option<X509CvError>) -> bool
+where
+  B: Lease<[u8]>,
+{
   let cn_data = atv.value.data();
   if let [b'0', b'x', ..] = cn_data {
     *last_err = Some(X509CvError::IpCanNotBeHex);
@@ -43,12 +167,15 @@ fn check_common_name(atv: &AttributeTypeAndValue<'_>, last_err: &mut Option<X509
 }
 
 #[inline]
-fn check_common_names<const IS_EE: bool>(
-  cert: &CvCertificate<'_, '_, IS_EE>,
+fn check_common_names<B, const IS_EE: bool>(
+  cert: &CvCertificate<B, IS_EE>,
   last_err: &mut Option<X509CvError>,
-) -> bool {
-  for rdn in cert.subject.lease().rdn_sequence().iter() {
-    for atv in rdn.entries.iter() {
+) -> bool
+where
+  B: Lease<[u8]>,
+{
+  for rdn in cert.subject.rdn_sequence() {
+    for atv in &rdn.entries {
       if atv.oid != OID_X509_COMMON_NAME {
         continue;
       }
@@ -61,35 +188,43 @@ fn check_common_names<const IS_EE: bool>(
 }
 
 #[inline]
-fn check_gn(
-  gn: &GeneralName<'_>,
+fn check_gn<B0, B1>(
+  gn: &GeneralName<B0>,
   last_err: &mut Option<X509CvError>,
-  name_constraints: &NameConstraints<'_>,
-) -> bool {
+  name_constraints: &NameConstraints<B1>,
+) -> bool
+where
+  B0: Lease<[u8]>,
+  B1: Lease<[u8]>,
+{
   match gn {
     GeneralName::DnsName(dns) => {
-      if dns.len() == 4 || dns.len() == 16 {
+      if dns.lease().len() == 4 || dns.lease().len() == 16 {
         *last_err = Some(X509CvError::InvalidGeneralName);
         return false;
       }
     }
     GeneralName::IpAddress(ip) => {
-      if ip.len() != 4 && ip.len() != 16 {
+      if ip.lease().len() != 4 && ip.lease().len() != 16 {
         *last_err = Some(X509CvError::InvalidGeneralName);
         return false;
       }
     }
-    GeneralName::Rfc822Name(email) => {
-      if !email.contains(&b'@') {
-        *last_err = Some(X509CvError::InvalidGeneralName);
-        return false;
-      }
+    GeneralName::Rfc822Name(email) if !email.lease().contains(&b'@') => {
+      *last_err = Some(X509CvError::InvalidGeneralName);
+      return false;
     }
-    _ => {}
+    GeneralName::DirectoryName(_)
+    | GeneralName::EdiPartyName(_)
+    | GeneralName::OtherName(_)
+    | GeneralName::RegisteredId(_)
+    | GeneralName::Rfc822Name(_)
+    | GeneralName::UniformResourceIdentifier(_)
+    | GeneralName::X400Address(_) => {}
   }
   if let Some(excluded) = &name_constraints.excluded_subtrees {
-    for subtree in excluded.iter() {
-      if matches_name_constraint::<true>(&subtree.base, gn) {
+    for subtree in excluded {
+      if matches_name_constraint::<_, _, true>(&subtree.base, gn) {
         *last_err = Some(X509CvError::HasExcludedCerts);
         return false;
       }
@@ -98,11 +233,11 @@ fn check_gn(
   if let Some(permitted) = &name_constraints.permitted_subtrees {
     let mut matched = false;
     let mut same_type_found = false;
-    for subtree in permitted.iter() {
-      if mem::discriminant(gn) == mem::discriminant(&subtree.base) {
+    for subtree in permitted {
+      if is_same_gn_type(gn, &subtree.base) {
         same_type_found = true;
       }
-      if matches_name_constraint::<false>(&subtree.base, gn) {
+      if matches_name_constraint::<_, _, false>(&subtree.base, gn) {
         matched = true;
         break;
       }
@@ -116,11 +251,14 @@ fn check_gn(
 }
 
 #[inline]
-fn check_name_constraint<const IS_EE: bool>(
-  cert: &CvCertificate<'_, '_, IS_EE>,
+fn check_name_constraint<B, const IS_EE: bool>(
+  cert: &CvCertificate<&[u8], IS_EE>,
   last_err: &mut Option<X509CvError>,
-  name_constraints: &NameConstraints<'_>,
-) -> bool {
+  name_constraints: &NameConstraints<B>,
+) -> bool
+where
+  B: Lease<[u8]>,
+{
   let mut has_san = false;
   if let Some(subject_alternative_name) = &cert.subject_alternative_name {
     has_san = true;
@@ -133,8 +271,8 @@ fn check_name_constraint<const IS_EE: bool>(
   if !IS_EE || has_san {
     return true;
   }
-  for rdn in cert.subject.lease().rdn_sequence().iter() {
-    for atv in rdn.entries.iter() {
+  for rdn in cert.subject.rdn_sequence() {
+    for atv in &rdn.entries {
       if atv.oid != OID_X509_COMMON_NAME {
         continue;
       }
@@ -151,19 +289,22 @@ fn check_name_constraint<const IS_EE: bool>(
 }
 
 #[inline]
-fn check_revocation<const IS_EE: bool>(
-  cert: &CvCertificate<'_, '_, IS_EE>,
-  cv_policy: &CvPolicy<'_, '_>,
+fn check_revocation<B, const IS_EE: bool>(
+  cert: &CvCertificate<&[u8], IS_EE>,
+  cv_policy: &CvPolicy<B>,
   depth: u8,
   issuer_ku: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
-) -> bool {
+) -> bool
+where
+  B: Lease<[u8]>,
+{
   if cv_policy.evaluation_depth() == CvEvaluationDepth::EndEntity && depth > 0 {
     return true;
   }
 
   for crl in cv_policy.crls() {
-    if cert.issuer.lease().bytes() != crl.issuer.lease().bytes() {
+    if cert.issuer.lease() != crl.issuer.lease() {
       continue;
     }
 
@@ -213,17 +354,21 @@ fn check_revocation<const IS_EE: bool>(
 }
 
 #[inline]
-fn check_verified_path(
+fn check_verified_path<B1, B2>(
   last_err: &mut Option<X509CvError>,
-  name_constraints: &Option<NameConstraints<'_>>,
+  name_constraints: &Option<NameConstraints<B1>>,
   subject: &[u8],
   subject_public_key: &[u8],
-  verified_path: &VerifiedPath<'_, '_>,
-) -> bool {
+  verified_path: &VerifiedPath<'_, B2>,
+) -> bool
+where
+  B1: Lease<[u8]>,
+  B2: Lease<[u8]>,
+{
   macro_rules! is_equal {
     ($lhs:expr, $rhs:expr) => {{
-      let equal_subject = $lhs.0.subject.lease().bytes() == $lhs.1;
-      let equal_spk = *$rhs.0.subject_public_key_info.lease().subject_public_key.bytes() == $rhs.1;
+      let equal_subject = $lhs.0.subject.bytes().lease() == $lhs.1;
+      let equal_spk = $rhs.0.subject_public_key_info.subject_public_key.bytes().lease() == $rhs.1;
       equal_subject && equal_spk
     }};
   }
@@ -258,6 +403,18 @@ fn check_verified_path(
 }
 
 #[inline]
+const fn is_same_gn_type<B0, B1>(lhs: &GeneralName<B0>, rhs: &GeneralName<B1>) -> bool {
+  matches!(
+    (lhs, rhs),
+    (GeneralName::DirectoryName(_), GeneralName::DirectoryName(_))
+      | (GeneralName::DnsName(_), GeneralName::DnsName(_))
+      | (GeneralName::IpAddress(_), GeneralName::IpAddress(_))
+      | (GeneralName::OtherName(_), GeneralName::OtherName(_))
+      | (GeneralName::Rfc822Name(_), GeneralName::Rfc822Name(_))
+  )
+}
+
+#[inline]
 #[rustfmt::skip]
 fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
   match lhs.len() {
@@ -267,8 +424,8 @@ fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
       };
       let addr = [b0, b1, b2, b3];
       let mask = [b4, b5, b6, b7];
-      for ((a, b), c) in lhs.iter().zip(addr).zip(mask) {
-        if (a & c) != (b & c) {
+      for ((byte0, byte1), byte2) in lhs.iter().zip(addr).zip(mask) {
+        if (byte0 & byte2) != (byte1 & byte2) {
           return false;
         }
       }
@@ -286,8 +443,8 @@ fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
       };
       let addr = [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15];
       let mask = [b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31];
-      for ((a, b), c) in lhs.iter().zip(addr).zip(mask) {
-        if (a & c) != (b & c) {
+      for ((byte0, byte1), byte2) in lhs.iter().zip(addr).zip(mask) {
+        if (byte0 & byte2) != (byte1 & byte2) {
           return false;
         }
       }
@@ -298,18 +455,28 @@ fn matches_ip_address(lhs: &[u8], rhs: &[u8]) -> bool {
 }
 
 #[inline]
-fn matches_name_constraint<const IS_EXCLUDED: bool>(
-  constraint: &GeneralName<'_>,
-  name: &GeneralName<'_>,
-) -> bool {
+fn matches_name_constraint<B0, B1, const IS_EXCLUDED: bool>(
+  constraint: &GeneralName<B0>,
+  name: &GeneralName<B1>,
+) -> bool
+where
+  B0: Lease<[u8]>,
+  B1: Lease<[u8]>,
+{
   match (name, constraint) {
-    (GeneralName::DirectoryName(lhs), GeneralName::DirectoryName(rhs)) => lhs == rhs,
-    (GeneralName::DnsName(lhs), GeneralName::DnsName(rhs)) => {
-      matches_name_domain::<IS_EXCLUDED>(lhs, rhs)
+    (GeneralName::DirectoryName(lhs), GeneralName::DirectoryName(rhs)) => {
+      lhs.lease() == rhs.lease()
     }
-    (GeneralName::Rfc822Name(lhs), GeneralName::Rfc822Name(rhs)) => matches_rfc822(lhs, rhs),
-    (GeneralName::IpAddress(lhs), GeneralName::IpAddress(rhs)) => matches_ip_address(lhs, rhs),
-    (GeneralName::OtherName(lhs), GeneralName::OtherName(rhs)) => lhs == rhs,
+    (GeneralName::DnsName(lhs), GeneralName::DnsName(rhs)) => {
+      matches_name_domain::<IS_EXCLUDED>(lhs.lease(), rhs.lease())
+    }
+    (GeneralName::Rfc822Name(lhs), GeneralName::Rfc822Name(rhs)) => {
+      matches_rfc822(lhs.lease(), rhs.lease())
+    }
+    (GeneralName::IpAddress(lhs), GeneralName::IpAddress(rhs)) => {
+      matches_ip_address(lhs.lease(), rhs.lease())
+    }
+    (GeneralName::OtherName(lhs), GeneralName::OtherName(rhs)) => lhs.lease() == rhs.lease(),
     _ => false,
   }
 }
@@ -324,7 +491,8 @@ fn matches_name_domain<const IS_EXCLUDED: bool>(other: &[u8], domain: &[u8]) -> 
 
   #[inline]
   fn slices<'other>(other: &'other [u8], domain: &[u8]) -> Option<(&'other [u8], &'other [u8])> {
-    other.len().checked_sub(domain.len()).and_then(|idx| other.split_at_checked(idx))
+    let idx = other.len().checked_sub(domain.len())?;
+    other.split_at_checked(idx)
   }
 
   if let [b'*', b'.', ..] = domain {
@@ -370,199 +538,36 @@ fn matches_rfc822(other: &[u8], domain: &[u8]) -> bool {
 }
 
 #[inline]
-fn params_oid(subject_public_key_info: &SubjectPublicKeyInfo<'_>) -> Option<Oid> {
+fn params_oid<B>(subject_public_key_info: &SubjectPublicKeyInfo<B>) -> Option<Oid>
+where
+  B: Lease<[u8]>,
+{
   let bytes = subject_public_key_info.algorithm.parameters.as_ref()?.bytes();
-  let mut dw = DecodeWrapper::new(bytes, Asn1DecodeWrapper::default());
+  let mut dw = DecodeWrapper::new(bytes.lease(), Asn1DecodeWrapperAux::default());
   if subject_public_key_info.algorithm.algorithm == OID_PKCS1_RSASSAPSS {
-    Some(RsassaPssParams::decode(&mut dw).ok()?.hash_algorithm?.algorithm)
+    Some(RsassaPssParams::<&[u8]>::decode(&mut dw).ok()?.hash_algorithm?.algorithm)
   } else {
     Oid::decode(&mut dw).ok()
   }
 }
 
 #[inline]
-fn validate_chain<'any, 'bytes, const IS_EE: bool>(
-  cert: &'any CvCertificate<'any, 'bytes, IS_EE>,
-  cv_policy: &CvPolicy<'any, 'bytes>,
-  depth: u8,
-  intermediates: &'any [CvCertificate<'any, 'bytes, false>],
+fn validate_chain_signature<B, const IS_EE: bool>(
+  child: &CvCertificate<&[u8], IS_EE>,
   last_err: &mut Option<X509CvError>,
-  trust_anchors: &'any [CvTrustAnchor<'bytes>],
-  verified_path: &mut VerifiedPath<'any, 'bytes>,
-) -> bool {
-  // A `validate_ee_dyn` function is impossible at the current time.
-  if IS_EE {
-    if !check_common_names(cert, last_err) {
-      return false;
-    }
-    if cert.subject_alternative_name.is_none() {
-      *last_err = Some(X509CvError::EeMustHaveSan);
-      return false;
-    }
-    if let Err(err) =
-      validate_eku::<IS_EE>(cv_policy.extended_key_usage(), &cert.extended_key_usage)
-    {
-      *last_err = Some(err);
-      return false;
-    }
-  }
-
-  if let CvEvaluationDepth::Chain(max) = cv_policy.evaluation_depth()
-    && depth > max
-  {
-    *last_err = Some(X509CvError::ExceedDepth);
-    return false;
-  }
-
-  if !validate_ica_dyn(
-    &cert.authority_key_identifier,
-    cv_policy,
-    cert.has_unknown_critical_extension,
-    last_err,
-    &cert.subject_key_identifier,
-    &cert.validity,
-  ) {
-    return false;
-  }
-
-  if !cert.is_self_signed && cert.authority_key_identifier.is_none() {
-    *last_err = Some(X509CvError::HasIncompatibleSignature);
-    return false;
-  }
-
-  if cert.subject.lease().rdn_sequence().is_empty()
-    && !cert.subject_alternative_name.as_ref().is_some_and(|el| el.critical())
-  {
-    *last_err = Some(X509CvError::SanMustBeCritical);
-    return false;
-  }
-
-  for trust_anchor in trust_anchors {
-    if trust_anchor.subject() != cert.issuer.lease().bytes() {
-      continue;
-    }
-
-    if !validate_ica_dyn(
-      trust_anchor.authority_key_identifier(),
-      cv_policy,
-      trust_anchor.has_unknown_critical_extension(),
-      last_err,
-      trust_anchor.subject_key_identifier(),
-      trust_anchor.validity(),
-    ) {
-      return false;
-    }
-
-    if cv_policy.mode().is_strict()
-      && !trust_anchor.is_self_signed()
-      && trust_anchor.authority_key_identifier().is_none()
-    {
-      continue;
-    }
-
-    if !check_revocation(cert, cv_policy, depth, trust_anchor.key_usage(), last_err) {
-      continue;
-    }
-    if !validate_chain_signature(cert, last_err, trust_anchor.subject_public_key_info()) {
-      continue;
-    }
-
-    if !check_verified_path(
-      last_err,
-      trust_anchor.name_constraints(),
-      trust_anchor.subject(),
-      trust_anchor.subject_public_key_info().subject_public_key.bytes(),
-      verified_path,
-    ) {
-      continue;
-    }
-    *verified_path.trust_anchor_mut() = trust_anchor;
-    return true;
-  }
-
-  for intermediate in intermediates {
-    if cert.issuer.lease().bytes() != intermediate.subject.lease().bytes() {
-      continue;
-    }
-
-    if let Some(elem) = &cert.extended_key_usage
-      && validate_eku::<false>(elem.extension(), &intermediate.extended_key_usage).is_err()
-    {
-      continue;
-    }
-
-    if !validate_chain_signature(cert, last_err, intermediate.subject_public_key_info.lease()) {
-      continue;
-    }
-
-    if let Some(basic_constraints) = &intermediate.basic_constraints {
-      if !basic_constraints.extension().ca() {
-        continue;
-      }
-      if let Some(plc) = basic_constraints.extension().path_len_constraint()
-        && u32::from(depth) > plc
-      {
-        continue;
-      }
-    } else {
-      continue;
-    }
-
-    if let Some(key_usage) = &intermediate.key_usage
-      && !key_usage.key_cert_sign()
-    {
-      continue;
-    }
-
-    if !check_revocation(cert, cv_policy, depth, intermediate.key_usage, last_err) {
-      continue;
-    }
-
-    if !check_verified_path(
-      last_err,
-      &intermediate.name_constraints,
-      intermediate.subject.lease().bytes(),
-      intermediate.subject_public_key_info.lease().subject_public_key.bytes(),
-      verified_path,
-    ) {
-      continue;
-    }
-
-    if verified_path.intermediates_mut().push(intermediate).is_err() {
-      *last_err = Some(X509CvError::ExceedDepth);
-      return false;
-    }
-
-    let next_depth = if intermediate.is_self_signed { depth } else { depth.wrapping_add(1) };
-
-    if validate_chain::<false>(
-      intermediate,
-      cv_policy,
-      next_depth,
-      intermediates,
-      last_err,
-      trust_anchors,
-      verified_path,
-    ) {
-      return true;
-    }
-
-    let _ = verified_path.intermediates_mut().pop();
-  }
-
-  false
-}
-
-#[inline]
-fn validate_chain_signature<const IS_EE: bool>(
-  child: &CvCertificate<'_, '_, IS_EE>,
-  last_err: &mut Option<X509CvError>,
-  parent: &SubjectPublicKeyInfo<'_>,
-) -> bool {
-  let child_sig_alg = child.signature_algorithm.lease();
+  parent: &SubjectPublicKeyInfo<B>,
+) -> bool
+where
+  B: Lease<[u8]>,
+{
+  let child_sig_alg = &child.signature_algorithm;
   let par_params_oid = params_oid(parent);
   match SignatureTy::try_from((&child_sig_alg.algorithm, par_params_oid.as_ref())).and_then(|el| {
-    el.validate_signature(parent.subject_public_key.bytes(), child.signature_msg, child.signature)
+    el.validate_signature(
+      parent.subject_public_key.bytes().lease(),
+      child.signature_msg.lease(),
+      child.signature.lease(),
+    )
   }) {
     Ok(_) => true,
     Err(_err) => {
@@ -573,19 +578,21 @@ fn validate_chain_signature<const IS_EE: bool>(
 }
 
 #[inline]
-fn validate_ee_static(
+fn validate_ee_static<B>(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   key_usage: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
-  name_constraints: &Option<NameConstraints<'_>>,
-) -> bool {
+  name_constraints: &Option<NameConstraints<B>>,
+) -> bool
+where
+  B: Lease<[u8]>,
+{
   if name_constraints.is_some() {
     *last_err = Some(X509CvError::InvalidNameConstraints);
     return false;
   }
-  let is_ca =
-    basic_constraints.as_ref().is_some_and(|basic_constraints| basic_constraints.extension().ca());
-  let key_cert_sign_set = key_usage.as_ref().is_some_and(|key_usage| key_usage.key_cert_sign());
+  let is_ca = basic_constraints.as_ref().is_some_and(|el| el.extension().ca());
+  let key_cert_sign_set = key_usage.as_ref().is_some_and(KeyUsage::key_cert_sign);
   if !is_ca && key_cert_sign_set {
     *last_err = Some(X509CvError::HasIncompatibleKeyUsage);
     return false;
@@ -631,14 +638,17 @@ fn validate_eku<const IS_EE: bool>(
 }
 
 #[inline]
-fn validate_ica_dyn(
+fn validate_ica_dyn<B>(
   aki_opt: &Option<AuthorityKeyIdentifier>,
-  cv_policy: &CvPolicy<'_, '_>,
+  cv_policy: &CvPolicy<B>,
   has_unknown_critical_extension: bool,
   last_err: &mut Option<X509CvError>,
   ski_opt: &Option<FlaggedExtension<SubjectKeyIdentifier>>,
   validity: &Validity,
-) -> bool {
+) -> bool
+where
+  B: Lease<[u8]>,
+{
   if has_unknown_critical_extension {
     *last_err = Some(X509CvError::CertsMustNotHaveCriticalUnknownExtensions);
     return false;
@@ -654,7 +664,7 @@ fn validate_ica_dyn(
       break 'ski;
     }
     match (aki_opt, ski_opt) {
-      (None, None) | (Some(_), None) => {
+      (None | Some(_), None) => {
         *last_err = Some(X509CvError::IcasMustHaveSki);
         return false;
       }
@@ -684,13 +694,16 @@ fn validate_ica_dyn(
 }
 
 #[inline]
-fn validate_ica_static(
+fn validate_ica_static<B>(
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
   is_self_signed: bool,
   key_usage: Option<KeyUsage>,
   last_err: &mut Option<X509CvError>,
-  subject: &Name<'_>,
-) -> bool {
+  subject: &Name<B>,
+) -> bool
+where
+  B: Lease<[u8]>,
+{
   if subject.rdn_sequence().is_empty() {
     *last_err = Some(X509CvError::IcasMustHaveASubjectSequence);
     return false;
@@ -704,12 +717,96 @@ fn validate_ica_static(
       *last_err = Some(X509CvError::IcasMustHaveCriticalBasicConstraints);
       return false;
     }
-    if let Some(key_usage) = key_usage
-      && bc.extension().ca() != key_usage.key_cert_sign()
+    if let Some(elem) = key_usage
+      && bc.extension().ca() != elem.key_cert_sign()
     {
       *last_err = Some(X509CvError::KeyUsageKeyCertSignMismatch);
       return false;
     }
   }
   true
+}
+
+#[inline]
+fn validate_intermediate<'any, B, const IS_EE: bool>(
+  cert: &'any CvCertificate<&'any [u8], IS_EE>,
+  cv_policy: &CvPolicy<B>,
+  depth: u8,
+  intermediate: &'any CvIntermediate<&'any [u8]>,
+  last_err: &mut Option<X509CvError>,
+  verified_path: &mut VerifiedPath<'any, B>,
+  intermediates: &'any [CvIntermediate<&'any [u8]>],
+  trust_anchors: &'any [CvTrustAnchor<B>],
+) -> Option<bool>
+where
+  B: Lease<[u8]>,
+{
+  if cert.issuer.lease() != intermediate.subject.bytes().lease() {
+    return None;
+  }
+
+  if let Some(elem) = &cert.extended_key_usage
+    && validate_eku::<false>(elem.extension(), &intermediate.extended_key_usage).is_err()
+  {
+    return None;
+  }
+
+  if !validate_chain_signature(cert, last_err, &intermediate.subject_public_key_info) {
+    return None;
+  }
+
+  if let Some(basic_constraints) = &intermediate.basic_constraints {
+    if !basic_constraints.extension().ca() {
+      return None;
+    }
+    if let Some(plc) = basic_constraints.extension().path_len_constraint()
+      && u32::from(depth) > plc
+    {
+      return None;
+    }
+  } else {
+    return None;
+  }
+
+  if let Some(key_usage) = &intermediate.key_usage
+    && !key_usage.key_cert_sign()
+  {
+    return None;
+  }
+
+  if !check_revocation(cert, cv_policy, depth, intermediate.key_usage, last_err) {
+    return None;
+  }
+
+  if !check_verified_path(
+    last_err,
+    &intermediate.name_constraints,
+    intermediate.subject.bytes().lease(),
+    intermediate.subject_public_key_info.subject_public_key.bytes().lease(),
+    verified_path,
+  ) {
+    return None;
+  }
+
+  if verified_path.intermediates_mut().push(intermediate).is_err() {
+    *last_err = Some(X509CvError::ExceedDepth);
+    return Some(false);
+  }
+
+  let next_depth = if intermediate.is_self_signed { depth } else { depth.wrapping_add(1) };
+
+  if validate_chain::<_, false>(
+    intermediate,
+    cv_policy,
+    next_depth,
+    intermediates,
+    last_err,
+    trust_anchors,
+    verified_path,
+  ) {
+    return Some(true);
+  }
+
+  let _ = verified_path.intermediates_mut().pop();
+  None
 }

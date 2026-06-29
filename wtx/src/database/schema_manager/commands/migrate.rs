@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
     DatabaseTy,
     schema_manager::{
@@ -87,10 +87,17 @@ where
     let mut buffer_status = Vector::new();
     self.executor.create_wtx_tables().await?;
     buffer_status.clear();
-    for (mg, m) in groups {
-      self.executor.migrations(&mut buffer_cmd, mg, &mut buffer_db_migrations).await?;
-      buffer_status
-        .push(self.do_migrate((&mut buffer_cmd, &mut buffer_db_migrations), mg, m.iter()).await?)?;
+    for (migration_group, migration) in groups {
+      self.executor.migrations(&mut buffer_cmd, migration_group, &mut buffer_db_migrations).await?;
+      buffer_status.push(
+        self
+          .do_migrate(
+            (&mut buffer_cmd, &mut buffer_db_migrations),
+            migration_group,
+            migration.iter(),
+          )
+          .await?,
+      )?;
     }
     Ok(())
   }
@@ -126,7 +133,7 @@ where
     let filtered_by_db = Self::filter_by_db(user_migrations);
     Self::do_validate(buffer_db_migrations, filtered_by_db.clone())?;
     let curr_applied_migrations;
-    let curr_last_db_migration_uid = filtered_by_db.clone().last().map(|el| el.uid());
+    let curr_last_db_migration_uid = filtered_by_db.clone().last().map(UserMigration::uid);
     let prev_db_migrations = Usize::from(buffer_db_migrations.len()).into_u64();
     let mut prev_last_db_migration_uid = None;
     if let Some(last_db_mig) = buffer_db_migrations.last() {
@@ -139,7 +146,7 @@ where
           .into(),
         );
       }
-      let to_apply = filtered_by_db.filter(move |e| e.uid() > last_db_mig.uid());
+      let to_apply = filtered_by_db.filter(move |el| el.uid() > last_db_mig.uid());
       curr_applied_migrations = Usize::from(to_apply.clone().count()).into();
       prev_last_db_migration_uid = Some(last_db_mig.uid());
       self.executor.insert_migrations(buffer_cmd, mg, to_apply).await?;

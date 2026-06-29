@@ -1,99 +1,98 @@
 use crate::{
-  collection::Vector,
-  misc::{LeaseMut, SuffixWriter},
+  collections::TryExtend,
+  misc::{Lease, LeaseMut},
 };
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum CounterWriterIterTy {
-  #[expect(dead_code, reason = "TLS 1.3")]
   Bytes(CounterWriterBytesTy),
+  #[cfg(feature = "postgres")]
   Elements,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum CounterWriterBytesTy {
+  #[cfg(feature = "postgres")]
   IncludesLen,
   IgnoresLen,
 }
 
 #[inline]
-fn write<E, SW, V, const N: usize>(
+fn write<E, T, const N: usize>(
   cwbt: CounterWriterBytesTy,
   prefix: Option<u8>,
-  sw: &mut SW,
-  sw_cb: impl FnOnce(&mut SW) -> Result<(), E>,
-  value_cb: impl FnOnce(&mut SW, usize) -> Result<[u8; N], E>,
+  vec: &mut T,
+  sw_cb: impl FnOnce(&mut T) -> Result<(), E>,
+  value_cb: impl FnOnce(&mut T, usize) -> Result<[u8; N], E>,
 ) -> Result<(), E>
 where
   E: From<crate::Error>,
-  SW: LeaseMut<SuffixWriter<V>>,
-  V: LeaseMut<Vector<u8>>,
+  T: LeaseMut<[u8]> + for<'any> TryExtend<&'any [u8]>,
 {
-  let len_write_begin = writer_len_begin::<_, _, _, N>(sw, prefix)?;
+  let len_write_begin = writer_len_begin::<_, _, N>(prefix, vec)?;
   let len_begin = match cwbt {
-    CounterWriterBytesTy::IgnoresLen => sw.lease().len(),
+    #[cfg(feature = "postgres")]
     CounterWriterBytesTy::IncludesLen => len_write_begin,
+    CounterWriterBytesTy::IgnoresLen => vec.lease().len(),
   };
-  sw_cb(sw)?;
-  let value = value_cb(sw, len_begin)?;
-  write_len_end(len_write_begin, sw, value);
+  sw_cb(vec)?;
+  let value = value_cb(vec, len_begin)?;
+  write_len_end(len_write_begin, vec, value);
   Ok(())
 }
 
 #[inline]
-fn write_iter<E, SW, T, V, const N: usize>(
+fn write_iter<E, T, U, const N: usize>(
   cwit: CounterWriterIterTy,
-  iter: impl IntoIterator<Item = T>,
+  iter: impl IntoIterator<Item = U>,
   prefix: Option<u8>,
-  sw: &mut SW,
-  mut sw_cb: impl FnMut(T, &mut SW) -> Result<(), E>,
-  value_cb: impl FnOnce(usize, &mut SW, usize) -> Result<[u8; N], E>,
+  vec: &mut T,
+  mut sw_cb: impl FnMut(U, &mut T) -> Result<(), E>,
+  value_cb: impl FnOnce(usize, &mut T, usize) -> Result<[u8; N], E>,
 ) -> Result<(), E>
 where
   E: From<crate::Error>,
-  SW: LeaseMut<SuffixWriter<V>>,
-  V: LeaseMut<Vector<u8>>,
+  T: LeaseMut<[u8]> + for<'any> TryExtend<&'any [u8]>,
 {
-  let len_write_begin = writer_len_begin::<_, _, _, N>(sw, prefix)?;
+  let len_write_begin = writer_len_begin::<_, _, N>(prefix, vec)?;
   let len_begin = match cwit {
-    CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen) => sw.lease().len(),
+    #[cfg(feature = "postgres")]
     CounterWriterIterTy::Bytes(CounterWriterBytesTy::IncludesLen) => len_write_begin,
+    CounterWriterIterTy::Bytes(CounterWriterBytesTy::IgnoresLen) => vec.lease().len(),
+    #[cfg(feature = "postgres")]
     CounterWriterIterTy::Elements => 0,
   };
   let mut elements: usize = 0;
-  for elem in iter.into_iter() {
-    sw_cb(elem, sw)?;
+  for elem in iter {
+    sw_cb(elem, vec)?;
     elements = elements.wrapping_add(1);
   }
-  let value = value_cb(elements, sw, len_begin)?;
-  write_len_end(len_write_begin, sw, value);
+  let value = value_cb(elements, vec, len_begin)?;
+  write_len_end(len_write_begin, vec, value);
   Ok(())
 }
 
 #[inline]
-fn writer_len_begin<E, SW, V, const N: usize>(sw: &mut SW, prefix: Option<u8>) -> Result<usize, E>
+fn writer_len_begin<E, T, const N: usize>(prefix: Option<u8>, vec: &mut T) -> Result<usize, E>
 where
   E: From<crate::Error>,
-  SW: LeaseMut<SuffixWriter<V>>,
-  V: LeaseMut<Vector<u8>>,
+  T: Lease<[u8]> + for<'any> TryExtend<&'any [u8]>,
 {
   if let Some(elem) = prefix {
-    sw.lease_mut().extend_from_byte(elem)?;
+    vec.try_extend(&[elem])?;
   }
-  let after_prefix = sw.lease().len();
-  sw.lease_mut().extend_from_slice(&[0; N])?;
+  let after_prefix = vec.lease().len();
+  vec.try_extend(&[0; N])?;
   Ok(after_prefix)
 }
 
 #[inline]
-fn write_len_end<SW, V, const N: usize>(len_write_begin: usize, sw: &mut SW, value: [u8; N])
+fn write_len_end<T, const N: usize>(len_write_begin: usize, vec: &mut T, value: [u8; N])
 where
-  SW: LeaseMut<SuffixWriter<V>>,
-  V: LeaseMut<Vector<u8>>,
+  T: LeaseMut<[u8]>,
 {
   let range = len_write_begin..len_write_begin.wrapping_add(N);
-  let prefix_opt =
-    sw.lease_mut().curr_bytes_mut().get_mut(range).and_then(|slice| slice.as_mut_array::<N>());
+  let prefix_opt = vec.lease_mut().get_mut(range).and_then(|slice| slice.as_mut_array::<N>());
   // SAFETY: `start` and `value` are internally evaluated parameters that adhere to slice bounds.
   let prefix = unsafe { prefix_opt.unwrap_unchecked() };
   prefix.copy_from_slice(&value);
@@ -103,25 +102,24 @@ macro_rules! impl_trait {
   (($($name:ident)?), ($($name_iter:ident)?), $ty:ident, $bytes:literal, $max:literal) => {
     $(
       #[inline]
-      pub(crate) fn $name<E, SW, V>(
+      pub(crate) fn $name<E, T>(
         cwbt: CounterWriterBytesTy,
         prefix: Option<u8>,
-        sw: &mut SW,
-        cb: impl FnOnce(&mut SW) -> Result<(), E>,
+        vec: &mut T,
+        cb: impl FnOnce(&mut T) -> Result<(), E>,
       ) -> Result<(), E>
       where
         E: From<crate::Error>,
-        SW: LeaseMut<SuffixWriter<V>>,
-        V: LeaseMut<Vector<u8>>,
+        T: LeaseMut<[u8]> + for<'any> TryExtend<&'any [u8]>,
       {
-        write(cwbt, prefix, sw, cb, |local_sw, len_begin| {
-          let len = local_sw.lease().len().wrapping_sub(len_begin);
+        write(cwbt, prefix, vec, cb, |local_ew, len_begin| {
+          let len = local_ew.lease().len().wrapping_sub(len_begin);
           if len > $max {
             return Err(crate::Error::CounterWriterOverflow.into());
           }
           let array = $ty::try_from(len).map_err(Into::into)?.to_be_bytes();
           let mut rslt = [0; $bytes];
-          rslt.copy_from_slice(&array[array.len() - $bytes..]);
+          rslt.copy_from_slice(array.get(array.len().wrapping_sub($bytes)..).unwrap_or_default());
           Ok(rslt)
         })
       }
@@ -129,29 +127,29 @@ macro_rules! impl_trait {
 
     $(
       #[inline]
-      pub(crate) fn $name_iter<E, SW, T, V>(
+      pub(crate) fn $name_iter<E, T, U>(
         cwit: CounterWriterIterTy,
-        iter: impl IntoIterator<Item = T>,
+        iter: impl IntoIterator<Item = U>,
         prefix: Option<u8>,
-        sw: &mut SW,
-        cb: impl FnMut(T, &mut SW) -> Result<(), E>,
+        vec: &mut T,
+        cb: impl FnMut(U, &mut T) -> Result<(), E>,
       ) -> Result<(), E>
       where
         E: From<crate::Error>,
-        SW: LeaseMut<SuffixWriter<V>>,
-        V: LeaseMut<Vector<u8>>,
+        T: LeaseMut<[u8]> + for<'any> TryExtend<&'any [u8]>,
       {
-        write_iter(cwit, iter, prefix, sw, cb, |counter, local_sw, len_begin| {
+        write_iter(cwit, iter, prefix, vec, cb, |_counter, local_ew, len_begin| {
           let len = match cwit {
-            CounterWriterIterTy::Bytes(_) => local_sw.lease().len().wrapping_sub(len_begin),
-            CounterWriterIterTy::Elements => counter,
+            CounterWriterIterTy::Bytes(_) => local_ew.lease().len().wrapping_sub(len_begin),
+            #[cfg(feature = "postgres")]
+            CounterWriterIterTy::Elements => _counter,
           };
           if len > $max {
             return Err(crate::Error::CounterWriterOverflow.into());
           }
           let array = $ty::try_from(len).map_err(Into::into)?.to_be_bytes();
           let mut rslt = [0; $bytes];
-          rslt.copy_from_slice(&array[array.len() - $bytes..]);
+          rslt.copy_from_slice(array.get(array.len().wrapping_sub($bytes)..).unwrap_or_default());
           Ok(rslt)
         })
       }
@@ -159,10 +157,13 @@ macro_rules! impl_trait {
   };
 }
 
-impl_trait!((), (), u8, 1, 255);
+#[cfg(feature = "tls")]
+impl_trait!((u8_write), (u8_write_iter), u8, 1, 255);
 #[cfg(feature = "postgres")]
 impl_trait!((), (i16_write_iter), i16, 2, 32_767);
-impl_trait!((), (), u16, 2, 65_535);
-impl_trait!((), (), u32, 3, 16_777_215);
+#[cfg(feature = "tls")]
+impl_trait!((u16_write), (u16_write_iter), u16, 2, 65_535);
+#[cfg(feature = "tls")]
+impl_trait!((u24_write), (u24_write_iter), u32, 3, 16_777_215);
 #[cfg(feature = "postgres")]
 impl_trait!((i32_write), (), i32, 4, 2_147_483_647);

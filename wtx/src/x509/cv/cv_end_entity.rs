@@ -1,15 +1,15 @@
 use crate::{
   asn1::OID_X509_COMMON_NAME,
-  collection::ArrayVectorU8,
+  collections::ArrayVectorU8,
   crypto::SignatureTy,
   misc::{Lease, bytes_split_once1},
   x509::{
-    CvCertificate, CvEndEntity, CvPolicy, CvTrustAnchor, GeneralName, ServerName, VerifiedPath,
-    X509CvError, cv::params_oid, extensions::SubjectAlternativeName,
+    CvCertificate, CvEndEntity, CvIntermediate, CvPolicy, CvTrustAnchor, GeneralName, ServerName,
+    VerifiedPath, X509CvError, cv::params_oid, extensions::SubjectAlternativeName,
   },
 };
 
-impl<'any, 'bytes> CvEndEntity<'any, 'bytes> {
+impl<'any> CvEndEntity<&'any [u8]> {
   /// Checks that a valid path exists when walking through the provided intermediate certificates.
   /// A valid path is constructed when it hits one of the trust anchors and the associated
   /// constraints like expirations times are satisfied.
@@ -17,19 +17,22 @@ impl<'any, 'bytes> CvEndEntity<'any, 'bytes> {
   /// It is worth noting that this method is not cheap and the number of intermediates is a
   /// considerable factor.
   #[inline]
-  pub fn validate_chain(
+  pub fn validate_chain<B>(
     &'any self,
-    intermediates: &'any [CvCertificate<'any, 'bytes, false>],
-    cv_policy: &'any CvPolicy<'any, 'bytes>,
-    trust_anchors: &'any [CvTrustAnchor<'bytes>],
-  ) -> crate::Result<VerifiedPath<'any, 'bytes>> {
+    intermediates: &'any [CvIntermediate<&'any [u8]>],
+    cv_policy: &'any CvPolicy<B>,
+    trust_anchors: &'any [CvTrustAnchor<B>],
+  ) -> crate::Result<VerifiedPath<'any, B>>
+  where
+    B: Lease<[u8]>,
+  {
     let mut verified_path = VerifiedPath::new(
       self,
       ArrayVectorU8::new(),
       trust_anchors.first().ok_or(X509CvError::HasNotTrustAnchor)?,
     );
     let mut last_err = None;
-    let found = crate::x509::cv::validate_chain::<true>(
+    let found = crate::x509::cv::validate_chain::<B, true>(
       self,
       cv_policy,
       0,
@@ -47,12 +50,12 @@ impl<'any, 'bytes> CvEndEntity<'any, 'bytes> {
   /// Verifies `signature` over `msg` using the public key contained in this certificate.
   #[inline]
   pub fn validate_signature(&self, msg: &[u8], signature: &[u8]) -> crate::Result<()> {
-    let subject_public_key_info = &self.subject_public_key_info.lease();
+    let subject_public_key_info = &self.subject_public_key_info;
     let params_oid = params_oid(subject_public_key_info);
     let signature_ty =
       SignatureTy::try_from((&subject_public_key_info.algorithm.algorithm, params_oid.as_ref()))?;
     signature_ty.validate_signature(
-      subject_public_key_info.subject_public_key.bytes(),
+      subject_public_key_info.subject_public_key.bytes().lease(),
       msg,
       signature,
     )?;
@@ -72,13 +75,11 @@ impl<'any, 'bytes> CvEndEntity<'any, 'bytes> {
     let ip_buffer = &mut [0; 16];
     let sn_bytes = sn.bytes(ip_buffer);
     if let Some(subject_alternative_name) = &self.subject_alternative_name {
-      if validate_sn(sn_bytes, subject_alternative_name.extension())? {
+      if validate_sn(sn_bytes, subject_alternative_name.extension()) {
         return Ok(());
       }
-    } else {
-      if validate_sn_from_subject(self, sn_bytes)? {
-        return Ok(());
-      }
+    } else if validate_sn_from_subject(self, sn_bytes) {
+      return Ok(());
     }
     Err(X509CvError::UnknownSubjectName.into())
   }
@@ -89,45 +90,55 @@ fn matches_san(lhs: &[u8], rhs: &[u8]) -> bool {
   let [b'*', b'.', rest @ ..] = lhs else {
     return lhs.eq_ignore_ascii_case(rhs);
   };
-  let Some((_, rhs)) = bytes_split_once1(rhs, b'.') else {
+  let Some((_, el)) = bytes_split_once1(rhs, b'.') else {
     return false;
   };
-  rest.eq_ignore_ascii_case(rhs)
+  rest.eq_ignore_ascii_case(el)
 }
 
 #[inline]
-fn validate_sn(
-  sn: &[u8],
-  subject_alternative_name: &SubjectAlternativeName<'_>,
-) -> crate::Result<bool> {
+fn validate_sn<B>(sn: &[u8], subject_alternative_name: &SubjectAlternativeName<B>) -> bool
+where
+  B: Lease<[u8]>,
+{
   for gn in &subject_alternative_name.general_names.entries {
     match gn {
-      GeneralName::DnsName(elem) if matches_san(elem, sn) => {
-        return Ok(true);
+      GeneralName::DnsName(elem) if matches_san(elem.lease(), sn) => {
+        return true;
       }
-      GeneralName::IpAddress(elem) if *elem == sn => {
-        return Ok(true);
+      GeneralName::IpAddress(elem) if elem.lease() == sn => {
+        return true;
       }
       GeneralName::Rfc822Name(elem) => {
-        return Ok(*elem == sn);
+        return elem.lease() == sn;
       }
-      _ => {}
+      GeneralName::DirectoryName(_)
+      | GeneralName::DnsName(_)
+      | GeneralName::EdiPartyName(_)
+      | GeneralName::IpAddress(_)
+      | GeneralName::OtherName(_)
+      | GeneralName::RegisteredId(_)
+      | GeneralName::UniformResourceIdentifier(_)
+      | GeneralName::X400Address(_) => {}
     }
   }
-  Ok(false)
+  false
 }
 
 #[inline]
-fn validate_sn_from_subject(cert: &CvCertificate<'_, '_, true>, sn: &[u8]) -> crate::Result<bool> {
-  for rdn in cert.subject.lease().rdn_sequence().iter() {
-    for atv in rdn.entries.iter() {
+fn validate_sn_from_subject<B>(cert: &CvCertificate<B, true>, sn: &[u8]) -> bool
+where
+  B: Lease<[u8]>,
+{
+  for rdn in cert.subject.rdn_sequence() {
+    for atv in &rdn.entries {
       if atv.oid != OID_X509_COMMON_NAME {
         continue;
       }
       if matches_san(atv.value.data(), sn) {
-        return Ok(true);
+        return true;
       }
     }
   }
-  Ok(false)
+  false
 }

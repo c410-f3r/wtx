@@ -128,7 +128,7 @@ mod pkg {
         #[inline]
         async fn after_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT, &mut crate::CustomTransportParams))
             -> Result<(), __API::Error> {
@@ -137,7 +137,7 @@ mod pkg {
         #[inline]
         async fn before_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT, &mut crate::CustomTransportParams))
             -> Result<(), __API::Error> {
@@ -183,7 +183,7 @@ mod pkg {
         #[inline]
         async fn after_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut &'__is_mut mut crate::CustomTransportParams))
@@ -193,7 +193,7 @@ mod pkg {
         #[inline]
         async fn before_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut &'__is_mut mut crate::CustomTransportParams))

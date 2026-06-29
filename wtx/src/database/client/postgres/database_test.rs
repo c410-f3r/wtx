@@ -1,82 +1,97 @@
 use crate::{
   calendar::timestamp_str,
   database::{
-    DatabaseUriFromVars, Executor as _,
-    client::postgres::{Config, ExecutorBuffer, PostgresExecutor},
+    DatabaseUriFromVars, DbClient as _,
+    client::postgres::{ClientBuffer, Config, PostgresClient},
     schema_manager::Commands,
   },
-  executor::Runtime,
-  misc::EnvVars,
+  executor::{Executor, Runtime as _, TcpStream},
+  misc::{EnvVars, TcpParams},
   rng::{ChaCha20, CryptoSeedableRng as _},
-  sync::Arc,
+  tls::{TlsConfig, TlsConnector, TlsModePlainText},
 };
-use std::{net::TcpStream, string::String};
+use alloc::string::String;
 
 const BATCH_SIZE: usize = 8;
 const MAX_STMTS: usize = 16;
 
 /// Used in testing environments by the `db` macro.
 #[doc(hidden)]
-pub async fn database_test<FUT>(
+#[inline]
+pub fn database_test<ER, EX, FUT, TS>(
   migration_dir: Option<&'static str>,
-  runtime: Arc<Runtime>,
-  cb: impl FnOnce(PostgresExecutor<crate::Error, ExecutorBuffer, TcpStream>, Arc<Runtime>) -> FUT,
-) -> crate::Result<FUT::Output>
+  cb: impl FnOnce(PostgresClient<ER, TS, TlsModePlainText>) -> FUT,
+) -> Result<FUT::Output, ER>
 where
+  ER: From<crate::Error>,
+  EX: Executor<TcpStream = TS>,
   FUT: Future,
+  TS: TcpStream<Executor = EX>,
 {
-  let local_vars: DatabaseUriFromVars = EnvVars::from_available([])?.finish();
-  let uri = local_vars.uri.as_str().into();
+  EX::LocalRuntime::optioned()?.block_on(async move {
+    let local_vars: DatabaseUriFromVars = EnvVars::from_available([])?.finish();
+    let uri = local_vars.uri.as_str().into();
 
-  let mut config = Config::from_uri(&uri)?;
-  let mut db_name = String::new();
-  db_name.push('_');
-  db_name.push_str(timestamp_str(|dur| dur.as_nanos())?.1.as_str());
+    let mut config = Config::from_uri(&uri)?;
+    let mut db_name = String::new();
+    db_name.push('_');
+    db_name.push_str(timestamp_str(|dur| dur.as_nanos())?.1.as_str());
 
-  let orig_db = String::from(config.db());
-  let mut rng = ChaCha20::from_getrandom()?;
+    let orig_db = String::from(config.db());
+    let mut rng = ChaCha20::from_getrandom()?;
+    let tls_config = TlsConfig::empty();
 
-  {
-    let mut conn = PostgresExecutor::<crate::Error, _, _>::connect(
-      &Config::from_uri(&uri)?,
-      ExecutorBuffer::new(MAX_STMTS, &mut rng),
-      &mut rng,
-      TcpStream::connect(uri.hostname_with_implied_port())?,
-    )
-    .await?;
-    let mut create_db_query = String::new();
-    create_db_query.push_str("CREATE DATABASE ");
-    create_db_query.push_str(&db_name);
-    conn.execute_ignored(create_db_query.as_str()).await?;
-  }
+    {
+      let mut client = PostgresClient::<_, _, _>::connect(
+        ClientBuffer::new(MAX_STMTS, &mut rng),
+        &Config::from_uri(&uri)?,
+        TlsConnector::new(
+          &tls_config,
+          &mut rng,
+          TS::connect(uri.hostname_with_implied_port(), TcpParams::default()).await?,
+        ),
+      )
+      .await?;
+      let mut create_db_query = String::new();
+      create_db_query.push_str("CREATE DATABASE ");
+      create_db_query.push_str(&db_name);
+      client.execute_ignored(create_db_query.as_str()).await?;
+    }
 
-  let test_result = {
-    config.set_db(db_name.as_str());
-    let mut conn = PostgresExecutor::connect(
-      &config,
-      ExecutorBuffer::new(MAX_STMTS, &mut rng),
-      &mut rng,
-      TcpStream::connect(uri.hostname_with_implied_port())?,
-    )
-    .await?;
-    Commands::new(BATCH_SIZE, &mut conn).clear_migrate_and_seed(migration_dir).await?;
-    cb(conn, runtime).await
-  };
+    let test_result = {
+      config.set_db(db_name.as_str());
+      let mut client = PostgresClient::<ER, _, _>::connect(
+        ClientBuffer::new(MAX_STMTS, &mut rng),
+        &config,
+        TlsConnector::new(
+          &tls_config,
+          &mut rng,
+          TS::connect(uri.hostname_with_implied_port(), TcpParams::default()).await?,
+        ),
+      )
+      .await?;
+      Commands::new(BATCH_SIZE, &mut client).clear_migrate_and_seed(migration_dir).await?;
+      cb(client).await
+    };
 
-  {
-    config.set_db(orig_db.as_str());
-    let mut conn = PostgresExecutor::<crate::Error, _, _>::connect(
-      &config,
-      ExecutorBuffer::new(MAX_STMTS, &mut rng),
-      &mut rng,
-      TcpStream::connect(uri.hostname_with_implied_port())?,
-    )
-    .await?;
-    let mut drop_db_query = String::new();
-    drop_db_query.push_str("DROP DATABASE ");
-    drop_db_query.push_str(&db_name);
-    conn.execute_ignored(drop_db_query.as_str()).await?;
-  }
+    {
+      config.set_db(orig_db.as_str());
+      let mut client = PostgresClient::<_, _, _>::connect(
+        ClientBuffer::new(MAX_STMTS, &mut rng),
+        &config,
+        TlsConnector::new(
+          &tls_config,
+          &mut rng,
+          TS::connect(uri.hostname_with_implied_port(), TcpParams::default()).await?,
+        ),
+      )
+      .await?;
+      let mut drop_db_query = String::new();
+      drop_db_query.push_str("DROP DATABASE ");
+      drop_db_query.push_str(&db_name);
+      client.execute_ignored(drop_db_query.as_str()).await?;
+    }
 
-  Ok(test_result)
+    Ok(test_result)
+  })
 }

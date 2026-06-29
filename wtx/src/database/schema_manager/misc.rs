@@ -17,18 +17,18 @@ use crate::{
   },
   misc::Lease,
 };
-use core::hash::{Hash, Hasher};
+use core::hash::{Hash as _, Hasher as _};
 #[cfg(feature = "std")]
 use {
   crate::{
-    collection::{ArrayVectorU8, Vector},
+    collections::{ArrayVectorU8, Vector},
     database::schema_manager::{
       Repeatability, UserMigrationGroup, UserMigrationOwned,
       toml_parser::{Expr, toml},
     },
   },
   alloc::string::String,
-  core::{cmp::Ordering, fmt::Write},
+  core::{cmp::Ordering, fmt::Write as _},
   std::{
     fs::{DirEntry, File, read_to_string},
     io::Read,
@@ -59,7 +59,7 @@ pub fn files(dir: &Path) -> crate::Result<impl Iterator<Item = crate::Result<Dir
   }))
 }
 
-/// All migrations and their related group that are located in a given `path`.`
+/// All migrations and their related group that are located in a given `path`.
 #[cfg(feature = "std")]
 #[inline]
 pub fn group_and_migrations_from_path<F>(
@@ -73,7 +73,7 @@ where
   F: FnMut(&PathBuf, &PathBuf) -> Ordering,
 {
   use crate::{
-    collection::ArrayStringU8,
+    collections::ArrayStringU8,
     database::schema_manager::migration_parser::{parse_migration_toml, parse_unified_migration},
   };
 
@@ -121,11 +121,9 @@ where
             sql_down = read_to_string(file_path)?;
           } else if file_name == up_file_name.as_str() {
             sql_up = read_to_string(file_path)?;
-          } else {
-            continue;
           }
         }
-      } else if let Some(Some(file_name)) = local_path.file_name().map(|e| e.to_str()) {
+      } else if let Some(Some(file_name)) = local_path.file_name().map(|el| el.to_str()) {
         let parts = migration_file_name_parts(file_name)?;
         name = parts.0;
         uid = parts.1;
@@ -176,7 +174,7 @@ where
   for (ident, toml_expr) in toml(read)? {
     match (ident.as_str(), toml_expr) {
       ("migration_groups", Expr::Array(array)) => {
-        for elem in array.into_iter() {
+        for elem in array {
           let path = root.join(elem.as_str());
           let name_opt = || path.file_name()?.to_str();
           let Some(name) = name_opt() else {
@@ -247,38 +245,38 @@ where
 }
 
 fn binary_search_migration_by_uid(migrations: &[DbMigration], uid: Uid) -> Option<&DbMigration> {
-  match migrations.binary_search_by(|m| m.uid().cmp(&uid)) {
+  match migrations.binary_search_by(|el| el.uid().cmp(&uid)) {
     Err(_) => None,
     Ok(rslt) => migrations.get(rslt),
   }
 }
 
 #[cfg(feature = "std")]
-fn dir_name_parts(s: &str) -> crate::Result<(String, Uid)> {
-  let f = || {
-    if !s.is_ascii() {
+fn dir_name_parts(str: &str) -> crate::Result<(String, Uid)> {
+  let fun = || {
+    if !str.is_ascii() {
       return None;
     }
-    let mut split = s.split("__");
+    let mut split = str.split("__");
     let uid = split.next()?.parse().ok()?;
     let name = split.next()?.into();
     Some((name, uid))
   };
-  f().ok_or(SchemaManagerError::InvalidMigration.into())
+  fun().ok_or(SchemaManagerError::InvalidMigration.into())
 }
 
 #[cfg(feature = "std")]
-fn migration_file_name_parts(s: &str) -> crate::Result<(String, Uid)> {
-  let f = || {
-    if !s.is_ascii() {
+fn migration_file_name_parts(str: &str) -> crate::Result<(String, Uid)> {
+  let fun = || {
+    if !str.is_ascii() {
       return None;
     }
-    let mut split = s.split("__");
+    let mut split = str.split("__");
     let uid = split.next()?.parse().ok()?;
     let name = split.next()?.strip_suffix(".sql")?.into();
     Some((name, uid))
   };
-  f().ok_or(SchemaManagerError::InvalidMigration.into())
+  fun().ok_or(SchemaManagerError::InvalidMigration.into())
 }
 
 #[cfg(feature = "std")]

@@ -1,5 +1,6 @@
 use crate::{
-  calendar::{DateTime, Instant, Utc},
+  calendar::{DateTime, Utc},
+  collections::Vector,
   x509::{
     CvCrl, CvPolicyMode,
     cv::{cv_crl_expiration::CvCrlExpiration, cv_evaluation_depth::CvEvaluationDepth},
@@ -10,54 +11,55 @@ use crate::{
 /// Chain Validation - Policy
 ///
 /// Groups all configurable rule parameters.
-#[derive(Debug, PartialEq)]
-pub struct CvPolicy<'any, 'bytes> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct CvPolicy<B> {
   cep: CvCrlExpiration,
-  crls: &'any [CvCrl<'any, 'bytes>],
-  extended_key_usage: &'any ExtendedKeyUsage,
+  crls: Vector<CvCrl<B>>,
   evaluation_depth: CvEvaluationDepth,
+  extended_key_usage: ExtendedKeyUsage,
   key_usage: KeyUsage,
   mode: CvPolicyMode,
   validation_time: DateTime<Utc>,
 }
 
-impl<'any, 'bytes> CvPolicy<'any, 'bytes> {
-  /// The other parameters are set using optioned parameters.
-  pub fn from_crls(crls: &'any [CvCrl<'any, 'bytes>]) -> crate::Result<Self> {
-    Ok(Self {
+impl<B> CvPolicy<B> {
+  /// New instance with optioned parameters.
+  //
+  // FIXME(STABLE): Use `::default()`
+  #[inline]
+  pub const fn new() -> Self {
+    Self {
       cep: CvCrlExpiration::Enforce,
-      crls,
-      extended_key_usage: const { &ExtendedKeyUsage::SERVER },
-      evaluation_depth: CvEvaluationDepth::Chain(10),
-      key_usage: KeyUsage::default(),
+      crls: Vector::new(),
+      evaluation_depth: CvEvaluationDepth::Chain(8),
+      extended_key_usage: ExtendedKeyUsage::EMPTY,
+      key_usage: KeyUsage::new((0, 0)),
       mode: CvPolicyMode::Strict,
-      validation_time: Instant::now_date_time(0)?,
-    })
+      validation_time: DateTime::EPOCH,
+    }
   }
-}
 
-impl<'any, 'bytes> CvPolicy<'any, 'bytes> {
   /// See [`CvCrl`].
   #[inline]
-  pub const fn crls(&self) -> &'any [CvCrl<'any, 'bytes>] {
-    self.crls
+  pub fn crls(&self) -> &[CvCrl<B>] {
+    &self.crls
   }
 
   /// Mutable version of [`Self::crls`].
   #[inline]
-  pub const fn crls_mut(&mut self) -> &mut &'any [CvCrl<'any, 'bytes>] {
+  pub const fn crls_mut(&mut self) -> &mut Vector<CvCrl<B>> {
     &mut self.crls
   }
 
   /// See [`ExtendedKeyUsage`].
   #[inline]
   pub const fn extended_key_usage(&self) -> &ExtendedKeyUsage {
-    self.extended_key_usage
+    &self.extended_key_usage
   }
 
   /// Mutable version of [`Self::extended_key_usage`].
   #[inline]
-  pub const fn extended_key_usage_mut(&mut self) -> &mut &'any ExtendedKeyUsage {
+  pub const fn extended_key_usage_mut(&mut self) -> &mut ExtendedKeyUsage {
     &mut self.extended_key_usage
   }
 
@@ -119,5 +121,18 @@ impl<'any, 'bytes> CvPolicy<'any, 'bytes> {
   #[inline]
   pub const fn validation_time(&self) -> &DateTime<Utc> {
     &self.validation_time
+  }
+
+  /// Mutable version of [`Self::validation_time`].
+  #[inline]
+  pub const fn validation_time_mut(&mut self) -> &mut DateTime<Utc> {
+    &mut self.validation_time
+  }
+}
+
+impl<B> Default for CvPolicy<B> {
+  #[inline]
+  fn default() -> Self {
+    Self::new()
   }
 }

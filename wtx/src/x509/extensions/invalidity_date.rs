@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, GeneralizedTime},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, GeneralizedTime},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
 };
 
@@ -11,16 +11,16 @@ pub struct InvalidityDate(
   pub GeneralizedTime,
 );
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for InvalidityDate {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for InvalidityDate {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self(GeneralizedTime::decode(dw)?))
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for InvalidityDate {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for InvalidityDate {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     self.0.encode(ew)
   }
 }

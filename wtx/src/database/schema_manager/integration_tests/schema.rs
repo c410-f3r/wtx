@@ -2,7 +2,7 @@ pub(crate) mod with_schema;
 pub(crate) mod without_schema;
 
 use crate::{
-  collection::Vector,
+  collections::Vector,
   database::{
     Database,
     schema_manager::{

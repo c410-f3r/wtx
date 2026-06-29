@@ -1,10 +1,10 @@
 use crate::{
   codec::CodecController,
-  collection::Vector,
-  database::{FromRecords, Identifier, client::postgres::Postgres, executor::Executor},
+  collections::Vector,
+  database::{FromRecords, Identifier, client::postgres::Postgres, db_client::DbClient},
 };
 use alloc::string::String;
-use core::fmt::Write;
+use core::fmt::Write as _;
 
 pub(crate) static CREATE_MIGRATION_TABLES: &str = concat!(
   "CREATE SCHEMA IF NOT EXISTS _wtx; \
@@ -31,7 +31,7 @@ pub(crate) async fn all_elements<E, ERR>(
   types_cb: impl FnOnce((&mut String, &mut Vector<Identifier>)) -> crate::Result<()>,
 ) -> Result<(), <E::Database as CodecController>::Error>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   schemas(executor, buffer_idents).await?;
@@ -66,7 +66,7 @@ pub(crate) async fn clear<E, ERR>(
   executor: &mut E,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   all_elements(
@@ -97,7 +97,7 @@ pub(crate) async fn domains<E, ERR>(
   results: &mut Vector<Identifier>,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   let cmd = "SELECT
@@ -120,7 +120,7 @@ pub(crate) async fn functions<E, ERR>(
   executor: &mut E,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   pg_proc((buffer_cmd, buffer_idents), executor, 'f').await?;
@@ -132,7 +132,7 @@ pub(crate) async fn procedures<E, ERR>(
   executor: &mut E,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   pg_proc((buffer_cmd, buffer_idents), executor, 'p').await?;
@@ -144,7 +144,7 @@ pub(crate) async fn sequences<E, ERR>(
   results: &mut Vector<Identifier>,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   let cmd = "SELECT
@@ -165,7 +165,7 @@ pub(crate) async fn schemas<E, ERR>(
   results: &mut Vector<Identifier>,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   let cmd = "SELECT
@@ -190,7 +190,7 @@ pub(crate) async fn table_names<E, ERR>(
   schema: &str,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   let before = buffer_cmd.len();
@@ -218,9 +218,9 @@ where
     .execute_stmt_many(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
     .await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
-    if let Err(elem) = results.push(elem?) {
+    if let Err(err) = results.push(elem?) {
       buffer_cmd.truncate(before);
-      return Err(elem.into());
+      return Err(err.into());
     }
   }
   buffer_cmd.truncate(before);
@@ -232,7 +232,7 @@ pub(crate) async fn types<E, ERR>(
   results: &mut Vector<Identifier>,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   let cmd = "SELECT
@@ -264,7 +264,7 @@ pub(crate) async fn views<E, ERR>(
   results: &mut Vector<Identifier>,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   let cmd = "SELECT
@@ -288,7 +288,7 @@ async fn pg_proc<E, ERR>(
   prokind: char,
 ) -> Result<(), ERR>
 where
-  E: Executor<Database = Postgres<ERR>>,
+  E: DbClient<Database = Postgres<ERR>>,
   ERR: From<crate::Error>,
 {
   let before = buffer_cmd.len();
@@ -311,9 +311,9 @@ where
     .execute_stmt_many(buffer_cmd.get(before..).unwrap_or_default(), (), |_| Ok(()))
     .await?;
   for elem in <Identifier as FromRecords<E::Database>>::many(&records) {
-    if let Err(elem) = buffer_idents.push(elem?) {
+    if let Err(err) = buffer_idents.push(elem?) {
       buffer_cmd.truncate(before);
-      return Err(elem.into());
+      return Err(err.into());
     }
   }
   buffer_cmd.truncate(before);

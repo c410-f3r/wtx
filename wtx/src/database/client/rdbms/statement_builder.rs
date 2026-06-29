@@ -1,5 +1,5 @@
 use crate::{
-  collection::{BlocksDeque, ExpansionTy},
+  collections::{BlocksDeque, ExpansionTy},
   database::{DatabaseError, client::rdbms::statements_misc::StatementsMisc},
 };
 use hashbrown::HashMap;
@@ -41,7 +41,7 @@ where
   {
     if self.stmts.blocks_len() > self.stmts_idx {
       return Err(DatabaseError::InconsistentStatementBuilder.into());
-    };
+    }
     let _ = self.stmts.expand_back(
       ExpansionTy::Additional(additional),
       StatementsMisc::new(A::default(), 0, 0, 0),

@@ -122,6 +122,14 @@ mod collections {
     }
   }
 
+  impl<T, const N: usize> Lease<[T]> for (u8, [T; N]) {
+    #[inline]
+    fn lease(&self) -> &[T] {
+      let len = u8::try_from(N).unwrap_or(self.0).min(self.0);
+      self.1.get(..usize::from(len)).unwrap_or_default()
+    }
+  }
+
   impl<T, const N: usize> Lease<[T; N]> for [T; N] {
     #[inline]
     fn lease(&self) -> &[T; N] {

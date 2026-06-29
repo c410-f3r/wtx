@@ -8,7 +8,7 @@ mod pkgs_aux;
 use crate::{
   client_api_framework::Api,
   codec::{DecodeSeq, Encode, GenericCodec},
-  collection::Vector,
+  collections::Vector,
 };
 pub use pkg_with_helper::*;
 pub use pkgs_aux::*;

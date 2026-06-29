@@ -7,6 +7,7 @@
 **/rustc-ice-*.txt
 **/target
 boringssl
+boringssl-config.json
 callgrind*
 limbo.json
 mdbook-target

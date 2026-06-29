@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collections::Vector,
   crypto::{
     CryptoError, Ed25519Openssl, Ed25519SignKeyOpenssl, P256Openssl, P256SignKeyOpenssl,
     P384Openssl, P384SignKeyOpenssl, RsaPssRsaeSha256Openssl, RsaPssRsaeSha384Openssl,

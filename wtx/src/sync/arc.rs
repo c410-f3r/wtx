@@ -79,6 +79,13 @@ where
   }
 }
 
+impl<T> From<T> for Arc<T> {
+  #[inline]
+  fn from(value: T) -> Self {
+    Self::new(value)
+  }
+}
+
 impl<T> PartialEq for Arc<T>
 where
   T: PartialEq + ?Sized,

@@ -1,6 +1,6 @@
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
     Record, ValueIdent,
     client::{
@@ -34,12 +34,12 @@ impl<'exec, E> PostgresRecord<'exec, E> {
     values_params: &'exec mut Vector<(bool, Range<usize>)>,
   ) -> crate::Result<Self> {
     fn fun(
-      [a, b, c, d]: [u8; 4],
+      [b0, b1, b2, b3]: [u8; 4],
       curr_value_offset: &mut usize,
       values_params: &mut Vector<(bool, Range<usize>)>,
     ) -> crate::Result<()> {
       let begin = *curr_value_offset;
-      let n = i32::from_be_bytes([a, b, c, d]);
+      let n = i32::from_be_bytes([b0, b1, b2, b3]);
       let (is_null, end) = match n {
         -1 => (true, begin),
         _ => (false, begin.wrapping_add(usize::try_from(n)?)),
@@ -53,8 +53,8 @@ impl<'exec, E> PostgresRecord<'exec, E> {
     let mut curr_value_offset = 4;
 
     match (record, values_len) {
-      ([a, b, c, d, ..], 1..=u16::MAX) => {
-        fun([*a, *b, *c, *d], &mut curr_value_offset, values_params)?;
+      ([b0, b1, b2, b3, ..], 1..=u16::MAX) => {
+        fun([*b0, *b1, *b2, *b3], &mut curr_value_offset, values_params)?;
       }
       _ => {
         return Ok(Self::new(record, stmt, values_params));
@@ -62,11 +62,11 @@ impl<'exec, E> PostgresRecord<'exec, E> {
     }
 
     for _ in 1..values_len {
-      let Some(&[a, b, c, d, ..]) = record.get(curr_value_offset..) else {
+      let Some(&[b0, b1, b2, b3, ..]) = record.get(curr_value_offset..) else {
         return Err(PostgresError::InvalidPostgresRecord.into());
       };
       curr_value_offset = curr_value_offset.wrapping_add(4);
-      fun([a, b, c, d], &mut curr_value_offset, values_params)?;
+      fun([b0, b1, b2, b3], &mut curr_value_offset, values_params)?;
     }
 
     Ok(Self::new(record, stmt, values_params.get(values_bytes_offsets_start..).unwrap_or_default()))
@@ -86,10 +86,12 @@ where
 {
   type Database = Postgres<E>;
 
+  #[inline]
   fn len(&self) -> usize {
     self.common.values_params.len()
   }
 
+  #[inline]
   fn value<CI>(
     &self,
     ci: CI,
@@ -102,6 +104,7 @@ where
 }
 
 impl<'exec, E> ValueIdent<PostgresRecord<'exec, E>> for &str {
+  #[inline]
   fn idx(&self, input: &PostgresRecord<'exec, E>) -> Option<usize> {
     self.idx(&input.common)
   }

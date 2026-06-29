@@ -1,5 +1,5 @@
 pub(crate) mod column_info;
-pub(crate) mod common_executor_buffer;
+pub(crate) mod common_client_buffer;
 pub(crate) mod common_record;
 pub(crate) mod common_records;
 pub(crate) mod statement;
@@ -9,22 +9,20 @@ pub(crate) mod statements_misc;
 
 use crate::{
   codec::CodecController,
-  collection::Vector,
+  collections::Vector,
   database::{
     Database, ValueIdent,
     client::rdbms::{column_info::ColumnInfo, common_record::CommonRecord},
   },
-  misc::{Lease, net::PartitionedFilledBuffer},
+  misc::Lease,
 };
 use core::ops::Range;
 
 /// Should be called before executing commands.
-pub(crate) fn clear_cmd_buffers(
-  net_buffer: &mut PartitionedFilledBuffer,
+pub(crate) fn clear_query_buffers(
   records_params: &mut Vector<(Range<usize>, Range<usize>)>,
   values_params: &mut Vector<(bool, Range<usize>)>,
 ) {
-  net_buffer.clear_if_following_is_empty();
   records_params.clear();
   values_params.clear();
 }

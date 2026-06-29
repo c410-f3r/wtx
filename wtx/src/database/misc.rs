@@ -1,4 +1,6 @@
-use crate::database::{Database, FromRecords, FromRecordsParams, Record, records::Records};
+use crate::database::{
+  Database, FromRecords, FromRecordsParams, Record as _, records::Records as _,
+};
 use core::ops::ControlFlow;
 
 /// Seeks all rows that have an ID equal to `parent_record_id`.
@@ -43,11 +45,11 @@ where
     }
     let mut prev_local_id_opt = initial_local_id_opt;
     loop {
-      let Some(curr_record) = records.get(curr_params.curr_record_idx) else {
+      let Some(next_curr_record) = records.get(curr_params.curr_record_idx) else {
         break;
       };
       if let (Some(idx), Some(initial_local_id)) = (local_id_field_idx, initial_local_id_opt) {
-        let curr_local_id_opt = curr_record.decode_opt::<_, T::IdTy>(idx)?;
+        let curr_local_id_opt = next_curr_record.decode_opt::<_, T::IdTy>(idx)?;
         let Some(curr_local_id) = curr_local_id_opt else {
           curr_params.inc_record_idx();
           continue;
@@ -61,7 +63,7 @@ where
         }
         prev_local_id_opt = Some(curr_local_id);
       }
-      curr_params.curr_record = curr_record;
+      curr_params.curr_record = next_curr_record;
       if seek(
         curr_params,
         (&parent_record_id, parent_record_id_field_idx),

@@ -13,7 +13,7 @@ use crate::{
     DAYS_PER_QUADCENTURY, Day, DayOfYear, Duration, Month, SECONDS_PER_DAY, Weekday,
     YEARS_PER_QUADCENTURY, Year,
   },
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
   misc::{
     Usize,
     int_conv::{
@@ -448,6 +448,7 @@ mod serde {
   };
 
   impl<'de> Deserialize<'de> for Date {
+    #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
       D: Deserializer<'de>,
@@ -463,11 +464,11 @@ mod serde {
         }
 
         #[inline]
-        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
           E: Error,
         {
-          Date::from_iso8601(value.as_bytes()).map_err(E::custom)
+          Date::from_iso8601(v.as_bytes()).map_err(E::custom)
         }
       }
 
@@ -476,6 +477,7 @@ mod serde {
   }
 
   impl Serialize for Date {
+    #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
       S: Serializer,

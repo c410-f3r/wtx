@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collections::Vector,
   misc::{Lease, LeaseMut, SensitiveBytes},
 };
 use core::{

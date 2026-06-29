@@ -1,5 +1,5 @@
 use crate::{
-  collection::Clear,
+  collections::Clear,
   http::Headers,
   misc::{Lease, LeaseMut, Uri, UriRef},
 };

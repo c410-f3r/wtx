@@ -2,43 +2,37 @@
 
 #![expect(clippy::print_stderr, reason = "internal")]
 
-use std::string::String;
 use tokio::net::TcpStream;
 use wtx::{
-  http::OptionedServer,
-  rng::Xorshift64,
+  collections::Vector,
+  executor::TokioExecutor,
+  http::WebSocketServerFramework,
+  tls::{TlsConfig, TlsModePlainText},
   web_socket::{
-    OpCode, WebSocket, WebSocketBuffer, WebSocketPayloadOrigin,
-    compression::{Flate2, NegotiatedFlate2},
+    OpCode, WebSocket, WebSocketPayloadOrigin,
+    web_socket_compression::{NegotiatedZlibRs, ZlibRs},
   },
 };
 
 #[tokio::main]
-async fn main() {
-  OptionedServer::web_socket_tokio(
-    "127.0.0.1:9070",
-    Flate2::default,
-    |error| eprintln!("{error}"),
-    handle,
-    (|| Ok(()), |_, stream| async move { Ok(stream) }),
-  )
-  .await
-  .unwrap()
+async fn main() -> wtx::Result<()> {
+  WebSocketServerFramework::new(TokioExecutor::default(), TlsConfig::empty().into())?
+    .set_compression(ZlibRs::default())
+    .set_error_cb(|error| eprintln!("{error}"))
+    .run("127.0.0.1:9070", (("/", echo),))
+    .await
 }
 
-async fn handle(
-  path: String,
-  mut ws: WebSocket<Option<NegotiatedFlate2>, Xorshift64, TcpStream, WebSocketBuffer, false>,
+async fn echo(
+  mut buffer: Vector<u8>,
+  mut ws: WebSocket<Option<NegotiatedZlibRs>, TcpStream, TlsModePlainText, false>,
 ) -> wtx::Result<()> {
   let (mut common, mut reader, mut writer) = ws.split_mut();
-  let mut buffer = path.into_bytes().into();
   loop {
-    let mut frame =
-      reader.read_frame(&mut buffer, &mut common, WebSocketPayloadOrigin::Adaptive).await.unwrap();
+    let origin = WebSocketPayloadOrigin::Adaptive;
+    let mut frame = reader.read_frame(&mut buffer, &mut common, origin).await?;
     match frame.op_code() {
-      OpCode::Binary | OpCode::Text => {
-        writer.write_frame(&mut common, &mut frame).await.unwrap();
-      }
+      OpCode::Binary | OpCode::Text => writer.write_frame(&mut common, &mut frame).await?,
       OpCode::Close => break,
       _ => {}
     }

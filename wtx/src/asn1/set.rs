@@ -1,7 +1,7 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Len, SET_TAG, SequenceBuffer},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, SET_TAG, SequenceBuffer},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::TryExtend,
+  collections::TryExtend,
   misc::{Lease, SingleTypeStorage},
 };
 
@@ -12,24 +12,24 @@ pub struct Set<S>(
   pub S,
 );
 
-impl<'de, S> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Set<S>
+impl<'de, S> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Set<S>
 where
   S: Default + SingleTypeStorage + TryExtend<[S::Item; 1]>,
-  S::Item: Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>>,
+  S::Item: Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>>,
 {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self(SequenceBuffer::decode(dw, SET_TAG)?.0.0))
   }
 }
 
-impl<S> Encode<GenericCodec<(), Asn1EncodeWrapper>> for Set<S>
+impl<S> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for Set<S>
 where
   S: Lease<[S::Item]> + SingleTypeStorage,
-  S::Item: Encode<GenericCodec<(), Asn1EncodeWrapper>>,
+  S::Item: Encode<GenericCodec<(), Asn1EncodeWrapperAux>>,
 {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     SequenceBuffer(&self.0).encode(ew, Len::MAX_ONE_BYTE, SET_TAG)
   }
 }

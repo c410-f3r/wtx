@@ -8,7 +8,7 @@ use crate::{
     misc::nanosecond_string,
   },
   codec::i16_string,
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
 };
 
 impl<TZ> DateTime<TZ>

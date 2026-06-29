@@ -8,7 +8,7 @@ use crate::{
     NANOSECONDS_PER_SECOND, SECONDS_PER_DAY, SECONDS_PER_HOUR, SECONDS_PER_MINUTE, Sixty,
     misc::nanosecond_string, nanosecond::Nanosecond,
   },
-  collection::{ArrayString, ArrayStringU8},
+  collections::{ArrayString, ArrayStringU8},
   misc::int_conv::{i32i64, u8i32, u8u32, u16i32, u16u32, u32i64},
 };
 use core::{
@@ -281,6 +281,7 @@ mod serde {
   };
 
   impl<'de> Deserialize<'de> for Time {
+    #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
       D: Deserializer<'de>,
@@ -304,11 +305,11 @@ mod serde {
         }
 
         #[inline]
-        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
           E: Error,
         {
-          Time::from_iso8601(value.as_bytes()).map_err(E::custom)
+          Time::from_iso8601(v.as_bytes()).map_err(E::custom)
         }
       }
 
@@ -317,6 +318,7 @@ mod serde {
   }
 
   impl Serialize for Time {
+    #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
       S: Serializer,

@@ -1,24 +1,30 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Len, Oid, SEQUENCE_TAG, asn1_writer, decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Len, Oid, SEQUENCE_TAG, asn1_writer,
+    decode_asn1_tlv,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
   x509::{GeneralName, X509Error},
 };
 
 /// The format and location of additional information provided by the subject of the certificate
 /// in which this extension appears.
 #[derive(Debug, PartialEq)]
-pub struct AccessDescription<'bytes> {
+pub struct AccessDescription<B> {
   /// See [`Oid`]
   pub access_method: Oid,
   /// See [`GeneralName`]
-  pub access_location: GeneralName<'bytes>,
+  pub access_location: GeneralName<B>,
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AccessDescription<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for AccessDescription<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidAccessDescription.into());
     };
@@ -30,9 +36,12 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for AccessDescription
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for AccessDescription<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for AccessDescription<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_TWO_BYTES, SEQUENCE_TAG, |local_ew| {
       self.access_method.encode(local_ew)?;
       self.access_location.encode(local_ew)?;

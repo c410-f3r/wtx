@@ -4,7 +4,7 @@ use crate::{
     network::transport::{ReceivingTransport, SendingTransport},
     pkg::{Package, PkgsAux},
   },
-  codec::{Decode, DecodeWrapper},
+  codec::{Decode as _, DecodeWrapper},
 };
 
 /// Transport that sends and receives package data

@@ -1,5 +1,5 @@
 use crate::{
-  collection::ArrayStringU8,
+  collections::ArrayStringU8,
   http::{Header, HttpRecvParams, KnownHeaderName, Method, MsgBufferString, u31::U31},
   http2::{
     Http2Error,
@@ -10,7 +10,7 @@ use crate::{
     hpack_static_headers::{HpackStaticRequestHeaders, HpackStaticResponseHeaders},
     misc::{protocol_err, trim_frame_pad},
   },
-  misc::{LeaseMut, Usize},
+  misc::{LeaseMut as _, Usize},
 };
 use alloc::string::String;
 
@@ -19,17 +19,17 @@ use alloc::string::String;
 pub(crate) struct HeadersFrame<'uri> {
   cf: CommonFlags,
   hsreqh: HpackStaticRequestHeaders<'uri>,
-  hsresh: HpackStaticResponseHeaders,
+  hsresph: HpackStaticResponseHeaders,
   is_over_size: bool,
   stream_id: U31,
 }
 
 impl<'uri> HeadersFrame<'uri> {
   pub(crate) const fn new(
-    (hsreqh, hsresh): (HpackStaticRequestHeaders<'uri>, HpackStaticResponseHeaders),
+    (hsreqh, hsresph): (HpackStaticRequestHeaders<'uri>, HpackStaticResponseHeaders),
     stream_id: U31,
   ) -> Self {
-    Self { cf: CommonFlags::empty(), hsreqh, hsresh, is_over_size: false, stream_id }
+    Self { cf: CommonFlags::empty(), hsreqh, hsresph, is_over_size: false, stream_id }
   }
 
   pub(crate) const fn bytes(&self) -> [u8; 9] {
@@ -45,7 +45,7 @@ impl<'uri> HeadersFrame<'uri> {
   }
 
   pub(crate) const fn hsresh(&self) -> HpackStaticResponseHeaders {
-    self.hsresh
+    self.hsresph
   }
 
   pub(crate) const fn is_over_size(&self) -> bool {
@@ -261,7 +261,7 @@ impl<'uri> HeadersFrame<'uri> {
       Self {
         cf: fi.cf,
         hsreqh: HpackStaticRequestHeaders { authority: "", method, path: "", protocol, scheme: "" },
-        hsresh: HpackStaticResponseHeaders { status_code: status },
+        hsresph: HpackStaticResponseHeaders { status_code: status },
         is_over_size,
         stream_id: fi.stream_id,
       },
@@ -369,10 +369,10 @@ fn push_uri_in_path_buffer(
     {
       let from = start;
       let to = start.wrapping_add(3);
-      if let Some([a, b, c]) = lhs.get_mut(from..to) {
-        *a = b':';
-        *b = b'/';
-        *c = b'/';
+      if let Some([b0, b1, b2]) = lhs.get_mut(from..to) {
+        *b0 = b':';
+        *b1 = b'/';
+        *b2 = b'/';
       }
       start = to;
     }

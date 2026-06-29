@@ -1,13 +1,16 @@
 use crate::{
-  executor::Runtime,
+  collections::Vector,
+  executor::StdRuntime,
   http::{
     Header, Headers, HttpRecvParams, MsgBufferString, MsgData, MsgDataMut, ReqBuilder, Request,
     StatusCode,
   },
   http2::{Http2, Http2Buffer, Http2ErrorCode},
   misc::{UriRef, UriString},
-  rng::{SeedableRng, Xorshift64},
+  rng::{ChaCha20, CryptoSeedableRng, SeedableRng, Xorshift64},
+  stream::Stream as _,
   tests::_uri,
+  tls::{TlsAcceptor, TlsConfig, TlsConnector, TlsModePlainText},
 };
 use core::time::Duration;
 use std::net::{TcpListener, TcpStream};
@@ -16,21 +19,29 @@ use std::net::{TcpListener, TcpStream};
 #[cfg_attr(miri, ignore)]
 #[test]
 fn connections() {
-  let runtime = Runtime::new();
+  let runtime = StdRuntime::new();
   let uri = _uri();
   server(&uri, &runtime);
   let client_fut = client(&uri, &runtime);
   runtime.block_on(client_fut);
 }
 
-async fn client(uri: &UriString, runtime: &Runtime) {
+async fn client(uri: &UriString, runtime: &StdRuntime) {
   let mut msg_buffer = MsgBufferString::default();
   msg_buffer.headers.reserve(6, 1).unwrap();
   let stream = TcpStream::connect(uri.hostname_with_implied_port()).unwrap();
+  let tls_stream =
+    TlsConnector::new(&TlsConfig::empty(), ChaCha20::from_std_random().unwrap(), stream)
+      .connect()
+      .await
+      .unwrap()
+      .rslt()
+      .unwrap()
+      .stream;
   let (frame_header, mut http2) = Http2::connect(
     Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
     HttpRecvParams::with_optioned_params(),
-    (stream.try_clone().unwrap(), stream),
+    tls_stream.into_split().unwrap(),
   )
   .await
   .unwrap();
@@ -62,16 +73,24 @@ async fn client(uri: &UriString, runtime: &Runtime) {
   crate::misc::sleep(Duration::from_millis(100)).await.unwrap();
 }
 
-fn server(uri: &UriString, runtime: &Runtime) {
+fn server(uri: &UriString, runtime: &StdRuntime) {
   let listener = TcpListener::bind(uri.hostname_with_implied_port()).unwrap();
   let runtime_fut = runtime.clone();
   let _server_jh = runtime
     .spawn_threaded(async move {
       let (stream, _) = listener.accept().unwrap();
+      let tls_stream =
+        TlsAcceptor::new(&TlsConfig::empty(), ChaCha20::from_std_random().unwrap(), stream)
+          .accept()
+          .await
+          .unwrap()
+          .rslt()
+          .unwrap()
+          .stream;
       let (frame_header, mut http2) = Http2::accept(
         Http2Buffer::new(&mut Xorshift64::from_simple_seed().unwrap()),
         HttpRecvParams::with_optioned_params(),
-        (stream.try_clone().unwrap(), stream),
+        tls_stream.into_split().unwrap(),
       )
       .await
       .unwrap();
@@ -97,23 +116,24 @@ fn server(uri: &UriString, runtime: &Runtime) {
 }
 
 async fn stream_server(
-  server: &mut Http2<Http2Buffer, TcpStream, false>,
+  server: &mut Http2<TcpStream, TlsModePlainText, false>,
   mut cb: impl FnMut(Request<&mut MsgBufferString>),
 ) {
   let (mut stream, _) = server.stream(|_, _| {}).await.unwrap().unwrap();
   let (_, mut req_rrb) = stream.recv_req().await.unwrap();
   cb(req_rrb.as_http2_request_mut(stream.method()));
-  let _ = stream.send_res(req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
+  let _ =
+    stream.send_res(&mut Vector::new(), req_rrb.as_http2_response(StatusCode::Ok)).await.unwrap();
 }
 
 async fn stream_client(
-  client: &mut Http2<Http2Buffer, TcpStream, true>,
+  client: &mut Http2<TcpStream, TlsModePlainText, true>,
   msg_buffer: MsgBufferString,
   uri: UriRef<'_>,
 ) -> MsgBufferString {
   let mut stream = client.stream().await.unwrap();
   let rb = ReqBuilder::get((msg_buffer.body.as_ref(), &msg_buffer.headers, uri));
-  let _ = stream.send_req(rb.into_request()).await.unwrap();
+  let _ = stream.send_req(&mut Vector::new(), rb.into_request()).await.unwrap();
   stream.recv_res().await.unwrap().1
 }
 

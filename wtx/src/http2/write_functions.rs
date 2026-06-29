@@ -8,18 +8,18 @@ macro_rules! final_generic_calls {
 macro_rules! frame_params {
   ($cursor:expr, $frame:expr, $frame_len:expr, $is_data:expr) => {{
     let mut header = [0; 9];
-    let [a, b, c, d, e, f, g, h, i] = &mut header;
-    let [_, j, k, l] = $frame_len.to_be_bytes();
-    let [_, _, _, m, n, o, p, q, r] = $frame.bytes();
-    *a = j;
-    *b = k;
-    *c = l;
-    *d = m;
-    *e = n;
-    *f = o;
-    *g = p;
-    *h = q;
-    *i = r;
+    let [b0, b1, b2, b3, b4, b5, b6, b7, b8] = &mut header;
+    let [_, b9, b10, b11] = $frame_len.to_be_bytes();
+    let [_, _, _, b12, b13, b14, b15, b16, b17] = $frame.bytes();
+    *b0 = b9;
+    *b1 = b10;
+    *b2 = b11;
+    *b3 = b12;
+    *b4 = b13;
+    *b5 = b14;
+    *b6 = b15;
+    *b7 = b16;
+    *b8 = b17;
     let begin = *$cursor;
     *$cursor = $cursor.wrapping_add($frame_len);
     FrameParams { header, is_data: $is_data, range: [begin, *$cursor] }
@@ -27,10 +27,10 @@ macro_rules! frame_params {
 }
 
 use crate::{
-  collection::{ArrayVectorU8, Vector},
+  collections::{ArrayVectorU8, Vector},
   http::{Headers, Trailers, u31::U31},
   http2::{
-    Http2Buffer, Http2Data, Http2Error, Http2Inner, Http2SendStatus,
+    Http2Data, Http2Error, Http2Inner, Http2SendStatus,
     continuation_frame::ContinuationFrame,
     data_frame::DataFrame,
     headers_frame::HeadersFrame,
@@ -41,7 +41,7 @@ use crate::{
     stream_state::StreamState,
     window::WindowsPair,
   },
-  misc::{LeaseMut, Usize},
+  misc::Usize,
   stream::StreamWriter,
   sync::AtomicBool,
 };
@@ -55,7 +55,7 @@ pub(crate) fn encode_headers<const IS_CLIENT: bool>(
   enc_buffer: &mut Vector<u8>,
   headers: &Headers,
   hpack_enc: &mut HpackEncoder,
-  (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
+  (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
 ) -> crate::Result<()> {
   enc_buffer.clear();
   match headers.trailers() {
@@ -64,8 +64,8 @@ pub(crate) fn encode_headers<const IS_CLIENT: bool>(
         let bytes_len = hsreqh.bytes_len().wrapping_add(headers.bytes_len());
         hpack_enc.encode(enc_buffer, bytes_len, hsreqh.iter(), headers.iter())?;
       } else {
-        let bytes_len = hsresh.bytes_len().wrapping_add(headers.bytes_len());
-        hpack_enc.encode(enc_buffer, bytes_len, hsresh.iter(), headers.iter())?;
+        let bytes_len = hsresph.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsresph.iter(), headers.iter())?;
       }
     }
     Trailers::Mixed => {
@@ -74,8 +74,8 @@ pub(crate) fn encode_headers<const IS_CLIENT: bool>(
         let bytes_len = hsreqh.bytes_len().wrapping_add(headers.bytes_len());
         hpack_enc.encode(enc_buffer, bytes_len, hsreqh.iter(), iter)?;
       } else {
-        let bytes_len = hsresh.bytes_len().wrapping_add(headers.bytes_len());
-        hpack_enc.encode(enc_buffer, bytes_len, hsresh.iter(), iter)?;
+        let bytes_len = hsresph.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsresph.iter(), iter)?;
       }
     }
     Trailers::Tail(idx) => {
@@ -84,8 +84,8 @@ pub(crate) fn encode_headers<const IS_CLIENT: bool>(
         let bytes_len = hsreqh.bytes_len().wrapping_add(headers.bytes_len());
         hpack_enc.encode(enc_buffer, bytes_len, hsreqh.iter(), iter)?;
       } else {
-        let bytes_len = hsresh.bytes_len().wrapping_add(headers.bytes_len());
-        hpack_enc.encode(enc_buffer, bytes_len, hsresh.iter(), iter)?;
+        let bytes_len = hsresph.bytes_len().wrapping_add(headers.bytes_len());
+        hpack_enc.encode(enc_buffer, bytes_len, hsresph.iter(), iter)?;
       }
     }
   }
@@ -116,35 +116,36 @@ pub(crate) fn push_data(
   }
 
   if let Some(available_send_rest @ 1..=u32::MAX) = available_send.checked_sub(max_frame_len) {
-    let (frame0_len @ 1..=u32::MAX, right0) = split_bytes(data, *data_idx, max_frame_len) else {
+    let (frame_first_len @ 1..=u32::MAX, right0) = split_bytes(data, *data_idx, max_frame_len)
+    else {
       return Ok(false);
     };
-    let mut frame0 = DataFrame::new(frame0_len.into(), stream_id);
+    let mut frame_first = DataFrame::new(frame_first_len.into(), stream_id);
     let split_len = max_frame_len.min(available_send_rest);
-    if let (frame1_len @ 1..=u32::MAX, _) = split_bytes(right0, 0, split_len) {
-      let mut frame1 = DataFrame::new(frame1_len.into(), stream_id);
-      let last_idx = data_idx.wrapping_add(frame0_len).wrapping_add(frame1_len);
-      let should_stop = should_stop(data, &mut frame1, is_eos, last_idx);
-      frames.push(frame_params!(data_idx, frame0, frame0_len, true))?;
-      frames.push(frame_params!(data_idx, frame1, frame1_len, true))?;
-      wp.withdrawn_send(Some(stream_id), frame0_len.wrapping_add(frame1_len).into())?;
+    if let (frame_second_len @ 1..=u32::MAX, _) = split_bytes(right0, 0, split_len) {
+      let mut frame_second = DataFrame::new(frame_second_len.into(), stream_id);
+      let last_idx = data_idx.wrapping_add(frame_first_len).wrapping_add(frame_second_len);
+      let should_stop = should_stop(data, &mut frame_second, is_eos, last_idx);
+      frames.push(frame_params!(data_idx, frame_first, frame_first_len, true))?;
+      frames.push(frame_params!(data_idx, frame_second, frame_second_len, true))?;
+      wp.withdrawn_send(Some(stream_id), frame_first_len.wrapping_add(frame_second_len).into())?;
       Ok(should_stop)
     } else {
-      wp.withdrawn_send(Some(stream_id), frame0_len.into())?;
-      let last_idx = data_idx.wrapping_add(frame0_len);
-      let should_stop = should_stop(data, &mut frame0, is_eos, last_idx);
-      frames.push(frame_params!(data_idx, frame0, frame0_len, true))?;
+      wp.withdrawn_send(Some(stream_id), frame_first_len.into())?;
+      let last_idx = data_idx.wrapping_add(frame_first_len);
+      let should_stop = should_stop(data, &mut frame_first, is_eos, last_idx);
+      frames.push(frame_params!(data_idx, frame_first, frame_first_len, true))?;
       Ok(should_stop)
     }
   } else {
-    let (frame0_len @ 1..=u32::MAX, _) = split_bytes(data, *data_idx, available_send) else {
+    let (frame_first_len @ 1..=u32::MAX, _) = split_bytes(data, *data_idx, available_send) else {
       return Ok(false);
     };
-    let mut frame0 = DataFrame::new(frame0_len.into(), stream_id);
-    wp.withdrawn_send(Some(stream_id), frame0_len.into())?;
-    let last_idx = data_idx.wrapping_add(frame0_len);
-    let should_stop = should_stop(data, &mut frame0, is_eos, last_idx);
-    frames.push(frame_params!(data_idx, frame0, frame0_len, true))?;
+    let mut frame_first = DataFrame::new(frame_first_len.into(), stream_id);
+    wp.withdrawn_send(Some(stream_id), frame_first_len.into())?;
+    let last_idx = data_idx.wrapping_add(frame_first_len);
+    let should_stop = should_stop(data, &mut frame_first, is_eos, last_idx);
+    frames.push(frame_params!(data_idx, frame_first, frame_first_len, true))?;
     Ok(should_stop)
   }
 }
@@ -153,20 +154,20 @@ pub(crate) fn push_headers<const IS_CLIENT: bool>(
   enc_buffer: &[u8],
   frames: &mut ArrayVectorU8<FrameParams, 4>,
   hpack_idx: &mut u32,
-  (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
+  (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   is_eos: bool,
   max_frame_len: u32,
   stream_id: U31,
 ) -> crate::Result<bool> {
-  let mut frame0 = HeadersFrame::new((hsreqh, hsresh), stream_id);
+  let mut frame_first = HeadersFrame::new((hsreqh, hsresph), stream_id);
   let should_stop = if is_eos {
-    frame0.set_eos();
+    frame_first.set_eos();
     true
   } else {
     false
   };
   push_headers_or_trailers(
-    &mut frame0,
+    &mut frame_first,
     frames,
     hpack_idx,
     split_bytes(enc_buffer, 0, max_frame_len),
@@ -191,13 +192,13 @@ pub(crate) fn push_trailers(
   let (left0 @ 1..=u32::MAX, right0) = split_bytes(enc_buffer, 0, max_frame_len) else {
     return Ok(false);
   };
-  let mut frame0 = HeadersFrame::new(
+  let mut frame_first = HeadersFrame::new(
     (HpackStaticRequestHeaders::EMPTY, HpackStaticResponseHeaders::EMPTY),
     stream_id,
   );
-  frame0.set_eos();
+  frame_first.set_eos();
   push_headers_or_trailers(
-    &mut frame0,
+    &mut frame_first,
     frames,
     hpack_idx,
     (left0, right0),
@@ -215,19 +216,19 @@ pub(crate) fn push_trailers(
 ///
 /// * Control frames like Settings or `WindowUpdate` are out of scope.
 /// * At most one continuation frame can be sent
-pub(crate) async fn send_msg<HB, SW, const IS_CLIENT: bool>(
+pub(crate) async fn send_msg<SW, TM, const IS_CLIENT: bool>(
   data: &[u8],
+  enc_buffer: &mut Vector<u8>,
   headers: &Headers,
-  inner: &Http2Inner<HB, SW, IS_CLIENT>,
-  (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
+  inner: &Http2Inner<SW, TM, IS_CLIENT>,
+  (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   stream_id: U31,
   mut cb: impl FnMut(Http2DataPartsMut<'_, IS_CLIENT>),
 ) -> crate::Result<Http2SendStatus>
 where
-  HB: LeaseMut<Http2Buffer>,
   SW: StreamWriter,
 {
-  let mut enc_buffer = Vector::new();
+  enc_buffer.clear();
   let fut = async {
     let mut data_idx = 0;
     let mut frames = ArrayVectorU8::new();
@@ -238,22 +239,22 @@ where
         if connection_state(&inner.is_conn_open).is_closed() {
           return Poll::Ready(crate::Result::Ok(SendMsgState::ClosedConnection));
         }
-        let state = do_send_msg::<_, IS_CLIENT>(
+        let state = do_send_msg::<IS_CLIENT>(
           data,
           &mut data_idx,
-          &mut enc_buffer,
+          enc_buffer,
           &mut frames,
           &mut *lock_pin!(cx, inner.hd, hd_guard_pin),
           headers,
           &mut hpack_idx,
-          (hsreqh, hsresh),
+          (hsreqh, hsresph),
           stream_id,
           cx.waker(),
           &mut cb,
         )?;
         if let SendMsgState::NeedsMoreWindow = state {
           return Poll::Pending;
-        };
+        }
         Poll::Ready(Ok(state))
       })
       .await?;
@@ -261,11 +262,11 @@ where
         SendMsgState::ClosedConnection => break Http2SendStatus::ClosedConnection,
         SendMsgState::ClosedStream => break Http2SendStatus::ClosedStream,
         SendMsgState::Finished | SendMsgState::NeedsMoreWindow => break Http2SendStatus::Ok,
-        SendMsgState::GeneratedData(should_stop) => should_stop,
-        SendMsgState::GeneratedFastPath => true,
-        SendMsgState::GeneratedHeaders(should_stop) => should_stop,
+        SendMsgState::GeneratedData(should_stop) | SendMsgState::GeneratedHeaders(should_stop) => {
+          should_stop
+        }
+        SendMsgState::GeneratedFastPath | SendMsgState::GeneratedTrailers => true,
         SendMsgState::GeneratedHeadersAndData(should_stop) => should_stop,
-        SendMsgState::GeneratedTrailers => true,
       };
       write_frames(
         (enc_buffer.as_ref(), data),
@@ -277,7 +278,6 @@ where
       if should_stop {
         break Http2SendStatus::Ok;
       }
-      continue;
     };
     _trace!("Message has been sent");
     Ok(hss)
@@ -310,33 +310,33 @@ where
   }
 
   match frames.as_ref() {
-    [a] => {
-      let a_bytes = get((header, data), a);
-      write_array([&a.header, a_bytes], is_conn_open, stream_writer).await?;
+    [b0] => {
+      let a_bytes = get((header, data), b0);
+      write_array([&b0.header, a_bytes], is_conn_open, stream_writer).await?;
     }
-    [a, b] => {
-      let a_bytes = get((header, data), a);
-      let b_bytes = get((header, data), b);
-      write_array([&a.header, a_bytes, &b.header, b_bytes], is_conn_open, stream_writer).await?;
+    [b0, b1] => {
+      let a_bytes = get((header, data), b0);
+      let b_bytes = get((header, data), b1);
+      write_array([&b0.header, a_bytes, &b1.header, b_bytes], is_conn_open, stream_writer).await?;
     }
-    [a, b, c] => {
-      let a_bytes = get((header, data), a);
-      let b_bytes = get((header, data), b);
-      let c_bytes = get((header, data), c);
+    [b0, b1, b2] => {
+      let a_bytes = get((header, data), b0);
+      let b_bytes = get((header, data), b1);
+      let c_bytes = get((header, data), b2);
       write_array(
-        [&a.header, a_bytes, &b.header, b_bytes, &c.header, c_bytes],
+        [&b0.header, a_bytes, &b1.header, b_bytes, &b2.header, c_bytes],
         is_conn_open,
         stream_writer,
       )
       .await?;
     }
-    [a, b, c, d] => {
-      let a_bytes = get((header, data), a);
-      let b_bytes = get((header, data), b);
-      let c_bytes = get((header, data), c);
-      let d_bytes = get((header, data), d);
+    [b0, b1, b2, b3] => {
+      let a_bytes = get((header, data), b0);
+      let b_bytes = get((header, data), b1);
+      let c_bytes = get((header, data), b2);
+      let d_bytes = get((header, data), b3);
       write_array(
-        [&a.header, a_bytes, &b.header, b_bytes, &c.header, c_bytes, &d.header, d_bytes],
+        [&b0.header, a_bytes, &b1.header, b_bytes, &b2.header, c_bytes, &b3.header, d_bytes],
         is_conn_open,
         stream_writer,
       )
@@ -361,22 +361,23 @@ fn data_frame_len(bytes_len: usize) -> u32 {
   u32::try_from(bytes_len).unwrap_or_default()
 }
 
-fn do_send_msg<HB, const IS_CLIENT: bool>(
+#[expect(
+  clippy::too_many_lines,
+  reason = "Basically calls other functions that have a bunch of parameters"
+)]
+fn do_send_msg<const IS_CLIENT: bool>(
   data: &[u8],
   data_idx: &mut u32,
   enc_buffer: &mut Vector<u8>,
   frames: &mut ArrayVectorU8<FrameParams, 4>,
-  hd: &mut Http2Data<HB, IS_CLIENT>,
+  hd: &mut Http2Data<IS_CLIENT>,
   headers: &Headers,
   hpack_idx: &mut u32,
-  (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
+  (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   stream_id: U31,
   waker: &Waker,
   cb: &mut impl FnMut(Http2DataPartsMut<'_, IS_CLIENT>),
-) -> crate::Result<SendMsgState>
-where
-  HB: LeaseMut<Http2Buffer>,
-{
+) -> crate::Result<SendMsgState> {
   frames.clear();
   let hdpm = hd.parts_mut();
   let scrp = scrp_mut(&mut hdpm.hb.scrps, stream_id)?;
@@ -390,12 +391,12 @@ where
 
   let Ok(available_send @ 1..=u32::MAX) = u32::try_from(wp.available_send()) else {
     if enc_buffer.is_empty() {
-      encode_headers::<IS_CLIENT>(enc_buffer, headers, &mut hdpm.hb.hpack_enc, (hsreqh, hsresh))?;
+      encode_headers::<IS_CLIENT>(enc_buffer, headers, &mut hdpm.hb.hpack_enc, (hsreqh, hsresph))?;
       let should_stop = push_headers::<IS_CLIENT>(
         enc_buffer,
         frames,
         hpack_idx,
-        (hsreqh, hsresh),
+        (hsreqh, hsresph),
         is_eos(data, *data_idx, headers),
         hdpm.hps.max_frame_len,
         stream_id,
@@ -422,7 +423,7 @@ where
       headers,
       &mut hdpm.hb.hpack_enc,
       hpack_idx,
-      (hsreqh, hsresh),
+      (hsreqh, hsresph),
       hdpm.hps.max_frame_len,
       stream_id,
       &mut wp,
@@ -431,44 +432,21 @@ where
       final_generic_calls!(cb, hdpm, scrp);
       return Ok(SendMsgState::GeneratedFastPath);
     }
-    let should_stop = push_headers::<IS_CLIENT>(
+    let should_stop_from_headers = push_headers::<IS_CLIENT>(
       enc_buffer,
       frames,
       hpack_idx,
-      (hsreqh, hsresh),
+      (hsreqh, hsresph),
       is_eos(data, *data_idx, headers),
       hdpm.hps.max_frame_len,
       stream_id,
     )?;
-    if should_stop {
+    if should_stop_from_headers {
       final_generic_calls!(cb, hdpm, scrp);
       return Ok(SendMsgState::GeneratedHeaders(true));
-    } else {
-      change_initial_stream_state::<IS_CLIENT>(&mut scrp.stream_state);
-      let should_stop = push_data(
-        available_send,
-        data,
-        data_idx,
-        frames,
-        !headers.trailers().has_any(),
-        hdpm.hps.max_frame_len,
-        stream_id,
-        &mut wp,
-      )?;
-      if should_stop {
-        final_generic_calls!(cb, hdpm, scrp);
-      } else {
-        scrp.waker.clone_from(waker);
-        if wp.available_send() > 0 {
-          waker.wake_by_ref();
-        }
-      }
-      return Ok(SendMsgState::GeneratedHeadersAndData(should_stop));
     }
-  }
-
-  if *Usize::from(*data_idx) < data.len() {
-    let should_stop = push_data(
+    change_initial_stream_state::<IS_CLIENT>(&mut scrp.stream_state);
+    let should_stop_from_data = push_data(
       available_send,
       data,
       data_idx,
@@ -478,7 +456,7 @@ where
       stream_id,
       &mut wp,
     )?;
-    if should_stop {
+    if should_stop_from_data {
       final_generic_calls!(cb, hdpm, scrp);
     } else {
       scrp.waker.clone_from(waker);
@@ -486,7 +464,29 @@ where
         waker.wake_by_ref();
       }
     }
-    return Ok(SendMsgState::GeneratedData(should_stop));
+    return Ok(SendMsgState::GeneratedHeadersAndData(should_stop_from_data));
+  }
+
+  if *Usize::from(*data_idx) < data.len() {
+    let should_stop_from_data = push_data(
+      available_send,
+      data,
+      data_idx,
+      frames,
+      !headers.trailers().has_any(),
+      hdpm.hps.max_frame_len,
+      stream_id,
+      &mut wp,
+    )?;
+    if should_stop_from_data {
+      final_generic_calls!(cb, hdpm, scrp);
+    } else {
+      scrp.waker.clone_from(waker);
+      if wp.available_send() > 0 {
+        waker.wake_by_ref();
+      }
+    }
+    return Ok(SendMsgState::GeneratedData(should_stop_from_data));
   }
 
   if headers.trailers().has_any() {
@@ -550,12 +550,12 @@ fn push_fast_path<const IS_CLIENT: bool>(
   headers: &Headers,
   hpack_enc: &mut HpackEncoder,
   hpack_idx: &mut u32,
-  (hsreqh, hsresh): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
+  (hsreqh, hsresph): (HpackStaticRequestHeaders<'_>, HpackStaticResponseHeaders),
   max_frame_len: u32,
   stream_id: U31,
   wp: &mut WindowsPair<'_>,
 ) -> crate::Result<()> {
-  encode_headers::<IS_CLIENT>(enc_buffer, headers, hpack_enc, (hsreqh, hsresh))?;
+  encode_headers::<IS_CLIENT>(enc_buffer, headers, hpack_enc, (hsreqh, hsresph))?;
   let Some(data_len) = has_delimited_bytes(data, available_send.min(max_frame_len)) else {
     return Ok(());
   };
@@ -574,35 +574,45 @@ fn push_fast_path<const IS_CLIENT: bool>(
       enc_buffer.truncate(idx);
       return Ok(());
     };
-    let mut frame0 = HeadersFrame::new((hsreqh, hsresh), stream_id);
-    let frame1 = DataFrame::new(data_len, stream_id);
-    let mut frame2 = HeadersFrame::new(
+    let mut frame_first = HeadersFrame::new((hsreqh, hsresph), stream_id);
+    let frame_second = DataFrame::new(data_len, stream_id);
+    let mut frame_third = HeadersFrame::new(
       (HpackStaticRequestHeaders::EMPTY, HpackStaticResponseHeaders::EMPTY),
       stream_id,
     );
-    frame0.set_eoh();
-    frame2.set_eoh();
-    frame2.set_eos();
-    frames.push(frame_params!(hpack_idx, frame0, data_frame_len(headers_bytes.len()), false))?;
-    frames.push(frame_params!(data_idx, frame1, data_len.u32(), true))?;
-    frames.push(frame_params!(hpack_idx, frame2, data_frame_len(trailers_bytes.len()), false))?;
+    frame_first.set_eoh();
+    frame_third.set_eoh();
+    frame_third.set_eos();
+    frames.push(frame_params!(
+      hpack_idx,
+      frame_first,
+      data_frame_len(headers_bytes.len()),
+      false
+    ))?;
+    frames.push(frame_params!(data_idx, frame_second, data_len.u32(), true))?;
+    frames.push(frame_params!(
+      hpack_idx,
+      frame_third,
+      data_frame_len(trailers_bytes.len()),
+      false
+    ))?;
   } else {
     let Some(_) = has_delimited_bytes(enc_buffer, max_frame_len) else {
       return Ok(());
     };
-    let mut frame0 = HeadersFrame::new((hsreqh, hsresh), stream_id);
-    let mut frame1 = DataFrame::new(data_len, stream_id);
-    frame0.set_eoh();
-    frame1.set_eos();
-    frames.push(frame_params!(hpack_idx, frame0, data_frame_len(enc_buffer.len()), false))?;
-    frames.push(frame_params!(data_idx, frame1, data_len.u32(), true))?;
+    let mut frame_first = HeadersFrame::new((hsreqh, hsresph), stream_id);
+    let mut frame_second = DataFrame::new(data_len, stream_id);
+    frame_first.set_eoh();
+    frame_second.set_eos();
+    frames.push(frame_params!(hpack_idx, frame_first, data_frame_len(enc_buffer.len()), false))?;
+    frames.push(frame_params!(data_idx, frame_second, data_len.u32(), true))?;
   }
   wp.withdrawn_send(Some(stream_id), data_len)?;
   Ok(())
 }
 
 fn push_headers_or_trailers(
-  frame0: &mut HeadersFrame<'_>,
+  frame_first: &mut HeadersFrame<'_>,
   frames: &mut ArrayVectorU8<FrameParams, 4>,
   hpack_idx: &mut u32,
   (left0_len, right0): (u32, &[u8]),
@@ -610,16 +620,16 @@ fn push_headers_or_trailers(
   stream_id: U31,
 ) -> crate::Result<()> {
   if let (left1_len @ 1..=u32::MAX, right1) = split_bytes(right0, 0, max_frame_len) {
-    let mut frame1 = ContinuationFrame::new(stream_id);
+    let mut frame_second = ContinuationFrame::new(stream_id);
     if !right1.is_empty() {
       return Err(protocol_err(Http2Error::HeadersOverflow));
     }
-    frame1.set_eoh();
-    frames.push(frame_params!(hpack_idx, frame0, left0_len, false))?;
-    frames.push(frame_params!(hpack_idx, frame1, left1_len, false))?;
+    frame_second.set_eoh();
+    frames.push(frame_params!(hpack_idx, frame_first, left0_len, false))?;
+    frames.push(frame_params!(hpack_idx, frame_second, left1_len, false))?;
   } else {
-    frame0.set_eoh();
-    frames.push(frame_params!(hpack_idx, frame0, left0_len, false))?;
+    frame_first.set_eoh();
+    frames.push(frame_params!(hpack_idx, frame_first, left0_len, false))?;
   }
   Ok(())
 }

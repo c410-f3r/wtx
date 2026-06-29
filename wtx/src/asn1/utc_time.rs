@@ -1,10 +1,10 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, Asn1Error, Len, UTC_TIME_TAG, decode_asn1_tlv,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Asn1Error, Len, UTC_TIME_TAG, decode_asn1_tlv,
     parse_datetime,
   },
   calendar::{DateTime, Utc},
-  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10, GenericCodec},
+  codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, FromRadix10 as _, GenericCodec},
 };
 
 /// X509 time, which has two different representations.
@@ -14,25 +14,25 @@ pub struct UtcTime(
   pub DateTime<Utc>,
 );
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for UtcTime {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for UtcTime {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    let (UTC_TIME_TAG, _, [a, b, c, d, e, f, g, h, i, j, k, l, b'Z'], rest) =
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
+    let (UTC_TIME_TAG, _, [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b'Z'], rest) =
       decode_asn1_tlv(dw.bytes)?
     else {
       return Err(Asn1Error::InvalidUtcTime.into());
     };
-    let mut year = i16::from_radix_10(&[*a, *b])?;
+    let mut year = i16::from_radix_10(&[*b0, *b1])?;
     year = if year >= 50 { 1900i16.wrapping_add(year) } else { 2000i16.wrapping_add(year) };
-    let value = parse_datetime(year, [c, d, e, f, g, h, i, j, k, l])?;
+    let value = parse_datetime(year, [b2, b3, b4, b5, b6, b7, b8, b9, b10, b11])?;
     dw.bytes = rest;
     Ok(Self(value))
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for UtcTime {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for UtcTime {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     let _ = ew.buffer.extend_from_copyable_slices([
       &[UTC_TIME_TAG][..],
       &*Len::from_usize(0, 13)?,

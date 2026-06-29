@@ -5,7 +5,7 @@ macro_rules! impl_primitive {
       E: From<crate::Error>,
     {
       #[inline]
-      fn decode(dw: &mut DecodeWrapper<'_, '_>) -> Result<Self, E> {
+      fn decode(dw: &mut PostgresDecodeWrapper<'_, '_>) -> Result<Self, E> {
         if let &[$($elem,)+] = dw.bytes() {
           let array = [$($elem),+];
           #[allow(unused_assignments, unused_mut, reason = "depends on macro")]
@@ -28,8 +28,8 @@ macro_rules! impl_primitive {
       E: From<crate::Error>,
     {
       #[inline]
-      fn encode(&self, ew: &mut EncodeWrapper<'_, '_>) -> Result<(), E> {
-        ew.buffer().extend_from_slice(&self.to_be_bytes())?;
+      fn encode(&self, ew: &mut PostgresEncodeWrapper<'_, '_>) -> Result<(), E> {
+        ew.buffer().inner_mut().extend_from_copyable_slice(&self.to_be_bytes())?;
         Ok(())
       }
     }
@@ -80,13 +80,13 @@ macro_rules! test {
     #[cfg(test)]
     #[test]
     fn $name() {
-      let vec = &mut crate::misc::FilledBuffer::default();
-      let mut sw = crate::misc::SuffixWriter::new(0, vec.vector_mut());
-      let mut ew = EncodeWrapper::new(&mut sw);
+      let mut vec = crate::collections::Vector::new();
+      let mut suffix_pusher = vec.suffix_pusher();
+      let mut ew = PostgresEncodeWrapper::new(&mut suffix_pusher);
       let instance: $ty = $instance;
       Encode::<Postgres<crate::Error>>::encode(&instance, &mut ew).unwrap();
-      let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&mut DecodeWrapper::new(
-        ew.buffer().curr_bytes(),
+      let decoded: $ty = Decode::<Postgres<crate::Error>>::decode(&mut PostgresDecodeWrapper::new(
+        ew.buffer().curr(),
         "",
         crate::database::client::postgres::Ty::Any,
       ))

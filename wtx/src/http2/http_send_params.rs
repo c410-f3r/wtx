@@ -4,7 +4,7 @@ use crate::{
     DEFAULT_MAX_HEADERS_LEN, DEFAULT_MAX_HPACK_LEN, MAX_FRAME_LEN_LOWER_BOUND,
     MAX_FRAME_LEN_UPPER_BOUND, u31::U31,
   },
-  http2::{Scrp, Sorp, Window, hpack_encoder::HpackEncoder, settings_frame::SettingsFrame},
+  http2::{Scorp, Sovrp, Window, hpack_encoder::HpackEncoder, settings_frame::SettingsFrame},
 };
 use core::cmp::Ordering;
 
@@ -23,9 +23,9 @@ impl HttpSendParams {
   pub(crate) fn update(
     &mut self,
     hpack_enc: &mut HpackEncoder,
-    scrp: &mut Scrp,
+    scorp: &mut Scorp,
     sf: &SettingsFrame,
-    sorp: &mut Sorp,
+    sovrp: &mut Sovrp,
   ) -> crate::Result<()> {
     if let Some(elem) = sf.enable_connect_protocol() {
       self.enable_connect_protocol = u32::from(elem);
@@ -46,11 +46,11 @@ impl HttpSendParams {
             self.initial_window_len.wrapping_sub(initial_window_size),
           ),
         };
-        for (stream_id, elem) in scrp {
+        for (stream_id, elem) in scorp {
           cb(diff, *stream_id, elem.windows.send_mut())?;
           elem.waker.wake_by_ref();
         }
-        for (stream_id, elem) in sorp {
+        for (stream_id, elem) in sovrp {
           cb(diff, *stream_id, elem.windows.send_mut())?;
           elem.waker.wake_by_ref();
         }

@@ -3,7 +3,7 @@ use crate::{
     Id,
     protocol::{JsonRpcEncoder, VerbatimEncoder},
   },
-  collection::Vector,
+  collections::Vector,
 };
 
 /// # Packages Auxiliary
@@ -65,11 +65,12 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
   }
 
   /// Should be used after a new request construction
+  #[inline]
   pub const fn increase_requests_num(&mut self) {
     self.built_requests = self.built_requests.wrapping_add(1);
   }
 
-  /// Constructs [JsonRpcEncoder] and also increases the number of requests.
+  /// Constructs [`JsonRpcEncoder`] and also increases the number of requests.
   #[inline]
   pub const fn json_rpc_request<P>(
     &mut self,
@@ -80,7 +81,7 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> {
     JsonRpcEncoder { id: self.built_requests, method, params }
   }
 
-  /// Constructs [VerbatimEncoder] and also increases the number of requests.
+  /// Constructs [`VerbatimEncoder`] and also increases the number of requests.
   #[inline]
   pub const fn verbatim_request<D>(&mut self, data: D) -> VerbatimEncoder<D> {
     self.increase_requests_num();

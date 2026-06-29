@@ -1,6 +1,6 @@
 use crate::{
   codec::{Decode, DecodeSeq, DecodeWrapper, Encode, EncodeWrapper, GenericCodec, Id},
-  collection::Vector,
+  collections::Vector,
   misc::Lease,
 };
 use core::{
@@ -101,7 +101,7 @@ mod serde {
   use crate::codec::protocol::JsonRpcEncoder;
   use serde::{
     Serialize,
-    ser::{SerializeStruct, Serializer},
+    ser::{SerializeStruct as _, Serializer},
   };
 
   impl<P> Serialize for JsonRpcEncoder<P>

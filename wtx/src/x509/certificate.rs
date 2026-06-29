@@ -1,32 +1,38 @@
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, Asn1EncodeWrapper, BitString, Len, SEQUENCE_TAG, asn1_writer,
+    Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, BitString, Len, SEQUENCE_TAG, asn1_writer,
     decode_asn1_tlv, parse_der_from_pem_range,
   },
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
-  collection::TryExtend,
-  misc::{LeaseMut, Pem},
+  collections::TryExtend,
+  misc::{Lease, LeaseMut, Pem},
   x509::{AlgorithmIdentifier, TbsCertificate, X509CvError, X509Error},
 };
 
 /// A complete X.509 certificate comprising the signed data, algorithm, and signature.
 #[derive(Debug, PartialEq)]
-pub struct Certificate<'bytes> {
+pub struct Certificate<B>
+where
+  B: Lease<[u8]>,
+{
   /// See [`AlgorithmIdentifier`].
-  signature_algorithm: AlgorithmIdentifier<'bytes>,
-  /// The digital signature computed over the DER encoding of tbs_certificate.
-  signature_value: BitString<&'bytes [u8]>,
+  signature_algorithm: AlgorithmIdentifier<B>,
+  /// The digital signature computed over the DER encoding of [`TbsCertificate`].
+  signature_value: BitString<B>,
   /// See [`TbsCertificate`].
-  tbs_certificate: TbsCertificate<'bytes>,
+  tbs_certificate: TbsCertificate<B>,
 }
 
-impl<'bytes> Certificate<'bytes> {
+impl<'this, B> Certificate<B>
+where
+  B: Lease<[u8]>,
+{
   /// Does basic validation like signature mismatch.
   #[inline]
   pub fn new(
-    signature_algorithm: AlgorithmIdentifier<'bytes>,
-    signature_value: BitString<&'bytes [u8]>,
-    tbs_certificate: TbsCertificate<'bytes>,
+    signature_algorithm: AlgorithmIdentifier<B>,
+    signature_value: BitString<B>,
+    tbs_certificate: TbsCertificate<B>,
   ) -> crate::Result<Self> {
     if signature_algorithm.algorithm != tbs_certificate.signature.algorithm {
       return Err(X509CvError::CertificateAlgorithmMismatch.into());
@@ -36,65 +42,77 @@ impl<'bytes> Certificate<'bytes> {
 
   /// From DER data
   #[inline]
-  pub fn from_der(bytes: &'bytes [u8]) -> crate::Result<Self> {
-    Self::decode(&mut DecodeWrapper::new(bytes, Asn1DecodeWrapper::default()))
+  pub fn from_der(bytes: &'this [u8]) -> crate::Result<Self>
+  where
+    B: TryFrom<&'this [u8]>,
+    <B as TryFrom<&'this [u8]>>::Error: Into<crate::Error>,
+  {
+    Self::decode(&mut DecodeWrapper::new(bytes, Asn1DecodeWrapperAux::default()))
   }
 
   /// From PEM data
   #[inline]
-  pub fn from_pem<B>(buffer: &'bytes mut B, bytes: &[u8]) -> crate::Result<Self>
+  pub fn from_pem<BUF>(buffer: &'this mut BUF, bytes: &[u8]) -> crate::Result<(Self, &'this [u8])>
   where
-    B: LeaseMut<[u8]> + TryExtend<(u8, usize)>,
+    B: TryFrom<&'this [u8]>,
+    BUF: LeaseMut<[u8]> + TryExtend<(u8, usize)>,
+    <B as TryFrom<&'this [u8]>>::Error: Into<crate::Error>,
   {
     let pem = Pem::decode(&mut DecodeWrapper::new(bytes, &mut *buffer))?;
-    parse_der_from_pem_range(buffer.lease(), &pem)
+    let slice: &'this [u8] = <BUF as Lease<[u8]>>::lease(buffer);
+    parse_der_from_pem_range(slice, &pem)
   }
 
   /// Returns the inner elements
   #[inline]
-  pub fn into_parts(
-    self,
-  ) -> (AlgorithmIdentifier<'bytes>, BitString<&'bytes [u8]>, TbsCertificate<'bytes>) {
+  pub fn into_parts(self) -> (AlgorithmIdentifier<B>, BitString<B>, TbsCertificate<B>) {
     (self.signature_algorithm, self.signature_value, self.tbs_certificate)
   }
 
   /// See [`AlgorithmIdentifier`].
   #[inline]
-  pub const fn signature_algorithm(&self) -> &AlgorithmIdentifier<'bytes> {
+  pub const fn signature_algorithm(&self) -> &AlgorithmIdentifier<B> {
     &self.signature_algorithm
   }
 
   /// Signature derived from the bytes of [`TbsCertificate`].
   #[inline]
-  pub const fn signature_value(&self) -> &BitString<&'bytes [u8]> {
+  pub const fn signature_value(&self) -> &BitString<B> {
     &self.signature_value
   }
 
   /// See [`TbsCertificate`].
   #[inline]
-  pub const fn tbs_certificate(&self) -> &TbsCertificate<'bytes> {
+  pub const fn tbs_certificate(&self) -> &TbsCertificate<B> {
     &self.tbs_certificate
   }
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for Certificate<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for Certificate<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    let (SEQUENCE_TAG, _, value, rest) = decode_asn1_tlv(dw.bytes)? else {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
+    let (SEQUENCE_TAG, len, value, []) = decode_asn1_tlv(dw.bytes)? else {
       return Err(X509Error::InvalidCertificate.into());
     };
     dw.bytes = value;
+    dw.decode_aux.inc_curr_idx(len.bytes().len().wrapping_add(1).into());
     let tbs_certificate = TbsCertificate::decode(dw)?;
     let signature_algorithm = AlgorithmIdentifier::decode(dw)?;
     let signature_value = BitString::decode(dw)?;
-    dw.bytes = rest;
     Self::new(signature_algorithm, signature_value, tbs_certificate)
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Certificate<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for Certificate<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     asn1_writer(ew, Len::MAX_THREE_BYTES, SEQUENCE_TAG, |local_ew| {
       self.tbs_certificate.encode(local_ew)?;
       self.signature_algorithm.encode(local_ew)?;
@@ -106,7 +124,7 @@ impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for Certificate<'_> {
 
 #[cfg(test)]
 mod tests {
-  use crate::{collection::Vector, x509::Certificate};
+  use crate::{collections::Vector, x509::Certificate};
 
   #[test]
   fn empty_sequence() {
@@ -121,6 +139,6 @@ mod tests {
     ZXhhbXBsZS5jb20wCgYIKoZIzj0EAwIDRwAwRAIgS9iooj3BeyKGWamWBmjt1Sou\n\
     GsT1IxNxAG6MSRj8vXkCIA6hk7SbTgKaaF0MvHzE8kOyIHivtVXv63XwyC3326R0\n\
     -----END CERTIFICATE-----\n";
-    drop(Certificate::from_pem(&mut Vector::new(), pem.as_bytes()).unwrap());
+    drop(Certificate::<&[u8]>::from_pem(&mut Vector::new(), pem.as_bytes()).unwrap());
   }
 }

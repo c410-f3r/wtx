@@ -1,4 +1,4 @@
-use crate::collection::ShortStrU8;
+use crate::collections::ShortStrU8;
 use core::panic::Location;
 
 /// Error with additional information about location

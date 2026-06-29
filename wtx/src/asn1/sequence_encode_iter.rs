@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1EncodeWrapper, Len, asn1_writer},
+  asn1::{Asn1EncodeWrapperAux, Len, asn1_writer},
   codec::{Encode, EncodeWrapper, GenericCodec},
 };
 
@@ -13,18 +13,19 @@ pub struct SequenceEncodeIter<I>(
 impl<E, I> SequenceEncodeIter<I>
 where
   I: Iterator<Item = E>,
-  E: Encode<GenericCodec<(), Asn1EncodeWrapper>>,
+  E: Encode<GenericCodec<(), Asn1EncodeWrapperAux>>,
 {
   /// The encoding of an collection object requires the injection of a tag and the guessing of
   /// its entire length for performance reasons.
+  #[inline]
   pub fn encode(
     &mut self,
-    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>,
+    ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>,
     len_guess: Len,
     tag: u8,
   ) -> crate::Result<()> {
     ew.encode_aux.len_guess = len_guess;
-    let rslt = asn1_writer(ew, ew.encode_aux.len_guess.clone(), tag, |local_ew| {
+    let rslt = asn1_writer(ew, ew.encode_aux.len_guess, tag, |local_ew| {
       for elem in &mut self.0 {
         elem.encode(local_ew)?;
       }

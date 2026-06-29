@@ -20,8 +20,8 @@ pub mod toml_parser;
 
 use crate::{
   codec::CodecController,
-  collection::Vector,
-  database::{DatabaseTy, Identifier, executor::Executor},
+  collections::Vector,
+  database::{DatabaseTy, Identifier, db_client::DbClient},
   misc::Lease,
 };
 use alloc::string::String;
@@ -54,7 +54,7 @@ pub type EmbeddedMigrationsTy = &'static [(
 pub type Uid = u32;
 
 /// Contains methods responsible to manage database migrations.
-pub trait SchemaManagement: Executor {
+pub trait SchemaManagement: DbClient {
   /// Retrieves all inserted elements.
   fn all_elements(
     &mut self,
@@ -72,7 +72,7 @@ pub trait SchemaManagement: Executor {
     &mut self,
   ) -> impl Future<Output = Result<(), <Self::Database as CodecController>::Error>>;
 
-  /// Removes every migration of a given group `mg`` that is greater than `uid`.
+  /// Removes every migration of a given group `mg` that is greater than `uid`.
   fn delete_migrations<S>(
     &mut self,
     buffer_cmd: &mut String,
@@ -262,10 +262,10 @@ impl SchemaManagement for () {
 #[cfg(feature = "postgres")]
 mod postgres {
   use crate::{
-    collection::Vector,
+    collections::Vector,
     database::{
-      DatabaseTy, Executor as _, Identifier,
-      client::postgres::{ExecutorBuffer, PostgresExecutor},
+      DatabaseTy, DbClient as _, Identifier,
+      client::postgres::PostgresClient,
       schema_manager::{
         _WTX_SCHEMA, DbMigration, SchemaManagement, Uid, UserMigration, UserMigrationGroup,
         fixed_sql_commands::{
@@ -274,16 +274,17 @@ mod postgres {
         },
       },
     },
-    misc::{Lease, LeaseMut},
+    misc::Lease,
     stream::Stream,
+    tls::TlsMode,
   };
   use alloc::string::String;
 
-  impl<E, EB, STREAM> SchemaManagement for PostgresExecutor<E, EB, STREAM>
+  impl<E, STREAM, TM> SchemaManagement for PostgresClient<E, STREAM, TM>
   where
     E: From<crate::Error>,
-    EB: LeaseMut<ExecutorBuffer>,
     STREAM: Stream,
+    TM: TlsMode,
   {
     #[inline]
     async fn all_elements(

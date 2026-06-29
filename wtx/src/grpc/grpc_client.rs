@@ -3,10 +3,10 @@ use crate::{
     Decode, DecodeWrapper, Encode, GenericCodec,
     protocol::{VerbatimDecoder, VerbatimEncoder},
   },
-  collection::Clear,
+  collections::{Clear, Vector},
   grpc::serialize,
   http::{
-    Header, Headers, HttpClient, KnownHeaderName, MsgBuffer, MsgBufferString, MsgDataMut,
+    Header, Headers, HttpClient, KnownHeaderName, MsgBuffer, MsgBufferString, MsgDataMut as _,
     ReqBuilder, Response, WTX_USER_AGENT,
   },
   misc::Lease,
@@ -17,6 +17,7 @@ use crate::{
 pub struct GrpcClient<C, DRSR> {
   client: C,
   drsr: DRSR,
+  enc_buffer: Vector<u8>,
 }
 
 impl<C, DRSR> GrpcClient<C, DRSR>
@@ -26,12 +27,12 @@ where
   /// Constructor
   #[inline]
   pub const fn new(client: C, drsr: DRSR) -> Self {
-    Self { client, drsr }
+    Self { client, drsr, enc_buffer: Vector::new() }
   }
 
   /// Deserialize From Response Bytes
   #[inline]
-  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &mut &'de [u8]) -> crate::Result<T>
+  pub fn des_from_res_bytes<'de, T>(&mut self, bytes: &'de [u8]) -> crate::Result<T>
   where
     VerbatimDecoder<T>: for<'drsr> Decode<'de, GenericCodec<&'drsr mut DRSR, &'drsr mut DRSR>>,
   {
@@ -58,9 +59,9 @@ where
     serialize(&mut msg_buffer.body, VerbatimEncoder { data }, &mut self.drsr)?;
     Self::push_headers(&mut msg_buffer.headers)?;
     let rb = ReqBuilder::post(msg_buffer);
-    let req_id = self.client.send_req(rb.into_request()).await?;
+    let req_id = self.client.send_req(&mut self.enc_buffer, rb.into_request()).await?;
     let res = self.client.recv_res(req_id).await?;
-    Ok(Response::http2(res.msg_data, res.status_code))
+    Ok(Response::new(res.msg_data, res.status_code))
   }
 
   #[inline]

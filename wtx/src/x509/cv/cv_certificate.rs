@@ -1,21 +1,29 @@
+macro_rules! check_duplicated {
+  ($has_duplicated:expr, $opt:expr) => {
+    if $opt.is_some() {
+      $has_duplicated = true;
+      break;
+    }
+  };
+}
+
 use crate::{
   asn1::{
-    Asn1DecodeWrapper, OID_X509_EXT_AUTHORITY_KEY_IDENTIFIER, OID_X509_EXT_BASIC_CONSTRAINTS,
+    Asn1DecodeWrapperAux, OID_X509_EXT_AUTHORITY_KEY_IDENTIFIER, OID_X509_EXT_BASIC_CONSTRAINTS,
     OID_X509_EXT_CRL_DISTRIBUTION_POINTS, OID_X509_EXT_EXTENDED_KEY_USAGE, OID_X509_EXT_KEY_USAGE,
     OID_X509_EXT_NAME_CONSTRAINTS, OID_X509_EXT_POLICY_CONSTRAINTS, OID_X509_EXT_SUBJECT_ALT_NAME,
     OID_X509_EXT_SUBJECT_KEY_IDENTIFIER,
   },
-  codec::{Decode, DecodeWrapper},
-  misc::RefOrOwned,
+  codec::{Decode as _, DecodeWrapper},
+  misc::Lease,
   x509::{
-    AlgorithmIdentifier, Certificate, FlaggedExtension, SerialNumber, SubjectPublicKeyInfo,
+    AlgorithmIdentifier, Certificate, FlaggedExtension, Name, SerialNumber, SubjectPublicKeyInfo,
     TbsCertificate, Validity, X509CvError,
     cv::{validate_ee_static, validate_ica_static},
     extensions::{
       AuthorityKeyIdentifier, BasicConstraints, CrlDistributionPoints, ExtendedKeyUsage, KeyUsage,
       NameConstraints, SubjectAlternativeName, SubjectKeyIdentifier,
     },
-    name::Name,
   },
 };
 
@@ -29,46 +37,54 @@ use crate::{
 ///
 /// * Clients should concurrently or sequentially call [`Self::validate_chain`] and
 ///   [`Self::validate_signature`] to fully validate certificates.
-pub type CvEndEntity<'any, 'bytes> = CvCertificate<'any, 'bytes, true>;
+pub type CvEndEntity<B> = CvCertificate<B, true>;
 
 /// Chain Validation - Intermediate
 ///
-/// This certificate is considered an intermediate. There are no entrypoints for chaiCvvalidation.
-pub type CvIntermediate<'any, 'bytes> = CvCertificate<'any, 'bytes, false>;
+/// This certificate is considered an intermediate. There are no entrypoints for chain validation.
+pub type CvIntermediate<B> = CvCertificate<B, false>;
 
 /// Chain Validation - Certificate
 ///
 /// Full X.509 certificates are huge and because of that, this particular structure only has the
 /// fields required to perform a chain validation.
-#[derive(Debug, PartialEq)]
-pub struct CvCertificate<'any, 'bytes, const IS_EE: bool> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct CvCertificate<B, const IS_EE: bool>
+where
+  B: Lease<[u8]>,
+{
   pub(crate) authority_key_identifier: Option<AuthorityKeyIdentifier>,
   pub(crate) basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
-  pub(crate) crl_distribution_points: Option<CrlDistributionPoints<'bytes>>,
+  pub(crate) crl_distribution_points: Option<CrlDistributionPoints<B>>,
   pub(crate) extended_key_usage: Option<FlaggedExtension<ExtendedKeyUsage>>,
   pub(crate) has_unknown_critical_extension: bool,
   pub(crate) is_self_signed: bool,
-  pub(crate) issuer: RefOrOwned<'any, Name<'bytes>>,
+  pub(crate) issuer: B,
   pub(crate) key_usage: Option<KeyUsage>,
-  pub(crate) name_constraints: Option<NameConstraints<'bytes>>,
+  pub(crate) name_constraints: Option<NameConstraints<B>>,
   pub(crate) serial: SerialNumber,
-  pub(crate) signature: &'bytes [u8],
-  pub(crate) signature_algorithm: RefOrOwned<'any, AlgorithmIdentifier<'bytes>>,
-  pub(crate) signature_msg: &'bytes [u8],
-  pub(crate) subject_public_key_info: RefOrOwned<'any, SubjectPublicKeyInfo<'bytes>>,
-  pub(crate) subject: RefOrOwned<'any, Name<'bytes>>,
-  pub(crate) subject_alternative_name: Option<FlaggedExtension<SubjectAlternativeName<'bytes>>>,
+  pub(crate) signature: B,
+  pub(crate) signature_algorithm: AlgorithmIdentifier<B>,
+  pub(crate) signature_msg: B,
+  pub(crate) subject_public_key_info: SubjectPublicKeyInfo<B>,
+  pub(crate) subject: Name<B>,
+  pub(crate) subject_alternative_name: Option<FlaggedExtension<SubjectAlternativeName<B>>>,
   pub(crate) subject_key_identifier: Option<FlaggedExtension<SubjectKeyIdentifier>>,
   pub(crate) validity: Validity,
 }
 
-impl<'bytes, const IS_EE: bool> TryFrom<Certificate<'bytes>> for CvCertificate<'_, 'bytes, IS_EE> {
-  type Error = crate::Error;
-
+impl<'cert, const IS_EE: bool> CvCertificate<&'cert [u8], IS_EE> {
+  /// New instances that consumes the originating certificate.
+  ///
+  /// For verification purposes it is also necessary to provide the signature message that is
+  /// composed by the bytes of `TbsCertificate`.
   #[inline]
-  fn try_from(value: Certificate<'bytes>) -> Result<Self, Self::Error> {
-    let (signature_algorithm, signature_value, tbs) = value.into_parts();
-    let parts = Parts::new::<IS_EE>(&tbs)?;
+  pub fn from_certificate(
+    certificate: Certificate<&'cert [u8]>,
+    signature_msg: &'cert [u8],
+  ) -> crate::Result<Self> {
+    let (signature_algorithm, signature_value, tbs) = certificate.into_parts();
+    let parts = CvCertificateExtensions::new::<IS_EE>(&tbs)?;
     Ok(Self {
       authority_key_identifier: parts.authority_key_identifier,
       basic_constraints: parts.basic_constraints,
@@ -76,79 +92,38 @@ impl<'bytes, const IS_EE: bool> TryFrom<Certificate<'bytes>> for CvCertificate<'
       extended_key_usage: parts.extended_key_usage,
       has_unknown_critical_extension: parts.has_unknown_critical_extension,
       is_self_signed: parts.is_self_signed,
-      issuer: RefOrOwned::Right(tbs.issuer),
+      issuer: tbs.issuer.bytes(),
       key_usage: parts.key_usage,
       name_constraints: parts.name_constraints,
       serial: tbs.serial_number.clone(),
-      signature_algorithm: RefOrOwned::Right(signature_algorithm),
-      signature_msg: tbs.bytes,
       signature: signature_value.bytes(),
+      signature_algorithm,
+      signature_msg,
       subject_key_identifier: parts.subject_key_identifier,
-      subject_public_key_info: RefOrOwned::Right(tbs.subject_public_key_info),
-      subject: RefOrOwned::Right(tbs.subject),
+      subject_public_key_info: tbs.subject_public_key_info,
+      subject: tbs.subject,
       subject_alternative_name: parts.subject_alt_name,
       validity: tbs.validity.clone(),
     })
   }
 }
 
-impl<'any, 'bytes, const IS_EE: bool> TryFrom<&'any Certificate<'bytes>>
-  for CvCertificate<'any, 'bytes, IS_EE>
-{
-  type Error = crate::Error;
-
-  #[inline]
-  fn try_from(value: &'any Certificate<'bytes>) -> Result<Self, Self::Error> {
-    let tbs = value.tbs_certificate();
-    let parts = Parts::new::<IS_EE>(tbs)?;
-    Ok(Self {
-      authority_key_identifier: parts.authority_key_identifier,
-      basic_constraints: parts.basic_constraints,
-      crl_distribution_points: parts.crl_distribution_points,
-      extended_key_usage: parts.extended_key_usage,
-      has_unknown_critical_extension: parts.has_unknown_critical_extension,
-      is_self_signed: tbs.issuer.bytes() == tbs.subject.bytes(),
-      issuer: RefOrOwned::Left(&tbs.issuer),
-      key_usage: parts.key_usage,
-      name_constraints: parts.name_constraints,
-      serial: tbs.serial_number.clone(),
-      signature_algorithm: RefOrOwned::Left(value.signature_algorithm()),
-      signature_msg: tbs.bytes,
-      signature: value.signature_value().bytes(),
-      subject_public_key_info: RefOrOwned::Left(&tbs.subject_public_key_info),
-      subject: RefOrOwned::Left(&tbs.subject),
-      subject_key_identifier: parts.subject_key_identifier,
-      subject_alternative_name: parts.subject_alt_name,
-      validity: tbs.validity.clone(),
-    })
-  }
-}
-
-struct Parts<'bytes> {
+struct CvCertificateExtensions<B> {
   authority_key_identifier: Option<AuthorityKeyIdentifier>,
   basic_constraints: Option<FlaggedExtension<BasicConstraints>>,
-  crl_distribution_points: Option<CrlDistributionPoints<'bytes>>,
+  crl_distribution_points: Option<CrlDistributionPoints<B>>,
   extended_key_usage: Option<FlaggedExtension<ExtendedKeyUsage>>,
   has_unknown_critical_extension: bool,
   is_self_signed: bool,
   key_usage: Option<KeyUsage>,
-  name_constraints: Option<NameConstraints<'bytes>>,
-  subject_alt_name: Option<FlaggedExtension<SubjectAlternativeName<'bytes>>>,
+  name_constraints: Option<NameConstraints<B>>,
+  subject_alt_name: Option<FlaggedExtension<SubjectAlternativeName<B>>>,
   subject_key_identifier: Option<FlaggedExtension<SubjectKeyIdentifier>>,
 }
 
-impl<'bytes> Parts<'bytes> {
-  fn new<const IS_EE: bool>(tbs: &TbsCertificate<'bytes>) -> crate::Result<Self> {
-    macro_rules! check_duplicated {
-      ($has_duplicated:expr, $opt:expr) => {
-        if $opt.is_some() {
-          $has_duplicated = true;
-          break;
-        }
-      };
-    }
-
-    let is_self_signed = tbs.issuer == tbs.subject;
+impl<'cert> CvCertificateExtensions<&'cert [u8]> {
+  fn new<const IS_EE: bool>(tbs: &TbsCertificate<&'cert [u8]>) -> crate::Result<Self> {
+    let is_self_signed = tbs.issuer.bytes() == tbs.subject.bytes();
     let mut authority_key_identifier = None;
     let mut basic_constraints = None;
     let mut crl_distribution_points = None;
@@ -156,19 +131,19 @@ impl<'bytes> Parts<'bytes> {
     let mut has_unknown_critical_extension = false;
     let mut key_usage = None;
     let mut name_constraints = None;
-    let mut subject_alternative_name = None;
+    let mut subject_alt_name = None;
     let mut subject_key_identifier = None;
 
     if let Some(extensions) = tbs.extensions.as_ref() {
       let mut has_duplicated = false;
       for extension in &extensions.entries {
-        let decode_aux = Asn1DecodeWrapper::default();
+        let decode_aux = Asn1DecodeWrapperAux::default();
         let mut dw = DecodeWrapper::new(extension.extn_value.bytes(), decode_aux);
         let mut _policy_constraints: Option<()> = None;
         match extension.extn_id {
           el if el == OID_X509_EXT_AUTHORITY_KEY_IDENTIFIER => {
             check_duplicated!(has_duplicated, authority_key_identifier);
-            authority_key_identifier = Some(AuthorityKeyIdentifier::decode(&mut dw)?)
+            authority_key_identifier = Some(AuthorityKeyIdentifier::decode(&mut dw)?);
           }
           el if el == OID_X509_EXT_BASIC_CONSTRAINTS => {
             check_duplicated!(has_duplicated, basic_constraints);
@@ -177,7 +152,7 @@ impl<'bytes> Parts<'bytes> {
           }
           el if el == OID_X509_EXT_CRL_DISTRIBUTION_POINTS => {
             check_duplicated!(has_duplicated, crl_distribution_points);
-            crl_distribution_points = Some(CrlDistributionPoints::decode(&mut dw)?);
+            crl_distribution_points = Some(CrlDistributionPoints::<&'cert [u8]>::decode(&mut dw)?);
           }
           el if el == OID_X509_EXT_EXTENDED_KEY_USAGE => {
             check_duplicated!(has_duplicated, extended_key_usage);
@@ -207,8 +182,8 @@ impl<'bytes> Parts<'bytes> {
             ));
           }
           el if el == OID_X509_EXT_SUBJECT_ALT_NAME => {
-            check_duplicated!(has_duplicated, subject_alternative_name);
-            subject_alternative_name = Some(FlaggedExtension::new(
+            check_duplicated!(has_duplicated, subject_alt_name);
+            subject_alt_name = Some(FlaggedExtension::new(
               SubjectAlternativeName::decode(&mut dw)?,
               extension.critical,
             ));
@@ -248,7 +223,7 @@ impl<'bytes> Parts<'bytes> {
       is_self_signed,
       key_usage,
       name_constraints,
-      subject_alt_name: subject_alternative_name,
+      subject_alt_name,
       subject_key_identifier,
     })
   }

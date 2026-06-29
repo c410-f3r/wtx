@@ -118,7 +118,7 @@ unsafe impl Sync for AtomicWaker {}
 #[cfg(test)]
 mod tests {
   use crate::{
-    executor::Runtime,
+    executor::StdRuntime,
     sync::{Arc, AtomicBool, AtomicWaker},
   };
   use core::{future::poll_fn, sync::atomic::Ordering, task::Poll};
@@ -137,7 +137,7 @@ mod tests {
 
     let jh = thread::spawn(move || {
       let mut pending = 0;
-      Runtime::new().block_on(poll_fn(move |cx| {
+      StdRuntime::new().block_on(poll_fn(move |cx| {
         if woken_clone.load(Ordering::Relaxed) {
           Poll::Ready(())
         } else {

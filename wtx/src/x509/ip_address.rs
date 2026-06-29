@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Octetstring},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Octetstring},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::X509Error,
 };
@@ -8,26 +8,26 @@ use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 /// Possible IP addresses in X.509
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum IpAddress {
-  /// IPv4 address
+  /// `IPv4` address
   Ipv4([u8; 4]),
-  /// IPv4 address with subnet mask
+  /// `IPv4` address with subnet mask
   Ipv4WithMask([u8; 8]),
-  /// IPv6 address
+  /// `IPv6` address
   Ipv6([u8; 16]),
-  /// IPv6 address with subnet mask
+  /// `IPv6` address with subnet mask
   Ipv6WithMask([u8; 32]),
 }
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for IpAddress {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for IpAddress {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    Self::try_from(*Octetstring::decode(dw)?.bytes())
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
+    Self::try_from(*Octetstring::<&[u8]>::decode(dw)?.bytes())
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for IpAddress {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for IpAddress {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     Octetstring::from_bytes(<&[u8]>::from(self)).encode(ew)
   }
 }
@@ -71,12 +71,12 @@ impl<'any> From<&'any IpAddress> for &'any [u8] {
 impl<'bytes> TryFrom<&'bytes [u8]> for IpAddress {
   type Error = crate::Error;
   #[inline]
-  fn try_from(bytes: &'bytes [u8]) -> Result<Self, Self::Error> {
+  fn try_from(bytes: &'bytes [u8]) -> crate::Result<Self> {
     Ok(match bytes.len() {
-      4 => Self::Ipv4(bytes.try_into().unwrap()),
-      8 => Self::Ipv4WithMask(bytes.try_into().unwrap()),
-      16 => Self::Ipv6(bytes.try_into().unwrap()),
-      32 => Self::Ipv6WithMask(bytes.try_into().unwrap()),
+      4 => Self::Ipv4(bytes.try_into()?),
+      8 => Self::Ipv4WithMask(bytes.try_into()?),
+      16 => Self::Ipv6(bytes.try_into()?),
+      32 => Self::Ipv6WithMask(bytes.try_into()?),
       _ => return Err(X509Error::InvalidIpAddressRepresentation.into()),
     })
   }

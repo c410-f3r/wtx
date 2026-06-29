@@ -7,8 +7,8 @@ if [ "$ARG" != "ci" ]; then
 	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 fi;
 
-RUSTFLAGS='-C target-cpu=native' cargo build --bin h2load --features h2load --profile deploy
-RUSTFLAGS='-C target-cpu=native' cargo run --bin h2load --features h2load --profile deploy &
+cargo build --bin h2load --features h2load --package wtx-internal --release
+cargo run --bin h2load --features h2load --package wtx-internal --release &
 sleep 1
 
 # -c = Concurrent clients

@@ -1,5 +1,5 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, GENERALIZED_TIME_TAG, UTC_TIME_TAG},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, GENERALIZED_TIME_TAG, UTC_TIME_TAG},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
   x509::Time,
 };
@@ -11,10 +11,10 @@ pub struct OptTime(
   pub Option<Time>,
 );
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for OptTime {
+impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>> for OptTime {
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
-    if let Some(UTC_TIME_TAG) | Some(GENERALIZED_TIME_TAG) = dw.bytes.first().copied() {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
+    if let Some(GENERALIZED_TIME_TAG | UTC_TIME_TAG) = dw.bytes.first().copied() {
       Ok(Self(Some(Time::decode(dw)?)))
     } else {
       Ok(Self(None))
@@ -22,9 +22,9 @@ impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for OptTime {
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for OptTime {
+impl Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for OptTime {
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     if let Some(elem) = &self.0 {
       elem.encode(ew)?;
     }

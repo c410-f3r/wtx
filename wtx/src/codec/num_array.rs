@@ -1,4 +1,4 @@
-use crate::{collection::ArrayStringU8, misc::AsciiGraphic};
+use crate::{collections::ArrayStringU8, misc::AsciiGraphic};
 use core::ops::{DivAssign, Rem};
 
 /// Array string that can store an `i8` number.

@@ -1,5 +1,5 @@
 use crate::{
-  collection::Vector,
+  collections::Vector,
   database::{
     Database, Identifier,
     schema_manager::{

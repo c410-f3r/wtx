@@ -1,4 +1,4 @@
-use crate::collection::ShortStrU8;
+use crate::collections::ShortStrU8;
 use core::fmt::{Display, Formatter};
 
 /// It is possible to have one or more transports that send data using the same protocol.

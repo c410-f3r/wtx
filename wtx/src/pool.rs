@@ -3,7 +3,7 @@
 mod resource_manager;
 mod simple_pool;
 
-#[cfg(all(feature = "postgres", feature = "secret"))]
+#[cfg(feature = "postgres-pool")]
 pub use resource_manager::database::PostgresRM;
 pub use resource_manager::{ResourceManager, SimpleRM};
 pub use simple_pool::*;

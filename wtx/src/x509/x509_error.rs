@@ -57,7 +57,7 @@ pub enum X509Error {
   InvalidRevokedCertificate,
   /// Invalid RSASSA-PSS Parameters
   InvalidRsassaPssParams,
-  /// Invalid Subject Alternative NAme
+  /// Invalid Subject Alternative Name
   InvalidSan,
   /// A sequence of DER bytes can not represent a serial number.
   InvalidSerialNumberBytes,

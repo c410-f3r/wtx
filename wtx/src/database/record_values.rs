@@ -1,7 +1,7 @@
 use crate::{
   codec::Encode,
   database::{Database, Typed},
-  misc::{Lease, Wrapper},
+  misc::{Lease as _, Wrapper},
 };
 
 /// Values that can passed to a record as parameters. For example, in a query.
@@ -187,8 +187,8 @@ where
 
   #[inline]
   fn len(&self) -> usize {
-    let (l, u) = self.0.size_hint();
-    u.unwrap_or(l)
+    let (lhs, rhs) = self.0.size_hint();
+    rhs.unwrap_or(lhs)
   }
 
   #[inline]

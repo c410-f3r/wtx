@@ -4,15 +4,15 @@
 
 # WTX
 
-$rt test-with-features wtx grpc-server
+$rt test-with-features wtx grpc-server,crypto-ring
 $rt test-with-features wtx hashbrown
 $rt test-with-features wtx http
-$rt test-with-features wtx http-client-pool
+$rt test-with-features wtx http2-client-pool,crypto-ring
 $rt test-with-features wtx http-cookie
 $rt test-with-features wtx http-cookie-secure
-$rt test-with-features wtx http-server-framework
 $rt test-with-features wtx http-session,crypto-ring
-$rt test-with-features wtx http2
+$rt test-with-features wtx http2,crypto-ring
+$rt test-with-features wtx http2-server-framework,crypto-ring
 $rt test-with-features wtx httparse
 $rt test-with-features wtx libc
 $rt test-with-features wtx macros
@@ -25,11 +25,7 @@ $rt test-with-features wtx portable-atomic-util
 $rt test-with-features wtx postgres
 $rt test-with-features wtx quick-protobuf
 $rt test-with-features wtx rand_core
-$rt test-with-features wtx ring
 $rt test-with-features wtx rust_decimal
-$rt test-with-features wtx rustls
-$rt test-with-features wtx rustls-pemfile
-$rt test-with-features wtx rustls-pki-types
 $rt test-with-features wtx schema-manager
 $rt test-with-features wtx schema-manager-dev
 $rt test-with-features wtx secret,crypto-ring

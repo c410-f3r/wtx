@@ -11,21 +11,20 @@ extern crate std;
 use std::prelude::rust_2021::*;
 
 extern crate serde;
-extern crate tokio;
 extern crate wtx;
 
-use core::time::Duration;
-use tokio::net::TcpStream;
 use wtx::{
     client_api_framework::{
         Api, misc::{Pair, RequestCounter, RequestLimit},
         network::{HttpParams, WsParams, transport::SendingReceivingTransport},
     },
-    codec::format::SerdeJson,
-    http::client_pool::{ClientPoolBuilder, ClientPoolTokio},
-    misc::Uri, rng::Xorshift64,
+    codec::format::SerdeJson, executor::StdExecutor,
+    http::http2_client_pool::{Http2ClientPool, Http2ClientPoolBuilder},
+    misc::Uri, tls::{TlsConfig, TlsModePlainText},
     web_socket::{WebSocket, WebSocketBuffer, WebSocketConnector},
 };
+use core::time::Duration;
+use std::net::TcpStream;
 
 
 
@@ -66,7 +65,7 @@ impl<A, DRSR, TP> PkgsAux<A, DRSR, TP> where
     /// Proxy of [`$crate::client_api_framework::pkg::PkgsAux::new`].
     #[inline]
     pub fn new(api: A, built_requests: u64,
-        bytes_buffer: ::wtx::collection::Vector<u8>, drsr: DRSR,
+        bytes_buffer: ::wtx::collections::Vector<u8>, drsr: DRSR,
         encode_data: bool, log_data: bool, tp: TP) -> Self {
         Self(::wtx::client_api_framework::pkg::PkgsAux::new(api,
                 built_requests, bytes_buffer, drsr, encode_data, log_data,
@@ -345,7 +344,7 @@ mod generic_http_request {
         #[inline]
         async fn after_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut wtx::client_api_framework::network::HttpParams))
@@ -355,7 +354,7 @@ mod generic_http_request {
         #[inline]
         async fn before_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut wtx::client_api_framework::network::HttpParams))
@@ -411,7 +410,7 @@ mod generic_http_request {
         #[inline]
         async fn after_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut &'__is_mut mut wtx::client_api_framework::network::HttpParams))
@@ -421,7 +420,7 @@ mod generic_http_request {
         #[inline]
         async fn before_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut &'__is_mut mut wtx::client_api_framework::network::HttpParams))
@@ -655,7 +654,7 @@ mod generic_web_socket_subscription {
         #[inline]
         async fn after_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut wtx::client_api_framework::network::WsParams))
@@ -665,7 +664,7 @@ mod generic_web_socket_subscription {
         #[inline]
         async fn before_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut wtx::client_api_framework::network::WsParams))
@@ -714,7 +713,7 @@ mod generic_web_socket_subscription {
         #[inline]
         async fn after_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut &'__is_mut mut wtx::client_api_framework::network::WsParams))
@@ -724,7 +723,7 @@ mod generic_web_socket_subscription {
         #[inline]
         async fn before_sending(&mut self,
             (_api, _bytes, _drsr):
-                (&mut __API, &mut wtx::collection::Vector<u8>, &mut __DRSR),
+                (&mut __API, &mut wtx::collections::Vector<u8>, &mut __DRSR),
             (_trans, _trans_params):
                 (&mut __TRANSPORT,
                 &mut &'__is_mut mut wtx::client_api_framework::network::WsParams))
@@ -751,18 +750,19 @@ mod generic_web_socket_subscription {
 async fn http_pair()
     ->
         Pair<PkgsAux<GenericThrottlingApi, SerdeJson, HttpParams>,
-        ClientPoolTokio<fn(&()), (), ()>> {
+        Http2ClientPool<StdExecutor, TlsModePlainText>> {
     Pair::new(PkgsAux::from_minimum(GenericThrottlingApi {
                 rc: RequestCounter::new(RequestLimit::new(5,
                         Duration::from_secs(1))),
             }, SerdeJson,
             HttpParams::from_uri("ws://generic_web_socket_uri.com".into())),
-        ClientPoolBuilder::tokio(1).build())
+        Http2ClientPoolBuilder::new(StdExecutor::default(), 1,
+                TlsConfig::empty()).build())
 }
 async fn web_socket_pair()
     ->
         wtx::Result<Pair<PkgsAux<GenericThrottlingApi, SerdeJson, WsParams>,
-        WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>>> {
+        WebSocket<(), TcpStream, WebSocketBuffer, true>>> {
     let uri = Uri::new("ws://generic_web_socket_uri.com");
     let web_socket =
         WebSocketConnector::default().connect(TcpStream::connect(uri.hostname_with_implied_port()).await?,
@@ -773,8 +773,8 @@ async fn web_socket_pair()
                 }, SerdeJson, WsParams::default()), web_socket))
 }
 fn main() -> wtx::Result<()> {
-    let body =
-        async {
+    async fn __main() -> wtx::Result<()> {
+        {
             let mut hp = http_pair().await;
             let _http_response_tuple =
                 hp.trans.send_pkg_recv_decode_contained(&mut hp.pkgs_aux.generic_http_request().data(123).build(),
@@ -784,20 +784,9 @@ fn main() -> wtx::Result<()> {
                 wsp.trans.send_pkg_recv_decode_contained(&mut wsp.pkgs_aux.generic_web_socket_subscription().data("Hello",
                                                 None).build(), &mut wsp.pkgs_aux).await?.result?;
             Ok(())
-        };
-    let body =
-        {
-            if false {
-                let _: &dyn ::core::future::Future<Output = wtx::Result<()>> =
-                    &body;
-            }
-            body
-        };
-
-    #[allow(clippy :: expect_used, clippy :: diverging_sub_expression, clippy
-    :: needless_return, clippy :: unwrap_in_result)]
-    {
-        use tokio::runtime::Builder;
-        return Builder::new_multi_thread().enable_all().build().expect("Failed building the Runtime").block_on(body);
+        }
     }
+    let runtime = wtx::sync::Arc::new(wtx::executor::StdRuntime::new());
+    let _runtime_clone = runtime.clone();
+    runtime.block_on(async move { __main().await })
 }

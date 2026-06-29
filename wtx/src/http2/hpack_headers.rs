@@ -1,4 +1,4 @@
-use crate::collection::{Block, BlocksDeque};
+use crate::collections::{Block, BlocksDeque};
 use core::str;
 
 #[derive(Debug, Default)]
@@ -58,7 +58,7 @@ where
     }
     self.remove_until_max_bytes(total_len, cb);
     self.bd.push_front_from_copyable_data(
-      [name].into_iter().chain(iter).map(|el| el.as_bytes()),
+      [name].into_iter().chain(iter).map(str::as_bytes),
       Metadata { is_sensitive, misc, name_len: name.len() },
     )?;
     Ok(())

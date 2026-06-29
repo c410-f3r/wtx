@@ -1,38 +1,36 @@
 use crate::{
-  collection::{ArrayVectorU8, Vector},
-  misc::Lease,
+  collections::{ArrayVectorCopy, Vector},
+  misc::{Lease, from_utf8_basic},
   web_socket::{
-    MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OpCode,
-    misc::{fill_header_from_params, has_masked_frame},
+    CloseCode, MASK_MASK, MAX_CONTROL_PAYLOAD_LEN, MAX_HEADER_LEN, OpCode, WebSocketError,
+    misc::{has_masked_frame, header_from_params},
   },
 };
-use core::str;
+use core::{hint::unreachable_unchecked, str};
 
 /// Composed by an array with the maximum allowed size of a frame control.
-pub type FrameControlArray<const IS_CLIENT: bool> =
-  Frame<ArrayVectorU8<u8, MAX_CONTROL_PAYLOAD_LEN>, IS_CLIENT>;
+pub type FrameControlArray = Frame<ArrayVectorCopy<u8, MAX_CONTROL_PAYLOAD_LEN>>;
 /// Composed by a sequence of mutable bytes.
-pub type FrameMut<'bytes, const IS_CLIENT: bool> = Frame<&'bytes mut [u8], IS_CLIENT>;
+pub type FrameMut<'bytes> = Frame<&'bytes mut [u8]>;
 /// Composed by a sequence of immutable bytes.
-pub type FrameRef<'bytes, const IS_CLIENT: bool> = Frame<&'bytes [u8], IS_CLIENT>;
+pub type FrameRef<'bytes> = Frame<&'bytes [u8]>;
 /// Composed by an owned vector.
-pub type FrameVector<const IS_CLIENT: bool> = Frame<Vector<u8>, IS_CLIENT>;
+pub type FrameVector = Frame<Vector<u8>>;
 /// Composed by a mutable vector reference.
-pub type FrameVectorMut<'bytes, const IS_CLIENT: bool> = Frame<&'bytes mut Vector<u8>, IS_CLIENT>;
+pub type FrameVectorMut<'bytes> = Frame<&'bytes mut Vector<u8>>;
 /// Composed by a immutable vector reference.
-pub type FrameVectorRef<'bytes, const IS_CLIENT: bool> = Frame<&'bytes Vector<u8>, IS_CLIENT>;
+pub type FrameVectorRef<'bytes> = Frame<&'bytes Vector<u8>>;
 
 /// Unit of generic data used for communication.
 #[derive(Debug)]
-pub struct Frame<P, const IS_CLIENT: bool> {
+pub struct Frame<P> {
   fin: bool,
-  header: [u8; MAX_HEADER_LEN],
-  header_len: u8,
+  header: ArrayVectorCopy<u8, MAX_HEADER_LEN>,
   op_code: OpCode,
   payload: P,
 }
 
-impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
+impl<P> Frame<P> {
   /// Indicates if this is the final frame in a message.
   #[inline]
   pub const fn fin(&self) -> bool {
@@ -64,83 +62,130 @@ impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT> {
   }
 
   pub(crate) fn header(&self) -> &[u8] {
-    self.header.get(..self.header_len.into()).unwrap_or_default()
+    &self.header
   }
 
   pub(crate) fn header_and_payload_mut(&mut self) -> (&mut [u8], &mut P) {
-    (self.header.get_mut(..self.header_len.into()).unwrap_or_default(), &mut self.payload)
+    (&mut self.header, &mut self.payload)
   }
 
-  pub(crate) const fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
-    let [b1, b2, ..] = &mut self.header;
-    [b1, b2]
+  pub(crate) fn header_first_two_mut(&mut self) -> [&mut u8; 2] {
+    let [b0, b1, ..] = self.header.as_slice_mut() else {
+      // SAFETY: All constructors have a header of at least 2 bytes
+      unsafe { unreachable_unchecked() }
+    };
+    [b0, b1]
   }
 
   pub(crate) fn set_mask(&mut self, mask: [u8; 4]) {
-    if has_masked_frame(self.header[1]) {
+    let [_, b1] = self.header_first_two_mut();
+    if has_masked_frame(*b1) {
       return;
     }
-    self.header_len = self.header_len.wrapping_add(4);
-    if let Some([_, b0, .., b1, b2, b3, b4]) = self.header.get_mut(..self.header_len.into()) {
-      *b0 |= MASK_MASK;
-      *b1 = mask[0];
-      *b2 = mask[1];
-      *b3 = mask[2];
-      *b4 = mask[3];
-    }
+    *b1 |= MASK_MASK;
+    let _rslt = self.header.extend_from_copyable_slice(&mask);
   }
 }
 
-impl<P, const IS_CLIENT: bool> Frame<P, IS_CLIENT>
+impl<P> Frame<P>
 where
   P: Lease<[u8]>,
 {
-  /// Creates a new instance that is considered final.
+  /// Creates a new binary instance that is considered final.
   #[inline]
-  pub fn new_fin(op_code: OpCode, payload: P) -> Self {
+  pub fn new_fin(op_code: OpCode, payload: P) -> crate::Result<Self> {
+    let bytes = payload.lease();
+    check_frame(bytes, op_code)?;
+    Ok(Self::new(true, op_code, payload, 0))
+  }
+
+  /// Unsafe version of [`Self::new_fin`].
+  ///
+  /// # SAFETY
+  ///
+  /// * If `op_code` is `Text`, `payload` must be valid UTF-8.
+  /// * If `op_code` is `Close`, the payload after the first 2 bytes must be valid UTF-8.
+  /// * If `op_code` is a control frame, `payload` must not exceed 125 bytes.
+  #[inline]
+  pub unsafe fn new_fin_unchecked(op_code: OpCode, payload: P) -> Self {
     Self::new(true, op_code, payload, 0)
   }
 
-  /// Creates a new instance that is meant to be a continuation of previous frames.
+  /// Creates a new binary instance that is meant to be a continuation of previous frames.
   #[inline]
-  pub fn new_unfin(op_code: OpCode, payload: P) -> Self {
+  pub fn new_unfin(op_code: OpCode, payload: P) -> crate::Result<Self> {
+    let bytes = payload.lease();
+    check_frame(bytes, op_code)?;
+    Ok(Self::new(false, op_code, payload, 0))
+  }
+
+  /// Unsafe version of [`Self::new_unfin`].
+  ///
+  /// # SAFETY
+  ///
+  /// * If `op_code` is `Text`, `payload` must be valid UTF-8.
+  /// * If `op_code` is `Close`, the payload after the first 2 bytes must be valid UTF-8.
+  /// * If `op_code` is a control frame, `payload` must not exceed 125 bytes.
+  #[inline]
+  pub unsafe fn new_unfin_unchecked(op_code: OpCode, payload: P) -> Self {
     Self::new(false, op_code, payload, 0)
   }
 
   /// If the frame is of type [`OpCode::Text`], returns its payload interpreted as a string.
   #[inline]
   pub fn text_payload(&self) -> Option<&str> {
-    matches!(self.op_code, OpCode::Text | OpCode::Close).then(|| {
+    self.op_code.is_text().then(|| {
       // SAFETY:
+      // # Instantiating
+      //
+      // No constructor allows the insertion of non UTF8 data if the [`OpCode`] is Text.
+      //
+      // # Reading
+      //
       // * Single `FIN` frame (No decompression): Whole payload is verified.
       // * Continuation frames (No decompression): Whole payload is verified when concatenated.
       // * Single `FIN` frame (With decompression): Whole payload is verified.
       // * Continuation frames (With decompression): Whole payload is verified when concatenated.
-      // * Control frames: Only close frames are verified.
       unsafe { str::from_utf8_unchecked(self.payload.lease()) }
     })
   }
 
   /// Performs a heap allocation to create a [`FrameVector`] instance.
   #[inline]
-  pub fn to_vector(&self) -> crate::Result<FrameVector<IS_CLIENT>> {
+  pub fn to_vector(&self) -> crate::Result<FrameVector> {
     Ok(FrameVector {
       fin: self.fin,
       header: self.header,
-      header_len: self.header_len,
       op_code: self.op_code,
       payload: Vector::from_copyable_slice(self.payload.lease())?,
     })
   }
 
   pub(crate) fn new(fin: bool, op_code: OpCode, payload: P, rsv1: u8) -> Self {
-    let mut header = [0; MAX_HEADER_LEN];
     let payload_len = if op_code.is_control() {
       payload.lease().len().min(MAX_CONTROL_PAYLOAD_LEN)
     } else {
       payload.lease().len()
     };
-    let len = fill_header_from_params::<IS_CLIENT>(fin, &mut header, op_code, payload_len, rsv1);
-    Self { fin, header, header_len: len, op_code, payload }
+    Self { fin, header: header_from_params(fin, op_code, payload_len, rsv1), op_code, payload }
   }
+}
+
+#[inline]
+fn check_frame(bytes: &[u8], op_code: OpCode) -> crate::Result<()> {
+  if op_code.is_text() {
+    let _str = from_utf8_basic(bytes)?;
+  } else if op_code.is_close() {
+    match bytes {
+      [] => {}
+      [_] => return Err(WebSocketError::InvalidCloseFrame.into()),
+      [b0, b1, rest @ ..] => {
+        let _close_code = CloseCode::try_from(u16::from_be_bytes([*b0, *b1]))?;
+        let _str = from_utf8_basic(rest)?;
+      }
+    }
+  } else if op_code.is_control() && bytes.len() > MAX_CONTROL_PAYLOAD_LEN {
+    return Err(WebSocketError::InvalidControlFrame.into());
+  }
+  Ok(())
 }

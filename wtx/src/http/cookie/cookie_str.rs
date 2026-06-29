@@ -1,7 +1,7 @@
 use crate::{
   calendar::DateTime,
   codec::PercentDecode,
-  collection::{ArrayStringU8, ArrayVectorU8, Vector},
+  collections::{ArrayStringU8, ArrayVectorU8, Vector},
   http::cookie::{CookieError, FMT1, SameSite, cookie_generic::CookieGeneric},
   misc::{AsciiGeneric, str_split_once1, str_split1},
 };
@@ -81,17 +81,14 @@ impl<'str> CookieStr<'str> {
         (b"max-age", [first, rest @ ..]) => {
           let is_negative = *first == b'-';
           let local_value = if is_negative { rest } else { value.as_bytes() };
-          if !local_value.iter().all(|el| el.is_ascii_digit()) {
+          if !local_value.iter().all(u8::is_ascii_digit) {
             continue;
           }
           cookie.max_age = Some(if is_negative {
             Duration::ZERO
           } else {
-            value
-              .parse::<u64>()
-              .map(Duration::from_secs)
-              .unwrap_or_else(|_| Duration::from_secs(u64::MAX))
-          })
+            value.parse::<u64>().map_or_else(|_| Duration::from_secs(u64::MAX), Duration::from_secs)
+          });
         }
         (b"path", [_, ..]) => {
           cookie.path = value;

@@ -1,6 +1,6 @@
 use crate::{
   calendar::{Duration, Instant},
-  collection::Vector,
+  collections::Vector,
   database::{
     Database, Identifier,
     schema_manager::{

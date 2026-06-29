@@ -3,7 +3,7 @@ use crate::{
     Base64Alphabet, CodecError, Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec,
     base64_decode, base64_decoded_len_ub, base64_encode, base64_encoded_len,
   },
-  collection::{ArrayStringU8, ArrayVectorU8, ExpansionTy, TryExtend, Vector},
+  collections::{ArrayStringU8, ArrayVectorU8, ExpansionTy, TryExtend, Vector},
   misc::{Lease, LeaseMut, bytes_split_once1, strip_new_line},
 };
 use core::ops::Range;

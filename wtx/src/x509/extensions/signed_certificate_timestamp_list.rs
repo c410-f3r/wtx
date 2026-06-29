@@ -1,25 +1,34 @@
 use crate::{
-  asn1::{Asn1DecodeWrapper, Asn1EncodeWrapper, Octetstring},
+  asn1::{Asn1DecodeWrapperAux, Asn1EncodeWrapperAux, Octetstring},
   codec::{Decode, DecodeWrapper, Encode, EncodeWrapper, GenericCodec},
+  misc::Lease,
 };
 
 /// `RFC-9162` extension. The internal bytes are meant to be decoded by external actors.
 #[derive(Debug, PartialEq)]
-pub struct SignedCertificateTimestampList<'bytes>(
+pub struct SignedCertificateTimestampList<B>(
   /// See [`Octetstring`].
-  pub Octetstring<&'bytes [u8]>,
+  pub Octetstring<B>,
 );
 
-impl<'de> Decode<'de, GenericCodec<Asn1DecodeWrapper, ()>> for SignedCertificateTimestampList<'de> {
+impl<'de, B> Decode<'de, GenericCodec<Asn1DecodeWrapperAux, ()>>
+  for SignedCertificateTimestampList<B>
+where
+  B: Lease<[u8]> + TryFrom<&'de [u8]>,
+  B::Error: Into<crate::Error>,
+{
   #[inline]
-  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapper>) -> crate::Result<Self> {
+  fn decode(dw: &mut DecodeWrapper<'de, Asn1DecodeWrapperAux>) -> crate::Result<Self> {
     Ok(Self(Octetstring::decode(dw)?))
   }
 }
 
-impl Encode<GenericCodec<(), Asn1EncodeWrapper>> for SignedCertificateTimestampList<'_> {
+impl<B> Encode<GenericCodec<(), Asn1EncodeWrapperAux>> for SignedCertificateTimestampList<B>
+where
+  B: Lease<[u8]>,
+{
   #[inline]
-  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapper>) -> crate::Result<()> {
+  fn encode(&self, ew: &mut EncodeWrapper<'_, Asn1EncodeWrapperAux>) -> crate::Result<()> {
     self.0.encode(ew)
   }
 }

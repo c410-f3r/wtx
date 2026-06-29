@@ -1,14 +1,17 @@
-use core::{mem, ops::Range, slice};
-use std::{borrow::Cow, fmt::Debug, fs::File, io::BufReader};
+//! X.509 testsuite
+
+use core::{fmt::Debug, mem, ops::Range, slice};
+use std::{borrow::Cow, fs::File, io::BufReader};
 use wtx::{
   asn1::{Asn1Error, parse_der_from_pem_range, parse_der_from_pem_range_many},
   calendar::{DateTime, Instant, Utc},
-  codec::{Decode, DecodeWrapper},
-  collection::Vector,
+  codec::{Decode as _, DecodeWrapper},
+  collections::Vector,
   misc::Pem,
   x509::{
-    Certificate, Crl, CvCertificate, CvCrl, CvEvaluationDepth, CvPolicy, CvPolicyMode,
-    CvTrustAnchor, ServerName, X509CvError, X509Error, extensions::ExtendedKeyUsage,
+    Certificate, Crl, CvCertificate, CvCrl, CvEndEntity, CvEvaluationDepth, CvIntermediate,
+    CvPolicy, CvPolicyMode, CvTrustAnchor, ServerName, X509CvError, X509Error,
+    extensions::ExtendedKeyUsage,
   },
 };
 
@@ -249,8 +252,8 @@ impl<'any> TestcaseResult<'any> {
 
 fn clear_and_recycle<T, U>(mut vector: Vector<T>) -> Vector<U> {
   vector.clear();
-  assert!(size_of::<T>() == size_of::<U>());
-  assert!(align_of::<T>() == align_of::<U>());
+  assert_eq!(size_of::<T>(), size_of::<U>());
+  assert_eq!(align_of::<T>(), align_of::<U>());
   let cap = vector.capacity();
   let ptr = vector.as_mut_ptr().cast();
   mem::forget(vector);
@@ -260,11 +263,11 @@ fn clear_and_recycle<T, U>(mut vector: Vector<T>) -> Vector<U> {
 
 fn evaluate_test_case<'bytes>(
   bytes_certs: &'bytes mut Vector<u8>,
-  crls: &mut Vector<CvCrl<'_, 'bytes>>,
+  crls: &mut Vector<CvCrl<&'bytes [u8]>>,
   pems: &mut Vector<Pem<Range<usize>, 1>>,
   testcase: &Testcase,
-  trusted_certs: &mut Vector<CvTrustAnchor<'bytes>>,
-  untrusted_intermediates: &mut Vector<CvCertificate<'_, 'bytes, false>>,
+  trusted_certs: &mut Vector<CvTrustAnchor<&'bytes [u8]>>,
+  untrusted_intermediates: &mut Vector<CvCertificate<&'bytes [u8], false>>,
 ) {
   let unsupported =
     ["bettertls::pathbuilding::tc71", "bettertls::pathbuilding::tc77", "online", "webpki"];
@@ -295,15 +298,21 @@ fn evaluate_test_case<'bytes>(
   }
 
   let Some(leaf) = eval_eager_checks(
-    parse_der_from_pem_range::<Certificate<'_>>(&*bytes_certs, &leaf_pem)
-      .and_then(CvCertificate::<'_, '_>::try_from),
+    parse_der_from_pem_range::<Certificate<&[u8]>>(&*bytes_certs, &leaf_pem).and_then(
+      |(certificate, sig_msg)| CvEndEntity::<&[u8]>::from_certificate(certificate, sig_msg),
+    ),
     testcase,
   ) else {
     return;
   };
 
   let Some(_) = eval_eager_checks(
-    parse_der_from_pem_range_many(&*bytes_certs, crls, &pems[..idx0], |el: Crl<'_>| el.try_into()),
+    parse_der_from_pem_range_many(
+      &*bytes_certs,
+      crls,
+      &pems[..idx0],
+      |(el, _): (Crl<&[u8]>, _)| el.try_into(),
+    ),
     testcase,
   ) else {
     return;
@@ -314,7 +323,7 @@ fn evaluate_test_case<'bytes>(
       &*bytes_certs,
       trusted_certs,
       &pems[idx0..idx1],
-      |el: Certificate<'_>| el.try_into(),
+      |(el, _): (Certificate<&[u8]>, _)| CvTrustAnchor::from_certificate(el),
     ),
     testcase,
   ) else {
@@ -326,16 +335,16 @@ fn evaluate_test_case<'bytes>(
       &*bytes_certs,
       untrusted_intermediates,
       &pems[idx1..],
-      |el: Certificate<'_>| el.try_into(),
+      |(certificate, sig_msg)| CvIntermediate::<&[u8]>::from_certificate(certificate, sig_msg),
     ),
     testcase,
   ) else {
     return;
   };
 
-  let mut cvp = CvPolicy::from_crls(crls).unwrap();
-  let mut eku = ExtendedKeyUsage::default();
-  fill_cvp(&mut cvp, &mut eku, testcase);
+  let mut cvp = CvPolicy::default();
+  mem::swap(cvp.crls_mut(), crls);
+  fill_cvp(&mut cvp, ExtendedKeyUsage::default(), testcase);
 
   let rslt_chain = leaf.validate_chain(untrusted_intermediates, &cvp, trusted_certs);
   let peer_names = if let Some(peer_name) = testcase.expected_peer_name.as_ref() {
@@ -357,11 +366,15 @@ fn evaluate_test_case<'bytes>(
       }
     }
     ExpectedResult::Failure => {
-      if rslt.is_ok() {
-        panic!("{:?}", TestcaseResult::fail(testcase, "Test should fail but is actually passing"));
-      }
+      assert!(
+        !rslt.is_ok(),
+        "{:?}",
+        TestcaseResult::fail(testcase, "Test should fail but is actually passing")
+      );
     }
   }
+
+  mem::swap(cvp.crls_mut(), crls);
 }
 
 fn eval_eager_checks<T>(rslt: wtx::Result<T>, testcase: &Testcase) -> Option<T>
@@ -409,11 +422,7 @@ where
   }
 }
 
-fn fill_cvp<'any>(
-  cvp: &mut CvPolicy<'any, '_>,
-  eku: &'any mut ExtendedKeyUsage,
-  testcase: &Testcase,
-) {
+fn fill_cvp(cvp: &mut CvPolicy<&[u8]>, mut eku: ExtendedKeyUsage, testcase: &Testcase) {
   for elem in &testcase.extended_key_usage {
     match elem {
       KnownEKUs::AnyExtendedKeyUsage => {

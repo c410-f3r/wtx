@@ -1,4 +1,4 @@
-use crate::collection::ShortStrU8;
+use crate::collections::ShortStrU8;
 
 /// Database Error
 #[derive(Clone, Copy, Debug, PartialEq)]

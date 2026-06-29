@@ -1,0 +1,60 @@
+//! Collection types
+//!
+//! Hash-based collections are just re-exports of the hashbrown crate.
+
+#[macro_use]
+mod macros;
+
+mod array_string;
+mod array_vector;
+mod array_vector_copy;
+mod array_vector_inner;
+mod array_wrapper;
+mod auto_clear;
+mod blocks_deque;
+mod capacity_upper_bound;
+mod clear;
+mod deque;
+mod expansion_ty;
+mod fixed_string;
+mod linear_storage;
+mod maybe_uninit_slice;
+mod misc;
+mod short_box_slice;
+mod short_box_str;
+mod short_slice;
+mod short_str;
+mod suffix_pusher;
+mod truncate;
+mod try_extend;
+mod vector;
+
+pub use array_string::{
+  ArrayString, ArrayStringError, ArrayStringU8, ArrayStringU16, ArrayStringU32, ArrayStringUsize,
+};
+pub use array_vector::{
+  ArrayVector, ArrayVectorError, ArrayVectorU8, ArrayVectorU16, ArrayVectorU32, ArrayVectorUsize,
+};
+pub use array_vector_copy::ArrayVectorCopy;
+pub use array_vector_inner::ArrayIntoIter;
+pub use array_wrapper::ArrayWrapper;
+pub use auto_clear::AutoClear;
+pub use blocks_deque::{Block, BlocksDeque, BlocksDequeError};
+pub use capacity_upper_bound::CapacityUpperBound;
+pub use clear::Clear;
+pub use deque::{Deque, DequeueError};
+pub use expansion_ty::ExpansionTy;
+pub use fixed_string::{FixedString, FixedStringError};
+#[cfg(feature = "hashbrown")]
+pub use hashbrown::{HashMap, HashSet, hash_map, hash_set};
+pub use linear_storage::linear_storage_len::LinearStorageLen;
+pub use maybe_uninit_slice::MaybeUninitSlice;
+pub use misc::backward_deque_idx;
+pub use short_box_slice::{ShortBoxSlice, ShortBoxSliceU8, ShortBoxSliceU16};
+pub use short_box_str::{ShortBoxStr, ShortBoxStrU8, ShortBoxStrU16};
+pub use short_slice::{ShortSlice, ShortSliceU8, ShortSliceU16};
+pub use short_str::{ShortStr, ShortStrU8, ShortStrU16};
+pub use suffix_pusher::{SuffixPusher, SuffixPusherVectorMut};
+pub use truncate::Truncate;
+pub use try_extend::TryExtend;
+pub use vector::{Vector, VectorError};
